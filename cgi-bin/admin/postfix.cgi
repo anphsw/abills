@@ -15,7 +15,6 @@ my @scolors = ("#C0C0C0", "#00FF00", "#AAAAFF");
 my %menu = ('1::', $_MAILBOXES,
          '2::aliases', $_ALIASES,
          '3::domains',  $_DOMAINS,
-         '4::relay',  $_RELAYS,
          '5::filters',  $_FILTERS,
          '6::access',  $_ACCESS,
          '7::transport',  $_TRANSPORT,
@@ -27,7 +26,6 @@ show_menu(0, 'op', "", \%menu);
 
 if ($op eq 'aliases')    {  aliases();    }
 elsif($op eq 'domains')  {  domains();    }
-elsif($op eq 'relays')   {  relays();     }
 elsif($op eq 'filters')  {  filters();    }
 elsif($op eq 'access')   {  access();     }
 elsif($op eq 'transport'){  transport();  }
@@ -173,8 +171,8 @@ print "</table>
 # transport()
 #*******************************************************************
 sub transport {
- $domain = $FORM{domain} || '';
- $transport = $FORM{transport} || '';
+ my $domain = $FORM{domain} || '';
+ my $transport = $FORM{transport} || '';
  
  print "<h3>$_TRANSPORT</h3>\n";
 
@@ -232,7 +230,33 @@ print << "[END]";
 <input type=submit name=$action[0] value="$action[1]">
 </form>
 [END]
-	
+
+$sql = "SELECT domain, transport
+        FROM mail_transport
+        ORDER BY $sort $desc;";
+my $q = $db->prepare("$sql");
+$q->execute();
+my $total = $q->rows;
+
+
+print "<p>$_TOTAL: $total<br>
+<TABLE width=640 cellspacing=0 cellpadding=0 border=0><TR><TD bgcolor=$_BG4>
+<TABLE width=100% cellspacing=1 cellpadding=0 border=0>\n";
+ my @caption = ("$_DOMAINS", "$_TRANSPORT",  "-", "-");
+ show_title($sort, $desc, "$pg", "$op&$qs", \@caption);
+
+while(($domain, $transport) = $q->fetchrow_array()) {
+  $bg = ($bg eq $_BG1) ? $_BG2 : $_BG1;
+  my $del_button = "<A href='$SELF?op=transport&del=$id'
+        onclick=\"return confirmLink(this, '$_DELETE \\'$domain -> $tarnsport\\' ?')\">$_DEL</a>";
+  print "<tr bgcolor=$bg><td>$domain</td><td>$transport</td><td><a href='$SELF?op=transport&chg=$id'>$_CHANGE</a></td><td>$del_button</td></tr>\n";
+}
+
+print "</table>
+</td></tr></table>
+</p>\n";
+
+
 	
 }
 

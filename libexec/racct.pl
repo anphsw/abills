@@ -1,12 +1,12 @@
 #!/usr/bin/perl
 # Radius Accounting script
-# Changes (03/05/2004)
+# Changes (20/02/2005)
 
 use FindBin '$Bin';
-require $Bin.'/Base.pm';
-Base->import();
 require $Bin . '/config.pl';
 my $begin_time = check_time();
+require $Bin.'/Base.pm';
+Base->import();
 require $Bin . '/sql.pl';
 
 #$conf{debugmods}='LOG_DEBUG';
@@ -25,8 +25,7 @@ get_radius_params();
 #}
 
 my $nas_num=-1;
-
-$NAS_INFO = nas_params();
+my $NAS_INFO = nas_params();
 
 if (defined($NAS_INFO->{"$RAD{NAS_IP_ADDRESS}"})) {
    $nas_num = $NAS_INFO->{"$RAD{NAS_IP_ADDRESS}"};
@@ -38,14 +37,14 @@ else {
 
 ############################################################
 # Accounting status types
-%ACCT_TYPES = ('Start', 1,
+my %ACCT_TYPES = ('Start', 1,
                'Stop', 2,
                'Alive', 3,
                'Accounting-On', 7,
                'Accounting-Off', 8);
 
 
-%USER_TYPES = ('Login-User', 1,
+my %USER_TYPES = ('Login-User', 1,
                'Framed-User', 2,       
                'Callback-Login-User', 3, 
                'Callback-Framed-User', 4,
@@ -69,6 +68,7 @@ sub acct {
     }
 
  my $sql = "";
+ my %ACCT_INFO = ();
 
  $ACCT_INFO{ACCT_SESSION_ID} = $RAD{ACCT_SESSION_ID};
  $ACCT_INFO{USER_NAME} = $RAD{USER_NAME}; 
@@ -120,6 +120,7 @@ if ($NAS_INFO->{nt}{$nas_num} eq 'exppp') {
    closedir DIR;
 
    if ($#contents > 0) {
+      my $res = "";
       foreach my $file (@contents) {
          if (-x "$extern_acct_dir/$file") {
            $res = `$extern_acct_dir/$file $acct_status_type $ACCT_INFO{NAS_IP_ADDRESS} $ACCT_INFO{NAS_PORT}`;

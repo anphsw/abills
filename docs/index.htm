@@ -40,14 +40,14 @@ span.indent {
 <hr>
 <a href="http://sourceforge.net"><img src="http://sourceforge.net/sflogo.php?group_id=YOUR_GROUP_ID_GOES_HERE&amp;type=1" width="88" height="31" border="0" alt="SourceForge.net Logo" /></a>
 <p>
-<b><a href='#descr'>Возможности</a></b>
+<b><a href='#features'>Возможности</a></b>
+<br /><b><a href='#screens'>Скриншоты</a></b>
 <br /><a href='#install'><b>Установка.</b></a>
 <br />&nbsp;&nbsp;&nbsp;<a href='#abills'>Abills</a>
 <br />&nbsp;&nbsp;&nbsp;<a href='#mysql'>MySQL</a>
 <br />&nbsp;&nbsp;&nbsp;<a href='#radius'>Radius</a>
 <br />&nbsp;&nbsp;&nbsp;<a href='#webserver'>Web Server</a>
 <br />&nbsp;&nbsp;&nbsp;<a href='#perl'>Perl</a>
-<br /><b><a href='#screens'>Скриншоты</a></b>
 <br /><b><a href='#soft'>Soft</a></b>
 <br /><b><a href='#conf'>Настройка</a></b>
 <br />&nbsp;&nbsp;&nbsp;<a href='#exppp'>ExPPP</a>
@@ -63,23 +63,42 @@ span.indent {
 <h2>Возможности</h2>
 <p>
 <ul>
-<li>Учёт времени</li>
-<li>Учёт трафика</li>
+<li>Тарификация по времени</li>
+<li>Тарификация по трафику</li>
 <li>Система скидок</li>
 <li>Установка минимальной цены сесии</li>
 <li>Работа с неограниченым количеством NAS серверов</li>
 <li>Авторизация по SQL базе даных или по системной UNIX базе паролей</li>
-<li>Авторизация по PAP или CHAP (CHAP при сохраниени паролей в SQL базе)</li>
+<li>Авторизация по PAP, CHAP, MS-CHAP, MS-CHAPv2 (CHAP при сохраниени паролей в SQL базе)</li>
 <li>Авторизация PPPOE по MAC адресу</li>
+<li>Авторизация PPTP по IP адресу (для MPD по IP и MAC одновременно)</li>
+<li>Изменение тарифного плана или снятие денег со счета по расписаню</li>
 <li>Разделение трафика на 3 вида (внутрений, внешний, бесплатный) (Только для VPN)</li>
 <li>Ограничение скорости в зависемости от вида трафика (Только для VPN)</li>
 <li>Создание месячных предоплаченых по трафику пакетов</li>
-<li>Просмотр статистики за любой период времени</li>
+<li>Отчёты по работе системы и с остоянию счетов за любой период времени</li>
 <li>Генерация и отправка администратору добовых и месячных отчётов по работе системы</li>
 <li>Лог действий администратора</li>
+<li>Ограничение сесий по количеству трафика (для exppp и mpd)</li>
 </ul>
 </p>
 </pre>
+
+<hr>
+<A NAME="screens"></A>
+<h2>Скриншоты</h2>
+<p>
+<br /><a href="img/users_list.gif">Список пользователей</a>
+<br /><a href="img/user_manag.gif">Управление пользователем</a>
+<br /><a href="img/user_stats.gif">Статистика пользователя</a>
+<br /><a href="img/payments.gif">Оплаты</a>
+<br /><a href="img/user_fees.gif">Снятия денег со счёта</a>
+<br /><a href="img/inpayments.gif">Отчёты по трафику времени</a>
+<br /><a href="img/online.gif">Текущие сесии</a>
+<br /><a href="img/nas_servers.gif">Настройка серверов доступа</a>
+<br /><a href="img/user_interface.gif">Интерфейс пользователя</a>
+</p>
+
 
 
 <hr>
@@ -91,7 +110,7 @@ span.indent {
 </p>
 <pre>Загрузить пакет можно по адресу <A href="http://sourceforge.net/projects/abills/">http://sourceforge.net/projects/abills/</A> </p>
 
-tar zxvf abills-0.20.tgz
+tar zxvf abills-0.23b.tgz
 cp -Rf abills /usr/
 </pre>
 
@@ -245,14 +264,56 @@ authorize {<br />
 </span>
 }<br />
 </code></p></div>
+<hr>
+<b>ABillS</b>
+<p>
+Отрываем веб интерфейс http://your.host/billing/admin/
+</p>
+<p>
+Прежде всего надо скунфигурировать NAS сервер. <br />
+Переходим в меню<br> 
+<b>Other->NAS configuration</b>
 
-<p>Проверяем</p>
+<p>
+<br /><b>IP</b>   - IP адрес NAS сервера
+<br /><b>Name</b> - Название  
+<br /><b>Radius NAS-Identifier</b> - Индентификатор сервера (можно не вписывать)
+<br /><b>Describe</b>  -  Описание сервера
+<br /><b>Type</b> - Тип сервера. В зависимости от типа по разному обрабатываются запроси на авторизацию и акаунтинг информация.
+<br /><b>Authorization</b> - Тип авторизации.  <b>SYSTEM</b> - При хранении паролей в UNIX базе (/etc/passwd) <b>SQL</b> - при хранении паролей SQL базе (MySQL, PosgreSQL)
+<br /><b>:Manage:</b> - Секция менеджмента NAS сервера
+<br /><b>IP:PORT</b> - IP адрес и порт для контроля соединения. Например для отключения пользователя с веб интерфейса.
+<br /><b>User</b> - Пользователь для контроля
+<br /><b>Password</b> - Пароль
+<br /><b>RADIUS Parameters</b> - Дополнительные параметры которые передаются NAS серверу после успешной авторизации.
+</p>
+
+<p>Создание тарифного плана
+Меню<br> <b>Tarif Plans</b>
+</p>
+
+<p>
+Регистрация пользователя
+<br>
+<b>Users->Add</b>
+</p>
+<hr>
+<b>Проверяем</b>
+<p>
 <code>
  # radtest testuser testpassword radius.server:1812 password
 </code>
+</p>
+<p>
+Если всё правильно настроено в файле логов '/usr/abills/var/log/abills.log' должна появится строка 
+</p>
 
 
-
+<p>
+<div class="example">
+2005-02-23 12:55:55 LOG_INFO: AUTH [testuser] NAS: 1 (xxx.xxx.xxx.xxx) GT: 0.03799
+</div>
+</p>
 
 <A NAME="webserver"></A>
 <hr>
@@ -326,22 +387,8 @@ chown -Rf www /usr/abills/cgi-bin
 </p>
 
 
-<hr>
-<A NAME="screens"></A>
-<h2>Скриншоты</h2>
-<p>
-<br /><a href="img/users_list.gif">Список пользователей</a>
-<br /><a href="img/user_manag.gif">Управление пользователем</a>
-<br /><a href="img/user_stats.gif">Статистика пользователя</a>
-<br /><a href="img/payments.gif">Оплаты</a>
-<br /><a href="img/inpayments.gif">Отчёты по трафику времени</a>
-<br /><a href="img/online.gif">Текущие сесии</a>
-<br /><a href="img/nas_servers.gif">Настройка серверов доступа</a>
-<br /><a href="img/user_interface.gif">Интерфейс пользователя</a>
-</p>
-<hr>
-
 <A NAME="Soft"></A>
+<hr>
 <h2>Soft</h2>
 <pre>exppp_asm-0.2.4.tar.gz - стандартный FreeBSD ppp демон с возможностью разделять трафик,
 установкой лимита трафика на сесию и другими улутшениями.

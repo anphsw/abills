@@ -1,5 +1,7 @@
 #!/usr/bin/perl
 
+use vars  qw(%RAD %conf $db);
+use strict;
 
 use FindBin '$Bin';
 require $Bin . '/config.pl';
@@ -17,7 +19,6 @@ if ($ARGV[0] eq 'pre_auth') {
   pre_auth("$RAD{USER_NAME}");
 }
 
-
 my $nas_num=-1;
 my $NAS_INFO = nas_params();
 
@@ -33,6 +34,7 @@ else {
 my $authtype = (defined($RAD{CHAP_PASSWORD}) && defined($RAD{CHAP_CHALLENGE})) ? 0 : $NAS_INFO->{at}{$nas_num};
 my $nas_type  = $NAS_INFO->{nt}{$nas_num} || '';
 my %RAD_PAIRS = ();
+my $message = "";
 
 auth();
 
@@ -46,11 +48,10 @@ sub auth {
  my $GT = '';
  my $rr='';
 
- 
  $r = authentication("$RAD{USER_NAME}", "$nas_num");
 
  #Show pairs
- while(($rs, $ls)=each %RAD_PAIRS) {
+ while(my($rs, $ls)=each %RAD_PAIRS) {
    $rr .= "$rs = $ls,\n";	
   }
  print $rr;
@@ -102,7 +103,13 @@ select
   if(v.hourp + v.df + v.abon=0 and tt.price IS NULL, 0, 1),
   if (count(un.uid) + count(vn.vid) = 0, 0,
     if (count(un.uid)>0, 1, 2)),
-  count(tt.id)
+  count(tt.id),
+  v.hourp,
+  u.filter_id,
+  UNIX_TIMESTAMP(),
+  UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME(UNIX_TIMESTAMP()), '%Y-%m-%d')),
+  DAYOFWEEK(FROM_UNIXTIME(UNIX_TIMESTAMP())),
+  DAYOFYEAR(FROM_UNIXTIME(UNIX_TIMESTAMP()))
      FROM users u, variant v
      LEFT JOIN  trafic_tarifs tt ON (tt.vid=u.variant)
      LEFT JOIN users_nas un ON (un.uid = u.uid)
@@ -129,8 +136,8 @@ my($uid, $deposit, $logins, $filter, $ip, $netmask, $vid, $passwd, $uspeed, $cid
    $day_time_limit, $week_time_limit, $month_time_limit,  $today_limit,  
    $day_traf_limit,  $week_traf_limit,  $month_traf_limit, 
    $tp_payment,
-   $nas, $traf_tarif, $time_tarif) = $q -> fetchrow();
-
+   $nas, $traf_tarif, $time_tarif, $filter_id,
+   $session_start, $day_begin, $day_of_week, $day_of_year) = $q -> fetchrow();
 
 #Check allow nas server
 # $nas 1 - See user nas
@@ -152,8 +159,6 @@ my($uid, $deposit, $logins, $filter, $ip, $netmask, $vid, $passwd, $uspeed, $cid
      return 1;
     }
   }
-
-
 
 #Check CID (MAC) 
 if ($cid ne '') {
@@ -181,7 +186,6 @@ if ($cid ne '') {
     }
 }
 
-
 #Auth chap
 if (defined($RAD{CHAP_PASSWORD}) && defined($RAD{CHAP_CHALLENGE})) {
   if (check_chap("$RAD{CHAP_PASSWORD}", "$passwd", "$RAD{CHAP_CHALLENGE}", 0) == 0) {
@@ -194,6 +198,7 @@ elsif(defined($RAD{MS_CHAP_CHALLENGE})) {
        # Its an MS-CHAP V2 request
        # See draft-ietf-radius-ms-vsa-01.txt,
        # draft-ietf-pppext-mschap-v2-00.txt, RFC 2548, RFC3079
+       my ($usersessionkey, $lanmansessionkey, $ms_chap2_success);
        if (defined($RAD{MS_CHAP2_RESPONSE})) {
 
          if(check_mschapv2("$RAD{USER_NAME}", $passwd, "$RAD{MS_CHAP_CHALLENGE}", "$RAD{MS_CHAP2_RESPONSE}", 
@@ -206,7 +211,7 @@ elsif(defined($RAD{MS_CHAP_CHALLENGE})) {
          $RAD_PAIRS{'MS-CHAP2-SUCCESS'} = '0x' . bin2hex($ms_chap2_success);
 
          $RAD{MS_CHAP2_RESPONSE} =~ s/^0x//; 
-         $response = pack("H*", $RAD{MS_CHAP2_RESPONSE});
+         my $response = pack("H*", $RAD{MS_CHAP2_RESPONSE});
 
          my ($send, $recv) = Radius::MSCHAP::mppeGetKeys($usersessionkey, $response, 16);
          $RAD_PAIRS{'MS-MPPE-Send-Key'}="0x".bin2hex( substr(encode_mppe_key($send, $passwd), 0, 16));
@@ -226,21 +231,26 @@ elsif(defined($RAD{MS_CHAP_CHALLENGE})) {
                                                                   $usersessionkey))) . "0000000000000000";
        # 1      Encryption-Allowed 
        # 2      Encryption-Required 
-       $RAD_PAIRS{'MS-MPPE-Encryption-Policy'} = '0x00000001';
+       $RAD_PAIRS{'MS-MPPE-Encryption-Policy'} = '0x00000002';
        $RAD_PAIRS{'MS-MPPE-Encryption-Types'} = '0x00000006';      
-      }
-     elsif($authtype == 1) {
-       if (check_systemauth("$RAD{USER_NAME}", "$RAD{USER_PASSWORD}") == 0) { 
-         $message = "Wrong password '$RAD{USER_PASSWORD}' $authtype";
-         return 1;    	
-        }
-      } 
-     else {
-       if($passwd ne "$RAD{USER_PASSWORD}") {
-      	 $message = "Wrong password '$RAD{USER_PASSWORD}'";
-      	 return 1;
-        }
-      }
+ }
+elsif($authtype == 1) {
+  if (check_systemauth("$RAD{USER_NAME}", "$RAD{USER_PASSWORD}") == 0) { 
+     $message = "Wrong password '$RAD{USER_PASSWORD}' $authtype";
+     return 1;    	
+   }
+ } 
+else {
+  if($passwd ne "$RAD{USER_PASSWORD}") {
+    $message = "Wrong password '$RAD{USER_PASSWORD}'";
+    return 1;
+   }
+}
+
+
+
+
+
 
 #Check deposit
 if($tp_payment > 0 && $deposit <= 0) {
@@ -264,33 +274,15 @@ if ($logins > 0) {
 }
 
 
-
-     # Return radius attr    
-     if ($ip != 0) {
-        $RAD_PAIRS{'Framed-IP-Address'} = "$ip";
-      }
-     else {
-        $ip = get_ip($nas_num, "$RAD{NAS_IP_ADDRESS}");
-        if ($ip == -1) {
-          $message = "Rejected! There is no free IPs in address pools ($nas_num)";
-          return 1; 
-         }
-        elsif($ip > 0) {
-     	  $RAD_PAIRS{'Framed-IP-Address'} = "$ip";
-     	 }
-      }
-
-     $RAD_PAIRS{'Framed-IP-Netmask'} = "$netmask";
-     $RAD_PAIRS{'Filter-Id'} = "$filter_id" if (length($filter_id) > 0); 
-
-
 #Time limits
 # 0 - Total limit
 # 1 - Day limit
 # 2 - Week limit
 # 3 - Month limit
-my @time_limits= ();
+my @time_limits=();
 my @traf_limits= ();
+my $time_limit = 0; 
+my $traf_limit = 0;
 
      if (($day_time_limit > 0) || ($day_traf_limit > 0)) {
         $sql = "SELECT $day_time_limit - sum(duration), $day_traf_limit - sum(sent + recv) FROM log
@@ -327,8 +319,8 @@ my @traf_limits= ();
          }
        }
 
-     if($month_time_limit > 0) {
-        $sql = "SELECT $month_time_limit - sum(duration) FROM log 
+     if($month_time_limit > 0 || ($month_traf_limit > 0)) {
+        $sql = "SELECT $month_time_limit - sum(duration), $month_traf_limit - sum(sent+recv) FROM log 
            WHERE id='$USER' and DATE_FORMAT(login, '%Y-%m')=DATE_FORMAT(curdate(), '%Y-%m')
            GROUP BY DATE_FORMAT(login, '%Y-%m');";
         
@@ -346,6 +338,35 @@ my @traf_limits= ();
          }
        }
 
+
+#10Gb - (1 073 741 824) - global traffic session limit
+#set traffic limit
+     $traf_limit = 10737418240;
+     for(my $i=0; $i<=$#traf_limits; $i++) {
+        if ($traf_limit > $traf_limits[$i]) {
+           $traf_limit = $traf_limits[$i];
+         }
+      }
+
+     if($traf_limit < 0) {
+       $message = "Rejected! Traffic limit utilized '$traf_limit'";
+       return 1;
+      }
+
+     if ($time_tarif > 0) {
+       #push (@time_limits, int(($deposit / $time_tarif) *  60 * 60))  if ($time_tarif > 0);
+       push (@time_limits, remaining_time($vid, $deposit, 
+                                                $session_start, 
+                                                $day_begin, 
+                                                $day_of_week, 
+                                                $day_of_year,
+                                                { mainh_tarif => $time_tarif,
+                                                  time_limit  => $today_limit  } 
+                                          )
+            );
+
+     }
+
 #set time limit
      $time_limit = $today_limit;
      for(my $i=0; $i<=$#time_limits; $i++) {
@@ -362,20 +383,23 @@ my @traf_limits= ();
        return 1; 
       }
 
-     
-#10Gb - (1 073 741 824) - global traffic session limit
-#set traffic limit
-     my $traf_limit = 10737418240;
-     for(my $i=0; $i<=$#traf_limits; $i++) {
-        if ($traf_limit > $traf_limits[$i]) {
-           $traf_limit = $traf_limits[$i];
+     # Return radius attr    
+     if ($ip ne '0') {
+        $RAD_PAIRS{'Framed-IP-Address'} = "$ip";
+      }
+     else {
+        $ip = get_ip($nas_num, "$RAD{NAS_IP_ADDRESS}");
+        if ($ip == -1) {
+          $message = "Rejected! There is no free IPs in address pools ($nas_num)";
+          return 1; 
          }
+        elsif($ip > 0) {
+     	  $RAD_PAIRS{'Framed-IP-Address'} = "$ip";
+     	 }
       }
 
-     if($traf_limit < 0) {
-       $message = "Rejected! Traffic limit utilized '$traf_limit'";
-       return 1; 
-      }
+     $RAD_PAIRS{'Framed-IP-Netmask'} = "$netmask";
+     $RAD_PAIRS{'Filter-Id'} = "$filter_id" if (length($filter_id) > 0); 
 
 
 ####################################################################
@@ -389,7 +413,8 @@ if ($NAS_INFO->{nt}{$nas_num} eq 'exppp') {
 
   #$traf_tarif 
   if ($traf_tarif > 0) {
-    $EX_PARAMS = ex_params($vid, { traf_limit => $traf_limit });
+    my $EX_PARAMS = ex_params($vid, "$USER", { traf_limit => $traf_limit, 
+                                            deposit => $deposit });
 
 
     #global Traffic
@@ -403,7 +428,7 @@ if ($NAS_INFO->{nt}{$nas_num} eq 'exppp') {
      }
        
     #Local ip tables
-    if ($EX_PARAMS->{nets} > 20) {
+    if (defined($EX_PARAMS->{nets})) {
       $RAD_PAIRS{'Exppp-Local-IP-Table'} = "\"$conf{netsfilespath}$vid.nets\"";
      }
     $v_speed = $EX_PARAMS->{speed};
@@ -428,7 +453,8 @@ if ($NAS_INFO->{nt}{$nas_num} eq 'exppp') {
 =cut
  }
 elsif ($NAS_INFO->{nt}{$nas_num} eq 'mpd') {
-   my $EX_PARAMS = ex_params($vid, { attr => $traf_limit });
+   my $EX_PARAMS = ex_params($vid, "$USER", { attr => $traf_limit,
+                                              deposit => $deposit });
  
   #global Traffic
   if ($EX_PARAMS->{traf_limit} > 0) {
@@ -461,22 +487,28 @@ elsif ($NAS_INFO->{nt}{$nas_num} eq 'mpd') {
 # ex_params($vid)
 #*******************************************************************
 sub ex_params {
- my ($vid, $attr) = @_;	
+ my ($vid, $uid, $attr) = @_;	
  my $traf_limit = $attr->{traf_limit};
-
+ my $deposit = (defined($attr->{deposit})) ? $attr->{deposit} : 0;
 
  my %EX_PARAMS = ();
  $EX_PARAMS{speed}=0;
  $EX_PARAMS{traf_limit}=0;
  $EX_PARAMS{traf_limit_lo}=0;
- $EX_PARAMS{nets}=0;
 
+ my %prepaids = ();
+ my %speeds = ();
+ my %in_prices = ();
+ my %out_prices = ();
+ my %trafic_limits = ();
+ 
+ 
  #get traffic limits
 # if ($traf_tarif > 0) {
    my $nets = 0;
-   $sql = "SELECT id, in_price, out_price, prepaid*1024*1024, speed, LENGTH(nets) FROM trafic_tarifs
+   my $sql = "SELECT id, in_price, out_price, prepaid*1024*1024, speed, LENGTH(nets) FROM trafic_tarifs
              WHERE vid='$vid';";
-   $q = $db->prepare($sql) || die $db->errstr;
+   my $q = $db->prepare($sql) || die $db->errstr;
    $q ->execute();
 
    while(my($tt_id, $in_price, $out_price, $prepaid, $speed, $net) = $q->fetchrow()) {
@@ -487,7 +519,7 @@ sub ex_params {
      $nets+=$net;
     }
 
-   $EX_PARAMS{nets}=$nets;
+   $EX_PARAMS{nets}=$nets if ($nets > 20);
    $EX_PARAMS{speed}=int($speeds{0});
 
 #  }
@@ -497,7 +529,7 @@ sub ex_params {
 
 if ($prepaids{0}+$prepaids{1}>0) {
   $sql = "SELECT sum(sent+recv), sum(sent2+recv2) FROM log 
-     WHERE id='$USER' and DATE_FORMAT(login, '%Y-%m')=DATE_FORMAT(curdate(), '%Y-%m')
+     WHERE id='$uid' and DATE_FORMAT(login, '%Y-%m')=DATE_FORMAT(curdate(), '%Y-%m')
      GROUP BY DATE_FORMAT(login, '%Y-%m');";
 
      $q = $db->prepare($sql) || die $db->errstr;
@@ -508,17 +540,17 @@ if ($prepaids{0}+$prepaids{1}>0) {
     $trafic_limits{1}=$prepaids{1};
    }
   else {
-    my($userd1, $used2)=$q->fetchrow();
+    my @used = $q->fetchrow();
 
-    if ($userd1 < $prepaids{0}) {
-      $trafic_limits{0}=$prepaids{0} - $userd1;
+    if ($used[0] < $prepaids{0}) {
+      $trafic_limits{0}=$prepaids{0} - $used[0];
      }
     else {
       $trafic_limits{0} = ($deposit / (($in_prices{0} + $out_prices{0}) / 2)) * 1024 * 1024;
      }
 
-    if ($userd2 < $prepaids{1}) {
-      $trafic_limits{1}=$prepaids{1} - $userd2;
+    if ($used[1] < $prepaids{1}) {
+      $trafic_limits{1}=$prepaids{1} - $used[1];
      }
     else {
       $trafic_limits{1} = ($deposit / (($in_prices{1} + $out_prices{1}) / 2)) * 1024 * 1024;
@@ -533,10 +565,14 @@ else {
   if ($in_prices{1}+$out_prices{1} > 0) {
     $trafic_limits{1} = ($deposit / (($in_prices{1} + $out_prices{1}) / 2)) * 1024 * 1024;
    }
+  else {
+    $trafic_limits{1} = 0;
+   }
  }
 
 
 #Traffic limit
+my $trafic_limit = 0;
 if ($trafic_limits{0} > 0) {
   if($trafic_limits{0} > $traf_limit && $traf_limit > 0) {
     $trafic_limit = $traf_limit;
@@ -559,6 +595,125 @@ if ($trafic_limits{1} > 0) {
 
  return \%EX_PARAMS;
 }
+
+
+#********************************************************************
+# remaining_time
+#********************************************************************
+sub remaining_time {
+  my ($vid, $deposit, $session_start, 
+  $day_begin, $day_of_week, $day_of_year,
+  $attr) = @_;
+ 
+  my $time_limit = (defined($attr->{time_limit})) ? $attr->{time_limit} : 0;
+  my $mainh_tarif = (defined($attr->{mainh_tarif})) ? $attr->{mainh_tarif} : 0;
+  my $remaining_time = 0;
+
+
+ my ($time_intervals, $interval_tarifs) = time_intervals($vid);
+
+ if ($time_intervals == 0) {
+    return 0;
+    #return $deposit / $mainh_tarif * 60 * 60;	
+  }
+ 
+ my $holidays;
+ if (defined($time_intervals->{8})) {
+   $holidays = holidays_show({ format => 'daysofyear' });
+  }
+
+
+ my $tarif_day = 0;
+ my $count = 0;
+ $session_start = $session_start - $day_begin;
+
+ while(($deposit > 0 && $count < 50)) {
+
+  if ($time_limit != 0 && $time_limit < $remaining_time) {
+     $remaining_time = $time_limit;
+     last;
+   }
+
+    if (defined($time_intervals->{$day_of_week})) {
+    	#print "Day tarif";
+    	$tarif_day = $day_of_week;
+     }
+    elsif(defined($holidays->{$day_of_year}) && defined($time_intervals->{8})) {
+    	#print "Holliday tarif '$day_of_year' ";
+    	$tarif_day = 8;
+     }
+    else {
+        #print "Normal tarif";
+        $tarif_day = 0;
+     }
+
+
+     $count++;
+     #print "$count) Tariff day: $tarif_day ($day_of_week / $day_of_year)\n";
+     #print "Session start: $session_start\n";
+     #print "Deposit: $deposit\n--------------\n";
+
+     my $cur_int = $time_intervals->{$tarif_day};
+     my $i = 0;
+     while(my($int_begin, $int_end)=each %$cur_int) {
+       my $price = 0;
+       my $int_prepaid = 0;
+       my $int_duration = 0;
+       #$i++;
+       #print "!! $int_begin, $int_end\n";
+       #print "   $i) ";
+       if ($int_begin <= $session_start && $session_start <= $int_end) {
+          $int_duration = $int_end-$session_start;
+
+          if ($interval_tarifs->{$tarif_day}{$int_begin} =~ /%$/) {
+             my $tp = $interval_tarifs->{$tarif_day}{$int_begin};
+             $tp =~ s/\%//;
+             $price = $mainh_tarif  * ($tp / 100);
+           }
+          else {
+             $price = $interval_tarifs->{$tarif_day}{$int_begin};
+           }
+
+          if ($price > 0) {
+            $int_prepaid = $deposit / $price * 3600;
+           }
+          else {
+            $int_prepaid = $int_duration;	
+           }
+          #print "Int Begin: $int_begin Int duration: $int_duration Int prepaid: $int_prepaid Prise: $price\n";
+
+
+
+          if ($int_prepaid >= $int_duration) {
+            $deposit -= ($int_duration / 3600 * $price);
+            $session_start += $int_duration;
+            $remaining_time += $int_duration;
+            #print "DP $deposit ($int_prepaid > $int_duration) $session_start\n";
+           }
+          elsif($int_prepaid <= $int_duration) {
+            $deposit =  0;          	
+            $session_start += $int_prepaid;
+            $remaining_time += $int_duration;
+            #print "DL '$deposit' ($int_prepaid <= $int_duration) $session_start\n";
+           }
+         
+        }
+
+      }
+
+  if ($session_start >= 86400) {
+    $session_start=0;
+    $day_of_week = ($day_of_week + 1 > 7) ? 1 : $day_of_week+1;
+    $day_of_year = ($day_of_year + 1 > 365) ? 1 : $day_of_year + 1;
+  }
+ 
+ }
+
+return int($remaining_time);
+}
+
+
+
 
 #*******************************************************************
 # Authorization module
@@ -586,55 +741,6 @@ if (! $RAD{MS_CHAP_CHALLENGE}) {
   exit 1;
 }
 
-
-#*******************************************************************
-#
-# auth_dialup_file($USER, $nas_num);
-#*******************************************************************
-sub auth_dialup_file {
-   my $USER = shift;
-   my $nas_num = shift;
-
-#   print $USER;
-   my $r = 1;
-   open(FILE, "$allow_list") || print  "Can't open file $allow_list  $!";
-    while(<FILE>) {
-      ($user, $logins, $day_time, $money, $trafic_tarif, $time_tarif, $variant, $nas,$ip)=split(/:/, $_);
-     
-     if ($user eq $USER) {
-       #check NAS servers
-       if (($nas != 0) and ($nas_num != $nas)) {
-         access_deny("$USER", "You are not authorized to log in $nas ($RAD{NAS_IP_ADDRESS})");
-        }
-
-       # Chack active logins
-       if($logins > 0) {
-         open(RADWHO, "$RADWHO -o login -H |") || die "Can't open file $RADWHO $!";
-           while($line = <RADWHO>) {
-            $line =~ s/( |\n)//g;
-            $active{$USER}++ if ($line =~ /^$USER$/);
-            if ($active{$USER} >= $logins) {
-               access_deny($USER, "More then allow login ($logins/$active{$USER})");
-             }
-            }
-         close(RADWHO);
-        }
-
-#  	 print "Service-Type = Login,";
-#	 print "NAS-Port-Id = 10,";
-        
-        chop($ip);
-        print "Session-Timeout = $day_time," if ($day_time > 0);
-        print "Framed-IP-Address = $ip," if ($ip != 0);
-        return 0;
-
-        last;
-       }
-     }
-   close(FILE);
-   $message = "Not in allow list";
-   return 1;
-}
 
 
 #####################################################################
@@ -676,6 +782,7 @@ sub check_mschap {
    }
   
   return 1;
+
 }
 
 
@@ -687,18 +794,18 @@ sub check_mschap {
 # $sessionkeydest is a ref to a string where the sesiosn key for MPPE will be returned
 sub check_mschapv2
 {
-    my ($username, $pw, $challenge, $response, 
+    my ($username, $pw, $challenge, $rad_response, 
 	$usersessionkeydest, $lanmansessionkeydest,  $ms_chap2_success) = @_;
 
 
   use lib $Bin;
   use MSCHAP;
 
-  $response =~ s/^0x//; 
+  $rad_response =~ s/^0x//; 
   $challenge =~ s/^0x//;
   $challenge = pack("H*", $challenge);
-  $response = pack("H*", $response);
-  my ($ident, $flags, $peerchallenge, $reserved, $response) = unpack('C C a16 a8 a24', $response);
+  $rad_response = pack("H*", $rad_response);
+  my ($ident, $flags, $peerchallenge, $reserved, $response) = unpack('C C a16 a8 a24', $rad_response);
     
     my $upw = Radius::MSCHAP::ASCIItoUnicode($pw);
     return 
@@ -716,7 +823,7 @@ sub check_mschapv2
    
     $$ms_chap2_success=pack('C a42', $ident,
 			  &Radius::MSCHAP::GenerateAuthenticatorResponseHash
-			  ($usersessionkey, $response, $peerchallenge, $challenge, "$RAD{USER_NAME}"))
+			  ($$usersessionkeydest, $response, $peerchallenge, $challenge, "$RAD{USER_NAME}"))
 			  if defined $ms_chap2_success;
 
 
@@ -778,7 +885,7 @@ sub check_systemauth {
   }
  
  my $salt = "$pw[1]";
- $ep = crypt($password, $salt);
+ my $ep = crypt($password, $salt);
 
  if ($ep eq $pw[1]) {
     return 1;
@@ -808,7 +915,7 @@ sub get_ip {
  
  log_print('LOG_SQL', "$sql");
 
- $q = $db->prepare($sql)   || die $db->errstr;
+ my $q = $db->prepare($sql)   || die $db->errstr;
  $q ->execute();
  if ($q->rows() < 1)  {
      return 0;	
@@ -823,7 +930,7 @@ sub get_ip {
 
 #get active address and delete from pool
 
-my $sql = "SELECT framed_ip_address
+ $sql = "SELECT framed_ip_address
   FROM calls 
   WHERE nas_ip_address=INET_ATON('$nas_ip') and (status=1 or status>=3);";
  log_print('LOG_SQL', "$sql");

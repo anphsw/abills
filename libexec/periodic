@@ -369,7 +369,7 @@ while(my($login, $email, $variant,  $debet, $sum, $uplimit, $variant_name) = $q 
 # backup()
 #*******************************************************************
 sub backup {
- my $res = `$MYSQLDUMP --host=$conf{dbhost} --user="$conf{dblogin}" --password="$conf{dbpasswd}" $conf{dbname} | $GZIP > $BACKUP_DIR/stats-$DATE.sql.gz`;
+ my $res = `$MYSQLDUMP --host=$conf{dbhost} --user="$conf{dbuser}" --password="$conf{dbpasswd}" $conf{dbname} | $GZIP > $BACKUP_DIR/stats-$DATE.sql.gz`;
  $message = "Backup created: $res ($BACKUP_DIR/stats-$DATE.sql.gz)";
 }
 

@@ -126,7 +126,7 @@ elsif ($op eq 'other')   { other();       }
 elsif ($op eq 'nas_stats'){ nas_stats();  }
 elsif ($op eq 'sql_backup') { sql_backup(); }
 elsif ($op eq 'search')  { search();      }
-elsif ($op eq 'admins')  { admins();      }
+elsif ($op eq 'admins')  { form_admins(); }
 elsif ($op eq 'online')  { online();      }
 elsif ($op eq 'changes') { changes();     }
 elsif ($op eq 'adduser') { form_user_info(); }
@@ -154,6 +154,7 @@ elsif ($op eq 'holidays'){ holidays();    }
 elsif ($op eq 'profile') { profile();     }
 elsif ($op eq 'shedule') { form_shedule();}
 elsif ($op eq 'templates'){templates();   }
+elsif ($op eq 'sql_cmd') { sql_cmd();     }
 #elsif ($op eq 'graffic') { profile();   }
 
 else  { sql_online(); }
@@ -967,6 +968,7 @@ print "
  <br>
  <a href='networks.cgi'>$_NETWORKS</a><br>\n
  <a href='postfix.cgi'>Postfix</a><br>\n
+ <a href='$SELF?op=sql_cmd'>SQL commander</a><br>\n
  <a href='spamassassin.cgi'>Spamassassin</a><br>\n
 </td></tr></table>
 ";
@@ -1030,7 +1032,7 @@ sub sql_backup {
  "<a href='$SELF?op=sql_backup&mk_backup=y'>$_MAKE_BACKAUP</a><br>\n";
  
   if ($FORM{mk_backup}) {
-    $res = `$MYSQLDUMP --host=$dbhost --user="$dbuser" --password="$dbpasswd" $dbname | $GZIP > $BACKUP_DIR/stats-$DATE.sql.gz`;
+    $res = `$MYSQLDUMP --host=$conf{dbhost} --user="$conf{dbuser}" --password="$conf{dbpasswd}" $conf{dbname} | $GZIP > $BACKUP_DIR/stats-$DATE.sql.gz`;
     print "Backup created: $res ($BACKUP_DIR/stats-$DATE.sql.gz)";
    }
   elsif($FORM{del}) {
@@ -1064,7 +1066,7 @@ sub sql_backup {
 #*******************************************************************
 # admins();
 #*******************************************************************
-sub admins  {
+sub form_admins  {
  @permissions = ('ReadOnly', 'ReadWrite', 'FullAccess');
  
  my $aid=$FORM{aid} || 0;
@@ -1137,7 +1139,8 @@ elsif ($FORM{passwd}) {
     }
  } 
 elsif ($FORM{del}) {
- 
+  $q = $db->do("DELETE FROM admins WHERE aid='$FORM{del}';") || die $db->errstr;
+  message('info', $_INFO, "$_DELETED '$del'");
 }
 #else {
 print "<form action='$SELF' METHOD=POST>
@@ -1184,7 +1187,7 @@ while(($aid, $id, $name, $regdate, $permit)= $q->fetchrow()) {
 
     print "<tr bgcolor=$bg><td><a href='$SELF?op=admins&chg=$aid'>$id</a></td><td>$name</td><td>$regdate</td>".
      "<td>$permit</td><td><a href='$SELF?op=admins&id=$id&passwd=y'>$_PASSWD</a></td>".
-     "<td><a href='$SELF?op=admins&id=$id&del=y'>$_DEL</a></td></tr>\n";
+     "<td><a href='$SELF?op=admins&id=$id&del=$aid'>$_DEL</a></td></tr>\n";
   }
 print "</table>\n</td></tr></table>\n";
 
@@ -1499,22 +1502,27 @@ if (defined($FORM{d})) {
    print "<b>$_YEAR:</b> $y <b>$_MONTH:</b> $MONTHES[$m]<br>\n$days\n";
    $op = $op . "&d=$FORM{d}";
 
-   $sql="select l.id, count(l.id), sum(l.sent + l.recv), sec_to_time(sum(l.duration)), sum(l.sum), u.uid
+   my $sql="select l.id, count(l.id), sum(l.sent + l.recv), sum(l.sent2 + l.recv2), sec_to_time(sum(l.duration)), sum(l.sum), u.uid
     FROM log l
     LEFT JOIN users u ON (u.id=l.id)
     WHERE date_format(l.login, '%Y-%m-%d')='$FORM{d}'
     GROUP BY l.id 
     ORDER BY $sort $desc;";
-   $q = $db -> prepare($sql) || die $db->strerr;
+   my $q = $db -> prepare($sql) || die $db->strerr;
    $q -> execute ();
 
-   @caption = ("$_USERS", "$_SESSIONS", "$_TRAFFIC", "$_DURATION", "$_SUM");  
+   @caption = ("$_USERS", "$_SESSIONS", "$_TRAFFIC", "$_TRAFFIC 2", "$_DURATION", "$_SUM");  
+   $output .= "  <COLGROUP>
+    <COL align=left span=1>
+    <COL align=right span=5>
+  </COLGROUP>\n";
 
-   while(my($login, $sessions, $trafic, $duration, $sum, $uid) = $q -> fetchrow()) {
+   while(my($login, $sessions, $trafic, $trafic2, $duration, $sum, $uid) = $q -> fetchrow()) {
      $bg = ($bg eq $_BG1) ? $_BG2 : $_BG1;
      $trafic = int2byte($trafic);
+     $trafic2 = int2byte($trafic2);
      $money_sum += $sum;
-     $output .= "<tr bgcolor=$bg><td><a href='$SELF?op=stats&uid=$uid&period=5&login=$FORM{d}'>$login</a></td><td align=right>$sessions</td><td align=right>$trafic</td><td align=right>$duration</td><td align=right>$sum</td></tr>\n";
+     $output .= "<tr bgcolor=$bg><td><a href='$SELF?op=stats&uid=$uid&period=5&login=$FORM{d}'>$login</a></td><td>$sessions</td><td>$trafic</td><td>$trafic2</td><td>$duration</td><td>$sum</td></tr>\n";
     }
    $output .= "</table>\n</td></tr></table>\n";
 
@@ -1550,7 +1558,7 @@ else {
   my $url_params = "";
 
    if ($FORM{m} eq 'y') {
-     $sql = "SELECT date_format(login, '%Y-%m'), count(DISTINCT id), sum(sent + recv), sec_to_time(sum(duration)), 
+     $sql = "SELECT date_format(login, '%Y-%m'), count(DISTINCT id), sum(sent + recv), sum(sent2 + recv2), sec_to_time(sum(duration)), 
        sum(sum), count(id)
        from log 
        GROUP BY 1 ORDER by $sort $desc;";
@@ -1560,7 +1568,7 @@ else {
    else {
      $month = (defined($FORM{m})) ?  "'$FORM{m}'" : "date_format(curdate(), '%Y-%m')";
 
-     $sql = "select date_format(l.login, '%Y-%m-%d'), count(DISTINCT l.id), sum(l.sent + l.recv), 
+     $sql = "select date_format(l.login, '%Y-%m-%d'), count(DISTINCT l.id), sum(l.sent + l.recv), sum(l.sent2 + l.recv2),
       sec_to_time(sum(l.duration)), sum(l.sum), DAYOFMONTH(l.login), count(l.id)
        FROM log l
        WHERE date_format(l.login, '%Y-%m')=$month
@@ -1576,15 +1584,20 @@ else {
   my $max_sessions=1;
   my $max_users=1;
    
-  @caption = ("$_DATE", "$_USERS / $_LOGINS", "$_TRAFFIC", "$_DURATION", "$_SUM");
-
-  while(my($date, $users, $trafic, $duration, $sum, $day, $logins, $uid) = $q -> fetchrow()) {
+  @caption = ("$_DATE", "$_USERS / $_LOGINS", "$_TRAFFIC", "$_TRAFFIC 2", "$_DURATION", "$_SUM");
+  $output = " <COLGROUP>
+    <COL align=left span=1>
+    <COL align=right span=5>
+  </COLGROUP>\n";
+  
+  while(my($date, $users, $trafic, $trafic2, $duration, $sum, $day, $logins, $uid) = $q -> fetchrow()) {
     $trafic_sum += $trafic;
     $trafic = int2byte($trafic);
+    $trafic2 = int2byte($trafic2);
     $money_sum += $sum;
     $logins_sum += $logins; 
     $bg = ($bg eq $_BG1) ? $_BG2 : $_BG1;     
-    $output .= "<tr bgcolor=$bg><td><a href='$SELF?op=inp&". $uparam ."=$date'>$date</a></td><td align=right>$users / $logins</td><td align=right>$trafic</td><td align=right>$duration</td><td align=right>$sum</td>\n";
+    $output .= "<tr bgcolor=$bg><td><a href='$SELF?op=inp&". $uparam ."=$date'>$date</a></td><td>$users / $logins</td><td>$trafic</td><td>$trafic2</td><td>$duration</td><td>$sum</td>\n";
      
     $max_sum=$sum if($max_sum < $sum);
     $max_sessions=$logins if($max_sessions < $logins);
@@ -1914,10 +1927,13 @@ elsif($FORM{del}) {
                    'users');
 
    foreach my $table (@clear_db) {
-     $sql = "DELETE from $tables WHERE uid='$uid';";
+     $sql = "DELETE from $table WHERE uid='$uid';";
      $q = $db->do($sql) || die $db->errstr;
      $msg .= "<tr><td colspan=2>&nbsp;&nbsp;$table</td></tr>\n";
     }
+
+   $sql = "DELETE from log WHERE id='$login';";
+   $q = $db->do($sql) || die $db->errstr;
    message('info', "$_DELETED", "$msg</table>");
    return 0;
   }
@@ -3031,42 +3047,62 @@ else  {
   $qs = "$ENV{QUERY_STRING}";
   $qs =~ s/&s=\d//g;
 
-  print "<TABLE width=640 cellspacing=0 cellpadding=0 border=0>
-  <TR><TD bgcolor=$_BG4>
+  print "<TABLE width=98% cellspacing=0 cellpadding=0 border=0><TR><TD bgcolor=$_BG4>
   <TABLE width=100% cellspacing=1 cellpadding=0 border=0>
-  <caption>$period[$FORM{period}]</caption>";
-  my @caption = ("$_USER", "$_SENT", "$_RECV", "$_SUM", "$_DURATION");
+  <caption>$period[$FORM{period}]</caption>
+  <COLGROUP width=20>
+    <COL align=left span=1>
+    <COL align=right span=7>
+  </COLGROUP>\n";
+
+
+  my @caption = ("$_USER", "$_DURATION", "$_SENT", "$_RECV", "$_SUM", "$_SENT 2", "$_RECV 2", "$_SUM 2");
   show_title($sort, $desc, "$pg", "$op$qs", \@caption);
 
-  $sql = "SELECT u.id, sum(l.sent), sum(l.recv), sum(l.sent + l.recv), SEC_TO_TIME(sum(l.duration)), u.uid
+  $sql = "SELECT u.id, SEC_TO_TIME(sum(l.duration)), sum(l.sent), sum(l.recv), sum(l.sent + l.recv), sum(l.sent2), sum(l.recv2), sum(l.sent2 + l.recv2), u.uid
     FROM log l
     LEFT JOIN users u ON (u.id=l.id)
     $WHERE 
     GROUP BY l.id 
     ORDER By $sort $desc;";
+
   $q = $db -> prepare($sql) || die $db->strerr;
   log_print('LOG_SQL', $sql);
-  $q -> execute ();
+  $q -> execute();
+  my ($total_sent, $total_recv, $total_sum, $total_sent2, $total_recv2,  $total_sum2);
 
-  while(my ($login, $sent, $recv, $sum, $duration, $uid) = $q -> fetchrow()) {
+  while(my ($login, $duration, $sent, $recv, $traff_sum, $sent2, $recv2, $traff_sum2, $uid) = $q -> fetchrow()) {
+
      $bg = ($bg eq $_BG1) ? $_BG2 : $_BG1;
      $total_sent += $sent;
      $total_recv += $recv;
      $total_sum += $sum;
+     $total_sent2 += $sent2;
+     $total_recv2 += $recv2;
+     $total_sum2 += $sum2;
+
      $sent = int2byte($sent);
      $recv = int2byte($recv);
-     $sum = int2byte($sum);
+     $traff_sum = int2byte($traff_sum);
 
-     print "<tr bgcolor=$bg><td><a href='$SELF?op=stats&uid=$uid'>$login</a></td><td align=right>$sent</td>".
-      "<td align=right>$recv</td><th align=right>$sum</th><td align=right>$duration</td></tr>\n";
+     $sent2 = int2byte($sent2);
+     $recv2 = int2byte($recv2);
+     $traff_sum2 = int2byte($traff_sum2);
+
+     print "<tr bgcolor=$bg><td><a href='$SELF?op=stats&uid=$uid'>$login</a></td><td>$duration</td>".
+      "<td>$sent</td><td>$recv</td><th>$traff_sum</th><td>$sent2</td><td>$recv2</td><th>$traff_sum2</th></tr>\n";
     }
 
    $total_recv=int2byte($total_recv);
    $total_sent=int2byte($total_sent);
    $total_sum=int2byte($total_sum);
+   $total_recv2=int2byte($total_recv2);
+   $total_sent2=int2byte($total_sent2);
+   $total_sum2=int2byte($total_sum2);
 
-   print "<tr bgcolor=$_BG3><th>Total</th><td align=right>$total_sent</td>".
-      "<td align=right>$total_recv</td><th align=right>$total_sum</th><td align=right>-</td></tr>\n";
+
+   print "<tr bgcolor=$_BG3><th>Total</th><th>-</th><td>$total_sent</td><td>$total_recv</td><th>$total_sum</th>".
+   "<td>$total_sent2</td><td>$total_recv2</td><th>$total_sum2</th></tr>\n";
 
   $q -> finish ();
   print "</table></td></tr></table>\n";
@@ -3377,15 +3413,17 @@ elsif ($FORM{change}) {
  $db ->do($sql) or die $db->errstr;
  my $body = "";
 
- if ($FORM{nets0} ne '') {
-     $body .=  "$netss{0} 0\n";
+my @n = ();
+$/ = chr(0x0d);
+for(my $i=0; $i<3; $i++) {
+  if ($netss{$i} ne '') {
+     @n = split(/\n|;/, $netss{$i});
+     foreach my $line (@n) {
+       chomp($line);       
+       $body .= "$line $i\n";
+     }
    }
- if ($FORM{nets1} ne '') {
-     $body .=  "$netss{1} 1\n";
-   }
- if ($FORM{nets2} ne '') {
-     $body .=  "$netss{2} 2\n";
-   }
+}
 
   create_tt_file("$conf{netsfilespath}", "$FORM{vid}.nets", "$body");
   message("info", "$_CHANGED", "$_CHANGED");
@@ -3407,7 +3445,7 @@ if ($q->rows > 0) {
 }
 
 
-print "<form action=$PHP_SELF>
+print "<form action=$SELF method=POST>
 <input type=hidden name=op value='trafic_tarifs'>
 <input type=hidden name=vid value='$FORM{vid}'>
 $_VARIANT: [ <a href='$SELF?op=variants&chg=$FORM{vid}'>$FORM{vid}</a> ]
@@ -3443,6 +3481,24 @@ $_VARIANT: [ <a href='$SELF?op=variants&chg=$FORM{vid}'>$FORM{vid}</a> ]
 
 
 }
+
+
+
+
+#***********************************************************
+# bin2hex()
+#***********************************************************
+sub bin2hex ($) {
+ my $bin = shift;
+ my $hex = '';
+ 
+ 
+ for my $c (unpack("H*",$bin)){
+   $hex .= $c;
+ }
+ return $hex;
+}
+
 
 
 #*******************************************************************
@@ -3604,7 +3660,7 @@ sub send_mail_form {
   }
  
 if(defined($FORM{send})) {
-   sendmail("$mail_from", "$email", "$subject", "$message", "$conf{MAIL_CHARSET}", "");
+   sendmail("$conf{ADMIN_MAIL}", "$email", "$subject", "$message", "$conf{MAIL_CHARSET}", "");
    print "<Table width=600>".
    "<tr><th colspan=2 bgcolor=$_BG0>$_SENDED</th></tr>".
    "<tr><td bgcolor=$_BG3>$_USER:</td><td>$login_link ($email)</td></tr>".
@@ -3692,7 +3748,7 @@ print << "[END]";
  my $names = $NAS_INFO->{name};
  my %NAS_IDS = reverse %$NAS_INFO;
  while(my($k, $v)=each(%$names)) {
-     print "<option value=$v";
+     print "<option value=$k";
      print ' selected' if ($v == $nas);
      print ">$k:$v ($NAS_INFO->{nt}{$k}) $NAS_IDS{$k} \n";
    }
@@ -3718,7 +3774,7 @@ if ($FORM{search}) {
     $pgs .= "&ip=$FORM{ip}";
    }
 
-  if ($FORM{name}) {
+  if ($FORM{name} ne '') {
     $WHERE .= " and l.id='$FORM{name}'";
     $pgs .= "&name=$FORM{name}";
    }
@@ -3733,7 +3789,6 @@ if ($FORM{search}) {
     $pgs .= "&nas_port=$FORM{nas_port}";
    }
 } elsif ($FORM{nas}) {
-
   $WHERE .= "WHERE l.nas_id='$FORM{nas}'";
   $pgs .= "&nas=$FORM{nas}";
   %NAS_IP = reverse %NAS_SERVERS;
@@ -3746,7 +3801,7 @@ if ($FORM{search}) {
  $sql = "SELECT l.id, l.login, UNIX_TIMESTAMP(l.login), l.variant, 
     SEC_TO_TIME(l.duration), l.duration, 
     l.sent, l.recv, l.CID, l.nas_id, INET_NTOA(l.ip), l.sum, UNIX_TIMESTAMP(l.login), u.uid,
-    l.acct_session_id
+    l.acct_session_id, l.sent2, l.recv2
    FROM log l
    LEFT JOIN users u ON (u.id=l.id)
    $WHERE
@@ -3763,24 +3818,27 @@ if ($FORM{search}) {
          <TABLE width=100% cellspacing=1 cellpadding=0 border=0>
          <tr bgcolor=$_BG0><th>$_USER</td><th>$_LOGIN</td><th>$_DURATION</th><th>$_VARIANT</th><Th>$_SENT</Th><Th>$_RECV</th><th>CID</th><th>NAS</th><th>IP</th><th>$_SUM</th><th>-</th><th>-</th></tr>\n";
 
-  while(my($login, $ltime, $s_begin, $variant, $uduration, $duration,  $sent, $recv, $CID, $nas_id, $ip,  
-      $sum, $start, $uid, $sid) = $q -> fetchrow()) {
-    
-    $ACCT_INFO{INBYTE}  = $sent|| 0;
-    $ACCT_INFO{OUTBYTE} = $recv || 0;
+  my %ACCT_INFO = ();
 
+  while(my($login, $session_start, $session_start_u, $variant, $duration, $duration_sec,  $sent, $recv, $CID, $nas_id, $ip,  
+      $sum, $start, $uid, $sid, $sent2, $recv2) = $q -> fetchrow()) {
     
+    
+    $ACCT_INFO{INBYTE}  = $recv|| 0;
+    $ACCT_INFO{OUTBYTE} = $sent || 0;
+    $ACCT_INFO{INBYTE2}  = $recv2|| 0;
+    $ACCT_INFO{OUTBYTE2} = $sent2 || 0;
+
     $sent = int2byte($sent);
     $recv = int2byte($recv);
-    $s_end = $s_begin + $duration;
+    $s_end = $s_begin + $duration_sec;
 
     $rows=0;
     $s_sum=0;
 
     $bg = ($bg eq $_BG1) ? $_BG2 : $_BG1;
-        $button = "<A href='$SELF?op=bm&del=log&uid=$uid&ltime=$ltime&sum=$sum&duration=$duration'
-        onclick=\"return confirmLink(this, '$_USER: $login | $_LOGIN: $ltime | $_SUM: $sum | $_DURATION: $duration')\">$_DEL</a>";
-
+        $button = "<A href='$SELF?op=bm&del=log&login=$login&ltime=$session_start&sum=$sum&duration=$duration_sec'
+        onclick=\"return confirmLink(this, '$_USER: $login | $_LOGIN: $start_session | $_SUM: $sum | $_DURATION: $duration')\">$_DEL</a>";
 
 #    if ($rows > 1) {
 #      $out_tr = "<tr bgcolor=$bg><td><a href='$SELF?op=users&uid=$uid'>$uid</a></td><td align=right rowspan=$rows>$ltime ($rows)</td><td align=right>$uduration</td><td rowspan=$rows align=right>$variant</td>
@@ -3790,18 +3848,14 @@ if ($FORM{search}) {
 #      	}
 #     }
 #    else {
-     $out = ($rows > 1) ? "<a href='$SELF?op=show_int&b=$s_begin&e=$s_end'>$ltime</a>" : "$ltime";
+     $out = ($rows > 1) ? "<a href='$SELF?op=show_int&b=$session_start_u&e=$s_end'>$session_start</a>" : "$session_start";
      print "<tr bgcolor=$bg><td><a href='$SELF?op=users&uid=$uid'>$login</td> <td align=right>";
-        
-        $sss = "<pre>";
-#          $ACCT_INFO{INBYTE2}  = $out2 || 0;
-#          $ACCT_INFO{OUTBYTE2} = $in2 || 0;
 
-#        my ($ssum, $vid, $time_tarif, $trafic_tarif) = session_sum("$uid", $start, $duration, \%ACCT_INFO);
+#     $sss = "<pre>";
+#        my ($ssum, $vid, $time_tarif, $trafic_tarif) = session_sum("$login", "$session_start_u", $duration_sec, \%ACCT_INFO);
+#        $sss .= "$login, $session_start_u, $duration_sec / $ssum, $vid, $time_tarif, $trafic_tarif</pre>";
         
-#        $sss .= "$uid, $start, $duration, $ACCT_INFO / $ssum, $vid, $time_tarif, $trafic_tarif</pre>";
-        
-     print "$out</td><td align=right>$uduration</td><td align=right>$variant</td>
+     print "$out</td><td align=right>$duration</td><td align=right>$variant</td>
         <TD align=right>$sent</TD><TD align=right>$recv</td><td>$CID</td><td>$NAS_INFO->{name}{$nas_id}</td><td>$ip</td><th align=right>
         $sss
         $sum</th><th>(<a href='$SELF?op=sdetail&sid=$sid&uid=$uid' title='Session detalization'>D</a>)</th><td>$button</td></tr>\n";
@@ -3997,18 +4051,21 @@ sub sql_online {
      "</table>\n";
 
      my $nas_id = $NAS_INFO->{"$nas_ip_address"};
-     $sql = "SELECT uid FROM log WHERE acct_session_id='$acct_session_id'
+     $sql = "SELECT id FROM log WHERE acct_session_id='$acct_session_id'
        and port_id='$nas_port_id' and nas_id='$nas_id';";
 
      log_print('LOG_SQL', "$sql");
      $q = $db->prepare($sql) || die $db->errstr;
      $q ->execute();
-     if ($q -> rows() < 1) {
-        $message .= "<a href='$SELF?op=sql_online&tolog=$sid&nas_ip_address=$nas_ip_address&nas_port_id=$nas_port_id'>add</a> to log";
+     if ($q->rows() < 1) {
+        $message .= "<p align=center><a href='$SELF?op=sql_online&tolog=$acct_session_id&nas_ip_address=$nas_ip_address&nas_port_id=$nas_port_id'>add to log</a></p>";
        }
      else {
      	my($sid)=$q->fetchrow();
+        print "$sid \n";
+        #my ($sum, $variant, $time_t, $traf_t) = session_sum("$RAD{USER_NAME}", $ACCT_INFO{LOGIN}, $ACCT_INFO{ACCT_SESSION_TIME}, \%ACCT_INFO);
        }
+
      message('info', $_INFO, $message);
    }
  elsif($FORM{tolog}) {
@@ -4018,31 +4075,55 @@ sub sql_online {
    ex_input_octets,
    ex_output_octets,
    connect_term_reason,
-   framed_ip_address,
+   INET_NTOA(framed_ip_address),
    lupdated,
+   nas_port_id,
+   INET_NTOA(nas_ip_address),
+      CID
       FROM calls 
-      WHERE nas_ip_address=INET_ATON('$nas_ip_address')
-       and nas_port_id='$nas_port_id' and acct_session_id='$acct_session_id';";
+      WHERE nas_ip_address=INET_ATON('$FORM{nas_ip_address}')
+       and nas_port_id='$FORM{nas_port_id}' and acct_session_id='$FORM{tolog}';";
+
 
    log_print('LOG_SQL', "$sql");
    $q = $db->prepare($sql) || die $db->errstr;
    $q ->execute();
    if ($q -> rows() < 1) {
-        message('err', $_ERROR, '');
+        message('err', $_ERROR, 'NO records');
        }
      else {
-     	my($login, $started, $duration,  $input_octets, $output_octets,  
-     	  $ex_input_octets, $ex_output_octets,  $connect_term_reason, $framed_ip_address, $lupdated)=$q->fetchrow();
+     	my $ACCT_INFO = ();
+     	my($username, $started, $duration,  $input_octets, $output_octets,  
+     	  $ex_input_octets, $ex_output_octets,  $connect_term_reason, $framed_ip_address, $lupdated,
+  	  $nas_port_id, $nas_ip_address, $CID)=$q->fetchrow();
 
-          $ACCT_INFO{INTERIUM_INBYTE} = $input_octets || 0;
-          $ACCT_INFO{INTERIUM_OUTBYTE} = $output_octets || 0;
-          $ACCT_INFO{INTERIUM_INBYTE2} = $ex_input_octets || 0;
-          $ACCT_INFO{INTERIUM_OUTBYTE2} =  $ex_output_octets || 0;
-          $duration  = $lupdated - $started;
+
+          $ACCT_INFO{INBYTE} = $input_octets || 0;
+          $ACCT_INFO{OUTBYTE} = $output_octets || 0;
+          $ACCT_INFO{INBYTE2} = $ex_input_octets || 0;
+          $ACCT_INFO{OUTBYTE2} =  $ex_output_octets || 0;
+          $ACCT_INFO{ACCT_SESSION_TIME}  = $lupdated - $started;
           
-        my ($sum, $variant, $time_t, $traf_t) = session_sum("$login", $started, $ACCT_INFO{ACCT_SESSION_TIME}, \%ACCT_INFO);
-        print "$sum, $variant, $time_t, $traf_t // $login, $started, $duration,  $input_octets, $output_octets,  
-     	 $ex_input_octets, $ex_output_octets,  $connect_term_reason, $framed_ip_address, $lupdated";
+        my ($sum, $variant, $time_t, $traf_t) = session_sum("$username", $started, $ACCT_INFO{ACCT_SESSION_TIME}, \%ACCT_INFO);
+        #print "$sum, $variant, $time_t, $traf_t // $login, $started, $duration,  $input_octets, $output_octets,  
+     	# $ex_input_octets, $ex_output_octets,  $connect_term_reason, $framed_ip_address, $lupdated";
+
+        log_print('LOG_SQL', "$sql");
+        $nas_num = $NAS_INFO->{$nas_ip_address};
+        $sql = "INSERT INTO log (id, login, variant, duration, sent, recv, minp, kb,  sum, nas_id, port_id, ".
+          "ip, CID, sent2, recv2, acct_session_id) VALUES ('$username', FROM_UNIXTIME($started), ".
+          "'$variant', '$RAD{ACCT_SESSION_TIME}', '$ACCT_INFO{OUTBYTE}', '$ACCT_INFO{INBYTE}', ".
+          "'$time_t', '$traf_t', '$sum', '$nas_num', ".
+          "'$nas_port_id', INET_ATON('$framed_ip_address'), '$CID', ".
+          "'$ACCT_INFO{OUTBYTE2}', '$ACCT_INFO{INBYTE2}',  \"$FORM{tolog}\");";
+
+        log_print('LOG_SQL', "$sql");
+        $q = $db->do($sql) || die $db->errstr;
+
+     	$sql = "DELETE FROM calls WHERE nas_ip_address=INET_ATON('$FORM{nas_ip_address}')
+            and nas_port_id='$FORM{nas_port_id}' and acct_session_id='$FORM{tolog}'";
+        log_print('LOG_SQL', "$sql");
+        $q = $db->do($sql) || die $db->errstr;
       }
 
     $message = 'added';
@@ -4438,7 +4519,6 @@ sub holidays {
  print "<h3>$_HOLIDAYS</h3>\n"; 	
 
 if ($FORM{add}) {
-    
     my($add_month, $add_day)=split(/-/, $FORM{add});
     $add_month++;
 
@@ -4626,7 +4706,8 @@ sub profile {
  
  my %LANG = ('english' => 'English',
     'russian' => 'Русский',
-    'ukraine' => 'Українська');
+    'ukraine' => 'Українська',
+    'bulgarian' => 'Болгарска');
  	
  	
  print "$FORM{colors}";
@@ -4877,4 +4958,32 @@ elsif($action eq 'del') {
 
 return 0;
 #$hour, $day, $month, $year, $count, $uid, $type, $action, $admin)=@_;
+}
+
+#*******************************************************************
+# SQL commander
+# sql_comd()
+#*******************************************************************
+sub sql_cmd {
+ my $query = $FORM{query} || '';
+ print "<h3>SQL Commander</h3>\n";
+ 
+print << "[END]";
+<form action=$SELF METHOD=POST>
+<input type=hidden name=op value=sql_cmd>
+<table><tr><td>
+<textarea name=query rows=5 cols=60>$query</textarea>
+</td></tr>
+<tr><td>$_ROWS: <input type=text name=rows value='$rows'></td></tr>
+</table>
+<input type=submit name=show value="$_SHOW">
+</form>
+[END]
+
+
+if ($FORM{show}) {
+ print "<Table width=640><tr bgcolor=$_BG3><td>
+ $query</td></tr></table>\n";	
+}
+
 }

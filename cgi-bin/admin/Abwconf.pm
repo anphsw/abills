@@ -4,7 +4,6 @@ use strict;
 use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
    $SELF
    $db
-   $conf
    $debug
    $BACKUP_DIR
    $MYSQLDUMP
@@ -17,10 +16,6 @@ use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
    @_COLORS
    @status_types
    $language
-   %cookies
-   $mail_domain
-   $mail_from
-   $mail_charset
    $max_recs
    @auth_types
    $_DEFAULT_VARIANT
@@ -28,12 +23,10 @@ use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
    $admin_name
    $admin_ip
    $header_text
-   $dbhost
-   $dbname
-   $dbuser
-   $dbpasswd
 
+   %conf
    %FORM
+   %cookies
    $sort
    $desc
    $pg
@@ -61,11 +54,6 @@ $VERSION = 2.00;
    &quote_escape
    &get_login
    &css
-
-   $dbhost
-   $dbname
-   $dbuser
-   $dbpasswd
    $SELF
    $db
    $debug
@@ -82,13 +70,9 @@ $VERSION = 2.00;
    $_BG4
    @_COLORS
    $language
-   $mail_domain
-   $mail_from
-   $mail_charset
    $max_recs
    $_DEFAULT_VARIANT
    @MONTHES
-   %cookies
    $DATE
    $TIME
    $admin_name
@@ -96,6 +80,7 @@ $VERSION = 2.00;
    $header_text
 
    %FORM
+   %cookies
    $sort
    $desc
    $pg
@@ -104,10 +89,6 @@ $VERSION = 2.00;
 
 @EXPORT_OK = ();
 %EXPORT_TAGS = ();
-
-
-#   &setCookie
-#   &getCookies
 
 #Hash of url params
 %FORM = form_parse();
@@ -119,10 +100,15 @@ $op = $FORM{op} || '';
 $language = 'english';
 
 #DB settings
- $dbhost='localhost';
- $dbname='abills';
- $dbuser='abills';
- $dbpasswd='password';
+$conf{dbhost}='localhost';
+$conf{dbname}='abills';
+$conf{dbuser}='abills';
+$conf{dbpasswd}='password';
+
+#Mail configuration
+$conf{ADMIN_MAIL}='admin@your.domain';
+$conf{USERS_MAIL_DOMAIN}='your.domain';
+$conf{MAIL_CHARSET}='windows-1251';
 
 $debug=7; #DEbug mode (SQL)
 @auth_types = ('SQL', 'SYSTEM');
@@ -160,13 +146,6 @@ $_BG4='#E1E1E1';  #table border
             '#FFFFFF',  #10 background
            ); #border
 
-$mail_domain='yourdomain';
-$mail_from='admin@your.domain';
-$mail_charset='win1251';
-
-
-
-
 
 $max_recs = 25;  # Max lines
 $header_text='ABillS';
@@ -186,8 +165,8 @@ my %log_levels = ('LOG_EMERG' => 0,
 
 use DBI;
 
-$db = DBI -> connect("DBI:mysql:database=$dbname;host=$dbhost", "$dbuser", "$dbpasswd") or
-  die "Unable connect to sterver '$dbhost:$dbname' $!\n";
+$db = DBI -> connect("DBI:mysql:database=$conf{dbname};host=$conf{dbhost}", "$conf{dbuser}", "$conf{dbpasswd}") or
+  die "Unable connect to server '$conf{dbhost}:$conf{dbname}' $!\n";
 
 
 

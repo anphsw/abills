@@ -338,6 +338,7 @@ sub hangup_mpd {
  my @commands = ();
  
  push @commands, "\]\tlink $ctl_port";
+ push @commands, "\]\tlink $ctl_port";
  push @commands, "\]\tclose";
  push @commands, "\] exit";
 

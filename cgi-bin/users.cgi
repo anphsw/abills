@@ -9,8 +9,6 @@ my $LIB_PATH='./admin';
 push(@INC, $LIB_PATH);
 
 use lib "./admin";
-#require "admin/Abwconf.pm";
-#Abwconf->import();
 use Abwconf;
 
 require "Base.pm";
@@ -33,11 +31,9 @@ $uid =  $cookies{uid};
 $login = $FORM{user};
 my $sid = $FORM{sid} || 0; # Session ID
 my $passwd = $FORM{passwd} || '';
-my $pg = $FORM{pg} || 0;
-$sort = $FORM{sort} || 1;
 my $period = $FORM{period} || 0;
-my $op = $FORM{op} || '';
 my $session_timeout = 1800;
+
 
 if ((length($cookies{sid})>1) && (! $FORM{passwd})) {
   $sid = $cookies{sid};
@@ -67,7 +63,7 @@ $css = css();
 print << "[END]";
 <html>
 <head>
-<title>~AsmodeuS~ Billing system</title>
+<title>~AsmodeuS~ Billing System</title>
  <meta http-equiv=\"Content-Type\" content=\"text/html; charset=windows-1251\">
  $css
 </head>
@@ -96,7 +92,7 @@ else {
   login_form();
  }
 
-print "<hr size=1><a href='http://www.asmodeus.com.ua'><i>~AsmodeuS~ 2004</i></a>
+print "<hr size=1><a href='http://abills.sf.net'><i>~AsmodeuS~ 2005</i></a>
 </body>
 </html>\n";
 

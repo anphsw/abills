@@ -1,17 +1,16 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 
-$PROGRAM='~AsmodeuS~ billing system varsion';
-
+$PROGRAM='~AsmodeuS~ Billing System';
 
 #DB configuration
 $conf{dbhost}='localhost';
 $conf{dbname}='abills';
-$conf{dblogin}='abills';
+$conf{dbuser}='abills';
 $conf{dbpasswd}='password';
 
 #Mail configuration
-$conf{ADMIN_MAIL}='admin@your';
-$conf{USERS_MAIL_DOMAIN}='yourdomain';
+$conf{ADMIN_MAIL}='info@your.domain';
+$conf{USERS_MAIL_DOMAIN}='your.domain';
 $conf{MAIL_CHARSET}='windows-1251';
 
 #Periodic functions
@@ -21,7 +20,7 @@ $conf{p_users_mails}=1;  # Send user warning  messages
 # chap encryption decription key
 $conf{secretkey}="test12345678901234567890";
 $conf{s_detalization}='yes'; #make session detalization recomended for vpn leathed lines
-$conf{version}='0.22b'; #16.02.2005
+$conf{version}='0.23b'; #23.02.2005
 
 #Minimum session costs
 $conf{MINIMUM_SESSION_TIME}=10; # minimum session time for push session to db
@@ -32,7 +31,7 @@ $conf{MINIMUM_SESSION_COST}=0.01;
 
 
 # Exppp options
-$conf{netsfilespath}='/usr/abills/cgi-bin/admin/nets/';
+$conf{netsfilespath}='/usr/abills/cgi-bin/dmin/nets/';
 $conf{config_file}='';
 
 # Debug mod 
@@ -244,9 +243,6 @@ sub mk_session_log  {
  close(FILE);
 }
 
-
-
-
 #********************************************************************
 # Split session to intervals
 # session_splitter($login, $duration, $day_begin, $day_of_week, 
@@ -254,8 +250,8 @@ sub mk_session_log  {
 #********************************************************************
 sub session_splitter {
  my ($login, $duration, $day_begin, $day_of_week, $day_of_year, $intervals) = @_;
-  
- my %int = %$intervals;  #time intervals
+
+
  my %division_time = (); #return division time
 
 # Test intervals
@@ -271,11 +267,12 @@ sub session_splitter {
  $login = $login - $day_begin;
   
  while($duration > 0 && $count < 200) {
-    if (defined($int{$day_of_week})) {
+
+    if (defined($intervals->{$day_of_week})) {
     	#print "Day tarif";
     	$tarif_day = $day_of_week;
      }
-    elsif(defined($int{$day_of_year})) {
+    elsif(defined($intervals->{$day_of_year})) {
     	#print "Holliday tarif '$day_of_year' ";
     	$tarif_day = 8;
      }
@@ -291,8 +288,8 @@ sub session_splitter {
 
 #     reset $int{$tarif_day};
 
-     my $cur_int = $int{$tarif_day};
-          
+     my $cur_int = $intervals->{$tarif_day};
+
      while(my($int_begin, $int_end)=each %$cur_int) {
 #     	print "--";
      	
@@ -334,7 +331,7 @@ sub session_splitter {
       }
   }
 
- return %division_time;
+ return \%division_time;
 }
 
 
@@ -344,10 +341,10 @@ sub session_splitter {
 # >= 0 - session sum
 # -1 Less than minimun session trafic and time
 # -2 Not found user in users db
-# session_sum ($uid, $s_start, $duration, \$trafic) 
+# session_sum ($login, $s_start, $duration, \$trafic) 
 #********************************************************************
 sub session_sum {
- my ($uid, $s_start, $duration, $trafic)=@_;
+ my ($login, $s_start, $duration, $trafic)=@_;
  my $sum = 0;
  my ($vid);
  my $sent = $trafic->{OUTBYTE} || 0; #from server
@@ -366,10 +363,6 @@ sub session_sum {
    if (traft.in_price IS NULL, 0, traft.in_price),
    if (traft.out_price IS NULL, 0, traft.out_price),
    v.prepaid_trafic,
-   time_int.day,
-   TIME_TO_SEC(time_int.begin),
-   TIME_TO_SEC(time_int.end),
-   time_int.tarif,
    u.activate,
    v.abon,
    traft.prepaid,
@@ -379,10 +372,10 @@ sub session_sum {
    DAYOFYEAR(FROM_UNIXTIME($s_start))
  FROM users u, variant v
  LEFt JOIN trafic_tarifs traft on traft.vid=v.vrnt
- LEFt JOIN intervals time_int on time_int.vid=v.vrnt
- WHERE u.variant=v.vrnt and u.id='$uid';";
+ WHERE u.variant=v.vrnt and u.id='$login';";
 
  log_print('LOG_SQL', "$sql");
+
 
  my $q = $db->prepare($sql) || die $db->errstr;
  $q ->execute();
@@ -391,30 +384,27 @@ sub session_sum {
      return -2;	
    }
  
+ 
  my $time_tarif = 0;
  my $trafic_tarif = 0;
  my %traf_price = ();       # TRaffic  price
 
-  $traf_price{in}{lo} = 0;
-  $traf_price{out}{lo} = 0;
-  $traf_price{in}{gl} = 0;
-  $traf_price{out}{gl} = 0;
+ $traf_price{in}{lo} = 0;
+ $traf_price{out}{lo} = 0;
+ $traf_price{in}{gl} = 0;
+ $traf_price{out}{gl} = 0;
 
  my %prepaid = ();          # Prepaid traffic Mb
   $prepaid{gl} = 0;
   $prepaid{lo} = 0;
  
- my %time_prices = ();
-
  my $reduction = 0;
- my $intervals = ();
 
  my $day_begin = 0; 
  my $day_of_week = 0;
  my $day_of_year = 0;
- 
+
  while(my($variant, $time_t, $traf_id, $traf_in_price, $traf_out_price, $prepaid_traffic,
-   $timet_day, $timet_begin, $timet_end, $timet_price, 
    $activate, $month_abon, $prepaid_div_traf, $red, $d_begin, $dow, $doy)=$q->fetchrow()) {
     
     $day_of_week = $dow || 0;
@@ -436,8 +426,6 @@ sub session_sum {
       }
 
     $reduction = $red;
-    $intervals{$timet_day}{$timet_begin} = $timet_end;
-    $time_prices{$timet_day}{$timet_begin} = $timet_price;
   }
 
 
@@ -462,7 +450,7 @@ sub session_sum {
     # login>'$activate'
     #Get traffic from begin of month
     $sql = "SELECT sum(sent + recv) / 1024 / 1024, sum(sent2 + recv2) / 1024 / 1024
-       FROM log WHERE id='$uid' and (login>=DATE_FORMAT(curdate(), '%Y-%m-00'))
+       FROM log WHERE id='$login' and (login>=DATE_FORMAT(curdate(), '%Y-%m-00'))
        GROUP BY id";
 
 
@@ -501,7 +489,7 @@ sub session_sum {
 
  if ($prepaid_traffic > 0) {
     $sql = "SELECT (sent + recv) / 1024 / 1024, (sent2 + recv2) / 1024 / 1024  
-     FROM log WHERE id='$uid' and login>'$activate'";
+     FROM log WHERE id='$login' and login>'$activate'";
 
     my $q = $db->prepare($sql) || die $db->errstr;
     $q ->execute();
@@ -552,7 +540,7 @@ sub session_sum {
     # login>'$activate'
     #Get traffic from begin of month
     $sql = "SELECT sum(sent + recv), sum(sent2 + recv2)
-       FROM log WHERE id='$uid' and (DATE_FORMAT(login, '%Y-%m')=DATE_FORMAT(curdate(), '%Y-%m'))
+       FROM log WHERE id='$login' and (DATE_FORMAT(login, '%Y-%m')=DATE_FORMAT(curdate(), '%Y-%m'))
        GROUP BY id;";
 
     my $q = $db->prepare($sql) || die $db->errstr;
@@ -563,10 +551,6 @@ sub session_sum {
     if ($q->rows() > 0) {
        ($used_traffic, $used_traffic2)=$q->fetchrow() ;
      }
-
-    	
-    	
-    
     
        # If left global prepaid traffic set traf price to 0
        if (($used_traffic + $sent + $recv) / 1024 / 1024 < $prepaid{gl}) {
@@ -602,26 +586,33 @@ sub session_sum {
 
  my $time_sum = 0;
  if ($time_tarif > 0) {
-   my %division_time = session_splitter("$s_start", "$duration", $day_begin, $day_of_week, 
-    $day_of_year, \%intervals);
+   
+   my ($intervals, $time_prices) = time_intervals($vid);   
 
-   my $secsum = 0;
+   if (ref($intervals) eq 'HASH') {
+     my $division_time = session_splitter("$s_start", "$duration", $day_begin, $day_of_week, 
+      $day_of_year, $intervals);
 
-   while(my($tarif_day, $params)=each %division_time) {
+     my $secsum = 0;
+     while(my($tarif_day, $params)=each %$division_time) {
        my $period_sum = 0;
        while(my($interval, $secs)=each %$params) {
        	   $secsum += $secs;
-           if ($time_prices{$tarif_day}{$interval} =~ /%$/) {
-             $time_prices{$tarif_day}{$interval} =~ tr/\%//;
-             $period_sum = ($time_tarif  / 60 / 60) * $secs * ($time_prices{$tarif_day}{$interval} / 100);
+           if ($time_prices->{$tarif_day}{$interval} =~ /%$/) {
+             $time_prices->{$tarif_day}{$interval} =~ tr/\%//;
+             $period_sum = ($time_tarif  / 60 / 60) * $secs * ($time_prices->{$tarif_day}{$interval} / 100);
            }
           else {
-             $period_sum = $time_prices{$tarif_day}{$interval} * ($secs / 60 / 60);
+             $period_sum = $time_prices->{$tarif_day}{$interval} * ($secs / 60 / 60);
            }
        	   $time_sum += $period_sum;
          }
-       
-     }
+      }
+    }
+   else {
+     $time_sum = $time_tarif * ($duration / 60 / 60);
+    }
+
   }
 
 #####################################################################
@@ -641,6 +632,7 @@ sub session_sum {
    $sum = $conf{MINIMUM_SESSION_COST} if ($sum < $conf{MINIMUM_SESSION_COST} && $time_tarif + $traf_price{in}{lo} + $traf_price{out}{lo} + $traf_price{out}{gl} + $traf_price{in}{gl} > 0);
 
 #log_print('LOG_DEBUG', "Etap 6 ---$uid");
+
    return $sum, $vid, $time_tarif, 0;
 }
 
@@ -677,7 +669,7 @@ sub test_radius_returns {
 # clearquotes( $text )
 #*******************************************************************
 sub clearquotes {
- my $text = @_[0];
+ my $text = shift;
  $text =~ s/"//g;
  return $text;
 }
@@ -722,6 +714,56 @@ sub get_login {
  ($login) = $q -> fetchrow();
  return $login;
 }
+
+
+#********************************************************************
+# time intervals
+#********************************************************************
+sub time_intervals {
+ my ($vid) = @_;
+
+ my $sql = "SELECT day, TIME_TO_SEC(begin), TIME_TO_SEC(end), tarif  FROM intervals WHERE vid='$vid' ORDER BY 1;";
+ my $q = $db->prepare($sql) || die $db->errstr;
+ $q ->execute();
+
+ if ($q->rows() < 1) {
+     return 0;	
+   }
+
+ my %time_intervals = ();
+ my %interval_tarifs = ();
+
+ while(my($timet_day, $timet_begin, $timet_end, $timet_tarif)=$q->fetchrow()) {
+     $time_intervals{$timet_day}{$timet_begin} = $timet_end;
+     $interval_tarifs{$timet_day}{$timet_begin} = $timet_tarif;
+   }
+
+ return \%time_intervals, \%interval_tarifs; 
+}
+
+
+
+#********************************************************************
+# remaining_time
+#********************************************************************
+sub holidays_show() {
+ my ($attr) = @_;
+
+ my $year = (defined($attr->{year})) ? $attr->{year} : 'YEAR(CURRENT_DATE)';
+ my $format = (defined($attr->{format}) && $attr->{format} eq 'daysofyear') ? "DAYOFYEAR(CONCAT($year, '-', day)) as dayofyear" : 'day';
+
+ my %hollidays = ();	
+ my $sql = "SELECT $format, descr FROM holidays;";
+ my $q = $db->prepare($sql) || die $db->errstr;
+ $q ->execute();
+
+ while(my($day, $describe)=$q->fetchrow()) {
+   $hollidays{$day}=$describe;
+  }
+
+ \%hollidays;
+}
+
 
 
 #********************************************************************
