@@ -138,9 +138,9 @@ if ($NAS_INFO->{nt}{$nas_num} eq 'exppp') {
 
 if ($acct_status_type == 1) { 
   $sql = "INSERT INTO calls 
-   (status, user_name, started, nas_ip_address, nas_port_id, acct_session_id, acct_session_time,
+   (status, user_name, started, lupdated, nas_ip_address, nas_port_id, acct_session_id, acct_session_time,
     acct_input_octets, acct_output_octets, framed_ip_address, CID, CONNECT_INFO)
-    values ('$acct_status_type', \"$RAD{USER_NAME}\", now(), INET_ATON('$RAD{NAS_IP_ADDRESS}'), 
+    values ('$acct_status_type', \"$RAD{USER_NAME}\", now(), UNIX_TIMESTAMP(), INET_ATON('$RAD{NAS_IP_ADDRESS}'), 
      '$ACCT_INFO{NAS_PORT}', \"$RAD{ACCT_SESSION_ID}\", 0, 0, 0, INET_ATON('$RAD{FRAMED_IP_ADDRESS}'), '$ACCT_INFO{CID}', '$ACCT_INFO{CONNECT_INFO}');";
 
   log_print('LOG_SQL', "ACCT [$RAD{USER_NAME}] SQL: $sql");
@@ -185,26 +185,10 @@ elsif ($acct_status_type == 2) {
    }
 
   # Delete from session wtmp
-     $sql = "DELETE FROM  calls WHERE
+    $sql = "DELETE FROM  calls WHERE
       acct_session_id=\"$RAD{ACCT_SESSION_ID}\" and 
       user_name=\"$RAD{USER_NAME}\" and 
       nas_ip_address=INET_ATON('$RAD{NAS_IP_ADDRESS}');";
-
-  # Update session wtmp
-  #$sql = "UPDATE calls SET
-  #  status='$ACCT_TYPES{$RAD{ACCT_STATUS_TYPE}}',
-  #  nas_port_id='$ACCT_INFO{NAS_PORT}',
-  #  acct_session_time=UNIX_TIMESTAMP()-UNIX_TIMESTAMP(started),
-  #  acct_input_octets='$ACCT_INFO{INBYTE}',
-  #  acct_output_octets='$ACCT_INFO{OUTBYTE}',
-  #  ex_input_octets='$ACCT_INFO{INBYTE2}',
-  #  ex_output_octets='$ACCT_INFO{OUTBYTE2}',
-  #  framed_ip_address=INET_ATON('$RAD{FRAMED_IP_ADDRESS}'),
-  #  lupdated=UNIX_TIMESTAMP()
-  # WHERE
-  #  acct_session_id=\"$RAD{ACCT_SESSION_ID}\" and 
-  #  user_name=\"$RAD{USER_NAME}\" and 
-  #  nas_ip_address=INET_ATON('$RAD{NAS_IP_ADDRESS}');";
 
     log_print('LOG_SQL', "ACCT [$RAD{USER_NAME}] SQL: $sql");     
     $q = $db->do("$sql") || die $db->errstr;
@@ -212,6 +196,25 @@ elsif ($acct_status_type == 2) {
 }
 #Alive status 3
 elsif($acct_status_type == 3) {
+
+## Experemental Linux alive hangup
+## Author: Wanger
+#if ($conf{experimentsl} eq 'yes') {
+#  my ($sum, $variant, $time_t, $traf_t) = session_sum("$RAD{USER_NAME}", $ACCT_INFO{LOGIN}, $ACCT_INFO{ACCT_SESSION_TIME}, \%ACCT_INFO);
+#  if ($sum > 0) {
+#     $sql = "SELECT deposit, credit FROM users WHERE id=\"$RAD{USER_NAME}\";";
+#     log_print('LOG_SQL', "ACCT [$RAD{USER_NAME}] SQL: $sql");
+#     $q = $db->prepare("$sql") || die $db->errstr;
+#     $q -> execute();
+#     my ($deposit, $credir) = $q -> fetchrow();
+#      if (($deposit + $credir) - $sum) < 0) {
+#        log_print('LOG_WARNING', "ACCT [$RAD{USER_NAME}] Negative balance ($d - $sum) - kill session($RAD{ACCT_SESSION_ID})");
+#        system ($Bin ."/modules/hangup.pl $RAD{ACCT_SESSION_ID}");
+#       }
+#  }
+#}
+###
+
   $sql = "UPDATE calls SET
     status='$acct_status_type',
     nas_port_id='$ACCT_INFO{NAS_PORT}',

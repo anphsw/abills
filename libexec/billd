@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 # Accounting controll deamon
-# ~AsmodeuS~ (2004.05.03)
+# ~AsmodeuS~ (2005.05.03)
 #
 
 use POSIX; 
@@ -13,7 +13,7 @@ Base->import();
 require $Bin.'/config.pl';
 require $Bin.'/sql.pl';
 require $Bin.'/nas.pl';
-my $alive_interval = 30;
+my $alive_interval = 60;
 
 parse_arguments(@ARGV);
 my $rc  = $db->disconnect;

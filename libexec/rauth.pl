@@ -9,18 +9,35 @@ my $begin_time = check_time();
 require $Bin . '/sql.pl';
 
 
+=comments
+        MS-CHAP-Challenge = 0x32323738343134393536353333333635
+        MS-CHAP2-Response = 0x010017550ce222cfa39d348b93e93cd26f1a000000000000000026fe1a5e39097393b8a4ade5a466790bbefab075383ec58b
+
+        MS-CHAP2-Success = 0x01533d30424446454530444634373846434335464338453041423939444344453842373341303835373245
+        MS-MPPE-Recv-Key = 0x27ac8322247937ad3010161f1d5bbe5c
+        MS-MPPE-Send-Key = 0x4f835a2babe6f2600a731fd89ef25a38
+        MS-MPPE-Encryption-Policy = 0x00000001
+        MS-MPPE-Encryption-Types = 0x00000006
+=cut
+
+
 ####################################################################
 
 get_radius_params();
-#test_radius_returns();
+test_radius_returns();
 #####################################################################
 
 if ($ARGV[0] eq 'pre_auth') { 
   pre_auth("$RAD{USER_NAME}");
+  exit 0;
 }
 
 my $nas_num=-1;
 my $NAS_INFO = nas_params();
+# Max session tarffic limit  (Mb)
+$conf{MAX_SESSION_TRAFFIC} = 2048; 
+
+#my $aaa = `echo $ARGV[0] >> /tmp/argvvv`;
 
 if (defined($NAS_INFO->{"$RAD{NAS_IP_ADDRESS}"})) {
    $nas_num = $NAS_INFO->{"$RAD{NAS_IP_ADDRESS}"};
@@ -55,13 +72,15 @@ sub auth {
    $rr .= "$rs = $ls,\n";	
   }
  print $rr;
+
  log_print('LOG_DEBUG', "AUTH [$RAD{USER_NAME}] $rr");
 
  if($r == 1) {
+    print "Reply-Message = $message,\n";
     access_deny("$RAD{USER_NAME}", "$message", $nas_num);
   }
+
  print $NAS_INFO->{rp}{$nas_num};
- 
  if ($begin_time > 0)  {
    my $end_time = gettimeofday();
    my $gen_time = $end_time - $begin_time;
@@ -82,7 +101,7 @@ sub authentication {
 my $sql = qq{
 select
   u.uid,
-  u.deposit + u.credit,
+  u.deposit + u.credit - v.credit_tresshold,
   if (u.logins=0, v.logins, u.logins) AS logins,
   u.filter_id,
   if(u.ip>0, INET_NTOA(u.ip), 0),
@@ -100,7 +119,7 @@ select
   day_traf_limit,
   week_traf_limit,
   month_traf_limit,
-  if(v.hourp + v.df + v.abon=0 and tt.price IS NULL, 0, 1),
+  if(v.hourp + v.df + v.abon=0 and sum(tt.in_price + tt.out_price)=0, 0, 1),
   if (count(un.uid) + count(vn.vid) = 0, 0,
     if (count(un.uid)>0, 1, 2)),
   count(tt.id),
@@ -117,7 +136,7 @@ select
      WHERE u.variant=v.vrnt
         AND u.id='$USER'
         AND (u.expire='0000-00-00' or u.expire > CURDATE())
-        AND (u.activate='0000-00-00' or u.activate < CURDATE())
+        AND (u.activate='0000-00-00' or u.activate <= CURDATE())
         AND v.dt < CURTIME()
         AND CURTIME() < v.ut
        GROUP BY u.id
@@ -166,7 +185,7 @@ if ($cid ne '') {
       my @MAC_DIGITS_NEED=split(/:/, $cid);
       my @MAC_DIGITS_GET=split(/:/, $RAD{CALLING_STATION_ID});
       for(my $i=0; $i<=5; $i++) {
-        if($MAC_DIGITS_NEED[$i] != $MAC_DIGITS_GET[$i]) {
+        if(hex('0x'.$MAC_DIGITS_NEED[$i]) != hex('0x'. $MAC_DIGITS_GET[$i])) {
           $message = "Wrong MAC '$RAD{CALLING_STATION_ID}'";
           return 1;
          }
@@ -195,60 +214,74 @@ if (defined($RAD{CHAP_PASSWORD}) && defined($RAD{CHAP_CHALLENGE})) {
  }
 #Auth MS-CHAP v1,v2
 elsif(defined($RAD{MS_CHAP_CHALLENGE})) {
-       # Its an MS-CHAP V2 request
-       # See draft-ietf-radius-ms-vsa-01.txt,
-       # draft-ietf-pppext-mschap-v2-00.txt, RFC 2548, RFC3079
-       my ($usersessionkey, $lanmansessionkey, $ms_chap2_success);
-       if (defined($RAD{MS_CHAP2_RESPONSE})) {
+  # Its an MS-CHAP V2 request
+  # See draft-ietf-radius-ms-vsa-01.txt,
+  # draft-ietf-pppext-mschap-v2-00.txt, RFC 2548, RFC3079
+  $RAD{MS_CHAP_CHALLENGE} =~ s/^0x//;
+  my $challenge = pack("H*", $RAD{MS_CHAP_CHALLENGE});
+  my ($usersessionkey, $lanmansessionkey, $ms_chap2_success);
 
-         if(check_mschapv2("$RAD{USER_NAME}", $passwd, "$RAD{MS_CHAP_CHALLENGE}", "$RAD{MS_CHAP2_RESPONSE}", 
-	   \$usersessionkey, \$lanmansessionkey, \$ms_chap2_success) == 0) {
-            $message = "Wrong MS-CHAP2 password";
-            $RAD_PAIRS{'MS-CHAP-Error'}="$message";
-            return 1;
-	  }
+  if (defined($RAD{MS_CHAP2_RESPONSE})) {
+     $RAD{MS_CHAP2_RESPONSE} =~ s/^0x//; 
+     my $rad_response = pack("H*", $RAD{MS_CHAP2_RESPONSE});
+     my ($ident, $flags, $peerchallenge, $reserved, $response) = unpack('C C a16 a8 a24', $rad_response);
 
-         $RAD_PAIRS{'MS-CHAP2-SUCCESS'} = '0x' . bin2hex($ms_chap2_success);
+     if (check_mschapv2("$RAD{USER_NAME}", $passwd, $challenge, $peerchallenge, $response, $ident,
+ 	     \$usersessionkey, \$lanmansessionkey, \$ms_chap2_success) == 0) {
+         $message = "Wrong MS-CHAP2 password";
+         $RAD_PAIRS{'MS-CHAP-Error'}="\"$message\"";
+         return 1;
+	    }
 
-         $RAD{MS_CHAP2_RESPONSE} =~ s/^0x//; 
-         my $response = pack("H*", $RAD{MS_CHAP2_RESPONSE});
+     $RAD_PAIRS{'MS-CHAP2-SUCCESS'} = '0x' . bin2hex($ms_chap2_success);
 
-         my ($send, $recv) = Radius::MSCHAP::mppeGetKeys($usersessionkey, $response, 16);
-         $RAD_PAIRS{'MS-MPPE-Send-Key'}="0x".bin2hex( substr(encode_mppe_key($send, $passwd), 0, 16));
-	 $RAD_PAIRS{'MS-MPPE-Recv-Key'}="0x".bin2hex( substr(encode_mppe_key($recv, $passwd), 0, 16));
+     my ($send, $recv) = Radius::MSCHAP::mppeGetKeys($usersessionkey, $response, 16);
+
+
+# MPPE Sent/Recv Key Not realizet now.
+#        print "\n--\n'$usersessionkey'\n'$response'\n'$send'\n'$recv'\n--\n";
+#        $RAD_PAIRS{'MS-MPPE-Send-Key'}="0x".bin2hex( substr(encode_mppe_key($send, $radsecret, $challenge), 0, 16));
+#	       $RAD_PAIRS{'MS-MPPE-Recv-Key'}="0x".bin2hex( substr(encode_mppe_key($recv, $radsecret, $challenge), 0, 16));
+
+#        my $radsecret = 'test';
+#         $RAD_PAIRS{'MS-MPPE-Send-Key'}="0x".bin2hex(encode_mppe_key($send, $radsecret, $challenge));
+#	       $RAD_PAIRS{'MS-MPPE-Recv-Key'}="0x".bin2hex(encode_mppe_key($recv, $radsecret, $challenge));
+
+#        $RAD_PAIRS{'MS-MPPE-Send-Key'}='0x4f835a2babe6f2600a731fd89ef25a38';
+#	       $RAD_PAIRS{'MS-MPPE-Recv-Key'}='0x27ac8322247937ad3010161f1d5bbe5c';
+	       
         }
        else {
          if (check_mschap("$passwd", "$RAD{MS_CHAP_CHALLENGE}", "$RAD{MS_CHAP_RESPONSE}", 
 	           \$usersessionkey, \$lanmansessionkey, \$message) == 0) {
            $message = "Wrong MS-CHAP password";
-           $RAD_PAIRS{'MS-CHAP-Error'}="$message";
+           $RAD_PAIRS{'MS-CHAP-Error'}="\"$message\"";
            return 1;
           }
         }
 
-
        $RAD_PAIRS{'MS-CHAP-MPPE-Keys'} = '0x' . unpack("H*", (pack('a8 a16', $lanmansessionkey, 
-                                                                  $usersessionkey))) . "0000000000000000";
+														$usersessionkey))) . "0000000000000000";
+
        # 1      Encryption-Allowed 
        # 2      Encryption-Required 
-       $RAD_PAIRS{'MS-MPPE-Encryption-Policy'} = '0x00000002';
+       $RAD_PAIRS{'MS-MPPE-Encryption-Policy'} = '0x00000001';
        $RAD_PAIRS{'MS-MPPE-Encryption-Types'} = '0x00000006';      
  }
+#End MSchap auth
 elsif($authtype == 1) {
   if (check_systemauth("$RAD{USER_NAME}", "$RAD{USER_PASSWORD}") == 0) { 
      $message = "Wrong password '$RAD{USER_PASSWORD}' $authtype";
      return 1;    	
    }
  } 
+#If don't athorize any above methods auth PAP password
 else {
   if($passwd ne "$RAD{USER_PASSWORD}") {
     $message = "Wrong password '$RAD{USER_PASSWORD}'";
     return 1;
    }
 }
-
-
-
 
 
 
@@ -263,7 +296,7 @@ if ($logins > 0) {
   $sql = "SELECT count(*) FROM calls WHERE user_name='$USER' and status <> 2;";
   log_print('LOG_SQL', "$sql");
        
-   $q = $db->prepare($sql)   || die $db->errstr;
+   $q = $db->prepare($sql) || die $db->errstr;
    $q ->execute();
   my $total = $q->rows();
   my($active_logins) = $q->fetchrow();
@@ -282,12 +315,14 @@ if ($logins > 0) {
 my @time_limits=();
 my @traf_limits= ();
 my $time_limit = 0; 
-my $traf_limit = 0;
+my $traf_limit = $conf{MAX_SESSION_TRAFFIC};
 
      if (($day_time_limit > 0) || ($day_traf_limit > 0)) {
-        $sql = "SELECT $day_time_limit - sum(duration), $day_traf_limit - sum(sent + recv) FROM log
-                 WHERE id='$USER' and DATE_FORMAT(login, '%Y-%m-%d')=curdate()
-                 GROUP BY DATE_FORMAT(login, '%Y-%m-%d');";
+        $sql = "SELECT if($day_time_limit > 0, $day_time_limit - sum(duration), 0),
+                       if($day_traf_limit > 0, $day_traf_limit - sum(sent + recv) / 1024 / 1024, 0) FROM log
+            WHERE id='$USER' and DATE_FORMAT(login, '%Y-%m-%d')=curdate()
+            GROUP BY DATE_FORMAT(login, '%Y-%m-%d');";
+
         $q = $db->prepare($sql) || die $db->errstr;
         $q ->execute();
         if ($q->rows == 0) {
@@ -300,9 +335,11 @@ my $traf_limit = 0;
           push (@traf_limits, $traf_limit) if ($day_traf_limit > 0);
          }
        }
-     
+
+
      if (($week_time_limit > 0) || ($week_traf_limit > 0)) {
-        $sql = "SELECT $week_time_limit - sum(duration), $week_traf_limit - sum(sent+recv) FROM log
+        $sql = "SELECT if($week_time_limit > 0, $week_time_limit - sum(duration), 0),
+                       if($week_traf_limit > 0, $week_traf_limit - sum(sent+recv)  / 1024 / 1024, 0) FROM log
                  WHERE id='$USER' and (WEEK(login)=WEEK(curdate()) and YEAR(LOGIN)=YEAR(CURDATE()))
                  GROUP BY WEEK(login)=WEEK(curdate()),YEAR(LOGIN)=YEAR(CURDATE());";
       
@@ -320,7 +357,8 @@ my $traf_limit = 0;
        }
 
      if($month_time_limit > 0 || ($month_traf_limit > 0)) {
-        $sql = "SELECT $month_time_limit - sum(duration), $month_traf_limit - sum(sent+recv) FROM log 
+        $sql = "SELECT if($month_time_limit > 0, $month_time_limit - sum(duration), 0), 
+                       if($month_traf_limit > 0, $month_traf_limit - sum(sent+recv)  / 1024 / 1024, 0) FROM log 
            WHERE id='$USER' and DATE_FORMAT(login, '%Y-%m')=DATE_FORMAT(curdate(), '%Y-%m')
            GROUP BY DATE_FORMAT(login, '%Y-%m');";
         
@@ -339,17 +377,21 @@ my $traf_limit = 0;
        }
 
 
-#10Gb - (1 073 741 824) - global traffic session limit
 #set traffic limit
-     $traf_limit = 10737418240;
+     #push (@traf_limits, $prepaid_traff) if ($prepaid_traff > 0);
+
+
+
+
      for(my $i=0; $i<=$#traf_limits; $i++) {
         if ($traf_limit > $traf_limits[$i]) {
-           $traf_limit = $traf_limits[$i];
+
+           $traf_limit = int($traf_limits[$i]);
          }
       }
 
      if($traf_limit < 0) {
-       $message = "Rejected! Traffic limit utilized '$traf_limit'";
+       $message = "Rejected! Traffic limit utilized '$traf_limit Mb'";
        return 1;
       }
 
@@ -364,8 +406,7 @@ my $traf_limit = 0;
                                                   time_limit  => $today_limit  } 
                                           )
             );
-
-     }
+      }
 
 #set time limit
      $time_limit = $today_limit;
@@ -408,42 +449,36 @@ my $traf_limit = 0;
 
 my $v_speed=0;
 
-
 if ($NAS_INFO->{nt}{$nas_num} eq 'exppp') {
 
   #$traf_tarif 
-  if ($traf_tarif > 0) {
-    my $EX_PARAMS = ex_params($vid, "$USER", { traf_limit => $traf_limit, 
+  my $EX_PARAMS = ex_params($vid, "$USER", { traf_limit => $traf_limit, 
                                             deposit => $deposit });
 
+  #global Traffic
+  if ($EX_PARAMS->{traf_limit} > 0) {
+    $RAD_PAIRS{'Exppp-Traffic-Limit'} = $EX_PARAMS->{traf_limit} * 1024 * 1024;
+   }
 
-    #global Traffic
-    if ($EX_PARAMS->{traf_limit} > 0) {
-      $RAD_PAIRS{'Exppp-Traffic-Limit'} = $EX_PARAMS->{traf_limit};
-     }
-
-    #Local traffic
-    if ($EX_PARAMS->{traf_limit_lo} > 0) {
-      $RAD_PAIRS{'Exppp-LocalTraffic-Limit'} = $EX_PARAMS->{traf_limit_lo};
-     }
+  #Local traffic
+  if ($EX_PARAMS->{traf_limit_lo} > 0) {
+    $RAD_PAIRS{'Exppp-LocalTraffic-Limit'} = $EX_PARAMS->{traf_limit_lo} * 1024 * 1024 ;
+   }
        
-    #Local ip tables
-    if (defined($EX_PARAMS->{nets})) {
-      $RAD_PAIRS{'Exppp-Local-IP-Table'} = "\"$conf{netsfilespath}$vid.nets\"";
-     }
-    $v_speed = $EX_PARAMS->{speed};
-  }
+  #Local ip tables
+  if (defined($EX_PARAMS->{nets})) {
+    $RAD_PAIRS{'Exppp-Local-IP-Table'} = "\"$conf{netsfilespath}$vid.nets\"";
+   }
 
   #Shaper
   if ($uspeed > 0) {
     $RAD_PAIRS{'Exppp-Traffic-Shape'} = int($uspeed);
    }
   else {
-    if ($v_speed  > 0) {
-      $RAD_PAIRS{'Exppp-Traffic-Shape'} = $v_speed;
+    if ($EX_PARAMS->{speed}  > 0) {
+      $RAD_PAIRS{'Exppp-Traffic-Shape'} = $EX_PARAMS->{speed};
      }
    }
-
 
 =comments
         print "Exppp-Traffic-In-Limit = $trafic_inlimit,";
@@ -452,16 +487,18 @@ if ($NAS_INFO->{nt}{$nas_num} eq 'exppp') {
         print "Exppp-LocalTraffic-Out-Limit = $trafic_lo_outlimit,";
 =cut
  }
+###########################################################
+# MPD
 elsif ($NAS_INFO->{nt}{$nas_num} eq 'mpd') {
-   my $EX_PARAMS = ex_params($vid, "$USER", { attr => $traf_limit,
+  my $EX_PARAMS = ex_params($vid, "$USER", { traf_limit => $traf_limit, 
                                               deposit => $deposit });
  
   #global Traffic
   if ($EX_PARAMS->{traf_limit} > 0) {
-    $RAD_PAIRS{'Exppp-Traffic-Limit'} = $EX_PARAMS->{traf_limit};
+    $RAD_PAIRS{'Exppp-Traffic-Limit'} = $EX_PARAMS->{traf_limit} * 1024 * 1024;
    }
        
-  #Shaper
+#Shaper
 #  if ($uspeed > 0) {
 #    $RAD_PAIRS{'mpd-rule'} = "\"1=pipe %p1 ip from any to any\"";
 #    $RAD_PAIRS{'mpd-pipe'} = "\"1=bw ". $uspeed ."Kbyte/s\"";
@@ -473,10 +510,25 @@ elsif ($NAS_INFO->{nt}{$nas_num} eq 'mpd') {
 #      $RAD_PAIRS{'mpd-pipe'} = "1=bw ". $v_speed ."Kbyte/s";
 #     }
 #   }
-
  
   log_print('LOG_DEBUG', "MPD");
  }
+###########################################################
+# pppd + RADIUS plugin (Linux) http://samba.org/ppp/
+elsif ($NAS_INFO->{nt}{$nas_num} eq 'pppd') {
+  my $EX_PARAMS = ex_params($vid, "$USER", { traf_limit => $traf_limit, 
+                                             deposit => $deposit });
+  #global Traffic
+  if ($EX_PARAMS->{traf_limit} > 0) {
+    $RAD_PAIRS{'Session-Octets-Limit'} = $EX_PARAMS->{traf_limit} * 1024 * 1024;
+    $RAD_PAIRS{'Octets-Direction'} = 0;
+   }
+
+  log_print('LOG_DEBUG', "Linux pppd");
+ }
+
+
+
 #####################################################################
    return 0;	
 }
@@ -506,7 +558,7 @@ sub ex_params {
  #get traffic limits
 # if ($traf_tarif > 0) {
    my $nets = 0;
-   my $sql = "SELECT id, in_price, out_price, prepaid*1024*1024, speed, LENGTH(nets) FROM trafic_tarifs
+   my $sql = "SELECT id, in_price, out_price, prepaid, speed, LENGTH(nets) FROM trafic_tarifs
              WHERE vid='$vid';";
    my $q = $db->prepare($sql) || die $db->errstr;
    $q ->execute();
@@ -527,13 +579,14 @@ sub ex_params {
 #   return %EX_PARAMS;	
 #  }
 
+
 if ($prepaids{0}+$prepaids{1}>0) {
-  $sql = "SELECT sum(sent+recv), sum(sent2+recv2) FROM log 
+  $sql = "SELECT sum(sent+recv) / 1024 / 1024, sum(sent2+recv2) / 1024 / 1024 FROM log 
      WHERE id='$uid' and DATE_FORMAT(login, '%Y-%m')=DATE_FORMAT(curdate(), '%Y-%m')
      GROUP BY DATE_FORMAT(login, '%Y-%m');";
 
-     $q = $db->prepare($sql) || die $db->errstr;
-     $q ->execute();
+  $q = $db->prepare($sql) || die $db->errstr;
+  $q ->execute();
 
   if ($q->rows == 0) {
     $trafic_limits{0}=$prepaids{0};
@@ -545,42 +598,47 @@ if ($prepaids{0}+$prepaids{1}>0) {
     if ($used[0] < $prepaids{0}) {
       $trafic_limits{0}=$prepaids{0} - $used[0];
      }
-    else {
-      $trafic_limits{0} = ($deposit / (($in_prices{0} + $out_prices{0}) / 2)) * 1024 * 1024;
+    elsif($in_prices{0} + $out_prices{0} > 0) {
+      $trafic_limits{0} = ($deposit / (($in_prices{0} + $out_prices{0}) / 2));
      }
 
-    if ($used[1] < $prepaids{1}) {
+    if ($used[1]  < $prepaids{1}) {
       $trafic_limits{1}=$prepaids{1} - $used[1];
      }
-    else {
-      $trafic_limits{1} = ($deposit / (($in_prices{1} + $out_prices{1}) / 2)) * 1024 * 1024;
+    elsif($in_prices{1} + $out_prices{1} > 0) {
+      $trafic_limits{1} = ($deposit / (($in_prices{1} + $out_prices{1}) / 2));
      }
    }
+   
  }
 else {
   if ($in_prices{0}+$out_prices{0} > 0) {
-    $trafic_limits{0} = ($deposit / (($in_prices{0} + $out_prices{0}) / 2)) * 1024 * 1024;
+    $trafic_limits{0} = ($deposit / (($in_prices{0} + $out_prices{0}) / 2));
    }
 
   if ($in_prices{1}+$out_prices{1} > 0) {
-    $trafic_limits{1} = ($deposit / (($in_prices{1} + $out_prices{1}) / 2)) * 1024 * 1024;
+    $trafic_limits{1} = ($deposit / (($in_prices{1} + $out_prices{1}) / 2));
    }
   else {
     $trafic_limits{1} = 0;
    }
- }
-
+}
 
 #Traffic limit
+
+
 my $trafic_limit = 0;
-if ($trafic_limits{0} > 0) {
+if ($trafic_limits{0} > 0 || $traf_limit > 0) {
   if($trafic_limits{0} > $traf_limit && $traf_limit > 0) {
     $trafic_limit = $traf_limit;
    }
-  else {
+  elsif($trafic_limits{0} > 0) {
     #$trafic_limit = $trafic_limit * 1024 * 1024;
-    #1Gb - (1 073 741 824) - global traffic session limit
-    $trafic_limit = ($trafic_limits{0} > 1073741824) ? 1073741824 :  $trafic_limits{0};
+    #2Gb - (2048 * 1024 * 1024 ) - global traffic session limit
+    $trafic_limit = ($trafic_limits{0} > $conf{MAX_SESSION_TRAFFIC}) ? $conf{MAX_SESSION_TRAFFIC} :  $trafic_limits{0};
+   }
+  else {
+  	$trafic_limit = $traf_limit;
    }
 
   $EX_PARAMS{traf_limit} = int($trafic_limit);
@@ -588,8 +646,8 @@ if ($trafic_limits{0} > 0) {
 
 #Local Traffic limit
 if ($trafic_limits{1} > 0) {
-  #10Gb - (1 073 741 8240) - local traffic session limit
-  $trafic_limit = ($trafic_limits{1} > 10737418240) ? 10737418240 :  $trafic_limits{1};
+  #10Gb - (10240 * 1024 * 1024) - local traffic session limit
+  $trafic_limit = ($trafic_limits{1} > 10240) ? 10240 :  $trafic_limits{1};
   $EX_PARAMS{traf_limit_lo} = int($trafic_limit);
  }
 
@@ -794,22 +852,16 @@ sub check_mschap {
 # $sessionkeydest is a ref to a string where the sesiosn key for MPPE will be returned
 sub check_mschapv2
 {
-    my ($username, $pw, $challenge, $rad_response, 
+    my ($username, $pw, $challenge, $peerchallenge, $response, $ident,
 	$usersessionkeydest, $lanmansessionkeydest,  $ms_chap2_success) = @_;
 
 
   use lib $Bin;
   use MSCHAP;
 
-  $rad_response =~ s/^0x//; 
-  $challenge =~ s/^0x//;
-  $challenge = pack("H*", $challenge);
-  $rad_response = pack("H*", $rad_response);
-  my ($ident, $flags, $peerchallenge, $reserved, $response) = unpack('C C a16 a8 a24', $rad_response);
-    
-    my $upw = Radius::MSCHAP::ASCIItoUnicode($pw);
-    return 
-    unless &Radius::MSCHAP::GenerateNTResponse($challenge, $peerchallenge, $username, $upw) 
+  my $upw = Radius::MSCHAP::ASCIItoUnicode($pw);
+  return 
+  unless &Radius::MSCHAP::GenerateNTResponse($challenge, $peerchallenge, $username, $upw) 
 	       eq $response;
 
 
@@ -823,7 +875,7 @@ sub check_mschapv2
    
     $$ms_chap2_success=pack('C a42', $ident,
 			  &Radius::MSCHAP::GenerateAuthenticatorResponseHash
-			  ($$usersessionkeydest, $response, $peerchallenge, $challenge, "$RAD{USER_NAME}"))
+			  ($$usersessionkeydest, $response, $peerchallenge, $challenge, "$username"))
 			  if defined $ms_chap2_success;
 
 
@@ -993,7 +1045,9 @@ sub bin2hex ($) {
 # except there is no tag
 sub encode_mppe_key
 {
- my ($pwdin, $secret) = @_;
+ my ($pwdin, $secret, $challenge) = @_;
+
+# print "$pwdin, $secret, $challenge\n";
 
  eval { require Digest::MD5; };
  if (! $@) {
@@ -1006,7 +1060,9 @@ sub encode_mppe_key
     my $P = pack('C',  length($pwdin)) . $pwdin;
     my $A = pack('n', rand(65535) | 0x8000);
 #    my $c_i = $self->authenticator . $A;     # Ciphertext blocks
+# $self->authenticator
     my $c_i = $A;     # Ciphertext blocks
+#print pack("H*", '3cb6fe01a41e2c56fddac4dd90604df5');
     my $C;                                   # Encrypted result
 
 
@@ -1018,7 +1074,7 @@ sub encode_mppe_key
 
 #	print length($C) ."$C\n";
 #print "\n$A . ". length($C) ."\n";    
-
+#print length($A . $C);
     return $A . $C;
 }
 
@@ -1030,14 +1086,18 @@ sub decode_mppe_key
 
     my ($p, $c_i, $b_i);
     $b_i = Digest::MD5::md5($secret . $self->authenticator . $A);
+
     while (length($S))
     {
-	$c_i = substr($S, 0, 16, undef);
-	$p .= $c_i ^ $b_i;
-	$b_i = Digest::MD5::md5($secret . $c_i);
+	    $c_i = substr($S, 0, 16, undef);
+	    $p .= $c_i ^ $b_i;
+	    $b_i = Digest::MD5::md5($secret . $c_i);
     }
+
     # Decode the length and strip off the padding NULs
     my ($len, $password) = unpack('Ca*', $p);
     substr($password, $len) = '' if ($len < length($password));
     return $password;
 }
+
+

@@ -9,15 +9,13 @@ require $Bin .'/config.pl';
 require $Bin .'/Base.pm';
 Base->import();
 require $Bin .'/sql.pl';
-
-if (! $lang) { require "$lang_path/ukraine.pl"; }
+require "$lang_path/$conf{default_language}.pl";
 
 $admin_name=$conf{ADMIN_MAIL};
 $admin_ip='127.0.0.1';
 
 $message = "";
 @f_message = ();
-
 
 if ($ARGV[0] eq 'monthly') {
   monthly_report();
@@ -119,6 +117,8 @@ $message .= sprintf ("%s: %4d/%4d| %9s| %s+%02.d:%02.d:%02.d| %-8.2f\n", $_TOTAL
 #*******************************************************************
 sub monthly_fees {
 
+my $negative_deposit = ($conf{negative_deposit} eq 'yes') ? '' : 'and deposit+credit > 0';
+
 my $sql = "SELECT users.id, users.uid,  abon, if(users.activate='0000-00-00', 0, 1)
     FROM users, variant
     WHERE users.variant=variant.vrnt
@@ -128,7 +128,7 @@ my $sql = "SELECT users.id, users.uid,  abon, if(users.activate='0000-00-00', 0,
        OR
        (users.activate<>'0000-00-00' and 30 - PERIOD_DIFF(curdate(), users.activate) < 1)
        )
-     and deposit+credit > 0;";
+     $negative_deposit;";
 
 log_print('LOG_SQL', "$sql");
 
@@ -151,11 +151,13 @@ while(my($login, $uid, $m_abon, $bill_sum, $activate) = $q -> fetchrow_array()) 
 
 while(($uid, $sum)=each(%USERS)) {
   #Set activate time
+
+  get_fees($uid, $sum, "$_MONTH_FEE", { deposit =>  $LAST_DEPOSIT{$uid} });
+
   if ($ACTIVATE{$uid} == 1) {
      my  $activdate = "and activate=curdate() ";
-    }
-
-  get_fees($uid, $sum, "$_MONTH_PAY", { deposit =>  $LAST_DEPOSIT{$uid} });
+     $q = $db->do("UPDATE users SET activate=curdate() WHERE uid='$uid';");
+   }
 }
 
 }
@@ -167,15 +169,22 @@ while(($uid, $sum)=each(%USERS)) {
 #*******************************************************************
 sub daily_fees {
 
+my $negative_deposit = ($conf{negative_deposit} eq 'yes') ? '' : 'and deposit+credit > 0';
+
 my $sql = qq{
 SELECT users.id, users.uid, df, users.deposit
 FROM users, variant
-WHERE users.variant=variant.vrnt and df > 0 and deposit+credit > 0
+WHERE users.variant=variant.vrnt and df > 0 $negative_deposit
 };
 
 log_print('LOG_SQL', "$sql");
 my $q = $db->prepare( $sql ) || die $db->errstr;
-$res = $q->execute ();
+$q->execute();
+
+if ($q->rows == 0) {
+  return 0;	
+}
+
 
 my %USERS = ();
 my %LAST_DEPOSIT = ();
@@ -184,12 +193,9 @@ while(my($login, $uid, $d_abon, $deposit) = $q -> fetchrow_array()) {
   $LAST_DEPOSIT{$uid}=$deposit;
 };
 
-if ($q->rows == 0) {
-  return 0;	
-}
 
 while(($uid, $sum)=each(%USERS)) {
-  get_fees($uid, $sum, "$_DAY_PAY", { deposit =>  $LAST_DEPOSIT{$uid} });
+  get_fees($uid, $sum, "$_DAY_FEE", { deposit =>  $LAST_DEPOSIT{$uid} });
 }
 
 }
@@ -370,7 +376,7 @@ while(my($login, $email, $variant,  $debet, $sum, $uplimit, $variant_name) = $q 
 #*******************************************************************
 sub backup {
  my $res = `$MYSQLDUMP --host=$conf{dbhost} --user="$conf{dbuser}" --password="$conf{dbpasswd}" $conf{dbname} | $GZIP > $BACKUP_DIR/stats-$DATE.sql.gz`;
- $message = "Backup created: $res ($BACKUP_DIR/stats-$DATE.sql.gz)";
+ $message .= "Backup created: $res ($BACKUP_DIR/stats-$DATE.sql.gz)";
 }
 
 
@@ -423,7 +429,7 @@ my  $sql = "SELECT s.id, s.h, s.d, s.m, s.y, s.counts, s.type, s.action, s.uid
 #*******************************************************************
 sub logrotate {
  
- $message = "Log rotated";
+ $message .= "Log rotated";
 }
 
 
@@ -545,12 +551,12 @@ sub get_fees {
      return -1;
     }
    ($login, $deposit)=$q -> fetchrow();
-  } 
+  }
  else {
-   $deposut = $attr->{deposit};
+   $deposit = $attr->{deposit};
   }
 
-
+ 
  $sql = "UPDATE users set deposit=deposit-$sum WHERE uid='$uid';";
  log_print('LOG_SQL', "$sql");
  $db -> do ($sql) || die $db->errstr;

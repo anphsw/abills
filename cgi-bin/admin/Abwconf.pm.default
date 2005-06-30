@@ -1,13 +1,11 @@
 package Abwconf;
 
+# Web config
 use strict;
 use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
    $SELF
    $db
    $debug
-   $BACKUP_DIR
-   $MYSQLDUMP
-   $GZIP
    $_BG0
    $_BG1
    $_BG2
@@ -23,9 +21,11 @@ use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
    $admin_name
    $admin_ip
    $header_text
+   $img_path
 
    %conf
    %FORM
+   %LANG
    %cookies
    $sort
    $desc
@@ -57,10 +57,7 @@ $VERSION = 2.00;
    $SELF
    $db
    $debug
-   $BACKUP_DIR
    $ACTION_LOG
-   $MYSQLDUMP
-   $GZIP
    @auth_types
    @status_types
    $_BG0
@@ -78,8 +75,10 @@ $VERSION = 2.00;
    $admin_name
    $admin_ip
    $header_text
+   $img_path
 
    %FORM
+   %LANG
    %cookies
    $sort
    $desc
@@ -98,6 +97,10 @@ $desc = ($FORM{desc}) ? 'DESC' : '';
 $pg = $FORM{pg} || 0;
 $op = $FORM{op} || '';
 $language = 'english';
+$img_path='../img/';
+
+#find /home/asmodeus/pppoe/libexec/ /home/asmodeus
+#/pppoe/cgi-bin/ -type f -exec grep -nH '{dbname}=' {}  \;
 
 #DB settings
 $conf{dbhost}='localhost';
@@ -114,13 +117,19 @@ $debug=7; #DEbug mode (SQL)
 @auth_types = ('SQL', 'SYSTEM');
 @status_types = ('Not working', 'Working', 'Reserved', 'Expire');
 
+
+%LANG = ('english' => 'English',
+    'russian' => 'Русский',
+    'russian-koi8-r' => 'Russian KOI8-r',
+    'ukraine' => 'Українська',
+    'bulgarian' => 'Болгарска');
+
+my $lang_charset='windows-1251';
+
 #Path settings
 my $LIB_PATH='/usr/abills/libexec/';
-$MYSQLDUMP = '/usr/local/mysql/bin/mysqldump';
-$BACKUP_DIR='/usr/abills/backup';
-$GZIP = '/usr/bin/gzip';
 push(@INC, $LIB_PATH);
-my $prot = ($ENV{HTTPS} eq 'ON') ? 'https' : 'http' ;
+my $prot = ($ENV{HTTPS} =~ /ON/i) ? 'https' : 'http' ;
 $SELF="$prot://$ENV{HTTP_HOST}$ENV{SCRIPT_NAME}";
 
 #require 'config.pl';
@@ -567,8 +576,10 @@ else {
 # $caption - array off caption
 #*******************************************************************
 sub show_title  {
-  my ($sort, $desc, $pg, $op, $caption)=@_;
+  my ($sort, $desc, $pg, $op, $caption, $attr)=@_;
   my $img='';
+
+  $img_path = $attr->{img_path} if ($attr->{img_path});
 
   print "<tr bgcolor=$_BG0>";
   my $i=1;
@@ -587,7 +598,7 @@ sub show_title  {
              $desc='DESC';
            }
          print "<a href='$SELF?op=$op&pg=$pg&sort=$i&desc=$desc'>".
-            "<img src='../img/$img' width=12 height=10 border=0 title=sort></a>";
+            "<img src='$img_path". "$img' width=12 height=10 border=0 title=sort></a>";
        }
      else {
          print "$line";
@@ -648,10 +659,13 @@ return $tmp;
 # get_online()
 #*******************************************************************
 sub get_online {
+ my ($attr) = @_;
  my $time_out = 120;
  my $online_users = '';
  my $online_count = 0;
  my %curuser = ();
+ 
+ $admin_name = $attr->{admin_name} if (defined($attr->{admin_name}));
  
  my $q = $db->do("DELETE FROM web_online WHERE UNIX_TIMESTAMP()-logtime>$time_out;") || die $db->errstr;
  
@@ -671,8 +685,10 @@ sub get_online {
    $online_users .= "$admin_name - $admin_ip;\n";
    $online_count++;
   }
- 
-  print "<abbr title=\"$online_users\"><a href='$SELF?op=admins' title='$online_users'>Online: $online_count</a></abbr> ";
+  
+  if (! defined($attr->{dont_show})) {
+    print "<abbr title=\"$online_users\"><a href='$SELF?op=admins' title='$online_users'>Online: $online_count</a></abbr> ";
+  }
 }
 
 
@@ -701,12 +717,12 @@ sub header {
  my $css = css();
 
 
-print q{<!doctype html public "-//W3C//DTD HTML 3.2 Final//EN">
+print qq{<!doctype html public "-//W3C//DTD HTML 3.2 Final//EN">
 <html>
 <head>
  <META HTTP-EQUIV="Cache-Control" content="no-cache">
  <META HTTP-EQUIV="Pragma" CONTENT="no-cache">
- <meta http-equiv="Content-Type" content="text/html; charset=windows-1251">
+ <meta http-equiv="Content-Type" content="text/html; charset=$lang_charset">
  <meta name="Author" content="Asmodeus">
 };
 

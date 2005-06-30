@@ -1,3 +1,6 @@
+# 0.24
+$CHARSET = 'windows1251';
+
 @PERIODS=('Today', 'Yesterday', 'Week', 'Month', 'All sessions', 'From activization');
 @MONTHES=('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',  'September', 'October', 'November', 'Decembe');
 @WEEKDAYS=('Hollidays', 'Mo', 'Tu', 'Wn', 'Th', 'Fr', 'Sat', 'Sun');
@@ -45,8 +48,8 @@ $_TOTAL='Total';
 $_USERS='Users';
 $_USER='User';
 $_NAME='Name';
-$_VARIANT='Variant';
-$_VARIANTS='Variants';
+$_VARIANT='Tarif Plan';
+$_VARIANTS='Tarif Plans';
 $_PREPAID='Prepaid';
 $_TRAFIC_TARIFS='Traffic tarifs';
 $_YEAR='Year';
@@ -88,7 +91,7 @@ $_ENTER='Enter';
 $_BALANCE='Balance';
 $_PERIOD='Period';
 $_SENT='Sent';
-$_RECV='Recive';
+$_RECV='Received';
 $_LAST_PAYMENT='Late payment';
 $_LAST_LOGIN='Last session';
 $_LAST='Last sessions';
@@ -119,6 +122,7 @@ $_HANGUPED='Hanguped';
 #Other
 $_OTHER='Other';
 $_SQL_BACKUP='SQL backup';
+$_ADMIN='Administrator';
 $_ADMINS='Administrators';
 $_GROUPS='Groups';
 $_CHANGE_PASSWD='Change password';
@@ -170,6 +174,7 @@ $_TEMPLATES='Template';
 
 $_ERROR = 'Error';
 $_INFO = 'Information';
+$_CUSTOMERS='Customers';
 $_ACCOUNTS= 'Accounts';
 $_ACCOUNT='Account';
 $_CREATE='Create';
@@ -216,7 +221,7 @@ $_ALLOW = 'Allow';
 $_ALLOW_ALL = 'Allow all';
 $_DEFAULT='Default';
 $_GO = 'Go';
-$_LANGUAGE='language';
+$_LANGUAGE='Language';
 $_REVISION='Revision';
 $_LOG='History';
 $_SHEDULE='Shedule';
@@ -241,3 +246,23 @@ $_BILLING = 'Billing';
 $_ANTIVIRUS='Antyvirus';
 $_ANTISPAM='Antispam';
 $_FOLDER='Folder';
+
+#==new
+$_LIST='List';
+$_SA_ONLY = 'Self added only';
+$_REPORTS = 'Reports';
+$_MODULES = 'Modules';
+$_SYSTEM = 'System configuration';
+$_GENERED_PARRWORD = 'Genered password';
+$_TARIF_PLANS='Tarif plans';
+$_TARIF_PLAN='Tarif plan';
+$_DISABLE='Disable';
+$_COMPANY='Company';
+$_ADD_USER='Add user';
+$_CREDIT_TRESSHOLD='Credit Tresshold';
+$_SERVICES='Services';
+$_FUNCTIONS_LIST='Functions list';
+$_COMPANY='Company';
+$_OCTETS_DIRECTION='Octets direction';
+$_PAYMENT_METHOD='Payment Method';
+$_TEST='Test';

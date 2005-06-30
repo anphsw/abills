@@ -3,7 +3,6 @@
 # ~AsmodeuS~ (2004-12-05)
 # asm@asmodeus.com.ua
 
-
 use vars qw($begin_time);
 BEGIN {
 #Check the Time::HiRes module (available from CPAN)
@@ -24,7 +23,7 @@ $db=$Abwconf::db;
 use Base; # Modul with base tools
 require 'messages.pl';
 
-$logfile = 'abills.log';
+$logfile = "/usr/abills/var/log/abills.log";
 $logdebug = 'abills.debug';
 $debug = 1;
 
@@ -156,7 +155,7 @@ elsif ($op eq 'shedule') { form_shedule();}
 elsif ($op eq 'templates'){templates();   }
 elsif ($op eq 'sql_cmd') { sql_cmd();     }
 #elsif ($op eq 'graffic') { profile();   }
-
+elsif ($op eq 'not_ended') { not_ended(); }
 else  { sql_online(); }
 
 if ($begin_time > 0) {
@@ -461,9 +460,8 @@ print "</table>\n";
 sub errlog {
   print "<h3>$_ERROR_LOG</h3>\n";
 
+  print "<p><b>$logfile</b></p>\n";
   print "<table><tr><td>";
-
-  my $logfile = "/usr/abills/var/log/abills.log";
 if ($uid) {
   print "<br><b>$_USER:</b> $login_link<br>
   <pre>";
@@ -704,10 +702,9 @@ while(my($ip, $id, $name, $ip_int, $type, $auth, $ip_num, $allow)=$q->fetchrow()
 print "</table></td></tr></table>
 <p><input type=submit name=change value=$_CHANGE> <input type=submit name=default value='$_DEFAULT'>
 </form>\n";
-
-
-	
 }
+
+
 
 #*******************************************************************
 #configure nas servers
@@ -729,7 +726,7 @@ sub nas {
  
  my @action = ('add', "$_ADD");
 
- my @nas_types = ('other', 'usr', 'pm25', 'ppp', 'exppp', 'radpppd', 'expppd', 'dslmax', 'mpd');
+ my @nas_types = ('other', 'usr', 'pm25', 'ppp', 'exppp', 'radpppd', 'expppd', 'pppd', 'dslmax', 'mpd');
  my %nas_descr = ('usr' => "USR Netserver 8/16",
   'pm25' => 'LIVINGSTON portmaster 25',
   'ppp' => 'FreeBSD ppp demon',
@@ -739,6 +736,7 @@ sub nas {
   'radpppd' => 'pppd version 2.3 patch level 5.radius.cbcp',
   'mpd' => 'MPD ',
   'ipcad' => 'IP accounting daemon with Cisco-like ip accounting export',
+  'pppd' => 'pppd + RADIUS plugin (Linux)',
   'other' => 'Other nas server');
 
 if ($FORM{ippools}) {
@@ -964,6 +962,7 @@ print "
  <a href='$SELF?op=er'>$_EXCHANGE_RATE</a><br>\n
  <a href='$SELF?op=messages'>$_MESSAGES</a><br>\n
  <a href='$SELF?op=profile'>$_PROFILE</a><br>\n
+ <a href='$SELF?op=not_ended'>Not ended</a><br>\n
  <a href='$SELF?op=templates'>$_TEMPLATES</a><br>\n
  <br>
  <a href='networks.cgi'>$_NETWORKS</a><br>\n
@@ -1030,8 +1029,12 @@ while(my($k, $v)=each( %shedule_type )){
 sub sql_backup {
  print "<h3>$_SQL_BACKUP</h3>\n".
  "<a href='$SELF?op=sql_backup&mk_backup=y'>$_MAKE_BACKAUP</a><br>\n";
+
  
   if ($FORM{mk_backup}) {
+    print "$MYSQLDUMP --host=$conf{dbhost} --user=\"$conf{dbuser}\" --password=\"****\" $conf{dbname} | $GZIP > $BACKUP_DIR/stats-$DATE.sql.gz<br>";
+
+
     $res = `$MYSQLDUMP --host=$conf{dbhost} --user="$conf{dbuser}" --password="$conf{dbpasswd}" $conf{dbname} | $GZIP > $BACKUP_DIR/stats-$DATE.sql.gz`;
     print "Backup created: $res ($BACKUP_DIR/stats-$DATE.sql.gz)";
    }
@@ -1044,8 +1047,7 @@ sub sql_backup {
   my @contents = grep  !/^\.\.?$/  , readdir DIR;
  closedir DIR;
  
- print "<TABLE width=640 cellspacing=0 cellpadding=0 border=0>
-  <TR><TD bgcolor=$_BG4>
+ print "<TABLE width=640 cellspacing=0 cellpadding=0 border=0><TR><TD bgcolor=$_BG4>
   <TABLE width=100% cellspacing=1 cellpadding=0 border=0>
   <tr bgcolor=$_BG0><th>$_NAME</a></th><th>$_DATE</th><th>$_SIZE</th><th>-</th></tr>\n";
 
@@ -1102,6 +1104,35 @@ if ($FORM{add}) {
     message('info', $_INFO, $_ADDED);
    }
  }
+elsif ($FORM{passwd}) {
+  print "$_CHANGE_PASSWD<p>\n";
+   if($FORM{change}) {
+     if ($FORM{password} eq $FORM{confirm}) {
+       my $sql = "UPDATE admins SET password=ENCODE('$FORM{password}', '$conf{secretkey}')
+         WHERE id='$FORM{passwd}';";
+         
+       #print $sql;
+       $q = $db->do($sql) || die $db->errstr;
+       message('info', $_INFO, $_CHANGED);
+     }
+    else {
+    	message('err', $_ERROR, "$_WRONG_CONFIRM");
+     }
+    }
+   else {
+     print "<form action=$SELF>
+     <input type=hidden name=op value=admins>
+     <input type=hidden name=passwd value=$FORM{id}>
+     <table>
+     <tr><td>ID</td><td>$id</td></tr>
+     <tr><td>$_PASSWD:</td><td><input type=password name=password></td></tr>
+     <tr><td>$_CONFIRM_PASSWD:</td><td><input type=password name=confirm></td></tr>
+     </table>
+     <input type=submit name=change value='$_CHANGE'>
+     </form>";
+     return 0;
+    }
+ } 
 elsif($FORM{change}) {
   $sql = "UPDATE admins SET
     id='$id', 
@@ -1120,24 +1151,6 @@ elsif($FORM{chg}) {
   @action = ('change', "$_CHANGE");
   message('info', $_INFO, "$_CHANGING '$id'");
  }
-elsif ($FORM{passwd}) {
-  print "$_CHANGE_PASSWD<p>\n";
-   if($FORM{change}) {
-      print $_CHANGED;
-    }
-   else {
-     print "<form action=$SELF method=post>
-     <input type=hidden name=op value=admins>
-     <input type=hidden name=passwd value=y>
-     <table>
-     <tr><td>ID</td><td>$id</td></tr>
-     <tr><td>$_PASSWD:</td><td><input type=password name=password></td></tr>
-     <tr><td>$_CONFIRM_PASSWD:</td><td><input type=password name=confirm></td></tr>
-     </table>
-     <input type=submit name=change value='$_CHANGE'>
-     </form>";
-    }
- } 
 elsif ($FORM{del}) {
   $q = $db->do("DELETE FROM admins WHERE aid='$FORM{del}';") || die $db->errstr;
   message('info', $_INFO, "$_DELETED '$del'");
@@ -1169,10 +1182,9 @@ print "</table>
 <input type=submit name=$action[0] value='$action[1]'>
 </form>\n";
 
-print "<TABLE width=640 cellspacing=0 cellpadding=0 border=0>
-  <TR><TD bgcolor=$_BG4>
-  <TABLE width=100% cellspacing=1 cellpadding=0 border=0>
-<tr bgcolor=$_BG0><th>ID</th><th>$_NAME</th><th>$_REGISTRATION</th><th>$_PERMISSION</th><th>-</th><th>-</th></tr>\n";
+print "<TABLE width=640 cellspacing=0 cellpadding=0 border=0><TR><TD bgcolor=$_BG4>
+<TABLE width=100% cellspacing=1 cellpadding=0 border=0>
+ <tr bgcolor=$_BG0><th>ID</th><th>$_NAME</th><th>$_REGISTRATION</th><th>$_PERMISSION</th><th>-</th><th>-</th></tr>\n";
 
  $q = $db->prepare("select aid, id, name, regdate, permissions FROM admins;") || die $db->errstr;
  $q ->execute(); 
@@ -1433,8 +1445,7 @@ if ($uid) { $WHERE = "WHERE f.uid=\"$uid\" "; }
 %pages = pages('f.uid', 'fees f', "$WHERE", "op=$op&uid=$uid", "$pg");  
 print $pages{pages};
 
-print "<TABLE width=98% cellspacing=0 cellpadding=0 border=0>
-  <TR><TD bgcolor=$_BG4>
+print "<TABLE width=98% cellspacing=0 cellpadding=0 border=0><TR><TD bgcolor=$_BG4>
   <TABLE width=100% cellspacing=1 cellpadding=0 border=0>
   <COLGROUP>
     <COL align=right span=1>
@@ -1609,7 +1620,7 @@ else {
    }
 
   $trafic_sum = int2byte($trafic_sum);
-  $output .= "<tr bgcolor=$_BG3><th>$_SUM</th><td align=right>$logins_sum</td><th align=right>$trafic_sum</th><td align=right>-</td><th align=right>$money_sum</th>\n".
+  $output .= "<tr bgcolor=$_BG3><th>$_SUM</th><td align=right>$logins_sum</td><th align=right>$trafic_sum</th><td align=right>-</td><td></td><th align=right>$money_sum</th>\n". 
     "</table>\n".
     "</td></tr></table>\n";
 
@@ -1625,9 +1636,10 @@ else {
       $sessions = int($graffic{$i}{sessions} * $midl_sessions);
       $sum = int($graffic{$i}{sum} * $midl_sum);
       $users = int($graffic{$i}{users} * $midl_users);
-      $output .= "<img src='../img/vertgreen.gif' width=6 height=$sessions>".
-         "<img src='../img/vertyellow.gif' width=6 height=$users>".
-         "<img src='../img/vertred.gif' width=7 height=$sum><br>";
+
+      $output .= "<img src='$img_path" . "vertgreen.gif' width=6 height=$users>". 
+         "<img src='$img_path". "vertyellow.gif' width=6 height=$sessions>". 
+         "<img src='$img_path". "vertred.gif' width=7 height=$sum><br>";
      }
     else { 
       print '&nbsp;'; 
@@ -1638,9 +1650,9 @@ else {
 
   $output .= "</tr>
     </table>
-    <img src='../img/vertgreen.gif' width=6 height=8> - $_USERS 
-    <img src='../img/vertyellow.gif' width=6 height=8> - $_LOGINS
-    <img src='../img/vertred.gif' width=6 height=8> - $_SUM\n";
+    <img src='$img_path" . "vertgreen.gif' width=6 height=8> - $_USERS 
+    <img src='$img_path" . "vertyellow.gif' width=6 height=8> - $_LOGINS
+    <img src='$img_path" . "vertred.gif' width=6 height=8> - $_SUM\n";
 
   $output .= "<h3>$_FEES</h3>\n";
 #$debug =10;
@@ -1676,8 +1688,7 @@ $total_sum = $assign_sum + $money_sum;
 
 print "<table border=0><tr><td>\n".
       "<a href='$SELF?op=inp&m=y'>$_PER_MONTH</a>
-       <TABLE width=100% cellspacing=0 cellpadding=0 border=0>
-       <TR><TD bgcolor=$_BG4>
+       <TABLE width=100% cellspacing=0 cellpadding=0 border=0><TR><TD bgcolor=$_BG4>
        <TABLE width=100% cellspacing=1 cellpadding=0 border=0>\n";
 
       show_title($sort, "$desc", "$pg", "$op$qs", \@caption);
@@ -1951,7 +1962,6 @@ elsif($uid > 0) {
    $q -> execute ();
 
    if ($q->rows < 1) {
-       $login = get_login($uid);
        message('err', "$_ERROR", "$_NOT_EXIST [$uid]");
        return 0;
      };
@@ -2001,7 +2011,17 @@ elsif($uid > 0) {
     
    }
  else {
+   user_list();
+  }
 
+
+}
+
+
+#*******************************************************************
+# user_list
+#*******************************************************************
+sub user_list {
    my $qs = "";
    if ($FORM{debs}) {
      print "<p>$_DEBETERS</p>";
@@ -2072,8 +2092,6 @@ show_title($sort, "$desc", "$pg", "$op$qs", \@caption);
     }
 print "</table>
 </td></tr></table>\n";
-}
-
 
 }
 
@@ -2230,13 +2248,9 @@ print << "[END]";
 <form action=$SELF>
 <input type=hidden name=uid value='$uid'>
 <input type=hidden name=op value=chg_uvariant>
-<table width=400>
+<table width=400 border=0>
 <tr><td>$_USER:</td><td><a href='$SELF?op=users&chg=$uid'>$login</a></td></tr>
 <tr><td>$_FROM:</td><td bgcolor=$_BG2>$old_variant $vnames{$old_variant} [<a href='$SELF?op=variants&chg=$old_variant' title='$_VARIANTS'>$_VARIANTS</a>]</td></tr>
-[END]
-
-print << "[END]";
-</td></tr>
 $params
 </form>
 [END]
@@ -2275,10 +2289,11 @@ sub form_period () {
 # passwd($uid)
 #*******************************************************************
 sub passwd  {
-  my $uid = shift;
-
+ my $uid = shift;
+  
+ print "<br><b>$_USER:</b> $login_link<br>\n";
+  
 if ($FORM{change}) {
-
   if (length($FORM{password}) < $conf{passwd_length}) {
      message('err', $_ERROR, "$ERR_SHORT_PASSWD");
    }
@@ -2300,24 +2315,20 @@ if ($FORM{change}) {
  $q = $db -> prepare($sql)  || die $db->strerr;
  $q -> execute();
  ($passwd)=$q -> fetchrow();
- print "----- $passwd $sql";
+ print "-----$passwd $sql";
 =cut
-
 
 my $gen_passwd = mk_unique_value(8);
 
 print << "[END]";
-<Table border=0 cellspacing="1" cellpadding="1">
-<td><td bgcolor=000000>
-<Table border=0 cellspacing="0" cellpadding="0">
-<td><td bgcolor=FFFFFF>
+<Table border=0 cellspacing="1" cellpadding="1"><td><td bgcolor=000000>
+<Table border=0 cellspacing="0" cellpadding="0"><td><td bgcolor=FFFFFF>
 <form ACTION=$SELF>
 <input type=hidden name=op value=users>
 <input type=hidden name=uid value=$uid>
 <input type=hidden name=passwd value=chg>
 <table>
 <tr><th colspan=2 bgcolor=$_BG0>$_CHANGE_PASSWD</th></tr>
-<tr><td>UID:</td><td>$login_link</td></tr>
 <tr><td>$_GEN_PASSWD:</td><td>$gen_passwd</td></tr>
 <tr><td>$_PASSWD:</td><td><input type=password name=password value='$gen_passwd'></td></tr>
 <tr><td>$_CONFIRM:</td><td><input type=password name=confirm value='$gen_passwd'></td></tr>
@@ -2332,6 +2343,9 @@ print << "[END]";
 [END]
 
 }
+
+
+
 
 #*******************************************************************
 #
@@ -2684,7 +2698,6 @@ if (defined($FORM{m})) {
 #*******************************************************************
 sub sdetail {
   my ($uid, $sid) = @_; 	
- $login=get_login($uid);
 
  $sql = "SELECT l.login as begin, l.login + INTERVAL l.duration SECOND as end, SEC_TO_TIME(l.duration), 
  l.variant, v.name,
@@ -2706,13 +2719,15 @@ sub sdetail {
  $q -> execute ();
 
 
-if ($q->rows < 1) {
+ if ($q->rows < 1) {
    message('err', $_ERROR, "$_NOT_EXIST<br>UID: $uid<br>$_SESSION_ID: $sid");
    return 0;	
  }
 
+ my ($sent, $recv, $sent2, $recv2);
+
  my ($begin, $end, $duration, $variant, $v_name, $sent, $recv, $sent2, $recv2,
-  $ip, $CID, $nas_id, $port_id, $sum, $uid) = $q -> fetchrow();
+  $session_ip, $CID, $nas_id, $port_id, $sum, $uid) = $q -> fetchrow();
 
  $sent = int2byte($sent); 
  $recv = int2byte($recv);  
@@ -2744,7 +2759,7 @@ print << "[END]";
 <tr bgcolor=$_BG1><th colspan=2>&nbsp;</th></tr>
 <tr bgcolor=$_BG1><td>NAS:</td><td>ID: $nas_id<br>IP: $ip<br>TYPE: $NAS_INFO->{nt}{$nas_id}</td></tr>
 <tr bgcolor=$_BG1><td>NAS_PORT:</td><td>$port_id</td></tr>
-<tr bgcolor=$_BG1><td>IP:</td><td>$ip</td></tr>
+<tr bgcolor=$_BG1><td>IP:</td><td>$session_ip</td></tr>
 <tr bgcolor=$_BG1><td>CID:</td><td>$CID</td></tr>
 <tr bgcolor=$_BG0><th align=left>$_SUM:</th><th align=right>$sum</th></tr>
 </table>
@@ -2778,15 +2793,18 @@ if (! defined($FORM{sort})) {
   $desc = 'DESC';	
 }
 
+$sid = ($FORM{sid}) ? "and acct_session_id='$FORM{sid}'": '';
+   
 
 $sql = "SELECT $lupdate, acct_session_id, nas_id, 
    sum(sent1), sum(recv1), sum(sent2), sum(recv2) 
   FROM s_detail 
-  WHERE uid='$login' 
+  WHERE uid='$login' $sid
   GROUP BY 1 
   ORDER BY $sort $desc
   LIMIT $pg, $max_recs;";
  log_print('LOG_SQL', "Func: $op - $sql:");
+
 
  $q = $db -> prepare($sql) || die $db->strerr;
  $q -> execute ();
@@ -2839,7 +2857,6 @@ if ($q->rows < 1) {
 # stats()
 #*******************************************************************
 sub stats  {
-  my $login = get_login($uid);  
   my $WHERE = '';
   my $GROUP = '';
   
@@ -3027,7 +3044,7 @@ if ($login ne '') {
     $button = "<A href='$SELF?op=bm&del=log&login=$login&ltime=$ltime&sum=$sum&duration=$uduration'
         onclick=\"return confirmLink(this, '$_USER: $login | $_LOGIN: $ltime | $_SUM: $sum | $_DURATION: $duration')\">$_DEL</a>";
 
-     $out_tr = "<tr bgcolor=$bg><td>$ltime ($rows)</td><td>$duration</td><td>$variant</td>
+    $out_tr = "<tr bgcolor=$bg><td>$ltime ($rows)</td><td>$duration</td><td>$variant</td>
         <TD>$sent</TD><TD>$recv</td><td>$CID</td><td>$ip</td><th>$sum</th><th>(<a href='$SELF?op=sdetail&sid=$sid&uid=$uid' title='Session detalization'>D</a>)</th><td>$button</td></tr>\n";
 
     print "$out_tr";
@@ -3057,7 +3074,7 @@ else  {
 
 
   my @caption = ("$_USER", "$_DURATION", "$_SENT", "$_RECV", "$_SUM", "$_SENT 2", "$_RECV 2", "$_SUM 2");
-  show_title($sort, $desc, "$pg", "$op$qs", \@caption);
+  show_title($sort, $desc, "$pg", "stats&period=$period$show", \@caption);
 
   $sql = "SELECT u.id, SEC_TO_TIME(sum(l.duration)), sum(l.sent), sum(l.recv), sum(l.sent + l.recv), sum(l.sent2), sum(l.recv2), sum(l.sent2 + l.recv2), u.uid
     FROM log l
@@ -3076,10 +3093,10 @@ else  {
      $bg = ($bg eq $_BG1) ? $_BG2 : $_BG1;
      $total_sent += $sent;
      $total_recv += $recv;
-     $total_sum += $sum;
+     $total_sum += $traff_sum;
      $total_sent2 += $sent2;
      $total_recv2 += $recv2;
-     $total_sum2 += $sum2;
+     $total_sum2 += $traff_sum2;
 
      $sent = int2byte($sent);
      $recv = int2byte($recv);
@@ -3096,9 +3113,10 @@ else  {
    $total_recv=int2byte($total_recv);
    $total_sent=int2byte($total_sent);
    $total_sum=int2byte($total_sum);
+   $total_sum2=int2byte($total_recv2 + $total_sent2);
    $total_recv2=int2byte($total_recv2);
    $total_sent2=int2byte($total_sent2);
-   $total_sum2=int2byte($total_sum2);
+
 
 
    print "<tr bgcolor=$_BG3><th>Total</th><th>-</th><td>$total_sent</td><td>$total_recv</td><th>$total_sum</th>".
@@ -3137,6 +3155,7 @@ my $month_traf_limit = $FORM{month_traf_limit} || '0';
 my $activate_price = $FORM{activate_price} || '0.00';
 my $change_price = $FORM{change_price} || '0.00';
 my $prepaid_trafic = $FORM{prepaid_trafic} || '0';
+my $credit_tresshold = $FORM{credit_tresshold} || '0.00';
 
 if(exists $FORM{intervals}) {
    intervals();	
@@ -3145,11 +3164,11 @@ if(exists $FORM{intervals}) {
 elsif ($FORM{add}) {
     $sql = "INSERT INTO variant (vrnt, hourp, uplimit, name, ut, dt, abon, df, logins,
      day_time_limit, week_time_limit,  month_time_limit, day_traf_limit, week_traf_limit,  month_traf_limit,
-     activate_price, change_price, prepaid_trafic)
+     activate_price, change_price, prepaid_trafic, credit_tresshold)
       VALUES ('$FORM{vrnt}', '$hour_tarif', '$uplimit', \"$FORM{name}\", 
-        '$end', '$begin', '$day_pay', '$month_pay', '$logins', 
+        '$end', '$begin', '$month_pay', '$day_pay', '$logins', 
         '$day_time_limit', '$week_time_limit',  '$month_time_limit', '$day_traf_limit', '$week_traf_limit',  '$month_traf_limit',
-        '$activate_price', '$change_price', '$prepaid_trafic');";
+        '$activate_price', '$change_price', '$prepaid_trafic', '$credit_tresshold');";
 
     $q = $db->do($sql);
 
@@ -3182,7 +3201,8 @@ elsif ($FORM{change}) {
    activate_price='$activate_price', 
    change_price='$change_price', 
    prepaid_trafic='$prepaid_trafic',
-   vrnt='$FORM{vrnt}'
+   vrnt='$FORM{vrnt}',
+   credit_tresshold='$credit_tresshold'
   WHERE vrnt='$FORM{chg}';";
 
   $db ->do($sql) or die $db->errstr;
@@ -3210,7 +3230,7 @@ elsif ($FORM{change}) {
 elsif ($FORM{chg}) {
    $sql = "SELECT vrnt, hourp, abon, uplimit, name, df, ut, dt, logins, 
      day_time_limit, week_time_limit,  month_time_limit, day_traf_limit, week_traf_limit,  month_traf_limit,
-     activate_price, change_price, prepaid_trafic 
+     activate_price, change_price, prepaid_trafic, credit_tresshold
      FROM variant 
     WHERE vrnt='$FORM{chg}';";
   
@@ -3218,7 +3238,7 @@ elsif ($FORM{chg}) {
    $q -> execute ();
    ($vrnt, $hour_tarif, $month_pay, $uplimit, $name, $day_pay, $end, $begin, $logins,
      $day_time_limit, $week_time_limit, $month_time_limit, $day_traf_limit, $week_traf_limit,  $month_traf_limit,
-     $activate_price, $change_price, $prepaid_trafic) = $q -> fetchrow();
+     $activate_price, $change_price, $prepaid_trafic, $credit_tresshold) = $q -> fetchrow();
 
    @action = ('change', "$_CHANGE");
    message('info', "$_CHANGING",  "#: [$FORM{chg}]<br>$_NAME: '$name'");
@@ -3252,14 +3272,15 @@ print "<form action=$SELF METHOD=POST>
   <tr><td>$_DAY</td><td><input type=text name=day_time_limit value='$day_time_limit'></td></tr> 
   <tr><td>$_WEEK</td><td><input type=text name=week_time_limit value='$week_time_limit'></td></tr>
   <tr><td>$_MONTH</td><td><input type=text name=month_time_limit value='$month_time_limit'></td></tr>
-  <tr><th colspan=2 bgcolor=$_BG0>$_TRAF_LIMIT (bt)</th></tr> 
+  <tr><th colspan=2 bgcolor=$_BG0>$_TRAF_LIMIT (Mb)</th></tr> 
   <tr><td>$_DAY</td><td><input type=text name=day_traf_limit value='$day_traf_limit'></td></tr>
   <tr><td>$_WEEK</td><td><input type=text name=week_traf_limit value='$week_traf_limit'></td></tr>
   <tr><td>$_MONTH</td><td><input type=text name=month_traf_limit value='$month_traf_limit'></td></tr>
   <tr><th bgcolor=$_BG0 colspan=2>$_OTHER</th></tr>
   <tr><td>$_ACTIVATE:</td><td><input type=text name=activate_price value='$activate_price'></td></tr>
   <tr><td>$_CHANGE:</td><td><input type=text name=change_price value='$change_price'></td></tr>
-  <tr><td>$_PREPAID (Mb):</td><td><input type=text name=prepaid_trafic value='$prepaid_trafic'></td></tr>
+  <tr><td>$_CREDIT_TRESSHOLD:</td><td><input type=text name=credit_tresshold value='$credit_tresshold'></td></tr>
+<!--  <tr><td>$_PREPAID (Mb):</td><td><input type=text name=prepaid_trafic value='$prepaid_trafic'></td></tr> -->
 </table>
 <input type=submit name='$action[0]' value='$action[1]'>
 </form>\n";
@@ -3419,7 +3440,8 @@ for(my $i=0; $i<3; $i++) {
   if ($netss{$i} ne '') {
      @n = split(/\n|;/, $netss{$i});
      foreach my $line (@n) {
-       chomp($line);       
+       chomp($line);
+       next if ($line eq "");
        $body .= "$line $i\n";
      }
    }
@@ -3520,7 +3542,6 @@ if ($FORM{add}) {
     $sql = "INSERT INTO intervals (vid, day, begin, end, tarif)
      values ('$intervals', '$day', '$begin', '$end', '$tarif');";
     
-    print $sql;
     $db->do($sql) || print $db->errstr;
     if ($db->err == 5) {
        message('err', "$_ERROR", "$_EXIST");
@@ -3876,7 +3897,6 @@ if ($FORM{search}) {
 sub base_state  {
  my ($where,  $period) = @_;
 
- $login = get_login($uid);
  $sql = "SELECT SEC_TO_TIME(min(duration)), SEC_TO_TIME(max(duration)), SEC_TO_TIME(avg(duration)),
   min(sent), max(sent), avg(sent),
   min(recv), max(recv), avg(recv),
@@ -4058,7 +4078,8 @@ sub sql_online {
      $q = $db->prepare($sql) || die $db->errstr;
      $q ->execute();
      if ($q->rows() < 1) {
-        $message .= "<p align=center><a href='$SELF?op=sql_online&tolog=$acct_session_id&nas_ip_address=$nas_ip_address&nas_port_id=$nas_port_id'>add to log</a></p>";
+        $message .= "<p align=center>[<a href='$SELF?op=sql_online&tolog=$acct_session_id&nas_ip_address=$nas_ip_address&nas_port_id=$nas_port_id'>add to log</a>]
+           [<a href='$SELF?op=sql_online&del=y&tolog=$acct_session_id&nas_ip_address=$nas_ip_address&nas_port_id=$nas_port_id'>$_DEL</a>]</p>";
        }
      else {
      	my($sid)=$q->fetchrow();
@@ -4091,7 +4112,8 @@ sub sql_online {
    if ($q -> rows() < 1) {
         message('err', $_ERROR, 'NO records');
        }
-     else {
+   else {
+      if(! defined($FORM{del})) {
      	my $ACCT_INFO = ();
      	my($username, $started, $duration,  $input_octets, $output_octets,  
      	  $ex_input_octets, $ex_output_octets,  $connect_term_reason, $framed_ip_address, $lupdated,
@@ -4107,18 +4129,32 @@ sub sql_online {
         my ($sum, $variant, $time_t, $traf_t) = session_sum("$username", $started, $ACCT_INFO{ACCT_SESSION_TIME}, \%ACCT_INFO);
         #print "$sum, $variant, $time_t, $traf_t // $login, $started, $duration,  $input_octets, $output_octets,  
      	# $ex_input_octets, $ex_output_octets,  $connect_term_reason, $framed_ip_address, $lupdated";
-
+        
+        if ($sum < 0) {
+        	 message('err', 'Error', 'Wrong end data. Contact admin');
+        	 return 0;
+         }
+        
         log_print('LOG_SQL', "$sql");
         $nas_num = $NAS_INFO->{$nas_ip_address};
         $sql = "INSERT INTO log (id, login, variant, duration, sent, recv, minp, kb,  sum, nas_id, port_id, ".
           "ip, CID, sent2, recv2, acct_session_id) VALUES ('$username', FROM_UNIXTIME($started), ".
-          "'$variant', '$RAD{ACCT_SESSION_TIME}', '$ACCT_INFO{OUTBYTE}', '$ACCT_INFO{INBYTE}', ".
+          "'$variant', '$ACCT_INFO{ACCT_SESSION_TIME}', '$ACCT_INFO{OUTBYTE}', '$ACCT_INFO{INBYTE}', ".
           "'$time_t', '$traf_t', '$sum', '$nas_num', ".
           "'$nas_port_id', INET_ATON('$framed_ip_address'), '$CID', ".
           "'$ACCT_INFO{OUTBYTE2}', '$ACCT_INFO{INBYTE2}',  \"$FORM{tolog}\");";
 
-        log_print('LOG_SQL', "$sql");
-        $q = $db->do($sql) || die $db->errstr;
+       log_print('LOG_SQL', "$sql");
+       $q = $db->do($sql) || die $db->errstr;
+       
+ 
+       if ($sum > 0) {
+         $sql = "UPDATE users SET deposit=deposit-$sum WHERE id='$username';";
+         log_print('LOG_SQL', "$sql");
+         $q = $db->do($sql) || die $db->errstr;
+        }
+      
+       }
 
      	$sql = "DELETE FROM calls WHERE nas_ip_address=INET_ATON('$FORM{nas_ip_address}')
             and nas_port_id='$FORM{nas_port_id}' and acct_session_id='$FORM{tolog}'";
@@ -4129,6 +4165,9 @@ sub sql_online {
     $message = 'added';
     message('info', $_INFO, $message);
   }
+ 
+ 
+ 
  $sql = "SELECT c.user_name, if(date_format(c.started, '%Y-%m-%d')=curdate(), date_format(c.started, '%H:%i:%s'), c.started),
  INET_NTOA(c.nas_ip_address),
  c.nas_port_id, c.acct_session_id, SEC_TO_TIME(UNIX_TIMESTAMP() - UNIX_TIMESTAMP(c.started)),
@@ -4689,7 +4728,6 @@ if(! defined($permits{activ})) {
 #*******************************************************************
 sub profile {
  my ($admin) = @_;
- print "<h3>$_PROFILE</h3>\n";
 
  my @colors_descr = ('# 0 TH', 
                      '# 1 TD.1',
@@ -4703,14 +4741,7 @@ sub profile {
                      '# 9 Text',
                      '#10 background'
                     );
- 
- my %LANG = ('english' => 'English',
-    'russian' => 'Русский',
-    'ukraine' => 'Українська',
-    'bulgarian' => 'Болгарска');
- 	
- 	
- print "$FORM{colors}";
+print "$FORM{colors}";
 
 print "
 <form action=$SELF>
@@ -4760,13 +4791,7 @@ while(my($thema, $colors)=each %profiles ) {
  return 0;
 }
 
-#*******************************************************************
-# templates()
-#*******************************************************************
-sub templates () {
- print "<h3>$_TEMPLATES</h3>\n";	
-	
-}
+
 
 #*******************************************************************
 #
@@ -4966,6 +4991,7 @@ return 0;
 #*******************************************************************
 sub sql_cmd {
  my $query = $FORM{query} || '';
+ my $rows = $FORM{rows} || 0;
  print "<h3>SQL Commander</h3>\n";
  
 print << "[END]";
@@ -4981,9 +5007,106 @@ print << "[END]";
 [END]
 
 
-if ($FORM{show}) {
+if ($FORM{query}) {
+ my $limit = "";
+
+ if ($sort > 1 && $query !~ /ORDER/ig) {
+   if ($query =~ /LIMIT/gi) {
+     $query =~ s/LIMIT/ ORDER BY $sort $desc LIMIT/i;
+    }   
+   else {
+     $query .= " ORDER BY $sort $desc";
+    }
+  }
+
+ if ($query !~ /LIMIT/ig) {
+   if ($rows > 0) {
+     $query =~ s/;//g;
+     $query .= " LIMIT $rows";
+    }
+   else {
+     $query .= " LIMIT $max_recs";
+    }
+ }
+ 
  print "<Table width=640><tr bgcolor=$_BG3><td>
  $query</td></tr></table>\n";	
+
+ $q = $db->prepare($query) || die $db->errstr;
+ $q ->execute(); 
+ print $_COUNT .": ". $q ->rows();
+ print "<table width=99%>\n";
+ show_title($sort, $desc, "$pg", "$op&query=$query", $q ->{NAME});
+
+ while(my @query_fields = $q->fetchrow()) {
+    $bg = ($bg eq $_BG1) ? $_BG2 : $_BG1;
+    print "<tr bgcolor=$bg>";
+    foreach my $field (@query_fields) {
+      print "<td>$field</td>";
+     }
+    print "</tr>\n";
+  }
+
+ print "</table>\n";
+
+
+
 }
 
+}
+
+
+#**********************************************************
+# Not ended
+#**********************************************************
+
+sub not_ended {
+
+print "<h3>No Ended</h3>\n";
+print "<Table width=99%>\n";
+
+ my $sql = "SELECT c.user_name, if(date_format(c.started, '%Y-%m-%d')=curdate(), date_format(c.started, '%H:%i:%s'), c.started),
+ INET_NTOA(c.nas_ip_address),
+ c.nas_port_id, c.acct_session_id, SEC_TO_TIME(UNIX_TIMESTAMP() - UNIX_TIMESTAMP(c.started)),
+ c.acct_input_octets, c.acct_output_octets, c.ex_input_octets, c.ex_output_octets,
+ INET_NTOA(c.framed_ip_address), c.status,
+ u.fio, u.phone, u.variant, u.deposit, u.credit, u.speed, u.uid, c.CID, c.CONNECT_INFO
+ FROM calls c
+  LEFT JOIN users u ON u.id=user_name
+ WHERE c.status=2
+ ORDER BY c.nas_ip_address, c.nas_port_id;";
+ log_print('LOG_SQL', "$sql");
+
+ $q = $db->prepare($sql)   || die $db->errstr;
+ $q ->execute();
+ my $total = $q->rows;
+ 
+  while(my($user_name, $started, $nas_ip_address, $nas_port_id, $acct_session_id, $acct_session_time,
+     $acct_input_octets, $acct_output_octets, $ex_input_octets, $ex_output_octets, $framed_ip_address, 
+     $status,
+     $fio, $phone, $variant, $deposit, $credit, $speed, $uid, $CID, $CONNECT_INFO) = $q->fetchrow()) {
+
+     $acct_input_octets = int2byte($acct_input_octets);
+     $acct_output_octets = int2byte($acct_output_octets);
+     $ex_input_octets = int2byte($ex_input_octets);
+     $ex_output_octets = int2byte($ex_output_octets);
+
+     $bg = ($bg eq $_BG1) ? $_BG2 : $_BG1;
+     print "<tr bgcolor=$bg><td><a href='$SELF?op=users&uid=$uid' ".
+     "title='$_FIO: $fio\n$_PHONE: $phone\n$_VARIANT: $variant\n$_DEPOSIT: $deposit\n".
+     "$_CREDIT: $credit\n$_SPEED: $speed\nSESSION_ID: $acct_session_id\nCID: $CID\nCONNECT_INFO: $CONNECT_INFO'>$user_name</a></td>
+     <td>$fio</td>
+     <td>$nas_port_id</td>
+     <td>$framed_ip_address</td>
+     <td>$acct_session_time</td><td>$acct_input_octets</td><td>$acct_output_octets</td>
+     <td>$ex_input_octets</td><td>$ex_output_octets</td>";
+    
+     my $zap_button = "<a href='$SELF?op=sql_online&zap=$nas_ip_address+$nas_port_id+$acct_session_id' title='Radzap $user_name'>Z</a>";
+     print "<th>(<a href='$SELF?op=sql_online&ping=$framed_ip_address' title='ping'>P</a>)</th>".
+      "<th>($zap_button)</th>".
+      "<th>(<a href='$SELF?op=sql_online&hangup=$nas_ip_address+$nas_port_id+$acct_session_id' title='hangup'>H</a>)</th></tr>\n";
+    }
+
+
+print "</table>\n";
 }

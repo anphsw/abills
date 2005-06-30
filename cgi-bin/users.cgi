@@ -5,11 +5,13 @@
 my $ftpserver="localhost";
 #-------END_Variables----------
 
-my $LIB_PATH='./admin';
-push(@INC, $LIB_PATH);
+#my $LIB_PATH='./admin';
+#push(@INC, $LIB_PATH);
 
 use lib "./admin";
 use Abwconf;
+#use FindBin '$Bin';
+#print $Bin;
 
 require "Base.pm";
 Base->import();
@@ -18,8 +20,6 @@ require 'messages.pl';
 
 $db=$Abwconf::db;
 
-my $language = 'english';
-require "../language/$language.pl";
 
 
 use DB_File;
@@ -33,17 +33,29 @@ my $sid = $FORM{sid} || 0; # Session ID
 my $passwd = $FORM{passwd} || '';
 my $period = $FORM{period} || 0;
 my $session_timeout = 1800;
-
+my $ln = 'english';
 
 if ((length($cookies{sid})>1) && (! $FORM{passwd})) {
   $sid = $cookies{sid};
 }
 
+if ($FORM{ln}) {
+	$ln = $FORM{ln};
+}
+elsif($cookies{ln}) {
+	$ln = $cookies{ln};
+}
+
+#$ln = $cookies{ln} if ($cookies{ln});
+#my $language = $ln || 'english';
+
+require "../language/". $ln .".pl";
 
 print "Content-type: text/html\n";
 print "Set-Cookie: uid=$uid; path=$web_path; domain=$domain;\n";
 print "Set-Cookie: doc_id=$FORM{doc_id}; path=$web_path; domain=$domain;\n";
-print "Set-Cookie: sid=$sid; path=$web_path; domain=$domain;\n\n";
+print "Set-Cookie: sid=$sid; path=$web_path; domain=$domain;\n";
+print "Set-Cookie: ln=$ln; path=$web_path; domain=$domain;\n\n";
 
 if (($FORM{docs} eq 'print')) {
   ($uid, $sid, $login) = auth("$login", "$passwd", "$sid");
@@ -179,8 +191,8 @@ print "<TABLE width=400 cellspacing=0 cellpadding=0 border=0>
   <TR><TD bgcolor=$_BG4>
   <TABLE width=100% cellspacing=1 cellpadding=0 border=0>
 <tr bgcolor=$_BG1><td><b>$_USER:</b></td><td>$uid</td></tr>
-<tr bgcolor=$_BG1><td><b>$_CREDIT:</b></td><td align=right>$debt</td></tr>
-<tr bgcolor=$_BG1><td><b>$_BALANCE:</b></td><td align=right>$money</td></tr>
+<tr bgcolor=$_BG1><td><b>$_CREDIT:</b></td><td align=right><!--CREDIT_BEGIN-->$debt<!--CREDIT_END--></td></tr>
+<tr bgcolor=$_BG1><td><b>$_BALANCE:</b></td><td align=right><!--DEPOSIT_BEGIN-->$money<!--DEPOSIT_END--></td></tr>
 <tr bgcolor=$_BG1><td><b>$_VARIANT:</b></td><td>$variant ($v_name)</td></tr>
 $speed 
 <tr bgcolor=$_BG1><th colspan=2 bgcolor=$_BG2>:$_LAST_PAYMENT:</th></tr>
@@ -189,7 +201,7 @@ $speed
 <tr bgcolor=$_BG1><th colspan=2>&nbsp;</th></tr>";
 
 print "<tr bgcolor=$_BG1><td><b>$_ACTIVATE:</b></td><td align=right>$activate</td></tr>"; # if ($activate ne '0000-00-00'); 
-print "<tr bgcolor=$_BG1><td><b>$_EXPIRE:</b></td><td align=right>$expire</td></tr>"; # if ($expire ne '0000-00-00'); 
+print "<tr bgcolor=$_BG1><td><b>$_EXPIRE:</b></td><td align=right><!--MONTH_EXPIRE_BEGIN-->$expire<!--MONTH_EXPIRE_END--></td></tr>"; # if ($expire ne '0000-00-00'); 
 
 print "</table>\n</td></tr></table>\n<hr size=1>\n";
 
@@ -219,10 +231,13 @@ print "<table width=640 border=0 cellspacing=0 cellpadding=0><tr><td bgcolor=000
   <COL align=right span=6>
 </COLGROUP>\n";
 
+my $i=1;
 while (my($duration, $sent, $recv, $sent2, $recv2, $ip, $CID) = $q->fetchrow_array()) {
   $sent = int2byte($sent);
   $recv = int2byte($recv);
-  print "<tr bgcolor=$_BG1><td>$duration</td><td>$sent</td><td>$recv</td><td>$sent2</td><td>$recv2</td><td>$ip</td><td>$CID</td></tr>\n";
+  $i++;
+  print "<tr bgcolor=$_BG1><td><!--CUR_SESSION_DURATION_BEGIN-->$duration<!--CUR_SESSION_DURATION_END--></td>
+   <td><!--CUR_SESSION_SENT_BEGIN-->$sent<!--CUR_SESSION_SENT_END--></td><td><!--CUR_SESSION_RECV_BEGIN-->$recv<!--CUR_SESSION_RECV_EN--></td><td>$sent2</td><td>$recv2</td><td>$ip</td><td>$CID</td></tr>\n";
 }
 print "</table>\n</td></tr></table>\n</td></tr></table>\n</td></tr></table><p>\n";
 }
@@ -296,7 +311,7 @@ print "
   <tr bgcolor=$_BG1><th align=left><a href='$SELF?op=log&sid=$sid&period=0'>$PERIODS[0]</a></th><td>$today_duration</td> <td>$today_sent</td><td>$today_recv</td><th>$today_sum</th></tr>
   <tr bgcolor=$_BG1><th align=left><a href='$SELF?op=log&sid=$sid&period=1'>$PERIODS[1]</a></th><td>$yesterday_duration</td> <td>$yesterday_sent</td><td>$yesterday_recv</td><th>$yesterday_sum</th></tr>
   <tr bgcolor=$_BG1><th align=left><a href='$SELF?op=log&sid=$sid&period=2'>$PERIODS[2]</a></th><td>$week_duration</td> <td>$week_sent</td><td>$week_recv</td><th>$week_sum</th></tr>
-  <tr bgcolor=$_BG1><th align=left><a href='$SELF?op=log&sid=$sid&period=3'>$PERIODS[3]</a></th><td>$month_duration</td> <td>$month_sent</td><td>$month_recv</td><th>$month_sum</th></tr>
+  <tr bgcolor=$_BG1><th align=left><a href='$SELF?op=log&sid=$sid&period=3'>$PERIODS[3]</a></th><td>$month_duration</td> <td><!--MONTH_SENT_BEGIN-->$month_sent<!--MONTH_SENT_BEGIN--></td><td><!--MONTH_RECV_BEGIN-->$month_recv<!--MONTH_RECV_END--></td><th><!--MONTH_SUM_BEGIN-->$month_sum<!--MONTH_SUM_END--></th></tr>
   <tr bgcolor=$_BG1><th align=left><a href='$SELF?op=log&sid=$sid&period=4'>$PERIODS[4]</a></th><td>$all_duration</td> <td>$all_sent</td><td>$all_recv</td><th>$all_sum</th></tr>
   </table>\n</td></tr></table>\n</td></tr></table>\n</td></tr></table><p>\n";
 $q -> finish ();
@@ -445,7 +460,7 @@ sub auth {
  my $ip = "$REMOTE_ADDR/$HTTP_X_FORWARDED_FOR";
 
  
- tie %h, "DB_File", "$sessions", O_RDWR|O_CREAT, 0640, $DB_HASH
+ tie %h, "DB_File",  "$sessions", O_RDWR|O_CREAT, 0640, $DB_HASH
          or die "Cannot open file '$sessions': $!\n";
 
 if ($FORM{op} eq 'logout') {
@@ -541,10 +556,24 @@ else {
 #*******************************************************************
 sub login_form {
 print "<form action=$SELF METHOD=post>
-<table>
+<TABLE width=400 cellspacing=0 cellpadding=0 border=0><TR><TD bgcolor=$_BG4>
+<TABLE width=100% cellspacing=1 cellpadding=0 border=0><TR><TD bgcolor=$_BG1>
+<TABLE width=100% cellspacing=0 cellpadding=0 border=0>
 <tr><td>$_LOGIN:</td><td><input type=text name=user></td></tr>
 <tr><td>$_PASSWD:</td><td><input type=password name=passwd></td></tr>
+<tr><td>$_LANGUAGE:</td><td><select name=ln>\n";
+
+while(my($k, $v) = each %LANG) {
+  print "<option value='$k'";
+  print ' selected' if ($k eq $language);
+  print ">$v\n";	
+}
+
+print "</seelct></td></tr>
+<tr><th colspan=2><input type=submit name=logined value=$_ENTER></th></tr>
 </table>
-<input type=submit name=logined value=$_ENTER>
+
+</td></tr></table>
+</td></tr></table>
 </form>\n";
 }

@@ -12,6 +12,9 @@ $conf{dbpasswd}='password';
 $conf{ADMIN_MAIL}='info@your.domain';
 $conf{USERS_MAIL_DOMAIN}='your.domain';
 $conf{MAIL_CHARSET}='windows-1251';
+$conf{default_language}='english';
+$conf{default_charset}='windows-1251';
+
 
 #Periodic functions
 $conf{p_admin_mails}=1;  # Send periodic admin reports
@@ -20,7 +23,7 @@ $conf{p_users_mails}=1;  # Send user warning  messages
 # chap encryption decription key
 $conf{secretkey}="test12345678901234567890";
 $conf{s_detalization}='yes'; #make session detalization recomended for vpn leathed lines
-$conf{version}='0.23b'; #23.02.2005
+$conf{version}='0.24b'; #23.02.2005
 
 #Minimum session costs
 $conf{MINIMUM_SESSION_TIME}=10; # minimum session time for push session to db
@@ -28,15 +31,18 @@ $conf{MINIMUM_SESSION_TRAF}=200; # minimum session trafic for push session to db
 # Minimum pushed session cost.
 # If MINIMUM_SESSION_COST > 0 session sum up to MINIMUM_SESSION_COST value.
 $conf{MINIMUM_SESSION_COST}=0.01; 
+#Take month and day fees from users with negative deposit too
+$conf{negative_deposit}='no';
 
 
 # Exppp options
-$conf{netsfilespath}='/usr/abills/cgi-bin/dmin/nets/';
+$conf{netsfilespath}='/usr/abills/cgi-bin/admin/nets/';
 $conf{config_file}='';
 
 # Debug mod 
 $conf{debug}=10;
-$conf{debugmods}='LOG_DEBUG LOG_ALERT LOG_WARNING LOG_ERR LOG_INFO';
+#Log level LOG_DEBUG
+$conf{debugmods}='LOG_ALERT LOG_WARNING LOG_ERR LOG_INFO';
 #show auth and accounting time need Time::HiRes module (available from CPAN)
 $conf{time_check}=1;
 
