@@ -55,7 +55,7 @@ foreach my $line (@WARNING_MSG) {
 }
 
 $message .= "\n  Рух коштів по рахунках клієнтів: \n".
-"=== На рахунки ==========================================\n";
+"=== $_PAYMENTS ==========================================\n";
 
 $q = $db -> prepare ( qq{SELECT count(id), sum(sum), min(sum), avg(sum), max(sum)  FROM payment
  WHERE date_format(date, '%Y-%m')=date_format(curdate() - INTERVAL 1 MONTH, '%Y-%m')
@@ -66,7 +66,7 @@ $res = $q -> execute();
  $message .= "$_COUNT:\t$count\n$_SUM:\t$sum\n\n$_MIN: $min /$_AVG: $avg /$_MAX: $max\n";
 $q -> finish ();
 
-$message .= "\n=== З рахунків ===========================================\n";
+$message .= "\n=== $_FEES ===========================================\n";
 $q = $db -> prepare ( qq{
  SELECT count(id), sum(sum), min(sum), avg(sum), max(sum) FROM fees
  WHERE date_format(date, '%Y-%m')=date_format(curdate() - INTERVAL 1 MONTH, '%Y-%m')
@@ -143,7 +143,7 @@ my %USERS=();
 my %ACTIVATE=();
 my %LAST_DEPOSIT=();
 
-while(my($login, $uid, $m_abon, $bill_sum, $activate) = $q -> fetchrow_array()) {
+while(my($login, $uid, $m_abon, $activate) = $q -> fetchrow_array()) {
   $USERS{$uid}=$m_abon;
   $ACTIVATE{$uid} = $activate;
   $LAST_DEPOSIT{$uid} = $activate;
@@ -244,7 +244,7 @@ while(my($login, $variant, $debet, $sum, $uplimit, $variant_name, $last_login) =
 
 $message .= "\n  Рух коштів по рахунках клієнтів: \n".
 "=== $_PAYMENTS ==========================================\n";
-$message .= sprintf ("%-14s| %8.4f| %20s| %8s| %15s| %19s|\n", $_LOGIN, $_SUM, 
+$message .= sprintf ("%-14s| %8s| %20s| %8s| %15s| %19s|\n", $_LOGIN, $_SUM, 
     $_DESCRIBE, $_ADMIN, 'IP', $_DATE);
 $message .= "-----------------------------------------------------------------------------------------------\n";
 
@@ -263,7 +263,7 @@ $q -> finish ();
 
 # Daily fees
 $message .= "\n=== $_FEES ===========================================\n";
-$message .= sprintf ("%-14s| %8.4f| %20s| %16s| %15s\n", $_LOGIN, $_SUM, $_DESCRIBE, $_ADMIN, 'IP');
+$message .= sprintf ("%-14s| %6s| %20s| %16s| %15s\n", $_LOGIN, $_SUM, $_DESCRIBE, $_ADMIN, 'IP');
 $message .= "---------------------------------------------------------------------------------\n";
 
 $q = $db -> prepare ( qq{
@@ -280,6 +280,7 @@ while (my($login, $sum, $describe, $ww, $ip) = $q -> fetchrow_array ()) {
     $describe, $ww, $ip);
 };
 #$q -> finish ();
+
 
 
 # using today

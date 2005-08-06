@@ -14,9 +14,7 @@ require $Bin . '/sql.pl';
 
 
 ############################################################
-
 get_radius_params();
-
 
 #if ($RAD{USER_NAME} eq 'petya') {
 #  $conf{debug}=10;
@@ -94,14 +92,13 @@ sub acct {
 
 # Exppp VENDOR params           
 if ($NAS_INFO->{nt}{$nas_num} eq 'exppp') {
-#reverse byte parameters
+#reverse byte parameters for old version of exppp
   $ACCT_INFO{INBYTE} = $RAD{ACCT_OUTPUT_OCTETS} || 0;             # From client
   $ACCT_INFO{OUTBYTE} =  $RAD{ACCT_INPUT_OCTETS} || 0;            # To client
 
   #local traffic
   $ACCT_INFO{INBYTE2}  = $RAD{EXPPP_ACCT_LOCALOUTPUT_OCTETS} || 0;
   $ACCT_INFO{OUTBYTE2} = $RAD{EXPPP_ACCT_LOCALINPUT_OCTETS} || 0;
-
 
   $ACCT_INFO{INTERIUM_INBYTE} = $RAD{EXPPP_ACCT_ITERIUMIN_OCTETS} || 0;
   $ACCT_INFO{INTERIUM_OUTBYTE} = $RAD{EXPPP_ACCT_ITERIUMOUT_OCTETS} || 0;
@@ -123,6 +120,7 @@ if ($NAS_INFO->{nt}{$nas_num} eq 'exppp') {
       my $res = "";
       foreach my $file (@contents) {
          if (-x "$extern_acct_dir/$file") {
+           # ACCT_STATUS IP_ADDRESS NAS_PORT
            $res = `$extern_acct_dir/$file $acct_status_type $ACCT_INFO{NAS_IP_ADDRESS} $ACCT_INFO{NAS_PORT}`;
            log_print('LOG_DEBUG', "External accounting program '$file' pairs '$res'");
           }
