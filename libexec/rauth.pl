@@ -222,7 +222,7 @@ if ($cid ne '') {
 #Auth chap
 if (defined($RAD{CHAP_PASSWORD}) && defined($RAD{CHAP_CHALLENGE})) {
   if (check_chap("$RAD{CHAP_PASSWORD}", "$passwd", "$RAD{CHAP_CHALLENGE}", 0) == 0) {
-    $message = "Wrong CHAP password '$passwd'";
+    $message = "Wrong CHAP password";
     return 1;
    }      	 	
  }
@@ -301,7 +301,7 @@ else {
 
 #Check deposit
 if($tp_payment > 0 && $deposit <= 0) {
-  $message = "User don't have money account '$deposit'. Rejected!";
+  $message = "User don't have money on account '$deposit'. Rejected!";
   return 1;
  }
 
@@ -658,14 +658,15 @@ if ($trafic_limits{0} > 0 || $traf_limit > 0) {
   	$trafic_limit = $traf_limit;
    }
 
-  $EX_PARAMS{traf_limit} = int($trafic_limit);
+  $EX_PARAMS{traf_limit} = ($trafic_limit < 1 && $trafic_limit > 0) ? 1 : int($trafic_limit);
+
 }
 
 #Local Traffic limit
 if ($trafic_limits{1} > 0) {
   #10Gb - (10240 * 1024 * 1024) - local traffic session limit
   $trafic_limit = ($trafic_limits{1} > 10240) ? 10240 :  $trafic_limits{1};
-  $EX_PARAMS{traf_limit_lo} = int($trafic_limit);
+  $EX_PARAMS{traf_limit_lo} = ($trafic_limit < 1 && $trafic_limit > 0) ? 1 : int($trafic_limit);
  }
 
  return \%EX_PARAMS;
