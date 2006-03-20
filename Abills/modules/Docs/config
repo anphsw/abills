@@ -1,0 +1,43 @@
+#package Dv;
+#
+#
+#
+##use strict;
+##use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION);
+#
+#use Exporter;
+#$VERSION = 2.00;
+#@ISA = ('Exporter');
+#
+#@EXPORT = qw(
+# $web_interface
+# @useraccount_menu
+# %FUNCTIONS_LIST
+# %USER_FUNCTION_LIST
+#);
+#
+#@EXPORT_OK = ();
+#%EXPORT_TAGS = ();
+
+
+$web_interface    = 1;
+@useraccount_menu = ('Dialup_VPN');
+
+#Iner_ID : Main or Sub or if -1 user menu func list
+%FUNCTIONS_LIST = ("01:-1:$_DOCS:null:UID"            => 15,
+                   "02:1:$_ACCOUNTS:docs_accounts_list:UID"     => 15,
+                   "03:2:$_ADD:docs_account:UID"       => 15,
+                   "05:0:$_DOCS:null:"                     => 5,
+                   "06:5:$_TEMPLATES:null:"                => 5,
+                   "10:0:$_DOCS:docs_accounts_list:"            => 6,
+                   "11:10:$_ACCOUNTS:docs_accounts_list:"       => 6
+                   );
+
+%USER_FUNCTION_LIST = ("01:0:$_DOCS:docs_accounts_list:"            => 0
+                      );
+
+#%PERIODIC = (daily   => 'dv_daily_fees',
+#             monthly => 'dv_monthly_fees');
+
+
+1

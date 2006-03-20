@@ -1,0 +1,196 @@
+#/usr/bin/perl
+# Dialup vpn web functions
+
+
+require "Docs.pm";
+Docs->import();
+my $Docs = Docs->new($db, $admin, $conf);
+
+
+
+
+foreach my $prefix (@INC) {
+  my $realfilename = "$prefix/Abills/modules/$module{$index}/lng_$html->{language}.pl";
+  if (-f $realfilename) {
+    $lang_file =  $realfilename;
+    require $lang_file;
+    last;
+   }
+ }
+
+if ($lang_file eq '')  {
+  require "Abills/modules/Docs/lng_english.pl";
+}
+
+
+
+#**********************************************************
+# user_dv
+#**********************************************************
+sub docs_accounts_list {
+
+
+
+if ($LIST_PARAMS{UID}) {
+	docs_account();
+ }
+elsif(defined($FORM{del})) {
+  $Docs->account_del($FORM{del});
+  if(! $Docs->{errno}) {
+    $html->message('info', "$_INFO", "$_DELETED N: [$FORM{del}]");
+   }
+ }
+else {
+  form_search({ SEARCH_FORM =>  	
+  	"<tr><td colspan=2><hr></td></tr>
+     <tr><td>ID (>,<)</td><td><input type=text name=ACCT_ID value='%ACCT_ID%'></td></tr>
+     <tr><td>$_ADMIN</td><td><input type=text name=AID value='%AID%'></td></tr>
+     <tr><td>$_SUM</td><td><input type=text name=SUM value='%SUM%'></td></tr>\n" });
+}
+
+if ($Docs->{errno}) {
+  $html->message('err', $_ERROR, "[$Docs->{errno}] $err_strs{$Docs->{errno}}");	
+  return 0;
+ }
+
+
+
+#  Date  Customer  Sum  User  Administrators  Time  
+
+if (! defined($FORM{sort})) {
+  $LIST_PARAMS{SORT}=1;
+  $LIST_PARAMS{DESC}='DESC';
+}
+
+my $list = $Docs->accounts_list( { %LIST_PARAMS } );
+my $table = $html->table( { width => '100%',
+                                   border => 1,
+                                   title => ['#', $_DATE, $_CUSTOMER, $_SUM, $_USER, $_ADMIN, $_TIME, '-', '-'],
+                                   cols_align => ['right', 'right', 'left', 'right', 'left', 'left', 'right', 'center'],
+                                   qs => $pages_qs,
+                                   pages => $Docs->{TOTAL}
+                                  });
+
+
+foreach my $line (@$list) {
+  my $delete = ($permissions{1}{2}) ?  $html->button($_DEL, "index=$index&del=$line->[8]&UID=$line->[7]", { MESSAGE => "$_DEL ?" }) : ''; 
+  $table->addrow("$line->[0]", "$line->[1]",
+   "$line->[2]", "$line->[3]", 
+   $html->button($line->[4], "index=11&UID=$line->[7]"),
+   "$line->[5]", 
+   "$line->[6]", 
+   $html->button($_PRINT, "index=$index&print=$line->[8]&UID=$line->[7]"), 
+   $delete);
+}
+print $table->show();
+
+$table = $html->table( { width => '100%',
+                                cols_align => ['right', 'right'],
+                                rows => [ [ "$_TOTAL:", "<b>$Docs->{TOTAL}</b>" ] ]
+                               } );
+print $table->show();
+
+  return 0;
+}
+
+#**********************************************************
+# docs_account_add
+#**********************************************************
+sub docs_account {
+ $Docs->account_defaults();		
+ $Docs->{DATE}=$DATE;
+	
+	
+ if ($FORM{create}) {
+   if ($FORM{SUM} < 0.01) {
+     $html->message('err', "$_ERROR", $_WRONG_SUM);
+    }
+   elsif(! $LIST_PARAMS{UID}) {
+     $html->message('err', "$_ERROR", "$_SELECT_USER");
+    }
+   elsif(! $FORM{CUSTOMER}) {
+     $html->message('err', "$_ERROR", "$_ORG_NAME");
+    }
+   elsif($FORM{PREVIEW}) {
+     docs_preview('account', { %FORM });
+     return 0;
+    }
+   else {
+     $FORM{UID}=$LIST_PARAMS{UID} if (! $FORM{UID});
+     $Docs->account_add({ %FORM });
+     if(! $Docs->{errno}) {
+       $html->message('info', "$_ADDED", "$_ADDED N: [$Docs->{ACCT_ID}]");
+       docs_print('account', $Docs);
+       return 0;
+      }
+    }
+  }
+ elsif(defined($FORM{print})){
+
+   $Docs->account_info($FORM{print});
+   my $list = $Docs->{ORDERS};
+   my $i=0;
+   foreach my $line (@$list) {
+   	 $i++;
+   	 $Docs->{ORDER} .= sprintf("<tr><td align=right>%d</td><td>%s</td><td align=right>%d</td><td align=right>%d</td><td align=right>%.2f</td><td align=right>%.2f</td></tr>\n", 
+   	  $i, $line->[1], $line->[2], $line->[3], $line->[4], ($line->[3]*$line->[4]));
+    }
+   docs_print('account', $Docs);
+   return 0;
+  }
+ elsif(defined($FORM{change})) {
+   $Docs->account_change({ %FORM });
+   if(! $Docs->{errno}) {
+     $html->message('info', "$_INFO", "$_CHANGED N: [$FORM{DOC_ID}]");
+    }
+  }
+ elsif(defined($FORM{chg})) {
+   $Docs->account_info($FORM{chg});
+   if(! $Docs->{errno}) {
+     $html->message('info', "$_INFO", "$_CHANGING N: [$FORM{chg}]");
+    }
+  }
+ elsif(defined($FORM{del})) {
+   $Docs->account_del($FORM{del});
+   if(! $Docs->{errno}) {
+     $html->message('info', "$_INFO", "$_DELETED N: [$FORM{del}]");
+    }
+  }
+	
+	if($admin->{AID} > 0) {
+  	$Docs->{FORM_ACCT_ID} = "<tr><td>N:</td><td><input type='text' name='ACCT_ID' value='%ACCT_ID%'></td></tr>\n";
+   }
+
+  $Docs->{SEL_ORDER} .= "<select name='ORDERS'>";
+  $Docs->{SEL_ORDER} .= "<option value=\"Internet service\">Internet service\n";
+  $Docs->{SEL_ORDER} .= "</select>\n";
+
+
+  $html->tpl_show(_include('docs_account_add', 'Docs'), $Docs);
+}
+
+
+#**********************************************************
+# docs_preview
+#**********************************************************
+sub docs_preview {
+	my ($type, $ATTR)=@_;
+	
+	$html->tpl_show(_include("docs_$template.tpl", 'Docs'), $ATTR);
+}
+
+
+#**********************************************************
+# docs_preview
+#**********************************************************
+sub docs_print {
+	my ($type, $ATTR)=@_;
+	
+	my $template = $type;
+	$html->tpl_show(_include("docs_$template", 'Docs'), $ATTR);
+}
+
+
+
+1
+

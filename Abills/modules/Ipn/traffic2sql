@@ -1,0 +1,191 @@
+#!/usr/bin/perl -w
+# PUSH traffic to sql
+
+use vars  qw(%RAD %conf $db %AUTH $DATE $var_dir);
+use strict;
+
+
+
+if ($#ARGV < 1) {
+	print "\ntraffic2sql [NAS_ID] [Interface]\n";
+	exit;
+}
+
+my $NAS_ID=$ARGV[0];
+my $IF_NAME=$ARGV[1];
+
+
+use FindBin '$Bin';
+require $Bin . '/config.pl';
+unshift(@INC, $Bin . '/../', $Bin . "/../Abills/$conf{dbtype}");
+require Abills::Base;
+Abills::Base->import();
+my $begin_time = check_time();
+
+require Abills::SQL;
+my $sql = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd});
+my $db = $sql->{db};
+
+require Ipn;
+Ipn->import();
+my $Ipn = Ipn->new($db, \%conf);
+
+my $log = $var_dir."log/ipn/trafd_". $NAS_ID. "_" .$IF_NAME;
+
+
+#my $user = "ipstat";
+#my $group = "guest";
+#$zip = $path."bin/zip";
+#$unzip = $path."bin/unzip";
+
+
+my %PROTOCOLS = ('tcp'    => 1,
+                 'udp'    => 2);
+my $PROTOCOL = 0; #(defined($PROTOCOLS{$PROTOCOL})) ? $PROTOCOLS{$PROTOCOL} : 0;
+
+
+open( LOG, $log ) || die "Can't open log file '$log' $!";
+my %DATA=();
+while( <LOG> ) {
+  my ($MM, $DD,$HH, $YY);
+	if ( /at [A-Za-z]{3} ([A-Za-z]{3}) +(\d?\d) (\d+):\d+:\d+ (\d{4}) / )	{
+		$MM = $1;
+		$DD = $2; 
+		$HH = $3; 
+		$YY = $4;
+		$DD = "0".$DD if ( $DD < 10 ); 
+		print "$MM, $DD,$HH, $YY,$DD\n";
+  }
+ 
+   
+ 	if ( /^(\d+)\.(\d+)\.(\d+)\.(\d+)\s+([^\s]+)\s+(\d+)\.(\d+)\.(\d+)\.(\d+)\s+([^\s]+)\s+[a-z]+\s+\d+\s+(\d+)/ ){
+		( $DATA{SRC_IP}, $DATA{SRC_PORT} ) = ( 16777216 * $1 + 65536 * $2 + 256 * $3 + $4, $5 );
+		( $DATA{DST_IP}, $DATA{DST_PORT} ) = ( 16777216 * $6 + 65536 * $7 + 256 * $8 + $9, $10 ); 
+  	$DATA{SIZE} = $11;
+	  $DATA{PROTOCOL}=0;
+		$DATA{SRC_PORT} = 0 if ( $DATA{SRC_PORT} !~ /^\d+$/ );
+		$DATA{DST_PORT} = 0 if ( $DATA{DST_PORT} !~ /^\d+$/ );
+		$DATA{NAS_ID}=$NAS_ID;
+		$DATA{IF_NAME}='0';
+    $Ipn->traffic_add({ %DATA });
+
+
+#		my $key = $fip."_".$fp."_".$tip."_".$tp;
+#		if ( exists $DATA{$key} ) { $DATA{$key} += $amount; }
+#		else { $DATA{$key} = $amount; }
+	}
+
+   
+}
+close(LOG);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+__END__
+$uid = getpwnam( $user );
+$gid = getgrnam( $group );
+
+%DATA = ();
+%MON = (	"Jan" => "01", "Feb" => "02", "Mar" => "03",
+		"Apr" => "04", "May" => "05", "Jun" => "06",
+		"Jul" => "07", "Aug" => "08", "Sep" => "09",
+		"Oct" => "10", "Nov" => "11", "Dec" => "12" );
+
+open( LOG, $log ) || die "Can't open log file '$log' $!";
+while( <LOG> )
+{
+	#считываем дату и время		
+	if ( /at [A-Za-z]{3} ([A-Za-z]{3}) +(\d?\d) (\d+):\d+:\d+ (\d{4}) / )
+	{
+		$MM = $MON{$1};
+		$DD = $2; 
+		$HH = $3; 
+		$YY = $4;
+		$DD = "0".$DD if ( $DD < 10 ); 
+
+		$file = $path.$YY;
+
+		if ( !-e $file )
+		{
+			mkdir $file, 320;
+			chown $uid, $gid, $file;
+		}
+
+		$file = $path.$YY."/".$MM;
+
+		if ( !-e $file )
+		{
+			mkdir $file, 320;
+			chown $uid, $gid, $file;
+		}
+
+		$file = $path.$YY."/".$MM."/".$DD."_".$HH;
+
+		#считываем данные, если за это время уже есть файл
+		if ( -e $file.".zip" )
+		{
+			open( FILE, $unzip." -p ".$file.".zip ".$DD. "_".$HH." |" );
+			while( <FILE> )
+			{
+				if ( /^(\d+)[\t\s]+(\d+)[\t\s]+(\d+)[\t\s]+(\d+)[\t\s]+(\d+)/ )
+				{
+					my ( $fip, $fp, $tip, $tp, $amount ) = ( $1, $2, $3, $4, $5 );
+					print $fip."\n";
+					$DATA{$fip."_".$fp."_".$tip."_".$tp} = $amount;
+				}
+			}
+			close( FILE );
+		}
+	}
+
+	# 
+	if ( /^(\d+)\.(\d+)\.(\d+)\.(\d+)\s+([^\s]+)\s+(\d+)\.(\d+)\.(\d+)\.(\d+)\s+([^\s]+)\s+[a-z]+\s+\d+\s+(\d+)/ )
+	{
+		my ( $fip, $fp ) = ( 16777216 * $1 + 65536 * $2 + 256 * $3 + $4, $5 );
+		my ( $tip, $tp ) = ( 16777216 * $6 + 65536 * $7 + 256 * $8 + $9, $10 ); 
+		my $amount = $11;
+		$fp = 0 if ( $fp !~ /^\d+$/ );
+		$tp = 0 if ( $tp !~ /^\d+$/ );
+		my $key = $fip."_".$fp."_".$tip."_".$tp;
+		if ( exists $DATA{$key} ) { $DATA{$key} += $amount; }
+		else { $DATA{$key} = $amount; }
+	}
+}
+close( LOG );
+
+#печатаем данные в файл
+if ( $file ne "" )
+{
+	open( FILE, ">".$file );
+	foreach my $key ( keys %DATA )
+	{
+		my @addrs = split( /_/, $key );
+		printf FILE "%-10s\t%-5s\t%-10s\t%-5s\t%s\n", ( $addrs[0], $addrs[1], $addrs[2], $addrs[3], $DATA{$key} );
+	}
+	close( FILE );
+	chdir $path.$YY."/".$MM."/";
+	$err = `$zip -m $file.zip ${DD}_$HH`;
+	chmod 256, $file.".zip";
+	chown $uid, $gid, $file.".zip";
+}
+

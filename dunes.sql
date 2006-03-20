@@ -7,9 +7,7 @@
 --
 -- Table structure for table 'dunes'
 --
-
 use abills;
-
 CREATE TABLE dunes (
   err_id smallint(5) unsigned NOT NULL default '0',
   win_err_handle varchar(30) NOT NULL default '',

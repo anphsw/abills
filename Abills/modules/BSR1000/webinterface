@@ -1,0 +1,207 @@
+#/usr/bin/perl
+# BSR1000 functions
+
+
+#iso.3.6.1.2.1.3.1.1.1.2.1. show ip
+# Byte
+# iso.3.6.1.2.1.2.2.1.10.1
+#
+# iso.3.6.1.2.1.5.7.0
+# iso.3.6.1.2.1.10.127.1.3.3.1.10.1
+# iso.3.6.1.2.1.10.127.1.3.4.1.7.2.17
+#
+# iso.3.6.1.2.1.10.127.7.1.4.1.2.2.37
+#
+# iso.3.6.1.2.1.10.127.7.1.4.1.4.2.57
+#
+# Time
+# iso.3.6.1.2.1.10.127.7.1.4.1.3.2.23
+#
+# MAC
+# iso.3.6.1.2.1.3.1.1.2.2.1.10.0.2.12
+# iso.3.6.1.2.1.4.22.1.2.2.10.0.2.95
+
+
+my $CMTS_prompt         = (defined($conf{cmts_prompt})) ? $conf{cmts_prompt} : 'catv0';
+my $CMTS_terminal_lines = 128;
+
+use Nas;
+my $nas = Nas->new($db, \%conf);
+
+my %bsr1000_commands = ('show cable modem'    => '',
+                        'show running-config' => '',
+                        'show version'        => '',
+                        'show memory information' => '',
+                        'show log'            => '',
+                        'show pool'           => '',
+                        'show tcp brief'      => '',
+                        'show tcp statistics' => '',
+                        'show interface cable 0/0 upstream' => '',
+                        'show cable flap-list' => '',
+                        'show clock'           => '',
+                        'show process'        => '',
+                        'show cable spectrum-group' => '',
+                        'show cable resource-manager' => '');
+
+
+                          
+
+sub Bsr1000_online () {
+
+
+if ($FORM{NAS_ID}) {
+  $nas->info( { NAS_ID => $FORM{NAS_ID}	} );
+  $pages_qs.="&NAS_ID=$FORM{NAS_ID}";
+  Bsr1000_cmd();
+}
+
+my $table = $html->table( { width   => '100%',
+                                   caption => "$_NAS",
+                                   border  => 1,
+                                   title   => ["ID", "$_NAME", "NAS-Identifier", "IP", "$_TYPE", "$_STATUS", '-', '-'],
+                                   cols_align => ['center', 'left', 'left', 'right', 'left', 'left', 'center', 'center'],
+                                  });
+my $list = $nas->list({ %LIST_PARAMS, TYPE =>  'bsr1000' });
+
+
+foreach my $line (@$list) {
+  $table->addrow($line->[0], 
+    $line->[1], 
+    $line->[2], 
+    $line->[3], $line->[4], 
+    $status[$line->[6]],
+    $html->button("MODEMS", "index=$index&NAS_ID=$line->[0]&command=show cable modem"),
+    $html->button("Commands", "index=$index&NAS_ID=$line->[0]")
+   );
+}
+print $table->show();
+
+
+
+
+}
+
+
+
+#**********************************************************
+# Use
+#**********************************************************
+sub Bsr1000_cmd {
+
+  if(length($FORM{command})>0){
+    $nas->info({ NAS_ID => $FORM{NAS_ID}});
+
+ 
+    require 'Abills/nas.pl';
+    my @commands = ( "Password:\t$nas->{NAS_MNG_PASSWORD}",
+                     "$CMTS_prompt\tenable",
+                     "Password:\t$nas->{NAS_MNG_PASSWORD}",
+                     "$CMTS_prompt\tset terminal lines $CMTS_terminal_lines",
+                     "$CMTS_prompt\t$FORM{command}",
+                     "$CMTS_prompt\t",
+                     "\texit"
+      );
+
+    my $result = telnet_cmd("$nas->{NAS_MNG_IP_PORT}", \@commands, { debug => 1 });
+    my $total=0;
+    my @rows = split(/\n/, $result);
+   
+   if($FORM{command} eq 'show cable modem') {
+    	my $table = $html->table({ width       => '100%',
+                                 border      => 1,
+                                 title_plain => ['Interface', 'Prim Sid', 'Connect state', 'Timing Offset', 'Rec Power', 'Ip Address', 'Mac Address', '-', '-', '-'],
+                                 cols_align  => ['right', 'center', 'right', 'left', 'left', 'center'],
+                                 #qs          => $pages_qs,
+                                 caption     => 'Modems'
+                                  } );
+ 
+     my %interfaces = ();
+     foreach my $line (@rows) {
+
+       if($line =~ /Cable\s+(\d\/\d\/U\d)\s(\d+)\s+([a-z]+)\s+(\d+)\s+(\d+)\s+([0-9.]+)\s+([0-9a-f.]+)/) {
+
+         $table->{rowcolor} = (defined($FORM{SID}) && $FORM{SID} == $2) ? $_COLORS[0] : undef;
+
+         $table->addrow($1, $2, $3, $4, $5, $6, $7,
+         $html->button("D", "index=$index$pages_qs&SID=$2&command=show cable modem detail $2", { TITLE => 'Detail' }),
+         $html->button("P", "index=$index$pages_qs&SID=$2&command=ping $6", { TITLE => 'Ping'   }),
+         $html->button("H", "index=$index$pages_qs&SID=$2&command=clear cable modem $7 reset",  { TITLE => 'Hangup' })
+         );
+         
+         $interfaces{"$1"}++;
+         $total++;
+        }
+      }
+     print $table->show();
+
+     $table = $html->table( {
+     	                        width    => '100%',
+                              cols_align => ['right', 'right'],
+                              rows => [ ["$_TOTAL:", "<b>$total</b>" ] ]
+                               } );
+     while(my($k, $v)=each %interfaces){
+          $table->addrow($k, $v);
+      }
+     print $table->show();
+
+     }
+    elsif ($FORM{command} =~ /show cable modem detail/) {
+
+      if ($result =~ /Unable to locate the cable modem for sid/g) {
+       	 $html->message('err', $_ERROR, "Unable to locate the cable modem for sid $FORM{SID}");
+       }
+      else {
+  	     $table = $html->table( {
+     	                        width    => '500',
+                              cols_align => ['right', 'right'],
+                               } );
+        foreach my $line (@rows) {
+          #$line =~ /(\S+)\s+(\w+)/;
+          if ($line =~ /\t|##|--|Equalization|\d{2}/) {
+            my($k, $v)=split(/\t/, $line, 2);
+            $table->addrow($k, $v);
+           }
+         }
+        print $table->show();
+      }
+
+      $FORM{command}='show cable modem';
+      Bsr1000_cmd();
+     }
+    else {
+      $result =~s/\n/<br>/g;
+      $html->message('info', $_INFO, "<code>$result</code>");
+      if ($FORM{command} =~ /ping|clear cable modem|show cable modem detail/) {
+        $FORM{command}='show cable modem';
+        Bsr1000_cmd();
+        return 0;
+      }
+    }
+  }
+
+print  $html->form_main({ CONTENT => "Command: ". $html->form_input('command', "$FORM{command}"),
+  	                      HIDDEN  => { index   => "$index",
+  	                      	           NAS_ID  => "$FORM{NAS_ID}"  
+  	                      	          },
+	                        SUBMIT  => { go   => "$_SHOW"} 
+	                        });
+
+ $table = $html->table({ caption => 'Commands',
+  	                      width => '100%',
+                          border => 1,
+                          title => ["_COMMAND", "_HELP"],
+                          cols_align => ['left', 'left']
+                         });
+    
+  foreach my $k (sort keys %bsr1000_commands) {
+     $table->addrow($html->button("$k", "index=$index&NAS_ID=$FORM{NAS_ID}&command=$k"), $bsr1000_commands{$k});
+   }
+  print $table->show();
+
+
+ #show cable modem
+
+}
+
+1
+

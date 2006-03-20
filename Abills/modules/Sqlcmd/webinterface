@@ -1,0 +1,76 @@
+#/usr/bin/perl
+# Dialup vpn web functions
+
+
+require "Sqlcmd.pm";
+Sqlcmd->import();
+my $Sqlcmd = Sqlcmd->new($db, $admin, $conf);
+
+
+
+
+#**********************************************************
+# sqlcmd
+#**********************************************************
+sub sqlcmd {
+ 
+
+
+ my $list = $Sqlcmd->list( { %FORM } ) if (defined($FORM{QUERY}) && length($FORM{QUERY}) > 10);
+
+if ($Mail->{errno}) {
+  $html->message('err', $_ERROR, "[$Sqlcmd->{errno}] $err_strs{$Sqlcmd->{errno}}");	
+  return 0;
+ }
+
+#elsif ($Mail->{TOTAL} == 1) {
+#	#mail_user_boxes();
+#	#return 0;
+#}
+
+
+  $html->tpl_show(_include('sqlcmd', 'Sqlcmd'), $Sqlcmd);
+
+#title => ["$_LOGIN", "$_DOMAIN", "$_USER", "$_COMMENTS", "$_LIMIT $_COUNT", "$_LIMIT $_SIZE", "$_ANTIVIRUS", "$_ANTISPAM", "$_STATUS", '-', '-'], 
+#cols_align => ['left', 'left', 'left', 'right', 'right', 'right', 'center', 'center', 'center', 'center', 'center', 'center'],
+
+  my @CAPTION = ();
+  
+  print "$Sqlcm->{Q}->{NAME}";
+
+  foreach $line (@CAPTION) {
+  	 print "$line<br>";
+  }
+
+  my $table = $html->table( { width => '100%',
+                                   border => 1,
+                                   title => [@CAPTION], 
+
+                                   qs => $pages_qs,
+                                   pages => $Sqlcmd->{TOTAL}
+                                  } );
+
+
+  foreach my $line (@$list) {
+    my @table_row = ();
+    foreach $l (@$line) {
+    	push @table_row, $l;
+     }
+
+    $table->addrow(@table_row);
+   }
+  print $table->show();
+
+  $table = $html->table( { width => '100%',
+                                cols_align => ['right', 'right'],
+                                rows => [ [ "$_TOTAL:", "<b>$Sqlcmd->{TOTAL}</b>" ] ]
+                               } );
+  print $table->show();
+
+
+  return 0;
+}
+
+
+
+1

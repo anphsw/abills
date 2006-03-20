@@ -1,5 +1,5 @@
-# 0.24
-$CHARSET = 'windows1251';
+# 0.3
+$CHARSET = 'windows-1251';
 
 @PERIODS=('Today', 'Yesterday', 'Week', 'Month', 'All sessions', 'From activization');
 @MONTHES=('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',  'September', 'October', 'November', 'Decembe');
@@ -125,6 +125,7 @@ $_SQL_BACKUP='SQL backup';
 $_ADMIN='Administrator';
 $_ADMINS='Administrators';
 $_GROUPS='Groups';
+$_GROUP='Group';
 $_CHANGE_PASSWD='Change password';
 $_GEN_PASSWD='Gen password';
 $_CONFIRM_PASSWD='Confirm password';
@@ -185,6 +186,7 @@ $_ORDER='Order';
 $_PRINT='Print';
 $_ACCOUNT_EXIST='Account exist';
 $_SDETAIL='Sessions detalization';
+$_DETAIL='Detail';
 
 $_AUTH='Authorization';
 $_SHORT_NAME="Short name";
@@ -217,7 +219,7 @@ $_NETWORKS='Networks';
 $_HOLIDAYS = 'Holidays';
 $_DUNES='Windows Error codes (DUNES)';
 $_ALLOW_NAS = 'Allow NAS';
-$_ALLOW = 'Allow';
+$_ALLOW='Allow';
 $_ALLOW_ALL = 'Allow all';
 $_DEFAULT='Default';
 $_GO = 'Go';
@@ -237,10 +239,10 @@ $ERR_NAME_TOOLONG='Login is too long';
 #Mail section
 $_MAILBOXES='Mailboxes';
 $_ALIASES = 'Aliases';
-$_DOMAINS = 'Domains';
-$_DOMAIN = 'Domain';
-$_RELAYS = 'Relay',
-$_ACCESS = 'Access';
+$_DOMAINS='Domains';
+$_DOMAIN='Domain';
+$_RELAYS='Relay',
+$_ACCESS='Access';
 $_TRANSPORT = 'Transport';
 $_BILLING = 'Billing';
 $_ANTIVIRUS='Antyvirus';
@@ -266,3 +268,32 @@ $_COMPANY='Company';
 $_OCTETS_DIRECTION='Octets direction';
 $_PAYMENT_METHOD='Payment Method';
 $_TEST='Test';
+$_ZAPED='Zaped';
+$_CLOSED='Closed';
+$_USED='Use';
+$_MAX_SESSION_DURATION='Max. session time';
+$_START='Start';
+$_YES='Yes';
+$_NO='No';
+$_PAYMENT_TYPE='Payment type';
+$_PREPAID='Prepaid';
+$_POSTPAID='Postpaid';
+$_MIN_SESSION_COST='Min. session cost';
+$_NOW='Now';
+$_MONITORING='Monitoring';
+$_BILLS='Money accounts';
+$_BILL='Money account';
+$_TAKE='Take';
+$_ADDRESS_STREET='Street';
+$_ADDRESS_BUILD='Build';
+$_ADDRESS_FLAT='Flat';
+$_CONTRACT_ID='Contract Number';
+$_NOT_ACTIVE='Not Active';
+$_REFRESH='Refresh';
+$_ROUTES='Routes';
+$_DICTIONARY='Dictionary';
+$_ABON='Periodic payments';
+
+
+
+

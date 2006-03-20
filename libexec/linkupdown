@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 # ppp
 # external script for traffic shapping
 #
@@ -19,17 +19,65 @@
 # set iface down-script "/usr/abills/libexec/linkupdown mpd down"
 
 
-use FindBin '$Bin';
-require $Bin .'/config.pl';
-require $Bin .'/Base.pm';
-Base->import();
-require $Bin .'/sql.pl';
-$IPFW='/sbin/ipfw';
-
 my $debug=0;
-my @START_FW = (3000, 2000, 1000);
+
+#If not anought arguments
+if ( $#ARGV < 3 ) {
+ print qq{Not anought argumets:
+ Example:
+
+ /etc/ppp/ppp.linkup
+----------------------------------------------------------------
+ MYADDR:
+ !bg /usr/abills/libexec/linkupdown up INTERFACE USER HISADDR
+
+ /etc/ppp/ppp.linkdown
+
+ MYADDR:
+ !bg /usr/abills/libexec/linkupdown down INTERFACE USER HISADDR
+
+
+----------------------------------------------------------------
+ /usr/local/etc/mpd/mpd.conf
+ set iface up-script "/usr/abills/libexec/linkupdown mpd up"
+ set iface down-script "/usr/abills/libexec/linkupdown mpd down"
+----------------------------------------------------------------
+DEBUG: $debug
+};
+exit 0;
+}
+
+
+use vars  qw(%RAD %conf $db @START_FW);
+use strict;
+
+use FindBin '$Bin';
+require $Bin . '/config.pl';
+#use lib '../', "../Abills/$conf{dbtype}";
+unshift(@INC, $Bin . '/../', $Bin ."/../Abills/$conf{dbtype}");
+require Abills::Base;
+Abills::Base->import();
+my $begin_time = check_time();
+
+require Abills::SQL;
+my $sql = Abills::SQL->connect($conf{dbtype}, "$conf{dbhost}", $conf{dbname}, $conf{dbuser}, $conf{dbpasswd});
+my $db = $sql->{db};
+
+require Billing;
+Billing->import();
+my $Billing = Billing->new($db, \%conf);
+
+
+
+
+
+
+
+my $IPFW='/sbin/ipfw';
+#my @START_FW = (3000, 2000, 1000);
+
 # Arguments
-my ($ACTION, $INTERFACE, $USER, $HISADDR);
+my ($ACTION, $INTERFACE, $USER, $HISADDR, $inum);
 
 #MPD
 if ($ARGV[0] eq 'mpd') {
@@ -46,71 +94,171 @@ else {
  $INTERFACE=$ARGV[1];
  $USER=$ARGV[2];
  $HISADDR=$ARGV[3];
- #my $MYADDR=$ARGV[4];
  $inum = $INTERFACE;
  $inum =~ s/tun//;
 } 
 
- 
-my $FW_ACTIONS = ();
 
+require Admins;
+Admins->import();
+require Dv;
+Dv->import();
+
+
+my $admin = Admins->new($db);
+$admin->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });
+my $Dv = Dv->new($db, $admin, \%conf); 
+
+
+my @FW_ACTIONS = ();
 # Flush rules
-  my $fw_nums = "";
-  my $pipe_nums = "";
+  my($fw_num, $pipe_num, $fw_nums, $pipe_nums);
   
-  foreach $num (@START_FW) {
-    $fw_num = $num + $inum;
-    $pipe_num = $num + $inum;
-    $fw_nums .= "$fw_num ";
-    $pipe_nums .= "$pipe_num ";
+  foreach my $num (@START_FW) {
+    $fw_num =     $num + $inum * 2;
+    $pipe_num =   $num + $inum * 2;
+    $fw_nums .=   ' ' . ($fw_num)   .' '. ($fw_num +1);
+    $pipe_nums .= ' ' . ($pipe_num) .' '. ($pipe_num+1);
   }
-  push @FW_ACTIONS, "$IPFW delete $fw_nums";
-  push @FW_ACTIONS, "$IPFW pipe delete $pipe_nums";
+  push @FW_ACTIONS, "$IPFW -f delete $fw_nums";
+  push @FW_ACTIONS, "$IPFW -f pipe delete $pipe_nums";
 
 
 # Up fw shaper rules
 if ($ACTION eq 'up') {
   my %speeds = ();
   my %nets = ();
-
-  $q = $db->prepare("SELECT speed, variant FROM users WHERE id='$USER';") || die $db->errstr;
-  $q -> execute ();
-  ($uspeed, $vid) = $q -> fetchrow();
   
-  if ($uspeed > 0) {
-    $speeds{0}=int($uspeed);
+  my $user = $Dv->info(0, { LOGIN => "$USER" });
+
+  if(defined($Dv->{errno})) {
+     print "[$Dv->{errno}] $Dv->{errstr}\n";
+     exit 1;
+   }
+  elsif($Dv->{TOTAL} < 1){
+    print "$USER - Not exist\n";
+    exit 1;
+   }
+
+  if ($user->{SPEED} > 0) {
+    $speeds{0}{IN}=int($user->{SPEED});
+    $speeds{0}{OUT}=int($user->{SPEED});
    }
   else {
-    $q = $db->prepare("SELECT id, speed, nets FROM trafic_tarifs WHERE vid='$vid';") || die $db->errstr;
-    $q -> execute ();
-    while(($tt_id, $speed, $nets) = $q -> fetchrow()) {
-       $speeds{$tt_id}=$speed;
-       $nets{$tt_id}=$nets;
-     }
+    my ($remaining_time, $ret_attr); 
+
+
+    ($user->{TIME_INTERVALS}, $user->{INTERVAL_TIME_TARIF}, $user->{INTERVAL_TRAF_TARIF}) = $Billing->time_intervals($user->{TP_ID});
+    ($remaining_time, $ret_attr) = $Billing->remaining_time($user->{DEPOSIT}, {
+    	  TIME_INTERVALS      => $user->{TIME_INTERVALS},
+          INTERVAL_TIME_TARIF => $user->{INTERVAL_TIME_TARIF},
+          INTERVAL_TRAF_TARIF => $user->{INTERVAL_TRAF_TARIF},
+          SESSION_START       => $user->{SESSION_START},
+          DAY_BEGIN           => $user->{DAY_BEGIN},
+          DAY_OF_WEEK         => $user->{DAY_OF_WEEK},
+          DAY_OF_YEAR         => $user->{DAY_OF_YEAR},
+          REDUCTION           => $user->{REDUCTION},
+          POSTPAID            => 1
+         });
+
+#    print "RT: $remaining_time\n"  if ($debug == 1);
+    my %TT_IDS = %$ret_attr;
+
+    if (keys %TT_IDS > 0) {
+    	
+    	
+    	
+      require Tariffs;
+      Tariffs->import();
+      my $tariffs = Tariffs->new($db, $admin);
+
+      while(my($k, $v)=each( %TT_IDS)) {
+# 	      print "$k, $v\n";
+ 	      my $list = $tariffs->tt_list({ TI_ID => $v });
+ 	      foreach my $line (@$list)  {
+ 	    	  $speeds{$line->[0]}{IN}="$line->[4]";
+ 	    	  $speeds{$line->[0]}{OUT}="$line->[5]";
+ 	    	  $nets{$line->[0]}="$line->[7]";
+ 	    	  #print "$line->[0] $line->[4]\n";
+ 	      }
+      }
+    }
+  
+
+
+#   require Auth;
+#   Auth->import();
+#   my $auth = Auth->new($db);
+#
+#
+#      my($session_start, 
+#      $day_begin, 
+#      $day_of_week, 
+#      $day_of_year);
+#
+#  my($remain_time, $ret_attr) = $auth->remaining_time($user->{TP_ID}, 
+#      $user->{DEPOSIT}, 
+#      0, 
+#      0, 
+#      0, 
+#      0);
+
+
+ #print "$remain_time\n";
+
+#    $q = $db->prepare("SELECT id, speed, nets FROM trafic_tarifs WHERE vid='$vid';") || die $db->errstr;
+#    $q -> execute ();
+#    while(my($tt_id, $speed, $nets_list) = $q -> fetchrow()) {
+#       $speeds{$tt_id}=$speed;
+#       $nets{$tt_id}=$nets_list;
+#     }
    }
 
  # speed apply
-  my $fw_num=0;
-  my $pipe_num=0;
+  my $fw_num_in    =0;
+  my $fw_num_out   =0;
+  my $pipe_num_in  =0;
+  my $pipe_num_out =0;
   while(my ($traf_type, $speed)=each %speeds) {
-    $fw_num = $START_FW[$traf_type] + $inum;
-    $pipe_num = $START_FW[$traf_type] + $inum;
-    if ($speed > 0) {
+    $fw_num_in  = $START_FW[$traf_type] + $inum * 2;
+    $fw_num_out = $START_FW[$traf_type] + $inum * 2 + 1;
+    $pipe_num_in  = $START_FW[$traf_type] + $inum * 2 ;
+    $pipe_num_out = $START_FW[$traf_type] + $inum * 2 + 1;
+    
+    my $speed_in  = (defined($speed->{IN}))  ? $speed->{IN}  : 0;
+    my $speed_out = (defined($speed->{OUT})) ? $speed->{OUT} : 0;
+
+    if ($speed_in > 0) {
        if ($traf_type == 0) {
-         push @FW_ACTIONS, "$IPFW add $fw_num pipe $pipe_num ip from any to any via $INTERFACE";
-         push @FW_ACTIONS, "$IPFW pipe $pipe_num config bw ". $speed ."Kbit/s queue 10Kbytes";
+         # In
+         push @FW_ACTIONS, "$IPFW add $fw_num_in pipe $pipe_num_in ip from any to any via $INTERFACE in";
+         push @FW_ACTIONS, "$IPFW pipe $pipe_num_in config bw ". $speed_in ."Kbit/s queue 10Kbytes";
         }
        else {
-         push @FW_ACTIONS, "$IPFW add $fw_num pipe $pipe_num ip from $nets{$traf_type} to any via $INTERFACE";
-         push @FW_ACTIONS, "$IPFW pipe $pipe_num config bw ". $speed ."Kbit/s queue 10Kbytes";
+       	 #In
+         push @FW_ACTIONS, "$IPFW add $fw_num_in pipe $pipe_num_in ip from $nets{$traf_type} to any via $INTERFACE in";
+         push @FW_ACTIONS, "$IPFW pipe $pipe_num_in config bw ". $speed_in ."Kbit/s queue 10Kbytes";
         }
     }
+
+    if ($speed_out > 0) {
+       if ($traf_type == 0) {
+         push @FW_ACTIONS, "$IPFW add $fw_num_out pipe $pipe_num_out ip from any to any via $INTERFACE out";
+         push @FW_ACTIONS, "$IPFW pipe $pipe_num_out config bw ". $speed_out ."Kbit/s queue 10Kbytes";
+        }
+       else {
+         push @FW_ACTIONS, "$IPFW add $fw_num_out pipe $pipe_num_out ip from $nets{$traf_type} to any via $INTERFACE out";
+         push @FW_ACTIONS, "$IPFW pipe $pipe_num_out config bw ". $speed_out ."Kbit/s queue 10Kbytes";
+        }
+    }
+    
+    
   }
 
  }
 
 #make firewall actions
-foreach $line (@FW_ACTIONS) {
+foreach my $line (@FW_ACTIONS) {
   if ($debug == 1) {
     print "$line\n";	
    }	
