@@ -31,7 +31,6 @@ my %ACCT_TYPES = ('Start'          => 1,
                   'Accounting-Off' => 8
                   ); 
 
-
 my %USER_TYPES = ('Login-User'         => 1,
                'Framed-User'           => 2,       
                'Callback-Login-User'   => 3, 

@@ -453,7 +453,7 @@ sub  tt_defaults {
       TT_DESCRIBE   => '',
       TT_PRICE_IN   => '0.00000',
       TT_PRICE_OUT  => '0.00000',
-      TT_NETS       => '0.0.0.0/0',
+      TT_NETS       => '',
       TT_PREPAID    => 0,
       TT_SPEED_IN   => 0,
       TT_SPEED_OUT  => 0);
@@ -493,11 +493,14 @@ sub  tt_list {
 	
 	if (defined( $attr->{TI_ID} )) {
 	  $self->query($db, "SELECT id, in_price, out_price, prepaid, in_speed, out_speed, descr, nets
-     FROM trafic_tarifs WHERE interval_id='$attr->{TI_ID}';");
+     FROM trafic_tarifs WHERE interval_id='$attr->{TI_ID}'
+     ORDER BY id DESC;");
    }	
 	else {
 	  $self->query($db, "SELECT id, in_price, out_price, prepaid, in_speed, out_speed, descr, nets
-     FROM trafic_tarifs WHERE tp_id='$self->{TP_ID}';");
+     FROM trafic_tarifs 
+     WHERE tp_id='$self->{TP_ID}'
+     ORDER BY id;");
    }
 
 
@@ -578,7 +581,10 @@ sub  tt_add {
     ('$DATA{TI_ID}', '$DATA{TT_ID}',   '$DATA{TT_DESCRIBE}', '$DATA{TT_PRICE_IN}',  '$DATA{TT_PRICE_OUT}',
      '$DATA{TT_NETS}', '$DATA{TT_PREPAID}', '$DATA{TT_SPEED_IN}', '$DATA{TT_SPEED_OUT}')", 'do');
 
-  $self->create_nets({ TI_ID => $DATA{TI_ID} });
+
+  if ($attr->{DV_EXPPP_NETFILES}) {
+    $self->create_nets({ TI_ID => $DATA{TI_ID} });
+   }
 
   return $self;
 }
@@ -594,6 +600,7 @@ sub  tt_change {
   
   my %DATA = $self->get_data($attr, { default => $self->tt_defaults() }); 
 
+ 
   $self->query($db, "UPDATE trafic_tarifs SET 
     descr='". $DATA{TT_DESCRIBE} ."', 
     in_price='". $DATA{TT_PRICE_IN}  ."',
@@ -605,8 +612,11 @@ sub  tt_change {
     WHERE 
     interval_id='$attr->{TI_ID}' and id='$DATA{TT_ID}';", 'do');
 
-  $self->create_nets({ TI_ID => $attr->{TI_ID} });
-  
+
+  if ($attr->{DV_EXPPP_NETFILES}) {
+    $self->create_nets({ TI_ID => $attr->{TI_ID} });
+   }
+
   return $self;
 }
 
@@ -622,6 +632,7 @@ sub create_nets {
 
 
   my $list = $self->tt_list({TI_ID => $attr->{TI_ID}});
+
   $/ = chr(0x0d);
   
   foreach my $line (@$list) {
@@ -649,6 +660,11 @@ sub tt_del {
 	$self->query($db, "DELETE FROM trafic_tarifs 
 	 WHERE  interval_id='$attr->{TI_ID}'  and id='$attr->{TT_ID}' ;", 'do');
 
+  if ($CONF->{DV_EXPPP_NETFILES} && -f "$CONF->{DV_EXPPP_NETFILES}/$attr->{TI_ID}.nets" ) {
+     $self->create_nets({ TI_ID => $attr->{TI_ID} });
+   }
+
+
 	return $self;
 }
 
@@ -659,11 +675,11 @@ sub tt_del {
 sub create_tt_file {
  my ($self, $file_name, $body) = @_;
  
- open(FILE, ">$CONF->{netsfilespath}/$file_name") || die "Can't create file '$CONF->{netsfilespath}/$file_name' $!\n";
+ open(FILE, ">$CONF->{DV_EXPPP_NETFILES}/$file_name") || die "Can't create file '$CONF->{DV_EXPPP_NETFILES}/$file_name' $!\n";
    print FILE "$body";
  close(FILE);
 
- print "Created '$CONF->{netsfilespath}/$file_name'
+ print "Created '$CONF->{DV_EXPPP_NETFILES}/$file_name'
  <pre>$body</pre>";
  
  return $self;

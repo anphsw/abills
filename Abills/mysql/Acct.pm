@@ -78,7 +78,7 @@ if ($acct_status_type == 1) {
      INET_ATON('$RAD->{FRAMED_IP_ADDRESS}'), 
     '$RAD->{CALLING_STATION_ID}', 
     '$RAD->{CONNECT_INFO}', 
-    '$NAS->{NAS_ID}' );";
+    '$NAS->{NAS_ID}');";
 
 
   $self->query($db, "$sql", 'do');
@@ -199,7 +199,7 @@ else {
 #detalization for Exppp
 if ($conf->{s_detalization} eq 'yes') {
    $RAD->{INTERIUM_INBYTE}=0 if (! defined($RAD->{INTERIUM_INBYTE}));
-   $RAD->{INTERIUM_OUTBYTE}=0 if (! defined($RAD->{INTERIUM_INBYTE}));
+   $RAD->{INTERIUM_OUTBYTE}=0 if (! defined($RAD->{INTERIUM_OUTBYTE}));
    $RAD->{INTERIUM_INBYTE2}=0 if (! defined($RAD->{INTERIUM_INBYTE2}));
    $RAD->{INTERIUM_OUTBYTE2}=0 if (! defined($RAD->{INTERIUM_OUTBYTE2}));
 
@@ -208,8 +208,7 @@ if ($conf->{s_detalization} eq 'yes') {
   VALUES (\"$RAD->{ACCT_SESSION_ID}\", '$NAS->{NAS_ID}',
    '$acct_status_type', UNIX_TIMESTAMP(),
    '$RAD->{INTERIUM_INBYTE}', '$RAD->{INTERIUM_OUTBYTE}', 
-   '$RAD->{INTERIUM_INBYTE2}', 
-   '$RAD->{INTERIUM_OUTBYTE2}', 
+   '$RAD->{INTERIUM_INBYTE2}', '$RAD->{INTERIUM_OUTBYTE2}', 
    '$RAD->{USER_NAME}');", 'do');
 }
 

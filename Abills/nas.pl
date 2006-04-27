@@ -5,10 +5,10 @@
 # check_activity
 #
 #
-#
 #*******************************************************************
 
 my $PPPCTL = '/usr/sbin/pppctl';
+my $RADCLIENT = '/usr/local/bin/radclient';
 
 #my $NAS_INFO = nas_params();
 my $NAS;
@@ -16,6 +16,10 @@ my $nas_type = '';
 
 
 my %stats = ();
+
+
+
+
 
 #*******************************************************************
 # Hangup active port
@@ -35,6 +39,10 @@ sub hangup {
   }
  elsif ($nas_type eq 'radpppd') {
     hangup_radpppd($NAS, $PORT);
+  }
+ elsif ($nas_type eq 'mikrotik') {
+    radius_disconnect($NAS, $PORT, $USER);
+    #hangup_mikrotik_telnet($NAS, $PORT, $USER);
   }
  elsif ($nas_type eq 'cisco')  {
  	  hangup_cisco($NAS, $PORT);
@@ -160,6 +168,121 @@ foreach my $line (@$commands) {
 }
 
 
+
+sub telnet_cmd_new {
+ my($host, $commands, $attr)=@_;
+ my $port = 23;
+
+ if ($host =~ /:/) {
+   ($host, $port)=split(/:/, $host, 2);
+ }
+
+ use IO::Socket;
+ use IO::Select;
+
+
+$host='nacho.yes.ko.if.ua';
+
+ my $data;
+
+# my $debug   = (defined($attr->{debug})) ? 1 : 0;
+ my $timeout = defined($attr->{'TimeOut'}) ? $attr->{'TimeOut'} : 5;
+ my	$socket = new IO::Socket::INET(
+				PeerAddr => $host,
+				PeerPort => $port,
+				Proto    => 'tcp',
+				TimeOut  => $timeout
+	) or print "ERR: Can't connect to '$host:$port' $!";
+  log_print('LOG_DEBUG', "Connected to $host:$port"); 
+
+
+	#my $sh = new IO::Select($socket) or return "Can't read";
+	#$sh->can_read($timeout) or return "Time Out";
+
+  print <$socket>;
+
+	$socket->recv($data, 65536) or return "Read Error";
+  
+  log_print('LOG_DEBUG', " RECV: $data\n"); 
+
+
+#  $sock->send ("\n") or return "Send Error";
+
+#my $socket = IO::Socket::INET->new(PeerAddr => $host,
+#                                PeerPort => $port,
+#                                Proto    => "tcp",
+#                                Type     => SOCK_STREAM)
+#    or return "Couldn't connect to $remote_host:$remote_port : $@\n";
+#
+##print $socket "Why don't you call me anymore?\n";
+#
+#my $answer = <$socket>;
+#
+#print $answer;
+#
+## and terminate the connection when we're done
+#close($socket); 
+ 
+# use Socket;
+# if(! socket(SH, PF_INET, SOCK_STREAM, getprotobyname('tcp'))) {
+# 	 print "ERR: Can't connect to '$hostname:$port' $!";
+#   return 0;
+#  }
+#
+# my $dest = sockaddr_in($port, inet_aton("$hostname"));
+# if(! connect(SH, $dest)) { 
+#   print "ERR: Can't connect to '$hostname:$port' $!";
+#   return 0;
+#  }
+#
+# log_print('LOG_DEBUG', "Connected to $hostname:$port");
+#
+# my $sock = \*SH;
+# my $MAXBUF=512;
+# my $input = '';
+# my $len = 0;
+# my $text = '';
+# my $inbuf = '';
+# my $res = '';
+#
+#
+#foreach my $line (@$commands) {
+#
+#  my ($waitfor, $sendtext)=split(/\t/, $line, 2);
+#
+#  $input = '';
+#  do {
+#     recv($sock, $inbuf, $MAXBUF, 0);
+#     $input .= $inbuf;
+#     $len = length($inbuf);
+#
+#     alarm 5;
+#    } while ($len >= $MAXBUF || $len < 4);
+#
+#
+#  log_print('LOG_DEBUG', "Get: \"$input\"\nLength: $len");
+#  log_print('LOG_DEBUG', " Wait for: '$waitfor'");
+#
+#  if ($input =~ /$waitfor/ig){ # || $waitfor eq '') {
+#    $text = $sendtext;
+#    log_print('LOG_DEBUG', "Send: $text");
+#    #print "$waitfor - $sendtext\n";
+#    send($sock, "$text\r\n", 0, $dest) or die log_print('LOG_INFO', "Can't send: '$text' $!");
+#    #"Can't send: $!\n";
+#   };
+#
+# $res .= "$input\n";
+# 
+# #print "<pre>$res</pre>";
+#
+#}
+#
+#
+# #print "<pre>$res</pre>";
+# close(SH);
+# return $res;
+
+}
 
 #####################################################################
 # Nas functions 
@@ -292,6 +415,51 @@ sub stats_dslmax {
   return %stats;
 }
 
+#*******************************************************************
+# hangup_radius_disconnect
+# 
+# Radius-Disconnect messages
+# rfc2882
+#*******************************************************************
+sub radius_disconnect {
+  my ($NAS, $PORT, $USER) = @_;
+ 
+  my ($ip, $mng_port)=split(/:/, $NAS->{NAS_MNG_IP_PORT}, 2);
+  log_print('LOG_DEBUG', " HANGUP: echo \"User-Name=$USER\" | $RADCLIENT $ip:$mng_port 40 $NAS->{NAS_MNG_PASSWORD}\n"); 
+
+  my $result = `echo "User-Name=$USER" | $RADCLIENT $ip:$mng_port 40 $NAS->{NAS_MNG_PASSWORD}`;
+
+  #Received response ID 219, code 41, length = 20 `;
+  #echo "User-Name = user" | radclient 10.0.0.219:3799 40 secret123
+  #Received response ID 219, code 41, length = 20 
+  
+  return $result;
+}
+
+
+#*******************************************************************
+# hangup_radius_disconnect
+# 
+# Radius-Disconnect messages
+# rfc2882
+#*******************************************************************
+sub hangup_mikrotik_telnet {
+  my ($NAS_IP, $PORT, $USER) = @_;
+
+ 
+ push @commands, "Login:\t$NAS->{NAS_MNG_USER}";
+ push @commands, "Password:\t$NAS->{NAS_MNG_PASSWORD}";
+ push @commands, ">/interface pptp-server remove [find user=$USER]";
+ push @commands, ">quit";
+
+  my $result = telnet_cmd_new("$NAS->{NAS_IP}", \@commands);
+ 
+  print $result;
+#  
+  #echo "User-Name = user" | radclient 10.0.0.219:3799 40 secret123
+  #Received response ID 219, code 41, length = 20 
+}
+
 
 #*******************************************************************
 # HANGUP Cisco
@@ -328,7 +496,7 @@ else {
   $exec=`$SNMPSET -v 1 -c $SNMP_COM $NAS->{NAS_IP} 1.3.6.1.2.1.2.2.1.7.$INTNUM i 2 > /dev/null 2>&1`;
 }
 
- return 0;
+ return $exec;
 }
 
 #*******************************************************************
@@ -506,10 +674,11 @@ sub stats_pppd  {
 # hangup_pppd($SERVER, $PORT)
 #*******************************************************************
 sub hangup_pppd {
- my ($NAS_IP, $id) = @_;
+ my ($NAS, $id) = @_;
 
  use FindBin '$Bin';
- system ("/usr/bin/sudo $Bin/modules/hangup.pl hangup $id");
+ 
+ system ("/usr/bin/sudo /usr/abills/misc/pppd_hangup.pl hangup $id");
  return 0;
 }
 

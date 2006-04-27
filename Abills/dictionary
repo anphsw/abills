@@ -1,5 +1,5 @@
-ATTRIBUTE	User-Name		1	string
-ATTRIBUTE	Password		2	string
+ATTRIBUTE	User-Name			1	string
+ATTRIBUTE	Password			2	string
 ATTRIBUTE	CHAP-Password		3	string
 ATTRIBUTE	NAS-IP-Address		4	ipaddr
 ATTRIBUTE	NAS-Port-Id		5	integer

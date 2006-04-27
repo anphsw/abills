@@ -1,5 +1,5 @@
 package Abills::Base;
-
+#Base functions
 
 use strict;
 use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
@@ -239,8 +239,8 @@ sub show_log {
 # mk_unique_value($size)
 #*******************************************************************
 sub mk_unique_value {
-   my ($passsize) = @_;
-   my $symbols = "qwertyupasdfghjikzxcvbnmQWERTYUPASDFGHJKLZXCVBNM23456789";
+   my ($passsize, $attr) = @_;
+   my $symbols = (defined($attr->{SYMBOLS})) ? $attr->{SYMBOLS} : "qwertyupasdfghjikzxcvbnmQWERTYUPASDFGHJKLZXCVBNM23456789";
 
    my $value = '';
    my $random = '';
@@ -252,6 +252,7 @@ sub mk_unique_value {
      $random = int(rand($size));
      $value .= substr($symbols,$random,1);
     }
+
   return $value; 
 }
 

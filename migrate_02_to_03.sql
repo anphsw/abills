@@ -23,16 +23,15 @@ INSERT INTO dv_main (uid, tp_id, logins, ip, filter_id, cid, speed)
 
 DROP TABLE IF EXISTS bills;
 CREATE TABLE `bills` (
-  `id` int(11) unsigned NOT NULL default 0 auto_increment,
+  `id` int(11) unsigned NOT NULL auto_increment,
   `deposit` double(15,6) NOT NULL default '0.000000',
   `uid` int(11) unsigned NOT NULL default '0',
-  `company_id` int(11) default '0',
+  `company_id` int(11) unsigned NOT NULL default '0',
   `registration` date NOT NULL default '0000-00-00',
   PRIMARY KEY  (`id`),
   UNIQUE KEY `id` (`id`),
   UNIQUE KEY `uid` (`uid`,`company_id`)
 ) TYPE=MyISAM;
-
 
 INSERT INTO bills (id, deposit, uid, registration) 
  SELECT users.uid, users.deposit, users.uid, now()
@@ -229,7 +228,7 @@ RENAME TABLE  vid_nas to tp_nas;
 ALTER TABLE tp_nas change vid tp_id smallint(5) unsigned NOT NULL default '0';
 
 --RENAME TABLE  log to log_old;
---DROP DATABASE IF EXISTS `log`;
+--DROP table IF EXISTS `log`;
 --CREATE TABLE `log` (
 --  `start` datetime NOT NULL default '0000-00-00 00:00:00',
 --  `tp_id` smallint(5) unsigned NOT NULL default '0',
@@ -257,7 +256,7 @@ REPLACE INTO `admins` VALUES ('abills', 'ABillS System user', '2003-03-12', ENCO
 
 
 
-DROP DATABASE IF EXISTS companies;
+DROP table IF EXISTS companies;
 CREATE TABLE `companies` (
   `id` int(11) unsigned NOT NULL auto_increment,
   `name` varchar(100) NOT NULL default '',
@@ -276,7 +275,7 @@ CREATE TABLE `companies` (
 ) TYPE=MyISAM;
 
 
-DROP DATABASE IF EXISTS groups;
+DROP table IF EXISTS groups;
 CREATE TABLE `groups` (
   `gid` smallint(4) unsigned NOT NULL default '0',
   `name` varchar(12) NOT NULL default '',

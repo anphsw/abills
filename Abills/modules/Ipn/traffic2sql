@@ -1,8 +1,10 @@
 #!/usr/bin/perl -w
 # PUSH traffic to sql
-
-use vars  qw(%RAD %conf $db %AUTH $DATE $var_dir);
+# 
+#
+use vars  qw(%RAD %conf $db %AUTH $DATE $TIME $var_dir);
 use strict;
+
 
 
 
@@ -11,9 +13,10 @@ if ($#ARGV < 1) {
 	exit;
 }
 
-my $NAS_ID=$ARGV[0];
+my $NAS_ID =$ARGV[0];
 my $IF_NAME=$ARGV[1];
 
+my $debug = 0;
 
 use FindBin '$Bin';
 require $Bin . '/config.pl';
@@ -24,24 +27,41 @@ my $begin_time = check_time();
 
 require Abills::SQL;
 my $sql = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd});
-my $db = $sql->{db};
+my $db  = $sql->{db};
+
+
 
 require Ipn;
 Ipn->import();
 my $Ipn = Ipn->new($db, \%conf);
 
+
 my $log = $var_dir."log/ipn/trafd_". $NAS_ID. "_" .$IF_NAME;
+my $unknown_ip_log = $var_dir."log/ipn/unknown_ip.log";
 
 
-#my $user = "ipstat";
-#my $group = "guest";
-#$zip = $path."bin/zip";
-#$unzip = $path."bin/unzip";
+my $ARGV = parse_arguments(\@ARGV);
+
+if (defined($ARGV->{debug})) {
+	print "Debug mode on\n";
+	$debug=1;
+}
+elsif(defined($ARGV->{help})){
+	print "Help:\n";
+}
+
+
+$Ipn->{debug}=1 if ($debug > 0);
 
 
 my %PROTOCOLS = ('tcp'    => 1,
                  'udp'    => 2);
 my $PROTOCOL = 0; #(defined($PROTOCOLS{$PROTOCOL})) ? $PROTOCOLS{$PROTOCOL} : 0;
+
+
+
+$Ipn->user_ips();
+#$Ipn->get_zone();
 
 
 open( LOG, $log ) || die "Can't open log file '$log' $!";
@@ -67,19 +87,126 @@ while( <LOG> ) {
 		$DATA{DST_PORT} = 0 if ( $DATA{DST_PORT} !~ /^\d+$/ );
 		$DATA{NAS_ID}=$NAS_ID;
 		$DATA{IF_NAME}='0';
-    $Ipn->traffic_add({ %DATA });
+
+    $Ipn->traffic_agregate_users({ %DATA });
+
+    #$Ipn->traffic_agregate2 ({ %DATA });
+    #$Ipn->traffic_add({ %DATA });
+
 
 
 #		my $key = $fip."_".$fp."_".$tip."_".$tp;
 #		if ( exists $DATA{$key} ) { $DATA{$key} += $amount; }
 #		else { $DATA{$key} = $amount; }
 	}
-
-   
 }
 close(LOG);
 
 
+my $IN_ARRAY  = $Ipn->{IN};
+my $OUT_ARRAY = $Ipn->{OUT};
+my $unknow_ip = '';
+foreach my $line (@$IN_ARRAY) {
+	my($from, $to, $size)=split(/\//, $line, 3);
+	$unknow_ip .= sprintf("%15s -> %15s %10s\n", int2ip($from), int2ip($to), $size); 
+}
+
+
+
+
+#my $AGREGATE_USERS  = $Ipn->{AGREGATE_USERS};
+##
+#while (my ($k, $v)= each (%$AGREGATE_USERS)) {
+#	print "$k, $v\n";
+#  if (defined($AGREGATE_USERS->{$k}->{OUT})) {
+#    my @array = @{ $AGREGATE_USERS->{$k}->{OUT} };
+#  	foreach my $line ( @array ) {
+#  		 while (my ($k, $v)= each ( %$line )) {
+#  	     print "$k $v |";
+#  		  }
+#     print "\n";
+#  	 }
+#  }	
+#}
+
+
+$Ipn->traffic_agregate_nets();
+
+require Acct;
+Acct->import();
+my $Acct = Acct->new($db, \%conf);
+
+
+my $ips          = $Ipn->{USERS_IPS};
+
+my $ips_interim  = $Ipn->{INTERIM};
+my $logins       = $Ipn->{USERS_INFO}->{LOGINS};
+my $tps          = $Ipn->{USERS_INFO}->{TPS};
+my $session_ids  = $Ipn->{SESSIONS_IPS};
+
+my %RAD = ();
+my $registred = '';
+
+
+foreach my $ip ( sort keys %$ips_interim) {
+  if ($ip == 0) {
+  	print $ip."\n";
+  	next ;
+  }
+  my $uid          = $ips->{$ip};
+  my $login        = $logins->{$uid};
+  my $tariif_plan  = $tps->{$uid};
+  my $session_id   = $session_ids->{$ip};
+ 
+  my $ip_stats     = $Ipn->{INTERIM}{$ip};
+  	
+  	
+  my $total_in     = 0; 
+  my $total_out    = 0;
+  my $extended     = '';
+
+  while(my($k, $v)=each %$ip_stats) {
+      my $in = (defined($v->{IN})) ? int($v->{IN}) : 0;
+      my $out = (defined($v->{OUT})) ? int($v->{OUT}) : 0;
+      $total_in += $in;
+      $total_out += $out;
+      
+      if ($uid > 0) {
+##   	  my $r = $Acct->accounting(\%RAD, { NAS_ID => $NAS_ID });
+   	    $Ipn->traffic_add_user( {
+   	        UID            => "$uid",
+            TARFFIC_CLASS  => $k,
+            INBYTE         => "$in",
+            OUTBYTE        => "$out",
+            NAS_ID         => $NAS_ID
+   	      } );
+      }
+      $extended = sprintf("   %d| %10s| %10s|\n", $k, $in, $out);
+   }
+  
+  if ($uid > 0) {
+   	%RAD = (  NAS_PORT          => 0,
+   	          INBYTE            => $Ipn->{$ip}{IN}+$total_in,
+   	          OUTBYTE           => $Ipn->{$ip}{OUT}+$total_out,
+   	          INBYTE2           => 0,
+   	          OUTBYTE2          => 0,
+              FRAMED_IP_ADDRESS => int2ip($ip),
+              USER_NAME         => $login,
+              ACCT_SESSION_ID   => $session_id,
+              ACCT_STATUS_TYPE  => 'Alive'
+               );
+
+    my $r = $Acct->accounting(\%RAD, { NAS_ID => $NAS_ID });
+   }
+  
+  $registred .= sprintf("%5s| %15s| %10s| %10s| %10s| %10s|\n%s", 
+       $uid, $RAD{FRAMED_IP_ADDRESS}, $RAD{INBYTE},  $RAD{OUTBYTE}, 
+       	$total_in, $total_out, $extended
+     ) if ($debug == 1);
+  
+  #printf("%5s| %15s IN: %10s OUT: %10s\n%s", $uid, int2ip($ip), $total_in, $total_out, $extended);
+
+}
 
 
 
@@ -87,9 +214,64 @@ close(LOG);
 
 
 
+#foreach my $ip ( sort keys %$ips_interim) {
+#  my $uid        = $ips->{$ip};
+#  my $login      = $logins->{$ip};
+#  my $session_id = $session_ids->{$ip};
+#  
+#  if ($Ipn->{INTERIM}{$ip}{IN} + $Ipn->{INTERIM}{$ip}{OUT} > 0) {
+#   	 %RAD = ( NAS_PORT          => 0,
+#   	          INBYTE            => $Ipn->{$ip}{IN},
+#   	          OUTBYTE           => $Ipn->{$ip}{OUT},
+#   	          INBYTE2           => 0,
+#   	          OUTBYTE2          => 0,
+#              FRAMED_IP_ADDRESS => int2ip($ip),
+#              USER_NAME         => $login,
+#              ACCT_SESSION_ID   => $session_id,
+#              ACCT_STATUS_TYPE  => 'Alive'
+#              
+#               );
+#
+#     $registred .= sprintf("%5s| %15s| %10s| %10s| %10s| %10s|\n", 
+#       $uid, $RAD{FRAMED_IP_ADDRESS}, $RAD{INBYTE},  $RAD{OUTBYTE}, 
+#       	$Ipn->{INTERIM}{$ip}{IN}, $Ipn->{INTERIM}{$ip}{OUT}
+#      ) if ($debug == 1);
+#
+#     if ($uid > 0) {
+#   	    my $r = $Acct->accounting(\%RAD, { NAS_ID => $NAS_ID });
+#   	    $Ipn->traffic_add_user( {
+#   	        UID            => "$uid",
+#            TARFFIC_CLASS  => "0",
+#            INBYTE         => "$Ipn->{INTERIM}{$ip}{IN}",
+#            OUTBYTE        => "$Ipn->{INTERIM}{$ip}{OUT}",
+#            NAS_ID         => $NAS_ID
+#   	      } );
+#      }
+#
+#	 }
+#
+#}
 
 
+if ($debug == 1) {
+	my $GT = '';
+	
+  if ($begin_time > 0)  {
+    Time::HiRes->import(qw(gettimeofday));
+    my $end_time = gettimeofday();
+    my $gen_time = $end_time - $begin_time;
+    $GT = sprintf(" GT: %2.5f", $gen_time);
+   }
 
+	print "$unknow_ip$registred  $GT / $Ipn->{query_count}\n";
+
+}
+elsif($unknow_ip ne '') {
+  open(FILE, ">>$unknown_ip_log") or die "Can't open '$unknown_ip_log' $!";
+    print FILE ">> $DATE $TIME\n";
+    print FILE $unknow_ip;
+  close(FILE);
+}
 
 
 

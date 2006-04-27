@@ -1,4 +1,7 @@
 
+# Base Templates
+
+
 #**********************************************************
 # templates
 #**********************************************************
@@ -125,7 +128,7 @@ return qq{
 <TR bgcolor="$_COLORS[1]"><TD>$_ACTIVATE:</TD><TD>%ACTIVATE%</TD></TR>
 <TR bgcolor="$_COLORS[1]"><TD>$_EXPIRE:</TD><TD>%EXPIRE%</TD></TR>
 <TR bgcolor="$_COLORS[1]"><th colspan="2">:$_COMMENTS:</th></TR>
-<TR bgcolor="$_COLORS[1]"><th colspan="2">%COMMENTS%</th></TR>
+<TR bgcolor="$_COLORS[1]"><td colspan="2">%COMMENTS%</td></TR>
 <!-- <tR bgcolor="$_COLORS[1]"><TH colspan="2">Dilup / VPN</TH></TR>
 <TR bgcolor="$_COLORS[1]"><TD>$_TARIF_PLAN:</TD><TD>%TP_ID%:%TP_NAME%</TD></TR>
 <TR bgcolor="$_COLORS[1]"><TD>$_SIMULTANEOUSLY:</TD><TD>%SIMULTANEONSLY%</TD></TR>
@@ -140,24 +143,23 @@ return qq{
 };
  }
 
-elsif ($tpl_name eq 'form_possword') {
+elsif ($tpl_name eq 'form_password') {
 return qq{
-<h3>$_CHANGE_PASSWD</h3>
 <form action='$SELF_URL'  METHOD='POST'>
-<input type=hidden name='index' value='$index'>
+<input type='hidden' name='index' value='$index'>
 %HIDDDEN_INPUT%
 <table>
 <tr><td>$_GENERED_PARRWORD:</td><td>%GEN_PASSWORD%</td></tr>
 <tr><td>$_PASSWD:</td><td><input type='password' name='newpassword' value='%GEN_PASSWORD%'></td></tr>
 <tr><td>$_CONFIRM_PASSWD:</td><td><input type='password' name='confirm' value='%GEN_PASSWORD%'></td></tr>
 </table>
-<input type='submit' name='change' value="$_CHANGE">
+<input type=submit name='%ACTION%' value='%LNG_ACTION%'>
 </form>
 }
 }
 elsif ($tpl_name eq 'form_payments') {
 return qq{
-<form action=$SELF_URL>
+<form action='$SELF_URL' METHOD='POST'>
 <input type=hidden name=index value=$index>
 <input type=hidden name=subf value=$FORM{subf}>
 <input type=hidden name=OP_SID value=%OP_SID%>
@@ -183,10 +185,11 @@ return qq{
 %SHEDULE%
 <TABLE>
 <TR><TD>$_SUM:</TD><TD><input type="text" name="SUM"></TD></TR>
-<TR><TD>$_DESCRIBE:</TD><TD><input type="text" name="DESCR"></TD></TR>
+<TR><TD>$_DESCRIBE:</TD><TD><input type="text" name="DESCRIBE"></TD></TR>
+<TR><TD>$_EXCHANGE_RATE:</TD><TD>%SEL_ER%</TD></TR>
 %PERIOD_FORM%
 </TABLE>
-<input type=submit name=take value='$_TAKE'>
+<input type=submit name='take' value='$_TAKE'>
 </form>
 }
 
@@ -276,16 +279,16 @@ return qq{
 elsif ($tpl_name eq 'ti') {
 return qq{
 <form action="$SELF_URL">
-<input type=hidden name=index value=$index>
-<input type=hidden name=TP_ID value='%TP_ID%'>
-<input type=hidden name=TI_ID value='%TI_ID%'>
+<input type=hidden name='index' value='$index'>
+<input type=hidden name='TP_ID' value='%TP_ID%'>
+<input type=hidden name='TI_ID' value='%TI_ID%'>
  <TABLE width=400 cellspacing=1 cellpadding=0 border=0>
  <TR><TD>$_DAY:</TD><TD>%SEL_DAYS%</TD></TR>
  <TR><TD>$_BEGIN:</TD><TD><input type=text name=TI_BEGIN value='%TI_BEGIN%'></TD></TR>
  <TR><TD>$_END:</TD><TD><input type=text name=TI_END value='%TI_END%'></TD></TR>
- <TR><TD>$_HOUR_TARIF<br>(0.00 / 0%):</TD><TD><input type=text name=TI_TARIF value='%TI_TARIF%'></TD></TR>
+ <TR><TD>$_HOUR_TARIF (0.00<!--  / 0% -->):</TD><TD><input type=text name=TI_TARIF value='%TI_TARIF%'></TD></TR>
 </TABLE>
-<input type=submit name=%ACTION% value='%LNG_ACTION%'>
+<input type=submit name='%ACTION%' value='%LNG_ACTION%'>
 </form>
 };
  }
@@ -444,7 +447,14 @@ return qq{
 };
 	
 }
-
+elsif ($tpl_name eq 'history_search') {
+return qq{
+ 	 <tr><td colspan=2><hr></td></tr>
+   <tr><td>$_ADMIN:</td><td><input type='text' name='ADMIN' value='%ADMIN%'></td></tr>
+   <tr><td>$_CHANGE (*)</td><td><input type='text' name='ACTION' value='%ACTION%'></td></tr>
+   <tr><td>$_MODULES:</td><td>%MODULES_SEL%</td></tr>
+};
+}
 elsif ($tpl_name eq 'form_search_simple') {
 return qq{
 <form action=$SELF_URL>
@@ -457,23 +467,6 @@ return qq{
 <input type=submit name=search value=$_SEARCH>
 </form>
 };
-	
-}
-
-elsif ($tpl_name eq 'form_password') {
-return qq{
-<h3>$_CHANGE_PASSWD</h3>
-<form action=$SELF_URL METHOD=POST>
-<input type=hidden name=index value=$index>
-$hidden_inputs
-<TABLE>
-<TR><TD>$_PASSWD:</TD><TD><input type=password name=newpassword value=''></TD></TR>
-<TR><TD>$_CONFIRM_PASSWD:</TD><TD><input type=password name=confirm value=''></TD></TR>
-</TABLE>
-<input type=submit name=change value="$_CHANGE">
-</form>
-};
-
 }
 elsif ($tpl_name eq 'form_ip_pools') {
 return qq{
@@ -513,7 +506,7 @@ return qq{
 			frm = document.forms[0];
 			if(frm.language)
 				sLanguage = frm.language.options[frm.language.selectedIndex].value;
-			sLocation = 'index.cgi?language='+sLanguage;
+			sLocation = '$SELF_URL?language='+sLanguage;
 			location.replace(sLocation);
 		} catch(err) {
 			alert('Your brownser do not support JS');
@@ -587,6 +580,26 @@ return qq{
 </TD></TR></TABLE>
 }
 }
+elsif($tpl_name eq 'mail_form') {
+return qq{
+<form action='$SELF_URL' METHOD='post'>
+<input type='hidden' name='index' value='$index'>
+<input type='hidden' name='UID' value='$FORM{UID}'>
+<table>
+%EXTRA%
+<tr><td>$_SUBJECT:</td><td><input type='text' name='SUBJECT' value='%SUBJECT%' size='40'></td></tr>
+<tr><td>$_FROM:</td><td><input type='text' name='FROM' value='%FROM%' size='40'></td></tr>
+<tr><th colspan='2' bgcolor='$_COLORS[0]'>$_MESSAGE</th></tr>
+<tr><th colspan='2'><textarea name='TEXT' rows='15' cols='80'></textarea></th></tr>
+<tr><td>PRIORITY:</td><td>%PRIORITY_SEL%</td></tr>
+%PERIOD_FORM%
+%EXTRA2%
+</table>
+<input type='submit' name='sent' value='$_SEND'>
+</form>
+	
+ } 
+ }
 elsif($tpl_name eq 'admin_report_day') {
 return qq{
 Daily Admin Report /%DATE%/

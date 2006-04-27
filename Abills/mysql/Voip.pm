@@ -242,7 +242,7 @@ sub user_list {
  
  if ($attr->{USERS_WARNINGS}) {
    $self->query($db, " SELECT u.id, pi.email, dv.tp_id, u.credit, b.deposit, tp.name, tp.uplimit
-         FROM users u, voip_main dv, bills b
+         FROM (users u, voip_main dv, bills b)
          LEFT JOIN tarif_plans tp ON dv.tp_id = tp.id
          LEFT JOIN users_pi pi ON u.uid = dv.uid
          WHERE u.bill_id=b.id
@@ -333,18 +333,18 @@ sub user_list {
 
  if ($attr->{CID}) {
     $attr->{CID} =~ s/\*/\%/ig;
-    push @WHERE_RULES, "u.cid LIKE '$attr->{CID}'";
+    push @WHERE_RULES, "voip_main.cid LIKE '$attr->{CID}'";
   }
 
  if ($attr->{COMMENTS}) {
    $attr->{COMMENTS} =~ s/\*/\%/ig;
-   push @WHERE_RULES, "u.comments LIKE '$attr->{COMMENTS}'";
+   push @WHERE_RULES, "pi.comments LIKE '$attr->{COMMENTS}'";
   }
 
 
  if ($attr->{FIO}) {
     $attr->{FIO} =~ s/\*/\%/ig;
-    push @WHERE_RULES, "u.fio LIKE '$attr->{FIO}'";
+    push @WHERE_RULES, "pi.fio LIKE '$attr->{FIO}'";
   }
 
  # Show users for spec tarifplan 

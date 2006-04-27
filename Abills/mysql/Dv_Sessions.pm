@@ -58,8 +58,9 @@ sub online_update {
 	my ($attr) = @_;
 
 
-  my @SET_RULES = ('lupdated=UNIX_TIMESTAMP()');
+  my @SET_RULES = ();
   
+  push @SET_RULES, 'lupdated=UNIX_TIMESTAMP()' if (defined($attr->{STATUS}) && $attr->{STATUS} == 5);
   
   if (defined($attr->{in})) {
    	push @SET_RULES, "acct_input_octets='$attr->{in}'";
@@ -129,7 +130,8 @@ sub online {
   c.CID,
   c.CONNECT_INFO,
   if(date_format(c.started, '%Y-%m-%d')=curdate(), date_format(c.started, '%H:%i:%s'), c.started),
-  c.nas_id
+  c.nas_id,
+  UNIX_TIMESTAMP()-c.lupdated
  FROM dv_calls c
  LEFT JOIN users u     ON u.id=user_name
  LEFT JOIN dv_main dv  ON dv.uid=u.uid
@@ -157,7 +159,8 @@ sub online {
  	  $dub_logins{$line->[0]}++;
  	  $dub_ports{$line->[22]}{$line->[2]}++;
     push( @{ $nas_sorted{"$line->[22]"} }, [ $line->[0], $line->[1], $line->[2], $line->[9], $line->[4], $line->[5], $line->[6], $line->[7], $line->[8], $line->[10], $line->[11], 
-      $line->[13], $line->[14], $line->[15], $line->[16], $line->[17], $line->[18], $line->[19], $line->[20], $line->[21]]);
+      $line->[13], $line->[14], $line->[15], $line->[16], $line->[17], $line->[18], $line->[19], $line->[20], $line->[21], $line->[23]]);
+
   }
  
  
@@ -169,6 +172,7 @@ sub online {
 
  return $self->{list};	
 }
+
 
 
 #**********************************************************

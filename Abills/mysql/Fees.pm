@@ -19,6 +19,10 @@ $VERSION = 2.00;
 use main;
 use Bills;
 @ISA  = ("main");
+use Finance;
+@ISA  = ("Finance");
+
+
 my $Bill;
 my $admin;
 my $CONF;
@@ -49,6 +53,8 @@ sub take {
   my $self = shift;
   my ($user, $sum, $attr) = @_;
   
+  
+  %DATA = $self->get_data($attr);
   my $DESCRIBE = (defined($attr->{DESCRIBE})) ? $attr->{DESCRIBE} : '';
   my $DATE  =  (defined($attr->{DATE})) ? "'$attr->{DATE}'" : 'now()';
   
@@ -60,6 +66,7 @@ sub take {
   
   if ($user->{BILL_ID} > 0) {
     $Bill->info( { BILL_ID => $user->{BILL_ID} } );
+   
     $Bill->action('take', $user->{BILL_ID}, $sum);
     if($Bill->{errno}) {
        $self->{errno}  = $Bill->{errno};

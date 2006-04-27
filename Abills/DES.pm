@@ -36,7 +36,7 @@
 # $outbytes= &des_ecb_encrypt(*ks,1,$data);
 # @enc =unpack("C8",$outbytes);
 #
-                 
+
 package Radius::DES;
 
 eval("use integer;") if (int($]) > 4);

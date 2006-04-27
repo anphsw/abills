@@ -22,7 +22,7 @@
 # iso.3.6.1.2.1.4.22.1.2.2.10.0.2.95
 
 
-my $CMTS_prompt         = (defined($conf{cmts_prompt})) ? $conf{cmts_prompt} : 'catv0';
+my $CMTS_prompt         = (defined($conf{BSR1000_PROMPT})) ? $conf{BSR1000_PROMPT} : 'catv0';
 my $CMTS_terminal_lines = 128;
 
 use Nas;
@@ -75,8 +75,6 @@ foreach my $line (@$list) {
    );
 }
 print $table->show();
-
-
 
 
 }
@@ -202,6 +200,9 @@ print  $html->form_main({ CONTENT => "Command: ". $html->form_input('command', "
  #show cable modem
 
 }
+
+
+
 
 1
 

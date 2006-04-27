@@ -74,8 +74,8 @@ if ($FORM{set}) {
   else {
     $user->change({ %FORM });
 
-    if ($users->{errno}) {
-      $html->message('err', $_ERROR, "[$users->{errno}] $err_strs{$users->{errno}}");	
+    if ($user->{errno}) {
+      $html->message('err', $_ERROR, "[$user->{errno}] $err_strs{$user->{errno}}");	
      }
     else {
       $html->message('info', $_CHANGED, "$_CHANGED");
@@ -201,13 +201,13 @@ elsif ($Dv->{TOTAL} == 1) {
 
 
 
-my $table = $html->table( { width => '100%',
+my $table = $html->table( { width   => '100%',
                             caption => "Dialup / VPN",
-                            border => 1,
-                            title => \@TITLE,
+                            border  => 1,
+                            title   => \@TITLE,
                             cols_align => ['left', 'left', 'right', 'right', 'left', 'center', 'center', 'center', 'center'],
-                            qs => $pages_qs,
-                            pages => $Dv->{TOTAL}
+                            qs      => $pages_qs,
+                            pages   => $Dv->{TOTAL}
                            });
 
 foreach my $line (@$list) {
@@ -268,6 +268,10 @@ sub dv_user {
      }
 	 }
 
+  if ($Dv->{errno}) {
+    $html->message('err', $_ERROR, "[$Dv->{errno}] $err_strs{$Dv->{errno}}");
+   }
+
   my $user = $Dv->info($FORM{UID});
 
   if($user->{TOTAL} < 1) {
@@ -321,11 +325,16 @@ sub dv_tp {
 
 if($FORM{ADD_TP}) {
   $FORM{TP_ID} = $FORM{CHG_TP_ID};
-
-  $tariffs->add( { %FORM });
-  if (! $tariffs->{errno}) {
-    $html->message('info', $_ADDED, "$_ADDED $tariffs->{TP_ID}");
+  
+  if ($FORM{TP_ID} < 1) {
+  	$html->message('err', $_ERROR, "$_ERROR ID = 0");
    }
+  else {
+   $tariffs->add( { %FORM });
+   if (! $tariffs->{errno}) {
+     $html->message('info', $_ADDED, "$_ADDED $tariffs->{TP_ID}");
+    }
+  }
  }
 elsif (defined($FORM{TP_ID})) {
  
@@ -493,7 +502,7 @@ elsif ($FORM{hangup}) {
   require "Abills/nas.pl";
   
  
-  my $ret = hangup($nas, "$nas_port_id", "", "$acct_session_id");
+  my $ret = hangup($nas, "$nas_port_id", "$user_name", "$acct_session_id");
   
   if ($ret == 0) {
     my $table = $html->table( { width => '100%',
@@ -554,9 +563,9 @@ elsif($FORM{zap}) {
   
   if ($sessions->{TOTAL} < 1) {
     $message .= "<p align=center>[".
-    $html->button('Add To log', "index=$index&tolog=$acct_session_id&nas_id=$nas_id&nas_port_id=$nas_port_id"). 
+    $html->button('Add To log', "index=$index&tolog=$acct_session_id&nas_id=$nas_id&nas_port_id=$nas_port_id&ZAPED=yes"). 
     "] [".
-    $html->button($_DEL, "index=$index&del=$acct_session_id&nas_id=$nas_id&nas_port_id=$nas_port_id"). "]</p>\n";
+    $html->button($_DEL, "index=$index&del=$acct_session_id&nas_id=$nas_id&nas_port_id=$nas_port_id&ZAPED=yes"). "]</p>\n";
    }
   else {
   	$message .= "$_EXIST";
@@ -682,7 +691,7 @@ foreach my $nas_row (@$nas_list) {
   my $l = $online->{$nas_row->[0]};
   my $total = $#{@$l} + 1;  
   $table->{rowcolor}=$_COLORS[0];
-  $table->{extra}="colspan='8' class='small'";
+  $table->{extra}="colspan='9' class='small'";
   $table->addrow("$nas_row->[0]:<b>$nas_row->[1]</b>:$nas_row->[3]:$_TOTAL: $total" );
   
   
@@ -700,7 +709,7 @@ foreach my $nas_row (@$nas_list) {
     my $zap = "(". $html->button('Z', "index=$index&zap=$nas_row->[0]+$line->[2]+$line->[11]", { TITLE => 'Zap' }) . ")";
     my $hangup = "(". $html->button('H', "index=$index&hangup=$nas_row->[0]+$line->[2]+$line->[11]+$line->[0]", { TITLE => 'Hangup' }). ")";
     my $user_info =  "$_FIO: $line->[1]\n$_PHONE: $line->[12]\n$_VARIANT: $line->[13]\n$_DEPOSIT: $line->[14]\n".
-     "$_CREDIT: $line->[15]\n$_SPEED: $line->[16]\nSESSION_ID: $line->[11]\nCID: $line->[17]\nCONNECT_INFO: $line->[18]";
+     "$_CREDIT: $line->[15]\n$_SPEED: $line->[16]\nSESSION_ID: $line->[11]\nCID: $line->[17]\nCONNECT_INFO: $line->[18]\nUPDATES: $line->[20]";
 
     $table->addrow($html->button($line->[0], "index=11&UID=$line->[10]", { TITLE => "$user_info" }), 
       $line->[1], $line->[2],  
@@ -875,11 +884,11 @@ my ($tables_sessions);
 #Day reposrt
 if (defined($FORM{DATE})) {
   #Used Fraffic
-  $table_sessions = $html->table({ width => '100%',
-	                                 caption => "$_SESSIONS", 
-                                   title =>["$_DATE", "$_USERS", "$_SESSIONS", "$_TRAFFIC ", "$_TRAFFIC 2", $_DURATION, $_SUM],
+  $table_sessions = $html->table({ width      => '100%',
+	                                 caption    => "$_SESSIONS", 
+                                   title      =>["$_DATE", "$_USERS", "$_SESSIONS", "$_TRAFFIC ", "$_TRAFFIC 2", $_DURATION, $_SUM],
                                    cols_align => ['right', 'left', 'right', 'right', 'right', 'right', 'right'],
-                                   qs => $pages_qs             
+                                   qs         => $pages_qs             
                                } );
 
   my $list = $sessions->reports({ %LIST_PARAMS });
@@ -1452,8 +1461,8 @@ if ($FORM{set}) {
 
     $user->change({ %FORM });
 
-    if ($users->{errno}) {
-      $html->message('err', $_ERROR, "[$users->{errno}] $err_strs{$users->{errno}}");	
+    if ($user->{errno}) {
+      $html->message('err', $_ERROR, "[$user->{errno}] $err_strs{$user->{errno}}");
      }
     else {
       $html->message('info', $_CHANGED, "$_CHANGED");
@@ -1474,7 +1483,7 @@ if ($FORM{set}) {
 
    $tariffs->{UID}=$attr->{USER}->{UID};
    $tariffs->{m}=$m;
-   $tariffs->{TP_ID} = $user->{TP_ID};
+   $tariffs->{TP_ID}   = $user->{TP_ID};
    $tariffs->{TP_NAME} = "$user->{TP_ID}:$user->{TP_NAME}";
 
    $html->tpl_show(templates('chg_tp'), $tariffs);
@@ -1548,8 +1557,8 @@ sub dv_daily_fees {
         if ($u->[12] > 0 && defined($u->[2])) {
           my %user = (
              ACCOUNT_ID => $u->[7],
-             UID => $u->[6],
-             BILL_ID => $u->[12]  
+             UID        => $u->[6],
+             BILL_ID    => $u->[12]  
            );
 
           #print "  UID: $u->[0] / $line->[5] / DEPOSIT: $u->[2] / $u->[3] / BILL_ID: $u->[12]\n"; 	
@@ -1766,7 +1775,7 @@ if (defined($FORM{tt})) {
 #      TT_DESCRIBE_2 => $FORM{TT_DESCRIBE_2},
 #      TT_NETS_2 => $FORM{TT_NETS_2},
 #      TT_SPEED_2 => $FORM{TT_SPEED_2},
-#      EX_FILE_PATH => "$conf{netsfilespath}"
+#      EX_FILE_PATH => "$conf{DV_EXPPP_NETFILES}"
 #    });
 #
 #
@@ -1787,6 +1796,8 @@ elsif($attr->{TP}) {
   $tarif_plan->tt_defaults();
 
   if ($FORM{change}) {
+
+    
     $tarif_plan->tt_change( { 
     	TT_DESCRIBE_0  => $FORM{TT_DESCRIBE_0},
       TT_PRICE_IN_0  => $FORM{TT_PRICE_IN_0},
@@ -1805,7 +1816,8 @@ elsif($attr->{TP}) {
       TT_DESCRIBE_2 => $FORM{TT_DESCRIBE_2},
       TT_NETS_2 => $FORM{TT_NETS_2},
       TT_SPEED_2 => $FORM{TT_SPEED_2},
-      EX_FILE_PATH => "$conf{netsfilespath}"
+
+      EX_FILE_PATH => "$conf{DV_EXPPP_NETFILES}"
     });
 
 
@@ -2050,7 +2062,7 @@ sub dv_wizard_user2 {
   
   my $users_defaults = $users->defaults();
   $users_defaults->{DISABLE}=($users_defaults->{DISABLE} == 1) ? ' checked' : '';
-
+  $users_defaults->{GID} = sel_groups();
   $users_defaults->{EXDATA}=$html->tpl_show(templates('form_user_exdata'), { CREATE_BILL  => ' checked' }, { notprint => 'y' });
 
   my $dv_defaults = $Dv->defaults();
@@ -2081,11 +2093,17 @@ sub dv_wizard_user2 {
  	                                         MULTI_ARRAY_KEY   => 0,
  	                                         MULTI_ARRAY_VALUE => 1,
  	                                        });
-	my %tpls = (
+ 	             
+ my $password_form;                           
+ $password_form->{GEN_PASSWORD}=mk_unique_value(8);
+
+
+ my %tpls = (
 	            "1:$_LOGIN::"     => $html->tpl_show(templates('form_user'), $users_defaults, { notprint => 'y' }),  
-	            "2:$_INFO::"      => templates('form_pi'), 
-	            "3:Dialup/VPN::"  => $html->tpl_show(_include('dv_user', 'Dv'), $dv_defaults, { notprint => 'y' }),
- 	            "4:$_PAYMENTS::"  => $html->tpl_show(templates('form_payments'), $payments, { notprint => 'y' }),
+	            "2:$_LOGIN::"     => $html->tpl_show(templates('form_password'), $password_form, { notprint => 'y' }),
+	            "3:$_INFO::"      => templates('form_pi'), 
+	            "4:Dialup/VPN::"  => $html->tpl_show(_include('dv_user', 'Dv'), $dv_defaults, { notprint => 'y' }),
+ 	            "5:$_PAYMENTS::"  => $html->tpl_show(templates('form_payments'), $payments, { notprint => 'y' }),
              );
 
 
@@ -2109,10 +2127,27 @@ sub dv_wizard_user2 {
    if (! $user->{errno}) {
    	  $UID = $user->{UID};
    	  $user = $user->info($UID);
+      
+      #2 
+      if ($FORM{'2.newpassword'} ne '') {
+        if (length($FORM{'2.newpassword'}) < $conf{PASSWD_LENGTH}) {
+          $html->message('err', $_ERROR, $err_strs{6});
+         }
+        elsif ($FORM{'2.newpassword'} eq $FORM{'2.confirm'}) {
+          $add_values{2}{PASSWORD}=$FORM{'2.newpassword'};
+          $add_values{2}{UID}=$UID;
+          $add_values{2}{DISABLE}=$FORM{'1.DISABLE'};
+         }
+        elsif($FORM{'2.newpassword'} ne $FORM{'2.confirm'}) {
+          $html->message('err', $_ERROR, $err_strs{5});
+         }
+        $user->change($UID, { %{$add_values{2}} });
+       }
+      
+      
+      $user->pi_add({ UID => "$UID", %{$add_values{3}} });
 
-      $user->pi_add({ UID => "$UID", %{$add_values{2}} });
-
-   	  $Dv->add({ UID => $UID, %{$add_values{3}} });
+   	  $Dv->add({ UID => $UID, %{$add_values{4}} });
       if ($Dv->{errno}) {
          $html->message('err', $_ERROR, "[$Dv->{errno}] $err_strs{$Dv->{errno}}");	
         }
@@ -2120,20 +2155,20 @@ sub dv_wizard_user2 {
         $html->message('info', 'Dialup/VPN', "$_ADDED");
        }
 
-      my $er = $payments->exchange_info($FORM{'4.ER'});
-      if ($FORM{'4.SUM'}) {
-        $payments->add($user, { %{$add_values{4}}, ER => $er->{ER_RATE} } );  
+      my $er = $payments->exchange_info($FORM{'5.ER'});
+      if ($FORM{'5.SUM'}) {
+        $payments->add($user, { %{$add_values{5}}, ER => $er->{ER_RATE} } );  
 
         if ($payments->{errno}) {
           $html->message('err', $_ERROR, "[$payments->{errno}] $err_strs{$payments->{errno}}");	
          }
         else {
-          $html->message('info', $_PAYMENTS, "$_ADDED $_SUM: $FORM{'4.SUM'} $er->{ER_SHORT_NAME}");
+          $html->message('info', $_PAYMENTS, "$_ADDED $_SUM: $FORM{'5.SUM'} $er->{ER_SHORT_NAME}");
          }
       }
       
       my $dv = $Dv->info($UID);
-      my $pi = $user->pi($UID);
+      my $pi = $user->pi({ UID => $UID });
       $user = $user->info($UID);
       $html->tpl_show(templates('user_info'), { %$user, %$pi } ),  
       $html->tpl_show(_include('dv_user_info', 'Dv'), $dv),

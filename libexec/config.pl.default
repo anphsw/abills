@@ -21,7 +21,6 @@ $conf{default_charset}='windows-1251';
 
 @MODULES = ('Dv',
             'Voip',
-	    'Abon',
             'Docs', 
             'Mail',
             'Sqlcmd');
@@ -50,7 +49,7 @@ $conf{s_detalization}='yes'; #make session detalization recomended for vpn leath
 #Check periodic deposit and session. hangup after get negative result
 $conf{periodic_check}='no';
 
-$conf{version}='0.30b'; #24.02.2006
+$conf{version}='0.31b'; #24.02.2006
 
 #Octets direction
 # server - Count octets from server side
@@ -68,15 +67,17 @@ $conf{MINIMUM_SESSION_TRAF}=200; # minimum session trafic for push session to db
 $conf{SYSTEM_ADMIN_ID}=1;
 
 #Web interface
-$conf{passwd_length}=6;
-$conf{username_length}=15;
+$conf{PASSWD_LENGTH}=6;
+$conf{MAX_USERNAME_LENGTH}=15;
+# User name expration
+$conf{USERNAMEREGEXP}="^[a-z0-9_][a-z0-9_-]*\$";
 $conf{list_max_recs}=25;
 $conf{web_session_timeout} = 1800;
 $conf{user_chg_passwd}='no';
 
 
 # Exppp options
-$conf{netsfilespath}='/usr/abills/cgi-bin/admin/nets/';
+$conf{DV_EXPPP_NETFILES}='/usr/abills/cgi-bin/admin/nets/';
 #Auto assigning MAC in first connect
 $conf{MAC_AUTO_ASSIGN}=1;
 $conf{KBYTE_SIZE} = 1024;
@@ -86,7 +87,7 @@ $conf{time_check}=1;
 # Debug mod 
 $conf{debug}=10;
 $conf{foreground}=0;
-$conf{debugmods}='LOG_DEBUG LOG_ALERT LOG_WARNING LOG_ERR LOG_INFO';
+$conf{debugmods}='LOG_ALERT LOG_WARNING LOG_ERR LOG_INFO';
 #show auth and accounting time need Time::HiRes module (available from CPAN)
 # Log levels
 %log_levels = ('LOG_EMERG' => 0,

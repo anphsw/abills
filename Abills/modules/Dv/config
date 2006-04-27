@@ -19,7 +19,7 @@ $web_interface    = 1;
                    "15:12:$_USED:dv_use:"                  => 4,
                    "16:15:$_MONTH:dv_use_allmonthes:"      => 4,
                    "17:0:Dialup / VPN:dv_online:"          => 8,
-                   "18:0:$_USERS $_ADD:dv_wizard_user2:"        => 1000 
+                   "18:0:$_USERS $_ADD:dv_wizard_user2:"   => 1000 
                    );
 
 %USER_FUNCTION_LIST = ("01:0:Dialup / VPN:dv_user_info:"     => 0,
@@ -28,7 +28,7 @@ $web_interface    = 1;
                       );
 
 
-$USER_FUNCTION_LIST{"04:1:$_TARIF_PLAN:dv_user_chg_tp:"}=0 if (defined($conf{dv_user_chg_tp}));
+$USER_FUNCTION_LIST{"04:1:$_TARIF_PLAN:dv_user_chg_tp:"}=0 if (defined($conf{DV_USER_CHG_TP}));
 
 # 
 %PERIODIC = (daily   => [ 'dv_daily_fees', 'dv_users_warning_messages' ],

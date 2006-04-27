@@ -40,6 +40,7 @@ test_radius_returns($RAD);
 require Abills::SQL;
 my $sql = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd});
 my $db = $sql->{db};
+my $GT = '';
 
 
 if (defined($ARGV[0]) && $ARGV[0] eq 'pre_auth') {
@@ -48,6 +49,10 @@ if (defined($ARGV[0]) && $ARGV[0] eq 'pre_auth') {
   my $Auth = Auth->new($db, \%conf);
 
   $Auth->pre_auth($RAD, { SECRETKEY => $conf{secretkey} });
+  if ($Auth->{errno}) {
+    log_print('LOG_INFO', "AUTH [$RAD->{USER_NAME}] MS-CHAP PREAUTH FAILED$GT");
+  }
+ 
   exit 0;
 }
 
@@ -112,8 +117,7 @@ else {
   Auth->import();
   my $Auth = Auth->new($db, \%conf);
   ($r, $RAD_PAIRS) = $Auth->dv_auth($RAD, $nas, { SECRETKEY => $conf{secretkey},
- 	                                                MAX_SESSION_TRAFFIC => $conf{MAX_SESSION_TRAFFIC},
- 	                                                NETS_FILES_PATH => $conf{netsfilespath} } );
+ 	                                          MAX_SESSION_TRAFFIC => $conf{MAX_SESSION_TRAFFIC}  } );
 }
 
 

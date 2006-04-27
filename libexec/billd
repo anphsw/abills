@@ -16,7 +16,18 @@ require "Abills/nas.pl";
 require Abills::Base;
 Abills::Base->import();
 my $begin_time = check_time();
+
 my $debug=0;
+
+my $ARGV = parse_arguments(\@ARGV);
+
+if (defined($ARGV->{debug})) {
+  print "Debug mode on\n";
+  $debug=1;
+}
+elsif(defined($ARGV->{help})){
+  print "Help:\n";
+}
 
 require Abills::SQL;
 Abills::SQL->import();
@@ -31,7 +42,8 @@ my $admin = Admins->new($db, \%conf);
 $admin->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });
 
 my $default_alive_interval = 120;
-my $hanguplimit = 3500000000;
+my $exppp_hanguplimit = 3500000000;
+my $error_alive_count = $conf{ERROR_ALIVE_COUNT} || 5;
 
 if ($admin->{errno}) {
 	print  $admin->{errno};
@@ -78,7 +90,7 @@ sub check_lines {
     #    print "NAS IP: $nas_row->[3]\n NAS_TYPE: $nas_row->[4]\n STATUS: $nas_row->[6]\n Alive: $nas_row->[7]/\n ";    
     $NAS{NAS_IP}    = $nas_row->[3];
     $NAS{NAS_TYPE}  = $nas_row->[4];
-    $NAS{NAS_ALIVE} = $nas_row->[7];
+    $NAS{NAS_ALIVE} = $nas_row->[7] || 0;
     $NAS{NAS_MNG_IP_PORT}  = $nas_row->[8];
     $NAS{NAS_MNG_USER}     = $nas_row->[9]; 
     $NAS{NAS_MNG_PASSWORD} = $nas_row->[10]; 
@@ -91,27 +103,35 @@ sub check_lines {
 	    my $nas_port_id             = $line->[2];
 	    my $acct_session_id         = $line->[11];
 	    
-      if ($acct_input_octets_ext > $hanguplimit || $acct_output_octets_ext > $hanguplimit) {
+      if ($acct_input_octets_ext > $exppp_hanguplimit || $acct_output_octets_ext > $exppp_hanguplimit) {
         my $ret = hangup(\%NAS, "$nas_port_id", "$line->[0]", "$acct_session_id");
         print "Hangup '$line->[0]' $acct_input_octets, $acct_output_octets, $acct_input_octets_ext, $acct_output_octets_ext, Session-ID: $acct_session_id\n"; 
        }     
 
       #Get stats from nas servers which don't support rad Alive
       my $external_stats = get_stats(\%NAS, $line->[2]);
-     
-      if (defined($external_stats->{error})) {
+
+      if ( $NAS{NAS_ALIVE} > 0 
+           && ( $line->[20] > $NAS{NAS_ALIVE} * $error_alive_count )) {
+         print "Error: Lost Alive / Login: $line->[0], Last Alive: $line->[20], Session-ID: $line->[11]\n"; # if ( $debug == 1 );
+         $sessions->zap($nas_row->[0], $line->[2], $line->[11]);
+       } 
+      elsif (defined($external_stats->{error})) {
       	print "Error:  Login: $line->[0], NAS-IP: $NAS{NAS_IP}, Port: $line->[2], Session-ID: $line->[11]\n" if ($debug == 1);
-      	$sessions->online_update({ USER_NAME => $line->[0], ACCT_SESSION_ID => $line->[11], STATUS => 5 });
+      	$sessions->online_update({ USER_NAME       => $line->[0], 
+      		                         ACCT_SESSION_ID => $line->[11], 
+      		                         STATUS          => 5 
+      		                        });
        }
       elsif (defined($external_stats->{in})) {
         $sessions->online_update({ USER_NAME => $line->[0], ACCT_SESSION_ID => $line->[11], %$external_stats });
-	     }
+       }
       
       # periodic check deposit stats
       if (defined($conf{periodic_check}) && $conf{periodic_check} eq 'yes') {
 
-        my %RAD = (USER_NAME       => "$line->[0]",
-                  SESSION_START    => time - time2sec($line->[4]),
+        my %RAD = (USER_NAME        => "$line->[0]",
+                  SESSION_START     => time - time2sec($line->[4]),
                   ACCT_SESSION_TIME => time2sec($line->[4]),
                   INBYTE         => $line->[5],
                   OUTBYTE        => $line->[6],
@@ -120,6 +140,7 @@ sub check_lines {
 
         my $Billing = Billing->new($db, $conf);	
         my $self;
+
         ($self->{UID}, 
          $self->{SUM}, 
          $self->{BILL_ID}, 
@@ -128,14 +149,14 @@ sub check_lines {
          $self->{TRAF_TARIF}) = $Billing->session_sum("$RAD{USER_NAME}", 
                                                  $RAD{SESSION_START}, 
                                                  $RAD{ACCT_SESSION_TIME}, 
-                                                 $RAD);
+                                                 \%RAD);
 
         
         
         print "> Login: $RAD{USER_NAME} START: $RAD{SESSION_START} DURATION: $RAD{ACCT_SESSION_TIME}\n".
          "UID: $self->{UID} SUM: $self->{SUM} BILL_ID: $self->{BILL_ID} TARIF_PLAN: $self->{TARIF_PLAN} TRAF_TARIF: $self->{TRAF_TARIF}\n" if ($debug == 1);
 
-        if ($line->[14] + $line->[15] < $self->{SUM}) {
+        if ( ($Billing->{PAYMENT_TYPE}==0) && ($line->[14] + $line->[15] < $self->{SUM}) ) {
            my $ret = hangup(\%NAS, "$nas_port_id", "$line->[0]", "$acct_session_id");
            print "Hanguped Login: $RAD{USER_NAME} DEPOSIT: $line->[14] CREDIT: $line->[15] SESSION_SUM: $self->{SUM}\n"; # if ($debug == 1);
           }

@@ -19,19 +19,25 @@ $VERSION = 2.00;
 use main;
 @ISA  = ("main");
 
+use Tariffs;
+use Users;
+use Fees;
+
+
+
 my $uid;
 
 my $MODULE='Dv';
 
 my %SEARCH_PARAMS = (TP_ID => 0, 
    SIMULTANEONSLY => 0, 
-   DISABLE => 0, 
-   IP => '0.0.0.0', 
-   NETMASK => '255.255.255.255', 
-   SPEED => 0, 
-   FILTER_ID => '', 
-   CID => '', 
-   REGISTRATION => ''
+   DISABLE        => 0, 
+   IP             => '0.0.0.0', 
+   NETMASK        => '255.255.255.255', 
+   SPEED          => 0, 
+   FILTER_ID      => '', 
+   CID            => '', 
+   REGISTRATION   => ''
 );
 
 #**********************************************************
@@ -42,6 +48,7 @@ sub new {
   ($db, $admin, $CONF) = @_;
   $admin->{MODULE}=$MODULE;
   my $self = { };
+  
   bless($self, $class);
   return $self;
 }
@@ -147,7 +154,30 @@ sub add {
   my $self = shift;
   my ($attr) = @_;
   
-  %DATA = $self->get_data($attr); 
+  my %DATA = $self->get_data($attr); 
+
+
+  if ($DATA{TP_ID} > 0) {
+     my $tariffs = Tariffs->new($db, $CONF, $admin);
+     $tariffs->info($DATA{TP_ID});
+     
+     if($tariffs->{ACTIV_PRICE} > 0) {
+       my $user = Users->new($db, $admin, $CONF);
+       $user->info($DATA{UID});
+       
+       if ($user->{DEPOSIT} + $user->{CREDIT} < $tariffs->{ACTIV_PRICE}) {
+         
+         print "$user->{DEPOSIT} + $user->{CREDIT} < $tariffs->{ACTIV_PRICE}";
+         
+         $self->{errno}=15;
+       	 return $self; 
+        }
+       my $fees = Fees->new($db, $admin, $CONF);
+       $fees->take($user, $tariffs->{ACTIV_PRICE}, { DESCRIBE  => "ACTIV TP" });  
+      }
+   }
+
+
 
   $self->query($db,  "INSERT INTO dv_main (uid, registration, 
              tp_id, 
@@ -177,6 +207,8 @@ sub change {
   my $self = shift;
   my ($attr) = @_;
   
+
+  
   my %FIELDS = (SIMULTANEONSLY => 'logins',
               DISABLE          => 'disable',
               IP               => 'ip',
@@ -188,14 +220,36 @@ sub change {
               FILTER_ID        => 'filter_id'
              );
 
+  my $old_info = $self->info($attr->{UID});
+  if ($old_info->{TP_ID} != $attr->{TP_ID}) {
+     my $tariffs = Tariffs->new($db, $CONF, $admin);
+     $tariffs->info($attr->{TP_ID});
+     
+     if($tariffs->{CHANGE_PRICE} > 0) {
+       my $user = Users->new($db, $admin, $CONF);
+       $user->info($attr->{UID});
+       
+       if ($user->{DEPOSIT} + $user->{CREDIT} < $tariffs->{CHANGE_PRICE}) {
+         $self->{errno}=15;
+       	 return $self; 
+        }
+       my $fees = Fees->new($db, $admin, $CONF);
+       $fees->take($user, $tariffs->{CHANGE_PRICE}, { DESCRIBE  => "CHANGE TP" });  
+      }
 
+   }
 
+  $admin->{MODULE}=$MODULE;
   $self->changes($admin, { CHANGE_PARAM => 'UID',
                    TABLE        => 'dv_main',
                    FIELDS       => \%FIELDS,
-                   OLD_INFO     => $self->info($attr->{UID}),
+                   OLD_INFO     => $old_info,
                    DATA         => $attr
                   } );
+
+
+  
+  
 
   return $self->{result};
 }

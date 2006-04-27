@@ -1,4 +1,5 @@
 package Abills::HTML;
+#HTML 
 
 use strict;
 use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION %h2
@@ -55,8 +56,12 @@ my $bg;
 my $debug;
 my %log_levels;
 my $IMG_PATH;
+my $CONF;
+
+
 my $row_number = 0;
-#Hash of url params
+
+
 
 
 #**********************************************************
@@ -66,7 +71,9 @@ sub new {
   my $class = shift;
   my ($attr) = @_;
   
+  
   $IMG_PATH = (defined($attr->{IMG_PATH})) ? $attr->{IMG_PATH} : '../img/';
+  $CONF = $attr->{CONF} if (defined($attr->{CONF}));
 
   my $self = { };
   bless($self, $class);
@@ -97,7 +104,7 @@ sub new {
             '#dddddd',  # 3 TH.sum, TD.sum
             '#E1E1E1',  # 4 border
             '#FFFFFF',  # 5
-            '#FFFFFF',  # 6
+            '#FF0000',  # 6
             '#000088',  # 7 vlink
             '#0000A0',  # 8 Link
             '#000000',  # 9 Text
@@ -113,20 +120,22 @@ sub new {
   %functions = ();
   
   $pages_qs = '';
-  $index = $FORM{index} || 0;  
+  $index = $FORM{index} || 0;
   
   
   if (defined($COOKIES{language}) && $COOKIES{language} ne '') {
     $self->{language}=$COOKIES{language};
    }
   else {
-    $self->{language} = 'english';
+    $self->{language} = $CONF->{default_language} || 'english';
    }
 
   if (defined($FORM{xml})) {
     require Abills::XML;
     $self = Abills::XML->new( { IMG_PATH => 'img/',
-	                      NO_PRINT  => 'y' } );
+	                              NO_PRINT  => 'y' 
+	                            
+	                            });
   }
   
 
@@ -202,6 +211,9 @@ sub form_main {
 	
 	$self->{FORM}="<FORM action=\"$SELF_URL\" METHOD=\"POST\">\n";
 	
+
+	
+	
   if (defined($attr->{HIDDEN})) {
   	my $H = $attr->{HIDDEN};
   	while(my($k, $v)=each( %$H)) {
@@ -263,7 +275,7 @@ sub form_select {
 	  foreach my $v (@$H) {
       my $id = (defined($attr->{ARRAY_NUM_ID})) ? $i : $v;
       $self->{SELECT} .= "<option value='$id'";
-      $self->{SELECT} .= ' selected' if ($i eq $attr->{SELECTED});
+      $self->{SELECT} .= ' selected' if (($i eq $attr->{SELECTED}) || ($v eq $attr->{SELECTED}) );
       $self->{SELECT} .= ">$v\n";
       $i++;
      }

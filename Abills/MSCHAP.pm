@@ -7,8 +7,7 @@
 # Author: Mike McCauley (mikem@open.com.au)
 #
 # This code is offered on the same terms as draft-ietf-pppext-mschap-00.txt
-# $Id: MSCHAP.pm,v 1.1.2.1 2005/10/25 14:45:10 abills Exp $
-
+# $Id: MSCHAP.pm,v 1.1.2.2 2006/04/14 11:28:42 abills Exp $
 
 package Radius::MSCHAP;
 use strict;

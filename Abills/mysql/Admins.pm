@@ -35,9 +35,6 @@ sub new {
   my $self = { };
   bless($self, $class);
   
-  #$self->{debug}=1;
-
-
   return $self;
 }
 
@@ -167,8 +164,8 @@ sub change {
  
  
   my %FIELDS = (AID    =>   'aid',
-           A_LOGIN    => 'id',
-           A_FIO      => 'name',
+           A_LOGIN     => 'id',
+           A_FIO       => 'name',
            A_REGISTRATION => 'regdate',
            A_PHONE    => 'phone',
            DISABLE    => 'disable',
@@ -255,8 +252,8 @@ sub action_list {
   $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  my $WHERE = '';
   my @list = ();
+  @WHERE_RULES = ();
 
   # UID
   if ($attr->{UID}) {
@@ -265,6 +262,39 @@ sub action_list {
   if ($attr->{AID}) {
     push @WHERE_RULES, "aa.aid='$attr->{AID}'";
    }
+  elsif($attr->{ADMIN}){
+  	$attr->{ADMIN} =~ s/\*/\%/ig;
+    push @WHERE_RULES, "a.id LIKE '$attr->{ADMIN}'";
+   }
+
+ # Start letter 
+ if ($attr->{FIRST_LETTER}) {
+    push @WHERE_RULES, "u.id LIKE '$attr->{FIRST_LETTER}%'";
+  }
+ elsif ($attr->{LOGIN}) {
+    $attr->{LOGIN_EXPR} =~ s/\*/\%/ig;
+    push @WHERE_RULES, "u.id='$attr->{LOGIN}'";
+  }
+ # Login expresion
+ elsif ($attr->{LOGIN_EXPR}) {
+    $attr->{LOGIN_EXPR} =~ s/\*/\%/ig;
+    push @WHERE_RULES, "u.id LIKE '$attr->{LOGIN_EXPR}'";
+  }
+ 
+ if ($attr->{ACTION}) {
+ 	 $attr->{ACTION} =~ s/\*/\%/ig;
+ 	 push @WHERE_RULES, "aa.actions LIKE '$attr->{ACTION}'";
+  }    
+
+ # Date intervals
+ if ($attr->{FROM_DATE}) {
+   push @WHERE_RULES, "(date_format(aa.datetime, '%Y-%m-%d')>='$attr->{FROM_DATE}' and date_format(aa.datetime, '%Y-%m-%d')<='$attr->{TO_DATE}')";
+  }
+
+ if ($attr->{MODULE}) {
+   push @WHERE_RULES, "aa.module='$attr->{MODULE}'";
+  }
+
 
   $WHERE = "WHERE " . join(' and ', @WHERE_RULES) if($#WHERE_RULES > -1);
   $self->query($db, "select aa.id, u.id, aa.datetime, aa.actions, a.id, INET_NTOA(aa.ip), aa.module, aa.uid, aa.aid, aa.id
@@ -277,7 +307,10 @@ sub action_list {
   my $list = $self->{list};
   
   if ($self->{TOTAL} > 0) {
-    $self->query($db, "SELECT count(*) FROM admin_actions aa $WHERE;");
+    $self->query($db, "SELECT count(*) FROM admin_actions aa 
+    LEFT JOIN users u ON (aa.uid=u.uid)
+    LEFT JOIN admins a ON (aa.aid=a.aid)
+    $WHERE;");
     my $a_ref = $self->{list}->[0];
     ($self->{TOTAL}) = @$a_ref;
    }

@@ -52,7 +52,7 @@ use Abills::HTML;
 use Nas;
 use Admins;
 
-$html = Abills::HTML->new();
+$html = Abills::HTML->new({ CONF => \%conf });
 my $sql = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd});
 
 $db = $sql->{db};
@@ -60,6 +60,8 @@ my $admin = Admins->new($db, \%conf);
 require "../../language/$html->{language}.pl";
 %permissions = ();
 use Abills::Base;
+
+@state_colors = ("#00FF00", "#FF0000", "#AAAAFF");
 
 #**********************************************************
 #IF Mod rewrite enabled
@@ -79,10 +81,16 @@ if (defined($ENV{HTTP_CGI_AUTHORIZATION})) {
   $ENV{HTTP_CGI_AUTHORIZATION} =~ s/basic\s+//i;
   my ($REMOTE_USER,$REMOTE_PASSWD) = split(/:/, decode_base64($ENV{HTTP_CGI_AUTHORIZATION}));  
 
-  if (check_permissions("$REMOTE_USER", "$REMOTE_PASSWD") == 1) {
+  my $res =  check_permissions("$REMOTE_USER", "$REMOTE_PASSWD");
+  if ($res == 1) {
     print "WWW-Authenticate: Basic realm=\"Billing system\"\n";
     print "Status: 401 Unauthorized\n";
    }
+  elsif ($res == 2) {
+    print "WWW-Authenticate: Basic realm=\"Billing system / '$REMOTE_USER' Account Disabled\"\n";
+    print "Status: 401 Unauthorized\n";
+   }
+
 }
 else {
   check_permissions('$REMOTE_USER');
@@ -91,7 +99,11 @@ else {
 if ($admin->{errno}) {
   print "Content-type: text/html\n\n";
   my $message = 'Access Deny';
-  if (! defined($REMOTE_USER)) {
+
+  if ($admin->{errno} == 2) {
+  	$message = "Account Disabled";
+   }
+  elsif (! defined($REMOTE_USER)) {
     $message = "Wrong password";
    }
   elsif (! defined($REMOTE_PASSWD)) {
@@ -151,21 +163,21 @@ my @actions = ([$_SA_ONLY, $_ADD, $_LIST, $_PASSWD, $_CHANGE, $_DEL, $_ALL],  # 
                [$_PROFILE],
                );
 
-@action = ('add', $_ADD);
+@action    = ('add', $_ADD);
 @bool_vals = ($_NO, $_YES);
 
-my @PAYMENT_METHODS = ('Cashe', 'Bank', 'Credit Card', 'Internet Card');
-my %menu_items = ();
-my %menu_names = ();
+my @PAYMENT_METHODS = ('Cashe', 'Bank', 'Internet Card', 'Credit Card' );
+my %menu_items  = ();
+my %menu_names  = ();
 #my $root_index = 0;
-my $maxnumber = 0;
-my %uf_menus = (); #User form menu list
+my $maxnumber   = 0;
+my %uf_menus    = (); #User form menu list
 
 my %SEARCH_TYPES = (11 => $_USERS,
-                    2 =>  $_PAYMENTS,
-                    3 =>  $_FEES,
+                    2  => $_PAYMENTS,
+                    3  => $_FEES,
                     13 => $_COMPANY
-);
+                   );
 
 if($FORM{index} != 7 && ! defined($FORM{type})) {
 	$FORM{type}=$FORM{index};
@@ -228,12 +240,12 @@ my ($online_users, $online_count) = $admin->online();
 
 
 print "<table width=100%>
-<tr bgcolor=$_COLORS[3]><td colspan=2>
-<form action=$SELF_URL>
-<table width=100% border=0>
-  <tr><th align=left>$_DATE: $DATE $TIME Admin: <a href='$SELF_URL?index=53'>$admin->{A_LOGIN}</a> / Online: <abbr title=\"$online_users\"><a href='$SELF_URL?index=50' title='$online_users'>Online: $online_count</a></abbr></th>
-  <th align=right><input type=hidden name=index value=7><input type=hidden name=search value=y>
-  Search: $SEL_TYPE <input type=text name=\"LOGIN_EXPR\" value='$FORM{LOGIN_EXPR}'> 
+<tr bgcolor='$_COLORS[3]'><td colspan='2'>
+<form action='$SELF_URL'>
+<table width='100%' border='0'>
+  <tr><th align='left'>$_DATE: $DATE $TIME Admin: <a href='$SELF_URL?index=53'>$admin->{A_LOGIN}</a> / Online: <abbr title=\"$online_users\"><a href='$SELF_URL?index=50' title='$online_users'>Online: $online_count</a></abbr></th>
+  <th align=right><input type='hidden' name='index' value='7'><input type='hidden' name='search' value='y'>
+  Search: $SEL_TYPE <input type='text' name=\"LOGIN_EXPR\" value='$FORM{LOGIN_EXPR}'> 
   (<b><a href='#' onclick=\"window.open('help.cgi?index=$index&amp;FUNCTION=$functions{$index}','help',
     'height=550,width=450,resizable=0,scrollbars=yes,menubar=no, status=yes');\">?</a></b>)</th></tr>
 </table>
@@ -357,15 +369,20 @@ $html->test();
 sub check_permissions {
   my ($login, $password, $attr)=@_;
 
-  my %PARAMS = ( LOGIN => "$login", 
-                 PASSWORD => "$password",
+  my %PARAMS = ( LOGIN     => "$login", 
+                 PASSWORD  => "$password",
                  SECRETKEY => $conf{secretkey},
-                 IP => $SESSION_IP);
+                 IP        => $SESSION_IP);
 
-  $admin->info(0, {%PARAMS } );
+  $admin->info(0, { %PARAMS } );
 
   if ($admin->{errno}) {
     return 1;
+   }
+  elsif($admin->{DISABLE} == 1) {
+  	$admin->{errno}=2;
+  	$admin->{errstr} = 'DISABLED';
+  	return 2;
    }
 
   my $p_ref = $admin->get_permissions();
@@ -542,7 +559,8 @@ sub user_form {
  	   $user_info->{COMPANY_ID}=$FORM{COMPANY_ID};
      $user_info->{EXDATA} =  "<tr><td>$_COMPANY:</td><td>". $html->button($company->{COMPANY_NAME}, "index=13&COMPANY_ID=$company->{COMPANY_ID}"). "</td></tr>\n";
     }
-
+   
+   $user_info->{GID} = sel_groups();
    $user_info->{EXDATA} .=  $html->tpl_show(templates('form_user_exdata'), undef, { notprint => 'y' });
 
    $user_info->{DISABLE} = ($user_info->{DISABLE} > 0) ? ' checked' : '';
@@ -779,16 +797,32 @@ if(defined($attr->{USER})) {
    }
 
 
+
+my $payments = (defined($permissions{1})) ? '<li>'. $html->button($_PAYMENTS, "UID=$user_info->{UID}&index=2") : '';
+my $fees = (defined($permissions{2})) ? '<li>' .$html->button($_FEES, "UID=$user_info->{UID}&index=3") : '';
+
 print "
-</td><td bgcolor=$_COLORS[3] valign=top width=180>
-<table width=100% border=0><tr><td><ul><li>". 
-              $html->button($_PAYMENTS, "UID=$user_info->{UID}&index=2").
-      "<li>". $html->button($_FEES, "UID=$user_info->{UID}&index=3"). 
-      "<li>". $html->button($_SEND_MAIL, "UID=$user_info->{UID}&index=").
+</td><td bgcolor='$_COLORS[3]' valign='top' width='180'>
+<table width='100%' border='0'><tr><td><ul>
+      $payments
+      $fees
+      <li>". $html->button($_SEND_MAIL, "UID=$user_info->{UID}&index=31").
 "</ul>\n</td></tr>
 <tr><td> 
   <ul>\n";
 
+
+#Show services
+
+while(my($k, $v)=each %menu_items) {
+	if (defined($menu_items{$k}{20})) {
+		print '<li>'. $html->button($menu_items{$k}{20}, "UID=$user_info->{UID}&index=$k");
+	 }
+}
+
+#
+
+print  "</ul><ul>\n";
 my %userform_menus = (
              22 =>  $_LOG,
              17 =>  $_PASSWD,
@@ -803,14 +837,11 @@ while(my($k, $v)=each %uf_menus) {
 	$userform_menus{$k}=$v;
 }
 
- 
-
 while(my($k, $v)=each (%userform_menus) ) {
   my $url =  "index=$k&UID=$user_info->{UID}";
   my $a = (defined($FORM{$k})) ? "<b>$v</b>" : $v;
   print "<li>" . $html->button($a,  "$url");
 }
-
 print "<li>".
   $html->button($_DEL, "index=15&del_user=y&UID=$user_info->{UID}", { MESSAGE => "$_USER: $user_info->{LOGIN} / $user_info->{UID}" })
 ."</ul></td></tr>
@@ -891,16 +922,23 @@ foreach my $line (@$list) {
 
   my @fields_array  = ();
   for(my $i=0; $i<$users->{SEARCH_FIELDS_COUNT}; $i++){
-     push @fields_array, $line->[5+$i];
+     push @fields_array, $table->td($line->[5+$i]);
    }
 
-  $table->addrow($html->button($line->[0], "index=15&UID=$line->[5+$users->{SEARCH_FIELDS_COUNT}]"), "$line->[1]",
-   "$line->[2]", 
-   "$line->[3]", 
-   "$status[$line->[4]]", 
-   @fields_array, 
-   $payments, 
-   $fees);
+
+
+
+$table->addtd(
+                  $table->td($html->button($line->[0], "index=15&UID=$line->[5+$users->{SEARCH_FIELDS_COUNT}]") ), 
+                  $table->td($line->[1]), 
+                  $table->td( ($line->[2] + $line->[3] < 0) ? "<font color='$_COLORS[6]'>$line->[2]</font>" : $line->[2] ), 
+                  $table->td($line->[3]), 
+                  $table->td($status[$line->[4]], { bgcolor => $state_colors[$line->[4]] }), 
+                  @fields_array, 
+                  $table->td($payments),
+                  $table->td($fees)
+      );
+
 }
 print $table->show();
 
@@ -1065,7 +1103,7 @@ my $nas = Nas->new($db, \%conf);
 
 my $table = $html->table( { width     => '100%',
                            border     => 1,
-                           title      => ["$_ALLOW", "ID", "$_NAME", "IP", "$_TYPE", "$_AUTH"],
+                           title      => ["$_ALLOW", "$_NAME", 'NAS-Identifier', "IP", "$_TYPE", "$_AUTH"],
                            cols_align => ['center', 'left', 'left', 'right', 'left', 'left'],
                            qs         => $pages_qs
                            });
@@ -1074,8 +1112,11 @@ my $list = $nas->list();
 
 foreach my $line (@$list) {
   my $checked = (defined($allow_nas{$line->[0]}) || $allow_nas{all}) ? ' checked ' :  '';    
-  $table->addrow("<input type=checkbox name=ids value=$line->[0] $checked>", $line->[2], $line->[1], 
-    $line->[4], $line->[5], $auth_types[$line->[6]]);
+  $table->addrow("<input type=checkbox name=ids value=$line->[0] $checked>", 
+    $line->[1], 
+    $line->[2],  
+    $line->[3],  
+    $line->[4], $auth_types[$line->[5]]);
 }
 
 print $html->form_main({ CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
@@ -1130,6 +1171,7 @@ sub form_bills {
 #**********************************************************
 sub form_changes {
  my ($attr) = @_; 
+ my %search_params = ();
  
 if ($FORM{del} && $FORM{is_js_confirmed}) {
 	$admin->action_del( $FORM{del} );
@@ -1154,27 +1196,58 @@ if (! defined($FORM{sort})) {
   $LIST_PARAMS{DESC}=DESC;
  }
 
-my $list = $admin->action_list( { %LIST_PARAMS } );
-my $table = $html->table( { width => '100%',
-                                   border => 1,
-                                   title => ['#', 'UID',  $_DATE,  $_CHANGE,  $_ADMIN,   'IP', "$_MODULES", '-'],
-                                   cols_align => ['right', 'left', 'right', 'left', 'left', 'right', 'center'],
-                                   qs => $pages_qs,
-                                   pages => $admin->{TOTAL}
-                                   
-                                  } );
+
+%search_params=%FORM;
+$search_params{MODULES_SEL} = $html->form_select('MODULE', 
+                                { SELECTED      => $FORM{MODULE},
+ 	                                SEL_ARRAY     => ['', @MODULES],
+ 	                                OUTPUT2RETURN => 1
+ 	                               });
+
+
+form_search({ HIDDEN_FIELDS => $LIST_PARAMS{AID},
+	            SEARCH_FORM   => $html->tpl_show(templates('history_search'), \%search_params, { notprint => 'y' })
+	           });
+
+
+
+my $list = $admin->action_list({ %LIST_PARAMS });
+my $table = $html->table( { width      => '100%',
+                            border     => 1,
+                            title      => ['#', 'UID',  $_DATE,  $_CHANGE,  $_ADMIN,   'IP', "$_MODULES", '-'],
+                            cols_align => ['right', 'left', 'right', 'left', 'left', 'right', 'center'],
+                            qs         => $pages_qs,
+                            pages      => $admin->{TOTAL}
+                           });
+
+
+
 foreach my $line (@$list) {
   my $delete = $html->button($_DEL, "index=$index$pages_qs&del=$line->[0]", { MESSAGE => "$_DEL [$line->[0]] ?" }); 
+
   $table->addrow("<b>$line->[0]</b>",
-    $html->button($line->[1], "index=15&UID=$line->[7]"), $line->[2], $line->[3], 
-   $line->[4], $line->[5], $line->[6], $delete);
+    $html->button($line->[1], "index=15&UID=$line->[7]"), 
+    $line->[2], 
+    $line->[3], 
+    $line->[4], 
+    $line->[5], 
+    $line->[6], 
+    $delete);
 }
+
+
 
 print $table->show();
 $table = $html->table( { width => '100%',
                                 cols_align => ['right', 'right'],
                                 rows => [ [ "$_TOTAL:", "<b>$admin->{TOTAL}</b>" ] ]
                                } );
+
+
+
+
+
+
 print $table->show();
 }
 
@@ -1323,11 +1396,11 @@ if ($tarif_plan->{errno}) {
 #                               cols_align => ['center', 'right', 'right', 'right', 'right', 'right', 'right', 'center', 'center'],
 
 
-$table = $html->table( { width => '100%',
-	                              title_plain => [$_DAYS, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,14,15,16,17,18, 19, 20, 21, 22, 23],
-                                caption => "$_INTERVALS",
-                                rowcolor => $_COLORS[1]
-                               } );
+$table = $html->table({ width       => '100%',
+	                      title_plain => [$_DAYS, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,14,15,16,17,18, 19, 20, 21, 22, 23],
+                        caption     => "$_INTERVALS",
+                        rowcolor    => $_COLORS[1]
+                        });
 
 
 
@@ -1376,7 +1449,6 @@ for(my $i=0; $i<9; $i++) {
   $table->addtd("<td>$DAY_NAMES[$i]</td>", @hours);
 }
 
-
 print $table->show();
 
 
@@ -1393,6 +1465,16 @@ if (defined($FORM{tt})) {
                                 { SELECTED    => $tarif_plan->{TT_ID},
  	                                SEL_HASH   => \%TT_IDS,
  	                               });
+  
+  if ($conf{DV_EXPPP_NETFILES}) {
+     $tarif_plan->{DV_EXPPP_NETFILES}="EXPPP_NETFILES: ". $html->form_input('DV_EXPPP_NETFILES', 'yes', 
+                                                       { TYPE          => 'checkbox',
+       	                                                 OUTPUT2RETURN => 1,
+       	                                                 STATE         => 1
+       	                                                }  
+       	                                               );
+   }
+  
   $html->tpl_show(_include('dv_tt', 'Dv'), $tarif_plan);
 }
 else {
@@ -1760,6 +1842,8 @@ sub admin_profile {
 
 print "$FORM{colors}";
 
+print $html->{language};
+
 
 my $REFRESH=$COOKIES{REFRESH} || 60;
 my $ROWS=$COOKIES{PAGE_ROWS} || $PAGE_ROWS;
@@ -1798,11 +1882,11 @@ print "
 </form><br>\n";
    
 my %profiles = ();
-$profiles{'Black'} = "#333333, #000000, #444444, #555555, #777777, #FFFFFF, #FFFFFF, #BBBBBB, #FFFFFF, #EEEEEE, #000000";
-$profiles{'Green'} = "#33AA44, #FFFFFF, #eeeeee, #dddddd, #E1E1E1, #FFFFFF, #FFFFFF, #000088, #0000A0, #000000, #FFFFFF";
-$profiles{'Ligth Green'} = "#4BD10C, #FFFFFF, #eeeeee, #dddddd, #E1E1E1, #FFFFFF, #FFFFFF, #000088, #0000A0, #000000, #FFFFFF";
-$profiles{'мс'} = "#FCBB43, #FFFFFF, #eeeeee, #dddddd, #E1E1E1, #FFFFFF, #FFFFFF, #000088, #0000A0, #000000, #FFFFFF";
-$profiles{'Cisco'} = "#99CCCC, #FFFFFF, #FFFFFF, #669999, #669999, #FFFFFF, #FFFFFF, #003399, #003399, #000000, #FFFFFF";
+$profiles{'Black'} = "#333333, #000000, #444444, #555555, #777777, #FFFFFF, #FF0000, #BBBBBB, #FFFFFF, #EEEEEE, #000000";
+$profiles{'Green'} = "#33AA44, #FFFFFF, #eeeeee, #dddddd, #E1E1E1, #FFFFFF, #FF0000, #000088, #0000A0, #000000, #FFFFFF";
+$profiles{'Ligth Green'} = "#4BD10C, #FFFFFF, #eeeeee, #dddddd, #E1E1E1, #FFFFFF, #FF0000, #000088, #0000A0, #000000, #FFFFFF";
+$profiles{'мс'} = "#FCBB43, #FFFFFF, #eeeeee, #dddddd, #E1E1E1, #FFFFFF, #FF0000, #000088, #0000A0, #000000, #FFFFFF";
+$profiles{'Cisco'} = "#99CCCC, #FFFFFF, #FFFFFF, #669999, #669999, #FFFFFF, #FF0000, #003399, #003399, #000000, #FFFFFF";
 
 while(my($thema, $colors)=each %profiles ) {
   my $url = "index=53&set=set";
@@ -1909,6 +1993,7 @@ if ($nas->{errno}) {
   'gnugk'     => 'GNU GateKeeper',
   'cisco'     => 'Cisco (Experimental)',
   'bsr1000'   => 'CMTS Motorola BSR 1000',
+  'mikrotik'  => 'Mikrotik (http://www.mikrotik.com)',
   'other'     => 'Other nas server');
 
 
@@ -2142,7 +2227,9 @@ elsif($FORM{newpassword} ne $FORM{confirm}) {
 }
 
 $password_form->{GEN_PASSWORD}=mk_unique_value(8);
-$html->tpl_show(templates('form_possword'), $password_form);
+$password_form->{ACTION}='change';
+$password_form->{LNG_ACTION}="$_CHANGE";
+$html->tpl_show(templates('form_password'), $password_form);
 
  return 0;
 }
@@ -2407,6 +2494,7 @@ my @m = (
  "28:27:$_ADD:add_groups:::",
  "29:27:$_LIST:form_groups:::",
  "30:15:$_USER_INFO:user_pi:UID::",
+ "31:15:Send e-mail:form_sendmail:UID::",
 
  "2:0:$_PAYMENTS:form_payments:::",
  "3:0:$_FEES:form_fees:::",
@@ -2441,6 +2529,7 @@ my @m = (
  "92:90:$_DICTIONARY:form_dictionary:::",
  "93:90:Config:form_config:::",
  "94:90:WEB server:form_webserver_info:::",
+ "95:90:$_SQL_BACKUP:form_sql_backup:::",
  "6:0:$_OTHER:null:::",
  "1000:6:Wizards:wizard:::",
   
@@ -2589,7 +2678,7 @@ for(my $parent=1; $parent<$#menu_sorted; $parent++) {
 
 
 print $html->form_main({ CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
-	                       HIDDEN  => { index => '50'
+	                       HIDDEN  => { index => "$index"
                                      },
 	                       SUBMIT  => { quick_set => "$_SET"
 	                       	           } });
@@ -2838,6 +2927,10 @@ if (defined($attr->{USER})) {
   $fees->{UID} = $user->{UID};
   if ($FORM{take} && $FORM{SUM}) {
     # add to shedule
+    if ($FORM{ER} && $FORM{ER} ne '') {
+      $FORM{SUM} = $FORM{SUM} / $FORM{ER} if (defined($FORM{ER}));
+    }
+
     if ($period == 1) {
 
       $FORM{date_M}++;
@@ -2847,7 +2940,7 @@ if (defined($attr->{USER})) {
       	               Y => $FORM{date_Y},
                        UID => $user->{UID},
                        TYPE => 'fees',
-                       ACTION => "$FORM{SUM}:$FORM{DESCR}"
+                       ACTION => "$FORM{SUM}:$FORM{DESCRIBE}"
                       } );
 
 
@@ -2859,11 +2952,10 @@ if (defined($attr->{USER})) {
    }
 
 
-
      }
     #Add now
     else {
-      $fees->take($user, $FORM{SUM}, { DESCRIBE => $FORM{DESCR} } );  
+      $fees->take($user, $FORM{SUM}, { %FORM } );  
       if ($fees->{errno}) {
         $html->message('err', $_ERROR, "[$fees->{errno}] $err_strs{$fees->{errno}}");	
        }
@@ -2897,6 +2989,16 @@ if (defined($attr->{USER})) {
   
   $fees->{PERIOD_FORM}=form_period($period);
   if (defined ($permissions{2}{1})) {
+    #exchange rate sel
+    my $er = $fees->exchange_list();
+    $fees->{SEL_ER} = "<select name='ER'>\n";
+    $fees->{SEL_ER} .= "<option value=''>\n";
+    foreach my $line (@$er) {
+      $fees->{SEL_ER} .= "<option value='$line->[4]'";
+      $fees->{SEL_ER} .= ">$line->[1] : $line->[2]\n";
+    }
+    $fees->{SEL_ER} .= "</select>\n";
+
     $html->tpl_show(templates('form_fees'), $fees);
    }	
 
@@ -2954,8 +3056,48 @@ print $table->show();
 
 }
 
+#*******************************************************************
+sub form_sendmail {
+ my %MAIL_PRIORITY = (2 => 'High', 
+                      3 => 'Normal', 
+                      4  => 'Low');
 
 
+
+ my $user = Users->new($db, $admin); 
+ $user->info($FORM{UID});
+ $user->pi();
+ 
+
+ $user->{EMAIL} = (defined($user->{EMAIL}) && $user->{EMAIL} ne '') ? $user->{EMAIL} : $user->{LOGIN} .'@'. $conf{USERS_MAIL_DOMAIN};
+ $user->{FROM} = $FORM{FROM} || $conf{ADMIN_MAIL};
+
+ if ($FORM{sent}) {
+   
+   sendmail("$user->{FROM}", "$user->{EMAIL}", "$FORM{SUBJECT}", "$FORM{TEXT}", "$conf{MAIL_CHARSET}", "$FORM{PRIORITY} ($MAIL_PRIORITY{$FORM{PRIORITY}})");
+   my $table = $html->table({ width    => '100%',
+                              rows     => [ [ "$_USER:",    "$user->{LOGIN}" ],
+                                            [ "E-Mail:",    "$user->{EMAIL}" ],
+                                            [ "$_SUBJECT:", "$FORM{SUBJECT}" ],
+                                            [ "$_FROM:",    "$user->{FROM}"  ],
+                                            [ "PRIORITY:",  "$FORM{PRIORITY} (". $MAIL_PRIORITY{$FORM{PRIORITY}} .")"]    
+                                           ],
+                              rowcolor => $_COLORS[1]
+                              });
+
+   $html->message('info', $_SENDED, $table->show());
+   return 0;
+  }
+
+
+ $user->{EXTRA} = "<tr><td>$_TO:</td><td bgcolor='$_COLORS[2]'>$user->{EMAIL}</td></tr>\n";
+ $user->{PRIORITY_SEL}=$html->form_select('PRIORITY', 
+                                { SELECTED  => $FORM{PRIORITY},
+ 	                                SEL_HASH  => \%MAIL_PRIORITY
+ 	                               });
+
+ $html->tpl_show(templates('mail_form'), $user); 
+}
 
 #*******************************************************************
 # Search form
@@ -2968,7 +3110,9 @@ my %SEARCH_DATA = $admin->get_data(\%FORM);
 if (defined($attr->{HIDDEN_FIELDS})) {
 	my $SEARCH_FIELDS = $attr->{HIDDEN_FIELDS};
 	while(my($k, $v)=each( %$SEARCH_FIELDS )) {
-	  $SEARCH_DATA{HIDDEN_FIELDS}.="<input type=hidden name=\"$k\" value=\"$v\">\n";
+	  $SEARCH_DATA{HIDDEN_FIELDS}.=$html->form_input("$k", "$v", { TYPE => 'hidden',
+       	                                OUTPUT2RETURN => 1
+      	                               });
 	 }
 }
 
@@ -2982,8 +3126,6 @@ if (defined($attr->{SIMPLE})) {
   $html->tpl_show(templates('form_search_simple'), \%SEARCH_DATA);
 }
 else {
-
-
 
 
 my $SEL_METHOD =  $html->form_select('METHOD', 
@@ -3080,8 +3222,8 @@ my $shedule = Shedule->new($db, $admin);
 
 if ($FORM{del} && $FORM{is_js_confirmed}) {
   $shedule->del({ ID => $FORM{del} });
-  if ($admins->{errno}) {
-    $html->message('err', $_ERROR, "[$fees->{errno}] $err_strs{$fees->{errno}}");
+  if ($shedule->{errno}) {
+    $html->message('err', $_ERROR, "[$shedule->{errno}] $err_strs{$shedule->{errno}}");
    }
   else {
     $html->message('info', $_DELETED, "$_DELETED [$FORM{del}]");
@@ -3470,7 +3612,53 @@ $GROUPS_SEL = $html->form_select('GID',
  return $GROUPS_SEL;	
 }
 
+
 #*******************************************************************
+# Make SQL backup
+#*******************************************************************
+sub form_sql_backup {
+
+
+if ($FORM{mk_backup}) {
+   print "$MYSQLDUMP --host=$conf{dbhost} --user=\"$conf{dbuser}\" --password=\"****\" $conf{dbname} | $GZIP > $BACKUP_DIR/abills-$DATE.sql.gz<br>";
+   my $res = `$MYSQLDUMP --host=$conf{dbhost} --user="$conf{dbuser}" --password="$conf{dbpasswd}" $conf{dbname} | $GZIP > $conf{BACKUP_DIR}/abills-$DATE.sql.gz`;
+   $html->message('info', $_INFO, "Backup created: $res ($conf{BACKUP_DIR}/abills-$DATE.sql.gz)");
+ }
+elsif($FORM{del}) {
+  my $status = unlink("$conf{BACKUP_DIR}/$FORM{del}");
+  $html->message('info', $_INFO, "$_DELETED : $conf{BACKUP_DIR}/$FORM{del} [$status]");
+}
+
+
+
+
+  my $table = $html->table( { width      => '600',
+                              caption    => "$_SQL_BACKUP",
+                              border     => 1,
+                              title      => ["$_NAME", $_DATE, $_SIZE, '-'],
+                              cols_align => ['left', 'right', 'right', 'center']
+                               } );
+
+
+  opendir DIR, $conf{BACKUP_DIR} or $html->message('err', $_ERROR, "Can't open dir '$conf{BACKUP_DIR}' $!\n");
+    my @contents = grep  !/^\.\.?$/  , readdir DIR;
+  closedir DIR;
+
+  use POSIX qw(strftime);
+  foreach my $filename (@contents) {
+    my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime,$blksize,$blocks)=stat("$conf{BACKUP_DIR}/$filename");
+    my $date = strftime "%Y-%m-%d %H:%M:%S", localtime($mtime);
+    $table->addrow($filename,  $date, $size, $html->button($_DEL, "index=$index&del=$filename", { MESSAGE => "$_DEL $filename?" })
+    );
+   }
+
+ print  $table->show();
+ print  $html->button($_CREATE, "index=$index&mk_backup=y");
+	
+}
+
+
+#******************************************************************
 #
 #*******************************************************************
 sub weblog {
@@ -3557,4 +3745,10 @@ sub wizard {
 #  $html->tpl_show($template, $wizard);
 #  print "</table>\n";
 	
+
+
+	
 }
+
+
+

@@ -16,7 +16,6 @@ use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
   $DESC
   $PG
   $PAGE_ROWS
-
 );
 
 use Exporter;
@@ -55,7 +54,7 @@ $DESC      = '';
 $PG        = 0;
 $PAGE_ROWS = 25;
 
-
+my $query_count = 0;
 
 
 use DBI;
@@ -78,7 +77,8 @@ sub connect {
    #  $self->{errno}=3;
    #  $self->{errstr}=;
    #}
-
+  
+  $self->{query_count}=0;
   return $self;
 }
 
@@ -126,9 +126,6 @@ else {
   $self->{TOTAL}=0;
   $q = $db->prepare($query) || die $db->errstr;;
   if($db->err) {
-     
-
-     
      $self->{errno} = 3;
      $self->{sql_errno}=$db->err;
      $self->{sql_errstr}=$db->errstr;
@@ -147,6 +144,7 @@ else {
      $self->{errstr}=$db->errstr;
      return $self->{errno};
    }
+
   $self->{Q}=$q;
   $self->{TOTAL} = $q->rows;
 }
@@ -177,7 +175,10 @@ if ($self->{TOTAL} > 0) {
 else {
 	delete $self->{list};
 }
-  return $self;
+
+ $self->{query_count}++;
+
+ return $self;
 }
 
 
@@ -194,7 +195,6 @@ sub get_data {
   	 my $dhr = $attr->{default};
   	 %DATA = %$dhr;
    }
-
 
   
   while(my($k, $v)=each %$params) {
@@ -264,7 +264,7 @@ sub changes {
   my $FIELDS       = $attr->{FIELDS};
   my %DATA         = $self->get_data($attr->{DATA}); 
 
-  $DATA{DISABLE} = (defined($DATA{DISABLE})) ? 1 : 0;
+  $DATA{DISABLE} = ($DATA{DISABLE}) ? 1 : 0;
 
   if(defined($DATA{EMAIL}) && $DATA{EMAIL} ne '') {
     if ($DATA{EMAIL} !~ /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/) {

@@ -1,6 +1,6 @@
 package Auth;
 # Auth functions
-#
+# 26.04.2006
 
 use strict;
 use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
@@ -18,18 +18,19 @@ $VERSION = 2.00;
 @EXPORT_OK = ();
 %EXPORT_TAGS = ();
 
-# User name expration
-#my $usernameregexp = "^[a-z0-9_][a-z0-9_-]*\$"; # configurable;
 use main;
 @ISA  = ("main");
 
 use Billing;
-my $Billing;
 
+my $Billing;
 
 my $db;
 my $CONF;
 my $debug =0;
+
+
+
 
 #**********************************************************
 # Init 
@@ -62,8 +63,10 @@ sub dv_auth {
   if ($ret == 1) {
      return 1, $RAD_PAIRS;
   }
+  
+  my $MAX_SESSION_TRAFFIC = $CONF->{MAX_SESSION_TRAFFIC};
+#	my $date = '2006-04-28 10:23:00';
 
-	
   $self->query($db, "select  if (dv.logins=0, tp.logins, dv.logins) AS logins,
   if(dv.filter_id != '', dv.filter_id, tp.filter_id),
   if(dv.ip>0, INET_NTOA(dv.ip), 0),
@@ -258,7 +261,7 @@ else {
 # 3 - Month limit
 my @traf_limits = ();
 my $time_limit  = $self->{TIME_LIMIT}; 
-my $traf_limit  = $attr->{MAX_SESSION_TRAFFIC};
+my $traf_limit  = $MAX_SESSION_TRAFFIC;
 
 push @time_limits, $self->{MAX_SESSION_DURATION} if ($self->{MAX_SESSION_DURATION} > 0);
 
@@ -345,14 +348,14 @@ foreach my $line (@periods) {
 
 ####################################################################
 # Vendor specific return
-# ExPPP
 
+# ExPPP
 if ($NAS->{NAS_TYPE} eq 'exppp') {
   #$traf_tarif 
   my $EX_PARAMS = $self->ex_traffic_params( { 
   	                                        traf_limit => $traf_limit, 
                                             deposit => $self->{DEPOSIT},
-                                            MAX_SESSION_TRAFFIC => $attr->{MAX_SESSION_TRAFFIC} });
+                                            MAX_SESSION_TRAFFIC => $MAX_SESSION_TRAFFIC });
 
   #global Traffic
   if ($EX_PARAMS->{traf_limit} > 0) {
@@ -366,7 +369,8 @@ if ($NAS->{NAS_TYPE} eq 'exppp') {
        
   #Local ip tables
   if (defined($EX_PARAMS->{nets})) {
-    $RAD_PAIRS->{'Exppp-Local-IP-Table'} = "\"$attr->{NETS_FILES_PATH}$self->{TT_INTERVAL}.nets\"";
+    my $DV_EXPPP_NETFILES = (defined($CONF->{DV_EXPPP_NETFILES})) ? $CONF->{DV_EXPPP_NETFILES} : '';
+    $RAD_PAIRS->{'Exppp-Local-IP-Table'} = "\"$DV_EXPPP_NETFILES$self->{TT_INTERVAL}.nets\"";
    }
 
 #Shaper for exppp
@@ -386,13 +390,40 @@ if ($NAS->{NAS_TYPE} eq 'exppp') {
         print "Exppp-LocalTraffic-Out-Limit = $trafic_lo_outlimit,";
 =cut
  }
-###########################################################
+
+# Mikrotik (http://www.mikrotik.com)
+if ($NAS->{NAS_TYPE} eq 'mikrotik') {
+  #$traf_tarif 
+  my $EX_PARAMS = $self->ex_traffic_params( { 
+  	                                        traf_limit => $traf_limit, 
+                                            deposit    => $self->{DEPOSIT},
+                                            MAX_SESSION_TRAFFIC => $MAX_SESSION_TRAFFIC });
+
+  #global Traffic
+  if ($EX_PARAMS->{traf_limit} > 0) {
+                   
+    $RAD_PAIRS->{'Mikrotik-Recv-Limit'} = $EX_PARAMS->{traf_limit} * 1024 * 1024 / 2;
+    $RAD_PAIRS->{'Mikrotik-Xmit-Limit'} = $EX_PARAMS->{traf_limit} * 1024 * 1024 / 2;
+   }
+
+#Shaper
+  if ($self->{USER_SPEED} > 0) {
+    $RAD_PAIRS->{'Rate-Limit'} = "$self->{USER_SPEED}k";
+   }
+  else {
+    if (defined($EX_PARAMS->{speed}->{0})) {
+      $RAD_PAIRS->{'Ascend-Xmit-Rate'} = int($EX_PARAMS->{speed}->{0}->{IN}) * 1024;
+      $RAD_PAIRS->{'Ascend-Data-Rate'} = int($EX_PARAMS->{speed}->{0}->{OUT})* 1024;
+     }
+   }
+ }
+######################
 # MPD
 elsif ($NAS->{NAS_TYPE} eq 'mpd') {
   my $EX_PARAMS = $self->ex_traffic_params({ 
   	                                        traf_limit => $traf_limit, 
                                             deposit => $self->{DEPOSIT},
-                                            MAX_SESSION_TRAFFIC => $attr->{MAX_SESSION_TRAFFIC} });
+                                            MAX_SESSION_TRAFFIC => $MAX_SESSION_TRAFFIC });
 
   #global Traffic
   if ($EX_PARAMS->{traf_limit} > 0) {
@@ -422,15 +453,16 @@ elsif ($NAS->{NAS_TYPE} eq 'mpd') {
 ###########################################################
 # pppd + RADIUS plugin (Linux) http://samba.org/ppp/
 elsif ($NAS->{NAS_TYPE} eq 'pppd') {
-  my $EX_PARAMS = $self->ex_traffic_params( { 
-  	                                        traf_limit => $traf_limit, 
-                                            deposit => $self->{DEPOSIT},
-                                            MAX_SESSION_TRAFFIC => $attr->{MAX_SESSION_TRAFFIC} });
+  my $EX_PARAMS = $self->ex_traffic_params({ 
+  	                                         traf_limit => $traf_limit, 
+                                             deposit    => $self->{DEPOSIT},
+                                             MAX_SESSION_TRAFFIC => $MAX_SESSION_TRAFFIC 
+                                           });
 
   #global Traffic
   if ($EX_PARAMS->{traf_limit} > 0) {
     $RAD_PAIRS->{'Session-Octets-Limit'} = $EX_PARAMS->{traf_limit} * 1024 * 1024;
-    $RAD_PAIRS->{'Octets-Direction'} = 0;
+    $RAD_PAIRS->{'Octets-Direction'} = $self->{OCTETS_DIRECTION};
    }
  }
 
@@ -733,7 +765,6 @@ sub ex_traffic_params {
  my $deposit = (defined($attr->{deposit})) ? $attr->{deposit} : 0;
 
  my %EX_PARAMS = ();
- $EX_PARAMS{speed}=0;
  $EX_PARAMS{traf_limit}=(defined($attr->{traf_limit})) ? $attr->{traf_limit} : 0;
  $EX_PARAMS{traf_limit_lo}=4090;
 
@@ -763,8 +794,8 @@ sub ex_traffic_params {
      $prepaids{$line->[0]}=$line->[3];
      $in_prices{$line->[0]}=$line->[1];
      $out_prices{$line->[0]}=$line->[2];
-     $speeds{$line->[0]}{IN}=$line->[4];
-     $speeds{$line->[0]}{OUT}=$line->[5];
+     $EX_PARAMS{speed}{$line->[0]}{IN}=$line->[4];
+     $EX_PARAMS{speed}{$line->[0]}{OUT}=$line->[5];
      $nets+=$line->[6];
     }
 
@@ -777,14 +808,14 @@ sub ex_traffic_params {
 #  }
 
 
-if ((defined($prepaids{0}) || defined($prepaids{0})) && ($prepaids{0}+$prepaids{1}>0)) {
+if ((defined($prepaids{0}) && $prepaids{0} > 0 ) || (defined($prepaids{1}) && $prepaids{1}>0 )) {
   $self->query($db, "SELECT sum(sent+recv) / 1024 / 1024, sum(sent2+recv2) / 1024 / 1024 FROM dv_log 
      WHERE uid='$self->{UID}' and DATE_FORMAT(start, '%Y-%m')=DATE_FORMAT(curdate(), '%Y-%m')
      GROUP BY DATE_FORMAT(start, '%Y-%m');");
 
   if ($self->{TOTAL} == 0) {
-    $trafic_limits{0}=$prepaids{0};
-    $trafic_limits{1}=$prepaids{1};
+    $trafic_limits{0}=$prepaids{0} || 0;
+    $trafic_limits{1}=$prepaids{1} || 0;
    }
   else {
     my $used = $self->{list}->[0];
@@ -810,7 +841,7 @@ else {
     $trafic_limits{0} = ($deposit / (($in_prices{0} + $out_prices{0}) / 2));
    }
 
-  if ($in_prices{1}+$out_prices{1} > 0) {
+  if (defined($in_prices{1}) && $in_prices{1}+$out_prices{1} > 0) {
     $trafic_limits{1} = ($deposit / (($in_prices{1} + $out_prices{1}) / 2));
    }
   else {
@@ -825,12 +856,12 @@ my $trafic_limit = 0;
 #$trafic_limit = $trafic_limit * 1024 * 1024;
 #2Gb - (2048 * 1024 * 1024 ) - global traffic session limit
 if (defined($trafic_limits{0}) && $trafic_limits{0} > 0  && $trafic_limits{0} < $EX_PARAMS{traf_limit}) {
-  $trafic_limit = ($trafic_limits{0} > $attr->{MAX_SESSION_TRAFFIC}) ? $attr->{MAX_SESSION_TRAFFIC} :  $trafic_limits{0};
+  $trafic_limit = ($trafic_limits{0} > $CONF->{MAX_SESSION_TRAFFIC}) ? $CONF->{MAX_SESSION_TRAFFIC} :  $trafic_limits{0};
   $EX_PARAMS{traf_limit} = ($trafic_limit < 1 && $trafic_limit > 0) ? 1 : int($trafic_limit);
 }
 
 #Local Traffic limit
-if ($trafic_limits{1} > 0) {
+if (defined($trafic_limits{1}) && $trafic_limits{1} > 0) {
   #10Gb - (10240 * 1024 * 1024) - local traffic session limit
   $trafic_limit = ($trafic_limits{1} > 4090) ? 4090 :  $trafic_limits{1};
   $EX_PARAMS{traf_limit_lo} = ($trafic_limit < 1 && $trafic_limit > 0) ? 1 : int($trafic_limit);
@@ -1010,7 +1041,7 @@ if (! $RAD->{MS_CHAP_CHALLENGE}) {
 
   $self->query($db, "SELECT DECODE(password, '$attr->{SECRETKEY}') FROM users WHERE id='$RAD->{USER_NAME}';");
 
-  my $a = `echo "'$attr->{SECRETKEY}') FROM users WHERE id='$RAD->{USER_NAME}' test" > /tmp/aaaaaaa`;
+  my $a = `echo \`date\` "'$attr->{SECRETKEY}') FROM users WHERE id='$RAD->{USER_NAME}' test" >> /tmp/aaaaaaa`;
 
   if ($self->{TOTAL} > 0) {
   	my $list = $self->{list}->[0];
@@ -1059,7 +1090,7 @@ sub check_mschap {
     $$lanmansessionkeydest = Radius::MSCHAP::LmPasswordHash($pw)
 	if defined $lanmansessionkeydest;
 
-#      $RAD_PAIRS{'MS-CHAP-MPPE-Keys'} = '0x' . unpack("H*", (pack('a8 a16', Radius::MSCHAP::LmPasswordHash($pw), 
+#      $RAD_PAIRS{'MS-CHAP-MPPE-Keys'} = '0x' . unpaAIRS{'MS-CHAP-MPPE-Keys'} = '0x' . unpaAIRS{'MS-CHAP-MPPE-Keys'} = '0x' . unpaAIRS{'MS-CHAP-MPPE-Keys'} = '0x' . unpack("H*", (pack('a8 a16', Radius::MSCHAP::LmPasswordHash($pw), 
 #                                                                            Radius::MSCHAP::NtPasswordHash( Radius::MSCHAP::NtPasswordHash(Radius::MSCHAP::ASCIItoUnicode($pw)))))). "0000000000000000";
    }
   else {

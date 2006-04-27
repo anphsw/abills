@@ -1,27 +1,45 @@
 #!/bin/sh
 # Traf stats
-#trafstats [Interface] 
+# trafstats [Interface] 
+#
 
 
 if [ w$2 = w ]; then
- echo "trafstats [nasid] [Interface]";
+ echo "trafstats [nasid] [Interface] debug";
  exit 0;
 fi;
 
 # IF_NAME - interface name
 IF_NAME=$2;
 NAS_ID=$1;
+TRAFFIC2SQL=/usr/abills/libexec/traffic2sql
+
+if [ w$3 = wdebug  ]; then
+  DEBUG="debug=1";
+fi;
+
+if [ w$4 != w ]; then
+  TRAFFIC2SQL=$4;
+fi;
+
 
 #Temporary log path
-# default LOG_PATH='/usr/abills/var/log/ipn/'
+# default 
+# LOG_PATH='/usr/abills/var/log/ipn/'
 LOG_PATH='/usr/abills/var/log/ipn/';
+#LOG_PATH='/home/asmodeus/abills2/var/log/ipn/';
+
 
 /usr/local/bin/trafsave ${IF_NAME}
-sleep 30
+sleep 15
 /usr/local/bin/traflog -n -i ${IF_NAME} > ${LOG_PATH}trafd_${NAS_ID}_${IF_NAME}
 /bin/rm /usr/local/var/trafd/trafd.${IF_NAME}
 
-/usr/abills/libexec/traffic2sql ${NAS_ID} ${IF_NAME}
+#/home/asmodeus/abills2/libexec/traffic2sql ${NAS_ID} ${IF_NAME}
+
+echo "${TRAFFIC2SQL} ${NAS_ID} ${IF_NAME} ${DEBUG}";
+
+${TRAFFIC2SQL} ${NAS_ID} ${IF_NAME} ${DEBUG}
 
 
 

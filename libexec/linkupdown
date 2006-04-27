@@ -2,8 +2,9 @@
 # ppp
 # external script for traffic shapping
 #
-# /etc/ppp/ppp.linkup
 #-------------------------------------------------------------
+# /etc/ppp/ppp.linkup
+#
 # MYADDR:
 # !bg /usr/abills/libexec/linkupdown up INTERFACE USER HISADDR
 #
@@ -12,11 +13,19 @@
 # MYADDR:
 # !bg /usr/abills/libexec/linkupdown down INTERFACE USER HISADDR
 #
-#
 #-------------------------------------------------------------
 # /usr/local/etc/mpd/mpd.conf
+#
 # set iface up-script "/usr/abills/libexec/linkupdown mpd up"
 # set iface down-script "/usr/abills/libexec/linkupdown mpd down"
+#-------------------------------------------------------------
+# For Linux
+#
+# /etc/ppp/ip-up.local 
+# /usr/abills/libexec/linkupdown pppd up $1 'username' $4
+#
+#
+
 
 
 my $debug=0;
@@ -27,7 +36,6 @@ if ( $#ARGV < 3 ) {
  Example:
 
  /etc/ppp/ppp.linkup
-----------------------------------------------------------------
  MYADDR:
  !bg /usr/abills/libexec/linkupdown up INTERFACE USER HISADDR
 
@@ -36,12 +44,12 @@ if ( $#ARGV < 3 ) {
  MYADDR:
  !bg /usr/abills/libexec/linkupdown down INTERFACE USER HISADDR
 
-
 ----------------------------------------------------------------
  /usr/local/etc/mpd/mpd.conf
  set iface up-script "/usr/abills/libexec/linkupdown mpd up"
  set iface down-script "/usr/abills/libexec/linkupdown mpd down"
 ----------------------------------------------------------------
+
 DEBUG: $debug
 };
 exit 0;
@@ -81,21 +89,30 @@ my ($ACTION, $INTERFACE, $USER, $HISADDR, $inum);
 
 #MPD
 if ($ARGV[0] eq 'mpd') {
- $ACTION=$ARGV[1];
- $INTERFACE=$ARGV[2];
- $USER=$ARGV[6];
- $HISADDR=$ARGV[5];
- $inum = $INTERFACE;
- $inum =~ s/ng//;
+  $ACTION=$ARGV[1];
+  $INTERFACE=$ARGV[2];
+  $USER=$ARGV[6];
+  $HISADDR=$ARGV[5];
+  $inum = $INTERFACE;
+  $inum =~ s/ng//;
 }
-# PPP
+#pppd
+elsif($ARGV[0] eq 'pppd') {
+  $ACTION=$ARGV[0];
+  $INTERFACE=$ARGV[1];
+  $USER=$ARGV[2];
+  $HISADDR=$ARGV[3];
+  $inum = $INTERFACE;
+  $inum =~ s/ppp//;
+ }
+# FreeBSD PPP
 else {
- $ACTION=$ARGV[0];
- $INTERFACE=$ARGV[1];
- $USER=$ARGV[2];
- $HISADDR=$ARGV[3];
- $inum = $INTERFACE;
- $inum =~ s/tun//;
+  $ACTION=$ARGV[0];
+  $INTERFACE=$ARGV[1];
+  $USER=$ARGV[2];
+  $HISADDR=$ARGV[3];
+  $inum = $INTERFACE;
+  $inum =~ s/tun//;
 } 
 
 
@@ -148,7 +165,10 @@ if ($ACTION eq 'up') {
     my ($remaining_time, $ret_attr); 
 
 
-    ($user->{TIME_INTERVALS}, $user->{INTERVAL_TIME_TARIF}, $user->{INTERVAL_TRAF_TARIF}) = $Billing->time_intervals($user->{TP_ID});
+    ($user->{TIME_INTERVALS},
+     $user->{INTERVAL_TIME_TARIF}, 
+     $user->{INTERVAL_TRAF_TARIF}) = $Billing->time_intervals($user->{TP_ID});
+
     ($remaining_time, $ret_attr) = $Billing->remaining_time($user->{DEPOSIT}, {
     	  TIME_INTERVALS      => $user->{TIME_INTERVALS},
           INTERVAL_TIME_TARIF => $user->{INTERVAL_TIME_TARIF},
@@ -184,34 +204,6 @@ if ($ACTION eq 'up') {
       }
     }
   
-
-
-#   require Auth;
-#   Auth->import();
-#   my $auth = Auth->new($db);
-#
-#
-#      my($session_start, 
-#      $day_begin, 
-#      $day_of_week, 
-#      $day_of_year);
-#
-#  my($remain_time, $ret_attr) = $auth->remaining_time($user->{TP_ID}, 
-#      $user->{DEPOSIT}, 
-#      0, 
-#      0, 
-#      0, 
-#      0);
-
-
- #print "$remain_time\n";
-
-#    $q = $db->prepare("SELECT id, speed, nets FROM trafic_tarifs WHERE vid='$vid';") || die $db->errstr;
-#    $q -> execute ();
-#    while(my($tt_id, $speed, $nets_list) = $q -> fetchrow()) {
-#       $speeds{$tt_id}=$speed;
-#       $nets{$tt_id}=$nets_list;
-#     }
    }
 
  # speed apply
@@ -219,6 +211,7 @@ if ($ACTION eq 'up') {
   my $fw_num_out   =0;
   my $pipe_num_in  =0;
   my $pipe_num_out =0;
+
   while(my ($traf_type, $speed)=each %speeds) {
     $fw_num_in  = $START_FW[$traf_type] + $inum * 2;
     $fw_num_out = $START_FW[$traf_type] + $inum * 2 + 1;
@@ -228,30 +221,36 @@ if ($ACTION eq 'up') {
     my $speed_in  = (defined($speed->{IN}))  ? $speed->{IN}  : 0;
     my $speed_out = (defined($speed->{OUT})) ? $speed->{OUT} : 0;
 
-    if ($speed_in > 0) {
-       if ($traf_type == 0) {
-         # In
-         push @FW_ACTIONS, "$IPFW add $fw_num_in pipe $pipe_num_in ip from any to any via $INTERFACE in";
-         push @FW_ACTIONS, "$IPFW pipe $pipe_num_in config bw ". $speed_in ."Kbit/s queue 10Kbytes";
-        }
-       else {
-       	 #In
-         push @FW_ACTIONS, "$IPFW add $fw_num_in pipe $pipe_num_in ip from $nets{$traf_type} to any via $INTERFACE in";
-         push @FW_ACTIONS, "$IPFW pipe $pipe_num_in config bw ". $speed_in ."Kbit/s queue 10Kbytes";
-        }
-    }
+    #Linux tc shaper
+    if ($ARGV[0] eq 'pppd') {
+      #/sbin/tc qdisc add dev $1 root tbf rate 15kbps limit 20000 burst 1540 
+     }
+    #FreeBSD ipfw pipe shaper
+    else {
+      if ($speed_in > 0) {
+        if ($traf_type == 0) {
+          # In
+          push @FW_ACTIONS, "$IPFW add $fw_num_in pipe $pipe_num_in ip from any to any via $INTERFACE in";
+          push @FW_ACTIONS, "$IPFW pipe $pipe_num_in config bw ". $speed_in ."Kbit/s queue 10Kbytes";
+         }
+        else {
+       	  #In
+          push @FW_ACTIONS, "$IPFW add $fw_num_in pipe $pipe_num_in ip from $nets{$traf_type} to any via $INTERFACE in";
+          push @FW_ACTIONS, "$IPFW pipe $pipe_num_in config bw ". $speed_in ."Kbit/s queue 10Kbytes";
+         }
+       }
 
-    if ($speed_out > 0) {
-       if ($traf_type == 0) {
-         push @FW_ACTIONS, "$IPFW add $fw_num_out pipe $pipe_num_out ip from any to any via $INTERFACE out";
-         push @FW_ACTIONS, "$IPFW pipe $pipe_num_out config bw ". $speed_out ."Kbit/s queue 10Kbytes";
-        }
-       else {
-         push @FW_ACTIONS, "$IPFW add $fw_num_out pipe $pipe_num_out ip from $nets{$traf_type} to any via $INTERFACE out";
-         push @FW_ACTIONS, "$IPFW pipe $pipe_num_out config bw ". $speed_out ."Kbit/s queue 10Kbytes";
-        }
+      if ($speed_out > 0) {
+        if ($traf_type == 0) {
+          push @FW_ACTIONS, "$IPFW add $fw_num_out pipe $pipe_num_out ip from any to any via $INTERFACE out";
+          push @FW_ACTIONS, "$IPFW pipe $pipe_num_out config bw ". $speed_out ."Kbit/s queue 10Kbytes";
+         }
+        else {
+          push @FW_ACTIONS, "$IPFW add $fw_num_out pipe $pipe_num_out ip from $nets{$traf_type} to any via $INTERFACE out";
+          push @FW_ACTIONS, "$IPFW pipe $pipe_num_out config bw ". $speed_out ."Kbit/s queue 10Kbytes";
+         }
+       }
     }
-    
     
   }
 

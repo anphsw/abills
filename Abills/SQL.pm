@@ -4,7 +4,9 @@ package Abills::SQL;
 #
 
 
-
+#**********************************************************
+# connect
+#**********************************************************
 sub connect {
   my $class = shift;
   my $self = { };
@@ -24,6 +26,7 @@ sub connect {
   my $sql = "main"->connect($dbhost, $dbname, $dbuser, $dbpasswd);
   $self->{db}=$sql->{db};
   $self->{mysql}=$sql;
+
   return $self;
 }
 

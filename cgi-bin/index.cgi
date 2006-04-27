@@ -3,7 +3,7 @@
 #
 #
 
-use vars qw($begin_time %LANG $CHARSET @MODULES $FUNCTIONS_LIST $USER_FUNCTION_LIST $UID $admin);
+use vars qw($begin_time %LANG $CHARSET @MODULES $FUNCTIONS_LIST $USER_FUNCTION_LIST $UID $user $admin);
 
 BEGIN {
  my $libpath = '../';
@@ -35,7 +35,10 @@ use Users;
 
 
 $html = Abills::HTML->new( { IMG_PATH => 'img/',
-	                      NO_PRINT  => 'y' } );
+	                           NO_PRINT => 'y',
+	                           CONF     => \%conf 
+	                          });
+
 my $sql = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd});
 my $db = $sql->{db};
 
@@ -68,9 +71,17 @@ if (defined($FORM{sid})) {
 
 #$html->setCookie('qm', "$FORM{qm_item}", "Fri, 1-Jan-2038 00:00:01", $web_path, $domain, $secure) if (defined($FORM{quick_set}));
 #===========================================================
+my $sessions='admin/sessions.db';
+
+if ($index == 10) {
+  logout();
+
+  print "Location: $SELF_URL". "\n\n";
+  exit;
+}
 
 print $html->header({ CHARSET => $CHARSET });
-my $sessions='admin/sessions.db';
+
 my $maxnumber = 0;
 my $uid = 0;
 my $page_qs;
@@ -97,7 +108,7 @@ my $passwd = $FORM{passwd} || '';
 
 
 
-my $user=Users->new($db, $admin, \%conf); 
+$user=Users->new($db, $admin, \%conf); 
 ($uid, $sid, $login) = auth("$login", "$passwd", "$sid");
 my %uf_menus = ();
 if ($uid > 0) {
@@ -142,6 +153,8 @@ if ($uid > 0) {
       $functions{$maxnumber}=\&$FUNTION_NAME if ($FUNTION_NAME  ne '');
       $module{$maxnumber}=$m;
     }
+
+    %USER_FUNCTION_LIST = ();
   }
 
   (undef, $OUTPUT{MENU}) = $html->menu(\%menu_items, \%menu_args, undef, 
@@ -434,7 +447,7 @@ sub form_passwd {
 if ($FORM{newpassword} eq '') {
 
 }
-elsif (length($FORM{newpassword}) < $conf{passwd_length}) {
+elsif (length($FORM{newpassword}) < $conf{PASSWD_LENGTH}) {
   $html->message('err', $_ERROR, $err_strs{6});
 }
 elsif ($FORM{newpassword} eq $FORM{confirm}) {
@@ -456,8 +469,11 @@ elsif($FORM{newpassword} ne $FORM{confirm}) {
   $html->message('err', $_ERROR, $err_strs{5});
 }
 
+ my $password_form;
+ $password_form->{ACTION}='change';
+ $password_form->{LNG_ACTION}="$_CHANGE";
 
- $html->tpl_show(templates('form_password'), undef);
+ $html->tpl_show(templates('form_password'), $password_form);
 
  return 0;
 }
@@ -465,7 +481,7 @@ elsif($FORM{newpassword} ne $FORM{confirm}) {
 sub logout {
 	$FORM{op}='logout';
 	auth('', '', $sid);
-	$html->message('info', $_INFO, $_LOGOUT);
+	#$html->message('info', $_INFO, $_LOGOUT);
 	
 	
 	

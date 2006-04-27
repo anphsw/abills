@@ -29,10 +29,18 @@ my $uid;
 sub new {
   my $class = shift;
   ($db, $admin, $CONF) = @_;
-  $WHERE = "WHERE " . join(' and ', @WHERE_RULES) if($#WHERE_RULES > -1);$CONF->{max_username_length} = 10;
+  $WHERE = "WHERE " . join(' and ', @WHERE_RULES) if($#WHERE_RULES > -1);
+  
+  $CONF->{MAX_USERNAME_LENGTH} = 10 if (! defined($CONF->{MAX_USERNAME_LENGTH}));
+  
+  if (defined($CONF->{USERNAMEREGEXP})) {
+  	$usernameregexp=$CONF->{USERNAMEREGEXP};
+   }
 
   my $self = { };
+
   bless($self, $class);
+  
   return $self;
 }
 
@@ -49,7 +57,7 @@ sub info {
   my ($uid, $attr) = @_;
 
   my $WHERE;
-  
+    
   if (defined($attr->{LOGIN}) && defined($attr->{PASSWORD})) {
     $WHERE = "WHERE u.id='$attr->{LOGIN}' and DECODE(u.password, '$CONF->{secretkey}')='$attr->{PASSWORD}'";
     #$PASSWORD = "if(DECODE(password, '$SECRETKEY')='$attr->{PASSWORD}', 0, 1)";
@@ -133,7 +141,7 @@ sub pi_add {
            VALUES ('$DATA{UID}', '$DATA{FIO}', '$DATA{PHONE}', \"$DATA{ADDRESS_STREET}\", 
             \"$DATA{ADDRESS_BUILD}\", \"$DATA{ADDRESS_FLAT}\",
             '$DATA{EMAIL}', '$DATA{CONTRACT_ID}',
-            '$self->{COMMENTS}' );", 'do');
+            '$DATA{COMMENTS}' );", 'do');
   
   return $self if ($self->{errno});
   
@@ -149,7 +157,11 @@ sub pi_add {
 #**********************************************************
 sub pi {
 	my $self = shift;
-
+  my ($attr) = @_;
+  
+  my $UID = ($attr->{UID}) ? $attr->{UID} : $self->{UID};
+  
+  
   $self->query($db, "SELECT pi.fio, 
   pi.phone, 
   pi.address_street, 
@@ -159,7 +171,7 @@ sub pi {
   pi.contract_id,
   pi.comments
     FROM users_pi pi
-    WHERE pi.uid='$self->{UID}';");
+    WHERE pi.uid='$UID';");
 
   if ($self->{TOTAL} < 1) {
      $self->{errno} = 2;
@@ -192,9 +204,9 @@ sub pi_change {
   my ($attr) = @_;
 
 
-my %FIELDS = (EMAIL => 'email',
-              FIO => 'fio',
-              PHONE => 'phone',
+my %FIELDS = (EMAIL          => 'email',
+              FIO            => 'fio',
+              PHONE          => 'phone',
               ADDRESS_BUILD  => 'address_build',
               ADDRESS_STREET => 'address_street',
               ADDRESS_FLAT   => 'address_flat',
@@ -206,7 +218,7 @@ my %FIELDS = (EMAIL => 'email',
 	$self->changes($admin, { CHANGE_PARAM => 'UID',
 		                TABLE        => 'users_pi',
 		                FIELDS       => \%FIELDS,
-		                OLD_INFO     => $self->pi($attr->{UID}),
+		              OLD_INFO     => $self->pi({ UID => $attr->{UID} }),
 		                DATA         => $attr
 		              } );
 
@@ -224,12 +236,13 @@ sub defaults {
   %DATA = ( LOGIN => '', 
    ACTIVATE       => '0000-00-00', 
    EXPIRE         => '0000-00-00', 
-   CREDIT => 0, 
-   REDUCTION => '0.00', 
+   CREDIT         => 0, 
+   REDUCTION      => '0.00', 
    SIMULTANEONSLY => 0, 
-   DISABLE => 0, 
-   COMPANY_ID => 0,
-   GID => 0 );
+   DISABLE        => 0, 
+   COMPANY_ID     => 0,
+   GID            => 0,
+   DISABLE        => 0 );
  
   $self = \%DATA;
   return $self;
@@ -403,7 +416,6 @@ sub list {
     push @WHERE_RULES, "u.id LIKE '$attr->{FIRST_LETTER}%'";
   }
  elsif ($attr->{LOGIN}) {
-    $attr->{LOGIN_EXPR} =~ s/\*/\%/ig;
     push @WHERE_RULES, "u.id='$attr->{LOGIN}'";
   }
  # Login expresion
@@ -525,18 +537,19 @@ sub add {
   
   defaults();  
   %DATA = $self->get_data($attr, { default => $self }); 
-  
+
 
   if ($DATA{LOGIN} eq '') {
      $self->{errno} = 8;
      $self->{errstr} = 'ERROR_ENTER_NAME';
      return $self;
    }
-  elsif (length($DATA{LOGIN}) > $CONF->{username_length}) {
+  elsif (length($DATA{LOGIN}) > $CONF->{MAX_USERNAME_LENGTH}) {
      $self->{errno} = 9;
-     $self->{errstr} = 'ERROR_SHORT_PASSWORD';
+     $self->{errstr} = 'ERROR_LONG_USERNAME';
      return $self;
    }
+  #ERROR_SHORT_PASSWORD
   elsif($DATA{LOGIN} !~ /$usernameregexp/) {
      $self->{errno} = 10;
      $self->{errstr} = 'ERROR_WRONG_NAME';
@@ -549,7 +562,8 @@ sub add {
       return $self;
      }
    }
-    
+  
+  $DATA{DISABLE} = int($DATA{DISABLE});
   $self->query($db,  "INSERT INTO users (id, activate, expire, credit, reduction, 
            registration, disable, company_id, gid)
            VALUES ('$DATA{LOGIN}', '$DATA{ACTIVATE}', '$DATA{EXPIRE}', '$DATA{CREDIT}', '$DATA{REDUCTION}', 
@@ -568,6 +582,7 @@ sub add {
   if ($attr->{CREATE_BILL}) {
   	#print "create bill";
   	$self->change($self->{UID}, { 
+  		 DISABLE => int($DATA{DISABLE}),
   		 UID     => $self->{UID},
   		 create  => 'yes' });
   }
@@ -585,10 +600,6 @@ sub change {
   my $self = shift;
   my ($uid, $attr) = @_;
   
-  my %DATA = $self->get_data($attr); 
-  $DATA{DISABLE} = (defined($attr->{DISABLE})) ? 1 : 0;
-  #my $secretkey = (defined($attr->{secretkey}))? $attr->{secretkey} : '';  
-
   my %FIELDS = (UID         => 'uid',
               LOGIN       => 'id',
               ACTIVATE    => 'activate',
@@ -604,9 +615,11 @@ sub change {
               BILL_ID     => 'bill_id'
              );
  
+  my $old_info = $self->info($attr->{UID});
+  
   if($attr->{create}){
   	 use Bills;
-  	 my $Bill = Bills->new($db, $admin);
+  	 my $Bill = Bills->new($db, $admin, $CONF);
   	 $Bill->create({ UID => $self->{UID} });
      if($Bill->{errno}) {
        $self->{errno}  = $Bill->{errno};
@@ -615,12 +628,14 @@ sub change {
       }
      #$DATA{BILL_ID}=$Bill->{BILL_ID};
      $attr->{BILL_ID}=$Bill->{BILL_ID};
+     $attr->{DISABLE}=$old_info->{DISABLE};
    }
-   
+  
+  
 	$self->changes($admin, { CHANGE_PARAM => 'UID',
 		                TABLE        => 'users',
 		                FIELDS       => \%FIELDS,
-		                OLD_INFO     => $self->info($attr->{UID}),
+		                OLD_INFO     => $old_info,
 		                DATA         => $attr
 		              } );
 
