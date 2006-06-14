@@ -1,6 +1,7 @@
 var marked_row = new Array;
 var confirmMsg  = 'Do you really want delete';
 
+
 /**
  * Sets/unsets the pointer and marker in browse mode
  *

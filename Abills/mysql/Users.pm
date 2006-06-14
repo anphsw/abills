@@ -242,7 +242,8 @@ sub defaults {
    DISABLE        => 0, 
    COMPANY_ID     => 0,
    GID            => 0,
-   DISABLE        => 0 );
+   DISABLE        => 0,
+   PASSWORD       => '');
  
   $self = \%DATA;
   return $self;
@@ -372,20 +373,7 @@ sub list {
  my $search_fields = '';
 
  
-# if ($attr->{USERS_WARNINGS}) {
-#   $self->query($db, " SELECT u.id, pi.email, dv.tp_id, u.credit, b.deposit, tp.name, tp.uplimit
-#         FROM users u, dv_main dv, bills b
-#         LEFT JOIN tarif_plans tp ON dv.tp_id = tp.id
-#         LEFT JOIN users_pi pi ON u.uid = dv.id
-#         WHERE u.bill_id=b.id
-#           and b.deposit<tp.uplimit AND tp.uplimit > 0 AND b.deposit+u.credit>0
-#         ORDER BY u.id;");
-#
-#   my $list = $self->{list};
-#   return $list;
-#  }
-# els
- 
+
  if($attr->{DISABLE}) {
    $self->query($db, "SELECT u.id, pi.fio, if(company.id IS NULL, b.deposit, b.deposit), 
       u.credit, tp.name, u.disable, 
@@ -485,6 +473,57 @@ sub list {
  
  $WHERE = ($#WHERE_RULES > -1) ?  "WHERE " . join(' and ', @WHERE_RULES) : '';
  
+#Show last paymenst
+
+ if ($attr->{PAYMENTS}) {
+
+    my $value = $self->search_expr($attr->{PAYMENTS}, 'INT');
+    push @WHERE_RULES, "max(p.date)$value";
+    $self->{SEARCH_FIELDS} = 'max(p.date), ';
+    $self->{SEARCH_FIELDS_COUNT}++;
+
+   my $HAVING = ($#WHERE_RULES > -1) ?  "HAVING " . join(' and ', @WHERE_RULES) : '';
+
+   $self->query($db, "SELECT u.id, 
+       pi.fio, if(company.id IS NULL, b.deposit, b.deposit), u.credit, u.disable, 
+       $self->{SEARCH_FIELDS}
+       u.uid, 
+       u.company_id, 
+       pi.email, 
+       u.activate, 
+       u.expire
+     FROM users u
+     LEFT JOIN payments p ON (u.uid = p.uid)
+     LEFT JOIN users_pi pi ON (u.uid = pi.uid)
+     LEFT JOIN bills b ON u.bill_id = b.id
+     LEFT JOIN companies company ON  (u.company_id=company.id) 
+     GROUP BY u.uid     
+     $HAVING 
+
+     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;");
+
+   return $self if($self->{errno});
+
+
+
+   my $list = $self->{list};
+
+   if ($self->{TOTAL} > 0) {
+     shift @WHERE_RULES;
+     my $value = $self->search_expr($attr->{PAYMENTS}, 'INT');
+     push @WHERE_RULES, "p.date$value";
+     $WHERE = ($#WHERE_RULES > -1) ?  "WHERE " . join(' and ', @WHERE_RULES) : '';
+    
+     $self->query($db, "SELECT count(DISTINCT u.uid) FROM users u 
+       LEFT JOIN payments p ON (u.uid = p.uid)
+      $WHERE;");
+      my $a_ref = $self->{list}->[0];
+      ($self->{TOTAL}) = @$a_ref;
+    }
+
+ 	  return $list
+  }
+ 
  $self->query($db, "SELECT u.id, 
       pi.fio, if(company.id IS NULL, b.deposit, b.deposit), u.credit, u.disable, 
       $self->{SEARCH_FIELDS}
@@ -493,6 +532,7 @@ sub list {
      LEFT JOIN users_pi pi ON (u.uid = pi.uid)
      LEFT JOIN bills b ON u.bill_id = b.id
      LEFT JOIN companies company ON  (u.company_id=company.id) 
+     
      $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;");
 
  return $self if($self->{errno});
@@ -535,6 +575,7 @@ sub add {
   my $self = shift;
   my ($attr) = @_;
   
+
   defaults();  
   %DATA = $self->get_data($attr, { default => $self }); 
 
@@ -549,6 +590,7 @@ sub add {
      $self->{errstr} = 'ERROR_LONG_USERNAME';
      return $self;
    }
+
   #ERROR_SHORT_PASSWORD
   elsif($DATA{LOGIN} !~ /$usernameregexp/) {
      $self->{errno} = 10;
@@ -565,10 +607,12 @@ sub add {
   
   $DATA{DISABLE} = int($DATA{DISABLE});
   $self->query($db,  "INSERT INTO users (id, activate, expire, credit, reduction, 
-           registration, disable, company_id, gid)
+           registration, disable, company_id, gid, password)
            VALUES ('$DATA{LOGIN}', '$DATA{ACTIVATE}', '$DATA{EXPIRE}', '$DATA{CREDIT}', '$DATA{REDUCTION}', 
            now(),  '$DATA{DISABLE}', 
-           '$DATA{COMPANY_ID}', '$DATA{GID}');", 'do');
+           '$DATA{COMPANY_ID}', '$DATA{GID}', 
+           ENCODE('$DATA{PASSWORD}', '$CONF->{secretkey}')
+            );", 'do');
   
   return $self if ($self->{errno});
   

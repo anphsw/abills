@@ -51,6 +51,9 @@ sub mbox_add {
 	my ($attr) = @_;
   %DATA = $self->get_data($attr); 
 	
+  $DATA{ANTIVIRUS} = (defined($attr->{ANTIVIRUS})) ? 0 : 1;
+  $DATA{ANTISPAM} = (defined($attr->{ANTISPAM})) ? 0 : 1;
+
 	
 	$self->query($db, "INSERT INTO mail_boxes 
     (username,  domain_id, descr, maildir, create_date, change_date, mails_limit, box_size, status, 
@@ -102,8 +105,8 @@ sub mbox_change {
 	              EXPIRE       => 'expire'
 	              );
 	
-  $attr->{ANTIVIRUS} = (defined($attr->{ANTIVIRUS})) ? 1 : 0;
-  $attr->{ANTISPAM} = (defined($attr->{ANTISPAM})) ? 1 : 0;
+  $attr->{ANTIVIRUS} = (defined($attr->{ANTIVIRUS})) ? 0 : 1;
+  $attr->{ANTISPAM} = (defined($attr->{ANTISPAM})) ? 0 : 1;
 	
  	$self->changes($admin, 
  	              { CHANGE_PARAM => 'MBOX_ID',

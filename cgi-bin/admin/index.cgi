@@ -75,9 +75,14 @@ use Abills::Base;
 #    Options Indexes ExecCGI FollowSymLinks
 #
 #**********************************************************
-#print "Content-type: text/html\n\n";
-if (defined($ENV{HTTP_CGI_AUTHORIZATION})) {
 
+#print "Content-Type: texthtml\n\n";    
+#while(my($k, $v)=each %ENV) {
+#	print "$k, $v\n";
+#}
+#exit;
+
+if (defined($ENV{HTTP_CGI_AUTHORIZATION})) {
   $ENV{HTTP_CGI_AUTHORIZATION} =~ s/basic\s+//i;
   my ($REMOTE_USER,$REMOTE_PASSWD) = split(/:/, decode_base64($ENV{HTTP_CGI_AUTHORIZATION}));  
 
@@ -101,7 +106,7 @@ if ($admin->{errno}) {
   my $message = 'Access Deny';
 
   if ($admin->{errno} == 2) {
-  	$message = "Account Disabled";
+  	$message = "Account Disabled $admin->{errstr}";
    }
   elsif (! defined($REMOTE_USER)) {
     $message = "Wrong password";
@@ -1264,7 +1269,7 @@ sub form_intervals {
 
   my %visual_view = ();
   my $tarif_plan;
-  
+  my $max_traffic_class_id = 0; #Max taffic class id
 
 if(defined($attr->{TP})) {
   $tarif_plan = $attr->{TP};
@@ -1353,12 +1358,13 @@ if(defined($attr->{TP})) {
 
        my $table2 = $html->table( { width => '100%',
                                    title_plain => ["#", "$_TRAFFIC_TARIFF In ", "$_TRAFFIC_TARIFF Out ", "$_PREPAID", "$_SPEED IN",  "$_SPEED OUT", "DESCRIBE", "NETS", "-", "-"],
-                                   cols_align => ['center', 'right', 'right', 'right', 'right', 'right', 'left', 'right', 'center', 'center', 'center'],
-                                   caption => "$_BYTE_TARIF"
+                                   cols_align  => ['center', 'right', 'right', 'right', 'right', 'right', 'left', 'right', 'center', 'center', 'center'],
+                                   caption     => "$_BYTE_TARIF"
                                   } );
 
        my $list_tt = $tarif_plan->tt_list({ TI_ID => $line->[0] });
        foreach my $line (@$list_tt) {
+          $max_traffic_class_id=$line->[0] if ($line->[0] > $max_traffic_class_id);
           $table2->addrow($line->[0], 
            $line->[1], 
            $line->[2], 
@@ -1460,6 +1466,12 @@ if (defined($FORM{tt})) {
   my %TT_IDS = (0 => "Global",
                 1 => "Extended 1",
                 2 => "Extended 2" );
+
+  if ($max_traffic_class_id >= 2) {
+  	for (my $i=3; $i<$max_traffic_class_id+2; $i++) { 
+  	  $TT_IDS{$i}="Extended $i";
+  	 }
+  }
 
   $tarif_plan->{SEL_TT_ID} = $html->form_select('TT_ID', 
                                 { SELECTED    => $tarif_plan->{TT_ID},
@@ -2007,8 +2019,9 @@ if ($nas->{errno}) {
  	                               });
 
   $nas->{SEL_AUTH_TYPE} .= $html->form_select('NAS_AUTH_TYPE', 
-                                { SELECTED    => $nas->{NAS_AUTH_TYPE},
- 	                                SEL_ARRAY   => \@auth_types
+                                { SELECTED     => $nas->{NAS_AUTH_TYPE},
+ 	                                SEL_ARRAY    => \@auth_types,
+                                  ARRAY_NUM_ID => 'y' 	                                
  	                               });
 
 $nas->{NAS_DISABLE} = ($nas->{NAS_DISABLE} > 0) ? ' checked' : '';
@@ -2260,14 +2273,18 @@ else {
 }
 
 
-if ($FORM{GID}) {
-	$LIST_PARAMS{GID}=$FORM{GID};
-  $pages_qs.="&GID=$FORM{GID}";
+if ($LIST_PARAMS{UID}) {
+	 $pages_qs.="&UID=$LIST_PARAMS{UID}";
+ }
+else {
+  if ($FORM{GID}) {
+	  $LIST_PARAMS{GID}=$FORM{GID};
+    $pages_qs="&GID=$FORM{GID}";
+   }
+
+  $user->{GROUPS_SEL} = sel_groups();
+  $html->tpl_show(templates('groups_sel'), $user);
 }
-
-$user->{GROUPS_SEL} = sel_groups();
-$html->tpl_show(templates('groups_sel'), $user);
-
 
 
 
@@ -2280,13 +2297,19 @@ if (defined($FORM{DATE})) {
 
   if (defined($attr->{EX_PARAMS})) {
    	my $EP = $attr->{EX_PARAMS};
+
 	  while(my($k, $v)=each(%$EP)) {
-     	if ($FORM{EX_PARAMS} == $k) {
+     	if ($FORM{EX_PARAMS} eq $k) {
         $EX_PARAMS .= " <b>$v</b> ";
-        $LIST_PARAMS{EX_PARAMS}=$k;
+        $LIST_PARAMS{$k}=1;
+        $pages_qs .="&EX_PARAMS=$k";
+
+     	  if ($k eq 'HOURS') {
+    	  	 undef $attr->{SHOW_HOURS};
+	       } 
      	 }
      	else {
-     	  $EX_PARAMS .= $html->button($v, "index=$index$pages_qs&EX_PARAMS=$k");
+     	  $EX_PARAMS .= '::'. $html->button($v, "index=$index$pages_qs&EX_PARAMS=$k");
      	 }
 	  }
   
@@ -2296,7 +2319,9 @@ if (defined($FORM{DATE})) {
 
   my $days = '';
   for ($i=1; $i<=31; $i++) {
-     $days .= ($d == $i) ? " <b>$i </b>" : ' '.$html->button($i, sprintf("index=$index&DATE=%d-%02.f-%02.f&EX_PARAMS=$FORM{EX_PARAMS}%s", $y, $m, $i, (defined($FORM{GID})) ? "&GID=$FORM{GID}" : ''     ));
+     $days .= ($d == $i) ? " <b>$i </b>" : ' '.$html->button($i, sprintf("index=$index&DATE=%d-%02.f-%02.f&EX_PARAMS=$FORM{EX_PARAMS}%s%s", $y, $m, $i, 
+       (defined($FORM{GID})) ? "&GID=$FORM{GID}" : '', 
+       (defined($FORM{UID})) ? "&UID=$FORM{UID}" : '' ));
    }
   
   
@@ -3135,6 +3160,7 @@ my $SEL_METHOD =  $html->form_select('METHOD',
  	                               });
 
 
+my $group_sel = sel_groups();
 my %search_form = ( 
 2 => "
 <!-- PAYMENTS -->
@@ -3154,13 +3180,12 @@ my %search_form = (
 11 => "
 <!-- USERS -->
 <tr><td colspan=2><hr></td></tr>
-<!-- <tr><td>IP (>, <, *):</td><td><input type=text name=IP value='%IP%' title='Examples:\n 192.168.101.1\n >192.168.0\n 192.168.*.*'></td></tr>
-<tr><td>$_SPEED (>, <):</td><td><input type=text name=SPEED value='%SPEED%'></td></tr>
-<tr><td>CID</td><td><input type=text name=CID value='%CID%'></td></tr>
--->
 <tr><td>$_FIO (*):</td><td><input type=text name=FIO value='%FIO%'></td></tr>
 <tr><td>$_PHONE (>, <, *):</td><td><input type=text name=PHONE value='%PHONE%'></td></tr>
-<tr><td>$_COMMENTS (*):</td><td><input type=text name=COMMENTS value='%COMMENTS%'></td></tr>\n",
+<tr><td>$_COMMENTS (*):</td><td><input type=text name=COMMENTS value='%COMMENTS%'></td></tr>
+<tr><td>$_GROUP:</td><td>$group_sel</td></tr>
+<tr><td>$_PAYMENTS $_DATE (>, <):</td><td><input type=text name='PAYMENTS' value='%PAYMENTS%'></td></tr>
+\n",
 
 );
 
@@ -3598,8 +3623,7 @@ sub clearquotes {
 # sel_groups();
 #*******************************************************************
 sub sel_groups {
-
-$GROUPS_SEL = $html->form_select('GID', 
+  $GROUPS_SEL = $html->form_select('GID', 
                                 { 
  	                                SELECTED  => $FORM{GID},
  	                                SEL_MULTI_ARRAY   => $users->groups_list(),
@@ -3607,7 +3631,6 @@ $GROUPS_SEL = $html->form_select('GID',
  	                                MULTI_ARRAY_VALUE => 1,
  	                                SEL_OPTIONS       => { 0 => '-N/S-'}
  	                               });
-
 
  return $GROUPS_SEL;	
 }

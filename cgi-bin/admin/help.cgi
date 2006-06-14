@@ -40,6 +40,7 @@ require "Abills/templates.pl";
 use Abills::SQL;
 use Abills::HTML;
 use Help;
+use Abills::Base;
 
 my $html = Abills::HTML->new();
 my $sql = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd});
@@ -47,7 +48,7 @@ my $db = $sql->{db};
 require "../../language/$html->{language}.pl";
 print $html->header({ 
 	 PATH    => '../',
-	 CHARSET => $CHARSET });
+	 CHARSET => $CHARSET }). '<center>';
 
 help();
 
@@ -77,6 +78,8 @@ if (defined($FORM{FUNCTION})){
 
 
   if($Help->{TOTAL}>0) {
+    $Help->{HELP2}=$Help->{HELP};
+    $Help->{HELP}=convert($Help->{HELP}, { text2html => 1 });
     $html->tpl_show(templates('help_info'), $Help);
   	$Help->{ACTION}='change';
   	$Help->{LNG_ACTION}=$_CHANGE;
@@ -90,9 +93,10 @@ if (defined($FORM{FUNCTION})){
 }
 
 
-
-$html->tpl_show(templates('help_form'), $Help);
-
+if ($conf{HELP_EDIT}) {
+  $Help->{HELP}=$Help->{HELP2};
+  $html->tpl_show(templates('help_form'), $Help);
+}
 
 
 }

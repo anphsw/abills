@@ -2,6 +2,8 @@ package Dv_Sessions;
 # Stats functions
 #
 
+
+
 use strict;
 use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
 );
@@ -31,7 +33,6 @@ sub new {
   ($db, $admin, $conf) = @_;
   my $self = { };
   bless($self, $class);
-#  $self->{debug}=1;
   return $self;
 }
 
@@ -109,7 +110,16 @@ sub online {
  if (defined($attr->{USER_NAME})) {
  	 $WHERE = "user_name='$attr->{USER_NAME}'";
   }
- 
+
+
+ if (defined($attr->{FRAMED_IP_ADDRESS})) {
+ 	 $WHERE = "framed_ip_address=INET_ATON('$attr->{FRAMED_IP_ADDRESS}')";
+  }
+
+ if (defined($attr->{NAS_ID})) {
+ 	 $WHERE = "nas_id='$attr->{NAS_ID}'";
+  }
+
 
  $self->query($db, "SELECT c.user_name,
                           pi.fio,
@@ -131,7 +141,8 @@ sub online {
   c.CONNECT_INFO,
   if(date_format(c.started, '%Y-%m-%d')=curdate(), date_format(c.started, '%H:%i:%s'), c.started),
   c.nas_id,
-  UNIX_TIMESTAMP()-c.lupdated
+  UNIX_TIMESTAMP()-c.lupdated,
+  c.sum
  FROM dv_calls c
  LEFT JOIN users u     ON u.id=user_name
  LEFT JOIN dv_main dv  ON dv.uid=u.uid
@@ -145,7 +156,7 @@ sub online {
  ORDER BY $SORT $DESC;");
  
  if ($self->{TOTAL} < 1) {
- 	 return $self;
+ 	 return $self->{list};
   }
 
 
@@ -159,7 +170,7 @@ sub online {
  	  $dub_logins{$line->[0]}++;
  	  $dub_ports{$line->[22]}{$line->[2]}++;
     push( @{ $nas_sorted{"$line->[22]"} }, [ $line->[0], $line->[1], $line->[2], $line->[9], $line->[4], $line->[5], $line->[6], $line->[7], $line->[8], $line->[10], $line->[11], 
-      $line->[13], $line->[14], $line->[15], $line->[16], $line->[17], $line->[18], $line->[19], $line->[20], $line->[21], $line->[23]]);
+      $line->[13], $line->[14], $line->[15], $line->[16], $line->[17], $line->[18], $line->[19], $line->[20], $line->[21], $line->[23], $line->[24]]);
 
   }
  
@@ -386,17 +397,6 @@ sub session_detail {
    $self->{ACCT_TERMINATE_CAUSE}
     )= @$ar;
 
-#   $self->{UID} = $attr->{UID};
-#   $self->{SESSION_ID} = $attr->{SESSION_ID};
-
-#Ext traffic detail
-# $self->query($db, "SELECT 
-#  acct_session_id
-#  traffic_id,
-#  in,
-#  out
-# FROM traffic_details
-# WHERE acct_session_id='$attr->{SESSION_ID}';");
 
  return $self;
 }
@@ -633,7 +633,6 @@ elsif($attr->{DATE}) {
 
 
 
-# $self->{debug}=1;
 
  $self->query($db, "SELECT u.id, l.start, SEC_TO_TIME(l.duration), l.tp_id,
   l.sent, l.recv, l.CID, l.nas_id, l.ip, l.sum, INET_NTOA(l.ip), 
@@ -747,7 +746,17 @@ sub reports {
  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
 
  if(defined($attr->{DATE})) {
-   $self->query($db, "select date_format(l.start, '%Y-%m-%d'), if(u.id is NULL, CONCAT('> ', l.uid, ' <'), u.id), count(l.uid), 
+   if (defined($attr->{HOURS})) {
+   	$self->query($db, "select date_format(l.start, '%Y-%m-%d %H'), count(DISTINCT l.uid), count(l.uid), 
+    sum(l.sent + l.recv), sum(l.sent2 + l.recv2), sec_to_time(sum(l.duration)), sum(l.sum), l.uid
+      FROM dv_log l
+      LEFT JOIN users u ON (u.uid=l.uid)
+      $WHERE 
+      GROUP BY 1 
+      ORDER BY $SORT $DESC");
+    }
+   else {
+   	$self->query($db, "select date_format(l.start, '%Y-%m-%d'), if(u.id is NULL, CONCAT('> ', l.uid, ' <'), u.id), count(l.uid), 
     sum(l.sent + l.recv), sum(l.sent2 + l.recv2), sec_to_time(sum(l.duration)), sum(l.sum), l.uid
       FROM dv_log l
       LEFT JOIN users u ON (u.uid=l.uid)
@@ -755,7 +764,7 @@ sub reports {
       GROUP BY l.uid 
       ORDER BY $SORT $DESC");
    #$WHERE = "WHERE date_format(l.start, '%Y-%m-%d')='$attr->{DATE}'"; 
-   
+    }
   }
  else {
   $self->query($db, "select $date, count(DISTINCT l.uid), 

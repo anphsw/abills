@@ -1,4 +1,5 @@
 <form action='$SELF_URL' METHOD='POST'>
+
 <input type='hidden' name='index' value='$index'>
 <input type='hidden' name='UID' value='$FORM{UID}'>
 <table>

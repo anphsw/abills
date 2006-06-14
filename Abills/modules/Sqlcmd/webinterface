@@ -4,7 +4,7 @@
 
 require "Sqlcmd.pm";
 Sqlcmd->import();
-my $Sqlcmd = Sqlcmd->new($db, $admin, $conf);
+my $Sqlcmd = Sqlcmd->new($db, $admin, \%conf);
 
 
 
@@ -18,7 +18,7 @@ sub sqlcmd {
 
  my $list = $Sqlcmd->list( { %FORM } ) if (defined($FORM{QUERY}) && length($FORM{QUERY}) > 10);
 
-if ($Mail->{errno}) {
+if ($Sqlcmd->{errno}) {
   $html->message('err', $_ERROR, "[$Sqlcmd->{errno}] $err_strs{$Sqlcmd->{errno}}");	
   return 0;
  }
@@ -35,12 +35,10 @@ if ($Mail->{errno}) {
 #cols_align => ['left', 'left', 'left', 'right', 'right', 'right', 'center', 'center', 'center', 'center', 'center', 'center'],
 
   my @CAPTION = ();
-  
-  print "$Sqlcm->{Q}->{NAME}";
+    
+  print "NAME: $Sqlcm->{Q}->{NAME}<br>";
 
-  foreach $line (@CAPTION) {
-  	 print "$line<br>";
-  }
+  
 
   my $table = $html->table( { width => '100%',
                                    border => 1,
@@ -71,6 +69,59 @@ if ($Mail->{errno}) {
   return 0;
 }
 
+#**********************************************************
+#
+#**********************************************************
+sub sql_info {
+	
+	#SHOW TABLE STATUS FROM abills;
+  #$table{size} = Index_length + Data_length
+  
+  my $list = $Sqlcmd->info('showtables');
 
+  if ($Sqlcmd->{errno}) {
+    $html->message('err', $_ERROR, "[$Sqlcmd->{errno}] $err_strs{$Sqlcmd->{errno}}");	
+    return 0;
+   }
+
+  my @CAPTIONS = ('Name', 
+                  'Type',
+                  'Row_format',
+                  'Comment',
+                  'Rows',
+                  "$_SIZE");
+  
+  #@{ $Sqlcmd->{FIELD_NAMES} };
+
+  my $table = $html->table( { width  => '100%',
+                              border => 1,
+                              title  => \@CAPTIONS,
+                              cols_align => ['left', 'left', 'left', 'left', 'right', 'right']
+                                  } );
+
+  foreach my $line (@$list) {
+    #my @table_row = ();
+    #foreach $l (@$line) {
+    #	push @table_row, $l;
+    # }
+
+    $table->addrow($line->{'Name'}, 
+                   $line->{'Type'},
+                   $line->{'Row_format'},
+                   "$line->{'Comment'}",
+                   "$line->{'Rows'}",
+                   int2byte($line->{'Index_length'} + $line->{'Data_length'})
+                   );
+   }
+  print $table->show();
+
+  $table = $html->table( { width => '100%',
+                                cols_align => ['right', 'right'],
+                                rows => [ [ "$_TOTAL:", "<b>$Sqlcmd->{TOTAL}</b>" ] ]
+                               } );
+  print $table->show();
+
+
+}
 
 1

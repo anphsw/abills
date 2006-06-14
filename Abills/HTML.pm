@@ -145,17 +145,25 @@ sub new {
 
 
 
+
+
 #*******************************************************************
 # Parse inputs from query
 # form_parse()
+# return HASH
+#
+# For upload file: Content-Type
+#                  Contents
+#                  filename
+#                  Size
 #*******************************************************************
 sub form_parse {
   my $self = shift;
-  my $buffer = '';
-  my $value='';
   my %FORM = ();
-  
+  my($boundary, @pairs);
+  my($buffer, $name);
   return %FORM if (! defined($ENV{'REQUEST_METHOD'}));
+
 
 if ($ENV{'REQUEST_METHOD'} eq "GET") {
    $buffer= $ENV{'QUERY_STRING'};
@@ -164,36 +172,137 @@ elsif ($ENV{'REQUEST_METHOD'} eq "POST") {
    read(STDIN, $buffer, $ENV{'CONTENT_LENGTH'});
  }
 
-my @pairs = split(/&/, $buffer);
-$FORM{__BUFFER}=$buffer;
+if (! defined($ENV{CONTENT_TYPE}) || $ENV{CONTENT_TYPE} !~ /boundary/ ) {
 
-foreach my $pair (@pairs) {
-   my ($side, $value) = split(/=/, $pair);
-   $value =~ tr/+/ /;
-   $value =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/eg;
-   $value =~ s/<!--(.|\n)*-->//g;
-   $value =~ s/<([^>]|\n)*>//g;
-   if (defined($FORM{$side})) {
-     $FORM{$side} .= ", $value";
-    }
-   else {
-     $FORM{$side} = $value;
-    }
+  @pairs = split(/&/, $buffer);
+  $FORM{__BUFFER}=$buffer if ($#pairs > -1);
+
+  foreach my $pair (@pairs) {
+    my ($side, $value) = split(/=/, $pair);
+    $value =~ tr/+/ /;
+    $value =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/eg;
+    $value =~ s/<!--(.|\n)*-->//g;
+    $value =~ s/<([^>]|\n)*>//g;
+    if (defined($FORM{$side})) {
+      $FORM{$side} .= ", $value";
+     }
+    else {
+      $FORM{$side} = $value;
+     }
+   }
  }
+else {
+ ($boundary = $ENV{CONTENT_TYPE}) =~ s/^.*boundary=(.*)$/$1/;
+ 
+ @pairs = split(/--$boundary/, $buffer);
+ @pairs = splice(@pairs,1,$#pairs-1);
+
+ for my $part (@pairs) {
+      $part =~ s/[\r]\n$//g;
+      my ($dump, $firstline, $datas) = split(/[\r]\n/, $part, 3);
+      next if $firstline =~ /filename=\"\"/;
+      $firstline =~ s/^Content-Disposition: form-data; //;
+      my (@columns) = split(/;\s+/, $firstline);
+      ($name = $columns[0]) =~ s/^name="([^"]+)"$/$1/g;
+      my $blankline;
+      if ($#columns > 0) {
+	      if ($datas =~ /^Content-Type:/) {
+	        ($FORM{"$name"}->{'Content-Type'}, $blankline, $datas) = split(/[\r]\n/, $datas, 3);
+           $FORM{"$name"}->{'Content-Type'} =~ s/^Content-Type: ([^\s]+)$/$1/g;
+	       }
+	      else {
+	        ($blankline, $datas) = split(/[\r]\n/, $datas, 2);
+	        $FORM{"$name"}->{'Content-Type'} = "application/octet-stream";
+	       }
+       }
+      else {
+	     ($blankline, $datas) = split(/[\r]\n/, $datas, 2);
+        if (grep(/^$name$/, keys(%FORM))) {
+          if (@{$FORM{$name}} > 0) {
+            push(@{$FORM{$name}}, $datas);
+           }
+          else {
+            my $arrvalue = $FORM{$name};
+            undef $FORM{$name};
+            $FORM{$name}[0] = $arrvalue;
+            push(@{$FORM{$name}}, $datas);
+           }
+         }
+        else {
+	        next if $datas =~ /^\s*$/;
+           $FORM{"$name"} = $datas;
+         }
+        next;
+       }
+      for my $currentColumn (@columns) {
+        my ($currentHeader, $currentValue) = $currentColumn =~ /^([^=]+)="([^"]+)"$/;
+        if ($currentHeader eq 'filename') {
+        	 if ( $currentValue =~ /(\S+)\\(\S+)$/ ){
+        	   $currentValue = $2;
+            }
+          }
+        $FORM{"$name"}->{"$currentHeader"} = $currentValue;
+       }
+
+      $FORM{"$name"}->{'Contents'} = $datas;
+      $FORM{"$name"}->{'Size'} = length($FORM{"$name"}->{'Contents'});
+    }
+}
 
   return %FORM;
 }
 
+#sub form_parse {
+#  my $self = shift;
+#  my $buffer = '';
+#  my $value='';
+#  my %FORM = ();
+#  
+#  return %FORM if (! defined($ENV{'REQUEST_METHOD'}));
+#
+#if ($ENV{'REQUEST_METHOD'} eq "GET") {
+#   $buffer= $ENV{'QUERY_STRING'};
+# }
+#elsif ($ENV{'REQUEST_METHOD'} eq "POST") {
+#   read(STDIN, $buffer, $ENV{'CONTENT_LENGTH'});
+# }
+#
+#my @pairs = split(/&/, $buffer);
+#$FORM{__BUFFER}=$buffer;
+#
+#foreach my $pair (@pairs) {
+#   my ($side, $value) = split(/=/, $pair);
+#   $value =~ tr/+/ /;
+#   $value =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/eg;
+#   $value =~ s/<!--(.|\n)*-->//g;
+#   $value =~ s/<([^>]|\n)*>//g;
+#   if (defined($FORM{$side})) {
+#     $FORM{$side} .= ", $value";
+#    }
+#   else {
+#     $FORM{$side} = $value;
+#    }
+# }
+#
+#  return %FORM;
+#}
 
+
+#*******************************************************************
+# form_input
+#*******************************************************************
 sub form_input {
 	my $self = shift;
 	my ($name, $value, $attr)=@_;
 
 
-  my $type = (defined($attr->{TYPE})) ? $attr->{TYPE} : 'text';
+  my $type  = (defined($attr->{TYPE})) ? $attr->{TYPE} : 'text';
   my $state = (defined($attr->{STATE})) ? ' checked' : ''; 
+  my $size  = (defined($attr->{SIZE})) ? "SIZE=\"$attr->{SIZE}\"" : '';
+
+
   
-  $self->{FORM_INPUT}="<input type=\"$type\" name=\"$name\" value=\"$value\"$state>";
+  $self->{FORM_INPUT}="<input type=\"$type\" name=\"$name\" value=\"$value\"$state$size>";
 
   if (defined($self->{NO_PRINT}) && ( !defined($attr->{OUTPUT2RETURN}) )) {
   	$self->{OUTPUT} .= $self->{FORM_INPUT};
@@ -204,12 +313,15 @@ sub form_input {
 }
 
 
-
+#*******************************************************************
+# form_main
+#*******************************************************************
 sub form_main {
   my $self = shift;
   my ($attr)	= @_;
 	
-	$self->{FORM}="<FORM action=\"$SELF_URL\" METHOD=\"POST\">\n";
+	my $METHOD = ($attr->{METHOD}) ? $attr->{METHOD} : 'POST';
+	$self->{FORM}="<FORM action=\"$SELF_URL\" METHOD=\"$METHOD\">\n";
 	
 
 	
@@ -422,7 +534,7 @@ foreach my $ID (@s) {
  
  my @last_array = ();
 
- my $menu_text = "<table border=0 width=100%>\n";
+ my $menu_text = "<table border='0' width='100%'>\n";
 
  	  my $level  = 0;
  	  my $prefix = '';
@@ -578,11 +690,13 @@ sub header {
  my $css = css();
 
  my $CHARSET=(defined($attr->{CHARSET})) ? $attr->{CHARSET} : 'windows-1251';
+ my $REFRESH = ($FORM{REFRESH}) ? "<META HTTP-EQUIV=\"Refresh\" CONTENT=\"$FORM{REFRESH}; URL=$ENV{REQUEST_URI}\"/>\n" : '';
 
 $self->{header} .= qq{
 <!doctype html public "-//W3C//DTD HTML 3.2 Final//EN">
 <html>
 <head>
+ $REFRESH
  <META HTTP-EQUIV="Cache-Control" content="no-cache"\>
  <META HTTP-EQUIV="Pragma" CONTENT="no-cache"\>
  <meta http-equiv="Content-Type" content="text/html; charset=$CHARSET"\>
@@ -903,6 +1017,10 @@ sub table_title  {
              $img = 'up_pointer.png';
              $desc='DESC';
            }
+         
+         if ($FORM{index}) {
+         	  $op="index=$FORM{index}";
+          }
          
          if ($FORM{index}) {
          	  $op="index=$FORM{index}";
@@ -1248,14 +1366,212 @@ my $letters = $self->button('All ', "index=$index"). '::';
 for (my $i=97; $i<123; $i++) {
   my $l = chr($i);
   if ($FORM{letter} eq $l) {
-     $letters .= "<b>$l </b>";
+     $letters .= "<b>$l </b>\n";
    }
   else {
-     $letters .= $self->button("$l", "index=$index&letter=$l$pages_qs") . ' ';
+     $letters .= $self->button("$l", "index=$index&letter=$l$pages_qs") . " \n";
    }
  }
 
  return $letters;
 }
+
+#**********************************************************
+# Using some flash from http://www.maani.us
+#
+#**********************************************************
+sub make_charts {
+	my $self = shift;
+	my ($attr) = @_;
+
+
+  my $PATH='';
+  if ($IMG_PATH ne '') {
+	  $PATH = $IMG_PATH;
+	  $PATH =~ s/img//;
+   }
+
+  if (! -f $PATH. "charts.swf") {
+  	 return 0;
+   }
+  
+  my $suffix = ($attr->{SUFFIX}) ? $attr->{SUFFIX} : '';
+
+  my @chart_transition = ('dissolve', 'drop', 'spin', 'scale', 'zoom', 'blink', 'slide_right', 'slide_left', 'slide_up', 'slide_down', 'none');
+  my $DATA = $attr->{DATA};
+  my $ex_params = '';
+
+  return 0 if(scalar keys  %$DATA == 0);
+
+  if ($attr->{TRANSITION} && $CONF->{CHART_ANIMATION}) {
+    my $random = int(rand(@chart_transition));
+    $ex_params = " <chart_transition type=\"$chart_transition[$random]\" delay=\"1\" duration=\"2\" order=\"series\" />\n";
+   }
+
+ 	
+  
+  
+  my $data = '<chart>'.
+  $ex_params
+
+	.'<series_color>
+		<value>ff8800</value>
+		<value>00FF00</value>
+	 </series_color>
+
+  	<chart_grid_h alpha="10" color="0066FF" thickness="28" />
+	  <chart_grid_v alpha="10" color="0066FF" thickness="1" />
+
+	<axis_category font="arial" bold="1" size="11" color="000000" alpha="50" skip="2" />
+	<axis_ticks value_ticks="" category_ticks="1" major_thickness="2" minor_thickness="1" minor_count="3" major_color="000000" minor_color="888888" position="outside" />
+
+  <axis_value font="arial" bold="1" size="9" color="000000" alpha="75" 
+  steps="4" prefix="" suffix="'. $suffix .'" 
+  decimals="0" 
+  separator="" 
+  show_min="1" 
+  orientation="diagonal_up"
+  />
+
+
+
+	<chart_border color="000000" top_thickness="1" bottom_thickness="2" left_thickness="0" right_thickness="0" />
+  <chart_rect x="30" y="50" width="400" height="200" positive_color="FFFFFF" positive_alpha="40" />
+  ';
+
+  $data .= "<chart_data>\n";
+
+  if ($attr->{PERIOD} eq 'month_stats') {
+    $data .= "<row>\n".   	
+    "<string></string>\n";
+    for(my $i=1; $i<=31; $i++) {
+    	 $data .= "<string>$i</string>\n";
+     }
+   $data .= "</row>\n";
+  }
+  elsif ($attr->{PERIOD} eq 'day_stats') {
+    $data .= "<row>\n".   	
+    "<string></string>\n";
+    for(my $i=0; $i<=23; $i++) {
+    	 $data .= "<string>$i</string>\n";
+     }
+   $data .= "</row>\n";
+  }
+  
+
+
+  while(my($name, $value)=each %$DATA ){
+    next if ($name eq 'MONEY');
+
+    my $midle=0;
+    $data .= "<row>\n".
+    "<string>$name</string>\n";
+    if (defined($attr->{AVG}{$name}) && $attr->{AVG}{$name} > 0) {
+    	 $midle = 100 / $attr->{AVG}{$name};
+      }
+
+    shift @$value;
+    foreach my $line (@$value) {
+    	 $data .= "<number>";
+    	 $data .= ($midle > 0) ? $line * $midle : $line; 
+    	 $data .="</number>\n";
+     }
+   $data .= "</row>\n";
+  }
+
+#Make money graffic
+  if (defined($DATA->{MONEY})) { 
+    $data .= "<row>\n".
+    "<string>MONEY</string>\n";
+    my $name = 'MONEY';
+    my $value = $DATA->{$name};
+    my $midle = 0;
+    if (defined($attr->{AVG}{$name}) && $attr->{AVG}{$name} > 0) {
+    	 $midle = 100 / $attr->{AVG}{$name};
+     }
+    
+    shift @$value;
+    foreach my $line (@$value) {
+    	 $data .= "<number>";
+    	 $data .= ($midle > 0) ? $line * $midle : $line; 
+    	 $data .="</number>\n";
+     }
+    $data .= "</row>\n";
+  }   
+
+  $data .= "</chart_data>\n";
+
+  if ($attr->{TYPE}) {
+    $data .= "<chart_type>\n";
+		my $type_array_ref = $attr->{TYPE};
+		foreach my $line (@$type_array_ref) {
+		  $data .= " <value>$line</value>\n";
+     }
+   	$data .= " </chart_type>\n";
+   }
+  
+  
+
+
+    #Make right text
+    if (defined($attr->{AVG}{MONEY}) && $attr->{AVG}{MONEY} > 0) {
+     	my $part = $attr->{AVG}{MONEY} / 4;
+    	$data .= "<draw>\n";
+   	  foreach(my $i=0; $i<=4; $i++) {
+     	   $data .= "<text size=\"9\" x=\"435\" y=\"". (242-$i*45) ."\" color=\"000000\">". int($i * $part) ."</text>\n";
+   	   }
+   	  $data .= "</draw>\n";
+    }
+ 
+
+
+ 
+ my $file_xml = 'charts';
+ if (! defined($self->{CHART_NUM})) {
+   $self->{CHART_NUM}=0; 	
+  }
+ else {
+ 	 $self->{CHART_NUM}++; 	
+ 	 $file_xml='charts'. $self->{CHART_NUM};
+  }
+ 
+ open(FILE, ">$file_xml".'.xml') || $self->message('err', 'ERROR', "Can't create file '$file_xml.xml' $!");
+   print FILE $data;
+ close(FILE);
+ 	
+
+
+my $output = "
+<br>
+<OBJECT classid='clsid:D27CDB6E-AE6D-11cf-96B8-444553540000' 
+codebase='http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=6,0,0,0' 
+WIDTH=500 HEIGHT=300 id='$file_xml' ALIGN=''>
+<PARAM NAME=movie VALUE='". $PATH. "charts.swf?library_path=". $PATH. "charts_library&amp;php_source=". $file_xml .".xml'> 
+<PARAM NAME=quality VALUE=high> <PARAM NAME=bgcolor VALUE=#EEEEEE> 
+<EMBED src='". $PATH. "charts.swf?library_path=". $PATH. "charts_library&amp;php_source=". $file_xml .".xml' 
+quality=high 
+bgcolor='#EEEEEE' 
+WIDTH=500 
+HEIGHT=300 
+NAME='$file_xml' 
+ALIGN='' 
+swLiveConnect='true' 
+TYPE='application/x-shockwave-flash' 
+PLUGINSPAGE='http://www.macromedia.com/go/getflashplayer'>
+</EMBED></OBJECT>
+<br>
+";
+
+	
+	if ($attr->{OUTPUT2RETURN}) {
+		 return $output;
+	  }
+	
+  print $output;
+
+}
+
+
+
 
 1

@@ -161,10 +161,10 @@ sub change {
  $attr->{NAS_DISABLE} = (defined($attr->{NAS_DISABLE})) ? 1 : 0;
 
  my %FIELDS = (NAS_ID => 'id', 
-  NAS_NAME => 'name', 
-  NAS_INDENTIFIER => 'nas_identifier', 
-  NAS_DESCRIBE => 'descr', 
-  NAS_IP => 'ip', 
+  NAS_NAME            => 'name', 
+  NAS_INDENTIFIER     => 'nas_identifier', 
+  NAS_DESCRIBE        => 'descr', 
+  NAS_IP              => 'ip', 
   NAS_TYPE => 'nas_type', 
   NAS_AUTH_TYPE => 'auth_type', 
   NAS_MNG_IP_PORT => 'mng_host_port', 

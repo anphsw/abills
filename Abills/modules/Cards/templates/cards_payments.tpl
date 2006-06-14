@@ -1,4 +1,5 @@
 <form action='$SELF_URL' METHOD='POST'>
+
 <input type='hidden' name='index' value='$index'>
 <table>
 <tr><td>$_SERIAL:</td><td><input type='text' name='SERIAL' value='%SERIAL%'></td></tr>
@@ -11,8 +12,8 @@
 <tr bgcolor='$_COLORS[0]'><th colspan=2>-</th></tr>
 <tr><td>$_EXPIRE:</td><td><input type='text' name='EXPIRE' value='%EXPIRE%'></td></tr>
 <tr bgcolor='$_COLORS[0]'><th colspan=2>EXPORT:</th></tr>
-<tr><td colspan='2'><input type='radio' name='EXPORT_XML' value='TEXT'> Text<br>
-<input type='radio' name='EXPORT_XML' value='XML'> XML
+<tr><td colspan='2'><input type='radio' name='EXPORT' value='TEXT'> Text<br>
+<input type='radio' name='EXPORT' value='XML'> XML
 </td></tr>
 
 </table>

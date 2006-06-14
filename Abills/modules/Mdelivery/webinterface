@@ -33,6 +33,8 @@ sub mdelivery_main {
  	                                SEL_HASH  => \%MAIL_PRIORITY
  	                               });
 
+ $Mdelivery->{EXTRA} = "<tr><td>$_TO:</td><td bgcolor='$_COLORS[2]'>". sel_groups() ."</td></tr>\n";
+
  $html->tpl_show(templates('mail_form'), $Mdelivery); 
 }
 
@@ -43,6 +45,7 @@ sub mdelivery_main {
 #*******************************************************************
 sub mdelivery_list {
  
+ 
 if ($FORM{info}) {
   $Mdelivery->info($FORM{info});
   if ($Mdelivery->{errno}) {
@@ -51,7 +54,6 @@ if ($FORM{info}) {
 
   $Mdelivery->{PRIORITY}="$Mdelivery->{PRIORITY} ($MAIL_PRIORITY{$Mdelivery->{PRIORITY}})";
   $html->tpl_show(_include('mdelivery_form', 'Mdelivery'), $Mdelivery); 
-
  }
 elsif ($FORM{del} && $FORM{is_js_confirmed}) {
   $Mdelivery->del($FORM{del});
@@ -65,12 +67,12 @@ elsif ($FORM{del} && $FORM{is_js_confirmed}) {
   
 
  my $list = $Mdelivery->list({ %LIST_PARAMS });  
- my $table = $html->table({ width    => '100%',
-                            caption  => $_LIST,
-                            title    => ["ID", "$_DATE", "$_SUBJECT", "$_FROM", "$_ADMIN",  "$_ADDED", "$_SIZE", "$_STATUS", '-', '-'],
+ my $table = $html->table({ width      => '100%',
+                            caption    => $_LIST,
+                            title      => ["ID", "$_DATE", "$_SUBJECT", "$_FROM", "$_ADMIN",  "$_ADDED", "$_SIZE", "$_STATUS", '-', '-'],
                             cols_align => ['right', 'right', 'right', 'left', 'left', 'right', 'center', 'center', 'center'],
-                            qs => $pages_qs,
-                            pages => $Mdelivery->{TOTAL}
+                            qs         => $pages_qs,
+                            pages      => $Mdelivery->{TOTAL}
                           });
 
  foreach my $line (@$list) {
@@ -93,7 +95,7 @@ print $table->show();
 $table = $html->table({ width      => '100%',
                         cols_align => ['right', 'right', 'right', 'right'],
                         rows       => [ [ "$_TOTAL:", "$Mdelivery->{TOTAL}" ] ]
-                     });
+                      });
 print $table->show();
 
 }
@@ -128,8 +130,7 @@ foreach my $line (@ids) {
   
   my $user_list = $users->list({ %LIST_PARAMS });
   foreach $u (@$user_list) {
- 	   #$user->{EMAIL} = (defined($user->{EMAIL})) ? $user->{EMAIL} : $user->{LOGIN} .'@'. $conf{USERS_MAIL_DOMAIN};
-  	 my $mail = ($u->[0] eq '') ? $u->[0] : $u->[0] .'@'. $conf{USERS_MAIL_DOMAIN};
+  	 my $mail = ($u->[7] ne '') ? $u->[7] : $u->[0] .'@'. $conf{USERS_MAIL_DOMAIN};
      $Mdelivery->{SENDER} = ($Mdelivery->{SENDER} ne '') ? $Mdelivery->{SENDER} : $conf{ADMIN_MAIL};
   	 #print "$Mdelivery->{SENDER}, $mail, $Mdelivery->{SUBJECT}, $Mdelivery->{TEXT},  $conf{MAIL_CHARSET}, $Mdelivery->{PRIORITY}, ($MAIL_PRIORITY{$Mdelivery->{PRIORITY}})<br>";
 
@@ -139,6 +140,7 @@ foreach my $line (@ids) {
           "$Mdelivery->{TEXT}", 
           "$conf{MAIL_CHARSET}", 
           "$Mdelivery->{PRIORITY} ($MAIL_PRIORITY{$Mdelivery->{PRIORITY}})");
+
    }
  
  $Mdelivery->change({ ID => $line });

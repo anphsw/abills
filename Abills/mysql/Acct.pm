@@ -62,6 +62,9 @@ sub accounting {
 #my $a=`echo "test $acct_status_type = $ACCT_TYPES{$RAD->{ACCT_STATUS_TYPE}}"  >> /tmp/12211 `;
  
  $RAD->{FRAMED_IP_ADDRESS} = '0.0.0.0' if(! defined($RAD->{FRAMED_IP_ADDRESS}));
+ if (length($RAD->{ACCT_SESSION_ID}) > 25) {
+ 	  $RAD->{ACCT_SESSION_ID} = substr($RAD->{ACCT_SESSION_ID}, 0, 1);
+  }
     
 #Start
 if ($acct_status_type == 1) { 
@@ -142,8 +145,8 @@ elsif ($acct_status_type == 2) {
      }
    }
 
-  # Delete from session wtmp
-#  $self->{debug}=1;
+  # Delete from session
+  $self->{debug}=1;
   $self->query($db, "DELETE FROM dv_calls WHERE acct_session_id=\"$RAD->{ACCT_SESSION_ID}\" 
      and user_name=\"$RAD->{USER_NAME}\" 
      and nas_id='$NAS->{NAS_ID}';", 'do');

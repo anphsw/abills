@@ -4,7 +4,6 @@ package Abills::Base;
 use strict;
 use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
  %int
- %variants
  %conf
 );
 
@@ -32,7 +31,7 @@ $VERSION = 2.00;
   &test_radius_returns
   &ping
   &sendmail
-  %variants
+  &in_array
   %int
  );
 
@@ -47,6 +46,19 @@ sub null {
   return 0;	
 }
 
+#**********************************************************
+# isvalue()
+# Check value in array
+#**********************************************************
+sub in_array {
+ my ($value, $array) = @_;
+ 
+ foreach my $line (@$array) {
+ 	 return 1 if ($value eq $line);
+  }
+
+ return 0;	
+}
 
 #**********************************************************
 # Converter
@@ -317,7 +329,7 @@ sub sec2time {
     $d=int($value / (24 * 3600));
 
  if($attr->{str}) {
-   return "+$d $c:$b:$a";
+   return sprintf("+%d %.2d:%.2d:%.2d", $d, $c,$b, $a);
   }
  else {
     return($a,$b,$c,$d);
@@ -475,106 +487,6 @@ if ($second ne '') {
  return $ret;
 }
 
-
-##get recs from radwtmp
-#
-#=commnent
-#struct radutmp {
-#        char login[RUT_NAMESIZE];       /* Loginname (maybe modified) */
-#        char orig_login[RUT_NAMESIZE];  /* Original loginname */
-#        int  nas_port;                  /* Port on the terminal server */
-#        char session_id[RUT_IDSIZE];    /* Radius session ID */
-#                                        /* (last RUT_IDSIZE bytes at least)*/
-#        unsigned int nas_address;       /* IP of portmaster. */
-#        unsigned int framed_address;    /* SLIP/PPP address or login-host. */
-#        int proto;                      /* Protocol. */
-#        time_t time;                    /* Time the entry was last updated. */
-#        time_t delay;                   /* Delay time of request */
-#        int type;                       /* Type of entry (login/logout) */
-#        char porttype;         /* Porttype (I=ISDN A=Async T=Async-ISDN) */
-#        char res1,res2,res3;            /* Fills up to one int */
-#        time_t duration;
-#        char caller_id[RUT_PNSIZE];      /* calling station ID */
-#        unsigned int realm_address;
-#        char reserved[10];
-#};
-#=cut
-#	
-#my $packstring = "a32a32La16NNiIIiaaaaIa24La12";
-#my $reclength = length(pack($packstring));
-#open(D,"<$RADWTMP") or die "Couldn't open '$RADWTMP', $!";
-#
-#my %wtmp_info;
-#while(sysread(D,my $rec,$reclength)) {
-# my ($login, $orig_login, $nas_port, $session_id, $nas_address, $framed_address, $proto, $time, $delay, $type, 
-#  $porttype, $res1, $res2, $res3, $duration, $caller_id, $realm_address, $reserved) = unpack($packstring,$rec);
-# # 0 - logout; 1 - login
-# if ($type == 1) {
-#   $wtmp_info{"$session_id"}{login}=$login;
-#   $wtmp_info{"$session_id"}{orig_login}=$orig_login;
-#   $wtmp_info{"$session_id"}{nas_port}=$nas_port;
-#   $wtmp_info{"$session_id"}{nas_address}=$nas_address;
-#   $wtmp_info{"$session_id"}{framed_address}=$framed_address;
-#   $wtmp_info{"$session_id"}{proto}=$proto;
-#   $wtmp_info{"$session_id"}{time}=$time;
-#   $wtmp_info{"$session_id"}{delay}=$delay;
-#   $wtmp_info{"$session_id"}{type}=$type;
-#   $wtmp_info{"$session_id"}{porttype}=$porttype;
-#   $wtmp_info{"$session_id"}{res1}=$res1;
-#   $wtmp_info{"$session_id"}{res2}=$res2;
-#   $wtmp_info{"$session_id"}{res3}=$res3;
-#   $wtmp_info{"$session_id"}{duration}=time-$time;
-#   $wtmp_info{"$session_id"}{caller_id}=$caller_id;
-#   $wtmp_info{"$session_id"}{realm_address}=$realm_address;
-#   $wtmp_info{"$session_id"}{reserved}=$reserved;
-#  }
-# elsif ($type == 0) {
-#  undef($wtmp_info{"$session_id"});
-#=comment
-#   $wtmp_info{$session_id}{login}=$login;
-#   $wtmp_info{$session_id}{orig_login}=$orig_login;
-#   $wtmp_info{$session_id}{nas_port}=$nas_port;
-#   $wtmp_info{$session_id}{nas_address}=$nas_address;
-#   $wtmp_info{$session_id}{framed_address}=$framed_address;
-#   $wtmp_info{$session_id}{proto}=$proto;
-#   $wtmp_info{$session_id}{time}=$time;
-#   $wtmp_info{$session_id}{delay}=$delay;
-#   $wtmp_info{$session_id}{type}=$type;
-#   $wtmp_info{$session_id}{porttype}=$porttype;
-#   $wtmp_info{$session_id}{res1}=$res1;
-#   $wtmp_info{$session_id}{res2}=$res2;
-#   $wtmp_info{$session_id}{res3}=$res3;
-#   $wtmp_info{$session_id}{duration}=$duration;
-#   $wtmp_info{$session_id}{caller_id}=$caller_id;
-#   $wtmp_info{$session_id}{realm_address}=$realm_address;
-#   $wtmp_info{$session_id}{reserved}=$reserved;
-#=cut
-#  }
-#}
-#
-#close(D) or die "Couldn't close wtmp, $!";
-# return %wtmp_info;
-#}
-
-#Get pppacct information
-sub ppp_acct {
- my $ifc = shift;
- my $ppphost = shift;
- my $pppport = shift;
- $ifc =~ m/(\d+)/;
- 
- print "$ifc - $1\n";
- my %res = ();
- $res{ifc}=$ifc;
- 
- #print "pppctl -p 'c)ntro1' $ppphost:$pppport ! echo UPTIME OCTETSIN OCTETSOUT";
- my $result = `pppctl -p 'c)ntro1' $ppphost:$pppport ! echo USER UPTIME OCTETSIN OCTETSOUT`;
- 
- ($res{name}, $res{uptime}, $res{in}, $res{out})=split(/ /, $result);
- return %res;
-}
-
-
 #**********************************************************
 # decode_base64()
 #**********************************************************
@@ -591,6 +503,41 @@ sub decode_base64 {
         $res .= unpack("u", $len . $1 );    # uudecode
     }
 
+    return $res;
+}
+
+#**********************************************************
+# encode_base64()
+#**********************************************************
+sub encode_base64 ($;$) {
+    if ($] >= 5.006) {
+	require bytes;
+	if (bytes::length($_[0]) > length($_[0]) ||
+	    ($] >= 5.008 && $_[0] =~ /[^\0-\xFF]/))
+	{
+	    require Carp;
+	    Carp::croak("The Base64 encoding is only defined for bytes");
+	}
+    }
+
+    use integer;
+
+    my $eol = $_[1];
+    $eol = "\n" unless defined $eol;
+
+    my $res = pack("u", $_[0]);
+    # Remove first character of each line, remove newlines
+    $res =~ s/^.//mg;
+    $res =~ s/\n//g;
+
+    $res =~ tr|` -_|AA-Za-z0-9+/|;               # `# help emacs
+    # fix padding at the end
+    my $padding = (3 - length($_[0]) % 3) % 3;
+    $res =~ s/.{$padding}$/'=' x $padding/e if $padding;
+    # break encoded string into lines of no more than 76 characters each
+    if (length $eol) {
+	$res =~ s/(.{1,76})/$1$eol/g;
+    }
     return $res;
 }
 

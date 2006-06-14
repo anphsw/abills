@@ -108,7 +108,7 @@ sub query {
    }
 
 my $q;
-#print $query;
+#print "$query<br>";
 
 if (defined($type) && $type eq 'do') {
   
@@ -239,7 +239,10 @@ sub search_expr {
   if ($type eq 'IP') {
   	$value = "INET_ATON('$value')";
    }
- 
+  else {
+  	$value="'$value'";
+   }
+
   $value = $expr . $value;
   return $value;
 }

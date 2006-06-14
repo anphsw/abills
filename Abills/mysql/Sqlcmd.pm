@@ -1,5 +1,5 @@
 package Sqlcmd;
-# Dialup & Vpn  managment functions
+# SQL commander
 #
 
 use strict;
@@ -38,73 +38,45 @@ sub new {
 #**********************************************************
 sub info {
   my $self = shift;
-  my ($uid, $attr) = @_;
+  my ($type) = @_;
 
-  $WHERE =  "WHERE dv.uid='$uid'";
-  # }
-  #my $PASSWORD = '0'; 
-  
-  $self->query($db, "SELECT dv.uid, dv.tp_id, 
-   tp.name, 
-   dv.logins, 
-    INET_NTOA(dv.ip), 
-   INET_NTOA(dv.netmask), 
-   dv.speed, 
-   dv.filter_id, 
-   dv.cid,
-   dv.disable
-     FROM dv_main dv
-     LEFT JOIN tarif_plans tp ON (dv.tp_id=tp.id)
-   $WHERE;");
-
-  if ($self->{TOTAL} < 1) {
-     $self->{errno} = 2;
-     $self->{errstr} = 'ERROR_NOT_EXIST';
-     return $self;
-   }
-
-  my $ar = $self->{list}->[0];
-
-  ($self->{UID},
-   $self->{TP_ID}, 
-   $self->{TP_NAME}, 
-   $self->{SIMULTANEONSLY}, 
-   $self->{IP}, 
-   $self->{NETMASK}, 
-   $self->{SPEED}, 
-   $self->{FILTER_ID}, 
-   $self->{CID},
-   $self->{DISABLE},
-   $self->{REGISTRATION}
-  )= @$ar;
-  
-  
-  return $self;
-}
-
-
-
-#**********************************************************
-#
-#**********************************************************
-sub defaults {
-  my $self = shift;
-
-  %DATA = (
-   TARIF_PLAN => 0, 
-   SIMULTANEONSLY => 0, 
-   DISABLE => 0, 
-   IP => '0.0.0.0', 
-   NETMASK => '255.255.255.255', 
-   SPEED => 0, 
-   FILTER_ID => '', 
-   CID => '',
-  );
-
+  my $list;
  
-  $self = \%DATA;
+  if ($type eq 'showtables') {
+    
+    my $sth = $db->prepare( "SHOW TABLE STATUS FROM $CONF->{dbname}" );
+    $sth->execute();
+    my $pri_keys = $sth->{mysql_is_pri_key};
+    my $names = $sth->{NAME};
+
+    $self->{FIELD_NAMES}=$names;
+
+    my @rows = ();
+    my @row_array = ();
+
+
+    while(my @row_array = $sth->fetchrow()) {
+      my $i=0;
+
+      my %Rows_hash = ();
+      foreach my $line (@row_array) {
+      	$Rows_hash{"$names->[$i]"}=$line;
+      	$i++;
+       }
+      
+      push @rows, \%Rows_hash;
+    }
+    $list = \@rows;
+    return $list;
+  }
+
+
+  
   return $self;
 }
+
+
+
 
 
 #**********************************************************

@@ -671,15 +671,16 @@ $_USED
 elsif ($tpl_name eq 'help_form') {
 return qq{
 <center>
-<form action=$SELF_URL METHOD=post>
+<form action='$SELF_URL' METHOD=post>
 <input type=hidden name='index' value="$FORM{index}">
 <input type=hidden name='FUNCTION' value="$FORM{FUNCTION}">
 <input type=hidden name='language' value='%LANGUAGE%'>
-<table border=0>
+<table border='0'>
 <tr><td>$_SUBJECT: </td><td><input type=text name=TITLE value='%TITLE%' size=40></td></tr>
-<tr><th colspan=2 bgcolor="$_COLORS[0]">$_HELP</th></tr>
-<tr><th colspan=2><textarea name='HELP' cols='50' rows='4'>%HELP%</textarea></th></tr>
-<tr><th colspan=2><input type=submit name='%ACTION%' value='%LNG_ACTION%'></th></tr>
+<tr><th colspan='2' bgcolor="$_COLORS[0]">$_HELP</th></tr>
+<tr><th colspan='2'><textarea name='HELP' cols='50' rows='4'>%HELP%</textarea></th></tr>
+<tr><td colspan='2'>%LANGUAGE%</td></tr>
+<tr><th colspan='2'><input type=submit name='%ACTION%' value='%LNG_ACTION%'></th></tr>
 </table>
 </form>
 </center>
@@ -690,7 +691,7 @@ return qq{
 <table width=100%>
      	<tr bgcolor="$_COLORS[0]"><th align='left'>%TITLE%</th></tr>
 	    <tr><td>%HELP%</td></tr>
-	    <tr><td align=right><a href="$SELF_URL?index=$index&amp;FUNCTION=%FUNCTION%">$_CHANGE</a></td></tr>
+	    <tr><td align=right><!-- <a href="$SELF_URL?index=$index&amp;FUNCTION=%FUNCTION%">$_CHANGE</a> --> %LANGUAGE%</td></tr>
 </table>
 <hr>
 

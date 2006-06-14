@@ -86,6 +86,7 @@ sub check_lines {
   my %NAS  = ();
 
   foreach my $nas_row (@$nas_list) {
+    
     my $l = $online->{$nas_row->[0]};
     #    print "NAS IP: $nas_row->[3]\n NAS_TYPE: $nas_row->[4]\n STATUS: $nas_row->[6]\n Alive: $nas_row->[7]/\n ";    
     $NAS{NAS_IP}    = $nas_row->[3];
@@ -104,9 +105,12 @@ sub check_lines {
 	    my $acct_session_id         = $line->[11];
 	    
       if ($acct_input_octets_ext > $exppp_hanguplimit || $acct_output_octets_ext > $exppp_hanguplimit) {
-        my $ret = hangup(\%NAS, "$nas_port_id", "$line->[0]", "$acct_session_id");
+        my $ret = hangup(\%NAS, "$nas_port_id", "$line->[0]", { ACCT_SESSION_ID   => "$acct_session_id",
+        	                                                      FRAMED_IP_ADDRESS => "$line->[3]"
+        	                                                      } );
         print "Hangup '$line->[0]' $acct_input_octets, $acct_output_octets, $acct_input_octets_ext, $acct_output_octets_ext, Session-ID: $acct_session_id\n"; 
        }     
+
 
       #Get stats from nas servers which don't support rad Alive
       my $external_stats = get_stats(\%NAS, $line->[2]);
@@ -157,7 +161,8 @@ sub check_lines {
          "UID: $self->{UID} SUM: $self->{SUM} BILL_ID: $self->{BILL_ID} TARIF_PLAN: $self->{TARIF_PLAN} TRAF_TARIF: $self->{TRAF_TARIF}\n" if ($debug == 1);
 
         if ( ($Billing->{PAYMENT_TYPE}==0) && ($line->[14] + $line->[15] < $self->{SUM}) ) {
-           my $ret = hangup(\%NAS, "$nas_port_id", "$line->[0]", "$acct_session_id");
+           my $ret = hangup(\%NAS, "$nas_port_id", "$line->[0]", { ACCT_SESSION_IS   => $acct_session_id,
+           	                                                       FRAMED_IP_ADDRESS => "$line->[3]" });
            print "Hanguped Login: $RAD{USER_NAME} DEPOSIT: $line->[14] CREDIT: $line->[15] SESSION_SUM: $self->{SUM}\n"; # if ($debug == 1);
           }
        }

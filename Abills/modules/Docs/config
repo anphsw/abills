@@ -1,28 +1,4 @@
-#package Dv;
-#
-#
-#
-##use strict;
-##use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION);
-#
-#use Exporter;
-#$VERSION = 2.00;
-#@ISA = ('Exporter');
-#
-#@EXPORT = qw(
-# $web_interface
-# @useraccount_menu
-# %FUNCTIONS_LIST
-# %USER_FUNCTION_LIST
-#);
-#
-#@EXPORT_OK = ();
-#%EXPORT_TAGS = ();
-
-
 $web_interface    = 1;
-@useraccount_menu = ('Dialup_VPN');
-
 #Iner_ID : Main or Sub or if -1 user menu func list
 %FUNCTIONS_LIST = ("01:-1:$_DOCS:null:UID"            => 15,
                    "02:1:$_ACCOUNTS:docs_accounts_list:UID"     => 15,

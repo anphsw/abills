@@ -8,5 +8,6 @@
 <!-- <tr><td>$_DATE:</td><td></td></tr> -->
 <tr><td></td><td></td></tr>
 </table>
+
 <INPUT type='submit' name='%ACTION%' value='%ACTION_LNG%'>
 </FORM>

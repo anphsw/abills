@@ -91,8 +91,6 @@ Admins->import();
 $admin = Admins->new($db, \%conf);
 $admin->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });
 
-#my $admin;
-
 my %OUTPUT = ();
 
 my $login = $FORM{user} || '';

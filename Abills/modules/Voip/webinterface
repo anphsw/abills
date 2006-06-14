@@ -12,7 +12,7 @@ my  $sessions = Voip_Sessions->new($db, \%conf);
 
 
 my $MODULE = (defined($module{$index})) ? $module{$index} : 'Voip';
-
+my $lang_file = '';
 foreach my $prefix (@INC) {
   my $realfilename = "$prefix/Abills/modules/$MODULE/lng_$html->{language}.pl";
   if (-f $realfilename) {

@@ -1,2 +1,2 @@
-$_ORG_NAME  ='Customer name';
+$_ORG_NAME  ='Назва організації';
 $_WRONG_SUM ='Мала сума';

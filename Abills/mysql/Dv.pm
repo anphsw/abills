@@ -79,10 +79,12 @@ sub info {
     $WHERE =  "WHERE dv.uid='$uid'";
    }
   
-  #else {
-    $WHERE =  "WHERE dv.uid='$uid'";
-  # }
-  #my $PASSWORD = '0'; 
+  
+  $WHERE =  "WHERE dv.uid='$uid'";
+  
+  if (defined($attr->{IP})) {
+  	$WHERE = "WHERE dv.ip=INET_ATON('$attr->{IP}')";
+   }
   
   $self->query($db, "SELECT dv.uid, dv.tp_id, 
    tp.name, 
@@ -297,10 +299,10 @@ sub list {
  if ($attr->{USERS_WARNINGS}) {
    $self->query($db, "SELECT u.id, pi.email, dv.tp_id, u.credit, b.deposit, tp.name, tp.uplimit
          FROM (users u,
-              dv_main dv,
-              bills b,
-              tarif_plans tp)
-         LEFT JOIN users_pi pi ON u.uid = dv.uid
+               dv_main dv,
+               bills b,
+               tarif_plans tp)
+         LEFT JOIN users_pi pi ON u.uid = pi.uid
          WHERE
                u.uid=dv.uid
            and u.bill_id=b.id
@@ -476,7 +478,7 @@ sub list {
       if(u.company_id > 0, company.bill_id, u.bill_id)
      FROM (users u, dv_main dv)
      LEFT JOIN users_pi pi ON (u.uid = pi.uid)
-     LEFT JOIN bills b ON u.bill_id = b.id
+     LEFT JOIN bills b ON (u.bill_id = b.id)
      LEFT JOIN tarif_plans tp ON (tp.id=dv.tp_id) 
      LEFT JOIN companies company ON  (u.company_id=company.id) 
      LEFT JOIN bills cb ON  (company.bill_id=cb.id)

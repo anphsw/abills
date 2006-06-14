@@ -219,7 +219,7 @@ sub form_select {
   if (defined($attr->{SEL_HASH})) {
 	  my $H = $attr->{SEL_HASH};
 	  while(my($k, $v) = each %$H) {
-     $self->{SELECT} .= "<option value='$k'";
+     $self->{SELECT} .= "<option value=\"$k\"";
      #$self->{SELECT} .=' selected' if ($k eq $attr->{SELECTED});
      $self->{SELECT} .= ">$v</option>\n";	
      }
@@ -820,8 +820,18 @@ sub button {
 # $type - info, err
 #*******************************************************************
 sub message {
+ my $self = shift;
  my ($type, $caption, $message) = @_;	
- print "<MESSAGE TYPE=\"$type\" CAPTION=\"$caption\">$message</MESSAGE>\n";
+ my $output = "<MESSAGE TYPE=\"$type\" CAPTION=\"$caption\">$message</MESSAGE>\n";
+ 
+   if (defined($self->{NO_PRINT})) {
+  	$self->{OUTPUT}.=$output;
+  	return $output;
+   }
+	else {
+ 	  print $output;
+	 }
+
 }
 
 

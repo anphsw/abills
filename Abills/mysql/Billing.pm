@@ -470,9 +470,11 @@ my $tarif_day = 0;
 my $count = 0;
 $start = $start - $day_begin;
 
-require Abills::Base;
-Abills::Base->import(); 
- 
+if ($debug == 1) {
+  require Abills::Base;
+  Abills::Base->import(); 
+} 
+
  print "$day_of_week / $day_of_year\n" if ($debug == 1);
  
  while($duration > 0 && $count < 10) {

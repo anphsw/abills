@@ -113,7 +113,7 @@ if(defined($acct->{errno})) {
 	log_print('LOG_ERROR', "ACCT [$RAD->{USER_NAME}] $acct->{errstr}");
 }
 
-$db->disconnect();
+#$db->disconnect();
 
 
 #*******************************************************************

@@ -1,5 +1,5 @@
 #/usr/bin/perl
-# Dialup vpn web functions
+# Docs functions
 
 
 require "Docs.pm";
@@ -25,7 +25,7 @@ if ($lang_file eq '')  {
 
 
 #**********************************************************
-# user_dv
+# docs_accounts_list
 #**********************************************************
 sub docs_accounts_list {
 
@@ -181,7 +181,7 @@ sub docs_preview {
 
 
 #**********************************************************
-# docs_preview
+# docs_print
 #**********************************************************
 sub docs_print {
 	my ($type, $ATTR)=@_;

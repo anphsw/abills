@@ -1,6 +1,7 @@
 package Auth;
 # Auth functions
-# 26.04.2006
+# 14.05.2006
+
 
 use strict;
 use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
@@ -22,13 +23,11 @@ use main;
 @ISA  = ("main");
 
 use Billing;
-
 my $Billing;
 
 my $db;
 my $CONF;
 my $debug =0;
-
 
 
 
@@ -65,7 +64,6 @@ sub dv_auth {
   }
   
   my $MAX_SESSION_TRAFFIC = $CONF->{MAX_SESSION_TRAFFIC};
-#	my $date = '2006-04-28 10:23:00';
 
   $self->query($db, "select  if (dv.logins=0, tp.logins, dv.logins) AS logins,
   if(dv.filter_id != '', dv.filter_id, tp.filter_id),
@@ -160,7 +158,7 @@ if ($self->{DISABLE}) {
    my $sql;
    if ($self->{NAS} == 1) {
       $sql = "SELECT un.uid FROM users_nas un WHERE un.uid='$self->{UID}' and un.nas_id='$NAS->{NAS_ID}'";
-     }
+    }
    else {
       $sql = "SELECT nas_id FROM tp_nas WHERE tp_id='$self->{TP_ID}' and nas_id='$NAS->{NAS_ID}'";
      }
@@ -293,11 +291,12 @@ foreach my $line (@periods) {
 #push (@traf_limits, $prepaid_traff) if ($prepaid_traff > 0);
 
  for(my $i=0; $i<=$#traf_limits; $i++) {
- 	 #print $traf_limits[$i]. "------\n";
+ 	 #print "$i / $traf_limits[$i]". "------\n";
    if ($traf_limit > $traf_limits[$i]) {
-     $traf_limit = int($traf_limits[$i]);
+     	 $traf_limit = $traf_limits[$i]; 
     }
   }
+
 
  if($traf_limit < 0) {
    $RAD_PAIRS->{'Reply-Message'}="Rejected! Traffic limit utilized '$traf_limit Mb'";
@@ -329,7 +328,7 @@ foreach my $line (@periods) {
  else {
    my $ip = $self->get_ip($NAS->{NAS_ID}, "$RAD->{NAS_IP_ADDRESS}");
    if ($ip eq '-1') {
-     $RAD_PAIRS->{'Reply-Message'}="Rejected! There is no free IPs in address pools ($NAS->{NAS_ID})";
+     $RAD_PAIRS->{'Reply-Message'}="Rejected! There is no free IPs in address pools (USED: $self->{USED_IPS} NAS: $NAS->{NAS_ID})";
      return 1, $RAD_PAIRS;
     }
    elsif($ip eq '0') {
@@ -431,8 +430,8 @@ elsif ($NAS->{NAS_TYPE} eq 'mpd') {
    }
   
   # MPD have some problem with long time out value max timeout set to 7 days
-  if ($RAD_PAIRS->{'Exppp-Traffic-Limit'} > 604800)    {
-  	 $RAD_PAIRS->{'Exppp-Traffic-Limit'}=604800;
+  if ($RAD_PAIRS->{'Session-Timeout'} > 604800)    {
+  	 $RAD_PAIRS->{'Session-Timeout'}=604800;
    }
 
       
@@ -489,6 +488,7 @@ if( defined($CONF->{MAC_AUTO_ASSIGN}) &&
 }
 	
 
+
 #*********************************************************
 # Auth_mac
 # Mac auth function
@@ -500,12 +500,28 @@ sub Auth_CID {
   my $RAD_PAIRS;
   
   my @MAC_DIGITS_GET = ();
-   
+  if (! defined($RAD->{CALLING_STATION_ID})) {
+     $RAD_PAIRS->{'Reply-Message'}="Wrong CID ''";
+     return 1, $RAD_PAIRS, "Wrong CID ''";
+   }
+
+
    if (($self->{CID} =~ /:/ || $self->{CID} =~ /-/)
        && $self->{CID} !~ /\./) {
       #@MAC_DIGITS_GET=split(/:/, $self->{CID}) if($self->{CID} =~ /:/);
       @MAC_DIGITS_GET=split(/:|-/, $self->{CID});
-      my @MAC_DIGITS_NEED=split(/:/, $RAD->{CALLING_STATION_ID});
+      
+      
+
+      #NAS MPD 3.18 with patch
+      if ($RAD->{CALLING_STATION_ID} =~ /\//) {
+         $RAD->{CALLING_STATION_ID} =~ s/ //g;
+         my ($cid_ip, $trash);
+         ($cid_ip, $RAD->{CALLING_STATION_ID}, $trash) = split(/\//, $RAD->{CALLING_STATION_ID}, 3);
+       }
+
+      my @MAC_DIGITS_NEED = split(/:|\./, $RAD->{CALLING_STATION_ID});
+
       for(my $i=0; $i<=5; $i++) {
         if(hex($MAC_DIGITS_NEED[$i]) != hex($MAC_DIGITS_GET[$i])) {
           $RAD_PAIRS->{'Reply-Message'}="Wrong MAC '$RAD->{CALLING_STATION_ID}'";
@@ -885,8 +901,6 @@ sub get_ip {
  my $self = shift;
  my ($nas_num, $nas_ip) = @_;
 
- use IO::Socket;
- 
 #get ip pool
  $self->query($db, "SELECT ippools.ip, ippools.counts 
   FROM ippools
@@ -910,22 +924,23 @@ sub get_ip {
    }
 
 #get active address and delete from pool
-
  $self->query($db, "SELECT framed_ip_address
   FROM dv_calls 
   WHERE nas_ip_address=INET_ATON('$nas_ip') and (status=1 or status>=3);");
 
  $list = $self->{list};
- my %used_ips = ();
+ $self->{USED_IPS}=0;
+
  foreach my $ip (@$list) {
    if(exists($pools{$ip->[0]})) {
       delete($pools{$ip->[0]});
+      $self->{USED_IPS}++;
      }
    }
  
  my ($assign_ip, undef) = each(%pools);
  if ($assign_ip) {
-   $assign_ip = inet_ntoa(pack('N', $assign_ip));
+   $assign_ip = int2ip($assign_ip);
    return $assign_ip; 	
   }
  else { # no addresses available in pools
@@ -936,6 +951,21 @@ sub get_ip {
 }
 
 
+
+#*******************************************************************
+# Convert integer value to ip
+# int2ip($i);
+#*******************************************************************
+sub int2ip {
+my $i = shift;
+my (@d);
+
+$d[0]=int($i/256/256/256);
+$d[1]=int(($i-$d[0]*256*256*256)/256/256);
+$d[2]=int(($i-$d[0]*256*256*256-$d[1]*256*256)/256);
+$d[3]=int($i-$d[0]*256*256*256-$d[1]*256*256-$d[2]*256);
+ return "$d[0].$d[1].$d[2].$d[3]";
+}
 
 #********************************************************************
 # System auth function
@@ -1034,14 +1064,11 @@ sub bin2hex ($) {
 sub pre_auth {
   my ($self, $RAD, $attr)=@_;
 
-if (! $RAD->{MS_CHAP_CHALLENGE}) {
-  print "Auth-Type := Accept\n";
-  exit 0;
- }
 
-  $self->query($db, "SELECT DECODE(password, '$attr->{SECRETKEY}') FROM users WHERE id='$RAD->{USER_NAME}';");
+if (defined($RAD->{MS_CHAP_CHALLENGE}) || defined($RAD->{EAP_MESSAGE})) {
+  $self->query($db, "SELECT DECODE(password, '$CONF->{secretkey}') FROM users WHERE id='$RAD->{USER_NAME}';");
 
-  my $a = `echo \`date\` "'$attr->{SECRETKEY}') FROM users WHERE id='$RAD->{USER_NAME}' test" >> /tmp/aaaaaaa`;
+  #my $a = `echo \`date\` "'$attr->{SECRETKEY}') FROM users WHERE id='$RAD->{USER_NAME}' test" >> /tmp/aaaaaaa`;
 
   if ($self->{TOTAL} > 0) {
   	my $list = $self->{list}->[0];
@@ -1050,11 +1077,15 @@ if (! $RAD->{MS_CHAP_CHALLENGE}) {
     exit 0;
    }
 
-
-
   $self->{errno} = 1;
   $self->{errstr} = "USER: '$RAD->{USER_NAME}' not exist";
   exit 1;
+ }
+
+  print "Auth-Type := Accept\n";
+  exit 0;
+
+
 }
 
 
@@ -1139,13 +1170,6 @@ sub check_mschapv2 {
 
     return 1;
 }
-
-
-
-
-
-
-
 
 
 

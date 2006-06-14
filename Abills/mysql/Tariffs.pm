@@ -569,9 +569,9 @@ sub  tt_add {
   
   %DATA = $self->get_data($attr, {default => $self->tt_defaults() }); 
 
-  if($DATA{TT_ID} > 2) {
+  if($DATA{TT_ID} > 2 && $attr->{DV_EXPPP_NETFILES}) {
   	 $self->{errno}='1';
-  	 $self->{errstr}='Max 3 network group';
+  	 $self->{errstr}='Max 3 network group for exppp';
   	 return $self;
    }
   

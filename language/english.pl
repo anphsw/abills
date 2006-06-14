@@ -260,6 +260,7 @@ $_GENERED_PARRWORD = 'Genered password';
 $_TARIF_PLANS='Tarif plans';
 $_TARIF_PLAN='Tarif plan';
 $_DISABLE='Disable';
+$_ENABLE='Enable';
 $_COMPANY='Company';
 $_ADD_USER='Add user';
 $_CREDIT_TRESSHOLD='Credit Tresshold';

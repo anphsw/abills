@@ -24,7 +24,7 @@ require Admins;
 Admins->import();
 require Abills::HTML;
 Abills::HTML->import();
-$html = Abills::HTML->new();
+$html = Abills::HTML->new({ CONF => \%conf });
 
 my $sql = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd});
 my $db = $sql->{db};
@@ -49,7 +49,7 @@ my $args = parse_arguments(\@ARGV);
 
 #print $DATE;
 
-my @daily_functions=('sheduler',
+my @daily_functions=(
                      'admin_report_daily'
                      );
 
@@ -87,7 +87,7 @@ my @reports = ();
    undef %PERIODIC;
   }
 
-
+  push  @daily_functions, 'sheduler';
 
 my($Y, $M, $D);
 
@@ -124,11 +124,12 @@ if (defined($args->{monthly})) {
               "$message", "$conf{MAIL_CHARSET}", "2 (High)");
  }
 elsif (defined($args->{daily})) {
-  foreach my $f (@daily_functions) {
-  	#print $f . "\n";
-  	$f->();
+  for(my $i=$#daily_functions; $i>-1; $i--) {
+        my $f = $daily_functions[$i];
+        #print $f . "\n";
+        $f->();
    }
-  
+
   if ($begin_time > 0)  {
     Time::HiRes->import(qw(gettimeofday));
     my $end_time = gettimeofday();

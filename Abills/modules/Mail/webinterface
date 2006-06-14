@@ -1,5 +1,5 @@
 #/usr/bin/perl
-# Dialup vpn web functions
+# Mail web interface functions
 
 
 require "Mail.pm";
@@ -9,13 +9,12 @@ my $Mail = Mail->new($db, $admin, $conf);
 
 
 
-
-
 #**********************************************************
-# user_dv
+#  mail_users_list
 #**********************************************************
 sub mail_users_list {
  
+
  if (! $FORM{UID}) {
    print $html->letters_list();
    if ($FORM{letter}) {
@@ -41,20 +40,12 @@ elsif ($Mail->{TOTAL} == 1) {
 	#return 0;
 }
 
-#mb.username, md.domain, mb.descr, mb.quota, mb.antivirus, 
-#	      mb.antispam, mb.status, 
-#	      mb.create_date, mb.change_date, mb.expire, mb.maildir, 
-#	      mb.uid, mb.id
-#        FROM mail_boxes mb
-#        LEFT JOIN mail_domains md ON  (md.id=mb.domain_id) 
-#        $WHERE
-
-  my $table = $html->table( { width => '100%',
-                                   border => 1,
-                                   title => ["$_LOGIN", "$_DOMAIN", "$_USER", "$_COMMENTS", "$_LIMIT $_COUNT", "$_LIMIT $_SIZE", "$_ANTIVIRUS", "$_ANTISPAM", "$_STATUS", '-', '-'],
-                                   cols_align => ['left', 'left', 'left', 'right', 'right', 'right', 'center', 'center', 'center', 'center', 'center', 'center'],
-                                   qs => $pages_qs,
-                                   pages => $Mail->{TOTAL}
+  my $table = $html->table( { width      => '100%',
+                              border     => 1,
+                              title      => ["$_LOGIN", "$_DOMAIN", "$_USER", "$_COMMENTS", "$_LIMIT $_COUNT", "$_LIMIT $_SIZE", "$_ANTIVIRUS", "$_ANTISPAM", "$_STATUS", '-', '-'],
+                              cols_align => ['left', 'left', 'left', 'right', 'right', 'right', 'center', 'center', 'center', 'center', 'center', 'center'],
+                              qs         => $pages_qs,
+                              pages      => $Mail->{TOTAL}
                                   } );
 
   if ($Mail->{errno}) {
@@ -69,7 +60,8 @@ elsif ($Mail->{TOTAL} == 1) {
     $table->addrow($html->button($line->[0], "index=$index&MBOX_ID=$line->[14]&UID=$line->[13]"), 
        "$line->[1]",
        $html->button($line->[2], "index=11&UID=$line->[13]"),
-      "$line->[3]", "$line->[4]", "$line->[5]", "$status[$line->[6]]", "$status[$line->[7]]", "$status[$line->[8]]", 
+      "$line->[3]", "$line->[4]", "$line->[5]", 
+      "$status[$line->[6]]", "$status[$line->[7]]", "$status[$line->[8]]", 
       $html->button($_CHANGE, "index=$index&MBOX_ID=$line->[14]&UID=$line->[13]"),
       $delete);
    }
@@ -87,7 +79,7 @@ elsif ($Mail->{TOTAL} == 1) {
 
 
 #**********************************************************
-# mail_users
+# mail_user_boxes
 #**********************************************************
 sub mail_user_boxes {
  	$Mail->{UID}=$FORM{UID};	  
@@ -134,8 +126,8 @@ sub mail_user_boxes {
   #  mail_users_list();
   # }
 
-  $Mail->{ANTIVIRUS}=' checked' if($Mail->{ANTIVIRUS} == 1);
-  $Mail->{ANTISPAM}=' checked' if($Mail->{ANTISPAM} == 1);
+  $Mail->{ANTIVIRUS}=' checked' if($Mail->{ANTIVIRUS} == 0);
+  $Mail->{ANTISPAM}=' checked' if($Mail->{ANTISPAM} == 0);
   $Mail->{DISABLE}=' checked' if($Mail->{DISABLE} == 1);
   
   

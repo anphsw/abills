@@ -1,5 +1,5 @@
-<form action=$SELF_URL>
-<input type=hidden name=index value=$index>
+<form action='$SELF_URL'>
+<input type=hidden name='index' value='$index'>
 <input type=hidden name=MAIL_ACCESS_ID value=%MAIL_ACCESS_ID%>
 <table>
 <tr><td>$_VALUE:</td><td><input type=text name=PATTERN value='%PATTERN%'></td></tr>

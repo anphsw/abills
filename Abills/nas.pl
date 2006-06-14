@@ -23,10 +23,10 @@ my %stats = ();
 
 #*******************************************************************
 # Hangup active port
-# hangup($NAS_HASH_REF, $PORT, $USER, $SESSION_ID);
+# hangup($NAS_HASH_REF, $PORT, $USER, $attr);
 #*******************************************************************
 sub hangup {
- my ($Nas, $PORT, $USER, $SESSION_ID) = @_;
+ my ($Nas, $PORT, $USER, $attr) = @_;
 
  $NAS = $Nas;
  $nas_type = $NAS->{NAS_TYPE};
@@ -51,7 +51,7 @@ sub hangup {
     hangup_mpd($NAS, $PORT);
   }
  elsif ($nas_type eq 'pppd') {
-   hangup_pppd($NAS, $PORT);
+   hangup_pppd($NAS, $PORT, { FRAMED_IP_ADDRESS => $attr->{FRAMED_IP_ADDRESS} });
   }
  else {
     return 1;
@@ -134,15 +134,18 @@ foreach my $line (@$commands) {
   my ($waitfor, $sendtext)=split(/\t/, $line, 2);
 
   $input = '';
+  
+  if ($waitfor eq '-') {
+    send($sock, "$sendtext\r\n", 0, $dest) or die log_print('LOG_INFO', "Can't send: '$text' $!");
+   }
+
   do {
      recv($sock, $inbuf, $MAXBUF, 0);
      $input .= $inbuf;
      $len = length($inbuf);
-
      alarm 5;
     } while ($len >= $MAXBUF || $len < 4);
-
-
+ 
   log_print('LOG_DEBUG', "Get: \"$input\"\nLength: $len");
   log_print('LOG_DEBUG', " Wait for: '$waitfor'");
 
@@ -169,7 +172,7 @@ foreach my $line (@$commands) {
 
 
 
-sub telnet_cmd_new {
+sub telnet_cmd2 {
  my($host, $commands, $attr)=@_;
  my $port = 23;
 
@@ -179,108 +182,47 @@ sub telnet_cmd_new {
 
  use IO::Socket;
  use IO::Select;
-
-
-$host='nacho.yes.ko.if.ua';
-
  my $data;
+ my $res;
 
-# my $debug   = (defined($attr->{debug})) ? 1 : 0;
  my $timeout = defined($attr->{'TimeOut'}) ? $attr->{'TimeOut'} : 5;
  my	$socket = new IO::Socket::INET(
 				PeerAddr => $host,
 				PeerPort => $port,
 				Proto    => 'tcp',
 				TimeOut  => $timeout
-	) or print "ERR: Can't connect to '$host:$port' $!";
+	) or log_print('LOG_DEBUG', "ERR: Can't connect to '$host:$port' $!");
   log_print('LOG_DEBUG', "Connected to $host:$port"); 
-
 
 	#my $sh = new IO::Select($socket) or return "Can't read";
 	#$sh->can_read($timeout) or return "Time Out";
 
-  print <$socket>;
-
-	$socket->recv($data, 65536) or return "Read Error";
-  
-  log_print('LOG_DEBUG', " RECV: $data\n"); 
-
-
-#  $sock->send ("\n") or return "Send Error";
-
-#my $socket = IO::Socket::INET->new(PeerAddr => $host,
-#                                PeerPort => $port,
-#                                Proto    => "tcp",
-#                                Type     => SOCK_STREAM)
-#    or return "Couldn't connect to $remote_host:$remote_port : $@\n";
+#$s = IO::Select->new();
+#           $s->add(\*STDIN);
+#           $s->add($socket);
+#@read_from = $s->can_read($timeout) or print "Time Out";
 #
-##print $socket "Why don't you call me anymore?\n";
-#
-#my $answer = <$socket>;
-#
-#print $answer;
-#
-## and terminate the connection when we're done
-#close($socket); 
- 
-# use Socket;
-# if(! socket(SH, PF_INET, SOCK_STREAM, getprotobyname('tcp'))) {
-# 	 print "ERR: Can't connect to '$hostname:$port' $!";
-#   return 0;
-#  }
-#
-# my $dest = sockaddr_in($port, inet_aton("$hostname"));
-# if(! connect(SH, $dest)) { 
-#   print "ERR: Can't connect to '$hostname:$port' $!";
-#   return 0;
-#  }
-#
-# log_print('LOG_DEBUG', "Connected to $hostname:$port");
-#
-# my $sock = \*SH;
-# my $MAXBUF=512;
-# my $input = '';
-# my $len = 0;
-# my $text = '';
-# my $inbuf = '';
-# my $res = '';
-#
-#
-#foreach my $line (@$commands) {
-#
-#  my ($waitfor, $sendtext)=split(/\t/, $line, 2);
-#
-#  $input = '';
-#  do {
-#     recv($sock, $inbuf, $MAXBUF, 0);
-#     $input .= $inbuf;
-#     $len = length($inbuf);
-#
-#     alarm 5;
-#    } while ($len >= $MAXBUF || $len < 4);
-#
-#
-#  log_print('LOG_DEBUG', "Get: \"$input\"\nLength: $len");
-#  log_print('LOG_DEBUG', " Wait for: '$waitfor'");
-#
-#  if ($input =~ /$waitfor/ig){ # || $waitfor eq '') {
-#    $text = $sendtext;
-#    log_print('LOG_DEBUG', "Send: $text");
-#    #print "$waitfor - $sendtext\n";
-#    send($sock, "$text\r\n", 0, $dest) or die log_print('LOG_INFO', "Can't send: '$text' $!");
-#    #"Can't send: $!\n";
-#   };
-#
-# $res .= "$input\n";
-# 
-# #print "<pre>$res</pre>";
-#
+#foreach $line (@read_from) {
+#    print $line;
+#    # read the pending data from $socket
+#    
 #}
+
+
+
+
+foreach my $line (@$commands) {
+  my ($waitfor, $sendtext)=split(/\t/, $line, 2);
 #
-#
-# #print "<pre>$res</pre>";
-# close(SH);
-# return $res;
+  $socket->send("$sendtext");
+  while(<$socket>) {
+    $res .= $_;
+  }
+}
+
+ close($socket);
+
+ return $res;
 
 }
 
@@ -674,7 +616,7 @@ sub stats_pppd  {
 # hangup_pppd($SERVER, $PORT)
 #*******************************************************************
 sub hangup_pppd {
- my ($NAS, $id) = @_;
+ my ($NAS, $id, $attr) = @_;
 
  use FindBin '$Bin';
  

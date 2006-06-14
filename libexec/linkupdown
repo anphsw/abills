@@ -24,6 +24,8 @@
 # /etc/ppp/ip-up.local 
 # /usr/abills/libexec/linkupdown pppd up $1 'username' $4
 #
+# /etc/ppp/ip-down.local 
+# /usr/abills/libexec/linkupdown pppd down $1 'username' $4
 #
 
 
@@ -37,19 +39,23 @@ if ( $#ARGV < 3 ) {
 
  /etc/ppp/ppp.linkup
  MYADDR:
- !bg /usr/abills/libexec/linkupdown up INTERFACE USER HISADDR
+   !bg /usr/abills/libexec/linkupdown up INTERFACE USER HISADDR
 
  /etc/ppp/ppp.linkdown
-
  MYADDR:
- !bg /usr/abills/libexec/linkupdown down INTERFACE USER HISADDR
+   !bg /usr/abills/libexec/linkupdown down INTERFACE USER HISADDR
 
 ----------------------------------------------------------------
  /usr/local/etc/mpd/mpd.conf
- set iface up-script "/usr/abills/libexec/linkupdown mpd up"
- set iface down-script "/usr/abills/libexec/linkupdown mpd down"
+   set iface up-script "/usr/abills/libexec/linkupdown mpd up"
+   set iface down-script "/usr/abills/libexec/linkupdown mpd down"
 ----------------------------------------------------------------
+ For Linux:
+ /etc/ppp/ip-up.local 
+   /usr/abills/libexec/linkupdown pppd up \$1 'username' \$4
 
+ /etc/ppp/ip-down.local 
+   /usr/abills/libexec/linkupdown pppd down \$1 'username' \$4
 DEBUG: $debug
 };
 exit 0;
@@ -98,10 +104,10 @@ if ($ARGV[0] eq 'mpd') {
 }
 #pppd
 elsif($ARGV[0] eq 'pppd') {
-  $ACTION=$ARGV[0];
-  $INTERFACE=$ARGV[1];
-  $USER=$ARGV[2];
-  $HISADDR=$ARGV[3];
+  $ACTION=$ARGV[1];
+  $INTERFACE=$ARGV[2];
+  $USER=$ARGV[3];
+  $HISADDR=$ARGV[4];
   $inum = $INTERFACE;
   $inum =~ s/ppp//;
  }
@@ -137,16 +143,25 @@ my @FW_ACTIONS = ();
     $fw_nums .=   ' ' . ($fw_num)   .' '. ($fw_num +1);
     $pipe_nums .= ' ' . ($pipe_num) .' '. ($pipe_num+1);
   }
+
+my %LIST_PARAMS = ();
+
+if ($ARGV[0] eq 'pppd') {
+	push @FW_ACTIONS, "/sbin/tc qdisk del dev $INTERFACE";
+	$LIST_PARAMS{IP}=$HISADDR;
+} 
+else {
   push @FW_ACTIONS, "$IPFW -f delete $fw_nums";
   push @FW_ACTIONS, "$IPFW -f pipe delete $pipe_nums";
-
+  $LIST_PARAMS{LOGIN} = "$USER";
+}
 
 # Up fw shaper rules
 if ($ACTION eq 'up') {
   my %speeds = ();
   my %nets = ();
   
-  my $user = $Dv->info(0, { LOGIN => "$USER" });
+  my $user = $Dv->info(0, { %LIST_PARAMS });
 
   if(defined($Dv->{errno})) {
      print "[$Dv->{errno}] $Dv->{errstr}\n";
@@ -186,8 +201,6 @@ if ($ACTION eq 'up') {
 
     if (keys %TT_IDS > 0) {
     	
-    	
-    	
       require Tariffs;
       Tariffs->import();
       my $tariffs = Tariffs->new($db, $admin);
@@ -212,6 +225,8 @@ if ($ACTION eq 'up') {
   my $pipe_num_in  =0;
   my $pipe_num_out =0;
 
+
+
   while(my ($traf_type, $speed)=each %speeds) {
     $fw_num_in  = $START_FW[$traf_type] + $inum * 2;
     $fw_num_out = $START_FW[$traf_type] + $inum * 2 + 1;
@@ -223,7 +238,33 @@ if ($ACTION eq 'up') {
 
     #Linux tc shaper
     if ($ARGV[0] eq 'pppd') {
-      #/sbin/tc qdisc add dev $1 root tbf rate 15kbps limit 20000 burst 1540 
+       # In
+      if ($speed_in > 0) {
+        if ($traf_type == 0) {
+          push @FW_ACTIONS, "/sbin/tc qdisc add dev $INTERFACE root handle $fw_num_out: htb default 10";
+          push @FW_ACTIONS, "/sbin/tc class add dev $INTERFACE parent $fw_num_out: classid 1:10 htb rate $speed_in";
+          push @FW_ACTIONS, "/sbin/tc qdisc add dev $INTERFACE parent $fw_num_out:10 handle 10: sfq perturb 10";
+         }
+        else {
+          push @FW_ACTIONS, "/sbin/tc qdisc add dev $INTERFACE root handle $fw_num_out: htb default 10";
+          push @FW_ACTIONS, "/sbin/tc class add dev $INTERFACE parent $fw_num_out: classid 1:10 htb rate $speed_out";
+          push @FW_ACTIONS, "/sbin/tc qdisc add dev $INTERFACE parent $fw_num_out:10 handle 10: sfq perturb 10";
+         }
+       }
+
+      if ($speed_out > 0) {
+        if ($traf_type == 0) {
+          push @FW_ACTIONS, "/sbin/tc qdisc add dev $INTERFACE root handle $fw_num_out: htb default 10";
+          push @FW_ACTIONS, "/sbin/tc class add dev $INTERFACE parent $fw_num_out: classid 1:10 htb rate $speed_in";
+          push @FW_ACTIONS, "/sbin/tc qdisc add dev $INTERFACE parent $fw_num_out:10 handle 10: sfq perturb 10";
+         }
+        else {
+          push @FW_ACTIONS, "/sbin/tc qdisc add dev $INTERFACE root handle $fw_num_out: htb default 10";
+          push @FW_ACTIONS, "/sbin/tc class add dev $INTERFACE parent $fw_num_out: classid 1:10 htb rate $speed_out";
+          push @FW_ACTIONS, "/sbin/tc qdisc add dev $INTERFACE parent $fw_num_out:10 handle 10: sfq perturb 10";
+         }
+       }
+      
      }
     #FreeBSD ipfw pipe shaper
     else {
