@@ -29,7 +29,6 @@ if (in_array('Cards', \@MODULES)) {
  
  
 %USER_FUNCTION_LIST = ("01:0:Dialup / VPN:dv_user_info:"     => 0,
-                       "02:1:$_INFO:dv_user_info:"           => 0,
                        "03:1:$_STATS:dv_user_stats:"         => 0
                       );
 

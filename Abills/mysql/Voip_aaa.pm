@@ -1,5 +1,5 @@
 package Voip_aaa;
-# VoIP Accounting functions
+# VoIP AAA functions
 #
 
 use strict;
@@ -18,13 +18,11 @@ use main;
 use Billing;
 use Auth;
 
-
-
 @ISA  = ("main");
 my ($db, $conf, $Billing);
 
 
-my %RAD_PAIRS;
+my %RAD_PAIRS=();
 my %ACCT_TYPES = ('Start', 1,
                'Stop', 2,
                'Alive', 3,
@@ -176,6 +174,7 @@ sub auth {
   my $self = shift;
   my ($RAD, $NAS) = @_;
 
+  %RAD_PAIRS=();
   $self->user_info($RAD, $NAS);
 
   if($self->{errno}) {

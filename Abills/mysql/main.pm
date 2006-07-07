@@ -56,7 +56,6 @@ $PAGE_ROWS = 25;
 
 my $query_count = 0;
 
-
 use DBI;
 
 #**********************************************************
@@ -100,6 +99,9 @@ sub disconnect {
 sub query {
 	my $self = shift;
   my ($db, $query, $type, $attr)	= @_;
+
+  $self->{errstr}=undef;
+  $self->{errno}=undef;
 
   print "<p>$query</p>\n" if ($self->{debug});
 

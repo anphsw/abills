@@ -109,6 +109,7 @@ my $passwd = $FORM{passwd} || '';
 $user=Users->new($db, $admin, \%conf); 
 ($uid, $sid, $login) = auth("$login", "$passwd", "$sid");
 my %uf_menus = ();
+
 if ($uid > 0) {
 
   push @m, "17:0:$_PASSWD:form_passwd:::"   if($conf{user_chg_passwd} eq 'yes');
@@ -116,8 +117,8 @@ if ($uid > 0) {
   foreach my $line (@m) {
 	  my ($ID, $PARENT, $NAME, $FUNTION_NAME, $SHOW_SUBMENU, $OP)=split(/:/, $line);
     $menu_items{$ID}{$PARENT}=$NAME;
-    $menu_names{$ID}=$NAME;
-    $functions{$ID}=\&$FUNTION_NAME if ($FUNTION_NAME  ne '');
+    $menu_names{$ID} = $NAME;
+    $functions{$ID}  = $FUNTION_NAME if ($FUNTION_NAME  ne '');
     $maxnumber=$ID if ($maxnumber < $ID);
    }
 
@@ -135,6 +136,8 @@ if ($uid > 0) {
       my $v = $FUNCTIONS_LIST{$line};
 
       $module_fl{"$ID"}=$maxnumber;
+      #$fl .= "$FUNTION_NAME $maxnumber\n";
+      
       $menu_args{$maxnumber}=$ARGS if ($ARGS ne '');
       #print "$line -- $ID, $SUB, $NAME, $FUNTION_NAME  // $module_fl{$SUB}<br/>";
      
@@ -147,16 +150,19 @@ if ($uid > 0) {
           $uf_menus{$maxnumber}=$NAME;
          }
       }
-      $menu_names{$maxnumber}=$NAME;
-      $functions{$maxnumber}=\&$FUNTION_NAME if ($FUNTION_NAME  ne '');
-      $module{$maxnumber}=$m;
+      $menu_names{$maxnumber} = $NAME;
+      $functions{$maxnumber}  = $FUNTION_NAME if ($FUNTION_NAME  ne '');
+      $module{$maxnumber}     = $m;
     }
 
     %USER_FUNCTION_LIST = ();
   }
 
   (undef, $OUTPUT{MENU}) = $html->menu(\%menu_items, \%menu_args, undef, 
-     { EX_ARGS => "&sid=$sid", ALL_PERMISSIONS => 'y' });
+     { EX_ARGS         => "&sid=$sid", 
+     	 ALL_PERMISSIONS => 'y',
+     	 FUNCTION_LIST   => \%functions
+     	  });
   
   if ($html->{ERROR}) {
   	$html->message('err',  $_ERROR, "$html->{ERROR}");
@@ -182,16 +188,19 @@ if ($uid > 0) {
     $functions{30}->();
    }
 
+
   $OUTPUT{BODY}=$html->{OUTPUT};
   $html->{OUTPUT}='';
   $OUTPUT{BODY}=$html->tpl_show(templates('users_main'), \%OUTPUT);
+
 }
 else {
   form_login();
 }
 
-$OUTPUT{BODY}="$html->{OUTPUT}";
 
+
+$OUTPUT{BODY}="$html->{OUTPUT}";
 print $html->tpl_show(templates('users_start'), \%OUTPUT);
 
 
@@ -470,7 +479,7 @@ elsif($FORM{newpassword} ne $FORM{confirm}) {
  my $password_form;
  $password_form->{ACTION}='change';
  $password_form->{LNG_ACTION}="$_CHANGE";
-
+ $password_form->{GEN_PASSWORD}=mk_unique_value(8);
  $html->tpl_show(templates('form_password'), $password_form);
 
  return 0;

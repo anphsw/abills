@@ -12,6 +12,7 @@ $web_interface    = 1;
 #                      );
 #$USER_FUNCTION_LIST{"04:1:$_TARIF_PLAN:dv_user_chg_tp:"}=0 if (defined($conf{dv_user_chg_tp}));
 
+
  
 %PERIODIC = (daily   => ['mdelivery_periodic']);
 

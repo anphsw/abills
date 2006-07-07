@@ -1,4 +1,4 @@
-<form action='$SELF_URL'>
+<form action='$SELF_URL' METHOD='POST'>
 <input type=hidden name=index value=$index> 
 <input type=hidden name=ID value='$FORM{chg}'> 
 <table>

@@ -78,7 +78,7 @@ sub new {
   my $self = { };
   bless($self, $class);
 
-  if (defined($attr->{NO_PRINT})) {
+  if ($attr->{NO_PRINT}) {
      $self->{NO_PRINT}=1;
    }
  
@@ -132,8 +132,8 @@ sub new {
 
   if (defined($FORM{xml})) {
     require Abills::XML;
-    $self = Abills::XML->new( { IMG_PATH => 'img/',
-	                              NO_PRINT  => 'y' 
+    $self = Abills::XML->new( { IMG_PATH  => 'img/',
+	                              NO_PRINT  => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1 
 	                            
 	                            });
   }
@@ -183,6 +183,11 @@ if (! defined($ENV{CONTENT_TYPE}) || $ENV{CONTENT_TYPE} !~ /boundary/ ) {
     $value =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/eg;
     $value =~ s/<!--(.|\n)*-->//g;
     $value =~ s/<([^>]|\n)*>//g;
+
+    #Check quotes
+    $value =~ s/"/\\"/g;
+    $value =~ s/'/\\'/g;
+   
     if (defined($FORM{$side})) {
       $FORM{$side} .= ", $value";
      }
@@ -252,42 +257,6 @@ else {
   return %FORM;
 }
 
-#sub form_parse {
-#  my $self = shift;
-#  my $buffer = '';
-#  my $value='';
-#  my %FORM = ();
-#  
-#  return %FORM if (! defined($ENV{'REQUEST_METHOD'}));
-#
-#if ($ENV{'REQUEST_METHOD'} eq "GET") {
-#   $buffer= $ENV{'QUERY_STRING'};
-# }
-#elsif ($ENV{'REQUEST_METHOD'} eq "POST") {
-#   read(STDIN, $buffer, $ENV{'CONTENT_LENGTH'});
-# }
-#
-#my @pairs = split(/&/, $buffer);
-#$FORM{__BUFFER}=$buffer;
-#
-#foreach my $pair (@pairs) {
-#   my ($side, $value) = split(/=/, $pair);
-#   $value =~ tr/+/ /;
-#   $value =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/eg;
-#   $value =~ s/<!--(.|\n)*-->//g;
-#   $value =~ s/<([^>]|\n)*>//g;
-#   if (defined($FORM{$side})) {
-#     $FORM{$side} .= ", $value";
-#    }
-#   else {
-#     $FORM{$side} = $value;
-#    }
-# }
-#
-#  return %FORM;
-#}
-
-
 #*******************************************************************
 # form_input
 #*******************************************************************
@@ -296,13 +265,22 @@ sub form_input {
 	my ($name, $value, $attr)=@_;
 
 
-  my $type  = (defined($attr->{TYPE})) ? $attr->{TYPE} : 'text';
+  my $type  = 'text';
+  my $class = '';
+
+  if (defined($attr->{TYPE})) {
+  	$type=$attr->{TYPE};
+    if ($type =~ /submit/i) {
+    	$class=' class="button"';
+     }
+   }  
+
   my $state = (defined($attr->{STATE})) ? ' checked' : ''; 
   my $size  = (defined($attr->{SIZE})) ? "SIZE=\"$attr->{SIZE}\"" : '';
-
+  
 
   
-  $self->{FORM_INPUT}="<input type=\"$type\" name=\"$name\" value=\"$value\"$state$size>";
+  $self->{FORM_INPUT}="<input type=\"$type\" name=\"$name\" value=\"$value\"$state$size$class/>";
 
   if (defined($self->{NO_PRINT}) && ( !defined($attr->{OUTPUT2RETURN}) )) {
   	$self->{OUTPUT} .= $self->{FORM_INPUT};
@@ -341,7 +319,7 @@ sub form_main {
   if (defined($attr->{SUBMIT})) {
   	my $H = $attr->{SUBMIT};
   	while(my($k, $v)=each( %$H)) {
-      $self->{FORM} .= "<input type=\"submit\" name=\"$k\" value=\"$v\">\n";
+      $self->{FORM} .= "<input type=\"submit\" name=\"$k\" value=\"$v\" class=\"button\">\n";
   	}
   }
 
@@ -364,12 +342,8 @@ sub form_select {
   my ($name, $attr)	= @_;
 	
 	my $ex_params =  (defined($attr->{EX_PARAMS})) ? $attr->{EX_PARAMS} : '';
-	
-	
-	
-	
+			
 	$self->{SELECT} = "<select name=\"$name\" $ex_params>\n";
-  
   
   if (defined($attr->{SEL_OPTIONS})) {
  	  my $H = $attr->{SEL_OPTIONS};
@@ -534,7 +508,8 @@ foreach my $ID (@s) {
  
  my @last_array = ();
 
- my $menu_text = "<table border='0' width='100%'>\n";
+ my $menu_text = "<div class='menu'>
+ <table border='0' width='100%'>\n";
 
  	  my $level  = 0;
  	  my $prefix = '';
@@ -598,7 +573,7 @@ foreach my $ID (@s) {
 #  }
  
  
- $menu_text .= "</table>\n";
+ $menu_text .= "</table>\n</div>\n";
  
  return ($menu_navigator, $menu_text);
 }
@@ -686,7 +661,14 @@ sub header {
    @_COLORS = split(/, /, $COOKIES{colors});
   }
 
- my $JAVASCRIPT = ($attr->{PATH}) ? "$attr->{PATH}functions.js" : "functions.js";
+ my $JAVASCRIPT = "functions.js"; 
+ my $PRINTCSS = "print.css";
+
+ if ($attr->{PATH}) {
+ 	 $JAVASCRIPT = "$attr->{PATH}$JAVASCRIPT";
+ 	 $PRINTCSS = "$attr->{PATH}$PRINTCSS";
+  }
+
  my $css = css();
 
  my $CHARSET=(defined($attr->{CHARSET})) ? $attr->{CHARSET} : 'windows-1251';
@@ -697,19 +679,21 @@ $self->{header} .= qq{
 <html>
 <head>
  $REFRESH
- <META HTTP-EQUIV="Cache-Control" content="no-cache"\>
- <META HTTP-EQUIV="Pragma" CONTENT="no-cache"\>
- <meta http-equiv="Content-Type" content="text/html; charset=$CHARSET"\>
- <meta name="Author" content="~AsmodeuS~"\>
+ <META HTTP-EQUIV="Cache-Control" content="no-cache"/>
+ <META HTTP-EQUIV="Pragma" CONTENT="no-cache"/>
+ <meta http-equiv="Content-Type" content="text/html; charset=$CHARSET"/>
+ <meta name="Author" content="~AsmodeuS~"/>
 };
 
 $self->{header} .= $css;
 $self->{header} .= 
-"<script src=\"$JAVASCRIPT\" type=\"text/javascript\" language=\"javascript\"></script>\n".
+" <link rel=\"stylesheet\" media=\"print\" type=\"text/css\" href=\"$PRINTCSS\" />
+ <script src=\"$JAVASCRIPT\" type=\"text/javascript\" language=\"javascript\"></script>\n".
+
 q{ 
 <title>~AsmodeuS~ Billing System</title>
 </head>} .
-"\n<body style='margin: 0' bgcolor=\"$_COLORS[10]\" text=\"$_COLORS[9]\" link=\"$_COLORS[8]\"  vlink=\"$_COLORS[7]\">\n";
+"\n<body style=\"margin: 0\" bgcolor=\"$_COLORS[10]\" text=\"$_COLORS[9]\" link=\"$_COLORS[8]\"  vlink=\"$_COLORS[7]\">\n";
 
  return $self->{header};
 }
@@ -763,10 +747,10 @@ form {
 
 .button {
   font-family:  Arial, Tahoma,Verdana, Helvetica, sans-serif;
-  background-color: #003366;
-  color: #fcdc43;
+  background-color: $_COLORS[2];
+  color: $_COLORS[9];
   font-size: 12px;
-  font-weight: bold;
+  //font-weight: bold;
 }
 
 input, textarea {
@@ -792,6 +776,9 @@ TABLE.border {
   border-style : solid;
   border-width : 1px;
 }
+
+
+
 </style>";
 
  return $css;
@@ -833,6 +820,7 @@ sub table {
  
  my $width = (defined($attr->{width})) ? "width=\"$attr->{width}\"" : '';
  my $border = (defined($attr->{border})) ? "border=\"$attr->{border}\"" : '';
+ my $table_class = (defined($attr->{class})) ? "class=\"$attr->{class}\"" : '';
 
  if (defined($attr->{rowcolor})) {
     $self->{rowcolor} = $attr->{rowcolor};
@@ -848,10 +836,10 @@ sub table {
      }
   }
 
- $self->{table} = "<TABLE $width cellspacing=\"0\" cellpadding=\"0\" border=\"0\">\n";
+ $self->{table} = "<TABLE $width cellspacing=\"0\" cellpadding=\"0\" border=\"0\"$table_class>\n";
  
  if (defined($attr->{caption})) {
-   $self->{table} .= "<TR><TD bgcolor=\"$_COLORS[1]\" align=\"right\"><b>$attr->{caption}</b></td></TR>\n";
+   $self->{table} .= "<TR><TD bgcolor=\"$_COLORS[1]\" align=\"right\" class=\"tcaption\"><b>$attr->{caption}</b></td></TR>\n";
   }
 
  $self->{table} .= "<TR><TD bgcolor=\"$_COLORS[4]\">
@@ -869,7 +857,13 @@ sub table {
    $self->{table} .= "<COLGROUP>";
    my $cols_align = $attr->{cols_align};
    foreach my $line (@$cols_align) {
-     $self->{table} .= " <COL align=\"$line\">\n";
+     my $class = '';
+     if ($line =~ /:/) {
+       ($line, $class) = split(/:/, $line,  2);
+       $class = " class=\"$class\"";
+      }
+     
+     $self->{table} .= " <COL align=\"$line\"$class>\n";
     }
    $self->{table} .= "</COLGROUP>\n";
   }
@@ -977,7 +971,7 @@ sub table_title_plain {
   $self->{table_title} = "<tr bgcolor=\"$_COLORS[0]\">";
 	
   foreach my $line (@$caption) {
-    $self->{table_title} .= "<th class=table_title>$line</th>";
+    $self->{table_title} .= "<th class='table_title'>$line</th>";
    }
 	
   $self->{table_title} .= "</TR>\n";
@@ -1004,7 +998,7 @@ sub table_title  {
   $self->{table_title} = "<tr bgcolor=\"$_COLORS[0]\">";
   my $i=1;
   foreach my $line (@$caption) {
-     $self->{table_title} .= "<th  class=table_title>$line ";
+     $self->{table_title} .= "<th  class='table_title'>$line ";
      if ($line ne '-') {
          if ($sort != $i) {
              $img = 'sort_none.png';
@@ -1029,7 +1023,7 @@ sub table_title  {
          	  $op="op=$get_op";
           }
 
-         $self->{table_title} .= $self->button("<img src='$IMG_PATH/$img' width=\"12\" height=10 border=0 alt='Sort' title=sort>", "$op$qs&pg=$pg&sort=$i&desc=$desc");
+         $self->{table_title} .= $self->button("<img src='$IMG_PATH/$img' width='12\' height='10' border='0' alt='Sort' title='sort' class='noprint'>", "$op$qs&pg=$pg&sort=$i&desc=$desc");
        }
      else {
          $self->{table_title} .= "$line";
@@ -1075,6 +1069,22 @@ sub show  {
 
 #**********************************************************
 #
+#**********************************************************
+sub link_former {
+  my ($params) = @_;
+
+
+  $params =~ s/ /%20/g;
+  $params =~ s/&/&amp;/g;
+  $params =~ s/>/&gt;/g;
+  $params =~ s/</&lt;/g;
+  $params =~ s/\"/&quot;/g;
+ 
+  return $params;
+}
+
+#**********************************************************
+#
 # del_button($op, $del, $message, $attr)
 #**********************************************************
 sub button {
@@ -1083,16 +1093,14 @@ sub button {
   my $ex_params = (defined($attr->{ex_params})) ? $attr->{ex_params} : '';
   my $ex_attr = '';
   
-  $params = "$SELF_URL?$params";
+  
+  $params = ($attr->{GLOBAL_URL})? $attr->{GLOBAL_URL} : "$SELF_URL?$params";
   $params = $attr->{JAVASCRIPT} if (defined($attr->{JAVASCRIPT}));
-  $params =~ s/ /%20/g;
-  $params =~ s/&/&amp;/g;
-  $params =~ s/>/&gt;/g;
-  $params =~ s/</&lt;/g;
-  $params =~ s/\"/&quot;/g;
+  $params = link_former($params);
 
   
   $ex_attr=" TITLE='$attr->{TITLE}'" if (defined($attr->{TITLE}));
+  
   my $message = (defined($attr->{MESSAGE})) ? "onclick=\"return confirmLink(this, '$attr->{MESSAGE}')\"" : '';
 
 
@@ -1119,7 +1127,7 @@ sub message {
  
 my $output = qq{
 <br>
-<TABLE width="400" border="0" cellpadding="0" cellspacing="0">
+<TABLE width="400" border="0" cellpadding="0" cellspacing="0" class="noprint">
 <tr><TD bgcolor="$_COLORS[9]">
 <TABLE width="100%" border=0 cellpadding="2" cellspacing="1">
 <tr><TD bgcolor="$_COLORS[1]">
@@ -1351,6 +1359,9 @@ sub test {
 print "<a href='#' title='$output'><font color=$_COLORS[1]>Debug</font></a>\n";
 
 }
+
+
+
 
 
 #**********************************************************

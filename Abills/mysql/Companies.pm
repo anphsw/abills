@@ -163,10 +163,10 @@ sub list {
  my ($attr) = @_;
  my $WHERE = '';
  
- my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
- my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
- my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
- my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+ $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+ $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+ $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+ $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
 
  if ($attr->{LOGIN_EXPR}) {
@@ -175,7 +175,7 @@ sub list {
   }
 
  $self->query($db, "SELECT c.name, b.deposit, c.registration, count(u.uid), c.disable, c.id, c.disable, c.bill_id
-    FROM companies c
+    FROM companies  c
     LEFT JOIN users u ON (u.company_id=c.id)
     LEFT JOIN bills b ON (b.id=c.bill_id)
     $WHERE
@@ -183,11 +183,9 @@ sub list {
     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;");
  my $list = $self->{list};
 
- if ($self->{TOTAL} > $PAGE_ROWS) {
-    $self->query($db, "SELECT count(c.id) FROM companies a;");
+    $self->query($db, "SELECT count(c.id) FROM companies c $WHERE;");
     my $a_ref = $self->{list}->[0];
     ($self->{TOTAL}) = @$a_ref;
-   }
 
 #  $self->{list}=$list;
 

@@ -1,4 +1,4 @@
-
+<div class='noprint'>
 <form action='$SELF_URL' METHOD='POST'>
 <input type=hidden name='index' value='$index'>
 <input type=hidden name='TP_ID' value='%TP_ID%'>
@@ -40,3 +40,4 @@
 </table>
 <input type=submit name='%ACTION%' value='%LNG_ACTION%'>
 </form>
+</div>

@@ -603,7 +603,6 @@ sub authentication {
     ) = @$a_ref;
 
 
-
 #return 0, \%RAD_PAIRS;
 
 
@@ -629,7 +628,7 @@ elsif(defined($RAD->{MS_CHAP_CHALLENGE})) {
      my ($ident, $flags, $peerchallenge, $reserved, $response) = unpack('C C a16 a8 a24', $rad_response);
 
      if (check_mschapv2("$RAD->{USER_NAME}", $self->{PASSWD}, $challenge, $peerchallenge, $response, $ident,
- 	     \$usersessionkey, \$lanmansessionkey, \$ms_chap2_success) == 0) {
+ 	     \$usersessionkey, \$lanmansessionkey, \$ms_chap2_success) == 1) {
          $RAD_PAIRS{'MS-CHAP-Error'}="\"Wrong MS-CHAP2 password\"";
          $RAD_PAIRS{'Reply-Message'}=$RAD_PAIRS{'MS-CHAP-Error'};
          return 1, \%RAD_PAIRS;
@@ -690,9 +689,12 @@ else {
    }
 }
 
-my @time_limits = ();
-my $remaining_time=0;
-my $ATTR;
+
+#DIsable
+if ($self->{DISABLE}) {
+  $RAD_PAIRS{'Reply-Message'}="Account Disable";
+  return 1, \%RAD_PAIRS;
+}
 
 #Chack Company account if ACCOUNT_ID > 0
 $self->check_company_account() if ($self->{COMPANY_ID} > 0);
@@ -701,11 +703,6 @@ if($self->{errno}) {
   return 1, \%RAD_PAIRS;
  }
 
-#DIsable
-if ($self->{DISABLE}) {
-  $RAD_PAIRS{'Reply-Message'}="Account Disable";
-  return 1, \%RAD_PAIRS;
-}
 
 
 $self->check_bill_account();
@@ -976,7 +973,7 @@ sub check_systemauth {
 
  if ($< != 0) {
    log_print('LOG_ERR', "For system Authentification you need root privileges");
-   exit 1;
+   return 1;
   }
 
  my @pw = getpwnam("$user");
@@ -1067,25 +1064,22 @@ sub pre_auth {
 
 if (defined($RAD->{MS_CHAP_CHALLENGE}) || defined($RAD->{EAP_MESSAGE})) {
   $self->query($db, "SELECT DECODE(password, '$CONF->{secretkey}') FROM users WHERE id='$RAD->{USER_NAME}';");
-
-  #my $a = `echo \`date\` "'$attr->{SECRETKEY}') FROM users WHERE id='$RAD->{USER_NAME}' test" >> /tmp/aaaaaaa`;
-
   if ($self->{TOTAL} > 0) {
   	my $list = $self->{list}->[0];
     my $password = $list->[0];
+    $self->{'RAD_CHECK'}{'User-Password'}="$password";
     print "User-Password == \"$password\"";
-    exit 0;
+    return 0;
    }
 
   $self->{errno} = 1;
   $self->{errstr} = "USER: '$RAD->{USER_NAME}' not exist";
-  exit 1;
+  return 1;
  }
-
+  
+  $self->{'RAD_CHECK'}{'Auth-Type'}="Accept";
   print "Auth-Type := Accept\n";
-  exit 0;
-
-
+  return 0;
 }
 
 
@@ -1149,7 +1143,7 @@ sub check_mschapv2 {
   use Abills::MSCHAP;
 
   my $upw = Radius::MSCHAP::ASCIItoUnicode($pw);
-  return 
+  return 1
   unless &Radius::MSCHAP::GenerateNTResponse($challenge, $peerchallenge, $username, $upw) 
 	       eq $response;
 
@@ -1168,7 +1162,7 @@ sub check_mschapv2 {
 			  if defined $ms_chap2_success;
 
 
-    return 1;
+    return 0;
 }
 
 

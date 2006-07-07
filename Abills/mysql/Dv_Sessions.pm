@@ -193,15 +193,20 @@ sub online_del {
 	my $self = shift;
 	my ($attr) = @_;
 
-  my $NAS_ID  = (defined($attr->{NAS_ID})) ? $attr->{NAS_ID} : '';
-  my $NAS_PORT        = (defined($attr->{NAS_PORT})) ? $attr->{NAS_PORT} : '';
-  my $ACCT_SESSION_ID = (defined($attr->{ACCT_SESSION_ID})) ? $attr->{ACCT_SESSION_ID} : '';
-
-
-  $self->query($db, "DELETE FROM dv_calls WHERE 
-                nas_id=INET_ATON('$NAS_ID')
+  if ($attr->{SESSIONS_LIST}) {
+  	my $session_list = join("', '", @{$attr->{SESSIONS_LIST}});
+  	$WHERE = "acct_session_id in ( '$session_list' )";
+   }
+  else {
+    my $NAS_ID  = (defined($attr->{NAS_ID})) ? $attr->{NAS_ID} : '';
+    my $NAS_PORT        = (defined($attr->{NAS_PORT})) ? $attr->{NAS_PORT} : '';
+    my $ACCT_SESSION_ID = (defined($attr->{ACCT_SESSION_ID})) ? $attr->{ACCT_SESSION_ID} : '';
+    $WHERE = "nas_id=INET_ATON('$NAS_ID')
             and nas_port_id='$NAS_PORT' 
-            and acct_session_id='$ACCT_SESSION_ID';", 'do');
+            and acct_session_id='$ACCT_SESSION_ID'";
+   }
+
+  $self->query($db, "DELETE FROM dv_calls WHERE $WHERE;", 'do');
 
   return $self;
 }
@@ -601,8 +606,6 @@ if ($attr->{MONTH}) {
 #Interval from date to date
 if ($attr->{INTERVAL}) {
  	 my ($from, $to)=split(/\//, $attr->{INTERVAL}, 2);
-   
-   
    push @WHERE_RULES, "date_format(start, '%Y-%m-%d')>='$from' and date_format(start, '%Y-%m-%d')<='$to'";
   }
 #Period
@@ -721,7 +724,7 @@ sub reports {
  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
  undef @WHERE_RULES;
  my $date = '';
-
+ 
 
  if ($attr->{GID}) {
  	 push @WHERE_RULES, "u.gid='$attr->{GID}'";
@@ -731,6 +734,19 @@ sub reports {
  if(defined($attr->{DATE})) {
    push @WHERE_RULES, " date_format(l.start, '%Y-%m-%d')='$attr->{DATE}'";
   }
+ elsif ($attr->{INTERVAL}) {
+ 	 my ($from, $to)=split(/\//, $attr->{INTERVAL}, 2);
+   push @WHERE_RULES, "date_format(l.start, '%Y-%m-%d')>='$from' and date_format(l.start, '%Y-%m-%d')<='$to'";
+   if ($attr->{TYPE} eq 'HOURS') {
+     $date = "date_format(l.start, '%H')";
+    }
+   elsif ($attr->{TYPE} eq 'DAYS') {
+     $date = "date_format(l.start, '%Y-%m-%d')";
+    }
+   else {
+     $date = "u.id";   	
+    }  
+  }
  elsif (defined($attr->{MONTH})) {
  	 push @WHERE_RULES, "date_format(l.start, '%Y-%m')='$attr->{MONTH}'";
    $date = "date_format(l.start, '%Y-%m-%d')";
@@ -738,6 +754,8 @@ sub reports {
  else {
  	 $date = "date_format(l.start, '%Y-%m')";
   }
+
+
 
  if ($attr->{GID}) {
    push @WHERE_RULES, "u.gid='$attr->{GID}'";
@@ -782,13 +800,13 @@ sub reports {
 
   my $list = $self->{list}; 
 
-  $self->{USERS}=0; 
-  $self->{SESSIONS}=0; 
-  $self->{TRAFFIC}=0; 
-  $self->{TRAFFIC_2}=0; 
-  $self->{DURATION}=0; 
-  $self->{SUM}=0;
-  
+  $self->{USERS}    = 0; 
+  $self->{SESSIONS} = 0; 
+  $self->{TRAFFIC}  = 0; 
+  $self->{TRAFFIC_2}= 0; 
+  $self->{DURATION} = 0; 
+  $self->{SUM}      = 0;
+
   return $list if ($self->{TOTAL} < 1);
 
   $self->query($db, "select count(DISTINCT l.uid), 

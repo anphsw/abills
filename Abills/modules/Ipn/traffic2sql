@@ -125,9 +125,7 @@ my $registred = '';
 
 
 foreach my $ip ( sort keys %$ips_interim) {
-  if ($ip == 0) {
-  	next ;
-  }
+  if ($ip == 0) {	next; }
 
   my $uid          = $ips->{$ip};
   my $login        = $logins->{$uid};
@@ -141,6 +139,7 @@ foreach my $ip ( sort keys %$ips_interim) {
   my $extended     = '';
 
   my $ip_addr;
+  #parse stats
   while(my($k, $v)=each %$ip_stats) {
       my $in = (defined($v->{IN})) ? int($v->{IN}) : 0;
       my $out = (defined($v->{OUT})) ? int($v->{OUT}) : 0;
@@ -161,7 +160,6 @@ foreach my $ip ( sort keys %$ips_interim) {
      
      
       if ($uid > 0) {
-##   	  my $r = $Acct->accounting(\%RAD, { NAS_ID => $NAS_ID });
    	    $Ipn->traffic_add_user( {
    	        START					 => $attr->{START} || undef,
    	        STOP					 => $attr->{STOP} || undef,
@@ -175,9 +173,6 @@ foreach my $ip ( sort keys %$ips_interim) {
             SESSION_ID     => $session_id,    
             SUM						 => $total_user_sum
    	      } );
-
-
-
       }
 
 
@@ -192,9 +187,9 @@ foreach my $ip ( sort keys %$ips_interim) {
 
 
    }
-  
-  if ($uid > 0) {
 
+  #Put user date to database  
+  if ($uid > 0) {
     %RAD = (  NAS_PORT          => 0,
    	          INBYTE            => $Ipn->{$ip}{IN}+$total_in,
    	          OUTBYTE           => $Ipn->{$ip}{OUT}+$total_out,

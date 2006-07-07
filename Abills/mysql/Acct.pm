@@ -42,7 +42,7 @@ sub new {
   ($db, $conf) = @_;
   my $self = { };
   bless($self, $class);
-  #$self->{debug}=1;
+
   return $self;
 }
 
@@ -105,13 +105,13 @@ elsif ($acct_status_type == 2) {
 
 #  return $self;
   if ($self->{UID} == -2) {
-    $self->{errno}=1;   
+    $self->{errno}  = 1;   
     $self->{errstr} = "ACCT [$RAD->{USER_NAME}] Not exist";
    }
   elsif($self->{UID} == -3) {
-    my $filename = "$RAD->{USER_NAME}.$RAD->{ACCT_SESSION_ID}";
-    $self->{errno}=1;
-    $self->{errstr}="ACCT [$RAD->{USER_NAME}] Not allow start period '$filename'";
+    my $filename   = "$RAD->{USER_NAME}.$RAD->{ACCT_SESSION_ID}";
+    $self->{errno} = 1;
+    $self->{errstr}= "ACCT [$RAD->{USER_NAME}] Not allow start period '$filename'";
     $Billing->mk_session_log($RAD);
    }
   elsif ($self->{SUM} < 0) {
@@ -146,7 +146,6 @@ elsif ($acct_status_type == 2) {
    }
 
   # Delete from session
-  $self->{debug}=1;
   $self->query($db, "DELETE FROM dv_calls WHERE acct_session_id=\"$RAD->{ACCT_SESSION_ID}\" 
      and user_name=\"$RAD->{USER_NAME}\" 
      and nas_id='$NAS->{NAS_ID}';", 'do');

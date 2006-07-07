@@ -21,11 +21,11 @@ use main;
 
 
 
-my %FIELDS = ( TP_ID        => 'id', 
-               NAME         => 'name',  
-               TIME_TARIF   => 'hourp',
-               DAY_FEE      => 'day_fee',
-               MONTH_FEE    => 'month_fee',
+my %FIELDS = ( TP_ID            => 'id', 
+               NAME             => 'name',  
+               TIME_TARIF       => 'hourp',
+               DAY_FEE          => 'day_fee',
+               MONTH_FEE        => 'month_fee',
                SIMULTANEOUSLY   => 'logins',
                AGE              => 'age',
                DAY_TIME_LIMIT   => 'day_time_limit',
@@ -40,10 +40,9 @@ my %FIELDS = ( TP_ID        => 'id',
                ALERT            => 'uplimit',
                OCTETS_DIRECTION => 'octets_direction',
                MAX_SESSION_DURATION => 'max_session_duration',
-               FILTER_ID        => '',
+               FILTER_ID        => 'filter_id',
                PAYMENT_TYPE     => 'payment_type',
                MIN_SESSION_COST => 'min_session_cost',
-
                RAD_PAIRS        => 'rad_pairs'
              );
 

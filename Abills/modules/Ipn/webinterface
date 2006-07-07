@@ -1306,27 +1306,45 @@ sub ipn_user_activate {
   my $ip = '0.0.0.0';
   my $IP_INPUT = '';
   if (! $user->{UID})  {
-    $IP_INPUT = $html->form_input('REMOTE_ADDR', "$ENV{REMOTE_ADDR}", { OUTPUT2RETURN => 1});
-    $ip = ($FORM{REMOTE_ADDR}) ? $FORM{REMOTE_ADDR} : $ENV{REMOTE_ADDR};
+     $IP_INPUT = $html->form_input('REMOTE_ADDR', "$ENV{REMOTE_ADDR}", { OUTPUT2RETURN => 1});
+
+     $ip = ($FORM{REMOTE_ADDR}) ? $FORM{REMOTE_ADDR} : $ENV{REMOTE_ADDR};
    } 
   else {
     $ip = $ENV{REMOTE_ADDR};
    }
- 
-  my $nas_id = 0;
-  my $poll_list = $nas->ip_pools_list();
-  my $ip_num = unpack("N", pack("C4", split( /\./, $ip))); 
 
-  # Get valid NAS
-  foreach my $line (@$poll_list) {
-  	if ( ($line->[1] <= $ip_num) && ($ip_num <= $line->[2]) ) {
-  		$nas_id=$line->[7];
-  	 }
+
+  my $nas_id = 0; 
+  if (! $user->{UID} && defined ($FORM{NAS_ID}))  {
+    $nas_id=int($FORM{NAS_ID});
    }
- 
+  else {
+    my $poll_list = $nas->ip_pools_list();
+    my $ip_num = unpack("N", pack("C4", split( /\./, $ip))); 
+  
+    # Get valid NAS
+    foreach my $line (@$poll_list) {
+    	if ( ($line->[1] <= $ip_num) && ($ip_num <= $line->[2]) ) {
+  	  	$nas_id=$line->[7];
+  	   } 
+     }
+   }
+
   if ($nas_id < 1) {
   	$html->message('err', $_ERROR, "$_NOT_EXIST IP '$ip'");
-  	return 0;
+  	if (! $user->{UID}) {
+      $IP_INPUT .= $html->form_select('NAS_ID', 
+                                    { 
+ 	                                   SELECTED  => $nas_id,
+ 	                                   SEL_MULTI_ARRAY   => $nas->list(),
+ 	                                   MULTI_ARRAY_KEY   => 0,
+ 	                                   MULTI_ARRAY_VALUE => 1,
+ 	                                  });
+  	 }
+    else {
+    	return 0;
+     }
    }
 
 
@@ -1440,7 +1458,7 @@ sub ipn_user_activate {
    }
 
 
-  print $html->form_main({ CONTENT => "IP: $ip $IP_INPUT (". $nas_id.") ", 
+  print $html->form_main({ CONTENT => "IP: $ip $IP_INPUT (". $nas_id .") ", 
 
                      HIDDEN  => { index   => "$index",
                      	            UID     => $LIST_PARAMS{UID},
@@ -1713,44 +1731,27 @@ sub ipn_user_add {
    $allow_comps{$line->[2]}=$line->[1];
   }
 
+
 	
- if ($FORM{ACTIVATE}) {
+ if ($FORM{add}) {
      my $Dv = Dv->new($db, $admin, \%conf);
      my $payments = Finance->payments($db, $admin, \%conf);
      my $users = Users->new($db, $admin, \%conf); 
      my $LOGIN = mk_unique_value(6, { SYMBOLS => '0123456789'});
+     my $PASSWORD=mk_unique_value(8, {SYMBOLS => '0123456789'});
      my $user=$users->add({ LOGIN       => $LOGIN,
-     	                      CREATE_BILL => 1 });
+    	                      PASSWORD    => "$PASSWORD",
+     	                      CREATE_BILL => 1
+                         });
  
      if (! $user->{errno}) {
-   	  $UID = $user->{UID};
-   	  $user = $user->info($UID);
-      #2 
-
-      if ($FORM{'newpassword'} ne '') {
-        if (length($FORM{'newpassword'}) < $conf{PASSWD_LENGTH}) {
-          $html->message('err', $_ERROR, $err_strs{6});
-         }
-        elsif ($FORM{'newpassword'} eq $FORM{'confirm'}) {
-
-         }
-        elsif($FORM{'2.newpassword'} ne $FORM{'2.confirm'}) {
-          $html->message('err', $_ERROR, $err_strs{5});
-         }
-        else {
-        	$FORM{'newpassword'}=mk_unique_value(8, {SYMBOLS => '0123456789'});
-         }
-        
-        $user->change($UID, { PASSWORD => $FORM{'newpassword'} });
-       }
-  
-   	  $Dv->add({ UID   => $UID, 
-   	  	         TP_ID => $FORM{TP_ID},
-   	  	         IP    => '0.0.0.0',
-   	  	         NETMASK => '255.255.255.255' });
-      if ($Dv->{errno}) {
-         $html->message('err', $_ERROR, "[$Dv->{errno}] $err_strs{$Dv->{errno}}");	
-        }
+          $UID = $user->{UID};
+          $user = $user->info($UID);
+      }
+     else {
+        $html->message('err', $_ERROR, "[$user->{errno}] $err_strs{$user->{errno}}");	
+        return 0;
+      }
 
       my $er = $payments->exchange_info($FORM{'5.ER'});
       if ($FORM{SUM}) {
@@ -1760,9 +1761,21 @@ sub ipn_user_add {
         if ($payments->{errno}) {
           $html->message('err', $_ERROR, "[$payments->{errno}] $err_strs{$payments->{errno}}");	
          }
-      }
-      
-     my %DATA = (ACCT_STATUS_TYPE  => 1, 
+       }
+
+   	 $Dv->add({ UID   => $UID, 
+   	  	         TP_ID => $FORM{TP_ID},
+   	  	         IP    => '0.0.0.0',
+   	  	         NETMASK => '255.255.255.255' });
+
+      if ($Dv->{errno}) {
+         $html->message('err', $_ERROR, "[$Dv->{errno}] $err_strs{$Dv->{errno}}");	
+        }
+
+     my @USER_PARAMS=();
+
+     if ($FORM{ACTIVATE})     {
+       my %DATA = (ACCT_STATUS_TYPE  => 1, 
                  USER_NAME         => $LOGIN, 
                  SESSION_START     => 0, 
                  ACCT_SESSION_ID   => mk_unique_value(10), 
@@ -1771,36 +1784,40 @@ sub ipn_user_add {
                  NAS_ID            => $FORM{NAS_ID},
                  TP                => $FORM{TP_ID} );
      
-     $Ipn->user_status({ %DATA });
-
-     
+       $Ipn->user_status({ %DATA });
       
-     my @ip_array = split(/\./, $FORM{IP}, 4);
-     my $rule_num = $conf{IPN_FW_FIRST_RULE} + $ip_array[3];
-     my $cmd = $conf{IPN_FW_START_RULE};
-     $cmd =~ s/\%IP/$FORM{IP}/g;
-     $cmd =~ s/\%NUM/$rule_num/g;
-     print "$cmd";
-     system($cmd);
-
-
+       my @ip_array = split(/\./, $FORM{IP}, 4);
+       my $rule_num = $conf{IPN_FW_FIRST_RULE} + $ip_array[3];
+       my $cmd = $conf{IPN_FW_START_RULE};
+       $cmd =~ s/\%IP/$FORM{IP}/g;
+       $cmd =~ s/\%NUM/$rule_num/g;
+       print "<div class='noprint'>$cmd</div>\n";
+       system($cmd);
+     }
      
      
-     my $table = $html->table( { width  => '100%',
-                                 rows   => [["$_LOGIN:",      "$LOGIN"],
-                                            ["IP:",           "$FORM{IP}"],
-                                            ["$_COMPUTER:",   "$allow_comps{$FORM{IP}}" ],
-                                            ["$_SUM:",        "$FORM{SUM}"  ],
-                                            ["$_TARIF_PLAN:", "$FORM{TP_ID}"]
+     my $table = $html->table( { width  => '400',
+     		                         class  => 'with_border',
+     	                           border => 1,
+                                 rows   => [["$_LOGIN:",      "$LOGIN"       ],
+                                            ["$_PASSWD:",     "$PASSWORD"   ],
+                                            ["IP:",           "$FORM{IP}"    ],
+                                            ["COMPUTER:",     "$allow_comps{$FORM{IP}}" ],
+                                            ["$_SUM:",        "$FORM{SUM}"   ],
+                                            ["$_TARIF_PLAN:", "$FORM{TP_ID}" ],
+                                            ["$_DATE:",       "$DATE $TIME"  ],
+                                            ["$_ADMIN:",      "$admin->{A_FIO}"]
                                             ]
                                   } );
      
-     $html->message('info', $_ACTIVATED, $table->show());
-
+     $html->message('info', $_ACTIVATED, "$_LOGIN: $LOGIN");
+     print $table->show();
 
      return 0;
   }
-}
+
+
+
 
  $Ipn->{TP_SEL}=$html->form_select('TP_ID', 
                                           { 
@@ -1818,10 +1835,13 @@ sub ipn_user_add {
  	                                   MULTI_ARRAY_VALUE => 1,
  	                                  });
  
+
  
  if ($Ipn->{TOTAL} > 0) {
 	 
  	 my $session_list=$sessions->online( { %LIST_PARAMS } );	
+
+
 
    foreach my $line (@$session_list) {
    	  if (defined($allow_comps{int2ip($line->[3])})) {
@@ -1829,12 +1849,11 @@ sub ipn_user_add {
    	  }
     }
 
- 	 
+
  	 $Ipn->{IP}=$html->form_select('IP', 
                                     { 
- 	                                   SEL_HASH   => \%allow_comps,
+ 	                                   SEL_HASH   => \%allow_comps
  	                                  });
-	 
  	 }
  else {
    $Ipn->{IP}=$html->form_input('IP', '0.0.0.0');

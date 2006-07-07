@@ -15,7 +15,9 @@ sub connect {
   $self->{sql_type} = $sql_type;
   #use lib $lib;
   #unshift(@INC, "Abills/$sql_type/");
+
   eval { require "main.pm"; };
+  
   if (! $@) {
     "main"->import();
    }

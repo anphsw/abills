@@ -642,8 +642,8 @@ sub test_radius_returns {
     $test .= "  $line - $RAD->{$line}\n";
   }
 
-# log_print('LOG_DEBUG', "$test");
-#print $test;
+#  log_print('LOG_DEBUG', "$test");
+  return $test;
 }
 
 1;

@@ -236,13 +236,25 @@ sub reports {
  my $date = '';
  undef @WHERE_RULES;
  
- 
  if ($attr->{GID}) {
    push @WHERE_RULES, "u.gid='$attr->{GID}'";
   }
  
  if(defined($attr->{DATE})) {
-   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
+   push @WHERE_RULES, "date_format(f.date, '%Y-%m-%d')='$attr->{DATE}'";
+  }
+ elsif ($attr->{INTERVAL}) {
+ 	 my ($from, $to)=split(/\//, $attr->{INTERVAL}, 2);
+   push @WHERE_RULES, "date_format(f.date, '%Y-%m-%d')>='$from' and date_format(f.date, '%Y-%m-%d')<='$to'";
+   if ($attr->{TYPE} eq 'HOURS') {
+     $date = "date_format(f.date, '%H')";
+    }
+   elsif ($attr->{TYPE} eq 'DAYS') {
+     $date = "date_format(f.date, '%Y-%m-%d')";
+    }
+   else {
+     $date = "u.id";   	
+    }  
   }
  elsif (defined($attr->{MONTH})) {
  	 push @WHERE_RULES, "date_format(f.date, '%Y-%m')='$attr->{MONTH}'";

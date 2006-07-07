@@ -372,33 +372,6 @@ sub list {
  undef @WHERE_RULES;
  my $search_fields = '';
 
- 
-
- if($attr->{DISABLE}) {
-   $self->query($db, "SELECT u.id, pi.fio, if(company.id IS NULL, b.deposit, b.deposit), 
-      u.credit, tp.name, u.disable, 
-      u.uid, u.company_id, u.email, u.tp_id, if(l.start is NULL, '-', l.start)
-     FROM users u, bills b
-     LEFT JOIN users_pi pi ON u.uid = dv.id
-     LEFT JOIN tarif_plans tp ON  (tp.id=u.tp_id) 
-     LEFT JOIN companies company ON  (u.company_id=company.id) 
-     LEFT JOIN dv_log l ON  (l.uid=u.uid) 
-     WHERE  
-        u.bill_id=b.id
-        and (b.deposit+u.credit-tp.credit_tresshold<=0
-        and tp.hourp+tp.df+tp.abon>=0)
-        or (
-        (u.expire<>'0000-00-00' and u.expire < CURDATE())
-        AND (u.activate<>'0000-00-00' and u.activate > CURDATE())
-        )
-        or u.disable=1
-     GROUP BY u.uid
-     ORDER BY $SORT $DESC;");
-
-   my $list = $self->{list};
-   return $list;
-  }
-
  # Start letter 
  if ($attr->{FIRST_LETTER}) {
     push @WHERE_RULES, "u.id LIKE '$attr->{FIRST_LETTER}%'";
@@ -425,10 +398,15 @@ sub list {
     push @WHERE_RULES, "b.deposit$value";
   }
 
+ if ($attr->{CREDIT}) {
+    my $value = $self->search_expr($attr->{CREDIT}, 'INT');
+    push @WHERE_RULES, "u.credit$value";
+  }
+
 
  if ($attr->{COMMENTS}) {
- 	$attr->{COMMENTS} =~ s/\*/\%/ig;
- 	push @WHERE_RULES, "pi.comments LIKE '$attr->{COMMENTS}'";
+  	$attr->{COMMENTS} =~ s/\*/\%/ig;
+ 	  push @WHERE_RULES, "pi.comments LIKE '$attr->{COMMENTS}'";
   }    
 
 
@@ -442,7 +420,6 @@ sub list {
     push @WHERE_RULES, "b.deposit<0";
   }
 
- # Show debeters
  if ($attr->{COMPANY_ID}) {
     push @WHERE_RULES, "u.company_id='$attr->{COMPANY_ID}'";
   }
@@ -594,6 +571,7 @@ sub add {
   #ERROR_SHORT_PASSWORD
   elsif($DATA{LOGIN} !~ /$usernameregexp/) {
      $self->{errno} = 10;
+     print "- / $usernameregexp--";
      $self->{errstr} = 'ERROR_WRONG_NAME';
      return $self; 	
    }
@@ -629,6 +607,7 @@ sub add {
   		 DISABLE => int($DATA{DISABLE}),
   		 UID     => $self->{UID},
   		 create  => 'yes' });
+
   }
 
   return $self;
@@ -682,6 +661,7 @@ sub change {
 		                OLD_INFO     => $old_info,
 		                DATA         => $attr
 		              } );
+
 
 
   return $self->{result};

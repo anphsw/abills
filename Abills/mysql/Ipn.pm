@@ -270,6 +270,7 @@ sub traffic_agregate_nets {
       }
 
   #$tp_interval{$TP_ID}=37;
+  print "// $tp_interval{$TP_ID}---------\n";
   print "\nUID: $uid\n####TP $TP_ID Interval: $tp_interval{$TP_ID}  ####\n" if ($self->{debug}); 
     
     if (! defined(  $intervals{$tp_interval{$TP_ID}} )) {
@@ -344,7 +345,7 @@ sub get_interval_params {
 }
 
 #**********************************************************
-#
+# Get zones from db
 #**********************************************************
 sub get_zone {
 	my $self = shift;

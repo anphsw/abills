@@ -9,6 +9,7 @@
 
 my $PPPCTL = '/usr/sbin/pppctl';
 my $RADCLIENT = '/usr/local/bin/radclient';
+my $SUDO = '/usr/local/bin/sudo';
 
 #my $NAS_INFO = nas_params();
 my $NAS;
@@ -513,19 +514,14 @@ sub stats_exppp {
 sub hangup_mpd {
  my ($NAS_IP, $PORT) = @_;
 
-
  my $ctl_port = "pptp$PORT";
- my @commands = ();
- 
- push @commands, "\]\tlink $ctl_port";
- push @commands, "\]\tlink $ctl_port";
- push @commands, "\]\tclose";
- push @commands, "\] exit";
+ my @commands=("\]\tlink $ctl_port",
+               "\]\tlink $ctl_port",
+               "\]\tclose",
+               "\]\texit");
 
  my $result = telnet_cmd("$NAS->{NAS_MNG_IP_PORT}", \@commands);
  print $result;
-
-
  return 0;
 }
 
@@ -614,13 +610,21 @@ sub stats_pppd  {
 #*******************************************************************
 # HANGUP pppd
 # hangup_pppd($SERVER, $PORT)
+# Необходимо добавить в файл /etc/sudoers: 
+# 
+# apache   ALL = NOPASSWD: /usr/abills/misc/pppd_kill 
+# 
 #*******************************************************************
 sub hangup_pppd {
  my ($NAS, $id, $attr) = @_;
 
- use FindBin '$Bin';
- 
- system ("/usr/bin/sudo /usr/abills/misc/pppd_hangup.pl hangup $id");
+ $IP_ADDR=$attr->{FRAMED_IP_ADDRESS}  || '0.0.0.0';
+
+ my $INTERFACE=`/sbin/ifconfig | awk -v RS='\n\n'  "/$IP_ADDR/ {print \\$1}"`;
+ my $PPP_PID=`cat /var/run/$INTERFACE.pid`;
+ my $res =`$SUDO /bin/kill -1 $PPP_PID`;
+
+
  return 0;
 }
 

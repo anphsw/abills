@@ -91,11 +91,11 @@ print $html->form_main({ CONTENT => $table->show(),
 
 
 $table = $html->table( { width       => '100%',
-                            caption     => "$conf{SQUID_HOST}:$conf{SQUID_PORT} ($server_info)",
-                            border      => 1,
-                            title       => ["IP", "URL", "$_SIZE", "$_TIME", "-"],
-                            cols_align  => ['left', 'left', 'right', 'right', 'center'],
-                            qs          => $pages_qs
+                         caption     => "$conf{SQUID_HOST}:$conf{SQUID_PORT} ($server_info)",
+                         border      => 1,
+                         title       => ["IP", "URL", "$_SIZE", "$_TIME", "-"],
+                         cols_align  => ['left', 'left', 'right', 'right', 'center'],
+                         qs          => $pages_qs
                            });
 my $user_info;
 if ($conf{SQUID_IP_USERS}) {
@@ -117,7 +117,7 @@ while(my($ip, $v)=each %sessions) {
 
   while(my($session_id, $v2)= each %$v ) {
     $table->addrow('', 
-      ($v2->{Url} !~ /:443/) ? "<a href='$v2->{Url}' target='_$ip'>". substr($v2->{Url}, 0, 50) ."</a>" : $v2->{Url}, 
+      ($v2->{Url} !~ /:443/) ? $html->button(substr($v2->{Url}, 0, 50), "", { GLOBAL_URL => "$v2->{Url}", ex_params => "TARGET=\"A$ip\"" }) : $v2->{Url}, 
       int2byte($v2->{Size}), 
       sec2time($v2->{Start}, { str => 1 }),
       ''
@@ -129,11 +129,11 @@ while(my($ip, $v)=each %sessions) {
 print $table->show();
 
 
-$table = $html->table( { width       => '100%',
-                rowcolor    => $_COLORS[3],
-                cols_align  => ['right', 'left', 'right', 'right', 'center'],
-                rows        => [ ["$_TOTAL:", "$_USERS:", "$total_users", "$_SESSIONS:", "$total_sessions" ]]
-               });
+$table = $html->table({ width       => '100%',
+                        rowcolor    => $_COLORS[3],
+                        cols_align  => ['right', 'left', 'right', 'right', 'center'],    
+                        rows        => [ ["$_TOTAL:", "$_USERS:", "$total_users", "$_SESSIONS:", "$total_sessions" ]]
+                      });
 
 print $table->show();
 
