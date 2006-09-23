@@ -1,0 +1,267 @@
+#/usr/bin/perl
+# Messages system
+
+
+
+
+use Msgs;
+ 
+my $Msgs=Msgs->new($db, $admin, \%conf);
+
+
+
+#*******************************************************************
+#
+#*******************************************************************
+sub msgs_admin {
+
+  $Msgs->{ACTION}='send';
+  $Msgs->{ACTION_LNG}=$_SEND;
+
+  if ($FORM{send}) {
+    $Msgs->message_add({ %FORM });
+    $html->message('info', $_INFO, "$_ADDED") if (! $Msgs->{errno});  	
+ 	
+   }
+  elsif ($FORM{reply}) {
+    $Msgs->message_change({ STATE => 0, %FORM });
+    $html->message('info', $_INFO, "$_REPLY") if (! $Msgs->{errno});  	
+   }
+  elsif ($FORM{chg}) {
+    $Msgs->message_info($FORM{chg});
+    $Msgs->{ACTION}='reply';
+    $Msgs->{ACTION_LNG}=$_REPLY;
+    $html->message('info', $_INFO, "$_CHANGING") if (! $Msgs->{errno});  	
+   }
+  elsif ($FORM{del}) {
+    $Msgs->message_del({ ID => $FORM{del}, UID => $UID  });
+    $html->message('info', $_INFO, "$_DELETED") if (! $Msgs->{errno});  	
+   }
+
+
+  if ($Msgs->{errno}) {
+     $html->message('err', $_ERROR, "[$Msgs->{errno}] $err_strs{$Msgs->{errno}}");
+   } 
+
+  $Msgs->{CHAPTER_SEL} = $html->form_select('CHAPTER', 
+                                          { 
+ 	                                          SELECTED          => $Msgs->{CHAPTER},
+ 	                                          SEL_MULTI_ARRAY   => $Msgs->chapters_list(),
+ 	                                          MULTI_ARRAY_KEY   => 0,
+ 	                                          MULTI_ARRAY_VALUE => 1,
+ 	                                        });
+
+  $html->tpl_show(_include('msgs_send_form', 'Msgs'), $Msgs);
+  
+  $list = $Msgs->messages_list({ %LIST_PARAMS, DESC => (! $FORM{sort}) ? 'DESC' : $FORM{desc} });
+  
+  
+  
+  my $table = $html->table( { width      => '100%',
+                              caption    => "$_MESSAGES",
+                              title      => ['#', "$_USER", "$_SUBJECT", "$_CHAPTERS", "$_DATE", "$_STATUS", "IP", "$_ADMIN", "-", "-"],
+                              cols_align => ['right', 'left', 'left', 'right', 'right', 'left', 'center', 'right', 'left', 'center:noprint', 'center:noprint'],
+                              qs         => $pages_qs,
+                              pages      => $Msgs->{TOTAL}
+                           });
+
+foreach my $line (@$list) {
+  my $state = '<img src="../img/red_dot.gif" border="0" alt="No reply"/>' if ($line->[5] eq '');
+
+  $table->addrow(
+   $line->[0] . $html->form_input('del', "$line->[0]", {TYPE => 'checkbox' }), 
+   $line->[1],
+   $html->button($line->[2], "index=$index&UID=$line->[8]&chg=$line->[0]"), 
+   $line->[3],
+   $line->[4],
+   $state,
+   $line->[6],      
+   $line->[7],      
+   $html->button("$_REPLY", "index=$index&chg=$line->[0]&UID=$line->[8]"),
+   $html->button($_DEL, "index=$index&del=$line->[0]$pages_qs", { MESSAGE => "$_DEL $line->[0]?" }) 
+
+  );
+}
+
+print $html->form_main({ CONTENT => $table->show(),
+	                       HIDDEN  => { index            => "$index",
+	                                    UID							 => $UID      },
+	                       SUBMIT  => { delete           => $_DEL     } 
+	                       });
+
+
+
+$table = $html->table({ width      => '100%',
+                        cols_align => ['right', 'right'],
+                        rows       => [ [ "$_TOTAL:", "<b>$Msgs->{TOTAL}</b>" ] ]
+                      });
+print $table->show();
+
+  
+  
+}
+
+#*******************************************************************
+#
+#*******************************************************************
+sub msgs_user {
+
+ if ($FORM{send}) {
+   $Msgs->message_add({ UID => $user->{UID},  STATE => 1, %FORM });
+   $html->message('info', $_INFO, "$_SENDED") if (! $Msgs->{errno});  	
+ 	}
+ elsif ($FORM{ID}) {
+ 	 $Msgs->message_info($FORM{ID});
+ 	 
+ 	 
+ 	 $html->tpl_show(_include('msgs_show', 'Msgs'), $Msgs);
+ 	 $Msgs->message_change({ ID => $FORM{ID}, STATE => 1 });
+ 	 #return 0;
+  }
+ else {
+   $Msgs->{CHAPTER_SEL} = $html->form_select('CHAPTER', 
+                                          { 
+ 	                                          SELECTED          => $Msgs->{CHAPTER},
+ 	                                          SEL_MULTI_ARRAY   => $Msgs->chapters_list(),
+ 	                                          MULTI_ARRAY_KEY   => 0,
+ 	                                          MULTI_ARRAY_VALUE => 1,
+ 	                                        });
+
+   $html->tpl_show(_include('msgs_send_form_user', 'Msgs'), $Msgs);
+  }
+
+  if ($Msgs->{errno}) {
+     $html->message('err', $_ERROR, "[$Msgs->{errno}] $err_strs{$Msgs->{errno}}");
+   } 
+
+
+
+  $list = $Msgs->messages_list({ %LIST_PARAMS, SORT => '11, 5 DESC', REPLY => '<>' });  
+
+  my $table = $html->table( { width        => '100%',
+                              caption      => "$_MESSAGES",
+                              title_plain  => ["$_SUBJECT", "$_CHAPTERS", "$_DATE", "-" ],
+                              cols_align   => ['right', 'left', 'left', 'right', 'right', 'left', 'center'],
+                              qs           => $pages_qs,
+                              pages        => $Msgs->{TOTAL}
+                           });
+
+foreach my $line (@$list) {
+#  my $state = '<img src="img/red_dot.gif" border="0" alt="No reply"/>' if ($line->[5] eq '');
+
+  $table->addrow(
+    ($line->[10] == 1) ? $line->[2] : "<b>$line->[2]</b>", 
+    $line->[3],
+    $line->[4],
+    $html->button($_SHOW, "index=$index&ID=$line->[0]")
+  );
+}
+
+print $table->show();
+
+}
+
+
+#*******************************************************************
+#
+#*******************************************************************
+sub msgs_chapters {
+
+  $Msgs->{ACTION}='add';
+  $Msgs->{ACTION_LNG}=$_ADD;
+
+  if ($FORM{add}) {
+    $Msgs->chapter_add({ %FORM });
+
+    $html->message('info', $_INFO, "$_ADDED") if (! $Msgs->{errno});  	
+   }
+  elsif ($FORM{change}) {
+    $Msgs->chapter_change({ %FORM });
+
+    $html->message('info', $_INFO, "$_CHANGED") if (! $Msgs->{errno});  	
+   }
+  elsif ($FORM{chg}) {
+
+    $Msgs->chapter_info($FORM{chg});
+
+    $Msgs->{ACTION}='change';
+    $Msgs->{ACTION_LNG}=$_CHANGE;
+
+    $html->message('info', $_INFO, "$_CHANGING") if (! $Msgs->{errno});  	  	
+   }
+  elsif ($FORM{del}) {
+    $Msgs->chapter_del({ ID => $FORM{del} });
+
+    $html->message('info', $_INFO, "$_DELETED") if (! $Msgs->{errno});
+   }
+
+  if ($Msgs->{errno}) {
+     $html->message('err', $_ERROR, "[$Msgs->{errno}] $err_strs{$Msgs->{errno}}");
+   } 
+  
+
+  
+  print $html->form_main({ CONTENT => "$_NAME: ". $html->form_input('NAME', "$Msgs->{NAME}"),
+	                         HIDDEN  => { index            => "$index",
+	                       	              ID							 => $Msgs->{ID}  },
+	                         SUBMIT  => { $Msgs->{ACTION}  => "$Msgs->{ACTION_LNG}"} 
+	                        });
+
+
+ 
+  
+  
+  my $list = $Msgs->chapters_list({ %LIST_PARAMS });
+  
+  
+  my $table = $html->table( { width      => '100%',
+                              caption    => "$_CHAPTERS",
+                              title      => ['#', "$_NAME", "$_MESSAGES", "-", "-"],
+                              cols_align => ['left', 'left', 'right', 'center:noprint', 'center:noprint'],
+                              qs         => $pages_qs,
+                           });
+
+
+foreach my $line (@$list) {
+  $table->addrow(
+    $line->[0], 
+     $line->[1], 
+     $html->button($line->[2], ""),
+     $html->button("$_CHANGE", "index=$index&chg=$line->[0]"),
+     $html->button($_DEL, "index=$index&del=$line->[0]", { MESSAGE => "$_DEL $line->[0]?" })
+   );
+}
+
+print $table->show();
+  
+}
+
+
+#*******************************************************************
+# Count New messages for user
+#*******************************************************************
+sub msgs_new {
+  my ($attr) = @_;
+
+  my   %SHOW_PARAMS = ();
+
+  if ($attr->{UID}) {
+    %SHOW_PARAMS = (UID   => $UID, 
+                    STATE => '<>1');
+   }
+  elsif ($attr->{AID}) {
+    %SHOW_PARAMS = (REPLY => '');
+   }
+
+  $Msgs->messages_list({ %SHOW_PARAMS });
+
+  if ($Msgs->{TOTAL} > 0) {
+     return "($Msgs->{TOTAL})";
+   }
+
+  return '';
+}
+
+
+1
+

@@ -42,11 +42,12 @@ CREATE TABLE `admins` (
   `id` varchar(12) default NULL,
   `name` varchar(24) default NULL,
   `regdate` date default NULL,
-  `password` varchar(16) NOT NULL default '',
+  `password` varchar(16) binary NOT NULL default '',
   `gid` tinyint(4) unsigned NOT NULL default '0',
   `aid` smallint(6) unsigned NOT NULL auto_increment,
   `disable` tinyint(1) unsigned NOT NULL default '0',
   `phone` varchar(16) NOT NULL default '',
+  `web_options` text NOT NULL,
   PRIMARY KEY  (`aid`),
   UNIQUE KEY `aid` (`aid`),
   UNIQUE KEY `id` (`id`)
@@ -111,6 +112,9 @@ CREATE TABLE `companies` (
   `registration` date NOT NULL default '0000-00-00',
   `disable` tinyint(1) unsigned NOT NULL default '0',
   `credit` double(8,2) NOT NULL default '0.00',
+  `address` varchar(100) NOT NULL default '',
+  `phone` varchar(20) NOT NULL default '',
+  `vat` double(5,2) unsigned NOT NULL default '0.00',
   PRIMARY KEY  (`id`),
   UNIQUE KEY `id` (`id`),
   UNIQUE KEY `name` (`name`)
@@ -163,21 +167,6 @@ CREATE TABLE `docs_acct_orders` (
 ) ;
 
 # --------------------------------------------------------
-
-#
-# Структура таблиці `dunes`
-#
-
-CREATE TABLE `dunes` (
-  `err_id` smallint(5) unsigned NOT NULL default '0',
-  `win_err_handle` varchar(30) NOT NULL default '',
-  `translate` varchar(200) NOT NULL default '',
-  `error_text` varchar(200) NOT NULL default '',
-  `solution` text
-) ;
-
-# --------------------------------------------------------
-
 #
 # Структура таблиці `dv_main`
 #
@@ -192,8 +181,9 @@ CREATE TABLE `dv_main` (
   `speed` int(10) unsigned NOT NULL default '0',
   `netmask` int(10) unsigned NOT NULL default '4294967294',
   `cid` varchar(35) NOT NULL default '',
-  `password` varchar(16) NOT NULL default '',
+  `password` varchar(16) binary NOT NULL default '',
   `disable` tinyint(1) unsigned NOT NULL default '0',
+  `callback` tinyint(1) unsigned NOT NULL default '0',
   PRIMARY KEY  (`uid`),
   KEY `tp_id` (`tp_id`)
 ) ;
@@ -231,6 +221,7 @@ CREATE TABLE `fees` (
   `aid` smallint(6) unsigned NOT NULL default '0',
   `id` int(11) unsigned NOT NULL auto_increment,
   `bill_id` int(11) unsigned NOT NULL default '0',
+  `vat` double(5,2) unsigned NOT NULL default '0.00',
   PRIMARY KEY  (`id`),
   UNIQUE KEY `id` (`id`),
   KEY `date` (`date`),
@@ -292,7 +283,7 @@ CREATE TABLE `icards` (
   `period` smallint(5) unsigned NOT NULL default '0',
   `expire` date NOT NULL default '0000-00-00',
   `changes` double(15,2) NOT NULL default '0.00',
-  `password` varchar(16) NOT NULL default '0',
+  `password` varchar(16) binary NOT NULL default '0',
   PRIMARY KEY  (`id`)
 ) ;
 
@@ -401,7 +392,7 @@ CREATE TABLE `mail_aliases` (
 
 CREATE TABLE `mail_boxes` (
   `username` varchar(255) NOT NULL default '',
-  `password` varchar(255) NOT NULL default '',
+  `password` varchar(16) binary NOT NULL default '',
   `descr` varchar(255) NOT NULL default '',
   `maildir` varchar(255) NOT NULL default '',
   `create_date` datetime NOT NULL default '0000-00-00 00:00:00',
@@ -455,45 +446,28 @@ CREATE TABLE `mail_transport` (
   UNIQUE KEY `id` (`id`)
 )  ;
 
-# --------------------------------------------------------
-
-#
-# Структура таблиці `message_types`
-#
-
-CREATE TABLE `message_types` (
-  `id` int(11) NOT NULL auto_increment,
-  `name` varchar(20) default NULL,
+CREATE TABLE `msgs_chapters` (
+  `id` int(11) unsigned NOT NULL auto_increment,
+  `name` varchar(20) NOT NULL default '',
   PRIMARY KEY  (`id`),
+  UNIQUE KEY `id` (`id`),
   UNIQUE KEY `name` (`name`)
-)  ;
+);
 
-# --------------------------------------------------------
-
-#
-# Структура таблиці `messages`
-#
-
-CREATE TABLE `messages` (
+CREATE TABLE `msgs_messages` (
   `id` int(11) unsigned NOT NULL auto_increment,
   `par` int(11) unsigned NOT NULL default '0',
   `uid` int(11) unsigned NOT NULL default '0',
-  `type` smallint(6) NOT NULL default '0',
+  `chapter` smallint(6) unsigned NOT NULL default '0',
   `message` text,
-  `admin` varchar(12) default NULL,
   `reply` text,
   `ip` int(11) unsigned default '0',
   `date` datetime NOT NULL default '0000-00-00 00:00:00',
   `state` tinyint(2) unsigned default '0',
   `aid` smallint(6) unsigned NOT NULL default '0',
+  `subject` varchar(40) NOT NULL default '',
   PRIMARY KEY  (`id`)
-)  ;
-
-# --------------------------------------------------------
-
-#
-# Структура таблиці `nas`
-#
+);
 
 CREATE TABLE `nas` (
   `id` smallint(5) unsigned NOT NULL auto_increment,
@@ -505,7 +479,7 @@ CREATE TABLE `nas` (
   `auth_type` tinyint(3) unsigned NOT NULL default '0',
   `mng_host_port` varchar(21) default NULL,
   `mng_user` varchar(20) default NULL,
-  `mng_password` varchar(16) default NULL,
+  `mng_password` varchar(16) binary  NOT NULL default '',
   `rad_pairs` text NOT NULL,
   `alive` smallint(6) unsigned NOT NULL default '0',
   `disable` tinyint(6) unsigned NOT NULL default '0',
@@ -697,7 +671,7 @@ CREATE TABLE `users` (
   `credit` double(10,2) NOT NULL default '0.00',
   `reduction` double(6,2) NOT NULL default '0.00',
   `registration` date default '0000-00-00',
-  `password` varchar(16) NOT NULL default '',
+  `password` varchar(16) binary NOT NULL default '',
   `uid` int(11) unsigned NOT NULL auto_increment,
   `gid` smallint(6) unsigned NOT NULL default '0',
   `disable` tinyint(1) unsigned NOT NULL default '0',
@@ -885,8 +859,8 @@ CREATE TABLE `web_online` (
     
 
 
-INSERT INTO admins VALUES ('abills','abills','2005-06-16', ENCODE('abills', 'test12345678901234567890'), 0, 1,0,'');
-INSERT INTO admins VALUES ('system','Syetem user','2005-07-07', ENCODE('test', 'test12345678901234567890'), 0, 2, 0,'');
+INSERT INTO admins VALUES ('abills','abills','2005-06-16', ENCODE('abills', 'test12345678901234567890'), 0, 1,0,'', '');
+INSERT INTO admins VALUES ('system','Syetem user','2005-07-07', ENCODE('test', 'test12345678901234567890'), 0, 2, 0,'', '');
 
 
 

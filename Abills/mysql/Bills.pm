@@ -33,11 +33,6 @@ sub new {
 
 
 
-
-
-
-
-
 #**********************************************************
 # Bill
 #**********************************************************
@@ -184,32 +179,6 @@ sub info {
 
 	return $self;
 }
-
-
-##**********************************************************
-## get_bill_id($self, $ussr, $attr);
-##**********************************************************
-#sub get_bill_id {
-#  my $self = shift;
-#	my ($attr) = @_;
-#
-#  if ($user->{COMPANY_ID} > 0) {
-#  	$sql = "SELECT bill_id FROM companies WHERE id='$user->{COMPANY_ID}';";
-#   }
-#  else {
-#    $sql = "SELECT bill_id FROM users WHERE uid='$user->{UID}';";
-#   }
-#  $self->query($db, "$sql");
-#
-#  return $id;
-#}
-
-
-
-
-
-
-
 
 
 1

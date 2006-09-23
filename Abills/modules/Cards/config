@@ -4,8 +4,9 @@ $web_interface    = 1;
 %FUNCTIONS_LIST = ("01:0:Card System:null:"             => 5,
                    "02:1:$_PAYMENTS:cards_payments:"    => 5,
                    "03:1:$_USERS:cards_users:"          => 5,
-                   "04:1:BRUTE FORCE:cards_bruteforce:" => 5,
-                   "05:0:Cards:cards_user_payment:UID" => 2
+                   "04:1:$_DILLERS:cards_dillers:"      => 5,
+                   "05:1:BRUTE FORCE:cards_bruteforce:" => 5,
+                   "06:0:Cards:cards_user_payment:UID"  => 2
                    );
 
 %USER_FUNCTION_LIST = ("01:0:$_PAYMENTS:cards_user_payment:"  => 0,

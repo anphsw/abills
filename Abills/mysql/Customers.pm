@@ -20,8 +20,9 @@ $VERSION = 2.00;
 use Companies;
 
 my $db;
+my $admin;
+my $CONF;
 # Customer id
-my $cid; 
 
 
 #**********************************************************
@@ -29,7 +30,7 @@ my $cid;
 #**********************************************************
 sub new {
   my $class = shift;
-  $db = shift;
+  ($db, $admin, $CONF)=@_;
   my $self = { };
   bless($self, $class);
   return $self;
@@ -41,7 +42,7 @@ sub new {
 #**********************************************************
 sub company {
   my $self = shift;
-  my $Companies = Companies->new($db);
+  my $Companies = Companies->new($db, $admin, $CONF);
   
   return $Companies;
 }

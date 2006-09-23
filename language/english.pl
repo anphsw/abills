@@ -83,7 +83,7 @@ $_TRAFFIC='Traffic';
 $_DURATION='Duration';
 $_DAY_DURATION='Day time limit';
 $_LOGIN='Login';
-$_LOGINS='Sessions';
+$_LOGINS='Logins';
 $_PASSWD='Password';
 $_CONFIRM='Confirmation';
 
@@ -235,6 +235,7 @@ $ERR_ENTER_USER_NAME='Enter user login';
 $ERR_SHORT_PASSWD='Short password. Minimum 6 symbols';
 $ERR_WRONG_CONFIRM='Wrong Confirmation';
 $ERR_NAME_TOOLONG='Login is too long';
+$ERR_WRONG_DATA="Wrong data input";
 
 
 #Mail section
@@ -299,4 +300,9 @@ $_ABON='Periodic payments';
 $_SYMBOLS='Symbols';
 $_SERIAL='Serial';
 $_BRUTE_ATACK='Brute Attack';
+$_CHAPTERS='Chapter';
+$_DOWNLOAD='Download';
 
+$_DILLERS='Dillers';
+
+$_VAT='Vat';

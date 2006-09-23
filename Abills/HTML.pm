@@ -75,6 +75,8 @@ sub new {
   $IMG_PATH = (defined($attr->{IMG_PATH})) ? $attr->{IMG_PATH} : '../img/';
   $CONF = $attr->{CONF} if (defined($attr->{CONF}));
 
+  #$CONF = $attr->{CONF} if (defined($attr->{CONF}));
+
   my $self = { };
   bless($self, $class);
 
@@ -84,19 +86,35 @@ sub new {
  
   $self->{OUTPUT}='';
 
+  $self->{colors} = $attr->{colors} if (defined($attr->{colors}));
+ 
   %FORM = form_parse();
   %COOKIES = getCookies();
+
   $SORT = $FORM{sort} || 1;
   $DESC = ($FORM{desc}) ? 'DESC' : '';
   $PG = $FORM{pg} || 0;
   $OP = $FORM{op} || '';
-  $PAGE_ROWS = $FORM{PAGE_ROWS} || 25;
+  $self->{CHARSET}=(defined($attr->{CHARSET})) ? $attr->{CHARSET} : 'windows-1251';
+   
+  if ($FORM{PAGE_ROWS}) {
+  	$PAGE_ROWS = $FORM{PAGE_ROWS};
+   }
+  elsif ($attr->{PAGE_ROWS}) {
+  	$PAGE_ROWS = int($attr->{PAGE_ROWS});
+   }
+  else {
+ 	 	$PAGE_ROWS = 25;
+   }
+
   $domain = $ENV{SERVER_NAME};
   $web_path = '';
   $secure = '';
   my $prot = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http' ;
   $SELF_URL = (defined($ENV{HTTP_HOST})) ? "$prot://$ENV{HTTP_HOST}$ENV{SCRIPT_NAME}" : '';
+
   $SESSION_IP = $ENV{REMOTE_ADDR} || '0.0.0.0';
+
   
   @_COLORS = ('#FDE302',  # 0 TH
             '#FFFFFF',  # 1 TD.1
@@ -111,11 +129,11 @@ sub new {
             '#FFFFFF',  #10 background
            ); #border
   
-  %LIST_PARAMS = ( SORT => $SORT,
-	       DESC => $DESC,
-	       PG => $PG,
-	       PAGE_ROWS => $PAGE_ROWS,
-	      );
+  %LIST_PARAMS = ( SORT      => $SORT,
+	                 DESC      => $DESC,
+	                 PG        => $PG,
+	                 PAGE_ROWS => $PAGE_ROWS,
+	                );
 
   %functions = ();
   
@@ -123,8 +141,11 @@ sub new {
   $index = $FORM{index} || 0;
   
   
-  if (defined($COOKIES{language}) && $COOKIES{language} ne '') {
-    $self->{language}=$COOKIES{language};
+  if ($attr->{language}) {
+    $self->{language}=$attr->{language};
+   }
+  elsif ($COOKIES{language}) {
+  	$self->{language}=$COOKIES{language};
    }
   else {
     $self->{language} = $CONF->{default_language} || 'english';
@@ -267,7 +288,12 @@ sub form_input {
 
   my $type  = 'text';
   my $class = '';
-
+  my $ex_params = '';
+  
+  if ($attr->{EX_PARAMS}) {
+  	$ex_params = $attr->{EX_PARAMS};
+   }
+  
   if (defined($attr->{TYPE})) {
   	$type=$attr->{TYPE};
     if ($type =~ /submit/i) {
@@ -275,12 +301,12 @@ sub form_input {
      }
    }  
 
-  my $state = (defined($attr->{STATE})) ? ' checked' : ''; 
-  my $size  = (defined($attr->{SIZE})) ? "SIZE=\"$attr->{SIZE}\"" : '';
+  my $state = (defined($attr->{STATE})) ? ' checked ' : ''; 
+  my $size  = (defined($attr->{SIZE})) ? " SIZE=\"$attr->{SIZE}\"" : '';
   
 
   
-  $self->{FORM_INPUT}="<input type=\"$type\" name=\"$name\" value=\"$value\"$state$size$class/>";
+  $self->{FORM_INPUT}="<input type=\"$type\" name=\"$name\" value=\"$value\"$state$size$class$ex_params/>";
 
   if (defined($self->{NO_PRINT}) && ( !defined($attr->{OUTPUT2RETURN}) )) {
   	$self->{OUTPUT} .= $self->{FORM_INPUT};
@@ -374,7 +400,9 @@ sub form_select {
 	  foreach my $v (@$H) {
       $self->{SELECT} .= "<option value='$v->[$key]'";
       $self->{SELECT} .= ' selected' if ($v->[$key] eq $attr->{SELECTED});
-      $self->{SELECT} .= ">$v->[$key]:$v->[$value]\n";
+      $self->{SELECT} .= '>';
+      $self->{SELECT} .= "$v->[$key]:" if (! $attr->{NO_ID});
+      $self->{SELECT} .= "$v->[$value]\n";
      }
    }
   elsif (defined($attr->{SEL_HASH})) {
@@ -396,11 +424,9 @@ sub form_select {
 
 sub dirname {
     my($x) = @_;
-    #print STDERR "dirname('$x') = ";
     if ( $x !~ s@[/\\][^/\\]+$@@ ) {
      	$x = '.';
     }
-    #print STDERR "'$x'\n";
     $x;
 }
 
@@ -656,8 +682,12 @@ sub header {
  my $admin_name=$ENV{REMOTE_USER};
  my $admin_ip=$ENV{REMOTE_ADDR};
  $self->{header} = "Content-Type: text/html\n\n";
-# my @_C;
- if (defined($COOKIES{colors}) && $COOKIES{colors} ne '') {
+
+
+ if ($self->{colors}) {
+   @_COLORS = split(/, /, $self->{colors});
+  }
+ elsif (defined($COOKIES{colors}) && $COOKIES{colors} ne '') {
    @_COLORS = split(/, /, $COOKIES{colors});
   }
 
@@ -671,7 +701,6 @@ sub header {
 
  my $css = css();
 
- my $CHARSET=(defined($attr->{CHARSET})) ? $attr->{CHARSET} : 'windows-1251';
  my $REFRESH = ($FORM{REFRESH}) ? "<META HTTP-EQUIV=\"Refresh\" CONTENT=\"$FORM{REFRESH}; URL=$ENV{REQUEST_URI}\"/>\n" : '';
 
 $self->{header} .= qq{
@@ -681,7 +710,7 @@ $self->{header} .= qq{
  $REFRESH
  <META HTTP-EQUIV="Cache-Control" content="no-cache"/>
  <META HTTP-EQUIV="Pragma" CONTENT="no-cache"/>
- <meta http-equiv="Content-Type" content="text/html; charset=$CHARSET"/>
+ <meta http-equiv="Content-Type" content="text/html; charset=$self->{CHARSET}"/>
  <meta name="Author" content="~AsmodeuS~"/>
 };
 
@@ -856,14 +885,16 @@ sub table {
  if (defined($attr->{cols_align})) {
    $self->{table} .= "<COLGROUP>";
    my $cols_align = $attr->{cols_align};
+   my $i=0;
    foreach my $line (@$cols_align) {
      my $class = '';
      if ($line =~ /:/) {
        ($line, $class) = split(/:/, $line,  2);
        $class = " class=\"$class\"";
       }
-     
-     $self->{table} .= " <COL align=\"$line\"$class>\n";
+     my $width = (defined($attr->{cols_width}) && defined(@{$attr->{cols_width}}[$i])  ) ? " width=\"@{$attr->{cols_width}}[$i]\"" : '';
+     $self->{table} .= " <COL align=\"$line\"$class$width>\n";
+     $i++;
     }
    $self->{table} .= "</COLGROUP>\n";
   }
@@ -993,12 +1024,12 @@ sub table_title  {
   my ($op);
   my $img='';
 
-#  print "$sort, $desc, $pg, $op, $caption, $qs";
+  #print "$FORM{sort} // SORT: $sort, DESC: $desc, PAGE: $pg, $op, $caption, $qs--";
 
   $self->{table_title} = "<tr bgcolor=\"$_COLORS[0]\">";
   my $i=1;
   foreach my $line (@$caption) {
-     $self->{table_title} .= "<th  class='table_title'>$line ";
+     $self->{table_title} .= "<th class='table_title'>$line ";
      if ($line ne '-') {
          if ($sort != $i) {
              $img = 'sort_none.png';
@@ -1023,7 +1054,7 @@ sub table_title  {
          	  $op="op=$get_op";
           }
 
-         $self->{table_title} .= $self->button("<img src='$IMG_PATH/$img' width='12\' height='10' border='0' alt='Sort' title='sort' class='noprint'>", "$op$qs&pg=$pg&sort=$i&desc=$desc");
+         $self->{table_title} .= $self->button("<img src=\"$IMG_PATH/$img\" width=\"12\" height=\"10\" border=\"0\" alt=\"Sort\" title=\"Sort\" class=\"noprint\">", "$op$qs&pg=$pg&sort=$i&desc=$desc");
        }
      else {
          $self->{table_title} .= "$line";
@@ -1079,6 +1110,7 @@ sub link_former {
   $params =~ s/>/&gt;/g;
   $params =~ s/</&lt;/g;
   $params =~ s/\"/&quot;/g;
+  $params =~ s/\*/&#42;/g;
  
   return $params;
 }
@@ -1090,6 +1122,7 @@ sub link_former {
 sub button {
   my $self = shift;
   my ($name, $params, $attr)=@_;
+
   my $ex_params = (defined($attr->{ex_params})) ? $attr->{ex_params} : '';
   my $ex_attr = '';
   
@@ -1102,9 +1135,7 @@ sub button {
   $ex_attr=" TITLE='$attr->{TITLE}'" if (defined($attr->{TITLE}));
   
   my $message = (defined($attr->{MESSAGE})) ? "onclick=\"return confirmLink(this, '$attr->{MESSAGE}')\"" : '';
-
-
-  my $button = "<a href=\"$params\" $ex_attr $message>$name</a>";
+  my $button = "<a href=\"$params\"$ex_attr$message>$name</a>";
 
   return $button;
 }
@@ -1179,6 +1210,11 @@ sub pages {
  $self->{pages} = '';
  $begin = ($PG - $PAGE_ROWS * 3 < 0) ? 0 : $PG - $PAGE_ROWS * 3;
 
+ $argument .= "&sort=$FORM{sort}" if ($FORM{sort});
+ $argument .= "&desc=$FORM{desc}" if ($FORM{sort});
+
+ return $self->{pages} if ($count < $PAGE_ROWS);
+ 
 for(my $i=$begin; ($i<=$count && $i < $PG + $PAGE_ROWS * 10); $i+=$PAGE_ROWS) {
    $self->{pages} .= ($i == $PG) ? "<b>$i</b>:: " : $self->button($i, "$argument&pg=$i"). ':: ';
 }
@@ -1356,7 +1392,7 @@ sub test {
 #print "<a href='#' onclick=\"open('aaa','help', 
 # 'height=550,width=450,resizable=0, scrollbars=yes, menubar=no, status=yes');\"><font color=$_COLORS[1]>Debug</font></a>";
 
-print "<a href='#' title='$output'><font color=$_COLORS[1]>Debug</font></a>\n";
+print "<a href='#' title='$output' class='noprint'><font color=$_COLORS[1]>Debug</font></a>\n";
 
 }
 
@@ -1371,20 +1407,38 @@ sub letters_list {
  my ($self, $attr) = @_;
  
  my $pages_qs = $attr->{pages_qs} if (defined($attr->{pages_qs}));
+ my @alphabet = ('a-z');
+#'97-123'
+ if ($attr->{EXPR}) {
+  push @alphabet, $attr->{EXPR};
+  }
 
-  
 my $letters = $self->button('All ', "index=$index"). '::';
-for (my $i=97; $i<123; $i++) {
-  my $l = chr($i);
-  if ($FORM{letter} eq $l) {
-     $letters .= "<b>$l </b>\n";
-   }
-  else {
-     $letters .= $self->button("$l", "index=$index&letter=$l$pages_qs") . " \n";
-   }
- }
 
- return $letters;
+foreach my $line (@alphabet) {
+  $line=~/(\S)-(\S)/;
+  my $first = ord($1);
+  my $last  = ord($2);
+
+  for (my $i=$first; $i<$last; $i++) {
+    my $l = chr($i);
+    if ($FORM{letter} eq $l) {
+      $letters .= "<b>$l </b>\n";
+     }
+    else {
+      $letters .= $self->button("$l", "index=$index&letter=$l$pages_qs") . " \n";
+    }
+   }
+
+  $letters.="<br>\n";
+}
+  if (defined($self->{NO_PRINT})) {
+  	$self->{OUTPUT}.=$letters;
+  	return '';
+   }
+	else { 
+ 	  return $letters;
+	 }
 }
 
 #**********************************************************

@@ -1,4 +1,5 @@
-<p>
+<div class='noprint'>
+<br>
 <TABLE width=600 cellspacing=0 cellpadding=0 border=0>
  <TR><TD bgcolor=#E1E1E1>
 <TABLE width=100% cellspacing=1 cellpadding=0 border=0>
@@ -26,4 +27,5 @@
 
 </td></tr></table>
 </table>
-</p>
+<br>
+</div>

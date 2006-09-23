@@ -66,7 +66,14 @@ sub take {
   
   if ($user->{BILL_ID} > 0) {
     $Bill->info( { BILL_ID => $user->{BILL_ID} } );
-   
+    
+    if ($user->{COMPANY_VAT}) {
+      $sum = $sum * ((100 + $user->{COMPANY_VAT}) / 100);
+     }
+    else {
+    	$user->{COMPANY_VAT}=0;
+     }
+
     $Bill->action('take', $user->{BILL_ID}, $sum);
     if($Bill->{errno}) {
        $self->{errno}  = $Bill->{errno};
@@ -74,9 +81,11 @@ sub take {
        return $self;
       }
 
-
-    $self->query($db, "INSERT INTO fees (uid, bill_id, date, sum, dsc, ip, last_deposit, aid) 
-           values ('$user->{UID}', '$user->{BILL_ID}', $DATE, '$sum', '$DESCRIBE', INET_ATON('$admin->{SESSION_IP}'), '$Bill->{DEPOSIT}', '$admin->{AID}');", 'do');
+    $self->{SUM}=$sum;
+    $self->query($db, "INSERT INTO fees (uid, bill_id, date, sum, dsc, ip, last_deposit, aid, vat) 
+           values ('$user->{UID}', '$user->{BILL_ID}', $DATE, '$self->{SUM}', '$DESCRIBE', 
+            INET_ATON('$admin->{SESSION_IP}'), '$Bill->{DEPOSIT}', '$admin->{AID}',
+            '$user->{COMPANY_VAT}');", 'do');
 
     if($self->{errno}) {
        return $self;

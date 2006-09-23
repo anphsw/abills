@@ -60,10 +60,10 @@ sub preproces {
   originate  => 1,
   proxy      => 2) ;
 
-	(undef, $RAD->{H323_CONF_ID})=split(/=/, $RAD->{H323_CONF_ID}, 2);
+	(undef, $RAD->{H323_CONF_ID})=split(/=/, $RAD->{H323_CONF_ID}, 2) if ($RAD->{H323_CONF_ID} =~ /=/);
 	$RAD->{H323_CONF_ID} =~ s/ //g;
 
-  (undef, $RAD->{H323_CALL_ORIGIN})=split(/=/, $RAD->{H323_CALL_ORIGIN}, 2);
+  (undef, $RAD->{H323_CALL_ORIGIN})=split(/=/, $RAD->{H323_CALL_ORIGIN}, 2) if ($RAD->{H323_CALL_ORIGIN} =~ /=/);
   $RAD->{H323_CALL_ORIGIN} = $CALLS_ORIGIN{$RAD->{H323_CALL_ORIGIN}};
   
 
@@ -207,7 +207,8 @@ sub auth {
   
 
 #DIsable
-if ($self->{DISABLE}) {
+if ($self->{DISABLE} ||  $self->{VOIP_DISABLE} || $self->{USER_DISABLE}) {
+	#$RAD_PAIRS{'h323-return-code'}=7;
   $RAD_PAIRS{'Reply-Message'}="Account Disable";
   return 1, \%RAD_PAIRS;
 }
@@ -215,7 +216,6 @@ if ($self->{DISABLE}) {
 $self->{PAYMENT_TYPE}=0;
 if ($self->{PAYMENT_TYPE} == 0) {
   $self->{DEPOSIT}=$self->{DEPOSIT}+$self->{CREDIT}; #-$self->{CREDIT_TRESSHOLD};
-
   #Check deposit
   if($self->{DEPOSIT}  <= 0) {
     $RAD_PAIRS{'Reply-Message'}="Negativ deposit '$self->{DEPOSIT}'. Rejected!";
@@ -230,9 +230,7 @@ else {
 
   
 #  $self->check_bill_account();
-
 # if call
-
   if(defined($RAD->{H323_CONF_ID})){
      preproces($RAD);
    
@@ -260,6 +258,7 @@ else {
       ORDER BY 2 DESC LIMIT 1;");
 
     if ($self->{TOTAL} < 1) {
+       #$RAD_PAIRS{'h323-return-code'}=8;
        $RAD_PAIRS{'Reply-Message'}="No route '". $RAD->{'CALLED_STATION_ID'} ."'";
        return 1, \%RAD_PAIRS;
      }
@@ -299,13 +298,16 @@ else {
     
        if ($session_timeout > 0) {
          $RAD_PAIRS{'Session-Timeout'}=$session_timeout;    	
+
+         #$RAD_PAIRS{'h323-credit-time'}=$session_timeout;
        }
        
        
          #Make start record in voip_calls
 
   my $SESSION_START = 'now()';
-  
+
+
   $self->query($db, "INSERT INTO voip_calls 
    (  status,
       user_name,
@@ -335,7 +337,6 @@ else {
       '$self->{REDUCTION}');", 'do');
    }
  }
-
 
   
   return 0, \%RAD_PAIRS;
@@ -405,8 +406,7 @@ if ($acct_status_type == 1) {
  }
 # Stop status
 elsif ($acct_status_type == 2) {
-
-
+  #$self->{debug}=1;
   $self->query($db, "SELECT 
       UNIX_TIMESTAMP(started),
       lupdated,
@@ -422,17 +422,15 @@ elsif ($acct_status_type == 2) {
       bill_id,
       tp_id,
       route_id,
-      
+
       UNIX_TIMESTAMP(),
       UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME(UNIX_TIMESTAMP()), '%Y-%m-%d')),
       DAYOFWEEK(FROM_UNIXTIME(UNIX_TIMESTAMP())),
       DAYOFYEAR(FROM_UNIXTIME(UNIX_TIMESTAMP()))
-   
    FROM voip_calls 
     WHERE 
       conf_id='$RAD->{H323_CONF_ID}'
-      and call_origin='1'
-   ;");
+      and call_origin='1';");
 
   if ($self->{TOTAL} < 1) {
    	$self->{errno}=1;
@@ -490,7 +488,6 @@ elsif ($acct_status_type == 2) {
           DAY_OF_WEEK         => $self->{DAY_OF_WEEK},
           DAY_OF_YEAR         => $self->{DAY_OF_YEAR},
           PRICE_UNIT          => 'Min'
-          
          });
   
   
@@ -500,7 +497,7 @@ elsif ($acct_status_type == 2) {
   	return $self;
    }
   
-my $filename; 
+    my $filename; 
 
     $self->query($db, "INSERT INTO voip_log (uid, start, duration, calling_station_id, called_station_id,
               nas_id, client_ip_address, acct_session_id, 
@@ -535,25 +532,6 @@ my $filename;
 }
 #Alive status 3
 elsif($acct_status_type eq 3) {
-
-## Experemental Linux alive hangup
-## Author: Wanger
-#if ($conf{experimentsl} eq 'yes') {
-#  my ($sum, $variant, $time_t, $traf_t) = session_sum("$RAD{USER_NAME}", $ACCT_INFO{SESSION_START}, $ACCT_INFO{ACCT_SESSION_TIME}, \%ACCT_INFO);
-#  if ($sum > 0) {
-#     $sql = "SELECT deposit, credit FROM users WHERE id=\"$RAD{USER_NAME}\";";
-#     log_print('LOG_SQL', "ACCT [$RAD{USER_NAME}] SQL: $sql");
-#     $q = $db->prepare("$sql") || die $db->errstr;
-#     $q -> execute();
-#     my ($deposit, $credir) = $q -> fetchrow();
-#      if (($deposit + $credir) - $sum) < 0) {
-#        log_print('LOG_WARNING', "ACCT [$RAD{USER_NAME}] Negative balance ($d - $sum) - kill session($RAD{ACCT_SESSION_ID})");
-#        system ($Bin ."/modules/hangup.pl $RAD{ACCT_SESSION_ID}");
-#       }
-#  }
-#}
-###
-
   $self->query($db, "UPDATE voip_calls SET
     status='$acct_status_type',
     acct_session_time=UNIX_TIMESTAMP()-UNIX_TIMESTAMP(started),

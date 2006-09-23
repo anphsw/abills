@@ -23,7 +23,7 @@ my $table = $html->table( { width       => '100%',
                             title_plain => [ "HOST: ".        $html->form_input('SQUID_HOST', "$conf{SQUID_HOST}"),
                                              "PORT: ".        $html->form_input('SQUID_PORT', "$conf{SQUID_PORT}", { SIZE => 5 }),
                                              "$_PASSWD: ".    $html->form_input('SQUID_CACHEMGR_PASSWD', "", {TYPE => 'PASSWORD'}),
-                                             "RESOLV IP: ". $html->form_input('SQUID_RESOLVIP', "1", { TYPE => 'CHECKBOX', STATE => ($FORM{SQUID_RESOLVIP}) ? 1 : undef  }),
+                                             "RESOLV IP: ".   $html->form_input('SQUID_RESOLVIP', "1", { TYPE => 'CHECKBOX', STATE => ($FORM{SQUID_RESOLVIP}) ? 1 : undef  }),
                                              "$_REFRESH (sec): ".   $html->form_input('REFRESH', int($FORM{REFRESH}), { SIZE => 4 } ),
                                              $html->form_input('SHOW',  $_SHOW, {TYPE => 'SUBMIT'})  
                                             ],
@@ -47,6 +47,8 @@ print $html->form_main({ CONTENT => $table->show(),
 
     my $total_sessions=0;
     my $total_users=0;
+   
+    
     my $result = telnet_cmd2("$conf{SQUID_HOST}:$conf{SQUID_PORT}", \@commands);
 
  
@@ -55,8 +57,11 @@ print $html->form_main({ CONTENT => $table->show(),
     #print "<textarea cols=80 rows=50>$rows[0]\n----\n\n$result</textarea>"; 
     
     
+   
     if ($rows[0] !~ /HTTP\/1.0 200 OK/) {
-      $html->message('err', $ERROR, "Can't Connect '$conf{SQUID_HOST}:$conf{SQUID_POSRT}' ");    
+    	my ($header, $body)=split(/\r\n\r\n/, $rows[0]);
+      $html->message('err', $ERROR, "Can't Connect '$conf{SQUID_HOST}:$conf{SQUID_PORT}'
+      <br/><pre>$header</pre>");    
      }
     else {
       foreach my $client (@rows) {

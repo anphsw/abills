@@ -99,7 +99,8 @@ sub accounts_list {
     LEFT JOIN admins a ON (d.aid=a.aid)
     $WHERE
     GROUP BY d.acct_id 
-    ORDER BY $SORT $DESC;");
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;");
 
 
  return $self->{list}  if ($self->{TOTAL} < 1);
@@ -199,11 +200,14 @@ sub account_info {
    d.date, 
    d.customer,  
    sum(o.price * o.counts), 
+   d.phone,
+   if(d.vat>0, sum(o.price * o.counts) / ((100+d.vat)/ d.vat), 0),
    u.id, 
    a.name, 
    d.created, 
    d.uid, 
    d.id
+
     FROM docs_acct d, docs_acct_orders o
     LEFT JOIN users u ON (d.uid=u.uid)
     LEFT JOIN admins a ON (d.aid=a.aid)
@@ -217,10 +221,13 @@ sub account_info {
    }
 
   my $ar = $self->{list}->[0];
+
   ($self->{ACCT_ID}, 
    $self->{DATE}, 
    $self->{CUSTOMER}, 
-   $self->{SUM}
+   $self->{SUM},
+   $self->{PHONE},
+   $self->{VAT}
   )= @$ar;
 	
  

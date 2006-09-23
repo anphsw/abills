@@ -39,7 +39,6 @@ sub new {
   ($db, $CONF) = @_;
   my $self = { };
   bless($self, $class);
-  #$self->{debug}=1;
 
   if (! defined($CONF->{KBYTE_SIZE})) {
   	 $CONF->{KBYTE_SIZE}=1024;
@@ -63,7 +62,7 @@ sub dv_auth {
      return 1, $RAD_PAIRS;
   }
   
-  my $MAX_SESSION_TRAFFIC = $CONF->{MAX_SESSION_TRAFFIC};
+  my $MAX_SESSION_TRAFFIC = $CONF->{MAX_SESSION_TRAFFIC} || 2048;
 
   $self->query($db, "select  if (dv.logins=0, tp.logins, dv.logins) AS logins,
   if(dv.filter_id != '', dv.filter_id, tp.filter_id),
@@ -94,7 +93,9 @@ sub dv_auth {
   tp.payment_type,
   tp.credit_tresshold,
   tp.rad_pairs,
-  count(i.id)
+  count(i.id),
+  tp.age,
+  dv.callback
      FROM (dv_main     dv,
           tarif_plans tp)
      LEFT JOIN users_nas un ON (un.uid = dv.uid)
@@ -137,16 +138,20 @@ sub dv_auth {
      $self->{PAYMENT_TYPE},
      $self->{CREDIT_TRESSHOLD},
      $self->{TP_RAD_PAIRS},
-     $self->{INTERVALS}
+     $self->{INTERVALS},
+     $self->{ACCOUNT_AGE},
+     $self->{CALLBACK}
     ) = @$a_ref;
 
 
 #return 0, \%RAD_PAIRS;
-
-
 #DIsable
 if ($self->{DISABLE}) {
   $RAD_PAIRS->{'Reply-Message'}="Service Disable";
+  return 1, $RAD_PAIRS;
+}
+elsif (defined($RAD_PAIRS->{'Callback-Number'}) && $self->{CALLBACK} != 1){
+  $RAD_PAIRS->{'Reply-Message'}="Callback disabled";
   return 1, $RAD_PAIRS;
 }
 
@@ -203,7 +208,7 @@ if ($self->{PAYMENT_TYPE} == 0) {
   $self->{DEPOSIT}=$self->{DEPOSIT}+$self->{CREDIT}-$self->{CREDIT_TRESSHOLD};
 
   #Check deposit
-  if($self->{DEPOSIT}  <= 0) {
+  if($self->{DEPOSIT} <= 0) {
     $RAD_PAIRS->{'Reply-Message'}="Negativ deposit '$self->{DEPOSIT}'. Rejected!";
     return 1, $RAD_PAIRS;
    }
@@ -257,51 +262,51 @@ else {
 # 1 - Day limit
 # 2 - Week limit
 # 3 - Month limit
-my @traf_limits = ();
+#my @traf_limits = ();
 my $time_limit  = $self->{TIME_LIMIT}; 
 my $traf_limit  = $MAX_SESSION_TRAFFIC;
 
 push @time_limits, $self->{MAX_SESSION_DURATION} if ($self->{MAX_SESSION_DURATION} > 0);
 
 my @periods = ('DAY', 'WEEK', 'MONTH');
+my %SQL_params = (
+                  DAY   => "DATE_FORMAT(start, '%Y-%m-%d')=curdate()",
+                  WEEK  => "(YEAR(curdate())=YEAR(start)) and (WEEK(curdate()) = WEEK(start))",
+                  MONTH => "date_format(start, '%Y-%m')=date_format(curdate(), '%Y-%m')" 
+                  );
 
 foreach my $line (@periods) {
      if (($self->{$line . '_TIME_LIMIT'} > 0) || ($self->{$line . '_TRAF_LIMIT'} > 0)) {
+        my $session_time_limit=$traf_limit;
+        my $session_traf_limit=$traf_limit;
         $self->query($db, "SELECT if(". $self->{$line . '_TIME_LIMIT'} ." > 0, ". $self->{$line . '_TIME_LIMIT'} ." - sum(duration), 0),
-                                  if(". $self->{$line . '_TRAF_LIMIT'} ." > 0, ". $self->{$line . '_TRAF_LIMIT'} ." - sum(sent + recv) / 1024 / 1024, 0) 
+                                  if(". $self->{$line . '_TRAF_LIMIT'} ." > 0, ". $self->{$line . '_TRAF_LIMIT'} ." - sum(sent + recv) / $CONF->{KBYTE_SIZE} / $CONF->{KBYTE_SIZE}, 0) 
             FROM dv_log
-            WHERE uid='$self->{UID}' and DATE_FORMAT(start, '%Y-%m-%d')=curdate()
-            GROUP BY DATE_FORMAT(start, '%Y-%m-%d');");
+            WHERE uid='$self->{UID}' and $SQL_params{$line}
+            GROUP BY uid;");
 
         if ($self->{TOTAL} == 0) {
           push (@time_limits, $self->{$line . '_TIME_LIMIT'}) if ($self->{$line . '_TIME_LIMIT'} > 0);
-          push (@traf_limits, $self->{$line . '_TRAF_LIMIT'}) if ($self->{$line . '_TRAF_LIMIT'} > 0);
+          $session_traf_limit = $self->{$line . '_TRAF_LIMIT'} if ($self->{$line . '_TRAF_LIMIT'} > 0);
          } 
         else {
         	$a_ref = $self->{list}->[0];
-          my ($time_limit, $traf_limit) = @$a_ref;
-          push (@time_limits, $time_limit) if ($self->{$line . '_TIME_LIMIT'} > 0);
-          push (@traf_limits, $traf_limit) if ($self->{$line . '_TRAF_LIMIT'} > 0);
+          ($session_time_limit, $session_traf_limit) = @$a_ref;
+          push (@time_limits, $session_time_limit) if ($self->{$line . '_TIME_LIMIT'} > 0);
          }
-       }
+
+        #print "$line / $traf_limit / $session_traf_limit". "------\n";
+        if ($traf_limit > $session_traf_limit && $self->{$line . '_TRAF_LIMIT'} > 0) {
+      	  $traf_limit = $session_traf_limit;
+         }
+        
+        if($traf_limit <= 0) {
+          $RAD_PAIRS->{'Reply-Message'}="Rejected! $line Traffic limit utilized '$traf_limit Mb'";
+          return 1, $RAD_PAIRS;
+         }
+
+      }
 }
-
-
-#set traffic limit
-#push (@traf_limits, $prepaid_traff) if ($prepaid_traff > 0);
-
- for(my $i=0; $i<=$#traf_limits; $i++) {
- 	 #print "$i / $traf_limits[$i]". "------\n";
-   if ($traf_limit > $traf_limits[$i]) {
-     	 $traf_limit = $traf_limits[$i]; 
-    }
-  }
-
-
- if($traf_limit < 0) {
-   $RAD_PAIRS->{'Reply-Message'}="Rejected! Traffic limit utilized '$traf_limit Mb'";
-   return 1, $RAD_PAIRS;
-  }
 
 
 
@@ -340,8 +345,8 @@ foreach my $line (@periods) {
     }
   }
 
-  $RAD_PAIRS->{'Framed-IP-Netmask'} = "$self->{NETMASK}" if(defined($RAD_PAIRS->{'Framed-IP-Address'}));
-  $RAD_PAIRS->{'Filter-Id'} = "$self->{FILTER}" if (length($self->{FILTER}) > 0); 
+  $RAD_PAIRS->{'Framed-IP-Netmask'} = "$self->{NETMASK}" if (defined( $RAD_PAIRS->{'Framed-IP-Address'} ));
+  $RAD_PAIRS->{'Filter-Id'} = "$self->{FILTER}" if (length( $self->{FILTER} ) > 0); 
 
 
 
@@ -351,19 +356,19 @@ foreach my $line (@periods) {
 # ExPPP
 if ($NAS->{NAS_TYPE} eq 'exppp') {
   #$traf_tarif 
-  my $EX_PARAMS = $self->ex_traffic_params( { 
+  my $EX_PARAMS = $self->ex_traffic_params({ 
   	                                        traf_limit => $traf_limit, 
                                             deposit => $self->{DEPOSIT},
                                             MAX_SESSION_TRAFFIC => $MAX_SESSION_TRAFFIC });
 
   #global Traffic
   if ($EX_PARAMS->{traf_limit} > 0) {
-    $RAD_PAIRS->{'Exppp-Traffic-Limit'} = $EX_PARAMS->{traf_limit} * 1024 * 1024;
+    $RAD_PAIRS->{'Exppp-Traffic-Limit'} = int($EX_PARAMS->{traf_limit} * $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE});
    }
 
   #Local traffic
   if ($EX_PARAMS->{traf_limit_lo} > 0) {
-    $RAD_PAIRS->{'Exppp-LocalTraffic-Limit'} = $EX_PARAMS->{traf_limit_lo} * 1024 * 1024 ;
+    $RAD_PAIRS->{'Exppp-LocalTraffic-Limit'} = int($EX_PARAMS->{traf_limit_lo} * $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE});
    }
        
   #Local ip tables
@@ -401,8 +406,8 @@ if ($NAS->{NAS_TYPE} eq 'mikrotik') {
   #global Traffic
   if ($EX_PARAMS->{traf_limit} > 0) {
                    
-    $RAD_PAIRS->{'Mikrotik-Recv-Limit'} = $EX_PARAMS->{traf_limit} * 1024 * 1024 / 2;
-    $RAD_PAIRS->{'Mikrotik-Xmit-Limit'} = $EX_PARAMS->{traf_limit} * 1024 * 1024 / 2;
+    $RAD_PAIRS->{'Mikrotik-Recv-Limit'} = $EX_PARAMS->{traf_limit} * $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE} / 2;
+    $RAD_PAIRS->{'Mikrotik-Xmit-Limit'} = $EX_PARAMS->{traf_limit} * $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE} / 2;
    }
 
 #Shaper
@@ -411,8 +416,8 @@ if ($NAS->{NAS_TYPE} eq 'mikrotik') {
    }
   else {
     if (defined($EX_PARAMS->{speed}->{0})) {
-      $RAD_PAIRS->{'Ascend-Xmit-Rate'} = int($EX_PARAMS->{speed}->{0}->{IN}) * 1024;
-      $RAD_PAIRS->{'Ascend-Data-Rate'} = int($EX_PARAMS->{speed}->{0}->{OUT})* 1024;
+      $RAD_PAIRS->{'Ascend-Xmit-Rate'} = int($EX_PARAMS->{speed}->{0}->{IN}) * $CONF->{KBYTE_SIZE};
+      $RAD_PAIRS->{'Ascend-Data-Rate'} = int($EX_PARAMS->{speed}->{0}->{OUT})* $CONF->{KBYTE_SIZE};
      }
    }
  }
@@ -426,7 +431,7 @@ elsif ($NAS->{NAS_TYPE} eq 'mpd') {
 
   #global Traffic
   if ($EX_PARAMS->{traf_limit} > 0) {
-    $RAD_PAIRS->{'Exppp-Traffic-Limit'} = $EX_PARAMS->{traf_limit} * 1024 * 1024;
+    $RAD_PAIRS->{'Exppp-Traffic-Limit'} = $EX_PARAMS->{traf_limit} * $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE};
    }
   
   # MPD have some problem with long time out value max timeout set to 7 days
@@ -451,7 +456,8 @@ elsif ($NAS->{NAS_TYPE} eq 'mpd') {
  }
 ###########################################################
 # pppd + RADIUS plugin (Linux) http://samba.org/ppp/
-elsif ($NAS->{NAS_TYPE} eq 'pppd') {
+# lepppd - PPPD IPv4 zone counters 
+elsif ($NAS->{NAS_TYPE} eq 'pppd' or ($NAS->{NAS_TYPE} eq 'lepppd')) {
   my $EX_PARAMS = $self->ex_traffic_params({ 
   	                                         traf_limit => $traf_limit, 
                                              deposit    => $self->{DEPOSIT},
@@ -460,8 +466,20 @@ elsif ($NAS->{NAS_TYPE} eq 'pppd') {
 
   #global Traffic
   if ($EX_PARAMS->{traf_limit} > 0) {
-    $RAD_PAIRS->{'Session-Octets-Limit'} = $EX_PARAMS->{traf_limit} * 1024 * 1024;
+    $RAD_PAIRS->{'Session-Octets-Limit'} = $EX_PARAMS->{traf_limit} * $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE};
     $RAD_PAIRS->{'Octets-Direction'} = $self->{OCTETS_DIRECTION};
+   }
+
+  #Speed limit attributes 
+  if ($self->{USER_SPEED} > 0) { 
+    $RAD_PAIRS->{'PPPD-Upstream-Speed-Limit'} = int($self->{USER_SPEED}); 
+    $RAD_PAIRS->{'PPPD-Downstream-Speed-Limit'} = int($self->{USER_SPEED}); 
+   } 
+  else { 
+    if (defined($EX_PARAMS->{speed}->{0})) { 
+      $RAD_PAIRS->{'PPPD-Downstream-Speed-Limit'} = int($EX_PARAMS->{speed}->{0}->{IN}); 
+      $RAD_PAIRS->{'PPPD-Upstream-Speed-Limit'} = int($EX_PARAMS->{speed}->{0}->{OUT}); 
+     } 
    }
  }
 
@@ -474,7 +492,14 @@ if( defined($CONF->{MAC_AUTO_ASSIGN}) &&
 #  print "ADD MAC___\n";
   $self->query($db, "UPDATE dv_main SET cid='$RAD->{CALLING_STATION_ID}'
      WHERE uid='$self->{UID}';", 'do');
-}
+ }
+
+# SET ACCOUNT expire date
+if( $self->{ACCOUNT_AGE} > 0 && $self->{ACCOUNT_ACTIVATE} eq '0000-00-00') {
+  $self->query($db, "UPDATE users SET  activate=curdate(), expire=curdate() + INTERVAL $self->{ACCOUNT_AGE} day 
+     WHERE uid='$self->{UID}';", 'do');
+ }
+
 
   if ($self->{TP_RAD_PAIRS}) {
   	my @p = split(/,/, $self->{TP_RAD_PAIRS});
@@ -482,7 +507,7 @@ if( defined($CONF->{MAC_AUTO_ASSIGN}) &&
     	my ($rk, $lk)=split(/=/, $line);
     	$RAD_PAIRS->{$rk}="$lk";
      }
-  }
+   }
 #OK
   return 0, $RAD_PAIRS, '';
 }
@@ -560,6 +585,13 @@ sub authentication {
   my $SECRETKEY = (defined($CONF->{secretkey})) ? $CONF->{secretkey} : '';
   my %RAD_PAIRS = ();
   
+  #Get callback number
+  if ($RAD->{USER_NAME} =~ /(\d+):(\S+)/) {
+    $RAD_PAIRS{'Callback-Number'}=$1;
+    $RAD->{USER_NAME}=$2;
+   }
+
+
   $self->query($db, "select
   u.uid,
   DECODE(password, '$SECRETKEY'),
@@ -570,7 +602,8 @@ sub authentication {
   u.company_id,
   u.disable,
   u.bill_id,
-  u.credit
+  u.credit,
+  u.activate
      FROM users u
      WHERE 
         u.id='$RAD->{USER_NAME}'
@@ -599,7 +632,8 @@ sub authentication {
      $self->{COMPANY_ID},
      $self->{DISABLE},
      $self->{BILL_ID},
-     $self->{CREDIT}
+     $self->{CREDIT},
+     $self->{ACCOUNT_ACTIVATE}
     ) = @$a_ref;
 
 
@@ -627,7 +661,11 @@ elsif(defined($RAD->{MS_CHAP_CHALLENGE})) {
      my $rad_response = pack("H*", $RAD->{MS_CHAP2_RESPONSE});
      my ($ident, $flags, $peerchallenge, $reserved, $response) = unpack('C C a16 a8 a24', $rad_response);
 
-     if (check_mschapv2("$RAD->{USER_NAME}", $self->{PASSWD}, $challenge, $peerchallenge, $response, $ident,
+      
+
+     
+     if (check_mschapv2(($RAD_PAIRS{'Callback-Number'}) ? "$RAD_PAIRS{'Callback-Number'}:$RAD->{USER_NAME}" : $RAD->{USER_NAME},
+       $self->{PASSWD}, $challenge, $peerchallenge, $response, $ident,
  	     \$usersessionkey, \$lanmansessionkey, \$ms_chap2_success) == 1) {
          $RAD_PAIRS{'MS-CHAP-Error'}="\"Wrong MS-CHAP2 password\"";
          $RAD_PAIRS{'Reply-Message'}=$RAD_PAIRS{'MS-CHAP-Error'};
@@ -663,8 +701,8 @@ elsif(defined($RAD->{MS_CHAP_CHALLENGE})) {
           }
         }
 
-       $RAD_PAIRS{'MS-CHAP-MPPE-Keys'} = '0x' . unpack("H*", (pack('a8 a16', $lanmansessionkey, 
-														$usersessionkey))) . "0000000000000000";
+#       $RAD_PAIRS{'MS-CHAP-MPPE-Keys'} = '0x' . unpack("H*", (pack('a8 a16', $lanmansessionkey, 
+#														$usersessionkey))) . "0000000000000000";
 
        # 1      Encryption-Allowed 
        # 2      Encryption-Required 
@@ -711,7 +749,6 @@ if($self->{errno}) {
   return 1, \%RAD_PAIRS;
  }
 
-
   return 0, \%RAD_PAIRS, '';
 }
 
@@ -729,6 +766,7 @@ sub check_bill_account() {
   	  return $self;
      }
     elsif ($self->{TOTAL} < 1) {
+      $self->{errno}=2;
       $self->{errstr}="Bill account Not Exist";
       return $self;
      }
@@ -745,7 +783,9 @@ sub check_bill_account() {
 sub check_company_account () {
 	my $self = shift;
 
-  $self->query($db, "SELECT bill_id, disable FROM companies WHERE id='$self->{COMPANY_ID}';");
+  $self->query($db, "SELECT bill_id, 
+                            disable,
+                            credit FROM companies WHERE id='$self->{COMPANY_ID}';");
 
  
   if($self->{errno}) {
@@ -762,7 +802,12 @@ sub check_company_account () {
 
   ($self->{BILL_ID},
    $self->{DISABLE},
+   $self->{COMPANY_CREDIT}
     ) = @$a_ref;
+
+  
+  $self->{CREDIT}+=$self->{COMPANY_CREDIT};
+
 
   return $self;
 }
@@ -791,7 +836,6 @@ sub ex_traffic_params {
  #get traffic limits
 # if ($traf_tarif > 0) {
    my $nets = 0;
-#$self->{debug}=1;
    $self->query($db, "SELECT id, in_price, out_price, prepaid, in_speed, out_speed, LENGTH(nets) FROM trafic_tarifs
              WHERE interval_id='$self->{TT_INTERVAL}';");
 
@@ -815,14 +859,8 @@ sub ex_traffic_params {
    $EX_PARAMS{nets}=$nets if ($nets > 20);
    #$EX_PARAMS{speed}=int($speeds{0}) if (defined($speeds{0}));
 
-#  }
-# else {
-#   return %EX_PARAMS;	
-#  }
-
-
 if ((defined($prepaids{0}) && $prepaids{0} > 0 ) || (defined($prepaids{1}) && $prepaids{1}>0 )) {
-  $self->query($db, "SELECT sum(sent+recv) / 1024 / 1024, sum(sent2+recv2) / 1024 / 1024 FROM dv_log 
+  $self->query($db, "SELECT sum(sent+recv) / $CONF->{KBYTE_SIZE} / $CONF->{KBYTE_SIZE}, sum(sent2+recv2) / $CONF->{KBYTE_SIZE} / $CONF->{KBYTE_SIZE} FROM dv_log 
      WHERE uid='$self->{UID}' and DATE_FORMAT(start, '%Y-%m')=DATE_FORMAT(curdate(), '%Y-%m')
      GROUP BY DATE_FORMAT(start, '%Y-%m');");
 
@@ -866,7 +904,6 @@ else {
 
 
 my $trafic_limit = 0;
-#$trafic_limit = $trafic_limit * 1024 * 1024;
 #2Gb - (2048 * 1024 * 1024 ) - global traffic session limit
 if (defined($trafic_limits{0}) && $trafic_limits{0} > 0  && $trafic_limits{0} < $EX_PARAMS{traf_limit}) {
   $trafic_limit = ($trafic_limits{0} > $CONF->{MAX_SESSION_TRAFFIC}) ? $CONF->{MAX_SESSION_TRAFFIC} :  $trafic_limits{0};
@@ -1060,10 +1097,16 @@ sub bin2hex ($) {
 #*******************************************************************
 sub pre_auth {
   my ($self, $RAD, $attr)=@_;
-
-
+  
+  
 if (defined($RAD->{MS_CHAP_CHALLENGE}) || defined($RAD->{EAP_MESSAGE})) {
-  $self->query($db, "SELECT DECODE(password, '$CONF->{secretkey}') FROM users WHERE id='$RAD->{USER_NAME}';");
+  
+  my $login = $RAD->{USER_NAME};
+  if ($RAD->{USER_NAME} =~ /:(.+)/) {
+    $login = $1;	 
+  }
+
+  $self->query($db, "SELECT DECODE(password, '$CONF->{secretkey}') FROM users WHERE id='$login';");
   if ($self->{TOTAL} > 0) {
   	my $list = $self->{list}->[0];
     my $password = $list->[0];
@@ -1073,7 +1116,7 @@ if (defined($RAD->{MS_CHAP_CHALLENGE}) || defined($RAD->{EAP_MESSAGE})) {
    }
 
   $self->{errno} = 1;
-  $self->{errstr} = "USER: '$RAD->{USER_NAME}' not exist";
+  $self->{errstr} = "USER: '$login' not exist";
   return 1;
  }
   

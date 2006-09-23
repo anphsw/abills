@@ -151,20 +151,20 @@ VALUE		Framed-Compression	Van-Jacobson-TCP-IP	1
 VALUE		Login-Service		Telnet			0
 VALUE		Login-Service		Rlogin			1
 VALUE		Login-Service		TCP-Clear		2
-VALUE		Login-Service		PortMaster		3
+VALUE		Login-Service		PortMaster	3
 
 #	Status Types
 
 VALUE		Acct-Status-Type	Start			1
 VALUE		Acct-Status-Type	Stop			2
 VALUE		Acct-Status-Type	Alive			3
-VALUE		Acct-Status-Type	Accounting-On		7
+VALUE		Acct-Status-Type	Accounting-On		  7
 VALUE		Acct-Status-Type	Accounting-Off		8
 
 #	Authentication Types
 
 VALUE		Acct-Authentic		RADIUS			1
-VALUE		Acct-Authentic		Local			2
+VALUE		Acct-Authentic		Local				2
 
 #	Termination Options
 
@@ -200,24 +200,24 @@ VALUE           Acct-Terminate-Cause    Callback                16
 VALUE           Acct-Terminate-Cause    User-Error              17
 VALUE           Acct-Terminate-Cause    Host-Request            18
 
-#VALUE		Tunnel-Type		L2TP			3
+#VALUE		Tunnel-Type		L2TP			    3
 #VALUE		Tunnel-Medium-Type	IP			1
 
 #
 #	Non-Protocol Integer Translations
 #
 
-VALUE		Auth-Type		Local			0
+VALUE		Auth-Type		Local			  0
 VALUE		Auth-Type		System			1
 VALUE		Auth-Type		SecurID			2
-VALUE		Auth-Type		Crypt-Local		3
+VALUE		Auth-Type		Crypt-Local	3
 VALUE		Auth-Type		Reject			4
 VALUE		Auth-Type		ActivCard		4
 
 #
 #	Cistron extensions
 #
-VALUE		Auth-Type		Pam			253
+VALUE		Auth-Type		Pam			    253
 VALUE		Auth-Type		Accept			254
 
 #
@@ -234,5 +234,23 @@ VALUE		Add-Port-To-IP-Address	Yes			1
 #
 
 VALUE		Server-Config		Password-Expiration	30
-VALUE		Server-Config		Password-Warning	5
+VALUE		Server-Config		Password-Warning	  5
+
+
+
+
+# Cisco attributes
+VENDOR          Cisco                   9
+ATTRIBUTE       Cisco-AVPair            1       string  Cisco
+ATTRIBUTE       Cisco-NAS-Port          2       string  Cisco
+ATTRIBUTE       Cisco-Call-Type         19      string  Cisco
+ATTRIBUTE       h323-call-origin        26      string  Cisco
+ATTRIBUTE       h323-conf-id            24      string  Cisco
+ATTRIBUTE       h323-gw-id              33      string  Cisco
+ATTRIBUTE       h323-disconnect-cause   30      string  Cisco
+ATTRIBUTE       h323-setup-time         25      string  Cisco
+ATTRIBUTE       h323-connect-time       28      string  Cisco
+ATTRIBUTE       h323-disconnect-time    29      string  Cisco
+ATTRIBUTE       h323-credit-time				102     string  Cisco
+ATTRIBUTE       h323-return-code				103     string  Cisco
 

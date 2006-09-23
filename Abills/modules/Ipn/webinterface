@@ -359,13 +359,13 @@ $INTERVAL_TYPE_SEL
 </form>\n";
 
 
-my $table = $html->table( { width => '100%',
-                                border => 1,
-                                title => ["$_TIME", "$_SIZE", "SRC_IP", "SRC_PORT", "DST_IP", "DST_PORT", "$_PROTOCOL", "-"],
-                                cols_align => ['right', 'right', 'RIGHT', 'right', 'right', 'right', 'center'],
-                                qs => $pages_qs,
-                                pages => $sessions->{TOTAL},
-                                recs_on_page => $LIST_PARAMS{PAGE_ROWS}
+my $table = $html->table( { width        => '100%',
+                            border       => 1,
+                            title        => ["$_TIME", "$_SIZE", "SRC_IP", "SRC_PORT", "DST_IP", "DST_PORT", "$_PROTOCOL", "-"],
+                            cols_align   => ['right', 'right', 'RIGHT', 'right', 'right', 'right', 'center'],
+                            qs           => $pages_qs,
+                            pages        => $sessions->{TOTAL},
+                            recs_on_page => $LIST_PARAMS{PAGE_ROWS}
                                } );
 
 my $delete = '';
@@ -390,12 +390,12 @@ print $table->show();
 
 
 
-$table = $html->table( { width => '100%',
-	                              rowcolor => $_COLORS[1],
-                                title_plain => ["$_SESSIONS", "$_TRAFFIC"],
-                                cols_align => ['right', 'right', 'right', 'right'],
-                                rows => [ [ $Ipn->{COUNT}, int2byte($Ipn->{SUM}) ] ],
-                               } );
+$table = $html->table( { width       => '100%',
+	                       rowcolor    => $_COLORS[1],
+                         title_plain => ["$_SESSIONS", "$_TRAFFIC"],
+                         cols_align  => ['right', 'right', 'right', 'right'],
+                         rows        => [ [ $Ipn->{COUNT}, int2byte($Ipn->{SUM}) ] ],
+                       } );
 
 
 print $table->show();
@@ -680,11 +680,11 @@ else {
    }
 
   $out = $html->make_charts({  
-	 PERIOD => $graph_type,
-	 DATA   => \%DATA_HASH2,
-	 AVG    => \%AVG,
-	 TYPE   => ['column', 'line'],
-	 TRANSITION => 1,
+	 PERIOD        => $graph_type,
+	 DATA          => \%DATA_HASH2,
+	 AVG           => \%AVG,
+	 TYPE          => ['column', 'line'],
+	 TRANSITION    => 1,
 	 %CHART,
    OUTPUT2RETURN => 1	 
   });
@@ -738,10 +738,10 @@ sub ipn_use {
       my $list = $Ipn->reports2({ %LIST_PARAMS });
 
       $table_sessions = $html->table( { width => '100%',
-	                              caption    => "$_FROM", 
-                                title      => ["IP", "PACKEDGE", "$_SUM"],
-                                cols_align => ['left', 'right', 'right'],
-                                qs         => $pages_qs             
+	                                      caption    => "$_FROM", 
+                                        title      => ["IP", "PACKEDGE", "$_SUM"],
+                                        cols_align => ['left', 'right', 'right'],
+                                        qs         => $pages_qs             
                                } );
 
       foreach my $line (@$list) {
@@ -1336,7 +1336,7 @@ sub ipn_user_activate {
   	if (! $user->{UID}) {
       $IP_INPUT .= $html->form_select('NAS_ID', 
                                     { 
- 	                                   SELECTED  => $nas_id,
+ 	                                   SELECTED          => $nas_id,
  	                                   SEL_MULTI_ARRAY   => $nas->list(),
  	                                   MULTI_ARRAY_KEY   => 0,
  	                                   MULTI_ARRAY_VALUE => 1,
@@ -1480,11 +1480,17 @@ print $table->show();
 sub ipn_change_status {
 	my ($attr) = @_;
 
+	if ($attr->{FRAMED_IP_ADDRESS} !~ /^(\d){1,3}\.(\d){1,3}\.(\d){1,3}\.(\d){1,3}$/ ) {
+    $html->message('err', $_ERROR, "$ERR_WRONG_DATA");
+    return 0;
+   }
+
+	my $ip              = $attr->{FRAMED_IP_ADDRESS};
 	my $STATUS          = $attr->{STATUS} || '';
   my $USER_NAME       = $attr->{USER_NAME} || '';
   my $ACCT_SESSION_ID = $attr->{ACCT_SESSION_ID} || '';
-	my $ip              = $attr->{FRAMED_IP_ADDRESS};
-  
+
+    
   my $speed_in=0;
   my $speed_out=0;
    
@@ -1492,7 +1498,7 @@ sub ipn_change_status {
   my @ip_array = split(/\./, $ip, 4);
   my $rule_num = $conf{IPN_FW_FIRST_RULE} + $ip_array[3];
   my $cmd;
-	
+
 	if ($STATUS eq 'ONLINE_ENABLE'){
      $cmd = $conf{IPN_FW_START_RULE};
      $html->message('info', $_INFO, "$_ENABLE IP: $ip");
@@ -1505,7 +1511,7 @@ sub ipn_change_status {
 	elsif($STATUS eq 'ONLINE_DISABLE') {
      $cmd = $conf{IPN_FW_STOP_RULE};
 
-     $html->message('info', $_INFO, "Hangup IP: $ip");     
+     $html->message('info', $_INFO, "$_DISABLE IP: $ip");     
      $sessions->online_update({ USER_NAME       => $USER_NAME,
                                 ACCT_SESSION_ID => $ACCT_SESSION_ID,
                                 STATUS          => 11
@@ -1518,24 +1524,26 @@ sub ipn_change_status {
      $cmd = $conf{IPN_FW_STOP_RULE};
 
      my $table = $html->table( { width      => '100%',
-                            caption    => "Hangup",
-                            border     => 1,
-                            rows       => [["IP:" ,      int2ip($Ipn->{FRAMED_IP_ADDRESS}) ],
+                                 caption    => "Hangup",
+                                 border     => 1,
+                                 rows       => [["IP:" ,      int2ip($Ipn->{FRAMED_IP_ADDRESS}) ],
                                            ["IN:" ,      int2byte($Ipn->{TRAFFIC_IN})      ], 
                                            ["OUT:",      int2byte($Ipn->{TRAFFIC_OUT})     ], 
                                            ["$_TOTAL:",  int2byte($Ipn->{TRAFFIC_IN}+$Ipn->{TRAFFIC_OUT})   ], 
                                            ["DURATION:", sec2time($Ipn->{ACCT_SESSION_TIME}, { str => 1 })   ], 
                                            ["SUM:",      "$Ipn->{SUM}" ]]
-                         });
+                            });
 
     $html->message('info', $_INFO,  $table->show({ OUTPUT2RETURN => 1 }));
    }
+
 	
   $cmd =~ s/\%IP/$ip/g;
   $cmd =~ s/\%NUM/$rule_num/g;
   $cmd =~ s/\%SPEED_IN/$speed_in/g if ($speed_in > 0);
   $cmd =~ s/\%SPEED_OUT/$speed_out/g if ($speed_out > 0);
   #print "$cmd";
+
   system($cmd);
 }
 
@@ -1569,8 +1577,13 @@ sub ipn_club_monitor {
   	 	         	 	     });
    }
 	elsif ($FORM{ping}) {
-    my $res = `/sbin/ping -c 5 $FORM{ping}`;
-    $html->message('info', $_INFO,  "Ping  $FORM{ping}<br>Result:<br><pre>$res</pre>");
+    if ($FORM{ping} =~ /^(\d){1,3}\.(\d){1,3}\.(\d){1,3}\.(\d){1,3}$/) {
+      my $res = `/sbin/ping -c 5 $FORM{ping}`;
+      $html->message('info', $_INFO,  "Ping  $FORM{ping}<br>Result:<br><pre>$res</pre>");
+     }
+    else {
+      $html->message('err', $_ERROR,  "_WRONG_DATA");
+     }
    }
 	elsif ($FORM{DETAIL}) {
 		
@@ -1680,7 +1693,7 @@ elsif ($FORM{chg}) {
 	$Ipn->{ACTION_LNG}=$_CHANGE;
 }
 elsif ($FORM{del}){
-	$Ipn->comps_del({ %FORM });
+	$Ipn->comps_del( $FORM{del} );
 	$html->message('info', $_INFO, "$_DELETED");
 }
 
@@ -1703,7 +1716,7 @@ foreach $line (@$list) {
 	 $line->[2],
 	 $line->[3],
 	 $html->button($_CHANGE, "index=$index&chg=$line->[0]"),
-	 $html->button($_DEL, "index=". $index ."&$pages_qs&del=$line->[0]", { MESSAGE => "$_DEL '$line->[1]?" })
+	 $html->button($_DEL, "index=$index&$pages_qs&del=$line->[0]", { MESSAGE => "$_DEL '$line->[1]?" })
 	);
 }
 
@@ -1718,9 +1731,6 @@ print $table->show();
 #
 #**********************************************************
 sub ipn_user_add {
-	
-	
-	
  use Tariffs;
  my $tariffs = Tariffs->new($db, \%conf, $admin);
  
@@ -1734,11 +1744,11 @@ sub ipn_user_add {
 
 	
  if ($FORM{add}) {
-     my $Dv = Dv->new($db, $admin, \%conf);
+     my $Dv       = Dv->new($db, $admin, \%conf);
      my $payments = Finance->payments($db, $admin, \%conf);
-     my $users = Users->new($db, $admin, \%conf); 
-     my $LOGIN = mk_unique_value(6, { SYMBOLS => '0123456789'});
-     my $PASSWORD=mk_unique_value(8, {SYMBOLS => '0123456789'});
+     my $users    = Users->new($db, $admin, \%conf); 
+     my $LOGIN    = mk_unique_value(6, { SYMBOLS => '0123456789'});
+     my $PASSWORD = mk_unique_value(8, { SYMBOLS => '0123456789'});
      my $user=$users->add({ LOGIN       => $LOGIN,
     	                      PASSWORD    => "$PASSWORD",
      	                      CREATE_BILL => 1
@@ -1763,10 +1773,10 @@ sub ipn_user_add {
          }
        }
 
-   	 $Dv->add({ UID   => $UID, 
-   	  	         TP_ID => $FORM{TP_ID},
-   	  	         IP    => '0.0.0.0',
-   	  	         NETMASK => '255.255.255.255' });
+   	 $Dv->add({ UID     => $UID, 
+   	  	        TP_ID   => int($FORM{TP_ID}),
+   	  	        IP      => '0.0.0.0',
+   	  	        NETMASK => '255.255.255.255' });
 
       if ($Dv->{errno}) {
          $html->message('err', $_ERROR, "[$Dv->{errno}] $err_strs{$Dv->{errno}}");	
@@ -1774,25 +1784,19 @@ sub ipn_user_add {
 
      my @USER_PARAMS=();
 
-     if ($FORM{ACTIVATE})     {
+     if ($FORM{ACTIVATE}) {
+
        my %DATA = (ACCT_STATUS_TYPE  => 1, 
-                 USER_NAME         => $LOGIN, 
-                 SESSION_START     => 0, 
-                 ACCT_SESSION_ID   => mk_unique_value(10), 
-                 FRAMED_IP_ADDRESS => $FORM{IP}, 
-                 CONNECT_INFO      => '', 
-                 NAS_ID            => $FORM{NAS_ID},
-                 TP                => $FORM{TP_ID} );
+                   USER_NAME         => $LOGIN, 
+                   SESSION_START     => 0, 
+                   ACCT_SESSION_ID   => mk_unique_value(10), 
+                   FRAMED_IP_ADDRESS => $FORM{IP}, 
+                   CONNECT_INFO      => '', 
+                   NAS_ID            => $FORM{NAS_ID},
+                   TP                => $FORM{TP_ID} );
      
        $Ipn->user_status({ %DATA });
-      
-       my @ip_array = split(/\./, $FORM{IP}, 4);
-       my $rule_num = $conf{IPN_FW_FIRST_RULE} + $ip_array[3];
-       my $cmd = $conf{IPN_FW_START_RULE};
-       $cmd =~ s/\%IP/$FORM{IP}/g;
-       $cmd =~ s/\%NUM/$rule_num/g;
-       print "<div class='noprint'>$cmd</div>\n";
-       system($cmd);
+       ipn_change_status({ STATUS => 'ONLINE_ENABLE', %DATA });
      }
      
      

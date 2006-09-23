@@ -1,3 +1,4 @@
+
 $_FIRST_PERIOD='First period';
 $_FIRST_PERIOD_STEP='Step Of first period';
 $_NEXT_PERIOD='Next Period';
@@ -6,6 +7,7 @@ $_FREE_TIME='Free Time';
 $_ROUTES='Routes';
 $_GATEWAY='Gateway';
 $_NUMBER='Number';
+
 
 $_ALLOW_ANSWER='Allow answer';
 $_ALLOW_CALLS='Allow Calls';

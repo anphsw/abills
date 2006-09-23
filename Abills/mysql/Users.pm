@@ -60,6 +60,20 @@ sub info {
     
   if (defined($attr->{LOGIN}) && defined($attr->{PASSWORD})) {
     $WHERE = "WHERE u.id='$attr->{LOGIN}' and DECODE(u.password, '$CONF->{secretkey}')='$attr->{PASSWORD}'";
+    if (defined($attr->{ACTIVATE})) {
+    	my $value = $self->search_expr("$attr->{ACTIVATE}", 'INT');
+    	$WHERE .= " and u.activate$value";
+     }
+
+    if (defined($attr->{EXPIRE})) {
+    	my $value = $self->search_expr("$attr->{EXPIRE}", 'INT');
+    	$WHERE .= " and u.expire$value";
+     }
+
+    if (defined($attr->{DISABLE})) {
+    	$WHERE .= " and u.disable='$attr->{DISABLE}'";
+     }
+    
     #$PASSWORD = "if(DECODE(password, '$SECRETKEY')='$attr->{PASSWORD}', 0, 1)";
    }
   elsif(defined($attr->{LOGIN})) {
@@ -68,7 +82,6 @@ sub info {
   else {
     $WHERE = "WHERE u.uid='$uid'";
    }
-
 
   $self->query($db, "SELECT u.uid,
    u.gid, 
@@ -80,8 +93,7 @@ sub info {
    if(c.name IS NULL, b.deposit, cb.deposit),
    u.company_id,
    if(c.name IS NULL, 'N/A', c.name), 
-   if(c.name IS NULL, u.bill_id, c.bill_id)
-
+   if(c.name IS NULL, 0, c.vat)
      FROM users u
      LEFT JOIN bills b ON (u.bill_id=b.id)
      LEFT JOIN groups g ON (u.gid=g.gid)
@@ -95,8 +107,7 @@ sub info {
      return $self;
    }
 
-  my $ar = $self->{list}->[0];
-
+  
   ($self->{UID},
    $self->{GID},
    $self->{G_NAME},
@@ -111,9 +122,10 @@ sub info {
    $self->{DEPOSIT}, 
    $self->{COMPANY_ID},
    $self->{COMPANY_NAME},
- )= @$ar;
+   $self->{COMPANY_VAT}
+ )= @{ $self->{list}->[0] };
   
-  
+ 
   return $self;
 }
 
@@ -571,7 +583,6 @@ sub add {
   #ERROR_SHORT_PASSWORD
   elsif($DATA{LOGIN} !~ /$usernameregexp/) {
      $self->{errno} = 10;
-     print "- / $usernameregexp--";
      $self->{errstr} = 'ERROR_WRONG_NAME';
      return $self; 	
    }

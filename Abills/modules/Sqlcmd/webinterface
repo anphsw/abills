@@ -19,7 +19,7 @@ sub sqlcmd {
  my $list = $Sqlcmd->list( { %FORM } ) if (defined($FORM{QUERY}) && length($FORM{QUERY}) > 10);
 
 if ($Sqlcmd->{errno}) {
-  $html->message('err', $_ERROR, "[$Sqlcmd->{errno}] $err_strs{$Sqlcmd->{errno}}");	
+  $html->message('err', $_ERROR, "[$Sqlcmd->{errno}] $err_strs{$Sqlcmd->{errno}} /$Sqlcmd->{errstr}/");	
   return 0;
  }
 
@@ -31,7 +31,6 @@ if ($Sqlcmd->{errno}) {
 
   $html->tpl_show(_include('sqlcmd', 'Sqlcmd'), $Sqlcmd);
 
-#title => ["$_LOGIN", "$_DOMAIN", "$_USER", "$_COMMENTS", "$_LIMIT $_COUNT", "$_LIMIT $_SIZE", "$_ANTIVIRUS", "$_ANTISPAM", "$_STATUS", '-', '-'], 
 #cols_align => ['left', 'left', 'left', 'right', 'right', 'right', 'center', 'center', 'center', 'center', 'center', 'center'],
 
   my @CAPTION = ();

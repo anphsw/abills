@@ -1,5 +1,8 @@
 #!/usr/bin/perl -w
 
+
+
+
 use vars  qw(%RAD %conf $db %AUTH
  %RAD_REQUEST %RAD_REPLY %RAD_CHECK 
  %auth_mod

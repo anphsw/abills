@@ -135,9 +135,7 @@ sub test_call {
 	while(my($k, $v)=each(%RAD_CHECK)){
 	  $test .= "$k, $v\n";
 	 }
-  
-  
+ 
   #print $test;
-  
   my $a=`echo "$test" >> /tmp/perllog`;
 }

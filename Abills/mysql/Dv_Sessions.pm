@@ -33,6 +33,7 @@ sub new {
   ($db, $admin, $conf) = @_;
   my $self = { };
   bless($self, $class);
+  #$self->{debug}=1;
   return $self;
 }
 
@@ -327,6 +328,8 @@ sub session_detail {
  my ($attr) = @_;
  
 
+
+
  $WHERE = " and l.uid='$attr->{UID}'" if ($attr->{UID});
  
 
@@ -528,12 +531,30 @@ sub list {
  my $self = shift;
  my ($attr) = @_;
 
- my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
- my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
- my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 2;
- my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+ $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+ $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+ $SORT = ($attr->{SORT}) ? $attr->{SORT} : 2;
+ $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
  
  undef @WHERE_RULES; 
+ 
+  %{$self->{SESSIONS_FIELDS}} = (LOGIN           => 'u.id', 
+                                 START           => 'l.start', 
+                                 DURATION        => 'SEC_TO_TIME(l.duration)', 
+                                 TP              => 'l.tp_id',
+                                 SENT            => 'l.sent', 
+                                 RECV            => 'l.recv', 
+                                 CID             => 'l.CID', 
+                                 NAS_ID          => 'l.nas_id', 
+                                 IP_INT          => 'l.ip', 
+                                 SUM             => 'l.sum', 
+                                 IP              => 'INET_NTOA(l.ip)', 
+                                 ACCT_SESSION_ID => 'l.acct_session_id', 
+                                 UID             => 'l.uid', 
+                                 START_UNIX_TIME => 'UNIX_TIMESTAMP(l.start)',
+                                 DURATION_SEC    => 'l.duration',
+                                 SEND            => 'l.sent2', 
+                                 RECV            => 'l.recv2');
  
 #UID
  if ($attr->{UID}) {
@@ -682,15 +703,39 @@ sub calculation {
 	my ($self) = shift;
 	my ($attr) = @_;
 
+
 #Login
   if ($attr->{UID}) {
-    $WHERE .= ($WHERE ne '') ?  " and l.uid='$attr->{UID}' " : "WHERE l.uid='$attr->{UID}' ";
+  	push @WHERE_RULES, "l.uid='$attr->{UID}'";
    }
 
-  $self->query($db, "SELECT SEC_TO_TIME(min(l.duration)), SEC_TO_TIME(max(l.duration)), SEC_TO_TIME(avg(l.duration)),
-  min(l.sent), max(l.sent), avg(l.sent),
-  min(l.recv), max(l.recv), avg(l.recv),
-  min(l.recv+l.sent), max(l.recv+l.sent), avg(l.recv+l.sent)
+if($attr->{INTERVAL}) {
+ 	 my ($from, $to)=split(/\//, $attr->{INTERVAL}, 2);
+   push @WHERE_RULES, "date_format(start, '%Y-%m-%d')>='$from' and date_format(start, '%Y-%m-%d')<='$to'";
+ }
+#Period
+elsif (defined($attr->{PERIOD}) ) {
+   my $period = int($attr->{PERIOD});   
+   if ($period == 4) {  
+
+   	}
+   else {
+     if($period == 0)    {  push @WHERE_RULES, "date_format(start, '%Y-%m-%d')=curdate()"; }
+     elsif($period == 1) {  push @WHERE_RULES, "TO_DAYS(curdate()) - TO_DAYS(start) = 1 ";  }
+     elsif($period == 2) {  push @WHERE_RULES, "YEAR(curdate()) = YEAR(start) and (WEEK(curdate()) = WEEK(start)) ";  }
+     elsif($period == 3) {  push @WHERE_RULES, "date_format(start, '%Y-%m')=date_format(curdate(), '%Y-%m') "; }
+     elsif($period == 5) {  push @WHERE_RULES, "date_format(start, '%Y-%m-%d')='$attr->{DATE}' "; }
+    }
+ }
+
+  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
+
+
+  $self->query($db, "SELECT 
+  SEC_TO_TIME(min(l.duration)), SEC_TO_TIME(max(l.duration)), SEC_TO_TIME(avg(l.duration)), SEC_TO_TIME(sum(l.duration)),
+  min(l.sent), max(l.sent), avg(l.sent), sum(l.sent),
+  min(l.recv), max(l.recv), avg(l.recv), sum(l.recv),
+  min(l.recv+l.sent), max(l.recv+l.sent), avg(l.recv+l.sent), sum(l.recv+l.sent)
   FROM dv_log l $WHERE");
 
   my $ar = $self->{list}->[0];
@@ -698,15 +743,22 @@ sub calculation {
   ($self->{min_dur}, 
    $self->{max_dur}, 
    $self->{avg_dur}, 
+   $self->{total_dur}, 
+
    $self->{min_sent}, 
    $self->{max_sent}, 
    $self->{avg_sent},
+   $self->{total_sent},
+   
    $self->{min_recv}, 
    $self->{max_recv}, 
    $self->{avg_recv}, 
+   $self->{total_recv}, 
+
    $self->{min_sum}, 
    $self->{max_sum}, 
-   $self->{avg_sum}) =  @$ar;
+   $self->{avg_sum},
+   $self->{total_sum}) =  @$ar;
 
 	return $self;
 }
@@ -724,6 +776,29 @@ sub reports {
  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
  undef @WHERE_RULES;
  my $date = '';
+
+
+ my @FIELDS_ARR = ('DATE', 
+                   'USERS', 
+                   'SESSIONS', 
+                   'TRAFFIC_RECV', 
+                   'TRAFFIC_SENT',
+                   'TRAFFIC_SUM', 
+                   'TRAFFIC_2_SUM', 
+                   'DURATION', 
+                   'SUM'
+                   );
+
+ $self->{REPORT_FIELDS} = {DATE            => '',  	
+                           USERS           => 'u.id',
+                           SESSIONS        => 'count(l.uid)',
+                           TRAFFIC_SUM     => 'sum(l.sent + l.recv)',
+                           TRAFFIC_2_SUM   => 'sum(l.sent2 + l.recv2)',
+                           DURATION        => 'sec_to_time(sum(l.duration))',
+                           SUM             => 'sum(l.sum)',
+                           TRAFFIC_RECV    => 'sum(l.recv)',
+                           TRAFFIC_SENT    => 'sum(l.sent)'
+                          };
  
 
  if ($attr->{GID}) {
@@ -763,6 +838,33 @@ sub reports {
 
  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
 
+
+$self->{REPORT_FIELDS}{DATE}=$date;
+my $fields = "$date, count(DISTINCT l.uid), 
+      count(l.uid),
+      sum(l.sent + l.recv), 
+      sum(l.sent2 + l.recv2),
+      sec_to_time(sum(l.duration)), 
+      sum(l.sum)";
+
+if ($attr->{FIELDS}) {
+	my @fields_array = split(/, /, $attr->{FIELDS});
+	my @show_fields = ();
+  my %get_fields_hash = ();
+
+  foreach my $line (@fields_array) {
+  	$get_fields_hash{$line}=1;
+   }
+  
+  foreach my $k (@FIELDS_ARR) {
+    push @show_fields, $self->{REPORT_FIELDS}{$k} if ($get_fields_hash{$k});
+  }
+
+  $fields = join(', ', @show_fields)
+}
+ 
+ 
+ 
  if(defined($attr->{DATE})) {
    if (defined($attr->{HOURS})) {
    	$self->query($db, "select date_format(l.start, '%Y-%m-%d %H'), count(DISTINCT l.uid), count(l.uid), 
@@ -785,12 +887,8 @@ sub reports {
     }
   }
  else {
-  $self->query($db, "select $date, count(DISTINCT l.uid), 
-      count(l.uid),
-      sum(l.sent + l.recv), 
-      sum(l.sent2 + l.recv2),
-      sec_to_time(sum(l.duration)), 
-      sum(l.sum)
+  $self->query($db, "select $fields,
+      l.uid
        FROM dv_log l
        LEFT JOIN users u ON (u.uid=l.uid)
        $WHERE    

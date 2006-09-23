@@ -33,26 +33,26 @@ sub hangup {
  $nas_type = $NAS->{NAS_TYPE};
 
  if ($nas_type eq 'exppp') {
-    hangup_exppp($NAS, $PORT);
+    hangup_exppp($NAS, $PORT, $attr);
   }
  elsif ($nas_type eq 'pm25') {
-    hangup_pm25($NAS, $PORT);
+    hangup_pm25($NAS, $PORT, $attr);
   }
  elsif ($nas_type eq 'radpppd') {
-    hangup_radpppd($NAS, $PORT);
+    hangup_radpppd($NAS, $PORT, $attr);
   }
  elsif ($nas_type eq 'mikrotik') {
     radius_disconnect($NAS, $PORT, $USER);
     #hangup_mikrotik_telnet($NAS, $PORT, $USER);
   }
  elsif ($nas_type eq 'cisco')  {
- 	  hangup_cisco($NAS, $PORT);
+ 	  hangup_cisco($NAS, $PORT, $attr);
   }
  elsif ($nas_type eq 'mpd') {
     hangup_mpd($NAS, $PORT);
   }
  elsif ($nas_type eq 'pppd') {
-   hangup_pppd($NAS, $PORT, { FRAMED_IP_ADDRESS => $attr->{FRAMED_IP_ADDRESS} });
+   hangup_pppd($NAS, $PORT, $attr);
   }
  else {
     return 1;
@@ -100,21 +100,26 @@ sub telnet_cmd {
  my($hostname, $commands, $attr)=@_;
  my $port = 23;
 
+
  if ($hostname =~ /:/) {
    ($hostname, $port)=split(/:/, $hostname, 2);
  }
 
+
 # my $debug   = (defined($attr->{debug})) ? 1 : 0;
  my $timeout = defined($attr->{'TimeOut'}) ? $attr->{'TimeOut'} : 5;
  
+
+ 
  use Socket;
  if(! socket(SH, PF_INET, SOCK_STREAM, getprotobyname('tcp'))) {
- 	 print "ERR: Can't connect to '$hostname:$port' $!";
+ 	 print "ERR: Can't init '$hostname:$port' $!";
    return 0;
   }
 
  my $dest = sockaddr_in($port, inet_aton("$hostname"));
- if(! connect(SH, $dest)) { 
+
+ if(! CORE::connect(SH, $dest) ) { 
    print "ERR: Can't connect to '$hostname:$port' $!";
    return 0;
   }
@@ -172,7 +177,10 @@ foreach my $line (@$commands) {
 }
 
 
-
+#**********************************************************
+#
+#
+#**********************************************************
 sub telnet_cmd2 {
  my($host, $commands, $attr)=@_;
  my $port = 23;
@@ -237,11 +245,12 @@ foreach my $line (@$commands) {
 # Get stats from Livingston Portmaster
 # stats_pm25($NAS, $PORT)
 #*******************************************************************
-
 sub stats_pm25 {
   my ($NAS, $PORT) = @_;
 
-  my %stats = ();
+  my %stats = (in  => 0,
+               out => 0);
+
   my $PM25_PORT=$PORT+2;
   my $SNMP_COM = $NAS->{NAS_MNG_PASSWORD} || '';
 
@@ -419,7 +428,7 @@ sub hangup_mikrotik_telnet {
 #
 #*******************************************************************
 sub hangup_cisco {
- my ($NAS, $PORT) = @_;
+ my ($NAS, $PORT, $attr) = @_;
  my $exec;
 
 #Rsh version
@@ -427,6 +436,13 @@ if ($NAS->{NAS_MNG_USER}) {
 # имя юзера на циско котрому разрешен rsh и хватает привелегий для сброса
   my $cisco_user=$NAS->{NAS_MNG_USER};
 # использование: NAS-IP-Address NAS-Port SQL-User-Name
+
+  my $user = $attr->{USER};
+
+ 
+  my $VIRTUALINT=`/usr/bin/rsh -l $cisco_user $NAS->{NAS_IP} show users | grep -i " \$1 " | awk '{print \$1}';`;
+  $PORT=`echo $VIRTUALINT echo  | sed -e "s/[[:alpha:]]*\\([[:digit:]]\\{1,\\}\\)/\\1/"`;
+
   $exec = `/usr/bin/rsh -4 -n -l $cisco_user $NAS->{NAS_IP} clear interface Virtual-Access $PORT`; 
  }
 else {
@@ -434,7 +450,7 @@ else {
   my $SNMP_COM = $NAS->{NAS_MNG_PASSWORD} || '';
   my $SNMPSET=`/usr/bin/which snmpset`;
  
-  my $INTNAME=`finger @$NAS->{NAS_IP} | awk '{print $1 " " $2}' | grep $1"$" | awk '{print $1}' | sed s/Vi/Virtual-Access/g`;
+  my $INTNAME=`finger \@$NAS->{NAS_IP} | awk '{print $1 " " $2}' | grep $1"$" | awk '{print $1}' | sed s/Vi/Virtual-Access/g`;
   my $INTNUM=`$SNMPWALK -v 1 -c $SNMP_COM -O n $NAS->{NAS_IP} .1.3.6.1.2.1.2.2.1.2 | grep $INTNAME"$" | awk '{print $1}' | sed s/.1.3.6.1.2.1.2.2.1.2.//g`;
   $exec=`$SNMPSET -v 1 -c $SNMP_COM $NAS->{NAS_IP} 1.3.6.1.2.1.2.2.1.7.$INTNUM i 2 > /dev/null 2>&1`;
 }

@@ -327,7 +327,7 @@ else {
   my $intervals=0;
   foreach my $line (@$list) {
      push @caption, "$line->[1] / $line->[2]-$line->[3]";
-     push @aligns,  "'center'";
+     push @aligns,  'center';
      push @interval_ids, $line->[0];
    }
   $intervals = $Voip_tp->{TOTAL};
@@ -339,29 +339,31 @@ else {
                        $_DISABLE  => "DISABLE",
                        $_DESCRIBE => "DESCRIBE",
                        $_GATEWAY  => "GATEWAY_SEL",
-                       $_SUM    => "PRICE"},
+                       $_SUM      => "PRICE"},
 
      HIDDEN_FIELDS => { TP_ID      => $FORM{TP_ID} }
    });
 
 
+
 $list = $Voip->rp_list({ %LIST_PARAMS });
 my %prices = ();
 foreach my $line (@$list) {
+  #print "-- $line->[0] / $line->[1] / $line->[2] / $line->[3] <br>\n";  
   $prices{"$line->[0]"}{"$line->[1]"}=$line->[3];
+
 }
 
 
 
 $list = $Voip->routes_list({ %LIST_PARAMS });	
 my $table = $html->table( { width      => '100%',
-                                   border     => 1,
-                                   title      => \@caption,
-                                   cols_align => \@aligns,
-                                   qs => $pages_qs,
-                                   pages => $Voip->{TOTAL}
-
-                                  } );
+                            border     => 1,
+                            title      => \@caption,
+                            cols_align => \@aligns,
+                            qs         => $pages_qs,
+                            pages      => $Voip->{TOTAL}
+                         } );
 
 my ($delete, $change);
 my $price = 0;
@@ -372,9 +374,11 @@ foreach my $line (@$list) {
         $price = $prices{$interval_ids[$i]}{$line->[5]};
   	    }
       else {
-        $price = "$interval_ids[$i] $line->[5] -0";
+        $price = "N/P $interval_ids[$i] $line->[5] -0";
        }
-      push @l, "<input type=text name='p_$line->[5]". '_' . "$interval_ids[$i]' value='$price' size=10>"; 
+      push @l, $html->form_input("p_$line->[5]". '_' . "$interval_ids[$i]", "$price", {SIZE => 10 });
+
+      #"<input type='text' name='p_$line->[5]". '_' . "$interval_ids[$i]' value='$price' size=10>"; 
     }
   $table->addrow("$line->[0]",  "$line->[1]", $status[$line->[2]], @l);
 }
@@ -459,21 +463,19 @@ foreach my $line (@$list) {
 
 
 
-print "<FORM action=$SELF_URL METHOD=POST>
-<input type=hidden name=index value=$index>
-<input type=hidden name=TP_ID value=$FORM{TP_ID}>
-";
 
-print $table->show();
+print $html->form_main({ CONTENT => $table->show(),
+	                       HIDDEN  => { TP_ID   => "$FORM{TP_ID}",
+	                                    index   => "$index",
+	                                    routes  => "$FORM{ROUTES}"   },
+	                       SUBMIT  => { change  => "$_CHANGE" }
+	                      
+	                      });
 
-print "
-<input type=submit name=change value=$_CHANGE>
-</form>";
-
-$table = $html->table( { width => '100%',
-                                cols_align => ['right', 'right'],
-                                rows => [ [ "$_TOTAL:", "<b>$Voip->{TOTAL}</b>" ] ]
-                               } );
+$table = $html->table( { width      => '100%',
+                         cols_align => ['right', 'right'],
+                         rows       => [ [ "$_TOTAL:", "<b>$Voip->{TOTAL}</b>" ] ]
+                      } );
 print $table->show();
 
 	
@@ -498,7 +500,7 @@ if(defined($attr->{TP})) {
  	$tarif_plan->{LNG_ACTION}=$_ADD;
 
   if($FORM{routes}) {
-  	voip_tp_routes();
+  	voip_tp_routes({ TP => $attr->{TP} });
    } 
   elsif ($FORM{add}) {
     $tarif_plan->ti_add( { %FORM });
@@ -533,12 +535,12 @@ if(defined($attr->{TP})) {
    }
 
   my $list = $tarif_plan->ti_list({ %LIST_PARAMS });
-  my $table = $html->table( { width => '100%',
-                                   border => 1,
-                                   title => ['#', $_DAYS, $_BEGIN, $_END, $_HOUR_TARIF, '-', '-', '-',  '-'],
-                                   cols_align => ['left', 'left', 'right', 'right', 'right', 'right', 'center', 'center', 'center', 'center'],
-                                   qs => $pages_qs,
-                                   caption => $_INTERVALS
+  my $table = $html->table( { width      => '100%',
+                              border     => 1,
+                              title      => ['#', $_DAYS, $_BEGIN, $_END, $_HOUR_TARIF, '-', '-', '-',  '-'],
+                              cols_align => ['left', 'left', 'right', 'right', 'right', 'right', 'center', 'center', 'center', 'center'],
+                              qs         => $pages_qs,
+                              caption    => $_INTERVALS
                                   } );
 
   my $color="AAA000";
@@ -569,7 +571,7 @@ if(defined($attr->{TP})) {
                   $table->td($html->button("$_ROUTES", "index=$index$pages_qs&routes=$line->[0]")),
                   $table->td($html->button("$_CHANGE", "index=$index$pages_qs&chg=$line->[0]")),
                   $table->td($delete),
-                  $table->td("&nbsp;", { bgcolor => $color, rowspan => ($line->[5] > 0) ? 2 : 1 })
+                  $table->td("&nbsp;", { bgcolor => '#'. $color, rowspan => ($line->[5] > 0) ? 2 : 1 })
      );
 
      
@@ -592,11 +594,11 @@ if ($tarif_plan->{errno}) {
 
 
 
-$table = $html->table( { width => '100%',
-	                              title_plain => [$_DAYS, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,14,15,16,17,18, 19, 20, 21, 22, 23],
-                                caption => "$_INTERVALS",
-                                rowcolor => $_COLORS[1]
-                               } );
+$table = $html->table( { width       => '100%',
+	                       title_plain => [$_DAYS, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,14,15,16,17,18, 19, 20, 21, 22, 23],
+                         caption     => "$_INTERVALS",
+                         rowcolor    => $_COLORS[1]
+                      } );
 
 
 
@@ -604,13 +606,6 @@ for(my $i=0; $i<9; $i++) {
   my @hours = ();
 
   my ($h_b, $h_e, $color, $p);
-
-#  if(defined($visual_view{$i})) {
-#     ($h_b, $h_e, $color, $p)=split(/\|/, $visual_view{$i}, 4);
-#     
-#    # print "$i ()() $h_b, $h_e, $color-  $visual_view{$i} --<br>\n";
-#   }
-
   my $link = "&nbsp;";
   for(my $h=0; $h<24; $h++) {
 
@@ -622,7 +617,7 @@ for(my $i=0; $i<9; $i++) {
      	   ($h_b, $h_e, $color, $p)=split(/\|/, $line, 4);
      	   if (($h >= $h_b) && ($h < $h_e)) {
 #     	   	 print "$i // $h => $h_b && $h <= $h_e // $color <br> \n";
-  	   	   $tdcolor = $color;
+  	   	   $tdcolor = '#'.$color;
   	 	     $link = $html->button('#', "index=$index&TP_ID=$FORM{TP_ID}&subf=$FORM{subf}&chg=$p");
   	 	     last;
   	 	    }
@@ -638,7 +633,7 @@ for(my $i=0; $i<9; $i++) {
   	  }
      
      
-  	 push(@hours, $table->td("$link", { align=>'center', bgcolor => $tdcolor }) );
+  	 push(@hours, $table->td("$link", { align => 'center', bgcolor => $tdcolor }) );
     }
   
   
@@ -648,19 +643,13 @@ for(my $i=0; $i<9; $i++) {
 
 print $table->show();
 
+  $tarif_plan->{SEL_DAYS} = $html->form_select('TI_DAY', 
+                                { SELECTED   => $day_id,
+ 	                                SEL_ARRAY  => \@DAY_NAMES,
+ 	                                ARRAY_NUM_ID  => 'y'
+ 	                               });
 
-
-
-  my $i=0;
-  foreach $line (@DAY_NAMES) {
-    $tarif_plan->{SEL_DAYS} .= "<option value=$i";
-    $tarif_plan->{SEL_DAYS} .= " selected" if ($FORM{day} == $i || $tarif_plan->{TI_DAY} == $i);
-    $tarif_plan->{SEL_DAYS} .= ">$line\n";
-    $i++;
-   }
   $html->tpl_show(templates('ti'), $tarif_plan);
-
-
 }
 
 #**********************************************************
@@ -745,8 +734,8 @@ if ($Voip->{errno}) {
 
 
 $Voip_tp->{PAYMENT_TYPE_SEL} = $html->form_select('PAYMENT_TYPE', 
-                                { SELECTED   => $Voip_tp->{PAYMENT_TYPE},
- 	                                SEL_ARRAY  => \@Payment_Types,
+                                { SELECTED      => $Voip_tp->{PAYMENT_TYPE},
+ 	                                SEL_ARRAY     => \@Payment_Types,
  	                                ARRAY_NUM_ID  => 'y'
  	                               });
 
@@ -759,10 +748,10 @@ $html->tpl_show(_include('voip_tp', 'Voip'), $Voip_tp);
 my $list = $Voip->tp_list({ %LIST_PARAMS });	
 # Time tariff Name Begin END Day fee Month fee Simultaneously - - - 
 my $table = $html->table( { width      => '100%',
-                                   border     => 1,
-                                   title      => ['#', $_NAME,  $_HOUR_TARIF, $_PAYMENT_TYPE, $_DAY_FEE, $_MONTH_FEE, $_SIMULTANEOUSLY, $_AGE,
+                            border     => 1,
+                            title      => ['#', $_NAME,  $_HOUR_TARIF, $_PAYMENT_TYPE, $_DAY_FEE, $_MONTH_FEE, $_SIMULTANEOUSLY, $_AGE,
                                      '-', '-', '-'],
-                                   cols_align => ['right', 'left', 'center', 'center', 'right', 'right', 'right', 'right', 'right', 'right', 'center', 'center', 'center'],
+                            cols_align => ['right', 'left', 'center', 'center', 'right', 'right', 'right', 'right', 'right', 'right', 'center', 'center', 'center'],
                                    
                                    
                                   } );
@@ -785,15 +774,15 @@ foreach my $line (@$list) {
   $html->button("$line->[1]", "index=$index&TP_ID=$line->[0]"), 
    $bool_vals[$line->[2]], $Payment_Types[$line->[3]], $line->[4], 
    $line->[5], $line->[6], $line->[7],
-   $html->button($_INTERVALS, "index=$index&TP_ID=$line->[0]&intervals=$line->[0]'"),
+   $html->button($_INTERVALS, "index=". ($index+2) ."&subf=73&TP_ID=$line->[0]"),
    $change,
    $delete);
 }
 print $table->show();
 
-$table = $html->table( { width => '100%',
-                                cols_align => ['right', 'right'],
-                                rows => [ [ "$_TOTAL:", "<b>$Voip->{TOTAL}</b>" ] ]
+$table = $html->table( { width      => '100%',
+                         cols_align => ['right', 'right'],
+                         rows       => [ [ "$_TOTAL:", "<b>$Voip->{TOTAL}</b>" ] ]
                                } );
 print $table->show();
 
@@ -904,11 +893,11 @@ my $list = $Voip->routes_list({ %LIST_PARAMS });
 
 
 my $table = $html->table( { width      => '100%',
-                                   border     => 1,
-                                   title      => [$_PREFIX, $_NAME, $_STATUS, $_DATE, '-', '-'],
-                                   cols_align => ['left', 'left', 'center', 'right', 'center', 'center'],
-                                   qs => $pages_qs,
-                                   pages => $Voip->{TOTAL}
+                            border     => 1,
+                            title      => [$_PREFIX, $_NAME, $_STATUS, $_DATE, '-', '-'],
+                            cols_align => ['left', 'left', 'center', 'right', 'center', 'center'],
+                            qs         => $pages_qs,
+                            pages      => $Voip->{TOTAL}
                                    
                                   } );
 
@@ -930,9 +919,9 @@ foreach my $line (@$list) {
 }
 print $table->show();
 
-$table = $html->table( { width => '100%',
-                                cols_align => ['right', 'right'],
-                                rows => [ [ "$_TOTAL:", "<b>$Voip->{TOTAL}</b>" ] ]
+$table = $html->table( { width      => '100%',
+                         cols_align => ['right', 'right'],
+                         rows       => [ [ "$_TOTAL:", "<b>$Voip->{TOTAL}</b>" ] ]
                                } );
 print $table->show();
 
@@ -1042,9 +1031,16 @@ my $nas = Nas->new($db);
 
 
 my $message;
+
+
 if ($FORM{ping}) {
-  my $res = `/sbin/ping -c 5 $FORM{ping}`;
-  $html->message('info', $_INFO,  "Ping  $FORM{ping}<br>Result:<br><pre>$res</pre>");
+  if ($FORM{ping} =~ /^(\d){1,3}\.(\d){1,3}\.(\d){1,3}\.(\d){1,3}$/) {
+    my $res = `/sbin/ping -c 5 $FORM{ping}`;
+    $html->message('info', $_INFO,  "Ping  $FORM{ping}<br>Result:<br><pre>$res</pre>");
+   }
+  else {
+    $html->message('err', $_ERROR,  "_WRONG_DATA");
+   }
  }
 elsif ($FORM{hangup}) {
   my ($nas_id, $acct_session_id, $user_name) = split(/ /, $FORM{hangup}, 4);
@@ -1061,8 +1057,7 @@ elsif ($FORM{hangup}) {
   
   
   if ($ret == 0) {
-     
-         my $table = $html->table( { width => '100%',
+     my $table = $html->table( { width => '100%',
                                 caption => $_HANGUPED,
                                 rows => [ [ "$_NAS ID",   $nas_id],
                                           [ "$_NAS IP",   $nas->{NAS_IP} ],
@@ -1070,17 +1065,9 @@ elsif ($FORM{hangup}) {
                                           [ "SESSION_ID", $acct_session_id ],
                                           [ "", $ret ] ]
                                } );
-
      
      $message = $table->show();
-#         "<table width=100%>\n".
-#         "<tr><th colspan=2 align=left>$_HANGUPED</th></tr>".
-#         "<tr><td>$_NAS:</td><td>$nas->{NAS_IP}</td></tr>".
-#         "<tr><td>$_PORT:</td><td>$nas_port_id</td></tr>".
-#         "<tr><td>SESSION_ID:</td><td>$acct_session_id</td></tr>".
-#         "<tr><td colspan=2>$ret</td></tr>".
-#         "</table>\n";
-         sleep 3;
+     sleep 3;
      
      weblog('hangup', "$user_name");
    }
@@ -1113,7 +1100,7 @@ elsif($FORM{zap}) {
   	                NAS_ID => $nas->{NAS_ID} });  
   
   if ($sessions->{TOTAL} < 1) {
-    $message .= "<p align=center>[". $html->button('add to log', "index=$index&tolog=$acct_session_id&nas_id=$nas_id"). "]
+    $message .= "<p align=\"center\">[". $html->button('add to log', "index=$index&tolog=$acct_session_id&nas_id=$nas_id"). "]
         [". $html->button("$_DEL", "index=$index&del=$acct_session_id&nas_id=$nas_id&nas_port_id=$nas_port_id"). "]</p>";
    }
   else {
@@ -1127,6 +1114,7 @@ elsif($FORM{zap}) {
   $html->message('info', $_INFO, $message);
 }
 elsif($FORM{tolog}) {
+  $sessions->{debug}=1;
   my $ACCT_INFO = $sessions->online_info({ NAS_ID          => $FORM{nas_id},
                                            ACCT_SESSION_ID => $FORM{tolog}
                                          });
@@ -1140,16 +1128,15 @@ elsif($FORM{tolog}) {
   $ACCT_INFO->{ACCT_STATUS_TYPE} = 'Stop';
   
   my $nas = Nas->new($db);	
-  $nas->info({NAS_ID       => $ACCT_INFO->{NAS_ID},
+  $nas->info({NAS_ID    => $ACCT_INFO->{NAS_ID},
               SECRETKEY => $conf{secretkey}});
 
-  # Exppp VENDOR params           
   Voip_aaa->import();
   my $Acct = Voip_aaa->new($db, \%conf);
   my $r = $Acct->accounting($ACCT_INFO, $nas, \%conf);
 
   if ($Acct->{errno}) {
-    $html->message('err', $_ERRNO, "$Acct->{errno} $Acct->{errstr}");	
+    $html->message('err', $_ERROR, "[$Acct->{errno}] $Acct->{errstr}");	
    }
   else {
   	my $table = $html->table( { width => '100%'} );
@@ -1166,22 +1153,33 @@ elsif($FORM{tolog}) {
                           ACCT_SESSION_ID => $ACCT_INFO->{ACCT_SESSION_ID}
                         });
  }
-elsif($FORM{del}) {
-  $sessions->online_del({ 
-   	                     NAS_ID  => $FORM{nas_id},
-                         ACCT_SESSION_ID => $FORM{del}
-                         });
+elsif($FORM{del} || $FORM{dellist}) {
+  if ($FORM{dellist}) {
+    my @sessions_list = split(/, /, $FORM{dellist});
+    $sessions->online_del({ SESSIONS_LIST => \@sessions_list });
+    $FORM{del} = $FORM{dellist};
+   }
+  else {
+    $sessions->online_del({
+   	            NAS_ID          => $FORM{nas_id},
+                ACCT_SESSION_ID => $FORM{del}
+                           });
+   }
 
   if (! $sessions->{errno}) {
     my $table = $html->table( { width => '100%',
-                                rows => [ [ "NAS_ID",  $FORM{nas_id}],
-                                          [ "ACCT_SESSION_ID", $FORM{del} ] ]
-                                     } );
+                                rows => [ [ "NAS_ID",          $FORM{nas_id}     ],
+                                          [ "ACCT_SESSION_ID", $FORM{del}        ]
+                                        ]
+                               } );
     
     $html->message('info', $_DELETED, $table->show());	
    }
 
 }
+
+
+
 
 
 
@@ -1207,26 +1205,29 @@ $sessions->online( { %LIST_PARAMS } );
 my $dub_ports = $sessions->{dub_ports};
 my $dub_logins = $sessions->{dub_logins};
  
-my $table = $html->table( { caption  => "$cure",
-	                          width    => '100%',
-                            title    => ["$_USER", "$_FIO", "CALLING_STATION_ID", "CALLING_STATION_ID", "$_DURATION", "CLIENT_IP_ADDRESS",  "-", "-", "-"],
+my $table = $html->table( { caption    => "$cure",
+	                          width      => '100%',
+                            title      => ["$_USER", "$_FIO", "CALLING_STATION_ID", "CALLING_STATION_ID", "$_DURATION", "CLIENT_IP_ADDRESS",  "-", "-", "-"],
                             cols_align => ['left', 'left', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'center'],
-                            qs => $pages_qs,
+                            qs         => $pages_qs,
                            });
 
 
  
-  my $bg;
-  my $online = $sessions->{nas_sorted};
+my $bg;
+my $online = $sessions->{nas_sorted};
 
 my $nas_list = $nas->list();
 
 foreach my $nas_row (@$nas_list) {
+  next if (! defined($online->{$nas_row->[0]}));
 
   $table->{rowcolor}=$_COLORS[0];
-  $table->{extra}="colspan=9 class=small";
+  $table->{extra}="colspan=\"9\" class=\"small\"";
   $table->addrow("$nas_row->[0]:<b>$nas_row->[1]</b>:$nas_row->[4]" );
-  
+
+
+
   my $l = $online->{$nas_row->[0]};
   foreach my $line (@$l) {
     undef($table->{rowcolor});
@@ -1238,9 +1239,9 @@ foreach my $nas_row (@$nas_list) {
     else {  $bg = ($bg eq $_COLORS[1]) ? $_COLORS[2] : $_COLORS[1];    }
 
     my $zap = "(". $html->button('Z', "index=$index&zap=$nas_row->[0]+$line->[9]", { TITLE => 'Zap'}). ")";
-    my $hangup = "(". $html->button('H', "index=$index&hangup=$nas_row->[0]+$line->[2]+$line->[11]+$line->[0]", { TITLE => 'Hangup'} ) .")";
+    my $hangup = ($FORM{ZAPED}) ? $html->form_input('dellist', "$line->[9]", { TYPE => 'checkbox' } ) : "(". $html->button('H', "index=$index&hangup=$nas_row->[0]+$line->[2]+$line->[9]+$line->[0]", { TITLE => 'Hangup'} ) .")";
     my $user_info =  "$_FIO: $line->[1]\n$_PHONE: $line->[12]\n$_VARIANT: $line->[13]\n$_DEPOSIT: $line->[14]\n".
-     "$_CREDIT: $line->[15]\n$_SPEED: $line->[16]\nSESSION_ID: $line->[11]\nCID: $line->[17]\nCONNECT_INFO: $line->[18]'";
+     "$_CREDIT: $line->[15]\n$_SPEED: $line->[16]\nSESSION_ID: $line->[9]\nCID: $line->[17]\nCONNECT_INFO: $line->[18]";
 
     $table->addrow($html->button($line->[0], "index=11&UID=$line->[10]", { TITLE => "$user_info"}), 
       $line->[1], $line->[2],  $line->[3],  $line->[4], $line->[5], 
@@ -1250,21 +1251,50 @@ foreach my $nas_row (@$nas_list) {
   }
 }
 
-my $table2 = $html->table( { width => '100%',
-                                cols_align => ['right', 'right', 'right'],
-                                rows => [ [ "$_TOTAL:", "<b>$sessions->{TOTAL}</b>", "$form_link" ] ]
+my $table2 = $html->table( { width      => '100%',
+                             cols_align => ['right', 'right', 'right'],
+                             rows       => [ [ "$_TOTAL:", "<b>$sessions->{TOTAL}</b>", "$form_link" ] ]
                                } );
-my $total = $table2->show();
 
-print $total . $table->show();
-	
+
+my $total = $table2->show();
+my $output = $total . $table->show();
+
+$table = $html->table( { width       => '100%',
+                         title_plain => [ 
+                                           "$_REFRESH (sec): ".   $html->form_input('REFRESH', int($FORM{REFRESH}), { SIZE => 4 } ),
+                                           $html->form_input('SHOW',  $_SHOW, { TYPE => 'SUBMIT'})  
+                                         ],
+                          cols_align => ['center:noprint', 'center:noprint'],
+                           });
+
+if ($FORM{ZAPED}) {
+  $output = $html->form_main({ CONTENT => $output,
+	                       HIDDEN  => { index => "$index",
+	                       	            ZAPED => 1 },
+	                       SUBMIT  => { go    => "$_DEL" },
+	                       METHOD  => 'GET'
+                        });
+ }
+else {
+  $output .= $html->form_main({ CONTENT => $table->show(),
+	                              HIDDEN  => { index =>  "$index" },
+	                              METHOD  => 'GET'
+                        });
+
+  $output .= $html->button('Zap All', "index=$index&zapall=y", { MESSAGE => "Do you realy want zap all sessions ?" });
+ }
+
+
+print  $output;
+		
 }
 
 
 
 #**********************************************************
 # Whow sessions from log
-# dv_sessions()
+# voip_sessions()
 #**********************************************************
 sub voip_sessions {
   my ($list) = @_;
@@ -1305,17 +1335,14 @@ if ($sessions->{errno})	 {
 
 
 return 0 if ($sessions->{TOTAL} < 1);
-
-
-
-my $table = $html->table( { width => '100%',
-                                border => 1,
-                                title => ["$_USER", "$_START", "$_DURATION", "$_TARIF_PLAN", "CALLING_STATION_ID", "CALLED_STATION_ID", 
-                                "NAS", "IP", "$_SUM", "-", "-"],
-                                cols_align => ['left', 'right', 'right', 'RIGHT', 'right', 'right', 'right', 'right', 'right', 'right', 'center'],
-                                qs => $pages_qs,
-                                pages => $sessions->{TOTAL},
-                                recs_on_page => $LIST_PARAMS{PAGE_ROWS}
+my $table = $html->table( { width        => '100%',
+                            border       => 1,
+                            title        => ["$_USER", "$_START", "$_DURATION", "$_TARIF_PLAN", "CALLING_STATION_ID", "CALLED_STATION_ID", 
+                                     "NAS", "IP", "$_SUM", "-", "-"],
+                            cols_align   => ['left', 'right', 'right', 'RIGHT', 'right', 'right', 'right', 'right', 'right', 'right', 'center'],
+                            qs           => $pages_qs,
+                            pages        => $sessions->{TOTAL},
+                            recs_on_page => $LIST_PARAMS{PAGE_ROWS}
                                } );
 
 my $delete = '';
@@ -1346,7 +1373,7 @@ print $table->show();
 
 
 #**********************************************************
-# dv_use_all_monthes();
+# voip_use_all_monthes();
 #**********************************************************
 sub voip_use_allmonthes {
 
@@ -1367,11 +1394,11 @@ my ($tables_sessions, $table_fees);
 #Day reposrt
 if (defined($FORM{DATE})) {
   #Used Fraffic
-  $table_sessions = $html->table( { width => '100%',
-	                              caption => "$_SESSIONS", 
-                                title =>["$_DATE", "$_USERS", "$_SESSIONS", $_DURATION, $_SUM],
-                                cols_align => ['right', 'left', 'right', 'right', 'right'],
-                                qs => $pages_qs             
+  $table_sessions = $html->table( { width      => '100%',
+	                                  caption    => "$_SESSIONS", 
+                                    title      => ["$_DATE", "$_USERS", "$_SESSIONS", $_DURATION, $_SUM],
+                                    cols_align => ['right', 'left', 'right', 'right', 'right'],
+                                    qs         => $pages_qs             
                                } );
 
   my $list = $sessions->reports({ %LIST_PARAMS });
@@ -1384,11 +1411,11 @@ if (defined($FORM{DATE})) {
  }
 else {
   #Used Traffic
-  $table_sessions = $html->table( { width => '100%',
-	                              caption => "$_SESSIONS", 
-                                title =>["$_DATE", "$_USERS", "$_SESSIONS", $_DURATION, $_SUM],
-                                cols_align => ['right', 'right', 'right', 'right', 'right'],
-                                qs => $pages_qs             
+  $table_sessions = $html->table( { width      => '100%',
+	                                  caption    => "$_SESSIONS", 
+                                    title      =>["$_DATE", "$_USERS", "$_SESSIONS", $_DURATION, $_SUM],
+                                    cols_align => ['right', 'right', 'right', 'right', 'right'],
+                                    qs         => $pages_qs             
                                } );
 
 
@@ -1439,7 +1466,7 @@ elsif ($FORM{LOGIN_EXPR}) {
   $pages_qs .= "&LOGIN_EXPR=$FORM{LOGIN_EXPR}";
  }
 elsif($FORM{UID}) {
-  dv_users();
+  voip_users();
   return 0;
 }
 
@@ -1494,9 +1521,10 @@ foreach my $line (@$list) {
 print $table->show();
 
 
-$table = $html->table( { 
-	                              width => '100%',
-	                              cols_align => ['right', 'right'] } );
+$table = $html->table({ 
+                        width      => '100%',
+                        cols_align => ['right', 'right'] 
+                        });
 
 $table->addrow($html->button("$_TOTAL", "index=$index&$pages_qs"), $totals);
 while(my($k,$v)=each %$types) {
@@ -1573,11 +1601,13 @@ if (! defined($sessions->{sum_4})) {
 	return 0;
 }
 
-my $table = $html->table( { width => '100%',
-                                   title_plain => ["$_PERIOD", "$_DURATION", "$_SUM"],
-                                   cols_align => ['left', 'right', 'right'],
-                                   rowcolor => $_COLORS[1]
-                                  } );
+my $table = $html->table( { width       => '100%',
+                            title_plain => ["$_PERIOD", "$_DURATION", "$_SUM"],
+                            cols_align  => ['left', 'right', 'right'],
+                            rowcolor    => $_COLORS[1]
+                         } );
+
+
 for(my $i = 0; $i < 5; $i++) {
 	  $table->addrow($html->button("$PERIODS[$i]", "index=$index&period=$i$pages_qs"), 
 	  "$sessions->{'duration_'. $i}",
@@ -1586,20 +1616,21 @@ for(my $i = 0; $i < 5; $i++) {
 print $table->show();
 
 
-print "<form action=$SELF_URL>
-<input type=hidden name=index value='$index'>
-<input type=hidden name=UID value='$UID'>\n";
 
-$table = $html->table( { width => '640',
-	                                 rowcolor => $_COLORS[0],
-                                   title_plain => [ "$_FROM: ", $html->date_fld('from', { MONTHES => \@MONTHES} ),
-                                   "$_TO: ", $html->date_fld('to', { MONTHES => \@MONTHES } ),
-                                   "$_ROWS: ",  "<input type=text name=rows value='$conf{list_max_recs}' size=4>",
-                                   "<input type=submit name=show value=$_SHOW>"
-                                    ],                                   
-                                  } );
-print $table->show();
-print "</form>\n";
+$table = $html->table( { width       => '100%',
+	                       rowcolor    => $_COLORS[0],
+                         title_plain => [ "$_FROM: ",  $html->date_fld('from', { MONTHES => \@MONTHES} ),
+                                          "$_TO: ",    $html->date_fld('to', { MONTHES => \@MONTHES } ),
+                                          "$_ROWS: ",  $html->form_input('rows', int($conf{list_max_recs}), { SIZE => 4 } ),
+                                          $html->form_input('show', $_SHOW,  { TYPE => 'submit' })
+                                         ],                                   
+                      });
+
+print $html->form_main({ CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
+	                       HIDDEN  => { sid   => "$sid",
+	                                    index => "$index",
+	                                    UID   => "$UID" }});
+
 
 voip_stats_calculation($sessions);
 
@@ -1627,15 +1658,15 @@ if (! defined($FORM{sort})) {
 
 #Session List
 $list = $sessions->list({ %LIST_PARAMS });	
-$table = $html->table( { width => '640',
-	                              rowcolor => $_COLORS[1],
-	                              caption => '',
-                                title_plain => ["$_SESSIONS", "$_DURATION", "$_SUM"],
-                                cols_align => ['right', 'right', 'right'],
-                                rows => [ [ $sessions->{TOTAL}, $sessions->{DURATION}, $sessions->{SUM} ] ],
+$table = $html->table( { width       => '640',
+	                       rowcolor    => $_COLORS[1],
+	                       caption     => $_TOTAL,
+                         title_plain => ["$_SESSIONS", "$_DURATION", "$_SUM"],
+                         cols_align  => ['right', 'right', 'right'],
+                         rows        => [ [ $sessions->{TOTAL}, $sessions->{DURATION}, $sessions->{SUM} ] ],
                                } );
 print $table->show();
-dv_sessions($list, $sessions) if ( $sessions->{TOTAL} > 0);
+voip_sessions($list, $sessions) if ( $sessions->{TOTAL} > 0);
 }
 
 
@@ -1649,11 +1680,11 @@ sub voip_stats_calculation  {
  $sessions->calculation({ %LIST_PARAMS }); 
 
 
-my $table = $html->table( { width => '640',
-	                              rowcolor => $_COLORS[1],
-                                title_plain => ["-", "$_MIN", "$_MAX", "$_AVG"],
-                                cols_align => ['left', 'right', 'right', 'right'],
-                                rows => [ 
+my $table = $html->table( { width       => '640',
+	                          rowcolor    => $_COLORS[1],
+                            title_plain => ["-", "$_MIN", "$_MAX", "$_AVG"],
+                            cols_align  => ['left', 'right', 'right', 'right'],
+                            rows        => [ 
                                   [ $_DURATION,  $sessions->{min_dur}, $sessions->{max_dur}, $sessions->{avg_dur} ],
                                   [ $_SUM,  $sessions->{min_sum}, $sessions->{max_sum}, $sessions->{avg_sum} ]
                                         ]
@@ -1706,21 +1737,19 @@ for(my $i = 0; $i < 5; $i++) {
 print $table->show();
 
 
-print "<form action=$SELF_URL>
-<input type=hidden name=sid value='$sid'>
-<input type=hidden name=index value='$index'>
-<input type=hidden name=UID value='$UID'>\n";
+$table = $html->table( { width       => '100%',
+	                       rowcolor    => $_COLORS[0],
+                         title_plain => [ "$_FROM: ",  $html->date_fld('from', { MONTHES => \@MONTHES} ),
+                                          "$_TO: ",    $html->date_fld('to', { MONTHES => \@MONTHES } ),
+                                          "$_ROWS: ",  $html->form_input('rows', int($conf{list_max_recs}), { SIZE => 4 } ),
+                                          $html->form_input('show', $_SHOW,  { TYPE => 'submit' })
+                                         ],                                   
+                      });
 
-$table = $html->table( { width => '640',
-	                                 rowcolor => $_COLORS[0],
-                                   title_plain => [ "$_FROM: ", $html->date_fld('from', { MONTHES => \@MONTHES} ),
-                                   "$_TO: ", $html->date_fld('to', { MONTHES => \@MONTHES } ),
-                                   "$_ROWS: ",  "<input type=text name=rows value='$conf{list_max_recs}' size=4>",
-                                   "<input type=submit name=show value=$_SHOW>"
-                                    ],                                   
-                                  } );
-print $table->show();
-print "</form>\n";
+print $html->form_main({ CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
+	                       HIDDEN  => { sid   => "$sid",
+	                                    index => "$index",
+	                                    UID   => "$UID" }});
 
 voip_stats_calculation($sessions);
 
@@ -1741,17 +1770,17 @@ elsif (defined($FORM{period})) {
 #Session List
 $list = $sessions->list({ %LIST_PARAMS });	
 
-$table = $html->table( { width => '640',
-	                              caption => '',
-	                              rowcolor => $_COLORS[1],
-                                title_plain => ["$_SESSIONS", "$_DURATION", "$_SUM"],
-                                cols_align => ['right', 'right', 'right'],
-                                rows => [ [ $sessions->{TOTAL}, $sessions->{DURATION}, $sessions->{SUM} ] ],
+$table = $html->table( { width       => '640',
+	                       caption     => $_TOTAL,
+	                       rowcolor    => $_COLORS[1],
+                         title_plain => ["$_SESSIONS", "$_DURATION", "$_SUM"],
+                         cols_align  => ['right', 'right', 'right'],
+                         rows        => [ [ $sessions->{TOTAL}, $sessions->{DURATION}, $sessions->{SUM} ] ],
                                } );
 print $table->show();	
 
 
-dv_sessions($list, $sessions) if ( $sessions->{TOTAL} > 0);
+voip_sessions($list, $sessions) if ( $sessions->{TOTAL} > 0);
 }
 
 
@@ -2022,12 +2051,12 @@ if ($FORM{NAS_ID}){
 
     
    if($FORM{command} =~ /\!|CurrentCalls/) {
-    	my $table = $html->table({ width => '100%',
-                                   border => 1,
-                                   title => ['NUMBER', 'ACF', 'Caller_IP:Port', 'Caller_EPID', 'CRV', 'DestinationInfo', 'SrcInfo', 'IsAnswered', '-'],
-                                   cols_align => ['right', 'center', 'right', 'left', 'left', 'center'],
-                                   qs => $pages_qs,
-                                   caption => 'Associated'
+    	my $table = $html->table({ width      => '100%',
+                                 border     => 1,
+                                 title      => ['NUMBER', 'ACF', 'Caller_IP:Port', 'Caller_EPID', 'CRV', 'DestinationInfo', 'SrcInfo', 'IsAnswered', '-'],
+                                 cols_align => ['right', 'center', 'right', 'left', 'left', 'center'],
+                                 qs         => $pages_qs,
+                                 caption    => 'Associated'
                                   } );
  
      

@@ -1,5 +1,6 @@
-<form action=$SELF_URL method=post>
-<input type=hidden name=index value=$index>
+<div class='noprint'>
+<form action='$SELF_URL' method='post'>
+<input type=hidden name='index' value='$index'>
 <input type=hidden name=chg value='%ROUTE_ID%'>
 <input type=hidden name=PARENT_ID value='%PARENT_ID%'>
 <input type=hidden name=ROUTE_ID value='$FORM{ROUTE_ID}'>
@@ -13,3 +14,4 @@
 </table>
 <input type=submit name='%ACTION%' value='%LNG_ACTION%'>
 </form>
+</div>

@@ -94,7 +94,8 @@ sub info {
    dv.speed, 
    dv.filter_id, 
    dv.cid,
-   dv.disable
+   dv.disable,
+   dv.callback
      FROM dv_main dv
      LEFT JOIN tarif_plans tp ON (dv.tp_id=tp.id)
    $WHERE;");
@@ -117,7 +118,7 @@ sub info {
    $self->{FILTER_ID}, 
    $self->{CID},
    $self->{DISABLE},
-   $self->{REGISTRATION},
+   $self->{CALLBACK}
   )= @$ar;
   
   
@@ -141,6 +142,7 @@ sub defaults {
    SPEED          => 0, 
    FILTER_ID      => '', 
    CID            => '',
+   CALLBACK       => 0,
   );
 
  
@@ -189,10 +191,12 @@ sub add {
              netmask, 
              speed, 
              filter_id, 
-             cid)
+             cid,
+             callback)
         VALUES ('$DATA{UID}', now(),
         '$DATA{TP_ID}', '$DATA{SIMULTANEONSLY}', '$DATA{DISABLE}', INET_ATON('$DATA{IP}'), 
-        INET_ATON('$DATA{NETMASK}'), '$DATA{SPEED}', '$DATA{FILTER_ID}', LOWER('$DATA{CID}'));", 'do');
+        INET_ATON('$DATA{NETMASK}'), '$DATA{SPEED}', '$DATA{FILTER_ID}', LOWER('$DATA{CID}'),
+        '$DATA{CALLBACK}');", 'do');
 
   return $self if ($self->{errno});
   $admin->action_add("$DATA{UID}", "ACTIVE");
@@ -219,8 +223,13 @@ sub change {
               SPEED            => 'speed',
               CID              => 'cid',
               UID              => 'uid',
-              FILTER_ID        => 'filter_id'
+              FILTER_ID        => 'filter_id',
+              CALLBACK         => 'callback'
              );
+  
+  if (! $attr->{CALLBACK}) {
+  	$attr->{CALLBACK}=0;
+   }
 
   my $old_info = $self->info($attr->{UID});
   if ($old_info->{TP_ID} != $attr->{TP_ID}) {

@@ -106,7 +106,7 @@ sub add {
     if($Bill->{errno}) {
        return $self;
       }
-
+    
     $self->query($db, "INSERT INTO payments (uid, bill_id, date, sum, dsc, ip, last_deposit, aid, method, ext_id) 
            values ('$user->{UID}', '$user->{BILL_ID}', now(), '$DATA{SUM}', '$DATA{DESCRIBE}', INET_ATON('$admin->{SESSION_IP}'), '$Bill->{DEPOSIT}', '$admin->{AID}', '$DATA{METHOD}', '$DATA{EXT_ID}');", 'do');
   }

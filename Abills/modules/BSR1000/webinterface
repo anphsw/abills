@@ -45,21 +45,22 @@ my %bsr1000_commands = ('show cable modem'    => '',
 
 
                           
-
+#**********************************************************
+#
+#**********************************************************
 sub Bsr1000_online () {
 
+  if ($FORM{NAS_ID}) {
+    $nas->info( { NAS_ID => $FORM{NAS_ID}	} );
+    $pages_qs.="&NAS_ID=$FORM{NAS_ID}";
+    Bsr1000_cmd();
+   }
 
-if ($FORM{NAS_ID}) {
-  $nas->info( { NAS_ID => $FORM{NAS_ID}	} );
-  $pages_qs.="&NAS_ID=$FORM{NAS_ID}";
-  Bsr1000_cmd();
-}
-
-my $table = $html->table( { width   => '100%',
-                                   caption => "$_NAS",
-                                   border  => 1,
-                                   title   => ["ID", "$_NAME", "NAS-Identifier", "IP", "$_TYPE", "$_STATUS", '-', '-'],
-                                   cols_align => ['center', 'left', 'left', 'right', 'left', 'left', 'center', 'center'],
+my $table = $html->table( { width      => '100%',
+                            caption    => "$_NAS",
+                            border     => 1,
+                            title      => ["ID", "$_NAME", "NAS-Identifier", "IP", "$_TYPE", "$_STATUS", '-', '-'],
+                            cols_align => ['center', 'left', 'left', 'right', 'left', 'left', 'center', 'center'],
                                   });
 my $list = $nas->list({ %LIST_PARAMS, TYPE =>  'bsr1000' });
 
@@ -75,22 +76,21 @@ foreach my $line (@$list) {
    );
 }
 print $table->show();
-
-
 }
 
 
 
 #**********************************************************
-# Use
+# Bsr1000_cmd
 #**********************************************************
 sub Bsr1000_cmd {
 
   if(length($FORM{command})>0){
     $nas->info({ NAS_ID => $FORM{NAS_ID}});
 
- 
     require 'Abills/nas.pl';
+
+
     my @commands = ( "Password:\t$nas->{NAS_MNG_PASSWORD}",
                      "$CMTS_prompt\tenable",
                      "Password:\t$nas->{NAS_MNG_PASSWORD}",
@@ -103,8 +103,9 @@ sub Bsr1000_cmd {
     my $result = telnet_cmd("$nas->{NAS_MNG_IP_PORT}", \@commands, { debug => 1 });
     my $total=0;
     my @rows = split(/\n/, $result);
+
    
-   if($FORM{command} eq 'show cable modem') {
+    if($FORM{command} eq 'show cable modem') {
     	my $table = $html->table({ width       => '100%',
                                  border      => 1,
                                  title_plain => ['Interface', 'Prim Sid', 'Connect state', 'Timing Offset', 'Rec Power', 'Ip Address', 'Mac Address', '-', '-', '-'],

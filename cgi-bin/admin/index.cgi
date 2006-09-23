@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# 701082
+# 
 # http://www.maani.us/charts/index.php
 #use vars qw($begin_time);
 BEGIN {
@@ -52,13 +52,11 @@ use Abills::HTML;
 use Nas;
 use Admins;
 
-$html = Abills::HTML->new({ CONF => \%conf, NO_PRINT => 0 });
+
 my $sql = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd});
 
 $db = $sql->{db};
-my $admin = Admins->new($db, \%conf);
-require "../../language/$html->{language}.pl";
-%permissions = ();
+$admin = Admins->new($db, \%conf);
 use Abills::Base;
 
 @state_colors = ("#00FF00", "#FF0000", "#AAAAFF");
@@ -81,7 +79,7 @@ use Abills::Base;
 #	print "$k, $v\n";
 #}
 #exit;
-
+%permissions = ();
 if (defined($ENV{HTTP_CGI_AUTHORIZATION})) {
   $ENV{HTTP_CGI_AUTHORIZATION} =~ s/basic\s+//i;
   my ($REMOTE_USER,$REMOTE_PASSWD) = split(/:/, decode_base64($ENV{HTTP_CGI_AUTHORIZATION}));  
@@ -100,6 +98,11 @@ if (defined($ENV{HTTP_CGI_AUTHORIZATION})) {
 else {
   check_permissions('$REMOTE_USER');
 }
+
+$html = Abills::HTML->new({ CONF => \%conf, NO_PRINT => 0, %{ $admin->{WEB_OPTIONS} } });
+require "../../language/$html->{language}.pl";
+
+
 
 if ($admin->{errno}) {
   print "Content-type: text/html\n\n";
@@ -122,40 +125,52 @@ if ($admin->{errno}) {
   exit;
 }
 
-#Cookie section ============================================
-if (defined($FORM{language})) {
-  $html->setCookie('language', "$FORM{language}", "Fri, 1-Jan-2038 00:00:01", '', $domain, $secure);
-}
-
-if (defined($FORM{colors})) {
-  my $cook_colors = (defined($FORM{default})) ?  '' : $FORM{colors};
-  $html->setCookie('colors', "$cook_colors", "Fri, 1-Jan-2038 00:00:01", '', $domain, $secure);
-  print "Location: $SELF_URL?index=$FORM{index}", "\n\n";
-  exit;
- }
 
 #Operation system ID
 $html->setCookie('OP_SID', "$FORM{OP_SID}", "Fri, 1-Jan-2038 00:00:01", '', $domain, $secure);
-if (defined($FORM{quick_set})) {
-#	print "Content-Type: text/html\n\n";
-  my $qm = '';
-  my(@qm_arr) = split(/, /, $FORM{qm_item});
-  foreach my $line (@qm_arr) {
-     $qm .= (defined($FORM{'qm_name_'.$line})) ? "$line:".$FORM{'qm_name_'.$line}."," : "$line:,";
+
+#Admin Web_options
+if ($FORM{AWEB_OPTIONS}) {
+  my %WEB_OPTIONS = ( language  => 1,
+                      REFRESH   => 1,
+                      colors    => 1,
+                      PAGE_ROWS => 1
+                    );
+
+	my $web_options = '';
+	
+	if (! $FORM{default}) {
+	  while(my($k, $v)=each %WEB_OPTIONS){
+		  if ($FORM{$k}) {
+  			$web_options .= "$k=$FORM{$k};";
+	  	 }
+      else {
+    	  $web_options .= "$k=$admin->{WEB_OPTIONS}{$k};" if ($admin->{WEB_OPTIONS}{$k});
+       } 
+	   }
    }
-  chop($qm);
 
+  if (defined($FORM{quick_set})) {
+    my(@qm_arr) = split(/, /, $FORM{qm_item});
+    $web_options.="qm=";
+    foreach my $line (@qm_arr) {
+      $web_options .= (defined($FORM{'qm_name_'.$line})) ? "$line:".$FORM{'qm_name_'.$line}."," : "$line:,";
+     }
+    chop($web_options);
+   }
+  else {
+    $web_options.="qm=$admin->{WEB_OPTIONS}{qm};";
+   }
+  
+  $admin->change({ AID => $admin->{AID}, WEB_OPTIONS => $web_options });
 
-  $html->setCookie('qm', "$qm", "Fri, 1-Jan-2038 00:00:01", '', $domain, $secure);
   print "Location: $SELF_URL?index=$FORM{index}", "\n\n";
   exit;
 }
+
+
 #===========================================================
 
-
-print $html->header({ 
-	 PATH    => '../',
-	 CHARSET => $CHARSET });
 
 my @actions = ([$_SA_ONLY, $_ADD, $_LIST, $_PASSWD, $_CHANGE, $_DEL, $_ALL],  # Users
                [$_LIST, $_ADD, $_DEL, $_ALL],                                 # Payments
@@ -168,35 +183,16 @@ my @actions = ([$_SA_ONLY, $_ADD, $_LIST, $_PASSWD, $_CHANGE, $_DEL, $_ALL],  # 
                [$_PROFILE],
                );
 
+
+
 @action    = ('add', $_ADD);
 @bool_vals = ($_NO, $_YES);
-
-my @PAYMENT_METHODS = ('Cashe', 'Bank', 'Internet Card', 'Credit Card' );
+my @PAYMENT_METHODS = ('Cash', 'Bank', 'Internet Card', 'Credit Card', 'Bonus');
 my %menu_items  = ();
 my %menu_names  = ();
-#my $root_index = 0;
 my $maxnumber   = 0;
 my %uf_menus    = (); #User form menu list
 
-my %SEARCH_TYPES = (11 => $_USERS,
-                    2  => $_PAYMENTS,
-                    3  => $_FEES,
-                    13 => $_COMPANY
-                   );
-
-if($FORM{index} != 7 && ! defined($FORM{type})) {
-	$FORM{type}=$FORM{index};
- }
-elsif (! defined $FORM{type}) {
-	$FORM{type}=15;
-}
-
-my $SEL_TYPE = $html->form_select('type', 
-                                { SELECTED  => $FORM{type},
- 	                                SEL_HASH  => \%SEARCH_TYPES,
- 	                                NO_ID     => 'y'
- 	                                #EX_PARAMS => 'onChange="selectstype()"'
- 	                               });
 
 fl();
 my %USER_SERVICES = ();
@@ -239,9 +235,56 @@ foreach my $m (@MODULES) {
   }
 }
 
+use Users;
+my $users = Users->new($db, $admin, \%conf); 
+
+
+#Quick index
+# Show only function results whithout main windows
+if ($FORM{qindex}) {
+  $index = $FORM{qindex};
+  if(defined($module{$index})) {
+ 	 	require "Abills/modules/$module{$index}/webinterface";
+   }
+  $functions{$index}->();
+ 
+  exit;
+}
+
+
+
+
+
+
+
+print $html->header({ 
+	 PATH    => '../',
+	 CHARSET => $CHARSET });
+
 
 my ($menu_text, $navigat_menu) = mk_navigator();
 my ($online_users, $online_count) = $admin->online();
+
+
+my %SEARCH_TYPES = (11 => $_USERS,
+                    2  => $_PAYMENTS,
+                    3  => $_FEES,
+                    13 => $_COMPANY
+                   );
+
+if($FORM{index} != 7 && ! defined($FORM{type})) {
+	$FORM{type}=$FORM{index};
+ }
+elsif (! defined $FORM{type}) {
+	$FORM{type}=15;
+}
+
+my $SEL_TYPE = $html->form_select('type', 
+                                { SELECTED  => $FORM{type},
+ 	                                SEL_HASH  => \%SEARCH_TYPES,
+ 	                                NO_ID     => 'y'
+ 	                                #EX_PARAMS => 'onChange="selectstype()"'
+ 	                               });
 
 
 print "
@@ -261,17 +304,14 @@ print "
 </td></tr>\n";
 
 
-use Users;
-my $users = Users->new($db, $admin, \%conf); 
-
 
 if(defined($conf{tech_works})) {
   print "<tr><th bgcolor='#FF0000' colspan='2'>$conf{tech_works}</th></tr>";
 }
 
-if (defined($COOKIES{qm}) && $COOKIES{qm} ne '') {
+if ($admin->{WEB_OPTIONS}{qm}) {
   print "<tr><td colspan='2' class='noprint'>\n<table  width='100%' border='0'>";
-	my @a = split(/,/, $COOKIES{qm});
+	my @a = split(/,/, $admin->{WEB_OPTIONS}{qm});
   my $i = 0;
 	foreach my $line (@a) {
     if (  $i % 6 == 0) {
@@ -320,6 +360,9 @@ if ($functions{$index}) {
   	  $functions{$index}->({ USER => $ui });
   	  #$LIST_PARAMS{LOGIN} = '11111';
   	}
+   }
+  elsif ($index == 0) {
+  	form_start();
    }
   else {
      $functions{$index}->();
@@ -387,9 +430,11 @@ sub check_permissions {
   my %PARAMS = ( LOGIN     => "$login", 
                  PASSWORD  => "$password",
                  SECRETKEY => $conf{secretkey},
-                 IP        => $SESSION_IP);
+                 IP        => $ENV{REMOTE_ADDR} || '0.0.0.0');
 
   $admin->info(0, { %PARAMS } );
+
+  
 
   if ($admin->{errno}) {
     return 1;
@@ -399,7 +444,15 @@ sub check_permissions {
   	$admin->{errstr} = 'DISABLED';
   	return 2;
    }
-
+  
+  if ($admin->{WEB_OPTIONS}) {
+    my @WO_ARR = split(/;/, $admin->{WEB_OPTIONS}	);
+    foreach my $line (@WO_ARR) {
+    	my ($k, $v)=split(/=/, $line);
+    	$admin->{WEB_OPTIONS}{$k}=$v;
+     }
+   }
+  
   my $p_ref = $admin->get_permissions();
   %permissions = %$p_ref;
   
@@ -407,13 +460,88 @@ sub check_permissions {
 }
 
 
-
 #**********************************************************
-# form_customers
+#
+#**********************************************************
+sub form_start {
+my  %new_hash = ();
+while((my($findex, $hash)=each(%menu_items))) {
+   while(my($parent, $val)=each %$hash) {
+     $new_hash{$parent}{$findex}=$val;
+    }
+}
+
+
+
+my $h = $new_hash{0};
+my @last_array = ();
+
+my @menu_sorted = sort {
+   $h->{$b} <=> $h->{$a}
+     ||
+   length($a) <=> length($b)
+     ||
+   $a cmp $b
+} keys %$h;
+
+my $table2 = $html->table({ width       => '100%',
+	                          border => 0 });
+my $table;
+my @rows;
+
+for(my $parent=1; $parent<$#menu_sorted; $parent++) { 
+  my $val = $h->{$parent};
+  my $level = 0;
+  my $prefix = '';
+  $table->{rowcolor}=$_COLORS[0];      
+
+  next if (! defined($permissions{($parent-1)}));  
+
+  if ($parent != 0) {
+    $table = $html->table({ width       => '200',
+                            title_plain => [ $html->button("<b>$val</b>", "index=$parent") ],
+                            border      => 1,
+                            cols_align  => ['left']
+                         });
+   }
+
+  if (defined($new_hash{$parent})) {
+    $table->{rowcolor}=$_COLORS[1];
+    $level++;
+    $prefix .= "&nbsp;&nbsp;&nbsp;";
+
+    label:
+      my $mi = $new_hash{$parent};
+      while(my($k, $val)=each %$mi) {
+        $table->addrow("$prefix ". $html->button($val, "index=$k"));
+        delete($new_hash{$parent}{$k});
+      }
+  }
+
+push @rows, $table->td($table->show(), { bgcolor => $_COLORS[1], valign => 'top', align => 'center' });
+
+if ($#rows > 1) {
+  $table2->addtd(@rows);
+  undef @rows;
+}
+
+
+}
+
+$table2->addtd(@rows);
+print $table2->show();
+# return 0;
+
+
+	
+}
+#**********************************************************
+#
 #**********************************************************
 sub form_companies {
   use Customers;	
-  my $customer = Customers->new($db);
+
+  my $customer = Customers->new($db, $admin, \%conf);
   my $company = $customer->company();
 
 if ($FORM{add}) {
@@ -444,8 +572,8 @@ elsif($FORM{COMPANY_ID}) {
   $pages_qs .= "&COMPANY_ID=$FORM{COMPANY_ID}";
 
   func_menu({ 
-  	         'ID' => $company->{COMPANY_ID}, 
-  	         $_NAME =>$company->{COMPANY_NAME}
+  	         'ID'   => $company->{COMPANY_ID}, 
+  	         $_NAME => $company->{COMPANY_NAME}
   	       }, 
   	{ 
   	 $_INFO     => ":COMPANY_ID=$company->{COMPANY_ID}",
@@ -466,33 +594,36 @@ elsif($FORM{COMPANY_ID}) {
   }
 
  }
-elsif(defined($FORM{del}) && defined($FORM{is_js_confirmed})) {
+elsif(defined($FORM{del}) && defined($FORM{is_js_confirmed})  && $permissions{0}{5} ) {
    $company->del( $FORM{del} );
    $html->message('info', $_INFO, "$_DELETED # $FORM{del}");
  }
 else {
   my $list = $company->list( { %LIST_PARAMS } );
-  my $table = $html->table( { width    => '100%',
-                                   caption    => $_COMPANIES,
-                                   border     => 1,
-                                   title      => [$_NAME, $_DEPOSIT, $_REGISTRATION, $_USERS, $_STATUS, '-', '-'],
-                                   cols_align => ['left', 'right', 'right', 'right', 'center', 'center'],
-                                   pages      => $company->{TOTAL},
-                                   qs         => $pages_qs
+  my $table = $html->table( { width      => '100%',
+                              caption    => $_COMPANIES,
+                              border     => 1,
+                              title      => [$_NAME, $_DEPOSIT, $_REGISTRATION, $_USERS, $_STATUS, '-', '-'],
+                              cols_align => ['left', 'right', 'right', 'right', 'center', 'center'],
+                              pages      => $company->{TOTAL},
+                              qs         => $pages_qs
                                   } );
 
   foreach my $line (@$list) {
-    $table->addrow($line->[0],  $line->[1], $line->[2], 
+    $table->addrow($line->[0],  
+      $line->[1], 
+      $line->[2], 
       $html->button($line->[3], "index=13&COMPANY_ID=$line->[5]"), 
       "$status[$line->[4]]",
       $html->button($_INFO, "index=13&COMPANY_ID=$line->[5]"), 
-      $html->button($_DEL, "index=13&del=$line->[5]", { MESSAGE => "$_DEL $line->[0]?" }));
+      (defined($permissions{0}{5})) ? $html->button($_DEL, "index=13&del=$line->[5]", { MESSAGE => "$_DEL $line->[0]?" }) : ''
+      );
    }
   print $table->show();
 
-  $table = $html->table( { width => '100%',
-                                cols_align => ['right', 'right'],
-                                rows => [ [ "$_TOTAL:", "<b>$company->{TOTAL}</b>" ] ]
+  $table = $html->table( { width      => '100%',
+                           cols_align => ['right', 'right'],
+                           rows       => [ [ "$_TOTAL:", "<b>$company->{TOTAL}</b>" ] ]
                                } );
   print $table->show();
 }
@@ -623,11 +754,11 @@ elsif(defined($FORM{GID})){
   $pages_qs="&GID=$users->{GID}&subf=$FORM{subf}";
 
   func_menu({ 
-  	         'ID' => $users->{GID}, 
+  	         'ID'   => $users->{GID}, 
   	         $_NAME =>$users->{G_NAME}
   	       }, 
   	{ 
-     $_CHANGE     => ":GID=$users->{GID}",
+     $_CHANGE   => ":GID=$users->{GID}",
      $_USERS    => "11:GID=$users->{GID}",
      $_PAYMENTS => "2:GID=$users->{GID}",
      $_FEES     => "3:GID=$users->{GID}",
@@ -646,7 +777,7 @@ elsif(defined($FORM{GID})){
  
   return 0;
 }
-elsif(defined($FORM{del}) && defined($FORM{is_js_confirmed})){
+elsif(defined($FORM{del}) && defined($FORM{is_js_confirmed}) && $permissions{0}{5}){
   $users->group_del( $FORM{del} );
   if (! $users->{errno}) {
     $html->message('info', $_DELETED, "$_DELETED $users->{GID}");
@@ -660,16 +791,17 @@ if ($users->{errno}) {
 
 my $list = $users->groups_list({ %LIST_PARAMS });
 my $table = $html->table( { width      => '100%',
-                                   caption    => "$_GROUPS",
-                                   border     => 1,
-                                   title      => [$_ID, $_NAME, $_DESCRIBE, $_USERS, '-', '-'],
-                                   cols_align => ['right', 'left', 'left', 'right', 'center', 'center'],
-                                   qs         => $pages_qs,
-                                   pages      => $users->{TOTAL}
+                            caption    => "$_GROUPS",
+                            border     => 1,
+                            title      => [$_ID, $_NAME, $_DESCRIBE, $_USERS, '-', '-'],
+                            cols_align => ['right', 'left', 'left', 'right', 'center', 'center'],
+                            qs         => $pages_qs,
+                            pages      => $users->{TOTAL}
                                   } );
 
 foreach my $line (@$list) {
-  my $delete = $html->button($_DEL, "index=27$pages_qs&del=$line->[0]", { MESSAGE => "$_DEL [$line->[0]]?" }); 
+  my $delete = (defined($permissions{0}{5})) ?  $html->button($_DEL, "index=27$pages_qs&del=$line->[0]", { MESSAGE => "$_DEL [$line->[0]]?" }) : ''; 
+
   $table->addrow("<b>$line->[0]</b>", "$line->[1]", "$line->[2]", 
    $html->button($line->[3], "index=27&GID=$line->[0]&subf=15"), 
    $html->button($_INFO, "index=27&GID=$line->[0]"),
@@ -678,10 +810,10 @@ foreach my $line (@$list) {
 print $table->show();
 
 
-$table = $html->table( { width => '100%',
-                                cols_align => ['right', 'right'],
-                                rows => [ [ "$_TOTAL:", "<b>$users->{TOTAL}</b>" ] ]
-                               } );
+$table = $html->table({ width      => '100%',
+                        cols_align => ['right', 'right'],
+                        rows       => [ [ "$_TOTAL:", "<b>$users->{TOTAL}</b>" ] ]
+                      });
 print $table->show();
 }
 
@@ -705,11 +837,11 @@ sub user_info {
 	my $user_info = $users->info( $UID );
   
   
-  $table = $html->table( { width    => '100%',
-  	                       rowcolor => $_COLORS[2],
-  	                       border   => 0,
+  $table = $html->table( { width      => '100%',
+  	                       rowcolor   => $_COLORS[2],
+  	                       border     => 0,
                            cols_align => ['left'],
-                           rows => [ [ "$_USER: ". $html->button("<b>$user_info->{LOGIN}</b>", "index=15&UID=$user_info->{UID}") ] ]
+                           rows       => [ [ "$_USER: ". $html->button("<b>$user_info->{LOGIN}</b>", "index=15&UID=$user_info->{UID}") ] ]
                           } );
   print $table->show();
  
@@ -792,7 +924,7 @@ if(defined($attr->{USER})) {
       $html->message('info', $_CHANGED, "$_CHANGED $users->{info}");
      }
    }
-  elsif ($FORM{del_user} && $FORM{is_js_confirmed} && $index == 15) {
+  elsif ($FORM{del_user} && $FORM{is_js_confirmed} && $index == 15 && $permissions{0}{5} ) {
     $user_info->del();
     if ($users->{errno}) {
       $html->message('err', $_ERROR, "[$users->{errno}] $err_strs{$users->{errno}}");	
@@ -846,7 +978,7 @@ my %userform_menus = (
              18 =>  $_NAS,
              20 =>  $_SERVICES,
              19	=>  $_BILL
- );
+             );
 
 while(my($k, $v)=each %uf_menus) {
 	$userform_menus{$k}=$v;
@@ -857,9 +989,10 @@ while(my($k, $v)=each (%userform_menus) ) {
   my $a = (defined($FORM{$k})) ? "<b>$v</b>" : $v;
   print "<li/>" . $html->button($a,  "$url");
 }
-print "<li/>".
-  $html->button($_DEL, "index=15&del_user=y&UID=$user_info->{UID}", { MESSAGE => "$_USER: $user_info->{LOGIN} / $user_info->{UID}" })
-."</ul></td></tr>
+
+print "<li/>". $html->button($_DEL, "index=15&del_user=y&UID=$user_info->{UID}", { MESSAGE => "$_USER: $user_info->{LOGIN} / $user_info->{UID}" }) if (defined($permissions{0}{5}));
+
+print "</ul></td></tr>
 </table>
 </td></tr></table>\n";
   return 0;
@@ -957,9 +1090,9 @@ $table->addtd(
 }
 print $table->show();
 
-$table = $html->table( { width => '100%',
+$table = $html->table( { width      => '100%',
                          cols_align => ['right', 'right'],
-                         rows => [ [ "$_TOTAL:", "<b>$users->{TOTAL}</b>" ] ]
+                         rows       => [ [ "$_TOTAL:", "<b>$users->{TOTAL}</b>" ] ]
                        });
 print $table->show();
 }
@@ -985,8 +1118,8 @@ sub user_company {
 
  $user_info->{SEL_COMPANIES} = $html->form_select('COMPANY_ID', 
                                 { 
- 	                                SELECTED  => $FORM{COMPANY_ID},
- 	                                SEL_MULTI_ARRAY   => $customer->company->list(),
+ 	                                SELECTED          => $FORM{COMPANY_ID},
+ 	                                SEL_MULTI_ARRAY   => $customer->company->list({ PAGE_ROWS => 2000 }),
  	                                MULTI_ARRAY_KEY   => 5,
  	                                MULTI_ARRAY_VALUE => 0,
  	                                SEL_OPTIONS       => { 0 => '-N/S-'}
@@ -1225,7 +1358,6 @@ form_search({ HIDDEN_FIELDS => $LIST_PARAMS{AID},
 	           });
 
 
-
 my $list = $admin->action_list({ %LIST_PARAMS });
 my $table = $html->table( { width      => '100%',
                             border     => 1,
@@ -1253,16 +1385,10 @@ foreach my $line (@$list) {
 
 
 print $table->show();
-$table = $html->table( { width => '100%',
-                                cols_align => ['right', 'right'],
-                                rows => [ [ "$_TOTAL:", "<b>$admin->{TOTAL}</b>" ] ]
-                               } );
-
-
-
-
-
-
+$table = $html->table( { width      => '100%',
+                         cols_align => ['right', 'right'],
+                         rows       => [ [ "$_TOTAL:", "<b>$admin->{TOTAL}</b>" ] ]
+                       } );
 print $table->show();
 }
 
@@ -1323,13 +1449,13 @@ if(defined($attr->{TP})) {
    }
 
   my $list = $tarif_plan->ti_list({ %LIST_PARAMS });
-  my $table = $html->table( { width   => '100%',
-                                   caption   => "$_INTERVALS",
-                                   border    => 1,
-                                   title     => ['#', $_DAYS, $_BEGIN, $_END, $_HOUR_TARIF, $_TRAFFIC, '-', '-',  '-'],
-                                   cols_align => ['left', 'left', 'right', 'right', 'right', 'center', 'center', 'center', 'center', 'center'],
-                                   qs        => $pages_qs,
-                                   } );
+  my $table = $html->table( { width      => '100%',
+                              caption    => "$_INTERVALS",
+                              border     => 1,
+                              title      => ['#', $_DAYS, $_BEGIN, $_END, $_HOUR_TARIF, $_TRAFFIC, '-', '-',  '-'],
+                              cols_align => ['left', 'left', 'right', 'right', 'right', 'center', 'center', 'center', 'center', 'center'],
+                              qs         => $pages_qs,
+                           } );
 
   my $color="AAA000";
   foreach my $line (@$list) {
@@ -1366,7 +1492,7 @@ if(defined($attr->{TP})) {
      	 my $TI_ID = $line->[0];
      	 #Traffic tariff IN (1 Mb) Traffic tariff OUT (1 Mb) Prepaid (Mb) Speed (Kbits) Describe NETS 
 
-       my $table2 = $html->table( { width => '100%',
+       my $table2 = $html->table( { width      => '100%',
                                    title_plain => ["#", "$_TRAFFIC_TARIFF In ", "$_TRAFFIC_TARIFF Out ", "$_PREPAID", "$_SPEED IN",  "$_SPEED OUT", "DESCRIBE", "NETS", "-", "-"],
                                    cols_align  => ['center', 'right', 'right', 'right', 'right', 'right', 'left', 'right', 'center', 'center', 'center'],
                                    caption     => "$_BYTE_TARIF"
@@ -1532,7 +1658,7 @@ if ($FORM{add}) {
   	             });
   if (! $holidays->{errno}) {
     $html->message('info', $_INFO, "$_ADDED");	
-  }
+   }
 }
 elsif($FORM{del}){
   $holidays->holidays_del($FORM{del});
@@ -1598,7 +1724,7 @@ my ($sec,$min,$hour,$mday,$mon, $gyear,$gwday,$yday,$isdst) = gmtime($curtime);
 
 print "<br><TABLE width=\"400\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\">
 <tr><TD bgcolor=\"$_COLORS[4]\">
-<TABLE width=100% cellspacing=1 cellpadding=0 border=0>
+<TABLE width=\"100%\" cellspacing=1 cellpadding=0 border=0>
 <tr bgcolor=\"$_COLORS[0]\"><th>". $html->button(' << ', "index=75&month=$p_month&year=$p_year"). "</th><th colspan=5>$MONTHES[$month] $year</th><th>". $html->button(' >> ', "index=75&month=$n_month&year=$n_year") ."</th></tr>
 <tr bgcolor=\"$_COLORS[0]\"><th>$WEEKDAYS[1]</th><th>$WEEKDAYS[2]</th><th>$WEEKDAYS[3]</th>
 <th>$WEEKDAYS[4]</th><th>$WEEKDAYS[5]</th>
@@ -1797,11 +1923,11 @@ sub admin_permissions {
  my %permits = %$p;
  
 
-my $table = $html->table( { width => '400',
-                                   border => 1,
-                                   title_plain => ['ID', $_NAME, ''],
-                                   cols_align => ['right', 'left', 'center'],
-                                  } );
+my $table = $html->table( { width       => '400',
+                            border      => 1,
+                            title_plain => ['ID', $_NAME, ''],
+                            cols_align  => ['right', 'left', 'center'],
+                        } );
 
 
 while(my($k, $v) = each %menu_items ) {
@@ -1815,9 +1941,9 @@ while(my($k, $v) = each %menu_items ) {
     foreach my $action (@$actions_list) {
 
       $table->addrow("$action_index", "$action", 
-       $html->form_input($k."_$action_index", 'yes', { TYPE => 'checkbox',
+       $html->form_input($k."_$action_index", 'yes', { TYPE          => 'checkbox',
        	                                               OUTPUT2RETURN => 1,
-       	                                               STATE => (defined($permits{$k}{$action_index})) ? '1' : undef  
+       	                                               STATE         => (defined($permits{$k}{$action_index})) ? '1' : undef  
        	                                              })  
        	                                              );
 
@@ -1847,7 +1973,7 @@ print $html->form_main({ CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
 # profile()
 #*******************************************************************
 sub admin_profile {
- my ($admin) = @_;
+ #my ($admin) = @_;
 
  my @colors_descr = ('# 0 TH', 
                      '# 1 TD.1',
@@ -1862,45 +1988,49 @@ sub admin_profile {
                      '#10 background'
                     );
 
-print "$FORM{colors}";
-
-print $html->{language};
+print "$FORM{colors} ". $html->{language};
 
 
-my $REFRESH=$COOKIES{REFRESH} || 60;
-my $ROWS=$COOKIES{PAGE_ROWS} || $PAGE_ROWS;
+my $REFRESH=$admin->{WEB_OPTIONS}{REFRESH} || 60;
+my $ROWS=$admin->{WEB_OPTIONS}{PAGE_ROWS} || $PAGE_ROWS;
 
 
 my $SEL_LANGUAGE = $html->form_select('language', 
                                 { 
  	                                SELECTED  => $html->{language},
- 	                                SEL_HASH  => \%LANG });
+ 	                                SEL_HASH  => \%LANG 
+ 	                               });
 
-print "
-<form action=$SELF_URL METHOD=POST>
-<input type=hidden name=index value=$index>
-<TABLE width=640 cellspacing=0 cellpadding=0 border=0><tr><TD bgcolor=\"$_COLORS[4]\">
-<TABLE width=100% cellspacing=1 cellpadding=0 border=0><tr bgcolor=\"$_COLORS[1]\"><td colspan=\"2\">$_LANGUAGE:</td>
+print << "[END]";
+<form action="$SELF_URL" METHOD="POST">
+<input type="hidden" name="index" value="$index">
+<input type="hidden" name="AWEB_OPTIONS" value="1">
+<TABLE width="640" cellspacing="0" cellpadding="0" border="0"><tr><TD bgcolor="$_COLORS[4]">
+<TABLE width="100%" cellspacing="1" cellpadding="0" border="0"><tr bgcolor="$_COLORS[1]"><td colspan="2">$_LANGUAGE:</td>
 <td>$SEL_LANGUAGE</td></tr>
-<tr bgcolor=\"$_COLORS[1]\"><th colspan=\"3\">&nbsp;</th></tr>
-<tr bgcolor=\"$_COLORS[0]\"><th colspan=\"2\">$_PARAMS</th><th>$_VALUE</th></tr>\n";
+<tr bgcolor="$_COLORS[1]"><th colspan="3">&nbsp;</th></tr>
+<tr bgcolor="$_COLORS[0]"><th colspan="2">$_PARAMS</th><th>$_VALUE</th></tr>
+
+[END]
+
 
  for($i=0; $i<=10; $i++) {
    print "<tr bgcolor=\"$_COLORS[1]\"><td width=30% bgcolor=\"$_COLORS[$i]\">$i</td><td>$colors_descr[$i]</td><td><input type=text name=colors value='$_COLORS[$i]'></td></tr>\n";
   } 
  
+
 print "
 </table>
 <br>
 <table width=\"100%\">
 <tr><td colspan=\"2\">&nbsp;</td></tr>
-<tr><td>$_REFRESH (sec.):</td><td><input type=input name=REFRESH value='$REFRESH'></td></tr>
-<tr><td>$_ROWS:</td><td><input type=input name=PAGE_ROWS value='$PAGE_ROWS'></td></tr>
+<tr><td>$_REFRESH (sec.):</td><td><input type='input' name='REFRESH' value='$REFRESH'></td></tr>
+<tr><td>$_ROWS:</td><td><input type='input' name='PAGE_ROWS' value='$PAGE_ROWS'></td></tr>
 </table>
 </td></tr></table>
 <br>
-<input type=submit name=set value='$_SET'> 
-<input type=submit name=default value='$_DEFAULT'>
+<input type='submit' name='set' value='$_SET'> 
+<input type='submit' name='default' value='$_DEFAULT'>
 </form><br>\n";
    
 my %profiles = ();
@@ -1911,7 +2041,7 @@ $profiles{'мс'} = "#FCBB43, #FFFFFF, #eeeeee, #dddddd, #E1E1E1, #FFFFFF, #FF0000
 $profiles{'Cisco'} = "#99CCCC, #FFFFFF, #FFFFFF, #669999, #669999, #FFFFFF, #FF0000, #003399, #003399, #000000, #FFFFFF";
 
 while(my($thema, $colors)=each %profiles ) {
-  my $url = "index=53&set=set";
+  my $url = "index=53&AWEB_OPTIONS=1&set=set";
   my @c = split(/, /, $colors);
   foreach my $line (@c) {
       $line =~ s/#/%23/ig;
@@ -2001,6 +2131,7 @@ if ($nas->{errno}) {
 
 # my @nas_types = ('other', 'usr', 'pm25', 'ppp', 'exppp', 'radpppd', 'expppd', 'pppd', 'dslmax', 'mpd', 'gnugk');
  my %nas_descr = (
+  'asterisk'  => "Asterisk",
   'usr'       => "USR Netserver 8/16",
   'pm25'      => 'LIVINGSTON portmaster 25',
   'ppp'       => 'FreeBSD ppp demon',
@@ -2016,7 +2147,8 @@ if ($nas->{errno}) {
   'cisco'     => 'Cisco (Experimental)',
   'bsr1000'   => 'CMTS Motorola BSR 1000',
   'mikrotik'  => 'Mikrotik (http://www.mikrotik.com)',
-  'other'     => 'Other nas server');
+  'other'     => 'Other nas server'
+ );
 
 
   if (defined($conf{nas_servers})) {
@@ -2249,7 +2381,9 @@ elsif($FORM{newpassword} ne $FORM{confirm}) {
   $html->message('err', $_ERROR, $err_strs{5});
 }
 
-$password_form->{GEN_PASSWORD}=mk_unique_value(8);
+#$password_form->{GEN_PASSWORD}=mk_unique_value(8);
+$password_form->{PW_CHARS}="abcdefhjmnpqrstuvwxyz23456789ABCDEFGHJKLMNPQRSTUVWYXZ";
+$password_form->{PW_LENGTH}=8;
 $password_form->{ACTION}='change';
 $password_form->{LNG_ACTION}="$_CHANGE";
 $html->tpl_show(templates('form_password'), $password_form);
@@ -2260,6 +2394,7 @@ $html->tpl_show(templates('form_password'), $password_form);
 
 #**********************************************************
 #
+# FIELDS => FIELDS_HASH
 #**********************************************************
 sub reports {
  my ($attr) = @_;
@@ -2296,6 +2431,29 @@ else {
   #$html->tpl_show(templates('groups_sel'), $user);
 }
 
+my @rows = ();
+
+my $FIELDS='';
+
+if ($attr->{FIELDS}) {
+  my %fields_hash = (); 
+  if ($FORM{FIELDS}) {
+  	my @fileds_arr = split(/, /, $FORM{FIELDS});
+   	foreach my $line (@fileds_arr) {
+   		$fields_hash{$line}=1;
+   	 }
+   }
+
+  $LIST_PARAMS{FIELDS}=$FORM{FIELDS};
+  $pages_qs="&FIELDS=$FORM{FIELDS}";
+  
+  foreach my $line (sort keys %{ $attr->{FIELDS} }) {
+  	my ($id, $k)=split(/:/, $line);
+  	$FIELDS .= $html->form_input("FIELDS", $k, { TYPE => 'checkbox', STATE => (defined($fields_hash{$k})) ? 'checked' : undef }). " $attr->{FIELDS}{$line}";
+   }
+ }  
+
+
 if ($attr->{PERIOD_FORM}) {
 	$table = $html->table( { width    => '100%',
 	                         rowcolor => $_COLORS[1],
@@ -2309,12 +2467,16 @@ if ($attr->{PERIOD_FORM}) {
  	                                                                                   HOURS => $_HOURS },
  	                                                                 NO_ID        => 1
  	                                                                }) ,
+ 	                                        ($attr->{XML}) ? 
+ 	                                        $html->form_input('NO_MENU', 1, { TYPE => 'hidden' }).
+ 	                                        $html->form_input('xml', 1, { TYPE => 'checkbox' })."XML" : '',
+
                                           $html->form_input('show', $_SHOW, { TYPE => 'submit' }) ]
                                          ],                                   
                       });
  
-  print $html->form_main({ CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
-	                       HIDDEN  => { 
+  print $html->form_main({ CONTENT => $table->show({ OUTPUT2RETURN => 1 }).$FIELDS,
+	                         HIDDEN  => { 
 	                                    index => "$index"
 	                                    }});
 
@@ -2330,6 +2492,9 @@ if ($attr->{PERIOD_FORM}) {
    }
 	
 }
+
+
+
 
 
 
@@ -2369,9 +2534,9 @@ if (defined($FORM{DATE})) {
    }
   
   
-  my @rows = ([ "$_YEAR:",  $y ],
-              [ "$_MONTH:", $MONTHES[$m-1] ], 
-              [ "$_DAY:",   $days ]);
+  @rows = ([ "$_YEAR:",  $y ],
+           [ "$_MONTH:", $MONTHES[$m-1] ], 
+           [ "$_DAY:",   $days ]);
   
   if ($attr->{SHOW_HOURS}) {
     my(undef, $h)=split(/ /, $FORM{HOUR}, 2);
@@ -2388,6 +2553,11 @@ if (defined($FORM{DATE})) {
   if ($attr->{EX_PARAMS}) {
     push @rows, [' ', $EX_PARAMS];
    }  
+
+
+  
+  
+  
 
   $table = $html->table({ width       => '100%',
                            rowcolor   => $_COLORS[1],
@@ -2547,7 +2717,7 @@ sub fl {
 my @m = (
  "0:0::null:::",
  "1:0:$_CUSTOMERS:null:::",
- "11:1:$_USERS:form_users:::",
+ "11:1:$_LOGINS:form_users:::",
  "24:11:$_ADD:user_form:::",
  "13:1:$_COMPANY:form_companies:::",
  "14:13:$_ADD:add_company:::",
@@ -2604,7 +2774,6 @@ my @m = (
  "94:90:WEB server:form_webserver_info:::",
  "95:90:$_SQL_BACKUP:form_sql_backup:::",
  "6:0:$_OTHER:null:::",
- "1000:6:Wizards:wizard:::",
   
  "7:0:$_SEARCH:form_search:::",
  
@@ -2683,8 +2852,8 @@ my @menu_sorted = sort {
 } keys %$h;
 
 my %qm = ();
-if (defined($COOKIES{qm})) {
-	my @a = split(/,/, $COOKIES{qm});
+if (defined($admin->{WEB_OPTIONS}{qm})) {
+	my @a = split(/,/, $admin->{WEB_OPTIONS}{qm});
 	foreach my $line (@a) {
      my($id, $custom_name)=split(/:/, $line, 2);
      $qm{$id} = ($custom_name ne '') ? $custom_name : '';
@@ -2723,9 +2892,9 @@ for(my $parent=1; $parent<$#menu_sorted; $parent++) {
          }
 
         
-        $table->addrow("$k ". $html->form_input('qm_item', "$k", { TYPE => 'checkbox',
-       	                                            OUTPUT2RETURN => 1,
-       	                                            STATE => $checked  
+        $table->addrow("$k ". $html->form_input('qm_item', "$k", { TYPE          => 'checkbox',
+       	                                                           OUTPUT2RETURN => 1,
+       	                                                           STATE         => $checked  
        	                                           }),  
                      "$prefix ". $html->button($val, "index=$k"), 
                      $html->form_input("qm_name_$k", $qm{$k}, { OUTPUT2RETURN => 1 }) );
@@ -2757,7 +2926,8 @@ for(my $parent=1; $parent<$#menu_sorted; $parent++) {
 
 
 print $html->form_main({ CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
-	                       HIDDEN  => { index => "$index"
+	                       HIDDEN  => { index        => "$index",
+	                       	            AWEB_OPTIONS => 1
                                      },
 	                       SUBMIT  => { quick_set => "$_SET"
 	                       	           } });
@@ -2776,6 +2946,8 @@ sub form_payments () {
  my ($attr) = @_; 
  use Finance;
  my $payments = Finance->payments($db, $admin, \%conf);
+
+
 
  return 0 if (! defined ($permissions{1}));
 
@@ -2845,10 +3017,6 @@ $payments->{SEL_METHOD} =  $html->form_select('METHOD',
  	                                SEL_ARRAY     => \@PAYMENT_METHODS,
  	                                ARRAY_NUM_ID  => 'y'
  	                               });
-
-
-
-
 
 
 
@@ -3043,7 +3211,7 @@ if (defined($attr->{USER})) {
         $html->message('err', $_ERROR, "[$fees->{errno}] $err_strs{$fees->{errno}}");	
        }
       else {
-        $html->message('info', $_PAYMENTS, "$_TAKE SUM: $FORM{SUM}");
+        $html->message('info', $_PAYMENTS, "$_TAKE SUM: $fees->{SUM}");
        }
     }
    }
@@ -3143,7 +3311,7 @@ print $table->show();
 sub form_sendmail {
  my %MAIL_PRIORITY = (2 => 'High', 
                       3 => 'Normal', 
-                      4  => 'Low');
+                      4 => 'Low');
 
 
 
@@ -3188,7 +3356,8 @@ sub form_sendmail {
 sub form_search {
   my ($attr) = @_;
   
-my %SEARCH_DATA = $admin->get_data(\%FORM);  
+ 
+  my %SEARCH_DATA = $admin->get_data(\%FORM);  
 
 if (defined($attr->{HIDDEN_FIELDS})) {
 	my $SEARCH_FIELDS = $attr->{HIDDEN_FIELDS};
@@ -3206,8 +3375,12 @@ if (defined($attr->{SIMPLE})) {
 	while(my($k, $v)=each( %$SEARCH_FIELDS )) {
 	  $SEARCH_DATA{SEARCH_FORM}.="<tr><td>$k:</td><td><input type=text name=\"$v\" value=\"%". $v ."%\"></td></tr>\n";
 	 }
+
   $html->tpl_show(templates('form_search_simple'), \%SEARCH_DATA);
-}
+ }
+elsif ($attr->{TPL}) {
+	#defined();
+ }
 else {
 
 

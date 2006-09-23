@@ -31,7 +31,7 @@ my %ACCT_TYPES = ('Start'          => 1,
                   ); 
 
 
-
+my $burn_billing = 0;
 
 
 #**********************************************************
@@ -93,15 +93,35 @@ elsif ($acct_status_type == 2) {
 
   my $Billing = Billing->new($db, $conf);	
 
+  
+  
+  if ($burn_billing == 1) {
+    $self->burn_billing($RAD, $NAS);
+    
+
+    $self->query($db, "INSERT INTO dv_log (uid, start, tp_id, duration, sent, recv, minp, kb,  sum, nas_id, port_id,
+        ip, CID, sent2, recv2, acct_session_id, 
+        bill_id,
+        terminate_cause) 
+        VALUES ('$self->{UID}', FROM_UNIXTIME($RAD->{SESSION_START}), '$self->{TARIF_PLAN}', '$RAD->{ACCT_SESSION_TIME}', 
+        '$RAD->{OUTBYTE}', '$RAD->{INBYTE}', '$self->{TIME_TARIF}', '$self->{TRAF_TARIF}', $self->{CALLS_SUM}+$self->{SUM}, '$NAS->{NAS_ID}',
+        '$RAD->{NAS_PORT}', INET_ATON('$RAD->{FRAMED_IP_ADDRESS}'), '$RAD->{CALLING_STATION_ID}',
+        '$RAD->{OUTBYTE2}', '$RAD->{INBYTE2}',  \"$RAD->{ACCT_SESSION_ID}\", 
+        '$self->{BILL_ID}',
+        '$RAD->{ACCT_TERMINATE_CAUSE}');", 'do');
+    
+    
+  }
+  else {
   ($self->{UID}, 
   $self->{SUM}, 
   $self->{BILL_ID}, 
   $self->{TARIF_PLAN}, 
   $self->{TIME_TARIF}, 
   $self->{TRAF_TARIF}) = $Billing->session_sum("$RAD->{USER_NAME}", 
-                                                 $RAD->{SESSION_START}, 
-                                                 $RAD->{ACCT_SESSION_TIME}, 
-                                                 $RAD);
+                                                $RAD->{SESSION_START}, 
+                                                $RAD->{ACCT_SESSION_TIME}, 
+                                                $RAD);
 
 #  return $self;
   if ($self->{UID} == -2) {
@@ -144,6 +164,8 @@ elsif ($acct_status_type == 2) {
        }
      }
    }
+}
+
 
   # Delete from session
   $self->query($db, "DELETE FROM dv_calls WHERE acct_session_id=\"$RAD->{ACCT_SESSION_ID}\" 
@@ -171,6 +193,9 @@ elsif($acct_status_type eq 3) {
 #  }
 #}
 ###
+  
+  $self->{SUM}=0;
+  $self->burn_billing($RAD, $NAS) if ($burn_billing == 1);
 
   $self->query($db, "UPDATE dv_calls SET
     status='$acct_status_type',
@@ -181,11 +206,13 @@ elsif($acct_status_type eq 3) {
     ex_input_octets='$RAD->{INBYTE2}',
     ex_output_octets='$RAD->{OUTBYTE2}',
     framed_ip_address=INET_ATON('$RAD->{FRAMED_IP_ADDRESS}'),
-    lupdated=UNIX_TIMESTAMP()
+    lupdated=UNIX_TIMESTAMP(),
+    sum=sum+$self->{SUM}
    WHERE
     acct_session_id=\"$RAD->{ACCT_SESSION_ID}\" and 
     user_name=\"$RAD->{USER_NAME}\" and
     nas_id='$NAS->{NAS_ID}';", 'do');
+
  }
 else {
   $self->{errno}=1;
@@ -219,6 +246,97 @@ if ($conf->{s_detalization} eq 'yes') {
  return $self;
 }
 
+
+#**********************************************************
+# Alive accounting
+#**********************************************************
+sub burn_billing {
+	my $self = shift;
+  my ($RAD, $NAS)=@_;
+  
+  $self->query($db, "SELECT lupdated, UNIX_TIMESTAMP()-lupdated, 
+   $RAD->{INBYTE}   - acct_input_octets,
+   $RAD->{OUTBYTE}  - acct_output_octets,
+   $RAD->{INBYTE2}  - ex_input_octets,
+   $RAD->{OUTBYTE2} - ex_output_octets,
+   sum
+   FROM dv_calls 
+  WHERE user_name='$RAD->{USER_NAME}' and acct_session_id='$RAD->{ACCT_SESSION_ID}';");
+
+
+  if($self->{errno}) {
+ 	  return $self;
+   }
+  elsif ($self->{TOTAL} < 1) {
+    $self->{errno}=2;
+    $self->{errstr}="Session account Not Exist";
+    return $self;
+   }
+
+
+  
+  ($RAD->{INTERIUM_SESSION_START},
+   $RAD->{INTERIUM_ACCT_SESSION_TIME},
+   $RAD->{INTERIUM_INBYTE},
+   $RAD->{INTERIUM_OUTBYTE},
+   $RAD->{INTERIUM_INBYTE2},
+   $RAD->{INTERIUM_OUTBYTE2},
+   $self->{CALLS_SUM}
+   ) = @{ $self->{list}->[0] };
+
+  my $Billing = Billing->new($db, $conf);	
+
+
+  ($self->{UID}, 
+   $self->{SUM}, 
+   $self->{BILL_ID}, 
+   $self->{TARIF_PLAN}, 
+   $self->{TIME_TARIF}, 
+   $self->{TRAF_TARIF}) = $Billing->session_sum("$RAD->{USER_NAME}", 
+                                                $RAD->{INTERIUM_SESSION_START}, 
+                                                $RAD->{INTERIUM_ACCT_SESSION_TIME}, 
+                                                {  OUTBYTE  => $RAD->{INTERIUM_OUTBYTE},
+                                                   INBYTE   => $RAD->{INTERIUM_INBYTE},
+                                                   OUTBYTE2 => $RAD->{INTERIUM_OUTBYTE2},
+                                                   INBYTE2  => $RAD->{INTERIUM_INBYTE2}
+                                                	},
+                                                { FULL_COUNT => 1 }
+                                                );
+
+  my $a = `echo "
+  $self->{UID}, 
+   $self->{SUM}, 
+   $self->{BILL_ID}, 
+   $self->{TARIF_PLAN}, 
+   $self->{TIME_TARIF}, 
+   $self->{TRAF_TARIF}
+   \n" >> /tmp/echoccc`;
+
+
+#  return $self;
+  if ($self->{UID} == -2) {
+    $self->{errno}  = 1;   
+    $self->{errstr} = "ACCT [$RAD->{USER_NAME}] Not exist";
+   }
+  elsif($self->{UID} == -3) {
+    my $filename   = "$RAD->{USER_NAME}.$RAD->{ACCT_SESSION_ID}";
+    $self->{errno} = 1;
+    $self->{errstr}= "ACCT [$RAD->{USER_NAME}] Not allow start period '$filename'";
+    $Billing->mk_session_log($RAD);
+   }
+  elsif ($self->{SUM} < 0) {
+    $self->{LOG_DEBUG} =  "ACCT [$RAD->{USER_NAME}] small session ($RAD->{ACCT_SESSION_TIME}, $RAD->{INBYTE}, $RAD->{OUTBYTE})";
+   }
+  elsif ($self->{UID} <= 0) {
+    $self->{LOG_DEBUG} =  "ACCT [$RAD->{USER_NAME}] small session ($RAD->{ACCT_SESSION_TIME}, $RAD->{INBYTE}, $RAD->{OUTBYTE}), $self->{UID}";
+   }
+  else {
+    if ($self->{SUM} > 0) {
+      $self->query($db, "UPDATE bills SET deposit=deposit-$self->{SUM} WHERE id='$self->{BILL_ID}';", 'do');
+     }
+   }
+	
+}
 
 #**********************************************************
 # start

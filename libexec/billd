@@ -18,7 +18,6 @@ Abills::Base->import();
 my $begin_time = check_time();
 
 my $debug=0;
-
 my $ARGV = parse_arguments(\@ARGV);
 
 if (defined($ARGV->{debug})) {
@@ -26,7 +25,11 @@ if (defined($ARGV->{debug})) {
   $debug=1;
 }
 elsif(defined($ARGV->{help})){
-  print "Help:\n";
+  print "Help:
+  checkppp - check Active ppp session and disconnect unknown ip
+  debug    - debug mode
+\n";
+  exit;
 }
 
 require Abills::SQL;
@@ -58,9 +61,12 @@ my $nas = Nas->new($db, \%conf);
 my %stats = ();
 
 
-
-check_lines();
-
+if (defined($ARGV->{checkppp})) {
+  check_ppp();
+ }
+else {
+  check_lines();
+}
 
  if ($begin_time > 0 && $debug == 1)  {
    Time::HiRes->import(qw(gettimeofday));
@@ -142,7 +148,7 @@ sub check_lines {
                   INBYTE2        => $line->[7],
                   OUTBYTE2       => $line->[8]);
 
-        my $Billing = Billing->new($db, $conf);	
+        my $Billing = Billing->new($db, \%conf);	
         my $self;
 
         ($self->{UID}, 
@@ -155,7 +161,7 @@ sub check_lines {
                                                  $RAD{ACCT_SESSION_TIME}, 
                                                  \%RAD);
 
-        
+        next if ($self->{UID} < 1);
         
         print "> Login: $RAD{USER_NAME} START: $RAD{SESSION_START} DURATION: $RAD{ACCT_SESSION_TIME}\n".
          "UID: $self->{UID} SUM: $self->{SUM} BILL_ID: $self->{BILL_ID} TARIF_PLAN: $self->{TARIF_PLAN} TRAF_TARIF: $self->{TRAF_TARIF}\n" if ($debug == 1);
@@ -174,6 +180,92 @@ sub check_lines {
 
 }
 
+
+
+#**********************************************************
+# check Active ppp session and disconnect unknown ip
+#**********************************************************
+sub check_ppp {
+  my $ip_pid_hash = get_if_info();
+  get_db_info($ip_pid_hash);
+
+
+while(my($ip_address, $pid)=each %$ip_pid_hash) {
+  print "Killed IP: $ip_address PID: $pid\n";
+  my $res = `/bin/kill -1 $pid`;
+  $pid=~/(\d+)/;
+  get_pid_info($1);
+}
+
+}
+
+#**********************************************************
+#Get ipaddreses of active sessions
+#**********************************************************
+sub get_db_info {
+ my ($ip_pid_hash) = @_;
+ my $list = $sessions->online( { %LIST_PARAMS } );	
+ foreach my $line (@$list) {
+   delete $ip_pid_hash->{"$line->[9]"};
+  }
+}
+
+
+#**********************************************************
+#Get pid info
+#**********************************************************
+sub get_pid_info {
+ my ($pid, $attr) = @_;
+ my $log_file='/var/log/ppp.log';
+
+ print "\nShow log file info:\n";
+ open(FILE, "<$log_file") || die "Can't open log file '$log_file' $! " ;
+   while(<FILE>) {
+     if (/\[$pid\]/) {
+       print $_;
+      }
+    }
+ close(FILE);
+}
+
+#**********************************************************
+# Get tun interface info
+#**********************************************************
+sub get_if_info {
+ my $res = '';
+ my $count = 0;
+ my $ifconfig = '';
+
+ my %ip_pid_hash = ();
+
+ open (IFC, "$IFCONFIG -u |") || die "Can't open file '$IFCONFIG' $!";
+  while (my $l = <IFC>) {
+     $ifconfig .= $l;
+    }
+ close(IFC);
+
+ while($ifconfig =~ /tun(.+\n.+\n.+PID.+)/gi) {
+    my @ifs = split(/\n/, $1);
+    my $tunnum = 0;
+
+    foreach my $line (@ifs) {
+      if ($line =~ /:/) {
+         ($tunnum, undef)=split(/:/, $line);
+        }
+      elsif ($line =~ m/\d+.\d+.\d+.\d+ --> \d+.\d+.\d+.\d+/g) {
+         (undef, undef, undef, $addr, undef) = split(/ +/, $line);
+        }
+      elsif ($line =~ /PID/gi) {
+         (undef, $pid) = split(/PID/, $line);
+         chomp($pid);
+       }
+     }
+    print "$tunnum $addr $pid\n" if ($debug == 1);
+    $ip_pid_hash{$addr}=$pid;
+  }
+
+  return \%ip_pid_hash;
+}
 
 
 __END__

@@ -113,7 +113,8 @@ sub info {
    }
 
   $IP = (defined($attr->{IP}))? $attr->{IP} : '0.0.0.0';
-  $self->query($db, "SELECT aid, id, name, regdate, phone, disable, $PASSWORD FROM admins $WHERE;");
+  $self->query($db, "SELECT aid, id, name, regdate, phone, disable, web_options, $PASSWORD
+     FROM admins $WHERE;");
 
   if ($self->{TOTAL} < 1) {
      $self->{errno} = 2;
@@ -122,7 +123,7 @@ sub info {
    }
 
   my $a_ref = $self->{list}->[0];
-  if ($a_ref->[6] == 1) {
+  if ($a_ref->[7] == 1) {
      $self->{errno} = 4;
      $self->{errstr} = 'ERROR_WRONG_PASSWORD';
      return $self;
@@ -133,7 +134,8 @@ sub info {
    $self->{A_FIO},
    $self->{A_REGISTRATION},
    $self->{A_PHONE},
-   $self->{DISABLE} )= @$a_ref;
+   $self->{DISABLE},
+   $self->{WEB_OPTIONS} )= @$a_ref;
 
    $self->{SESSION_IP}  = $IP;
 
@@ -167,17 +169,21 @@ sub change {
            A_LOGIN     => 'id',
            A_FIO       => 'name',
            A_REGISTRATION => 'regdate',
-           A_PHONE    => 'phone',
-           DISABLE    => 'disable',
-           PASSWORD   => 'password'
+           A_PHONE     => 'phone',
+           DISABLE     => 'disable',
+           PASSWORD    => 'password',
+           WEB_OPTIONS => 'web_options'
    );
 
+
+ 
+
  $self->changes($admin, { CHANGE_PARAM => 'AID',
-		               TABLE        => 'admins',
-		               FIELDS       => \%FIELDS,
-		               OLD_INFO     => $self->info($self->{AID}),
-		               DATA         => $attr
-		              } );
+		                      TABLE        => 'admins',
+		                      FIELDS       => \%FIELDS,
+		                      OLD_INFO     => $self->info($self->{AID}),
+		                      DATA         => $attr
+		                     } );
 
 
 
@@ -254,6 +260,7 @@ sub action_list {
 
   my @list = ();
   @WHERE_RULES = ();
+  $WHERE='';
 
   # UID
   if ($attr->{UID}) {
@@ -296,7 +303,8 @@ sub action_list {
   }
 
 
-  $WHERE = "WHERE " . join(' and ', @WHERE_RULES) if($#WHERE_RULES > -1);
+  $WHERE = "WHERE " . join(' and ', @WHERE_RULES) if ($#WHERE_RULES > -1);
+
   $self->query($db, "select aa.id, u.id, aa.datetime, aa.actions, a.id, INET_NTOA(aa.ip), aa.module, aa.uid, aa.aid, aa.id
       FROM admin_actions aa
       LEFT JOIN admins a ON (aa.aid=a.aid)

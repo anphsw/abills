@@ -246,13 +246,15 @@ if (-d $conf{extern_acct_dir}) {
 
 my $Acct;
 
+
+
 if(defined($ACCT{$nas->{NAS_TYPE}})) {
   if (! defined($acct_mod{"$nas->{NAS_TYPE}"})) {
     require $ACCT{$nas->{NAS_TYPE}} . ".pm";
     $ACCT{$nas->{NAS_TYPE}}->import();
     $acct_mod{"$nas->{NAS_TYPE}"} = $ACCT{$nas->{NAS_TYPE}}->new($db, \%conf);
    }
-
+  
   $r = $acct_mod{"$nas->{NAS_TYPE}"}->accounting($RAD, $nas);
 }
 else {

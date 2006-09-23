@@ -148,10 +148,12 @@ return qq{
 <form action='$SELF_URL'  METHOD='POST'>
 <input type='hidden' name='index' value='$index'>
 %HIDDDEN_INPUT%
-<table>
-<tr><td>$_GENERED_PARRWORD:</td><td>%GEN_PASSWORD%</td></tr>
-<tr><td>$_PASSWD:</td><td><input type='password' name='newpassword' value='%GEN_PASSWORD%'></td></tr>
-<tr><td>$_CONFIRM_PASSWD:</td><td><input type='password' name='confirm' value='%GEN_PASSWORD%'></td></tr>
+<table> 
+<tr><td>$_PASSWD:</td><td><input type="password" id="text_pma_pw" name="newpassword" title="$_PASSWD" onchange="pred_password.value = 'userdefined';" /></td></tr>
+<tr><td>$_CONFIRM_PASSWD:</td><td><input type="password" name="confirm" id="text_pma_pw2" title="$_CONFIRM" onchange="pred_password.value = 'userdefined';" /></td></tr>
+<tr><td>  <input type="button" id="button_generate_password" value="$_GENERED_PARRWORD" onclick="suggestPassword('%PW_CHARS%', '%PW_LENGTH%')" />
+          <input type="button" id="button_copy_password" value="Copy" onclick="suggestPasswordCopy(this.form)" />
+</td><td><input type="text" name="generated_pw" id="generated_pw" /></td></tr>
 </table>
 <input type=submit name='%ACTION%' value='%LNG_ACTION%'>
 </form>
@@ -327,7 +329,7 @@ return qq{
 <TR><TD>$_DESCRIBE:</TD><TD><input type=text name=NAS_DESCRIBE value="%NAS_DESCRIBE%"></TD></TR>
 <TR><TD>$_TYPE:</TD><TD>%SEL_TYPE%</TD></TR>
 <TR><TD>$_AUTH:</TD><TD>%SEL_AUTH_TYPE%</TD></TR>
-<TR><TD>Alive:</TD><TD><input type=text name=NAS_ALIVE value='%NAS_ALIVE%'></TD></TR>
+<TR><TD>Alive (sec.):</TD><TD><input type=text name=NAS_ALIVE value='%NAS_ALIVE%'></TD></TR>
 <TR><TD>$_DISABLE:</TD><TD><input type=checkbox name=NAS_DISABLE value=1 %NAS_DISABLE%></TD></TR>
 <TR><th colspan=2>:$_MANAGE:</th></TR>
 <TR><TD>IP:PORT:</TD><TD><input type=text name=NAS_MNG_IP_PORT value="%NAS_MNG_IP_PORT%"></TD></TR>
@@ -349,9 +351,12 @@ return qq{
 <input type=hidden name="COMPANY_ID" value='%COMPANY_ID%'>
 <Table>
 <TR><TD>$_NAME:</TD><TD><input type=text name=COMPANY_NAME value="%COMPANY_NAME%"></TD></TR>
+<TR bgcolor=$_COLORS[1]><TD>$_ADDRESS:</TD><TD><input type='text' name='ADDRESS' value='%ADDRESS%' size='60'></TD></TR>
+<TR bgcolor=$_COLORS[1]><TD>$_PHONE:</TD><TD><input type='text' name='PHONE' value='%PHONE%' size='60'></TD></TR>
 <TR bgcolor=$_COLORS[1]><TD>$_BILL:</TD><TD>%BILL_ID%</TD></TR>
 <TR bgcolor=$_COLORS[1]><TD>$_DEPOSIT:</TD><TD>%DEPOSIT%</TD></TR>
 <TR bgcolor=$_COLORS[1]><TD>$_CREDIT:</TD><TD><input type=text name=CREDIT value='%CREDIT%'></TD></TR>
+<TR bgcolor=$_COLORS[1]><TD>$_VAT (%):</TD><TD><input type=text name=VAT value='%VAT%'></TD></TR>
 <TR bgcolor=$_COLORS[1]><TD>$_TAX_NUMBER:</TD><TD><input type=text name=TAX_NUMBER value='%TAX_NUMBER%' size=60></TD></TR>
 <TR bgcolor=$_COLORS[1]><TD>$_ACCOUNT:</TD><TD><input type=text name=BANK_ACCOUNT value='%BANK_ACCOUNT%' size=60></TD></TR>
 <TR bgcolor=$_COLORS[1]><TD>$_BANK_NAME:</TD><TD><input type=text name=BANK_NAME value='%BANK_NAME%' size=60></TD></TR>
@@ -698,10 +703,10 @@ return qq{
 }
 elsif ($tpl_name eq 'help_info') {
 return qq{
-<table width=100%>
-     	<tr bgcolor="$_COLORS[0]"><th align='left'>%TITLE%</th></tr>
+<table width="100%">
+     	<tr bgcolor="$_COLORS[0]"><th align="left">%TITLE%</th></tr>
 	    <tr><td>%HELP%</td></tr>
-	    <tr><td align=right><!-- <a href="$SELF_URL?index=$index&amp;FUNCTION=%FUNCTION%">$_CHANGE</a> --> %LANGUAGE%</td></tr>
+	    <tr><td align="right"><!-- <a href="$SELF_URL?index=$index&amp;FUNCTION=%FUNCTION%">$_CHANGE</a> --> %LANGUAGE%</td></tr>
 </table>
 <hr>
 

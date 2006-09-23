@@ -12,12 +12,13 @@ if [ t$1 = 'tauth' ] ; then
 
   ./rauth.pl \
         SERVICE_TYPE=VPN \
-        USER_NAME="aa1"\
-        USER_PASSWORD="test12345' or 'a'='a"\
-        NAS_IP_ADDRESS=192.168.101.10 \
+        USER_NAME="20194:00001"\
+        USER_PASSWORD="testtest"\
+         CALLING_STATION_ID="10.10.10.2" \
+        NAS_IP_ADDRESS=192.168.202.13 \
 #        NAS-Port-Type = Virtual \
 #        CALLED_STATION_ID="00-09-E8-62-B3-4D" \
-#        CALLING_STATION_ID="0:0f:3d:38:6b:96"
+#        CALLING_STATION_ID="10.10.10.2"
 
 
 #        USER_NAME="aa1" \
@@ -116,17 +117,18 @@ elif [ t$1 = 'tvoip' ] ; then
  echo "Voip";
   if [ t$2 = 'tauth' ] ; then
    echo Auth;
-   ./rauth.pl NAS_IP_ADDRESS="192.168.101.17" \
-     CHAP_PASSWORD="0x06a8f3fb0ab5f4a8e90a590686c845c456" \
+   ./rauth.pl NAS_IP_ADDRESS="192.168.202.13" \
      NAS_PORT_TYPE="Virtual" \
      NAS_IDENTIFIER="ASMODEUSGK" \
      CLIENT_IP_ADDRESS="192.168.101.17" \
      CISCO_AVPAIR="h323-ivr-out=terminal-alias:100;" \
      SERVICE_TYPE="Login-User" \
      CHAP_CHALLENGE="0x43a28c01" \
-     USER_NAME="100" \
+     USER_NAME="200" \
      FRAMED_IP_ADDRESS="192.168.101.23" \
      HUNTGROUP_NAME="voips" 
+
+#     CHAP_PASSWORD="0x06a8f3fb0ab5f4a8e90a590686c845c456" \
  
 
   elif [ t$2 = 'tcallstart' ] ; then

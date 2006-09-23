@@ -49,10 +49,11 @@ sub new {
   my $self = { };
   bless($self, $class);
 
-  if (! defined($CONF->{KBYTE_SIZE})) {
-  	 $CONF->{KBYTE_SIZE}=1024;
-  	}
+  if (! defined($CONF->{KBYTE_SIZE})){
+  	$CONF->{KBYTE_SIZE}=1024;
+   }
 
+  
   #$self->{debug}  =1;
   $self->{TRAFFIC_ROWS}=0;
   $Billing = Billing->new($db, $CONF);
@@ -78,13 +79,16 @@ sub user_ips {
       calls.acct_output_octets,
       dv.tp_id,
       if(u.company_id > 0, cb.id, b.id),
-      if(c.name IS NULL, b.deposit, cb.deposit)+u.credit
+      if(c.name IS NULL, b.deposit, cb.deposit)+u.credit,
+      tp.payment_type
     FROM dv_calls calls, users u
       LEFT JOIN companies c ON (u.company_id=c.id)
       LEFT JOIN bills b ON (u.bill_id=b.id)
       LEFT JOIN bills cb ON (c.bill_id=cb.id)
       LEFT JOIN dv_main dv ON (u.uid=dv.uid)
-    WHERE u.id=calls.user_name;";
+      LEFT JOIN tarif_plans tp ON (tp.id=dv.tp_id)
+    WHERE u.id=calls.user_name
+    and calls.nas_id='$DATA->{NAS_ID}';";
   }
   else {
   	$sql = "SELECT u.uid, calls.framed_ip_address, calls.user_name, 
@@ -93,9 +97,11 @@ sub user_ips {
     calls.acct_output_octets,
     calls.tp_id,
     NUll,
-    NULL
+    NULL,
+    1
     FROM dv_calls calls, users u
-   WHERE u.id=calls.user_name;";
+   WHERE u.id=calls.user_name
+   and calls.nas_id='$DATA->{NAS_ID}';";
   }  
   
   
@@ -124,9 +130,16 @@ sub user_ips {
   	 $users_info{TPS}{$line->[0]} = $line->[6];
    	 $users_info{LOGINS}{$line->[0]} = $line->[2];
      $session_ids{$line->[1]} = $line->[3];
+     
+     #If post paid set deposit to 0
+     if (defined($line->[9]) && $line->[9] == 1) {
+  	   $users_info{DEPOSIT}{$line->[0]} = 0;
+  	  } 
+  	 else {
+  	   $users_info{DEPOSIT}{$line->[0]} = $line->[8];
+  	  }
 
-  	 $users_info{DEPOSIT}{$line->[0]} = $line->[8];
-  	 $users_info{BILL_ID}{$line->[0]} = $line->[7];
+ 	   $users_info{BILL_ID}{$line->[0]} = $line->[7];  	 
 
    	 #$self->{INTERIM}{$line->[1]}{IN}  = 0;
   	 #$self->{INTERIM}{$line->[1]}{OUT} = 0;
@@ -219,7 +232,9 @@ sub traffic_agregate_users {
 }
 
 
-
+#**********************************************************
+#
+#**********************************************************
 sub traffic_agregate_nets {
   my $self = shift;
   my ($DATA) = @_;
@@ -270,7 +285,6 @@ sub traffic_agregate_nets {
       }
 
   #$tp_interval{$TP_ID}=37;
-  print "// $tp_interval{$TP_ID}---------\n";
   print "\nUID: $uid\n####TP $TP_ID Interval: $tp_interval{$TP_ID}  ####\n" if ($self->{debug}); 
     
     if (! defined(  $intervals{$tp_interval{$TP_ID}} )) {
@@ -372,7 +386,7 @@ sub get_zone {
       $zones{$zoneid}{PriceOut}=$line->[2]+0;
 
   	  my $ip_list="$line->[7]";
-  	  #Make ip hach
+  	  #Make ip hash
       # !10.10.0.0/24:3400
       # [Negative][IP][/NETMASK][:PORT]
       my @ip_list_array = split(/\n|;/, $ip_list);
@@ -948,14 +962,16 @@ else {
  $list = $self->{list};
 
 
- $self->query($db, "SELECT count(*),  sum(size)
-  from $table_name
-  $WHERE
-   ;");
+ if ($self->{TOTAL} > 0) {
+   $self->query($db, "SELECT count(*),  sum(size)
+     from $table_name
+     $WHERE ;");
 
-  my $a_ref = $self->{list}->[0];
-  ($self->{COUNT},
-   $self->{SUM}) = @$a_ref;
+    my $a_ref = $self->{list}->[0];
+     ($self->{COUNT},
+      $self->{SUM}) = @$a_ref;
+  }
+
  return $list;
 }
 

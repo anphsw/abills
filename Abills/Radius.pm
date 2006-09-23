@@ -12,7 +12,7 @@
 # See the file 'Changes' in the distrution archive.                         #
 #                                                                           #
 #############################################################################
-# 	$Id: Radius.pm,v 1.1.2.2 2006/04/14 11:28:42 abills Exp $
+# 	$Id: Radius.pm,v 1.1.2.3 2006/08/09 16:08:56 abills Exp $
 
 
 package Radius;
@@ -72,8 +72,9 @@ sub new {
 	$port = getservbyname($service, 'udp') unless $port;
 
 	unless ($port) {
-		my %services = ( radius => 1645, radacct => 1646,
-						 'radius-acct' => 1813 );
+		my %services = ( radius        => 1812, 
+		                 radacct       => 1646,
+						         'radius-acct' => 1813 );
 		if (exists($services{$service})) {
 			$port = $services{$service};
 		} else {

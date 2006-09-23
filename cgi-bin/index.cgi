@@ -50,10 +50,8 @@ if ((length($COOKIES{sid})>1) && (! $FORM{passwd})) {
   $sid = $COOKIES{sid};
 }
 elsif((length($COOKIES{sid})>1) && (defined($FORM{passwd}))){
-	#print "Content-TYpe: text/html\n\n";
 	$html->setCookie('sid', "", "Fri, 1-Jan-2038 00:00:01", $web_path, $domain, $secure);
 	$COOKIES{sid}=undef;
-	#exit;
 }
 
 #Cookie section ============================================
@@ -111,7 +109,7 @@ $user=Users->new($db, $admin, \%conf);
 my %uf_menus = ();
 
 if ($uid > 0) {
-
+  $UID = $uid;
   push @m, "17:0:$_PASSWD:form_passwd:::"   if($conf{user_chg_passwd} eq 'yes');
 
   foreach my $line (@m) {
@@ -157,12 +155,13 @@ if ($uid > 0) {
 
     %USER_FUNCTION_LIST = ();
   }
-
+  
+  $html->{SID}=$sid;
   (undef, $OUTPUT{MENU}) = $html->menu(\%menu_items, \%menu_args, undef, 
      { EX_ARGS         => "&sid=$sid", 
      	 ALL_PERMISSIONS => 'y',
      	 FUNCTION_LIST   => \%functions
-     	  });
+     });
   
   if ($html->{ERROR}) {
   	$html->message('err',  $_ERROR, "$html->{ERROR}");

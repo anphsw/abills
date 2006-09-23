@@ -12,7 +12,8 @@ use Exporter;
 $VERSION = 2.00;
 @ISA = ('Exporter');
 
-@EXPORT = qw( &radius_log
+@EXPORT = qw( 
+  &radius_log
   &null
   &convert
   &parse_arguments
@@ -20,6 +21,7 @@ $VERSION = 2.00;
   &int2ip
   &ip2int
   &int2byte
+  &sec2date
   &sec2time
   &time2sec
   &int2ml
@@ -178,6 +180,8 @@ sub sendmail {
 
   return 0;
 }
+
+
 #*******************************************************************
 # show log
 # show_log($uid, $type, $attr)
@@ -313,7 +317,6 @@ sub time2sec {
   return $sec;
 }
 
-
 #********************************************************************
 # Second to date
 # sec2time()
@@ -337,6 +340,26 @@ sub sec2time {
 }
 
 #********************************************************************
+# Second to date
+# sec2date()
+# sec2date();
+#********************************************************************
+sub sec2date {
+  my $secnum = shift;
+  return "0000-00-00 00:00:00" if ($secnum == 0);
+
+  my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime($secnum);
+  $year += 1900;  $mon++;
+  $sec  = sprintf("%02d",$sec);
+  $min  = sprintf("%02d",$min);
+  $hour = sprintf("%02d",$hour);
+  $mon  = sprintf("%02d",$mon);
+  $mday = sprintf("%02d",$mday);
+
+  return "$year-$mon-$mday $hour:$min:$sec";
+}
+
+#********************************************************************
 # Convert Integer to byte definision
 # int2byte($val, $attr)
 # $KBYTE_SIZE - SIze of kilobyte (Standart 1024)
@@ -344,6 +367,7 @@ sub sec2time {
 sub int2byte {
  my ($val, $attr) = @_;
  
+
  my $KBYTE_SIZE = 1024;
  $KBYTE_SIZE = int($attr->{KBYTE_SIZE}) if (defined($attr->{KBYTE_SIZE}));
  my $MEGABYTE = $KBYTE_SIZE * $KBYTE_SIZE;
@@ -364,18 +388,20 @@ sub int2byte {
 # int2ml($array);
 #********************************************************************
 sub int2ml {
- my $array = shift;
+ my ($array, $attr) = @_;
  my $ret = '';
 
- my @ones = ('гривн€', 'тис€ча', 'м≥льйон', 'м≥ль€рд', 'трильйон');
- my @twos = ('гривн≥', 'тис€ч≥', 'м≥льйони', 'м≥ль€рди', 'трильйони');
- my @fifth = ('гривень', 'тис€ч', 'м≥льйон≥в', 'м≥ль€рд≥в', 'трильйон≥в');
+ my @ones    = @{ $attr->{ONES} };
+ my @twos    = @{ $attr->{TWOS} };
+ my @fifth   = @{ $attr->{FIFTH} };
 
- my @one = ('', 'один', 'два', 'три', 'чотири', 'п\'€ть', 'ш≥сть', 'с≥м', 'в≥с≥м', 'дев\'€ть');
- my @onest = ('', 'одна', 'дв≥');
- my @ten = ('', '', 'двадц€ть', 'тридц€ть', 'сорок', 'п\'€тдес€т', 'ш≥стдес€т', 'с≥мдес€т', 'в≥с≥мдес€т', 'дев\'€носто');
- my @tens = ('дес€ть', 'одинадц€ть', 'дванадц€ть', 'тринадц€ть', 'чотирнадц€ть', 'п\'€тнадц€ть', 'ш≥стнадц€ть', 'с≥мнадц€ть', 'в≥с≥мнадц€ть', 'дев\'€тнадц€ть');
- my @hundred = ('', 'сто', 'дв≥ст≥', 'триста', 'чотириста', 'п\'€тсот', 'ш≥стсот', 'с≥мсот', 'в≥с≥мсот', 'дев\'€тсот');
+ my @one     = @{ $attr->{ONE} };
+ my @onest   = @{ $attr->{ONEST} };
+ my @ten     = @{ $attr->{TEN} };
+ my @tens    = @{ $attr->{TENS} };
+ my @hundred = @{ $attr->{HUNDRED} };
+
+ my $money_unit_names = $attr->{MONEY_UNIT_NAMES};
 
  $array =~ tr/0-9,.//cd;
  my $tmp = $array;
@@ -383,7 +409,7 @@ sub int2ml {
 
 #print $array,"\n";
 if ($count > 1) {
-  $ret .= "i2s.pl: bad integer format\n";
+  $ret .= "bad integer format\n";
   return 1;
 }
 
@@ -478,8 +504,9 @@ for ($i = $first_length; $i >=1; $i--) {
   }
 }
 
+
 if ($second ne '') {
- $ret .= "$second коп.\n";
+ $ret .= " $second  $money_unit_names->[1]\n";
 } else {
  $ret .= "\n";
 }

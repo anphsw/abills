@@ -1,0 +1,54 @@
+=====0.34=====
+  * 21.09.2006 - FreeBSD ipfw table support
+  * Добавлена ставка НДС.
+ ''Изминения для базы''\\
+
+    ALTER TABLE companies add column vat double(5,2) unsigned NOT NULL default '0.00';
+    ALTER TABLE fees add column vat double(5,2) unsigned NOT NULL default '0.00';
+    ALTER TABLE docs_acct add column vat double(5,2) unsigned NOT NULL default '0.00';
+
+  * Сохранение настроек для веб интерфейса администратора в базе\\
+ ''Изминения для базы''\\
+  ALTER TABLE admins add column web_options text NOT NULL;
+
+  * Добавлена возможность Callback\\
+ ''Изминения для базы''\\
+  ALTER TABLE dv_main add column callback tinyint(1) unsigned NOT NULL default '0';
+
+  * Добавлены поля в форму информации о компании \\
+ ''Изминения для базы''\\
+  ALTER TABLE companies add column  address varchar(100) NOT NULL default '';
+  ALTER TABLE companies add column phone varchar(20) NOT NULL default '';
+
+  * Добавлен модуль [[http://abills.asmodeus.com.ua/wiki/doku.php?id=abills:docs:msgs:ru|Msgs]]
+  * Доработан модуль [[http://abills.asmodeus.com.ua/wiki/doku.php?id=abills:docs:docs:ru|Docs]]
+  * В модуль карточек добавлена информация о дилерах [[http://abills.asmodeus.com.ua/wiki/doku.php?id=abills:docs:cards:ru|Cards]]
+  * Новый модуль [[http://abills.asmodeus.com.ua/wiki/doku.php?id=abills:docs:netlist:ru|Netlist]]
+
+
+
+=====0.33=====
+  * Поддержка rlm_perl (пока тестово)
+  * Поддержка PPPD IPv4 zone counters
+  * Подправлен XML вывод
+  * Исправлено несколько серёзных ошибок безопасности
+
+=====0.32=====
+  * Авторизаци 802.1х (EAP)
+  * Занесение в лог неавторизированых сесий для MSCHAP и EAP
+  * Ipnet - модуль подщёта трафика на маршрутизаторе.
+  * Clubmonitor - Дополнение к Ipnet для раздачи интернета в клубе и генерации карт пользования (Возможно использовать для небольшых HotSpot).
+  * Графики для статистики
+  
+
+=====0.31=====
+  * Added Mikrotik as Standart NAS Server
+  * $conf{USERNAMEREGEXP} задания символов для логина пользователя
+  * $conf{netsfilespath} изминён на $conf{DV_EXPPP_NETFILES}
+  * fix disconnecting postpaid users in billd
+  * $conf{ERROR_ALIVE_COUNT} количество непришедшых Alive пакетов после которого билинг автоматом переносит пользователя в таблицу Zap. Решает проблему зависших сесий. Время Alive пакета берётся из формы ''/System configuration/NAS/''.
+  * Блокировка создания тарифных планов с ID < 1
+  * Поправлена работа с Mysql 5.x
+  * Добавлен модуль для генерации карт оплат (комерческий)
+
+=====0.30=====

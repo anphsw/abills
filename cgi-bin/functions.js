@@ -149,3 +149,48 @@ function confirmLink(theLink, theSqlQuery)
 
     return is_confirmed;
 } // end of the 'confirmLink()' function
+
+
+/**
+ * Generate a new password, which may then be copied to the form
+ * with suggestPasswordCopy().
+ *
+ * @param   string   the form name
+ *
+ * @return  boolean  always true
+ */
+function suggestPassword(input_pwchars, input_passwordlength) {
+    var pwchars = "abcdefhjmnpqrstuvwxyz23456789ABCDEFGHJKLMNPQRSTUVWYXZ.,:";
+    var passwordlength = 8;    // do we want that to be dynamic?  no, keep it simple :)
+    var passwd = document.getElementById('generated_pw');
+
+    if (input_pwchars != '') {
+    	pwchars = input_pwchars;
+     }
+    
+    if (input_passwordlength != '') {
+    	passwordlength = input_passwordlength;
+     }
+
+
+    
+    passwd.value = '';
+
+    for ( i = 0; i < passwordlength; i++ ) {
+        passwd.value += pwchars.charAt( Math.floor( Math.random() * pwchars.length ) )
+    }
+    return passwd.value;
+}
+
+/**
+ * Copy the generated password (or anything in the field) to the form
+ *
+ * @param   string   the form name
+ *
+ * @return  boolean  always true
+ */
+function suggestPasswordCopy() {
+    document.getElementById('text_pma_pw').value = document.getElementById('generated_pw').value;
+    document.getElementById('text_pma_pw2').value = document.getElementById('generated_pw').value;
+    return true;
+}

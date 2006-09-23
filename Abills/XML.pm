@@ -322,10 +322,14 @@ sub menu {
  
  my $menu_navigator='';
  my $menu_text='';
+ $menu_text="<SID>$self->{SID}</SID>\n" if ($self->{SID});
+
+ return $menu_navigator, $menu_text if ($FORM{NO_MENU});
+
  my $EX_ARGS = (defined($attr->{EX_ARGS})) ? $attr->{EX_ARGS} : '';
  my $fl = $attr->{FUNCTION_LIST};
 
- return $menu_navigator, $menu_text if ($FORM{NO_MENU});
+
  
 my  %new_hash = ();
 while((my($findex, $hash)=each(%$menu_items))) {
@@ -571,7 +575,7 @@ sub header {
 
 
 my $CHARSET=(defined($attr->{CHARSET})) ? $attr->{CHARSET} : 'windows-1251';
-
+$CHARSET=~s/ //g;
 $self->{header} .= qq{<?xml version="1.0"  encoding="$CHARSET" ?>};
 #<!DOCTYPE rss PUBLIC "-//Netscape Communications//DTD RSS 0.91//EN"
 #              "http://my.netscape.com/publish/formats/rss-0.91.dtd">
@@ -586,7 +590,7 @@ $self->{header} .= qq{<?xml version="1.0"  encoding="$CHARSET" ?>};
 #q{ 
 #<title>~AsmodeuS~ Billing System</title>
 #</head>} .
-#"<body style='margin: 0' bgcolor=\"$_COLORS[10]\" text=\"$_COLORS[9]\" link=\"$_COLORS[8]\"  vlink=\"$_COLORS[7]\">\n";
+
 
  return $self->{header};
 }
@@ -911,7 +915,7 @@ sub show  {
   $self->{show} .= "</TABLE>\n";
 
   if (defined($self->{pages})) {
- 	   $self->{show} =  '<br/>'.$self->{pages} . $self->{show} . $self->{pages} .'<br/>';
+ 	   $self->{show} =  '<br/>' .$self->{show} . $self->{pages} .'<br/>';
  	 } 
 
   if ((defined($self->{NO_PRINT})) && ( !defined($attr->{OUTPUT2RETURN}) )) {
@@ -980,7 +984,7 @@ sub message {
  my ($type, $caption, $message) = @_;	
  my $output = "<MESSAGE TYPE=\"$type\" CAPTION=\"$caption\">$message</MESSAGE>\n";
  
-   if (defined($self->{NO_PRINT})) {
+  if (defined($self->{NO_PRINT})) {
   	$self->{OUTPUT}.=$output;
   	return $output;
    }
@@ -1010,7 +1014,7 @@ sub pages {
  $begin = ($PG - $PAGE_ROWS * 3 < 0) ? 0 : $PG - $PAGE_ROWS * 3;
 
 for(my $i=$begin; ($i<=$count && $i < $PG + $PAGE_ROWS * 10); $i+=$PAGE_ROWS) {
-   $self->{pages} .= ($i == $PG) ? "<b>$i</b>:: " : $self->button($i, "$argument&pg=$i"). ':: ';
+   $self->{pages} .= ($i == $PG) ? "<b>$i</b>" : $self->button($i, "$argument&pg=$i"). '';
 }
  
  return "<PAGES>". $self->{pages} ."</PAGES>\n";
@@ -1212,18 +1216,25 @@ sub letters_list {
  my $pages_qs = $attr->{pages_qs} if (defined($attr->{pages_qs}));
 
   
-my $letters = $self->button('All ', "index=$index"). '::';
+my $output = $self->button('All ', "index=$index");
 for (my $i=97; $i<123; $i++) {
   my $l = chr($i);
   if ($FORM{letter} eq $l) {
-     $letters .= "<b>$l </b>";
+     $output .= "<b>$l </b>";
    }
   else {
-     $letters .= $self->button("$l", "index=$index&letter=$l$pages_qs") . ' ';
+     $output .= $self->button("$l", "index=$index&letter=$l$pages_qs") . "\n";
    }
  }
 
- return $letters;
+  if (defined($self->{NO_PRINT})) {
+  	$self->{OUTPUT}.=$output;
+  	return '';
+   }
+	else {
+ 	  print $output;
+	 }
+
 }
 
 1
