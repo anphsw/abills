@@ -813,10 +813,6 @@ sub filearch_video_genres {
   $Filearch->{ACTION}='add';
   $Filearch->{LNG_ACTION}=$_ADD;
 
-
-	$Filearch->{debug}=1;
-	
-	
 if ($FORM{add}) {
   $Filearch->genres_add({ %FORM });
 	if (! $Filearch->{errno}) {
@@ -854,7 +850,7 @@ $html->tpl_show(_include('filearch_video_genres', 'Filearch'), $Filearch);
 my $list = $Filearch->genres_list({ %LIST_PARAMS });
 
 $table = $html->table( { width       => '100%',
-                         caption     => "Video",
+                         caption     => "$_GENRES",
                          border      => 1,
                          title       => ["$_NAME", "$_COUNT", "ShareReaktor", "ImDB", "-", "-" ],
                          cols_align  => ['left',  'right', 'left', 'left', 'center:noprint', 'center:noprint' ],
@@ -882,7 +878,6 @@ print $table->show();
 
 #*******************************************************************
 # 
-# 
 #*******************************************************************
 sub filearch_ext_check {
   my ($attr)=@_;
@@ -892,6 +887,91 @@ sub filearch_ext_check {
   #return $INFO;
 }
 
+
+
+
+
+
+#*******************************************************************
+# 
+#*******************************************************************
+sub filearch_chapters {
+
+  $Filearch->{debug}=1;
+  $Filearch->{ACTION}='add';
+  $Filearch->{LNG_ACTION}=$_ADD;
+
+
+if ($FORM{add}) {
+  $Filearch->chapter_add({ %FORM });
+	if (! $Filearch->{errno}) {
+    $html->message('info', $_INFO, "$_ADDED");	
+   }
+ }
+elsif ($FORM{change}) {
+  $Filearch->chapter_change({ %FORM });
+	if (! $Filearch->{errno}) {
+    $html->message('info', $_INFO, "$_CHANGING ");	
+   }
+ }
+elsif ($FORM{ID}) {
+  $Filearch->chapter_info($FORM{ID});
+	if (! $Filearch->{errno}) {
+    $html->message('info', $_INFO, "$_CHANGING ");	
+   }
+  $Filearch->{ACTION}='change';
+  $Filearch->{LNG_ACTION}=$_CHANGE;
+ }
+elsif ($FORM{del} && $FORM{is_js_confirmed} ) {
+	$Filearch->chapter_del($FORM{del});
+	if (! $Filearch->{errno}) {
+    $html->message('info', $_INFO, "$_CHANGING ");	
+   }
+ }
+
+if ($Filearch->{errno}) {
+  $html->message('err', $_ERROR, "[$Filearch->{errno}] $err_strs{$Filearch->{errno}}");	
+  return 0;
+ }	
+
+
+$Filearch->{TYPE_SEL}=$html->form_select('TYPE', {
+  	                           	          SELECTED          => $type,
+ 	                                        SEL_ARRAY         => [ 'Video', 'MP3', 'Files' ],
+ 	                                        NO_ID             => 1
+  	                                    }),
+
+
+$html->tpl_show(_include('filearch_chapters', 'Filearch'), $Filearch);
+my $list = $Filearch->chapters_list({ %LIST_PARAMS });
+
+$table = $html->table( { width       => '100%',
+                         caption     => "$_CHAPTERS",
+                         border      => 1,
+                         title       => ["ID", "$_NAME", "$_TYPE", "$_FOLDER", '-', '-' ],
+                         cols_align  => ['right', 'left', 'left', 'center:noprint', 'center:noprint' ],
+                         qs          => $pages_qs,
+                       });
+
+foreach my $line (@$list)  {
+  $table->addrow( $line->[0],
+    		          $line->[1],
+  	  	          $line->[2],
+  	  	          $line->[3],
+  		            $html->button("$_SHOW", "index=$index&ID=$line->[0]"), 
+  		           $html->button($_DEL, "index=$index$pages_qs&del=$line->[0]", { MESSAGE => "$_DEL [$line->[0]] ?" })
+  		           );
+ }
+
+print $table->show();
+$table = $html->table({ width       => '100%',
+                        cols_align  => [ 'left', 'right'],    
+                        rows        => [ ["$_TOTAL:", "$Filearch->{TOTAL}" ] ]
+                      });
+
+print $table->show();
+  	
+}
 
 
 1

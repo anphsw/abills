@@ -7,6 +7,12 @@
 #
 #*******************************************************************
 
+
+use BER;
+use SNMP_Session;
+use SNMP_util;
+
+
 my $PPPCTL = '/usr/sbin/pppctl';
 my $RADCLIENT = '/usr/local/bin/radclient';
 my $SUDO = '/usr/local/bin/sudo';
@@ -46,12 +52,15 @@ sub hangup {
     #hangup_mikrotik_telnet($NAS, $PORT, $USER);
   }
  elsif ($nas_type eq 'cisco')  {
- 	  hangup_cisco($NAS, $PORT, $attr);
+ 	  hangup_cisco($NAS, $PORT, { USER => $USER });
   }
  elsif ($nas_type eq 'mpd') {
     hangup_mpd($NAS, $PORT);
   }
- elsif ($nas_type eq 'pppd') {
+ elsif ($nas_type eq 'patton')  {
+ 	  hangup_patton29xx($NAS, $PORT, $attr);
+  }
+ elsif ($nas_type eq 'pppd' || $nas_type eq 'lepppd') {
    hangup_pppd($NAS, $PORT, $attr);
   }
  else {
@@ -74,6 +83,9 @@ sub get_stats {
 
  if ($nas_type eq 'usr')       {
     %stats = stats_usr($NAS, $PORT);
+  }
+ elsif ($nas_type eq 'patton')   {
+    %stats = stats_patton29xx($NAS, $PORT);
   }
  elsif ($nas_type eq 'pm25')   {
     %stats = stats_pm25($NAS, $PORT);
@@ -110,14 +122,16 @@ sub telnet_cmd {
  my $timeout = defined($attr->{'TimeOut'}) ? $attr->{'TimeOut'} : 5;
  
 
- 
+
  use Socket;
+ my $dest = sockaddr_in($port, inet_aton("$hostname"));
+
  if(! socket(SH, PF_INET, SOCK_STREAM, getprotobyname('tcp'))) {
  	 print "ERR: Can't init '$hostname:$port' $!";
    return 0;
   }
 
- my $dest = sockaddr_in($port, inet_aton("$hostname"));
+ 
 
  if(! CORE::connect(SH, $dest) ) { 
    print "ERR: Can't connect to '$hostname:$port' $!";
@@ -126,13 +140,19 @@ sub telnet_cmd {
 
  log_print('LOG_DEBUG', "Connected to $hostname:$port");
 
- my $sock = \*SH;
- my $MAXBUF=512;
+ my $sock  = \*SH;
+ my $MAXBUF= 512;
  my $input = '';
- my $len = 0;
- my $text = '';
+ my $len   = 0;
+ my $text  = '';
  my $inbuf = '';
- my $res = '';
+ my $res   = '';
+
+
+ my $old_fh = select($SH); $| = 1; select($old_fh);
+
+ SH->autoflush(1);
+
 
 
 foreach my $line (@$commands) {
@@ -151,6 +171,8 @@ foreach my $line (@$commands) {
      $len = length($inbuf);
      alarm 5;
     } while ($len >= $MAXBUF || $len < 4);
+
+
  
   log_print('LOG_DEBUG', "Get: \"$input\"\nLength: $len");
   log_print('LOG_DEBUG', " Wait for: '$waitfor'");
@@ -158,7 +180,6 @@ foreach my $line (@$commands) {
   if ($input =~ /$waitfor/ig){ # || $waitfor eq '') {
     $text = $sendtext;
     log_print('LOG_DEBUG', "Send: $text");
-    #print "$waitfor - $sendtext\n";
     send($sock, "$text\r\n", 0, $dest) or die log_print('LOG_INFO', "Can't send: '$text' $!");
     #"Can't send: $!\n";
    };
@@ -253,19 +274,18 @@ sub stats_pm25 {
 
   my $PM25_PORT=$PORT+2;
   my $SNMP_COM = $NAS->{NAS_MNG_PASSWORD} || '';
+  #my $in  = `$SNMPWALK -v 1 -c "$SNMP_COM" $NAS->{NAS_IP} IF-MIB::ifInOctets.$PM25_PORT | awk '{print \$4}'`;
+  #my $out = `$SNMPWALK -v 1 -c "$SNMP_COM" $NAS->{NAS_IP} IF-MIB::ifOutOctets.$PM25_PORT  | awk '{print \$4}'`;
 
-  my $in  = `$SNMPWALK -v 1 -c "$SNMP_COM" $NAS->{NAS_IP} IF-MIB::ifInOctets.$PM25_PORT | awk '{print \$4}'`;
-  my $out = `$SNMPWALK -v 1 -c "$SNMP_COM" $NAS->{NAS_IP} IF-MIB::ifOutOctets.$PM25_PORT  | awk '{print \$4}'`;
 
+  my ($in) = snmpget($SNMP_COM .'@'. $NAS->{NAS_IP},  ".1.3.6.1.2.1.2.2.1.10.$PM25_PORT");
+  my ($out) = snmpget($SNMP_COM .'@'.$NAS->{NAS_IP}, ".1.3.6.1.2.1.2.2.1.16.$PM25_PORT");
 
-#print "$SNMPWALK -v 1 -c \"$SNMP_COM\" $NAS->{NAS_IP} IF-MIB::ifOutOctets.$PM25_PORT  | awk '{print \$4}'";
-
-if ($in eq '') {
-  $stats{error}='y';
+ 
+if (! defined($in)) {
+  $stats{error}=1;
 } 
 elsif (int($in) + int($out) > 0) {
-#  chomp($in);
-#  chomp($out);
   $stats{in}  = int($in);
   $stats{out} = int($out);
 }
@@ -377,9 +397,9 @@ sub radius_disconnect {
   my ($NAS, $PORT, $USER) = @_;
  
   my ($ip, $mng_port)=split(/:/, $NAS->{NAS_MNG_IP_PORT}, 2);
-  log_print('LOG_DEBUG', " HANGUP: echo \"User-Name=$USER\" | $RADCLIENT $ip:$mng_port 40 $NAS->{NAS_MNG_PASSWORD}\n"); 
+  log_print('LOG_DEBUG', " HANGUP: echo \"User-Name=$USER\" | $RADCLIENT $ip:$mng_port 40 '$NAS->{NAS_MNG_PASSWORD}'\n"); 
 
-  my $result = `echo "User-Name=$USER" | $RADCLIENT $ip:$mng_port 40 $NAS->{NAS_MNG_PASSWORD}`;
+  my $result = `echo "User-Name=$USER" | $RADCLIENT $ip:$mng_port 40 '$NAS->{NAS_MNG_PASSWORD}'`;
 
   #Received response ID 219, code 41, length = 20 `;
   #echo "User-Name = user" | radclient 10.0.0.219:3799 40 secret123
@@ -430,6 +450,8 @@ sub hangup_mikrotik_telnet {
 sub hangup_cisco {
  my ($NAS, $PORT, $attr) = @_;
  my $exec;
+ my $command = '';
+ my $user = $attr->{USER};
 
 #Rsh version
 if ($NAS->{NAS_MNG_USER}) {
@@ -437,22 +459,40 @@ if ($NAS->{NAS_MNG_USER}) {
   my $cisco_user=$NAS->{NAS_MNG_USER};
 # использование: NAS-IP-Address NAS-Port SQL-User-Name
 
-  my $user = $attr->{USER};
 
- 
-  my $VIRTUALINT=`/usr/bin/rsh -l $cisco_user $NAS->{NAS_IP} show users | grep -i " \$1 " | awk '{print \$1}';`;
-  $PORT=`echo $VIRTUALINT echo  | sed -e "s/[[:alpha:]]*\\([[:digit:]]\\{1,\\}\\)/\\1/"`;
-
-  $exec = `/usr/bin/rsh -4 -n -l $cisco_user $NAS->{NAS_IP} clear interface Virtual-Access $PORT`; 
+  $command = "/usr/bin/rsh -l $cisco_user $NAS->{NAS_IP} show users | grep -i \" \$1 \" | awk '{print \$1}';";
+  log_print('LOG_DEBUG', "$command");
+  my $VIRTUALINT=`$command`;
+  $command = "echo $VIRTUALINT echo  | sed -e \"s/[[:alpha:]]*\\([[:digit:]]\\{1,\\}\\)/\\1/\"";
+  log_print('LOG_DEBUG', "$command");
+  $PORT=`$command`;
+  $command = "/usr/bin/rsh -4 -n -l $cisco_user $NAS->{NAS_IP} clear interface Virtual-Access $PORT";
+  log_print('LOG_DEBUG', "$command");
+  $exec = `$command`; 
  }
 else {
 #SNMP version
   my $SNMP_COM = $NAS->{NAS_MNG_PASSWORD} || '';
-  my $SNMPSET=`/usr/bin/which snmpset`;
- 
-  my $INTNAME=`finger \@$NAS->{NAS_IP} | awk '{print $1 " " $2}' | grep $1"$" | awk '{print $1}' | sed s/Vi/Virtual-Access/g`;
-  my $INTNUM=`$SNMPWALK -v 1 -c $SNMP_COM -O n $NAS->{NAS_IP} .1.3.6.1.2.1.2.2.1.2 | grep $INTNAME"$" | awk '{print $1}' | sed s/.1.3.6.1.2.1.2.2.1.2.//g`;
-  $exec=`$SNMPSET -v 1 -c $SNMP_COM $NAS->{NAS_IP} 1.3.6.1.2.1.2.2.1.7.$INTNUM i 2 > /dev/null 2>&1`;
+
+  $command = "/usr/bin/which snmpset";
+  log_print('LOG_DEBUG', "$command");
+  my $SNMPSET=`$command`;
+  $SNMPSET =~ s/\n//;
+
+  $command = "finger \@$NAS->{NAS_IP} | awk '{print \$1 \" \" \$2}' | grep $user\"\$\" | awk '{print \$1}' | sed s/Vi/Virtual-Access/g";
+  log_print('LOG_DEBUG', "$command");
+  my $INTNAME=`$command`;
+  $INTNAME =~ s/\n//;
+
+  $command = "$SNMPWALK -v 1 -c \"$SNMP_COM\" -O n $NAS->{NAS_IP} .1.3.6.1.2.1.2.2.1.2 | grep $INTNAME\"\$\" | awk '{print \$1}' | sed s/.1.3.6.1.2.1.2.2.1.2.//g";
+  log_print('LOG_DEBUG', "$command");
+
+  my $INTNUM=`$command`;
+  $INTNUM =~ s/\n//;
+
+  $command = "$SNMPSET -v 1 -c \"$SNMP_COM\" $NAS->{NAS_IP} 1.3.6.1.2.1.2.2.1.7.$INTNUM i 2 > /dev/null 2>&1";
+  log_print('LOG_DEBUG', "$command");
+  $exec=`$command`;
 }
 
  return $exec;
@@ -623,28 +663,101 @@ sub stats_pppd  {
 }
 
 
-#*******************************************************************
-# HANGUP pppd
-# hangup_pppd($SERVER, $PORT)
-# Необходимо добавить в файл /etc/sudoers: 
+#******************************************************************* 
+# HANGUP pppd 
+# hangup_pppd($SERVER, $PORT) 
+# add next string to  /etc/sudoers: 
 # 
 # apache   ALL = NOPASSWD: /usr/abills/misc/pppd_kill 
 # 
+#******************************************************************* 
+sub hangup_pppd { 
+ my ($NAS, $id, $attr) = @_; 
+
+
+ my $IP =  $attr->{FRAMED_IP_ADDRESS} ; 
+
+
+ system ("/usr/bin/sudo /usr/abills/misc/pppd_kill $IP"); 
+ return 0; 
+} 
+
+
+
+
 #*******************************************************************
-sub hangup_pppd {
- my ($NAS, $id, $attr) = @_;
+# HANGUP Patton 29xx
+#*******************************************************************
+sub hangup_patton29xx {
+ my ($NAS, $PORT, $attr) = @_;
+ my $exec = '';
+ 
+ 
+  # Get active sessions
+  my %active = ();
+  my @arr = snmpwalk("$NAS->{NAS_MNG_PASSWORD}\@$NAS->{NAS_IP}", ".1.3.6.1.4.1.1768.5.100.1.3");
+  foreach my $line (@arr) {
+	  if ($line =~ /(\d+):6/) {
+		  $active{$1}=1;
+	   }
+   }
+  
+  #Get iface
+  @arr = snmpwalk("$NAS->{NAS_MNG_PASSWORD}\@$NAS->{NAS_IP}", ".1.3.6.1.4.1.1768.5.100.1.9");
+  foreach my $line (@arr) {
+	  if ($line =~ /(\d+):(\d+)/) {
+		  if ($2 == $PORT && $active{$1} ) {
+		    $exec = snmpset("$NAS->{NAS_MNG_PASSWORD}\@$NAS->{NAS_IP}", ".1.3.6.1.4.1.1768.5.100.1.3.$1", 'integer', 10);
+		    #print " IFACE: $iface INDEX $1 IN: $in OUT: $out\n";
+		    last;
+       }
+	   }
+  }
 
- $IP_ADDR=$attr->{FRAMED_IP_ADDRESS}  || '0.0.0.0';
-
- my $INTERFACE=`/sbin/ifconfig | awk -v RS='\n\n'  "/$IP_ADDR/ {print \\$1}"`;
- my $PPP_PID=`cat /var/run/$INTERFACE.pid`;
- my $res =`$SUDO /bin/kill -1 $PPP_PID`;
+  
+  
+ 
 
 
- return 0;
+ return $exec;
 }
 
 
+#*******************************************************************
+# Get stats from Patton RAS 29xx
+# 
+#*******************************************************************
+sub stats_patton29xx {
+  my ($NAS, $PORT) = @_;
 
+  my %stats = (in  => 0,
+               out => 0);
+
+  # Get active sessions
+  my %active = ();
+  my @arr = snmpwalk("$NAS->{NAS_MNG_PASSWORD}\@$NAS->{NAS_IP}", ".1.3.6.1.4.1.1768.5.100.1.3");
+  foreach my $line (@arr) {
+	  if ($line =~ /(\d+):6/) {
+		  $active{$1}=1;
+	   }
+   }
+
+  #Get iface
+  @arr = snmpwalk("$NAS->{NAS_MNG_PASSWORD}\@$NAS->{NAS_IP}", ".1.3.6.1.4.1.1768.5.100.1.9");
+  foreach my $line (@arr) {
+	  if ($line =~ /(\d+):(\d+)/) {
+		  if ($2 == $PORT && $active{$1} ) {
+		    $stats{out} = snmpget("$NAS->{NAS_MNG_PASSWORD}\@$NAS->{NAS_IP}", ".1.3.6.1.4.1.1768.5.100.1.36.$1");
+		    $stats{in} = snmpget("$NAS->{NAS_MNG_PASSWORD}\@$NAS->{NAS_IP}", ".1.3.6.1.4.1.1768.5.100.1.37.$1");
+		    #print " IFACE: $iface INDEX $1 IN: $in OUT: $out\n";
+		    last;
+       }
+	   }
+  }
+
+
+
+  return %stats;
+}
 
 1

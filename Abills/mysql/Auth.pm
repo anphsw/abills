@@ -58,12 +58,13 @@ sub dv_auth {
 	
 	
   my ($ret, $RAD_PAIRS) = $self->authentication($RAD, $NAS, $attr);
+
   if ($ret == 1) {
      return 1, $RAD_PAIRS;
   }
   
   my $MAX_SESSION_TRAFFIC = $CONF->{MAX_SESSION_TRAFFIC} || 2048;
-
+ 
   $self->query($db, "select  if (dv.logins=0, tp.logins, dv.logins) AS logins,
   if(dv.filter_id != '', dv.filter_id, tp.filter_id),
   if(dv.ip>0, INET_NTOA(dv.ip), 0),
@@ -115,10 +116,6 @@ sub dv_auth {
     return 1, $RAD_PAIRS;
    }
 
-#  print $RAD_PAIRS->{'MS-CHAP-MPPE-Keys'};
-
-  my $a_ref = $self->{list}->[0];
-
   ($self->{LOGINS}, 
      $self->{FILTER}, 
      $self->{IP}, 
@@ -141,10 +138,8 @@ sub dv_auth {
      $self->{INTERVALS},
      $self->{ACCOUNT_AGE},
      $self->{CALLBACK}
-    ) = @$a_ref;
+    ) = @{ $self->{list}->[0] };
 
-
-#return 0, \%RAD_PAIRS;
 #DIsable
 if ($self->{DISABLE}) {
   $RAD_PAIRS->{'Reply-Message'}="Service Disable";
@@ -189,9 +184,7 @@ if ($self->{CID} ne '') {
 #Check  simultaneously logins if needs
 if ($self->{LOGINS} > 0) {
   $self->query($db, "SELECT count(*) FROM dv_calls WHERE user_name='$RAD->{USER_NAME}' and status <> 2;");
-  
-  my $a_ref = $self->{list}->[0];
-  my($active_logins) = @$a_ref;
+  my($active_logins) = @{ $self->{list}->[0] };
   if ($active_logins >= $self->{LOGINS}) {
     $RAD_PAIRS->{'Reply-Message'}="More then allow login ($self->{LOGINS}/$active_logins)";
     return 1, $RAD_PAIRS;
@@ -230,8 +223,7 @@ else {
           REDUCTION           => $self->{REDUCTION},
           POSTPAID            => $self->{PAYMENT_TYPE}
          });
-
-    print "RT: $remaining_time" if ($debug == 1);
+     print "RT: $remaining_time" if ($debug == 1);
    }
 
 
@@ -249,6 +241,7 @@ else {
   }
  elsif ($remaining_time == -2) {
     $RAD_PAIRS->{'Reply-Message'}="Not Allow time";
+    $RAD_PAIRS->{'Reply-Message'} .= " Interval: $ATTR->{TT}" if ($ATTR->{TT});
     return 1, $RAD_PAIRS;
   }
  elsif($remaining_time > 0) {
@@ -290,8 +283,7 @@ foreach my $line (@periods) {
           $session_traf_limit = $self->{$line . '_TRAF_LIMIT'} if ($self->{$line . '_TRAF_LIMIT'} > 0);
          } 
         else {
-        	$a_ref = $self->{list}->[0];
-          ($session_time_limit, $session_traf_limit) = @$a_ref;
+          ($session_time_limit, $session_traf_limit) = @{ $self->{list}->[0] };
           push (@time_limits, $session_time_limit) if ($self->{$line . '_TIME_LIMIT'} > 0);
          }
 
@@ -406,13 +398,17 @@ if ($NAS->{NAS_TYPE} eq 'mikrotik') {
   #global Traffic
   if ($EX_PARAMS->{traf_limit} > 0) {
                    
-    $RAD_PAIRS->{'Mikrotik-Recv-Limit'} = $EX_PARAMS->{traf_limit} * $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE} / 2;
-    $RAD_PAIRS->{'Mikrotik-Xmit-Limit'} = $EX_PARAMS->{traf_limit} * $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE} / 2;
+    $RAD_PAIRS->{'Mikrotik-Recv-Limit'} = int($EX_PARAMS->{traf_limit} * $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE} / 2);
+    $RAD_PAIRS->{'Mikrotik-Xmit-Limit'} = int($EX_PARAMS->{traf_limit} * $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE} / 2);
+
+    # $RAD_PAIRS->{'Mikrotik-Recv-Limit-Gigawords'}
+    # $RAD_PAIRS->{'Mikrotik-Xmit-Limit-Gigawords'}
+
    }
 
 #Shaper
   if ($self->{USER_SPEED} > 0) {
-    $RAD_PAIRS->{'Rate-Limit'} = "$self->{USER_SPEED}k";
+    $RAD_PAIRS->{'Mikrotik-Rate-Limit'} = "$self->{USER_SPEED}k";
    }
   else {
     if (defined($EX_PARAMS->{speed}->{0})) {
@@ -421,6 +417,12 @@ if ($NAS->{NAS_TYPE} eq 'mikrotik') {
      }
    }
  }
+# Cisco Shaper
+#
+# lcp:interface-config#1=rate-limit input 256000 7500 7500 
+#  conform-action continue 
+#   exceed-action drop
+
 ######################
 # MPD
 elsif ($NAS->{NAS_TYPE} eq 'mpd') {
@@ -591,7 +593,6 @@ sub authentication {
     $RAD->{USER_NAME}=$2;
    }
 
-
   $self->query($db, "select
   u.uid,
   DECODE(password, '$SECRETKEY'),
@@ -726,6 +727,14 @@ else {
     return 1, \%RAD_PAIRS;
    }
 }
+
+
+if ($RAD->{CISCO_AVPAIR}) {
+  if ($RAD->{CISCO_AVPAIR} =~ /client-mac-address=(\S+)/) {
+    $RAD->{CALLING_STATION_ID}=$1;
+  }
+}
+
 
 
 #DIsable
@@ -906,7 +915,9 @@ else {
 my $trafic_limit = 0;
 #2Gb - (2048 * 1024 * 1024 ) - global traffic session limit
 if (defined($trafic_limits{0}) && $trafic_limits{0} > 0  && $trafic_limits{0} < $EX_PARAMS{traf_limit}) {
-  $trafic_limit = ($trafic_limits{0} > $CONF->{MAX_SESSION_TRAFFIC}) ? $CONF->{MAX_SESSION_TRAFFIC} :  $trafic_limits{0};
+  if ($CONF->{MAX_SESSION_TRAFFIC}) {
+    $trafic_limit = ($trafic_limits{0} > $CONF->{MAX_SESSION_TRAFFIC}) ? $CONF->{MAX_SESSION_TRAFFIC} :  $trafic_limits{0};
+   }
   $EX_PARAMS{traf_limit} = ($trafic_limit < 1 && $trafic_limit > 0) ? 1 : int($trafic_limit);
 }
 

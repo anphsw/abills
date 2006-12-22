@@ -3,9 +3,11 @@ CREATE TABLE `ipn_club_comps` (
   `name` varchar(20) NOT NULL default '0',
   `ip` int(11) unsigned NOT NULL default '0',
   `cid` varchar(17) NOT NULL default '',
+  `number` smallint(6) unsigned NOT NULL default '0',
   PRIMARY KEY  (`id`),
   UNIQUE KEY `id` (`id`),
-  UNIQUE KEY `ip` (`ip`)
+  UNIQUE KEY `ip` (`ip`),
+  UNIQUE KEY `number` (`number`)
 );
 
 CREATE TABLE `ipn_log` (

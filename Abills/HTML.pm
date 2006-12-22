@@ -399,20 +399,30 @@ sub form_select {
 
 	  foreach my $v (@$H) {
       $self->{SELECT} .= "<option value='$v->[$key]'";
-      $self->{SELECT} .= ' selected' if ($v->[$key] eq $attr->{SELECTED});
+      $self->{SELECT} .= ' selected' if (defined($attr->{SELECTED}) && $v->[$key] eq $attr->{SELECTED});
       $self->{SELECT} .= '>';
       $self->{SELECT} .= "$v->[$key]:" if (! $attr->{NO_ID});
       $self->{SELECT} .= "$v->[$value]\n";
      }
    }
   elsif (defined($attr->{SEL_HASH})) {
+    my @H = ();
 
-	  my $H = $attr->{SEL_HASH};
-	  while(my($k, $v) = each %$H) {
-     $self->{SELECT} .= "<option value='$k'";
-     $self->{SELECT} .=' selected' if ($k eq $attr->{SELECTED});
-     $k = '' if ($attr->{NO_ID});
-     $self->{SELECT} .= ">$k:$v\n";	
+	  if ($attr->{SORT_KEY}) {
+	  	@H = sort keys %{ $attr->{SEL_HASH} };
+	  }
+	  else {
+	    @H = keys %{ $attr->{SEL_HASH} };
+     }
+    
+    
+    foreach my $k (@H) {
+      $self->{SELECT} .= "<option value='$k'";
+      $self->{SELECT} .=' selected' if (defined($attr->{SELECTED}) && $k eq $attr->{SELECTED});
+
+      $self->{SELECT} .= ">";
+      $self->{SELECT} .= "$k:" if (! $attr->{NO_ID});
+      $self->{SELECT} .= "$attr->{SEL_HASH}{$k}\n";	
      }
    }
 	
@@ -1266,7 +1276,7 @@ foreach my $line (@$MONTHES) {
 $result .= '</select>';
 
 $result  .= "<SELECT name=". $base_name ."Y>";
-for ($i=2001; $i<=$curyear + 1900; $i++) {
+for ($i=2001; $i<=$curyear + 1900+2; $i++) {
    $result .= "<option value=$i";
    $result .= ' selected' if($year eq $i ) ;
    $result .= ">$i\n";
@@ -1420,7 +1430,7 @@ foreach my $line (@alphabet) {
   my $first = ord($1);
   my $last  = ord($2);
 
-  for (my $i=$first; $i<$last; $i++) {
+  for (my $i=$first; $i<=$last; $i++) {
     my $l = chr($i);
     if ($FORM{letter} eq $l) {
       $letters .= "<b>$l </b>\n";
@@ -1473,7 +1483,11 @@ sub make_charts {
     $ex_params = " <chart_transition type=\"$chart_transition[$random]\" delay=\"1\" duration=\"2\" order=\"series\" />\n";
    }
 
- 	
+ 	my $AXIS_CATEGORY_skip = (defined($attr->{AXIS_CATEGORY_skip})) ? $attr->{AXIS_CATEGORY_skip} : 2 ;
+  my $CHART_RECT_width   = ($attr->{CHART_RECT_width}) ? $attr->{CHART_RECT_width} : 400 ;  
+  my $CHART_RECT_height  = ($attr->{CHART_RECT_height}) ? $attr->{CHART_RECT_height} : 200 ;  
+  my $CHART_RECT_x = ($attr->{CHART_RECT_x}) ? $attr->{CHART_RECT_x} : 30 ;  
+  my $CHART_RECT_y = ($attr->{CHART_RECT_y}) ? $attr->{CHART_RECT_y} : 50 ;  
   
   
   my $data = '<chart>'.
@@ -1484,10 +1498,10 @@ sub make_charts {
 		<value>00FF00</value>
 	 </series_color>
 
-  	<chart_grid_h alpha="10" color="0066FF" thickness="28" />
+  	<chart_grid_h alpha="10" color="0066FF" thickness="1"  />
 	  <chart_grid_v alpha="10" color="0066FF" thickness="1" />
 
-	<axis_category font="arial" bold="1" size="11" color="000000" alpha="50" skip="2" />
+	<axis_category font="arial" bold="1" size="11" color="000000" alpha="50" skip="'. $AXIS_CATEGORY_skip. '" />
 	<axis_ticks value_ticks="" category_ticks="1" major_thickness="2" minor_thickness="1" minor_count="3" major_color="000000" minor_color="888888" position="outside" />
 
   <axis_value font="arial" bold="1" size="9" color="000000" alpha="75" 
@@ -1498,10 +1512,9 @@ sub make_charts {
   orientation="diagonal_up"
   />
 
-
-
+ 
 	<chart_border color="000000" top_thickness="1" bottom_thickness="2" left_thickness="0" right_thickness="0" />
-  <chart_rect x="30" y="50" width="400" height="200" positive_color="FFFFFF" positive_alpha="40" />
+  <chart_rect x="'. $CHART_RECT_x .'" y="'. $CHART_RECT_y .'" width="'. $CHART_RECT_width .'" height="'. $CHART_RECT_height .'" positive_color="FFFFFF" positive_alpha="40" />
   ';
 
   $data .= "<chart_data>\n";
@@ -1518,6 +1531,14 @@ sub make_charts {
     $data .= "<row>\n".   	
     "<string></string>\n";
     for(my $i=0; $i<=23; $i++) {
+    	 $data .= "<string>$i</string>\n";
+     }
+   $data .= "</row>\n";
+  }
+  elsif ($attr->{X_TEXT}) {
+    $data .= "<row>\n".   	
+    "<string></string>\n";
+    foreach my $i (@{ $attr->{X_TEXT} }) {
     	 $data .= "<string>$i</string>\n";
      }
    $data .= "</row>\n";
@@ -1558,7 +1579,7 @@ sub make_charts {
     shift @$value;
     foreach my $line (@$value) {
     	 $data .= "<number>";
-    	 $data .= ($midle > 0) ? $line * $midle : $line; 
+    	 $data .= ($midle > 0 && defined($line)) ? $line * $midle : $line; 
     	 $data .="</number>\n";
      }
     $data .= "</row>\n";
@@ -1567,12 +1588,18 @@ sub make_charts {
   $data .= "</chart_data>\n";
 
   if ($attr->{TYPE}) {
-    $data .= "<chart_type>\n";
+    $data .= "<chart_type>";
 		my $type_array_ref = $attr->{TYPE};
 		foreach my $line (@$type_array_ref) {
-		  $data .= " <value>$line</value>\n";
+		  if ($line eq 'bar') {
+		  	$data .= "$line";
+		  	last;
+		   }
+		  else {
+		    $data .= " <value>$line</value>";
+		   }
      }
-   	$data .= " </chart_type>\n";
+   	$data .= "</chart_type>\n";
    }
   
   
@@ -1588,7 +1615,7 @@ sub make_charts {
    	  $data .= "</draw>\n";
     }
  
-
+$data .= "</chart>\n";
 
  
  my $file_xml = 'charts';
@@ -1610,14 +1637,16 @@ my $output = "
 <br>
 <OBJECT classid='clsid:D27CDB6E-AE6D-11cf-96B8-444553540000' 
 codebase='http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=6,0,0,0' 
-WIDTH=500 HEIGHT=300 id='$file_xml' ALIGN=''>
+WIDTH=". ($CHART_RECT_width + 100). " 
+HEIGHT=". ($CHART_RECT_height + 100). "
+id='$file_xml' ALIGN=''>
 <PARAM NAME=movie VALUE='". $PATH. "charts.swf?library_path=". $PATH. "charts_library&amp;php_source=". $file_xml .".xml'> 
 <PARAM NAME=quality VALUE=high> <PARAM NAME=bgcolor VALUE=#EEEEEE> 
 <EMBED src='". $PATH. "charts.swf?library_path=". $PATH. "charts_library&amp;php_source=". $file_xml .".xml' 
 quality=high 
 bgcolor='#EEEEEE' 
-WIDTH=500 
-HEIGHT=300 
+WIDTH=". ($CHART_RECT_width + 100). "
+HEIGHT=". ($CHART_RECT_height + 100). "
 NAME='$file_xml' 
 ALIGN='' 
 swLiveConnect='true' 

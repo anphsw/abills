@@ -988,4 +988,191 @@ sub video_check {
 }
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#**********************************************************
+# Add
+#**********************************************************
+sub chapter_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  %DATA = $self->get_data($attr); 
+  $self->query($db, "INSERT INTO filearch_chapters 
+     (
+      name,
+      type,
+      dir,
+      skip
+      )
+     values
+     (
+      '$DATA{NAME}',
+      '$DATA{TYPE}',
+      '$DATA{dir}',
+      '$DATA{skip}'
+     );", 'do');
+
+  return $self;
+}
+
+#**********************************************************
+# list
+#**********************************************************
+sub chapters_list() {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  $PG   = ($attr->{PG}) ? $attr->{PG} : 0;
+  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  undef @WHERE_RULES;
+  
+  if ($attr->{NAME}) {
+  	$attr->{NAME} =~ s/\*/\%/ig;
+    push @WHERE_RULES, "(f.name LIKE '$attr->{NAME}' or f.filename LIKE '$attr->{NAME}')";
+   }
+
+
+ $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : ''; 
+ 
+ 
+ $self->query($db, "SELECT  c.id,
+  c.name,
+  c.type,
+  c.dir
+   FROM filearch_chapters  c
+    $WHERE
+    GROUP BY c.id
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;");
+
+
+ my $list = $self->{list};
+
+ if ($self->{TOTAL} == $PAGE_ROWS || $PG > 0) {
+   $self->query($db, "SELECT count(DISTINCT f.id)
+     FROM filearch_chapters 
+     $WHERE
+   ;");
+ 
+   my $a_ref = $self->{list}->[0];
+   ($self->{TOTAL}) = @$a_ref;
+  }
+
+ return $list;
+}
+
+#**********************************************************
+# change
+#**********************************************************
+sub chapter_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+
+  my %FIELDS = ( ID            => 'id',
+                 NAME          => 'name',
+                 TYPE          => 'type',
+                 DIR           => 'dir',
+                 SKIP          => 'skip',
+                 COMMENTS      => 'comments'
+                );   
+  
+  my $OLD_INFO = $self->chapter_info($attr->{ID}, $attr);
+ 
+	$self->changes($admin, { CHANGE_PARAM => 'ID',
+		                       TABLE        => 'filearch_chapters',
+		                       FIELDS       => \%FIELDS,
+		                       OLD_INFO     => $OLD_INFO,
+		                       DATA         => $attr
+		                      } );
+ 
+	return $self;
+}
+
+#**********************************************************
+# del
+#**********************************************************
+sub chapter_del {
+  my $self = shift;
+  my ($id) = @_;
+  $self->query($db, "DELETE FROM filearch_chapters WHERE id='$id';", 'do');
+  return $self;
+}
+
+
+#**********************************************************
+# Info
+#**********************************************************
+sub chapter_info {
+  my $self = shift;
+  my ($id, $attr) = @_;
+  
+  $self->query($db, "SELECT c.id,
+         c.name,
+         c.type,
+         c.dir,
+         c.skip
+  FROM filearch_chapters c
+   WHERE c.id='$id'
+ GROUP BY c.id;");
+
+  if ($self->{TOTAL} < 1) {
+     $self->{errno} = 2;
+     $self->{errstr} = 'ERROR_NOT_EXIST';
+     return $self;
+   }
+
+  my $ar = $self->{list}->[0];
+  
+  ($self->{ID},
+   $self->{NAME},
+   $self->{TYPE},
+   $self->{DIR},
+   $self->{SKIP}
+  ) = @$ar;
+
+
+  return $self;
+}
+
+
+
+
 1

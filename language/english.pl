@@ -28,7 +28,7 @@ $_MESSAGES='Messages';
 $_MESSAGES_DESCRIBE='По всіх питаннях які Вас цікавлять можете відправити повідомлення адміністратору.';
 $_SUBJECT='Subject';
 $_DEPOSIT='Deposit';
-$_ACTIVATE='Activisation';
+$_ACTIVATE='Activation';
 $_ACTIV='Active';
 $_SEND='Send';
 $_SENDED='Sended';
@@ -65,7 +65,7 @@ $_DESCRIBE='Describe';
 $_OPERATOR='Operator';
 $_DATE='Date';
 $_OPTIONS='Options';
-$_STATS='Statictics';
+$_STATS='Statistics';
 $_FROM='From';
 $_TO='To';
 $_DELETE_USER='Delete user';
@@ -112,7 +112,7 @@ $_BEGIN='Begin';
 $_END='END';
 
 $_EXIST='Exist';
-$_COUNT='count';
+$_COUNT='Count';
 $_CREDITORS='Creditors';
 $_PERMISSION='Permisions';
 
@@ -179,6 +179,7 @@ $_INFO = 'Information';
 $_CUSTOMERS='Customers';
 $_ACCOUNTS= 'Accounts';
 $_ACCOUNT='Account';
+$_INVOICE='Invoice';
 $_CREATE='Create';
 $_CREATED='Created';
 $_CUSTOMER='Customer';
@@ -306,3 +307,9 @@ $_DOWNLOAD='Download';
 $_DILLERS='Dillers';
 
 $_VAT='Vat';
+$_BONUS='Bonus';
+$_PERCENTAGE='Percentage';
+$_MULTIUSER_OP='Multiuser operation';
+$_RETURNED='Returned';
+
+$_CASH='Cash';

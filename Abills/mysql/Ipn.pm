@@ -173,7 +173,8 @@ sub user_status {
     framed_ip_address, 
     CID, 
     CONNECT_INFO, 
-    nas_id)
+    nas_id
+)
     values (
     '$DATA->{ACCT_STATUS_TYPE}', 
     \"$DATA->{USER_NAME}\", 
@@ -461,7 +462,7 @@ sub ip_in_zone($$$) {
 	     
 	     my $adr_hash = \%{$zones{$zoneid}{A}[$i]};
        
-       my $a_ip = $$adr_hash{'IP'}; 
+       my $a_ip  = $$adr_hash{'IP'}; 
        my $a_msk = $$adr_hash{'Mask'}; 
        my $a_neg = $$adr_hash{'Neg'}; 
        my $a_ports_ref = \@{$$adr_hash{'Ports'}};
@@ -1053,7 +1054,10 @@ my $GROUP = '1';
  else {
    $lupdate = " DATE_FORMAT(start, '%Y-%m-%d'), count(DISTINCT l.uid), ";
   }
-  
+
+if ($attr->{SESSION_ID}) {
+	push @WHERE_RULES, "session_id='$attr->{SESSION_ID}'";
+}
  
  #Interval from date to date
 if ($attr->{INTERVAL}) {
@@ -1345,7 +1349,7 @@ sub comps_list {
  my $self = shift;
  my ($attr) = @_;
  
-  $self->query($db, "SELECT id, name, INET_NTOA(ip), cid FROM ipn_club_comps
+ $self->query($db, "SELECT number, name, INET_NTOA(ip), cid, id FROM ipn_club_comps
   ORDER BY $SORT $DESC ;");
  
   my $list = $self->{list};
@@ -1359,8 +1363,8 @@ sub comps_add {
  my $self = shift;
  my ($attr) = @_;
 
-  $self->query($db, "INSERT INTO ipn_club_comps (name, ip, cid)
-  values ('$attr->{NAME}', INET_ATON('$attr->{IP}'), '$attr->{CID}');", 'do');
+  $self->query($db, "INSERT INTO ipn_club_comps (number, name, ip, cid)
+  values ('$attr->{NUMBER}', '$attr->{NAME}', INET_ATON('$attr->{IP}'), '$attr->{CID}');", 'do');
 
 }
 
@@ -1372,6 +1376,7 @@ sub comps_info {
  my ($id) = @_;
  
   $self->query($db, "SELECT 
+  number,
   name,
   INET_NTOA(ip),
   cid
@@ -1379,7 +1384,8 @@ sub comps_info {
   WHERE id='$id';");
 
   my $a_ref = $self->{list}->[0];
-  ($self->{NAME},
+  ($self->{NUMBER},
+   $self->{NAME},
    $self->{IP},
    $self->{CID}
    ) = @$a_ref;
@@ -1394,10 +1400,11 @@ sub comps_change {
  my $self = shift;
  my ($attr) = @_;
  
- 	my %FIELDS = (ID    => 'id',
-	              NAME  => 'name', 
-	              IP    => 'ip',
-	              CID   => 'cid'); 
+ 	my %FIELDS = (NUMBER => 'number',
+ 	              ID     => 'id',
+	              NAME   => 'name', 
+	              IP     => 'ip',
+	              CID    => 'cid'); 
 
 
 
@@ -1440,7 +1447,27 @@ $d[3]=int($i-$d[0]*256*256*256-$d[1]*256*256-$d[2]*256);
 }
 
 
+#*******************************************************************
+# Delete information from user log
+# log_del($i);
+#*******************************************************************
+sub log_del {
+	my $self = shift;
+	my ($attr) = @_;
 
+ if ($attr->{UID}) {
+   push @WHERE_RULES, "ipn_log.uid='$attr->{UID}'";
+  }
+
+ if ($attr->{SESSION_ID}) {
+   push @WHERE_RULES, "ipn_log.session_id='$attr->{SESSION_ID}'";
+  }
+
+ my $WHERE = "WHERE " . join(' and ', @WHERE_RULES);
+ $self->query($db, "DELETE FROM ipn_log WHERE $WHERE;");
+
+ return $self;
+}
 
 
 1

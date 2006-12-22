@@ -87,6 +87,7 @@ $Netlist->{GROUP_SEL}=$html->form_select('GID',
 
 $html->tpl_show(_include('netlist_ip_search', 'Netlist'), { %$Netlist, %FORM }); 
 
+$pages_qs .= "&GID=$FORM{GID}" if ($FORM{GID});
 
 my $list = $Netlist->ip_list( { %LIST_PARAMS, %FORM } );
 my $table = $html->table( { width      => '100%',

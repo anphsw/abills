@@ -19,7 +19,6 @@ Abills::Base->import();
 $begin_time = check_time();
 
 # Max session tarffic limit  (Mb)
-$conf{MAX_SESSION_TRAFFIC} = 2048; 
 my %auth_mod = ();
 
 
@@ -90,7 +89,7 @@ sub get_nas_info {
 #
 if (defined($nas->{errno}) || $nas->{TOTAL} < 1) {
   # (defined($RAD->{NAS_IDENTIFIER})) ? $RAD->{NAS_IDENTIFIER} : ''
-  access_deny("$RAD->{USER_NAME}", "Unknow server '$RAD->{NAS_IP_ADDRESS}'", 0);
+  access_deny("$RAD->{USER_NAME}", "Unknow server '$RAD->{NAS_IP_ADDRESS}' [$nas->{errno}] $nas->{errstr}", 0);
   $RAD_REPLY{'Reply-Message'}="Unknow server '$RAD->{NAS_IP_ADDRESS}'";
   return 1;
  }
@@ -102,7 +101,6 @@ elsif($nas->{NAS_DISABLE} > 0) {
   access_deny("$RAD->{USER_NAME}", "Disabled NAS server '$RAD->{NAS_IP_ADDRESS}'", 0);
   return 1;
 }
-
 
   $nas->{at} = 0 if (defined($RAD->{CHAP_PASSWORD}) && defined($RAD->{CHAP_CHALLENGE}));
   return 0;
@@ -151,6 +149,7 @@ if(defined($AUTH{$nas->{NAS_TYPE}})) {
 else {
   ($r, $RAD_PAIRS) = $auth_mod{"default"}->dv_auth($RAD, $nas, 
                                        { MAX_SESSION_TRAFFIC => $conf{MAX_SESSION_TRAFFIC}  } );
+                                       
 }
 
 %RAD_REPLY = %$RAD_PAIRS;
@@ -191,7 +190,6 @@ else {
      $rr .= "$rs = $ls,\n";
     }
 
-   
    log_print('LOG_DEBUG', "AUTH [$RAD->{USER_NAME}] $rr");
  }
 
@@ -201,6 +199,7 @@ else {
    my $gen_time = $end_time - $begin_time;
    $GT = sprintf(" GT: %2.5f", $gen_time);
   }
+
 
 
   log_print('LOG_INFO', "AUTH [$RAD->{USER_NAME}] NAS: $nas->{NAS_ID} ($RAD->{NAS_IP_ADDRESS})$GT");

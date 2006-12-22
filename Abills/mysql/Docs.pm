@@ -1,5 +1,5 @@
 package Docs;
-# Users manage functions
+# Documents functions functions
 #
 
 use strict;
@@ -27,7 +27,7 @@ sub new {
   ($db, $admin, $CONF) = @_;
   my $self = { };
   bless($self, $class);
-  #$self->{debug}=1;
+#  $self->{debug}=1;
   return $self;
 }
 
@@ -49,6 +49,205 @@ sub account_defaults {
 }
 
 
+#**********************************************************
+# accounts_list
+#**********************************************************
+sub docs_invoice_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+ $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+ $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+
+ @WHERE_RULES = ("d.id=o.invoice_id");
+ 
+ if($attr->{LOGIN_EXPR}) {
+ 	 require Users;
+	 push @WHERE_RULES, "d.uid='$attr->{UID}'"; 
+  }
+ 
+ if($attr->{CUSTOMER}) {
+   $attr->{CUSTOMER} =~ s/\*/\%/ig;
+	 push @WHERE_RULES, "d.customer='$attr->{CUSTOMER}'"; 
+  }
+ 
+ if ($attr->{FROM_DATE}) {
+    push @WHERE_RULES, "(date_format(d.date, '%Y-%m-%d')>='$attr->{FROM_DATE}' and date_format(d.date, '%Y-%m-%d')<='$attr->{TO_DATE}')";
+  }
+
+ if ($attr->{DOC_ID}) {
+ 	  my $value = $self->search_expr($attr->{DOC_ID}, 'INT');
+    push @WHERE_RULES, "d.acct_id$value";
+  }
+
+ if ($attr->{SUM}) {
+ 	  my $value = $self->search_expr($attr->{SUM}, 'INT');
+    push @WHERE_RULES, "o.price * o.counts$value";
+  }
+
+ 
+ #DIsable
+ if ($attr->{UID}) {
+   push @WHERE_RULES, "d.uid='$attr->{UID}'"; 
+ }
+ 
+
+ $WHERE = ($#WHERE_RULES > -1) ? 'WHERE ' . join(' and ', @WHERE_RULES)  : '';
+
+
+  $self->query($db,   "SELECT d.invoice_id, d.date, d.customer,  sum(o.price * o.counts), u.id, a.name, d.created, d.uid, d.id
+    FROM docs_invoice d, docs_invoice_orders o
+    LEFT JOIN users u ON (d.uid=u.uid)
+    LEFT JOIN admins a ON (d.aid=a.aid)
+    $WHERE
+    GROUP BY d.invoice_id 
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;");
+
+
+ return $self->{list}  if ($self->{TOTAL} < 1);
+ my $list = $self->{list};
+
+
+ $self->query($db, "SELECT count(*)
+    FROM docs_invoice d, docs_invoice_orders o    
+    LEFT JOIN users u ON (d.uid=u.uid)
+    $WHERE");
+
+ my $a_ref = $self->{list}->[0];
+
+ ($self->{TOTAL}) = @$a_ref;
+
+	return $list;
+}
+
+#**********************************************************
+# Bill
+#**********************************************************
+sub docs_invoice_info {
+	my $self = shift;
+	my ($id, $attr) = @_;
+
+
+  $self->query($db, "SELECT 
+   d.invoice_id,
+   d.date,
+   d.customer,
+   sum(o.price * o.counts), 
+   d.phone,
+   if(d.vat>0, sum(o.price * o.counts) / ((100+d.vat)/ d.vat), 0),
+   a.name,
+   u.id,
+   d.created,
+   d.by_proxy_seria,
+   d.by_proxy_person,
+   d.by_proxy_date,
+   d.id
+    FROM docs_invoice d, docs_invoice_orders o
+    LEFT JOIN users u ON (d.uid=u.uid)
+    LEFT JOIN admins a ON (d.aid=a.aid)
+    WHERE d.id=o.invoice_id and d.id='$id'
+    GROUP BY d.id;");
+
+  if ($self->{TOTAL} < 1) {
+     $self->{errno} = 2;
+     $self->{errstr} = 'ERROR_NOT_EXIST';
+     return $self;
+   }
+
+  my $ar = $self->{list}->[0];
+
+  ($self->{INVOICE_ID}, 
+   $self->{DATE}, 
+   $self->{CUSTOMER}, 
+   $self->{SUM},
+   $self->{PHONE},
+   $self->{VAT},
+   $self->{ADMIN},
+   $self->{USER},
+   $self->{CREATED},
+   $self->{BY_PROXY_SERIA},
+   $self->{BY_PROXY_PERSON},
+   $self->{BY_PROXY_DATE}
+  )= @$ar;
+	
+ 
+  $self->{NUMBER}=$self->{INVOICE_ID};
+ 
+  $self->query($db, "SELECT invoice_id, orders, unit, counts, price
+   FROM docs_invoice_orders WHERE invoice_id='$self->{DOC_ID}'");
+
+  $self->{ORDERS}=$self->{list};
+
+	return $self;
+}
+
+
+
+#**********************************************************
+# Bill
+#**********************************************************
+sub docs_invoice_add {
+	my $self = shift;
+	my ($attr) = @_;
+ 
+ 
+ 
+  %DATA = $self->get_data($attr, { default => \%DATA }); 
+  
+  if (! defined($attr->{ORDERS}) || $#{ $attr->{ORDERS} } < 0) {
+  	$self->{errno}=1;
+  	$self->{errstr}="No orders";
+
+  	return $self;
+  }
+  
+  
+  $DATA{DATE}    = ($attr->{DATE})    ? "'$attr->{DATE}'" : 'now()';
+  $DATA{INVOICE_ID} = ($attr->{INVOICE_ID}) ? $attr->{INVOICE_ID}  : $self->docs_nextid({ TYPE => 'INVOICE' });
+  
+
+  $self->query($db, "insert into docs_invoice (invoice_id, date, created, customer, phone, aid, uid,
+    by_proxy_seria,
+    by_proxy_person,
+    by_proxy_date)
+      values ('$DATA{INVOICE_ID}', $DATA{DATE}, now(), \"$DATA{CUSTOMER}\", \"$DATA{PHONE}\", 
+      \"$admin->{AID}\", \"$DATA{UID}\",
+      '$DATA{BY_PROXY_SERIA}',
+      '$DATA{BY_PROXY_PERSON}',
+      '$DATA{BY_PROXY_DATE}');", 'do');
+ 
+  return $self if($self->{errno});
+  $self->{DOC_ID}=$self->{INSERT_ID};
+  
+  foreach my $line (@{ $attr->{ORDERS} }) {
+    my ($order, $unit, $count,  $sum)=split(/\|/, $line, 4);
+    $self->query($db, "INSERT INTO docs_invoice_orders (invoice_id, orders, counts, unit, price)
+      values ($self->{DOC_ID}, \"$order\", '$count', '$unit', '$sum')", 'do');
+  }
+
+  return $self if($self->{errno});
+  
+  $self->{INVOICE_ID}=$DATA{ACCT_ID};
+  $self->docs_invoice_info($self->{DOC_ID});
+
+	return $self;
+}
+
+
+#**********************************************************
+# Bill
+#**********************************************************
+sub docs_invoice_del {
+	my $self = shift;
+	my ($id, $attr) = @_;
+
+   $self->query($db, "DELETE FROM docs_invoice_orders WHERE acct_id='$id'", 'do');
+   $self->query($db, "DELETE FROM docs_invoice WHERE id='$id'", 'do');
+
+	return $self;
+}
 
 
 #**********************************************************
@@ -68,13 +267,19 @@ sub accounts_list {
  	 require Users;
 	 push @WHERE_RULES, "d.uid='$attr->{UID}'"; 
   }
+
+ if($attr->{CUSTOMER}) {
+   $attr->{CUSTOMER} =~ s/\*/\%/ig;
+	 push @WHERE_RULES, "d.customer LIKE '$attr->{CUSTOMER}'"; 
+  }
+
  
  if ($attr->{FROM_DATE}) {
     push @WHERE_RULES, "(date_format(d.date, '%Y-%m-%d')>='$attr->{FROM_DATE}' and date_format(d.date, '%Y-%m-%d')<='$attr->{TO_DATE}')";
   }
 
- if ($attr->{ACCT_ID}) {
- 	  my $value = $self->search_expr($attr->{ACCT_ID}, 'INT');
+ if ($attr->{DOC_ID}) {
+ 	  my $value = $self->search_expr($attr->{DOC_ID}, 'INT');
     push @WHERE_RULES, "d.acct_id$value";
   }
 
@@ -122,16 +327,27 @@ sub accounts_list {
 #**********************************************************
 # accounts_list
 #**********************************************************
-sub account_nextid {
+sub docs_nextid {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query($db,   "SELECT max(d.acct_id), count(*) FROM docs_acct d
-    WHERE YEAR(date)=YEAR(curdate());");
+  my $sql = '';
 
-  my $a_ref = $self->{list}->[0];
+  if ($attr->{TYPE} eq 'ACCOUNT') {
+    $sql = "SELECT max(d.acct_id), count(*) FROM docs_acct d
+     WHERE YEAR(date)=YEAR(curdate());";
+   }
+  elsif($attr->{TYPE} eq 'INVOICE') {
+    $sql = "SELECT max(d.invoice_id), count(*) FROM docs_invoice d
+     WHERE YEAR(date)=YEAR(curdate());";
+   }
+
+  $self->query($db,   "$sql");
+
   ($self->{NEXT_ID},
-   $self->{TOTAL}) = @$a_ref;
+   $self->{TOTAL}) = @{ $self->{list}->[0] };
+ 
+
  
   $self->{NEXT_ID}++;
 	return $self->{NEXT_ID};
@@ -148,7 +364,7 @@ sub account_add {
  
   %DATA = $self->get_data($attr, { default => \%DATA }); 
   $DATA{DATE}    = ($attr->{DATE})    ? "'$attr->{DATE}'" : 'now()';
-  $DATA{ACCT_ID} = ($attr->{ACCT_ID}) ? $attr->{ACCT_ID}  : $self->account_nextid();
+  $DATA{ACCT_ID} = ($attr->{ACCT_ID}) ? $attr->{ACCT_ID}  : $self->docs_nextid({ TYPE => 'ACCOUNT' });
 
   
 

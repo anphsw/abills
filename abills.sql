@@ -39,9 +39,9 @@ CREATE TABLE `admin_permits` (
 
 
 CREATE TABLE `admins` (
-  `id` varchar(12) default NULL,
-  `name` varchar(24) default NULL,
-  `regdate` date default NULL,
+  `id` varchar(12) NOT NULL default '',
+  `name` varchar(50) NOT NULL default '',
+  `regdate` date NOT NULL default '0000-00-00',
   `password` varchar(16) binary NOT NULL default '',
   `gid` tinyint(4) unsigned NOT NULL default '0',
   `aid` smallint(6) unsigned NOT NULL auto_increment,
@@ -94,11 +94,19 @@ CREATE TABLE `dv_calls` (
   KEY `user_name` (`user_name`)
 ) ;
 
-# --------------------------------------------------------
 
-#
-# Структура таблиці `companies`
-#
+
+CREATE TABLE `dv_log_intervals` (
+  `interval_id` smallint(6) unsigned NOT NULL default '0',
+  `sent` int(11) unsigned NOT NULL default '0',
+  `recv` int(11) unsigned NOT NULL default '0',
+  `duration` int(11) unsigned NOT NULL default '0',
+  `traffic_type` tinyint(4) unsigned NOT NULL default '0',
+  `sum` double(14,6) unsigned NOT NULL default '0.000000',
+  `acct_session_id` varchar(25) NOT NULL default ''
+);
+
+
 
 CREATE TABLE `companies` (
   `id` int(11) unsigned NOT NULL auto_increment,
@@ -132,12 +140,6 @@ CREATE TABLE `config` (
   UNIQUE KEY `param` (`param`)
 ) ;
 
-# --------------------------------------------------------
-
-#
-# Структура таблиці `docs_acct`
-#
-
 CREATE TABLE `docs_acct` (
   `id` int(11) unsigned NOT NULL auto_increment,
   `date` date NOT NULL default '0000-00-00',
@@ -148,14 +150,9 @@ CREATE TABLE `docs_acct` (
   `acct_id` int(10) unsigned NOT NULL default '0',
   `uid` int(11) unsigned NOT NULL default '0',
   `aid` smallint(6) unsigned NOT NULL default '0',
+  `vat` double(5,2) unsigned NOT NULL default '0.00',
   PRIMARY KEY  (`id`)
 ) ;
-
-# --------------------------------------------------------
-
-#
-# Структура таблиці `docs_acct_orders`
-#
 
 CREATE TABLE `docs_acct_orders` (
   `acct_id` int(11) unsigned NOT NULL default '0',
@@ -166,10 +163,31 @@ CREATE TABLE `docs_acct_orders` (
   KEY `aid` (`acct_id`)
 ) ;
 
-# --------------------------------------------------------
-#
-# Структура таблиці `dv_main`
-#
+
+CREATE TABLE `docs_invoice` (
+  `id` int(11) NOT NULL auto_increment,
+  `date` date NOT NULL default '0000-00-00',
+  `customer` varchar(200) NOT NULL default '',
+  `phone` varchar(16) NOT NULL default '0',
+  `aid` smallint(6) unsigned NOT NULL default '0',
+  `uid` int(11) unsigned NOT NULL default '0',
+  `created` datetime NOT NULL default '0000-00-00 00:00:00',
+  `invoice_id` int(10) unsigned NOT NULL default '0',
+  `vat` double(5,2) unsigned NOT NULL default '0.00',
+  `by_proxy_seria` varchar(40) NOT NULL default '',
+  `by_proxy_person` varchar(15) NOT NULL default '',
+  `by_proxy_date` date NOT NULL default '0000-00-00',
+  PRIMARY KEY  (`id`)
+);
+
+CREATE TABLE `docs_invoice_orders` (
+  `invoice_id` int(11) unsigned NOT NULL default '0',
+  `orders` varchar(200) NOT NULL default '',
+  `counts` int(10) unsigned NOT NULL default '0',
+  `unit` tinyint(3) unsigned NOT NULL default '0',
+  `price` double(10,2) unsigned NOT NULL default '0.00',
+  KEY `invoice_id` (`invoice_id`)
+);
 
 CREATE TABLE `dv_main` (
   `uid` int(11) unsigned NOT NULL auto_increment,
@@ -681,11 +699,16 @@ CREATE TABLE `users` (
   UNIQUE KEY `id` (`id`)
 )  ;
 
-# --------------------------------------------------------
 
-#
-# Структура таблиці `users_nas`
-#
+CREATE TABLE `users_bruteforce` (
+  `login` varchar(20) NOT NULL default '',
+  `password` varchar(16) binary NOT NULL default '0',
+  `datetime` datetime NOT NULL default '0000-00-00 00:00:00',
+  `ip` int(11) unsigned NOT NULL default '0',
+  `auth_state` tinyint(1) unsigned NOT NULL default '0',
+  KEY `login` (`login`)
+);
+
 
 CREATE TABLE `users_nas` (
   `uid` int(10) unsigned NOT NULL default '0',
@@ -860,7 +883,7 @@ CREATE TABLE `web_online` (
 
 
 INSERT INTO admins VALUES ('abills','abills','2005-06-16', ENCODE('abills', 'test12345678901234567890'), 0, 1,0,'', '');
-INSERT INTO admins VALUES ('system','Syetem user','2005-07-07', ENCODE('test', 'test12345678901234567890'), 0, 2, 0,'', '');
+INSERT INTO admins VALUES ('system','System user','2005-07-07', ENCODE('test', 'test12345678901234567890'), 0, 2, 0,'', '');
 
 
 

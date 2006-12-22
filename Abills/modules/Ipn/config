@@ -19,7 +19,9 @@
 %USER_FUNCTION_LIST = (
                        );
 
-$USER_FUNCTION_LIST{"01:0:IP Net:ipn_user_activate:"} = 0 if ($conf{IPN_USERMENU});
+if ($conf{IPN_USERMENU}) {
+  $USER_FUNCTION_LIST{"01:0:IP Net:ipn_user_activate:defaultindex"} = 0;
+}
 
 if ($conf{IPN_CLUBMONITOR}) {
   $FUNCTIONS_LIST{"50:0:Club monitor:ipn_club_monitor:"} = 8;

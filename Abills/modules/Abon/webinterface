@@ -28,11 +28,11 @@ sub abon_user {
  
 
 my $list = $Abon->user_tariff_list($FORM{UID});
-my $table = $html->table( { width => '100%',
-                            caption => "$_ABON",
-                            title => ['-', $_NAME, $_SUM, $_PERIOD, $_DATE ],
+my $table = $html->table( { width      => '100%',
+                            caption    => "$_ABON",
+                            title      => ['-', $_NAME, $_SUM, $_PERIOD, $_DATE ],
                             cols_align => ['left', 'right', 'left', 'center', 'center'],
-                            qs => $pages_qs,
+                            qs         => $pages_qs,
                            });
 
 
@@ -79,11 +79,12 @@ sub abon_user_list {
 
 
  my $list = $Abon->user_list({ %LIST_PARAMS });
- my $table = $html->table( { width => '100%',
-                            caption => "$_ABON",
-                            title => [$_LOGIN, $_FIO, $_TARIF_PLAN, $_DATE],
-                            cols_align => ['left', 'right', 'left', 'right'],
-                            qs => $pages_qs,
+ my $table = $html->table( { width     => '100%',
+                             caption    => "$_ABON",
+                             title      => [$_LOGIN, $_FIO, $_TARIF_PLAN, $_DATE],
+                             cols_align => ['left', 'right', 'left', 'right'],
+                             qs         => $pages_qs,
+                             pages      => $Abon->{TOTAL}
                            });
 
 
@@ -119,9 +120,8 @@ sub abon_tariffs {
 #  $Abon = $Abon->defaults();
   $Abon->{ACTION}='add';
   $Abon->{ACTION_LNG}=$_ADD;
-
+  my @Payment_Types    = ($_PREPAID, $_POSTPAID); 
   
-
   if ($FORM{add}) {
     $Abon->tariff_add({ %FORM });  
     if (! $Abon->{errno}){
@@ -151,8 +151,9 @@ sub abon_tariffs {
                                           { 
  	                                          SELECTED  => $FORM{ABON_ID},
  	                                          SEL_MULTI_ARRAY   => $Abon->tariff_list(),
- 	                                          MULTI_ARRAY_KEY   => 4,
+ 	                                          MULTI_ARRAY_KEY   => 5,
  	                                          MULTI_ARRAY_VALUE => 0,
+ 	                                          NO_ID             => 1
  	                                        }),
 	                       HIDDEN  => { index => "$index" },
 	                       SUBMIT  => { show   => "$_SHOW"} 
@@ -197,27 +198,34 @@ sub abon_tariffs {
  	                                          
  	                                        });
 
+  $Abon->{PAYMENT_TYPE_SEL} =  $html->form_select('PAYMENT_TYPE', 
+                                { SELECTED      => $Abon->{PAYMENT_TYPE} || $FORM{PAYMENT_TYPE},
+ 	                                SEL_ARRAY     => [$_PREPAID, $_POSTPAID],
+ 	                                ARRAY_NUM_ID  => 'y'
+ 	                               });
+
   $html->tpl_show(_include('abon_tp', 'Abon'), $Abon);
 
  my $list = $Abon->tariff_list();
- my $table = $html->table( { width => '100%',
-                            caption => "$_ABON",
-                            title => [$_NAME, $_SUM, $_PERIOD, $_USERS, '-', '-'],
+ my $table = $html->table( { width     => '100%',
+                            caption    => "$_ABON",
+                            title      => [$_NAME, $_SUM, $_PERIOD, $_PAYMENT_TYPE, $_USERS, '-', '-'],
                             cols_align => ['left', 'right', 'left', 'right', 'center', 'center'],
-                            qs => $pages_qs,
+                            qs         => $pages_qs,
                            });
 
 
 my $delete = '';
 foreach my $line (@$list) {
   if ($permissions{4}{1}) {
-    $delete = $html->button($_DEL, "index=$index&del=$line->[4]", { MESSAGE => "$_DEL $line->[0]?" }); 
+    $delete = $html->button($_DEL, "index=$index&del=$line->[5]", { MESSAGE => "$_DEL $line->[0]?" }); 
    }
-  $table->addrow($html->button("$line->[0]", "index=$index&ABON_ID=$line->[4]"), 
+  $table->addrow($html->button("$line->[0]", "index=$index&ABON_ID=$line->[5]"), 
      "$line->[1]", 
      $PERIODS[$line->[2]], 
-     $line->[3], 
-     $html->button("$_CHANGE", "index=$index&ABON_ID=$line->[4]"), 
+     $Payment_Types[$line->[3]], 
+     $html->button("$line->[4]", "index=". ($index-2). "&ABON_ID=$line->[5]"), 
+     $html->button("$_CHANGE", "index=$index&ABON_ID=$line->[5]"), 
      $delete
    );
  }
@@ -238,7 +246,6 @@ sub abon_periodic {
   
   
   my $fees = Fees->new($db, $admin, \%conf);
-
   my $list = $Abon->periodic_list({ %LIST_PARAMS });
 
  #at.period, at.price, u.uid, if(u.company_id > 0, c.bill_id, u.bill_id),
@@ -247,25 +254,23 @@ sub abon_periodic {
  # if(u.company_id > 0, c.credit, u.credit),
  # disable,
  # at.id 
- my ($y, $m, $d)=split(/-/, $DATE, 3);
+ my ($y, $m, $d)=split(/-/, $ADMIN_REPORT{DATE}, 3);
  $m--;
 
  foreach my $line (@$list) {
- 
- #print "<br>$line->[0], $line->[1], $line->[2], $line->[3], $line->[4], $line->[5], $line->[6], DEPOSIT: $line->[7], CREDIT: $line->[8], DISABLE: $line->[9] -";
+    #print "<br>$line->[0], $line->[1], $line->[2], $line->[3], $line->[4], $line->[5], $line->[6], DEPOSIT: $line->[7], CREDIT: $line->[8], DISABLE: $line->[9] PAYMENT_TYPE: $line->[11]-\n";
  
 
   if (defined($line->[7])) {
      my %user = (
-       UID => $line->[2],
+       UID     => $line->[2],
        BILL_ID => $line->[3]
       );
 
     my %PARAMS = ( DESCRIBE => "ABON: [$line->[10]] $line->[6]" );
     $PARAMS{DATE}=$DATE if ($DATE ne '');
 
-
-    if($line->[7] + $line->[8] > 0 || $line->[9] == 0) {
+    if(($line->[7] + $line->[8] > 0 || $line->[11] == 1) && $line->[9] == 0) {
      	if ($line->[0] == 0) {
          $fees->take(\%user, $line->[1], { %PARAMS } ); 
          $Abon->user_tariff_update({ UID => "$line->[2]", TP_ID => "$line->[10]", DATE => $DATE, });
@@ -274,12 +279,12 @@ sub abon_periodic {
        }
     	elsif ($line->[0] == 1 && ($d == 1)) {
          $fees->take(\%user, $line->[1], { %PARAMS } ); 
-         $Abon->user_tariff_update({ UID => "$line->[2]", DATE => $DATE, TP_ID => "$line->[9]" });
+         $Abon->user_tariff_update({ UID => "$line->[2]", DATE => $DATE, TP_ID => "$line->[10]" });
          #print "Month Fee $d<Br>\n"; 
        }
   	  elsif ($line->[0] == 2 && ($m == 0 && $d == 1)) {
          $fees->take(\%user, $line->[1], { %PARAMS } ); 
-         $Abon->user_tariff_update({ UID => "$line->[2]", DATE => $DATE, TP_ID => "$line->[9]" });
+         $Abon->user_tariff_update({ UID => "$line->[2]", DATE => $DATE, TP_ID => "$line->[10]" });
          #print "Year fee $m $d<Br>\n"; 
        }
      }

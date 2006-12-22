@@ -99,15 +99,17 @@ if (! defined(%RAD_REQUEST)) {
   $NAS_PARAMS{NAS_IDENTIFIER}=$RAD->{NAS_IDENTIFIER} if (defined($RAD->{NAS_IDENTIFIER}));
   $nas->info({ %NAS_PARAMS });
 
+  my $acct;
   if ($nas->{errno} || $nas->{TOTAL} < 1) {
     access_deny("$RAD->{USER_NAME}", "Unknow server '$RAD->{NAS_IP_ADDRESS}'", 0);
     #exit 1;
    }
-
-  my $acct = acct($RAD, $nas);
+  else {
+    $acct = acct($RAD, $nas);
+   }
 
   if(defined($acct->{errno})) {
-	  log_print('LOG_ERROR', "ACCT [$RAD->{USER_NAME}] $acct->{errstr}");
+	  log_print('LOG_ERR', "ACCT [$RAD->{USER_NAME}] $acct->{errstr}");
    }
 
   #$db->disconnect();
@@ -136,7 +138,20 @@ sub acct {
   $RAD->{INTERIUM_INBYTE2}  = 0;
   $RAD->{INTERIUM_OUTBYTE2} = 0;
 
- 
+
+  $RAD->{INBYTE2}  = 0;
+  $RAD->{OUTBYTE2} = 0;
+
+  
+  #Cisco-AVPair
+  if ($RAD->{CISCO_AVPAIR}) {
+  	 if ($RAD->{CISCO_AVPAIR} =~ /client-mac-address=(\S+)/) {
+  		 $RAD->{CALLING_STATION_ID}=$1;
+      }
+     if ($RAD->{NAS_PORT} && $RAD->{NAS_PORT} == 0 && ($RAD->{CISCO_NAS_PORT} && $RAD->{CISCO_NAS_PORT} =~ /\d\/\d\/\d\/(\d+)/)) {
+     	 $RAD->{NAS_PORT}=$1;
+      }
+   }
 
   if (defined($conf{octets_direction}) && $conf{octets_direction} eq 'server') {
     $RAD->{INBYTE} = $RAD->{ACCT_INPUT_OCTETS} || 0;   # FROM client
@@ -156,19 +171,20 @@ sub acct {
       $RAD->{INTERIUM_OUTBYTE2} = $RAD->{EXPPP_ACCT_LOCALITERIUMIN_OCTETS} || 0;
      }
     elsif ($nas->{NAS_TYPE} eq 'lepppd') {
-      $RAD->{'INBYTE'} = $RAD->{'PPPD_INPUT_OCTETS_ZONES_0'};
-      $RAD->{'OUTBYTE'} = $RAD->{'PPPD_OUTPUT_OCTETS_ZONES_0'};
-      for(my $i=1; $i<4; $i++) {
+      $RAD->{INBYTE} = $RAD->{ACCT_INPUT_OCTETS} || 0;   # FROM client
+      $RAD->{OUTBYTE} = $RAD->{ACCT_OUTPUT_OCTETS} || 0; # TO client
+
+      #$RAD->{'INBYTE'} = $RAD->{'PPPD_INPUT_OCTETS_ZONES_0'};
+      #$RAD->{'OUTBYTE'} = $RAD->{'PPPD_OUTPUT_OCTETS_ZONES_0'};
+
+      for(my $i=0; $i<4; $i++) {
       	if (defined($RAD->{'PPPD_INPUT_OCTETS_ZONES_'.$i})) {
-          $RAD->{'INBYTE'.$i} = $RAD->{'PPPD_INPUT_OCTETS_ZONES_'.$i};
-          $RAD->{'OUTBYTE'.$i} = $RAD->{'PPPD_OUTPUT_OCTETS_ZONES_'.$i};
+          $RAD->{'INBYTE'.($i + 1)} = $RAD->{'PPPD_INPUT_OCTETS_ZONES_'.$i};
+          $RAD->{'OUTBYTE'.($i + 1)} = $RAD->{'PPPD_OUTPUT_OCTETS_ZONES_'.$i};
       	 }
        }
      }
-    else {
-      $RAD->{INBYTE2}  = 0;
-      $RAD->{OUTBYTE2} = 0;
-     }
+
 
       
 
@@ -194,18 +210,14 @@ sub acct {
 
      }
     elsif ($nas->{NAS_TYPE} eq 'lepppd') {
-      $RAD->{'INBYTE'}  = $RAD->{'PPPD_OUTPUT_OCTETS_ZONES_0'};
-      $RAD->{'OUTBYTE'} = $RAD->{'PPPD_INPUT_OCTETS_ZONES_0'};
-      for(my $i=1; $i<4; $i++) {
+      $RAD->{INBYTE} = $RAD->{ACCT_OUTPUT_OCTETS} || 0; # FROM client
+      $RAD->{OUTBYTE} = $RAD->{ACCT_INPUT_OCTETS} || 0; # TO client
+      for(my $i=0; $i<4; $i++) {
       	if (defined($RAD->{'PPPD_INPUT_OCTETS_ZONES_'.$i})) {
-          $RAD->{'INBYTE'.$i}  = $RAD->{'PPPD_OUTPUT_OCTETS_ZONES_'.$i};
-          $RAD->{'OUTBYTE'.$i} = $RAD->{'PPPD_INPUT_OCTETS_ZONES_'.$i};
+          $RAD->{'INBYTE'.($i+1)}  = $RAD->{'PPPD_OUTPUT_OCTETS_ZONES_'.$i};
+          $RAD->{'OUTBYTE'.($i+1)} = $RAD->{'PPPD_INPUT_OCTETS_ZONES_'.$i};
       	 }
        }
-     }
-    else {
-      $RAD->{INBYTE2}  = 0;
-      $RAD->{OUTBYTE2} = 0;
      }
   }
 
@@ -214,8 +226,13 @@ sub acct {
   $RAD->{NAS_PORT}           = 0  if  (! defined($RAD->{NAS_PORT}));
   $RAD->{CONNECT_INFO}       = '' if  (! defined($RAD->{CONNECT_INFO}));
   $RAD->{ACCT_TERMINATE_CAUSE} =  (defined($RAD->{ACCT_TERMINATE_CAUSE}) && defined($ACCT_TERMINATE_CAUSES{"$RAD->{ACCT_TERMINATE_CAUSE}"})) ? $ACCT_TERMINATE_CAUSES{"$RAD->{ACCT_TERMINATE_CAUSE}"} : 0;
-  $RAD->{CALLING_STATION_ID} = '' if (! defined($RAD->{CALLING_STATION_ID}));
- 
+
+  if ($RAD->{'TUNNEL_SERVER_ENDPOINT:0'} && ! $RAD->{CALLING_STATION_ID}) {
+    $RAD->{CALLING_STATION_ID}=$RAD->{'TUNNEL_SERVER_ENDPOINT:0'};
+   }
+  elsif(! defined($RAD->{CALLING_STATION_ID})) {
+    $RAD->{CALLING_STATION_ID} = '';
+   }
 # Make accounting with external programs
 if (-d $conf{extern_acct_dir}) {
   opendir DIR, $conf{extern_acct_dir} or die "Can't open dir '$conf{extern_acct_dir}' $!\n";

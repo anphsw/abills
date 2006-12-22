@@ -72,33 +72,37 @@ $Ipn->user_ips({ NAS_ID => $NAS_ID });
 if (-f $log) {
   get_collector_data($log);
   processing();
-  my $status = unlink("$log");
+  #my $status = unlink("$log");
 }
 
 # GEt information from flowtools
 
-  my $flow_dir = ($ARGV->{flowdir}) ? $var_dir."log/ipn/" : '';
+  my $flow_dir = ($ARGV->{flowdir}) ? $ARGV->{flowdir} : $var_dir."log/ipn/";
 
   #Get flow tools files
-  opendir DIR, $flow_dir or die "Can't open dir '$var_dir/log/ipn/' $!\n";
+  opendir DIR, $flow_dir or die "Can't open dir '$flow_dir' $!\n";
     my @contents = grep  /^ft*/, readdir DIR;
   closedir DIR;
 
   use POSIX qw(strftime);
 
   foreach $log (sort @contents) {
-    #print $log."\n";
-    $log =~ /ft-(\w+)\.(\d+)\-(\d+)\-(\d+)\.(\d{2})(\d{2})(\d{2})\+(\d+)/;
-    my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime,$blksize,$blocks)=stat("$var_dir/log/ipn/$log");
-    my $start_date = "$2-$3-$4 $5:$6:$7";
-    my $end_date = strftime "%Y-%m-%d %H:%M:%S", localtime($mtime);
-    #print "Start: $start_date End: $end_date\n"; 
+    print "$var_dir/log/ipn/$log\n" if ($debug > 0);
+    if($log =~ /ft-(\w+)\.(\d+)\-(\d+)\-(\d+)\.(\d{2})(\d{2})(\d{2})[\-|\+](\d+)/) {
+      my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime,$blksize,$blocks)=stat("$var_dir/log/ipn/$log");
+      my $start_date = "$2-$3-$4 $5:$6:$7";
+      my $end_date = strftime "%Y-%m-%d %H:%M:%S", localtime($mtime);
+      #print "Start: $start_date End: $end_date\n"; 
  
-    get_collector_data("flow-cat $var_dir/log/ipn/$log | flow-print |", { START => $start_date });
-    processing({ START => $start_date,
-  	           STOP  => $end_date });
-    # Delete log file
-    my $status = unlink("$var_dir/log/ipn/$log");
+      get_collector_data("flow-cat $var_dir/log/ipn/$log | flow-print |", { START => $start_date });
+      processing({ START => $start_date,
+  	               STOP  => $end_date });
+      # Delete log file
+      my $status = unlink("$var_dir/log/ipn/$log");
+     }
+    else {
+       print "Unknow File name format\n";
+     }
   }
 
 
@@ -215,7 +219,7 @@ foreach my $ip ( sort keys %$ips_interim) {
               ACCT_STATUS_TYPE  => 'Alive'
             );
 
-    my $r = $Acct->accounting(\%RAD, { NAS_ID => $NAS_ID });
+    my $r = $Acct->accounting(\%RAD, { NAS_ID => $NAS_ID, NAS_TYPE => 'other' });
     
     if (defined($Ipn->{USERS_INFO}->{DEPOSIT}->{$uid}) && $Ipn->{USERS_INFO}->{DEPOSIT}->{$uid} < 0) {
          my @ip_array = split(/\./, $ip_addr, 4);
@@ -294,9 +298,10 @@ while( <LOG> ) {
 #		$DD = "0".$DD if ( $DD < 10 ); 
 #		print "$MM, $DD,$HH, $YY,$DD\n";
 #  }
+
   #Ipcad log analize
-  if (/ (\d+)\.(\d+)\.(\d+)\.(\d+)\s+(\d+)\.(\d+)\.(\d+)\.(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)/) {
-  	#print "-$1.$2.$3.$4 $5.$6.$7.$8 $9 $10 $11 $12\n";
+  if (/ (\d+)\.(\d+)\.(\d+)\.(\d+)\s+(\d+)\.(\d+)\.(\d+)\.(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s(\S+)/) {
+  	#print "-$1.$2.$3.$4 $5.$6.$7.$8 Pkg: $9 Byte: $10 Port: $11 / $12 Proto: $13 > $14\n";
 		( $DATA{SRC_IP}, $DATA{SRC_PORT} ) = ( 16777216 * $1 + 65536 * $2 + 256 * $3 + $4, $11 );
 		( $DATA{DST_IP}, $DATA{DST_PORT} ) = ( 16777216 * $5 + 65536 * $6 + 256 * $7 + $8, $12 ); 
   	$DATA{SIZE} = $10;
@@ -304,7 +309,10 @@ while( <LOG> ) {
 		$DATA{SRC_PORT} = 0 if ( $DATA{SRC_PORT} !~ /^\d+$/ );
 		$DATA{DST_PORT} = 0 if ( $DATA{DST_PORT} !~ /^\d+$/ );
 		$DATA{NAS_ID}=$NAS_ID;
-		$DATA{IF_NAME}='0';
+		if ($14) {
+			$DATA{IF_NAME}=$14;
+		 }
+		
     $Ipn->traffic_agregate_users({ %DATA });
    }
   # flow-capture

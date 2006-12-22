@@ -158,29 +158,106 @@ sub list {
 
  my $search_fields = '';
 
+ my @QUERY_ARRAY = ();
+ if ($attr->{QUERY} =~ /;/) {
+ 	  @QUERY_ARRAY = split(/;/, $attr->{QUERY});
+  }
+ else {
+   push @QUERY_ARRAY, 	$attr->{QUERY};
+ }
 
+
+my @rows = ();
+
+foreach my $query (@QUERY_ARRAY) {
+
+	next if (length($query) < 5);
+
+  my $q = $db->prepare("$query", { "mysql_use_result" => 1  } ) || die $db->errstr;
+  if($db->err) {
+     $self->{errno} = 3;
+     $self->{sql_errno}=$db->err;
+     $self->{sql_errstr}=$db->errstr;
+     $self->{errstr}=$db->errstr;
+   
+     return $self->{errno};
+   }
+  $q->execute(); 
+
+  if($db->err) {
+     $self->{errno} = 3;
+     $self->{sql_errno}=$db->err;
+     $self->{sql_errstr}=$db->errstr;
+     $self->{errstr}="$query / ".$db->errstr;
+     
+     return $self;
+   }
+  
+   $self->{MYSQL_FIELDS_NAMES}  = $q->{NAME};
+   $self->{MYSQL_IS_PRIMARY_KEY}= $q->{mysql_is_pri_key};
+   $self->{MYSQL_IS_NOT_NULL}   = $q->{mysql_is_not_null};
+   $self->{MYSQL_LENGTH}        = $q->{mysql_length};
+   $self->{MYSQL_MAX_LENGTH}    = $q->{mysql_max_length};
+   $self->{MYSQL_IS_KEY}        = $q->{mysql_is_key};
+   $self->{MYSQL_TYPE_NAME}     = $q->{mysql_type_name};
+
+   $self->{TOTAL} = $q->rows;
+
+
+   while(my @row = $q->fetchrow()) {
+     push @rows, \@row;
+    }
+
+  return $self if($self->{errno});
+  
+  push @{ $self->{EXECUTED_QUERY} }, $query;
+}
  
- $self->query($db, "$attr->{QUERY};");
+ #$self->query($db, "$attr->{QUERY};");
 
-   print $self->{Q};
-   my $a = $self->{Q}->{NAME};
-
- #print "$self->{TEST} / $a{NAME}";
- #while(my($k, $v)=each %$self->{Q}->{NAME}) {
- #  print "------$k, $v<br>"; 	
-#}
-
- return $self if($self->{errno});
- my $list = $self->{list};
-
-# if ($self->{TOTAL} >= $attr->{PAGE_ROWS}) {
-#    $self->query($db, "$attr->{QUERY}");
-#    my $a_ref = $self->{list}->[0];
-#    ($self->{TOTAL}) = @$a_ref;
-#   }
-
+  my $list = \@rows;
   return $list;
 }
 
+#**********************************************************
+# show 
+#**********************************************************
+sub sqlcmd_info {
+ my $self = shift;
+
+my @row;
+my %stats = ();
+my %vars = ();
+
+# Determine MySQL version
+my $query = $db->prepare("SHOW VARIABLES LIKE 'version';");
+$query->execute();
+@row = $query->fetchrow_array();
+
+my ($major, $minor, $patch) = ($row[1] =~ /(\d{1,2})\.(\d{1,2})\.(\d{1,2})/);
+
+if($major == 5 && (($minor == 0 && $patch >= 2) || $minor > 0)) {
+  $query = $db->prepare("SHOW GLOBAL STATUS;");
+}
+else { 
+  $query = $db->prepare("SHOW STATUS;"); 
+ }
+
+
+# Get status values
+$query->execute();
+while(@row = $query->fetchrow_array()) { 
+	$stats{$row[0]} = $row[1]; 
+ }
+
+# Get server system variables
+$query = $db->prepare("SHOW VARIABLES;");
+$query->execute();
+while(@row = $query->fetchrow_array()) { 
+	$vars{$row[0]} = $row[1]; 
+ }
+   
+ return \%stats, \%vars;
+}
 
 1

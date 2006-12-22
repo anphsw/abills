@@ -192,9 +192,15 @@ sub list {
     my $value = $self->search_expr($attr->{SUM}, 'INT');
     push @WHERE_RULES, "p.sum$value ";
   }
+
  if ($attr->{METHOD}) {
     push @WHERE_RULES, "p.method='$attr->{METHOD}' ";
   }
+ elsif ($attr->{METHODS}) {
+    push @WHERE_RULES, "p.method IN ($attr->{METHODS}) ";
+  }
+
+
  if ($attr->{DATE}) {
     my $value = $self->search_expr("$attr->{DATE}", 'INT');
     push @WHERE_RULES,  " date_format(p.date, '%Y-%m-%d')$value ";
@@ -214,15 +220,20 @@ sub list {
  	 push @WHERE_RULES, "u.company_id='$attr->{COMPANY_ID}'";
   }
 
+ if ($attr->{EXT_ID}) {
+ 	 push @WHERE_RULES, "p.ext_id='$attr->{EXT_ID}'";
+  }
+
+ if ($attr->{ID}) {
+ 	 push @WHERE_RULES, "p.id='$attr->{ID}'";
+  }
+
  # Show groups
  if ($attr->{GID}) {
     push @WHERE_RULES, "u.gid='$attr->{GID}'";
   }
 
  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
- 
-
- 
  
  $self->query($db, "SELECT p.id, u.id, p.date, p.sum, p.dsc, if(a.name is null, 'Unknown', a.name),  
       INET_NTOA(p.ip), p.last_deposit, p.method, p.ext_id, p.uid 
@@ -269,6 +280,13 @@ sub reports {
  if ($attr->{GID}) {
    push @WHERE_RULES, "u.gid='$attr->{GID}'";
   }
+
+
+
+ if ($attr->{METHODS}) {
+    push @WHERE_RULES, "p.method IN ('$attr->{METHODS}') ";
+  }
+
  
  if(defined($attr->{DATE})) {
    push @WHERE_RULES, "date_format(p.date, '%Y-%m-%d')='$attr->{DATE}'";
@@ -281,6 +299,9 @@ sub reports {
     }
    elsif ($attr->{TYPE} eq 'DAYS') {
      $date = "date_format(p.date, '%Y-%m-%d')";
+    }
+   elsif($attr->{TYPE} eq 'PAYMENT_METHOD') {
+   	 $date = "p.method";   	
     }
    else {
      $date = "u.id";   	

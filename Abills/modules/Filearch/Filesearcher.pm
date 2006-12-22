@@ -34,10 +34,10 @@ $VERSION = 2.00;
 
 
 
-%SEARCH_EXPRESSiONS = ( sr   => { SEARCH       => 'mzinfo.cgi\?id=(\d+)">(.+)</A></TD>[ ]+<TD>(\d+)</TD>[ ]+<TD>(\W+)</TD>.+</TR>',  # '(mzinfo.cgi\?id=.+\n)',
+%SEARCH_EXPRESSiONS = ( sr   => { SEARCH       => 'movies/(\d+)">(.+)</A></TD>[ ]+<TD>(\d+)</TD>[ ]+<TD>(\W+)</TD>.+</TR>',  # '(mzinfo.cgi\?id=.+\n)',
 	                                  SEARCH_LINK  => 'http://www.sharereactor.ru/cgi-bin/mzsearch.cgi?search=',
                                     SEARCH_PARSE => '',
-                                    INFO_PAGE    => 'http://www.sharereactor.ru/cgi-bin/mzinfo.cgi?id=%ID%',
+                                    INFO_PAGE    => 'http://www.sharereactor.ru/movies/%ID%',
                                     GET_INFO     => {
                                   	   NAME        => '<H1>(.+)</H1>',
                                        ORIGIN_NAME => '<B>Оригинальное&nbsp;название:</B> (.+)\n',
@@ -58,7 +58,8 @@ $VERSION = 2.00;
                                        FILE_SOUND   => '<B>Звук:</B> (.+)\n',
                                        COVER        => '<IMG SRC=\'(.+)\' alt=\'(.+)\'>',
                                        POSTER       => '<IMG SRC=\'(.+)\' alt=\'(.+)\'>',
-                                       SITES        => ''
+                                       SITES        => '',
+                                       LINKS        => '<B>Ссылка:</B> (.+)\n'
                                    }
 	                                },
                           imdb => { SEARCH       => '/title/tt(\d+)/.+>(.+)</a> \((\d+)\)',
@@ -177,9 +178,9 @@ sub sr_search {
 
  my $res = web_request($request, {'TimeOut' => 60 });
 
- if($res =~ /mzinfo.cgi\?id=(\d*)/) {
-   print "FIND: $1 (http://www.sharereactor.ru/cgi-bin/mzinfo.cgi?id=$1)" if (defined($attr->{debug}) > 0);
-   my $res = web_request("http://www.sharereactor.ru/cgi-bin/mzinfo.cgi?id=$1", {'TimeOut' => 60 });      
+ if($res =~ /\/movies\/(\d*)/) {
+   print "FIND: $1 (http://www.sharereactor.ru/movies/$1)" if (defined($attr->{debug}) > 0);
+   my $res = web_request("http://www.sharereactor.ru/movies/$1", {'TimeOut' => 60 });      
    return parse_info($res, { EXPRESSIONS => $SEARCH_EXPRESSiONS{sr}{GET_INFO} });
   }
 

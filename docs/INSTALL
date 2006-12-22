@@ -107,6 +107,7 @@ Download it from [http://www.cpan.org]
 
 
 
+
 =====Apache=====
 Edit **httpd.conf**
 
@@ -126,6 +127,11 @@ Edit **httpd.conf**
     DirectoryIndex index.cgi
     Order allow,deny
     Allow from all
+
+    <Files ~ "\.(db|log)$">
+      Order allow,deny
+      Deny from all
+    </Files>
   </Directory>
   
   

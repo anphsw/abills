@@ -548,12 +548,12 @@ sub des_ecb_encrypt
 	&doFP(*l,*r);
 
 	pack("C8",$l&0xff, 
-	          ($l>> 8)&0x00ffffff,
-	          ($l>>16)&0x0000ffff,
+	          (($l>> 8)&0x00ffffff) & 0xff,
+	          (($l>>16)&0x0000ffff) & 0xff,
 		  ($l>>24)&0x000000ff,
 		  $r&0xff,
-	          ($r>> 8)&0x00ffffff,
-	          ($r>>16)&0x0000ffff,
+	          (($r>> 8)&0x00ffffff) & 0xff,
+	          (($r>>16)&0x0000ffff) & 0xff,
 		  ($r>>24)&0x000000ff);
 	}
 

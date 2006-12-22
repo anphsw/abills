@@ -13,11 +13,9 @@ $VERSION = 2.00;
 @ISA = ('Exporter');
 
 @EXPORT = qw( 
-  &radius_log
   &null
   &convert
   &parse_arguments
-  &session_spliter
   &int2ip
   &ip2int
   &int2byte
@@ -31,7 +29,6 @@ $VERSION = 2.00;
   &check_time
   &get_radius_params
   &test_radius_returns
-  &ping
   &sendmail
   &in_array
   %int
@@ -141,7 +138,7 @@ sub parse_arguments {
     	   $args{"$k"}=(defined($v)) ? $v : '';
     	 }
     	else {
-    		$args{"$line"}='y';
+    		$args{"$line"}=1;
     	 }
      }
   return \%args;
@@ -234,7 +231,7 @@ sub show_log {
  $total = $#err_recs;
  my @list;
 
- return (\@list, \%types, $total) if ($total < 1);
+ return (\@list, \%types, $total) if ($total < 0);
 
   
 # my $output;
@@ -373,8 +370,21 @@ sub int2byte {
  my $MEGABYTE = $KBYTE_SIZE * $KBYTE_SIZE;
  my $GIGABYTE = $KBYTE_SIZE * $KBYTE_SIZE * $KBYTE_SIZE;
 
-
- if($val > $GIGABYTE)      { $val = sprintf("%.2f GB", $val / $GIGABYTE);   }  # 1024 * 1024 * 1024
+ if ($attr->{DIMENSION}) {
+ 	 if ($attr->{DIMENSION} eq 'Mb') {
+ 	 	 $val = sprintf("%.2f MB", $val / $MEGABYTE);
+ 	  }
+ 	 elsif($attr->{DIMENSION} eq 'Gb') {
+ 	 	 $val = sprintf("%.2f GB", $val / $GIGABYTE);
+ 	  }
+ 	 elsif($attr->{DIMENSION} eq 'Kb') {
+ 	 	 $val = sprintf("%.2f Kb", $val / $KBYTE_SIZE);
+ 	  }
+ 	 else {
+ 	 	 $val .= " Bt";
+ 	  }
+  }
+ elsif($val > $GIGABYTE)   { $val = sprintf("%.2f GB", $val / $GIGABYTE);   }  # 1024 * 1024 * 1024
  elsif($val > $MEGABYTE)   { $val = sprintf("%.2f MB", $val / $MEGABYTE);   }  # 1024 * 1024
  elsif($val > $KBYTE_SIZE) { $val = sprintf("%.2f Kb", $val / $KBYTE_SIZE); }
  else { $val .= " Bt"; }
@@ -620,7 +630,12 @@ sub get_radius_params {
  else {
     while(my($k, $v)=each(%ENV)) {
       if(defined($v) && defined($k)) {
-        $RAD{$k}=clearquotes("$v");
+        if ($RAD{$k}) {
+          $RAD{$k}.=";".clearquotes("$v");
+         }
+        else {
+        	$RAD{$k}=clearquotes("$v");
+         }
        }
      }
   }

@@ -1,7 +1,84 @@
+=====0.35=====
+  * 18.12.2006 - Обновление карточного модуля
+ ''MySQL''
+  ALTER TABLE `cards_users` DROP PRIMARY KEY;
+  ALTER TABLE `cards_users` DROP INDEX `login`;
+  ALTER TABLE `cards_users` change  COLUMN `serial` `number` INTEGER(11) UNSIGNED 
+   ZEROFILL NOT NULL   DEFAULT '00000000000';
+  ALTER TABLE `cards_users` DROP INDEX `serial`;
+  ALTER TABLE `cards_users` ADD COLUMN `serial` VARCHAR(10) NOT NULL default '';
+  ALTER TABLE `cards_users` change COLUMN `password` `pin` BLOB NOT NULL;
+  ALTER TABLE `cards_users` ADD COLUMN `uid` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0';
+  ALTER TABLE `cards_users` ADD UNIQUE KEY `serial` (`serial`, `number`);
+  DROP TABLE `cards_payments`;
+
+
+  * 13.12.2006 - Доработан модуль Docs. Добавлена возможность выдавать Товарные накладные. \\
+ ''MySQL''
+  CREATE TABLE `docs_invoice` (
+    `id` int(11) NOT NULL auto_increment,
+    `date` date NOT NULL default '0000-00-00',
+    `customer` varchar(200) NOT NULL default '',
+    `phone` varchar(16) NOT NULL default '0',
+    `aid` smallint(6) unsigned NOT NULL default '0',
+    `uid` int(11) unsigned NOT NULL default '0',
+    `created` datetime NOT NULL default '0000-00-00 00:00:00',
+    `invoice_id` int(10) unsigned NOT NULL default '0',
+    `vat` double(5,2) unsigned NOT NULL default '0.00',
+    `by_proxy_seria` varchar(40) NOT NULL default '',
+    `by_proxy_person` varchar(15) NOT NULL default '',
+    `by_proxy_date` date NOT NULL default '0000-00-00',
+    PRIMARY KEY  (`id`)
+  );
+  CREATE TABLE `docs_invoice_orders` (
+    `invoice_id` int(11) unsigned NOT NULL default '0',
+    `orders` varchar(200) NOT NULL default '',
+    `counts` int(10) unsigned NOT NULL default '0',
+    `unit` tinyint(3) unsigned NOT NULL default '0',
+    `price` double(10,2) unsigned NOT NULL default '0.00',
+    KEY `invoice_id` (`invoice_id`)
+  ); 
+
+  * 11.12.2006 - Добавлена возможность изминения параметров или удаления пользователей из списка. \\
+Включить в  / System configuration/ Administrators/ Permisions  -> Multiuser operation.
+  * 11.12.2006 - Доработан модуль Cards.
+ ''MySQL''
+   ALTER TABLE cards_dillers add  percentage tinyint(3) unsigned NOT NULL default 0;
+   ALTER TABLE cards_users add diller_date date NOT NULL default '0000-00-00';
+   ALTER TABLE cards_users add sum double(10,2) unsigned NOT NULL default '0.00';
+   ALTER TABLE cards_payments add diller_date date NOT NULL default '0000-00-00';
+
+  * 27.11.2006 - Новый модуль [[http://abills.asmodeus.com.ua/wiki/doku.php?id=abills:docs:modules:paysys:ru|Paysys]] для получения платежей с разных платёжных систем. Реализирована поддержка [[http://www.webmoney.ru|Webmoney]] и [[http://www.rupay.ru|RUpay]] (ещё тестируется).
+  * 27.11.2006 - Модуль Cisco переименован на Snmputils
+  * 20.11.2006 - $conf{MAX_SESSION_TRAFFIC} перенесена в конфиг
+  * 18.11.2006 - Добавлен контроль перебора паролей в веб интерфейсе Опция: $conf{wi_bruteforce}
+ ''MySQL''
+
+  CREATE TABLE `users_bruteforce` (
+    `login` varchar(20) NOT NULL default '',
+    `password` varchar(16) binary NOT NULL default '0',
+    `datetime` datetime NOT NULL default '0000-00-00 00:00:00',
+    `ip` int(11) unsigned NOT NULL default '0',
+    `auth_state` tinyint(1) unsigned NOT NULL default '0',
+    KEY `login` (`login`)
+  );
+
+  * 06.11.2006 - Возможность создания своих темплейтов из веб интерфейса (/ System configuration/ MISC/ Template/).
+  * 15.10.2006 - Модуль [[http://abills.asmodeus.com.ua/wiki/doku.php?id=abills:docs:modules:cisco:ru|Cisco]] для мониторинга оборудования Cisco Systems
+  * 9.10.2006 - Номера компов для Club Monitor
+ ''MySQL''\\
+    ALTER TABLE ipn_club_comps add column number smallint(6) unsigned NOT NULL default '0';
+    ALTER TABLE ipn_club_comps add UNIQUE KEY number (number);
+
+  * Добавнлено виды отчислений: предоплата, по факту 
+ ''MySQL''\\
+    ALTER TABLE abon_tariffs add payment_type tinyint(1) unsigned NOT NULL default '0';
+
+
 =====0.34=====
   * 21.09.2006 - FreeBSD ipfw table support
   * Добавлена ставка НДС.
- ''Изминения для базы''\\
+ ''Изменения для базы''\\
 
     ALTER TABLE companies add column vat double(5,2) unsigned NOT NULL default '0.00';
     ALTER TABLE fees add column vat double(5,2) unsigned NOT NULL default '0.00';

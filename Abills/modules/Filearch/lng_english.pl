@@ -19,3 +19,4 @@ $_FAVORIT='Favorit';
 $_NEW='New';
 $_COVER='Cover';
 $_POSTER='Poster';
+$_SKIP='Skip';

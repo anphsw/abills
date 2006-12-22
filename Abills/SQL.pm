@@ -10,7 +10,7 @@ package Abills::SQL;
 sub connect {
   my $class = shift;
   my $self = { };
-  my ($sql_type, $dbhost, $dbname, $dbuser, $dbpasswd) = @_;
+  my ($sql_type, $dbhost, $dbname, $dbuser, $dbpasswd, $attr) = @_;
   bless($self, $class);
   $self->{sql_type} = $sql_type;
   #use lib $lib;
@@ -25,7 +25,7 @@ sub connect {
     print "Module '$sql_type' not supported yet";
    }
 
-  my $sql = "main"->connect($dbhost, $dbname, $dbuser, $dbpasswd);
+  my $sql = "main"->connect($dbhost, $dbname, $dbuser, $dbpasswd, $attr);
   $self->{db}=$sql->{db};
   $self->{mysql}=$sql;
 

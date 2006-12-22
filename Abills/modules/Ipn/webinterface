@@ -75,7 +75,6 @@ if (defined($FORM{DATE})) {
       my $user_traffic_sum=0;
 
       $table_sessions->addtd(
-
                   $table->td($stats_array[0][0], { rowspan => ($#stats_array > 0) ? $#stats_array+2 : 2 } ),
                   $table->td($stats_array[0][1], { bgcolor => $TT_COLORS[$stats_array[0][1]] }), 
                   $table->td($stats_array[0][2], { bgcolor => $TT_COLORS[$stats_array[0][1]] }), 
@@ -150,7 +149,6 @@ else {
                                } );
 
   $LIST_PARAMS{INTERVAL_TYPE}=3;
-
   my $list = $Ipn->reports_users({ %LIST_PARAMS });
   $graph_type='month_stats';
   
@@ -313,7 +311,7 @@ my $search =  $table->show();
 
 
 
-print "<form action=$SELF_URL>
+print "<form action='$SELF_URL'>
 <input type=hidden name=index value=$index>
 <table border=1>
 <tr><td>SRC_ADDR:</td><td><input type=text name=SRC_ADDR value='$FORM{SRC_ADDR}'></td><td>SRC_PORT:</td><td><input type=text name=SRC_PORT value='$FORM{SRC_PORT}' size=5></td></tr>
@@ -1431,9 +1429,9 @@ sub ipn_user_activate {
     if ($online_ip eq $ip && $user->{UID}) {
        if ($line->[11] == $LIST_PARAMS{UID}) {
          $ACTION{LOGOUT}= "$_HANGUP";    	
-         $HIDDEN{SESSION_ID} = $line->[13];
+         $HIDDEN{SESSION_ID} = $line->[21];
          delete $ACTION{ACTIVE};
-         if ($line->[10] == 11) {
+         if ($line->[17] == 11) {
        	   $html->message('err', $_ERROR, "$_DISABLE");
        	   return 0;
           } 
@@ -1449,7 +1447,7 @@ sub ipn_user_activate {
        $online_ip,  
        $line->[4], 
        int2byte($line->[5]), int2byte($line->[6]),
-       $html->button("$_HANGUP", "index=$index&LOGOUT=1&SESSION_ID=$line->[13]")
+       $html->button("$_HANGUP", "index=$index&UID=$LIST_PARAMS{UID}&LOGOUT=1&SESSION_ID=$line->[21]")
        )  if ($line->[11] == $LIST_PARAMS{UID} );
     }
    } 
@@ -1458,8 +1456,9 @@ sub ipn_user_activate {
    }
 
 
-  print $html->form_main({ CONTENT => "IP: $ip $IP_INPUT (". $nas_id .") ", 
+  $HIDDEN{sid}=$html->{SID} if ($html->{SID});
 
+  print $html->form_main({ CONTENT => "IP: $ip $IP_INPUT (". $nas_id .") ", 
                      HIDDEN  => { index   => "$index",
                      	            UID     => $LIST_PARAMS{UID},
                      	            %HIDDEN
@@ -1486,10 +1485,11 @@ sub ipn_change_status {
    }
 
 	my $ip              = $attr->{FRAMED_IP_ADDRESS};
+	my $netmask         = 32;
 	my $STATUS          = $attr->{STATUS} || '';
   my $USER_NAME       = $attr->{USER_NAME} || '';
   my $ACCT_SESSION_ID = $attr->{ACCT_SESSION_ID} || '';
-
+  #my $PORT            = $attr->{NAS_PORT} || 0;
     
   my $speed_in=0;
   my $speed_out=0;
@@ -1539,6 +1539,7 @@ sub ipn_change_status {
 
 	
   $cmd =~ s/\%IP/$ip/g;
+  $cmd =~ s/\%MASK/$netmask/g;
   $cmd =~ s/\%NUM/$rule_num/g;
   $cmd =~ s/\%SPEED_IN/$speed_in/g if ($speed_in > 0);
   $cmd =~ s/\%SPEED_OUT/$speed_out/g if ($speed_out > 0);
@@ -1591,13 +1592,13 @@ sub ipn_club_monitor {
     ipn_sessions2();
 	 }
 
-$sessions->online( { %LIST_PARAMS } );	
+$sessions->online( { %LIST_PARAMS, FIELDS => [ 0,1,2,3,4,5,6,14,9,10,15 ] } );	
 my $dub_logins = $sessions->{dub_logins};
  
 my $table = $html->table( { width      => '100%',
                             caption    => "Online",
                             border     => 1,
-                            title      => ["$_USER", "$_FIO", "$_PORT", "IP", "$_DURATION", "$_RECV", "$_SENT",
+                            title      => ["$_USER", "$_FIO", "$_NUM", "IP", "$_DURATION", "$_RECV", "$_SENT",
                                  "$_SUM", "-", "-", '-', '-' ],
                             cols_align => ['left', 'left', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'center'],
                             qs         => $pages_qs,
@@ -1608,6 +1609,18 @@ my $nas = Nas->new($db, \%conf);
 my $online = $sessions->{nas_sorted};
 my $nas_list = $nas->list({ TYPE => 'ipcad' });
 
+my $graph_type='';
+my %DATA_HASH = ();
+my %CHART = ();
+my %AVG = (MONEY    => 0,
+           TRAFFIC  => 0
+          );
+
+
+  my $num = 0;
+  my @X_TEXT = ();
+
+
 foreach my $nas_row (@$nas_list) {
   next if (! defined($online->{$nas_row->[0]}));
 
@@ -1617,25 +1630,40 @@ foreach my $nas_row (@$nas_list) {
   $table->{extra}="colspan='8' class='small'";
   $table->addrow("$nas_row->[0]:<b>$nas_row->[1]</b>:$nas_row->[3]:$_TOTAL: $total" );
   
-  
   foreach my $line (@$l) {
     undef($table->{rowcolor});
     undef($table->{extra});
 
-    my $status = ($line->[9] == 10 || $line->[9] == 3 || $line->[9] == 1) ? "(". $html->button("DEACTIVE", "index=$index&DEACTIVE=$line->[0]&ip=$line->[3]&ACCT_SESSION_ID=$line->[11]", { TITLE => 'Status' }) . ")" : "(". $html->button("$_ACTIVATE", "index=$index&ACTIVE=$line->[0]&ip=$line->[3]&ACCT_SESSION_ID=$line->[11]", { TITLE => 'active users' }) . ")" ;
+    my $ip = int2ip($line->[3]);
+    my $status = ($line->[10] == 10 || $line->[10] == 3 || $line->[10] == 1) ? "(". $html->button("DEACTIVE", "index=$index&DEACTIVE=$line->[0]&ip=$ip&ACCT_SESSION_ID=$line->[9]", { TITLE => 'Status' }) . ")" : "(". $html->button("$_ACTIVATE", "index=$index&ACTIVE=$line->[0]&ip=$ip&ACCT_SESSION_ID=$line->[9]", { TITLE => 'active users' }) . ")" ;
     my $user_info =  "$_FIO: $line->[1]\n$_PHONE: $line->[12]\n$_VARIANT: $line->[13]\n$_DEPOSIT: $line->[14]\n".
-     "$_CREDIT: $line->[15]\n$_SPEED: $line->[16]\nSESSION_ID: $line->[11]\nCID: $line->[17]\nCONNECT_INFO: $line->[18]\nUPDATES: $line->[20]";
+     "$_CREDIT: $line->[15]\n$_SPEED: $line->[16]\nSESSION_ID: $line->[9]\nCID: $line->[8]\nCONNECT_INFO: $line->[18]\nUPDATES: $line->[20]";
+
+
 
     $table->addrow($html->button($line->[0], "index=11&UID=$line->[10]", { TITLE => "$user_info" }), 
-      $line->[1], $line->[2],  
-      $line->[3],  $line->[4], 
-      int2byte($line->[5]), int2byte($line->[6]), 
-      $line->[14],
+      $line->[1], 
+      $line->[2],  
+      $ip,  
+      $line->[4], 
+      int2byte($line->[5]), 
+      int2byte($line->[6]), 
+      $line->[7],
      "$status",
-     "(". $html->button("$_DETAIL", "index=$index&DETAIL=$line->[11]", { TITLE => 'Detail' }) .")",
-     "(". $html->button('P', "index=$index&ping=$line->[3]", { TITLE => 'ping' }) .")",
-     "(". $html->button('H', "index=$index&HANGUP=$line->[3]&SESSION_ID=$line->[11]", { TITLE => 'Hangup' }) .")"
+     "(". $html->button("$_DETAIL", "index=$index&DETAIL=$line->[21]", { TITLE => 'Detail' }) .")",
+     "(". $html->button('P', "index=$index&ping=$ip", { TITLE => 'ping' }) .")",
+     "(". $html->button('H', "index=$index&HANGUP=$ip&SESSION_ID=$line->[9]", { TITLE => 'Hangup' }) .")"
      );
+
+
+    $num++;
+    $DATA_HASH{MONEY}[$num]  = $line->[7];
+    #$DATA_HASH{COMPUTERS}[$num]  = $num;
+    #$DATA_HASH{DURATION}[$num] = time2sec($line->[4]);
+    push @X_TEXT,  "$line->[2]:$line->[0]";
+
+
+
   }
 }
 
@@ -1643,7 +1671,7 @@ print $table->show();
 
 
 $table = $html->table( { width       => '100%',
-                            title_plain => [ 
+                         title_plain => [ 
                                              "$_REFRESH (sec): ".   $html->form_input('REFRESH', int($FORM{REFRESH}), { SIZE => 4 } ),
                                              $html->form_input('SHOW',  $_SHOW, {TYPE => 'SUBMIT'})  
                                             ],
@@ -1653,6 +1681,19 @@ print $html->form_main({ CONTENT => $table->show(),
 	                       HIDDEN  => { index =>  "$index" },
 	                       METHOD  => 'GET'
                         });
+
+
+print $html->make_charts({  
+	 X_TEXT             => \@X_TEXT,
+	 DATA               => \%DATA_HASH,
+	 AVG                => \%AVG,
+	 TYPE               => ['bar'],
+ 	 AXIS_CATEGORY_skip => 0,
+	 TRANSITION         => 1,
+	 CHART_RECT_width   => 400,
+	 CHART_RECT_height  => $#X_TEXT * 22,
+	 CHART_RECT_x       => 70
+  });
 
 
 }
@@ -1704,7 +1745,7 @@ my $list = $Ipn->comps_list({ %LIST_PARAMS });
 my $table = $html->table( { width      => '100%',
                             caption    => "Computers",
                             border     => 1,
-                            title      => ["ID", "$_NAME", "IP", "MAC", '-', '-' ],
+                            title      => ["$_NUM", "$_NAME", "IP", "MAC", '-', '-' ],
                             cols_align => ['right', 'left', 'right', 'right', 'center', 'center'],
                             qs         => $pages_qs,
                            } );
@@ -1715,8 +1756,8 @@ foreach $line (@$list) {
 	 $line->[1],
 	 $line->[2],
 	 $line->[3],
-	 $html->button($_CHANGE, "index=$index&chg=$line->[0]"),
-	 $html->button($_DEL, "index=$index&$pages_qs&del=$line->[0]", { MESSAGE => "$_DEL '$line->[1]?" })
+	 $html->button($_CHANGE, "index=$index&chg=$line->[4]"),
+	 $html->button($_DEL, "index=$index&$pages_qs&del=$line->[4]", { MESSAGE => "$_DEL '$line->[1]?" })
 	);
 }
 
@@ -1738,7 +1779,7 @@ sub ipn_user_add {
  my %allow_comps = ();
 	 
  foreach my $line (@$list) {
-   $allow_comps{$line->[2]}=$line->[1];
+   $allow_comps{$line->[2]}="$line->[0]:$line->[1]";
   }
 
 
@@ -1783,6 +1824,10 @@ sub ipn_user_add {
         }
 
      my @USER_PARAMS=();
+     my $comp_number=0; 
+     my $comp_name='';
+
+     ($comp_number, $comp_name)=split(/:/, $allow_comps{$FORM{IP}}) if ($allow_comps{$FORM{IP}});
 
      if ($FORM{ACTIVATE}) {
 
@@ -1793,20 +1838,23 @@ sub ipn_user_add {
                    FRAMED_IP_ADDRESS => $FORM{IP}, 
                    CONNECT_INFO      => '', 
                    NAS_ID            => $FORM{NAS_ID},
-                   TP                => $FORM{TP_ID} );
+                   TP                => $FORM{TP_ID},
+                   NAS_PORT          => $comp_number );
      
        $Ipn->user_status({ %DATA });
        ipn_change_status({ STATUS => 'ONLINE_ENABLE', %DATA });
      }
      
      
+     
      my $table = $html->table( { width  => '400',
      		                         class  => 'with_border',
      	                           border => 1,
                                  rows   => [["$_LOGIN:",      "$LOGIN"       ],
-                                            ["$_PASSWD:",     "$PASSWORD"   ],
+                                            ["$_PASSWD:",     "$PASSWORD"    ],
                                             ["IP:",           "$FORM{IP}"    ],
-                                            ["COMPUTER:",     "$allow_comps{$FORM{IP}}" ],
+                                            ["$_NUM:",        "$comp_number" ],
+                                            ["COMPUTER:",     "$comp_name"   ],
                                             ["$_SUM:",        "$FORM{SUM}"   ],
                                             ["$_TARIF_PLAN:", "$FORM{TP_ID}" ],
                                             ["$_DATE:",       "$DATE $TIME"  ],

@@ -1,0 +1,17 @@
+#!/bin/bash 
+# 
+# HangUp pppd 
+# 
+# usage: 
+#      pppd_kill IP_address 
+# 
+# Add next string to /etc/sudoers: 
+# 
+# apache   ALL = NOPASSWD: /usr/abills/misc/pppd_kill 
+# 
+
+  IP_ADDR=$1 
+  INTERFACE=`ifconfig | awk -v RS='\n\n'  "/$IP_ADDR/ {print \\$1}"` 
+  PPP_PID=`cat /var/run/$INTERFACE.pid` 
+
+  kill -1 $PPP_PID

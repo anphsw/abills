@@ -33,6 +33,8 @@
 
 my $debug=0;
 
+$debug=1 if ($ARGV[$#ARGV] eq 'debug');
+
 #If not anought arguments
 if ( $#ARGV < 3 ) {
  print qq{Not anought argumets:
@@ -196,7 +198,9 @@ if ($ACTION eq 'up') {
           DAY_OF_WEEK         => $user->{DAY_OF_WEEK},
           DAY_OF_YEAR         => $user->{DAY_OF_YEAR},
           REDUCTION           => $user->{REDUCTION},
-          POSTPAID            => 1
+          POSTPAID            => 1,
+          GET_INTERVAL        => 1,
+          debug               => ($debug > 0) ? 1 : undef
          });
 
 #    print "RT: $remaining_time\n"  if ($debug == 1);
@@ -211,7 +215,7 @@ if ($ACTION eq 'up') {
 
       #Get intervals
       while(my($k, $v)=each( %TT_IDS)) {
-# 	      print "$k, $v\n";
+        print "$k, $v\n" if ($debug > 0);
         $user->{TI_ID}=$v;
  	      my $list = $tariffs->tt_list({ TI_ID => $v });
  	      foreach my $line (@$list)  {
@@ -274,9 +278,15 @@ if ($ACTION eq 'up') {
      }
     #FreeBSD ipfw pipe shaper
     else {
-   	  $nets{$traf_type} =~ s/[\r]?\n//g;
-  	  $nets{$traf_type} =~ s/;/,/g;
-      my @nets_arr = split(/;|,/, $nets{$traf_type});
+   	  
+   	  my @nets_arr = ();
+   	  if ($nets{$traf_type}) {
+   	    $nets{$traf_type} =~ s/[\r]?\n//g;
+  	    $nets{$traf_type} =~ s/;/,/g;
+  	    @nets_arr = split(/;|,/, $nets{$traf_type});
+  	   }
+
+       
 
      if ($speed_in > 0) {
     	  #In;
@@ -296,7 +306,7 @@ if ($ACTION eq 'up') {
                	  push @FW_ACTIONS, "$IPFW table $table_number add $line";
                 }
               }
-            push @FW_ACTIONS, "$IPFW add $fw_num_in pipe $pipe_num_in ip from table\\($table_number\\) to any via $INTERFACE in";
+            push @FW_ACTIONS, "$IPFW add $fw_num_in pipe $pipe_num_in ip from any to table\\($table_number\\)  via $INTERFACE in";
            }
           else {
             push @FW_ACTIONS, "$IPFW add $fw_num_in pipe $pipe_num_in ip from $nets{$traf_type} to any via $INTERFACE in";
@@ -304,7 +314,10 @@ if ($ACTION eq 'up') {
             push @FW_ACTIONS, "$IPFW pipe $pipe_num_in config bw ". $speed_in ."Kbit/s queue 10Kbytes";
          }
        }
-
+      else {
+      	
+        }
+      
       if ($speed_out > 0) {
         if ($traf_type == 0) {
           push @FW_ACTIONS, "$IPFW add $fw_num_out pipe $pipe_num_out ip from any to any via $INTERFACE out";
@@ -330,6 +343,11 @@ if ($ACTION eq 'up') {
           push @FW_ACTIONS, "$IPFW pipe $pipe_num_out config bw ". $speed_out ."Kbit/s queue 10Kbytes";
          }
        }
+      else {
+      	
+        }
+
+
     }
     
   }

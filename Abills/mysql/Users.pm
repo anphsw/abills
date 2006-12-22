@@ -40,7 +40,7 @@ sub new {
   my $self = { };
 
   bless($self, $class);
-  
+
   return $self;
 }
 
@@ -191,7 +191,7 @@ sub pi {
      return $self;
    }
 
-  my $ar = $self->{list}->[0];
+
 
   ($self->{FIO}, 
    $self->{PHONE}, 
@@ -201,7 +201,7 @@ sub pi {
    $self->{EMAIL}, 
    $self->{CONTRACT_ID},
    $self->{COMMENTS}
-  )= @$ar;
+  )= @{ $self->{list}->[0] };
 	
 	
 	return $self;
@@ -405,6 +405,37 @@ sub list {
     $self->{SEARCH_FIELDS_COUNT}++;
   }
 
+ if ($attr->{ADDRESS_STREET}) {
+    $attr->{ADDRESS_STREET} =~ s/\*/\%/ig;
+    push @WHERE_RULES, "pi.address_street LIKE '$attr->{ADDRESS_STREET}' ";
+    $self->{SEARCH_FIELDS} .= 'pi.address_street, ';
+    $self->{SEARCH_FIELDS_COUNT}++;
+  }
+
+ if ($attr->{ADDRESS_BUILD}) {
+    $attr->{ADDRESS_BUILD} =~ s/\*/\%/ig;
+    push @WHERE_RULES, "pi.address_build LIKE '$attr->{ADDRESS_BUILD}'";
+    $self->{SEARCH_FIELDS} .= 'pi.address_build, ';
+    $self->{SEARCH_FIELDS_COUNT}++;
+  }
+
+ if ($attr->{ADDRESS_FLAT}) {
+    $attr->{ADDRESS_FLAT} =~ s/\*/\%/ig;
+    push @WHERE_RULES, "pi.address_flat LIKE '$attr->{ADDRESS_FLAT}'";
+    $self->{SEARCH_FIELDS} .= 'pi.address_flat, ';
+    $self->{SEARCH_FIELDS_COUNT}++;
+  }
+
+
+
+ if ($attr->{CONTRACT_ID}) {
+    $attr->{CONTRACT_ID} =~ s/\*/\%/ig;
+    push @WHERE_RULES, "pi.contract_id LIKE '$attr->{CONTRACT_ID}'";
+    $self->{SEARCH_FIELDS} .= 'pi.contract_id, ';
+    $self->{SEARCH_FIELDS_COUNT}++;
+  }
+
+
  if ($attr->{DEPOSIT}) {
     my $value = $self->search_expr($attr->{DEPOSIT}, 'INT');
     push @WHERE_RULES, "b.deposit$value";
@@ -468,7 +499,7 @@ sub list {
 
     my $value = $self->search_expr($attr->{PAYMENTS}, 'INT');
     push @WHERE_RULES, "max(p.date)$value";
-    $self->{SEARCH_FIELDS} = 'max(p.date), ';
+    $self->{SEARCH_FIELDS} .= 'max(p.date), ';
     $self->{SEARCH_FIELDS_COUNT}++;
 
    my $HAVING = ($#WHERE_RULES > -1) ?  "HAVING " . join(' and ', @WHERE_RULES) : '';
@@ -498,16 +529,18 @@ sub list {
    my $list = $self->{list};
 
    if ($self->{TOTAL} > 0) {
-     shift @WHERE_RULES;
+     
      my $value = $self->search_expr($attr->{PAYMENTS}, 'INT');
-     push @WHERE_RULES, "p.date$value";
+     $WHERE_RULES[$#WHERE_RULES]="p.date$value";
+    
      $WHERE = ($#WHERE_RULES > -1) ?  "WHERE " . join(' and ', @WHERE_RULES) : '';
     
      $self->query($db, "SELECT count(DISTINCT u.uid) FROM users u 
        LEFT JOIN payments p ON (u.uid = p.uid)
+       LEFT JOIN users_pi pi ON (u.uid = pi.uid)
       $WHERE;");
-      my $a_ref = $self->{list}->[0];
-      ($self->{TOTAL}) = @$a_ref;
+
+      ($self->{TOTAL}) = @{ $self->{list}->[0] };
     }
 
  	  return $list
@@ -536,8 +569,7 @@ sub list {
      LEFT JOIN bills b ON u.bill_id = b.id
      LEFT JOIN companies company ON  (u.company_id=company.id) 
     $WHERE");
-    my $a_ref = $self->{list}->[0];
-    ($self->{TOTAL}) = @$a_ref;
+    ($self->{TOTAL}) = @{ $self->{list}->[0] };
    }
 
   return $list;
@@ -648,7 +680,7 @@ sub change {
               PASSWORD    => 'password',
               BILL_ID     => 'bill_id'
              );
- 
+
   my $old_info = $self->info($attr->{UID});
   
   if($attr->{create}){
@@ -693,7 +725,6 @@ sub del {
                   'fees', 
                   'payments', 
                   'users_nas', 
-                  'messages',
                   'docs_acct',
                   'dv_log',
                   'users',
@@ -759,5 +790,74 @@ sub nas_del {
 }
 
 
+#**********************************************************
+#
+#**********************************************************
+sub bruteforce_add {
+  my $self = shift;	
+  my ($attr) = @_;
+  
+  
+	$self->query($db, "INSERT INTO users_bruteforce (login, password, datetime, ip, auth_state) VALUES 
+	      ('$attr->{LOGIN}', '$attr->{PASSWORD}', now(), INET_ATON('$attr->{REMOTE_ADDR}'), '$attr->{AUTH_STATE}');", 'do');	
+	
+	return $self;
+}
+
+
+#**********************************************************
+#
+#**********************************************************
+sub bruteforce_list {
+  my $self = shift;	
+	my ($attr) = @_;
+	
+
+
+	my $GROUP = 'GROUP BY login';
+  my $count='count(login)';	
+	
+	if ($attr->{AUTH_STATE}) {
+    push @WHERE_RULES, "auth_state='$attr->{AUTH_STATE}'";
+   }
+	
+	if ($attr->{LOGIN}) {
+		push @WHERE_RULES, "login='$attr->{LOGIN}'";
+  	$count='auth_state';
+  	$GROUP = '';
+	 }
+	
+  my $WHERE = "WHERE " . join(' and ', @WHERE_RULES) if($#WHERE_RULES > -1);
+	my $list;
+	
+	
+  if (! $attr->{CHECK}) {
+	  $self->query($db,  "SELECT login, password, datetime, $count, INET_NTOA(ip) FROM users_bruteforce
+	    $WHERE
+	    $GROUP
+	    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;");
+    $list = $self->{list};
+  }
+
+  $self->query($db, "SELECT count(*) FROM users_bruteforce $WHERE;");
+  ($self->{TOTAL}) = @{ $self->{list}->[0] };
+
+	
+	return $list;
+}
+
+
+#**********************************************************
+#
+#**********************************************************
+sub bruteforce_del {
+  my $self = shift;	
+	my ($attr) = @_;
+	
+  $self->query($db,  "DELETE FROM users_bruteforce
+	 WHERE login='$attr->{LOGIN}';", 'do');
+
+	return $self;
+}
 
 1

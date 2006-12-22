@@ -64,19 +64,15 @@ use DBI;
 sub connect {
   my $class = shift;
   my $self = { };
-  my ($dbhost, $dbname, $dbuser, $dbpasswd) = @_;
+  my ($dbhost, $dbname, $dbuser, $dbpasswd, $attr) = @_;
   bless($self, $class);
-   #$self->{debug}=1;
-   $self->{db} = DBI->connect("DBI:mysql:database=$dbname;host=$dbhost", "$dbuser", "$dbpasswd") or die 
+  #$self->{debug}=1;
+  $self->{db} = DBI->connect("DBI:mysql:database=$dbname;host=$dbhost", "$dbuser", "$dbpasswd") or die 
        "Unable connect to server '$dbhost:$dbname'\n";
-
-   #   print "---- $! --\n";
-   #if ($db->err) {
-   #  print "---------1!1lj2lk\n";
-   #  $self->{errno}=3;
-   #  $self->{errstr}=;
-   #}
   
+  #For mysql 5 or highter
+  #$self->{db}->do("set names ".$attr->{CHARSET}) if ($attr->{CHARSET});
+ 
   $self->{query_count}=0;
   return $self;
 }
@@ -114,19 +110,15 @@ my $q;
 #print "$query<br>";
 
 if (defined($type) && $type eq 'do') {
-  
 #  print $query;
-
   $q = $db->do($query);
-#  $self->{TOTAL} = 0;
-
   if (defined($db->{'mysql_insertid'})) {
   	 $self->{INSERT_ID} = $db->{'mysql_insertid'};
    }
 }
 else {
   #print $query;
-  $q = $db->prepare($query) || die $db->errstr;;
+  $q = $db->prepare($query) || die $db->errstr;
   if($db->err) {
      $self->{errno} = 3;
      $self->{sql_errno}=$db->err;
@@ -149,6 +141,7 @@ else {
   
   $self->{Q}=$q;
   $self->{TOTAL} = $q->rows;
+#  $self->{NUM_OF_FIELDS} = $q->{NUM_OF_FIELDS};
 }
 
 
@@ -230,7 +223,7 @@ sub search_expr {
   if($type eq 'INT' && $value =~ s/\*//g) {
   	$expr = '>';
    }
-  elsif ($value =~ tr/^<>//d) {
+  elsif ($value =~ s/^<>//) {
     $expr = '<>';
    }
   elsif ($value =~ tr/^>//d) {
@@ -240,6 +233,8 @@ sub search_expr {
     $expr = '<';
    }
   
+
+  
   if ($type eq 'IP') {
   	$value = "INET_ATON('$value')";
    }
@@ -247,6 +242,8 @@ sub search_expr {
   	$value="'$value'";
    }
 
+
+  
   $value = $expr . $value;
   return $value;
 }

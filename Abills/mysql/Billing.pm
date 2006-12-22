@@ -14,6 +14,7 @@ $VERSION = 2.00;
 
 # User name expration
 use main;
+use Tariffs;
 @ISA  = ("main");
 my $db;
 my $CONF;
@@ -49,10 +50,9 @@ sub traffic_calculations {
   my $sent2 = $RAD->{OUTBYTE2} || 0; 
   my $recv2 = $RAD->{INBYTE2} || 0;
 
-# print "---------------------------- OUT: $RAD->{OUTBYTE}<br> 
-#         IN: $RAD->{INBYTE}<br>\n";
+  my $traffic_period = ($self->{ACTIVATE} ne '0000-00-00') ? "DATE_FORMAT(start, '%Y-%m-%d')>='$self->{ACTIVATE}'" : "DATE_FORMAT(start, '%Y-%m')=DATE_FORMAT(FROM_UNIXTIME($RAD->{SESSION_START}), '%Y-%m')" ;
 
-	
+
 =comments
 #local Prepaid Traffic
 # Separated local prepaid and global prepaid
@@ -153,15 +153,13 @@ sub traffic_calculations {
 
 
 
-my %traf_price = ();
-my %prepaid = ( 0 => 0, 
-                1 => 0);
-my %used_traffic=( 0 => 0, 
-                   1 => 0);
-
+my %traf_price  = ();
+my %prepaid     = ( 0 => 0, 
+                    1 => 0);
+my %used_traffic= ( 0 => 0, 
+                    1 => 0);
 
 my $list = $tariffs->tt_list( { TI_ID => $self->{TI_ID} });
-
 #id, in_price, out_price, prepaid, speed, descr, nets
 foreach my $line (@$list) {
    $traf_price{in}{$line->[0]}  =	$line->[1];
@@ -169,11 +167,12 @@ foreach my $line (@$list) {
    $prepaid{$line->[0]}         = $line->[3];
 }
 
-
 if ($prepaid{0} + $prepaid{1} > 0) {
    #Get traffic from begin of month
+   
    $self->query($db, "SELECT sum(sent + recv), sum(sent2 + recv2)
-       FROM dv_log WHERE uid='$self->{UID}' and (DATE_FORMAT(start, '%Y-%m')=DATE_FORMAT(curdate(), '%Y-%m'))
+       FROM dv_log 
+       WHERE uid='$self->{UID}' and ($traffic_period)
        GROUP BY uid;");
 
    if ($self->{TOTAL} > 0) {
@@ -223,16 +222,20 @@ if ($prepaid{0} + $prepaid{1} > 0) {
  return $traf_sum;
 }
 
+
+
 #**********************************************************
 # Calculate session sum
 # Return 
 # >= 0 - session sum
 # -1 Less than minimun session trafic and time
 # -2 Not found user in users db
-# -3 Not allow start period
+# -3 SQL Error
 # -4 Company not found
+# -5 TP not found
+# -16 Not allow start period
 #
-# session_sum($USER_NAME, $SESSION_START, $SESSION_DURATION, $RAD_HASH_REF);
+# session_sum($USER_NAME, $SESSION_START, $SESSION_DURATION, $RAD_HASH_REF, $attr);
 #**********************************************************
 sub session_sum {
  my $self = shift;
@@ -245,53 +248,101 @@ sub session_sum {
  my $sum = 0;
  my ($TP_ID);
 
- my $sent = $RAD->{OUTBYTE} || 0; #from server
- my $recv = $RAD->{INBYTE} || 0;  #to server
- my $sent2 = $RAD->{OUTBYTE2} || 0; 
+ my $sent  = $RAD->{OUTBYTE} || 0; #from server
+ my $recv  = $RAD->{INBYTE}  || 0;  #to server
+ my $sent2 = $RAD->{OUTBYTE2}|| 0; 
  my $recv2 = $RAD->{INBYTE2} || 0;
 
+ # Don't calculate if session smaller then $CONF->{MINIMUM_SESSION_TIME} and  $CONF->{MINIMUM_SESSION_TRAF}
  if (! $attr->{FULL_COUNT} && 
      (
       (defined($CONF->{MINIMUM_SESSION_TIME}) && $SESSION_DURATION < $CONF->{MINIMUM_SESSION_TIME}) || 
       (defined($CONF->{MINIMUM_SESSION_TRAF}) && $sent + $recv < $CONF->{MINIMUM_SESSION_TRAF})
      )
      ) {
-    
     return -1, 0, 0, 0, 0, 0;
   }
 
 
+ #If defined TP_ID
+ if ($attr->{TP_ID}) {
+   $self->query($db, "SELECT 
+    u.uid,
+    UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME($SESSION_START), '%Y-%m-%d')),
+    DAYOFWEEK(FROM_UNIXTIME($SESSION_START)),
+    DAYOFYEAR(FROM_UNIXTIME($SESSION_START)),
+    u.reduction,
+    u.bill_id,
+    u.activate,
+    u.company_id
+   FROM users u
+   WHERE  u.id='$USER_NAME';");
 
- $self->query($db, "SELECT 
-   u.uid,
-   tp.id, 
-   tp.hourp,
-   UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME($SESSION_START), '%Y-%m-%d')),
-   DAYOFWEEK(FROM_UNIXTIME($SESSION_START)),
-   DAYOFYEAR(FROM_UNIXTIME($SESSION_START)),
-   u.reduction,
-   u.bill_id,
-   u.activate,
-   tp.day_fee,
-   tp.min_session_cost,
-   u.company_id,
-   tp.payment_type
- FROM users u, 
+   if($self->{errno}) {
+     return -3, 0, 0, 0, 0, 0;
+    }
+   #user not found
+   elsif ($self->{TOTAL} < 1) {
+     return -2, 0, 0, 0, 0, 0;	
+    }
+
+  ($self->{UID}, 
+   $self->{DAY_BEGIN}, 
+   $self->{DAY_OF_WEEK}, 
+   $self->{DAY_OF_YEAR}, 
+   $self->{REDUCTION},
+   $self->{BILL_ID}, 
+   $self->{ACTIVATE},
+   $self->{COMPANY_ID},
+  ) = @{ $self->{list}->[0] };	
+ 	
+ 	$self->query($db, "SELECT 
+    tp.min_session_cost,
+    tp.payment_type
+   FROM tarif_plans tp
+   WHERE tp.id='$attr->{TP_ID}';");
+
+   if($self->{errno}) {
+     return -3, 0, 0, 0, 0, 0;
+    }
+   #TP not found
+   elsif ($self->{TOTAL} < 1) {
+     return -5, 0, 0, 0, 0, 0;	
+    }
+
+  ($self->{MIN_SESSION_COST},
+   $self->{PAYMENT_TYPE}
+  ) = @{ $self->{list}->[0] };
+ 	
+  }
+ else {
+  $self->query($db, "SELECT 
+    u.uid,
+    tp.id, 
+    tp.hourp,
+    UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME($SESSION_START), '%Y-%m-%d')),
+    DAYOFWEEK(FROM_UNIXTIME($SESSION_START)),
+    DAYOFYEAR(FROM_UNIXTIME($SESSION_START)),
+    u.reduction,
+    u.bill_id,
+    u.activate,
+    tp.min_session_cost,
+    u.company_id,
+    tp.payment_type
+   FROM users u, 
       dv_main dv, 
       tarif_plans tp
- WHERE dv.tp_id=tp.id 
+   WHERE dv.tp_id=tp.id 
    and dv.uid=u.uid
    and u.id='$USER_NAME';");
-
- if($self->{errno}) {
-   return -3, 0, 0, 0, 0, 0;
-  }
- #user not found
- elsif ($self->{TOTAL} < 1) {
-   return -2, 0, 0, 0, 0, 0;	
-  }
-
-  my $ar = $self->{list}->[0];
+ 
+   if($self->{errno}) {
+     return -3, 0, 0, 0, 0, 0;
+    }
+   #user not found
+   elsif ($self->{TOTAL} < 1) {
+     return -2, 0, 0, 0, 0, 0;	
+    }
   
   ($self->{UID}, 
    $self->{TP_ID}, 
@@ -302,52 +353,50 @@ sub session_sum {
    $self->{REDUCTION},
    $self->{BILL_ID}, 
    $self->{ACTIVATE},
-   $self->{DAY_FEE},
    $self->{MIN_SESSION_COST},
    $self->{COMPANY_ID},
    $self->{PAYMENT_TYPE}
-  ) = @$ar;
+  ) = @{ $self->{list}->[0] };
+ }
 
-  $self->{TP_ID}=$attr->{TP_ID} if (defined($attr->{TP_ID}));
+ $self->{TP_ID}=$attr->{TP_ID} if (defined($attr->{TP_ID}));
 
-  use Tariffs;
-  $tariffs = Tariffs->new($db);
 
+ $tariffs = Tariffs->new($db, $CONF);
 
  $self->session_splitter($SESSION_START,
-                   $SESSION_DURATION,
-                   $self->{DAY_BEGIN},
-                   $self->{DAY_OF_WEEK}, 
-                   $self->{DAY_OF_YEAR},
-                   { TP_ID => $self->{TP_ID} }
-                  );
+                         $SESSION_DURATION,
+                         $self->{DAY_BEGIN},
+                         $self->{DAY_OF_WEEK}, 
+                         $self->{DAY_OF_YEAR},
+                         { TP_ID => $self->{TP_ID} }
+                        );
  
  #session devisions
- #$self->{debug}=1;
- 
- my $sd = $self->{TIME_DIVISIONS};
- my $interval_count =  keys %$sd;
+ my @sd = @{ $self->{TIME_DIVISIONS_ARR} };
+ $self->{TI_ID} = 0;
 
 if(! defined($self->{NO_TPINTERVALS})) {
-  if($interval_count < 1) {
+  if($#sd < 0) {
    	print "Not allow start period" if ($self->{debug});
- 	  return -3, 0, 0, 0, 0, 0;	
+ 	  return -16, 0, 0, 0, 0, 0;	
    }
   
-  #$self->{debug}=1;
-
-  while(my($k, $v)=each(%$sd)) {
+  for(my $i=0; $i<=$#sd; $i++) {
+    my ($k, $v)=split(/,/,  $sd[$i]);
     print "> $k, $v\n" if ($self->{debug});
-    if(defined($periods_time_tarif->{$k}) && $periods_time_tarif->{$k} > 0) {
+    $self->{TI_ID}=$k;
+    if($periods_time_tarif->{$k} && $periods_time_tarif->{$k} > 0) {
    	   $sum += ($v * $periods_time_tarif->{$k}) / 60 / 60;
      }
-
-   if($periods_traf_tarif->{$k} > 0) {
-   	  $self->{TI_ID}=$k;
-   	  $sum  += $self->traffic_calculations($RAD);
-    }
+   
+    if( $i == 0 && defined($periods_traf_tarif->{$k}) && $periods_traf_tarif->{$k} > 0) {
+   	    $sum  += $self->traffic_calculations({ %$RAD, SESSION_START => $SESSION_START });
+   	    last;
+     }
    }
 }
+
 
 $sum = $sum * (100 - $self->{REDUCTION}) / 100 if ($self->{REDUCTION} > 0);
 
@@ -363,15 +412,12 @@ if ($self->{COMPANY_ID} > 0) {
   if ($self->{TOTAL} < 1) {
  	  return -4, 0, 0, 0, 0, 0;	
  	 }
-  $ar = $self->{list}->[0];
-  ($self->{BILL_ID}, $self->{VAT})= @$ar;
 
+  ($self->{BILL_ID}, $self->{VAT})= @{ $self->{list}->[0] };
   $sum = $sum + ((100 + $self->{COMPANY_VAT}) / 100) if ($self->{COMPANY_VAT});
 }
 
-return $self->{UID}, $sum, $self->{BILL_ID}, $self->{TP_ID}, 0, 0;
-
-
+  return $self->{UID}, $sum, $self->{BILL_ID}, $self->{TP_ID}, 0, 0;
 }
 
 
@@ -416,7 +462,8 @@ sub time_intervals {
    $periods_time_tarif{$line->[5]} = $line->[3];
 
    # Trffic price
-   $periods_traf_tarif{$line->[5]} = $line->[4];
+   
+   $periods_traf_tarif{$line->[5]} = $line->[4]; # if ($line->[4] > 0);
   }
 
 
@@ -440,9 +487,8 @@ sub session_splitter {
      $day_of_year, 
      $attr) = @_;
  
- my $debug = 0;
- my %division_time = (); #return division time
-
+ my $debug = $self->{debug} || 0;
+ my @division_time_arr = ();
 
  if (defined($attr->{TP_ID})) {
    ($time_intervals, $periods_time_tarif, $periods_traf_tarif) = $self->time_intervals($attr->{TP_ID});
@@ -454,8 +500,8 @@ sub session_splitter {
  }
 
 
- if($time_intervals == 0)  {
-   $self->{TIME_DIVISIONS} = \%division_time;
+ if ($time_intervals == 0)  {
+   $self->{TIME_DIVISIONS_ARR} = \@division_time_arr;
    $self->{NO_TPINTERVALS} = 'y';
    $self->{SUM}=0;
    return $self;
@@ -484,7 +530,7 @@ if ($debug == 1) {
   Abills::Base->import(); 
 } 
 
- print "$day_of_week / $day_of_year\n" if ($debug == 1);
+ print "DAY_OF_WEEK: $day_of_week DAY_OF_YEAR: $day_of_year\n" if ($debug == 1);
  
  while($duration > 0 && $count < 10) {
 
@@ -503,7 +549,7 @@ if ($debug == 1) {
     }
 
    $count++;
-   print "Count: $count / $tarif_day\n" if ($debug == 1);
+   print "Count: $count TARRIF_DAY: $tarif_day\n" if ($debug == 1);
    print "\t> Start: $start (". sec2time($start, { str => 'yes' }) .") Duration: $duration\n" if ($debug == 1);
 
    my $cur_int = $time_intervals->{$tarif_day};
@@ -519,50 +565,27 @@ if ($debug == 1) {
        my ($int_id, $int_end) = split(/:/, $cur_int->{$int_begin}, 2);
        $i++;
 
-#       #begin > end / Begin: 22:00 => End: 3:00
-#       if ($int_begin > $int_end) {
-#       	 if( $session_start < 86400 && $session_start > $int_begin) {
-#       	   $extended_time = $int_end;
-#       	   $int_end = 86400;
-#       	  }
-#         elsif($session_start < $int_end) {
-#         	 $int_begin = 0;
-#          }
-#        } 
+       print "\t Int Start: $start (". sec2time($start, { str => 'yes' }) .") Duration: $duration / FROM $int_begin TO $int_end | ". sec2time($int_begin, { str => 'yes' }) if ($debug == 1);
+       if ($start >= $int_begin && $start < $int_end) {
+         print " <<=USE\n" if ($debug == 1);    
 
-
-	
-	      print "\t Start: $start (". sec2time($start, { str => 'yes' }) .") Duration: $duration ==> $int_begin / $int_end | ". sec2time($int_begin, { str => 'yes' }) if ($debug == 1);
-        if ($start >= $int_begin && $start < $int_end) {
-            print " <<=\n" if ($debug == 1);    
-
-            # if defined prev_tarif
-            if ($prev_tarif ne '') {
-            	my ($p_day, $p_begin)=split(/:/, $prev_tarif, 2);
-            	$int_end=$p_begin  if ($p_begin > $start);
-            	print "Prev tarif $prev_tarif / INT end: $int_end \n" if ($debug == 1);
-             }
-            
-            if ($start + $duration < $int_end) {
-            	if (defined($division_time{$int_id})) {
-            	  $division_time{$int_id}+=$duration;
-               }
-              else {
-                $division_time{$int_id}=$duration;
-               }
-            	$duration = 0;
-            	last;
-             }
-            else {
+         # if defined prev_tarif
+         if ($prev_tarif ne '') {
+           my ($p_day, $p_begin)=split(/:/, $prev_tarif, 2);
+           $int_end=$p_begin  if ($p_begin > $start);
+           print "Prev tarif $prev_tarif / INT end: $int_end \n" if ($debug == 1);
+          }
+         
+         #IF Start + DUARATION < END period last the calculation 
+         if ($start + $duration < $int_end) {
+            #experimental division time arr
+            push @division_time_arr, "$int_id,$duration";
+            $duration = 0;
+         	  last;
+          }
+         else {
               my $int_time = $int_end - $start;
-
-              if (defined($division_time{$int_id})) {
-            	  $division_time{$int_id}+=$int_time;
-               }
-              else {
-                $division_time{$int_id}=$int_time;
-               }
-
+              push @division_time_arr, "$int_id,$int_time";
              	$duration = $duration - $int_time;
              	$start = $start + $int_time;
              	if ($start == 86400) {
@@ -571,11 +594,10 @@ if ($debug == 1) {
              	  $start = 0;
              	  last;
             	 }
-             }
+          }
 
-            print "$int_id $division_time{$int_id}" . "\n" if($debug==1);
-
-            next;
+           print "  INT/TIME: $division_time_arr[$#division_time_arr]\n" if($debug==1);
+           next;
           }
         elsif($i == $#intervals) {
        	  print "\n!! LAST@@@@ $i == $#intervals\n" if ($debug == 1);
@@ -609,7 +631,7 @@ if ($debug == 1) {
       }
   }
  
- $self->{TIME_DIVISIONS} = \%division_time;
+ $self->{TIME_DIVISIONS_ARR} = \@division_time_arr;
  $self->{SUM}=0;
  
  return $self;
@@ -649,19 +671,20 @@ sub time_calculation() {
  my $PRICE_UNIT = (defined($PRICE_UNITS{$attr->{PRICE_UNIT}})) ? 60 : 3600;
  
   #session devisions
-  my $sd = $self->{TIME_DIVISIONS};
-  my $interval_count =  keys %$sd;
+  my @sd = $self->{TIME_DIVISIONS_ARR};
 
 $self->{debug} =1;
 
 if(! defined($self->{NO_TPINTERVALS})) {
-  if($interval_count < 1) {
+  if($#sd < 0) {
    	$self->{errno} = 3;
    	$self->{errstr} = "Not allow start period";
    }
   #$self->{debug}=1;
 
-  while(my($k, $v)=each(%$sd)) {
+  foreach my $line (@sd) {
+    my ($k, $v)=split(/,/,  $line);
+
  	  #print "> $k, $v\n" if ($self->{debug});
     if(defined($periods_time_tarif->{$k})) {
    	   $sum += ($v * $periods_time_tarif->{$k}) / $PRICE_UNIT;
@@ -705,8 +728,8 @@ sub get_timeinfo {
   $self->{DAY_OF_WEEK},
   $self->{DAY_OF_YEAR})  = @$a_ref;
 
- return $self;
- }
+  return $self;
+}
 
 
 #********************************************************************
@@ -751,7 +774,7 @@ sub remaining_time {
   $periods_time_tarif = $attr->{INTERVAL_TIME_TARIF};
   $periods_traf_tarif = $attr->{INTERVAL_TRAF_TARIF} || undef;
 
-  my $debug = 0;
+  my $debug = $attr->{debug} || 0;
  
   my $time_limit = (defined($attr->{time_limit})) ? $attr->{time_limit} : 0;
   my $mainh_tarif = (defined($attr->{mainh_tarif})) ? $attr->{mainh_tarif} : 0;
@@ -764,7 +787,6 @@ sub remaining_time {
  
  my %holidays = ();
  if (defined($time_intervals->{8})) {
-   use Tariffs;
    my $tariffs = Tariffs->new($db, $CONF);
    my $list = $tariffs->holidays_list({ format => 'daysofyear' });
    foreach my $line (@$list) {
@@ -776,9 +798,13 @@ sub remaining_time {
  my $tarif_day = 0;
  my $count = 0;
  $session_start = $session_start - $day_begin;
+ 
+ #If use post paid service
+ 
+
 
  while(($deposit > 0 || (defined($attr->{POSTPAID}) && $attr->{POSTPAID}==1 )) && $count < 50) {
-  
+
    if ($time_limit != 0 && $time_limit < $remaining_time) {
      $remaining_time = $time_limit;
      last;
@@ -803,7 +829,6 @@ sub remaining_time {
       return -1, \%ATTR;
     }
 
-
   print "Count:  $count Remain Time: $remaining_time\n" if ($debug == 1);
 
   # Time check
@@ -819,7 +844,8 @@ sub remaining_time {
 
      my @intervals = sort keys %$cur_int; 
      $i = -1;
-
+     
+     #Check intervals
      foreach my $int_begin (@intervals) {
        my ($int_id, $int_end) = split(/:/, $cur_int->{$int_begin}, 2);
        $i++;
@@ -845,14 +871,18 @@ sub remaining_time {
        if (($int_begin <= $session_start) && ($session_start < $int_end)) {
           $int_duration = $int_end-$session_start;
           
-          print " <<=\n" if ($debug == 1);    
+          print " <<!=\n" if ($debug == 1);    
+          #if ($attr->{FIRST_INTERVAL});
+
           # if defined prev_tarif
           if ($prev_tarif ne '') {
             	my ($p_day, $p_begin)=split(/:/, $prev_tarif, 2);
             	$int_end=$p_begin;
             	print "Prev tarif $prev_tarif / INT end: $int_end \n" if ($debug == 1);
+            	
            }
 
+          #Time calculations
           if ($periods_time_tarif->{$int_id} =~ /%$/) {
              my $tp = $periods_time_tarif->{$int_id};
              $tp =~ s/\%//;
@@ -861,28 +891,45 @@ sub remaining_time {
           else {
              $price = $periods_time_tarif->{$int_id};
            }
+          
+          
+          #Traf calculation
+          if(defined($periods_traf_tarif->{$int_id})
+#30.11             && $periods_traf_tarif->{$int_id} > 0 
+             && $remaining_time == 0 
+             && ($attr->{GET_INTERVAL} || ! $CONF->{rt_billing})
+             ) {
 
-          if(defined($periods_traf_tarif->{$int_id}) && $periods_traf_tarif->{$int_id} > 0 && $remaining_time == 0) {
-            print "This tarif with traffic counts\n" if ($debug == 1);
-            $ATTR{TT}=$int_id;
-            return int($int_duration), \%ATTR;
+            $ATTR{TT}=$int_id if (! defined($ATTR{TT}));            
+            if ($periods_traf_tarif->{$int_id} > 0) {
+              print "This tarif with traffic counts\n" if ($debug == 1);
+              if ($int_end - $int_begin < 86400) {
+                return int($int_duration), \%ATTR 
+               }
+             }
+
+
+            $price = $periods_traf_tarif->{$int_id};
+            $int_prepaid = $int_duration;	
+            $remaining_time += $int_duration;
+
            }
-          elsif(defined($periods_traf_tarif->{$int_id})  && $periods_traf_tarif->{$int_id} > 0) {
-
-            print "Next tarif with traffic counts  $int_end {$tarif_day} {$int_begin}\n" if ($debug == 1);
+          elsif(defined($periods_traf_tarif->{$int_id}) 
+            && $periods_traf_tarif->{$int_id} > 0 
+            && ! $CONF->{rt_billing} 
+            && (($int_end - $int_begin < 86400) && $periods_traf_tarif->{$int_id} != $price)
+            ) {
+            print "Next tarif with traffic counts (Remaining: $remaining_time) Day: $tarif_day Int Begin: $int_begin End: $int_end ID: $int_id\n" if ($debug == 1);
             return int($remaining_time), \%ATTR;
            }
           elsif ($price > 0) {
-            $int_prepaid = $deposit / $price * 3600;
+            $int_prepaid = int($deposit / $price * 3600);
            }
           else {
             $int_prepaid = $int_duration;	
             $ATTR{TT}=$int_id if (! defined($ATTR{TT}) && defined($periods_traf_tarif));
-            #print "333\n";
            }
           #print "Int Begin: $int_begin Int duration: $int_duration Int prepaid: $int_prepaid Prise: $price\n";
-
-
 
           if ($int_prepaid >= $int_duration) {
             $deposit -= ($int_duration / 3600 * $price);
@@ -892,14 +939,16 @@ sub remaining_time {
            }
           elsif($int_prepaid <= $int_duration) {
             $deposit =  0;    	
-            $session_start += $int_prepaid;
-            $remaining_time += $int_prepaid;
+            $session_start += int($int_prepaid);
+            $remaining_time += int($int_prepaid);
             #print "DL '$deposit' ($int_prepaid <= $int_duration) $session_start\n";
            }
         }
        elsif($i == $#intervals) {
        	  print "!! LAST@@@@ $i == $#intervals\n" if ($debug == 1);
        	  $prev_tarif = "$tarif_day:$int_begin";
+
+
 
        	  if (defined($time_intervals->{0}) && $tarif_day != 0) {
        	    $tarif_day = 0;
@@ -912,7 +961,7 @@ sub remaining_time {
       	  	   return int($remaining_time), \%ATTR;
       	  	  }
              else {
-             	 # Not allow hour
+             	 #print "# Not allow hour $remaining_time";
              	 # return -2;
               }
       	   }
@@ -922,7 +971,7 @@ sub remaining_time {
       }
 
   return -2, \%ATTR if ($remaining_time == 0);
-  
+ 
   if ($session_start >= 86400) {
     $session_start=0;
     $day_of_week = ($day_of_week + 1 > 7) ? 1 : $day_of_week+1;
@@ -931,7 +980,6 @@ sub remaining_time {
 #  else {
 #  	return int($remaining_time), \%ATTR;
 #   }
- 
  }
 
 return int($remaining_time), \%ATTR;
@@ -962,6 +1010,41 @@ sub mk_session_log  {
  close(FILE);
 }
 
+
+
+#**********************************************************
+# Get Interval Sum
+# PARAMS: 
+#   TP_ID         - Tarrif plan 
+#   SESSION_START - Interval start 
+#   DAY_BEGIN     - Day begin
+#   DAY_OF_WEEK   - Day of Week
+#   DAY_OF_YEAR   - Day Of Year
+#   
+#   SENT          - Sent octets
+#   RECV          - Recive octets
+#   DURATION      - Duration
+#
+# returns
+# -1 - Other error
+# -2 - No TP specify
+#**********************************************************
+sub interval_sum {
+  my $self = shift;
+	my ($attr) = @_;
+	
+	#NO TP spec
+	return -2 if (! $attr->{TP_ID});
+
+  #Get Availbs intervals
+  $self->time_intervals($attr->{TP_ID});
+
+  # recognize current interval
+
+  
+	
+	
+}
 
 
 1

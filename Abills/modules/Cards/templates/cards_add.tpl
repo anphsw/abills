@@ -3,16 +3,15 @@
 
 <table>
 <tr bgcolor='$_COLORS[0]'><th colspan=2>$_SERIAL:</th></tr>
+<tr><td>$_SERIAL:</td><td><input type='text' name='SERIAL' value='%SERIAL%'></td></tr>
 <tr><td>$_BEGIN:</td><td><input type=text name='BEGIN' value='%BEGIN%'></td></tr>
 <tr><td>$_COUNT:</td><td><input type=text name='COUNT' value='%COUNT%'></td></tr>
 
-<tr bgcolor='$_COLORS[0]'><th colspan=2>$_LOGIN</th></tr>
-<tr><td>$_PREFIX:</td><td><input type=text name='LOGIN_PREFIX' value='%LOGIN_PREFIX%'></td></tr>
-<tr><td>$_BEGIN:</td><td><input type=text name='LOGIN_BEGIN' value='%LOGIN_BEGIN%'></td></tr>
-<tr><td>$_LENGTH:</td><td><input type=text name='LOGIN_LENGTH' value='%LOGIN_LENGTH%'></td></tr>
-<tr><td>$_FILE:</td><td><input type=file name='FILE_DATA' value='%FILE_DATA%'></td></tr>
+<!-- Card type payment or service -->
+%CARDS_TYPE%
+<!-- Card type payment or service end -->
 
-<tr bgcolor='$_COLORS[0]'><th colspan=2>$_PASSWD</th></tr>
+<tr bgcolor='$_COLORS[0]'><th colspan=2>$_PASSWD / PIN</th></tr>
 <tr><td>$_SYMBOLS:</td><td><input type='text' name='PASSWD_SYMBOLS' value='%PASSWD_SYMBOLS%'></td></tr>
 <tr><td>$_SIZE:</td><td><input type='text' name='PASSWD_LENGTH' value='%PASSWD_LENGTH%'></td></tr>
 <tr><td colspan=2>&nbsp;
