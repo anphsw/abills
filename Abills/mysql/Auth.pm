@@ -96,9 +96,10 @@ sub dv_auth {
   tp.rad_pairs,
   count(i.id),
   tp.age,
-  dv.callback
-     FROM (dv_main     dv,
-          tarif_plans tp)
+  dv.callback,
+  dv.port
+
+     FROM (dv_main dv, tarif_plans tp)
      LEFT JOIN users_nas un ON (un.uid = dv.uid)
      LEFT JOIN tp_nas ON (tp_nas.tp_id = tp.id)
      LEFT JOIN intervals i ON (tp.id = i.tp_id)
@@ -137,7 +138,8 @@ sub dv_auth {
      $self->{TP_RAD_PAIRS},
      $self->{INTERVALS},
      $self->{ACCOUNT_AGE},
-     $self->{CALLBACK}
+     $self->{CALLBACK},
+     $self->{PORT}
     ) = @{ $self->{list}->[0] };
 
 #DIsable
@@ -174,12 +176,16 @@ elsif (defined($RAD_PAIRS->{'Callback-Number'}) && $self->{CALLBACK} != 1){
   }
 
 #Check CID (MAC) 
-if ($self->{CID} ne '') {
+if ($self->{CID} ne '' && $self->{CID} ne '0') {
   my ($ret, $ERR_RAD_PAIRS) = $self->Auth_CID($RAD);
   return $ret, $ERR_RAD_PAIRS if ($ret == 1);
 }
 
-
+#Check port
+if ($self->{PORT} > 0 && $self->{PORT} != $RAD->{NAS_PORT}) {
+  $RAD_PAIRS->{'Reply-Message'}="Wrong port '$RAD->{NAS_PORT}'";
+  return 1, $RAD_PAIRS;
+}
 
 #Check  simultaneously logins if needs
 if ($self->{LOGINS} > 0) {
@@ -325,7 +331,7 @@ foreach my $line (@periods) {
  else {
    my $ip = $self->get_ip($NAS->{NAS_ID}, "$RAD->{NAS_IP_ADDRESS}");
    if ($ip eq '-1') {
-     $RAD_PAIRS->{'Reply-Message'}="Rejected! There is no free IPs in address pools (USED: $self->{USED_IPS} NAS: $NAS->{NAS_ID})";
+     $RAD_PAIRS->{'Reply-Message'}="Rejected! There is no free IPs in address pools (USED: $self->{USED_IPS})";
      return 1, $RAD_PAIRS;
     }
    elsif($ip eq '0') {
@@ -350,7 +356,7 @@ if ($NAS->{NAS_TYPE} eq 'exppp') {
   #$traf_tarif 
   my $EX_PARAMS = $self->ex_traffic_params({ 
   	                                        traf_limit => $traf_limit, 
-                                            deposit => $self->{DEPOSIT},
+                                            deposit    => $self->{DEPOSIT},
                                             MAX_SESSION_TRAFFIC => $MAX_SESSION_TRAFFIC });
 
   #global Traffic
@@ -369,7 +375,7 @@ if ($NAS->{NAS_TYPE} eq 'exppp') {
     $RAD_PAIRS->{'Exppp-Local-IP-Table'} = "\"$DV_EXPPP_NETFILES$self->{TT_INTERVAL}.nets\"";
    }
 
-#Shaper for exppp
+#Radius Shaper for exppp
 #  if ($self->{USER_SPEED} > 0) {
 #    $RAD_PAIRS->{'Exppp-Traffic-Shape'} = int($self->{USER_SPEED});
 #   }
@@ -386,9 +392,8 @@ if ($NAS->{NAS_TYPE} eq 'exppp') {
         print "Exppp-LocalTraffic-Out-Limit = $trafic_lo_outlimit,";
 =cut
  }
-
 # Mikrotik (http://www.mikrotik.com)
-if ($NAS->{NAS_TYPE} eq 'mikrotik') {
+elsif ($NAS->{NAS_TYPE} eq 'mikrotik') {
   #$traf_tarif 
   my $EX_PARAMS = $self->ex_traffic_params( { 
   	                                        traf_limit => $traf_limit, 
@@ -397,24 +402,19 @@ if ($NAS->{NAS_TYPE} eq 'mikrotik') {
 
   #global Traffic
   if ($EX_PARAMS->{traf_limit} > 0) {
-                   
     $RAD_PAIRS->{'Mikrotik-Recv-Limit'} = int($EX_PARAMS->{traf_limit} * $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE} / 2);
     $RAD_PAIRS->{'Mikrotik-Xmit-Limit'} = int($EX_PARAMS->{traf_limit} * $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE} / 2);
-
     # $RAD_PAIRS->{'Mikrotik-Recv-Limit-Gigawords'}
     # $RAD_PAIRS->{'Mikrotik-Xmit-Limit-Gigawords'}
-
    }
 
 #Shaper
   if ($self->{USER_SPEED} > 0) {
     $RAD_PAIRS->{'Mikrotik-Rate-Limit'} = "$self->{USER_SPEED}k";
    }
-  else {
-    if (defined($EX_PARAMS->{speed}->{0})) {
-      $RAD_PAIRS->{'Ascend-Xmit-Rate'} = int($EX_PARAMS->{speed}->{0}->{IN}) * $CONF->{KBYTE_SIZE};
-      $RAD_PAIRS->{'Ascend-Data-Rate'} = int($EX_PARAMS->{speed}->{0}->{OUT})* $CONF->{KBYTE_SIZE};
-     }
+  elsif (defined($EX_PARAMS->{speed}->{0})) {
+    $RAD_PAIRS->{'Ascend-Xmit-Rate'} = int($EX_PARAMS->{speed}->{0}->{IN}) * $CONF->{KBYTE_SIZE};
+    $RAD_PAIRS->{'Ascend-Data-Rate'} = int($EX_PARAMS->{speed}->{0}->{OUT})* $CONF->{KBYTE_SIZE};
    }
  }
 # Cisco Shaper
@@ -435,14 +435,10 @@ elsif ($NAS->{NAS_TYPE} eq 'mpd') {
   if ($EX_PARAMS->{traf_limit} > 0) {
     $RAD_PAIRS->{'Exppp-Traffic-Limit'} = $EX_PARAMS->{traf_limit} * $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE};
    }
-  
   # MPD have some problem with long time out value max timeout set to 7 days
   if ($RAD_PAIRS->{'Session-Timeout'} > 604800)    {
   	 $RAD_PAIRS->{'Session-Timeout'}=604800;
    }
-
-      
-       
 #MPD standart radius based Shaper
 #  if ($uspeed > 0) {
 #    $RAD_PAIRS{'mpd-rule'} = "\"1=pipe %p1 ip from any to any\"";
@@ -477,13 +473,32 @@ elsif ($NAS->{NAS_TYPE} eq 'pppd' or ($NAS->{NAS_TYPE} eq 'lepppd')) {
     $RAD_PAIRS->{'PPPD-Upstream-Speed-Limit'} = int($self->{USER_SPEED}); 
     $RAD_PAIRS->{'PPPD-Downstream-Speed-Limit'} = int($self->{USER_SPEED}); 
    } 
-  else { 
-    if (defined($EX_PARAMS->{speed}->{0})) { 
+  elsif (defined($EX_PARAMS->{speed}->{0})) { 
       $RAD_PAIRS->{'PPPD-Downstream-Speed-Limit'} = int($EX_PARAMS->{speed}->{0}->{IN}); 
       $RAD_PAIRS->{'PPPD-Upstream-Speed-Limit'} = int($EX_PARAMS->{speed}->{0}->{OUT}); 
-     } 
    }
  }
+#Chillispot www.chillispot.org
+elsif ($NAS->{NAS_TYPE} eq 'chillispot') {
+	
+	my $EX_PARAMS = $self->ex_traffic_params({ traf_limit          => $traf_limit, 
+                                             deposit             => $self->{DEPOSIT}, 
+                                             MAX_SESSION_TRAFFIC => $MAX_SESSION_TRAFFIC }); 
+  #global Traffic 
+  if ($EX_PARAMS->{traf_limit} > 0) { 
+    $RAD_PAIRS->{'ChilliSpot-Max-Total-Octets'} = int($EX_PARAMS->{traf_limit} * $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE}); 
+   } 
+  #Shaper for chillispot 
+  if ($self->{USER_SPEED} > 0) { 
+     $RAD_PAIRS->{'WISPr-Bandwidth-Max-Down'} = int($self->{USER_SPEED}) * $CONF->{KBYTE_SIZE}; 
+     $RAD_PAIRS->{'WISPr-Bandwidth-Max-Up'} = int($self->{USER_SPEED}) * $CONF->{KBYTE_SIZE}; 
+   } 
+  elsif (defined($EX_PARAMS->{speed}->{0})) { 
+     $RAD_PAIRS->{'WISPr-Bandwidth-Max-Down'} = int($EX_PARAMS->{speed}->{0}->{IN}) * $CONF->{KBYTE_SIZE}; 
+     $RAD_PAIRS->{'WISPr-Bandwidth-Max-Up'} = int($EX_PARAMS->{speed}->{0}->{OUT}) * $CONF->{KBYTE_SIZE}; 
+   } 
+	
+}
 
 #Auto assing MAC in first connect
 if( defined($CONF->{MAC_AUTO_ASSIGN}) && 
@@ -547,7 +562,7 @@ sub Auth_CID {
          ($cid_ip, $RAD->{CALLING_STATION_ID}, $trash) = split(/\//, $RAD->{CALLING_STATION_ID}, 3);
        }
 
-      my @MAC_DIGITS_NEED = split(/:|\./, $RAD->{CALLING_STATION_ID});
+      my @MAC_DIGITS_NEED = split(/:|\.|-/, $RAD->{CALLING_STATION_ID});
 
       for(my $i=0; $i<=5; $i++) {
         if(hex($MAC_DIGITS_NEED[$i]) != hex($MAC_DIGITS_GET[$i])) {
@@ -604,7 +619,8 @@ sub authentication {
   u.disable,
   u.bill_id,
   u.credit,
-  u.activate
+  u.activate,
+  u.reduction
      FROM users u
      WHERE 
         u.id='$RAD->{USER_NAME}'
@@ -622,8 +638,6 @@ sub authentication {
     return 1, \%RAD_PAIRS;
    }
 
-  my $a_ref = $self->{list}->[0];
-
   ($self->{UID}, 
      $self->{PASSWD}, 
      $self->{SESSION_START}, 
@@ -634,8 +648,9 @@ sub authentication {
      $self->{DISABLE},
      $self->{BILL_ID},
      $self->{CREDIT},
-     $self->{ACCOUNT_ACTIVATE}
-    ) = @$a_ref;
+     $self->{ACCOUNT_ACTIVATE},
+     $self->{REDUCTION}
+    ) = @{ $self->{list}->[0] };
 
 
 #return 0, \%RAD_PAIRS;
@@ -644,7 +659,7 @@ sub authentication {
 #Auth chap
 if (defined($RAD->{CHAP_PASSWORD}) && defined($RAD->{CHAP_CHALLENGE})) {
   if (check_chap("$RAD->{CHAP_PASSWORD}", "$self->{PASSWD}", "$RAD->{CHAP_CHALLENGE}", 0) == 0) {
-    $RAD_PAIRS{'Reply-Message'}="Wrong CHAP password '$self->{PASSWD}'";
+    $RAD_PAIRS{'Reply-Message'}="Wrong CHAP password";
     return 1, \%RAD_PAIRS;
    }      	 	
  }
@@ -727,6 +742,7 @@ else {
     return 1, \%RAD_PAIRS;
    }
 }
+
 
 
 if ($RAD->{CISCO_AVPAIR}) {
@@ -835,17 +851,19 @@ sub ex_traffic_params {
  $EX_PARAMS{traf_limit}=(defined($attr->{traf_limit})) ? $attr->{traf_limit} : 0;
  $EX_PARAMS{traf_limit_lo}=4090;
 
- my %prepaids = ();
- my %speeds = ();
- my %in_prices = ();
- my %out_prices = ();
+ my %prepaids      = ();
+ my %speeds        = ();
+ my %in_prices     = ();
+ my %out_prices    = ();
  my %trafic_limits = ();
- 
+ my %expr          = ();
  
  #get traffic limits
 # if ($traf_tarif > 0) {
    my $nets = 0;
-   $self->query($db, "SELECT id, in_price, out_price, prepaid, in_speed, out_speed, LENGTH(nets) FROM trafic_tarifs
+
+   $self->query($db, "SELECT id, in_price, out_price, prepaid, in_speed, out_speed, LENGTH(nets), expression
+             FROM trafic_tarifs
              WHERE interval_id='$self->{TT_INTERVAL}';");
 
    if ($self->{TOTAL} < 1) {
@@ -862,47 +880,111 @@ sub ex_traffic_params {
      $out_prices{$line->[0]}=$line->[2];
      $EX_PARAMS{speed}{$line->[0]}{IN}=$line->[4];
      $EX_PARAMS{speed}{$line->[0]}{OUT}=$line->[5];
+     $expr{$line->[0]}=$line->[7] if (length($line->[7]) > 5);
      $nets+=$line->[6];
     }
 
    $EX_PARAMS{nets}=$nets if ($nets > 20);
    #$EX_PARAMS{speed}=int($speeds{0}) if (defined($speeds{0}));
 
-if ((defined($prepaids{0}) && $prepaids{0} > 0 ) || (defined($prepaids{1}) && $prepaids{1}>0 )) {
-  $self->query($db, "SELECT sum(sent+recv) / $CONF->{KBYTE_SIZE} / $CONF->{KBYTE_SIZE}, sum(sent2+recv2) / $CONF->{KBYTE_SIZE} / $CONF->{KBYTE_SIZE} FROM dv_log 
-     WHERE uid='$self->{UID}' and DATE_FORMAT(start, '%Y-%m')=DATE_FORMAT(curdate(), '%Y-%m')
-     GROUP BY DATE_FORMAT(start, '%Y-%m');");
+#Get tarfic limit if prepaid > 0 or
+# expresion exist
+if ((defined($prepaids{0}) && $prepaids{0} > 0 ) || (defined($prepaids{1}) && $prepaids{1}>0 ) || $expr{0} || $expr{1}) {
 
+  my $start_period = ($self->{ACCOUNT_ACTIVATE} ne '0000-00-00') ? "DATE_FORMAT(start, '%Y-%m-%d')>='$self->{ACCOUNT_ACTIVATE}'" : undef;
+  my $used_traffic=$Billing->get_traffic({ UID    => $self->{UID},
+                                           PERIOD => $start_period });
+
+
+
+  #Make trafiic sum only for diration
+  #Recv / IN
+  if($self->{OCTETS_DIRECTION} == 1) {
+ 	  $used_traffic->{TRAFFIC_COUNTER}   = $used_traffic->{TRAFFIC_IN};
+    $used_traffic->{TRAFFIC_COUNTER_2} = $used_traffic->{TRAFFIC_IN_2};
+   }
+  #Sent / OUT
+  elsif ($self->{OCTETS_DIRECTION} == 2 ) {
+ 	  $used_traffic->{TRAFFIC_COUNTER}   = $used_traffic->{TRAFFIC_OUT};
+    $used_traffic->{TRAFFIC_COUNTER_2} = $used_traffic->{TRAFFIC_OUT_2};
+   }
+  else {
+ 	  $used_traffic->{TRAFFIC_COUNTER}   = $used_traffic->{TRAFFIC_IN}+$used_traffic->{TRAFFIC_OUT};
+    $used_traffic->{TRAFFIC_COUNTER_2} = $used_traffic->{TRAFFIC_IN_2}+$used_traffic->{TRAFFIC_OUT_2};
+   }   
+  
   if ($self->{TOTAL} == 0) {
     $trafic_limits{0}=$prepaids{0} || 0;
     $trafic_limits{1}=$prepaids{1} || 0;
    }
   else {
-    my $used = $self->{list}->[0];
+    #my $used = $self->{list}->[0];
+    #Check global traffic
+   
 
-    if ($used->[0] < $prepaids{0}) {
-      $trafic_limits{0}=$prepaids{0} - $used->[0];
+    if ($used_traffic->{TRAFFIC_COUNTER} < $prepaids{0}) {
+      $trafic_limits{0}=$prepaids{0} - $used_traffic->{TRAFFIC_COUNTER};
      }
-    elsif($in_prices{0} + $out_prices{0} > 0) {
+    elsif($in_prices{0} > 0 && $out_prices{0} > 0) {
       $trafic_limits{0} = ($deposit / (($in_prices{0} + $out_prices{0}) / 2));
      }
-
-    if ($used->[1]  < $prepaids{1}) {
-      $trafic_limits{1}=$prepaids{1} - $used->[1];
+    elsif($in_prices{0} > 0 && $out_prices{0} == 0) {
+    	$trafic_limits{0} = ($deposit / $in_prices{0});
      }
-    elsif($in_prices{1} + $out_prices{1} > 0) {
-      $trafic_limits{1} = ($deposit / (($in_prices{1} + $out_prices{1}) / 2));
+    elsif($in_prices{0} == 0 && $out_prices{0} > 0) {
+      $trafic_limits{0} = ($deposit / $out_prices{0});
+     }
+    
+    # Check extended prepaid traffic
+    if ($prepaids{1}) {
+      if (($used_traffic->{TRAFFIC_COUNTER_2}  < $prepaids{1})) {
+        $trafic_limits{1}=$prepaids{1} - $used_traffic->{TRAFFIC_COUNTER_2};
+       }
+      elsif($in_prices{1} > 0 && $out_prices{1} > 0) {
+        $trafic_limits{1} = ($deposit / (($in_prices{1} + $out_prices{1}) / 2));
+       }
+      elsif($in_prices{1} > 0 && $out_prices{1} == 0) {
+      	$trafic_limits{1} = ($deposit / $in_prices{1});
+       }
+      elsif($in_prices{1} == 0 && $out_prices{1} > 0) {
+        $trafic_limits{1} = ($deposit / $out_prices{1});
+       }
+
      }
    }
-   
+  #Use expresion 
+  my $RESULT = $Billing->expression($self->{UID}, \%expr, { START_PERIOD => $self->{ACCOUNT_ACTIVATE},
+  	                                                        debug        => 0 });
+  	                                                        
+  if ($RESULT->{TRAFFIC_LIMIT}) {
+  	#print "LIMIT: $RESULT->{TRAFFIC_LIMIT} USED: $used_traffic->{TRAFFIC_SUM}";
+  	$trafic_limits{0} =  $RESULT->{TRAFFIC_LIMIT} - $used_traffic->{TRAFFIC_COUNTER};
+   }
+  #End expresion   
  }
 else {
-  if ($in_prices{0}+$out_prices{0} > 0) {
+  if($in_prices{0} > 0 && $out_prices{0} > 0) {
     $trafic_limits{0} = ($deposit / (($in_prices{0} + $out_prices{0}) / 2));
    }
+  elsif($in_prices{0} > 0 && $out_prices{0} == 0) {
+   	$trafic_limits{0} = ($deposit / $in_prices{0});
+   }
+  elsif($in_prices{0} == 0 && $out_prices{0} > 0) {
+    $trafic_limits{0} = ($deposit / $out_prices{0});
+   }
 
-  if (defined($in_prices{1}) && $in_prices{1}+$out_prices{1} > 0) {
-    $trafic_limits{1} = ($deposit / (($in_prices{1} + $out_prices{1}) / 2));
+
+
+  if (defined($in_prices{1})) {
+    if($in_prices{1} > 0 && $out_prices{1} > 0) {
+      $trafic_limits{1} = ($deposit / (($in_prices{1} + $out_prices{1}) / 2));
+     }
+    elsif($in_prices{1} > 0 && $out_prices{1} == 0) {
+    	$trafic_limits{1} = ($deposit / $in_prices{1});
+     }
+    elsif($in_prices{1} == 0 && $out_prices{1} > 0) {
+      $trafic_limits{1} = ($deposit / $out_prices{1});
+     }
    }
   else {
     $trafic_limits{1} = 0;
@@ -1218,6 +1300,7 @@ sub check_mschapv2 {
 
     return 0;
 }
+
 
 
 

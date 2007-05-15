@@ -13,7 +13,7 @@ CREATE TABLE dunes (
   translate varchar(200) NOT NULL default '',
   error_text varchar(200) NOT NULL default '',
   solution text
-);
+) COMMENT='Dunes';
 
 --
 -- Dumping data for table 'dunes'

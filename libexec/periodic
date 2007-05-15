@@ -1,12 +1,13 @@
 #!/usr/bin/perl -w
 #Periodic process
 
-use vars  qw(%RAD %conf @MODULES $db $html $DATE $GZIP $MYSQLDUMP %ADMIN_REPORT);
+use vars  qw(%RAD %conf @MODULES $db $html $DATE $GZIP $MYSQLDUMP %ADMIN_REPORT $DEBUG);
 #use strict;
 use FindBin '$Bin';
+use Sys::Hostname;
 
 require $Bin . '/config.pl';
-unshift(@INC, $Bin . '/../', $Bin . "/../Abills/$conf{dbtype}");
+unshift(@INC, $Bin . '/../', $Bin . '/../Abills', $Bin . "/../Abills/$conf{dbtype}");
 
 require "Abills/defs.conf";
 require "Abills/templates.pl";
@@ -46,6 +47,7 @@ my $YESTERDAY = (strftime "%Y-%m-%d", localtime(time - 86400));
 
 %ADMIN_REPORT = (DATE => $DATE);
 my $args = parse_arguments(\@ARGV);
+$ADMIN_REPORT{HOSTNAME}=hostname();
 
 #print $DATE;
 
@@ -58,11 +60,33 @@ my @monthly_functions = ('admin_report_monthly',
                          'logrotate');
 my @reports = ();
 
+#make periodic oparation only for selected modules
+if ($args->{MODULES}) {
+	$args->{MODULES}=~s/ //g;
+	@MODULES = split(/,/, $args->{MODULES});
+}
+
+#Don't process for this modules
+my @SKIP_MODULES = ();
+if ($args->{SKIP_MODULES}) {
+	$args->{SKIP_MODULES}=~s/ //g;
+	@SKIP_MODULES = split(/,/, $args->{SKIP_MODULES});
+}
+
+
+
+if ($args->{DEBUG}) {
+  $DEBUG = '';
+}
+
+
 
 
   foreach my $m (@MODULES) {
-  	require "Abills/modules/$m/config";
+    next if(in_array($m, \@SKIP_MODULES));
 
+  	require "Abills/modules/$m/config";
+ 
     my $i=0;
     while(my($k, $v)= each %PERIODIC) {
       if ($k eq 'daily') {
@@ -83,19 +107,39 @@ my @reports = ();
       $i++;
      }
 
- 	 require "Abills/modules/$m/webinterface" if($i > 0);
+   if($i > 0) {
+     #Language pack
+     my $lang_file = '';
+     foreach my $prefix (@INC) {
+       my $realfilename = "$prefix/Abills/modules/$m/lng_$html->{language}.pl";
+       if (-f $realfilename) {
+         $lang_file =  $realfilename;
+         require $lang_file;
+         last;
+        }
+       }
+
+     if ($lang_file eq '' && -f "Abills/modules/$m/lng_english.pl" ) {
+       require "Abills/modules/$m/lng_english.pl";
+      }
+     
+ 	   require "Abills/modules/$m/webinterface";
+    }
    undef %PERIODIC;
   }
 
-  push  @daily_functions, 'sheduler';
-
+push  @daily_functions, 'sheduler';
 my($Y, $M, $D);
-
   if(defined($args->{DATE})) {
+     if ($args->{DATE} !~ /\d{4}\-\d{2}\-\d{2}/) {
+       print "Wrong date format. Format: YYYY-MM-DD\n";
+       exit;
+      }
      ($Y, $M, $D)=split(/-/, $args->{DATE}, 3);
-     $YESTERDAY = (strftime "%Y-%m-%d", localtime(POSIX::mktime( 0, 10, 1, $D, ($M-1), $Y-1900)- 86400));
-   	 $YESTERDAY=$args->{DATE};
-   	 $ADMIN_REPORT{DATE} = $args->{DATE};
+     $YESTERDAY = (strftime '%Y-%m-%d', localtime(POSIX::mktime( 0, 10, 1, $D, ($M-1), ($Y-1900)) - 86400));
+
+     #$YESTERDAY=$args->{DATE};
+     $ADMIN_REPORT{DATE} = $args->{DATE};
    }
   
   if (defined($args->{NO_USERS_WARNINGS})) {
@@ -106,28 +150,29 @@ my($Y, $M, $D);
  
  
 if (defined($args->{monthly})) {
-   for(my $i=$#monthly_functions; $i>-1; $i--) {
+  for(my $i=$#monthly_functions; $i>-1; $i--) {
   	my $f = $monthly_functions[$i];
   	#print $f . "\n";
-  	$f->();
+  	$f->({ DEBUG => $args->{DEBUG} });
+  }
+
+  if ($begin_time > 0)  {
+    Time::HiRes->import(qw(gettimeofday));
+    my $end_time = gettimeofday();
+    my $gen_time = $end_time - $begin_time;
+    $ADMIN_REPORT{GT} = sprintf(" GT: %2.5f", $gen_time);
    }
-
-   if ($begin_time > 0)  {
-     Time::HiRes->import(qw(gettimeofday));
-     my $end_time = gettimeofday();
-     my $gen_time = $end_time - $begin_time;
-     $ADMIN_REPORT{GT} = sprintf(" GT: %2.5f", $gen_time);
-    }
-
-   my $message = $html->tpl_show(templates('admin_report_month'), \%ADMIN_REPORT, { notprint => 'yes' });
-   sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "Monthly billing report", 
+  if (! $args->{NO_ADM_REPORT}) {
+    my $message = $html->tpl_show(templates('admin_report_month'), \%ADMIN_REPORT, { notprint => 'yes' });
+    sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "$ADMIN_REPORT{HOSTNAME}: Monthly billing report", 
               "$message", "$conf{MAIL_CHARSET}", "2 (High)");
+   }
  }
 elsif (defined($args->{daily})) {
   for(my $i=$#daily_functions; $i>-1; $i--) {
         my $f = $daily_functions[$i];
         #print $f . "\n";
-        $f->();
+        $f->({ DEBUG => $args->{DEBUG} });
    }
 
   if ($begin_time > 0)  {
@@ -137,9 +182,11 @@ elsif (defined($args->{daily})) {
     $ADMIN_REPORT{GT} = sprintf(" GT: %2.5f", $gen_time);
   }
 
-  my $message = $html->tpl_show(templates('admin_report_day'), \%ADMIN_REPORT, { notprint => 'yes' });
-  sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "Daily billing report ($YESTERDAY)", 
+  if (! $args->{NO_ADM_REPORT}) {
+    my $message = $html->tpl_show(templates('admin_report_day'), \%ADMIN_REPORT, { notprint => 'yes' });
+    sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "$ADMIN_REPORT{HOSTNAME}: Daily billing report ($YESTERDAY)", 
              "$message", "$conf{MAIL_CHARSET}", "2 (High)");
+   }
 } 
 elsif (defined($args->{backup})) {
   backup();	
@@ -147,11 +194,20 @@ elsif (defined($args->{backup})) {
 else {
  print "Arguments (daily|monthly|backup)
    Optional arguments
-   DATE=2005-10-01
-   NO_USERS_WARNINGS - Don't send user warning messages\n";
+   DATE=2005-10-01            - Date for periodic process
+   NO_USERS_WARNINGS          - Don't send user warning messages
+   MODULES=[modules_list,...] - Make periodic process only for this modules
+   SKIP_MODULES=[modules_list]- Skip this module in periodic proccess
+   NO_ADM_REPORT              - Don't send report to admin via e-mail
+   DEBUG                      - Show debug output\n";
  exit;
 }
 
+
+if ($args->{DEBUG}) {
+	print "DEBUG MODE: $args->{DEBUG}\n";
+	print $DEBUG;
+}
 
 #**********************************************************
 # sheduler()
@@ -159,15 +215,15 @@ else {
 sub sheduler {
 	
 	
-my %shedule_type = ('tp' => $_VARIANT, 
-                    'fees' => $_FEES,
+my %shedule_type = ('tp'      => $_VARIANT, 
+                    'fees'    => $_FEES,
                     'message' => $_MESSAGES
  );
 
 #Change tp
  require Shedule;
  Shedule->import();
- my $shedule = Shedule->new($db, $admin);
+ my $shedule = Shedule->new($db, $admin, \%conf);
 
  require Fees;
  Fees->import();
@@ -176,9 +232,10 @@ my %shedule_type = ('tp' => $_VARIANT,
 
  my $list = $shedule->list({ Y => $Y,
  	                           M => $M,
- 	                           D => $D });
+ 	                           D => $D, 
+ 	                           PAGE_ROWS => 100000 });
 
- $ADMIN_REPORT{SHEDULE}=sprintf("%-14s| %-12s| %-8s| %-14s|\n", "$_LOGIN", "$_MODULES", "$_TYPE", "$_VALUE");
+ $ADMIN_REPORT{SHEDULE}=sprintf("%-14s| %-12s| %-8s| %-14s|%-14s|\n", "$_LOGIN", "$_MODULES", "$_TYPE", "$_VALUE", "$_ADMIN");
  $ADMIN_REPORT{SHEDULE}.= "---------------------------------------------------------\n";
  foreach my $line (@$list) {
    if ($line->[6] eq 'fees') {
@@ -194,7 +251,8 @@ my %shedule_type = ('tp' => $_VARIANT,
      }
  	 $shedule->del({ ID => $line->[13] });
 
-	  $ADMIN_REPORT{SHEDULE}.=sprintf("%-14s| %-12s| %-8s| %-14s|\n", $line->[5], $line->[8], $line->[6], $line->[7]);
+	  $ADMIN_REPORT{SHEDULE}.=sprintf("%-14s| %-12s| %-8s| %-14s|\n", 
+	    $line->[5], $line->[8], $line->[6], $line->[7], $line->[9]);
   } 
 
 }

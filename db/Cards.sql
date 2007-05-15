@@ -2,7 +2,7 @@ CREATE TABLE `cards_bruteforce` (
   `uid` int(11) unsigned NOT NULL default '0',
   `pin` varchar(20) NOT NULL default '',
   `datetime` datetime NOT NULL default '0000-00-00 00:00:00'
-);
+) COMMENT='Cards bruteforce check' ;
 
 CREATE TABLE `cards_dillers` (
   `id` int(11) unsigned NOT NULL auto_increment,
@@ -17,7 +17,7 @@ CREATE TABLE `cards_dillers` (
   PRIMARY KEY  (`id`),
   UNIQUE KEY `id` (`id`),
   UNIQUE KEY `name` (`name`)
-);
+) COMMENT='Cards dillers';
 
 
 CREATE TABLE `cards_users` (
@@ -30,10 +30,11 @@ CREATE TABLE `cards_users` (
   `expire` date NOT NULL default '0000-00-00',
   `diller_id` smallint(6) unsigned NOT NULL default '0',
   `diller_date` date NOT NULL default '0000-00-00',
+  `diller_sold_date` date NOT NULL default '0000-00-00',
   `sum` double(10,2) unsigned NOT NULL default '0.00',
   `serial` varchar(10) NOT NULL default '',
   `pin` blob NOT NULL default '',
   `uid` int(11) unsigned NOT NULL default '0',
   UNIQUE KEY `serial` (`number`,`serial`),
   KEY `diller_id` (`diller_id`)
-);
+) COMMENT='Cards list';

@@ -194,3 +194,15 @@ function suggestPasswordCopy() {
     document.getElementById('text_pma_pw2').value = document.getElementById('generated_pw').value;
     return true;
 }
+
+/**
+ * Copy one input form to other
+ *
+ * @param   string   the form name
+ *
+ * @return  boolean  always true
+ */
+function CopyInputField(from, to) {
+    document.getElementById(to).value = document.getElementById(from).value;
+    return true;
+}

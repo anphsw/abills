@@ -6,7 +6,7 @@ use vars qw(%RAD_REQUEST %RAD_REPLY %RAD_CHECK %conf
  $begin_time
  $db
  $nas);
-use Data::Dumper;
+#use Data::Dumper;
 
 
 # This is hash wich hold original request from radius
@@ -40,6 +40,8 @@ unshift(@INC, $Bin . '/../', $Bin . "/../Abills/$conf{dbtype}");
 require $Bin ."/racct.pl";
 require $Bin ."/rauth.pl";
 
+$db = undef;
+$nas = undef;
 
 #**********************************************************
 # Function to handle authenticate
@@ -48,6 +50,8 @@ require $Bin ."/rauth.pl";
 sub sql_connect {
 	my $sql = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd});
   $db  = $sql->{db};
+  $nas = Nas->new($db, \%conf);	
+  return $db;
 }
 
 #**********************************************************
@@ -57,6 +61,7 @@ sub sql_connect {
 sub authorize {
   $begin_time = check_time();
   convert_radpairs();
+
   sql_connect();
  
   if ( get_nas_info(\%RAD_REQUEST) == 0 ) {
@@ -79,6 +84,7 @@ sub authorize {
 sub authenticate {
   
   sql_connect();
+  
   if ( get_nas_info(\%RAD_REQUEST) == 0 ) {
     if ( auth(\%RAD_REQUEST) == 0 ) {
     	return RLM_MODULE_OK;

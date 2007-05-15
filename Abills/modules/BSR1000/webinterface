@@ -536,7 +536,7 @@ foreach my $line (@$list) {
   $table->{rowcolor}=$_COLORS[0];
   $table->addrow("$line->[0]:<b>$line->[1]</b>:$line->[3]") ;
   $table->{rowcolor}=undef;
-  my @arr = snmpwalk("$line->[10]\@$line->[3]", '1.3.6.1.4.1.4981.3.9.1.2');
+  my @arr = snmpwalk("$line->[11]\@$line->[3]", '1.3.6.1.4.1.4981.3.9.1.2');
   for( my $i=$#arr; $i>=0; $i--) {
     $table->addrow($arr[$i]);
   }
@@ -669,7 +669,7 @@ foreach my $line (@$list) {
 
 
   foreach my $field (@default_fields) {
-    my @arr = snmpwalk("$line->[10]\@$line->[3]", $oid_prefix . $fields{$field});
+    my @arr = snmpwalk("$line->[11]\@$line->[3]", $oid_prefix . $fields{$field});
     
     print "$field <b>$oid_prefix$fields{$field}</b><br>" if ($debug == 1);
     
@@ -730,8 +730,8 @@ while(my ($up_channel, $up_chanell_hash) = each %info) {
      $total_users += $#{ $info{$up_channel}{$down_channels[$i]} } + 1;
    }
 
-   my $up_channel_name = snmpget("$line->[10]\@$line->[3]", "1.3.6.1.2.1.2.2.1.2.$up_channel");
-   my $down_channel_name = snmpget("$line->[10]\@$line->[3]", "1.3.6.1.2.1.2.2.1.2.$down_channels[0]");
+   my $up_channel_name = snmpget("$line->[11]\@$line->[3]", "1.3.6.1.2.1.2.2.1.2.$up_channel");
+   my $down_channel_name = snmpget("$line->[11]\@$line->[3]", "1.3.6.1.2.1.2.2.1.2.$down_channels[0]");
    $table->addtd(
              $table->td($up_channel_name, { rowspan => $total_users  } ),
              $table->td($down_channel_name, { bgcolor => $_COLORS[1], rowspan => $#{ $info{$up_channel}{$down_channels[0]} } + 1  }), 
@@ -762,7 +762,7 @@ while(my ($up_channel, $up_chanell_hash) = each %info) {
 
 
   for (my $down_channel=1; $down_channel<=$#down_channels; $down_channel++) {
-      $down_channel_name = snmpget("$line->[10]\@$line->[3]", "1.3.6.1.2.1.2.2.1.2.$down_channels[$down_channel]");
+      $down_channel_name = snmpget("$line->[11]\@$line->[3]", "1.3.6.1.2.1.2.2.1.2.$down_channels[$down_channel]");
       
       $table->addtd( $table->td($down_channel_name, 
                      { bgcolor => $_COLORS[1], rowspan => $#{ $info{$up_channel}{$down_channels[$down_channel]} } + 1  }), 
@@ -853,7 +853,7 @@ my $table = $html->table({ width       => '100%',
 my $list = $nas->list({ %LIST_PARAMS, TYPE =>  'bsr1000' });
 
 foreach my $line (@$list) {
-    my %result = &snmpwalkhash("$line->[10]\@$line->[3]", \&my_simple_hash, '1.3.6.1.2.1.69.1.5.8.1');
+    my %result = &snmpwalkhash("$line->[11]\@$line->[3]", \&my_simple_hash, '1.3.6.1.2.1.69.1.5.8.1');
     my @CAPTION = keys %result;
     my @RES_ARR = sort { $a <=> $b } keys %{ $result{"$CAPTION[0]"} };
     

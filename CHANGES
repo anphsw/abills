@@ -1,3 +1,93 @@
+=====0.36=====
+  * 4.07.2007
+
+  CREATE TABLE `ipn_traf_detail` (
+    `src_addr` int(11) unsigned NOT NULL default '0',
+    `dst_addr` int(11) unsigned NOT NULL default '0',
+    `src_port` smallint(5) unsigned NOT NULL default '0',
+    `dst_port` smallint(5) unsigned NOT NULL default '0',
+    `protocol` tinyint(3) unsigned default '0',
+    `size` int(10) unsigned NOT NULL default '0',
+    `f_time` datetime NOT NULL default '0000-00-00 00:00:00',
+    `s_time` datetime NOT NULL default '0000-00-00 00:00:00',
+    `nas_id` smallint(5) unsigned NOT NULL default '0',
+    `uid` int(11) unsigned NOT NULL default '0'
+  ) COMMENT='Ipn detail log traffic class';
+
+  * 4.05.2007
+''MySQL''
+  ALTER TABLE dhcphosts_hosts CHANGE column block_date expire date NOT NULL default '0000-00-00';
+
+
+  * 31.03.2007 - Оптимизация
+''MySQL''
+  ALTER TABLE dv_calls ADD column `acct_input_gigawords` smallint(4) unsigned NOT NULL   default '0';
+  ALTER TABLE dv_calls ADD column `acct_output_gigawords` smallint(4) unsigned NOT NULL default '0';
+  ALTER TABLE dv_calls ADD column `ex_input_octets_gigawords` smallint(4) unsigned NOT NULL default '0';
+  ALTER TABLE dv_calls ADD column `ex_output_octets_gigawords` smallint(4) unsigned NOT NULL default '0';
+  
+  ALTER TABLE dv_log ADD column `acct_input_gigawords` smallint(4) unsigned NOT NULL default '0';
+  ALTER TABLE dv_log ADD column `acct_output_gigawords` smallint(4) unsigned NOT NULL default '0';
+  ALTER TABLE dv_log ADD column `ex_input_octets_gigawords` smallint(4) unsigned NOT NULL default '0';
+  ALTER TABLE dv_log ADD column `ex_output_octets_gigawords` smallint(4) unsigned NOT NULL default '0';
+  
+  ALTER TABLE groups DROP key gid;
+  ALTER TABLE msgs_messages ADD KEY `uid` (`uid`);
+
+  * 23.03.2007 - добавлена возможность управления SpamAssassin
+  * 02.03.2007 - доработка тарифных планов 
+''MySQL''
+  ALTER TABLE tarif_plans add column reduction_fee tinyint(1) unsigned NOT NULL default '0';
+  ALTER TABLE tarif_plans add column postpaid_fee tinyint(1) unsigned NOT NULL default '0';
+  ALTER TABLE dhcphosts_hosts add column comments varchar(250) NOT NULL default '';
+
+  * 02.03.2007 - в [[abills:docs:modules:dv:ru |Dv]] добавлена привязка к порту 
+''MySQL''
+  ALTER TABLE dv_main add column port int(11) unsigned NOT NULL default '0';
+
+  * 26.02.2007 - Добавлена поддержка [[abills:docs:chillispot:ru|Chillispot]]
+  * 26.01.2007 - Регулярные выражения акаунтинга и авторизации [[abills:docs:modules:dv:ru#intervals|Expressions]].
+''MySQL''
+  ALTER TABLE trafic_tarifs ADD COLUMN expression varchar(255) NOT NULL default '';
+
+  * 26.01.2007 - добавлена возможность рассылки сообщений группам пользователей.
+''MySQL''
+  ALTER TABLE msgs_messages ADD COLUMN gid smallint(4) unsigned NOT NULL default '0';
+
+  * 22.01.2007 -
+''MySQL''
+  ALTER TABLE dhcphosts_networks add column `routers` int(11) unsigned NOT NULL default '0';
+
+  * 10.01.2007 - При возникновении определённых событий система может вызывать внешние программы их обработки. 
+  $conf{external_useradd}, $conf{external_userdel}, $conf{external_userchange}, $conf{external_payments}, $conf{external_fees}, $conf{external_userdisable}.\\
+[[abills:docs:manual:config:ru|Файл настроек]] 
+
+  * 10.01.2007 - Все поля password переведены в BLOB.
+''MySQL''
+  ALTER TABLE admins change password password BLOB NOT NULL;
+  ALTER TABLE nas change mng_password mng_password blob NOT NULL;
+  ALTER TABLE users change password password blob NOT NULL;
+  ALTER TABLE users_bruteforce change password password blob NOT NULL;
+
+  * 07.01.2007 - [[abills:docs:modules:cards:ru|Cards]] - Добавлено поле дата продажи.
+''MySQL''
+  ALTER TABLE cards_users add column diller_sold_date date NOT NULL default '0000-00-00';
+
+  * 05.01.2007 - Увеличиваем поле название группы
+''MySQL''
+  ALTER TABLE groups change name name varchar(30) NOT NULL default '';
+
+  * 02.01.2007 - Добавлена возможность привязывать администратора к конкретной группе пользователей
+''MySQL''
+  ALTER TABLE admins change column gid gid smallint(4) unsigned NOT NULL default '0';
+
+  * 24.12.2006 - Обновление модуля управления почтовыми акаунтвми
+
+''MySQL''
+  ALTER TABLE mail_domains add column transport varchar(128) NOT NULL default '';
+  ALTER TABLE mail_domains add column backup_mx tinyint(1) unsigned NOT NULL default '0';
+  ALTER TABLE mail_boxes change password password blob NOT NULL;
+
 =====0.35=====
   * 18.12.2006 - Обновление карточного модуля
  ''MySQL''

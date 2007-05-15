@@ -28,7 +28,7 @@ my %DATA = ();
 
 sub new {
   my $class = shift;
-  ($db, $admin) = @_;
+  ($db, $admin, $CONF) = @_;
   my $self = { };
   bless($self, $class);
   return $self;
@@ -75,8 +75,6 @@ sub info {
    return $self;
   }
 
- my $ar = $self->{list}->[0];
-
   ($self->{H}, 
    $self->{D}, 
    $self->{M}, 
@@ -87,7 +85,7 @@ sub info {
    $self->{UID}, 
    $self->{SHEDULE_ID},
    $self->{ADMIN_NAME}
-  )= @$ar;
+  )= @{ $self->{list}->[0] };
 
 
  return $self;
@@ -146,7 +144,8 @@ sub list {
     FROM shedule s
     LEFT JOIN users u ON (u.uid=s.uid)
     LEFT JOIN admins a ON (a.aid=s.aid) 
-   $WHERE");
+   $WHERE
+  LIMIT $PG, $PAGE_ROWS");
 
   return $self->{list};
 }

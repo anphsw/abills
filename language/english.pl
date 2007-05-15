@@ -2,7 +2,7 @@
 $CHARSET = 'windows-1251';
 
 @PERIODS=('Today', 'Yesterday', 'Week', 'Month', 'All sessions', 'From activization');
-@MONTHES=('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',  'September', 'October', 'November', 'Decembe');
+@MONTHES=('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',  'September', 'October', 'November', 'December');
 @WEEKDAYS=('Hollidays', 'Mo', 'Tu', 'Wn', 'Th', 'Fr', 'Sat', 'Sun');
 
 $_ADD='Add';
@@ -51,6 +51,8 @@ $_NAME='Name';
 $_VARIANT='Tarif Plan';
 $_VARIANTS='Tarif Plans';
 $_PREPAID='Prepaid';
+$_REST='Rest';
+$_OVERQUOTA='Overquota';
 $_TRAFIC_TARIFS='Traffic tarifs';
 $_YEAR='Year';
 $_DAY='Day';
@@ -76,6 +78,7 @@ $_PAYMENT_NOTEXIST='Payment not exist';
 $_USER_EXIST='User exist';
 $_USER_NOT_EXIST='User not exist';
 $_SELECT_USER='SELECT user';
+$_SELECTED='Selected';
 $_RECORDS='Records';
 $_WRONG_PASSWD='Wrong password ';
 $_LOGOUT='Logout';
@@ -143,6 +146,7 @@ $_NO_RECORD='Records not exist';
 
 $_TIME_LIMIT='Time limit';
 $_TRAF_LIMIT='Traffic limit';
+$_EXPRASSION='Exprassions';
 
 $_LIMIT = 'Limit';
 $_SPEED = 'Speed';
@@ -311,5 +315,9 @@ $_BONUS='Bonus';
 $_PERCENTAGE='Percentage';
 $_MULTIUSER_OP='Multiuser operation';
 $_RETURNED='Returned';
+$_SOLD='Sold';
+
 
 $_CASH='Cash';
+$_RECALCULATE='Recalculate';
+$_CONFIG='Configuration';

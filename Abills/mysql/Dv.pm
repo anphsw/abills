@@ -50,6 +50,12 @@ sub new {
   my $self = { };
   
   bless($self, $class);
+  
+  if ($CONF->{DELETE_USER}) {
+    $self->{UID}=$CONF->{DELETE_USER};
+    $self->del({ UID => $CONF->{DELETE_USER} });
+   }
+  
   return $self;
 }
 
@@ -74,8 +80,9 @@ sub info {
        return $self; 
      }
 
-    $uid             = $users->{UID};
-    $self->{DEPOSIT} = $users->{DEPOSIT}; 
+    $uid              = $users->{UID};
+    $self->{DEPOSIT}  = $users->{DEPOSIT};
+    $self->{ACCOUNT_ACTIVATE} = $users->{ACTIVATE};
     $WHERE =  "WHERE dv.uid='$uid'";
    }
   
@@ -95,7 +102,8 @@ sub info {
    dv.filter_id, 
    dv.cid,
    dv.disable,
-   dv.callback
+   dv.callback,
+   dv.port
      FROM dv_main dv
      LEFT JOIN tarif_plans tp ON (dv.tp_id=tp.id)
    $WHERE;");
@@ -106,7 +114,6 @@ sub info {
      return $self;
    }
 
-  my $ar = $self->{list}->[0];
 
   ($self->{UID},
    $self->{TP_ID}, 
@@ -118,8 +125,9 @@ sub info {
    $self->{FILTER_ID}, 
    $self->{CID},
    $self->{DISABLE},
-   $self->{CALLBACK}
-  )= @$ar;
+   $self->{CALLBACK},
+   $self->{PORT}
+  )= @{ $self->{list}->[0] };
   
   
   return $self;
@@ -143,6 +151,7 @@ sub defaults {
    FILTER_ID      => '', 
    CID            => '',
    CALLBACK       => 0,
+   PORT           => 0
   );
 
  
@@ -158,7 +167,7 @@ sub add {
   my $self = shift;
   my ($attr) = @_;
   
-  my %DATA = $self->get_data($attr); 
+  my %DATA = $self->get_data($attr, { default => defaults() }); 
 
 
   if ($DATA{TP_ID} > 0) {
@@ -192,11 +201,13 @@ sub add {
              speed, 
              filter_id, 
              cid,
-             callback)
+             callback,
+             port)
         VALUES ('$DATA{UID}', now(),
         '$DATA{TP_ID}', '$DATA{SIMULTANEONSLY}', '$DATA{DISABLE}', INET_ATON('$DATA{IP}'), 
         INET_ATON('$DATA{NETMASK}'), '$DATA{SPEED}', '$DATA{FILTER_ID}', LOWER('$DATA{CID}'),
-        '$DATA{CALLBACK}');", 'do');
+        '$DATA{CALLBACK}',
+        '$DATA{PORT}');", 'do');
 
   return $self if ($self->{errno});
   $admin->action_add("$DATA{UID}", "ACTIVE");
@@ -224,7 +235,8 @@ sub change {
               CID              => 'cid',
               UID              => 'uid',
               FILTER_ID        => 'filter_id',
-              CALLBACK         => 'callback'
+              CALLBACK         => 'callback',
+              PORT             => 'port'
              );
   
   if (! $attr->{CALLBACK}) {
@@ -411,14 +423,22 @@ sub list {
     my $value = $self->search_expr($attr->{SPEED}, 'INT');
     push @WHERE_RULES, "u.speed$value";
 
-    $self->{SEARCH_FIELDS} = 'dv.speed, ';
+    $self->{SEARCH_FIELDS} .= 'dv.speed, ';
+    $self->{SEARCH_FIELDS_COUNT}++;
+  }
+
+ if ($attr->{PORT}) {
+    my $value = $self->search_expr($attr->{PORT}, 'INT');
+    push @WHERE_RULES, "dv.port$value";
+
+    $self->{SEARCH_FIELDS} .= 'dv.port, ';
     $self->{SEARCH_FIELDS_COUNT}++;
   }
 
  if ($attr->{CID}) {
     $attr->{CID} =~ s/\*/\%/ig;
     push @WHERE_RULES, "dv.cid LIKE '$attr->{CID}'";
-    $self->{SEARCH_FIELDS} = 'dv.cid, ';
+    $self->{SEARCH_FIELDS} .= 'dv.cid, ';
     $self->{SEARCH_FIELDS_COUNT}++;
   }
 
@@ -484,7 +504,8 @@ sub list {
       dv.tp_id, 
       u.activate, 
       u.expire, 
-      if(u.company_id > 0, company.bill_id, u.bill_id)
+      if(u.company_id > 0, company.bill_id, u.bill_id),
+      u.reduction
      FROM (users u, dv_main dv)
      LEFT JOIN users_pi pi ON (u.uid = pi.uid)
      LEFT JOIN bills b ON (u.bill_id = b.id)
@@ -497,14 +518,11 @@ sub list {
 
  return $self if($self->{errno});
 
-
-
  my $list = $self->{list};
 
  if ($self->{TOTAL} >= 0) {
     $self->query($db, "SELECT count(u.id) FROM (users u, dv_main dv) $WHERE");
-    my $a_ref = $self->{list}->[0];
-    ($self->{TOTAL}) = @$a_ref;
+    ($self->{TOTAL}) = @{ $self->{list}->[0] };
    }
 
   return $list;

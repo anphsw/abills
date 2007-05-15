@@ -12,19 +12,6 @@ my  $sessions = Voip_Sessions->new($db, \%conf);
 
 
 my $MODULE = (defined($module{$index})) ? $module{$index} : 'Voip';
-my $lang_file = '';
-foreach my $prefix (@INC) {
-  my $realfilename = "$prefix/Abills/modules/$MODULE/lng_$html->{language}.pl";
-  if (-f $realfilename) {
-    $lang_file =  $realfilename;
-    require $lang_file;
-    last;
-   }
- }
-
-if ($lang_file eq '')  {
-  require "Abills/modules/$MODULE/lng_english.pl";
-}
 
 
 
@@ -297,8 +284,8 @@ sub voip_nas {
 #**********************************************************
 sub voip_tp_routes {
 	my ($attr) = @_;
-	
-	my $Voip_tp;
+
+my $Voip_tp;
 if (defined($attr->{TP})) {
 	$Voip_tp = $attr->{TP};
 

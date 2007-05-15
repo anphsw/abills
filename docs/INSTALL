@@ -63,6 +63,7 @@ The following lines must be commented:
 
 
 
+
 =====MySQL=====
 Download the tarball from [http://www.mysql.com]\\
 
@@ -73,16 +74,20 @@ Download the tarball from [http://www.mysql.com]\\
     server# make install (as root)
 
 Create user and database:
+  server# mysql 
 
-use mysql;\\
-INSERT INTO user (Host, User, Password) VALUES ('%','abills', password('sqlpassword'));\\
+  use mysql;
+  INSERT INTO user (Host, User, Password) 
+    VALUES ('localhost','abills', password('sqlpassword'));
+  
+  INSERT INTO db (Host, Db, User, Select_priv, Insert_priv, Update_priv, 
+    Delete_priv, Create_priv, Drop_priv, Index_priv, Alter_priv, 
+    Lock_tables_priv, Create_tmp_table_priv) 
+  VALUES ('localhost', 'abills', 'abills', 'Y', 'Y', 'Y', 'Y', 'Y', 
+    'Y', 'Y', 'Y', 'Y', 'Y');
+  CREATE DATABASE abills;
+  flush privileges;
 
-INSERT INTO db (Host, Db, User, Select_priv, Insert_priv, Update_priv, Delete_priv, Create_priv, Drop_priv, Index_priv, Alter_priv) \\
-VALUES ('localhost', 'abills', 'abills', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y');\\
-\\
-CREATE DATABASE abills;\\
-\\
-    server# mysqladmin flush-privileges;\\
 \\
 Create tables in the database:\\
 

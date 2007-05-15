@@ -21,16 +21,22 @@ use main;
 
 my $db;
 my $admin;
-my $conf;
+my $CONF;
 
 #**********************************************************
 # Init 
 #**********************************************************
 sub new {
   my $class = shift;
-  ($db, $admin, $conf) = @_;
+  ($db, $admin, $CONF) = @_;
   my $self = { };
   bless($self, $class);
+  
+  if ($CONF->{DELETE_USER}) {
+    $self->del($CONF->{DELETE_USER}, '', '', '', { DELETE_USER => $CONF->{DELETE_USER} });
+   }
+
+  
   #$self->{debug}=1;
   return $self;
 }
@@ -44,8 +50,14 @@ sub del {
   my ($uid, $session_id, $nas_id, $session_start, $attr) = @_;
 
 
-  $self->query($db, "DELETE FROM voip_log 
-   WHERE uid='$uid' and start='$session_start' and nas_id='$nas_id' and acct_session_id='$session_id';", 'do');
+  if ($attr->{DELETE_USER}) {
+    $self->query($db, "DELETE FROM voip_log WHERE uid='$attr->{DELETE_USER}';", 'do');
+   }
+  else {
+    $self->query($db, "DELETE FROM voip_log 
+      WHERE uid='$uid' and start='$session_start' and nas_id='$nas_id' and acct_session_id='$session_id';", 'do');
+   }
+
   return $self;
 }
 
@@ -179,8 +191,6 @@ sub online_info {
      return $self;
    }
 
-  my $ar = $self->{list}->[0];
-
   ($self->{USER_NAME}, 
    $self->{SESSION_START}, 
    $self->{ACCT_SESSION_TIME}, 
@@ -193,7 +203,7 @@ sub online_info {
    $self->{H323_CONF_ID},
    $self->{CLIENT_IP_ADDRESS},
    $self->{CONNECT_TERM_REASON}, 
-    )= @$ar;
+    )= @{ $self->{list}->[0] };
 
 
   return $self;
@@ -254,7 +264,7 @@ sub session_detail {
   
   l.uid,
   l.acct_session_id
- FROM voip_log l, users u
+ FROM (voip_log l, users u)
  LEFT JOIN tarif_plans tp ON (l.tp_id=tp.id) 
  LEFT JOIN nas n ON (l.nas_id=n.id) 
  WHERE l.uid=u.uid 
@@ -352,9 +362,7 @@ my $WHERE = ($attr->{SESSION_ID}) ? "and acct_session_id='$attr->{SESSION_ID}'" 
       FROM s_detail 
      WHERE id='$attr->{LOGIN}' $WHERE;");
     
-    my $a_ref = $self->{list}->[0];
-    ($self->{TOTAL}) = @$a_ref;
-   
+    ($self->{TOTAL}) = @{ $self->{list}->[0] };
   }
 	
 	
@@ -531,7 +539,7 @@ elsif($attr->{DATE}) {
  l.uid,
  UNIX_TIMESTAMP(l.start),
  l.duration
-  FROM voip_log l, users u
+  FROM (voip_log l, users u)
   $WHERE
   ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;");
 
@@ -540,7 +548,7 @@ elsif($attr->{DATE}) {
 
  if ($self->{TOTAL} > 0) {
     $self->query($db, "SELECT count(*), SEC_TO_TIME(sum(l.duration)), sum(sum)  
-      FROM voip_log l, users u
+      FROM (voip_log l, users u)
      $WHERE;");
 
     my $a_ref = $self->{list}->[0];

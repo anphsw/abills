@@ -15,6 +15,8 @@
 if [ w$3 != w ] ; then 
   NAS_IPADDR=$2
 else
+ echo "No input prams"
+ echo "exacct_program ACCT_STATUS_TYPE NAS_IP_ADDRESS NAS_PORT NAS_TYPE";
  exit 0;
 fi;
 

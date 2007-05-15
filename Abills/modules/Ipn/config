@@ -1,12 +1,13 @@
 #$web_interface    = 1;
 # Iner_ID : Main or Sub or if -1 user menu func list
 
-%FUNCTIONS_LIST = ("10:0:IP Net:ipn_form_user:UID"           => 20,
-                   "11:10:$_ACTIVATE:ipn_user_activate:UID"  => 20,
+%FUNCTIONS_LIST = ("10:0:IP Net:ipn_user_activate:UID"       => 20,
+                   #"11:10:$_ACTIVATE:ipn_user_activate:UID" => 20,
                    "12:10:$_STATS:ipn_sessions2:UID"         => 20,
+                   "13:10:$_TRAFIC_TARIFS:ipn_getnet:UID"         => 20,
                    "22:0:IP Net:null:"                       => 4,
-                   "23:22:$_ERROR:ipn_error:"                => 4,
-                   "24:22:$_LAST:ipn_sessions:"              => 4,
+                   #"23:22:$_ERROR:ipn_error:"                => 4,
+                   #"24:22:$_LAST:ipn_sessions:"              => 4,
                    "25:22:$_USED:ipn_use:"                   => 4,
                    "26:22:$_USERS:ipn_use_users:"            => 4,
                    "27:26:$_MONTH:ipn_use_users_allmonthes:" => 4,
@@ -21,6 +22,8 @@
 
 if ($conf{IPN_USERMENU}) {
   $USER_FUNCTION_LIST{"01:0:IP Net:ipn_user_activate:defaultindex"} = 0;
+  $USER_FUNCTION_LIST{"02:1:$_STATS:ipn_sessions2:"} = 0;
+  $USER_FUNCTION_LIST{"03:1:$_TRAFIC_TARIFS:ipn_getnet:"}   = 0;
 }
 
 if ($conf{IPN_CLUBMONITOR}) {

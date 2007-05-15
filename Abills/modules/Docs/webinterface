@@ -4,21 +4,7 @@
 
 require "Docs.pm";
 Docs->import();
-my $Docs = Docs->new($db, $admin, $conf);
-
-foreach my $prefix (@INC) {
-  my $realfilename = "$prefix/Abills/modules/$module{$index}/lng_$html->{language}.pl";
-  if (-f $realfilename) {
-    $lang_file =  $realfilename;
-    require $lang_file;
-    last;
-   }
- }
-
-if ($lang_file eq '')  {
-  require "Abills/modules/Docs/lng_english.pl";
-}
-
+my $Docs = Docs->new($db, $admin, \%conf);
 
 #**********************************************************
 # docs_invoice_add
@@ -41,6 +27,8 @@ sub docs_invoice_add  {
      return 0;
     }
    else {
+     
+     $Docs->{FROM} = $attr->{FROM} if ($attr->{FROM});
      $Docs->docs_invoice_add({ %$attr });
      if(! $Docs->{errno}) {
        $html->message('info', "$_ADDED", "$_NUM: [$Docs->{DOC_ID}] $_DATE: $FORM{DATE}");

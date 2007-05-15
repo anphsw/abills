@@ -12,7 +12,7 @@ CREATE TABLE `filearch` (
   PRIMARY KEY  (`id`),
   UNIQUE KEY `id` (`id`),
   UNIQUE KEY `filename` (`filename`,`path`)
-);
+) COMMENT='Filearch';
 
 
 CREATE TABLE `filearch_film_actors` (
@@ -20,21 +20,21 @@ CREATE TABLE `filearch_film_actors` (
   `actor_id` smallint(6) unsigned NOT NULL default '0',
   UNIQUE KEY `video_id` (`video_id`,`actor_id`),
   KEY `actor_id` (`actor_id`)
-);
+) COMMENT='Filearch actors';
 
 
 CREATE TABLE `filearch_film_genres` (
   `video_id` int(11) unsigned NOT NULL default '0',
   `genre_id` smallint(6) unsigned NOT NULL default '0',
   KEY `video_id` (`video_id`)
-);
+) COMMENT='Filearch genres';
 
 CREATE TABLE `filearch_state` (
   `file_id` int(11) unsigned NOT NULL default '0',
   `uid` int(11) unsigned NOT NULL default '0',
   `state` tinyint(2) unsigned NOT NULL default '0',
   KEY `file_id` (`file_id`)
-);
+) COMMENT='Filearch state';
 
 CREATE TABLE `filearch_video` (
   `id` int(11) unsigned NOT NULL default '0',
@@ -57,7 +57,7 @@ CREATE TABLE `filearch_video` (
   `country` tinyint(4) NOT NULL default '0',
   `cover_small_url` varchar(200) NOT NULL default '',
   UNIQUE KEY `id` (`id`)
-);
+) COMMENT='Filearch';
 
 CREATE TABLE `filearch_video_actors` (
   `id` smallint(6) unsigned NOT NULL auto_increment,
@@ -68,7 +68,7 @@ CREATE TABLE `filearch_video_actors` (
   UNIQUE KEY `id` (`id`),
   UNIQUE KEY `name` (`name`),
   UNIQUE KEY `origin_name` (`origin_name`)
-);
+) COMMENT='Filearch';
 
 CREATE TABLE `filearch_video_genres` (
   `id` tinyint(4) unsigned NOT NULL auto_increment,
@@ -78,4 +78,4 @@ CREATE TABLE `filearch_video_genres` (
   PRIMARY KEY  (`id`),
   UNIQUE KEY `id` (`id`),
   UNIQUE KEY `name` (`name`)
-);
+) COMMENT='Filearch';

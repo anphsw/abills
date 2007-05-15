@@ -326,15 +326,16 @@ return qq{
 };
  }
 elsif ($tpl_name eq 'form_admin') {
-return qq{<form action=$SELF_URL>
-<input type=hidden name=index value=50>
-<input type=hidden name=AID value='%AID%'>
+return qq{
+<form action='$SELF_URL'>
+<input type=hidden name='index' value='50'>
+<input type=hidden name='AID' value='%AID%'>
 <TABLE>
 <TR><TD>ID:</TD><TD><input type=text name=A_LOGIN value="%A_LOGIN%"></TD></TR>
 <TR><TD>$_FIO:</TD><TD><input type=text name=A_FIO value="%A_FIO%"></TD></TR>
 <TR><TD>$_DISABLE:</TD><TD><input type=checkbox name=DISABLE value='1' %DISABLE%></TD></TR>
 <TR><TD>$_PHONE:</TD><TD><input type=text name=A_PHONE value='%A_PHONE%'></TD></TR>
-<!-- <TR><TD>$_GROUPS:</TD><TD><input type=text name=name value="$name"></TD></TR> -->
+<tr><TD>$_GROUPS:</TD><TD>%GROUP_SEL%</TD></TR>
 </TABLE>
 <input type=submit name='%ACTION%' value='%LNG_ACTION%'>
 </form>
@@ -508,6 +509,9 @@ return qq{
 
 <tr><td colspan='2'>$_DISABLE:</td><td><input type='checkbox' name='DISABLE' value='1'/></td></tr>
 <tr><td colspan='2'>$_CONTRACT_ID (*):</td><td><input type='text' name='CONTRACT_ID' value='%CONTRACT_ID%'/></td></tr>
+<tr><td colspan='2'>$_REGISTRATION (<>):</td><td><input type='text' name='REGISTRATION' value='%REGISTRATION%'/></td></tr>
+<tr><td colspan='2'>$_ACTIVATE (<>):</td><td><input type='text' name='ACTIVATE' value='%ACTIVATE%'/></td></tr>
+<tr><td colspan='2'>$_EXPIRE (<>):</td><td><input type='text' name='EXPIRE' value='%EXPIRE%'/></td></tr>
 </table>
 </td></tr>
 
@@ -640,6 +644,7 @@ return qq{
 <hr/>
 }
 }
+
 elsif ($tpl_name eq 'users_main') {
 return qq{
 <TABLE BORDER="0" WIDTH="100%" style='margin: 0'><tr BGCOLOR="$_COLORS[2]"><TD align="right">$_DATE: %DATE% $_TIME: %TIME%</TD></TR></TABLE>
@@ -674,6 +679,7 @@ return qq{
 elsif($tpl_name eq 'admin_report_day') {
 return qq{
 Daily Admin Report /%DATE%/
+Hostname: %HOSTNAME%
 
 $_PAYMENTS
 =========================================================
@@ -709,6 +715,7 @@ elsif($tpl_name eq 'admin_report_month') {
 
 return qq{
 Monthly Admin Report /%DATE%/
+Hostname: %HOSTNAME%
 
 $_PAYMENTS
 =========================================================

@@ -216,6 +216,7 @@ if ($self->{DISABLE} ||  $self->{VOIP_DISABLE} || $self->{USER_DISABLE}) {
 $self->{PAYMENT_TYPE}=0;
 if ($self->{PAYMENT_TYPE} == 0) {
   $self->{DEPOSIT}=$self->{DEPOSIT}+$self->{CREDIT}; #-$self->{CREDIT_TRESSHOLD};
+  $RAD->{H323_CREDIT_AMOUNT}=$self->{DEPOSIT};
   #Check deposit
   if($self->{DEPOSIT}  <= 0) {
     $RAD_PAIRS{'Reply-Message'}="Negativ deposit '$self->{DEPOSIT}'. Rejected!";

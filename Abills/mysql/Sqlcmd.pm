@@ -38,9 +38,17 @@ sub new {
 #**********************************************************
 sub info {
   my $self = shift;
-  my ($type) = @_;
+  my ($attr) = @_;
 
-  my $list;
+ my $list;
+ 
+# $attr->{fields}='' if (! $attr->{fields});
+# my @fields = split(/, /, $attr->{fields});
+ 
+ $SORT = ($attr->{SORT}) ? $attr->{SORT} : 0;
+ $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+ my $type = $attr->{TYPE} || '';
  
   if ($type eq 'showtables') {
     
@@ -49,23 +57,34 @@ sub info {
     my $pri_keys = $sth->{mysql_is_pri_key};
     my $names = $sth->{NAME};
 
+    push @$names, 'CHECK';
+
     $self->{FIELD_NAMES}=$names;
 
     my @rows = ();
     my @row_array = ();
 
-
     while(my @row_array = $sth->fetchrow()) {
       my $i=0;
-
       my %Rows_hash = ();
       foreach my $line (@row_array) {
       	$Rows_hash{"$names->[$i]"}=$line;
       	$i++;
        }
+      # check syntax
+      if ($attr->{'fields'} =~ /CHECK/) {
+        my $q = $db->prepare( "CHECK TABLE $row_array[0]");
+        $q->execute();
+        my @res = $q->fetchrow();
+        $Rows_hash{"$names->[$i]"}="$res[2] / $res[3]";
+      }
       
       push @rows, \%Rows_hash;
+
     }
+
+
+
     $list = \@rows;
     return $list;
   }
@@ -76,6 +95,13 @@ sub info {
 }
 
 
+#**********************************************************
+# maintenance()
+#**********************************************************
+sub maintenance  {
+	
+	
+}
 
 
 

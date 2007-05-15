@@ -5,9 +5,8 @@
 
 
 use Msgs;
- 
 my $Msgs=Msgs->new($db, $admin, \%conf);
-
+my $users = Users->new($db, $admin, \%conf); 
 
 
 #*******************************************************************
@@ -19,9 +18,24 @@ sub msgs_admin {
   $Msgs->{ACTION_LNG}=$_SEND;
 
   if ($FORM{send}) {
-    $Msgs->message_add({ %FORM });
-    $html->message('info', $_INFO, "$_ADDED") if (! $Msgs->{errno});  	
- 	
+    #Add group 
+    my $message='';
+    if  ($FORM{GID} || ($FORM{GID} == 0 && $FORM{UID} == 0 )) {
+       my $list = $users->list({ GID => $FORM{GID}, PAGE_ROWS => 100000 });
+       foreach my $line (@$list) {
+          $FORM{UID}=$line->[5+$users->{SEARCH_FIELDS_COUNT}];
+          $Msgs->message_add({ %FORM });
+        }
+       $message = "$_TOTAL: $users->{TOTAL}";
+
+       $LIST_PARAMS{PAGE_ROWS}=25;
+       undef $FORM{UID};
+     }
+    else {
+      $Msgs->message_add({ %FORM });
+     }
+   
+    $html->message('info', $_INFO, "$_SENDED $message") if (! $Msgs->{errno});  	
    }
   elsif ($FORM{reply}) {
     $Msgs->message_change({ STATE => 0, %FORM });
@@ -50,7 +64,18 @@ sub msgs_admin {
  	                                          MULTI_ARRAY_KEY   => 0,
  	                                          MULTI_ARRAY_VALUE => 1,
  	                                        });
-
+  
+  if (! $FORM{UID}) {
+    $Msgs->{USER} = $html->form_select('GID', 
+                                { 
+ 	                                SELECTED          => $FORM{GID},
+ 	                                SEL_MULTI_ARRAY   => $users->groups_list(),
+ 	                                MULTI_ARRAY_KEY   => 0,
+ 	                                MULTI_ARRAY_VALUE => 1,
+ 	                                SEL_OPTIONS       => { 0 => $_ALL }
+ 	                               });
+  }
+  
   $html->tpl_show(_include('msgs_send_form', 'Msgs'), $Msgs);
   
   $list = $Msgs->messages_list({ %LIST_PARAMS, DESC => (! $FORM{sort}) ? 'DESC' : $FORM{desc} });
@@ -70,7 +95,7 @@ foreach my $line (@$list) {
 
   $table->addrow(
    $line->[0] . $html->form_input('del', "$line->[0]", {TYPE => 'checkbox' }), 
-   $line->[1],
+   ($line->[11] > 0)  ? $html->button($line->[1], "index=11&UID=$line->[8]") :  $line->[1],
    $html->button($line->[2], "index=$index&UID=$line->[8]&chg=$line->[0]"), 
    $line->[3],
    $line->[4],
@@ -87,7 +112,7 @@ print $html->form_main({ CONTENT => $table->show(),
 	                       HIDDEN  => { index            => "$index",
 	                                    UID							 => $UID      },
 	                       SUBMIT  => { delete           => $_DEL     } 
-	                       });
+	                     });
 
 
 
@@ -141,7 +166,7 @@ sub msgs_user {
   my $table = $html->table( { width        => '100%',
                               caption      => "$_MESSAGES",
                               title_plain  => ["$_SUBJECT", "$_CHAPTERS", "$_DATE", "-" ],
-                              cols_align   => ['right', 'left', 'left', 'right', 'right', 'left', 'center'],
+                              cols_align   => ['left', 'left', 'left', 'right', 'right', 'left', 'center'],
                               qs           => $pages_qs,
                               pages        => $Msgs->{TOTAL}
                            });
@@ -153,7 +178,7 @@ foreach my $line (@$list) {
     ($line->[10] == 1) ? $line->[2] : "<b>$line->[2]</b>", 
     $line->[3],
     $line->[4],
-    $html->button($_SHOW, "index=$index&ID=$line->[0]")
+    $html->button($_SHOW, "index=$index&ID=$line->[0]&sid=$sid")
   );
 }
 

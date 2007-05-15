@@ -34,23 +34,39 @@ sub new {
 
 
 #**********************************************************
+#
+#**********************************************************
+sub defaults {
+  my $self = shift;
+
+  my %DATA = (
+   DEPOSIT        => 0.00, 
+   COMPANY_ID     => 0
+  );
+
+ 
+  $self = \%DATA;
+  return $self;
+}
+
+
+#**********************************************************
 # Bill
 #**********************************************************
 sub create {
 	my $self = shift;
 	my ($attr) = @_;
-  my %DATA = $self->get_data($attr); 
+
+  my %DATA = $self->get_data($attr, { default => defaults() }); 
 
   $self->query($db, "INSERT INTO bills (deposit, uid, company_id, registration) 
     VALUES ('$DATA{DEPOSIT}', '$DATA{UID}', '$DATA{COMPANY_ID}', now());", 'do');	
 
-  return $self if ($self->{errno});
+  $self->{BILL_ID} = $self->{INSERT_ID} if (! $self->{errno});
 
 #  $admin->action_add($uid, "ADD BILL [$self->{INSERT_ID}]");
-  
-  
-  $self->{BILL_ID} = $self->{INSERT_ID};
-	
+    
+
 	return $self;
 }
 

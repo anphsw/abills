@@ -12,8 +12,7 @@ use Exporter;
 $VERSION = 2.00;
 @ISA = ('Exporter');
 
-@EXPORT = qw(
-);
+@EXPORT = qw();
 
 @EXPORT_OK = ();
 %EXPORT_TAGS = ();
@@ -23,17 +22,22 @@ use main;
 
 my $db;
 my $admin;
-my $conf;
+my $CONF;
 
 #**********************************************************
 # Init 
 #**********************************************************
 sub new {
   my $class = shift;
-  ($db, $admin, $conf) = @_;
+  ($db, $admin, $CONF) = @_;
   my $self = { };
   bless($self, $class);
   #$self->{debug}=1;
+  
+  if ($CONF->{DELETE_USER}) {
+    $self->del($CONF->{DELETE_USER}, '', '', '', { DELETE_USER => $CONF->{DELETE_USER} });
+   }
+  
   return $self;
 }
 
@@ -45,10 +49,14 @@ sub del {
   my $self = shift;
   my ($uid, $session_id, $nas_id, $session_start, $attr) = @_;
 
+  if ($attr->{DELETE_USER}) {
+    $self->query($db, "DELETE FROM dv_log WHERE uid='$attr->{DELETE_USER}';", 'do');
+  }
+  else {
+    $self->query($db, "DELETE FROM dv_log 
+     WHERE uid='$uid' and start='$session_start' and nas_id='$nas_id' and acct_session_id='$session_id';", 'do');
+   }
 
-  $self->query($db, "DELETE FROM dv_log 
-   WHERE uid='$uid' and start='$session_start' and nas_id='$nas_id' and acct_session_id='$session_id';", 'do');
-   
   return $self;
 }
 
@@ -122,7 +130,10 @@ sub online {
    'u.credit',
    'if(date_format(c.started, "%Y-%m-%d")=curdate(), date_format(c.started, "%H:%i:%s"), c.started)',
    'c.nas_id',
-   'UNIX_TIMESTAMP()-c.lupdated' );
+   'UNIX_TIMESTAMP()-c.lupdated',
+   'c.acct_session_time',
+   'c.lupdated - UNIX_TIMESTAMP(c.started)'
+   );
 
 
   my @RES_FIELDS = (0, 1, 2, 3, 4, 5, 6, 7, 8);
@@ -155,7 +166,11 @@ sub online {
   } 
  
  if (defined($attr->{USER_NAME})) {
- 	 push @WHERE_RULES, "user_name='$attr->{USER_NAME}'";
+ 	 push @WHERE_RULES, "c.user_name='$attr->{USER_NAME}'";
+  }
+
+ if (defined($attr->{GID})) {
+ 	 push @WHERE_RULES, "u.gid='$attr->{GID}'";
   }
 
 
@@ -187,12 +202,14 @@ sub online {
    c.nas_id,
    c.user_name,
    c.nas_port_id,
-   c.acct_session_id
-
+   c.acct_session_id,
+   c.CID,
+   dv.tp_id
+   
  FROM dv_calls c
- LEFT JOIN users u     ON u.id=user_name
- LEFT JOIN dv_main dv  ON dv.uid=u.uid
- LEFT JOIN users_pi pi ON pi.uid=u.uid
+ LEFT JOIN users u     ON (u.id=user_name)
+ LEFT JOIN dv_main dv  ON (dv.uid=u.uid)
+ LEFT JOIN users_pi pi ON (pi.uid=u.uid)
 
  LEFT JOIN bills b ON (u.bill_id=b.id)
  LEFT JOIN companies company ON (u.company_id=company.id)
@@ -226,7 +243,7 @@ sub online {
  	  $dub_ports{$line->[$nas_id_field]}{$line->[$port_id]}++;
     
     my @fields = ();
-    for(my $i=0; $i<=$#RES_FIELDS+13; $i++) {
+    for(my $i=0; $i<=$#RES_FIELDS+15; $i++) {
        push @fields, $line->[$i];
      }
 
@@ -261,7 +278,7 @@ sub online_del {
     my $NAS_ID  = (defined($attr->{NAS_ID})) ? $attr->{NAS_ID} : '';
     my $NAS_PORT        = (defined($attr->{NAS_PORT})) ? $attr->{NAS_PORT} : '';
     my $ACCT_SESSION_ID = (defined($attr->{ACCT_SESSION_ID})) ? $attr->{ACCT_SESSION_ID} : '';
-    $WHERE = "nas_id=INET_ATON('$NAS_ID')
+    $WHERE = "nas_id='$NAS_ID'
             and nas_port_id='$NAS_PORT' 
             and acct_session_id='$ACCT_SESSION_ID'";
    }
@@ -296,7 +313,7 @@ sub online_info {
    undef @WHERE_RULES; 
 
    if($attr->{NAS_ID}) {
-   	  push @WHERE_RULES, "nas_id=INET_ATON('$attr->{NAS_ID}')";
+   	  push @WHERE_RULES, "nas_id='$attr->{NAS_ID}'";
     }
    elsif (defined($attr->{NAS_IP_ADDRESS})) {
       push @WHERE_RULES, "nas_ip_address=INET_ATON('$attr->{NAS_IP_ADDRESS}')";
@@ -325,7 +342,8 @@ sub online_info {
       CID,
       CONNECT_INFO,
       acct_session_id,
-      nas_id
+      nas_id,
+      started
       FROM dv_calls 
    $WHERE 
    ");
@@ -337,15 +355,13 @@ sub online_info {
      return $self;
    }
 
-  my $ar = $self->{list}->[0];
-
   ($self->{USER_NAME}, 
    $self->{SESSION_START}, 
    $self->{ACCT_SESSION_TIME}, 
    $self->{ACCT_INPUT_OCTETS}, 
    $self->{ACCT_OUTPUT_OCTETS}, 
    $self->{ACCT_EX_INPUT_OCTETS}, 
-   $self->{ACCT_EX_INPUT_OCTETS}, 
+   $self->{ACCT_EX_OUTPUT_OCTETS}, 
    $self->{CONNECT_TERM_REASON}, 
    $self->{FRAMED_IP_ADDRESS}, 
    $self->{LAST_UPDATE}, 
@@ -354,8 +370,9 @@ sub online_info {
    $self->{CALLING_STATION_ID},
    $self->{CONNECT_INFO},
    $self->{ACCT_SESSION_ID},
-   $self->{NAS_ID}
-    )= @$ar;
+   $self->{NAS_ID},
+   $self->{ACCT_SESSION_STARTED}
+    )= @{ $self->{list}->[0] };
 
 
   return $self;
@@ -517,8 +534,7 @@ else {
       FROM s_detail 
      WHERE id='$attr->{LOGIN}' $WHERE ;");
     
-    my $a_ref = $self->{list}->[0];
-    ($self->{TOTAL}) = @$a_ref;
+    ($self->{TOTAL}) = @{ $self->{list}->[0] };
   }
 	
 	
@@ -559,7 +575,6 @@ sub periods_totals {
    sum(sent), sum(recv), SEC_TO_TIME(sum(duration))
    FROM dv_log $WHERE;");
 
-  my $ar = $self->{list}->[0];
   ($self->{sent_0}, 
       $self->{recv_0}, 
       $self->{duration_0}, 
@@ -574,13 +589,118 @@ sub periods_totals {
       $self->{duration_3}, 
       $self->{sent_4}, 
       $self->{recv_4}, 
-      $self->{duration_4}) =  @$ar;
+      $self->{duration_4}) =  @{ $self->{list}->[0] };
   
   for(my $i=0; $i<5; $i++) {
     $self->{'sum_'. $i } = $self->{'sent_' . $i } + $self->{'recv_' . $i};
   }
 
   return $self;	
+}
+
+
+#**********************************************************
+#
+#**********************************************************
+sub prepaid_rest {
+  my $self = shift;	
+  my ($attr) = @_;
+	
+	$CONF->{MB_SIZE} = $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE};
+	
+	#Get User TP and intervals
+  $self->query($db, "select tt.id, i.begin, i.end, 
+    if(u.activate<>'0000-00-00', u.activate, DATE_FORMAT(curdate(), '%Y-%m-01')), 
+     tt.prepaid, 
+    u.id, tp.octets_direction, 
+    u.uid, 
+    dv.tp_id, 
+    tp.name
+  from (users u,
+        dv_main dv,
+        tarif_plans tp,
+        intervals i,
+        trafic_tarifs tt)
+WHERE
+     u.uid=dv.uid
+ and dv.tp_id=tp.id
+ and tp.id=i.tp_id
+ and i.id=tt.interval_id
+ and u.uid='$attr->{UID}'
+ ORDER BY 1
+ ");
+
+ if($self->{TOTAL} < 1) {
+ 	  return 0;
+  }
+
+
+ my %rest = (0 => 
+             1 => );
+ 
+
+ 
+ foreach my $line (@{ $self->{list} } ) {
+   $rest{$line->[0]} = $line->[4];
+  }
+
+
+ $self->{INFO_LIST}=$self->{list};
+ my $login = $self->{INFO_LIST}->[0]->[5];
+
+ return 1 if ($attr->{INFO_ONLY});
+ 
+ my $octets_direction = "sent + recv";
+ my $octets_direction2 = "sent2 + recv2";
+ my $octets_online_direction = "acct_input_octets + acct_output_octets";
+ my $octets_online_direction2 = "ex_input_octets + ex_output_octets";
+ 
+ if ($self->{INFO_LIST}->[0]->[6] == 1) {
+   $octets_direction = "recv";
+   $octets_direction2 = "recv2";
+   $octets_online_direction = "acct_input_octets";
+   $octets_online_direction2 = "ex_input_octets";
+  }
+ elsif ($self->{INFO_LIST}->[0]->[6] == 2) {
+   $octets_direction = "sent";
+   $octets_direction2 = "sent2";
+   $octets_online_direction = "acct_output_octets";
+   $octets_online_direction2 = "ex_output_octets";
+  }
+ 
+ #Check sessions
+ #Get using traffic
+ $self->query($db, "select 
+  $rest{0} - sum($octets_direction) / $CONF->{MB_SIZE},
+  $rest{1} - sum($octets_direction2) / $CONF->{MB_SIZE}
+ FROM dv_log
+ WHERE uid='$attr->{UID}' and DATE_FORMAT(start, '%Y-%m-%d')>='$self->{INFO_LIST}->[0]->[3]'
+ GROUP BY uid
+ ;");
+
+ if ($self->{TOTAL} > 0) {
+   ($rest{0}, 
+    $rest{1} 
+    ) =  @{ $self->{list}->[0] };
+  }
+
+ #Check online
+ $self->query($db, "select 
+  $rest{0} - sum($octets_online_direction) / $CONF->{MB_SIZE},
+  $rest{1} - sum($octets_online_direction2) / $CONF->{MB_SIZE}
+ FROM dv_calls
+ WHERE user_name='$login' 
+ GROUP BY user_name ;");
+
+ if ($self->{TOTAL} > 0) {
+   ($rest{0}, 
+    $rest{1} 
+    ) =  @{ $self->{list}->[0] };
+  }
+ 
+ $self->{REST}=\%rest;
+  
+ return 1;
 }
 
 #**********************************************************
@@ -732,18 +852,19 @@ elsif($attr->{DATE}) {
 
 
  if ($self->{TOTAL} > 0) {
-    $self->query($db, "SELECT count(l.uid), SEC_TO_TIME(sum(l.duration)), sum(l.sent + l.recv), 
-      sum(l.sent2 + l.recv2), 
+    $self->query($db, "SELECT count(l.uid), SEC_TO_TIME(sum(l.duration)), sum(l.sent), sum(l.recv), 
+      sum(l.sent2), sum(l.recv2), 
       sum(sum)  
       FROM (dv_log l, users u)
      $WHERE;");
 
-    my $a_ref = $self->{list}->[0];
     ($self->{TOTAL},
      $self->{DURATION},
-     $self->{TRAFFIC},
-     $self->{TRAFFIC2},
-     $self->{SUM}) = @$a_ref;
+     $self->{TRAFFIC_IN},
+     $self->{TRAFFIC_OUT},
+     $self->{TRAFFIC2_IN},
+     $self->{TRAFFIC2_OUT},
+     $self->{SUM}) = @{ $self->{list}->[0] };
   }
 
 #  $self->{list}=$list;
@@ -1033,6 +1154,28 @@ sub list_log_intervals {
  my $list = $self->{list};
 
  return $list;
+}
+
+#**********************************************************
+# Rotete logs
+#**********************************************************
+sub log_rotate {
+	my $self = shift;
+	my ($attr)=@_;
+	
+  $self->query($db, "DELETE from s_detail
+            WHERE
+  last_update < UNIX_TIMESTAMP()- $attr->{PERIOD} * 24 * 60 * 60;", 'do');
+	
+
+  $self->query($db, "DELETE LOW_PRIORITY dv_log_intervals from dv_log dl, dv_log_intervals dli
+WHERE
+  dl.acct_session_id=dli.acct_session_id
+  and dl.start < curdate() - INTERVAL $attr->{PERIOD} DAY;", 'do');
+
+	
+	
+	return $self;
 }
 
 1

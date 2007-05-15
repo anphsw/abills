@@ -7,7 +7,7 @@
 <tr><td>$_SUBJECT:</td><td><input type='text' name='SUBJECT' value='%SUBJECT%'/></td></tr>
 <tr><td>$_CHAPTERS:</td><td>%CHAPTER_SEL%</td></tr>
 
-<tr><td>$_USER:</td><td>%USER%</td></tr>
+<tr><td>$_USER / $_GROUP:</td><td>%USER%</td></tr>
 <tr><th bgcolor='$_COLORS[0]' colspan='2'>$_MESSAGE</th></tr>
 <tr><td bgcolor='$_COLORS[2]' colspan='2'>%MESSAGE%</td></tr>
 

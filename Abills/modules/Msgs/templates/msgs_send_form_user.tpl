@@ -1,5 +1,6 @@
-<FORM action='$SELF_URL'>
+<FORM action='$SELF_URL' METHOD='POST'>
 <input type='hidden' name='index' value='$index'/>
+<input type='hidden' name='sid' value='$sid'/>
 <input type='hidden' name='ID' value='%ID%'/>
 <table>
 <tr><td>$_DATE:</td><td>%DATE%</td></tr>

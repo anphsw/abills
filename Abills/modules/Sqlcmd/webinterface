@@ -68,13 +68,29 @@ if ($FORM{WIZARD}) {
                              } );
 
   #Syntax hightligth
-  my @syntax = ('SELECT', 'FROM', 'WHERE', 'ORDER', 'LIMIT', 'MIN', 'MAX', 'AVG', 'SUM', 'IF',
-            'INSERT', 'INTO', 'VALUES');
+  my @syntax = ('SELECT', 'FROM', 'WHERE', 'MIN', 'MAX', 'AVG', 'SUM', 'IF',
+            'INSERT', 'UPDATE', 'INTO', 'VALUES', 
+            'GROUP BY', 'ORDER BY', 'LIMIT',
+            'DATE_FORMAT', 'LEFT JOIN', 'ON', 'AND', 'EXPLAIN', 'ALTER', 'TABLE',
+            'ADD', 'COLUMN', 'UNSIGNED', 'NOT', 'NULL', 'DEFAULT', 'INTERVAL', 'COUNT'
+            );
+ 
+  my @types = ('INT', 'VARCHAR', 'SMALLINT', 'CHAR', 'TINYINT', 'DOUBLE');
+  my @func =  ('CURDATE()', 'NOW()');
+
+  my @division = ('FROM', 'WHERE', 'LEFT JOIN', 'GROUP BY', 'ORDER BY', 'LIMIT');
 
   foreach my $query ( @{ $Sqlcmd->{EXECUTED_QUERY} } ) {
+    foreach my $s (@division) {
+      $query =~ s/$s | $s / <br>$s /ig;
+     }
+
     foreach my $s (@syntax) {
-      $query =~ s/^$s | $s/ <b>$s<\/b> /gi;
-      $query =~ s/ (\d+)|(\d+),/ <font color='red'>$1<\/font>/g;
+      #Extended
+      $query =~ s/$s | $s / <b>$s<\/b> /ig;
+      $query =~ s/$s\(/ <b>$s<\/b>\(/gi;
+      $query =~ s/'(\S+)'/ <font color=\"#0000FF\">'$1'<\/font> /gi;
+      $query =~ s/ (\d+)|(\d+),/ <font color=\"red\">$1<\/font>/g;
      }
     $table->addrow("$query", "Ok");
   }
@@ -115,7 +131,7 @@ $pages_qs .= "&QUERY=$FORM{QUERY}";
 
   foreach my $line (@$list) {
     my @table_row = ();
-    foreach $l (@$line) {
+    foreach my $l (@$line) {
     	push @table_row, $l;
      }
 
@@ -133,6 +149,7 @@ $pages_qs .= "&QUERY=$FORM{QUERY}";
 if ($FORM{TABLE_INFO}) {
   $table = $html->table( { width        => '100%',
                            border       => 1,
+                           caption      => $FORM{TABLE_INFO},
                            title_plain  => [$_NAME, $_TYPE, "$_MAX $_LENGTH", "NO NULL", 'INDEX', 'PRIMARY_INDEX'], 
                        } );
 	
@@ -178,56 +195,147 @@ sub sqlcmd_tables {
 	#SHOW TABLE STATUS FROM abills;
   #$table{size} = Index_length + Data_length
   
-  my $list = $Sqlcmd->info('showtables');
+  my $list = $Sqlcmd->info({ TYPE => 'showtables', %LIST_PARAMS, %FORM });
 
   if ($Sqlcmd->{errno}) {
     $html->message('err', $_ERROR, "[$Sqlcmd->{errno}] $err_strs{$Sqlcmd->{errno}}");	
     return 0;
    }
 
-  my @CAPTIONS = ('Name', 
+
+  
+
+  my @ACTIVE_FIELDS = ('Name', 
                   'Type',
                   'Row_format',
-                  "$_COMMENTS",
+                  "Comment",
                   'Rows',
-                  "$_SIZE",
+                  "Size",
                   "-");
   
-  #@{ $Sqlcmd->{FIELD_NAMES} };
+  
+  @ACTIVE_FIELDS = split(/, /, $FORM{'fields'}) if ($FORM{'fields'});
+  $ACTIVE_FIELDS[0] = 'Name' if ($ACTIVE_FIELDS[0] ne 'Name');
+  
+  push @ACTIVE_FIELDS, '-';
+  
+  my $table = $html->table( { width      => '100%',
+                              border     => 1,
+                              title      => \@ACTIVE_FIELDS,
+                              cols_align => ['left', 'left', 'left', 'left', 'right', 'right', 'center'],
+                              qs         => "&fields=$FORM{fields}"
+                          } );
 
-  my $table = $html->table( { width  => '100%',
-                              border => 1,
-                              title  => \@CAPTIONS,
-                              cols_align => ['left', 'left', 'left', 'left', 'right', 'right', 'center']
-                                  } );
-
-  $tables_total=0;
-  $tables_size=0;
+  my $tables_total=0;
+  my $tables_size=0;
+  
+  my %SORT_HASH = ();
+  my $i=0;
 
   foreach my $line (@$list) {
-    #my @table_row = ();
-    #foreach $l (@$line) {
-    #	push @table_row, $l;
-    # }
+  	if($ACTIVE_FIELDS[$FORM{sort}-1] eq 'Size') {
+  		$SORT_HASH{$i} = $line->{'Index_length'} + $line->{'Data_length'};
+  	 }
+  	else {
+  	  $SORT_HASH{$i}=$line->{$ACTIVE_FIELDS[$FORM{sort}-1]};
+  	 }
 
-    $table->addrow($line->{'Name'}, 
-                   $line->{'Type'},
-                   $line->{'Row_format'},
-                   "$line->{'Comment'}",
-                   "$line->{'Rows'}",
-                   int2byte($line->{'Index_length'} + $line->{'Data_length'}),
-                   $html->button($_SHOW, "index=". ($index - 1).  "&TABLE_INFO=$line->{'Name'}&QUERY=SELECT * FROM $line->{'Name'} LIMIT $PAGE_ROWS")
-                   );
+  	$i++;
+  }
+
+  #print $sorted[0]->{$ACTIVE_FIELDS[$FORM{sort}-1]} ;
+  my @sorted_ids = sort { 
+     if($ACTIVE_FIELDS[$FORM{sort}-1] eq 'Name') {
+       $SORT_HASH{$a} cmp $SORT_HASH{$b}
+      }
+     else {
+     	length($SORT_HASH{$a}) <=> length($SORT_HASH{$b})
+       ||
+  	   $SORT_HASH{$a} cmp $SORT_HASH{$b}
+  	  } 
+  	 } keys %SORT_HASH;
+  
+  my @sorted=();
+  foreach my $line (@sorted_ids) {
+    push @sorted, $list->[$line];
+   }
+
+  foreach my $line (@sorted) {
+    my @table_rows = ();
+    for(my $i = 0; $i<$#ACTIVE_FIELDS; $i++) {
+    	my $l = $ACTIVE_FIELDS[$i];
+
+    	if ($l eq 'Size') {
+    		$l = int2byte($line->{'Index_length'} + $line->{'Data_length'});
+    	 }
+    	elsif($l eq 'Name') {
+    		$l = $html->form_input('TABLES', "$line->{$l}", { TYPE => 'checkbox' }).' '.$line->{$l} ;
+    	 }
+    	else {
+    		$l = $line->{$l};
+    	 }
+    	push @table_rows, $l;
+     }
+    
+    $table->addrow(
+      @table_rows,
+      $html->button($_SHOW, "index=". ($index - 1).  "&TABLE_INFO=$line->{'Name'}&QUERY=SELECT * FROM $line->{'Name'} LIMIT $PAGE_ROWS")
+     );
+    
+    
+    
     $tables_total++;
     $tables_size+=$line->{'Index_length'} + $line->{'Data_length'};
    }
-  print $table->show();
+  #print $table->show();
 
-  $table = $html->table( { width       => '100%',
+  my $table2 = $html->table( { width       => '100%',
                            cols_align  => ['right', 'right', 'right', 'right'],
                            rows        => [ [ "$_TOTAL:", "$tables_total", "$_SIZE:", int2byte("$tables_size") ] ]
-                               } );
-  print $table->show();
+                       } );
+  #print $table2->show();
+  
+  
+my $table3 = $html->table({ width => '100%' });
+my @arr = ();
+my $i=0;
+push @{ $Sqlcmd->{FIELD_NAMES} }, 'Size';
+foreach my $name ( @{ $Sqlcmd->{FIELD_NAMES} } ) {
+  push @arr, $html->form_input('fields', "$name", { TYPE => 'checkbox', STATE => (in_array($name, \@ACTIVE_FIELDS)) ? 1 : undef  }). " <b>$name</b>";
+
+  if ($#arr > 2) {
+    $table3->addrow(@arr);
+    @arr = ();
+   }
+  $i++;
+}
+
+
+if ($#arr > -1 ) {
+  $table3->addrow(@arr);
+ }
+
+
+$table3->addtd(  $table->td("$_ACTION:" .
+                 $html->form_select('ACTION', 
+                                    { 
+ 	                                   SELECTED    => $FORM{ACTION},
+ 	                                   SEL_ARRAY   => [ 'ANALYZE',  'BACKUP', 'CHECK', 'CHECKSUM', 'OPTIMIZE', 'REPAIR', 'RESTORE' ],
+                                     NO_ID       => 1,
+                                     SEL_OPTIONS => {'', ''}
+ 	                                  }), { colspan => 2} ),
+ 	               $table->td("$_VALUE:". $html->form_input('VALUE', "$FORM{VALUE}"), { colspan => 2 })
+               );
+
+
+
+print $html->form_main({ CONTENT => $table->show().
+	                                  $table2->show(). 
+	                                  $table3->show(),
+                              HIDDEN  => { index =>  "$index" },
+                              METHOD  => 'GET',
+                              SUBMIT  => { $_SHOW    => "$_SHOW" }
+                           });
 
 
 }
@@ -281,7 +389,10 @@ my $dms = $DMS_vals{SELECT} + $DMS_vals{INSERT} + $DMS_vals{REPLACE} + $DMS_vals
                            } );
 
 
- $table->addrow("MySQL: ".$vars->{'version'}, '', "UPTIME: ". sec2time($stats->{'Uptime'}, {str => 1}),'',  scalar localtime);
+ $table->addrow("MySQL: ".$vars->{'version'}.
+                "<br>version_comment:     $vars->{'version_comment'}". 
+                "<br>version_compile_os:  $vars->{'version_compile_os'}",
+                 '', "UPTIME: ". sec2time($stats->{'Uptime'}, {str => 1}),'',  scalar localtime);
  
  $table->{rowcolor}=$_COLORS[0];
  $table->{extra}="colspan='7'";
@@ -301,7 +412,9 @@ my $dms = $DMS_vals{SELECT} + $DMS_vals{INSERT} + $DMS_vals{REPLACE} + $DMS_vals
  undef($table->{extra});
  undef($table->{rowcolor});
 
- $table->addrow('Total', make_short($questions), t($questions, $stats->{'Uptime'}). '/s', '', '') ;
+ $table->addrow('Total', make_short($questions), t($questions, $stats->{'Uptime'}). '/s', 
+   t($questions, { PERIOD => 'min' }). '/min', 
+   t($questions, { PERIOD => 'hour' }). '/h' ) ;
  # Distribution of Total Questions invoked by -dtq or -all
 
  my %DTQ=();
@@ -439,7 +552,18 @@ $table->addrow('Opened', make_short($stats{'Opened_tables'}), t($stats{'Opened_t
  undef($table->{rowcolor});
 
 $table->addrow('Max used', $stats{'Max_used_connections'}, 'of '.  $vars{'max_connections'}, '%Max:',  perc($stats{'Max_used_connections'}, $vars{'max_connections'}));
-$table->addrow('Total', make_short($stats{'Connections'}), t($stats{'Connections'}).'/s', '', '');
+$table->addrow("$_TOTAL", make_short($stats{'Connections'}), t($stats{'Connections'}).'/s', 
+  t($stats{'Connections'}, { PERIOD => 'hour' }).'/h', '');
+#Aborted
+ $table->{rowcolor}=$_COLORS[0];
+ $table->{extra}="colspan='6'";
+ $table->addrow("Aborted");
+ undef($table->{extra});
+ undef($table->{rowcolor});
+
+$table->addrow('Clients', make_short($stats{'Aborted_clients'}), t($stats{'Aborted_clients'}).'/s', '', '');
+$table->addrow('Connects', make_short($stats{'Aborted_connects'}), t($stats{'Aborted_connects'}).'/s', '', '');
+
 
  $table->{rowcolor}=$_COLORS[0];
  $table->{extra}="colspan='6'";
@@ -469,22 +593,19 @@ $table->addrow('Slow', $stats{'Slow_launch_threads'}, t($stats{'Slow_launch_thre
 
  $table->{rowcolor}=$_COLORS[0];
  $table->{extra}="colspan='6'";
- $table->addrow("Aborted");
- undef($table->{extra});
- undef($table->{rowcolor});
-
-$table->addrow('Clients', make_short($stats{'Aborted_clients'}), t($stats{'Aborted_clients'}).'/s', '', '');
-$table->addrow('Connects', make_short($stats{'Aborted_connects'}), t($stats{'Aborted_connects'}).'/s', '', '');
-
- $table->{rowcolor}=$_COLORS[0];
- $table->{extra}="colspan='6'";
  $table->addrow("Bytes");
  undef($table->{extra});
  undef($table->{rowcolor});
 
-$table->addrow('Sent', make_short($stats{'Bytes_sent'}), make_short(t($stats{'Bytes_sent'})).'/s', '', '');
-$table->addrow('Received', make_short($stats{'Bytes_received'}), make_short(t($stats{'Bytes_received'})).'/s', '', '');
-
+$table->addrow($_SEND,  make_short($stats{'Bytes_sent'}), make_short(t($stats{'Bytes_sent'})).'/s', 
+  make_short(t($stats{'Bytes_sent'}, { PERIOD => 'min' } )).'/min',
+  make_short(t($stats{'Bytes_sent'}, { PERIOD => 'hour' } )).'/h');
+$table->addrow($_RECV,  make_short($stats{'Bytes_received'}), make_short(t($stats{'Bytes_received'})).'/s', 
+  make_short(t($stats{'Bytes_received'}, { PERIOD => 'min' } )).'/m',
+  make_short(t($stats{'Bytes_received'}, { PERIOD => 'hour' } )).'/h');
+$table->addrow($_TOTAL, make_short($stats{'Bytes_received'} + $stats{'Bytes_sent'}), make_short(t($stats{'Bytes_received'}+$stats{'Bytes_sent'})).'/s', 
+ make_short(t($stats{'Bytes_received'}+$stats{'Bytes_sent'}, { PERIOD => 'min' } )).'/m',
+ make_short(t($stats{'Bytes_received'}+$stats{'Bytes_sent'}, { PERIOD => 'hour' } )).'/h');
 
 
  print $table->show();
@@ -545,11 +666,29 @@ sub perc  {
 
 
 #**********************************************************
+# Make period statistic
 #
 #**********************************************************
 sub t  () {
-   my ($val) = @_;
-   return sprintf "%.2f", $val / $stats{'Uptime'};
+   my ($val, $attr) = @_;
+   my $result = '';
+   
+   my $second = $stats{'Uptime'};
+   
+   if ($attr->{PERIOD}) {
+     if($attr->{PERIOD} eq 'hour') {
+    	 $result = sprintf("%.2f", $val / ($second / 3600) );
+      }
+     elsif($attr->{PERIOD} eq 'min') {
+    	 $result = sprintf("%.2f", $val / ($second / 60) );
+      }
+    }
+   else {
+   	 $result = sprintf("%.2f", $val / $second);
+   	}
+   
+   
+   return $result;
 }
 
 1

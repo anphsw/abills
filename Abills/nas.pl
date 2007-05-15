@@ -51,6 +51,11 @@ sub hangup {
     radius_disconnect($NAS, $PORT, $USER);
     #hangup_mikrotik_telnet($NAS, $PORT, $USER);
   }
+ elsif ($nas_type eq 'usr') {
+   hangup_snmp($NAS, $PORT, { OID   => '.1.3.6.1.4.1.429.4.10.13.'. $PORT,
+   	                          TYPE  => 'integer',
+   	                          VALUE => 9 });
+  }
  elsif ($nas_type eq 'cisco')  {
  	  hangup_cisco($NAS, $PORT, { USER => $USER });
   }
@@ -82,7 +87,7 @@ sub get_stats {
  $nas_type = $NAS->{NAS_TYPE};
 
  if ($nas_type eq 'usr')       {
-    %stats = stats_usr($NAS, $PORT);
+    %stats = stats_usrns($NAS, $PORT);
   }
  elsif ($nas_type eq 'patton')   {
     %stats = stats_patton29xx($NAS, $PORT);
@@ -200,7 +205,6 @@ foreach my $line (@$commands) {
 
 #**********************************************************
 #
-#
 #**********************************************************
 sub telnet_cmd2 {
  my($host, $commands, $attr)=@_;
@@ -313,6 +317,7 @@ sub hangup_pm25 {
 }
 
 
+
 #####################################################################
 # USR Netserver 8/16
 #*******************************************************************
@@ -354,8 +359,9 @@ sub stats_ppp {
  my ($ip, $mng_port)=split(/:/, $NAS->{NAS_MNG_IP_PORT}, 2);
  $port =  $mng_port || 0;
  
- my $remote = IO::Socket::INET -> new(Proto => "tcp", PeerAddr => "$NAS",
-                                  PeerPort => "$port")
+ my $remote = IO::Socket::INET -> new(Proto    => "tcp", 
+                                      PeerAddr => "$NAS",
+                                      PeerPort => "$port")
  or print "cannot connect to pppcons port at $NAS->{NAS_IP}:$port $!\n";
 
 while ( <$remote> ) {
@@ -385,6 +391,27 @@ sub stats_dslmax {
   $stats{in} = $in;
   $stats{out} = $out;
   return %stats;
+}
+
+#**********************************************************
+# Base SNMP set hangup function
+#**********************************************************
+sub hangup_snmp {
+	my ($NAS, $PORT, $attr) = @_;
+
+	my $oid  = $attr->{OID};
+  my $type = $attr->{TYPE} || 'integer';
+  my $value  = $attr->{VALUE};
+
+  log_print('LOG_DEBUG', "SNMPSET: $NAS->{NAS_MNG_PASSWORD}\@$NAS->{NAS_IP} $oid $type $value");  
+	my $result = snmpset("$NAS->{NAS_MNG_PASSWORD}\@$NAS->{NAS_IP}", "$oid", "$type", $value);
+
+  if ($SNMP_Session::errmsg) {
+    log_print('LOG_ERR', "$SNMP_Session::errmrnings / $SNMP_Session::errmsg");
+   }
+
+	
+  return $result;
 }
 
 #*******************************************************************
@@ -673,13 +700,28 @@ sub stats_pppd  {
 #******************************************************************* 
 sub hangup_pppd { 
  my ($NAS, $id, $attr) = @_; 
-
-
  my $IP =  $attr->{FRAMED_IP_ADDRESS} ; 
+ my $result =  '';
+ 
+ if ($NAS->{NAS_MNG_IP_PORT} =~ /:/) {
+   my ($ip, $mng_port)=split(/:/, $NAS->{NAS_MNG_IP_PORT}, 2);	
+   use IO::Socket;
+
+   my $remote = IO::Socket::INET -> new(Proto    => "tcp", 
+                                        PeerAddr => "$ip",
+                                        PeerPort => $mng_port 
+                                        )
+    or die "cannot connect to rmstats port at $ip:$mng_port $!\n";
+
+   print $remote "$IP\n";
+   $result =  <$remote> ;
+  }
+ else {
+   $result = system ("/usr/bin/sudo /usr/abills/misc/pppd_kill $IP"); 
+  }
 
 
- system ("/usr/bin/sudo /usr/abills/misc/pppd_kill $IP"); 
- return 0; 
+ return $result; 
 } 
 
 
@@ -749,7 +791,8 @@ sub stats_patton29xx {
 		  if ($2 == $PORT && $active{$1} ) {
 		    $stats{out} = snmpget("$NAS->{NAS_MNG_PASSWORD}\@$NAS->{NAS_IP}", ".1.3.6.1.4.1.1768.5.100.1.36.$1");
 		    $stats{in} = snmpget("$NAS->{NAS_MNG_PASSWORD}\@$NAS->{NAS_IP}", ".1.3.6.1.4.1.1768.5.100.1.37.$1");
-		    #print " IFACE: $iface INDEX $1 IN: $in OUT: $out\n";
+
+        log_print('LOG_DEBUG', "IFACE: $line INDEX $1 IN: $stats{in} OUT: $stats{out}");
 		    last;
        }
 	   }

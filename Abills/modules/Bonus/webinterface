@@ -140,8 +140,9 @@ print $table->show();
 #
 #**********************************************************
 sub bonus_periodic {
+	my $REPORT = '';
 	
-	
+  return $REPORT;
 }
 
 
@@ -149,8 +150,9 @@ sub bonus_periodic {
 #
 #**********************************************************
 sub bonus_report {
+	my $REPORT = '';
 	
-	
+	return $REPORT;
 }
 
 

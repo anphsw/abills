@@ -39,6 +39,8 @@ sub messages_list {
   my $self = shift;
   my ($attr) = @_;
 
+ 
+ $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
  $DESC = (defined($attr->{DESC})) ? $attr->{DESC} : 'DESC';
 
@@ -63,6 +65,10 @@ sub messages_list {
  	  my $value = $self->search_expr($attr->{REPLY}, '');
     push @WHERE_RULES, "m.reply$value";
   }
+
+ if ($attr->{GID}) {
+    push @WHERE_RULES, "m.gid='$attr->{GID}'";
+  }
  
  
  
@@ -81,12 +87,16 @@ sub messages_list {
  $WHERE = ($#WHERE_RULES > -1) ? 'WHERE ' . join(' and ', @WHERE_RULES)  : '';
 
 
-  $self->query($db,   "SELECT m.id, u.id, m.subject, mc.name, m.date,  if(m.reply IS NULL, '', m.reply), 
-    inet_ntoa(m.ip), a.id, m.uid, a.aid, m.state
-    FROM msgs_messages m
+  $self->query($db,   "SELECT m.id, 
+    if(m.uid>0, u.id, g.name),
+    m.subject, mc.name, m.date,  if(m.reply IS NULL, '', m.reply), 
+    inet_ntoa(m.ip), a.id, m.uid, a.aid, m.state, m.gid
+
+    FROM (msgs_messages m)
     LEFT JOIN msgs_chapters mc ON (m.chapter=mc.id)
     LEFT JOIN users u ON (m.uid=u.uid)
     LEFT JOIN admins a ON (m.aid=a.aid)
+    LEFT JOIN groups g ON (m.gid=g.gid)
     $WHERE
     GROUP BY m.id 
     ORDER BY $SORT $DESC
@@ -95,15 +105,13 @@ sub messages_list {
 
  my $list = $self->{list};
 
- if ($self->{TOTAL} > 0 ) {
+ if ($self->{TOTAL} > 0  || $PG > 0) {
    $self->query($db, "SELECT count(*)
     FROM msgs_messages m
     LEFT JOIN users u ON (m.uid=u.uid)
     $WHERE");
 
-   my $a_ref = $self->{list}->[0];
-
-   ($self->{TOTAL}) = @$a_ref;
+   ($self->{TOTAL}) = @{ $self->{list}->[0] };
   }
  
 
@@ -124,12 +132,13 @@ sub message_add {
   
  
   %DATA = $self->get_data($attr, { default => \%DATA }); 
- 
-  $self->query($db, "insert into msgs_messages (uid, subject, chapter, message, ip, date, reply, aid, state)
+
+  $self->query($db, "insert into msgs_messages (uid, subject, chapter, message, ip, date, reply, aid, state, gid)
     values ('$DATA{UID}', '$DATA{SUBJECT}', '$DATA{CHAPTER}', '$DATA{MESSAGE}', INET_ATON('$DATA{IP}'), now(), 
         '$DATA{REPLY}',
         '$admin->{AID}',
-        '$DATA{STATE}');", 'do');
+        '$DATA{STATE}', 
+        '$DATA{GID}');", 'do');
 
 	return $self;
 }
@@ -163,8 +172,6 @@ sub message_del {
   	
    }
 
-  $self->{debug}=1;
-
   $WHERE = ($#WHERE_RULES > -1) ? join(' and ', @WHERE_RULES)  : '';
   $self->query($db, "DELETE FROM msgs_messages WHERE $WHERE", 'do');
 
@@ -192,11 +199,14 @@ sub message_info {
   m.aid,
   u.id,
   a.id,
-  mc.name
-    FROM msgs_messages m
+  mc.name,
+  m.gid,
+  g.name
+    FROM (msgs_messages m)
     LEFT JOIN msgs_chapters mc ON (m.chapter=mc.id)
     LEFT JOIN users u ON (m.uid=u.uid)
     LEFT JOIN admins a ON (m.aid=a.aid)
+    LEFT JOIN groups g ON (m.gid=g.gid)
   WHERE m.id='$id'
   GROUP BY m.id;");
 
@@ -206,7 +216,6 @@ sub message_info {
      return $self;
    }
 
-  my $ar = $self->{list}->[0];
   ($self->{ID}, 
    $self->{SUBJECT},
    $self->{PARENT_ID},
@@ -220,11 +229,11 @@ sub message_info {
    $self->{AID},
    $self->{LOGIN},
    $self->{A_NAME},
-   $self->{CHAPTER_NAME}
-  )= @$ar;
+   $self->{CHAPTER_NAME},
+   $self->{GID},
+   $self->{G_NAME}
+  )= @{ $self->{list}->[0] };
 	
- 
-
 	return $self;
 }
 
@@ -245,7 +254,8 @@ sub message_change {
                 IP					=> 'ip',
                 DATE        => 'date',
                 STATE			  => 'state',
-                AID         => 'aid'
+                AID         => 'aid',
+                GID         => 'gid'
              );
 
 
@@ -295,9 +305,8 @@ sub chapters_list {
    $self->query($db, "SELECT count(*)
      FROM msgs_chapters mc
      $WHERE");
-   my $a_ref = $self->{list}->[0];
 
-   ($self->{TOTAL}) = @$a_ref;
+   ($self->{TOTAL}) = @{ $self->{list}->[0] };
   }
  
  
@@ -362,10 +371,9 @@ sub chapter_info {
      return $self;
    }
 
-  my $ar = $self->{list}->[0];
   ($self->{ID}, 
    $self->{NAME}
-  )= @$ar;
+  )= @{ $self->{list}->[0] };
 
 	return $self;
 }

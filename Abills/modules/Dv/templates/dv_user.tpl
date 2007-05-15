@@ -10,6 +10,7 @@
 <tr><td>$_SPEED (kb):</td><td><input type=text name=SPEED value='%SPEED%'></td></tr>
 <tr><td>$_FILTERS:</td><td><input type=text name=FILTER_ID value='%FILTER_ID%'></td></tr>
 <tr><td>CID:</td><td><input type=text name='CID' value='%CID%'>
+<tr><td>$_PORT:</td><td><input type=text name='PORT' value='%PORT%'>
 <tr><td>Callback:</td><td><input type='checkbox' name='CALLBACK' value='1' %CALLBACK%>
 <tr><td>$_DISABLE:</td><td><input type='checkbox' name='DISABLE' value='1' %DISABLE%></td></tr>
 </table>

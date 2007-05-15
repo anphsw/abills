@@ -1,0 +1,10 @@
+:DEFAULT:RADIUS_AUTH_SERVER=127.0.0.1:Radius auth server ip
+:DEFAULT:RADIUS_AUTH_PORT=1812:Radius auth port
+:DEFAULT:RADIUS_ACCT_SERVER=127.0.0.1:Radius accounting ip
+:DEFAULT:RADIUS_ACCT_PORT=1813:Radius accounting port
+:DEFAULT:PPP_CONTROL_PASSWORD=secret:PPP control password 
+ppp.conf           > [/etc/ppp]/ppp.conf
+ppp.linkup         > [/etc/ppp]/ppp.linkup
+ppp.linkdown       > [/etc/ppp]/ppp.linkdown
+exppp             >> [/usr/local/etc/raddb]/dictionary
+radius.conf        > [/etc]/radius.conf

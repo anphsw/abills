@@ -1,19 +1,3 @@
-CREATE TABLE `abon_tariffs` (
-  `id` smallint(6) unsigned NOT NULL auto_increment,
-  `name` varchar(20) NOT NULL default '',
-  `period` tinyint(2) unsigned NOT NULL default '0',
-  `price` double(14,2) unsigned NOT NULL default '0.00',
-  PRIMARY KEY  (`id`),
-  UNIQUE KEY `id` (`id`),
-  UNIQUE KEY `name` (`name`)
-) ;
-
-CREATE TABLE `abon_user_list` (
-  `uid` int(11) unsigned NOT NULL default '0',
-  `tp_id` smallint(6) unsigned NOT NULL default '0',
-  `date` date NOT NULL default '0000-00-00'
-) ;
-
 CREATE TABLE `admin_actions` (
   `actions` varchar(100) NOT NULL default '',
   `datetime` datetime NOT NULL default '0000-00-00 00:00:00',
@@ -42,8 +26,8 @@ CREATE TABLE `admins` (
   `id` varchar(12) NOT NULL default '',
   `name` varchar(50) NOT NULL default '',
   `regdate` date NOT NULL default '0000-00-00',
-  `password` varchar(16) binary NOT NULL default '',
-  `gid` tinyint(4) unsigned NOT NULL default '0',
+  `password` BLOB NOT NULL,
+  `gid` smallint(4) unsigned NOT NULL default '0',
   `aid` smallint(6) unsigned NOT NULL auto_increment,
   `disable` tinyint(1) unsigned NOT NULL default '0',
   `phone` varchar(16) NOT NULL default '',
@@ -66,24 +50,23 @@ CREATE TABLE `bills` (
 ) ;
 
 # --------------------------------------------------------
-
 #
 # Структура таблиці `dv_calls`
 #
 
 CREATE TABLE `dv_calls` (
-  `status` int(3) default NULL,
-  `user_name` varchar(32) default NULL,
+  `status` int(3) NOT NULL default '0',
+  `user_name` varchar(32) NOT NULL default '',
   `started` datetime NOT NULL default '0000-00-00 00:00:00',
   `nas_ip_address` int(11) unsigned NOT NULL default '0',
-  `nas_port_id` int(6) unsigned default NULL,
+  `nas_port_id` int(6) unsigned NOT NULL default '0',
   `acct_session_id` varchar(25) NOT NULL default '',
   `acct_session_time` int(11) unsigned NOT NULL default '0',
   `acct_input_octets` int(11) unsigned NOT NULL default '0',
   `acct_output_octets` int(11) unsigned NOT NULL default '0',
   `ex_input_octets` int(11) unsigned NOT NULL default '0',
   `ex_output_octets` int(11) unsigned NOT NULL default '0',
-  `connect_term_reason` int(4) NOT NULL default '0',
+  `connect_term_reason` int(4) unsigned NOT NULL default '0',
   `framed_ip_address` int(11) unsigned NOT NULL default '0',
   `lupdated` int(11) unsigned NOT NULL default '0',
   `sum` double(14,6) NOT NULL default '0.000000',
@@ -91,9 +74,13 @@ CREATE TABLE `dv_calls` (
   `CONNECT_INFO` varchar(20) NOT NULL default '',
   `tp_id` smallint(5) unsigned NOT NULL default '0',
   `nas_id` smallint(6) unsigned NOT NULL default '0',
-  KEY `user_name` (`user_name`)
-) ;
-
+  `acct_input_gigawords` smallint(4) unsigned NOT NULL default '0',
+  `acct_output_gigawords` smallint(4) unsigned NOT NULL default '0',
+  `ex_input_octets_gigawords` smallint(4) unsigned NOT NULL default '0',
+  `ex_output_octets_gigawords` smallint(4) unsigned NOT NULL default '0',
+  KEY `user_name` (`user_name`),
+  KEY `acct_session_id` (`acct_session_id`)
+);
 
 
 CREATE TABLE `dv_log_intervals` (
@@ -199,9 +186,10 @@ CREATE TABLE `dv_main` (
   `speed` int(10) unsigned NOT NULL default '0',
   `netmask` int(10) unsigned NOT NULL default '4294967294',
   `cid` varchar(35) NOT NULL default '',
-  `password` varchar(16) binary NOT NULL default '',
+  `password` BLOB NOT NULL,
   `disable` tinyint(1) unsigned NOT NULL default '0',
   `callback` tinyint(1) unsigned NOT NULL default '0',
+  `port` int(11) unsigned NOT NULL default '0',
   PRIMARY KEY  (`uid`),
   KEY `tp_id` (`tp_id`)
 ) ;
@@ -268,10 +256,9 @@ CREATE TABLE `filters` (
 
 CREATE TABLE `groups` (
   `gid` smallint(4) unsigned NOT NULL default '0',
-  `name` varchar(12) NOT NULL default '',
+  `name` varchar(30) NOT NULL default '',
   `descr` varchar(200) NOT NULL default '',
   PRIMARY KEY  (`gid`),
-  UNIQUE KEY `gid` (`gid`),
   UNIQUE KEY `name` (`name`)
 ) ;
 
@@ -286,26 +273,6 @@ CREATE TABLE `holidays` (
   `descr` varchar(100) NOT NULL default '',
   PRIMARY KEY  (`day`)
 ) ;
-
-# --------------------------------------------------------
-
-#
-# Структура таблиці `icards`
-#
-
-CREATE TABLE `icards` (
-  `id` int(10) unsigned NOT NULL auto_increment,
-  `prefix` varchar(4) NOT NULL default '',
-  `nominal` double(15,2) NOT NULL default '0.00',
-  `variant` smallint(6) NOT NULL default '0',
-  `period` smallint(5) unsigned NOT NULL default '0',
-  `expire` date NOT NULL default '0000-00-00',
-  `changes` double(15,2) NOT NULL default '0.00',
-  `password` varchar(16) binary NOT NULL default '0',
-  PRIMARY KEY  (`id`)
-) ;
-
-# --------------------------------------------------------
 
 #
 # Структура таблиці `intervals`
@@ -363,6 +330,10 @@ CREATE TABLE `dv_log` (
   `bill_id` int(11) unsigned NOT NULL default '0',
   `uid` int(11) unsigned NOT NULL default '0',
   `terminate_cause` tinyint(4) unsigned NOT NULL default '0',
+  `acct_input_gigawords` smallint(4) unsigned NOT NULL default '0',
+  `acct_output_gigawords` smallint(4) unsigned NOT NULL default '0',
+  `ex_input_octets_gigawords` smallint(4) unsigned NOT NULL default '0',
+  `ex_output_octets_gigawords` smallint(4) unsigned NOT NULL default '0',
   KEY `uid` (`uid`,`start`)
 ) ;
 
@@ -410,7 +381,7 @@ CREATE TABLE `mail_aliases` (
 
 CREATE TABLE `mail_boxes` (
   `username` varchar(255) NOT NULL default '',
-  `password` varchar(16) binary NOT NULL default '',
+  `password` blob NOT NULL,
   `descr` varchar(255) NOT NULL default '',
   `maildir` varchar(255) NOT NULL default '',
   `create_date` datetime NOT NULL default '0000-00-00 00:00:00',
@@ -431,11 +402,6 @@ CREATE TABLE `mail_boxes` (
   KEY `username_antispam` (`username`,`antispam`)
 )  ;
 
-# --------------------------------------------------------
-
-#
-# Структура таблиці `mail_domains`
-#
 
 CREATE TABLE `mail_domains` (
   `domain` varchar(255) NOT NULL default '',
@@ -443,24 +409,10 @@ CREATE TABLE `mail_domains` (
   `change_date` datetime NOT NULL default '0000-00-00 00:00:00',
   `status` tinyint(2) unsigned NOT NULL default '0',
   `id` int(11) unsigned NOT NULL auto_increment,
-  `comments` varchar(255) NOT NULL default '',
-  PRIMARY KEY  (`domain`),
-  UNIQUE KEY `id` (`id`)
-)  ;
-
-# --------------------------------------------------------
-
-#
-# Структура таблиці `mail_transport`
-#
-
-CREATE TABLE `mail_transport` (
-  `domain` varchar(128) NOT NULL default '',
+  `backup_mx` tinyint(1) unsigned NOT NULL default '0',
   `transport` varchar(128) NOT NULL default '',
   `comments` varchar(255) NOT NULL default '',
-  `change_date` datetime NOT NULL default '0000-00-00 00:00:00',
-  `id` int(11) unsigned NOT NULL auto_increment,
-  UNIQUE KEY `domain` (`domain`),
+  PRIMARY KEY  (`domain`),
   UNIQUE KEY `id` (`id`)
 )  ;
 
@@ -470,7 +422,8 @@ CREATE TABLE `msgs_chapters` (
   PRIMARY KEY  (`id`),
   UNIQUE KEY `id` (`id`),
   UNIQUE KEY `name` (`name`)
-);
+) COMMENT='Msgs chapters';
+
 
 CREATE TABLE `msgs_messages` (
   `id` int(11) unsigned NOT NULL auto_increment,
@@ -484,8 +437,10 @@ CREATE TABLE `msgs_messages` (
   `state` tinyint(2) unsigned default '0',
   `aid` smallint(6) unsigned NOT NULL default '0',
   `subject` varchar(40) NOT NULL default '',
-  PRIMARY KEY  (`id`)
-);
+  `gid` smallint(4) unsigned NOT NULL default '0',
+  PRIMARY KEY  (`id`),
+  KEY `uid` (`uid`)
+) COMMENT='Msgs messages';
 
 CREATE TABLE `nas` (
   `id` smallint(5) unsigned NOT NULL auto_increment,
@@ -497,12 +452,12 @@ CREATE TABLE `nas` (
   `auth_type` tinyint(3) unsigned NOT NULL default '0',
   `mng_host_port` varchar(21) default NULL,
   `mng_user` varchar(20) default NULL,
-  `mng_password` varchar(16) binary  NOT NULL default '',
+  `mng_password` blob NOT NULL,
   `rad_pairs` text NOT NULL,
   `alive` smallint(6) unsigned NOT NULL default '0',
   `disable` tinyint(6) unsigned NOT NULL default '0',
   PRIMARY KEY  (`id`)
-)  ;
+) COMMENT='Nas servers list';
 
 # --------------------------------------------------------
 
@@ -620,6 +575,8 @@ CREATE TABLE `tarif_plans` (
   `uplimit` double(14,2) NOT NULL default '0.00',
   `name` varchar(40) NOT NULL default '',
   `day_fee` double(14,2) unsigned NOT NULL default '0.00',
+  `reduction_fee` tinyint(1) unsigned NOT NULL default '0',
+  `postpaid_fee` tinyint(1) unsigned NOT NULL default '0',
   `logins` tinyint(4) NOT NULL default '0',
   `day_time_limit` int(10) unsigned NOT NULL default '0',
   `week_time_limit` int(10) unsigned NOT NULL default '0',
@@ -673,6 +630,7 @@ CREATE TABLE `trafic_tarifs` (
   `interval_id` smallint(6) unsigned NOT NULL default '0',
   `rad_pairs` text NOT NULL,
   `out_speed` int(10) unsigned NOT NULL default '0',
+  `expression` varchar(255) NOT NULL default '',
   UNIQUE KEY `id` (`id`,`interval_id`)
 ) ;
 
@@ -689,7 +647,7 @@ CREATE TABLE `users` (
   `credit` double(10,2) NOT NULL default '0.00',
   `reduction` double(6,2) NOT NULL default '0.00',
   `registration` date default '0000-00-00',
-  `password` varchar(16) binary NOT NULL default '',
+  `password` blob NOT NULL,
   `uid` int(11) unsigned NOT NULL auto_increment,
   `gid` smallint(6) unsigned NOT NULL default '0',
   `disable` tinyint(1) unsigned NOT NULL default '0',
@@ -702,7 +660,7 @@ CREATE TABLE `users` (
 
 CREATE TABLE `users_bruteforce` (
   `login` varchar(20) NOT NULL default '',
-  `password` varchar(16) binary NOT NULL default '0',
+  `password` blob NOT NULL,
   `datetime` datetime NOT NULL default '0000-00-00 00:00:00',
   `ip` int(11) unsigned NOT NULL default '0',
   `auth_state` tinyint(1) unsigned NOT NULL default '0',

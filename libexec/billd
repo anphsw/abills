@@ -8,7 +8,8 @@
 use vars  qw(%RAD %conf @MODULES $db $DATE $GZIP $MYSQLDUMP %ADMIN_REPORT $IPFW
  $IFCONFIG
  @START_FW
- 
+ $SNMPWALK
+ $SNMPSET
  );
 use strict;
 
@@ -33,8 +34,9 @@ elsif(defined($ARGV->{help})){
   print "Help:
   checkppp    - check Active ppp session and disconnect unknown ip
   checkspeed  - check cure speed for user. Arguments NAS_ID=xx
+  checklines  - 
   debug       - debug mode
-  
+
 \n";
   exit;
 }
@@ -98,7 +100,8 @@ sub check_lines {
 	Billing->import();
 
 	#$LIST_PARAMS{ROWS}=2;
-	$sessions->online( { %LIST_PARAMS } );	
+  $sessions->{debug}=1 if ($debug > 2);
+	$sessions->online( { %LIST_PARAMS, ALL => 1, FIELDS => [0, 1, 2, 3, 4, 5, 6, 7, 8, 26] } );	
 	
   print "==> check_lines\n" if ($debug > 1);
 	
@@ -107,26 +110,30 @@ sub check_lines {
   my $nas_list = $nas->list({ %LIST_PARAMS });
   my %NAS  = ();
 
+  require Acct;
+  Acct->import();
+  my $Acct = Acct->new($db, \%conf);
+
 
   foreach my $nas_row (@$nas_list) {
 
     my $l = $online->{$nas_row->[0]};
-    print "NAS IP: $nas_row->[3]\n NAS_TYPE: $nas_row->[4]\n STATUS: $nas_row->[6]\n Alive: $nas_row->[7]/\n " if ($debug > 0);
+    print "NAS IP: $nas_row->[3]\n NAS_TYPE: $nas_row->[4]\n STATUS: $nas_row->[6]\n Alive: $nas_row->[8]/\n " if ($debug > 0);
+    $NAS{NAS_ID}    = $nas_row->[0];
     $NAS{NAS_IP}    = $nas_row->[3];
     $NAS{NAS_TYPE}  = $nas_row->[4];
-    $NAS{NAS_ALIVE} = $nas_row->[7] || 0;
-    $NAS{NAS_MNG_IP_PORT}  = $nas_row->[8];
-    $NAS{NAS_MNG_USER}     = $nas_row->[9]; 
-    $NAS{NAS_MNG_PASSWORD} = $nas_row->[10]; 
+    $NAS{NAS_ALIVE} = $nas_row->[8] || 0;
+    $NAS{NAS_MNG_IP_PORT}  = $nas_row->[9];
+    $NAS{NAS_MNG_USER}     = $nas_row->[10]; 
+    $NAS{NAS_MNG_PASSWORD} = $nas_row->[11]; 
 
     foreach my $line (@$l) {
-
 	    my $acct_input_octets       = $line->[5];
 	    my $acct_output_octets      = $line->[6];
 	    my $acct_input_octets_ext   = $line->[7];
 	    my $acct_output_octets_ext  = $line->[8];
 	    my $nas_port_id             = $line->[2];
-	    my $acct_session_id         = $line->[21];
+	    my $acct_session_id         = $line->[22];
 
       if ($acct_input_octets_ext > $exppp_hanguplimit || $acct_output_octets_ext > $exppp_hanguplimit) {
         my $ret = hangup(\%NAS, "$nas_port_id", "$line->[0]", { ACCT_SESSION_ID   => "$acct_session_id",
@@ -141,16 +148,55 @@ sub check_lines {
 
 
       if ( $NAS{NAS_ALIVE} > 0 
-           && ( $line->[16] > $NAS{NAS_ALIVE} * $error_alive_count )) {
-         print "Error: Lost Alive / Login: $line->[0], Last Alive: $line->[16], Session-ID: $acct_session_id\n"; # if ( $debug == 1 );
-         $sessions->zap($nas_row->[0], $line->[2], $acct_session_id);
+           && ( $line->[17] > $NAS{NAS_ALIVE} * $error_alive_count )) {
+
+         if($line->[17] > ($NAS{NAS_ALIVE} * $error_alive_count * 2) ) {
+           
+           my $ACCT_INFO = $sessions->online_info({ NAS_ID          => $nas_row->[0],
+                                                    NAS_PORT        => $line->[2],
+                                                    ACCT_SESSION_ID => $acct_session_id
+                                                  });
+
+           
+           $ACCT_INFO->{INBYTE}            = $acct_input_octets;
+           $ACCT_INFO->{OUTBYTE}           = $acct_output_octets;
+           $ACCT_INFO->{INBYTE2}           = $acct_input_octets_ext;
+           $ACCT_INFO->{OUTBYTE2}          = $acct_output_octets_ext;
+           $ACCT_INFO->{ACCT_STATUS_TYPE}  = 'Stop';
+           $ACCT_INFO->{ACCT_SESSION_TIME} = $line->[9];
+           $ACCT_INFO->{ACCT_TERMINATE_CAUSE} = 15;
+
+           my $r = $Acct->accounting($ACCT_INFO, \%NAS);
+           my $info = '';
+           
+           if ($debug > 0) {
+             
+   
+           	 foreach my $k (sort keys %$ACCT_INFO) {
+ 	  	          $info .= sprintf("%-28s | %-30s |\n", $k, (defined($ACCT_INFO->{$k})) ? $ACCT_INFO->{$k} : '' );
+	           }
+
+             $info .= sprintf("%-28s\n", '----------------------------------------------------');
+
+	           foreach my $k (sort keys %$Acct) {
+ 		           $info .= sprintf("%-28s | %-30s |\n", $k, (defined($Acct->{$k})) ? $Acct->{$k} : '' );
+  	         }
+            }
+
+           print "Error: Session Calculate / Login: $line->[0], Last Alive: $line->[17], Session-ID: $acct_session_id\n$info"; # if ( $debug == 1 );
+          }
+         else {
+           print "Error: Lost Alive / Login: $line->[0], Last Alive: $line->[16], Session-ID: $acct_session_id\n"; # if ( $debug == 1 );
+           $sessions->zap($nas_row->[0], $line->[2], $acct_session_id);
+          }
+         
        } 
       elsif (defined($external_stats->{error})) {
       	print "Error:  Login: $line->[0], NAS-IP: $NAS{NAS_IP}, Port: $line->[2], Session-ID: $acct_session_id\n" if ($debug == 1);
-      	$sessions->online_update({ USER_NAME       => $line->[0], 
-      		                         ACCT_SESSION_ID => $acct_session_id, 
-      		                         STATUS          => 5 
-      		                        });
+      	$sessions->online_update({ USER_NAME       => $line->[0],
+      		                         ACCT_SESSION_ID => $acct_session_id,
+      		                         STATUS          => 5
+      		                      });
        }
       elsif (defined($external_stats->{in})) {
         $sessions->online_update({ USER_NAME => $line->[0], ACCT_SESSION_ID => $acct_session_id, %$external_stats });
@@ -185,11 +231,11 @@ sub check_lines {
         print "> Login: $RAD{USER_NAME} START: $RAD{SESSION_START} DURATION: $RAD{ACCT_SESSION_TIME}\n".
          "UID: $self->{UID} SUM: $self->{SUM} BILL_ID: $self->{BILL_ID} TARIF_PLAN: $self->{TARIF_PLAN} TRAF_TARIF: $self->{TRAF_TARIF}\n" if ($debug == 1);
 
-        if ( ($Billing->{PAYMENT_TYPE}==0) && ($line->[13] + $line->[14] < $self->{SUM}) ) {
+        if ( ($Billing->{PAYMENT_TYPE}==0) && ($line->[14] + $line->[15] < $self->{SUM}) ) {
            my $ret = hangup(\%NAS, "$nas_port_id", "$line->[0]", { ACCT_SESSION_IS   => $acct_session_id,
            	                                                       FRAMED_IP_ADDRESS => int2ip($line->[3])
            	                                                      });
-           print "Hanguped Login: $RAD{USER_NAME} DEPOSIT: $line->[13] CREDIT: $line->[14] SESSION_SUM: $self->{SUM}\n"; # if ($debug == 1);
+           print "Hanguped Login: $RAD{USER_NAME} DEPOSIT: $line->[14] CREDIT: $line->[14] SESSION_SUM: $self->{SUM} SESSION_ID: $acct_session_id\n"; # if ($debug == 1);
           }
        }
 
@@ -211,36 +257,45 @@ sub check_speed {
 	
 	my $result = `$IPFW show; $IPFW pipe show`;
 	my @rules = split(/\n/, $result);
+	# key1 interface; key2 rule number; value speed
 	my %rule_speed = ();
 	my %interfaces = ();
 	my %speeds_rotations = ('Kbit' => 1,
 	                        'Mbit' => 1000);
 	
+	#Parce all ipfw rules
 	foreach my $line (@rules) {
+     #Parce ipfw pipe rules
      if ($line =~ /(\d+):\s+(\S+) (\w+)/) {
        my $speed = $2 * $speeds_rotations{$3};
        if (defined($interfaces{$1})) {
          $rule_speed{$interfaces{$1}}{int($1)} = "$speed";
         }
      	}
+	   # parce ipfw show
 	   elsif ($line =~ /(\d+).+tun(\d+)/){
 	     $interfaces{$1}=$2;
 	    }
 	 }
 
-  while(my($iface, $rules)=each %rule_speed) {
-  	 print "$iface\n" if ($debug == 1);
-  	 foreach my $line ( sort keys %$rules ) {
-  	 	  print " $line -> $rules->{$line}\n" if ($debug == 2);
-  	  }
-   }
 
+  #debug 
+  if ($debug > 0) {
+    while(my($iface, $rules)=each %rule_speed) {
+  	  print "$iface\n" if ($debug > 1);
+  	  
+  	  foreach my $line ( sort keys %$rules ) {
+  	 	  # ID -> Speed
+  	 	  print " $line -> $rules->{$line}\n" if ($debug == 2);
+  	   }
+     }
+   }
 
 	$sessions->online( { %LIST_PARAMS, NAS_ID => $ARGV->{NAS_ID}, FIELDS => [0,2,11,13]   } );	
 	my $online = $sessions->{nas_sorted};
   $LIST_PARAMS{DISABLE} = 0;
 
-  my $nas_list = $nas->list({  });
+  my $nas_list = $nas->list({ PAGE_ROWS => 1000  });
 
   #my %TP_ARR = ();
   my %IFACES=();
@@ -252,10 +307,13 @@ sub check_speed {
     my $l = $online->{$nas_row->[0]};
     foreach my $line (@$l) {
                            #IFACE : TP : SPEED  :IP
+       print"$line->[0] IF:$line->[1] TP:$line->[2] SPEED:$line->[3] IP:$line->[7]\n" if ($debug > 1);
        $IFACES{$line->[0]}="$line->[1]:$line->[2]:$line->[3]:$line->[7]";
        $TP_HASH{$line->[2]}=1;
      }
   }
+
+
 
   require Billing;
   Billing->import();
@@ -417,11 +475,22 @@ sub check_ppp {
 
 while(my($ip_address, $info)=each %$ip_pid_hash) {
   my($pid, $iface)=split(/:/, $info, 2);
-  print "Killed IP: $ip_address PID: $pid\n";
-  my $res = `/bin/kill -9 $pid; /sbin/ifconfig tun$iface delete`;
-  # /sbin/ifconfig tun$iface delete
-  $pid=~/(\d+)/;
-  get_pid_info($1);
+  if ($conf{DV_PPP_UNCHECKED}) {
+    next if ($ip_address =~ /$conf{DV_PPP_UNCHECKED}/);
+   }
+  
+  my $res = '';  
+  if ($pid > 0) {
+    $res = `/bin/kill -9 $pid; /sbin/ifconfig tun$iface delete`;
+    # /sbin/ifconfig tun$iface delete
+   }
+  else {
+    $res = `/sbin/ifconfig tun$iface delete`;
+   }
+
+  print "Killed IP: $ip_address PID: '$pid' -- $res\n";  
+
+  get_pid_info($pid);
 }
 
 }
@@ -471,28 +540,32 @@ sub get_if_info {
     }
  close(IFC);
 
- my ($tunnum, $addr, $pid);
- while($ifconfig =~ /tun(.+\n.+\n.+PID.+)/gi) {
-    my @ifs = split(/\n/, $1);
-    my $tunnum = 0;
-   
+
+ while($ifconfig =~ /tun(\d+): (.+\n\s.+\n\s.*[\n\sa-zA-Z0-9]+\n)/gi) {
+    my $tunnum = $1;
+    my $res    = $2;
+
+    my $pid    = 0;
+    my $addr   = '0.0.0.0';
+
+    my @ifs = split(/\n/, $res);
+
     foreach my $line (@ifs) {
-
       print $line."\n" if ($debug > 1);
-
-      if ($line =~ /:/) {
-         ($tunnum, undef)=split(/:/, $line);
+      if ($line =~ /^(\d+)/) {
+         $tunnum=$1;
         }
-      elsif ($line =~ m/\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3} --> \d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}/g) {
-         (undef, undef, undef, $addr, undef) = split(/ +/, $line);
+      elsif ($line =~ m/\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3} --> (\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3})/g) {
+         $addr = $1;
         }
-      elsif ($line =~ /PID/gi) {
-         (undef, $pid) = split(/PID/, $line);
-         chomp($pid);
+      elsif ($line =~ /PID (\d+)/gi) {
+         $pid = $1;
+         #chomp($pid);
+         #chop($pid);
        }
      }
     print "$tunnum $addr $pid\n" if ($debug == 1);
-    $ip_pid_hash{$addr}="$pid:$tunnum";
+    $ip_pid_hash{"$addr"}="$pid:$tunnum";
   }
 
   return \%ip_pid_hash;

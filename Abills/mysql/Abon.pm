@@ -217,7 +217,7 @@ sub user_list {
  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
  
  $self->query($db, "SELECT u.id, pi.fio, at.name, ul.date, u.uid, at.id
-     FROM users u, abon_user_list ul, abon_tariffs at
+     FROM (users u, abon_user_list ul, abon_tariffs at)
      LEFT JOIN users_pi pi ON u.uid = pi.uid
      $WHERE
      GROUP BY u.id
@@ -228,7 +228,7 @@ sub user_list {
 
  if ($self->{TOTAL} > 0) {
     $self->query($db, "SELECT count(DISTINCT u.uid)
-     FROM users u, abon_user_list ul, abon_tariffs at
+     FROM (users u, abon_user_list ul, abon_tariffs at)
      $WHERE");
 
     my $a_ref = $self->{list}->[0];
@@ -319,7 +319,7 @@ sub periodic_list {
   u.disable,
   at.id,
   at.payment_type
-  FROM abon_tariffs at, abon_user_list al, users u
+  FROM (abon_tariffs at, abon_user_list al, users u)
      LEFT JOIN bills b ON (u.bill_id=b.id)
      LEFT JOIN companies c ON (u.company_id=c.id)
      LEFT JOIN bills cb ON (c.bill_id=cb.id)

@@ -8,26 +8,15 @@ $conf{DOWNLOADS}='%INFO% [ <a href="ftp://ftp.yes.ko.if.ua/Video/Movies/%FOLDER%
 
 require "Filearch.pm";
 Filearch->import();
-my $Filearch = Filearch->new($db, $admin, $conf);
+my $Filearch = Filearch->new($db, $admin, \%conf);
 
 require "Abills/nas.pl";
 use Abills::Base;
 use Socket;
 
-foreach my $prefix (@INC) {
-  my $realfilename = "$prefix/Abills/modules/$module{$index}/lng_$html->{language}.pl";
-  if (-f $realfilename) {
-    $lang_file =  $realfilename;
-    require $lang_file;
-    last;
-   }
- }
+# require "Abills/modules/Filearch$module{$index}/Filesearcher.pm";
 
-if ($lang_file eq '')  {
-  require "Abills/modules/$module{$index}/lng_english.pl";
-}
-
-require "Abills/modules/$module{$index}/Filesearcher.pm";
+require "Abills/modules/Filearch/Filesearcher.pm";
 Filesearcher->import();
 
 
@@ -36,7 +25,7 @@ my %langs = ('Русский дублированный'            => 0,
              'Русский любительский перевод'     => 2,
              'Русский'                          => 3);
 
-my @VIDEO_STATE = ($_NEW, $_WATCHED, $_FAVORIT);
+my @VIDEO_STATE = ("$_NEW", "$_WATCHED", "$_FAVORIT");
  
            
            

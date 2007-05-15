@@ -27,6 +27,12 @@ sub new {
   ($db, $admin, $CONF) = @_;
   my $self = { };
   bless($self, $class);
+
+  #if ($CONF->{DELETE_USER}) {
+  #  $self->{UID}=$CONF->{DELETE_USER};
+  #  $self->del({ UID => $CONF->{DELETE_USER} });
+  # }
+
 #  $self->{debug}=1;
   return $self;
 }
@@ -97,7 +103,7 @@ sub docs_invoice_list {
 
 
   $self->query($db,   "SELECT d.invoice_id, d.date, d.customer,  sum(o.price * o.counts), u.id, a.name, d.created, d.uid, d.id
-    FROM docs_invoice d, docs_invoice_orders o
+    FROM (docs_invoice d, docs_invoice_orders o)
     LEFT JOIN users u ON (d.uid=u.uid)
     LEFT JOIN admins a ON (d.aid=a.aid)
     $WHERE
@@ -111,7 +117,7 @@ sub docs_invoice_list {
 
 
  $self->query($db, "SELECT count(*)
-    FROM docs_invoice d, docs_invoice_orders o    
+    FROM (docs_invoice d, docs_invoice_orders o)
     LEFT JOIN users u ON (d.uid=u.uid)
     $WHERE");
 
@@ -144,7 +150,7 @@ sub docs_invoice_info {
    d.by_proxy_person,
    d.by_proxy_date,
    d.id
-    FROM docs_invoice d, docs_invoice_orders o
+    FROM (docs_invoice d, docs_invoice_orders o)
     LEFT JOIN users u ON (d.uid=u.uid)
     LEFT JOIN admins a ON (d.aid=a.aid)
     WHERE d.id=o.invoice_id and d.id='$id'
@@ -299,7 +305,7 @@ sub accounts_list {
 
 
   $self->query($db,   "SELECT d.acct_id, d.date, d.customer,  sum(o.price * o.counts), u.id, a.name, d.created, d.uid, d.id
-    FROM docs_acct d, docs_acct_orders o
+    FROM (docs_acct d, docs_acct_orders o)
     LEFT JOIN users u ON (d.uid=u.uid)
     LEFT JOIN admins a ON (d.aid=a.aid)
     $WHERE
@@ -313,13 +319,11 @@ sub accounts_list {
 
 
  $self->query($db, "SELECT count(*)
-    FROM docs_acct d, docs_acct_orders o    
+    FROM (docs_acct d, docs_acct_orders o)    
     LEFT JOIN users u ON (d.uid=u.uid)
     $WHERE");
 
- my $a_ref = $self->{list}->[0];
-
- ($self->{TOTAL}) = @$a_ref;
+ ($self->{TOTAL}) = @{ $self->{list}->[0] };
 
 	return $list;
 }
@@ -398,8 +402,8 @@ sub account_del {
 	my $self = shift;
 	my ($id, $attr) = @_;
 
-   $self->query($db, "DELETE FROM docs_acct_orders WHERE acct_id='$id'", 'do');
-   $self->query($db, "DELETE FROM docs_acct WHERE id='$id'", 'do');
+  $self->query($db, "DELETE FROM docs_acct_orders WHERE acct_id='$id'", 'do');
+  $self->query($db, "DELETE FROM docs_acct WHERE id='$id'", 'do');
 
 	return $self;
 }
@@ -424,7 +428,7 @@ sub account_info {
    d.uid, 
    d.id
 
-    FROM docs_acct d, docs_acct_orders o
+    FROM (docs_acct d, docs_acct_orders o)
     LEFT JOIN users u ON (d.uid=u.uid)
     LEFT JOIN admins a ON (d.aid=a.aid)
     WHERE d.id=o.acct_id and d.id='$id'

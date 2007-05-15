@@ -718,7 +718,8 @@ $self->{header} .= qq{
 <html>
 <head>
  $REFRESH
- <META HTTP-EQUIV="Cache-Control" content="no-cache"/>
+ <META HTTP-EQUIV="Cache-Control" content="no-cache,no-cache,no-store,must-revalidate"/>
+ <META HTTP-EQUIV="Expires" CONTENT="-1"/>
  <META HTTP-EQUIV="Pragma" CONTENT="no-cache"/>
  <meta http-equiv="Content-Type" content="text/html; charset=$self->{CHARSET}"/>
  <meta name="Author" content="~AsmodeuS~"/>
@@ -789,7 +790,6 @@ form {
   background-color: $_COLORS[2];
   color: $_COLORS[9];
   font-size: 12px;
-  //font-weight: bold;
 }
 
 input, textarea {
@@ -982,6 +982,20 @@ sub addtd {
 }
 
 
+
+
+#*******************************************************************
+# Extendet add rows
+# td()
+#
+#*******************************************************************
+sub th {
+	my $self = shift;
+	my ($value, $attr) = @_;
+	
+	return $self->td($value, { TH => 1, ($attr) ? %$attr : undef  } );
+}
+
 #*******************************************************************
 # Extendet add rows
 # td()
@@ -995,8 +1009,14 @@ sub td {
   while(my($k, $v)=each %$attr ) {
     $extra.=" $k=$v";
    }
+  my $td = '';
 
-  my $td = "<TD $extra>$value</TD>";
+  if ($attr->{TH}) {
+  	$td = "<TH $extra>$value</TH>";
+   }
+  else {
+    $td = "<TD $extra>$value</TD>";
+   }
 
   return $td;
 }
@@ -1144,7 +1164,7 @@ sub button {
   
   $ex_attr=" TITLE='$attr->{TITLE}'" if (defined($attr->{TITLE}));
   
-  my $message = (defined($attr->{MESSAGE})) ? "onclick=\"return confirmLink(this, '$attr->{MESSAGE}')\"" : '';
+  my $message = (defined($attr->{MESSAGE})) ? " onclick=\"return confirmLink(this, '$attr->{MESSAGE}')\"" : '';
   my $button = "<a href=\"$params\"$ex_attr$message>$name</a>";
 
   return $button;
@@ -1344,7 +1364,7 @@ sub tpl_show {
   }
 
 
-  if (defined($attr->{notprint}) || $self->{NO_PRINT} == 1) {
+  if (defined($attr->{notprint}) || ($self->{NO_PRINT} && $self->{NO_PRINT} == 1)) {
   	$self->{OUTPUT}.=$tpl;
   	return $tpl;
    }

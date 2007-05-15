@@ -5,7 +5,7 @@ CREATE TABLE `netlist_groups` (
   PRIMARY KEY  (`id`),
   UNIQUE KEY `id` (`id`),
   UNIQUE KEY `name` (`name`)
-);
+) COMMENT='Netlist groups';
 
 
 CREATE TABLE `netlist_ips` (
@@ -22,4 +22,4 @@ CREATE TABLE `netlist_ips` (
   `location` varchar(100) NOT NULL default '',
   PRIMARY KEY  (`ip`),
   UNIQUE KEY `ip` (`ip`)
-);
+) COMMENT='Netlist ips';

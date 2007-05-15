@@ -11,4 +11,4 @@ CREATE TABLE `mdelivery_list` (
   `priority` tinyint(2) unsigned NOT NULL default '0',
   `status` tinyint(1) unsigned NOT NULL default '0',
   PRIMARY KEY  (`id`)
-);
+) COMMENT='Mdelivery list';

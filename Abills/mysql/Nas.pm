@@ -68,6 +68,9 @@ sub list {
 
   my @WHERE_RULES  = ();
 
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
   if(defined($attr->{TYPE})) {
   	push @WHERE_RULES, "nas_type='$attr->{TYPE}'";
   }
@@ -78,8 +81,8 @@ sub list {
  
  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
  
- $self->query($db, "SELECT id, name, nas_identifier, ip,  nas_type, auth_type, disable, alive,
-  mng_host_port, mng_user, DECODE(mng_password, '$SECRETKEY')
+ $self->query($db, "SELECT id, name, nas_identifier, ip,  nas_type, auth_type, disable, descr, alive,
+  mng_host_port, mng_user, DECODE(mng_password, '$SECRETKEY'), rad_pairs
   FROM nas
   $WHERE
   ORDER BY $SORT $DESC;");

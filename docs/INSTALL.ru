@@ -1,11 +1,11 @@
 =====Radius=====
 Загрузить пакет FreeRadius можно по адресу [http://www.freeradius.org]
 
-  tar zxvf freeradius-1.1.0.tar.gz
-  freeradius-1.1.0
-  ./configure --prefix=/usr/local/radiusd/
-  make
-  make install
+  # tar zxvf freeradius-1.1.0.tar.gz
+  # cd freeradius-1.1.0
+  # ./configure --prefix=/usr/local/radiusd/
+  # make
+  # make install
 
 После успешной установки правим файлы:\\
 **/usr/local/radiusd/etc/raddb/users**\\
@@ -44,7 +44,7 @@
   #  counter
   #  attr_filter
   #  eap
-    suffix
+  #  suffix
     files
   # etc_smbpasswd
   # sql
@@ -58,35 +58,47 @@
 
 
 
+
+
+
+
+
+
+
 =====MySQL=====
 Загрузить пакет MySQL можно по адресу [http://www.mysql.com]\\
 
-  tar xvfz mysql-4.1.16.tar.gz
-  cd mysql-4.1.16
-  ./configure
-  make
-  make install
+  # tar xvfz mysql-4.1.16.tar.gz
+  # cd mysql-4.1.16
+  # ./configure
+  # make
+  # make install
 
 Создаём пользователя и базу.
 
   # mysql -u root -p
 
-use mysql;\\
-INSERT INTO user (Host, User, Password) VALUES ('%','abills', password('sqlpassword'));\\
+  use mysql;
+  INSERT INTO user (Host, User, Password) 
+    VALUES ('localhost','abills', password('sqlpassword'));
+  
+  INSERT INTO db (Host, Db, User, Select_priv, Insert_priv, Update_priv, 
+    Delete_priv, Create_priv, Drop_priv, Index_priv, Alter_priv, 
+    Lock_tables_priv, Create_tmp_table_priv) 
+  VALUES ('localhost', 'abills', 'abills', 'Y', 'Y', 'Y', 'Y', 'Y', 
+    'Y', 'Y', 'Y', 'Y', 'Y');
+  CREATE DATABASE abills;
+  flush privileges;
 
-INSERT INTO db (Host, Db, User, Select_priv, Insert_priv, Update_priv, Delete_priv, Create_priv, Drop_priv, Index_priv, Alter_priv, Lock_tables_priv, Create_tmp_table_priv) \\
-VALUES ('localhost', 'abills', 'abills', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y');\\
-\\
-CREATE DATABASE abills;\\
-\\
-  # mysqladmin flush-privileges;\\
-\\
+
 Загружаем таблицы в базу. \\
 
-  mysql -D abills < abills.sql
+  # mysql -D abills < abills.sql
 
+Если возникают трудности с кодировками используйте флаг ''--default-character-set=''
 
 =====Web Server=====
+
 
 
 
@@ -116,7 +128,7 @@ CREATE DATABASE abills;\\
     DirectoryIndex index.cgi
     Order allow,deny
     Allow from all
-
+  
     <Files ~ "\.(db|log)$">
       Order allow,deny
       Deny from all
@@ -136,6 +148,9 @@ CREATE DATABASE abills;\\
 
 
 
+
+
+
 =====Perl modules=====
 Для работы системы нужны модули.\\
 
@@ -148,7 +163,24 @@ CREATE DATABASE abills;\\
 | **libnet**     | Нужен только при авторизации из UNIX passwd |
 | **Time-HiRes** | Нужен только для тестирования скорости выполнения авторизациИ, аккаунтинга, и страниц веб-интерфейса |
 
-Эти модули можно загрузить с сайта [http://www.cpan.org]
+Эти модули можно загрузить с сайта [http://www.cpan.org] или установка с консоли.
+
+  # cd /root 
+  # perl -MCPAN -e shell 
+  o conf prerequisites_policy ask 
+  install    DBI      
+  install    DBD::mysql    
+  install    Digest::MD5 
+  install    Digest::MD4 
+  install    Crypt::DES 
+  install    Digest::SHA1 
+  install    Bundle::libnet 
+  install    Time::HiRes 
+  quit 
+
+
+
+
 
 
 
@@ -163,8 +195,9 @@ CREATE DATABASE abills;\\
 =====ABillS=====
 Загрузить пакет можно по адресу [http://sourceforge.net/projects/abills/]\\
 
-  tar zxvf abills-0.3x.tgz
-  cp -Rf abills /usr/
+  # tar zxvf abills-0.3x.tgz
+  # cp -Rf abills /usr/
+  # cp /usr/abills/libexec/config.pl.default /usr/abills/libexec/config.pl
 
 Правим конфигурационный файл системы\\
 **/usr/abills/libexec/config.pl** \\
@@ -186,9 +219,9 @@ CREATE DATABASE abills;\\
 Вносим в ''cron'' периодические процессы
 **/etc/crontab**
 
-  \*/5  *      *    *      *   root   /usr/abills/libexec/billd -all
-  1     0      *    *     *   root    /usr/abills/libexec/periodic daily
-  1     0      1    *     *   root    /usr/abills/libexec/periodic monthly
+  \*/5  *      *    *     *   root   /usr/abills/libexec/billd -all
+  1     0     *    *     *   root    /usr/abills/libexec/periodic daily
+  1     0     *    *     *   root    /usr/abills/libexec/periodic monthly
 
 \\
 

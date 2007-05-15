@@ -15,11 +15,11 @@
 <TR bgcolor='$_COLORS[1]'><td>Hops To Infrastructure<td></td><td>Communication Over Interface</td><td> </td></tr>
 <TR bgcolor='$_COLORS[1]'><td>cDot11Clients Associated<td></td><td>Repeaters Associated</td><td> </td></tr>
 <TR bgcolor='$_COLORS[1]'><td>Key Mgmt type<td></td><td>Encryption</td><td>%cDot11ClientWepEnabled%</td></tr>
-<TR bgcolor='$_COLORS[1]'><td>Current Rate (Mb/sec)	<td>%cDot11ClientCurrentTxRate%</td><td>Capability</td><td> </td></tr>
+<TR bgcolor='$_COLORS[1]'><td>Current Rate (Mb/sec)	<td>%cDot11ClientCurrentTxRateSet%</td><td>Capability</td><td> </td></tr>
 <TR bgcolor='$_COLORS[1]'><td>Supported Rates(Mb/sec)</td><td colspan='3'>%cDot11ClientDataRateSet%</td></tr>
 
 <tr bgcolor='$_COLORS[1]'><td>Voice Rates(Mb/sec):</td><td></td><td>Association Id</td><td>%cDot11ClientAid%</td></tr>
-<TR bgcolor='$_COLORS[1]'><td>Signal Strength (dBm)<td>%cDot11ClientSignalStrength%</td><td>Connected For (sec)</td><td>%ClinetUptime%</td></tr>
+<TR bgcolor='$_COLORS[1]'><td>Signal Strength (dBm)<td>%cDot11ClientSignalStrength%</td><td>Connected For (sec)</td><td>%cDot11ClientUpTime%</td></tr>
 <TR bgcolor='$_COLORS[1]'><td>Signal Quality (%)<td>%cDot11ClientSigQuality%</td><td>Activity TimeOut (sec)</td><td>%cDot11ClientAgingLeft%</td></tr>
 <TR bgcolor='$_COLORS[1]'><td>Power-save<td>%cDot11ClientPowerSaveMode%</td><td>Last Activity (sec)</td><td> </td></tr>
 

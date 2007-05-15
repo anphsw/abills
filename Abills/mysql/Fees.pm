@@ -118,9 +118,7 @@ sub del {
      return $self;
    }
 
-  my $a_ref = $self->{list}->[0];
-  my($sum, $bill_id) = @$a_ref;
-
+  my($sum, $bill_id) = @{ $self->{list}->[0] };
   
 
   $Bill->action('add', $bill_id, $sum); 
@@ -188,9 +186,7 @@ sub list {
  if ($attr->{FROM_DATE}) {
     push @WHERE_RULES, "(date_format(f.date, '%Y-%m-%d')>='$attr->{FROM_DATE}' and date_format(f.date, '%Y-%m-%d')<='$attr->{TO_DATE}')";
   }
-
-
- if ($attr->{DATE}) {
+ elsif ($attr->{DATE}) {
     push @WHERE_RULES, "date_format(f.date, '%Y-%m-%d')='$attr->{DATE}'";
   }
  # Month
@@ -220,15 +216,15 @@ sub list {
  return $self->{list}  if ($self->{TOTAL} < 1);
  my $list = $self->{list};
 
-
+if ($self->{TOTAL} > 0 || $PG > 0 ) {
  $self->query($db, "SELECT count(*), sum(f.sum) FROM fees f 
- LEFT JOIN users u ON (u.uid=f.uid) 
- LEFT JOIN admins a ON (a.aid=f.aid)
+  LEFT JOIN users u ON (u.uid=f.uid) 
+  LEFT JOIN admins a ON (a.aid=f.aid)
  $WHERE");
- my $a_ref = $self->{list}->[0];
 
  ($self->{TOTAL}, 
-  $self->{SUM}) = @$a_ref;
+  $self->{SUM}) = @{ $self->{list}->[0] };
+}
 
   return $list;
 }
@@ -285,16 +281,17 @@ sub reports {
       ORDER BY $SORT $DESC;");
 
  my $list = $self->{list}; 
-	
- $self->query($db, "SELECT count(*), sum(f.sum) 
+
+ $self->{SUM} = '0.00';
+if ($self->{TOTAL} > 0 || $PG > 0 ) {	
+  $self->query($db, "SELECT count(*), sum(f.sum) 
       FROM fees f
       LEFT JOIN users u ON (u.uid=f.uid)
       $WHERE;");
- my $a_ref = $self->{list}->[0];
 
- ($self->{TOTAL}, 
-  $self->{SUM}) = @$a_ref;
-
+  ($self->{TOTAL}, 
+   $self->{SUM}) = @{ $self->{list}->[0] };
+}
 	
 	return $list;
 }

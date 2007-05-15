@@ -1,0 +1,2 @@
+:PARAMS=FREEBSD:mysql_enable="YES"  >> [/etc/]/rc.conf
+

@@ -85,7 +85,7 @@ my %ACCT_TERMINATE_CAUSES = (
 
 # Files account section
 my $RAD;
-if (! defined(%RAD_REQUEST)) {
+if (scalar(keys %RAD_REQUEST ) < 1) {
   $RAD = get_radius_params();
   if (! defined($RAD->{NAS_IP_ADDRESS})) {
     $RAD->{USER_NAME}='-' if (! defined($RAD->{USER_NAME}));
@@ -109,7 +109,7 @@ if (! defined(%RAD_REQUEST)) {
    }
 
   if(defined($acct->{errno})) {
-	  log_print('LOG_ERR', "ACCT [$RAD->{USER_NAME}] $acct->{errstr}");
+	  log_print('LOG_ERR', "ACCT [$RAD->{USER_NAME}] $acct->{errstr} ($acct->{sql_errstr})");
    }
 
   #$db->disconnect();
@@ -126,7 +126,7 @@ sub acct {
  my $r = 0;
  
  
- if (defined($USER_TYPES{$RAD->{SERVICE_TYPE}}) && $USER_TYPES{$RAD->{SERVICE_TYPE}} == 6) {
+ if ($RAD->{SERVICE_TYPE} && defined($USER_TYPES{$RAD->{SERVICE_TYPE}}) && $USER_TYPES{$RAD->{SERVICE_TYPE}} == 6) {
    log_print('LOG_DEBUG', "ACCT [$RAD->{USER_NAME}] $RAD->{SERVICE_TYPE}");
    return 0;	
   }

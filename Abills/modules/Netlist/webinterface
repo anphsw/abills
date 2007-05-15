@@ -5,6 +5,140 @@ use Socket;
 
 
 
+
+#**********************************************************
+#
+#**********************************************************
+sub netlist_ip_calc {
+
+
+
+  $Netlist->{MASK_SEL}=$html->form_select('MASK', 
+                                          { 
+ 	                                          SELECTED    => $FORM{MASK},
+ 	                                          SEL_ARRAY   => [ 
+ 	                                          '255.0.0.0', 	            
+
+ 	                                          '255.128.0.0',
+ 	                                          '255.192.0.0',
+ 	                                          '255.224.0.0',
+ 	                                          '255.240.0.0',
+ 	                                          '255.248.0.0',
+ 	                                          '255.254.0.0',
+
+                                            '255.255.0.0',
+ 	                                          '255.255.128.0',
+ 	                                          '255.255.192.0',
+ 	                                          '255.255.224.0',
+ 	                                          '255.255.240.0',
+ 	                                          '255.255.248.0',
+ 	                                          '255.255.254.0',
+
+                                            '255.255.255.0',
+ 	                                          '255.255.255.128',
+ 	                                          '255.255.255.192',
+ 	                                          '255.255.255.224',
+ 	                                          '255.255.255.240',
+ 	                                          '255.255.255.248',
+ 	                                          '255.255.255.252',
+ 	                                          '255.255.255.254',
+ 	                                          '255.255.255.255',
+                                            ],
+ 	                                        });
+
+
+  my $mask = 0b0000000000000000000000000000001;
+  
+#  #print "$mask<br>";
+#  #my @ar =  unpack("C2C2C2C2", pack("B32",  $mask ));
+#  #my $i = 1;
+#  #foreach my $line (@ar) {
+#  #	$Netlist->{'IP_D'.$i}=$line;
+#  #	print $Netlist->{'IP_D'.$i};
+#  #  $i++;
+#  # }
+#  
+#  
+#  
+  my @SUBNET_NUMBER = ();
+  my @HOSTS_NUMBER  = ();
+  my @MASK_BITS     = ();
+  
+  for(my $i=0; $i<=16; $i++) {
+  	
+  	push @SUBNET_NUMBER, ($mask << $i);
+  	push @HOSTS_NUMBER, sprintf("%d", 254 / ($mask << $i) - 1);
+  	push @MASK_BITS, 32-$i;
+
+#  	
+#  	print sprintf("$i - Subnets: %d / Hosts: %d<br>",  $mask << $i, 254 / ($mask << $i) - 1 );
+   }
+
+
+  $Netlist->{SUBNET_NUMBER_SEL}=$html->form_select('SUBNET_NUMBER', 
+                                          { 
+ 	                                          SELECTED    => $FORM{SUBNET_NUMBER},
+ 	                                          SEL_ARRAY   => \@SUBNET_NUMBER,
+ 	                                        });
+
+  $Netlist->{HOSTS_NUMBER_SEL}=$html->form_select('HOSTS_NUMBER', 
+                                          { 
+ 	                                          SELECTED    => $FORM{HOSTS_NUMBER},
+ 	                                          SEL_ARRAY   => \@HOSTS_NUMBER,
+ 	                                        });
+
+  $Netlist->{MASK_BITS_SEL}=$html->form_select('MASK_BITS', 
+                                          { 
+ 	                                          SELECTED    => $FORM{MASK_BITS},
+ 	                                          SEL_ARRAY   => \@MASK_BITS,
+ 	                                        });
+
+  $html->tpl_show(_include('netlist_ip_calc', 'Netlist'), { %$Netlist, %FORM }); 
+
+if ($FORM{SHOW}) {
+	my $table = $html->table( { width   => '100%',
+                              caption => "IP Calc",
+                              border  => 1,
+                              title   => [SUBNET, MASK, $_SIZE, $_HOSTS, 'BRODCAST' ],
+                              qs      => $pages_qs,
+                           });
+  
+  my $ip_prefix = "$FORM{IP_D1}\.$FORM{IP_D2}\.$FORM{IP_D3}";
+  my $int = ip2int("$ip_prefix\.0");
+  
+  if ($FORM{MASK} =~ /\.0$/ && $FORM{MASK} !~ /255\.0$/) {
+  	$ip_prefix = "$FORM{IP_D1}\.$FORM{IP_D2}\.0";
+  	$int = ip2int("$ip_prefix\.0\.0");
+   }
+  elsif ($FORM{MASK} =~ /\.0\.0$/ && $FORM{MASK} !~ /\.255\.255\.0$/) {
+  	$ip_prefix = "$FORM{IP_D1}\.0\.0";
+  	$int = ip2int("$ip_prefix\.0\.0\.0");
+   }
+
+  
+  my $addr_count = ip2int('255.255.255.255') - ip2int("$FORM{MASK}") - 1;
+  my $count = 2;
+  
+  for(my $i=0; $i<256 / ($addr_count + 2); $i++) {
+  	my $sufix_ip = ($addr_count + 2) * $i;
+  	$table->addrow("$ip_prefix".'.'. $sufix_ip,  
+  	                "$FORM{MASK}",
+  	                $addr_count,
+  	                "$_FROM: $ip_prefix.". (($addr_count + 2) * $i + 1) ." $_TO: ". int2ip($int + $addr_count),
+  	                int2ip($int + $addr_count + 1)
+  	               );
+  	
+   }
+
+  
+  
+
+
+	print $table->show();
+}
+
+}
+
 #**********************************************************
 #
 #**********************************************************
@@ -12,7 +146,17 @@ sub netlist_list {
   $Netlist->{ACTION}='add';
   $Netlist->{ACTION_LNG}=$_ADD;
 
-  if($FORM{add}) {
+  if ($FORM{ping}) {
+ 	  $FORM{ping} = int2ip($FORM{ping});
+ 	  if ($FORM{ping} =~ /^(\d){1,3}\.(\d){1,3}\.(\d){1,3}\.(\d){1,3}$/) {
+      my $res = `/sbin/ping -c 5 $FORM{ping}`;
+      $html->message('info', $_INFO,  "Ping  $FORM{ping}<br>Result:<br><pre>$res</pre>");
+     }
+    else {
+      $html->message('err', $_ERROR,  "_WRONG_DATA");
+     }
+   }
+  elsif($FORM{add}) {
     $Netlist->ip_add({ %FORM });
     if(! $Netlist->{errno}) {
       $html->message('info', $_INFO, "$_ADDED");
@@ -66,8 +210,6 @@ sub netlist_list {
  	                                        });
 
 
-$html->tpl_show(_include('netlist_ip', 'Netlist'), $Netlist); 
-
 $Netlist->{GROUP_SEL}=$html->form_select('GID', 
                                           { 
  	                                          SELECTED          => $FORM{GID},
@@ -80,7 +222,7 @@ $Netlist->{GROUP_SEL}=$html->form_select('GID',
   $Netlist->{STATE_SEL}=$html->form_select('STATUS', 
                                           { 
  	                                          SELECTED    => $Netlist->{STATUS},
- 	                                          SEL_ARRAY   => [@status, ''],
+ 	                                          SEL_ARRAY   => [@status],
  	                                          ARRAY_NUM_ID => 1
  	                                        });
 
@@ -93,8 +235,9 @@ my $list = $Netlist->ip_list( { %LIST_PARAMS, %FORM } );
 my $table = $html->table( { width      => '100%',
                             caption    => "IP",
                             border     => 1,
-                            title      => ['IP', 'NETMASK', 'HOSTNAME', $_DESCRIBE, $_GROUP, $_STATE,  $_CHANGE, '-', '-'],
-                            cols_align => ['right', 'right', 'left', 'left', 'left', 'center', 'right', 'center:noprint', 'center:noprint'],
+                            title      => ['IP', 'NETMASK', 'HOSTNAME', $_DESCRIBE, $_GROUP, $_STATE,  $_CHANGE, '-', '-', '-'],
+                            cols_align => ['right', 'right', 'left', 'left', 'left', 'center', 'right', 
+                             'center:noprint', 'center:noprint', 'center:noprint'],
                             qs         => $pages_qs,
                             pages      => $Netlist->{TOTAL}
                            });
@@ -114,6 +257,7 @@ my $table = $html->table( { width      => '100%',
      $status[$line->[5]], 
 
      $line->[6], 
+     $html->button("(P)", "index=$index&ping=$line->[0]$pages_qs", { TITLE => 'Ping'}),
      $change,
      $delete
      );
@@ -145,6 +289,7 @@ my $table2 = $html->table( { width       => '100%',
 
   print $table->show();
 
+  $html->tpl_show(_include('netlist_ip', 'Netlist'), $Netlist); 
 }
 
 

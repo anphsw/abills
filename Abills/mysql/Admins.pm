@@ -34,7 +34,7 @@ sub new {
   ($db, $CONF) = @_;
   my $self = { };
   bless($self, $class);
-  
+
   return $self;
 }
 
@@ -113,8 +113,10 @@ sub info {
    }
 
   $IP = (defined($attr->{IP}))? $attr->{IP} : '0.0.0.0';
-  $self->query($db, "SELECT aid, id, name, regdate, phone, disable, web_options, $PASSWORD
-     FROM admins $WHERE;");
+  $self->query($db, "SELECT aid, id, name, regdate, phone, disable, web_options, gid, $PASSWORD
+     FROM 
+      admins 
+     $WHERE;");
 
   if ($self->{TOTAL} < 1) {
      $self->{errno} = 2;
@@ -123,7 +125,7 @@ sub info {
    }
 
   my $a_ref = $self->{list}->[0];
-  if ($a_ref->[7] == 1) {
+  if ($a_ref->[8] == 1) {
      $self->{errno} = 4;
      $self->{errstr} = 'ERROR_WRONG_PASSWORD';
      return $self;
@@ -135,7 +137,9 @@ sub info {
    $self->{A_REGISTRATION},
    $self->{A_PHONE},
    $self->{DISABLE},
-   $self->{WEB_OPTIONS} )= @$a_ref;
+   $self->{WEB_OPTIONS},
+   $self->{GID}
+    )= @$a_ref;
 
    $self->{SESSION_IP}  = $IP;
 
@@ -149,9 +153,17 @@ sub list {
  my $self = shift;
  my ($attr) = @_;
 
+ @WHERE_RULES = ();
+ if ($attr->{GID}) {
+    push @WHERE_RULES, "a.gid='$attr->{GID}'";
+  }
  
- $self->query($db, "select aid, id, name, regdate, disable, gid 
- FROM admins
+ $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+ 
+ $self->query($db, "select a.aid, a.id, a.name, a.regdate, a.disable, g.name 
+ FROM admins a
+  LEFT JOIN groups g ON (a.gid=g.gid) 
+ $WHERE
  ORDER BY $SORT $DESC;");
 
  return $self->{list};
@@ -163,8 +175,6 @@ sub list {
 sub change {
  my $self = shift;
  my ($attr) = @_;
- 
- 
   my %FIELDS = (AID    =>   'aid',
            A_LOGIN     => 'id',
            A_FIO       => 'name',
@@ -172,7 +182,8 @@ sub change {
            A_PHONE     => 'phone',
            DISABLE     => 'disable',
            PASSWORD    => 'password',
-           WEB_OPTIONS => 'web_options'
+           WEB_OPTIONS => 'web_options',
+           GID         => 'gid'
    );
 
 
@@ -202,8 +213,8 @@ sub add {
   my ($attr) = @_;
   %DATA = $self->get_data($attr); 
 
-  $self->query($db, "INSERT INTO admins (id, name, regdate, phone, disable) 
-   VALUES ('$DATA{A_LOGIN}', '$DATA{A_FIO}', now(),  '$DATA{A_PHONE}', '$DATA{DISABLE}');", 'do');
+  $self->query($db, "INSERT INTO admins (id, name, regdate, phone, disable, gid) 
+   VALUES ('$DATA{A_LOGIN}', '$DATA{A_FIO}', now(),  '$DATA{A_PHONE}', '$DATA{DISABLE}', '$DATA{GID}');", 'do');
 
   return $self;
 }
@@ -269,7 +280,7 @@ sub action_list {
   if ($attr->{AID}) {
     push @WHERE_RULES, "aa.aid='$attr->{AID}'";
    }
-  elsif($attr->{ADMIN}){
+  elsif($attr->{ADMIN}) {
   	$attr->{ADMIN} =~ s/\*/\%/ig;
     push @WHERE_RULES, "a.id LIKE '$attr->{ADMIN}'";
    }
@@ -302,6 +313,10 @@ sub action_list {
    push @WHERE_RULES, "aa.module='$attr->{MODULE}'";
   }
 
+ if ($attr->{GID}) {
+   push @WHERE_RULES, "a.gid='$attr->{GID}'";
+  }
+
 
   $WHERE = "WHERE " . join(' and ', @WHERE_RULES) if ($#WHERE_RULES > -1);
 
@@ -311,18 +326,13 @@ sub action_list {
       LEFT JOIN users u ON (aa.uid=u.uid)
       $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;");
   
-  
   my $list = $self->{list};
   
-  if ($self->{TOTAL} > 0) {
-    $self->query($db, "SELECT count(*) FROM admin_actions aa 
+  $self->query($db, "SELECT count(*) FROM admin_actions aa 
     LEFT JOIN users u ON (aa.uid=u.uid)
     LEFT JOIN admins a ON (aa.aid=a.aid)
     $WHERE;");
-    my $a_ref = $self->{list}->[0];
-    ($self->{TOTAL}) = @$a_ref;
-   }
-
+    ($self->{TOTAL}) = @{ $self->{list}->[0] };
 
   return $list;
 }

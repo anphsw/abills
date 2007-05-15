@@ -31,6 +31,7 @@ sub new {
   ($db, $admin, $CONF) = @_;
   $WHERE = "WHERE " . join(' and ', @WHERE_RULES) if($#WHERE_RULES > -1);
   
+  $admin->{MODULE}='';
   $CONF->{MAX_USERNAME_LENGTH} = 10 if (! defined($CONF->{MAX_USERNAME_LENGTH}));
   
   if (defined($CONF->{USERNAMEREGEXP})) {
@@ -93,7 +94,8 @@ sub info {
    if(c.name IS NULL, b.deposit, cb.deposit),
    u.company_id,
    if(c.name IS NULL, 'N/A', c.name), 
-   if(c.name IS NULL, 0, c.vat)
+   if(c.name IS NULL, 0, c.vat),
+   if(c.name IS NULL, b.uid, cb.uid)
      FROM users u
      LEFT JOIN bills b ON (u.bill_id=b.id)
      LEFT JOIN groups g ON (u.gid=g.gid)
@@ -122,10 +124,33 @@ sub info {
    $self->{DEPOSIT}, 
    $self->{COMPANY_ID},
    $self->{COMPANY_NAME},
-   $self->{COMPANY_VAT}
+   $self->{COMPANY_VAT},
+   $self->{BILL_OWNER}
  )= @{ $self->{list}->[0] };
   
  
+  return $self;
+}
+
+
+#**********************************************************
+#
+#**********************************************************
+sub defaults_pi {
+  my $self = shift;
+
+  %DATA = (
+   FIO            => '', 
+   PHONE          => 0, 
+   ADDRESS_STREET => 0, 
+   ADDRESS_BUILD  => 0, 
+   ADDRESS_FLAT   => 0, 
+   EMAIL          => '', 
+   COMMENTS       => '',
+   CONTRACT_ID    => '',
+  );
+ 
+  $self = \%DATA;
   return $self;
 }
 
@@ -137,8 +162,7 @@ sub pi_add {
   my $self = shift;
   my ($attr) = @_;
   
-  defaults();  
-  %DATA = $self->get_data($attr, { default => $self }); 
+  %DATA = $self->get_data($attr, { default => defaults_pi()   }); 
   
   if($DATA{EMAIL} ne '') {
     if ($DATA{EMAIL} !~ /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/) {
@@ -230,7 +254,7 @@ my %FIELDS = (EMAIL          => 'email',
 	$self->changes($admin, { CHANGE_PARAM => 'UID',
 		                TABLE        => 'users_pi',
 		                FIELDS       => \%FIELDS,
-		              OLD_INFO     => $self->pi({ UID => $attr->{UID} }),
+		                OLD_INFO     => $self->pi({ UID => $attr->{UID} }),
 		                DATA         => $attr
 		              } );
 
@@ -268,13 +292,20 @@ sub defaults {
 sub groups_list {
  my $self = shift;
  my ($attr) = @_;
- my @list = ();
 
  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+ undef @WHERE_RULES;
+ 
+ if ($attr->{GID}) {
+    push @WHERE_RULES, "g.gid='$attr->{GID}'";
+  }
+
+ my $WHERE = ($#WHERE_RULES > -1) ?  "WHERE " . join(' and ', @WHERE_RULES) : ''; 
  
  $self->query($db, "select g.gid, g.name, g.descr, count(u.uid) FROM groups g
         LEFT JOIN users u ON  (u.gid=g.gid) 
+        $WHERE
         GROUP BY g.gid
         ORDER BY $SORT $DESC");
 
@@ -282,8 +313,7 @@ sub groups_list {
 
  if ($self->{TOTAL} > 0) {
     $self->query($db, "SELECT count(*) FROM groups");
-    my $a_ref = $self->{list}->[0];
-    ($self->{TOTAL}) = @$a_ref;
+    ($self->{TOTAL}) = @{ $self->{list}->[0] };
    }
 
  return $list;
@@ -301,10 +331,8 @@ sub group_info {
 
  return $self if ($self->{errno});
 
- my $a_ref = $self->{list}->[0];
-
  ($self->{G_NAME},
- 	$self->{G_DESCRIBE}) = @$a_ref;
+ 	$self->{G_DESCRIBE}) = @{ $self->{list}->[0] };
  
  $self->{GID}=$gid;
 
@@ -319,8 +347,8 @@ sub group_change {
  my ($gid, $attr) = @_;
  
 
- my %FIELDS = (GID => 'gid',
-               G_NAME => 'name',
+ my %FIELDS = (GID        => 'gid',
+               G_NAME     => 'name',
                G_DESCRIBE => 'descr');
 
  $self->changes($admin, { CHANGE_PARAM => 'GID',
@@ -435,6 +463,13 @@ sub list {
     $self->{SEARCH_FIELDS_COUNT}++;
   }
 
+ if ($attr->{REGISTRATION}) {
+    my $value = $self->search_expr("'$attr->{REGISTRATION}'", 'INT');
+    push @WHERE_RULES, "u.registration LIKE '$attr->{REGISTRATION}'";
+    $self->{SEARCH_FIELDS} .= 'u.registration, ';
+    $self->{SEARCH_FIELDS_COUNT}++;
+  }
+
 
  if ($attr->{DEPOSIT}) {
     my $value = $self->search_expr($attr->{DEPOSIT}, 'INT');
@@ -450,6 +485,8 @@ sub list {
  if ($attr->{COMMENTS}) {
   	$attr->{COMMENTS} =~ s/\*/\%/ig;
  	  push @WHERE_RULES, "pi.comments LIKE '$attr->{COMMENTS}'";
+    $self->{SEARCH_FIELDS} .= 'pi.comments, ';
+    $self->{SEARCH_FIELDS_COUNT}++;
   }    
 
 
@@ -472,16 +509,25 @@ sub list {
     push @WHERE_RULES, "u.gid='$attr->{GID}'";
   }
 
+
 #Activate
  if ($attr->{ACTIVATE}) {
-   my $value = $self->search_expr("'$attr->{ACTIVATE}'", 'INT');
-   push @WHERE_RULES, "(u.activate='0000-00-00' or u.activate$value)"; 
+   my $value = $self->search_expr("$attr->{ACTIVATE}", 'INT');
+   push @WHERE_RULES, "(u.activate$value)"; 
+   
+   #push @WHERE_RULES, "(u.activate='0000-00-00' or u.activate$value)"; 
+   $self->{SEARCH_FIELDS} .= 'u.activate, ';
+   $self->{SEARCH_FIELDS_COUNT}++;
  }
 
 #Expire
  if ($attr->{EXPIRE}) {
-   my $value = $self->search_expr("'$attr->{EXPIRE}'", 'INT');
-   push @WHERE_RULES, "(u.expire='0000-00-00' or u.expire$value)"; 
+   my $value = $self->search_expr("$attr->{EXPIRE}", 'INT');
+   push @WHERE_RULES, "(u.expire$value)"; 
+   #push @WHERE_RULES, "(u.expire='0000-00-00' or u.expire$value)"; 
+   
+   $self->{SEARCH_FIELDS} .= 'u.expire, ';
+   $self->{SEARCH_FIELDS_COUNT}++;
  }
 
 #DIsable
@@ -596,12 +642,9 @@ sub add {
   my $self = shift;
   my ($attr) = @_;
   
+  my %DATA = $self->get_data($attr, { default => defaults() }); 
 
-  defaults();  
-  %DATA = $self->get_data($attr, { default => $self }); 
-
-
-  if ($DATA{LOGIN} eq '') {
+  if (! defined($DATA{LOGIN})) {
      $self->{errno} = 8;
      $self->{errstr} = 'ERROR_ENTER_NAME';
      return $self;
@@ -625,6 +668,7 @@ sub add {
       return $self;
      }
    }
+  
   
   $DATA{DISABLE} = int($DATA{DISABLE});
   $self->query($db,  "INSERT INTO users (id, activate, expire, credit, reduction, 
@@ -725,8 +769,6 @@ sub del {
                   'fees', 
                   'payments', 
                   'users_nas', 
-                  'docs_acct',
-                  'dv_log',
                   'users',
                   'users_pi');
 
@@ -813,6 +855,11 @@ sub bruteforce_list {
 	my ($attr) = @_;
 	
 
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
 
 	my $GROUP = 'GROUP BY login';
   my $count='count(login)';	
@@ -839,7 +886,7 @@ sub bruteforce_list {
     $list = $self->{list};
   }
 
-  $self->query($db, "SELECT count(*) FROM users_bruteforce $WHERE;");
+  $self->query($db, "SELECT count(DISTINCT login) FROM users_bruteforce $WHERE;");
   ($self->{TOTAL}) = @{ $self->{list}->[0] };
 
 	

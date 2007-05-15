@@ -59,6 +59,12 @@ if ( $#ARGV < 3 ) {
 
  /etc/ppp/ip-down.local 
    /usr/abills/libexec/linkupdown pppd down \$1 'username' \$4
+ 
+ For mikrotik:
+ 
+  /usr/abills/libexec/linkupdown mikrotik up INTERFACE USER HISADD
+  /usr/abills/libexec/linkupdown mikrotik down INTERFACE USER HISADD
+
 DEBUG: $debug
 };
 exit 0;
@@ -106,13 +112,15 @@ if ($ARGV[0] eq 'mpd') {
   $inum =~ s/ng//;
 }
 #pppd
-elsif($ARGV[0] eq 'pppd') {
-  $ACTION=$ARGV[1];
+elsif($ARGV[0] eq 'pppd' || $ARGV[0] eq 'mikrotik') {
+  $ACTION   =$ARGV[1];
   $INTERFACE=$ARGV[2];
-  $USER=$ARGV[3];
-  $HISADDR=$ARGV[4];
-  $inum = $INTERFACE;
-  $inum =~ s/ppp//;
+  $USER     =$ARGV[3];
+  $HISADDR  =$ARGV[4];
+  $inum     = $INTERFACE;
+  if(! ($inum =~ s/ppp//)) {
+  	$inum = 0;
+   }
  }
 # FreeBSD PPP
 else {
@@ -162,7 +170,8 @@ else {
 # Up fw shaper rules
 if ($ACTION eq 'up') {
   my %speeds = ();
-  my %nets = ();
+  my %nets   = ();
+  my %expr   = ();
   
   my $user = $Dv->info(0, { %LIST_PARAMS });
 
@@ -170,7 +179,7 @@ if ($ACTION eq 'up') {
      print "[$Dv->{errno}] $Dv->{errstr}\n";
      exit 1;
    }
-  elsif($Dv->{TOTAL} < 1){
+  elsif($Dv->{TOTAL} < 1) {
     print "$USER - Not exist\n";
     exit 1;
    }
@@ -182,14 +191,12 @@ if ($ACTION eq 'up') {
     $speeds{0}{OUT}=int($user->{SPEED});
    }
   else {
-    my ($remaining_time, $ret_attr); 
-
 
     ($user->{TIME_INTERVALS},
      $user->{INTERVAL_TIME_TARIF}, 
      $user->{INTERVAL_TRAF_TARIF}) = $Billing->time_intervals($user->{TP_ID});
 
-    ($remaining_time, $ret_attr) = $Billing->remaining_time($user->{DEPOSIT}, {
+    my ($remaining_time, $ret_attr) = $Billing->remaining_time($user->{DEPOSIT}, {
     	    TIME_INTERVALS      => $user->{TIME_INTERVALS},
           INTERVAL_TIME_TARIF => $user->{INTERVAL_TIME_TARIF},
           INTERVAL_TRAF_TARIF => $user->{INTERVAL_TRAF_TARIF},
@@ -211,7 +218,7 @@ if ($ACTION eq 'up') {
     	
       require Tariffs;
       Tariffs->import();
-      my $tariffs = Tariffs->new($db, $admin);
+      my $tariffs = Tariffs->new($db, \%conf, $admin);
 
       #Get intervals
       while(my($k, $v)=each( %TT_IDS)) {
@@ -222,6 +229,7 @@ if ($ACTION eq 'up') {
  	    	  $speeds{$line->[0]}{IN}="$line->[4]";
  	    	  $speeds{$line->[0]}{OUT}="$line->[5]";
  	    	  $nets{$line->[0]}="$line->[7]";
+ 	    	  $expr{$line->[0]}="$line->[8]" if (length($line->[8]) > 5);
  	    	  #print "$line->[0] $line->[4]\n";
  	      }
       }
@@ -234,10 +242,32 @@ if ($ACTION eq 'up') {
   my $fw_num_out   =0;
   my $pipe_num_in  =0;
   my $pipe_num_out =0;
+  
+  
+print "Expresion:================================\n" if ($debug > 0);
+  my $RESULT = $Billing->expression($Dv->{UID}, \%expr, { START_PERIOD => $Dv->{ACCOUNT_ACTIVATE}, 
+  	                                                      debug        => $debug } );
+print "\nEND: =====================================\n" if ($debug > 0);
+  
+  if (! $RESULT->{SPEED}) {
+    $speeds{0}{IN}=$RESULT->{SPEED_IN} if($RESULT->{SPEED_IN});
+    $speeds{0}{OUT}=$RESULT->{SPEED_OUT} if($RESULT->{SPEED_OUT});
+   }
+  else {
+  	$speeds{0}{IN}=$RESULT->{SPEED};
+  	$speeds{0}{OUT}=$RESULT->{SPEED};
+   }
 
+  if ($ARGV[0] eq 'mikrotik') {
+    mikrotik({ SPEEDS => \%speeds,
+    	         NETS   => \%nets });
+    	         
+  	exit;
+   }
 
+  foreach my $traf_type (sort keys %speeds) {
+    my $speed = $speeds{$traf_type};
 
-  while(my ($traf_type, $speed)=each %speeds) {
     $fw_num_in  = $START_FW[$traf_type] + $inum * 2;
     $fw_num_out = $START_FW[$traf_type] + $inum * 2 + 1;
     $pipe_num_in  = $START_FW[$traf_type] + $inum * 2 ;
@@ -246,8 +276,19 @@ if ($ACTION eq 'up') {
     my $speed_in  = (defined($speed->{IN}))  ? $speed->{IN}  : 0;
     my $speed_out = (defined($speed->{OUT})) ? $speed->{OUT} : 0;
 
+ 	  my @nets_arr = ();
+ 	  if ($nets{$traf_type}) {
+ 	    $nets{$traf_type} =~ s/[\r]?\n//g;
+ 	    $nets{$traf_type} =~ s/;/,/g;
+ 	    @nets_arr = split(/;|,/, $nets{$traf_type});
+	   }
+
+
     #Linux tc shaper
-    if ($ARGV[0] eq 'pppd') {
+    if ($ARGV[0] eq 'mikrotik' ) {
+    	mikrotik({ NETS => \@nets_arr });
+     }
+    elsif ($ARGV[0] eq 'pppd') {
        # In
       if ($speed_in > 0) {
         if ($traf_type == 0) {
@@ -278,16 +319,6 @@ if ($ACTION eq 'up') {
      }
     #FreeBSD ipfw pipe shaper
     else {
-   	  
-   	  my @nets_arr = ();
-   	  if ($nets{$traf_type}) {
-   	    $nets{$traf_type} =~ s/[\r]?\n//g;
-  	    $nets{$traf_type} =~ s/;/,/g;
-  	    @nets_arr = split(/;|,/, $nets{$traf_type});
-  	   }
-
-       
-
      if ($speed_in > 0) {
     	  #In;
         if ($traf_type == 0) {
@@ -309,7 +340,7 @@ if ($ACTION eq 'up') {
             push @FW_ACTIONS, "$IPFW add $fw_num_in pipe $pipe_num_in ip from any to table\\($table_number\\)  via $INTERFACE in";
            }
           else {
-            push @FW_ACTIONS, "$IPFW add $fw_num_in pipe $pipe_num_in ip from $nets{$traf_type} to any via $INTERFACE in";
+            push @FW_ACTIONS, "$IPFW add $fw_num_in pipe $pipe_num_in ip from any to $nets{$traf_type} via $INTERFACE in";
            }
             push @FW_ACTIONS, "$IPFW pipe $pipe_num_in config bw ". $speed_in ."Kbit/s queue 10Kbytes";
          }
@@ -324,6 +355,7 @@ if ($ACTION eq 'up') {
           push @FW_ACTIONS, "$IPFW pipe $pipe_num_out config bw ". $speed_out ."Kbit/s queue 10Kbytes";
          }
         else {
+          #User ipfw table if more then 5 networks
           if ($#nets_arr > 5) {
              my $table_number = $user->{TI_ID};
 
@@ -362,4 +394,102 @@ foreach my $line (@FW_ACTIONS) {
   else {
     system("$line");
    }
+}
+
+
+#**********************************************************
+# Manage mikrotik bandwidth
+# 3 type of actions
+#  up
+#  down 
+#  check
+#**********************************************************
+sub mikrotik {
+	my ($attr)=@_;
+
+	
+	my $speeds = $attr->{SPEEDS};
+	my $nets   = $attr->{NETS};
+
+	my @commands = ();
+  $INTERFACE="<pptp-aa1>";
+
+  foreach my $traf_type (sort keys %$speeds) {
+    my $speed = $speeds->{$traf_type};
+    
+    my $speed_in  = (defined($speed->{IN}))  ? $speed->{IN} * 1024 : 0;
+    my $speed_out = (defined($speed->{OUT})) ? $speed->{OUT}* 1024 : 0;
+    if ($traf_type == 0) {
+      #Upload
+      push  @commands, " /queue simple add direction=upload name=\\\"". $INTERFACE.'_OUT'. "\\\" dst-address=0.0.0.0/0 interface=$INTERFACE parent=none priority=8 queue=default-small/default-small limit-at=$speed_out max-limit=$speed_out total-queue=default-small ";
+      #Download
+      push  @commands, " /queue simple add direction=download name=\\\"". $INTERFACE.'_IN'. "\\\" dst-address=0.0.0.0/0 interface=$INTERFACE parent=none priority=8 queue=default-small/default-small limit-at=$speed_in max-limit=$speed_in total-queue=default-small ";
+      next;
+     }
+
+
+ 	  my @nets_arr = ();
+ 	  if ($nets->{$traf_type}) {
+ 	    $nets->{$traf_type} =~ s/[\r]?\n//g;
+ 	    $nets->{$traf_type} =~ s/;/,/g;
+ 	    @nets_arr = split(/;|,/, $nets->{$traf_type});
+	   }
+
+    # Describe  / $address / speed (IN / OUT)
+    # Make address list
+    my $address_list_name = "TT_".$traf_type;
+
+    foreach my $address (@nets_arr) {
+   	  push @commands, qq{ /ip firewall address-list add list=$address_list_name address=$address };
+     }
+
+    # Make marks
+    my $mark_name=$address_list_name. "_mark";
+    push @commands,  qq{ /ip firewall mangle add address-list=$address_list_name action=mark-connection new-connection-mark=$mark_name chain=prerouting comment=$mark_name };
+
+    push @commands,  qq{ /queue tree add name=$mark_name parent=$INTERFACE max-limit=$speed_in/$speed_out packet-mark=$mark_name priority=8 };
+
+  }
+
+#Make ssh command	
+	my $result = '';
+	foreach my $cmd (@commands)  {
+		print "$cmd\n" if ($debug > 0);
+    $result .= `ssh admin\@192.168.101.10 "$cmd"`;
+	 }
+
+ print $result;
+ 
+}
+
+
+
+#
+# get user info 
+# /queue simple print interface=<pptp-aa1>
+# /queue simple remove [ find  interface=<pptp-aa1> ]
+
+#*****************************************************
+# Parse fw params
+#*****************************************************
+sub parse_fw {
+  my ($part) = @_;
+  my $result = '';
+  my %params = ();
+
+  $part =~ s/"|//g;
+  if ($part =~ / (\d+)/) {
+    $params{item} = $1;
+   }
+
+  while($part =~ / ([a-zA-Z\-]+)=([a-zA-Z\-\.0-9\/<>_]+)/g) {
+    my $key = $1;
+    my $val = $2;
+    $result .= "$key // $val\n";
+    $params{"$key"}=$val;
+   }
+
+  print "\n---\n". $result if ($debug > 0);
+
+  return \%params;
 }

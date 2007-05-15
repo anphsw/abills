@@ -9,7 +9,7 @@ $web_interface    = 1;
 # 
 %PERIODIC = (daily   => [ 'bonus_periodic' ],
              monthly => [ 'bonus_periodic' ],
-             report  => [ 'bonus_report'       ]);
+             report  => [ 'bonus_report'   ]);
 
 
 1

@@ -27,7 +27,9 @@ if (in_array('Cards', \@MODULES)) {
   $FUNCTIONS_LIST{"21:1:$_ICARDS:dv_cards:"} = 11;
 } 
  
- 
+
+
+
 %USER_FUNCTION_LIST = ("01:0:Dialup / VPN:dv_user_info:"     => 0,
                        "03:1:$_STATS:dv_user_stats:"         => 0
                       );
@@ -38,7 +40,7 @@ $USER_FUNCTION_LIST{"04:1:$_TARIF_PLAN:dv_user_chg_tp:"}=0 if (defined($conf{DV_
 
 # 
 %PERIODIC = (daily   => [ 'dv_daily_fees', 'dv_users_warning_messages' ],
-             monthly => [ 'dv_monthly_fees' ],
+             monthly => [ 'dv_monthly_fees', 'dv_periodic_logrotate' ],
              report  => [ 'dv_report'       ]);
 
 

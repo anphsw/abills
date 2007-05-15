@@ -35,7 +35,7 @@ use Admins;
 
 
 
-my $Paysys = Paysys->new($db, undef, \%conf);
+
 
 
 my $html = Abills::HTML->new();
@@ -43,6 +43,8 @@ my $sql = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $con
 my $db = $sql->{db};
 #Operation status
 my $status = '';
+
+my $Paysys = Paysys->new($db, undef, \%conf);
 
 my $admin = Admins->new($db, \%conf);
 $admin->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });

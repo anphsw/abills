@@ -68,7 +68,8 @@ if ($#ARGV < 0) {
   GET_DUBS           - Get dublicats
   debug              - Debug mode
   ed2k_hash=FILENAME - Make ed2k hash
-  CHECK_SR           - CHECK file names from Share reactors
+  CHECK_SR=[DIR]     - CHECK file names from Share reactors
+    NEW_FOLDER=[DIR] - Move to dir
   SKIP_DIRS          - Skip some dirs
   
 	\n";

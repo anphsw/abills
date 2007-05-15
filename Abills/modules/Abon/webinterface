@@ -258,9 +258,6 @@ sub abon_periodic {
  $m--;
 
  foreach my $line (@$list) {
-    #print "<br>$line->[0], $line->[1], $line->[2], $line->[3], $line->[4], $line->[5], $line->[6], DEPOSIT: $line->[7], CREDIT: $line->[8], DISABLE: $line->[9] PAYMENT_TYPE: $line->[11]-\n";
- 
-
   if (defined($line->[7])) {
      my %user = (
        UID     => $line->[2],
@@ -271,17 +268,20 @@ sub abon_periodic {
     $PARAMS{DATE}=$DATE if ($DATE ne '');
 
     if(($line->[7] + $line->[8] > 0 || $line->[11] == 1) && $line->[9] == 0) {
+     	#Get day fee
      	if ($line->[0] == 0) {
          $fees->take(\%user, $line->[1], { %PARAMS } ); 
          $Abon->user_tariff_update({ UID => "$line->[2]", TP_ID => "$line->[10]", DATE => $DATE, });
 
          #print "$line->[0] Day fee<Br>\n"; 
        }
+    	#Get month fee
     	elsif ($line->[0] == 1 && ($d == 1)) {
          $fees->take(\%user, $line->[1], { %PARAMS } ); 
          $Abon->user_tariff_update({ UID => "$line->[2]", DATE => $DATE, TP_ID => "$line->[10]" });
          #print "Month Fee $d<Br>\n"; 
        }
+  	  # Yesr fee
   	  elsif ($line->[0] == 2 && ($m == 0 && $d == 1)) {
          $fees->take(\%user, $line->[1], { %PARAMS } ); 
          $Abon->user_tariff_update({ UID => "$line->[2]", DATE => $DATE, TP_ID => "$line->[10]" });

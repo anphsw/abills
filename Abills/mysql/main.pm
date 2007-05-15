@@ -71,7 +71,7 @@ sub connect {
        "Unable connect to server '$dbhost:$dbname'\n";
   
   #For mysql 5 or highter
-  #$self->{db}->do("set names ".$attr->{CHARSET}) if ($attr->{CHARSET});
+  $self->{db}->do("set names ".$attr->{CHARSET}) if ($attr->{CHARSET});
  
   $self->{query_count}=0;
   return $self;
@@ -155,7 +155,7 @@ if($db->err) {
    }
 
   $self->{errno} = 3;
-  $self->{errstr} = 'SQL_ERROR';
+  $self->{errstr} = 'SQL_ERROR' . $self->{db}->strerr;
   return $self;
  }
 
@@ -186,21 +186,18 @@ sub get_data {
   my %DATA;
   
   if(defined($attr->{default})) {
-  	 my $dhr = $attr->{default};
-  	 %DATA = %$dhr;
+  	 %DATA = %{ $attr->{default} };
    }
-
   
   while(my($k, $v)=each %$params) {
   	 next if (! $params->{$k} && defined($DATA{$k})) ;
   	 $DATA{$k}=$v;
-#    print "--$k, $v<br>\n";
+     #print "--$k, '$v'<br>\n";
    }
 
 #  while(my($k, $v)=each %DATA) {
 #  	print "$k, $v<br>\n";
 #  }
-
   
 	return %DATA;
 }
@@ -292,6 +289,7 @@ sub changes {
 
 
   while(my($k, $v)=each(%DATA)) {
+    $OLD_DATA->{$k} = '' if (! $OLD_DATA->{$k});
     if (defined($FIELDS->{$k}) && $OLD_DATA->{$k} ne $DATA{$k}){
         if ($k eq 'PASSWORD' || $k eq 'NAS_MNG_PASSWORD') {
           $CHANGES_LOG .= "$k *->*;";

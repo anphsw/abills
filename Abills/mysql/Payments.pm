@@ -200,17 +200,14 @@ sub list {
     push @WHERE_RULES, "p.method IN ($attr->{METHODS}) ";
   }
 
-
  if ($attr->{DATE}) {
     my $value = $self->search_expr("$attr->{DATE}", 'INT');
     push @WHERE_RULES,  " date_format(p.date, '%Y-%m-%d')$value ";
   }
-
-  if ($attr->{MONTH}) {
+ elsif ($attr->{MONTH}) {
     my $value = $self->search_expr("$attr->{MONTH}", 'INT');
     push @WHERE_RULES,  " date_format(p.date, '%Y-%m')$value ";
   }
-
  # Date intervals
  elsif ($attr->{FROM_DATE}) {
     push @WHERE_RULES, "(date_format(p.date, '%Y-%m-%d')>='$attr->{FROM_DATE}' and date_format(p.date, '%Y-%m-%d')<='$attr->{TO_DATE}')";
@@ -225,7 +222,8 @@ sub list {
   }
 
  if ($attr->{ID}) {
- 	 push @WHERE_RULES, "p.id='$attr->{ID}'";
+ 	 my $value = $self->search_expr("$attr->{ID}", 'INT');
+ 	 push @WHERE_RULES, "p.id$value";
   }
 
  # Show groups
@@ -243,8 +241,6 @@ sub list {
     $WHERE 
     GROUP BY p.id
     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;");
- 
-
 
  $self->{SUM}='0.00';
 
@@ -255,9 +251,8 @@ sub list {
   LEFT JOIN users u ON (u.uid=p.uid)
   LEFT JOIN admins a ON (a.aid=p.aid) $WHERE");
 
- my $ar = $self->{list}->[0];
  ( $self->{TOTAL},
-   $self->{SUM} )= @$ar;
+   $self->{SUM} )= @{ $self->{list}->[0] };
 
  return $list;
 }
@@ -280,8 +275,6 @@ sub reports {
  if ($attr->{GID}) {
    push @WHERE_RULES, "u.gid='$attr->{GID}'";
   }
-
-
 
  if ($attr->{METHODS}) {
     push @WHERE_RULES, "p.method IN ('$attr->{METHODS}') ";
@@ -320,23 +313,22 @@ sub reports {
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
  
   $self->query($db, "SELECT $date, count(*), sum(p.sum) 
-      FROM payments p
+      FROM (payments p)
       LEFT JOIN users u ON (u.uid=p.uid)
       $WHERE 
       GROUP BY 1
       ORDER BY $SORT $DESC;");
 
  my $list = $self->{list}; 
-	
+ 
+
  $self->query($db, "SELECT count(*), sum(p.sum) 
       FROM payments p
       LEFT JOIN users u ON (u.uid=p.uid)
       $WHERE;");
 
- my $a_ref = $self->{list}->[0];
-
  ($self->{TOTAL}, 
-  $self->{SUM}) = @$a_ref;
+  $self->{SUM}) = @{ $self->{list}->[0] };
 
 	
 	return $list;
