@@ -3,20 +3,96 @@
 
 
 
-require Ipn;
-Ipn->import();
-my $Ipn = Ipn->new($db, \%conf);
-my @TT_COLORS = ("$_COLORS[1]", "#80FF80", "#FFFF80", "#BFBFFF");
-
+use Ipn;
+use Ipn_Collector;
 use Dv;
 use Dv_Sessions;
 use Nas;
 use Tariffs;
+use Socket;
 
+my $Ipn      = Ipn->new($db, \%conf);
+my $Ipn_Collector  = Ipn_Collector->new($db, \%conf);
 my $sessions = Dv_Sessions->new($db, $admin, \%conf);
-my $tariffs = Tariffs->new($db, \%conf, $admin);
-my $users = Users->new($db, $admin, \%conf); 
+my $tariffs  = Tariffs->new($db, \%conf, $admin);
+my $users    = Users->new($db, $admin, \%conf); 
 
+my @TT_COLORS = ("$_COLORS[1]", "#80FF80", "#FFFF80", "#BFBFFF");
+
+#**********************************************************
+# Whow sessions from log
+# ipn_detail()
+#**********************************************************
+sub ipn_detail {
+
+  $FORM{DST_IP_GROUP} = ' checked' if($FORM{DST_IP_GROUP});
+  $FORM{SRC_IP_GROUP} = ' checked' if($FORM{SRC_IP_GROUP});
+  $FORM{RESOLVE} = ' checked'       if($FORM{RESOLVE});
+
+  form_search({ SEARCH_FORM    => $html->tpl_show(_include('ipn_detail_search', 'Ipn'), 
+  	                                  { %$Ipn, %FORM }, 
+  	                                  { notprint => 1 }),
+ 	              HIDDEN_FIELDS => { UID => $FORM{UID}  }
+  	          });
+
+ 
+
+ if (! $FORM{sort}) {
+ 	 $LIST_PARAMS{SORT}=1;
+ 	 $LIST_PARAMS{DESC}='DESC';
+  }
+if (defined($FORM{search})) {
+  $pages_qs .= "&search=1&FROM_D=$FORM{FROM_D}&FROM_M=$FORM{FROM_M}&FROM_Y=$FORM{FROM_Y}&toD=$FORM{TO_D}&TO_M=$FORM{TO_M}&TO_Y=$FORM{TO_Y}";
+  $FORM{FROM_M}++;
+  $FORM{TO_M}++;
+  $FORM{FROM_M} = sprintf("%.2d", $FORM{FROM_M}++);
+  $FORM{TO_M}   = sprintf("%.2d", $FORM{TO_M}++);
+  $LIST_PARAMS{INTERVAL} = "$FORM{FROM_Y}-$FORM{FROM_M}-$FORM{FROM_D}/$FORM{TO_Y}-$FORM{TO_M}-$FORM{TO_D}";
+ }
+
+
+ my $list = $Ipn->user_detail({ UID=> $user->{UID}, %LIST_PARAMS });
+
+ my $table = $html->table( { caption     => "$_DETAIL",
+	                           width       => '100%',
+                             title       => ["$_BEGIN", "$_END", "SRC_ADDR", "SRC_PORT", "DST_ADDR", "DST_PORT",
+                               "PROTOCOL", "$_SIZE", 'NAS' ],
+                             cols_align  => ['left', 'right', 'right', 'right', 'right', 'right', 'right'],
+                             pages       => $Ipn->{TOTAL},
+                             qs          => $pages_qs
+                           });
+
+
+
+ foreach my $line  (@$list) {
+   my $src_name;
+   my $dst_name;
+
+   if ($FORM{RESOLVE}) {
+     $src_name = gethostbyaddr(inet_aton("$line->[2]"), AF_INET);
+     $dst_name = gethostbyaddr($iaddr = inet_aton("$line->[4]"), AF_INET);
+    }
+  
+   $table->addrow($line->[0], 
+   $line->[1], 
+   $src_name || $line->[2], 
+   $line->[3], 
+   $dst_name || $line->[4], 
+   $line->[5], 
+   $line->[6], 
+   $line->[7], 
+   $line->[8]
+   );
+  }
+  print $table->show();
+
+  $table = $html->table( { width    => '100%',
+                         cols_align => ['right', 'right'],
+                         rows       => [ ["$_TOTAL:", "<b>$Ipn->{TOTAL}</b>" ] ]
+                       } );
+  print $table->show();
+
+}
 
 #**********************************************************
 # Whow sessions from log
@@ -164,7 +240,7 @@ else {
 
       $totals{IN}{$stats_array[$i][1]}  += $stats_array[$i][3];
       $totals{OUT}{$stats_array[$i][1]} += $stats_array[$i][4];
-      $totals{SUM}{$stats_array[$i][1]} += $stats_array[$i][5];
+      $totals{SUM}{$stats_array[$i][1]} = $totals{SUM}{$stats_array[$i][1]} + $stats_array[$i][5] if ($stats_array[$i][5] > 0);
 
       $user_total_in+=$stats_array[$i][3];
       $user_total_out+=$stats_array[$i][4];
@@ -226,7 +302,7 @@ $table = $html->table( { width      => '100%',
  	                 int2byte($totals{IN}{$tt}),
  	                 int2byte($totals{OUT}{$tt}),
  	                 int2byte($totals{OUT}{$tt} + $totals{IN}{$tt}),
- 	                 $totals{SUM}{$tt}
+ 	                 sprintf("%.6f", $totals{SUM}{$tt})
  	                );
    }
 
@@ -281,7 +357,7 @@ if (! $list) {
   }
 
   my $nas = Nas->new($db);
-  my $nas_list = $nas->list({ %LIST_PARAMS });
+  my $nas_list = $nas->list({ %LIST_PARAMS, PAGE_ROWS => 1000 });
 
   my $SEL_NAS = "<select name=NAS_ID>\n";
      $SEL_NAS .= "<option value=''>$_ALL\n";
@@ -699,9 +775,9 @@ else {
 
 
      
-     $totals{TRAFFIC_IN}+=$line->[2];
-     $totals{TRAFFIC_OUT}+=$line->[3];
-     $totals{SUM}+=$line->[4];
+     $totals{TRAFFIC_IN} += $line->[2];
+     $totals{TRAFFIC_OUT}+= $line->[3];
+     $totals{SUM}        += $line->[4];
    
    }
 
@@ -1272,7 +1348,7 @@ while(my($k, $v) = each %ORDERS ) {
 
 
 print "</select>
-<input type=submit name=SHOW value='$_SHOW'>";
+<input type=submit name=SHOW value='$_SHOW'>\n";
 
 
 my $list = $sessions->detail_list({ %LIST_PARAMS, %FORM });
@@ -1305,11 +1381,10 @@ print $table->show();
 
 
 	
-	
+#**********************************************************
+#
+#**********************************************************
 sub ipn_form_user {
-	
-	
-	
   $Ipn->{LNG_ACTION}="$_ACTIVATE";
 	$Ipn->{ACTION}='Active';
 
@@ -1322,13 +1397,16 @@ sub ipn_form_user {
 #
 #**********************************************************
 sub ipn_user_activate {
-
-
   my $nas  = Nas->new($db, \%conf);	
 
   my $ip = '0.0.0.0';
   my $IP_INPUT = '';
+
+  my $Dv       = Dv->new($db, $admin, \%conf);  
+  $Dv->info( $LIST_PARAMS{UID} );
+  
   if (! $user->{UID})  {
+     $ENV{REMOTE_ADDR} = $Dv->{IP} if ($Dv->{IP} ne '0.0.0.0');
      $IP_INPUT = $html->form_input('REMOTE_ADDR', "$ENV{REMOTE_ADDR}", { OUTPUT2RETURN => 1});
 
      $ip = ($FORM{REMOTE_ADDR}) ? $FORM{REMOTE_ADDR} : $ENV{REMOTE_ADDR};
@@ -1358,7 +1436,7 @@ sub ipn_user_activate {
   if ($nas_id < 1) {
   	$html->message('err', $_ERROR, "$_NOT_EXIST IP '$ip'");
   	if (! $user->{UID}) {
-      $IP_INPUT .= $html->form_select('NAS_ID', 
+      $IP_INPUT .= " NAS: ". $html->form_select('NAS_ID', 
                                     { 
  	                                   SELECTED          => $nas_id,
  	                                   SEL_MULTI_ARRAY   => $nas->list(),
@@ -1371,8 +1449,35 @@ sub ipn_user_activate {
      }
    }
 
+  if($FORM{CONNECT_INFO} && $FORM{CONNECT_INFO} =~ /Amon/) {
+    $FORM{CONNECT_INFO} = time();
+    if ($ENV{HTTP_USER_AGENT} =~ /^AMon \[(\S+)\]/) {
+   	  $FORM{CONNECT_INFO} .= ":".$1;
+     }
+   }
+  else {
+  	$FORM{CONNECT_INFO} = '';
+   }
 
-  if ($FORM{ACTIVE}) {
+  if ($FORM{ALIVE}) {
+  	if ($FORM{REMOTE_ADDR} !~ /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/) {
+  		$html->message('err', $_ERROR, "$ERR_WRONG_DATA");
+  		return 0;
+  	 }
+
+  	$Ipn->online_alive({ %FORM, LOGIN => $LIST_PARAMS{LOGIN} });
+  	if ($Ipn->{TOTAL} < 1) {
+  		$html->message('err', $_ERROR, "$_NOT_ACTIVE");
+  	 }
+  	elsif ($ipn->{errno}) {
+  		$html->message('err', $_ERROR, "[$Ipn->{errno}] $err_strs{$Ipn->{errno}}");
+  	 }
+  	else {
+  		$html->message('info', $_INFO, "ALIVED");
+  	 } 
+  	return 0;
+   }
+  elsif ($FORM{ACTIVE}) {
     use Auth;
     if (int($nas_id) < 1) {
       $html->message('err', $_ERROR, "Unknown NAS");  	
@@ -1380,15 +1485,18 @@ sub ipn_user_activate {
     else {
       my $user  = $users->info( $LIST_PARAMS{UID} );
       $nas->info({ NAS_ID => $nas_id });
-      my %DATA = (ACCT_STATUS_TYPE  => 1, 
-                  USER_NAME         => $user->{LOGIN}, 
-                  SESSION_START     => 0, 
-                  ACCT_SESSION_ID   => mk_unique_value(10), 
-                  FRAMED_IP_ADDRESS => $ip, 
-                  CONNECT_INFO      => '', 
-                  NAS_ID            => $nas_id,
-                  NAS_IP_ADDRESS    => $nas->{NAS_IP},
-                  TP                => 0 );
+      
+      my %DATA = (ACCT_STATUS_TYPE   => 1, 
+                  USER_NAME          => $user->{LOGIN}, 
+                  SESSION_START      => 0, 
+                  ACCT_SESSION_ID    => mk_unique_value(10), 
+                  FRAMED_IP_ADDRESS  => $ip, 
+                  NAS_ID             => $nas_id,
+                  NAS_IP_ADDRESS     => $nas->{NAS_IP},
+                  TP                 => 0,
+                  CALLING_STATION_ID => $ip,
+                  CONNECT_INFO       => $FORM{CONNECT_INFO}
+                 );
 
     
     
@@ -1412,7 +1520,7 @@ sub ipn_user_activate {
   	 	                   FRAMED_IP_ADDRESS     => $ip,
   	 	                   ACCT_TERMINATE_CAUSE  => 1
   	 	         	 	     });
-     $html->message('info', $_INFO, "$_DISABLE");
+     $html->message('info', $_INFO, "$_DISABLE IP: $ip");
    }
 
 #  my $nas_list = $html->form_select('NAS_ID', 
@@ -1430,7 +1538,6 @@ sub ipn_user_activate {
   my %ACTION = ( ACTIVE => "$_ACTIVATE" ); 
   my %HIDDEN = ();
 #  my $nas = '';
-
 
   my $table;
   my $online_session = '';
@@ -1464,7 +1571,7 @@ sub ipn_user_activate {
           } 
         }       
        else {
-       	  $html->message('err', $_ERROR, "THIS IP IS CURRENTLY IN USE");
+       	  $html->message('err', $_ERROR, "$_IP_IN_USE");
        	  return 0;
         }
     }
@@ -1474,7 +1581,7 @@ sub ipn_user_activate {
        $online_ip,  
        $line->[4], 
        int2byte($line->[5]), int2byte($line->[6]),
-       $html->button("$_HANGUP", "index=$index&UID=$LIST_PARAMS{UID}&LOGOUT=1&SESSION_ID=$line->[21]")
+       $html->button("$_HANGUP", "index=$index&UID=$LIST_PARAMS{UID}&LOGOUT=1&SESSION_ID=$line->[21]&REMOTE_ADDR=$online_ip")
        )  if ($line->[11] == $LIST_PARAMS{UID} );
     }
 
@@ -1485,7 +1592,8 @@ sub ipn_user_activate {
    }
 
 
-  $HIDDEN{sid}=$html->{SID} if ($html->{SID});
+$HIDDEN{sid}=$html->{SID} if ($html->{SID});
+$HIDDEN{ACCT_INTERIUM_INTERVAL}=120;
 
 print $html->form_main({ CONTENT => "IP: $ip $IP_INPUT (". $nas_id .") ", 
                      HIDDEN  => { index   => "$index",
@@ -1496,11 +1604,7 @@ print $html->form_main({ CONTENT => "IP: $ip $IP_INPUT (". $nas_id .") ",
 	                 });
 
 print $online_session;
-
-
 }
-
-
 
 #**********************************************************
 # ipn_change_status
@@ -1548,7 +1652,8 @@ sub ipn_change_status {
 	 }
 	elsif ($STATUS eq 'HANGUP') {
      my $ACCT_TERMINATE_CAUSE = $attr->{ACCT_TERMINATE_CAUSE} || 6;
-     $Ipn->acct_stop({ %FORM, ACCT_TERMINATE_CAUSE => $ACCT_TERMINATE_CAUSE });
+     $Ipn->acct_stop({ %FORM, 
+     	                 ACCT_TERMINATE_CAUSE => $ACCT_TERMINATE_CAUSE });
 
      $cmd = $conf{IPN_FW_STOP_RULE};
 
@@ -1572,6 +1677,7 @@ sub ipn_change_status {
   $cmd =~ s/\%NUM/$rule_num/g;
   $cmd =~ s/\%SPEED_IN/$speed_in/g if ($speed_in > 0);
   $cmd =~ s/\%SPEED_OUT/$speed_out/g if ($speed_out > 0);
+  $cmd =~ s/\%LOGIN/$USER_NAME/g;
   #print "$cmd";
 
   system($cmd);
@@ -1863,7 +1969,7 @@ sub ipn_user_add {
                    SESSION_START     => 0, 
                    ACCT_SESSION_ID   => mk_unique_value(10), 
                    FRAMED_IP_ADDRESS => $FORM{IP}, 
-                   CONNECT_INFO      => '', 
+                   CONNECT_INFO      => 'ADMIN_ACTIVATE',
                    NAS_ID            => $FORM{NAS_ID},
                    TP                => $FORM{TP_ID},
                    NAS_PORT          => $comp_number );
@@ -2017,7 +2123,7 @@ my @ARR = ( ["IP / HOST / URL:", $html->form_input('IP', "$ip", { OUTPUT2RETURN 
 		if ($ip =~ /^http:\/\/([0-9a-z\-\.]+)\/?/i || $ip =~ /(\S+)\//i) {
       $ip = $1;
 		 }
-    use Socket;
+
 		use Sys::Hostname;
 		if (my $addr = gethostbyname($ip)) {
 		  $ip = inet_ntoa(scalar($addr));
@@ -2099,8 +2205,8 @@ my $table = $html->table( { width       => '400',
    }
 
 	
-	
-	$Ipn->get_zone({ TP_INTERVAL => $TP_INTERVAL });
+  $Ipn_Collector->get_zone({ TP_INTERVAL => $TP_INTERVAL });
+
 
 
   $table = $html->table( { width       => '100%',
@@ -2113,17 +2219,17 @@ my $table = $html->table( { width       => '400',
 
 	my $zone = -1;
 
-	foreach my $zone_id (@{ $Ipn->{ZONES_IDS} }) {
-	  if(ip_in_zone(ip2int($ip), $port, $zone_id, $Ipn->{ZONES})) {
+	foreach my $zone_id (@{ $Ipn_Collector->{ZONES_IDS} }) {
+	  if( ip_in_zone(ip2int($ip), $port, $zone_id, $Ipn_Collector->{ZONES} ) ) {
 		  $zone = $zone_id;
       last;
 	   };
 	 }
 
-	foreach my $line ( @{ $Ipn->{ZONES_IDS} }) {
+	foreach my $line ( @{ $Ipn_Collector->{ZONES_IDS} }) {
 		$last_byte = 0;
 		my $networks = '';
-		foreach my $address ( @{ $Ipn->{ZONES}{$line}{A} } ){
+		foreach my $address ( @{ $Ipn_Collector->{ZONES}{$line}{A} } ){
 			my $adr_hash = \%{ $address };
 
       my $a_ip  = $$adr_hash{'IP'}; 
@@ -2139,9 +2245,9 @@ my $table = $html->table( { width       => '400',
     $table->addrow($line, 
       $tt_names{$line},
       $networks,
-      $Ipn->{ZONES}{$line}{PREPAID_TSUM},
-      $Ipn->{ZONES}{$line}{PriceIn},
-      $Ipn->{ZONES}{$line}{PriceOut},
+      $Ipn_Collector->{ZONES}{$line}{PREPAID_TSUM},
+      $Ipn_Collector->{ZONES}{$line}{PriceIn},
+      $Ipn_Collector->{ZONES}{$line}{PriceOut},
       $last_byte);
 	}
 	
@@ -2207,9 +2313,9 @@ if ($FORM{RECALCULATE}) {
 
      # Work with prepaid traffic
      if ( $prepaid > 0 ) {
-     	  my($used_traffic) = $Ipn->traffic_user_get({ UID      => $LIST_PARAMS{UID}, 
-     	  	                                           INTERVAL => "0000-00-00/$line->[0]"   
-     	  	                                         });
+     	  my($used_traffic) = $Ipn_collector->traffic_user_get({ UID      => $LIST_PARAMS{UID}, 
+     	  	                                                     INTERVAL => "0000-00-00/$line->[0]"   
+     	  	                                                   });
         my $online  = 0;
 
         if($OCTETS_DIRECTION == 1) {
@@ -2260,7 +2366,7 @@ if ($FORM{RECALCULATE}) {
  	      $sum_in = $in / $conf{MB_SIZE} * $price_in if ($price_in > 0); 
         $sum_out = $out / $conf{MB_SIZE} * $price_out if ($price_out > 0);
 
-        my $recalculate_sum = $sum_in + $sum_out;
+        $recalculate_sum = $sum_in + $sum_out;
 
     	 $table->addrow($line->[0], 
     	   $line->[1], 
@@ -2339,12 +2445,31 @@ print $html->form_main({ CONTENT => $table->show(),
                         	            UID     => $LIST_PARAMS{UID},
                      	           }
     	                 });
+}
 
 
+#**********************************************************
+# ipn_detail_rotate
+#**********************************************************
+sub ipn_detail_rotate {
+	my ($attr) = @_;
+  my $debug = $attr->{DEBUG} || 0;
+  my $debug_output = '';
+  
+  # Clean s_detail table
+  my ($y, $m, $d)=split(/-/, $ADMIN_REPORT{DATE}, 3);
 
+  if ($d == 1 && $conf{IPN_DETAIL_CLEAN_PERIOD}) {
+    $DEBUG .= "Make log rotate\n" if ($debug > 0);
 
+    $Ipn->ipn_detail_rotate({ 
+    	                        # TYPES  => [ 'SESSION_DETAILS', 'SESSION_INTERVALS'],
+  	                          PERIOD => $conf{IPN_DETAIL_CLEAN_PERIOD} });
+    $debug_output = "Make IPN details rotate\n" if ($debug > 0);
+   }
 
-
+  $DEBUG .= $debug_output;
+  return $debug_output;
 }
 
 

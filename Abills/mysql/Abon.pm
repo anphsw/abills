@@ -70,14 +70,12 @@ sub tariff_info {
      return $self;
    }
 
-  my $ar = $self->{list}->[0];
-
   ($self->{NAME},
    $self->{PERIOD},
    $self->{SUM}, 
    $self->{PAYMENT_TYPE},
    $self->{ABON_ID}
-  )= @$ar;
+  )= @{ $self->{list}->[0] };
   
 
   
@@ -171,7 +169,6 @@ sub tariff_del {
 sub tariff_list {
  my $self = shift;
  my ($attr) = @_;
-
 # undef @WHERE_RULES;
 # push @WHERE_RULES, "u.uid = service.uid";
 # $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
@@ -210,9 +207,17 @@ sub user_list {
     push @WHERE_RULES, "u.id LIKE '$attr->{LOGIN_EXPR}'";
   }
 
+ if ($attr->{GIDS}) {
+    push @WHERE_RULES, "u.gid IN ($attr->{GIDS})";
+  }
+ elsif ($attr->{GID}) {
+    push @WHERE_RULES, "u.gid='$attr->{GID}'";
+  }
+
+
  if ($attr->{ABON_ID}) {
  	 push @WHERE_RULES, "at.id='$attr->{ABON_ID}'";
- }
+  }
 
  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
  

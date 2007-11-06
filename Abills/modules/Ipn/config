@@ -17,6 +17,10 @@
                    "32:30:IPFW:ipn_ipfw:"                    => 5
                    );
 
+if ($conf{IPN_DETAIL}) {
+  $FUNCTIONS_LIST{"14:10:$_DETAIL:ipn_detail:UID"}=20;
+}
+
 %USER_FUNCTION_LIST = (
                        );
 
@@ -31,8 +35,9 @@ if ($conf{IPN_CLUBMONITOR}) {
   $FUNCTIONS_LIST{"51:50:$_ADD:ipn_user_add:"}           = 8;
 }
 
-#%PERIODIC = (daily   => 'dv_daily_fees',
-#             monthly => 'dv_monthly_fees');
-#
+%PERIODIC = (
+             monthly => [ 'ipn_detail_rotate' ]
+            );
+
 
 1

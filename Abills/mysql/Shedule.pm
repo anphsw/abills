@@ -135,6 +135,14 @@ sub list {
  if ($attr->{MODULE}) {
     push @WHERE_RULES, "s.module='$attr->{MODULE}'";
   }
+
+ # Show groups
+ if ($attr->{GIDS}) {
+   push @WHERE_RULES, "u.gid IN ($attr->{GIDS})"; 
+  }
+ elsif ($attr->{GID}) {
+   push @WHERE_RULES, "u.gid='$attr->{GID}'"; 
+  }
  
 
 

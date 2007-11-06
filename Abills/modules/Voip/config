@@ -26,7 +26,8 @@ $web_interface    = 1;
                    );
 
 %USER_FUNCTION_LIST = ("01:0:VoIP:voip_user_info:"           => 0,
-                       "03:1:$_STATS:voip_user_stats:"       => 0
+                       "02:1:$_STATS:voip_user_stats:"       => 0,
+                       "03:1:$_ROUTES:voip_user_routes:"     => 0
                       );
 
 %PERIODIC = ( report  => [ 'voip_report' ]);

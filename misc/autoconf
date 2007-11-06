@@ -4,6 +4,7 @@
 
 use vars  qw(%RAD %conf $db %AUTH
  %RAD_REQUEST %RAD_REPLY %RAD_CHECK
+ $DATE $TIME
  %auth_mod
  $begin_time
  $nas);
@@ -25,6 +26,9 @@ if ($ARGV->{debug}) {
   print "Debug mode: $debug\n";
 }
 
+$conf{DATE}=$DATE;
+$conf{TIME}=$TIME;
+$conf{OS}=`uname`;
 
 if ($ARGV->{help}) {
   print "Auto configuration script
@@ -33,12 +37,16 @@ if ($ARGV->{help}) {
   -f                      - Force mode. Rewrite exists files withot prompt
   PARAMS=                 - Extended parameters
     FREEBSD               - OS FreeBSD make startup config
+  CHANGE_PATH             - Change path for instalation files.
   
   FILES                   - Configure only selected files
   debug                   - Debug level
                             1 short debug
                             2 full debug
-                            3 emulate mode\n";
+                            3 emulate mode
+  INFORMATION:
+   OS: $conf{OS}
+  \n";
  }
 elsif ($ARGV->{PROGRAMS}) {
   my @programs = split(/,/, $ARGV->{PROGRAMS});
@@ -67,8 +75,8 @@ sub check_install {
  my @files = ();
  open(FILE, "< $install_file") || die "Can't open file '$install_file'  $!";
    while(<FILE>) {
-   	 next if (/^#/);
- 	   push @files, $_;
+      next if (/^#/);
+      push @files, $_;
     }
  close(FILE);
 
@@ -76,9 +84,9 @@ sub check_install {
  my %DEFAULT_DESCRIBE = ();
 
  foreach my $file (@files) {
- 	
+ 
  	my $config_body = '';
-  my $type   = '';
+	my $type   = '';
  	my $folder = '';
  	my $dest   = '';
  	#Reg expression
@@ -125,7 +133,7 @@ sub check_install {
     next;
    } 
  	elsif ($file =~ /^:(\S{0,100}):(.+) (>{1,2}) +\[(\S+)\]\/(.+)/) {
- 		my $param  = $1;
+ 		my $params  = $1;
  		#my $param_value = $2;
  		my $param_name = '' ;
  		my $param_value = '';
@@ -136,17 +144,27 @@ sub check_install {
     
     $value =~ s/\\n/\n/g;
     
-
-    if ($param) {
-      ($param_name, $param_value)=split(/=/, $param, 2);
+    my %PARAMS_HASH =  ();
+    if ($params) {
+      my @params_arr = split(/,/, $params);
+      foreach my $param ( @params_arr ) {
+        ($param_name, $param_value)=split(/=/, $param, 2);
+        $PARAMS_HASH{$param_name}=$param_value;
+       }
      }
 
-    print "$param_name | $param_value | $value | $type | $folder | $dest\n" if ($debug > 4);
+    
     
     if ((defined($ARGV->{$param_name}) && $ARGV->{$param_name} eq $param_value)) {
-      $config_body = "$value\n";
+      #If result is file
+      if ($value =~ /^FILE=(\S+)/) {
+      	$config_body = get_file($Bin."/$program/".$1);
+       }
+      else {
+      	$config_body = "$value\n";
+       }
      }  		
-    elsif (! $param) {
+    elsif (! $params) {
     	$config_body = "$value\n";
      }
     else {
@@ -160,18 +178,11 @@ sub check_install {
  	  $folder = $3;
  	  $dest   = $4;
 
-    $config = $Bin."/$program/$config";
-    print "$config $type $folder/$dest\n" if ($debug > 0);
-    #Open local config
-    open(FILE, "< $config") || die "Can't open file '$config'  $!";
-      while(<FILE>) {
- 	     $config_body .= $_;
-      }
-    close(FILE);
-    }
-   else {
-   	 next;
-    }
+    $config_body = get_file($Bin."/$program/$config");
+   }
+  else {
+ 	  next;
+   }
 
    
    while($config_body =~ /%([A-Z\_0-9]+)%/g) {
@@ -227,6 +238,9 @@ sub check_install {
         
         if($dest_body =~ m/$check_body/sg ) {
         	print "File: $folder/$dest\n Skipp. Parameters exists\n\n";
+        	if ($debug == 2) {
+        	  print $config_body;
+        	 }
  	      	next;
          }
        }
@@ -247,6 +261,23 @@ sub check_install {
 
 }
 
+#********************************************************************
+# Get file content
+#********************************************************************
+sub get_file {
+	my ($file, $attr)=@_;
+	
+  print "Get content: $file\n" if ($debug > 0);
+  my $content = '';
+  #Open local config
+  open(FILE, "< $file") || die "Can't open file '$file'  $!";
+    while(<FILE>) {
+      $content .= $_;
+     }
+  close(FILE);
+
+	return $content;
+}
 
 #********************************************************************
 # confirm_yn($message, $confirm)
@@ -278,3 +309,4 @@ sub confirm_yn {
         warn "Wrong value. Enter again!\a\n";
       }
 }
+

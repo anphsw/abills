@@ -10,8 +10,7 @@ use Exporter;
 $VERSION = 2.00;
 @ISA = ('Exporter');
 
-@EXPORT = qw(
-);
+@EXPORT = qw();
 
 @EXPORT_OK = ();
 %EXPORT_TAGS = ();
@@ -45,7 +44,11 @@ my %FIELDS = ( TP_ID            => 'id',
                FILTER_ID        => 'filter_id',
                PAYMENT_TYPE     => 'payment_type',
                MIN_SESSION_COST => 'min_session_cost',
-               RAD_PAIRS        => 'rad_pairs'
+               RAD_PAIRS        => 'rad_pairs',
+               TRAFFIC_TRANSFER_PERIOD => 'traffic_transfer_period',
+               NEG_DEPOSIT_FILTER_ID   => 'neg_deposit_filter_id',
+               TP_GID           => 'gid',
+               MODULE           => 'module'
              );
 
 #**********************************************************
@@ -57,7 +60,8 @@ sub new {
   my $self = { };
   bless($self, $class);
 
-  #$self->{debug}=1;
+#  $self->{debug}=1;
+  
   return $self;
 }
 
@@ -139,7 +143,8 @@ sub ti_change {
     TI_ID    => 'id'
    );
 
-	$self->changes($admin, { CHANGE_PARAM => 'TI_ID',
+	$self->changes($admin, 
+	               { CHANGE_PARAM => 'TI_ID',
 		               TABLE        => 'intervals',
 		               FIELDS       => \%FIELDS,
 		               OLD_INFO     => $self->ti_info($ti_id),
@@ -197,11 +202,11 @@ sub  ti_defaults {
 	my $self = shift;
 	
 	my %TI_DEFAULTS = (
-            TI_DAY => 0,
+            TI_DAY   => 0,
             TI_BEGIN => '00:00:00',
-            TI_END => '24:00:00',
+            TI_END   => '24:00:00',
     	      TI_TARIF => 0
-    );
+           );
 	
   while(my($k, $v) = each %TI_DEFAULTS) {
     $self->{$k}=$v;
@@ -210,6 +215,135 @@ sub  ti_defaults {
 	return $self;
 }
 
+
+#**********************************************************
+# Time_intervals
+# ti_add
+#**********************************************************
+sub tp_group_del {
+	my $self = shift;
+	my ($id) = @_;
+	$self->query($db, "DELETE FROM tp_groups WHERE id='$id';", 'do');
+	return $self;
+}
+
+
+#**********************************************************
+# Time_intervals
+# tp_group_add
+#**********************************************************
+sub tp_group_add {
+	my $self = shift;
+	my ($attr) = @_;
+
+	$self->query($db, "INSERT INTO tp_groups (id, name, user_chg_tp)
+     values ('$attr->{GID}', '$attr->{NAME}', '$attr->{USER_CHG_TP}');", 'do');
+	return $self;
+}
+
+#**********************************************************
+# Time_intervals  list
+# tp_group_list
+#**********************************************************
+sub tp_group_list {
+	my $self = shift;
+	my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : "2, 3";
+
+  $self->query($db, "SELECT tg.id, tg.name, tg.user_chg_tp, count(tp.id)
+   FROM tp_groups tg
+   LEFT JOIN tarif_plans tp ON (tg.id=tp.gid)
+   GROUP BY tg.id
+   ORDER BY $SORT $DESC");
+
+	return $self->{list};
+}
+
+#**********************************************************
+# Time intervals change
+#**********************************************************
+sub tp_group_change {
+  my $self = shift;
+  my ($attr) = @_;
+  
+  
+  $attr->{USER_CHG_TP} = (defined($attr->{USER_CHG_TP}) && $attr->{USER_CHG_TP} == 1 ) ? 1 : 0;
+  
+  
+  %DATA = $self->get_data($attr); 
+
+  
+
+  my %FIELDS = (
+    ID          => 'id', 
+    NAME        => 'name', 
+    USER_CHG_TP => 'user_chg_tp',
+    GID         => 'id'
+   );
+
+	$self->changes($admin, 
+	               { CHANGE_PARAM => 'ID',
+		               TABLE        => 'tp_groups',
+		               FIELDS       => \%FIELDS,
+		               OLD_INFO     => $self->tp_group_info($DATA{ID}),
+		               DATA         => $attr
+		              } );
+
+
+
+	$self->tp_group_info($DATA{GID});
+#  $admin->action_add(0, "$CHANGES_LOG");
+	return $self;
+}
+
+
+#**********************************************************
+# Time_intervals  info
+# tp_group_info();
+#**********************************************************
+sub tp_group_info {
+	my $self = shift;
+	my ($tp_group_id, $attr) = @_;
+
+  $self->query($db, "SELECT name, user_chg_tp
+    FROM tp_groups 
+    WHERE id='$tp_group_id';");
+
+  if ($self->{TOTAL} < 1) {
+     $self->{errno} = 2;
+     $self->{errstr} = 'ERROR_NOT_EXIST';
+     return $self;
+   }
+
+
+  $self->{GID}=$tp_group_id;
+  ($self->{NAME}, 
+   $self->{USER_CHG_TP}
+   ) = @{ $self->{list}->[0] };
+
+  return $self;
+}
+
+
+#**********************************************************
+# tp_group_defaults
+#**********************************************************
+sub tp_group_defaults {
+	my $self = shift;
+	
+	my %TG_DEFAULTS = (
+            GID          => 0,
+            NAME        => '',
+    	      USER_CHG_TP => 0
+           );
+
+  while(my($k, $v) = each %TG_DEFAULTS) {
+    $self->{$k}=$v;
+   }	
+	
+	return $self;
+}
 
 #**********************************************************
 # Default values
@@ -241,7 +375,13 @@ sub defaults {
             FILTER_ID            => '',
             PAYMENT_TYPE         => 0,
             MIN_SESSION_COST     => '0.00000',
-            RAD_PAIRS            => ''
+            RAD_PAIRS               => '',
+            TRAFFIC_TRANSFER_PERIOD => 0,
+            NEG_DEPOSUT_FILTER_ID   => '',
+            TP_GID           => 0,
+            MODULE           => ''
+            
+            
          );   
  
   $self = \%DATA;
@@ -258,15 +398,14 @@ sub add {
 
   %DATA = $self->get_data($attr, { default => \%DATA }); 
 
-  #$self->{debug}=1;
-
   $self->query($db, "INSERT INTO tarif_plans (id, hourp, uplimit, name, 
      month_fee, day_fee, reduction_fee, postpaid_fee,
      logins, 
      day_time_limit, week_time_limit,  month_time_limit, 
      day_traf_limit, week_traf_limit,  month_traf_limit,
      activate_price, change_price, credit_tresshold, age, octets_direction,
-     max_session_duration, filter_id, payment_type, min_session_cost, rad_pairs)
+     max_session_duration, filter_id, payment_type, min_session_cost, rad_pairs, 
+     traffic_transfer_period, neg_deposit_filter_id, gid, module)
     values ('$DATA{TP_ID}', '$DATA{TIME_TARIF}', '$DATA{ALERT}', \"$DATA{NAME}\", 
      '$DATA{MONTH_FEE}', '$DATA{DAY_FEE}', '$DATA{REDUCTION_FEE}', '$DATA{POSTPAID_FEE}', 
      '$DATA{SIMULTANEONSLY}', 
@@ -274,7 +413,10 @@ sub add {
      '$DATA{DAY_TRAF_LIMIT}', '$DATA{WEEK_TRAF_LIMIT}',  '$DATA{MONTH_TRAF_LIMIT}',
      '$DATA{ACTIV_PRICE}', '$DATA{CHANGE_PRICE}', '$DATA{CREDIT_TRESSHOLD}', '$DATA{AGE}', '$DATA{OCTETS_DIRECTION}',
      '$DATA{MAX_SESSION_DURATION}', '$DATA{FILTER_ID}',
-     '$DATA{PAYMENT_TYPE}', '$DATA{MIN_SESSION_COST}', '$DATA{RAD_PAIRS}');", 'do' );
+     '$DATA{PAYMENT_TYPE}', '$DATA{MIN_SESSION_COST}', '$DATA{RAD_PAIRS}', 
+     '$DATA{TRAFFIC_TRANSFER_PERIOD}',
+     '$DATA{NEG_DEPOSIT_FILTER_ID}',
+     '$DATA{TP_GID}', '$DATA{MODULE}');", 'do' );
 
 
   return $self;
@@ -299,8 +441,9 @@ sub change {
 	$self->changes($admin, { CHANGE_PARAM => 'TP_ID',
 		                TABLE        => 'tarif_plans',
 		                FIELDS       => \%FIELDS,
-		                OLD_INFO     => $self->info($tp_id),
-		                DATA         => $attr
+		                OLD_INFO     => $self->info($tp_id, { MODULE => $attr->{MODULE} }),
+		                DATA         => $attr,
+		                EXTENDED     => ($attr->{MODULE}) ? "and module='$attr->{MODULE}'" : undef
 		              } );
 
 
@@ -308,8 +451,7 @@ sub change {
   	 $attr->{TP_ID} = $attr->{CHG_TP_ID};
    }
 
-
-  $self->info($attr->{TP_ID});
+  $self->info($attr->{TP_ID}, { MODULE => $attr->{MODULE} });
 	return $self;
 }
 
@@ -318,9 +460,14 @@ sub change {
 #**********************************************************
 sub del {
   my $self = shift;
-  my ($id) = @_;
+  my ($id, $attr) = @_;
   	
-  $self->query($db, "DELETE FROM tarif_plans WHERE id='$id';", 'do');
+  my $WHERE = '';
+  if ($attr->{MODULE}) {
+  	$WHERE = " and module='$attr->{MODULE}'";
+   }
+  	
+  $self->query($db, "DELETE FROM tarif_plans WHERE id='$id'$WHERE;", 'do');
 
  return $self;
 }
@@ -330,7 +477,20 @@ sub del {
 #**********************************************************
 sub info {
   my $self = shift;
-  my ($id) = @_;
+  my ($id, $attr) = @_;
+
+  my @WHERE_RULES = ();
+
+  if ($attr->{MODULE}) {
+    push @WHERE_RULES, "module='$attr->{MODULE}'"; 
+   }
+
+  if (defined($attr->{TP_ID})) {
+    push @WHERE_RULES, "tp.tp_id='$attr->{TP_ID}'"; 
+   }
+
+  my $WHERE = ($#WHERE_RULES > -1) ? " and " . join(' and ', @WHERE_RULES)  : '';
+
 
   $self->query($db, "SELECT id, name, hourp, day_fee, month_fee, reduction_fee, postpaid_fee, logins, age,
       day_time_limit, week_time_limit,  month_time_limit, 
@@ -340,9 +500,12 @@ sub info {
       filter_id,
       payment_type,
       min_session_cost,
-      rad_pairs
+      rad_pairs,
+      traffic_transfer_period,
+      gid,
+      neg_deposit_filter_id
     FROM tarif_plans
-    WHERE id='$id';");
+    WHERE id='$id'$WHERE;");
 
   if ($self->{TOTAL} < 1) {
      $self->{errno} = 2;
@@ -375,7 +538,12 @@ sub info {
    $self->{FILTER_ID},
    $self->{PAYMENT_TYPE},
    $self->{MIN_SESSION_COST},
-   $self->{RAD_PAIRS}
+   $self->{RAD_PAIRS},
+   $self->{TRAFFIC_TRANSFER_PERIOD},
+   $self->{TP_GID},
+   $self->{NEG_DEPOSIT_FILTER_ID},
+   $self->{MODULE},
+   $self->{TP_ID_CTR}
   ) = @{ $self->{list}->[0] };
 
 
@@ -392,8 +560,23 @@ sub list {
 
   $SORT = (defined($attr->{SORT})) ? $attr->{SORT} : 1;
   $DESC = (defined($attr->{DESC})) ? $attr->{DESC} : '';
-  $WHERE = '';
  
+  my @WHERE_RULES = ();
+
+ if (defined($attr->{TP_GID})) {
+   my $value = $self->search_expr($attr->{TP_GID}, 'INT');
+   push @WHERE_RULES, "tp.gid$value"; 
+  }
+
+ if (defined($attr->{MODULE})) {
+   push @WHERE_RULES, "tp.module='$attr->{MODULE}'"; 
+  }
+
+ my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
+
+ 
+ 
+
  $self->query($db, "SELECT tp.id, 
     tp.name, 
     if(sum(i.tarif) is NULL or sum(i.tarif)=0, 0, 1), 
@@ -402,12 +585,15 @@ sub list {
     tp.day_fee, tp.month_fee, 
     tp.logins, 
     tp.age,
+    tp_g.name,
     tp.rad_pairs,
     tp.reduction_fee,
     tp.postpaid_fee
-    FROM tarif_plans tp
+    
+    FROM (tarif_plans tp)
     LEFT JOIN intervals i ON (i.tp_id=tp.id)
     LEFT JOIN trafic_tarifs tt ON (tt.interval_id=i.id)
+    LEFT JOIN tp_groups tp_g ON (tp.gid=tp_g.id)
     $WHERE
     GROUP BY tp.id
     ORDER BY $SORT $DESC;");
@@ -555,7 +741,7 @@ sub  tt_info {
      and id='$attr->{TT_ID}';");
 
   ($self->{TT_ID},
-   $self->{Ti_ID},
+   $self->{TI_ID},
    $self->{TT_PRICE_IN},
    $self->{TT_PRICE_OUT},
    $self->{TT_PREPAID},
@@ -634,8 +820,8 @@ sub  tt_change {
 
 
 #**********************************************************
-# Time_intervals
-# ti_add
+# Nets
+# 
 #**********************************************************
 sub create_nets {
 	my $self = shift;
@@ -643,7 +829,7 @@ sub create_nets {
   my $body = '';
 
 
-  my $list = $self->tt_list({TI_ID => $attr->{TI_ID}});
+  my $list = $self->tt_list({ TI_ID => $attr->{TI_ID} });
 
   $/ = chr(0x0d);
   
@@ -651,13 +837,24 @@ sub create_nets {
      my @n = split(/\n|;/, $line->[7]);
      foreach my $ip (@n) {
        chomp($ip);
-       next if ($ip eq "");
+       $ip =~ s/ //g;
+       if ($ip eq '') {
+       	 next;
+        }
+       elsif ($ip !~ /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}$/) {
+       	 $self->{errno} = 1;
+       	 $self->{errstr} .= "Wrong Exppp date '$ip';\n";
+       	 next;
+        }
+
        $body .= "$ip $line->[0]\n";
      }
    }
 
+
   $self->create_tt_file("$attr->{TI_ID}.nets", "$body");
 }
+
 
 #**********************************************************
 # Time_intervals
@@ -687,7 +884,7 @@ sub tt_del {
 sub create_tt_file {
  my ($self, $file_name, $body) = @_;
  
- open(FILE, ">$CONF->{DV_EXPPP_NETFILES}/$file_name") || die "Can't create file '$CONF->{DV_EXPPP_NETFILES}/$file_name' $!\n";
+ open(FILE, ">$CONF->{DV_EXPPP_NETFILES}/$file_name") || print "Can't create file '$CONF->{DV_EXPPP_NETFILES}/$file_name' $!\n";
    print FILE "$body";
  close(FILE);
 
@@ -712,6 +909,7 @@ sub holidays_list {
   my $format = (defined($attr->{format}) && $attr->{format} eq 'daysofyear') ? "DAYOFYEAR(CONCAT($year, '-', day)) as dayofyear" : 'day';
 
   $self->query($db, "SELECT $format, descr  FROM holidays ORDER BY $SORT $DESC;");
+
 	return $self->{list};
 }
 

@@ -73,7 +73,11 @@ sub mbox_add {
     ENCODE('$DATA{PASSWORD}', '$CONF->{secretkey}'));", 'do');
 	
 	
-  $admin->action_add($DATA{UID}, "ADD $DATA{USERNAME}");
+	$self->domain_info({ MAIL_DOMAIN_ID => $DATA{DOMAIN_ID} });
+	
+	$self->{USER_EMAIL} = $DATA{USERNAME}.'@'.$self->{DOMAIN};
+	
+  $admin->action_add($DATA{UID}, "ADD $DATA{USER_EMAIL}");
 	
 	return $self;
 }
@@ -162,6 +166,7 @@ sub mbox_info {
 	my $self = shift;
 	my ($attr) = @_;
 	
+	$WHERE = ($attr->{UID}) ? "and mb.uid='$attr->{UID}'" : '';
 	
   $self->query($db, "SELECT mb.username,  mb.domain_id, md.domain, mb.descr, mb.maildir, mb.create_date, 
    mb.change_date, 
@@ -175,7 +180,7 @@ sub mbox_info {
    mb.id
    FROM mail_boxes mb
    LEFT JOIN mail_domains md ON  (md.id=mb.domain_id) 
-   WHERE mb.id='$attr->{MBOX_ID}';");
+   WHERE mb.id='$attr->{MBOX_ID}' $WHERE;");
 
   if ($self->{TOTAL} < 1) {
      $self->{errno} = 2;
@@ -199,9 +204,6 @@ sub mbox_info {
    $self->{EXPIRE},
    $self->{MBOX_ID}
   )= @{ $self->{list}->[0] };
-	
-  #$self->{QUOTA} =~ s/C|S//g;
-  #($self->{MAILS_LIMIT}, $self->{BOX_SIZE}) = split(/,/, $self->{QUOTA});
 
 	
 	return $self;
@@ -219,14 +221,23 @@ sub mbox_list {
  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
+ @WHERE_RULES = ();
+
  if (defined($attr->{UID})) {
- 	  $WHERE .= ($WHERE ne '') ?  " and mb.uid='$attr->{UID}' " : "WHERE mb.uid='$attr->{UID}' ";
+ 	  push @WHERE_RULES, "mb.uid='$attr->{UID}'";
   }
- 
  if ($attr->{FIRST_LETTER}) {
-    $WHERE .= ($WHERE ne '') ?  " and mb.username LIKE '$attr->{FIRST_LETTER}%' " : "WHERE mb.username LIKE '$attr->{FIRST_LETTER}%' ";
+    push @WHERE_RULES, "mb.username LIKE '$attr->{FIRST_LETTER}%'";
   }
-	
+ # Show groups
+ if ($attr->{GIDS}) {
+   push @WHERE_RULES, "u.gid IN ($attr->{GIDS})"; 
+  }
+ elsif ($attr->{GID}) {
+   push @WHERE_RULES, "u.gid='$attr->{GID}'"; 
+  }
+
+	my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
 	
 	$self->query($db, "SELECT mb.username, md.domain, u.id, mb.descr, mb.mails_limit, 
 	      mb.box_size,
@@ -352,6 +363,7 @@ sub domain_list {
 	my $self = shift;
 	my ($attr) = @_;
 
+ 
  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
@@ -480,6 +492,9 @@ sub alias_info {
 sub alias_list {
 	my $self = shift;
 	my ($attr) = @_;
+
+	@WHERE_RULES = ();
+	$WHERE = '';
 	
 	$self->query($db, "SELECT ma.address, ma.goto, ma.comments, ma.status, ma.create_date, 
 	    ma.change_date, ma.id
@@ -492,7 +507,7 @@ sub alias_list {
 
   my $list = $self->{list};
 
-  if ($self->{TOTAL} >= $attr->{PAGE_ROWS}) {
+  if ($self->{TOTAL} >= $attr->{PAGE_ROWS} || $PG > 0) {
     $self->query($db, "SELECT count(*) FROM mail_aliases $WHERE");
     ($self->{TOTAL}) = @{ $self->{list}->[0] };
    }
@@ -609,6 +624,8 @@ sub access_list {
 	my $self = shift;
 	my ($attr) = @_;
 	
+	$WHERE = '';
+	
 	$self->query($db, "SELECT pattern, action, comments, status, change_date, id
         FROM mail_access
         $WHERE
@@ -715,6 +732,7 @@ sub transport_list {
 	my $self = shift;
 	my ($attr) = @_;
 	
+	$WHERE = '';
 	
 	$self->query($db, "SELECT domain, transport, comments, change_date, id
         FROM mail_transport
@@ -726,7 +744,7 @@ sub transport_list {
 
   my $list = $self->{list};
 
-  if ($self->{TOTAL} >= $attr->{PAGE_ROWS}) {
+  if ($self->{TOTAL} >= $attr->{PAGE_ROWS} || $PG > 0) {
     $self->query($db, "SELECT count(*) FROM mail_transport $WHERE");
     ($self->{TOTAL}) = @{ $self->{list}->[0] };
    }
@@ -954,8 +972,6 @@ sub spam_awl_list {
 
 	
  @WHERE_RULES = (); 
- $WHERE = '';
- 
  
  if ($attr->{USER_NAME}) {
     $attr->{USER_NAME} =~ s/\*/\%/ig;
@@ -977,7 +993,7 @@ sub spam_awl_list {
     push @WHERE_RULES, "count$value";
   }
 
- $WHERE = "WHERE " . join(' and ', @WHERE_RULES) if($#WHERE_RULES > -1);
+ $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
  	
  $self->query($db, "SELECT username, email, ip, count, totscore
         FROM mail_awl

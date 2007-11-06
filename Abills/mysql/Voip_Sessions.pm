@@ -277,7 +277,6 @@ sub session_detail {
      return $self;
    }
 
-  my $ar = $self->{list}->[0];
 
   ($self->{START}, 
    $self->{STOP}, 
@@ -304,7 +303,7 @@ sub session_detail {
 
    $self->{UID}, 
    $self->{SESSION_ID}
-    )= @$ar;
+    )= @{ $self->{list}->[0] } ;
 
 #   $self->{UID} = $attr->{UID};
 #   $self->{SESSION_ID} = $attr->{SESSION_ID};
@@ -321,53 +320,6 @@ sub session_detail {
  return $self;
 }
 
-#**********************************************************
-# detail_list()
-#**********************************************************
-sub detail_list {
-	my $self = shift;
-	my ($attr) = @_;
-
- my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
- my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
- my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
- my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
-
-	
-	my $lupdate;
-	
-if ($attr->{PERIOD} eq 'days') {
-  $lupdate = "DATE_FORMAT(FROM_UNIXTIME(last_update), '%Y-%m-%d')";	
-}
-elsif($attr->{PERIOD} eq 'hours') {
-  $lupdate = "DATE_FORMAT(FROM_UNIXTIME(last_update), '%Y-%m-%d %H')";	
-}
-else {
-  $lupdate = "FROM_UNIXTIME(last_update)";
-}
-
-my $WHERE = ($attr->{SESSION_ID}) ? "and acct_session_id='$attr->{SESSION_ID}'" : '';
-
- $self->query($db, "SELECT $lupdate, acct_session_id, nas_id, 
-   sum(sent1), sum(recv1), sum(sent2), sum(recv2) 
-  FROM s_detail 
-  WHERE id='$attr->{LOGIN}' $WHERE
-  GROUP BY 1 
-  ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;" );
-
- my $list = $self->{list};
-
- if ($self->{TOTAL} > 0) {
-    $self->query($db, "SELECT count(*)
-      FROM s_detail 
-     WHERE id='$attr->{LOGIN}' $WHERE;");
-    
-    ($self->{TOTAL}) = @{ $self->{list}->[0] };
-  }
-	
-	
-return $list;
-}
 
 
 #**********************************************************
@@ -401,7 +353,6 @@ sub periods_totals {
    
    FROM voip_log $WHERE;");
   
-  my $ar = $self->{list}->[0];
   (   $self->{duration_0}, 
      $self->{sum_0}, 
       $self->{duration_1},
@@ -411,7 +362,7 @@ sub periods_totals {
       $self->{duration_3}, 
      $self->{sum_3}, 
       $self->{duration_4},
-     $self->{sum_4} ) =  @$ar;
+     $self->{sum_4} ) =  @{ $self->{list}->[0] };
   
   
   return $self;	
@@ -423,6 +374,11 @@ sub periods_totals {
 sub list {
  my $self = shift;
  my ($attr) = @_;
+
+ $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+ $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+ $SORT = ($attr->{SORT}) ? $attr->{SORT} : 2;
+ $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
  undef @WHERE_RULES; 
  
@@ -478,13 +434,17 @@ sub list {
    push @WHERE_RULES, "l.tp_id='$attr->{TARIF_PLAN}'";
   }
 
-#Session ID
-if ($attr->{ACCT_SESSION_ID}) {
+ #Session ID
+ if ($attr->{ACCT_SESSION_ID}) {
    push @WHERE_RULES, "l.acct_session_id='$attr->{ACCT_SESSION_ID}'";
   }
 
-if ($attr->{GID}) {
-   push @WHERE_RULES, "u.gid='$attr->{GID}'";
+ # Show groups
+ if ($attr->{GIDS}) {
+   push @WHERE_RULES, "u.gid IN ($attr->{GIDS})"; 
+  }
+ elsif ($attr->{GID}) {
+   push @WHERE_RULES, "u.gid='$attr->{GID}'"; 
   }
 
  if ($attr->{FROM_DATE}) {
@@ -551,13 +511,10 @@ elsif($attr->{DATE}) {
       FROM (voip_log l, users u)
      $WHERE;");
 
-    my $a_ref = $self->{list}->[0];
     ($self->{TOTAL},
      $self->{DURATION},
-     $self->{SUM}) = @$a_ref;
+     $self->{SUM}) = @{ $self->{list}->[0] };
   }
-
-#  $self->{list}=$list;
 
 return $list;
 }
@@ -582,14 +539,12 @@ sub calculation {
   min(l.sum), max(l.sum), avg(l.sum)
   FROM voip_log l $WHERE");
 
-  my $ar = $self->{list}->[0];
-
   ($self->{min_dur}, 
    $self->{max_dur}, 
    $self->{avg_dur}, 
    $self->{min_sum}, 
    $self->{max_sum}, 
-   $self->{avg_sum}) =  @$ar;
+   $self->{avg_sum}) =  @{ $self->{list}->[0] };
 
 	return $self;
 }
@@ -614,8 +569,12 @@ sub reports {
  	 $date = "date_format(l.start, '%Y-%m')";
   }
 
- if ($attr->{GID}) {
-   push @WHERE_RULES, "u.gid='$attr->{GID}'";
+ # Show groups
+ if ($attr->{GIDS}) {
+   push @WHERE_RULES, "u.gid IN ($attr->{GIDS})"; 
+  }
+ elsif ($attr->{GID}) {
+   push @WHERE_RULES, "u.gid='$attr->{GID}'"; 
   }
 
  if ($attr->{DATE}) {

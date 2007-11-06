@@ -152,6 +152,7 @@ Edit **httpd.conf**
 
 
 
+
 =====ABillS=====
 Download it from [http://sourceforge.net/projects/abills/]\\
 
@@ -177,7 +178,7 @@ Download it from [http://sourceforge.net/projects/abills/]\\
 
   \*/5  *      *    *      *   root   /usr/abills/libexec/billd -all
   1     0      *    *     *   root    /usr/abills/libexec/periodic daily
-  1     0      1    *     *   root    /usr/abills/libexec/periodic monthly
+  1     0      *    *     *   root    /usr/abills/libexec/periodic monthly
 
 \\
 

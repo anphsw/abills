@@ -92,6 +92,14 @@ sub docs_invoice_list {
     push @WHERE_RULES, "o.price * o.counts$value";
   }
 
+ # Show groups
+ if ($attr->{GIDS}) {
+   push @WHERE_RULES, "u.gid IN ($attr->{GIDS})"; 
+  }
+ elsif ($attr->{GID}) {
+   push @WHERE_RULES, "u.gid='$attr->{GID}'"; 
+  }
+
  
  #DIsable
  if ($attr->{UID}) {
@@ -107,7 +115,7 @@ sub docs_invoice_list {
     LEFT JOIN users u ON (d.uid=u.uid)
     LEFT JOIN admins a ON (d.aid=a.aid)
     $WHERE
-    GROUP BY d.invoice_id 
+    GROUP BY d.id 
     ORDER BY $SORT $DESC
     LIMIT $PG, $PAGE_ROWS;");
 
@@ -121,9 +129,7 @@ sub docs_invoice_list {
     LEFT JOIN users u ON (d.uid=u.uid)
     $WHERE");
 
- my $a_ref = $self->{list}->[0];
-
- ($self->{TOTAL}) = @$a_ref;
+ ($self->{TOTAL}) = @{ $self->{list}->[0] };
 
 	return $list;
 }
@@ -135,6 +141,7 @@ sub docs_invoice_info {
 	my $self = shift;
 	my ($id, $attr) = @_;
 
+  $WHERE = ($attr->{UID}) ? "and d.uid='$attr->{UID}'" : '';
 
   $self->query($db, "SELECT 
    d.invoice_id,
@@ -142,7 +149,7 @@ sub docs_invoice_info {
    d.customer,
    sum(o.price * o.counts), 
    d.phone,
-   if(d.vat>0, sum(o.price * o.counts) / ((100+d.vat)/ d.vat), 0),
+   if(d.vat>0, FORMAT(sum(o.price * o.counts) / ((100+d.vat)/ d.vat), 2), FORMAT(0, 2)),
    a.name,
    u.id,
    d.created,
@@ -153,7 +160,7 @@ sub docs_invoice_info {
     FROM (docs_invoice d, docs_invoice_orders o)
     LEFT JOIN users u ON (d.uid=u.uid)
     LEFT JOIN admins a ON (d.aid=a.aid)
-    WHERE d.id=o.invoice_id and d.id='$id'
+    WHERE d.id=o.invoice_id and d.id='$id' $WHERE
     GROUP BY d.id;");
 
   if ($self->{TOTAL} < 1) {
@@ -161,8 +168,6 @@ sub docs_invoice_info {
      $self->{errstr} = 'ERROR_NOT_EXIST';
      return $self;
    }
-
-  my $ar = $self->{list}->[0];
 
   ($self->{INVOICE_ID}, 
    $self->{DATE}, 
@@ -176,15 +181,15 @@ sub docs_invoice_info {
    $self->{BY_PROXY_SERIA},
    $self->{BY_PROXY_PERSON},
    $self->{BY_PROXY_DATE}
-  )= @$ar;
+  )= @{ $self->{list}->[0] };
 	
+  if ($self->{TOTAL} > 0) {
+    $self->{NUMBER}=$self->{INVOICE_ID};
  
-  $self->{NUMBER}=$self->{INVOICE_ID};
- 
-  $self->query($db, "SELECT invoice_id, orders, unit, counts, price
-   FROM docs_invoice_orders WHERE invoice_id='$self->{DOC_ID}'");
-
-  $self->{ORDERS}=$self->{list};
+    $self->query($db, "SELECT invoice_id, orders, unit, counts, price
+      FROM docs_invoice_orders WHERE invoice_id='$id'");
+    $self->{ORDERS}=$self->{list};
+   }
 
 	return $self;
 }
@@ -292,6 +297,14 @@ sub accounts_list {
  if ($attr->{SUM}) {
  	  my $value = $self->search_expr($attr->{SUM}, 'INT');
     push @WHERE_RULES, "o.price * o.counts$value";
+  }
+
+ # Show groups
+ if ($attr->{GIDS}) {
+   push @WHERE_RULES, "u.gid IN ($attr->{GIDS})"; 
+  }
+ elsif ($attr->{GID}) {
+   push @WHERE_RULES, "u.gid='$attr->{GID}'"; 
   }
 
  
@@ -415,13 +428,15 @@ sub account_info {
 	my $self = shift;
 	my ($id, $attr) = @_;
 
+  $WHERE = ($attr->{UID}) ? "and d.uid='$attr->{UID}'" : '';  
+  
 
   $self->query($db, "SELECT d.acct_id, 
    d.date, 
    d.customer,  
    sum(o.price * o.counts), 
    d.phone,
-   if(d.vat>0, sum(o.price * o.counts) / ((100+d.vat)/ d.vat), 0),
+   if(d.vat>0, FORMAT(sum(o.price * o.counts) / ((100+d.vat)/ d.vat), 2), FORMAT(0, 2)),
    u.id, 
    a.name, 
    d.created, 
@@ -431,7 +446,7 @@ sub account_info {
     FROM (docs_acct d, docs_acct_orders o)
     LEFT JOIN users u ON (d.uid=u.uid)
     LEFT JOIN admins a ON (d.aid=a.aid)
-    WHERE d.id=o.acct_id and d.id='$id'
+    WHERE d.id=o.acct_id and d.id='$id' $WHERE
     GROUP BY d.id;");
 
   if ($self->{TOTAL} < 1) {
@@ -440,23 +455,23 @@ sub account_info {
      return $self;
    }
 
-  my $ar = $self->{list}->[0];
-
   ($self->{ACCT_ID}, 
    $self->{DATE}, 
    $self->{CUSTOMER}, 
    $self->{SUM},
    $self->{PHONE},
    $self->{VAT}
-  )= @$ar;
+  )= @{ $self->{list}->[0] };
 	
- 
-  $self->{NUMBER}=$self->{ACCT_ID};
- 
-  $self->query($db, "SELECT acct_id, orders, counts, unit, price
-   FROM docs_acct_orders WHERE acct_id='$id'");
   
-  $self->{ORDERS}=$self->{list};
+  if ($self->{TOTAL} > 0) {
+    $self->{NUMBER}=$self->{ACCT_ID};
+ 
+    $self->query($db, "SELECT acct_id, orders, counts, unit, price
+     FROM docs_acct_orders WHERE acct_id='$id'");
+  
+    $self->{ORDERS}=$self->{list};
+   }
 
 	return $self;
 }

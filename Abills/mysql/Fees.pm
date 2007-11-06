@@ -39,8 +39,7 @@ sub new {
 #  $self->{debug}=1;
   
   $Bill=Bills->new($db, $admin, $CONF); 
- 
-  
+
   return $self;
 }
 
@@ -178,7 +177,10 @@ sub list {
   }
 
  # Show groups
- if ($attr->{GID}) {
+ if ($attr->{GIDS}) {
+    push @WHERE_RULES, "u.gid IN ($attr->{GIDS})";
+  }
+ elsif ($attr->{GID}) {
     push @WHERE_RULES, "u.gid='$attr->{GID}'";
   }
 
@@ -241,7 +243,10 @@ sub reports {
  my $date = '';
  undef @WHERE_RULES;
  
- if ($attr->{GID}) {
+ if ($attr->{GIDS}) {
+   push @WHERE_RULES, "u.gid IN ( $attr->{GIDS} )";
+  }
+ elsif ($attr->{GID}) {
    push @WHERE_RULES, "u.gid='$attr->{GID}'";
   }
  

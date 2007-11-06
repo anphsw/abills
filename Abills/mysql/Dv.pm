@@ -103,7 +103,8 @@ sub info {
    dv.cid,
    dv.disable,
    dv.callback,
-   dv.port
+   dv.port,
+   tp.gid
      FROM dv_main dv
      LEFT JOIN tarif_plans tp ON (dv.tp_id=tp.id)
    $WHERE;");
@@ -126,7 +127,8 @@ sub info {
    $self->{CID},
    $self->{DISABLE},
    $self->{CALLBACK},
-   $self->{PORT}
+   $self->{PORT},
+   $self->{TP_GID}
   )= @{ $self->{list}->[0] };
   
   
@@ -469,8 +471,11 @@ sub list {
   }
 
  # Show groups
- if ($attr->{GID}) {
-    push @WHERE_RULES, "u.gid='$attr->{GID}'";
+ if ($attr->{GIDS}) {
+   push @WHERE_RULES, "u.gid IN ($attr->{GIDS})"; 
+  }
+ elsif ($attr->{GID}) {
+   push @WHERE_RULES, "u.gid='$attr->{GID}'"; 
   }
 
 #Activate

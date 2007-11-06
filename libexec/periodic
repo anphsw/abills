@@ -1,7 +1,12 @@
 #!/usr/bin/perl -w
 #Periodic process
 
-use vars  qw(%RAD %conf @MODULES $db $html $DATE $GZIP $MYSQLDUMP %ADMIN_REPORT $DEBUG);
+use vars  qw(%RAD %conf @MODULES $db $html $DATE $GZIP 
+$MYSQLDUMP 
+%ADMIN_REPORT 
+$DEBUG);
+
+
 #use strict;
 use FindBin '$Bin';
 use Sys::Hostname;
@@ -57,7 +62,8 @@ my @daily_functions=(
 
 my @monthly_functions = ('admin_report_monthly',
                          'backup',
-                         'logrotate');
+                         'logrotate'
+                         );
 my @reports = ();
 
 #make periodic oparation only for selected modules
@@ -84,7 +90,6 @@ if ($args->{DEBUG}) {
 
   foreach my $m (@MODULES) {
     next if(in_array($m, \@SKIP_MODULES));
-
   	require "Abills/modules/$m/config";
  
     my $i=0;
@@ -130,6 +135,8 @@ if ($args->{DEBUG}) {
 
 push  @daily_functions, 'sheduler';
 my($Y, $M, $D);
+
+
   if(defined($args->{DATE})) {
      if ($args->{DATE} !~ /\d{4}\-\d{2}\-\d{2}/) {
        print "Wrong date format. Format: YYYY-MM-DD\n";
@@ -152,7 +159,8 @@ my($Y, $M, $D);
 if (defined($args->{monthly})) {
   for(my $i=$#monthly_functions; $i>-1; $i--) {
   	my $f = $monthly_functions[$i];
-  	#print $f . "\n";
+  	#$DEBUG .= 
+  	print "==> FUNCTION: ". $f ."\n" if ($args->{DEBUG} && $args->{DEBUG} > 4);
   	$f->({ DEBUG => $args->{DEBUG} });
   }
 
@@ -170,9 +178,9 @@ if (defined($args->{monthly})) {
  }
 elsif (defined($args->{daily})) {
   for(my $i=$#daily_functions; $i>-1; $i--) {
-        my $f = $daily_functions[$i];
-        #print $f . "\n";
-        $f->({ DEBUG => $args->{DEBUG} });
+    my $f = $daily_functions[$i];
+    $DEBUG .= "==> FUNCTION: ". $f ."\n" if ($args->{DEBUG} && $args->{DEBUG} > 4);
+    $f->({ %$args });
    }
 
   if ($begin_time > 0)  {
@@ -397,7 +405,6 @@ $ADMIN_REPORT{PAYMENTS} .= sprintf("%-14s| %12s|\n%-14s| %12s|\n",
   $_SUM,   $payments->{SUM});
 
 
-
 #Fees
 my $fees = Finance->fees($db, $admin, \%conf);
 
@@ -435,6 +442,25 @@ foreach my $function (@reports) {
 # Log rotate
 #*******************************************************************
 sub logrotate {
+  # abills.log rotate
+  #my ($Y, $M, $D)=split(/:/, $DATE, 3);
+  my $rotate_level = 5;
+  if ($D == 1) {
+     my $logfile = "$conf{LOGFILE}";
+     my $cmd = '';
+
+     for (my $i = 5; $i>0; $i--) {
+       if ( -f $logfile.'.'. ($i-1) .'.gz') {
+         $cmd = 'mv '. $logfile .'.'. ($i-1) .'.gz '. $logfile .'.'. $i .'.gz';
+         $DEBUG .= $cmd ."\n" if ($args->{DEBUG} && $args->{DEBUG} > 3);
+         #my $a = `$cmd`;
+        }
+      }
+
+     $cmd = 'gzip -c '. $logfile. ' > '. $logfile . '.1.gz && >'. $logfile ;
+     $DEBUG .= $cmd."\n" if ($args->{DEBUG} && $args->{DEBUG} > 3);
+     my $r = `$cmd`;
+   }
 	
 	
 }
@@ -445,6 +471,10 @@ sub logrotate {
 # backup()
 #*******************************************************************
 sub backup {
+ if(in_array('backup', \@SKIP_MODULES)) {
+    return 0;
+  }
+
  #print "$MYSQLDUMP --host=$conf{dbhost} --user=\"$conf{dbuser}\" --password=\"$conf{dbpasswd}\" $conf{dbname} | $GZIP > $conf{BACKUP_DIR}/stats-$DATE.sql.gz";
  my $res = `$MYSQLDUMP -v --host=$conf{dbhost} --user="$conf{dbuser}" --password="$conf{dbpasswd}" $conf{dbname} | $GZIP > $conf{BACKUP_DIR}/stats-$DATE.sql.gz`;
  #print $res;

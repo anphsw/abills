@@ -1,20 +1,21 @@
 
 # Base Templates
 
-
 #**********************************************************
 # templates
 #**********************************************************
 sub _include {
-  my ($tpl, $module) = @_;
+  my ($tpl, $module, $attr) = @_;
   my $result = '';
 
-  
   if (-f "../../Abills/templates/$module". _. "$tpl".".tpl") {
     return tpl_content("../../Abills/templates/$module". _. "$tpl".".tpl");
    }
   elsif (-f "../Abills/templates/$module". _. "$tpl".".tpl") {
     return tpl_content("../Abills/templates/$module". _. "$tpl".".tpl");
+   }
+  elsif (-f "$Bin/../Abills/templates/$module". _. "$tpl".".tpl") {
+    return tpl_content("$Bin/../Abills/templates/$module". _. "$tpl".".tpl");
    }
   elsif (defined($module)) {
     $tpl	= "modules/$module/templates/$tpl";
@@ -60,9 +61,36 @@ sub templates {
     return tpl_content("../Abills/templates/_"."$tpl_name".".tpl");
    }
   
+if ($tpl_name eq 'header') {
 
-if ($tpl_name eq 'form_pi') {
+return qq{	
+<tr class='HEADER' bgcolor='$_COLORS[3]'><td colspan='2'>
+<div class='header'>
+<form action='$SELF_URL'>
+<table width='100%' border='0'>
+  <tr><th align='left'>$_DATE: %DATE% %TIME% Admin: <a href='$SELF_URL?index=53'>$admin->{A_LOGIN}</a> / Online: <abbr title=\"%ONLINE_USERS%\"><a href='$SELF_URL?index=50' title='%ONLINE_USERS%'>Online: %ONLINE_COUNT%</a></abbr></th>  <th align='right'><input type='hidden' name='index' value='7'/><input type='hidden' name='search' value='y'/>
+  Search: %SEL_TYPE% <input type='text' name='LOGIN_EXPR' value='$FORM{LOGIN_EXPR}'/> 
+  (<b><a href='#' onclick=\"window.open('help.cgi?index=$index&amp;FUNCTION=$functions{$index}','help',
+    'height=550,width=450,resizable=0,scrollbars=yes,menubar=no, status=yes');\">?</a></b>)</th></tr>
+</table>
+</form>
+</div>
+</td></tr>
+%TECHWORK%
+
+}
+	
+}
+elsif ($tpl_name eq 'footer') {
 return qq{
+  <tr class=\"FOOTER\"><td colspan='2'><hr/> ABillS $conf{version}</td></tr>
+ };
+ }
+elsif ($tpl_name eq 'form_pi') {
+return qq{
+<TABLE width='100%'>
+<tr bgcolor='$_COLORS[0]'><TH align='right'>$_USER_INFO</TH></tr>
+</TABLE>
 <form action='$SELF_URL' method='post'>
 <input type=hidden name=index value=$index>
 <input type=hidden name=UID value="%UID%">
@@ -72,8 +100,13 @@ return qq{
 <TR><TD>$_ADDRESS_STREET:</TD><TD><input type=text name=ADDRESS_STREET value="%ADDRESS_STREET%"></TD></TR>
 <TR><TD>$_ADDRESS_BUILD:</TD><TD><input type=text name=ADDRESS_BUILD value="%ADDRESS_BUILD%"></TD></TR>
 <TR><TD>$_ADDRESS_FLAT:</TD><TD><input type=text name=ADDRESS_FLAT value="%ADDRESS_FLAT%"></TD></TR>
+<TR><TD>$_CITY:</TD><TD><input type=text name=CITY value="%CITY%"> $_ZIP: <input type=text name=ZIP value="%ZIP%" size=8></TD></TR>
 <TR><TD>E-mail:</TD><TD><input type=text name=EMAIL value="%EMAIL%"></TD></TR>
 <TR><TD>$_CONTRACT_ID:</TD><TD><input type=text name=CONTRACT_ID value="%CONTRACT_ID%"></TD></TR>
+<TR><TH colspan='2' bgcolor='$_COLORS[2]'>$_PASPORT</TH></TR>
+<TR><TD>$_NUM:</TD><TD><input type=text name=PASPORT_NUM value="%PASPORT_NUM%"></TD></TR>
+<TR><TD>$_DATE:</TD><TD><input type=text name=PASPORT_DATE value="%PASPORT_DATE%"></TD></TR>
+<TR><TD>$_GRANT:</TD><TD><textarea name=PASPORT_GRANT rows=3 cols=45>%PASPORT_GRANT%</textarea></TD></TR>
 <TR><th colspan=2>:$_COMMENTS:</th></TR>
 <TR><th colspan=2><textarea name=COMMENTS rows=5 cols=45>%COMMENTS%</textarea></th></TR>
 </TABLE>
@@ -108,7 +141,6 @@ return qq{
 </TABLE>
 <input type=submit name='%ACTION%' value='%LNG_ACTION%'>
 </form>
-<hr\>
 };
 
  }
@@ -123,7 +155,7 @@ return qq{
 <TR bgcolor="$_COLORS[1]"><TD><b>$_REDUCTION:</b></TD><TD>%REDUCTION% %</TD></TR>
 <TR bgcolor="$_COLORS[1]"><TD><b>$_FIO:</b></TD><TD>%FIO%</TD></TR>
 <TR bgcolor="$_COLORS[1]"><TD><b>$_PHONE:</b></TD><TD>%PHONE%</TD></TR>
-<TR bgcolor="$_COLORS[1]"><TD><b>$_ADDRESS:</b></TD><TD>%ADDRESS%</TD></TR>
+<TR bgcolor="$_COLORS[1]"><TD><b>$_ADDRESS:</b></TD><TD>%ADDRESS_STREET%, %ADDRESS_BUILD%/%ADDRESS_FLAT%</TD></TR>
 <TR bgcolor="$_COLORS[1]"><TD><b>E-mail:</b></TD><TD>%EMAIL%</TD></TR>
 <TR bgcolor="#DDDDDD"><TD colspan="2">&nbsp;</TD></TR>
 <TR bgcolor="$_COLORS[1]"><TD><b>$_ACTIVATE:</b></TD><TD>%ACTIVATE%</TD></TR>
@@ -335,6 +367,7 @@ return qq{
 <TR><TD>$_FIO:</TD><TD><input type=text name=A_FIO value="%A_FIO%"></TD></TR>
 <TR><TD>$_DISABLE:</TD><TD><input type=checkbox name=DISABLE value='1' %DISABLE%></TD></TR>
 <TR><TD>$_PHONE:</TD><TD><input type=text name=A_PHONE value='%A_PHONE%'></TD></TR>
+<TR><TD>E-Mail</TD><TD><input type=text name=EMAIL value='%EMAIL%'></TD></TR>
 <tr><TD>$_GROUPS:</TD><TD>%GROUP_SEL%</TD></TR>
 </TABLE>
 <input type=submit name='%ACTION%' value='%LNG_ACTION%'>
@@ -355,6 +388,7 @@ return qq{
 <TR><TD>$_DESCRIBE:</TD><TD><input type=text name=NAS_DESCRIBE value="%NAS_DESCRIBE%"></TD></TR>
 <TR><TD>$_TYPE:</TD><TD>%SEL_TYPE%</TD></TR>
 <TR><TD>$_AUTH:</TD><TD>%SEL_AUTH_TYPE%</TD></TR>
+<TR><TD>External Accounting:</TD><TD>%NAS_EXT_ACCT%</TD></TR>
 <TR><TD>Alive (sec.):</TD><TD><input type=text name=NAS_ALIVE value='%NAS_ALIVE%'></TD></TR>
 <TR><TD>$_DISABLE:</TD><TD><input type=checkbox name=NAS_DISABLE value=1 %NAS_DISABLE%></TD></TR>
 <TR><th colspan=2>:$_MANAGE:</th></TR>
@@ -388,6 +422,7 @@ return qq{
 <TR bgcolor=$_COLORS[1]><TD>$_BANK_NAME:</TD><TD><input type=text name=BANK_NAME value='%BANK_NAME%' size=60></TD></TR>
 <TR bgcolor=$_COLORS[1]><TD>$_COR_BANK_ACCOUNT:</TD><TD><input type=text name=COR_BANK_ACCOUNT value='%COR_BANK_ACCOUNT%' size=60></TD></TR>
 <TR bgcolor=$_COLORS[1]><TD>$_BANK_BIC:</TD><TD><input type=text name=BANK_BIC value='%BANK_BIC%' size=60></TD></TR>
+<TR><TD>$_CONTRACT_ID:</TD><TD><input type=text name=CONTRACT_ID value="%CONTRACT_ID%"></TD></TR>
 <TR bgcolor=$_COLORS[1]><TD>$_DISABLE:</TD><TD><input type=checkbox name=DISABLE value='1' %DISABLE%></TD></TR>
 </TABLE>
 <input type=submit name='%ACTION%' value='%LNG_ACTION%'>
@@ -397,6 +432,7 @@ return qq{
 elsif ($tpl_name eq 'chg_tp') {
 return qq{
 <form action="$SELF_URL" METHOD="POST">
+<input type=hidden name=sid value='$sid'>
 <input type=hidden name=UID value='%UID%'>
 <input type=hidden name=m value='%m%'>
 <input type=hidden name='index' value='$index'>
@@ -470,6 +506,7 @@ return qq{
 <input type='hidden' name='index' value='$index'>
 %HIDDEN_FIELDS%
 <TABLE>
+<TR bgcolor='$_COLORS[0]'><TH colspan='2' align='right'>$_SEARCH</TH></TR>
 <TR><TD>$_LOGIN:</TD><TD><input type='text' name='LOGIN_EXPR' value='%LOGIN_EXPR%'></TD></TR>
 %SEL_TYPE%
 <TR><TD>$_PERIOD:</TD><TD>
@@ -500,6 +537,9 @@ return qq{
 <tr><td colspan='2'>$_COMMENTS (*):</td><td><input type='text' name='COMMENTS' value='%COMMENTS%'/></td></tr>
 <tr><td colspan='2'>$_GROUP:</td><td>%GROUPS_SEL%</td></tr>
 <tr><td colspan='2'>$_DEPOSIT (>, <):</td><td><input type='text' name='DEPOSIT' value='%DEPOSIT%'/></td></tr>
+
+<tr><td colspan='2'>BILL ID (>, <):</td><td><input type='text' name='BILL_ID' value='%BILL_ID%'/></td></tr>
+
 <tr><td colspan='2'>$_CREDIT (>, <):</td><td><input type='text' name='CREDIT' value='%CREDIT%'/></td></tr>
 <tr><td colspan='2'>$_PAYMENTS $_DATE ((>, <) YYYY-MM-DD):</td><td><input type='text' name='PAYMENTS' value='%PAYMENTS%'/></td></tr>
 
@@ -514,10 +554,30 @@ return qq{
 <tr><td colspan='2'>$_EXPIRE (<>):</td><td><input type='text' name='EXPIRE' value='%EXPIRE%'/></td></tr>
 </table>
 </td></tr>
-
-
 };
-	
+}
+
+elsif ($tpl_name eq 'form_search_payments') {
+return qq{
+<!-- PAYMENTS -->
+<tr><td colspan='2'><hr/></td></tr>
+<tr><td>$_OPERATOR (ID):</td><td><input type='text' name='A_LOGIN' value='%A_LOGIN%'/></td></tr>
+<tr><td>$_DESCRIBE (*):</td><td><input type='text' name='DESCRIBE' value='%DESCRIBE%'/></td></tr>
+<tr><td>$_SUM (&lt;, &gt;):</td><td><input type='text' name='SUM' value='%SUM%'/></td></tr>
+<tr><td>$_PAYMENT_METHOD:</td><td>$SEL_METHOD</td></tr>
+<tr><td>$_PAYMENTS ID (&lt;, &gt;):</td><td><input type='text' name='ID' value='%ID%'/></td></tr>
+<tr><td>EXT ID:</td><td><input type='text' name='EXT_ID' value='%EXT_ID%'/></td></tr>
+};
+}
+
+elsif ($tpl_name eq 'form_search_fees') {
+return qq{
+<!-- FEES -->
+<tr><td colspan='2'><hr/></td></tr>
+<tr><td>$_OPERATOR (ID):</td><td><input type='text' name='A_LOGIN' value='%A_LOGIN%'/></td></tr>
+<tr><td>$_DESCRIBE (*):</td><td><input type='text' name='DESCRIBE' value='%DESCRIBE%'/></td></tr>
+<tr><td>$_SUM (<,>):</td><td><input type='text' name='SUM' value='%SUM%'/></td></tr>
+};
 }
 
 elsif ($tpl_name eq 'history_search') {
@@ -534,6 +594,7 @@ return qq{
 <input type=hidden name=index value=$index>
 %HIDDEN_FIELDS%
 <TABLE>
+<TR bgcolor='$_COLORS[0]'><TH colspan='2' align='right'>$_SEARCH</TH></TR>
 %SEARCH_FORM%
 <TR><TD>$_ROWS:</TD><TD><input type=text name=PAGE_ROWS value=$PAGE_ROWS></TD></TR>
 </TABLE>
@@ -647,7 +708,8 @@ return qq{
 
 elsif ($tpl_name eq 'users_main') {
 return qq{
-<TABLE BORDER="0" WIDTH="100%" style='margin: 0'><tr BGCOLOR="$_COLORS[2]"><TD align="right">$_DATE: %DATE% $_TIME: %TIME%</TD></TR></TABLE>
+<TABLE border="0" WIDTH="100%" style='margin: 0' CELLSPACING='0' CELLPADDING='0'>
+<TR BGCOLOR="$_COLORS[2]"><TD>LOGIN: %LOGIN%</TD><TD align="right">$_DATE: %DATE% $_TIME: %TIME%</TD></TR></TABLE>
 <TABLE border="0" width="100%" style='margin: 0'>
 <TR><TD width="200" valign="top" bgcolor="$_COLORS[2]">%MENU%</TD><TD align="center">
 %BODY%
@@ -806,3 +868,4 @@ return "No such template [$tpl_name]";
 
 
 1
+

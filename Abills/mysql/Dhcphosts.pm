@@ -95,9 +95,10 @@ sub network_add {
   
 
   $self->query($db,"INSERT INTO dhcphosts_networks 
-     (name,network,mask, routers, coordinator, phone, dns, suffix) 
+     (name,network,mask, routers, coordinator, phone, dns, suffix, disable) 
      VALUES('$attr->{NAME}', INET_ATON('$attr->{NETWORK}'), INET_ATON('$attr->{MASK}'), INET_ATON('$attr->{ROUTERS}'),
-       '$attr->{COORDINATOR}', '$attr->{PHONE}', '$attr->{DNS}', '$attr->{DOMAINNAME}')", 'do');
+       '$attr->{COORDINATOR}', '$attr->{PHONE}', '$attr->{DNS}', '$attr->{DOMAINNAME}',
+       '$attr->{DISABLE}')", 'do');
 
   return $self;
 }
@@ -134,7 +135,8 @@ sub network_change {
    DNS           => 'dns',
    COORDINATOR   => 'coordinator',
    PHONE         => 'phone',
-   ROUTERS       => 'routers'
+   ROUTERS       => 'routers',
+   DISABLE       => 'disable'
 
    );
 
@@ -168,7 +170,8 @@ sub network_info {
    suffix,
    dns,
    coordinator,
-   phone
+   phone,
+   disable
   FROM dhcphosts_networks
 
   WHERE id='$id';");
@@ -189,7 +192,8 @@ sub network_info {
    $self->{DOMAINNAME}, 
    $self->{DNS},
    $self->{COORDINATOR},
-   $self->{PHONE}
+   $self->{PHONE},
+   $self->{DISABLE}
    ) = @{ $self->{list}->[0] };
     
     
@@ -210,17 +214,20 @@ sub networks_list {
  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
  undef @WHERE_RULES;
- if ($attr->{ID}) {
-   push @WHERE_RULES, "err_id='$attr->{ID}'"; 
- }
+ if (defined($attr->{DISABLE})) {
+   push @WHERE_RULES, "disable='$attr->{DISABLE}'"; 
+  }
+
+
 
  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
  
  $self->query($db, "SELECT 
-    id,name,INET_NTOA(network),
+    id, name, INET_NTOA(network),
      INET_NTOA(mask),
      coordinator,
-     phone
+     phone,
+     disable
      FROM dhcphosts_networks
      $WHERE
      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;");
@@ -499,6 +506,14 @@ sub hosts_list {
    push @WHERE_RULES, "u.id LIKE '$attr->{LOGIN_EXPR}'"; 
   }
 
+ if ($attr->{GIDS}) {
+   push @WHERE_RULES, "u.gid IN ($attr->{GIDS})"; 
+  }
+ elsif ($attr->{GID}) {
+   push @WHERE_RULES, "u.gid=$attr->{GID}"; 
+  }
+
+
  if ($attr->{HOSTNAME}) {
    $attr->{HOSTNAME} =~ s/\*/\%/g;
    push @WHERE_RULES, "h.hostname LIKE '$attr->{HOSTNAME}'"; 
@@ -570,7 +585,8 @@ sub hosts_list {
 
  $self->query($db, "SELECT 
     h.id, u.id, INET_NTOA(h.ip), h.hostname, n.name, h.network, h.mac, h.expire, h.forced, 
-      h.blocktime, h.disable, seen, h.uid
+      h.blocktime, h.disable, seen, h.uid,
+      if ((u.expire <> '0000-00-00' && curdate() > u.expire) || (h.expire <> '0000-00-00' && curdate() > h.expire), 1, 0)
      FROM (dhcphosts_hosts h)
      left join dhcphosts_networks n on h.network=n.id
      left join users u on h.uid=u.uid

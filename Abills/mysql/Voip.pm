@@ -111,7 +111,6 @@ sub user_info {
      return $self;
    }
 
-  my $ar = $self->{list}->[0];
 
   ($self->{UID},
    $self->{NUMBER},
@@ -125,7 +124,7 @@ sub user_info {
    $self->{SIMULTANEOUSLY},
    $self->{REGISTRATION}
 
-  )= @$ar;
+  )= @{ $self->{list}->[0] };
   
 
   
@@ -225,7 +224,6 @@ sub user_del {
   my ($attr) = @_;
 
   $self->query($db, "DELETE from voip_main WHERE uid='$self->{UID}';", 'do');
-
   $admin->action_add($self->{UID}, "DELETE $self->{UID}");
 
   return $self->{result};
@@ -423,8 +421,7 @@ sub user_list {
 
  if ($self->{TOTAL} >= 0) {
     $self->query($db, "SELECT count(u.id) FROM (users u, voip_main service) $WHERE");
-    my $a_ref = $self->{list}->[0];
-    ($self->{TOTAL}) = @$a_ref;
+    ($self->{TOTAL}) = @{ $self->{list}->[0] };
    }
 
   return $list;
@@ -499,8 +496,6 @@ sub route_info {
      return $self;
    }
 
-  my $ar = $self->{list}->[0];
-
   ($self->{ROUTE_ID},
    $self->{ROUTE_PREFIX}, 
    $self->{PARENT_ID}, 
@@ -509,7 +504,7 @@ sub route_info {
    $self->{DISABLE},
    $self->{DESCRIBE},
    $self->{GATEWAY_ID}
-  )= @$ar;
+  )= @{ $self->{list}->[0] };
   
   
   
@@ -571,6 +566,12 @@ sub routes_list {
  my ($attr) = @_;
  my @list = ();
 
+ $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+ $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+ $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+ $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+
  undef @WHERE_RULES;
 
  if ($attr->{ROUTE_PREFIX}) {
@@ -602,8 +603,7 @@ sub routes_list {
 
  if ($self->{TOTAL} >= 0) {
     $self->query($db, "SELECT count(r.id) FROM voip_routes r $WHERE");
-    my $a_ref = $self->{list}->[0];
-    ($self->{TOTAL}) = @$a_ref;
+    ($self->{TOTAL}) = @{ $self->{list}->[0] };
    }
 
   return $list;
@@ -675,8 +675,7 @@ sub rp_list {
 
  if ($self->{TOTAL} >= 0) {
     $self->query($db, "SELECT count(route_id) FROM voip_route_prices rp $WHERE");
-    my $a_ref = $self->{list}->[0];
-    ($self->{TOTAL}) = @$a_ref;
+    ($self->{TOTAL}) = @{ $self->{list}->[0] };
    }
 
   return $list;
@@ -917,8 +916,7 @@ sub tp_info {
      return $self;
    }
 
-  my $ar = $self->{list}->[0];
-  
+ 
   ($self->{TP_ID}, 
    $self->{DAY_TIME_LIMIT}, 
    $self->{WEEK_TIME_LIMIT}, 
@@ -932,7 +930,7 @@ sub tp_info {
    $self->{NEXT_PERIOD_STEP},
    $self->{FREE_TIME}
 
-  ) = @$ar;
+  ) = @{ $self->{list}->[0] };
 
 
   return $self;

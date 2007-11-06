@@ -1,5 +1,5 @@
 package Bills;
-# Users manage functions
+# Bill accounts manage functions
 #
 
 use strict;
@@ -183,14 +183,12 @@ sub info {
      return $self;
    }
 
-  my $ar = $self->{list}->[0];
-
   ($self->{BILL_ID}, 
    $self->{DEPOSIT}, 
    $self->{LOGIN}, 
    $self->{UID}, 
    $self->{COMPANY_ID}, 
-  )= @$ar;
+  )= @{ $self->{list}->[0] };
 	
 
 	return $self;

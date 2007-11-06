@@ -339,8 +339,8 @@ sub video_list() {
   $PG   = ($attr->{PG}) ? $attr->{PG} : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  undef @WHERE_RULES;
-  
+  @WHERE_RULES = ();
+ 
   if (defined($attr->{STATUS})) {
     push @WHERE_RULES, "f.status='$attr->{STATUS}'";
    }
@@ -639,7 +639,7 @@ sub file_list() {
   $PG   = ($attr->{PG}) ? $attr->{PG} : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  
+ my @WHERE_RULES = (); 
 
   if ($attr->{STATUS}) {
     push @WHERE_RULES, "f.status='$attr->{STATUS}'";

@@ -104,11 +104,18 @@ sub add {
     $Bill->info( { BILL_ID => $user->{BILL_ID} } );
     $Bill->action('add', $user->{BILL_ID}, $DATA{SUM});
     if($Bill->{errno}) {
-       return $self;
-      }
+      return $self;
+     }
     
     $self->query($db, "INSERT INTO payments (uid, bill_id, date, sum, dsc, ip, last_deposit, aid, method, ext_id) 
            values ('$user->{UID}', '$user->{BILL_ID}', now(), '$DATA{SUM}', '$DATA{DESCRIBE}', INET_ATON('$admin->{SESSION_IP}'), '$Bill->{DEPOSIT}', '$admin->{AID}', '$DATA{METHOD}', '$DATA{EXT_ID}');", 'do');
+    
+    if ($CONF->{payment_chg_activate} && $user->{ACTIVATE} ne '0000-00-00') {
+      $user->change($user->{UID}, { UID => $user->{UID}, 
+      	                            ACTIVATE => "$admin->{DATE}",
+      	                            EXPIRE   => '0000-00-00' });
+     }
+    
   }
   else {
     $self->{errno}=14;
@@ -137,8 +144,8 @@ sub del {
      return $self;
    }
 
-  my $a_ref = $self->{list}->[0];
-  my($sum, $bill_id) = @$a_ref;
+
+  my($sum, $bill_id) = @{ $self->{list}->[0] };
 
   $Bill->action('take', $bill_id, $sum); 
   
@@ -227,7 +234,10 @@ sub list {
   }
 
  # Show groups
- if ($attr->{GID}) {
+ if ($attr->{GIDS}) {
+    push @WHERE_RULES, "u.gid IN ( $attr->{GIDS} )";
+  }
+ elsif ($attr->{GID}) {
     push @WHERE_RULES, "u.gid='$attr->{GID}'";
   }
 
@@ -271,8 +281,11 @@ sub reports {
  my $date = '';
  undef @WHERE_RULES;
  
- 
- if ($attr->{GID}) {
+
+ if ($attr->{GIDS}) {
+   push @WHERE_RULES, "u.gid IN ( $attr->{GIDS} )";
+  }
+ elsif ($attr->{GID}) {
    push @WHERE_RULES, "u.gid='$attr->{GID}'";
   }
 
@@ -321,14 +334,20 @@ sub reports {
 
  my $list = $self->{list}; 
  
-
- $self->query($db, "SELECT count(*), sum(p.sum) 
+ if ($self->{TOTAL} > 0) {
+   $self->query($db, "SELECT count(*), sum(p.sum) 
       FROM payments p
       LEFT JOIN users u ON (u.uid=p.uid)
       $WHERE;");
 
- ($self->{TOTAL}, 
-  $self->{SUM}) = @{ $self->{list}->[0] };
+   ($self->{TOTAL}, 
+    $self->{SUM}) = @{ $self->{list}->[0] };
+  }
+ else {
+   $self->{TOTAL}=0; 
+   $self->{SUM}=0.00;
+  }
+ 
 
 	
 	return $list;

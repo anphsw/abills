@@ -5,6 +5,7 @@ $_NEXT_PERIOD='Next Period';
 $_NEXT_PERIOD_STEP='Step of next period';
 $_FREE_TIME='Free Time';
 $_ROUTES='Routes';
+$_ROUTE='Route';
 $_GATEWAY='Gateway';
 $_NUMBER='Number';
 

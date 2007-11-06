@@ -112,25 +112,64 @@ elsif ($acct_status_type == 2) {
 
   my $Billing = Billing->new($db, $conf);	
 
-  if ($NAS->{NAS_TYPE} eq 'ipcad') {
-#    $self->query($db, "INSERT INTO dv_log (uid, start, tp_id, duration, sent, recv, minp, kb,  sum, nas_id, port_id,
-#        ip, CID, sent2, recv2, acct_session_id, 
-#        bill_id,
-#        terminate_cause) 
-#        VALUES ('$self->{UID}', FROM_UNIXTIME($RAD->{SESSION_START}), '$self->{TARIF_PLAN}', '$RAD->{ACCT_SESSION_TIME}', 
-#        '$RAD->{OUTBYTE}', '$RAD->{INBYTE}', '$self->{TIME_TARIF}', '$self->{TRAF_TARIF}', $self->{CALLS_SUM}+$self->{SUM}, '$NAS->{NAS_ID}',
-#        '$RAD->{NAS_PORT}', INET_ATON('$RAD->{FRAMED_IP_ADDRESS}'), '$RAD->{CALLING_STATION_ID}',
-#        '$RAD->{OUTBYTE2}', '$RAD->{INBYTE2}',  \"$RAD->{ACCT_SESSION_ID}\", 
-#        '$self->{BILL_ID}',
-#        '$RAD->{ACCT_TERMINATE_CAUSE}');", 'do');
-        
-    
+  if ( $NAS->{NAS_EXT_ACCT} || $NAS->{NAS_TYPE} eq 'ipcad') {
+
+    $self->query($db, "SELECT 
+       acct_input_octets,
+       acct_output_octets,
+       ex_input_octets,
+       ex_output_octets,
+       tp_id,
+       sum
+    FROM dv_calls 
+    WHERE user_name='$RAD->{USER_NAME}' and acct_session_id='$RAD->{ACCT_SESSION_ID}';");
+
+    if($self->{errno}) {
+ 	    return $self;
+     }
+    elsif ($self->{TOTAL} < 1) {
+      $self->{errno}=2;
+      $self->{errstr}="Session account Not Exist '$RAD->{ACCT_SESSION_ID}'";
+      return $self;
+     }
+
+    (
+     $RAD->{INBYTE},
+     $RAD->{OUTBYTE},
+     $RAD->{INBYTE2},
+     $RAD->{OUTBYTE2},
+     $self->{TARIF_PLAN},
+     $self->{SUM}
+    ) = @{ $self->{list}->[0] };
+
+    ($self->{UID}, 
+     undef, 
+     $self->{BILL_ID}, 
+     $self->{TARIF_PLAN}, 
+     $self->{TIME_TARIF}, 
+     $self->{TRAF_TARIF}) = $Billing->session_sum("$RAD->{USER_NAME}", 
+                                                   $RAD->{SESSION_START}, 
+                                                   $RAD->{ACCT_SESSION_TIME}, 
+                                                   $RAD, 
+                                                   { USER_INFO => 1 } );
+
+    $self->query($db, "INSERT INTO dv_log (uid, start, tp_id, duration, sent, recv, minp,  
+        sum, nas_id, port_id,
+        ip, CID, sent2, recv2, acct_session_id, 
+        bill_id,
+        terminate_cause) 
+        VALUES ('$self->{UID}', FROM_UNIXTIME($RAD->{SESSION_START}), '$self->{TARIF_PLAN}', '$RAD->{ACCT_SESSION_TIME}', 
+        '$RAD->{OUTBYTE}', '$RAD->{INBYTE}', '$self->{TIME_TARIF}', '$self->{SUM}', '$NAS->{NAS_ID}',
+        '$RAD->{NAS_PORT}', INET_ATON('$RAD->{FRAMED_IP_ADDRESS}'), '$RAD->{CALLING_STATION_ID}',
+        '$RAD->{OUTBYTE2}', '$RAD->{INBYTE2}',  \"$RAD->{ACCT_SESSION_ID}\", 
+        '$self->{BILL_ID}',
+        '$RAD->{ACCT_TERMINATE_CAUSE}');", 'do');
    }
   elsif ($conf->{rt_billing}) {
     $self->rt_billing($RAD, $NAS);
 
     if (! $self->{errno} ) {
-      $self->query($db, "INSERT INTO dv_log (uid, start, tp_id, duration, sent, recv, minp, kb,  sum, nas_id, port_id,
+      $self->query($db, "INSERT INTO dv_log (uid, start, tp_id, duration, sent, recv, minp, kb, sum, nas_id, port_id,
         ip, CID, sent2, recv2, acct_session_id, 
         bill_id,
         terminate_cause) 
@@ -225,15 +264,34 @@ elsif ($acct_status_type == 2) {
 }
 #Alive status 3
 elsif($acct_status_type eq 3) {
-  $self->{SUM}=0;
-  if ($NAS->{NAS_TYPE} eq 'ipcad') {
+  $self->{SUM}=0 if (! $self->{SUM}); 
+ 
+  if ($NAS->{NAS_EXT_ACCT}) {
+    $self->query($db, "UPDATE dv_calls SET
+      status='$acct_status_type',
+      nas_port_id='$RAD->{NAS_PORT}',
+      acct_session_time=UNIX_TIMESTAMP()-UNIX_TIMESTAMP(started),
+      acct_input_octets='$RAD->{INBYTE}',
+      acct_output_octets='$RAD->{OUTBYTE}',
+      ex_input_octets='$RAD->{INBYTE2}',
+      ex_output_octets='$RAD->{OUTBYTE2}',
+      framed_ip_address=INET_ATON('$RAD->{FRAMED_IP_ADDRESS}'),
+      lupdated=UNIX_TIMESTAMP(),
+      sum=sum+$self->{SUM}
+    WHERE
+      acct_session_id=\"$RAD->{ACCT_SESSION_ID}\" and 
+      user_name=\"$RAD->{USER_NAME}\" and
+      nas_id='$NAS->{NAS_ID}';", 'do');
+
+  	return $self;
+   }
+  elsif ($NAS->{NAS_TYPE} eq 'ipcad') {
     return $self;
    }
   elsif ($conf->{rt_billing}) {
     $self->rt_billing($RAD, $NAS);
    }
-
-
+  
   $self->query($db, "UPDATE dv_calls SET
     status='$acct_status_type',
     nas_port_id='$RAD->{NAS_PORT}',
@@ -301,18 +359,14 @@ sub rt_billing {
    FROM dv_calls 
   WHERE user_name='$RAD->{USER_NAME}' and acct_session_id='$RAD->{ACCT_SESSION_ID}';");
 
-
-
   if($self->{errno}) {
  	  return $self;
    }
   elsif ($self->{TOTAL} < 1) {
     $self->{errno}=2;
-    $self->{errstr}="Session account Not Exist";
+    $self->{errstr}="Session account Not Exist '$RAD->{ACCT_SESSION_ID}'";
     return $self;
    }
-
-
 
 
   ($RAD->{INTERIUM_SESSION_START},
@@ -331,10 +385,7 @@ sub rt_billing {
   #	 return 0;
   # }
   
-  
   my $Billing = Billing->new($db, $conf);	
-
-
 
   ($self->{UID}, 
    $self->{SUM}, 
@@ -352,9 +403,9 @@ sub rt_billing {
 
                                                 	 INTERIUM_OUTBYTE  => $RAD->{INTERIUM_OUTBYTE},
                                                    INTERIUM_INBYTE   => $RAD->{INTERIUM_INBYTE},
-                                                   INTERIUM_OUTBYTE2 => $RAD->{OUTBYTE2},
-                                                   INTERIUM_INBYTE2  => $RAD->{INBYTE2}
-                                                   
+                                                   INTERIUM_OUTBYTE1 => $RAD->{INTERIUM_INBYTE1},
+                                                   INTERIUM_INBYTE1  => $RAD->{INTERIUM_OUTBYTE1}
+
                                                 	},
                                                 { FULL_COUNT => 1 }
                                                 );
@@ -388,6 +439,7 @@ sub rt_billing {
     }
 
    my @RAD_TRAFF_SUFIX = ('', '1');
+   $self->{SUM} = 0 if ($self->{SUM} < 0);
    
    for(my $traffic_type = 0; $traffic_type <= $#RAD_TRAFF_SUFIX; $traffic_type++) {
      next if ($RAD->{'INTERIUM_OUTBYTE'.$RAD_TRAFF_SUFIX[$traffic_type]} + $RAD->{'INTERIUM_INBYTE'.$RAD_TRAFF_SUFIX[$traffic_type]} < 1);
@@ -425,6 +477,8 @@ sub rt_billing {
    }
   elsif ($self->{UID} <= 0) {
     $self->{LOG_DEBUG} =  "ACCT [$RAD->{USER_NAME}] small session ($RAD->{ACCT_SESSION_TIME}, $RAD->{INBYTE}, $RAD->{OUTBYTE}), $self->{UID}";
+    
+    print "ACCT [$RAD->{USER_NAME}] /$RAD->{ACCT_STATUS_TYPE}/ small session ($RAD->{ACCT_SESSION_TIME}, $RAD->{INBYTE}, $RAD->{OUTBYTE}), $self->{UID}\n";;
    }
   else {
     if ($self->{SUM} > 0) {

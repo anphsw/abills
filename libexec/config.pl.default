@@ -51,7 +51,7 @@ $conf{s_detalization}='yes'; #make session detalization recomended for vpn leath
 #Check periodic deposit and session. hangup after get negative result
 $conf{periodic_check}='no';
 
-$conf{version}='0.36b'; #16.06.2006
+$conf{version}='0.37b'; #16.06.2006
 
 #Octets direction
 # server - Count octets from server side
@@ -169,6 +169,9 @@ $year = strftime("%Y", localtime(time));
 sub log_print  {
  my ($level, $text) = @_;
 
+ my $DATE = strftime "%Y-%m-%d", localtime(time);
+ my $TIME = strftime "%H:%M:%S", localtime(time);
+
  if ($conf{debugmods} =~ /$level/) {
    if (defined($conf{foreground}) && $conf{foreground} == 1) {
      print "$DATE $TIME $level: $text\n";
@@ -179,13 +182,5 @@ sub log_print  {
      close(FILE);
     }
   }
-
-#elsif($conf{debug} < $log_levels{$level}) {
-#  print "level \n";
-#  return 0;	
-# }
-
-#   write_log("$logfile", "$level", $text);
-
 
 }

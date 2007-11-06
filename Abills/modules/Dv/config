@@ -13,12 +13,13 @@ $web_interface    = 1;
                    "09:7:$_INTERVALS:form_intervals:TP_ID" => 5,
                    "10:7:$_NASS:form_nas_allow:TP_ID"      => 5,
                    "11:7:$_USERS:dv_users_list:TP_ID"      => 5,
-                   "12:0:Dialup / VPN:null:"               => 4,
-                   "13:12:$_ERROR:dv_error:"               => 4,
-                   "14:12:$_LAST:dv_sessions:"             => 4,
-                   "15:12:$_USED:dv_use:"                  => 4,
-                   "16:15:$_MONTH:dv_use_allmonthes:"      => 4,
-                   "17:0:Dialup / VPN:dv_online:"          => 8,
+                   "11:7:$_GROUPS:dv_tp_groups:"           => 5,
+                   "13:0:Dialup / VPN:null:"               => 4,
+                   "14:13:$_ERROR:dv_error:"               => 4,
+                   "15:13:$_LAST:dv_sessions:"             => 4,
+                   "16:13:$_USED:dv_use:"                  => 4,
+                   "17:16:$_MONTH:dv_use_allmonthes:"      => 4,
+                   "18:0:Dialup / VPN:dv_online:"          => 8,
                    "20:1:$_USERS $_ADD:dv_wizard_user:"   => 11
 
                    );

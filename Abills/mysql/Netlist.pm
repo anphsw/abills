@@ -119,12 +119,11 @@ sub group_info {
      return $self;
    }
 
-  my $ar = $self->{list}->[0];
-  
+ 
   ($self->{ID}, 
    $self->{NAME}, 
    $self->{COMMENTS}
-  ) = @$ar;
+  ) = @{ $self->{list}->[0] };
 
 
   return $self;
@@ -186,8 +185,7 @@ sub ip_list() {
     LEFT JOIN netlist_groups ng ON (ng.id=ni.gid)
     $WHERE;");
 
-  my $a_ref = $self->{list}->[0];
-  ($self->{TOTAL}) = @$a_ref;
+  ($self->{TOTAL}) = @{ $self->{list}->[0] };
 
 
  return $list;
@@ -310,8 +308,6 @@ sub ip_info {
      return $self;
    }
 
-  my $ar = $self->{list}->[0];
-  
   ($self->{IP}, 
    $self->{NETMASK}, 
    $self->{HOSTNAME},
@@ -320,7 +316,7 @@ sub ip_info {
    $self->{COMMENTS},
    $self->{DESCR},
    $self->{IP_NUM},
-  ) = @$ar;
+  ) = @{ $self->{list}->[0] };
 
 
   return $self;

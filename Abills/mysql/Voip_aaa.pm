@@ -7,7 +7,7 @@ use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
 );
 
 use Exporter;
-$VERSION = 2.00;
+$VERSION = 2.01;
 @ISA = ('Exporter');
 @EXPORT = qw();
 @EXPORT_OK = ();
@@ -23,11 +23,11 @@ my ($db, $conf, $Billing);
 
 
 my %RAD_PAIRS=();
-my %ACCT_TYPES = ('Start', 1,
-               'Stop', 2,
-               'Alive', 3,
-               'Accounting-On', 7,
-               'Accounting-Off', 8);
+my %ACCT_TYPES = ('Start',          1,
+                  'Stop',           2,
+                  'Alive',          3,
+                  'Accounting-On',  7,
+                  'Accounting-Off', 8);
 
 
 
@@ -41,9 +41,11 @@ sub new {
   ($db, $conf) = @_;
   my $self = { };
   bless($self, $class);
+
   #$self->{debug}=1;
   my $Auth = Auth->new($db, $conf);
   $Billing = Billing->new($db, $conf);	
+
   return $self;
 }
 
@@ -66,10 +68,9 @@ sub preproces {
   (undef, $RAD->{H323_CALL_ORIGIN})=split(/=/, $RAD->{H323_CALL_ORIGIN}, 2) if ($RAD->{H323_CALL_ORIGIN} =~ /=/);
   $RAD->{H323_CALL_ORIGIN} = $CALLS_ORIGIN{$RAD->{H323_CALL_ORIGIN}};
   
-
-
   (undef, $RAD->{H323_DISCONNECT_CAUSE}) = split(/=/, $RAD->{H323_DISCONNECT_CAUSE}, 2) if (defined($RAD->{H323_DISCONNECT_CAUSE}));
 
+  $RAD->{CLIENT_IP_ADDRESS} = $RAD->{FRAMED_IP_ADDRESS} if($RAD->{FRAMED_IP_ADDRESS});
 
 #        h323-gw-id = "h323-gw-id=ASMODEUSGK"
 
@@ -125,8 +126,6 @@ sub user_info {
      return $self;
    }
 
-  my $ar = $self->{list}->[0];
-
   ($self->{UID},
    $self->{NUMBER},
    $self->{TP_ID}, 
@@ -147,7 +146,7 @@ sub user_info {
    $self->{DAY_OF_WEEK}, 
    $self->{DAY_OF_YEAR}
 
-  )= @$ar;
+  )= @{ $self->{list}->[0] };
   
   $self->{SIMULTANEOUSLY} = 0;
 
@@ -160,8 +159,6 @@ if($self->{errno}) {
   $RAD_PAIRS{'Reply-Message'}=$self->{errstr};
   return 1, \%RAD_PAIRS;
  }
-
-
 
   return $self;
 }
@@ -189,10 +186,6 @@ sub auth {
    }
 
  if (defined($RAD->{CHAP_PASSWORD}) && defined($RAD->{CHAP_CHALLENGE})){
-
-   #$RAD->{CHAP_PASSWORD}  = "0x01443072e8fd815fd4f6bf32b32988c294";
-   #$RAD->{CHAP_CHALLENGE} = "0x38343538343231303638363531353239";
-
    if (check_chap("$RAD->{CHAP_PASSWORD}", "$self->{PASSWORD}", "$RAD->{CHAP_CHALLENGE}", 0) == 0) {
      $RAD_PAIRS{'Reply-Message'}="Wrong CHAP password '$self->{PASSWORD}'";
      return 1, \%RAD_PAIRS;
@@ -243,8 +236,10 @@ else {
      	 $RAD_PAIRS{'Reply-Message'}="Not allow calls";
        return 1, \%RAD_PAIRS;
       }
+
      # Get route
      my $query_params = '';
+     
      for (my $i=1; $i<=length($RAD->{'CALLED_STATION_ID'}); $i++) { 
      	 $query_params .= '\''. substr($RAD->{'CALLED_STATION_ID'}, 0, $i) . '\','; 
      	}
@@ -264,13 +259,11 @@ else {
        return 1, \%RAD_PAIRS;
      }
 
-    my $ar = $self->{list}->[0];
-
     ($self->{ROUTE_ID},
      $self->{PREFIX},
      $self->{GATEWAY_ID}, 
      $self->{ROUTE_DISABLE}
-    )= @$ar;
+    )= @{ $self->{list}->[0] };
   
     if ($self->{ROUTE_DISABLE} == 1) {
        $RAD_PAIRS{'Reply-Message'}="Route disabled '". $RAD->{'CALLED_STATION_ID'} ."'";
@@ -294,7 +287,8 @@ else {
           DAY_OF_WEEK         => $self->{DAY_OF_WEEK},
           DAY_OF_YEAR         => $self->{DAY_OF_YEAR},
           REDUCTION           => $self->{REDUCTION},
-          POSTPAID            => $self->{PAYMENT_TYPE}
+          POSTPAID            => $self->{PAYMENT_TYPE},
+          PRICE_UNIT          => 'Min'
          });
     
        if ($session_timeout > 0) {
@@ -307,7 +301,6 @@ else {
          #Make start record in voip_calls
 
   my $SESSION_START = 'now()';
-
 
   $self->query($db, "INSERT INTO voip_calls 
    (  status,
@@ -360,7 +353,6 @@ sub get_intervals {
          and i.tp_id  = '$self->{TP_ID}'
          and rp.route_id = '$self->{ROUTE_ID}';");
 
-
    my $list = $self->{list};
    my %time_periods = ();
    my %periods_time_tarif = ();
@@ -392,7 +384,7 @@ sub accounting {
 
  my $acct_status_type = $ACCT_TYPES{$RAD->{ACCT_STATUS_TYPE}};
  my $SESSION_START = (defined($RAD->{SESSION_START}) && $RAD->{SESSION_START} > 0) ?  "FROM_UNIXTIME($RAD->{SESSION_START})" : 'now()';
-
+ 
 #   print "aaa $acct_status_type '$RAD->{ACCT_STATUS_TYPE}'  /$RAD->{SESSION_START}/"; 
 #my $a=`echo "test $acct_status_type = $ACCT_TYPES{$RAD->{ACCT_STATUS_TYPE}}"  >> /tmp/12211 `;
  
@@ -404,11 +396,14 @@ if ($acct_status_type == 1) {
     status='$acct_status_type',
     acct_session_id='$RAD->{ACCT_SESSION_ID}'
     WHERE conf_id='$RAD->{H323_CONF_ID}';", 'do');
+
  }
 # Stop status
 elsif ($acct_status_type == 2) {
-  #$self->{debug}=1;
-  $self->query($db, "SELECT 
+
+  if ($RAD->{ACCT_SESSION_TIME} > 0) {
+    #$self->{debug}=1;
+    $self->query($db, "SELECT 
       UNIX_TIMESTAMP(started),
       lupdated,
       acct_session_id,
@@ -428,50 +423,45 @@ elsif ($acct_status_type == 2) {
       UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME(UNIX_TIMESTAMP()), '%Y-%m-%d')),
       DAYOFWEEK(FROM_UNIXTIME(UNIX_TIMESTAMP())),
       DAYOFYEAR(FROM_UNIXTIME(UNIX_TIMESTAMP()))
-   FROM voip_calls 
-    WHERE 
+    FROM voip_calls 
+      WHERE 
       conf_id='$RAD->{H323_CONF_ID}'
       and call_origin='1';");
 
-  if ($self->{TOTAL} < 1) {
-   	$self->{errno}=1;
-  	$self->{errstr}="Call not exists";
-  	$self->{Q}->finish();
-  	return $self;
-   }
-  elsif ($self->{errno}){
-  	$self->{errno}=1;
-  	$self->{errstr}="SQL error";
-  	return $self;
-   }
-
-
-  my $ar = $self->{list}->[0];
-
-  ($self->{SESSION_START},
-   $self->{LAST_UPDATE},
-   $self->{ACCT_SESSION_ID}, 
-   $self->{CALLING_STATION_ID},
-   $self->{CALLED_STATION_ID},
-   $self->{NAS_ID},
-   $self->{CLIENT_IP_ADDRESS},
-   $self->{CONF_ID},
-   $self->{CALL_ORIGIN},
-   $self->{UID},
-   $self->{REDUCTION},
-   $self->{BILL_ID},
-   $self->{TP_ID},
-   $self->{ROUTE_ID},
-   
-   $self->{SESSION_STOP},
-   $self->{DAY_BEGIN},
-   $self->{DAY_OF_WEEK},
-   $self->{DAY_OF_YEAR}
-   
-  )= @$ar;
+    if ($self->{TOTAL} < 1) {
+   	  $self->{errno}=1;
+  	  $self->{errstr}="Call not exists";
+  	  $self->{Q}->finish();
+  	  return $self;
+     }
+    elsif ($self->{errno}){
+  	  $self->{errno}=1;
+  	  $self->{errstr}="SQL error";
+  	  return $self;
+     }
   
-
-#get intervals
+    ($self->{SESSION_START},
+     $self->{LAST_UPDATE},
+     $self->{ACCT_SESSION_ID}, 
+     $self->{CALLING_STATION_ID},
+     $self->{CALLED_STATION_ID},
+     $self->{NAS_ID},
+     $self->{CLIENT_IP_ADDRESS},
+     $self->{CONF_ID},
+     $self->{CALL_ORIGIN},
+     $self->{UID},
+     $self->{REDUCTION},
+     $self->{BILL_ID},
+     $self->{TP_ID},
+     $self->{ROUTE_ID},
+   
+     $self->{SESSION_STOP},
+     $self->{DAY_BEGIN},
+     $self->{DAY_OF_WEEK},
+     $self->{DAY_OF_YEAR}
+    
+    )= @{ $self->{list}->[0] };
+  
 
        $self->get_intervals();
        if ($self->{TOTAL} < 1) {
@@ -492,11 +482,11 @@ elsif ($acct_status_type == 2) {
          });
   
   
-  if ($Billing->{errno}) {
-   	$self->{errno}=$Billing->{errno};
-  	$self->{errstr}=$Billing->{errstr};
-  	return $self;
-   }
+    if ($Billing->{errno}) {
+   	  $self->{errno}=$Billing->{errno};
+  	  $self->{errstr}=$Billing->{errstr};
+  	  return $self;
+     }
   
     my $filename; 
 
@@ -521,26 +511,29 @@ elsif ($acct_status_type == 2) {
          $self->query($db, "UPDATE bills SET deposit=deposit-$Billing->{SUM} WHERE id='$self->{BILL_ID}';", 'do');
        }
      }
-
+   }
+  else {
+  	
+   }
 
   # Delete from session wtmp
   $self->query($db, "DELETE FROM voip_calls 
      WHERE acct_session_id='$RAD->{ACCT_SESSION_ID}' 
-     and user_name=\"$RAD->{USER_NAME}\" 
+     and user_name='$RAD->{USER_NAME}' 
      and nas_id='$NAS->{NAS_ID}'
-     and conf_id='$self->{CONF_ID}';", 'do');
+     and conf_id='$RAD->{H323_CONF_ID}';", 'do');
  
 }
 #Alive status 3
 elsif($acct_status_type eq 3) {
+  #acct_session_time=UNIX_TIMESTAMP()-UNIX_TIMESTAMP(started),
   $self->query($db, "UPDATE voip_calls SET
     status='$acct_status_type',
-    acct_session_time=UNIX_TIMESTAMP()-UNIX_TIMESTAMP(started),
     client_ip_address=INET_ATON('$RAD->{FRAMED_IP_ADDRESS}'),
     lupdated=UNIX_TIMESTAMP()
    WHERE
-    acct_session_id=\"$RAD->{ACCT_SESSION_ID}\" and 
-    user_name=\"$RAD->{USER_NAME}\" and
+    acct_session_id='$RAD->{ACCT_SESSION_ID}' and 
+    user_name='$RAD->{USER_NAME}' and
     client_ip_address=INET_ATON('$RAD->{CLIENT_IP_ADDRESS}');", 'do');
 }
 else {
@@ -559,34 +552,4 @@ else {
 }
 
 
-
-
-=comments
-# Cisco Values
-
-VALUE           h323-disconnect-cause        Local-Clear                    0
-VALUE           h323-disconnect-cause        Local-No-Accept                1
-VALUE           h323-disconnect-cause        Local-Decline                  2
-VALUE           h323-disconnect-cause        Remote-Clear                   3
-VALUE           h323-disconnect-cause        Remote-Refuse                  4
-VALUE           h323-disconnect-cause        Remote-No-Answer               5
-VALUE           h323-disconnect-cause        Remote-Caller-Abort            6
-VALUE           h323-disconnect-cause        Transport-Error                7
-VALUE           h323-disconnect-cause        Transport-Connect-Fail         8
-VALUE           h323-disconnect-cause        Gatekeeper-Clear               9
-VALUE           h323-disconnect-cause        Fail-No-User                   10
-VALUE           h323-disconnect-cause        Fail-No-Bandwidth              11
-VALUE           h323-disconnect-cause        No-Common-Capabilities         12
-VALUE           h323-disconnect-cause        FACILITY-Forward               13
-VALUE           h323-disconnect-cause        Fail-Security-Check            14
-VALUE           h323-disconnect-cause        Local-Busy                     15
-VALUE           h323-disconnect-cause        Local-Congestion               16
-VALUE           h323-disconnect-cause        Remote-Busy                    17
-VALUE           h323-disconnect-cause        Remote-Congestion              18
-VALUE           h323-disconnect-cause        Remote-Unreachable             19
-VALUE           h323-disconnect-cause        Remote-No-Endpoint             20
-VALUE           h323-disconnect-cause        Remote-Off-Line                21
-VALUE           h323-disconnect-cause        Remote-Temporary-Error         22
-
-=cut
 1

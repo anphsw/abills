@@ -24,9 +24,8 @@ my %auth_mod = ();
 
 require Abills::SQL;
 my $sql = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd});
-$db  = $sql->{db};
+my $db  = $sql->{db};
 require Nas;
-#$nas = Nas->new($db, \%conf);	
 $nas = undef;
 
 require Auth;
@@ -49,7 +48,7 @@ my $RAD;
 if (scalar(keys %RAD_REQUEST ) < 1 ) {
   $RAD = get_radius_params();
   if (defined($ARGV[0]) && $ARGV[0] eq 'pre_auth') {
-    auth($RAD, { pre_auth => 1 });
+    auth($db, $RAD, { pre_auth => 1 });
     exit 0;
    }
   elsif (defined($ARGV[0]) && $ARGV[0] eq 'post_auth') {
@@ -57,9 +56,9 @@ if (scalar(keys %RAD_REQUEST ) < 1 ) {
     exit 0;
    }
 
-  my $ret = get_nas_info($RAD);
+  my $ret = get_nas_info($db, $RAD);
   if($ret == 0) {
-    $ret = auth($RAD);
+    $ret = auth($db, $RAD);
   }
   #$db->disconnect();
   
@@ -79,7 +78,7 @@ if (scalar(keys %RAD_REQUEST ) < 1 ) {
 # get_nas_info();
 #*******************************************************************
 sub get_nas_info {
- my ($RAD)=@_;
+ my ($db, $RAD)=@_;
  
  $nas = Nas->new($db, \%conf);	
  
@@ -116,7 +115,7 @@ elsif($nas->{NAS_DISABLE} > 0) {
 # auth();
 #*******************************************************************
 sub auth {
- my ($RAD, $attr)=@_;
+ my ($db, $RAD, $attr)=@_;
  my ($r, $RAD_PAIRS);
 
  if(defined($conf{tech_works})) {
@@ -166,7 +165,8 @@ else {
     	 $auth_mod{"default"}->{errstr}=~s/\n//g;
     	 $message .= $auth_mod{"default"}->{errstr};
      }
-    access_deny("$RAD->{USER_NAME}", "$message", $nas->{NAS_ID});
+    my $CID = ($RAD->{CALLING_STATION_ID}) ? " CID: $RAD->{CALLING_STATION_ID} " : '';
+    access_deny("$RAD->{USER_NAME}", "$message$CID", $nas->{NAS_ID});
     return $r;
   }
  else {
@@ -175,23 +175,29 @@ else {
 
    my @pairs_arr = split(/,/, $nas->{NAS_RAD_PAIRS});
    foreach my $line (@pairs_arr) {
-   	 if ($line =~ /\+\=/ ) {
-   	 	 my($left, $right)=split(/\+\=/, $line, 2);
-       $right =~ s/"//g;
-   	 	 if (defined($RAD_REPLY{"$left"})) {
-   	 	 	 $RAD_REPLY{"$left"} =~ s/\"//g;
-   	 	 	 $RAD_REPLY{"$left"}="\"". $RAD_REPLY{"$left"} .",$right\"";
-   	 	  }
-       else {
-       	 $RAD_REPLY{"$left"}="$right";
+     if ($line =~ /\+\=/ ) {
+       my($left, $right)=split(/\+\=/, $line, 2);
+       $right =~ s/\"//g;
+
+       if (defined($RAD_REPLY{"$left"})) {
+   	     $RAD_REPLY{"$left"} =~ s/\"//g;
+   	     $RAD_REPLY{"$left"}="\"". $RAD_REPLY{"$left"} .",$right\"";
         }
-   	  }
-   	 else {
-   	   my($left, $right)=split(/=/, $line, 2);
-   	   $RAD_REPLY{"$left"}="$right";
-   	  }
- 	 $RAD_CHECK{'Auth-Type'} = 'Accept';
-  }
+       else {
+     	   $RAD_REPLY{"$left"}="\"$right\"";
+        }
+       }
+      else {
+         my($left, $right)=split(/=/, $line, 2);
+         if ($left =~ s/^!//) {
+           delete $RAD_REPLY{"$left"};
+   	      }
+   	     else {  
+   	       $RAD_REPLY{"$left"}="$right";
+   	      }
+       }
+      $RAD_CHECK{'Auth-Type'} = 'Accept';
+     }
    
    #$RAD_REPLY{'cisco-avpair'}="\"tunnel-type=VLAN,tunnel-medium-type==IEEE-802,tunnel-private-group-id=1, ip:inacl#1=deny ip 10.10.10.10 0.0.255.255 20.20.20.20 255.255.0.0\"";
 

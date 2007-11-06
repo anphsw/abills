@@ -36,5 +36,6 @@ CREATE TABLE `cards_users` (
   `pin` blob NOT NULL default '',
   `uid` int(11) unsigned NOT NULL default '0',
   UNIQUE KEY `serial` (`number`,`serial`),
-  KEY `diller_id` (`diller_id`)
+  KEY `diller_id` (`diller_id`),
+  KEY `login` (`login`)
 ) COMMENT='Cards list';

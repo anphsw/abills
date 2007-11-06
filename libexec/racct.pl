@@ -105,11 +105,11 @@ if (scalar(keys %RAD_REQUEST ) < 1) {
     #exit 1;
    }
   else {
-    $acct = acct($RAD, $nas);
+    $acct = acct($db, $RAD, $nas);
    }
 
   if(defined($acct->{errno})) {
-	  log_print('LOG_ERR', "ACCT [$RAD->{USER_NAME}] $acct->{errstr} ($acct->{sql_errstr})");
+	  log_print('LOG_ERR', "ACCT [$RAD->{USER_NAME}] $acct->{errstr}". ( (defined($acct->{sql_errstr})) ? " ($acct->{sql_errstr})" : '' )  );
    }
 
   #$db->disconnect();
@@ -121,7 +121,7 @@ if (scalar(keys %RAD_REQUEST ) < 1) {
 # acct();
 #*******************************************************************
 sub acct {
- my ($RAD, $nas) = @_;
+ my ($db, $RAD, $nas) = @_;
  my $GT = '';
  my $r = 0;
  
@@ -244,7 +244,7 @@ if (-d $conf{extern_acct_dir}) {
     foreach my $file (@contents) {
       if (-x "$conf{extern_acct_dir}/$file" && -f "$conf{extern_acct_dir}/$file") {
         # ACCT_STATUS IP_ADDRESS NAS_PORT
-        $res = `$conf{extern_acct_dir}/$file $acct_status_type $RAD->{NAS_IP_ADDRESS} $RAD->{NAS_PORT} $nas->{NAS_TYPE}`;
+        $res = `$conf{extern_acct_dir}/$file $acct_status_type $RAD->{NAS_IP_ADDRESS} $RAD->{NAS_PORT} $nas->{NAS_TYPE} $RAD->{USER_NAME}`;
         log_print('LOG_DEBUG', "External accounting program '$conf{extern_acct_dir}' / '$file' pairs '$res'");
        }
      }

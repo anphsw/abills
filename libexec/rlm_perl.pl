@@ -4,7 +4,6 @@
 use strict;
 use vars qw(%RAD_REQUEST %RAD_REPLY %RAD_CHECK %conf 
  $begin_time
- $db
  $nas);
 #use Data::Dumper;
 
@@ -40,7 +39,6 @@ unshift(@INC, $Bin . '/../', $Bin . "/../Abills/$conf{dbtype}");
 require $Bin ."/racct.pl";
 require $Bin ."/rauth.pl";
 
-$db = undef;
 $nas = undef;
 
 #**********************************************************
@@ -49,7 +47,10 @@ $nas = undef;
 #**********************************************************
 sub sql_connect {
 	my $sql = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd});
-  $db  = $sql->{db};
+  my $db  = $sql->{db};
+  
+  #$rc = $dbh->ping;
+  
   $nas = Nas->new($db, \%conf);	
   return $db;
 }
@@ -62,12 +63,12 @@ sub authorize {
   $begin_time = check_time();
   convert_radpairs();
 
-  sql_connect();
+  my $db = sql_connect();
  
-  if ( get_nas_info(\%RAD_REQUEST) == 0 ) {
+  if ( get_nas_info($db, \%RAD_REQUEST) == 0 ) {
   	
-  	if (auth(\%RAD_REQUEST, { pre_auth => 1 }) == 0) {
-      if ( auth(\%RAD_REQUEST) == 0 ) {
+  	if (auth($db, \%RAD_REQUEST, { pre_auth => 1 }) == 0) {
+      if ( auth($db, \%RAD_REQUEST) == 0 ) {
          #$RAD_CHECK{'User-Password'} = 'test12345';
     	   return RLM_MODULE_OK;
        }
@@ -83,10 +84,10 @@ sub authorize {
 #**********************************************************
 sub authenticate {
   
-  sql_connect();
+  my $db = sql_connect();
   
-  if ( get_nas_info(\%RAD_REQUEST) == 0 ) {
-    if ( auth(\%RAD_REQUEST) == 0 ) {
+  if ( get_nas_info($db, \%RAD_REQUEST) == 0 ) {
+    if ( auth($db, \%RAD_REQUEST) == 0 ) {
     	return RLM_MODULE_OK;
      }
    }
@@ -104,18 +105,13 @@ sub accounting {
   $begin_time = check_time();
   convert_radpairs();
 
-  sql_connect();
-  if ( get_nas_info(\%RAD_REQUEST) == 0 ) {
-     my $ret = acct(\%RAD_REQUEST, $nas);
+  my $db = sql_connect();
+  if ( get_nas_info($db, \%RAD_REQUEST) == 0 ) {
+     my $ret = acct($db, \%RAD_REQUEST, $nas);
    }
-
 
 	return RLM_MODULE_OK;
 }
-
-
-
-
 
 # Function to handle post_auth
 #sub post_auth {
@@ -130,11 +126,15 @@ sub accounting {
 # 
 #**********************************************************
 sub convert_radpairs {
+	my %r = ();
+
 	while(my($k, $v)=each %RAD_REQUEST) {
 		$k =~ s/-/_/g;
 		$k =~ tr/[a-z]/[A-Z]/;
-		$RAD_REQUEST{$k}=$v;
+		$r{$k}=$v;
 	 }
+
+  %RAD_REQUEST = %r;
 }
 
 
@@ -154,7 +154,10 @@ sub test_call {
 	while(my($k, $v)=each(%RAD_CHECK)){
 	  $test .= "$k, $v\n";
 	 }
- 
+
   #print $test;
   my $a=`echo "$test" >> /tmp/perllog`;
 }
+
+
+1

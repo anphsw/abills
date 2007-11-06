@@ -1,9 +1,8 @@
 <form action='$SELF_URL' method='post'>
 <input type=hidden name='index' value='$index'>
 <input type=hidden name='UID' value='$FORM{UID}'>
-
 <table width=420 cellspacing='0' cellpadding='3'>
-<tr><td>$_TARIF_PLAN:</td><th  align='left' valign='middle'>[%TP_ID%] %TP_NAME% </th></tr>
+<tr><td>$_TARIF_PLAN:</td><th  align='left' valign='middle'>[%TP_ID%] %TP_NAME% %CHANGE_TP_BUTTON%</th></tr>
 <tr><td>$_SIMULTANEOUSLY:</td><td><input type=text name=SIMULTANEONSLY value='%SIMULTANEONSLY%'></td></tr>
 <tr><td>IP:</td><td><input type=text name=IP value='%IP%'></td></tr>
 <tr><td>Netmask:</td><td><input type=text name=NETMASK value='%NETMASK%'></td></tr>

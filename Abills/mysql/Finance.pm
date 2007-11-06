@@ -45,7 +45,7 @@ sub fees {
 
 
   use Fees;
-  my $fees = Fees->new($db, $admin);
+  my $fees = Fees->new($db, $admin, $CONF);
   return $fees;
 }
 
@@ -58,7 +58,7 @@ sub payments {
   ($db, $admin) = @_;
 
   use Payments;
-  my $payments = Payments->new($db, $admin);
+  my $payments = Payments->new($db, $admin, $CONF);
   return $payments;
 }
 
@@ -148,11 +148,9 @@ sub exchange_info {
   
   return $self if ($self->{TOTAL} < 1);
   
-  my $ar = $self->{list}->[0];
-
   ($self->{ER_NAME}, 
    $self->{ER_SHORT_NAME}, 
-   $self->{ER_RATE})=@$ar;
+   $self->{ER_RATE})=@{ $self->{list}->[0]};
 
 
 	return $self;

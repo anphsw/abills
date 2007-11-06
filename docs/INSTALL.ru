@@ -1,3 +1,10 @@
+=====OS=====
+ **Замечания по установкe операционной системы.**
+===FreeBSD===
+  * При разбиении диска на разделы крайне рекомендуется отвести для раздела **/var** не менее 10 Гигабайт. Если планируется высокая нагрузка это значение можно увеличить.
+  * Рекомендованный дистрибутивный набор (Distribution Set) - **6 Kernel-Developer **
+  * Более подробно об установке читайте тут [[http://www.asmodeus.com.ua/library/os/freebsd/handbook/|FreeBSD Handbook]]
+
 =====Radius=====
 Загрузить пакет FreeRadius можно по адресу [http://www.freeradius.org]
 
@@ -192,6 +199,7 @@
 
 
 
+
 =====ABillS=====
 Загрузить пакет можно по адресу [http://sourceforge.net/projects/abills/]\\
 
@@ -219,16 +227,18 @@
 Вносим в ''cron'' периодические процессы
 **/etc/crontab**
 
-  \*/5  *      *    *     *   root   /usr/abills/libexec/billd -all
-  1     0     *    *     *   root    /usr/abills/libexec/periodic daily
-  1     0     *    *     *   root    /usr/abills/libexec/periodic monthly
+ */5  *      *    *     *   root   /usr/abills/libexec/billd -all\\
+ 1     0     *    *     *   root    /usr/abills/libexec/periodic daily\\
+ 1     0     *    *     *   root    /usr/abills/libexec/periodic monthly\\
 
 \\
 
 Установить права на чтение и запись вебсервером для файлов веб интерфейса \\
 
   # chown -Rf www /usr/abills/cgi-bin
-
+  # chown -Rf www /usr/abills/Abills/templates
+  # chown -Rf www /usr/abills/backup
+  
 Открываем веб интерфейс http://your.host/abills/admin/
 
 

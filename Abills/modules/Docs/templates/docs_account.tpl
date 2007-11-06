@@ -22,25 +22,21 @@
 
 
 <br>
-<table border=1 width=100%>
+<table border=0 width=100%>
 <tr>
-<td>№</td>
-<td>Товар</td>
-<td>Од.</td>
-<td>Кількість</td><td>Ціна</td><td>Сума</td></tr>
+<td align=center><strong>№</strong></td>
+<td align=center><strong>Товар</strong></td>
+<td align=center><strong>Од.</strong></td>
+<td align=center><strong>Кількість</strong></td>
+<td align=center><strong>Ціна</strong></td><td align=center><strong>Сума</strong></td></tr>
+<tr><th colspan=6><img src=/img/black.gif width=630 height=1></th></tr>
 %ORDER%
-</table>
 
-
-<br>
-<br>
-<br>
-<table width=100% border=0>
-<tr><td>
-Всього на суму: %SUM%<br>
-<b>(%SUM_LIT%)</b><br>
-ПДВ:      %VAT% грн
-</td></tr>
+<tr><th colspan=6><img src=/img/black.gif width=630 height=1></th></tr>
+<tr><td colspan=4 rowspan=3>&nbsp;</td><td><strong>Сума:</strong></td><td align=right>%SUM%<br>
+<tr><td><strong>ПДВ:</strong></td><td align=right>%VAT%</td></tr>
+<tr><td><strong>Всього на суму:</strong></td><td align=right>%SUM%</td></tr>
+<tr><td colspan=6 align=right>Прописом: <i>(%SUM_LIT%)</i></td></td>
 </table>
 
 

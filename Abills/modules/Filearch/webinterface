@@ -6,6 +6,31 @@ $conf{DOWNLOADS}='%INFO% [ <a href="ftp://ftp.yes.ko.if.ua/Video/Movies/%FOLDER%
 [ <a href="http://ftp.yes.ko.if.ua/ftp/Video/Movies/%FOLDER%/%FILE%">HTTP</a> ]
 [ <a href="file:\\\ftp.yes.ko.if.ua\Share\Video\Movies\%FOLDER%\%FILE%">SMB</a> ]';
 
+=commnets
+#Windows Media Player
+<Asx Version = "3.0" >
+<Param Name = "Name" />
+
+<Entry>
+<Title>scary_movie_2.avi</Title>
+<Ref href = "\\lanmediaservice.com\4\scary_movie_2\scary_movie_2.avi"/>
+</Entry>
+</Asx>
+
+
+#Light Alloy
+
+\\lanmediaservice.com\4\scary_movie_2\scary_movie_2.avi
+>N scary_movie_2.avi
+
+#Media Player Classic
+MPCPLAYLIST
+1,type,0
+1,filename,\\lanmediaservice.com\4\scary_movie_2\scary_movie_2.avi
+
+
+=cut
+
 require "Filearch.pm";
 Filearch->import();
 my $Filearch = Filearch->new($db, $admin, \%conf);

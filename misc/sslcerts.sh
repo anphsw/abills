@@ -1,20 +1,51 @@
 #!/bin/sh
+# ABILLS Certificat creator
 
 SSL=/usr/local/openssl
 export PATH=/usr/src/crypto/openssl/apps/:${SSL}/bin/:${SSL}/ssl/misc:${PATH}
 export LD_LIBRARY_PATH=${SSL}/lib
 CA_pl=CA.pl;
+
 hostname=`hostname`;
 password=whatever;
 days=730;
 DATE=`date`;
+CERT_TYPE=$1;
+CERT_USER="";
 
 if [ w$1 = w ] ; then
-  echo "sslcerts.sh [apache|eap|postfix_tls|ssh]";
+  echo "Create SSL Certs and SSH keys ";
+  echo "sslcerts.sh [apache|eap|postfix_tls|ssh] -D";
+  echo " apache        - Create apache SSL cert"
+  echo " eap           - Create Server and users SSL Certs"
+  echo " postfix_tls   - Create postfix TLS Certs"
+  echo " info [file]   - Get info from SSL cert"
+  echo " ssh [USER]    - Create SSH DSA Keys"
+  echo "                USER - SSH remote user"
+  echo " -D [PATH]     - Path for ssl certs"
+  echo " -U [username] - Cert owner (Default: apache=www, postfix=vmail)"
+
   exit;
 fi
 
 CERT_PATH=/usr/abills/Certs/
+
+# Proccess command-line options
+#
+for _switch ; do
+        case $_switch in
+        -D)
+                CERT_PATH="$3"
+                shift; shift
+                ;;
+        -U)
+                CERT_USER="$3"
+                shift; shift
+                ;;
+        esac
+done
+
+
 if [ ! -d ${CERT_PATH} ] ; then
   mkdir ${CERT_PATH};
 fi
@@ -22,28 +53,42 @@ fi
 
 
 
+
 cd ${CERT_PATH};
 
 #SSH certs
-if [ w$1 = wssh ]; then
+if [ w${CERT_TYPE} = wssh ]; then
   echo "*******************************************************************************"
-  echo "Creating SSH authentication"
+  echo "Creating SSH authentication Key"
   echo " Make ssh-keygen with empty password."
   echo "*******************************************************************************"
   echo
 
-  ssh-keygen -t dsa -C "ABillS remote machine manage key (${DATE})" -f "${CERT_PATH}/id_dsa"
+  if [ w${CERT_TYPE} = w ]; then
+    id_dsa_file=id_dsa;
+  else
+    id_dsa_file=id_dsa.$2;
+  fi; 
+   
+  ssh-keygen -t dsa -C "ABillS remote machine manage key (${DATE})" -f "${CERT_PATH}${id_dsa_file}"
+
+  echo 
+  echo "Copy ${CERT_PATH}${id_dsa_file}.pub to REMOTE_HOST User home dir (/home/username/.ssh/authorized_keys) "
+  echo 
 
 #Apache Certs
-else if [ w$1 = wapache ]; then
+else if [ w${CERT_TYPE} = wapache ]; then
 
   echo "*******************************************************************************"
   echo "Creating Apache server private key and certificate"
   echo "When prompted enter the server name in the Common Name field."
   echo "*******************************************************************************"
   echo
-
-  APACHE_USER=www;
+  if [ w${CERT_USER} = w ];  then
+    APACHE_USER=www;
+  else 
+    APACHE_USER=${CERT_USER};
+  fi;
   cd ${CERT_PATH};
 
   openssl genrsa -des3 -passout pass:${password} -out server.key 1024 
@@ -56,22 +101,25 @@ else if [ w$1 = wapache ]; then
 
   chmod u=r,go= ${CERT_PATH}/server.key
   chmod u=r,go= ${CERT_PATH}/server.crt
-  chown www server.crt server.csr
+  chown ${APACHE_USER} server.crt server.csr
 
   cp server.key server.key.org
 
   openssl rsa -in server.key.org -out server.key \
    -passin pass:${password} -passout pass:${password}
 
+  #Cert info
+  openssl x509 -in server.crt -noout -subject
+
   chmod 400 server.key
 
 
-else if [ w$1 = weap ]; then
+else if [ w${CERT_TYPE} = weap ]; then
   echo "*******************************************************************************"
   echo "Make RADIUS EAP"
   echo "*******************************************************************************"
 
-  CERT_EAP_PATH=/usr/abills/Certs/eap
+  CERT_EAP_PATH=${CERT_PATH}/eap
   if [ ! -f ${CERT_EAP_PATH} ] ; then
     mkdir ${CERT_EAP_PATH};
   fi
@@ -225,7 +273,7 @@ openssl x509 -inform PEM -outform DER -in cert-srv.pem -out cert-srv.der
 rm newcert.pem newreq.pem
 
 
-else if [ w$1 = wpostfix_tls ]; then
+else if [ w${CERT_TYPE} = wpostfix_tls ]; then
   echo "******************************************************************************"
   echo "Make POSTFIX TLS sertificats"
   echo "******************************************************************************"
@@ -235,12 +283,26 @@ else if [ w$1 = wpostfix_tls ]; then
   openssl req -new -x509 -nodes -out smtpd.pem -keyout smtpd.pem -days ${days} \
    -passin pass:${password} -passout pass:${password}
 
+else if [ w${CERT_TYPE} = winfo ]; then
+
+  echo "******************************************************************************"
+  echo "Cert info $2"
+  echo "******************************************************************************"
+  FILENAME=$2; 
+  if [ w$FILENAME = w ] ; then 
+    echo "Select Cert file";
+    exit;
+  fi;
+
+  openssl x509 -in ${FILENAME} -noout -subject
+   
 
 
 fi;
 fi;
 fi;
 fi;
+fi;
 
-echo "$1 Done...";
+echo "${CERT_TYPE} Done...";
 

@@ -12,7 +12,8 @@ smtpd_helo_restrictions =       permit_mynetworks,
                       reject_unknown_hostname,
                       reject_non_fqdn_hostname
 
-smtpd_recipient_restrictions =  permit_mynetworks, 
+smtpd_recipient_restrictions = check_sender_access mysql:/usr/local/etc/postfix/sql/access.cf,
+                      permit_mynetworks, 
                       permit_sasl_authenticated, 
                       reject_unauth_destination, 
                       reject_unknown_recipient_domain, 
@@ -31,13 +32,13 @@ smtpd_sender_restrictions =     permit_mynetworks,
 
 transport_maps = mysql:/usr/local/etc/postfix/sql/transport.cf
 virtual_alias_maps = mysql:/usr/local/etc/postfix/sql/aliases.cf
-virtual_gid_maps = static:1001
+virtual_gid_maps = static:1005
 virtual_mailbox_base = /var/spool/virtual
 virtual_mailbox_domains = mysql:/usr/local/etc/postfix/sql/virtual_domains.cf
 virtual_mailbox_maps = mysql:/usr/local/etc/postfix/sql/virtual_mailbox.cf
-virtual_mailbox_limit = 51200000
-virtual_minimum_uid = 1001
-virtual_uid_maps = static:1001
+virtual_mailbox_limit = 512000000
+virtual_minimum_uid = 1005
+virtual_uid_maps = static:1005
 # Additional for quota support for virtual transport
 virtual_create_maildirsize = yes
 virtual_mailbox_extended = yes

@@ -5,6 +5,9 @@
 <table border='0'>
   <tr><th>#</th><td><input type='text' name='CHG_TP_ID' value='%TP_ID%'></td></tr>
   <tr><td>$_NAME:</td><td><input type=text name=NAME value='%NAME%'></td></tr>
+
+  <tr><td>$_GROUP:</td><td>%GROUPS_SEL%</td></tr>
+
   <tr><td>$_UPLIMIT:</td><td><input type=text name=ALERT value='%ALERT%'></td></tr>
   <tr><td>$_SIMULTANEOUSLY:</td><td><input type=text name=SIMULTANEOUSLY value='%SIMULTANEOUSLY%'></td></tr>
 <!--
@@ -37,6 +40,10 @@
   <tr><td>$_AGE ($_DAYS):</td><td><input type=text name=AGE value='%AGE%'></td></tr>
   <tr><td>$_PAYMENT_TYPE:</td><td>%PAYMENT_TYPE_SEL%</td></tr>
   <tr><td>$_MIN_SESSION_COST:</td><td><input type=text name=MIN_SESSION_COST value='%MIN_SESSION_COST%'></td></tr>
+
+  <tr><td>$_TRAFFIC_TRANSFER_PERIOD:</td><td><input type=text name=TRAFFIC_TRANSFER_PERIOD value='%TRAFFIC_TRANSFER_PERIOD%'></td></tr>
+  <tr><td>$_NEG_DEPOSIT_FILTER_ID:</td><td><input type=text name=NEG_DEPOSIT_FILTER_ID value='%NEG_DEPOSIT_FILTER_ID%'></td></tr>
+  
   <tr><th colspan=2>RADIUS Parameters (,)</th></tr>
   <tr><th colspan=2><textarea cols=50 rows=4 name=RAD_PAIRS>%RAD_PAIRS%</textarea></th></tr>
 </table>

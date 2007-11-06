@@ -32,10 +32,17 @@ CREATE TABLE `admins` (
   `disable` tinyint(1) unsigned NOT NULL default '0',
   `phone` varchar(16) NOT NULL default '',
   `web_options` text NOT NULL,
+  `email` varchar(35) NOT NULL default '',
   PRIMARY KEY  (`aid`),
   UNIQUE KEY `aid` (`aid`),
   UNIQUE KEY `id` (`id`)
-) ;
+);
+
+CREATE TABLE `admins_groups` (
+  `gid` smallint(6) unsigned NOT NULL default '0',
+  `aid` smallint(5) unsigned NOT NULL default '0',
+  KEY `gid` (`gid`,`aid`)
+);
 
 
 CREATE TABLE `bills` (
@@ -62,10 +69,10 @@ CREATE TABLE `dv_calls` (
   `nas_port_id` int(6) unsigned NOT NULL default '0',
   `acct_session_id` varchar(25) NOT NULL default '',
   `acct_session_time` int(11) unsigned NOT NULL default '0',
-  `acct_input_octets` int(11) unsigned NOT NULL default '0',
-  `acct_output_octets` int(11) unsigned NOT NULL default '0',
-  `ex_input_octets` int(11) unsigned NOT NULL default '0',
-  `ex_output_octets` int(11) unsigned NOT NULL default '0',
+  `acct_input_octets` bigint(14) unsigned NOT NULL default '0',
+  `acct_output_octets` bigint(14) unsigned NOT NULL default '0',
+  `ex_input_octets` bigint(14) unsigned NOT NULL default '0',
+  `ex_output_octets` bigint(14) unsigned NOT NULL default '0',
   `connect_term_reason` int(4) unsigned NOT NULL default '0',
   `framed_ip_address` int(11) unsigned NOT NULL default '0',
   `lupdated` int(11) unsigned NOT NULL default '0',
@@ -110,6 +117,7 @@ CREATE TABLE `companies` (
   `address` varchar(100) NOT NULL default '',
   `phone` varchar(20) NOT NULL default '',
   `vat` double(5,2) unsigned NOT NULL default '0.00',
+  `contract_id` varchar(10) NOT NULL default '',
   PRIMARY KEY  (`id`),
   UNIQUE KEY `id` (`id`),
   UNIQUE KEY `name` (`name`)
@@ -414,10 +422,17 @@ CREATE TABLE `mail_domains` (
   `comments` varchar(255) NOT NULL default '',
   PRIMARY KEY  (`domain`),
   UNIQUE KEY `id` (`id`)
-)  ;
+) ;
+
+CREATE TABLE `msgs_admins` (
+  `aid` smallint(6) unsigned NOT NULL default '0',
+  `chapter_id` int(11) unsigned NOT NULL default '0',
+  `priority` tinyint(4) unsigned NOT NULL default '0',
+  UNIQUE KEY `aid` (`aid`,`chapter_id`)
+) COMMENT='Msgs admins';
 
 CREATE TABLE `msgs_chapters` (
-  `id` int(11) unsigned NOT NULL auto_increment,
+  `id` smallint(6) unsigned NOT NULL auto_increment,
   `name` varchar(20) NOT NULL default '',
   PRIMARY KEY  (`id`),
   UNIQUE KEY `id` (`id`),
@@ -432,15 +447,39 @@ CREATE TABLE `msgs_messages` (
   `chapter` smallint(6) unsigned NOT NULL default '0',
   `message` text,
   `reply` text,
-  `ip` int(11) unsigned default '0',
+  `ip` int(11) unsigned NOT NULL default '0',
   `date` datetime NOT NULL default '0000-00-00 00:00:00',
   `state` tinyint(2) unsigned default '0',
   `aid` smallint(6) unsigned NOT NULL default '0',
   `subject` varchar(40) NOT NULL default '',
   `gid` smallint(4) unsigned NOT NULL default '0',
+  `priority` tinyint(4) unsigned NOT NULL default '0',
+  `lock_msg` tinyint(1) unsigned NOT NULL default '0',
+  `closed_date` date NOT NULL default '0000-00-00',
+  `done_date` date NOT NULL default '0000-00-00',
+  `plan_date` date NOT NULL default '0000-00-00',
+  `plan_time` time NOT NULL default '00:00:00', 
+  `user_read` datetime NOT NULL default '0000-00-00 00:00:00',
+  `admin_read` datetime NOT NULL default '0000-00-00 00:00:00',
+  `resposible` smallint(6) unsigned NOT NULL default '0',
   PRIMARY KEY  (`id`),
   KEY `uid` (`uid`)
-) COMMENT='Msgs messages';
+) COMMENT='Msgs Messages';
+
+CREATE TABLE `msgs_reply` (
+  `id` int(11) unsigned NOT NULL auto_increment,
+  `main_msg` int(11) unsigned NOT NULL default '0',
+  `text` blob NOT NULL,
+  `datetime` datetime NOT NULL default '0000-00-00 00:00:00',
+  `aid` smallint(6) unsigned NOT NULL default '0',
+  `status` tinyint(4) unsigned NOT NULL default '0',
+  `caption` varchar(40) NOT NULL default '',
+  `ip` int(11) unsigned NOT NULL default '0',
+  `uid` int(11) unsigned NOT NULL default '0',
+  PRIMARY KEY  (`id`),
+  UNIQUE KEY `id` (`id`),
+  KEY `main_msg` (`main_msg`)
+) COMMENT='Msgs replies';
 
 CREATE TABLE `nas` (
   `id` smallint(5) unsigned NOT NULL auto_increment,
@@ -456,6 +495,7 @@ CREATE TABLE `nas` (
   `rad_pairs` text NOT NULL,
   `alive` smallint(6) unsigned NOT NULL default '0',
   `disable` tinyint(6) unsigned NOT NULL default '0',
+  `ext_acct` tinyint(1) unsigned NOT NULL, 
   PRIMARY KEY  (`id`)
 ) COMMENT='Nas servers list';
 
@@ -563,7 +603,6 @@ CREATE TABLE `shedule` (
 )  ;
 
 # --------------------------------------------------------
-
 #
 # Структура таблиці `tarif_plans`
 #
@@ -575,8 +614,6 @@ CREATE TABLE `tarif_plans` (
   `uplimit` double(14,2) NOT NULL default '0.00',
   `name` varchar(40) NOT NULL default '',
   `day_fee` double(14,2) unsigned NOT NULL default '0.00',
-  `reduction_fee` tinyint(1) unsigned NOT NULL default '0',
-  `postpaid_fee` tinyint(1) unsigned NOT NULL default '0',
   `logins` tinyint(4) NOT NULL default '0',
   `day_time_limit` int(10) unsigned NOT NULL default '0',
   `week_time_limit` int(10) unsigned NOT NULL default '0',
@@ -595,13 +632,29 @@ CREATE TABLE `tarif_plans` (
   `payment_type` tinyint(1) NOT NULL default '0',
   `min_session_cost` double(14,5) unsigned NOT NULL default '0.00000',
   `rad_pairs` text NOT NULL,
+  `reduction_fee` tinyint(1) unsigned NOT NULL default '0',
+  `postpaid_fee` tinyint(1) unsigned NOT NULL default '0',
+  `module` varchar(12) NOT NULL default '',
+  `traffic_transfer_period` tinyint(4) unsigned NOT NULL default '0',
+  `gid` smallint(6) unsigned NOT NULL default '0',
+  `neg_deposit_filter_id` varchar(15) NOT NULL default '',
+  `tp_id` int(11) unsigned NOT NULL auto_increment,
+  PRIMARY KEY  (`id`,`module`),
+  UNIQUE KEY `tp_id` (`tp_id`),
+  KEY `name` (`name`)
+) TYPE=MyISAM COMMENT='Dialup & VPN Tarif plans';
+
+
+CREATE TABLE `tp_groups` (
+  `id` smallint(6) unsigned NOT NULL auto_increment,
+  `name` varchar(20) NOT NULL default '',
+  `user_chg_tp` tinyint(1) unsigned NOT NULL default '0',
   PRIMARY KEY  (`id`),
-  UNIQUE KEY `name` (`name`),
-  UNIQUE KEY `id` (`id`)
-) ;
+  UNIQUE KEY `id` (`id`),
+  UNIQUE KEY `name` (`name`)
+) COMMENT='Tarif Plans Groups';
 
 # --------------------------------------------------------
-
 #
 # Структура таблиці `tp_nas`
 #
@@ -658,6 +711,17 @@ CREATE TABLE `users` (
 )  ;
 
 
+CREATE TABLE `web_users_sessions` (
+  `uid` int(11) unsigned NOT NULL default '0',
+  `datetime` int(11) unsigned NOT NULL default '0',
+  `login` varchar(20) NOT NULL default '',
+  `remote_addr` int(11) unsigned NOT NULL default '0',
+  `sid` varchar(32) NOT NULL default '',
+  PRIMARY KEY  (`sid`),
+  UNIQUE KEY `sid` (`sid`)
+) COMMENT='User Web Sessions';
+
+
 CREATE TABLE `users_bruteforce` (
   `login` varchar(20) NOT NULL default '',
   `password` blob NOT NULL,
@@ -690,6 +754,11 @@ CREATE TABLE `users_pi` (
   `address_flat` varchar(10) NOT NULL default '',
   `comments` text NOT NULL,
   `contract_id` varchar(10) NOT NULL default '',
+  `pasport_num` varchar(16) NOT NULL default '',
+  `pasport_date` date NOT NULL default '0000-00-00',
+  `pasport_grant` varchar(100) NOT NULL default '',
+  `zip` varchar(7) NOT NULL default '',
+  `city` varchar(20) NOT NULL default '',
   PRIMARY KEY  (`uid`)
 ) ;
 
@@ -709,7 +778,7 @@ CREATE TABLE `voip_calls` (
   `started` datetime NOT NULL default '0000-00-00 00:00:00',
   `nas_id` smallint(6) unsigned NOT NULL default '0',
   `client_ip_address` int(11) unsigned NOT NULL default '0',
-  `conf_id` varchar(32) NOT NULL default '',
+  `conf_id` varchar(64) NOT NULL default '',
   `call_origin` tinyint(1) unsigned NOT NULL default '0',
   `uid` int(11) unsigned NOT NULL default '0',
   `tp_id` smallint(5) unsigned NOT NULL default '0',
@@ -840,8 +909,8 @@ CREATE TABLE `web_online` (
     
 
 
-INSERT INTO admins VALUES ('abills','abills','2005-06-16', ENCODE('abills', 'test12345678901234567890'), 0, 1,0,'', '');
-INSERT INTO admins VALUES ('system','System user','2005-07-07', ENCODE('test', 'test12345678901234567890'), 0, 2, 0,'', '');
+INSERT INTO admins (id, name, regdate, password, gid, aid, disable, phone, web_options) VALUES ('abills','abills','2005-06-16', ENCODE('abills', 'test12345678901234567890'), 0, 1,0,'', '');
+INSERT INTO admins (id, name, regdate, password, gid, aid, disable, phone, web_options) VALUES ('system','System user','2005-07-07', ENCODE('test', 'test12345678901234567890'), 0, 2, 0,'', '');
 
 
 
@@ -856,6 +925,7 @@ INSERT INTO `admin_permits` (`aid`, `section`, `actions`, `module`) VALUES
   (1,0,4,''),
   (1,0,5,''),
   (1,0,6,''),
+  (1,0,7,''),
   (1,1,0,''),
   (1,1,1,''),
   (1,1,2,''),

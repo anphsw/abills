@@ -17,3 +17,4 @@ $_HOSTS_SRC="Destination";
 $_HOSTS_MASK="Netmask of destination";
 $_HOSTS_ROUTER="Router to destination";
 $_RECONFIGURE='Reconfigure';
+$_SWITCH='Switch';

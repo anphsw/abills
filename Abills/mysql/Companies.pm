@@ -7,7 +7,7 @@ use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
 );
 
 use Exporter;
-$VERSION = 2.00;
+$VERSION = 3.00;
 @ISA = ('Exporter');
 
 @EXPORT = qw(
@@ -50,11 +50,11 @@ sub add {
 
   my %DATA = $self->get_data($attr); 
   $self->query($db, "INSERT INTO companies (name, tax_number, bank_account, bank_name, cor_bank_account, 
-     bank_bic, disable, credit, address, phone, vat) 
+     bank_bic, disable, credit, address, phone, vat, contract_id) 
      VALUES ('$DATA{COMPANY_NAME}', '$DATA{TAX_NUMBER}', '$DATA{BANK_ACCOUNT}', '$DATA{BANK_NAME}', '$DATA{COR_BANK_ACCOUNT}', 
       '$DATA{BANK_BIC}', '$DATA{DISABLE}', '$DATA{CREDIT}',
       '$DATA{ADDRESS}', '$DATA{PHONE}',
-      '$DATA{VAT}'
+      '$DATA{VAT}', '$DATA{CONTRACT_ID}'
       );", 'do');
 
   return $self;
@@ -96,7 +96,8 @@ sub change {
    COMPANY_ID     => 'id',
    ADDRESS        => 'address',
    PHONE          => 'phone',
-   VAT            => 'vat'
+   VAT            => 'vat',
+   CONTRACT_ID    => 'contract_id'
    );
 
 	$self->changes($admin, { CHANGE_PARAM => 'COMPANY_ID',
@@ -134,7 +135,7 @@ sub info {
   $self->query($db, "SELECT c.id, c.name, c.credit, c.tax_number, c.bank_account, c.bank_name, 
   c.cor_bank_account, c.bank_bic, c.disable, c.bill_Id, b.deposit,
   c.address, c.phone,
-  c.vat
+  c.vat, contract_id
     FROM companies c
     LEFT JOIN bills b ON (c.bill_id=b.id)
     WHERE c.id='$company_id';");
@@ -144,8 +145,6 @@ sub info {
      $self->{errstr} = 'ERROR_NOT_EXIST';
      return $self;
    }
-
-  my $a_ref = $self->{list}->[0];
 
   ($self->{COMPANY_ID}, 
    $self->{COMPANY_NAME}, 
@@ -160,8 +159,9 @@ sub info {
    $self->{DEPOSIT},
    $self->{ADDRESS},
    $self->{PHONE},
-   $self->{VAT}
-   ) = @$a_ref;
+   $self->{VAT},
+   $self->{CONTRACT_ID}
+   ) = @{ $self->{list}->[0] };
     
   return $self;
 }
@@ -197,10 +197,7 @@ sub list {
  my $list = $self->{list};
 
     $self->query($db, "SELECT count(c.id) FROM companies c $WHERE;");
-    my $a_ref = $self->{list}->[0];
-    ($self->{TOTAL}) = @$a_ref;
-
-#  $self->{list}=$list;
+    ($self->{TOTAL}) = @{ $self->{list}->[0] };
 
 return $list;
 }

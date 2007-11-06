@@ -78,6 +78,7 @@ $_PAYMENT_NOTEXIST='Payment not exist';
 $_USER_EXIST='User exist';
 $_USER_NOT_EXIST='User not exist';
 $_SELECT_USER='SELECT user';
+$_SELECT_ALL='Select All';
 $_SELECTED='Selected';
 $_RECORDS='Records';
 $_WRONG_PASSWD='Wrong password ';
@@ -107,7 +108,6 @@ $_PER_MONTH='Per month';
 
 $_HOUR_TARIF='Time tariff';
 $_BYTE_TARIF='Traffic tariff';
-$_TRAFFIC='Traffic';
 $_MONTH_FEE='Month fee';
 $_DAY_FEE='Day fee';
 $_UPLIMIT='Alert';
@@ -321,3 +321,33 @@ $_SOLD='Sold';
 $_CASH='Cash';
 $_RECALCULATE='Recalculate';
 $_CONFIG='Configuration';
+
+$_PROCESSES='Processes';
+$_TRAFFIC_TRANSFER_PERIOD='Traffic transfer period';
+
+$_ATTACHMENT='Attachment';
+$_PRIORITY='Priority';
+
+$_PASPORT='Pasport'; 
+$_GRANT='Grant';
+
+$_NEG_DEPOSIT_FILTER_ID="Negative deposit filter ID";
+$_USER_CHG_TP='User change tarif plan';
+$_NOT_ALLOW='No Allow operation';
+$_IP_IN_USE='THIS IP IS CURRENTLY IN USE BY OTHER USER';
+$_EXPORT='Export';
+$_IMPORT='Import';
+$_PAYMENT_DEED='Payment Deed';
+
+
+$_VERY_LOW='very low';
+$_LOW='low';
+$_NORMAL='normal';
+$_HIGH='high';
+$_VERY_HIGH='very high';
+
+$_OPEN='open';
+$_CLOSED_UNSUCCESSFUL='closed unsuccessful';
+$_CLOSED_SUCCESSFUL='closed successful';
+$_CITY='City';
+$_ZIP='Zip';

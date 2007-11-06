@@ -1,9 +1,7 @@
-#/usr/bin/perl
 # Docs functions
 
 
-require "Docs.pm";
-Docs->import();
+use Docs;
 my $Docs = Docs->new($db, $admin, \%conf);
 
 #**********************************************************
@@ -27,9 +25,9 @@ sub docs_invoice_add  {
      return 0;
     }
    else {
-     
      $Docs->{FROM} = $attr->{FROM} if ($attr->{FROM});
      $Docs->docs_invoice_add({ %$attr });
+
      if(! $Docs->{errno}) {
        $html->message('info', "$_ADDED", "$_NUM: [$Docs->{DOC_ID}] $_DATE: $FORM{DATE}");
        $Docs->docs_invoice_info($Docs->{DOC_ID});
@@ -57,6 +55,7 @@ sub docs_invoice_add  {
 
   $Docs->{TOTAL_SUM} = sprintf("%.2f", $Docs->{TOTAL_SUM});
 
+
   docs_print('invoice', $Docs);
 	#$html->tpl_show(_include('docs_invoice', 'Docs'), $Docs);
 }
@@ -82,7 +81,8 @@ elsif($FORM{del} ) {
    }
  }
 elsif($FORM{print}) {
-  $Docs->docs_invoice_info($FORM{print});
+
+  $Docs->docs_invoice_info($FORM{print}, { UID => $LIST_PARAMS{UID} });
   
   $Docs->{TOTAL_SUM}=0.00;
   if ($Docs->{ORDERS}) {
@@ -140,7 +140,7 @@ foreach my $line (@$list) {
    $html->button($line->[4], "index=11&UID=$line->[7]"),
    "$line->[5]", 
    "$line->[6]", 
-   $html->button($_PRINT, "index=$index&print=$line->[8]&UID=$line->[7]$pages_qs"), 
+   $html->button($_PRINT, "qindex=$index&print=$line->[8]&UID=$line->[7]$pages_qs", { ex_params => 'target=_new' }) ,
    $delete);
 }
 print $table->show();
@@ -161,7 +161,7 @@ sub docs_accounts_list {
 
 
 
-if ($LIST_PARAMS{UID}) {
+if ($LIST_PARAMS{UID} || $FORM{UID}) {
 	docs_account();
 	return 0 if ($FORM{'print'});
  }
@@ -194,14 +194,14 @@ my $list = $Docs->accounts_list( { %LIST_PARAMS } );
 my $table = $html->table( { width      => '100%',
                             border     => 1,
                             title      => ['#', $_DATE, $_CUSTOMER, $_SUM, $_USER, $_ADMIN, $_TIME, '-', '-'],
-                            cols_align => ['right', 'right', 'left', 'right', 'left', 'left', 'right', 'center'],
+                            cols_align => ['right', 'right', 'left', 'right', 'left', 'left', 'right', 'center:noprint', 'center:noprint'],
                             qs         => $pages_qs,
                             pages      => $Docs->{TOTAL}
                           });
 
 
 foreach my $line (@$list) {
-  my $delete = ($permissions{1}{2}) ?  $html->button($_DEL, "index=$index&del=$line->[8]&UID=$line->[7]", { MESSAGE => "$_DEL ?" }) : ''; 
+  my $delete = ($permissions{1}{2}) ?  $html->button($_DEL, "index=$index&del=$line->[8]&UID=$line->[7]", { MESSAGE => "$_DEL ID $line->[8] ?" }) : ''; 
 
   $table->addrow("$line->[0]", 
    "$line->[1]",
@@ -210,7 +210,7 @@ foreach my $line (@$list) {
    $html->button($line->[4], "index=11&UID=$line->[7]"),
    "$line->[5]", 
    "$line->[6]", 
-   $html->button($_PRINT, "index=$index&print=$line->[8]&UID=$line->[7]$pages_qs"), 
+   $html->button($_PRINT, "qindex=$index&print=$line->[8]". (($pages_qs) ? $pages_qs : "&UID=$line->[7]"  ) , { ex_params => 'target=_new' }), 
    $delete);
 }
 print $table->show();
@@ -227,13 +227,13 @@ return 0;
 }
 
 #**********************************************************
-# docs_account_add
+# docs_account
 #**********************************************************
 sub docs_account {
  $Docs->account_defaults();		
  $Docs->{DATE}=$DATE;
-	
-	
+
+
  if ($FORM{create}) {
    if (defined($FORM{OP_SID}) and $FORM{OP_SID} eq $COOKIES{OP_SID}) {
  	   $html->message('err', $_ERROR, "$_EXIST");
@@ -255,37 +255,54 @@ sub docs_account {
      $FORM{UID}=$LIST_PARAMS{UID} if (! $FORM{UID});
      $Docs->account_add({ %FORM });
      if(! $Docs->{errno}) {
+    
        $html->message('info', "$_ADDED", "$_NUM: [$Docs->{ACCT_ID}] $_DATE: $FORM{DATE}");
-       $Docs->account_info($Docs->{ACCT_ID});
-       
+       $Docs->account_info($Docs->{DOC_ID}, { UID => $LIST_PARAMS{UID} });
        my $list = $Docs->{ORDERS};
        my $i=0;
-      
+
        foreach my $line (@$list) {
    	     $i++;
    	     $Docs->{ORDER} .= sprintf("<tr><td align='right'>%d</td><td>%s</td><td align='right'>%d</td><td align='right'>%d</td><td align='right'>%.2f</td><td align='right'>%.2f</td></tr>\n", 
    	       $i, $line->[1], $line->[2], $line->[3], $line->[4], ($line->[3]*$line->[4]));
         }
-     
-       docs_print('account', $Docs);
+
+      
+       #print $html->header() if ($FORM{qindex});
+       if( $user->{UID} ) {
+         $FORM{qindex}=$index;
+         $html->{NO_PRINT}=undef;
+
+         docs_print('account', $Docs);
+         exit;
+        }
+       else {
+         docs_print('account', $Docs);
+        }
+
        $FORM{'print'}=1;
        return 0;
       }
     }
   }
  elsif(defined($FORM{print})){
-   $Docs->account_info($FORM{print});
-   $Docs->{FROM_DATE_LIT}='';
+   $Docs->account_info($FORM{print}, { UID => $LIST_PARAMS{UID} });
 
-   my $list = $Docs->{ORDERS};
-   my $i=0;
-   foreach my $line (@$list) {
-   	 $i++;
-   	 $Docs->{ORDER} .= sprintf("<tr><td align=right>%d</td><td>%s</td><td align=right>%d</td><td align=right>%d</td><td align=right>%.2f</td><td align=right>%.2f</td></tr>\n", 
-   	  $i, $line->[1], $line->[2], $line->[3], $line->[4], ($line->[3]*$line->[4]));
+   if ($Docs->{TOTAL} > 0) {
+     $Docs->{FROM_DATE_LIT}='';
+     my $list = $Docs->{ORDERS};
+     my $i=0;
+     foreach my $line (@$list) {
+   	   $i++;
+   	   $Docs->{ORDER} .= sprintf("<tr><td align=right>%d</td><td>%s</td><td align=right>%d</td><td align=right>%d</td><td align=right>%.2f</td><td align=right>%.2f</td></tr>\n", 
+   	     $i, $line->[1], $line->[2], $line->[3], $line->[4], ($line->[3]*$line->[4]));
+      }
+     docs_print('account', $Docs);
     }
+   else {
 
-   docs_print('account', $Docs);
+     $html->message('err', $_ERROR, "[$Docs->{errno}] $err_strs{$Docs->{errno}}");	
+    }
    return 0;
   }
  elsif(defined($FORM{change})) {
@@ -345,6 +362,8 @@ sub docs_print {
     $ATTR->{FROM_DATE_LIT} = "$d ". @MONTHES_LIT[int($m)-1] ." $y $_YEAR";
    }
 
+  
+
   $ATTR->{SUM_LIT} = int2ml("$ATTR->{SUM}", { 
   	 ONES             => \@ones,
      TWOS             => \@twos,
@@ -358,6 +377,7 @@ sub docs_print {
   	  });
 	
 	my $template = $type;
+	print $html->header() if ($FORM{qindex});
 	$html->tpl_show(_include("docs_$template", 'Docs'), $ATTR);
 }
 

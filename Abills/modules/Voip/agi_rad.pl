@@ -24,18 +24,12 @@ require Abills::Radius;
 Abills::Radius->import();
 
 my $debug = 1;
-$conf{RADIUS_SERVER_HOST}='null';
-$conf{RADIUS_SERVER_SECRET}='testall';
-$conf{NAS_IP_ADDRESS}='192.168.202.13';
-$conf{NAS_ID}='null.intranet';
-$conf{NAS_PORT}='0';
 
-
-$conf{'VOIP_DEFAULTDIALTIMEOUT'}=20;
+$conf{'VOIP_DEFAULTDIALTIMEOUT'}=20 if (! $conf{'VOIP_DEFAULTDIALTIMEOUT'});
 #Max session time (sec)
 #default 10800 (3hrs)
-$conf{'VOIP_MAX_SESSION_TIME'}=10800;
-$conf{'timeshift'} = 0 if (! exists($conf{'timeshift'}));
+$conf{'VOIP_MAX_SESSION_TIME'}=10800 if (! $conf{'VOIP_MAX_SESSION_TIME'});
+$conf{'timeshift'} = 0 if (! exists($conf{'VOIP_TIMESHIFT'}));
 
 # Creating new interface to asterisk
 use Asterisk::AGI;
@@ -95,7 +89,8 @@ $data{'calledgateway'}   = '';
 # Default values
 $data{'session_timeout'} = $conf{'VOIP_MAX_SESSION_TIME'} || 10800;
 $data{'update_interval'} = 0 ; #$conf{'aliveinterval'} || 0;
-$data{'remote_ip'}       = $agi ->get_variable('SIPRECEIVEDIP');
+$data{'remote_ip'}       = $agi ->get_variable('SIPCHANINFO(peerip)');
+#$data{'remote_ip'}       = $agi ->get_variable('SIPRECEIVEDIP');
 $data{'theoretical_ip'}  = $agi ->get_variable('SIPTHEORETICALIP');
 $data{'return_code'}     = 0;
 $data{'dial_info'}       = '';
@@ -119,9 +114,9 @@ my %rad_response = ();
 
 # Setting NAS default radius attributes
 $rad_attributes{'User-Name'}          = $data{'caller'};
-$rad_attributes{'NAS-Identifier'}     = $conf{'NAS_ID'};
-$rad_attributes{'NAS-Port'}           = $conf{'NAS_PORT'};
-$rad_attributes{'NAS-IP-Address'}     = $conf{'NAS_IP_ADDRESS'};
+$rad_attributes{'NAS-Identifier'}     = $conf{'VOIP_NAS_ID'};
+$rad_attributes{'NAS-Port'}           = $conf{'VOIP_NAS_PORT'};
+$rad_attributes{'NAS-IP-Address'}     = $conf{'VOIP_NAS_IP_ADDRESS'};
 $rad_attributes{'Framed-IP-Address'}  = $data{'remote_ip'} || '0.0.0.0';
 $rad_attributes{'Calling-Station-Id'} = $data{'caller'};
 $rad_attributes{'Called-Station-Id'}  = $data{'called'};
@@ -135,14 +130,14 @@ $rad_attributes{'Cisco-AVPair'}      .= ($data{'useragent'})? "useragent=$data{'
 $rad_attributes{'Cisco-AVPair'}      .= "session-protocol=$protocol";
 
 #Get NAS IP and ID
-if (! exists($conf{'NAS_IP_ADDRESS'}) || ! exists($conf{'NAS_ID'})) {
+if (! exists($conf{'NAS_IP_ADDRESS'}) || ! exists($conf{'VOIP_NAS_ID'})) {
   use Sys::Hostname;
   my $hostname;
   $hostname = hostname();
-  if (! exists($conf{'NAS_ID'})) { $conf{'NAS_ID'} = $hostname; }
-  if (! exists($conf{'NAS_IP_ADDRESS'})) {
+  if (! exists($conf{'VOIP_NAS_ID'})) { $conf{'VOIP_NAS_ID'} = $hostname; }
+  if (! exists($conf{'VOIP_NAS_IP_ADDRESS'})) {
     use Socket;
-    $conf{'NAS_IP_ADDRESS'} = inet_ntoa(scalar(gethostbyname($hostname || 'localhost')));
+    $conf{'VOIP_NAS_IP_ADDRESS'} = inet_ntoa(scalar(gethostbyname($hostname || 'localhost')));
   }
 }
 
@@ -159,9 +154,8 @@ if ($type != ACCESS_ACCEPT) {
 	
 	syslog('LOG_ERR', $reply );
   $agi->verbose($reply, 3);
-
   $agi->hangup();
-	exit 0;
+  exit 0;
 }
 else {
   $agi->verbose("RAD response type = \"$type\"", 3);
@@ -199,11 +193,12 @@ $rad_acct_attributes{'Acct-Delay-Time'}  = 0;
 $rad_acct_attributes{'Acct-Session-Id'}  = $data{'sessionid'};
 send_radius_request(ACCOUNTING_REQUEST, \%rad_acct_attributes);
 my $rewrittennumber = $data{'called'};
-my  $dialstring = "SIP/".$rewrittennumber; #."\@";
-my $peername='';
-my %peer = ();
-$peer{'host'}='';
-$peer{'peername'}='';
+my $protocol = $conf{VOIP_AGI_PROTOCOL} || 'SIP';
+my $dialstring = "$protocol/".$rewrittennumber; #."\@";
+
+my %peer = ( 'type'    => '',
+             'host'    => '',
+             'peername'=> '');
 
 if ($peer{'type'} eq 'host') {
   $dialstring .= $peer{'host'};
@@ -235,8 +230,8 @@ $agi->exec('Dial', $dialstring);
 
 
 
-  my $session_length = $agi->get_variable('ANSWEREDTIME') + 0 + $conf{'timeshift'};
-  my $call_length    = $agi->get_variable('DIALEDTIME') + 0 + $conf{'timeshift'};
+  my $session_length = $agi->get_variable('ANSWEREDTIME') + 0 + $conf{'VOIP_TIMESHIFT'};
+  my $call_length    = $agi->get_variable('DIALEDTIME') + 0 + $conf{'VOIP_TIMESHIFT'};
   my $delay_time     = $call_length - $session_length;
   my $sip_msg_code   = $agi->get_variable('SIPLASTERRORCODE')+0;
   my $channel_state  = $agi->exec('GetChannelState','');  
@@ -277,14 +272,14 @@ sub send_radius_request {
      $port = 1812;
    }
 
-  $r = new Radius(Host    => "$conf{RADIUS_SERVER_HOST}:$port",
-                  Secret  => "$conf{RADIUS_SERVER_SECRET}",
+  $r = new Radius(Host    => "$conf{VOIP_RADIUS_SERVER_HOST}:$port",
+                  Secret  => "$conf{VOIP_RADIUS_SERVER_SECRET}",
                   TimeOut => 15,
                  );
 
   if( ! defined($r) ) {
-   	 syslog('LOG_ERR', "Can't connect $conf{RADIUS_SERVER_HOST}$port ERROR: ". $r->get_error() );
-     $agi->verbose('RADIUS server '. $conf{RADIUS_SERVER_HOST}. 'ERROR:'.  $r->get_error(), 3);
+   	 syslog('LOG_ERR', "Can't connect $conf{VOIP_RADIUS_SERVER_HOST}$port ERROR: ". $r->get_error() );
+     $agi->verbose('RADIUS server '. $conf{VOIP_RADIUS_SERVER_HOST}. 'ERROR:'.  $r->get_error(), 3);
      $agi->hangup();
      exit;
    }

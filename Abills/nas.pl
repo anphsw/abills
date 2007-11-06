@@ -62,6 +62,12 @@ sub hangup {
  elsif ($nas_type eq 'mpd') {
     hangup_mpd($NAS, $PORT);
   }
+ elsif ($nas_type eq 'mpd4') {
+    hangup_mpd4($NAS, $PORT, $attr);
+  }
+ elsif ($nas_type eq 'ipcad') {
+    hangup_ipcad($NAS, $PORT, $USER, $attr);
+  }
  elsif ($nas_type eq 'patton')  {
  	  hangup_patton29xx($NAS, $PORT, $attr);
   }
@@ -122,7 +128,6 @@ sub telnet_cmd {
    ($hostname, $port)=split(/:/, $hostname, 2);
  }
 
-
 # my $debug   = (defined($attr->{debug})) ? 1 : 0;
  my $timeout = defined($attr->{'TimeOut'}) ? $attr->{'TimeOut'} : 5;
  
@@ -167,7 +172,8 @@ foreach my $line (@$commands) {
   $input = '';
   
   if ($waitfor eq '-') {
-    send($sock, "$sendtext\r\n", 0, $dest) or die log_print('LOG_INFO', "Can't send: '$text' $!");
+    #send($sock, "$sendtext\r\n", 0, $dest) or die log_print('LOG_INFO', "Can't send: '$text' $!");
+    send($sock, "$sendtext\n", 0, $dest) or die log_print('LOG_INFO', "Can't send: '$text' $!");
    }
 
   do {
@@ -185,7 +191,8 @@ foreach my $line (@$commands) {
   if ($input =~ /$waitfor/ig){ # || $waitfor eq '') {
     $text = $sendtext;
     log_print('LOG_DEBUG', "Send: $text");
-    send($sock, "$text\r\n", 0, $dest) or die log_print('LOG_INFO', "Can't send: '$text' $!");
+    #send($sock, "$text\r\n", 0, $dest) or die log_print('LOG_INFO', "Can't send: '$text' $!");
+    send($sock, "$text\n", 0, $dest) or die log_print('LOG_INFO', "Can't send: '$text' $!");
     #"Can't send: $!\n";
    };
 
@@ -454,9 +461,44 @@ sub hangup_mikrotik_telnet {
   my $result = telnet_cmd_new("$NAS->{NAS_IP}", \@commands);
  
   print $result;
-#  
-  #echo "User-Name = user" | radclient 10.0.0.219:3799 40 secret123
-  #Received response ID 219, code 41, length = 20 
+}
+
+
+#*******************************************************************
+# hangup_radius_disconnect
+# 
+# Radius-Disconnect messages
+# rfc2882
+#*******************************************************************
+sub hangup_ipcad {
+  my ($NAS_IP, $PORT, $USER_NAME, $attr) = @_;
+
+  require Ipn;
+  Ipn->import();
+  my $Ipn      = Ipn->new($db, \%conf);
+  
+  $Ipn->acct_stop({ %$attr, SESSION_ID => $attr->{ACCT_SESION_ID} });
+
+  my $cmd = $conf{IPN_FW_STOP_RULE};
+
+  my $ip  = $attr->{FRAMED_IP_ADDRESS};
+  my @ip_array = split(/\./, $ip, 4);
+  my $rule_num = $conf{IPN_FW_FIRST_RULE} + $ip_array[3];
+
+  $cmd =~ s/\%IP/$ip/g;
+  #$cmd =~ s/\%MASK/$netmask/g;
+  $cmd =~ s/\%NUM/$rule_num/g;
+  $cmd =~ s/\%LOGIN/$USER_NAME/g;
+
+  log_print('LOG_DEBUG', "$cmd");
+  if ($attr->{debug} &&  $attr->{debug} > 4) {
+  	print $cmd."\n";
+   }
+  print $cmd."\n";
+  my $result = system($cmd);
+ 
+ 
+  print $result;
 }
 
 
@@ -588,8 +630,33 @@ sub stats_exppp {
 }
 
 
-#####################################################################
-# MPD functions
+
+#*******************************************************************
+# HANGUP MPD
+# hangup_mpd4($SERVER, $PORT)
+#*******************************************************************
+sub hangup_mpd4 {
+  my ($NAS, $PORT, $attr) = @_;
+
+  my $ctl_port = "pptp$PORT";
+  if ($attr->{ACCT_SESION_ID}) {
+  	if($attr->{ACCT_SESION_ID} =~ /\d+\-(.+)/) {
+  	  $ctl_port = $1;
+
+  	 }
+   } 
+  
+  my @commands=("\t",
+                "Username: \t$NAS->{NAS_MNG_USER}",
+                "Password: \t$NAS->{NAS_MNG_PASSWORD}",
+                "\] \tbundle $ctl_port",
+                "\] \tclose",
+                "\] \texit");
+
+  my $result = telnet_cmd("$NAS->{NAS_MNG_IP_PORT}", \@commands);
+  return 0;
+}
+
 #*******************************************************************
 # HANGUP MPD
 # hangup_mpd($SERVER, $PORT)

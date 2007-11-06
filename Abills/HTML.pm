@@ -107,6 +107,10 @@ sub new {
  	 	$PAGE_ROWS = 25;
    }
 
+  if ($attr->{PATH}) {
+ 	  $self->{PATH}=$attr->{PATH};
+   }
+
   $domain = $ENV{SERVER_NAME};
   $web_path = '';
   $secure = '';
@@ -325,7 +329,9 @@ sub form_main {
   my ($attr)	= @_;
 	
 	my $METHOD = ($attr->{METHOD}) ? $attr->{METHOD} : 'POST';
-	$self->{FORM}="<FORM action=\"$SELF_URL\" METHOD=\"$METHOD\">\n";
+	$self->{FORM} =  "<FORM ";
+	$self->{FORM} .= "name=\"$attr->{NAME}\" " if ($attr->{NAME});
+	$self->{FORM} .= "action=\"$SELF_URL\" METHOD=\"$METHOD\">\n";
 	
 
 	
@@ -708,6 +714,10 @@ sub header {
  	 $JAVASCRIPT = "$attr->{PATH}$JAVASCRIPT";
  	 $PRINTCSS = "$attr->{PATH}$PRINTCSS";
   }
+ elsif($self->{PATH}) {
+ 	 $JAVASCRIPT = "$self->{PATH}$JAVASCRIPT";
+ 	 $PRINTCSS = "$self->{PATH}$PRINTCSS";
+ }
 
  my $css = css();
 
@@ -881,11 +891,16 @@ sub table {
    $self->{table} .= "<TR><TD bgcolor=\"$_COLORS[1]\" align=\"right\" class=\"tcaption\"><b>$attr->{caption}</b></td></TR>\n";
   }
 
+ $self->{table} .= "<tr><td bgcolor=\"$_COLORS[1]\">$attr->{header}</td></tr>\n" if( $attr->{header});
+
  $self->{table} .= "<TR><TD bgcolor=\"$_COLORS[4]\">
                <TABLE width=\"100%\" cellspacing=\"1\" cellpadding=\"0\" border=\"0\">\n";
 
+ 
 
  if (defined($attr->{title})) {
+   #print "--- $SORT // | $FORM{sort} | $LIST_PARAMS{SORT} //";
+   $SORT = $LIST_PARAMS{SORT};
  	 $self->{table} .= $self->table_title($SORT, $DESC, $PG, $OP, $attr->{title}, $attr->{qs});
   }
  elsif(defined($attr->{title_plain})) {
@@ -986,8 +1001,7 @@ sub addtd {
 
 #*******************************************************************
 # Extendet add rows
-# td()
-#
+# th()
 #*******************************************************************
 sub th {
 	my $self = shift;
@@ -999,7 +1013,6 @@ sub th {
 #*******************************************************************
 # Extendet add rows
 # td()
-#
 #*******************************************************************
 sub td {
   my $self = shift;
@@ -1007,6 +1020,7 @@ sub td {
   my $extra='';
   
   while(my($k, $v)=each %$attr ) {
+    next if ($k eq 'TH');
     $extra.=" $k=$v";
    }
   my $td = '';
@@ -1132,10 +1146,11 @@ sub show  {
 #
 #**********************************************************
 sub link_former {
-  my ($params) = @_;
+  my ($self) = shift;
+  my ($params, $attr) = @_;
 
 
-  $params =~ s/ /%20/g;
+  $params =~ s/ /%20/g if (! $attr->{SKIP_SPACE});
   $params =~ s/&/&amp;/g;
   $params =~ s/>/&gt;/g;
   $params =~ s/</&lt;/g;
@@ -1153,16 +1168,21 @@ sub button {
   my $self = shift;
   my ($name, $params, $attr)=@_;
 
-  my $ex_params = (defined($attr->{ex_params})) ? $attr->{ex_params} : '';
-  my $ex_attr = '';
-  
+  my $ex_attr = (defined($attr->{ex_params})) ? $attr->{ex_params} : '';
+
   
   $params = ($attr->{GLOBAL_URL})? $attr->{GLOBAL_URL} : "$SELF_URL?$params";
   $params = $attr->{JAVASCRIPT} if (defined($attr->{JAVASCRIPT}));
-  $params = link_former($params);
+  $params = $self->link_former($params);
 
   
   $ex_attr=" TITLE='$attr->{TITLE}'" if (defined($attr->{TITLE}));
+  
+  $ex_attr .= " onclick=\"window.open('$attr->{NEW_WINDOW}', null,
+            'toolbar=0,location=0,directories=0,status=1,menubar=0,'+
+            'scrollbars=1,resizable=1,'+
+            'width=640, height=480');\"" if ( $attr->{NEW_WINDOW} );
+
   
   my $message = (defined($attr->{MESSAGE})) ? " onclick=\"return confirmLink(this, '$attr->{MESSAGE}')\"" : '';
   my $button = "<a href=\"$params\"$ex_attr$message>$name</a>";
@@ -1211,11 +1231,8 @@ $head
   	$self->{OUTPUT}.=$output;
   	#print "aaaaaa $self->{OUTPUT}";
   	return $output;
-  	
-
    }
 	else { 
-
  	  print $output;
 	 }
 
@@ -1363,9 +1380,11 @@ sub tpl_show {
     }
   }
 
-
-  if (defined($attr->{notprint}) || ($self->{NO_PRINT} && $self->{NO_PRINT} == 1)) {
-  	$self->{OUTPUT}.=$tpl;
+  if($attr->{OUTPUT2RETURN}) {
+		return $tpl;
+	 }
+  elsif (defined($attr->{notprint}) || ($self->{NO_PRINT} && $self->{NO_PRINT} == 1)) {
+  	$self->{OUTPUT} .= $tpl;
   	return $tpl;
    }
 	else { 

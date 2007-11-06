@@ -97,7 +97,9 @@ sub dv_auth {
   count(i.id),
   tp.age,
   dv.callback,
-  dv.port
+  dv.port,
+  tp.traffic_transfer_period,
+  tp.neg_deposit_filter_id
 
      FROM (dv_main dv, tarif_plans tp)
      LEFT JOIN users_nas un ON (un.uid = dv.uid)
@@ -139,15 +141,17 @@ sub dv_auth {
      $self->{INTERVALS},
      $self->{ACCOUNT_AGE},
      $self->{CALLBACK},
-     $self->{PORT}
+     $self->{PORT},
+     $self->{TRAFFIC_TRANSFER_PERIOD},
+     $self->{NEG_DEPOSIT_FILTER_ID}
     ) = @{ $self->{list}->[0] };
 
 #DIsable
 if ($self->{DISABLE}) {
   $RAD_PAIRS->{'Reply-Message'}="Service Disable";
   return 1, $RAD_PAIRS;
-}
-elsif (defined($RAD_PAIRS->{'Callback-Number'}) && $self->{CALLBACK} != 1){
+ }
+elsif (( $RAD_PAIRS->{'Callback-Number'} || $RAD_PAIRS->{'Ascend-Callback'} ) && $self->{CALLBACK} != 1){
   $RAD_PAIRS->{'Reply-Message'}="Callback disabled";
   return 1, $RAD_PAIRS;
 }
@@ -208,10 +212,37 @@ if ($self->{PAYMENT_TYPE} == 0) {
 
   #Check deposit
   if($self->{DEPOSIT} <= 0) {
-    $RAD_PAIRS->{'Reply-Message'}="Negativ deposit '$self->{DEPOSIT}'. Rejected!";
+    $RAD_PAIRS->{'Reply-Message'}="\"Negativ deposit '$self->{DEPOSIT}'. Rejected!\"";
+
+    #Filtering with negative deposit
+    if ($self->{NEG_DEPOSIT_FILTER_ID}) {
+      $RAD_PAIRS->{'Filter-Id'} = "$self->{NEG_DEPOSIT_FILTER_ID}";
+      
+      # Return radius attr    
+      if ($self->{IP} ne '0') {
+        $RAD_PAIRS->{'Framed-IP-Address'} = "$self->{IP}";
+       }
+      else {
+        my $ip = $self->get_ip($NAS->{NAS_ID}, "$RAD->{NAS_IP_ADDRESS}");
+        if ($ip eq '-1') {
+          $RAD_PAIRS->{'Reply-Message'}="Rejected! There is no free IPs in address pools (USED: $self->{USED_IPS})";
+          return 1, $RAD_PAIRS;
+         }
+        elsif($ip eq '0') {
+          #$RAD_PAIRS->{'Reply-Message'}="$self->{errstr} ($NAS->{NAS_ID})";
+          #return 1, $RAD_PAIRS;
+         }
+        else {
+          $RAD_PAIRS->{'Framed-IP-Address'} = "$ip";
+         }
+       }
+
+      return 0, $RAD_PAIRS;
+     }
+
     return 1, $RAD_PAIRS;
    }
-}
+ }
 else {
   $self->{DEPOSIT}=0;
 }
@@ -323,9 +354,8 @@ foreach my $line (@periods) {
    return 1, $RAD_PAIRS;
   }
 
-# Return radius attr    
+# Return radius attr
  if ($self->{IP} ne '0') {
-
    $RAD_PAIRS->{'Framed-IP-Address'} = "$self->{IP}";
   }
  else {
@@ -343,7 +373,7 @@ foreach my $line (@periods) {
     }
   }
 
-  $RAD_PAIRS->{'Framed-IP-Netmask'} = "$self->{NETMASK}" if (defined( $RAD_PAIRS->{'Framed-IP-Address'} ));
+  $RAD_PAIRS->{'Framed-IP-Netmask'}="$self->{NETMASK}" if (defined( $RAD_PAIRS->{'Framed-IP-Address'} ));
   $RAD_PAIRS->{'Filter-Id'} = "$self->{FILTER}" if (length( $self->{FILTER} ) > 0); 
 
 
@@ -474,8 +504,8 @@ elsif ($NAS->{NAS_TYPE} eq 'pppd' or ($NAS->{NAS_TYPE} eq 'lepppd')) {
     $RAD_PAIRS->{'PPPD-Downstream-Speed-Limit'} = int($self->{USER_SPEED}); 
    } 
   elsif (defined($EX_PARAMS->{speed}->{0})) { 
-      $RAD_PAIRS->{'PPPD-Downstream-Speed-Limit'} = int($EX_PARAMS->{speed}->{0}->{IN}); 
-      $RAD_PAIRS->{'PPPD-Upstream-Speed-Limit'} = int($EX_PARAMS->{speed}->{0}->{OUT}); 
+    $RAD_PAIRS->{'PPPD-Downstream-Speed-Limit'} = int($EX_PARAMS->{speed}->{0}->{OUT}); 
+    $RAD_PAIRS->{'PPPD-Upstream-Speed-Limit'} = int($EX_PARAMS->{speed}->{0}->{IN}); 
    }
  }
 #Chillispot www.chillispot.org
@@ -519,10 +549,29 @@ if( $self->{ACCOUNT_AGE} > 0 && $self->{ACCOUNT_ACTIVATE} eq '0000-00-00') {
 
 
   if ($self->{TP_RAD_PAIRS}) {
-  	my @p = split(/,/, $self->{TP_RAD_PAIRS});
+    my @p = split(/,/, $self->{TP_RAD_PAIRS});
     foreach my $line (@p) {
-    	my ($rk, $lk)=split(/=/, $line);
-    	$RAD_PAIRS->{$rk}="$lk";
+     if ($line =~ /\+\=/ ) {
+       my($left, $right)=split(/\+\=/, $line, 2);
+       $right =~ s/\"//g;
+
+       if (defined($RAD_PAIRS->{"$left"})) {
+   	     $RAD_PAIRS->{"$left"} =~ s/\"//g;
+   	     $RAD_PAIRS->{"$left"}="\"". $RAD_PAIRS->{"$left"} .",$right\"";
+        }
+       else {
+     	   $RAD_PAIRS->{"$left"}="\"$right\"";
+        }
+       }
+      else {
+         my($left, $right)=split(/=/, $line, 2);
+         if ($left =~ s/^!//) {
+           delete $RAD_PAIRS->{"$left"};
+   	      }
+   	     else {  
+   	       $RAD_PAIRS->{"$left"}="$right";
+   	      }
+       }
      }
    }
 #OK
@@ -604,8 +653,37 @@ sub authentication {
   
   #Get callback number
   if ($RAD->{USER_NAME} =~ /(\d+):(\S+)/) {
-    $RAD_PAIRS{'Callback-Number'}=$1;
-    $RAD->{USER_NAME}=$2;
+    my $number = $1;
+    my $login =  $2;
+
+    if ($CONF->{DV_CALLBACK_DENYNUMS} && $number=~/$CONF->{DV_CALLBACK_DENYNUMS}/) {
+ 	    $RAD_PAIRS{'Reply-Message'}="Forbidden Number '$number'";
+      return 1, \%RAD_PAIRS;
+     }
+
+    if ($CONF->{DV_CALLBACK_PREFIX}) {
+    	$number = $CONF->{DV_CALLBACK_PREFIX}.$number;
+     }
+    if ($NAS->{NAS_TYPE} eq 'lucent_max') {
+    #	$RAD_PAIRS{'Ascend-Callback'}='Callback-Yes';
+    	$RAD_PAIRS{'Ascend-Dial-Number'}=$number;
+    	
+    	
+    	
+    	$RAD_PAIRS{'Ascend-Data-Svc'}='Switched-modem';
+      $RAD_PAIRS{'Ascend-Send-Auth'}='Send-Auth-None';
+      $RAD_PAIRS{'Ascend-CBCP-Enable'}='CBCP-Enabled';
+      $RAD_PAIRS{'Ascend-CBCP-Mode'}='CBCP-Profile-Callback';
+      $RAD_PAIRS{'Ascend-CBCP-Trunk-Group'}=5;
+      $RAD_PAIRS{'Ascend-Callback-Delay'}=30;
+    	
+    	#$RAD_PAIRS{'Ascend-Send-Secret'}='';
+     }
+    else {
+      $RAD_PAIRS{'Callback-Number'}=$number;
+     }
+
+    $RAD->{USER_NAME}=$login;
    }
 
   $self->query($db, "select
@@ -634,7 +712,7 @@ sub authentication {
   	return 1, \%RAD_PAIRS;
    }
   elsif ($self->{TOTAL} < 1) {
-    $RAD_PAIRS{'Reply-Message'}="Login Not Exist";
+    $RAD_PAIRS{'Reply-Message'}="Login Not Exist or Expire";
     return 1, \%RAD_PAIRS;
    }
 
@@ -653,11 +731,11 @@ sub authentication {
     ) = @{ $self->{list}->[0] };
 
 
-#return 0, \%RAD_PAIRS;
-
-
 #Auth chap
-if (defined($RAD->{CHAP_PASSWORD}) && defined($RAD->{CHAP_CHALLENGE})) {
+if($RAD->{'HINT'} && $RAD->{'HINT'} eq 'NOPASS') {
+
+ } 
+elsif (defined($RAD->{CHAP_PASSWORD}) && defined($RAD->{CHAP_CHALLENGE})) {
   if (check_chap("$RAD->{CHAP_PASSWORD}", "$self->{PASSWD}", "$RAD->{CHAP_CHALLENGE}", 0) == 0) {
     $RAD_PAIRS{'Reply-Message'}="Wrong CHAP password";
     return 1, \%RAD_PAIRS;
@@ -732,6 +810,7 @@ elsif(defined($RAD->{MS_CHAP_CHALLENGE})) {
 elsif($NAS->{NAS_AUTH_TYPE} == 1) {
   if (check_systemauth("$RAD->{USER_NAME}", "$RAD->{USER_PASSWORD}") == 0) { 
     $RAD_PAIRS{'Reply-Message'}="Wrong password '$RAD->{USER_PASSWORD}' $NAS->{NAS_AUTH_TYPE}";
+    $RAD_PAIRS{'Reply-Message'} .=  " CID: ". $RAD->{'CALLING_STATION_ID'} if ( $RAD->{'CALLING_STATION_ID'} );
     return 1, \%RAD_PAIRS;
    }
  } 
@@ -858,8 +937,6 @@ sub ex_traffic_params {
  my %trafic_limits = ();
  my %expr          = ();
  
- #get traffic limits
-# if ($traf_tarif > 0) {
    my $nets = 0;
 
    $self->query($db, "SELECT id, in_price, out_price, prepaid, in_speed, out_speed, LENGTH(nets), expression
@@ -895,8 +972,6 @@ if ((defined($prepaids{0}) && $prepaids{0} > 0 ) || (defined($prepaids{1}) && $p
   my $used_traffic=$Billing->get_traffic({ UID    => $self->{UID},
                                            PERIOD => $start_period });
 
-
-
   #Make trafiic sum only for diration
   #Recv / IN
   if($self->{OCTETS_DIRECTION} == 1) {
@@ -912,7 +987,50 @@ if ((defined($prepaids{0}) && $prepaids{0} > 0 ) || (defined($prepaids{1}) && $p
  	  $used_traffic->{TRAFFIC_COUNTER}   = $used_traffic->{TRAFFIC_IN}+$used_traffic->{TRAFFIC_OUT};
     $used_traffic->{TRAFFIC_COUNTER_2} = $used_traffic->{TRAFFIC_IN_2}+$used_traffic->{TRAFFIC_OUT_2};
    }   
-  
+
+  if ($self->{TRAFFIC_TRANSFER_PERIOD}) {
+    my $tp = $self->{TP_ID};
+    
+    #$prepaids{0} = $prepaids{0} * $self->{TRAFFIC_TRANSFER_PERIOD} ;
+    #$prepaids{1} = $prepaids{1} * $self->{TRAFFIC_TRANSFER_PERIOD} ;
+    my $interval = undef;
+  	if ($self->{ACCOUNT_ACTIVATE} ne '0000-00-00') {
+      $interval = "(DATE_FORMAT(start, '%Y-%m-%d')>='$self->{ACCOUNT_ACTIVATE}' - INTERVAL $self->{TRAFFIC_TRANSFER_PERIOD} * 30 DAY && 
+       DATE_FORMAT(start, '%Y-%m-%d')<='$self->{ACCOUNT_ACTIVATE}')";
+
+  	 }
+    else {
+    	$interval = "(DATE_FORMAT(start, '%Y-%m')>=DATE_FORMAT(curdate() - INTERVAL $self->{TRAFFIC_TRANSFER_PERIOD} MONTH, '%Y-%m') AND 
+    	 DATE_FORMAT(start, '%Y-%m')>=DATE_FORMAT(curdate(), '%Y-%m') ) ";
+     }
+    
+    # Traffic transfer
+    my $transfer_traffic=$Billing->get_traffic({ UID      => $self->{UID},
+                                                 INTERVAL => $interval,
+                                                 TP_ID    => $tp
+                                               });
+                                           
+     
+ #     print $prepaids{0}."\n";
+    if ($Billing->{TOTAL} > 0) {
+      if($self->{OCTETS_DIRECTION} == 1) {
+ 	      $prepaids{0}   += $prepaids{0} - $transfer_traffic->{TRAFFIC_IN} if ( $prepaids{0} > $transfer_traffic->{TRAFFIC_IN} );
+        $prepaids{1} += $prepaids{1} - $transfer_traffic->{TRAFFIC_IN_2} if ( $prepaids{1} > $transfer_traffic->{TRAFFIC_IN_2} );
+       }
+      #Sent / OUT
+      elsif ($self->{OCTETS_DIRECTION} == 2 ) {
+ 	      $prepaids{0} += $prepaids{0} - $transfer_traffic->{TRAFFIC_OUT} if ( $prepaids{0} > $transfer_traffic->{TRAFFIC_OUT} );
+        $prepaids{1} += $prepaids{1} - $transfer_traffic->{TRAFFIC_OUT_2} if ( $prepaids{1} > $transfer_traffic->{TRAFFIC_OUT_2} );
+       }
+      else {
+ 	      $prepaids{0} += $prepaids{0} - ($transfer_traffic->{TRAFFIC_IN}+$transfer_traffic->{TRAFFIC_OUT}) if ($prepaids{0} > ($transfer_traffic->{TRAFFIC_IN}+$transfer_traffic->{TRAFFIC_OUT}));
+        $prepaids{1} += $prepaids{1} - ($transfer_traffic->{TRAFFIC_IN_2}+$transfer_traffic->{TRAFFIC_OUT_2}) if ( $prepaids{1} > ($transfer_traffic->{TRAFFIC_IN_2}+$transfer_traffic->{TRAFFIC_OUT_2}) );
+       }   
+     }
+   }
+
+  #print $prepaids{0}."\n";
+
   if ($self->{TOTAL} == 0) {
     $trafic_limits{0}=$prepaids{0} || 0;
     $trafic_limits{1}=$prepaids{1} || 0;
@@ -949,7 +1067,6 @@ if ((defined($prepaids{0}) && $prepaids{0} > 0 ) || (defined($prepaids{1}) && $p
       elsif($in_prices{1} == 0 && $out_prices{1} > 0) {
         $trafic_limits{1} = ($deposit / $out_prices{1});
        }
-
      }
    }
   #Use expresion 
@@ -1138,7 +1255,6 @@ sub check_chap {
   }
 
 my ($given_password,$want_password,$given_chap_challenge,$debug) = @_;
-
         $given_password =~ s/^0x//;
         $given_chap_challenge =~ s/^0x//;
         my $chap_password = pack("H*", $given_password);
@@ -1150,7 +1266,6 @@ my ($given_password,$want_password,$given_chap_challenge,$debug) = @_;
         $md5->add($chap_challenge);
         my $digest = $md5->digest();
 
-
         if ($digest eq substr($chap_password, 1)) { 
            return 1; 
           }
@@ -1159,14 +1274,6 @@ my ($given_password,$want_password,$given_chap_challenge,$debug) = @_;
           }
 
 }
-
-
-
-
-
-
-
-
 
 #***********************************************************
 # bin2hex()
@@ -1273,7 +1380,7 @@ sub check_mschap {
 # $pw is the ascii plaintext version of the correct password if known
 # $sessionkeydest is a ref to a string where the sesiosn key for MPPE will be returned
 sub check_mschapv2 {
-    my ($username, $pw, $challenge, $peerchallenge, $response, $ident,
+  my ($username, $pw, $challenge, $peerchallenge, $response, $ident,
 	$usersessionkeydest, $lanmansessionkeydest,  $ms_chap2_success) = @_;
 
   use Abills::MSCHAP;
@@ -1306,3 +1413,18 @@ sub check_mschapv2 {
 
 
 1
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

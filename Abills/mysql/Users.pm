@@ -84,6 +84,11 @@ sub info {
     $WHERE = "WHERE u.uid='$uid'";
    }
 
+  my $password="''";
+  if ($attr->{SHOW_PASSWORD}) {
+  	$password="DECODE(u.password, '$CONF->{secretkey}')";
+   }
+
   $self->query($db, "SELECT u.uid,
    u.gid, 
    g.name,
@@ -95,7 +100,8 @@ sub info {
    u.company_id,
    if(c.name IS NULL, 'N/A', c.name), 
    if(c.name IS NULL, 0, c.vat),
-   if(c.name IS NULL, b.uid, cb.uid)
+   if(c.name IS NULL, b.uid, cb.uid),
+   $password
      FROM users u
      LEFT JOIN bills b ON (u.bill_id=b.id)
      LEFT JOIN groups g ON (u.gid=g.gid)
@@ -125,7 +131,8 @@ sub info {
    $self->{COMPANY_ID},
    $self->{COMPANY_NAME},
    $self->{COMPANY_VAT},
-   $self->{BILL_OWNER}
+   $self->{BILL_OWNER},
+   $self->{PASSWORD}
  )= @{ $self->{list}->[0] };
   
  
@@ -142,12 +149,17 @@ sub defaults_pi {
   %DATA = (
    FIO            => '', 
    PHONE          => 0, 
-   ADDRESS_STREET => 0, 
-   ADDRESS_BUILD  => 0, 
-   ADDRESS_FLAT   => 0, 
+   ADDRESS_STREET => '', 
+   ADDRESS_BUILD  => '', 
+   ADDRESS_FLAT   => '', 
    EMAIL          => '', 
    COMMENTS       => '',
    CONTRACT_ID    => '',
+   PASPORT_NUM    => '',
+   PASPORT_DATE   => '0000-00-00',
+   PASPORT_GRANT  => '',
+   ZIP            => '',
+   CITY           => ''
   );
  
   $self = \%DATA;
@@ -173,11 +185,17 @@ sub pi_add {
    }
     
   $self->query($db,  "INSERT INTO users_pi (uid, fio, phone, address_street, address_build, address_flat, 
-          email, contract_id, comments)
+          email, contract_id, comments, pasport_num, pasport_date,  pasport_grant, zip, city)
            VALUES ('$DATA{UID}', '$DATA{FIO}', '$DATA{PHONE}', \"$DATA{ADDRESS_STREET}\", 
             \"$DATA{ADDRESS_BUILD}\", \"$DATA{ADDRESS_FLAT}\",
             '$DATA{EMAIL}', '$DATA{CONTRACT_ID}',
-            '$DATA{COMMENTS}' );", 'do');
+            '$DATA{COMMENTS}',
+            '$DATA{PASPORT_NUM}',
+            '$DATA{PASPORT_DATE}',
+            '$DATA{PASPORT_GRANT}',
+            '$DATA{ZIP}',
+            '$DATA{CITY}'
+             );", 'do');
   
   return $self if ($self->{errno});
   
@@ -205,7 +223,12 @@ sub pi {
   pi.address_flat,
   pi.email,  
   pi.contract_id,
-  pi.comments
+  pi.comments,
+  pi.pasport_num,
+  pi.pasport_date,
+  pi.pasport_grant,
+  pi.zip,
+  pi.city
     FROM users_pi pi
     WHERE pi.uid='$UID';");
 
@@ -224,7 +247,12 @@ sub pi {
    $self->{ADDRESS_FLAT}, 
    $self->{EMAIL}, 
    $self->{CONTRACT_ID},
-   $self->{COMMENTS}
+   $self->{COMMENTS},
+   $self->{PASPORT_NUM},
+   $self->{PASPORT_DATE},
+   $self->{PASPORT_GRANT},
+   $self->{ZIP},
+   $self->{CITY}
   )= @{ $self->{list}->[0] };
 	
 	
@@ -248,7 +276,13 @@ my %FIELDS = (EMAIL          => 'email',
               ADDRESS_FLAT   => 'address_flat',
               COMMENTS       => 'comments',
               UID            => 'uid',
-              CONTRACT_ID    => 'contract_id'
+              CONTRACT_ID    => 'contract_id',
+              PASPORT_NUM    => 'pasport_num',
+              PASPORT_DATE   => 'pasport_date',
+              PASPORT_GRANT  => 'pasport_grant',
+              ZIP            => 'zip',
+              CITY           => 'city'
+              
              );
 
 	$self->changes($admin, { CHANGE_PARAM => 'UID',
@@ -296,8 +330,11 @@ sub groups_list {
  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
  undef @WHERE_RULES;
- 
- if ($attr->{GID}) {
+
+ if ($attr->{GIDS}) {
+    push @WHERE_RULES, "g.gid IN ($attr->{GIDS})";
+  }
+ elsif ($attr->{GID}) {
     push @WHERE_RULES, "g.gid='$attr->{GID}'";
   }
 
@@ -312,7 +349,7 @@ sub groups_list {
  my $list = $self->{list};
 
  if ($self->{TOTAL} > 0) {
-    $self->query($db, "SELECT count(*) FROM groups");
+    $self->query($db, "SELECT count(*) FROM groups g $WHERE");
     ($self->{TOTAL}) = @{ $self->{list}->[0] };
    }
 
@@ -345,16 +382,17 @@ sub group_info {
 sub group_change {
  my $self = shift;
  my ($gid, $attr) = @_;
- 
 
  my %FIELDS = (GID        => 'gid',
                G_NAME     => 'name',
-               G_DESCRIBE => 'descr');
+               G_DESCRIBE => 'descr',
+               CHG        => 'gid');
 
- $self->changes($admin, { CHANGE_PARAM => 'GID',
+ $attr->{CHG}=$gid;
+ $self->changes($admin, { CHANGE_PARAM => 'CHG',
 		               TABLE        => 'groups',
 		               FIELDS       => \%FIELDS,
-		               OLD_INFO     => $self->group_info($attr->{GID}),
+		               OLD_INFO     => $self->group_info($gid),
 		               DATA         => $attr
 		              } );
 
@@ -454,8 +492,6 @@ sub list {
     $self->{SEARCH_FIELDS_COUNT}++;
   }
 
-
-
  if ($attr->{CONTRACT_ID}) {
     $attr->{CONTRACT_ID} =~ s/\*/\%/ig;
     push @WHERE_RULES, "pi.contract_id LIKE '$attr->{CONTRACT_ID}'";
@@ -486,6 +522,14 @@ sub list {
   	$attr->{COMMENTS} =~ s/\*/\%/ig;
  	  push @WHERE_RULES, "pi.comments LIKE '$attr->{COMMENTS}'";
     $self->{SEARCH_FIELDS} .= 'pi.comments, ';
+    $self->{SEARCH_FIELDS_COUNT}++;
+  }    
+
+ if ($attr->{BILL_ID}) {
+    my $value = $self->search_expr($attr->{BILL_ID}, 'INT');
+    push @WHERE_RULES, "if(company.id IS NULL, b.id, cb.id)$value";
+
+    $self->{SEARCH_FIELDS} .= 'if(company.id IS NULL, b.id, cb.id), ';
     $self->{SEARCH_FIELDS_COUNT}++;
   }    
 
@@ -540,7 +584,6 @@ sub list {
  $WHERE = ($#WHERE_RULES > -1) ?  "WHERE " . join(' and ', @WHERE_RULES) : '';
  
 #Show last paymenst
-
  if ($attr->{PAYMENTS}) {
 
     my $value = $self->search_expr($attr->{PAYMENTS}, 'INT');
@@ -551,7 +594,7 @@ sub list {
    my $HAVING = ($#WHERE_RULES > -1) ?  "HAVING " . join(' and ', @WHERE_RULES) : '';
 
    $self->query($db, "SELECT u.id, 
-       pi.fio, if(company.id IS NULL, b.deposit, b.deposit), u.credit, u.disable, 
+       pi.fio, if(company.id IS NULL, b.deposit, cb.deposit), u.credit, u.disable, 
        $self->{SEARCH_FIELDS}
        u.uid, 
        u.company_id, 
@@ -563,6 +606,7 @@ sub list {
      LEFT JOIN users_pi pi ON (u.uid = pi.uid)
      LEFT JOIN bills b ON u.bill_id = b.id
      LEFT JOIN companies company ON  (u.company_id=company.id) 
+     LEFT JOIN bills cb ON  (company.bill_id=cb.id)
      GROUP BY u.uid     
      $HAVING 
 
@@ -593,14 +637,14 @@ sub list {
   }
  
  $self->query($db, "SELECT u.id, 
-      pi.fio, if(company.id IS NULL, b.deposit, b.deposit), u.credit, u.disable, 
+      pi.fio, if(company.id IS NULL, b.deposit, cb.deposit), u.credit, u.disable, 
       $self->{SEARCH_FIELDS}
       u.uid, u.company_id, pi.email, u.activate, u.expire
      FROM users u
      LEFT JOIN users_pi pi ON (u.uid = pi.uid)
      LEFT JOIN bills b ON u.bill_id = b.id
      LEFT JOIN companies company ON  (u.company_id=company.id) 
-     
+     LEFT JOIN bills cb ON  (company.bill_id=cb.id)
      $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;");
 
  return $self if($self->{errno});
@@ -614,6 +658,7 @@ sub list {
      LEFT JOIN users_pi pi ON (u.uid = pi.uid)
      LEFT JOIN bills b ON u.bill_id = b.id
      LEFT JOIN companies company ON  (u.company_id=company.id) 
+     LEFT JOIN bills cb ON  (company.bill_id=cb.id)
     $WHERE");
     ($self->{TOTAL}) = @{ $self->{list}->[0] };
    }
@@ -661,7 +706,7 @@ sub add {
      $self->{errstr} = 'ERROR_WRONG_NAME';
      return $self; 	
    }
-  elsif($DATA{EMAIL} ne '') {
+  elsif($DATA{EMAIL} && $DATA{EMAIL} ne '') {
     if ($DATA{EMAIL} !~ /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/) {
       $self->{errno} = 11;
       $self->{errstr} = 'ERROR_WRONG_EMAIL';
@@ -854,6 +899,7 @@ sub bruteforce_list {
   my $self = shift;	
 	my ($attr) = @_;
 	
+	@WHERE_RULES = ();
 
   $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -893,7 +939,6 @@ sub bruteforce_list {
 	return $list;
 }
 
-
 #**********************************************************
 #
 #**********************************************************
@@ -903,6 +948,131 @@ sub bruteforce_del {
 	
   $self->query($db,  "DELETE FROM users_bruteforce
 	 WHERE login='$attr->{LOGIN}';", 'do');
+
+	return $self;
+}
+
+
+
+#**********************************************************
+#
+#**********************************************************
+sub web_session_add {
+  my $self = shift;	
+  my ($attr) = @_;
+
+  $self->query($db, "DELETE  FROM web_users_sessions WHERE uid='$attr->{UID}';", 'do');	
+
+	$self->query($db, "INSERT INTO web_users_sessions 
+	      (uid, datetime, login, remote_addr, sid) VALUES 
+	      ('$attr->{UID}', UNIX_TIMESTAMP(), '$attr->{LOGIN}', INET_ATON('$attr->{REMOTE_ADDR}'), '$attr->{SID}');", 'do');	
+	
+	return $self;
+}
+
+#**********************************************************
+# User information
+# info()
+#**********************************************************
+sub web_session_info {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $WHERE;
+    
+  if($attr->{SID}) {
+    $WHERE = "WHERE sid='$attr->{SID}'";
+   }
+  else {
+    $self->{errno} = 2;
+    $self->{errstr} = 'ERROR_NOT_EXIST';
+    return $self;
+   }
+
+
+  $self->query($db, "SELECT uid, 
+    datetime, 
+    login, 
+    INET_NTOA(remote_addr), 
+    UNIX_TIMESTAMP() - datetime,
+    sid
+     FROM web_users_sessions
+     $WHERE;");
+
+  if ($self->{TOTAL} < 1) {
+     $self->{errno} = 2;
+     $self->{errstr} = 'ERROR_NOT_EXIST';
+     return $self;
+   }
+
+  
+  ($self->{UID},
+   $self->{DATETIME},
+   $self->{LOGIN},
+   $self->{REMOTE_ADDR}, 
+   $self->{ACTIVATE},
+   $self->{SID}
+   ) = @{ $self->{list}->[0] };
+ 
+  return $self;
+}
+
+#**********************************************************
+#
+#**********************************************************
+sub web_sessions_list {
+  my $self = shift;	
+	my ($attr) = @_;
+	
+
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+
+	my $GROUP = 'GROUP BY login';
+  my $count='count(login)';	
+	
+	if ($attr->{AUTH_STATE}) {
+    push @WHERE_RULES, "auth_state='$attr->{AUTH_STATE}'";
+   }
+	
+	if ($attr->{LOGIN}) {
+		push @WHERE_RULES, "login='$attr->{LOGIN}'";
+  	$count='auth_state';
+  	$GROUP = '';
+	 }
+	
+  my $WHERE = "WHERE " . join(' and ', @WHERE_RULES) if($#WHERE_RULES > -1);
+	my $list;
+	
+	
+  if (! $attr->{CHECK}) {
+	  $self->query($db,  "SELECT uid, datetime, login, INET_NTOA(remote_addr), sid 
+	   FROM web_users_sessions
+	    $WHERE
+	    $GROUP
+	    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;");
+    $list = $self->{list};
+  }
+
+  $self->query($db, "SELECT count(DISTINCT login) FROM web_users_sessions $WHERE;");
+  ($self->{TOTAL}) = @{ $self->{list}->[0] };
+
+	
+	return $list;
+}
+
+#**********************************************************
+#
+#**********************************************************
+sub web_session_del {
+  my $self = shift;	
+	my ($attr) = @_;
+	
+  $self->query($db,  "DELETE FROM web_users_sessions
+	 WHERE sid='$attr->{SID}';", 'do');
 
 	return $self;
 }

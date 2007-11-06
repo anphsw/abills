@@ -113,7 +113,7 @@ sub traffic_calculations {
      FROM dv_log WHERE uid='$self->{UID}' and start>'$self->{ACTIVATE}'";
 
     my $q = $db->prepare($sql) || die $db->errstr;
-    $q ->execute();
+    $q->execute();
 
 
     if ($q->rows() > 1) {
@@ -168,8 +168,8 @@ foreach my $line (@$list) {
 
   my $used_traffic;
   if ($CONF->{rt_billing}) {
-  	$sent = $RAD->{INTERIUM_OUTBYTE}   || 0; #from server
-    $recv = $RAD->{INTERIUM_INBYTE}    || 0;  #to server
+  	$sent  = $RAD->{INTERIUM_OUTBYTE}  || 0; #from server
+    $recv  = $RAD->{INTERIUM_INBYTE}   || 0;  #to server
     $sent2 = $RAD->{INTERIUM_OUTBYTE1} || 0; 
     $recv2 = $RAD->{INTERIUM_INBYTE1}  || 0;
    }
@@ -178,9 +178,48 @@ if ($prepaid{0} + $prepaid{1} > 0) {
    #Get traffic from begin of month
    
    $used_traffic = $self->get_traffic({ UID    => $self->{UID},
-   	                                       PERIOD => $traffic_period
-   	                                    });
-   
+   	                                    PERIOD => $traffic_period
+   	                                  });
+
+   #Traffic transfert function
+  if ($self->{TRAFFIC_TRANSFER_PERIOD}) {
+    my $tp = $self->{TP_ID};
+    
+    my $interval = undef;
+  	if ($self->{ACTIVATE} ne '0000-00-00') {
+      $interval = "(DATE_FORMAT(start, '%Y-%m-%d')>='$self->{ACTIVATE}' - INTERVAL $self->{TRAFFIC_TRANSFER_PERIOD} * 30 DAY && 
+       DATE_FORMAT(start, '%Y-%m-%d')<='$self->{ACTIVATE}')";
+
+  	 }
+    else {
+    	$interval = "(DATE_FORMAT(start, '%Y-%m')>=DATE_FORMAT(curdate() - INTERVAL $self->{TRAFFIC_TRANSFER_PERIOD} MONTH, '%Y-%m') AND 
+    	 DATE_FORMAT(start, '%Y-%m')>=DATE_FORMAT(curdate(), '%Y-%m') ) ";
+     }
+    
+    # Traffic transfer
+    my $transfer_traffic=$self->get_traffic({ UID      => $self->{UID},
+                                              INTERVAL => $interval,
+                                              TP_ID    => $tp
+                                            });
+                                           
+ #     print $prepaids{0}."\n";
+     
+     if($self->{OCTETS_DIRECTION} == 1) {
+ 	     $prepaid{0} += $prepaid{0} - $transfer_traffic->{TRAFFIC_IN} if ( $prepaid{0} > $transfer_traffic->{TRAFFIC_IN} );
+       $prepaid{1} += $prepaid{1} - $transfer_traffic->{TRAFFIC_IN_2} if ( $prepaid{1} > $transfer_traffic->{TRAFFIC_IN_2} );
+      }
+     #Sent / OUT
+     elsif ($self->{OCTETS_DIRECTION} == 2 ) {
+ 	     $prepaid{0} += $prepaid{0} - $transfer_traffic->{TRAFFIC_OUT} if ( $prepaid{0} > $transfer_traffic->{TRAFFIC_OUT} );
+       $prepaid{1} += $prepaid{1} - $transfer_traffic->{TRAFFIC_OUT_2} if ( $prepaid{1} > $transfer_traffic->{TRAFFIC_OUT_2} );
+      }
+     else {
+ 	     $prepaid{0}   += $prepaid{0} - ($transfer_traffic->{TRAFFIC_IN}+$transfer_traffic->{TRAFFIC_OUT}) if ($prepaid{0} > ($transfer_traffic->{TRAFFIC_IN}+$transfer_traffic->{TRAFFIC_OUT}));
+       $prepaid{1} += $prepaid{1} - ($transfer_traffic->{TRAFFIC_IN_2}+$transfer_traffic->{TRAFFIC_OUT_2}) if ( $prepaid{1} > ($transfer_traffic->{TRAFFIC_IN_2}+$transfer_traffic->{TRAFFIC_OUT_2}) );
+      }   
+   }
+
+ 
    if ($CONF->{rt_billing}) {
    	 $used_traffic->{TRAFFIC_IN}     += int($RAD->{INBYTE} / $CONF->{MB_SIZE}); 
    	 $used_traffic->{TRAFFIC_OUT}    += int($RAD->{OUTBYTE} / $CONF->{MB_SIZE});
@@ -188,7 +227,6 @@ if ($prepaid{0} + $prepaid{1} > 0) {
    	 $used_traffic->{TRAFFIC_OUT_2}  += int($RAD->{OUTBYTE2} / $CONF->{MB_SIZE});
     }
 
-   
    $used_traffic->{ONLINE}=0;
    #Recv / IN
    if($self->{OCTETS_DIRECTION}==1) {
@@ -274,7 +312,18 @@ sub get_traffic {
      TRAFFIC_IN_2  => 0
 	);
   
-  my $period = ($attr->{PERIOD}) ? $attr->{PERIOD} : "DATE_FORMAT(start, '%Y-%m')=DATE_FORMAT(curdate(), '%Y-%m')";
+  
+  my $period = "DATE_FORMAT(start, '%Y-%m')=DATE_FORMAT(curdate(), '%Y-%m')";
+  if ($attr->{PERIOD}) {
+    $period = $attr->{PERIOD};
+   }
+  elsif($attr->{INTERVAL}) {
+  	$period = $attr->{INTERVAL};
+   }
+  
+  if ($attr->{TP_ID}) {
+  	$period .= " AND tp_id='$attr->{TP_ID}'";
+   }
 
   $self->query($db, "SELECT sum(sent)  / $CONF->{MB_SIZE},  
                             sum(recv)  / $CONF->{MB_SIZE}, 
@@ -297,6 +346,46 @@ sub get_traffic {
 	return \%result;
 }
 
+#**********************************************************
+# Get traffic from some period
+# UID     - user id
+# PERIOD  - start period
+# 
+# Return traffic recalculation by MB 
+#
+#**********************************************************
+sub get_traffic_tt{
+	my ($self, $attr) = @_;
+
+	my %result = (
+	   TRAFFIC_OUT   => 0, 
+     TRAFFIC_IN    => 0,
+     TRAFFIC_OUT_2 => 0,
+     TRAFFIC_IN_2  => 0
+	);
+  
+  my $period = ($attr->{PERIOD}) ? $attr->{PERIOD} : "DATE_FORMAT(start, '%Y-%m')=DATE_FORMAT(curdate(), '%Y-%m')";
+
+  $self->query($db, "SELECT sum(sent)  / $CONF->{MB_SIZE},  
+                            sum(recv)  / $CONF->{MB_SIZE}, 
+                            sum(sent2) / $CONF->{MB_SIZE}, 
+                            sum(recv2) / $CONF->{MB_SIZE}
+       FROM dv_log 
+       WHERE uid='$attr->{UID}' and ($period)
+       GROUP BY uid;");
+
+  if ($self->{TOTAL} > 0) {
+    ($result{TRAFFIC_OUT}, 
+     $result{TRAFFIC_IN},
+     $result{TRAFFIC_OUT_2},
+     $result{TRAFFIC_IN_2}
+    )=@{ $self->{list}->[0] };
+  }
+  
+  $self->{PERIOD_TRAFFIC}=\%result;
+  
+	return \%result;
+}
 
 #**********************************************************
 # Calculate session sum
@@ -331,7 +420,7 @@ sub session_sum {
  if (! $attr->{FULL_COUNT} && 
      (
       (defined($CONF->{MINIMUM_SESSION_TIME}) && $SESSION_DURATION < $CONF->{MINIMUM_SESSION_TIME}) || 
-      (defined($CONF->{MINIMUM_SESSION_TRAF}) && $sent + $recv < $CONF->{MINIMUM_SESSION_TRAF})
+      (defined($CONF->{MINIMUM_SESSION_TRAF}) && $sent + $recv + $sent2 + $recv2 < $CONF->{MINIMUM_SESSION_TRAF})
      )
      ) {
     return -1, 0, 0, 0, 0, 0;
@@ -367,13 +456,14 @@ sub session_sum {
    $self->{REDUCTION},
    $self->{BILL_ID}, 
    $self->{ACTIVATE},
-   $self->{COMPANY_ID},
+   $self->{COMPANY_ID}
   ) = @{ $self->{list}->[0] };	
  	
  	$self->query($db, "SELECT 
     tp.min_session_cost,
     tp.payment_type,
-    tp.octets_direction
+    tp.octets_direction,
+    tp.traffic_transfer_period
    FROM tarif_plans tp
    WHERE tp.id='$attr->{TP_ID}';");
 
@@ -387,9 +477,10 @@ sub session_sum {
 
   ($self->{MIN_SESSION_COST},
    $self->{PAYMENT_TYPE},
-   $self->{OCTETS_DIRECTION}
+   $self->{OCTETS_DIRECTION},
+   $self->{TRAFFIC_TRANSFER_PERIOD}
   ) = @{ $self->{list}->[0] };
- 	
+
   }
  else {
   $self->query($db, "SELECT 
@@ -405,7 +496,8 @@ sub session_sum {
     tp.min_session_cost,
     u.company_id,
     tp.payment_type,
-    tp.octets_direction
+    tp.octets_direction,
+    tp.traffic_transfer_period
    FROM (users u, 
       dv_main dv, 
       tarif_plans tp)
@@ -433,11 +525,17 @@ sub session_sum {
    $self->{MIN_SESSION_COST},
    $self->{COMPANY_ID},
    $self->{PAYMENT_TYPE},
-   $self->{OCTETS_DIRECTION}
+   $self->{OCTETS_DIRECTION},
+   $self->{TRAFFIC_TRANSFER_PERIOD}
   ) = @{ $self->{list}->[0] };
  }
 
  $self->{TP_ID}=$attr->{TP_ID} if (defined($attr->{TP_ID}));
+
+ if ($attr->{USER_INFO}) {
+ 	
+ 	 return $self->{UID}, $sum, $self->{BILL_ID}, $self->{TP_ID}, 0, 0;
+  }
 
 
  $tariffs = Tariffs->new($db, $CONF);
@@ -516,15 +614,15 @@ sub time_intervals {
    i.tarif,
    if(sum(tt.in_price+tt.out_price) IS NULL || sum(tt.in_price+tt.out_price)=0, 0, sum(tt.in_price+tt.out_price)),
    i.id
-   FROM intervals i
+   FROM (intervals i)
    LEFT JOIN  trafic_tarifs tt ON (tt.interval_id=i.id)
    WHERE i.tp_id='$TP_ID'
    GROUP BY i.id
    ORDER BY 1;");
 
  if ($self->{TOTAL} < 1) {
-     return 0;	
-   }
+   return 0;	
+  }
 
  my %time_periods = ();
  my %periods_time_tarif = (); 
@@ -613,13 +711,13 @@ if ($debug == 1) {
  while($duration > 0 && $count < 10) {
 
    if(defined($holidays{$day_of_year}) && defined($time_intervals->{8})) {
-    	$tarif_day = 8;
+     $tarif_day = 8;
     }
    elsif (defined($time_intervals->{$day_of_week})) {
-    	$tarif_day = $day_of_week;
+     $tarif_day = $day_of_week;
     }
    elsif(defined($time_intervals->{0})) {
-      $tarif_day = 0;
+     $tarif_day = 0;
     }
    else {
 #   	err();
@@ -747,33 +845,33 @@ sub time_calculation() {
  );
  
  my $PRICE_UNIT = (defined($PRICE_UNITS{$attr->{PRICE_UNIT}})) ? 60 : 3600;
- 
-  #session devisions
-  my @sd = $self->{TIME_DIVISIONS_ARR};
 
-$self->{debug} =1;
+ #session devisions
+ my @sd = @{ $self->{TIME_DIVISIONS_ARR} };
+
+
 
 if(! defined($self->{NO_TPINTERVALS})) {
   if($#sd < 0) {
    	$self->{errno} = 3;
-   	$self->{errstr} = "Not allow start period";
+   	$self->{errstr} = "Not allow start period-";
    }
-  #$self->{debug}=1;
 
   foreach my $line (@sd) {
     my ($k, $v)=split(/,/,  $line);
-
+    
  	  #print "> $k, $v\n" if ($self->{debug});
     if(defined($periods_time_tarif->{$k})) {
-   	   $sum += ($v * $periods_time_tarif->{$k}) / $PRICE_UNIT;
+   	  $sum += ($v * $periods_time_tarif->{$k}) / $PRICE_UNIT;
      }
    }
+
+
+
 }
 
-$sum = $sum * (100 - $attr->{REDUCTION}) / 100 if (defined($attr->{REDUCTION}) && $attr->{REDUCTION} > 0);
+  $sum = $sum * (100 - $attr->{REDUCTION}) / 100 if (defined($attr->{REDUCTION}) && $attr->{REDUCTION} > 0);
 #$sum = $CONF->{MIN_SESSION_COST} if ($sum < $self->{MIN_SESSION_COST} && $self->{MIN_SESSION_COST} > 0);
-
-  
 
   $self->{SUM}=$sum;
   return $self;
@@ -827,6 +925,16 @@ sub remaining_time {
       $day_of_week,
       $day_of_year
      );
+
+  my $PRICE_UNIT = 3600;
+  if ($attr->{PRICE_UNIT}) {
+    my %PRICE_UNITS = (
+     Hour => 3600,
+     Min  => 60
+    );
+    $PRICE_UNIT = $PRICE_UNITS{$attr->{PRICE_UNIT}} if  (defined($PRICE_UNITS{$attr->{PRICE_UNIT}}));
+   }
+   
 
   
 
@@ -967,7 +1075,7 @@ sub remaining_time {
              $price = $mainh_tarif  * ($tp / 100);
            }
           else {
-             $price = $periods_time_tarif->{$int_id};
+             $price = $periods_time_tarif->{$int_id} || 0;
            }
 
           if (! $ATTR{FIRST_INTERVAL}) {
@@ -999,23 +1107,23 @@ sub remaining_time {
             # 20.01.2007
             #$remaining_time += $int_duration;
             if ($price > 0) {
-              $int_prepaid = int($deposit / $price * 3600);
+              $int_prepaid = int($deposit / $price * $PRICE_UNIT);
              }
             else {
               $int_prepaid = $int_duration;		
              }
            }
           # Check next traffic interval if the price is same add this interval to session timeout
-          elsif(defined($periods_traf_tarif->{$int_id}) 
-            && $periods_traf_tarif->{$int_id} > 0 
-            && ! $CONF->{rt_billing} 
-            && (($int_end - $int_begin < 86400) && $periods_traf_tarif->{$int_id} != $traf_price)
-            ) {
-            print "Next tarif with traffic counts (Remaining: $remaining_time) Day: $tarif_day Int Begin: $int_begin End: $int_end ID: $int_id\n" if ($debug == 1);
-            return int($remaining_time), \%ATTR;
+          elsif(defined($periods_traf_tarif->{$int_id})
+             && $periods_traf_tarif->{$int_id} > 0
+             && ! $CONF->{rt_billing}
+             && (($int_end - $int_begin < 86400) && $periods_traf_tarif->{$int_id} != $traf_price)
+             ) {
+             print "Next tarif with traffic counts (Remaining: $remaining_time) Day: $tarif_day Int Begin: $int_begin End: $int_end ID: $int_id\n" if ($debug == 1);
+             return int($remaining_time), \%ATTR;
            }
           elsif ($price > 0) {
-            $int_prepaid = int($deposit / $price * 3600);
+            $int_prepaid = int($deposit / $price * $PRICE_UNIT);
            }
           else {
             $int_prepaid = $int_duration;	
@@ -1024,7 +1132,7 @@ sub remaining_time {
 
           #print "Int Begin: $int_begin Int duration: $int_duration Int prepaid: $int_prepaid Prise: $price\n";
           if ($int_prepaid >= $int_duration) {
-            $deposit -= ($int_duration / 3600 * $price);
+            $deposit -= ($int_duration / $PRICE_UNIT * $price);
             $session_start += $int_duration;
             $remaining_time += $int_duration;
             #print "DP $deposit ($int_prepaid > $int_duration) $session_start\n";

@@ -60,9 +60,10 @@ if ($FORM{WIZARD}) {
 
  $html->tpl_show(_include('sqlcmd', 'Sqlcmd'), { %$Sqlcmd, \%FORM });
  
- my $list = $Sqlcmd->list( { %FORM2 } ) if (defined($FORM2{QUERY}) && length($FORM2{QUERY}) > 10);
+  my $list = $Sqlcmd->list( { %FORM2 } ) if (defined($FORM2{QUERY}) && length($FORM2{QUERY}) > 10);
 
 
+if ($FORM{QUERY} && ! $FORM{xml}) {
   my $table = $html->table( { width       => '100%',
                               cols_align  => ['left'],
                              } );
@@ -95,26 +96,17 @@ if ($FORM{WIZARD}) {
     $table->addrow("$query", "Ok");
   }
 
-
-  
   print $table->show();
-
+}
 
 if ($Sqlcmd->{errno}) {
   $html->message('err', $_ERROR, "[$Sqlcmd->{errno}] $err_strs{$Sqlcmd->{errno}} /$Sqlcmd->{errstr}/");	
-  
-  
+
   return 0;
  }
 
 
-
-
-
 $pages_qs .= "&QUERY=$FORM{QUERY}";
-
-
-
 
 
   my @CAPTION = ();
@@ -123,7 +115,7 @@ $pages_qs .= "&QUERY=$FORM{QUERY}";
 
   $table = $html->table( { width  => '100%',
                            border => 1,
-                           title  => [@CAPTION], 
+                           title  => ( $#CAPTION > -1 ) ? [ @CAPTION ] : [ ], 
                            qs     => $pages_qs,
                            pages  => $Sqlcmd->{TOTAL}
                        } );
@@ -143,6 +135,7 @@ $pages_qs .= "&QUERY=$FORM{QUERY}";
                            cols_align => ['right', 'right'],
                            rows       => [ [ "$_TOTAL:", "<b>$Sqlcmd->{TOTAL}</b>" ] ]
                         } );
+
   print $table->show();
 
 
@@ -689,6 +682,47 @@ sub t  () {
    
    
    return $result;
+}
+
+#**********************************************************
+# Make period statistic
+#**********************************************************
+sub sqlcmd_procs {
+
+
+  if ($FORM{del}) {
+  	$Sqlcmd->list({ QUERY => "kill $FORM{del}" });
+  	print $html->message('info', $_INFO, "$_DELETED [ $FORM{del} ]");
+   } 
+
+  my $list = $Sqlcmd->list({ QUERY => 'show full processlist;' });
+
+  my @CAPTION = ();
+  @CAPTION = @{ $Sqlcmd->{MYSQL_FIELDS_NAMES} } if ($Sqlcmd->{MYSQL_FIELDS_NAMES});
+ 
+  $table = $html->table( { width   => '100%',
+                           caption => $_PROCESSES,
+                           border  => 1,
+                           title   => [ @CAPTION, '-' ], 
+                           qs      => $pages_qs,
+                           pages   => $Sqlcmd->{TOTAL}
+                       } );
+
+  foreach my $line (@$list) {
+
+    $table->addrow($line->[0],
+                   $line->[1],
+                   $line->[2],
+                   $line->[3],
+                   $line->[4],
+                   sec2time($line->[5], {str => 1}),
+                   $line->[6],
+                   $line->[7],
+                   $html->button($_DEL, "index=$index&del=$line->[0]", 
+                      { MESSAGE => "$_DEL $line->[0] ?" }) );
+   }
+
+  print $table->show();
 }
 
 1

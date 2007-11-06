@@ -7,7 +7,7 @@ MYSQL_SERVER            %dbhost%
 MYSQL_GID_FIELD         '1005' 
 MYSQL_HOME_FIELD        CONCAT('/var/spool/virtual/')
 MYSQL_LOGIN_FIELD       CONCAT(mb.username, '@', md.domain)
-MYSQL_MAILDIR_FIELD     CONCAT('/var/spool/virtual/', md.domain,'/',mb.username,'/')
+MYSQL_MAILDIR_FIELD     CONCAT('/var/spool/virtual/', md.domain,'/',LOWER(mb.username),'/')
 MYSQL_NAME_FIELD        CONCAT(mb.username, '@', md.domain)
 MYSQL_OPT               0
 MYSQL_PORT              3306

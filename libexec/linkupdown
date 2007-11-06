@@ -20,11 +20,11 @@
 # set iface down-script "/usr/abills/libexec/linkupdown mpd down"
 #-------------------------------------------------------------
 # For Linux
-#
-# /etc/ppp/ip-up.local 
+# 
+# Add to /etc/ppp/ip-up.local 
 # /usr/abills/libexec/linkupdown pppd up $1 'username' $4
 #
-# /etc/ppp/ip-down.local 
+# Add to /etc/ppp/ip-down.local 
 # /usr/abills/libexec/linkupdown pppd down $1 'username' $4
 #
 
@@ -39,7 +39,12 @@ $debug=1 if ($ARGV[$#ARGV] eq 'debug');
 if ( $#ARGV < 3 ) {
  print qq{Not anought argumets:
  Example:
+----------------------------------------------------------------
+For IPN
+  $conf{IPN_FW_START_RULE}="/usr/abills/libexec/linkupdown ipn up INTERFACE %LOGIN% %IP%";
+  $conf{IPN_FW_STOP_RULE}="/usr/abills/libexec/linkupdown ipn down INTERFACE %LOGIN% %IP%";
 
+----------------------------------------------------------------
  /etc/ppp/ppp.linkup
  MYADDR:
    !bg /usr/abills/libexec/linkupdown up INTERFACE USER HISADDR
@@ -54,10 +59,11 @@ if ( $#ARGV < 3 ) {
    set iface down-script "/usr/abills/libexec/linkupdown mpd down"
 ----------------------------------------------------------------
  For Linux:
- /etc/ppp/ip-up.local 
+ (Work only with user static IP address)
+ Add to /etc/ppp/ip-up.local 
    /usr/abills/libexec/linkupdown pppd up \$1 'username' \$4
 
- /etc/ppp/ip-down.local 
+ Add to /etc/ppp/ip-down.local 
    /usr/abills/libexec/linkupdown pppd down \$1 'username' \$4
  
  For mikrotik:
@@ -92,7 +98,7 @@ my $Billing = Billing->new($db, \%conf);
 
 
 
-
+my $CLIENT_IP = 'any';
 
 
 
@@ -104,14 +110,23 @@ my ($ACTION, $INTERFACE, $USER, $HISADDR, $inum);
 
 #MPD
 if ($ARGV[0] eq 'mpd') {
-  $ACTION=$ARGV[1];
-  $INTERFACE=$ARGV[2];
-  $USER=$ARGV[6];
-  $HISADDR=$ARGV[5];
-  $inum = $INTERFACE;
-  $inum =~ s/ng//;
+  $ACTION   = $ARGV[1];
+  $INTERFACE= $ARGV[2];
+  $USER     = $ARGV[6];
+  $HISADDR  = $ARGV[5];
+  $inum     = $INTERFACE;
+  $inum     =~ s/ng//;
 }
 #pppd
+elsif ($ARGV[0] eq 'ipn') {
+  $ACTION   = $ARGV[1];
+  $INTERFACE= $ARGV[2];
+  $USER     = $ARGV[3];
+  $HISADDR  = $ARGV[4];
+  $CLIENT_IP = $HISADDR;	
+	my ($n1, $n2, $n3, $n4) = split(/\./, $HISADDR, 4);
+  $inum  = $n4;
+}
 elsif($ARGV[0] eq 'pppd' || $ARGV[0] eq 'mikrotik') {
   $ACTION   =$ARGV[1];
   $INTERFACE=$ARGV[2];
@@ -286,7 +301,12 @@ print "\nEND: =====================================\n" if ($debug > 0);
 
     #Linux tc shaper
     if ($ARGV[0] eq 'mikrotik' ) {
-    	mikrotik({ NETS => \@nets_arr });
+    	mikrotik({ 
+    		  SPEED_IN  => $speed_in,
+    		  SPEED_OUT => $speed_out,
+    		  NETS_ID   => undef,
+    		  NETS      => \@nets_arr 
+    		 });
      }
     elsif ($ARGV[0] eq 'pppd') {
        # In
@@ -323,7 +343,7 @@ print "\nEND: =====================================\n" if ($debug > 0);
     	  #In;
         if ($traf_type == 0) {
           # In
-          push @FW_ACTIONS, "$IPFW add $fw_num_in pipe $pipe_num_in ip from any to any via $INTERFACE in";
+          push @FW_ACTIONS, "$IPFW add $fw_num_in pipe $pipe_num_in ip from $CLIENT_IP to any via $INTERFACE in";
           push @FW_ACTIONS, "$IPFW pipe $pipe_num_in config bw ". $speed_in ."Kbit/s queue 10Kbytes";
          }
         else {
@@ -337,10 +357,10 @@ print "\nEND: =====================================\n" if ($debug > 0);
                	  push @FW_ACTIONS, "$IPFW table $table_number add $line";
                 }
               }
-            push @FW_ACTIONS, "$IPFW add $fw_num_in pipe $pipe_num_in ip from any to table\\($table_number\\)  via $INTERFACE in";
+            push @FW_ACTIONS, "$IPFW add $fw_num_in pipe $pipe_num_in ip from $CLIENT_IP to table\\($table_number\\) via $INTERFACE in";
            }
           else {
-            push @FW_ACTIONS, "$IPFW add $fw_num_in pipe $pipe_num_in ip from any to $nets{$traf_type} via $INTERFACE in";
+            push @FW_ACTIONS, "$IPFW add $fw_num_in pipe $pipe_num_in ip from $CLIENT_IP to $nets{$traf_type} via $INTERFACE in";
            }
             push @FW_ACTIONS, "$IPFW pipe $pipe_num_in config bw ". $speed_in ."Kbit/s queue 10Kbytes";
          }
@@ -351,7 +371,7 @@ print "\nEND: =====================================\n" if ($debug > 0);
       
       if ($speed_out > 0) {
         if ($traf_type == 0) {
-          push @FW_ACTIONS, "$IPFW add $fw_num_out pipe $pipe_num_out ip from any to any via $INTERFACE out";
+          push @FW_ACTIONS, "$IPFW add $fw_num_out pipe $pipe_num_out ip from any to $CLIENT_IP via $INTERFACE out";
           push @FW_ACTIONS, "$IPFW pipe $pipe_num_out config bw ". $speed_out ."Kbit/s queue 10Kbytes";
          }
         else {
@@ -365,10 +385,10 @@ print "\nEND: =====================================\n" if ($debug > 0);
                	  push @FW_ACTIONS, "$IPFW table $table_number add $line";
                 }
               }
-            push @FW_ACTIONS, "$IPFW add $fw_num_out pipe $pipe_num_out ip from table\\($table_number\\) to any via $INTERFACE out";
+            push @FW_ACTIONS, "$IPFW add $fw_num_out pipe $pipe_num_out ip from table\\($table_number\\) to $CLIENT_IP via $INTERFACE out";
            }
           else {
-            push @FW_ACTIONS, "$IPFW add $fw_num_out pipe $pipe_num_out ip from $nets{$traf_type} to any via $INTERFACE out";
+            push @FW_ACTIONS, "$IPFW add $fw_num_out pipe $pipe_num_out ip from $nets{$traf_type} to $CLIENT_IP via $INTERFACE out";
            }
 
 
@@ -397,6 +417,7 @@ foreach my $line (@FW_ACTIONS) {
 }
 
 
+
 #**********************************************************
 # Manage mikrotik bandwidth
 # 3 type of actions
@@ -405,6 +426,38 @@ foreach my $line (@FW_ACTIONS) {
 #  check
 #**********************************************************
 sub mikrotik {
+	my ($attr)=@_;
+
+  my $name = "ads-pptp-test";
+  my $interface = "<pptp-test>";
+  my $speed_in  = 512000;
+  my $speed_out = 512000;
+  my $cmd = '';
+
+if ($ACTION eq 'up') {
+  $cmd = "name=\"$name\" dst-address=0.0.0.0/0 interface=$interface
+      parent=none direction=both priority=8 queue=default-small/default-small
+      limit-at=$speed_in/$speed_out max-limit=$speed_in/$speed_out
+      total-queue=default-small";
+ }
+elsif($ACTION eq 'down') {
+  $cmd = "remove [ find name=$name ]";
+	
+}
+  
+
+
+  my $result .= `ssh admin_ssh\@192.168.101.10 "$cmd"`;
+}
+
+#**********************************************************
+# Manage mikrotik bandwidth
+# 3 type of actions
+#  up
+#  down 
+#  check
+#**********************************************************
+sub mikrotik_ext {
 	my ($attr)=@_;
 
 	
@@ -458,8 +511,8 @@ sub mikrotik {
     $result .= `ssh admin\@192.168.101.10 "$cmd"`;
 	 }
 
- print $result;
- 
+  print $result;
+
 }
 
 

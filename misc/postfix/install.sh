@@ -1,5 +1,22 @@
 #!/bin/sh
+# make deamon accounts
+#
 # Make vmail user account
+
+
+if [ wLinux = w$1 ]; then
+  if [ wClamav = w$2 ]; then
+    GROUP=clamav;
+    USER=clamav;
+    if /bin/id "${GROUP}" 2>/dev/null; then
+      echo "Group Exist";
+    else
+      /usr/sbin/groupadd -g 106 clamav
+    fi
+    /usr/sbin/useradd -c "Clam Antivirus" -d /nonexistent -s /sbin/nologin -u 106 -g 106 clamav 
+  fi
+  exit;
+fi
 
 if [ -x /usr/sbin/nologin ]; then
         NOLOGIN=/usr/sbin/nologin

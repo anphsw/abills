@@ -86,6 +86,9 @@ sub info {
 
 
     $list = \@rows;
+    #show indexes
+    # SHOW INDEX FROM $row_array[0];
+
     return $list;
   }
 
@@ -189,7 +192,7 @@ sub list {
  	  @QUERY_ARRAY = split(/;/, $attr->{QUERY});
   }
  else {
-   push @QUERY_ARRAY, 	$attr->{QUERY};
+   push @QUERY_ARRAY, $attr->{QUERY};
  }
 
 
