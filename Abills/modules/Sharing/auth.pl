@@ -4,11 +4,11 @@
 
 use DBI;
 use strict;
-use vars qw(%conf);
+use vars qw(%conf $DATE $TIME);
 
 
 #Main debug section
-my $prog= join ' ',$0,@ARGV;
+my $prog = join ' ',$0,@ARGV;
 my $a = `echo "Begin" >> /tmp/sharing_env`;
 my $aa = '';
 while(my ($k, $v)=each %ENV) {
@@ -16,11 +16,14 @@ while(my ($k, $v)=each %ENV) {
 }
 
 
+
+
 #***************************************************
 my $user   = $ENV{USER} || '';
 my $passwd = $ENV{PASS} || '';
 my $ip     = $ENV{IP}   || '0.0.0.0';
 my $COOKIE = $ENV{COOKIE} || '';
+my $URL    = $ENV{URI} || '';
 
 #**************************************************************
 # DECLARE VARIABLES                                                           #
@@ -56,14 +59,17 @@ if ($COOKIE ne '') {
   foreach(@rawCookies){
     my ($key, $val) = split (/=/,$_);
     $cookies{$key} = $val;
-  }
- }
+   }
+}
+
 my $sth;
 my $MESSAGE = '';
 
 
-if ($ENV{HTTP_HOST}) {
+if ( $#ARGV > -1 ) {
 	web_auth();
+	
+	exit 1;
  }
 else {
 my $debug = " URI: $ENV{URI}
@@ -76,18 +82,33 @@ my $debug = " URI: $ENV{URI}
  ===EXT
  $aa
  === \n";
-$a = `echo "$debug" >> /tmp/sharing_env`;
+ $a = `echo "$debug" >> /tmp/sharing_env`;
 
 
   if (auth()) {
     exit 0;	
    }
   else {
-    print STDERR $MESSAGE;
+    print STDERR "$MESSAGE";
+    #Make error log 
+    
+    my $query = "INSERT INTO sharing_errors
+      (datetime, uid, username, file_and_path,
+      client_name,
+      ip,
+      client_command)
+    values (now(), 0, '$user', '$URL', '', INET_ATON('$ip'), \"$MESSAGE\")";
+
+    #my $z = `echo "$query" >> /tmp/q`;
+
+    my $sth = $dbh->do($query);
+
     exit 1;
   }
 }
 
+
+exit 1;
 
 #**********************************************************
 #
@@ -95,10 +116,12 @@ $a = `echo "$debug" >> /tmp/sharing_env`;
 sub auth {
   
 my ($uid, $datetime, $remote_addr, $alived, $password);
+my $auth = 0;
 
+#Cookie auth
 if ($cookies{sid}) {
-	$cookies{sid} = s/\'//g;
-	$cookies{sid} = s/\"//g;
+	$cookies{sid} =~ s/\'//g;
+	$cookies{sid} =~ s/\"//g;
 	my $query = "SELECT uid, 
     datetime, 
     login, 
@@ -109,11 +132,22 @@ if ($cookies{sid}) {
     WHERE sid='$cookies{sid}'";
 	
 	$sth = $dbh->prepare($query);
+	
+	
   $sth->execute();
-
-  ($uid, $datetime, $user, $remote_addr, $alived) = $sth->fetchrow_array();
+	if ($dbh->rows() == -1) {
+    $MESSAGE = "Wrong SID for '$user' '$cookies{sid}' - Rejected\n";
+   }
+  else {
+    $auth = 1;
+    ($uid, $datetime, $user, $remote_addr, $alived) = $sth->fetchrow_array();
+   }
  }
-else {
+
+
+
+#Passwd Auth
+if ( $auth == 0 ) {
 #check password
 my $query = "SELECT if(DECODE(u.password, '$conf{secretkey}')='$passwd', 1,0), u.uid
    FROM (users u, sharing_main sharing)
@@ -126,7 +160,7 @@ $sth->execute();
 
 ($password, $uid) = $sth->fetchrow_array();
 
-if ($sth->rows() < 1) {
+if ($sth->rows() < 0) {
   $MESSAGE = "User not found '$user' - Rejected\n";
   return 0;
  }
@@ -152,8 +186,11 @@ my $query = "select
   u.reduction,
   sharing.tp_id,
   tp.payment_type,
-  tp.month_traf_limit
+  tp.month_traf_limit,
+  sharing.extra_byte,
+  count(sa.tp_id)
      FROM (users u, sharing_main sharing, tarif_plans tp)
+     LEFT JOIN sharing_additions sa ON (tp.id=sa.tp_id) 
      WHERE
         u.uid=sharing.uid
         AND sharing.tp_id=tp.id
@@ -164,6 +201,11 @@ my $query = "select
 
 $sth = $dbh->prepare($query);
 $sth->execute();
+
+if ($sth->rows() < 1) {
+	$MESSAGE = "[$user] Not exist or account may be expire - Rejected\n";
+	return 0;
+}
 
 my (
   $unix_date, 
@@ -178,9 +220,16 @@ my (
   $reduction,
   $tp_id,
   $payment_type,
-  $month_traf_limit
+  $month_traf_limit,
+  $extra_trafic,
+  $extra_traffic_count
   ) = $sth->fetchrow_array();
 
+
+if ($disable) {
+  $MESSAGE = "[$user] Disabled - Rejected\n";
+  return 0;
+}
 
 #Get Deposit
 $query = "select deposit FROM bills WHERE   id='$bill_id'";
@@ -189,96 +238,104 @@ $sth->execute();
 my ( $deposit ) = $sth->fetchrow_array();
 
 
-#Get prepaid traffic and price
-$sth = $dbh->prepare( "SELECT prepaid, in_price, out_price, prepaid, in_speed, out_speed
+
+# /vids/video_506/video/200704/rtr20070403-2315_c.avi
+my $request_path = '';
+my $request_file = '';
+
+#if ($URL =~ /\/vids(\S+)\/(\S+)$/) {
+#if ($URL =~ /([A-Za-z0-9\.\-\_ \[\]]+)\/([A-Za-z0-9\.\-\_ \[\]]+)$/) {
+#  $request_path = $1;
+#  $request_file = $2;
+#}
+#$query  = "select server, priority, filesize from lenta.tx_t3labtvarchive_files
+ 
+# WHERE path='$request_path' and filename='$request_file';";
+
+if ($conf{SHARING_RMURL_PREFIX}) {
+  $URL =~ s/$conf{SHARING_RMURL_PREFIX}//;
+}
+
+$query  = "SELECT server, priority, size FROM sharing_priority WHERE file='$URL'";
+
+$sth = $dbh->prepare($query);
+$sth->execute();
+
+#my $ww =  `echo "SELECT server, priority, size FROM sharing_priority WHERE file='$URL' " > /tmp/sharing_env`;
+
+if ($sth->rows() > 0) {
+  my ( $server, $priority, $size  ) = $sth->fetchrow_array();
+
+
+  
+  # Payment traffic
+  if ($priority == 0) {
+  	#Get prepaid traffic and price
+  	my $WHERE = ($activate ne  '0000-00-00'  ) ? " and DATE_FORMAT(start, '%Y-%m-%d')>='$activate'": "";
+    $sth = $dbh->prepare( "SELECT prepaid, in_price, out_price, prepaid, in_speed, out_speed
      FROM sharing_trafic_tarifs 
      WHERE tp_id='$tp_id'
      ORDER BY id;");
 
-$sth->execute();
-my ( $prepaid_traffic,
+    $sth->execute();
+    my ( $prepaid_traffic,
      $in_price,  
      $out_price,
      $in_speed, 
      $out_speed
      ) = $sth->fetchrow_array();
 
-#Get used traffic
-$query = "select sum(sl.sent)
+    #Get used traffic
+    $query = "select sum(sl.sent)
      FROM sharing_log sl, sharing_priority sp
      WHERE 
      sl.url=sp.file
-     and sl.username='$user'";
+     and sl.username='$user' $WHERE";
 
-$sth = $dbh->prepare($query);
-$sth->execute();
-my ( $used_traffic ) = $sth->fetchrow_array();
-
-
-$prepaid_traffic = $prepaid_traffic * 1024 * 1024;
-
-my $rest_traffic = 0;
-if ($deposit < 0 && $used_traffic > $prepaid_traffic) {
-  $MESSAGE = "[$user] Use all prepaid traffic - Rejected\n";
-  return 0;
- }
-elsif ($deposit < 0) {
-  $MESSAGE = "[$user] Negtive deposit '$deposit' - Rejected\n";
-  return 0;
- }
-
-if ($prepaid_traffic > 0) {
-  $rest_traffic = $prepaid_traffic - $used_traffic;
-}
-if ($deposit > 0) {
-	$rest_traffic = $rest_traffic + $deposit * $in_price * 1024 * 1024;
-}
-
-#Get file info
-# это позволяет по ид новости определить имена файлов и открытость-закрытость их для всех
-#SELECT typo3.tx_t3labtvarchive_slideshow,
-#       typo3.tx_t3labtvarchive_fullversion,
-#       typo3.tx_t3labtvarchive_openslide,
-#       typo3.tx_t3labtvarchive_openfull
-#FROM  typo3.tt_news
-#WHERE  typo3.uid = $news_id;
-#  14:21:35: это позволяет определить сервер скачивания и путь до файла 
-#$select * FROM tx_t3labtvarchive_files WHERE filename = $filename
+    $sth = $dbh->prepare($query);
+    $sth->execute();
+    my ( $used_traffic ) = $sth->fetchrow_array();
 
 
-# /vids/video_506/video/200704/rtr20070403-2315_c.avi
-my $URL = $ENV{URI};
-my $request_path = '';
-my $request_file = '';
+    $prepaid_traffic = (defined($prepaid_traffic) && $prepaid_traffic > 0) ? $prepaid_traffic * 1024 * 1024 : $month_traf_limit * 1024 * 1024;
+    $prepaid_traffic =  $prepaid_traffic + $extra_trafic * 1048576 if ($extra_trafic > 0 && $extra_traffic_count > 0);
+    $deposit = $deposit +  $credit;
 
-if ($URL =~ /\/vids(\S+)\/(\S+)$/) {
- $request_path = $1;
- $request_file = $2;
-}
+    my $rest_traffic = 0;
+    if ($deposit < 0 && $used_traffic > $prepaid_traffic) {
+      $MESSAGE = "[$user] Use all prepaid traffic - Rejected\n";
+      return 0;
+     }
+    elsif ($deposit < 0) {
+      $MESSAGE = "[$user] Negtive deposit '$deposit' - Rejected\n";
+      return 0;
+     }
 
-$query  = "select server, priority, filesize from lenta.tx_t3labtvarchive_files 
- WHERE path='$request_path' and filename='$request_file';";
+    my $sde = `echo "$DATE $TIME: $ENV{USER} / FILESIZE: $size / $prepaid_traffic - $used_traffic / $extra_trafic; $query" >> /tmp/rrr`;
 
-$sth = $dbh->prepare($query);
-$sth->execute();
-if ($sth->rows() > 0) {
-  my ( $server, $priority, $size  ) = $sth->fetchrow_array();
-  
-  if ($size > $rest_traffic) {
- 	  $MESSAGE = "[$user] Download file too large (Rest: $rest_traffic b) - Rejected\n";
-    return 0;
+    if ($prepaid_traffic > 0) {
+      $rest_traffic = $prepaid_traffic - $used_traffic;
+     }
+
+    if ($deposit > 0) {
+    	$rest_traffic = $rest_traffic + $deposit * $in_price * 1048576;
+     }
+
+    if ($size > $rest_traffic) {
+ 	    $MESSAGE = "[$user] Download file too large (Size: $size Rest: $rest_traffic b) - Rejected\n";
+      return 0;
+     }
+
    }
-  
-  if ($priority == 0) {
-  	
-   }
+  # Free
   elsif($priority == 1) {
+  	
   	
    }	
   	
 }
 
-  return 0;
+  return 1;
 }
 # Get month traffic
 
@@ -317,5 +374,6 @@ sub web_auth {
 #SELECT
 # server,  CONCAT(path, filename ),  filesize,  priority
 #FROM lenta.tx_t3labtvarchive_files
+
 
 exit 0;

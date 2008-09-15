@@ -228,8 +228,120 @@ sub del {
 }
 
 
+
 #**********************************************************
-# Add nas server
+# NAS IP Pools
+# 
+#**********************************************************
+sub nas_ip_pools_list {
+ my $self = shift;
+ my ($attr) = @_;
+ 
+ $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+ $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+ 
+ my $WHERE_NAS = ($self->{NAS_ID}) ? "AND np.nas_id='$self->{NAS_ID}'" : '' ;
+
+ $self->query($db, "SELECT if (np.nas_id IS NULL, 0, np.nas_id),
+   n.name, pool.name, 
+   pool.ip, pool.ip + pool.counts, pool.counts,     pool.priority,
+    INET_NTOA(pool.ip), INET_NTOA(pool.ip + pool.counts), 
+    pool.id, pool.nas
+    FROM ippools pool
+    LEFT JOIN  nas_ippools np ON (np.pool_id=pool.id $WHERE_NAS)
+    LEFT JOIN nas n ON (n.id=np.nas_id)
+      ORDER BY $SORT $DESC");
+
+
+ return $self->{list};	
+}
+
+#**********************************************************
+# NAS IP Pools
+# 
+#**********************************************************
+sub nas_ip_pools_set {
+ my $self = shift;
+ my ($attr) = @_;
+ 
+ $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+ $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+ 
+ $self->query($db, "DELETE FROM nas_ippools WHERE nas_id='$self->{NAS_ID}'", 'do');
+
+ foreach my $id ( split(/, /, $attr->{ids})) {
+   $self->query($db, "INSERT INTO nas_ippools (pool_id, nas_id) 
+    VALUES ('$id', '$attr->{NAS_ID}');", 'do');
+  }
+
+ return $self->{list};	
+}
+
+
+#**********************************************************
+# NAS IP Pools
+# 
+#**********************************************************
+sub ip_pools_info {
+ my $self = shift;
+ my ($id) = @_;
+ 
+ my $WHERE = '';
+
+ $self->query($db, "SELECT id, INET_NTOA(ip), counts, name, priority
+   FROM ippools  WHERE id='$id';");
+
+ if(defined($self->{errno})) {
+   return $self;
+  }
+ elsif($self->{TOTAL} < 1) {
+   $self->{errstr}="ERROR_NOT_EXIST";
+   $self->{errno}=2;
+   return $self;
+  }
+
+ ( $self->{ID},
+   $self->{NAS_IP_SIP},
+   $self->{NAS_IP_COUNT}, 
+   $self->{POOL_NAME}, 
+   $self->{POOL_PRIORITY},
+   $self->{NAS_IP_SIP_INT}
+   ) = @{ $self->{list}->[0] };
+
+ return $self;	
+}
+
+
+#**********************************************************
+# NAS IP Pools
+# 
+#**********************************************************
+sub ip_pools_change {
+ my $self = shift;
+ my ($attr) = @_; 
+
+
+ my %FIELDS = (ID => 'id', 
+  POOL_NAME       => 'name', 
+  NAS_IP_COUNT    => 'counts', 
+  POOL_PRIORITY   => 'priority', 
+  NAS_IP_SIP_INT  => 'ip'
+ );
+
+
+	$self->changes($admin, { CHANGE_PARAM => 'ID',
+		                TABLE        => 'ippools',
+		                FIELDS       => \%FIELDS,
+		                OLD_INFO     => $self->ip_pools_info($attr->{ID}),
+		                DATA         => $attr
+		              } );
+
+  
+  return $self;
+}
+
+#**********************************************************
+# IP pools list
 # add($self)
 #**********************************************************
 sub ip_pools_list {
@@ -241,8 +353,10 @@ sub ip_pools_list {
  
  my $WHERE = (defined($self->{NAS_ID})) ? "and pool.nas='$self->{NAS_ID}'" : '' ;
 
- $self->query($db, "SELECT nas.name, pool.ip, pool.ip + pool.counts, pool.counts,
-    INET_NTOA(pool.ip), INET_NTOA(pool.ip + pool.counts), pool.id, pool.nas
+ $self->query($db, "SELECT nas.name, pool.name, 
+   pool.ip, pool.ip + pool.counts, pool.counts, pool.priority,
+    INET_NTOA(pool.ip), INET_NTOA(pool.ip + pool.counts), 
+    pool.id, pool.nas
     FROM ippools pool, nas 
     WHERE pool.nas=nas.id
     $WHERE  ORDER BY $SORT $DESC");
@@ -261,8 +375,10 @@ sub ip_pools_add {
  my ($attr) = @_;
  my %DATA = $self->get_data($attr); 
  
- $self->query($db, "INSERT INTO ippools (nas, ip, counts) 
-   VALUES ('$self->{NAS_ID}', INET_ATON('$DATA{NAS_IP_SIP}'), '$DATA{NAS_IP_COUNT}')", 'do');
+ $self->query($db, "INSERT INTO ippools (nas, ip, counts, name, priority) 
+   VALUES ('$DATA{NAS_ID}', INET_ATON('$DATA{NAS_IP_SIP}'), '$DATA{NAS_IP_COUNT}',
+   '$DATA{POOL_NAME}', '$DATA{POOL_PRIORITY}')", 'do');
+
  return 0;	
 }
 

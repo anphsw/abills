@@ -6,6 +6,7 @@
 use vars qw($begin_time %FORM %LANG $CHARSET 
   @MODULES
   @REGISTRATION
+  $PROGRAM
   $html
   $users
   $Bin
@@ -76,7 +77,12 @@ if ($FORM{module}) {
   $function->();
   
   exit;
-}
+ }
+elsif ($FORM{FORGOT_PASSWD}) {
+	password_recovery();
+	
+	exit;
+ }
 elsif($#REGISTRATION == 0) {
 	my $m = $REGISTRATION[0];
 	require "Abills/modules/$m/config";
@@ -96,3 +102,59 @@ foreach my $m (@REGISTRATION) {
 
 
 
+#**********************************************************
+# Password recovery
+#**********************************************************
+sub password_recovery {
+  
+  if ($FORM{SEND}) {
+    
+    if (($FORM{EMAIL} && $FORM{EMAIL} =~ m/\*/) || ($FORM{LOGIN} && $FORM{LOGIN} =~ m/\*/)) {
+    	$html->message('err', $_ERROR, "$ERR_WRONG_DATA");
+      return 0;
+     }
+    my $list = $users->list({ %FORM });
+	
+  	if ($users->{TOTAL} > 0) {
+  		my @u = @$list;
+	    my $message = '';
+	    my $email = $FORM{EMAIL} || '';
+      my $uid = $line->[5];
+      if ($FORM{LOGIN} && ! $FORM{EMAIL}) {
+      	$email = $u[0][7];
+       }
+
+      if ($FORM{EMAIL}) {
+        $uid = $line->[6];
+       }
+     
+
+	    foreach my $line (@u) {
+	       $users->info($line->[($FORM{EMAIL}) ? 6 : 5 ], { SHOW_PASSWORD => 1 });
+    	   $message .= "$_LOGIN:  $users->{LOGIN}\n".
+	                   "$_PASSWD: $users->{PASSWORD}\n".
+	                   "================================================\n";
+	     }
+
+	   $message = $html->tpl_show(templates('msg_passwd_recovery'), 
+	                                                    { MESSAGE => $message }, 
+	                                                    { OUTPUT2RETURN => 1 });
+
+     if ($email ne '') {
+       sendmail("$conf{ADMIN_MAIL}", "$email", "$PROGRAM Password Repair", 
+              "$message", "$conf{MAIL_CHARSET}", "");
+ 		   $html->message('info', $_INFO, "$_SENDED");
+      }
+	   else {
+	   	 $html->message('info', $_INFO, "$_NOT_EXIST");
+	    }
+	
+		  return 0;
+	   }
+	  else {
+		  $html->message('err', $_ERROR, "$_NOT_EXIST");
+	   }
+	}
+	
+	$html->tpl_show(templates('form_forgot_passwd'), undef);
+}

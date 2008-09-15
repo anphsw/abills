@@ -9,8 +9,8 @@ $conf{dbname}='abills';
 $conf{dbuser}='abills';
 $conf{dbpasswd}='sqlpassword';
 $conf{dbtype}='mysql';
-#For MySQL 5 and highter
-#$conf{dbcharset}='cp1251';
+#For MySQL 5 and highter (cp1251, utf8)
+$conf{dbcharset}='';
 
 #Mail configuration
 $conf{ADMIN_MAIL}='admin@yourhost.com';
@@ -18,6 +18,7 @@ $conf{USERS_MAIL_DOMAIN}='yourhost.com';
 $conf{MAIL_CHARSET}='windows-1251';
 $conf{default_language}='english';
 $conf{default_charset}='windows-1251';
+$conf{WEB_TITLE}='';
 
 
 
@@ -47,11 +48,11 @@ $conf{p_users_mails}=1;  # Send user warning  messages
 
 # chap encryption decription key
 $conf{secretkey}="test12345678901234567890";
-$conf{s_detalization}='yes'; #make session detalization recomended for vpn leathed lines
+$conf{s_detalization}=1; #make session detalization recomended for vpn leathed lines
 #Check periodic deposit and session. hangup after get negative result
-$conf{periodic_check}='no';
+$conf{periodic_check}=0;
 
-$conf{version}='0.37b'; #16.06.2006
+$conf{version}='0.40b'; #16.06.2006
 
 #Octets direction
 # server - Count octets from server side
@@ -78,7 +79,7 @@ $conf{list_max_recs}=25;
 $conf{web_session_timeout} = 1800;
 $conf{user_chg_passwd}='no';
 #Max session traffic Mb
-$conf{MAX_SESSION_TRAFFIC} = 2048; 
+$conf{MAX_SESSION_TRAFFIC} = 2047; 
 
 
 # Exppp options

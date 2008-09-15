@@ -27,6 +27,7 @@ my %FIELDS = ( TP_ID            => 'id',
                MONTH_FEE        => 'month_fee',
                REDUCTION_FEE    => 'reduction_fee',
                POSTPAID_FEE     => 'postpaid_fee',
+               EXT_BILL_ACCOUNT => 'ext_bill_account',
                SIMULTANEOUSLY   => 'logins',
                AGE              => 'age',
                DAY_TIME_LIMIT   => 'day_time_limit',
@@ -48,7 +49,13 @@ my %FIELDS = ( TP_ID            => 'id',
                TRAFFIC_TRANSFER_PERIOD => 'traffic_transfer_period',
                NEG_DEPOSIT_FILTER_ID   => 'neg_deposit_filter_id',
                TP_GID           => 'gid',
-               MODULE           => 'module'
+               MODULE           => 'module',
+               CREDIT           => 'credit',
+               IPPOOL           => 'ippool',
+               PERIOD_ALIGNMENT => 'period_alignment',
+               MIN_USE          => 'min_use',
+               ABON_DISTRIBUTION=> 'abon_distribution'
+
              );
 
 #**********************************************************
@@ -59,9 +66,7 @@ sub new {
   ($db, $CONF, $admin) = @_;
   my $self = { };
   bless($self, $class);
-
-#  $self->{debug}=1;
-  
+ 
   return $self;
 }
 
@@ -102,7 +107,7 @@ sub ti_list {
 	my ($attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : "2, 3";
-  if ($SORT == 1) { $SORT = "2, 3"; }  
+  if ($SORT eq '1') { $SORT = "2, 3"; }  
   my $begin_end = "i.begin, i.end,";   
   my $TP_ID = $self->{TP_ID};  
   
@@ -358,6 +363,7 @@ sub defaults {
             MONTH_FEE        => '0.00',
             REDUCTION_FEE    => 0,
             POSTPAID_FEE     => 0,
+            EXT_BILL_ACCOUNT => 0,
             SIMULTANEOUSLY   => 0,
             AGE              => 0,
             DAY_TIME_LIMIT   => 0,
@@ -379,9 +385,13 @@ sub defaults {
             TRAFFIC_TRANSFER_PERIOD => 0,
             NEG_DEPOSUT_FILTER_ID   => '',
             TP_GID           => 0,
-            MODULE           => ''
-            
-            
+            MODULE           => '',
+            CREDIT           => 0,
+            IPPOOL           => '0',
+            PERIOD_ALIGNMENT => '0',
+            MIN_USE          => '0.00',
+            ABON_DISTRIBUTION=> 0
+
          );   
  
   $self = \%DATA;
@@ -399,16 +409,21 @@ sub add {
   %DATA = $self->get_data($attr, { default => \%DATA }); 
 
   $self->query($db, "INSERT INTO tarif_plans (id, hourp, uplimit, name, 
-     month_fee, day_fee, reduction_fee, postpaid_fee,
+     month_fee, day_fee, reduction_fee, postpaid_fee, ext_bill_account,
      logins, 
      day_time_limit, week_time_limit,  month_time_limit, 
      day_traf_limit, week_traf_limit,  month_traf_limit,
      activate_price, change_price, credit_tresshold, age, octets_direction,
      max_session_duration, filter_id, payment_type, min_session_cost, rad_pairs, 
-     traffic_transfer_period, neg_deposit_filter_id, gid, module)
+     traffic_transfer_period, neg_deposit_filter_id, gid, module, credit,
+     ippool,
+     period_alignment,
+     min_use,
+     abon_distribution
+     )
     values ('$DATA{TP_ID}', '$DATA{TIME_TARIF}', '$DATA{ALERT}', \"$DATA{NAME}\", 
-     '$DATA{MONTH_FEE}', '$DATA{DAY_FEE}', '$DATA{REDUCTION_FEE}', '$DATA{POSTPAID_FEE}', 
-     '$DATA{SIMULTANEONSLY}', 
+     '$DATA{MONTH_FEE}', '$DATA{DAY_FEE}', '$DATA{REDUCTION_FEE}', '$DATA{POSTPAID_FEE}', '$DATA{EXT_BILL_ACCOUNT}',
+     '$DATA{SIMULTANEOUSLY}', 
      '$DATA{DAY_TIME_LIMIT}', '$DATA{WEEK_TIME_LIMIT}',  '$DATA{MONTH_TIME_LIMIT}', 
      '$DATA{DAY_TRAF_LIMIT}', '$DATA{WEEK_TRAF_LIMIT}',  '$DATA{MONTH_TRAF_LIMIT}',
      '$DATA{ACTIV_PRICE}', '$DATA{CHANGE_PRICE}', '$DATA{CREDIT_TRESSHOLD}', '$DATA{AGE}', '$DATA{OCTETS_DIRECTION}',
@@ -416,7 +431,13 @@ sub add {
      '$DATA{PAYMENT_TYPE}', '$DATA{MIN_SESSION_COST}', '$DATA{RAD_PAIRS}', 
      '$DATA{TRAFFIC_TRANSFER_PERIOD}',
      '$DATA{NEG_DEPOSIT_FILTER_ID}',
-     '$DATA{TP_GID}', '$DATA{MODULE}');", 'do' );
+     '$DATA{TP_GID}', '$DATA{MODULE}',
+     '$DATA{CREDIT}',
+     '$DATA{IPPOOL}',
+     '$DATA{PERIOD_ALIGNMENT}', 
+     '$DATA{MIN_USE}',
+     '$DATA{ABON_DISTRIBUTION}'
+     );", 'do' );
 
 
   return $self;
@@ -435,9 +456,12 @@ sub change {
   	 $FIELDS{CHG_TP_ID}='id';
    }
  
-  $attr->{REDUCTION_FEE}=0 if (! $attr->{REDUCTION_FEE});
-  $attr->{POSTPAID_FEE}=0 if (! $attr->{POSTPAID_FEE});
- 
+  $attr->{REDUCTION_FEE}=0     if (! $attr->{REDUCTION_FEE});
+  $attr->{POSTPAID_FEE}=0      if (! $attr->{POSTPAID_FEE});
+  $attr->{EXT_BILL_ACCOUNT}=0  if (! $attr->{EXT_BILL_ACCOUNT});
+  $attr->{PERIOD_ALIGNMENT}=0  if (! $attr->{PERIOD_ALIGNMENT});
+  $attr->{ABON_DISTRIBUTION}=0 if (! $attr->{ABON_DISTRIBUTION});
+
 	$self->changes($admin, { CHANGE_PARAM => 'TP_ID',
 		                TABLE        => 'tarif_plans',
 		                FIELDS       => \%FIELDS,
@@ -489,10 +513,14 @@ sub info {
     push @WHERE_RULES, "tp.tp_id='$attr->{TP_ID}'"; 
    }
 
+
+
   my $WHERE = ($#WHERE_RULES > -1) ? " and " . join(' and ', @WHERE_RULES)  : '';
 
 
-  $self->query($db, "SELECT id, name, hourp, day_fee, month_fee, reduction_fee, postpaid_fee, logins, age,
+  $self->query($db, "SELECT id, name,
+      day_fee, month_fee, reduction_fee, postpaid_fee, ext_bill_account,
+      logins, age,
       day_time_limit, week_time_limit,  month_time_limit, 
       day_traf_limit, week_traf_limit,  month_traf_limit,
       activate_price, change_price, credit_tresshold, uplimit, octets_direction, 
@@ -503,7 +531,13 @@ sub info {
       rad_pairs,
       traffic_transfer_period,
       gid,
-      neg_deposit_filter_id
+      neg_deposit_filter_id,
+      module,
+      credit,
+      ippool,
+      period_alignment,
+      min_use,
+      abon_distribution
     FROM tarif_plans
     WHERE id='$id'$WHERE;");
 
@@ -516,11 +550,11 @@ sub info {
   
   ($self->{TP_ID}, 
    $self->{NAME}, 
-   $self->{TIME_TARIF}, 
    $self->{DAY_FEE}, 
    $self->{MONTH_FEE}, 
    $self->{REDUCTION_FEE}, 
    $self->{POSTPAID_FEE}, 
+   $self->{EXT_BILL_ACCOUNT}, 
    $self->{SIMULTANEOUSLY}, 
    $self->{AGE},
    $self->{DAY_TIME_LIMIT}, 
@@ -543,8 +577,15 @@ sub info {
    $self->{TP_GID},
    $self->{NEG_DEPOSIT_FILTER_ID},
    $self->{MODULE},
-   $self->{TP_ID_CTR}
+   $self->{CREDIT},
+   $self->{IPPOOL},
+   $self->{PERIOD_ALIGNMENT}, 
+   $self->{MIN_USE},
+   $self->{ABON_DISTRIBUTION}
+
   ) = @{ $self->{list}->[0] };
+
+
 
 
   return $self;
@@ -572,10 +613,13 @@ sub list {
    push @WHERE_RULES, "tp.module='$attr->{MODULE}'"; 
   }
 
- my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
+ if (defined($attr->{MIN_USE})) {
+    my $val = $self->search_expr($attr->{MIN_USE}, 'INT');  	
+    push @WHERE_RULES, "tp.min_use$val"; 
+   }
 
- 
- 
+
+ my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
 
  $self->query($db, "SELECT tp.id, 
     tp.name, 
@@ -588,8 +632,11 @@ sub list {
     tp_g.name,
     tp.rad_pairs,
     tp.reduction_fee,
-    tp.postpaid_fee
-    
+    tp.postpaid_fee,
+    tp.ext_bill_account,
+    tp.credit,
+    tp.min_use,
+    tp.abon_distribution
     FROM (tarif_plans tp)
     LEFT JOIN intervals i ON (i.tp_id=tp.id)
     LEFT JOIN trafic_tarifs tt ON (tt.interval_id=i.id)

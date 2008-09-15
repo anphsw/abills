@@ -83,7 +83,7 @@ sub user_ips {
   
   if ($CONF->{IPN_STATIC_IP}) {
 	  $sql="select u.uid, dv.ip, u.id, 
-	   '',
+	   if(calls.acct_session_id, calls.acct_session_id, ''),
 	   0,
 	   0,
 	   dv.tp_id, 
@@ -94,12 +94,13 @@ sub user_ips {
 		 0,
 		 tp.octets_direction,
 		 u.reduction,
-		 CONNECT_INFO
+		 ''
 		 FROM (users u, dv_main dv)
 		 LEFT JOIN companies c ON (u.company_id=c.id)
 		 LEFT JOIN bills b ON (u.bill_id=b.id)
 		 LEFT JOIN bills cb ON (c.bill_id=cb.id)
 		 LEFT JOIN tarif_plans tp ON (tp.id=dv.tp_id)
+		 LEFT JOIN dv_calls calls ON (u.id=calls.user_name)
 		 WHERE u.uid=dv.uid 
 		  and dv.ip > 0 and u.disable=0 and dv.disable=0;";
    }
@@ -256,11 +257,11 @@ sub traffic_agregate_users {
   	  $self->traffic_add({ 
         SRC_IP   => $DATA->{SRC_IP}, 
         DST_IP   => $DATA->{DST_IP},
-        SRC_PORT => 0,
-        DST_PORT => 0,
-        PROTOCOL => 0,
+        SRC_PORT => $DATA->{SRC_PORT} || 0,
+        DST_PORT => $DATA->{DST_PORT} || 0,
+        PROTOCOL => $DATA->{PROTOCOL} || 0, 
         SIZE     => $DATA->{SIZE},
-        NAS_ID   => 0,
+        NAS_ID   => $DATA->{NAS_ID} || 0,
         UID      => $DATA->{UID},
         START    => $DATA->{START},
         STOP     => $DATA->{STOP}
@@ -448,7 +449,7 @@ sub get_zone {
    	    	my $IP       = unpack("N", pack("C4", split( /\./, $2))); 
    	    	my $NETMASK  = (length($4) < 3) ? unpack "N", pack("B*",  ( "1" x $4 . "0" x (32 - $4) )) : unpack("N", pack("C4", split( /\./, "$4")));
    	    	
-   	      print "REG $i ID: $zoneid NEGATIVE: $NEG IP: ".  int2ip($IP). " MASK: ". int2ip($NETMASK) ." Ports: $6\n" if ($self->{debug});
+   	      print "REG $i ID: $zoneid NEGATIVE: $NEG IP: ".  int2ip($IP). " MASK: ". int2ip($NETMASK) ." Ports: $6<br>\n" if ($self->{debug});
 
   	      $zones{$zoneid}{A}[$i]{IP}   = $IP;
 	        $zones{$zoneid}{A}[$i]{Mask} = $NETMASK;
@@ -501,8 +502,6 @@ sub ip_in_zone($$$$) {
         $zoneid,
         $zone_data) = @_;
     
-    
-    # ecia?aeuii n?eoaai, ?oi aa?an a ciio ia iiiaaaao
     my $res = 0;
     # debug
     my %zones = %$zone_data;

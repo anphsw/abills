@@ -103,6 +103,21 @@ sub online {
 	my $self = shift;
 	my ($attr) = @_;
 
+  my $WHERE = '';
+
+  if ($attr->{COUNT}) {
+  	if ($attr->{ZAPED}) {
+  		$WHERE = 'WHERE c.status=2';
+  	 }
+    else {
+  		$WHERE = 'WHERE c.status=1 or c.status>=3';
+     }
+
+  	$self->query($db, "SELECT  count(*) FROM dv_calls c $WHERE;");
+    $self->{TOTAL} = $self->{list}->[0][0];
+
+  	return $self;
+   }
 
   my @FIELDS_ALL = (
    'c.user_name',
@@ -111,7 +126,10 @@ sub online {
    'c.framed_ip_address',
    'SEC_TO_TIME(UNIX_TIMESTAMP() - UNIX_TIMESTAMP(c.started))',
 
-   'c.acct_input_octets', 'c.acct_output_octets', 'c.ex_input_octets', 'c.ex_output_octets',
+   'c.acct_input_octets + 4294967296 * acct_input_gigawords', 
+   'c.acct_output_octets + 4294967296 * acct_output_gigawords', 
+   'c.ex_input_octets', 
+   'c.ex_output_octets',
  
    'c.CID',                           
    'c.acct_session_id',
@@ -131,7 +149,10 @@ sub online {
    'c.nas_id',
    'UNIX_TIMESTAMP()-c.lupdated',
    'c.acct_session_time',
-   'c.lupdated - UNIX_TIMESTAMP(c.started)'
+   'c.lupdated - UNIX_TIMESTAMP(c.started)',
+   'dv.filter_id',
+   'c.uid',
+   'c.join_service'
    );
 
 
@@ -165,7 +186,7 @@ sub online {
   } 
  
  if (defined($attr->{USER_NAME})) {
- 	 push @WHERE_RULES, "c.user_name='$attr->{USER_NAME}'";
+ 	 push @WHERE_RULES, "c.user_name LIKE '$attr->{USER_NAME}'";
   }
 
  # Show groups
@@ -185,11 +206,13 @@ sub online {
  	 push @WHERE_RULES, "nas_id='$attr->{NAS_ID}'";
   }
  
+ 
  if ($attr->{FILTER}) {
- 	 push @WHERE_RULES, "$FIELDS_ALL[$attr->{FILTER_FIELD}]='$attr->{FILTER}'";
+ 	 push @WHERE_RULES, ($attr->{FILTER} =~ s/\*/\%/g) ? "$FIELDS_ALL[$attr->{FILTER_FIELD}] LIKE '$attr->{FILTER}'" : "$FIELDS_ALL[$attr->{FILTER_FIELD}]='$attr->{FILTER}'";
   }
  
  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
+ 
 
  $self->query($db, "SELECT  $fields
  
@@ -198,7 +221,8 @@ sub online {
    u.uid,
    INET_NTOA(c.nas_ip_address),
    if(company.name IS NULL, b.deposit, cb.deposit),
-   u.credit,
+   if(u.company_id=0, u.credit,
+          if (u.credit=0, company.credit, u.credit)),
    if(date_format(c.started, '%Y-%m-%d')=curdate(), date_format(c.started, '%H:%i:%s'), c.started),
    UNIX_TIMESTAMP()-c.lupdated,
    c.status,
@@ -240,8 +264,6 @@ sub online {
  my $nas_id_field = $#RES_FIELDS+10;
  
  foreach my $line (@$list) {
-
-    
  	  $dub_logins{$line->[0]}++;
  	  $dub_ports{$line->[$nas_id_field]}{$line->[$port_id]}++;
     
@@ -251,7 +273,6 @@ sub online {
      }
 
     push( @{ $nas_sorted{"$line->[$nas_id_field]"} }, [ @fields ]);
-
   }
  
  
@@ -264,7 +285,21 @@ sub online {
  return $self->{list};	
 }
 
-
+#**********************************************************
+# online_del()
+#********************************************************** 
+sub online_join_services {
+ my $self = shift;
+ my ($attr) = @_;
+ 
+ $self->query($db, "SELECT  join_service, 
+   sum(c.acct_input_octets) + 4294967296 * sum(acct_input_gigawords), 
+   sum(c.acct_output_octets) + 4294967296 * sum(acct_output_gigawords) 
+ FROM dv_calls c
+ GROUP BY join_service;");
+ 
+  return $self->{list};
+}
 
 #**********************************************************
 # online_del()
@@ -297,12 +332,12 @@ sub online_del {
 # online2log()
 #
 #********************************************************** 
-sub online2log {
-	my $self = shift;
-	my ($attr) = @_;
-
-  $self->query($db, "SELECT c.user_name, ", 'do');
-}
+#sub online2log {
+#	my $self = shift;
+#	my ($attr) = @_;
+#
+#  $self->query($db, "SELECT c.user_name, ", 'do');
+#}
 
 
 #**********************************************************
@@ -346,7 +381,10 @@ sub online_info {
       CONNECT_INFO,
       acct_session_id,
       nas_id,
-      started
+      started,
+      acct_input_gigawords 
+      acct_output_gigawords 
+ 
       FROM dv_calls 
    $WHERE 
    ");
@@ -374,7 +412,9 @@ sub online_info {
    $self->{CONNECT_INFO},
    $self->{ACCT_SESSION_ID},
    $self->{NAS_ID},
-   $self->{ACCT_SESSION_STARTED}
+   $self->{ACCT_SESSION_STARTED},
+   $self->{ACCT_INPUT_GIGAWORDS},
+   $self->{ACCT_OUTPUT_GIGAWORDS}
     )= @{ $self->{list}->[0] };
 
 
@@ -407,9 +447,6 @@ sub zap {
 sub session_detail {
  my $self = shift;	
  my ($attr) = @_;
- 
-
-
 
  $WHERE = " and l.uid='$attr->{UID}'" if ($attr->{UID});
  
@@ -421,10 +458,12 @@ sub session_detail {
   l.tp_id,
   tp.name,
 
-  l.sent,
-  l.recv,
-  l.sent2,
+  l.sent + 4294967296 * acct_output_gigawords, 
+  l.recv + 4294967296 * acct_input_gigawords,
+
+  l.sent2, 
   l.recv2,
+
 
   INET_NTOA(l.ip),
   l.CID,
@@ -456,8 +495,6 @@ sub session_detail {
      return $self;
    }
 
-  my $ar = $self->{list}->[0];
-
   ($self->{START}, 
    $self->{STOP}, 
    $self->{DURATION}, 
@@ -484,7 +521,7 @@ sub session_detail {
    $self->{UID}, 
    $self->{SESSION_ID},
    $self->{ACCT_TERMINATE_CAUSE}
-    )= @$ar;
+    )= @{ $self->{list}->[0] };
 
 
  return $self;
@@ -556,28 +593,33 @@ sub periods_totals {
  my ($attr) = @_;
  my $WHERE = '';
  
- if($attr->{UID})  {
+ if ($attr->{UIDS}) {
+   $WHERE .= "WHERE uid IN ($attr->{UIDS})";
+  }
+ elsif($attr->{UID})  {
    $WHERE .= ($WHERE ne '') ?  " and uid='$attr->{UID}' " : "WHERE uid='$attr->{UID}' ";
   }
 
  $self->query($db, "SELECT  
-   sum(if(date_format(start, '%Y-%m-%d')=curdate(), sent, 0)), 
-   sum(if(date_format(start, '%Y-%m-%d')=curdate(), recv, 0)), 
+   sum(if(date_format(start, '%Y-%m-%d')=curdate(), sent + 4294967296 * acct_output_gigawords, 0)), 
+   sum(if(date_format(start, '%Y-%m-%d')=curdate(), recv + 4294967296 * acct_input_gigawords, 0)), 
    SEC_TO_TIME(sum(if(date_format(start, '%Y-%m-%d')=curdate(), duration, 0))), 
 
-   sum(if(TO_DAYS(curdate()) - TO_DAYS(start) = 1, sent, 0)),
-   sum(if(TO_DAYS(curdate()) - TO_DAYS(start) = 1, recv, 0)),
+   sum(if(TO_DAYS(curdate()) - TO_DAYS(start) = 1, sent + 4294967296 * acct_output_gigawords, 0)),
+   sum(if(TO_DAYS(curdate()) - TO_DAYS(start) = 1, recv + 4294967296 * acct_input_gigawords, 0)),
    SEC_TO_TIME(sum(if(TO_DAYS(curdate()) - TO_DAYS(start) = 1, duration, 0))),
 
-   sum(if((YEAR(curdate())=YEAR(start)) and (WEEK(curdate()) = WEEK(start)), sent, 0)),
-   sum(if((YEAR(curdate())=YEAR(start)) and  WEEK(curdate()) = WEEK(start), recv, 0)),
+   sum(if((YEAR(curdate())=YEAR(start)) and (WEEK(curdate()) = WEEK(start)), sent + 4294967296 * acct_output_gigawords, 0)),
+   sum(if((YEAR(curdate())=YEAR(start)) and  WEEK(curdate()) = WEEK(start), recv + 4294967296 * acct_input_gigawords, 0)),
    SEC_TO_TIME(sum(if((YEAR(curdate())=YEAR(start)) and WEEK(curdate()) = WEEK(start), duration, 0))),
-
-   sum(if(date_format(start, '%Y-%m')=date_format(curdate(), '%Y-%m'), sent, 0)), 
-   sum(if(date_format(start, '%Y-%m')=date_format(curdate(), '%Y-%m'), recv, 0)), 
+                                                                              
+   sum(if(date_format(start, '%Y-%m')=date_format(curdate(), '%Y-%m'), sent + 4294967296 * acct_output_gigawords, 0)), 
+   sum(if(date_format(start, '%Y-%m')=date_format(curdate(), '%Y-%m'), recv + 4294967296 * acct_input_gigawords, 0)), 
    SEC_TO_TIME(sum(if(date_format(start, '%Y-%m')=date_format(curdate(), '%Y-%m'), duration, 0))),
   
-   sum(sent), sum(recv), SEC_TO_TIME(sum(duration))
+   sum(sent + 4294967296 * acct_output_gigawords), 
+   sum(recv + 4294967296 * acct_input_gigawords), 
+   SEC_TO_TIME(sum(duration))
    FROM dv_log $WHERE;");
 
   ($self->{sent_0}, 
@@ -616,7 +658,7 @@ sub prepaid_rest {
 	#Get User TP and intervals
   $self->query($db, "select tt.id, i.begin, i.end, 
     if(u.activate<>'0000-00-00', u.activate, DATE_FORMAT(curdate(), '%Y-%m-01')), 
-     tt.prepaid, 
+    tt.prepaid, 
     u.id, 
     tp.octets_direction, 
     u.uid, 
@@ -642,51 +684,71 @@ WHERE
   }
 
 
- my %rest = (0 => 
-             1 => );
+
+ $self->{INFO_LIST}=$self->{list};
+ my $login = $self->{INFO_LIST}->[0]->[5];
+ my $traffic_transfert = $self->{INFO_LIST}->[0]->[10];
+
+ my %rest = (0 => 0,
+             1 => 0 );
  
  foreach my $line (@{ $self->{list} } ) {
    $rest{$line->[0]} = $line->[4];
   }
 
- 
- $self->{INFO_LIST}=$self->{list};
- my $login = $self->{INFO_LIST}->[0]->[5];
- my $traffic_transfert = $self->{INFO_LIST}->[0]->[10];
 
  return 1 if ($attr->{INFO_ONLY});
  
- my $octets_direction = "sent + recv";
+ my $octets_direction = "(sent + 4294967296 * acct_output_gigawords) + (recv + 4294967296 * acct_input_gigawords) ";
  my $octets_direction2 = "sent2 + recv2";
  my $octets_online_direction = "acct_input_octets + acct_output_octets";
  my $octets_online_direction2 = "ex_input_octets + ex_output_octets";
  
  if ($self->{INFO_LIST}->[0]->[6] == 1) {
-   $octets_direction = "recv";
+   $octets_direction = "recv + 4294967296 * acct_input_gigawords ";
    $octets_direction2 = "recv2";
-   $octets_online_direction = "acct_input_octets";
+   $octets_online_direction = "acct_input_octets + 4294967296 * acct_input_gigawords";
    $octets_online_direction2 = "ex_input_octets";
   }
  elsif ($self->{INFO_LIST}->[0]->[6] == 2) {
-   $octets_direction  = "sent";
+   $octets_direction  = "sent + 4294967296 * acct_output_gigawords ";
    $octets_direction2 = "sent2";
-   $octets_online_direction = "acct_output_octets";
+   $octets_online_direction = "acct_output_octets + 4294967296 * acct_output_gigawords";
    $octets_online_direction2 = "ex_output_octets";
   }
 
+ my $uid="uid='$attr->{UID}'";
+ if ($attr->{UIDS}) {
+ 	  $uid="uid IN ($attr->{UIDS})";
+  }
+
+
+
  #Traffic transfert
  if ($traffic_transfert > 0) {
+   my $WHERE = '';
+
+   if ($attr->{FROM_DATE}) {
+     $WHERE  = "date_format(l.start, '%Y-%m-%d')>='$attr->{FROM_DATE}' and date_format(l.start, '%Y-%m-%d')<='$attr->{TO_DATE}'";
+    }
+   else {
+     $WHERE  = "DATE_FORMAT(start, '%Y-%m-%d')>='$self->{INFO_LIST}->[0]->[3]' - INTERVAL $traffic_transfert MONTH 
+       and DATE_FORMAT(start, '%Y-%m-%d')<='$self->{INFO_LIST}->[0]->[3]'";
+    }
+
+
+
+
  	 #Get using traffic
    $self->query($db, "select  
-     if($rest{0} > sum($octets_direction) / $CONF->{MB_SIZE}, $rest{0} - sum($octets_direction) / $CONF->{MB_SIZE}, 0),
-     if($rest{0} > sum($octets_direction) / $CONF->{MB_SIZE}, $rest{1} - sum($octets_direction2) / $CONF->{MB_SIZE}, 0)
+     if($rest{0} * $traffic_transfert > sum($octets_direction) / $CONF->{MB_SIZE}, $rest{0} * $traffic_transfert - sum($octets_direction) / $CONF->{MB_SIZE}, 0),
+     if($rest{1} * $traffic_transfert > sum($octets_direction2) / $CONF->{MB_SIZE}, $rest{1} * $traffic_transfert - sum($octets_direction2) / $CONF->{MB_SIZE}, 0),
+     1
    FROM dv_log
-   WHERE uid='$attr->{UID}'  and tp_id='$self->{INFO_LIST}->[0]->[8]' and
-    (
-     DATE_FORMAT(start, '%Y-%m-%d')>='$self->{INFO_LIST}->[0]->[3]' - INTERVAL $traffic_transfert MONTH 
-     and DATE_FORMAT(start, '%Y-%m-%d')<='$self->{INFO_LIST}->[0]->[3]'
+   WHERE $uid  and tp_id='$self->{INFO_LIST}->[0]->[8]' and
+    (  $WHERE
       ) 
-   GROUP BY uid
+   GROUP BY 3
    ;");
 
 
@@ -708,10 +770,12 @@ WHERE
  #Get using traffic
  $self->query($db, "select  
   $rest{0} - sum($octets_direction) / $CONF->{MB_SIZE},
-  $rest{1} - sum($octets_direction2) / $CONF->{MB_SIZE}
+  $rest{1} - sum($octets_direction2) / $CONF->{MB_SIZE},
+  1
  FROM dv_log
- WHERE uid='$attr->{UID}' and DATE_FORMAT(start, '%Y-%m-%d')>='$self->{INFO_LIST}->[0]->[3]'
- GROUP BY uid
+ WHERE $uid and tp_id='$self->{INFO_LIST}->[0]->[8]'
+  and DATE_FORMAT(start, '%Y-%m-%d')>='$self->{INFO_LIST}->[0]->[3]'
+ GROUP BY 3
  ;");
 
  if ($self->{TOTAL} > 0) {
@@ -724,10 +788,11 @@ WHERE
  #Check online
  $self->query($db, "select 
   $rest{0} - sum($octets_online_direction) / $CONF->{MB_SIZE},
-  $rest{1} - sum($octets_online_direction2) / $CONF->{MB_SIZE}
+  $rest{1} - sum($octets_online_direction2) / $CONF->{MB_SIZE},
+  1
  FROM dv_calls
- WHERE user_name='$login' 
- GROUP BY user_name ;");
+ WHERE $uid
+ GROUP BY 3;");
 
  if ($self->{TOTAL} > 0) {
    ($rest{0}, 
@@ -773,7 +838,10 @@ sub list {
                                  RECV            => 'l.recv2');
  
 #UID
- if ($attr->{UID}) {
+ if ($attr->{UIDS}) {
+   push @WHERE_RULES, "l.uid IN ($attr->{UIDS})";
+  }
+ elsif ($attr->{UID}) {
     push @WHERE_RULES, "l.uid='$attr->{UID}'";
   }
  elsif ($attr->{LOGIN_EXPR}) {
@@ -796,6 +864,12 @@ sub list {
  if ($attr->{NAS_ID}) {
    push @WHERE_RULES, "l.nas_id='$attr->{NAS_ID}'";
   }
+
+ if ($attr->{SUM}) {
+   my $value = $self->search_expr($attr->{SUM}, 'INT');
+   push @WHERE_RULES, "l.sum$value";
+  }
+
 
 #NAS ID
  if ($attr->{CID}) {
@@ -882,7 +956,7 @@ elsif($attr->{DATE}) {
 
 
  $self->query($db, "SELECT u.id, l.start, SEC_TO_TIME(l.duration), l.tp_id,
-  l.sent, l.recv, l.CID, l.nas_id, l.ip, l.sum, INET_NTOA(l.ip), 
+  l.sent + 4294967296 * acct_output_gigawords, l.recv + 4294967296 * acct_input_gigawords, l.CID, l.nas_id, l.ip, l.sum, INET_NTOA(l.ip), 
   l.acct_session_id, 
   l.uid, 
   UNIX_TIMESTAMP(l.start),
@@ -898,7 +972,8 @@ elsif($attr->{DATE}) {
 
 
  if ($self->{TOTAL} > 0) {
-    $self->query($db, "SELECT count(l.uid), SEC_TO_TIME(sum(l.duration)), sum(l.sent), sum(l.recv), 
+    $self->query($db, "SELECT count(l.uid), SEC_TO_TIME(sum(l.duration)), 
+      sum(l.sent + 4294967296 * acct_output_gigawords), sum(l.recv + 4294967296 * acct_input_gigawords), 
       sum(l.sent2), sum(l.recv2), 
       sum(sum)  
       FROM (dv_log l, users u)
@@ -929,9 +1004,14 @@ sub calculation {
 
   @WHERE_RULES = ();
 #Login
-  if ($attr->{UID}) {
+  
+  
+ if ($attr->{UIDS}) {
+   push @WHERE_RULES, "l.uid IN ($attr->{UIDS})";
+  }
+ elsif ($attr->{UID}) {
   	push @WHERE_RULES, "l.uid='$attr->{UID}'";
-   }
+  }
 
 if($attr->{INTERVAL}) {
  	 my ($from, $to)=split(/\//, $attr->{INTERVAL}, 2);
@@ -957,8 +1037,8 @@ elsif (defined($attr->{PERIOD}) ) {
 
   $self->query($db, "SELECT 
   SEC_TO_TIME(min(l.duration)), SEC_TO_TIME(max(l.duration)), SEC_TO_TIME(avg(l.duration)), SEC_TO_TIME(sum(l.duration)),
-  min(l.sent), max(l.sent), avg(l.sent), sum(l.sent),
-  min(l.recv), max(l.recv), avg(l.recv), sum(l.recv),
+  min(l.sent + 4294967296 * acct_output_gigawords), max(l.sent + 4294967296 * acct_output_gigawords), avg(l.sent + 4294967296 * acct_output_gigawords), sum(l.sent + 4294967296 * acct_output_gigawords),
+  min(l.recv + 4294967296 * acct_input_gigawords), max(l.recv + 4294967296 * acct_input_gigawords), avg(l.recv + 4294967296 * acct_input_gigawords), sum(l.recv + 4294967296 * acct_input_gigawords ),
   min(l.recv+l.sent), max(l.recv+l.sent), avg(l.recv+l.sent), sum(l.recv+l.sent)
   FROM dv_log l $WHERE");
 
@@ -1001,27 +1081,34 @@ sub reports {
 
 
  my @FIELDS_ARR = ('DATE', 
-                   'USERS', 
+                   'USERS',
+                   'USERS_FIO',
+                   'TP',
                    'SESSIONS', 
                    'TRAFFIC_RECV', 
                    'TRAFFIC_SENT',
                    'TRAFFIC_SUM', 
                    'TRAFFIC_2_SUM', 
                    'DURATION', 
-                   'SUM'
+                   'SUM',
                    );
 
  $self->{REPORT_FIELDS} = {DATE            => '',  	
                            USERS           => 'u.id',
+                           USERS_FIO       => 'u.fio',
                            SESSIONS        => 'count(l.uid)',
-                           TRAFFIC_SUM     => 'sum(l.sent + l.recv)',
+                           TRAFFIC_SUM     => 'sum(l.sent + 4294967296 * acct_output_gigawords + l.recv + 4294967296 * acct_input_gigawords)',
                            TRAFFIC_2_SUM   => 'sum(l.sent2 + l.recv2)',
                            DURATION        => 'sec_to_time(sum(l.duration))',
                            SUM             => 'sum(l.sum)',
                            TRAFFIC_RECV    => 'sum(l.recv)',
-                           TRAFFIC_SENT    => 'sum(l.sent)'
+                           TRAFFIC_SENT    => 'sum(l.sent)',
+                           USERS_COUNT     => 'count(DISTINCT l.uid)',
+                           TP              => 'l.tp_id'
                           };
  
+ 
+ my $EXT_TABLE = 'users';
 
  # Show groups
  if ($attr->{GIDS}) {
@@ -1031,6 +1118,9 @@ sub reports {
    push @WHERE_RULES, "u.gid='$attr->{GID}'"; 
   }
  
+ if ($attr->{TP_ID}) {
+ 	 push @WHERE_RULES, " l.tp_id='$attr->{TP_ID}'";
+  }
  
  if(defined($attr->{DATE})) {
    push @WHERE_RULES, " date_format(l.start, '%Y-%m-%d')='$attr->{DATE}'";
@@ -1038,11 +1128,17 @@ sub reports {
  elsif ($attr->{INTERVAL}) {
  	 my ($from, $to)=split(/\//, $attr->{INTERVAL}, 2);
    push @WHERE_RULES, "date_format(l.start, '%Y-%m-%d')>='$from' and date_format(l.start, '%Y-%m-%d')<='$to'";
+
+   $attr->{TYPE} = '' if (! $attr->{TYPE});
+
    if ($attr->{TYPE} eq 'HOURS') {
      $date = "date_format(l.start, '%H')";
     }
    elsif ($attr->{TYPE} eq 'DAYS') {
      $date = "date_format(l.start, '%Y-%m-%d')";
+    }
+   elsif ($attr->{TYPE} eq 'TP') {
+     $date = "l.tp_id";
     }
    else {
      $date = "u.id";   	
@@ -1056,6 +1152,11 @@ sub reports {
  	 $date = "date_format(l.start, '%Y-%m')";
   }
 
+
+ # Compnay
+ if ($attr->{COMPANY_ID}) {
+   push @WHERE_RULES, "u.company_id=$attr->{COMPANY_ID}"; 
+  }
 
 
  # Show groups
@@ -1072,7 +1173,7 @@ sub reports {
 $self->{REPORT_FIELDS}{DATE}=$date;
 my $fields = "$date, count(DISTINCT l.uid), 
       count(l.uid),
-      sum(l.sent + l.recv), 
+      sum(l.sent + 4294967296 * acct_output_gigawords + l.recv + 4294967296 * acct_input_gigawords), 
       sum(l.sent2 + l.recv2),
       sec_to_time(sum(l.duration)), 
       sum(l.sum)";
@@ -1082,46 +1183,65 @@ if ($attr->{FIELDS}) {
 	my @show_fields = ();
   my %get_fields_hash = ();
 
+ 
+
 
   foreach my $line (@fields_array) {
   	$get_fields_hash{$line}=1;
+    if ($line eq 'USERS_FIO') {
+      $EXT_TABLE = 'users_pi';
+      $date = 'u.fio';
+     }
+    elsif ($line =~ /^_(\S+)/) {
+      #$date = 
+      my $f = '_'.$1;
+      push @FIELDS_ARR, $f;
+      $self->{REPORT_FIELDS}{$f}='u.'.$f;
+      $EXT_TABLE = 'users_pi';
+     }
    }
   
   foreach my $k (@FIELDS_ARR) {
-    push @show_fields, $self->{REPORT_FIELDS}{$k} if ($get_fields_hash{$k});
-  }
+    if ($get_fields_hash{$k}) {
+      push @show_fields, $self->{REPORT_FIELDS}{$k} ;
+     }
+  } 
 
   $fields = join(', ', @show_fields)
 }
  
  
- 
  if(defined($attr->{DATE})) {
    if (defined($attr->{HOURS})) {
-   	$self->query($db, "select date_format(l.start, '%Y-%m-%d %H')start, '%Y-%m-%d %H')start, '%Y-%m-%d %H'), count(DISTINCT l.uid), count(l.uid), 
-    sum(l.sent + l.recv), sum(l.sent2 + l.recv2), sec_to_time(sum(l.duration)), sum(l.sum), l.uid
+   	$self->query($db, "select date_format(l.start, '%Y-%m-%d %H')start, '%Y-%m-%d %H')start, '%Y-%m-%d %H'), 
+   	count(DISTINCT l.uid), count(l.uid), 
+    sum(l.sent + 4294967296 * acct_output_gigawords + l.recv + 4294967296 * acct_input_gigawords), 
+     sum(l.sent2 + l.recv2), sec_to_time(sum(l.duration)), sum(l.sum), l.uid
       FROM dv_log l
-      LEFT JOIN users u ON (u.uid=l.uid)
+      LEFT JOIN $EXT_TABLE u ON (u.uid=l.uid)
       $WHERE 
       GROUP BY 1 
       ORDER BY $SORT $DESC");
     }
    else {
    	$self->query($db, "select date_format(l.start, '%Y-%m-%d'), if(u.id is NULL, CONCAT('> ', l.uid, ' <'), u.id), count(l.uid), 
-    sum(l.sent + l.recv), sum(l.sent2 + l.recv2), sec_to_time(sum(l.duration)), sum(l.sum), l.uid
+    sum(l.sent + 4294967296 * acct_output_gigawords + l.recv + 4294967296 * acct_input_gigawords), sum(l.sent2 + l.recv2), sec_to_time(sum(l.duration)), sum(l.sum), l.uid
       FROM dv_log l
-      LEFT JOIN users u ON (u.uid=l.uid)
+      LEFT JOIN $EXT_TABLE u ON (u.uid=l.uid)
       $WHERE 
       GROUP BY l.uid 
       ORDER BY $SORT $DESC");
    #$WHERE = "WHERE date_format(l.start, '%Y-%m-%d')='$attr->{DATE}'"; 
     }
   }
+ elsif ($attr->{TP}) {
+ 	 print "TP";
+  }
  else {
   $self->query($db, "select $fields,
       l.uid
        FROM dv_log l
-       LEFT JOIN users u ON (u.uid=l.uid)
+       LEFT JOIN $EXT_TABLE u ON (u.uid=l.uid)
        $WHERE    
        GROUP BY 1 
        ORDER BY $SORT $DESC;");
@@ -1140,14 +1260,14 @@ if ($attr->{FIELDS}) {
 
   $self->query($db, "select count(DISTINCT l.uid), 
       count(l.uid),
-      sum(l.sent),
-      sum(l.recv), 
+      sum(l.sent + 4294967296 * acct_output_gigawords),
+      sum(l.recv + 4294967296 * acct_input_gigawords), 
       sum(l.sent2),
       sum(l.recv2),
       sec_to_time(sum(l.duration)), 
       sum(l.sum)
        FROM dv_log l
-       LEFT JOIN users u ON (u.uid=l.uid)
+       LEFT JOIN $EXT_TABLE u ON (u.uid=l.uid)
        $WHERE;");
 
  
@@ -1217,17 +1337,32 @@ sub log_rotate {
 	my $self = shift;
 	my ($attr)=@_;
 	
-  $self->query($db, "DELETE from s_detail
-            WHERE
-  last_update < UNIX_TIMESTAMP()- $attr->{PERIOD} * 24 * 60 * 60;", 'do');
-	
+  my $version = $self->db_version();
 
-  $self->query($db, "DELETE LOW_PRIORITY dv_log_intervals from dv_log, dv_log_intervals
+  $self->query($db, "DELETE from s_detail
+            WHERE last_update < UNIX_TIMESTAMP()- $attr->{PERIOD} * 24 * 60 * 60;", 'do');
+  
+
+  # LOW_PRIORITY
+  $self->query($db, "DELETE  dv_log_intervals from dv_log, dv_log_intervals
 WHERE
   dv_log.acct_session_id=dv_log_intervals.acct_session_id
   and dv_log.start < curdate() - INTERVAL $attr->{PERIOD} DAY;", 'do');
 
-	
+
+  # FOR version > 4.1
+  # CREATE TABLE IF NOT EXISTS s_detail_2 LIKE s_detail;
+  ## INSERT INTO s_detail_2 (acct_session_id, nas_id smallint, acct_status, start, last_update, sent1, recv1, sent2, recv2,id ) VALUES 
+  ## SELECT acct_session_id, nas_id smallint, acct_status, start, last_update, sent1, recv1, sent2, recv2,id  FROM s_detail WHERE last_update < UNIX_TIMESTAMP()- $attr->{PERIOD} * 24 * 60 * 60
+  # RENAME TABLE s_detail TO s_detail_$DATE, s_detail_2 TO s_detail;
+  ## DELETE from s_detail_$DATE WHERE last_update < UNIX_TIMESTAMP()- $attr->{PERIOD} * 24 * 60 * 60;
+
+  # CREATE TABLE IF NOT EXISTS dv_log_intervals_2 LIKE dv_log_intervals;
+  ## INSERT INTO dv_log_intervals_2 (acct_session_id, nas_id smallint, acct_status, start, last_update, sent1, recv1, sent2, recv2,id ) VALUES 
+  ## SELECT  from dv_log, dv_log_intervals  WHERE
+  ## dv_log.acct_session_id=dv_log_intervals.acct_session_id and dv_log.start < curdate() - INTERVAL $attr->{PERIOD} DAY;
+  # RENAME TABLE dv_log_intervals TO dv_log_intervals_$DATE, dv_log_intervals_2 TO dv_log_intervals;
+  ## DELETE from dv_log_intervals_$DATE WHERE last_update < UNIX_TIMESTAMP()- $attr->{PERIOD} * 24 * 60 * 60;
 	
 	return $self;
 }

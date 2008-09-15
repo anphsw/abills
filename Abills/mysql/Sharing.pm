@@ -41,7 +41,7 @@ sub new {
   if ($CONF->{DELETE_USER}) {
     $self->del($CONF->{DELETE_USER}, '', '', '', { DELETE_USER => $CONF->{DELETE_USER} });
    }
-  
+ 
   return $self;
 }
 
@@ -396,6 +396,8 @@ sub zap {
   my $self=shift;
   my ($nas_id, $nas_port_id, $acct_session_id, $attr)=@_;
   
+  $WHERE = '';
+  
   if (! defined($attr->{ALL})) {
     $WHERE = "WHERE nas_id='$nas_id' and nas_port_id='$nas_port_id' and acct_session_id='$acct_session_id'";
    }
@@ -557,11 +559,15 @@ return $list;
 sub periods_totals {
  my $self = shift;
  my ($attr) = @_;
+
  my $WHERE = '';
  
+
+ 
  if($attr->{LOGIN})  {
-   $WHERE .= ($WHERE ne '') ?  " and username='$attr->{LOGIN}' " : "WHERE username='$attr->{LOGIN}'";
+   $WHERE .= "WHERE username='$attr->{LOGIN}' ";
   }
+
 
  $self->query($db, "SELECT  
    sum(if(date_format(start, '%Y-%m-%d')=curdate(), sent, 0)), 
@@ -581,7 +587,9 @@ sub periods_totals {
    SEC_TO_TIME(sum(if(date_format(start, '%Y-%m')=date_format(curdate(), '%Y-%m'), duration, 0))),
   
    sum(sent), sum(recv), SEC_TO_TIME(sum(duration))
-   FROM sharing_log $WHERE;");
+   FROM (sharing_log sl)
+   LEFT join  sharing_priority sp ON (sl.url = sp.file)   
+   $WHERE;");
 
   ($self->{sent_0}, 
    $self->{recv_0}, 
@@ -616,26 +624,34 @@ sub prepaid_rest {
 	
 	$CONF->{MB_SIZE} = $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE};
 	
+	
 	#Get User TP and intervals
-  $self->query($db, "select tt.id, i.begin, i.end, 
-    if(u.activate<>'0000-00-00', u.activate, DATE_FORMAT(curdate(), '%Y-%m-01')), 
-     tt.prepaid, 
-    u.id, tp.octets_direction, 
-    u.uid, 
-    sharing.tp_id, 
-    tp.name
+  $self->query($db, "select tt.id,
+    if(u.activate<>'0000-00-00', u.activate, DATE_FORMAT(curdate(), '%Y-%m-01')),
+     tt.prepaid,
+     u.id, 
+     tp.octets_direction,
+     u.uid,
+     sm.tp_id,
+     tp.name,
+     tp.month_traf_limit,
+     sm.extra_byte,
+     count(sa.tp_id)   
   from (users u,
-        sharing_main dv,
+        sharing_main sm,
         tarif_plans tp,
-        intervals i,
-        sharing_trafic_tarifs tt)
-WHERE
-     u.uid=sharing.uid
- and sharing.tp_id=tp.id
- and tp.id=i.tp_id
- and i.id=tt.interval_id
+        sharing_trafic_tarifs tt
+        )
+  LEFT JOIN sharing_additions sa ON (tp.id=sa.tp_id) 
+ WHERE
+     u.uid=sm.uid
+ and sm.tp_id=tp.id
+ and tp.id=tt.tp_id
  and u.uid='$attr->{UID}'
+ and tp.module='Sharing'
+ GROUP BY 1
  ORDER BY 1
+
  ");
 
  if($self->{TOTAL} < 1) {
@@ -643,70 +659,55 @@ WHERE
   }
 
 
- my %rest = (0 => 
-             1 => );
+ my %rest = (0 => 0, 
+             1 => 0 );
  
 
- 
+
  foreach my $line (@{ $self->{list} } ) {
-   $rest{$line->[0]} = $line->[4];
+   $rest{$line->[0]} = $line->[2];
   }
 
 
  $self->{INFO_LIST}=$self->{list};
- my $login = $self->{INFO_LIST}->[0]->[5];
+ my $login = $self->{INFO_LIST}->[0]->[3];
 
  return 1 if ($attr->{INFO_ONLY});
  
- my $octets_direction = "sent + recv";
- my $octets_direction2 = "sent2 + recv2";
- my $octets_online_direction = "acct_input_octets + acct_output_octets";
- my $octets_online_direction2 = "ex_input_octets + ex_output_octets";
  
- if ($self->{INFO_LIST}->[0]->[6] == 1) {
-   $octets_direction = "recv";
-   $octets_direction2 = "recv2";
-   $octets_online_direction = "acct_input_octets";
-   $octets_online_direction2 = "ex_input_octets";
-  }
- elsif ($self->{INFO_LIST}->[0]->[6] == 2) {
-   $octets_direction = "sent";
-   $octets_direction2 = "sent2";
-   $octets_online_direction = "acct_output_octets";
-   $octets_online_direction2 = "ex_output_octets";
-  }
+
+ $self->{EXTRA_TRAFIC} = $self->{INFO_LIST}->[0]->[9];  
+ 
+
+ $self->{EXTRA_TRAFIC_USE} = $self->{INFO_LIST}->[0]->[10];  
  
  #Check sessions
  #Get using traffic
  $self->query($db, "select  
-  $rest{0} - sum($octets_direction) / $CONF->{MB_SIZE},
-  $rest{1} - sum($octets_direction2) / $CONF->{MB_SIZE}
- FROM sharing_log
- WHERE uid='$attr->{UID}' and DATE_FORMAT(start, '%Y-%m-%d')>='$self->{INFO_LIST}->[0]->[3]'
- GROUP BY uid
+  $rest{0} - sum(sl.recv + sl.sent) / $CONF->{MB_SIZE}
+ FROM sharing_log sl 
+ INNER JOIN sharing_priority sp ON (sl.url = sp.file)
+ WHERE sl.username='$login' 
+ and DATE_FORMAT(sl.start, '%Y-%m-%d')>='$self->{INFO_LIST}->[0]->[1]'
+ and sp.priority='0'
+ GROUP BY sl.username
  ;");
 
  if ($self->{TOTAL} > 0) {
    ($rest{0}, 
-    $rest{1} 
     ) =  @{ $self->{list}->[0] };
   }
 
- #Check online
- $self->query($db, "select 
-  $rest{0} - sum($octets_online_direction) / $CONF->{MB_SIZE},
-  $rest{1} - sum($octets_online_direction2) / $CONF->{MB_SIZE}
- FROM sharing_calls
- WHERE user_name='$login' 
- GROUP BY user_name ;");
 
- if ($self->{TOTAL} > 0) {
-   ($rest{0}, 
-    $rest{1} 
-    ) =  @{ $self->{list}->[0] };
-  }
- 
+if ( $self->{EXTRA_TRAFIC_USE} > 0 && $rest{0} < 0 ) {
+	$self->{EXTRA_TRAFIC} = $self->{EXTRA_TRAFIC} - abs($rest{0});
+ }
+#else {
+#  $self->{EXTRA_TRAFIC}=undef;
+#}
+
  $self->{REST}=\%rest;
+ 
   
  return 1;
 }
@@ -723,7 +724,7 @@ sub calculation {
 	my ($self) = shift;
 	my ($attr) = @_;
 
-
+  @WHERE_RULES = ();
 #Login
   if ($attr->{UID}) {
   	push @WHERE_RULES, "l.uid='$attr->{UID}'";
@@ -940,14 +941,13 @@ if ($attr->{FIELDS}) {
        LEFT JOIN users u ON (u.uid=l.uid)
        $WHERE;");
 
-   my $a_ref = $self->{list}->[0];
  
   ($self->{USERS}, 
    $self->{SESSIONS}, 
    $self->{TRAFFIC}, 
    $self->{TRAFFIC_2}, 
    $self->{DURATION}, 
-   $self->{SUM}) = @$a_ref;
+   $self->{SUM}) = @{ $self->{list}->[0] };
 
 
 
@@ -1025,6 +1025,23 @@ WHERE
 # User information
 # info()
 #**********************************************************
+sub samba_info {
+	my $self = shift;
+	my ($attr) = @_;
+
+  $self->query($db, "SELECT *
+     FROM user
+   WHERE username='$attr->{LOGIN}';");
+
+
+  return $self;
+}
+
+
+#**********************************************************
+# User information
+# info()
+#**********************************************************
 sub info {
   my $self = shift;
   my ($uid, $attr) = @_;
@@ -1060,10 +1077,14 @@ sub info {
    sharing.filter_id, 
    sharing.cid,
    sharing.disable,
-   sharing.type
+   sharing.type,
+   tp.gid,
+   sharing.extra_byte
      FROM sharing_main sharing
      LEFT JOIN tarif_plans tp ON (sharing.tp_id=tp.id and tp.module='Sharing')
    $WHERE;");
+
+  $self->{TP_GID} = 0;
 
   if ($self->{TOTAL} < 1) {
      $self->{errno} = 2;
@@ -1080,7 +1101,9 @@ sub info {
    $self->{FILTER_ID}, 
    $self->{CID},
    $self->{DISABLE},
-   $self->{TYPE}
+   $self->{TYPE},
+   $self->{TP_GID},
+   $self->{EXTRA_TRAFIC}
   )= @{ $self->{list}->[0] };
   
   
@@ -1104,7 +1127,7 @@ sub defaults {
    SPEED          => 0, 
    FILTER_ID      => '', 
    CID            => '',
-   TYPE           => 0 
+   TYPE           => 0
   );
  
   $self = \%DATA;
@@ -1132,7 +1155,7 @@ sub add {
        
        if ($user->{DEPOSIT} + $user->{CREDIT} < $tariffs->{ACTIV_PRICE}) {
          
-         print "$user->{DEPOSIT} + $user->{CREDIT} < $tariffs->{ACTIV_PRICE}";
+
          
          $self->{errno}=15;
        	 return $self; 
@@ -1185,15 +1208,17 @@ sub change {
               CID              => 'cid',
               UID              => 'uid',
               FILTER_ID        => 'filter_id',
-              TYPE             => 'type'
+              TYPE             => 'type',
+              EXTRA_TRAFIC     => 'extra_byte'
              );
-  
-  if (! $attr->{CALLBACK}) {
-  	$attr->{CALLBACK}=0;
-   }
+ 
+
+ 
 
   my $old_info = $self->info($attr->{UID});
-  if ($old_info->{TP_ID} != $attr->{TP_ID}) {
+
+
+  if ($attr->{TP_ID} && $old_info->{TP_ID} != $attr->{TP_ID}) {
      my $tariffs = Tariffs->new($db, $CONF, $admin);
      $tariffs->info($attr->{TP_ID});
      
@@ -1206,10 +1231,23 @@ sub change {
        	 return $self; 
         }
        my $fees = Fees->new($db, $admin, $CONF);
-       $fees->take($user, $tariffs->{CHANGE_PRICE}, { DESCRIBE  => "CHANGE TP" });  
+       $fees->take($user, $tariffs->{CHANGE_PRICE}, { DESCRIBE  => "CHANGE TP [$attr->{TP_ID}]" });  
       }
 
+     if ($tariffs->{AGE} > 0) {
+       my $user = Users->new($db, $admin, $CONF);
+
+       use POSIX qw(strftime);
+       my $EXPITE_DATE = strftime( "%Y-%m-%d", localtime(time + 86400 * $tariffs->{AGE}) );
+       my $ACTIVATE_DATE = strftime( "%Y-%m-%d", localtime(time) );
+       $user->change($attr->{UID}, { EXPIRE   => $EXPITE_DATE, 
+       	                             ACTIVATE => $ACTIVATE_DATE,
+       	                             UID      => $attr->{UID} 
+       	                           });
+     }
    }
+
+  
 
   $admin->{MODULE}=$MODULE;
   $self->changes($admin, { CHANGE_PARAM => 'UID',
@@ -1219,9 +1257,6 @@ sub change {
                    DATA         => $attr
                   } );
 
-
-  
-  
 
   return $self->{result};
 }
@@ -1323,19 +1358,21 @@ sub list {
     push @WHERE_RULES, "u.deposit$value";
   }
 
+ if ($attr->{EXTRA_TRAFIC}) {
+    my $value = $self->search_expr($attr->{EXTRA_TRAFIC}, 'INT');
+    push @WHERE_RULES, "sharing.extra_byte$value";
+    
+    $self->{SEARCH_FIELDS} .= 'sharing.extra_byte, ';
+    $self->{SEARCH_FIELDS_COUNT}++;
+
+  }
+
+
  if ($attr->{SPEED}) {
     my $value = $self->search_expr($attr->{SPEED}, 'INT');
     push @WHERE_RULES, "u.speed$value";
 
     $self->{SEARCH_FIELDS} .= 'sharing.speed, ';
-    $self->{SEARCH_FIELDS_COUNT}++;
-  }
-
- if ($attr->{PORT}) {
-    my $value = $self->search_expr($attr->{PORT}, 'INT');
-    push @WHERE_RULES, "sharing.port$value";
-
-    $self->{SEARCH_FIELDS} .= 'sharing.port, ';
     $self->{SEARCH_FIELDS_COUNT}++;
   }
 
@@ -1385,8 +1422,9 @@ sub list {
 
 #Expire
  if ($attr->{EXPIRE}) {
-   #my $value = $self->search_expr("$attr->{EXPIRE}", 'INT');
-   push @WHERE_RULES, "(u.expire='0000-00-00' or u.expire$attr->{EXPIRE})"; 
+   my $value = $self->search_expr("$attr->{EXPIRE}", 'INT');
+   #push @WHERE_RULES, "(u.expire='0000-00-00' or u.expire$attr->{EXPIRE})"; 
+   push @WHERE_RULES, "(u.expire$value)"; 
  }
 
 #DIsable
@@ -1414,7 +1452,7 @@ sub list {
      FROM (users u, sharing_main sharing)
      LEFT JOIN users_pi pi ON (u.uid = pi.uid)
      LEFT JOIN bills b ON (u.bill_id = b.id)
-     LEFT JOIN tarif_plans tp ON (tp.id=sharing.tp_id) 
+     LEFT JOIN tarif_plans tp ON (tp.id=sharing.tp_id and tp.module='Sharing') 
      LEFT JOIN companies company ON  (u.company_id=company.id) 
      LEFT JOIN bills cb ON  (company.bill_id=cb.id)
      $WHERE 
@@ -1448,12 +1486,12 @@ sub sessions_list {
 
  
  
- 
+ $WHERE = '';
  my @WHERE_RULES = ();
 
  # Show debeters
  if ($attr->{LOGIN}) {
-    push @WHERE_RULES, "l.username='$attr->{LOGIN}'";
+    push @WHERE_RULES, "sl.username='$attr->{LOGIN}'";
    }
  elsif ($attr->{LOGIN_EXPR}) {
     $attr->{LOGIN_EXPR} =~ s/\*/\%/ig;
@@ -1463,23 +1501,23 @@ sub sessions_list {
 
 #NAS ID
  if ($attr->{NAS_ID}) {
-   push @WHERE_RULES, "l.nas_id='$attr->{NAS_ID}'";
+   push @WHERE_RULES, "sl.nas_id='$attr->{NAS_ID}'";
   }
 
 #NAS ID
  if ($attr->{CID}) {
    if($attr->{CID}) {
      $attr->{CID} =~ s/\*/\%/ig;
-     push @WHERE_RULES, "l.cid LIKE '$attr->{CID}'";
+     push @WHERE_RULES, "sl.cid LIKE '$attr->{CID}'";
     }
    else {
-     push @WHERE_RULES, "l.cid='$attr->{CID}'";
+     push @WHERE_RULES, "sl.cid='$attr->{CID}'";
     }
   }
 
 #TARIF_PLAN
  if ($attr->{TARIF_PLAN}) {
-   push @WHERE_RULES, "l.tp_id='$attr->{TARIF_PLAN}'";
+   push @WHERE_RULES, "sl.tp_id='$attr->{TARIF_PLAN}'";
   }
 
 if ($attr->{GID}) {
@@ -1487,19 +1525,19 @@ if ($attr->{GID}) {
  }
 
 if ($attr->{TERMINATE_CAUSE}) {
-	push @WHERE_RULES, "l.terminate_cause='$attr->{TERMINATE_CAUSE}'";
+	push @WHERE_RULES, "sl.terminate_cause='$attr->{TERMINATE_CAUSE}'";
  }
 
 if ($attr->{FROM_DATE}) {
-   push @WHERE_RULES, "(date_format(l.start, '%Y-%m-%d')>='$attr->{FROM_DATE}' and date_format(l.start, '%Y-%m-%d')<='$attr->{TO_DATE}')";
+   push @WHERE_RULES, "(date_format(sl.start, '%Y-%m-%d')>='$attr->{FROM_DATE}' and date_format(sl.start, '%Y-%m-%d')<='$attr->{TO_DATE}')";
  }
 
 if ($attr->{DATE}) {
-   push @WHERE_RULES, "date_format(l.start, '%Y-%m-%d')>='$attr->{DATE}'";
+   push @WHERE_RULES, "date_format(sl.start, '%Y-%m-%d')>='$attr->{DATE}'";
  }
 
 if ($attr->{MONTH}) {
-   push @WHERE_RULES, "date_format(l.start, '%Y-%m')>='$attr->{MONTH}'";
+   push @WHERE_RULES, "date_format(sl.start, '%Y-%m')>='$attr->{MONTH}'";
  }
 
 
@@ -1531,40 +1569,42 @@ elsif($attr->{DATE}) {
 #From To
 
 
- 
 
- $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
+ $WHERE = "WHERE " . join(' and ', @WHERE_RULES) if ($#WHERE_RULES > -1);
  
  $self->query($db, "select 
-  username,
-  start,
-  SEC_TO_TIME(duration),
-  sent,
-  recv,  
-  INET_NTOA(remoteip),
-  virtualhost,
-  connectionstatus,
-  url,
-  bytescontent,
-  statusbeforeredir,
-  statusafterredir,
-  remoteport,
-  serverid,  
-  requestmethod,
+  sl.username,
+  sl.start,
+  SEC_TO_TIME(sl.duration),
+  sl.sent,
+  sl.recv,  
+  INET_NTOA(sl.remoteip),
+  sl.virtualhost,
+  sl.connectionstatus,
+  sl.url,
+  sl.bytescontent,
+  if(sp.priority IS NULL, 1, 0),
+  sl.statusbeforeredir,
+  sl.statusafterredir,
+  sl.remoteport,
+  sl.serverid,  
+  sl.requestmethod,
 
-  protocol,
-  processid,
-  threadid,
-  useragent,
-  referer,
-  uniqueid,
+  sl.protocol,
+  sl.processid,
+  sl.threadid,
+  sl.useragent,
+  sl.referer,
+  sl.uniqueid,
   
-  identuser,
-  microseconds
+  sl.identuser,
+  sl.microseconds
   
-  FROM (sharing_log l)
+  FROM (sharing_log sl)
+  LEFT join sharing_priority sp ON (sl.url = sp.file)
   $WHERE
   ORDER BY $SORT $DESC
+  LIMIT $PG, $PAGE_ROWS;
  ;");
 
  return $self if($self->{errno});
@@ -1572,8 +1612,10 @@ elsif($attr->{DATE}) {
  my $list = $self->{list};
  
   if ($self->{TOTAL} > 0) {
-    $self->query($db, "SELECT count(l.username), SEC_TO_TIME(sum(l.duration)), sum(l.sent), sum(l.recv) 
-      FROM (sharing_log l)
+    $self->query($db, "SELECT count(sl.username), 
+     SEC_TO_TIME(sum(sl.duration)), sum(sl.sent), sum(sl.recv) 
+     FROM (sharing_log sl)
+     INNER join  sharing_priority sp ON (sl.url=sp.file)
      $WHERE;");
 
     ($self->{TOTAL},
@@ -1769,4 +1811,543 @@ sub tt_del {
 }
 
 
+
+
+#**********************************************************
+# tt_info
+#**********************************************************
+sub errors_list {
+	my $self = shift;
+	my ($attr) = @_;
+	
+	
+	
+ $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+ $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+ $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+ $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+ undef @WHERE_RULES;
+ 
+
+# Start letter 
+ if ($attr->{FIRST_LETTER}) {
+    push @WHERE_RULES, "username LIKE '$attr->{FIRST_LETTER}%'";
+  }
+ elsif ($attr->{LOGIN}) {
+    $attr->{LOGIN_EXPR} =~ s/\*/\%/ig;
+    push @WHERE_RULES, "username='$attr->{LOGIN}'";
+  }
+ # Login expresion
+ elsif ($attr->{LOGIN_EXPR}) {
+    $attr->{LOGIN_EXPR} =~ s/\*/\%/ig;
+    push @WHERE_RULES, "username LIKE '$attr->{LOGIN_EXPR}'";
+  }
+ 
+
+ if ($attr->{IP}) {
+    if ($attr->{IP} =~ m/\*/g) {
+      my ($i, $first_ip, $last_ip);
+      my @p = split(/\./, $attr->{IP});
+      for ($i=0; $i<4; $i++) {
+
+         if ($p[$i] eq '*') {
+           $first_ip .= '0';
+           $last_ip .= '255';
+          }
+         else {
+           $first_ip .= $p[$i];
+           $last_ip .= $p[$i];
+          }
+         if ($i != 3) {
+           $first_ip .= '.';
+           $last_ip .= '.';
+          }
+       }
+      push @WHERE_RULES, "(sharing.ip>=INET_ATON('$first_ip') and sharing.ip<=INET_ATON('$last_ip'))";
+     }
+    else {
+      my $value = $self->search_expr($attr->{IP}, 'IP');
+      push @WHERE_RULES, "sharing.ip$value";
+    }
+
+    $self->{SEARCH_FIELDS} = 'INET_NTOA(sharing.ip), ';
+    $self->{SEARCH_FIELDS_COUNT}++;
+  }
+
+#
+# if ($attr->{CID}) {
+#    $attr->{CID} =~ s/\*/\%/ig;
+#    push @WHERE_RULES, "sharing.cid LIKE '$attr->{CID}'";
+#    $self->{SEARCH_FIELDS} .= 'sharing.cid, ';
+#    $self->{SEARCH_FIELDS_COUNT}++;
+#  }
+#
+#
+##Activate
+# if ($attr->{ACTIVATE}) {
+#   #my $value = $self->search_expr("$attr->{ACTIVATE}", 'INT');
+#   push @WHERE_RULES, "(u.activate='0000-00-00' or u.activate$attr->{ACTIVATE})"; 
+# }
+#
+##Expire
+# if ($attr->{EXPIRE}) {
+#   #my $value = $self->search_expr("$attr->{EXPIRE}", 'INT');
+#   push @WHERE_RULES, "(u.expire='0000-00-00' or u.expire$attr->{EXPIRE})"; 
+# }
+#
+##DIsable
+# if (defined($attr->{DISABLE})) {
+#   push @WHERE_RULES, "u.disable='$attr->{DISABLE}'"; 
+# }
+ 
+
+ $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
+ 
+ $self->query($db, "SELECT datetime,
+   uid,
+   username,
+   file_and_path,
+   client_name,
+   INET_NTOA(ip),
+   client_command
+     FROM (sharing_errors)
+     $WHERE 
+     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;");
+
+ return $self if($self->{errno});
+
+ my $list = $self->{list};
+
+ if ($self->{TOTAL} >= 0) {
+    $self->query($db, "SELECT count(*) FROM sharing_errors $WHERE");
+    ($self->{TOTAL}) = @{ $self->{list}->[0] };
+   }
+
+
+	
+	return $list;
+}
+
+
+
+#**********************************************************
+# Time_intervals
+# ti_add
+#**********************************************************
+sub errors_del {
+	my $self = shift;
+  my ($attr) = @_;
+
+  my %DATA = $self->get_data($attr, { default => $self->tt_defaults() }); 
+
+	$self->query($db, "DELETE FROM sharing_trafic_tarifs 
+	 WHERE  tp_id='$attr->{TI_ID}'  and id='$attr->{TT_ID}' ;", 'do');
+
+
+	return $self;
+}
+
+
+#**********************************************************
+# User information
+# info()
+#**********************************************************
+sub additions_info {
+  my $self = shift;
+  my ($id, $attr) = @_;
+
+  
+  $self->query($db, "SELECT id, 
+   tp_id, 
+   name, 
+   quantity, 
+   price
+     FROM sharing_additions
+   WHERE id='$id';");
+
+  $self->{TP_GID} = 0;
+
+  if ($self->{TOTAL} < 1) {
+     $self->{errno} = 2;
+     $self->{errstr} = 'ERROR_NOT_EXIST';
+     return $self;
+   }
+
+
+  ($self->{ID},
+   $self->{TP_ID}, 
+   $self->{NAME}, 
+   $self->{QUANTITY}, 
+   $self->{PRICE}
+  )= @{ $self->{list}->[0] };
+  
+  
+  return $self;
+}
+
+
+
+#**********************************************************
+#
+#**********************************************************
+sub additions_defaults {
+  my $self = shift;
+
+  my %DATA = (
+   ID             => 0,
+   TP_ID          => 0, 
+   QUANTITY       => 0, 
+   NAME           => '', 
+   PRICE          => 0 
+  );
+ 
+  $self = \%DATA;
+  return $self;
+}
+
+
+#**********************************************************
+# add()
+#**********************************************************
+sub additions_add {
+  my $self = shift;
+  my ($attr) = @_;
+  
+  my %DATA = $self->get_data($attr, { default => additions_defaults() }); 
+  
+  $self->query($db,  "INSERT INTO sharing_additions (
+             tp_id, 
+             name,
+             quantity, 
+             price
+              )
+        VALUES (
+        '$DATA{TP_ID}', 
+        '$DATA{NAME}',
+        '$DATA{QUANTITY}',
+        '$DATA{PRICE}'
+         );", 'do');
+
+  return $self if ($self->{errno});
+  #$admin->action_add("$DATA{UID}", "ACTIVE");
+  return $self;
+}
+
+
+
+
+#**********************************************************
+# change()
+#**********************************************************
+sub additions_change {
+  my $self = shift;
+  my ($attr) = @_;
+  
+ 
+  my %FIELDS = (ID             => 'id',
+                NAME           => 'name',
+                TP_ID          => 'tp_id',
+                QUANTITY       => 'quantity',
+                PRICE          => 'price'
+             );
+  
+  my $old_info = $self->additions_info($attr->{ID});
+
+  $admin->{MODULE}=$MODULE;
+  $self->changes($admin, { CHANGE_PARAM => 'ID',
+                   TABLE        => 'sharing_additions',
+                   FIELDS       => \%FIELDS,
+                   OLD_INFO     => $old_info,
+                   DATA         => $attr
+                  } );
+ 
+
+  return $self->{result};
+}
+
+
+
+#**********************************************************
+# Delete user info from all tables
+#
+# del(attr);
+#**********************************************************
+sub additions_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query($db, "DELETE from sharing_additions WHERE id='$self->{ID}';", 'do');
+
+  #$admin->action_add($uid, "DELETE");
+  return $self->{result};
+}
+
+
+
+
+#**********************************************************
+# list()
+#**********************************************************
+sub additions_list {
+ my $self = shift;
+ my ($attr) = @_;
+
+
+ $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+ $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+ $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+ $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+
+ $self->{SEARCH_FIELDS} = '';
+ $self->{SEARCH_FIELDS_COUNT}=0;
+
+ undef @WHERE_RULES;
+ if ($attr->{TP_ID}) {
+    my $value = $self->search_expr($attr->{TP_ID}, 'INT');
+    push @WHERE_RULES, "tp_id$value";
+  }
+
+ 
+ $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
+ 
+ $self->query($db, "SELECT id, 
+      name,
+      quantity, 
+      price, 
+      tp_id
+     FROM sharing_additions
+     $WHERE 
+     GROUP BY id
+     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;");
+
+ return $self if($self->{errno});
+
+ my $list = $self->{list};
+
+ if ($self->{TOTAL} >= 0) {
+    $self->query($db, "SELECT count(*) FROM sharing_additions $WHERE");
+    ($self->{TOTAL}) = @{ $self->{list}->[0] };
+   }
+
+  return $list;
+}
+
+
+
+
+
+
+
+
+#**********************************************************
+# User information
+# info()
+#**********************************************************
+sub priority_info {
+  my $self = shift;
+  my ($id, $attr) = @_;
+
+  
+  $self->query($db, "SELECT server,
+   file,
+   size,
+   priority,
+   datetime
+     FROM sharing_priority
+   WHERE id='$id';");
+
+  if ($self->{TOTAL} < 1) {
+     $self->{errno} = 2;
+     $self->{errstr} = 'ERROR_NOT_EXIST';
+     return $self;
+   }
+
+
+  (
+   $self->{SERVER},
+   $self->{FILE}, 
+   $self->{SIZE}, 
+   $self->{PRIORITY}, 
+   $self->{DATE}
+  )= @{ $self->{list}->[0] };
+  
+  
+  return $self;
+}
+
+
+
+#**********************************************************
+#
+#**********************************************************
+sub priority_defaults {
+  my $self = shift;
+
+  my %DATA = (
+   SERVET         => 0,
+   FILE           => 0, 
+   SIZE           => 0, 
+   PRIORITY       => 0
+  );
+ 
+  $self = \%DATA;
+  return $self;
+}
+
+
+#**********************************************************
+# add()
+#**********************************************************
+sub priority_add {
+  my $self = shift;
+  my ($attr) = @_;
+  
+  my %DATA = $self->get_data($attr, { default => priority_defaults() }); 
+  
+  $self->query($db,  "INSERT INTO sharing_priority (server,
+   file,
+   size,
+   priority,
+   datetime
+              )
+        VALUES (
+        '$DATA{SERVER}', 
+        '$DATA{FILE}',
+        '$DATA{SIZE}',
+        '$DATA{PRIORITY}',
+        '$DATA{DATE}'
+         );", 'do');
+
+  return $self if ($self->{errno});
+  #$admin->action_add("$DATA{UID}", "ACTIVE");
+  return $self;
+}
+
+
+
+
+#**********************************************************
+# change()
+#**********************************************************
+sub priority_change {
+  my $self = shift;
+  my ($attr) = @_;
+  
+ 
+  my %FIELDS = (ID             => 'id',
+                SERVER         => 'server',
+                FILE           => 'file',
+                SIZE           => 'size',
+                PRIORITY       => 'priority',
+                DATE           => 'date'
+             );
+  
+  my $old_info = $self->priority_info($attr->{ID});
+
+  $admin->{MODULE}=$MODULE;
+  $self->changes($admin, { CHANGE_PARAM => 'ID',
+                   TABLE        => 'sharing_additions',
+                   FIELDS       => \%FIELDS,
+                   OLD_INFO     => $old_info,
+                   DATA         => $attr
+                  } );
+ 
+
+  return $self->{result};
+}
+
+
+
+#**********************************************************
+# Delete user info from all tables
+#
+# del(attr);
+#**********************************************************
+sub priority_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $WHERE = '';
+
+  if ($attr->{IDS}) {
+  	$WHERE = "id IN ($attr->{IDS})";
+   }
+  else {
+  	$WHERE = "id='$attr->{ID}'";
+    }
+
+  $self->query($db, "DELETE from sharing_priority WHERE $WHERE;", 'do');
+
+  return $self->{result};
+}
+
+
+
+
+#**********************************************************
+# list()
+#**********************************************************
+sub priority_list {
+ my $self = shift;
+ my ($attr) = @_;
+
+ $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+ $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+ $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+ $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+ $self->{SEARCH_FIELDS} = '';
+ $self->{SEARCH_FIELDS_COUNT}=0;
+
+ undef @WHERE_RULES;
+ if ($attr->{SIZE}) {
+    my $value = $self->search_expr($attr->{SIZE}, 'INT');
+    push @WHERE_RULES, "size$value";
+  }
+
+ if ($attr->{PRIORITY}) {
+    my $value = $self->search_expr($attr->{PRIORITY}, 'INT');
+    push @WHERE_RULES, "priority$value";
+  }
+
+ if ($attr->{FILE}) {
+    if($attr->{FILE} =~ s/\*/\%/ig) {
+      push @WHERE_RULES, "file LIKE '$attr->{FILE}'";
+     }
+    else {
+      push @WHERE_RULES, "file='$attr->{FILE}'";
+     }
+  }
+
+ if ($attr->{SERVER}) {
+    $attr->{SERVER} =~ s/\*/\%/ig;
+    push @WHERE_RULES, "server='$attr->{SERVER}'";
+  }
+ 
+ $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
+ 
+ $self->query($db, "SELECT server, 
+      file,
+      size, 
+      priority, 
+      datetime,
+      id
+     FROM sharing_priority
+     $WHERE 
+     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;");
+
+ return $self if($self->{errno});
+
+ my $list = $self->{list};
+
+ if ($self->{TOTAL} >= 0) {
+    $self->query($db, "SELECT count(*) FROM sharing_priority $WHERE");
+    ($self->{TOTAL}) = @{ $self->{list}->[0] };
+   }
+
+  return $list;
+}
 1
+

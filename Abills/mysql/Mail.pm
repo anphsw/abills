@@ -72,12 +72,20 @@ sub mbox_add {
     '$DATA{ANTIVIRUS}', '$DATA{ANTISPAM}', '$DATA{EXPIRE}', 
     ENCODE('$DATA{PASSWORD}', '$CONF->{secretkey}'));", 'do');
 	
+	return $self if ($self->{errno});
 	
-	$self->domain_info({ MAIL_DOMAIN_ID => $DATA{DOMAIN_ID} });
+	$self->{MBOX_ID}=$self->{INSERT_ID};
 	
+	if ($DATA{DOMAIN_ID}) {
+	  $self->domain_info({ MAIL_DOMAIN_ID => $DATA{DOMAIN_ID} });
+   }
+	else {
+    $self->{DOMAIN}='';
+	 }
+
 	$self->{USER_EMAIL} = $DATA{USERNAME}.'@'.$self->{DOMAIN};
 	
-  $admin->action_add($DATA{UID}, "ADD $DATA{USER_EMAIL}");
+  $admin->action_add($DATA{UID}, "ADD $self->{USER_EMAIL}");
 	
 	return $self;
 }
@@ -166,7 +174,7 @@ sub mbox_info {
 	my $self = shift;
 	my ($attr) = @_;
 	
-	$WHERE = ($attr->{UID}) ? "and mb.uid='$attr->{UID}'" : '';
+	my $WHERE = ($attr->{UID}) ? "and mb.uid='$attr->{UID}'" : '';
 	
   $self->query($db, "SELECT mb.username,  mb.domain_id, md.domain, mb.descr, mb.maildir, mb.create_date, 
    mb.change_date, 
@@ -244,7 +252,8 @@ sub mbox_list {
 	      mb.antivirus, 
 	      mb.antispam, mb.status, 
 	      mb.create_date, mb.change_date, mb.expire, mb.maildir, 
-	      mb.uid, mb.id
+	      mb.uid, 
+	      mb.id
         FROM mail_boxes mb
         LEFT JOIN mail_domains md ON  (md.id=mb.domain_id)
         LEFT JOIN users u ON  (mb.uid=u.uid) 
@@ -256,7 +265,7 @@ sub mbox_list {
 
   my $list = $self->{list};
 
-  if ($self->{TOTAL} >= $attr->{PAGE_ROWS}) {
+  if ($self->{TOTAL} >= $attr->{PAGE_ROWS} || $PG > 0 ) {
     $self->query($db, "SELECT count(*) FROM mail_boxes mb $WHERE");
     ($self->{TOTAL}) = @{ $self->{list}->[0] };
    }
@@ -922,6 +931,8 @@ sub spam_awl_del {
   my ($attr) = @_;
 
   if ($attr->{TYPE})  {
+    $WHERE = '';
+
     if ($attr->{TYPE} eq 'USER') {
       $attr->{VALUE} =~ s/\*/\%/ig;
       $WHERE = "username LIKE '$attr->{VALUE}'";

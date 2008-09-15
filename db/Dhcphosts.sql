@@ -11,9 +11,15 @@ CREATE TABLE `dhcphosts_hosts` (
   `expire` date NOT NULL default '0000-00-00',
   `seen` int(1) NOT NULL default '0',
   `comments` varchar(250) NOT NULL default '',
+  `ports` varchar(100) NOT NULL DEFAULT '',
+  `vid` smallint(6) unsigned NOT NULL default '0',
+  `nas` smallint(6) unsigned NOT NULL default '0',
+  `option_82` tinyint(1) unsigned NOT NULL default '0',
+  `boot_file` VARCHAR( 150 ) NOT NULL default '',
   PRIMARY KEY  (`id`),
   UNIQUE KEY `cid` (`ip`),
-  UNIQUE KEY `mac` (`mac`)
+  UNIQUE KEY `mac` (`mac`),
+  UNIQUE KEY `host_network` (`hostname`,`network`)
 ) COMMENT='Dhcphosts hosts';
 
 
@@ -38,6 +44,8 @@ CREATE TABLE `dhcphosts_networks` (
   `coordinator` varchar(50) NOT NULL default '',
   `phone` varchar(20) NOT NULL default '',
   `routers` int(11) unsigned NOT NULL default '0',
+  `ip_range_first` int(11) unsigned NOT NULL DEFAULT '0',
+  `ip_range_last` int(11) unsigned NOT NULL DEFAULT '0',
   `disable` tinyint(1) unsigned NOT NULL default '0',
   PRIMARY KEY  (`id`),
   UNIQUE KEY `name` (`name`)

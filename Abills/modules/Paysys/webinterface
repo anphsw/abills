@@ -1,28 +1,388 @@
-#!/usr/bin/perl
-# Card System
-
-
-
-
-#use Paysys;
+# Paysys System
+# Support Webmoney, Rupay, SMSProxy
 
 eval { require Paysys; };
 if (! $@) {
-   Paysys->import();
-  }
+  Paysys->import();
+ }
 else {
-   print "Can't load 'Paysys'. Purchase this module http://abills.asmodeus.com.ua";
-   return 0;
+   print "Content-Type: text/html\n\n";
+   print "Can't load 'Paysys'. Purchase this module http://abills.net.ua";
+   exit;
  }
 
 
 
 
+use Finance;
+my $payments = Finance->payments($db, $admin, \%conf);
+my $fees = Finance->fees($db, $admin, \%conf);
+
+
 my $Paysys = Paysys->new($db, $admin, \%conf);
 my %PAY_SYSTEMS = (1 => "Webmoney",
-                   2 => "RUpay");
+                   2 => "RUpay",
+                   3 => "SMSProxy"
+                  );
+
 my @status = ('ENABLE', 'DISABLE', 'USED');
 
+#require "modules/Paysys/paysys_cons";
+
+#**********************************************************
+# Import fees from_file
+#**********************************************************
+sub paysys_import_fees {
+
+ paysys_import_form({ TYPE           => 'FEES',
+ 	                    BINDING_FIELDS => $conf{PAYSYS_FEES_BINDING},
+                      IMPORT_EXPR    => $conf{PAYSYS_FEES_IMPORT},
+                      IMPORT_RULES   => $_FEES
+                    });
+
+}
+
+
+#**********************************************************
+# Import payments from_file
+#**********************************************************
+sub paysys_import_payments {
+
+ paysys_import_form({ TYPE          => 'PAYMENTS',
+ 	                    IMPORT_TYPE   => $FORM{IMPORT_TYPE},
+                      IMPORT_RULES  => $conf{PAYSYS_IMPORT_RULES}
+                    });
+
+}
+
+
+#**********************************************************
+# Import from file
+#**********************************************************
+sub paysys_import_form {
+  my ($attr) = @_;
+  
+  my @import_types = ();
+  if ($attr->{IMPORT_RULES}) {
+    @import_types = split(/,/, $attr->{IMPORT_RULES});
+   }
+
+  my $debug = $FORM{DEBUG} || 0;
+  my $table ;
+
+	if ($FORM{IMPORT}) {
+			
+			#Default import extration	
+      my $import_expr = ($attr->{IMPORT_EXPR}) ? $attr->{IMPORT_EXPR} : '(\d+)\t(.+)\t(\d+)\t(\S+)\t([0-9.,]+)\t(\d{2}-\d{2}-\d{4})\t(.+)\t(.+):ID, FIO, PHONE, CONTRACT_ID, SUM, DATE, ADDRESS, DESCRIBE';
+
+      #Default Binding field
+      my $BINDING_FIELD = ($attr->{BINDING_FIELDS}) ? $attr->{BINDING_FIELDS} : 'CONTRACT_ID';
+
+      if (defined($attr->{IMPORT_TYPE})) {
+      	$import_expr   = $conf{'PAYSYS_IMPORT_EXPRATION_'. $attr->{IMPORT_TYPE}};
+      	$BINDING_FIELD = $conf{'PAYSYS_IMPORT_BINDING_'.$attr->{IMPORT_TYPE}} if ($conf{'PAYSYS_IMPORT_BINDING_'.$FORM{IMPORT_TYPE}});
+       }
+      #else {
+      #	
+      # }
+
+  
+      
+      my ($DATA_ARR, $BINDING_IDS);
+      my %binding_hash = ();      
+      my $total_count  = 0;
+      my $total_sum    = 0;
+
+      
+      #Confirmation
+      if (defined($FORM{IDS})) {
+     	 
+      	 my @IDS =  split(/, /, $FORM{IDS});
+       	 for (my $i=0; $i<=$#IDS; $i++) {
+       	 	 my $ID = $IDS[$i];
+       	 	 my %DATA_HASH = (
+       	 	   PAYSYS_EXT_ID  => $ID,
+       	 	   PHONE          => $FORM{'PHONE_'.$ID},
+       	 	   FIO            => $FORM{'FIO_'.$ID},
+       	 	   SUM            => $FORM{'SUM_'.$ID},
+       	 	   DATE           => $FORM{'DATE_'.$ID},
+       	 	   TYPE           => $FORM{'TYPE_'.$ID},
+       	 	   PAYMENT_METHOD => $FORM{'PAYMENT_METHOD_'.$ID},
+       	 	   DESCRIBE       => $FORM{'DESCRIBE_'.$ID},
+       	 	   ADDRESS        => $FORM{'ADDRESS_'.$ID},
+       	 	   $BINDING_FIELD => $FORM{$BINDING_FIELD.'_'.$ID}
+       	 	   );
+           push @{ $DATA_ARR }, { %DATA_HASH };
+           push @{ $BINDING_IDS }, $DATA_HASH{$BINDING_FIELD};
+    	    }
+       }
+      #Get data from file
+      elsif($FORM{FILE_DATA}) {
+	      my $content = $FORM{"FILE_DATA"}{'Contents'};
+	      ($DATA_ARR, $BINDING_IDS)=paysys_import_parse($content, $import_expr, $BINDING_FIELD);
+       
+        my $table2 = $html->table({ width  => '100%',
+                                    rows   => [ [ $_NAME,   $FORM{FILE_DATA}{filename} ],
+                                                [ $_TOTAL,  $#{ $DATA_ARR }+1 ],
+                                                [ "$_SIZE", $FORM{FILE_DATA}{Size}  ]
+                                              ]
+                                 });
+        print $table2->show();
+       }
+
+
+
+       push @PAYMENT_METHODS, @EX_PAYMENT_METHODS if (@EX_PAYMENT_METHODS);
+
+       my $ids = join(', ', @$BINDING_IDS);
+
+       my $users = Users->new($db, $admin, \%conf); 
+	     #$users->{debug}=1;
+	     $ids =~ s/, /', '/g;
+	     my $list  = $users->list({ $BINDING_FIELD => "list:'$ids'",  
+	     	                          PAGE_ROWS      => 1000000 
+	     	                        });
+
+       $binding_field_id = 5;
+       if ($BINDING_FIELD eq 'LOGIN') {
+         $binding_field_id = 0;
+        }
+
+       foreach my $line (@$list) {
+       	 $binding_hash{lc($line->[$binding_field_id])}=$line->[5+$users->{SEARCH_FIELDS_COUNT}].":$line->[0]:$line->[1]";
+        }
+
+   	   my %HIDDEN_HASH = ();
+
+       if ($FORM{PAYMENTS}) {
+ 	         for ( my $i = 0; $i<=$#{ $DATA_ARR }; $i++) {
+         	   
+         	   my $ID = $DATA_ARR->[$i]->{PAYSYS_EXT_ID} || $i;
+             if ($binding_hash{lc($DATA_ARR->[$i]->{$BINDING_FIELD})}) {
+                my($uid, $login, $fio)=split(/:/, $binding_hash{lc($DATA_ARR->[$i]->{$BINDING_FIELD})});
+                my $user = $users->info($uid);
+                $payments->add($user, { SUM  => $DATA_ARR->[$i]->{SUM},
+ 	                     DESCRIBE     => $DATA_ARR->[$i]->{DESCRIBE} || '', 
+ 	                     METHOD       => $DATA_ARR->[$i]->{PAYMENT_METHOD} || 0, 
+ 	                     DATE         => $DATA_ARR->[$i]->{DATE} || undef, 
+                       EXT_ID       => "$DATA_ARR->[$i]->{DATE}.$FORM{IMPORT_TYPE}.$ID",
+                       CHECK_EXT_ID => "$DATA_ARR->[$i]->{DATE}.$FORM{IMPORT_TYPE}.$ID",
+                       INNER_DESRIBE => ''
+                        } );
+
+
+                if ($payments->{errno} && $payments->{errno} == 7) {
+                	$html->message('err', $_ERROR, "$_EXIST: EXT_ID: $DATA_ARR->[$i]->{DATE}.$FORM{IMPORT_TYPE}.$ID");
+                 }
+                else {
+                  $total_count++;
+                  $total_sum+=$DATA_ARR->[$i]->{SUM};
+                 }
+              }
+       	     else {
+       	       $html->message('err', $_ERROR, "$_NOT_EXIST $BINDING_FIELD - $DATA_ARR->[$i]->{$BINDING_FIELD} ");
+       	      }
+          }
+
+          print $html->message('info', $_INFO, "$_TOTAL: $total_count $_SUM: $total_sum");
+          return 0;
+        }
+     	 elsif ($FORM{FEES}) {
+     	 	 for ( my $i = 0; $i<=$#{ $DATA_ARR }; $i++) {
+         	   my $ID = $DATA_ARR->[$i]->{PAYSYS_EXT_ID} || $i;
+             if ($binding_hash{$DATA_ARR->[$i]->{$BINDING_FIELD}}) {
+                my($uid, $login, $fio)=split(/:/, $binding_hash{$DATA_ARR->[$i]->{$BINDING_FIELD}});
+                my $user = $users->info($uid);
+                $fees->take($user, $DATA_ARR->[$i]->{SUM}, { 
+ 	                     DESCRIBE      => $DATA_ARR->[$i]->{DESCRIBE} || '', 
+ 	                     INNER_DESRIBE => $DATA_ARR->[$i]->{EXT_ID} || '', 
+ 	                     DATE          => $DATA_ARR->[$i]->{DATE} || undef, 
+ 	                     INNER_DESRIBE => '',
+ 	                 #    METHOD       => $DATA_ARR->[$i]->{PAYMENT_METHOD}, 
+                   #    EXT_ID       => "$DATA_ARR->[$i]->{DATE}.$FORM{IMPORT_TYPE}.$ID",
+                   #    CHECK_EXT_ID => "$DATA_ARR->[$i]->{DATE}.$FORM{IMPORT_TYPE}.$ID"
+                        } );
+
+
+                if ($payments->{errno} && $payments->{errno} == 7) {
+                	$html->message('err', $_ERROR, "$_EXIST: EXT_ID: $DATA_ARR->[$i]->{DATE}.$FORM{IMPORT_TYPE}.$ID");
+                 }
+                else {
+                  $total_count++;
+                  $total_sum+=$DATA_ARR->[$i]->{SUM};
+                 }
+              }
+       	     else {
+       	       $html->message('err', "$_FEES - $_ERROR", "$_NOT_EXIST $BINDING_FIELD - $DATA_ARR->[$i]->{$BINDING_FIELD} ");
+       	      }
+          }
+
+          print $html->message('info', $_INFO, "$_TOTAL: $total_count $_SUM: $total_sum");
+          return 0;
+     	  }
+     	 else {
+
+     	   $table = $html->table( { width      => '100%',
+                            caption    => "$_PRE Import - $import_types[$FORM{IMPORT_TYPE}]",
+                            border     => 1,
+                            title      => ['ID', "$_FIO", "$_PHONE", "$_CONTRACT_ID", "$_SUM", 
+                            "$_DATE", "$_BANK $_ACCOUNT", "$_TYPE", "$_ADDRESS", "$_DESCRIBE", '_BINDING', '-'],
+                            cols_align => ['left', 'left', 'right', 'right', 'left', 'right', 'right', 'center:noprint', 'center:noprint'],
+                            qs         => $pages_qs,
+                            ID         => 'PAYSYS_IMPORT_LIST',
+                            header     => "<script language=\"JavaScript\" type=\"text/javascript\">
+<!-- 
+function CheckAllINBOX() {
+  for (var i = 0; i < document.FORM_IMPORT.elements.length; i++) {
+    if(document.FORM_IMPORT.elements[i].type == 'checkbox' && document.FORM_IMPORT.elements[i].name == 'IDS'){
+      document.FORM_IMPORT.elements[i].checked =         !(document.FORM_IMPORT.elements[i].checked);
+    }
+  }
+}
+//-->
+</script>\n::<a href=\"javascript:void(0)\" onClick=\"CheckAllINBOX();\">$_SELECT_ALL</a>::\n"
+
+                           });
+     	   
+     	   #Draw table        
+         for ( my $i = 0; $i<=$#{ $DATA_ARR }; $i++) {
+       	   my $ID = $DATA_ARR->[$i]->{PAYSYS_EXT_ID} || $i;
+  
+       	   my $PAYMENT_METHOD_SEL =  $html->form_select('PAYMENT_METHOD_'.$ID, 
+                                { SELECTED      => $DATA_ARR->[$i]->{PAYMENT_METHOD} || '',
+ 	                                SEL_ARRAY     => \@PAYMENT_METHODS,
+ 	                                ARRAY_NUM_ID  => 1
+ 	                               });
+           my $info = ''; 
+
+           if ($binding_hash{lc($DATA_ARR->[$i]->{$BINDING_FIELD})}) {
+              my($uid, $login, $fio)=split(/:/, $binding_hash{lc($DATA_ARR->[$i]->{$BINDING_FIELD})});
+              $info = $html->button($fio, "&index=11&UID=$uid", { TARGET => $uid }) . "/$login/$uid";
+              $table->{rowcolor}=undef;
+            }
+       	   else {
+       	     $table->{rowcolor}=$_COLORS[6];
+       	    }
+      	
+      	
+           $table->addrow(
+              $html->form_input(IDS, $ID, { TYPE => 'checkbox' }) .  $ID,
+              $html->form_input('FIO_'.$ID, $DATA_ARR->[$i]->{FIO} || '', { SIZE => 40}) . "$info", 
+              $html->form_input('PHONE_'.$ID, $DATA_ARR->[$i]->{PHONE} || '', { SIZE => 12}),
+              $html->form_input('CONTRACT_ID_'. $ID, $DATA_ARR->[$i]->{CONTRACT_ID} || '', { SIZE => 12 }),
+              $DATA_ARR->[$i]->{SUM},
+              $DATA_ARR->[$i]->{DATE} || $FORM{DATE},
+              $DATA_ARR->[$i]->{BANK_ACCOUNT},
+              $PAYMENT_METHOD_SEL,
+              $DATA_ARR->[$i]->{ADDRESS},
+              $html->form_input('DESCRIBE_'.$ID, $DATA_ARR->[$i]->{DESCRIBE} || ''),
+              $html->form_input($BINDING_FIELD.'_'.$ID, $DATA_ARR->[$i]->{$BINDING_FIELD} || '')
+             );
+          
+           $HIDDEN_HASH{'SUM_'.$ID}         = $DATA_ARR->[$i]->{SUM};
+           $HIDDEN_HASH{'DATE_'.$ID}        = $DATA_ARR->[$i]->{DATE} || $FORM{DATE};
+           $HIDDEN_HASH{'BANK_ACCOUNT_'.$ID}= $DATA_ARR->[$i]->{BANK_ACCOUNT};
+           $HIDDEN_HASH{'ADDRESS_'.$ID}     = $DATA_ARR->[$i]->{ADDRESS};
+         
+         
+           $total_count++;
+           $total_sum += $DATA_ARR->[$i]->{SUM};
+          }
+        }
+
+       print $html->form_main({ CONTENT => $table->show() .
+       	                   $html->form_input($attr->{TYPE}, 1, { TYPE => 'checkbox' }) . ( ($attr->{TYPE} && $attr->{TYPE} eq 'FEES' ) ? "$_FEES" : " $_PAYMENTS " ),
+  	                       HIDDEN  => { index       => "$index",
+  	                       	            OP_SID      => $op_sid,
+  	                       	            IMPORT_TYPE => $FORM{IMPORT_TYPE},
+  	                       	            %HIDDEN_HASH
+  	                       	           },
+	                         SUBMIT  => { 
+	                         	            IMPORT  => "IMPORT" 
+	                         	           },
+	                         NAME    => 'FORM_IMPORT'
+	                        });
+
+      $table = $html->table( { width      => '100%',
+                               cols_align => ['right', 'right'],
+                               rows       => [ [ "$_TOTAL:", "$total_count", "$_SUM", $total_sum ] ]
+                            } );
+      print $table->show();
+
+
+	 }
+
+
+
+  $info{IMPORT_TYPE_SEL} = $html->form_select('IMPORT_TYPE', 
+                                      { 
+ 	                                      SELECTED     => $FORM{IMPORT_TYPE},
+ 	                                      SEL_ARRAY    => \@import_types || undef,
+ 	                                      ARRAY_NUM_ID => 1
+                                       });
+
+
+	$html->tpl_show(_include('paysys_file_import', 'Paysys'), \%info);
+}
+
+
+#**********************************************************
+# Parce file
+#**********************************************************
+sub paysys_import_parse {
+	my ($content, $import_expr, $BINDING_FIELD) = @_; 
+  my @DATA_ARR = (); 
+  my @BINDING_IDS = ();	     
+
+  
+  $import_expr=~s/ //g;
+  $import_expr=~s/\n//g;
+  my ($expration, $columns)=split(/:/, $import_expr);
+  my @EXPR_IDS = split(/,/, $columns);
+  
+  print "Expration: $expration\n";	     
+  my @rows = split(/[\r]{0,1}\n/, $content);
+  
+       
+        foreach my $line (@rows) {
+        	 my %DATA_HASH = ();
+           #next if ($#params < $#EXPR_IDS);
+           if (my @res = ($line =~ /$expration/)) {
+           	 for (my $i=0; $i<=$#res; $i++) {
+           	 	 print "$EXPR_IDS[$i] / $res[$i]<br>" if ($debug > 1);
+               next if ($EXPR_IDS[$i] eq 'UNDEF');
+
+               $DATA_HASH{$EXPR_IDS[$i]}=$res[$i];
+
+               if ($EXPR_IDS[$i] eq 'PHONE') {
+                 $DATA_HASH{$EXPR_IDS[$i]} =~ s/-//g;
+                }
+               elsif ($EXPR_IDS[$i] eq 'LOGIN') {
+                 $DATA_HASH{$EXPR_IDS[$i]} =~ s/ //g ;
+                }
+               elsif ($EXPR_IDS[$i] eq 'CONTRACT_ID') {
+                 $DATA_HASH{$EXPR_IDS[$i]} =~ s/-//g ;
+                }
+               elsif ($EXPR_IDS[$i] eq 'SUM') {
+                 $DATA_HASH{$EXPR_IDS[$i]} =~ s/,/\./g;
+                }
+               elsif ($EXPR_IDS[$i] eq 'DATE' && $DATA_HASH{$EXPR_IDS[$i]} =~ /^(\d{2})[.-](\d{2})[.-](\d{4})$/) {
+                 $DATA_HASH{$EXPR_IDS[$i]} = "$3-$2-$1";
+                }
+               
+        	    }
+
+             push @DATA_ARR, { %DATA_HASH };
+             
+             push @BINDING_IDS, $DATA_HASH{$BINDING_FIELD} if ($DATA_HASH{$BINDING_FIELD});
+            }
+           else {
+            print "'$line'<br>\n";	
+           }
+        }
+
+  return \@DATA_ARR, \@BINDING_IDS;
+}
 
 
 #**********************************************************
@@ -36,11 +396,15 @@ sub paysys_payment {
 	elsif($FORM{PAYMENT_SYSTEM} == 2) {
      paysys_rupay();
 	 }
+	elsif($FORM{PAYMENT_SYSTEM} == 3) {
+     paysys_smsproxy();
+	 }
 	else {
 	  my %info = ();
 	  $info{OPERATION_ID}   = mk_unique_value(8, {  SYMBOLS => '0123456789' });
 	  my %PAY_SYSTEM_ACCOUNTS = (1 => 'PAYSYS_WEBMONEY_ACCOUNTS',
-	                             2 => 'PAYSYS_RUPAY_ID' );
+	                             2 => 'PAYSYS_RUPAY_ID',
+	                             3 => 'PAYSYS_SMSPROXY' );
 	  
 	  while(my($k, $v) = each %PAY_SYSTEMS) {
 	  	delete $PAY_SYSTEMS{$k} if (! $conf{$PAY_SYSTEM_ACCOUNTS{$k}});
@@ -51,7 +415,7 @@ sub paysys_payment {
                                           { 
  	                                          SELECTED  => $FORM{PAYMENT_SYSTEM},
  	                                          SEL_HASH  => \%PAY_SYSTEMS,
- 	                                          NO_ID     => 'y'
+ 	                                          NO_ID     => 1
  	                                        });
 
 	  $html->tpl_show(_include('paysys_main', 'Paysys'), \%info);
@@ -65,7 +429,7 @@ sub paysys_log {
  	
 
 if ($FORM{info}) {
-	$Paysys->info($FORM{info});
+	$Paysys->info({ID => $FORM{info} });
   
   my @info_arr = split(/\n/, $Paysys->{INFO});
   my $table = $html->table( { width => '100%' });
@@ -76,14 +440,16 @@ if ($FORM{info}) {
 
   $Paysys->{INFO}=$table->show();
 
-  $table = $html->table( { width => '500',
+  $table = $html->table( { width   => '500',
+  	                       caption => $_INFO,
                            rows => [ [ "ID",            $Paysys->{ID}       ],
                                      [ "$_LOGIN",       $Paysys->{LOGIN}    ],
                                      [ "$_DATE",        $Paysys->{DATETIME} ],
                                      [ "$_SUM",         $Paysys->{SUM}      ],
                                      [ "$_PAY_SYSTEM",  $PAY_SYSTEMS{$Paysys->{SYSTEM_ID}}        ],
                                      [ "$_TRANSACTION", $Paysys->{TRANSACTION_ID}  ],
-                                     [ "IP",            $Paysys->{IP}       ],
+                                     [ "$_USER IP",     $Paysys->{IP}       ],
+                                     [ "PAYSYS IP",     $Paysys->{PAYSYS_IP}],
                                      [ "$_INFO",        $Paysys->{INFO}     ]
                                     ]
                         } );
@@ -110,11 +476,13 @@ $info{PAY_SYSTEMS_SEL}=$html->form_select('PAYMENT_SYSTEM',
                                           { 
  	                                          SELECTED  => $FORM{PAYMENT_SYSTEM},
  	                                          SEL_HASH  => \%PAY_SYSTEMS,
- 	                                          NO_ID     => 'y'
+ 	                                          NO_ID     => 1
  	                                        });
 
 
-form_search({ SEARCH_FORM => $html->tpl_show(_include('paysys_search', 'Paysys'), { %info, %FORM }, { notprint => 1 })  
+form_search({ SEARCH_FORM => $html->tpl_show(_include('paysys_search', 'Paysys'), 
+	                         { %info, %FORM }, 
+	                         { notprint => 1 })  
 	            });
 
 
@@ -137,7 +505,7 @@ my $table = $html->table( { width      => '100%',
 foreach my $line (@$list) {
  
   $table->addrow($line->[0],
-    $html->button("$line->[1]", "index=15&UID=$line->[8]"), 
+    $html->button("$line->[1]", "index=15&UID=$line->[7]"), 
     "$line->[2]", 
     "$line->[3]", 
     "$PAY_SYSTEMS{$line->[4]}", 
@@ -164,7 +532,7 @@ print $table->show();
 sub paysys_user_log {
 	
 	if ($FORM{info}) {
-	$Paysys->info($FORM{info});
+	$Paysys->info({ ID => $FORM{info} });
   
   my @info_arr = split(/\n/, $Paysys->{INFO});
   my $table = $html->table( { width => '100%' });
@@ -236,7 +604,7 @@ sub paysys_webmoney () {
 
 
 if ($FORM{FALSE}) {
-	$html->message('err', $_ERROR, "$_FAILED ID: $FORM{LMI_PAYMENT_NO}");
+	$html->message('err', $_ERROR, "$_FAILED $_TRANSACTION ID: $FORM{LMI_PAYMENT_NO}");
  }
 elsif ($FORM{LMI_PAYMENT_NO}) {
 	my $users = Users->new($db, $admin, \%conf); 
@@ -249,13 +617,33 @@ elsif ($FORM{LMI_PAYMENT_NO}) {
 		$html->message('err', $_ERROR, "$_NOT_EXIST");
 	 }
 	else {
-    my $list = $Paysys->list({ TRANSACTION_ID => "$FORM{'LMI_PAYMENT_NO'}", UID => $LIST_PARAMS{UID} });
-
-    if ($Paysys->{TOTAL} > 0) {
-	    $html->message('info', $_INFO, "$_ADDED $_SUM: $list->[0][3] ID: $FORM{LMI_PAYMENT_NO}");
-	   }
+    if ($conf{PAYSYS_LMI_RESULT_URL}) {
+    	$html->message('info', $_INFO, "$_ADDED ID: $FORM{LMI_PAYMENT_NO}");
+     }
     else {
-    	$html->message('err', $_ERROR, "$_FAILED ID: $FORM{LMI_PAYMENT_NO} $_ERR_NO_TRANSACTION");
+      my $list = $Paysys->list({ TRANSACTION_ID => "$FORM{'LMI_PAYMENT_NO'}", UID => $LIST_PARAMS{UID} });
+
+      if ($Paysys->{TOTAL} > 0) {
+	      $html->message('info', $_INFO, "$_ADDED $_SUM: $list->[0][3] ID: $FORM{LMI_PAYMENT_NO}");
+
+	      if ($conf{PAYSYS_EMAIL_NOTICE}) {
+	      	my $message = "\n".
+	      	 "System: Webmoney\n".
+	      	 "$_DATE: $DATE $TIME\n".
+	      	 "$_LOGIN: $user->{LOGIN} [$LIST_PARAMS{UID}]\n".
+	      	 "\n".
+       	   "\n".
+	      	 "ID: $FORM{LMI_PAYMENT_NO}\n".
+	      	 "$_SUM: $list->[0][3]\n";
+
+          sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "Paysys Webmoney Add", 
+              "$message", "$conf{MAIL_CHARSET}", "2 (High)");
+	      	
+	       }
+	     }
+      else {
+    	  $html->message('err', $_ERROR, "$_FAILED ID: $FORM{LMI_PAYMENT_NO} $_ERR_NO_TRANSACTION");
+       }
      }
 	 }
 
@@ -278,18 +666,109 @@ $info{ACCOUNTS_SEL}=$html->form_select('LMI_PAYEE_PURSE',
                                       { 
  	                                      SELECTED  => $FORM{sum_val},
  	                                      SEL_ARRAY => \@ACCOUNTS,
- 	                                      NO_ID     => 'y'
+ 	                                      NO_ID     => 1
                                        });
 
 $info{LMI_PAYMENT_AMOUNT}=$FORM{SUM};
 
 
-$conf{PAYSYS_LMI_RESULT_URL} = "http://$ENV{SERVER_NAME}$ENV{REQUEST_URI}" if (! $conf{PAYSYS_LMI_RESULT_URL});
+#$conf{PAYSYS_LMI_RESULT_URL} = "http://$ENV{SERVER_NAME}". ( ($ENV{SERVER_PORT} != 80) ? ":$ENV{SERVER_PORT}" : '' ) ."$ENV{REQUEST_URI}" if (! $conf{PAYSYS_LMI_RESULT_URL});
+
+$conf{PAYSYS_LMI_RESULT_URL} = "http://$ENV{SERVER_NAME}". ( ($ENV{SERVER_PORT} != 80) ? ":$ENV{SERVER_PORT}" : '' ) ."/paysys_check.cgi" if (! $conf{PAYSYS_LMI_RESULT_URL});
+
+
 $html->tpl_show(_include('paysys_webmoney_add', 'Paysys'), \%info);
 
 
 }
 
+
+#**********************************************************
+#
+#**********************************************************
+sub paysys_smsproxy {
+	
+	my %info = ();
+	
+if ($FORM{CODE}) {
+	my $list = $Paysys->info({ CODE => "$FORM{CODE}", UID => 0  });
+
+  if ($Paysys->{TOTAL} > 0) {
+    my @info_arr = split(/, /, $Paysys->{INFO});
+    my $INFO_HASH = ();
+    foreach my $l (@info_arr) {
+    	my($k, $v)=split(/: /, $l, 2);
+    	$INFO_HASH{$k}=$v;
+     }
+    
+    if ($Paysys->{UID} > 0) {
+    	$html->message('err', $_ERROR, "$_FAILED");
+     }
+    else {
+   		my $users = Users->new($db, $admin, \%conf); 
+	    my $user = $users->info($LIST_PARAMS{UID});
+	
+	    if ($user->{errno}) {
+		    $html->message('err', $_ERROR, "$_ERROR $user->{errno}");
+	     }
+	    elsif ($user->{TOTAL} < 0) {
+		    $html->message('err', $_ERROR, "$_NOT_EXIST");
+	     }
+	    else {
+        #Exchange rate
+        my $er = 1;
+        $payments->exchange_info(0, { SHORT_NAME => "SMSPROXY"  });
+        if ($payments->{TOTAL} > 0) {
+      	  $er = $payments->{ER_RATE};
+         }
+    
+        
+        $payments->add($user, {SUM  => $Paysys->{SUM},
+ 	                     DESCRIBE     => 'SMSProxy', 
+ 	                     METHOD       => '2', 
+                       EXT_ID       => $Paysys->{TRANSACTION_ID},
+                       CHECK_EXT_ID => $Paysys->{TRANSACTION_ID},
+                       ER           => $er
+                        } );  
+
+        if ($payments->{errno} && $payments->{errno} == 7) {
+          $html->message('err', $_ERROR, "$_EXIST");
+          return 0;
+         }
+        elsif ($payments->{errno}) {
+          $html->message('err', $_ERROR, "$_ERROR ID: $Paysys->{TRANSACTION_ID}");
+         }
+        else {
+    	    $status = "Added $payments->{INSERT_ID}\n";
+          $html->message('info', $_INFO, "$_ADDED $_SUM: $Paysys->{SUM} ID: $INFO_HASH{ID}");
+          if ($conf{PAYSYS_EMAIL_NOTICE}) {
+             	my $message = "\n".
+   	         	 "System: SMS PROXY\n".
+	        	   "$_DATE: $DATE $TIME\n".
+	        	   "$_LOGIN: $user->{LOGIN} [$LIST_PARAMS{UID}]\n".
+	        	   "\n".
+       	       "\n".
+	      	     "ID: $Paysys->{INFO}\n".
+	      	     "$_SUM: $Paysys->{SUM}\n";
+
+              sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "Paysys Webmoney Add", 
+                "$message", "$conf{MAIL_CHARSET}", "2 (High)");
+           }
+         }
+
+	    }
+      return 0;
+    }
+  
+    $html->message('info', $_INFO, "$_TRANSACTION_PROCESSING $_SUM: $list->[0][3] ID: $FORM{OPERATION_ID}");
+   }
+  else {
+  	$html->message('err', $_ERROR, "$_FAILED $_NOT_EXIST");
+   }
+ }
+
+  $html->tpl_show(_include('paysys_smsproxy_add', 'Paysys'), \%info);
+}
 
 #**********************************************************
 #
@@ -319,7 +798,7 @@ $info{SUM_VAL_SEL}=$html->form_select('sum_val',
                                     { 
  	                                      SELECTED  => $FORM{sum_val},
  	                                      SEL_ARRAY => [USD, EUR, UAH, RUR],
- 	                                      NO_ID     => 'y'
+ 	                                      NO_ID     => 1
                                      });
 
 	$info{OPERATION_ID}  = $FORM{OPERATION_ID};  
@@ -330,11 +809,10 @@ $info{SUM_VAL_SEL}=$html->form_select('sum_val',
 }
 
 
-
-
+#**********************************************************
+# 
+#**********************************************************
 sub wm_validate {
-	
-	
  eval { require Digest::MD5; };
  if (! $@) {
     Digest::MD5->import();
@@ -361,10 +839,6 @@ sub wm_validate {
   
   print $digest;
 }
-
-
-
-
 
 1
 

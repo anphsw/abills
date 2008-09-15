@@ -42,7 +42,6 @@ sub new {
   my $self = { };
   bless($self, $class);
 
-  #$self->{debug}=1;
   my $Auth = Auth->new($db, $conf);
   $Billing = Billing->new($db, $conf);	
 
@@ -65,9 +64,11 @@ sub preproces {
 	(undef, $RAD->{H323_CONF_ID})=split(/=/, $RAD->{H323_CONF_ID}, 2) if ($RAD->{H323_CONF_ID} =~ /=/);
 	$RAD->{H323_CONF_ID} =~ s/ //g;
 
-  (undef, $RAD->{H323_CALL_ORIGIN})=split(/=/, $RAD->{H323_CALL_ORIGIN}, 2) if ($RAD->{H323_CALL_ORIGIN} =~ /=/);
-  $RAD->{H323_CALL_ORIGIN} = $CALLS_ORIGIN{$RAD->{H323_CALL_ORIGIN}};
-  
+  if ($RAD->{H323_CALL_ORIGIN}) {
+    (undef, $RAD->{H323_CALL_ORIGIN})=split(/=/, $RAD->{H323_CALL_ORIGIN}, 2) if ($RAD->{H323_CALL_ORIGIN} =~ /=/);
+    $RAD->{H323_CALL_ORIGIN} = $CALLS_ORIGIN{$RAD->{H323_CALL_ORIGIN}};
+   }
+
   (undef, $RAD->{H323_DISCONNECT_CAUSE}) = split(/=/, $RAD->{H323_DISCONNECT_CAUSE}, 2) if (defined($RAD->{H323_DISCONNECT_CAUSE}));
 
   $RAD->{CLIENT_IP_ADDRESS} = $RAD->{FRAMED_IP_ADDRESS} if($RAD->{FRAMED_IP_ADDRESS});
@@ -181,7 +182,7 @@ sub auth {
   elsif ($self->{TOTAL} < 1) {
     $self->{errno} = 2;
     $self->{errstr} = 'ERROR_NOT_EXIST';
-    $RAD_PAIRS{'Reply-Message'}="Number not exist '$RAD->{USER_NAME}'";
+    $RAD_PAIRS{'Reply-Message'}="Caller Number Not Exist '$RAD->{USER_NAME}'";
     return 1, \%RAD_PAIRS;
    }
 
@@ -197,7 +198,7 @@ sub auth {
      return 1, \%RAD_PAIRS;
  	  }
   }
-  
+
 
 #DIsable
 if ($self->{DISABLE} ||  $self->{VOIP_DISABLE} || $self->{USER_DISABLE}) {
@@ -239,18 +240,20 @@ else {
 
      # Get route
      my $query_params = '';
+
      
      for (my $i=1; $i<=length($RAD->{'CALLED_STATION_ID'}); $i++) { 
      	 $query_params .= '\''. substr($RAD->{'CALLED_STATION_ID'}, 0, $i) . '\','; 
      	}
      chop($query_params);
 
-     $self->query($db, "SELECT id,
-      prefix,
-      gateway_id,
-      disable
-     FROM voip_routes
-      WHERE prefix in ($query_params)
+
+     $self->query($db, "SELECT r.id,
+      r.prefix,
+      r.gateway_id,
+      r.disable
+     FROM voip_routes r
+      WHERE r.prefix in ($query_params)
       ORDER BY 2 DESC LIMIT 1;");
 
     if ($self->{TOTAL} < 1) {
@@ -262,18 +265,21 @@ else {
     ($self->{ROUTE_ID},
      $self->{PREFIX},
      $self->{GATEWAY_ID}, 
-     $self->{ROUTE_DISABLE}
+     $self->{ROUTE_DISABLE},
+     $self->{TRUNK_PROTOCOL},
+     $self->{TRUNK_PATH}
     )= @{ $self->{list}->[0] };
   
     if ($self->{ROUTE_DISABLE} == 1) {
        $RAD_PAIRS{'Reply-Message'}="Route disabled '". $RAD->{'CALLED_STATION_ID'} ."'";
        return 1, \%RAD_PAIRS;
      }
-    
-    #Get intervals and prices
 
+
+    #Get intervals and prices
     if ($RAD->{H323_CALL_ORIGIN} == 1) {
        $self->get_intervals();
+
        if ($self->{TOTAL} < 1) {
          $RAD_PAIRS{'Reply-Message'}="No price for route prefix '$self->{PREFIX}' number '". $RAD->{'CALLED_STATION_ID'} ."'";
          return 1, \%RAD_PAIRS;
@@ -296,12 +302,59 @@ else {
 
          #$RAD_PAIRS{'h323-credit-time'}=$session_timeout;
        }
-       
-       
-         #Make start record in voip_calls
+  
 
+#Make trunk data for asterisk  
+if ($NAS->{NAS_TYPE} eq 'asterisk' and $self->{TRUNK_PROTOCOL}) {
+	  $self->{prepend} = '';
+    
+    my $number = $RAD->{'CALLED_STATION_ID'};
+    if ($self->{REMOVE_PREFIX}) {
+    	$number =~ s/^$self->{REMOVE_PREFIX}//;
+     }
+
+    if ($self->{ADDPREFIX}) {
+    	$number = $self->{ADDPREFIX}. $number;
+     }
+
+    if ( $self->{TRUNK_PROTOCOL} eq "Local" ) {
+        $RAD_PAIRS{'next-hop-ip'} = "Local/"
+          . $self->{prepend}
+          . $number . "\@"
+          . $self->{TRUNK_PROVIDER} . "/n";
+    }
+    elsif (  $self->{TRUNK_PROTOCOL} eq "IAX2" ) {
+        $RAD_PAIRS{'next-hop-ip'} =
+          "IAX2/" . $self->{TRUNK_PROVIDER} . "/" . $self->{prepend} . $number;
+     }
+    elsif (  $self->{TRUNK_PROTOCOL} eq "Zap" ) {
+        $RAD_PAIRS{'next-hop-ip'} =
+          "Zap/" . $self->{TRUNK_PROVIDER} . "/" . $self->{prepend} . $number;
+    }
+    elsif (  $self->{TRUNK_PROTOCOL} eq "SIP" ) {
+        $RAD_PAIRS{'next-hop-ip'} =
+          "SIP/" . $self->{prepend} . $number . "\@" . $self->{TRUNK_PROVIDER};
+     }
+    elsif (  $self->{TRUNK_PROTOCOL} eq "OH323" ) {
+        $RAD_PAIRS{'next-hop-ip'} =
+          "OH323/" . $self->{TRUNK_PROVIDER} . "/" . $self->{prepend} . $number;
+    }
+    elsif (  $self->{TRUNK_PROTOCOL} eq "OOH323C" ) {
+        $RAD_PAIRS{'next-hop-ip'} =
+          "OOH323C/" . $self->{prepend} . $number . "\@" . $self->{TRUNK_PROVIDER};
+    }
+    elsif (  $self->{TRUNK_PROTOCOL} eq "H323" ) {
+        $RAD_PAIRS{'next-hop-ip'} =
+          "H323/" . $self->{prepend} . $number . "\@" . $self->{TRUNK_PROVIDER};
+    }
+
+    $RAD_PAIRS{'session-protocol'}=$self->{TRUNK_PROTOCOL};
+    
+ }    
+       
+
+  #Make start record in voip_calls
   my $SESSION_START = 'now()';
-
   $self->query($db, "INSERT INTO voip_calls 
    (  status,
       user_name,
@@ -345,9 +398,16 @@ sub get_intervals {
 	my $self = shift;
 	my ($attr) = @_;
 	
-	
-  $self->query($db, "select i.day, TIME_TO_SEC(i.begin), TIME_TO_SEC(i.end), rp.price, i.id, rp.route_id
+  $self->query($db, "SELECT i.day, TIME_TO_SEC(i.begin), TIME_TO_SEC(i.end), 
+    rp.price, i.id, rp.route_id,
+    if (t.protocol IS NULL, '', t.protocol),
+    if (t.protocol IS NULL, '', t.provider_ip),
+    if (t.protocol IS NULL, '', t.addparameter),
+    if (t.protocol IS NULL, '', t.removeprefix),
+    if (t.protocol IS NULL, '', t.addprefix),
+    if (t.protocol IS NULL, '', t.failover_trunk)
       from intervals i, voip_route_prices rp
+      LEFT JOIN voip_trunks t ON (rp.trunk=t.id)       
       where
          i.id=rp.interval_id 
          and i.tp_id  = '$self->{TP_ID}'
@@ -356,15 +416,21 @@ sub get_intervals {
    my $list = $self->{list};
    my %time_periods = ();
    my %periods_time_tarif = ();
-   
+   $self->{TRUNK_PATH}='';
+   $self->{TRUNK_PROVIDER}='';
+
    foreach my $line (@$list) {
      #$time_periods{INTERVAL_DAY}{INTERVAL_START}="INTERVAL_ID:INTERVAL_END";
      $time_periods{$line->[0]}{$line->[1]} = "$line->[4]:$line->[2]";
      #$periods_time_tarif{INTERVAL_ID} = "INTERVAL_PRICE";
      $periods_time_tarif{$line->[4]} = $line->[3];
+     $self->{TRUNK_PROTOCOL}= $line->[6];
+     $self->{TRUNK_PROVIDER}= $line->[7];
+     $self->{ADDPARAMETER}  = $line->[8];
+     $self->{REMOVE_PREFIX} = $line->[9];
+     $self->{ADDPREFIX}     = $line->[10];
+     $self->{FAILOVER_TRUNK}= $line->[11];
     }
-
-
   $self->{TIME_PERIODS}=\%time_periods;
   $self->{PERIODS_TIME_TARIF}=\%periods_time_tarif;
 	
@@ -402,7 +468,6 @@ if ($acct_status_type == 1) {
 elsif ($acct_status_type == 2) {
 
   if ($RAD->{ACCT_SESSION_TIME} > 0) {
-    #$self->{debug}=1;
     $self->query($db, "SELECT 
       UNIX_TIMESTAMP(started),
       lupdated,

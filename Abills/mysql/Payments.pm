@@ -1,5 +1,5 @@
 package Payments;
-# Finance module
+# Payments Finance module
 #
 
 use strict;
@@ -66,6 +66,7 @@ sub defaults {
            BILL_ID      => 0, 
            SUM          => '0.00', 
            DESCRIBE     => '', 
+           INNER_DESCRIBE => '',
            IP           => '0.0.0.0',
            LAST_DEPOSIT => '0.00', 
            AID          => 0,
@@ -87,17 +88,29 @@ sub add {
   my $self = shift;
   my ($user, $attr) = @_;
 
-  %DATA = $self->get_data($attr); 
+  %DATA = $self->get_data($attr, { default => defaults() }); 
  
-
   if ($DATA{SUM} <= 0) {
      $self->{errno} = 12;
      $self->{errstr} = 'ERROR_ENTER_SUM';
      return $self;
    }
   
+  if ($DATA{CHECK_EXT_ID}) {
+    $self->query($db, "SELECT uid FROM payments WHERE ext_id='$DATA{CHECK_EXT_ID}';");
+    if ($self->{TOTAL} > 0) {
+      $self->{errno}=7;
+      $self->{errstr}='ERROR_DUBLICATE';
+      return $self;	
+     }
+   }
+  
+  #$db->{AutoCommit}=0; 
+
+  $user->{BILL_ID} = $attr->{BILL_ID} if ($attr->{BILL_ID});
+  
   if ($user->{BILL_ID} > 0) {
-    if ($DATA{ER} != 1) {
+    if ($DATA{ER} && $DATA{ER} != 1) {
       $DATA{SUM} = $DATA{SUM} / $DATA{ER} if (defined($DATA{ER}));
      }
 
@@ -107,11 +120,16 @@ sub add {
       return $self;
      }
     
-    $self->query($db, "INSERT INTO payments (uid, bill_id, date, sum, dsc, ip, last_deposit, aid, method, ext_id) 
-           values ('$user->{UID}', '$user->{BILL_ID}', now(), '$DATA{SUM}', '$DATA{DESCRIBE}', INET_ATON('$admin->{SESSION_IP}'), '$Bill->{DEPOSIT}', '$admin->{AID}', '$DATA{METHOD}', '$DATA{EXT_ID}');", 'do');
+    my $date = ($DATA{DATE}) ? "'$DATA{DATE}'" : 'now()';
     
+    $self->query($db, "INSERT INTO payments (uid, bill_id, date, sum, dsc, ip, last_deposit, aid, method, ext_id,
+           inner_describe) 
+           values ('$user->{UID}', '$user->{BILL_ID}', $date, '$DATA{SUM}', '$DATA{DESCRIBE}', INET_ATON('$admin->{SESSION_IP}'), '$Bill->{DEPOSIT}', '$admin->{AID}', '$DATA{METHOD}', 
+           '$DATA{EXT_ID}', '$DATA{INNER_DESCRIBE}');", 'do');
+
+
     if ($CONF->{payment_chg_activate} && $user->{ACTIVATE} ne '0000-00-00') {
-      $user->change($user->{UID}, { UID => $user->{UID}, 
+      $user->change($user->{UID}, { UID      => $user->{UID}, 
       	                            ACTIVATE => "$admin->{DATE}",
       	                            EXPIRE   => '0000-00-00' });
      }
@@ -121,6 +139,9 @@ sub add {
     $self->{errno}=14;
     $self->{errstr}='No Bill';
   }
+  
+  #$db->commit;
+  #$db->rollback;
   
   return $self;
 }
@@ -195,6 +216,12 @@ sub list {
     push @WHERE_RULES, "p.dsc LIKE '$attr->{DESCRIBE}' ";
   }
 
+ if ($attr->{INNER_DESCRIBE}) {
+    $attr->{INNER_DESCRIBE} =~ s/\*/\%/g;
+    push @WHERE_RULES, "p.inner_describe LIKE '$attr->{INNER_DESCRIBE}'";
+  }
+
+
  if ($attr->{SUM}) {
     my $value = $self->search_expr($attr->{SUM}, 'INT');
     push @WHERE_RULES, "p.sum$value ";
@@ -225,7 +252,8 @@ sub list {
   }
 
  if ($attr->{EXT_ID}) {
- 	 push @WHERE_RULES, "p.ext_id='$attr->{EXT_ID}'";
+   $attr->{EXT_ID} =~ s/\*/\%/g;
+   push @WHERE_RULES, "p.ext_id LIKE '$attr->{EXT_ID}'";
   }
 
  if ($attr->{ID}) {
@@ -244,7 +272,7 @@ sub list {
  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
  
  $self->query($db, "SELECT p.id, u.id, p.date, p.sum, p.dsc, if(a.name is null, 'Unknown', a.name),  
-      INET_NTOA(p.ip), p.last_deposit, p.method, p.ext_id, p.uid 
+      INET_NTOA(p.ip), p.last_deposit, p.method, p.ext_id, p.bill_id, p.uid, p.inner_describe
     FROM payments p
     LEFT JOIN users u ON (u.uid=p.uid)
     LEFT JOIN admins a ON (a.aid=p.aid)
@@ -257,12 +285,13 @@ sub list {
  return $self->{list}  if ($self->{TOTAL} < 1);
  my $list = $self->{list};
 
- $self->query($db, "SELECT count(p.id), sum(p.sum) FROM payments p
+ $self->query($db, "SELECT count(p.id), sum(p.sum), count(DISTINCT p.uid) FROM payments p
   LEFT JOIN users u ON (u.uid=p.uid)
   LEFT JOIN admins a ON (a.aid=p.aid) $WHERE");
 
  ( $self->{TOTAL},
-   $self->{SUM} )= @{ $self->{list}->[0] };
+   $self->{SUM},
+   $self->{TOTAL_USERS} )= @{ $self->{list}->[0] };
 
  return $list;
 }
@@ -290,9 +319,8 @@ sub reports {
   }
 
  if ($attr->{METHODS}) {
-    push @WHERE_RULES, "p.method IN ('$attr->{METHODS}') ";
+    push @WHERE_RULES, "p.method IN ($attr->{METHODS}) ";
   }
-
  
  if(defined($attr->{DATE})) {
    push @WHERE_RULES, "date_format(p.date, '%Y-%m-%d')='$attr->{DATE}'";

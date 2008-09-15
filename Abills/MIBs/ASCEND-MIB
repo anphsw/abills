@@ -9,7 +9,7 @@
 --		Copyright (c) 1993-1997 Ascend Communications, Inc.
 --		All rights reserved.
 --
--- CVS ID:      $Id: ASCEND-MIB,v 1.1.2.1 2007/01/10 12:05:12 abills Exp $
+-- CVS ID:      $Id: ASCEND-MIB,v 1.2 2007/11/15 09:29:38 abills Exp $
 --
 -- 01 Dec 93:	Initial release
 -- 18 Aug 94:	Added status and console groups

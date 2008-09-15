@@ -143,7 +143,7 @@ sub ip_list() {
   $PG   = ($attr->{PG}) ? $attr->{PG} : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  
+  @WHERE_RULES = ();
 
   if ($attr->{GID}) {
     my $value = $self->search_expr($attr->{GID}, 'INT');

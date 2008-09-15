@@ -263,33 +263,34 @@ if ($Ipn->{INTERIM}{$ip}) {
      	  my $prepaid = $intervals->{$user_tp_interval}->{ZONES}->{$k}->{PREPAID_TSUM};
      	  if ($debug > 1) {
           print "Prepaid traffic: $prepaid CLASS: $k USED: $used_traffic->{$k}{TRAFFIC_SUM}\n";
-        }
+         }
 
 # print "$used_traffic->{$k}{TRAFFIC_OUT} + $used_traffic->{$k}{TRAFFIC_IN} + ($in + $out) / $conf{MB_SIZE}\n";
 # print $OCTETS_DIRECTION."\n";
 # print "$used_traffic->{$k}{TRAFFIC_SUM} < $prepaid\n";
+        #Check lost of prepaid traffic in log
         if ($used_traffic->{$k}{TRAFFIC_SUM} < $prepaid) {
-           $price_in = 0;
-           $price_out = 0;
-         }
-        elsif ($used_traffic->{$k}{TRAFFIC_SUM} + $online / $conf{MB_SIZE} > $prepaid 
-            && $used_traffic->{$k}{TRAFFIC_SUM} < $prepaid) {
-          my $not_prepaid = ($used_traffic->{$k}{TRAFFIC_SUM} * $conf{MB_SIZE} + $online ) - $prepaid * $conf{MB_SIZE};
+        	#if online have more then log + online make last traffic calculation
+          if ($used_traffic->{$k}{TRAFFIC_SUM} + $online / $conf{MB_SIZE} > $prepaid ) {
+            my $not_prepaid = ($used_traffic->{$k}{TRAFFIC_SUM} * $conf{MB_SIZE} + $online ) - $prepaid * $conf{MB_SIZE};
     
-          my $sent = ($OCTETS_DIRECTION == 2) ?  $not_prepaid : $not_prepaid / 2;
-          my $recv = ($OCTETS_DIRECTION == 1) ?  $not_prepaid : $not_prepaid / 2;
+            my $sent = ($OCTETS_DIRECTION == 2) ?  $not_prepaid : $not_prepaid / 2;
+            my $recv = ($OCTETS_DIRECTION == 1) ?  $not_prepaid : $not_prepaid / 2;
 
-          $sum_in    = $recv / $conf{MB_SIZE} * $price_in if ($price_in > 0); 
-          $sum_out   = $sent / $conf{MB_SIZE} * $price_out if ($price_out > 0);
+            $sum_in    = $recv / $conf{MB_SIZE} * $price_in if ($price_in > 0); 
+            $sum_out   = $sent / $conf{MB_SIZE} * $price_out if ($price_out > 0);
+           }
+
           $price_in  = 0;
           $price_out = 0;
          }
+
         #exit;
       }
 
      
-     $sum_in = $in / $conf{MB_SIZE} * $price_in if ($price_in > 0); 
-     $sum_out = $out / $conf{MB_SIZE} * $price_out if ($price_out > 0);
+     $sum_in += $in / $conf{MB_SIZE} * $price_in if ($price_in > 0); 
+     $sum_out += $out / $conf{MB_SIZE} * $price_out if ($price_out > 0);
 
      my $traf_class_sum = $sum_in + $sum_out;
      $total_user_sum += $traf_class_sum ;
@@ -372,37 +373,69 @@ elsif($total_user_sum > 0 && $uid > 0) {
            defined($Ipn->{USERS_INFO}->{DEPOSIT}->{$uid}) && 
             $Ipn->{USERS_INFO}->{DEPOSIT}->{$uid} < 0)  {
          my @ip_array = split(/\./, $ip_addr, 4);
-         my $rule_num = $conf{IPN_FW_FIRST_RULE} + $ip_array[3];
+         
+         my $num = 0;
+         if ($conf{IPN_FW_RULE_UID}) {
+  	       $num = $uid;
+          }
+         else {
+           my @ip_array = split(/\./, $ip_addr, 4);
+           $num = $ip_array[3];
+          }
+
+         my $rule_num = $conf{IPN_FW_FIRST_RULE} + 10000 + $num;
 
          print "$DATE $TIME Hangup UID: $uid DEPOSIT: $Ipn->{USERS_INFO}->{DEPOSIT}->{$uid}\n" if ($debug>0);
          my $netmask = 32;
 
-         my $cmd = $conf{IPN_FW_STOP_RULE};
-         $cmd =~ s/\%IP/$ip_addr/g;
-         $cmd =~ s/\%NUM/$rule_num/g;
-         $cmd =~ s/\%MASK/$netmask/g;
+         
+         my $cmd = $conf{IPN_FW_STOP_RULE} || '';
+         
+         #If session online hangup it
+         if ( $session_id ) {
+           print 'Error: Not defined stop rules. Check $conf{IPN_FW_STOP_RULE}' if ($cmd eq '');
+         
+           $cmd =~ s/\%IP/$ip_addr/g;
+           $cmd =~ s/\%NUM/$rule_num/g;
+           $cmd =~ s/\%MASK/$netmask/g;
+           $cmd =~ s/\%LOGIN/$login/g;
 
-         print "$cmd" if ($debug>0); 
-         system("$cmd");
-         $Ipn->acct_stop({ SESSION_ID           => $session_id,
+           print "$cmd" if ($debug>0); 
+           system("$cmd");
+           $Ipn->acct_stop({ SESSION_ID           => $session_id,
          	                 ACCT_TERMINATE_CAUSE => 10 });
+         	}
      }
     #AMon 
-    elsif($conf{IPN_AMON_ALIVE} && $Ipn->{CONNECT_INFO}{$session_id} && $Ipn->{CONNECT_INFO}{$session_id} =~ /^(\d{10}):\S+$/) {
+    elsif($conf{IPN_AMON_ALIVE} && $Ipn->{CONNECT_INFO}{$session_id} 
+       && $Ipn->{CONNECT_INFO}{$session_id} =~ /^(\d{10}):\S+$/) {
     	my $connect_update = $1;
     	my $cut_time = time();
     	my $last_alive = $cut_time - $connect_update;
     	if ($last_alive > $conf{IPN_AMON_ALIVE} * 3) {
-        my @ip_array = split(/\./, $ip_addr, 4);
-        my $rule_num = $conf{IPN_FW_FIRST_RULE} + $ip_array[3];
+        my $num = 0;
+        if ($conf{IPN_FW_RULE_UID}) {
+ 	       $num = $uid;
+         }
+        else {
+          my @ip_array = split(/\./, $ip_addr, 4);
+          $num = $ip_array[3];
+         }
+
+        my $rule_num = $conf{IPN_FW_FIRST_RULE} + 10000 + $num;
+
     		print "$DATE $TIME Hangup AMON ALIVE: $last_alive UID: $uid DEPOSIT: $Ipn->{USERS_INFO}->{DEPOSIT}->{$uid}\n" if ($debug > 0);
 
         my $netmask = 32;
 
-        my $cmd = $conf{IPN_FW_STOP_RULE};
+        my $cmd = $conf{IPN_FW_STOP_RULE} || '';
+
+        print 'Error: Not defined stop rules. Check $conf{IPN_FW_STOP_RULE}' if ($cmd eq '');
+
         $cmd =~ s/\%IP/$ip_addr/g;
         $cmd =~ s/\%NUM/$rule_num/g;
         $cmd =~ s/\%MASK/$netmask/g;
+        $cmd =~ s/\%LOGIN/$login/g;
 
         print "$cmd" if ($debug>0); 
         system("$cmd");
@@ -472,7 +505,7 @@ while( <LOG> ) {
 		( $DATA{SRC_IP}, $DATA{SRC_PORT} ) = ( 16777216 * $1 + 65536 * $2 + 256 * $3 + $4, $11 );
 		( $DATA{DST_IP}, $DATA{DST_PORT} ) = ( 16777216 * $5 + 65536 * $6 + 256 * $7 + $8, $12 ); 
   	$DATA{SIZE} = $10;
-    $DATA{PROTOCOL}=0;
+        $DATA{PROTOCOL}=0;
 		$DATA{SRC_PORT} = 0 if ( $DATA{SRC_PORT} !~ /^\d+$/ );
 		$DATA{DST_PORT} = 0 if ( $DATA{DST_PORT} !~ /^\d+$/ );
 		#$DATA{NAS_ID}=$NAS_ID;
@@ -487,12 +520,12 @@ while( <LOG> ) {
 		( $DATA{SRC_IP}, $DATA{SRC_PORT} ) = ( 16777216 * $1 + 65536 * $2 + 256 * $3 + $4, $10 );
 		( $DATA{DST_IP}, $DATA{DST_PORT} ) = ( 16777216 * $5 + 65536 * $6 + 256 * $7 + $8, $11 ); 
 
-  	$DATA{SIZE} = $12;
-    $DATA{PROTOCOL}=0; #$9
-		$DATA{SRC_PORT} = 0 if ( $DATA{SRC_PORT} !~ /^\d+$/ );
-		$DATA{DST_PORT} = 0 if ( $DATA{DST_PORT} !~ /^\d+$/ );
-		#$DATA{NAS_ID}=$NAS_ID;
-		$DATA{IF_NAME}='0';
+        $DATA{SIZE}     = $12;
+        $DATA{PROTOCOL} = $9;
+	$DATA{SRC_PORT} = 0 if ( $DATA{SRC_PORT} !~ /^\d+$/ );
+	$DATA{DST_PORT} = 0 if ( $DATA{DST_PORT} !~ /^\d+$/ );
+	#$DATA{NAS_ID}=$NAS_ID;
+	$DATA{IF_NAME}  = '0';
     $Ipn->traffic_agregate_users({ %DATA });
  	 }
  	#trafdlog analize
@@ -529,10 +562,10 @@ sub make_pid {
   	  my @pids = <PIDFILE>;
   	close(PIDFILE);
     
-    my $pid = $pids[0];
-    if(verify($pid)) {
-     	print "Proccess running PID: $pid\n";
-   	  return 1;
+    my $pid = int($pids[0]);
+    if($pid > 0 && verify($pid)) {
+      print "Proccess running PID: $pid\n";
+      return 1;
      }
    }
   

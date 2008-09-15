@@ -162,6 +162,7 @@ else {
 }
 
 # Radius Session timeout 
+
 if (defined($rad_response{'h323-credit-time'}) && $rad_response{'h323-credit-time'} < $data{'session_timeout'}){
   $data{'h323-credit-time'}=int($rad_response{'h323-credit-time'}); 
  } 
@@ -184,6 +185,25 @@ if ($data{return_code} != 0 && $data{return_code} != 13) {
 $agi->set_autohangup($data{'session_timeout'}) if $data{'session_timeout'} > 0;
 
 
+if ($debug > 0) {
+  $agi->verbose("RAD Pairs:");
+  while(my( $k,$v) = each %rad_response) {
+    $agi->verbose("$k = $v");
+   }
+}
+#Make calling string 
+
+my $rewrittennumber = $data{'called'};
+my $protocol = $conf{VOIP_AGI_PROTOCOL} || 'SIP';
+$protocol = $rad_response{'session-protocol'} if ($rad_response{'session-protocol'});
+my $dialstring = "$protocol/".$rewrittennumber; #."\@";
+$dialstring = $rad_response{'next-hop-ip'} if ($rad_response{'next-hop-ip'});
+
+$agi->set_variable('LCRSTRING1', $dialstring);
+$agi->set_variable('TIMELIMIT', $data{'session_timeout'});
+$agi->set_variable('OPTIONS', '');
+
+
 
 #Accountin request
 my %rad_acct_attributes = %rad_attributes;
@@ -192,9 +212,8 @@ $rad_acct_attributes{'Acct-Status-Type'} = "Start";
 $rad_acct_attributes{'Acct-Delay-Time'}  = 0;
 $rad_acct_attributes{'Acct-Session-Id'}  = $data{'sessionid'};
 send_radius_request(ACCOUNTING_REQUEST, \%rad_acct_attributes);
-my $rewrittennumber = $data{'called'};
-my $protocol = $conf{VOIP_AGI_PROTOCOL} || 'SIP';
-my $dialstring = "$protocol/".$rewrittennumber; #."\@";
+
+$agi->verbose("Dial: $dialstring ");
 
 my %peer = ( 'type'    => '',
              'host'    => '',
@@ -234,7 +253,7 @@ $agi->exec('Dial', $dialstring);
   my $call_length    = $agi->get_variable('DIALEDTIME') + 0 + $conf{'VOIP_TIMESHIFT'};
   my $delay_time     = $call_length - $session_length;
   my $sip_msg_code   = $agi->get_variable('SIPLASTERRORCODE')+0;
-  my $channel_state  = $agi->exec('GetChannelState','');  
+  my $channel_state  = ''; #$agi->exec('GetChannelState','');  
   my $disconnect_cause = $agi->get_variable('DIALSTATUS');
   
 syslog('debug', "Disconnect cause: $disconnect_cause CHANNEL STATE: $channel_state SIP MSG CODE: $sip_msg_code");
@@ -250,7 +269,9 @@ syslog('debug', "Disconnect cause: $disconnect_cause CHANNEL STATE: $channel_sta
 
   my $currenttime = time();
   $rad_acct_attributes{'h323-setup-time'}      = sec2date($currenttime - $call_length - $delay_time);
-  if ($session_length > 0) {$rad_acct_attributes{'h323-connect-time'} = sec2date($currenttime - $session_length);}
+  if ($session_length > 0) {
+    $rad_acct_attributes{'h323-connect-time'} = sec2date($currenttime - $session_length);
+   }
   else { $rad_acct_attributes{'h323-connect-time'} = sec2date(0); }
   $rad_acct_attributes{'h323-disconnect-time'}     = sec2date($currenttime);
   $rad_acct_attributes{'h323-disconnect-cause'}    = 16;
@@ -296,15 +317,16 @@ sub send_radius_request {
 
   $r->send_packet($request_type) and $type = $r->recv_packet();
 
-  if( ! defined($type) ) {
-    $agi->verbose("No responce from RADIUS server", 3);
-    $agi->set_variable('RADIUS_Status', 'NoResponce');
-    $agi->hangup();
-   }
-  elsif ($r->get_error() ne 'ENONE') {
-  	syslog('LOG_ERR', "RAD response: $type /Error ".$r->get_error() );
+
+  if ($r->get_error() ne 'ENONE') {
+    syslog('LOG_ERR', "RAD response: $type /Error ".$r->get_error() );
     $agi->verbose("RAD server error: ".$r->get_error(), 3);
     $agi->set_variable('RADIUS_Status', 'Error');
+    $agi->hangup();
+   }
+  elsif( ! defined($type) ) {
+    $agi->verbose("Wrong responce from RADIUS server. Check secret key.", 3);
+    $agi->set_variable('RADIUS_Status', 'NoResponce');
     $agi->hangup();
    }
 

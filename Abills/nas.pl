@@ -39,17 +39,20 @@ sub hangup {
  $nas_type = $NAS->{NAS_TYPE};
 
  if ($nas_type eq 'exppp') {
-    hangup_exppp($NAS, $PORT, $attr);
+   hangup_exppp($NAS, $PORT, $attr);
   }
  elsif ($nas_type eq 'pm25') {
-    hangup_pm25($NAS, $PORT, $attr);
+   hangup_pm25($NAS, $PORT, $attr);
   }
  elsif ($nas_type eq 'radpppd') {
-    hangup_radpppd($NAS, $PORT, $attr);
+   hangup_radpppd($NAS, $PORT, $attr);
   }
  elsif ($nas_type eq 'mikrotik') {
-    radius_disconnect($NAS, $PORT, $USER);
-    #hangup_mikrotik_telnet($NAS, $PORT, $USER);
+   hangup_radius($NAS, $PORT, $USER);
+   #hangup_mikrotik_telnet($NAS, $PORT, $USER);
+  }
+ elsif ($nas_type eq 'chillispot') {
+   hangup_radius($NAS, $PORT, $USER);
   }
  elsif ($nas_type eq 'usr') {
    hangup_snmp($NAS, $PORT, { OID   => '.1.3.6.1.4.1.429.4.10.13.'. $PORT,
@@ -57,26 +60,32 @@ sub hangup {
    	                          VALUE => 9 });
   }
  elsif ($nas_type eq 'cisco')  {
- 	  hangup_cisco($NAS, $PORT, { USER => $USER });
+ 	 hangup_cisco($NAS, $PORT, { USER => $USER, %$attr });
   }
  elsif ($nas_type eq 'mpd') {
-    hangup_mpd($NAS, $PORT);
+   hangup_mpd($NAS, $PORT);
   }
  elsif ($nas_type eq 'mpd4') {
-    hangup_mpd4($NAS, $PORT, $attr);
+   hangup_mpd4($NAS, $PORT, $attr);
   }
+ elsif ($nas_type eq 'mpd5') {
+   hangup_mpd5($NAS, $PORT, $attr);
+  }
+ elsif ($nas_type eq 'openvpn') {
+   hangup_openvpn($NAS, $PORT, $USER);
+  } 
  elsif ($nas_type eq 'ipcad') {
-    hangup_ipcad($NAS, $PORT, $USER, $attr);
+   hangup_ipcad($NAS, $PORT, $USER, $attr);
   }
  elsif ($nas_type eq 'patton')  {
- 	  hangup_patton29xx($NAS, $PORT, $attr);
+ 	 hangup_patton29xx($NAS, $PORT, $attr);
   }
  elsif ($nas_type eq 'pppd' || $nas_type eq 'lepppd') {
    hangup_pppd($NAS, $PORT, $attr);
   }
  else {
-    return 1;
-   }
+   return 1;
+  }
 
   return 0;
 }
@@ -422,12 +431,12 @@ sub hangup_snmp {
 }
 
 #*******************************************************************
-# hangup_radius_disconnect
+# hangup_hangup_radius
 # 
 # Radius-Disconnect messages
 # rfc2882
 #*******************************************************************
-sub radius_disconnect {
+sub hangup_radius {
   my ($NAS, $PORT, $USER) = @_;
  
   my ($ip, $mng_port)=split(/:/, $NAS->{NAS_MNG_IP_PORT}, 2);
@@ -444,10 +453,7 @@ sub radius_disconnect {
 
 
 #*******************************************************************
-# hangup_radius_disconnect
-# 
-# Radius-Disconnect messages
-# rfc2882
+# hangup_mikrotik_telnet
 #*******************************************************************
 sub hangup_mikrotik_telnet {
   my ($NAS_IP, $PORT, $USER) = @_;
@@ -465,10 +471,7 @@ sub hangup_mikrotik_telnet {
 
 
 #*******************************************************************
-# hangup_radius_disconnect
-# 
-# Radius-Disconnect messages
-# rfc2882
+# hangup_ipcad
 #*******************************************************************
 sub hangup_ipcad {
   my ($NAS_IP, $PORT, $USER_NAME, $attr) = @_;
@@ -477,13 +480,24 @@ sub hangup_ipcad {
   Ipn->import();
   my $Ipn      = Ipn->new($db, \%conf);
   
-  $Ipn->acct_stop({ %$attr, SESSION_ID => $attr->{ACCT_SESION_ID} });
+  $Ipn->acct_stop({ %$attr, SESSION_ID => $attr->{ACCT_SESSION_ID} });
 
   my $cmd = $conf{IPN_FW_STOP_RULE};
 
   my $ip  = $attr->{FRAMED_IP_ADDRESS};
-  my @ip_array = split(/\./, $ip, 4);
-  my $rule_num = $conf{IPN_FW_FIRST_RULE} + $ip_array[3];
+  
+  my $num = 0;
+  if ($attr->{UID} && $conf{IPN_FW_RULE_UID}) {
+  	$num = $attr->{UID};
+   }
+  else {
+    my @ip_array = split(/\./, $ip, 4);
+    $num = $ip_array[3];
+   }
+
+  my $rule_num = $conf{IPN_FW_FIRST_RULE} || 20000;
+  $rule_num = $rule_num + 10000 + $num;
+
 
   $cmd =~ s/\%IP/$ip/g;
   #$cmd =~ s/\%MASK/$netmask/g;
@@ -499,6 +513,22 @@ sub hangup_ipcad {
  
  
   print $result;
+}
+
+
+#*******************************************************************
+# hangup_openvpn 
+#*******************************************************************
+sub hangup_openvpn {
+  my ($NAS, $PORT, $USER_NAME, $attr) = @_;
+
+ my @commands=(">INFO:OpenVPN Management Interface Version 1 -- type 'help' for more info\tkill $USER",
+               "SUCCESS: common name '$USER' found, 1 client(s) killed\texit");
+
+ my $result = telnet_cmd("$NAS->{NAS_MNG_IP_PORT}", \@commands);
+ log_print('LOG_DEBUG', "$result");
+
+ return 0; 
 }
 
 
@@ -528,10 +558,37 @@ if ($NAS->{NAS_MNG_USER}) {
   my $cisco_user=$NAS->{NAS_MNG_USER};
 # использование: NAS-IP-Address NAS-Port SQL-User-Name
 
+  if ($PORT > 0) {
+    $|=1;
+    $command = "(/bin/sleep 5; /bin/echo 'y') | /usr/bin/rsh -4 -l $cisco_user $NAS->{NAS_IP} clear line $PORT";
+    log_print('LOG_DEBUG', "$command");
+    $exec = `$command`;
+    return $exec;
+   }
 
-  $command = "/usr/bin/rsh -l $cisco_user $NAS->{NAS_IP} show users | grep -i \" \$1 \" | awk '{print \$1}';";
+  $command = "/usr/bin/rsh -l $cisco_user $NAS->{NAS_IP} show users | grep -i \" $user \" ";
+#| awk '{print \$1}';";
   log_print('LOG_DEBUG', "$command");
-  my $VIRTUALINT=`$command`;
+  my $out=`$command`;
+
+  if ( $out eq '') {
+    print 'Can\'t get VIRTUALINT. Check permissions';
+    return 'Can\'t get VIRTUALINT. Check permissions';
+   }
+
+
+  my $VIRTUALINT;
+
+  if ($out =~ /\s+(\d+)\s+(\S+)\s+(\d+)\s+(\S+)\s+(\S+)/) { 
+    $VIRTUALINT=$1; 
+    $tty=$2; 
+    $line=$3;
+    $cuser=$4;
+    $chost=$5;
+
+    print "$VIRTUALINT, $tty, $line, $cuser, $chost";
+  }
+
   $command = "echo $VIRTUALINT echo  | sed -e \"s/[[:alpha:]]*\\([[:digit:]]\\{1,\\}\\)/\\1/\"";
   log_print('LOG_DEBUG', "$command");
   $PORT=`$command`;
@@ -543,25 +600,18 @@ else {
 #SNMP version
   my $SNMP_COM = $NAS->{NAS_MNG_PASSWORD} || '';
 
-  $command = "/usr/bin/which snmpset";
-  log_print('LOG_DEBUG', "$command");
-  my $SNMPSET=`$command`;
-  $SNMPSET =~ s/\n//;
-
-  $command = "finger \@$NAS->{NAS_IP} | awk '{print \$1 \" \" \$2}' | grep $user\"\$\" | awk '{print \$1}' | sed s/Vi/Virtual-Access/g";
-  log_print('LOG_DEBUG', "$command");
-  my $INTNAME=`$command`;
-  $INTNAME =~ s/\n//;
-
-  $command = "$SNMPWALK -v 1 -c \"$SNMP_COM\" -O n $NAS->{NAS_IP} .1.3.6.1.2.1.2.2.1.2 | grep $INTNAME\"\$\" | awk '{print \$1}' | sed s/.1.3.6.1.2.1.2.2.1.2.//g";
-  log_print('LOG_DEBUG', "$command");
-
-  my $INTNUM=`$command`;
-  $INTNUM =~ s/\n//;
-
-  $command = "$SNMPSET -v 1 -c \"$SNMP_COM\" $NAS->{NAS_IP} 1.3.6.1.2.1.2.2.1.7.$INTNUM i 2 > /dev/null 2>&1";
-  log_print('LOG_DEBUG', "$command");
-  $exec=`$command`;
+  #$command = "$SNMPWALK -On -v 1 -c \"$SNMP_COM\" $NAS->{NAS_IP} .1.3.6.1.2.1.4.21.1.2.$attr->{FRAMED_IP_ADDRESS} | awk '{print \$4 }'";
+  #log_print('LOG_DEBUG', "$command");
+  #my $INTNUM=`$command`;
+  
+  my $INTNUM = snmpget("$SNMP_COM\@$NAS->{NAS_IP}", ".1.3.6.1.2.1.4.21.1.2.$attr->{FRAMED_IP_ADDRESS}");
+  log_print('LOG_DEBUG', "SNMP: $SNMP_COM\@$NAS->{NAS_IP} .1.3.6.1.2.1.4.21.1.2.$attr->{FRAMED_IP_ADDRESS}");
+  
+  #$INTNUM =~ s/\n//;
+  #$command = "$SNMPSET -v 1 -c \"$SNMP_COM\" $NAS->{NAS_IP} .1.3.6.1.2.1.2.2.1.7.$INTNUM i 2 > /dev/null 2>\&1";
+  $exec = snmpset("$SNMP_COM\@$NAS->{NAS_IP}", ".1.3.6.1.2.1.2.2.1.7.$INTNUM", 'integer', 2);
+  log_print('LOG_DEBUG', "SNMP: $SNMP_COM\@$NAS->{NAS_IP} .1.3.6.1.2.1.2.2.1.7.$INTNUM integer 2");
+  #$exec=`$command`;
 }
 
  return $exec;
@@ -639,8 +689,8 @@ sub hangup_mpd4 {
   my ($NAS, $PORT, $attr) = @_;
 
   my $ctl_port = "pptp$PORT";
-  if ($attr->{ACCT_SESION_ID}) {
-  	if($attr->{ACCT_SESION_ID} =~ /\d+\-(.+)/) {
+  if ($attr->{ACCT_SESSION_ID}) {
+  	if($attr->{ACCT_SESSION_ID} =~ /\d+\-(.+)/) {
   	  $ctl_port = $1;
 
   	 }
@@ -654,6 +704,16 @@ sub hangup_mpd4 {
                 "\] \texit");
 
   my $result = telnet_cmd("$NAS->{NAS_MNG_IP_PORT}", \@commands);
+  return 0;
+}
+
+#*******************************************************************
+# HANGUP MPD
+# hangup_mpd5($SERVER, $PORT)
+#*******************************************************************
+sub hangup_mpd5 {
+  my ($NAS, $PORT, $attr) = @_;
+
   return 0;
 }
 
@@ -865,9 +925,10 @@ sub stats_patton29xx {
 	   }
   }
 
-
-
   return %stats;
 }
+
+
+
 
 1

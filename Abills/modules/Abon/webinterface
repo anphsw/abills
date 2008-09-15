@@ -5,9 +5,13 @@
 
 
 
-require "Abon.pm";
-Abon->import();
-my $Abon = Abon->new($db, $admin, $conf);
+
+use Abon;
+use Fees;
+
+
+my $Abon = Abon->new($db, $admin, \%conf);
+my $fees     = Fees->new($db, $admin, \%conf);
 my @PERIODS = ($_DAY, $_MONTH, $_YEAR);
 
 #*******************************************************************
@@ -17,13 +21,62 @@ my @PERIODS = ($_DAY, $_MONTH, $_YEAR);
 sub abon_user {
 
  if ($FORM{change}) {
-    $Abon->user_tariff_change({ %FORM });  
-    if (! $Abon->{errno}){
-    	 $html->message('info', $_INFO, "$_CHANGED");
+    my @new_arr  = ();
+    my @ids_arr  = split(/, /, $FORM{IDS});
+    my %ids_hash = ();
+    my @add_arr = ();
+    
+    foreach my $k (@ids_arr) {
+    	$ids_hash{$k}=1;
+    	
      }
-    else {
-    	$html->message('err', $_ERROR, "[$Abon->{errno}] $err_strs{$Abon->{errno}}");	
+
+
+    my $list = $Abon->user_tariff_list($FORM{UID});
+    
+    foreach my $line (@$list) {
+    	if ($ids_hash{$line->[0]} && $line->[5]) {
+    	  delete $ids_hash{$line->[0]} ;
+    	  push @add_arr, $line->[0];
+    	 }
      }
+
+
+    @new_arr = keys %ids_hash;
+
+    if ($#new_arr > -1) {
+      my $list = $Abon->tariff_list({ IDS => join(', ', @new_arr) });  
+
+
+      
+      foreach my $line (@$list) {
+        if(($users->{CREDIT} + $users->{DEPOSIT}) > $line->[1] || $line->[3]) {
+          my %PARAMS = ( DESCRIBE => "ABON: [$line->[5]] $line->[0]",
+                         METHOD   => 1  );
+      
+
+          $fees->take($users, $line->[1], { %PARAMS } ); 
+          $Abon->user_tariff_update({ UID   => "$users->{UID}", 
+        	                            TP_ID => "$line->[5]", 
+        	                            DATE  => $DATE, });
+
+          push @add_arr, $line->[5];
+         }
+        else {
+      	  $html->message('err', $_ERROR, "$ERR_SMALL_DEPOSIT");
+         }
+       }
+     }
+
+      delete $FORM{IDS};
+      $Abon->user_tariff_change({ %FORM, IDS => join(', ', @add_arr) }) ;  
+      if (! $Abon->{errno}){
+    	   $html->message('info', $_INFO, "$_CHANGED");
+       }
+      else {
+    	  $html->message('err', $_ERROR, "[$Abon->{errno}] $err_strs{$Abon->{errno}}");	
+       }
+
   }
  
 
@@ -33,6 +86,7 @@ my $table = $html->table( { width      => '100%',
                             title      => ['-', $_NAME, $_SUM, $_PERIOD, $_DATE ],
                             cols_align => ['left', 'right', 'left', 'center', 'center'],
                             qs         => $pages_qs,
+                            ID         => 'USER_ABON'
                            });
 
 
@@ -76,27 +130,31 @@ sub abon_user_list {
    return 0;
   }
 
-
+ $LIST_PARAMS{COMPANY_ID}=$FORM{COMPANY_ID} if ($FORM{COMPANY_ID});
 
  my $list = $Abon->user_list({ %LIST_PARAMS });
  my $table = $html->table( { width     => '100%',
                              caption    => "$_ABON",
-                             title      => [$_LOGIN, $_FIO, $_TARIF_PLAN, $_DATE],
+                             title      => [$_LOGIN, $_FIO, $_TARIF_PLAN, $_SUM, $_PERIOD, $_DATE],
                              cols_align => ['left', 'right', 'left', 'right'],
                              qs         => $pages_qs,
-                             pages      => $Abon->{TOTAL}
+                             pages      => $Abon->{TOTAL},
+                             ID         => "ABON_USERS"
                            });
 
 
 my $delete = '';
 foreach my $line (@$list) {
-#  if ($permissions{4}{1}) {
-#    $delete = $html->button($_DEL, "index=$index&del=$line->[4]", { MESSAGE => "$_DEL $line->[0]?" }); 
-#   }
-  $table->addrow($html->button("$line->[0]", "index=15&UID=$line->[4]"), 
+  
+  #if ($permissions{0}{1}) {
+  #  $delete = $html->button($_DEL, "index=$index&del=$line->[4]", { MESSAGE => "$_DEL $line->[0]?" }); 
+  # }
+  $table->addrow($html->button("$line->[0]", "index=15&UID=$line->[6]"), 
      "$line->[1]", 
      $line->[2], 
-     $line->[3]
+     $line->[3],
+     $PERIODS[$line->[4]],
+     $line->[5]
    );
  }
 print $table->show();
@@ -104,7 +162,7 @@ print $table->show();
 
 $table = $html->table({ width      => '100%',
                         cols_align => ['right', 'right'],
-                        rows       => [ [ "$_TOTAL:", "$Abon->{TOTAL}" ] ]
+                        rows       => [ [ "$_TOTAL:", $html->b($Abon->{TOTAL}) ] ]
                        });
 print $table->show();
 
@@ -241,11 +299,6 @@ print $table->show();
 #**********************************************************
 sub abon_periodic {
   
-  require Fees;
-  Fees->import();
-  
-  
-  my $fees = Fees->new($db, $admin, \%conf);
   my $list = $Abon->periodic_list({ %LIST_PARAMS });
 
  #at.period, at.price, u.uid, if(u.company_id > 0, c.bill_id, u.bill_id),
@@ -264,7 +317,8 @@ sub abon_periodic {
        BILL_ID => $line->[3]
       );
 
-    my %PARAMS = ( DESCRIBE => "ABON: [$line->[10]] $line->[6]" );
+    my %PARAMS = ( DESCRIBE => "ABON: [$line->[10]] $line->[6]",
+                   METHOD    => 1  );
     $PARAMS{DATE}=$DATE if ($DATE ne '');
 
     if(($line->[7] + $line->[8] > 0 || $line->[11] == 1) && $line->[9] == 0) {

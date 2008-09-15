@@ -54,16 +54,20 @@ sub accounting {
  my $self = shift;
  my ($RAD, $NAS)=@_;
  
-
+ $self->{SUM} = 0;
  my $acct_status_type = $ACCT_TYPES{$RAD->{ACCT_STATUS_TYPE}};
  my $SESSION_START = (defined($RAD->{SESSION_START}) && $RAD->{SESSION_START} > 0) ?  "FROM_UNIXTIME($RAD->{SESSION_START})" : "FROM_UNIXTIME(UNIX_TIMESTAMP())";
+
+ $RAD->{ACCT_INPUT_GIGAWORDS}  = 0 if (! $RAD->{ACCT_INPUT_GIGAWORDS});
+ $RAD->{ACCT_OUTPUT_GIGAWORDS} = 0 if (! $RAD->{ACCT_OUTPUT_GIGAWORDS});
 
 #   print "aaa $acct_status_type '$RAD->{ACCT_STATUS_TYPE}'  /$RAD->{SESSION_START}/"; 
 #my $a=`echo "test $acct_status_type = $ACCT_TYPES{$RAD->{ACCT_STATUS_TYPE}}"  >> /tmp/12211 `;
  
  $RAD->{FRAMED_IP_ADDRESS} = '0.0.0.0' if(! defined($RAD->{FRAMED_IP_ADDRESS}));
+
  if (length($RAD->{ACCT_SESSION_ID}) > 25) {
- 	  $RAD->{ACCT_SESSION_ID} = substr($RAD->{ACCT_SESSION_ID}, 0, 1);
+   $RAD->{ACCT_SESSION_ID} = substr($RAD->{ACCT_SESSION_ID}, 0, 24);
   }
  
 if ($RAD->{USER_NAME} =~ /(\d+):(\S+)/) {
@@ -79,19 +83,35 @@ if ($acct_status_type == 1) {
     
   if ($self->{list}->[0]->[0] < 1) {
     #Get TP_ID
-    $self->query($db, "SELECT dv.tp_id FROM (users u, dv_main dv)
+    $self->query($db, "SELECT u.uid, dv.tp_id, dv.join_service FROM (users u, dv_main dv)
      WHERE u.uid=dv.uid and u.id='$RAD->{USER_NAME}';");
-    ($self->{TP_ID})= @{ $self->{list}->[0] };
+    if ($self->{TOTAL} > 0) {
+      ($self->{UID},
+       $self->{TP_ID},
+       $self->{JOIN_SERVICE})= @{ $self->{list}->[0] };
+       
+       if ($self->{JOIN_SERVICE}) {
+       	 if ($self->{JOIN_SERVICE} == 1) {
+       	 	 $self->{JOIN_SERVICE}=$self->{UID};
+       	  }
+       	 
+       	 $self->{TP_ID}='';
+        }
+     }
+    else {
+    	$RAD->{USER_NAME}='! '.$RAD->{USER_NAME};
+     }
     
     #Get connection speed 
     if ($RAD->{X_ASCEND_DATA_RATE} && $RAD->{X_ASCEND_XMIT_RATE}) {
-      $RAD->{CONNECT_INFO}="$RAD->{X_ASCEND_DATA_RATE} / $RAD->{X_ASCEND_XMIT_RATE}";
+        $RAD->{CONNECT_INFO}="$RAD->{X_ASCEND_DATA_RATE} / $RAD->{X_ASCEND_XMIT_RATE}";
      }
 
     # 
     my $sql = "INSERT INTO dv_calls
      (status, user_name, started, lupdated, nas_ip_address, nas_port_id, acct_session_id, acct_session_time,
-      acct_input_octets, acct_output_octets, framed_ip_address, CID, CONNECT_INFO, nas_id, tp_id)
+      acct_input_octets, acct_output_octets, framed_ip_address, CID, CONNECT_INFO, nas_id, tp_id,
+      uid, join_service)
        values ('$acct_status_type', 
       \"$RAD->{USER_NAME}\", 
       $SESSION_START, 
@@ -103,12 +123,14 @@ if ($acct_status_type == 1) {
       '$RAD->{CALLING_STATION_ID}', 
       '$RAD->{CONNECT_INFO}', 
       '$NAS->{NAS_ID}',
-      '$self->{TP_ID}');";
+      '$self->{TP_ID}', '$self->{UID}',
+      '$self->{JOIN_SERVICE}');";
     $self->query($db, "$sql", 'do');
   }
  }
 # Stop status
 elsif ($acct_status_type == 2) {
+
 
   my $Billing = Billing->new($db, $conf);	
 
@@ -120,7 +142,8 @@ elsif ($acct_status_type == 2) {
        ex_input_octets,
        ex_output_octets,
        tp_id,
-       sum
+       sum,
+       uid
     FROM dv_calls 
     WHERE user_name='$RAD->{USER_NAME}' and acct_session_id='$RAD->{ACCT_SESSION_ID}';");
 
@@ -157,13 +180,17 @@ elsif ($acct_status_type == 2) {
         sum, nas_id, port_id,
         ip, CID, sent2, recv2, acct_session_id, 
         bill_id,
-        terminate_cause) 
+        terminate_cause,
+        acct_input_gigawords,
+        acct_output_gigawords) 
         VALUES ('$self->{UID}', FROM_UNIXTIME($RAD->{SESSION_START}), '$self->{TARIF_PLAN}', '$RAD->{ACCT_SESSION_TIME}', 
         '$RAD->{OUTBYTE}', '$RAD->{INBYTE}', '$self->{TIME_TARIF}', '$self->{SUM}', '$NAS->{NAS_ID}',
         '$RAD->{NAS_PORT}', INET_ATON('$RAD->{FRAMED_IP_ADDRESS}'), '$RAD->{CALLING_STATION_ID}',
         '$RAD->{OUTBYTE2}', '$RAD->{INBYTE2}',  \"$RAD->{ACCT_SESSION_ID}\", 
         '$self->{BILL_ID}',
-        '$RAD->{ACCT_TERMINATE_CAUSE}');", 'do');
+        '$RAD->{ACCT_TERMINATE_CAUSE}',
+        '$RAD->{ACCT_INPUT_GIGAWORDS}',
+        '$RAD->{ACCT_OUTPUT_GIGAWORDS}');", 'do');
    }
   elsif ($conf->{rt_billing}) {
     $self->rt_billing($RAD, $NAS);
@@ -172,13 +199,17 @@ elsif ($acct_status_type == 2) {
       $self->query($db, "INSERT INTO dv_log (uid, start, tp_id, duration, sent, recv, minp, kb, sum, nas_id, port_id,
         ip, CID, sent2, recv2, acct_session_id, 
         bill_id,
-        terminate_cause) 
+        terminate_cause,
+        acct_input_gigawords,
+        acct_output_gigawords) 
         VALUES ('$self->{UID}', FROM_UNIXTIME($RAD->{SESSION_START}), '$self->{TARIF_PLAN}', '$RAD->{ACCT_SESSION_TIME}', 
         '$RAD->{OUTBYTE}', '$RAD->{INBYTE}', '$self->{TIME_TARIF}', '$self->{TRAF_TARIF}', $self->{CALLS_SUM}+$self->{SUM}, '$NAS->{NAS_ID}',
         '$RAD->{NAS_PORT}', INET_ATON('$RAD->{FRAMED_IP_ADDRESS}'), '$RAD->{CALLING_STATION_ID}',
         '$RAD->{OUTBYTE2}', '$RAD->{INBYTE2}',  \"$RAD->{ACCT_SESSION_ID}\", 
         '$self->{BILL_ID}',
-        '$RAD->{ACCT_TERMINATE_CAUSE}');", 'do');
+        '$RAD->{ACCT_TERMINATE_CAUSE}',
+        '$RAD->{ACCT_INPUT_GIGAWORDS}',
+        '$RAD->{ACCT_OUTPUT_GIGAWORDS}');", 'do');
      }      
     else {
       #$self->{errstr}    = "ACCT [$RAD->{USER_NAME}] Can't find sessions $RAD->{ACCT_SESSION_ID}";
@@ -233,13 +264,17 @@ elsif ($acct_status_type == 2) {
       $self->query($db, "INSERT INTO dv_log (uid, start, tp_id, duration, sent, recv, minp, kb,  sum, nas_id, port_id,
           ip, CID, sent2, recv2, acct_session_id, 
           bill_id,
-          terminate_cause) 
+          terminate_cause,
+          acct_input_gigawords,
+          acct_output_gigawords ) 
           VALUES ('$self->{UID}', FROM_UNIXTIME($RAD->{SESSION_START}), '$self->{TARIF_PLAN}', '$RAD->{ACCT_SESSION_TIME}', 
           '$RAD->{OUTBYTE}', '$RAD->{INBYTE}', '$self->{TIME_TARIF}', '$self->{TRAF_TARIF}', '$self->{SUM}', '$NAS->{NAS_ID}',
           '$RAD->{NAS_PORT}', INET_ATON('$RAD->{FRAMED_IP_ADDRESS}'), '$RAD->{CALLING_STATION_ID}',
           '$RAD->{OUTBYTE2}', '$RAD->{INBYTE2}',  \"$RAD->{ACCT_SESSION_ID}\", 
           '$self->{BILL_ID}',
-          '$RAD->{ACCT_TERMINATE_CAUSE}');", 'do');
+          '$RAD->{ACCT_TERMINATE_CAUSE}',
+          '$RAD->{ACCT_INPUT_GIGAWORDS}',
+          '$RAD->{ACCT_OUTPUT_GIGAWORDS}');", 'do');
  
       if ($self->{errno}) {
         my $filename = "$RAD->{USER_NAME}.$RAD->{ACCT_SESSION_ID}";
@@ -261,7 +296,7 @@ elsif ($acct_status_type == 2) {
      and user_name=\"$RAD->{USER_NAME}\" 
      and nas_id='$NAS->{NAS_ID}';", 'do');
      
-}
+ }
 #Alive status 3
 elsif($acct_status_type eq 3) {
   $self->{SUM}=0 if (! $self->{SUM}); 
@@ -277,7 +312,9 @@ elsif($acct_status_type eq 3) {
       ex_output_octets='$RAD->{OUTBYTE2}',
       framed_ip_address=INET_ATON('$RAD->{FRAMED_IP_ADDRESS}'),
       lupdated=UNIX_TIMESTAMP(),
-      sum=sum+$self->{SUM}
+      sum=sum+$self->{SUM},
+      acct_input_gigawords='$RAD->{ACCT_INPUT_GIGAWORDS}',
+      acct_output_gigawords='$RAD->{ACCT_OUTPUT_GIGAWORDS}'
     WHERE
       acct_session_id=\"$RAD->{ACCT_SESSION_ID}\" and 
       user_name=\"$RAD->{USER_NAME}\" and
@@ -302,7 +339,9 @@ elsif($acct_status_type eq 3) {
     ex_output_octets='$RAD->{OUTBYTE2}',
     framed_ip_address=INET_ATON('$RAD->{FRAMED_IP_ADDRESS}'),
     lupdated=UNIX_TIMESTAMP(),
-    sum=sum+$self->{SUM}
+    sum=sum+$self->{SUM},
+    acct_input_gigawords='$RAD->{ACCT_INPUT_GIGAWORDS}',
+    acct_output_gigawords='$RAD->{ACCT_OUTPUT_GIGAWORDS}'
    WHERE
     acct_session_id=\"$RAD->{ACCT_SESSION_ID}\" and 
     user_name=\"$RAD->{USER_NAME}\" and
@@ -320,7 +359,7 @@ else {
    }
 
 #detalization for Exppp
-if ($conf->{s_detalization} eq 'yes') {
+if ($conf->{s_detalization}) {
    $RAD->{INTERIUM_INBYTE}=0 if (! defined($RAD->{INTERIUM_INBYTE}));
    $RAD->{INTERIUM_OUTBYTE}=0 if (! defined($RAD->{INTERIUM_OUTBYTE}));
    $RAD->{INTERIUM_INBYTE2}=0 if (! defined($RAD->{INTERIUM_INBYTE2}));
@@ -355,7 +394,8 @@ sub rt_billing {
    if($RAD->{INBYTE2}  >= ex_input_octets, $RAD->{INBYTE2}  - ex_input_octets, ex_input_octets),
    if($RAD->{OUTBYTE2} >= ex_output_octets, $RAD->{OUTBYTE2} - ex_output_octets, ex_output_octets),
    acct_session_id,
-   sum
+   sum,
+   tp_id
    FROM dv_calls 
   WHERE user_name='$RAD->{USER_NAME}' and acct_session_id='$RAD->{ACCT_SESSION_ID}';");
 
@@ -376,7 +416,8 @@ sub rt_billing {
    $RAD->{INTERIUM_INBYTE1},
    $RAD->{INTERIUM_OUTBYTE1},
    $RAD->{ACCT_SESSION_ID},
-   $self->{CALLS_SUM}
+   $self->{CALLS_SUM},
+   $self->{TP_ID}
    ) = @{ $self->{list}->[0] };
 
   # Giga word check  
@@ -404,8 +445,9 @@ sub rt_billing {
                                                 	 INTERIUM_OUTBYTE  => $RAD->{INTERIUM_OUTBYTE},
                                                    INTERIUM_INBYTE   => $RAD->{INTERIUM_INBYTE},
                                                    INTERIUM_OUTBYTE1 => $RAD->{INTERIUM_INBYTE1},
-                                                   INTERIUM_INBYTE1  => $RAD->{INTERIUM_OUTBYTE1}
+                                                   INTERIUM_INBYTE1  => $RAD->{INTERIUM_OUTBYTE1},
 
+                                                   TP_ID => $self->{TP_ID}
                                                 	},
                                                 { FULL_COUNT => 1 }
                                                 );
@@ -487,33 +529,6 @@ sub rt_billing {
    }
 	
 }
-
-#**********************************************************
-# start
-#**********************************************************
-sub start {
-	my ($RAD, $NAS)=@_;
-	
-}
-
-
-#**********************************************************
-# start
-#**********************************************************
-sub stop {
-	my ($RAD, $NAS)=@_;
-	
-}
-
-#**********************************************************
-# start
-#**********************************************************
-sub alive {
-	my ($RAD, $NAS)=@_;
-	
-}
-
-
 
 
 1

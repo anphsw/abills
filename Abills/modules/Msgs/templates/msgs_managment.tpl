@@ -8,11 +8,12 @@
 
 <TR><TD><b>$_RESPOSIBLE:</b></td></tr>
 <TR><TD>%RESPOSIBLE%</TD></TR>
+<TR><TD><b>$_INNER:</b> %INNER_MSG%</TD></TR>
 <!-- <TR><TD><b>$_HIDE:</b><input type=checkbox name=HIDE value=1 %HIDE%></TD></TR> -->
 
 <TR><TD>&nbsp;</TD></TR>
 <TR><TD><b>$_STATE:</b> </TD></TR>
-<TR><TD>%STATE_SEL%</TD></TR>
+<TR><TD>%STATE_NAME%</TD></TR>
 <TR><TD><b>$_PRIORITY:</b> </TD></TR>
 <TR><TD>%PRIORITY_SEL%</TD></TR>
 <TR><TD><b>$_EXECUTION:</b></TD></TR>

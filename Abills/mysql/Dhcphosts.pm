@@ -1,5 +1,4 @@
 package Dhcphosts;
-# Special thanx for dreamer_538
 #
 # DHCP server managment and user control
 #
@@ -85,6 +84,35 @@ sub routes_list {
 };
 
 
+#**********************************************************
+# host_defaults()
+#**********************************************************
+sub network_defaults {
+  my $self = shift;
+
+  my %DATA = (
+   ID              => '0',
+   NAME            => 'DHCP_NET',
+   NETWORK         => '0.0.0.0',   
+   MASK            => '255.255.255.0',
+   BLOCK_NETWORK   =>  0,
+   BLOCK_MASK      =>  0,
+   DOMAINNAME      => '',
+   DNS             => '',
+   COORDINATOR     => '',
+   PHONE           => '',
+   ROUTERS         => '',
+   DISABLE         => 0,
+   OPTION_82       => 0,
+   IP_RANGE_FIRST  => '0.0.0.0',
+   IP_RANGE_LAST   => '0.0.0.0'
+  );
+
+ 
+  $self = \%DATA;
+  return $self;
+}
+
 
 #**********************************************************
 # network_add()
@@ -93,12 +121,18 @@ sub network_add {
   my $self=shift;
   my ($attr)=@_;
   
+  my %DATA = $self->get_data($attr, { default => network_defaults() }); 
+
 
   $self->query($db,"INSERT INTO dhcphosts_networks 
-     (name,network,mask, routers, coordinator, phone, dns, suffix, disable) 
-     VALUES('$attr->{NAME}', INET_ATON('$attr->{NETWORK}'), INET_ATON('$attr->{MASK}'), INET_ATON('$attr->{ROUTERS}'),
-       '$attr->{COORDINATOR}', '$attr->{PHONE}', '$attr->{DNS}', '$attr->{DOMAINNAME}',
-       '$attr->{DISABLE}')", 'do');
+     (name,network,mask, routers, coordinator, phone, dns, suffix, disable,
+      ip_range_first, ip_range_last) 
+     VALUES('$DATA{NAME}', INET_ATON('$DATA{NETWORK}'), INET_ATON('$DATA{MASK}'), INET_ATON('$DATA{ROUTERS}'),
+       '$DATA{COORDINATOR}', '$DATA{PHONE}', '$DATA{DNS}', '$DATA{DOMAINNAME}',
+       '$DATA{DISABLE}',
+       INET_ATON('$DATA{IP_RANGE_FIRST}'),
+       INET_ATON('$DATA{IP_RANGE_LAST}')
+       )", 'do');
 
   return $self;
 }
@@ -111,6 +145,8 @@ sub network_del {
   my ($id)=@_;
 
   $self->query($db, "DELETE FROM dhcphosts_networks where id='$id';", 'do');
+
+  $self->query($db, "DELETE FROM dhcphosts_hosts where network='$id';", 'do');
 
   return $self;
 };
@@ -125,19 +161,20 @@ sub network_change {
 
  
  my %FIELDS = (
-   ID            => 'id',
-   NAME          => 'name',
-   NETWORK       => 'network',   
-   MASK          => 'mask',
-   BLOCK_NETWORK => 'block_network',
-   BLOCK_MASK    => 'block_mask',
-   DOMAINNAME    => 'suffix',
-   DNS           => 'dns',
-   COORDINATOR   => 'coordinator',
-   PHONE         => 'phone',
-   ROUTERS       => 'routers',
-   DISABLE       => 'disable'
-
+   ID              => 'id',
+   NAME            => 'name',
+   NETWORK         => 'network',   
+   MASK            => 'mask',
+   BLOCK_NETWORK   => 'block_network',
+   BLOCK_MASK      => 'block_mask',
+   DOMAINNAME      => 'suffix',
+   DNS             => 'dns',
+   COORDINATOR     => 'coordinator',
+   PHONE           => 'phone',
+   ROUTERS         => 'routers',
+   DISABLE         => 'disable',
+   IP_RANGE_FIRST  => 'ip_range_first',
+   IP_RANGE_LAST   => 'ip_range_last'
    );
 
 	$self->changes($admin, { CHANGE_PARAM => 'ID',
@@ -171,7 +208,9 @@ sub network_info {
    dns,
    coordinator,
    phone,
-   disable
+   disable,
+   INET_NTOA(ip_range_first),
+   INET_NTOA(ip_range_last)
   FROM dhcphosts_networks
 
   WHERE id='$id';");
@@ -193,7 +232,9 @@ sub network_info {
    $self->{DNS},
    $self->{COORDINATOR},
    $self->{PHONE},
-   $self->{DISABLE}
+   $self->{DISABLE},
+   $self->{IP_RANGE_FIRST},
+   $self->{IP_RANGE_LAST}
    ) = @{ $self->{list}->[0] };
     
     
@@ -256,7 +297,10 @@ sub host_defaults {
    MAC            => '00:00:00:00:00:00', 
    EXPIRE         => '0000-00-00', 
    IP             => '0.0.0.0',
-   COMMENTS       => ''
+   COMMENTS       => '',
+   VID            => 0,
+   NAS_ID         => 0,
+   OPTION_82      => 0
   );
 
  
@@ -274,11 +318,13 @@ sub host_add {
 
   my %DATA = $self->get_data($attr); 
 
-  $self->query($db, "INSERT INTO dhcphosts_hosts (uid, hostname, network, ip, mac, blocktime, forced, disable, expire, comments) 
+  $self->query($db, "INSERT INTO dhcphosts_hosts (uid, hostname, network, ip, mac, blocktime, 
+    forced, disable, expire, comments, option_82, vid, nas, ports, boot_file) 
     VALUES('$DATA{UID}', '$DATA{HOSTNAME}', '$DATA{NETWORK}',
       INET_ATON('$DATA{IP}'), '$DATA{MAC}', '$DATA{BLOCKTIME}', '$DATA{FORCED}', '$DATA{DISABLE}',
       '$DATA{EXPIRE}',
-      '$DATA{COMMENTS}');", 'do');
+      '$DATA{COMMENTS}', '$DATA{OPTION_82}', '$DATA{VID}', '$DATA{NAS_ID}', '$DATA{PORTS}',
+      '$DATA{BOOT_FILE}');", 'do');
 
 
   
@@ -328,7 +374,12 @@ sub host_info {
    forced,
    disable,
    expire,
-   comments
+   option_82,
+   vid,
+   comments,
+   nas,
+   ports,
+   boot_file
   FROM dhcphosts_hosts
   WHERE id='$id';");
 
@@ -347,8 +398,14 @@ sub host_info {
    $self->{FORCED},
    $self->{DISABLE},
    $self->{EXPIRE},
-   $self->{COMMENTS}
+   $self->{OPTION_82},
+   $self->{VID},
+   $self->{COMMENTS},
+   $self->{NAS_ID},
+   $self->{PORTS},
+   $self->{BOOT_FILE}
    ) = @{ $self->{list}->[0] };
+
   return $self;
 };
 
@@ -371,10 +428,15 @@ sub host_change {
    FORCED      => 'forced',
    DISABLE     => 'disable',
    COMMENTS    => 'comments',
-   EXPIRE      => 'expire'
+   EXPIRE      => 'expire',
+   OPTION_82   => 'option_82',
+   VID         => 'vid',
+   NAS_ID      => 'nas',
+   PORTS       => 'ports',
+   BOOT_FILE   => 'boot_file'
   );
 
-
+  $attr->{OPTION_82} = ($attr->{OPTION_82}) ? 1 : 0;
 
 	$self->changes($admin, { CHANGE_PARAM => 'ID',
 		               TABLE        => 'dhcphosts_hosts',
@@ -491,7 +553,10 @@ sub hosts_list {
  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
- undef @WHERE_RULES;
+ @WHERE_RULES = ();
+
+ $self->{SEARCH_FIELDS}='';
+ $self->{SEARCH_FIELDS_COUNT} = 0;
  if ($attr->{ID}) {
    push @WHERE_RULES, "h.id='$attr->{ID}'"; 
   }
@@ -523,8 +588,6 @@ sub hosts_list {
    $attr->{MAC} =~ s/\*/\%/g;
    push @WHERE_RULES, "h.mac LIKE '$attr->{MAC}'"; 
   }
-
- 	
 
  if ($attr->{NETWORK}) {
    push @WHERE_RULES, "h.network='$attr->{NETWORK}'"; 
@@ -580,16 +643,64 @@ sub hosts_list {
     push @WHERE_RULES, "u.disable='$attr->{USER_DISABLE}'";
   }
 
+  # Deposit chech
+  my $extra_db     = ''; 
+  my $extra_fields = '';
+  if ($attr->{DHCPHOSTS_DEPOSITCHECK}) {
+  	$extra_db = 'LEFT JOIN bills b ON (u.bill_id = b.id)
+     LEFT JOIN companies company ON  (u.company_id=company.id) 
+     LEFT JOIN bills cb ON  (company.bill_id=cb.id)'; 
+    $extra_fields = ', if(company.id IS NULL, b.deposit, cb.deposit) + u.credit';
+   }
+
+
+  if ($attr->{OPTION_82}) {
+    my $value = $self->search_expr("$attr->{OPTION_82}", 'INT');
+    push @WHERE_RULES, "h.option_82$value";
+    $self->{SEARCH_FIELDS} .= 'h.option_82, ';
+    $self->{SEARCH_FIELDS_COUNT}++;
+  }
+
+  if ($attr->{PORTS}) {
+    $attr->{PORTS} =~ s/\*/\%/ig;
+    push @WHERE_RULES, "h.ports LIKE '$attr->{PORTS}'";
+    $self->{SEARCH_FIELDS} .= 'h.ports, ';
+    $self->{SEARCH_FIELDS_COUNT}++;
+  }
+
+  if ($attr->{NAS_ID}) {
+    my $value = $self->search_expr("$attr->{NAS_ID}", 'INT');
+    push @WHERE_RULES, "h.nas$value";
+    $self->{SEARCH_FIELDS} .= 'h.nas, ';
+    $self->{SEARCH_FIELDS_COUNT}++;
+  }
+
+  if ($attr->{VID}) {
+    my $value = $self->search_expr("$attr->{VID}", 'INT');
+    push @WHERE_RULES, "h.vid$value";
+    $self->{SEARCH_FIELDS} .= 'h.vid, ';
+    $self->{SEARCH_FIELDS_COUNT}++;
+  }
+
+  if ($attr->{BOOT_FILE}) {
+    $attr->{BOOT_FILE} =~ s/\*/\%/g;
+    push @WHERE_RULES, "h.boot_file LIKE '$attr->{BOOT_FILE}'"; 
+    $self->{SEARCH_FIELDS} .= 'h.boot_file, ';
+    $self->{SEARCH_FIELDS_COUNT}++;
+   }
+
 
  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
 
  $self->query($db, "SELECT 
     h.id, u.id, INET_NTOA(h.ip), h.hostname, n.name, h.network, h.mac, h.expire, h.forced, 
-      h.blocktime, h.disable, seen, h.uid,
+      h.blocktime, h.disable, $self->{SEARCH_FIELDS} seen, h.uid,
       if ((u.expire <> '0000-00-00' && curdate() > u.expire) || (h.expire <> '0000-00-00' && curdate() > h.expire), 1, 0)
+      $extra_fields
      FROM (dhcphosts_hosts h)
      left join dhcphosts_networks n on h.network=n.id
      left join users u on h.uid=u.uid
+     $extra_db
      $WHERE
      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;");
 

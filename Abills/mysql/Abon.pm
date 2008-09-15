@@ -169,13 +169,18 @@ sub tariff_del {
 sub tariff_list {
  my $self = shift;
  my ($attr) = @_;
-# undef @WHERE_RULES;
-# push @WHERE_RULES, "u.uid = service.uid";
-# $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
+ @WHERE_RULES = ();
+
+ if ($attr->{IDS}) {
+    push @WHERE_RULES, "id IN ($attr->{IDS})";
+  }
+
+ $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
  
  $self->query($db, "SELECT name, price, period, payment_type, count(ul.uid), id 
      FROM abon_tariffs
      LEFT JOIN abon_user_list ul ON (abon_tariffs.id=ul.tp_id)
+     $WHERE
      GROUP BY abon_tariffs.id
      ORDER BY $SORT $DESC;");
 
@@ -207,6 +212,11 @@ sub user_list {
     push @WHERE_RULES, "u.id LIKE '$attr->{LOGIN_EXPR}'";
   }
 
+ if ($attr->{COMPANY_ID}) {
+    push @WHERE_RULES, "u.company_id='$attr->{COMPANY_ID}'";
+  }
+
+
  if ($attr->{GIDS}) {
     push @WHERE_RULES, "u.gid IN ($attr->{GIDS})";
   }
@@ -221,23 +231,23 @@ sub user_list {
 
  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
  
- $self->query($db, "SELECT u.id, pi.fio, at.name, ul.date, u.uid, at.id
+ $self->query($db, "SELECT u.id, pi.fio, at.name, at.price, at.period,
+     ul.date, u.uid, at.id
      FROM (users u, abon_user_list ul, abon_tariffs at)
      LEFT JOIN users_pi pi ON u.uid = pi.uid
      $WHERE
-     GROUP BY u.id
+     GROUP BY ul.uid, ul.tp_id
      ORDER BY $SORT $DESC
      LIMIT $PG, $PAGE_ROWS;");
  my $list = $self->{list};
 
 
  if ($self->{TOTAL} > 0) {
-    $self->query($db, "SELECT count(DISTINCT u.uid)
+    $self->query($db, "SELECT count(u.uid)
      FROM (users u, abon_user_list ul, abon_tariffs at)
      $WHERE");
 
-    my $a_ref = $self->{list}->[0];
-    ($self->{TOTAL}) = @$a_ref;
+    ($self->{TOTAL}) = @{ $self->{list}->[0] };
    }
 
 

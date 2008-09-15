@@ -44,7 +44,9 @@ sub new {
 sub admins_groups_list {
 	my $self = shift;
 	my ($attr) = @_;
-	
+
+	$WHERE = '';
+
 	if ($attr->{ALL}) {
 
 	 }
@@ -86,11 +88,14 @@ sub get_permissions {
   my $self = shift;
   my %permissions = ();
 
-$self->query($db, "SELECT section, actions FROM admin_permits WHERE aid='$self->{AID}';");
+$self->query($db, "SELECT section, actions, module FROM admin_permits WHERE aid='$self->{AID}';");
 
 foreach my $line (@{ $self->{list} }) {
-  my($section, $action)=@$line;
+  my($section, $action, $module)=@$line;
   $permissions{$section}{$action} = 'y';
+  if ($module) {
+  	$self->{MODULES}{$module}=1;
+   }
  }
 
   $self->{permissions} = \%permissions;
@@ -109,7 +114,9 @@ sub set_permissions {
   $self->query($db, "DELETE FROM admin_permits WHERE aid='$self->{AID}';", 'do');
   while(my($section, $actions_hash)=each %$permissions) {
     while(my($action, $y)=each %$actions_hash) {
-      $self->query($db, "INSERT INTO admin_permits (aid, section, actions) VALUES ('$self->{AID}', '$section', '$action');", 'do');
+    	my ($perms, $module)=split(/_/, $action);
+      $self->query($db, "INSERT INTO admin_permits (aid, section, actions, module) 
+      VALUES ('$self->{AID}', '$section', '$perms', '$module');", 'do');
      }
    }
   return $self->{permissions};
@@ -153,6 +160,7 @@ sub info {
   $self->query($db, "SELECT a.aid, a.id, a.name, a.regdate, a.phone, a.disable, a.web_options, a.gid, 
      count(ag.aid),
      email,
+     comments,
      $PASSWORD
      FROM 
       admins a
@@ -167,7 +175,7 @@ sub info {
    }
 
   my $a_ref = $self->{list}->[0];
-  if ($a_ref->[10] == 1) {
+  if ($a_ref->[11] == 1) {
      $self->{errno} = 4;
      $self->{errstr} = 'ERROR_WRONG_PASSWORD';
      return $self;
@@ -182,7 +190,8 @@ sub info {
    $self->{WEB_OPTIONS},
    $self->{GID},
    $self->{GIDS},
-   $self->{EMAIL}
+   $self->{EMAIL},
+   $self->{A_COMMENTS}
     )= @$a_ref;
   
   if ($self->{GIDS} > 0) {
@@ -207,6 +216,7 @@ sub list {
  my ($attr) = @_;
 
  @WHERE_RULES = ();
+ 
  if ($attr->{GIDS}) {
  	 push @WHERE_RULES, "a.gid IN ($attr->{GIDS})";
   }
@@ -240,7 +250,8 @@ sub change {
            PASSWORD    => 'password',
            WEB_OPTIONS => 'web_options',
            GID         => 'gid',
-           EMAIL       => 'email'
+           EMAIL       => 'email',
+           A_COMMENTS  => 'comments',
    );
 
 
@@ -270,8 +281,9 @@ sub add {
   my ($attr) = @_;
   %DATA = $self->get_data($attr); 
 
-  $self->query($db, "INSERT INTO admins (id, name, regdate, phone, disable, gid, email) 
-   VALUES ('$DATA{A_LOGIN}', '$DATA{A_FIO}', now(),  '$DATA{A_PHONE}', '$DATA{DISABLE}', '$DATA{GID}', '$DATA{EMAIL}');", 'do');
+  $self->query($db, "INSERT INTO admins (id, name, regdate, phone, disable, gid, email, comments) 
+   VALUES ('$DATA{A_LOGIN}', '$DATA{A_FIO}', now(),  '$DATA{A_PHONE}', '$DATA{DISABLE}', '$DATA{GID}', 
+   '$DATA{EMAIL}', '$DATA{A_COMMENTS}');", 'do');
 
   return $self;
 }

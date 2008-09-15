@@ -1,5 +1,5 @@
 package Abills::HTML;
-#HTML 
+#HTML output
 
 use strict;
 use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION %h2
@@ -38,8 +38,8 @@ $VERSION = 2.00;
    $index
    $pages_qs
    $domain
-   $web_path
    $secure
+   $web_path
    $SORT
    $DESC
    $PG
@@ -52,7 +52,7 @@ $VERSION = 2.00;
 @EXPORT_OK = ();
 %EXPORT_TAGS = ();
 
-my $bg;
+my $bg='';
 my $debug;
 my %log_levels;
 my $IMG_PATH;
@@ -75,8 +75,6 @@ sub new {
   $IMG_PATH = (defined($attr->{IMG_PATH})) ? $attr->{IMG_PATH} : '../img/';
   $CONF = $attr->{CONF} if (defined($attr->{CONF}));
 
-  #$CONF = $attr->{CONF} if (defined($attr->{CONF}));
-
   my $self = { };
   bless($self, $class);
 
@@ -88,13 +86,13 @@ sub new {
 
   $self->{colors} = $attr->{colors} if (defined($attr->{colors}));
  
-  %FORM = form_parse();
+  %FORM    = form_parse();
   %COOKIES = getCookies();
 
-  $SORT = $FORM{sort} || 1;
-  $DESC = ($FORM{desc}) ? 'DESC' : '';
-  $PG = $FORM{pg} || 0;
-  $OP = $FORM{op} || '';
+  $SORT    = $FORM{sort} || 1;
+  $DESC    = ($FORM{desc}) ? 'DESC' : '';
+  $PG      = $FORM{pg} || 0;
+  $OP      = $FORM{op} || '';
   $self->{CHARSET}=(defined($attr->{CHARSET})) ? $attr->{CHARSET} : 'windows-1251';
    
   if ($FORM{PAGE_ROWS}) {
@@ -104,11 +102,12 @@ sub new {
   	$PAGE_ROWS = int($attr->{PAGE_ROWS});
    }
   else {
- 	 	$PAGE_ROWS = 25;
+ 	  $PAGE_ROWS = 25;
    }
 
   if ($attr->{PATH}) {
- 	  $self->{PATH}=$attr->{PATH};
+    $self->{PATH}=$attr->{PATH};
+    $IMG_PATH = $self->{PATH}.'img';
    }
 
   $domain = $ENV{SERVER_NAME};
@@ -154,10 +153,29 @@ sub new {
   else {
     $self->{language} = $CONF->{default_language} || 'english';
    }
+ 
+  #Make  PDF output
+  if ($FORM{pdf} || $attr->{pdf}) {
+    $FORM{pdf}=1;
 
-  if (defined($FORM{xml})) {
+    eval { require PDF::API2; };
+    if (! $@) {
+      PDF::API2->import();
+      require Abills::PDF;
+      $self = Abills::PDF->new( { IMG_PATH  => $IMG_PATH,
+      	                         NO_PRINT  => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1 
+	                            
+	                            });
+     }
+    else {
+      print "Can't load 'PDF::API2'. Get it from http://cpan.org $@";
+      exit; #return 0;
+     }
+
+   }
+  elsif (defined($FORM{xml})) {
     require Abills::XML;
-    $self = Abills::XML->new( { IMG_PATH  => 'img/',
+    $self = Abills::XML->new( { IMG_PATH  => $IMG_PATH,
 	                              NO_PRINT  => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1 
 	                            
 	                            });
@@ -166,10 +184,6 @@ sub new {
 
   return $self;
 }
-
-
-
-
 
 
 #*******************************************************************
@@ -204,15 +218,20 @@ if (! defined($ENV{CONTENT_TYPE}) || $ENV{CONTENT_TYPE} !~ /boundary/ ) {
 
   foreach my $pair (@pairs) {
     my ($side, $value) = split(/=/, $pair);
-    $value =~ tr/+/ /;
-    $value =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/eg;
-    $value =~ s/<!--(.|\n)*-->//g;
-    $value =~ s/<([^>]|\n)*>//g;
+    if (defined($value)) {
+      $value =~ tr/+/ /;
+      $value =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/eg;
+      $value =~ s/<!--(.|\n)*-->//g;
+      $value =~ s/<([^>]|\n)*>//g;
 
-    #Check quotes
-    $value =~ s/"/\\"/g;
-    $value =~ s/'/\\'/g;
-   
+      #Check quotes
+      $value =~ s/"/\\"/g;
+      $value =~ s/'/\\'/g;
+    }
+    else {
+      $value = '';
+     }
+
     if (defined($FORM{$side})) {
       $FORM{$side} .= ", $value";
      }
@@ -381,7 +400,7 @@ sub form_select {
  	  my $H = $attr->{SEL_OPTIONS};
 	  while(my($k, $v) = each %$H) {
      $self->{SELECT} .= "<option value='$k'";
-     $self->{SELECT} .=' selected' if ($k eq $attr->{SELECTED});
+     $self->{SELECT} .=' selected' if (defined($attr->{SELECTED}) && $k eq $attr->{SELECTED});
      $self->{SELECT} .= ">$v\n";	
      }
    }
@@ -393,7 +412,7 @@ sub form_select {
 	  foreach my $v (@$H) {
       my $id = (defined($attr->{ARRAY_NUM_ID})) ? $i : $v;
       $self->{SELECT} .= "<option value='$id'";
-      $self->{SELECT} .= ' selected' if (($i eq $attr->{SELECTED}) || ($v eq $attr->{SELECTED}) );
+      $self->{SELECT} .= ' selected' if ($attr->{SELECTED} && ( ($i eq $attr->{SELECTED}) || ($v eq $attr->{SELECTED}) ) );
       $self->{SELECT} .= ">$v\n";
       $i++;
      }
@@ -514,7 +533,7 @@ sub menu () {
     my $ex_params = (defined($menu_args->{$root_index}) && defined($FORM{$menu_args->{$root_index}})) ? '&'."$menu_args->{$root_index}=$FORM{$menu_args->{$root_index}}" : '';
     
     $menu_navigator =  " ". $self->button($name, "index=$root_index$ex_params"). '/' . $menu_navigator;
-    $tree{$root_index}='y';
+    $tree{$root_index}=1;
     if ($par_key > 0) {
       $root_index = $par_key;
       $h = $menu_items->{$par_key};
@@ -710,21 +729,18 @@ sub header {
  my $JAVASCRIPT = "functions.js"; 
  my $PRINTCSS = "print.css";
 
- if ($attr->{PATH}) {
- 	 $JAVASCRIPT = "$attr->{PATH}$JAVASCRIPT";
- 	 $PRINTCSS = "$attr->{PATH}$PRINTCSS";
+ if($self->{PATH}) {
+   $JAVASCRIPT = "$self->{PATH}$JAVASCRIPT";
+   $PRINTCSS = "$self->{PATH}$PRINTCSS";
   }
- elsif($self->{PATH}) {
- 	 $JAVASCRIPT = "$self->{PATH}$JAVASCRIPT";
- 	 $PRINTCSS = "$self->{PATH}$PRINTCSS";
- }
+
 
  my $css = css();
-
+ my $title = ($CONF->{WEB_TITLE}) ? $CONF->{WEB_TITLE} : "~AsmodeuS~ Billing System";
  my $REFRESH = ($FORM{REFRESH}) ? "<META HTTP-EQUIV=\"Refresh\" CONTENT=\"$FORM{REFRESH}; URL=$ENV{REQUEST_URI}\"/>\n" : '';
 
 $self->{header} .= qq{
-<!doctype html public "-//W3C//DTD HTML 3.2 Final//EN">
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html>
 <head>
  $REFRESH
@@ -736,14 +752,11 @@ $self->{header} .= qq{
 };
 
 $self->{header} .= $css;
-$self->{header} .= 
-" <link rel=\"stylesheet\" media=\"print\" type=\"text/css\" href=\"$PRINTCSS\" />
- <script src=\"$JAVASCRIPT\" type=\"text/javascript\" language=\"javascript\"></script>\n".
-
-q{ 
-<title>~AsmodeuS~ Billing System</title>
-</head>} .
-"\n<body style=\"margin: 0\" bgcolor=\"$_COLORS[10]\" text=\"$_COLORS[9]\" link=\"$_COLORS[8]\"  vlink=\"$_COLORS[7]\">\n";
+$self->{header} .= " <link rel=\"stylesheet\" media=\"print\" type=\"text/css\" href=\"$PRINTCSS\" />
+  <script src=\"$JAVASCRIPT\" type=\"text/javascript\" language=\"javascript\"></script>
+<title>$title</title>
+</head>
+<body style=\"margin: 0\" bgcolor=\"$_COLORS[10]\" text=\"$_COLORS[9]\" link=\"$_COLORS[8]\"  vlink=\"$_COLORS[7]\">\n";
 
  return $self->{header};
 }
@@ -949,23 +962,25 @@ sub addrow {
   my $self = shift;
   my (@row) = @_;
 
-
-
-  if (defined($self->{rowcolor})) {
+  if ($self->{rowcolor}) {
     $bg = $self->{rowcolor};
    }  
   else {
   	$bg = ($bg eq $_COLORS[1]) ? $_COLORS[2] : $_COLORS[1];
    }
   
-  my $extra=(defined($self->{extra})) ? $self->{extra} : '';
+  my $extra=($self->{extra}) ? $self->{extra} : '';
 
   $row_number++;
   
   $self->{rows} .= "<tr bgcolor=\"$bg\"  onmouseover=\"setPointer(this, $row_number, 'over', '$bg', '$_COLORS[3]', '$_COLORS[0]');\" onmouseout=\"setPointer(this, $row_number, 'out', '$bg', '$_COLORS[3]', '$_COLORS[0]');\" onmousedown=\"setPointer(this, $row_number, 'click', '$bg', '$_COLORS[3]', '$_COLORS[0]');\">";
+  
   foreach my $val (@row) {
-     $self->{rows} .= "<TD bgcolor=\"$bg\" $extra>$val</TD>";
+     $self->{rows} .= "<TD bgcolor=\"$bg\" $extra>";
+     $self->{rows} .= $val if(defined($val));
+     $self->{rows} .= "</TD>";
    }
+
   $self->{rows} .= "</TR>\n";
   return $self->{rows};
 }
@@ -1026,10 +1041,14 @@ sub td {
   my $td = '';
 
   if ($attr->{TH}) {
-  	$td = "<TH $extra>$value</TH>";
+  	$td = "<TH $extra>";
+  	$td .= $value if (defined($value));
+  	$td .= "</TH>";
    }
   else {
-    $td = "<TD $extra>$value</TD>";
+    $td = "<TD $extra>";
+   	$td .= $value if (defined($value));
+  	$td .= "</TD>";
    }
 
   return $td;
@@ -1168,7 +1187,7 @@ sub button {
   my $self = shift;
   my ($name, $params, $attr)=@_;
 
-  my $ex_attr = (defined($attr->{ex_params})) ? $attr->{ex_params} : '';
+  my $ex_attr = ($attr->{ex_params}) ? $attr->{ex_params} : '';
 
   
   $params = ($attr->{GLOBAL_URL})? $attr->{GLOBAL_URL} : "$SELF_URL?$params";
@@ -1184,7 +1203,7 @@ sub button {
             'width=640, height=480');\"" if ( $attr->{NEW_WINDOW} );
 
   
-  my $message = (defined($attr->{MESSAGE})) ? " onclick=\"return confirmLink(this, '$attr->{MESSAGE}')\"" : '';
+  my $message = ($attr->{MESSAGE}) ? " onclick=\"return confirmLink(this, '$attr->{MESSAGE}')\"" : '';
   my $button = "<a href=\"$params\"$ex_attr$message>$name</a>";
 
   return $button;
@@ -1240,6 +1259,56 @@ $head
 
 
 #*******************************************************************
+# Preformated test
+#*******************************************************************
+sub pre {
+ my $self = shift;
+ my ($message) = @_;
+ 
+ 
+my $output = qq{
+<pre>
+ $message
+</pre>
+};
+
+  if (defined($self->{NO_PRINT})) {
+  	$self->{OUTPUT}.=$output;
+  	return $output;
+   }
+	else { 
+ 	  print $output;
+	 }
+
+}
+
+#*******************************************************************
+# Mark Bold
+#*******************************************************************
+sub b {
+ my $self = shift;
+ my ($message) = @_;
+ 
+ 
+ my $output = "<b>$message</b>";
+
+ return $output;
+}
+
+#*******************************************************************
+# Mark text
+#*******************************************************************
+sub color_mark {
+ my $self = shift;
+ my ($message, $color) = @_;
+ 
+ my $output = "<font color=$color>$message</font>";
+
+ return $output;
+}
+
+
+#*******************************************************************
 # Make pages and count total records
 # pages($count, $argument)
 #*******************************************************************
@@ -1282,14 +1351,20 @@ sub date_fld  {
  my $MONTHES = $attr->{MONTHES};
 
  my($sec,$min,$hour,$mday,$mon,$curyear,$wday,$yday,$isdst) = localtime(time);
-
- my $day = $FORM{$base_name.'D'} || 1;
+ 
+ if ($attr->{DATE}) {
+ 	 my ($y, $m, $d)=split(/-/, $attr->{DATE});
+ 	 $mday=$d;
+  }
+ else {
+   $mday=1;
+  }
+ 
+ my $day = $FORM{$base_name.'D'} || $mday;
  my $month = $FORM{$base_name.'M'} || $mon;
  my $year = $FORM{$base_name.'Y'} || $curyear + 1900;
 
 
-
-# print "$base_name -";
 my $result  = "<SELECT name=". $base_name ."D>";
 for (my $i=1; $i<=31; $i++) {
    $result .= sprintf("<option value=%.2d", $i);
@@ -1309,16 +1384,15 @@ foreach my $line (@$MONTHES) {
    $result .= ">$line\n";
    $i++
 }
-
 $result .= '</select>';
 
 $result  .= "<SELECT name=". $base_name ."Y>";
-for ($i=2001; $i<=$curyear + 1900+2; $i++) {
+for ($i=2002; $i<=$curyear + 1900+2; $i++) {
    $result .= "<option value=$i";
    $result .= ' selected' if($year eq $i ) ;
    $result .= ">$i\n";
  }	
-$result .= '</select>';
+$result .= '</select>'."\n";
 
 return $result ;
 }
@@ -1367,7 +1441,6 @@ $text
 sub tpl_show {
   my $self = shift;
   my ($tpl, $variables_ref, $attr) = @_;	
-  
 
   while($tpl =~ /\%(\w+)\%/g) {
 #    print "-$1-<br>\n";
@@ -1383,7 +1456,7 @@ sub tpl_show {
   if($attr->{OUTPUT2RETURN}) {
 		return $tpl;
 	 }
-  elsif (defined($attr->{notprint}) || ($self->{NO_PRINT} && $self->{NO_PRINT} == 1)) {
+  elsif ($attr->{notprint} || $self->{NO_PRINT}) {
   	$self->{OUTPUT} .= $tpl;
   	return $tpl;
    }
@@ -1471,7 +1544,7 @@ foreach my $line (@alphabet) {
 
   for (my $i=$first; $i<=$last; $i++) {
     my $l = chr($i);
-    if ($FORM{letter} eq $l) {
+    if ($FORM{letter} && $FORM{letter} eq $l) {
       $letters .= "<b>$l </b>\n";
      }
     else {
@@ -1505,9 +1578,9 @@ sub make_charts {
 	  $PATH =~ s/img//;
    }
 
-  if (! -f $PATH. "charts.swf") {
-  	 return 0;
-   }
+#  if (! -f $PATH. "charts.swf") {
+#     return 0;
+#   }
   
   my $suffix = ($attr->{SUFFIX}) ? $attr->{SUFFIX} : '';
 
@@ -1515,7 +1588,8 @@ sub make_charts {
   my $DATA = $attr->{DATA};
   my $ex_params = '';
 
-  return 0 if(scalar keys  %$DATA == 0);
+
+  return  if(scalar keys  %$DATA == 0);
 
   if ($attr->{TRANSITION} && $CONF->{CHART_ANIMATION}) {
     my $random = int(rand(@chart_transition));
@@ -1695,11 +1769,15 @@ PLUGINSPAGE='http://www.macromedia.com/go/getflashplayer'>
 <br>
 ";
 
-	
+
 	if ($attr->{OUTPUT2RETURN}) {
 		 return $output;
-	  }
-	
+   }
+  elsif (defined($self->{NO_PRINT})) {
+  	$self->{OUTPUT}.=$output;
+  	return $output;
+   }
+
   print $output;
 
 }

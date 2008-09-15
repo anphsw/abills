@@ -117,7 +117,7 @@ sub user_status {
 
   $self->query($db, "$sql", 'do');
 	
-	my $a = `echo "==ACTIVE $sql" >> /tmp/ipn.log`;
+#	my $a = `echo "==ACTIVE $sql" >> /tmp/ipn.log`;
 	
  return $self;
 }
@@ -1114,11 +1114,11 @@ sub online_alive {
     and framed_ip_address=INET_ATON('$attr->{REMOTE_ADDR}')
     ;");
   
-  my $a = `echo "SELECT count(*) FROM dv_calls
-   WHERE  user_name = '$attr->{LOGIN}'  
-    and acct_session_id='$attr->{SESSION_ID}'
-    and framed_ip_address=INET_ATON('$attr->{REMOTE_ADDR}')
-    ;" >> /tmp/ipn.log`;
+#  my $a = `echo "SELECT count(*) FROM dv_calls
+#   WHERE  user_name = '$attr->{LOGIN}'  
+#    and acct_session_id='$attr->{SESSION_ID}'
+#    and framed_ip_address=INET_ATON('$attr->{REMOTE_ADDR}')
+#    ;" >> /tmp/ipn.log`;
   
   if ($self->{TOTAL} > 0) {
     my $sql = "UPDATE dv_calls SET  lupdated=UNIX_TIMESTAMP(),
@@ -1130,7 +1130,7 @@ sub online_alive {
     $self->query($db, $sql, 'do' );
     $self->{TOTAL} = 1;
     
-    my $a = `echo "==ALIVE $sql" >> /tmp/ipn.log`;
+#    my $a = `echo "==ALIVE $sql" >> /tmp/ipn.log`;
    }
 
   return $self;	
@@ -1138,15 +1138,80 @@ sub online_alive {
 
 #*******************************************************************
 # Delete information from detail table
+# and log table
 #*******************************************************************
-sub ipn_detail_rotate {
+sub ipn_log_rotate {
   my $self = shift;
 	my ($attr) = @_;
+  
+ my $version = $self->db_version();
+ #Detail Daily rotate
+ if ($attr->{DETAIL} && $version > 4.1 ) {
+ 	#my $DATE = $admin->{DATE};
+ 	#$DATE =~ s/-/_/g;
+        my $DATE = (strftime "%Y_%m_%d", localtime(time - 86400));
 
-  $self->query($db, "DELETE LOW_PRIORITY  from ipn_traf_detail
-WHERE f_time - INTERVAL $attr->{PERIOD} DAY;", 'do');
-	
-	return $self;
+ 	my @rq = (
+    'CREATE TABLE IF NOT EXISTS ipn_traf_detail_new LIKE ipn_traf_detail;',
+    'RENAME TABLE 
+      ipn_traf_detail TO ipn_traf_detail_'. $DATE .
+      ', ipn_traf_detail_new TO ipn_traf_detail;'
+      );
+
+  foreach my $query (@rq) {
+    $self->query($db, "$query", 'do'); 
+   }
+  }
+ else {
+   $self->query($db, "DELETE from ipn_traf_detail WHERE f_time < f_time - INTERVAL $attr->{PERIOD} DAY;", 'do');
+  }
+
+ #IPN log rotate
+ if ($attr->{LOG} && $version > 4.1) {
+   my @rq = (
+    'DROP TABLE IF EXISTS ipn_log_new;',
+    'CREATE TABLE ipn_log_new LIKE ipn_log;',
+#    'INSERT INTO ipn_log_new (
+#         uid,
+#         start,
+#         stop,
+#         traffic_class,
+#         traffic_in,
+#         traffic_out,
+#         session_id,
+#         sum
+#    ) 
+#    SELECT uid, min(start), max(start), traffic_class, sum(traffic_in), sum(traffic_out),  session_id, sum(sum) FROM ipn_log 
+#      WHERE start < start - INTERVAL '. $attr->{PERIOD} .' DAY GROUP BY uid, session_id, traffic_class;',
+
+    'INSERT INTO ipn_log_new (
+         uid,
+         start,
+         stop,
+         traffic_class,
+         traffic_in,
+         traffic_out,
+         session_id,
+         sum
+    ) 
+    SELECT uid, start, start, traffic_class, traffic_in, traffic_out,  session_id, sum FROM ipn_log 
+      WHERE start >= \''. $admin->{DATE} .'\' - INTERVAL '. $attr->{PERIOD} .' DAY; ',
+
+
+    'DROP TABLE IF EXISTS ipn_log_backup;',
+    'RENAME TABLE 
+      ipn_log  TO ipn_log_backup, 
+      ipn_log_new TO ipn_log;',
+    'DELETE FROM ipn_log_backup  WHERE start >= \''. $admin->{DATE}. '\' - INTERVAL '. $attr->{PERIOD} .' DAY; '
+      );
+
+   foreach my $query (@rq) {
+     $self->query($db, "$query", 'do');
+    }
+
+  }
+
+ return $self;
 }
 
 #*******************************************************************
@@ -1212,7 +1277,6 @@ if ($#GROUP_RULES > -1) {
   $size = 'sum(size)';
  } 
 
- $self->{debug}=1;
  
  $self->query($db, "SELECT  s_time,	f_time,
   INET_NTOA(src_addr),

@@ -12,7 +12,7 @@
 --		Copyright (c) 1993-1998 Ascend Communications, Inc.
 --		All rights reserved.
 --
--- $Id: session.mib,v 1.1.2.1 2007/01/10 12:03:38 abills Exp $
+-- $Id: session.mib,v 1.2 2007/11/15 09:29:39 abills Exp $
 -- This file is generated automatically for TAOS version 8.0.5.
 --
 -- 11 Mar 97 rm  Initially created

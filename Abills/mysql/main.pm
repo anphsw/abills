@@ -67,7 +67,7 @@ sub connect {
   my ($dbhost, $dbname, $dbuser, $dbpasswd, $attr) = @_;
   bless($self, $class);
   #$self->{debug}=1;
-  $self->{db} = DBI->connect("DBI:mysql:database=$dbname;host=$dbhost", "$dbuser", "$dbpasswd") or die 
+  $self->{db} = DBI->connect("DBI:mysql:database=$dbname;host=$dbhost", "$dbuser", "$dbpasswd") or print 
        "Unable connect to server '$dbhost:$dbname'\n";
   
   #For mysql 5 or highter
@@ -86,6 +86,20 @@ sub disconnect {
   return $self;
 }
 
+#**********************************************************
+#
+#**********************************************************
+sub db_version {
+	my $self = shift;
+  my ($attr)	= @_;
+
+  my $version = $db->get_info( 18 ); 
+  if ($version =~ /^(\d+\.\d+)/) {
+   	$version = $1;
+   }
+
+  return $version;
+}
 
 #**********************************************************
 #  do
@@ -107,18 +121,37 @@ sub query {
    }
 
 my $q;
-#print "$query<br>";
+
+my @Array = ();
+# check bind params
+if ($attr->{Bind}) {
+  
+  foreach my $Data (@{ $attr->{Bind} }) {
+    push(@Array, $Data);
+    #print ref(\$Data);
+#    if (ref($Data) eq 'SCALAR') {
+#      push(@Array, $$Data);
+#     }
+#    else  {
+#      $self->{errno} = 7;
+#      $self->{errstr} = "No SCALAR param in Bind!";
+#      return $self;
+#     }
+
+   }
+
+ }
 
 if (defined($type) && $type eq 'do') {
 #  print $query;
-  $q = $db->do($query);
+  $q = $db->do($query, undef, @Array);
   if (defined($db->{'mysql_insertid'})) {
   	 $self->{INSERT_ID} = $db->{'mysql_insertid'};
    }
 }
 else {
   #print $query;
-  $q = $db->prepare($query) || die $db->errstr;
+  $q = $db->prepare($query); # || die $db->errstr;
   if($db->err) {
      $self->{errno} = 3;
      $self->{sql_errno}=$db->err;
@@ -128,19 +161,35 @@ else {
      return $self->{errno};
    }
   #print $query;
-  $q ->execute(); 
-
-  if($db->err) {
-     $self->{errno} = 3;
-
-     $self->{sql_errno}=$db->err;
-     $self->{sql_errstr}=$db->errstr;
-     $self->{errstr}=$db->errstr;
-     return $self->{errno};
-   }
   
+  if ($attr->{MULTI_QUERY}) {
+    foreach my $line ( @{ $attr->{MULTI_QUERY} } ) {
+      $q ->execute( @$line );
+      if($db->err) {
+        $self->{errno} = 3;
+
+        $self->{sql_errno}=$db->err;
+        $self->{sql_errstr}=$db->errstr;
+        $self->{errstr}=$db->errstr;
+        return $self->{errno};
+       }
+     }
+   }
+  else {
+    $q ->execute();
+    if($db->err) {
+      $self->{errno} = 3;
+
+      $self->{sql_errno}=$db->err;
+      $self->{sql_errstr}=$db->errstr;
+      $self->{errstr}=$db->errstr;
+      return $self->{errno};
+     }
+    $self->{TOTAL} = $q->rows;
+  }
+
   $self->{Q}=$q;
-  $self->{TOTAL} = $q->rows;
+
 #  $self->{NUM_OF_FIELDS} = $q->{NUM_OF_FIELDS};
 }
 
@@ -155,23 +204,22 @@ if($db->err) {
    }
 
   $self->{errno} = 3;
-  $self->{errstr} = 'SQL_ERROR' . $self->{db}->strerr;
+  $self->{errstr} = 'SQL_ERROR'; # . ( ($self->{db}->strerr) ? $self->{db}->strerr : '' );
   return $self;
  }
 
 if ($self->{TOTAL} > 0) {
   my @rows;
   while(my @row = $q->fetchrow()) {
-   push @rows, \@row;
+    push @rows, \@row;
   }
   $self->{list} = \@rows;
-}
+ }
 else {
 	delete $self->{list};
 }
 
  $self->{query_count}++;
-
  return $self;
 }
 
@@ -191,6 +239,7 @@ sub get_data {
   
   while(my($k, $v)=each %$params) {
   	 next if (! $params->{$k} && defined($DATA{$k})) ;
+  	 $v =~ s/^ +|[ \n]+$//g if ($v);
   	 $DATA{$k}=$v;
      #print "--$k, '$v'<br>\n";
    }
@@ -212,36 +261,42 @@ sub get_data {
 # STR - string
 #**********************************************************
 sub search_expr {
-	my $self=shift;
- 	my ($value, $type)=@_;
-
-  my $expr = '=';
-  
-  if($type eq 'INT' && $value =~ s/\*//g) {
-  	$expr = '>';
-   }
-  elsif ($value =~ s/^<>//) {
-    $expr = '<>';
-   }
-  elsif ($value =~ tr/^>//d) {
-    $expr = '>';
-   }
-  elsif($value =~ tr/^<//d) {
-    $expr = '<';
-   }
-  
-
-  
-  if ($type eq 'IP') {
-  	$value = "INET_ATON('$value')";
-   }
-  else {
-  	$value="'$value'";
-   }
+  my $self=shift;
+  my ($value, $type, $field, $attr)=@_;
 
 
+  my @val_arr     = split(/,/, $value);  
+  my @result_arr  = ();
+
+  foreach my $v (@val_arr) { 
+    my $expr = '=';
+
+    if($type eq 'INT' && $v =~ s/\*//g) {
+      $expr = '>';
+     }
+    elsif( $v =~ s/^([<>=]{1,2})// ) {
+      $expr = $1;
+     }  
   
-  $value = $expr . $value;
+    if ($type eq 'IP') {
+      $v = "INET_ATON('$v')";
+     }
+    else {
+      $v="'$v'";
+     }
+
+    $value = $expr . $v;
+    
+    
+    push @result_arr, "$field$value" if ($field);
+   }
+
+  if ($field) {
+    return \@result_arr; 
+   }
+
+#  print "$expr- $value \n";
+
   return $value;
 }
 

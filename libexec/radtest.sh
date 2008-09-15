@@ -1,21 +1,34 @@
 #!/bin/sh
+# Test radius inputs and outputs
 
 AUTH_LOG=/usr/abills/var/log/abills.log
 ACCT_LOG=/usr/abills/var/log/acct.log
+VERSION=0.01
 
-
-echo $1 
+USER_NAME=test
+USER_PASSWORD=123456
+NAS_IP_ADDRESS=127.0.0.1
 
 echo `pwd -P`;
+echo $1 
+
+
+echo -n "USER_NAME (${USER_NAME}): "
+read _input
+if [ w${_input} != w ]; then
+  USER_NAME=${_input}
+fi;
+
 
 if [ t$1 = 'tauth' ] ; then
 
   ./rauth.pl \
         SERVICE_TYPE=VPN \
-        USER_NAME="test"\
-        NAS_IP_ADDRESS=192.168.202.15 \
-        CALLING_STATION_ID="00-0D-88-42-87-7E"\
-         USER_PASSWORD="test"
+        NAS_IP_ADDRESS=${NAS_IP_ADDRESS} \
+        CALLING_STATION_ID="0013.7727.ad33"\
+        USER_PASSWORD="${USER_PASSWORD}"\
+        USER_NAME="${USER_NAME}"
+
 #        CHAP_PASSWORD="0x5acd1cc26b6f8bf084fb616925769362af"
 
 #        USER_PASSWORD="test12345"\
@@ -63,14 +76,14 @@ elif [ t$1 = 'tacct' ]; then
   if [ t$2 = 'tStart' ]; then
    echo Start;
    ./racct.pl \
-        USER_NAME="aa1" \
+        USER_NAME="${USER_NAME}" \
         SERVICE_TYPE=Framed-User \
         FRAMED_PROTOCOL=PPP \
         FRAMED_IP_ADDRESS=10.0.0.1 \
         FRAMED_IP_NETMASK=0.0.0.0 \
         CISCO_AVPAIR="connect-progress=LAN Ses Up"\
         CISCO_AVPAIR="client-mac-address=0001.29d2.2695"\
-        NAS_IP_ADDRESS=192.168.202.15 \
+        NAS_IP_ADDRESS=127.0.0.1 \
         NAS_IDENTIFIER="media.intranet" \
         NAS_PORT_TYPE=Virtual \
         ACCT_STATUS_TYPE=Start \
@@ -78,25 +91,50 @@ elif [ t$1 = 'tacct' ]; then
 
 #        CALLING_STATION_ID="192.168.101.4" \
 
-   elif [ t$2 = 'tStop' ] ; then
-      echo Stop;
+   elif [ t$2 = 'tAlive' ] ; then
+            echo Alive;
       ./racct.pl \
-        USER_NAME="aa1" \
+        USER_NAME="${USER_NAME}" \
         SERVICE_TYPE=Framed-User \
         FRAMED_PROTOCOL=PPP \
         FRAMED_IP_ADDRESS=10.0.0.1 \
         FRAMED_IP_NETMASK=0.0.0.0 \
         CALLING_STATION_ID="192.168.101.4" \
-        NAS_IP_ADDRESS=192.168.202.15 \
+        NAS_IP_ADDRESS=127.0.0.1 \
+        NAS_IDENTIFIER="media.intranet" \
+        NAS_PORT_TYPE=Virtual \
+        ACCT_STATUS_TYPE=Interim-Update \
+        ACCT_SESSION_ID="83419_AA11118757979" \
+        ACCT_DELAY_TIME=0 \
+        ACCT_INPUT_OCTETS=1345980000 \
+        ACCT_INPUT_GIGAWORDS=1 \
+        ACCT_INPUT_PACKETS=12445532225 \
+        ACCT_OUTPUT_OCTETS=17464000 \
+        EXPPP_ACCT_LOCALINPUT_OCTETS=12000000 \
+        EXPPP_ACCT_LOCALOUTPUT_OCTETS=13000000 \
+        ACCT_OUTPUT_GIGAWORDS=1 \
+        ACCT_OUTPUT_PACKETS=0 \
+        ACCT_SESSION_TIME=100 
+
+   elif [ t$2 = 'tStop' ] ; then
+      echo Stop;
+      ./racct.pl \
+        USER_NAME="${USER_NAME}" \
+        SERVICE_TYPE=Framed-User \
+        FRAMED_PROTOCOL=PPP \
+        FRAMED_IP_ADDRESS=10.0.0.1 \
+        FRAMED_IP_NETMASK=0.0.0.0 \
+        CALLING_STATION_ID="192.168.101.4" \
+        NAS_IP_ADDRESS=127.0.0.1 \
         NAS_IDENTIFIER="media.intranet" \
         NAS_PORT_TYPE=Virtual \
         ACCT_STATUS_TYPE=Stop \
         ACCT_SESSION_ID="83419_AA11118757979" \
         ACCT_DELAY_TIME=0 \
-        ACCT_INPUT_OCTETS=1000 \
+        ACCT_INPUT_OCTETS=53045900 \
         ACCT_INPUT_GIGAWORDS=0 \
         ACCT_INPUT_PACKETS=125 \
-        ACCT_OUTPUT_OCTETS=1000 \
+        ACCT_OUTPUT_OCTETS=10000 \
         EXPPP_ACCT_LOCALINPUT_OCTETS=12000000 \
         EXPPP_ACCT_LOCALOUTPUT_OCTETS=13000000 \
         ACCT_OUTPUT_GIGAWORDS=0 \
@@ -126,14 +164,18 @@ elif [ t$1 = 'tvoip' ] ; then
    echo Auth;
    ./rauth.pl NAS_IP_ADDRESS="192.168.202.15" \
      NAS_PORT_TYPE="Virtual" \
-     NAS_IDENTIFIER="ASMODEUSGK" \
+     NAS_IDENTIFIER="" \
      CLIENT_IP_ADDRESS="192.168.101.17" \
      CISCO_AVPAIR="h323-ivr-out=terminal-alias:100;" \
      SERVICE_TYPE="Login-User" \
      CHAP_CHALLENGE="0x43a28c01" \
      USER_NAME="200" \
+     CALLING_STATION_ID="3456"\
      FRAMED_IP_ADDRESS="192.168.101.23" \
-     HUNTGROUP_NAME="voips" 
+     CALLED_STATION_ID="001363" \
+     H323_CONF_ID="h323-conf-id=16000 647BEE1D 80F000A F453DBFD"\
+     H323_CALL_ORIGIN="h323-call-origin=originate"
+#     HUNTGROUP_NAME="voips" 
 
 #     CHAP_PASSWORD="0x06a8f3fb0ab5f4a8e90a590686c845c456" \
  

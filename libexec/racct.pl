@@ -195,6 +195,9 @@ sub acct {
     $RAD->{INBYTE} = $RAD->{ACCT_OUTPUT_OCTETS} || 0; # FROM client
     $RAD->{OUTBYTE} = $RAD->{ACCT_INPUT_OCTETS} || 0; # TO client
 
+    ($RAD->{ACCT_INPUT_GIGAWORDS}, $RAD->{ACCT_OUTPUT_GIGAWORDS}) = ($RAD->{ACCT_OUTPUT_GIGAWORDS}, $RAD->{ACCT_INPUT_GIGAWORDS}); 
+
+
     if ($nas->{NAS_TYPE} eq 'exppp') {
       #reverse byte parameters
       $RAD->{INBYTE}   = $RAD->{ACCT_INPUT_OCTETS} || 0;   # FROM client
@@ -227,9 +230,9 @@ sub acct {
   $RAD->{CONNECT_INFO}       = '' if  (! defined($RAD->{CONNECT_INFO}));
   $RAD->{ACCT_TERMINATE_CAUSE} =  (defined($RAD->{ACCT_TERMINATE_CAUSE}) && defined($ACCT_TERMINATE_CAUSES{"$RAD->{ACCT_TERMINATE_CAUSE}"})) ? $ACCT_TERMINATE_CAUSES{"$RAD->{ACCT_TERMINATE_CAUSE}"} : 0;
 
-  if ($RAD->{'TUNNEL_SERVER_ENDPOINT:0'} && ! $RAD->{CALLING_STATION_ID}) {
-    $RAD->{CALLING_STATION_ID}=$RAD->{'TUNNEL_SERVER_ENDPOINT:0'};
-   }
+  if ($RAD->{'TUNNEL_CLIENT_ENDPOINT'} && ! $RAD->{CALLING_STATION_ID}) { 
+    $RAD->{CALLING_STATION_ID}=$RAD->{'TUNNEL_CLIENT_ENDPOINT'}; 
+   } 
   elsif(! defined($RAD->{CALLING_STATION_ID})) {
     $RAD->{CALLING_STATION_ID} = '';
    }
