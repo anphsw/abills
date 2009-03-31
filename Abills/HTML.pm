@@ -163,7 +163,9 @@ sub new {
       PDF::API2->import();
       require Abills::PDF;
       $self = Abills::PDF->new( { IMG_PATH  => $IMG_PATH,
-      	                         NO_PRINT  => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1 
+      	                          NO_PRINT  => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1,
+      	                          CONF      => $CONF
+      	                          
 	                            
 	                            });
      }
@@ -176,8 +178,8 @@ sub new {
   elsif (defined($FORM{xml})) {
     require Abills::XML;
     $self = Abills::XML->new( { IMG_PATH  => $IMG_PATH,
-	                              NO_PRINT  => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1 
-	                            
+	                              NO_PRINT  => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1 ,
+	                              CONF      => $CONF 
 	                            });
   }
   
@@ -227,7 +229,7 @@ if (! defined($ENV{CONTENT_TYPE}) || $ENV{CONTENT_TYPE} !~ /boundary/ ) {
       #Check quotes
       $value =~ s/"/\\"/g;
       $value =~ s/'/\\'/g;
-    }
+     }
     else {
       $value = '';
      }
@@ -279,7 +281,9 @@ else {
          }
         else {
 	        next if $datas =~ /^\s*$/;
-           $FORM{"$name"} = $datas;
+	        $datas =~ s/"/\\"/g;
+          $datas =~ s/'/\\'/g;
+          $FORM{"$name"} = $datas;
          }
         next;
        }
@@ -397,11 +401,10 @@ sub form_select {
 	$self->{SELECT} = "<select name=\"$name\" $ex_params>\n";
   
   if (defined($attr->{SEL_OPTIONS})) {
- 	  my $H = $attr->{SEL_OPTIONS};
-	  while(my($k, $v) = each %$H) {
-     $self->{SELECT} .= "<option value='$k'";
-     $self->{SELECT} .=' selected' if (defined($attr->{SELECTED}) && $k eq $attr->{SELECTED});
-     $self->{SELECT} .= ">$v\n";	
+    foreach my $k (keys ( %{ $attr->{SEL_OPTIONS} } ) ) {
+      $self->{SELECT} .= "<option value='$k'";
+      $self->{SELECT} .=' selected' if (defined($attr->{SELECTED}) && $k eq $attr->{SELECTED});
+      $self->{SELECT} .= ">". $attr->{SEL_OPTIONS}->{$k} ."\n";	
      }
    }
   
@@ -409,10 +412,12 @@ sub form_select {
   if (defined($attr->{SEL_ARRAY})){
 	  my $H = $attr->{SEL_ARRAY};
 	  my $i=0;
+	  
+  
 	  foreach my $v (@$H) {
       my $id = (defined($attr->{ARRAY_NUM_ID})) ? $i : $v;
       $self->{SELECT} .= "<option value='$id'";
-      $self->{SELECT} .= ' selected' if ($attr->{SELECTED} && ( ($i eq $attr->{SELECTED}) || ($v eq $attr->{SELECTED}) ) );
+      $self->{SELECT} .= ' selected' if (defined($attr->{SELECTED}) && ( ($i eq $attr->{SELECTED}) || ($v eq $attr->{SELECTED}) ) );
       $self->{SELECT} .= ">$v\n";
       $i++;
      }
@@ -437,7 +442,9 @@ sub form_select {
 	  	@H = sort keys %{ $attr->{SEL_HASH} };
 	  }
 	  else {
-	    @H = keys %{ $attr->{SEL_HASH} };
+	    @H = sort {
+             $attr->{SEL_HASH}->{$a} cmp $attr->{SEL_HASH}->{$b}
+           } keys %{ $attr->{SEL_HASH} }; 
      }
     
     
@@ -739,8 +746,8 @@ sub header {
  my $title = ($CONF->{WEB_TITLE}) ? $CONF->{WEB_TITLE} : "~AsmodeuS~ Billing System";
  my $REFRESH = ($FORM{REFRESH}) ? "<META HTTP-EQUIV=\"Refresh\" CONTENT=\"$FORM{REFRESH}; URL=$ENV{REQUEST_URI}\"/>\n" : '';
 
-$self->{header} .= qq{
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+$self->{header} .= qq{ <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
 <html>
 <head>
  $REFRESH
@@ -815,6 +822,8 @@ form {
   font-size: 12px;
 }
 
+
+
 input, textarea {
 	font-family : Verdana, Arial, sans-serif;
 	font-size : 12px;
@@ -838,6 +847,124 @@ TABLE.border {
   border-style : solid;
   border-width : 1px;
 }
+
+
+
+
+.l_user_menu {
+      width: 100%;
+      border-right: 1px solid #000;
+      padding: 0 0 6px 0;
+      margin-bottom: 1px;
+      font-family: 'Trebuchet MS', 'Lucida Grande',
+      Verdana, Lucida, Geneva, Helvetica, 
+      Arial, sans-serif;
+      background-color: $_COLORS[2];
+      color: #333;
+      }
+
+.l_user_menu ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      border: none;
+      }
+		
+.l_user_menu li {
+      border-bottom: 1px solid $_COLORS[2];
+      margin: 0;
+      }
+
+
+.l_user_menu li a {
+      display: block;
+      padding: 5px 5px 5px 0.5em;
+      border-left: 4px solid $_COLORS[0];
+      border-right: 5px solid $_COLORS[4];
+      background-color: $_COLORS[3];
+      color: $_COLORS[9];
+      text-decoration: none;
+      width: 100%;
+      }
+
+.l_user_menu li a {
+      width: auto;
+      }
+
+.l_user_menu li a:hover {
+      border-left: 4px solid $_COLORS[9];
+      border-right: 5px solid $_COLORS[2];
+      background-color: $_COLORS[0];
+      color: $_COLORS[9];
+      }
+
+
+
+
+
+
+#tabs ul {
+      margin-left: 0;
+      padding-left: 0;
+      display: inline;
+      } 
+
+#tabs ul li {
+      margin-left: 0;
+      margin-bottom: 0;
+      padding: 2px 15px 5px;
+      border: 1px solid $_COLORS[3];
+      list-style: none;
+      display: inline;
+      }
+		
+#tabs ul li.active {
+      border-bottom: 1px solid $_COLORS[0];
+      list-style: none;
+      display: inline;
+      }
+
+
+
+
+#rules {
+  float:center;
+  text-align:center;
+  padding: 0 0 6px 0;
+  overflow:hidden;
+  height:32px;
+  line-height:30px;
+}
+
+#rules li{
+  display:inline;
+  padding:0;
+}
+
+#rules .center a{
+  padding:1px 5px;
+  font-weight:100;
+  font-size:11;
+  background:$_COLORS[2];
+  border:1px solid $_COLORS[4];
+  color:#000;
+  text-decoration:none;
+  margin:0 1px;
+}
+
+#rules .center a:hover{
+  background:#ccc;
+  border:1px solid #666;
+}
+
+#rules .center a.active{
+  background:#666;
+  border:1px solid #666;
+  color:#fff;
+}
+
+
+
 
 
 
@@ -1203,7 +1330,17 @@ sub button {
             'width=640, height=480');\"" if ( $attr->{NEW_WINDOW} );
 
   
-  my $message = ($attr->{MESSAGE}) ? " onclick=\"return confirmLink(this, '$attr->{MESSAGE}')\"" : '';
+  my $message = '';
+  
+  if ($attr->{MESSAGE}) {
+  	$attr->{MESSAGE} =~ s/'/\\'/g;
+  	$attr->{MESSAGE} =~ s/"/\\'/g;
+  	$attr->{MESSAGE} =~ s/\n//g;
+  	$attr->{MESSAGE} =~ s/\r//g;
+  	
+  	$message = " onclick=\"return confirmLink(this, '$attr->{MESSAGE}')\"";
+   }
+
   my $button = "<a href=\"$params\"$ex_attr$message>$name</a>";
 
   return $button;
@@ -1216,14 +1353,18 @@ sub button {
 #*******************************************************************
 sub message {
  my $self = shift;
- my ($type, $caption, $message, $head) = @_;
+ my ($type, $caption, $message, $attr) = @_;
  
+ my $head = '';
+ $caption .= ': '. $attr->{ID} if ($attr->{ID});
  if ($type eq 'err') {
    $head = "<tr><th bgcolor=\"#FF0000\">$caption</th></TR>\n";
   }
  elsif ($type eq 'info') {
    $head = "<tr><th bgcolor=\"$_COLORS[0]\">$caption</th></TR>\n";
   }  
+ 
+ 
  
 my $output = qq{
 <br>
@@ -1263,7 +1404,7 @@ $head
 #*******************************************************************
 sub pre {
  my $self = shift;
- my ($message) = @_;
+ my ($message, $attr) = @_;
  
  
 my $output = qq{
@@ -1272,7 +1413,7 @@ my $output = qq{
 </pre>
 };
 
-  if (defined($self->{NO_PRINT})) {
+  if ($self->{NO_PRINT} || $attr->{OUTPUT2RETURN}) {
   	$self->{OUTPUT}.=$output;
   	return $output;
    }
@@ -1282,14 +1423,14 @@ my $output = qq{
 
 }
 
+
 #*******************************************************************
 # Mark Bold
 #*******************************************************************
 sub b {
  my $self = shift;
  my ($message) = @_;
- 
- 
+
  my $output = "<b>$message</b>";
 
  return $output;
@@ -1332,10 +1473,13 @@ sub pages {
  return $self->{pages} if ($count < $PAGE_ROWS);
  
 for(my $i=$begin; ($i<=$count && $i < $PG + $PAGE_ROWS * 10); $i+=$PAGE_ROWS) {
-   $self->{pages} .= ($i == $PG) ? "<b>$i</b>:: " : $self->button($i, "$argument&pg=$i"). ':: ';
+   $self->{pages} .= ($i == $PG) ? "<b>$i</b> " : $self->button($i, "$argument&pg=$i") .' ';
 }
  
- return $self->{pages};
+ 
+ return "<div id=\"rules\"><ul><li class=\"center\">". 
+         $self->{pages}.
+        "</li></ul></div>\n";
 }
 
 
@@ -1473,9 +1617,9 @@ sub tpl_show {
 # 
 #**********************************************************
 sub test {
-
+ return 0 if (! $CONF->{WEB_DEBUG});
+ 
  my $output = '';
-
 #print "<TABLE border=1>
 #<tr><TD colspan=2>FORM</TD></TR>
 #<tr><TD>index</TD><TD>$index</TD></TD></TR>
@@ -1559,9 +1703,14 @@ foreach my $line (@alphabet) {
   	return '';
    }
 	else { 
- 	  return $letters;
+ 	  return "<div id=\"rules\"><ul><li class=\"center\">
+ 	  $letters
+ 	  </li></ul></div>\n";
 	 }
 }
+
+
+
 
 #**********************************************************
 # Using some flash from http://www.maani.us

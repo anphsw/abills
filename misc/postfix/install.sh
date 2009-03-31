@@ -16,8 +16,9 @@ if [ w$1 = w ]; then
 
 fi;
 
-if [ wLinux = w$2 ]; then
-  if [ wClamav = w$1 ]; then
+#Add Clamav user
+if [ wClamav = w$1 ]; then
+  if [ wLINUX = w$2 ]; then
     GROUP=clamav;
     USER=clamav;
     if /bin/id "${GROUP}" 2>/dev/null; then
@@ -36,6 +37,7 @@ else
         NOLOGIN=/sbin/nologin
 fi
 
+#Add Vmail user to passwd file
 if [ x"$1" = xADD_VMAIL_USER ]; then
    USER=vmail
    USER_ID=1005
@@ -43,7 +45,7 @@ if [ x"$1" = xADD_VMAIL_USER ]; then
    GID=1005
 #Linux 
 
-  if [ x"$1" = xLINUX ]; then
+  if [ x"$2" = xLINUX ]; then
     if /bin/id "${GROUP}" 2>/dev/null; then
        echo "Group Exist";
     else

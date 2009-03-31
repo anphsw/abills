@@ -2,13 +2,14 @@
 <TABLE width='100%' cellspacing='1' cellpadding='0' border='0'>
 <TR bgcolor='$_COLORS[0]'><TH ALIGN=RIGHT COLSPAN='2'>$_INFO</TH></TR>
 <TR bgcolor='$_COLORS[1]'><TD>$_LOGIN:</TD><TD>%LOGIN%</TD></TR>
-<tR bgcolor='$_COLORS[1]'><TD>UID:</TD><TD>%UID%</TD></TR>
-<tR bgcolor='$_COLORS[1]'><TD>$_DEPOSIT:</TD><TD>%DEPOSIT%</TD></TR>
+<TR bgcolor='$_COLORS[1]'><TD>UID:</TD><TD>%UID%</TD></TR>
+<TR bgcolor='$_COLORS[1]'><TD>$_DEPOSIT:</TD><TD>%DEPOSIT%</TD></TR>
 <TR bgcolor='$_COLORS[1]'><TD>$_FIO:</TD><TD>%FIO%</TD></TR>
 <TR bgcolor='$_COLORS[1]'><TD>$_PHONE:</TD><TD>%PHONE%</TD></TR>
 <TR bgcolor='$_COLORS[1]'><TD>$_ADDRESS:</TD><TD>%ADDRESS%</TD></TR>
 <TR bgcolor='$_COLORS[1]'><TD>E-mail:</TD><TD>%EMAIL%</TD></TR>
-<tR bgcolor='$_COLORS[1]'><TD>$_CREDIT:</TD><TD>%CREDIT%</TD></TR>
+<TR bgcolor='$_COLORS[1]'><TD>$_CONTRACT:</TD><TD>%CONTRACT_ID%</TD></TR>
+<TR bgcolor='$_COLORS[1]'><TD>$_CREDIT:</TD><TD>%CREDIT%</TD></TR>
 <TR bgcolor='$_COLORS[1]'><TD>$_REDUCTION</TD><TD>%REDUCTION% %</TD></TR>
 <TR bgcolor='$_COLORS[1]'><TD>$_ACTIVATE:</TD><TD>%ACTIVATE%</TD></TR>
 <TR bgcolor='$_COLORS[1]'><TD>$_EXPIRE:</TD><TD>%EXPIRE%</TD></TR>

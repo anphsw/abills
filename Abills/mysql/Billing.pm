@@ -1,6 +1,7 @@
 package Billing;
 # Main billing functions
 #
+
 use strict;
 use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
 );
@@ -157,6 +158,7 @@ sub traffic_calculations {
 my %traf_price  = ();
 my %prepaid     = ( 0 => 0, 
                     1 => 0);
+my %expr        = ();
 
 my $list = $tariffs->tt_list( { TI_ID => $self->{TI_ID} });
 #id, in_price, out_price, prepaid, speed, descr, nets
@@ -164,6 +166,7 @@ foreach my $line (@$list) {
    $traf_price{in}{$line->[0]}  =	$line->[1];
    $traf_price{out}{$line->[0]} =	$line->[2];
    $prepaid{$line->[0]}         = $line->[3];
+   $expr{$line->[0]}            = $line->[8] if (length($line->[8]) > 7);
 }
 
   my $used_traffic;
@@ -207,7 +210,9 @@ if ($prepaid{0} + $prepaid{1} > 0) {
                                               INTERVAL => $interval,
                                               TP_ID    => $tp
                                             });
-                                           
+        
+     print "/$self->{UID}/\n" if (! defined($self->{OCTETS_DIRECTION}));                                      
+
      if($self->{OCTETS_DIRECTION} == 1) {
  	     $prepaid{0} += $prepaid{0} - $transfer_traffic->{TRAFFIC_IN} if ( $prepaid{0} > $transfer_traffic->{TRAFFIC_IN} );
        $prepaid{1} += $prepaid{1} - $transfer_traffic->{TRAFFIC_IN_2} if ( $prepaid{1} > $transfer_traffic->{TRAFFIC_IN_2} );
@@ -236,11 +241,12 @@ if ($prepaid{0} + $prepaid{1} > 0) {
 
    $used_traffic->{ONLINE}=0;
    #Recv / IN
-   if($self->{OCTETS_DIRECTION}==1) {
+   print "$self->{UID}--\n" if (! defined($self->{OCTETS_DIRECTION}));
+   if($self->{OCTETS_DIRECTION} == 1) {
      $used_traffic->{TRAFFIC_SUM}=$used_traffic->{TRAFFIC_IN};
      $used_traffic->{TRAFFIC_SUM_2}=$used_traffic->{TRAFFIC_IN_2};
-     $used_traffic->{ONLINE}=$recv;
-     $used_traffic->{ONLINE2}=$recv2;
+     $used_traffic->{ONLINE} = $recv;
+     $used_traffic->{ONLINE2}= $recv2;
     }
    #Sent / Out
    elsif($self->{OCTETS_DIRECTION}==2) {
@@ -286,10 +292,38 @@ if ($prepaid{0} + $prepaid{1} > 0) {
      $recv2 = ($self->{OCTETS_DIRECTION}==1) ?  $not_prepaid : $not_prepaid / 2;
     }
  }
+#Expration 
+elsif (scalar(keys %expr) > 0) {
+	
+  my $RESULT = $self->expression($self->{UID}, \%expr, { RAD_ALIVE => ($RAD->{ACCT_STATUS_TYPE} && $RAD->{ACCT_STATUS_TYPE} eq 'Alive')  ? 1 : 0,
+                                                         debug     => 0,
+                                                         SESSION_TRAFFIC   =>
+                                                         {
+                       		     SESSION_TRAFFIC_OUT   => $sent || 0, 
+                               SESSION_TRAFFIC_IN    => $recv || 0,
+                               SESSION_TRAFFIC_OUT_2 => $sent || 0,
+                               SESSION_TRAFFIC_IN_2  => $recv2|| 0
+         	                    }
+                                                           
+                                                          });
+
+  
+  if (! $RESULT->{PRICE_IN} && ! $RESULT->{PRICE_OUT} && defined($RESULT->{PRICE})) {
+  	$RESULT->{PRICE_IN} = $RESULT->{PRICE};
+  	$RESULT->{PRICE_OUT}= $RESULT->{PRICE};
+   }
+  
+  $traf_price{in}{0} = $RESULT->{PRICE_IN} if (defined($RESULT->{PRICE_IN}));
+  $traf_price{out}{0}= $RESULT->{PRICE_OUT} if (defined($RESULT->{PRICE_OUT}));
+  
+  
+}
 
 #####################################################################
 # TRafic payments
  my $traf_sum = 0;
+ 
+ 
  
  my $gl_in  = ($traf_price{in}{0}) ? $recv / $CONF->{MB_SIZE} * $traf_price{in}{0} : 0;
  my $gl_out = ($traf_price{out}{0}) ? $sent / $CONF->{MB_SIZE} * $traf_price{out}{0} : 0;
@@ -387,7 +421,7 @@ sub session_sum {
  my $recv  = $RAD->{INBYTE}  || 0;  #to server
  my $sent2 = $RAD->{OUTBYTE2}|| 0; 
  my $recv2 = $RAD->{INBYTE2} || 0;
-
+ 
  # Don't calculate if session smaller then $CONF->{MINIMUM_SESSION_TIME} and  $CONF->{MINIMUM_SESSION_TRAF}
  if (! $attr->{FULL_COUNT} && 
      (
@@ -570,7 +604,6 @@ sub session_sum {
  my @sd = @{ $self->{TIME_DIVISIONS_ARR} };
  $self->{TI_ID} = 0;
 
-
 if(! defined($self->{NO_TPINTERVALS})) {
   if($#sd < 0) {
    	print "Not allow start period" if ($self->{debug});
@@ -596,10 +629,14 @@ if(! defined($self->{NO_TPINTERVALS})) {
 }
 
 
+
+
 $sum = $sum * (100 - $self->{REDUCTION}) / 100 if ($self->{REDUCTION} > 0);
 
+
 if (! $attr->{FULL_COUNT}) {
-  $sum = $self->{MIN_SESSION_COST} if ($sum < $self->{MIN_SESSION_COST} && $self->{MIN_SESSION_COST} > 0);
+	#if (! $sum || ! $self->{MIN_SESSION_COST})
+  $sum = $self->{MIN_SESSION_COST} if ($self->{MIN_SESSION_COST} && $sum < $self->{MIN_SESSION_COST} && $self->{MIN_SESSION_COST} > 0);
 }
 
 if ($self->{COMPANY_ID} > 0) {
@@ -1272,6 +1309,8 @@ sub interval_sum {
 
 #**********************************************************
 # Extretions formul 
+# attr - Atributes
+#   PERIOD_TRAFFIC - period traffic summary
 #**********************************************************
 sub expression {
   my ($self, $UID, $expr, $attr) = @_;
@@ -1290,19 +1329,31 @@ sub expression {
     while(my($id, $expresion_text) = each %{ $expr } ) {
   	  $expresion_text =~ s/\n|[\r]//g;
   	  my @expresions_array = split(/;/, $expresion_text);
-  	  
+ 	  
   	  foreach my $expresion (@expresions_array) {
   	    print "ID: $id EXPR: $expresion\n" if ($debug > 0);
   	    my($left, $right)=split(/=/, $expresion);
   	  
-  	    if($left =~ /([A-Z0-9_]+)(<|>)([0-9\.]+)/) {
+  	    if($left =~ /([A-Z0-9_]+)(<|>)([A-Z0-9_0-9\.]+)/) {
     	    $ex{ARGUMENT}  = $1;
     	    $ex{EXPR}      = $2;
-  	      $ex{PARAMENTER}= $3;
+  	      $ex{PARAMETER} = $3;
   	      
           #$CONF->{KBYTE_SIZE} = 1;
-  	      print "ARGUMENT: $ex{ARGUMENT} EXP: '$ex{EXPR}' PARAMENTER: $ex{PARAMENTER}\n" if ($debug > 0); 
+  	      print "ARGUMENT: $ex{ARGUMENT} EXP: '$ex{EXPR}' PARAMETER: $ex{PARAMETER}\n" if ($debug > 0); 
   	      if ($ex{ARGUMENT} =~ /TRAFFIC/) {
+            
+            # for alive session expr price 0
+            if ($ex{ARGUMENT} =~ /SESSION/) {
+            	if ($attr->{RAD_ALIVE}) {
+            	  $RESULT->{PRICE_IN}=0;
+            	  $RESULT->{PRICE_OUT}=0;
+            	  return $RESULT;
+            	 }
+            	else {
+            	  $self->{PERIOD_TRAFFIC} = $attr->{SESSION_TRAFFIC};
+            	 }
+             }
 
   	      	
             if ($self->{PERIOD_TRAFFIC}) {
@@ -1315,24 +1366,36 @@ sub expression {
    	                                          }) if (! $counters->{TRAFFIC_IN});
              }
 
+  	      	if ($ex{PARAMETER} !~ /^[0-9\.]+$/) {
+  	      		$ex{PARAMETER} = $counters->{$ex{PARAMETER}} || 0;
+   	      	 }
+
+
+
+
             if ( $ex{ARGUMENT} eq 'TRAFFIC_SUM' && ! $counters->{TRAFFIC_SUM}) {
               $counters->{TRAFFIC_SUM}=$counters->{TRAFFIC_IN}+$counters->{TRAFFIC_OUT};
              }
+
+#           	print "--- $ex{EXPR} eq '<' && $counters->{$ex{ARGUMENT}} <=  $ex{PARAMETER} --\n".
+#           	"!!! $ex{EXPR} eq '>' && $counters->{$ex{ARGUMENT}} >=  $ex{PARAMETER}\n !!!!";
+           	$counters->{$ex{ARGUMENT}}=0 if (! $counters->{$ex{ARGUMENT}});
+           	
             
-            if($ex{EXPR} eq '<' && $counters->{$ex{ARGUMENT}}  <=  $ex{PARAMENTER}) {
-             	print "EXPR: $ex{EXPR} RES: $ex{RES} RES VAL: $ex{RES_VAL}\n" if ($debug > 0);
+            if($ex{EXPR} eq '<' && $counters->{$ex{ARGUMENT}}  <=  $ex{PARAMETER}) {
+             	print "EXPR: $ex{EXPR} RES: $ex{ARGUMENT} RES VAL: $counters->{$ex{ARGUMENT}}\n" if ($debug > 0);
              	$RESULT = get_result($right);
              	$RESULT->{$ex{ARGUMENT}}=$counters->{$ex{ARGUMENT}};
              }
-            elsif($ex{EXPR} eq '>' && $counters->{$ex{ARGUMENT}} >=  $ex{PARAMENTER}) {
+            elsif($ex{EXPR} eq '>' && $counters->{$ex{ARGUMENT}} >=  $ex{PARAMETER}) {
             	print "EXPR: $ex{EXPR} ARGUMENT: $counters->{$ex{ARGUMENT}}\n" if ($debug > 0);
             	$RESULT = get_result($right);
             	$RESULT->{$ex{ARGUMENT}}=$counters->{$ex{ARGUMENT}};
              }
             else {
             	print "No hits!\n" if ($debug > 0);
-            	$RESULT->{TRAFFIC_LIMIT}=$ex{PARAMENTER};
-            	last;
+            	$RESULT->{TRAFFIC_LIMIT}=$ex{PARAMETER};
+            	last if ($ex{ARGUMENT} !~ /SESSION/);
              }
   	       }
 

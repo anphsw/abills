@@ -114,6 +114,9 @@ if (-f $log) {
 }
 
 
+$conf{IPN_FW_FIRST_RULE}=20000 if (! $conf{IPN_FW_FIRST_RULE});
+
+
 # GEt information from flowtools
 #
   my $flow_dir = ($ARGV->{flowdir}) ? $ARGV->{flowdir} : $var_dir."log/ipn/";
@@ -199,7 +202,7 @@ foreach my $ip ( sort keys %$session_ids) {
   my $tariif_plan   = $tps->{$uid} || 0;
   my $session_id    = $session_ids->{$ip};
   my $ip_stats      = $Ipn->{INTERIM}{$ip};
-  my $interium_time = $interim_times->{$session_id};	
+  my $interium_time = $interim_times->{$session_id} || 0;	
 
   my $total_in      = 0; 
   my $total_out     = 0;
@@ -222,7 +225,6 @@ foreach my $ip ( sort keys %$session_ids) {
    }
  
   my $ip_addr = int2ip($ip);
-
 #parse  traffic stats
 if ($Ipn->{INTERIM}{$ip}) {
   # Traffic type, traffic count
@@ -243,7 +245,9 @@ if ($Ipn->{INTERIM}{$ip}) {
 
      # Work with prepaid traffic
      if ( defined($intervals->{$user_tp_interval}->{ZONES}->{$k}->{PREPAID_TSUM}) ) {
-     	  my($used_traffic) = $Ipn->traffic_user_get({ UID  => $uid   });
+	      my($used_traffic) = $Ipn->traffic_user_get({ UID      => $uid, 
+                                                     ACTIVATE => $Ipn->{USERS_INFO}->{ACTIVATE}->{$uid}  
+                                                     });
         my $online  = 0;
 
         if($OCTETS_DIRECTION == 1) {
@@ -288,6 +292,7 @@ if ($Ipn->{INTERIM}{$ip}) {
         #exit;
       }
 
+
      
      $sum_in += $in / $conf{MB_SIZE} * $price_in if ($price_in > 0); 
      $sum_out += $out / $conf{MB_SIZE} * $price_out if ($price_out > 0);
@@ -305,7 +310,7 @@ if ($Ipn->{INTERIM}{$ip}) {
             TARFFIC_CLASS  => $k,
             INBYTE         => "$in",
             OUTBYTE        => "$out",
-            NAS_ID         => $Ipn->{$ip}{NAS_ID},
+            NAS_ID         => $Ipn->{$ip}{NAS_ID} || $NAS_ID,
             IP						 => $ip,
             INTERVAL       => $user_tp_interval,
             SESSION_ID     => $session_id,    
@@ -343,12 +348,15 @@ elsif($total_user_sum > 0 && $uid > 0) {
 
   #Put user date to database  
   if ($uid > 0) {
+    $Ipn->{$ip}{IN}=0 if (! $Ipn->{$ip}{IN});
+    $Ipn->{$ip}{OUT}=0 if (! $Ipn->{$ip}{OUT});
+    
     $Ipn->{$ip}{IN}  = $Ipn->{$ip}{IN} + $total_in;
     $Ipn->{$ip}{OUT} = $Ipn->{$ip}{OUT}+ $total_out;
 
     %RAD = (  NAS_PORT          => 0,
-   	          INBYTE            => $Ipn->{$ip}{IN},
-   	          OUTBYTE           => $Ipn->{$ip}{OUT},
+   	          INBYTE            => $Ipn->{$ip}{IN} || 0,
+   	          OUTBYTE           => $Ipn->{$ip}{OUT} || 0,
    	          INBYTE2           => 0,
    	          OUTBYTE2          => 0,
               FRAMED_IP_ADDRESS => $ip_addr,
@@ -361,10 +369,11 @@ elsif($total_user_sum > 0 && $uid > 0) {
 
     if ($Ipn->{INTERIM}{$ip}) {
       #Make accounting
-      $Acct->{SUM}=$total_user_sum;
-      my $r = $Acct->accounting(\%RAD, { NAS_ID       => $Ipn->{$ip}{NAS_ID}, 
+      $Acct->{SUM}=sprintf("%.6f", $total_user_sum || 0);
+      my $r = $Acct->accounting(\%RAD, { NAS_ID       => $Ipn->{$ip}{NAS_ID} || $NAS_ID, 
     	                                   NAS_TYPE     => 'other',
-    	                                   NAS_EXT_ACCT => 1 
+    	                                   NAS_EXT_ACCT => 1,
+    	                                   
     	                                });
      }
 
@@ -393,17 +402,20 @@ elsif($total_user_sum > 0 && $uid > 0) {
          
          #If session online hangup it
          if ( $session_id ) {
-           print 'Error: Not defined stop rules. Check $conf{IPN_FW_STOP_RULE}' if ($cmd eq '');
-         
-           $cmd =~ s/\%IP/$ip_addr/g;
-           $cmd =~ s/\%NUM/$rule_num/g;
-           $cmd =~ s/\%MASK/$netmask/g;
-           $cmd =~ s/\%LOGIN/$login/g;
+           if ($cmd eq '') {
+             print 'Error: Not defined stop rules. Check $conf{IPN_FW_STOP_RULE}';
+            }
+           else {
+             $cmd =~ s/\%IP/$ip_addr/g;
+             $cmd =~ s/\%NUM/$rule_num/g;
+             $cmd =~ s/\%MASK/$netmask/g;
+             $cmd =~ s/\%LOGIN/$login/g;
 
-           print "$cmd" if ($debug>0); 
-           system("$cmd");
-           $Ipn->acct_stop({ SESSION_ID           => $session_id,
-         	                 ACCT_TERMINATE_CAUSE => 10 });
+             print "$cmd" if ($debug>0); 
+             system("$cmd");
+             $Ipn->acct_stop({ SESSION_ID           => $session_id,
+         	                     ACCT_TERMINATE_CAUSE => 10 });
+            }
          	}
      }
     #AMon 
@@ -424,7 +436,7 @@ elsif($total_user_sum > 0 && $uid > 0) {
 
         my $rule_num = $conf{IPN_FW_FIRST_RULE} + 10000 + $num;
 
-    		print "$DATE $TIME Hangup AMON ALIVE: $last_alive UID: $uid DEPOSIT: $Ipn->{USERS_INFO}->{DEPOSIT}->{$uid}\n" if ($debug > 0);
+    		print "$DATE $TIME Hangup. Lost AMON ALIVE: $last_alive UID: $uid DEPOSIT: $Ipn->{USERS_INFO}->{DEPOSIT}->{$uid}\n" if ($debug > 0);
 
         my $netmask = 32;
 
@@ -453,7 +465,6 @@ elsif($total_user_sum > 0 && $uid > 0) {
        $interium_time, 
        $extended
      ) if ($debug > 0);
-  
 }
 
 if ($debug > 0) {
@@ -516,16 +527,17 @@ while( <LOG> ) {
    }
   # flow-capture
  	elsif ( /(\d+)\.(\d+)\.(\d+)\.(\d+)\s+(\d+)\.(\d+)\.(\d+)\.(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)/ ){
-  	#print "-$1.$2.$3.$4 $5.$6.$7.$8 $9 $10 $11 $12\n";
+  	print "-$1.$2.$3.$4 $5.$6.$7.$8 $9 $10 $11 $12\n" if ($debug>7);
+
 		( $DATA{SRC_IP}, $DATA{SRC_PORT} ) = ( 16777216 * $1 + 65536 * $2 + 256 * $3 + $4, $10 );
 		( $DATA{DST_IP}, $DATA{DST_PORT} ) = ( 16777216 * $5 + 65536 * $6 + 256 * $7 + $8, $11 ); 
 
-        $DATA{SIZE}     = $12;
-        $DATA{PROTOCOL} = $9;
-	$DATA{SRC_PORT} = 0 if ( $DATA{SRC_PORT} !~ /^\d+$/ );
-	$DATA{DST_PORT} = 0 if ( $DATA{DST_PORT} !~ /^\d+$/ );
-	#$DATA{NAS_ID}=$NAS_ID;
-	$DATA{IF_NAME}  = '0';
+    $DATA{SIZE}     = $12;
+    $DATA{PROTOCOL} = $9;
+	  $DATA{SRC_PORT} = 0 if ( $DATA{SRC_PORT} !~ /^\d+$/ );
+	  $DATA{DST_PORT} = 0 if ( $DATA{DST_PORT} !~ /^\d+$/ );
+	  #$DATA{NAS_ID}=$NAS_ID;
+	  $DATA{IF_NAME}  = '0';
     $Ipn->traffic_agregate_users({ %DATA });
  	 }
  	#trafdlog analize
@@ -596,3 +608,7 @@ sub verify {
     return ($ps[0]) ? 1 : 0;
 }
 
+
+
+
+1

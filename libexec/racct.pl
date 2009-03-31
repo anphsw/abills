@@ -2,10 +2,11 @@
 # Radius Accounting 
 #
 
-use vars  qw(%RAD %conf $db %ACCT
+use vars  qw(%RAD %conf %ACCT
  %RAD_REQUEST %RAD_REPLY %RAD_CHECK 
  $begin_time
- $nas);
+ $access_deny
+);
 use strict;
 
 use FindBin '$Bin';
@@ -19,12 +20,10 @@ my %acct_mod = ();
 
 require Abills::SQL;
 my $sql = Abills::SQL->connect($conf{dbtype}, "$conf{dbhost}", $conf{dbname}, $conf{dbuser}, $conf{dbpasswd});
-$db = $sql->{db};
+my $db = $sql->{db};
 
 require Acct;
 Acct->import();
-$acct_mod{'default'} = Acct->new($db, \%conf);
-
 
 
 
@@ -81,37 +80,60 @@ my %ACCT_TERMINATE_CAUSES = (
 #test_radius_returns($RAD);
 #####################################################################
 
+my $access_deny = sub {
+    my ($user, $message, $nas_num) = @_;
+    log_print('LOG_WARNING', "ACCT [$user] NAS: $nas_num $message");
+    return 1;
+   };
+
+my $log_print = sub {
+  my ($level, $text, $attr) = @_;
+
+  #if ($conf{debugmods} =~ /$level/) {
+  #  if (defined($conf{foreground}) && $conf{foreground} == 1) {
+  #    print "$DATE $TIME $level: $text\n";
+  #   }
+  #  else {
+  #    open(FILE, ">>$conf{LOGFILE}") || die "Can't open file '$conf{LOGFILE}' $!\n";
+  #      print FILE "$DATE $TIME $level: $text\n";
+  #    close(FILE);
+  #   }
+  # }
+
+};
 
 
 # Files account section
 my $RAD;
-if (scalar(keys %RAD_REQUEST ) < 1) {
+my $nas = undef;
+if (scalar( %RAD_REQUEST ) < 1) {
   $RAD = get_radius_params();
+
   if (! defined($RAD->{NAS_IP_ADDRESS})) {
     $RAD->{USER_NAME}='-' if (! defined($RAD->{USER_NAME}));
-    access_deny("$RAD->{USER_NAME}", "Not specified NAS server", 0);
-    return 1;
-   }
-
-  require Nas;
-  $nas = Nas->new($db, \%conf);	
-  my %NAS_PARAMS = ('IP' => "$RAD->{NAS_IP_ADDRESS}");
-  $NAS_PARAMS{NAS_IDENTIFIER}=$RAD->{NAS_IDENTIFIER} if (defined($RAD->{NAS_IDENTIFIER}));
-  $nas->info({ %NAS_PARAMS });
-
-  my $acct;
-  if ($nas->{errno} || $nas->{TOTAL} < 1) {
-    access_deny("$RAD->{USER_NAME}", "Unknow server '$RAD->{NAS_IP_ADDRESS}'", 0);
-    #exit 1;
+    $access_deny->("$RAD->{USER_NAME}", "Not specified NAS server", 0);
+    exit 1;
    }
   else {
-    $acct = acct($db, $RAD, $nas);
-   }
+    require Nas;
+    $nas = Nas->new($db, \%conf);	
+    my %NAS_PARAMS = ('IP' => "$RAD->{NAS_IP_ADDRESS}");
+    $NAS_PARAMS{NAS_IDENTIFIER}=$RAD->{NAS_IDENTIFIER} if (defined($RAD->{NAS_IDENTIFIER}));
+    $nas->info({ %NAS_PARAMS });
 
-  if(defined($acct->{errno})) {
-	  log_print('LOG_ERR', "ACCT [$RAD->{USER_NAME}] $acct->{errstr}". ( (defined($acct->{sql_errstr})) ? " ($acct->{sql_errstr})" : '' )  );
-   }
+    my $acct;
+    if ($nas->{errno} || $nas->{TOTAL} < 1) {
+      $access_deny->("$RAD->{USER_NAME}", "Unknow server '$RAD->{NAS_IP_ADDRESS}'", 0);
+      #exit 1;
+     }
+    else {
+      $acct = acct($db, $RAD, $nas);
+     }
 
+    if($acct->{errno}) {
+  	  log_print('LOG_ERR', "ACCT [$RAD->{USER_NAME}] $acct->{errstr}". ( (defined($acct->{sql_errstr})) ? " ($acct->{sql_errstr})" : '' )  );
+     }
+  }
   #$db->disconnect();
 }
 
@@ -242,12 +264,12 @@ if (-d $conf{extern_acct_dir}) {
     my @contents = grep  !/^\.\.?$/  , readdir DIR;
   closedir DIR;
 
-  if ($#contents > 0) {
+  if ($#contents > -1) {
     my $res = "";
     foreach my $file (@contents) {
       if (-x "$conf{extern_acct_dir}/$file" && -f "$conf{extern_acct_dir}/$file") {
         # ACCT_STATUS IP_ADDRESS NAS_PORT
-        $res = `$conf{extern_acct_dir}/$file $acct_status_type $RAD->{NAS_IP_ADDRESS} $RAD->{NAS_PORT} $nas->{NAS_TYPE} $RAD->{USER_NAME}`;
+        $res = `$conf{extern_acct_dir}/$file $acct_status_type $RAD->{NAS_IP_ADDRESS} $RAD->{NAS_PORT} $nas->{NAS_TYPE} $RAD->{USER_NAME} $RAD->{FRAMED_IP_ADDRESS}`;
         log_print('LOG_DEBUG', "External accounting program '$conf{extern_acct_dir}' / '$file' pairs '$res'");
        }
      }
@@ -272,14 +294,16 @@ if(defined($ACCT{$nas->{NAS_TYPE}})) {
   if (! defined($acct_mod{"$nas->{NAS_TYPE}"})) {
     require $ACCT{$nas->{NAS_TYPE}} . ".pm";
     $ACCT{$nas->{NAS_TYPE}}->import();
-    $acct_mod{"$nas->{NAS_TYPE}"} = $ACCT{$nas->{NAS_TYPE}}->new($db, \%conf);
    }
-  
+
+  $acct_mod{"$nas->{NAS_TYPE}"} = $ACCT{$nas->{NAS_TYPE}}->new($db, \%conf);  
   $r = $acct_mod{"$nas->{NAS_TYPE}"}->accounting($RAD, $nas);
 }
 else {
+  $acct_mod{'default'} = Acct->new($db, \%conf);
 	$r = $acct_mod{"default"}->accounting($RAD, $nas);
 }
+
 
 #if(defined($ACCT{$nas->{NAS_TYPE}})) {
 #  require $ACCT{$nas->{NAS_TYPE}} . ".pm";
@@ -296,22 +320,13 @@ else {
 
 
 if ($Acct->{errno}) {
-  access_deny("$RAD->{USER_NAME}", "[$r->{errno}] $r->{errstr}", $nas->{NAS_ID});
+  $access_deny->("$RAD->{USER_NAME}", "[$r->{errno}] $r->{errstr}", $nas->{NAS_ID});
  }
 
   return $r;
 }
 
 
-
-#*******************************************************************
-# access_deny($user, $message);
-#*******************************************************************
-sub access_deny {
-  my ($user, $message, $nas_num) = @_;
-  log_print('LOG_WARNING', "ACCT [$user] NAS: $nas_num $message");
-  return 1;
-}
 
 
 1

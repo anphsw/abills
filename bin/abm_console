@@ -13,8 +13,8 @@ use vars  qw($db %AUTH %conf $sql $DATE $TIME $ENV
 
 #use strict;
 
-my $version = 0.3;
-
+my $version = 0.7;
+my $debug   = 0;
 
 use FindBin '$Bin';
 require $Bin . '/../libexec/config.pl';
@@ -46,6 +46,7 @@ require Admins;
 Admins->import();
 $admin = Admins->new($db, \%conf);
 
+$admin->{SESSION_ID}='0.0.0.0';
 
 my $ARGV = parse_arguments(\@ARGV);
 my $retries          = 0;
@@ -86,13 +87,25 @@ require  Dv;
 Dv->import();
 my $Dv = Dv->new($db, $admin, \%conf);
 
+my %LIST_PARAMS = ();
+
+$debug=($ARGV->{DEBUG}) ? $ARGV->{DEBUG} : $debug;
+$LIST_PARAMS{PAGE_ROWS}= ($ARGV->{PAGE_ROWS}) ? $ARGV->{PAGE_ROWS} : 1000000;
+$LIST_PARAMS{DATE}=$ARGV->{DATE} || '';
+$LIST_PARAMS{SORT}=$ARGV->{SORT} || 1;
+$LIST_PARAMS{DESC}=$ARGV->{DESC} || undef;
+
+#Intercat mode
+my $interact = 0;
 
 if ($#ARGV == -1) {
-  while($retries < $max_acccess_rets) {
+  $interact=1;
+  while($retries < $max_acccess_rets+1) {
     my $res =  check_permissions("$REMOTE_USER", "$REMOTE_PASSWD");
     if ($res == 1) {
   	  print "Wrong Password!!!\n";
   	  $retries++;
+  	  exit if ($max_acccess_rets < $retries);
      }
     else {
       print "$_ADMIN: $admin->{A_FIO}. $_DATE: $DATE $TIME\n";
@@ -121,14 +134,27 @@ if ($#ARGV == -1) {
       form_users();
      }
    }
+
 }
 
+my $res =  check_permissions("$REMOTE_USER", "$REMOTE_PASSWD");
 
 if ($ARGV->{DV_USER}) {
 	dv_users();
  }
-elsif ($ARGV->{LOGIN}) {
-	
+elsif ($ARGV->{PAYMENTS}) {
+  form_payments();
+ }
+elsif ($ARGV->{FEES}) {
+  form_fees();
+ }
+elsif ($ARGV->{PI}) {
+  $LIST_PARAMS{LOGIN_EXPR}=$ARGV->{PI} ;
+  form_users({ %$ARGV });
+ }
+elsif ($ARGV->{LOGIN_CHANGE}) {
+  $LIST_PARAMS{LOGIN_EXPR}=$ARGV->{LOGIN_CHANGE} ;
+  form_users({ %$ARGV });
  }
 elsif ($ARGV->{LOGPARSE}) {
   ppp_log_parser( $ARGV );
@@ -157,7 +183,7 @@ sub dv_users {
 		$Dv->change({ UID => $users->{UID}, %{ $ARGV } });
     
     if ($Dv->{TP_INFO}->{MONTH_FEE} > 0) {
-      $Dv->{ACTIVATE}= ($ARGV->{ACTIVATE}) ? $ARGV->{ACTIVATE} : $users->{ACTIVATE};
+      $Dv->{ACTIVATE}=($ARGV->{ACTIVATE}) ? $ARGV->{ACTIVATE} : $users->{ACTIVATE};
       dv_get_month_fee($Dv);
      }
 
@@ -481,11 +507,22 @@ sub check_permissions {
 sub help {
 print << "[END]";
 abm_console console ABillS managment
-  ACTION=- some user actions (add,del,change,info(default))
-  LOGIN= - show user info
+  PAYMENTS=[login] - Payments: info (default), ADD, DEL 
+   Extended:
+    DATE           - DATE
+    METHOD         - Method ID 
+    UID            - UID
+    ....
+  FEES=[login]     - Fees. info (default), ADD, DEL   
+   Extended:
+    ....
 
-  USER   - Get session info from /var/log/ppp.log for user USER
-  PID    - Get INfo for PID
+  PI=              - Personal info
+  LOGIN=           - show user info
+
+  USER             - Get session info from /var/log/ppp.log for user USER
+  PID              - Get Info for PID
+  DEBUG            - Debug mode
 
 [END]
 
@@ -532,10 +569,26 @@ sub user_info {
 
  	$user = $users->info($uid);
 
- 	print "$_USER: $user->{LOGIN} (". (($user->{FIO}) ? $user->{FIO} : ''). ") $user->{UID}\n".
+ 	print "$_USER: $user->{LOGIN} (". ( ($user->{FIO}) ? $user->{FIO} : ''  ). ") $user->{UID}\n".
  	  "$_DEPOSIT: $user->{DEPOSIT}\n".
  	  "$_CREDIT:  $user->{CREDIT}\n".
  	  "$_STATUS: ". $status[$user->{DISABLE}]."\n";
+
+}
+
+
+#**********************************************************
+#
+#**********************************************************
+sub form_pi {
+ 	my ($uid) = @_;
+
+ 	$user = $users->pi($uid);
+
+ 	print "$_FIO: ". ( ($user->{FIO}) ? $user->{FIO} : ''  ). "\n".
+ 	  "$_PHONE: ". (($user->{PHONE}) ? $user->{PHONE} : ''  ). "\n".
+ 	  "$_ADDRESS:   $user->{ADDRESS_STREET}, $user->{ADDRESS_BUILD}/$user->{ADDRESS_FLAT}\n".
+ 	  "$_CONTRACT:  $user->{CONTRACT_ID} $user->{CONTRACT_DATE}\n";
 
 }
 
@@ -545,11 +598,14 @@ sub user_info {
 sub form_users {
   my ($attr)=@_;
 
+
+if ($interact) {
   my @user_functions = ("<-:help",
                         "EXIT:exit");
                         #"$_INFO:user_pi");
 
 
+  push @user_functions, "$_USER_INFO:form_pi";
   push @user_functions, "$_CHANGE:form_users" if ($permissions{0});
   push @user_functions, "$_PAYMENTS:form_payments" if ($permissions{1});
   push @user_functions, "$_FEES:form_fees" if ($permissions{3});
@@ -558,7 +614,7 @@ sub form_users {
   my $list = $users->list( { %LIST_PARAMS } );
 
   if ($users->{TOTAL} == 1) {
-    my $uid = $list->[0]->[6];
+    my $uid = $list->[0]->[5 + $users->{SEARCH_FIELDS_COUNT}];
     user_info($uid);
     print "$_FUNCTIONS_LIST: \n"; 
     
@@ -597,9 +653,42 @@ sub form_users {
   	   print "$line->[0], $line->[1], $line->[2], $line->[3], ". $status[$line->[4]] ."\n";
      }
    }
+  return 0;
+ }
+
+
+  if (! $attr->{UID}) {
+ 	  my $list = $users->list({ %LIST_PARAMS });
+
+    if ($users->{TOTAL} == 1) {
+      $LIST_PARAMS{UID} = $list->[0]->[5 + $users->{SEARCH_FIELDS_COUNT}];
+      
+     }
+  	else {
+  		print "User not found. LOGIN: '$LIST_PARAMS{LOGIN_EXPR}'\n";
+  		return 0;
+  	 }
+   }
+
+  if ($attr->{PI}) {
+    $users->pi_change({ %$attr, UID => $LIST_PARAMS{UID} });
+   }
+  else {
+  	$users->change($LIST_PARAMS{UID}, { %$attr, UID => $LIST_PARAMS{UID} });
+   }
+
+  if (! $users->{errno}) {
+    print "Change! \n";
+   }
+  else {
+  	print "[$users->{errno}] $users->{errstr}\n";
+   }
+
 
   return 0;
 }
+
+
 
 
 
@@ -609,6 +698,7 @@ sub form_users {
 sub form_fees {
   my ($attr) = @_;
 
+if ($interact) {
   print ">> $_FEES:\n";
   my @params = ("$_SUM (0.00):SUM",
                 "$_DESCRIBE:DESCRIBE",
@@ -631,9 +721,36 @@ sub form_fees {
        }
      }
    }
+
+   return 0;
+ }
  
 
+my @args = ('ADD', 'DEL', 'METHOD', 'DATE');
+foreach my $a (@args) {
+  if (defined($ARGV->{$a})) {
+  	$LIST_PARAMS{$a}=$ARGV->{$a};
+   }
+}
+
+my $list = $fees->list({ %LIST_PARAMS });
+foreach my $line (@$list) {
+	printf("%-5d| %-16s|%19s|%11f|%-20s|\n", 
+	 $line->[0],
+	 $line->[1],
+	 $line->[2],
+	 $line->[3],
+	 $line->[5],
+  );
+
+  if ($ARGV->{DEL}) {
+  	$fees->del({ UID => $line->[11] }, $line->[0]);
+  	print "$_DEL\n";
+   }
+}
+
   return 0;
+ 
 }
 
 
@@ -643,6 +760,7 @@ sub form_fees {
 sub form_payments {
   my ($attr) = @_;
 
+if ($interact) {
   print ">> $_PAYMENTS:\n";
 
   my @params = ("$_SUM (0.00):SUM",
@@ -666,6 +784,32 @@ sub form_payments {
        }
      }
    }
+
+  return 0;
+ }
+
+my @args = ('ADD', 'DEL', 'METHOD', 'DATE');
+foreach my $a (@args) {
+  if (defined($ARGV->{$a})) {
+  	$LIST_PARAMS{$a}=$ARGV->{$a};
+   }
+}
+
+my $list = $payments->list({ %LIST_PARAMS });
+foreach my $line (@$list) {
+	printf("%-5d| %-16s|%19s|%11f|%-20s|\n", 
+	 $line->[0],
+	 $line->[1],
+	 $line->[2],
+	 $line->[3],
+	 $line->[5],
+  );
+
+  if ($ARGV->{DEL}) {
+  	$payments->del({ UID => $line->[11] }, $line->[0]);
+  	print "$_DEL\n";
+   }
+}
 
   return 0;
 }

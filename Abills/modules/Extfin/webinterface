@@ -37,7 +37,7 @@ sub extfin_export_customers {
    }
  
   if ($FORM{TYPE} && $FORM{TYPE} eq 'CUSTOMERS') {
-    $LIST_PARAMS{PAGE_ROWS} = 100000;
+    $LIST_PARAMS{PAGE_ROWS} = 1000000;
     $LIST_PARAMS{PG}        = $FORM{PG} || 0;
 
     my $list = $Extfin->customers_list({ %LIST_PARAMS });
@@ -81,10 +81,10 @@ sub extfin_export_customers {
     	$LIST_PARAMS{DATE_TO}="$6-$5-$4";
      }
     elsif ($FORM{FROM_Y}) {
-        $FORM{FROM_M} = sprintf("%.2d", $FORM{FROM_M}+1);
-        $FORM{TO_M}   = sprintf("%.2d", $FORM{TO_M}+1);
-        $LIST_PARAMS{DATE_FROM}="$FORM{FROM_Y}-$FORM{FROM_M}-$FORM{FROM_D}";
-        $LIST_PARAMS{DATE_TO}="$FORM{TO_Y}-$FORM{TO_M}-$FORM{TO_D}";
+      $FORM{FROM_M} = sprintf("%.2d", $FORM{FROM_M}+1);
+      $FORM{TO_M}   = sprintf("%.2d", $FORM{TO_M}+1);
+      $LIST_PARAMS{DATE_FROM}="$FORM{FROM_Y}-$FORM{FROM_M}-$FORM{FROM_D}";
+      $LIST_PARAMS{DATE_TO}="$FORM{TO_Y}-$FORM{TO_M}-$FORM{TO_D}";
      }
     else {
       $LIST_PARAMS{MONTH}=$FORM{MONTH};
@@ -1187,7 +1187,7 @@ $output = $html->make_charts({
 
 
 $table = $html->table( { width      => '100%',
-                         cols_align => ['right', 'right', 'right', 'right', 'right', 'right'],
+                         cols_align => ['right', 'right', ],
                          rows       => [ [ "$_COUNT: ". $html->b( $Extfin->{TOTAL} ),
                                            "$_SUM: ". $html->b( $Extfin->{SUM} ), 
                                         ] ],
@@ -1211,15 +1211,43 @@ print $table_sessions->show() . $table->show(). $output;
 sub extfin_debetors {
 	my ($attr) = @_;
 
-  my $list = $Extfin->extfin_debetors({ %LIST_PARAMS });	
-  
+ 
+
+$table = $html->table( { width       => '100%',
+	                       rowcolor    => $_COLORS[0],
+                         rows        => [[ "$_PERIOD: ",  $html->date_fld('from', { MONTHES => \@MONTHES} ),
+                                           "$_STATUS: ". $html->form_select('STATUS', 
+                                    { 
+ 	                                   SELECTED    => $FORM{STATUS},
+ 	                                   SEL_ARRAY   => [ $_ALL, "$_ENABLE","$_DISABLE" ],
+                                     ARRAY_NUM_ID=> 1
+ 	                                  }),
+                                           "$_ROWS: ",  $html->form_input('rows', int($conf{list_max_recs}), { SIZE => 4 } ),
+                                          $html->form_input('show', $_SHOW, { TYPE => 'submit' })
+                                         ]],                                   
+                      });
+
+
+
+print $html->form_main({ CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
+	                       HIDDEN  => { sid   => "$sid",
+	                                    index => "$index",
+	                                    UID   => "$UID" }});
+
+if ($FORM{show}) {
+	$FORM{fromM}++;
+  $LIST_PARAMS{DATE}="$FORM{fromY}-$FORM{fromM}-$FORM{fromD}"  if ($FORM{show});
+  $LIST_PARAMS{STATUS}=$FORM{STATUS};
+}
+
+my $list = $Extfin->extfin_debetors({ %LIST_PARAMS });	  
 my $table = $html->table( { width      => '100%',
-                              caption    => "$_DEBETORS",
-                              border     => 1,
-                              title      => ['#', $_LOGIN, $_CONTRACT_ID, $_FIO, $_REGISTRATION, 
-                                "$_TARIF_PLAN",  $_DEPOSIT,
-                                "< 32 days", "33 - 64 days","65 - 96 days","97 - 183 days", "184 - 365 days", "> 365 days",],
-                              cols_align => ['right', 'left', 'right', 'left', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right' ],
+                            caption    => "$_DEBETORS",
+                            border     => 1,
+                            title      => ['#', $_LOGIN, $_CONTRACT_ID, $_FIO, $_REGISTRATION, "$_STATUS",
+                                "$_TARIF_PLAN",  $_DEPOSIT, "< 32 days", "33 - 64 days","65 - 96 days","97 - 183 days", "184 - 365 days", "> 365 days" ],
+                            cols_align => ['right', 'left', 'right', 'left', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right' ],
+                            ID         => 'DEBETORS'
                            } );
 
 my ($delete, $change);
@@ -1240,37 +1268,50 @@ my $total_maximum = 0;
 my $total_maximum_sum = 0.00;
 
 
+my @interval = ();
 foreach my $line (@$list) {
+   @interval = ( ($line->[9]) ? sprintf("%.2f", $line->[9])  : '',
+    ($line->[10]) ? sprintf("%.2f", $line->[10])  : '',
+    ($line->[11]) ? sprintf("%.2f", $line->[11]): '',
+    ($line->[12]) ? sprintf("%.2f", $line->[12]): '',
+    ($line->[13]) ? sprintf("%.2f", $line->[13]): '' );
+    
+    
+    
+   $total_65_sum += $line->[9];
+   $total_97_sum += $line->[10];
+   $total_184_sum+= $line->[11];
+   $total_365_sum+= $line->[12];
+   $total_maximum_sum += $line->[13];
+
+
+   $total_65 += ($line->[9]) ? 1 : 0;
+   $total_97 += ($line->[10]) ? 1 : 0;
+   $total_184+= ($line->[11]) ? 1 : 0;
+   $total_365+= ($line->[12]) ? 1 : 0;
+   $total_maximum += ($line->[13]) ? 1 : 0;
+
+
+  my $deposit = $Extfin->{DEPOSITS}->{$line->[14]};
   $table->addrow($i,
-    $html->button($line->[1], "index=15&UID=$line->[13]"),
+    $html->button($line->[1], "index=15&UID=$line->[14]"),
     $line->[2],
     $line->[3],
     $line->[4],
-    $line->[5],
-    ($line->[6]) ? sprintf("%.2f", $line->[6])  : '',
+    ($line->[5]==1) ? $html->color_mark($status[$line->[5]], '#FF0000') : $status[$line->[5]],
+    $line->[6],
     ($line->[7]) ? sprintf("%.2f", $line->[7])  : '',
     ($line->[8]) ? sprintf("%.2f", $line->[8])  : '',
-    ($line->[9]) ? sprintf("%.2f", $line->[9])  : '',
-    ($line->[10]) ? sprintf("%.2f", $line->[10]): '',
-    ($line->[11]) ? sprintf("%.2f", $line->[11]): '',
-    ($line->[12]) ? sprintf("%.2f", $line->[12]): ''
+    @interval,
     );
 
-   $total_sum    += $line->[6];
-   $total_32_sum += $line->[7];
-   $total_65_sum += $line->[8];
-   $total_97_sum += $line->[9];
-   $total_184_sum+= $line->[10];
-   $total_365_sum+= $line->[11];
-   $total_maximum_sum += $line->[12];
+   $total_sum    += $line->[7];
+   $total_32_sum += $line->[8];
 
-   $total    += ($line->[6]) ? 1 : 0;
-   $total_32 += ($line->[7]) ? 1 : 0;
-   $total_65 += ($line->[8]) ? 1 : 0;
-   $total_97 += ($line->[9]) ? 1 : 0;
-   $total_184+= ($line->[10]) ? 1 : 0;
-   $total_365+= ($line->[11]) ? 1 : 0;
-   $total_maximum += ($line->[12]) ? 1 : 0;
+   $total    += ($line->[7]) ? 1 : 0;
+   $total_32 += ($line->[8]) ? 1 : 0;
+
+
 
   $i++;
  }
@@ -1278,23 +1319,32 @@ foreach my $line (@$list) {
 
 $table->{rowcolor}   = $_COLORS[2];
 
+  @interval = ( $html->b($total_65),
+  $html->b($total_97),
+  $html->b($total_184),
+  $html->b($total_365),
+  $html->b($total_maximum) );
+
 $table->addrow("$_COUNT:  ", '', '', '', '', '', 
 $html->b($total),
 $html->b($total_32),
-$html->b($total_65),
-$html->b($total_97),
-$html->b($total_184),
-$html->b($total_365),
-$html->b($total_maximum) );
+@interval
+
+ );
+
+
+  @interval = ( 
+  $html->b(sprintf("%.2f", $total_65_sum  )),
+  $html->b(sprintf("%.2f", $total_97_sum  )),
+  $html->b(sprintf("%.2f", $total_184_sum )),
+  $html->b(sprintf("%.2f", $total_365_sum )),
+  $html->b(sprintf("%.2f", $total_maximum_sum )) );
+
 
 $table->addrow("$_SUM: ", '', '', '',  '', '', 
 $html->b(sprintf("%.2f", $total_sum)),
 $html->b(sprintf("%.2f", $total_32_sum  )),
-$html->b(sprintf("%.2f", $total_65_sum  )),
-$html->b(sprintf("%.2f", $total_97_sum  )),
-$html->b(sprintf("%.2f", $total_184_sum )),
-$html->b(sprintf("%.2f", $total_365_sum )),
-$html->b(sprintf("%.2f", $total_maximum_sum )) ) ;
+@interval ) ;
 
 print $table->show();
 

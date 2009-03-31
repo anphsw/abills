@@ -706,7 +706,7 @@ sub header {
  my $admin_ip=$ENV{REMOTE_ADDR};
 
  $self->{header} = "Content-type: application/pdf\n";
- $self->{header}.= "Content-disposition: inline; name=".rand(32768).".pdf\n\n";
+ $self->{header}.= "Content-disposition: inline; name=".int(rand(32768)).".pdf\n\n";
 
  return $self->{header};
 }
@@ -1377,19 +1377,22 @@ sub multi_tpls {
 sub tpl_show {
   my $self = shift;
   my ($filename, $variables_ref, $attr) = @_;	
-  
+
+  $debug = 0;
   $filename        =~ s/\.[a-z]{3}$//;
   my $tpl_describe = tpl_describe($filename);
+  
   $filename        = $filename.'.pdf';
   my $pdf          = PDF::API2->open($filename);
   my $tpl;
+  
 
   
   #$DATE    =~ /(\d{4})-(\d{2})-(\d{2})-/;
   #my $moddate = "$1$1$3";
   #$TIME    =~ /(\d{2}):(\d{2}):(\d{2})-/;
   my $moddate.= ''; #"$1$1$3";
-
+  $attr->{DOCS_IN_FILE} = 0 if (! $attr->{DOCS_IN_FILE});
   
   $pdf->info(
         'Author'       => "ABillS pdf manager",
@@ -1402,6 +1405,20 @@ sub tpl_show {
         'Keywords'     => ""
     ); 
 
+
+
+my $multi_doc_count = 0;
+my $page_count      = $pdf->pages;
+
+my $font_name = 'Verdana';
+my $encode    = 'windows-1251';
+
+my $font = $pdf->corefont($font_name, -encode => "$encode");
+
+
+MULTIDOC_LABEL:
+
+
 for my $key (sort keys %$tpl_describe) { 
   
   my @patterns = ();
@@ -1413,65 +1430,165 @@ for my $key (sort keys %$tpl_describe) {
     push @patterns, $tpl_describe->{$key}{PARAMS};
    }
 
+  my $x         = 0; 
+  my $y         = 0;
+  my $doc_page  = 1;
+  my $font_size = 10;
+  my $font_color;
+  my $align     = '';
+  my $text_file = '';
 
   foreach my $pattern (@patterns) {
-    my $x         = 0; 
-    my $y         = 0;
-    my $doc_page  = 1;
-    my $font_size = 10;
-    my $font_name = 'Verdana';
-    my $font_color;
-    my $encode    = 'windows-1251';
-    my $align     = '';
-
     $x          = $1 if ($pattern =~ /x=(\d+)/);
     $y          = $1 if ($pattern =~ /y=(\d+)/);
+    next if ($x == 0 && $y == 0);
+
+    my $text = '';
     $doc_page   = $1 if ($pattern =~ /page=(\d+)/);
+    my $work_page = ($attr->{DOCS_IN_FILE}) ? $doc_page + $page_count * ($multi_doc_count - 1) - ($page_count * $attr->{DOCS_IN_FILE} * int( ($multi_doc_count - 1) / $attr->{DOCS_IN_FILE})) : $doc_page + $page_count * $multi_doc_count;
+    my $page = $pdf->openpage($work_page);
+
+    #Make img_insertion
+    if ($pattern =~ /img=([0-9a-zA-Z_\.]+)/) {
+    	my $img_file = $1;
+      if (! -f "$CONF->{TPL_DIR}/$img_file") {
+      	$text = "Img file not exists '$CONF->{TPL_DIR}/$img_file'\n";
+      	next;
+       }
+      else {  
+    	  print "make image '$CONF->{TPL_DIR}/$img_file'\n" if ($debug > 0);
+
+        my $img_height  = ($pattern =~ /img_height=([0-9a-zA-Z_\.]+)/) ? $1 : 100; 
+        my $img_width   = ($pattern =~ /img_width=([0-9a-zA-Z_\.]+)/) ? $1 : 100;
+
+
+    	  my $gfx=$page->gfx;
+    	  my $img = $pdf->image_jpeg("$CONF->{TPL_DIR}/$img_file"); #, 200, 200);
+        $gfx->image($img, $x, ($y - $img_height + 10), $img_width, $img_height); #, 596, 842);
+
+        $gfx->close;
+        $gfx->stroke;
+      
+    	  next;
+    	 }
+     }
+
+
+    $text_file  = $1 if ($pattern =~ /text=([0-9a-zA-Z_\.]+)/);
     $font_size  = $1 if ($pattern =~ /font_size=(\d+)/);
-    $font_name  = $1 if ($pattern =~ /font_name=(\S+)/);
-    $font_color = $1 if ($pattern =~ /font_color=(\d+)/);
+    $font_color = $1 if ($pattern =~ /font_color=(\S+)/);
     $encode     = $1 if ($pattern =~ /encode=(\S+)/);
     $align      = $1 if ($align   =~ /align=(\S+)/);
     
- 
+    #print "$key / $pattern\n";
 
-    my $font = $pdf->corefont($font_name, -encode => "$encode");
-    my $page = $pdf->openpage($doc_page);
+    if ($pattern =~ /font_name=(\S+)/) {
+    	$font_name  = $1;
+      $font = $pdf->corefont($font_name, -encode => "$encode");
+     }
+    #my $font = $pdf->ttfont('arialbold');
+
+    
     my $txt  = $page->text;
     $txt->font($font,$font_size);
-
     if ($font_color) {
       $txt->fillcolor($font_color);
       $txt->fillstroke($font_color);
      }
-
-
-    next if ($x == 0 && $y == 0);
+    
     $txt->translate($x,$y);
 
-    my $text = '';
     if (defined($variables_ref->{$key})) {
     	$text = $variables_ref->{$key};
      }
-    else {
-    	$text = ''; #"'$key: $x/$y'";
+    #else {
+    #	$text = ''; #"'$key: $x/$y'";
+    # }
+
+    if ($text_file ne '') {
+        my $text_height  = ($pattern =~ /text_height=([0-9a-zA-Z_\.]+)/) ? $1 : 100; 
+        my $text_width   = ($pattern =~ /text_width=([0-9a-zA-Z_\.]+)/) ? $1 : 100;
+
+        if (! -f "$CONF->{TPL_DIR}/$text_file") {
+        	$text = "Text file not exists '$CONF->{TPL_DIR}/$text_file'\n";
+         }
+        else {
+          my $content = '';
+          open(FILE, "$CONF->{TPL_DIR}/$text_file") or die "Can't open file '$text_file' $!\n";;
+            while(<FILE>) {
+          	  $content .= $_;
+             }
+          close(FILE);
+
+          my $string_height = 15;
+          $txt->lead($string_height);
+          my ($idt,$y2)=$txt->paragraph($content , $text_width, $text_height,
+                      -align     => 'justified',
+                      -spillover => 2 ); # ,400,14,@text);
+          next;
+        }
      }
 
-    $txt->text($text);
+    if ($pattern =~ /step=(\S+)/) {
+    	my $step = $1;
+    	my $len  = length($pattern);
+    	for(my $i = 0; $i <= $len; $i++) {
+        $txt->translate($x + $i*$step,$y);
+        my $char = substr($text, $i, 1);
+    		$txt->text( $char );
+    	 }
+     }
+    else {
+      $txt->text($text);
+     }
+
   }
 
 }
 
-#$txt->compress();
 
-if ($attr->{MULTI_DOCS}) {
-  return $pdf ; 	
+
+if ($attr->{MULTI_DOCS} && $multi_doc_count < @{ $attr->{MULTI_DOCS} }) {
+  
+  if ($attr->{DOCS_IN_FILE} && $multi_doc_count > 0 && $multi_doc_count % $attr->{DOCS_IN_FILE} == 0) {
+  	my $outfile = $attr->{SAVE_AS};
+  	my $filenum = int($multi_doc_count / $attr->{DOCS_IN_FILE});
+  	
+  	$outfile =~ s/\.pdf/$filenum\.pdf/;
+  	
+  	print "Save to: $outfile\n" if ($self->{debug});
+  	
+  	$pdf->saveas("$outfile") ;
+  	$pdf->end;
+    
+    $pdf = PDF::API2->open($filename);
+    $font = $pdf->corefont($font_name, -encode => "$encode");
+   }
+  
+  $variables_ref = $attr->{MULTI_DOCS}[$multi_doc_count];
+  print "Doc: $multi_doc_count\n" if ($attr->{debug});
+  #print %$variables_ref  ;
+
+  for(my $i=1; $i<=$page_count; $i++) {
+    my $page = $pdf->importpage($pdf, $i);
+   }
+
+  $multi_doc_count++;  
+  goto MULTIDOC_LABEL;
 }
 
-$pdf->saveas("$attr->{SAVE_AS}") if ($attr->{SAVE_AS});
+
+
+if ($attr->{SAVE_AS}) {
+  $pdf->saveas("$attr->{SAVE_AS}") ;
+  $pdf->end;
+  return 0;
+}
 
   $tpl = $pdf->stringify();
   $pdf->end;
+ 
+ 
  
   print $tpl;
 
@@ -1812,8 +1929,11 @@ PLUGINSPAGE='http://www.macromedia.com/go/getflashplayer'>
 #**********************************************************
 sub tpl_describe {
 	my ($tpl_name, $attr) = @_;
+
 	my $filename   = $tpl_name.'.dsc';
 	my $content    = '';
+
+  #print $tpl_name.'.dsc';
   my %TPL_DESCRIBE = ();
 
   if (! -f $filename) {
@@ -1832,17 +1952,19 @@ sub tpl_describe {
   	if ($line =~ /^#/) {
   		next;
   	 }
-  	elsif($line =~ /^(\S+):(.+):(\S+):(\S{0,500})/) {
+  	elsif($line =~ /^(\S+):(.+):(\S+):(\S{0,500})([:.]{0,20})/) {
     	my $name    = $1;
     	my $describe= $2;
     	my $lang    = $3;
     	my $params  = $4;
+    	my $default = $5;
 
     	next if ($attr->{LANG} && $attr->{LANG} ne $lang);
 
     	$TPL_DESCRIBE{$name}{DESCRIBE}=$describe;
     	$TPL_DESCRIBE{$name}{LANG}    =$lang;
     	$TPL_DESCRIBE{$name}{PARAMS}  =$params;
+    	$TPL_DESCRIBE{$name}{DEFAULT} =$default;
      }
    }
 

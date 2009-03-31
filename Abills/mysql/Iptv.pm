@@ -42,7 +42,7 @@ sub new {
   
   if ($CONF->{DELETE_USER}) {
     $self->{UID}=$CONF->{DELETE_USER};
-    $self->del({ UID => $CONF->{DELETE_USER} });
+    $self->user_del({ UID => $CONF->{DELETE_USER} });
    }
   
   return $self;
@@ -86,7 +86,7 @@ sub user_info {
    service.disable,
    tp.gid,
    tp.month_fee,
-   tp.postpaid_fee,
+   tp.postpaid_monthly_fee,
    tp.payment_type
      FROM iptv_main service
      LEFT JOIN tarif_plans tp ON (service.tp_id=tp.id)

@@ -87,6 +87,7 @@ CREATE TABLE `dv_calls` (
   `ex_output_octets_gigawords` smallint(4) unsigned NOT NULL default '0',
   `uid` int(11) unsigned NOT NULL default '0',
   `join_service` int(11) unsigned NOT NULL default '0',
+  `turbo_mode` varchar(30) NOT NULL default '',
   KEY `user_name` (`user_name`),
   KEY `acct_session_id` (`acct_session_id`),
   KEY `uid` (`uid`)
@@ -107,6 +108,17 @@ CREATE TABLE `dv_log_intervals` (
 ) ;
 
 
+CREATE TABLE `errors_log` (
+  `date` datetime NOT NULL,
+  `log_type` tinyint(3) unsigned NOT NULL DEFAULT '0',
+  `action` varchar(10) NOT NULL,
+  `user` varchar(20) NOT NULL,
+  `message` varchar(120) NOT NULL,
+  KEY `user` (`user`),
+  KEY `date` (`date`),
+  KEY `log_type` (`log_type`)
+) COMMENT='Error log';
+
 CREATE TABLE `companies` (
   `id` int(11) unsigned NOT NULL auto_increment,
   `name` varchar(100) NOT NULL default '',
@@ -119,12 +131,15 @@ CREATE TABLE `companies` (
   `registration` date NOT NULL default '0000-00-00',
   `disable` tinyint(1) unsigned NOT NULL default '0',
   `credit` double(8,2) NOT NULL default '0.00',
+  `credit_date` date NOT NULL default '0000-00-00',
   `address` varchar(100) NOT NULL default '',
   `phone` varchar(20) NOT NULL default '',
   `vat` double(5,2) unsigned NOT NULL default '0.00',
   `contract_id` varchar(10) NOT NULL default '',
+  `contract_date` date NOT NULL default '0000-00-00',
   `ext_bill_id` int(10) unsigned NOT NULL DEFAULT '0',
   PRIMARY KEY  (`id`),
+  KEY `bill_id` (`bill_id`),
   UNIQUE KEY `id` (`id`),
   UNIQUE KEY `name` (`name`)
 ) COMMENT='Companies';
@@ -154,7 +169,7 @@ CREATE TABLE `docs_acct` (
   `aid` smallint(6) unsigned NOT NULL default '0',
   `vat` double(5,2) unsigned NOT NULL default '0.00',
   PRIMARY KEY  (`id`)
-) ;
+) COMMENT='Docs Accounts'  ;
 
 CREATE TABLE `docs_acct_orders` (
   `acct_id` int(11) unsigned NOT NULL default '0',
@@ -163,7 +178,7 @@ CREATE TABLE `docs_acct_orders` (
   `unit` tinyint(3) unsigned NOT NULL default '0',
   `price` double(10,2) unsigned NOT NULL default '0.00',
   KEY `aid` (`acct_id`)
-) ;
+)  COMMENT='Docs Accounts Orders' ;
 
 
 CREATE TABLE `docs_invoice` (
@@ -180,7 +195,7 @@ CREATE TABLE `docs_invoice` (
   `by_proxy_person` varchar(15) NOT NULL default '',
   `by_proxy_date` date NOT NULL default '0000-00-00',
   PRIMARY KEY  (`id`)
-);
+)  COMMENT='Docs invoices';
 
 CREATE TABLE `docs_invoice_orders` (
   `invoice_id` int(11) unsigned NOT NULL default '0',
@@ -189,7 +204,30 @@ CREATE TABLE `docs_invoice_orders` (
   `unit` tinyint(3) unsigned NOT NULL default '0',
   `price` double(10,2) unsigned NOT NULL default '0.00',
   KEY `invoice_id` (`invoice_id`)
-);
+) COMMENT='Docs invoices orders';
+
+
+CREATE TABLE `docs_tax_invoices` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `date` date NOT NULL DEFAULT '0000-00-00',
+  `created` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `tax_invoice_id` int(10) unsigned NOT NULL DEFAULT '0',
+  `uid` int(11) unsigned NOT NULL DEFAULT '0',
+  `aid` smallint(6) unsigned NOT NULL DEFAULT '0',
+  `vat` double(5,2) unsigned NOT NULL DEFAULT '0.00',
+  `company_id` int(11) unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `date` (`date`,`company_id`)
+) COMMENT='Docs Tax Invoices';
+
+CREATE TABLE `docs_tax_invoice_orders` (
+  `tax_invoice_id` int(11) unsigned NOT NULL default '0',
+  `orders` varchar(200) NOT NULL default '',
+  `counts` int(10) unsigned NOT NULL default '0',
+  `unit` tinyint(3) unsigned NOT NULL default '0',
+  `price` double(10,2) unsigned NOT NULL default '0.00',
+  KEY `aid` (`tax_invoice_id`)
+) COMMENT='Docs Tax Invoices Orders' ;
 
 CREATE TABLE `dv_main` (
   `uid` int(11) unsigned NOT NULL auto_increment,
@@ -206,9 +244,11 @@ CREATE TABLE `dv_main` (
   `callback` tinyint(1) unsigned NOT NULL default '0',
   `port` int(11) unsigned NOT NULL default '0',
   `join_service` int(11) unsigned NOT NULL DEFAULT '0',
+  `turbo_mode` tinyint(1) unsigned NOT NULL default '0',
   PRIMARY KEY  (`uid`),
-  KEY `tp_id` (`tp_id`)
-) ;
+  KEY `tp_id` (`tp_id`),
+  KEY CID (CID)
+) COMMENT='Dv accounts' ;
 
 # --------------------------------------------------------
 
@@ -495,6 +535,7 @@ CREATE TABLE `msgs_reply` (
   `caption` varchar(40) NOT NULL default '',
   `ip` int(11) unsigned NOT NULL default '0',
   `uid` int(11) unsigned NOT NULL default '0',
+  run_time int(11) unsigned NOT NULL default '0',
   PRIMARY KEY  (`id`),
   UNIQUE KEY `id` (`id`),
   KEY `main_msg` (`main_msg`)
@@ -571,7 +612,7 @@ CREATE TABLE `payments` (
   `aid` smallint(6) unsigned NOT NULL default '0',
   `id` int(11) unsigned NOT NULL auto_increment,
   `method` tinyint(4) unsigned NOT NULL default '0',
-  `ext_id` varchar(16) NOT NULL default '',
+  `ext_id` varchar(24) NOT NULL default '',
   `bill_id` int(11) unsigned NOT NULL default '0',
   `inner_describe` varchar(80) NOT NULL default '',
   PRIMARY KEY  (`id`),
@@ -656,7 +697,8 @@ CREATE TABLE `tarif_plans` (
   `min_session_cost` double(14,5) unsigned NOT NULL default '0.00000',
   `rad_pairs` text NOT NULL,
   `reduction_fee` tinyint(1) unsigned NOT NULL default '0',
-  `postpaid_fee` tinyint(1) unsigned NOT NULL default '0',
+  `postpaid_daily_fee` tinyint(1) unsigned NOT NULL default '0',
+  `postpaid_monthly_fee` tinyint(1) unsigned NOT NULL default '0',
   `module` varchar(12) NOT NULL default '',
   `traffic_transfer_period` tinyint(4) unsigned NOT NULL default '0',
   `gid` smallint(6) unsigned NOT NULL default '0',
@@ -739,6 +781,7 @@ CREATE TABLE `users` (
   `credit_date` date default '0000-00-00',
   PRIMARY KEY  (`uid`),
   UNIQUE KEY `id` (`id`),
+  KEY `bill_id` (`bill_id`), 
   KEY `company_id` (`company_id`)
 );
 
@@ -779,7 +822,7 @@ CREATE TABLE `users_nas` (
 
 CREATE TABLE `users_pi` (
   `uid` int(11) unsigned NOT NULL auto_increment,
-  `fio` varchar(40) NOT NULL default '',
+  `fio` varchar(60) NOT NULL default '',
   `phone` bigint(16) unsigned NOT NULL default '0',
   `email` varchar(35) NOT NULL default '',
   `address_street` varchar(100) NOT NULL default '',
@@ -793,6 +836,7 @@ CREATE TABLE `users_pi` (
   `pasport_grant` varchar(100) NOT NULL default '',
   `zip` varchar(7) NOT NULL default '',
   `city` varchar(20) NOT NULL default '',
+  `accept_rules` tinyint(1) unsigned NOT NULL default '0',
   PRIMARY KEY  (`uid`)
 ) ;
 

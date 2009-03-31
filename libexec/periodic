@@ -107,6 +107,7 @@ if ($args->{DEBUG}) {
     my $i=0;
     while(my($k, $v)= each %PERIODIC) {
       if ($k eq 'daily') {
+        
         foreach my $funtion_name (@{ $PERIODIC{$k} })  {
           push @daily_functions, $funtion_name;
          }
@@ -145,10 +146,10 @@ if ($args->{DEBUG}) {
    undef %PERIODIC;
   }
 
-push  @daily_functions, 'sheduler';
+push  @daily_functions, 'sheduler' if (! $args->{MODULES});
 my($Y, $M, $D);
 
-
+  #Make date asign function
   if(defined($args->{DATE})) {
      if ($args->{DATE} !~ /\d{4}\-\d{2}\-\d{2}/) {
        print "Wrong date format. Format: YYYY-MM-DD\n";
@@ -174,7 +175,7 @@ if (defined($args->{monthly})) {
   	my $f = $monthly_functions[$i];
   	#$DEBUG .= 
   	print "==> FUNCTION: ". $f ."\n" if ($args->{DEBUG} && $args->{DEBUG} > 4);
-  	$f->({ DEBUG => $args->{DEBUG} });
+  	$f->({ DEBUG => $args->{DEBUG}, %$args });
   }
 
   if ($begin_time > 0)  {
@@ -191,6 +192,7 @@ if (defined($args->{monthly})) {
  }
 elsif (defined($args->{daily})) {
   for(my $i=$#daily_functions; $i>-1; $i--) {
+    
     my $f = $daily_functions[$i];
     $DEBUG .= "==> FUNCTION: ". $f ."\n" if ($args->{DEBUG} && $args->{DEBUG} > 4);
     $f->({ %$args });
@@ -238,7 +240,8 @@ sub sheduler {
 	
 my %shedule_type = ('tp'      => $_TARIF_PLAN, 
                     'fees'    => $_FEES,
-                    'message' => $_MESSAGES
+                    'message' => $_MESSAGES,
+                    'status'  => $_STATUS
  );
 
 #Change tp
@@ -340,12 +343,12 @@ $list = $payments->list( { %LIST_PARAMS } );
 
 foreach my $line (@$list) {
    $ADMIN_REPORT{PAYMENTS} .= sprintf ("%-14s| %8.4f| %20s| %12s| %15s| %19s|\n", 
-    "$line->[1]", 
-    "$line->[3]", 
-    "$line->[4]", 
-    "$line->[5]", 
-    "$line->[6]", 
-    "$line->[2]");
+    $line->[1], 
+    $line->[3], 
+    $line->[4], 
+    $line->[5], 
+    $line->[6], 
+    $line->[2]);
 }
 
 $ADMIN_REPORT{PAYMENTS} .= "---------------------------------------------------------\n";
@@ -571,16 +574,16 @@ sub backup {
 sub credit_operation {
 	$DEBUG .= "Reset Credit\n" if ($debug > 1);
 
-
+  # For users
   $conf{MAX_STABLE_CREDIT}=0 if (! $conf{MAX_STABLE_CREDIT});
   my $list = $users->list({  
                            CREDIT_DATE  => "$DATE",
-                           CREDIT       => '>$conf{MAX_STABLE_CREDIT}',
+                           CREDIT       => ">$conf{MAX_STABLE_CREDIT}",
   	                       PAGE_ROWS    => 1000000
   	                      });
 
   foreach my $line (@$list) {
-  	$DEBUG .= "$line->[0] (". $line->[5 +  $users->{SEARCH_FIELDS_COUNT}] .") DEPOSIT: $line->[2] CREDIT: $line->[3] CREDIT_DATE: $line->[6]\n"if ($debug > 0);
+  	$DEBUG .= "$line->[0] (". $line->[5 +  $users->{SEARCH_FIELDS_COUNT}] .") DEPOSIT: $line->[2] CREDIT: $line->[3] CREDIT_DATE: ". $line->[4+$users->{SEARCH_FIELDS_COUNT}] ."\n" if ($debug > 0);
 
     if ($debug < 5) {
     	$users->change($line->[5 + $users->{SEARCH_FIELDS_COUNT}], { CREDIT      => $conf{MAX_STABLE_CREDIT} ,
@@ -589,6 +592,31 @@ sub credit_operation {
     		                           });
      }
   }
+
+ #For company
+ require Customers;
+ Customers->import();
+
+ my $customer = Customers->new($db, $admin, \%conf);
+ my $Company = $customer->company();
+
+ $list = $Company->list({  
+                           CREDIT_DATE  => "$DATE",
+                           CREDIT       => ">$conf{MAX_STABLE_CREDIT}",
+  	                   PAGE_ROWS    => 1000000
+  	                      });
+
+  foreach my $line (@$list) {
+  	$DEBUG .= "$line->[0] (". $line->[5] .") DEPOSIT: $line->[1] CREDIT: $line->[8] CREDIT_DATE: $line->[9]\n" if ($debug > 0);
+
+    if ($debug < 5) {
+    	$Company->change({ CREDIT      => $conf{MAX_STABLE_CREDIT},
+    		                 COMPANY_ID  => $line->[5],
+    		                 CREDIT_DATE => '0000-00-00',
+                      });
+     }
+  }
+	
 	
  return 0;
 }

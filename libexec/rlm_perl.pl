@@ -4,7 +4,8 @@
 use strict;
 use vars qw(%RAD_REQUEST %RAD_REPLY %RAD_CHECK %conf 
  $begin_time
- $nas);
+ $nas
+);
 #use Data::Dumper;
 
 
@@ -35,11 +36,11 @@ my $debug = 1;
 require $Bin ."/config.pl";
 unshift(@INC, $Bin . '/../', $Bin . "/../Abills/$conf{dbtype}");
 
-#convert_radpairs();
-require $Bin ."/racct.pl";
 require $Bin ."/rauth.pl";
+require $Bin ."/racct.pl";
 
 $nas = undef;
+my %NAS_INFO = ();
 
 #**********************************************************
 # Function to handle authenticate
@@ -48,10 +49,23 @@ $nas = undef;
 sub sql_connect {
 	my $sql = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd});
   my $db  = $sql->{db};
-  
   #$rc = $dbh->ping;
+
+  $RAD_REQUEST{NAS_IDENTIFIER}='' if (! $RAD_REQUEST{NAS_IDENTIFIER});
+
+  if (! $NAS_INFO{$RAD_REQUEST{NAS_IP_ADDRESS}.'_'.$RAD_REQUEST{NAS_IDENTIFIER}}) {
+    $nas = Nas->new($db, \%conf);
+    if (get_nas_info($db, \%RAD_REQUEST) == 0) {		
+      $NAS_INFO{$RAD_REQUEST{NAS_IP_ADDRESS}.'_'.$RAD_REQUEST{NAS_IDENTIFIER}}=$nas;
+     }
+    else {
+    	return; 
+     }
+   }
+  else {
+  	$nas = $NAS_INFO{$RAD_REQUEST{NAS_IP_ADDRESS}.'_'.$RAD_REQUEST{NAS_IDENTIFIER}};
+   }
   
-  $nas = Nas->new($db, \%conf);	
   return $db;
 }
 
@@ -61,14 +75,14 @@ sub sql_connect {
 #**********************************************************
 sub authorize {
   $begin_time = check_time();
+
   convert_radpairs();
 
   my $db = sql_connect();
- 
-  if ( get_nas_info($db, \%RAD_REQUEST) == 0 ) {
-  	
-  	if (auth($db, \%RAD_REQUEST, { pre_auth => 1 }) == 0) {
-      if ( auth($db, \%RAD_REQUEST) == 0 ) {
+  
+  if ( $db ) {
+  	if (auth($db, \%RAD_REQUEST, $nas, { pre_auth => 1 }) == 0) {
+      if ( auth($db, \%RAD_REQUEST, $nas) == 0 ) {
          #$RAD_CHECK{'User-Password'} = 'test12345';
     	   return RLM_MODULE_OK;
        }
@@ -83,17 +97,20 @@ sub authorize {
 #
 #**********************************************************
 sub authenticate {
-  
+  $begin_time = check_time();
+  convert_radpairs();
+
   my $db = sql_connect();
   
-  if ( get_nas_info($db, \%RAD_REQUEST) == 0 ) {
-    if ( auth($db, \%RAD_REQUEST) == 0 ) {
+  if ( $db ) {
+    if ( auth($db, \%RAD_REQUEST, $nas) == 0 ) {
     	return RLM_MODULE_OK;
      }
    }
 
-  $RAD_CHECK{'Auth-Type'} = 'Accept';
-	return RLM_MODULE_OK;
+  #$RAD_CHECK{'Auth-Type'} = 'Accept';
+	#return RLM_MODULE_OK;
+	return RLM_MODULE_REJECT;
 }
 
 
@@ -106,20 +123,12 @@ sub accounting {
   convert_radpairs();
 
   my $db = sql_connect();
-  if ( get_nas_info($db, \%RAD_REQUEST) == 0 ) {
+  if ( $db ) {
      my $ret = acct($db, \%RAD_REQUEST, $nas);
    }
 
 	return RLM_MODULE_OK;
 }
-
-# Function to handle post_auth
-#sub post_auth {
-#	# For debugging purposes only
-#	&log_request_attributes;
-#	&test_call('post_auth');
-#	return RLM_MODULE_OK;
-#}
 
 
 #**********************************************************
@@ -133,31 +142,10 @@ sub convert_radpairs {
 		$k =~ tr/[a-z]/[A-Z]/;
 		$r{$k}=$v;
 	 }
-
   %RAD_REQUEST = %r;
 }
 
 
-
-
-
-sub test_call {
-	my ($funcname) = @_;
-	# Some code goes here 
-	my $test = "------$funcname\n";
-	#%RAD_REQUEST %RAD_REPLY %RAD_CHECK
-	$test .= '%RAD_REQUEST'."\n";
-	while(my($k, $v)=each(%RAD_REQUEST)){
-	  $test .= "$k, $v\n";
-	 }
-  $test .= "========\n".'%RAD_CHECK'."\n";
-	while(my($k, $v)=each(%RAD_CHECK)){
-	  $test .= "$k, $v\n";
-	 }
-
-  #print $test;
-  my $a=`echo "$test" >> /tmp/perllog`;
-}
 
 
 1

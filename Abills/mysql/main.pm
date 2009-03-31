@@ -68,7 +68,7 @@ sub connect {
   bless($self, $class);
   #$self->{debug}=1;
   $self->{db} = DBI->connect("DBI:mysql:database=$dbname;host=$dbhost", "$dbuser", "$dbpasswd") or print 
-       "Unable connect to server '$dbhost:$dbname'\n";
+       "Content-Type: text/html\n\nError: Unable connect to server '$dbhost:$dbname'\n";
   
   #For mysql 5 or highter
   $self->{db}->do("set names ".$attr->{CHARSET}) if ($attr->{CHARSET});
@@ -113,7 +113,6 @@ sub query {
   $self->{errstr}=undef;
   $self->{errno}=undef;
   $self->{TOTAL} = 0;
-  
   print "<p>$query</p>\n" if ($self->{debug});
 
   if (defined($attr->{test})) {
@@ -264,6 +263,15 @@ sub search_expr {
   my $self=shift;
   my ($value, $type, $field, $attr)=@_;
 
+ 	if ($attr->{EXT_FIELD}) {
+    $self->{SEARCH_FIELDS} .= "$field, ";
+    $self->{SEARCH_FIELDS_COUNT}++;
+ 	 }	
+ 
+  if ($value =~ s/;/,/g ) {
+  	return [ "$field IN ($value)" ];
+   }
+
 
   my @val_arr     = split(/,/, $value);  
   my @result_arr  = ();
@@ -274,7 +282,11 @@ sub search_expr {
     if($type eq 'INT' && $v =~ s/\*//g) {
       $expr = '>';
      }
-    elsif( $v =~ s/^([<>=]{1,2})// ) {
+    elsif ($type eq 'STR') {
+    	$expr = ' LIKE ';
+    	$v =~ s/\*/\%/g;
+     }
+    elsif ( $v =~ s/^([<>=]{1,2})// ) {
       $expr = $1;
      }  
   
@@ -287,11 +299,15 @@ sub search_expr {
 
     $value = $expr . $v;
     
-    
     push @result_arr, "$field$value" if ($field);
    }
 
   if ($field) {
+  
+  	if ($type ne 'INT') {
+  		return [ '('. join(' or ', @result_arr)  .')']; 
+  	 }
+
     return \@result_arr; 
    }
 
@@ -344,6 +360,7 @@ sub changes {
 
 
   while(my($k, $v)=each(%DATA)) {
+#  	print "$k, $v<br>\n";
     $OLD_DATA->{$k} = '' if (! $OLD_DATA->{$k});
     if (defined($FIELDS->{$k}) && $OLD_DATA->{$k} ne $DATA{$k}){
         if ($k eq 'PASSWORD' || $k eq 'NAS_MNG_PASSWORD') {
@@ -351,6 +368,10 @@ sub changes {
           $CHANGES_QUERY .= "$FIELDS->{$k}=ENCODE('$DATA{$k}', '$CONF->{secretkey}'),";
          }
         elsif($k eq 'IP' || $k eq 'NETMASK') {
+          if ($DATA{$k} !~ /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/) {
+            $DATA{$k} = '0.0.0.0' ;
+           }
+          
           $CHANGES_LOG .= "$k $OLD_DATA->{$k}->$DATA{$k};";
           $CHANGES_QUERY .= "$FIELDS->{$k}=INET_ATON('$DATA{$k}'),";
          }

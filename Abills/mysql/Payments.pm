@@ -97,10 +97,11 @@ sub add {
    }
   
   if ($DATA{CHECK_EXT_ID}) {
-    $self->query($db, "SELECT uid FROM payments WHERE ext_id='$DATA{CHECK_EXT_ID}';");
+    $self->query($db, "SELECT id FROM payments WHERE ext_id='$DATA{CHECK_EXT_ID}';");
     if ($self->{TOTAL} > 0) {
       $self->{errno}=7;
       $self->{errstr}='ERROR_DUBLICATE';
+      $self->{ID}=$self->{list}->[0][0];
       return $self;	
      }
    }
@@ -172,7 +173,7 @@ sub del {
   
 
   $self->query($db, "DELETE FROM payments WHERE id='$id';", 'do');
-  $admin->action_add($user->{UID}, "DELETE PAYEMNTS SUM: $sum");
+  $admin->action_add($user->{UID}, "DELETE PAYEMNTS $id SUM: $sum");
 
   return $self;
 }
@@ -189,7 +190,7 @@ sub list {
 
  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
- $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+ $PG   = ($attr->{PG}) ? $attr->{PG} : 0;
  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
  
  undef @WHERE_RULES;
@@ -198,8 +199,7 @@ sub list {
     push @WHERE_RULES, "p.uid='$attr->{UID}' ";
   }
  elsif ($attr->{LOGIN_EXPR}) {
-    $attr->{LOGIN_EXPR} =~ s/\*/\%/ig;
-    push @WHERE_RULES, "u.id LIKE '$attr->{LOGIN_EXPR}' ";
+    push @WHERE_RULES, @{ $self->search_expr($attr->{LOGIN_EXPR}, 'STR', 'u.id') };
   }
  
  if ($attr->{AID}) {
@@ -207,31 +207,24 @@ sub list {
   }
 
  if ($attr->{A_LOGIN}) {
- 	 $attr->{A_LOGIN} =~ s/\*/\%/ig;
- 	 push @WHERE_RULES,  "a.id LIKE '$attr->{A_LOGIN}' ";
- }
+ 	 push @WHERE_RULES,  @{ $self->search_expr($attr->{A_LOGIN}, 'STR', 'a.id') };
+  }
 
  if ($attr->{DESCRIBE}) {
-    $attr->{DESCRIBE} =~ s/\*/\%/g;
-    push @WHERE_RULES, "p.dsc LIKE '$attr->{DESCRIBE}' ";
+   push @WHERE_RULES, @{ $self->search_expr($attr->{DESCRIBE}, 'STR', 'p.dsc') };
   }
 
  if ($attr->{INNER_DESCRIBE}) {
-    $attr->{INNER_DESCRIBE} =~ s/\*/\%/g;
-    push @WHERE_RULES, "p.inner_describe LIKE '$attr->{INNER_DESCRIBE}'";
+   push @WHERE_RULES, @{ $self->search_expr($attr->{INNER_DESCRIBE}, 'STR', 'p.inner_describe') };
   }
 
 
  if ($attr->{SUM}) {
-    my $value = $self->search_expr($attr->{SUM}, 'INT');
-    push @WHERE_RULES, "p.sum$value ";
+    push @WHERE_RULES, @{ $self->search_expr($attr->{SUM}, 'INT', 'p.sum') };
   }
 
- if ($attr->{METHOD}) {
-    push @WHERE_RULES, "p.method='$attr->{METHOD}' ";
-  }
- elsif ($attr->{METHODS}) {
-    push @WHERE_RULES, "p.method IN ($attr->{METHODS}) ";
+ if (defined($attr->{METHOD})) {
+   push @WHERE_RULES, "p.method IN ($attr->{METHOD}) ";
   }
 
  if ($attr->{DATE}) {
@@ -247,18 +240,19 @@ sub list {
     push @WHERE_RULES, "(date_format(p.date, '%Y-%m-%d')>='$attr->{FROM_DATE}' and date_format(p.date, '%Y-%m-%d')<='$attr->{TO_DATE}')";
   }
 
- if ($attr->{COMPANY_ID}) {
- 	 push @WHERE_RULES, "u.company_id='$attr->{COMPANY_ID}'";
+ if ($attr->{BILL_ID}) {
+ 	 push @WHERE_RULES, @{ $self->search_expr("$attr->{BILL_ID}", 'INT', 'p.bill_id') };
+  }
+ elsif ($attr->{COMPANY_ID}) {
+ 	 push @WHERE_RULES, @{ $self->search_expr($attr->{COMPANY_ID}, 'INT', 'u.company_id') };
   }
 
  if ($attr->{EXT_ID}) {
-   $attr->{EXT_ID} =~ s/\*/\%/g;
-   push @WHERE_RULES, "p.ext_id LIKE '$attr->{EXT_ID}'";
+   push @WHERE_RULES, @{ $self->search_expr($attr->{EXT_ID}, 'STR', 'p.ext_id') };
   }
 
  if ($attr->{ID}) {
- 	 my $value = $self->search_expr("$attr->{ID}", 'INT');
- 	 push @WHERE_RULES, "p.id$value";
+ 	 push @WHERE_RULES, @{ $self->search_expr("$attr->{ID}", 'INT', 'p.id') };
   }
 
  # Show groups
@@ -318,7 +312,7 @@ sub reports {
    push @WHERE_RULES, "u.gid='$attr->{GID}'";
   }
 
- if ($attr->{METHODS}) {
+ if (defined($attr->{METHODS})) {
     push @WHERE_RULES, "p.method IN ($attr->{METHODS}) ";
   }
  
@@ -337,6 +331,9 @@ sub reports {
    elsif($attr->{TYPE} eq 'PAYMENT_METHOD') {
    	 $date = "p.method";   	
     }
+   elsif($attr->{TYPE} eq 'ADMINS') {
+   	 $date = "a.id";   	
+    }
    else {
      $date = "u.id";   	
     }  
@@ -353,9 +350,10 @@ sub reports {
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
  
-  $self->query($db, "SELECT $date, count(*), sum(p.sum) 
+  $self->query($db, "SELECT $date, count(DISTINCT p.uid), count(*), sum(p.sum) 
       FROM (payments p)
       LEFT JOIN users u ON (u.uid=p.uid)
+      LEFT JOIN admins a ON (a.aid=p.aid)
       $WHERE 
       GROUP BY 1
       ORDER BY $SORT $DESC;");
@@ -363,15 +361,17 @@ sub reports {
  my $list = $self->{list}; 
  
  if ($self->{TOTAL} > 0) {
-   $self->query($db, "SELECT count(*), sum(p.sum) 
+   $self->query($db, "SELECT count(DISTINCT p.uid), count(*), sum(p.sum) 
       FROM payments p
       LEFT JOIN users u ON (u.uid=p.uid)
       $WHERE;");
 
-   ($self->{TOTAL}, 
+   ($self->{USERS},
+    $self->{TOTAL}, 
     $self->{SUM}) = @{ $self->{list}->[0] };
   }
  else {
+   $self->{USERS}=0; 
    $self->{TOTAL}=0; 
    $self->{SUM}=0.00;
   }

@@ -206,7 +206,7 @@ sub show_log {
   my @err_recs = ();
   my %types = ();
 
-  my $PAGE_ROWS = (defined($attr->{PAGE_ROWS}))? $attr->{PAGE_ROWS} : 100;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS})? $attr->{PAGE_ROWS} : 25;
   my $PG = (defined($attr->{PG}))? $attr->{PG} : 1;
 
   $login =~ s/\*/\[\.\]\{0,100\}/g if ($login ne '');
@@ -441,11 +441,12 @@ sub int2ml {
 
  my $money_unit_names = $attr->{MONEY_UNIT_NAMES};
 
+ $array =~ s/,/\./g;
  $array =~ tr/0-9,.//cd;
  my $tmp = $array;
  my $count = ($tmp =~ tr/.,//);
-
-#print $array,"\n";
+ 
+ 
 if ($count > 1) {
   $ret .= "bad integer format\n";
   return 1;
@@ -487,6 +488,7 @@ for ($i = $first_length; $i >=1; $i--) {
       $tmp = $first[$i];
       $tmp =~ s/(^\d)(\d)(\d$)/$1/;
       $ret .= $hundred[$tmp];
+
       if ($tmp > 0) {
         $ret .= " ";
       }
@@ -551,8 +553,13 @@ if ($second ne '') {
 } else {
  $ret .= "\n";
 }
+
+ use locale;
+ use POSIX qw(locale_h);
+ my $locale = $attr->{LOCALE} || 'ru_RU.CP1251';
+ setlocale(LC_ALL, $locale);
  
- return $ret;
+ return ucfirst $ret;
 }
 
 #**********************************************************

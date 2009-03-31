@@ -24,8 +24,11 @@ BEGIN {
  
  $sql_type='mysql';
  unshift(@INC, $libpath ."Abills/$sql_type/");
+ unshift(@INC, $libpath ."Abills/");
  unshift(@INC, $libpath);
  unshift(@INC, $libpath . 'libexec/');
+
+ 
 
  eval { require Time::HiRes; };
  if (! $@) {
@@ -121,6 +124,7 @@ my @m = (
 if ($conf{user_finance_menu}) {
    push @m, "40:0:$_FINANCES:form_payments:::";
    push @m, "41:40:$_FEES:form_fees:::";
+   push @m, "42:40:$_PAYMENTS:form_payments:::";
 }
 
 $user=Users->new($db, $admin, \%conf); 
@@ -151,6 +155,9 @@ if ($uid > 0) {
     print $html->tpl_show(templates('form_client_start'), \%OUTPUT);
  	  exit;
    }
+  
+  
+  accept_rules() if ($conf{ACCEPT_RULES});
   
   push @m, "17:0:$_PASSWD:form_passwd:::" if($conf{user_chg_passwd});
 
@@ -231,7 +238,7 @@ if ($uid > 0) {
   
   $OUTPUT{BODY}=$html->tpl_show(templates('form_client_main'), \%OUTPUT);
 
-}
+ }
 else {
   form_login();
 }
@@ -316,8 +323,51 @@ sub mk_menu {
 # form_stats
 #**********************************************************
 sub form_info {
+  my ($attr) = @_;
+  use POSIX qw(strftime);
   
-  if ($conf{user_chg_pi}) {
+  if ( $conf{user_credit_change}) {
+    my ($sum, $days, $price) = split(/:/, $conf{user_credit_change});
+    my $credit_date = strftime "%Y-%m-%d", localtime(time + int($days) * 86400);
+
+      if (in_array('Docs', \@MODULES) ) {
+        
+        require "Abills/modules/Ipn/webinterface";
+        my $Dv       = Dv->new($db, $admin, \%conf);
+
+        $Dv->info($user->{UID});
+        $sum = $Dv->{TP_CREDIT} if ($Dv->{TP_CREDIT} > 0);
+       }
+
+    
+    if ($user->{CREDIT} < $sum) {
+
+    
+       if ($FORM{change_credit}) {
+         $user->change($user->{UID}, { UID         => $user->{UID},
+                                       CREDIT      => $sum,
+                                       CREDIT_DATE => $credit_date
+                                     });
+         if (! $user->{errno}) {
+            $html->message('info', "$_CHANGED", " $_CREDIT: $sum");
+            if ($price && $price > 0) {
+              my $Fees = Finance->fees($db, $admin, \%conf);
+              $Fees->take($user, $price, { DESCRIBE => "$_CREDIT $_ENABLE" } );              
+             }
+          }
+
+         $user->{CREDIT}=$sum;
+         $user->{CREDIT_DATE}=$credit_date;
+        }
+       else {
+         $user->{CREDIT_CHG_BUTTON} =  $html->button("$_SET: ". sprintf("%.2f", $sum), "index=$index&sid=$sid&change_credit=$sum");
+         $user->{CREDIT_CHG_BUTTON} .= sprintf(" (%s: %.2f)", $_PRICE, $price) if ($price && $price > 0);
+        }
+     }
+    
+
+   }
+  elsif ($conf{user_chg_pi}) {
   	if ($FORM{chg}) {
   		$user->pi();
   		$user->{ACTION}='change';
@@ -333,7 +383,8 @@ sub form_info {
   	 }
    }
 
-
+  
+  
   $user->pi();
   
   my $payments = Finance->payments($db, $admin, \%conf);
@@ -462,7 +513,7 @@ elsif (length($sid) > 1) {
   $user->web_session_info({ SID => $sid });
 
   if ($user->{TOTAL} < 1) { 
-    $html->message('err', "$_ERROR", "$_NOT_LOGINED");	
+    #$html->message('err', "$_ERROR", "$_NOT_LOGINED");	
     return 0; 
    }
   elsif ($user->{errno}) {
@@ -623,178 +674,38 @@ sub logout {
 	return 0;
 }
 
+#**********************************************************
+#
+# Report main interface
+#**********************************************************
+sub accept_rules {
+  my ($attr) = @_;
 
-##**********************************************************
-##
-## FIELDS => FIELDS_HASH
-##**********************************************************
-#sub reports {
-# my ($attr) = @_;
-# 
-#my $EX_PARAMS; 
-#my ($y, $m, $d);
-#$type='DATE';
-#
-#if ($FORM{MONTH}) {
-#  $LIST_PARAMS{MONTH}=$FORM{MONTH};
-#	$pages_qs="&MONTH=$LIST_PARAMS{MONTH}";
-# }
-#elsif($FORM{allmonthes}) {
-#	$type='MONTH';
-#	$pages_qs="&allmonthes=y";
-# }
-#else {
-#	($y, $m, $d)=split(/-/, $DATE, 3);
-#	$LIST_PARAMS{MONTH}="$y-$m";
-#	$pages_qs="&MONTH=$LIST_PARAMS{MONTH}";
-#}
-#
-#
-#if ($LIST_PARAMS{UID}) {
-#	 $pages_qs.="&UID=$LIST_PARAMS{UID}";
-# }
-#else {
-#  if ($FORM{GID}) {
-#	  $LIST_PARAMS{GID}=$FORM{GID};
-#    $pages_qs="&GID=$FORM{GID}";
-#   }
-#
-#  #$user->{GROUPS_SEL} = sel_groups();
-#  #$html->tpl_show(templates('groups_sel'), $user);
-#}
-#
-#my @rows = ();
-#
-#my $FIELDS='';
-#
-#if ($attr->{FIELDS}) {
-#  my %fields_hash = (); 
-#  if (defined($FORM{FIELDS})) {
-#  	my @fileds_arr = split(/, /, $FORM{FIELDS});
-#   	foreach my $line (@fileds_arr) {
-#   		$fields_hash{$line}=1;
-#   	 }
-#   }
-#
-#  $LIST_PARAMS{FIELDS}=$FORM{FIELDS};
-#  $pages_qs="&FIELDS=$FORM{FIELDS}";
-#  
-#  foreach my $line (sort keys %{ $attr->{FIELDS} }) {
-#  	my ($id, $k)=split(/:/, $line);
-#  	$FIELDS .= $html->form_input("FIELDS", $k, { TYPE => 'checkbox', STATE => (defined($fields_hash{$k})) ? 'checked' : undef }). " $attr->{FIELDS}{$line}";
-#   }
-# }  
-#
-#
-#if ($attr->{PERIOD_FORM}) {
-#	$table = $html->table( { width    => '100%',
-#	                         rowcolor => $_COLORS[1],
-#                           rows     => [["$_FROM: ",   $html->date_fld('from', { MONTHES => \@MONTHES} ),
-#                                          "$_TO: ",    $html->date_fld('to', { MONTHES => \@MONTHES } ), 
-# 	                                        ($attr->{XML}) ? 
-# 	                                        $html->form_input('NO_MENU', 1, { TYPE => 'hidden' }).
-# 	                                        $html->form_input('xml', 1, { TYPE => 'checkbox' })."XML" : '',
-#
-#                                          $html->form_input('show', $_SHOW, { TYPE => 'submit', OUTPUT2RETURN => 1 }) ]
-#                                         ],                                   
-#                      });
-# 
-#  print $html->form_main({ CONTENT => $table->show({ OUTPUT2RETURN => 1 }).$FIELDS,
-#	                         HIDDEN  => { 
-#	                                    ($attr->{HIDDEN}) ? %{ $attr->{HIDDEN} } : undef,
-#	                                    index => "$index"
-#	                                    }});
-#
-#  if (defined($FORM{show})) {
-#    $pages_qs .= "&show=y&fromD=$FORM{fromD}&fromM=$FORM{fromM}&fromY=$FORM{fromY}&toD=$FORM{toD}&toM=$FORM{toM}&toY=$FORM{toY}";
-#    $FORM{fromM}++;
-#    $FORM{toM}++;
-#    $FORM{fromM} = sprintf("%.2d", $FORM{fromM}++);
-#    $FORM{toM} = sprintf("%.2d", $FORM{toM}++);
-#
-#    $LIST_PARAMS{TYPE}=$FORM{TYPE};
-#    $LIST_PARAMS{INTERVAL} = "$FORM{fromY}-$FORM{fromM}-$FORM{fromD}/$FORM{toY}-$FORM{toM}-$FORM{toD}";
-#   }
-#	
-#}
-#
-#
-#
-#
-#
-#
-#if (defined($FORM{DATE})) {
-#  ($y, $m, $d)=split(/-/, $FORM{DATE}, 3);	
-#
-#  $LIST_PARAMS{DATE}="$FORM{DATE}";
-#  $pages_qs .="&DATE=$LIST_PARAMS{DATE}";
-#
-#  if (defined($attr->{EX_PARAMS})) {
-#   	my $EP = $attr->{EX_PARAMS};
-#
-#	  while(my($k, $v)=each(%$EP)) {
-#     	if ($FORM{EX_PARAMS} eq $k) {
-#        $EX_PARAMS .= " <b>$v</b> ";
-#        $LIST_PARAMS{$k}=1;
-#        #$pages_qs .="&EX_PARAMS=$k";
-#
-#     	  if ($k eq 'HOURS') {
-#    	  	 undef $attr->{SHOW_HOURS};
-#	       } 
-#     	 }
-#     	else {
-#     	  $EX_PARAMS .= '::'. $html->button($v, "index=$index$pages_qs&EX_PARAMS=$k");
-#     	 }
-#	  }
-#  
-#  }
-#
-#
-#
-#  my $days = '';
-#  for ($i=1; $i<=31; $i++) {
-#     $days .= ($d == $i) ? " <b>$i </b>" : ' '.$html->button($i, sprintf("index=$index&DATE=%d-%02.f-%02.f&EX_PARAMS=$FORM{EX_PARAMS}%s%s", $y, $m, $i, 
-#       (defined($FORM{GID})) ? "&GID=$FORM{GID}" : '', 
-#       (defined($FORM{UID})) ? "&UID=$FORM{UID}" : '' ));
-#   }
-#  
-#  
-#  @rows = ([ "$_YEAR:",  $y ],
-#           [ "$_MONTH:", $MONTHES[$m-1] ], 
-#           [ "$_DAY:",   $days ]);
-#  
-#  if ($attr->{SHOW_HOURS}) {
-#    my(undef, $h)=split(/ /, $FORM{HOUR}, 2);
-#    my $hours = '';
-#    for (my $i=0; $i<24; $i++) {
-#    	$hours .= ($h == $i) ? " <b>$i </b>" : ' '.$html->button($i, sprintf("index=$index&HOUR=%d-%02.f-%02.f+%02.f&EX_PARAMS=$FORM{EX_PARAMS}$pages_qs", $y, $m, $d, $i));
-#     }
-#
-# 	  $LIST_PARAMS{HOUR}="$FORM{HOUR}";
-#
-#  	push @rows, [ "$_HOURS", $hours ];
-#   }
-#
-#  if ($attr->{EX_PARAMS}) {
-#    push @rows, [' ', $EX_PARAMS];
-#   }  
-#
-#
-#  
-#  
-#  
-#
-#  $table = $html->table({ width       => '100%',
-#                           rowcolor   => $_COLORS[1],
-#                           cols_align => ['right', 'left'],
-#                           rows       => [ @rows ]
-#                         });
-#
-#  print $table->show();
-#
-#}
-#
-#}
+  $user->pi({ UID => $user->{UID} });
+  if ($FORM{ACCEPT} &&  $FORM{accept}) {
+    if ($user->{TOTAL} == 0) {
+      $user->pi_add({ UID => $user->{UID}, ACCEPT_RULES => 1 });
+     }
+    else {
+      $user->pi_change({ UID => $user->{UID}, ACCEPT_RULES => 1 });    
+     }
+
+    return 0;
+  }
+
+
+  if ($user->{ACCEPT_RULES}) {
+
+    return 0;
+   }
+
+  $html->tpl_show(templates('form_accept_rules'), $user);
+	
+  print $html->header();
+  $OUTPUT{BODY}="$html->{OUTPUT}";
+  print $OUTPUT{BODY};
+  exit;
+}
 
 #**********************************************************
 #
@@ -1002,7 +913,7 @@ if (defined($FORM{DATE})) {
                            rows       => [ @rows ]
                          });
 
-  print $table->show({ OUTPUT2RETURN => 1 });
+  print $table->show();
 
 }
 
@@ -1027,7 +938,8 @@ my $table = $html->table( { width      => '100%',
                             title      => ['ID', $_LOGIN, $_DATE, $_SUM, $_DESCRIBE, $_ADMINS, 'IP',  $_DEPOSIT],
                             cols_align => ['right', 'left', 'right', 'right', 'left', 'left', 'right', 'right'],
                             qs         => $pages_qs,
-                            pages      => $fees->{TOTAL}
+                            pages      => $fees->{TOTAL},
+                            ID         => 'FEES'
                         } );
 
 
@@ -1058,7 +970,10 @@ sub form_payments {
 my @PAYMENT_METHODS = ('Cash', 'Bank', 'Internet Card', 'Credit Card', 'Bonus');
 my $payments = Finance->payments($db, $admin, \%conf);
 
-
+if (! $FORM{sort}) {
+  $LIST_PARAMS{sort}=1;
+  $LIST_PARAMS{DESC}='DESC';
+}
 my $list = $payments->list( { %LIST_PARAMS } );
 my $table = $html->table( { width      => '100%',
                             caption    => "$_PAYMENTS",
@@ -1066,7 +981,8 @@ my $table = $html->table( { width      => '100%',
                             title      => ['ID', $_LOGIN, $_DATE, $_SUM, $_DESCRIBE, $_ADMINS, 'IP',  $_DEPOSIT, $_PAYMENT_METHOD, 'EXT ID', "$_BILL"],
                             cols_align => ['right', 'left', 'right', 'right', 'left', 'left', 'right', 'right', 'left', 'left'],
                             qs         => $pages_qs,
-                            pages      => $payments->{TOTAL}
+                            pages      => $payments->{TOTAL},
+                            ID         => 'PAYMENTS'
                            } );
 
 $pages_qs .= "&subf=2" if (! $FORM{subf});
@@ -1097,6 +1013,9 @@ $table = $html->table({ width      => '100%',
                       });
 print $table->show();
 }
+
+
+
 
 #*******************************************************************
 # form_period

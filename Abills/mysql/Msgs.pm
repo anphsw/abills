@@ -1,6 +1,4 @@
-package Msgs;
-# Message system
-#
+package Msgs; # Message system #
 
 use strict;
 use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
@@ -27,7 +25,6 @@ sub new {
   ($db, $admin, $CONF) = @_;
   my $self = { };
   bless($self, $class);
-  #$self->{debug}=1;
   return $self;
 }
 
@@ -63,13 +60,22 @@ sub messages_new {
    push @WHERE_RULES, "m.chapter IN ($attr->{CHAPTERS})"; 
   }
 
+ if ($attr->{GIDS}) {
+   push @WHERE_RULES, "u.gid IN ($attr->{GIDS})"; 
+ }
+
  $WHERE = ($#WHERE_RULES > -1) ? 'WHERE '. join(' and ', @WHERE_RULES)  : '';
 
-
-
- $self->query($db,   "SELECT $fields 
-  FROM (msgs_messages m)
- $WHERE;");
+ if ($attr->{GIDS}) {
+   $self->query($db,   "SELECT $fields 
+    FROM (msgs_messages m, users u)
+   $WHERE and u.uid=m.uid;");
+  }
+ else {
+   $self->query($db,   "SELECT $fields 
+    FROM (msgs_messages m)
+   $WHERE;");
+  }
 
  ($self->{UNREAD}, $self->{TODAY}, $self->{OPENED}) = @{ $self->{list}->[0] };
 
@@ -92,7 +98,7 @@ sub messages_list {
  @WHERE_RULES = ();
  
  if($attr->{LOGIN_EXPR}) {
-	 push @WHERE_RULES, "u.id='$attr->{LOGIN_EXPR}'"; 
+	 push @WHERE_RULES, @{ $self->search_expr($attr->{LOGIN_EXPR}, 'STR', 'u.id') };
   }
  
  if ($attr->{DATE}) {
@@ -117,13 +123,11 @@ sub messages_list {
   }
 
  if ($attr->{MSG_ID}) {
- 	  my $value = $self->search_expr($attr->{MSG_ID}, 'INT');
-    push @WHERE_RULES, "m.id$value";
+ 	  push @WHERE_RULES,  @{ $self->search_expr($attr->{MSG_ID}, 'INT', 'm.id') };
   }
 
  if (defined($attr->{REPLY})) {
- 	 my $value = $self->search_expr($attr->{REPLY}, '');
-   push @WHERE_RULES, "m.reply$value";
+   push @WHERE_RULES, @{ $self->search_expr($attr->{USER_READ}, 'STR', 'm.user_read') };
   }
 
  # Show groups
@@ -135,21 +139,19 @@ sub messages_list {
   }
 
  if ($attr->{USER_READ}) {
-   my $value = $self->search_expr($attr->{USER_READ}, 'INT');
-   push @WHERE_RULES, "m.user_read$value"; 
+   push @WHERE_RULES, @{ $self->search_expr($attr->{USER_READ}, 'INT', 'm.user_read') };
   }
 
  if ($attr->{ADMIN_READ}) {
-   my $value = $self->search_expr($attr->{ADMIN_READ}, 'INT');
-   push @WHERE_RULES, "m.admin_read$value";
+   push @WHERE_RULES, @{ $self->search_expr($attr->{ADMIN_READ}, 'INT', 'm.admin_read') };
   }
 
  if ($attr->{CLOSED_DATE}) {
-   push @WHERE_RULES, "m.closed_date='$attr->{CLOSED_DATE}'";
+   push @WHERE_RULES, @{ $self->search_expr($attr->{CLOSED_DATE}, 'INT', 'm.closed_date') };
   }
 
  if ($attr->{DONE_DATE}) {
-   push @WHERE_RULES, "m.done_date='$attr->{DONE_DATE}'";
+   push @WHERE_RULES, @{ $self->search_expr($attr->{DONE_DATE}, 'INT', 'm.done_date') };
   }
 
  if ($attr->{REPLY_COUNT}) {
@@ -160,29 +162,24 @@ sub messages_list {
    push @WHERE_RULES, "m.chapter IN ($attr->{CHAPTERS})"; 
   }
  
- #DIsable
  if ($attr->{UID}) {
-   push @WHERE_RULES, "m.uid='$attr->{UID}'"; 
+   push @WHERE_RULES, @{ $self->search_expr($attr->{UID}, 'INT', 'm.uid') };
  }
 
  if (defined($attr->{STATE})) {
-   my $value = $self->search_expr($attr->{STATE}, 'INT');
-   push @WHERE_RULES, "m.state$value"; 
+   push @WHERE_RULES, @{ $self->search_expr($attr->{STATE}, 'INT', 'm.state')  };
   }
 
  if ($attr->{PRIORITY}) {
-   my $value = $self->search_expr($attr->{PRIORITY}, 'INT');
-   push @WHERE_RULES, "m.state$value"; 
+   push @WHERE_RULES, @{ $self->search_expr($attr->{PRIORITY}, 'INT', 'm.state') };
   }
 
  if ($attr->{PLAN_DATE}) {
-   my $value = $self->search_expr($attr->{PLAN_DATE}, 'INT');
-   push @WHERE_RULES, "m.plan_date$value"; 
+   push @WHERE_RULES, @{ $self->search_expr($attr->{PLAN_DATE}, 'INT', 'm.plan_date') };
   }
 
  if ($attr->{PLAN_TIME}) {
-   my $value = $self->search_expr($attr->{PLAN_TIME}, 'INT');
-   push @WHERE_RULES, "m.plan_time$value"; 
+   push @WHERE_RULES,  @{ $self->search_expr($attr->{PLAN_TIME}, 'INT', 'm.plan_time') };
   }
  
 
@@ -199,6 +196,7 @@ inet_ntoa(m.ip),
 a.id,
 m.priority,
 CONCAT(m.plan_date, ' ', m.plan_time),
+SEC_TO_TIME(sum(r.run_time)),
 m.uid,
 a.aid,
 m.state,
@@ -222,15 +220,24 @@ GROUP BY m.id
 
  my $list = $self->{list};
 
- if ($self->{TOTAL} >= $PAGE_ROWS  || $PG > 0) {
+ if ($self->{TOTAL} > 0  || $PG > 0) {
    
-   $self->query($db, "SELECT count(DISTINCT m.id)
+   $self->query($db, "SELECT count(DISTINCT m.id), 
+   sum(if(m.admin_read = '0000-00-00 00:00:00', 1, 0)),
+   sum(if(m.state = 0, 1, 0)),
+   sum(if(m.state = 1, 1, 0)),
+   sum(if(m.state = 2, 1, 0))
     FROM (msgs_messages m)
     LEFT JOIN users u ON (m.uid=u.uid)
     LEFT JOIN msgs_chapters mc ON (m.chapter=mc.id)
     $WHERE");
 
-   ($self->{TOTAL}) = @{ $self->{list}->[0] };
+   ($self->{TOTAL},
+    $self->{IN_WORK},
+    $self->{OPEN},
+    $self->{UNMAKED},
+    $self->{CLOSED},
+    ) = @{ $self->{list}->[0] };
   }
  
 
@@ -248,12 +255,13 @@ GROUP BY m.id
 sub message_add {
 	my $self = shift;
 	my ($attr) = @_;
-  
- 
+
   %DATA = $self->get_data($attr, { default => \%DATA }); 
 
+  my $CLOSED_DATE = ($DATA{STATE} == 1 || $DATA{STATE} == 2 ) ? 'now()' : "'0000-00-00 00:00:00'";
+
   $self->query($db, "insert into msgs_messages (uid, subject, chapter, message, ip, date, reply, aid, state, gid,
-   priority, lock_msg, plan_date, plan_time, user_read, admin_read, inner_msg)
+   priority, lock_msg, plan_date, plan_time, user_read, admin_read, inner_msg, resposible, closed_date)
     values ('$DATA{UID}', '$DATA{SUBJECT}', '$DATA{CHAPTER}', '$DATA{MESSAGE}', INET_ATON('$DATA{IP}'), now(), 
         '$DATA{REPLY}',
         '$admin->{AID}',
@@ -265,9 +273,12 @@ sub message_add {
         '$DATA{PLAN_TIME}',
         '$DATA{USER_READ}',
         '$DATA{ADMIN_READ}',
-        '$DATA{INNER_MSG}'
+        '$DATA{INNER_MSG}',
+        '$DATA{RESPOSIBLE}',
+        $CLOSED_DATE
         );", 'do');
 
+  $self->{MSG_ID} = $self->{INSERT_ID};
 	return $self;
 }
 
@@ -797,14 +808,16 @@ sub messages_reply_list {
   $self->query($db,   "SELECT mr.id,
     mr.datetime,
     mr.text,
-    if(mr.uid>0, u.id, a.id),
+    if(mr.aid>0, a.id, u.id),
     mr.status,
     mr.caption,
     INET_NTOA(mr.ip),
     ma.filename,
     ma.content_size,
     ma.id,
-    mr.uid
+    mr.uid,
+    SEC_TO_TIME(mr.run_time),
+    mr.aid
     FROM (msgs_reply mr)
     LEFT JOIN users u ON (mr.uid=u.uid)
     LEFT JOIN admins a ON (mr.aid=a.aid)
@@ -828,7 +841,6 @@ sub message_reply_add {
   
   %DATA = $self->get_data($attr, { default => \%DATA }); 
 
-
   $self->query($db, "insert into msgs_reply (main_msg,
    caption,
    text,
@@ -836,13 +848,14 @@ sub message_reply_add {
    ip,
    aid,
    status,
-   uid
+   uid,
+   run_time
    )
     values ('$DATA{ID}', '$DATA{REPLY_SUBJECT}', '$DATA{REPLY_TEXT}',  now(),
         INET_ATON('$DATA{IP}'), 
-        '$admin->{AID}',
+        '$DATA{AID}',
         '$DATA{STATE}',
-        '$DATA{UID}'
+        '$DATA{UID}', '$DATA{RUN_TIME}'
     );", 'do');
 
 
@@ -944,9 +957,13 @@ sub messages_reports {
  
 
  if ($attr->{STATUS}) {
-    my $value = $self->search_expr($attr->{STATE}, 'INT');
-    push @WHERE_RULES, "m.status$value";
+    push @WHERE_RULES, @{ $self->search_expr($attr->{STATE}, 'INT', 'm.status') };
   }
+
+ if ($attr->{UID}) {
+   push @WHERE_RULES, @{ $self->search_expr($attr->{UID}, 'INT', 'm.uid') };
+  }
+
 
  my $date='date_format(m.date, \'%Y-%m-%d\')';
 
@@ -961,6 +978,15 @@ sub messages_reports {
    #  $date = "date_format(m.date, '%Y-%m-%d')";
    # }
   }
+
+ # Show groups
+ if ($attr->{GIDS}) {
+   push @WHERE_RULES, "u.gid IN ($attr->{GIDS})"; 
+  }
+ elsif ($attr->{GID}) {
+   push @WHERE_RULES, "u.gid='$attr->{GID}'"; 
+  }
+
 
  if ($attr->{DATE}) {
     push @WHERE_RULES, "date_format(m.date, '%Y-%m-%d')='$attr->{DATE}'";
@@ -985,10 +1011,12 @@ sub messages_reports {
    sum(if (m.state=1, 1, 0)),
    sum(if (m.state=2, 1, 0)),
    count(*),
+   SEC_TO_TIME(sum(mr.run_time)),
    m.uid
    FROM msgs_messages m
   LEFT JOIN  users u ON (m.uid=u.uid)
   LEFT JOIN  admins a ON (m.aid=a.aid)
+  LEFT JOIN  msgs_reply mr ON (m.id=mr.main_msg)
   $WHERE
   GROUP BY 1
   ORDER BY $SORT $DESC ; ");
@@ -998,13 +1026,22 @@ sub messages_reports {
   my $list = $self->{list};
 
   if ($self->{TOTAL} > 0 || $PG > 0) {
-    $self->query($db, "SELECT count(m.id),
+    $self->query($db, "SELECT count(DISTINCT m.id),
       sum(if (m.state=0, 1, 0)),
       sum(if (m.state=1, 1, 0)),
-      sum(if (m.state=2, 1, 0))
+      sum(if (m.state=2, 1, 0)),
+      SEC_TO_TIME(sum(mr.run_time)),
+      sum(if(m.admin_read = '0000-00-00 00:00:00', 1, 0))
      FROM msgs_messages m
+     LEFT JOIN  msgs_reply mr ON (m.id=mr.main_msg)
     $WHERE;");
-    ($self->{TOTAL}, $self->{OPEN}, $self->{UNMAKED}, $self->{MAKED}) = @{ $self->{list}->[0] };
+
+    ($self->{TOTAL}, 
+     $self->{OPEN}, 
+     $self->{UNMAKED}, 
+     $self->{MAKED},
+     $self->{RUN_TIME},
+     $self->{IN_WORK}) = @{ $self->{list}->[0] };
    }
 
   return $list;

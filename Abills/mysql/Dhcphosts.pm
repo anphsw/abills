@@ -114,6 +114,8 @@ sub network_defaults {
 }
 
 
+
+
 #**********************************************************
 # network_add()
 #**********************************************************
@@ -300,7 +302,15 @@ sub host_defaults {
    COMMENTS       => '',
    VID            => 0,
    NAS_ID         => 0,
-   OPTION_82      => 0
+   OPTION_82      => 0,
+   HOSTNAME       => '', 
+   NETWORK        => 0, 
+   BLOCKTIME      => '', 
+   FORCED         => '',
+   DISABLE        => '',
+   EXPIRE         => '',
+   PORTS          => '',
+   BOOT_FILE      => ''
   );
 
  
@@ -316,7 +326,7 @@ sub host_add {
   my $self=shift;
   my ($attr)=@_;
 
-  my %DATA = $self->get_data($attr); 
+  my %DATA = $self->get_data($attr, { default => host_defaults() }); 
 
   $self->query($db, "INSERT INTO dhcphosts_hosts (uid, hostname, network, ip, mac, blocktime, 
     forced, disable, expire, comments, option_82, vid, nas, ports, boot_file) 
@@ -328,7 +338,7 @@ sub host_add {
 
 
   
-  $admin->action_add($DATA{DATA}, "ADD $DATA{IP}/$DATA{MAC}");
+  $admin->action_add($DATA{UID}, "ADD $DATA{IP}/$DATA{MAC}");
 
   return $self;
 }
@@ -339,30 +349,64 @@ sub host_add {
 sub host_del {
   my $self=shift;
   my ($attr)=@_;
+  my $uid;
+  my $action; 
 
   if ($attr->{UID}) {
-  	$WHERE =  "uid='$attr->{UID}'";
+  	$WHERE = "uid='$attr->{UID}'";
+  	$action= "DELETE ALL HOSTS"; 
+  	$uid   = $attr->{UID};
    }
   else {
-  	$WHERE = "id='$attr->{ID}'";
+  	$WHERE   = "id='$attr->{ID}'";
+  	my $host = $self->host_info($attr->{ID});
+    $uid     = $host->{UID}; 
+  	$action  = "DELETE HOST $host->{HOSTNAME} ($host->{IP}/$host->{MAC})"; 
    }
 
   $self->query($db, "DELETE FROM dhcphosts_hosts where $WHERE", 'do');
   
-  if ($attr->{UID}) {
-    $admin->action_add($attr->{UID}, "DELETE");
-   }
+  $admin->action_add($uid, $action); 
 
   return $self;
 };
 
 #**********************************************************
-#route_update()
+# host_check()
+#**********************************************************
+sub host_check {
+  my $self=shift;
+  my ($attr)=@_;
+
+  my %DATA = $self->get_data($attr);
+
+  my $net = $self->network_info($DATA{NETWORK});
+
+  $self->{errno}=17 if ($self->{TOTAL} == 0);
+
+  my $ip = unpack("N",pack("C4",split(/\./,$DATA{IP})));
+  my $mask = unpack("N",pack("C4",split(/\./,$net->{MASK})));
+  if (unpack("N",pack("C4",split(/\./,$net->{NETWORK})))!=($ip&$mask)){
+    $self->{errno}=17 if ($ip!=0);
+  }
+
+  return $self;
+} 
+
+#**********************************************************
+#host_info()
 #**********************************************************
 sub host_info {
   my $self=shift;
-  my ($id)=@_;
+  my ($id, $attr)=@_;
 
+
+  if ($attr->{IP}) {
+  	$WHERE = "ip=INET_ATON('$attr->{IP}')";
+   }
+  else {
+  	$WHERE = "id='$id'";
+   }
 
   $self->query($db, "SELECT
    uid, 
@@ -379,9 +423,10 @@ sub host_info {
    comments,
    nas,
    ports,
-   boot_file
+   boot_file, 
+   changed
   FROM dhcphosts_hosts
-  WHERE id='$id';");
+  WHERE $WHERE;");
 
   if ($self->{TOTAL} < 1) {
      $self->{errno} = 2;
@@ -403,7 +448,7 @@ sub host_info {
    $self->{COMMENTS},
    $self->{NAS_ID},
    $self->{PORTS},
-   $self->{BOOT_FILE}
+   $self->{BOOT_FILE},
    ) = @{ $self->{list}->[0] };
 
   return $self;
@@ -411,7 +456,7 @@ sub host_info {
 
 
 #**********************************************************
-#route_update()
+#host_change()
 #**********************************************************
 sub host_change {
  my $self=shift;
@@ -433,7 +478,8 @@ sub host_change {
    VID         => 'vid',
    NAS_ID      => 'nas',
    PORTS       => 'ports',
-   BOOT_FILE   => 'boot_file'
+   BOOT_FILE   => 'boot_file',
+#   CHANGED     => 'changed'
   );
 
   $attr->{OPTION_82} = ($attr->{OPTION_82}) ? 1 : 0;
@@ -567,26 +613,23 @@ sub hosts_list {
  }
 
  if ($attr->{LOGIN_EXPR}) {
-   $attr->{LOGIN_EXPR} =~ s/\*/\%/g;
-   push @WHERE_RULES, "u.id LIKE '$attr->{LOGIN_EXPR}'"; 
+   push @WHERE_RULES, @{ $self->search_expr("$attr->{LOGIN_EXPR}", 'STR', 'u.id') };
   }
 
  if ($attr->{GIDS}) {
    push @WHERE_RULES, "u.gid IN ($attr->{GIDS})"; 
   }
  elsif ($attr->{GID}) {
-   push @WHERE_RULES, "u.gid=$attr->{GID}"; 
+   push @WHERE_RULES, "u.gid='$attr->{GID}'"; 
   }
 
 
  if ($attr->{HOSTNAME}) {
-   $attr->{HOSTNAME} =~ s/\*/\%/g;
-   push @WHERE_RULES, "h.hostname LIKE '$attr->{HOSTNAME}'"; 
+   push @WHERE_RULES, @{ $self->search_expr("$attr->{HOSTNAME}", 'STR', 'h.hostname') };
   }
  
  if ($attr->{MAC}) {
-   $attr->{MAC} =~ s/\*/\%/g;
-   push @WHERE_RULES, "h.mac LIKE '$attr->{MAC}'"; 
+   push @WHERE_RULES, @{ $self->search_expr("$attr->{MAC}", 'STR', 'h.mac') };
   }
 
  if ($attr->{NETWORK}) {
@@ -625,14 +668,12 @@ sub hosts_list {
       push @WHERE_RULES, "(h.ip>=INET_ATON('$first_ip') and h.ip<=INET_ATON('$last_ip'))";
      }
     else {
-      my $value = $self->search_expr($attr->{IP}, 'IP');
-      push @WHERE_RULES, "h.ip$value";
+      push @WHERE_RULES, @{ $self->search_expr("$attr->{IP}", 'IP', 'h.ip') };
     }
   }
 
   if ($attr->{EXPIRE}) {
-    my $value = $self->search_expr($attr->{EXPIRE}, 'INT');
-    push @WHERE_RULES, "h.expire$value";
+    push @WHERE_RULES, @{ $self->search_expr("$attr->{EXPIRE}", 'INT', 'h.expire') };
   }
 
   if (defined($attr->{STATUS})) {
@@ -662,8 +703,7 @@ sub hosts_list {
   }
 
   if ($attr->{PORTS}) {
-    $attr->{PORTS} =~ s/\*/\%/ig;
-    push @WHERE_RULES, "h.ports LIKE '$attr->{PORTS}'";
+    push @WHERE_RULES, @{ $self->search_expr("$attr->{PORTS}", 'STR', 'h.ports') };
     $self->{SEARCH_FIELDS} .= 'h.ports, ';
     $self->{SEARCH_FIELDS_COUNT}++;
   }
@@ -676,15 +716,13 @@ sub hosts_list {
   }
 
   if ($attr->{VID}) {
-    my $value = $self->search_expr("$attr->{VID}", 'INT');
-    push @WHERE_RULES, "h.vid$value";
+    push @WHERE_RULES, @{ $self->search_expr("$attr->{VID}", 'INT', 'h.vid') };
     $self->{SEARCH_FIELDS} .= 'h.vid, ';
     $self->{SEARCH_FIELDS_COUNT}++;
   }
 
   if ($attr->{BOOT_FILE}) {
-    $attr->{BOOT_FILE} =~ s/\*/\%/g;
-    push @WHERE_RULES, "h.boot_file LIKE '$attr->{BOOT_FILE}'"; 
+    push @WHERE_RULES, @{ $self->search_expr("$attr->{BOOT_FILE}", 'STR', 'h.boot_file') };
     $self->{SEARCH_FIELDS} .= 'h.boot_file, ';
     $self->{SEARCH_FIELDS_COUNT}++;
    }
@@ -693,8 +731,8 @@ sub hosts_list {
  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
 
  $self->query($db, "SELECT 
-    h.id, u.id, INET_NTOA(h.ip), h.hostname, n.name, h.network, h.mac, h.expire, h.forced, 
-      h.blocktime, h.disable, $self->{SEARCH_FIELDS} seen, h.uid,
+    h.id, u.id, h.ip, h.hostname, n.name, h.network, h.mac, h.expire, h.forced, 
+      h.blocktime, h.disable, INET_NTOA(h.ip), $self->{SEARCH_FIELDS} seen, h.uid,
       if ((u.expire <> '0000-00-00' && curdate() > u.expire) || (h.expire <> '0000-00-00' && curdate() > h.expire), 1, 0)
       $extra_fields
      FROM (dhcphosts_hosts h)
@@ -711,7 +749,9 @@ sub hosts_list {
 
 
  if ($self->{TOTAL} > 0) {
-    $self->query($db, "SELECT count(*) FROM dhcphosts_hosts h $WHERE");
+    $self->query($db, "SELECT count(*) FROM dhcphosts_hosts h
+     left join users u on h.uid=u.uid
+     $WHERE");
     ($self->{TOTAL}) = @{ $self->{list}->[0] };
   }
 
@@ -719,9 +759,186 @@ sub hosts_list {
 }
 
 
+#**********************************************************
+# host_defaults()
+#**********************************************************
+sub leases_defaults {
+  my $self = shift;
+
+  my %DATA = (
+   STARTS    => '', 
+   ENDS      => '', 
+   STATE     => 0, 
+   NEXT_STATE=> 0,
+   HARDWARE  => '', 
+   UID       => '', 
+   CIRCUIT_ID=> '', 
+   REMOTE_ID => '',
+   HOSTNAME  => '',
+   NAS_ID    => 0,
+   IP        => '0.0.0.0'
+  );
+
+ 
+  $self = \%DATA;
+  return $self;
+}
+
+#**********************************************************
+# leases_update()
+#**********************************************************
+sub leases_update {
+  my $self=shift;
+  my ($attr)=@_;
+  
+  my %DATA = $self->get_data($attr, { default => leases_defaults() }); 
+
+  $self->query($db,"INSERT INTO dhcphosts_leases 
+     (  start,  ends,
+  state,
+  next_state,
+  hardware,
+  uid,
+  circuit_id,
+  remote_id,
+  hostname,
+  nas_id,
+  ip ) 
+     VALUES('$DATA{STARTS}', '$DATA{ENDS}', '$DATA{STATE}', '$DATA{NEXT_STATE}',
+       '$DATA{HARDWARE}', '$DATA{UID}', '$DATA{CIRCUIT_ID}', '$DATA{REMOTE_ID}',
+       '$DATA{HOSTNAME}',
+       '$DATA{NAS_ID}',
+       INET_ATON('$DATA{IP}') )", 'do');
+
+  return $self;
+}
+
+#**********************************************************
+# leases_list()
+#**********************************************************
+sub leases_list {
+  my $self=shift;
+  my ($attr)=@_;
+  
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  @WHERE_RULES = ();
+
+  if ($attr->{HOSTNAME}) {
+    push @WHERE_RULES, @{ $self->search_expr("$attr->{HOSTNAME}", 'STR', 'hostname') };
+   }
+ 
+ if ($attr->{HARDWARE}) {
+   push @WHERE_RULES, @{ $self->search_expr("$attr->{HARDWARE}", 'STR', 'hardware') };
+  }
+
+ if ($attr->{REMOTE_ID}) {
+   push @WHERE_RULES, @{ $self->search_expr("$attr->{REMOTE_ID}", 'STR', 'remote_id') };
+  }
+
+ if ($attr->{CIRCUIT_ID}) {
+   push @WHERE_RULES, @{ $self->search_expr("$attr->{CIRCUIT_ID}", 'STR', 'circuit_id') };
+  }
 
 
+ if ($attr->{IPS}) {
+ 	 my @ip_arr = split(/,/, $attr->{IPS});
+ 	 $attr->{IPS}='';
+ 	 foreach my $ip (@ip_arr) {
+ 	   $ip =~ s/ //g;
+ 	   $attr->{IPS}.="INET_ATON('$ip'),";
+ 	 }
+ 	 chop($attr->{IPS});
+ 	 push @WHERE_RULES, "ip IN ($attr->{IPS})";
+  }
+ elsif ($attr->{IP}) {
+    if ($attr->{IP} =~ m/\*/g) {
+      my ($i, $first_ip, $last_ip);
+      my @p = split(/\./, $attr->{IP});
+      for ($i=0; $i<4; $i++) {
 
+         if ($p[$i] eq '*') {
+           $first_ip .= '0';
+           $last_ip .= '255';
+          }
+         else {
+           $first_ip .= $p[$i];
+           $last_ip .= $p[$i];
+          }
+         if ($i != 3) {
+           $first_ip .= '.';
+           $last_ip .= '.';
+          }
+       }
+      push @WHERE_RULES, "(ip>=INET_ATON('$first_ip') and ip<=INET_ATON('$last_ip'))";
+     }
+    else {
+      push @WHERE_RULES, @{ $self->search_expr("$attr->{IP}", 'IP', 'ip') };
+    }
+  }
+
+  if ($attr->{ENDS}) {
+    push @WHERE_RULES, @{ $self->search_expr("$attr->{ENDS}", 'INT', 'ends') };
+  }
+
+  if ($attr->{STARTS}) {
+    push @WHERE_RULES, @{ $self->search_expr("$attr->{STARTS}", 'INT', 'starts') };
+  }
+
+  if (defined($attr->{STATE})) {
+    push @WHERE_RULES, "state='$attr->{STATE}'";
+  }
+
+  if (defined($attr->{NEXT_STATE})) {
+    push @WHERE_RULES, "next_state='$attr->{NEXT_STATE}'";
+  }
+
+  if (defined($attr->{NAS_ID})) {
+    push @WHERE_RULES, "nas_id='$attr->{NAS_ID}'";
+  }
+
+
+ $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
+
+ 
+  $self->query($db,"SELECT '', INET_NTOA(ip), start,  hardware, hostname, 
+  ends,
+  state,
+  remote_id,
+  circuit_id,
+  next_state,
+  uid,
+  nas_id
+  FROM dhcphosts_leases 
+   $WHERE 
+  ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS; ");
+
+  my $list = $self->{list};
+
+  $self->query($db,"SELECT count(*) FROM dhcphosts_leases $WHERE;");
+
+  ($self->{TOTAL}) = @{ $self->{list}->[0] };
+
+  
+
+  return $list;
+}
+
+#**********************************************************
+# leases_update()
+#**********************************************************
+sub leases_clear {
+  my $self=shift;
+  my ($attr)=@_;
+  
+  my %DATA = $self->get_data($attr, { default => leases_defaults() }); 
+
+  $self->query($db,"DELETE FROM dhcphosts_leases WHERE nas_id='$DATA{NAS_ID}';", 'do');
+  return $self;
+}
 
 1
 

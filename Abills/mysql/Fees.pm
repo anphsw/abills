@@ -76,7 +76,6 @@ sub take {
   my $self = shift;
   my ($user, $sum, $attr) = @_;
   
-  
   %DATA = $self->get_data($attr, { default => defaults() });
   my $DESCRIBE = ($attr->{DESCRIBE}) ? $attr->{DESCRIBE} : '';
   my $DATE  =  ($attr->{DATE}) ? "'$attr->{DATE}'" : 'now()';
@@ -114,8 +113,8 @@ sub take {
             '$user->{COMPANY_VAT}', '$DATA{INNER_DESCRIBE}', '$DATA{METHOD}')", 'do');
 
     if($self->{errno}) {
-       return $self;
-      }
+      return $self;
+     }
   }
   else {
     $self->{errno}=14;
@@ -150,7 +149,7 @@ sub del {
   $Bill->action('add', $bill_id, $sum); 
 
   $self->query($db, "DELETE FROM fees WHERE id='$id';", 'do');
-  $admin->action_add($user->{UID}, "DELETE FEES SUM: $sum");
+  $admin->action_add($user->{UID}, "DELETE FEES $id SUM: $sum");
 
   return $self->{result};
 }
@@ -174,68 +173,73 @@ sub list {
  undef @WHERE_RULES;
 
  if ($attr->{UID}) {
-    push @WHERE_RULES, "f.uid='$attr->{UID}'";
+   push @WHERE_RULES, @{ $self->search_expr($attr->{UID}, 'INT', 'f.uid') };
   }
  # Start letter 
  elsif ($attr->{LOGIN_EXPR}) {
-    $attr->{LOGIN_EXPR} =~ s/\*/\%/ig;
-    push @WHERE_RULES, "u.id LIKE '$attr->{LOGIN_EXPR}'";
+   push @WHERE_RULES, @{ $self->search_expr($attr->{LOGIN_EXPR}, 'STR', 'u.id') };
   }
+
+
+ if ($attr->{BILL_ID}) {
+   push @WHERE_RULES, @{ $self->search_expr($attr->{BILL_ID}, 'INT', 'f.bill_id') };
+  }
+ elsif ($attr->{COMPANY_ID}) {
+ 	 push @WHERE_RULES, @{ $self->search_expr($attr->{COMPANY_ID}, 'INT', 'u.company_id') };
+  }
+
  
  if ($attr->{AID}) {
-    push @WHERE_RULES, "f.aid='$attr->{AID}'";
+   push @WHERE_RULES, @{ $self->search_expr($attr->{AID}, 'INT', 'f.aid') };
+  }
+
+ if ($attr->{ID}) {
+   push @WHERE_RULES, @{ $self->search_expr($attr->{ID}, 'INT', 'f.id') };
   }
 
  if ($attr->{A_LOGIN}) {
- 	 $attr->{A_LOGIN} =~ s/\*/\%/ig;
- 	 push @WHERE_RULES, "a.id LIKE '$attr->{A_LOGIN}'";
+ 	 push @WHERE_RULES, @{ $self->search_expr($attr->{A_LOGIN}, 'STR', 'a.id') };
  }
 
  # Show debeters
  if ($attr->{DESCRIBE}) {
-    $attr->{DESCRIBE} =~ s/\*/\%/g;
-    push @WHERE_RULES, "f.dsc LIKE '$attr->{DESCRIBE}'";
+    push @WHERE_RULES, @{ $self->search_expr($attr->{DESCRIBE}, 'STR', 'f.dsc') };
   }
 
  if ($attr->{INNER_DESCRIBE}) {
-    $attr->{INNER_DESCRIBE} =~ s/\*/\%/g;
-    push @WHERE_RULES, "f.inner_describe LIKE '$attr->{INNER_DESCRIBE}'";
+    push @WHERE_RULES, @{ $self->search_expr($attr->{INNER_DESCRIBE}, 'STR', 'f.inner_describe') };
   }
 
- if ($attr->{METHODS}) {
-    push @WHERE_RULES, "f.method IN ($attr->{METHODS}) ";
+ if (defined($attr->{METHOD}) && $attr->{METHOD} >=0) {
+    push @WHERE_RULES, "f.method IN ($attr->{METHOD}) ";
   }
 
  if ($attr->{SUM}) {
-    my $value = $self->search_expr($attr->{SUM}, 'INT');
-    push @WHERE_RULES, "f.sum$value";
+    push @WHERE_RULES, @{ $self->search_expr($attr->{SUM}, 'INT', 'f.sum') };
   }
 
  # Show groups
  if ($attr->{GIDS}) {
-    push @WHERE_RULES, "u.gid IN ($attr->{GIDS})";
+   push @WHERE_RULES, "u.gid IN ($attr->{GIDS})";
   }
  elsif ($attr->{GID}) {
-    push @WHERE_RULES, "u.gid='$attr->{GID}'";
+   push @WHERE_RULES, "u.gid='$attr->{GID}'";
   }
 
  # Date
  if ($attr->{FROM_DATE}) {
-    push @WHERE_RULES, "(date_format(f.date, '%Y-%m-%d')>='$attr->{FROM_DATE}' and date_format(f.date, '%Y-%m-%d')<='$attr->{TO_DATE}')";
+   push @WHERE_RULES, "(date_format(f.date, '%Y-%m-%d')>='$attr->{FROM_DATE}' and date_format(f.date, '%Y-%m-%d')<='$attr->{TO_DATE}')";
   }
  elsif ($attr->{DATE}) {
-    push @WHERE_RULES, "date_format(f.date, '%Y-%m-%d')='$attr->{DATE}'";
+   push @WHERE_RULES, @{ $self->search_expr($attr->{DATE}, 'INT', 'date_format(f.date, \'%Y-%m-%d\')') };
   }
  # Month
  elsif ($attr->{MONTH}) {
-    push @WHERE_RULES, "date_format(f.date, '%Y-%m')='$attr->{MONTH}'";
+   push @WHERE_RULES, "date_format(f.date, '%Y-%m')='$attr->{MONTH}'";
   }
  # Date
 
 
- if ($attr->{COMPANY_ID}) {
- 	 push @WHERE_RULES, "u.company_id='$attr->{COMPANY_ID}'";
-  }
 
 
  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
@@ -250,7 +254,9 @@ sub list {
     GROUP BY f.id
     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;");
 
- $self->{SUM} = '0.00';
+ $self->{SUM}        = '0.00';
+ $self->{TOTAL_USERS}= 0;
+
  return $self->{list}  if ($self->{TOTAL} < 1);
  my $list = $self->{list};
 
@@ -287,24 +293,20 @@ sub reports {
    push @WHERE_RULES, "u.gid='$attr->{GID}'";
   }
  
- if(defined($attr->{DATE})) {
+ if ($attr->{BILL_ID}) {
+   push @WHERE_RULES, "f.BILL_ID IN ( $attr->{BILL_ID} )";
+  }
+
+
+
+
+ 
+ if($attr->{DATE}) {
    push @WHERE_RULES, "date_format(f.date, '%Y-%m-%d')='$attr->{DATE}'";
   }
  elsif ($attr->{INTERVAL}) {
  	 my ($from, $to)=split(/\//, $attr->{INTERVAL}, 2);
    push @WHERE_RULES, "date_format(f.date, '%Y-%m-%d')>='$from' and date_format(f.date, '%Y-%m-%d')<='$to'";
-   if ($attr->{TYPE} eq 'HOURS') {
-     $date = "date_format(f.date, '%H')";
-    }
-   elsif ($attr->{TYPE} eq 'DAYS') {
-     $date = "date_format(f.date, '%Y-%m-%d')";
-    }
-   elsif($attr->{TYPE} eq 'METHOD') {
-   	 $date = "f.method";   	
-    }
-   else {
-     $date = "u.id";   	
-    }  
   }
  elsif (defined($attr->{MONTH})) {
  	 push @WHERE_RULES, "date_format(f.date, '%Y-%m')='$attr->{MONTH}'";
@@ -314,30 +316,51 @@ sub reports {
  	 $date = "date_format(f.date, '%Y-%m')";
   }
 
- if ($attr->{METHODS}) {
-    push @WHERE_RULES, "f.method IN ($attr->{METHODS}) ";
-  }
+   $attr->{TYPE}='' if (! $attr->{TYPE});
 
+   if ($attr->{TYPE} eq 'HOURS') {
+     $date = "date_format(f.date, '%H')";
+    }
+   elsif ($attr->{TYPE} eq 'DAYS') {
+     $date = "date_format(f.date, '%Y-%m-%d')";
+    }
+   elsif($attr->{TYPE} eq 'METHOD') {
+   	 $date = "f.method";   	
+    }
+   elsif($attr->{TYPE} eq 'ADMINS') {
+   	 $date = "a.id";   	
+    }
+   elsif($date eq '') {
+     $date = "u.id";   	
+    }  
+ 
+
+  if (defined($attr->{METHODS})) {
+    push @WHERE_RULES, "f.method IN ($attr->{METHODS}) ";
+   }
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
  
-  $self->query($db, "SELECT $date, count(*), sum(f.sum) 
+  $self->query($db, "SELECT $date, count(DISTINCT f.uid), count(*),  sum(f.sum), f.uid 
       FROM fees f
       LEFT JOIN users u ON (u.uid=f.uid)
+      LEFT JOIN admins a ON (f.aid=a.aid)
       $WHERE 
       GROUP BY 1
       ORDER BY $SORT $DESC;");
 
  my $list = $self->{list}; 
 
- $self->{SUM} = '0.00';
+ $self->{SUM}  = '0.00';
+ $self->{USERS}= 0; 
 if ($self->{TOTAL} > 0 || $PG > 0 ) {	
-  $self->query($db, "SELECT count(*), sum(f.sum) 
+  $self->query($db, "SELECT count(DISTINCT f.uid), count(*), sum(f.sum) 
       FROM fees f
       LEFT JOIN users u ON (u.uid=f.uid)
       $WHERE;");
 
-  ($self->{TOTAL}, 
+  ($self->{USERS}, 
+   $self->{TOTAL}, 
    $self->{SUM}) = @{ $self->{list}->[0] };
 }
 	

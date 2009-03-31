@@ -16,6 +16,8 @@ $VERSION = 2.00;
 @EXPORT_OK = ();
 %EXPORT_TAGS = ();
 
+
+use Abills::Base;
 use main;
 @ISA  = ("main");
 
@@ -150,12 +152,10 @@ sub traffic_recalc_bill {
   my $self = shift;
   my ($attr) = @_;
  
-  if ($attr->{SUM} > 0) {
-   $self->query($db, "UPDATE bills SET
-      deposit=deposit - $attr->{SUM}
+  $self->query($db, "UPDATE bills SET
+      deposit=deposit + $attr->{SUM}
     WHERE 
     id='$attr->{BILL_ID}';", 'do');
-   }
 
   return $self;
 }
@@ -168,13 +168,14 @@ sub acct_stop {
   my ($attr) = @_;
   my $session_id='';
 
-
   if (defined($attr->{SESSION_ID})) {
   	$session_id=$attr->{SESSION_ID};
    }
   else {
     return $self;
   }
+ 
+ 
  
   my $ACCT_TERMINATE_CAUSE = (defined($attr->{ACCT_TERMINATE_CAUSE})) ? $attr->{ACCT_TERMINATE_CAUSE} : 0;
 
@@ -221,6 +222,7 @@ sub acct_stop {
    $self->{NAS_PORT}
   ) = @{ $self->{list}->[0] };
 
+
  
  $self->query($db, "SELECT sum(l.traffic_in), 
    sum(l.traffic_out),
@@ -245,7 +247,7 @@ sub acct_stop {
    $self->{SUM}
   ) = @{ $self->{list}->[0] };
 
-
+ 
   $self->{GW_INPUT_OCTETS}=0; 
   $self->{GW_OUTPUT_OCTETS}=0;
   if ($self->{INPUT_OCTETS} > 4294967294) {
@@ -257,6 +259,7 @@ sub acct_stop {
   	$self->{GW_OUTPUT_OCTETS} = int($self->{OUTPUT_OCTETS} / 4294967294);
   	$self->{OUTPUT_OCTETS}=$self->{OUTPUT_OCTETS} % 4294967294;
    }
+
 
   $self->query($db, "INSERT INTO dv_log (uid, 
     start, 
@@ -1171,18 +1174,6 @@ sub ipn_log_rotate {
    my @rq = (
     'DROP TABLE IF EXISTS ipn_log_new;',
     'CREATE TABLE ipn_log_new LIKE ipn_log;',
-#    'INSERT INTO ipn_log_new (
-#         uid,
-#         start,
-#         stop,
-#         traffic_class,
-#         traffic_in,
-#         traffic_out,
-#         session_id,
-#         sum
-#    ) 
-#    SELECT uid, min(start), max(start), traffic_class, sum(traffic_in), sum(traffic_out),  session_id, sum(sum) FROM ipn_log 
-#      WHERE start < start - INTERVAL '. $attr->{PERIOD} .' DAY GROUP BY uid, session_id, traffic_class;',
 
     'INSERT INTO ipn_log_new (
          uid,
@@ -1223,6 +1214,7 @@ sub user_detail {
 	my ($attr) = @_;
   my $list;
 
+
  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 2;
@@ -1233,10 +1225,33 @@ sub user_detail {
   my @GROUP_RULES = (); 
 
 
+ 
 if ($attr->{INTERVAL}) {
   my ($from, $to)=split(/\//, $attr->{INTERVAL}, 2);
   push @WHERE_RULES, "date_format(s_time, '%Y-%m-%d')>='$from' and date_format(f_time, '%Y-%m-%d')<='$to'";
- }
+  
+  
+  #Period
+  if ($from) {
+    my  $s_time = ($from =~ /^\d{4}-\d{2}-\d{2}$/) ? 'DATE_FORMAT(s_time, \'%Y-%m-%d\')' : 's_time' ;
+	  push @WHERE_RULES, "$s_time >= '$from'";
+	  if ($from =~ /(\d{4})-(\d{2})-(\d{2})/) {
+	    $attr->{START_DATE} = "$1$2$3";
+	   }
+  }
+
+  #if (! $to) {
+  #  $attr->{FINISH_DATE}=$DATE;
+  # }
+
+  my  $s_time = ($to =~ /^\d{4}-\d{2}-\d{2}$/) ? 'DATE_FORMAT(s_time, \'%Y-%m-%d\')' : 's_time' ;
+
+  push @WHERE_RULES, "$s_time <= '$to'";
+  if ($to =~ /(\d{4})-(\d{2})-(\d{2})/) {
+    $attr->{FINISH_DATE} = "$1$2$3";
+   }
+  
+}
 
 if ($attr->{UID}) {
    push @WHERE_RULES, "uid='$attr->{UID}'";
@@ -1247,12 +1262,56 @@ if (defined($attr->{SRC_PORT}) && $attr->{SRC_PORT} =~ /^\d+$/) {
  }
 
 if ($attr->{DST_IP}) {
-   push @WHERE_RULES, "dst_addr=INET_ATON('$attr->{DST_IP}')";
- }
+  my @ips_arr = split(/,/, $attr->{DST_IP});
+  my @ip_q = ();
+  foreach my $ip (sort @ips_arr) {
+    if ($ip =~ /(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\/(\d{1,2})/) {
+      my $ip   = $1;
+      my $bits = $2;
+      my $mask = 0b1111111111111111111111111111111;
 
-if ($attr->{DST_IP}) {
-   push @WHERE_RULES, "dst_addr=INET_ATON('$attr->{DST_IP}')";
- }
+      $mask = int(sprintf("%d", $mask >> ($bits - 1)));
+      my $last_ip = ip2int($ip) | $mask;
+      my $first_ip = $last_ip - $mask;
+      print "IP FROM: ". int2ip($first_ip) ." TO: ". int2ip($last_ip). "\n" if ($debug > 2);
+        push @ip_q, "(
+                       (dst_addr>='$first_ip' and dst_addr<='$last_ip' )  
+                      )";
+     }
+          elsif ($ip =~ /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/) {
+            push @ip_q, "dst_addr=INET_ATON('$ip')";
+           }
+   }
+
+   push @WHERE_RULES, '(' . join(' or ', @ip_q) . ')';
+}
+
+
+
+if ($attr->{SRC_IP}) {
+  my @ips_arr = split(/,/, $attr->{SRC_IP});
+  my @ip_q = ();
+  foreach my $ip (sort @ips_arr) {
+    if ($ip =~ /(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\/(\d{1,2})/) {
+      my $ip   = $1;
+      my $bits = $2;
+      my $mask = 0b1111111111111111111111111111111;
+
+      $mask = int(sprintf("%d", $mask >> ($bits - 1)));
+      my $last_ip = ip2int($ip) | $mask;
+      my $first_ip = $last_ip - $mask;
+      print "IP FROM: ". int2ip($first_ip) ." TO: ". int2ip($last_ip). "\n" if ($debug > 2);
+        push @ip_q, "(
+                       (src_addr>='$first_ip' and src_addr<='$last_ip' )  
+                      )";
+     }
+          elsif ($ip =~ /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/) {
+            push @ip_q, "src_addr=INET_ATON('$ip')";
+           }
+   }
+
+   push @WHERE_RULES, '(' . join(' or ', @ip_q) . ')';
+}
 
 if (defined($attr->{DST_PORT}) && $attr->{DST_PORT} =~ /^\d+$/ ) {
    push @WHERE_RULES, "dst_port='$attr->{DST_PORT}'";
@@ -1267,6 +1326,7 @@ if ($attr->{SRC_IP_GROUP}) {
  }
 
 
+
 my $GROUP_BY = '';
 my $size = 'size';
 
@@ -1277,32 +1337,101 @@ if ($#GROUP_RULES > -1) {
   $size = 'sum(size)';
  } 
 
- 
- $self->query($db, "SELECT  s_time,	f_time,
-  INET_NTOA(src_addr),
-  src_port,
-  INET_NTOA(dst_addr),
-  dst_port,
-  protocol,
-  $size,
-  nas_id
-  
-   FROM ipn_traf_detail
 
-  $WHERE
-  $GROUP_BY
-  ORDER BY $SORT $DESC 
-  LIMIT $PG, $PAGE_ROWS
-   ;");
+my @tables = ();
+
+$self->query($db, "SHOW TABLES;");
+$list = $self->{list};
+
+foreach my $line (@$list) {
+  my $table = $line->[0];
+  if ($table =~ m/ipn_traf_detail_(\d{4})_(\d{2})_(\d{2})/) {
+  	 my $table_date="$1$2$3";
+  	 if ($table_date >= $attr->{START_DATE} && $table_date <= $attr->{FINISH_DATE}) {
+  	 	  print $table."\n" if ($debug > 1);
+  	 	  push @tables, $table;
+  	  }
+   }
+}
+
+push @tables, 'ipn_traf_detail';
+my @sql_arr = ();
+foreach my $table (@tables) {
+  my $date ;
+  if ($table =~ m/ipn_traf_detail_(\d{4})_(\d{2})_(\d{2})/) {
+    $date = "$1-$2-$3";
+   }
+  
+  push @sql_arr,   "SELECT s_time,	f_time,
+    INET_NTOA(src_addr),
+    src_port,
+    INET_NTOA(dst_addr),
+    dst_port,
+    protocol,
+    $size,
+    nas_id 
+  FROM $table 
+    $WHERE
+    $GROUP_BY
+    ";
+
+#print "$sql\n" if ($debug > 0);  
+#print "DATE: $date =============================================\n";
+
+#my $q = $db->prepare($sql);
+#$q->execute();
+#my $total = 0;
+#while (my ($src_addr,$dst_addr,$src_port,$dst_port,$protocol,$size,
+#  $f_time,$s_time,$nas_id) = $q->fetchrow_array()) {
+#
+#  if ($FORMAT eq 'tab_delimeter' ){
+#    print "$src_addr\t$src_port\t$dst_addr\t$dst_port\t$protocol\t$size\t$f_time\t$s_time\t$nas_id";
+#   }
+#  else {
+#    printf("%-15s|%-5s|%-15s|%-5s|%4s|%-8s|%-19s|%-19s|%-3s|\n", $src_addr, $src_port, $dst_addr, 
+#     $dst_port, $protocol, $size, $f_time, $s_time, $nas_id);
+#   }
+#  $total += $size;
+
+#}
+
+#print "=================SUM: $total\n";
+
+}
+ 
+ my $sql = join(" UNION ", @sql_arr);
+ $self->query($db, "$sql LIMIT $PG,$PAGE_ROWS");
+ 
+# $self->query($db, "SELECT  s_time,	f_time,
+#  INET_NTOA(src_addr),
+#  src_port,
+#  INET_NTOA(dst_addr),
+#  dst_port,
+#  protocol,
+#  $size,
+#  nas_id
+#  
+#   FROM ipn_traf_detail
+#
+#  $WHERE
+#  $GROUP_BY
+#  ORDER BY $SORT $DESC 
+#  LIMIT $PG, $PAGE_ROWS
+#   ;");
 
   $list = $self->{list};
 
+  
+  
   if ($self->{TOTAL} > 0 && $#GROUP_RULES < 0) {
-     $self->query($db, "SELECT count(*) from ipn_traf_detail
-      $WHERE ;");
-	
-    ($self->{TOTAL},
-     $self->{SUM}) = @{ $self->{list}->[0] };
+    #$self->{debug}=1;
+    my $totals = 0;
+    foreach my $table (@tables) {
+      $self->query($db, "SELECT count(*) from $table
+        $WHERE ;");
+      $totals += $self->{list}->[0]->[0];
+     }
+    $self->{TOTAL}=$totals;
    }
 
 

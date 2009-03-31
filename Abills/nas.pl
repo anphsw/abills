@@ -11,10 +11,9 @@
 use BER;
 use SNMP_Session;
 use SNMP_util;
-
+use Radius;
 
 my $PPPCTL = '/usr/sbin/pppctl';
-my $RADCLIENT = '/usr/local/bin/radclient';
 my $SUDO = '/usr/local/bin/sudo';
 
 #my $NAS_INFO = nas_params();
@@ -61,6 +60,9 @@ sub hangup {
   }
  elsif ($nas_type eq 'cisco')  {
  	 hangup_cisco($NAS, $PORT, { USER => $USER, %$attr });
+  }
+ elsif ($nas_type eq 'cisco_isg')  {
+ 	 hangup_cisco_isg($NAS, $PORT, { USER => $USER, %$attr });
   }
  elsif ($nas_type eq 'mpd') {
    hangup_mpd($NAS, $PORT);
@@ -437,16 +439,27 @@ sub hangup_snmp {
 # rfc2882
 #*******************************************************************
 sub hangup_radius {
-  my ($NAS, $PORT, $USER) = @_;
+  my ($NAS, $PORT, $USER, $attr) = @_;
  
   my ($ip, $mng_port)=split(/:/, $NAS->{NAS_MNG_IP_PORT}, 2);
-  log_print('LOG_DEBUG', " HANGUP: echo \"User-Name=$USER\" | $RADCLIENT $ip:$mng_port 40 '$NAS->{NAS_MNG_PASSWORD}'\n"); 
+  log_print('LOG_DEBUG', " HANGUP: User-Name=$USER NAS_MNG: $ip:$mng_port '$NAS->{NAS_MNG_PASSWORD}' \n"); 
 
-  my $result = `echo "User-Name=$USER" | $RADCLIENT $ip:$mng_port 40 '$NAS->{NAS_MNG_PASSWORD}'`;
+  my %RAD_PAIRS = ();
+  my $type;
+  my $r = new Radius(Host   => "$NAS->{NAS_MNG_IP_PORT}", 
+                     Secret => "$NAS->{NAS_MNG_PASSWORD}") or return "Can't connect '$NAS->{NAS_MNG_IP_PORT}' $!";
 
-  #Received response ID 219, code 41, length = 20 `;
-  #echo "User-Name = user" | radclient 10.0.0.219:3799 40 secret123
-  #Received response ID 219, code 41, length = 20 
+  $conf{'dictionary'}='/usr/abills/Abills/dictionary' if (! $conf{'dictionary'});
+
+  $r->load_dictionary($conf{'dictionary'});
+
+  $r->add_attributes ({ Name => 'User-Name', Value => "$USER" });
+  $r->send_packet (POD_REQUEST) and $type = $r->recv_packet;
+
+  if( ! defined $type ) {
+    # No responce from POD server
+    print "No responce from POD server '$NAS->{NAS_MNG_IP_PORT}' ";
+   }
   
   return $result;
 }
@@ -482,9 +495,9 @@ sub hangup_ipcad {
   
   $Ipn->acct_stop({ %$attr, SESSION_ID => $attr->{ACCT_SESSION_ID} });
 
-  my $cmd = $conf{IPN_FW_STOP_RULE};
-
-  my $ip  = $attr->{FRAMED_IP_ADDRESS};
+  my $cmd     = $conf{IPN_FW_STOP_RULE};
+  my $ip      = $attr->{FRAMED_IP_ADDRESS};
+  my $netmask = $attr->{NETMASK} || 32;
   
   my $num = 0;
   if ($attr->{UID} && $conf{IPN_FW_RULE_UID}) {
@@ -498,9 +511,14 @@ sub hangup_ipcad {
   my $rule_num = $conf{IPN_FW_FIRST_RULE} || 20000;
   $rule_num = $rule_num + 10000 + $num;
 
+  if ($NAS->{NAS_MNG_IP_PORT}) {
+    $ENV{NAS_IP_ADDRESS}=$NAS->{NAS_MNG_IP_PORT};
+    $ENV{NAS_MNG_USER}=$NAS->{NAS_MNG_USER};
+   }
+
 
   $cmd =~ s/\%IP/$ip/g;
-  #$cmd =~ s/\%MASK/$netmask/g;
+  $cmd =~ s/\%MASK/$netmask/g;
   $cmd =~ s/\%NUM/$rule_num/g;
   $cmd =~ s/\%LOGIN/$USER_NAME/g;
 
@@ -510,8 +528,7 @@ sub hangup_ipcad {
    }
   print $cmd."\n";
   my $result = system($cmd);
- 
- 
+
   print $result;
 }
 
@@ -520,7 +537,7 @@ sub hangup_ipcad {
 # hangup_openvpn 
 #*******************************************************************
 sub hangup_openvpn {
-  my ($NAS, $PORT, $USER_NAME, $attr) = @_;
+  my ($NAS, $PORT, $USER, $attr) = @_;
 
  my @commands=(">INFO:OpenVPN Management Interface Version 1 -- type 'help' for more info\tkill $USER",
                "SUCCESS: common name '$USER' found, 1 client(s) killed\texit");
@@ -529,6 +546,43 @@ sub hangup_openvpn {
  log_print('LOG_DEBUG', "$result");
 
  return 0; 
+}
+
+
+
+#*******************************************************************
+# HANGUP Cisco ISG
+#
+# ip rcmd rcp-enable
+# ip rcmd rsh-enable
+# no ip rcmd domain-lookup
+# ! ip rcmd remote-host èìÿ_şçåğà_íà_cisco IP_address_èëè_èìÿ_êîìïà_ñ_êîòîğîãî_çàïóñêàåòñÿ_ñêğèïò èìÿ_şçåğà_îò_÷üåãî_èìåíè_áóäåò_çàïóêàòüñÿ_ñêğèïò enable
+# ! íàïğèìåğ
+# ip rcmd remote-host admin 192.168.0.254 root enable
+#
+#*******************************************************************
+sub hangup_cisco_isg {
+ my ($NAS, $PORT, $attr) = @_;
+ my $exec;
+ my $command = '';
+ my $user = $attr->{USER};
+
+ my ($ip, $mng_port)=split(/:/, $NAS->{NAS_MNG_IP_PORT}, 2);
+
+#POD Version
+if ($NAS->{NAS_MNG_USER}) {
+# èìÿ şçåğà íà öèñêî êîòğîìó ğàçğåøåí rsh è õâàòàåò ïğèâåëåãèé äëÿ ñáğîñà
+  my $cisco_user=$NAS->{NAS_MNG_USER};
+  $command = "/usr/bin/rsh -l $cisco_user $NAS->{NAS_IP} clear ip subscriber ip $attr->{FRAMED_IP_ADDRESS}";
+  #"clear subscriber session username $user";
+  log_print('LOG_DEBUG', "$command");
+  $exec = `$command`;
+ }
+else {
+  print "Can't find 'NAS_MNG_USER'\n";
+}
+
+ return $exec;
 }
 
 
@@ -552,8 +606,14 @@ sub hangup_cisco {
  my $command = '';
  my $user = $attr->{USER};
 
+ my ($ip, $mng_port)=split(/:/, $NAS->{NAS_MNG_IP_PORT}, 2);
+
+#POD Version
+if ($mng_port == 1700) {
+	hangup_radius($NAS, $PORT, "$user", $attr);
+ }
 #Rsh version
-if ($NAS->{NAS_MNG_USER}) {
+elsif ($NAS->{NAS_MNG_USER}) {
 # èìÿ şçåğà íà öèñêî êîòğîìó ğàçğåøåí rsh è õâàòàåò ïğèâåëåãèé äëÿ ñáğîñà
   my $cisco_user=$NAS->{NAS_MNG_USER};
 # èñïîëüçîâàíèå: NAS-IP-Address NAS-Port SQL-User-Name
@@ -713,6 +773,24 @@ sub hangup_mpd4 {
 #*******************************************************************
 sub hangup_mpd5 {
   my ($NAS, $PORT, $attr) = @_;
+
+  my $ctl_port = "L-$PORT";
+  if ($attr->{ACCT_SESSION_ID}) {
+        if($attr->{ACCT_SESSION_ID} =~ /^\d+\-(.+)/) {
+          $ctl_port = $1;
+         }
+   }
+
+  log_print('LOG_DEBUG', " HANGUP: SESSION: $ctl_port NAS_MNG: $NAS->{NAS_MNG_IP_PORT} '$NAS->{NAS_MNG_PASSWORD}'\n");
+
+  my @commands=("\t",
+                "Username: \t$NAS->{NAS_MNG_USER}",
+                "Password: \t$NAS->{NAS_MNG_PASSWORD}",
+                "\] \tlink $ctl_port",
+                "\] \tclose",
+                "\] \texit");
+
+  my $result = telnet_cmd("$NAS->{NAS_MNG_IP_PORT}", \@commands, { debug => 1 });
 
   return 0;
 }

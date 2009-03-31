@@ -87,7 +87,7 @@ sub list {
  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
  
  $self->query($db, "SELECT id, name, nas_identifier, ip,  nas_type, auth_type, disable, descr, alive,
-  mng_host_port, mng_user, DECODE(mng_password, '$SECRETKEY'), rad_pairs
+  mng_host_port, mng_user, DECODE(mng_password, '$SECRETKEY'), rad_pairs, ext_acct
   FROM nas
   $WHERE
   ORDER BY $SORT $DESC;");
@@ -246,7 +246,7 @@ sub nas_ip_pools_list {
    n.name, pool.name, 
    pool.ip, pool.ip + pool.counts, pool.counts,     pool.priority,
     INET_NTOA(pool.ip), INET_NTOA(pool.ip + pool.counts), 
-    pool.id, pool.nas
+    pool.id, np.nas_id
     FROM ippools pool
     LEFT JOIN  nas_ippools np ON (np.pool_id=pool.id $WHERE_NAS)
     LEFT JOIN nas n ON (n.id=np.nas_id)
@@ -430,4 +430,104 @@ sub stats {
 
 
 
+#**********************************************************
+# Nas list
+#**********************************************************
+sub log_list {
+ my $self = shift;
+ my ($attr) = @_;
+
+  my @WHERE_RULES  = ();
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+  if(defined($attr->{USER})) {
+  	push @WHERE_RULES, @{ $self->search_expr($attr->{USER}, 'STR', 'l.user') };
+  }
+  elsif($attr->{LOGIN_EXPR}) {
+  	push @WHERE_RULES, @{ $self->search_expr($attr->{LOGIN_EXPR}, 'STR', 'l.user') };
+  }
+
+  if ($attr->{INTERVAL}) {
+ 	  my ($from, $to)=split(/\//, $attr->{INTERVAL}, 2);
+    push @WHERE_RULES, "date_format(l.date, '%Y-%m-%d')>='$from' and date_format(l.date, '%Y-%m-%d')<='$to'";
+   }
+
+  if(defined($attr->{MESSAGE})) {
+  	push @WHERE_RULES, @{ $self->search_expr($attr->{MESSAGE}, 'STR', 'l.message') };
+  }
+
+  if($attr->{DATE}) {
+  	push @WHERE_RULES, @{ $self->search_expr($attr->{DATE}, 'INT', 'l.date') };
+   }
+
+  if($attr->{TIME}) {
+  	push @WHERE_RULES, @{ $self->search_expr($attr->{TIME}, 'INT', 'l.time') };
+   }
+
+  if($attr->{LOG_TYPE}) {
+  	push @WHERE_RULES, @{ $self->search_expr($attr->{LOG_TYPE}, 'INT', 'l.log_type') };
+   }
+
+ 
+ 
+ $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
+
+ 
+ $self->query($db, "SELECT l.date, l.log_type, l.action, l.user, l.message
+  FROM errors_log l
+  $WHERE
+  ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;");
+
+ my $list = $self->{list};
+ 
+
+ $self->query($db, "SELECT l.log_type, count(*)
+  FROM errors_log l
+  $WHERE
+  GROUP BY 1
+  ORDER BY 1;");
+  
+
+ return $list;
+}
+
+#**********************************************************
+# Add nas server
+# add($self)
+#**********************************************************
+sub log_add {
+ my $self = shift;
+ my ($attr) = @_;
+ 
+ %DATA = $self->get_data($attr); 
+ # $date, $time, $log_type, $action, $user, $message
+ $DATA{MESSAGE} =~ s/'/\\'/g;
+
+ $self->query($db, "INSERT INTO errors_log (date, log_type, action, user, message)
+ values (now(), '$DATA{LOG_TYPE}', '$DATA{ACTION}', '$DATA{USER_NAME}', '$DATA{MESSAGE}');", 'do');
+
+
+ return 0;	
+}
+
+
+#**********************************************************
+# Add nas server
+# add($self)
+#**********************************************************
+sub log_del {
+ my $self = shift;
+ my ($attr) = @_;
+ 
+ %DATA = $self->get_data($attr); 
+
+ #$self->query($db, "INSERT INTO errors_log (date, time, log_type, action, user, message)
+ #values (curdate(), curtime(), '$DATA{LOG_TYPE}', '$DATA{ACTION}', '$DATA{USER}', #'$DATA{MESSAGE}');", 'do');
+
+
+ return 0;	
+}
+
 1
+

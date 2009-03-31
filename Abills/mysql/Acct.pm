@@ -54,7 +54,8 @@ sub accounting {
  my $self = shift;
  my ($RAD, $NAS)=@_;
  
- $self->{SUM} = 0;
+ 
+ $self->{SUM} = 0 if (! $self->{SUM});
  my $acct_status_type = $ACCT_TYPES{$RAD->{ACCT_STATUS_TYPE}};
  my $SESSION_START = (defined($RAD->{SESSION_START}) && $RAD->{SESSION_START} > 0) ?  "FROM_UNIXTIME($RAD->{SESSION_START})" : "FROM_UNIXTIME(UNIX_TIMESTAMP())";
 
@@ -77,7 +78,6 @@ if ($RAD->{USER_NAME} =~ /(\d+):(\S+)/) {
 
 #Start
 if ($acct_status_type == 1) { 
-
   $self->query($db, "SELECT count(user_name) FROM dv_calls 
     WHERE user_name='$RAD->{USER_NAME}' and acct_session_id='$RAD->{ACCT_SESSION_ID}';");
     
@@ -135,7 +135,7 @@ elsif ($acct_status_type == 2) {
   my $Billing = Billing->new($db, $conf);	
 
   if ( $NAS->{NAS_EXT_ACCT} || $NAS->{NAS_TYPE} eq 'ipcad') {
-
+ 
     $self->query($db, "SELECT 
        acct_input_octets,
        acct_output_octets,
@@ -176,7 +176,9 @@ elsif ($acct_status_type == 2) {
                                                    $RAD, 
                                                    { USER_INFO => 1 } );
 
-    $self->query($db, "INSERT INTO dv_log (uid, start, tp_id, duration, sent, recv, minp,  
+    
+    if ($self->{UID} > 0 ) {
+      $self->query($db, "INSERT INTO dv_log (uid, start, tp_id, duration, sent, recv, minp,  
         sum, nas_id, port_id,
         ip, CID, sent2, recv2, acct_session_id, 
         bill_id,
@@ -191,6 +193,7 @@ elsif ($acct_status_type == 2) {
         '$RAD->{ACCT_TERMINATE_CAUSE}',
         '$RAD->{ACCT_INPUT_GIGAWORDS}',
         '$RAD->{ACCT_OUTPUT_GIGAWORDS}');", 'do');
+      }
    }
   elsif ($conf->{rt_billing}) {
     $self->rt_billing($RAD, $NAS);
@@ -290,17 +293,14 @@ elsif ($acct_status_type == 2) {
     }
 }
 
-
   # Delete from session
   $self->query($db, "DELETE FROM dv_calls WHERE acct_session_id=\"$RAD->{ACCT_SESSION_ID}\" 
      and user_name=\"$RAD->{USER_NAME}\" 
      and nas_id='$NAS->{NAS_ID}';", 'do');
-     
  }
 #Alive status 3
 elsif($acct_status_type eq 3) {
   $self->{SUM}=0 if (! $self->{SUM}); 
- 
   if ($NAS->{NAS_EXT_ACCT}) {
     $self->query($db, "UPDATE dv_calls SET
       status='$acct_status_type',
@@ -404,7 +404,7 @@ sub rt_billing {
    }
   elsif ($self->{TOTAL} < 1) {
     $self->{errno}=2;
-    $self->{errstr}="Session account Not Exist '$RAD->{ACCT_SESSION_ID}'";
+    $self->{errstr}="Session account rt Not Exist '$RAD->{ACCT_SESSION_ID}'";
     return $self;
    }
 
