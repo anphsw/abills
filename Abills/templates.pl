@@ -2,6 +2,14 @@
 
 use FindBin '$Bin';
 
+
+my $domain_path = '';
+if ($admin->{DOMAIN_ID}) {
+ 	$domain_path="$admin->{DOMAIN_ID}/";
+ }
+
+
+
 #**********************************************************
 # templates
 #**********************************************************
@@ -10,16 +18,48 @@ sub _include {
   my $result = '';
   
   my $sufix = ($attr->{pdf}) ? '.pdf' : '.tpl';
-  
 
-  if (-f '../../Abills/templates/'. $module . '_' . $tpl . $sufix) {
-    return ($FORM{pdf}) ? '../../Abills/templates/'. $module . '_' . $tpl . $sufix : tpl_content('../../Abills/templates/'. $module . '_' . $tpl . $sufix);
+  if ($admin->{DOMAIN_ID}) {
+ 	  $domain_path="$admin->{DOMAIN_ID}/";
+   }
+
+
+  if ($FORM{NAS_GID} && -f $Bin .'/../Abills/templates/'. $domain_path.'/'. $FORM{NAS_GID} .'/'.$module . '_' . $tpl . "_$html->{language}".$sufix) {
+    return ($FORM{pdf}) ? $Bin .'/../Abills/templates/'. $domain_path.'/'. $FORM{NAS_GID} .'/'. $module . '_' . $tpl . "_$html->{language}" . $sufix : tpl_content($Bin .'/../Abills/templates/'. $domain_path.'/'. $FORM{NAS_GID} .'/'.$module . '_' . $tpl . "_$html->{language}".$sufix);
+   }
+  elsif ($FORM{NAS_GID} && -f $Bin .'/../Abills/templates/'. $domain_path.'/'. $FORM{NAS_GID} .'/'.$module . '_' . $tpl . $sufix) {
+    return ($FORM{pdf}) ? $Bin .'/../Abills/templates/'. $domain_path.'/'. $FORM{NAS_GID} .'/'. $module . '_' . $tpl . $sufix : tpl_content($Bin .'/../Abills/templates/'. $domain_path.'/'. $FORM{NAS_GID} .'/'.$module . '_' . $tpl . $sufix);
+   }
+  elsif (-f '../../Abills/templates/'.$domain_path. $module . '_' . $tpl . "_$html->{language}" .$sufix) {
+    return ($FORM{pdf}) ? '../../Abills/templates/'. $domain_path. $module . '_' . $tpl . $sufix : tpl_content('../../Abills/templates/'. $module . '_' . $tpl . "_$html->{language}" . $sufix);
+   }
+  elsif (-f $Bin .'/../Abills/templates/'. $module . '_' . $tpl . "_$html->{language}".$sufix) {
+    return ($FORM{pdf}) ? $Bin .'/../Abills/templates/'. $module . '_' . $tpl . "_$html->{language}" . $sufix : tpl_content($Bin .'/../Abills/templates/'. $module . '_' . $tpl . "_$html->{language}".$sufix);
+   }
+  elsif (-f '../Abills/templates/'.$domain_path. $module . '_' . $tpl . "_$html->{language}" .$sufix) {
+    return ($FORM{pdf}) ? '../Abills/templates/'.$domain_path. $module . '_' . $tpl. "_$html->{language}". '.tpl' : tpl_content('../Abills/templates/'. $module . '_' . $tpl . "_$html->{language}". $sufix);
+   }
+  elsif (-f '../Abills/templates/'. $module . '_' . $tpl . "_$html->{language}" .$sufix) {
+    return ($FORM{pdf}) ? '../Abills/templates/'. $module . '_' . $tpl . "_$html->{language}". '.tpl' : tpl_content('../Abills/templates/'. $module . '_' . $tpl  . "_$html->{language}" . $sufix);
+   }
+  elsif (-f $Bin .'/../Abills/templates/$domain_path'. $module . '_' . $tpl . "_$html->{language}" .$sufix) {
+    return ($FORM{pdf}) ? $Bin .'/../Abills/templates/'.$domain_path. $module . '_' . $tpl . "_$html->{language}" .$sufix : tpl_content($Bin .'/../Abills/templates/'. $module . '_' . $tpl . "_$html->{language}" .$sufix);
+   }
+#Lang
+  elsif (-f '../../Abills/templates/'.$domain_path. $module . '_' . $tpl . $sufix) {
+    return ($FORM{pdf}) ? '../../Abills/templates/'. $domain_path. $module . '_' . $tpl . $sufix : tpl_content('../../Abills/templates/'. $module . '_' . $tpl . $sufix);
+   }
+  elsif (-f $Bin .'../Abills/templates/'. $module . '_' . $tpl .$sufix) {
+    return ($FORM{pdf}) ? $Bin .'/../Abills/templates/'. $module . '_' . $tpl .$sufix : tpl_content($Bin .'/../Abills/templates/'. $module . '_' . $tpl .$sufix);
+   }
+  elsif (-f '../Abills/templates/'.$domain_path. $module . '_' . $tpl .$sufix) {
+    return ($FORM{pdf}) ? '../Abills/templates/'.$domain_path. $module . '_' . $tpl. '.tpl' : tpl_content('../Abills/templates/'. $module . '_' . $tpl. $sufix);
    }
   elsif (-f '../Abills/templates/'. $module . '_' . $tpl .$sufix) {
     return ($FORM{pdf}) ? '../Abills/templates/'. $module . '_' . $tpl. '.tpl' : tpl_content('../Abills/templates/'. $module . '_' . $tpl. $sufix);
    }
-  elsif (-f $Bin .'/../Abills/templates/'. $module . '_' . $tpl .$sufix) {
-    return ($FORM{pdf}) ? $Bin .'/../Abills/templates/'. $module . '_' . $tpl .$sufix : tpl_content($Bin .'/../Abills/templates/'. $module . '_' . $tpl .$sufix);
+  elsif (-f $Bin .'/../Abills/templates/$domain_path'. $module . '_' . $tpl .$sufix) {
+    return ($FORM{pdf}) ? $Bin .'/../Abills/templates/'.$domain_path. $module . '_' . $tpl .$sufix : tpl_content($Bin .'/../Abills/templates/'. $module . '_' . $tpl .$sufix);
    }
   elsif (defined($module)) {
     $tpl	= "modules/$module/templates/$tpl";
@@ -56,21 +96,58 @@ sub tpl_content {
 # templates
 #**********************************************************
 sub templates {
-  my ($tpl_name) = @_;
+  my ($tpl_name, $attr) = @_;
 
-  if (-f $Bin."/../../Abills/templates/_"."$tpl_name".".tpl") {
-    return tpl_content("$Bin/../../Abills/templates/_". "$tpl_name".".tpl");
+  if ($admin->{DOMAIN_ID}) {
+ 	  $domain_path="$admin->{DOMAIN_ID}/";
    }
-  elsif (-f "$Bin/../Abills/templates/_"."$tpl_name".".tpl") {
-    return tpl_content("$Bin/../Abills/templates/_"."$tpl_name".".tpl");
+
+
+  #Nas path
+  if ($FORM{NAS_GID} && -f $Bin."/../Abills/templates/$domain_path".'/'. $FORM{NAS_GID} .'/'."_$tpl_name" . "_$html->{language}.tpl") {
+    return tpl_content($Bin."/../Abills/templates/$domain_path".'/'. $FORM{NAS_GID} .'/'."_$tpl_name" . "_$html->{language}.tpl");
+   }
+  elsif ($FORM{NAS_GID} && -f $Bin."/../Abills/templates/$domain_path".'/'. $FORM{NAS_GID} .'/'."_$tpl_name" . ".tpl") {
+    return tpl_content($Bin."/../Abills/templates/$domain_path".'/'. $FORM{NAS_GID} .'/'."_$tpl_name" . ".tpl");
+
+   }
+
+#Lang tpls
+  elsif (-f $Bin."/../../Abills/templates/$domain_path". '_' . "$tpl_name" . "_$html->{language}.tpl") {
+    return tpl_content("$Bin/../../Abills/templates/$domain_path". '_'. "$tpl_name". "_$html->{language}.tpl");
+   }
+  elsif (-f "$Bin/../Abills/templates/$domain_path".'_'."$tpl_name"."_$html->{language}.tpl") {
+    return tpl_content("$Bin/../Abills/templates/$domain_path". '_'."$tpl_name"."_$html->{language}.tpl");
+   }
+  elsif (-f "$Bin/../Abills/templates/_$tpl_name"."_$html->{language}.tpl") {
+    return tpl_content("$Bin/../Abills/templates/_$tpl_name"."_$html->{language}.tpl");
+   }
+  elsif (-f "$Bin/../../Abills/main_tpls/$tpl_name"."_$html->{language}.tpl") {
+    return tpl_content("$Bin/../../Abills/main_tpls/$tpl_name"."_$html->{language}.tpl");
+   }
+  elsif (-f "$Bin/../Abills/main_tpls/$tpl_name"."_$html->{language}.tpl") {
+    return tpl_content("$Bin/../Abills/main_tpls/$tpl_name"."_$html->{language}.tpl");
+   }
+#Main tpl
+  elsif (-f $Bin."/../../Abills/templates/$domain_path". '_' . "$tpl_name" . '.tpl') {
+    return tpl_content("$Bin/../../Abills/templates/$domain_path". '_'. "$tpl_name". '.tpl');
+   }
+  elsif (-f "$Bin/../Abills/templates/$domain_path".'_'."$tpl_name".".tpl") {
+    return tpl_content("$Bin/../Abills/templates/$domain_path". '_'."$tpl_name".".tpl");
+    
+   }
+  elsif (-f "$Bin/../Abills/templates/_$tpl_name".".tpl") {
+    return tpl_content("$Bin/../Abills/templates/_$tpl_name".".tpl");
+
    }
   elsif (-f "$Bin/../../Abills/main_tpls/$tpl_name".".tpl") {
     return tpl_content("$Bin/../../Abills/main_tpls/$tpl_name".".tpl");
+    
    }
   elsif (-f "$Bin/../Abills/main_tpls/$tpl_name".".tpl") {
     return tpl_content("$Bin/../Abills/main_tpls/$tpl_name".".tpl");
    }
-  
+
   return "No such template [$tpl_name]";
 }
 

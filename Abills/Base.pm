@@ -31,6 +31,7 @@ $VERSION = 2.00;
   &sendmail
   &in_array
   &tpl_parse
+  &encode_base64
  );
 
 @EXPORT_OK = ();
@@ -78,7 +79,17 @@ sub convert {
 	my ($text, $attr)=@_;
 	
 	if(defined($attr->{text2html})) {
-		 $text =~ s/\n/<br>/gi;
+		 
+		 $text =~ s/</&lt;/g;
+     $text =~ s/>/&gt;/g;
+     $text =~ s/\"/&quot;/g;
+     $text =~ s/\n/<br>\n/gi;
+   }
+	elsif($attr->{'from_tpl'}) {
+     $text =~ s/textarea/__textarea__/g;
+   }
+	elsif($attr->{'2_tpl'}) {
+     $text =~ s/__textarea__/textarea/g;
    }
 	elsif(defined($attr->{win2koi})) { $text = win2koi($text);	 }
 	elsif( $attr->{koi2win} ) { $text = koi2win($text); }
@@ -164,27 +175,42 @@ sub parse_arguments {
 #
 #********************************************************************
 sub sendmail {
-  my ($from, $to, $subject, $message, $charset, $priority, $attr) = @_;
+  my ($from, $to_addresses, $subject, $message, $charset, $priority, $attr) = @_;
   my $SENDMAIL = (defined($attr->{SENDMAIL_PATH})) ? $attr->{SENDMAIL_PATH} : '/usr/sbin/sendmail';
   
-  if ($attr->{TEST}) {
-    print "To: $to\n";
-    print "From: $from\n";
-    print "Content-Type: text/plain; charset=$charset\n";
-    print "X-Priority: $priority\n" if ($priority ne '');
-    print "Subject: $subject \n\n";
-    print "$message";
-    return 0;
+  my $header = '';
+  if ($attr->{MAIL_HEADER}) {
+    foreach my $line (@{ $attr->{MAIL_HEADER} } ) {
+    	$header .= "$line\n";
+     }	
    }
   
-  open(MAIL, "| $SENDMAIL -t $to") || die "Can't open file '$SENDMAIL' $!\n";
-    print MAIL "To: $to\n";
-    print MAIL "From: $from\n";
-    print MAIL "Content-Type: text/plain; charset=$charset\n";
-    print MAIL "X-Priority: $priority\n" if ($priority ne '');
-    print MAIL "Subject: $subject \n\n";
-    print MAIL "$message";
-  close(MAIL);
+  $to_addresses =~ s/[\n\r]//g;
+  
+  my @emails_arr = split(/;/, $to_addresses);
+  
+  foreach my $to (@emails_arr) {
+    if ($attr->{TEST}) {
+      print "To: $to\n";
+      print "From: $from\n";
+      print "Content-Type: text/plain; charset=$charset\n";
+      print "X-Priority: $priority\n" if ($priority);
+      print $header;
+      print "Subject: $subject \n\n";
+      print "$message";
+     }
+    else {
+      open(MAIL, "| $SENDMAIL -t $to") || die "Can't open file '$SENDMAIL' $!\n";
+        print MAIL "To: $to\n";
+        print MAIL "From: $from\n";
+        print MAIL "Content-Type: text/plain; charset=$charset\n";
+        print MAIL "X-Priority: $priority\n" if ($priority);
+        print MAIL $header;
+        print MAIL "Subject: $subject \n\n";
+        print MAIL "$message";
+      close(MAIL);
+     }
+  }
 
   return 0;
 }
@@ -231,7 +257,7 @@ sub show_log {
       	next;
        }
       
-      if (defined($attr->{LOG_TYPE}) && $log_type ne $attr->{LOG_TYPE}) {
+      if (defined($attr->{LOG_TYPE}) && "$log_type" ne "$attr->{LOG_TYPE}:") {
       	#print "0";
       	next;
        }
@@ -282,9 +308,10 @@ sub mk_unique_value {
    my ($passsize, $attr) = @_;
    my $symbols = (defined($attr->{SYMBOLS})) ? $attr->{SYMBOLS} : "qwertyupasdfghjikzxcvbnmQWERTYUPASDFGHJKLZXCVBNM23456789";
 
-   my $value = '';
+   my $value  = '';
    my $random = '';
-   my $i=0;
+   my $i      = 0;
+   $passsize  = 6 if (int($passsize) < 1);
    
    my $size = length($symbols);
    srand();
@@ -585,15 +612,15 @@ sub decode_base64 {
 # encode_base64()
 #**********************************************************
 sub encode_base64 ($;$) {
-    if ($] >= 5.006) {
-	require bytes;
-	if (bytes::length($_[0]) > length($_[0]) ||
-	    ($] >= 5.008 && $_[0] =~ /[^\0-\xFF]/))
-	{
+
+ if ($] >= 5.006) {
+	 require bytes;
+	 if (bytes::length($_[0]) > length($_[0]) ||
+	    ($] >= 5.008 && $_[0] =~ /[^\0-\xFF]/))	{
 	    require Carp;
 	    Carp::croak("The Base64 encoding is only defined for bytes");
-	}
-    }
+	  } 
+  }
 
     use integer;
 
@@ -733,11 +760,13 @@ sub tpl_parse {
 	my ($string, $HASH_REF) = @_;
 	
 	while(my($k, $v)= each %$HASH_REF) {
-		$string =~ s/\%$k\%/$v/g;   
+		$string =~ s/\%$k\%/$v/g;
 	 }
 
 	return $string;
 }
+
+
 
 
 1;

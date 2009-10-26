@@ -5,7 +5,8 @@
 
 
 
-use vars qw($begin_time %LANG $CHARSET @MODULES $FUNCTIONS_LIST $USER_FUNCTION_LIST $UID $user $admin 
+use vars qw($begin_time %LANG $CHARSET @MODULES $USER_FUNCTION_LIST 
+$UID $user $admin 
 $sid
 
 @ones
@@ -43,7 +44,6 @@ BEGIN {
 
 require "config.pl";
 require "Abills/defs.conf";
-require "Abills/templates.pl";
 use Abills::Base;
 use Abills::SQL;
 use Abills::HTML;
@@ -52,10 +52,10 @@ use Finance;
 
 
 $html = Abills::HTML->new( { IMG_PATH => 'img/',
-	                     NO_PRINT => 1,
-	                     CONF     => \%conf,
-	                     CHARSET  => $conf{default_charset}
-	                    });
+	                           NO_PRINT => 1,
+	                           CONF     => \%conf,
+	                           CHARSET  => $conf{default_charset},
+	                       });
 
 my $sql = Abills::SQL->connect($conf{dbtype}, 
                                $conf{dbhost}, 
@@ -70,8 +70,8 @@ $html->{language}=$FORM{language} if (defined($FORM{language}) && $FORM{language
 require "../language/$html->{language}.pl";
 $sid = $FORM{sid} || ''; # Session ID
 if ((length($COOKIES{sid})>1) && (! $FORM{passwd})) {
-  $COOKIES{sid} =~ s/"//g;
-  $COOKIES{sid} =~ s/'//g;
+  $COOKIES{sid} =~ s/\"//g;
+  $COOKIES{sid} =~ s/\'//g;
   $sid = $COOKIES{sid};
 }
 elsif((length($COOKIES{sid})>1) && (defined($FORM{passwd}))){
@@ -93,6 +93,18 @@ if (defined($FORM{sid})) {
 }
 #===========================================================
 
+require Admins;
+Admins->import();
+$admin = Admins->new($db, \%conf);
+$admin->info($conf{SYSTEM_ADMIN_ID}, { DOMAIN_ID => $FORM{DOMAIN_ID} });
+
+$conf{WEB_TITLE} = $admin->{DOMAIN_NAME} if ($admin->{DOMAIN_NAME});
+
+
+
+
+require "Abills/templates.pl";
+$html->{METATAGS}=templates('metatags_client');
 
 if ($index == 10) {
   $user=Users->new($db, $admin, \%conf); 
@@ -106,10 +118,6 @@ my $maxnumber = 0;
 my $uid = 0;
 my $page_qs;
 
-require Admins;
-Admins->import();
-$admin = Admins->new($db, \%conf);
-$admin->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });
 
 my %OUTPUT = ();
 
@@ -175,14 +183,21 @@ if ($uid > 0) {
   	exit;
   }
 
-  $OUTPUT{DATE}=$DATE;
-  $OUTPUT{TIME}=$TIME;
-  $OUTPUT{LOGIN}=$login;
-  $OUTPUT{IP}=$user->{REMOTE_ADDR};
+  $OUTPUT{DATE} = $DATE;
+  $OUTPUT{TIME} = $TIME;
+  $OUTPUT{LOGIN}= $login;
+  $OUTPUT{IP}   = $ENV{REMOTE_ADDR};
 
-  $pages_qs="&UID=$user->{UID}&sid=$sid";
-  $LIST_PARAMS{UID}=$user->{UID};
-  $LIST_PARAMS{LOGIN}=$user->{LOGIN};
+  $pages_qs     = "&UID=$user->{UID}&sid=$sid";
+
+  if ($COOKIES{lastindex}) {
+  	$index=$COOKIES{lastindex};
+    $html->setCookie('lastindex', '', "Fri, 1-Jan-2038 00:00:01", $web_path, $domain, $secure);
+   }
+
+
+  $LIST_PARAMS{UID}  = $user->{UID};
+  $LIST_PARAMS{LOGIN}= $user->{LOGIN};
 
   $index = $FORM{qindex} if ($FORM{qindex});
   my $lang_file = '';
@@ -201,6 +216,10 @@ if ($uid > 0) {
     require $lang_file;
    }
 
+#  if ($COOKIES{lastindex}) {
+#  	$index=$COOKIES{lastindex};
+#   }
+
   if ($FORM{qindex}) {
     if(defined($module{$FORM{qindex}})) {
  	   	require "Abills/modules/$module{$FORM{qindex}}/webinterface";
@@ -216,7 +235,13 @@ if ($uid > 0) {
    }
 
   if ($index != 0 && defined($functions{$index})) {
-    $functions{$index}->();
+    if (! $FORM{index} && $user->{DEPOSIT} + $user->{CREDIT} < 0) {
+      $html->tpl_show(templates('form_neg_deposit'), $user);
+      $html->tpl_show(templates('form_client_info'), $user);
+     }
+    else {
+      $functions{$index}->();
+     }
    }
   else {
     $functions{$default_index}->();
@@ -327,22 +352,44 @@ sub form_info {
   use POSIX qw(strftime);
   
   if ( $conf{user_credit_change}) {
-    my ($sum, $days, $price) = split(/:/, $conf{user_credit_change});
+    my ($sum, $days, $price, $month_changes) = split(/:/, $conf{user_credit_change}) ;
+    $month_changes = 0 if (!$month_changes);
+
+
+
     my $credit_date = strftime "%Y-%m-%d", localtime(time + int($days) * 86400);
 
-      if (in_array('Docs', \@MODULES) ) {
-        
-        require "Abills/modules/Ipn/webinterface";
+      if (in_array('Dv', \@MODULES) ) {
+        require "Abills/modules/Dv/webinterface";
         my $Dv       = Dv->new($db, $admin, \%conf);
 
         $Dv->info($user->{UID});
         $sum = $Dv->{TP_CREDIT} if ($Dv->{TP_CREDIT} > 0);
        }
 
-    
-    if ($user->{CREDIT} < $sum) {
+    if ($month_changes) {
+      
+      my ($y, $m, $d) = split(/\-/, $DATE);
+      
+      $admin->action_list({ UID       => $user->{UID},
+      	                    TYPE      => 5,
+      	                    FROM_DATE => "$y-$m-01",
+      	                    TO_DATE   => "$y-$m-31"
+      	                   });
+      
+      if ($admin->{TOTAL} >= $month_changes) {
+        $user->{CREDIT_CHG_BUTTON} = $html->color_mark("$ERR_CREDIT_CHANGE_LIMIT_REACH. $_TOTAL: $admin->{TOTAL}/$month_changes", $_COLORS[6]);
+        $sum = 0;
+       }
+     }
+
+
 
     
+    if ($user->{DISABLE}) {
+    	
+     }
+    elsif ($user->{CREDIT} < $sum) {
        if ($FORM{change_credit}) {
          $user->change($user->{UID}, { UID         => $user->{UID},
                                        CREDIT      => $sum,
@@ -399,6 +446,9 @@ sub form_info {
     $user->{EXT_DATA}=$html->tpl_show(templates('form_ext_bill'), 
                                              $user, { OUTPUT2RETURN => 1 });
    }
+  
+  $user->{DISABLE} = ($user->{DISABLE}) ? $html->color_mark("$_DISABLE", $_COLORS[6])  : $_ENABLE;
+  
   $html->tpl_show(templates('form_client_info'), $user);
 
   if ($conf{user_chg_pi}) {
@@ -421,6 +471,20 @@ sub form_info {
 #**********************************************************
 sub form_login {
  my %first_page = ();
+ 
+#Make active lang list
+if ($conf{LANGS}) {
+	$conf{LANGS} =~ s/\n//g;
+	my(@lang_arr)=split(/;/, $conf{LANGS});
+	%LANG = ();
+	foreach my $l (@lang_arr) {
+		my ($lang, $lang_name)=split(/:/, $l);
+		$lang =~ s/^\s+//;
+		$LANG{$lang}=$lang_name;
+	 } 
+}
+
+ 
  $first_page{SEL_LANGUAGE} = $html->form_select('language', 
                                 { EX_PARAMS => 'onChange="selectLanguage()"',
  	                                SELECTED  => $html->{language},
@@ -486,20 +550,27 @@ sub auth {
  my $ip = "$REMOTE_ADDR/$HTTP_X_FORWARDED_FOR";
 
 
+ $conf{PASSWORDLESS_ACCESS}=$ENV{USER_CHECK_DEPOSIT} if (! $conf{PASSWORDLESS_ACCESS});
+
+
 #Passwordless Access
 if ($conf{PASSWORDLESS_ACCESS}) {
     require  Dv_Sessions;
     Dv_Sessions->import();
     my $sessions = Dv_Sessions->new($db, $admin, \%conf);
 	  my $list = $sessions->online({ FRAMED_IP_ADDRESS => "$REMOTE_ADDR" });
+
     
-    if ($sessions->{TOTAL} > 0) {
+    
+    if ($sessions->{TOTAL} == 1) {
       $login   = $list->[0]->[0];
       $ret     = $list->[0]->[11];
       #$time    = time;
       $sid     = mk_unique_value(14);
       $action  = 'Access';
       $user->info($ret);
+
+      $user->{REMOTE_ADDR}=$REMOTE_ADDR;
       return ($ret, $sid, $login);
     }
   }
@@ -656,9 +727,9 @@ elsif($FORM{newpassword} ne $FORM{confirm}) {
 }
 
  my $password_form;
- $password_form->{ACTION}='change';
- $password_form->{LNG_ACTION}="$_CHANGE";
- $password_form->{GEN_PASSWORD}=mk_unique_value(8);
+ $password_form->{ACTION}      = 'change';
+ $password_form->{LNG_ACTION}  = "$_CHANGE";
+ $password_form->{GEN_PASSWORD}= mk_unique_value(8);
  $html->tpl_show(templates('form_password'), $password_form);
 
  return 0;
@@ -930,13 +1001,16 @@ sub form_fees {
 		$LIST_PARAMS{DESC}='DESC';
 	 }
 	
+ my @FEES_METHODS = ($_ONE_TIME, $_ABON, $_FINE, $_ACTIVATE);
+ push @FEES_METHODS, @EX_FEES_METHODS if (@EX_FEES_METHODS);
+
 my $fees = Finance->fees($db, $admin, \%conf);
 my $list = $fees->list( { %LIST_PARAMS } );
 my $table = $html->table( { width      => '100%',
                             caption    => "$_FEES",
                             border     => 1,
-                            title      => ['ID', $_LOGIN, $_DATE, $_SUM, $_DESCRIBE, $_ADMINS, 'IP',  $_DEPOSIT],
-                            cols_align => ['right', 'left', 'right', 'right', 'left', 'left', 'right', 'right'],
+                            title      => ['ID', $_LOGIN, $_DATE, $_SUM, $_DESCRIBE, $_TYPE, $_ADMINS, 'IP',  $_DEPOSIT],
+                            cols_align => ['right', 'left', 'right', 'right', 'left', 'left', 'left', 'right', 'right'],
                             qs         => $pages_qs,
                             pages      => $fees->{TOTAL},
                             ID         => 'FEES'
@@ -946,8 +1020,13 @@ my $table = $html->table( { width      => '100%',
 $pages_qs .= "&subf=2" if (! $FORM{subf});
 foreach my $line (@$list) {
 
-  $table->addrow($html->b($line->[0]), $html->button($line->[1], "index=15&UID=$line->[8]"), $line->[2], 
-   $line->[3], $line->[4],  "$line->[5]", "$line->[6]", "$line->[7]");
+  $table->addrow($html->b($line->[0]), $line->[1], $line->[2], 
+   $line->[3], 
+   $line->[4],  
+   $FEES_METHODS[$line->[5]], 
+   "$line->[6]", 
+   "$line->[7]",
+   "$line->[8]");
 }
 
 print $table->show();
@@ -974,7 +1053,7 @@ if (! $FORM{sort}) {
   $LIST_PARAMS{sort}=1;
   $LIST_PARAMS{DESC}='DESC';
 }
-my $list = $payments->list( { %LIST_PARAMS } );
+my $list  = $payments->list( { %LIST_PARAMS } );
 my $table = $html->table( { width      => '100%',
                             caption    => "$_PAYMENTS",
                             border     => 1,

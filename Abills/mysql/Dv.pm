@@ -29,17 +29,6 @@ my $uid;
 
 my $MODULE='Dv';
 
-my %SEARCH_PARAMS = (TP_ID => 0, 
-   SIMULTANEONSLY => 0, 
-   STATUS        => 0, 
-   IP             => '0.0.0.0', 
-   NETMASK        => '255.255.255.255', 
-   SPEED          => 0, 
-   FILTER_ID      => '', 
-   CID            => '', 
-   REGISTRATION   => ''
-);
-
 #**********************************************************
 # Init 
 #**********************************************************
@@ -112,13 +101,14 @@ sub info {
    dv.join_service,
    dv.turbo_mode,
    tp.abon_distribution,
-   tp.credit
+   tp.credit,
+   tp.tp_id
      FROM dv_main dv
      LEFT JOIN tarif_plans tp ON (dv.tp_id=tp.id)
    $WHERE;");
 
-  if ($self->{TOTAL} < 1) {
-     $self->{errno} = 2;
+  if ($self->{TOTAL} < 1) {     
+  	 $self->{errno} = 2;
      $self->{errstr} = 'ERROR_NOT_EXIST';
      return $self;
    }
@@ -131,7 +121,7 @@ sub info {
    $self->{IP}, 
    $self->{NETMASK}, 
    $self->{SPEED}, 
-   $self->{FILTER_ID}, 
+   $self->{IDTER_ID}, 
    $self->{CID},
    $self->{STATUS},
    $self->{CALLBACK},
@@ -144,7 +134,8 @@ sub info {
    $self->{JOIN_SERVICE},
    $self->{TURBO_MODE},
    $self->{ABON_DISTRIBUTION},
-   $self->{TP_CREDIT}
+   $self->{TP_CREDIT},
+   $self->{TP_NUM}
   )= @{ $self->{list}->[0] };
   
   
@@ -155,7 +146,7 @@ sub info {
 
 #**********************************************************
 #
-#**********************************************************
+#**************************************
 sub defaults {
   my $self = shift;
 
@@ -170,7 +161,8 @@ sub defaults {
    CID            => '',
    CALLBACK       => 0,
    PORT           => 0,
-   JOIN_SERVICE   => 0
+   JOIN_SERVICE   => 0,
+   TURBO_MODE     => 0
   );
 
  
@@ -193,7 +185,7 @@ sub add {
   if ($DATA{TP_ID} > 0 && ! $DATA{STATUS}) {
      my $tariffs = Tariffs->new($db, $CONF, $admin);
 
-     $self->{TP_INFO}=$tariffs->info($DATA{TP_ID});
+     $self->{TP_INFO}=$tariffs->info(0, { ID => $DATA{TP_ID} });
      
 
      #Take activation price
@@ -238,7 +230,9 @@ sub add {
         '$DATA{PORT}', '$DATA{JOIN_SERVICE}', '$DATA{TURBO_MODE}');", 'do');
 
   return $self if ($self->{errno});
-  $admin->action_add("$DATA{UID}", "ACTIVE");
+
+  $admin->{MODULE}=$MODULE;
+  $admin->action_add("$DATA{UID}", "ACTIVE", { TYPE => 1 });
   return $self;
 }
 
@@ -279,7 +273,7 @@ sub change {
   if ($attr->{TP_ID} && $old_info->{TP_ID} != $attr->{TP_ID}) {
      my $tariffs = Tariffs->new($db, $CONF, $admin);
 
-     $self->{TP_INFO}=$tariffs->info($attr->{TP_ID});
+     $self->{TP_INFO}=$tariffs->info(0, { ID => $attr->{TP_ID} });
      
      my $user = Users->new($db, $admin, $CONF);
 
@@ -319,9 +313,9 @@ sub change {
        $user->change($attr->{UID}, { EXPIRE => $EXPITE_DATE, UID => $attr->{UID} });
      }
    }
-  elsif ($old_info->{STATUS} == 2 && $attr->{STATUS} == 0) {
+  elsif (($old_info->{STATUS} == 2 && $attr->{STATUS} == 0) || ($old_info->{STATUS} == 4 && $attr->{STATUS} == 0)) {
     my $tariffs = Tariffs->new($db, $CONF, $admin);
-    $self->{TP_INFO}=$tariffs->info($old_info->{TP_ID});
+    $self->{TP_INFO}=$tariffs->info(0, { ID => $old_info->{TP_ID} });
    }
 
   $attr->{JOIN_SERVICE} = ($attr->{JOIN_SERVICE}) ? $attr->{JOIN_SERVICE} : 0;
@@ -334,6 +328,8 @@ sub change {
                    DATA         => $attr
                   } );
 
+
+  $self->{OLD_STATUS}=$old_info->{STATUS};
 
   $self->info($attr->{UID});
   
@@ -353,8 +349,10 @@ sub del {
   my ($attr) = @_;
 
   $self->query($db, "DELETE from dv_main WHERE uid='$self->{UID}';", 'do');
+  $self->query($db, "DELETE from dv_log WHERE uid='$self->{UID}';", 'do');
 
-  $admin->action_add($self->{UID}, "DELETE");
+
+  $admin->action_add($self->{UID}, "$self->{UID}", { TYPE => 10 });
   return $self->{result};
 }
 
@@ -373,6 +371,14 @@ sub list {
  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+ my $GROUP_BY = 'u.uid';
+
+ if ($attr->{GROUP_BY}) {
+ 	 $GROUP_BY = $attr->{GROUP_BY};
+  }
+ 
+ 	
 
 
  $self->{SEARCH_FIELDS} = '';
@@ -412,8 +418,7 @@ sub list {
      LEFT JOIN dv_log l ON  (l.uid=u.uid) 
      WHERE  
         u.bill_id=b.id
-        and (b.deposit+u.credit-tp.credit_tresshold<=0
-        and tp.hourp+tp.df+tp.abon>=0)
+        and (b.deposit+u.credit-tp.credit_tresshold<=0)
         or (
         (u.expire<>'0000-00-00' and u.expire < CURDATE())
         AND (u.activate<>'0000-00-00' and u.activate > CURDATE())
@@ -468,9 +473,10 @@ sub list {
     $self->{SEARCH_FIELDS_COUNT}++;
   }
 
-
   if ($attr->{NETMASK}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{NETMASK}, 'INT', 'dv.netmask') };
+    push @WHERE_RULES, @{ $self->search_expr($attr->{NETMASK}, 'IP', 'INET_NTOA(dv.netmask)') };
+    $self->{SEARCH_FIELDS} .= 'INET_NTOA(dv.netmask), ';
+    $self->{SEARCH_FIELDS_COUNT}++;
    }
 
  if ($attr->{DEPOSIT}) {
@@ -607,7 +613,7 @@ sub list {
      LEFT JOIN companies company ON  (u.company_id=company.id) 
      LEFT JOIN bills cb ON  (company.bill_id=cb.id)
      $WHERE 
-     GROUP BY u.uid
+     GROUP BY $GROUP_BY
      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;");
 
  return $self if($self->{errno});
@@ -642,4 +648,27 @@ sub periodic {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 1
+ 

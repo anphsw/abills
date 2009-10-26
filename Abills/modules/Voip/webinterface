@@ -749,7 +749,6 @@ sub voip_tp {
  $Voip_tp->{ACTION}='ADD_TP';
 
 if($FORM{ADD_TP}) {
-  $FORM{TP_ID} = $FORM{CHG_TP_ID};
   $Voip->tp_add({ %FORM });
   if (! $Voip->{errno}) {
     $html->message('info', $_ADDED, "$_ADDED $Voip->{TP_ID}");
@@ -773,9 +772,22 @@ elsif ($FORM{TP_ID}) {
   $LIST_PARAMS{TP} = $FORM{TP_ID};
   %F_ARGS = ( TP => $Voip_tp );
   
+  $Voip_tp->{NAME_SEL} = $html->form_main({ CONTENT => $html->form_select('TP_ID', 
+                                          { 
+ 	                                          SELECTED          => $FORM{TP_ID},
+ 	                                          SEL_MULTI_ARRAY   => $Voip->tp_list({ %LIST_PARAMS }),
+ 	                                          MULTI_ARRAY_KEY   => 8,
+ 	                                          MULTI_ARRAY_VALUE => '0,1',
+ 	                                          NO_ID             => 1
+ 	                                        }),
+	                                          HIDDEN  => { index => "$index" },
+	                                          SUBMIT  => { show  => "$_SHOW" } 
+	                                       });
+  
+  
   func_menu({ 
-  	         'ID' =>   $Voip_tp->{TP_ID}, 
-  	         $_NAME => $Voip_tp->{NAME}
+  	         'ID' =>   $Voip_tp->{ID}, 
+  	         $_NAME => $Voip_tp->{NAME_SEL}
   	       }, 
   	{ 
   	  $_INFO          => ":TP_ID=$Voip_tp->{TP_ID}",
@@ -787,11 +799,6 @@ elsif ($FORM{TP_ID}) {
   		f_args => { %F_ARGS }
   	 });
 
-#  if($attr->{f}) {
-#     $attr->{f}->({ TP => $Voip_tp });
-#     return 0;
-#   }
-#  els
   if ($FORM{subf}) {
   	return 0;
    }
@@ -849,11 +856,11 @@ my $table = $html->table( { width      => '100%',
 my ($delete, $change);
 foreach my $line (@$list) {
   if ($permissions{4}{1}) {
-    $delete = $html->button($_DEL, "index=$index&del=$line->[0]",  { MESSAGE => "$_DEL ?" }); 
-    $change = $html->button($_INFO, "index=$index&TP_ID=$line->[0]");
+    $delete = $html->button($_DEL, "index=$index&del=$line->[8]",  { MESSAGE => "$_DEL ?" }); 
+    $change = $html->button($_INFO, "index=$index&TP_ID=$line->[8]");
    }
   
-  if($FORM{TP_ID} eq $line->[0]) {
+  if($FORM{TP_ID} eq $line->[8]) {
   	$table->{rowcolor}=$_COLORS[4];
    }
   else {
@@ -866,7 +873,7 @@ foreach my $line (@$list) {
    $line->[5], 
    $line->[6], 
    $line->[7],
-   $html->button($_INTERVALS, "index=". ($index+2) ."&subf=73&TP_ID=$line->[0]"),
+   $html->button($_INTERVALS, "index=". ($index+2) ."&subf=73&TP_ID=$line->[8]"),
    $change,
    $delete);
 }
@@ -1867,12 +1874,12 @@ print $html->form_main({ CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
 voip_stats_calculation($sessions);
 
 if (defined($FORM{show})) {
-  $pages_qs .= "&show=y&fromd=$FORM{fromd}&fromm=$FORM{fromm}&fromy=$FORM{fromy}&tod=$FORM{tod}&tom=$FORM{tom}&toy=$FORM{toy}";
-  $FORM{fromm}++;
-  $FORM{tom}++;
-  $FORM{fromm} = sprintf("%.2d", $FORM{fromm}++);
-  $FORM{tom} = sprintf("%.2d", $FORM{tom}++);
-  $LIST_PARAMS{INTERVAL} = "$FORM{fromy}-$FORM{fromm}-$FORM{fromd}/$FORM{toy}-$FORM{tom}-$FORM{tod}";
+  $pages_qs .= "&show=y&fromD=$FORM{fromD}&fromm=$FORM{fromM}&fromy=$FORM{fromY}&tod=$FORM{toD}&tom=$FORM{toM}&toy=$FORM{toY}";
+  $FORM{fromM}++;
+  $FORM{toM}++;
+  $FORM{fromM} = sprintf("%.2d", $FORM{fromM}++);
+  $FORM{toM} = sprintf("%.2d", $FORM{toM}++);
+  $LIST_PARAMS{INTERVAL} = "$FORM{fromY}-$FORM{fromM}-$FORM{fromD}/$FORM{toY}-$FORM{toM}-$FORM{toD}";
  }
 elsif (defined($FORM{period})) {
 	$LIST_PARAMS{PERIOD} = int($FORM{period}); 
@@ -1943,6 +1950,7 @@ if ($sessions->{errno})	 {
 
 
 if ($FORM{rows}) {
+
   $LIST_PARAMS{PAGE_ROWS}=$FORM{rows};
   $conf{list_max_recs}=$FORM{rows};
   $pages_qs .= "&rows=$conf{list_max_recs}";
@@ -1989,12 +1997,12 @@ print $html->form_main({ CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
 voip_stats_calculation($sessions);
 
 if (defined($FORM{show})) {
-  $pages_qs .= "&show=y&fromd=$FORM{fromd}&fromm=$FORM{fromm}&fromy=$FORM{fromy}&tod=$FORM{tod}&tom=$FORM{tom}&toy=$FORM{toy}";
-  $FORM{fromm}++;
-  $FORM{tom}++;
-  $FORM{fromm} = sprintf("%.2d", $FORM{fromm}++);
-  $FORM{tom} = sprintf("%.2d", $FORM{tom}++);
-  $LIST_PARAMS{INTERVAL} = "$FORM{fromy}-$FORM{fromm}-$FORM{fromd}/$FORM{toy}-$FORM{tom}-$FORM{tod}";
+  $pages_qs .= "&show=y&fromD=$FORM{fromD}&fromm=$FORM{fromM}&fromy=$FORM{fromY}&tod=$FORM{toD}&tom=$FORM{toM}&toy=$FORM{toY}";
+  $FORM{fromM}++;
+  $FORM{toM}++;
+  $FORM{fromM} = sprintf("%.2d", $FORM{fromM}++);
+  $FORM{toM} = sprintf("%.2d", $FORM{toM}++);
+  $LIST_PARAMS{INTERVAL} = "$FORM{fromY}-$FORM{fromM}-$FORM{fromD}/$FORM{toY}-$FORM{toM}-$FORM{toD}";
  }
 elsif (defined($FORM{period})) {
 	$LIST_PARAMS{PERIOD} = int($FORM{period}); 

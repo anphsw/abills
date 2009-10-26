@@ -306,6 +306,10 @@ sub accounts_list {
     push @WHERE_RULES, "(date_format(d.date, '%Y-%m-%d')>='$attr->{FROM_DATE}' and date_format(d.date, '%Y-%m-%d')<='$attr->{TO_DATE}')";
   }
 
+ if (defined($attr->{PAYMENT_ID})) {
+    push @WHERE_RULES, @{ $self->search_expr($attr->{PAYMENT_ID}, 'INT', 'd.payment_id') };
+  }
+
  if ($attr->{DOC_ID}) {
  	  my $value = $self->search_expr($attr->{DOC_ID}, 'INT');
     push @WHERE_RULES, "d.acct_id$value";
@@ -334,7 +338,7 @@ sub accounts_list {
  $WHERE = ($#WHERE_RULES > -1) ? 'WHERE ' . join(' and ', @WHERE_RULES)  : '';
 
 
-  $self->query($db,   "SELECT d.acct_id, d.date, d.customer,  sum(o.price * o.counts), u.id, a.name, d.created, d.uid, d.id
+  $self->query($db,   "SELECT d.acct_id, d.date, d.customer,  sum(o.price * o.counts), d.payment_id, u.id, a.name, d.created, d.uid, d.id
     FROM (docs_acct d, docs_acct_orders o)
     LEFT JOIN users u ON (d.uid=u.uid)
     LEFT JOIN admins a ON (d.aid=a.aid)
@@ -377,6 +381,10 @@ sub docs_nextid {
    }
   elsif($attr->{TYPE} eq 'TAX_INVOICE') {
     $sql = "SELECT max(d.tax_invoice_id), count(*) FROM docs_tax_invoices d
+     WHERE YEAR(date)=YEAR(curdate());";
+   }
+  elsif($attr->{TYPE} eq 'ACT') {
+    $sql = "SELECT max(d.act_id), count(*) FROM docs_acts d
      WHERE YEAR(date)=YEAR(curdate());";
    }
 
@@ -486,10 +494,14 @@ sub account_info {
    pi.address_flat,
    if (d.phone<>0, d.phone, pi.phone),
    pi.contract_id,
-   d.date + interval $CONF->{DOCS_ACCOUNT_EXPIRE_PERIOD} day
+   d.date + interval $CONF->{DOCS_ACCOUNT_EXPIRE_PERIOD} day,
+   u.company_id,
+   c.name
+   
    
     FROM (docs_acct d, docs_acct_orders o)
     LEFT JOIN users u ON (d.uid=u.uid)
+    LEFT JOIN companies c ON (u.company_id=c.id)
     LEFT JOIN users_pi pi ON (pi.uid=u.uid)
     LEFT JOIN admins a ON (d.aid=a.aid)
     WHERE d.id=o.acct_id and d.id='$id' $WHERE
@@ -517,7 +529,9 @@ sub account_info {
    $self->{ADDRESS_FLAT}, 
    $self->{PHONE},
    $self->{CONTRACT_ID},
-   $self->{EXPIRE_DATE}
+   $self->{EXPIRE_DATE},
+   $self->{COMPANY_ID},
+   $self->{COMPANY_NAME}
   )= @{ $self->{list}->[0] };
 	
   
@@ -546,18 +560,21 @@ sub account_change {
                 CUSTOMER    => 'customer',
                 SUM         => 'sum',
                 ID          => 'id',
-                UID         => 'uid'
+                UID         => 'uid',
+                PAYMENT_ID  => 'payment_id'
              );
 
+  my $old_info =   $self->account_info($attr->{ID});
 
   $self->changes($admin,  { CHANGE_PARAM => 'ID',
                    TABLE        => 'docs_acct',
                    FIELDS       => \%FIELDS,
-                   OLD_INFO     => $self->account_info($attr->{DOC_ID}),
+                   OLD_INFO     => $old_info,
                    DATA         => $attr
                   } );
 
-  return $self->{result};
+
+  return $self;
 }
 
 
@@ -752,7 +769,7 @@ sub tax_invoice_info {
      return $self;
    }
 
-  ($self->{DOC_ID}, 
+  ($self->{TAX_INVOICE_ID}, 
    $self->{DATE}, 
    $self->{TOTAL_SUM},
    $self->{VAT},
@@ -808,6 +825,239 @@ sub tax_invoice_change {
                    TABLE        => 'docs_tax_invoices',
                    FIELDS       => \%FIELDS,
                    OLD_INFO     => $self->tax_invoice_info($attr->{DOC_ID}),
+                   DATA         => $attr
+                  } );
+
+  return $self->{result};
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#**********************************************************
+# accounts_list
+#**********************************************************
+sub acts_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+
+ @WHERE_RULES = ();
+ 
+ if($attr->{LOGIN_EXPR}) {
+ 	 require Users;
+	 push @WHERE_RULES, @{ $self->search_expr($attr->{UID}, 'INT', 'd.uid') };
+  }
+
+ if ($attr->{FROM_DATE}) {
+    push @WHERE_RULES, "(date_format(d.date, '%Y-%m-%d')>='$attr->{FROM_DATE}' and date_format(d.date, '%Y-%m-%d')<='$attr->{TO_DATE}')";
+  }
+
+ if ($attr->{DOC_ID}) {
+    push @WHERE_RULES, $self->search_expr($attr->{DOC_ID}, 'INT', 'd.act_id');
+  }
+
+ if ($attr->{SUM}) {
+    push @WHERE_RULES, @{ $self->search_expr($attr->{SUM}, 'INT', 'd.sum') };
+  }
+
+ # Show groups
+ if ($attr->{GIDS}) {
+   push @WHERE_RULES, "u.gid IN ($attr->{GIDS})"; 
+  }
+ elsif ($attr->{GID}) {
+   push @WHERE_RULES, "u.gid='$attr->{GID}'"; 
+  }
+
+ 
+ if ($attr->{COMPANY_ID}) {
+   push @WHERE_RULES, @{ $self->search_expr($attr->{COMPANY_ID}, 'INT', 'd.company_id') };
+ }
+ if ($attr->{UID}) {
+   push @WHERE_RULES, @{ $self->search_expr($attr->{UID}, 'INT', 'd.uid') };
+ }
+ 
+
+ $WHERE = ($#WHERE_RULES > -1) ? 'WHERE ' . join(' and ', @WHERE_RULES)  : '';
+
+
+  $self->query($db,   "SELECT d.act_id, d.date, c.name, d.sum, a.name, d.created, d.uid, d.company_id, d.id
+    FROM (docs_acts d)
+    LEFT JOIN companies c ON (d.company_id=c.id)
+    LEFT JOIN admins a ON (d.aid=a.aid)
+    $WHERE
+    GROUP BY d.act_id 
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;");
+
+
+ $self->{SUM}=0.00;
+ return $self->{list}  if ($self->{TOTAL} < 1);
+ my $list = $self->{list};
+
+
+ $self->query($db, "SELECT count(DISTINCT d.act_id), sum(d.sum)
+    FROM (docs_acts d)
+    LEFT JOIN companies c ON (d.company_id=c.id)
+    $WHERE");
+
+ ($self->{TOTAL}, $self->{SUM}) = @{ $self->{list}->[0] };
+
+	return $list;
+}
+
+
+#**********************************************************
+# Bill
+#**********************************************************
+sub act_add {
+	my $self = shift;
+	my ($attr) = @_;
+  
+ 
+  %DATA = $self->get_data($attr, { default => \%DATA }); 
+  $DATA{DATE}   = ($attr->{DATE})    ? "'$attr->{DATE}'" : 'now()';
+  $DATA{DOC_ID} = ($attr->{DOC_ID}) ? $attr->{DOC_ID}  : $self->docs_nextid({ TYPE => 'ACT' });
+
+  $self->query($db, "insert into docs_acts (act_id, date, created, aid, uid, company_id, sum)
+      values ('$DATA{DOC_ID}', $DATA{DATE}, now(), \"$admin->{AID}\", \"$DATA{UID}\", '$DATA{COMPANY_ID}', '$DATA{SUM}');", 'do');
+ 
+  return $self if($self->{errno});
+  $self->{DOC_ID}=$self->{INSERT_ID};
+ 
+	return $self;
+}
+
+
+#**********************************************************
+# Bill
+#**********************************************************
+sub act_del {
+	my $self = shift;
+	my ($id, $attr) = @_;
+
+  if ($id == 0 && $attr->{UID}) {
+    #$self->query($db, "DELETE FROM docs_acct_orders WHERE acct_id='$id'", 'do');
+    #$self->query($db, "DELETE FROM docs_acct WHERE uid='$id'", 'do');
+   }
+  else {
+    $self->query($db, "DELETE FROM docs_acts WHERE id='$id'", 'do');
+   }
+
+	return $self;
+}
+
+#**********************************************************
+# Bill
+#**********************************************************
+sub act_info {
+	my $self = shift;
+	my ($id, $attr) = @_;
+
+  $WHERE = ($attr->{UID}) ? "and d.uid='$attr->{UID}'" : '';  
+  
+
+  $self->query($db, "SELECT d.act_id, 
+   d.date, 
+   date_format(d.date, '%Y-%m'),
+   d.sum, 
+   if(d.vat>0, FORMAT(d.sum / ((100+d.vat)/ d.vat), 2), FORMAT(0, 2)),
+   u.id, 
+   a.name, 
+   d.created, 
+   d.uid, 
+   d.id,
+   pi.fio,
+   pi.address_street,
+   pi.address_build,
+   pi.address_flat,
+   pi.phone,
+   c.contract_id,
+   c.contract_date,
+   d.company_id,
+   c.name,
+   d.date + interval $CONF->{DOCS_ACCOUNT_EXPIRE_PERIOD} day
+   
+   
+    FROM (docs_acts d)
+    LEFT JOIN users u ON (d.uid=u.uid)
+    LEFT JOIN users_pi pi ON (pi.uid=u.uid)
+    LEFT JOIN companies c ON (c.id=d.company_id)
+    LEFT JOIN admins a ON (d.aid=a.aid)
+    WHERE d.id='$id' $WHERE
+    GROUP BY d.id;");
+
+  if ($self->{TOTAL} < 1) {
+     $self->{errno}  = 2;
+     $self->{errstr} = 'ERROR_NOT_EXIST';
+     return $self;
+   }
+
+  ($self->{ACT_ID}, 
+   $self->{DATE}, 
+   $self->{MONTH}, 
+   $self->{TOTAL_SUM},
+   $self->{VAT},
+   $self->{LOGIN}, 
+   $self->{ADMIN}, 
+   $self->{CREATED}, 
+   $self->{UID},
+   $self->{DOC_ID},
+   $self->{FIO},
+
+   $self->{ADDRESS_STREET}, 
+   $self->{ADDRESS_BUILD}, 
+   $self->{ADDRESS_FLAT}, 
+   $self->{PHONE},
+   $self->{CONTRACT_ID},
+   $self->{CONTRACT_DATE},
+   $self->{COMPANY_ID},
+   $self->{COMPANY_NAME},
+   $self->{EXPIRE_DATE}
+
+  )= @{ $self->{list}->[0] };
+	
+	return $self;
+}
+
+
+#**********************************************************
+# change()
+#**********************************************************
+sub act_change {
+  my $self = shift;
+  my ($attr) = @_;
+  
+  
+  my %FIELDS = (DOC_ID      => 'doc_id',
+                COMPANY_ID  => 'company_id',
+                DATE        => 'date',
+                SUM         => 'sum',
+                ID          => 'id',
+                UID         => 'uid'
+               );
+
+
+  $self->changes($admin,  { CHANGE_PARAM => 'ID',
+                   TABLE        => 'docs_acts',
+                   FIELDS       => \%FIELDS,
+                   OLD_INFO     => $self->act_info($attr->{DOC_ID}),
                    DATA         => $attr
                   } );
 

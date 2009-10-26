@@ -11,8 +11,8 @@ use vars  qw(%conf $db
 use strict;
 use FindBin '$Bin';
 
-my $VERSION = 2.0;
-my $config_file = $Bin . '/../libexec/config.pl';
+my $VERSION = 2.3;
+my $config_file = '/usr/abills/libexec/config.pl';
 
 $conf{OS}=uc(`uname`);
 chop($conf{OS});
@@ -70,6 +70,7 @@ if(! -f $config_file ) {
       }
      
      #Print result
+     print "Configure.\n-----------------------------\n";
      while(my($k, $v) = each %mk_config ) {
      	 print "$k: $v\n";
       }
@@ -103,10 +104,12 @@ if(! -f $config_file ) {
          my $proc_list = `ps ax`;
          print $proc_list if ($debug > 5);
 
-         if ($proc_list !~  /mysql/) {
-           print "MySQL Not running\n";
+
+         if ($proc_list !~  /mysqld/) {
+           print "MySQL Not running. Start configure mysql\n";
            check_install("mysql");
           }
+
 
          if ($conf{OS} eq 'FREEBSD') {
 
@@ -138,19 +141,25 @@ if(! -f $config_file ) {
         
          $res = `$mysql --default-character-set=$mk_config{dbcharset} -u $mysql_root_user --password=$mysql_root_passwd -e "select version();"`; 
          if ($res !~ /Unknown database/) {
-           if (confirm_yn("Your DB not configure for ABillS using. Configure? ", "y")) {
-              print "Make users\n";
-              my $add_mysql_user = "USE mysql;".
+           my $add_mysql_user = "USE mysql;".
                  "INSERT INTO user (Host, User, Password) VALUES ('$mk_config{dbhost}','$mk_config{dbuser}', password('$mk_config{dbpasswd}'));".
-                 "INSERT INTO db (Host, Db, User, Select_priv, Insert_priv, Update_priv, Delete_priv, Create_priv, Drop_priv, Index_priv, Alter_priv, Lock_tables_priv, Create_tmp_table_priv) VALUES ('$mk_config{dbhost}', '$mk_config{dbname}', '$mk_config{dbuser}', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y'); ".
+                 "INSERT INTO db (Host, Db, User, Select_priv, Insert_priv, Update_priv, Delete_priv, Create_priv, Drop_priv, Index_priv, Alter_priv, Lock_tables_priv, Create_tmp_table_priv, Trigger_priv,Create_view_priv, Show_view_priv) VALUES ('$mk_config{dbhost}', '$mk_config{dbname}', '$mk_config{dbuser}', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y'); ".
                  "CREATE DATABASE $mk_config{dbname} DEFAULT CHARACTER SET cp1251 COLLATE cp1251_general_ci;".
                  "flush privileges;";
+
+           if (confirm_yn("Your DB not configure for ABillS using. Configure? ", "y")) {
+              print "Make users\n";
 
               $res = `$mysql --default-character-set=$mk_config{dbcharset} -u $mysql_root_user --password='$mysql_root_passwd' -e "$add_mysql_user"`;
               print $res;
               print "Upload Main Dump and modules\n";
               $res = `$mysql --default-character-set=$mk_config{dbcharset} -u $mysql_root_user --default-character-set=$mk_config{dbcharset} --password='$mysql_root_passwd' -D $mk_config{dbname} < ../abills.sql`;
             } 
+           elsif(confirm_yn("Show MySQL configure Settings? ", "y")) {
+           	 print "----------------------------------------------------------\n".
+           	 "$add_mysql_user\n".
+           	 "----------------------------------------------------------\n";
+            }
           }
          else {
            print $res;
@@ -385,8 +394,26 @@ sub check_install {
  		my $param_name = '' ;
  		my $param_value = '';
     if ($param) {
-      ($param_name, $param_value)=split(/=/, $param, 2);
+    	 my @param_arr = split(/,/, $param);
+    	 foreach my $p (@param_arr) {
+         my ($param_name_tmp, $param_value_tmp)=split(/=/, $p, 2);
+         
+         if ($param_name_tmp =~ /^!(\S+)/) {
+           my $val =  $1;
+           if ($ARGV->{$val}) {
+           	 next;
+         	  }
+          }
+         else {
+        	 $param_name  = $param_name_tmp;
+         	 $param_value = $param_value_tmp;
+         	}
+
+        }
      }
+
+    delete $ARGV->{$param_name}  if ($param_value =~ /^!/);    
+    
 
     if ((defined($ARGV->{$param_name}) && $ARGV->{$param_name} eq $param_value)) {
       $config_body = "$value\n";
@@ -411,6 +438,8 @@ sub check_install {
     else {
     	$exec_cmd = $config_body;
      }
+
+
 
     $exec_cmd = _parse($exec_cmd, \%DEFAULT_VALUE, \%DEFAULT_DESCRIBE); 
     my $exec_file = '';
@@ -452,7 +481,10 @@ sub check_install {
       my @params_arr = split(/,/, $params);
       foreach my $param ( @params_arr ) {
         my ($param_name2, $param_value2)=split(/=/, $param, 2);
+        print "'$param_name2', $param_value2 \n";
+        
         if ($param_name2 =~ /^!/) {
+        	print "aaaa";
         	$EXCLUDE_PARAMS_HASH{$param_name2}=$param_value2;
          }
         else {
@@ -825,7 +857,9 @@ sub system_conf {
 #   'pppoed_interface,em1,',
 
    'ntpdate_enable,YES,',
+   'ntpdate_flags,europe.pool.ntp.org',
    'named_enable,YES,',
+   
    );
 
 #Makwe interface config
@@ -877,5 +911,15 @@ foreach my $line (@arr) {
 	return 0;
 }
 
+
+
+#**********************************************************
+#
+#**********************************************************
+sub other_options {
+	
+	#ntpdate_flags="europe.pool.ntp.org"
+  #ntpdate_enable="YES"
+}
 
 1

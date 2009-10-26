@@ -99,7 +99,8 @@ sub user_info {
    voip.allow_answer,
    voip.allow_calls,
    voip.cid,
-   voip.logins
+   voip.logins,
+   tarif_plans.tp_id
      FROM voip_main voip
      LEFT JOIN voip_tps tp ON (voip.tp_id=tp.id)
      LEFT JOIN tarif_plans ON (tarif_plans.id=tp.id)
@@ -122,7 +123,8 @@ sub user_info {
    $self->{ALLOW_CALLS},
    $self->{CID},
    $self->{SIMULTANEOUSLY},
-   $self->{REGISTRATION}
+   $self->{REGISTRATION},
+   $self->{TP_NUM}
 
   )= @{ $self->{list}->[0] };
   
@@ -224,7 +226,7 @@ sub user_del {
   my ($attr) = @_;
 
   $self->query($db, "DELETE from voip_main WHERE uid='$self->{UID}';", 'do');
-  $admin->action_add($self->{UID}, "DELETE $self->{UID}");
+  $admin->action_add($self->{UID}, "$self->{UID}", { TYPE => 10 });
 
   return $self->{result};
 }
@@ -275,8 +277,7 @@ sub user_list {
      LEFT JOIN voip_log l ON  (l.uid=u.uid) 
      WHERE  
         u.bill_id=b.id
-        and (b.deposit+u.credit-tp.credit_tresshold<=0
-        and tp.hourp+tp.df+tp.abon>=0)
+        and (b.deposit+u.credit-tp.credit_tresshold<=0)
         or (
         (u.expire<>'0000-00-00' and u.expire < CURDATE())
         AND (u.activate<>'0000-00-00' and u.activate > CURDATE())
@@ -710,15 +711,16 @@ sub tp_list() {
   my $self = shift;
   my ($attr) = @_;
 
- my $WHERE = 'WHERE tp.id=voip.id';
+ my $WHERE = 'WHERE tp.tp_id=voip.id';
 
  $self->query($db, "SELECT tp.id, tp.name, if(sum(i.tarif) is NULL or sum(i.tarif)=0, 0, 1), 
     tp.payment_type,
     tp.day_fee, tp.month_fee, 
     tp.logins, 
-    tp.age
+    tp.age,
+    tp.tp_id
     FROM (tarif_plans tp, voip_tps voip)
-    LEFT JOIN intervals i ON (i.tp_id=tp.id)
+    LEFT JOIN intervals i ON (i.tp_id=tp.tp_id)
     $WHERE
     GROUP BY tp.id
     ORDER BY $SORT $DESC;");
@@ -781,10 +783,13 @@ sub tp_add {
 
   $tariffs->add({ %$attr });
 
+  $tariffs->{TP_ID} = $tariffs->{INSERT_ID};
+
   if (defined($tariffs->{errno})) {
   	$self->{errno} = $tariffs->{errno};
   	return $self;
   }
+
   my $DATA = tp_defaults();
 
 
@@ -808,7 +813,7 @@ sub tp_add {
      next_period_step,
      free_time
      )
-    values ('$DATA{TP_ID}', 
+    values ('$tariffs->{TP_ID}', 
   '$DATA{RAD_PAIRS}', 
   '$DATA{MAX_SESSION_DURATION}', 
   '$DATA{MIN_SESSION_COST}', 
@@ -858,11 +863,11 @@ sub tp_change {
             FREE_TIME            => 'free_time'
          );   
 
-  if ($tp_id != $attr->{CHG_TP_ID}) {
-  	 $FIELDS{CHG_TP_ID}='id';
-  	 
-
-   }
+  #if ($tp_id != $attr->{CHG_TP_ID}) {
+  #	 $FIELDS{CHG_TP_ID}='id';
+  #	 
+  #
+  # }
 
 	$self->changes($admin, { CHANGE_PARAM => 'TP_ID',
 		                TABLE        => 'voip_tps',
@@ -872,9 +877,9 @@ sub tp_change {
 		              } );
 
 
-  if ($tp_id != $attr->{CHG_TP_ID}) {
-  	 $attr->{TP_ID} = $attr->{CHG_TP_ID};
-   }
+  #if ($tp_id != $attr->{CHG_TP_ID}) {
+  #	 $attr->{TP_ID} = $attr->{CHG_TP_ID};
+  # }
 
   
   $self->tp_info($tp_id);
@@ -904,6 +909,8 @@ sub tp_info {
   my ($id, $attr) = @_;
   
   
+  $self = $tariffs->info($attr->{TP_ID});
+  
   if ($attr->{CHG_TP_ID}) {
     $self = $tariffs->info($attr->{CHG_TP_ID});
    }
@@ -916,19 +923,24 @@ sub tp_info {
   }
 
 
-  $self->query($db, "SELECT id, 
-      day_time_limit, week_time_limit,  month_time_limit, 
-      max_session_duration,
-      min_session_cost,
-      rad_pairs,
-     first_period,
-     first_period_step,
-     next_period,
-     next_period_step,
-     free_time
+  $self->query($db, "SELECT tp.id, 
+      voip.day_time_limit, 
+      voip.week_time_limit,  
+      voip.month_time_limit, 
+      voip.max_session_duration,
+      voip.min_session_cost,
+      voip.rad_pairs,
+     voip.first_period,
+     voip.first_period_step,
+     voip.next_period,
+     voip.next_period_step,
+     voip.free_time,
+     voip.id
 
-    FROM voip_tps
-    WHERE id='$id';");
+    FROM (voip_tps voip, tarif_plans tp)
+    WHERE 
+    voip.id=tp.tp_id AND
+    voip.id='$id';");
 
   if ($self->{TOTAL} < 1) {
      $self->{errno} = 2;
@@ -937,7 +949,7 @@ sub tp_info {
    }
 
  
-  ($self->{TP_ID}, 
+  ($self->{ID}, 
    $self->{DAY_TIME_LIMIT}, 
    $self->{WEEK_TIME_LIMIT}, 
    $self->{MONTH_TIME_LIMIT}, 
@@ -948,7 +960,8 @@ sub tp_info {
    $self->{FIRST_PERIOD_STEP},
    $self->{NEXT_PERIOD},
    $self->{NEXT_PERIOD_STEP},
-   $self->{FREE_TIME}
+   $self->{FREE_TIME},
+   $self->{TP_ID}
 
   ) = @{ $self->{list}->[0] };
 

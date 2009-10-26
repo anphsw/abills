@@ -2,11 +2,18 @@
 <INPUT type='hidden' name='index' value='$index'>
 <INPUT type='hidden' name='ABON_ID' value='$FORM{ABON_ID}'>
 <table>
-<tr><td>$_NAME:</td><td><input type='text' name='NAME' value='%NAME%'></td></tr>
-<tr><td>$_SUM:</td><td><input type='text' name='SUM' value='%SUM%'></td></tr>
+<tr><th colspan=2 class=form_title>%ACTION_LNG% $_ABON</th></tr>
+<tr><td>$_NAME:</td><td><input type='text' name='NAME' value='%NAME%' size=45></td></tr>
+<tr><td>$_SUM:</td><td><input type='text' name='SUM' value='%SUM%' size=10></td></tr>
 <tr><td>$_PERIOD:</td><td>%PERIOD_SEL%</td></tr>
 <tr><td>$_PAYMENT_TYPE:</td><td>%PAYMENT_TYPE_SEL%</td></tr>
+<tr><td>$_NONFIX_PERIOD:</td><td><input type='checkbox' name='NONFIX_PERIOD' value='1' %NONFIX_PERIOD%></td></tr>
+
 <tr><td>$_MONTH_ALIGNMENT:</td><td><input type=checkbox name=PERIOD_ALIGNMENT value=1 %PERIOD_ALIGNMENT%></td></tr>
+
+%EXT_BILL_ACCOUNT%
+
+
 <!-- <tr><td>$_DATE:</td><td></td></tr> -->
 </table>
 

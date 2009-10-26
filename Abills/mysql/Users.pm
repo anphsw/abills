@@ -28,16 +28,18 @@ my %PI_FIELDS = (EMAIL          => 'email',
               ADDRESS_BUILD  => 'address_build',
               ADDRESS_STREET => 'address_street',
               ADDRESS_FLAT   => 'address_flat',
+              ZIP            => 'zip',
+              CITY           => 'city',
               COMMENTS       => 'comments',
               UID            => 'uid',
               CONTRACT_ID    => 'contract_id',
               CONTRACT_DATE  => 'contract_date',
+              CONTRACT_SUFIX => 'contract_sufix',
               PASPORT_NUM    => 'pasport_num',
               PASPORT_DATE   => 'pasport_date',
               PASPORT_GRANT  => 'pasport_grant',
-              ZIP            => 'zip',
-              CITY           => 'city',
-              ACCEPT_RULES   => 'accept_rules'
+              ACCEPT_RULES   => 'accept_rules',
+              
              );
 
 
@@ -125,6 +127,7 @@ sub info {
    if(u.company_id > 0, c.ext_bill_id, u.ext_bill_id),
    u.credit_date,
    if(c.name IS NULL, 0, c.credit),
+   u.domain_id,
    $password
      FROM users u
      LEFT JOIN bills b ON (u.bill_id=b.id)
@@ -159,6 +162,7 @@ sub info {
    $self->{EXT_BILL_ID},
    $self->{CREDIT_DATE},
    $self->{COMPANY_CREDIT},
+   $self->{DOMAIN_ID},
    $self->{PASSWORD}
  )= @{ $self->{list}->[0] };
  
@@ -202,7 +206,8 @@ sub defaults_pi {
    PASPORT_GRANT  => '',
    ZIP            => '',
    CITY           => '',
-   CREDIT_DATE    => '0000-00-00'
+   CREDIT_DATE    => '0000-00-00',
+   ACCEPT_RULES   => 0
   );
  
   $self = \%DATA;
@@ -220,7 +225,7 @@ sub pi_add {
   %DATA = $self->get_data($attr, { default => defaults_pi()   }); 
   
   if($DATA{EMAIL} ne '') {
-    if ($DATA{EMAIL} !~ /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/) {
+    if ($DATA{EMAIL} !~ /(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))/) {
       $self->{errno} = 11;
       $self->{errstr} = 'ERROR_WRONG_EMAIL';
       return $self;
@@ -256,9 +261,20 @@ sub pi_add {
     $info_fields_val = ', '. join(', ', @info_fields_val) if ($#info_fields_arr > -1);
    }
 
+  my ($prefix, $sufix); 
+  if ($attr->{CONTRACT_TYPE}) {
+  	($prefix, $sufix)=split(/\|/, $attr->{CONTRACT_TYPE});
+  	
+ 	
+  	#$self->query($db,  "SET \@CONTRACT_PREFIX:='$prefix';") if ($prefix);
+  	#$self->query($db,  "SET \@CONTRACT_SUFIX:='$sufix';") if ($sufix);
+   }
+
+
   $self->query($db,  "INSERT INTO users_pi (uid, fio, phone, address_street, address_build, address_flat, 
           email, contract_id, contract_date, comments, pasport_num, pasport_date,  pasport_grant, zip, 
-          city, accept_rules $info_fields)
+          city, accept_rules, contract_sufix
+           $info_fields)
            VALUES ('$DATA{UID}', '$DATA{FIO}', '$DATA{PHONE}', \"$DATA{ADDRESS_STREET}\", 
             \"$DATA{ADDRESS_BUILD}\", \"$DATA{ADDRESS_FLAT}\",
             '$DATA{EMAIL}', '$DATA{CONTRACT_ID}', '$DATA{CONTRACT_DATE}',
@@ -268,12 +284,13 @@ sub pi_add {
             '$DATA{PASPORT_GRANT}',
             '$DATA{ZIP}',
             '$DATA{CITY}',
-            '$DATA{ACCEPT_RULES}'
+            '$DATA{ACCEPT_RULES}',
+            '$sufix'
             $info_fields_val );", 'do');
   
   return $self if ($self->{errno});
   
-  $admin->action_add("$DATA{UID}", "ADD PIf");
+  $admin->action_add("$DATA{UID}", "ADD PI");
   return $self;
 }
 
@@ -389,6 +406,7 @@ sub pi {
   pi.email,  
   pi.contract_id,
   pi.contract_date,
+  pi.contract_sufix,
   pi.comments,
   pi.pasport_num,
   pi.pasport_date,
@@ -416,6 +434,7 @@ sub pi {
    $self->{EMAIL}, 
    $self->{CONTRACT_ID},
    $self->{CONTRACT_DATE},
+   $self->{CONTRACT_SUFIX},
    $self->{COMMENTS},
    $self->{PASPORT_NUM},
    $self->{PASPORT_DATE},
@@ -430,6 +449,7 @@ sub pi {
 
   my $i = 0;
   foreach my $val (@INFO_ARR) {
+  	$self->{$info_fields_arr[$i]}=$val;
   	$self->{'INFO_FIELDS_VAL_'.$i}=$val;
   	$i++;
    }
@@ -461,6 +481,12 @@ sub pi_change {
      }
    }
 
+  my ($prefix, $sufix); 
+  if ($attr->{CONTRACT_TYPE}) {
+  	($prefix, $sufix)=split(/\|/, $attr->{CONTRACT_TYPE});
+  	$attr->{CONTRACT_SUFIX}=$sufix;
+   }
+
 	$self->changes($admin, { CHANGE_PARAM => 'UID',
 		                TABLE        => 'users_pi',
 		                FIELDS       => \%PI_FIELDS,
@@ -483,6 +509,7 @@ sub defaults {
    ACTIVATE       => '0000-00-00', 
    EXPIRE         => '0000-00-00', 
    CREDIT         => 0, 
+   CREDIT_DATE    => '0000-00-00',
    REDUCTION      => '0.00', 
    SIMULTANEONSLY => 0, 
    DISABLE        => 0, 
@@ -491,7 +518,10 @@ sub defaults {
    DISABLE        => 0,
    PASSWORD       => '',
    BILL_ID        => 0,
-   EXT_BILL_ID    => 0);
+   EXT_BILL_ID    => 0,
+   DOMAIN_ID      => 0
+   
+   );
  
   $self = \%DATA;
   return $self;
@@ -516,10 +546,17 @@ sub groups_list {
     push @WHERE_RULES, "g.gid='$attr->{GID}'";
   }
 
+ my $USERS_WHERE = '';
+ if ($admin->{DOMAIN_ID}) {
+    push @WHERE_RULES, "g.domain_id='$admin->{DOMAIN_ID}'";
+    $USERS_WHERE = "AND u.domain_id='$admin->{DOMAIN_ID}'";
+  }
+
+
  my $WHERE = ($#WHERE_RULES > -1) ?  "WHERE " . join(' and ', @WHERE_RULES) : ''; 
  
- $self->query($db, "select g.gid, g.name, g.descr, count(u.uid) FROM groups g
-        LEFT JOIN users u ON  (u.gid=g.gid) 
+ $self->query($db, "select g.gid, g.name, g.descr, count(u.uid), g.domain_id FROM groups g
+        LEFT JOIN users u ON  (u.gid=g.gid $USERS_WHERE) 
         $WHERE
         GROUP BY g.gid
         ORDER BY $SORT $DESC");
@@ -542,7 +579,7 @@ sub group_info {
  my $self = shift;
  my ($gid) = @_;
  
- $self->query($db, "select g.name, g.descr FROM groups g WHERE g.gid='$gid';");
+ $self->query($db, "select g.name, g.descr, g.domain_id FROM groups g WHERE g.gid='$gid';");
 
  return $self if ($self->{errno} || $self->{TOTAL} < 1);
 
@@ -564,14 +601,16 @@ sub group_change {
  my %FIELDS = (GID        => 'gid',
                G_NAME     => 'name',
                G_DESCRIBE => 'descr',
-               CHG        => 'gid');
+               CHG        => 'gid',
+               );
 
  $attr->{CHG}=$gid;
  $self->changes($admin, { CHANGE_PARAM => 'CHG',
 		               TABLE        => 'groups',
 		               FIELDS       => \%FIELDS,
 		               OLD_INFO     => $self->group_info($gid),
-		               DATA         => $attr
+		               DATA         => $attr,
+		               EXT_CHANGE_INFO  => "GID:$gid"
 		              } );
 
 
@@ -588,9 +627,13 @@ sub group_add {
  my ($attr) = @_;
 
  %DATA = $self->get_data($attr); 
- $self->query($db, "INSERT INTO groups (gid, name, descr)
-    values ('$DATA{GID}', '$DATA{G_NAME}', '$DATA{G_DESCRIBE}');", 'do');
+ 
+ $self->query($db, "INSERT INTO groups (gid, name, descr, domain_id)
+    values ('$DATA{GID}', '$DATA{G_NAME}', '$DATA{G_DESCRIBE}', '$admin->{DOMAIN_ID}');", 'do');
 
+
+ $admin->system_action_add("GID:$DATA{GID}", { TYPE => 1 });    
+ 
  return $self;
 }
 
@@ -604,6 +647,8 @@ sub group_del {
  my ($id) = @_;
 
  $self->query($db, "DELETE FROM groups WHERE gid='$id';", 'do');
+ 
+ $admin->system_action_add("GID:$id", { TYPE => 10 });    
  return $self;
 }
 
@@ -646,8 +691,7 @@ sub list {
   }
  # Login expresion
  elsif ($attr->{LOGIN_EXPR}) {
-    $attr->{LOGIN_EXPR} =~ s/\*/\%/ig;
-    push @WHERE_RULES, "u.id LIKE '$attr->{LOGIN_EXPR}'";
+   push @WHERE_RULES, @{ $self->search_expr($attr->{LOGIN_EXPR}, 'STR', 'u.id') };
   }
  elsif ($attr->{UID}) {
    push @WHERE_RULES, @{ $self->search_expr($attr->{UID}, 'INT', 'u.uid', { EXT_FIELD => 1 }) };
@@ -725,6 +769,13 @@ sub list {
    push @WHERE_RULES, @{ $self->search_expr("$attr->{CONTRACT_DATE}", 'INT', 'pi.contract_date', { EXT_FIELD => 1 }) };
   }
 
+ if (defined($admin->{DOMAIN_ID})) {
+ 	 push @WHERE_RULES, @{ $self->search_expr("$admin->{DOMAIN_ID}", 'INT', 'u.domain_id', { EXT_FIELD => 1 }) };
+  }
+ elsif ($attr->{DOMAIN_ID}) {
+   push @WHERE_RULES, @{ $self->search_expr("$attr->{DOMAIN_ID}", 'INT', 'u.domain_id', { EXT_FIELD => 1 }) };
+  }
+
 
  if ($attr->{REGISTRATION}) {
    push @WHERE_RULES, @{ $self->search_expr("$attr->{REGISTRATION}", 'INT', 'u.registration', { EXT_FIELD => 1 }) };
@@ -767,7 +818,7 @@ sub list {
  if ($attr->{GIDS}) {
    push @WHERE_RULES, "u.gid IN ($attr->{GIDS})";
   }
- elsif (defined($attr->{GID}) && $attr->{GID} >= 0) {
+ elsif (defined($attr->{GID}) && $attr->{GID} ne '') {
    push @WHERE_RULES,  @{ $self->search_expr($attr->{GID}, 'INT', 'u.gid', { EXT_FIELD => 1 }) };
   }
 
@@ -778,7 +829,7 @@ sub list {
  }
 
 #DIsable
- if (defined($attr->{DISABLE})) {
+ if (defined($attr->{DISABLE}) && $attr->{DISABLE} ne '') {
    push @WHERE_RULES, "u.disable='$attr->{DISABLE}'"; 
   }
 
@@ -968,6 +1019,7 @@ sub add {
   
   my %DATA = $self->get_data($attr, { default => defaults() }); 
 
+
   if (! defined($DATA{LOGIN})) {
      $self->{errno} = 8;
      $self->{errstr} = 'ERROR_ENTER_NAME';
@@ -993,22 +1045,21 @@ sub add {
      }
    }
   
-  
   $DATA{DISABLE} = int($DATA{DISABLE});
   $self->query($db,  "INSERT INTO users (id, activate, expire, credit, reduction, 
-           registration, disable, company_id, gid, password, credit_date)
+           registration, disable, company_id, gid, password, credit_date, domain_id)
            VALUES ('$DATA{LOGIN}', '$DATA{ACTIVATE}', '$DATA{EXPIRE}', '$DATA{CREDIT}', '$DATA{REDUCTION}', 
            now(),  '$DATA{DISABLE}', 
            '$DATA{COMPANY_ID}', '$DATA{GID}', 
-           ENCODE('$DATA{PASSWORD}', '$CONF->{secretkey}'), '$DATA{CREDIT_DATE}'
+           ENCODE('$DATA{PASSWORD}', '$CONF->{secretkey}'), '$DATA{CREDIT_DATE}', '$admin->{DOMAIN_ID}'
            );", 'do');
   
   return $self if ($self->{errno});
   
-  $self->{UID} = $self->{INSERT_ID};
+  $self->{UID}   = $self->{INSERT_ID};
   $self->{LOGIN} = $DATA{LOGIN};
 
-  $admin->action_add("$self->{UID}", "ADD $DATA{LOGIN}");
+  $admin->action_add("$self->{UID}", "LOGIN:$DATA{LOGIN}", { TYPE => 7 });
 
   if ($attr->{CREATE_BILL}) {
   	#print "create bill";
@@ -1047,8 +1098,16 @@ sub change {
               PASSWORD    => 'password',
               BILL_ID     => 'bill_id',
               EXT_BILL_ID => 'ext_bill_id',
-              CREDIT_DATE => 'credit_date'
+              CREDIT_DATE => 'credit_date',
+              DOMAIN_ID   => 'domain_id',
              );
+
+
+  #$attr->{CREDIT}=undef if ($attr->{CREDIT} && $attr->{CREDIT} <= 0);
+
+  
+
+  #$self->{debug}=1;
 
   my $old_info = $self->info($attr->{UID});
   
@@ -1086,15 +1145,13 @@ sub change {
          $self->{errstr} =  $Bill->{errstr};
          return $self;
         }
-       #$DATA{BILL_ID}=$Bill->{BILL_ID};
        $attr->{EXT_BILL_ID}=$Bill->{BILL_ID};
    }
  
   #Make extrafields use
  
-  
- 
- 
+
+  $admin->{MODULE}='';
 	$self->changes($admin, { CHANGE_PARAM => 'UID',
 		                TABLE        => 'users',
 		                FIELDS       => \%FIELDS,
@@ -1132,7 +1189,7 @@ sub del {
      $self->{info} .= "$table, ";
     }
 
-  $admin->action_add($self->{UID}, "DELETE $self->{UID}:$self->{LOGIN}");
+  $admin->action_add($self->{UID}, "DELETE $self->{UID}:$self->{LOGIN}", {  TYPE => 12 });
   return $self->{result};
 }
 
@@ -1255,9 +1312,18 @@ sub bruteforce_list {
 sub bruteforce_del {
   my $self = shift;	
 	my ($attr) = @_;
+
+  my $WHERE = "";
+
+  if ($attr->{DATE}) {
+  	$WHERE = "datetime < $attr->{DATE}";
+   }
+	else {
+		$WHERE = "login='$attr->{LOGIN}'";
+	 }
 	
   $self->query($db,  "DELETE FROM users_bruteforce
-	 WHERE login='$attr->{LOGIN}';", 'do');
+	 WHERE $WHERE;", 'do');
 
 	return $self;
 }
@@ -1586,12 +1652,12 @@ sub config_info {
  my $self = shift;
  my ($attr) = @_;
  
- $self->query($db, "select param, info FROM config WHERE param='$attr->{PARAM}';");
+ $self->query($db, "select param, value FROM config WHERE param='$attr->{PARAM}';");
 
  return $self if ($self->{errno} || $self->{TOTAL} < 1);
 
  ($self->{PARAM},
- 	$self->{NAME}) = @{ $self->{list}->[0] };
+ 	$self->{VALUE}) = @{ $self->{list}->[0] };
 
  return $self;
 }
@@ -1643,6 +1709,8 @@ sub config_del {
  $self->query($db, "DELETE FROM config WHERE param='$id';", 'do');
  return $self;
 }
+
+
 
 
 

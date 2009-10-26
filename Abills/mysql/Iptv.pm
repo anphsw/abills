@@ -78,7 +78,6 @@ sub user_info {
   
   $WHERE =  "WHERE service.uid='$uid'";
   
-  
   $self->query($db, "SELECT service.uid, service.tp_id, 
    tp.name, 
    service.filter_id, 
@@ -86,8 +85,12 @@ sub user_info {
    service.disable,
    tp.gid,
    tp.month_fee,
+   tp.day_fee,
    tp.postpaid_monthly_fee,
-   tp.payment_type
+   tp.payment_type,
+   tp.period_alignment
+   
+   
      FROM iptv_main service
      LEFT JOIN tarif_plans tp ON (service.tp_id=tp.id)
    $WHERE;");
@@ -102,13 +105,15 @@ sub user_info {
   ($self->{UID},
    $self->{TP_ID}, 
    $self->{TP_NAME}, 
+   $self->{CID}, 
    $self->{FILTER_ID}, 
    $self->{STATUS},
    $self->{TP_GID},
    $self->{MONTH_ABON},
+   $self->{DAY_ABON},
    $self->{POSTPAID_ABON}, 
    $self->{PAYMENT_TYPE},
-   $self->{JOIN_SERVICE}
+   $self->{PERIOD_ALIGNMENT},
   )= @{ $self->{list}->[0] };
   
   
@@ -158,7 +163,6 @@ sub user_add {
      my $tariffs = Tariffs->new($db, $CONF, $admin);
 
      $self->{TP_INFO}=$tariffs->info($DATA{TP_ID});
-     
 
      #Take activation price
      if($tariffs->{ACTIV_PRICE} > 0) {
@@ -193,7 +197,9 @@ sub user_add {
          );", 'do');
 
   return $self if ($self->{errno});
-  $admin->action_add("$DATA{UID}", "ACTIVE");
+
+  $admin->action_add("$DATA{UID}", "", { TYPE => 1 });
+
   return $self;
 }
 
@@ -230,6 +236,8 @@ sub user_change {
 
      $self->{TP_INFO}=$tariffs->info($attr->{TP_ID});
      
+     
+    
      my $user = Users->new($db, $admin, $CONF);
 
      $user->info($attr->{UID});
@@ -303,7 +311,7 @@ sub user_del {
 
   $self->query($db, "DELETE from iptv_main WHERE uid='$self->{UID}';", 'do');
 
-  $admin->action_add($self->{UID}, "DELETE");
+  $admin->action_add($self->{UID}, "$self->{UID}", { TYPE => 10 });
   return $self->{result};
 }
 
@@ -391,38 +399,6 @@ sub user_list {
   }
  
 
-# if ($attr->{IP}) {
-#    if ($attr->{IP} =~ m/\*/g) {
-#      my ($i, $first_ip, $last_ip);
-#      my @p = split(/\./, $attr->{IP});
-#      for ($i=0; $i<4; $i++) {
-#
-#         if ($p[$i] eq '*') {
-#           $first_ip .= '0';
-#           $last_ip .= '255';
-#          }
-#         else {
-#           $first_ip .= $p[$i];
-#           $last_ip .= $p[$i];
-#          }
-#         if ($i != 3) {
-#           $first_ip .= '.';
-#           $last_ip .= '.';
-#          }
-#       }
-#      push @WHERE_RULES, "(dv.ip>=INET_ATON('$first_ip') and dv.ip<=INET_ATON('$last_ip'))";
-#     }
-#    else {
-#      my $value = $self->search_expr($attr->{IP}, 'IP');
-#      push @WHERE_RULES, "dv.ip$value";
-#    }
-#
-#    $self->{SEARCH_FIELDS} = 'INET_NTOA(dv.ip), ';
-#    $self->{SEARCH_FIELDS_COUNT}++;
-#  }
-
-
-
  if ($attr->{DEPOSIT}) {
     my $value = $self->search_expr($attr->{DEPOSIT}, 'INT');
     push @WHERE_RULES, "u.deposit$value";
@@ -495,9 +471,59 @@ sub user_list {
  if (defined($attr->{LOGIN_STATUS})) {
    push @WHERE_RULES, "u.disable='$attr->{LOGIN_STATUS}'"; 
   }
+ 
+ if ($attr->{MONTH_PRICE}) {
+   push @WHERE_RULES, @{ $self->search_expr("$attr->{MONTH_PRICE}", 'INT', 'ti_c.month_price') };
+  }
+
 
  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
+
+
+my $list;
+
+if ($attr->{SHOW_CHANNELS}) {
+  	$self->query($db, "SELECT  u.id, 
+        if(u.company_id > 0, cb.deposit, b.deposit), 
+        u.credit, 
+        tp.name, 
+        $self->{SEARCH_FIELDS}
+        u.uid, 
+        u.company_id, 
+        service.tp_id, 
+        u.activate, 
+        u.expire, 
+        if(u.company_id > 0, company.bill_id, u.bill_id),
+        u.reduction,
+        if(u.company_id > 0, company.ext_bill_id, u.ext_bill_id),
+        ti_c.channel_id, 
+        c.num,
+        c.name,
+        ti_c.month_price 
+   from (intervals i, 
+     iptv_ti_channels ti_c,
+     users u,
+     iptv_main service,
+     iptv_users_channels uc,
+     iptv_channels c)
+    
+     LEFT JOIN tarif_plans tp ON (tp.id=service.tp_id) 
+     LEFT JOIN bills b ON (u.bill_id = b.id)
+     LEFT JOIN companies company ON  (u.company_id=company.id) 
+     LEFT JOIN bills cb ON  (company.bill_id=cb.id)
+$WHERE 
+  AND i.id=ti_c.interval_id
+  AND uc.channel_id=c.id
+  AND u.uid=uc.uid
+  AND ti_c.channel_id=uc.channel_id
+GROUP BY uc.uid, channel_id
+ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;");
+
+
+ $list = $self->{list};
  
+ }
+else { 
  $self->query($db, "SELECT u.id, 
       pi.fio, if(u.company_id > 0, cb.deposit, b.deposit), 
       u.credit, 
@@ -525,18 +551,55 @@ sub user_list {
 
  return $self if($self->{errno});
 
- my $list = $self->{list};
+ $list = $self->{list};
 
  if ($self->{TOTAL} >= 0) {
     $self->query($db, "SELECT count(u.id) FROM (users u, iptv_main service) $WHERE");
     ($self->{TOTAL}) = @{ $self->{list}->[0] };
    }
+}
+
 
   return $list;
 }
 
 
 
+
+#**********************************************************
+# User information
+# info()
+#**********************************************************
+sub user_tp_channels_list {
+	my $self = shift;
+  my ($attr) = @_;
+
+  @WHERE_RULES = ();
+  
+  #DIsable
+ if (defined($attr->{STATUS})) {
+   push @WHERE_RULES, "service.disable='$attr->{STATUS}'"; 
+ }
+ 
+ if (defined($attr->{LOGIN_STATUS})) {
+   push @WHERE_RULES, "u.disable='$attr->{LOGIN_STATUS}'"; 
+  }
+  
+  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
+	
+
+
+ return $self if($self->{errno});
+
+ my $list = $self->{list};
+
+ if ($self->{TOTAL} >= 0) {
+    $self->query($db, "SELECT count(u.id) FROM (users u, iptv_main service) $WHERE");
+    ($self->{TOTAL}) = @{ $self->{list}->[0] };
+   }
+	
+	return $self->{list};
+}
 
 #**********************************************************
 # User information
@@ -800,8 +863,43 @@ sub tp_defaults {
 
 
 
+#**********************************************************
+# add()
+#**********************************************************
+sub user_channels {
+  my $self = shift;
+  my ($attr) = @_;
+  
+  my %DATA = $self->get_data($attr); 
 
 
+  $self->query($db,  "DELETE FROM iptv_users_channels WHERE uid='$DATA{UID}'", 'do'),
+
+  my @ids = split(/, /, $attr->{IDS});
+
+  foreach my $id (@ids) {
+    $self->query($db,  "INSERT INTO iptv_users_channels 
+     ( uid, tp_id, channel_id, changed)
+        VALUES ( '$DATA{UID}',  '$DATA{TP_ID}', '$id', now());", 'do');
+   }
+  
+  return $self;
+}
+
+
+#**********************************************************
+# add()
+#**********************************************************
+sub user_channels_list {
+  my $self = shift;
+  my ($attr) = @_;
+  
+  $self->query($db,  "SELECT uid, tp_id, channel_id, changed FROM iptv_users_channels 
+     WHERE tp_id='$attr->{TP_ID}' and uid='$attr->{UID}';");
+  
+  $self->{USER_CHANNELS} = $self->{TOTAL};
+  return $self->{list};
+}
 
 
 
@@ -821,8 +919,9 @@ sub channel_ti_change {
 
   foreach my $id (@ids) {
     $self->query($db,  "INSERT INTO iptv_ti_channels 
-     ( interval_id, channel_id)
-        VALUES ( '$DATA{INTERVAL_ID}',  '$id');", 'do');
+     ( interval_id, channel_id, month_price, day_price, mandatory)
+        VALUES ( '$DATA{INTERVAL_ID}',  '$id', '". $DATA{'MONTH_PRICE_'.$id} ."', 
+        '". $DATA{'DAY_PRICE_'.$id}."', '". $DATA{'MANDATORY_'.$id}."');", 'do');
    }
 
   return $self if ($self->{errno});
@@ -842,6 +941,8 @@ sub channel_ti_list {
  my $self = shift;
  my ($attr) = @_;
  my @list = ();
+
+
 
  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -871,22 +972,32 @@ sub channel_ti_list {
     my $value = $self->search_expr($attr->{PORT}, 'INT');
     push @WHERE_RULES, "port$value";
   }
+ 
+ if ($attr->{IDS}) {
+   push @WHERE_RULES, @{ $self->search_expr($attr->{IDS}, 'INT', 'c.id') };
+  }
+
+ 
+ if ($attr->{INTERVAL_ID}) {
+   push @WHERE_RULES, @{ $self->search_expr($attr->{TI}, 'INT', 'ic.interval_id') };
+  }
+
+ if ($attr->{MANDATORY}) {
+   push @WHERE_RULES, @{ $self->search_expr($attr->{MANDATORY}, 'INT', 'ic.mandatory') };
+  }
+
 
 #DIsable
  if (defined($attr->{DISABLE})) {
    push @WHERE_RULES, "disable='$attr->{DISABLE}'"; 
  }
-
- if (defined($attr->{DISABLE})) {
-    push @WHERE_RULES, "disable='$attr->{DISABLE}'"; 
-  }
  
  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
  
  $self->query($db, "SELECT if (ic.channel_id IS NULL, 0, 1),
-   num, name,   comments, port,
-   disable, id
-     FROM iptv_channels
+   c.num, c.name,  c.comments, ic.month_price, ic.day_price, ic.mandatory, c.port,
+   c.disable, c.id
+     FROM iptv_channels c
      LEFT JOIN iptv_ti_channels ic ON (id=ic.channel_id and ic.interval_id='$attr->{TI}')
      $WHERE
      ORDER BY $SORT $DESC ;");
@@ -897,8 +1008,8 @@ sub channel_ti_list {
 
  if ($self->{TOTAL} >= 0) {
     $self->query($db, "SELECT count(*), sum(if (ic.channel_id IS NULL, 0, 1)) 
-     FROM iptv_channels
-     LEFT JOIN iptv_ti_channels ic ON (id=ic.channel_id and ic.interval_id='$attr->{TI}')
+     FROM iptv_channels c
+     LEFT JOIN iptv_ti_channels ic ON (c.id=ic.channel_id and ic.interval_id='$attr->{TI}')
      $WHERE
     ");
 
@@ -909,4 +1020,9 @@ sub channel_ti_list {
 }
 
 1
+
+
+
+
+
 

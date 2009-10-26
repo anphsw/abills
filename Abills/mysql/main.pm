@@ -113,8 +113,10 @@ sub query {
   $self->{errstr}=undef;
   $self->{errno}=undef;
   $self->{TOTAL} = 0;
+  #$self->{debug}=1;
   print "<p>$query</p>\n" if ($self->{debug});
 
+ 	 
   if (defined($attr->{test})) {
   	 return $self;
    }
@@ -147,7 +149,7 @@ if (defined($type) && $type eq 'do') {
   if (defined($db->{'mysql_insertid'})) {
   	 $self->{INSERT_ID} = $db->{'mysql_insertid'};
    }
-}
+ }
 else {
   #print $query;
   $q = $db->prepare($query); # || die $db->errstr;
@@ -269,6 +271,8 @@ sub search_expr {
  	 }	
  
   if ($value =~ s/;/,/g ) {
+  	my @val_arr     = split(/,/, $value);  
+  	$value = "'". join("', '", @val_arr) ."'";
   	return [ "$field IN ($value)" ];
    }
 
@@ -282,12 +286,16 @@ sub search_expr {
     if($type eq 'INT' && $v =~ s/\*//g) {
       $expr = '>';
      }
+    elsif ($v =~ s/^!//) {
+    	$expr = ' <> ';
+     }
     elsif ($type eq 'STR') {
     	$expr = ' LIKE ';
     	$v =~ s/\*/\%/g;
      }
     elsif ( $v =~ s/^([<>=]{1,2})// ) {
       $expr = $1;
+      
      }  
   
     if ($type eq 'IP') {
@@ -298,7 +306,7 @@ sub search_expr {
      }
 
     $value = $expr . $v;
-    
+   
     push @result_arr, "$field$value" if ($field);
    }
 
@@ -330,21 +338,27 @@ sub changes {
   my $self = shift;
   my ($admin, $attr) = @_;
 
+
   
   my $TABLE        = $attr->{TABLE};
   my $CHANGE_PARAM = $attr->{CHANGE_PARAM};
   my $FIELDS       = $attr->{FIELDS};
   my %DATA         = $self->get_data($attr->{DATA}); 
 
-  $DATA{DISABLE} = ($DATA{DISABLE}) ? 1 : 0;
+
+  if (! $DATA{UNCHANGE_DISABLE} ) {
+    $DATA{DISABLE} = (defined($DATA{DISABLE})) ? $DATA{DISABLE} : undef;
+   }
 
   if(defined($DATA{EMAIL}) && $DATA{EMAIL} ne '') {
-    if ($DATA{EMAIL} !~ /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/) {
+    if ($DATA{EMAIL} !~ /(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))/) {
       $self->{errno} = 11;
       $self->{errstr} = 'ERROR_WRONG_EMAIL';
       return $self;
      }
    }
+
+
 
   $OLD_DATA = $attr->{OLD_INFO}; #  $self->info($uid);
   if($OLD_DATA->{errno}) {
@@ -352,17 +366,18 @@ sub changes {
      $self->{errstr} = $OLD_DATA->{errstr};
      return $self;
    }
- 
-
 
   my $CHANGES_QUERY = "";
   my $CHANGES_LOG = "";
 
 
+
   while(my($k, $v)=each(%DATA)) {
-#  	print "$k, $v<br>\n";
+  	#print "$k, $v<br>\n";
     $OLD_DATA->{$k} = '' if (! $OLD_DATA->{$k});
     if (defined($FIELDS->{$k}) && $OLD_DATA->{$k} ne $DATA{$k}){
+    	
+    	  
         if ($k eq 'PASSWORD' || $k eq 'NAS_MNG_PASSWORD') {
           $CHANGES_LOG .= "$k *->*;";
           $CHANGES_QUERY .= "$FIELDS->{$k}=ENCODE('$DATA{$k}', '$CONF->{secretkey}'),";
@@ -372,11 +387,40 @@ sub changes {
             $DATA{$k} = '0.0.0.0' ;
            }
           
-          $CHANGES_LOG .= "$k $OLD_DATA->{$k}->$DATA{$k};";
+          $CHANGES_LOG   .= "$k $OLD_DATA->{$k}->$DATA{$k};";
           $CHANGES_QUERY .= "$FIELDS->{$k}=INET_ATON('$DATA{$k}'),";
          }
+        elsif($k eq 'CHANGED') {
+          $CHANGES_QUERY .= "$FIELDS->{$k}=now(),";
+         }
         else {
-          $CHANGES_LOG .= "$k $OLD_DATA->{$k}->$DATA{$k};";
+        	if (! $OLD_DATA->{$k} && ($DATA{$k} eq '0' || $DATA{$k} eq '')) {
+        	#  print "$k $OLD_DATA->{$k} && length($DATA{$k}) == 0) || (! $OLD_DATA->{$k} && $DATA{$k} eq 0 )<br>";
+        		next;
+           }
+
+          if ($k eq 'DISABLE') {
+            if ($DATA{$k} == 0){
+              $self->{ENABLE} = 1;
+              $self->{DISABLE}= undef;
+             }
+            else {
+            	$self->{DISABLE}=1;
+             }
+           }
+          elsif($k eq 'STATUS') {
+            $self->{CHG_STATUS}=$OLD_DATA->{$k}.'->'.$DATA{$k};
+           }
+          elsif($k eq 'TP_ID') {
+            $self->{CHG_TP}=$OLD_DATA->{$k}.'->'.$DATA{$k};
+           }
+          elsif($k eq 'CREDIT') {
+            $self->{CHG_CREDIT}=$OLD_DATA->{$k}.'->'.$DATA{$k};
+           }
+          else {
+            $CHANGES_LOG .= "$k $OLD_DATA->{$k}->$DATA{$k};";
+           }
+
           $CHANGES_QUERY .= "$FIELDS->{$k}='$DATA{$k}',";
          }
      }
@@ -384,26 +428,57 @@ sub changes {
 
 
 
-
 if ($CHANGES_QUERY eq '') {
   return $self->{result};	
+ }
+else {
+  $self->{CHANGES_LOG}=$CHANGES_LOG;
 }
 
 
 
 # print $CHANGES_LOG;
   chop($CHANGES_QUERY);
+  
   my $extended = ($attr->{EXTENDED}) ? $attr->{EXTENDED} : '' ;
+  
   $self->query($db, "UPDATE $TABLE SET $CHANGES_QUERY WHERE $FIELDS->{$CHANGE_PARAM}='$DATA{$CHANGE_PARAM}'$extended", 'do');
 
   if($self->{errno}) {
-     return $self;
+    return $self;
    }
 
+  $CHANGES_LOG = $attr->{EXT_CHANGE_INFO}.' '.$CHANGES_LOG if ($attr->{EXT_CHANGE_INFO});
   if (defined($DATA{UID}) && $DATA{UID} > 0 && defined($admin)) { 
-     $admin->action_add($DATA{UID}, "$CHANGES_LOG");
-   }
+    if ($self->{'DISABLE'}) {
+      $admin->action_add($DATA{UID}, "", { TYPE => 9});
+     }
 
+    if ($self->{'ENABLE'}) {
+      $admin->action_add($DATA{UID}, "", { TYPE => 8});
+     }
+
+    if ($CHANGES_LOG ne '') {
+      $admin->action_add($DATA{UID}, "$CHANGES_LOG", { TYPE => 2});
+     }
+
+    if($self->{'CHG_TP'}) {
+      $admin->action_add($DATA{UID}, "$self->{'CHG_TP'}", { TYPE => 3});
+     }
+
+    if($self->{'STATUS'}) {
+      $admin->action_add($DATA{UID}, "$self->{'STATUS'}", { TYPE => 4});
+     }
+
+    if($self->{CHG_CREDIT}) {
+      $admin->action_add($DATA{UID}, "$self->{'CHG_CREDIT'}", { TYPE => 5 });
+     }
+
+
+   }
+  elsif(defined($admin)) {
+    $admin->system_action_add("$CHANGES_LOG", { TYPE => 2 });
+   }
   return $self->{result};
 }
 

@@ -1,5 +1,5 @@
 package Abills::HTML;
-#HTML output
+#HTML visualisation functions
 
 use strict;
 use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION %h2
@@ -62,6 +62,7 @@ my $CONF;
 my $row_number = 0;
 
 
+#require "Abills/templates.pl";
 
 
 #**********************************************************
@@ -102,18 +103,22 @@ sub new {
   	$PAGE_ROWS = int($attr->{PAGE_ROWS});
    }
   else {
- 	  $PAGE_ROWS = 25;
+ 	  $PAGE_ROWS = $CONF->{list_max_recs} || 25;
+   }
+
+  if ($attr->{METATAGS}) {
+  	$self->{METATAGS} = $attr->{METATAGS};
    }
 
   if ($attr->{PATH}) {
-    $self->{PATH}=$attr->{PATH};
-    $IMG_PATH = $self->{PATH}.'img';
+    $self->{PATH} = $attr->{PATH};
+    $IMG_PATH     = $self->{PATH}.'img';
    }
 
-  $domain = $ENV{SERVER_NAME};
+  $domain   = $ENV{SERVER_NAME};
   $web_path = '';
-  $secure = '';
-  my $prot = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http' ;
+  $secure   = '';
+  my $prot  = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http' ;
   $SELF_URL = (defined($ENV{HTTP_HOST})) ? "$prot://$ENV{HTTP_HOST}$ENV{SCRIPT_NAME}" : '';
 
   $SESSION_IP = $ENV{REMOTE_ADDR} || '0.0.0.0';
@@ -245,6 +250,7 @@ if (! defined($ENV{CONTENT_TYPE}) || $ENV{CONTENT_TYPE} !~ /boundary/ ) {
 else {
  ($boundary = $ENV{CONTENT_TYPE}) =~ s/^.*boundary=(.*)$/$1/;
  
+ $FORM{__BUFFER}=$buffer;
  @pairs = split(/--$boundary/, $buffer);
  @pairs = splice(@pairs,1,$#pairs-1);
 
@@ -254,7 +260,7 @@ else {
       next if $firstline =~ /filename=\"\"/;
       $firstline =~ s/^Content-Disposition: form-data; //;
       my (@columns) = split(/;\s+/, $firstline);
-      ($name = $columns[0]) =~ s/^name="([^"]+)"$/$1/g;
+      ($name = $columns[0]) =~ s/^name=\"([^\"]+)\"$/$1/g;
       my $blankline;
       if ($#columns > 0) {
 	      if ($datas =~ /^Content-Type:/) {
@@ -269,7 +275,10 @@ else {
       else {
 	     ($blankline, $datas) = split(/[\r]\n/, $datas, 2);
         if (grep(/^$name$/, keys(%FORM))) {
-          if (@{$FORM{$name}} > 0) {
+        	print "Content-Type: text/html\n\n";
+        	print "/$name // $FORM{$name}<br>";
+        	
+          if (@{ $FORM{$name} } > 0) {
             push(@{$FORM{$name}}, $datas);
            }
           else {
@@ -288,7 +297,7 @@ else {
         next;
        }
       for my $currentColumn (@columns) {
-        my ($currentHeader, $currentValue) = $currentColumn =~ /^([^=]+)="([^"]+)"$/;
+        my ($currentHeader, $currentValue) = $currentColumn =~ /^([^=]+)="([^\"]+)"$/;
         if ($currentHeader eq 'filename') {
         	 if ( $currentValue =~ /(\S+)\\(\S+)$/ ){
         	   $currentValue = $2;
@@ -380,8 +389,11 @@ sub form_main {
 
 
 	$self->{FORM}.="</form>\n";
-	
-	if (defined($self->{NO_PRINT})) {
+
+  if($attr->{OUTPUT2RETURN}) {
+		return $self->{FORM};
+	 }
+	elsif (defined($self->{NO_PRINT})) {
   	$self->{OUTPUT} .= $self->{FORM};
   	$self->{FORM} = '';
   }
@@ -417,6 +429,7 @@ sub form_select {
 	  foreach my $v (@$H) {
       my $id = (defined($attr->{ARRAY_NUM_ID})) ? $i : $v;
       $self->{SELECT} .= "<option value='$id'";
+      $self->{SELECT} .= " style='COLOR:$attr->{STYLE}->[$i];' " if ($attr->{STYLE});
       $self->{SELECT} .= ' selected' if (defined($attr->{SELECTED}) && ( ($i eq $attr->{SELECTED}) || ($v eq $attr->{SELECTED}) ) );
       $self->{SELECT} .= ">$v\n";
       $i++;
@@ -425,14 +438,29 @@ sub form_select {
   elsif (defined($attr->{SEL_MULTI_ARRAY})){
     my $key   = $attr->{MULTI_ARRAY_KEY};
     my $value = $attr->{MULTI_ARRAY_VALUE};
+    
 	  my $H = $attr->{SEL_MULTI_ARRAY};
 
 	  foreach my $v (@$H) {
       $self->{SELECT} .= "<option value='$v->[$key]'";
       $self->{SELECT} .= ' selected' if (defined($attr->{SELECTED}) && $v->[$key] eq $attr->{SELECTED});
       $self->{SELECT} .= '>';
+      #Value
       $self->{SELECT} .= "$v->[$key]:" if (! $attr->{NO_ID});
-      $self->{SELECT} .= "$v->[$value]\n";
+
+      if ($value =~ /,/) {
+      	my @values = split(/,/, $value);
+      	foreach my $val_keys (@values) {
+      	  $self->{SELECT} .= $v->[int($val_keys)]."; ";	
+      	 }
+       }
+      else {
+        $self->{SELECT} .= "$v->[$value]";
+       }
+     
+      $self->{SELECT} .= "\n";
+
+
      }
    }
   elsif (defined($attr->{SEL_HASH})) {
@@ -516,9 +544,9 @@ sub getCookies {
 }
 
 
-#
+#**********************************************************
 # 
-# 
+#**********************************************************
 sub menu () {
  my $self = shift;
  my ($menu_items, $menu_args, $permissions, $attr) = @_;
@@ -548,6 +576,9 @@ sub menu () {
    }
 }
 
+
+
+
 $FORM{root_index} = $root_index;
 if ($root_index > 0) {
   my $ri = $root_index-1;
@@ -565,7 +596,6 @@ my @s = sort {
 } keys %$menu_items;
 
 
-
 foreach my $ID (@s) {
  	my $VALUE_HASH = $menu_items->{$ID};
  	foreach my $parent (keys %$VALUE_HASH) {
@@ -576,7 +606,9 @@ foreach my $ID (@s) {
  
  my @last_array = ();
 
- my $menu_text = "<div class='menu'>
+ my $menu_text = "
+ <div class='menu_top'></div>
+ <div class='menu_main'>
  <table border='0' width='100%'>\n";
 
  	  my $level  = 0;
@@ -592,9 +624,9 @@ foreach my $ID (@s) {
  	  
  	  while(my $sm_item = pop @$sub_menu_array) {
  	     my($ID, $name)=split(/:/, $sm_item, 2);
- 	     next if((! defined($attr->{ALL_PERMISSIONS})) && (! $permissions->{$ID-1}) && $parent == 0);
+ 	     next if((! defined($attr->{ALL_PERMISSIONS})) && (! defined($permissions->{$ID-1})) && $parent == 0);
 
- 	     $name = (defined($tree{$ID})) ? "<b>$name</b>" : "$name";
+ 	     $name = (defined($tree{$ID})) ? $self->b($name) : "$name";
        if(! defined($menu_args->{$ID}) || (defined($menu_args->{$ID}) && defined($FORM{$menu_args->{$ID}})) ) {
        	   my $ext_args = "$EX_ARGS";
        	   if (defined($menu_args->{$ID})) {
@@ -604,13 +636,13 @@ foreach my $ID (@s) {
 
        	   my $link = $self->button($name, "index=$ID$ext_args");
     	       if($parent == 0) {
- 	        	   $menu_text .= "<tr><td bgcolor=\"$_COLORS[3]\" align=left>$prefix$link</td></tr>\n";
+ 	        	   $menu_text .= "<tr><td bgcolor=\"$_COLORS[3]\" align=left class=menu_cel_main>$prefix$link</td></tr>\n";
 	            }
  	           elsif(defined($tree{$ID})) {
-   	           $menu_text .= "<tr><td bgcolor=\"$_COLORS[2]\" align=left>$prefix>$link</td></tr>\n";
+   	           $menu_text .= "<tr><td bgcolor=\"$_COLORS[2]\" align=left class=menu_cel>$prefix>$link</td></tr>\n";
  	            }
  	           else {
- 	             $menu_text .= "<tr><td bgcolor=\"$_COLORS[1]\">$prefix$link</td></tr>\n";
+ 	             $menu_text .= "<tr><td bgcolor=\"$_COLORS[1]\" class=menu_cel>$prefix$link</td></tr>\n";
  	            }
          }
         else {
@@ -641,78 +673,11 @@ foreach my $ID (@s) {
 #  }
  
  
- $menu_text .= "</table>\n</div>\n";
+ $menu_text .= "</table>\n</div>
+ <div class='menu_bot'></div>\n";
  
  return ($menu_navigator, $menu_text);
 }
-
-#*******************************************************************
-# menu($type, $main_para,_name, $ex_params, \%menu_hash_ref);
-#
-# $type
-#   0 - horizontal  
-#   1 - vertical
-# $ex_params - extended params
-# $mp_name - Menu parameter name
-# $params - hash of menu items
-# menu($type, $mp_name, $ex_params, $menu, $sub_menu, $attr);
-#*******************************************************************
-sub menu2 {
- my $self = shift;
- my ($type, $mp_name, $ex_params, $menu, $sub_menu, $attr)=@_;
- my @menu_captions = sort keys %$menu;
-
- $self->{menu} = "<TABLE width=\"100%\">\n";
-
-if ($type == 1) {
-
-  foreach my $line (@menu_captions) {
-    my($n, $file, $k)=split(/:/, $line);
-    my $link = ($file eq '') ? "$SELF_URL" : "$file";
-    $link .= '?'; 
-    $link .= "$mp_name=$k&" if ($k ne '');
-
-
-#    if ((defined($FORM{$mp_name}) && $FORM{$mp_name} eq $k) && $file eq '') {
-     if ((defined($FORM{root_index}) && $FORM{root_index} eq $k) && $file eq '') {
-      $self->{menu} .= "<tr><td bgcolor=\"$_COLORS[3]\"><a href='$link$ex_params'><b>". $menu->{"$line"} ."</b></a></td></TR>\n";
-      while(my($k, $v)=each %$sub_menu) {
-      	 $self->{menu} .= "<tr><td bgcolor=\"$_COLORS[1]\">&nbsp;&nbsp;&nbsp;<a href='$SELF_URL?index=$k'>$v</a></td></TR>\n";
-       }
-     }
-    else {
-      $self->{menu} .= "<tr><td><a href='$link'>". $menu->{"$line"} ."</a></td></TR>\n";
-     }
-   }
-}
-else {
-  $self->{menu} .= "<tr bgcolor=\"$_COLORS[0]\">\n";
-  
-  foreach my $line (@menu_captions) {
-    my($n, $file, $k)=split(/:/, $line);
-    my $link = ($file eq '') ? "$SELF_URL" : "$file";
-    $link .= '?'; 
-    $link .= "$mp_name=$k&" if ($k ne '');
-
-    $self->{menu} .= "<th";
-    if ($FORM{$mp_name} eq $k && $file eq '') {
-      $self->{menu} .= " bgcolor=\"$_COLORS[3]\"><a href='$link$ex_params'>". $menu->{"$line"} ."</a></th>";
-     }
-    else {
-      $self->{menu} .= "><a href='$link'>". $menu->{"$line"} ."</a></th>\n";
-     }
-
- }
-  $self->{menu} .= "</TR>\n"; 
-}
-
- $self->{menu} .= "</TABLE>\n";
-
-
- return $self->{menu};
-}
-
-
 
 #*******************************************************************
 # heder off main page
@@ -721,8 +686,8 @@ else {
 sub header {
  my $self = shift;
  my($attr)=@_;
- my $admin_name=$ENV{REMOTE_USER};
- my $admin_ip=$ENV{REMOTE_ADDR};
+ my $admin_name  = $ENV{REMOTE_USER};
+ my $admin_ip    = $ENV{REMOTE_ADDR};
  $self->{header} = "Content-Type: text/html\n\n";
 
 
@@ -733,244 +698,35 @@ sub header {
    @_COLORS = split(/, /, $COOKIES{colors});
   }
 
- my $JAVASCRIPT = "functions.js"; 
- my $PRINTCSS = "print.css";
+
+
+ my %info = (
+  JAVASCRIPT => 'functions.js',
+  PRINTCSS   => 'print.css'
+ );
 
  if($self->{PATH}) {
-   $JAVASCRIPT = "$self->{PATH}$JAVASCRIPT";
-   $PRINTCSS = "$self->{PATH}$PRINTCSS";
+   $info{JAVASCRIPT} = "$self->{PATH}$info{JAVASCRIPT}";
+   $info{PRINTCSS}   = "$self->{PATH}$info{PRINTCSS}";
+  }
+ 
+ my $i=0;
+ foreach my $color (@_COLORS) {
+ 	 $info{'_COLOR_'.$i}=$color;
+ 	 $i++;
   }
 
+ $CONF->{WEB_TITLE}=$self->{WEB_TITLE} if ($self->{WEB_TITLE});
 
- my $css = css();
- my $title = ($CONF->{WEB_TITLE}) ? $CONF->{WEB_TITLE} : "~AsmodeuS~ Billing System";
- my $REFRESH = ($FORM{REFRESH}) ? "<META HTTP-EQUIV=\"Refresh\" CONTENT=\"$FORM{REFRESH}; URL=$ENV{REQUEST_URI}\"/>\n" : '';
 
-$self->{header} .= qq{ <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+ $info{title}   = ($CONF->{WEB_TITLE}) ? $CONF->{WEB_TITLE} : "~AsmodeuS~ Billing System";
+ $info{REFRESH} = ($FORM{REFRESH}) ? "<META HTTP-EQUIV=\"Refresh\" CONTENT=\"$FORM{REFRESH}; URL=$ENV{REQUEST_URI}\"/>\n" : '';
+ $info{CHARSET} = $self->{CHARSET};
 
-<html>
-<head>
- $REFRESH
- <META HTTP-EQUIV="Cache-Control" content="no-cache,no-cache,no-store,must-revalidate"/>
- <META HTTP-EQUIV="Expires" CONTENT="-1"/>
- <META HTTP-EQUIV="Pragma" CONTENT="no-cache"/>
- <meta http-equiv="Content-Type" content="text/html; charset=$self->{CHARSET}"/>
- <meta name="Author" content="~AsmodeuS~"/>
-};
-
-$self->{header} .= $css;
-$self->{header} .= " <link rel=\"stylesheet\" media=\"print\" type=\"text/css\" href=\"$PRINTCSS\" />
-  <script src=\"$JAVASCRIPT\" type=\"text/javascript\" language=\"javascript\"></script>
-<title>$title</title>
-</head>
-<body style=\"margin: 0\" bgcolor=\"$_COLORS[10]\" text=\"$_COLORS[9]\" link=\"$_COLORS[8]\"  vlink=\"$_COLORS[7]\">\n";
+ $self->{header} .= $self->tpl_show($self->{METATAGS}, \%info, { OUTPUT2RETURN => 1  });
+ return $self->{header};
 
  return $self->{header};
-}
-
-#********************************************************************
-#
-# css()
-#********************************************************************
-sub css { 
-
-my $css = "
-<style type=\"text/css\">
-
-body {
-  background-color: $_COLORS[10];
-  color: $_COLORS[9];
-  font-family: Arial, Tahoma, Verdana, Helvetica, sans-serif;
-  font-size: 14px;
-  /* this attribute sets the basis for all the other scrollbar colors (Internet Explorer 5.5+ only) */
-}
-
-th.small {
-  color: $_COLORS[9];
-  font-size: 10px;
-  height: 10;
-}
-
-td.small {
-  color: $_COLORS[9];
-  height: 1;
-}
-
-th, li {
-  color: $_COLORS[9];
-  height: 24;
-  font-family: Arial, Tahoma, Verdana, Helvetica, sans-serif;
-  font-size: 12px;
-}
-
-td {
-  color: $_COLORS[9];
-  font-family: Arial, Tahoma, Verdana, Helvetica, sans-serif;
-  height: 20;
-  font-size: 14px;
-}
-
-form {
-  font-family: Tahoma,Verdana,Arial,Helvetica,sans-serif;
-  font-size: 12px;
-}
-
-.button {
-  font-family:  Arial, Tahoma,Verdana, Helvetica, sans-serif;
-  background-color: $_COLORS[2];
-  color: $_COLORS[9];
-  font-size: 12px;
-}
-
-
-
-input, textarea {
-	font-family : Verdana, Arial, sans-serif;
-	font-size : 12px;
-	color : $_COLORS[9];
-	border-color : #9F9F9F;
-	border : 1px solid #9F9F9F;
-	background : $_COLORS[2];
-}
-
-select {
-	font-family : Verdana, Arial, sans-serif;
-	font-size : 12px;
-	color : $_COLORS[9];
-	border-color : #C0C0C0;
-	border : 1px solid #C0C0C0;
-	background : $_COLORS[2];
-}
-
-TABLE.border {
-  border-color : #99CCFF;
-  border-style : solid;
-  border-width : 1px;
-}
-
-
-
-
-.l_user_menu {
-      width: 100%;
-      border-right: 1px solid #000;
-      padding: 0 0 6px 0;
-      margin-bottom: 1px;
-      font-family: 'Trebuchet MS', 'Lucida Grande',
-      Verdana, Lucida, Geneva, Helvetica, 
-      Arial, sans-serif;
-      background-color: $_COLORS[2];
-      color: #333;
-      }
-
-.l_user_menu ul {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      border: none;
-      }
-		
-.l_user_menu li {
-      border-bottom: 1px solid $_COLORS[2];
-      margin: 0;
-      }
-
-
-.l_user_menu li a {
-      display: block;
-      padding: 5px 5px 5px 0.5em;
-      border-left: 4px solid $_COLORS[0];
-      border-right: 5px solid $_COLORS[4];
-      background-color: $_COLORS[3];
-      color: $_COLORS[9];
-      text-decoration: none;
-      width: 100%;
-      }
-
-.l_user_menu li a {
-      width: auto;
-      }
-
-.l_user_menu li a:hover {
-      border-left: 4px solid $_COLORS[9];
-      border-right: 5px solid $_COLORS[2];
-      background-color: $_COLORS[0];
-      color: $_COLORS[9];
-      }
-
-
-
-
-
-
-#tabs ul {
-      margin-left: 0;
-      padding-left: 0;
-      display: inline;
-      } 
-
-#tabs ul li {
-      margin-left: 0;
-      margin-bottom: 0;
-      padding: 2px 15px 5px;
-      border: 1px solid $_COLORS[3];
-      list-style: none;
-      display: inline;
-      }
-		
-#tabs ul li.active {
-      border-bottom: 1px solid $_COLORS[0];
-      list-style: none;
-      display: inline;
-      }
-
-
-
-
-#rules {
-  float:center;
-  text-align:center;
-  padding: 0 0 6px 0;
-  overflow:hidden;
-  height:32px;
-  line-height:30px;
-}
-
-#rules li{
-  display:inline;
-  padding:0;
-}
-
-#rules .center a{
-  padding:1px 5px;
-  font-weight:100;
-  font-size:11;
-  background:$_COLORS[2];
-  border:1px solid $_COLORS[4];
-  color:#000;
-  text-decoration:none;
-  margin:0 1px;
-}
-
-#rules .center a:hover{
-  background:#ccc;
-  border:1px solid #666;
-}
-
-#rules .center a.active{
-  background:#666;
-  border:1px solid #666;
-  color:#fff;
-}
-
-
-
-
-
-
-</style>";
-
- return $css;
 }
 
 
@@ -984,21 +740,11 @@ sub table {
  my $self;
 
 
-# if (@ISA && $proto->SUPER::can('table')) {
-# 	  $self = $proto->SUPER::table(@_);
-#  }
-# else {
-  $self = {};
-#  bless($self, $proto);
-# }
-
-
-# while(my($k, $v)=each %$proto) {
-#   print "$k, $v <br>";	
-# }
- 
+ $self = {};
  bless($self);
 
+
+ $self->{MAX_ROWS}=$parent->{MAX_ROWS};
 
  $self->{prototype} = $proto;
  $self->{NO_PRINT} = $proto->{NO_PRINT};
@@ -1075,7 +821,7 @@ sub table {
  	   my %ATTR = ();
  	   if (defined($attr->{recs_on_page})) {
  	   	 $ATTR{recs_on_page}=$attr->{recs_on_page};
- 	     }
+ 	    }
  	   $self->{pages} =  $self->pages($attr->{pages}, "$op$attr->{qs}", { %ATTR });
 	 } 
 
@@ -1272,9 +1018,15 @@ sub show  {
   $self->{show} .= $self->{rows}; 
   $self->{show} .= "</TABLE></TD></TR></TABLE>\n";
 
+  $self->{show} = "<div class='table_top'></div>\n"
+  . "<div class='table_cont'>$self->{show}</div>\n"
+  . "<div class='table_bot'></div>\n";
+
+
   if (defined($self->{pages})) {
  	   $self->{show} =  '<br>'.$self->{pages} . $self->{show} . $self->{pages} .'<br>';
  	 } 
+
 
 
 
@@ -1324,11 +1076,21 @@ sub button {
   
   $ex_attr=" TITLE='$attr->{TITLE}'" if (defined($attr->{TITLE}));
   
-  $ex_attr .= " onclick=\"window.open('$attr->{NEW_WINDOW}', null,
+  if ( $attr->{NEW_WINDOW} ) {
+    my $x = 640;
+    my $y = 480;
+
+    if ($attr->{NEW_WINDOW_SIZE}) {
+    	($x, $y)=split(/:/, $attr->{NEW_WINDOW_SIZE});
+     }
+   
+    $ex_attr .= " onclick=\"window.open('$attr->{NEW_WINDOW}', null,
             'toolbar=0,location=0,directories=0,status=1,menubar=0,'+
             'scrollbars=1,resizable=1,'+
-            'width=640, height=480');\"" if ( $attr->{NEW_WINDOW} );
+            'width=$x, height=$y');\"";
 
+    $params = '#';
+   }
   
   my $message = '';
   
@@ -1358,10 +1120,10 @@ sub message {
  my $head = '';
  $caption .= ': '. $attr->{ID} if ($attr->{ID});
  if ($type eq 'err') {
-   $head = "<tr><th bgcolor=\"#FF0000\">$caption</th></TR>\n";
+   $head = "<tr><th bgcolor=\"#FF0000\" class=err_message>$caption</th></TR>\n";
   }
  elsif ($type eq 'info') {
-   $head = "<tr><th bgcolor=\"$_COLORS[0]\">$caption</th></TR>\n";
+   $head = "<tr><th bgcolor=\"$_COLORS[0]\" class=info_message>$caption</th></TR>\n";
   }  
  
  
@@ -1457,6 +1219,8 @@ sub pages {
  my $self = shift;
  my ($count, $argument, $attr) = @_;
 
+ return '' if ($self->{MAX_ROWS});
+
  if (defined($attr->{recs_on_page})) {
  	 $PAGE_ROWS = $attr->{recs_on_page};
   }
@@ -1504,9 +1268,26 @@ sub date_fld  {
    $mday=1;
   }
  
- my $day = $FORM{$base_name.'D'} || $mday;
+
+
  my $month = $FORM{$base_name.'M'} || $mon;
- my $year = $FORM{$base_name.'Y'} || $curyear + 1900;
+ my $year  = $FORM{$base_name.'Y'} || $curyear + 1900;
+ my $day;
+ 
+ if ($FORM{$base_name.'D'}) {
+   $day   = $FORM{$base_name.'D'};
+  }
+ else {
+ 	 if ($base_name =~ /to/i) {
+ 	 	 my $m = $month+1;
+ 	   $day   = ($m!=2?(($m%2)^($m>7))+30:(!($year%400)||!($year%4)&&($year%25)?29:28));
+ 	  }
+   else {
+   	 $day   = $mday;
+    }
+  }
+
+
 
 
 my $result  = "<SELECT name=". $base_name ."D>";
@@ -1586,26 +1367,48 @@ sub tpl_show {
   my $self = shift;
   my ($tpl, $variables_ref, $attr) = @_;	
 
-  while($tpl =~ /\%(\w+)\%/g) {
-#    print "-$1-<br>\n";
-    my $var = $1;
+  if (! $attr->{SOURCE}) {
+  while($tpl =~ /\%(\w+)(\=?)([A-Za-z0-9]{0,50})\%/g) {
+    my $var       = $1;
+    my $delimiter = $2; 
+    my $default   = $3;
+#    if ($var =~ /$\{exec:.+\}$/) {
+#    	my $exec = $1;
+#    	if ($exec !~ /$\/usr/abills\/\misc\/ /);
+#    	my $exec_content = system("$1");
+#    	$tpl =~ s/\%$var\%/$exec_content/g;
+#     }
+#    els
     if (defined($variables_ref->{$var})) {
-    	$tpl =~ s/\%$var\%/$variables_ref->{$var}/g;
-    }
+    	$tpl =~ s/\%$var$delimiter$default%/$variables_ref->{$var}/g;
+     }
     else {
-      $tpl =~ s/\%$var\%//g;
-    }
+      $tpl =~ s/\%$var$delimiter$default\%/$default/g;
+     }
   }
+}
+
+
+
 
   if($attr->{OUTPUT2RETURN}) {
 		return $tpl;
 	 }
+  elsif ($attr->{MAIN}) {
+		$self->{OUTPUT} .= "$tpl";
+  	return $tpl;
+   }
   elsif ($attr->{notprint} || $self->{NO_PRINT}) {
-  	$self->{OUTPUT} .= $tpl;
+		$self->{OUTPUT} .= "<div class='table_top'></div>\n"
+     . "<div class='table_cont'>$tpl</div>"
+     . "<div class='table_bot'></div>\n";
+
   	return $tpl;
    }
 	else { 
- 	  print $tpl;
+		print "<div class='table_top'></div>\n"
+     . "<div class='table_cont'>$tpl</div>\n"
+     . "<div class='table_bot'></div>\n";
 	}
 }
 
@@ -1727,6 +1530,7 @@ sub make_charts {
 	  $PATH =~ s/img//;
    }
 
+  $PATH .= 'charts';
 #  if (! -f $PATH. "charts.swf") {
 #     return 0;
 #   }
@@ -1746,66 +1550,86 @@ sub make_charts {
    }
 
  	my $AXIS_CATEGORY_skip = (defined($attr->{AXIS_CATEGORY_skip})) ? $attr->{AXIS_CATEGORY_skip} : 2 ;
-  my $CHART_RECT_width   = ($attr->{CHART_RECT_width}) ? $attr->{CHART_RECT_width} : 400 ;  
-  my $CHART_RECT_height  = ($attr->{CHART_RECT_height}) ? $attr->{CHART_RECT_height} : 200 ;  
-  my $CHART_RECT_x = ($attr->{CHART_RECT_x}) ? $attr->{CHART_RECT_x} : 30 ;  
-  my $CHART_RECT_y = ($attr->{CHART_RECT_y}) ? $attr->{CHART_RECT_y} : 50 ;  
-  
-  
-  my $data = '<chart>'.
-  $ex_params
+  my $CHART_RECT_width   = ($attr->{CHART_RECT_width}) ? $attr->{CHART_RECT_width} : 500 ;  
+  my $CHART_RECT_height  = ($attr->{CHART_RECT_height}) ? $attr->{CHART_RECT_height} : 280 ;  
+  my $CHART_RECT_x = ($attr->{CHART_RECT_x}) ? $attr->{CHART_RECT_x} : 50 ;  
+  my $CHART_RECT_y = ($attr->{CHART_RECT_y}) ? $attr->{CHART_RECT_y} : 70 ;  
 
-	.'<series_color>
-		<value>ff8800</value>
-		<value>00FF00</value>
+  my $data = '<chart>'
+  .$ex_params
+
+	.'
+	<series_color>
+	  <color>00EE00</color>
+		<color>FF8844</color>
+		<color>7e6cee</color>
+		<color>BBBBFF</color>
+		<color>E8AC71</color>
+		<color>99FB5E</color>
 	 </series_color>
 
-  	<chart_grid_h alpha="10" color="0066FF" thickness="1"  />
-	  <chart_grid_v alpha="10" color="0066FF" thickness="1" />
+  <chart_grid_h alpha="10" color="0066FF" thickness="1"  />
+	<chart_grid_v alpha="10" color="0066FF" thickness="1" />
+  <chart_label shadow="low" color="000000" alpha="95" size="10" position="inside" as_percentage="true" />
+  <chart_border color="000000" top_thickness="1" bottom_thickness="2" left_thickness="0" right_thickness="0" />
+  <chart_rect x="'. $CHART_RECT_x .'" y="'. $CHART_RECT_y .'" width="'. $CHART_RECT_width .'" height="'. $CHART_RECT_height .'" positive_color="FFFFFF" positive_alpha="40" />
+  <chart_pref select="true" />
 
 	<axis_category font="arial" bold="1" size="11" color="000000" alpha="50" skip="'. $AXIS_CATEGORY_skip. '" />
 	<axis_ticks value_ticks="" category_ticks="1" major_thickness="2" minor_thickness="1" minor_count="3" major_color="000000" minor_color="888888" position="outside" />
 
-  <axis_value font="arial" bold="1" size="9" color="000000" alpha="75" 
-  steps="4" prefix="" suffix="'. $suffix .'" 
-  decimals="0" 
-  separator="" 
-  show_min="1" 
-  orientation="diagonal_up"
-  />
+  <axis_value font="arial" size="7" color="000000" alpha="75" steps="4" prefix="" suffix="'. $suffix .'" 
+  decimals="0" separator="" show_min="1" orientation="diagonal_up" />
 
- 
-	<chart_border color="000000" top_thickness="1" bottom_thickness="2" left_thickness="0" right_thickness="0" />
-  <chart_rect x="'. $CHART_RECT_x .'" y="'. $CHART_RECT_y .'" width="'. $CHART_RECT_width .'" height="'. $CHART_RECT_height .'" positive_color="FFFFFF" positive_alpha="40" />
+
+  <legend shadow="low" fill_color="0" fill_alpha="5" line_alpha="0" line_thickness="0" bullet="circle" size="12" color="111111" alpha="75" margin="10" />
+
+
+
+
+	<draw>
+		<text layer="background" shadow="low" color="ffffff" alpha="5" size="30" x="0" y="0" width="400" height="150" >|||||||||||||||||||||||||||||||||||||||||||||||</text>
+		<text layer="background"  shadow="low" color="ffffff" alpha="5" size="30" x="0" y="140" width="400" height="150" v_align="bottom">|||||||||||||||||||||||||||||||||||||||||||||||</text>
+	</draw>
+
+	<filter>
+		<shadow id="low" distance="2" angle="45" color="0" alpha="50" blurX="5" blurY="5" />
+		<bevel id="data" angle="45" blurX="10" blurY="10" distance="3" highlightAlpha="5" highlightColor="ffffff" shadowColor="000000" shadowAlpha="50" type="full" />
+		<bevel id="bg" angle="10" blurX="20" blurY="20" distance="10" highlightAlpha="25" highlightColor="ff8888" shadowColor="8888ff" shadowAlpha="25" type="full" />
+		<glow id="glow1" color="ff88ff" alpha="75" blurX="30" blurY="30" inner="false" />
+	</filter>
+
+
   ';
 
   $data .= "<chart_data>\n";
 
-  if ($attr->{PERIOD} eq 'month_stats') {
+
+  if ($attr->{X_TEXT}) {
     $data .= "<row>\n".   	
-    "<string></string>\n";
-    for(my $i=1; $i<=31; $i++) {
-    	 $data .= "<string>$i</string>\n";
-     }
-   $data .= "</row>\n";
-  }
-  elsif ($attr->{PERIOD} eq 'day_stats') {
-    $data .= "<row>\n".   	
-    "<string></string>\n";
-    for(my $i=0; $i<=23; $i++) {
-    	 $data .= "<string>$i</string>\n";
-     }
-   $data .= "</row>\n";
-  }
-  elsif ($attr->{X_TEXT}) {
-    $data .= "<row>\n".   	
-    "<string></string>\n";
+    "<null/>\n";
     foreach my $i (@{ $attr->{X_TEXT} }) {
     	 $data .= "<string>$i</string>\n";
      }
-   $data .= "</row>\n";
-  }
-  
+    $data .= "</row>\n";
+   }
+  elsif ($attr->{PERIOD} eq 'month_stats') {
+    $data .= "<row>\n".   	
+    "<null/>\n";
+    for(my $i=1; $i<=31; $i++) {
+    	 $data .= "<string>$i</string>\n";
+     }
+    $data .= "</row>\n";
+   }
+  elsif ($attr->{PERIOD} eq 'day_stats') {
+    $data .= "<row>\n".   	
+    "<null/>\n";
+    for(my $i=0; $i<=23; $i++) {
+    	 $data .= "<string>$i</string>\n";
+     }
+    $data .= "</row>\n";
+   }
+
 
 
   while(my($name, $value)=each %$DATA ){
@@ -1820,8 +1644,8 @@ sub make_charts {
 
     shift @$value;
     foreach my $line (@$value) {
-    	 $data .= "<number>";
-    	 $data .= ($midle > 0) ? $line * $midle : $line; 
+    	 $data .= "<number bevel='data'>";
+    	 $data .= ($midle > 0) ? $line * $midle : ( ($line eq '') ? 0 : $line); 
     	 $data .="</number>\n";
      }
    $data .= "</row>\n";
@@ -1852,15 +1676,22 @@ sub make_charts {
   if ($attr->{TYPE}) {
     $data .= "<chart_type>";
 		my $type_array_ref = $attr->{TYPE};
-		foreach my $line (@$type_array_ref) {
-		  if ($line eq 'bar') {
-		  	$data .= "$line";
-		  	last;
-		   }
-		  else {
-		    $data .= " <value>$line</value>";
-		   }
+		
+		if ( $#{ $type_array_ref } == 0) {
+			$data .= $type_array_ref->[0];
+		 }
+		else {
+		 foreach my $line (@$type_array_ref) {
+		    if ($line eq 'bar') {
+		  	  $data .= "$line";
+		  	  last;
+		     }
+		    else {
+		      $data .= " <value>$line</value>";
+		     }
+      }
      }
+
    	$data .= "</chart_type>\n";
    }
   
@@ -1872,7 +1703,7 @@ sub make_charts {
      	my $part = $attr->{AVG}{MONEY} / 4;
     	$data .= "<draw>\n";
    	  foreach(my $i=0; $i<=4; $i++) {
-     	   $data .= "<text size=\"9\" x=\"435\" y=\"". (242-$i*45) ."\" color=\"000000\">". int($i * $part) ."</text>\n";
+     	   $data .= "<text size=\"9\" x=\"552\" y=\"". (342-$i*69) ."\" color=\"000000\">". int($i * $part) ."</text>\n";
    	   }
    	  $data .= "</draw>\n";
     }
@@ -1894,29 +1725,67 @@ $data .= "</chart>\n";
  close(FILE);
  	
 
+$CHART_RECT_width += 80;
+$CHART_RECT_height += 90;
+my $output = qq { 
+	
+<!-- charts start -->
+<script language="javascript">AC_FL_RunContent = 0;</script>
+<script language="javascript">DetectFlashVer = 0; </script>
+<script src="$PATH/AC_RunActiveContent.js" language="javascript"></script>
+<script language="JavaScript" type="text/javascript">
+<!--
+var requiredMajorVersion = 9;
+var requiredMinorVersion = 0;
+var requiredRevision     = 45;
+-->
+</script>
 
-my $output = "
 <br>
-<OBJECT classid='clsid:D27CDB6E-AE6D-11cf-96B8-444553540000' 
-codebase='http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=6,0,0,0' 
-WIDTH=". ($CHART_RECT_width + 100). " 
-HEIGHT=". ($CHART_RECT_height + 100). "
-id='$file_xml' ALIGN=''>
-<PARAM NAME=movie VALUE='". $PATH. "charts.swf?library_path=". $PATH. "charts_library&amp;php_source=". $file_xml .".xml'> 
-<PARAM NAME=quality VALUE=high> <PARAM NAME=bgcolor VALUE=#EEEEEE> 
-<EMBED src='". $PATH. "charts.swf?library_path=". $PATH. "charts_library&amp;php_source=". $file_xml .".xml' 
-quality=high 
-bgcolor='#EEEEEE' 
-WIDTH=". ($CHART_RECT_width + 100). "
-HEIGHT=". ($CHART_RECT_height + 100). "
-NAME='$file_xml' 
-ALIGN='' 
-swLiveConnect='true' 
-TYPE='application/x-shockwave-flash' 
-PLUGINSPAGE='http://www.macromedia.com/go/getflashplayer'>
-</EMBED></OBJECT>
-<br>
-";
+<script language="JavaScript" type="text/javascript">
+<!--
+if (AC_FL_RunContent == 0 || DetectFlashVer == 0) {
+	alert("This page requires AC_RunActiveContent.js.");
+} else {
+	var hasRightVersion = DetectFlashVer(requiredMajorVersion, requiredMinorVersion, requiredRevision);
+	if(hasRightVersion) { 
+		AC_FL_RunContent(
+			'codebase', 'http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=9,0,45,0',
+			'width', '$CHART_RECT_width',
+			'height', '$CHART_RECT_height',
+			'scale', 'noscale',
+			'salign', 'TL',
+			'bgcolor', '#EEEEEE',
+			'wmode', 'opaque',
+			'movie', 'charts',
+			'src', 'charts',
+			'FlashVars', 'library_path=$PATH/charts_library&xml_source=$file_xml.xml', 
+			'id', 'my_chart',
+			'name', 'my_chart',
+			'menu', 'true',
+			'allowFullScreen', 'true',
+			'allowScriptAccess','sameDomain',
+			'quality', 'high',
+			'align', 'middle',
+			'pluginspage', 'http://www.macromedia.com/go/getflashplayer',
+			'play', 'true',
+			'devicefont', 'false'
+			); 
+	} else { 
+		var alternateContent = 'This content requires the Adobe Flash Player. '
+		+ '<u><a href=http://www.macromedia.com/go/getflash/>Get Flash</a></u>.';
+		document.write(alternateContent); 
+	}
+}
+// -->
+</script>
+<noscript>
+	<P>This content requires JavaScript.</P>
+</noscript>
+<!-- charts end -->
+<br>	
+	};
+
 
 
 	if ($attr->{OUTPUT2RETURN}) {

@@ -50,7 +50,7 @@ if (defined($ARGV->{stop})) {
 
 
 
-if(defined($ARGV->{'-h'})){
+if(defined($ARGV->{'help'})){
 	usage();
 	exit;
 }
@@ -115,6 +115,7 @@ if (! -f $LEASES) {
 		$check_count++;
 	}
 
+  $begin_time = check_time();
 	if($oldstat != $custat || (($check_count == $AUTO_VERIFY) && $AUTO_VERIFY)){
 		mk_log('LOG_DEBUG', "Leases stat - old: $oldstat cur: $custat");
 
@@ -198,7 +199,7 @@ sub parse {
        }
 
 
-      /^\s*stats \d (\d{4})\/(\d{1,2})\/(\d{1,2}) (\d{1,2}):(\d{1,2}):(\d{1,2});/ && (  $list{$ip}{STARTS}="$1-$2-$3 $4:$5:$6" );
+      /^\s*starts \d (\d{4})\/(\d{1,2})\/(\d{1,2}) (\d{1,2}):(\d{1,2}):(\d{1,2});/ && (  $list{$ip}{STARTS}="$1-$2-$3 $4:$5:$6" );
       /^\s*next binding state (.*);/ && (  $list{$ip}{NEXT_STATE}=$state_hash{$1} );
       /^\s*ends \d (\d{4})\/(\d{1,2})\/(\d{1,2}) (\d{1,2}):(\d{1,2}):(\d{1,2});/   && (  $list{$ip}{ENDS}="$1-$2-$3 $4:$5:$6" );
       /^\s*(abandoned).*/   && (    $list{$ip}{abandoned}=$1 );
@@ -244,7 +245,16 @@ sub leases2db {
 	}
  
   mk_log('LOG_INFO', "$parse_info");
-  mk_log('LOG_NOTICE', "Updated: $i leases");
+
+  my $GT = '';
+  if ($begin_time > 0)  {
+    Time::HiRes->import(qw(gettimeofday));
+    my $end_time = gettimeofday();
+    my $gen_time = $end_time - $begin_time;
+    $GT = sprintf(" (GT: %2.5f)", $gen_time);
+  }
+
+  mk_log('LOG_NOTICE', "Updated: $i leases $GT");
 }
 
 
@@ -258,10 +268,10 @@ sub usage{
 dhcp2ldapd v$vesion: Dynamic DNS Updates fo the Bind9 LDAP backend
 
 Usage:
-	leases2db [-d | -h | ...]
+	leases2db [-d | help | ...]
 
 -d              Runs dhcp2db in daemon mode
--h              displays this help message
+help            displays this help message
 LOG_FILE=...    make log file
 LEASES=...      lease files
 UPDATE_TIME=... Update peiod (Default: 30)

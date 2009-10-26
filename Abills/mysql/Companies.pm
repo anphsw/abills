@@ -63,7 +63,9 @@ sub defaults {
  CONTRACT_ID     => '',
  CONTRACT_DATE   => '0000-00-00',
  BILL_ID         => 0,
- EXT_BILL_ID     => 0
+ EXT_BILL_ID     => 0,
+ DOMAIN_ID       => 0,
+ REPRESENTATIVE  => ''
  );
  
   $self = \%DATA;
@@ -111,13 +113,13 @@ sub add {
   my %DATA = $self->get_data($attr, { default => defaults() }); 
   $self->query($db, "INSERT INTO companies (name, tax_number, bank_account, bank_name, cor_bank_account, 
      bank_bic, disable, credit, credit_date, address, phone, vat, contract_id, contract_date,
-     bill_id, ext_bill_id
+     bill_id, ext_bill_id, registration, domain_id, representative
      $info_fields) 
      VALUES ('$DATA{COMPANY_NAME}', '$DATA{TAX_NUMBER}', '$DATA{BANK_ACCOUNT}', '$DATA{BANK_NAME}', '$DATA{COR_BANK_ACCOUNT}', 
       '$DATA{BANK_BIC}', '$DATA{DISABLE}', '$DATA{CREDIT}', '$DATA{CREDIT_DATE}',
       '$DATA{ADDRESS}', '$DATA{PHONE}',
       '$DATA{VAT}', '$DATA{CONTRACT_ID}', '$DATA{CONTRACT_DATE}',
-      '$DATA{BILL_ID}', '$DATA{EXT_BILL_ID}'
+      '$DATA{BILL_ID}', '$DATA{EXT_BILL_ID}', now(), '$admin->{DOMAIN_ID}', '$DATA{REPRESENTATIVE}'
       $info_fields_val
       );", 'do');
 
@@ -192,8 +194,12 @@ sub change {
    VAT            => 'vat',
    CONTRACT_ID    => 'contract_id',
    CONTRACT_DATE  => 'contract_date',
+   DOMAIN_ID      => 'domain_id',
+   REPRESENTATIVE => 'representative'
    );
 
+
+  $attr->{DOMAIN_ID}=$admin->{DOMAIN_ID};
 
 	my $list = $users->config_list({ PARAM => 'ifc*'});
   if ($users->{TOTAL} > 0) {
@@ -271,7 +277,10 @@ sub info {
   c.cor_bank_account, c.bank_bic, c.disable, c.bill_id, b.deposit,
   c.address, c.phone,
   c.vat, contract_id, contract_DATE,
-  c.ext_bill_id
+  c.ext_bill_id,
+  c.registration,
+  c.domain_id,
+  c.representative
   $info_fields
     FROM companies c
     LEFT JOIN bills b ON (c.bill_id=b.id)
@@ -303,6 +312,9 @@ sub info {
    $self->{CONTRACT_ID},
    $self->{CONTRACT_DATE},
    $self->{EXT_BILL_ID},
+   $self->{REGISTRATION},
+   $self->{DOMAIN_ID},
+   $self->{REPRESENTATIVE},
    @INFO_ARR
    ) = @{ $self->{list}->[0] };
   
@@ -352,6 +364,14 @@ sub list {
    $attr->{COMPANY_NAME}=~ s/\*/\%/ig;
    push @WHERE_RULES, "c.name LIKE '$attr->{COMPANY_NAME}'";
  }
+
+ if ($admin->{DOMAIN_ID}) {
+ 	 push @WHERE_RULES, @{ $self->search_expr("$admin->{DOMAIN_ID}", 'INT', 'c.domain_id', { EXT_FIELD => 1 }) };
+  }
+ elsif ($attr->{DOMAIN_ID}) {
+   push @WHERE_RULES, @{ $self->search_expr("$attr->{DOMAIN_ID}", 'INT', 'c.domain_id', { EXT_FIELD => 1 }) };
+  }
+
 
  if ($attr->{COMPANY_NAME}) {
    $attr->{COMPANY_NAME}=~ s/\*/\%/ig;

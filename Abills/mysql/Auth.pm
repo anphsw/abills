@@ -76,11 +76,14 @@ sub dv_auth {
   dv.tp_id,
   dv.speed,
   dv.cid,
+  
+  tp.total_time_limit,
   tp.day_time_limit,
   tp.week_time_limit,
   tp.month_time_limit,
   UNIX_TIMESTAMP(DATE_FORMAT(DATE_ADD(curdate(), INTERVAL 1 MONTH), '%Y-%m-01')) - UNIX_TIMESTAMP(),
 
+  tp.total_traf_limit,
   tp.day_traf_limit,
   tp.week_traf_limit,
   tp.month_traf_limit,
@@ -107,13 +110,14 @@ sub dv_auth {
   tp.ext_bill_account,
   tp.credit,
   tp.ippool,
-  dv.join_service
+  dv.join_service,
+  tp.tp_id
 
      FROM (dv_main dv)
      LEFT JOIN tarif_plans tp ON (dv.tp_id=tp.id)
      LEFT JOIN users_nas un ON (un.uid = dv.uid)
-     LEFT JOIN tp_nas ON (tp_nas.tp_id = tp.id)
-     LEFT JOIN intervals i ON (tp.id = i.tp_id)
+     LEFT JOIN tp_nas ON (tp_nas.tp_id = tp.tp_id)
+     LEFT JOIN intervals i ON (tp.tp_id = i.tp_id)
      WHERE dv.uid='$self->{UID}'
      GROUP BY dv.uid;");
 
@@ -132,11 +136,11 @@ sub dv_auth {
      $self->{FILTER}, 
      $self->{IP}, 
      $self->{NETMASK}, 
-     $self->{TP_ID}, 
+     $self->{TP_NUM}, 
      $self->{USER_SPEED}, 
      $self->{CID},
-     $self->{DAY_TIME_LIMIT},  $self->{WEEK_TIME_LIMIT},   $self->{MONTH_TIME_LIMIT}, $self->{TIME_LIMIT},
-     $self->{DAY_TRAF_LIMIT},  $self->{WEEK_TRAF_LIMIT},   $self->{MONTH_TRAF_LIMIT}, $self->{OCTETS_DIRECTION},
+     $self->{TOTAL_TIME_LIMIT}, $self->{DAY_TIME_LIMIT},  $self->{WEEK_TIME_LIMIT},   $self->{MONTH_TIME_LIMIT}, $self->{TIME_LIMIT},
+     $self->{TOTAL_TRAF_LIMIT}, $self->{DAY_TRAF_LIMIT},  $self->{WEEK_TRAF_LIMIT},   $self->{MONTH_TRAF_LIMIT}, $self->{OCTETS_DIRECTION},
      $self->{NAS}, 
      $self->{SESSION_START}, 
      $self->{DAY_BEGIN}, 
@@ -156,7 +160,8 @@ sub dv_auth {
      $self->{EXT_BILL_ACCOUNT},
      $self->{TP_CREDIT},
      $self->{TP_IPPOOL},
-     $self->{JOIN_SERVICE}
+     $self->{JOIN_SERVICE},
+     $self->{TP_ID}
     ) = @{ $self->{list}->[0] };
 
 #DIsable
@@ -164,7 +169,7 @@ if ($self->{DISABLE}) {
   $RAD_PAIRS->{'Reply-Message'}="Service Disable";
   return 1, $RAD_PAIRS;
  }
-elsif (! $self->{JOIN_SERVICE} && $self->{TP_ID} < 1) {
+elsif (! $self->{JOIN_SERVICE} && $self->{TP_NUM} < 1) {
   $RAD_PAIRS->{'Reply-Message'}="No Tarif Selected";
   return 1, $RAD_PAIRS;
  }
@@ -187,11 +192,13 @@ if ($self->{JOIN_SERVICE}) {
   if ($self->{LOGINS}>0, $self->{LOGINS}, tp.logins) AS logins,
   if('$self->{FILTER}' != '', '$self->{FILTER}', tp.filter_id),
   dv.tp_id,
+  tp.total_time_limit,
   tp.day_time_limit,
   tp.week_time_limit,
   tp.month_time_limit,
   UNIX_TIMESTAMP(DATE_FORMAT(DATE_ADD(curdate(), INTERVAL 1 MONTH), '%Y-%m-01')) - UNIX_TIMESTAMP(),
 
+  tp.total_traf_limit,
   tp.day_traf_limit,
   tp.week_traf_limit,
   tp.month_traf_limit,
@@ -209,11 +216,12 @@ if ($self->{JOIN_SERVICE}) {
   tp.neg_deposit_filter_id,
   tp.ext_bill_account,
   tp.credit,
-  tp.ippool
+  tp.ippool,
+  tp.tp_id
      FROM (dv_main dv, tarif_plans tp)
      LEFT JOIN users_nas un ON (un.uid = dv.uid)
-     LEFT JOIN tp_nas ON (tp_nas.tp_id = tp.id)
-     LEFT JOIN intervals i ON (tp.id = i.tp_id)
+     LEFT JOIN tp_nas ON (tp_nas.tp_id = tp.tp_id)
+     LEFT JOIN intervals i ON (tp.tp_id = i.tp_id)
      WHERE dv.tp_id=tp.id
          AND dv.uid='$self->{JOIN_SERVICE}'
      GROUP BY dv.uid;");
@@ -231,9 +239,9 @@ if ($self->{JOIN_SERVICE}) {
     (
      $self->{LOGINS}, 
      $self->{FILTER}, 
-     $self->{TP_ID}, 
-     $self->{DAY_TIME_LIMIT},  $self->{WEEK_TIME_LIMIT},   $self->{MONTH_TIME_LIMIT}, $self->{TIME_LIMIT},
-     $self->{DAY_TRAF_LIMIT},  $self->{WEEK_TRAF_LIMIT},   $self->{MONTH_TRAF_LIMIT}, $self->{OCTETS_DIRECTION},
+     $self->{TP_NUM}, 
+     $self->{TOTAL_TIME_LIMIT}, $self->{DAY_TIME_LIMIT},  $self->{WEEK_TIME_LIMIT},   $self->{MONTH_TIME_LIMIT}, $self->{TIME_LIMIT},
+     $self->{TOTAL_TRAF_LIMIT}, $self->{DAY_TRAF_LIMIT},  $self->{WEEK_TRAF_LIMIT},   $self->{MONTH_TRAF_LIMIT}, $self->{OCTETS_DIRECTION},
      $self->{NAS}, 
      $self->{MAX_SESSION_DURATION},
      $self->{PAYMENT_TYPE},
@@ -246,6 +254,7 @@ if ($self->{JOIN_SERVICE}) {
      $self->{EXT_BILL_ACCOUNT},
      $self->{TP_CREDIT},
      $self->{TP_IPPOOL},
+     $self->{TP_ID},
     ) = @{ $self->{list}->[0] };
     $self->{UIDS} = "$self->{JOIN_SERVICE}";
    }
@@ -283,7 +292,7 @@ if ($self->{JOIN_SERVICE}) {
   }
 
 #Check CID (MAC) 
-if ($self->{CID} ne '' && $self->{CID} ne '0') {
+if ($self->{CID} ne '' && $self->{CID} ne "ANY") {
   my ($ret, $ERR_RAD_PAIRS) = $self->Auth_CID($RAD);
   return $ret, $ERR_RAD_PAIRS if ($ret == 1);
 }
@@ -328,7 +337,7 @@ if ($self->{PAYMENT_TYPE} == 0) {
 
     #Filtering with negative deposit
     if ($self->{NEG_DEPOSIT_FILTER_ID}) {
-      return $self->neg_deposit_filter_former($self->{NEG_DEPOSIT_FILTER_ID});
+      return $self->neg_deposit_filter_former($RAD, $NAS, $self->{NEG_DEPOSIT_FILTER_ID});
       #return 1, $RAD_PAIRS;
      }
     else {
@@ -400,11 +409,11 @@ push @time_limits, $self->{MAX_SESSION_DURATION} if ($self->{MAX_SESSION_DURATIO
 
 
 
-my @periods = ('DAY', 'WEEK', 'MONTH');
-my %SQL_params = (
-                  DAY   => "DATE_FORMAT(start, '%Y-%m-%d')=curdate()",
-                  WEEK  => "(YEAR(curdate())=YEAR(start)) and (WEEK(curdate()) = WEEK(start))",
-                  MONTH => "date_format(start, '%Y-%m')=date_format(curdate(), '%Y-%m')" 
+my @periods = ('TOTAL', 'DAY', 'WEEK', 'MONTH');
+my %SQL_params = (TOTAL => '',
+                  DAY   => "and DATE_FORMAT(start, '%Y-%m-%d')=curdate()",
+                  WEEK  => "and (YEAR(curdate())=YEAR(start)) and (WEEK(curdate()) = WEEK(start))",
+                  MONTH => "and date_format(start, '%Y-%m')=date_format(curdate(), '%Y-%m')" 
                   );
 
 my $WHERE = "='$self->{UID}'";
@@ -414,14 +423,14 @@ if ($self->{UIDS}) {
 
 foreach my $line (@periods) {
      if (($self->{$line . '_TIME_LIMIT'} > 0) || ($self->{$line . '_TRAF_LIMIT'} > 0)) {
-        my $session_time_limit=$traf_limit;
+        my $session_time_limit=$time_limit;
         my $session_traf_limit=$traf_limit;
 
         $self->query($db, "SELECT if(". $self->{$line . '_TIME_LIMIT'} ." > 0, ". $self->{$line . '_TIME_LIMIT'} ." - sum(duration), 0),
                                   if(". $self->{$line . '_TRAF_LIMIT'} ." > 0, ". $self->{$line . '_TRAF_LIMIT'} ." - $direction_sum[$self->{OCTETS_DIRECTION}], 0),
                                   1
             FROM dv_log
-            WHERE uid $WHERE and $SQL_params{$line}
+            WHERE uid $WHERE $SQL_params{$line}
             GROUP BY 3;");
 
         if ($self->{TOTAL} == 0) {
@@ -454,6 +463,14 @@ foreach my $line (@periods) {
      $time_limit = $time_limits[$i];
     }
   }
+
+ if ($self->{ACC_EXPIRE} != 0) {
+   my $to_expire = $self->{ACC_EXPIRE}-$self->{SESSION_START};
+   if ($to_expire < $time_limit) {
+   	 $time_limit=$to_expire;
+    }
+  }
+
 
  if ($time_limit > 0) {
    $RAD_PAIRS->{'Session-Timeout'} = "$time_limit";
@@ -560,6 +577,68 @@ elsif ($NAS->{NAS_TYPE} eq 'mikrotik') {
 #   exceed-action drop
 ######################
 # MPD
+elsif ($NAS->{NAS_TYPE} eq 'mpd5') {
+  
+  if (! $CONF->{mpd_filters}) {
+  	
+   }
+  elsif (! $NAS->{NAS_EXT_ACCT}) {
+    $self->query($db, "SELECT tt.id, tc.nets, in_speed, out_speed
+             FROM trafic_tarifs tt
+             LEFT JOIN traffic_classes tc ON (tt.net_id=tc.id)
+             WHERE tt.interval_id='$self->{TT_INTERVAL}' ORDER BY 1 DESC;");
+
+ 
+  foreach my $line ( @{ $self->{list} } ) {
+  	my $class_id    = $line->[0];
+    my $filter_name = 'flt';
+
+    if ($class_id == 0 && $line->[1] && $line->[1] =~ /0.0.0.0/) {
+       if (! $CONF->{ng_car}) {
+         push @{$RAD_PAIRS->{'mpd-limit'} }, "out#$self->{TOTAL}#0=all shape ". ($line->[2] * 1024)." 4000";
+         push @{$RAD_PAIRS->{'mpd-limit'} }, "in#$self->{TOTAL}#0=all shape ". ($line->[3] * 1024) ." 4000";
+        }
+
+   	   next ;
+      }
+    elsif($line->[1]) {
+      #$line->[1] = '' if (! $line->[1]) ;
+      $line->[1] =~ s/[\n\r]//g;
+      my @net_list = split(/;/, $line->[1]);
+  	
+  	  my $i=1;
+  	  $class_id = $class_id * 2 + 1 - 2 if ($class_id != 0);
+
+        foreach my $net (@net_list) {
+          push @{$RAD_PAIRS->{'mpd-filter'} }, ($class_id)."#$i=match dst net $net";
+          push @{$RAD_PAIRS->{'mpd-filter'} }, ($class_id+1)."#$i=match src net $net";
+  		  $i++;
+  	   }
+  	  
+      push @{$RAD_PAIRS->{'mpd-limit'} }, "in#" . ($self->{TOTAL}-$line->[0]) ."#$line->[0]=flt". ($class_id) ." pass";
+      push @{$RAD_PAIRS->{'mpd-limit'} }, "out#". ($self->{TOTAL}-$line->[0]) ."#$line->[0]=flt". ($class_id+1) ." pass";
+     }
+
+    #mpd-limit+=in#1#1=flt1 pass,
+    #mpd-limit+=out#1#1=flt2 pass,
+    
+    #mpd-limit+=out#2#0=all rate-limit 1024000 150000 300000,
+    #mpd-limit+=in#2#0=all shape 64000 4000,  	
+  	
+    #mpd-filter+=1#1=match dst net 10.0.0.0/8,
+    #mpd-filter+=2#1=match src net 10.0.0.0/8,
+    #mpd-limit+=in#1#1=flt1 pass,
+    #mpd-limit+=in#2#0=all shape 64000 4000,
+    #mpd-limit+=out#1#1=flt2 pass,
+    #mpd-limit+=out#2#0=all rate-limit 1024000 150000 300000,
+
+   }
+
+
+  }
+	
+	#$RAD_PAIRS->{'Session-Timeout'}=604800;
+ }
 elsif ($NAS->{NAS_TYPE} eq 'mpd4' && $RAD_PAIRS->{'Session-Timeout'} > 604800) {
 	$RAD_PAIRS->{'Session-Timeout'}=604800;
  }
@@ -591,7 +670,21 @@ elsif ($NAS->{NAS_TYPE} eq 'pppd' or ($NAS->{NAS_TYPE} eq 'lepppd')) {
   #global Traffic
   if ($EX_PARAMS->{traf_limit} > 0) {
     $RAD_PAIRS->{'Session-Octets-Limit'} = int($EX_PARAMS->{traf_limit} * $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE});
-    $RAD_PAIRS->{'Octets-Direction'} = $self->{OCTETS_DIRECTION};
+    
+    if ($CONF->{octets_direction} && $CONF->{octets_direction} eq 'user') {
+      if($self->{OCTETS_DIRECTION} == 1) {
+        $RAD_PAIRS->{'Octets-Direction'} = 2;
+       }
+      elsif($self->{OCTETS_DIRECTION} == 2) {
+        $RAD_PAIRS->{'Octets-Direction'} = 1;
+       }
+      else {
+      	$RAD_PAIRS->{'Octets-Direction'} = 0;
+       }
+     }
+    else {
+    	$RAD_PAIRS->{'Octets-Direction'}     = $self->{OCTETS_DIRECTION};
+     }
    }
 
   #Speed limit attributes 
@@ -627,10 +720,9 @@ elsif ($NAS->{NAS_TYPE} eq 'chillispot') {
 }
 
 #Auto assing MAC in first connect
-if( defined($CONF->{MAC_AUTO_ASSIGN}) && 
-       $CONF->{MAC_AUTO_ASSIGN}==1 && 
-       $self->{CID} eq '' && 
-       (defined($RAD->{CALLING_STATION_ID}) && $RAD->{CALLING_STATION_ID} =~ /:/ && $RAD->{CALLING_STATION_ID} !~ /\// )
+if( $CONF->{MAC_AUTO_ASSIGN} && 
+    $self->{CID} eq '' && 
+    ($RAD->{CALLING_STATION_ID} && $RAD->{CALLING_STATION_ID} =~ /:|\-/ && $RAD->{CALLING_STATION_ID} !~ /\// )
       ) {
   $self->query($db, "UPDATE dv_main SET cid='$RAD->{CALLING_STATION_ID}'
      WHERE uid='$self->{UID}';", 'do');
@@ -668,6 +760,7 @@ if( $self->{ACCOUNT_AGE} > 0 && $self->{ACCOUNT_ACTIVATE} eq '0000-00-00') {
        }
      }
    }
+
 #OK
   return 0, $RAD_PAIRS, '';
 }
@@ -685,16 +778,20 @@ sub Auth_CID {
   my $RAD_PAIRS;
   
   my @MAC_DIGITS_GET = ();
-  if (! defined($RAD->{CALLING_STATION_ID})) {
+  if (! $RAD->{CALLING_STATION_ID}) {
      $RAD_PAIRS->{'Reply-Message'}="Wrong CID ''";
      return 1, $RAD_PAIRS, "Wrong CID ''";
    }
+ 
+ 	my @CID_POOL = split(/;/, $self->{CID});
 
 
-   if (($self->{CID} =~ /:/ || $self->{CID} =~ /-/)
-       && $self->{CID} !~ /\./) {
-      #@MAC_DIGITS_GET=split(/:/, $self->{CID}) if($self->{CID} =~ /:/);
-      @MAC_DIGITS_GET=split(/:|-/, $self->{CID});
+  foreach my $TEMP_CID (@CID_POOL) { if ($TEMP_CID ne '') {
+
+    if (($TEMP_CID =~ /:/ || $TEMP_CID =~ /-/)
+       && $TEMP_CID !~ /\./) {
+      @MAC_DIGITS_GET=split(/:|-/, $TEMP_CID);
+        
       
       
 
@@ -705,31 +802,43 @@ sub Auth_CID {
          ($cid_ip, $RAD->{CALLING_STATION_ID}, $trash) = split(/\//, $RAD->{CALLING_STATION_ID}, 3);
        }
 
-      my @MAC_DIGITS_NEED = split(/:|\.|-/, $RAD->{CALLING_STATION_ID});
+      my @MAC_DIGITS_NEED = split(/:|-/, $RAD->{CALLING_STATION_ID});
+      my $counter=0;
 
       for(my $i=0; $i<=5; $i++) {
-        if(hex($MAC_DIGITS_NEED[$i]) != hex($MAC_DIGITS_GET[$i])) {
-          $RAD_PAIRS->{'Reply-Message'}="Wrong MAC '$RAD->{CALLING_STATION_ID}'";
-          return 1, $RAD_PAIRS, "Wrong MAC '$RAD->{CALLING_STATION_ID}'";
-         }
+      	#print "$MAC_DIGITS_NEED[$i]) == hex($MAC_DIGITS_GET[$i]\n";
+      	
+         if(hex($MAC_DIGITS_NEED[$i]) == hex($MAC_DIGITS_GET[$i])) {
+	         $counter++;
+          }
+        }
+
+      if ($counter eq '6') {
+   	    return 0;
+	     }
+
+     }
+    # If like MPD CID
+    # 192.168.101.2 / 00:0e:0c:4a:63:56 
+    elsif($TEMP_CID =~ /\//) {
+      $RAD->{CALLING_STATION_ID} =~ s/ //g;
+      my ($cid_ip, $cid_mac, $trash) = split(/\//, $RAD->{CALLING_STATION_ID}, 3);
+      if ("$cid_ip/$cid_mac" eq $TEMP_CID) {
+        return 0;
        }
-    }
-   # If like MPD CID
-   # 192.168.101.2 / 00:0e:0c:4a:63:56 
-   elsif($self->{CID} =~ /\//) {
-     $RAD->{CALLING_STATION_ID} =~ s/ //g;
-     my ($cid_ip, $cid_mac, $trash) = split(/\//, $RAD->{CALLING_STATION_ID}, 3);
-     if ("$cid_ip/$cid_mac" ne $self->{CID}) {
-       $RAD_PAIRS->{'Reply-Message'}="Wrong CID '$cid_ip/$cid_mac'";
-       return 1, $RAD_PAIRS;
-      }
-    }
-   elsif($self->{CID} ne $RAD->{CALLING_STATION_ID}) {
-     $RAD_PAIRS->{'Reply-Message'}="Wrong CID '$RAD->{CALLING_STATION_ID}'";
-     return 1, $RAD_PAIRS;
-    }
+     }
+    elsif($TEMP_CID eq $RAD->{CALLING_STATION_ID}) {
+      return 0;
+     }
+   }
+
+  }
+
+   $RAD_PAIRS->{'Reply-Message'}="Wrong CID '$RAD->{CALLING_STATION_ID}'";
+   return 1, $RAD_PAIRS;
 
 }
+
 
 #**********************************************************
 # User authentication
@@ -780,6 +889,12 @@ sub authentication {
     $RAD->{USER_NAME}=$login;
    }
 
+  my $WHERE  = '';
+
+  if ($NAS->{DOMAIN_ID}) {
+  	$WHERE = "AND u.domain_id='$NAS->{DOMAIN_ID}'";
+   }
+
   $self->query($db, "select
   u.uid,
   DECODE(password, '$SECRETKEY'),
@@ -793,10 +908,11 @@ sub authentication {
   u.credit,
   u.activate,
   u.reduction,
-  u.ext_bill_id
+  u.ext_bill_id,
+  UNIX_TIMESTAMP(u.expire)
      FROM users u
      WHERE 
-        u.id='$RAD->{USER_NAME}'
+        u.id='$RAD->{USER_NAME}' $WHERE
         AND (u.expire='0000-00-00' or u.expire > CURDATE())
         AND (u.activate='0000-00-00' or u.activate <= CURDATE())
        GROUP BY u.id;");
@@ -824,7 +940,8 @@ sub authentication {
      $self->{CREDIT},
      $self->{ACCOUNT_ACTIVATE},
      $self->{REDUCTION},
-     $self->{EXT_BILL_ID}
+     $self->{EXT_BILL_ID},
+     $self->{ACC_EXPIRE}
     ) = @{ $self->{list}->[0] };
 
 
@@ -1061,13 +1178,13 @@ sub ex_traffic_params {
 
    my $list = $self->{list};
    foreach my $line (@$list) {
-     $prepaids{$line->[0]}=$line->[3];
-     $in_prices{$line->[0]}=$line->[1];
-     $out_prices{$line->[0]}=$line->[2];
-     $EX_PARAMS{speed}{$line->[0]}{IN}=$line->[4];
-     $EX_PARAMS{speed}{$line->[0]}{OUT}=$line->[5];
+     $prepaids{$line->[0]}            = $line->[3];
+     $in_prices{$line->[0]}           = $line->[1];
+     $out_prices{$line->[0]}          = $line->[2];
+     $EX_PARAMS{speed}{$line->[0]}{IN}= $line->[4];
+     $EX_PARAMS{speed}{$line->[0]}{OUT}= $line->[5];
      $expr{$line->[0]}=$line->[7] if (length($line->[7]) > 5);
-     $nets+=$line->[6];
+     $nets+=$line->[6] if (defined($line->[6]));
     }
 
    $EX_PARAMS{nets}=$nets if ($nets > 20);
@@ -1099,8 +1216,6 @@ if ((defined($prepaids{0}) && $prepaids{0} > 0 ) || (defined($prepaids{1}) && $p
    }   
 
   if ($self->{TRAFFIC_TRANSFER_PERIOD}) {
-    my $tp = $self->{TP_ID};
-    
     #$prepaids{0} = $prepaids{0} * $self->{TRAFFIC_TRANSFER_PERIOD} ;
     #$prepaids{1} = $prepaids{1} * $self->{TRAFFIC_TRANSFER_PERIOD} ;
     my $interval = undef;
@@ -1118,7 +1233,8 @@ if ((defined($prepaids{0}) && $prepaids{0} > 0 ) || (defined($prepaids{1}) && $p
     my $transfer_traffic=$Billing->get_traffic({ UID      => $self->{UID},
     	                                           UIDS     => $self->{UIDS},
                                                  INTERVAL => $interval,
-                                                 TP_ID    => $tp
+                                                 TP_ID    => $self->{TP_ID},
+                                                 TP_NUM   => $self->{TP_NUM},
                                                });
                                            
      
@@ -1187,7 +1303,19 @@ if ((defined($prepaids{0}) && $prepaids{0} > 0 ) || (defined($prepaids{1}) && $p
   if ($RESULT->{TRAFFIC_LIMIT}) {
   	#print "LIMIT: $RESULT->{TRAFFIC_LIMIT} USED: $used_traffic->{TRAFFIC_SUM}";
   	$trafic_limits{0} =  $RESULT->{TRAFFIC_LIMIT} - $used_traffic->{TRAFFIC_COUNTER};
+   if ($RESULT->{SPEED_IN}) {
+        $EX_PARAMS{speed}{0}{IN}=$RESULT->{SPEED_IN};
    }
+
+  if ($RESULT->{SPEED_OUT}) {
+        $EX_PARAMS{speed}{0}{OUT}=$RESULT->{SPEED_OUT};
+   }
+
+  if ($RESULT->{SPEED}) {
+        $EX_PARAMS{speed}{0}{IN}=$RESULT->{SPEED};
+        $EX_PARAMS{speed}{0}{OUT}=$RESULT->{SPEED};
+   }
+  }
   #End expresion   
  }
 else {
@@ -1270,7 +1398,7 @@ sub get_ip {
   }
 
  if ($self->{TOTAL} < 1)  {
-   return 0;	
+   return 0;
   }
 
  
@@ -1455,7 +1583,12 @@ if (defined($RAD->{MS_CHAP_CHALLENGE}) || defined($RAD->{EAP_MESSAGE})) {
   	my $list = $self->{list}->[0];
     my $password = $list->[0];
     $self->{'RAD_CHECK'}{'User-Password'}="$password";
-    print "User-Password == \"$password\"";
+    if ($CONF->{RADIUS2}) {
+       print "Cleartext-Password := \"$password\"";
+     }
+    else {
+       print "User-Password == \"$password\"";
+     }
     return 0;
    }
 
@@ -1562,6 +1695,29 @@ sub neg_deposit_filter_former () {
 	
 	 my $RAD_PAIRS ;
 	
+      # Return radius attr    
+      if ($self->{IP} ne '0') {
+        $RAD_PAIRS->{'Framed-IP-Address'} = "$self->{IP}";
+       }
+      else {
+        my $ip = $self->get_ip($NAS->{NAS_ID}, "$RAD->{NAS_IP_ADDRESS}", { TP_IPPOOL => $self->{TP_IPPOOL} });
+        if ($ip eq '-1') {
+          $RAD_PAIRS->{'Reply-Message'}="Rejected! There is no free IPs in address pools (USED: $self->{USED_IPS}) ". (($self->{TP_IPPOOL}) ? " TP_IPPOOL: $self->{TP_IPPOOL}" : '' );
+          return 1, $RAD_PAIRS;
+         }
+        elsif($ip eq '0') {
+          #$RAD_PAIRS->{'Reply-Message'}="$self->{errstr} ($NAS->{NAS_ID})";
+          #return 1, $RAD_PAIRS;
+         }
+        else {
+          $RAD_PAIRS->{'Framed-IP-Address'} = "$ip";
+         }
+       }
+
+
+   $NEG_DEPOSIT_FILTER_ID =~ s/\%IP\%/$RAD_PAIRS->{'Framed-IP-Address'}/g;
+   $NEG_DEPOSIT_FILTER_ID =~ s/\%LOGIN\%/$RAD->{'USER_NAME'}/g;
+	
 	 if ($NEG_DEPOSIT_FILTER_ID =~ /RAD:(.+)/) {
       	my $rad_pairs = $1;
         my @p = split(/,/, $rad_pairs);
@@ -1580,6 +1736,7 @@ sub neg_deposit_filter_former () {
    	         }
    	        else {
    	        	#next if (! $self->{"$left"});
+   	        	$right = '' if (! $right);
    	          $RAD_PAIRS->{"$left"}="$right";
    	         }
            }
@@ -1589,24 +1746,6 @@ sub neg_deposit_filter_former () {
     	$RAD_PAIRS->{'Filter-Id'} = "$NEG_DEPOSIT_FILTER_ID";
     }
 
-      # Return radius attr    
-      if ($self->{IP} ne '0') {
-        $RAD_PAIRS->{'Framed-IP-Address'} = "$self->{IP}";
-       }
-      else {
-        my $ip = $self->get_ip($NAS->{NAS_ID}, "$RAD->{NAS_IP_ADDRESS}", { TP_IPPOOL => $self->{TP_IPPOOL} });
-        if ($ip eq '-1') {
-          $RAD_PAIRS->{'Reply-Message'}="Rejected! There is no free IPs in address pools (USED: $self->{USED_IPS})";
-          return 1, $RAD_PAIRS;
-         }
-        elsif($ip eq '0') {
-          #$RAD_PAIRS->{'Reply-Message'}="$self->{errstr} ($NAS->{NAS_ID})";
-          #return 1, $RAD_PAIRS;
-         }
-        else {
-          $RAD_PAIRS->{'Framed-IP-Address'} = "$ip";
-         }
-       }
 	
 	
 	return 0, $RAD_PAIRS;;

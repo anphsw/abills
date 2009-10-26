@@ -9,7 +9,7 @@
 <TR><TD><b>$_RESPOSIBLE:</b></td></tr>
 <TR><TD>%RESPOSIBLE%</TD></TR>
 <TR><TD><b>$_INNER:</b> %INNER_MSG%</TD></TR>
-<!-- <TR><TD><b>$_HIDE:</b><input type=checkbox name=HIDE value=1 %HIDE%></TD></TR> -->
+<TR><TD><b>$_PHONE:</b> %PHONE%</TD></TR>
 
 <TR><TD>&nbsp;</TD></TR>
 <TR><TD><b>$_STATE:</b> </TD></TR>
@@ -21,5 +21,6 @@
 <TR><TD>$_TIME: <input type=text value='%PLAN_TIME%' name='PLAN_TIME'></TD></TR>
 <TR><TD><b>$_CLOSED:</b> %CLOSED_DATE%</TD></TR>
 <TR><TD><b>$_DONE:</b> %DONE_DATE%</TD></TR>
+<!-- <TR><TD><b>$_DISPATCH:</b> %DISPATCH_SEL%</TD></TR> -->
 <TR><TD><input type=submit name=change value='$_CHANGE' class='noprint'></TD></TR>
 </TABLE>

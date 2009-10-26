@@ -191,6 +191,9 @@ sub customers_list {
    push @WHERE_RULES, "u.gid='$attr->{GID}'"; 
   }
 
+  if (defined($attr->{USER_TYPE}) && $attr->{USER_TYPE} ne '') {
+    push @WHERE_RULES, ($attr->{USER_TYPE} == 1) ? "u.company_id>'0'" : "u.company_id='0'"; 
+   }
 
 #Activate
  if ($attr->{ACTIVATE}) {
@@ -297,6 +300,12 @@ sub payment_deed {
     push @WHERE_RULES, "u.gid='$attr->{GID}'"; 
     push @WHERE_RULES_DV, "u.gid IN ($attr->{GIDS})"; 
    }
+
+  if (defined($attr->{USER_TYPE}) && $attr->{USER_TYPE} ne '') {
+  	push @WHERE_RULES, ($attr->{USER_TYPE} == 1) ? "u.company_id>'0'" : "u.company_id='0'"; 
+    push @WHERE_RULES_DV, ($attr->{USER_TYPE} == 1) ? "u.company_id>'0'" : "u.company_id='0'"; 
+   }
+
  
   #Don't use bonus
  
@@ -458,9 +467,6 @@ sub extfin_report_deeds {
   my $self = shift;
   my ($attr) = @_;
 
- print "Content-Type: text/html\n\n";
- #print "aaaaaaaaaaaaaa";
-
  @WHERE_RULES = ();
  my %NAMES=();
 
@@ -475,6 +481,16 @@ sub extfin_report_deeds {
    push @WHERE_RULES, @{ $self->search_expr($attr->{GID}, 'INT', 'u.gid') }; 
   }
 
+ if (defined($attr->{USER_TYPE}) && $attr->{USER_TYPE} ne '') {
+ 	 push @WHERE_RULES, ($attr->{USER_TYPE} == 1) ? "company.name is not null" : "u.company_id='0'"; 
+  }
+
+ my $GROUP = 1;
+ my $report_sum  = 'report.sum';
+ if ($attr->{TOTAL_ONLY}) {
+ 	 $GROUP = 5;
+ 	 $report_sum  = 'sum(report.sum)';
+  }
 
 
 
@@ -486,7 +502,7 @@ sub extfin_report_deeds {
    IF(company.name is not null, company.name,
     IF(pi.fio<>'', pi.fio, u.id)),
    IF(company.name is not null, 1, 0),
-   report.sum,
+   $report_sum,
    IF(company.name is not null, company.vat, 0),
    report.date,
    report.aid, 
@@ -497,7 +513,7 @@ sub extfin_report_deeds {
   LEFT JOIN users_pi pi ON (u.uid = pi.uid)
   LEFT JOIN companies company ON (b.id=company.bill_id)
   WHERE $WHERE
-   GROUP BY 1
+   GROUP BY $GROUP
   ORDER BY $SORT $DESC 
    ;");
 
@@ -1044,6 +1060,9 @@ sub extfin_debetors {
 
   @WHERE_RULES = ();
 
+
+  $self->{debug}=1;
+
   # Show groups
   if ($attr->{GIDS}) {
     push @WHERE_RULES, "u.gid IN ($attr->{GIDS})"; 
@@ -1069,23 +1088,22 @@ sub extfin_debetors {
     
     $attr->{DATE} = "'$attr->{DATE}'";
     #$ext_field    = "\@A:=f.last_deposit-f.sum,";
-    $ext_field    = "\@A:=(select last_deposit-sum FROM fees USE INDEX (uid) WHERE uid=\@uid ORDER BY id DESC limit 1),";
-    $self->query($db, "select uid, last_deposit-sum FROM fees WHERE date<$attr->{DATE} GROUP BY uid ORDER BY id;");
-    foreach my $line (@{ $self->{list} }) {
-    	$deposits{$line->[0]}=$line->[1];
-     }
+    $ext_field    = "\@A:=(select f.last_deposit-f.sum FROM fees f WHERE f.uid=\@uid and f.date<'2009-03-31' ORDER BY f.id DESC limit 1) AS debet,";
+    #$self->query($db, "select uid, last_deposit-sum FROM fees WHERE date<$attr->{DATE} GROUP BY uid ORDER BY id;");
+    #foreach my $line (@{ $self->{list} }) {
+    #	$deposits{$line->[0]}=$line->[1];
+    # }
 
     $self->{DEPOSITS}=\%deposits;
    }
   else {
-    push @WHERE_RULES, "( b.deposit < 0 or cb.deposit < 0 ) and (f.last_deposit >=0 and f.last_deposit-sum<0)";
-    $ext_field = "\@A:=if(company.id IS NULL,b.deposit,cb.deposit),";
+    push @WHERE_RULES, "( b.deposit < 0 or cb.deposit < 0 ) ";# and (f.last_deposit >=0 and f.last_deposit-sum<0)";
+    $ext_field = "\@A:=if(company.id IS NULL,b.deposit,cb.deposit) AS debet,";
     $attr->{DATE} = 'CURDATE()';
    }
   
   $WHERE = ($#WHERE_RULES > -1) ?  "and " . join(' and ', @WHERE_RULES) : ''; 
 
-  #$self->{debug}=1;
 
   $self->query($db, "SELECT \@uid:=u.uid, u.id, pi.contract_id,
    pi.fio,
@@ -1109,6 +1127,7 @@ sub extfin_debetors {
      LEFT JOIN dv_main dv ON  (u.uid=dv.uid)
 WHERE u.uid=f.uid $WHERE
 GROUP BY f.uid
+HAVING debet < 0
 ORDER BY f.date DESC;");
 
   my $list = $self->{list};

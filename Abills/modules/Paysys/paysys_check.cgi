@@ -7,7 +7,11 @@
 use vars qw($begin_time %FORM %LANG 
 $DATE $TIME
 $CHARSET 
-@MODULES);
+@MODULES
+$users 
+$payments
+$Paysys
+);
 
 BEGIN {
  my $libpath = '../';
@@ -16,6 +20,7 @@ BEGIN {
  unshift(@INC, $libpath ."Abills/$sql_type/");
  unshift(@INC, $libpath);
  unshift(@INC, $libpath . 'libexec/');
+ unshift(@INC, $libpath . 'Abills/modules/Paysys');
 
  eval { require Time::HiRes; };
  if (! $@) {
@@ -38,10 +43,10 @@ use Paysys;
 use Finance;
 use Admins;
 
-
-my $html = Abills::HTML->new();
-my $sql = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd});
-my $db = $sql->{db};
+my $debug  = 0;
+my $html   = Abills::HTML->new();
+my $sql    = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd});
+my $db     = $sql->{db};
 #Operation status
 my $status = '';
 
@@ -104,16 +109,16 @@ if ($conf{PAYSYS_PASSWD}) {
 
 
 
-my $Paysys = Paysys->new($db, undef, \%conf);
+$Paysys   = Paysys->new($db, undef, \%conf);
 my $admin = Admins->new($db, \%conf);
 $admin->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });
-my $payments = Finance->payments($db, $admin, \%conf);
+$payments = Finance->payments($db, $admin, \%conf);
 
-my $users = Users->new($db, $admin, \%conf); 
+$users = Users->new($db, $admin, \%conf); 
 
 
 #DEbug
-my $output2 = '';
+my $output2 = "DATE: $DATE $TIME =========================\n";
 while(my($k, $v)=each %FORM) {
  	$output2 .= "$k, $v\n"	if ($k ne '__BUFFER');
 }
@@ -124,7 +129,21 @@ if( $FORM{txn_id} || $FORM{prv_txn} || defined($FORM{prv_id}) ) {
 elsif ($FORM{SHOPORDERNUMBER}) {
   portmone_payments();
  }
-
+elsif($FORM{AcqID}) {
+	privatbank_payments();
+ }
+elsif($FORM{operation} || $ENV{'QUERY_STRING'} =~ /operation=/) {
+	require "Comepay.pm";
+	exit;
+ }
+elsif ($FORM{EO}) {
+	require "express_oplata.pm";
+	exit;
+ }
+elsif($FORM{ACT}) {
+	require "24_non_stop.pm";
+	exit;
+}
 
 #Check payment system by IP
 
@@ -143,7 +162,11 @@ if ($ip_num > $first_ip && $ip_num < $last_ip){
         print " </response>\n";
         exit;
  } 
-
+#USMP
+elsif('192.168.0.1,77.222.138.142,195.10.218.120' =~ /$ENV{REMOTE_ADDR}/ && ! $conf{PAYSYS_USMP_OLD}) {
+  usmp_payments_v2();
+  exit;
+ }
 
 print "Content-Type: text/html\n\n";
 
@@ -189,8 +212,20 @@ sub payments {
    }
   else {
     print "Error: Unknown payment system";
+    if (scalar keys %FORM > 0) {
+   	  if (open(FILE, ">>paysys_check.log")) {
+  	    print FILE $output2;
+	      close(FILE);
+	     }
+      else {
+  	    $html->message('err', $_ERROR, "Can't open file '$conf{TPL_DIR}/$FORM{tpl_name}' $!\n");
+       }
+    }
    }
 }
+
+
+
 
 
 #**********************************************************
@@ -274,6 +309,115 @@ sub portmone_payments {
 	exit;
 }
 
+
+#**********************************************************
+#
+#**********************************************************
+sub privatbank_payments {
+  #Get order
+
+
+  my $status = 0;
+
+  my $list = $Paysys->list({ TRANSACTION_ID => "$FORM{'OrderID'}", 
+      	                     INFO           => '-',
+      	                     
+  	                         });
+
+
+ 
+
+ if ($Paysys->{TOTAL} > 0) {
+	 
+   if (	$FORM{ReasonCode} == 1 ) {     
+	      #$html->message('info', $_INFO, "$_ADDED $_SUM: $list->[0][3] ID: $FORM{SHOPORDERNUMBER }");
+	      my $uid = $list->[0][7];
+	      my $sum = $list->[0][3];
+        my $user = $users->info($uid);
+        $payments->add($user, {SUM      => $sum,
+    	                     DESCRIBE     => 'PBANK', 
+    	                     METHOD       => '2', 
+  	                       EXT_ID       => "PBANK:$FORM{OrderID}",
+  	                       CHECK_EXT_ID => "PBANK:$FORM{OrderID}" } );  
+
+
+        #Exists
+        if ($payments->{errno} && $payments->{errno} == 7) {
+          $status = 8;  	
+         }
+        elsif ($payments->{errno}) {
+          $status = 4;
+         }
+        else{
+        	
+#MerID=100000000918471  
+#OrderID=test00000001g5hg45h45
+#AcqID=414963
+#Signature=e2DkM6RYyNcn6+okQQX2BNeg/+k=
+#ECI=5
+#IP=217.117.65.41
+#CountryBIN=804
+#CountryIP=804
+#ONUS=1
+#Time=22/01/2007 13:56:38
+#Signature2=nv7CcUe5t9vm+uAo9a52ZLHvRv4=
+#ReasonCodeDesc=Transaction is approved.
+#ResponseCode=1
+#ReasonCode=1
+#ReferenceNo=702308304646
+#PaddedCardNo=XXXXXXXXXXXX3982
+#AuthCode=073291
+
+        	
+   	      $Paysys->change({ ID        => $list->[0][0],
+   	      	                PAYSYS_IP => $ENV{'REMOTE_ADDR'},
+ 	                          INFO      => "ReasonCode: $FORM{ReasonCode}\n Authcode: $FORM{AuthCode}\n PaddedCardNo: $FORM{PaddedCardNo}\n ResponseCode: $FORM{ResponseCode}\n ReasonCodeDesc: $FORM{ReasonCodeDesc}\n IP: $FORM{IP}\n Signature: $FORM{Signature}" 
+ 	                  });
+         }
+
+	      if ($conf{PAYSYS_EMAIL_NOTICE}) {
+	      	my $message = "\n".
+	      	 "System: Portmone\n".
+	      	 "DATE: $DATE $TIME\n".
+	      	 "LOGIN: $user->{LOGIN} [$uid]\n".
+	      	 "\n".
+       	   "\n".
+	      	 "ID: $FORM{SHOPORDERNUMBER}\n".
+	      	 "SUM: $sum\n";
+
+          sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "Paysys Portmone Add", 
+              "$message", "$conf{MAIL_CHARSET}", "2 (High)");
+	      	
+	       }
+
+    }
+   else {
+     $Paysys->change({ ID        => $list->[0][0],
+     	                 PAYSYS_IP => $ENV{'REMOTE_ADDR'},
+ 	                     INFO      => "ReasonCode: $FORM{ReasonCode}. $FORM{ReasonCodeDesc}" 
+ 	                 });
+  	}
+
+  }
+	
+  
+	my $home_url = '/index.cgi';
+  $home_url = $ENV{SCRIPT_NAME};
+  $home_url =~ s/paysys_check.cgi/index.cgi/;
+  
+	if ($FORM{ResponseCode} == 1) {
+	  print "Location: $home_url?PAYMENT_SYSTEM=8&OrderID=$FORM{OrderID}&TRUE=1". "\n\n";
+	 }
+	else {
+		#print "Content-Type: text/html\n\n";
+		#print "FAILED PAYSYS: Portmone SUM: $FORM{BILL_AMOUNT} ID: $FORM{SHOPORDERNUMBER} STATUS: $status";
+		print "Location: $home_url?PAYMENT_SYSTEM=8&OrderID=$FORM{OrderID}&FALSE=1&ReasonCodeDesc=$FORM{ReasonCodeDesc}&ReasonCode=$FORM{ReasonCode}&ResponseCode=$FORM{ResponseCode}". "\n\n";
+	 }
+
+
+	exit;
+}
+
 #**********************************************************
 # OSMP / Pegas
 #**********************************************************
@@ -328,8 +472,8 @@ my %status_hash = (0	=> 'Success',
  	 $txn_id            = 'txn_id';
  	 $payment_system    = 'PEGAS';
  	 $payment_system_id = 9;
- 	 $status_hash{5}='Неверный индентификатор абонента';
- 	 $status_hash{243}='Невозможно проверитьсостояние счёта';
+ 	 $status_hash{5}    = 'Неверный индентификатор абонента';
+ 	 $status_hash{243}  = 'Невозможно проверитьсостояние счёта';
  	 $CHECK_FIELD       = $conf{PAYSYS_PEGAS_ACCOUNT_KEY} || 'UID';
   }
 
@@ -490,8 +634,493 @@ exit;
 #**********************************************************
 # http://usmp.com.ua/
 # Example:
-# /paysys_check.cgi?account=638&date=13.12.08%2001%3A42%3A21&hash=5237893&id=138&sum=66&testMode=0&type=1&sign=a97e377896b2630fe491d6e0d79a8f484bf357b4f5c5197e8ffc7466d1b6693d0dc892e1380ab4104bc920ccfdc808fe898524330bcefd7c7c2407668a9a845f47f693202119820cce77928a377a316c99c561c5d81811f929d3b39c0e37d893901f35e30352e3e8acd49abcbbe2033c3847d81c0bd06728d24f36e116be6d49
+# new version
 #
+#**********************************************************
+sub usmp_payments_v2 {
+
+
+eval { require XML::Simple; };
+if (! $@) {
+   XML::Simple->import();
+ }
+else {
+   print "Content-Type: text/html\n\n";
+   print "Can't load 'XML::Simple' check http://www.cpan.org";
+   exit;
+ }
+
+$FORM{__BUFFER}='' if (! $FORM{__BUFFER});
+$FORM{__BUFFER}=~s/data=//;
+
+
+#
+#$FORM{__BUFFER}=qq{<?xml version="1.0" encoding="utf-8"?>
+#<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+#  <soap:Body>
+#    <ProcessPayment xmlns="http://usmp.com.ua/">
+#      <request>
+#        <Serial>VZJxfNNYJ4XGtwm2T</Serial>
+#        <KeyWord>WrnVmkcYMPDYxvNvLQDKRB</KeyWord>
+#        <Payments>
+#          <PaymentDetails>
+#            <Date>DateTime</Date>
+#            <PayElementID>int</PayElementID>
+#            <Account>string</Account>
+#            <Amount>int</Amount>
+#            <ChequeNumber>int</ChequeNumber>
+#          </PaymentDetails>
+#          <PaymentDetails>
+#            <Date>DateTime</Date>
+#            <PayElementID>int</PayElementID>
+#            <Account>string</Account>
+#            <Amount>int</Amount>
+#            <ChequeNumber>int</ChequeNumber>
+#          </PaymentDetails>
+#        </Payments>
+#      </request>
+#    </ProcessPayment>
+#  </soap:Body>
+#</soap:Envelope>
+#
+#};
+
+
+my $_xml = eval { XMLin("$FORM{__BUFFER}", forcearray=>1) };
+
+if($@) {
+	print "Content-Type: text/xml\n\n";
+  usmp_error_msg('212', 'Incorrect XML');
+
+	my $content = $FORM{__BUFFER};
+  open(FILE, ">>paysys_xml.log") or die "Can't open file 'paysys_xml.log' $!\n";
+    print FILE "----\n";
+    print FILE $content;
+    print FILE "\n----\n";
+    print FILE $@;
+    print FILE "\n----\n";
+  close(FILE);
+
+  return 0;
+
+  #print "Content-Type: text/plain\n\n";
+  #print "\n$FORM{__BUFFER}\n";
+  #print $@;
+}
+
+my %request_hash = ();
+my $request_type = '';
+
+while(my ($k, $v) = each %{ $_xml->{'soap:Body'}->[0] }) {
+	$request_type = $k;
+}
+
+
+
+if($debug > 0) {
+  print "Conten-Type: text/plain\n\n";
+  print "\n-- $request_type --\n";
+}
+
+my $CHECK_FIELD = $conf{PAYSYS_USMP_ACCOUNT_KEY} || 'UID';
+
+my $id    = 0;  
+my $accid = ''; 
+my $sum   = 0;  
+my $date  = ''; 
+my $ChequeNumber = ''; 
+
+
+
+$request_hash{'KeyWord'} = $_xml->{'soap:Body'}->[0]->{$request_type}->[0]->{request}->[0]->{KeyWord}->[0];
+$request_hash{'Serial'}  = $_xml->{'soap:Body'}->[0]->{$request_type}->[0]->{request}->[0]->{Serial}->[0];
+
+
+my $err_code = 0;
+my $type     = '';
+print "Content-Type: text/xml\n\n";
+
+$conf{PAYSYS_USMP_MINSUM} = (! $conf{PAYSYS_USMP_MINSUM}) ? 100 : $conf{PAYSYS_USMP_MINSUM} * 100;
+$conf{PAYSYS_USMP_MAXSUM} = (! $conf{PAYSYS_USMP_MAXSUM}) ? 100000 : $conf{PAYSYS_USMP_MAXSUM} * 100;
+
+#if ($conf{'PAYSYS_USMP_PAYELEMENTID'} && $request_hash{'PayElementID'} ne $conf{'PAYSYS_USMP_PAYELEMENTID'}  ){
+#    usmp_error_msg('121', 'Incorect PayElementID');
+#    return 0;
+# }
+
+if (! $request_hash{'Serial'} || ! $request_hash{'KeyWord'}) {
+  usmp_error_msg('212', 'Incorrect XML');
+  return 0;
+ }
+elsif ($request_hash{'Serial'} ne $conf{'PAYSYS_USMP_SERIAL'}){
+  usmp_error_msg('211', 'IncorrectSerial');
+  return 0;
+ }
+elsif($request_hash{'KeyWord'} ne $conf{'PAYSYS_USMP_KEYWORD'}) {
+  usmp_error_msg('210', 'IncorrectKeyWord');
+  return 0;
+ }
+#add money
+elsif($request_type eq 'ProcessPayment') {
+  $type = 'ProcessPaymentsResponse';
+  my @result_arr = ();
+  my $user;
+
+  my @payments_arr = @{ $_xml->{'soap:Body'}->[0]->{$request_type}->[0]->{request}->[0]->{Payments}->[0]->{PaymentDetails} };
+
+
+  for(my $i=0; $i<=$#payments_arr; $i++) {
+    my $id           = $payments_arr[$i]->{ChequeNumber}->[0];
+    my $accid        = $payments_arr[$i]->{Account}->[0];
+    my $amount       = $payments_arr[$i]->{Amount}->[0];
+    my $sum          = $payments_arr[$i]->{Amount}->[0] / 100;
+    my $date         = $payments_arr[$i]->{Date}->[0];
+    my $PayElementID = $payments_arr[$i]->{PayElementID}->[0];
+  
+ 
+  
+    $result_arr[$i]{ChequeNumber}= $id;
+    $result_arr[$i]{Status}      = 0;
+    if ($conf{'PAYSYS_USMP_PAYELEMENTID'}){
+    	$conf{'PAYSYS_USMP_PAYELEMENTID'} =~ s/ //g;
+    	my @PAYSYS_USMP_PAYELEMENTID_ARR = split(/,/, $conf{'PAYSYS_USMP_PAYELEMENTID'});
+    	if (! in_array($PayElementID, \@PAYSYS_USMP_PAYELEMENTID_ARR)) {
+        $result_arr[$i]{Status}=121;
+       }
+     }
+
+  
+  if ($amount <= 0){
+    $result_arr[$i]{Status}=112;
+   }
+  elsif ($amount < $conf{PAYSYS_USMP_MINSUM}){
+    $result_arr[$i]{Status}=6;
+   }
+  elsif ($amount > $conf{PAYSYS_USMP_MAXSUM}) {
+    $result_arr[$i]{Status}=112;
+   }
+  elsif ($id < 1) {
+    $result_arr[$i]{Status}=120;
+   }
+  else {
+    #Check user account
+    my $list = $users->list({ $CHECK_FIELD => $accid });
+
+    if ($users->{errno}) {
+      $result_arr[$i]{Status}=113;
+     }
+    elsif ($users->{TOTAL} < 1) {
+      $result_arr[$i]{Status}=113;
+     }
+    else {
+      my $uid = $list->[0]->[5+$users->{SEARCH_FIELDS_COUNT}];
+	    $user = $users->info($uid); 
+     }
+   }
+
+
+  if ($result_arr[$i]{Status} < 1) {    
+	   $payments->add($user, {SUM         => $sum,
+     	                     DESCRIBE     => 'USMP', 
+    	                     METHOD       => '2', 
+    	                     EXT_ID       => "USMP:$id",
+  	                       CHECK_EXT_ID => "USMP:$id" } );  
+     
+     if ($payments->{errno} && $payments->{errno} == 7) {
+       $result_arr[$i]{Status}=108;
+      }
+     elsif ($payments->{errno}) {
+       $result_arr[$i]{Status}=108;
+      }  
+     else {
+       $result_arr[$i]{Status}=9;
+      }
+    }
+
+  $Paysys->add({ SYSTEM_ID   => 7, 
+ 	              DATETIME       => "'$DATE $TIME'", 
+ 	              SUM            => "$sum",
+  	            UID            => "$accid", 
+                IP             => '0.0.0.0',
+                TRANSACTION_ID => "USMP:$id",
+                INFO           => "STATUS: $result_arr[$i]{Status} ID: $id Account: $accid SUM: $sum DATE: $date  PE: $PayElementID",
+                PAYSYS_IP      => "$ENV{'REMOTE_ADDR'}"
+               });
+
+  }
+
+
+print << "[END]";
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <ProcessPaymentResponse xmlns="http://usmp.com.ua/">
+      <ProcessPaymentResult xsi:type="ProcessPaymentsResponse">
+        <Statuses>
+[END]
+
+for(my $i=0; $i<=$#result_arr; $i++) {
+
+print "    
+    <PaymentStatusDetails>
+            <ChequeNumber>$result_arr[$i]{ChequeNumber}</ChequeNumber>
+            <Status>$result_arr[$i]{Status}</Status>
+    </PaymentStatusDetails>
+";
+
+ }
+
+
+print << "[END]";
+        </Statuses>
+      </ProcessPaymentResult>
+    </ProcessPaymentResponse>
+  </soap:Body>
+</soap:Envelope>
+[END]
+
+ }
+#Get payments statua   
+elsif($request_type eq 'GetStatus') {
+  my @payments_arr = @{ $_xml->{'soap:Body'}->[0]->{$request_type}->[0]->{request}->[0]->{ChequeNumbers}->[0]->{int} };
+  my %payments_status = ();
+
+    if ($conf{'PAYSYS_USMP_PAYELEMENTID'}){
+    	$conf{'PAYSYS_USMP_PAYELEMENTID'} =~ s/ //g;
+    	my @PAYSYS_USMP_PAYELEMENTID_ARR = split(/,/, $conf{'PAYSYS_USMP_PAYELEMENTID'});
+    	my $PayElementID = $_xml->{'soap:Body'}->[0]->{$request_type}->[0]->{request}->[0]->{PayElementID}->[0];
+    	if (! in_array($PayElementID, \@PAYSYS_USMP_PAYELEMENTID_ARR)) {
+        $payments_status{$id}=121
+       }
+     }
+  
+  my $ext_ids = '\'USMP:'. join("', 'USMP:", @payments_arr)."'";
+  
+  my $list = $payments->list({ EXT_IDS => $ext_ids  });
+  
+
+  if ($payments->{errno}) {
+     usmp_error_msg('108', "Payments error");
+   }
+
+  foreach my $line (@$list) {
+  	my $ext = $line->[9];
+  	$ext =~ s/USMP://g;
+  	$payments_status{$ext}=$line->[0];
+   }
+
+  
+
+print << "[END]";
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetStatusResponse xmlns="http://usmp.com.ua/">
+      <GetStatusResult xsi:type="StatusesResponse">
+        <Statuses>
+          <PaymentStatusDetails>
+[END]
+
+  foreach my $id (@payments_arr) {
+    print "     <ChequeNumber>$id</ChequeNumber>\n
+            <Status>"; 
+ 
+    if ($id < 1) {
+    	print 120;
+     }
+    elsif ($payments_status{$id} && $payments_status{$id} == 121) {
+    	print 121;
+     }          
+    else {
+      print (($payments_status{$id}) ? 9 : 123 );
+     }
+    print "</Status>\n";
+   }
+
+print << "[END]";
+          </PaymentStatusDetails>
+        </Statuses>
+      </GetStatusResult>
+    </GetStatusResponse>
+  </soap:Body>
+</soap:Envelope>
+[END]
+ }
+#Check limit
+elsif($request_type eq 'GetLimit') {
+	
+  if ($conf{'PAYSYS_USMP_PAYELEMENTID'}){
+    my $PayElementID = $_xml->{'soap:Body'}->[0]->{$request_type}->[0]->{request}->[0]->{PayElementID}->[0];
+    if (! usmp_PayElementID_check($PayElementID, { Account => $accid  })) {
+    	  return 0;
+     }
+   }
+
+	
+	my $list = $users->list({ $CHECK_FIELD => $accid });
+
+  my $user ;
+  if ($users->{errno}) {
+    usmp_error_msg('113', "Can't  find account");
+    return 0;
+   }
+  elsif ($users->{TOTAL} < 1) {
+    usmp_error_msg('113', "Can't  find account");
+    return 0;
+   }
+  else {
+    my $uid = $list->[0]->[5+$users->{SEARCH_FIELDS_COUNT}];
+	  $user = $users->info($uid); 
+   }
+
+  my $deposit = int($user->{DEPOSIT}*100);
+
+print << "[END]";
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetLimitResponse xmlns="http://usmp.com.ua/">
+      <GetLimitResult xsi:type="LimitResponse">
+        <Limit>$deposit</Limit>
+      </GetLimitResult>
+    </GetLimitResponse>
+  </soap:Body>
+</soap:Envelope>
+[END]
+}
+#Check account
+elsif($request_type eq 'ValidatePhone') {
+  $accid = $_xml->{'soap:Body'}->[0]->{$request_type}->[0]->{request}->[0]->{Account}->[0];
+  
+ if ($conf{'PAYSYS_USMP_PAYELEMENTID'}){
+   my $PayElementID = $_xml->{'soap:Body'}->[0]->{$request_type}->[0]->{request}->[0]->{PayElementID}->[0];
+   if (! usmp_PayElementID_check($PayElementID, { Account => $accid })) {
+   	  return 0;
+    }
+  }
+	
+	
+	if ($accid eq '') {
+    usmp_error_msg('113', "Can't  find account");
+    return 0;
+   }
+
+	
+	my $list = $users->list({ $CHECK_FIELD => "$accid" });
+  my $login = '';
+  my $user ;
+  my $status = undef;
+  if ($users->{errno}) {
+    $status = 113;
+   }
+  elsif ($users->{TOTAL} < 1) {
+    $status =  113;
+   }
+  else {
+    my $uid = $list->[0]->[5+$users->{SEARCH_FIELDS_COUNT}];
+	  $user = $users->info($uid); 
+   }
+
+  my $result = ($user->{DISABLE}) ? 'false' : 'true';
+
+print << "[END]";	
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <ValidatePhoneResponse xmlns="http://usmp.com.ua/">
+      <ValidatePhoneResult xsi:type="ValidatePhoneResponse">
+        <Account>$accid</Account>
+        
+[END]
+
+if ($status) {
+	print "<Result>false</Result>\n";
+
+}
+else {
+	print "<Result>$result</Result>\n";
+}
+
+print << "[END]";	
+        <Message>$user->{LOGIN} DEPOSIT: $user->{DEPOSIT}</Message>
+      </ValidatePhoneResult>
+    </ValidatePhoneResponse>
+  </soap:Body>
+</soap:Envelope>
+[END]
+}
+else {
+	
+}
+
+}
+
+
+#**********************************************************
+#
+#**********************************************************
+sub usmp_PayElementID_check () {
+	my ($PayElementID, $attr) = @_;
+	
+	
+  $conf{'PAYSYS_USMP_PAYELEMENTID'} =~ s/ //g;
+  my @PAYSYS_USMP_PAYELEMENTID_ARR = split(/,/, $conf{'PAYSYS_USMP_PAYELEMENTID'});
+  if (! in_array($PayElementID, \@PAYSYS_USMP_PAYELEMENTID_ARR)) {
+
+print << "[END]";  
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+<soap:Body>
+<ValidatePhoneResponse xmlns="http://usmp.com.ua/">
+<ValidatePhoneResult xsi:type="ValidatePhoneResponse">
+<Result>false</Result>
+[END]
+
+while(my($k, $v)=each %$attr) {
+	print "<$k>$v</$k>\n";
+	
+}
+
+print << "[END]";  
+</ValidatePhoneResult>
+</ValidatePhoneResponse>
+</soap:Body>
+</soap:Envelope>
+[END]
+  return 0;
+   }
+	
+	return 1;
+}
+
+#**********************************************************
+#
+#**********************************************************
+sub usmp_error_msg {
+  my ($code, $message) = @_;
+print << "[END]";
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetStatusResponse xmlns="http://usmp.com.ua/">
+      <GetStatusResult xsi:type="ErrorMessageResponse">
+        <ErrorCode>$code</ErrorCode>
+        <ErrorMessage>$message</ErrorMessage>
+      </GetStatusResult>
+    </GetStatusResponse>
+  </soap:Body>
+</soap:Envelope>
+[END]
+}
+
+
+
+
+#**********************************************************
+# http://usmp.com.ua/
+# Example:
+# /paysys_check.cgi?account=638&date=13.12.08%2001%3A42%3A21&hash=5237893&id=138&sum=66&testMode=0&type=1&sign=a97e377896b2630fe491d6e0d79a8f484bf357b4f5c5197e8ffc7466d1b6693d0dc892e1380ab4104bc920ccfdc808fe898524330bcefd7c7c2407668a9a845f47f693202119820cce77928a377a316c99c561c5d81811f929d3b39c0e37d893901f35e30352e3e8acd49abcbbe2033c3847d81c0bd06728d24f36e116be6d49
+# OLD version
 #**********************************************************
 sub usmp_payments {
 
@@ -509,12 +1138,20 @@ else {
 
 my $CHECK_FIELD = $conf{PAYSYS_USMP_ACCOUNT_KEY} || 'UID';
 
+
 my $id    = $FORM{'id'};
 my $accid = $FORM{'account'};
 my $summ  = $FORM{'sum'};
 my $sign  = $FORM{'sign'};
 my $hash  = $FORM{'hash'};
 my $date  = $FORM{'date'};
+
+my $ChequeNumber = 0;
+if ($conf{PAYSYS_USMP_V2}) {
+	
+}
+
+
 
 my $err_code = 0;
 
@@ -573,7 +1210,9 @@ if (!$err_code) {
    }    
 
 
+
 print "code=$err_code&message=Done&date=" . get_date();
+
 
 }
 
@@ -942,9 +1581,10 @@ elsif($FORM{LMI_HASH}) {
 #}
 
 
+
 #**********************************************************
 # http://ukrpays.com/
-#
+# version: Ver. 1.5.001
 #**********************************************************
 sub ukrpays_payments {
 #Pre request section
@@ -953,7 +1593,7 @@ sub ukrpays_payments {
 if($FORM{hash}) {
   $md5->reset;
 	$md5->add($FORM{id_ups}); 
-	$md5->add($FORM{login});
+	$md5->add($FORM{order});
   $md5->add($FORM{amount});
   $md5->add($FORM{date}); 
   $md5->add($conf{PAYSYS_UKRPAYS_SECRETKEY});

@@ -1,4 +1,4 @@
-# User reports
+# User reports webinterface
 
 
 
@@ -21,13 +21,30 @@ my $tariffs  = Tariffs->new($db, \%conf, $admin);
 my %FORM_BASE = ();
 my @service_status = ( "$_ENABLE", "$_DISABLE", "$_NOT_ACTIVE" );
 my @service_type = ( "E-mail", "SMS", "Fax" );
-my %REPORTS = ( 1 => "$_DEPOSIT_BELOW",       
-                2 => "$_PREPAID_TRAFFIC_BELOW",
-                3 => "$_TRAFFIC_BELOW",
-                4 => "$_MONTH_REPORT",
+my %REPORTS = ( 1 => "$_DEPOSIT_BELOW",
+                2 => "$_DEPOSIT_CREDIT_BELOW",
+              
+                3 => "$_PREPAID_TRAFFIC_BELOW",
+                4 => "$_DAY: $_TRAFFIC_MORE",
+                5 => "$_MONTH: $_DEPOSIT + $_CREDIT + $_TRAFFIC",
+              
+                6 => "$_DAY: $_DEPOSIT + $_CREDIT + $_TRAFFIC",
+              
+                7 => "$_CREDIT $_EXPIRE",
+                8 => "$_LOGIN $_DISABLE "
+
              );
 
 
+#дані для формування звітів.
+#- баланс меньше суми Х
+#- баланс+кредит меньше суми Х
+#- передплаченого трафіку залишилось менше чим Х
+#- трафік в день більше чим Х
+#- стан рахунку баланс/кредит + передплачені МБ щомісячно на дату гггг-ММ-ДД
+#- Щоденний звіт баланс/кредит + передплачені МБ
+#- Кредит закінчується через Х днів
+#- На початку нового періоду якщо на балансі(з кредитом) недостатньо коштів то відсилаїться інформація що аккаунт заблоковано. 
 
 
 #**********************************************************
@@ -156,6 +173,7 @@ print $table->show();
 sub ureports_user {
  	my ($attr) = @_;
 
+
  	$Ureports->{UID}=$FORM{UID} || $LIST_PARAMS{UID} ;	  
 
   if ($FORM{add}) {
@@ -175,6 +193,12 @@ sub ureports_user {
        }
      }
    }
+  elsif($FORM{reset_date}) {
+  	$Ureports->tp_user_reports_reset_date({ %FORM });
+    if (! $Ureports->{errno}) {
+      $html->message('info', $_INFO, "$_RESETED");	
+     }
+   }  
 	elsif($FORM{set}) {
     if (! $permissions{0}{4} ) {
       $html->message('err', $_ERROR, "Access Deny");  	
@@ -236,13 +260,14 @@ sub ureports_user {
     my $table = $html->table( { width      => '100%',
                               caption    => "$_REPORTS",
                               border     => 1,
-                              title      => ['#', $_NAME, $_VALUE, $_DEFAULT ],
-                              cols_align => ['center', 'left',  'center'],
+                              title      => ['#', $_NAME, $_VALUE, $_PRICE, $_SENDED ],
+                              cols_align => ['center', 'left',  'center', 'right', 'right'],
                               qs         => $pages_qs,
                               ID         => 'TP_REPORTS'
                            } );
 
 
+    
     my $list = $Ureports->tp_user_reports_list({ %LIST_PARAMS, TP_ID => $Ureports->{TP_ID} });
   
     foreach my $line (@$list) {
@@ -250,7 +275,8 @@ sub ureports_user {
         $html->form_input("IDS", "$line->[0]", { TYPE => 'checkbox', STATE => ($line->[3]) ? 1 : undef, OUTPUT2RETURN => 1 }), 
         $REPORTS{$line->[0]},
         $html->form_input("VALUE_$line->[0]", (($line->[1]) ? $line->[1] : 0), { OUTPUT2RETURN => 1, SIZE => 6 }), 
-        (($line->[2]) ? $line->[2] : '0.00') 
+        (($line->[2]) ? $line->[2] : '0.00'),
+        $line->[3] . ( ($line->[3] && $line->[3] ne '0000-00-00') ?  ' ('. $html->button($_RESET, "index=$index&UID=$Ureports->{UID}&REPORT_ID=$line->[0]&reset_date=1", { MESSAGE => "$_RESET" } ).')' : '' )
       );
      }
 
@@ -843,6 +869,13 @@ $html->make_charts({
 
 }
 
+#**********************************************************
+# form_stats
+#**********************************************************
+sub ureports_session_detail {
+	
+	
+}
 
 
 #**********************************************************
@@ -850,13 +883,23 @@ $html->make_charts({
 #**********************************************************
 sub ureports_stats {
 
-
- if(defined($FORM{SESSION_ID})) {
-  	$pages_qs .= "&SESSION_ID=$FORM{SESSION_ID}";
-  	ureports_session_detail({ LOGIN => $LIST_PARAMS{LOGIN} });
-  	return 0;
+ if ($FORM{del}  && $FORM{is_js_confirmed} ) {
+   $Ureports->log_del({ %FORM }); 	  
+   if (! $Ureports->{errno}) {
+      $html->message('info', $_INFO, "$_DELETED $_MESSAGE [$FORM{MSG_ID}]");	
+     }
+  }
+ elsif(defined($FORM{MSG_ID})) {
+   $pages_qs .= "&SESSION_ID=$FORM{MSG_ID}";
+   ureports_session_detail({ LOGIN => $LIST_PARAMS{LOGIN} });
+   return 0;
   }
 
+
+if ($Ureports->{errno}) {
+  $html->message('err', $_ERROR, "[$Ureports->{errno}] $err_strs{$Ureports->{errno}}");	
+  return 0;
+ }
 
 
 if ($sessions->{errno})	{
@@ -870,6 +913,10 @@ if ($FORM{rows}) {
   $pages_qs .= "&rows=$conf{list_max_recs}";
  }
 
+if (! $FORM{sort}) {
+	$LIST_PARAMS{SORT}='1';
+	$LIST_PARAMS{DESC}='desc';
+}
 
 $table = $html->table({ width       => '100%',
 	                      rowcolor    => $_COLORS[0],
@@ -914,6 +961,7 @@ elsif (defined($FORM{PERIOD})) {
 
 
 #Session List
+
 $list = $Ureports->log_list({ %LIST_PARAMS });	
 
 	
@@ -936,32 +984,26 @@ my $Billing = Billing->new($db, \%conf);
 
 foreach my $line (@$list) {
   if ($permissions{3}{1} && $LIST_PARAMS{UID}) {
-    $delete = $html->button($_DEL, "index=". $index ."$pages_qs&del=$line->[12]+$line->[11]+$line->[7]+$line->[1]+$line->[9]+$line->[0]", 
-       { MESSAGE => "$_DEL Session SESSION_ID $line->[11]?" }
+    $delete = $html->button($_DEL, "index=". $index ."$pages_qs&del=$line->[0]&MSG_ID=$line->[0]", 
+       { MESSAGE => "$_DEL Session MSG_ID $line->[0]?" }
       );
    }
 
   $table->addrow(
-     $html->button("$line->[0]", "index=11&UID=$line->[12]"),
-     $line->[1], 
+     $line->[0], 
+     $html->button("$line->[1]", "index=11&UID=$line->[7]"),
      $line->[2],  
      $line->[3],  
      $line->[4], 
      $line->[5], 
-     $line->[6],
-     $line->[7], 
-     $line->[10], 
-     "$line->[9]", 
+     $line->[6], 
      "(". 
-        $html->button("D", "index=$index&UID=$line->[12]&SESSION_ID=$line->[11]", { TITLE => "$_DETAIL" } )
+        $html->button("D", "index=$index&UID=$line->[7]&MSG_ID=$line->[0]", { TITLE => "$_DETAIL" } )
       . ")", 
      $delete);
 }
 
 print $table->show();
-
-
-
 }
 
 
@@ -1068,8 +1110,8 @@ sub ureports_user_info {
     my $table = $html->table( { width      => '100%',
                               caption    => "$_REPORTS",
                               border     => 1,
-                              title      => ['#', "$_NAME", "$_VALUE", "$_DEFAULT" ],
-                              cols_align => ['center', 'left', 'right',  'center'],
+                              title      => ['#', "$_NAME", "$_VALUE", "$_PRICE", "$_SENDED" ],
+                              cols_align => ['center', 'left', 'right',  'center', 'right'],
                               qs         => $pages_qs,
                               ID         => 'TP_REPORTS'
                            } );
@@ -1082,7 +1124,8 @@ sub ureports_user_info {
         $html->form_input("IDS", "$line->[0]", { TYPE => 'checkbox', STATE => ($line->[3]) ? 1 : undef, OUTPUT2RETURN => 1 }), 
         $REPORTS{$line->[0]},
         $html->form_input("VALUE_$line->[0]", (($line->[1]) ? $line->[1] : 0), { OUTPUT2RETURN => 1, SIZE => 6 }), 
-        (($line->[2]) ? $line->[2] : '0.00') 
+        (($line->[2]) ? $line->[2] : '0.00'),
+        $line->[3]
       );
      }
 
@@ -1129,6 +1172,35 @@ sub ureports_send_reports {
  
  
   return 1;
+}
+
+
+
+
+#**********************************************************
+# reset send date
+#**********************************************************
+sub ureports_daily_resets {
+  my ($attr) =@_;
+
+
+	my $debug        = $attr->{DEBUG} || 0;
+  my $debug_output = 'Daily reports reset';
+
+  $debug_output = "Daily reports reset\n" if ($debug > 1);
+  my $list = $Ureports->tp_user_reports_list({ RESET     => 1,
+  	                                REPORT_ID => 1,
+  	                                DATE      => '>0000-00-00' 
+  	                              });
+  foreach my $line (@$list) {
+     $debug_output .= "UID: $line->[8] REPORT_ID: $line->[0] VALUE: $line->[3] DEPOSIT: $line->[5]\n" if ($debug > 1);
+     $Ureports->tp_user_reports_reset_date({ REPORT_ID => $line->[0],
+     	                                       UID       => $line->[8] 
+     	                                      });
+   }
+
+  $DEBUG .= $debug_output;
+  return $debug_output;
 }
 
 #**********************************************************
@@ -1799,7 +1871,7 @@ if(defined($attr->{TP})) {
   my $table = $html->table( { width      => '100%',
                               caption    => "$_REPORTS",
                               border     => 1,
-                              title      => ['#', $_NAME, $_SUM ],
+                              title      => ['#', $_NAME, "$_DEFAULT $_VALUE"],
                               cols_align => ['center', 'left',  'center'],
                               qs         => $pages_qs,
                               ID         => 'TP_REPORTS'

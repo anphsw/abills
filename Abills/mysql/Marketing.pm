@@ -150,7 +150,7 @@ sub internet_fees_monitor {
  $self->{SEARCH_FIELDS} = '';
  $self->{SEARCH_FIELDS_COUNT}=0;
 
- @WHERE_RULES = ( 'u.disable=0' );
+ @WHERE_RULES = ();
  
 
 
@@ -173,13 +173,29 @@ sub internet_fees_monitor {
    push @WHERE_RULES, @{ $self->search_expr($attr->{DEPOSIT}, 'INT', 'u.deposit') };
   }
 
+ if ($attr->{TP_ID}) {
+   push @WHERE_RULES, @{ $self->search_expr($attr->{TP_ID}, 'INT', 'tp.id') };
+  }
 
+ if (defined($attr->{STATUS}) && $attr->{STATUS} ne '') {
+   push @WHERE_RULES, @{ $self->search_expr($attr->{STATUS}, 'INT', 'dv.disable') };
+  }
 
- $WHERE = ($#WHERE_RULES > -1) ? 'and '. join(' and ', @WHERE_RULES)  : '';
+ my $date = 'curdate()'; 
 
+ if ($attr->{FROM_Y}) {
+ 	 $date = sprintf("'%s-%.2d-%.2d'", $attr->{FROM_Y}, ($attr->{FROM_M}+1), $attr->{FROM_D});
+ 	 my $date_2 = '';
+ 	 if ($date =~ /(\d{4})-(\d{2})/) {
+ 	   $date_2 = "$1-$2";
+ 	  }
+ 	 push @WHERE_RULES, @{ $self->search_expr("$date_2", 'INT', 'DATE_FORMAT(f.date, \'%Y-%m\')') };
+  }
+ 
 
+ 
 
- my $date = 'curdate()';
+ my $WHERE = ($#WHERE_RULES > -1) ? 'WHERE '. join(' and ', @WHERE_RULES)  : '';
 
 
  $self->query($db, "select u.uid,  u.id, 
@@ -194,7 +210,8 @@ sub internet_fees_monitor {
   from users u
   inner join dv_main dv on (dv.uid=u.uid)
   inner join tarif_plans tp on (dv.tp_id=tp.id)
-  inner join fees f on (f.uid=u.uid)
+  left join fees f on (f.uid=u.uid)
+  $WHERE
   GROUP BY u.uid
      ORDER BY $SORT $DESC 
      LIMIT $PG, $PAGE_ROWS;");
@@ -204,7 +221,11 @@ sub internet_fees_monitor {
  my $list = $self->{list};
 
  if ($self->{TOTAL} >= 0) {
-    $self->query($db, "SELECT count(*) FROM users u;");
+    $self->query($db, "SELECT count(distinct u.uid) FROM  users u
+     inner join dv_main dv on (dv.uid=u.uid)
+     inner join tarif_plans tp on (dv.tp_id=tp.id)
+     left join fees f on (f.uid=u.uid)
+    $WHERE;");
     ($self->{TOTAL}) = @{ $self->{list}->[0] };
    }
 
@@ -213,4 +234,209 @@ sub internet_fees_monitor {
 
 
 
+
+
+#**********************************************************
+# report1()
+#**********************************************************
+sub evolution_report {
+ my $self = shift;
+ my ($attr) = @_;
+ my @list = ();
+
+
+ $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+ $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+ $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+ $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+
+ $self->{SEARCH_FIELDS} = '';
+ $self->{SEARCH_FIELDS_COUNT}=0;
+
+ @WHERE_RULES = ();
+ 
+
+ my $date = 'DATE_FORMAT(datetime, \'%Y-%m\')'; 
+
+ if ($attr->{PERIOD}) {
+ 	 $date = "DATE_FORMAT(datetime, \'%Y-%m-%d\')";
+  }
+
+ if ($attr->{MODULE}) {
+ 	 push @WHERE_RULES, @{ $self->search_expr($attr->{MODULE}, 'INT', 'aa.module') };
+  }
+ else {
+ 	 push @WHERE_RULES, 'aa.module=\'\'';
+  }
+ 
+ if ($attr->{MONTH}) {
+ 	 push @WHERE_RULES, "date_format(aa.datetime, '%Y-%m')='$attr->{MONTH}'";
+ 	 $date = "DATE_FORMAT(datetime, \'%Y-%m-%d\')";
+  }
+ elsif ($attr->{INTERVAL}) {
+   my ($from, $to)=split(/\//, $attr->{INTERVAL}, 2);
+   push @WHERE_RULES, "date_format(aa.datetime, '%Y-%m-%d')>='$from' and date_format(aa.datetime, '%Y-%m-%d')<='$to'";
+  }
+
+ my $WHERE = ($#WHERE_RULES > -1) ? 'WHERE '. join(' and ', @WHERE_RULES)  : '';
+
+
+ $self->query($db, "select $date,
+  sum(if(action_type = 7, 1, 0)),
+  sum(if(action_type = 9, 1, 0))-sum(if(action_type = 8, 1, 0)),
+  sum(if(action_type = 12, 1, 0))
+  
+  FROM admin_actions aa
+  $WHERE 
+  GROUP BY 1
+     ORDER BY $SORT $DESC 
+     LIMIT $PG, $PAGE_ROWS;");
+
+ return $self if($self->{errno});
+
+ my $list = $self->{list};
+
+
+ if ($self->{TOTAL} >= 0) {
+    $self->query($db, "SELECT count(distinct $date) FROM admin_actions aa
+    $WHERE;");
+    ($self->{TOTAL}) = @{ $self->{list}->[0] };
+   }
+
+
+
+
+  return $list;
+}
+
+
+
+#**********************************************************
+# report1()
+#**********************************************************
+sub evolution_users_report {
+ my $self = shift;
+ my ($attr) = @_;
+ my @list = ();
+
+ $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+ $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+ $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+ $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+
+ $self->{SEARCH_FIELDS}      = '';
+ $self->{SEARCH_FIELDS_COUNT}= 0;
+
+ @WHERE_RULES = ();
+ 
+
+ my $date = 'aa.datetime'; 
+
+ #if ($attr->{PERIOD}) {
+ #	 $date = "aa.datetime, \'%Y-%m-%d\')";
+ # }
+
+ if ($attr->{MODULE}) {
+ 	 push @WHERE_RULES, @{ $self->search_expr($attr->{MODULE}, 'INT', 'aa.module') };
+  }
+ else {
+ 	 push @WHERE_RULES, 'aa.module=\'\'';
+  }
+
+  
+ if ($attr->{MONTH}) {
+ 	 push @WHERE_RULES, "date_format(aa.datetime, '%Y-%m')='$attr->{MONTH}'";
+ 	 #$date = "DATE_FORMAT(datetime, \'%Y-%m-%d\')";
+  }
+ elsif ($attr->{INTERVAL}) {
+   my ($from, $to)=split(/\//, $attr->{INTERVAL}, 2);
+   push @WHERE_RULES, "date_format(aa.datetime, '%Y-%m-%d')>='$from' and date_format(aa.datetime, '%Y-%m-%d')<='$to'";
+  }
+
+ my $user = 'u.id';
+ if ($attr->{ADDED}) {
+ 	 push @WHERE_RULES, "aa.action_type=1";
+  }
+ elsif ($attr->{DISABLED}) {
+ 	 
+
+ my $WHERE = ($#WHERE_RULES > -1) ? 'WHERE '. join(' and ', @WHERE_RULES)  : '';
+
+
+ $self->query($db, "select max($date), $user, a.id, u.registration, aa.uid,
+   sum(if(aa.action_type=9, 1, 0)) - sum(if(aa.action_type=8, 1, 0)) As ACTIONS  
+   FROM admin_actions aa 
+   LEFT JOIN users u ON (aa.uid=u.uid) 
+   LEFT JOIN admins a ON (a.aid=aa.aid) 
+   $WHERE and (aa.action_type=9 or aa.action_type<>8)
+   GROUP BY 2 
+   HAVING ACTIONS > 0
+   ORDER BY $SORT $DESC 
+   LIMIT $PG, $PAGE_ROWS;");
+
+ return $self if($self->{errno});
+
+ my $list = $self->{list};
+
+
+# if ($self->{TOTAL} >= 0) {
+#    $self->query($db, "SELECT count(*) FROM (select max($date), $user, a.id, u.registration, aa.uid,
+#   sum(if(aa.action_type=9, 1, 0)) - sum(if(aa.action_type=8, 1, 0)) As ACTIONS  
+#   FROM admin_actions aa 
+#   LEFT JOIN users u ON (aa.uid=u.uid) 
+#   LEFT JOIN admins a ON (a.aid=aa.aid) 
+#   $WHERE and (aa.action_type=9 or aa.action_type<>8)
+#   GROUP BY 2 
+#   HAVING ACTIONS > 0)
+#    ;");
+#    ($self->{TOTAL}) = @{ $self->{list}->[0] };
+#   }
+
+
+   return $list;
+  }
+ elsif ($attr->{DELETED}) {
+ 	 push @WHERE_RULES, "aa.action_type=12";
+ 	 $user = 'aa.actions';
+  }
+
+ my $WHERE = ($#WHERE_RULES > -1) ? 'WHERE '. join(' and ', @WHERE_RULES)  : '';
+
+
+ $self->query($db, "select $date, $user, a.id, u.registration, aa.uid
+  FROM admin_actions aa
+  LEFT JOIN users u ON (aa.uid=u.uid)
+  LEFT JOIN admins a ON (a.aid=aa.aid)
+  $WHERE 
+  GROUP BY 1
+     ORDER BY $SORT $DESC 
+     LIMIT $PG, $PAGE_ROWS;");
+
+ return $self if($self->{errno});
+
+ my $list = $self->{list};
+
+
+ if ($self->{TOTAL} >= 0) {
+    $self->query($db, "SELECT count(distinct $date) FROM admin_actions aa
+    $WHERE;");
+    ($self->{TOTAL}) = @{ $self->{list}->[0] };
+   }
+
+
+
+
+  return $list;
+}
+
+
+
 1
+
+
+
+
+
+

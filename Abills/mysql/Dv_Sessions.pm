@@ -1,5 +1,5 @@
 package Dv_Sessions;
-# Stats functions
+# Dv Stats functions
 #
 
 
@@ -311,6 +311,12 @@ sub online {
  	 push @WHERE_RULES, "framed_ip_address=INET_ATON('$attr->{FRAMED_IP_ADDRESS}')";
   }
 
+ if ($attr->{TP_ID}) {
+ 	 push @WHERE_RULES, "dv.tp_id='$attr->{TP_ID}'";
+  }
+
+ 
+
  if ($attr->{NAS_ID}) {
  	 push @WHERE_RULES, "nas_id IN ($attr->{NAS_ID})";
   }
@@ -349,7 +355,7 @@ sub online {
    dv.tp_id
    
  FROM dv_calls c
- LEFT JOIN users u     ON (u.id=user_name)
+ LEFT JOIN users u     ON (u.id=user_name && u.domain_id = '$admin->{DOMAIN_ID}')
  LEFT JOIN dv_main dv  ON (dv.uid=u.uid)
  LEFT JOIN users_pi pi ON (pi.uid=u.uid)
 
@@ -643,6 +649,11 @@ sub detail_list {
 	my $self = shift;
 	my ($attr) = @_;
 
+ $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+ $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+ $SORT = ($attr->{SORT}) ? $attr->{SORT} : 2;
+ $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
 	
 my $lupdate;
 	
@@ -692,6 +703,43 @@ else {
 return $list;
 }
 
+
+#**********************************************************
+# detail_list()
+#**********************************************************
+sub detail_sum {
+	my $self = shift;
+	my ($attr) = @_;
+
+ my $lupdate;
+ my $GROUP;
+
+my $interval = 3600;
+if ($attr->{INTERVAL}) {
+  $interval = $attr->{INTERVAL};
+}
+
+
+
+ $self->query($db, "select ((SELECT  sent1+recv1
+  FROM s_detail 
+  WHERE id='$attr->{LOGIN}' AND last_update>UNIX_TIMESTAMP()-$interval
+  ORDER BY last_update DESC
+  LIMIT 1 ) - (SELECT  sent1+recv1
+  FROM s_detail 
+  WHERE id='$attr->{LOGIN}' AND last_update>UNIX_TIMESTAMP()-$interval
+  ORDER BY last_update
+  LIMIT 1));" );
+
+  my $speed = 0;
+
+  if ( $self->{TOTAL} > 0 ) {
+    $self->{TOTAL_TRAFFIC} = $self->{list}->[0]->[0] || 0;
+    $speed =  int($self->{TOTAL_TRAFFIC} / $interval);
+   }
+	
+  return $speed;
+}
 
 #**********************************************************
 # Periods totals
@@ -785,7 +833,7 @@ sub prepaid_rest {
 WHERE
      u.uid=dv.uid
  and dv.tp_id=tp.id
- and tp.id=i.tp_id
+ and tp.tp_id=i.tp_id
  and i.id=tt.interval_id
  and u.uid='$attr->{UID}'
  ORDER BY 1
@@ -1051,6 +1099,8 @@ elsif (defined($attr->{PERIOD}) ) {
      elsif($period == 2) {  push @WHERE_RULES, "YEAR(curdate()) = YEAR(start) and (WEEK(curdate()) = WEEK(start)) ";  }
      elsif($period == 3) {  push @WHERE_RULES, "date_format(start, '%Y-%m')=date_format(curdate(), '%Y-%m') "; }
      elsif($period == 5) {  push @WHERE_RULES, "date_format(start, '%Y-%m-%d')='$attr->{DATE}' "; }
+     #Prev month
+     elsif($period == 6) {  push @WHERE_RULES, "date_format(start, '%Y-%m')=date_format(curdate() - interval 1 month, '%Y-%m') "; }
      else {$WHERE .= "date_format(start, '%Y-%m-%d')=curdate() "; }
     }
  }
@@ -1214,8 +1264,8 @@ sub reports {
                            TRAFFIC_2_SUM   => 'sum(l.sent2 + l.recv2)',
                            DURATION        => 'sec_to_time(sum(l.duration))',
                            SUM             => 'sum(l.sum)',
-                           TRAFFIC_RECV    => 'sum(l.recv)',
-                           TRAFFIC_SENT    => 'sum(l.sent)',
+                           TRAFFIC_RECV    => 'sum(l.recv + 4294967296 * acct_input_gigawords)',
+                           TRAFFIC_SENT    => 'sum(l.sent + 4294967296 * acct_output_gigawords)',
                            USERS_COUNT     => 'count(DISTINCT l.uid)',
                            TP              => 'l.tp_id'
                           };
@@ -1223,14 +1273,7 @@ sub reports {
  
  my $EXT_TABLE = 'users';
 
- # Show groups
- if ($attr->{GIDS}) {
-   push @WHERE_RULES, "u.gid IN ($attr->{GIDS})"; 
-  }
- elsif ($attr->{GID}) {
-   push @WHERE_RULES, "u.gid='$attr->{GID}'"; 
-  }
- 
+  
  if ($attr->{TP_ID}) {
  	 push @WHERE_RULES, " l.tp_id='$attr->{TP_ID}'";
   }
@@ -1289,6 +1332,8 @@ sub reports {
  elsif ($attr->{GID}) {
    push @WHERE_RULES, "u.gid='$attr->{GID}'"; 
   }
+
+
 
  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
 
@@ -1468,6 +1513,12 @@ sub log_rotate {
      'CREATE TABLE IF NOT EXISTS s_detail_new LIKE s_detail;',
      'RENAME TABLE s_detail TO s_detail_'. $DATE .
       ', s_detail_new TO s_detail;',
+
+     'CREATE TABLE IF NOT EXISTS errors_log_new LIKE errors_log;',
+     'RENAME TABLE errors_log TO errors_log_'. $DATE .
+      ', errors_log_new TO errors_log;',
+
+
      'CREATE TABLE IF NOT EXISTS dv_log_intervals_new LIKE dv_log_intervals;',
      'DROP TABLE dv_log_intervals_old',
      'RENAME TABLE dv_log_intervals TO dv_log_intervals_old'.

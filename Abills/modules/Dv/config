@@ -1,6 +1,3 @@
-$web_interface    = 1;
-@useraccount_menu = ('Dialup_VPN');
-
 #Iner_ID : Main or Sub or if -1 user menu func list
 %FUNCTIONS_LIST = ("01:0:Internet:dv_users_list:"             => 11,
                    "02:0:Internet:dv_user:UID"                => 20,
@@ -9,28 +6,32 @@ $web_interface    = 1;
                    "05:2:$_ERROR:dv_error:UID"                => 11,
                    "06:2:$_SHEDULE:dv_form_shedule:UID"       => 11,
                    "07:2:$_COMPENSATION:dv_compensation:UID"  => 11,
-                   "10:0:Internet:null:"                   => 5,
-                   "11:10:$_TARIF_PLANS:dv_tp:"             => 5,
-                   "12:11:$_ADD:dv_tp:"                     => 5,
-                   "13:11:$_INTERVALS:form_intervals:TP_ID" => 5,
-                   "14:11:$_NASS:form_nas_allow:TP_ID"      => 5,
-                   "15:11:$_USERS:dv_users_list:TP_ID"      => 5,
-                   "16:11:$_GROUPS:form_tp_groups:"         => 5,
-                   "17:0:Internet:null:"                   => 4,
-                   "18:17:$_ERROR:dv_error:"               => 4,
-                   "19:17:$_LAST:dv_sessions:"             => 4,
-                   "20:17:$_USED:dv_use:"                  => 4,
-                   "21:18:$_MONTH:dv_use_allmonthes:"      => 4,
-                   "22:0:Internet:dv_online:"              => 8,
-                   "23:0:$_DV $_STATS:dv_use:COMPANY_ID"   => 13
+                   "10:0:Internet:null:"                       => 5,
+                   "11:10:$_TARIF_PLANS:dv_tp:"                => 5,
+                   "12:11:$_ADD:dv_tp:"                        => 5,
+                   "13:11:$_INTERVALS:form_intervals:TP_ID"    => 5,
+                   "14:11:$_NASS:form_nas_allow:TP_ID"         => 5,
+                   "15:11:$_USERS:dv_users_list:TP_ID"         => 5,
+                   "16:11:$_GROUPS:form_tp_groups:"            => 5,
+                   "17:11:$_TRAFFIC_CLASS:dv_traffic_classes:" => 5,
+
+                   "19:0:Internet:null:"                   => 4,
+                   "22:19:$_ERROR:dv_error:"               => 4,
+                   "23:19:$_LAST:dv_sessions:"             => 4,
+                   "24:19:$_USED:dv_use:"                  => 4,
+                   "25:24:$_MONTH:dv_use_allmonthes:"      => 4,
+
+                   "36:0:Internet:dv_online:"              => 8,
+                   "37:0:$_DV $_STATS:dv_use:COMPANY_ID"   => 13
                    );
 
-if ($permissions{0}{1}) {
+if ($permissions{0} && $permissions{0}{1}) {
   $FUNCTIONS_LIST{"20:1:$_USERS $_ADD:dv_wizard_user:"} = 11;
   if (in_array('Cards', \@MODULES)) {
     $FUNCTIONS_LIST{"21:1:$_ICARDS:dv_cards:"} = 11;
    }   
 }
+
 
 
 

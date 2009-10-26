@@ -105,7 +105,10 @@ sub network_defaults {
    DISABLE         => 0,
    OPTION_82       => 0,
    IP_RANGE_FIRST  => '0.0.0.0',
-   IP_RANGE_LAST   => '0.0.0.0'
+   IP_RANGE_LAST   => '0.0.0.0',
+   COMMENTS        => '',
+   DENY_UNKNOWN_CLIENTS => 0,
+   AUTHORITATIVE   => 0
   );
 
  
@@ -128,13 +131,18 @@ sub network_add {
 
   $self->query($db,"INSERT INTO dhcphosts_networks 
      (name,network,mask, routers, coordinator, phone, dns, suffix, disable,
-      ip_range_first, ip_range_last) 
+      ip_range_first, ip_range_last, comments,  deny_unknown_clients,  authoritative) 
      VALUES('$DATA{NAME}', INET_ATON('$DATA{NETWORK}'), INET_ATON('$DATA{MASK}'), INET_ATON('$DATA{ROUTERS}'),
        '$DATA{COORDINATOR}', '$DATA{PHONE}', '$DATA{DNS}', '$DATA{DOMAINNAME}',
        '$DATA{DISABLE}',
        INET_ATON('$DATA{IP_RANGE_FIRST}'),
-       INET_ATON('$DATA{IP_RANGE_LAST}')
+       INET_ATON('$DATA{IP_RANGE_LAST}'),
+       '$DATA{COMMENTS}',
+       '$DATA{DENY_UNKNOWN_CLIENTS}',
+       '$DATA{AUTHORITATIVE}'
        )", 'do');
+
+  $admin->system_action_add("DHCPHOSTS_NET:$self->{INSERT_ID}", { TYPE => 1 });    
 
   return $self;
 }
@@ -150,6 +158,7 @@ sub network_del {
 
   $self->query($db, "DELETE FROM dhcphosts_hosts where network='$id';", 'do');
 
+  $admin->system_action_add("DHCPHOSTS_NET:$id", { TYPE => 10 });    
   return $self;
 };
 
@@ -160,7 +169,6 @@ sub network_del {
 sub network_change {
   my $self = shift;
   my ($attr) = @_;
-
  
  my %FIELDS = (
    ID              => 'id',
@@ -176,15 +184,24 @@ sub network_change {
    ROUTERS         => 'routers',
    DISABLE         => 'disable',
    IP_RANGE_FIRST  => 'ip_range_first',
-   IP_RANGE_LAST   => 'ip_range_last'
+   IP_RANGE_LAST   => 'ip_range_last',
+   COMMENTS        => 'comments',
+   DENY_UNKNOWN_CLIENTS => 'deny_unknown_clients',
+   AUTHORITATIVE   => 'authoritative',
    );
+
+
+  $attr->{DENY_UNKNOWN_CLIENTS} = (defined($attr->{DENY_UNKNOWN_CLIENTS})) ? 1 : 0;
+  $attr->{AUTHORITATIVE} = (defined($attr->{AUTHORITATIVE})) ? 1 : 0;
 
 	$self->changes($admin, { CHANGE_PARAM => 'ID',
 		               TABLE        => 'dhcphosts_networks',
 		               FIELDS       => \%FIELDS,
 		               OLD_INFO     => $self->network_info($attr->{ID}),
-		               DATA         => $attr
+		               DATA         => $attr,
+		               EXT_CHANGE_INFO  => "DHCPHOSTS_NET:$attr->{ID}"
 		              } );
+
 
 
   return $self;
@@ -212,7 +229,10 @@ sub network_info {
    phone,
    disable,
    INET_NTOA(ip_range_first),
-   INET_NTOA(ip_range_last)
+   INET_NTOA(ip_range_last),
+   comments,
+   deny_unknown_clients,
+   authoritative
   FROM dhcphosts_networks
 
   WHERE id='$id';");
@@ -236,9 +256,13 @@ sub network_info {
    $self->{PHONE},
    $self->{DISABLE},
    $self->{IP_RANGE_FIRST},
-   $self->{IP_RANGE_LAST}
+   $self->{IP_RANGE_LAST},
+   $self->{COMMENTS},
+   $self->{DENY_UNKNOWN_CLIENTS},
+   $self->{AUTHORITATIVE}
    ) = @{ $self->{list}->[0] };
-    
+
+
     
   return $self;
 }
@@ -365,8 +389,9 @@ sub host_del {
    }
 
   $self->query($db, "DELETE FROM dhcphosts_hosts where $WHERE", 'do');
-  
-  $admin->action_add($uid, $action); 
+ 
+
+  $admin->action_add($uid, "$action", { TYPE => 10 }); 
 
   return $self;
 };
@@ -511,6 +536,8 @@ sub route_add {
        (network, src, mask, router) 
     values($DATA{NET_ID},INET_ATON('$DATA{SRC}'), INET_ATON('$DATA{MASK}'), INET_ATON('$DATA{ROUTER}'))", 'do');
 
+
+    $admin->system_action_add("DHCPHOSTS_NET:$DATA{NET_ID} ROUTE:$self->{INSERT_ID}", { TYPE => 1 });    
     return $self;
 };
 
@@ -522,6 +549,7 @@ sub route_del {
   my ($id)=@_;
   $self->query($db,"DELETE FROM dhcphosts_routes where id='$id'", 'do');
 
+  $admin->system_action_add("DHCPHOSTS_NET: ROUTE:$id", { TYPE => 10 });    
   return $self;
 };
 
@@ -545,7 +573,8 @@ sub route_change {
 		               TABLE        => 'dhcphosts_routes',
 		               FIELDS       => \%FIELDS,
 		               OLD_INFO     => $self->route_info($attr->{ID}),
-		               DATA         => $attr
+		               DATA         => $attr,
+		               EXT_CHANGE_INFO  => "DHCPHOSTS_ROUTE:$attr->{ID}"
 		              } );
 
   return $self if($self->{errno});
@@ -685,10 +714,19 @@ sub hosts_list {
   }
 
   # Deposit chech
-  my $extra_db     = ''; 
+  my $EXT_TABLES     = ''; 
   my $extra_fields = '';
-  if ($attr->{DHCPHOSTS_DEPOSITCHECK}) {
-  	$extra_db = 'LEFT JOIN bills b ON (u.bill_id = b.id)
+  if (defined($attr->{DHCPHOSTS_EXT_DEPOSITCHECK})) {
+   $extra_fields = ', if(company.id IS NULL,ext_b.deposit,ext_cb.deposit) ';
+
+   $EXT_TABLES = "
+            LEFT JOIN companies company ON  (u.company_id=company.id) 
+            LEFT JOIN bills ext_b ON (u.ext_bill_id = ext_b.id)
+            LEFT JOIN bills ext_cb ON  (company.ext_bill_id=ext_cb.id) ";
+
+   }
+  elsif (defined($attr->{DHCPHOSTS_DEPOSITCHECK})) {
+  	$EXT_TABLES = 'LEFT JOIN bills b ON (u.bill_id = b.id)
      LEFT JOIN companies company ON  (u.company_id=company.id) 
      LEFT JOIN bills cb ON  (company.bill_id=cb.id)'; 
     $extra_fields = ', if(company.id IS NULL, b.deposit, cb.deposit) + u.credit';
@@ -738,7 +776,7 @@ sub hosts_list {
      FROM (dhcphosts_hosts h)
      left join dhcphosts_networks n on h.network=n.id
      left join users u on h.uid=u.uid
-     $extra_db
+     $EXT_TABLES
      $WHERE
      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;");
 
@@ -939,6 +977,8 @@ sub leases_clear {
   $self->query($db,"DELETE FROM dhcphosts_leases WHERE nas_id='$DATA{NAS_ID}';", 'do');
   return $self;
 }
+
+
 
 1
 

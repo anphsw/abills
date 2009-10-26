@@ -16,6 +16,7 @@ $VERSION = 2.00;
 use main;
 @ISA  = ("main");
 
+my $MODULE='Msgs';
 
 #**********************************************************
 # Init 
@@ -23,7 +24,9 @@ use main;
 sub new {
   my $class = shift;
   ($db, $admin, $CONF) = @_;
+  $admin->{MODULE}=$MODULE;
   my $self = { };
+
   bless($self, $class);
   return $self;
 }
@@ -130,6 +133,11 @@ sub messages_list {
    push @WHERE_RULES, @{ $self->search_expr($attr->{USER_READ}, 'STR', 'm.user_read') };
   }
 
+ if (defined($attr->{PHONE})) {
+   push @WHERE_RULES, @{ $self->search_expr($attr->{PHONE}, 'STR', 'm.phone') };
+  }
+
+
  # Show groups
  if ($attr->{GIDS}) {
    push @WHERE_RULES, "u.gid IN ($attr->{GIDS})"; 
@@ -167,7 +175,12 @@ sub messages_list {
  }
 
  if (defined($attr->{STATE})) {
-   push @WHERE_RULES, @{ $self->search_expr($attr->{STATE}, 'INT', 'm.state')  };
+   if ($attr->{STATE} == 4) {
+   	 push @WHERE_RULES, @{ $self->search_expr('0000-00-00 00:00:00', 'INT', 'm.admin_read') };
+    }
+   else {
+     push @WHERE_RULES, @{ $self->search_expr($attr->{STATE}, 'INT', 'm.state')  };
+    }
   }
 
  if ($attr->{PRIORITY}) {
@@ -181,6 +194,24 @@ sub messages_list {
  if ($attr->{PLAN_TIME}) {
    push @WHERE_RULES,  @{ $self->search_expr($attr->{PLAN_TIME}, 'INT', 'm.plan_time') };
   }
+
+ if ($attr->{DISPATCH_ID}) {
+   push @WHERE_RULES,  @{ $self->search_expr($attr->{DISPATCH_ID}, 'INT', 'm.dispatch_id') };
+  }
+ 
+ my $EXT_JOIN = ''; 
+ if ($attr->{FULL_ADDRESS}) {
+ 	 $EXT_JOIN = 'LEFT JOIN users_pi pi ON (u.uid=pi.uid) ';
+
+   $self->{SEARCH_FIELDS} = 'pi.fio, CONCAT(pi.address_street, \' \', pi.address_build, \'/\', pi.address_flat), pi.phone, ';
+   $self->{SEARCH_FIELDS_COUNT} += 3;
+ 	 
+  }
+
+ if ($attr->{SHOW_TEXT}) {
+   $self->{SEARCH_FIELDS} .= 'm.message, ';
+   $self->{SEARCH_FIELDS_COUNT}++;
+  }
  
 
  $WHERE = ($#WHERE_RULES > -1) ? 'WHERE '. join(' and ', @WHERE_RULES)  : '';
@@ -192,6 +223,7 @@ m.subject,
 mc.name,
 m.date,
 m.state,
+$self->{SEARCH_FIELDS}
 inet_ntoa(m.ip),
 a.id,
 m.priority,
@@ -204,10 +236,14 @@ m.gid,
 m.user_read,
 m.admin_read,
 if(r.id IS NULL, 0, count(r.id)),
-m.chapter
+m.chapter,
+DATE_FORMAT(plan_date, '%w'),
+m.resposible
+
 
 FROM (msgs_messages m)
 LEFT JOIN users u ON (m.uid=u.uid)
+$EXT_JOIN
 LEFT JOIN admins a ON (m.aid=a.aid)
 LEFT JOIN groups g ON (m.gid=g.gid)
 LEFT JOIN msgs_reply r ON (m.id=r.main_msg)
@@ -261,7 +297,8 @@ sub message_add {
   my $CLOSED_DATE = ($DATA{STATE} == 1 || $DATA{STATE} == 2 ) ? 'now()' : "'0000-00-00 00:00:00'";
 
   $self->query($db, "insert into msgs_messages (uid, subject, chapter, message, ip, date, reply, aid, state, gid,
-   priority, lock_msg, plan_date, plan_time, user_read, admin_read, inner_msg, resposible, closed_date)
+   priority, lock_msg, plan_date, plan_time, user_read, admin_read, inner_msg, resposible, closed_date,
+   phone)
     values ('$DATA{UID}', '$DATA{SUBJECT}', '$DATA{CHAPTER}', '$DATA{MESSAGE}', INET_ATON('$DATA{IP}'), now(), 
         '$DATA{REPLY}',
         '$admin->{AID}',
@@ -275,10 +312,12 @@ sub message_add {
         '$DATA{ADMIN_READ}',
         '$DATA{INNER_MSG}',
         '$DATA{RESPOSIBLE}',
-        $CLOSED_DATE
+        $CLOSED_DATE,
+        '$DATA{PHONE}'
         );", 'do');
 
   $self->{MSG_ID} = $self->{INSERT_ID};
+  
 	return $self;
 }
 
@@ -355,7 +394,9 @@ sub message_info {
   m.user_read,
   m.admin_read,
   m.resposible,
-  m.inner_msg
+  m.inner_msg,
+  m.phone,
+  m.dispatch_id
     FROM (msgs_messages m)
     LEFT JOIN msgs_chapters mc ON (m.chapter=mc.id)
     LEFT JOIN users u ON (m.uid=u.uid)
@@ -396,7 +437,9 @@ sub message_info {
    $self->{USER_READ},
  	 $self->{ADMIN_READ},
  	 $self->{RESPOSIBLE},
- 	 $self->{INNER_MSG}
+ 	 $self->{INNER_MSG},
+ 	 $self->{PHONE},
+ 	 $self->{DISPATCH_ID}
   )= @{ $self->{list}->[0] };
 	
 	
@@ -434,16 +477,21 @@ sub message_change {
                 USER_READ   => 'user_read',
  	              ADMIN_READ  => 'admin_read',
  	              RESPOSIBLE  => 'resposible',
- 	              INNER_MSG   => 'inner_msg'
+ 	              INNER_MSG   => 'inner_msg',
+ 	              PHONE       => 'phone',
+ 	              DISPATCH_ID => 'dispatch_id'
              );
 
   #print "!! $attr->{STATE} !!!";
+  $attr->{STATUS} = ($attr->{STATUS}) ? $attr->{STATUS} : 0;
 
+  $admin->{MODULE}=$MODULE;
   $self->changes($admin,  { CHANGE_PARAM => 'ID',
                    TABLE        => 'msgs_messages',
                    FIELDS       => \%FIELDS,
                    OLD_INFO     => $self->message_info($attr->{ID}),
-                   DATA         => $attr
+                   DATA         => $attr,
+                   EXT_CHANGE_INFO  => "MSG_ID:$attr->{ID}"
                   } );
 
   return $self->{result};
@@ -516,6 +564,8 @@ sub chapter_add {
   $self->query($db, "insert into msgs_chapters (name, inner_chapter)
     values ('$DATA{NAME}', '$DATA{INNER_CHAPTER}');", 'do');
 
+ 
+  $admin->system_action_add("MGSG_CHAPTER:$self->{INSERT_ID}", { TYPE => 1 });
 	return $self;
 }
 
@@ -582,12 +632,13 @@ sub chapter_change {
                 INNER_CHAPTER => 'inner_chapter'
              );
 
-
+  $admin->{MODULE}=$MODULE;
   $self->changes($admin,  { CHANGE_PARAM => 'ID',
                    TABLE        => 'msgs_chapters',
                    FIELDS       => \%FIELDS,
                    OLD_INFO     => $self->chapter_info($attr->{ID}),
-                   DATA         => $attr
+                   DATA         => $attr,
+                   
                   } );
 
   return $self->{result};
@@ -857,7 +908,9 @@ sub message_reply_add {
         '$DATA{STATE}',
         '$DATA{UID}', '$DATA{RUN_TIME}'
     );", 'do');
-
+ 
+  
+  $self->{REPLY_ID} = $self->{INSERT_ID};
 
   return $self;	
 }
@@ -876,6 +929,8 @@ sub attachment_add () {
         " ('$attr->{MSG_ID}', '$attr->{FILENAME}', '$attr->{CONTENT_TYPE}', '$attr->{FILESIZE}', ?, ".
         " current_timestamp, '$attr->{UID}', current_timestamp, '0', '$attr->{MESSAGE_TYPE}')", 
         'do', { Bind => [ $attr->{CONTENT}  ] } );
+        
+        
 
   return $self;
 }
@@ -1047,4 +1102,235 @@ sub messages_reports {
   return $list;
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#**********************************************************
+# accounts_list
+#**********************************************************
+sub dispatch_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+  @WHERE_RULES = ();
+ 
+ if($attr->{NAME}) {
+	 push @WHERE_RULES, "d.name='$attr->{NAME}'"; 
+  }
+
+ if($attr->{CHAPTERS}) {
+	 push @WHERE_RULES, "d.id IN ($attr->{CHAPTERS})"; 
+  }
+
+  if (defined($attr->{STATE})) {
+   if ($attr->{STATE} == 4) {
+   	 push @WHERE_RULES, @{ $self->search_expr('0000-00-00 00:00:00', 'INT', 'd.admin_read') };
+    }
+   else {
+     push @WHERE_RULES, @{ $self->search_expr($attr->{STATE}, 'INT', 'd.state')  };
+    }
+  }
+
+
+ 
+ $WHERE = ($#WHERE_RULES > -1) ? 'WHERE ' . join(' and ', @WHERE_RULES)  : '';
+
+
+  $self->query($db,   "SELECT d.id, d.comments, d.plan_date, created, count(m.id)
+    FROM msgs_dispatch d
+    LEFT JOIN msgs_messages m ON (d.id=m.dispatch_id)
+    $WHERE
+    GROUP BY d.id 
+    ORDER BY $SORT $DESC;");
+
+ my $list = $self->{list};
+
+# if ($self->{TOTAL} > 0 ) {
+#   $self->query($db, "SELECT count(*)
+#     FROM msgs_chapters mc
+#     $WHERE");
+#
+#   ($self->{TOTAL}) = @{ $self->{list}->[0] };
+#  }
+ 
+ 
+	return $list;
+}
+
+
+#**********************************************************
+# chapter_add
+#**********************************************************
+sub dispatch_add {
+	my $self = shift;
+	my ($attr) = @_;
+  
+ 
+  %DATA = $self->get_data($attr, { default => \%DATA }); 
+ 
+
+  $self->query($db, "insert into msgs_dispatch (comments, created, plan_date, resposible, aid)
+    values ('$DATA{COMMENTS}', now(), '$DATA{PLAN_DATE}', '$DATA{RESPOSIBLE}', '$admin->{AID}');", 'do');
+
+ 
+  $admin->system_action_add("MGSG_DISPATCH:$self->{INSERT_ID}", { TYPE => 1 });
+	return $self;
+}
+
+
+
+
+#**********************************************************
+# chapter_del
+#**********************************************************
+sub dispatch_del {
+	my $self = shift;
+	my ($attr) = @_;
+
+  @WHERE_RULES=();
+
+  if ($attr->{ID}) {
+  	 push @WHERE_RULES, "id='$attr->{ID}'";
+   }
+
+  $WHERE = ($#WHERE_RULES > -1) ? join(' and ', @WHERE_RULES)  : '';
+  $self->query($db, "DELETE FROM msgs_dispatch WHERE $WHERE", 'do');
+
+	return $self;
+}
+
+#**********************************************************
+# Bill
+#**********************************************************
+sub dispatch_info {
+	my $self = shift;
+	my ($id, $attr) = @_;
+
+
+  $self->query($db, "SELECT md.id, md.comments, md.created, md.plan_date, 
+  md.state,
+  md.closed_date,
+  a.aid,
+  ra.aid,
+  a.name,
+  ra.name
+    FROM msgs_dispatch md
+    LEFT JOIN admins a ON (a.aid=md.aid)
+    LEFT JOIN admins ra ON (ra.aid=md.resposible)
+  WHERE md.id='$id'");
+
+  if ($self->{TOTAL} < 1) {
+     $self->{errno} = 2;
+     $self->{errstr} = 'ERROR_NOT_EXIST';
+     return $self;
+   }
+
+  ($self->{ID}, 
+   $self->{COMMENTS}, 
+   $self->{CREATED},
+   $self->{PLAN_DATE},
+   $self->{STATE},
+   $self->{CLOSED_DATE},
+   $self->{AID},
+   $self->{RESPOSIBLE_ID},
+   $self->{ADMIN_FIO},
+   $self->{RESPOSIBLE_FIO},
+     )= @{ $self->{list}->[0] };
+
+	return $self;
+}
+
+
+#**********************************************************
+# change()
+#**********************************************************
+sub dispatch_change {
+  my $self = shift;
+  my ($attr) = @_;
+  
+  $attr->{INNER_CHAPTER} = ($attr->{INNER_CHAPTER}) ? 1 : 0;
+  
+  my %FIELDS = (COMMENTS      => 'comments',
+                PLAN_DATE     => 'plan_date',
+                ID            => 'id',
+                STATE         => 'state',
+                CLOSED_DATE   => 'closed_date',
+                RESPOSIBLE    => 'resposible'
+             );
+
+  $admin->{MODULE}=$MODULE;
+  $self->changes($admin,  { CHANGE_PARAM => 'ID',
+                   TABLE        => 'msgs_dispatch',
+                   FIELDS       => \%FIELDS,
+                   OLD_INFO     => $self->dispatch_info($attr->{ID}),
+                   DATA         => $attr,
+                   
+                  } );
+
+  return $self->{result};
+}
+
+
+
+
+
+#**********************************************************
+# chapter_add
+#**********************************************************
+sub dispatch_admins_change {
+	my $self = shift;
+	my ($attr) = @_;
+  
+  my %DATA = $self->get_data($attr, { default => \%DATA }); 
+
+
+  $self->query($db, "DELETE FROM msgs_dispatch_admins WHERE dispatch_id='$attr->{DISPATCH_ID}';", 'do');
+  
+  my @admins = split(/, /, $attr->{AIDS});
+  foreach my $aid (@admins) {
+    $self->query($db, "insert into msgs_dispatch_admins (dispatch_id, aid)
+      values ('$DATA{DISPATCH_ID}', '$aid');", 'do');
+   }
+
+	return $self;
+}
+
+
+#**********************************************************
+# chapter_add
+#**********************************************************
+sub dispatch_admins_list {
+	my $self = shift;
+	my ($attr) = @_;
+  
+  $self->query($db, "SELECT dispatch_id, aid FROM msgs_dispatch_admins WHERE dispatch_id='$attr->{DISPATCH_ID}';");
+
+	return $self->{list};
+}
+
+
 1
+

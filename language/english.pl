@@ -1,4 +1,4 @@
-# 0.3
+# 0.5
 $CHARSET = 'windows-1251';
 
 @PERIODS=('Today', 'Yesterday', 'Week', 'Month', 'All sessions', 'From activation');
@@ -80,6 +80,7 @@ $_SELECTED='Selected';
 $_RECORDS='Records';
 $_LOGOUT='Logout';
 $_TRAFFIC='Traffic';
+$_TRAFFIC_CLASS='Traffic Class';
 $_DURATION='Duration';
 $_DAY_DURATION='Day time limit';
 $_LOGIN='Login';
@@ -246,6 +247,11 @@ $ERR_WRONG_CONFIRM='Wrong Confirmation';
 $ERR_NAME_TOOLONG='Login is too long';
 $ERR_WRONG_DATA="Wrong data input";
 $ERR_SMALL_DEPOSIT='Too Small Deposit';
+$ERR_UNKNOWN_IP="Not registred IP Address. Can't find your NAS.";
+$ERR_ACCEPT_RULES='Don\'t accepted rules';
+$ERR_CREDIT_CHANGE_LIMIT_REACH='Credit change limit reach';
+$ERR_CANT_CREATE_FILE='Can\'t create file or folder';
+$ERR_WRONG_SUM="Wrong sum";
 
 
 #Mail section
@@ -256,19 +262,18 @@ $_DOMAIN='Domain';
 $_RELAYS='Relay',
 $_ACCESS='Access';
 $_TRANSPORT = 'Transport';
-$_BILLING = 'Billing';
 $_ANTIVIRUS='Antivirus';
 $_ANTISPAM='Antispam';
 $_FOLDER='Folder';
 
 #==new
 $_LIST='List';
-$_SA_ONLY = 'Self added only';
 $_REPORTS = 'Reports';
 $_MODULES = 'Modules';
 $_SYSTEM = 'System configuration';
 $_GENERED_PARRWORD = 'Generate password';
 $_DISABLE='Disable';
+$_HOLD_UP='Hold Up';
 $_ENABLE='Enable';
 $_COMPANY='Company';
 $_ADD_USER='Add user';
@@ -281,6 +286,7 @@ $_PAYMENT_METHOD='Payment Method';
 $_TEST='Test';
 $_ZAPED='Zapped';
 $_CLOSED='Closed';
+$_CLOSE='Close';
 $_USED='Used';
 $_MAX_SESSION_DURATION='Max. session time';
 $_START='Start';
@@ -298,6 +304,7 @@ $_TAKE='Take';
 $_ADDRESS_STREET='Street';
 $_ADDRESS_BUILD='Build';
 $_ADDRESS_FLAT='Flat';
+$_COUNTRY='Country';
 $_CONTRACT_ID='Contract Number';
 $_CONTRACT='Contract';
 $_CONTRACTS='Contracts';
@@ -306,6 +313,7 @@ $_REFRESH='Refresh';
 $_ROUTES='Routes';
 $_DICTIONARY='Dictionary';
 $_ABON='Periodic payments';
+
 
 $_SYMBOLS='Symbols';
 $_SERIAL='Serial';
@@ -330,6 +338,7 @@ $_CONFIG='Configuration';
 $_PROCESSES='Processes';
 $_TRAFFIC_TRANSFER_PERIOD='Traffic transfer period';
 $_MONTH_ALIGNMENT='Month alignment';
+$_PERIOD_ALIGNMENT='Period Alignment';
 $_MIN_USE='Minimal money use';
 
 $_ATTACHMENT='Attachment';
@@ -367,6 +376,8 @@ $_BILL_INFO='Billing server info';
 $_PRIMARY='Primary';
 $_EXTRA='Extra';
 $_DEBETORS='Debitors';
+$_NON_PAYMENT='Non Payment';
+
 
 $_INNER='Inner';
 $_INFO_FIELDS='Information fields';
@@ -376,14 +387,28 @@ $_JOIN_SERVICE='Join Service';
 $_MAIN='Main';
 $_CHANNELS='Channels';
 $_ABON_DISTRIBUTION='Abon. payments distribution';
+$_GUEST_MODE='Guest mode. Please registration your address';
 
 $_LOGON='Logon';
 
 $_CORRECTION='correction';
 $_ACCEPT_RULES='Rules Accepted';
+$_RULES='Rulles';
 $_ACCEPT='Accept';
 $_CANCEL='Cancel';
-$_NEGATIVE_DEPOSIT='Negative Deposit';
+$_NEGATIVE_DEPOSIT='Negative Deposit. Please add amount to your account';
 $_BALANCE_RECHARCHE='Balance recharge';
 $_PRICE='Price';
 $_COMPENSATION='Compensation';
+$_TV='Television';
+$_DISPATCH='Dispatch';
+$_EVOLUTION='Evolution';
+$_REPRESENTATIVE='Representative';
+$_SETTINGS='Settings';
+$_UNLIMITED='Unlimited';
+
+$_MAX_ROWS='Max seach rows';
+$_MIN_SEARCH_CHARS='Minimum chars for searching';
+$_ERR_SEARCH_VAL_TOSMALL='Search value to small';
+$ERR_NO_FREE_IP_IN_POOL='No free IPs in pool';
+$_GUEST_ACCOUNT='Guest account';

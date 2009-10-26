@@ -106,6 +106,9 @@ if ($acct_status_type == 1) {
     if ($RAD->{X_ASCEND_DATA_RATE} && $RAD->{X_ASCEND_XMIT_RATE}) {
         $RAD->{CONNECT_INFO}="$RAD->{X_ASCEND_DATA_RATE} / $RAD->{X_ASCEND_XMIT_RATE}";
      }
+    elsif ($RAD->{CISCO_SERVICE_INFO}) {
+      $RAD->{CONNECT_INFO}="$RAD->{CISCO_SERVICE_INFO}";
+     }
 
     # 
     my $sql = "INSERT INTO dv_calls
@@ -136,6 +139,7 @@ elsif ($acct_status_type == 2) {
 
   if ( $NAS->{NAS_EXT_ACCT} || $NAS->{NAS_TYPE} eq 'ipcad') {
  
+
     $self->query($db, "SELECT 
        acct_input_octets,
        acct_output_octets,
@@ -302,23 +306,30 @@ elsif ($acct_status_type == 2) {
 elsif($acct_status_type eq 3) {
   $self->{SUM}=0 if (! $self->{SUM}); 
   if ($NAS->{NAS_EXT_ACCT}) {
-    $self->query($db, "UPDATE dv_calls SET
-      status='$acct_status_type',
-      nas_port_id='$RAD->{NAS_PORT}',
-      acct_session_time=UNIX_TIMESTAMP()-UNIX_TIMESTAMP(started),
+    my $ipn_fields='';
+  	if ($NAS->{IPN_COLLECTOR}) {
+  	  $ipn_fields="sum=sum+$self->{SUM},
       acct_input_octets='$RAD->{INBYTE}',
       acct_output_octets='$RAD->{OUTBYTE}',
-      ex_input_octets='$RAD->{INBYTE2}',
-      ex_output_octets='$RAD->{OUTBYTE2}',
-      framed_ip_address=INET_ATON('$RAD->{FRAMED_IP_ADDRESS}'),
-      lupdated=UNIX_TIMESTAMP(),
-      sum=sum+$self->{SUM},
+      ex_input_octets=ex_input_octets + $RAD->{INBYTE2},
+      ex_output_octets=ex_output_octets + $RAD->{OUTBYTE2},
       acct_input_gigawords='$RAD->{ACCT_INPUT_GIGAWORDS}',
-      acct_output_gigawords='$RAD->{ACCT_OUTPUT_GIGAWORDS}'
+      acct_output_gigawords='$RAD->{ACCT_OUTPUT_GIGAWORDS}',";
+     }
+
+
+    $self->query($db, "UPDATE dv_calls SET
+      $ipn_fields
+      status='$acct_status_type',
+      acct_session_time=UNIX_TIMESTAMP()-UNIX_TIMESTAMP(started),
+      framed_ip_address=INET_ATON('$RAD->{FRAMED_IP_ADDRESS}'),
+      lupdated=UNIX_TIMESTAMP()
     WHERE
       acct_session_id=\"$RAD->{ACCT_SESSION_ID}\" and 
       user_name=\"$RAD->{USER_NAME}\" and
       nas_id='$NAS->{NAS_ID}';", 'do');
+
+
 
   	return $self;
    }
@@ -328,15 +339,19 @@ elsif($acct_status_type eq 3) {
   elsif ($conf->{rt_billing}) {
     $self->rt_billing($RAD, $NAS);
    }
+   
+  my $ex_octets = '';
+  if ($RAD->{INBYTE2} || $RAD->{OUTBYTE2}) {
+    $ex_octets = "ex_input_octets='$RAD->{INBYTE2}',  ex_output_octets='$RAD->{OUTBYTE2}', ";
+   }
+ 
   
   $self->query($db, "UPDATE dv_calls SET
     status='$acct_status_type',
-    nas_port_id='$RAD->{NAS_PORT}',
     acct_session_time=UNIX_TIMESTAMP()-UNIX_TIMESTAMP(started),
     acct_input_octets='$RAD->{INBYTE}',
     acct_output_octets='$RAD->{OUTBYTE}',
-    ex_input_octets='$RAD->{INBYTE2}',
-    ex_output_octets='$RAD->{OUTBYTE2}',
+    $ex_octets
     framed_ip_address=INET_ATON('$RAD->{FRAMED_IP_ADDRESS}'),
     lupdated=UNIX_TIMESTAMP(),
     sum=sum+$self->{SUM},
@@ -360,10 +375,13 @@ else {
 
 #detalization for Exppp
 if ($conf->{s_detalization}) {
-   $RAD->{INTERIUM_INBYTE}=0 if (! defined($RAD->{INTERIUM_INBYTE}));
-   $RAD->{INTERIUM_OUTBYTE}=0 if (! defined($RAD->{INTERIUM_OUTBYTE}));
-   $RAD->{INTERIUM_INBYTE2}=0 if (! defined($RAD->{INTERIUM_INBYTE2}));
-   $RAD->{INTERIUM_OUTBYTE2}=0 if (! defined($RAD->{INTERIUM_OUTBYTE2}));
+
+  if($NAS->{NAS_TYPE} ne 'exppp') {
+    $RAD->{INTERIUM_INBYTE}  =$RAD->{INBYTE};
+    $RAD->{INTERIUM_OUTBYTE} =$RAD->{OUTBYTE};
+    $RAD->{INTERIUM_INBYTE2} =$RAD->{INBYTE2}  || 0;
+    $RAD->{INTERIUM_OUTBYTE2}=$RAD->{OUTBYTE2} || 0;
+   }
 
   $self->query($db, "INSERT into s_detail (acct_session_id, nas_id, acct_status, last_update, 
     sent1, recv1, sent2, recv2, id)

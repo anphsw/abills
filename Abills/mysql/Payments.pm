@@ -97,11 +97,12 @@ sub add {
    }
   
   if ($DATA{CHECK_EXT_ID}) {
-    $self->query($db, "SELECT id FROM payments WHERE ext_id='$DATA{CHECK_EXT_ID}';");
+    $self->query($db, "SELECT id, date FROM payments WHERE ext_id='$DATA{CHECK_EXT_ID}';");
     if ($self->{TOTAL} > 0) {
       $self->{errno}=7;
       $self->{errstr}='ERROR_DUBLICATE';
       $self->{ID}=$self->{list}->[0][0];
+      $self->{DATE}=$self->{list}->[0][1];
       return $self;	
      }
    }
@@ -128,6 +129,7 @@ sub add {
            values ('$user->{UID}', '$user->{BILL_ID}', $date, '$DATA{SUM}', '$DATA{DESCRIBE}', INET_ATON('$admin->{SESSION_IP}'), '$Bill->{DEPOSIT}', '$admin->{AID}', '$DATA{METHOD}', 
            '$DATA{EXT_ID}', '$DATA{INNER_DESCRIBE}');", 'do');
 
+    $self->{PAYMENT_ID}=$self->{INSERT_ID};
 
     if ($CONF->{payment_chg_activate} && $user->{ACTIVATE} ne '0000-00-00') {
       $user->change($user->{UID}, { UID      => $user->{UID}, 
@@ -173,7 +175,7 @@ sub del {
   
 
   $self->query($db, "DELETE FROM payments WHERE id='$id';", 'do');
-  $admin->action_add($user->{UID}, "DELETE PAYEMNTS $id SUM: $sum");
+  $admin->action_add($user->{UID}, "PAYEMNTS:$id SUM:$sum", { TYPE => 10 });
 
   return $self;
 }
@@ -250,7 +252,10 @@ sub list {
  if ($attr->{EXT_ID}) {
    push @WHERE_RULES, @{ $self->search_expr($attr->{EXT_ID}, 'STR', 'p.ext_id') };
   }
-
+ elsif($attr->{EXT_IDS}) {
+ 	 push @WHERE_RULES, "p.ext_id in ($attr->{EXT_IDS})";
+  }
+ 
  if ($attr->{ID}) {
  	 push @WHERE_RULES, @{ $self->search_expr("$attr->{ID}", 'INT', 'p.id') };
   }
@@ -301,9 +306,11 @@ sub reports {
 
  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
- my $date = '';
- undef @WHERE_RULES;
+ my $date       = '';
+ my $ext_tables = '';
+ my $GROUP      = 1;
  
+ undef @WHERE_RULES;
 
  if ($attr->{GIDS}) {
    push @WHERE_RULES, "u.gid IN ( $attr->{GIDS} )";
@@ -312,7 +319,7 @@ sub reports {
    push @WHERE_RULES, "u.gid='$attr->{GID}'";
   }
 
- if (defined($attr->{METHODS})) {
+ if (defined($attr->{METHODS}) and $attr->{METHODS} ne '') {
     push @WHERE_RULES, "p.method IN ($attr->{METHODS}) ";
   }
  
@@ -331,6 +338,11 @@ sub reports {
    elsif($attr->{TYPE} eq 'PAYMENT_METHOD') {
    	 $date = "p.method";   	
     }
+   elsif($attr->{TYPE} eq 'FIO') {
+   	 $ext_tables = 'LEFT JOIN users_pi pi ON (u.uid=pi.uid)';
+   	 $date  = "pi.fio";  
+   	 $GROUP = 5; 	
+    } 
    elsif($attr->{TYPE} eq 'ADMINS') {
    	 $date = "a.id";   	
     }
@@ -350,10 +362,11 @@ sub reports {
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
  
-  $self->query($db, "SELECT $date, count(DISTINCT p.uid), count(*), sum(p.sum) 
+  $self->query($db, "SELECT $date, count(DISTINCT p.uid), count(*), sum(p.sum), p.uid 
       FROM (payments p)
       LEFT JOIN users u ON (u.uid=p.uid)
       LEFT JOIN admins a ON (a.aid=p.aid)
+      $ext_tables
       $WHERE 
       GROUP BY 1
       ORDER BY $SORT $DESC;");
@@ -380,6 +393,7 @@ sub reports {
 	
 	return $list;
 }
+
 
 
 1
