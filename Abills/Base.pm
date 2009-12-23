@@ -32,6 +32,7 @@ $VERSION = 2.00;
   &in_array
   &tpl_parse
   &encode_base64
+  &cfg2hash
  );
 
 @EXPORT_OK = ();
@@ -46,13 +47,40 @@ sub null {
   return 0;	
 }
 
+
+#**********************************************************
+# Convert cft str to hash
+#
+# cfg format:
+#  key:value;key:value;key:value;
+#
+#**********************************************************
+sub cfg2hash {
+  my ($cfg, $attr) = @_;
+  my %hush = ();
+ 
+  return \%hush if (! $cfg);
+  $cfg =~ s/\n//g;
+	my @payments_methods_arr = split(/;/, $cfg);
+
+	foreach my $line (@payments_methods_arr) {
+		 my ($k, $v)=split(/:/, $line, 2);
+		 $k =~ s/^\s+//;
+		 $hush{$k}=$v;
+	 }
+
+  return \%hush;
+}
+
+
 #**********************************************************
 # isvalue()
 # Check value in array
 #**********************************************************
 sub in_array {
  my ($value, $array) = @_;
- 
+
+ return 0 if (! $value); 
  foreach my $line (@$array) {
  	 return 1 if ($value eq $line);
   }
@@ -91,6 +119,7 @@ sub convert {
 	elsif($attr->{'2_tpl'}) {
      $text =~ s/__textarea__/textarea/g;
    }
+  elsif( $attr->{win2utf8} ) { $text = win2utf8($text); } 
 	elsif(defined($attr->{win2koi})) { $text = win2koi($text);	 }
 	elsif( $attr->{koi2win} ) { $text = koi2win($text); }
   elsif( $attr->{win2iso} ) { $text = win2iso($text); }
@@ -102,9 +131,6 @@ sub convert {
 	return $text;
 }
 
-
-# $version = '0.01';
-# возращает перекодированную переменную, вызов win2koi(<переменна€>)
 
 sub win2koi {
     my $pvdcoderwin=shift;
@@ -145,10 +171,45 @@ return $pvdcoderdos;
 }
 
 
-#*******************************************************************
+
+#**********************************************************
+# http://www.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/WINDOWS/CP1251.TXT
+#**********************************************************
+sub win2utf8 {
+
+  #my $TestLine='јаЅб¬в√гƒд≈е®Є∆ж«з»и…й кЋлћмЌнќоѕп–р—с“т”у‘ф’х÷ц„чЎшўщЏъџы№ьЁэёюя€≥≤';
+
+  my $TestLine="Ї";
+
+  my @ChArray=split('',$_[0]);
+  my $Unicode='';
+  my $Code='';
+  for(@ChArray){
+    $Code=ord;
+    #return $Code;
+    if(($Code>=0xc0)&&($Code<=0xff)){$Unicode.="&#".(0x350+$Code).";";}
+    elsif($Code==0xa8){$Unicode.="&#".(0x401).";";}
+    elsif($Code==0xb8){$Unicode.="&#".(0x451).";";}
+    elsif($Code==0xb3){$Unicode.="&#".(0x456).";";}
+    elsif($Code==0xaa){$Unicode.="&#".(0x404).";";}
+    elsif($Code==0xba){$Unicode.="&#".(0x454).";";}
+    elsif($Code==0xb2){$Unicode.="&#".(0x406).";";}
+    elsif($Code==0xaf){$Unicode.="&#".(0x407).";";}
+    elsif($Code==0xbf){$Unicode.="&#".(0x457).";";}
+    
+   
+    
+    else{$Unicode.=$_;}
+   }
+
+  return $Unicode;
+ }
+
+
+#**********************************************************
 # Parse comand line arguments
 # parse_arguments(@$argv)
-#*******************************************************************
+#**********************************************************
 sub parse_arguments {
     my ($argv) = @_;
     
@@ -166,14 +227,14 @@ sub parse_arguments {
   return \%args;
 }
 
-#********************************************************************
+#***********************************************************
 # sendmail($from, $to, $subject, $message, $charset, $priority)
 # MAil Priorities:
 #
 #
 #
 #
-#********************************************************************
+#***********************************************************
 sub sendmail {
   my ($from, $to_addresses, $subject, $message, $charset, $priority, $attr) = @_;
   my $SENDMAIL = (defined($attr->{SENDMAIL_PATH})) ? $attr->{SENDMAIL_PATH} : '/usr/sbin/sendmail';
@@ -185,10 +246,66 @@ sub sendmail {
      }	
    }
   
+  $message =~ s/#.+//g;
+  
+  if ($message =~ s/Subject: (.+)//g ) {
+  	$subject=$1;
+   }
+  if ($message =~ s/From: (.+)//g ) {
+  	$from=$1;
+   }
+  if ($message =~ s/X-Priority: (.+)//g ) {
+  	$priority=$1;
+   }
+
+  
   $to_addresses =~ s/[\n\r]//g;
-  
+
+  if ($attr->{ATTACHMENTS}) {
+  	my $boundary = "_----------=_10167391557129230";
+  	$header .= "Content-Type: multipart/mixed; boundary=\"$boundary\"\n";
+
+$message = qq{
+This is a multi-part message in MIME format. 
+
+--$boundary
+Content-Transfer-Encoding: binary
+Content-Type: text/plain
+
+$message
+};
+
+
+  	
+    foreach my $attachment ( @{ $attr->{ATTACHMENTS} } ) {
+  	  my $data = encode_base64($attachment->{CONTENT});
+  	  $message .=  qq{ 
+
+--$boundary
+Content-Type: $attachment->{CONTENT_TYPE}; name="$attachment->{FILENAME}" 
+Content-Transfer-Encoding: base64 
+Content-Disposition: attachment; filename="$attachment->{FILENAME}" 
+
+$data  	  
+}
+ 	
+    }
+
+#$message .=  qq{ 
+#
+#--$boundary
+#
+#.
+#};
+
+  }
+
+
+
+
+#$attr->{TEST}=1;
+ 
   my @emails_arr = split(/;/, $to_addresses);
-  
   foreach my $to (@emails_arr) {
     if ($attr->{TEST}) {
       print "To: $to\n";
@@ -196,7 +313,7 @@ sub sendmail {
       print "Content-Type: text/plain; charset=$charset\n";
       print "X-Priority: $priority\n" if ($priority);
       print $header;
-      print "Subject: $subject \n\n";
+      print "Subject: $subject\n\n";
       print "$message";
      }
     else {
@@ -216,7 +333,7 @@ sub sendmail {
 }
 
 
-#*******************************************************************
+#**********************************************************
 # show log
 # show_log($uid, $type, $attr)
 #  Attributes
@@ -224,7 +341,7 @@ sub sendmail {
 #   PG
 #   DATE
 #   LOG_TYPE
-#*******************************************************************
+#**********************************************************
 sub show_log {
   my ($login, $logfile, $attr) = @_;
 
@@ -300,10 +417,10 @@ sub show_log {
 } 
 
 
-#*******************************************************************
+#**********************************************************
 # Make unique value
 # mk_unique_value($size)
-#*******************************************************************
+#**********************************************************
 sub mk_unique_value {
    my ($passsize, $attr) = @_;
    my $symbols = (defined($attr->{SYMBOLS})) ? $attr->{SYMBOLS} : "qwertyupasdfghjikzxcvbnmQWERTYUPASDFGHJKLZXCVBNM23456789";
@@ -326,10 +443,10 @@ sub mk_unique_value {
 
 
 
-#*******************************************************************
+#**********************************************************
 # Convert integer value to ip
 # int2ip($i);
-#*******************************************************************
+#**********************************************************
 sub int2ip {
 my $i = shift;
 my (@d);
@@ -341,10 +458,10 @@ $d[3]=int($i-$d[0]*256*256*256-$d[1]*256*256-$d[2]*256);
 }
 
 
-#*******************************************************************
+#**********************************************************
 # Convert ip to int
 # ip2int($ip);
-#*******************************************************************
+#**********************************************************
 sub ip2int($){
   my $ip = shift;
   return unpack("N", pack("C4", split( /\./, $ip)));
@@ -352,11 +469,11 @@ sub ip2int($){
 
 
 
-#********************************************************************
+#***********************************************************
 # Time to second
 # time2sec()
 # return $sec;
-#********************************************************************
+#***********************************************************
 sub time2sec {
   my ($value, $attr) = @_;
   my $sec;
@@ -368,11 +485,11 @@ sub time2sec {
   return $sec;
 }
 
-#********************************************************************
+#***********************************************************
 # Second to date
 # sec2time()
 # return $sec,$minute,$hour,$day
-#********************************************************************
+#***********************************************************
 sub sec2time {
    my ($value, $attr) = @_;
    my($a,$b,$c,$d);
@@ -390,11 +507,11 @@ sub sec2time {
   }
 }
 
-#********************************************************************
+#***********************************************************
 # Second to date
 # sec2date()
 # sec2date();
-#********************************************************************
+#***********************************************************
 sub sec2date {
   my $secnum = shift;
   return "0000-00-00 00:00:00" if ($secnum == 0);
@@ -410,11 +527,11 @@ sub sec2date {
   return "$year-$mon-$mday $hour:$min:$sec";
 }
 
-#********************************************************************
+#***********************************************************
 # Convert Integer to byte definision
 # int2byte($val, $attr)
 # $KBYTE_SIZE - SIze of kilobyte (Standart 1024)
-#********************************************************************
+#***********************************************************
 sub int2byte {
  my ($val, $attr) = @_;
  
@@ -448,10 +565,10 @@ sub int2byte {
 }
 
 
-#********************************************************************
+#***********************************************************
 # integet to money in litteral format
 # int2ml($array);
-#********************************************************************
+#***********************************************************
 sub int2ml {
  my ($array, $attr) = @_;
  my $ret = '';
@@ -644,10 +761,10 @@ sub encode_base64 ($;$) {
 }
 
 
-#*******************************************************************
+#**********************************************************
 # time check function
 # check_time()
-#*******************************************************************
+#**********************************************************
 sub check_time {
 # return 0 if ($conf{time_check} == 0);
 
@@ -665,7 +782,7 @@ sub check_time {
 }
 
 
-#*******************************************************************
+#**********************************************************
 # Get Argument params or Environment parameters  
 # 
 # FreeRadius enviropment parameters
@@ -677,7 +794,7 @@ sub check_time {
 #  FRAMED_PROTOCOL - PPP
 #  USER_NAME - andy
 #  NAS_IDENTIFIER - media.intranet
-#*******************************************************************
+#**********************************************************
 sub get_radius_params {
  my %RAD=();
  if ($#ARGV > 1) {
@@ -709,10 +826,10 @@ sub get_radius_params {
 }
 
 
-#*******************************************************************
+#**********************************************************
 # For clearing quotes
 # clearquotes( $text )
-#*******************************************************************
+#**********************************************************
 sub clearquotes {
  my $text = shift;
  if ($text ne '""') {
@@ -724,10 +841,10 @@ sub clearquotes {
  return "$text";
 }
 
-#*******************************************************************
+#**********************************************************
 # Get testing information
 # test_radius_returns()
-#*******************************************************************
+#**********************************************************
 sub test_radius_returns {
  my ($RAD)=@_;
 

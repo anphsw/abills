@@ -127,13 +127,13 @@ require "../../language/$html->{language}.pl";
 
 if ($admin->{errno}) {
   print "Content-type: text/html\n\n";
-  my $message = 'Access Deny';
+  my $message = "$ERR_ACCESS_DENY";
 
   if ($admin->{errno} == 2) {
-  	$message = "Account Disabled or $admin->{errstr}";
+  	$message = "Account $_DISABLED or $admin->{errstr}";
    }
   elsif ($admin->{errno} == 4) {
-  	$message = "Wrong password";
+  	$message = "$ERR_WRONG_PASSWD";
    }
   elsif (! defined($REMOTE_USER)) {
     $message = "Wrong password";
@@ -202,11 +202,12 @@ my @actions = ([$_INFO, $_ADD, $_LIST, $_PASSWD, $_CHANGE, $_DEL, $_ALL, $_MULTI
                [$_LIST, $_GET, $_DEL, $_ALL],                                 # Fees
                [$_LIST, $_DEL],                                               # reports view
                [$_LIST, $_ADD, $_CHANGE, $_DEL, $_ADMINS, "$_SYSTEM $_LOG", $_DOMAINS],                    # system magment
-               [$_ALL],                                                       # Modules managments
-               [$_SEARCH],                                                    # Search
                [$_MONITORING, $_HANGUP],
+               [$_SEARCH],                                                    # Search
+               [$_ALL],                                                       # Modules managments               
                [$_PROFILE],
                [$_LIST, $_ADD, $_CHANGE, $_DEL],
+               
                );
 
 
@@ -236,7 +237,7 @@ if  ($admin->{MAX_ROWS} > 0) {
 #Global Vars
 @action    = ('add', $_ADD);
 @bool_vals = ($_NO, $_YES);
-@PAYMENT_METHODS = ('Cash', 'Bank', 'Internet Card', 'Credit Card', 'Bonus', "$_CORRECTION");
+@PAYMENT_METHODS = ("$_CASH", 'Bank', "$_EXTERNAL_PAYMENTS", 'Credit Card', "$_BONUS", "$_CORRECTION");
 @status = ("$_ENABLE", "$_DISABLE");
 
 
@@ -581,7 +582,7 @@ sub check_permissions {
 
 
 #**********************************************************
-# Quick start menu
+# Start form
 #**********************************************************
 sub form_start {
 
@@ -595,13 +596,9 @@ while((my($findex, $hash)=each(%menu_items))) {
     }
 }
 
-
-my $h = $new_hash{0};
-my @last_array = ();
-
 my @menu_sorted = sort {
-  $a cmp $b
-} keys %$h;
+  $b <=> $a
+} keys %{ $new_hash{0} };
 
 my $table2 = $html->table({ width    => '100%',
 	                          border   => 0 
@@ -612,9 +609,7 @@ my $table;
 my @rows = ();
 
 for(my $parent=1; $parent<$#menu_sorted; $parent++) { 
-  my $val = $h->{$parent};
-  my $level = 0;
-  my $prefix = '';
+  my $val = $new_hash{0}{$parent};
   $table->{rowcolor}=$_COLORS[0];      
 
   if (! defined($permissions{($parent-1)})) {
@@ -631,13 +626,12 @@ for(my $parent=1; $parent<$#menu_sorted; $parent++) {
 
   if (defined($new_hash{$parent})) {
     $table->{rowcolor}=$_COLORS[1];
-    $level++;
-    $prefix .= "&nbsp;&nbsp;&nbsp;";
+    my $mi = $new_hash{$parent};
 
-    label:
-      my $mi = $new_hash{$parent};
-      while(my($k, $val)=each %$mi) {
-        $table->addrow("$prefix ". $html->button($val, "index=$k"));
+      foreach my $k ( sort keys %$mi) {
+        $val=$mi->{$k};
+        
+        $table->addrow("&nbsp;&nbsp;&nbsp; ". $html->button($val, "index=$k"));
         delete($new_hash{$parent}{$k});
       }
   }
@@ -652,7 +646,6 @@ for(my $parent=1; $parent<$#menu_sorted; $parent++) {
 
 $table2->addtd(@rows);
 print $table2->show();
-# return 0;
 }
 
 
@@ -668,7 +661,7 @@ sub form_companies {
 
 if ($FORM{add}) {
   if (! $permissions{0}{1} ) {
-    $html->message('err', $_ERROR, "Access Deny");  	
+    $html->message('err', $_ERROR, "$ERR_ACCESS_DENY");  	
     return 0;
    }
 
@@ -680,7 +673,7 @@ if ($FORM{add}) {
  }
 elsif($FORM{change}) {
   if (! $permissions{0}{4} ) {
-    $html->message('err', $_ERROR, "Access Deny");  	
+    $html->message('err', $_ERROR, "$ERR_ACCESS_DENY");  	
     return 0;
    }
 
@@ -1015,6 +1008,16 @@ sub user_form {
    if ($user_info->{DISABLE} > 0) {
      $user_info->{DISABLE} = ' checked';
      $user_info->{DISABLE_MARK} = $html->color_mark($html->b($_DISABLE), $_COLORS[6]);
+     
+     my $list = $admin->action_list({ UID       => $user_info->{UID},
+     	                     TYPE      => 9,
+     	                     PAGE_ROWS => 1,
+     	                     SORT      => 1,
+     	                     DESC      => 'DESC'
+     	                     });
+     if ($admin->{TOTAL}>0) {
+       $user_info->{DISABLE_COMMENTS}=$list->[0][3];
+      }
     } 
    else {
    	 $user_info->{DISABLE} = '';
@@ -1039,11 +1042,11 @@ sub form_groups {
 
 if ($FORM{add}) {
   if (! $permissions{0}{1} ) {
-    $html->message('err', $_ERROR, "Access Deny");  	
+    $html->message('err', $_ERROR, "$ERR_ACCESS_DENY");  	
     return 0;
    }
   elsif ($LIST_PARAMS{GID} || $LIST_PARAMS{GIDS}) {
-    $html->message('err', $_ERROR, "Access Deny");
+    $html->message('err', $_ERROR, "$ERR_ACCESS_DENY");
    }
   else {
     $users->group_add( { %FORM });
@@ -1054,7 +1057,7 @@ if ($FORM{add}) {
 }
 elsif($FORM{change}){
   if (! $permissions{0}{4} ) {
-    $html->message('err', $_ERROR, "Access Deny");  	
+    $html->message('err', $_ERROR, "$ERR_ACCESS_DENY");  	
     return 0;
    }
 
@@ -1184,7 +1187,7 @@ sub user_pi {
   
  if($FORM{add}) {
    if (! $permissions{0}{1} ) {
-      $html->message('err', $_ERROR, "Access Deny");  	
+      $html->message('err', $_ERROR, "$ERR_ACCESS_DENY");  	
     	return 0;
     }
 
@@ -1195,7 +1198,7 @@ sub user_pi {
   }
  elsif($FORM{change}) {
    if (! $permissions{0}{4} ) {
-      $html->message('err', $_ERROR, "Access Deny");  	
+      $html->message('err', $_ERROR, "$ERR_ACCESS_DENY");  	
     	return 0;
     }
 
@@ -1336,7 +1339,7 @@ if(defined($attr->{USER})) {
 
   if ($FORM{change}) {
     if (! $permissions{0}{4} ) {
-      $html->message('err', $_ERROR, "Access Deny");  	
+      $html->message('err', $_ERROR, "$ERR_ACCESS_DENY");  	
     	print "</td></table>\n";
     	return 0;
      }
@@ -1470,7 +1473,7 @@ print "</ul></div>
 }
 elsif ( $FORM{add}) {
   if (! $permissions{0}{1} ) {
-    $html->message('err', $_ERROR, "Access Deny");  	
+    $html->message('err', $_ERROR, "$ERR_ACCESS_DENY");  	
   	return 0;
    }
 
@@ -1505,7 +1508,6 @@ elsif ($FORM{MULTIUSER}) {
   my $count = 0;
 	my %CHANGE_PARAMS = ();
  	while(my($k, $v)=each %FORM) {
- 		print "// $k, $v <br>";
  		if ($k =~ /^MU_(\S+)/) {
  			my $val = $1;
       $CHANGE_PARAMS{$val}=$FORM{$val};
@@ -1614,9 +1616,10 @@ my %SEARCH_TITLES = ('if(company.id IS NULL,ext_b.deposit,ext_cb.deposit)' => "$
                   'if(company.id IS NULL,b.id,cb.id)' => 'BILL ID', 
                   'u.activate'        => "$_ACTIVATE", 
                   'u.expire'          => "$_EXPIRE",
-                  'u.credit_date'     => "$_CREDIT $_DATE"
-                  
+                  'u.credit_date'     => "$_CREDIT $_DATE",
+                  'u.reduction'       => "$_REDUCTION"
                     );
+
 
 
 
@@ -1963,7 +1966,7 @@ my $table = $html->table( { width      => '100%',
                            });
 
 if (! defined($FORM{sort})) {
-  $LIST_PARAMS{SORT}=2;
+  $LIST_PARAMS{SORT}=1;
  }
 
 
@@ -2077,7 +2080,8 @@ sub form_system_changes {
                    8  => "$_ENABLE",
                    9  => "$_DISABLE",
                    10 => "$_DELETED",
-                   11 => "$ERR_WRONG_PASSWD");
+                   11 => "$ERR_WRONG_PASSWD",
+                   13 => "Online $_DEL");
 
  
 if ($permissions{4}{3} && $FORM{del} && $FORM{is_js_confirmed}) {
@@ -2183,7 +2187,8 @@ sub form_changes {
                    9  => "$_DISABLE",
                    10 => "$_DELETED",
                    11 => '',
-                   12 => "$_DELETED $_USER");
+                   12 => "$_DELETED $_USER",
+                   13 => "Online $_DELETE");
  
 if ($permissions{4}{3} && $FORM{del} && $FORM{is_js_confirmed}) {
 	$admin->action_del( $FORM{del} );
@@ -2679,7 +2684,7 @@ if ($FORM{AID}) {
 
   $FORM{DOMAIN_ID}  = $admin_form->{DOMAIN_ID};
   $LIST_PARAMS{AID} = $admin_form->{AID};  	
-  $pages_qs = "&AID = $admin_form->{AID}&subf=$FORM{subf}";
+  $pages_qs = "&AID=$admin_form->{AID}&subf=$FORM{subf}";
 
 
   my $A_LOGIN = $html->form_main({ CONTENT => $html->form_select('AID', 
@@ -3104,7 +3109,7 @@ $profiles{'IO'} = "#FCBB43, #FFFFFF, #eeeeee, #dddddd, #E1E1E1, #FFFFFF, #FF0000
 $profiles{'Cisco'} = "#99CCCC, #FFFFFF, #FFFFFF, #669999, #669999, #FFFFFF, #FF0000, #003399, #003399, #000000, #FFFFFF";
 
 while(my($thema, $colors)=each %profiles ) {
-  my $url = "index=53&AWEB_OPTIONS=1&set=set";
+  my $url = "index=$index&AWEB_OPTIONS=1&set=set";
   my @c = split(/, /, $colors);
   foreach my $line (@c) {
       $line =~ s/#/%23/ig;
@@ -3150,7 +3155,7 @@ if($FORM{NAS_ID}) {
  	                                          MULTI_ARRAY_KEY   => 0,
  	                                          MULTI_ARRAY_VALUE => 1,
  	                                        }),
-	                       HIDDEN  => { index => '60',
+	                       HIDDEN  => { index => '61',
                                       AID   => "$FORM{AID}",
                                       subf  => "$FORM{subf}"
                                      },
@@ -3163,8 +3168,8 @@ if($FORM{NAS_ID}) {
   	       }, 
   	{ 
   	 $_INFO          => ":NAS_ID=$nas->{NAS_ID}",
-     'IP Pools'      => "61:NAS_ID=$nas->{NAS_ID}",
-     $_STATS         => "62:NAS_ID=$nas->{NAS_ID}"
+     'IP Pools'      => "62:NAS_ID=$nas->{NAS_ID}",
+     $_STATS         => "63:NAS_ID=$nas->{NAS_ID}"
   	 },
   	{
   		f_args => { %F_ARGS }
@@ -3927,49 +3932,71 @@ if (defined($FORM{DATE})) {
 	$graph_type='';
   $list = $fees->list( { %LIST_PARAMS } );
   $table_fees = $html->table( { width      => '100%',
-  	                            caption    => "$_FEES", 
-                                title      => ['ID', $_LOGIN, $_DATE, $_SUM, $_DESCRIBE, $_ADMINS, 'IP', $_DEPOSIT],
-                                cols_align => ['right', 'left', 'right', 'right', 'left', 'left', 'right', 'right'],
-                                qs         => $pages_qs,
-                                ID         => 'REPORT_FEES'
-                               });
+                            caption    => "$_FEES",
+                            border     => 1,
+                            title      => ['ID', $_LOGIN, $_DATE, $_SUM, $_DESCRIBE, $_TYPE, $_DEPOSIT, "$_BILLS", $_ADMINS, 'IP','-'],
+                            cols_align => ['right', 'left', 'right', 'right', 'left', 'left', 'right', 'right', 'left', 'center:noprint'],
+                            qs         => $pages_qs,
+                            pages      => $fees->{TOTAL},
+                            ID         => 'REPORTS_FEES'
+                        } );
 
+
+  $pages_qs .= "&subf=2" if (! $FORM{subf});
   foreach my $line (@$list) {
-   $table_fees->addrow($html->b($line->[0]), 
-     $html->button($line->[1], "index=15&subf=3&DATE=$line->[0]&UID=$line->[10]"),  
-      $line->[2],
-      $line->[3], 
-      $line->[4],  
-      "$line->[5]", 
-      "$line->[6]", 
-      "$line->[7]");
-    }
+    #my $delete = ($permissions{2}{2}) ?  $html->button($_DEL, "index=3&del=$line->[0]&UID=".$line->[10], 
+    #  { MESSAGE => "$_DEL ID: $line->[0]?" }) : ''; 
+
+    $table_fees->addrow($html->b($line->[0]), 
+    $html->button($line->[1], "index=15&UID=".$line->[10]), 
+    $line->[2], 
+    $line->[3], 
+    $line->[4] . ( ($line->[11] ) ? ' ('. $html->b($line->[11]) .') ' : '' ), 
+    $FEES_METHODS[$line->[5]], 
+    "$line->[6]",
+    ($BILL_ACCOUNTS{$line->[7]}) ? $BILL_ACCOUNTS{$line->[7]} : "$line->[7]",
+    "$line->[8]", 
+    "$line->[9]",
+  
+    #$delete
+     );
+  }
 
 
 
 
  }   
 else{ 
+  $type=($FORM{TYPE}) ? $FORM{TYPE} : 'DATE';
+   
   #Fees###################################################
   my @TITLE = ("$_DATE", "$_USERS", "$_COUNT", $_SUM);
-  if ($FORM{TYPE} && $FORM{TYPE} eq 'METHOD') {
+  if ($type eq 'METHOD') {
   	$TITLE[0]=$_METHOD;
   	@CHART_TYPE= ('pie');
    }
-  elsif ($FORM{TYPE} && $FORM{TYPE} eq 'USER') {
+  elsif ($type eq 'USER') {
   	$TITLE[0]=$_USERS;
   	$type="search=1&LOGIN_EXPR";
   	$index=3;
   	$graph_type='';
    }
-  elsif ($FORM{TYPE} && $FORM{TYPE} eq 'FIO')  {
+  elsif ($type eq 'ADMINS')  {
+    $TITLE[0]=$_ADMINS;
+    $graph_type='';
+   }
+  elsif ($type eq 'FIO')  {
     $TITLE[0]=$_FIO;
     $graph_type='';
    }
-  elsif ($FORM{TYPE} && $FORM{TYPE} eq 'HOURS')  {
+  elsif ($FORM{ADMINS})  {
+    $TITLE[0]=$_USERS;
+    $graph_type='';
+   } 
+  elsif ($type eq 'HOURS')  {
     $TITLE[0]=$_HOURS;
    }
-  elsif ($FORM{TYPE} && $FORM{TYPE} eq 'METHOD')  {
+  elsif ($type eq 'METHOD')  {
     $TITLE[0]=$_TYPE;
    }
 
@@ -3986,10 +4013,10 @@ else{
   foreach my $line (@$list) {
 
     my $main_column = '';
-    if ($FORM{TYPE} && $FORM{TYPE} eq 'METHOD') {
+    if ($type eq 'METHOD') {
     	$main_column = $FEES_METHODS[$line->[0]];
      }
-    elsif($FORM{TYPE} && ($FORM{TYPE} eq 'FIO' || $FORM{TYPE} eq 'USER')) {
+    elsif($type eq 'FIO' || $type eq 'USER' || $FORM{ADMINS}) {
       if (! $line->[0] || $line->[0] eq '') {
         $main_column = $html->button($html->color_mark("!!! UNKNOWN", $_COLORS[6]), "index=11&UID=$line->[4]");
        }
@@ -4000,6 +4027,7 @@ else{
     else { 
       $main_column = $html->button($line->[0], "index=$index&$type=$line->[0]$pages_qs");
      }
+
     
     $table_fees->addrow(
     $main_column,
@@ -4007,7 +4035,7 @@ else{
     $line->[2], 
     $html->b($line->[3]) );
 
-    if ($FORM{TYPE} && $FORM{TYPE} eq 'METHOD') {
+    if ($type eq 'METHOD') {
       $DATA_HASH{TYPE}[$num+1]  = $line->[3];
       $CHART{X_TEXT}[$num]      = $line->[0];
       $num++;
@@ -4081,11 +4109,21 @@ sub report_payments {
   my %METHODS_HASH = ();
   
   push @PAYMENT_METHODS, @EX_PAYMENT_METHODS if (@EX_PAYMENT_METHODS);
-  
+
   for(my $i=0; $i<=$#PAYMENT_METHODS; $i++) {
-  	$METHODS_HASH{"$i:$i"}="$PAYMENT_METHODS[$i]";
+	  $METHODS_HASH{"$i:$i"}="$PAYMENT_METHODS[$i]";
+	  $PAYMENTS_METHODS{$i}=$PAYMENT_METHODS[$i];
    }
 
+  my %PAYSYS_PAYMENT_METHODS = %{ cfg2hash($conf{PAYSYS_PAYMENTS_METHODS}) };
+  while(my($k, $v) = each %PAYSYS_PAYMENT_METHODS ) {
+	  $PAYMENTS_METHODS{$k}=$v;
+   }
+
+
+  while(my($k, $v) = each %PAYSYS_PAYMENT_METHODS ) {
+	  $METHODS_HASH{"$k:$k"}=$v;
+   }
 
 
   reports({ DATE        => $FORM{DATE}, 
@@ -4116,48 +4154,74 @@ sub report_payments {
  
 if (defined($FORM{DATE})) {
 	$graph_type = '';
-  $list  = $payments->list( { %LIST_PARAMS } );
-  $table = $html->table({ width      => '100%',
-  	                      caption    => "$_PAYMENTS", 
-                          title      => ['ID', $_LOGIN, $_DATE, $_SUM, $_DESCRIBE, $_ADMINS, 'IP', $_DEPOSIT],
-                          cols_align => ['right', 'left', 'right', 'right', 'left', 'left', 'right', 'right'],
-                          qs         => $pages_qs,
-                          ID         => 'REPORT_PAYMENTS'
-                         });
 
+  $list = $payments->list( { %LIST_PARAMS } );
+  $table = $html->table( { width      => '100%',
+                           caption    => "$_PAYMENTS",
+                              title    => ['ID', $_LOGIN, $_DATE, $_SUM, $_DESCRIBE,   $_DEPOSIT, 
+                                   $_PAYMENT_METHOD, 'EXT ID', "$_BILL", $_ADMINS, 'IP'],
+                           cols_align => ['right', 'left', 'right', 'right', 'left', 'left', 'right', 'right', 'left', 'left', 'center:noprint'],
+                           qs         => $pages_qs,
+                           pages      => $payments->{TOTAL},
+                           ID         => 'REPORTS_PAYMENTS'
+                        } );
+
+  my $pages_qs .= "&subf=2" if (! $FORM{subf});
   foreach my $line (@$list) {
-   $table->addrow($html->b($line->[0]), 
-      $html->button($line->[1], "index=15&DATE=$LIST_PARAMS{DATE}&UID=$line->[11]"),  
-      $line->[2],
-      $line->[3], 
-      $line->[4],  
-      "$line->[5]", 
-      "$line->[6]", 
-      "$line->[7]");
-    }
+    #my $delete = ($permissions{1}{2}) ?  $html->button($_DEL, "index=2&del=$line->[0]&UID=". $line->[11] ."$pages_qs", { MESSAGE => "$_DEL [$line->[0]] ?" }) : ''; 
+
+    $table->addrow($html->b($line->[0]), 
+    $html->button($line->[1], "index=15&UID=$line->[11]"), 
+    $line->[2], 
+    $line->[3], 
+    $line->[4] . ( ($line->[12] ) ? ' ('. $html->b($line->[12]) .') ' : '' ), 
+    "$line->[5]", 
+    $PAYMENTS_METHODS{$line->[6]}, 
+    "$line->[7]", 
+    ($conf{EXT_BILL_ACCOUNT} && $attr->{USER}) ? $BILL_ACCOUNTS{$line->[8]} : "$line->[8]",
+    "$line->[9]", 
+    "$line->[10]", 
+    #$delete
+    );
+  }
  }   
 else{ 
+  if ($FORM{TYPE}) {
+    $type = $FORM{TYPE};
+    $pages_qs .= "&TYPE=$type";
+   }
+  else {
+  	$type = 'DATE';
+   }
+
+
+  
+  
   my @CAPTION = ("$_DATE", "$_USERS", "$_COUNT", $_SUM);
-  if ($FORM{TYPE} && $FORM{TYPE} eq 'PAYMENT_METHOD') {
+  if ($type eq 'PAYMENT_METHOD') {
   	$CAPTION[0]=$_PAYMENT_METHOD;
   	$graph_type='pie';
   	@CHART_TYPE=('pie');
    }
-  elsif ($FORM{TYPE} && $FORM{TYPE} eq 'USER') {
+  elsif ($type eq 'USER') {
   	$CAPTION[0]=$_USERS;
   	$type="search=1&LOGIN_EXPR";
   	$index=2;
   	$graph_type='';
    }
-  elsif ($FORM{TYPE} && $FORM{TYPE} eq 'FIO') {
+  elsif ($type eq 'FIO') {
   	$CAPTION[0]=$_FIO;
   	$graph_type='';
    }
-  elsif ($FORM{TYPE} && $FORM{TYPE} eq 'ADMINS')  {
+  elsif ($type eq 'ADMINS')  {
     $CAPTION[0]=$_ADMINS;
     $graph_type='';
    }
-  elsif ($FORM{TYPE} && $FORM{TYPE} eq 'HOURS')  {
+  elsif ($FORM{ADMINS})  {
+    $CAPTION[0]=$_USERS;
+    $graph_type='';
+   }
+  elsif ($type eq 'HOURS')  {
     $CAPTION[0]=$_HOURS;
    }
   
@@ -4175,10 +4239,10 @@ else{
   foreach my $line (@$list) {
     my $main_column = '';
 
-    if ($FORM{TYPE} && $FORM{TYPE} eq 'PAYMENT_METHOD') {
+    if ($type eq 'PAYMENT_METHOD') {
     	$main_column = $PAYMENT_METHODS[$line->[0]];
      }
-    elsif($FORM{TYPE} && ($FORM{TYPE} eq 'FIO' || $FORM{TYPE} eq 'USER')) {
+    elsif($type eq 'FIO' || $type eq 'USER' || $FORM{ADMINS}) {
       if (! $line->[0] || $line->[0] eq '') {
         $main_column = $html->button($html->color_mark("!!! UNKNOWN", $_COLORS[6]), "index=11&UID=$line->[4]");
        }
@@ -4186,6 +4250,10 @@ else{
         $main_column = $html->button($line->[0], "index=11&UID=$line->[4]");
        }
      }
+    #elsif ($FORM{TYPE} && $FORM{TYPE} eq 'ADMINS')  {
+    #  $CAPTION[0]=$_ADMINS;
+    #  $graph_type='';
+    # }
     else { 
       $main_column = $html->button($line->[0], "index=$index&$type=$line->[0]$pages_qs");
      }
@@ -4198,7 +4266,10 @@ else{
       $html->b($line->[3]) );
 
 
-    if ($FORM{TYPE} && $FORM{TYPE} eq 'PAYMENT_METHOD') {
+    if ($type eq 'ADMINS') { 
+    	
+     }
+    elsif ($type eq 'PAYMENT_METHOD') {
       $DATA_HASH{TYPE}[$num+1]  = $line->[3];
       $CHART{X_TEXT}[$num]    = $PAYMENT_METHODS[$line->[0]];
       $num++;
@@ -4295,7 +4366,7 @@ my @m = (
 
  "5:0:$_SYSTEM:null:::",
  
- "59:5:$_LOG:form_changes:::",
+ 
   
  "61:5:$_NAS:form_nas:::",
  "62:61:IP POOLs:form_ip_pools:::",
@@ -4303,6 +4374,9 @@ my @m = (
  "64:61:$_GROUPS:form_nas_groups:::",
 
  "65:5:$_EXCHANGE_RATE:form_exchange_rate:::",
+ 
+ "66:5:$_LOG:form_changes:::",
+ 
  "75:5:$_HOLIDAYS:form_holidays:::",
 
  
@@ -4316,13 +4390,13 @@ my @m = (
  "95:90:$_SQL_BACKUP:form_sql_backup:::",
  "96:90:$_INFO_FIELDS:form_info_fields:::",
  "97:96:$_LIST:form_info_lists:::",
- "6:0:$_OTHER:null:::",
+ "6:0:$_MONITORING:null:::",
   
  "7:0:$_SEARCH:form_search:::",
- 
- "8:0:$_MONITORING:null:::",
+
+ "8:0:$_OTHER:null:::",
  "9:0:$_PROFILE:admin_profile:::",
- "53:9:$_PROFILE:admin_profile:::",
+ #"53:9:$_PROFILE:admin_profile:::",
  "99:9:$_FUNCTIONS_LIST:flist:::",
  );
 
@@ -4338,7 +4412,7 @@ if ($permissions{4} && $permissions{4}{4}) {
 }
 
 if ($permissions{4} && $permissions{4}{5}) {
-  push @m, "60:5:$_SYSTEM $_LOG:form_system_changes:::";
+  push @m, "67:66:$_SYSTEM $_LOG:form_system_changes:::";
 }
 
 
@@ -4400,7 +4474,6 @@ sub flist {
 my  %new_hash = ();
 while((my($findex, $hash)=each(%menu_items))) {
    while(my($parent, $val)=each %$hash) {
-#     print "$findex $parent $val<br>\n";
      $new_hash{$parent}{$findex}=$val;
     }
 }
@@ -4411,12 +4484,8 @@ my $h = $new_hash{0};
 my @last_array = ();
 
 my @menu_sorted = sort {
-   $h->{$b} <=> $h->{$a}
-     ||
-   length($a) <=> length($b)
-     ||
-   $a cmp $b
-} keys %$h;
+   $b <=> $a
+ } keys %$h;
 
 my %qm = ();
 if (defined($admin->{WEB_OPTIONS}{qm})) {
@@ -4434,8 +4503,10 @@ my $table = $html->table({ width      => '100%',
 
 
 for(my $parent=1; $parent<$#menu_sorted; $parent++) { 
-  my $val = $h->{$parent};
-  my $level = 0;
+	#print "$parent /<br>";
+	
+  my $val    = $h->{$parent};
+  my $level  = 0;
   my $prefix = '';
   $table->{rowcolor}=$_COLORS[0];      
 
@@ -4448,10 +4519,11 @@ for(my $parent=1; $parent<$#menu_sorted; $parent++) {
     $level++;
     $prefix .= "&nbsp;&nbsp;&nbsp;";
     label:
-      my $mi = $new_hash{$parent};
+      while(my($k, $val)=each %{ $new_hash{$parent} }) {
 
-      while(my($k, $val)=each %$mi) {
- 
+      #foreach my $k (keys %{ $new_hash{$parent} }) {
+        #my $val = ''; #$mi->{$k};
+
         my $checked = undef;
         if (defined($qm{$k})) { 
         	$checked = 1;  
@@ -4517,6 +4589,9 @@ sub form_payments () {
 
  
  return 0 if (! $permissions{1});
+
+
+ %PAYMENTS_METHODS = ();
 
  my %BILL_ACCOUNTS = ();
 
@@ -4619,13 +4694,14 @@ if (defined($attr->{USER})) {
         if ($FORM{CREATE_INVOICE}) {
           require "Abills/modules/Docs/webinterface";
           docs_invoice_add({
-          	DATE      => $DATE,
-          	CUSTOMER  => '-', 
-          	PHONE     => '',
-            UID       => $FORM{UID},
-            ORDER     => "$FORM{DESCRIBE}" || '-',
-            SUM       => $FORM{SUM},
-            create    => 1
+          	DATE       => $DATE,
+          	CUSTOMER   => '-', 
+          	PHONE      => '',
+            UID        => $FORM{UID},
+            ORDER      => "$FORM{DESCRIBE}" || '-',
+            SUM        => $FORM{SUM},
+            create     => 1,
+            PAYMENT_ID => $payments->{PAYMENT_ID}
         	  });
   	     }
       }
@@ -4670,10 +4746,21 @@ $payments->{SEL_ER} .= "</select>\n";
 
 push @PAYMENT_METHODS, @EX_PAYMENT_METHODS if (@EX_PAYMENT_METHODS);
 
-$payments->{SEL_METHOD} =  $html->form_select('METHOD', 
-                                { SELECTED      => (defined($FORM{METHOD}) && $FORM{METHOD} ne '') ? $FORM{METHOD} : '',
- 	                                SEL_ARRAY     => \@PAYMENT_METHODS,
- 	                                ARRAY_NUM_ID  => 1
+for(my $i=0; $i<=$#PAYMENT_METHODS; $i++) {
+	$PAYMENTS_METHODS{"$i"}="$PAYMENT_METHODS[$i]";
+ }
+
+my %PAYSYS_PAYMENT_METHODS = %{ cfg2hash($conf{PAYSYS_PAYMENTS_METHODS}) };
+
+while(my($k, $v) = each %PAYSYS_PAYMENT_METHODS ) {
+	$PAYMENTS_METHODS{$k}=$v;
+}
+
+$payments->{SEL_METHOD} = $html->form_select('METHOD', 
+                                { SELECTED     => (defined($FORM{METHOD}) && $FORM{METHOD} ne '') ? $FORM{METHOD} : '',
+ 	                                SEL_HASH     => \%PAYMENTS_METHODS,
+ 	                                NO_ID        => 1,
+ 	                                SORT_KEY     => 1
  	                               });
 
 
@@ -4747,13 +4834,14 @@ my $list = $payments->list( { %LIST_PARAMS } );
 my $table = $html->table( { width      => '100%',
                             caption    => "$_PAYMENTS",
                             border     => 1,
-                            title      => ['ID', $_LOGIN, $_DATE, $_SUM, $_DESCRIBE, $_ADMINS, 'IP',  $_DEPOSIT, 
-                                   $_PAYMENT_METHOD, 'EXT ID', "$_BILL", '-'],
+                            title      => ['ID', $_LOGIN, $_DATE, $_SUM, $_DESCRIBE,   $_DEPOSIT, 
+                                   $_PAYMENT_METHOD, 'EXT ID', "$_BILL", $_ADMINS, 'IP', '-'],
                             cols_align => ['right', 'left', 'right', 'right', 'left', 'left', 'right', 'right', 'left', 'left', 'center:noprint'],
                             qs         => $pages_qs,
                             pages      => $payments->{TOTAL},
                             ID         => 'PAYMENTS'
                            } );
+
 
 my $pages_qs .= "&subf=2" if (! $FORM{subf});
 foreach my $line (@$list) {
@@ -4765,11 +4853,12 @@ foreach my $line (@$list) {
   $line->[3], 
   $line->[4] . ( ($line->[12] ) ? ' ('. $html->b($line->[12]) .') ' : '' ), 
   "$line->[5]", 
-  "$line->[6]", 
+  $PAYMENTS_METHODS{$line->[6]}, 
   "$line->[7]", 
-  $PAYMENT_METHODS[$line->[8]], 
+  ($conf{EXT_BILL_ACCOUNT} && $attr->{USER}) ? $BILL_ACCOUNTS{$line->[8]} : "$line->[8]",
   "$line->[9]", 
-  ($conf{EXT_BILL_ACCOUNT} && $attr->{USER}) ? $BILL_ACCOUNTS{$line->[10]} : "$line->[10]",
+  "$line->[10]", 
+  
   $delete);
 }
 
@@ -5064,7 +5153,7 @@ my $list = $fees->list( { %LIST_PARAMS } );
 my $table = $html->table( { width      => '100%',
                             caption    => "$_FEES",
                             border     => 1,
-                            title      => ['ID', $_LOGIN, $_DATE, $_SUM, $_DESCRIBE, $_TYPE, $_ADMINS, 'IP',  $_DEPOSIT, "$_BILLS", '-'],
+                            title      => ['ID', $_LOGIN, $_DATE, $_SUM, $_DESCRIBE, $_TYPE, $_DEPOSIT, "$_BILLS", $_ADMINS, 'IP','-'],
                             cols_align => ['right', 'left', 'right', 'right', 'left', 'left', 'right', 'right', 'left', 'center:noprint'],
                             qs         => $pages_qs,
                             pages      => $fees->{TOTAL},
@@ -5083,10 +5172,11 @@ foreach my $line (@$list) {
   $line->[3], 
   $line->[4] . ( ($line->[11] ) ? ' ('. $html->b($line->[11]) .') ' : '' ), 
   $FEES_METHODS[$line->[5]], 
-  "$line->[6]", 
-  "$line->[7]",
-  "$line->[8]",
-  ($BILL_ACCOUNTS{$line->[9]}) ? $BILL_ACCOUNTS{$line->[9]} : "$line->[9]",
+  "$line->[6]",
+  ($BILL_ACCOUNTS{$line->[7]}) ? $BILL_ACCOUNTS{$line->[7]} : "$line->[7]",
+  "$line->[8]", 
+  "$line->[9]",
+
   $delete);
 }
 
@@ -5123,7 +5213,22 @@ sub form_sendmail {
  $user->{FROM} = $FORM{FROM} || $conf{ADMIN_MAIL};
 
  if ($FORM{sent}) {
-   sendmail("$user->{FROM}", "$user->{EMAIL}", "$FORM{SUBJECT}", "$FORM{TEXT}", "$conf{MAIL_CHARSET}", "$FORM{PRIORITY} ($MAIL_PRIORITY{$FORM{PRIORITY}})");
+
+   my @ATTACHMENTS = ();
+   for(my $i=1; $i<=2; $i++) {
+       if ($FORM{'FILE_UPLOAD_'. $i}) {
+         push @ATTACHMENTS, {
+           FILENAME      => $FORM{'FILE_UPLOAD_'. $i}{filename},
+           CONTENT_TYPE  => $FORM{'FILE_UPLOAD_'. $i}{'Content-Type'},
+           FILESIZE      => $FORM{'FILE_UPLOAD_'. $i}{Size},
+           CONTENT       => $FORM{'FILE_UPLOAD_'. $i}{Contents},
+          };
+        }
+    }
+
+   sendmail("$user->{FROM}", "$user->{EMAIL}", "$FORM{SUBJECT}", "$FORM{TEXT}", 
+     "$conf{MAIL_CHARSET}", "$FORM{PRIORITY} ($MAIL_PRIORITY{$FORM{PRIORITY}})", 
+     { ATTACHMENTS => ($#ATTACHMENTS > -1) ? \@ATTACHMENTS : undef });
    my $table = $html->table({ width    => '100%',
                               rows     => [ [ "$_USER:",    "$user->{LOGIN}" ],
                                             [ "E-Mail:",    "$user->{EMAIL}" ],
@@ -5218,13 +5323,36 @@ if (defined($attr->{SEARCH_FORM})) {
  } 
 elsif($search_form{$FORM{type}}) {
   if ($FORM{type} == 2) {
-    push @PAYMENT_METHODS, @EX_PAYMENT_METHODS if (@EX_PAYMENT_METHODS);
-    $info{SEL_METHOD} =  $html->form_select('METHOD', 
-                                { SELECTED      => (defined($FORM{METHOD}) && $FORM{METHOD} ne '') ? $FORM{METHOD} : '',
- 	                                SEL_ARRAY     => \@PAYMENT_METHODS,
- 	                                ARRAY_NUM_ID  => 1,
-                                  SEL_OPTIONS   => { '' => $_ALL }
+
+   push @PAYMENT_METHODS, @EX_PAYMENT_METHODS if (@EX_PAYMENT_METHODS);
+   %PAYMENTS_METHODS = ();
+   
+   for(my $i=0; $i<=$#PAYMENT_METHODS; $i++) {
+	   $PAYMENTS_METHODS{"$i"}="$PAYMENT_METHODS[$i]";
+    }
+
+   my %PAYSYS_PAYMENT_METHODS = %{ cfg2hash($conf{PAYSYS_PAYMENTS_METHODS}) };
+
+   while(my($k, $v) = each %PAYSYS_PAYMENT_METHODS ) {
+	   $PAYMENTS_METHODS{$k}=$v;
+    }
+
+   $info{SEL_METHOD} = $html->form_select('METHOD', 
+                                { SELECTED     => (defined($FORM{METHOD}) && $FORM{METHOD} ne '') ? $FORM{METHOD} : '',
+ 	                                SEL_HASH     => \%PAYMENTS_METHODS,
+ 	                                SORT_KEY     => 1,
+ 	                                SEL_OPTIONS   => { '' => $_ALL }
  	                               });
+
+
+#    push @PAYMENT_METHODS, @EX_PAYMENT_METHODS if (@EX_PAYMENT_METHODS);
+#    $info{SEL_METHOD} =  $html->form_select('METHOD', 
+#                                { SELECTED      => (defined($FORM{METHOD}) && $FORM{METHOD} ne '') ? $FORM{METHOD} : '',
+# 	                                SEL_ARRAY     => \@PAYMENT_METHODS,
+# 	                                ARRAY_NUM_ID  => 1,
+#                                  SEL_OPTIONS   => { '' => $_ALL }
+# 	                               });
+
    }
   elsif ($FORM{type} == 3) {
     push @FEES_METHODS, @EX_FEES_METHODS if (@EX_FEES_METHODS);
@@ -6696,4 +6824,3 @@ sub form_info_lists {
 
 
 1
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            

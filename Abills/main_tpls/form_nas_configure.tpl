@@ -7,27 +7,31 @@ function Process(version, INTERNAL_SUBNET, wds, SSID){
 	var commandend = '%PARAM2%';
 	
 	if (version == 'v24') {
-		var commandversion = '\\&version=v24';
+		var commandversion = '\\\\&version=v24';
   	} else if (version == 'coova') { 
-		var commandversion = '\\&version=coova'; 
-	} else { 
+		var commandversion = '\\\\&version=coova'; 
+	} else if (version == 'freebsd') {
+              var commandversion = '\\\\&version=freebsd';
+              commandbegin = commandbegin.replace('wget -O', 'fetch -o')
+        } else { 
 		var commandversion = ''; 
 	}
+
 	
 	if (INTERNAL_SUBNET != '20') {
-		var commandsubnet = '\\&INTERNAL_SUBNET='+INTERNAL_SUBNET;
+		var commandsubnet = '\\\\&INTERNAL_SUBNET='+INTERNAL_SUBNET;
   	} else { 
 		var commandsubnet = ''; 
 	}
 	
 	if (wds != '0') {
-		var commandwds = '\\&wds='+wds;
+		var commandwds = '\\\\&wds='+wds;
   	} else { 
 		var commandwds = ''; 
 	}
 
 	if (SSID != '') {
-		var commandsid = '\\&SSID='+SSID;
+		var commandsid = '\\\\&SSID='+SSID;
   	} else { 
 		var commandsid = ''; 
 	}
@@ -83,10 +87,11 @@ function disableEnterKey(e)
 <table width=100%>
 <tr><th class=table_title colspan=2>$_SETTINGS</th></tr>
 <tr><td>Firmware Version:</td><td>
-             <select name=\"version\" class=\"selectinput\" id=\"version\"  onchange=\"Process(this.form.version.value, this.form.INTERNAL_SUBNET.value, this.form.wds.value)\" onKeyPress=\"return disableEnterKey(event)\">
+             <select name=\"version\" class=\"selectinput\" id=\"version\"  onchange=\"Process(this.form.version.value, this.form.INTERNAL_SUBNET.value, this.form.wds.value, this.form.CUSTOM_SID.value)\" onKeyPress=\"return disableEnterKey(event)\">
                                  <option value=\"v24\">DD-WRT v24 NoKaid/Standard/Mega/Special</option>
                                  <option value=\"v23\">DD-WRT v23 Standard</option>
                                  <option value=\"coova\">CoovaAP</option>
+                                 <option value=\"freebsd\">FreeBSD</option>
                                </select>
  </td>
                            </tr>
@@ -100,7 +105,7 @@ function disableEnterKey(e)
                             onKeyPress=\"Process(this.form.version.value, this.form.INTERNAL_SUBNET.value, this.form.wds.value, this.form.CUSTOM_SID.value); return disableEnterKey(event)\" />
                                .1</td>
 </tr>
-<tr><td>SSID:</td><td> <input name=\"CUSTOM_SID\" class=\"forminput\" type=\"text\"  id=\"CUSTOM_SID\" value=\"\" size=\"18\" maxlength=\"14\"  
+<tr><td>SSID:</td><td> <input name=\"CUSTOM_SID\" class=\"forminput\" type=\"text\"  id=\"CUSTOM_SID\" value=\"wifi\" size=\"18\" maxlength=\"14\"  
                              onchange=\"Process(this.form.version.value, this.form.INTERNAL_SUBNET.value, this.form.wds.value, this.form.CUSTOM_SID.value)\" onkeyup=\"\"
                             
                             onsubmit=\"Process(this.form.version.value, this.form.INTERNAL_SUBNET.value, this.form.wds.value, this.form.CUSTOM_SID.value)\"  

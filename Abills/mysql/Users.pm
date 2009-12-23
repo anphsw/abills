@@ -296,77 +296,9 @@ sub pi_add {
 
 
 
-
-
-
-
 #**********************************************************
 # Personal inforamtion
-# personal_info()
-#**********************************************************
-sub pi_list {
-	my $self = shift;
-  my ($attr) = @_;
-  
-  
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
-
-#Make info fields use
-  my $info_fields = '';
-  my @info_fields_arr = ();
-
-  my $field = '';
-  my $filter = '';
-
-  if ($attr->{FIELD}) {
-  	if ($PI_FIELDS{$attr->{FIELD}} ) {
-  	  $field = $PI_FIELDS{$attr->{FIELD}};
-  	  $filter = "$field LIKE '$attr->{VALUE}%'";
-  	 }
-    else {
-    	my $list = $self->config_list({ PARAM => "ifu$attr->{FIELD}", 
-		                                  SORT  => 2 });
-      if ($self->{TOTAL} > 0) {
-        foreach my $line (@$list) {
-          if ($line->[0] =~ /ifu(\S+)/) {
-    	      $field = $1;
-    	      $filter = "$field LIKE '$attr->{VALUE}%'";
-           }
-         }
-       }
-    }
-   }
-  else {
-  	return [];
-   }
-
-
-
-  
-  
-  $self->query($db, "SELECT $field  FROM users_pi pi
-    WHERE $filter 
-    GROUP BY $field ORDER BY 1 $DESC LIMIT $PG, $PAGE_ROWS;");
-
-  if ($self->{TOTAL} < 1) {
-     $self->{errno} = 2;
-     $self->{errstr} = 'ERROR_NOT_EXIST';
-     return $self;
-   }
-
-  my $list = $self->{list};
-	
-
-	return $list;
-}
-
-
-#**********************************************************
-# Personal inforamtion
-# personal_info()
+# pi()
 #**********************************************************
 sub pi {
 	my $self = shift;
@@ -460,7 +392,7 @@ sub pi {
 
 #**********************************************************
 # Personal Info change
-#
+# pi_change();
 #**********************************************************
 sub pi_change {
 	my $self   = shift;
@@ -769,11 +701,11 @@ sub list {
    push @WHERE_RULES, @{ $self->search_expr("$attr->{CONTRACT_DATE}", 'INT', 'pi.contract_date', { EXT_FIELD => 1 }) };
   }
 
- if (defined($admin->{DOMAIN_ID})) {
- 	 push @WHERE_RULES, @{ $self->search_expr("$admin->{DOMAIN_ID}", 'INT', 'u.domain_id', { EXT_FIELD => 1 }) };
-  }
- elsif ($attr->{DOMAIN_ID}) {
+ if ($attr->{DOMAIN_ID}) {
    push @WHERE_RULES, @{ $self->search_expr("$attr->{DOMAIN_ID}", 'INT', 'u.domain_id', { EXT_FIELD => 1 }) };
+  }
+ elsif (defined($admin->{DOMAIN_ID})) {
+ 	 push @WHERE_RULES, @{ $self->search_expr("$admin->{DOMAIN_ID}", 'INT', 'u.domain_id', { EXT_FIELD => 1 }) };
   }
 
 
@@ -793,6 +725,9 @@ sub list {
     push @WHERE_RULES,  @{ $self->search_expr($attr->{CREDIT_DATE}, 'INT', 'u.credit_date', { EXT_FIELD => 1 }) };
   }
 
+ if ($attr->{REDUCTION}) {
+   push @WHERE_RULES, @{ $self->search_expr($attr->{REDUCTION}, 'INT', 'u.reduction', { EXT_FIELD => 1 }) };
+  }
 
  if ($attr->{COMMENTS}) {
    push @WHERE_RULES,  @{ $self->search_expr($attr->{COMMENTS}, 'STR', 'pi.comments', { EXT_FIELD => 1 }) };

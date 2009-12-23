@@ -81,6 +81,8 @@ sub info {
   if (defined($attr->{IP})) {
   	$WHERE = "WHERE dv.ip=INET_ATON('$attr->{IP}')";
    }
+
+  $admin->{DOMAIN_ID}=0 if (! defined($admin->{DOMAIN_ID}));
   
   $self->query($db, "SELECT dv.uid, dv.tp_id, 
    tp.name, 
@@ -104,7 +106,7 @@ sub info {
    tp.credit,
    tp.tp_id
      FROM dv_main dv
-     LEFT JOIN tarif_plans tp ON (dv.tp_id=tp.id)
+     LEFT JOIN tarif_plans tp ON (dv.tp_id=tp.id and tp.domain_id='$admin->{DOMAIN_ID}')
    $WHERE;");
 
   if ($self->{TOTAL} < 1) {     
@@ -273,15 +275,16 @@ sub change {
   if ($attr->{TP_ID} && $old_info->{TP_ID} != $attr->{TP_ID}) {
      my $tariffs = Tariffs->new($db, $CONF, $admin);
 
-     $self->{TP_INFO}=$tariffs->info(0, { ID => $attr->{TP_ID} });
+     $tariffs->info(0, { ID => $old_info->{TP_ID} }); 
+ 
+     $self->{TP_INFO_OLD}->{PRIORITY}=$tariffs->{PRIORITY};
+     $self->{TP_INFO}    = $tariffs->info(0, { ID => $attr->{TP_ID} });
      
      my $user = Users->new($db, $admin, $CONF);
 
      $user->info($attr->{UID});
      
      if ($old_info->{STATUS} == 2 && (defined($attr->{STATUS}) && $attr->{STATUS} == 0) && $tariffs->{ACTIV_PRICE} > 0) {
-       
-       
        if ($user->{DEPOSIT} + $user->{CREDIT} < $tariffs->{ACTIV_PRICE} && $tariffs->{PAYMENT_TYPE} == 0 && $tariffs->{POSTPAID_FEE} == 0) {
         
          $self->{errno}=15;
@@ -293,8 +296,9 @@ sub change {
 
        $tariffs->{ACTIV_PRICE}=0;
       }
-     elsif($tariffs->{CHANGE_PRICE} > 0) {
-      
+     elsif($tariffs->{CHANGE_PRICE} > 0 && 
+       ($self->{TP_INFO_OLD}->{PRIORITY} - $tariffs->{PRIORITY} > 0 || $self->{TP_INFO_OLD}->{PRIORITY} + $tariffs->{PRIORITY} == 0) ) {
+
        if ($user->{DEPOSIT} + $user->{CREDIT} < $tariffs->{CHANGE_PRICE}) {
          $self->{errno}=15;
        	 return $self; 

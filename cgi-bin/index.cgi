@@ -18,6 +18,9 @@ $sid
 @tens
 @hundred
 @money_unit_names
+@EX_PAYMENT_METHODS
+%menu_items
+%menu_args
 );
 
 BEGIN {
@@ -64,18 +67,20 @@ my $sql = Abills::SQL->connect($conf{dbtype},
                                $conf{dbpasswd},
                                { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
 my $db = $sql->{db};
-
 $html->{language}=$FORM{language} if (defined($FORM{language}) && $FORM{language} =~ /[a-z_]/);
 
 require "../language/$html->{language}.pl";
 $sid = $FORM{sid} || ''; # Session ID
+
+my $cookies_time=gmtime(time()+$conf{web_session_timeout})." GMT";
+
 if ((length($COOKIES{sid})>1) && (! $FORM{passwd})) {
   $COOKIES{sid} =~ s/\"//g;
   $COOKIES{sid} =~ s/\'//g;
   $sid = $COOKIES{sid};
 }
 elsif((length($COOKIES{sid})>1) && (defined($FORM{passwd}))){
-	$html->setCookie('sid', "", "Fri, 1-Jan-2038 00:00:01", $web_path, $domain, $secure);
+	$html->setCookie('sid', "", "$cookies_time", $web_path, $domain, $secure);
 	$COOKIES{sid}=undef;
 }
 
@@ -85,11 +90,11 @@ if (defined($FORM{colors})) {
   $html->setCookie('colors', "$cook_colors", "Fri, 1-Jan-2038 00:00:01", $web_path, $domain, $secure);
  }
 #Operation system ID
-$html->setCookie('OP_SID', "$FORM{OP_SID}", "Fri, 1-Jan-2038 00:00:01", $web_path, $domain, $secure) if (defined($FORM{OP_SID}));
+$html->setCookie('OP_SID', "$FORM{OP_SID}", "$cookies_time", $web_path, $domain, $secure) if (defined($FORM{OP_SID}));
 $html->setCookie('language', "$FORM{language}", "Fri, 1-Jan-2038 00:00:01", $web_path, $domain, $secure) if (defined($FORM{language}));
 
 if (defined($FORM{sid})) {
-  $html->setCookie('sid', "$FORM{sid}", "Fri, 1-Jan-2038 00:00:01", $web_path, $domain, $secure);
+  $html->setCookie('sid', "$FORM{sid}", "$cookies_time", $web_path, $domain, $secure);
 }
 #===========================================================
 
@@ -106,15 +111,6 @@ $conf{WEB_TITLE} = $admin->{DOMAIN_NAME} if ($admin->{DOMAIN_NAME});
 require "Abills/templates.pl";
 $html->{METATAGS}=templates('metatags_client');
 
-if ($index == 10) {
-  $user=Users->new($db, $admin, \%conf); 
-  logout();
-
-  print "Location: $SELF_URL". "\n\n";
-  exit;
-}
-
-my $maxnumber = 0;
 my $uid = 0;
 my $page_qs;
 
@@ -124,16 +120,7 @@ my %OUTPUT = ();
 my $login = $FORM{user} || '';
 my $passwd = $FORM{passwd} || '';
 
-my @m = (
-   "10:0:$_LOGOUT:logout:::",
-   "30:0:$_USER_INFO:form_info:::",
-   );
 
-if ($conf{user_finance_menu}) {
-   push @m, "40:0:$_FINANCES:form_payments:::";
-   push @m, "41:40:$_FEES:form_fees:::";
-   push @m, "42:40:$_PAYMENTS:form_payments:::";
-}
 
 $user=Users->new($db, $admin, \%conf); 
 
@@ -142,8 +129,9 @@ $user=Users->new($db, $admin, \%conf);
 my %uf_menus = ();
 
 if ($uid > 0) {
+
   $UID = $uid;
-  my $default_index = 30;
+  my $default_index = 10;
   
   #Quick Amon Alive Update
   # $ENV{HTTP_USER_AGENT} =~ /^AMon /
@@ -166,10 +154,17 @@ if ($uid > 0) {
   
   
   accept_rules() if ($conf{ACCEPT_RULES});
-  
-  push @m, "17:0:$_PASSWD:form_passwd:::" if($conf{user_chg_passwd});
 
-  mk_menu();
+  my @m = (
+   "10:0:$_USER_INFO:form_info:::",
+   );
+  if ($conf{user_finance_menu}) {
+     push @m, "40:0:$_FINANCES:form_payments:::";
+     push @m, "41:40:$_FEES:form_fees:::";
+     push @m, "42:40:$_PAYMENTS:form_payments:::";
+   }
+  push @m, "17:0:$_PASSWD:form_passwd:::" if($conf{user_chg_passwd});
+  mk_menu(\@m);
 
   $html->{SID}=$sid;
   (undef, $OUTPUT{MENU}) = $html->menu(\%menu_items, \%menu_args, undef, 
@@ -181,7 +176,7 @@ if ($uid > 0) {
   if ($html->{ERROR}) {
   	$html->message('err',  $_ERROR, "$html->{ERROR}");
   	exit;
-  }
+   }
 
   $OUTPUT{DATE} = $DATE;
   $OUTPUT{TIME} = $TIME;
@@ -281,10 +276,11 @@ $html->test() if ($conf{debugmods} =~ /LOG_DEBUG/);
 #
 #==========================================================
 sub mk_menu {
+  my ($menu) = @_;
  
-  $maxnumber  = 0;
+  my $maxnumber  = 0;
   
-  foreach my $line (@m) {
+  foreach my $line ( @$menu ) {
 	  my ($ID, $PARENT, $NAME, $FUNTION_NAME, $SHOW_SUBMENU, $OP)=split(/:/, $line);
     $menu_items{$ID}{$PARENT}=$NAME;
     $menu_names{$ID} = $NAME;
@@ -342,6 +338,10 @@ sub mk_menu {
 
     %USER_FUNCTION_LIST = ();
   }
+
+  $menu_names{1000}    = "$_LOGOUT";
+  $functions{1000}     = 'logout';
+  $menu_items{1000}{0} = $_LOGOUT;
 }
 
 #**********************************************************
@@ -414,7 +414,8 @@ sub form_info {
     
 
    }
-  elsif ($conf{user_chg_pi}) {
+  
+  if ($conf{user_chg_pi}) {
   	if ($FORM{chg}) {
   		$user->pi();
   		$user->{ACTION}='change';
@@ -501,6 +502,8 @@ sub auth_radius {
 	my ($login, $passwd, $sid)=@_;
   my $res = 0;
   
+  print "Content-Type: text/html\n\n";
+  
   my $check_access = $conf{check_access};
  
   #check password throught ftp access
@@ -575,7 +578,7 @@ if ($conf{PASSWORDLESS_ACCESS}) {
     }
   }
 
-if (defined($FORM{op}) && $FORM{op} eq 'logout') {
+if ($index == 1000) {
   $user->web_session_del({ SID => $FORM{sid} });
   return 0;
  }
@@ -735,15 +738,8 @@ elsif($FORM{newpassword} ne $FORM{confirm}) {
  return 0;
 }
 
-sub logout {
-	$FORM{op}='logout';
-	auth('', '', $sid);
-	#$html->message('info', $_INFO, $_LOGOUT);
-	
-	
-	
-	return 0;
-}
+
+
 
 #**********************************************************
 #
@@ -1009,7 +1005,7 @@ my $list = $fees->list( { %LIST_PARAMS } );
 my $table = $html->table( { width      => '100%',
                             caption    => "$_FEES",
                             border     => 1,
-                            title      => ['ID', $_LOGIN, $_DATE, $_SUM, $_DESCRIBE, $_TYPE, $_ADMINS, 'IP',  $_DEPOSIT],
+                            title      => ['ID', $_LOGIN, $_DATE, $_SUM, $_DESCRIBE, $_TYPE, $_DEPOSIT, 'BILL ID'],
                             cols_align => ['right', 'left', 'right', 'right', 'left', 'left', 'left', 'right', 'right'],
                             qs         => $pages_qs,
                             pages      => $fees->{TOTAL},
@@ -1024,9 +1020,9 @@ foreach my $line (@$list) {
    $line->[3], 
    $line->[4],  
    $FEES_METHODS[$line->[5]], 
-   "$line->[6]", 
+   "$line->[6]",
    "$line->[7]",
-   "$line->[8]");
+   );
 }
 
 print $table->show();
@@ -1047,6 +1043,8 @@ print $table->show();
 sub form_payments {
 	
 my @PAYMENT_METHODS = ('Cash', 'Bank', 'Internet Card', 'Credit Card', 'Bonus');
+push @PAYMENT_METHODS, @EX_PAYMENT_METHODS if (@EX_PAYMENT_METHODS);
+
 my $payments = Finance->payments($db, $admin, \%conf);
 
 if (! $FORM{sort}) {
@@ -1057,14 +1055,12 @@ my $list  = $payments->list( { %LIST_PARAMS } );
 my $table = $html->table( { width      => '100%',
                             caption    => "$_PAYMENTS",
                             border     => 1,
-                            title      => ['ID', $_LOGIN, $_DATE, $_SUM, $_DESCRIBE, $_ADMINS, 'IP',  $_DEPOSIT, $_PAYMENT_METHOD, 'EXT ID', "$_BILL"],
+                            title      => ['ID', $_LOGIN, $_DATE, $_SUM, $_DESCRIBE, $_DEPOSIT], # $_PAYMENT_METHOD, 'EXT ID', "$_BILL"],
                             cols_align => ['right', 'left', 'right', 'right', 'left', 'left', 'right', 'right', 'left', 'left'],
                             qs         => $pages_qs,
                             pages      => $payments->{TOTAL},
                             ID         => 'PAYMENTS'
                            } );
-
-$pages_qs .= "&subf=2" if (! $FORM{subf});
 
 foreach my $line (@$list) {
   $table->addrow($html->b($line->[0]), 
@@ -1073,11 +1069,9 @@ foreach my $line (@$list) {
   $line->[3], 
   $line->[4],  
   "$line->[5]", 
-  "$line->[6]", 
-  "$line->[7]", 
-  $PAYMENT_METHODS[$line->[8]], 
-  "$line->[9]", 
-  "$line->[10]", 
+#  $PAYMENT_METHODS[$line->[6]], 
+#  "$line->[7]", 
+#  "$line->[8]", 
   );
 }
 

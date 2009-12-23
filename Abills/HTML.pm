@@ -342,7 +342,7 @@ sub form_input {
   
 
   
-  $self->{FORM_INPUT}="<input type=\"$type\" name=\"$name\" value=\"$value\"$state$size$class$ex_params/>";
+  $self->{FORM_INPUT}="<input type=\"$type\" name=\"$name\" value=\"$value\"$state$size$class$ex_params ID=\"$name\"/>";
 
   if (defined($self->{NO_PRINT}) && ( !defined($attr->{OUTPUT2RETURN}) )) {
   	$self->{OUTPUT} .= $self->{FORM_INPUT};
@@ -410,7 +410,7 @@ sub form_select {
 	
 	my $ex_params =  (defined($attr->{EX_PARAMS})) ? $attr->{EX_PARAMS} : '';
 			
-	$self->{SELECT} = "<select name=\"$name\" $ex_params>\n";
+	$self->{SELECT} = "<select name=\"$name\" $ex_params ID=\"$name\">\n";
   
   if (defined($attr->{SEL_OPTIONS})) {
     foreach my $k (keys ( %{ $attr->{SEL_OPTIONS} } ) ) {
@@ -478,6 +478,7 @@ sub form_select {
     
     foreach my $k (@H) {
       $self->{SELECT} .= "<option value='$k'";
+      $self->{SELECT} .= " style='COLOR:$attr->{STYLE}->[$k];' " if ($attr->{STYLE});
       $self->{SELECT} .=' selected' if (defined($attr->{SELECTED}) && $k eq $attr->{SELECTED});
 
       $self->{SELECT} .= ">";
@@ -566,7 +567,7 @@ sub menu () {
   while(my ($par_key, $name) = each ( %$h )) {
 
     my $ex_params = (defined($menu_args->{$root_index}) && defined($FORM{$menu_args->{$root_index}})) ? '&'."$menu_args->{$root_index}=$FORM{$menu_args->{$root_index}}" : '';
-    
+
     $menu_navigator =  " ". $self->button($name, "index=$root_index$ex_params"). '/' . $menu_navigator;
     $tree{$root_index}=1;
     if ($par_key > 0) {
@@ -577,29 +578,25 @@ sub menu () {
 }
 
 
-
-
 $FORM{root_index} = $root_index;
 if ($root_index > 0) {
   my $ri = $root_index-1;
   if (defined($permissions) && (! defined($permissions->{$ri}))) {
-	  $self->{ERROR} = "Access deny";
+	  $self->{ERROR} = "Access deny $ri";
 	  return '', '';
    }
 }
 
 
 my @s = sort {
-   length($a) <=> length($b)
-     ||
-   $a cmp $b
+  $b <=> $a
 } keys %$menu_items;
 
 
 foreach my $ID (@s) {
  	my $VALUE_HASH = $menu_items->{$ID};
  	foreach my $parent (keys %$VALUE_HASH) {
-# 		print "$parent, $ID<br>";
+ 		#print "$parent, $ID<br>";
     push( @{$menu{$parent}},  "$ID:$VALUE_HASH->{$parent}" );
    }
 }
@@ -667,11 +664,6 @@ foreach my $ID (@s) {
       $prefix = substr($prefix, 0, $level * 6 * 3);
       goto label;
      }
-
-
- 	  
-#  }
- 
  
  $menu_text .= "</table>\n</div>
  <div class='menu_bot'></div>\n";
@@ -1379,7 +1371,10 @@ sub tpl_show {
 #    	$tpl =~ s/\%$var\%/$exec_content/g;
 #     }
 #    els
-    if (defined($variables_ref->{$var})) {
+    
+    if ($attr->{SKIP_VARS} && $attr->{SKIP_VARS} =~ /$var/) {
+     }
+    elsif (defined($variables_ref->{$var})) {
     	$tpl =~ s/\%$var$delimiter$default%/$variables_ref->{$var}/g;
      }
     else {

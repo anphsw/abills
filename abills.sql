@@ -269,6 +269,7 @@ CREATE TABLE `docs_tax_invoices` (
   `vat` double(5,2) unsigned NOT NULL DEFAULT '0.00',
   `company_id` int(11) unsigned NOT NULL DEFAULT '0',
   `domain_id` smallint(6) unsigned not null default 0,
+  `account_id` int(11) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   UNIQUE KEY `date` (`date`,`company_id`),
   KEY `domain_id` (`domain_id`)
@@ -583,7 +584,7 @@ CREATE TABLE `msgs_messages` (
   `date` datetime NOT NULL default '0000-00-00 00:00:00',
   `state` tinyint(2) unsigned default '0',
   `aid` smallint(6) unsigned NOT NULL default '0',
-  `subject` varchar(40) NOT NULL default '',
+  `subject` varchar(45) NOT NULL default '',
   `gid` smallint(4) unsigned NOT NULL default '0',
   `priority` tinyint(4) unsigned NOT NULL default '0',
   `lock_msg` tinyint(1) unsigned NOT NULL default '0',
@@ -616,6 +617,31 @@ CREATE TABLE `msgs_reply` (
   UNIQUE KEY `id` (`id`),
   KEY `main_msg` (`main_msg`)
 ) COMMENT='Msgs replies';
+
+CREATE TABLE `msgs_unreg_requests` (
+  `id` INTEGER(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `datetime` DATETIME NOT NULL,
+  `received_admin` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `state` TINYINT(2) UNSIGNED NOT NULL DEFAULT '0',
+  `priority` TINYINT(2) UNSIGNED NOT NULL DEFAULT '0',
+  `subject` VARCHAR(45) NOT NULL DEFAULT '',
+  `chapter` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `request` TEXT  NOT NULL,
+  `comments` TEXT  NOT NULL, 
+  `responsible_admin` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `fio` VARCHAR(40)  NOT NULL DEFAULT '',
+  `phone` BIGINT(16) UNSIGNED NOT NULL DEFAULT '0',
+  `email` VARCHAR(250)  NOT NULL DEFAULT '',
+  `address_street` VARCHAR(100)  NOT NULL DEFAULT '',
+  `address_build` VARCHAR(10)  NOT NULL DEFAULT '',
+  `address_flat` VARCHAR(10)  NOT NULL DEFAULT '',
+  `ip` INTEGER(11) UNSIGNED NOT NULL,
+  `closed_date` DATETIME NOT NULL,
+  `uid` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `id` (`id`),
+  KEY `datetime` (`datetime`)
+) COMMENT='Msgs from unregister users';
 
 CREATE TABLE `nas` (
   `id` smallint(5) unsigned NOT NULL auto_increment,
@@ -656,13 +682,13 @@ CREATE TABLE `nas_groups` (
   `main_page` VARCHAR(120) COLLATE latin1_swedish_ci NOT NULL DEFAULT '',
   PRIMARY KEY  (`id`),
   UNIQUE KEY `domain_id` (`domain_id`,`name`)
-) COMMENT='Nas servers groups'; 
+) COMMENT='NAS servers groups'; 
 
 CREATE TABLE `nas_ippools` (
   `pool_id` int(10) unsigned NOT NULL default 0,
   `nas_id` smallint(5) unsigned NOT NULL default '0',
   UNIQUE KEY `nas` (`nas_id`,`pool_id`)
-)  ;
+) COMMENT='NAS IP Pools';
 
 
 CREATE TABLE `netflow_address` (
@@ -693,11 +719,6 @@ CREATE TABLE `networks` (
   UNIQUE KEY `id` (`id`)
 )  ;
 
-# --------------------------------------------------------
-
-#
-# Структура таблиці `payments`
-#
 
 CREATE TABLE `payments` (
   `date` datetime NOT NULL default '0000-00-00 00:00:00',
@@ -809,7 +830,7 @@ CREATE TABLE `tarif_plans` (
   `domain_id` smallint(6) unsigned not null default 0,
   `total_time_limit` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
   `total_traf_limit` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
-  `priority` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  `priority` smallint(5) unsigned NOT NULL DEFAULT '0',
   PRIMARY KEY  (`id`,`module`, `domain_id`),
   UNIQUE KEY `tp_id` (`tp_id`),
   KEY `name` (`name`, `domain_id`)
@@ -1184,5 +1205,7 @@ INSERT INTO `admin_actions` VALUES ('LOGIN:test','2009-08-03 11:42:53',153485476
 
 INSERT INTO `nas` (id, name, nas_identifier, descr, ip, nas_type, auth_type, mng_host_port, mng_user, mng_password, alive) VALUES (1,'NAS Server','','NAS Server','127.0.0.1','mpd5', 0,'127.0.0.1:5005','admin', ENCODE('secretpass','test12345678901234567890'),300);
 INSERT INTO `ippools` ( id, nas, ip, counts, name, priority) VALUES (1,1,167772161,256,'Main',0);
+
+INSERT INTO `nas_ippools` (pool_id, nas_id) VALUES (1,1);
 
 

@@ -70,6 +70,7 @@ sub connect {
   $self->{db} = DBI->connect("DBI:mysql:database=$dbname;host=$dbhost", "$dbuser", "$dbpasswd") or print 
        "Content-Type: text/html\n\nError: Unable connect to server '$dbhost:$dbname'\n";
   
+  
   #For mysql 5 or highter
   $self->{db}->do("set names ".$attr->{CHARSET}) if ($attr->{CHARSET});
  
@@ -451,11 +452,11 @@ else {
   $CHANGES_LOG = $attr->{EXT_CHANGE_INFO}.' '.$CHANGES_LOG if ($attr->{EXT_CHANGE_INFO});
   if (defined($DATA{UID}) && $DATA{UID} > 0 && defined($admin)) { 
     if ($self->{'DISABLE'}) {
-      $admin->action_add($DATA{UID}, "", { TYPE => 9});
+      $admin->action_add($DATA{UID}, "", { TYPE => 9, ACTION_COMMENTS => $DATA{ACTION_COMMENTS} });
      }
 
     if ($self->{'ENABLE'}) {
-      $admin->action_add($DATA{UID}, "", { TYPE => 8});
+      $admin->action_add($DATA{UID}, "", { TYPE => 8 });
      }
 
     if ($CHANGES_LOG ne '') {

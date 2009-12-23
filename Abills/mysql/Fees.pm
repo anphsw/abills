@@ -112,6 +112,7 @@ sub take {
             INET_ATON('$admin->{SESSION_IP}'), '$Bill->{DEPOSIT}', '$admin->{AID}',
             '$user->{COMPANY_VAT}', '$DATA{INNER_DESCRIBE}', '$DATA{METHOD}')", 'do');
 
+
     if($self->{errno}) {
       return $self;
      }
@@ -245,8 +246,10 @@ sub list {
  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
  
  $self->query($db, "SELECT f.id, u.id, f.date, f.sum, f.dsc, f.method,
- if(a.name is NULL, 'Unknown', a.name), 
-              INET_NTOA(f.ip), f.last_deposit, f.bill_id, f.uid, f.inner_describe
+   f.last_deposit, f.bill_id, 
+   if(a.name is NULL, 'Unknown', a.name), 
+              INET_NTOA(f.ip),
+   f.uid, f.inner_describe
     FROM fees f
     LEFT JOIN users u ON (u.uid=f.uid)
     LEFT JOIN admins a ON (a.aid=f.aid)

@@ -74,8 +74,7 @@ sub new {
   $self->{UNKNOWN_TRAFFIC_ROWS}=0;
 
   $Billing = Billing->new($db, $CONF);
-  $Dv = Dv->new($db, undef, $CONF);
-  $Tariffs = Tariffs->new($db, $admin, $CONF);
+  
 
   return $self;
 }
@@ -118,7 +117,10 @@ sub user_ips {
 		 '',
 		 u.activate,
 		 dv.netmask,
-		 dv.ip
+		 dv.ip,
+     calls.acct_input_gigawords,
+     calls.acct_output_gigawords
+
 		 FROM (users u, dv_main dv)
 		 LEFT JOIN companies c ON (u.company_id=c.id)
 		 LEFT JOIN bills b ON (u.bill_id=b.id)
@@ -216,7 +218,7 @@ sub user_ips {
 
      #Get IP/mask
      if ($line->[16] && $line->[16] < 4294967295) {
-       my $first_ip =  $line->[17] & 4294967288;
+       my $first_ip =  $line->[17] & $line->[16];
        for(my $i=0; $i<=4294967295 -  $line->[16]; $i++) {
        	 my $ip = $first_ip+$i;
      	   $ips{$ip}=$line->[0];
@@ -279,6 +281,19 @@ sub traffic_agregate_clean {
   delete $self->{INTERIM};
   delete $self->{IN};
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #**********************************************************
 # traffic_agregate_users
@@ -353,11 +368,24 @@ sub traffic_agregate_nets {
   my ($DATA) = @_;
 
   my $AGREGATE_USERS  = $self->{AGREGATE_USERS}; 
-  my $ips       = $self->{USERS_IPS};
-  my $user_info = $self->{USERS_INFO};
+  my $ips             = $self->{USERS_IPS};
+  my $user_info       = $self->{USERS_INFO};
+  $Dv                 = Dv->new($db, undef, $CONF);
+
+
+  #require Abills::Base;
+  #Abills::Base->import();
+
+
+  #Time::HiRes->import(qw(gettimeofday));
+  #my $begin_time = check_time();
+
 
   #Get user and session TP
   while (my ($uid, $session_tp) = each ( %{ $user_info->{TPS} } )) {
+
+    #print "  uid: $uid ". (gettimeofday() - $begin_time) . "\n";
+    #$begin_time = check_time();
 
     my $TP_ID = 0;
     my $user = $Dv->info($uid);
@@ -496,9 +524,15 @@ sub get_zone {
 	my %zones   = ();
 	my @zoneids = ();
 	
+	require Abills::Base;
+  Abills::Base->import();
+
+	my $begin_time = check_time();
+	
   my $tariff  = $attr->{TP_INTERVAL} || 0;
 
   #Get traffic classes and prices 
+  $Tariffs = Tariffs->new($db, undef, $CONF);
   my $list = $Tariffs->tt_list({ TI_ID => $tariff });
 
   foreach my $line (@$list) {
@@ -731,8 +765,8 @@ sub traffic_user_get2 {
   $self->query($db, "SELECT    started,
    uid,
    traffic_class,
-   traffic_in,
-   traffic_out
+   traffic_in / $CONF->{MB_SIZE},
+   traffic_out / $CONF->{MB_SIZE}
     FROM traffic_prepaid_sum
         WHERE uid='$uid'
         and $WHERE;");
@@ -743,7 +777,7 @@ sub traffic_user_get2 {
    	 $self->query($db, "INSERT INTO traffic_prepaid_sum (uid, started, traffic_class, traffic_in, traffic_out)
    	   VALUES ('$uid', $attr->{ACTIVATE}, '$attr->{TRAFFIC_ID}', '$attr->{TRAFFIC_IN}', '$attr->{TRAFFIC_OUT}')", 'do');
    	
-   	 $result{$attr->{TRAFFIC_ID}}{TRAFFIC_IN}=0;
+   	 $result{$attr->{TRAFFIC_ID}}{TRAFFIC_IN} =0;
   	 $result{$attr->{TRAFFIC_ID}}{TRAFFIC_OUT}=0;
 
    	 return \%result;
@@ -752,8 +786,8 @@ sub traffic_user_get2 {
  
   foreach my $line (@{ $self->{list} }) {
     #Trffic class
-  	$result{$line->[2]}{TRAFFIC_IN}=$line->[3];
-  	$result{$line->[2]}{TRAFFIC_OUT}=$line->[4];
+  	$result{$line->[2]}{TRAFFIC_IN} = $line->[3];
+  	$result{$line->[2]}{TRAFFIC_OUT}= $line->[4];
    }
 
   $self->query($db, "UPDATE traffic_prepaid_sum SET 
@@ -766,6 +800,8 @@ sub traffic_user_get2 {
 
   return \%result;
 }
+
+
 #**********************************************************
 # traffic_user_get
 # Get used traffic from DB
@@ -973,37 +1009,7 @@ sub acct_stop {
 
 }
 
-#*******************************************************************
-# Convert integer value to ip
-# int2ip($i);
-#*******************************************************************
-sub tcollector {
- my $self = shift;
- my ($attr) = @_;
 
-
- return $self;
-}
-
-
-#**********************************************************
-#
-#**********************************************************
-#sub is_client_ip($) {
-#  my $self = shift;
-#  my $ip = shift @_;
-#
-#  if ($self->{debug}) { print "--- CALL is_client_ip($ip),\t\$#clients_lst = $#clients_lst\n"; }
-#  if ($#clients_lst < 0) {  return 0; } # nienie iono!
-#
-#  foreach my $i (@clients_lst) {
-#	  if ($i eq $ip) { return 1; }
-#   }
-#
-#  if ($self->{debug}) { print "   Client $ip not found in \@clients_lst\n"; }
-#
-#  return 0;
-#}
 
 #**********************************************************
 #
@@ -1024,16 +1030,16 @@ sub is_exist($$) {
 # Convert integer value to ip
 # int2ip($i);
 #*******************************************************************
-sub int2ip {
-my $i = shift;
-
-my (@d);
-$d[0]=int($i/256/256/256);
-$d[1]=int(($i-$d[0]*256*256*256)/256/256);
-$d[2]=int(($i-$d[0]*256*256*256-$d[1]*256*256)/256);
-$d[3]=int($i-$d[0]*256*256*256-$d[1]*256*256-$d[2]*256);
- return "$d[0].$d[1].$d[2].$d[3]";
-}
+#sub int2ip {
+#my $i = shift;
+#
+#my (@d);
+#$d[0]=int($i/256/256/256);
+#$d[1]=int(($i-$d[0]*256*256*256)/256/256);
+#$d[2]=int(($i-$d[0]*256*256*256-$d[1]*256*256)/256);
+#$d[3]=int($i-$d[0]*256*256*256-$d[1]*256*256-$d[2]*256);
+# return "$d[0].$d[1].$d[2].$d[3]";
+#}
 
 
 

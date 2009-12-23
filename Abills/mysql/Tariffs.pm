@@ -689,6 +689,10 @@ sub list {
  	 push @WHERE_RULES, @{ $self->search_expr("$attr->{PAYMENT_TYPE}", 'INT', 'tp.payment_type') };  	
   }
 
+ if ($attr->{CHANGE_PRICE}) {
+ 	 push @WHERE_RULES, @{ $self->search_expr("$attr->{CHANGE_PRICE}", 'INT', 'tp.change_price') };  	
+  }
+
 
 
  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
@@ -907,7 +911,7 @@ sub  tt_add {
      '$DATA{TT_NET_ID}', '$DATA{TT_PREPAID}', '$DATA{TT_SPEED_IN}', '$DATA{TT_SPEED_OUT}', '$DATA{TT_EXPRASSION}')", 'do');
 
 
-  if ($attr->{DV_EXPPP_NETFILES} && $attr->{NETS}) {
+  if ($attr->{DV_EXPPP_NETFILES} && $attr->{TT_NET_ID}) {
     $self->create_nets({ TI_ID => $DATA{TI_ID} });
    }
 
@@ -946,7 +950,7 @@ sub  tt_change {
   $self->tt_info({ TI_ID => $attr->{TI_ID}, TT_ID => $DATA{TT_ID}  });
 
 
-  if ($attr->{DV_EXPPP_NETFILES} && $attr->{NETS}) {
+  if ($attr->{DV_EXPPP_NETFILES} && $attr->{TT_NET_ID}) {
     $self->create_nets({ TI_ID => $attr->{TI_ID} });
    }
 
@@ -964,12 +968,13 @@ sub create_nets {
   my $body = '';
 
 
-  my $list = $self->tt_list({ TI_ID => $attr->{TI_ID} });
+
+  my $list = $self->tt_list({ TI_ID => $attr->{TI_ID}, SHOW_NETS => 1 });
 
   $/ = chr(0x0d);
   
   foreach my $line (@$list) {
-     my @n = split(/\n|;/, $line->[7]);
+     my @n = split(/\n|;/, $line->[10]);
      foreach my $ip (@n) {
        chomp($ip);
        $ip =~ s/ //g;
@@ -985,7 +990,6 @@ sub create_nets {
        $body .= "$ip $line->[0]\n";
      }
    }
-
 
   $self->create_tt_file("$attr->{TI_ID}.nets", "$body");
 }

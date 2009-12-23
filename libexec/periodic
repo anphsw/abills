@@ -177,6 +177,7 @@ if (defined($args->{monthly})) {
   	my $f = $monthly_functions[$i];
   	#$DEBUG .= 
   	print "==> FUNCTION: ". $f ."\n" if ($args->{DEBUG} && $args->{DEBUG} > 4);
+  	
   	$f->({ %$args, 
   		     %ADMIN_REPORT });
   }
@@ -379,7 +380,6 @@ $ADMIN_REPORT{PAYMENTS} .= sprintf("%-14s| %8s|\n%-14s| %8s|\n",
 #Fees
 my $fees = Finance->fees($db, $admin, \%conf);
 
-
 # Daily fees report
 $ADMIN_REPORT{FEES} .= sprintf ("%-14s| %8s| %20s| %12s| %15s| %8s\n", $_LOGIN, $_SUM, $_DESCRIBE, $_TYPE, $_ADMINS, 'IP', $_DEPOSIT);
 $ADMIN_REPORT{FEES} .= "---------------------------------------------------------\n";
@@ -390,12 +390,12 @@ foreach my $line (@$list) {
 #SELECT f.id, u.id, f.date, f.sum, f.dsc, a.name, INET_NTOA(f.ip), f.last_deposit, f.uid 
   $ADMIN_REPORT{FEES} .= sprintf ("%-14s| %8.4f| %20s| %12s | %12s| %15s| %8.4f\n", 
     ($line->[1]) ? $line->[1] : "!Unknown", 
-    $line->[3], 
+    $line->[3],
     $line->[4], 
     $line->[5], 
-    $line->[6],
-    $line->[7],
-    $line->[8]);
+    $line->[8], 
+    $line->[9],
+    $line->[6]);
 }
 
 $ADMIN_REPORT{FEES} .= "---------------------------------------------------------\n";
@@ -489,7 +489,9 @@ sub logrotate {
   # abills.log rotate
   #my ($Y, $M, $D)=split(/:/, $DATE, 3);
   my $rotate_level = 5;
+  
   if ($D == 1) {
+
      my $logfile = "$conf{LOGFILE}";
      my $cmd = '';
 
@@ -497,9 +499,10 @@ sub logrotate {
        if ( -f $logfile.'.'. ($i-1) .'.gz') {
          $cmd = 'mv '. $logfile .'.'. ($i-1) .'.gz '. $logfile .'.'. $i .'.gz';
          $DEBUG .= $cmd ."\n" if ($debug > 3);
-         #my $a = `$cmd`;
+         my $a = `$cmd`;
         }
       }
+
 
      $cmd = '$GZIP -c '. $logfile. ' > '. $logfile . '.1.gz && >'. $logfile ;
      $DEBUG .= $cmd."\n" if ($debug > 3);
@@ -509,6 +512,11 @@ sub logrotate {
 #Bruteforce clear
   $users->bruteforce_del({ DATE => $DATE });
 	$DEBUG .= "Brute force log cleaned\n" if ( $debug > 1);
+	
+	 # Clean old backups
+   my $r = `find /usr/abills/backup/ -type f -mtime +30 -delete`;
+ 
+   $DEBUG .= "Clean mysql old backups\n" if ( $debug > 1);
 }
 
 
@@ -585,6 +593,7 @@ sub backup {
 
   }
 
+
   return;
 }
 
@@ -597,11 +606,13 @@ sub credit_operation {
 
   # For users
   $conf{MAX_STABLE_CREDIT}=0 if (! $conf{MAX_STABLE_CREDIT});
+
   my $list = $users->list({  
-                           CREDIT_DATE  => "$DATE",
+                           CREDIT_DATE  => ">0000-00-00,<=$DATE",
                            CREDIT       => ">$conf{MAX_STABLE_CREDIT}",
   	                       PAGE_ROWS    => 1000000
   	                      });
+
 
   foreach my $line (@$list) {
   	$DEBUG .= "$line->[0] (". $line->[5 +  $users->{SEARCH_FIELDS_COUNT}] .") DEPOSIT: $line->[2] CREDIT: $line->[3] CREDIT_DATE: ". $line->[4+$users->{SEARCH_FIELDS_COUNT}] ."\n" if ($debug > 0);
@@ -609,6 +620,7 @@ sub credit_operation {
     if ($debug < 5) {
     	$users->change($line->[5 + $users->{SEARCH_FIELDS_COUNT}], { CREDIT      => $conf{MAX_STABLE_CREDIT} ,
     		                           CREDIT_DATE => '0000-00-00',
+    		                           DISABLE     => $line->[4] || 0,
     		                           UID         => $line->[5 + $users->{SEARCH_FIELDS_COUNT}]
     		                           });
      }
@@ -624,7 +636,7 @@ sub credit_operation {
  $list = $Company->list({  
                            CREDIT_DATE  => "$DATE",
                            CREDIT       => ">$conf{MAX_STABLE_CREDIT}",
-  	                   PAGE_ROWS    => 1000000
+  	                       PAGE_ROWS    => 1000000
   	                      });
 
   foreach my $line (@$list) {
@@ -660,7 +672,7 @@ sub debetors_group_create {
   foreach my $line (sort @DEBETORS_GROUP) {
     # DEBETOR_GROUP_ID:DEPOSIT:LAST_PAYNMENT_DAYS:USER_GID
     my ($GID, $DEPOSIT, $LAST_PAYMENTS_DAYS, $USER_GID) = split(/:/, $line);  
-    $USER_GID = 0 if (! $USER_GID);    
+    $USER_GID = -1 if (! defined($USER_GID));    
     $DEBETORS_GIDS{$GID}="$USER_GID";
     $USERS_GIDS{$USER_GID}="$GID:$DEPOSIT:$LAST_PAYMENTS_DAYS";
    } 
@@ -691,7 +703,6 @@ foreach my $USER_GID (sort { $b <=> $a } keys %USERS_GIDS) {
   	                      });
   my %EXIST_GROUPS = ();
 
-exit;
   foreach my $line (@$list) {
     my $uid           = $line->[5 + $users->{SEARCH_FIELDS_COUNT}];
     my $gid           = $line->[10 + $users->{SEARCH_FIELDS_COUNT}];

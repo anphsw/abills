@@ -79,7 +79,7 @@ sub dhcphosts_mac_block_show {
         next;
        }
 	    elsif (! defined($line->[1])) {
-	     	print "Warning: IP: $ip MAC: $mac Record don't have users\n";
+	     	print 'Warning: IP: '.($ip || 'No ip').' MAC: '. ($mac || 'No MAC'). " Record don't have users (ID: $line->[0])\n";
 	     	next;
 	     }
 
@@ -568,9 +568,13 @@ sub dhcphosts_hosts {
 	  elsif($status == 1 ) { $table->{rowcolor}=$_COLORS[6]; }
 	  elsif($status == 2 ) { $table->{rowcolor}=$_COLORS[1]; }
 
-	  if (($line->[12 + $Dhcphosts->{SEARCH_FIELDS_COUNT}]==1) && $status) { $table->{rowcolor}=$_COLORS[0]; };
-
-	  #$table->{rowcolor}=$_COLORS[$i];
+	  if (($line->[12 + $Dhcphosts->{SEARCH_FIELDS_COUNT}]==1) && $status)
+         { $table->{rowcolor}=$_COLORS[0]; 
+           }
+          else {
+            $table->{rowcolor}=undef; 
+           }
+ 
     $table->addrow(
 	    $line->[0], 
 	    $html->button($line->[1], "index=15&UID=". $line->[13+$Dhcphosts->{SEARCH_FIELDS_COUNT}]."&MODULE=Dhcphosts"),
@@ -578,7 +582,7 @@ sub dhcphosts_hosts {
 	    $line->[3],
 	    $line->[5].": ".$line->[4],
 	    $line->[6],
-	    $line->[10]."/".$line->[8],
+	    $status[$line->[10]]."/".$line->[8],
 	    $line->[9],
 	    $line->[7],
 	    $html->button($_CHANGE, "index=$index&chg=$line->[0]&UID=". $line->[13+$Dhcphosts->{SEARCH_FIELDS_COUNT}]),
@@ -741,6 +745,7 @@ sub dhcphosts_user {
        }
 
       $Dhcphosts->host_check({ %FORM });
+      
       if (! $Dhcphosts->{errno}) {
 	      $Dhcphosts->host_change({ %FORM });
      
@@ -780,6 +785,7 @@ sub dhcphosts_user {
      }
     elsif ($Dhcphosts->{errno} == 7) {
     	my $list = $Dhcphosts->hosts_list({ IP => $FORM{IP} });
+
 
     	my $login = '';
     	if ($Dhcphosts->{TOTAL} > 0) {
@@ -1062,7 +1068,7 @@ foreach my $line (@$list) {
        }
 
       #Check nas port
-      push @OPTION82_MATCHES, "binary-to-ascii(10, 8, \":\", substring(option agent.circuit-id, 4, 2)) = \"0:$INFO{OPTION82_NAS_PORT}\"" if ($INFO{OPTION82_NAS_PORT} && $INFO{OPTION82_NAS_PORT} > 0);
+      push @OPTION82_MATCHES, "binary-to-ascii(10, 8, \":\", substring(option agent.circuit-id, 5, 1)) = \"$INFO{OPTION82_NAS_PORT}\"" if ($INFO{OPTION82_NAS_PORT} && $INFO{OPTION82_NAS_PORT} > 0);
 
       #Client MAC
       push @OPTION82_MATCHES, "binary-to-ascii(10, 8, \"\", substring(option agent.circuit-id, 6, 1)) = \"$INFO{CLIENT_MAC}\"" if ($INFO{CLIENT_MAC} ne '0:0:0:0:0:0' );

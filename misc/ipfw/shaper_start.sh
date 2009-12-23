@@ -1,11 +1,11 @@
 #!/bin/sh
-# Shape upper 
+# Shape/NAT upper  
 #
 
 #traffic Class numbers
 
 CLASSES_NUMS='2 3'
-VERSION=1.0
+VERSION=2.3
 
 
 
@@ -36,7 +36,9 @@ NETS_TABLE_START_NUM=2
 USER_CLASS_TRAFFIC_NUM=10
 
 
-if [ w$1 = wstart ]; then
+if [ w$1 = wstart -a w$2 = w ]; then
+
+
 #Load kernel modules
 kldload ng_ether
 kldload ng_car
@@ -74,33 +76,60 @@ done;
   ${IPFW}  add 10010 netgraph tablearg ip from any to table\(11\) ${OUT_DIRECTION}
   ${IPFW}  add 10015 allow ip from any to any via ng*
 #done
-else if [ w$1 = wstop ]; then
+else if [ w$1 = wstop -a w$2 = w ]; then
   for num in ${CLASSES_NUMS}; do
     ${IPFW} delete ` expr 9100 + ${num} \* 10 + 5 ` ` expr 9100 + ${num} \* 10 `  ` expr 9000 + ${num} \* 10 ` ` expr 10100 + ${num} \* 10 ` ` expr 9000 + ${num} \* 10 + 5 ` ` expr 10100 + ${num} \* 10 + 5 ` 
   done;
 
-  ${IPFW} delete 9000 90005 10000 10010 10015
-else
-  echo "(start|stop)"
-fi;
+  ${IPFW} delete 9000 9005 10000 10010 10015
+else if [ w$1 = w ]; then
+    echo "(start|stop|start nat|stop nat)"
+  fi;
+ fi;
 fi;
 
+
+
+#ipfw 10 add divert 8668 ip from 3.3.3.0/24 to any
+#ipfw 20 add divert 8778 ip from 4.4.4.0/24 to any
+#ipfw 30 add fwd 1.1.1.254 ip from 1.1.1.1 to any
+#ipfw 40 add fwd 2.2.2.254 ip from 2.2.2.2 to any
+#ipfw 50 add divert 8668 ip from any to 1.1.1.1
+#ipfw 60 add divert 8778 ip from any to 2.2.2.2 
 
 #NAT Section
-if [ w${abills_nat_enable} != w ] ; then
+# options         IPFIREWALL_FORWARD
+# options         IPFIREWALL_NAT          #ipfw kernel nat support
+# options         LIBALIAS
+#if [ w${abills_nat_enable} != w ] ; then
 
-FAKE_NET=192.168.0.0/16
+NAT_IPS="";
+ISP_GW2="";
+
+if [ w${NAT_IPS} != w  ] ; then
+
+FAKE_NET="10.0.0.0/16"
 NAT_TABLE=20
 NAT_FIRST_RULE=20
-NAT_IPS="91.200.156.56 91.200.156.57 91.200.156.58"
-NAT_REAL_TO_FAKE_TABLE_NUM=31;
+NAT_REAL_TO_FAKE_TABLE_NUM=33;
+NAT_FAKE_IP_TABLE_NUM=33;
+
 
 
 # nat configuration
 for IP in ${NAT_IPS}; do
-  ${IPFW} nat ` expr ${NAT_FIRST_RULE} + 1 ` config ip ${IP} log deny_in
-  ${IPFW} table ${NAT_REAL_TO_FAKE_TABLE_NUM} add ${IP} ` expr ${NAT_FIRST_RULE} + 1 `
+  if [ w$1 = wstart ]; then
+    ${IPFW} nat ` expr ${NAT_FIRST_RULE} + 1 ` config ip ${IP} log
+    ${IPFW} table ${NAT_REAL_TO_FAKE_TABLE_NUM} add ${IP} ` expr ${NAT_FIRST_RULE} + 1 `
+    ${IPFW} table ` expr ${NAT_REAL_TO_FAKE_TABLE_NUM} + 1` add ${FAKE_NET} ` expr ${NAT_FIRST_RULE} + 1 `
+  fi;
 done;
+#Second way
+#${IPFW} nat 22 config ip 192.168.72.140 log
+#${IPFW} table 33 add 192.168.72.140 22
+#${IPFW} table 34 add 172.19.0.0/16 22
+#${IPFW} 30 add fwd 192.168.72.1 ip from 192.168.72.140 to any    
+
 
 
 # nat real to fake
@@ -108,8 +137,16 @@ done;
 # nat fake to real
 #${IPFW} add 17000 nat tablearg ip from table\(20\) to not 193.138.244.2 out
 
-
-${IPFW} add 10 nat 123 ip from ${FAKE_NET} to any
-${IPFW} add 20 nat 123 ip from any to table\(21\)
+if [ w$1 = wstart ]; then
+  ${IPFW} add 60010 nat tablearg ip from table\(` expr ${NAT_REAL_TO_FAKE_TABLE_NUM} + 1 `\) to any
+  ${IPFW} add 60020 nat tablearg ip from any to table\(${NAT_REAL_TO_FAKE_TABLE_NUM}\)
+  
+  if [ w${ISP_GW2} != w ]; then
+    ${IPFW} add 30 add fwd ${ISP_GW2} ip from ${NAT_IPS} to any
+  fi;
+else if [ w$1 = wstop ]; then
+  ${IPFW} delete 60010 60020
+fi;
+fi;
 
 fi;

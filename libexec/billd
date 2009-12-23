@@ -159,13 +159,12 @@ sub check_lines {
                              'DURATION_SEC',
                              'DEPOSIT',
                              'CREDIT',
-                             'TP_ID' ]
+                             'TP_ID',
+                             'DISABLE',
+                             'DV_STATUS' ]
 		                   } );	
 	
   print "==> check_lines\n" if ($debug > 1);
-
-  #Get TP Credits
-  
   require Tariffs;
   Tariffs->import();
   my $Tariffs = Tariffs->new($db, $admin);
@@ -189,8 +188,8 @@ sub check_lines {
 
   require Acct;
   Acct->import();
-  my $Acct = Acct->new($db, \%conf);
-
+  my $Acct    = Acct->new($db, \%conf);
+  my $Billing = Billing->new($db, \%conf);	
 
   my %JOIN_SERVICE_STATS = ();
 
@@ -230,8 +229,14 @@ sub check_lines {
       my $credit                  = ($line->[16] > 0) ? $line->[16] : (( $line->[17] ) ? $TP_CREDITS{$line->[17]} : 0 ); 
 
 
+
+
       #hangup connaction if max ext traffic reached
-      if ($acct_input_octets_ext > $exppp_hanguplimit || $acct_output_octets_ext > $exppp_hanguplimit) {
+      if ($acct_input_octets_ext > $exppp_hanguplimit 
+         || $acct_output_octets_ext > $exppp_hanguplimit 
+         || $line->[18] 
+         || $line->[19]
+         ) {
         my $ret = hangup(\%NAS, "$nas_port_id", "$nas_port_id", { ACCT_SESSION_ID      => "$acct_session_id",
         	                                                        FRAMED_IP_ADDRESS    => int2ip($client_ip),
         	                                                        ACCT_TERMINATE_CAUSE => 15,
@@ -313,7 +318,7 @@ sub check_lines {
       
      
       # periodic check deposit stats
-      if ($conf{periodic_check}) {
+#      if ($conf{periodic_check}) {
         my %RAD = (USER_NAME         => "$user_name",
                    SESSION_START     => time - $acct_session_time,
                    ACCT_SESSION_TIME => $duration_sec,
@@ -340,30 +345,25 @@ sub check_lines {
          }
 
 
-        my $Billing = Billing->new($db, \%conf);	
-        my $self;
-
-
-
-        ($self->{UID}, 
-         $self->{SUM}, 
-         $self->{BILL_ID}, 
-         $self->{TARIF_PLAN}, 
-         $self->{TIME_TARIF}, 
-         $self->{TRAF_TARIF}) = $Billing->session_sum("$RAD{USER_NAME}", 
+        ($Billing->{UID}, 
+         $Billing->{SUM}, 
+         $Billing->{BILL_ID}, 
+         $Billing->{TARIF_PLAN}, 
+         $Billing->{TIME_TARIF}, 
+         $Billing->{TRAF_TARIF}) = $Billing->session_sum("$RAD{USER_NAME}", 
                                                        $RAD{SESSION_START}, 
                                                        $RAD{ACCT_SESSION_TIME}, 
                                                        \%RAD);
 
-        next if ($self->{UID} < 1);
+        next if ($Billing->{UID} < 1);
         
         print "> Login: $RAD{USER_NAME} START: $RAD{SESSION_START} DURATION: $RAD{ACCT_SESSION_TIME}\n".
-         "UID: $self->{UID} SUM: $self->{SUM} BILL_ID: $self->{BILL_ID} TARIF_PLAN: $self->{TARIF_PLAN} TRAF_TARIF: $self->{TRAF_TARIF}\n" if ($debug == 1);
+         "UID: $Billing->{UID} SUM: $Billing->{SUM} BILL_ID: $Billing->{BILL_ID} TARIF_PLAN: $Billing->{TARIF_PLAN} TRAF_TARIF: $Billing->{TRAF_TARIF}\n" if ($debug == 1);
 
 
 
         if ( (defined($Billing->{PAYMENT_TYPE}) && $Billing->{PAYMENT_TYPE} == 0) 
-                             && ($deposit + $credit <= $self->{SUM}) ) {
+                             && ($deposit + $credit <= $Billing->{SUM}) ) {
 
 
            #Neg deposit filter
@@ -375,12 +375,12 @@ sub check_lines {
            my $ret = hangup(\%NAS, "$nas_port_id", "$user_name", { ACCT_SESSION_ID      => $acct_session_id,
            	                                                       FRAMED_IP_ADDRESS    => int2ip($client_ip),
            	                                                       ACCT_TERMINATE_CAUSE => 16,
-           	                                                       UID                  => $self->{UID},
+           	                                                       UID                  => $Billing->{UID},
            	                                                       debug                => $debug
            	                                                      });
-           print "Hanguped Login: $RAD{USER_NAME} DEPOSIT: $deposit CREDIT: $credit SESSION_SUM: $self->{SUM} SESSION_ID: $acct_session_id\n"; # if ($debug == 1);
+           print "Hanguped Login: $RAD{USER_NAME} DEPOSIT: $deposit CREDIT: $credit SESSION_SUM: $Billing->{SUM} SESSION_ID: $acct_session_id\n"; # if ($debug == 1);
           }
-       }
+#       }
      }
    }
 }
@@ -526,7 +526,7 @@ sub check_speed {
    
     open(PROCS, "/usr/sbin/ngctl list |") || die "Can't open file '' $!\n";
       while(<PROCS>) {
-		    if (/\s+Name: (class[\d+])_([a-zA-Z_0-9]+)/) {
+		    if (/\s+Name: (class[\d+])_([\-a-zA-Z_0-9]+)/) {
 		      my $class = $1;
 		      my $login   = $2;	
 		      print "Login: $login ($class". "_$login)\n" if ($debug > 1);
@@ -1462,7 +1462,7 @@ sub verify {
 
     return 0 if ($pid eq '');
 
-    my $me = $$;  # = $self->{verify};
+    my $me = $$;
 
     my @ps = split m|$/|, qx/ps -fp $pid/
            || die "ps utility not available: $!";

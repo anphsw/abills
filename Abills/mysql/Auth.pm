@@ -68,6 +68,8 @@ sub dv_auth {
   }
   
   my $MAX_SESSION_TRAFFIC = $CONF->{MAX_SESSION_TRAFFIC} || 4096;
+
+  my $DOMAIN_ID = ($NAS->{DOMAIN_ID}) ? "AND tp.domain_id='$NAS->{DOMAIN_ID}'" : '';
  
   $self->query($db, "select  if (dv.logins=0, if(tp.logins is null, 0, tp.logins), dv.logins) AS logins,
   if(dv.filter_id != '', dv.filter_id, if(tp.filter_id is null, '', tp.filter_id)),
@@ -114,7 +116,7 @@ sub dv_auth {
   tp.tp_id
 
      FROM (dv_main dv)
-     LEFT JOIN tarif_plans tp ON (dv.tp_id=tp.id)
+     LEFT JOIN tarif_plans tp ON (dv.tp_id=tp.id $DOMAIN_ID)
      LEFT JOIN users_nas un ON (un.uid = dv.uid)
      LEFT JOIN tp_nas ON (tp_nas.tp_id = tp.tp_id)
      LEFT JOIN intervals i ON (tp.tp_id = i.tp_id)
@@ -526,7 +528,7 @@ if ($NAS->{NAS_TYPE} eq 'exppp') {
    }
        
   #Local ip tables
-  if (defined($EX_PARAMS->{nets})) {
+  if ($EX_PARAMS->{nets}) {
     $RAD_PAIRS->{'Exppp-Local-IP-Table'} = (defined($CONF->{DV_EXPPP_NETFILES})) ? "$CONF->{DV_EXPPP_NETFILES}$self->{TT_INTERVAL}.nets" : "$self->{TT_INTERVAL}.nets";
    }
 
@@ -705,8 +707,9 @@ elsif ($NAS->{NAS_TYPE} eq 'chillispot') {
                                              MAX_SESSION_TRAFFIC => $MAX_SESSION_TRAFFIC }); 
   #global Traffic 
   if ($EX_PARAMS->{traf_limit} > 0) { 
-    $RAD_PAIRS->{'ChilliSpot-Max-Total-Octets'} = int($EX_PARAMS->{traf_limit} * $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE}); 
+ #   $RAD_PAIRS->{'ChilliSpot-Max-Total-Octets'} = int($EX_PARAMS->{traf_limit} * $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE}); 
    } 
+
   #Shaper for chillispot 
   if ($self->{USER_SPEED} > 0) { 
      $RAD_PAIRS->{'WISPr-Bandwidth-Max-Down'} = int($self->{USER_SPEED}) * $CONF->{KBYTE_SIZE}; 
@@ -1165,7 +1168,7 @@ sub ex_traffic_params {
  
    my $nets = 0;
 
-   $self->query($db, "SELECT id, in_price, out_price, prepaid, in_speed, out_speed, LENGTH(nets), expression
+   $self->query($db, "SELECT id, in_price, out_price, prepaid, in_speed, out_speed, net_id, expression
              FROM trafic_tarifs
              WHERE interval_id='$self->{TT_INTERVAL}';");
 
@@ -1184,10 +1187,11 @@ sub ex_traffic_params {
      $EX_PARAMS{speed}{$line->[0]}{IN}= $line->[4];
      $EX_PARAMS{speed}{$line->[0]}{OUT}= $line->[5];
      $expr{$line->[0]}=$line->[7] if (length($line->[7]) > 5);
-     $nets+=$line->[6] if (defined($line->[6]));
+     $EX_PARAMS{nets} = 1 if ($line->[6] > 0);
+#     $nets+=$line->[6] if (defined($line->[6]));
     }
 
-   $EX_PARAMS{nets}=$nets if ($nets > 20);
+#   $EX_PARAMS{nets}=$nets if ($nets > 0);
    #$EX_PARAMS{speed}=int($speeds{0}) if (defined($speeds{0}));
 
 #Get tarfic limit if prepaid > 0 or
@@ -1722,11 +1726,11 @@ sub neg_deposit_filter_former () {
       	my $rad_pairs = $1;
         my @p = split(/,/, $rad_pairs);
         foreach my $line (@p) {
-          if ($line =~ /([a-zA-Z0-9\-]{6,25})\+\=(.{1,200})/ ) {
+        	
+          if ($line =~ /([a-zA-Z0-9\-]{6,25})\s?\+\=(.{1,200})/ ) {
             my $left=$1;
             my $right=$2;
-    
-            $right =~ s/\"//g;
+            #$right =~ s/\"//g;
             push( @{ $RAD_PAIRS->{"$left"} }, $right ); 
            }
           else {

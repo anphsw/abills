@@ -41,6 +41,7 @@ $_ADDRESS='Address';
 $_PHONE='Phone';
 $_COMMENTS='Comments';
 $_REGISTRATION='Registration';
+$_REGISTRATION_COMPLETE='Registration Complete';
 $_EXPIRE='Expired';
 
 $_USER_INFO='User Information';
@@ -59,6 +60,7 @@ $_CREDIT='Credit';
 $_SUM='Sum';
 $_NO_SUM='Enter sum';
 $_PAYMENTS='Payments';
+$_EXTERNAL_PAYMENTS='External Payments';
 $_NUM='Number';
 $_DESCRIBE='Description';
 $_OPERATOR='Operator';
@@ -251,7 +253,9 @@ $ERR_UNKNOWN_IP="Not registred IP Address. Can't find your NAS.";
 $ERR_ACCEPT_RULES='Don\'t accepted rules';
 $ERR_CREDIT_CHANGE_LIMIT_REACH='Credit change limit reach';
 $ERR_CANT_CREATE_FILE='Can\'t create file or folder';
+$ERR_WRONG_FILE_NAME='Wrong file name or type';
 $ERR_WRONG_SUM="Wrong sum";
+$ERR_ACCESS_DENY='Access Deny';
 
 
 #Mail section
@@ -412,3 +416,4 @@ $_MIN_SEARCH_CHARS='Minimum chars for searching';
 $_ERR_SEARCH_VAL_TOSMALL='Search value to small';
 $ERR_NO_FREE_IP_IN_POOL='No free IPs in pool';
 $_GUEST_ACCOUNT='Guest account';
+$_REQUESTS='Requests';

@@ -365,12 +365,11 @@ elsif ($FORM{change}) {
    		$html->message('err', $_ERROR, "$ERR_CANT_CREATE_FILE '$conf{TPL_DIR}' $_ERROR: $!\n");
   	 }
    }
-
-
-  #print "content-type: text/html\n\n";
-  #print "!! $conf{TPL_DIR}/$FORM{tpl_name} ##";
   
   $info{TEMPLATE} = convert($info{TEMPLATE}, { '2_tpl' => 1 });
+  
+  $info{TEMPLATE} =~ s/"/\\"/g;
+  
 	if (open(FILE, ">$conf{TPL_DIR}/$FORM{tpl_name}")) {
 	  print FILE "$info{TEMPLATE}";
 	  close(FILE);
@@ -388,18 +387,24 @@ elsif ($FORM{FILE_UPLOAD}) {
   $FORM{FILE_UPLOAD}{filename} =~ tr/ /_/;
   $FORM{FILE_UPLOAD}{filename} =~ s/[^$safe_filename_characters]//g; 
   
-  if (-f "$conf{TPL_DIR}/$FORM{FILE_UPLOAD}{filename}") {
-    $html->message('err', $_ERROR, "$_EXIST '$FORM{FILE_UPLOAD}{filename}'");
+  
+  if ($FORM{FILE_UPLOAD}{filename} !~ /(swf|css|js|png|gif|jpg)$/i) {
+  	$html->message('err', $_ERROR, "$ERR_WRONG_FILE_NAME '$FORM{FILE_UPLOAD}{filename}'");
    }
   else {
-    open(FILE, ">$conf{TPL_DIR}/$FORM{FILE_UPLOAD}{filename}") or $html->message('err', $_ERROR, "$_ERROR  '$!'");
-      binmode FILE;
-      #while(<$FORM{FILE_UPLOAD}{Contents}>) {  
-      	print FILE $FORM{FILE_UPLOAD}{Contents};
-      # }
-    close(FILE);
-    $html->message('info', $_INFO, "$_ADDED: '$FORM{FILE_UPLOAD}{filename}' $_SIZE: $FORM{FILE_UPLOAD}{Size}");
-   }
+    if (-f "$conf{TPL_DIR}/$FORM{FILE_UPLOAD}{filename}") {
+      $html->message('err', $_ERROR, "$_EXIST '$FORM{FILE_UPLOAD}{filename}'");
+     }
+    else {
+      open(FILE, ">$conf{TPL_DIR}/$FORM{FILE_UPLOAD}{filename}") or $html->message('err', $_ERROR, "$_ERROR  '$!'");
+        binmode FILE;
+        #while(<$FORM{FILE_UPLOAD}{Contents}>) {  
+      	  print FILE $FORM{FILE_UPLOAD}{Contents};
+        # }
+      close(FILE);
+      $html->message('info', $_INFO, "$_ADDED: '$FORM{FILE_UPLOAD}{filename}' $_SIZE: $FORM{FILE_UPLOAD}{Size}");
+     }
+  }
  }
 elsif ($FORM{file_del} && $FORM{is_js_confirmed} ) {
   $FORM{file_del} =~ s/ |\///g;
@@ -518,11 +523,13 @@ if ( -f "$sys_templates/$module/templates/describe.tpls" ) {
       'Multidoms:multidoms_client_promo.tpl',
 #      'multidoms_main_custom.tpl',
       'Multidoms:multidoms_metatags_client.tpl',
+      'Cards:cards_card_info.tpl',
+      ':form_hotspot_login.tpl',
       ':form_client_hotspot_start.tpl'
     );
 
-    $table->{rowcolor}=undef;
-    $table->{extra}=undef;
+    $table->{rowcolor}= undef;
+    $table->{extra}   = undef;
 
     foreach my $line (sort @contents) {
     	my ($module, $file)=split(/:/, $line);
@@ -551,7 +558,7 @@ if ( -f "$sys_templates/$module/templates/describe.tpls" ) {
       $file =~ s/\.tpl//;
 
       foreach my $lang (@caption) {
-      	  my $f = '_'.$file.'_'.$lang.'.tpl';
+      	 my $f = '_'.$file.'_'.$lang.'.tpl';
       	
          push @rows,  ((-f "$conf{TPL_DIR}/$module"."$f") ? $html->button($_SHOW, "index=$index#", { NEW_WINDOW => "$SELF_URL?qindex=$index&NAS_GID=$FORM{NAS_GID}&SHOW=$module:$file:$lang" }) .'<br>'. $html->button($html->b($_CHANGE), "index=$index&NAS_GID=$FORM{NAS_GID}&tpl_name=$module"."$f") : $html->button($_CREATE, "index=$index&NAS_GID=$FORM{NAS_GID}&create=$module:$file".'.tpl'.":$lang") ).'<br>'.
          ((-f "$conf{TPL_DIR}/$module"."$f") ? $html->button($_DEL, "index=$index&NAS_GID=$FORM{NAS_GID}&del=$module". "$f", { MESSAGE => "$_DEL $file" }) : '');
@@ -570,38 +577,42 @@ while(my($k, $v) = each %templates) {
 print $table->show();
 
 
-#my $table = $html->table( { width       => '600',
-#	                          caption     => $_OTHER,
-#                            title_plain => ["FILE", "$_SIZE (Byte)", "$_DATE", "$_DESCRIBE",  "-" ],
-#                            cols_align  => ['left', 'right', 'right', 'left', 'center', 'center']
-#                         } );
-#
-#	if (-d "$conf{TPL_DIR}" ) {
-#    opendir DIR, "$conf{TPL_DIR}" or die "Can't open dir '$sys_templates/$module/templates' $!\n";
-#      my @contents = grep  !/^\.\.?$/ && !/\.tpl$/  , readdir DIR;
-#    closedir DIR;
-#
-#    $table->{rowcolor}=undef;
-#    $table->{extra}=undef;
-#
-#    foreach my $file (sort @contents) {
-#      next if (-d "$conf{TPL_DIR}/".$file);
-#
-#      my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime,
-#        $blksize,$blocks);
-#
-#      ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime,
-#         $blksize,$blocks)=stat("$conf{TPL_DIR}/$file");
-#        $mtime = strftime "%Y-%m-%d", localtime($mtime);
-#
-#      $table->addrow("$file", $size, $mtime, $describe,
-#         $html->button($_DEL, "index=$index&file_del=$file", { MESSAGE => "$_DEL '$file'" }));
-#     }
-#
-#   }
-# print $table->show();
+my $table = $html->table( { width       => '600',
+	                          caption     => "$conf{TPL_DIR}".$_FILES.' (.jpg .gif .png .css .js)',
+                            title_plain => ["FILE", "$_SIZE (Byte)", "$_DATE", "$_DESCRIBE",  "-" ],
+                            cols_align  => ['left', 'right', 'right', 'left', 'center', 'center']
+                         } );
+
+
+  #$conf{TPL_DIR}="$conf{MAIN_TPL_DIR}/$domain_path";
+
+	if (-d "$conf{TPL_DIR}" ) {
+    opendir DIR, "$conf{TPL_DIR}" or die "Can't open dir '$conf{MAIN_TPL_DIR}/$domain_path' $!\n";
+      my @contents = grep  !/^\.\.?$/ && !/\.tpl$/  , readdir DIR;
+    closedir DIR;
+
+    $table->{rowcolor}=undef;
+    $table->{extra}=undef;
+
+    foreach my $file (sort @contents) {
+      next if (-d "$conf{TPL_DIR}/".$file);
+
+      my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime,
+        $blksize,$blocks);
+
+      ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime,
+         $blksize,$blocks)=stat("$conf{TPL_DIR}/$file");
+         $mtime = strftime "%Y-%m-%d %H-%M-%S", localtime($mtime);
+
+      $table->addrow("<a href='/images/$admin->{DOMAIN_ID}/$FORM{NAS_GID}/$file'>/images/$admin->{DOMAIN_ID}/$FORM{NAS_GID}/$file</a>", 
+         $size, $mtime, $describe,
+         $html->button($_DEL, "index=$index&file_del=$file", { MESSAGE => "$_DEL '$file'" }));
+     }
+
+   }
+ print $table->show();
  
-# $html->tpl_show(templates('form_fileadd'), undef);
+ $html->tpl_show(templates('form_fileadd'), undef);
 
 
 
@@ -625,9 +636,9 @@ if($FORM{NAS_ID}) {
   if ($nas->{NAS_TYPE} eq 'chillispot') {
     $ENV{HTTP_HOST} =~ s/\:(\d+)//g;
     $nas->{EXTRA_PARAMS} = $html->tpl_show(templates('form_nas_configure'), { %$nas,
-    	 CONFIGURE_DATE => "wget -O /tmp/setup.sh http://$ENV{HTTP_HOST}/hotspot/wrt_configure.cgi?DOMAIN_ID=$admin->{DOMAIN_ID}\\\&NAS_ID=$nas->{NAS_ID}; chmod 755 /tmp/setup.sh; /tmp/setup.sh",
-    	 PARAM1  => "wget -O /tmp/setup.sh http://$ENV{HTTP_HOST}/hotspot/wrt_configure.cgi?DOMAIN_ID=$admin->{DOMAIN_ID}\\\&NAS_ID=$nas->{NAS_ID}",
-    	 PARAM2  => "; chmod 755 /tmp/setup.sh; /tmp/setup.sh",
+    	 CONFIGURE_DATE => "wget -O /tmp/setup.sh http://$ENV{HTTP_HOST}/hotspot/wrt_configure.cgi?DOMAIN_ID=$admin->{DOMAIN_ID}\\\&NAS_ID=$nas->{NAS_ID}; chmod 755 /tmp/setup.sh; /tmp/setup.sh;",
+    	 PARAM1  => "wget -O /tmp/setup.sh http://$ENV{HTTP_HOST}/hotspot/wrt_configure.cgi?DOMAIN_ID=$admin->{DOMAIN_ID}\\\\&NAS_ID=$nas->{NAS_ID}",
+    	 PARAM2  => "; chmod 755 /tmp/setup.sh; /tmp/setup.sh;",
     	 }, { OUTPUT2RETURN => 1 });
 
 
@@ -952,7 +963,7 @@ sub multidoms_reseller_tp {
  my $tarif_info;
  my @Payment_Types    = ($_PREPAID, $_POSTPAID, $_GUEST_ACCOUNT); 
  my @Octets_Direction = ("$_RECV + $_SEND", $_RECV, $_SEND);
- my @bool_vals = ($_NO, $_YES);
+ my @bool_vals        = ($_NO, $_YES);
 
  $tarif_info = $tariffs->defaults();
 
@@ -973,12 +984,15 @@ if (defined($FORM{TOTAL_TIME_TYPE})) {
 	if($FORM{TOTAL_TIME_TYPE} == 2) {
 		$FORM{TOTAL_TIME_LIMIT}=$FORM{DAYS} * 86400;
 	 }
+  elsif($FORM{TOTAL_TIME_TYPE} == 0) {
+    $FORM{TOTAL_TIME_LIMIT}=$FORM{MINUTES} * 60;
+   }
   elsif($FORM{TOTAL_TIME_TYPE}) {
 		$FORM{TOTAL_TIME_LIMIT}=$FORM{HOURS} * 3600;
 	 }
-  else {
-  	$FORM{TOTAL_TIME_LIMIT}=30 * 60;
-   }
+  #else {
+  #	$FORM{TOTAL_TIME_LIMIT}=30 * 60;
+  # }
 }
 
 
@@ -1091,6 +1105,9 @@ elsif (defined($FORM{TP_ID})) {
      
     if (! $tariffs->{errno}) {
        $tariffs->ti_change($FORM{TI_ID}, { %FORM });
+
+#print "Content-Type: text/html\n\n";
+#$tariffs->{debug}=1;
        $tariffs->tt_change({ %FORM, TT_ID => 0 });	 
        $html->message('info', $_CHANGED, "$_CHANGED $tariffs->{TP_ID}");
      }
@@ -1207,8 +1224,9 @@ $tarif_info->{GROUPS_SEL} = $html->form_select('TP_GID',
 
 
 if ($tarif_info->{TOTAL_TIME_LIMIT} > 0) {
-  if ($tarif_info->{TOTAL_TIME_LIMIT} == 1800) {
+  if ($tarif_info->{TOTAL_TIME_LIMIT} < 3600) {
 	  $tarif_info->{PERIOD_30M} = 'checked';
+	  $tarif_info->{MINUTES}=$tarif_info->{TOTAL_TIME_LIMIT} / 60;
    }
   elsif($tarif_info->{TOTAL_TIME_LIMIT} % 86400 == 0) {
     $tarif_info->{PERIOD_1D}='checked';
