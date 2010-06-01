@@ -36,8 +36,6 @@ sub new {
   my $self = { };
   bless($self, $class);
   
-#  $self->{debug}=1;
-  
   $Bill=Bills->new($db, $admin, $CONF); 
 
   return $self;
@@ -88,7 +86,8 @@ sub take {
    }
   
   $user->{BILL_ID} = $attr->{BILL_ID} if ($attr->{BILL_ID});
-  
+  $sum = sprintf("%.6f", $sum);
+
   if ($user->{BILL_ID} && $user->{BILL_ID} > 0) {
     $Bill->info( { BILL_ID => $user->{BILL_ID} } );
     
@@ -112,15 +111,14 @@ sub take {
             INET_ATON('$admin->{SESSION_IP}'), '$Bill->{DEPOSIT}', '$admin->{AID}',
             '$user->{COMPANY_VAT}', '$DATA{INNER_DESCRIBE}', '$DATA{METHOD}')", 'do');
 
-
     if($self->{errno}) {
       return $self;
      }
-  }
+   }
   else {
     $self->{errno}=14;
     $self->{errstr}='No Bill';
-  }
+   }
 
 
   return $self;
@@ -181,14 +179,12 @@ sub list {
    push @WHERE_RULES, @{ $self->search_expr($attr->{LOGIN_EXPR}, 'STR', 'u.id') };
   }
 
-
  if ($attr->{BILL_ID}) {
    push @WHERE_RULES, @{ $self->search_expr($attr->{BILL_ID}, 'INT', 'f.bill_id') };
   }
  elsif ($attr->{COMPANY_ID}) {
  	 push @WHERE_RULES, @{ $self->search_expr($attr->{COMPANY_ID}, 'INT', 'u.company_id') };
   }
-
  
  if ($attr->{AID}) {
    push @WHERE_RULES, @{ $self->search_expr($attr->{AID}, 'INT', 'f.aid') };
@@ -201,6 +197,10 @@ sub list {
  if ($attr->{A_LOGIN}) {
  	 push @WHERE_RULES, @{ $self->search_expr($attr->{A_LOGIN}, 'STR', 'a.id') };
  }
+
+ if ($attr->{DOMAIN_ID}) {
+   push @WHERE_RULES, "u.domain_id='$attr->{DOMAIN_ID}' ";
+  }
 
  # Show debeters
  if ($attr->{DESCRIBE}) {
@@ -229,30 +229,35 @@ sub list {
 
  # Date
  if ($attr->{FROM_DATE}) {
-   push @WHERE_RULES, "(date_format(f.date, '%Y-%m-%d')>='$attr->{FROM_DATE}' and date_format(f.date, '%Y-%m-%d')<='$attr->{TO_DATE}')";
+ 	    push @WHERE_RULES, @{ $self->search_expr(">=$attr->{FROM_DATE}", 'DATE', 'date_format(f.date, \'%Y-%m-%d\')') },
+   @{ $self->search_expr("<=$attr->{TO_DATE}", 'DATE', 'date_format(f.date, \'%Y-%m-%d\')') };
   }
  elsif ($attr->{DATE}) {
-   push @WHERE_RULES, @{ $self->search_expr($attr->{DATE}, 'INT', 'date_format(f.date, \'%Y-%m-%d\')') };
+   push @WHERE_RULES, @{ $self->search_expr($attr->{DATE}, 'DATE', 'date_format(f.date, \'%Y-%m-%d\')') };
   }
  # Month
  elsif ($attr->{MONTH}) {
    push @WHERE_RULES, "date_format(f.date, '%Y-%m')='$attr->{MONTH}'";
   }
- # Date
-
-
-
+ 
+ my $ext_tables  = '';
+ my $login_field = '';
+ if($attr->{FIO}) {
+   $ext_tables = 'LEFT JOIN users_pi pi ON (u.uid=pi.uid)';
+   $login_field  = "pi.fio,";  
+  }
 
  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
  
- $self->query($db, "SELECT f.id, u.id, f.date, f.sum, f.dsc, f.method,
+ $self->query($db, "SELECT f.id, u.id, $login_field f.date, f.sum, f.dsc, f.method,
    f.last_deposit, f.bill_id, 
    if(a.name is NULL, 'Unknown', a.name), 
-              INET_NTOA(f.ip),
+   INET_NTOA(f.ip),
    f.uid, f.inner_describe
     FROM fees f
     LEFT JOIN users u ON (u.uid=f.uid)
     LEFT JOIN admins a ON (a.aid=f.aid)
+    $ext_tables
     $WHERE 
     GROUP BY f.id
     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;");
@@ -299,17 +304,14 @@ sub reports {
  if ($attr->{BILL_ID}) {
    push @WHERE_RULES, "f.BILL_ID IN ( $attr->{BILL_ID} )";
   }
-
-
-
-
  
  if($attr->{DATE}) {
    push @WHERE_RULES, "date_format(f.date, '%Y-%m-%d')='$attr->{DATE}'";
   }
  elsif ($attr->{INTERVAL}) {
  	 my ($from, $to)=split(/\//, $attr->{INTERVAL}, 2);
-   push @WHERE_RULES, "date_format(f.date, '%Y-%m-%d')>='$from' and date_format(f.date, '%Y-%m-%d')<='$to'";
+   push @WHERE_RULES, @{ $self->search_expr(">=$from", 'DATE', 'date_format(f.date, \'%Y-%m-%d\')') },
+   @{ $self->search_expr("<=$to", 'DATE', 'date_format(f.date, \'%Y-%m-%d\')') };
   }
  elsif (defined($attr->{MONTH})) {
  	 push @WHERE_RULES, "date_format(f.date, '%Y-%m')='$attr->{MONTH}'";
@@ -377,9 +379,6 @@ if ($self->{TOTAL} > 0 || $PG > 0 ) {
 	
 	return $list;
 }
-
-
-
 
 
 1

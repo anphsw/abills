@@ -68,7 +68,7 @@ sub connect {
   bless($self, $class);
   #$self->{debug}=1;
   $self->{db} = DBI->connect("DBI:mysql:database=$dbname;host=$dbhost", "$dbuser", "$dbpasswd") or print 
-       "Content-Type: text/html\n\nError: Unable connect to server '$dbhost:$dbname'\n";
+       "Content-Type: text/html\n\nError: Unable connect to DB server '$dbhost:$dbname'\n";
   
   
   #For mysql 5 or highter
@@ -81,7 +81,6 @@ sub connect {
 
 sub disconnect {
   my $self = shift;
-
 
   $self->{db}->disconnect;
   return $self;
@@ -144,7 +143,7 @@ if ($attr->{Bind}) {
 
  }
 
-if (defined($type) && $type eq 'do') {
+if ($type && $type eq 'do') {
 #  print $query;
   $q = $db->do($query, undef, @Array);
   if (defined($db->{'mysql_insertid'})) {
@@ -152,7 +151,6 @@ if (defined($type) && $type eq 'do') {
    }
  }
 else {
-  #print $query;
   $q = $db->prepare($query); # || die $db->errstr;
   if($db->err) {
      $self->{errno} = 3;
@@ -162,11 +160,10 @@ else {
    
      return $self->{errno};
    }
-  #print $query;
   
   if ($attr->{MULTI_QUERY}) {
     foreach my $line ( @{ $attr->{MULTI_QUERY} } ) {
-      $q ->execute( @$line );
+      $q->execute( @$line );
       if($db->err) {
         $self->{errno} = 3;
 
@@ -178,7 +175,7 @@ else {
      }
    }
   else {
-    $q ->execute();
+    $q->execute();
     if($db->err) {
       $self->{errno} = 3;
 
@@ -189,9 +186,7 @@ else {
      }
     $self->{TOTAL} = $q->rows;
   }
-
   $self->{Q}=$q;
-
 #  $self->{NUM_OF_FIELDS} = $q->{NUM_OF_FIELDS};
 }
 
@@ -212,9 +207,20 @@ if($db->err) {
 
 if ($self->{TOTAL} > 0) {
   my @rows;
-  while(my @row = $q->fetchrow()) {
-    push @rows, \@row;
-  }
+  
+#  if ($type && $type eq 'fields_list') {
+#    my @rows_h = ();
+#    while(my $row_hashref = $q->fetchrow_hashref()) {
+#      push @rows_h, $row_hashref;
+#     }
+#  	$self->{list_hash} = \@rows_h;
+#   }
+#  else {
+    while(my @row = $q->fetchrow()) {
+      push @rows, \@row;
+     }
+#   }
+ 
   $self->{list} = \@rows;
  }
 else {
@@ -284,6 +290,10 @@ sub search_expr {
   foreach my $v (@val_arr) { 
     my $expr = '=';
 
+    if ($type eq 'DATE' && ( $v =~ /([=><!]{0,2})(\d{2})[\/\.\-](\d{2})[\/\.\-](\d{4})/ )) {
+    	$v = "$1$4-$3-$2";
+     }
+
     if($type eq 'INT' && $v =~ s/\*//g) {
       $expr = '>';
      }
@@ -296,8 +306,7 @@ sub search_expr {
      }
     elsif ( $v =~ s/^([<>=]{1,2})// ) {
       $expr = $1;
-      
-     }  
+     }
   
     if ($type eq 'IP') {
       $v = "INET_ATON('$v')";
@@ -312,15 +321,11 @@ sub search_expr {
    }
 
   if ($field) {
-  
-  	if ($type ne 'INT') {
+  	if ($type ne 'INT' && $type ne 'DATE') {
   		return [ '('. join(' or ', @result_arr)  .')']; 
   	 }
-
     return \@result_arr; 
    }
-
-#  print "$expr- $value \n";
 
   return $value;
 }
@@ -338,8 +343,6 @@ sub search_expr {
 sub changes {
   my $self = shift;
   my ($admin, $attr) = @_;
-
-
   
   my $TABLE        = $attr->{TABLE};
   my $CHANGE_PARAM = $attr->{CHANGE_PARAM};
@@ -359,8 +362,6 @@ sub changes {
      }
    }
 
-
-
   $OLD_DATA = $attr->{OLD_INFO}; #  $self->info($uid);
   if($OLD_DATA->{errno}) {
      $self->{errno}  = $OLD_DATA->{errno};
@@ -371,14 +372,10 @@ sub changes {
   my $CHANGES_QUERY = "";
   my $CHANGES_LOG = "";
 
-
-
   while(my($k, $v)=each(%DATA)) {
   	#print "$k, $v<br>\n";
     $OLD_DATA->{$k} = '' if (! $OLD_DATA->{$k});
     if (defined($FIELDS->{$k}) && $OLD_DATA->{$k} ne $DATA{$k}){
-    	
-    	  
         if ($k eq 'PASSWORD' || $k eq 'NAS_MNG_PASSWORD') {
           $CHANGES_LOG .= "$k *->*;";
           $CHANGES_QUERY .= "$FIELDS->{$k}=ENCODE('$DATA{$k}', '$CONF->{secretkey}'),";
@@ -411,6 +408,7 @@ sub changes {
            }
           elsif($k eq 'STATUS') {
             $self->{CHG_STATUS}=$OLD_DATA->{$k}.'->'.$DATA{$k};
+            $self->{'STATUS'}=$DATA{$k};
            }
           elsif($k eq 'TP_ID') {
             $self->{CHG_TP}=$OLD_DATA->{$k}.'->'.$DATA{$k};
@@ -436,9 +434,6 @@ else {
   $self->{CHANGES_LOG}=$CHANGES_LOG;
 }
 
-
-
-# print $CHANGES_LOG;
   chop($CHANGES_QUERY);
   
   my $extended = ($attr->{EXTENDED}) ? $attr->{EXTENDED} : '' ;
@@ -450,7 +445,7 @@ else {
    }
 
   $CHANGES_LOG = $attr->{EXT_CHANGE_INFO}.' '.$CHANGES_LOG if ($attr->{EXT_CHANGE_INFO});
-  if (defined($DATA{UID}) && $DATA{UID} > 0 && defined($admin)) { 
+  if (defined($DATA{UID}) && $DATA{UID} > 0 && defined($admin)) {
     if ($self->{'DISABLE'}) {
       $admin->action_add($DATA{UID}, "", { TYPE => 9, ACTION_COMMENTS => $DATA{ACTION_COMMENTS} });
      }
@@ -467,22 +462,27 @@ else {
       $admin->action_add($DATA{UID}, "$self->{'CHG_TP'}", { TYPE => 3});
      }
 
-    if($self->{'STATUS'}) {
-      $admin->action_add($DATA{UID}, "$self->{'STATUS'}", { TYPE => 4});
+    if(defined($self->{'STATUS'}) && $self->{'STATUS'} ne '') {
+      $admin->action_add($DATA{UID}, "$self->{'STATUS'}", { TYPE => ($self->{'STATUS'}==3) ? 14 : 4 });
      }
 
     if($self->{CHG_CREDIT}) {
       $admin->action_add($DATA{UID}, "$self->{'CHG_CREDIT'}", { TYPE => 5 });
      }
-
-
    }
   elsif(defined($admin)) {
-    $admin->system_action_add("$CHANGES_LOG", { TYPE => 2 });
+    if ($self->{'DISABLE'}) {
+      $admin->system_action_add("$CHANGES_LOG", { TYPE => 9 });
+     }
+    elsif ($self->{'ENABLE'}) {
+      $admin->system_action_add("$CHANGES_LOG", { TYPE => 8 });
+     }
+    else {
+      $admin->system_action_add("$CHANGES_LOG", { TYPE => 2 });
+     }
    }
   return $self->{result};
 }
-
 
 
 1

@@ -1,6 +1,8 @@
 # Docs functions
 
 
+
+
 use Docs;
 use Fees;
 use Customers;	
@@ -30,12 +32,10 @@ sub docs_contract {
 
     my ($y, $m, $d)=split(/-/, (($users->{CONTRACT_DATE}) ? $users->{CONTRACT_DATE} : $DATE ) , 3);
     $Docs->{CONTRACT_DATE_LIT} = "$d ". $MONTHES_LIT[int($m)-1] ." $y $_YEAR";
-    
-    #$Docs->{ADDRESS_FULL}="$Docs->{ADDRESS_STREET} $Docs->{ADDRESS_BUILD}, $Docs->{ADDRESS_FLAT}"; 
-		
+
 		%{ $attr } = %{ Docs }, %{ $user_main_info };
 		my $contract_tpl = 'contract';
-		
+
 		if ($Docs->{CONTRACT_SUFIX}) {
 			if ($conf{DOCS_CONTRACT_TYPES}) {
     	  #PREFIX:SUFIX:NAME;
@@ -53,10 +53,7 @@ sub docs_contract {
         	 }
          }
        }
-			
 		 }
-		
-
 		docs_print($contract_tpl, { %$admin, %$Docs, %$attr });
 	 }
 }
@@ -89,12 +86,12 @@ sub docs_invoice_add  {
 
      if(! $Docs->{errno}) {
        if ($conf{DOCS_PDF_PRINT}) {
-  	     $html->message('info', "$_INVOICE $_ADDED", "$_INVOICE $_NUM: [$Docs->{DOC_ID}] $_DATE: $FORM{DATE} (". $html->button($_PRINT, "qindex=$index&print=$Docs->{DOC_ID}&UID=$LIST_PARAMS{UID}&pdf=1", { ex_params => 'target=_new' }) . ')');
+  	     $html->message('info', "$_INVOICE $_ADDED", "$_INVOICE $_NUM: [$Docs->{DOC_ID}] $_DATE: $FORM{DATE} ". $html->button($_PRINT, "qindex=$index&print=$Docs->{DOC_ID}&UID=$LIST_PARAMS{UID}&pdf=1", { ex_params => 'target=_new', BUTTON => 1 }));
    	     return 0;
         }
        else {
-         $html->message('info', "$_INVOICE $_ADDED", "$_INVOICE $_NUM: [$Docs->{DOC_ID}] $_DATE: $FORM{DATE} (". 
-           $html->button($_PRINT, "qindex=$index&print=$Docs->{DOC_ID}&UID=$LIST_PARAMS{UID}", { ex_params => 'target=_new' }) . ")");
+         $html->message('info', "$_INVOICE $_ADDED", "$_INVOICE $_NUM: [$Docs->{DOC_ID}] $_DATE: $FORM{DATE} ". 
+           $html->button($_PRINT, "qindex=$index&print=$Docs->{DOC_ID}&UID=$LIST_PARAMS{UID}", { ex_params => 'target=_new', BUTTON => 1 }) );
          $Docs->docs_invoice_info($Docs->{DOC_ID});
         }
       }
@@ -126,10 +123,8 @@ sub docs_invoice_add  {
       $Docs->{'ORDER_COUNT_'.$i} = $count;
       $Docs->{'ORDER_PRICE_'.$i} = $line->[4];
       $Docs->{'ORDER_SUM_'.$i}   = $sum;
-
       $Docs->{'ORDER_PRICE_WITHOUT_VAT_'.$i} = sprintf("%.2f", ($conf{DOCS_VAT_INCLUDE}) ? $line->[4] - $line->[4] / ((100 + $conf{DOCS_VAT_INCLUDE} ) / $conf{DOCS_VAT_INCLUDE}) : $line->[4]);
       $Docs->{'ORDER_SUM_WITHOUT_VAT_'.$i}   = sprintf("%.2f", ($conf{DOCS_VAT_INCLUDE}) ? $sum - $sum / ((100 + $conf{DOCS_VAT_INCLUDE} ) / $conf{DOCS_VAT_INCLUDE}) : $sum);
-
 		  $i++;
 		  $Docs->{TOTAL_SUM}+=$sum;
 		 }
@@ -214,7 +209,7 @@ sub docs_invoice {
     $Docs->{CUSTOMER}= $users->{FIO} || '-';
     $Docs->{CAPTION} = $_INVOICE;
 
-    $html->tpl_show(_include('docs_account_add', 'Docs'), { %$Docs, %$users });
+    $html->tpl_show(_include('docs_account_add', 'Docs'), { %$Docs, %$users }) if (! $FORM{pdf});
    }
 
 
@@ -225,6 +220,18 @@ sub docs_invoice {
 # docs_invoice_list
 #**********************************************************
 sub docs_invoice_list {
+
+push @PAYMENT_METHODS, @EX_PAYMENT_METHODS if (@EX_PAYMENT_METHODS);
+
+for(my $i=0; $i<=$#PAYMENT_METHODS; $i++) {
+  $PAYMENTS_METHODS{$i}=$PAYMENT_METHODS[$i];
+ }
+
+my %PAYSYS_PAYMENT_METHODS = %{ cfg2hash($conf{PAYSYS_PAYMENTS_METHODS}) };
+while(my($k, $v) = each %PAYSYS_PAYMENT_METHODS ) {
+  $PAYMENTS_METHODS{$k}=$v;
+ }
+
 
 if($FORM{del} && $FORM{is_js_confirmed}) {
   $Docs->docs_invoice_del($FORM{del});
@@ -237,7 +244,6 @@ if($FORM{del} && $FORM{is_js_confirmed}) {
    }
  }
 elsif($FORM{print}) {
-  
   $Docs->docs_invoice_info($FORM{print}, { UID => $LIST_PARAMS{UID} });
   ($Docs->{SUM_MAIN}, $Docs->{SUM_SUB})=split(/\./, $Docs->{TOTAL_SUM});
   $Docs->{TOTAL_SUM}=0.00;
@@ -261,22 +267,17 @@ elsif($FORM{print}) {
        
       $Docs->{'ORDER_PRICE_WITHOUT_VAT_'.$i} = sprintf("%.2f", ($conf{DOCS_VAT_INCLUDE}) ? $line->[4] - $line->[4] / ((100 + $conf{DOCS_VAT_INCLUDE} ) / $conf{DOCS_VAT_INCLUDE}) : $line->[4]);
       $Docs->{'ORDER_SUM_WITHOUT_VAT_'.$i}   = sprintf("%.2f", ($conf{DOCS_VAT_INCLUDE}) ? $sum - $sum / ((100 + $conf{DOCS_VAT_INCLUDE} ) / $conf{DOCS_VAT_INCLUDE}) : $sum);
-
-      
-      		  
 		  $Docs->{TOTAL_SUM}+=$sum;
 		  $i++;
    	 }
 	 }
 
   $Docs->{TOTAL_SUM} = sprintf("%.2f", $Docs->{TOTAL_SUM});
-  #print "Content-Type: text/html\n\n";
-  #print "!!! $Docs->{PAYMENT_ID}";
 
   if ($Docs->{PAYMENT_ID}) {
     my $list = $Docs->accounts_list({ PAYMENT_ID => $Docs->{PAYMENT_ID} });
     if ($Docs->{TOTAL} > 0) {
-      $Docs->account_info($list->[0]->[9]);	
+      $Docs->account_info($list->[0]->[10]);	
      }
     $Docs->{ACCOUNT_ID}=$Docs->{ACCT_ID};
 
@@ -311,14 +312,9 @@ elsif($FORM{print}) {
     	else {
         $Docs->{PAYMENT_METHOD} = $PAYMENT_METHODS[$method];
        }
+
      }
-
-    #print "// $Docs->{ACCOUNT_ID} // $Docs->{PAYMENT_METHOD}";
    }
-
-
-
-
   
   if ($conf{DOCS_VAT_INCLUDE}) {
    	 $Docs->{ORDER_TOTAL_SUM_VAT}  = sprintf("%.2f", $Docs->{TOTAL_SUM} / ((100 + $conf{DOCS_VAT_INCLUDE} ) / $conf{DOCS_VAT_INCLUDE}));
@@ -330,60 +326,161 @@ elsif($FORM{print}) {
   return 0;
  }
 elsif (! $LIST_PARAMS{UID}) {
-  form_search({ SEARCH_FORM => $html->tpl_show(_include('docs_search', 'Docs'), 
+  $info{PAYMENT_METHOD_SEL} = $html->form_select('PAYMENT_METHOD', 
+                                { SELECTED     => (defined($FORM{PAYMENT_METHOD}) && $FORM{PAYMENT_METHOD} ne '') ? $FORM{METHOD} : '',
+ 	                                SEL_HASH     => { '' => $_ALL, %PAYMENTS_METHODS },
+ 	                                NO_ID        => 1,
+ 	                                SORT_KEY     => 1
+ 	                               });
+
+  form_search({ SEARCH_FORM => ($FORM{pdf}) ? '' : $html->tpl_show(_include('docs_invoice_search', 'Docs'), 
   	                                  { %info, %FORM }, 
   	                                  { notprint => 1 })  
 	            });
 }
 
+if (! $FORM{sort}) {
+  $LIST_PARAMS{SORT}='2 DESC,1 DESC';
+  #$LIST_PARAMS{DESC}='DESC';
+}
 
-#  Date  Customer  Sum  User  Administrators  Time  
+if ($FORM{print_list}) {
+	my $list = $Docs->docs_invoice_list( { %FORM, %LIST_PARAMS, 
+                                         FULL_INFO  => 1 } );
+  my @MULTI_ARR = ();
+  my $doc_num   = 0;
+  
+  foreach my $line (@$list) {
+    my %D = ();
+    $D{INVOICE_ID}   = $line->[0];
+    $D{DATE}         = $line->[1];
+    my ($y, $m, $d)=split(/-/, $line->[1], 3);
+    $D{FROM_DATE_LIT} = "$d ". $MONTHES_LIT[int($m)-1] ." $y $_YEAR";
+    $D{DATE_EURO_STANDART} = "$d.$m.$y";
+    $D{FIO}           = $line->[2];
+    $D{LOGIN}         = $line->[15];
+    $D{ACCOUNT_ID}    = $line->[8];
+    $D{FIO}           = $line->[2];
+    $D{ADDRESS_FULL}  = "$line->[10], $line->[11], $line->[12]";
+    $D{TOTAL_SUM}     = sprintf("%.2f", $line->[3]);
+    $D{CONTRACT_ID}   = $line->[13] || '';
+    $D{CONTRACT_DATE} = "$line->[14]" || '0000-00-00';
+    
+     	my $method=$line->[7];
+    	
+    	if ($conf{DOCS_PAYMENT_METHODS}) {
+        my %methods_hash = %{ cfg2hash($conf{DOCS_PAYMENT_METHODS}) };        
 
-if (! defined($FORM{sort})) {
-  $LIST_PARAMS{SORT}=1;
-  $LIST_PARAMS{DESC}='DESC';
+        if ($methods_hash{$method}) {
+          $D{PAYMENT_METHOD}=$methods_hash{$method};
+         }
+        else {
+        	$D{PAYMENT_METHOD}=$methods_hash{0};
+         }
+    	 }
+    	else {
+        $D{PAYMENT_METHOD} = $PAYMENT_METHODS[$method];
+       }
+    $D{TOTAL_SUM}     = $line->[3];
+
+    if ($conf{DOCS_VAT_INCLUDE}) {
+   	   $D{ORDER_TOTAL_SUM_VAT}  = sprintf("%.2f", $D{TOTAL_SUM} / ((100 + $conf{DOCS_VAT_INCLUDE} ) / $conf{DOCS_VAT_INCLUDE}));
+   	   $D{TOTAL_SUM_WITHOUT_VAT}= sprintf("%.2f", $D{TOTAL_SUM} - $D{ORDER_TOTAL_SUM_VAT});
+   	   $D{TOTAL_SUM_VAT}        = sprintf("%.2f", $D{TOTAL_SUM} - $D{TOTAL_SUM_WITHOUT_VAT});
+     }
+    $D{ORDER_PRICE_WITHOUT_VAT_1}=$D{TOTAL_SUM_WITHOUT_VAT} || 0,00;
+    $D{ORDER_TOTAL_SUM_VAT}=$D{TOTAL_SUM_VAT} || 0,00;
+
+#   if ($Docs->{TOTAL} > 0) {
+#   	 ($Docs->{SUM_MAIN}, $Docs->{SUM_SUB})=split(/\./, $D{TOTAL_SUM});
+#      $Docs->{FROM_DATE_LIT}='';
+#
+#     my $list = $Docs->{ORDERS};
+#     my $i=0;
+#     foreach my $line (@$list) {
+#   	   $i++;
+#   	   $Docs->{ORDER} .= sprintf("<tr><td align=right>%d</td><td>%s</td><td align=right>%d</td><td align=right>%d</td><td align=right>%.2f</td><td align=right>%.2f</td></tr>\n", 
+#   	     $i, $line->[1], $line->[2], $line->[3], $line->[4], ($line->[2]*$line->[4])) if (! $conf{DOCS_PDF_PRINT});
+#   	   
+#   	   my $count = $line->[2] || 1;
+#   	   my $sum   = sprintf("%.2f", $count*$line->[4]);
+#   	   
+#   	   $D{'ORDER_NUM_'.$i}   = $i;
+#       $D{'ORDER_NAME_'.$i}  = $line->[1];
+#       $D{'ORDER_COUNT_'.$i} = $count;
+#       $D{'ORDER_PRICE_'.$i} = $line->[4];
+#       $D{'ORDER_SUM_'.$i}   = $sum;
+#       
+#       $D{'ORDER_PRICE_WITHOUT_VAT_'.$i} = sprintf("%.2f", ($conf{DOCS_VAT_INCLUDE}) ? $line->[4] - $line->[4] / ((100 + $conf{DOCS_VAT_INCLUDE} ) / $conf{DOCS_VAT_INCLUDE}) : $line->[3]);
+#       $D{'ORDER_SUM_WITHOUT_VAT_'.$i}   = sprintf("%.2f", ($conf{DOCS_VAT_INCLUDE}) ? $sum - ($sum) / ((100 + $conf{DOCS_VAT_INCLUDE} ) / $conf{DOCS_VAT_INCLUDE}) : $sum );
+#      }
+#
+#     $D{'TOTAL_SUM_WITHOUT_VAT'}= sprintf("%.2f", ($conf{DOCS_VAT_INCLUDE}) ? $D{TOTAL_SUM} - ($Docs->{TOTAL_SUM}) / ((100 + $conf{DOCS_VAT_INCLUDE} ) / $conf{DOCS_VAT_INCLUDE}) : $D{TOTAL_SUM} );
+#     $Docs->{'TOTAL_SUM_VAT'}   = sprintf("%.2f", $D{TOTAL_SUM}-$Docs->{'TOTAL_SUM_WITHOUT_VAT'});
+#     
+#      my $i=0; 
+#      foreach my $field_id ( @{ $Company->{INFO_FIELDS_ARR} } ) {
+#         my($position, $type, $name)=split(/:/, $Company->{INFO_FIELDS_HASH}->{$field_id});
+#         $Company->{$field_id}=$Company->{INFO_FIELDS_VAL}->[$i];
+#         $i++;
+#       }
+#    }
+#-----------------------
+    push @MULTI_ARR, { %D, 
+                       DOC_NUMBER => sprintf("%.6d",  $doc_num),
+    	                };
+    $doc_num++;
+    print "UID: LOGIN: $line->[0] FIO: $line->[1] SUM: $line->[2]\n" if ($debug > 2);
+	 }
+
+  #print "Content-Type: text/html\n\n";
+  print $html->header() if ($FORM{qindex});  
+  my $single_tpl = $html->tpl_show(_include('docs_invoice', 'Docs', { pdf => $FORM{pdf} }), undef, 
+                                           { MULTI_DOCS   => \@MULTI_ARR, 
+  	                                         #SAVE_AS      => $save_filename,
+  	                                         #DOCS_IN_FILE => $docs_in_file,
+  	                                         debug        => $debug
+  	                                       }); 
+	return 0;
 }
 
 my $list = $Docs->docs_invoice_list( { %LIST_PARAMS } );
 
-if ($conf{DOCS_PDF_PRINT}) {
-	$pages_qs .= "&pdf=1";
-}
-
-
 my $table = $html->table( { width      => '100%',
                             caption    => "$_INVOICE",
                             border     => 1,
-                            title      => ['#', $_DATE, $_CUSTOMER, $_SUM, $_USER, $_ADMIN, $_TIME, '-', '-'],
+                            title      => ['#', $_DATE, $_CUSTOMER, $_SUM, $_USER, $_ADMIN, $_TIME, $_PAYMENT_METHOD, '-', '-'],
                             cols_align => ['right', 'right', 'left', 'right', 'left', 'left', 'right', 'center'],
                             qs         => $pages_qs,
                             pages      => $Docs->{TOTAL},
                             ID         => 'DOCS_INVOCE'
                           });
 
-
-
+if ($conf{DOCS_PDF_PRINT}) {
+	$pages_qs .= "&pdf=1";
+}
 
 foreach my $line (@$list) {
-  my $delete = ($permissions{1}{2}) ?  $html->button($_DEL, "index=$index&del=$line->[8]&UID=$line->[7]", { MESSAGE => "$_DEL ?" }) : ''; 
+  my $delete = ($permissions{1}{2}) ?  $html->button($_DEL, "index=$index&del=$line->[9]&UID=$line->[8]", { MESSAGE => "$_DEL ?", BUTTON => 1 }) : ''; 
 
   $table->addrow("$line->[0]", 
    "$line->[1]",
    "$line->[2]", 
    "$line->[3]", 
-   $html->button($line->[4], "index=11&UID=$line->[7]"),
+   $html->button($line->[4], "index=11&UID=$line->[8]"),
    "$line->[5]", 
    "$line->[6]", 
-   $html->button($_PRINT, "qindex=$index&print=$line->[8]&UID=$line->[7]$pages_qs", { ex_params => 'target=_new' }) ,
+   $PAYMENTS_METHODS{"$line->[7]"}, 
+   $html->button($_PRINT, "qindex=$index&print=$line->[9]&UID=$line->[8]$pages_qs", { ex_params => 'target=_new', BUTTON => 1 }) ,
    $delete);
 }
 print $table->show();
 
 $table = $html->table( { width      => '100%',
                          cols_align => ['right', 'right'],
-                         rows       => [ [ "$_TOTAL:", $html->b($Docs->{TOTAL}) ] ]
+                         rows       => [ [ $html->button("$_PRINT $_LIST", "qindex=$index&print_list=1$pages_qs". (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : ''), { BUTTON => 1, ex_params => 'target=new'  }), "$_TOTAL:", $html->b($Docs->{TOTAL})
+                          ] ]
                       } );
-
 
 print $table->show();
 }
@@ -394,7 +491,18 @@ print $table->show();
 sub docs_accounts_list {
 
 my @payments_status = ("$_UNPAID", "$_PAID", "$_PARTLY_PAID");
+push @PAYMENT_METHODS, @EX_PAYMENT_METHODS if (@EX_PAYMENT_METHODS);
 
+for(my $i=0; $i<=$#PAYMENT_METHODS; $i++) {
+  $PAYMENTS_METHODS{$i}=$PAYMENT_METHODS[$i];
+ }
+
+if ($conf{PAYSYS_PAYMENTS_METHODS}) {
+  my %PAYSYS_PAYMENT_METHODS = %{ cfg2hash($conf{PAYSYS_PAYMENTS_METHODS}) };
+  while(my($k, $v) = each %PAYSYS_PAYMENT_METHODS ) {
+    $PAYMENTS_METHODS{$k}=$v;
+   }
+}
 
 if ($LIST_PARAMS{UID} || $FORM{UID}) {
 	docs_account();
@@ -402,7 +510,6 @@ if ($LIST_PARAMS{UID} || $FORM{UID}) {
  }
 elsif(defined($FORM{del}) && $FORM{is_js_confirmed} ) {
   $Docs->account_del($FORM{del});
-
   
   if(! $Docs->{errno}) {
     $html->message('info', "$_INFO", "$_DELETED N: [$FORM{del}]");
@@ -413,7 +520,6 @@ elsif(defined($FORM{del}) && $FORM{is_js_confirmed} ) {
    }
  }
 else {
-	
 	$info{PAID_STATUS_SEL} = $html->form_select('PAID_STATUS', 
                                     { 
  	                                   SELECTED     => $FORM{PAID_STATUS},
@@ -422,26 +528,111 @@ else {
                                      NO_ID        => 1
  	                                  });
 
-  form_search({ SEARCH_FORM => $html->tpl_show(_include('docs_search', 'Docs'), 
+  $info{PAYMENT_METHOD_SEL} = $html->form_select('PAYMENT_METHOD', 
+                                { SELECTED     => (defined($FORM{PAYMENT_METHOD}) && $FORM{PAYMENT_METHOD} ne '') ? $FORM{METHOD} : '',
+ 	                                SEL_HASH     => { '' => $_ALL, %PAYMENTS_METHODS },
+ 	                                NO_ID        => 1,
+ 	                                SORT_KEY     => 1
+ 	                               });
+
+
+  form_search({ SEARCH_FORM => ($FORM{pdf}) ? '' : $html->tpl_show(_include('docs_account_search', 'Docs'), 
   	                                  { %info, %FORM }, 
   	                                  { notprint => 1 })  
 	            });
 }
 
-
-#  Date  Customer  Sum  User  Administrators  Time  
-
 if (! $FORM{sort}) {
-  $LIST_PARAMS{SORT}=1;
-  $LIST_PARAMS{DESC}='DESC';
+  $LIST_PARAMS{SORT}='2 DESC, 1 DESC';
+  #$LIST_PARAMS{DESC}='DESC';
 }
 
+if ($FORM{print_list}) {
+	my $list = $Docs->accounts_list( { %FORM, %LIST_PARAMS, 
+                                     FULL_INFO  => 1 } );
 
-my @CAPTION = ('#', $_DATE, $_CUSTOMER, $_SUM, $_STATUS, $_USER, $_ADMIN, $_TIME, '-', '-');
+  my @MULTI_ARR = ();
+  my $doc_num   = 0;
+  
+  foreach my $line (@$list) {
+    my %D = ();
+    $D{NUMBER}     = $line->[0];
+    $D{DATE}       = $line->[1];
+    my ($y, $m, $d)=split(/-/, $line->[1], 3);
+    $D{FROM_DATE_LIT} = "$d ". $MONTHES_LIT[int($m)-1] ." $y $_YEAR";
+    $D{DATE_EURO_STANDART} = "$d.$m.$y";
+    $D{FIO}           = $line->[2];
+    $D{ADDRESS_FULL}  = "$line->[11], $line->[12], $line->[13]";
+    $D{TOTAL_SUM}     = sprintf("%.2f", $line->[3]);
+    $D{CONTRACT_ID}   = $line->[15];
+    $D{CONTRACT_DATE} = "$line->[16]";
+    $D{BILL_ID}       = $line->[17];
+    $D{UID}           = $line->[9];
+    
+    if ($conf{DOCS_VAT_INCLUDE}) {
+   	   $D{ORDER_TOTAL_SUM_VAT}  = sprintf("%.2f", $D{TOTAL_SUM} / ((100 + $conf{DOCS_VAT_INCLUDE} ) / $conf{DOCS_VAT_INCLUDE}));
+   	   $D{TOTAL_SUM_WITHOUT_VAT}= sprintf("%.2f", $D{TOTAL_SUM} - $Docs->{ORDER_TOTAL_SUM_VAT});
+   	   $D{TOTAL_SUM_VAT}        = sprintf("%.2f", $conf{DOCS_VAT_INCLUDE});
+     }
+
+   if ($Docs->{TOTAL} > 0) {
+   	 ($Docs->{SUM_MAIN}, $Docs->{SUM_SUB})=split(/\./, $D{TOTAL_SUM});
+      $Docs->{FROM_DATE_LIT}='';
+
+     my $list = $Docs->{ORDERS};
+     my $i=0;
+     foreach my $line (@$list) {
+   	   $i++;
+   	   $Docs->{ORDER} .= sprintf("<tr><td align=right>%d</td><td>%s</td><td align=right>%d</td><td align=right>%d</td><td align=right>%.2f</td><td align=right>%.2f</td></tr>\n", 
+   	     $i, $line->[1], $line->[2], $line->[3], $line->[4], ($line->[2]*$line->[4])) if (! $conf{DOCS_PDF_PRINT});
+   	   
+   	   my $count = $line->[2] || 1;
+   	   my $sum   = sprintf("%.2f", $count*$line->[4]);
+   	   
+   	   $D{'ORDER_NUM_'.$i}   = $i;
+       $D{'ORDER_NAME_'.$i}  = $line->[1];
+       $D{'ORDER_COUNT_'.$i} = $count;
+       $D{'ORDER_PRICE_'.$i} = $line->[4];
+       $D{'ORDER_SUM_'.$i}   = $sum;
+       
+       $D{'ORDER_PRICE_WITHOUT_VAT_'.$i} = sprintf("%.2f", ($conf{DOCS_VAT_INCLUDE}) ? $line->[4] - $line->[4] / ((100 + $conf{DOCS_VAT_INCLUDE} ) / $conf{DOCS_VAT_INCLUDE}) : $line->[3]);
+       $D{'ORDER_SUM_WITHOUT_VAT_'.$i}   = sprintf("%.2f", ($conf{DOCS_VAT_INCLUDE}) ? $sum - ($sum) / ((100 + $conf{DOCS_VAT_INCLUDE} ) / $conf{DOCS_VAT_INCLUDE}) : $sum );
+      }
+
+     
+
+     $D{'TOTAL_SUM_WITHOUT_VAT'}= sprintf("%.2f", ($conf{DOCS_VAT_INCLUDE}) ? $D{TOTAL_SUM} - ($Docs->{TOTAL_SUM}) / ((100 + $conf{DOCS_VAT_INCLUDE} ) / $conf{DOCS_VAT_INCLUDE}) : $D{TOTAL_SUM} );
+     $Docs->{'TOTAL_SUM_VAT'}   = sprintf("%.2f", $D{TOTAL_SUM}-$Docs->{'TOTAL_SUM_WITHOUT_VAT'});
+     
+      my $i=0; 
+      foreach my $field_id ( @{ $Company->{INFO_FIELDS_ARR} } ) {
+         my($position, $type, $name)=split(/:/, $Company->{INFO_FIELDS_HASH}->{$field_id});
+         $Company->{$field_id}=$Company->{INFO_FIELDS_VAL}->[$i];
+         $i++;
+       }
+    }
+#-----------------------
+    push @MULTI_ARR, { %D, 
+                       DOC_NUMBER => sprintf("%.6d",  $doc_num),
+    	                };
+    $doc_num++;
+    print "UID: LOGIN: $line->[0] FIO: $line->[1] SUM: $line->[2]\n" if ($debug > 2);
+	 }
+
+  print $html->header() if ($FORM{qindex});  
+  my $single_tpl = $html->tpl_show(_include('docs_account', 'Docs', { pdf => $FORM{pdf} }), undef, 
+                                           { MULTI_DOCS   => \@MULTI_ARR, 
+  	                                         #SAVE_AS      => $save_filename,
+  	                                         #DOCS_IN_FILE => $docs_in_file,
+  	                                         debug        => $debug
+  	                                       }); 
+	return 0;
+}
+
+my @CAPTION = ('#', $_DATE, $_CUSTOMER, $_SUM, $_STATUS, $_USER, $_ADMIN, $_TIME, "$_PAYMENT_METHOD", '-', '-');
 if ( $user->{UID} ) {
 	@CAPTION = ('#', $_DATE, $_CUSTOMER, $_SUM, $_STATUS);
 }
-
 
 my $list = $Docs->accounts_list( { %LIST_PARAMS } );
 my $table = $html->table( { width      => '100%',
@@ -457,21 +648,21 @@ my $table = $html->table( { width      => '100%',
 my @rows = ();
 
 foreach my $line (@$list) {
-
-  my $delete = ($permissions{1}{2}) ?  $html->button($_DEL, "index=$index&del=$line->[9]&UID=$line->[8]", { MESSAGE => "$_DEL ID $line->[8] ?" }) : ''; 
+  my $delete = ($permissions{1}{2}) ?  $html->button($_DEL, "index=$index&del=$line->[10]&UID=$line->[9]", { MESSAGE => "$_DEL ID $line->[10] ?", BUTTON => 1 }) : ''; 
 
   @rows = ( "$line->[0]", 
-   $html->button("$line->[1]", "qindex=$index&print=$line->[9]&UID=$line->[8]$pages_qs". ( ($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : '' ), {  ex_params => 'target=_new' }), 
+   $html->button("$line->[1]", "qindex=$index&print=$line->[10]&UID=$line->[9]$pages_qs". ( ($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : '' ), {  ex_params => 'target=_new' }), 
    "$line->[2]", 
    "$line->[3]", 
-   ($line->[4]) ? (($user->{UID}) ? $payments_status[1] : $html->button($payments_status[1], "index=2&UID=$line->[8]&ID=$line->[4]") ) :  $html->color_mark($payments_status[0], $_COLORS[6]) 
+   ($line->[4]) ? (($user->{UID}) ? $payments_status[1] : $html->button($payments_status[1], "index=2&UID=$line->[9]&ID=$line->[4]") ) :  $html->color_mark($payments_status[0], $_COLORS[6]) 
    );  
 
   if ( ! $user->{UID}  ) {
-    push @rows, $html->button($line->[5], "index=11&UID=$line->[8]"),
+    push @rows, $html->button($line->[5], "index=11&UID=$line->[9]"),
     "$line->[6]", 
     "$line->[7]", 
-    $html->button($_PRINT, "qindex=$index&print=$line->[9]&UID=$line->[8]". ( ($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : '' ), {  ex_params => 'target=_new' }), 
+    ($PAYMENTS_METHODS{$line->[8]}) ? $PAYMENTS_METHODS{$line->[8]} : $line->[8], 
+    $html->button($_PRINT, "qindex=$index&print=$line->[10]&UID=$line->[9]". ( ($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : '' ), {  ex_params => 'target=_new', BUTTON => 1 }), 
     $delete;
    }
 
@@ -482,7 +673,8 @@ print $table->show();
 
 $table = $html->table( { width      => '100%',
                          cols_align => ['right', 'right'],
-                         rows       => [ [ "$_TOTAL:", $html->b($Docs->{TOTAL}) ] ]
+                         rows       => [ [ (($user->{UID}) ? '' : $html->button("$_PRINT $_LIST", "qindex=$index&print_list=1$pages_qs". (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : ''), { BUTTON => 1, ex_params => 'target=new'  }) ), 
+                         "$_TOTAL:", $html->b($Docs->{TOTAL}) ] ]
                       } );
 
 
@@ -526,24 +718,101 @@ else {
  }
 
 
-  form_search({ SEARCH_FORM => $html->tpl_show(_include('docs_search', 'Docs'), 
+  form_search({ SEARCH_FORM => ($conf{DOCS_PDF_PRINT}) ? '' : $html->tpl_show(_include('docs_search', 'Docs'), 
   	                                  { %info, %FORM }, 
-  	                                  { notprint => 1 })  
+  	                                  { notprint => 1 })
 	            });
+
+if (! $FORM{sort}) {
+  $LIST_PARAMS{SORT}='2 DESC,1 DESC';
+  #$LIST_PARAMS{DESC}='DESC';
+}
  
 
+if ($FORM{print_list}) {
+	my $list = $Docs->tax_invoice_list( { %LIST_PARAMS, 
+		                                    COMPANY_ID => $FORM{COMPANY_ID},
+		                                    FULL_INFO  => 1 } );
 
-#  Date  Customer  Sum  User  Administrators  Time  
+  my @MULTI_ARR = ();
+  my $doc_num   = 0;
+  
+  foreach my $line (@$list) {
 
-if (! defined($FORM{sort})) {
-  $LIST_PARAMS{SORT}=1;
-  $LIST_PARAMS{DESC}='DESC';
+    my %D = ();
+    $D{NUMBER}=        $line->[0];
+    $D{DATE}  =        $line->[1];
+    $D{COMPANY_NAME} = $line->[2];
+    $D{ADDRESS}      = "$line->[11], $line->[12], $line->[13]";
+    $D{TOTAL_SUM}    = sprintf("%.2f", $line->[3]);
+
+    if ($conf{DOCS_VAT_INCLUDE}) {
+   	   $D{ORDER_TOTAL_SUM_VAT}  = sprintf("%.2f", $D{TOTAL_SUM} / ((100 + $conf{DOCS_VAT_INCLUDE} ) / $conf{DOCS_VAT_INCLUDE}));
+   	   $D{TOTAL_SUM_WITHOUT_VAT}= sprintf("%.2f", $D{TOTAL_SUM} - $Docs->{ORDER_TOTAL_SUM_VAT});
+   	   $D{TOTAL_SUM_VAT}        = sprintf("%.2f", $conf{DOCS_VAT_INCLUDE});
+     }
+
+
+
+
+   if ($Docs->{TOTAL} > 0) {
+   	 ($Docs->{SUM_MAIN}, $Docs->{SUM_SUB})=split(/\./, $D{TOTAL_SUM});
+      $Docs->{FROM_DATE_LIT}='';
+
+     my $list = $Docs->{ORDERS};
+     my $i=0;
+     foreach my $line (@$list) {
+   	   $i++;
+   	   $Docs->{ORDER} .= sprintf("<tr><td align=right>%d</td><td>%s</td><td align=right>%d</td><td align=right>%d</td><td align=right>%.2f</td><td align=right>%.2f</td></tr>\n", 
+   	     $i, $line->[1], $line->[2], $line->[3], $line->[4], ($line->[2]*$line->[4])) if (! $conf{DOCS_PDF_PRINT});
+   	   
+   	   my $count = $line->[2] || 1;
+   	   my $sum   = sprintf("%.2f", $count*$line->[4]);
+   	   
+   	   $D{'ORDER_NUM_'.$i}   = $i;
+       $D{'ORDER_NAME_'.$i}  = $line->[1];
+       $D{'ORDER_COUNT_'.$i} = $count;
+       $D{'ORDER_PRICE_'.$i} = $line->[4];
+       $D{'ORDER_SUM_'.$i}   = $sum;
+       
+       $D{'ORDER_PRICE_WITHOUT_VAT_'.$i} = sprintf("%.2f", ($conf{DOCS_VAT_INCLUDE}) ? $line->[4] - $line->[4] / ((100 + $conf{DOCS_VAT_INCLUDE} ) / $conf{DOCS_VAT_INCLUDE}) : $line->[3]);
+       $D{'ORDER_SUM_WITHOUT_VAT_'.$i}   = sprintf("%.2f", ($conf{DOCS_VAT_INCLUDE}) ? $sum - ($sum) / ((100 + $conf{DOCS_VAT_INCLUDE} ) / $conf{DOCS_VAT_INCLUDE}) : $sum );
+      }
+
+     
+
+     $D{'TOTAL_SUM_WITHOUT_VAT'}= sprintf("%.2f", ($conf{DOCS_VAT_INCLUDE}) ? $D{TOTAL_SUM} - ($Docs->{TOTAL_SUM}) / ((100 + $conf{DOCS_VAT_INCLUDE} ) / $conf{DOCS_VAT_INCLUDE}) : $D{TOTAL_SUM} );
+     $Docs->{'TOTAL_SUM_VAT'}   = sprintf("%.2f", $D{TOTAL_SUM}-$Docs->{'TOTAL_SUM_WITHOUT_VAT'});
+     
+      my $i=0; 
+      foreach my $field_id ( @{ $Company->{INFO_FIELDS_ARR} } ) {
+         my($position, $type, $name)=split(/:/, $Company->{INFO_FIELDS_HASH}->{$field_id});
+         $Company->{$field_id}=$Company->{INFO_FIELDS_VAL}->[$i];
+         $i++;
+       }
+    }
+#-----------------------
+
+    
+    push @MULTI_ARR, { %D, 
+                       DOC_NUMBER => sprintf("%.6d",  $doc_num),
+    	                };
+    $doc_num++;
+    print "UID: LOGIN: $line->[0] FIO: $line->[1] SUM: $line->[2]\n" if ($debug > 2);
+	 }
+
+  #print "Content-Type: text/html\n\n";
+  print $html->header() if ($FORM{qindex});  
+  my $single_tpl = $html->tpl_show(_include('docs_tax_invoice', 'Docs', { pdf => $FORM{pdf} }), undef, 
+                                           { MULTI_DOCS   => \@MULTI_ARR, 
+  	                                         #SAVE_AS      => $save_filename,
+  	                                         #DOCS_IN_FILE => $docs_in_file,
+  	                                         debug        => $debug
+  	                                       }); 
+
+
+	return 0;
 }
-
-
-#if ($conf{DOCS_PDF_PRINT}) {
-#	$pages_qs .= "&pdf=1";
-#}
 
 my $list = $Docs->tax_invoice_list( { %LIST_PARAMS, COMPANY_ID => $FORM{COMPANY_ID} } );
 my $table = $html->table( { width      => '100%',
@@ -558,7 +827,7 @@ my $table = $html->table( { width      => '100%',
 
 
 foreach my $line (@$list) {
-  my $delete = ($permissions{1}{2}) ?  $html->button($_DEL, "index=$index&del=$line->[8]&COMPANY_ID=$line->[7]", { MESSAGE => "$_DEL ID '$line->[8]' ?" }) : ''; 
+  my $delete = ($permissions{1}{2}) ?  $html->button($_DEL, "index=$index&del=$line->[8]&COMPANY_ID=$line->[7]", { MESSAGE => "$_DEL ID '$line->[8]' ?", BUTTON => 1 }) : ''; 
 
   $table->addrow("$line->[0]", 
    "$line->[1]",
@@ -566,19 +835,17 @@ foreach my $line (@$list) {
    "$line->[3]", 
    $html->button($line->[4], "index=11&UID=$line->[7]"),
    "$line->[5]", 
-   $html->button($_PRINT, "qindex=$index&print=$line->[8]&UID=$line->[8]$pages_qs". ( ($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : '' ), {  ex_params => 'target=_new' }), 
+   $html->button($_PRINT, "qindex=$index&print=$line->[8]&UID=$line->[8]$pages_qs". ( ($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : '' ), {  ex_params => 'target=_new', BUTTON => 1 }), 
    $delete);
 }
 print $table->show();
 
 $table = $html->table( { width      => '100%',
                          cols_align => ['right', 'right'],
-                         rows       => [ [ "$_TOTAL:", $html->b($Docs->{TOTAL}), "$_SUM:", $html->b($Docs->{SUM}),  ] ]
+                         rows       => [ [ $html->button("$_PRINT $_LIST", "qindex=$index&print_list=1$pages_qs". (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : ''), { BUTTON => 1, ex_params => 'target=new'  }), "$_TOTAL:", $html->b($Docs->{TOTAL}), "$_SUM:", $html->b($Docs->{SUM}),  ] ]
                       } );
 
-
 print $table->show();
-
 return 0;
 }
 
@@ -588,27 +855,22 @@ return 0;
 sub docs_tax_invoice {
 	my ($attr) = @_;
 
- 
-  if (! $attr->{COMPANY} && ! $FORM{qindex}) {
-    $FORM{subf}=$FORM{index};
-    $index=13;
-    $index2=$FORM{index};
-    form_companies();
-    return 0;
-   }
-  elsif($FORM{qindex}) {
-    $Company->info($FORM{COMPANY_ID});
-   }
-  else {
+ if (! $attr->{COMPANY} && ! $FORM{qindex}) {
+   $FORM{subf}=$FORM{index};
+   $index=13;
+   $index2=$FORM{index};
+   form_companies();
+   return 0;
+  }
+ elsif($FORM{qindex}) {
+   $Company->info($FORM{COMPANY_ID});
+  }
+ else {
   	$Company = $attr->{COMPANY};
-   }
-
-  #$LIST_PARAMS{COMPANY_ID}=$FORM{COMPANY_ID};
-
-# $Docs->tax_invoice_defaults();		
-  $Docs->{DATE}     =$DATE;
-  $Docs->{DONE_DATE}=$DATE;
-  $Docs->{FROM_DATE}=$DATE;
+  }
+ $Docs->{DATE}     =$DATE;
+ $Docs->{DONE_DATE}=$DATE;
+ $Docs->{FROM_DATE}=$DATE;
 
  if ($FORM{create}) {
    my $list = $Fees->reports({ MONTH      => $FORM{MONTH},
@@ -655,12 +917,10 @@ sub docs_tax_invoice {
      $Docs->tax_invoice_add({ %FORM, DATE => "$FORM{MONTH}-01" });
 
      if(! $Docs->{errno}) {
-    
        $html->message('info', "$_ADDED", "$_NUM: [$Docs->{DOC_ID}] $_DATE: $FORM{DATE}");
        $Docs->tax_invoice_info($Docs->{DOC_ID}, { COMPANY_ID => $LIST_PARAMS{COMPANY_ID} });
        ($Docs->{SUM_MAIN}, $Docs->{SUM_SUB})=split(/\./, $Docs->{TOTAL_SUM});
        $Docs->{NUMBER}=$Docs->{DOC_ID};
-
        my $list = $Docs->{ORDERS};
        my $i=0;
 
@@ -672,10 +932,9 @@ sub docs_tax_invoice {
         }
 
        if ($conf{DOCS_PDF_PRINT}) {
-       	 $html->message('info', $_ADDED, "$_TAX_INVOICE $_ADDED. ". $html->button($_PRINT, "qindex=$index&print=$Docs->{DOC_ID}&UID=$LIST_PARAMS{UID}&COMPANY_ID=$FORM{COMPANY_ID}&pdf=1", { ex_params => 'target=_new' }));
+       	 $html->message('info', $_ADDED, "$_TAX_INVOICE $_ADDED. ". $html->button($_PRINT, "qindex=$index&print=$Docs->{DOC_ID}&UID=$LIST_PARAMS{UID}&COMPANY_ID=$FORM{COMPANY_ID}&pdf=1", { ex_params => 'target=_new', BUTTON => 1 }));
        	 return 0;
         }
-
       
        #print $html->header() if ($FORM{qindex});
        if( $user->{UID} ) {
@@ -700,7 +959,7 @@ sub docs_tax_invoice {
       }
     }
   }
- elsif($FORM{print}){
+ elsif($FORM{print}) {
    $Docs->tax_invoice_info($FORM{print}, { UID => $LIST_PARAMS{UID} });
    
    if ($conf{DOCS_VAT_INCLUDE}) {
@@ -800,21 +1059,11 @@ sub docs_tax_invoice {
   my ($Y, $M, $D)=split(/-/, $DATE, 3);  
   my @MONTH_ARR = ('');
   for(my $i=1; $i<13; $i++) {
-	  my $m = sprintf("%02.d", $i);
+	  my $m = sprintf("%.2d", $i);
 	  push @MONTH_ARR, "$Y-$m";
    }
   $FORM{MONTH}="$Y-$M" if (! $FORM{MONTH});
 
-
-  #my $company_users_list = $users->list({ COMPANY_ID => $FORM{COMPANY_ID} });  
-  #my $users_list   =   $html->form_select("UID",
-  #                              { SELECTED          => $FORM{UID},
-  #                                SEL_MULTI_ARRAY   => $company_users_list,
-  #                                MULTI_ARRAY_KEY   => 5+$users->{SEARCH_FIELDS_COUNT},
-  #                                MULTI_ARRAY_VALUE => 0,
-  #                                NO_ID             => 1
-  #                                     });
-  
   my $table = $html->table( { width       => '100%',
   	                          caption     => "$_TAX_INVOICE",
 	                            rowcolor    => $_COLORS[0],
@@ -911,12 +1160,12 @@ sub docs_account {
         }
 
        if ($conf{DOCS_PDF_PRINT}) {
-       	 $html->message('info', "$_ACCOUNT $_ADDED", "$_ACCOUNT $_ADDED. (". $html->button($_PRINT, "qindex=$index&ACCOUNT_ID=$Docs->{DOC_ID}&print=$Docs->{DOC_ID}&UID=$LIST_PARAMS{UID}&pdf=1", { ex_params => 'target=_new' }).")" );
+       	 $html->message('info', "$_ACCOUNT $_ADDED", "$_ACCOUNT $_ADDED. ". $html->button($_PRINT, "qindex=$index&ACCOUNT_ID=$Docs->{DOC_ID}&print=$Docs->{DOC_ID}&UID=$LIST_PARAMS{UID}&pdf=1", { ex_params => 'target=_new', BUTTON => 1 }));
        	 return 0;
         }
        else {
-         $html->message('info', "$_ACCOUNT $_ADDED", "$_ACCOUNT $_NUM: [$Docs->{ACCT_ID}] $_DATE: $FORM{DATE} (".
-          $html->button($_PRINT, "qindex=$index&ACCOUNT_ID=$Docs->{DOC_ID}&print=$Docs->{DOC_ID}&UID=$LIST_PARAMS{UID}", { ex_params => 'target=_new' }) .")");
+         $html->message('info', "$_ACCOUNT $_ADDED", "$_ACCOUNT $_NUM: [$Docs->{ACCT_ID}] $_DATE: $FORM{DATE} ".
+          $html->button($_PRINT, "qindex=$index&ACCOUNT_ID=$Docs->{DOC_ID}&print=$Docs->{DOC_ID}&UID=$LIST_PARAMS{UID}", { ex_params => 'target=_new', BUTTON => 1 }) );
           #return 0;
         }
        	
@@ -1054,7 +1303,7 @@ sub docs_account {
   
   
   
-  $html->tpl_show(_include('docs_account_add', 'Docs'), { %$Docs, %$users });
+  $html->tpl_show(_include('docs_account_add', 'Docs'), { %$Docs, %$users }) if (! $FORM{pdf});
 }
 
 
@@ -1087,7 +1336,6 @@ sub docs_print {
     require "../../Abills/modules/Docs/lng_$conf{DOCS_LANGUAGE}.pl";
    }
 
-  
 	if (defined(@MONTHES_LIT) && $ATTR->{DATE}) {
     my ($y, $m, $d)=split(/-/, $ATTR->{DATE}, 3);
     $ATTR->{FROM_DATE_LIT} = "$d ". $MONTHES_LIT[int($m)-1] ." $y $_YEAR";
@@ -1112,10 +1360,8 @@ sub docs_print {
      LOCALE           => $conf{LOCALE}
   	  });
 
-
 	my $template = $type;
   print $html->header() if ($FORM{qindex});
-
 
   if ($LIST_PARAMS{COMPANY_ID}) {
 
@@ -1123,15 +1369,24 @@ sub docs_print {
   else {
     $users = $user if ($user->{UID});
    }
-  
 
+  my $tpl_sufix = '';
   if ($Docs->{UID}) {
     $users->info($Docs->{UID}) if (! $users->{BILL_ID});
     $users->pi({  UID => $Docs->{UID} }) ;
     $users->{ADDRESS_FULL}="$users->{ADDRESS_STREET}, $users->{ADDRESS_BUILD}, $users->{ADDRESS_FLAT}"; 
+    
+    if ($users->{GID}) {
+       $users->group_info($users->{GID});
+       if ($users->{SEPARATE_DOCS}) {
+       	 $tpl_sufix = "_$users->{GID}"; 
+        }
+     }
+    print "Content-Type: text/html\n\n";
+    print $tpl_sufix;
    }
 
-	$html->tpl_show(_include("docs_$template", 'Docs', 
+	$html->tpl_show(_include("docs_$template$tpl_sufix", 'Docs', 
 	    { pdf => $FORM{pdf} }), { %$users, %$ATTR });
 }
 
@@ -1244,7 +1499,7 @@ else {
   $index=$FORM{index};
  }
 
-  form_search({ SEARCH_FORM   => $html->tpl_show(_include('docs_search', 'Docs'),
+  form_search({ SEARCH_FORM   => ($FORM{pdf}) ? '' : $html->tpl_show(_include('docs_search', 'Docs'),
   	                                  { %info, %FORM }, 
   	                                  { notprint => 1 }),
   	            HIDDEN_FIELDS => { COMPANY_ID => $FORM{COMPANY_ID} || undef }
@@ -1276,7 +1531,7 @@ my $table = $html->table( { width      => '100%',
 $pages_qs = '';
 
 foreach my $line (@$list) {
-  my $delete = ($permissions{1}{2}) ?  $html->button($_DEL, "index=$FORM{index}&del=$line->[8]&COMPANY_ID=$line->[7]", { MESSAGE => "$_DEL ID '$line->[8]' ?" }) : ''; 
+  my $delete = ($permissions{1}{2}) ?  $html->button($_DEL, "index=$FORM{index}&del=$line->[8]&COMPANY_ID=$line->[7]", { MESSAGE => "$_DEL ID '$line->[8]' ?", BUTTON => 1 }) : ''; 
 
   $table->addrow("$line->[0]", 
    "$line->[1]",
@@ -1284,14 +1539,14 @@ foreach my $line (@$list) {
    "$line->[3]", 
    $html->button($line->[4], "index=11&UID=$line->[7]"),
    "$line->[5]", 
-   $html->button($_PRINT, "qindex=$FORM{index}&print=$line->[8]&COMPANY_ID=$line->[7]". (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : ''). (($pages_qs) ? $pages_qs : ""  ) , { ex_params => 'target=_new' }), 
+   $html->button($_PRINT, "qindex=$FORM{index}&print=$line->[8]&COMPANY_ID=$line->[7]". (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : ''). (($pages_qs) ? $pages_qs : ""  ) , { ex_params => 'target=_new', BUTTON => 1 }), 
    $delete);
 }
 print $table->show();
 
 $table = $html->table( { width      => '100%',
                          cols_align => ['right', 'right'],
-                         rows       => [ [ "$_TOTAL:", $html->b($Docs->{TOTAL}), "$_SUM:", $html->b($Docs->{SUM}),  ] ]
+                         rows       => [ [ $html->button("$_PRINT $_LIST", "qindex=$index&print_list=1$pages_qs". (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : ''), { BUTTON => 1, ex_params => 'target=new'  }), "$_TOTAL:", $html->b($Docs->{TOTAL}), "$_SUM:", $html->b($Docs->{SUM}),  ] ]
                       } );
 
 
@@ -1497,115 +1752,85 @@ my $Sessions = Dv_Sessions->new($db, $admin, \%conf);
 #**********************************************************
 sub docs_tax_exports {
 
-
-
 if ($FORM{d}) {
-my ($y, $m, $d)=split(/-/, $DATE);
-my $file_prefix = "26590025388695J1201502100000";
-my $filename = $file_prefix. "01$m$y".'.xml';
+my ($y, $m, $d)=split(/-/, ($FORM{MONTH}) ? $FORM{MONTH}.'-01' : $DATE);
 
-	
-	
-my $doc = qq{
-<?xml version="1.0" encoding="windows-1251"?>
-<DECLAR xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="J1201502.xsd">
-	<DECLARHEAD>
-		<TIN>25388695</TIN>
-		<C_DOC>J12</C_DOC>
-		<C_DOC_SUB>015</C_DOC_SUB>
-		<C_DOC_VER>2</C_DOC_VER>
-		<C_DOC_TYPE>0</C_DOC_TYPE>
-		<C_DOC_CNT>1</C_DOC_CNT>
-		<C_REG>26</C_REG>
-		<C_RAJ>59</C_RAJ>
-		<PERIOD_MONTH>12</PERIOD_MONTH>
-		<PERIOD_TYPE>1</PERIOD_TYPE>
-		<PERIOD_YEAR>2009</PERIOD_YEAR>
-		<C_DOC_STAN>1</C_DOC_STAN>
-		<D_FILL>10122009</D_FILL>
-		<SOFTWARE>OPZ 1.23</SOFTWARE>
-	</DECLARHEAD>
-	<DECLARBODY>
-		<HNUM>12/2009</HNUM>
-		<HZY>2009</HZY>
-		<HZKV xsi:nil="true"></HZKV>
-		<HZM>12</HZM>
-		<HNAME>ТОВ "Навігатор-Онлайн"</HNAME>
-		<HLOC>м.Київ, вул. Ванди Василевської, 13, корп.1</HLOC>
-		<HNPDV>253886926129</HNPDV>
-		<HNSPDV>100091816</HNSPDV>
-		<H01G01D>01122009</H01G01D>
-		<H02G01D>31122009</H02G01D>
-		<H03G01S>3 роки</H03G01S>
-		<T1RXXXXGKOR ROWNUM="1">0</T1RXXXXGKOR>
-		<T1RXXXXG2D ROWNUM="1">01122009</T1RXXXXG2D>
-		<T1RXXXXG3S ROWNUM="1">444444</T1RXXXXG3S>
-		<T1RXXXXGTYPE ROWNUM="1">1</T1RXXXXGTYPE>
-		<T1RXXXXG4S ROWNUM="1">Фінайті ТОВ</T1RXXXXG4S>
-		<T1RXXXXGNREZ ROWNUM="1">0</T1RXXXXGNREZ>
-		<T1RXXXXG5 ROWNUM="1">360815526540</T1RXXXXG5>
-		<T1RXXXXG6 ROWNUM="1">100.00</T1RXXXXG6>
-		<T1RXXXXG7 ROWNUM="1">83.33</T1RXXXXG7>
-		<T1RXXXXG8 ROWNUM="1">16.67</T1RXXXXG8>
-		<T1RXXXXG9 xsi:nil="true" ROWNUM="1"></T1RXXXXG9>
-		<T1RXXXXG10 xsi:nil="true" ROWNUM="1"></T1RXXXXG10>
-		<T1RXXXXG11 xsi:nil="true" ROWNUM="1"></T1RXXXXG11>
-		<T1RXXXXG12 xsi:nil="true" ROWNUM="1"></T1RXXXXG12>
-		<T1RXXXXG13 xsi:nil="true" ROWNUM="1"></T1RXXXXG13>
-		<T1RXXXXG14 xsi:nil="true" ROWNUM="1"></T1RXXXXG14>
-		<T1R01G6>100.00</T1R01G6>
-		<T1R01G7>83.33</T1R01G7>
-		<T1R01G8>16.67</T1R01G8>
-		<T1R01G9 xsi:nil="true"></T1R01G9>
-		<T1R01G10 xsi:nil="true"></T1R01G10>
-		<T1R01G11 xsi:nil="true"></T1R01G11>
-		<T1R01G12 xsi:nil="true"></T1R01G12>
-		<T1R01G13 xsi:nil="true"></T1R01G13>
-		<T1R01G14 xsi:nil="true"></T1R01G14>
-		<T2RXXXXGKOR ROWNUM="1">0</T2RXXXXGKOR>
-		<T2RXXXXGKOR ROWNUM="2">0</T2RXXXXGKOR>
-		<T2RXXXXGKOR ROWNUM="3">0</T2RXXXXGKOR>
-		<T2RXXXXG2D ROWNUM="1">02122009</T2RXXXXG2D>
-		<T2RXXXXG2D ROWNUM="2">12122009</T2RXXXXG2D>
-		<T2RXXXXG2D ROWNUM="3">22122009</T2RXXXXG2D>
-		<T2RXXXXG3S ROWNUM="1">222</T2RXXXXG3S>
-		<T2RXXXXG3S ROWNUM="2">333</T2RXXXXG3S>
-		<T2RXXXXG3S ROWNUM="3">444</T2RXXXXG3S>
-		<T2RXXXXGTYPE ROWNUM="1">1</T2RXXXXGTYPE>
-		<T2RXXXXGTYPE ROWNUM="2">1</T2RXXXXGTYPE>
-		<T2RXXXXGTYPE ROWNUM="3">1</T2RXXXXGTYPE>
-		<T2RXXXXG4S ROWNUM="1">Шенк Процес Україна ТОВ</T2RXXXXG4S>
-		<T2RXXXXG4S ROWNUM="2">Татуріна Ірина Миколаївна</T2RXXXXG4S>
-		<T2RXXXXG4S ROWNUM="3">Ірина Миколаївна</T2RXXXXG4S>
-		<T2RXXXXGNREZ ROWNUM="1">0</T2RXXXXGNREZ>
-		<T2RXXXXGNREZ ROWNUM="2">0</T2RXXXXGNREZ>
-		<T2RXXXXGNREZ ROWNUM="3">0</T2RXXXXGNREZ>
-		<T2RXXXXG5 ROWNUM="1">312411026506</T2RXXXXG5>
-		<T2RXXXXG5 xsi:nil="true" ROWNUM="2"></T2RXXXXG5>
-		<T2RXXXXG5 ROWNUM="2"> X </T2RXXXXG5>
-		<T2RXXXXG6 ROWNUM="1">600.00</T2RXXXXG6>
-		<T2RXXXXG6 ROWNUM="2">75.00</T2RXXXXG6>
-		<T2RXXXXG6 ROWNUM="3">5.00</T2RXXXXG6>
-		<T2RXXXXG7 ROWNUM="1">500.00</T2RXXXXG7>
-		<T2RXXXXG7 ROWNUM="2">62.50</T2RXXXXG7>
-		<T2RXXXXG7 ROWNUM="3">0.50</T2RXXXXG7>
-		<T2RXXXXG8 ROWNUM="1">100.00</T2RXXXXG8>
-		<T2RXXXXG8 ROWNUM="2">12.50</T2RXXXXG8>
-		<T2RXXXXG8 ROWNUM="3">1.50</T2RXXXXG8>
-		<T2RXXXXG9 xsi:nil="true" ROWNUM="1"></T2RXXXXG9>
-		<T2RXXXXG9 xsi:nil="true" ROWNUM="2"></T2RXXXXG9>
-		<T2RXXXXG10 xsi:nil="true" ROWNUM="1"></T2RXXXXG10>
-		<T2RXXXXG10 xsi:nil="true" ROWNUM="2"></T2RXXXXG10>
-		<T2RXXXXG11 xsi:nil="true" ROWNUM="1"></T2RXXXXG11>
-		<T2RXXXXG11 xsi:nil="true" ROWNUM="2"></T2RXXXXG11>
-		<T2R01G6>675.00</T2R01G6>
-		<T2R01G7>562.50</T2R01G7>
-		<T2R01G8>112.50</T2R01G8>
-		<T2R01G9 xsi:nil="true"></T2R01G9>
-		<T2R01G10 xsi:nil="true"></T2R01G10>
-		<T2R01G11 xsi:nil="true"></T2R01G11>
+my $file_prefix = "26590025388695J1201503100000";
+my $filename    = $file_prefix. "01$m$y".'.xml';
+
+my ($fill_y, $fill_m, $fill_d)=split(/-/, ($FORM{DATE}) ? $FORM{DATE} : $DATE);
+$Docs->{FILL_DATE}   = "$fill_d$fill_m$fill_y";
+$Docs->{YEAR}=$y;
+$Docs->{MONTH}=$m;
+
+my $doc = $html->tpl_show(_include('docs_tax_export', 'Docs'), { %$Docs }, { OUTPUT2RETURN => 1 });
+
+$LIST_PARAMS{PAGE_ROWS}=1000000;
+$LIST_PARAMS{MONTH} = $FORM{MONTH} || "$y-$m";
+my $list = $Docs->tax_invoice_reports({ %LIST_PARAMS });
+my %invoice_hash = ();
+
+my $num = 1;
+foreach my $line ( @$list ) {
+  push @{ $invoice_hash{T2RXXXXG2D}  }, $line->[1];
+  push @{ $invoice_hash{T2RXXXXG3S}  }, $line->[2];
+  push @{ $invoice_hash{T2RXXXXG4S}  }, 'ПН';
+  push @{ $invoice_hash{T2RXXXXG5S}  }, $line->[3];
+  push @{ $invoice_hash{T2RXXXXG6S}   }, ''; # | $line->[3];
+  push @{ $invoice_hash{T2RXXXXG7}   }, sprintf("%.2f", $line->[5]);
+  push @{ $invoice_hash{T2RXXXXG8}   }, sprintf("%.2f", $line->[6]);
+  push @{ $invoice_hash{T2RXXXXG9}   }, sprintf("%.2f", $line->[7]);
+
+  $invoice_hash{T2R01G7} += $line->[5];
+  $invoice_hash{T2R01G8} += $line->[6];
+  $invoice_hash{T2R01G9} += $line->[7];
+  $num++;
+}
+
+
+my @arr = (
+  'T2RXXXXG2D', 
+  'T2RXXXXG3S',
+  'T2RXXXXG4S',
+  'T2RXXXXG5S',
+  'T2RXXXXG6S',
+  'T2RXXXXG7',
+  'T2RXXXXG8',
+  'T2RXXXXG9',
+  'T2RXXXXG10',
+  'T2RXXXXG11',
+  'T1RXXXXG12',
+  'T1RXXXXG13',
+  'T1RXXXXG14',
+  'T1RXXXXG15',
+  'T1RXXXXG16',
+
+  );
+
+foreach my $key (@arr) {
+	my $i=1;
+	foreach my $value ( @{ $invoice_hash{$key} } ) {
+		$doc .= ($value) ? "<$key ROWNUM=\"$i\">$value</$key>\n" :  "<$key xsi:nil=\"true\" ROWNUM=\"$i\" />\n" ;
+		$i++;
+	}
+}
+
+$doc .= "
+<T2R01G7>". sprintf("%.2f", $invoice_hash{T2R01G7}). "</T2R01G7>
+<T2R01G8>". sprintf("%.2f", $invoice_hash{T2R01G8}). "</T2R01G8>
+<T2R01G9>". sprintf("%.2f", $invoice_hash{T2R01G9}). "</T2R01G9>
+<T2R01G10 xsi:nil=\"true\" />
+<T2R01G11 xsi:nil=\"true\" />
+<T2R01G12 xsi:nil=\"true\" />
+<T2R02G7 xsi:nil=\"true\" />
+<T2R02G8 xsi:nil=\"true\" />
+<T2R02G9 xsi:nil=\"true\" />
+<T2R02G10 xsi:nil=\"true\" />
+<T2R02G11 xsi:nil=\"true\" />
+<T2R02G12 xsi:nil=\"true\" /> 
+
 	</DECLARBODY>
-</DECLAR>};
+</DECLAR>";
 
 
 my $filesize = length($doc);
@@ -1615,13 +1840,45 @@ print "Content-Type: text/plain; filename=\"$filename\"\n".
 
 print  $doc;
 
+return 0;
+}
+
+my @MONTH_ARR = ('');
+my ($Y, $M, $D)=split(/-/, $DATE, 3);
+for (my $year=2009; $year<=$Y; $year++) {
+  for(my $i=1; $i<13; $i++) {
+	  my $m = sprintf("%.2d", $i);
+	  push @MONTH_ARR, "$year-$m";
+	  
+   }
 }
 
 
-print $html->button("_EXPORT", "qindex=$index&d=1");
+  $FORM{MONTH}="$Y-$M" if (! $FORM{MONTH});
 
+  my $table = $html->table( { width       => '500',
+  	                          caption     => "$_EXPORT - $_TAX_INVOICE",
+	                            rowcolor    => $_COLORS[0],
+                              rows        => [[ 
+                                                "$_PERIOD: ", $html->form_select('MONTH', 
+                                                           { SELECTED   => $FORM{MONTH},
+ 	                                                           SEL_ARRAY  => \@MONTH_ARR,
+ 	                                                           NO_ID      => 1
+                                                          } ),
+                                                 "$_CREATED: ",$html->date_fld2('DATE', { MONTHES => \@MONTHES, FORM_NAME => 'TAX_EXPORT', WEEK_DAYS => \@WEEKDAYS, DATE => "$Y-$M-01" }),
+                                          $html->form_input('show', $_CREATE, { TYPE => "SUBMIT" })
+                                         ]],                                   
+                      });
 
-
+  print $html->form_main({ CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
+	                         HIDDEN  => { 
+	                         	            qindex      => $index,
+	                         	            subf       => $FORM{subf},
+	                                      create     => "1",
+	                                      d          => 1
+	                                     },
+	                         NAME    => 'TAX_EXPORT'
+	                       });
 }
 
 

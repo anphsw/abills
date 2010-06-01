@@ -95,6 +95,7 @@ $html->setCookie('language', "$FORM{language}", "Fri, 1-Jan-2038 00:00:01", $web
 
 if (defined($FORM{sid})) {
   $html->setCookie('sid', "$FORM{sid}", "$cookies_time", $web_path, $domain, $secure);
+  $COOKIES{sid}=$FORM{sid};
 }
 #===========================================================
 
@@ -102,25 +103,16 @@ require Admins;
 Admins->import();
 $admin = Admins->new($db, \%conf);
 $admin->info($conf{SYSTEM_ADMIN_ID}, { DOMAIN_ID => $FORM{DOMAIN_ID} });
-
 $conf{WEB_TITLE} = $admin->{DOMAIN_NAME} if ($admin->{DOMAIN_NAME});
-
-
-
 
 require "Abills/templates.pl";
 $html->{METATAGS}=templates('metatags_client');
 
 my $uid = 0;
 my $page_qs;
-
-
 my %OUTPUT = ();
-
 my $login = $FORM{user} || '';
 my $passwd = $FORM{passwd} || '';
-
-
 
 $user=Users->new($db, $admin, \%conf); 
 
@@ -129,10 +121,8 @@ $user=Users->new($db, $admin, \%conf);
 my %uf_menus = ();
 
 if ($uid > 0) {
-
   $UID = $uid;
   my $default_index = 10;
-  
   #Quick Amon Alive Update
   # $ENV{HTTP_USER_AGENT} =~ /^AMon /
   if ($FORM{ALIVE}) {
@@ -162,6 +152,9 @@ if ($uid > 0) {
      push @m, "40:0:$_FINANCES:form_payments:::";
      push @m, "41:40:$_FEES:form_fees:::";
      push @m, "42:40:$_PAYMENTS:form_payments:::";
+     if ($conf{MONEY_TRANSFER}) {
+     	 push @m, "43:40:$_MONEY_TRANSFER:form_money_transfer:::";
+      }
    }
   push @m, "17:0:$_PASSWD:form_passwd:::" if($conf{user_chg_passwd});
   mk_menu(\@m);
@@ -211,10 +204,6 @@ if ($uid > 0) {
     require $lang_file;
    }
 
-#  if ($COOKIES{lastindex}) {
-#  	$index=$COOKIES{lastindex};
-#   }
-
   if ($FORM{qindex}) {
     if(defined($module{$FORM{qindex}})) {
  	   	require "Abills/modules/$module{$FORM{qindex}}/webinterface";
@@ -229,10 +218,12 @@ if ($uid > 0) {
  	 	require "Abills/modules/$module{$index}/webinterface";
    }
 
-  if ($index != 0 && defined($functions{$index})) {
+  $index=$default_index if ($index == 0);
+
+  if (defined($functions{$index})) {
     if (! $FORM{index} && $user->{DEPOSIT} + $user->{CREDIT} < 0) {
       $html->tpl_show(templates('form_neg_deposit'), $user);
-      $html->tpl_show(templates('form_client_info'), $user);
+      form_info();
      }
     else {
       $functions{$index}->();
@@ -339,9 +330,11 @@ sub mk_menu {
     %USER_FUNCTION_LIST = ();
   }
 
-  $menu_names{1000}    = "$_LOGOUT";
-  $functions{1000}     = 'logout';
-  $menu_items{1000}{0} = $_LOGOUT;
+  if (! $conf{PASSWORDLESS_ACCESS}) {
+    $menu_names{1000}    = "$_LOGOUT";
+    $functions{1000}     = 'logout';
+    $menu_items{1000}{0} = $_LOGOUT;
+  }
 }
 
 #**********************************************************
@@ -351,26 +344,22 @@ sub form_info {
   my ($attr) = @_;
   use POSIX qw(strftime);
   
+  my $Payments = Finance->payments($db, $admin, \%conf);
+  
   if ( $conf{user_credit_change}) {
-    my ($sum, $days, $price, $month_changes) = split(/:/, $conf{user_credit_change}) ;
+    my ($sum, $days, $price, $month_changes, $Payments_expr) = split(/:/, $conf{user_credit_change}) ;
     $month_changes = 0 if (!$month_changes);
-
-
-
     my $credit_date = strftime "%Y-%m-%d", localtime(time + int($days) * 86400);
 
-      if (in_array('Dv', \@MODULES) ) {
+    if (in_array('Dv', \@MODULES) ) {
         require "Abills/modules/Dv/webinterface";
         my $Dv       = Dv->new($db, $admin, \%conf);
-
         $Dv->info($user->{UID});
         $sum = $Dv->{TP_CREDIT} if ($Dv->{TP_CREDIT} > 0);
-       }
+     }
 
-    if ($month_changes) {
-      
+    if ($month_changes) {      
       my ($y, $m, $d) = split(/\-/, $DATE);
-      
       $admin->action_list({ UID       => $user->{UID},
       	                    TYPE      => 5,
       	                    FROM_DATE => "$y-$m-01",
@@ -382,7 +371,35 @@ sub form_info {
         $sum = 0;
        }
      }
-
+    #PERIOD=days;MAX_CREDIT_SUM=sum;MIN_PAYMENT_SUM=sum;
+    if ($Payments_expr) {
+    	my $params = (PERIOD          => 0,
+    	              MAX_CREDIT_SUM  => 1000,
+    	              MIN_PAYMENT_SUM => 1,
+    	              PERCENT         => 100
+    	              );
+    	my @params_arr = split(/;/, $Payments_expr);
+    	
+    	foreach my $line (@params_arr) {
+    		my ($k, $v)=split(/=/, $line);
+    		$params{$k}=$v;
+    	 }
+      
+      $Payments->list({ UID          => $user->{UID}, 
+      	                PAYMENT_DAYS => ">$params{PERIOD}",
+      	                SUM          => ">$params{MIN_PAYMENT_SUM}"
+      	                });
+    	
+    	if ($Payments->{TOTAL} > 0) {
+    	  $sum = $Payments->{SUM} / 100 *  $params{PERCENT};
+    	  if ($sum > $params{MAX_CREDIT_SUM}) {
+    		  $sum=$params{MAX_CREDIT_SUM};
+    	   }
+    	 }
+    	else {
+    		$sum = 0;
+    	 }
+     }
 
 
     
@@ -407,12 +424,11 @@ sub form_info {
          $user->{CREDIT_DATE}=$credit_date;
         }
        else {
-         $user->{CREDIT_CHG_BUTTON} =  $html->button("$_SET: ". sprintf("%.2f", $sum), "index=$index&sid=$sid&change_credit=$sum");
-         $user->{CREDIT_CHG_BUTTON} .= sprintf(" (%s: %.2f)", $_PRICE, $price) if ($price && $price > 0);
+         $user->{CREDIT_CHG_BUTTON} =  $html->button("$_SET: ". sprintf("%.2f", $sum) . 
+           (($price && $price > 0) ? sprintf(" (%s: %.2f)", "$_CREDIT $_CHANGE $_PRICE", $price) : undef),  
+           "index=$index&sid=$sid&change_credit=$sum", { BUTTON => 1 });
         }
      }
-    
-
    }
   
   if ($conf{user_chg_pi}) {
@@ -435,11 +451,11 @@ sub form_info {
   
   $user->pi();
   
-  my $payments = Finance->payments($db, $admin, \%conf);
+  
   $LIST_PARAMS{PAGE_ROWS}=1;
   $LIST_PARAMS{DESC}='desc';
   $LIST_PARAMS{SORT}=1;
-  my $list = $payments->list( { %LIST_PARAMS } );
+  my $list = $Payments->list( { %LIST_PARAMS } );
   
   $user->{PAYMENT_DATE}=$list->[0]->[2];
   $user->{PAYMENT_SUM}=$list->[0]->[3];
@@ -502,8 +518,6 @@ sub auth_radius {
 	my ($login, $passwd, $sid)=@_;
   my $res = 0;
   
-  print "Content-Type: text/html\n\n";
-  
   my $check_access = $conf{check_access};
  
   #check password throught ftp access
@@ -563,8 +577,6 @@ if ($conf{PASSWORDLESS_ACCESS}) {
     my $sessions = Dv_Sessions->new($db, $admin, \%conf);
 	  my $list = $sessions->online({ FRAMED_IP_ADDRESS => "$REMOTE_ADDR" });
 
-    
-    
     if ($sessions->{TOTAL} == 1) {
       $login   = $list->[0]->[0];
       $ret     = $list->[0]->[11];
@@ -702,12 +714,16 @@ sub form_passwd {
  my ($attr)=@_;
  my $hidden_inputs;
 
- 
+ $conf{PASSWD_SYMBOLS}='\[a-zA-Z0-9_\-\$\#\@\!\*\&\^\%\]' if (! $conf{PASSWD_SYMBOLS}); 
+
 if ($FORM{newpassword} eq '') {
 
  }
 elsif (length($FORM{newpassword}) < $conf{PASSWD_LENGTH}) {
-  $html->message('err', $_ERROR, $err_strs{6});
+  $html->message('err', $_ERROR, $ERR_SHORT_PASSWD);
+ }
+elsif ($FORM{newpassword} !~ /^[$conf{PASSWD_SYMBOLS}]*$/) {
+  $html->message('err', $_ERROR, $ERR_SYMBOLS_PASSWD);
  }
 elsif ($FORM{newpassword} eq $FORM{confirm}) {
   %INFO = ( PASSWORD => $FORM{newpassword},
@@ -726,7 +742,7 @@ elsif ($FORM{newpassword} eq $FORM{confirm}) {
   return 0;
 }
 elsif($FORM{newpassword} ne $FORM{confirm}) {
-  $html->message('err', $_ERROR, $err_strs{5});
+  $html->message('err', $_ERROR, $ERR_WRONG_CONFIRM);
 }
 
  my $password_form;
@@ -845,18 +861,14 @@ if ($attr->{FIELDS}) {
   if ($#arr > -1 ) {
     $table2->addrow(@arr);
    }
-
-
   $FIELDS .= $table2->show({ OUTPUT2RETURN => 1 });
-  
  }  
 
 
-if ($attr->{PERIOD_FORM}) {
-	
-	my @rows = ("$_FROM: ",   $html->date_fld('FROM_', { MONTHES => \@MONTHES} ),
-              "$_TO: ",    $html->date_fld('TO_', { MONTHES => \@MONTHES } ) );
-	
+if ($attr->{PERIOD_FORM}) {	
+  	my @rows = ("$_FROM: ".  $html->date_fld2('FROM_DATE', { MONTHES => \@MONTHES, FORM_NAME => 'form_reports', WEEK_DAYS => \@WEEKDAYS }) .
+               " $_TO: ".   $html->date_fld2('TO_DATE', { MONTHES => \@MONTHES, FORM_NAME => 'form_reports', WEEK_DAYS => \@WEEKDAYS } ) );
+
 		if (! $attr->{NO_GROUP}) {
 	  push @rows, "$_TYPE:",   $html->form_select('TYPE', 
                                                      { SELECTED     => $FORM{TYPE},
@@ -878,40 +890,27 @@ if ($attr->{PERIOD_FORM}) {
 
 	$table = $html->table( { width    => '100%',
 	                         rowcolor => $_COLORS[1],
-                           rows     => [[@rows, 
- 	                                        ($attr->{XML}) ? 
+                           rows     => [[@rows , 
+ 	                                       ($attr->{XML}) ? 
  	                                          $html->form_input('NO_MENU', 1, { TYPE => 'hidden' }).
- 	                                          $html->form_input('xml', 1, { TYPE => 'checkbox', OUTPUT2RETURN => 1 })."XML" : '',
-
-                                          $html->form_input('show', $_SHOW, { TYPE => 'submit', OUTPUT2RETURN => 1 }) ]
+ 	                                          $html->form_input('xml', 1, { TYPE => 'checkbox', OUTPUT2RETURN => 1 })."XML" : ''.
+                                            $html->form_input('show', $_SHOW, { TYPE => 'submit', OUTPUT2RETURN => 1 }) ]
                                          ],                                   
                       });
- 
-  
+
   print $html->form_main({ CONTENT => $table->show({ OUTPUT2RETURN => 1 }).$FIELDS,
+	                         NAME    => 'form_reports',
 	                         HIDDEN  => { 
-	                                     
 	                                     'index' => "$index",
 	                                     ($attr->{HIDDEN}) ? %{ $attr->{HIDDEN} } : undef
 	                                    }});
 
   if (defined($FORM{show})) {
-    $pages_qs .= "&show=y&FROM_D=$FORM{FROM_D}&FROM_M=$FORM{FROM_M}&FROM_Y=$FORM{FROM_Y}&TO_D=$FORM{TO_D}&TO_M=$FORM{TO_M}&TO_Y=$FORM{TO_Y}";
-    $FORM{FROM_M}++;
-    $FORM{TO_M}++;
-    $FORM{FROM_M} = sprintf("%.2d", $FORM{FROM_M}++);
-    $FORM{TO_M} = sprintf("%.2d", $FORM{TO_M}++);
-
+    $pages_qs .= "&show=1&FROM_DATE=$FORM{FROM_DATE}&TO_DATE=$FORM{TO_DATE}";
     $LIST_PARAMS{TYPE}=$FORM{TYPE};
-    $LIST_PARAMS{INTERVAL} = "$FORM{FROM_Y}-$FORM{FROM_M}-$FORM{FROM_D}/$FORM{TO_Y}-$FORM{TO_M}-$FORM{TO_D}";
+    $LIST_PARAMS{INTERVAL} = "$FORM{FROM_DATE}/$FORM{TO_DATE}";
    }
-	
 }
-
-
-
-
-
 
 if (defined($FORM{DATE})) {
   ($y, $m, $d)=split(/-/, $FORM{DATE}, 3);	
@@ -921,22 +920,18 @@ if (defined($FORM{DATE})) {
 
   if (defined($attr->{EX_PARAMS})) {
    	my $EP = $attr->{EX_PARAMS};
-
 	  while(my($k, $v)=each(%$EP)) {
      	if ($FORM{EX_PARAMS} eq $k) {
         $EX_PARAMS .= ' '.$html->b($v);
         $LIST_PARAMS{$k}=1;
-        #$pages_qs .="&EX_PARAMS=$k";
-
      	  if ($k eq 'HOURS') {
     	  	 undef $attr->{SHOW_HOURS};
 	       } 
      	 }
      	else {
-     	  $EX_PARAMS .= '::'. $html->button($v, "index=$index$pages_qs&EX_PARAMS=$k");
+     	  $EX_PARAMS .= $html->button($v, "index=$index$pages_qs&EX_PARAMS=$k", { BUTTON => 1} ).  ' ';
      	 }
 	  }
-  
   }
 
 
@@ -945,7 +940,7 @@ if (defined($FORM{DATE})) {
   for ($i=1; $i<=31; $i++) {
      $days .= ($d == $i) ? ' '. $html->b($i) : ' '.$html->button($i, sprintf("index=$index&DATE=%d-%02.f-%02.f&EX_PARAMS=$FORM{EX_PARAMS}%s%s", $y, $m, $i, 
        (defined($FORM{GID})) ? "&GID=$FORM{GID}" : '', 
-       (defined($FORM{UID})) ? "&UID=$FORM{UID}" : '' ));
+       (defined($FORM{UID})) ? "&UID=$FORM{UID}" : '' ), { BUTTON => 1 });
    }
   
   
@@ -957,11 +952,9 @@ if (defined($FORM{DATE})) {
     my(undef, $h)=split(/ /, $FORM{HOUR}, 2);
     my $hours = '';
     for (my $i=0; $i<24; $i++) {
-    	$hours .= ($h == $i) ? $html->b($i) : ' '.$html->button($i, sprintf("index=$index&HOUR=%d-%02.f-%02.f+%02.f&EX_PARAMS=$FORM{EX_PARAMS}$pages_qs", $y, $m, $d, $i));
+    	$hours .= ($h == $i) ? $html->b($i) : ' '.$html->button($i, sprintf("index=$index&HOUR=%d-%02.f-%02.f+%02.f&EX_PARAMS=$FORM{EX_PARAMS}$pages_qs", $y, $m, $d, $i), { BUTTON => 1 });
      }
-
  	  $LIST_PARAMS{HOUR}="$FORM{HOUR}";
-
   	push @rows, [ "$_HOURS", $hours ];
    }
 
@@ -969,35 +962,25 @@ if (defined($FORM{DATE})) {
     push @rows, [' ', $EX_PARAMS];
    }  
 
-
-  
-  
-  
-
   $table = $html->table({ width       => '100%',
-                           rowcolor   => $_COLORS[1],
-                           cols_align => ['right', 'left'],
-                           rows       => [ @rows ]
+                          rowcolor   => $_COLORS[1],
+                          cols_align => ['right', 'left'],
+                          rows       => [ @rows ]
                          });
-
   print $table->show();
-
 }
-
 }
 
 #*******************************************************************
-# form_period
+# form_fees
 #*******************************************************************
 sub form_fees {
-	
-	
 	if (! $FORM{sort}) {
 		$LIST_PARAMS{SORT}=1;
 		$LIST_PARAMS{DESC}='DESC';
 	 }
 	
- my @FEES_METHODS = ($_ONE_TIME, $_ABON, $_FINE, $_ACTIVATE);
+ my @FEES_METHODS = ($_ONE_TIME, $_ABON, $_FINE, $_ACTIVATE, $_MONEY_TRANSFER);
  push @FEES_METHODS, @EX_FEES_METHODS if (@EX_FEES_METHODS);
 
 my $fees = Finance->fees($db, $admin, \%conf);
@@ -1033,32 +1016,30 @@ $table = $html->table( { width      => '100%',
                          rowcolor   => $_COLORS[2]
                       } );
 print $table->show();
-
 }
 
 
 #*******************************************************************
-# form_period
+# form_payments
 #*******************************************************************
 sub form_payments {
-	
-my @PAYMENT_METHODS = ('Cash', 'Bank', 'Internet Card', 'Credit Card', 'Bonus');
+@PAYMENT_METHODS = ("$_CASH", "$_BANK", "$_EXTERNAL_PAYMENTS", 'Credit Card', "$_BONUS", "$_CORRECTION", "$_COMPENSATION", "$_MONEY_TRANSFER");
 push @PAYMENT_METHODS, @EX_PAYMENT_METHODS if (@EX_PAYMENT_METHODS);
 
-my $payments = Finance->payments($db, $admin, \%conf);
+my $Payments = Finance->payments($db, $admin, \%conf);
 
 if (! $FORM{sort}) {
   $LIST_PARAMS{sort}=1;
   $LIST_PARAMS{DESC}='DESC';
 }
-my $list  = $payments->list( { %LIST_PARAMS } );
+my $list  = $Payments->list( { %LIST_PARAMS } );
 my $table = $html->table( { width      => '100%',
                             caption    => "$_PAYMENTS",
                             border     => 1,
                             title      => ['ID', $_LOGIN, $_DATE, $_SUM, $_DESCRIBE, $_DEPOSIT], # $_PAYMENT_METHOD, 'EXT ID', "$_BILL"],
                             cols_align => ['right', 'left', 'right', 'right', 'left', 'left', 'right', 'right', 'left', 'left'],
                             qs         => $pages_qs,
-                            pages      => $payments->{TOTAL},
+                            pages      => $Payments->{TOTAL},
                             ID         => 'PAYMENTS'
                            } );
 
@@ -1079,44 +1060,132 @@ print $table->show();
 
 $table = $html->table({ width      => '100%',
                         cols_align => ['right', 'right', 'right', 'right'],
-                        rows       => [ [ "$_TOTAL:", $html->b($payments->{TOTAL}), 
-                                          "$_SUM", $html->b($payments->{SUM}) 
+                        rows       => [ [ "$_TOTAL:", $html->b($Payments->{TOTAL}), 
+                                          "$_SUM:", $html->b($Payments->{SUM}) 
                                        ] ],
                         rowcolor   => $_COLORS[2]
                       });
 print $table->show();
 }
 
-
-
-
 #*******************************************************************
 # form_period
 #*******************************************************************
 sub form_period  {
- my ($period) = @_;
+ my ($period, $attr) = @_;
 
- my @periods = ("$_NOW", "$_DATE");
- my $date_fld = $html->date_fld('date_', { MONTHES => \@MONTHES });
+ my @periods = ("$_NEXT_PERIOD", "$_DATE");
+ $attr->{TP}->{date_fld} = $html->date_fld2('DATE', { FORM_NAME => 'user', MONTHES => \@MONTHES, WEEK_DAYS => \@WEEKDAYS, NEXT_DAY => 1 });
  my $form_period='';
-
  $form_period .= "<tr><td>$_DATE:</td><td>";
+ $period=1;
 
- my $i=0;
- foreach my $t (@periods) {
+ for(my $i=$#periods; $i>-1; $i--) {
+ 	 my $t = $periods[$i];
    $form_period .= "<BR/><BR/>";
    $form_period .= $html->form_input('period', "$i", { TYPE          => "radio", 
    	                                                   STATE         => ($i eq $period) ? 1 : undef, 
    	                                                   OUTPUT2RETURN => 1
    	                                                  });
-   $form_period .= $t;       
-   $i++;
+
+   $form_period .= ($i == 0) ? ($attr->{ABON_DATE}) ? $t ." ($attr->{ABON_DATE})" : "$_NOW" : $t. " $attr->{TP}->{date_fld}";
  }
- $form_period .= "$date_fld</td></tr>\n";
 
-
+ $form_period .= "</td></tr>\n";
  return $form_period;	
 }
 
+#**********************************************************
+# transfer funds between users accounts 
+#**********************************************************
+sub form_money_transfer {
+	my ($attr) = @_;
+
+  my $deposit_limit  = 0;
+  my $transfer_price = 0;
+
+  if ($conf{MONEY_TRANSFER} =~ /:/) {
+    ($deposit_limit, $transfer_price)=split(/:/, $conf{MONEY_TRANSFER});
+   }
+  $transfer_price = sprintf("%.2f", $transfer_price);
+
+if ($FORM{s2} || $FORM{transfer}) {
+  $FORM{SUM} = sprintf("%.2f", $FORM{SUM});
+
+	if ($user->{DEPOSIT} < $FORM{SUM} + $deposit_limit + $transfer_price) {
+	  $html->message('err', $_ERROR, "$ERR_SMALL_DEPOSIT");
+	 }
+	elsif (! $FORM{SUM}) {
+	  $html->message('err', $_ERROR, "$ERR_WRONG_SUM");
+	 }
+	elsif (! $FORM{RECIPIENT}) {
+		$html->message('err', $_ERROR, "$_SELECT_USER");
+	 }
+	elsif ($FORM{RECIPIENT} == $user->{UID}) {
+		$html->message('err', $_ERROR, "$_USER_NOT_EXIST");
+	 }
+	else {
+		my $user2=Users->new($db, $admin, \%conf); 
+		$user2->info(int($FORM{RECIPIENT}));
+		if ($user2->{TOTAL} < 1) {
+			$html->message('err', $_ERROR, "$_USER_NOT_EXIST");
+		 }
+	  else {
+	  	$user2->pi({ UID => $user2->{UID} });
+      
+	    if (! $FORM{ACCEPT} && $FORM{transfer}) {
+		    $html->message('err', $_ERROR, "$ERR_ACCEPT_RULES");
+		    $html->tpl_show(templates('form_money_transfer_s2'), { %$user2, %FORM });	
+	     }
+	   	elsif ($FORM{transfer}) {
+    		#Fees 
+    		my $Fees = Finance->fees($db, $admin, \%conf);
+        $Fees->take($user, $FORM{SUM}, { DESCRIBE => "$_USER: $user2->{UID}", 
+        	                               METHOD   => 4 });  
+        if ($fees->{errno}) {
+          $html->message('err', $_ERROR, "[$fees->{errno}] $err_strs{$fees->{errno}}");	
+         }
+        else {
+        	$html->message('info', $_FEES, "$_TAKE SUM: $FORM{SUM}". (($transfer_price >0) ? " $_COMMISSION $_SUM: $transfer_price" : '' ));
+        	my $Payments = Finance->payments($db, $admin, \%conf);
+          $Payments->add($user2, { DESCRIBE       => "$_USER: $user->{UID}",
+          	                       INNER_DESCRIBE => "$Fees->{INSERT_ID}",
+          	                       SUM            => $FORM{SUM},
+          	                       METHOD         => 7
+          	                      });  
+
+          if ($Payments->{errno}) {
+            $html->message('err', $_ERROR, "[$Payments->{errno}] $err_strs{$Payments->{errno}}");	
+           } 
+          else {
+          	my $message = "# $Payments->{INSERT_ID} $_MONEY_TRANSFER $_SUM: $FORM{SUM}";
+            if ($transfer_price > 0) {
+          		my $Fees = Finance->fees($db, $admin, \%conf);
+              $Fees->take($user, $transfer_price, { DESCRIBE => "$_USER: $user2->{UID} $_COMMISSION", 
+        	                                          METHOD   => 4 });
+              if (! $fees->{errno}) {
+                #$message .= " $_COMMISSION $_SUM: $transfer_price";	
+               }
+             }
+
+            $html->message('info', $_PAYMENTS, $message);
+            $users2->{PAYMENT_ID}=$Payments->{INSERT_ID};
+           }
+         }
+
+    		#Payments
+        $html->tpl_show(templates('form_money_transfer_s3'), { %FORM, %$user2 });			
+	     }
+	    elsif ($FORM{s2}) {
+	    	$user2->{COMMISSION} = "$_COMMISSION: $transfer_price";
+	      $html->tpl_show(templates('form_money_transfer_s2'), { %$user2, %FORM });	
+	     }
+	    return 0; 	
+	   }
+	 }
+}
+
+ $html->tpl_show(templates('form_money_transfer_s1'), \%FORM); 	
+}
 
 1

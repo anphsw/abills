@@ -19,7 +19,7 @@ CREATE TABLE `admin_system_actions` (
   `datetime` DATETIME NOT NULL,
   `ip` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
   `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  `module` VARCHAR(10) COLLATE latin1_swedish_ci NOT NULL DEFAULT '',
+  `module` VARCHAR(10) NOT NULL DEFAULT '',
   `action_type` TINYINT(2) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `id` (`id`)
@@ -290,7 +290,7 @@ CREATE TABLE `dv_main` (
   `logins` tinyint(3) unsigned NOT NULL default '0',
   `registration` date default '0000-00-00',
   `ip` int(10) unsigned NOT NULL default '0',
-  `filter_id` varchar(15) NOT NULL default '',
+  `filter_id` varchar(150) NOT NULL default '',
   `speed` int(10) unsigned NOT NULL default '0',
   `netmask` int(10) unsigned NOT NULL default '4294967294',
   `cid` varchar(35) NOT NULL default '',
@@ -322,11 +322,6 @@ CREATE TABLE `exchange_rate` (
   UNIQUE KEY `id` (`id`)
 ) ;
 
-# --------------------------------------------------------
-
-#
-# Структура таблиці `fees`
-#
 
 CREATE TABLE `fees` (
   `date` datetime NOT NULL default '0000-00-00 00:00:00',
@@ -347,12 +342,6 @@ CREATE TABLE `fees` (
   KEY `uid` (`uid`)
 ) ;
 
-# --------------------------------------------------------
-
-#
-# Структура таблиці `filters`
-#
-
 CREATE TABLE `filters` (
   `id` smallint(5) unsigned NOT NULL auto_increment,
   `filter` varchar(100) NOT NULL default '',
@@ -361,17 +350,12 @@ CREATE TABLE `filters` (
   UNIQUE KEY `filter` (`filter`)
 )  ;
 
-# --------------------------------------------------------
-
-#
-# Структура таблиці `groups`
-#
-
 CREATE TABLE `groups` (
   `gid` smallint(4) unsigned NOT NULL default '0',
   `name` varchar(30) NOT NULL default '',
   `descr` varchar(200) NOT NULL default '',
   `domain_id` smallint(6) unsigned not null default 0,
+  `separate_docs` tinyint(1) unsigned not null default 0,
   PRIMARY KEY  (`gid`),
   UNIQUE KEY `name` (`domain_id`, `name`)
 ) ;
@@ -526,6 +510,7 @@ CREATE TABLE `msgs_admins` (
   `chapter_id` int(11) unsigned NOT NULL default '0',
   `priority` tinyint(4) unsigned NOT NULL default '0',
   `email_notify` tinyint(4) unsigned NOT NULL default '0',
+  `deligation_level` tinyint(4) unsigned NOT NULL default '0',
   UNIQUE KEY `aid` (`aid`,`chapter_id`)
 ) COMMENT='Msgs admins';
 
@@ -558,7 +543,7 @@ CREATE TABLE `msgs_dispatch` (
   `id` INTEGER(11) UNSIGNED NOT NULL AUTO_INCREMENT,
   `created` DATETIME NOT NULL,
   `plan_date` DATE NOT NULL,
-  `comments` TEXT COLLATE latin1_swedish_ci NOT NULL,
+  `comments` TEXT NOT NULL,
   `state` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   `closed_date` DATE NOT NULL,
   `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
@@ -598,6 +583,8 @@ CREATE TABLE `msgs_messages` (
   `inner_msg` tinyint(1) unsigned NOT NULL default '0',
   `phone` VARCHAR(16) NOT NULL DEFAULT '',
   `dispatch_id` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
+  `deligation` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
+  `deligation_level` tinyint(4) unsigned NOT NULL default '0',
   PRIMARY KEY  (`id`),
   KEY `uid` (`uid`)
 ) COMMENT='Msgs Messages';
@@ -679,7 +666,7 @@ CREATE TABLE `nas_groups` (
   `disable` tinyint(6) unsigned NOT NULL default '0',
   `domain_id` smallint(6) unsigned not null default 0,
   `default` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
-  `main_page` VARCHAR(120) COLLATE latin1_swedish_ci NOT NULL DEFAULT '',
+  `main_page` VARCHAR(120) NOT NULL DEFAULT '',
   PRIMARY KEY  (`id`),
   UNIQUE KEY `domain_id` (`domain_id`,`name`)
 ) COMMENT='NAS servers groups'; 
@@ -739,12 +726,6 @@ CREATE TABLE `payments` (
   KEY `uid` (`uid`)
 )  ;
 
-# --------------------------------------------------------
-
-#
-# Структура таблиці `s_detail`
-#
-
 CREATE TABLE `s_detail` (
   `acct_session_id` varchar(25) NOT NULL default '',
   `nas_id` smallint(5) unsigned NOT NULL default '0',
@@ -756,14 +737,10 @@ CREATE TABLE `s_detail` (
   `sent2` int(10) unsigned NOT NULL default '0',
   `recv2` int(10) unsigned NOT NULL default '0',
   `id` varchar(16) NOT NULL default '',
+  `sum` double(14,6) NOT NULL default '0.000000',
   KEY `sid` (`acct_session_id`)
 ) ;
 
-# --------------------------------------------------------
-
-#
-# Структура таблиці `shedule`
-#
 
 CREATE TABLE `shedule` (
   `id` int(10) unsigned NOT NULL auto_increment,
@@ -778,16 +755,12 @@ CREATE TABLE `shedule` (
   `y` varchar(4) NOT NULL default '*',
   `h` char(2) NOT NULL default '*',
   `module` varchar(12) NOT NULL default '',
+  `comments` varchar(120) NOT NULL default '', 
   PRIMARY KEY  (`id`),
   UNIQUE KEY `id` (`id`),
   UNIQUE KEY `uniq_action` (`h`,`d`,`m`,`y`,`type`,`uid`),
   KEY `date_type_uid` (`date`,`type`,`uid`)
-)  ;
-
-# --------------------------------------------------------
-#
-# Структура таблиці `tarif_plans`
-#
+) COMMENT='Shedules';
 
 CREATE TABLE `tarif_plans` (
   `id` smallint(5) unsigned NOT NULL default '0',
@@ -827,6 +800,7 @@ CREATE TABLE `tarif_plans` (
   `period_alignment` tinyint(1) NOT NULL DEFAULT '0',
   `min_use` double(14,2) unsigned NOT NULL DEFAULT '0.00',
   `abon_distribution` tinyint(1) NOT NULL DEFAULT '0',
+  `small_deposit_action` smallint(6) NOT NULL default '0',
   `domain_id` smallint(6) unsigned not null default 0,
   `total_time_limit` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
   `total_traf_limit` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
@@ -876,9 +850,10 @@ CREATE TABLE `trafic_tarifs` (
 
 CREATE TABLE `traffic_classes` (
   `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name` VARCHAR(25) COLLATE latin1_swedish_ci NOT NULL DEFAULT '',
-  `nets` TEXT COLLATE latin1_swedish_ci,
-  `comments` TEXT COLLATE latin1_swedish_ci NOT NULL,
+  `name` VARCHAR(25) NOT NULL DEFAULT '',
+  `nets` TEXT,
+  `comments` TEXT NOT NULL,
+  `changed` DATETIME NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`),
   UNIQUE KEY `id` (`id`),
   UNIQUE KEY `name` (`name`)
@@ -900,6 +875,7 @@ CREATE TABLE `users` (
   `expire` date NOT NULL default '0000-00-00',
   `credit` double(10,2) NOT NULL default '0.00',
   `reduction` double(6,2) NOT NULL default '0.00',
+  `reduction_date` date not null default '0000-00-00',
   `registration` date default '0000-00-00',
   `password` blob NOT NULL,
   `uid` int(11) unsigned NOT NULL auto_increment,
@@ -954,7 +930,7 @@ CREATE TABLE `users_nas` (
 CREATE TABLE `users_pi` (
   `uid` int(11) unsigned NOT NULL auto_increment,
   `fio` varchar(60) NOT NULL default '',
-  `phone` bigint(16) unsigned NOT NULL default '0',
+  `phone` varchar(16) NOT NULL default '',
   `email` varchar(250) NOT NULL default '',
   `address_street` varchar(100) NOT NULL default '',
   `address_build` varchar(10) NOT NULL default '',
@@ -969,6 +945,7 @@ CREATE TABLE `users_pi` (
   `zip` varchar(7) NOT NULL default '',
   `city` varchar(20) NOT NULL default '',
   `accept_rules` tinyint(1) unsigned NOT NULL default '0',
+  `location_id` INTEGER(11) UNSIGNED NOT NULL default '0',
   PRIMARY KEY  (`uid`)
 ) COMMENT='Users personal info';
 
@@ -1118,9 +1095,9 @@ CREATE TABLE `sqlcmd_history` (
   `id` INTEGER(11) UNSIGNED NOT NULL AUTO_INCREMENT,
   `datetime` DATETIME NOT NULL,
   `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '000000',
-  `sql_query` TEXT COLLATE latin1_swedish_ci NOT NULL,
+  `sql_query` TEXT NOT NULL,
   `db_id` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
-  `comments` TEXT COLLATE latin1_swedish_ci NOT NULL,
+  `comments` TEXT NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `id` (`id`),
   KEY `aid` (`aid`)
@@ -1134,10 +1111,47 @@ CREATE TABLE `help` (
   UNIQUE KEY `function` (`function`)
 );
 
+CREATE TABLE `streets` (
+  `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(100) NOT NULL DEFAULT '',  
+  `district_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `id` (`id`),
+  UNIQUE KEY `name` (`name`),
+  UNIQUE KEY `name_district` (`name`, `district_id`),
+  UNIQUE KEY `name_2` (`name`)
+) COMMENT='Locations streets';
 
-#
-# Структура таблиці `web_online`
-#
+
+CREATE TABLE `districts` (
+  `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(100) NOT NULL DEFAULT '',
+  `country` TINYINT(4) UNSIGNED NOT NULL,
+  `zip` VARCHAR(7) NOT NULL DEFAULT '',
+  `city` VARCHAR(30) NOT NULL DEFAULT '',  
+  `comments` TEXT NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `id` (`id`),
+  UNIQUE KEY `name` (`name`),
+  UNIQUE KEY `name_2` (`name`)
+) COMMENT='Locations districts';
+
+INSERT INTO districts (name) VALUES ('Main District');
+
+CREATE TABLE `builds` (
+  `id` INTEGER(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `street_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `number` VARCHAR(10)  NOT NULL DEFAULT '',
+  `flors` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
+  `entrances` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
+  `added` DATE NOT NULL,
+  `map_x` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `map_y` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `id` (`id`),
+  UNIQUE KEY `street_id` (`street_id`, `number`)
+) COMMENT='Builds';
+
 
 CREATE TABLE `web_online` (
   `admin` varchar(15) NOT NULL default '',

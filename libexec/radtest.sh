@@ -7,7 +7,7 @@ VERSION=0.2
 
 USER_NAME=test
 USER_PASSWORD=123456
-NAS_IP_ADDRESS=127.0.0.12
+NAS_IP_ADDRESS=127.0.0.1
 
 #Voip defauls
 VOIP_NAS_IP_ADDRESS=192.168.202.15
@@ -30,13 +30,14 @@ if [ t$1 = 'tauth' ] ; then
 
   ./rauth.pl \
         SERVICE_TYPE=VPN \
-        NAS_IP_ADDRESS=${NAS_IP_ADDRESS} \
-        CALLING_STATION_ID="0:1d:72:13:dd:e5"\
+        NAS_IP_ADDRESS=${NAS_IP_ADDRESS}\
         USER_PASSWORD="${USER_PASSWORD}"\
         USER_NAME="${USER_NAME}"
 
-#        CHAP_PASSWORD="0x5acd1cc26b6f8bf084fb616925769362af"
+#        CISCO_AVPAIR="client-mac-address=000f.ea3d.92e1"
 
+#        CHAP_PASSWORD="0x5acd1cc26b6f8bf084fb616925769362af"
+#NAS_IDENTIFIER="vpn1.imperial.net.ua"\
 #        USER_PASSWORD="test12345"\
 #        CISCO_AVPAIR="connect-progress=LAN Ses Up" \
 #        CISCO_AVPAIR="client-mac-address=000f.ea3d.92ef"\

@@ -17,14 +17,11 @@ sub _include {
   my ($tpl, $module, $attr) = @_;
   my $result = '';
   
-  my $sufix = ($attr->{pdf}) ? '.pdf' : '.tpl';
+  my $sufix = ($attr->{pdf} || $FORM{pdf}) ? '.pdf' : '.tpl';
 
   if ($admin->{DOMAIN_ID}) {
  	  $domain_path="$admin->{DOMAIN_ID}/";
    }
-
-  #print "$module // $tpl - $Bin .'../Abills/templates/'. $module . '_' . $tpl .$sufix\n";
-
   if ($FORM{NAS_GID} && -f $Bin .'/../Abills/templates/'. $domain_path.'/'. $FORM{NAS_GID} .'/'.$module . '_' . $tpl . "_$html->{language}".$sufix) {
     return ($FORM{pdf}) ? $Bin .'/../Abills/templates/'. $domain_path.'/'. $FORM{NAS_GID} .'/'. $module . '_' . $tpl . "_$html->{language}" . $sufix : tpl_content($Bin .'/../Abills/templates/'. $domain_path.'/'. $FORM{NAS_GID} .'/'.$module . '_' . $tpl . "_$html->{language}".$sufix);
    }

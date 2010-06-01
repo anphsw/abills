@@ -1,6 +1,5 @@
 # Mail delivery
 
-
 my %MAIL_PRIORITY = (2 => 'High', 
                      3 => 'Normal', 
                      4 => 'Low');
@@ -12,6 +11,7 @@ my $Mdelivery = Mdelivery->new($db, $admin, $conf);
 
 my @service_status_colors = ("$_COLORS[9]", "$_COLORS[6]", '#808080', '#0000FF', '#FF8000');
 my @service_status = ( "$_ENABLE", "$_DISABLE", "$_NOT_ACTIVE", "$_HOLD_UP", "$_DISABLE: $_NON_PAYMENT" );
+
 
 
 #*******************************************************************
@@ -29,6 +29,7 @@ sub mdelivery_main {
      $html->message('info', $_INFO, "$_SENDED");
     }
 
+   my @ATTACHMENTS = ();
 
    for(my $i=1; $i<=2; $i++) {
        if ($FORM{'FILE_UPLOAD_'. $i}) {
@@ -39,8 +40,28 @@ sub mdelivery_main {
            FILENAME     => $FORM{'FILE_UPLOAD_'. $i}{filename},
            CONTENT_TYPE => $FORM{'FILE_UPLOAD_'. $i}{'Content-Type'},
           });
+
+         push @ATTACHMENTS, {
+          	ATTACHMENT_ID => $i,
+            FILENAME      => $FORM{'FILE_UPLOAD_'. $i}{filename}, 
+            CONTENT_TYPE  => $FORM{'FILE_UPLOAD_'. $i}{'Content-Type'},
+            FILESIZE      => $FORM{'FILE_UPLOAD_'. $i}{Size},
+            CONTENT       => $FORM{'FILE_UPLOAD_'. $i}{Contents}
+          };
         }
     }
+ 
+   if ($FORM{SEND_PREVIEW}) {
+     sendmail(($FORM{FROM}) ? $FORM{FROM} : $conf{ADMIN_MAIL}, 
+          "$conf{ADMIN_MAIL}", 
+          "$FORM{SUBJECT}", 
+          "$FORM{TEXT}", 
+          "$conf{MAIL_CHARSET}", 
+          "$FORM{PRIORITY} ($MAIL_PRIORITY{$FORM{PRIORITY}})",
+          { ATTACHMENTS => ($#ATTACHMENTS > -1) ? \@ATTACHMENTS : undef });   	 
+    }
+
+
   }
   
  $Mdelivery->{PERIOD_FORM}=form_period($period);
@@ -111,7 +132,7 @@ sub mdelivery_main {
 
 
  	 my $table = $html->table({ width      => '100%',
-                              caption    => 'Internte',
+                              caption    => 'Internet',
                               rows       => \@rows
                           });
  	 $Mdelivery->{EXTRA2} .= "<tr><th colspan=2>". $table->show() ."</th></tr>\n";
@@ -119,11 +140,9 @@ sub mdelivery_main {
 
   $Mdelivery->{EXTRA2} .= $html->tpl_show(templates('form_address'), $Mdelivery, { OUTPUT2RETURN => 1 }); 
   
+  $Mdelivery->{EXTRA2} .= "<tr bgcolor=$_COLORS[2]><td colspan=1>$_SEND $_PRE:</td><td><input type=checkbox name=SEND_PREVIEW value=1 checked> $conf{ADMIN_MAIL}</td></tr>\n";
 
-
- $html->tpl_show(templates('mail_form'), $Mdelivery); 
- 
- #$html->tpl_show(_include('mdelivery_form', 'Mdelivery'), {  $Mdelivery });
+  $html->tpl_show(templates('mail_form'), $Mdelivery); 
 }
 
 
@@ -144,10 +163,20 @@ if ($FORM{ATTACHMENT}) {
   	return 0;
   }
 elsif ($FORM{info}) {
+  if ($FORM{del_user}) {
+    $Mdelivery->user_list_del({ MDELIVERY_ID=>$FORM{info},  UID => $FORM{del_user} });
+
+    if (! $Mdelivery->{errno}) {
+      $html->message('info', $_INFO, "$_USER $_DELETED");
+     }
+   }
+
   $Mdelivery->info($FORM{info});
   if ($Mdelivery->{errno}) {
     $html->message('err', $_ERROR, "[$Mdelivery->{errno}] $err_strs{$Mdelivery->{errno}}");
    }
+
+
 
   $Mdelivery->{PRIORITY}="$Mdelivery->{PRIORITY} ($MAIL_PRIORITY{$Mdelivery->{PRIORITY}})";
   
@@ -162,7 +191,7 @@ rget=_new' }). " $_SIZE: ". int2byte($line->[3]) . ' / ';
   
   
   $html->tpl_show(_include('mdelivery_form', 'Mdelivery'), $Mdelivery); 
-  
+
   my $list = $Mdelivery->user_list({ %LIST_PARAMS, MDELIVERY_ID => $FORM{info} });  
   my $table = $html->table({ width      => '100%',
                             caption    => $_USERS,
@@ -173,7 +202,7 @@ rget=_new' }). " $_SIZE: ". int2byte($line->[3]) . ' / ';
                           });
 
   foreach my $line (@$list) {
-    my $delete = $html->button($_DEL, "index=$index&info=$FORM{info}&del_user=$line->[5]", { MESSAGE =>  "$_DEL [$line->[0]]?" });
+    my $delete = $html->button($_DEL, "index=$index&info=$FORM{info}&del_user=$line->[3]", { MESSAGE =>  "$_DEL [$line->[0]]?", BUTTON=>1 });
 
     $table->addrow($html->button($line->[0], "index=15&UID=$line->[3]"), 
       $line->[1], 
@@ -211,30 +240,28 @@ elsif ($FORM{del} && $FORM{is_js_confirmed}) {
                           });
 
  foreach my $line (@$list) {
-  my $delete = $html->button($_DEL, "index=$index&del=$line->[0]", { MESSAGE =>  "$_DEL [$line->[0]]?" });
-  
-  $table->{rowcolor} = ($FORM{info} && $FORM{info} == $line->[0]) ? $_COLORS[0] : undef;
+   my $delete = $html->button($_DEL, "index=$index&del=$line->[0]", { MESSAGE =>  "$_DEL [$line->[0]]?", BUTTON=>1 });
 
-  $table->addrow("$line->[0]", 
-    $line->[1], 
-    $line->[2], 
-    $line->[3],  
-    $line->[4],  
-    $line->[5], 
-    $line->[6], 
-    ($line->[7]) ? $_SENDED : '', 
-    $html->button($_INFO, "index=$index&info=$line->[0]"),
-    $delete);
+   $table->{rowcolor} = ($FORM{info} && $FORM{info} == $line->[0]) ? $_COLORS[0] : undef;
+
+   $table->addrow("$line->[0]", 
+     $line->[1], 
+     $line->[2], 
+     $line->[3],  
+     $line->[4],  
+     $line->[5], 
+     $line->[6], 
+     ($line->[7]) ? $_SENDED : '', 
+     $html->button($_INFO, "index=$index&info=$line->[0]", { BUTTON=>1 }),
+     $delete);
  }
 print $table->show();
-
 
 $table = $html->table({ width      => '100%',
                         cols_align => ['right', 'right', 'right', 'right'],
                         rows       => [ [ "$_TOTAL:", "$Mdelivery->{TOTAL}" ] ]
                       });
 print $table->show();
-
 }
 
 
@@ -287,17 +314,16 @@ foreach my $mdelivery_id (@ids) {
         FILESIZE      => $line->[3],
         CONTENT       => $line->[4]
       };
-       
   	 }
-
-    
    }
 
+#  $Mdelivery->{debug}=1;
   my $user_list = $Mdelivery->user_list({ %LIST_PARAMS, STATUS => 0 });
   my @users_ids = ();
   
   foreach $u (@$user_list) {
   	 my $mail = ($u->[4] && $u->[4] ne '') ? $u->[4] : $u->[0] .'@'. $conf{USERS_MAIL_DOMAIN};
+  	 
      $Mdelivery->{SENDER} = ($Mdelivery->{SENDER} ne '') ? $Mdelivery->{SENDER} : $conf{ADMIN_MAIL};
   	 $debug_output .= "LOGIN: $u->[0] E-mail: $mail $Mdelivery->{SUBJECT}\n" if ($debug > 0);
      push @users_ids, $u->[3];
@@ -312,12 +338,9 @@ foreach my $mdelivery_id (@ids) {
    }
 
 #exit;
- 
   $Mdelivery->user_list_change({ MDELIVERY_ID => $mdelivery_id, UID => join(';', @users_ids) });
   $Mdelivery->change({ ID => $mdelivery_id });
 }
-
-
 
   $DEBUG .= $debug_output;
   return $debug_output;

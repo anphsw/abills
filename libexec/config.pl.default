@@ -49,11 +49,9 @@ $conf{p_users_mails}=1;  # Send user warning  messages
 # chap encryption decription key
 $conf{secretkey}="test12345678901234567890";
 $conf{s_detalization}=1; #make session detalization recomended for vpn leathed lines
-#Check periodic deposit and session. hangup after get negative result
-$conf{periodic_check}=1;
 $conf{ERROR2DB}=1;
 
-$conf{version}='0.50b'; #02.04.2009
+$conf{version}='0.51b'; #01.06.2010
 
 #Octets direction
 # server - Count octets from server side
@@ -126,7 +124,7 @@ $conf{debugmods}='LOG_ALERT LOG_WARNING LOG_ERR LOG_INFO';
 
 #Firewall start rule numbers
 # (GLobal, Class 1, Class 2)
-@START_FW = (3000, 2000, 1000);
+@START_FW = (5000, 3000, 1000);
 
 
 # Backup SQL data

@@ -229,9 +229,12 @@ sub list {
    push @WHERE_RULES, "p.method IN ($attr->{METHOD}) ";
   }
 
+ if ($attr->{DOMAIN_ID}) {
+   push @WHERE_RULES, "u.domain_id='$attr->{DOMAIN_ID}' ";
+  }
+
  if ($attr->{DATE}) {
-    my $value = $self->search_expr("$attr->{DATE}", 'INT');
-    push @WHERE_RULES,  " date_format(p.date, '%Y-%m-%d')$value ";
+    push @WHERE_RULES, @{ $self->search_expr("$attr->{DATE}", 'INT', 'date_format(p.date, \'%Y-%m-%d\')') };
   }
  elsif ($attr->{MONTH}) {
     my $value = $self->search_expr("$attr->{MONTH}", 'INT');
@@ -239,8 +242,17 @@ sub list {
   }
  # Date intervals
  elsif ($attr->{FROM_DATE}) {
-    push @WHERE_RULES, "(date_format(p.date, '%Y-%m-%d')>='$attr->{FROM_DATE}' and date_format(p.date, '%Y-%m-%d')<='$attr->{TO_DATE}')";
+   push @WHERE_RULES, @{ $self->search_expr(">=$attr->{FROM_DATE}", 'DATE', 'date_format(p.date, \'%Y-%m-%d\')') },
+   @{ $self->search_expr("<=$attr->{TO_DATE}", 'DATE', 'date_format(p.date, \'%Y-%m-%d\')') };
   }
+ elsif ($attr->{PAYMENT_DAYS}) {
+ 	 my $expr = '=';
+ 	 if ($attr->{PAYMENT_DAYS} =~ s/^(<|>)//) {
+ 	   $expr = $1;
+ 	  }
+ 	 push @WHERE_RULES, "p.date $expr curdate() - INTERVAL $attr->{PAYMENT_DAYS} DAY";
+  } 
+
 
  if ($attr->{BILL_ID}) {
  	 push @WHERE_RULES, @{ $self->search_expr("$attr->{BILL_ID}", 'INT', 'p.bill_id') };
@@ -268,14 +280,22 @@ sub list {
     push @WHERE_RULES, "u.gid='$attr->{GID}'";
   }
 
+ my $ext_tables  = '';
+ my $login_field = '';
+ if($attr->{FIO}) {
+   $ext_tables = 'LEFT JOIN users_pi pi ON (u.uid=pi.uid)';
+   $login_field  = "pi.fio,";  
+  }
+
  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
  
- $self->query($db, "SELECT p.id, u.id, p.date, p.sum, p.dsc, p.last_deposit, p.method, 
+ $self->query($db, "SELECT p.id, u.id, $login_field p.date, p.sum, p.dsc, p.last_deposit, p.method, 
       p.ext_id, p.bill_id, if(a.name is null, 'Unknown', a.name),  
       INET_NTOA(p.ip), p.uid, p.inner_describe
     FROM payments p
     LEFT JOIN users u ON (u.uid=p.uid)
     LEFT JOIN admins a ON (a.aid=p.aid)
+    $ext_tables
     $WHERE 
     GROUP BY p.id
     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;");
@@ -329,7 +349,10 @@ sub reports {
   }
  elsif ($attr->{INTERVAL}) {
  	 my ($from, $to)=split(/\//, $attr->{INTERVAL}, 2);
-   push @WHERE_RULES, "date_format(p.date, '%Y-%m-%d')>='$from' and date_format(p.date, '%Y-%m-%d')<='$to'";
+   
+   push @WHERE_RULES, @{ $self->search_expr(">=$from", 'DATE', 'date_format(p.date, \'%Y-%m-%d\')') },
+   @{ $self->search_expr("<=$to", 'DATE', 'date_format(p.date, \'%Y-%m-%d\')') };
+
    if ($attr->{TYPE} eq 'HOURS') {
      $date = "date_format(p.date, '%H')";
     }
@@ -355,11 +378,16 @@ sub reports {
  	 push @WHERE_RULES, "date_format(p.date, '%Y-%m')='$attr->{MONTH}'";
    $date = "date_format(p.date, '%Y-%m-%d')";
   } 
+ elsif ($attr->{PAYMENT_DAYS}) {
+ 	 my $expr = '=';
+ 	 if ($attr->{PAYMENT_DAYS} =~ /(<|>)/) {
+ 	   $expr = $1;
+ 	  }
+ 	 push @WHERE_RULES, "p.date $expr curdate() - INTERVAL $attr->{PAYMENT_DAYS} DAY";
+  } 
  else {
  	 $date = "date_format(p.date, '%Y-%m')";
   }
-
-
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
  
@@ -389,9 +417,7 @@ sub reports {
    $self->{TOTAL}=0; 
    $self->{SUM}=0.00;
   }
- 
 
-	
 	return $list;
 }
 

@@ -1,3 +1,175 @@
+=====0.51=====
+22.05.2010 \\
+  * Добавлена платёжная система Liberty Reserver
+  * Добавлена возможность получать платёжные выписки через E-mail и FTP.
+  * Добавлена возможность писать скрипты для программы billd (/libexec/billd)
+  * Добавлена возможность устанавливать кредит абоненту в зависимости от последних оплат.
+  * Доработан шейпер с IPFW таблицами
+03.05.2010\\
+  * Добавлен журнал адресов
+MySQL:
+  ALTER TABLE users_pi ADD COLUMN `location_id` INTEGER(11) UNSIGNED NOT NULL default '0';
+  INSERT INTO districts (name) VALUES ('Main District');
+  
+  CREATE TABLE `builds` (
+    `id` INTEGER(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+    `street_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+    `number` VARCHAR(10)  NOT NULL DEFAULT '',
+    `flors` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
+    `entrances` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
+    `added` DATE NOT NULL,
+    `map_x` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+    `map_y` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `id` (`id`),
+    UNIQUE KEY `street_id` (`street_id`, `number`)
+  ) COMMENT='Builds';
+  
+29.04.2010\\
+  * Добавленна возможность перевода средств между аккаунтами абонентов
+  * Добавленна дата изминения класов трафика
+MySQL:\\
+  ALTER TABLE traffic_classes ADD COLUMN `changed` DATETIME NOT NULL DEFAULT '0000-00-00 00:00:00';
+
+
+09.04.2010\\
+  * В тарифных планах дилера появилась возможность снимать деньги после активации карточек.
+  * Обновлён модуль Ashield (Dr.Web)
+
+01.04.2010\\
+MySQL:\\
+  ALTER TABLE users_pi CHANGE phone phone varchar(30) not null default '';
+    CREATE TABLE `districts` (
+      `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
+      `name` VARCHAR(100) NOT NULL DEFAULT '',
+      `country` TINYINT(4) UNSIGNED NOT NULL,
+      `zip` VARCHAR(7) NOT NULL DEFAULT '',
+      `city` VARCHAR(30) NOT NULL DEFAULT '',
+      `comments` TEXT NOT NULL,
+     PRIMARY KEY (`id`),
+     UNIQUE KEY `id` (`id`),
+     UNIQUE KEY `name` (`name`),
+     UNIQUE KEY `name_2` (`name`)
+   ) COMMENT='Locations districts';  
+
+
+31.03.2010\\
+  * Массовая печать документов найденных через поиск
+  * Добавлена возможность контролировать вводимые пользователями символы пароля
+  * Добавлен Армянский словарь
+  * Добавлены платёжные системы 4PAY, EasySoft.
+  * Добавлена возможность перенаправлять пользователей на пользовательский портал после отправки им сообщения администратором.
+
+16.03.2010\\
+  * Расширенно поле Filter-Id учётной записи пользователя. Добавлено возможность вводить в него дополнительные RADIUS пары.\\
+
+MySQL:\\
+  ALTER TABLE dv_main CHANGE COLUMN filter_id filter_id varchar(150) NOT NULL default '';
+
+  * Добавлена  Платёжная система АИС ЕРИП (Беларусия) 
+
+06.03.2010\\
+  * Добавлена дата окончания скидки для клиента\\
+  * Добавлено уведомления что пользователь онлайн в аккаунте пользователя
+MySQL\\
+  ALTER TABLE users ADD COLUMN reduction_date date not null default '0000-00-00';
+
+22.02.2010\\
+  *  Добавленна возможность создавать независимые шаблоны бухгалтерских документов для груп пользователей.\\
+При создании шаблона нужно указать суффиксом номер группы (Docs_docs_account**_GID**.tpl).
+MySQL:
+  ALTER TABLE groups ADD COLUMN `separate_docs` tinyint(1) unsigned not null default 0;
+
+18.02.2010\\
+  * Добавленна возможность при недостаточности средств на счету переводить пользователей автоматически на другой тариф. Действует только для месячной абон. платы.
+  * Добавленна возможность авто. активации блокированных за недостатком средств на счету
+MySQL:
+  ALTER TABLE tarif_plans CHANGE COLUMN `small_deposit_block` `small_deposit_action` smallint(6) NOT NULL default '0';
+
+01.02.2010\\
+  * Лог скидывания пользователя с линии вынесен в журнал изменений
+ 
+01.02.2010\\
+  * Добавлено поле комментарии для расписания. 
+  * Улучшена визуализация журнала расписаний. Выделение красным не выполненых расписаний.
+  * Добавлена опция блокирующая аккаунт если недостаточно средств для снятия месячной абонплаты.
+  * Лог ведения неучтённого трафика вынесен в базу (/Reports/ Ipn/ Unknown IPs)
+
+MySQL\\
+
+  ALTER TABLE `shedule` ADD COLUMN `comments` varchar(120) NOT NULL default '';
+  ALTER TABLE `tarif_plans` ADD COLUMN `small_deposit_block` tinyint(1) NOT NULL DEFAULT '0';
+  CREATE TABLE `ipn_unknow_ips` (
+  `src_ip` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
+  `dst_ip` INTEGER(11) UNSIGNED NOT NULL,
+  `size` INTEGER(11) UNSIGNED NOT NULL,
+  `nas_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `datetime` DATETIME NOT NULL
+  ) COMMENT='Ipn unknow ips';  
+  
+30.01.2010\\
+  * В фетчер сетей добавлена возможность поднимать статические рауты на нужные интерфейсы.
+  * Добавлена программа выявления несанкционированных PPPoE  серверов.
+
+29.01.2010\\
+  * Добавлена возможность выбора группы тарифных планов при регистрации
+  * Обновлён экспорт налоговых до версии OPZ 1.27
+
+26.01.2010\\
+  * Добавлена возможность просмотра лога DHCP сервера из админ интерфейса с привязкой к пользователям\\
+MySQL:
+  CREATE TABLE `dhcphosts_log` (
+   `id` INTEGER(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+   `datetime` DATETIME NOT NULL,
+   `hostname` VARCHAR(20) NOT NULL DEFAULT '',
+   `message_type` TINYINT(2) UNSIGNED NOT NULL DEFAULT '0',
+   `message` VARCHAR(90) NOT NULL DEFAULT '',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `id` (`id`)
+  ) COMMENT='Dhcphosts log'; 
+  CREATE TABLE `streets` (
+    `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
+    `name` VARCHAR(100) NOT NULL DEFAULT '',
+    `district_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `id` (`id`),
+    UNIQUE KEY `name` (`name`),
+    UNIQUE KEY `name_district` (`name`, `district_id`),
+    UNIQUE KEY `name_2` (`name`)
+  ) COMMENT='Locations streets';
+
+
+20.01.2010\\
+  * Добавлена проверка на дублирование комутатора и порта для Option 82.
+  * Для услуги "Приостановка сервиса" была добавлена настройка периода за который можно приостановить услугу. Например не чаще чем раз в 60 дней.
+  * Доработана форма регистрации через веб пользователя через портал. Добавлена капча
+  * Добавлена возможность регистрации для модуля Msgs.
+11.01.2010\\
+  * Изменён вид календаря для дат
+  * Ввод даты в любом формате при поиске (22.11.2008,22/11/2008,22-11-2008, 2008-11-22)
+  * Добавлен экспорт в программу "Податкова Звітність" (Украина) в модуле Docs.
+  * Делегация сообщений к администраторам с высшей компетенцией доступа
+  * Добавлена возможность заносить сообщение при создании в наряд работ и создавать наряды работ
+  * Создавать сообщение при заведении клиента
+  * Добавлена возможность пересчёта сессий в форме детализации сессии 
+  * Доработано компенсация рассчитывается исходя из 31 дня, а из количества дней в месяце
+  * Добавлен новый тип внесения средств на счёт **Компенсация**
+
+MySQL:
+  ALTER TABLE msgs_messages ADD COLUMN `deligation` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0';
+  ALTER TABLE msgs_admins ADD COLUMN `deligation_level` tinyint(4) unsigned NOT NULL default '0';
+  ALTER TABLE s_detail ADD COLUMN `sum` double(14,6) NOT NULL default '0.000000';
+
+
+24.12.2009\\
+
+MySQL:
+  alter table cards_users add column id int unsigned not null auto_increment PRIMARY KEY;
+
+24.12.2009\\
+  * Доработана работа шейпера с учётом выставленной маски. Выделение маски отличной от 255.255.255.255  цветом в веб интерфейсе.
+
+
 =====0.50=====
 
   * Добавлен Приоритет тарифного плана. Если заполнено это поле и пользователь переходит с тарифного плана с большим приоритетом на ТП с меньшим приоритетом с него снимается сума указанная в поле «Сумма изменения тарифного плана». Если в обратном направлении сумма не снимается.

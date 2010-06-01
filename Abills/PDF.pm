@@ -1,6 +1,7 @@
 package Abills::PDF;
 #PDF outputs
 
+
 use strict;
 use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION %h2
    @_COLORS
@@ -705,8 +706,9 @@ sub header {
  my $admin_name=$ENV{REMOTE_USER};
  my $admin_ip=$ENV{REMOTE_ADDR};
 
- $self->{header} = "Content-type: application/pdf\n";
- $self->{header}.= "Content-disposition: inline; name=".int(rand(32768)).".pdf\n\n";
+ my $filename = int(rand(32768)).'.pdf';
+ $self->{header} = "Content-type: application/pdf; filename=$filename\n";
+ $self->{header}.= "Content-disposition: inline; name=\"$filename\"\n\n";
 
  return $self->{header};
 }
@@ -1262,6 +1264,63 @@ $result .= '</select>'."\n";
 return $result ;
 }
 
+#*******************************************************************
+# Make data field
+# date_fld($base_name)
+#*******************************************************************
+sub date_fld2  {
+ my $self = shift;
+ my ($base_name, $attr) = @_;
+ 
+ my $MONTHES = $attr->{MONTHES};
+
+ my($sec,$min,$hour,$mday,$mon,$curyear,$wday,$yday,$isdst) = localtime(time);
+ 
+ if ($attr->{DATE}) {
+ 	 my ($y, $m, $d)=split(/-/, $attr->{DATE});
+ 	 $mday=$d;
+  }
+ else {
+   $mday=1;
+  }
+ 
+ my $day = $FORM{$base_name.'D'} || $mday;
+ my $month = $FORM{$base_name.'M'} || $mon;
+ my $year = $FORM{$base_name.'Y'} || $curyear + 1900;
+
+
+my $result  = "<SELECT name=". $base_name ."D>";
+for (my $i=1; $i<=31; $i++) {
+   $result .= sprintf("<option value=%.2d", $i);
+   $result .= ' selected' if($day == $i ) ;
+   $result .= ">$i\n";
+ }	
+$result .= '</select>';
+
+
+$result  .= "<SELECT name=". $base_name ."M>";
+
+my $i=0;
+foreach my $line (@$MONTHES) {
+   $result .= sprintf("<option value=%.2d", $i);
+   $result .= ' selected' if($month == $i ) ;
+   
+   $result .= ">$line\n";
+   $i++
+}
+$result .= '</select>';
+
+$result  .= "<SELECT name=". $base_name ."Y>";
+for ($i=2002; $i<=$curyear + 1900+2; $i++) {
+   $result .= "<option value=$i";
+   $result .= ' selected' if($year eq $i ) ;
+   $result .= ">$i\n";
+ }	
+$result .= '</select>'."\n";
+
+return $result ;
+}
+
 #**********************************************************
 # log_print()
 #**********************************************************
@@ -1297,8 +1356,8 @@ $text
 
 
 #**********************************************************
-# show tamplate
-# tpl_show
+# 
+# get_pdf
 # 
 # template
 # variables_ref
@@ -1378,23 +1437,20 @@ sub tpl_show {
   my $self = shift;
   my ($filename, $variables_ref, $attr) = @_;	
 
+  if ($attr->{debug}) {
+    print "Content-Type: text/plain\n\n";
+   }
+
   $debug = 0;
   $filename        =~ s/\.[a-z]{3}$//;
   my $tpl_describe = tpl_describe($filename);
-  
-
   $filename        = $filename.'.pdf';
   my $pdf          = PDF::API2->open($filename);
   my $tpl;
-  
 
-  
-  #$DATE    =~ /(\d{4})-(\d{2})-(\d{2})-/;
-  #my $moddate = "$1$1$3";
-  #$TIME    =~ /(\d{2}):(\d{2}):(\d{2})-/;
-  my $moddate.= ''; #"$1$1$3";
+  my $moddate.= '';
   $attr->{DOCS_IN_FILE} = 0 if (! $attr->{DOCS_IN_FILE});
-  
+
   $pdf->info(
         'Author'       => "ABillS pdf manager",
         'CreationDate' => "D:20020911000000+01'00'",
@@ -1406,18 +1462,13 @@ sub tpl_show {
         'Keywords'     => ""
     ); 
 
-
-
 my $multi_doc_count = 0;
 my $page_count      = $pdf->pages;
-
-my $font_name = 'Verdana';
-my $encode    = 'windows-1251';
-
-my $font = $pdf->corefont($font_name, -encode => "$encode");
+my $font_name       = 'Verdana';
+my $encode          = 'windows-1251';
+my $font            = $pdf->corefont($font_name, -encode => "$encode");
 
 MULTIDOC_LABEL:
-
 
 for my $key (sort keys %$tpl_describe) { 
   my @patterns = ();
@@ -1443,9 +1494,13 @@ for my $key (sort keys %$tpl_describe) {
     next if ($x == 0 && $y == 0);
 
     my $text = '';
-    $doc_page   = $1 if ($pattern =~ /page=(\d+)/);
-    my $work_page = ($attr->{DOCS_IN_FILE}) ? $doc_page + $page_count * ($multi_doc_count - 1) - ($page_count * $attr->{DOCS_IN_FILE} * int( ($multi_doc_count - 1) / $attr->{DOCS_IN_FILE})) : $doc_page + $page_count * $multi_doc_count;
+    $doc_page   = ($pattern =~ /page=(\d+)/) ? $1 : 1;
+    my $work_page = ($attr->{DOCS_IN_FILE}) ? $doc_page + $page_count * int($multi_doc_count - 1) - ($page_count * $attr->{DOCS_IN_FILE} * int( ($multi_doc_count - 1) / $attr->{DOCS_IN_FILE})) : $doc_page + (($multi_doc_count) ? $page_count * $multi_doc_count - $page_count : 0);
     my $page = $pdf->openpage($work_page);
+    if (! $page) {
+    	print "Content-Type: text/plain\n\n";
+    	print "Can't open page: $work_page ($pattern) '$!' / $doc_page + $page_count * $multi_doc_count\n";
+     }
 
     #Make img_insertion
     if ($pattern =~ /img=([0-9a-zA-Z_\.]+)/) {
@@ -1456,22 +1511,17 @@ for my $key (sort keys %$tpl_describe) {
        }
       else {  
     	  print "make image '$CONF->{TPL_DIR}/$img_file'\n" if ($debug > 0);
-
         my $img_height  = ($pattern =~ /img_height=([0-9a-zA-Z_\.]+)/) ? $1 : 100; 
         my $img_width   = ($pattern =~ /img_width=([0-9a-zA-Z_\.]+)/) ? $1 : 100;
-
 
     	  my $gfx=$page->gfx;
     	  my $img = $pdf->image_jpeg("$CONF->{TPL_DIR}/$img_file"); #, 200, 200);
         $gfx->image($img, $x, ($y - $img_height + 10), $img_width, $img_height); #, 596, 842);
-
         $gfx->close;
         $gfx->stroke;
-      
     	  next;
     	 }
      }
-
 
     $text_file  = $1 if ($pattern =~ /text=([0-9a-zA-Z_\.]+)/);
     $font_size  = $1 if ($pattern =~ /font_size=(\d+)/);
@@ -1540,15 +1590,11 @@ for my $key (sort keys %$tpl_describe) {
     else {
       $txt->text($text);
      }
-
   }
-
 }
 
 
-
 if ($attr->{MULTI_DOCS} && $multi_doc_count <= $#{ $attr->{MULTI_DOCS} }) {
-  
   if ($attr->{DOCS_IN_FILE} && $multi_doc_count > 0 && $multi_doc_count % $attr->{DOCS_IN_FILE} == 0) {
   	my $outfile = $attr->{SAVE_AS};
   	my $filenum = int($multi_doc_count / $attr->{DOCS_IN_FILE});
@@ -1563,10 +1609,9 @@ if ($attr->{MULTI_DOCS} && $multi_doc_count <= $#{ $attr->{MULTI_DOCS} }) {
     $pdf = PDF::API2->open($filename);
     $font = $pdf->corefont($font_name, -encode => "$encode");
    }
-  
+
   $variables_ref = $attr->{MULTI_DOCS}[$multi_doc_count];
   print "Doc: $multi_doc_count\n" if ($attr->{debug});
-  #print %$variables_ref  ;
 
   if ($multi_doc_count > 0) {
     for(my $i=1; $i<=$page_count; $i++) {
@@ -1577,7 +1622,6 @@ if ($attr->{MULTI_DOCS} && $multi_doc_count <= $#{ $attr->{MULTI_DOCS} }) {
   $multi_doc_count++;  
   goto MULTIDOC_LABEL;
 }
-
 
 
 if ($attr->{SAVE_AS}) {
@@ -1614,54 +1658,16 @@ if ($attr->{SAVE_AS}) {
 # 
 #**********************************************************
 sub test {
-
  my $output = '';
-
-#print "<TABLE border=1>
-#<tr><TD colspan=2>FORM</TD></TR>
-#<tr><TD>index</TD><TD>$index</TD></TD></TR>
-#<tr><TD>root_index</TD><TD>root_index</TD></TD></TR>\n";	
   while(my($k, $v)=each %FORM) {
   	$output .= "$k | $v\n" if ($k ne '__BUFFER');
-    #print "<tr><TD>$k</TD><TD>$v</TD></TR>\n";	
+
    }
-#print "</TABLE>\n";
  $output .= "\n";
-#print "<br><TABLE border=1>
-#<tr><TD colspan=2>COOKIES</TD></TR>
-#<tr><TD>index</TD><TD>$index</TD></TD></TR>\n";	
-  while(my($k, $v)=each %COOKIES) {
+ while(my($k, $v)=each %COOKIES) {
     $output .= "$k | $v\n";
-    #print "<tr><TD>$k</TD><TD>$v</TD></TR>\n";	
    }
-#print "</TABLE>\n";
-
-
-#print "<br><TABLE border=1>\n";
-#  while(my($k, $v)=each %ENV) {
-#    print "<tr><TD>$k</TD><TD>$v</TD></TR>\n";	
-#   }
-#print "</TABLE>\n";
-
-#print "<br><TABLE border=1>\n";
-#  while(my($k, $v)=each %conf) {
-#    print "<tr><TD>$k</TD><TD>$v</TD></TR>\n";	
-#   }
-#print "</TABLE>\n";
-#
-
-#print "<a href='#' onclick=\"document.write ( 'answer' )\">aaa</a>";
-
-#print "<a href='#' onclick=\"open('aaa','help', 
-# 'height=550,width=450,resizable=0, scrollbars=yes, menubar=no, status=yes');\"><font color=$_COLORS[1]>Debug</font></a>";
-
-print "<a href='#' title='$output' class='noprint'><font color=$_COLORS[1]>Debug</font></a>\n";
-
 }
-
-
-
-
 
 #**********************************************************
 # letters_list();
@@ -1711,216 +1717,6 @@ foreach my $line (@alphabet) {
 sub make_charts {
 	my $self = shift;
 	my ($attr) = @_;
-
-
-  my $PATH='';
-  if ($IMG_PATH ne '') {
-	  $PATH = $IMG_PATH;
-	  $PATH =~ s/img//;
-   }
-
-#  if (! -f $PATH. "charts.swf") {
-#     return 0;
-#   }
-  
-  my $suffix = ($attr->{SUFFIX}) ? $attr->{SUFFIX} : '';
-
-  my @chart_transition = ('dissolve', 'drop', 'spin', 'scale', 'zoom', 'blink', 'slide_right', 'slide_left', 'slide_up', 'slide_down', 'none');
-  my $DATA = $attr->{DATA};
-  my $ex_params = '';
-
-
-  return  if(scalar keys  %$DATA == 0);
-
-  if ($attr->{TRANSITION} && $CONF->{CHART_ANIMATION}) {
-    my $random = int(rand(@chart_transition));
-    $ex_params = " <chart_transition type=\"$chart_transition[$random]\" delay=\"1\" duration=\"2\" order=\"series\" />\n";
-   }
-
- 	my $AXIS_CATEGORY_skip = (defined($attr->{AXIS_CATEGORY_skip})) ? $attr->{AXIS_CATEGORY_skip} : 2 ;
-  my $CHART_RECT_width   = ($attr->{CHART_RECT_width}) ? $attr->{CHART_RECT_width} : 400 ;  
-  my $CHART_RECT_height  = ($attr->{CHART_RECT_height}) ? $attr->{CHART_RECT_height} : 200 ;  
-  my $CHART_RECT_x = ($attr->{CHART_RECT_x}) ? $attr->{CHART_RECT_x} : 30 ;  
-  my $CHART_RECT_y = ($attr->{CHART_RECT_y}) ? $attr->{CHART_RECT_y} : 50 ;  
-  
-  
-  my $data = '<chart>'.
-  $ex_params
-
-	.'<series_color>
-		<value>ff8800</value>
-		<value>00FF00</value>
-	 </series_color>
-
-  	<chart_grid_h alpha="10" color="0066FF" thickness="1"  />
-	  <chart_grid_v alpha="10" color="0066FF" thickness="1" />
-
-	<axis_category font="arial" bold="1" size="11" color="000000" alpha="50" skip="'. $AXIS_CATEGORY_skip. '" />
-	<axis_ticks value_ticks="" category_ticks="1" major_thickness="2" minor_thickness="1" minor_count="3" major_color="000000" minor_color="888888" position="outside" />
-
-  <axis_value font="arial" bold="1" size="9" color="000000" alpha="75" 
-  steps="4" prefix="" suffix="'. $suffix .'" 
-  decimals="0" 
-  separator="" 
-  show_min="1" 
-  orientation="diagonal_up"
-  />
-
- 
-	<chart_border color="000000" top_thickness="1" bottom_thickness="2" left_thickness="0" right_thickness="0" />
-  <chart_rect x="'. $CHART_RECT_x .'" y="'. $CHART_RECT_y .'" width="'. $CHART_RECT_width .'" height="'. $CHART_RECT_height .'" positive_color="FFFFFF" positive_alpha="40" />
-  ';
-
-  $data .= "<chart_data>\n";
-
-  if ($attr->{PERIOD} eq 'month_stats') {
-    $data .= "<row>\n".   	
-    "<string></string>\n";
-    for(my $i=1; $i<=31; $i++) {
-    	 $data .= "<string>$i</string>\n";
-     }
-   $data .= "</row>\n";
-  }
-  elsif ($attr->{PERIOD} eq 'day_stats') {
-    $data .= "<row>\n".   	
-    "<string></string>\n";
-    for(my $i=0; $i<=23; $i++) {
-    	 $data .= "<string>$i</string>\n";
-     }
-   $data .= "</row>\n";
-  }
-  elsif ($attr->{X_TEXT}) {
-    $data .= "<row>\n".   	
-    "<string></string>\n";
-    foreach my $i (@{ $attr->{X_TEXT} }) {
-    	 $data .= "<string>$i</string>\n";
-     }
-   $data .= "</row>\n";
-  }
-  
-
-
-  while(my($name, $value)=each %$DATA ){
-    next if ($name eq 'MONEY');
-
-    my $midle=0;
-    $data .= "<row>\n".
-    "<string>$name</string>\n";
-    if (defined($attr->{AVG}{$name}) && $attr->{AVG}{$name} > 0) {
-    	 $midle = 100 / $attr->{AVG}{$name};
-      }
-
-    shift @$value;
-    foreach my $line (@$value) {
-    	 $data .= "<number>";
-    	 $data .= ($midle > 0) ? $line * $midle : $line; 
-    	 $data .="</number>\n";
-     }
-   $data .= "</row>\n";
-  }
-
-#Make money graffic
-  if (defined($DATA->{MONEY})) { 
-    $data .= "<row>\n".
-    "<string>MONEY</string>\n";
-    my $name = 'MONEY';
-    my $value = $DATA->{$name};
-    my $midle = 0;
-    if (defined($attr->{AVG}{$name}) && $attr->{AVG}{$name} > 0) {
-    	 $midle = 100 / $attr->{AVG}{$name};
-     }
-    
-    shift @$value;
-    foreach my $line (@$value) {
-    	 $data .= "<number>";
-    	 $data .= ($midle > 0 && defined($line)) ? $line * $midle : $line; 
-    	 $data .="</number>\n";
-     }
-    $data .= "</row>\n";
-  }   
-
-  $data .= "</chart_data>\n";
-
-  if ($attr->{TYPE}) {
-    $data .= "<chart_type>";
-		my $type_array_ref = $attr->{TYPE};
-		foreach my $line (@$type_array_ref) {
-		  if ($line eq 'bar') {
-		  	$data .= "$line";
-		  	last;
-		   }
-		  else {
-		    $data .= " <value>$line</value>";
-		   }
-     }
-   	$data .= "</chart_type>\n";
-   }
-  
-  
-
-
-    #Make right text
-    if (defined($attr->{AVG}{MONEY}) && $attr->{AVG}{MONEY} > 0) {
-     	my $part = $attr->{AVG}{MONEY} / 4;
-    	$data .= "<draw>\n";
-   	  foreach(my $i=0; $i<=4; $i++) {
-     	   $data .= "<text size=\"9\" x=\"435\" y=\"". (242-$i*45) ."\" color=\"000000\">". int($i * $part) ."</text>\n";
-   	   }
-   	  $data .= "</draw>\n";
-    }
- 
-$data .= "</chart>\n";
-
- 
- my $file_xml = 'charts';
- if (! defined($self->{CHART_NUM})) {
-   $self->{CHART_NUM}=0; 	
-  }
- else {
- 	 $self->{CHART_NUM}++; 	
- 	 $file_xml='charts'. $self->{CHART_NUM};
-  }
- 
- open(FILE, ">$file_xml".'.xml') || $self->message('err', 'ERROR', "Can't create file '$file_xml.xml' $!");
-   print FILE $data;
- close(FILE);
- 	
-
-
-my $output = "
-<br>
-<OBJECT classid='clsid:D27CDB6E-AE6D-11cf-96B8-444553540000' 
-codebase='http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=6,0,0,0' 
-WIDTH=". ($CHART_RECT_width + 100). " 
-HEIGHT=". ($CHART_RECT_height + 100). "
-id='$file_xml' ALIGN=''>
-<PARAM NAME=movie VALUE='". $PATH. "charts.swf?library_path=". $PATH. "charts_library&amp;php_source=". $file_xml .".xml'> 
-<PARAM NAME=quality VALUE=high> <PARAM NAME=bgcolor VALUE=#EEEEEE> 
-<EMBED src='". $PATH. "charts.swf?library_path=". $PATH. "charts_library&amp;php_source=". $file_xml .".xml' 
-quality=high 
-bgcolor='#EEEEEE' 
-WIDTH=". ($CHART_RECT_width + 100). "
-HEIGHT=". ($CHART_RECT_height + 100). "
-NAME='$file_xml' 
-ALIGN='' 
-swLiveConnect='true' 
-TYPE='application/x-shockwave-flash' 
-PLUGINSPAGE='http://www.macromedia.com/go/getflashplayer'>
-</EMBED></OBJECT>
-<br>
-";
-
-
-	if ($attr->{OUTPUT2RETURN}) {
-		 return $output;
-   }
-  elsif (defined($self->{NO_PRINT})) {
-  	$self->{OUTPUT}.=$output;
-  	return $output;
-   }
-
-  print $output;
-
 }
 
 #**********************************************************

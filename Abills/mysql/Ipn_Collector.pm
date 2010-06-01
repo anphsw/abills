@@ -2,12 +2,13 @@ package Ipn_Collector;
 # Ipn Collector functions
 
 
+
 use strict;
 use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
 );
 
 use Exporter;
-$VERSION = 2.01;
+$VERSION = 5.00;
 @ISA = ('Exporter');
 @EXPORT = qw(
   &ip_in_zone
@@ -32,9 +33,6 @@ my $Dv;
 require Tariffs;
 Tariffs->import();
 my $Tariffs;
-
-
-
 
 my %ips = ();
 my $db;
@@ -67,9 +65,7 @@ sub new {
    }
 
   $CONF->{IPN_DETAIL_MIN_SIZE} = 0 if (! $CONF->{IPN_DETAIL_MIN_SIZE});
-
   $CONF->{MB_SIZE} = $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE};
-  
   $self->{TRAFFIC_ROWS}=0;
   $self->{UNKNOWN_TRAFFIC_ROWS}=0;
 
@@ -132,9 +128,6 @@ sub user_ips {
 		  and dv.ip > 0 and u.disable=0 and dv.disable=0
 		  and (un.nas_id IN ($DATA->{NAS_ID}) or un.nas_id IS NULL)
 		 GROUP BY u.uid;";
-		  
-		
-		  
    }
   elsif ( $CONF->{IPN_DEPOSIT_OPERATION} ) {
   	$sql="select u.uid, calls.framed_ip_address, calls.user_name,
@@ -161,8 +154,8 @@ sub user_ips {
       LEFT JOIN bills cb ON (c.bill_id=cb.id)
       LEFT JOIN dv_main dv ON (u.uid=dv.uid)
       LEFT JOIN tarif_plans tp ON (tp.id=dv.tp_id)
-    WHERE u.id=calls.user_name and u.domain_id=0
-    and calls.nas_id IN ($DATA->{NAS_ID});";
+    WHERE u.id=calls.user_name and u.domain_id=0 and calls.status<11
+    and calls.nas_id IN ($DATA->{NAS_ID}) ;";
   }
   else {
   	$sql = "SELECT u.uid, calls.framed_ip_address, calls.user_name, 
@@ -183,7 +176,7 @@ sub user_ips {
     dv.ip
     FROM (dv_calls calls, users u)
     LEFT JOIN dv_main dv ON (u.uid=dv.uid)
-   WHERE u.id=calls.user_name and u.domain_id=0
+   WHERE u.id=calls.user_name and u.domain_id=0 and calls.status<11
    and calls.nas_id IN ($DATA->{NAS_ID});";
   }  
   
@@ -252,13 +245,9 @@ sub user_ips {
      #$self->{INTERIM}{$line->[3]}{TIME}=$line->[10];
   	 $users_info{PAYMENT_TYPE}{$line->[0]} = $line->[9];
   	 $users_info{DEPOSIT}{$line->[0]}   = $line->[8];
-  	 
-
      $users_info{REDUCTION}{$line->[0]} = $line->[13];
      $users_info{ACTIVATE}{$line->[0]}  = $line->[15];
  	   $users_info{BILL_ID}{$line->[0]}   = $line->[7];  	 
- 	 	
-  	 #push @clients_lst, $line->[1];
    }
  
   $self->{USERS_IPS}     = \%ips;
@@ -282,19 +271,6 @@ sub traffic_agregate_clean {
   delete $self->{IN};
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 #**********************************************************
 # traffic_agregate_users
 # Get Data and agregate it by users
@@ -307,14 +283,26 @@ sub traffic_agregate_users {
   my $y = 0;
  
   if (defined($users_ips->{$DATA->{SRC_IP}})) {
- 	  push @{ $self->{AGREGATE_USERS}{$users_ips->{$DATA->{SRC_IP}}}{OUT} }, { %$DATA };
+    if (defined($DATA->{TRAFFIC_CLASS})) {
+      $self->{INTERIM}{$DATA->{SRC_IP}}{$DATA->{TRAFFIC_CLASS}}{OUT}+=$DATA->{SIZE};
+     }
+    else {
+ 	    push @{ $self->{AGREGATE_USERS}{$users_ips->{$DATA->{SRC_IP}}}{OUT} }, { %$DATA };
+ 	   }
+
  	  $DATA->{UID}=$users_ips->{$DATA->{SRC_IP}};
  		$y++;
    }
 
   if (defined($users_ips->{$DATA->{DST_IP}})) {
-    push @{ $self->{AGREGATE_USERS}{$users_ips->{$DATA->{DST_IP}}}{IN} }, { %$DATA };
+    if (defined($DATA->{TRAFFIC_CLASS})) {
+      $self->{INTERIM}{$DATA->{DST_IP}}{$DATA->{TRAFFIC_CLASS}}{IN}+=$DATA->{SIZE};
+     }
+    else {
+      push @{ $self->{AGREGATE_USERS}{$users_ips->{$DATA->{DST_IP}}}{IN} }, { %$DATA };
+     }
     $DATA->{UID}=$users_ips->{$DATA->{DST_IP}};
+    
 	  $y++;
    }
   #Unknown Ips
@@ -371,22 +359,8 @@ sub traffic_agregate_nets {
   my $ips             = $self->{USERS_IPS};
   my $user_info       = $self->{USERS_INFO};
   $Dv                 = Dv->new($db, undef, $CONF);
-
-
-  #require Abills::Base;
-  #Abills::Base->import();
-
-
-  #Time::HiRes->import(qw(gettimeofday));
-  #my $begin_time = check_time();
-
-
   #Get user and session TP
   while (my ($uid, $session_tp) = each ( %{ $user_info->{TPS} } )) {
-
-    #print "  uid: $uid ". (gettimeofday() - $begin_time) . "\n";
-    #$begin_time = check_time();
-
     my $TP_ID = 0;
     my $user = $Dv->info($uid);
 
@@ -394,8 +368,7 @@ sub traffic_agregate_nets {
     	$TP_ID = $user->{TP_NUM} || 0;
       $self->{USERS_INFO}->{TPS}->{$uid}=$TP_ID;
      }
-    
-    
+   
     my ($remaining_time, $ret_attr);
     if (! defined( $tp_interval{$TP_ID} )) {
       ($user->{TIME_INTERVALS},
@@ -413,15 +386,11 @@ sub traffic_agregate_nets {
           REDUCTION           => $user->{REDUCTION},
           POSTPAID            => 1 
          });
-
-       #$tp_interval{$TP_ID} = (defined($ret_attr->{TT}) && $ret_attr->{TT} > 0) ? $ret_attr->{TT} :  0;
-       
        $tp_interval{$TP_ID} = ($ret_attr->{FIRST_INTERVAL}) ? $ret_attr->{FIRST_INTERVAL} :  0;
        $intervals{$tp_interval{$TP_ID}}{TIME_TARIFF} = ($ret_attr->{TIME_PRICE}) ? $ret_attr->{TIME_PRICE} :  0;
      }
 
     print "\nUID: $uid\n####TP $TP_ID Interval: $tp_interval{$TP_ID}  ####\n" if ($self->{debug}); 
-
 
     if (! defined(  $intervals{$tp_interval{$TP_ID}}{ZONES} )) {
     	$self->get_zone({ TP_INTERVAL => $tp_interval{$TP_ID} });
@@ -442,47 +411,34 @@ sub traffic_agregate_nets {
     }
 
    my %zones;
-
-
-
-
    @zoneids = @{ $intervals{$tp_interval{$TP_ID}}{ZONEIDS} };
-   #%zones   = %ip_class_tables; #%{ $intervals{$tp_interval{$TP_ID}}{ZONES} };
-    
    
-    if (defined($data_hash->{OUT})) {
+   if (defined($data_hash->{OUT})) {
       #Get User data array
       my $DATA_ARRAY_REF = $data_hash->{OUT};
       
       foreach my $DATA ( @$DATA_ARRAY_REF ) {
-   	    #print "------ < $DATA->{SIZE} ". int2ip($DATA->{SRC_IP}) .":$DATA->{SRC_PORT} -> ". int2ip($DATA->{DST_IP}) .":$DATA->{DST_PORT}\n" if ($self->{debug});
-
-  	    if ( $#zoneids >= 0 ) {
+  	    if ( $#zoneids > -1 ) {
   	      foreach my $zid (@zoneids) {
-  	      	#print "-- $zid// $self->{ZONES}{$zid}{TRAFFIC_CLASS} / $uid / \n" if (! $ip_class_tables{$self->{ZONES}{$zid}{TRAFFIC_CLASS}});
-  	      	
     	      if (ip_in_zone($DATA->{DST_IP}, $DATA->{DST_PORT}, $self->{ZONES}{$zid}{TRAFFIC_CLASS}, \%ip_class_tables)) {
-
 		          $self->{INTERIM}{$DATA->{SRC_IP}}{"$zid"}{OUT} += $DATA->{SIZE};
-	  	        print " $zid ". int2ip($DATA->{SRC_IP}) .":$DATA->{SRC_PORT} -> ". int2ip($DATA->{DST_IP}) .":$DATA->{DST_PORT}  $DATA->{SIZE} / $zones{$zid}{PriceOut}\n" if ($self->{debug});;
+	  	        print " $zid ". int2ip($DATA->{SRC_IP}) .":$DATA->{SRC_PORT} -> ". int2ip($DATA->{DST_IP}) .":$DATA->{DST_PORT}  $DATA->{SIZE} / " . (($zones{$zid}{PriceOut}) ? $zones{$zid}{PriceOut} : 0.00 )."\n" if ($self->{debug});;
 		          last;
 		         }
 	         }
-         
          }
 	      else {
 	    	  print " < $DATA->{SIZE} ". int2ip($DATA->{SRC_IP}) .":$DATA->{SRC_PORT} -> ". int2ip($DATA->{DST_IP}) .":$DATA->{DST_PORT}\n" if ($self->{debug});
 	    	  $self->{INTERIM}{$DATA->{SRC_IP}}{"0"}{OUT} += $DATA->{SIZE};
 	       }
-      } 
+      }
     }
 
-    if (defined($data_hash->{IN})) {
+   if (defined($data_hash->{IN})) {
       #Get User data array
       my $DATA_ARRAY_REF = $data_hash->{IN};
       foreach my $DATA ( @$DATA_ARRAY_REF ) {
-  	    #print "!!------ < $DATA->{SIZE} ". int2ip($DATA->{SRC_IP}) .":$DATA->{SRC_PORT} -> ". int2ip($DATA->{DST_IP}) .":$DATA->{DST_PORT}\n" if ($self->{debug});
-  	    if ($#zoneids >= 0) {
+  	    if ($#zoneids > -1) {
  	        foreach my $zid (@zoneids) {
  		        if (ip_in_zone($DATA->{SRC_IP}, $DATA->{SRC_PORT}, $self->{ZONES}{$zid}{TRAFFIC_CLASS}, \%ip_class_tables)) {
 	    	      $self->{INTERIM}{$DATA->{DST_IP}}{"$zid"}{IN} += $DATA->{SIZE};
@@ -497,7 +453,6 @@ sub traffic_agregate_nets {
 	       }
        }
      }
-
 }
 
 }
@@ -570,7 +525,7 @@ sub get_zone {
    	    	my $IP       = unpack("N", pack("C4", split( /\./, $2))); 
    	    	my $NETMASK  = (length($4) < 3) ? unpack "N", pack("B*",  ( "1" x $4 . "0" x (32 - $4) )) : unpack("N", pack("C4", split( /\./, "$4")));
    	    	
-   	      print "REG $i ID: $zoneid NEGATIVE: $NEG IP: ".  int2ip($IP). " MASK: ". int2ip($NETMASK) ." Ports: $6<br>\n" if ($self->{debug});
+   	      print "REG $i ID: $zoneid NEGATIVE: $NEG IP: ".  int2ip($IP). " MASK: ". int2ip($NETMASK) ." Ports: $6\n" if ($self->{debug});
 
   	      $ip_class_tables{$zoneid}[$i]{IP}   = $IP;
 	        $ip_class_tables{$zoneid}[$i]{Mask} = $NETMASK;
@@ -621,44 +576,31 @@ sub ip_in_zone($$$$) {
     my $res = 0;
     # debug
     my %zones = %$zone_data;
-    
-    
-    
+
     if ($self->{debug}) { print "--- CALL ip_in_zone($ip_num, $port, $zoneid) -> \n"; }
 
     return 0 if (! $zones{$zoneid});
 
-    # eaai ii nieneo aa?ania ciiu
     for (my $i=0; $i<=$#{$zones{$zoneid}}; $i++) {
 	     my $adr_hash = \%{ $zones{$zoneid}[$i] };
        
        my $a_ip  = $$adr_hash{'IP'}; 
        my $a_msk = $$adr_hash{'Mask'}; 
        my $a_neg = $$adr_hash{'Neg'};
-       
-       #print  "$a_ip / $a_msk / $a_neg<br>";
-        
        my $a_ports_ref = \@{ $$adr_hash{'Ports'} };
-       
-       #print "AAAAAAAA:" . @$a_ports_ref . "\n";
-       
-       # anee aa?an iiiaaaao a iianaou
        if ( (( $a_ip & $a_msk) == ($ip_num & $a_msk)) && # aa?an niaiaaaao
               (is_exist($a_ports_ref, $port)) ) {       # E ii?o niaiaaaao
 
-          #print ">>". int2ip($a_ip). " & $a_msk / ". int2ip($ip_num) ." $zoneid / $res\n";
-	        if ($a_neg) { # anee onoaiiaeai aeo aua?anuaaiey aa?ana
-		        $res = 0; # oi aua?anuaaai iaeaaiiue aa?an ec ciiu
+	        if ($a_neg) {
+		        $res = 0;
 	         } 
 	        else {
 		        $res = 1;
-            #print ">>". int2ip($a_ip). " & $a_msk / ". int2ip($ip_num) ." $zoneid / $res\n";
 		        next;
 	         }
 	      }
     }
-    
-    #if ($self->{debug}) { print "IP is " . ($res ? "" : "not ") . "in zone $zoneid\n";  }
+
     return $res;									  												      
 }
 
@@ -670,11 +612,10 @@ sub ip_in_zone($$$$) {
 sub traffic_add_user {
   my $self = shift;
   my ($DATA) = @_;
- 
+
   my $start = (! $DATA->{START}) ? 'now()':  "'$DATA->{START}'";
   my $stop  = (! $DATA->{STOP}) ?  0 : "'$DATA->{STOP}'";
- 
- 
+
   if ($DATA->{INBYTE} + $DATA->{OUTBYTE} > 0) {
     $self->query($db, "insert into ipn_log (
          uid,
@@ -702,17 +643,6 @@ sub traffic_add_user {
        '$DATA->{SUM}',
        '$DATA->{SESSION_ID}'
       );", 'do');
-   }
-
-  if ($self->{USERS_INFO}->{DEPOSIT}->{$DATA->{UID}}) {
-  	#Take money from bill
-    if ($DATA->{SUM} > 0) {
-   	  $self->query($db, "UPDATE bills SET deposit=deposit-$DATA->{SUM} WHERE id='$self->{USERS_INFO}->{BILL_ID}->{$DATA->{UID}}';", 'do');
-     }
-    #If negative deposit hangup
-    if ($self->{USERS_INFO}->{DEPOSIT}->{$DATA->{UID}} - $DATA->{SUM} < 0) {
-      $self->{USERS_INFO}->{DEPOSIT}->{$DATA->{UID}}=$self->{USERS_INFO}->{DEPOSIT}->{$DATA->{UID}} - $DATA->{SUM};
-     }
    }
 
   return $self;
@@ -770,9 +700,7 @@ sub traffic_user_get2 {
     FROM traffic_prepaid_sum
         WHERE uid='$uid'
         and $WHERE;");
- 
- 
- 
+
    if ($self->{TOTAL} < 1) {
    	 $self->query($db, "INSERT INTO traffic_prepaid_sum (uid, started, traffic_class, traffic_in, traffic_out)
    	   VALUES ('$uid', $attr->{ACTIVATE}, '$attr->{TRAFFIC_ID}', '$attr->{TRAFFIC_IN}', '$attr->{TRAFFIC_OUT}')", 'do');
@@ -885,7 +813,43 @@ sub traffic_add {
   return $self;
 }
 
+#**********************************************************
+# Acct_stop
+#**********************************************************
+sub acct_update {
+  my $self = shift;
+  my ($DATA) = @_;
 
+  $self->query($db, "UPDATE dv_calls SET
+      sum=sum+$DATA->{SUM},
+      acct_input_octets=acct_input_octets+$DATA->{INTERIUM_INBYTE},
+      acct_output_octets=acct_output_octets+$DATA->{INTERIUM_OUTBYTE},
+      ex_input_octets=ex_input_octets + $DATA->{INBYTE2},
+      ex_output_octets=ex_output_octets + $DATA->{OUTBYTE2},
+      acct_input_gigawords='$DATA->{ACCT_INPUT_GIGAWORDS}',
+      acct_output_gigawords='$DATA->{ACCT_OUTPUT_GIGAWORDS}',
+      status='3',
+      acct_session_time=UNIX_TIMESTAMP()-UNIX_TIMESTAMP(started),
+      framed_ip_address=INET_ATON('$DATA->{FRAMED_IP_ADDRESS}'),
+      lupdated=UNIX_TIMESTAMP()
+    WHERE
+      acct_session_id='$DATA->{ACCT_SESSION_ID}' and 
+      uid='$DATA->{UID}' and
+      nas_id='$DATA->{NAS_ID}';", 'do');
+
+  if ($self->{USERS_INFO}->{DEPOSIT}->{$DATA->{UID}}) {
+  	#Take money from bill
+    if ($DATA->{SUM} > 0) {
+   	  $self->query($db, "UPDATE bills SET deposit=deposit-$DATA->{SUM} WHERE id='$self->{USERS_INFO}->{BILL_ID}->{$DATA->{UID}}';", 'do');
+     }
+    #If negative deposit hangup
+    if ($self->{USERS_INFO}->{DEPOSIT}->{$DATA->{UID}} - $DATA->{SUM} < 0) {
+      $self->{USERS_INFO}->{DEPOSIT}->{$DATA->{UID}}=$self->{USERS_INFO}->{DEPOSIT}->{$DATA->{UID}} - $DATA->{SUM};
+     }
+   }
+
+  return $self;
+}
 
 #**********************************************************
 # Acct_stop
@@ -1006,7 +970,6 @@ sub acct_stop {
           '$ACCT_TERMINATE_CAUSE');", 'do');
 
   $self->query($db, "DELETE from dv_calls WHERE acct_session_id='$self->{ACCT_SESSION_ID}';", 'do');
-
 }
 
 
@@ -1016,7 +979,6 @@ sub acct_stop {
 #**********************************************************
 sub is_exist($$) {
   my ($arrayref, $elem) = @_;
-  # anee nienie iono, n?eoaai, ?oi yeaiaio a iaai iiiaaaao
   if ($#{ $arrayref } == -1) { return 1; }
     
   foreach my $e (@$arrayref) {
@@ -1025,26 +987,17 @@ sub is_exist($$) {
  return 0;
 }
 
-
-#*******************************************************************
-# Convert integer value to ip
-# int2ip($i);
-#*******************************************************************
-#sub int2ip {
-#my $i = shift;
+#**********************************************************
 #
-#my (@d);
-#$d[0]=int($i/256/256/256);
-#$d[1]=int(($i-$d[0]*256*256*256)/256/256);
-#$d[2]=int(($i-$d[0]*256*256*256-$d[1]*256*256)/256);
-#$d[3]=int($i-$d[0]*256*256*256-$d[1]*256*256-$d[2]*256);
-# return "$d[0].$d[1].$d[2].$d[3]";
-#}
+#**********************************************************
+sub unknown_add {
+	my $self =  shift;
+  my ($from, $to, $size, $nas_id, $attr) = @_;
 
+  $self->query($db, "INSERT INTO ipn_unknow_ips (src_ip, dst_ip, size, nas_id, datetime)
+   	   VALUES ($from, $to, $size, $nas_id, now());", 'do');
 
-
-
-
-
+	return $self;
+}
 
 1

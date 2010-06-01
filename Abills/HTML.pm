@@ -60,10 +60,7 @@ my $CONF;
 
 
 my $row_number = 0;
-
-
 #require "Abills/templates.pl";
-
 
 #**********************************************************
 # Create Object
@@ -162,7 +159,6 @@ sub new {
   #Make  PDF output
   if ($FORM{pdf} || $attr->{pdf}) {
     $FORM{pdf}=1;
-
     eval { require PDF::API2; };
     if (! $@) {
       PDF::API2->import();
@@ -170,11 +166,10 @@ sub new {
       $self = Abills::PDF->new( { IMG_PATH  => $IMG_PATH,
       	                          NO_PRINT  => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1,
       	                          CONF      => $CONF
-      	                          
-	                            
 	                            });
      }
     else {
+    	print "Content-Type: text/html\n\n";
       print "Can't load 'PDF::API2'. Get it from http://cpan.org $@";
       exit; #return 0;
      }
@@ -187,7 +182,6 @@ sub new {
 	                              CONF      => $CONF 
 	                            });
   }
-  
 
   return $self;
 }
@@ -219,12 +213,11 @@ elsif ($ENV{'REQUEST_METHOD'} eq "POST") {
  }
 
 if (! defined($ENV{CONTENT_TYPE}) || $ENV{CONTENT_TYPE} !~ /boundary/ ) {
-
   @pairs = split(/&/, $buffer);
   $FORM{__BUFFER}=$buffer if ($#pairs > -1);
 
   foreach my $pair (@pairs) {
-    my ($side, $value) = split(/=/, $pair);
+    my ($side, $value) = split(/=/, $pair, 2);
     if (defined($value)) {
       $value =~ tr/+/ /;
       $value =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/eg;
@@ -275,8 +268,8 @@ else {
       else {
 	     ($blankline, $datas) = split(/[\r]\n/, $datas, 2);
         if (grep(/^$name$/, keys(%FORM))) {
-        	print "Content-Type: text/html\n\n";
-        	print "/$name // $FORM{$name}<br>";
+        #	print "Content-Type: text/html\n\n";
+        #	print "/$name // $FORM{$name}<br>";
         	
           if (@{ $FORM{$name} } > 0) {
             push(@{$FORM{$name}}, $datas);
@@ -339,9 +332,7 @@ sub form_input {
 
   my $state = (defined($attr->{STATE})) ? ' checked ' : ''; 
   my $size  = (defined($attr->{SIZE})) ? " SIZE=\"$attr->{SIZE}\"" : '';
-  
 
-  
   $self->{FORM_INPUT}="<input type=\"$type\" name=\"$name\" value=\"$value\"$state$size$class$ex_params ID=\"$name\"/>";
 
   if (defined($self->{NO_PRINT}) && ( !defined($attr->{OUTPUT2RETURN}) )) {
@@ -354,6 +345,26 @@ sub form_input {
 
 
 #*******************************************************************
+# form_input
+#*******************************************************************
+sub form_textarea {
+	my $self = shift;
+	my ($name, $value, $attr)=@_;
+
+  my $cols  = $attr->{COLS} || 45; 
+  my $rows  = $attr->{ROWS} || 4;
+
+  $self->{FORM_INPUT}="<textarea id='$name' name='$name' cols=$cols rows=$rows>$value</textarea>";
+
+  if (defined($self->{NO_PRINT}) && ( !defined($attr->{OUTPUT2RETURN}) )) {
+  	$self->{OUTPUT}    .= $self->{FORM_INPUT};
+  	$self->{FORM_INPUT} = '';
+  }
+
+	return $self->{FORM_INPUT};
+}
+
+#*******************************************************************
 # form_main
 #*******************************************************************
 sub form_main {
@@ -363,11 +374,9 @@ sub form_main {
 	my $METHOD = ($attr->{METHOD}) ? $attr->{METHOD} : 'POST';
 	$self->{FORM} =  "<FORM ";
 	$self->{FORM} .= "name=\"$attr->{NAME}\" " if ($attr->{NAME});
+	$self->{FORM} .= "enctype=\"$attr->{ENCTYPE}\" " if ($attr->{ENCTYPE});
 	$self->{FORM} .= "action=\"$SELF_URL\" METHOD=\"$METHOD\">\n";
-	
 
-	
-	
   if (defined($attr->{HIDDEN})) {
   	my $H = $attr->{HIDDEN};
   	while(my($k, $v)=each( %$H)) {
@@ -386,7 +395,6 @@ sub form_main {
       $self->{FORM} .= "<input type=\"submit\" name=\"$k\" value=\"$v\" class=\"button\">\n";
   	}
   }
-
 
 	$self->{FORM}.="</form>\n";
 
@@ -438,7 +446,6 @@ sub form_select {
   elsif (defined($attr->{SEL_MULTI_ARRAY})){
     my $key   = $attr->{MULTI_ARRAY_KEY};
     my $value = $attr->{MULTI_ARRAY_VALUE};
-    
 	  my $H = $attr->{SEL_MULTI_ARRAY};
 
 	  foreach my $v (@$H) {
@@ -457,10 +464,7 @@ sub form_select {
       else {
         $self->{SELECT} .= "$v->[$value]";
        }
-     
       $self->{SELECT} .= "\n";
-
-
      }
    }
   elsif (defined($attr->{SEL_HASH})) {
@@ -475,17 +479,58 @@ sub form_select {
            } keys %{ $attr->{SEL_HASH} }; 
      }
     
-    
     foreach my $k (@H) {
-      $self->{SELECT} .= "<option value='$k'";
-      $self->{SELECT} .= " style='COLOR:$attr->{STYLE}->[$k];' " if ($attr->{STYLE});
-      $self->{SELECT} .=' selected' if (defined($attr->{SELECTED}) && $k eq $attr->{SELECTED});
+      if(ref $attr->{SEL_HASH}->{$k} eq 'ARRAY') {
+        $self->{SELECT}.="<optgroup label=\"$k\" title=\"$k\">\n";
 
-      $self->{SELECT} .= ">";
-      $self->{SELECT} .= "$k:" if (! $attr->{NO_ID});
-      $self->{SELECT} .= "$attr->{SEL_HASH}{$k}\n";	
+        foreach my $val ( @{ $attr->{SEL_HASH}->{$k} } ) {
+          $self->{SELECT} .= "<option value='$val'";
+          $self->{SELECT} .= " style='COLOR:$attr->{STYLE}->[$val];' " if ($attr->{STYLE});
+          $self->{SELECT} .=' selected' if (defined($attr->{SELECTED}) && $val eq $attr->{SELECTED});
+
+          $self->{SELECT} .= ">";
+          #$self->{SELECT} .= "$val:" if (! $attr->{NO_ID});
+          $self->{SELECT} .= "$val\n";	
+         }
+         $self->{SELECT}.="</optgroup>";
+       }
+      else {
+        $self->{SELECT} .= "<option value='$k'";
+        $self->{SELECT} .= " style='COLOR:$attr->{STYLE}->[$k];' " if ($attr->{STYLE});
+        $self->{SELECT} .=' selected' if (defined($attr->{SELECTED}) && $k eq $attr->{SELECTED});
+        $self->{SELECT} .= ">";
+        $self->{SELECT} .= "$k:" if (! $attr->{NO_ID});
+        $self->{SELECT} .= "$attr->{SEL_HASH}{$k}\n";	
+       }
      }
    }
+#  elsif (defined($attr->{SEL_HASH_GROUP})) {
+#    my @H = ();
+#
+#	  if ($attr->{SORT_KEY}) {
+#	  	@H = sort keys %{ $attr->{SEL_HASH} };
+#	  }
+#	  else {
+#	    @H = sort {
+#             $attr->{SEL_HASH_GROUP}->{$a} cmp $attr->{SEL_HASH_GROUP}->{$b}
+#           } keys %{ $attr->{SEL_HASH_GROUP} }; 
+#     }
+#    
+#    foreach my $k_main (@H) {
+#      $self->{SELECT}.="<optgroup label=\"$k_main\" title=\"$k_main\">\n";
+#
+#      while(my ($k, $v)=each %{ $attr->{SEL_HASH_GROUP}->{$k_main} } ) {
+#        $self->{SELECT} .= "<option value='$k'";
+#        $self->{SELECT} .= " style='COLOR:$attr->{STYLE}->[$k];' " if ($attr->{STYLE});
+#        $self->{SELECT} .=' selected' if (defined($attr->{SELECTED}) && $k eq $attr->{SELECTED});
+#
+#        $self->{SELECT} .= ">";
+#        $self->{SELECT} .= "$k:" if (! $attr->{NO_ID});
+#        $self->{SELECT} .= "$attr->{SEL_HASH}{$k}\n";	
+#       }
+#      $self->{SELECT}.="</optgroup>";
+#     }
+#   }
 	
 	$self->{SELECT} .= "</select>\n";
 
@@ -559,8 +604,8 @@ sub menu () {
  my $sub_menu_array;
  my $EX_ARGS = (defined($attr->{EX_ARGS})) ? $attr->{EX_ARGS} : '';
 
- # make navigate line 
- if ($index > 0) {
+# make navigate line 
+if ($index > 0) {
   $root_index = $index;	
   my $h = $menu_items->{$root_index};
 
@@ -710,7 +755,6 @@ sub header {
 
  $CONF->{WEB_TITLE}=$self->{WEB_TITLE} if ($self->{WEB_TITLE});
 
-
  $info{title}   = ($CONF->{WEB_TITLE}) ? $CONF->{WEB_TITLE} : "~AsmodeuS~ Billing System";
  $info{REFRESH} = ($FORM{REFRESH}) ? "<META HTTP-EQUIV=\"Refresh\" CONTENT=\"$FORM{REFRESH}; URL=$ENV{REQUEST_URI}\"/>\n" : '';
  $info{CHARSET} = $self->{CHARSET};
@@ -769,7 +813,9 @@ sub table {
    $self->{table} .= "<TR><TD bgcolor=\"$_COLORS[1]\" align=\"right\" class=\"tcaption\"><b>$attr->{caption}</b></td></TR>\n";
   }
 
- $self->{table} .= "<tr><td bgcolor=\"$_COLORS[1]\">$attr->{header}</td></tr>\n" if( $attr->{header});
+ if( $attr->{header}) {
+   $self->{table} .= "<tr><td bgcolor=\"$_COLORS[1]\"><div id=\"rules\"><ul><li class=\"center\"> $attr->{header} </li></ul></div></td></tr>\n";
+  }
 
  $self->{table} .= "<TR><TD bgcolor=\"$_COLORS[4]\">
                <TABLE width=\"100%\" cellspacing=\"1\" cellpadding=\"0\" border=\"0\">\n";
@@ -796,7 +842,7 @@ sub table {
        $class = " class=\"$class\"";
       }
      my $width = (defined($attr->{cols_width}) && defined(@{$attr->{cols_width}}[$i])  ) ? " width=\"@{$attr->{cols_width}}[$i]\"" : '';
-     $self->{table} .= " <COL align=\"$line\"$class$width>\n";
+     $self->{table} .= " <COL align=\"$line\"$class$width />\n";
      $i++;
     }
    $self->{table} .= "</COLGROUP>\n";
@@ -952,8 +998,6 @@ sub table_title  {
   my ($op);
   my $img='';
 
-  #print "$FORM{sort} // SORT: $sort, DESC: $desc, PAGE: $pg, $op, $caption, $qs--";
-
   $self->{table_title} = "<tr bgcolor=\"$_COLORS[0]\">";
   my $i=1;
   foreach my $line (@$caption) {
@@ -985,7 +1029,7 @@ sub table_title  {
          $self->{table_title} .= $self->button("<img src=\"$IMG_PATH/$img\" width=\"12\" height=\"10\" border=\"0\" alt=\"Sort\" title=\"Sort\" class=\"noprint\">", "$op$qs&pg=$pg&sort=$i&desc=$desc");
        }
      else {
-         $self->{table_title} .= "$line";
+         $self->{table_title} .= '';
        }
 
      $self->{table_title} .= "</th>\n";
@@ -1027,7 +1071,6 @@ sub show  {
   	#$self->{OUTPUT} .= $self->{show};
   	$self->{show} = '';
   }
-  
 
   return $self->{show};
 }
@@ -1057,37 +1100,30 @@ sub link_former {
 sub button {
   my $self = shift;
   my ($name, $params, $attr)=@_;
-
   my $ex_attr = ($attr->{ex_params}) ? $attr->{ex_params} : '';
-
-  
   $params = ($attr->{GLOBAL_URL})? $attr->{GLOBAL_URL} : "$SELF_URL?$params";
   $params = $attr->{JAVASCRIPT} if (defined($attr->{JAVASCRIPT}));
   $params = $self->link_former($params);
-
   
   $ex_attr=" TITLE='$attr->{TITLE}'" if (defined($attr->{TITLE}));
-  
   if ( $attr->{NEW_WINDOW} ) {
     my $x = 640;
     my $y = 480;
-
+    $params='#';
     if ($attr->{NEW_WINDOW_SIZE}) {
     	($x, $y)=split(/:/, $attr->{NEW_WINDOW_SIZE});
-     }
-   
+     }   
     $ex_attr .= " onclick=\"window.open('$attr->{NEW_WINDOW}', null,
             'toolbar=0,location=0,directories=0,status=1,menubar=0,'+
             'scrollbars=1,resizable=1,'+
             'width=$x, height=$y');\"";
-
     $params = '#';
    }
   
   my $message = '';
   
   if ($attr->{MESSAGE}) {
-  	$attr->{MESSAGE} =~ s/'/\\'/g;
+  	$attr->{MESSAGE} =~ s/\'/\\'/g;
   	$attr->{MESSAGE} =~ s/"/\\'/g;
   	$attr->{MESSAGE} =~ s/\n//g;
   	$attr->{MESSAGE} =~ s/\r//g;
@@ -1095,7 +1131,7 @@ sub button {
   	$message = " onclick=\"return confirmLink(this, '$attr->{MESSAGE}')\"";
    }
 
-  my $button = "<a href=\"$params\"$ex_attr$message>$name</a>";
+  my $button = ($attr->{BUTTON}) ? "<a class='link_button' href=\"$params\"$ex_attr$message>$name</a>" : "<a href=\"$params\"$ex_attr$message>$name</a>";
 
   return $button;
 }
@@ -1118,8 +1154,6 @@ sub message {
    $head = "<tr><th bgcolor=\"$_COLORS[0]\" class=info_message>$caption</th></TR>\n";
   }  
  
- 
- 
 my $output = qq{
 <br>
 <TABLE width="400" border="0" cellpadding="0" cellspacing="0" class="noprint">
@@ -1140,10 +1174,8 @@ $head
 };
 
 
-
   if (defined($self->{NO_PRINT})) {
   	$self->{OUTPUT}.=$output;
-  	#print "aaaaaa $self->{OUTPUT}";
   	return $output;
    }
 	else { 
@@ -1163,7 +1195,7 @@ sub pre {
  
 my $output = qq{
 <pre>
- $message
+$message
 </pre>
 };
 
@@ -1219,7 +1251,6 @@ sub pages {
 
  my $begin=0;   
 
-
  $self->{pages} = '';
  $begin = ($PG - $PAGE_ROWS * 3 < 0) ? 0 : $PG - $PAGE_ROWS * 3;
 
@@ -1230,12 +1261,11 @@ sub pages {
  
 for(my $i=$begin; ($i<=$count && $i < $PG + $PAGE_ROWS * 10); $i+=$PAGE_ROWS) {
    $self->{pages} .= ($i == $PG) ? "<b>$i</b> " : $self->button($i, "$argument&pg=$i") .' ';
-}
- 
- 
- return "<div id=\"rules\"><ul><li class=\"center\">". 
-         $self->{pages}.
-        "</li></ul></div>\n";
+ }
+
+return "<div id=\"rules\"><ul><li class=\"center\">\n". 
+        $self->{pages}.
+       "\n</li></ul></div>\n";
 }
 
 
@@ -1279,9 +1309,6 @@ sub date_fld  {
     }
   }
 
-
-
-
 my $result  = "<SELECT name=". $base_name ."D>";
 for (my $i=1; $i<=31; $i++) {
    $result .= sprintf("<option value=%.2d", $i);
@@ -1310,6 +1337,79 @@ for ($i=2002; $i<=$curyear + 1900+2; $i++) {
    $result .= ">$i\n";
  }	
 $result .= '</select>'."\n";
+
+return $result ;
+}
+
+
+#*******************************************************************
+# Make data field
+# date_fld($base_name)
+#*******************************************************************
+sub date_fld2  {
+ my $self = shift;
+ my ($base_name, $attr) = @_;
+
+ my $form_name = $attr->{FORM_NAME} || 'FORM';
+ my $date = '';
+ 
+ my ($year, $month, $day);
+
+   if ($attr->{DATE}) {
+ 	   $date = $attr->{DATE};
+    }
+   elsif ($FORM{$base_name}) {
+ 	   $date = $FORM{$base_name};
+    }
+   # Default Date
+   elsif (! $attr->{NO_DEFAULT_DATE}) {
+     my($sec,$min,$hour,$mday,$mon,$curyear,$wday,$yday,$isdst) = localtime( time + ( ($attr->{NEXT_DAY}) ? 86400 : 0 ) ); 
+
+     $month = $mon+1;
+     $year  = $curyear + 1900;
+     $day   = $mday;
+
+
+     if ($base_name =~ /to/i) {
+ 	     $day   = ($month!=2?(($month%2)^($month>7))+30:(!($year%400)||!($year%4)&&($year%25)?29:28));
+ 	    }
+     elsif($base_name =~ /from/i && ! $attr->{NEXT_DAY}) {
+   	   $day=1;
+      }
+     $date = sprintf("%d-%.2d-%.2d", $year, $month, $day);
+    }
+
+
+
+
+my $monthes = "'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'";
+if ($attr->{MONTHES}) {
+	$monthes   = "'".join("', '", @{ $attr->{MONTHES} })."'";
+ }
+
+my $week_days = "'Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'";
+
+if ( $attr->{WEEK_DAYS} ){
+	my @wd = @{ $attr->{WEEK_DAYS} };
+	$wd[0]=$wd[7];
+  pop @wd;
+  $week_days = "'".join("', '", @wd)."'";
+ }
+
+my $tabindex = ($attr->{TABINDEX}) ? "tabindex=$attr->{TABINDEX}": '';
+
+my $result = qq{
+<input type=text name='$base_name' value='$date' size=12 ID='$base_name' $tabindex> 
+<script language="JavaScript">
+	var o_cal = new tcal ({	'formname': '$form_name',	'controlname': '$base_name'	});
+	
+	// individual template parameters can be modified via the calendar variable
+	o_cal.a_tpl.yearscroll = false;
+	o_cal.a_tpl.weekstart  = 1;
+ 	o_cal.a_tpl.months     = [$monthes];
+	o_cal.a_tpl.weekdays   = [$week_days];
+</script>
+ };
 
 return $result ;
 }
@@ -1418,51 +1518,15 @@ sub test {
  return 0 if (! $CONF->{WEB_DEBUG});
  
  my $output = '';
-#print "<TABLE border=1>
-#<tr><TD colspan=2>FORM</TD></TR>
-#<tr><TD>index</TD><TD>$index</TD></TD></TR>
-#<tr><TD>root_index</TD><TD>root_index</TD></TD></TR>\n";	
   while(my($k, $v)=each %FORM) {
   	$output .= "$k | $v\n" if ($k ne '__BUFFER');
-    #print "<tr><TD>$k</TD><TD>$v</TD></TR>\n";	
    }
-#print "</TABLE>\n";
  $output .= "\n";
-#print "<br><TABLE border=1>
-#<tr><TD colspan=2>COOKIES</TD></TR>
-#<tr><TD>index</TD><TD>$index</TD></TD></TR>\n";	
-  while(my($k, $v)=each %COOKIES) {
-    $output .= "$k | $v\n";
-    #print "<tr><TD>$k</TD><TD>$v</TD></TR>\n";	
-   }
-#print "</TABLE>\n";
-
-
-#print "<br><TABLE border=1>\n";
-#  while(my($k, $v)=each %ENV) {
-#    print "<tr><TD>$k</TD><TD>$v</TD></TR>\n";	
-#   }
-#print "</TABLE>\n";
-
-#print "<br><TABLE border=1>\n";
-#  while(my($k, $v)=each %conf) {
-#    print "<tr><TD>$k</TD><TD>$v</TD></TR>\n";	
-#   }
-#print "</TABLE>\n";
-#
-
-#print "<a href='#' onclick=\"document.write ( 'answer' )\">aaa</a>";
-
-#print "<a href='#' onclick=\"open('aaa','help', 
-# 'height=550,width=450,resizable=0, scrollbars=yes, menubar=no, status=yes');\"><font color=$_COLORS[1]>Debug</font></a>";
-
-print "<a href='#' title='$output' class='noprint'><font color=$_COLORS[1]>Debug</font></a>\n";
-
+ while(my($k, $v)=each %COOKIES) {
+   $output .= "$k | $v\n";
+  }
+ print "<a href='#' title='$output' class='noprint'><font color=$_COLORS[1]>Debug</font></a>\n";
 }
-
-
-
-
 
 #**********************************************************
 # letters_list();
@@ -1472,7 +1536,7 @@ sub letters_list {
  
  my $pages_qs = $attr->{pages_qs} if (defined($attr->{pages_qs}));
  my @alphabet = ('a-z');
-#'97-123'
+
  if ($attr->{EXPR}) {
   push @alphabet, $attr->{EXPR};
   }
@@ -1526,9 +1590,6 @@ sub make_charts {
    }
 
   $PATH .= 'charts';
-#  if (! -f $PATH. "charts.swf") {
-#     return 0;
-#   }
   
   my $suffix = ($attr->{SUFFIX}) ? $attr->{SUFFIX} : '';
 
@@ -1781,8 +1842,6 @@ if (AC_FL_RunContent == 0 || DetectFlashVer == 0) {
 <br>	
 	};
 
-
-
 	if ($attr->{OUTPUT2RETURN}) {
 		 return $output;
    }
@@ -1792,10 +1851,6 @@ if (AC_FL_RunContent == 0 || DetectFlashVer == 0) {
    }
 
   print $output;
-
 }
-
-
-
 
 1

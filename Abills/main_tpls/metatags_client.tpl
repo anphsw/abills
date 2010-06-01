@@ -11,6 +11,7 @@
 
  <link rel=\"stylesheet\" media=\"print\" type=\"text/css\" href=\"%PRINTCSS%\" />
  <script src=\"%JAVASCRIPT%\" type=\"text/javascript\" language=\"javascript\"></script>
+ <script src='/calendar.js' language='JavaScript'></script>
 
 <style type=\"text/css\">
 
@@ -78,7 +79,54 @@ form {
   font-size: 12px;
 }
 
+a.button_change {
+	color: %_COLOR_9%;
+ 	background:url(/img/button_change.png) no-repeat left;
+ 	padding-left:22px;
+	padding-top:5px;
+	margin:0;
+	display:block;
+	text-decoration:none;
+	overflow:hidden; 
+ 	text-indent:-9000px;
+}
 
+a.button_add { 
+ 	background:url(/img/button_add.png) no-repeat left;
+  display:block;
+  overflow:hidden; 
+ 	text-indent:-60px;
+}
+
+a.button_del { 
+	color: %_COLOR_9%;
+ 	background:url(/img/button_del.png) no-repeat left;
+ 	padding-left:22px;
+	padding-top:5px;
+	margin:0;
+	display:block;
+	text-decoration:none;
+	overflow:hidden; 
+ 	text-indent:-9000px;
+}
+
+
+.link_button {
+  font-family:  Arial, Tahoma,Verdana, Helvetica, sans-serif;
+  background-color: %_COLOR_2%;
+  color: %_COLOR_9%;
+  font-size: 11px;
+  padding: 2px;
+  border: 1px outset;
+  text-decoration: none;
+  padding:1px 5px;
+}
+
+a.link_button:hover {
+  background:#ccc;
+  background-color: %_COLOR_3%;
+  border:1px solid #666;
+}
 
 input, textarea {
 	font-family : Verdana, Arial, sans-serif;
@@ -104,7 +152,6 @@ TABLE.border {
   border-width : 1px;
 }
 
-
 .l_user_menu {
       width: 100%;
       border-right: 1px solid #000;
@@ -128,7 +175,6 @@ TABLE.border {
       border-bottom: 1px solid %_COLOR_2%;
       margin: 0;
       }
-
 
 .l_user_menu li a {
       display: block;
@@ -174,9 +220,6 @@ TABLE.border {
       display: inline;
       }
 
-
-
-
 #rules {
   float:center;
   text-align:center;
@@ -215,6 +258,78 @@ TABLE.border {
 
 .MENU_BACK {
   background:%_COLOR_2%;
+}
+
+
+/* calendar icon */
+img.tcalIcon {
+    cursor: pointer;
+    margin-left: 1px;
+    vertical-align: middle;
+}
+/* calendar container element */
+div#tcal {
+    position: absolute;
+    visibility: hidden;
+    z-index: 100;
+    width: 158px;
+    padding: 2px 0 0 0;
+}
+/* all tables in calendar */
+div#tcal table {
+    width: 100%;
+    border: 1px solid silver;
+    border-collapse: collapse;
+    background-color: white;
+}
+/* navigation table */
+div#tcal table.ctrl {
+    border-bottom: 0;
+}
+/* navigation buttons */
+div#tcal table.ctrl td {
+    width: 15px;
+    height: 20px;
+}
+/* month year header */
+div#tcal table.ctrl th {
+    background-color: %_COLOR_2%;
+    color: black;
+    border: 0;
+}
+/* week days header */
+div#tcal th {
+    border: 1px solid silver;
+    border-collapse: collapse;
+    text-align: center;
+    padding: 3px 0;
+    font-family: Verdana, Tahoma, Arial;
+    font-size: 10px;
+    background-color: gray;
+    color: white;
+}
+/* date cells */
+div#tcal td {
+    border: 0;
+    background-color: %_COLOR_2%;
+    border-collapse: collapse;
+    text-align: center;
+    padding: 2px 0;
+    font-family: Verdana, Tahoma, Arial;
+    font-size: 11px;
+    width: 22px;
+    cursor: pointer;
+}
+div#tcal td:hover {
+    border: 0;
+    background-color: #7CC234;
+    border-collapse: collapse;
+    text-align: center;
+    padding: 2px 0;
+    font-family: Verdana, Tahoma, Arial;
+    font-size: 11px;
+    width: 22px;
+    cursor: pointer;
 }
 
 </style>

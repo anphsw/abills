@@ -1,15 +1,22 @@
 #!/usr/bin/perl -w
-# Sharing registration
+# Main  registration engine
 #
 
 
-use vars qw($begin_time %FORM %LANG $CHARSET 
+
+
+
+use vars qw($begin_time %FORM %LANG %conf $CHARSET 
   @MODULES
   @REGISTRATION
   $PROGRAM
   $html
   $users
   $Bin
+  $ERR_WRONG_DATA
+  $DATE 
+  $time
+  
  );
 BEGIN {
  my $libpath = '../';
@@ -48,16 +55,32 @@ use Sharing;
 
 $html = Abills::HTML->new({ CONF => \%conf, NO_PRINT => 1, });
 
-my $sql = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd});
+my $sql = Abills::SQL->connect($conf{dbtype}, 
+                               $conf{dbhost}, 
+                               $conf{dbname}, 
+                               $conf{dbuser}, 
+                               $conf{dbpasswd},
+                               { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
 my $db = $sql->{db};
-#Operation status
-my $status = '';
-#my $Paysys = Paysys->new($db, undef, \%conf);
+
+if ($conf{LANGS}) {
+	$conf{LANGS} =~ s/\n//g;
+	my(@lang_arr)=split(/;/, $conf{LANGS});
+	%LANG = ();
+	foreach my $l (@lang_arr) {
+		my ($lang, $lang_name)=split(/:/, $l);
+		$lang =~ s/^\s+//;
+		$LANG{$lang}=$lang_name;
+	 } 
+}
+
+my %INFO_HASH = ();
 
 my $admin = Admins->new($db, \%conf);
 $admin->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });
 my $payments = Finance->payments($db, $admin, \%conf);
 $users = Users->new($db, $admin, \%conf); 
+#my $Paysys = Paysys->new($db, undef, \%conf);
 
 
 if (! defined( @REGISTRATION ) ) {
@@ -66,49 +89,111 @@ if (! defined( @REGISTRATION ) ) {
 	exit;
 }
 
-$html->{language}=$FORM{language} if (defined($FORM{language}));
+$html->{language}=$FORM{language} if ($FORM{language});
 require "../language/$html->{language}.pl";
+$INFO_HASH{SEL_LANGUAGE} = $html->form_select('language', 
+                                { EX_PARAMS => 'onChange="selectLanguage()"',
+ 	                                SELECTED  => $html->{language},
+ 	                                SEL_HASH  => \%LANG,
+ 	                                NO_ID     => 1 });
 
 
-if ($FORM{module}) {
-	my $m = $FORM{module};
-	require "Abills/modules/$m/config";
-	require "Abills/modules/$m/webinterface";
-	$m = lc($m);
-	my $function = $m . '_registration';
-  $function->();
-  
-#  exit;
- }
-elsif ($FORM{FORGOT_PASSWD}) {
+
+if ($FORM{FORGOT_PASSWD}) {
 	password_recovery();
-	
-#	exit;
  }
-elsif($#REGISTRATION == 0) {
+elsif($#REGISTRATION > -1) {
+
 	my $m = $REGISTRATION[0];
+	if ($FORM{module}) {
+	  $m = $FORM{module};
+	 }
+  else {
+    if($#REGISTRATION > 0 && ! $FORM{registration}) {
+      foreach my $m (@REGISTRATION) {
+        $html->{OUTPUT} .= $html->button($m, "module=$m", { BUTTON => 1 }) . ' ';
+     }
+    }
+   }
+
+  $conf{REGISTRATION_CAPTCHA}=1 if (! defined($conf{REGISTRATION_CAPTCHA}));
+
+  if ($conf{REGISTRATION_CAPTCHA}) {
+    eval { require Authen::Captcha; };
+    if (! $@) {
+      Authen::Captcha->import();
+     }
+    else {
+      print "Can't load 'Authen::Captcha'. Please Install it from http://cpan.org $@";
+      exit; #return 0;
+     }
+
+    #use Authen::Captcha;
+
+    if (! -d $base_dir.'/cgi-bin/captcha/') {
+    	if (! mkdir("$base_dir/cgi-bin/captcha/")) {
+    	   $html->message('err', $_ERROR, "$ERR_CANT_CREATE_FILE '$base_dir/cgi-bin/captcha/' $_ERROR: $!\n");
+    	   $html->message('info', $_INFO, "$_NOT_EXIST '$base_dir/cgi-bin/captcha/'");
+    	  }
+     }
+    else {
+      # create a new object
+      $INFO_HASH{CAPTCHA_OBJ} = Authen::Captcha->new(
+         data_folder   => $base_dir.'/cgi-bin/captcha/',
+         output_folder => $base_dir.'/cgi-bin/captcha/',
+        );
+
+      my $number_of_characters = 5;
+      my $md5sum = $INFO_HASH{CAPTCHA_OBJ}->generate_code($number_of_characters);
+    
+      $INFO_HASH{CAPTCHA}  = "
+       <input type=hidden name=C value=$md5sum>
+       <tr><td align=right><img src='/captcha/". $md5sum.".png'></td><td><input type='text' name='CCODE'></td></tr>";
+     }
+   }
+  $INFO_HASH{RULES}    = $html->tpl_show(templates('form_accept_rules'), {  }, { OUTPUT2RETURN => 1 });
+  $INFO_HASH{language} = $html->{language};
+  
+  if (! $FORM{DOMAIN_ID}) {
+  	$FORM{DOMAIN_ID}=0;
+  	$INFO_HASH{DOMAIN_ID}=0;
+   }
+
 	require "Abills/modules/$m/config";
 	require "Abills/modules/$m/webinterface";
 	$m = lc($m);
 	my $function = $m . '_registration';
-  $function->();
+  my $return = $function->({ %INFO_HASH });
   
-#  exit;
-}
+
+  #Send E-mail to admin after registration
+  if ($return && $return == 2) {
+  	my $message = qq{
+New Registrations
+=========================================
+Username: $FORM{LOGIN}
+Fio:      $FORM{FIO}
+DATE:     $DATE $TIME
+IP:       $ENV{REMOTE_ADDR}
+Module:   $m
+=========================================
+
+};
+
+    sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "New registrations", 
+              "$message", "$conf{MAIL_CHARSET}", "");
+   }
+  
+ }
 else {
-  foreach my $m (@REGISTRATION) {
-	  #require "Abills/modules/$m/config";
-	  #require "Abills/modules/$m/webinterface";
-    print $html->button($m, "module=$m");
-  }
-}
+
+ }
 
 
-$html->{METATAGS}=templates('metatags_client');  
+$html->{METATAGS}= templates('metatags_client');  
 print $html->header();
-$OUTPUT{BODY}="$html->{OUTPUT}";
-print $html->tpl_show(templates('form_client_start'), \%OUTPUT);
-
+$OUTPUT{BODY}    = "$html->{OUTPUT}";
+print $html->tpl_show(templates('form_client_start'), { %OUTPUT, TITLE_TEXT => $_REGISTRATION });
 
 
 #**********************************************************

@@ -104,7 +104,8 @@ sub info {
    dv.turbo_mode,
    tp.abon_distribution,
    tp.credit,
-   tp.tp_id
+   tp.tp_id,
+   tp.priority
      FROM dv_main dv
      LEFT JOIN tarif_plans tp ON (dv.tp_id=tp.id and tp.domain_id='$admin->{DOMAIN_ID}')
    $WHERE;");
@@ -123,7 +124,7 @@ sub info {
    $self->{IP}, 
    $self->{NETMASK}, 
    $self->{SPEED}, 
-   $self->{IDTER_ID}, 
+   $self->{FILTER_ID}, 
    $self->{CID},
    $self->{STATUS},
    $self->{CALLBACK},
@@ -137,7 +138,8 @@ sub info {
    $self->{TURBO_MODE},
    $self->{ABON_DISTRIBUTION},
    $self->{TP_CREDIT},
-   $self->{TP_NUM}
+   $self->{TP_NUM},
+   $self->{TP_PRIORITY}
   )= @{ $self->{list}->[0] };
   
   
@@ -166,9 +168,6 @@ sub defaults {
    JOIN_SERVICE   => 0,
    TURBO_MODE     => 0
   );
-
- 
- 
 
   $self = \%DATA ;
   return $self;
@@ -209,8 +208,6 @@ sub add {
        $tariffs->{ACTIV_PRICE}=0;
       }
    }
-
-
 
   $self->query($db,  "INSERT INTO dv_main (uid, registration, 
              tp_id, 
@@ -271,7 +268,6 @@ sub change {
   
   my $old_info = $self->info($attr->{UID});
   
-  
   if ($attr->{TP_ID} && $old_info->{TP_ID} != $attr->{TP_ID}) {
      my $tariffs = Tariffs->new($db, $CONF, $admin);
 
@@ -317,7 +313,9 @@ sub change {
        $user->change($attr->{UID}, { EXPIRE => $EXPITE_DATE, UID => $attr->{UID} });
      }
    }
-  elsif (($old_info->{STATUS} == 2 && $attr->{STATUS} == 0) || ($old_info->{STATUS} == 4 && $attr->{STATUS} == 0)) {
+  elsif (($old_info->{STATUS} == 2 && $attr->{STATUS} == 0) || 
+         ($old_info->{STATUS} == 4 && $attr->{STATUS} == 0) || 
+         ($old_info->{STATUS} == 5 && $attr->{STATUS} == 0)) {
     my $tariffs = Tariffs->new($db, $CONF, $admin);
     $self->{TP_INFO}=$tariffs->info(0, { ID => $old_info->{TP_ID} });
    }
@@ -336,7 +334,6 @@ sub change {
   $self->{OLD_STATUS}=$old_info->{STATUS};
 
   $self->info($attr->{UID});
-  
 
   return $self;
 }
@@ -381,9 +378,6 @@ sub list {
  if ($attr->{GROUP_BY}) {
  	 $GROUP_BY = $attr->{GROUP_BY};
   }
- 
- 	
-
 
  $self->{SEARCH_FIELDS} = '';
  $self->{SEARCH_FIELDS_COUNT}=0;
@@ -391,7 +385,8 @@ sub list {
  @WHERE_RULES = ("u.uid = dv.uid");
  
  if ($attr->{USERS_WARNINGS}) {
-   $self->query($db, "SELECT u.id, pi.email, dv.tp_id, u.credit, b.deposit, tp.name, tp.uplimit
+   $self->query($db, "SELECT u.id, pi.email, dv.tp_id, u.credit, b.deposit, tp.name, tp.uplimit, pi.phone,
+      pi.fio
          FROM (users u,
                dv_main dv,
                bills b,
@@ -399,8 +394,10 @@ sub list {
          LEFT JOIN users_pi pi ON u.uid = pi.uid
          WHERE
                u.uid=dv.uid
+           and u.disable = 0
            and u.bill_id=b.id
            and dv.tp_id = tp.id
+           and dv.disable = 0
            and b.deposit<tp.uplimit AND tp.uplimit > 0 AND b.deposit+u.credit>0
          GROUP BY u.uid
          ORDER BY u.id;");
@@ -499,7 +496,6 @@ sub list {
    $self->{SEARCH_FIELDS_COUNT}++;
   }
 
-
  if ($attr->{SPEED}) {
    push @WHERE_RULES, @{ $self->search_expr($attr->{SPEED}, 'INT', 'dv.speed') };
    $self->{SEARCH_FIELDS} .= 'dv.speed, ';
@@ -513,22 +509,21 @@ sub list {
   }
 
  if ($attr->{CID}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{CID}, 'STR', 'dv.cid') };
-    $self->{SEARCH_FIELDS} .= 'dv.cid, ';
-    $self->{SEARCH_FIELDS_COUNT}++;
+   push @WHERE_RULES, @{ $self->search_expr($attr->{CID}, 'STR', 'dv.cid') };
+   $self->{SEARCH_FIELDS} .= 'dv.cid, ';
+   $self->{SEARCH_FIELDS_COUNT}++;
   }
 
  if ($attr->{FILTER_ID}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{FILTER_ID}, 'STR', 'dv.filter_id') };
-    $self->{SEARCH_FIELDS} .= 'dv.filter_id, ';
-    $self->{SEARCH_FIELDS_COUNT}++;
+   push @WHERE_RULES, @{ $self->search_expr($attr->{FILTER_ID}, 'STR', 'dv.filter_id') };
+   $self->{SEARCH_FIELDS} .= 'dv.filter_id, ';
+   $self->{SEARCH_FIELDS_COUNT}++;
   }
 
  if ($attr->{COMMENTS}) {
    $attr->{COMMENTS} =~ s/\*/\%/ig;
    push @WHERE_RULES, "u.comments LIKE '$attr->{COMMENTS}'";
   }
-
 
  if ($attr->{FIO}) {
    $attr->{FIO} =~ s/\*/\%/ig;
@@ -553,7 +548,6 @@ sub list {
    $self->{SEARCH_FIELDS} .= 'tp.payment_type, ';
    $self->{SEARCH_FIELDS_COUNT}++;
   }
-
 
  # Show debeters
  if ($attr->{DEBETERS}) {
@@ -586,8 +580,8 @@ sub list {
 
 #DIsable
  if (defined($attr->{STATUS}) && $attr->{STATUS} ne '') {
-   push @WHERE_RULES, "dv.disable='$attr->{STATUS}'"; 
- }
+   push @WHERE_RULES,  @{ $self->search_expr($attr->{STATUS}, 'INT', 'dv.disable') };
+  }
  
  if (defined($attr->{LOGIN_STATUS})) {
    push @WHERE_RULES, "u.disable='$attr->{LOGIN_STATUS}'"; 
@@ -648,31 +642,6 @@ sub periodic {
   
   return $self;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 1
  

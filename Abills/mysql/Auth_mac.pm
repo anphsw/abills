@@ -52,14 +52,16 @@ sub user_info {
   my $EXT_TABLES = '';
   
   if ($conf->{AUTH_MAC_DHCP}) {
-  	
-  	if ($RAD->{CALLING_STATION_ID} =~ /([A-Fa-f0-9]{2})([A-Fa-f0-9]{2})\.([A-Fa-f0-9]{2})([A-Fa-f0-9]{2})\.([A-Fa-f0-9]{2})([A-Fa-f0-9]{2})/) {
+  	if ($RAD->{CALLING_STATION_ID} && $RAD->{CALLING_STATION_ID} =~ /([A-Fa-f0-9]{2})([A-Fa-f0-9]{2})\.([A-Fa-f0-9]{2})([A-Fa-f0-9]{2})\.([A-Fa-f0-9]{2})([A-Fa-f0-9]{2})/) {
   		$RAD->{CALLING_STATION_ID} = "$1:$2:$3:$4:$5:$6";
   	 }
+    elsif ($RAD->{USER_NAME} =~ /([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})/i) {
+      $RAD->{CALLING_STATION_ID} = "$1:$2:$3:$4:$5:$6";
+     }
   	else { 
   		$RAD->{CALLING_STATION_ID} =~ s/\-/:/g;
   	 }
-  	
+
     $WHERE = " and dhcp.mac='$RAD->{CALLING_STATION_ID}'";	
     $EXT_TABLES = "INNER JOIN dhcphosts_hosts dhcp ON (dhcp.uid=u.uid)";
    }
@@ -243,6 +245,80 @@ else {
 
 
 
+#*******************************************************************
+# Authorization module
+# pre_auth()
+#*******************************************************************
+sub pre_auth {
+  my ($self, $RAD, $attr)=@_;
+
+
+if ($attr->{NAS_TYPE} eq 'mac_auth') {
+  my $password = $RAD->{USER_NAME};
+
+  if ($conf->{AUTH_MAC_DHCP}) {
+  	if ($RAD->{CALLING_STATION_ID} && $RAD->{CALLING_STATION_ID} =~ /([A-Fa-f0-9]{2})([A-Fa-f0-9]{2})\.([A-Fa-f0-9]{2})([A-Fa-f0-9]{2})\.([A-Fa-f0-9]{2})([A-Fa-f0-9]{2})/) {
+  		$RAD->{CALLING_STATION_ID} = "$1:$2:$3:$4:$5:$6";
+  	 }
+    elsif ($RAD->{USER_NAME} =~ /([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})/i) {
+      $RAD->{CALLING_STATION_ID} = "$1:$2:$3:$4:$5:$6";
+     }
+  	else { 
+  		$RAD->{CALLING_STATION_ID} =~ s/\-/:/g;
+  	 }
+   }
+
+  $self->query($db, "SELECT ip FROM dhcphosts_hosts WHERE mac='$RAD->{CALLING_STATION_ID}';");
+  if ($self->{TOTAL} > 0) {
+  	my $list = $self->{list}->[0];
+   
+    if ($CONF->{RADIUS2}) {
+       print "Cleartext-Password := \"$password\";\n";
+       $self->{'RAD_CHECK'}{'Cleartext-Password'}="$password";
+     }
+    else {
+       print "User-Password == \"$password\";\n";
+       $self->{'RAD_CHECK'}{'User-Password'}="$password";
+     }
+    return 0;
+   }
+
+  $self->{errno} = 1;
+  $self->{errstr} = "MAC: '$RAD->{CALLING_STATION_ID}' not exist";
+  return 1;
+ }
+elsif ($RAD->{MS_CHAP_CHALLENGE} || $RAD->{EAP_MESSAGE}) {
+  my $login = $RAD->{USER_NAME} || '';
+  if ($login =~ /:(.+)/) {
+    $login = $1;	 
+  }
+
+  $self->query($db, "SELECT DECODE(password, '$CONF->{secretkey}') FROM users WHERE id='$login';");
+  if ($self->{TOTAL} > 0) {
+  	my $list = $self->{list}->[0];
+    my $password = $list->[0];
+    
+    if ($CONF->{RADIUS2}) {
+       print "Cleartext-Password := \"$password\";\n";
+       $self->{'RAD_CHECK'}{'Cleartext-Password'}="$password";
+     }
+    else {
+       print "User-Password == \"$password\";\n";
+       $self->{'RAD_CHECK'}{'User-Password'}="$password";
+     }
+    return 0;
+   }
+
+  $self->{errno} = 1;
+  $self->{errstr} = "USER: '$login' not exist";
+  return 1;
+ }
+  
+  $self->{'RAD_CHECK'}{'Auth-Type'}="Accept-";
+
+  print "Auth-Type := Accept\n";
+  return 0;
+}
 
 
 1

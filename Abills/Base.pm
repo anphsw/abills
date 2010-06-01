@@ -80,7 +80,7 @@ sub cfg2hash {
 sub in_array {
  my ($value, $array) = @_;
 
- return 0 if (! $value); 
+ return 0 if (! defined($value)); 
  foreach my $line (@$array) {
  	 return 1 if ($value eq $line);
   }
@@ -111,7 +111,10 @@ sub convert {
 		 $text =~ s/</&lt;/g;
      $text =~ s/>/&gt;/g;
      $text =~ s/\"/&quot;/g;
-     $text =~ s/\n/<br>\n/gi;
+     $text =~ s/\n/<br\/>\n/gi;
+     if ($attr->{SHOW_URL}) {
+       $text =~ s/([https|http]+:\/\/[a-z\.0-9\/\?\&\-\_\#:\=]+)/<a href=\'$1\' target=_new>$1<\/a>/ig;
+      }
    }
 	elsif($attr->{'from_tpl'}) {
      $text =~ s/textarea/__textarea__/g;
@@ -119,9 +122,10 @@ sub convert {
 	elsif($attr->{'2_tpl'}) {
      $text =~ s/__textarea__/textarea/g;
    }
-  elsif( $attr->{win2utf8} ) { $text = win2utf8($text); } 
-	elsif(defined($attr->{win2koi})) { $text = win2koi($text);	 }
-	elsif( $attr->{koi2win} ) { $text = koi2win($text); }
+  elsif( $attr->{win2utf8}) { $text = win2utf8($text); } 
+  elsif( $attr->{utf82win}) { $text = utf82win($text); } 
+  elsif( $attr->{win2koi} ) { $text = win2koi($text);	 }
+  elsif( $attr->{koi2win} ) { $text = koi2win($text); }
   elsif( $attr->{win2iso} ) { $text = win2iso($text); }
   elsif( $attr->{iso2win} ) { $text = iso2win($text); }
   elsif( $attr->{win2dos} ) { $text = win2dos($text); }
@@ -176,12 +180,9 @@ return $pvdcoderdos;
 # http://www.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/WINDOWS/CP1251.TXT
 #**********************************************************
 sub win2utf8 {
-
+	my ($text)=@_;
   #my $TestLine='ÀàÁáÂâÃãÄäÅå¨¸ÆæÇçÈèÉéÊêËëÌìÍíÎîÏïÐðÑñÒòÓóÔôÕõÖö×÷ØøÙùÚúÛûÜüÝýÞþßÿ³²';
-
-  my $TestLine="º";
-
-  my @ChArray=split('',$_[0]);
+  my @ChArray=split('',$text);
   my $Unicode='';
   my $Code='';
   for(@ChArray){
@@ -196,15 +197,37 @@ sub win2utf8 {
     elsif($Code==0xb2){$Unicode.="&#".(0x406).";";}
     elsif($Code==0xaf){$Unicode.="&#".(0x407).";";}
     elsif($Code==0xbf){$Unicode.="&#".(0x457).";";}
-    
-   
-    
     else{$Unicode.=$_;}
    }
 
   return $Unicode;
  }
 
+#**********************************************************
+# http://www.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/WINDOWS/CP1251.TXT
+#**********************************************************
+sub utf82win {
+	my ($text)=@_;
+  my @ChArray=split('',$text);
+  my $Unicode='';
+  my $Code='';
+  for(@ChArray){
+    $Code=ord;
+    #return $Code;
+    if(($Code>=0xc0+0x350)&&($Code<=0xff+0x350)){$Unicode.=chr($Code-0x350);}
+    elsif($Code==0xa8+0x350){$Unicode.=chr(0x401-0x350);}
+    elsif($Code==0xb8+0x350){$Unicode.=chr(0x451-0x350);}
+    elsif($Code==0xb3+0x350){$Unicode.=chr(0x456-0x350);}
+    elsif($Code==0xaa+0x350){$Unicode.=chr(0x404-0x350);}
+    elsif($Code==0xba+0x350){$Unicode.=chr(0x454-0x350);}
+    elsif($Code==0xb2+0x350){$Unicode.=chr(0x406-0x350);}
+    elsif($Code==0xaf+0x350){$Unicode.=chr(0x407-0x350);}
+    elsif($Code==0xbf+0x350){$Unicode.=chr(0x457-0x350);}
+    else{$Unicode.=$_;}
+   }
+
+  return $Unicode;
+ }
 
 #**********************************************************
 # Parse comand line arguments
@@ -247,7 +270,6 @@ sub sendmail {
    }
   
   $message =~ s/#.+//g;
-  
   if ($message =~ s/Subject: (.+)//g ) {
   	$subject=$1;
    }
@@ -256,6 +278,9 @@ sub sendmail {
    }
   if ($message =~ s/X-Priority: (.+)//g ) {
   	$priority=$1;
+   }
+  if ($message =~ s/To: (.+)//gi ) {
+  	$to_addresses=$1;
    }
 
   
@@ -274,8 +299,6 @@ Content-Type: text/plain
 
 $message
 };
-
-
   	
     foreach my $attachment ( @{ $attr->{ATTACHMENTS} } ) {
   	  my $data = encode_base64($attachment->{CONTENT});
@@ -290,21 +313,7 @@ $data
 }
  	
     }
-
-#$message .=  qq{ 
-#
-#--$boundary
-#
-#.
-#};
-
   }
-
-
-
-
-#$attr->{TEST}=1;
- 
   my @emails_arr = split(/;/, $to_addresses);
   foreach my $to (@emails_arr) {
     if ($attr->{TEST}) {
@@ -397,21 +406,14 @@ sub show_log {
      }
  close(FILE);
 
- my $total  = 0;
- $total = $#err_recs;
+ my $total  = $#err_recs;
  my @list;
 
  return (\@list, \%types, $total) if ($total < 0);
-
-  
-# my $output;
- #my $i = 0;
  for (my $i = $total - $PG; $i>=($total - $PG) - $PAGE_ROWS && $i >= 0; $i--) {
-    push @list, "$err_recs[$i]";
-#    $output .= "$i / $err_recs[$i]<br>";
-   }
+   push @list, "$err_recs[$i]";
+  }
  
-# print "$output";
  $total++;
  return (\@list, \%types, $total);
 } 

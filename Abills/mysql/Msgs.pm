@@ -45,7 +45,7 @@ sub messages_new {
  
  if ($attr->{USER_READ}) {
    push @WHERE_RULES, "m.user_read='$attr->{USER_READ}' AND admin_read>'0000-00-00 00:00:00' AND m.inner_msg='0'"; 
-   $fields='count(*)';
+   $fields='count(*), \'\', \'\', max(m.id)';
   }
  elsif ($attr->{ADMIN_READ}) {
  	 $fields = "sum(if(admin_read='0000-00-00 00:00:00', 1, 0)), 
@@ -80,7 +80,7 @@ sub messages_new {
    $WHERE;");
   }
 
- ($self->{UNREAD}, $self->{TODAY}, $self->{OPENED}) = @{ $self->{list}->[0] };
+ ($self->{UNREAD}, $self->{TODAY}, $self->{OPENED}, $self->{LAST_ID}) = @{ $self->{list}->[0] };
 
   return $self;	
 }
@@ -92,11 +92,9 @@ sub messages_list {
  my $self = shift;
  my ($attr) = @_;
 
- 
  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
  $DESC = (defined($attr->{DESC})) ? $attr->{DESC} : 'DESC';
-
 
  @WHERE_RULES = ();
  
@@ -132,6 +130,10 @@ sub messages_list {
 
  if (defined($attr->{SUBJECT})) {
    push @WHERE_RULES, @{ $self->search_expr($attr->{SUBJECT}, 'STR', 'm.subject') };
+  }
+
+ if ($attr->{DELIGATION}) {
+   push @WHERE_RULES, @{ $self->search_expr($attr->{DELIGATION}, 'INT', 'm.delegation') };
   }
 
  if ($attr->{MESSAGE}) {
@@ -174,7 +176,16 @@ sub messages_list {
    #push @WHERE_RULES, "r.admin_read='$attr->{ADMIN_READ}'";
   }
 
- if ($attr->{CHAPTERS}) {
+
+ if ($attr->{CHAPTERS_DELIGATION}) {
+ 	 my @WHERE_RULES_pre = ();
+ 	 while( my ($chapter, $deligation) =  each %{ $attr->{CHAPTERS_DELIGATION} } ) {
+ 	   push @WHERE_RULES_pre, "(m.chapter='$chapter' AND m.deligation<='$deligation')";
+ 	  }
+
+   push @WHERE_RULES,  "(". join(" or ", @WHERE_RULES_pre) .")";
+  }
+ elsif ($attr->{CHAPTERS}) {
    push @WHERE_RULES, "m.chapter IN ($attr->{CHAPTERS})"; 
   }
  
@@ -186,8 +197,8 @@ sub messages_list {
    if ($attr->{STATE} == 4) {
    	 push @WHERE_RULES, @{ $self->search_expr('0000-00-00 00:00:00', 'INT', 'm.admin_read') };
     }
-   if ($attr->{STATE} == 7) {
-
+   elsif ($attr->{STATE} == 7) {
+     push @WHERE_RULES, @{ $self->search_expr(">0", 'INT', 'm.deligation')  };
     }
    else {
      push @WHERE_RULES, @{ $self->search_expr($attr->{STATE}, 'INT', 'm.state')  };
@@ -249,7 +260,8 @@ m.admin_read,
 if(r.id IS NULL, 0, count(r.id)),
 m.chapter,
 DATE_FORMAT(plan_date, '%w'),
-m.resposible
+m.resposible,
+m.deligation
 
 
 FROM (msgs_messages m)
@@ -309,7 +321,7 @@ sub message_add {
 
   $self->query($db, "insert into msgs_messages (uid, subject, chapter, message, ip, date, reply, aid, state, gid,
    priority, lock_msg, plan_date, plan_time, user_read, admin_read, inner_msg, resposible, closed_date,
-   phone)
+   phone, dispatch_id)
     values ('$DATA{UID}', '$DATA{SUBJECT}', '$DATA{CHAPTER}', '$DATA{MESSAGE}', INET_ATON('$DATA{IP}'), now(), 
         '$DATA{REPLY}',
         '$admin->{AID}',
@@ -324,7 +336,8 @@ sub message_add {
         '$DATA{INNER_MSG}',
         '$DATA{RESPOSIBLE}',
         $CLOSED_DATE,
-        '$DATA{PHONE}'
+        '$DATA{PHONE}',
+        '$DATA{DISPATCH_ID}'
         );", 'do');
 
   $self->{MSG_ID} = $self->{INSERT_ID};
@@ -407,7 +420,8 @@ sub message_info {
   m.resposible,
   m.inner_msg,
   m.phone,
-  m.dispatch_id
+  m.dispatch_id,
+  m.deligation
     FROM (msgs_messages m)
     LEFT JOIN msgs_chapters mc ON (m.chapter=mc.id)
     LEFT JOIN users u ON (m.uid=u.uid)
@@ -450,7 +464,8 @@ sub message_info {
  	 $self->{RESPOSIBLE},
  	 $self->{INNER_MSG},
  	 $self->{PHONE},
- 	 $self->{DISPATCH_ID}
+ 	 $self->{DISPATCH_ID},
+ 	 $self->{DELIGATION}
   )= @{ $self->{list}->[0] };
 	
 	
@@ -490,7 +505,8 @@ sub message_change {
  	              RESPOSIBLE  => 'resposible',
  	              INNER_MSG   => 'inner_msg',
  	              PHONE       => 'phone',
- 	              DISPATCH_ID => 'dispatch_id'
+ 	              DISPATCH_ID => 'dispatch_id',
+ 	              DELIGATION  => 'deligation'
              );
 
   #print "!! $attr->{STATE} !!!";
@@ -690,7 +706,8 @@ sub admins_list {
  $WHERE = ($#WHERE_RULES > -1) ? 'WHERE ' . join(' and ', @WHERE_RULES)  : '';
 
 
-  $self->query($db, "SELECT a.id, mc.name, ma.priority, 0, a.aid, if(ma.chapter_id IS NULL, 0, ma.chapter_id), ma.email_notify, a.email
+  $self->query($db, "SELECT a.id, mc.name, ma.priority, ma.deligation_level, a.aid, 
+     if(ma.chapter_id IS NULL, 0, ma.chapter_id), ma.email_notify, a.email
     FROM admins a 
     LEFT join msgs_admins ma ON (a.aid=ma.aid)
     LEFT join msgs_chapters mc ON (ma.chapter_id=mc.id)
@@ -725,8 +742,8 @@ sub admin_change {
   
   my @chapters = split(/, /, $attr->{IDS});
   foreach my $id (@chapters) {
-    $self->query($db, "insert into msgs_admins (aid, chapter_id, priority, email_notify)
-      values ('$DATA{AID}', '$id','". $DATA{'PRIORITY_'. $id}."','". $DATA{'EMAIL_NOTIFY_'. $id}."');", 'do');
+    $self->query($db, "insert into msgs_admins (aid, chapter_id, priority, email_notify, deligation_level)
+      values ('$DATA{AID}', '$id','". $DATA{'PRIORITY_'. $id}."','". $DATA{'EMAIL_NOTIFY_'. $id}."', '". $DATA{'DELIGATION_LEVEL_'. $id}. "');", 'do');
    }
 
 	return $self;
@@ -1053,7 +1070,6 @@ sub messages_reports {
    push @WHERE_RULES, "u.gid='$attr->{GID}'"; 
   }
 
-
  if ($attr->{DATE}) {
     push @WHERE_RULES, "date_format(m.date, '%Y-%m-%d')='$attr->{DATE}'";
     $date = "date_format(m.date, '%Y-%m-%d')";
@@ -1206,6 +1222,7 @@ sub dispatch_add {
   $self->query($db, "insert into msgs_dispatch (comments, created, plan_date, resposible, aid)
     values ('$DATA{COMMENTS}', now(), '$DATA{PLAN_DATE}', '$DATA{RESPOSIBLE}', '$admin->{AID}');", 'do');
 
+  $self->{DISPATCH_ID}=$self->{INSERT_ID};
  
   $admin->system_action_add("MGSG_DISPATCH:$self->{INSERT_ID}", { TYPE => 1 });
 	return $self;

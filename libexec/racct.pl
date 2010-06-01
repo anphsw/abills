@@ -3,6 +3,7 @@
 #
 
 use vars  qw(%RAD %conf %ACCT
+ $DATE $TIME
  %RAD_REQUEST %RAD_REPLY %RAD_CHECK 
  $begin_time
  $access_deny
@@ -15,7 +16,6 @@ unshift(@INC, $Bin . '/../', $Bin ."/../Abills/$conf{dbtype}");
 
 require Abills::Base;
 Abills::Base->import();
-my $begin_time = check_time();
 my %acct_mod = ();
 
 require Abills::SQL;
@@ -88,18 +88,6 @@ my $access_deny = sub {
 
 my $log_print = sub {
   my ($level, $text, $attr) = @_;
-
-  #if ($conf{debugmods} =~ /$level/) {
-  #  if (defined($conf{foreground}) && $conf{foreground} == 1) {
-  #    print "$DATE $TIME $level: $text\n";
-  #   }
-  #  else {
-  #    open(FILE, ">>$conf{LOGFILE}") || die "Can't open file '$conf{LOGFILE}' $!\n";
-  #      print FILE "$DATE $TIME $level: $text\n";
-  #    close(FILE);
-  #   }
-  # }
-
 };
 
 
@@ -117,8 +105,19 @@ if (scalar( %RAD_REQUEST ) < 1) {
   else {
     require Nas;
     $nas = Nas->new($db, \%conf);	
-    my %NAS_PARAMS = ('IP' => "$RAD->{NAS_IP_ADDRESS}");
-    $NAS_PARAMS{NAS_IDENTIFIER}=$RAD->{NAS_IDENTIFIER} if (defined($RAD->{NAS_IDENTIFIER}));
+    my %NAS_PARAMS = ();
+
+    if ($RAD->{NAS_IP_ADDRESS} eq '0.0.0.0') {
+ 	    %NAS_PARAMS = ( CALLED_STATION_ID => $RAD->{CALLED_STATION_ID} );
+     }
+    else {
+      $NAS_PARAMS{'IP'} = "$RAD->{NAS_IP_ADDRESS}";
+     }
+
+    if ($RAD->{NAS_IDENTIFIER}) {
+      $NAS_PARAMS{NAS_IDENTIFIER}=$RAD->{NAS_IDENTIFIER};
+     }
+
     $nas->info({ %NAS_PARAMS });
 
     my $acct;
@@ -144,10 +143,10 @@ if (scalar( %RAD_REQUEST ) < 1) {
 #*******************************************************************
 sub acct {
  my ($db, $RAD, $nas) = @_;
- my $GT = '';
  my $r = 0;
- 
- 
+
+ my $begin_time = check_time();
+
  if ($RAD->{SERVICE_TYPE} && defined($USER_TYPES{$RAD->{SERVICE_TYPE}}) && $USER_TYPES{$RAD->{SERVICE_TYPE}} == 6) {
    log_print('LOG_DEBUG', "ACCT [$RAD->{USER_NAME}] $RAD->{SERVICE_TYPE}");
    return 0;	
@@ -159,19 +158,19 @@ sub acct {
   $RAD->{INTERIUM_OUTBYTE}  = 0;
   $RAD->{INTERIUM_INBYTE2}  = 0;
   $RAD->{INTERIUM_OUTBYTE2} = 0;
-
-
   $RAD->{INBYTE2}  = 0;
   $RAD->{OUTBYTE2} = 0;
-
   
   #Cisco-AVPair
   if ($RAD->{CISCO_AVPAIR}) {
-  	 if ($RAD->{CISCO_AVPAIR} =~ /client-mac-address=(\S+)/) {
-  		 $RAD->{CALLING_STATION_ID}=$1;
-      }
-     if ($RAD->{NAS_PORT} && $RAD->{NAS_PORT} == 0 && ($RAD->{CISCO_NAS_PORT} && $RAD->{CISCO_NAS_PORT} =~ /\d\/\d\/\d\/(\d+)/)) {
-     	 $RAD->{NAS_PORT}=$1;
+    if ($RAD->{CISCO_AVPAIR} =~ /client-mac-address=([a-f0-9\.\-\:]+)/) {
+      $RAD->{CALLING_STATION_ID}=$1;
+      if ($RAD->{CALLING_STATION_ID} =~ /(\S{2})(\S{2})\.(\S{2})(\S{2})\.(\S{2})(\S{2})/) {
+        $RAD->{CALLING_STATION_ID}="$1:$2:$3:$4:$5:$6";
+       }
+    }
+    elsif (defined($RAD->{NAS_PORT}) && $RAD->{NAS_PORT} == 0 && ($RAD->{CISCO_NAS_PORT} && $RAD->{CISCO_NAS_PORT} =~ /\d\/\d\/\d\/(\d+)/)) {
+     	$RAD->{NAS_PORT}=$1;
       }
    }
 
@@ -180,23 +179,21 @@ sub acct {
     $RAD->{OUTBYTE} = $RAD->{ACCT_OUTPUT_OCTETS} || 0; # TO client
 
     if ($nas->{NAS_TYPE} eq 'mpd5' && $RAD->{MPD_INPUT_OCTETS}) {
-      foreach my $line  (@{ $RAD->{MPD_OUTPUT_OCTETS} }) {
-         my($class, $byte)=split(/:/, $line);
-         $class = ($class == 0) ? '' : $class + 1;
-         $RAD->{'INBYTE'. $class }	= $byte;
-        }
+  	  ($RAD->{INBYTE}, $RAD->{OUTBYTE},
+       $RAD->{ACCT_INPUT_GIGAWORDS}, $RAD->{ACCT_OUTPUT_GIGAWORDS}) = (0,0,0,0); 
 
-      foreach my $line  (@{ $RAD->{MPD_INPUT_OCTETS} }) {
-         my($class, $byte)=split(/:/, $line);
-         $class = ($class == 0) ? '' : $class + 1;
-         $RAD->{'OUTBYTE' . $class}	= $byte;
-        }
+      for(my $i=0; $i<=$#{ $RAD->{MPD_INPUT_OCTETS} }; $i++) {
+        my($class, $byte)=split(/:/, $RAD->{MPD_INPUT_OCTETS}->[$i]);
+        $class = ($class == 0) ? '' : $class + 1;
+        $RAD->{'INBYTE' . $class}	= $byte;
+        (undef, $byte)=split(/:/, $RAD->{MPD_OUTPUT_OCTETS}->[$i]);
+        $RAD->{'OUTBYTE'. $class }	= $byte;
+       }
      }
     elsif ($nas->{NAS_TYPE} eq 'exppp') {
       #reverse byte parameters
       $RAD->{INBYTE}  = $RAD->{ACCT_OUTPUT_OCTETS} || 0;   # FROM client
       $RAD->{OUTBYTE} = $RAD->{ACCT_INPUT_OCTETS} || 0; # TO client
-  
       $RAD->{INBYTE2}  = $RAD->{EXPPP_ACCT_LOCALOUTPUT_OCTETS} || 0;             # From client
       $RAD->{OUTBYTE2} = $RAD->{EXPPP_ACCT_LOCALINPUT_OCTETS} || 0;            # To client
       
@@ -208,10 +205,6 @@ sub acct {
     elsif ($nas->{NAS_TYPE} eq 'lepppd') {
       $RAD->{INBYTE} = $RAD->{ACCT_INPUT_OCTETS} || 0;   # FROM client
       $RAD->{OUTBYTE} = $RAD->{ACCT_OUTPUT_OCTETS} || 0; # TO client
-
-      #$RAD->{'INBYTE'} = $RAD->{'PPPD_INPUT_OCTETS_ZONES_0'};
-      #$RAD->{'OUTBYTE'} = $RAD->{'PPPD_OUTPUT_OCTETS_ZONES_0'};
-
       for(my $i=0; $i<4; $i++) {
       	if (defined($RAD->{'PPPD_INPUT_OCTETS_ZONES_'.$i})) {
           $RAD->{'INBYTE'.($i + 1)} = $RAD->{'PPPD_INPUT_OCTETS_ZONES_'.$i};
@@ -219,50 +212,37 @@ sub acct {
       	 }
        }
      }
-
-
-      
-
-
    }
   # From client
   else {
     $RAD->{INBYTE} = $RAD->{ACCT_OUTPUT_OCTETS} || 0; # FROM client
     $RAD->{OUTBYTE} = $RAD->{ACCT_INPUT_OCTETS} || 0; # TO client
-
     ($RAD->{ACCT_INPUT_GIGAWORDS}, $RAD->{ACCT_OUTPUT_GIGAWORDS}) = ($RAD->{ACCT_OUTPUT_GIGAWORDS}, $RAD->{ACCT_INPUT_GIGAWORDS}); 
 
-
-    
     if ($nas->{NAS_TYPE} eq 'mpd5' && $RAD->{MPD_INPUT_OCTETS}) {
-    	
+  	  ($RAD->{INBYTE}, $RAD->{OUTBYTE},
+      $RAD->{ACCT_INPUT_GIGAWORDS}, $RAD->{ACCT_OUTPUT_GIGAWORDS}) = (0,0,0,0); 
+
    	  if (ref $RAD->{MPD_INPUT_OCTETS} eq 'ARRAY') {
-        foreach my $line  (@{ $RAD->{MPD_INPUT_OCTETS} }) {
-          my($class, $byte)=split(/:/, $line);
+        for(my $i=0; $i<=$#{ $RAD->{MPD_INPUT_OCTETS} }; $i++) {
+          my($class, $byte)=split(/:/, $RAD->{MPD_INPUT_OCTETS}->[$i]);
           $class = ($class == 0) ? '' : $class + 1;
+          $RAD->{'OUTBYTE' . $class}= $byte;
+          (undef, $byte)=split(/:/, $RAD->{MPD_OUTPUT_OCTETS}->[$i]);
           $RAD->{'INBYTE'. $class }	= $byte;
-         }
-
-        foreach my $line  (@{ $RAD->{MPD_OUTPUT_OCTETS} }) {
-          my($class, $byte)=split(/:/, $line);
-          $class = ($class == 0) ? '' : $class + 1;
-          $RAD->{'OUTBYTE' . $class}	= $byte;
-         }
+        }
        }
-#      else {
-#          my($class, $byte)=split(/:/, $RAD->{MPD_INPUT_OCTETS});
-#          $class = ($class == 0) ? '' : $class + 1;
-#          $RAD->{'INBYTE'. $class }	= $byte;
-#
-#
-#          my($class, $byte)=split(/:/, $RAD->{MPD_OUTPUT_OCTETS});
-#          $class = ($class == 0) ? '' : $class + 1;
-#          $RAD->{'OUTBYTE' . $class}	= $byte;
-#       }
+      else {
+          my($class, $byte)=split(/:/, $RAD->{MPD_INPUT_OCTETS});
+          if ($class == 1) {
+            $RAD->{'OUTBYTE2'}	= $byte;
+           }
 
-      
-      #my $xxx = `echo "$RAD->{INBYTE} /  $RAD->{OUTBYTE} / $RAD->{MPD_INPUT_OCTETS}[0]" >> /tmp/test_rlm`;
-      
+          ($class, $byte)=split(/:/, $RAD->{MPD_OUTPUT_OCTETS});
+          if ($class == 1) {
+            $RAD->{'INBYTE2'}	= $byte;
+           }
+       }
      }
     elsif ($nas->{NAS_TYPE} eq 'exppp') {
       #reverse byte parameters
@@ -328,11 +308,7 @@ if (-d $conf{extern_acct_dir}) {
    }
 }
 
-
-
 my $Acct;
-
-
 
 if(defined($ACCT{$nas->{NAS_TYPE}})) {
   if (! defined($acct_mod{"$nas->{NAS_TYPE}"})) {
@@ -349,23 +325,17 @@ else {
 }
 
 
-#if(defined($ACCT{$nas->{NAS_TYPE}})) {
-#  require $ACCT{$nas->{NAS_TYPE}} . ".pm";
-#  $ACCT{$nas->{NAS_TYPE}}->import();
-#  $Acct = $ACCT{$nas->{NAS_TYPE}}->new($db, \%conf);
-#
-#}
-#else {
-#  require Acct;
-#  Acct->import();
-#  $Acct = Acct->new($db, \%conf);
-#  $r = $Acct->accounting($RAD, $nas);
-#}
-
-
 if ($Acct->{errno}) {
   $access_deny->("$RAD->{USER_NAME}", "[$r->{errno}] $r->{errstr}", $nas->{NAS_ID});
  }
+
+ if ($conf{ACCT_DEBUG} && $begin_time > 0)  {
+   Time::HiRes->import(qw(gettimeofday));
+   my $end_time = gettimeofday();
+   my $gen_time = $end_time - $begin_time;
+   my $gt = sprintf(" GT: %2.5f", $gen_time);
+   my $aaa = `echo "$DATE $TIME $RAD->{USER_NAME} $acct_status_type $gt" >> /tmp/acct.time`;
+  }
 
   return $r;
 }

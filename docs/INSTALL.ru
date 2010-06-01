@@ -9,6 +9,12 @@
   * Процессор на базе Intel x86 или другой совместимый с тактовой частотой 2 Ггц и выше.
   * Оперативной памяти не менее 1 Гб
   * Жёсткий диск для хранения автоматических бекапов системы не менее 100 гб.
+
+  * Mysql версии 5.0 и выше
+  * Freeradius 1 или 2 и выше
+  * apache 1.3.xx  и выше
+  * perl  v5.8.8  и выше
+
 =====Замечания по установкe операционной системы.=====
 ===FreeBSD===
   * При разбиении диска на разделы крайне рекомендуется отвести для раздела **/var** не менее 10 Гигабайт. Если планируется высокая нагрузка, это значение можно увеличить.
@@ -18,168 +24,19 @@
 
 ===Linux===
 
-=====Radius=====
-Загрузить пакет FreeRadius можно по адресу [http://www.freeradius.org]
-
-  # tar zxvf freeradius-1.1.0.tar.gz
-  # cd freeradius-1.1.0
-  # ./configure --prefix=/usr/local/radiusd/
-  # make
-  # make install
-
-====Версия 1.хх====
-После успешной установки правим файлы:\\
-**/usr/local/radiusd/etc/raddb/users**\\
-
-  DEFAULT Auth-Type = Accept
-    Exec-Program-Wait = "/usr/abills/libexec/rauth.pl"
-
-**/usr/local/radiusd/etc/raddb/acct_users**
-
-  DEFAULT Acct-Status-Type == Start
-     Exec-Program = "/usr/abills/libexec/racct.pl"
-  
-  DEFAULT Acct-Status-Type == Alive
-     Exec-Program = "/usr/abills/libexec/racct.pl"
-  
-  DEFAULT Acct-Status-Type == Stop
-     Exec-Program = "/usr/abills/libexec/racct.pl"
-
-**/usr/local/radiusd/etc/raddb/clients.conf**\\
-В этот файл нужно вписать IP адрес или имя NAS сервера с
-которого будут поступать данные для радиуса и пароль доступа.
-\\
-  client 127.0.0.1 {
-     secret = radsecret
-     shortname = shorrname
-  }
-\\
-
-**/usr/local/radiusd/etc/raddb/radiusd.conf**\\
-В этом файле нужно закомментировать использование модулей
-'chap' и 'mschap' в разделе 'authorize'
-
-  authorize {
-    preprocess
-  #  chap
-  #  counter
-  #  attr_filter
-  #  eap
-  #  suffix
-    files
-  # etc_smbpasswd
-  # sql
-  # mschap
-  }
-
-====Версия 2.xx====
-
-в **raddb/radiusd.conf** в секции ''modules'' описываем секции:
-
-  abills_preauth 
-  exec abills_preauth { 
-    program = "/usr/abills/libexec/rauth.pl pre_auth" 
-    wait = yes 
-    input_pairs = request 
-    shell_escape = yes 
-    #output = no 
-    output_pairs = config 
-  } 
-  
-  abills_postauth 
-  exec abills_postauth { 
-    program = "/usr/abills/libexec/rauth.pl post_auth" 
-    wait = yes 
-    input_pairs = request 
-    shell_escape = yes 
-    #output = no 
-    output_pairs = config 
-  } 
-  
-  abills_auth 
-  exec abills_auth { 
-    program = "/usr/abills/libexec/rauth.pl" 
-    wait = yes 
-    input_pairs = request 
-    shell_escape = yes 
-    output = no 
-    output_pairs = reply 
-   } 
-  
-  abills_acc 
-    exec abills_acc { 
-    program = "/usr/abills/libexec/racct.pl" 
-    wait = yes 
-    input_pairs = request 
-    shell_escape = yes 
-    output = no 
-    output_pairs = reply 
-  }
-
- в секции ''exec''\\
- Код:
-
-
-  exec {                                                       
-     wait = yes                                           
-     input_pairs = request                                 
-     shell_escape = yes                                   
-     output = none                                         
-     output_pairs = reply                                 
-  }
-
-Файл raddb/sites-enable/default - правим секции authorize, preacct, post-auth. Остальное в этих секциях ремарим. \\
-
-Код:
-
-  authorize { 
-    preprocess 
-    abills_preauth 
-    mschap 
-    files 
-    abills_auth 
-   } 
-   
-  preacct { 
-    preprocess 
-    abills_acc 
-   } 
-  
-  post-auth { 
-    Post-Auth-Type REJECT { 
-       abills_postauth 
-     } 
-  } 
-
-в **raddb/users** \\
-Код:
-
-  DEFAULT Auth-Type = Accept
-
-
-
-
-
-
-
-
-
-
-
-
-
 =====MySQL=====
 Загрузить пакет MySQL можно по адресу [http://www.mysql.com]\\
+Пример настройки для MySQL версии 5.1
 
-  # tar xvfz mysql-4.1.16.tar.gz
-  # cd mysql-4.1.16
+  # tar xvfz mysql-5.1.x.tar.gz
+  # cd mysql-5.1.x
   # ./configure
   # make
   # make install
 
 Создаём пользователя и базу.
 
-  # mysql -u root -p
+  # mysql --default-character-set=cp1251 -u root -p
 
   use mysql;
   INSERT INTO user (Host, User, Password) 
@@ -188,9 +45,9 @@
   INSERT INTO db (Host, Db, User, Select_priv, Insert_priv, Update_priv, 
     Delete_priv, Create_priv, Drop_priv, Index_priv, Alter_priv, 
     Lock_tables_priv, Create_tmp_table_priv, Create_view_priv,
-    Show_view_priv, Execute_priv, Event_priv, Trigger_priv) 
+    Show_view_priv, Execute_priv) 
   VALUES ('localhost', 'abills', 'abills', 'Y', 'Y', 'Y', 'Y', 'Y', 
-    'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y');
+    'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y');
   
   CREATE DATABASE abills;
   flush privileges;
@@ -198,9 +55,7 @@
 
 Загружаем таблицы в базу. \\
 
-  # mysql -D abills < abills.sql
-
-Если возникают трудности с кодировками используйте флаг ''--default-character-set=''
+  # mysql --default-character-set=cp1251 -D abills < abills.sql
 
 =====Web Server=====
 
@@ -224,7 +79,6 @@
   #Abills version 0.5
   Listen 9443
   <VirtualHost _default_:9443>
-  
     DocumentRoot "/usr/abills/cgi-bin"
     #ServerName www.example.com:9443
     #ServerAdmin admin@example.com
@@ -331,18 +185,153 @@
   quit 
 
 
+=====Radius=====
+Загрузить пакет FreeRadius можно по адресу [http://www.freeradius.org]
+
+  # tar zxvf freeradius-1.1.0.tar.gz
+  # cd freeradius-1.1.0
+  # ./configure --prefix=/usr/local/radiusd/
+  # make
+  # make install
+
+====Версия 1.хх====
+После успешной установки правим файлы:\\
+**/usr/local/radiusd/etc/raddb/users**\\
+
+  DEFAULT Auth-Type = Accept
+    Exec-Program-Wait = "/usr/abills/libexec/rauth.pl"
+
+**/usr/local/radiusd/etc/raddb/acct_users**
+
+  DEFAULT Acct-Status-Type == Start
+     Exec-Program = "/usr/abills/libexec/racct.pl"
+  
+  DEFAULT Acct-Status-Type == Alive
+     Exec-Program = "/usr/abills/libexec/racct.pl"
+  
+  DEFAULT Acct-Status-Type == Stop
+     Exec-Program = "/usr/abills/libexec/racct.pl"
+
+**/usr/local/radiusd/etc/raddb/clients.conf**\\
+В этот файл нужно вписать IP адрес или имя NAS сервера с
+которого будут поступать данные для радиуса и пароль доступа.
+\\
+  client 127.0.0.1 {
+     secret = radsecret
+     shortname = shorrname
+  }
+\\
+
+**/usr/local/radiusd/etc/raddb/radiusd.conf**\\
+В этом файле нужно закомментировать использование модулей
+'chap' и 'mschap' в разделе 'authorize'
+
+  authorize {
+    preprocess
+  #  chap
+  #  counter
+  #  attr_filter
+  #  eap
+  #  suffix
+    files
+  # etc_smbpasswd
+  # sql
+  # mschap
+  }
+
+====Версия 2.xx====
+
+Для работы с freeradius 2 нужно указать параметр в конфигурационном файле abills:\\
+**/usr/abills/libexec/config.pl**  
+  $conf{RADIUS2}=1; 
 
 
 
+в **raddb/radiusd.conf** в секции ''modules'' описываем секции:
+
+  abills_preauth 
+  exec abills_preauth { 
+    program = "/usr/abills/libexec/rauth.pl pre_auth" 
+    wait = yes 
+    input_pairs = request 
+    shell_escape = yes 
+    #output = no 
+    output_pairs = config 
+  } 
+  
+  abills_postauth 
+  exec abills_postauth { 
+    program = "/usr/abills/libexec/rauth.pl post_auth" 
+    wait = yes 
+    input_pairs = request 
+    shell_escape = yes 
+    #output = no 
+    output_pairs = config 
+  } 
+  
+  abills_auth 
+  exec abills_auth { 
+    program = "/usr/abills/libexec/rauth.pl" 
+    wait = yes 
+    input_pairs = request 
+    shell_escape = yes 
+    output = no 
+    output_pairs = reply 
+   } 
+  
+  abills_acc 
+    exec abills_acc { 
+    program = "/usr/abills/libexec/racct.pl" 
+    wait = yes 
+    input_pairs = request 
+    shell_escape = yes 
+    output = no 
+    output_pairs = reply 
+  }
+
+ в секции ''exec''\\
+ Код:
 
 
+  exec {                                                       
+     wait = yes                                           
+     input_pairs = request                                 
+     shell_escape = yes                                   
+     output = none                                         
+     output_pairs = reply                                 
+  }
 
+Файл raddb/sites-enable/default - правим секции authorize, preacct, post-auth. Остальное в этих секциях ремарим. \\
 
+Код:
 
+  authorize { 
+    preprocess 
+    abills_preauth 
+    mschap 
+    files 
+    abills_auth 
+   } 
+   
+  preacct { 
+    preprocess 
+    abills_acc 
+   } 
+  
+  post-auth { 
+    Post-Auth-Type REJECT { 
+       abills_postauth 
+     } 
+  } 
 
+в **raddb/users** \\
+Код:
 
+  DEFAULT Auth-Type = Accept
 
-
+для автоматического запуска радиуса в FreeBSD внести изменения в **/etc/rc.conf** добавить \\
+Код:
+   radiusd_enable="YES"
 
 
 =====ABillS=====
@@ -383,6 +372,7 @@
   # chown -Rf www /usr/abills/cgi-bin
   # chown -Rf www /usr/abills/Abills/templates
   # chown -Rf www /usr/abills/backup
+  # mkdir /usr/abills/var/ /usr/abills/var/log
   
 Веб интерфейс администратора:\\
 **https://your.host:9443/admin/**\\
@@ -436,12 +426,18 @@
 
 
 
-**Проверяем**\\
+**Проверка**\\
+Для проверки правильно ли настроен сервис нужно запустить утилиту radtest указав логин и пароль существующего пользователя. \\ 
+Логин: test Пароль: 123456
   # radtest testuser testpassword 127.0.0.1:1812 0 radsecret 0 127.0.0.1
 
-Если всё правильно настроено, в файле логов **/usr/abills/var/log/abills.log** должна появиться строка \\
+Если всё правильно настроено, в журнале ошибок **/Отчёт/Internet/Ошибка/**  должна появиться строка \\
 
+ 
   2005-02-23 12:55:55 LOG_INFO: AUTH [testuser] NAS: 1 (xxx.xxx.xxx.xxx) GT: 0.03799
+
+Если Вы увидите другие ошибки смотрите в [[abills:docs:modules:dv:ru#%D0%BE%D1%88%D0%B8%D0%B1%D0%BA%D0%B8|список ошибок]]. Если журнал ошибок пуст значит неправильно настроено взаимодействие с RADIUS сервером.
+
 
 ===Дополнительно===
   * [[abills:docs:manual:ng_car|FreeBSD ng_car  шейпер]]
