@@ -87,7 +87,6 @@ sub new {
    }
  
   $self->{OUTPUT}='';
-
   $self->{colors} = $attr->{colors} if (defined($attr->{colors}));
  
   %FORM = form_parse();
@@ -95,8 +94,8 @@ sub new {
 
   $SORT = $FORM{sort} || 1;
   $DESC = ($FORM{desc}) ? 'DESC' : '';
-  $PG = $FORM{pg} || 0;
-  $OP = $FORM{op} || '';
+  $PG   = $FORM{pg} || 0;
+  $OP   = $FORM{op} || '';
   $self->{CHARSET}=(defined($attr->{CHARSET})) ? $attr->{CHARSET} : 'windows-1251';
    
   if ($FORM{PAGE_ROWS}) {
@@ -146,7 +145,6 @@ sub new {
   
   $pages_qs = '';
   $index = $FORM{index} || 0;
-  
   
   if ($attr->{language}) {
     $self->{language}=$attr->{language};
@@ -464,9 +462,6 @@ sub setCookie {
 	# be sent through secure connections
 	my $self = shift;
 	my($name, $value, $expiration, $path, $domain, $secure) = @_;
-	
-	#$path = dirname($ENV{SCRIPT_NAME}) if ($path eq '');
-
 
 	print "Set-Cookie: ";
 	print $name, "=$value; expires=\"", $expiration,
@@ -482,8 +477,6 @@ sub setCookie {
 #********************************************************************
 sub getCookies {
   my $self = shift;
-	# cookies are seperated by a semicolon and a space, this will split
-	# them and return a hash of cookies
 	my(%cookies);
 
   if (defined($ENV{'HTTP_COOKIE'})) {
@@ -708,6 +701,7 @@ sub header {
 
  my $filename = int(rand(32768)).'.pdf';
  $self->{header} = "Content-type: application/pdf; filename=$filename\n";
+ $self->{header}.= "Cache-Control: no-cache\n";
  $self->{header}.= "Content-disposition: inline; name=\"$filename\"\n\n";
 
  return $self->{header};
@@ -723,22 +717,8 @@ sub table {
  my $parent = ref($proto)  && $proto;
  my $self;
 
-
-# if (@ISA && $proto->SUPER::can('table')) {
-# 	  $self = $proto->SUPER::table(@_);
-#  }
-# else {
-  $self = {};
-#  bless($self, $proto);
-# }
-
-
-# while(my($k, $v)=each %$proto) {
-#   print "$k, $v <br>";	
-# }
- 
+ $self = {};
  bless($self);
-
 
  $self->{prototype} = $proto;
  $self->{NO_PRINT} = $proto->{NO_PRINT};
@@ -779,7 +759,6 @@ sub table {
  
 
  if (defined($attr->{title})) {
-   #print "--- $SORT // | $FORM{sort} | $LIST_PARAMS{SORT} //";
    $SORT = $LIST_PARAMS{SORT};
  	 $self->{table} .= $self->table_title($SORT, $DESC, $PG, $OP, $attr->{title}, $attr->{qs});
   }
@@ -829,26 +808,10 @@ sub addrow {
   my $self = shift;
   my (@row) = @_;
 
-  if ($self->{rowcolor}) {
-    $bg = $self->{rowcolor};
-   }  
-  else {
-  	$bg = ($bg eq $_COLORS[1]) ? $_COLORS[2] : $_COLORS[1];
-   }
-  
-  my $extra=($self->{extra}) ? $self->{extra} : '';
-
-  $row_number++;
-  
-  $self->{rows} .= "<tr bgcolor=\"$bg\"  onmouseover=\"setPointer(this, $row_number, 'over', '$bg', '$_COLORS[3]', '$_COLORS[0]');\" onmouseout=\"setPointer(this, $row_number, 'out', '$bg', '$_COLORS[3]', '$_COLORS[0]');\" onmousedown=\"setPointer(this, $row_number, 'click', '$bg', '$_COLORS[3]', '$_COLORS[0]');\">";
-  
+  $bg = ($bg eq $_COLORS[1]) ? $_COLORS[2] : $_COLORS[1];
   foreach my $val (@row) {
-     $self->{rows} .= "<TD bgcolor=\"$bg\" $extra>";
-     $self->{rows} .= $val if(defined($val));
-     $self->{rows} .= "</TD>";
    }
 
-  $self->{rows} .= "</TR>\n";
   return $self->{rows};
 }
 
@@ -888,8 +851,8 @@ sub addtd {
 sub th {
 	my $self = shift;
 	my ($value, $attr) = @_;
-	
-	return $self->td($value, { TH => 1, ($attr) ? %$attr : undef  } );
+
+	return '';
 }
 
 #*******************************************************************
@@ -899,26 +862,8 @@ sub th {
 sub td {
   my $self = shift;
   my ($value, $attr) = @_;
-  my $extra='';
-  
-  while(my($k, $v)=each %$attr ) {
-    next if ($k eq 'TH');
-    $extra.=" $k=$v";
-   }
-  my $td = '';
 
-  if ($attr->{TH}) {
-  	$td = "<TH $extra>";
-  	$td .= $value if (defined($value));
-  	$td .= "</TH>";
-   }
-  else {
-    $td = "<TD $extra>";
-   	$td .= $value if (defined($value));
-  	$td .= "</TD>";
-   }
-
-  return $td;
+  return '';
 }
 
 
@@ -929,14 +874,7 @@ sub td {
 sub table_title_plain {
   my $self = shift;
   my ($caption)=@_;
-  $self->{table_title} = "<tr bgcolor=\"$_COLORS[0]\">";
-	
-  foreach my $line (@$caption) {
-    $self->{table_title} .= "<th class='table_title'>$line</th>";
-   }
-	
-  $self->{table_title} .= "</TR>\n";
-  return $self->{table_title};
+  return '';
 }
 
 #*******************************************************************
@@ -953,9 +891,6 @@ sub table_title  {
   my ($sort, $desc, $pg, $get_op, $caption, $qs)=@_;
   my ($op);
   my $img='';
-
-  #print "$FORM{sort} // SORT: $sort, DESC: $desc, PAGE: $pg, $op, $caption, $qs--";
-
   $self->{table_title} = "<tr bgcolor=\"$_COLORS[0]\">";
   my $i=1;
   foreach my $line (@$caption) {
@@ -1006,8 +941,7 @@ sub table_title  {
 sub show  {
   my $self = shift;	
   my ($attr) = shift;
-  
-  
+
   $self->{show} = $self->{table};
   $self->{show} .= $self->{rows}; 
   $self->{show} .= "</TABLE></TD></TR></TABLE>\n";
@@ -1015,15 +949,11 @@ sub show  {
   if (defined($self->{pages})) {
  	   $self->{show} =  '<br>'.$self->{pages} . $self->{show} . $self->{pages} .'<br>';
  	 } 
-
-
-
   if ((defined($self->{NO_PRINT})) && ( !defined($attr->{OUTPUT2RETURN}) )) {
   	$self->{prototype}->{OUTPUT}.= $self->{show};
   	#$self->{OUTPUT} .= $self->{show};
   	$self->{show} = '';
   }
-  
 
   return $self->{show};
 }
@@ -1035,14 +965,6 @@ sub link_former {
   my ($self) = shift;
   my ($params, $attr) = @_;
 
-
-  $params =~ s/ /%20/g if (! $attr->{SKIP_SPACE});
-  $params =~ s/&/&amp;/g;
-  $params =~ s/>/&gt;/g;
-  $params =~ s/</&lt;/g;
-  $params =~ s/\"/&quot;/g;
-  $params =~ s/\*/&#42;/g;
- 
   return $params;
 }
 
@@ -1084,44 +1006,8 @@ sub button {
 sub message {
  my $self = shift;
  my ($type, $caption, $message, $head) = @_;
- 
- if ($type eq 'err') {
-   $head = "<tr><th bgcolor=\"#FF0000\">$caption</th></TR>\n";
-  }
- elsif ($type eq 'info') {
-   $head = "<tr><th bgcolor=\"$_COLORS[0]\">$caption</th></TR>\n";
-  }  
- 
-my $output = qq{
-<br>
-<TABLE width="400" border="0" cellpadding="0" cellspacing="0" class="noprint">
-<tr><TD bgcolor="$_COLORS[9]">
-<TABLE width="100%" border=0 cellpadding="2" cellspacing="1">
-<tr><TD bgcolor="$_COLORS[1]">
 
-<TABLE width="100%">
-$head
-<tr><TD bgcolor="$_COLORS[1]">$message</TD></TR>
-</TABLE>
-
-</TD></TR>
-</TABLE>
-</TD></TR>
-</TABLE>
-<br>
-};
-
-
-
-  if (defined($self->{NO_PRINT})) {
-  	$self->{OUTPUT}.=$output;
-  	#print "aaaaaa $self->{OUTPUT}";
-  	return $output;
-   }
-	else { 
- 	  print $output;
-	 }
-
+ return '';
 }
 
 
@@ -1131,22 +1017,8 @@ $head
 sub pre {
  my $self = shift;
  my ($message) = @_;
- 
- 
-my $output = qq{
-<pre>
- $message
-</pre>
-};
-
-  if (defined($self->{NO_PRINT})) {
-  	$self->{OUTPUT}.=$output;
-  	return $output;
-   }
-	else { 
- 	  print $output;
-	 }
-
+  
+ my $output = '';
 }
 
 #*******************************************************************
@@ -1155,7 +1027,6 @@ my $output = qq{
 sub b {
  my $self = shift;
  my ($message) = @_;
- 
  
  my $output = "<b>$message</b>";
 
@@ -1168,8 +1039,8 @@ sub b {
 sub color_mark {
  my $self = shift;
  my ($message, $color) = @_;
- 
- my $output = "<font color=$color>$message</font>";
+
+ my $output = "";
 
  return $output;
 }
@@ -1331,27 +1202,6 @@ sub log_print {
  if($debug < $log_levels{$level}) {
      return 0;	
   }
-
-print << "[END]";
-<TABLE width="640" border="0" cellpadding="0" cellspacing="0">
-<tr><TD bgcolor="#00000">
-<TABLE width="100%" border="0" cellpadding="2" cellspacing="1">
-<tr><TD bgcolor="FFFFFF">
-
-<TABLE width="100%">
-<tr bgcolor="$_COLORS[3]"><th>
-$level
-</th></TR>
-<tr><TD>
-$text
-</TD></TR>
-</TABLE>
-
-</TD></TR>
-</TABLE>
-</TD></TR>
-</TABLE>
-[END]
 }
 
 
@@ -1387,8 +1237,6 @@ sub multi_tpls {
   $tmp_path        = $attr->{TMP_PATH}       if ($attr->{TMP_PATH});
   $pdf_result_path = $attr->{PDF_RESULT_PATH}if ($attr->{PDF_RESULT_PATH});
 
-
-
   for(my $i=0; $i <= 10; $i++ ) {
     push @{ $MULTI_ARR }, { FIO     => 'fio'.$i,
                        DEPOSIT => '00.00'.$i,
@@ -1417,11 +1265,7 @@ sub multi_tpls {
       my $page = $multi_pdf->importpage($main_tpl, $i);
      }
    }
-
-	#unlink($tmp_path.'/single'.$rand_num.'.pdf');
-
   $multi_pdf->saveas($pdf_result_path.'/'. $tpl.'.pdf');
-  	                                       
 }
 
 
@@ -1460,7 +1304,7 @@ sub tpl_show {
         'Title'        => "Account",
         'Subject'      => "Account",
         'Keywords'     => ""
-    ); 
+       ); 
 
 my $multi_doc_count = 0;
 my $page_count      = $pdf->pages;
@@ -1522,21 +1366,18 @@ for my $key (sort keys %$tpl_describe) {
     	  next;
     	 }
      }
-
+    $align      = '';
     $text_file  = $1 if ($pattern =~ /text=([0-9a-zA-Z_\.]+)/);
     $font_size  = $1 if ($pattern =~ /font_size=(\d+)/);
     $font_color = $1 if ($pattern =~ /font_color=(\S+)/);
     $encode     = $1 if ($pattern =~ /encode=(\S+)/);
-    $align      = $1 if ($align   =~ /align=(\S+)/);
-    
-    #print "$key / $pattern\n";
+    $align      = $1 if ($pattern =~ /align=([a-z]+)/i);
 
     if ($pattern =~ /font_name=(\S+)/) {
     	$font_name  = $1;
       $font = $pdf->corefont($font_name, -encode => "$encode");
      }
     #my $font = $pdf->ttfont('arialbold');
-
     
     my $txt  = $page->text;
     $txt->font($font,$font_size);
@@ -1572,7 +1413,7 @@ for my $key (sort keys %$tpl_describe) {
           my $string_height = 15;
           $txt->lead($string_height);
           my ($idt,$y2)=$txt->paragraph($content , $text_width, $text_height,
-                      -align     => 'justified',
+                      -align     => $align || 'justified',
                       -spillover => 2 ); # ,400,14,@text);
           next;
         }
@@ -1588,7 +1429,17 @@ for my $key (sort keys %$tpl_describe) {
     	 }
      }
     else {
-      $txt->text($text);
+      if ($align) {
+        my $text_height  = ($pattern =~ /text_height=([0-9a-zA-Z_\.]+)/) ? $1 : 100; 
+        my $text_width   = ($pattern =~ /text_width=([0-9a-zA-Z_\.]+)/) ? $1 : 100;
+        my ($idt,$y2)    = $txt->paragraph($text, $text_width, $text_height,
+                      -align     => $align,
+                      -spillover => 2 );
+       }
+      else {
+        $txt->text($text, -align  => $align || 'justified');
+       }
+
      }
   }
 }
@@ -1598,11 +1449,11 @@ if ($attr->{MULTI_DOCS} && $multi_doc_count <= $#{ $attr->{MULTI_DOCS} }) {
   if ($attr->{DOCS_IN_FILE} && $multi_doc_count > 0 && $multi_doc_count % $attr->{DOCS_IN_FILE} == 0) {
   	my $outfile = $attr->{SAVE_AS};
   	my $filenum = int($multi_doc_count / $attr->{DOCS_IN_FILE});
-  	
+
   	$outfile =~ s/\.pdf/$filenum\.pdf/;
-  	
+
   	print "Save to: $outfile\n" if ($self->{debug});
-  	
+
   	$pdf->saveas("$outfile") ;
   	$pdf->end;
     
@@ -1624,6 +1475,7 @@ if ($attr->{MULTI_DOCS} && $multi_doc_count <= $#{ $attr->{MULTI_DOCS} }) {
 }
 
 
+
 if ($attr->{SAVE_AS}) {
   $pdf->saveas("$attr->{SAVE_AS}") ;
   $pdf->end;
@@ -1633,11 +1485,6 @@ if ($attr->{SAVE_AS}) {
   $tpl = $pdf->stringify();
   $pdf->end;
  
- 
- 
-  print $tpl;
-
-
   if($attr->{OUTPUT2RETURN}) {
 		return $tpl;
 	 }
@@ -1768,5 +1615,15 @@ sub tpl_describe {
    return \%TPL_DESCRIBE;
 }
 
+#**********************************************************
+# Break line
+#
+#**********************************************************
+sub br () {
+        my $self = shift;
+        my ($attr) = @_;
+
+        return '';
+}
 
 1

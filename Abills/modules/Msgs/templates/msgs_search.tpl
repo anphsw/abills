@@ -7,5 +7,29 @@
 <tr><td>$_STATE:</td><td>%STATE_SEL%</td></tr>
 <tr><td>$_PRIORITY:</td><td>%PRIORITY_SEL%</td></tr>
 
-<TR><TD>$_EXECUTION $_DATE</TD><TD><input type=text value='' name='PLAN_DATE'> $_TIME: <input type=text value='' name='PLAN_TIME'></TD></TR>
+<TR><TD>$_EXECUTION $_DATE</TD><TD>$_FROM:
+<input type=text name='PLAN_FROM_DATE' value='%PLAN_FROM_DATE%' size=12 ID='PLAN_FROM_DATE' > 
+<script language=\"JavaScript\">
+	var o_cal = new tcal ({	'formname': 'form_search',	'controlname': 'PLAN_FROM_DATE'	});
+	
+	// individual template parameters can be modified via the calendar variable
+	o_cal.a_tpl.yearscroll = false;
+	o_cal.a_tpl.weekstart  = 1;
+ 	o_cal.a_tpl.months     = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+	o_cal.a_tpl.weekdays   = ['Sun', 'Mon', 'Tue', 'Wen', 'Thu', 'Fri', 'Sat'];
+</script>
+
+$_TO: <input type=text name='PLAN_TO_DATE' value='%PLAN_TO_DATE%' size=12 ID='PLAN_TO_DATE' > 
+<script language=\"JavaScript\">
+	var o_cal = new tcal ({	'formname': 'form_search',	'controlname': 'PLAN_TO_DATE'	});
+	
+	// individual template parameters can be modified via the calendar variable
+	o_cal.a_tpl.yearscroll = false;
+	o_cal.a_tpl.weekstart  = 1;
+ 	o_cal.a_tpl.months     = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+	o_cal.a_tpl.weekdays   = ['Sun', 'Mon', 'Tue', 'Wen', 'Thu', 'Fri', 'Sat'];
+</script>
+
+
+</TD></TR>
 

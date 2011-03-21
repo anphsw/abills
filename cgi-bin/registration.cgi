@@ -1,9 +1,7 @@
 #!/usr/bin/perl -w
 # Main  registration engine
 #
-
-
-
+#
 
 
 use vars qw($begin_time %FORM %LANG %conf $CHARSET 
@@ -14,10 +12,12 @@ use vars qw($begin_time %FORM %LANG %conf $CHARSET
   $users
   $Bin
   $ERR_WRONG_DATA
-  $DATE 
-  $time
-  
+  $ERR_CANT_CREATE_FILE
+  $DATE
+  $TIME
+  $sid
  );
+
 BEGIN {
  my $libpath = '../';
  
@@ -124,11 +124,11 @@ elsif($#REGISTRATION > -1) {
       Authen::Captcha->import();
      }
     else {
-      print "Can't load 'Authen::Captcha'. Please Install it from http://cpan.org $@";
-      exit; #return 0;
+    	print "Content-Type: text/html\n\n";
+      print "Can't load 'Authen::Captcha'. Please Install it from http://cpan.org";
+      print $html->pre($@);
+      exit; 
      }
-
-    #use Authen::Captcha;
 
     if (! -d $base_dir.'/cgi-bin/captcha/') {
     	if (! mkdir("$base_dir/cgi-bin/captcha/")) {
@@ -161,6 +161,11 @@ elsif($#REGISTRATION > -1) {
 
 	require "Abills/modules/$m/config";
 	require "Abills/modules/$m/webinterface";
+
+	if (-f "../Abills/modules/Msgs/lng_$html->{language}.pl") {
+	  require "../Abills/modules/Msgs/lng_$html->{language}.pl";
+	 }
+
 	$m = lc($m);
 	my $function = $m . '_registration';
   my $return = $function->({ %INFO_HASH });
@@ -176,9 +181,16 @@ Fio:      $FORM{FIO}
 DATE:     $DATE $TIME
 IP:       $ENV{REMOTE_ADDR}
 Module:   $m
+E-Mail:   $FORM{EMAIL}
 =========================================
 
 };
+
+    if ($conf{REGISTRATION_EXTERNAL}) {
+    	if (! _external($conf{REGISTRATION_EXTERNAL}, { %FORM }) ) {
+         #return 0;
+       }
+     }
 
     sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "New registrations", 
               "$message", "$conf{MAIL_CHARSET}", "");
@@ -200,31 +212,28 @@ print $html->tpl_show(templates('form_client_start'), { %OUTPUT, TITLE_TEXT => $
 # Password recovery
 #**********************************************************
 sub password_recovery {
-  
   if ($FORM{SEND}) {
-    
     if (($FORM{EMAIL} && $FORM{EMAIL} =~ m/\*/) || ($FORM{LOGIN} && $FORM{LOGIN} =~ m/\*/)) {
     	$html->message('err', $_ERROR, "$ERR_WRONG_DATA");
       return 0;
      }
+     
     my $list = $users->list({ %FORM });
 	
   	if ($users->{TOTAL} > 0) {
-  		my @u = @$list;
+  		my @u       = @$list;
 	    my $message = '';
-	    my $email = $FORM{EMAIL} || '';
-      my $uid = $line->[5];
+	    my $email   = $FORM{EMAIL} || '';
+      my $uid     = $list->[0][5+$users->{SEARCH_FIELDS_COUNT}];
       if ($FORM{LOGIN} && ! $FORM{EMAIL}) {
-      	$email = $u[0][7];
+      	$email    = $u[0][7+$users->{SEARCH_FIELDS_COUNT}];
        }
-
-      if ($FORM{EMAIL}) {
-        $uid = $line->[6];
-       }
-     
 
 	    foreach my $line (@u) {
-	       $users->info($line->[($FORM{EMAIL}) ? 6 : 5 ], { SHOW_PASSWORD => 1 });
+         if ($FORM{EMAIL}) {
+           $uid = $line->[5+$users->{SEARCH_FIELDS_COUNT}];
+          }
+	       $users->info($uid, { SHOW_PASSWORD => 1 });
     	   $message .= "$_LOGIN:  $users->{LOGIN}\n".
 	                   "$_PASSWD: $users->{PASSWORD}\n".
 	                   "================================================\n";
@@ -251,4 +260,30 @@ sub password_recovery {
 	}
 	
 	$html->tpl_show(templates('form_forgot_passwd'), undef);
+}
+
+
+#**********************************************************
+# Make external operations
+#**********************************************************
+sub _external {
+  my ($file, $attr) = @_;
+
+  my $arguments = '';
+  while(my ($k, $v) = each %$attr) {
+        if ($k ne '__BUFFER' && $k =~ /[A-Z0-9_]/) {
+                $arguments .= " $k=\"$v\"";
+         }
+   }
+
+  my $result = `$file $arguments`;
+  my ($num, $message)=split(/:/, $result, 2);
+  if ($num == 1) {
+        $html->message('info', "_EXTERNAL $_ADDED", "$message");
+        return 1;
+   }
+  else {
+          $html->message('err', "_EXTERNAL $_ERROR", "[$num] $message");
+    return 0;
+   }
 }

@@ -1,5 +1,16 @@
+<script language=\"JavaScript\" type=\"text/javascript\">
+<!--
+function postthread(param) {
+       param = document.getElementById(param);
+//       var id = setTimeout(param.disabled=true,10);
+       param.value='$_IN_PROGRESS...';
+       param.style.backgroundColor='#dddddd'; 
+}
+-->
+</script>
+
 <div class='noprint'>
-<form action='$SELF_URL' METHOD='POST' nmae=user>
+<form action='$SELF_URL' METHOD='POST' name='user' onsubmit=\"postthread('submitbutton');\">
 <input type=hidden name=index value=$index>
 <input type=hidden name=subf value=$FORM{subf}>
 <input type=hidden name=OP_SID value=%OP_SID%>
@@ -7,7 +18,7 @@
 
 <TABLE>
 <TR><TH class='form_title' colspan=3>$_PAYMENTS</TH></TR>
-<TR><TD colspan=2>$_SUM:</TD><TD><input type=text name=SUM></TD></TR>
+<TR><TD colspan=2>$_SUM:</TD><TD><input type=text name=SUM value='$FORM{SUM}'></TD></TR>
 <TR><TD rowspan=2>$_DESCRIBE:</TD><TD>$_USER:</TD><TD><input type=text name=DESCRIBE value='%DESCRIBE%' size=40></TD></TR>
 <TR> <TD>$_INNER:</TD><TD><input type=text name=INNER_DESCRIBE size=40></TD></TR>
 <TR><TD colspan=2>$_EXCHANGE_RATE:</TD><TD>%SEL_ER%</TD></TR>
@@ -22,6 +33,6 @@
 
 
 </TABLE>
-<input type=submit name=add value='$_ADD'>
+<input type=submit name=add value='$_ADD' ID='submitbutton' >
 </form>
 </div>

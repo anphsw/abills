@@ -73,7 +73,7 @@ if ($RAD->{USER_NAME} =~ /(\d+):(\S+)/) {
 
 #Start
 if ($acct_status_type == 1) {
-  $self->query($db, "SELECT count(user_name) FROM dv_calls 
+  $self->query($db, "SELECT count(uid) FROM dv_calls 
     WHERE user_name='$RAD->{USER_NAME}' and acct_session_id='$RAD->{ACCT_SESSION_ID}';");
     
   if ($self->{list}->[0]->[0] < 1) {
@@ -338,7 +338,6 @@ elsif($acct_status_type eq 3) {
       acct_session_id='$RAD->{ACCT_SESSION_ID}' and 
       user_name='$RAD->{USER_NAME}' and
       nas_id='$NAS->{NAS_ID}';", 'do');
-
   	return $self;
    }
   elsif ($NAS->{NAS_TYPE} eq 'ipcad') {
@@ -353,7 +352,6 @@ elsif($acct_status_type eq 3) {
     $ex_octets = "ex_input_octets='$RAD->{INBYTE2}',  ex_output_octets='$RAD->{OUTBYTE2}', ";
    }
  
-  
   $self->query($db, "UPDATE dv_calls SET
     status='$acct_status_type',
     acct_session_time=UNIX_TIMESTAMP()-UNIX_TIMESTAMP(started),
@@ -411,8 +409,12 @@ sub rt_billing {
   my ($RAD, $NAS)=@_;
 
   $self->query($db, "SELECT lupdated, UNIX_TIMESTAMP()-lupdated, 
-   if($RAD->{INBYTE} >= acct_input_octets, $RAD->{INBYTE} - acct_input_octets, acct_input_octets),
-   if($RAD->{OUTBYTE} >= acct_output_octets, $RAD->{OUTBYTE}  - acct_output_octets, acct_output_octets),
+   if($RAD->{INBYTE}   >= acct_input_octets AND $RAD->{ACCT_INPUT_GIGAWORDS}=acct_input_gigawords, 
+        $RAD->{INBYTE} - acct_input_octets, 
+        4294967296-acct_input_octets+4294967296*($RAD->{ACCT_INPUT_GIGAWORDS}-acct_input_gigawords-1)+$RAD->{INBYTE}),
+   if($RAD->{OUTBYTE}  >= acct_output_octets AND $RAD->{ACCT_OUTPUT_GIGAWORDS}=acct_output_gigawords, 
+        $RAD->{OUTBYTE}  - acct_output_octets,
+        4294967296-acct_output_octets+4294967296*($RAD->{ACCT_OUTPUT_GIGAWORDS}-acct_output_gigawords-1)+$RAD->{OUTBYTE}),
    if($RAD->{INBYTE2}  >= ex_input_octets, $RAD->{INBYTE2}  - ex_input_octets, ex_input_octets),
    if($RAD->{OUTBYTE2} >= ex_output_octets, $RAD->{OUTBYTE2} - ex_output_octets, ex_output_octets),
    acct_session_id,
@@ -445,6 +447,8 @@ sub rt_billing {
   
   my $Billing = Billing->new($db, $conf);	
 
+#print "INterim:   $RAD->{INTERIUM_INBYTE},   $RAD->{INTERIUM_OUTBYTE}, \n";
+
   ($self->{UID}, 
    $self->{SUM}, 
    $self->{BILL_ID}, 
@@ -454,10 +458,15 @@ sub rt_billing {
                                                 $RAD->{INTERIUM_SESSION_START}, 
                                                 $RAD->{INTERIUM_ACCT_SESSION_TIME}, 
                                                 {  
-                                                	 OUTBYTE  => $RAD->{OUTBYTE} - $RAD->{INTERIUM_OUTBYTE},
-                                                   INBYTE   => $RAD->{INBYTE} - $RAD->{INTERIUM_INBYTE},
+                                                	 OUTBYTE  => ($RAD->{OUTBYTE}  + $RAD->{ACCT_OUTPUT_GIGAWORDS} * 4294967296) - $RAD->{INTERIUM_OUTBYTE},
+                                                   INBYTE   => ($RAD->{INBYTE}   + $RAD->{ACCT_INPUT_GIGAWORDS} * 4294967296) - $RAD->{INTERIUM_INBYTE},
                                                    OUTBYTE2 => $RAD->{OUTBYTE2} - $RAD->{INTERIUM_OUTBYTE1},
-                                                   INBYTE2  => $RAD->{INBYTE2} - $RAD->{INTERIUM_INBYTE1},
+                                                   INBYTE2  => $RAD->{INBYTE2}  - $RAD->{INTERIUM_INBYTE1},
+
+                                                	 #OUTBYTE  => $RAD->{INTERIUM_OUTBYTE},
+                                                   #INBYTE   => $RAD->{INTERIUM_INBYTE},
+                                                   #OUTBYTE2 => $RAD->{INTERIUM_OUTBYTE1},
+                                                   #INBYTE2  => $RAD->{INTERIUM_INBYTE1},
 
                                                 	 INTERIUM_OUTBYTE  => $RAD->{INTERIUM_OUTBYTE},
                                                    INTERIUM_INBYTE   => $RAD->{INTERIUM_INBYTE},
@@ -470,6 +479,7 @@ sub rt_billing {
                                                   DOMAIN_ID  => ($NAS->{DOMAIN_ID}) ? $NAS->{DOMAIN_ID} : 0,
                                                 	  }
                                                 );
+
 
 #  my $a = `date >> /tmp/echoccc;
 #   echo "

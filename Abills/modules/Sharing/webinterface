@@ -172,7 +172,7 @@ foreach my $line (@$list) {
    }
   
   $table->addrow($html->b($line->[0]), 
-   $html->button($line->[1], "index=$index&TP_ID=$line->[0]", { BUTTON => 1 }),
+   $html->button($line->[1], "index=$index&TP_ID=$line->[18]"),
    $bool_vals[$line->[2]], $bool_vals[$line->[3]], $Payment_Types[$line->[4]], 
    $line->[5], 
    $line->[6], 
@@ -475,6 +475,21 @@ print $table->show();
 sub sharing_sessions {
   my ($list, $attr) = @_;
 
+if ($FORM{del} && $FORM{is_js_confirmed}) {
+	if(! defined($permissions{3}{1})) {
+     $html->message('err', $_ERROR, 'ACCESS DENY');
+     return 0;
+	 }
+
+  $Sharing->session_del({
+	    USER_NAME => $FORM{USER_NAME},
+	    FILE  => $FORM{FILE},
+	    START => $FORM{START}
+	});
+}
+
+
+
 if (! $list) {
   if (! defined($FORM{sort})) {
 	  $LIST_PARAMS{SORT} = 2;
@@ -503,17 +518,6 @@ if (! $list) {
 
  	                                        });
 
-
-#  form_search({ SEARCH_FORM =>  	
-#  	"<tr><td colspan=2><hr></td></tr>
-#     <tr><td>SUM (>,<)</td><td><input type=text name=SUM value='%SUM%'></td></tr>
-#     <tr><td>IP (>,<)</td><td><input type=text name=IP value='%IP%'></td></tr>
-#     <tr><td>CID</td><td><input type=text name=CID value='%CID%'></td></tr>
-#     <tr><td>NAS</td><td>$SEL_NAS</td></tr>
-#     <tr><td>NAS Port</td><td><input type=text name=NAS_PORT value='%NAS_PORT%'></td></tr>
-#  	 <tr><td>$_HANGUP $_STATUS:</td><td>$TERMINATE_CAUSE_SEL</td></tr>\n"
-# });
-
   $list = $Sharing->sessions_list({ %LIST_PARAMS });	
 }
 
@@ -532,15 +536,12 @@ my $table = $html->table( { width        => '100%',
                          } );
 
 my $delete = '';
-
-
 foreach my $line (@$list) {
   if ($permissions{3}{1}) {
-    $delete = $html->button($_DEL, "index=". $index ."$pages_qs&del=$line->[12]+$line->[11]+$line->[7]+$line->[1]+$line->[9]+$line->[0]", 
-       { MESSAGE => "$_DEL Session SESSION_ID $line->[11]?", BUTTON => 1 }
+    $delete = $html->button($_DEL, "index=". $index ."$pages_qs&del=1&USER_NAME=$line->[0]&FILE=$line->[8]&START=$line->[1]".(($FORM{UID})? "&UID=$FORM{UID}" : '' ), 
+       { MESSAGE => "$_DEL $_LOGIN: $line->[0] FILE: $line->[8]?", BUTTON => 1 }
       );
    }
-
 
   $table->addrow(
      $html->button("$line->[0]", "index=7&type=11&search=1&LOGIN_EXPR=$line->[0]"),
@@ -554,7 +555,8 @@ foreach my $line (@$list) {
      $line->[8], 
      int2byte($line->[9]), 
      $line->[10],
-     $delete);
+     $delete
+     );
 }
 
 print $table->show();
@@ -565,7 +567,6 @@ print $table->show();
 #  
 #*******************************************************************
 sub sharing_stats {
-
 	my $user_info = $users->info( $UID );
 	$LIST_PARAMS{LOGIN}=$user_info->{LOGIN};
   
@@ -606,15 +607,35 @@ if (defined($attr->{USER}))	{
 #	return 0;
 #}	
 
-
 if ($FORM{del} && $FORM{is_js_confirmed}) {
+	if(! defined($permissions{3}{1})) {
+     $html->message('err', $_ERROR, 'ACCESS DENY');
+     return 0;
+	 }
+
+  $Sharing->session_del({
+	    USER_NAME => $FORM{USER_NAME},
+	    FILE  => $FORM{FILE},
+	    START => $FORM{START}
+	});
+	
+  if (! $sessions->{errno})	 {
+ 	  my $table = $html->table( { 
+	                          width => '100%',
+                            rows  => [["$_LOGIN: ",        $FORM{USER_NAME} ],
+                                     ["$_FILE: ",      $FORM{FILE} ]
+                                    ]
+                           } );
+    $html->message('info', $_DELETED, $table->show());
+  }
+ }
+elsif ($FORM{del} && $FORM{is_js_confirmed}) {
 	if(! defined($permissions{3}{1})) {
      $html->message('err', $_ERROR, 'ACCESS DENY');
      return 0;
 	 } 
 
 	my ($UID, $session_id, $nas_id, $session_start_date, $session_start_time, $sum, $login)=split(/ /, $FORM{del}, 7);
-	$sessions->del($UID, $session_id, $nas_id, "$session_start_date $session_start_time");
   if (! $sessions->{errno})	 {
   	my $table = $html->table( { 
 	                          width => '100%',
@@ -708,10 +729,8 @@ print $html->form_main({ CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
 	                                    index => "$index",
 	                                    UID   => $LIST_PARAMS{UID} }});
 
-
-
 if (defined($FORM{show})) {
-  $pages_qs .= "&show=y&fromD=$FORM{fromD}&fromM=$FORM{fromM}&fromY=$FORM{fromY}&toD=$FORM{toD}&toM=$FORM{toM}&toY=$FORM{toY}";
+  $pages_qs .= "&show=1&fromD=$FORM{fromD}&fromM=$FORM{fromM}&fromY=$FORM{fromY}&toD=$FORM{toD}&toM=$FORM{toM}&toY=$FORM{toY}";
   $FORM{fromM}++;
   $FORM{toM}++;
   $FORM{fromM} = sprintf("%.2d", $FORM{fromM}++);
@@ -1218,12 +1237,11 @@ sub sharing_user_chg_tp {
 
  #Get TP groups
  $Tariffs->tp_group_info($user_sharing->{TP_GID});
- 
+
  if (! $Tariffs->{USER_CHG_TP} && $Tariffs->{TOTAL} > 0) {
  	  $html->message('err', $_ERROR, "$_NOT_ALLOW / $Tariffs->{USER_CHG_TP} /");
  	  return 0;
   }
-
 
 if ($FORM{set}) {
  	use POSIX;
@@ -1265,9 +1283,8 @@ if ($FORM{set}) {
       
       if ($user_sharing->{TP_ID} == $FORM{TP_ID}) {
       	my $user = Users->new($db, $admin, \%conf);
-      	
       	my $tariffs = Tariffs->new($db, \%conf, $admin);
-        $tariffs->info($FORM{TP_ID});
+        $tariffs->info(0, { ID => $FORM{TP_ID} });
       
         if($tariffs->{CHANGE_PRICE} > 0) {
           $user->info($LIST_PARAMS{UID});
@@ -1281,6 +1298,7 @@ if ($FORM{set}) {
            }
          }
 
+        my $message = '';
         if ($tariffs->{AGE} > 0) {
           use POSIX qw(strftime);
           my $EXPITE_DATE = strftime( "%Y-%m-%d", localtime(time + 86400 * $tariffs->{AGE}) );
@@ -1289,9 +1307,11 @@ if ($FORM{set}) {
        	                                ACTIVATE => $ACTIVATE_DATE,
        	                                UID      => $LIST_PARAMS{UID} 
        	                           });
+         
+          $message = ": $ACTIVATE_DATE $_EXPIRE: $EXPITE_DATE";
          }
 
-        $html->message('info', $_INFO, "$_ACTIVATE");
+        $html->message('info', $_INFO, "$_ACTIVATE $message");
        }
       else {
         $user_sharing->change({ UID   => $LIST_PARAMS{UID},
@@ -1339,7 +1359,6 @@ if ($FORM{set}) {
   else {
     $FORM{UID}=$LIST_PARAMS{UID};
     $user_sharing->change({ %FORM });
-
     if ($user_sharing->{errno}) {
       if ($user_sharing->{errno} == 15) {
       	$html->message('err', $_ERROR, "$ERR_SMALL_DEPOSIT");
@@ -1349,7 +1368,7 @@ if ($FORM{set}) {
        } 
      }
     else {
-      $html->message('info', $_CHANGED, "$_CHANGED --");
+      $html->message('info', $_CHANGED, "$_CHANGED $_TARIF_PLAN");
       $user_sharing->info($user->{UID});
     }
   }
@@ -1404,9 +1423,7 @@ elsif($FORM{del}) {
    $Tariffs->{m}=$m;
    $Tariffs->{TP_ID}   = $user->{TP_ID};
    $Tariffs->{TP_NAME} = "$user_sharing->{TP_ID}:$user_sharing->{TP_NAME}";
-
    $html->tpl_show(templates('form_chg_tp'), $Tariffs);
-   
    
    sharing_addition_buy();
 }

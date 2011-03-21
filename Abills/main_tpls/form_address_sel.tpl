@@ -76,7 +76,7 @@ function insert (id) {
 	}
 	if (teg == 'p2') {
 		document.getElementById('STREET_ID').value = key;
-		document.getElementById('LOCATION_ID').value = key;
+		//document.getElementById('LOCATION_ID').value = key;
 		build('0');
 	}
 	if (teg == 'p3') {
@@ -236,6 +236,7 @@ function build (go) {
 <div id=\"l3\" class=\"lists\"></div>
 </TD></TR> 
 <TR bgcolor='$_COLORS[2]'><TD>$_ADDRESS_FLAT:</TD><TD><input type=text name=ADDRESS_FLAT value='%ADDRESS_FLAT%' size=8></TD></TR>
+<TR bgcolor='$_COLORS[2]'><TD colspan=2 align=right>%ADD_ADDRESS_LINK%</TD></TR>
 
 
 <!-- <input type=submit name='' value='$_CHANGE' onclick=\"javascript:returnDate('Zone ID');\"> -->

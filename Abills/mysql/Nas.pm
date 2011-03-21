@@ -12,9 +12,13 @@ use main;
 my $CONF;
 my $SECRETKEY = '';
 
+
+
+
 sub new {
   my $class = shift;
   ($db, $CONF) = @_;
+
   $SECRETKEY = (defined($CONF->{secretkey})) ? $CONF->{secretkey}: '';
   my $self = { };
   bless($self, $class);
@@ -34,6 +38,19 @@ sub list {
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+  my $ext_fields = '';
+  my $EXT_TABLES = '';
+  if ($attr->{SHOW_MAPS}) {
+    $ext_fields = ",b.map_x, b.map_y, b.map_x2, b.map_y2, b.map_x3, b.map_y3, b.map_x4, b.map_y4";
+    $EXT_TABLES = "INNER JOIN builds b ON (b.id=nas.location_id)";
+    if ($attr->{DISTRICT_ID}) {
+     push @WHERE_RULES, @{ $self->search_expr($attr->{DISTRICT_ID}, 'INT', 'streets.district_id', { EXT_FIELD => 'districts.name' }) };
+     $EXT_TABLES .= "LEFT JOIN streets ON (streets.id=b.street_id)
+      LEFT JOIN districts ON (districts.id=streets.district_id) ";
+    }    
+   }
+
 
   if(defined($attr->{TYPE})) {
   	push @WHERE_RULES, "nas.nas_type='$attr->{TYPE}'";
@@ -55,12 +72,11 @@ sub list {
   	push @WHERE_RULES, @{ $self->search_expr($attr->{MAC}, 'INT', 'nas.mac') };
    }
 
-
   if($attr->{GID}) {
   	push @WHERE_RULES, @{ $self->search_expr($attr->{GID}, 'INT', 'nas.gid') };
    }
 
- 
+
  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
  
  $self->query($db, "SELECT nas.id, 
@@ -77,9 +93,11 @@ sub list {
   DECODE(nas.mng_password, '$SECRETKEY'), 
   nas.rad_pairs, 
   nas.ext_acct,
-  nas.auth_type 
+  nas.auth_type
+  $ext_fields
   FROM nas
   LEFT JOIN nas_groups ng ON (ng.id=nas.gid)
+  $EXT_TABLES
   $WHERE
   ORDER BY $SORT $DESC;");
 
@@ -115,7 +133,7 @@ sub info {
 $self->query($db, "SELECT id, name, nas_identifier, descr, ip, nas_type, auth_type, mng_host_port, mng_user, 
  DECODE(mng_password, '$SECRETKEY'), rad_pairs, alive, disable, ext_acct, 
  gid, address_build, address_street, address_flat, zip, city, country, domain_id, mac,
- changed
+ changed, location_id
  FROM nas
  WHERE $WHERE
  ORDER BY nas_identifier DESC;");
@@ -152,14 +170,31 @@ $self->query($db, "SELECT id, name, nas_identifier, descr, ip, nas_type, auth_ty
    $self->{COUNTRY},
    $self->{DOMAIN_ID},
    $self->{MAC},
-   $self->{CHANGED}
+   $self->{CHANGED},
+   $self->{LOCATION_ID}
    ) = @{ $self->{list}->[0] };
+
+
+ if ($self->{LOCATION_ID} > 0 ) {
+   $self->query($db, "select d.id, d.city, d.name, s.name, b.number  
+     FROM builds b
+     LEFT JOIN streets s  ON (s.id=b.street_id)
+     LEFT JOIN districts d  ON (d.id=s.district_id)
+     WHERE b.id='$self->{LOCATION_ID}'");
+   
+    if ($self->{TOTAL} > 0) {
+      ($self->{DISTRICT_ID}, 
+       $self->{CITY}, 
+       $self->{ADDRESS_DISTRICT}, 
+       $self->{ADDRESS_STREET}, 
+       $self->{ADDRESS_BUILD}, 
+      )= @{ $self->{list}->[0] };
+     }
+  }
+
 
  return $self;
 }
-
-
-
 
 #**********************************************************
 #
@@ -195,7 +230,8 @@ sub change {
   DOMAIN_ID           => 'domain_id',
   GID                 => 'gid',
   MAC                 => 'mac',
-  CHANGED             => 'changed'
+  CHANGED             => 'changed',
+  LOCATION_ID         => 'location_id'
   ); 
 
   $attr->{CHANGED}=1;
@@ -210,7 +246,6 @@ sub change {
 		              } );
 
   $self->info({ NAS_ID => $self->{NAS_ID} });
-
   return $self;
 }
 
@@ -226,15 +261,12 @@ sub add {
 
  $self->query($db, "INSERT INTO nas (name, nas_identifier, descr, ip, nas_type, auth_type, mng_host_port, mng_user, 
  mng_password, rad_pairs, alive, disable, ext_acct, 
- address_build, address_street, address_flat, zip, city, country, domain_id, gid, mac)
+ address_build, address_street, address_flat, zip, city, country, domain_id, gid, mac, location_id)
  values ('$DATA{NAS_NAME}', '$DATA{NAS_INDENTIFIER}', '$DATA{NAS_DESCRIBE}', '$DATA{NAS_IP}', '$DATA{NAS_TYPE}', '$DATA{NAS_AUTH_TYPE}',
   '$DATA{NAS_MNG_IP_PORT}', '$DATA{NAS_MNG_USER}', ENCODE('$DATA{NAS_MNG_PASSWORD}', '$SECRETKEY'), '$DATA{NAS_RAD_PAIRS}',
   '$DATA{NAS_ALIVE}', '$DATA{NAS_DISABLE}', '$DATA{NAS_EXT_ACCT}',
   '$DATA{ADDRESS_BUILD}', '$DATA{ADDRESS_STREET}', '$DATA{ADDRESS_FLAT}', '$DATA{ZIP}', '$DATA{CITY}', '$DATA{COUNTRY}', '$DATA{DOMAIN_ID}',
-  '$DATA{GID}', '$DATA{MAC}');", 'do');
-
-
-
+  '$DATA{GID}', '$DATA{MAC}', '$DATA{LOCATION_ID}');", 'do');
 
  $admin->system_action_add("NAS_ID:$self->{INSERT_ID}", { TYPE => 1 });    
  return 0;	
@@ -249,6 +281,7 @@ sub del {
  my ($id) = @_;
  
  $self->query($db, "DELETE FROM nas WHERE id='$id'", 'do');
+ $self->query($db, "DELETE FROM nas_ippools WHERE nas_id='$id';", 'do');
 
  $admin->system_action_add("NAS_ID:$id", { TYPE => 10 });    
  return 0;	
@@ -271,7 +304,7 @@ sub nas_ip_pools_list {
 
  $self->query($db, "SELECT if (np.nas_id IS NULL, 0, np.nas_id),
    n.name, pool.name, 
-   pool.ip, pool.ip + pool.counts, pool.counts,     pool.priority,
+   pool.ip, pool.ip + pool.counts, pool.counts,  pool.priority, pool.speed,
     INET_NTOA(pool.ip), INET_NTOA(pool.ip + pool.counts), 
     pool.id, np.nas_id, pool.static
     FROM ippools pool
@@ -312,12 +345,11 @@ sub nas_ip_pools_set {
 #**********************************************************
 sub ip_pools_info {
  my $self = shift;
- my ($id) = @_;
+ my ($id, $attr) = @_;
  
  my $WHERE = '';
 
-
- $self->query($db, "SELECT id, INET_NTOA(ip), counts, name, priority, static
+ $self->query($db, "SELECT id, INET_NTOA(ip), counts, name, priority, static, speed
    FROM ippools  WHERE id='$id';");
 
  if(defined($self->{errno})) {
@@ -334,7 +366,8 @@ sub ip_pools_info {
    $self->{NAS_IP_COUNT}, 
    $self->{POOL_NAME}, 
    $self->{POOL_PRIORITY},
-   $self->{STATIC}
+   $self->{STATIC},
+   $self->{POOL_SPEED},
    ) = @{ $self->{list}->[0] };
 
  return $self;	
@@ -349,13 +382,13 @@ sub ip_pools_change {
  my $self = shift;
  my ($attr) = @_; 
 
-
  my %FIELDS = (ID => 'id', 
   POOL_NAME       => 'name', 
   NAS_IP_COUNT    => 'counts', 
   POOL_PRIORITY   => 'priority', 
   NAS_IP_SIP_INT  => 'ip',
-  STATIC          => 'static'
+  STATIC          => 'static',
+  POOL_SPEED      => 'speed'
  );
 
 
@@ -369,7 +402,6 @@ sub ip_pools_change {
 		                EXT_CHANGE_INFO  => "POOL:$attr->{ID}"
 		              } );
 
-  
   return $self;
 }
 
@@ -388,14 +420,22 @@ sub ip_pools_list {
  
  if (defined($attr->{STATIC})) {
  	 push @WHERE_RULES, "pool.static='$attr->{STATIC}'"; 
+ 	 
+ 	 my $WHERE = ($#WHERE_RULES > -1) ? join(' and ', @WHERE_RULES)  : '';
+   $self->query($db, "SELECT '', pool.name, 
+   pool.ip, pool.ip + pool.counts, pool.counts, pool.priority,
+    INET_NTOA(pool.ip), INET_NTOA(pool.ip + pool.counts), 
+    pool.id, pool.nas
+    FROM ippools pool 
+    WHERE $WHERE  ORDER BY $SORT $DESC");
+   return $self->{list};	 	 
   }
  
  if(defined($self->{NAS_ID})) {
  	 push @WHERE_RULES, "pool.nas='$self->{NAS_ID}'"; 
   }
- 
- my $WHERE = ($#WHERE_RULES > -1) ? "and " . join(' and ', @WHERE_RULES)  : '';
 
+ my $WHERE = ($#WHERE_RULES > -1) ? "and " . join(' and ', @WHERE_RULES)  : '';
 
  $self->query($db, "SELECT nas.name, pool.name, 
    pool.ip, pool.ip + pool.counts, pool.counts, pool.priority,
@@ -404,7 +444,6 @@ sub ip_pools_list {
     FROM ippools pool, nas 
     WHERE pool.nas=nas.id
     $WHERE  ORDER BY $SORT $DESC");
-
 
  return $self->{list};	
 }
@@ -419,9 +458,9 @@ sub ip_pools_add {
  my ($attr) = @_;
  my %DATA = $self->get_data($attr); 
  
- $self->query($db, "INSERT INTO ippools (nas, ip, counts, name, priority, static) 
+ $self->query($db, "INSERT INTO ippools (nas, ip, counts, name, priority, static, speed) 
    VALUES ('$DATA{NAS_ID}', INET_ATON('$DATA{NAS_IP_SIP}'), '$DATA{NAS_IP_COUNT}',
-   '$DATA{POOL_NAME}', '$DATA{POOL_PRIORITY}', '$DATA{STATIC}')", 'do');
+   '$DATA{POOL_NAME}', '$DATA{POOL_PRIORITY}', '$DATA{STATIC}', '$DATA{POOL_SPEED}')", 'do');
 
  $admin->system_action_add("NAS_ID:$DATA{NAS_ID} POOLS:". (join(',', split(/, /, $attr->{ids}))), { TYPE => 1 });    
  return 0;	
@@ -485,10 +524,10 @@ sub log_list {
  my ($attr) = @_;
 
   my @WHERE_RULES  = ();
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
 
   if(defined($attr->{USER})) {
@@ -522,11 +561,8 @@ sub log_list {
   if($attr->{NAS_ID}) {
   	push @WHERE_RULES, @{ $self->search_expr($attr->{NAS_ID}, 'INT', 'l.nas_id') };
    }
-
- 
  
  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
-
  
  $self->query($db, "SELECT l.date, l.log_type, l.action, l.user, l.message, l.nas_id
   FROM errors_log l
@@ -534,17 +570,13 @@ sub log_list {
   ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;");
 
  my $list = $self->{list};
-
  $self->{OUTPUT_ROWS}=$self->{TOTAL};
-
 
  $self->query($db, "SELECT l.log_type, count(*)
   FROM errors_log l
   $WHERE
   GROUP BY 1
-  ORDER BY 1;");
-
-  
+  ORDER BY 1;");  
 
  return $list;
 }
@@ -578,23 +610,16 @@ sub log_del {
  my $self = shift;
  my ($attr) = @_;
  
- %DATA = $self->get_data($attr); 
-
- #$self->query($db, "INSERT INTO errors_log (date, time, log_type, action, user, message)
- #values (curdate(), curtime(), '$DATA{LOG_TYPE}', '$DATA{ACTION}', '$DATA{USER}', #'$DATA{MESSAGE}');", 'do');
-
+ my $WHERE='';
+ 
+ if ($attr->{LOGIN}) {
+ 	 $WHERE = "user='$attr->{LOGIN}'";
+  }
+ 
+ $self->query($db, "DELETE FROM errors_log WHERE $WHERE;", 'do');
 
  return 0;	
 }
-
-
-
-
-
-
-
-
-
 
 
 #**********************************************************
@@ -665,9 +690,6 @@ $self->query($db, "SELECT id,
  return $self;
 }
 
-
-
-
 #**********************************************************
 #
 #**********************************************************
@@ -712,8 +734,6 @@ sub nas_group_add {
  $self->query($db, "INSERT INTO nas_groups (name, comments, disable, domain_id)
  values ('$DATA{NAME}', '$DATA{COMMENTS}', '$DATA{DISABLE}', '$DATA{DOMAIN_ID}');", 'do');
 
-
-
  $admin->system_action_add("NAS_GROUP_ID:$self->{INSERT_ID}", { TYPE => 1 });    
  return 0;	
 }
@@ -731,14 +751,6 @@ sub nas_group_del {
  $admin->system_action_add("NAS_GROUP_ID:$id", { TYPE => 10 });    
  return 0;	
 }
-
-
-
-
-
-
-
-
 
 
 

@@ -18,7 +18,6 @@ use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION %h2
    $DESC
    $PG
    $PAGE_ROWS
-   $OP
    $SELF_URL
    $SESSION_IP
    @MONTHES
@@ -45,7 +44,6 @@ $VERSION = 2.01;
    $DESC
    $PG
    $PAGE_ROWS
-   $OP
    $SELF_URL
    $SESSION_IP
 );
@@ -58,7 +56,6 @@ my $debug;
 my %log_levels;
 my $IMG_PATH;
 my $row_number = 0;
-#Hash of url params
 
 
 #**********************************************************
@@ -77,14 +74,13 @@ sub new {
      $self->{NO_PRINT}=1;
    }
 
-
   %FORM     = form_parse();
   %COOKIES  = getCookies();
   $SORT     = $FORM{SORT} || 1;
   $DESC     = ($FORM{desc}) ? 'DESC' : '';
   $PG       = $FORM{pg} || 0;
-  $OP       = $FORM{op} || '';
   $PAGE_ROWS = $FORM{PAGE_ROWS} || 25;
+  $self->{CHARSET}=(defined($attr->{CHARSET})) ? $attr->{CHARSET} : 'windows-1251';
   $domain   = $ENV{SERVER_NAME};
   $web_path = '';
   $secure   = '';
@@ -282,17 +278,24 @@ sub form_select {
 
 	  if ($attr->{SORT_KEY}) {
 	  	@H = sort keys %{ $attr->{SEL_HASH} };
-	  }
+	   }
 	  else {
 	    @H = keys %{ $attr->{SEL_HASH} };
      }
     
-    
     foreach my $k (@H) {
       $self->{SELECT} .= "<option value='$k'";
-      $self->{SELECT} .=' selected="1"' if (defined($attr->{SELECTED}) && $k eq $attr->{SELECTED});
-
-      $self->{SELECT} .= ">";
+      $self->{SELECT} .= " selected='1'" if (defined($attr->{SELECTED}) && $k eq $attr->{SELECTED});
+      
+      if ($attr->{EXT_PARAMS}) {
+      	while(my ($ext_k, $ext_v)=each %{ $attr->{EXT_PARAMS} }) {
+          $self->{SELECT} .= " $ext_k='";
+          $self->{SELECT} .= $attr->{EXT_PARAMS}->{$ext_k}->{$k} if ($attr->{EXT_PARAMS}->{$ext_k}->{$k});
+          $self->{SELECT} .= "'";
+         }
+       }
+      
+      $self->{SELECT} .= '>';
       $self->{SELECT} .= "$k:" if (! $attr->{NO_ID});
       $self->{SELECT} .= "$attr->{SEL_HASH}{$k}</option>\n";	
      }
@@ -372,13 +375,14 @@ while((my($findex, $hash)=each(%$menu_items))) {
 my $h = $new_hash{0};
 my @last_array = ();
 
-
 my @menu_sorted = sort {
    $b cmp $a
 } keys %$h;
 
-for(my $parent=1; $parent<$#menu_sorted + 1; $parent++) { 
+
+for(my $parent=0; $parent<$#menu_sorted + 1; $parent++) { 
   my $val = $h->{$menu_sorted[$parent]};
+
   my $level = 0;
   my $prefix = '';
   my $ID = $menu_sorted[$parent];
@@ -444,7 +448,7 @@ sub header {
  my $JAVASCRIPT = ($attr->{PATH}) ? "$attr->{PATH}functions.js" : "functions.js";
  my $css = ''; #css();
 
-my $CHARSET=(defined($attr->{CHARSET})) ? $attr->{CHARSET} : 'windows-1251';
+my $CHARSET=(defined($attr->{CHARSET})) ? $attr->{CHARSET} : $self->{CHARSET} || 'windows-1251';
 $CHARSET=~s/ //g;
 $self->{header} .= qq{<?xml version="1.0"  encoding="$CHARSET" ?>};
 
@@ -503,7 +507,7 @@ sub table {
  $self->{table} .= ">\n";
 
  if (defined($attr->{title})) {
- 	 $self->{table} .= $self->table_title($SORT, $DESC, $PG, $OP, $attr->{title}, $attr->{qs});
+ 	 $self->{table} .= $self->table_title($SORT, $DESC, $PG, $attr->{title}, $attr->{qs});
   }
  elsif(defined($attr->{title_plain})) {
    $self->{table} .= $self->table_title_plain($attr->{title_plain});
@@ -514,9 +518,7 @@ sub table {
  	   if($FORM{index}) {
  	   	 $op = "index=$FORM{index}";
  	    }
- 	   else {
- 	   	 $op = "op=$OP";
- 	    }
+
  	   my %ATTR = ();
  	   if (defined($attr->{recs_on_page})) {
  	   	 $ATTR{recs_on_page}=$attr->{recs_on_page};
@@ -629,7 +631,7 @@ sub table_title_plain {
 #*******************************************************************
 # Show table column  titles with wort derectives
 # Arguments 
-# table_title($sort, $desc, $pg, $get_op, $caption, $qs);
+# table_title($sort, $desc, $pg, $caption, $qs);
 # $sort - sort column
 # $desc - DESC / ASC
 # $pg - page id
@@ -637,11 +639,7 @@ sub table_title_plain {
 #*******************************************************************
 sub table_title  {
   my $self = shift;
-  my ($sort, $desc, $pg, $get_op, $caption, $qs)=@_;
-  my ($op);
-  my $img='';
-
-#  print "$sort, $desc, $pg, $op, $caption, $qs";
+  my ($sort, $desc, $pg, $caption, $qs)=@_;
 
   $self->{table_title} = "<TITLE columns=\"". ($#{ $caption } + 1) ."\">\n";
   my $i=1;
@@ -663,6 +661,7 @@ sub table_title  {
      $self->{table_title} .= "/>\n";
      $i++;
    }
+
  $self->{table_title} .= "</TITLE>\n";
  return $self->{table_title};
 }
@@ -715,7 +714,7 @@ sub link_former {
 
 #**********************************************************
 #
-# del_button($op, $del, $message, $attr)
+# button($name, $params, $attr)
 #**********************************************************
 sub button {
   my $self = shift;
@@ -802,9 +801,6 @@ sub date_fld  {
  my $month = $FORM{$base_name.'M'} || $mon;
  my $year = $FORM{$base_name.'Y'} || $curyear + 1900;
 
-
-
-# print "$base_name -";
 my $result  = "<SELECT name=\"". $base_name ."D\">";
 for (my $i=1; $i<=31; $i++) {
    $result .= sprintf("<option value=\"%.2d\"", $i);
@@ -818,7 +814,6 @@ my $i=0;
 foreach my $line (@$MONTHES) {
    $result .= sprintf("<option value=\"%.2d\"", $i);
    $result .= ' selected="1"' if($month == $i ) ;
-   
    $result .= ">$line</option>\n";
    $i++
 }
@@ -854,8 +849,6 @@ sub date_fld2  {
  my $year = $FORM{$base_name.'Y'} || $curyear + 1900;
 
 
-
-# print "$base_name -";
 my $result  = "<SELECT name=\"". $base_name ."D\">";
 for (my $i=1; $i<=31; $i++) {
    $result .= sprintf("<option value=\"%.2d\"", $i);
@@ -871,7 +864,6 @@ my $i=0;
 foreach my $line (@$MONTHES) {
    $result .= sprintf("<option value=\"%.2d\"", $i);
    $result .= ' selected="1"' if($month == $i ) ;
-   
    $result .= ">$line</option>\n";
    $i++
 }
@@ -1031,5 +1023,18 @@ sub color_mark {
  my $output = "<color_mark color=\"$color\">$message</color_mark>";
  return $output;
 }
+
+
+#**********************************************************
+# Break line
+#
+#**********************************************************
+sub br () {
+	my $self = shift;
+	my ($attr) = @_;
+	
+	return '<br/>';
+}
+
 
 1

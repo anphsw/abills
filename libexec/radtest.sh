@@ -3,39 +3,110 @@
 
 AUTH_LOG=/usr/abills/var/log/abills.log
 ACCT_LOG=/usr/abills/var/log/acct.log
-VERSION=0.2
+VERSION=0.6
 
 USER_NAME=test
 USER_PASSWORD=123456
 NAS_IP_ADDRESS=127.0.0.1
+ACCT_SESSION_ID='123456789012345';
 
 #Voip defauls
 VOIP_NAS_IP_ADDRESS=192.168.202.15
 VOIP_USER_NAME=200
 VOIP_CHAP_PASSWORD=''; #123456
 
-
+RAUTH="./rauth.pl";
+RACCT="./racct.pl";
 echo `pwd -P`;
-echo $1 
+
+# Proccess command-line options
+#
+for _switch ; do
+        case $_switch in
+        -debug)
+                DEBUG=1;
+                echo "Debug enable"
+                shift; 
+                ;;
+        -v)
+                echo "Version: ${VERSION}";
+                exit;
+                ;;
+        -u)  
+                USER_NAME=$2;
+                shift; shift
+                ;;
+        -p)     USER_PASSWORD=$2;
+                shift; shift
+                ;;
+        -nas)   NAS_IP_ADDRESS=$2;
+                shift; shift
+                ;;
+        acct)   ACCOUNTING_ACTION=$2;
+                ACTION=acct 
+                shift; shift
+                ;;
+        auth)   ACTION=auth;
+                shift;
+                ;;
+        -cid)   CALLING_STATION_ID=$2;
+                shift; shift
+                ;;
+        -session_id) ACCT_SESSION_ID=$2;
+                shift; shift
+                ;;
+        -rad)   RADIUS_ACTION=1;
+                shift;
+                ;;
+        -rad_secret)   RADIUS_SECRET=$2;
+                shift; shift;
+                ;;
+        -rad_ip)   RADIUS_IP=$2;
+                shift; shift;
+                ;;
+
+        esac
+done
 
 
-echo -n "USER_NAME (${USER_NAME}): "
-read _input
-if [ w${_input} != w ]; then
-  USER_NAME=${_input}
+# Get user name
+if [ w${ACTION} != whelp ]; then
+  echo -n "USER_NAME (${USER_NAME}): "
+  read _input
+  if [ w${_input} != w ]; then
+    USER_NAME=${_input}
+  fi;
 fi;
 
 
-if [ t$1 = 'tauth' ] ; then
+# Make direct radius request
+if [ w${RADIUS_ACTION} = w1 ]; then
+  if [ w${RADIUS_SECRET} = w ]; then
+    RADIUS_SECRET=radsecret;
+  fi;
 
-  ./rauth.pl \
+  if [ w${RADIUS_IP} = w ]; then
+    RADIUS_IP=127.0.0.1;
+  fi;
+  
+  echo "Send params to radius: ${RADIUS_IP}:1812"
+  radtest ${USER_NAME} ${USER_PASSWORD} ${RADIUS_IP}:1812 0 ${RADIUS_SECRET} 0 ${NAS_IP_ADDRESS}
+  
+  exit;
+fi;
+
+
+
+#script testing program
+if [ t${ACTION} = 'tauth' ] ; then
+  ${RAUTH} \
         SERVICE_TYPE=VPN \
         NAS_IP_ADDRESS=${NAS_IP_ADDRESS}\
         USER_PASSWORD="${USER_PASSWORD}"\
-        USER_NAME="${USER_NAME}"
+        USER_NAME="${USER_NAME}"\
+        CALLING_STATION_ID="${CALLING_STATION_ID}"
 
 #        CISCO_AVPAIR="client-mac-address=000f.ea3d.92e1"
-
 #        CHAP_PASSWORD="0x5acd1cc26b6f8bf084fb616925769362af"
 #NAS_IDENTIFIER="vpn1.imperial.net.ua"\
 #        USER_PASSWORD="test12345"\
@@ -76,13 +147,68 @@ if [ t$1 = 'tauth' ] ; then
    echo "" 
    echo "Auth test end"
 
+elif [ t${ACTION} = tdhcp ]; then
 
-elif [ t$1 = 'tacct' ]; then
-   echo "Accounting test";
+   ${RAUTH} post_auth \
+ DHCP-Your-IP-Address="0.0.0.0"\
+ DHCP-Message-Type="DHCP-Discover"\
+ DHCP-Vendor-Class-Identifier="MSFT 5.0"\
+ DHCP-Hop-Count="1"\
+ DHCP-Number-of-Seconds="0"\
+ DHCP-Client-IP-Address="0.0.0.0"\
+ DHCP-Gateway-IP-Address="10.2.0.1"\
+ DHCP-Hardware-Type="Ethernet"\
+ DHCP-Flags="Broadcast"\
+ DHCP-Hardware-Address-Length="6"\
+ DHCP-Hostname="\214\256\251\252\256\254\257\354\356\342\245\340"\
+ DHCP-Opcode="Client-Message"\
+ DHCP-Transaction-Id="2882764849"\
+ DHCP-Parameter-Request-List="ARRAY(0x28560e38)"\
+ DHCP-Client-Hardware-Address="00:15:17:be:d1:ae"\
+ DHCP-Relay-Agent-Information="0x0106000403e9010d020800060012cffbeeb9"\
+ DHCP-Server-IP-Address="0.0.0.0"\
+ DHCP-Requested-IP-Address="10.2.0.15"\
+ DHCP-Client-Identifier="00:15:17:be:d1:ae"
 
-  if [ t$2 = 'tStart' ]; then
-   echo Start;
-   ./racct.pl \
+# DHCP_YOUR_IP_ADDRESS="0.0.0.0"\
+# DHCP_MESSAGE_TYPE="DHCP-Request"\
+# DHCP_VENDOR_CLASS_IDENTIFIER="MSFT 5.0"\
+# DHCP_HOP_COUNT="1"\
+# DHCP_NUMBER_OF_SECONDS="0"\
+# DHCP_CLIENT_IP_ADDRESS="10.0.0.95"\
+# DHCP_GATEWAY_IP_ADDRESS="10.2.0.1"\
+# DHCP_HARDWARE_TYPE="ETHERNET"\
+# DHCP_FLAGS="BROADCAST"\
+# DHCP_HARDWARE_ADDRESS_LENGTH="6"\
+# DHCP_HOSTNAME="\214\256\251\252\256\254\257\354\356\342\245\340"\
+# DHCP_OPCODE="CLIENT-MESSAGE"\
+# DHCP_TRANSACTION_ID="3391227009"\
+# DHCP_PARAMETER_REQUEST_LIST="ARRAY(0X2855FF64)"\
+# DHCP_CLIENT_HARDWARE_ADDRESS="00:15:17:be:d1:ae"\
+# DHCP_RELAY_AGENT_INFORMATION="0x0106000403e9010d020800060012cffbeeb9"\
+# DHCP_SERVER_IP_ADDRESS="0.0.0.0"\
+# DHCP_CLIENT_FQDN="\000\000\000\214\256\251\252\256\254\257\354\356\342\245\340"\
+ DHCP_CLIENT_IDENTIFIER="00:15:17:be:d1:ae"
+
+
+   echo "DHCP Request";
+#    DHCP_DHCP_SERVER_INDENTIFIER=192.168.1.200\
+#    DHCP_YOUR_IP_ADDRESS=192.168.1.101\
+#    DHCP_INTERFACE_INDEX=192.168.1.200\
+#    DHCP_CLIENT_HARDWARE_ADDRESS=0x0004764ec1d5\
+#    NAS_IP_ADDRESS=${NAS_IP_ADDRESS}
+ #      USER_NAME="00:04:76:4e:c1:d5"\
+ #      USER_PASSWORD="dhcpuser"\
+ #      NAS_IP_ADDRESS=${NAS_IP_ADDRESS}\
+ #      NAS_PORT="3232235816"\
+ #      DHCP_MESSAGE_TYPE="DHCP-Discover"
+
+elif [ t${ACTION} = 'tacct' ]; then
+  echo "Accounting test";
+
+  if [ t${ACCOUNTING_ACTION} = 'tStart' ]; then
+    echo Start;
+    ${RACCT} \
         USER_NAME="${USER_NAME}" \
         SERVICE_TYPE=Framed-User \
         FRAMED_PROTOCOL=PPP \
@@ -94,49 +220,48 @@ elif [ t$1 = 'tacct' ]; then
         NAS_IDENTIFIER="media.intranet" \
         NAS_PORT_TYPE=Virtual \
         ACCT_STATUS_TYPE=Start \
-        ACCT_SESSION_ID="83419_AA11118757979" \
-
+        ACCT_SESSION_ID="${ACCT_SESSION_ID}" \
 #        CALLING_STATION_ID="192.168.101.4" \
 
-   elif [ t$2 = 'tAlive' ] ; then
-            echo Alive;
-      ./racct.pl \
+   elif [ t${ACCOUNTING_ACTION} = 'tAlive' ] ; then
+      echo Alive;
+      ${RACCT} \
         USER_NAME="${USER_NAME}" \
         SERVICE_TYPE=Framed-User \
         FRAMED_PROTOCOL=PPP \
         FRAMED_IP_ADDRESS=10.0.0.1 \
         FRAMED_IP_NETMASK=0.0.0.0 \
-        CALLING_STATION_ID="192.168.101.4" \
+        CALLING_STATION_ID="${CALLING_STATION_ID}" \
         NAS_IP_ADDRESS=${NAS_IP_ADDRESS} \
         NAS_IDENTIFIER="media.intranet" \
         NAS_PORT_TYPE=Virtual \
         ACCT_STATUS_TYPE=Interim-Update \
-        ACCT_SESSION_ID="83419_AA11118757979" \
+        ACCT_SESSION_ID="${ACCT_SESSION_ID}" \
         ACCT_DELAY_TIME=0 \
-        ACCT_INPUT_OCTETS=1345980000 \
-        ACCT_INPUT_GIGAWORDS=1 \
-        ACCT_INPUT_PACKETS=12445532225 \
-        ACCT_OUTPUT_OCTETS=17464000 \
+        ACCT_INPUT_OCTETS=13459811 \
+        ACCT_INPUT_GIGAWORDS=0 \
+        ACCT_INPUT_PACKETS=1244553 \
+        ACCT_OUTPUT_OCTETS=1460000 \
         EXPPP_ACCT_LOCALINPUT_OCTETS=12000000 \
         EXPPP_ACCT_LOCALOUTPUT_OCTETS=13000000 \
-        ACCT_OUTPUT_GIGAWORDS=1 \
+        ACCT_OUTPUT_GIGAWORDS=0 \
         ACCT_OUTPUT_PACKETS=0 \
         ACCT_SESSION_TIME=100 
 
-   elif [ t$2 = 'tStop' ] ; then
-      echo Stop;
-      ./racct.pl \
+   elif [ t${ACCOUNTING_ACTION} = 'tStop' ] ; then
+     echo Stop;
+     ${RACCT}  \
         USER_NAME="${USER_NAME}" \
         SERVICE_TYPE=Framed-User \
         FRAMED_PROTOCOL=PPP \
         FRAMED_IP_ADDRESS=10.0.0.1 \
         FRAMED_IP_NETMASK=0.0.0.0 \
-        CALLING_STATION_ID="192.168.101.4" \
+        CALLING_STATION_ID="${CALLING_STATION_ID}" \
         NAS_IP_ADDRESS=${NAS_IP_ADDRESS} \
         NAS_IDENTIFIER="media.intranet" \
         NAS_PORT_TYPE=Virtual \
         ACCT_STATUS_TYPE=Stop \
-        ACCT_SESSION_ID="83419_AA11118757979" \
+        ACCT_SESSION_ID="${ACCT_SESSION_ID}" \
         ACCT_DELAY_TIME=0 \
         ACCT_INPUT_OCTETS=53045900 \
         ACCT_INPUT_GIGAWORDS=0 \
@@ -144,32 +269,30 @@ elif [ t$1 = 'tacct' ]; then
         ACCT_OUTPUT_OCTETS=10000 \
         EXPPP_ACCT_LOCALINPUT_OCTETS=12000000 \
         EXPPP_ACCT_LOCALOUTPUT_OCTETS=13000000 \
-        ACCT_OUTPUT_GIGAWORDS=0 \
-        ACCT_OUTPUT_PACKETS=0 \
+        ACCT_OUTPUT_GIGAWORDS=1 \
+        ACCT_OUTPUT_PACKETS=1111 \
         ACCT_SESSION_TIME=100 \
-
-
 
    fi
 
 
-elif [ t$1 = 'tacctgt' ]; then
+elif [ t${ACTION} = 'tacctgt' ]; then
 
   echo "Account requirest GT: "
   cat $ACCT_LOG | grep GT | awk '{ print $11"  "$1" "$2" "$5" "$8" "$9 }' | sort -n
 
 
-elif [ t$1 = 'tauthgt' ]; then
+elif [ t${ACTION} = 'tauthgt' ]; then
 
   cat $AUTH_LOG | grep GT | awk '{ print $10"  "$1" "$2" "$5" "$8 }' | sort -n
 
 
-elif [ t$1 = 'tvoip' ] ; then 
+elif [ t${ACTION} = 'tvoip' ] ; then 
 
  echo "Voip";
   if [ t$2 = 'tauth' ] ; then
    echo Auth;
-   ./rauth.pl NAS_IP_ADDRESS="${VOIP_NAS_IP_ADDRESS}" \
+     ${RAUTH}  NAS_IP_ADDRESS="${VOIP_NAS_IP_ADDRESS}" \
      NAS_PORT_TYPE="Virtual" \
      NAS_IDENTIFIER="" \
      CLIENT_IP_ADDRESS="192.168.101.17" \
@@ -183,14 +306,11 @@ elif [ t$1 = 'tvoip' ] ; then
      H323_CONF_ID="h323-conf-id=16000 647BEE1D 80F000A F453DBFD"\
      H323_CALL_ORIGIN="h323-call-origin=originate"
 #     HUNTGROUP_NAME="voips" 
-
 #     CHAP_PASSWORD="0x06a8f3fb0ab5f4a8e90a590686c845c456" \
- 
-
-  elif [ t$2 = 'tStart' ] ; then
+  elif [ t${ACCOUNTING_ACTION} = 'tStart' ] ; then
     echo "Start\n";
 
-   ./rauth.pl NAS_IP_ADDRESS="${VOIP_NAS_IP_ADDRESS}" \
+    ${RAUTH} NAS_IP_ADDRESS="${VOIP_NAS_IP_ADDRESS}" \
        CHAP_PASSWORD="0x0338b5a0e6ade0557eb9e5d208fe0f5eee" \
        H323_CONF_ID="h323-conf-id=16000 647BEE1D 80F000A F453DBFD"\
        H323_GW_ID="h323-gw-id=ASMODEUSGK"\
@@ -208,7 +328,7 @@ elif [ t$1 = 'tvoip' ] ; then
        HUNTGROUP_NAME="voips"
 
 # RadAliasAuth
-#   ./rauth.pl NAS_IP_ADDRESS="192.168.101.17" \
+#      ${RAUTH}  NAS_IP_ADDRESS="192.168.101.17" \
 #       USER_PASSWORD="101"\
 #       H323_CONF_ID="h323-conf-id=16000 647BEE1D 80F000A F453DBFD"\
 #       H323_GW_ID="h323-gw-id=ASMODEUSGK"\
@@ -225,7 +345,7 @@ elif [ t$1 = 'tvoip' ] ; then
 #       HUNTGROUP_NAME="voips"
 
 
-   ./racct.pl ACCT_UNIQUE_SESSION_ID="7ae849dcfba1c03f"\
+    ${RACCT}  ACCT_UNIQUE_SESSION_ID="7ae849dcfba1c03f"\
       H323_CONF_ID="h323-conf-id=16000 647BEE1D 80F000A F453DBFD"\
       NAS_PORT_TYPE="Virtual"\
       H323_CALL_ORIGIN="h323-call-origin=proxy"\
@@ -247,13 +367,9 @@ elif [ t$1 = 'tvoip' ] ; then
       CALLED_STATION_ID="613"
 
 
-
-
-
-
-   elif [ t$2 = 'tStop' ] ; then
-    echo "Voip Stop"
-   ./racct.pl  ACCT_UNIQUE_SESSION_ID="7ae849dcfba1c03f"\
+   elif [ t${ACCOUNTING_ACTION} = 'tStop' ] ; then
+     echo "Voip Stop"
+     ${RACCT}  ACCT_UNIQUE_SESSION_ID="7ae849dcfba1c03f"\
    H323_CONF_ID="h323-conf-id=16000 647BEE1D 80F000A F453DBFD"\
    NAS_PORT_TYPE="Virtual"\
    H323_CALL_ORIGIN="h323-call-origin=proxy"\
@@ -278,21 +394,7 @@ elif [ t$1 = 'tvoip' ] ; then
    CALLED_STATION_ID="613"\
    ACCT_DELAY_TIME="0"\
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
- fi
+fi
 
 else 
  echo "Arguments (auth | acct | authgt | acctgt)"
@@ -303,9 +405,27 @@ else
 VoIP Functions
        voip auth 
        voip acct (Stop|Start|Alive)
+DHCP Function
+       dhcp   - test radius dhcp 
+       -u     - User name (Default: test)
+       -p     - Userr password (Default: 123456)
+       -nas   - Nas ip address (Default: 127.0.0.1)
+       -cid   - CALLING_STATION_ID (Default: )
+       -session_id ACCT_SESSION_ID (Default: ${ACCT_SESSION_ID})
+
+       -rad   - Send request to RADIUS
+       -rad_secret - RADIUS secret (Default: radsecret)
+       -rad_ip -  RADIUS IP address (Default: 127.0.0.1)
+
+       -debug - Debug mode
+       -v     - Show version
   "
 fi
 
 #   CHAP_PASSWORD=0x01f45d3646ef51e0b34dfca50f17f0d524 \
 #   CHAP_CHALLENGE=0x36373035393933393135333537313734 \
+
+
+
+
 

@@ -1,5 +1,6 @@
 # 0.5
-$CHARSET = 'windows-1251';
+$CHARSET='windows-1251';
+$CONTENT_LANGUAGE='EN';
 
 @PERIODS=('Today', 'Yesterday', 'Week', 'Month', 'All sessions', 'From activation');
 @MONTHES=('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',  'September', 'October', 'November', 'December');
@@ -13,6 +14,7 @@ $_CHANGE='Change';
 $_CHANGING='Changing';
 $_ADDED='Added';
 $_DELETED='Deleted';
+$_UNDELETE='Undelete';
 $_CHANGED='Changed';
 $_ROWS='Rows';
 $_FEES='Fees';
@@ -118,6 +120,7 @@ $_HOUR_TARIF='Time tariff';
 $_TRAFIC_TARIFS='Traffic tarifs';
 $_MONTH_FEE='Month fee';
 $_DAY_FEE='Day fee';
+$_ACTIVE_DAY_FEE='Active day fees';
 $_UPLIMIT='Alert';
 $_BEGIN='Begin';
 $_END='END';
@@ -175,6 +178,7 @@ $_NAS='NAS';
 $_NASS='NAS';
 $_PORT='Port';
 $_REDUCTION='Discount';
+$_STATIC='Static';
 
 
 $_SEARCH='Search';
@@ -194,6 +198,7 @@ $_CUSTOMERS='Customers';
 $_ACCOUNTS= 'Accounts';
 $_ACCOUNT='Account';
 $_INVOICE='Invoice';
+$_INVOICE_CREATE='Create Invoice';
 $_INVOICES='Invoices';
 $_TAX_INVOICE='Tax invoice';
 $_ACTS='Acts';
@@ -291,6 +296,7 @@ $_ENABLE='Enable';
 $_COMPANY='Company';
 $_ADD_USER='Add user';
 $_CREDIT_TRESSHOLD='Credit Threshold';
+$_SERVICE='Service';
 $_SERVICES='Services';
 $_FUNCTIONS_LIST='Functions list';
 $_COMPANIES='Companies';
@@ -433,3 +439,26 @@ $_LOGIN_IN_TO_HOTSPOT="Login to hotspot";
 $ERR_WRONG_CAPTCHA='Wrong Captcha';
 $_MONEY_TRANSFER='Money Transfer';
 $_COMMISSION='Commission';
+
+$_PAY_SYSTEM='Payment system';
+$_BUY='Buy';
+$_IN_PROGRESS='In progress';
+$_SURVEY='Survey';
+$_PAY_TO='Pay to date';
+
+$_CELL_PHONE='Cell phone';
+$_INN='Tax number';
+$_BIRTHDAY='Birthday';
+$_FLATS='Flats';
+$_ACTION='Action';
+$_EXECUTE='Execute';
+$_PAY='Pay';
+$_GRAPH='Charts for';
+$_VIEW='View';
+$_PROCESSING='Processing';
+$_RATING='Rating';
+$_USER_PORTAL='User portal';
+$_STORAGE='Storage ';
+$_RESTS='Rests';
+$_SUPPLIERS='Suppliers';
+$_ACCOUNTABILITY="Accountability";

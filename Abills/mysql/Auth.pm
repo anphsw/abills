@@ -1,18 +1,18 @@
 package Auth;
 # Auth functions
 
-
 use strict;
 use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
 );
 
 use Exporter;
-$VERSION = 2.01;
+$VERSION = 2.02;
 @ISA = ('Exporter');
 @EXPORT = qw(
   &check_chap
   &check_company_account
   &check_bill_account
+  &get_ip
 );
 
 @EXPORT_OK = ();
@@ -58,12 +58,11 @@ sub dv_auth {
   my ($ret, $RAD_PAIRS) = $self->authentication($RAD, $NAS, $attr);
 
   if ($ret == 1) {
-     return 1, $RAD_PAIRS;
+    return 1, $RAD_PAIRS;
   }
 
-  my $MAX_SESSION_TRAFFIC = $CONF->{MAX_SESSION_TRAFFIC} || 4096;
+  my $MAX_SESSION_TRAFFIC = $CONF->{MAX_SESSION_TRAFFIC} || 0;
   my $DOMAIN_ID = ($NAS->{DOMAIN_ID}) ? "AND tp.domain_id='$NAS->{DOMAIN_ID}'" : "AND tp.domain_id='0'";
- 
 
   $self->query($db, "select  if (dv.logins=0, if(tp.logins is null, 0, tp.logins), dv.logins) AS logins,
   if(dv.filter_id != '', dv.filter_id, if(tp.filter_id is null, '', tp.filter_id)),
@@ -107,7 +106,8 @@ sub dv_auth {
   tp.credit,
   tp.ippool,
   dv.join_service,
-  tp.tp_id
+  tp.tp_id,
+  tp.active_day_fee
 
      FROM (dv_main dv)
      LEFT JOIN tarif_plans tp ON (dv.tp_id=tp.id $DOMAIN_ID)
@@ -157,7 +157,8 @@ sub dv_auth {
    $self->{TP_CREDIT},
    $self->{TP_IPPOOL},
    $self->{JOIN_SERVICE},
-   $self->{TP_ID}
+   $self->{TP_ID},
+   $self->{ACTIVE_DAY_FEE}
     ) = @{ $self->{list}->[0] };
 
 #DIsable
@@ -301,16 +302,16 @@ if ($self->{PORT} > 0 && $self->{PORT} != $RAD->{NAS_PORT}) {
 
 #Check  simultaneously logins if needs
 if ($self->{LOGINS} > 0) {
-  $self->query($db, "SELECT CID FROM dv_calls WHERE user_name='$RAD->{USER_NAME}' and (status <> 2 and status < 11);");
-
+  $self->query($db, "SELECT CID, INET_NTOA(framed_ip_address) FROM dv_calls WHERE user_name='$RAD->{USER_NAME}' and (status <> 2 and status < 11);");
   my($active_logins) = $self->{TOTAL};
-#  foreach my $line (@{ $self->{list} }) {
+  foreach my $line (@{ $self->{list} }) {
 #  	# Zap session with same CID
-#  	if ($line->[0] ne '' && $line->[0] eq $RAD->{CALLING_STATION_ID}) {
-#  		$self->query($db, "UPDATE dv_calls SET status=2 WHERE user_name='$RAD->{USER_NAME}' and CID='$RAD->{CALLING_STATION_ID}' and status <> 2;", 'do');
-#  		$active_logins--;
-#  	 }
-#   }
+  	if ($line->[0] ne '' && $line->[0] eq $RAD->{CALLING_STATION_ID}) {
+  		$self->query($db, "UPDATE dv_calls SET status=2 WHERE user_name='$RAD->{USER_NAME}' and CID='$RAD->{CALLING_STATION_ID}' and status <> 2;", 'do');
+           $self->{IP}=$line->[1];
+    	   $active_logins--;
+  	 }
+   }
 
   if ($active_logins >= $self->{LOGINS}) {
     $RAD_PAIRS->{'Reply-Message'}="More then allow login ($self->{LOGINS}/$self->{TOTAL})";
@@ -349,7 +350,7 @@ else {
   $self->{DEPOSIT}=0;
  }
 
-  if ($self->{INTERVALS} > 0 && $self->{DEPOSIT} > 0)  {
+  if ($self->{INTERVALS} > 0 && ($self->{DEPOSIT} > 0 || $self->{PAYMENT_TYPE} > 0))  {
      ($self->{TIME_INTERVALS}, $self->{INTERVAL_TIME_TARIF}, $self->{INTERVAL_TRAF_TARIF}) = $Billing->time_intervals($self->{TP_ID});
      ($remaining_time, $ATTR) = $Billing->remaining_time($self->{DEPOSIT}, {
     	    TIME_INTERVALS      => $self->{TIME_INTERVALS},
@@ -368,10 +369,10 @@ else {
 
 if (defined($ATTR->{TT})) {
   $self->{TT_INTERVAL} = $ATTR->{TT};
-}
+ }
 else {
   $self->{TT_INTERVAL} = 0;
-}
+ }
 
 #check allow period and time out
  if ($remaining_time == -1) {
@@ -457,7 +458,9 @@ foreach my $line (@periods) {
       }
 }
 
-
+if ($self->{ACTIVE_DAY_FEE}) {
+	push @time_limits, 86400 - ($self->{SESSION_START} - $self->{DAY_BEGIN});
+}
 
 #set time limit
  for(my $i=0; $i<=$#time_limits; $i++) {
@@ -560,23 +563,8 @@ if ($NAS->{NAS_TYPE} eq 'mpd5') {
       push @{$RAD_PAIRS->{'mpd-limit'} }, "in#" . ($self->{TOTAL}-$line->[0]) ."#$line->[0]=flt". ($class_id) ." pass";
       push @{$RAD_PAIRS->{'mpd-limit'} }, "out#". ($self->{TOTAL}-$line->[0]) ."#$line->[0]=flt". ($class_id+1) ." pass";
      }
-    #mpd-limit+=in#1#1=flt1 pass,
-    #mpd-limit+=out#1#1=flt2 pass,
-    
-    #mpd-limit+=out#2#0=all rate-limit 1024000 150000 300000,
-    #mpd-limit+=in#2#0=all shape 64000 4000,  	
-  	
-    #mpd-filter+=1#1=match dst net 10.0.0.0/8,
-    #mpd-filter+=2#1=match src net 10.0.0.0/8,
-    #mpd-limit+=in#1#1=flt1 pass,
-    #mpd-limit+=in#2#0=all shape 64000 4000,
-    #mpd-limit+=out#1#1=flt2 pass,
-    #mpd-limit+=out#2#0=all rate-limit 1024000 150000 300000,
    }
-
-
   }
-	
 	#$RAD_PAIRS->{'Session-Timeout'}=604800;
  }
 elsif($CONF->{cisco_shaper} && $NAS->{NAS_TYPE} eq 'cisco') {
@@ -592,12 +580,12 @@ elsif($CONF->{cisco_shaper} && $NAS->{NAS_TYPE} eq 'cisco') {
                                             MAX_SESSION_TRAFFIC => $MAX_SESSION_TRAFFIC });
 
     if ($EX_PARAMS->{speed}->{1}->{OUT}) {
-  	  push @{ $RAD_PAIRS->{'Cisco-AVpair'} }, "lcp:interface-config#1=rate-limit output access-group 101 ". ($EX_PARAMS->{speed}->{1}->{OUT} * 1024) ." 1000000  1000000 conform-action transmit exceed-action drop";
-      push @{ $RAD_PAIRS->{'Cisco-AVpair'} }, "lcp:interface-config#1=rate-limit input access-group 102 ". ($EX_PARAMS->{speed}->{1}->{IN} * 1024). " 1000000 1000000 conform-action transmit exceed-action drop";
+  	  push @{ $RAD_PAIRS->{'Cisco-AVpair'} }, "lcp:interface-config#1=rate-limit output access-group 101 ". ($EX_PARAMS->{speed}->{1}->{IN} * 1024) ." 1000000  1000000 conform-action transmit exceed-action drop";
+      push @{ $RAD_PAIRS->{'Cisco-AVpair'} }, "lcp:interface-config#1=rate-limit input access-group 102 ". ($EX_PARAMS->{speed}->{1}->{OUT} * 1024). " 1000000 1000000 conform-action transmit exceed-action drop";
      }
 
-	  push @{ $RAD_PAIRS->{'Cisco-AVpair'} }, "lcp:interface-config#1=rate-limit output ". ( $EX_PARAMS->{speed}->{0}->{OUT} * 1024) ." 320000 320000 conform-action transmit exceed-action drop" if ($EX_PARAMS->{speed}->{0}->{OUT} && $EX_PARAMS->{speed}->{0}->{OUT} > 0);
-	  push @{ $RAD_PAIRS->{'Cisco-AVpair'} }, "lcp:interface-config#1=rate-limit input ". ($EX_PARAMS->{speed}->{0}->{IN} * 1024) ."  32000 32000 conform-action transmit exceed-action drop" if ($EX_PARAMS->{speed}->{0}->{IN} && $EX_PARAMS->{speed}->{0}->{IN} > 0);
+	  push @{ $RAD_PAIRS->{'Cisco-AVpair'} }, "lcp:interface-config#1=rate-limit output ". ( $EX_PARAMS->{speed}->{0}->{IN} * 1024) ." 320000 320000 conform-action transmit exceed-action drop" if ($EX_PARAMS->{speed}->{0}->{IN} && $EX_PARAMS->{speed}->{0}->{IN} > 0);
+	  push @{ $RAD_PAIRS->{'Cisco-AVpair'} }, "lcp:interface-config#1=rate-limit input ". ($EX_PARAMS->{speed}->{0}->{OUT} * 1024) ."  32000 32000 conform-action transmit exceed-action drop" if ($EX_PARAMS->{speed}->{0}->{OUT} && $EX_PARAMS->{speed}->{0}->{OUT} > 0);
    }
  }
 # ExPPP
@@ -635,7 +623,6 @@ elsif ($NAS->{NAS_TYPE} eq 'mikrotik') {
   if ($EX_PARAMS->{traf_limit} > 0) {
     #Gigaword limit  	
   	if ($EX_PARAMS->{traf_limit} > 4096) {
-  		
   		my $giga_limit = $EX_PARAMS->{traf_limit} / 4096;
   		
   		$RAD_PAIRS->{'Mikrotik-Recv-Limit-Gigawords'}=int($giga_limit);
@@ -663,7 +650,8 @@ elsif ($NAS->{NAS_TYPE} eq 'mpd4' && $RAD_PAIRS->{'Session-Timeout'} > 604800) {
 ###########################################################
 # pppd + RADIUS plugin (Linux) http://samba.org/ppp/
 # lepppd - PPPD IPv4 zone counters 
-elsif ($NAS->{NAS_TYPE} eq 'pppd' or ($NAS->{NAS_TYPE} eq 'lepppd')) {
+elsif ($NAS->{NAS_TYPE} eq 'accel_pptp' or ($NAS->{NAS_TYPE} eq 'lepppd') or
+   ($NAS->{NAS_TYPE} eq 'pppd')) {
   my $EX_PARAMS = $self->ex_traffic_params({ 
   	                                         traf_limit => $traf_limit, 
                                              deposit    => $self->{DEPOSIT},
@@ -690,6 +678,8 @@ elsif ($NAS->{NAS_TYPE} eq 'pppd' or ($NAS->{NAS_TYPE} eq 'lepppd')) {
      }
    }
 
+  $RAD_PAIRS->{'User-Name'}=$self->{USER_NAME};
+
   #Speed limit attributes 
   if ($self->{USER_SPEED} > 0) { 
     $RAD_PAIRS->{'PPPD-Upstream-Speed-Limit'} = int($self->{USER_SPEED}); 
@@ -702,7 +692,6 @@ elsif ($NAS->{NAS_TYPE} eq 'pppd' or ($NAS->{NAS_TYPE} eq 'lepppd')) {
  }
 #Chillispot
 elsif ($NAS->{NAS_TYPE} eq 'chillispot') {
-	
 	my $EX_PARAMS = $self->ex_traffic_params({ traf_limit          => $traf_limit, 
                                              deposit             => $self->{DEPOSIT}, 
                                              MAX_SESSION_TRAFFIC => $MAX_SESSION_TRAFFIC }); 
@@ -786,8 +775,43 @@ sub Auth_CID {
    }
  
  	my @CID_POOL = split(/;/, $self->{CID});
+	#If auth from DHCP
+  if ($CONF->{DHCP_CID_IP} || $CONF->{DHCP_CID_MAC} || $CONF->{DHCP_CID_MPD}) {
+    $self->query($db, "SELECT INET_NTOA(dh.ip), dh.mac
+	       FROM dhcphosts_hosts dh
+         LEFT JOIN users u ON u.uid=dh.uid
+	       WHERE  u.id='$RAD->{USER_NAME}'
+	         AND dh.disable = 0
+           AND dh.mac='$RAD->{CALLING_STATION_ID}'");
+    if($self->{errno}) {
+	      $RAD_PAIRS->{'Reply-Message'}='SQL error';
+        undef $db;
+        return 1, $RAD_PAIRS;
+     }
+    elsif ($self->{TOTAL} >0) {
+	    foreach my $line (@{$self->{list}}) {
+	      my $ip = $line->[0];
+	      my $mac = $line->[1];
+	      if (($RAD->{CALLING_STATION_ID} =~ /:/ || $RAD->{CALLING_STATION_ID} =~ /\-/)
+      		&& $RAD->{CALLING_STATION_ID} !~ /\./ && $CONF->{DHCP_CID_MAC}) {
+          	#MAC
+          	push(@CID_POOL, $mac);
+	       }
+	      elsif ($RAD->{CALLING_STATION_ID} !~ /:/ && $RAD->{CALLING_STATION_ID} !~ /\-/
+    		  && $RAD->{CALLING_STATION_ID} =~ /\./ && $CONF->{DHCP_CID_IP}) {
+    		  #IP
+          push(@CID_POOL, $ip);
+    	   }
+	      elsif ($RAD->{CALLING_STATION_ID} =~ /\// && $CONF->{DHCP_CID_MPD}) {
+		    #MPD IP+MAC
+         	push(@CID_POOL, "$ip/$mac");
+	       }
+	    }
+    }
+  }
+ 	
+ 	
   foreach my $TEMP_CID (@CID_POOL) { if ($TEMP_CID ne '') {
-
     if (($TEMP_CID =~ /:/ || $TEMP_CID =~ /\-/)
        && $TEMP_CID !~ /\./) {
       @MAC_DIGITS_GET=split(/:|-/, $TEMP_CID);
@@ -882,7 +906,6 @@ sub authentication {
   else {
   	$WHERE = "AND u.domain_id='0'";
    }
-
   $self->query($db, "select
   u.uid,
   DECODE(password, '$SECRETKEY'),
@@ -1219,6 +1242,7 @@ if ((defined($prepaids{0}) && $prepaids{0} > 0 ) || (defined($prepaids{1}) && $p
   	                                                        
   if ($RESULT->{TRAFFIC_LIMIT}) {
   	$trafic_limits{0} =  $RESULT->{TRAFFIC_LIMIT} - $used_traffic->{TRAFFIC_COUNTER};
+   }
 
     if ($RESULT->{SPEED}) {
         $EX_PARAMS{speed}{0}{IN}=$RESULT->{SPEED};
@@ -1232,7 +1256,6 @@ if ((defined($prepaids{0}) && $prepaids{0} > 0 ) || (defined($prepaids{1}) && $p
         $EX_PARAMS{speed}{0}{OUT}=$RESULT->{SPEED_OUT};
        }
      }
-  }
   #End expresion   
  }
 else {
@@ -1272,6 +1295,9 @@ if (defined($trafic_limits{0}) && $trafic_limits{0} > 0  && $trafic_limits{0} < 
     $trafic_limit = ($trafic_limits{0} > $CONF->{MAX_SESSION_TRAFFIC}) ? $CONF->{MAX_SESSION_TRAFFIC} :  $trafic_limits{0};
    }
   $EX_PARAMS{traf_limit} = ($trafic_limit < 1 && $trafic_limit > 0) ? 1 : int($trafic_limit);
+  if ($self->{REDUCTION} && $self->{REDUCTION} < 100) {
+    $EX_PARAMS{traf_limit} = $EX_PARAMS{traf_limit} * (100 / (100 - $self->{REDUCTION}));
+   }
 }
 
 #Local Traffic limit
@@ -1528,6 +1554,9 @@ sub neg_deposit_filter_former () {
 	if ($attr->{RAD_PAIRS}) {
 	  $RAD_PAIRS = $attr->{RAD_PAIRS};
 	 }
+	else {
+		undef $RAD_PAIRS;
+	 }
 		
 	if (! $attr->{USER_FILTER}) {
     # Return radius attr    
@@ -1552,7 +1581,7 @@ sub neg_deposit_filter_former () {
 
    $NEG_DEPOSIT_FILTER_ID =~ s/\%IP\%/$RAD_PAIRS->{'Framed-IP-Address'}/g;
    $NEG_DEPOSIT_FILTER_ID =~ s/\%LOGIN\%/$RAD->{'USER_NAME'}/g;
-	
+
 	 if ($NEG_DEPOSIT_FILTER_ID =~ /RAD:(.+)/) {
       	my $rad_pairs = $1;
         my @p = split(/,/, $rad_pairs);

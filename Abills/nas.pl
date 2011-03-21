@@ -7,7 +7,6 @@
 #
 #*******************************************************************
 
-
 use BER;
 use SNMP_Session;
 use SNMP_util;
@@ -18,11 +17,7 @@ my $SUDO = '/usr/local/bin/sudo';
 
 my $NAS;
 my $nas_type = '';
-
-
 my %stats = ();
-
-
 
 
 
@@ -35,6 +30,7 @@ sub hangup {
 
  $NAS = $Nas;
  $nas_type = $NAS->{NAS_TYPE};
+
 
  if ($nas_type eq 'exppp') {
    hangup_exppp($NAS, $PORT, $attr);
@@ -76,7 +72,7 @@ sub hangup {
  elsif ($nas_type eq 'openvpn') {
    hangup_openvpn($NAS, $PORT, $USER);
   } 
- elsif ($nas_type eq 'ipcad') {
+ elsif ($nas_type eq 'ipcad' || $nas_type eq 'dhcp' || $nas_type eq 'dlink' || $nas_type eq 'edge_core') {
    hangup_ipcad($NAS, $PORT, $USER, $attr);
   }
  elsif ($nas_type eq 'patton')  {
@@ -84,6 +80,13 @@ sub hangup {
   }
  elsif ($nas_type eq 'pppd' || $nas_type eq 'lepppd') {
    hangup_pppd($NAS, $PORT, $attr);
+  }
+ # http://sourceforge.net/projects/radcoad/
+ elsif ($nas_type eq 'pppd_coa') {
+   hangup_pppd_coa($NAS, $PORT, $attr);
+  }
+ elsif ($nas_type eq 'accel_pptp') {
+   hangup_radius($NAS, $PORT, "", $attr);
   }
  else {
    return 1;
@@ -133,15 +136,12 @@ sub telnet_cmd {
  my($hostname, $commands, $attr)=@_;
  my $port = 23;
 
-
  if ($hostname =~ /:/) {
    ($hostname, $port)=split(/:/, $hostname, 2);
  }
 
  my $debug   = ($attr->{debug}) ? 1 : 0;
  my $timeout = defined($attr->{'TimeOut'}) ? $attr->{'TimeOut'} : 5;
- 
-
 
  use Socket;
  my $dest = sockaddr_in($port, inet_aton("$hostname"));
@@ -397,7 +397,7 @@ sub hangup_snmp {
 }
 
 #*******************************************************************
-# hangup_hangup_radius
+# hangup_radius
 # 
 # Radius-Disconnect messages
 # rfc2882
@@ -418,11 +418,11 @@ sub hangup_radius {
   my $r = new Radius(Host   => "$NAS->{NAS_MNG_IP_PORT}", 
                      Secret => "$NAS->{NAS_MNG_PASSWORD}") or return "Can't connect '$NAS->{NAS_MNG_IP_PORT}' $!";
 
-  $conf{'dictionary'}='/usr/abills/Abills/dictionary' if (! $conf{'dictionary'});
+  $conf{'dictionary'}=$base_dir.'/Abills/dictionary' if (! $conf{'dictionary'});
 
   $r->load_dictionary($conf{'dictionary'});
 
-  $r->add_attributes ({ Name => 'User-Name', Value => "$USER" });
+  $r->add_attributes ({ Name => 'User-Name', Value => "$USER" }) if ($USER);
   $r->add_attributes ({ Name => 'Framed-IP-Address', Value => "$attr->{FRAMED_IP_ADDRESS}"});
   $r->send_packet (POD_REQUEST) and $type = $r->recv_packet;
 
@@ -463,9 +463,9 @@ sub hangup_ipcad {
   
   $Ipn->acct_stop({ %$attr, SESSION_ID => $attr->{ACCT_SESSION_ID} });
 
-  my $cmd     = $conf{IPN_FW_STOP_RULE};
   my $ip      = $attr->{FRAMED_IP_ADDRESS};
   my $netmask = $attr->{NETMASK} || 32;
+  my $FILTER_ID = $attr->{FILTER_ID} || '';
   
   my $num = 0;
   if ($attr->{UID} && $conf{IPN_FW_RULE_UID}) {
@@ -480,11 +480,27 @@ sub hangup_ipcad {
   $rule_num = $rule_num + 10000 + $num;
 
   if ($NAS->{NAS_MNG_IP_PORT}) {
-    $ENV{NAS_IP_ADDRESS}=$NAS->{NAS_MNG_IP_PORT};
-    $ENV{NAS_MNG_USER}=$NAS->{NAS_MNG_USER};
+    $ENV{NAS_IP_ADDRESS} = $NAS->{NAS_MNG_IP_PORT};
+    $ENV{NAS_MNG_USER}   = $NAS->{NAS_MNG_USER};
+    $ENV{NAS_MNG_IP_PORT}= $NAS->{NAS_MNG_IP_PORT};
+    $ENV{NAS_ID}         = $NAS->{NAS_ID};
+    $ENV{NAS_TYPE}       = $NAS->{NAS_TYPE};
    }
 
 
+  if ($conf{IPN_FILTER}) {
+  	my $cmd = "$conf{IPN_FILTER}";
+    $cmd =~ s/\%STATUS/HANGUP/g;
+    $cmd =~ s/\%IP/$ip/g;
+    $cmd =~ s/\%LOGIN/$USER_NAME/g;
+    $cmd =~ s/\%FILTER_ID/$FILTER_ID/g;
+    $cmd =~ s/\%UID/$UID/g;
+    $cmd =~ s/\%PORT/$PORT/g;
+    system($cmd);
+    print "IPN FILTER: $cmd\n" if ($attr->{debug} && $attr->{debug} > 5);
+   }
+
+  my $cmd     = $conf{IPN_FW_STOP_RULE};
   $cmd =~ s/\%IP/$ip/g;
   $cmd =~ s/\%MASK/$netmask/g;
   $cmd =~ s/\%NUM/$rule_num/g;
@@ -609,10 +625,10 @@ elsif ($NAS->{NAS_MNG_USER}) {
 
   if ($out =~ /\s+(\d+)\s+(\S+)\s+(\d+)\s+(\S+)\s+(\S+)/) { 
     $VIRTUALINT=$1; 
-    $tty=$2; 
-    $line=$3;
-    $cuser=$4;
-    $chost=$5;
+    $tty  = $2; 
+    $line = $3;
+    $cuser= $4;
+    $chost= $5;
 
     print "$VIRTUALINT, $tty, $line, $cuser, $chost";
   }
@@ -960,5 +976,120 @@ sub stats_patton29xx {
   return %stats;
 }
 
+
+#*******************************************************************
+# hangup_hangup_pppd_coa
+# 
+# Radius-Disconnect messages for radcoad
+# rfc3576
+#*******************************************************************
+sub hangup_pppd_coa {
+  my ($NAS, $PORT, $attr) = @_;
+ 
+  my ($ip, $mng_port)=split(/:/, $NAS->{NAS_MNG_IP_PORT}, 2);
+  log_print('LOG_DEBUG', " HANGUP: NAS_MNG: $ip:$mng_port '$NAS->{NAS_MNG_PASSWORD}' \n"); 
+
+  my %RAD_PAIRS = ();
+  my $type;
+  my $result = 0;
+  my $r = new Radius(Host   => "$NAS->{NAS_MNG_IP_PORT}", 
+                     Secret => "$NAS->{NAS_MNG_PASSWORD}") or return "Can't connect '$NAS->{NAS_MNG_IP_PORT}' $!";
+
+  $conf{'dictionary'}='/usr/abills/Abills/dictionary' if (! $conf{'dictionary'});
+
+  $r->load_dictionary($conf{'dictionary'});
+
+  $r->add_attributes ({ Name => 'Framed-Protocol', Value => 'PPP' },
+                      { Name => 'NAS-Port', Value => "$PORT" });
+  $r->add_attributes ({ Name => 'Framed-IP-Address', Value => "$attr->{FRAMED_IP_ADDRESS}" }) if $attr->{FRAMED_IP_ADDRESS};	      
+  $r->send_packet (POD_REQUEST) and $type = $r->recv_packet;
+
+  if( ! defined $type ) {
+    # No responce from POD server
+    $result = 1;
+    log_print('LOG_DEBUG', "No responce from POD server '$NAS->{NAS_MNG_IP_PORT}' ");
+   }
+  
+  return $result;
+}
+
+#*******************************************************************
+# Set speed for port
+# setspeed($NAS_HASH_REF, $PORT, $USER, $UPSPEED, $DOWNSPEED, $attr);
+#*******************************************************************
+sub setspeed {
+ my ($Nas, $PORT, $USER, $UPSPEED, $DOWNSPEED, $attr) = @_;
+
+ $NAS = $Nas;
+ $nas_type = $NAS->{NAS_TYPE};
+
+ if ($nas_type eq 'pppd_coa') {
+   return setspeed_pppd_coa($NAS, $PORT, $UPSPEED, $DOWNSPEED, $attr);
+  }
+ else {
+   return -1;
+  }
+
+  return 0;
+}
+
+
+#*******************************************************************
+# Check CoA support
+# hascoa($NAS_HASH_REF, $attr);
+#*******************************************************************
+sub hascoa {
+ my ($Nas, $attr) = @_;
+
+ $NAS = $Nas;
+ $nas_type = $NAS->{NAS_TYPE};
+
+ if ($nas_type eq 'pppd_coa') {
+   return 1;
+  }
+ else {
+   return 0;
+  }
+}
+
+
+#*******************************************************************
+# setspeed_pppd_coa
+# 
+# Radius-CoA messages for radcoad
+# rfc3576
+#*******************************************************************
+sub setspeed_pppd_coa {
+  my ($NAS, $PORT, $UPSPEED, $DOWNSPEED, $attr) = @_;
+ 
+  my ($ip, $mng_port)=split(/:/, $NAS->{NAS_MNG_IP_PORT}, 2);
+  log_print('LOG_DEBUG', " SETSPEED: NAS_MNG: $ip:$mng_port '$NAS->{NAS_MNG_PASSWORD}' \n"); 
+
+  my %RAD_PAIRS = ();
+  my $type;
+  my $result = 0;
+  my $r = new Radius(Host   => "$NAS->{NAS_MNG_IP_PORT}", 
+                     Secret => "$NAS->{NAS_MNG_PASSWORD}") or return "Can't connect '$NAS->{NAS_MNG_IP_PORT}' $!";
+
+  $conf{'dictionary'}='/usr/abills/Abills/dictionary' if (! $conf{'dictionary'});
+
+  $r->load_dictionary($conf{'dictionary'});
+
+  $r->add_attributes ({ Name => 'Framed-Protocol', Value => 'PPP' },
+		      { Name => 'NAS-Port', Value => "$PORT" },
+		      { Name => 'PPPD-Upstream-Speed-Limit', Value => "$UPSPEED" },
+		      { Name => 'PPPD-Downstream-Speed-Limit', Value => "$DOWNSPEED" });
+  $r->add_attributes ({ Name => 'Framed-IP-Address', Value => "$attr->{FRAMED_IP_ADDRESS}" }) if $attr->{FRAMED_IP_ADDRESS};	      
+  $r->send_packet (COA_REQUEST) and $type = $r->recv_packet;
+
+  if( ! defined $type ) {
+    # No responce from CoA server
+    log_print('LOG_DEBUG', "No responce from CoA server '$NAS->{NAS_MNG_IP_PORT}'");
+    return 1;
+   }
+  
+  return $result;
+}
+  
 
 1

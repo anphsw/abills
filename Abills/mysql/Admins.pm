@@ -7,7 +7,7 @@ use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
 );
 
 use Exporter;
-$VERSION = 2.00;
+$VERSION = 2.05;
 @ISA = ('Exporter');
 
 @EXPORT = qw(
@@ -23,8 +23,6 @@ my %DATA;
 my $db;
 my $aid;
 my $IP;
-
-
 
 #**********************************************************
 #
@@ -68,7 +66,6 @@ sub admins_groups_list {
 sub admin_groups_change {
 	my $self = shift;
 	my ($attr) = @_;
-
   
   $self->query($db, "DELETE FROM admins_groups WHERE aid='$self->{AID}';", 'do');
   my @groups = split(/,/, $attr->{GID});
@@ -123,8 +120,7 @@ sub set_permissions {
   
   $self->{CHANGED_AID}=$self->{AID};
   $self->{AID}=$self->{MAIN_AID};
-  $IP=$self->{MAIN_SESSION_IP};
-  
+  $IP=$self->{MAIN_SESSION_IP};  
   
   $self->system_action_add("AID:$self->{CHANGED_AID} PERMISION:", { TYPE => 2 });
   $self->{AID}= $self->{CHANGED_AID};
@@ -168,7 +164,7 @@ sub info {
     $WHERE = "WHERE a.aid='$aid'";
    }
 
-  $IP = ($attr->{IP})? $attr->{IP} : '0.0.0.0';
+  $IP = ($attr->{IP}) ? $attr->{IP} : '0.0.0.0';
   $self->query($db, "SELECT a.aid, a.id, a.name, a.regdate, a.phone, a.disable, a.web_options, a.gid, 
      count(ag.aid),
      a.email,
@@ -177,6 +173,13 @@ sub info {
      d.name,
      a.min_search_chars,
      a.max_rows,
+     a.address,
+     a.cell_phone,
+     a.pasport_num,
+     a.pasport_date,
+     a.pasport_grant,
+     a.inn,
+     a.birthday,
      $PASSWORD
      FROM 
       admins a
@@ -195,7 +198,7 @@ sub info {
    }
 
   my $a_ref = $self->{list}->[0];
-  if ($a_ref->[15] == 1) {
+  if ($a_ref->[22] == 1) {
      $self->{errno}  = 4;
      $self->{errstr} = 'ERROR_WRONG_PASSWORD';
      $self->{AID}    = $a_ref->[0],
@@ -216,7 +219,14 @@ sub info {
    $self->{DOMAIN_ID},
    $self->{DOMAIN_NAME},
    $self->{MIN_SEARCH_CHARS},
- 	 $self->{MAX_ROWS}
+ 	 $self->{MAX_ROWS},
+ 	 $self->{ADDRESS},
+ 	 $self->{CELL_PHONE},
+ 	 $self->{PASPORT_NUM},
+ 	 $self->{PASPORT_DATE},
+ 	 $self->{PASPORT_GRANT},
+ 	 $self->{INN},
+ 	 $self->{BIRTHDAY},
     )= @$a_ref;
   
   if ($self->{GIDS} > 0) {
@@ -288,22 +298,26 @@ sub change {
            A_COMMENTS  => 'comments',
            DOMAIN_ID   => 'domain_id',
            MIN_SEARCH_CHARS => 'min_search_chars',
- 	         MAX_ROWS    => 'max_rows'
-           
+ 	         MAX_ROWS    => 'max_rows',           
+           ADDRESS     => 'address',
+           CELL_PHONE  => 'cell_phone',
+           PASPORT_NUM   =>'pasport_num',
+           PASPORT_DATE  => 'pasport_date',
+           PASPORT_GRANT => 'pasport_grant',
+           INN           => 'inn',
+           BIRTHDAY      => 'birthday'           
    );
-
-
  
   $admin->{MODULE}='';
-  $IP=$self->{MAIN_SESSION_IP};
+  $IP   = $admin->{SESSION_IP};
+  
   $self->changes($admin, { CHANGE_PARAM => 'AID',
 		                       TABLE        => 'admins',
 		                       FIELDS       => \%FIELDS,
-		                       OLD_INFO     => $self->info($self->{AID}, { IP => $self->{MAIN_SESSION_IP} }),
+		                       OLD_INFO     => $self->info($self->{AID}, { IP => $admin->{SESSION_IP} }),
 		                       DATA         => $attr,
-		                       EXT_CHANGE_INFO  => "AID:$attr->{A_LOGIN}"
+		                       EXT_CHANGE_INFO  => "AID:$self->{AID}"
 		                     } );
-
   $self->info($self->{AID});
 	return $self;
 }
@@ -318,11 +332,12 @@ sub add {
   %DATA = $self->get_data($attr); 
 
   $self->query($db, "INSERT INTO admins (id, name, regdate, phone, disable, gid, email, comments, password, domain_id,
-  min_search_chars, max_rows) 
+  min_search_chars, max_rows,
+  address, cell_phone, pasport_num, pasport_date, pasport_grant, inn, birthday) 
    VALUES ('$DATA{A_LOGIN}', '$DATA{A_FIO}', now(),  '$DATA{A_PHONE}', '$DATA{DISABLE}', '$DATA{GID}', 
    '$DATA{EMAIL}', '$DATA{A_COMMENTS}', '$DATA{PASSWORD}', '$DATA{DOMAIN_ID}',
-   '$DATA{MIN_SEARCH_CHARS}',
- 	 '$DATA{MAX_ROWS}');", 'do');
+   '$DATA{MIN_SEARCH_CHARS}', '$DATA{MAX_ROWS}',
+   '$DATA{ADDRESS}', '$DATA{CELL_PHONE}', '$DATA{PASPORT_NUM}', '$DATA{PASPORT_DATE}', '$DATA{PASPORT_GRANT}', '$DATA{INN}', '$DATA{BIRTHDAY}');", 'do');
 
   $self->{AID}=$self->{INSERT_ID};
 
@@ -360,6 +375,8 @@ sub action_add {
   	$actions .= ":$attr->{ACTION_COMMENTS}";
    }
 
+  $IP = $attr->{IP} if ($attr->{IP});
+
   $self->query($db, "INSERT INTO admin_actions (aid, ip, datetime, actions, uid, module, action_type) 
     VALUES ('$self->{AID}', INET_ATON('$IP'), now(), '$actions', '$uid', '$MODULE', '$action_type')", 'do');
   return $self;
@@ -395,15 +412,13 @@ sub action_info {
 sub action_del {
   my $self = shift;
   my ($id) = @_;
-  
 
   $self->action_info($id);
-  
+
   if ($self->{TOTAL} > 0) {
     $self->query($db, "DELETE FROM admin_actions WHERE id='$id';", 'do');
     $self->system_action_add("ACTION:$id DATETIME:$self->{DATETIME} UID:$self->{UID} CHANGED:$self->{ACTION}", { TYPE => 10 });    
    }
-
 }
 
 
@@ -497,21 +512,6 @@ sub action_list {
   return $list;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #**********************************************************
 #  system_action_add()
 #**********************************************************
@@ -521,6 +521,7 @@ sub system_action_add {
   
   my $MODULE = (defined($self->{MODULE})) ? $self->{MODULE} : '';
   my $action_type = ($attr->{TYPE}) ? $attr->{TYPE} : '';
+  #$IP = ($attr->{IP}) ? $attr->{IP} : '0.0.0.0';
 
   $self->query($db, "INSERT INTO admin_system_actions (aid, ip, datetime, actions, module, action_type) 
     VALUES ('$self->{AID}', INET_ATON('$IP'), now(), '$actions', '$MODULE', '$action_type')", 'do');
@@ -606,8 +607,6 @@ sub system_action_list {
   return $list;
 }
 
-
-
 #**********************************************************
 # password()
 #**********************************************************
@@ -648,7 +647,6 @@ sub online {
    $online_users .= "$self->{A_LOGIN} - $self->{SESSION_IP};\n";
    $online_count++;
   }
-
 
  return ($online_users, $online_count);
 }

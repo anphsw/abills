@@ -1,4 +1,6 @@
-package Msgs; # Message system #
+package Msgs; 
+# Message system 
+#
 
 use strict;
 use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
@@ -39,18 +41,17 @@ sub messages_new {
   my $self = shift;
   my ($attr) = @_;
 
-
  my @WHERE_RULES = ();
  my $fields = '';
  
  if ($attr->{USER_READ}) {
    push @WHERE_RULES, "m.user_read='$attr->{USER_READ}' AND admin_read>'0000-00-00 00:00:00' AND m.inner_msg='0'"; 
-   $fields='count(*), \'\', \'\', max(m.id)';
+   $fields='count(*), \'\', \'\', max(m.id), m.chapter, m.id, 1';
   }
  elsif ($attr->{ADMIN_READ}) {
  	 $fields = "sum(if(admin_read='0000-00-00 00:00:00', 1, 0)), 
  	  sum(if(plan_date=curdate(), 1, 0)),
- 	  sum(if(state = 0, 1, 0))
+ 	  sum(if(state = 0, 1, 0)), 1,1,1,1
  	   ";
    push @WHERE_RULES, "m.state=0";
   }
@@ -72,15 +73,17 @@ sub messages_new {
  if ($attr->{GIDS}) {
    $self->query($db,   "SELECT $fields 
     FROM (msgs_messages m, users u)
-   $WHERE and u.uid=m.uid;");
+   $WHERE and u.uid=m.uid GROUP BY 7;");
   }
  else {
    $self->query($db,   "SELECT $fields 
     FROM (msgs_messages m)
-   $WHERE;");
+   $WHERE GROUP BY 7;");
   }
 
- ($self->{UNREAD}, $self->{TODAY}, $self->{OPENED}, $self->{LAST_ID}) = @{ $self->{list}->[0] };
+if ($self->{TOTAL}){
+ ($self->{UNREAD}, $self->{TODAY}, $self->{OPENED}, $self->{LAST_ID}, $self->{CHAPTER}, $self->{MSG_ID}) = @{ $self->{list}->[0] };
+}
 
   return $self;	
 }
@@ -95,6 +98,7 @@ sub messages_list {
  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
  $DESC = (defined($attr->{DESC})) ? $attr->{DESC} : 'DESC';
+ $PG = (defined($attr->{PG})) ? $attr->{PG} : 0;
 
  @WHERE_RULES = ();
  
@@ -127,7 +131,6 @@ sub messages_list {
  	  push @WHERE_RULES,  @{ $self->search_expr($attr->{MSG_ID}, 'INT', 'm.id') };
   }
 
-
  if (defined($attr->{SUBJECT})) {
    push @WHERE_RULES, @{ $self->search_expr($attr->{SUBJECT}, 'STR', 'm.subject') };
   }
@@ -146,7 +149,6 @@ sub messages_list {
  if (defined($attr->{PHONE})) {
    push @WHERE_RULES, @{ $self->search_expr($attr->{PHONE}, 'STR', 'm.phone') };
   }
-
 
  # Show groups
  if ($attr->{GIDS}) {
@@ -176,17 +178,19 @@ sub messages_list {
    #push @WHERE_RULES, "r.admin_read='$attr->{ADMIN_READ}'";
   }
 
-
  if ($attr->{CHAPTERS_DELIGATION}) {
  	 my @WHERE_RULES_pre = ();
  	 while( my ($chapter, $deligation) =  each %{ $attr->{CHAPTERS_DELIGATION} } ) {
  	   push @WHERE_RULES_pre, "(m.chapter='$chapter' AND m.deligation<='$deligation')";
  	  }
-
    push @WHERE_RULES,  "(". join(" or ", @WHERE_RULES_pre) .")";
   }
  elsif ($attr->{CHAPTERS}) {
    push @WHERE_RULES, "m.chapter IN ($attr->{CHAPTERS})"; 
+  }
+ 
+ if ($attr->{CHAPTER}) {
+ 	 push @WHERE_RULES, "m.chapter='$attr->{CHAPTER}'"; 
   }
  
  if ($attr->{UID}) {
@@ -222,12 +226,40 @@ sub messages_list {
   }
  
  my $EXT_JOIN = ''; 
+
+ if ($attr->{IP}) {
+    if ($attr->{IP} =~ m/\*/g) {
+      my ($i, $first_ip, $last_ip);
+      my @p = split(/\./, $attr->{IP});
+      for ($i=0; $i<4; $i++) {
+
+         if ($p[$i] eq '*') {
+           $first_ip .= '0';
+           $last_ip .= '255';
+          }
+         else {
+           $first_ip .= $p[$i];
+           $last_ip .= $p[$i];
+          }
+         if ($i != 3) {
+           $first_ip .= '.';
+           $last_ip .= '.';
+          }
+       }
+      push @WHERE_RULES, "(m.ip>=INET_ATON('$first_ip') and m.ip<=INET_ATON('$last_ip'))";
+     }
+    else {
+      push @WHERE_RULES, @{ $self->search_expr($attr->{IP}, 'IP', 'm.ip') };
+    }
+
+    $self->{SEARCH_FIELDS} = 'INET_NTOA(m.ip), ';
+    $self->{SEARCH_FIELDS_COUNT}++;
+  }
+
  if ($attr->{FULL_ADDRESS}) {
  	 $EXT_JOIN = 'LEFT JOIN users_pi pi ON (u.uid=pi.uid) ';
-
    $self->{SEARCH_FIELDS} = 'pi.fio, CONCAT(pi.address_street, \' \', pi.address_build, \'/\', pi.address_flat), pi.phone, ';
    $self->{SEARCH_FIELDS_COUNT} += 3;
- 	 
   }
 
  if ($attr->{SHOW_TEXT}) {
@@ -246,7 +278,7 @@ mc.name,
 m.date,
 m.state,
 $self->{SEARCH_FIELDS}
-inet_ntoa(m.ip),
+m.closed_date,
 a.id,
 m.priority,
 CONCAT(m.plan_date, ' ', m.plan_time),
@@ -261,7 +293,8 @@ if(r.id IS NULL, 0, count(r.id)),
 m.chapter,
 DATE_FORMAT(plan_date, '%w'),
 m.resposible,
-m.deligation
+m.deligation,
+m.inner_msg
 
 
 FROM (msgs_messages m)
@@ -279,8 +312,7 @@ GROUP BY m.id
 
  my $list = $self->{list};
 
- if ($self->{TOTAL} > 0  || $PG > 0) {
-   
+ if ($self->{TOTAL} > 0  || $PG > 0) {   
    $self->query($db, "SELECT count(DISTINCT m.id), 
    sum(if(m.admin_read = '0000-00-00 00:00:00', 1, 0)),
    sum(if(m.state = 0, 1, 0)),
@@ -298,8 +330,6 @@ GROUP BY m.id
     $self->{CLOSED},
     ) = @{ $self->{list}->[0] };
   }
- 
-
 
  $WHERE = '';
  @WHERE_RULES=();
@@ -321,7 +351,7 @@ sub message_add {
 
   $self->query($db, "insert into msgs_messages (uid, subject, chapter, message, ip, date, reply, aid, state, gid,
    priority, lock_msg, plan_date, plan_time, user_read, admin_read, inner_msg, resposible, closed_date,
-   phone, dispatch_id)
+   phone, dispatch_id, survey_id)
     values ('$DATA{UID}', '$DATA{SUBJECT}', '$DATA{CHAPTER}', '$DATA{MESSAGE}', INET_ATON('$DATA{IP}'), now(), 
         '$DATA{REPLY}',
         '$admin->{AID}',
@@ -337,16 +367,14 @@ sub message_add {
         '$DATA{RESPOSIBLE}',
         $CLOSED_DATE,
         '$DATA{PHONE}',
-        '$DATA{DISPATCH_ID}'
+        '$DATA{DISPATCH_ID}',
+        '$DATA{SURVEY_ID}'
         );", 'do');
 
   $self->{MSG_ID} = $self->{INSERT_ID};
   
 	return $self;
 }
-
-
-
 
 
 #**********************************************************
@@ -367,17 +395,14 @@ sub message_del {
   	 }
    }
 
-
-
   if ($attr->{UID}) {
-  	 push @WHERE_RULES, "uid='$attr->{UID}'";
-  	
+  	 push @WHERE_RULES, "uid='$attr->{UID}'";  	
    }
 
   $WHERE = ($#WHERE_RULES > -1) ? join(' and ', @WHERE_RULES)  : '';
   $self->query($db, "DELETE FROM msgs_messages WHERE $WHERE", 'do');
 
-  $self->message_reply_del({ MAIN_MSG => $attr->{ID} });
+  $self->message_reply_del({ MAIN_MSG => $attr->{ID}, UID => $attr->{UID} });
   $self->query($db, "DELETE FROM msgs_attachments WHERE message_id='$attr->{ID}' and message_type=0", 'do');
 
 	return $self;
@@ -421,7 +446,8 @@ sub message_info {
   m.inner_msg,
   m.phone,
   m.dispatch_id,
-  m.deligation
+  m.deligation,
+  m.survey_id
     FROM (msgs_messages m)
     LEFT JOIN msgs_chapters mc ON (m.chapter=mc.id)
     LEFT JOIN users u ON (m.uid=u.uid)
@@ -465,7 +491,8 @@ sub message_info {
  	 $self->{INNER_MSG},
  	 $self->{PHONE},
  	 $self->{DISPATCH_ID},
- 	 $self->{DELIGATION}
+ 	 $self->{DELIGATION},
+ 	 $self->{SURVEY_ID}
   )= @{ $self->{list}->[0] };
 	
 	
@@ -583,14 +610,11 @@ sub chapters_list {
 sub chapter_add {
 	my $self = shift;
 	my ($attr) = @_;
-  
- 
+
   %DATA = $self->get_data($attr, { default => \%DATA }); 
- 
 
   $self->query($db, "insert into msgs_chapters (name, inner_chapter)
     values ('$DATA{NAME}', '$DATA{INNER_CHAPTER}');", 'do');
-
  
   $admin->system_action_add("MGSG_CHAPTER:$self->{INSERT_ID}", { TYPE => 1 });
 	return $self;
@@ -812,6 +836,9 @@ sub message_reply_del {
     push @WHERE_RULES, "id='$attr->{ID}'";
     $self->query($db, "DELETE FROM msgs_attachments WHERE message_id='$attr->{ID}' and message_type=1", 'do');
    }
+  elsif ($attr->{UID}) {
+  	push @WHERE_RULES, "id='$attr->{UID}'";
+   }
 
   my $WHERE = ($#WHERE_RULES > -1) ? join(' and ', @WHERE_RULES)  : '';
   $self->query($db, "DELETE FROM msgs_reply WHERE $WHERE", 'do');
@@ -835,7 +862,6 @@ sub messages_reply_list {
  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
  $DESC = (defined($attr->{DESC})) ? $attr->{DESC} : 'DESC';
 
-
  @WHERE_RULES = ();
  
  if($attr->{LOGIN_EXPR}) {
@@ -846,15 +872,12 @@ sub messages_reply_list {
     push @WHERE_RULES, "(date_format(m.date, '%Y-%m-%d')>='$attr->{FROM_DATE}' and date_format(m.date, '%Y-%m-%d')<='$attr->{TO_DATE}')";
   }
 
- if ($attr->{MSG_ID}) {
- 	  my $value = $self->search_expr($attr->{MSG_ID}, 'INT');
-    push @WHERE_RULES, "m.id$value";
+ if (defined($attr->{INNER_MSG})) {
+   push @WHERE_RULES, @{ $self->search_expr($attr->{INNER_MSG}, 'INT', 'mr.inner_msg') }; 
   }
 
-
  if (defined($attr->{REPLY})) {
- 	  my $value = $self->search_expr($attr->{REPLY}, '');
-    push @WHERE_RULES, "m.reply$value";
+    push @WHERE_RULES, @{ $self->search_expr($attr->{REPLY}, '', 'm.reply') };
   }
 
  # Show groups
@@ -872,17 +895,15 @@ sub messages_reply_list {
 
  #DIsable
  if ($attr->{STATE}) {
-   my $value = $self->search_expr($attr->{STATE}, 'INT');
-   push @WHERE_RULES, "m.state$value"; 
+   push @WHERE_RULES, @{ $self->search_expr($attr->{STATE}, 'INT', 'm.state') }; 
   }
 
  if ($attr->{ID}) {
-   my $value = $self->search_expr($attr->{ID}, 'INT');
-   push @WHERE_RULES, "mr.id$value"; 
+   push @WHERE_RULES, @{ $self->search_expr($attr->{ID}, 'INT', 'mr.id') }; 
   }
  
 
- $WHERE = ($#WHERE_RULES > -1) ? 'WHERE ' . join(' and ', @WHERE_RULES)  : '';
+ $WHERE = ($#WHERE_RULES > -1) ? 'and ' . join(' and ', @WHERE_RULES)  : '';
 
   $self->query($db,   "SELECT mr.id,
     mr.datetime,
@@ -896,16 +917,17 @@ sub messages_reply_list {
     ma.id,
     mr.uid,
     SEC_TO_TIME(mr.run_time),
-    mr.aid
+    mr.aid,
+    mr.inner_msg,
+    mr.survey_id
     FROM (msgs_reply mr)
     LEFT JOIN users u ON (mr.uid=u.uid)
     LEFT JOIN admins a ON (mr.aid=a.aid)
     LEFT JOIN msgs_attachments ma ON (mr.id=ma.message_id and ma.message_type=1 )
-    WHERE main_msg='$attr->{MSG_ID}'
+    WHERE main_msg='$attr->{MSG_ID}' $WHERE
     GROUP BY mr.id 
     ORDER BY datetime ASC;");
     #LIMIT $PG, $PAGE_ROWS    ;");
-
  
  return $self->{list};
 }
@@ -919,7 +941,6 @@ sub message_reply_add {
 	my ($attr) = @_;
   
   %DATA = $self->get_data($attr, { default => \%DATA }); 
-
   $self->query($db, "insert into msgs_reply (main_msg,
    caption,
    text,
@@ -928,13 +949,17 @@ sub message_reply_add {
    aid,
    status,
    uid,
-   run_time
+   run_time,
+   inner_msg,
+   survey_id
    )
     values ('$DATA{ID}', '$DATA{REPLY_SUBJECT}', '$DATA{REPLY_TEXT}',  now(),
         INET_ATON('$DATA{IP}'), 
         '$DATA{AID}',
         '$DATA{STATE}',
-        '$DATA{UID}', '$DATA{RUN_TIME}'
+        '$DATA{UID}', '$DATA{RUN_TIME}',
+        '$DATA{REPLY_INNER_MSG}',
+        '$DATA{SURVEY_ID}'
     );", 'do');
  
   
@@ -957,8 +982,6 @@ sub attachment_add () {
         " ('$attr->{MSG_ID}', '$attr->{FILENAME}', '$attr->{CONTENT_TYPE}', '$attr->{FILESIZE}', ?, ".
         " current_timestamp, '$attr->{UID}', current_timestamp, '0', '$attr->{MESSAGE_TYPE}')", 
         'do', { Bind => [ $attr->{CONTENT}  ] } );
-        
-        
 
   return $self;
 }
@@ -1172,7 +1195,7 @@ sub dispatch_list {
 	 push @WHERE_RULES, "d.id IN ($attr->{CHAPTERS})"; 
   }
 
-  if (defined($attr->{STATE})) {
+  if (defined($attr->{STATE}) && $attr->{STATE} ne '') {
    if ($attr->{STATE} == 4) {
    	 push @WHERE_RULES, @{ $self->search_expr('0000-00-00 00:00:00', 'INT', 'd.admin_read') };
     }
@@ -1537,22 +1560,30 @@ sub unreg_requests_add {
 
   %DATA = $self->get_data($attr, { default => \%DATA }); 
 
-  $self->query($db, "insert into msgs_unreg_requests (datetime, received_admin, ip, subject, chapter, request, state,
+  $self->query($db, "insert into msgs_unreg_requests (datetime, received_admin, ip, subject, comments, chapter, request, state,
    priority,
    fio,
    phone,
    email,
    address_street,
    address_build,
-   address_flat )
-    values (now(), '$admin->{AID}', INET_ATON('$admin->{SESSION_IP}'),  '$DATA{SUBJECT}', '$DATA{CHAPTER}', '$DATA{REQUEST}',  '$DATA{STATE}',
+   address_flat,
+   country_id,
+   company,
+   CONNECTION_TIME,
+   location_id )
+    values (now(), '$admin->{AID}', INET_ATON('$admin->{SESSION_IP}'),  '$DATA{SUBJECT}', '$DATA{COMMENTS}', '$DATA{CHAPTER}', '$DATA{REQUEST}',  '$DATA{STATE}',
         '$DATA{PRIORITY}',
         '$DATA{FIO}',
         '$DATA{PHONE}', 
         '$DATA{EMAIL}',
         '$DATA{ADDRESS_STREET}',
         '$DATA{ADDRESS_BUILD}',
-        '$DATA{ADDRESS_FLAT}'
+        '$DATA{ADDRESS_FLAT}',
+        '$DATA{COUNTRY}',
+        '$DATA{COMPANY}',
+        '$DATA{CONNECTION_TIME}',
+        '$DATA{LOCATION_ID}'        
         );", 'do');
 
   $self->{MSG_ID} = $self->{INSERT_ID};
@@ -1561,11 +1592,8 @@ sub unreg_requests_add {
 }
 
 
-
-
-
 #**********************************************************
-# Bill
+# unreg_requests_del
 #**********************************************************
 sub unreg_requests_del {
 	my $self = shift;
@@ -1616,7 +1644,10 @@ sub unreg_requests_info {
     m.address_flat,
     m.ip,
     m.closed_date,
-    m.uid
+    m.uid,
+    m.company,
+    m.country_id,
+    m.connection_time
     FROM (msgs_unreg_requests m)
     LEFT JOIN msgs_chapters mc ON (m.chapter=mc.id)
     LEFT JOIN admins ra ON (m.received_admin=ra.aid)
@@ -1647,7 +1678,11 @@ sub unreg_requests_info {
    $self->{ADDRESS_FLAT},
    $self->{IP},
    $self->{CLOSED_DATE},
-   $self->{UID}
+   $self->{UID},
+   $self->{COMPANY},
+   $self->{COUNTRY},
+   $self->{CONNECTION_TIME},
+   $self->{LOCATION_ID},
   )= @{ $self->{list}->[0] };
 	
 	return $self;
@@ -1655,7 +1690,7 @@ sub unreg_requests_info {
 
 
 #**********************************************************
-# change()
+# unreg_requests_change()
 #**********************************************************
 sub unreg_requests_change {
   my $self = shift;
@@ -1680,10 +1715,12 @@ sub unreg_requests_change {
      ADDRESS_FLAT      => 'address_flat',
      IP                => 'ip',
      CLOSED_DATE       => 'closed_date',
-     UID               => 'uid'
+     UID               => 'uid',
+     COMPANY           => 'company',
+     COUNTRY           => 'country_id',
+     CONNECTION_TIME   => 'connection_time',
+     LOCATION_ID       => 'location_id'
              );
-
-  #print "!! $attr->{STATE} !!!";
   $attr->{STATUS} = ($attr->{STATUS}) ? $attr->{STATUS} : 0;
 
   $admin->{MODULE}=$MODULE;
@@ -1698,6 +1735,369 @@ sub unreg_requests_change {
 
   return $self->{result};
 }
+
+
+
+#**********************************************************
+# survey_subjects_list
+#**********************************************************
+sub survey_subjects_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+  @WHERE_RULES = ();
+ 
+ if($attr->{NAME}) {
+	 push @WHERE_RULES, "mc.name='$attr->{NAME}'"; 
+  }
+
+ if($attr->{CHAPTERS}) {
+	 push @WHERE_RULES, "mc.id IN ($attr->{CHAPTERS})"; 
+  }
+
+ if(defined($attr->{INNER_CHAPTER})) {
+	 push @WHERE_RULES, "mc.inner_chapter IN ($attr->{INNER_CHAPTER})"; 
+  }
+
+ 
+ $WHERE = ($#WHERE_RULES > -1) ? 'WHERE ' . join(' and ', @WHERE_RULES)  : '';
+ $self->query($db,   "SELECT  ms.id, ms.name, ms.comments, ms.aid, ms.created
+    FROM msgs_survey_subjects ms
+    $WHERE
+    GROUP BY ms.id 
+    ORDER BY $SORT $DESC;");
+
+ my $list = $self->{list};
+
+ if ($self->{TOTAL} > 0 ) {
+   $self->query($db, "SELECT count(*)
+     FROM msgs_survey_subjects ms
+     $WHERE");
+
+   ($self->{TOTAL}) = @{ $self->{list}->[0] };
+  }
+ 
+	return $list;
+}
+
+
+#**********************************************************
+# survey_subjects_add
+#**********************************************************
+sub survey_subject_add {
+	my $self = shift;
+	my ($attr) = @_;
+
+  %DATA = $self->get_data($attr, { default => \%DATA }); 
+
+  $self->query($db, "insert into msgs_survey_subjects (name, comments, aid, created)
+    values ('$DATA{NAME}', '$DATA{COMMENTS}', '$admin->{AID}', now());", 'do');
+ 
+	return $self;
+}
+
+
+
+
+#**********************************************************
+# chapter_survey_subjects
+#**********************************************************
+sub survey_subject_del {
+	my $self = shift;
+	my ($attr) = @_;
+
+  @WHERE_RULES=();
+
+  if ($attr->{ID}) {
+  	 push @WHERE_RULES, "id='$attr->{ID}'";
+   }
+
+  $WHERE = ($#WHERE_RULES > -1) ? join(' and ', @WHERE_RULES)  : '';
+  $self->query($db, "DELETE FROM msgs_survey_subjects WHERE $WHERE", 'do');
+
+	return $self;
+}
+
+#**********************************************************
+# survey_subjects_info
+#**********************************************************
+sub survey_subject_info {
+	my $self = shift;
+	my ($id, $attr) = @_;
+
+
+  $self->query($db, "SELECT id, name, comments, aid, created
+    FROM msgs_survey_subjects 
+  WHERE id='$id'");
+
+  if ($self->{TOTAL} < 1) {
+     $self->{errno} = 2;
+     $self->{errstr} = 'ERROR_NOT_EXIST';
+     return $self;
+   }
+
+  ($self->{SURVEY_ID}, 
+   $self->{NAME},
+   $self->{COMMENTS},
+   $self->{AID},
+   $self->{CREATED},
+  )= @{ $self->{list}->[0] };
+
+	return $self;
+}
+
+
+#**********************************************************
+# survey_subjects_change()
+#**********************************************************
+sub survey_subject_change {
+  my $self = shift;
+  my ($attr) = @_;
+  
+  $attr->{INNER_CHAPTER} = ($attr->{INNER_CHAPTER}) ? 1 : 0;
+  
+  my %FIELDS = (SURVEY_ID     => 'id',
+                NAME          => 'name',
+                COMMENTS      => 'comments', 
+             );
+
+  $admin->{MODULE}=$MODULE;
+  $self->changes($admin,  { CHANGE_PARAM => 'SURVEY_ID',
+                   TABLE        => 'msgs_survey_subjects',
+                   FIELDS       => \%FIELDS,
+                   OLD_INFO     => $self->survey_subject_info($attr->{SURVEY_ID}),
+                   DATA         => $attr,
+                  } );
+
+  return $self->{result};
+}
+
+
+#**********************************************************
+# survey_subjects_list
+#**********************************************************
+sub survey_questions_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+  @WHERE_RULES = ();
+  
+  if ($attr->{SURVEY}) {
+	 push @WHERE_RULES, "mq.survey_id='$attr->{SURVEY}'"; 
+  }
+ 
+ $WHERE = ($#WHERE_RULES > -1) ? 'WHERE ' . join(' and ', @WHERE_RULES)  : '';
+
+ $self->query($db,   "SELECT  mq.num, mq.question, mq.comments, mq.params, mq.user_comments, mq.fill_default, mq.id
+    FROM msgs_survey_questions mq
+    $WHERE
+    ORDER BY $SORT $DESC;");
+
+ my $list = $self->{list};
+
+ if ($self->{TOTAL} > 0 ) {
+   $self->query($db, "SELECT count(*)
+     FROM msgs_survey_questions mq
+     $WHERE");
+
+   ($self->{TOTAL}) = @{ $self->{list}->[0] };
+  }
+ 
+	return $list;
+}
+
+
+#**********************************************************
+# survey_questions_add
+#**********************************************************
+sub survey_question_add {
+	my $self = shift;
+	my ($attr) = @_;
+
+  %DATA = $self->get_data($attr, { default => \%DATA }); 
+
+  $self->query($db, "insert into msgs_survey_questions (num, question, comments, params, user_comments, survey_id, fill_default)
+    values ('$DATA{NUM}', '$DATA{QUESTION}', '$DATA{COMMENTS}', '$DATA{PARAMS}', '$DATA{USER_COMMENTS}', '$DATA{SURVEY}', '$DATA{FILL_DEFAULT}');", 'do');
+ 
+	return $self;
+}
+
+
+#**********************************************************
+# urvey_questions_del
+#**********************************************************
+sub survey_question_del {
+	my $self = shift;
+	my ($attr) = @_;
+
+  @WHERE_RULES=();
+
+  if ($attr->{ID}) {
+  	 push @WHERE_RULES, "id='$attr->{ID}'";
+   }
+
+  $WHERE = ($#WHERE_RULES > -1) ? join(' and ', @WHERE_RULES)  : '';
+  $self->query($db, "DELETE FROM msgs_survey_questions WHERE $WHERE", 'do');
+
+	return $self;
+}
+
+#**********************************************************
+# survey_questions_info
+#**********************************************************
+sub survey_question_info {
+	my $self = shift;
+	my ($id, $attr) = @_;
+
+
+  $self->query($db, "SELECT id, num, question, comments, params, user_comments, survey_id, fill_default
+    FROM msgs_survey_questions 
+  WHERE id='$id'");
+
+  if ($self->{TOTAL} < 1) {
+     $self->{errno} = 2;
+     $self->{errstr} = 'ERROR_NOT_EXIST';
+     return $self;
+   }
+
+  ($self->{ID}, 
+   $self->{NUM},
+   $self->{QUESTION},
+   $self->{COMMENTS},
+   $self->{PARAMS},
+   $self->{USER_COMMENTS},
+   $self->{SURVEY},
+   $self->{FILL_DEFAULT}
+  )= @{ $self->{list}->[0] };
+
+	return $self;
+}
+
+
+#**********************************************************
+# survey_questions_change()
+#**********************************************************
+sub survey_question_change {
+  my $self = shift;
+  my ($attr) = @_;
+  
+  $attr->{INNER_CHAPTER} = ($attr->{INNER_CHAPTER}) ? 1 : 0;
+  $attr->{USER_COMMENTS} = ($attr->{USER_COMMENTS}) ? 1 : 0;
+  $attr->{FILL_DEFAULT}  = ($attr->{FILL_DEFAULT}) ? 1 : 0;
+  
+  my %FIELDS = (ID           => 'id',
+                NUM          => 'num',
+                QUESTION     => 'question',
+                COMMENTS     => 'comments', 
+                PARAMS       => 'params',
+                USER_COMMENTS=> 'user_comments',
+                SURVEY       => 'survey_id',
+                FILL_DEFAULT => 'fill_default'
+             );
+
+  
+  $admin->{MODULE}=$MODULE;
+  $self->changes($admin,  { CHANGE_PARAM => 'ID',
+                   TABLE        => 'msgs_survey_questions',
+                   FIELDS       => \%FIELDS,
+                   OLD_INFO     => $self->survey_question_info($attr->{ID}),
+                   DATA         => $attr,
+                  } );
+
+  return $self->{result};
+}
+
+
+#**********************************************************
+#
+#**********************************************************
+sub survey_answer_show {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $WHERE = ($attr->{REPLY_ID}) ? "AND reply_id='$attr->{REPLY_ID}'" : "AND msg_id='$attr->{MSG_ID}' AND reply_id='0' ";
+	
+  $self->query($db, "SELECT question_id,
+  uid,
+  answer,
+  comments,
+  date_time,
+  survey_id 
+  FROM msgs_survey_answers 
+  WHERE survey_id='$attr->{SURVEY_ID}' 
+  AND uid='$attr->{UID}' $WHERE;");
+	
+	return $self->{list};
+}
+
+#**********************************************************
+#
+#**********************************************************
+sub survey_answer_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  
+  my @ids = split(/, /,  $attr->{IDS});
+  
+  my @fill_default = ();
+  my %fill_default_hash = ();
+  if ($attr->{FILL_DEFAULT}) {
+  	@fill_default = split(/, /,  $attr->{FILL_DEFAULT});
+  	foreach my $id (@fill_default) {
+  	  $fill_default_hash{$id}=1;
+  	 }
+   }
+
+	foreach my $id (@ids) {
+		if ($attr->{FILL_DEFAULT} && ! $fill_default_hash{$id})  {
+			 next;
+		 }
+
+		my $sql = "INSERT INTO msgs_survey_answers (question_id,
+  uid,
+  answer,
+  comments,
+  date_time,
+  survey_id,
+  msg_id,
+  reply_id)
+  values ('$id', 
+  '$attr->{UID}', 
+  '". $attr->{'PARAMS_'. $id}."', 
+  '". $attr->{'USER_COMMENTS_'. $id} ."', 
+  now(), 
+  '$attr->{SURVEY_ID}',
+  '$attr->{MSG_ID}',
+  '$attr->{REPLY_ID}'
+  );";
+  
+    $self->query($db, $sql, 'do');
+	 }
+	
+	return $self;
+}
+
+
+#**********************************************************
+#
+#**********************************************************
+sub survey_answer_del {
+  my $self = shift;
+  my ($attr) = @_;
+  
+  my $WHERE = ($attr->{REPLY_ID}) ? "AND reply_id='$attr->{REPLY_ID}'" : "'$attr->{MSG_ID}'";
+  
+  $self->query($db, "DELETE FROM msgs_survey_answers WHERE survey_id='$attr->{SURVEY_ID}' AND uid='$attr->{UID}' $WHERE;", 'do');
+	return $self;
+}
+
 
 1
 

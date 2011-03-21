@@ -1,19 +1,62 @@
 #/usr/bin/perl
 # Voip web functions
 
+
+
 use Voip;
 use Voip_Sessions;
 
-my $Voip = Voip->new($db, $admin, \%conf);
+my $Voip     = Voip->new($db, $admin, \%conf);
 my $sessions = Voip_Sessions->new($db, \%conf);
 
-
-
 my $MODULE = ($module{$index}) ? $module{$index} : 'Voip';
-
-
 my $debug = 0;
 
+$conf{VOIP_ASTERISK_USERS}='' if (! $conf{VOIP_ASTERISK_USERS});
+
+=comments
+h323-disconnect-cause for CISCO of Radius Server
+In case of CISCO router, from the Radius server h323-disconnect-cause with code is returned. Like h323-disconnect-cause=4 or h323-disconnect-cause=7. In the following mini dictionary disconnect cause along description corresponding code is shown which will help instantly to identify disconnect issue if we find any code.
+
+          
+           Local-Clear                    0
+           Local-No-Accept                1
+           Local-Decline                  2
+           Remote-Clear                   3
+           Remote-Refuse                  4
+           Remote-No-Answer               5
+           Remote-Caller-Abort            6
+           Transport-Error                7
+           Transport-Connect-Fail         8
+           Gatekeeper-Clear               9
+           Fail-No-User                   10
+           Fail-No-Bandwidth              11
+           No-Common-Capabilities         12
+           FACILITY-Forward               13
+           Fail-Security-Check            14
+           Local-Busy                     15
+           Local-Congestion               16
+           Remote-Busy                    17
+           Remote-Congestion              18
+           Remote-Unreachable             19
+           Remote-No-Endpoint             20
+           Remote-Off-Line                21
+           Remote-Temporary-Error         22
+=cut
+
+
+#*******************************************************************
+# Delete user from module
+# voip_user_del()
+#*******************************************************************
+sub voip_user_del {
+ my ($uid, $attr) = @_;
+
+ $Voip->{UID}=$uid;
+ $Voip->user_del({ UID => $uid });
+
+ return 0;
+}
 
 
 #*******************************************************************
@@ -114,10 +157,11 @@ my $tariffs;
  else {
    $tariffs->{TARIF_PLAN_SEL}=$html->form_select('TP_ID', 
                                           { 
- 	                                          SELECTED  => $user->{TP_ID},
+ 	                                          SELECTED          => $user->{TP_ID},
  	                                          SEL_MULTI_ARRAY   => $Voip->tp_list(),
- 	                                          MULTI_ARRAY_KEY   => 0,
- 	                                          MULTI_ARRAY_VALUE => 1,
+ 	                                          MULTI_ARRAY_KEY   => 8,
+ 	                                          MULTI_ARRAY_VALUE => '0,1',
+ 	                                          NO_ID             => 1
  	                                        });
 
    $tariffs->{PARAMS} .= form_period($period);	
@@ -127,16 +171,14 @@ my $tariffs;
 
  
 
-my $tp_index = $index + 4;
+my $tp_index = get_function_index('voip_tp');
 
-$tariffs->{UID}=$attr->{USER}->{UID};
-$tariffs->{m}=$m;
-$tariffs->{TP_ID} = $user->{TP_ID};
-$tariffs->{TP_NAME} = "$user->{TP_ID}:$user->{TP_NAME} [". $html->button("$_TARIF_PLANS", "index=$tp_index&TP_ID=$user->{TP_ID}", { TITLE => "$_TP" } ). "]";
-
+$tariffs->{UID}     = $attr->{USER}->{UID};
+$tariffs->{m}       = $m;
+$tariffs->{TP_ID}   = $user->{TP_NUM};
+$tariffs->{TP_NAME} = "$user->{TP_ID}:$user->{TP_NAME} ". $html->button("$_TARIF_PLANS", "index=$tp_index&TP_ID=$user->{TP_ID}", { TITLE => "$_TP", BUTTON => 1 } ). "";
 
 print $html->tpl_show(templates('form_chg_tp'), $tariffs);
-
 }
 
 
@@ -206,12 +248,11 @@ my $table = $html->table( { width      => '100%',
                          } );
 
 foreach my $line (@$list) {
-  my $payments = ($permissions{1}) ?  $html->button($_PAYMENTS, "index=2&UID=". ($line->[7+$Voip->{SEARCH_FIELDS_COUNT}])) : ''; 
+  my $payments = ($permissions{1}) ?  $html->button($_PAYMENTS, "index=2&UID=". ($line->[7+$Voip->{SEARCH_FIELDS_COUNT}]), { BUTTON => 1 }) : '';
   my @fields_array  = ();
   for(my $i=0; $i<$Voip->{SEARCH_FIELDS_COUNT}; $i++){
      push @fields_array, $line->[7+$i];
    }
-
 
   $table->addrow($html->button($line->[0], "index=15&UID=". ($line->[7+$Voip->{SEARCH_FIELDS_COUNT}]) ."&MODULE=Voip"), 
      "$line->[1]",
@@ -283,18 +324,29 @@ sub voip_user {
 
   if($user->{TOTAL} < 1) {
 	  $html->message('info', $_INFO, $_NOT_ACTIVE);
-	  $user = $Voip->defaults();
-	  $user->{ACTION}='add';
-	  $user->{LNG_ACTION}=$_ACTIVATE;
+	  $user              = $Voip->defaults();
+	  $user->{ACTION}    = 'add';
+	  $user->{LNG_ACTION}= $_ACTIVATE;
+	  
+	  $user->{TP_NAME}   = $html->form_select('TP_ID', 
+                                          { 
+ 	                                          SELECTED          => $FORM{TP_ID},
+ 	                                          SEL_MULTI_ARRAY   => $Voip->tp_list(),
+ 	                                          MULTI_ARRAY_KEY   => 8,
+ 	                                          MULTI_ARRAY_VALUE => '0,1',
+ 	                                          NO_ID             => 1
+ 	                                        });
+	  
 	 }
 	else {
+		$user->{CHANGE_TP_BUTTON}=$html->button($_CHANGE, 'UID='.$user->{UID}.'&index='.  get_function_index('voip_chg_tp'), { BUTTON => 1 });
 	  $user->{ACTION}='set';
 	  $user->{LNG_ACTION}=$_CHANGE;
-	 } 
+	 }
 
-  $user->{DISABLE} = ($user->{DISABLE} == 1) ?  ' checked' : '';
-  $user->{ALLOW_ANSWER}=' checked' if($user->{ALLOW_ANSWER} == 1);
-  $user->{ALLOW_CALLS}=' checked' if($user->{ALLOW_CALLS} == 1);
+  $user->{DISABLE}     = ($user->{DISABLE} == 1) ?  ' checked' : '';
+  $user->{ALLOW_ANSWER}= ' checked' if($user->{ALLOW_ANSWER} == 1);
+  $user->{ALLOW_CALLS} = ' checked' if($user->{ALLOW_CALLS} == 1);
   
   $html->tpl_show(_include('voip_user', 'Voip'), $user);
 }
@@ -318,9 +370,26 @@ sub voip_nas {
 sub voip_tp_routes {
 	my ($attr) = @_;
 
-my $Voip_tp;
+  my $Voip_tp;
+
+  my @caption      = ($_PREFIX, $_ROUTES, "$_STATUS", 'TRUNK');
+  my @aligns       = ('left', 'left', 'center');
+  my @interval_ids = ();
+  my $intervals    = 0;
+
+
 if (defined($attr->{TP})) {
 	$Voip_tp = $attr->{TP};
+
+  #Get time intervals
+  my $list = $Voip_tp->ti_list({ %LIST_PARAMS });
+  foreach my $line (@$list) {
+    push @caption, "$_SUM (Min): $line->[1] / $line->[2]-$line->[3]";
+    push @aligns,  'center';
+    push @interval_ids, $line->[0];
+   }
+  $intervals = $Voip_tp->{TOTAL};
+
 
 	if ($FORM{change}) {
 		 $Voip->rp_add({ %FORM });
@@ -329,17 +398,39 @@ if (defined($attr->{TP})) {
      }
 	 }
   elsif ($FORM{import}) {
-  	
+  	my $list = $Voip->routes_list({ %LIST_PARAMS, PAGE_ROWS => 10000 });	
+  	my %prefix_id = ();
+  	foreach my $line (@$list) {
+  		$prefix_id{$line->[0]}=$line->[4];
+  	 }
+
+    my $content = $FORM{ROUTE_FILE}{Contents};
+    my @rows_arr = split(/\n/, $content);
+    my %FORM2 = ();
+    
+    foreach my $line (@rows_arr) {
+    	chop($line);
+      my($prefix, $trunk, @prices)=split(/\t/, $line);
+      for (my $i=0;  $i<=$#prices; $i++) {
+        $FORM2{'t_'.$prefix_id{$prefix}.'_'.$interval_ids[$i]}=$trunk;
+        $FORM2{'p_'.$prefix_id{$prefix}.'_'.$interval_ids[$i]}=$prices[$i];
+       }
+     }
+
+
+    $Voip->rp_add({ %FORM2 });
+    if (! $Voip->{errno}) {
+  	  $html->message('info', $_INFO, "$_IMPORT $_FILE: $FORM{ROUTE_FILE}{filename}");
+  	 }
    }
 	elsif($FORM{export_rp}) {
 		print "Content-Type: text/plain\n\n";
-	  $LIST_PARAMS{PAGE_ROWS}=100000;
-	
+	  $LIST_PARAMS{PAGE_ROWS}=100000;	
 	 }
 	elsif($FORM{clear}) {
 		
  	 }
-}
+ }
 else {
  	voip_tp({ f => 'voip_tp_routes' });
  	return 0;
@@ -352,25 +443,10 @@ else {
   
   my $pages_qs='';
 
-#  my $Voip_tp = $Voip->tp_info( $FORM{TP_ID} );
-  my $list = $Voip_tp->ti_list({ %LIST_PARAMS });
-  my @caption = ($_PREFIX, $_ROUTES, "$_STATUS", 'TRUNK');
-  my @aligns = ('left', 'left', 'center');
-  my @interval_ids = ();
-  my $intervals=0;
-
-  foreach my $line (@$list) {
-    push @caption, "$_SUM (Min): $line->[1] / $line->[2]-$line->[3]";
-    push @aligns,  'center';
-    push @interval_ids, $line->[0];
-   }
-  $intervals = $Voip_tp->{TOTAL};
-
 $list = $Voip->rp_list({ %LIST_PARAMS });
 my %prices = ();
 my %trunks = ();
 foreach my $line (@$list) {
-  #print "-- $line->[0] / $line->[1] / $line->[2] / $line->[3] <br>\n";  
   $prices{"$line->[0]"}{"$line->[1]"}=$line->[3];
   $trunks{"$line->[0]"}{"$line->[1]"}=$line->[4];
 }
@@ -395,7 +471,7 @@ my $table = $html->table( { width      => '100%',
                             qs         => $pages_qs."&TP_ID=$FORM{TP_ID}",
                             pages      => $Voip->{TOTAL},
                             ID         => 'VOIP_ROUTES_PRICES',
-                            header     => $html->button($_EXPORT, "export_rp=1&qindex=$index&TP_ID=$FORM{TP_ID}&routes=$FORM{routes}", { ex_params => 'TARGET=_new'})
+                            header     => $html->button($_EXPORT, "export_rp=1&qindex=$index&TP_ID=$FORM{TP_ID}&routes=$FORM{routes}", { ex_params => 'TARGET=_new', BUTTON => 1 })
                          } );
 
 
@@ -426,7 +502,7 @@ foreach my $line (@$list) {
    }
   else {
   	my $trunk_sel = $html->form_select("t_$line->[4]". '_' . "$interval_ids[$i]", 
-                                { SELECTED     => $trunks{"$interval_ids[$i]"}{"$line->[4]"},
+                                { SELECTED          => $trunks{"$interval_ids[$i]"}{"$line->[4]"},
  	                                SEL_MULTI_ARRAY   => [[0, '-'], @{ $TRUNKS_MARR } ],
  	                                MULTI_ARRAY_KEY   => 0,
  	                                MULTI_ARRAY_VALUE => 1,
@@ -550,9 +626,13 @@ my $table2 = $html->table( { width      => '100%',
 
 
 print $html->form_main({ CONTENT => $table->show(). $table2->show(),
+	                       ENCTYPE => 'multipart/form-data',
+	                       NAME    => 'TP_ROUTES',
+	                       ID      => 'TP_ROUTES',
                          HIDDEN  => { TP_ID   => "$FORM{TP_ID}",
 	                                    index   => "$index",
-	                                    routes  => "$FORM{routes}"   },
+	                                    routes  => "$FORM{routes}"   
+	                                   },
 	                      });
 
 $table = $html->table( { width      => '100%',
@@ -624,13 +704,13 @@ if(defined($attr->{TP})) {
                               title      => ['#', $_DAYS, $_BEGIN, $_END, $_HOUR_TARIF, '-', '-', '-',  '-'],
                               cols_align => ['left', 'left', 'right', 'right', 'right', 'right', 'center', 'center', 'center', 'center'],
                               qs         => $pages_qs,
-                              caption    => $_INTERVALS
+                              ID         => 'VOIP_INTERVALS',
                          } );
 
   my $color="AAA000";
   foreach my $line (@$list) {
 
-    my $delete = $html->button($_DEL, "index=$index$pages_qs&del=$line->[0]", { MESSAGE =>  "$_DEL [$line->[0]] ?" }); 
+    my $delete = $html->button($_DEL, "index=$index$pages_qs&del=$line->[0]", { MESSAGE =>  "$_DEL [$line->[0]] ?", BUTTON => 1 }); 
     $color = sprintf("%06x", hex('0x'. $color) + 7000);
      
     #day, $hour|$end = color
@@ -652,8 +732,8 @@ if(defined($attr->{TP})) {
                   $table->td($line->[2]), 
                   $table->td($line->[3]), 
                   $table->td($line->[4]), 
-                  $table->td($html->button("$_ROUTES", "index=$index$pages_qs&routes=$line->[0]")),
-                  $table->td($html->button("$_CHANGE", "index=$index$pages_qs&chg=$line->[0]")),
+                  $table->td($html->button("$_ROUTES", "index=$index$pages_qs&routes=$line->[0]", { BUTTON => 1  })),
+                  $table->td($html->button("$_CHANGE", "index=$index$pages_qs&chg=$line->[0]", { BUTTON => 1 })),
                   $table->td($delete),
                   $table->td("&nbsp;", { bgcolor => '#'. $color, rowspan => ($line->[5] > 0) ? 2 : 1 })
      );
@@ -849,15 +929,14 @@ my $table = $html->table( { width      => '100%',
                             title      => ['#', $_NAME,  $_HOUR_TARIF, $_PAYMENT_TYPE, $_DAY_FEE, $_MONTH_FEE, $_SIMULTANEOUSLY, $_AGE,
                                      '-', '-', '-'],
                             cols_align => ['right', 'left', 'center', 'center', 'right', 'right', 'right', 'right', 'right', 'right', 'center', 'center', 'center'],
-                                   
-                                   
-                                  } );
+                            ID         => 'VOIP_TP'
+                         } );
 
 my ($delete, $change);
 foreach my $line (@$list) {
   if ($permissions{4}{1}) {
-    $delete = $html->button($_DEL, "index=$index&del=$line->[8]",  { MESSAGE => "$_DEL ?" }); 
-    $change = $html->button($_INFO, "index=$index&TP_ID=$line->[8]");
+    $delete = $html->button($_DEL, "index=$index&del=$line->[8]",  { MESSAGE => "$_DEL ?", BUTTON => 1  }); 
+    $change = $html->button($_INFO, "index=$index&TP_ID=$line->[8]", { BUTTON => 1 });
    }
   
   if($FORM{TP_ID} eq $line->[8]) {
@@ -873,7 +952,7 @@ foreach my $line (@$list) {
    $line->[5], 
    $line->[6], 
    $line->[7],
-   $html->button($_INTERVALS, "index=". ($index+2) ."&subf=73&TP_ID=$line->[8]"),
+   $html->button($_INTERVALS, "index=". get_function_index('voip_intervals') ."&subf=73&TP_ID=$line->[8]", { BUTTON => 1 }),
    $change,
    $delete);
 }
@@ -882,7 +961,7 @@ print $table->show();
 $table = $html->table( { width      => '100%',
                          cols_align => ['right', 'right'],
                          rows       => [ [ "$_TOTAL:", $html->b($Voip->{TOTAL}) ] ]
-                               } );
+                     } );
 print $table->show();
 
 	
@@ -971,8 +1050,8 @@ my $table = $html->table( { width      => '100%',
 my ($delete, $change);
 foreach my $line (@$list) {
    if ($permissions{4}{1}) {
-    $delete = $html->button($_DEL, "index=$index&del=$line->[0]", { MESSAGE => "$_DEL $line->[0]?" }); 
-    $change = $html->button($_CHANGE, "index=$index&chg=$line->[0]");
+    $delete = $html->button($_DEL, "index=$index&del=$line->[0]", { MESSAGE => "$_DEL $line->[0]?", BUTTON => 1  }); 
+    $change = $html->button($_CHANGE, "index=$index&chg=$line->[0]", { BUTTON => 1 });
    }
 
    $table->addrow($line->[0], 
@@ -1012,6 +1091,27 @@ if($FORM{add}) {
     $html->message('info', $_ADDED, "$_ADDED $Voip->{ROUTE_ID}");
    }
  }
+elsif ($FORM{import}) {
+  my $content = $FORM{ROUTE_FILE}{Contents};
+  my @rows_arr = split(/\n/, $content);
+
+  my $count = 0;  
+ 
+  foreach my $line (@rows_arr) {
+  	chop($line);
+    my($prefix, $name, $status)=split(/\t/, $line);
+    $Voip->route_add({ ROUTE_PREFIX => $prefix, 
+                       ROUTE_NAME   => $name,
+                       DISABLE      => $status,
+                       REPLACE      => 1
+                   });
+    $count++;
+   }    
+
+   if (! $Voip->{errno}) {
+  	  $html->message('info', $_INFO, "$_IMPORT $_FILE: $FORM{ROUTE_FILE}{filename} ADDED: $count");
+  	}
+ }
 elsif ($FORM{export}) {
 	print "Content-Type: text/plain\n\n";
 	my $list = $Voip->routes_list({ PAGE_ROWS => 100000 });	
@@ -1030,7 +1130,6 @@ elsif ($FORM{export}) {
             $line->[3]
    );
   }
-
   return 0;
  }
 elsif($FORM{change}) {
@@ -1039,6 +1138,14 @@ elsif($FORM{change}) {
     $html->message('info', $_INFO, "$_CHANGED");	
    }
  }
+elsif($FORM{change}) {
+  $Voip->route_del($FORM{del});
+  if (! $Voip->{errno}) {
+    $html->message('info', $_INFO, "$_DELETED");	
+   }
+ }
+
+
 
 if($FORM{add_route}) {
 	my $list = $Voip->routes_list({ PAGE_ROWS => 100000 });
@@ -1082,9 +1189,15 @@ elsif(defined($FORM{del}) && $FORM{is_js_confirmed}) {
    }
 }
 
+
 if ($Voip->{errno}) {
-   $html->message('err', $_ERROR, "[$Voip->{errno}] $err_strs{$Voip->{errno}}");	
-   return 0;
+	if ($Voip->{errno} == 7) {
+     $html->message('err', $_ERROR, "$_PREFIX $_EXIST");	
+   }
+  else {	
+    $html->message('err', $_ERROR, "[$Voip->{errno}] $err_strs{$Voip->{errno}}");	
+    return 0;
+   }
  }
 
 $Voip->{DISABLE}=' checked' if($Voip->{DISABLE} == 1);
@@ -1119,15 +1232,14 @@ my $table = $html->table( { width      => '100%',
                             qs         => $pages_qs,
                             pages      => $Voip->{TOTAL},
                             ID         => 'VOIP_ROUTES',
-                            header     => $html->button($_EXPORT, "qindex=$index&export=1")
+                            header     => $html->button($_EXPORT, "qindex=$index&export=1", { BUTTON => 1 })
                         } );
 
 my ($delete, $change);
 foreach my $line (@$list) {
    if ($permissions{4}{1}) {
-    $delete = $html->button($_DEL, "index=$index&del=$line->[5]", { MESSAGe => "$_DEL '$line->[0]'?" }); 
-    $change = $html->button($_CHANGE, "index=$index&ROUTE_ID=$line->[5]");
-    #$add   = $html->button($_ADD, "index=$index&add_route=$parent&ROUTE_ID=$parent");
+    $delete = $html->button($_DEL, "index=$index&del=$line->[4]", { MESSAGE => "$_DEL '$line->[0]' ?", BUTTON => 1  }); 
+    $change = $html->button($_CHANGE, "index=$index&ROUTE_ID=$line->[4]", { BUTTON => 1 });
    }
 
    $table->addrow($line->[0], 
@@ -1138,19 +1250,28 @@ foreach my $line (@$list) {
             $delete);
 
 }
-print $table->show();
+
+
+my $table2 = $html->table( { width      => '100%',
+                             cols_align => ['right', 'right'],
+                             rows       => [ [  
+	                                              "$_IMPORT $_FILE: ". $html->form_input('ROUTE_FILE', "ROUTE_FILE", { TYPE => 'FILE' }) .
+	                                                $html->form_input('import', $_IMPORT, { TYPE => 'submit' })
+	                                             ] ]
+                         } );
+
+
+print $html->form_main({ CONTENT => $table->show(). $table2->show(),
+	                       ENCTYPE => 'multipart/form-data',
+	                       NAME    => 'TP_ROUTES',
+	                       ID      => 'TP_ROUTES',
+                         HIDDEN  => { 
+	                                    index   => "$index",
+	                                   },
+	                      });
 
 
 
-#if ($FORM{xml} && $FORM{list}) {
-#	print "Content-Type: text/xml\n\n";
-#	print "<?xml version=\"1.0\" encoding=\"windows-1251\"?>\n";
-#  print $table->show()	
-#   return 0;
-# }
-#else {
-#	print $output;
-#}
 
 $table = $html->table( { width      => '100%',
                          cols_align => ['right', 'right'],
@@ -1264,14 +1385,12 @@ print $table->show();
 sub voip_online {
 
 my $nas = Nas->new($db, \%conf);
-
-
 my $message;
 
 
 if ($FORM{ping}) {
   if ($FORM{ping} =~ /^(\d){1,3}\.(\d){1,3}\.(\d){1,3}\.(\d){1,3}$/) {
-    my $res = `/sbin/ping -c 5 $FORM{ping}`;
+    my $res = `$PING -c 5 $FORM{ping}`;
     $html->message('info', $_INFO,  "Ping  $FORM{ping}<br>Result:<br><pre>$res</pre>");
    }
   else {
@@ -1336,8 +1455,8 @@ elsif($FORM{zap}) {
   	                NAS_ID          => $nas->{NAS_ID} });  
   
   if ($sessions->{TOTAL} < 1) {
-    $message .= "<p align=\"center\">[". $html->button('add to log', "index=$index&tolog=$acct_session_id&nas_id=$nas_id"). "]
-        [". $html->button("$_DEL", "index=$index&del=$acct_session_id&nas_id=$nas_id&nas_port_id=$nas_port_id"). "]</p>";
+    $message .= $html->button('add to log', "index=$index&tolog=$acct_session_id&nas_id=$nas_id", { BUTTON => 1  }). ' '.
+       $html->button("$_DEL", "index=$index&del=$acct_session_id&nas_id=$nas_id&nas_port_id=$nas_port_id", { BUTTON => 1  });
    }
   else {
   	$message = "$_EXIST";
@@ -1421,12 +1540,12 @@ my $cure = '';
 
 if($FORM{ZAPED}) {
 	$LIST_PARAMS{ZAPED}='yes';
-	$form_link = $html->button('On line', "index=$index");
+	$form_link = $html->button('On line', "index=$index", { BUTTON => 1  });
 	$cure = 'Zap';
  } 
 else {
  	$sessions->online( { ZAPED => 'yes' } );	
- 	$form_link = $html->button($_ZAPED, "index=$index&ZAPED=yes"). " ($sessions->{TOTAL})";
+ 	$form_link = $html->button($_ZAPED, "index=$index&ZAPED=1", { BUTTON => 1  }). " ($sessions->{TOTAL})";
 	$cure = 'Online';
 }
 
@@ -1467,8 +1586,8 @@ foreach my $nas_row (@$nas_list) {
     elsif ($line->[9] == 3)                                   { $bg='#FF0000';    }
     else {  $bg = ($bg eq $_COLORS[1]) ? $_COLORS[2] : $_COLORS[1];    }
 
-    my $zap = "(". $html->button('Z', "index=$index&zap=$nas_row->[0]+$line->[9]", { TITLE => 'Zap'}). ")";
-    my $hangup = ($FORM{ZAPED}) ? $html->form_input('dellist', "$line->[9]", { TYPE => 'checkbox' } ) : "(". $html->button('H', "index=$index&hangup=$nas_row->[0]+$line->[2]+$line->[9]+$line->[0]", { TITLE => 'Hangup'} ) .")";
+    my $zap = $html->button('Z', "index=$index&zap=$nas_row->[0]+$line->[9]", { TITLE => 'Zap', BUTTON => 1 });
+    my $hangup = ($FORM{ZAPED}) ? $html->form_input('dellist', "$line->[9]", { TYPE => 'checkbox' } ) : $html->button('H', "index=$index&hangup=$nas_row->[0]+$line->[2]+$line->[9]+$line->[0]", { TITLE => 'Hangup', BUTTON => 1  } );
 
     my $user_info =  ''; 
 
@@ -1481,7 +1600,7 @@ foreach my $nas_row (@$nas_list) {
 
     $table->addrow($html->button($line->[0], "index=11&UID=$line->[8]", { TITLE => "$user_info"}), 
       $line->[1], $line->[2],  $line->[3],  $line->[4], $line->[5], 
-     "(". $html->button('P', "index=$index&ping=$line->[3]", { TITLE => 'Ping'}). ")",
+     $html->button('P', "index=$index&ping=$line->[3]", { TITLE => 'Ping', BUTTON => 1 }),
      "$zap",
      "$hangup");
   }
@@ -1518,7 +1637,7 @@ else {
 	                              METHOD  => 'GET'
                         });
 
-  $output .= $html->button('Zap All', "index=$index&zapall=1", { MESSAGE => "Do you realy want zap all sessions ?" });
+  $output .= $html->button('Zap All', "index=$index&zapall=1", { MESSAGE => "Do you realy want zap all sessions ?", BUTTON => 1  });
  }
 
 
@@ -1594,7 +1713,7 @@ my $Billing = Billing->new($db, \%conf);
 foreach my $line (@$list) {
   if ($permissions{3}{1}) {
     #$UID, $session_id, $nas_id, $session_start_date, $session_start_time, $sum, $login
-    $delete = $html->button($_DEL, "index=$index$pages_qs&del=$line->[11]+$line->[9]+$line->[6]+$line->[1]+$line->[9]+$line->[0]", { MESSAGE => "$_DEL Session SESSION_ID $line->[9]?" });
+    $delete = $html->button($_DEL, "index=$index$pages_qs&del=$line->[11]+$line->[9]+$line->[6]+$line->[1]+$line->[9]+$line->[0]", { MESSAGE => "$_DEL Session SESSION_ID $line->[9]?", BUTTON => 1 });
    }
 
   $table->addrow($html->button($line->[0], "index=11&UID=$line->[11]"), 
@@ -1603,7 +1722,7 @@ foreach my $line (@$list) {
      $line->[5], $line->[6],
      $line->[7], 
      "$line->[8] $test", 
-     "(". $html->button('D', "index=$index&UID=$line->[11]&SESSION_ID=$line->[10]", { TITLE => 'Session Detail' }) .")", 
+     $html->button('D', "index=$index&UID=$line->[11]&SESSION_ID=$line->[10]", { TITLE => 'Session Detail', BUTTON => 1 }), 
      $delete);
 }
 
@@ -1735,8 +1854,6 @@ print $html->form_main({ CONTENT => "$_LOGIN: " . $html->form_input('LOGIN_EXPR'
 	                      
 	                      });
 	                                                                   
-
-	                                                                   
 my $table = $html->table( { caption => "$_LOG",
 	                          width   => '100%',
 	                          pages   => $totals,
@@ -1765,9 +1882,9 @@ $table = $html->table({
                         cols_align => ['right', 'right'] 
                         });
 
-$table->addrow($html->button("$_TOTAL", "index=$index&$pages_qs"), $totals);
+$table->addrow($html->button("$_TOTAL", "index=$index&$pages_qs", { BUTTON => 1 }), $totals);
 while(my($k,$v)=each %$types) {
-  $table->addrow($html->button($k, "index=$index&LOG_TYPE=$k$pages_qs"), $v);
+  $table->addrow($html->button($k, "index=$index&LOG_TYPE=$k$pages_qs", { BUTTON => 1 }), $v);
 }
 print $table->show();
 
@@ -2163,7 +2280,7 @@ sub voip_daily_fees {
 #          print " $u->[0] $line->[6] $u->[2] $u->[3]\n"; 	
 
         if($line->[5] > 0
-            || $conf{negative_deposit} eq 'yes'
+            || $conf{negative_deposit}
             || $u->[2] + $u->[3] > 0 ) {
           $fees->take(\%user, $line->[5], { DESCRIBE => "$_DAY_FEE" } );  
          }
@@ -2171,14 +2288,7 @@ sub voip_daily_fees {
 
  	  }
   }
-
-
-
-
 }
-
-
-
 
 
 #**********************************************************
@@ -2226,7 +2336,7 @@ my $date_unixtime =  mktime(0, 0, 0, $d, $m, $y - 1900, 0, 0, 0);
         if ($u->[10] eq '0000-00-00' and $d == 1) {
 #          print " $u->[0] $line->[6] $u->[2] $u->[3] $u->[10] - $u->[11]\n"; 	
           if($line->[4] > 0 
-              || $conf{negative_deposit} eq 'yes'
+              || $conf{negative_deposit}
               || $u->[2] + $u->[3] > 0 ) {
             $fees->take(\%user, $line->[6], { DESCRIBE => "$_MONTH_FEE" } );  
            }
@@ -2274,8 +2384,11 @@ foreach my $line (@$list) {
   $USER_INFO{DEPOSIT}=$line->[4];
   $USER_INFO{CREDIT}=$line->[3];
   
-  my $email = ((! defined($line->[1])) || $line->[1] eq '') ? "$line->[0]\@$conf{USERS_MAIL_DOMAIN}" : "$line->[1]";
+  my $email = ((! defined($line->[1])) || $line->[1] eq '') ? (($conf{USERS_MAIL_DOMAIN}) ? "$line->[0]\@$conf{USERS_MAIL_DOMAIN}" : '') : "$line->[1]";
   
+  if ($email eq '') {
+  	next;
+   }
  
   $ADMIN_REPORT{USERS_WARNINGS} .= sprintf ("%-14s| %4d|%-20s| %9.4f| %8.2f|\n", 
   $USER_INFO{LOGIN}, $USER_INFO{TP_ID}, $USER_INFO{TP_NAME},  $USER_INFO{DEPOSIT}, $USER_INFO{CREDIT});
@@ -2401,8 +2514,8 @@ if ($FORM{NAS_ID}){
          #ACF|Caller_IP:Port|Caller_EPID|CRV|DestinationInfo|SrcInfo|IsAnswered;
          #ACF|Callee_IP:Port|Callee_EPID|CRV|DestinationInfo|SrcInfo|IsAnswered;
          $table->addrow('&nbsp;', @registred, 
-          "(". $html->button("H", "index=$index&NAS_ID=$FORM{NAS_ID}&command=disconnectcall+$registred[4]", 
-             { TITLE => 'Hangup'} ). ')');
+          $html->button("H", "index=$index&NAS_ID=$FORM{NAS_ID}&command=disconnectcall+$registred[4]", 
+            { TITLE => 'Hangup', BUTTON => 1  } ));
         }
       }
      print $table->show();
@@ -2435,8 +2548,8 @@ if ($FORM{NAS_ID}){
      foreach my $line (@rows) {
        if($line =~ /RCF/) {
          @registred = split(/\|/, $line);
-         push @registred, "(". $html->button('H', "index=$index&NAS_ID=$FORM{NAS_ID}&command=UnregisterIP+$registred[1]", 
-           { TITLE => 'Hangup'}). ")";
+         push @registred, $html->button('H', "index=$index&NAS_ID=$FORM{NAS_ID}&command=UnregisterIP+$registred[1]", 
+           { TITLE => 'Hangup', BUTTON => 1 });
          $table->addrow(@registred);
         }
       }
@@ -2525,6 +2638,10 @@ foreach my $line (@$list) {
 open(FILE, ">$conf{VOIP_ASTERISK_USERS}") || $html->message('err', $_ERROR, "Can't open file '$conf{VOIP_ASTERISK_USERS}' $!");
   print FILE "$content\n";
 close(FILE);
+
+if ($conf{VOIP_ASTERISK_RESTART}) {
+	system($conf{VOIP_ASTERISK_RESTART});
+}
 
 }
 

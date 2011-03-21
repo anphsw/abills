@@ -13,10 +13,11 @@
   <tr><td>$_SIMULTANEOUSLY:</td><td><input type=text name=SIMULTANEOUSLY value='%SIMULTANEOUSLY%'></td></tr>
   <tr><th colspan=2 bgcolor=$_COLORS[0]>$_ABON</th></tr> 
   <tr><td>$_DAY_FEE:</td><td><input type=text name=DAY_FEE value='%DAY_FEE%'></td></tr>
-  <tr><td>$_POSTPAID:</td><td><input type=checkbox name=POSTPAID_DAY_FEE value=1 %POSTPAID_DAY_FEE%></td></tr>
+  <tr><td>$_ACTIVE_DAY_FEE:</td><td><input type=checkbox name='ACTIVE_DAY_FEE' value='1' %ACTIVE_DAY_FEE%></td></tr>  
+  <tr><td>$_DAY_FEE $_POSTPAID:</td><td><input type=checkbox name=POSTPAID_DAY_FEE value=1 %POSTPAID_DAY_FEE%></td></tr>
   
   <tr bgcolor=$_COLORS[2]><td>$_MONTH_FEE:</td><td><input type=text name=MONTH_FEE value='%MONTH_FEE%'></td></tr>
-  <tr bgcolor=$_COLORS[2]><td>$_POSTPAID:</td><td><input type=checkbox name=POSTPAID_MONTH_FEE value=1 %POSTPAID_MONTH_FEE%></td></tr>
+  <tr bgcolor=$_COLORS[2]><td>$_MONTH_FEE $_POSTPAID:</td><td><input type=checkbox name=POSTPAID_MONTH_FEE value=1 %POSTPAID_MONTH_FEE%></td></tr>
   <tr bgcolor=$_COLORS[2]><td>$_MONTH_ALIGNMENT:</td><td><input type=checkbox name='PERIOD_ALIGNMENT' value='1' %PERIOD_ALIGNMENT%></td></tr>
   <tr bgcolor=$_COLORS[2]><td>$_ABON_DISTRIBUTION:</td><td><input type=checkbox name='ABON_DISTRIBUTION' value='1' %ABON_DISTRIBUTION%></td></tr>
   <tr bgcolor=$_COLORS[2]><td>$_SMALL_DEPOSIT_ACTION:</td><td>%SMALL_DEPOSIT_ACTION_SEL%</td></tr>
@@ -53,8 +54,12 @@
   <tr><td>$_NEG_DEPOSIT_FILTER_ID:</td><td><input type=text name=NEG_DEPOSIT_FILTER_ID value='%NEG_DEPOSIT_FILTER_ID%'></td></tr>
   <tr><td>IP Pool:</td><td>%IP_POOLS_SEL%</td></tr>
   <tr><td>$_PRIORITY:</td><td><input type=text name=PRIORITY value='%PRIORITY%' size=5></td></tr>
+  %BONUS%
   <tr><th colspan=2 bgcolor=$_COLORS[2]>RADIUS Parameters (,)</th></tr>
   <tr><th colspan=2><textarea cols=55 rows=5 name=RAD_PAIRS>%RAD_PAIRS%</textarea></th></tr>
+  <tr><th colspan=2 bgcolor=$_COLORS[2]>$_DESCRIBE</th></tr>
+  <tr><th colspan=2><textarea cols=55 rows=5 name=COMMENTS>%COMMENTS%</textarea></th></tr>
+  
 </table>
 <input type=submit name='%ACTION%' value='%LNG_ACTION%'>
 </form>

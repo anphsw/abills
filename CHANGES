@@ -1,3 +1,309 @@
+=====0.52====
+
+18.03.2011\\
+  * Добавлена возможность импорта списка цен для Voip  модуля
+  * Добавлена возможность импорта списка направлений для Voip  модуля
+  * Добавлена оплата за приостановку сервиса
+  * Добавлена возможность менять тариф из пользовательского кабинете только раз в месяц независимо от тарифа
+  * $conf{NON_PRIVILEGES_LOCATION_OPERATION} -  журнал адресов ведётся в разделе "Другое"
+  * В журнале улиц показывает количество подключенный абонентов
+  * Добавлено в поиск вывод абонентов с незаполненными полями адреса
+  * Добавлены права на изменения тарифного плана и установку кредита
+
+
+04.03.2011\\
+  * Новая система ведения бонусов [[abills:docs:modules:dv:ru?&#%D0%B1%D0%BE%D0%BD%D1%83%D1%81%D1%8B|бонусов]]
+  * Возможность массовой выписки счетов из WEB  интерфейса
+MySQL\\
+  CREATE TABLE `tp_bonus_rating` (
+    `tp_id` smallint(5) unsigned NOT NULL default '0',
+    `rating_from` int(11) unsigned NOT NULL default '0',
+    `rating_to` int(11) unsigned NOT NULL default '0',
+    `action` smallint(5) unsigned NOT NULL default '0',
+    `change_bonus` double(14,2) unsigned NOT NULL default '0.00',
+    `activate_bonus` double(14,2) unsigned NOT NULL default '0.00',
+    `ext_bill_account` tinyint(1) unsigned NOT NULL DEFAULT '0',
+    `comments` text NOT NULL default '',
+    PRIMARY KEY  (`tp_id`)
+  ) COMMENT='Tarif plans bonus rating';
+
+
+16.02.2011\\
+  * Добавлен модуль [[abills:docs:modules:maps:ru|Maps]] - Карта сети
+
+09.02.2011\\
+  * Добавлен системный пользователь для операций пользователя в веб портале
+  * Добавлена возможность ведения журнала адресов для серверов доступа
+
+MySQL\\
+
+  INSERT INTO admins (id, name, regdate, password, gid, aid, disable, phone, web_options) VALUES ('users_web','System user', '2011-02-01', ENCODE(md5(RAND()), 'test12345678901234567890'), 0, 3, 0,'', '');
+  ALTER TABLE nas ADD COLUMN `location_id` INTEGER(11) UNSIGNED NOT NULL default '0';
+  ALTER TABLE dhcphosts_leases ADD COLUMN `flag` tinyint(2) NOT NULL DEFAULT '0';
+
+
+21.01.2011\\
+  *  Добавлена поддержка accel-pptp
+  *  Добавлена возможность устанавливать права администраторов на изменении тарифных планов и кредита
+  *  Добавлена возможность установки скорости на порту коммутатора
+  *  Snmputils перевод должников в гостевой VLAN
+  *  Snmputils добавлен кабельный тестер показывающий состояние порта длину кабеля для коммутаторов D-Link
+
+17.01.2011\\
+MySQL:\\
+  ALTER TABLE builds ADD COLUMN `map_x2` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
+  ALTER TABLE builds ADD COLUMN `map_y2` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
+  ALTER TABLE builds ADD COLUMN `map_x3` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
+  ALTER TABLE builds ADD COLUMN `map_y3` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
+  ALTER TABLE builds ADD COLUMN `map_x4` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
+  ALTER TABLE builds ADD COLUMN `map_y4` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
+
+18.12.2010\\
+  * Только администратор может удалять расписания присвоенные пользователю
+  * В DHCPhost  добавлено поле гостевой VLAN и возможность не блокировать должников на порту а перебрасывать в гостевой VLAN (Dlink, AgeCore)
+
+MySQL:\\
+  ALTER TABLE shedule ADD COLUMN `admin_action` tinyint(1) unsigned NOT NULL default '0';
+  ALTER TABLE `dhcphosts_networks` ADD COLUMN `guest_vlan` smallint(5) unsigned NOT NULL DEFAULT '0';
+
+
+14.12.2010\\
+  * Добавлен возможность снимать деньги только за дни когда пользователь пользовался интернетом
+  * Обновлён протокол Dr.Web
+  * Добавлено более информативное логирование удалённых онлайн сессий
+  * Обновлён протокол налогового экспорта
+  * Добавлен шейпер по пулам адресов 
+  * Депозит пользователя в личном кабинете уменьшен до 2 знаков после точки, а так же добавлены кнопки быстрого пополнения счёт или выписки счета на оплату
+MySQL:\\
+  
+  ALTER TABLE tarif_plans ADD COLUMN `active_day_fee` tinyint(1) unsigned NOT NULL default '0';
+
+30.11.2010\\
+  * Добавлена возможность скрывать удалённых пользователей, только администратор с спец правами может их удалять полностью
+  * Добавлена платёжная система [[http://abills.net.ua/wiki/doku.php/abills:docs:modules:paysys:ru#flashcheque|flashcheque]]
+
+
+MySQL:\\
+   
+  ALTER TABLE users ADD COLUMN  `deleted` tinyint(1) unsigned NOT NULL default '0';
+  
+ 
+10.11.2010\\
+  * Добавлено $conf{DV_USER_CHG_TP_SHEDULE}. Если с пользователя снимается дневная или месячная распределённая абон. плата то следующим учётным периодом будет следующий день.
+  * Добавлена поддержка коммутаторов [[http://www.celan.com.tw|CeLan]]
+  * Добавлена поддержка [[abills:docs:linux:radcoad:ru|pppd coa]]. (Особая благодарность NiTr0)
+07.11.2010\\
+  * Установка скорости на пул адресов
+
+MySQL:\\
+  ALTER TABLE ippools ADD COLUMN `speed` int(10) unsigned NOT NULL default '0';
+
+  * Снятие абон. платы для приостановленных аккаунтов
+
+
+30.10.2010\\
+  * Добавлена опция выбора нужных вопросов при заполнении администратором
+MySQL:\\
+  ALTER TABLE `msgs_survey_questions` ADD COLUMN `fill_default` tinyint(1) unsigned NOT NULL DEFAULT '0';
+
+
+
+25.10.2010\\
+  * Добавлен отдельный тип контракта для корпоративных клиентов
+13.10.2010\\
+  * Добавлено перенаправление пользователя на страницу провайдера при получении личного сообщения. Опция $conf{MSGS_UNREAD_FORWARD}. [[abills:docs:msgs:ru|Msgs]] 
+  * Добавлена платёжная система Liqpay [[abills:docs:modules:paysys:ru#Liqpay|Liqpay]]
+  * Добавлена функция индивидуальных шаблонов для разных типов оплат [[abills:docs:docs:ru#%D0%BD%D0%B0%D0%B7%D0%B2%D0%B0%D0%BD%D0%B8%D1%8F_%D1%88%D0%B0%D0%B1%D0%BB%D0%BE%D0%BD%D0%BE%D0%B2|Docs]]
+28.09.2010\\
+  * Добавлена возможность выставлять приоритет денежных счетов (главный, дополнительный) при тарификации по трафику
+
+MySQL:\\
+
+  ALTER TABLE tarif_plans ADD COLUMN `bills_priority` tinyint(5) unsigned NOT NULL DEFAULT '0';
+
+27.09.2010\\
+  * Улучшен модуль работы с бонусами.
+  * Добавлена возможность не снимать абон. плату при изменении тарифа в интерфейсе администратора
+MySQL:\\
+
+  CREATE TABLE `bonus_log` (
+    `date` datetime NOT NULL default '0000-00-00 00:00:00',
+    `sum` double(10,2) NOT NULL default '0.00',
+    `dsc` varchar(80) default NULL,
+    `ip` int(11) unsigned NOT NULL default '0',
+    `last_deposit` double(15,6) NOT NULL default '0.000000',
+    `uid` int(11) unsigned NOT NULL default '0',
+    `aid` smallint(6) unsigned NOT NULL default '0',
+    `id` int(11) unsigned NOT NULL auto_increment,
+    `method` tinyint(4) unsigned NOT NULL default '0',
+    `ext_id` varchar(28) NOT NULL default '',
+    `bill_id` int(11) unsigned NOT NULL default '0',
+    `inner_describe` varchar(80) NOT NULL default '',
+    `action_type` tinyint(11) unsigned NOT NULL default '0',
+    `expire` date NOT NULL default '0000-00-00',
+    PRIMARY KEY  (`id`),
+    UNIQUE KEY `id` (`id`),
+    KEY `date` (`date`),
+    KEY `uid` (`uid`)
+  ) COMMENT "Bonus log"  ;
+
+22.09.2010\\
+  * Доработан механизм опроса для сообщений
+MySQL: \\
+  ALTER TABLE `msgs_survey_answers` ADD COLUMN `msg_id` int(11) unsigned NOT NULL DEFAULT '0';
+  ALTER TABLE `msgs_survey_answers` ADD COLUMN  `reply_id` int(11) unsigned NOT NULL DEFAULT '0';
+  ALTER TABLE `msgs_survey_answers` DROP PRIMARY KEY, ADD PRIMARY KEY(`uid`, `msg_id`, `reply_id`, `question_id`);
+
+20.09.2010\\
+MySQL: \\
+  ALTER TABLE dhcphosts_leases ADD COLUMN `port` smallint(6) unsigned NOT NULL DEFAULT '0';
+  ALTER TABLE dhcphosts_leases ADD COLUMN `vlan` smallint(6) unsigned NOT NULL DEFAULT '0';
+  ALTER TABLE dhcphosts_leases ADD COLUMN `switch_mac` varchar(17) NOT NULL DEFAULT '';
+
+14.09.2010\\
+  * Добавлены новые поля  в журнал адресов **квартир в доме**, в журнал администраторов **адрес**, **мобильный телефон**, **день рождения**, **ИНН**, **паспорт**\\
+MySQL: \\
+  ALTER TABLE `builds` ADD COLUMN `flats` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
+  ALTER TABLE `admins` ADD COLUMN `address` VARCHAR(60) NOT NULL DEFAULT '';
+  ALTER TABLE `admins` ADD COLUMN `cell_phone` varchar(20) NOT NULL DEFAULT '';
+  ALTER TABLE `admins` ADD COLUMN `pasport_num` varchar(16) NOT NULL default '';
+  ALTER TABLE `admins` ADD COLUMN `pasport_date` date NOT NULL default '0000-00-00';
+  ALTER TABLE `admins` ADD COLUMN `pasport_grant` varchar(100) NOT NULL default '';
+  ALTER TABLE `admins` ADD COLUMN `inn` varchar(20) NOT NULL default '';
+  ALTER TABLE `admins` ADD COLUMN `birthday` DATE NOT NULL default '0000-00-00';
+
+   
+06.09.2010 \\
+  * Добавлена возможность запускать внешние программы при само регистрации абонентов
+  * Добавлена возможность отключать корпоративным пользователям возможность перевода средств между аккаунтами
+  * Добавлена возможность повторно снимать активационный платёж для аккаунтом с слишком большим периодом не активности абонента
+19.08.2010 \\
+  * В заявку на подключения добавлено поле желаемая дата подключения
+MySQL: \\
+  ALTER TABLE msgs_unreg_requests ADD COLUMN `connection_time` DATETIME NOT NULL;
+
+18.08.2010 \\
+  * Добавлена функция "оплатить до"  в модуль [[abills:docs:modules:dv:ru|Dv]]
+  * Добавлена функция контроля скорости для Linux  серверов доступа
+15.08.2010 \\
+  * Более гибкие тарифные планы для продавцов карточек
+
+MySQL:\\
+  ALTER TABLE `dillers_tps` ADD COLUMN `nas_tp` tinyint(1) unsigned NOT NULL DEFAULT '0';
+  ALTER TABLE `dillers_tps` ADD COLUMN `gid` int(11) unsigned NOT NULL DEFAULT '0';
+  ALTER TABLE `dillers_tps` ADD COLUMN `comments` text NOT NULL;
+  ALTER TABLE `dillers_tps` ADD COLUMN `bonus_cards` int(11) unsigned NOT NULL DEFAULT '0';
+  
+  CREATE TABLE `multidoms_nas_tps` (
+    `nas_id` smallint(6) unsigned NOT NULL,
+    `domain_id` smallint(6) unsigned NOT NULL DEFAULT '0',
+    `tp_id` smallint(6) unsigned NOT NULL,
+    `datetime` datetime NOT NULL,
+    `bonus_cards` int(11) unsigned NOT NULL DEFAULT '0',
+    PRIMARY KEY (`domain_id`,`tp_id`,`nas_id`)
+  ) COMMENT='Multidoms Dillers NAS TPS. For postpaid cards fees';
+
+
+11.08.2010 \\
+  * Добавлена возможность вести опросы пользователей в модуле Тех. Поддержки (Msgs)
+
+MySQL:\\
+  CREATE TABLE `msgs_survey_questions` (
+    `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+    `survey_id` smallint(6) unsigned NOT NULL DEFAULT 0,
+    `num` tinyint(4) unsigned NOT NULL DEFAULT '0',
+    `question` varchar(200) NOT NULL,
+    `params` varchar(250) NOT NULL,
+    `comments` text NOT NULL,
+    `user_comments` tinyint(1) unsigned NOT NULL DEFAULT '0',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `id` (`id`)
+  )  COMMENT 'Messages Survey questions';
+  
+  CREATE TABLE `msgs_survey_subjects` (
+    `id` smallint(6) unsigned NOT NULL AUTO_INCREMENT,
+    `name` varchar(20) NOT NULL,
+    `comments` text NOT NULL,
+    `aid` smallint(6) unsigned NOT NULL DEFAULT '0',
+    `created` datetime NOT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `id` (`id`),
+    UNIQUE KEY `name` (`name`)
+  ) COMMENT 'Messages Survey Subjects';
+  
+  CREATE TABLE `msgs_survey_answers` (
+    `question_id` int(11) unsigned NOT NULL DEFAULT '0',
+    `uid` int(11) unsigned NOT NULL DEFAULT '0',
+    `answer` tinyint(4) unsigned NOT NULL DEFAULT '0',
+    `comments` text NOT NULL,
+    `date_time` datetime NOT NULL,
+    `survey_id` smallint(6) unsigned NOT NULL DEFAULT '0',
+    PRIMARY KEY (`uid`,`question_id`)
+  )   COMMENT 'Messages Survey Answers';
+
+
+09.08.2010 \\
+  * Добавлено поле описания тарифного плана. Изменён вид выбора тарифного плана для клиентов
+
+MySQL:\\
+  ALTER TABLE tarif_plans ADD COLUMN comments text not null default '';
+  ALTER TABLE msgs_messages ADD COLUMN `survey_id` smallint(6) unsigned NOT NULL DEFAULT 0;
+  ALTER TABLE msgs_reply ADD COLUMN `survey_id` smallint(6) unsigned NOT NULL DEFAULT 0;
+
+
+02.08.2010 \\
+  * Добавлена возможность одновременно использовать минимальную наработку и месячную абонплату
+  * Добавлена возможность выставлять приоритет снятия денег в модуле Abon
+
+MySQL:
+  ALTER TABLE abon_tariffs  ADD COLUMN `priority` tinyint(1) unsigned NOT NULL DEFAULT '0';
+  ALTER TABLE abon_tariffs  ADD COLUMN   `account` tinyint(1) unsigned NOT NULL DEFAULT '0';
+
+
+28.07.2010\\
+
+  * Добавлена работа модуля Paysys c  мультидоменной платформой (Multidoms). **Обязательно обновите все модули Paysys  перед обновлением системы.**
+
+MySQL:
+
+  ALTER TABLE `config` CHANGE COLUMN `param` `param` varchar(30) NOT NULL default '';
+  ALTER TABLE `config` ADD COLUMN `domain_id` smallint(6) unsigned not null default '0';
+  ALTER TABLE `config` DROP KEY `param`;
+  ALTER TABLE `config` ADD UNIQUE KEY `param` (`domain_id`, `param`);
+  ALTER TABLE `paysys_log` ADD COLUMN `domain_id` smallint(6) unsigned not null default '0';
+  ALTER TABLE `paysys_log` ADD COLUMN `status` tinyint(2) unsigned not null default '0';
+  ALTER TABLE `paysys_log` DROP KEY `ps_transaction_id`;
+  ALTER TABLE `paysys_log` ADD UNIQUE KEY `ps_transaction_id` (`domain_id`, `transaction_id`);
+25.07.2010
+  * Добавлена подача клиентами заявок  на подключения через веб интерфейс
+MySQL:
+
+  ALTER TABLE users_pi ADD COLUMN `country_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
+  ALTER TABLE msgs_unreg_requests ADD COLUMN `country_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
+  ALTER TABLE msgs_unreg_requests ADD COLUMN `location_id` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0';
+  ALTER TABLE msgs_unreg_requests ADD COLUMN `company` VARCHAR(60)  NOT NULL DEFAULT '';
+
+20.07.2010
+  * Добавлена раздел активные сообщения куда попадают все не закрытые сообщения
+  * Добавлена автоматическая активизация сервисов с "отключён за неуплату" и "недостаточно средств" сразу после внесение денег на счёт абонента
+  * Добавлена возможность кросмодульная (во всех модуля после определённого действия) обработка сообщений
+  * Добавлена рассылка на E-mail счетов после их создания
+  * Добавлена возможность включения всех активных пользователей (с положительным депозитом) для модуля Ipn.
+25.06.2010
+  * Добавлены платёжные системы Ibox, OSMP QIWI
+  * Добавлен перенос сообщений технической поддержки между разделами
+  * Добавлено создание внутренних сообщений в ответах администраторов для внутренних комментариев
+  * Добавлена рассылка сообщений всем администраторам подписанным на тему, при создании и темы и при работе с ней 
+MySQL:\\
+  ALTER TABLE `msgs_reply` add COLUMN  `inner_msg` tinyint(1) unsigned NOT NULL default '0';
+
+
+16.06.2010
+  * Добавленная возможность создавать сети  и подсети для DHCP
+
+MySQL:\\
+  ALTER TABLE dhcphosts_networks ADD COLUMN `net_parent` smallint(5) unsigned NOT NULL DEFAULT '0';
+
 =====0.51=====
 22.05.2010 \\
   * Добавлена платёжная система Liberty Reserver
@@ -27,7 +333,7 @@ MySQL:
   
 29.04.2010\\
   * Добавленна возможность перевода средств между аккаунтами абонентов
-  * Добавленна дата изминения класов трафика
+  * Добавленна дата изменения класов трафика
 MySQL:\\
   ALTER TABLE traffic_classes ADD COLUMN `changed` DATETIME NOT NULL DEFAULT '0000-00-00 00:00:00';
 

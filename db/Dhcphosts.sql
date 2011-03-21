@@ -51,6 +51,8 @@ CREATE TABLE `dhcphosts_networks` (
   `comments` varchar(250) not null default '',
   `deny_unknown_clients` tinyint(1) unsigned not null default 0,
   `authoritative` tinyint(1) unsigned not null default 0,
+  `net_parent` smallint(5) unsigned NOT NULL DEFAULT '0',
+  `guest_vlan` smallint(5) unsigned NOT NULL DEFAULT '0',
   PRIMARY KEY  (`id`),
   UNIQUE KEY `name` (`name`)
 ) COMMENT='Dhcphost networks';
@@ -67,6 +69,10 @@ CREATE TABLE `dhcphosts_leases` (
   `hostname` varchar(30) NOT NULL DEFAULT '',
   `nas_id` smallint(6) NOT NULL DEFAULT '0',
   `ip` int(11) unsigned NOT NULL DEFAULT '0',
+  `port` smallint(6) unsigned NOT NULL DEFAULT '0',
+  `vlan` smallint(6) unsigned NOT NULL DEFAULT '0',
+  `switch_mac` varchar(17) NOT NULL DEFAULT '',
+  `flag` tinyint(2) NOT NULL DEFAULT '0',
   KEY `ip` (`ip`),
   KEY `nas_id` (`nas_id`)
 ) COMMENT='Dhcphosts leaseds';

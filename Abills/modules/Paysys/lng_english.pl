@@ -6,5 +6,8 @@ $_TRANSACTION_PROCESSING='Transaction processing...';
 $_FAILED='Transaction Failed';
 $ERR_INVALID_SIGNATURE='Invalid signature';
 $ERR_TRANSACTION_DECLINED='Transaction is declined';
-
-
+$_GET_INVOICE='Get invoice';
+$_INVOICE_SENDED='Invoice sended';
+$_TEST_PAYMENT='Test payment';
+$_BINDING='Binding';
+$_TARIF_PLAN_SUM='Minimum one month fees';

@@ -22,6 +22,7 @@ my %FIELDS = ( ID               => 'id',
                TP_ID            => 'tp_id', 
                NAME             => 'name',  
                DAY_FEE          => 'day_fee',
+               ACTIVE_DAY_FEE   => 'active_day_fee',
                MONTH_FEE        => 'month_fee',
                REDUCTION_FEE    => 'reduction_fee',
                POSTPAID_DAY_FEE     => 'postpaid_daily_fee',
@@ -58,7 +59,9 @@ my %FIELDS = ( ID               => 'id',
                ABON_DISTRIBUTION=> 'abon_distribution',
                DOMAIN_ID        => 'domain_id',
                PRIORITY         => 'priority',
-               SMALL_DEPOSIT_ACTION => 'small_deposit_action'
+               SMALL_DEPOSIT_ACTION => 'small_deposit_action',
+               COMMENTS        => 'comments',
+               BILLS_PRIORITY  => 'bills_priority',
              );
 
 #**********************************************************
@@ -73,9 +76,6 @@ sub new {
   return $self;
 }
 
-
-
-
 #**********************************************************
 # Time_intervals
 # ti_add
@@ -89,7 +89,6 @@ sub ti_del {
 	$admin->system_action_add("TI:$id", { TYPE => 10 });
 	return $self;
 }
-
 
 #**********************************************************
 # Time_intervals
@@ -120,9 +119,7 @@ sub ti_list {
   if ($SORT eq '1') { $SORT = "2, 3"; }  
   my $begin_end = "i.begin, i.end,";   
   my $TP_ID = $self->{TP_ID};  
-  
 
-    
   if (defined($attr->{TP_ID})) {
     $begin_end =  "TIME_TO_SEC(i.begin), TIME_TO_SEC(i.end), "; 
     $TP_ID = $attr->{TP_ID};
@@ -166,8 +163,6 @@ sub ti_change {
 		               DATA         => $attr
 		              } );
 
-
-
   if ($ti_id == $DATA{TI_ID}) {
   	$self->ti_info($ti_id);
    }
@@ -196,7 +191,6 @@ sub ti_info {
      $self->{errstr} = 'ERROR_NOT_EXIST';
      return $self;
    }
-
 
   $self->{TI_ID}=$ti_id;
   ($self->{TI_DAY}, 
@@ -285,14 +279,9 @@ sub tp_group_list {
 sub tp_group_change {
   my $self = shift;
   my ($attr) = @_;
-  
-  
-  $attr->{USER_CHG_TP} = (defined($attr->{USER_CHG_TP}) && $attr->{USER_CHG_TP} == 1 ) ? 1 : 0;
-  
-  
-  %DATA = $self->get_data($attr); 
 
-  
+  $attr->{USER_CHG_TP} = (defined($attr->{USER_CHG_TP}) && $attr->{USER_CHG_TP} == 1 ) ? 1 : 0;
+  %DATA = $self->get_data($attr);   
 
   my %FIELDS = (
     ID          => 'id', 
@@ -331,7 +320,6 @@ sub tp_group_info {
      $self->{errstr} = 'ERROR_NOT_EXIST';
      return $self;
    }
-
 
   $self->{GID}=$tp_group_id;
   ($self->{NAME}, 
@@ -408,6 +396,9 @@ sub defaults {
             DOMAIN_ID        => 0,
             PRIORITY         => 0,
             SMALL_DEPOSIT_ACTION => 0,
+            COMMENTS         => '',
+            BILLS_PRIORITY   => 0,
+            ACTIVE_DAY_FEE   => 0
          );   
  
   $self = \%DATA;
@@ -431,7 +422,7 @@ sub add {
  
 
   $self->query($db, "INSERT INTO tarif_plans (id, uplimit, name, 
-     month_fee, day_fee, reduction_fee, 
+     month_fee, day_fee, active_day_fee, reduction_fee, 
      postpaid_daily_fee, 
      postpaid_monthly_fee,
      ext_bill_account,
@@ -447,10 +438,12 @@ sub add {
      abon_distribution,
      small_deposit_action,
      domain_id,
-     priority
+     priority,
+     comments,
+     bills_priority
      )
     values ('$DATA{ID}', '$DATA{ALERT}', \"$DATA{NAME}\", 
-     '$DATA{MONTH_FEE}', '$DATA{DAY_FEE}', '$DATA{REDUCTION_FEE}', 
+     '$DATA{MONTH_FEE}', '$DATA{DAY_FEE}', '$DATA{ACTIVE_DAY_FEE}', '$DATA{REDUCTION_FEE}', 
      '$DATA{POSTPAID_DAY_FEE}', 
      '$DATA{POSTPAID_MONTH_FEE}', 
      '$DATA{EXT_BILL_ACCOUNT}',
@@ -470,13 +463,12 @@ sub add {
      '$DATA{ABON_DISTRIBUTION}',
      '$DATA{SMALL_DEPOSIT_ACTION}',
      '$admin->{DOMAIN_ID}',
-     '$DATA{PRIORITY}'
+     '$DATA{PRIORITY}',
+     '$DATA{COMMENTS}',
+     '$DATA{BILLS_PRIORITY}'
      );", 'do' );
-
-
-
+     
   $self->{TP_ID}=$self->{INSERT_ID};
-
   $admin->system_action_add("TP:$DATA{TP_ID}", { TYPE => 1 });
   return $self;
 }
@@ -497,6 +489,8 @@ sub change {
   $attr->{PERIOD_ALIGNMENT}=0    if (! $attr->{PERIOD_ALIGNMENT});
   $attr->{ABON_DISTRIBUTION}=0   if (! $attr->{ABON_DISTRIBUTION});
   $attr->{SMALL_DEPOSIT_ACTION}=0 if (! $attr->{SMALL_DEPOSIT_ACTION});
+  $attr->{BILLS_PRIORITY}=0      if (! $attr->{BILLS_PRIORITY});
+  $attr->{ACTIVE_DAY_FEE}=0      if (! $attr->{ACTIVE_DAY_FEE});
 
 	$self->changes($admin, { CHANGE_PARAM => 'TP_ID',
 		                TABLE        => 'tarif_plans',
@@ -547,7 +541,6 @@ sub info {
     push @WHERE_RULES, "tp.tp_id='$attr->{TP_ID}'"; 
    }
 
-
   if($attr->{ID}) {
   	push @WHERE_RULES, "id='$attr->{ID}'";
    }
@@ -562,7 +555,7 @@ sub info {
 
 
   $self->query($db, "SELECT id, name,
-      day_fee, month_fee, reduction_fee, postpaid_daily_fee, postpaid_monthly_fee, 
+      day_fee, active_day_fee, month_fee, reduction_fee, postpaid_daily_fee, postpaid_monthly_fee, 
       ext_bill_account,
       logins, age,
       day_time_limit, week_time_limit,  month_time_limit, total_time_limit, 
@@ -585,7 +578,9 @@ sub info {
       small_deposit_action,
       tp_id,
       domain_id,
-      priority
+      priority,
+      comments,
+      bills_priority
     FROM tarif_plans
     WHERE $WHERE;");
 
@@ -599,6 +594,7 @@ sub info {
   ($self->{ID}, 
    $self->{NAME}, 
    $self->{DAY_FEE}, 
+   $self->{ACTIVE_DAY_FEE},
    $self->{MONTH_FEE}, 
    $self->{REDUCTION_FEE}, 
    $self->{POSTPAID_DAY_FEE}, 
@@ -636,7 +632,9 @@ sub info {
    $self->{SMALL_DEPOSIT_ACTION},
    $self->{TP_ID},
    $self->{DOMAIN_ID},
-   $self->{PRIORITY}
+   $self->{PRIORITY},
+   $self->{COMMENTS},
+   $self->{BILLS_PRIORITY}
   ) = @{ $self->{list}->[0] };
 
   return $self;
@@ -654,6 +652,7 @@ sub list {
   $DESC = (defined($attr->{DESC})) ? $attr->{DESC} : '';
  
   my @WHERE_RULES = ();
+  $self->{SEARCH_FIELDS} ='';
 
  if (defined($attr->{TP_GID})) {
    push @WHERE_RULES, @{ $self->search_expr($attr->{TP_GID}, 'INT', 'tp.gid') };
@@ -662,6 +661,11 @@ sub list {
  if (defined($attr->{TP_ID})) {
    push @WHERE_RULES, @{ $self->search_expr($attr->{TP_ID}, 'INT', 'tp.id') };
   }
+
+ if ($attr->{COMMENTS}) {
+   push @WHERE_RULES, @{ $self->search_expr($attr->{COMMENTS}, 'STR', 'tp.comments', { EXT_FIELD => 1 }) };
+  }
+
 
  if (defined($attr->{MODULE})) {
    push @WHERE_RULES, "tp.module='$attr->{MODULE}'"; 
@@ -682,15 +686,24 @@ sub list {
  	 push @WHERE_RULES, @{ $self->search_expr("$attr->{PAYMENT_TYPE}", 'INT', 'tp.payment_type') };  	
   }
 
+ if ($attr->{ACTIVE_DAY_FEE}) {
+ 	 push @WHERE_RULES, @{ $self->search_expr("$attr->{ACTIVE_DAY_FEE}", 'INT', 'tp.active_day_fee') };  	
+  }
+
  if ($attr->{CHANGE_PRICE}) {
  	  my $sql = join('', @{ $self->search_expr("$attr->{CHANGE_PRICE}", 'INT', 'tp.change_price') });  	
  	  
  	  if (defined($attr->{PRIORITY})) {
- 	  	$sql = "($sql or tp.priority > '$attr->{PRIORITY}')";
+ 	  	$sql = "($sql or (tp.priority > '$attr->{PRIORITY}'))";
+            #Old
+            # $sql = "($sql or (tp.change_price=0 AND tp.priority > '$attr->{PRIORITY}'))";
  	   }
  	  
  	  push @WHERE_RULES, $sql;
   }
+
+
+
 
  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
 
@@ -712,7 +725,10 @@ sub list {
     tp.min_use,
     tp.abon_distribution,
     tp.tp_id,
-    tp.small_deposit_action
+    $self->{SEARCH_FIELDS}
+    tp.small_deposit_action,
+    active_day_fee
+    
     FROM (tarif_plans tp)
     LEFT JOIN intervals i ON (i.tp_id=tp.tp_id)
     LEFT JOIN trafic_tarifs tt ON (tt.interval_id=i.id)
@@ -731,7 +747,14 @@ sub list {
 #**********************************************************
 sub nas_list {
   my $self = shift;
-  $self->query($db, "SELECT nas_id FROM tp_nas WHERE tp_id='$self->{TP_ID}';");
+  my ($attr) = @_;
+
+  if ($attr->{NAS_ID}) {
+    $self->query($db, "SELECT tp_id FROM tp_nas WHERE nas_id='$self->{NAS_ID}';");
+   }
+  else {
+    $self->query($db, "SELECT nas_id FROM tp_nas WHERE tp_id='$self->{TP_ID}';");
+   }
 	return $self->{list};
 }
 
@@ -840,8 +863,7 @@ if (defined($attr->{form})) {
 sub  tt_info {
 	my $self = shift;
 	my ($attr) = @_;
-	
-	
+
   $self->query($db, "SELECT id, interval_id, in_price, out_price, prepaid, in_speed, out_speed, 
 	     descr, 
 	     net_id,
@@ -864,7 +886,6 @@ sub  tt_info {
    $self->{TT_NET_ID},
    $self->{TT_EXPRASSION}
   ) = @{ $self->{list}->[0] };
-
 	
 	return $self;
 }
@@ -1020,10 +1041,8 @@ sub holidays_list {
 
   $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-
   my $year = (defined($attr->{year})) ? $attr->{year} : 'YEAR(CURRENT_DATE)';
   my $format = (defined($attr->{format}) && $attr->{format} eq 'daysofyear') ? "DAYOFYEAR(CONCAT($year, '-', day)) as dayofyear" : 'day';
-
   $self->query($db, "SELECT $format, descr  FROM holidays ORDER BY $SORT $DESC;");
 
 	return $self->{list};
@@ -1055,8 +1074,6 @@ sub holidays_del {
 	my $self = shift;
   my ($id) = @_;
 	$self->query($db, "DELETE from holidays WHERE day='$id';", 'do');
-	
-	
 	$admin->system_action_add("HOLIDAYS:$id", { TYPE => 10 });    
   return $self;
 }

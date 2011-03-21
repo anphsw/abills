@@ -35,11 +35,6 @@ sub new {
 
   my $self = { };
   bless($self, $class);
-  
-  if ($CONF->{DELETE_USER}) {
-    $self->{UID}=$CONF->{DELETE_USER};
-    $self->user_del({ UID => $CONF->{DELETE_USER} });
-   }
 
   return $self;
 }
@@ -54,7 +49,6 @@ sub new {
 sub user_info {
   my $self = shift;
   my ($uid, $attr) = @_;
-
 
   my @WHERE_RULES  = ();
   my $WHERE = '';
@@ -100,10 +94,11 @@ sub user_info {
    voip.allow_calls,
    voip.cid,
    voip.logins,
-   tarif_plans.tp_id
+   voip.registration,
+   tarif_plans.id
      FROM voip_main voip
      LEFT JOIN voip_tps tp ON (voip.tp_id=tp.id)
-     LEFT JOIN tarif_plans ON (tarif_plans.id=tp.id)
+     LEFT JOIN tarif_plans ON (tarif_plans.tp_id=voip.tp_id)
    $WHERE;");
 
   if ($self->{TOTAL} < 1) {
@@ -167,7 +162,7 @@ sub user_add {
   $self->query($db,  "INSERT INTO voip_main (uid, number, registration, tp_id, 
              disable, ip, cid)
         VALUES ('$DATA{UID}', '$DATA{NUMBER}', now(),
-        '$DATA{TARIF_PLAN}', '$DATA{DISABLE}', INET_ATON('$DATA{IP}'), 
+        '$DATA{TP_ID}', '$DATA{DISABLE}', INET_ATON('$DATA{IP}'), 
         LOWER('$DATA{CID}'));", 'do');
   
   return $self if ($self->{errno});
@@ -478,17 +473,19 @@ sub route_add {
   my ($attr) = @_;
   
   %DATA = $self->get_data($attr); 
+  my $action = 'INSERT';
+  if ($attr->{REPLACE}) {
+  	$action = 'REPLACE';
+   }
 
-  $self->query($db,  "INSERT INTO voip_routes (prefix, parent, name, disable, date,
+  $self->query($db,  "$action INTO voip_routes (prefix, parent, name, disable, date,
         descr) 
         VALUES ('$DATA{ROUTE_PREFIX}', '$DATA{PARENT_ID}',  '$DATA{ROUTE_NAME}', '$DATA{DISABLE}', now(),
         '$DATA{DESCRIBE}');", 'do');
 
-
   return $self if ($self->{errno});
 
-#  $admin->action_add($DATA{UID}, "ADDED", { MODULE => 'voip'});
- 
+  $admin->system_action_add("ROUTES: $DATA{ROUTE_PREFIX}", { TYPE => 1 });
   return $self;
 }
 
@@ -525,10 +522,7 @@ sub route_info {
    $self->{DATE},
    $self->{DISABLE},
    $self->{DESCRIBE}
-  )= @{ $self->{list}->[0] };
-  
-  
-  
+  )= @{ $self->{list}->[0] };  
   
   return $self;
 }
@@ -538,13 +532,23 @@ sub route_info {
 #**********************************************************
 sub route_del {
   my $self = shift;
-  my ($id) = @_;
+  my ($id, $attr) = @_;
   
-  $self->query($db,  "DELETE FROM voip_routes WHERE id='$id';", 'do');
+  my $WHERE = '';
+  
+  if ($id > 0) {
+  	$WHERE = "id='$id'";
+   }
+  elsif ($attr->{ALL}) {
+  	$WHERE  = "id > '0'";
+  	$id='ALL';
+   }
+  
+  $self->query($db,  "DELETE FROM voip_routes WHERE $WHERE;", 'do');
   return $self if ($self->{errno});
 
-#  $admin->action_add($DATA{UID}, "ADDED", { MODULE => 'voip'});
- 
+  $admin->system_action_add("ROUTES: $id", { TYPE => 10 });
+
   return $self;
 }
 
@@ -555,8 +559,8 @@ sub route_change {
   my $self = shift;
   my ($attr) = @_;
   
-  my %FIELDS = (ROUTE_ID        => 'id',
-   							PARENT_ID       => 'parent',
+  my %FIELDS = (ROUTE_ID       => 'id',
+   							PARENT_ID      => 'parent',
                 DISABLE        => 'disable',
                 ROUTE_PREFIX   => 'prefix',
                 ROUTE_NAME     => 'name',
@@ -641,21 +645,15 @@ sub rp_add {
 		 while(my($k, $v)=each %$attr) {
 		 	  if($k =~ /^p_/) {
 		 	    my($trash, $route, $interval)=split(/_/, $k, 3);
-		 	    
 		 	    my $trunk = $attr->{"t_". $route ."_" . $interval} || 0;
 		 	    $value .= "('$route', '$interval', '$v', now(), '$trunk'),";
 		     }
-
 		  }
 
-  chop($value);
-  
+ chop($value);
  $self->query($db, "REPLACE INTO voip_route_prices (route_id, interval_id, price, date, trunk) VALUES
   $value;", 'do');
-
  return $self if($self->{errno});
-
-
 
  return $self;
 }

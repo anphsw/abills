@@ -65,12 +65,12 @@ sub connect {
   my $class = shift;
   my $self = { };
   my ($dbhost, $dbname, $dbuser, $dbpasswd, $attr) = @_;
+
+
   bless($self, $class);
-  #$self->{debug}=1;
-  $self->{db} = DBI->connect("DBI:mysql:database=$dbname;host=$dbhost", "$dbuser", "$dbpasswd") or print 
+  $self->{db} = DBI->connect_cached("DBI:mysql:database=$dbname;host=$dbhost", "$dbuser", "$dbpasswd") or print 
        "Content-Type: text/html\n\nError: Unable connect to DB server '$dbhost:$dbname'\n";
-  
-  
+
   #For mysql 5 or highter
   $self->{db}->do("set names ".$attr->{CHARSET}) if ($attr->{CHARSET});
  
@@ -81,7 +81,6 @@ sub connect {
 
 sub disconnect {
   my $self = shift;
-
   $self->{db}->disconnect;
   return $self;
 }
@@ -249,12 +248,7 @@ sub get_data {
   	 next if (! $params->{$k} && defined($DATA{$k})) ;
   	 $v =~ s/^ +|[ \n]+$//g if ($v);
   	 $DATA{$k}=$v;
-     #print "--$k, '$v'<br>\n";
    }
-
-#  while(my($k, $v)=each %DATA) {
-#  	print "$k, $v<br>\n";
-#  }
   
 	return %DATA;
 }
@@ -273,7 +267,7 @@ sub search_expr {
   my ($value, $type, $field, $attr)=@_;
 
  	if ($attr->{EXT_FIELD}) {
-    $self->{SEARCH_FIELDS} .= "$field, ";
+    $self->{SEARCH_FIELDS} .= ($attr->{EXT_FIELD} ne '1') ? "$attr->{EXT_FIELD}, " : "$field, ";
     $self->{SEARCH_FIELDS_COUNT}++;
  	 }	
  
@@ -301,8 +295,15 @@ sub search_expr {
     	$expr = ' <> ';
      }
     elsif ($type eq 'STR') {
-    	$expr = ' LIKE ';
-    	$v =~ s/\*/\%/g;
+    	$expr = '=';
+        if ($v =~ /\\\*/) {
+          $v = '*';
+         }
+        else {
+       	  if($v =~ s/\*/\%/g) {
+            $expr = ' LIKE ';
+           }
+         }
      }
     elsif ( $v =~ s/^([<>=]{1,2})// ) {
       $expr = $1;
@@ -351,7 +352,7 @@ sub changes {
 
 
   if (! $DATA{UNCHANGE_DISABLE} ) {
-    $DATA{DISABLE} = (defined($DATA{DISABLE})) ? $DATA{DISABLE} : undef;
+    $DATA{DISABLE} = (defined($DATA{'DISABLE'}) && $DATA{DISABLE} ne '') ? $DATA{DISABLE} : undef;
    }
 
   if(defined($DATA{EMAIL}) && $DATA{EMAIL} ne '') {
@@ -362,7 +363,7 @@ sub changes {
      }
    }
 
-  $OLD_DATA = $attr->{OLD_INFO}; #  $self->info($uid);
+  $OLD_DATA = $attr->{OLD_INFO}; 
   if($OLD_DATA->{errno}) {
      $self->{errno}  = $OLD_DATA->{errno};
      $self->{errstr} = $OLD_DATA->{errstr};
@@ -373,9 +374,8 @@ sub changes {
   my $CHANGES_LOG = "";
 
   while(my($k, $v)=each(%DATA)) {
-  	#print "$k, $v<br>\n";
-    $OLD_DATA->{$k} = '' if (! $OLD_DATA->{$k});
-    if (defined($FIELDS->{$k}) && $OLD_DATA->{$k} ne $DATA{$k}){
+#  	print "$k, $v ->  $OLD_DATA->{$k} / $DATA{$k}<br>\n";
+    if ($FIELDS->{$k} && (! defined($DATA{$k}) || $OLD_DATA->{$k} ne $DATA{$k})) {
         if ($k eq 'PASSWORD' || $k eq 'NAS_MNG_PASSWORD') {
           $CHANGES_LOG .= "$k *->*;";
           $CHANGES_QUERY .= "$FIELDS->{$k}=ENCODE('$DATA{$k}', '$CONF->{secretkey}'),";
@@ -392,13 +392,13 @@ sub changes {
           $CHANGES_QUERY .= "$FIELDS->{$k}=now(),";
          }
         else {
-        	if (! $OLD_DATA->{$k} && ($DATA{$k} eq '0' || $DATA{$k} eq '')) {
-        	#  print "$k $OLD_DATA->{$k} && length($DATA{$k}) == 0) || (! $OLD_DATA->{$k} && $DATA{$k} eq 0 )<br>";
-        		next;
+          if (! defined($OLD_DATA->{$k}) && ($DATA{$k} eq '0' || $DATA{$k} eq '')) {
+        	next;
            }
 
+
           if ($k eq 'DISABLE') {
-            if ($DATA{$k} == 0){
+            if (defined($DATA{$k}) && $DATA{$k} == 0 || ! defined($DATA{$k})){
               $self->{ENABLE} = 1;
               $self->{DISABLE}= undef;
              }
@@ -413,6 +413,9 @@ sub changes {
           elsif($k eq 'TP_ID') {
             $self->{CHG_TP}=$OLD_DATA->{$k}.'->'.$DATA{$k};
            }
+          elsif($k eq 'GID') {
+            $self->{CHG_GID}=$OLD_DATA->{$k}.'->'.$DATA{$k};
+           }
           elsif($k eq 'CREDIT') {
             $self->{CHG_CREDIT}=$OLD_DATA->{$k}.'->'.$DATA{$k};
            }
@@ -420,7 +423,7 @@ sub changes {
             $CHANGES_LOG .= "$k $OLD_DATA->{$k}->$DATA{$k};";
            }
 
-          $CHANGES_QUERY .= "$FIELDS->{$k}='$DATA{$k}',";
+          $CHANGES_QUERY .= "$FIELDS->{$k}='". ((defined($DATA{$k})) ? $DATA{$k} : '') ."',";
          }
      }
    }
@@ -446,6 +449,11 @@ else {
 
   $CHANGES_LOG = $attr->{EXT_CHANGE_INFO}.' '.$CHANGES_LOG if ($attr->{EXT_CHANGE_INFO});
   if (defined($DATA{UID}) && $DATA{UID} > 0 && defined($admin)) {
+    if ($attr->{'ACTION_ID'}) {
+      $admin->action_add($DATA{UID}, $attr->{EXT_CHANGE_INFO}, { TYPE => $attr->{'ACTION_ID'} });
+      return $self->{result};
+     }
+    
     if ($self->{'DISABLE'}) {
       $admin->action_add($DATA{UID}, "", { TYPE => 9, ACTION_COMMENTS => $DATA{ACTION_COMMENTS} });
      }
@@ -454,7 +462,7 @@ else {
       $admin->action_add($DATA{UID}, "", { TYPE => 8 });
      }
 
-    if ($CHANGES_LOG ne '') {
+    if ($CHANGES_LOG ne '' && $CHANGES_LOG ne $attr->{EXT_CHANGE_INFO}.' ') {
       $admin->action_add($DATA{UID}, "$CHANGES_LOG", { TYPE => 2});
      }
 
@@ -462,9 +470,15 @@ else {
       $admin->action_add($DATA{UID}, "$self->{'CHG_TP'}", { TYPE => 3});
      }
 
-    if(defined($self->{'STATUS'}) && $self->{'STATUS'} ne '') {
-      $admin->action_add($DATA{UID}, "$self->{'STATUS'}", { TYPE => ($self->{'STATUS'}==3) ? 14 : 4 });
+    if($self->{CHG_GID}) {
+      $admin->action_add($DATA{UID}, "$self->{CHG_GID}", { TYPE => 26 });
      }
+
+    #if(defined($self->{'STATUS'}) && $self->{'STATUS'} ne '') {
+    if($self->{CHG_STATUS}) {
+      $admin->action_add($DATA{UID}, "$self->{'STATUS'}" . (($attr->{EXT_CHANGE_INFO})? ' '. $attr->{EXT_CHANGE_INFO} : ''), { TYPE => ($self->{'STATUS'}==3) ? 14 : 4 });
+     }
+
 
     if($self->{CHG_CREDIT}) {
       $admin->action_add($DATA{UID}, "$self->{'CHG_CREDIT'}", { TYPE => 5 });
@@ -481,6 +495,7 @@ else {
       $admin->system_action_add("$CHANGES_LOG", { TYPE => 2 });
      }
    }
+
   return $self->{result};
 }
 

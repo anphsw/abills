@@ -33,7 +33,6 @@ use FindBin '$Bin';
 
 require $Bin . '/../../../libexec/config.pl';
 
-
 use Abills::Base;
 use Abills::SQL;
 use Abills::HTML;
@@ -69,6 +68,8 @@ if ($ARGV->{DEBUG}) {
 	print "DEBUG: $debug\n";
 }
 
+require "language/$conf{default_language}.pl";
+
 $DATE = $ARGV->{DATE} if ($ARGV->{DATE});
 
 if ($ARGV->{TYPE}) {
@@ -102,11 +103,6 @@ sub paysys_import_form {
   #Default import extration	
   my $import_expr = ($attr->{IMPORT_EXPR}) ? $attr->{IMPORT_EXPR} : '(\d+)\t(.+)\t(\d+)\t(\S+)\t([0-9.,]+)\t(\d{2}-\d{2}-\d{4})\t(.+)\t(.+):ID, FIO, PHONE, CONTRACT_ID, SUM, DATE, ADDRESS, DESCRIBE';
   
-  #if (defined($conf{PAYSYS_EMAIL_CHECK_ID})) {
-  #  $attr->{IMPORT_RULE}   = $conf{PAYSYS_EMAIL_CHECK_ID};
-  #  $attr->{BINDING_FIELDS}= $conf{'PAYSYS_IMPORT_BINDING_'.$conf{PAYSYS_EMAIL_CHECK_ID}};
-  # }
-
   #Default Binding field
   my $BINDING_FIELD = ($attr->{BINDING_FIELDS}) ? $attr->{BINDING_FIELDS} : 'CONTRACT_ID';
 
@@ -141,7 +137,8 @@ sub paysys_import_form {
 	}
   
   ($DATA_ARR, $BINDING_IDS)=payasys_import_parse($content, $import_expr, $BINDING_FIELD);
-#Make users binding hash
+
+  #Make users binding hash
   my $ids = join(', ', @$BINDING_IDS);
   my $users = Users->new($db, $admin, \%conf); 
   $ids =~ s/, /', '/g;
@@ -149,22 +146,26 @@ sub paysys_import_form {
  	                           PAGE_ROWS      => 1000000 
 	     	                   });
   $binding_field_id = 5;
+  $binding_field_id++ if ($conf{EXT_BILL_ACCOUNT});
   if ($BINDING_FIELD eq 'LOGIN') {
     $binding_field_id = 0;
    }
 
+
   foreach my $line (@$list) {
- 	  $binding_hash{lc($line->[$binding_field_id])}=$line->[5+$users->{SEARCH_FIELDS_COUNT}].":$line->[0]:$line->[1]";
+ 	  $binding_hash{lc($line->[$binding_field_id])}=$line->[5+$users->{SEARCH_FIELDS_COUNT}].":$line->[0]:". (($line->[1]) ? $line->[1] : '');
    }
 
 my $error = 0;
 for ( my $i = 0; $i<=$#{ $DATA_ARR }; $i++) {
   my $ID = $DATA_ARR->[$i]->{PAYSYS_EXT_ID} || $i;
+  $DATA_ARR->[$i]->{DATE} = $DATE if (! $DATA_ARR->[$i]->{DATE});
   if ($binding_hash{lc($DATA_ARR->[$i]->{$BINDING_FIELD})}) {
        my($uid, $login, $fio)=split(/:/, $binding_hash{lc($DATA_ARR->[$i]->{$BINDING_FIELD})});
        
        next if ($DATA_ARR->[$i]->{SUM} == 0);
-       $error          = 0;
+       $error             = 0;
+       $error_str         = '';
        my $user           = $users->info($uid);
        my $describe       = $DATA_ARR->[$i]->{DESCRIBE} || ''; 
        my $inner_describe = $DATA_ARR->[$i]->{INNER_DESCRIBE} || '';
@@ -178,19 +179,25 @@ for ( my $i = 0; $i<=$#{ $DATA_ARR }; $i++) {
 
        if ($ARGV->{TYPE} eq 'PAYMENTS') {
        	   if ($debug < 5) {
+       	   	  if (! $DATA_ARR->[$i]->{DATE} && $DATA_ARR->[$i]->{DATE_DMY}) {
+       	   	  	$DATA_ARR->[$i]->{DATE_DMY}=~/(\d{2})(\d{2})(\d{4})/;
+       	   	  	$DATA_ARR->[$i]->{DATE}="$3-$2-$1";
+       	   	   }
               $payments->add($user, { SUM  => $DATA_ARR->[$i]->{SUM},
                        DESCRIBE     => $describe, 
- 	                     METHOD       => $DATA_ARR->[$i]->{PAYMENT_METHOD} || 0, 
- 	                     DATE         => $DATA_ARR->[$i]->{DATE} || undef, 
+ 	                     METHOD       => $DATA_ARR->[$i]->{PAYMENT_METHOD} || 2, 
+ 	                     DATE         => $DATA_ARR->[$i]->{DATE}, 
                        EXT_ID       => "$DATA_ARR->[$i]->{DATE}.$attr->{IMPORT_RULE}.$ID",
                        CHECK_EXT_ID => "$DATA_ARR->[$i]->{DATE}.$attr->{IMPORT_RULE}.$ID",
                        INNER_DESCRIBE => $inner_describe
                         } );
             }
            if ($payments->{errno} && $payments->{errno} == 7) {
-             $error_str = "ERROR: EXIST: EXT_ID: $DATA_ARR->[$i]->{DATE}.$ID PaymetsID: $payments->{ID}\n";
+           	 $error_str = "ERROR: EXIST: EXT_ID: $DATA_ARR->[$i]->{DATE}.$ID\n";
              $error=1;
-             print $error_str;
+            }
+           else {
+             cross_modules_call('_payments_maked', { USER => $user, PAYMENT_ID => $payments->{PAYMENT_ID} });	
             }
          }
         elsif ($ARGV->{TYPE} eq 'FEES') {
@@ -207,9 +214,8 @@ for ( my $i = 0; $i<=$#{ $DATA_ARR }; $i++) {
            }
 
           if ($fees->{errno} && $fees->{errno} == 7) {
-           	$error_str .= "ERROR: EXIST: EXT_ID: $DATA_ARR->[$i]->{DATE}.$ID\n";
+           	$error_str = "ERROR: EXIST: EXT_ID: $DATA_ARR->[$i]->{DATE}.$ID\n";
            	$error=1;
-           	print $error_str;
            }
          }
 
@@ -219,9 +225,10 @@ for ( my $i = 0; $i<=$#{ $DATA_ARR }; $i++) {
           }
         }
        else {
-         $error_str .= "ERROR: NOT_EXIST $BINDING_FIELD - $DATA_ARR->[$i]->{$BINDING_FIELD} / $DATA_ARR->[$i]->{DATE} / $DATA_ARR->[$i]->{SUM}\n ";
-         print $error_str;
+         $error_str = "ERROR: NOT_EXIST BIND_FIELD: $BINDING_FIELD - $DATA_ARR->[$i]->{$BINDING_FIELD} DATE: $DATA_ARR->[$i]->{DATE} SUM: $DATA_ARR->[$i]->{SUM}\n ";
         }
+
+    print $error_str if ($error_str ne '');
 
     $total_count++;
     $total_sum+=$DATA_ARR->[$i]->{SUM};
@@ -302,7 +309,7 @@ sub payasys_import_parse {
              push @DATA_ARR, { %DATA_HASH };
              push @BINDING_IDS, $DATA_HASH{$BINDING_FIELD} if ($DATA_HASH{$BINDING_FIELD});
             }
-           else {
+           elsif ($line ne '') {
             print "'$line'<br>\n";	
            }
         }
@@ -349,8 +356,6 @@ if ($pop->login($username, $password)) {
     my $uidl = $pop->uidl($msgnum);
     my $msg  = $pop->get($msgnum);
     $full_message = join('', @$msg);
-    #print $full_message;
-
     my ($header, $message)=split(/\n\n/, $full_message, 2);
 
     # Parse header
@@ -361,7 +366,7 @@ if ($pop->login($username, $password)) {
     my $message_id = '';
     
     foreach $line (@lines) {
-    	if ($line =~ /boundary="(.+)"/) {
+    	if ($line =~ /boundary="(.+)"/i) {
     		$boundary = $1;
     	 }
       elsif ($line =~ /Subject: (.+)/) {
@@ -386,25 +391,29 @@ if ($pop->login($username, $password)) {
       	my $encoding  = '';
 
     	  my ($part_header, $part_body)=split(/\n\n/, $part, 2);
-    	  my @lines = split(/\n/,  $part_header);
+    	  my @lines = ();
+    	  @lines = split(/\n/,  $part_header) if ($part_header);
         foreach $line (@lines) {
-        	if ($line =~ /filename="(.+)"/) {
+        	if ($line =~ /filename="(.+)"/i) {
     		    $filename = $1;
     	     }
-          elsif ($line =~ /Content-Transfer-Encoding: (.+)/) {
+          elsif ($line =~ /Content-Transfer-Encoding: (.+)/i) {
           	$encoding = $1;
            }
          }
         
         if ($encoding eq 'base64') {
-        	$content .= decode_base64($part_body);
+        	$content .= "\n".decode_base64($part_body);
          }
 
        }
      }
     else {
-    	#print $message;
       $content .= $message;
+     }
+
+    if ($ARGV->{DECODE}) {
+   	  $content = convert($content, { $ARGV->{DECODE} => 1 });
      }
 
     if (paysys_import_form({ TYPE          => $ARGV->{TYPE},
@@ -434,7 +443,7 @@ if ($pop->login($username, $password)) {
            "2 (High)");
      }
    }
-}
+ }
 else {
   print "POP3 Error: Wrong login or password $!\n";
 }
@@ -494,6 +503,10 @@ if ($ftp->login("$username","$password")) {
 	     }
 	  close(FILE);
 
+    if ($ARGV->{DECODE}) {
+    	$content = convert($content, { $ARGV->{DECODE} => 1 });
+     }
+
     if (paysys_import_form({ TYPE          => $ARGV->{TYPE},
                              IMPORT_RULE   => $ARGV->{IMPORT_RULE},
                              IMPORT_RULES  => $conf{PAYSYS_IMPORT_RULES},
@@ -542,12 +555,10 @@ sub paysys_import {
 # Main iport  parser
 #**********************************************************
 sub help {
-	
 	my @import_types = ();
 	if ($conf{PAYSYS_IMPORT_RULES}) {
 	  @import_rules_arr = split(/,/, $conf{PAYSYS_IMPORT_RULES}) ;
    }
-
   my $import_rules = '';
   for(my $i=0; $i<=$#import_rules_arr; $i++) {
     $import_rules .= "      $i - $import_rules_arr[$i]\n";
@@ -556,7 +567,7 @@ sub help {
 print << "[END]"
 Paysys console interface:
 
-  TYPE=[PAYMENST|FEES] - Operation TYPE
+  TYPE=[PAYMENTS|FEES] - Operation TYPE
   IMPORT_RULE=         - for payments import type id
 $import_rules    
   EMAIL_CHECK=...      - Check E-mail for documents. E-mail box number. Default read all mailboxes with import rule.
@@ -574,9 +585,39 @@ $import_rules
   help                 - this help
 
 [END]
-	
 }
 
 
+#**********************************************************
+# Calls function for all registration modules if function exist 
+#
+# cross_modules_call(function_sufix, attr) 
+#**********************************************************
+sub cross_modules_call  {
+  my ($function_sufix, $attr) = @_;
+  
+  foreach my $mod (@MODULES) {
+  	my $lang_file = '';
+    my $realfilename = $Bin . "/../$mod/lng_$html->{language}.pl";
+      if (-f $realfilename) {
+        $lang_file =  $realfilename;
+        last;
+       }
+      elsif (-f $Bin . "/../$mod/lng_$html->{language}.pl") {
+      	$lang_file = $Bin . "/../$mod/lng_$html->{language}.pl";
+       }
+
+    if ($lang_file ne '') {
+    	print $lang_file;
+      require $lang_file;
+     }
+  	
+     require "Abills/modules/$mod/webinterface";
+     my $function = lc($mod).$function_sufix;
+     if (defined(&$function)) {
+     	  $function->($attr);
+      }
+   }
+}
 
 1

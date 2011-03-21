@@ -18,6 +18,7 @@ $VERSION = 2.00;
 
 use main;
 @ISA  = ("main");
+my $MODULE='Docs';
 
 
 #**********************************************************
@@ -26,14 +27,9 @@ use main;
 sub new {
   my $class = shift;
   ($db, $admin, $CONF) = @_;
+  $admin->{MODULE}=$MODULE;
   my $self = { };
   bless($self, $class);
-
-  if ($CONF->{DELETE_USER}) {
-    $self->{UID}=$CONF->{DELETE_USER};
-    $self->del({ UID => $CONF->{DELETE_USER} });
-   }
-
   $CONF->{DOCS_ACCOUNT_EXPIRE_PERIOD}=30 if (! $CONF->{DOCS_ACCOUNT_EXPIRE_PERIOD});
   return $self;
 }
@@ -115,6 +111,7 @@ sub docs_invoice_list {
    pi.address_build,
    pi.address_flat,
    if (d.phone<>0, d.phone, pi.phone),
+   pi.contract_id,
    pi.contract_date,
    u.id";
   }
@@ -240,14 +237,15 @@ sub docs_invoice_add {
 
   $DATA{DATE}       = ($attr->{DATE})    ? "'$attr->{DATE}'" : 'now()';
   $DATA{INVOICE_ID} = ($attr->{INVOICE_ID}) ? $attr->{INVOICE_ID}  : $self->docs_nextid({ TYPE => 'INVOICE' });
+  $DATA{CUSTOMER}   =~ s/\'/\\\'/;
 
   $self->query($db, "insert into docs_invoice (invoice_id, date, created, customer, phone, aid, uid,
     by_proxy_seria,
     by_proxy_person,
     by_proxy_date,
     payment_id)
-      values ('$DATA{INVOICE_ID}', $DATA{DATE}, now(), \"$DATA{CUSTOMER}\", \"$DATA{PHONE}\", 
-      \"$admin->{AID}\", \"$DATA{UID}\",
+      values ('$DATA{INVOICE_ID}', $DATA{DATE}, now(), '$DATA{CUSTOMER}', '$DATA{PHONE}', 
+      '$admin->{AID}', '$DATA{UID}',
       '$DATA{BY_PROXY_SERIA}',
       '$DATA{BY_PROXY_PERSON}',
       '$DATA{BY_PROXY_DATE}',
@@ -257,18 +255,16 @@ sub docs_invoice_add {
   $self->{DOC_ID}=$self->{INSERT_ID};
   
   
-  
   foreach my $line (@{ $attr->{ORDERS} }) {
     my ($order, $unit, $count,  $sum)=split(/\|/, $line, 4);
+    $order =~ s/\'/\\\'/g;
     $self->query($db, "INSERT INTO docs_invoice_orders (invoice_id, orders, counts, unit, price)
-      values ($self->{DOC_ID}, \"$order\", '$count', '$unit', '$sum')", 'do');
+      values ($self->{DOC_ID}, '$order', '$count', '$unit', '$sum')", 'do');
   }
 
   return $self if($self->{errno});
-  
   $self->{INVOICE_ID}=$DATA{INVOICE_ID};
   $self->docs_invoice_info($self->{DOC_ID});
-
 	return $self;
 }
 
@@ -285,7 +281,7 @@ sub docs_invoice_del {
     #$self->query($db, "DELETE FROM docs_acct WHERE uid='$id'", 'do');
    }
   else {
-    $self->query($db, "DELETE FROM docs_invoice_orders WHERE acct_id='$id'", 'do');
+    $self->query($db, "DELETE FROM docs_invoice_orders WHERE invoice_id='$id'", 'do');
     $self->query($db, "DELETE FROM docs_invoice WHERE id='$id'", 'do');
    }
 
@@ -372,7 +368,8 @@ sub accounts_list {
 
  $WHERE = ($#WHERE_RULES > -1) ? 'WHERE ' . join(' and ', @WHERE_RULES)  : '';
 
- $self->query($db,   "SELECT d.acct_id, d.date, if(d.customer='-' or d.customer='', pi.fio, d.customer),  sum(o.price * o.counts), d.payment_id, u.id, a.name, d.created, p.method, d.uid, d.id $self->{EXT_FIELDS}
+ $self->query($db,   "SELECT d.acct_id, d.date, if(d.customer='-' or d.customer='', pi.fio, d.customer),  sum(o.price * o.counts), 
+     d.payment_id, u.id, a.name, d.created, p.method, d.uid, d.id $self->{EXT_FIELDS}
     FROM (docs_acct d, docs_acct_orders o)
     LEFT JOIN users u ON (d.uid=u.uid)
     LEFT JOIN admins a ON (d.aid=a.aid)
@@ -451,11 +448,9 @@ sub account_add {
   $DATA{DATE}    = ($attr->{DATE})    ? "'$attr->{DATE}'" : 'now()';
   $DATA{ACCT_ID} = ($attr->{ACCT_ID}) ? $attr->{ACCT_ID}  : $self->docs_nextid({ TYPE => 'ACCOUNT' });
 
-  
-
-  $self->query($db, "insert into docs_acct (acct_id, date, created, customer, phone, aid, uid)
+  $self->query($db, "insert into docs_acct (acct_id, date, created, customer, phone, aid, uid, payment_id)
       values ('$DATA{ACCT_ID}', $DATA{DATE}, now(), \"$DATA{CUSTOMER}\", \"$DATA{PHONE}\", 
-      \"$admin->{AID}\", \"$DATA{UID}\");", 'do');
+      \"$admin->{AID}\", \"$DATA{UID}\", '$DATA{PAYMENT_ID}');", 'do');
  
   return $self if($self->{errno});
   $self->{DOC_ID}=$self->{INSERT_ID};
@@ -498,7 +493,7 @@ sub account_del {
 
   if ($id == 0 && $attr->{UID}) {
     #$self->query($db, "DELETE FROM docs_acct_orders WHERE acct_id='$id'", 'do');
-    #$self->query($db, "DELETE FROM docs_acct WHERE uid='$id'", 'do');
+    #$self->query($db, "DELETE FROM docs_acct WHERE uid='$uid'", 'do');
    }
   else {
     $self->query($db, "DELETE FROM docs_acct_orders WHERE acct_id='$id'", 'do');
@@ -536,14 +531,15 @@ sub account_info {
    pi.contract_date,
    d.date + interval $CONF->{DOCS_ACCOUNT_EXPIRE_PERIOD} day,
    u.company_id,
-   c.name
-   
-   
+   c.name,
+   d.payment_id,
+   p.method
     FROM (docs_acct d, docs_acct_orders o)
     LEFT JOIN users u ON (d.uid=u.uid)
     LEFT JOIN companies c ON (u.company_id=c.id)
     LEFT JOIN users_pi pi ON (pi.uid=u.uid)
     LEFT JOIN admins a ON (d.aid=a.aid)
+    LEFT JOIN payments p ON (d.payment_id=p.id)
     WHERE d.id=o.acct_id and d.id='$id' $WHERE
     GROUP BY d.id;");
 
@@ -572,7 +568,9 @@ sub account_info {
    $self->{CONTRACT_DATE},
    $self->{EXPIRE_DATE},
    $self->{COMPANY_ID},
-   $self->{COMPANY_NAME}
+   $self->{COMPANY_NAME},
+   $self->{PAYMENT_ID},
+   $self->{PAYMENT_METHOD_ID}
   )= @{ $self->{list}->[0] };
 	
   
@@ -607,13 +605,14 @@ sub account_change {
 
   my $old_info =   $self->account_info($attr->{ID});
 
+  $admin->{MODULE}=$MODULE;
   $self->changes($admin,  { CHANGE_PARAM => 'ID',
                    TABLE        => 'docs_acct',
                    FIELDS       => \%FIELDS,
                    OLD_INFO     => $old_info,
-                   DATA         => $attr
+                   DATA         => $attr,
+                   EXT_CHANGE_INFO  => 'ACCT'
                   } );
-
 
   return $self;
 }
@@ -625,7 +624,14 @@ sub account_change {
 #**********************************************************
 sub del {
  my $self = shift;
+ my ($attr) = @_;
 
+ $self->query($db, "DELETE FROM docs_acct_orders WHERE acct_id IN (SELECT id FROM docs_acct WHERE uid='$attr->{UID}')", 'do');
+ $self->query($db, "DELETE FROM docs_acct WHERE uid='$attr->{UID}'", 'do');
+ $self->query($db, "DELETE FROM docs_invoice_orders WHERE invoice_id IN (SELECT id FROM docs_invoice WHERE uid='$attr->{UID}')", 'do');
+ $self->query($db, "DELETE FROM docs_invoice WHERE uid='$attr->{UID}'", 'do');
+
+ return $self;
 }
 
 

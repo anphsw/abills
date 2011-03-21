@@ -1,6 +1,9 @@
 <TABLE border='0' width=100%>
 
-<TR><TD align=center><a class=link_button href='$SELF_URL?index=$index&deligate=$FORM{chg}&level=%DELIGATED%'>$_DELIGATE (%DELIGATED%)</a></TD></TR>
+<TR><TD align=center>
+<b>$_COMPETENCE</b><br><a class=link_button href='$SELF_URL?index=$index&deligate=$FORM{chg}&level=%DELIGATED_DOWN%'>$_DOWN (%DELIGATED_DOWN%)</a>&nbsp;
+<a class=link_button href='$SELF_URL?index=$index&deligate=$FORM{chg}&level=%DELIGATED%'>$_UP (%DELIGATED%)</a>
+</TD></TR>
 
 <TR><TD><b>$_USER:</b> </TD></TR>
 <TR><TD>%USER_READ%</TD></TR>
@@ -11,7 +14,8 @@
 
 <TR><TD><b>$_RESPOSIBLE:</b></td></tr>
 <TR><TD>%RESPOSIBLE%</TD></TR>
-<TR><TD><b>$_INNER:</b> %INNER_MSG%</TD></TR>
+<TR><TD><b>$_INNER:</b> %INNER_MSG_TEXT%</TD></TR>
+<TR><TD><b>$_ADMIN:</b> %A_NAME%</TD></TR>
 <TR><TD><b>$_PHONE:</b> %PHONE%</TD></TR>
 
 <TR><TD>&nbsp;</TD></TR>
@@ -30,3 +34,4 @@
 
 <TR><TD align=center><input type=submit name=change value='$_CHANGE' class='noprint'></TD></TR>
 </TABLE>
+

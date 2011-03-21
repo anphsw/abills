@@ -33,6 +33,7 @@ $VERSION = 2.00;
   &tpl_parse
   &encode_base64
   &cfg2hash
+  &clearquotes
  );
 
 @EXPORT_OK = ();
@@ -205,16 +206,25 @@ sub win2utf8 {
 
 #**********************************************************
 # http://www.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/WINDOWS/CP1251.TXT
+# http://www.utf8-chartable.de/unicode-utf8-table.pl
 #**********************************************************
 sub utf82win {
 	my ($text)=@_;
+	
   my @ChArray=split('',$text);
   my $Unicode='';
   my $Code='';
   for(@ChArray){
     $Code=ord;
-    #return $Code;
-    if(($Code>=0xc0+0x350)&&($Code<=0xff+0x350)){$Unicode.=chr($Code-0x350);}
+    if($Code==0x0406) { $Unicode.=chr(0xB2); }
+    elsif($Code==0x0454)    { $Unicode.=chr(0xBA); } #
+    elsif($Code==0x0456)    { $Unicode.=chr(0xB3); } # CYRILLIC SMALL LETTER BYELORUSSIAN-UKRAINIAN I
+    elsif($Code==0x0491)    { $Unicode.=chr(0xB4); } # 
+    elsif($Code==0x0457)    { $Unicode.=chr(0xBF); }
+    elsif(($Code>=0x410)&&($Code<=0xff+0x44f)){$Unicode.=chr($Code-0x350);}
+    elsif($Code==0x404)     { $Unicode.=chr(0xAA); }
+    elsif($Code==0x407)     { $Unicode.=chr(0xAF); }
+    elsif($Code==0x2116)    { $Unicode.=chr(0xB9); }
     elsif($Code==0xa8+0x350){$Unicode.=chr(0x401-0x350);}
     elsif($Code==0xb8+0x350){$Unicode.=chr(0x451-0x350);}
     elsif($Code==0xb3+0x350){$Unicode.=chr(0x456-0x350);}
@@ -223,11 +233,18 @@ sub utf82win {
     elsif($Code==0xb2+0x350){$Unicode.=chr(0x406-0x350);}
     elsif($Code==0xaf+0x350){$Unicode.=chr(0x407-0x350);}
     elsif($Code==0xbf+0x350){$Unicode.=chr(0x457-0x350);}
-    else{$Unicode.=$_;}
+    #elsif($Code==0x49){ $Unicode.='I';     	}
+    #elsif($Code==0x69){ $Unicode.='i';     	}
+    #elsif($Code==0x3F){ $Unicode.='?';     	}
+    #elsif($Code==0x20){ $Unicode.=' ';     	}
+    #elsif($Code==0x2C){ $Unicode.=',';     	}
+    #elsif($Code==0x2E){ $Unicode.='.';     	}
+    #elsif($Code==0x64){ $Unicode.='d';     	}
+    else{ $Unicode.= $_;  	}
    }
 
   return $Unicode;
- }
+}
 
 #**********************************************************
 # Parse comand line arguments
@@ -268,6 +285,8 @@ sub sendmail {
     	$header .= "$line\n";
      }	
    }
+
+#  $attr->{TEST}=1;
   
   $message =~ s/#.+//g;
   if ($message =~ s/Subject: (.+)//g ) {
@@ -283,37 +302,33 @@ sub sendmail {
   	$to_addresses=$1;
    }
 
-  
   $to_addresses =~ s/[\n\r]//g;
 
   if ($attr->{ATTACHMENTS}) {
-  	my $boundary = "_----------=_10167391557129230";
-  	$header .= "Content-Type: multipart/mixed; boundary=\"$boundary\"\n";
+        my $boundary = "----------581DA1EE12D00AAA";
+        $header .= "MIME-Version: 1.0
+Content-Type: multipart/mixed;\n boundary=\"$boundary\"\n";
 
-$message = qq{
-This is a multi-part message in MIME format. 
+$message = qq{--$boundary
+Content-Type: text/plain; charset=windows-1251
+Content-Transfer-Encoding: quoted-printable
 
---$boundary
-Content-Transfer-Encoding: binary
-Content-Type: text/plain
-
-$message
-};
+$message};
   	
     foreach my $attachment ( @{ $attr->{ATTACHMENTS} } ) {
   	  my $data = encode_base64($attachment->{CONTENT});
   	  $message .=  qq{ 
-
 --$boundary
-Content-Type: $attachment->{CONTENT_TYPE}; name="$attachment->{FILENAME}" 
-Content-Transfer-Encoding: base64 
-Content-Disposition: attachment; filename="$attachment->{FILENAME}" 
+Content-Type: $attachment->{CONTENT_TYPE};\n name="$attachment->{FILENAME}"
+Content-transfer-encoding: base64
+Content-Disposition: attachment;\n filename="$attachment->{FILENAME}"
 
-$data  	  
-}
+$data}
  	
     }
+$message .= "--$boundary"."--\n\n";
   }
+
   my @emails_arr = split(/;/, $to_addresses);
   foreach my $to (@emails_arr) {
     if ($attr->{TEST}) {
@@ -329,8 +344,9 @@ $data
       open(MAIL, "| $SENDMAIL -t $to") || die "Can't open file '$SENDMAIL' $!\n";
         print MAIL "To: $to\n";
         print MAIL "From: $from\n";
-        print MAIL "Content-Type: text/plain; charset=$charset\n";
+        print MAIL "Content-Type: text/plain; charset=$charset\n" if (! $attr->{ATTACHMENTS});
         print MAIL "X-Priority: $priority\n" if ($priority);
+        print MAIL "X-Mailer: ABillS\n";
         print MAIL $header;
         print MAIL "Subject: $subject \n\n";
         print MAIL "$message";
@@ -384,12 +400,10 @@ sub show_log {
        }
       
       if (defined($attr->{LOG_TYPE}) && "$log_type" ne "$attr->{LOG_TYPE}:") {
-      	#print "0";
       	next;
        }
 
       if (defined($attr->{DATE}) && $date ne $attr->{DATE}) {
-      	#print "0";
       	next;
        }
       
@@ -757,7 +771,7 @@ sub encode_base64 ($;$) {
     $res =~ s/.{$padding}$/'=' x $padding/e if $padding;
     # break encoded string into lines of no more than 76 characters each
     if (length $eol) {
-	$res =~ s/(.{1,76})/$1$eol/g;
+	$res =~ s/(.{1,72})/$1$eol/g;
     }
     return $res;
 }
@@ -799,6 +813,7 @@ sub check_time {
 #**********************************************************
 sub get_radius_params {
  my %RAD=();
+
  if ($#ARGV > 1) {
     foreach my $pair (@ARGV) {
         my ($side, $value) = split(/=/, $pair, 2);
@@ -830,17 +845,18 @@ sub get_radius_params {
 
 #**********************************************************
 # For clearing quotes
-# clearquotes( $text )
+# clearquotes( $text, $attr_hash )
 #**********************************************************
 sub clearquotes {
- my $text = shift;
+ my ($text,$attr) = @_;
  if ($text ne '""') {
-   $text =~ s/\"//g;
+   my $extra = $attr->{EXTRA} || '';
+   $text =~ s/\"$extra//g;
   }
  else {
  	 $text = '';
   }
- return "$text";
+ return $text;
 }
 
 #**********************************************************

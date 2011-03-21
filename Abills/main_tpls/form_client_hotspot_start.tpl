@@ -1,4 +1,14 @@
 <html>
+<head>
+ %REFRESH%
+ <META HTTP-EQUIV=\"Cache-Control\" content=\"no-cache,no-cache,no-store,must-revalidate\"/>
+ <META HTTP-EQUIV=\"Expires\" CONTENT=\"-1\"/>
+ <META HTTP-EQUIV=\"Pragma\" CONTENT=\"no-cache\"/>
+ <META HTTP-EQUIV=\"Content-Type\" CONTENT=\"text/html; charset=%CHARSET%\"/>
+ <META name=\"Author\" content=\"~AsmodeuS~\"/>
+ <META HTTP-EQUIV=\"content-language\" content=\"%CONTENT_LANGUAGE%\"/>
+</head>
+
 <style type=\"text/css\">
 
 body {
@@ -50,6 +60,24 @@ select {
         background : #EEEEEE;
 }
 
+.table_title {
+  background-color: $_COLORS[0];
+  color: $_COLORS[9];
+  height: 24;
+  text-align: center;
+  font-family: Arial, Tahoma, Verdana, Helvetica, sans-serif;
+  font-size: 12px;
+}
+
+.form_title {
+  background-color: $_COLORS[0];
+  color: $_COLORS[9];
+  height: 20;
+  font-family: Arial, Tahoma, Verdana, Helvetica, sans-serif;
+  font-size: 12px;
+  text-align:right;
+}
+
 </style>
 <body style='margin: 0' bgcolor='#FFFFFF' text='#000000' link='#0000A0'  vlink='#000088'>
 
@@ -94,14 +122,15 @@ Domain ID: %DOMAIN_ID% Domain name: %DOMAIN_NAME%<br>
 <table width=400>
 <tr><th class=title bgcolor=$_COLORS[0] colspan=2>$_ICARDS $_INFO</th></tr>
 <tr><td>PIN:</td><td><input type=text name=PIN value='' size=30><input type=submit name=1 value='$_INFO'></td></tr>
+</table>
+</form>
 
+%CARDS_BUY%
 
 %SELL_POINTS%
 
-
 </center>
 
-</table>
 
 
 </body>

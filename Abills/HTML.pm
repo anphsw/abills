@@ -1,6 +1,7 @@
 package Abills::HTML;
 #HTML visualisation functions
 
+
 use strict;
 use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION %h2
    @_COLORS
@@ -17,7 +18,6 @@ use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION %h2
    $DESC
    $PG
    $PAGE_ROWS
-   $OP
    $SELF_URL
    $SESSION_IP
    @MONTHES
@@ -44,7 +44,6 @@ $VERSION = 2.00;
    $DESC
    $PG
    $PAGE_ROWS
-   $OP
    $SELF_URL
    $SESSION_IP
 );
@@ -52,7 +51,7 @@ $VERSION = 2.00;
 @EXPORT_OK = ();
 %EXPORT_TAGS = ();
 
-my $bg='';
+my $class = '';
 my $debug;
 my %log_levels;
 my $IMG_PATH;
@@ -68,8 +67,7 @@ my $row_number = 0;
 sub new {
   my $class = shift;
   my ($attr) = @_;
-  
-  
+
   $IMG_PATH = (defined($attr->{IMG_PATH})) ? $attr->{IMG_PATH} : '../img/';
   $CONF = $attr->{CONF} if (defined($attr->{CONF}));
 
@@ -81,7 +79,6 @@ sub new {
    }
  
   $self->{OUTPUT}='';
-
   $self->{colors} = $attr->{colors} if (defined($attr->{colors}));
  
   %FORM    = form_parse();
@@ -90,7 +87,6 @@ sub new {
   $SORT    = $FORM{sort} || 1;
   $DESC    = ($FORM{desc}) ? 'DESC' : '';
   $PG      = $FORM{pg} || 0;
-  $OP      = $FORM{op} || '';
   $self->{CHARSET}=(defined($attr->{CHARSET})) ? $attr->{CHARSET} : 'windows-1251';
    
   if ($FORM{PAGE_ROWS}) {
@@ -119,8 +115,7 @@ sub new {
   $SELF_URL = (defined($ENV{HTTP_HOST})) ? "$prot://$ENV{HTTP_HOST}$ENV{SCRIPT_NAME}" : '';
 
   $SESSION_IP = $ENV{REMOTE_ADDR} || '0.0.0.0';
-
-  
+ 
   @_COLORS = ('#FDE302',  # 0 TH
             '#FFFFFF',  # 1 TD.1
             '#eeeeee',  # 2 TD.2
@@ -139,13 +134,10 @@ sub new {
 	                 PG        => $PG,
 	                 PAGE_ROWS => $PAGE_ROWS,
 	                );
-
   %functions = ();
-  
   $pages_qs = '';
   $index = $FORM{index} || 0;
-  
-  
+
   if ($attr->{language}) {
     $self->{language}=$attr->{language};
    }
@@ -173,15 +165,15 @@ sub new {
       print "Can't load 'PDF::API2'. Get it from http://cpan.org $@";
       exit; #return 0;
      }
-
    }
   elsif (defined($FORM{xml})) {
     require Abills::XML;
     $self = Abills::XML->new( { IMG_PATH  => $IMG_PATH,
 	                              NO_PRINT  => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1 ,
-	                              CONF      => $CONF 
+	                              CONF      => $CONF,
+	                              CHARSET   => $attr->{CHARSET}
 	                            });
-  }
+   }
 
   return $self;
 }
@@ -268,10 +260,13 @@ else {
       else {
 	     ($blankline, $datas) = split(/[\r]\n/, $datas, 2);
         if (grep(/^$name$/, keys(%FORM))) {
-        #	print "Content-Type: text/html\n\n";
-        #	print "/$name // $FORM{$name}<br>";
+#        	print "Content-Type: text/html\n\n";
+#        	print "/$name // $FORM{$name}<br>";
         	
-          if (@{ $FORM{$name} } > 0) {
+          if (defined($FORM{$name})) {
+             $FORM{$name} .= ", $datas";
+           }   
+          elsif (@{ $FORM{$name} } > 0) {
             push(@{$FORM{$name}}, $datas);
            }
           else {
@@ -371,11 +366,13 @@ sub form_main {
   my $self = shift;
   my ($attr)	= @_;
 	
-	my $METHOD = ($attr->{METHOD}) ? $attr->{METHOD} : 'POST';
-	$self->{FORM} =  "<FORM ";
-	$self->{FORM} .= "name=\"$attr->{NAME}\" " if ($attr->{NAME});
-	$self->{FORM} .= "enctype=\"$attr->{ENCTYPE}\" " if ($attr->{ENCTYPE});
-	$self->{FORM} .= "action=\"$SELF_URL\" METHOD=\"$METHOD\">\n";
+  my $METHOD = ($attr->{METHOD}) ? $attr->{METHOD} : 'POST';
+  $self->{FORM} =  "<FORM ";
+  $self->{FORM} .= "ID=\"$attr->{ID}\" " if ($attr->{ID});
+  $self->{FORM} .= "name=\"$attr->{NAME}\" " if ($attr->{NAME});
+  $self->{FORM} .= "enctype=\"$attr->{ENCTYPE}\" " if ($attr->{ENCTYPE});
+       
+  $self->{FORM} .= "action=\"$SELF_URL\" METHOD=\"$METHOD\">\n";
 
   if (defined($attr->{HIDDEN})) {
   	my $H = $attr->{HIDDEN};
@@ -427,13 +424,11 @@ sub form_select {
       $self->{SELECT} .= ">". $attr->{SEL_OPTIONS}->{$k} ."\n";	
      }
    }
-  
-  
+
   if (defined($attr->{SEL_ARRAY})){
 	  my $H = $attr->{SEL_ARRAY};
 	  my $i=0;
-	  
-  
+
 	  foreach my $v (@$H) {
       my $id = (defined($attr->{ARRAY_NUM_ID})) ? $i : $v;
       $self->{SELECT} .= "<option value='$id'";
@@ -446,7 +441,12 @@ sub form_select {
   elsif (defined($attr->{SEL_MULTI_ARRAY})){
     my $key   = $attr->{MULTI_ARRAY_KEY};
     my $value = $attr->{MULTI_ARRAY_VALUE};
-	  my $H = $attr->{SEL_MULTI_ARRAY};
+	  my $H     = $attr->{SEL_MULTI_ARRAY};
+    my @MULTI_ARRAY_VALUE_PREFIX = ();
+
+    if ($attr->{MULTI_ARRAY_VALUE_PREFIX}) {
+    	@MULTI_ARRAY_VALUE_PREFIX = split(/,/, $attr->{MULTI_ARRAY_VALUE_PREFIX});
+     }
 
 	  foreach my $v (@$H) {
       $self->{SELECT} .= "<option value='$v->[$key]'";
@@ -457,8 +457,10 @@ sub form_select {
 
       if ($value =~ /,/) {
       	my @values = split(/,/, $value);
+      	my $key_num = 0;
       	foreach my $val_keys (@values) {
-      	  $self->{SELECT} .= $v->[int($val_keys)]."; ";	
+      	  $self->{SELECT} .= (($attr->{MULTI_ARRAY_VALUE_PREFIX} && $MULTI_ARRAY_VALUE_PREFIX[$key_num]) ? ' '.$MULTI_ARRAY_VALUE_PREFIX[$key_num] : "; ") . $v->[int($val_keys)];	
+      	  $key_num++;
       	 }
        }
       else {
@@ -472,7 +474,10 @@ sub form_select {
 
 	  if ($attr->{SORT_KEY}) {
 	  	@H = sort keys %{ $attr->{SEL_HASH} };
-	  }
+	   }
+	  elsif ($attr->{SORT_KEY_NUM}) {
+	  	@H = sort { $a <=> $b } keys %{ $attr->{SEL_HASH} };
+	   }
 	  else {
 	    @H = sort {
              $attr->{SEL_HASH}->{$a} cmp $attr->{SEL_HASH}->{$b}
@@ -487,10 +492,23 @@ sub form_select {
           $self->{SELECT} .= "<option value='$val'";
           $self->{SELECT} .= " style='COLOR:$attr->{STYLE}->[$val];' " if ($attr->{STYLE});
           $self->{SELECT} .=' selected' if (defined($attr->{SELECTED}) && $val eq $attr->{SELECTED});
-
           $self->{SELECT} .= ">";
           #$self->{SELECT} .= "$val:" if (! $attr->{NO_ID});
           $self->{SELECT} .= "$val\n";	
+         }
+         $self->{SELECT}.="</optgroup>";
+       }
+      elsif(ref $attr->{SEL_HASH}->{$k} eq 'HASH') {
+        $self->{SELECT}.="<optgroup label=\"$k\" title=\"$k\">\n";
+
+        foreach my $val ( sort keys %{ $attr->{SEL_HASH}->{$k} } ) {
+          $self->{SELECT} .= "<option value='$val'";
+          $self->{SELECT} .= " style='COLOR:$attr->{STYLE}->[$val];' " if ($attr->{STYLE});
+           if (defined($attr->{SELECTED}) && $val eq $attr->{SELECTED}) {
+            $self->{SELECT} .=' selected'	
+           }
+          $self->{SELECT} .= ">";
+          $self->{SELECT} .= "$attr->{SEL_HASH}->{$k}->{$val}\n";	
          }
          $self->{SELECT}.="</optgroup>";
        }
@@ -504,36 +522,8 @@ sub form_select {
        }
      }
    }
-#  elsif (defined($attr->{SEL_HASH_GROUP})) {
-#    my @H = ();
-#
-#	  if ($attr->{SORT_KEY}) {
-#	  	@H = sort keys %{ $attr->{SEL_HASH} };
-#	  }
-#	  else {
-#	    @H = sort {
-#             $attr->{SEL_HASH_GROUP}->{$a} cmp $attr->{SEL_HASH_GROUP}->{$b}
-#           } keys %{ $attr->{SEL_HASH_GROUP} }; 
-#     }
-#    
-#    foreach my $k_main (@H) {
-#      $self->{SELECT}.="<optgroup label=\"$k_main\" title=\"$k_main\">\n";
-#
-#      while(my ($k, $v)=each %{ $attr->{SEL_HASH_GROUP}->{$k_main} } ) {
-#        $self->{SELECT} .= "<option value='$k'";
-#        $self->{SELECT} .= " style='COLOR:$attr->{STYLE}->[$k];' " if ($attr->{STYLE});
-#        $self->{SELECT} .=' selected' if (defined($attr->{SELECTED}) && $k eq $attr->{SELECTED});
-#
-#        $self->{SELECT} .= ">";
-#        $self->{SELECT} .= "$k:" if (! $attr->{NO_ID});
-#        $self->{SELECT} .= "$attr->{SEL_HASH}{$k}\n";	
-#       }
-#      $self->{SELECT}.="</optgroup>";
-#     }
-#   }
-	
-	$self->{SELECT} .= "</select>\n";
 
+	$self->{SELECT} .= "</select>\n";
 	return $self->{SELECT};
 }
 
@@ -639,9 +629,8 @@ my @s = sort {
 
 
 foreach my $ID (@s) {
- 	my $VALUE_HASH = $menu_items->{$ID};
- 	foreach my $parent (keys %$VALUE_HASH) {
- 		#print "$parent, $ID<br>";
+  my $VALUE_HASH = $menu_items->{$ID};
+  foreach my $parent (keys %$VALUE_HASH) {
     push( @{$menu{$parent}},  "$ID:$VALUE_HASH->{$parent}" );
    }
 }
@@ -651,7 +640,7 @@ foreach my $ID (@s) {
  my $menu_text = "
  <div class='menu_top'></div>
  <div class='menu_main'>
- <table border='0' width='100%'>\n";
+ <table border='0' width='100%' cellspacing='2'>\n";
 
  	  my $level  = 0;
  	  my $prefix = '';
@@ -673,18 +662,18 @@ foreach my $ID (@s) {
        	   my $ext_args = "$EX_ARGS";
        	   if (defined($menu_args->{$ID})) {
        	     $ext_args = "&$menu_args->{$ID}=$FORM{$menu_args->{$ID}}";
-       	     $name = "<b>$name</b>" if ($name !~ /<b>/);
+       	     $name = $self->b($name) if ($name !~ /<b>/);
        	    }
 
        	   my $link = $self->button($name, "index=$ID$ext_args");
     	       if($parent == 0) {
- 	        	   $menu_text .= "<tr><td bgcolor=\"$_COLORS[3]\" align=left class=menu_cel_main>$prefix$link</td></tr>\n";
+ 	        	   $menu_text .= "<tr class='odd'><td class=menu_cel_main>$prefix$link</td></tr>\n";
 	            }
  	           elsif(defined($tree{$ID})) {
-   	           $menu_text .= "<tr><td bgcolor=\"$_COLORS[2]\" align=left class=menu_cel>$prefix>$link</td></tr>\n";
+   	           $menu_text .= "<tr><td class=menu_cel>$prefix>$link</td></tr>\n";
  	            }
  	           else {
- 	             $menu_text .= "<tr><td bgcolor=\"$_COLORS[1]\" class=menu_cel>$prefix$link</td></tr>\n";
+ 	             $menu_text .= "<tr><td class=menu_cel>$prefix$link</td></tr>\n";
  	            }
          }
         else {
@@ -704,7 +693,6 @@ foreach my $ID (@s) {
 
     if ($#last_array > -1) {
       $parent = pop @last_array;	
-      #print "POP/$#last_array/$parent/<br>\n";
       $level--;
       $prefix = substr($prefix, 0, $level * 6 * 3);
       goto label;
@@ -727,15 +715,12 @@ sub header {
  my $admin_ip    = $ENV{REMOTE_ADDR};
  $self->{header} = "Content-Type: text/html\n\n";
 
-
  if ($self->{colors}) {
    @_COLORS = split(/, /, $self->{colors});
   }
  elsif (defined($COOKIES{colors}) && $COOKIES{colors} ne '') {
    @_COLORS = split(/, /, $COOKIES{colors});
   }
-
-
 
  my %info = (
   JAVASCRIPT => 'functions.js',
@@ -758,6 +743,7 @@ sub header {
  $info{title}   = ($CONF->{WEB_TITLE}) ? $CONF->{WEB_TITLE} : "~AsmodeuS~ Billing System";
  $info{REFRESH} = ($FORM{REFRESH}) ? "<META HTTP-EQUIV=\"Refresh\" CONTENT=\"$FORM{REFRESH}; URL=$ENV{REQUEST_URI}\"/>\n" : '';
  $info{CHARSET} = $self->{CHARSET};
+ $info{CONTENT_LANGUAGE}=$attr->{CONTENT_LANGUAGE} if ($attr->{CONTENT_LANGUAGE});
 
  $self->{header} .= $self->tpl_show($self->{METATAGS}, \%info, { OUTPUT2RETURN => 1  });
  return $self->{header};
@@ -813,6 +799,11 @@ sub table {
    $self->{table} .= "<TR><TD bgcolor=\"$_COLORS[1]\" align=\"right\" class=\"tcaption\"><b>$attr->{caption}</b></td></TR>\n";
   }
 
+ if (defined($attr->{VIEW})) {
+   $self->{table} .= "<TR><TD bgcolor=\"$_COLORS[1]\" align=\"right\" class=\"tcaption\">$attr->{VIEW}</td></TR>\n";
+  }
+
+
  if( $attr->{header}) {
    $self->{table} .= "<tr><td bgcolor=\"$_COLORS[1]\"><div id=\"rules\"><ul><li class=\"center\"> $attr->{header} </li></ul></div></td></tr>\n";
   }
@@ -823,9 +814,8 @@ sub table {
  
 
  if (defined($attr->{title})) {
-   #print "--- $SORT // | $FORM{sort} | $LIST_PARAMS{SORT} //";
    $SORT = $LIST_PARAMS{SORT};
- 	 $self->{table} .= $self->table_title($SORT, $DESC, $PG, $OP, $attr->{title}, $attr->{qs});
+ 	 $self->{table} .= $self->table_title($SORT, $DESC, $PG, $attr->{title}, $attr->{qs});
   }
  elsif(defined($attr->{title_plain})) {
    $self->{table} .= $self->table_title_plain($attr->{title_plain});
@@ -853,9 +843,6 @@ sub table {
  	   if($FORM{index}) {
  	   	 $op = "index=$FORM{index}";
  	    }
- 	   else {
- 	   	 $op = "op=$OP";
- 	    }
  	   my %ATTR = ();
  	   if (defined($attr->{recs_on_page})) {
  	   	 $ATTR{recs_on_page}=$attr->{recs_on_page};
@@ -874,20 +861,24 @@ sub addrow {
   my (@row) = @_;
 
   if ($self->{rowcolor}) {
-    $bg = $self->{rowcolor};
+    if ($self->{rowcolor} =~ /^#/) {
+    	$class = "' bgcolor='$self->{rowcolor}'";
+     }
+    else {
+      $class = "$self->{rowcolor}";
+     }
    }  
   else {
-  	$bg = ($bg eq $_COLORS[1]) ? $_COLORS[2] : $_COLORS[1];
+  	$class = ($class eq 'odd') ? 'even' : 'odd';
    }
   
-  my $extra=($self->{extra}) ? $self->{extra} : '';
+  my $extra=($self->{extra}) ? ' '.$self->{extra} : '';
 
   $row_number++;
-  
-  $self->{rows} .= "<tr bgcolor=\"$bg\"  onmouseover=\"setPointer(this, $row_number, 'over', '$bg', '$_COLORS[3]', '$_COLORS[0]');\" onmouseout=\"setPointer(this, $row_number, 'out', '$bg', '$_COLORS[3]', '$_COLORS[0]');\" onmousedown=\"setPointer(this, $row_number, 'click', '$bg', '$_COLORS[3]', '$_COLORS[0]');\">";
+  $self->{rows} .= "<tr class='$class' id='row_$row_number'>";
   
   foreach my $val (@row) {
-     $self->{rows} .= "<TD bgcolor=\"$bg\" $extra>";
+     $self->{rows} .= "<TD$extra>";
      $self->{rows} .= $val if(defined($val));
      $self->{rows} .= "</TD>";
    }
@@ -903,17 +894,22 @@ sub addtd {
   my $self = shift;
   my (@row) = @_;
 
-  if (defined($self->{rowcolor})) {
-    $bg = $self->{rowcolor};
+  if ($self->{rowcolor}) {
+    if ($self->{rowcolor} =~ /^#/) {
+    	$class = "' bgcolor='$self->{rowcolor}'";
+     }
+    else {
+      $class = "$self->{rowcolor}";
+     }
    }  
   else {
-  	$bg = ($bg eq $_COLORS[1]) ? $_COLORS[2] : $_COLORS[1];
+  	$class = ($class eq 'odd') ? 'even' : 'odd';
    }
   
   my $extra=(defined($self->{extra})) ? $self->{extra} : '';
 
-
-  $self->{rows} .= "<tr bgcolor=\"$bg\">";
+  $row_number++;
+  $self->{rows} .= "<tr class='$class'>";
   foreach my $val (@row) {
      $self->{rows} .= "$val";
    }
@@ -921,8 +917,6 @@ sub addtd {
   $self->{rows} .= "</TR>\n";
   return $self->{rows};
 }
-
-
 
 
 #*******************************************************************
@@ -958,8 +952,8 @@ sub td {
    }
   else {
     $td = "<TD $extra>";
-   	$td .= $value if (defined($value));
-  	$td .= "</TD>";
+    $td .= $value if (defined($value));
+    $td .= "</TD>";
    }
 
   return $td;
@@ -978,7 +972,7 @@ sub table_title_plain {
   foreach my $line (@$caption) {
     $self->{table_title} .= "<th class='table_title'>$line</th>";
    }
-	
+
   $self->{table_title} .= "</TR>\n";
   return $self->{table_title};
 }
@@ -986,7 +980,7 @@ sub table_title_plain {
 #*******************************************************************
 # Show table column  titles with wort derectives
 # Arguments 
-# table_title($sort, $desc, $pg, $get_op, $caption, $qs);
+# table_title($sort, $desc, $pg, $caption, $qs);
 # $sort - sort column
 # $desc - DESC / ASC
 # $pg - page id
@@ -994,7 +988,7 @@ sub table_title_plain {
 #*******************************************************************
 sub table_title  {
   my $self = shift;
-  my ($sort, $desc, $pg, $get_op, $caption, $qs)=@_;
+  my ($sort, $desc, $pg, $caption, $qs)=@_;
   my ($op);
   my $img='';
 
@@ -1022,11 +1016,8 @@ sub table_title  {
          if ($FORM{index}) {
          	  $op="index=$FORM{index}";
          	}
-         else {
-         	  $op="op=$get_op";
-          }
 
-         $self->{table_title} .= $self->button("<img src=\"$IMG_PATH/$img\" width=\"12\" height=\"10\" border=\"0\" alt=\"Sort\" title=\"Sort\" class=\"noprint\">", "$op$qs&pg=$pg&sort=$i&desc=$desc");
+         $self->{table_title} .= $self->button("<img src=\"$IMG_PATH/$img\" width=\"12\" height=\"10\" border=\"0\" alt=\"Sort\" title=\"Sort\" class=\"noprint\"/>", "$op$qs&pg=$pg&sort=$i&desc=$desc");
        }
      else {
          $self->{table_title} .= '';
@@ -1061,10 +1052,7 @@ sub show  {
 
   if (defined($self->{pages})) {
  	   $self->{show} =  '<br>'.$self->{pages} . $self->{show} . $self->{pages} .'<br>';
- 	 } 
-
-
-
+ 	 }
 
   if ((defined($self->{NO_PRINT})) && ( !defined($attr->{OUTPUT2RETURN}) )) {
   	$self->{prototype}->{OUTPUT}.= $self->{show};
@@ -1081,8 +1069,7 @@ sub show  {
 sub link_former {
   my ($self) = shift;
   my ($params, $attr) = @_;
-
-
+  
   $params =~ s/ /%20/g if (! $attr->{SKIP_SPACE});
   $params =~ s/&/&amp;/g;
   $params =~ s/>/&gt;/g;
@@ -1105,7 +1092,7 @@ sub button {
   $params = $attr->{JAVASCRIPT} if (defined($attr->{JAVASCRIPT}));
   $params = $self->link_former($params);
   
-  $ex_attr=" TITLE='$attr->{TITLE}'" if (defined($attr->{TITLE}));
+  $ex_attr.=" TITLE='$attr->{TITLE}'" if (defined($attr->{TITLE}));
   if ( $attr->{NEW_WINDOW} ) {
     my $x = 640;
     my $y = 480;
@@ -1118,6 +1105,11 @@ sub button {
             'scrollbars=1,resizable=1,'+
             'width=$x, height=$y');\"";
     $params = '#';
+   }
+  
+  if ($attr->{IMG}) {
+     my $img_path = ($attr->{IMG}=~s/^://) ? "$IMG_PATH/" : '';
+     $name = "<img alt='$attr->{IMG_ALT}' src='$img_path$attr->{IMG}' border=0> $name";
    }
   
   my $message = '';
@@ -1191,22 +1183,20 @@ $head
 sub pre {
  my $self = shift;
  my ($message, $attr) = @_;
- 
- 
+
 my $output = qq{
 <pre>
 $message
 </pre>
 };
 
-  if ($self->{NO_PRINT} || $attr->{OUTPUT2RETURN}) {
-  	$self->{OUTPUT}.=$output;
-  	return $output;
-   }
-	else { 
- 	  print $output;
-	 }
-
+if ($self->{NO_PRINT} || $attr->{OUTPUT2RETURN}) {
+ 	$self->{OUTPUT}.=$output;
+ 	return $output;
+ }
+else { 
+  print $output;
+ }
 }
 
 
@@ -1228,8 +1218,13 @@ sub b {
 sub color_mark {
  my $self = shift;
  my ($message, $color) = @_;
- 
- my $output = "<font color=$color>$message</font>";
+ my $output = '';
+ if ($color eq 'code') {
+   $output = "<code>$message</code>";
+  }
+ else {
+   $output = "<font color=$color>$message</font>";
+  }
 
  return $output;
 }
@@ -1260,14 +1255,13 @@ sub pages {
  return $self->{pages} if ($count < $PAGE_ROWS);
  
 for(my $i=$begin; ($i<=$count && $i < $PG + $PAGE_ROWS * 10); $i+=$PAGE_ROWS) {
-   $self->{pages} .= ($i == $PG) ? "<b>$i</b> " : $self->button($i, "$argument&pg=$i") .' ';
+   $self->{pages} .= ($i == $PG) ? $self->b(($i==0) ? 1 : $i).' ' : $self->button(($i==0 ? 1 : $i), "$argument&pg=$i") .' ';
  }
 
 return "<div id=\"rules\"><ul><li class=\"center\">\n". 
         $self->{pages}.
        "\n</li></ul></div>\n";
 }
-
 
 
 #*******************************************************************
@@ -1535,6 +1529,7 @@ sub letters_list {
  my ($self, $attr) = @_;
  
  my $pages_qs = $attr->{pages_qs} if (defined($attr->{pages_qs}));
+ $pages_qs =~ s/letter=\S+//g;
  my @alphabet = ('a-z');
 
  if ($attr->{EXPR}) {
@@ -1551,7 +1546,7 @@ foreach my $line (@alphabet) {
   for (my $i=$first; $i<=$last; $i++) {
     my $l = chr($i);
     if ($FORM{letter} && $FORM{letter} eq $l) {
-      $letters .= "<b>$l </b>\n";
+      $letters .= $self->b("$l ");
      }
     else {
       $letters .= $self->button("$l", "index=$index&letter=$l$pages_qs") . " \n";
@@ -1750,9 +1745,6 @@ sub make_charts {
 
    	$data .= "</chart_type>\n";
    }
-  
-  
-
 
     #Make right text
     if (defined($attr->{AVG}{MONEY}) && $attr->{AVG}{MONEY} > 0) {
@@ -1851,6 +1843,18 @@ if (AC_FL_RunContent == 0 || DetectFlashVer == 0) {
    }
 
   print $output;
+}
+
+
+#**********************************************************
+# Break line
+#
+#**********************************************************
+sub br () {
+	my $self = shift;
+	my ($attr) = @_;
+	
+	return "<br/>\n";
 }
 
 1
