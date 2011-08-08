@@ -487,10 +487,10 @@ sub list {
    if (! $admin->{permissions}->{0} || ! $admin->{permissions}->{0}->{8} || 
      ($attr->{USER_STATUS} && ! $attr->{DELETED})) {
 	   push @WHERE_RULES,  @{ $self->search_expr(0, 'INT', 'u.deleted', { EXT_FIELD => 1 })  };
-   }
-  elsif ($attr->{DELETED}) {
+    }
+   elsif (defined($attr->{DELETED})) {
   	 push @WHERE_RULES,  @{ $self->search_expr("$attr->{DELETED}", 'INT', 'u.deleted', { EXT_FIELD => 1 })  };
-   }
+    }
 
 
  if ($attr->{NETMASK}) {
@@ -498,7 +498,7 @@ sub list {
   }
 
  if ($attr->{DEPOSIT}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{DEPOSIT}, 'INT', 'u.deposit') };
+   push @WHERE_RULES, @{ $self->search_expr($attr->{DEPOSIT}, 'INT', 'b.deposit') }; 
   }
 
  if ($attr->{JOIN_SERVICE}) {
@@ -555,7 +555,7 @@ sub list {
    push @WHERE_RULES, "u.id LIKE '$attr->{FIRST_LETTER}%'";
   }
 
- if ($attr->{COMPANY_ID}) {
+ if (defined($attr->{COMPANY_ID}) && $attr->{COMPANY_ID} ne '') {
    push @WHERE_RULES, @{ $self->search_expr($attr->{COMPANY_ID}, 'INT', 'u.company_id') };
   }
 
@@ -629,7 +629,7 @@ sub list {
 
  my $list = $self->{list};
 
- if ($self->{TOTAL} >= 0) {
+ if ($self->{TOTAL} >= 0 && ! $attr->{SKIP_TOTAL}) {
     $self->query($db, "SELECT count(u.id) FROM (users u, dv_main dv) 
     LEFT JOIN tarif_plans tp ON (tp.id=dv.tp_id) 
     $WHERE");

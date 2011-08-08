@@ -163,6 +163,9 @@ sub dv_auth {
 
 #DIsable
 if ($self->{DISABLE}) {
+	if ($CONF->{DV_STATUS_NEG_DEPOSIT}) {
+    return $self->neg_deposit_filter_former($RAD, $NAS, $self->{NEG_DEPOSIT_FILTER_ID});
+	 }
   $RAD_PAIRS->{'Reply-Message'}="Service Disabled";
   return 1, $RAD_PAIRS;
  }
@@ -302,15 +305,19 @@ if ($self->{PORT} > 0 && $self->{PORT} != $RAD->{NAS_PORT}) {
 
 #Check  simultaneously logins if needs
 if ($self->{LOGINS} > 0) {
-  $self->query($db, "SELECT CID, INET_NTOA(framed_ip_address) FROM dv_calls WHERE user_name='$RAD->{USER_NAME}' and (status <> 2 and status < 11);");
+  $self->query($db, "SELECT CID, INET_NTOA(framed_ip_address), nas_id FROM dv_calls WHERE user_name='$RAD->{USER_NAME}' and (status <> 2 and status < 11);");
   my($active_logins) = $self->{TOTAL};
+  my %acrtive_nas = ();
   foreach my $line (@{ $self->{list} }) {
 #  	# Zap session with same CID
-  	if ($line->[0] ne '' && $line->[0] eq $RAD->{CALLING_STATION_ID}) {
+  	if ($line->[0] ne '' && $line->[0] eq $RAD->{CALLING_STATION_ID} 
+  	   && $NAS->{NAS_TYPE} ne 'ipcad' 
+  	   && $acrtive_nas{$line->[2]} && $acrtive_nas{$line->[2]} eq $line->[0]) {
   		$self->query($db, "UPDATE dv_calls SET status=2 WHERE user_name='$RAD->{USER_NAME}' and CID='$RAD->{CALLING_STATION_ID}' and status <> 2;", 'do');
            $self->{IP}=$line->[1];
     	   $active_logins--;
   	 }
+    $acrtive_nas{$line->[2]}=$line->[0];
    }
 
   if ($active_logins >= $self->{LOGINS}) {
@@ -400,7 +407,7 @@ else {
 # 3 - Month limit
 #my @traf_limits = ();
 my $time_limit  = $self->{TIME_LIMIT}; 
-my $traf_limit  = $MAX_SESSION_TRAFFIC;
+my $traf_limit  = $MAX_SESSION_TRAFFIC || undef;
 
 my @direction_sum = (
   "sum(sent + recv) / $CONF->{MB_SIZE} + sum(acct_output_gigawords) * 4096 + sum(acct_input_gigawords) * 4096",
@@ -447,11 +454,11 @@ foreach my $line (@periods) {
           push (@time_limits, $session_time_limit) if ($self->{$line . '_TIME_LIMIT'} > 0);
          }
 
-        if ($traf_limit > $session_traf_limit && $self->{$line . '_TRAF_LIMIT'} > 0) {
-      	  $traf_limit = $session_traf_limit;
+        if ($self->{$line . '_TRAF_LIMIT'} > 0 && ($traf_limit > $session_traf_limit || ! $traf_limit) ) {
+          $traf_limit = $session_traf_limit;
          }
         
-        if($traf_limit <= 0) {
+        if(defined($traf_limit) && $traf_limit <= 0) {
           $RAD_PAIRS->{'Reply-Message'}="Rejected! $line Traffic limit utilized '$traf_limit Mb'";
           return 1, $RAD_PAIRS;
          }
@@ -532,18 +539,30 @@ if ($NAS->{NAS_TYPE} eq 'mpd5') {
     my $filter_name = 'flt';
 
     if ($class_id == 0 && $line->[1] && $line->[1] =~ /0.0.0.0/) {
+         my $shapper_type = ($line->[2] > 4048) ? 'rate-limit' : 'shape';         
+         
          if ( $line->[2] == 0 || $CONF->{ng_car}) {
             push @{$RAD_PAIRS->{'mpd-limit'} }, "out#$self->{TOTAL}#0=all pass";
           } 
          elsif(! $CONF->{ng_car}) {
-           push @{$RAD_PAIRS->{'mpd-limit'} }, "out#$self->{TOTAL}#0=all shape ". ($line->[2] * 1024)." 4000";
+           my $cir    = $line->[2] * 1024;
+           my $nburst = int($cir*1.5/8);
+           my $eburst = 2*$nburst;
+           push @{$RAD_PAIRS->{'mpd-limit'} }, "out#$self->{TOTAL}#0=all $shapper_type $cir $nburst $eburst";
+
+           #push @{$RAD_PAIRS->{'mpd-limit'} }, "out#$self->{TOTAL}#0=all $shapper_type ". ($line->[2] * 1024)." 4000";
           }
 
          if ( $line->[3] == 0 || $CONF->{ng_car}) {
            push @{$RAD_PAIRS->{'mpd-limit'} }, "in#$self->{TOTAL}#0=all pass";
           } 
          elsif(! $CONF->{ng_car}) {
-           push @{$RAD_PAIRS->{'mpd-limit'} }, "in#$self->{TOTAL}#0=all shape ". ($line->[3] * 1024) ." 4000";
+           my $cir    = $line->[3] * 1024;
+           my $nburst = int($cir*1.5/8);
+           my $eburst = 2*$nburst;
+           push @{$RAD_PAIRS->{'mpd-limit'} }, "in#$self->{TOTAL}#0=all $shapper_type $cir $nburst $eburst";
+
+           #push @{$RAD_PAIRS->{'mpd-limit'} }, "in#$self->{TOTAL}#0=all $shapper_type ". ($line->[3] * 1024) ." 4000";
           }
    	   next ;
      }
@@ -926,6 +945,7 @@ sub authentication {
         u.id='$RAD->{USER_NAME}' $WHERE
         AND (u.expire='0000-00-00' or u.expire > CURDATE())
         AND (u.activate='0000-00-00' or u.activate <= CURDATE())
+        AND u.deleted='0'
        GROUP BY u.id;");
 
   if($self->{errno}) {
@@ -1581,7 +1601,7 @@ sub neg_deposit_filter_former () {
 
    $NEG_DEPOSIT_FILTER_ID =~ s/\%IP\%/$RAD_PAIRS->{'Framed-IP-Address'}/g;
    $NEG_DEPOSIT_FILTER_ID =~ s/\%LOGIN\%/$RAD->{'USER_NAME'}/g;
-
+   $self->{INFO}="Neg filter";
 	 if ($NEG_DEPOSIT_FILTER_ID =~ /RAD:(.+)/) {
       	my $rad_pairs = $1;
         my @p = split(/,/, $rad_pairs);

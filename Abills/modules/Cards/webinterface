@@ -59,7 +59,7 @@ sub cards_card_info {
 #
 #**********************************************************
 sub cards_main {
-  if ($Cards::VERSION < 5.25) {
+  if ($Cards::VERSION < 5.34) {
   	$html->message('info', "UPDATE", "Please update module 'Cards' to version 5.25 or higher. http://abills.net.ua/");
   	return 0;
    }
@@ -270,7 +270,7 @@ $html->button("$_PRINT PDF", "qindex=$index&pdf=1&print_cards=1&$pages_qs" . (($
   		  $line->[11],
   		  @pin,
   		  $html->button($_DEL, "index=$index&del=1&ID=$line->[17]". ( (! $FORM{search}) ? "&NUMBER=$line->[1]&SERIA=$line->[0]" :   '' ) .
-  		    "$pages_qs", { MESSAGE => "$_DEL [$line->[0]$line->[1]] ?", BUTTON => 1 })
+  		    "$pages_qs", { MESSAGE => "$_DEL [$line->[0]$line->[1]] ?", CLASS => 'del' })
   		);
     }
 
@@ -324,8 +324,8 @@ else {
   		  $line->[5],
   		  $line->[6],
   		  $line->[7],
-  		  $html->button($_SHOW, "index=$index$pages_qs&SERIA=$line->[0]", { BUTTON => 1 }),
-  		  $html->button($_DEL, "index=$index$pages_qs&del=1&SERIA=$line->[0]", { MESSAGE => "$_DEL [$line->[0]] ?", BUTTON => 1 })
+  		  $html->button($_SHOW, "index=$index$pages_qs&SERIA=$line->[0]", { CLASS => 'show' }),
+  		  $html->button($_DEL, "index=$index$pages_qs&del=1&SERIA=$line->[0]", { MESSAGE => "$_DEL [$line->[0]] ?", CLASS => 'del' })
 	   );
      $total_cards += $line->[3];
      $total_sum   += $line->[2] * $line->[3];
@@ -375,24 +375,36 @@ sub cards_add {
   	  my $added       = 0;
 
   	  for(my $i=$begin; $i<$begin+$count; $i++) {
-          my $pin    = mk_unique_value($pin_length || 8, { SYMBOLS => $pin_symbols || undef });
-  	 	    my $serial = sprintf("%s%.11d", $FORM{SERIAL}, $i);
-          my $sum    = sprintf("%.2f", $FORM{SUM});
+        my $pin    = mk_unique_value($pin_length || 8, { SYMBOLS => $pin_symbols || undef });
+  	 	  my $serial = sprintf("%s%.11d", $FORM{SERIAL}, $i);
+        my $sum    = sprintf("%.2f", $FORM{SUM});
 
-          $Cards->cards_add({ SERIAL    => "$FORM{SERIAL}",
-        	                    NUMBER    => "$i",
-            	                PIN       => "$pin",
-           	                  SUM       => $sum,
-        	                    STATUS    => 0,
-        	                    EXPIRE    => "$FORM{EXPIRE}",
-        	                    DILLER_ID => int($FORM{DILLER_ID})
-        	                  });
+        $Cards->cards_add({ SERIAL     => "$FORM{SERIAL}",
+                            NUMBER     => "$i",
+           	                PIN        => "$pin",
+         	                  SUM        => $sum,
+         	                  COMMISSION => $FORM{COMMISSION},
+        	                  STATUS     => 0,
+        	                  EXPIRE     => "$FORM{EXPIRE}",
+        	                  DILLER_ID  => int($FORM{DILLER_ID})
+        	                });
 
-          if ($Cards->{errno}) {
-       	    $html->message('err', $_ERROR, "[$Cards->{errno}] $err_strs{$Cards->{errno}}");
-       	    return 0;
-           }
-        $export .= (defined($FORM{EXPORT}) && $FORM{EXPORT} eq 'XML' ) ? "<CARD SERIA='$serial' PIN='$pin' SUM='$sum' EXPIRE='$FORM{EXPIRE}'/>\n" : "$serial\t$pin\t$sum\t$FORM{EXPIRE}\n";
+        if ($Cards->{errno}) {
+       	  $html->message('err', $_ERROR, "[$Cards->{errno}] $err_strs{$Cards->{errno}}");
+       	  return 0;
+         }
+        
+        if (defined($FORM{EXPORT}) && $FORM{EXPORT} eq 'XML' ) {
+        	$export .= "<CARD SERIA='$serial' PIN='$pin' SUM='$sum'";
+          $export .= sprintf(" COMMISSION='%.2f' ", $FORM{COMMISSION})  if ($FORM{COMMISSION});
+        	$export .= "EXPIRE='$FORM{EXPIRE}'/>\n";
+         }
+        else {
+        	$export .= "$serial\t$pin\t$sum\t";
+        	$export .= sprintf("%.2f\t", $FORM{COMMISSION})  if ($FORM{COMMISSION});
+        	$export .= "$FORM{EXPIRE}\n";
+         }
+
   	    $added++;
   	   }
 
@@ -496,8 +508,8 @@ sub cards_bruteforce () {
  		      $line->[1], 
   		    $line->[2],
   		    $line->[3],
-  		    $html->button("$_SHOW", "index=$index&UID=$line->[4]", { BUTTON => 1 }), 
-  		    $html->button($_DEL, "index=$index$pages_qs&del=$line->[4]", { MESSAGE => "$_DEL [$line->[0]] ?", BUTTON => 1  })
+  		    $html->button("$_SHOW", "index=$index&UID=$line->[4]", { CLASS => 'show' }), 
+  		    $html->button($_DEL, "index=$index$pages_qs&del=$line->[4]", { MESSAGE => "$_DEL [$line->[0]] ?", CLASS => 'del'  })
   		  );
    }
 
@@ -689,7 +701,7 @@ sub cards_user_payment () {
 		my $BRUTE_LIMIT = ($conf{CARDS_BRUTE_LIMIT}) ? $conf{CARDS_BRUTE_LIMIT} : 5;
 	  my $brute       = $Cards->bruteforce_list({ UID => $LIST_PARAMS{UID} });
     sleep 1;	  
-    $Cards->cards_info({ %FORM });
+    $Cards->cards_info({ %FORM, UID => $LIST_PARAMS{UID}, PAYMENTS => 1 });
    
     if ($Cards->{error}) {
       $html->message('err', $_ERROR, "$ERR_SUPPORT / $ERR_SUPPORT");	
@@ -725,15 +737,16 @@ sub cards_user_payment () {
 
 	    return 0;
 	   }
-  
+    
  
    $user->info($LIST_PARAMS{UID});
    
-   $Cards->cards_change({ ID       => "$Cards->{ID}", 
-     	                  STATUS   => 5,
-                          UID      => $user->{UID} 
-     	                 });	
-
+   
+   
+   if ($conf{CARDS_DEBUG}) {
+     my $test = `echo "$DATE $TIME $user->{LOGIN}  $Cards->{SERIAL}$Cards->{NUMBER}"  >> /tmp/cards_debug`;	
+    }
+   
    
    $payments->add($user, { SUM          => $Cards->{SUM},
                            METHOD       => 2, 
@@ -741,20 +754,32 @@ sub cards_user_payment () {
                            CHECK_EXT_ID => "$Cards->{SERIAL}$Cards->{NUMBER}"
                          });  
 
+
    if (! $payments->{errno}) {
-     $html->message('info', $_PAYMENTS, "$_ADDED $_SUM: $Cards->{SUM} $_DEPOSIT: ". ($user->{DEPOSIT} + $Cards->{SUM}));
+     $user->{DEPOSIT}+=$Cards->{SUM}-$Cards->{COMMISSION};
+     $html->message('info', $_PAYMENTS, "$_ADDED\n$_SUM: $Cards->{SUM} \n ". (($Cards->{COMMISSION} > 0) ? "$_COMMISSION $Cards->{COMMISSION}\n": '' )."\n $_DEPOSIT: $user->{DEPOSIT}\n");
+
      $Cards->cards_change({ ID       => "$Cards->{ID}", 
      	                      STATUS   => 2, 
      	                      UID      => $user->{UID},
      	                      DATETIME => "$DATE $TIME",
      	                    });	
 
+     
+
      #Make external script
      if ($conf{CARDS_PAYMENTS_EXTERNAL})  {
       	_external("$conf{CARDS_PAYMENTS_EXTERNAL}", { %$Cards, %$user });
       }
 
-     $user->{DEPOSIT}+=$Cards->{SUM};
+     if ($Cards->{COMMISSION}) {
+     	 my $Fees = Finance->fees($db, $admin, \%conf);        	
+       $Fees->take($user, $Cards->{COMMISSION},
+                               {  DESCRIBE     => "$_COMMISSION $_ICARDS: $Cards->{SERIAL}$Cards->{NUMBER}",
+                                  METHOD       => 0,
+                                });
+     	}
+     
      cross_modules_call('_payments_maked', { USER => $user, QUITE => 1  });
      
 
@@ -772,8 +797,8 @@ sub cards_user_payment () {
   	       my $user_new = Users->new($db, $admin, \%conf);
            $user_new->info( $Cards->{UID} );
 
-           my $fees = Finance->fees($db, $admin, \%conf);        	
-           $fees->take($user_new, $Cards->{OPERATION_PAYMENT},
+           my $Fees = Finance->fees($db, $admin, \%conf);        	
+           $Fees->take($user_new, $Cards->{OPERATION_PAYMENT},
                                {  DESCRIBE     => "Card activate: $Cards->{ID}",
                                   METHOD       => 0,
 #                                  EXT_ID       => "$Cards->{SERIAL}$Cards->{NUMBER}",
@@ -899,9 +924,9 @@ if ($Cards->{errno}) {
   		  $status[$line->[6]],
   		  $line->[7],
   		  $line->[8],
-  		  $html->button($_INFO, "index=$index$pages_qs&info=$line->[0]", { BUTTON => 1 }),
-  		  $html->button($_CHANGE, "index=$index$pages_qs&chg=$line->[0]", { BUTTON => 1 }),
-  		  $html->button($_DEL, "index=$index$pages_qs&del=$line->[0]", { MESSAGE => "$_DEL [$line->[0]] ?", BUTTON => 1 })
+  		  $html->button($_INFO, "index=$index$pages_qs&info=$line->[0]", { CLASS => 'show' }),
+  		  $html->button($_CHANGE, "index=$index$pages_qs&chg=$line->[0]", { CLASS => 'change' }),
+  		  $html->button($_DEL, "index=$index$pages_qs&del=$line->[0]", { MESSAGE => "$_DEL [$line->[0]] ?", CLASS => 'del' })
 		   );
     }
 
@@ -1771,8 +1796,8 @@ my $table = $html->table( { width      => '100%',
 my ($delete, $change);
 foreach my $line (@$list) {
   if ($permissions{4}{1}) {
-    $delete = $html->button($_DEL, "index=$index&del=$line->[4]", { MESSAGE => "$_DEL $line->[0]?", BUTTON => 1  }); 
-    $change = $html->button($_CHANGE, "index=$index&chg=$line->[4]", { BUTTON => 1 });
+    $delete = $html->button($_DEL, "index=$index&del=$line->[4]", { MESSAGE => "$_DEL $line->[0]?", CLASS => 'del'  }); 
+    $change = $html->button($_CHANGE, "index=$index&chg=$line->[4]", { CLASS => 'change' });
    }
   
   if($FORM{chg} eq $line->[4]) {

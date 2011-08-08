@@ -7,14 +7,15 @@ use Dv_Sessions;
 use Nas;
 use Tariffs;
 use Socket;
-
+use Log;
 
 my $Ipn      = Ipn->new($db, \%conf);
 my $Ipn_Collector = Ipn_Collector->new($db, \%conf);
 my $sessions = Dv_Sessions->new($db, $admin, \%conf);
 my $tariffs  = Tariffs->new($db, \%conf, $admin);
 my $users    = Users->new($db, $admin, \%conf); 
-my $Nas      = Nas->new($db);;
+my $Nas      = Nas->new($db, \%conf);;
+my $Log      = Log->new($db, \%conf);
 
 my @TT_COLORS = ("$_COLORS[1]", "#80FF80", "#FFFF80", "#BFBFFF");
 
@@ -25,7 +26,7 @@ my @TT_COLORS = ("$_COLORS[1]", "#80FF80", "#FFFF80", "#BFBFFF");
 sub ipn_detail {
   $FORM{DST_IP_GROUP} = ' checked' if($FORM{DST_IP_GROUP});
   $FORM{SRC_IP_GROUP} = ' checked' if($FORM{SRC_IP_GROUP});
-  $FORM{RESOLVE} = ' checked'       if($FORM{RESOLVE});
+  $FORM{RESOLVE} = ' checked'      if($FORM{RESOLVE});
 
   form_search({ SEARCH_FORM   => $html->tpl_show(_include('ipn_detail_search', 'Ipn'), 
   	                                  { %$Ipn, %FORM }, 
@@ -416,7 +417,7 @@ my $table = $html->table( { width        => '100%',
 my $delete = '';
 foreach my $line (@$list) {
   if ($permissions{3}{1}) {
-    $delete = $html->button($_DEL, "index=". $index ."&$pages_qs&del=$line->[12]+$line->[11]+$line->[7]+$line->[1]+$line->[9]+$line->[0]", { MESSAGE => "$_DEL Session SESSION_ID $line->[11]?", BUTTON => 1 });
+    $delete = $html->button($_DEL, "index=". $index ."&$pages_qs&del=$line->[12]+$line->[11]+$line->[7]+$line->[1]+$line->[9]+$line->[0]", { MESSAGE => "$_DEL Session SESSION_ID $line->[11]?", CLASS => 'del' });
    }
 
   $table->addrow($line->[0],
@@ -426,7 +427,7 @@ foreach my $line (@$list) {
      $line->[4], 
      $line->[5],
      $line->[6], 
-     $html->button("$_HOSTS", "index=$index$pages_qs", { BUTTON => 1 })
+     $html->button("$_HOSTS", "index=$index$pages_qs", { CLASS => 'host' })
   );
 }
 
@@ -1169,9 +1170,14 @@ sub ipn_user_activate {
 
   if ($Dv->{STATUS} > 0) {
   	my @service_status = ( "$_ENABLE", "$_DISABLE", "$_NOT_ACTIVE", "$_HOLD_UP", "$_DISABLE: $_NON_PAYMENT", "$ERR_SMALL_DEPOSIT" );
-  	#$html->message('err', $_ERROR, "$service_status[$Dv->{STATUS}]", { ID => 162 });
+  	
   	require "modules/Dv/webinterface";
-  	dv_user_info();
+  	if ($user->{UID}) {
+  	  dv_user_info();  	
+  	 }
+  	else {
+  		$html->message('err', $_ERROR, "$service_status[$Dv->{STATUS}]", { ID => 162 });
+  	 }
   	
   	return 0 if (! $FORM{activate});
    }
@@ -1255,7 +1261,15 @@ sub ipn_user_activate {
       $html->message('err', $_ERROR, "Unknown NAS");  	
      }
     else {
-      my $user  = $users->info( $LIST_PARAMS{UID} );
+    	my $user  = $users->info( $LIST_PARAMS{UID} );
+    	$Ipn->online_alive({ 
+    		LOGIN      => $user->{LOGIN} || $users->{LOGIN}, 
+        REMOTE_ADDR=> $ip,
+  		 });
+    	
+    	
+    	if ($Ipn->{TOTAL} < 1) {
+      
       $Nas->info({ NAS_ID => $nas_id });
       my %DATA = (ACCT_STATUS_TYPE   => 1, 
                   USER_NAME          => $user->{LOGIN}, 
@@ -1290,7 +1304,7 @@ sub ipn_user_activate {
 
       if ($r == 1) {
         $html->message('err', $_ERROR, "$RAD_PAIRS->{'Reply-Message'}");
-        $Nas->log_add({LOG_TYPE => $log_levels{'LOG_WARNING'},
+        $Log->log_add({LOG_TYPE => $log_levels{'LOG_WARNING'},
                        ACTION   => 'AUTH', 
                        USER_NAME=> $user->{LOGIN} || '-',
                        MESSAGE  => "$RAD_PAIRS->{'Reply-Message'}",
@@ -1301,21 +1315,25 @@ sub ipn_user_activate {
         $DATA{NAS_PORT}   = $Ipn->{PORT} || 0;
         ipn_change_status({ STATUS => 'ONLINE_ENABLE', %DATA });
 
-        if ($ENV{HTTP_REFERER} && $html->{SID}) {
+        if ($ENV{HTTP_REFERER} && $ENV{HTTP_REFERER} !~ /index.cgi/ && $html->{SID}) {
+        	print "Content-Type: text/html\n\n";
           print "Location: $ENV{HTTP_REFERER}". "\n\n";
           exit;
          }
        }
      }
+    else {
+    	$html->message('info', $_INFO, "$_ACTIVATE");
+     }
+    }
    }
   elsif ($FORM{LOGOUT}) {
   	 my $user = $users->info( $LIST_PARAMS{UID} );
   	 my $list = $sessions->online({ USER_NAME  => $user->{LOGIN},
   	 	                              SESSION_ID => $FORM{SESSION_ID} });
-  	 
- 	 
+
   	 if ($sessions->{TOTAL} < 1) {
-       $html->message('err', $_ERROR, "$_NOT_EXIST");
+       $html->message('err', $_ERROR, "$_NOT_EXIST $_SESSIONS");
        return 0   	 	
   	  }
 
@@ -1393,7 +1411,7 @@ sub ipn_user_activate {
        $line->[4], 
        int2byte($line->[5]), 
        int2byte($line->[6]),
-       $html->button("$_HANGUP", "index=$index&UID=$LIST_PARAMS{UID}&LOGOUT=1&SESSION_ID=$line->[21]&REMOTE_ADDR=$online_ip&sid=$html->{SID}", { BUTTON => 1})
+       $html->button("$_HANGUP", "index=$index&UID=$LIST_PARAMS{UID}&LOGOUT=1&SESSION_ID=$line->[21]&REMOTE_ADDR=$online_ip&sid=$html->{SID}", { BUTTON => 1 })
        )  if ($line->[11] == $LIST_PARAMS{UID});
     }
     $online_session = $table->show({ OUTPUT2RETURN => 1 });	
@@ -1462,7 +1480,7 @@ sub ipn_change_status {
                                 STATUS          => 10
                                });
 
-     $Nas->log_add({LOG_TYPE => $log_levels{'LOG_INFO'},
+     $Log->log_add({LOG_TYPE => $log_levels{'LOG_INFO'},
                     ACTION   => 'AUTH', 
                     USER_NAME=> $USER_NAME || '-',
                     MESSAGE  => "IP: $ip",
@@ -1487,18 +1505,25 @@ sub ipn_change_status {
      $cmd = $conf{IPN_FW_STOP_RULE};
 
      if (! $attr->{QUICK}) {
-       my $table = $html->table( { width      => '100%',
-                                 caption    => "Hangup",
-                                 border     => 1,
-                                 rows       => [["IP:" ,      int2ip($Ipn->{FRAMED_IP_ADDRESS}) ],
-                                           ["IN:" ,      int2byte($Ipn->{TRAFFIC_IN})      ], 
-                                           ["OUT:",      int2byte($Ipn->{TRAFFIC_OUT})     ], 
-                                           ["$_TOTAL:",  int2byte($Ipn->{TRAFFIC_IN}+$Ipn->{TRAFFIC_OUT})   ], 
-                                           ["DURATION:", sec2time($Ipn->{ACCT_SESSION_TIME}, { str => 1 })   ], 
-                                           ["SUM:",      "$Ipn->{SUM}" ]]
-                            });
+#       my $table = $html->table( { 
+#                                 caption    => "$_HANGUP / $_INFO",
+#                                 border     => 1,
+#                                 rows       => [["IP:" ,      int2ip($Ipn->{FRAMED_IP_ADDRESS}) ],
+#                                           ["$_RECV:" ,      int2byte($Ipn->{TRAFFIC_IN})      ], 
+#                                           ["$_SENT:",      int2byte($Ipn->{TRAFFIC_OUT})     ], 
+#                                           ["$_TOTAL:",  int2byte($Ipn->{TRAFFIC_IN}+$Ipn->{TRAFFIC_OUT})   ], 
+#                                           ["$_DURATION:", sec2time($Ipn->{ACCT_SESSION_TIME}, { str => 1 })   ], 
+#                                           ["$_SUM:",      "$Ipn->{SUM}" ]]
+#                            });
 
-      $html->message('info', $_INFO,  $table->show({ OUTPUT2RETURN => 1 }));
+      $message = "\nIP:  " .      int2ip($Ipn->{FRAMED_IP_ADDRESS}).
+                 "\n$_RECV:  " .      int2byte($Ipn->{TRAFFIC_IN}).
+                 "\n$_SENT:  ".      int2byte($Ipn->{TRAFFIC_OUT}).
+                 "\n$_TOTAL:  ".  int2byte($Ipn->{TRAFFIC_IN}+$Ipn->{TRAFFIC_OUT}).
+                 "\n$_DURATION:  ". sec2time($Ipn->{ACCT_SESSION_TIME}, { str => 1 }).
+                 "\n$_SUM:  ".      "$Ipn->{SUM}";
+
+      $html->message('info', $_INFO, "$message");
      }
    }
 
@@ -1644,7 +1669,7 @@ foreach my $nas_row (@$nas_list) {
       int2byte($line->[6]), 
       $line->[7],
      "$status",
-      $html->button("$_DETAIL", "index=$index&DETAIL=$line->[21]", { TITLE => 'Detail', BUTTON => 1 }),
+      $html->button("$_DETAIL", "index=$index&DETAIL=$line->[21]", { TITLE => 'Detail', CLASS => 'stats' }),
       $html->button('P', "index=$index&ping=$ip", { TITLE => 'ping', BUTTON => 1  }),
       $html->button('H', "index=$index&HANGUP=$ip&SESSION_ID=$line->[9]", { TITLE => 'Hangup', BUTTON => 1  })
      );
@@ -1745,8 +1770,8 @@ foreach $line (@$list) {
 	 $line->[1],
 	 $line->[2],
 	 $line->[3],
-	 $html->button($_CHANGE, "index=$index&chg=$line->[4]", { BUTTON => 1 }),
-	 $html->button($_DEL, "index=$index&$pages_qs&del=$line->[4]", { MESSAGE => "$_DEL '$line->[1]?", BUTTON => 1 })
+	 $html->button($_CHANGE, "index=$index&chg=$line->[4]", { CLASS => 'change' }),
+	 $html->button($_DEL, "index=$index&$pages_qs&del=$line->[4]", { MESSAGE => "$_DEL '$line->[1]?", CLASS => 'del' })
 	);
 }
 print $table->show();
@@ -2423,6 +2448,13 @@ sub ipn_start_active {
     return $debug_output;
    }
 
+  my @nas_types = ('ipcad', 'dhcp');
+
+  if ($attr->{NAS_TYPES}) {
+  	@nas_types=split(/,/, $attr->{NAS_TYPES});
+   }
+  
+
 #Get online
 my $Dv  = Dv->new($db, $admin, \%conf);  
 my $nas_list = $Nas->list({ NAS_IDS   => $attr->{NAS_IDS}, 
@@ -2430,13 +2462,12 @@ my $nas_list = $Nas->list({ NAS_IDS   => $attr->{NAS_IDS},
 
 my %nas_info = ();
 foreach my $line (@$nas_list) {
-	if ($line->[4] eq 'ipcad') {
-	  $nas_info{$line->[0]}{NAS_IP}         = $line->[3]; 
+	if (in_array($line->[4], \@nas_types)) {
 	  $nas_info{$line->[0]}{NAS_ID}         = $line->[0];
 	  $nas_info{$line->[0]}{NAS_TYPE}       = $line->[4];
-	  $nas_info{$line->[0]}{NAS_IP_ADDRESS} = $line->[9];
+	  $nas_info{$line->[0]}{NAS_IP_ADDRESS} = $line->[3];
 	  $nas_info{$line->[0]}{NAS_MNG_USER}   = $line->[10];
-    $nas_info{$line->[0]}{NAS_MNG_IP_PORT}= $line->[11];
+    $nas_info{$line->[0]}{NAS_MNG_IP_PORT}= $line->[9];
    }
 }
 
@@ -2488,7 +2519,7 @@ $list = $Dv->list({ LOGIN        => $attr->{LOGINS} || undef,
 
 
 foreach my $line (@$list)   {
-  my $filter_id    = $line->[8];
+  my $filter_id    = $line->[9];
   my $login        = $line->[0];
   my $ip           = $line->[6];
   my $connect_info = '';
@@ -2522,7 +2553,7 @@ foreach my $line (@$list)   {
 
   #Activate
   if (int($nas_id) < 1) {
-    $debug_output .= "Unknown NAS\n";  	
+    $debug_output .= "IP: $ip ERR_ACCESS_DENY: NAS NOT_EXIST\n";  	
    }
   else {
     $debug_output .= "$login $uid $ip -> $nas_id\n" if ($debug > 1);
@@ -2538,7 +2569,7 @@ foreach my $line (@$list)   {
                 NAS_ID             => $nas_id,
                 NAS_IP_ADDRESS     => $nas_info{$nas_id}{NAS_IP_ADDRESS},
                 NAS_MNG_USER       => $nas_info{$nas_id}{NAS_MNG_USER},
-                NAS_MNG_IP_PORT    => $nas_info{$nas_id}{NAS_MNG_IP_PORT} ,
+                NAS_MNG_IP_PORT    => $nas_info{$nas_id}{NAS_MNG_IP_PORT},
                 TP_ID              => $tp_id,
                 CALLING_STATION_ID => $ip,
                 CONNECT_INFO       => $connect_info,
@@ -2551,6 +2582,8 @@ foreach my $line (@$list)   {
                );
     
       $Ipn->user_status({ %DATA });
+      
+      
       ipn_change_status({ STATUS => 'ONLINE_ENABLE', %DATA });
       $debug_output .= "$_ACTIVATE IP: $ip\n" if ($debug > 1);
    }

@@ -1,9 +1,8 @@
 #!/bin/sh
 # Shaper/NAT/Session upper for ABillS 
 #
-# PROVIDE: shaper
-# REQUIRE: NETWORKING mysql vlan_up shaper_up
-#traffic Class numbers
+# PROVIDE: abills_shaper
+# REQUIRE: NETWORKING mysql vlan_up 
 
 . /etc/rc.subr
 
@@ -19,25 +18,43 @@
 #
 #   abills_nat="EXTERNAL_IP:INTERNAL_IPS:NAT_IF" - Enable abills nat
 #
+#   abills_dhcp_shaper=""  (bool) :  Set to "NO" by default.
+#                                    Enable ipoe_shaper
+#
+
+CLASSES_NUMS='2 3'
+VERSION=5.4
+
 
 name="abills_shaper"
 rcvar=`set_rcvar`
+
+
+: ${abills_shaper_enable="NO"}
+: ${abills_shaper_if=""}
+: ${abills_nas_id=""}
+: ${abills_ip_sessions=""}
+: ${abills_nat=""}
+: ${abills_dhcp_shaper="NO"}
+: ${abills_neg_deposit=""}
+: ${abills_portal_ip="me"}
+
 load_rc_config $name
-run_rc_command "$1"
+#run_rc_command "$1"
 
 
-CLASSES_NUMS='2 3'
-VERSION=5.7
-
-if [ w${abills_shaper_enable} = w ]; then
+if [ x${abills_shaper_enable} = xNO ]; then
   exit;
+
 fi;
 
+
+
 #Negative deposit forward (default: )
-NEG_DEPOSIT_FWD=
+NEG_DEPOSIT_FWD=${abills_neg_deposit};
 FWD_WEB_SERVER_IP=127.0.0.1;
 #Your user portal IP (Default: me)
-USER_PORTLA_IP=
+USER_PORTAL_IP=${abills_portal_ip}
 
 #Session Limit per IP
 SESSION_LIMIT=${abills_ip_sessions}
@@ -92,8 +109,7 @@ if [ w${ACTION} = wstart -a w$2 = w -a w${NG_SHAPPER} != w ]; then
 
 for num in ${CLASSES_NUMS}; do
   #  FW_NUM=`expr  `;
-    echo "Traffic: ${num} "
-
+  echo "Traffic: ${num} "
   #Shaped traffic
   ${IPFW} add ` expr 10000 - ${num} \* 10 ` skipto ` expr 10100 + ${num} \* 10 ` ip from table\(` expr ${USER_CLASS_TRAFFIC_NUM} + ${num} \* 2 - 2  `\) to table\(${num}\) ${IN_DIRECTION}
   ${IPFW} add ` expr 10000 - ${num} \* 10 + 5 ` skipto ` expr 10100 + ${num} \* 10 + 5 ` ip from table\(${num}\) to table\(` expr ${USER_CLASS_TRAFFIC_NUM} + ${num} \* 2 - 2 + 1 `\) ${OUT_DIRECTION}
@@ -144,6 +160,16 @@ fi;
 
 
 
+#IPoE Shapper for dhcp connections
+if [ x${abills_dhcp_shaper} != xNO ]; then
+  if [ -f /usr/abills/libexec/ipoe_shapper.pl ]; then
+    /usr/abills/libexec/ipoe_shapper.pl -d
+  else
+    echo "Can't find 'ipoe_shapper.pl' "
+  fi;
+fi;
+
+
 #ipfw 10 add divert 8668 ip from 3.3.3.0/24 to any
 #ipfw 20 add divert 8778 ip from 4.4.4.0/24 to any
 #ipfw 30 add fwd 1.1.1.254 ip from 1.1.1.1 to any
@@ -155,7 +181,6 @@ fi;
 # options         IPFIREWALL_FORWARD
 # options         IPFIREWALL_NAT          #ipfw kernel nat support
 # options         LIBALIAS
-
 #Nat Section
 if [ w"${abills_nat}" != w ] ; then
 # NAT External IP
@@ -202,7 +227,7 @@ done;
     done;
 
     #Forward traffic 2 second way
-    ${IPFW} 60015 add fwd ${GW2_IP} ip from ${GW2_IF_IP} to any
+    ${IPFW}  add 60015 fwd ${GW2_IP} ip from ${GW2_IF_IP} to any
     #${IPFW} add 30 add fwd ${ISP_GW2} ip from ${NAT_IPS} to any
   fi;
 
@@ -232,10 +257,6 @@ if [ w${NEG_DEPOSIT_FWD} != w ]; then
     DNS_IP=`cat /etc/resolv.conf | grep nameserver | awk '{ print $2 }' | head -1`
   fi;
 
-  if [ w${USER_PORTLA_IP} = w ]; then
-    USER_PORTLA_IP=me
-  fi;
-
 FWD_RULE=10014;
 
 #Forwarding start
@@ -245,7 +266,7 @@ if [ w${ACTION} = wstart ]; then
   #If use proxy
   #${IPFW} add ${FWD_RULE} fwd ${FWD_WEB_SERVER_IP},3128 tcp from table\(32\) to any dst-port 3128 via ${INTERNAL_INTERFACE}
   ${IPFW} add `expr ${FWD_RULE} + 10` allow ip from table\(32\) to ${DNS_IP} dst-port 53 via ${INTERNAL_INTERFACE}
-  ${IPFW} add `expr ${FWD_RULE} + 20` allow tcp from table\(32\) to ${USER_PORTLA_IP} dst-port 9443 via ${INTERNAL_INTERFACE}
+  ${IPFW} add `expr ${FWD_RULE} + 20` allow tcp from table\(32\) to ${USER_PORTAL_IP} dst-port 9443 via ${INTERNAL_INTERFACE}
   ${IPFW} add `expr ${FWD_RULE} + 30` deny ip from table\(32\) to any via ${INTERNAL_INTERFACE}
 else if [ w${ACTION} = wstop ]; then
   echo "Negative Deposit Forward Section - stop:"; 

@@ -122,7 +122,7 @@ sub new {
             '#dddddd',  # 3 TH.sum, TD.sum
             '#E1E1E1',  # 4 border
             '#FFFFFF',  # 5
-            '#FF0000',  # 6
+            '#FF0000',  # 6 Error
             '#000088',  # 7 vlink
             '#0000A0',  # 8 Link
             '#000000',  # 9 Text
@@ -245,6 +245,7 @@ else {
       next if $firstline =~ /filename=\"\"/;
       $firstline =~ s/^Content-Disposition: form-data; //;
       my (@columns) = split(/;\s+/, $firstline);
+      
       ($name = $columns[0]) =~ s/^name=\"([^\"]+)\"$/$1/g;
       my $blankline;
       if ($#columns > 0) {
@@ -260,9 +261,6 @@ else {
       else {
 	     ($blankline, $datas) = split(/[\r]\n/, $datas, 2);
         if (grep(/^$name$/, keys(%FORM))) {
-#        	print "Content-Type: text/html\n\n";
-#        	print "/$name // $FORM{$name}<br>";
-        	
           if (defined($FORM{$name})) {
              $FORM{$name} .= ", $datas";
            }   
@@ -277,7 +275,7 @@ else {
            }
          }
         else {
-	        next if $datas =~ /^\s*$/;
+	        #next if $datas =~ /^\s*$/;
 	        $datas =~ s/"/\\"/g;
           $datas =~ s/'/\\'/g;
           $FORM{"$name"} = $datas;
@@ -365,6 +363,11 @@ sub form_textarea {
 sub form_main {
   my $self = shift;
   my ($attr)	= @_;
+	
+  if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $attr->{ID} ) {
+  	return '';
+   }
+
 	
   my $METHOD = ($attr->{METHOD}) ? $attr->{METHOD} : 'POST';
   $self->{FORM} =  "<FORM ";
@@ -458,10 +461,12 @@ sub form_select {
       if ($value =~ /,/) {
       	my @values = split(/,/, $value);
       	my $key_num = 0;
+      	my @valuesr_arr = ();
       	foreach my $val_keys (@values) {
-      	  $self->{SELECT} .= (($attr->{MULTI_ARRAY_VALUE_PREFIX} && $MULTI_ARRAY_VALUE_PREFIX[$key_num]) ? ' '.$MULTI_ARRAY_VALUE_PREFIX[$key_num] : "; ") . $v->[int($val_keys)];	
+      	  push @valuesr_arr, (($attr->{MULTI_ARRAY_VALUE_PREFIX} && $MULTI_ARRAY_VALUE_PREFIX[$key_num]) ? $MULTI_ARRAY_VALUE_PREFIX[$key_num] . $v->[int($val_keys)] : $v->[int($val_keys)]);	
       	  $key_num++;
       	 }
+        $self->{SELECT} .= join(' : ', @valuesr_arr);
        }
       else {
         $self->{SELECT} .= "$v->[$value]";
@@ -546,9 +551,6 @@ sub setCookie {
 	# be sent through secure connections
 	my $self = shift;
 	my($name, $value, $expiration, $path, $domain, $secure) = @_;
-	
-	#$path = dirname($ENV{SCRIPT_NAME}) if ($path eq '');
-
 
 	print "Set-Cookie: ";
 	print $name, "=$value; expires=\"", $expiration,
@@ -593,6 +595,7 @@ sub menu () {
  my %menu = ();
  my $sub_menu_array;
  my $EX_ARGS = (defined($attr->{EX_ARGS})) ? $attr->{EX_ARGS} : '';
+ my $fl             = $attr->{FUNCTION_LIST};
 
 # make navigate line 
 if ($index > 0) {
@@ -657,24 +660,30 @@ foreach my $ID (@s) {
  	     my($ID, $name)=split(/:/, $sm_item, 2);
  	     next if((! defined($attr->{ALL_PERMISSIONS})) && (! defined($permissions->{$ID-1})) && $parent == 0);
 
- 	     $name = (defined($tree{$ID})) ? $self->b($name) : "$name";
+   	   my $active = 'odd';
+   	   if (defined($tree{$ID})) {
+   	     $name = $self->b($name);
+   	     $active = 'active_menu';
+   	    };
+
        if(! defined($menu_args->{$ID}) || (defined($menu_args->{$ID}) && defined($FORM{$menu_args->{$ID}})) ) {
        	   my $ext_args = "$EX_ARGS";
        	   if (defined($menu_args->{$ID})) {
        	     $ext_args = "&$menu_args->{$ID}=$FORM{$menu_args->{$ID}}";
        	     $name = $self->b($name) if ($name !~ /<b>/);
+       	     $active = 'active';
        	    }
 
-       	   my $link = $self->button($name, "index=$ID$ext_args");
-    	       if($parent == 0) {
- 	        	   $menu_text .= "<tr class='odd'><td class=menu_cel_main>$prefix$link</td></tr>\n";
-	            }
- 	           elsif(defined($tree{$ID})) {
-   	           $menu_text .= "<tr><td class=menu_cel>$prefix>$link</td></tr>\n";
- 	            }
- 	           else {
- 	             $menu_text .= "<tr><td class=menu_cel>$prefix$link</td></tr>\n";
- 	            }
+       	   my $link = $self->button($name, "index=$ID$ext_args", { ex_params => ($parent == 0) ? (($fl->{$ID} ne 'null') ? " id=". $fl->{$ID} : '') : '' });
+    	     if($parent == 0) {
+ 	        	 $menu_text .= "<tr class='$active'><td class=menu_cel_main>$prefix$link</td></tr>\n";
+	          }
+ 	         elsif(defined($tree{$ID})) {
+   	         $menu_text .= "<tr><td class=menu_cel>$prefix>$link</td></tr>\n";
+ 	          }
+ 	         else {
+ 	           $menu_text .= "<tr><td class=menu_cel>$prefix$link</td></tr>\n";
+ 	          }
          }
         else {
           #next;
@@ -700,6 +709,141 @@ foreach my $ID (@s) {
  
  $menu_text .= "</table>\n</div>
  <div class='menu_bot'></div>\n";
+ 
+ return ($menu_navigator, $menu_text);
+}
+
+
+#**********************************************************
+# New menu
+#**********************************************************
+sub menu2 () {
+ my $self = shift;
+ my ($menu_items, $menu_args, $permissions, $attr) = @_;
+
+ my $menu_navigator = '';
+ my $root_index     = 0;
+ my %tree           = ();
+ my %menu           = ();
+ my $EX_ARGS        = (defined($attr->{EX_ARGS})) ? $attr->{EX_ARGS} : '';
+ my $fl             = $attr->{FUNCTION_LIST};
+ my $ext_args = "$EX_ARGS";
+
+# make navigate line 
+if ($index > 0) {
+  $root_index = $index;	
+  my $h = $menu_items->{$root_index};
+
+  while(my ($par_key, $name) = each ( %$h )) {
+    my $ex_params = (defined($menu_args->{$root_index}) && defined($FORM{$menu_args->{$root_index}})) ? '&'."$menu_args->{$root_index}=$FORM{$menu_args->{$root_index}}" : '';
+    $menu_navigator =  " ". $self->button($name, "index=$root_index$ex_params"). '/' . $menu_navigator;
+    $tree{$root_index}=1;
+    if ($par_key > 0) {
+      $root_index = $par_key;
+      $h = $menu_items->{$par_key};
+     }
+   }
+}
+
+$FORM{root_index} = $root_index;
+if ($root_index > 0) {
+  my $ri = $root_index-1;
+  if (defined($permissions) && (! defined($permissions->{$ri}))) {
+	  $self->{ERROR} = "Access deny $ri";
+	  return '', '';
+   }
+}
+
+
+my @menu_sorted = sort {
+  $a <=> $b
+} keys %$menu_items;
+
+
+foreach my $ID (@menu_sorted) {
+  my $VALUE_HASH = $menu_items->{$ID};
+  foreach my $parent (keys %$VALUE_HASH) {
+    push( @{$menu{$parent}},  "$ID:$VALUE_HASH->{$parent}" );
+   }
+}
+ 
+my  %new_hash = ();
+while((my($findex, $hash)=each(%$menu_items))) {
+   while(my($parent, $val)=each %$hash) {
+     $new_hash{$parent}{$findex}=$val;
+    }
+}
+
+my $h = $new_hash{0};
+my @last_array = ();
+
+
+ my $menu_text = "
+ <div class='menu_top'></div>
+ <div id='menu_main'>
+ <ul id='tmenu0'>\n";
+
+for(my $parent=0; $parent<$#menu_sorted + 1; $parent++) { 
+  my $val   = $h->{$menu_sorted[$parent]};
+  my $level = 0;
+  my $ID    = $menu_sorted[$parent]; 
+
+  next if((! defined($attr->{ALL_PERMISSIONS})) && (! $permissions->{$parent-1}) && $parent == 0);
+  my $sub_menu = ''; 
+  
+  if (defined($new_hash{$ID})) {
+    $level++;
+    label:
+      my $mi = $new_hash{$ID};
+
+      while(my($k, $val)=each %$mi) {
+        $sub_menu .= "<li>". $self->button("$val", "#", { GLOBAL_URL => "javascript:showContent('index.cgi?qindex=$k&header=1$ext_args')", NO_LINK_FORMER => 1 })."</li>\n";
+
+        if (defined($new_hash{$k})) {
+      	   $mi = $new_hash{$k};
+      	   $level++;
+           push @last_array, $ID;
+           $ID = $k;
+         }
+        delete($new_hash{$ID}{$k});
+      }
+    
+    if ($#last_array > -1) {
+      $ID = pop @last_array;	
+      $level--;
+      goto label;
+    }
+    delete($new_hash{0}{$parent});
+   }
+  
+  if ($val) {
+    $menu_text .= "<li>";
+
+    if ($sub_menu ne '') {
+      $menu_text .= '<span>'.$self->button("$val", "index=$ID$ext_args", { ex_params => (($fl->{$ID} ne 'null') ? "id=". $fl->{$ID} : ''), GLOBAL_URL => "javascript:showContent('index.cgi?qindex=$ID&header=1$ext_args')", NO_LINK_FORMER => 1 }) ."</span>\n";
+  	  $menu_text .= "<ul> $sub_menu </ul>\n";
+     }
+    else {
+      $menu_text .= $self->button("$val", "index=$ID$ext_args", { ex_params => (($fl->{$ID} ne 'null') ? "id=". $fl->{$ID} : ''), GLOBAL_URL => "javascript:showContent('index.cgi?qindex=$ID&header=1$ext_args')", NO_LINK_FORMER => 1 });
+     }
+    
+    $menu_text .= "</li>\n";
+   }
+
+}
+ 	  
+
+ 	  
+ 
+ $menu_text .= "</ul></div>\n</div>
+ <div class='menu_bot'></div>\n";
+ 
+ 
+ $menu_text .= qq{ <script type="text/javascript">
+ulm_ie=window.showHelp;ulm_opera=window.opera;ulm_strict=((ulm_ie || ulm_opera)&&(document.compatMode=="CSS1Compat")); ulm_mac=navigator.userAgent.indexOf("Mac")+1;is_animating=false; cc3=new Object();cc4=new Object(); 
+cc0=document.getElementsByTagName("UL");for(mi=0;mi<cc0.length; mi++){if(cc1=cc0[mi].id){if(cc1.indexOf("tmenu")>-1){cc1=cc1.substring(5); cc2=new window["tmenudata"+cc1];cc3["img"+cc1]=new Image();cc3["img"+cc1].src=cc2.plus_image;cc4["img"+cc1]=new Image(); cc4["img"+cc1].src=cc2.minus_image;if(!(ulm_mac && ulm_ie)){t_cc9=cc0[mi].getElementsByTagName("UL");for(mj=0;mj<t_cc9.length; mj++){cc23=document.createElement("DIV");cc23.className="uldivs"; cc23.appendChild(t_cc9[mj].cloneNode(1));t_cc9[mj].parentNode.replaceChild(cc23,t_cc9[mj]); }}cc5(cc0[mi].childNodes,cc1+"_",cc2,cc1); cc6(cc1,cc2);cc0[mi].style.display="block"; }}};function cc5(cc9,cc10,cc2,cc11){eval("cc8=new Array("+cc2.pm_width_height+")");this.cc7=0;for(this.li=0;this.li<cc9.length; this.li++){if(cc9[this.li].tagName=="LI"){this.level=cc10.split("_").length-1; cc9[this.li].style.cursor="default";this.cc12=false;this.cc13=cc9[this.li].childNodes; for(this.ti=0;this.ti<this.cc13.length;this.ti++){lookfor="DIV"; if(ulm_mac && ulm_ie)lookfor="UL";if(this.cc13[this.ti].tagName==lookfor){this.tfs=this.cc13[this.ti].firstChild; if(ulm_mac && ulm_ie)this.tfs=this.cc13[this.ti];this.usource=cc3["img"+cc11].src; if((gev=cc9[this.li].getAttribute("expanded"))&&(parseInt(gev))){this.usource=cc4["img"+cc11].src; }else this.tfs.style.display="none";if(cc2.folder_image){create_images(cc2,cc11,cc2.icon_width_height,cc2.folder_image,cc9[this.li]); this.ti=this.ti+2;}this.cc14=document.createElement("IMG");this.cc14.setAttribute("width",cc8[0]); this.cc14.setAttribute("height",cc8[1]);this.cc14.className="plusminus"; this.cc14.src=this.usource;this.cc14.onclick=cc16;this.cc14.onselectstart=function(){return false}; this.cc14.setAttribute("cc2_id",cc11);this.cc15=document.createElement("div"); this.cc15.style.display="inline";this.cc15.style.paddingLeft=cc2.imgage_gap+"px"; cc9[this.li].insertBefore(this.cc15,cc9[this.li].firstChild); cc9[this.li].insertBefore(this.cc14,cc9[this.li].firstChild); this.ti+=2;new cc5(this.tfs.childNodes,cc10+this.cc7+"_",cc2,cc11);this.cc12=1; }else if(this.cc13[this.ti].tagName=="SPAN"){this.cc13[this.ti].onselectstart=function(){return false}; this.cc13[this.ti].onclick=cc16;this.cc13[this.ti].setAttribute("cc2_id",cc11); this.cname="cc24";if(this.level>1)this.cname="cc25";if(this.level> 1)this.cc13[this.ti].onmouseover=function(){this.className="cc25"; };else this.cc13[this.ti].onmouseover=function(){this.className="cc24"; };this.cc13[this.ti].onmouseout=function(){this.className="";}; }}if(!this.cc12){if(cc2.document_image){create_images(cc2,cc11,cc2.icon_width_height,cc2.document_image,cc9[this.li]); }this.cc15=document.createElement("div");this.cc15.style.display="inline"; if(ulm_ie)this.cc15.style.width=cc2.imgage_gap+cc8[0]+"px";else this.cc15.style.paddingLeft=cc2.imgage_gap+cc8[0]+"px"; cc9[this.li].insertBefore(this.cc15,cc9[this.li].firstChild);}this.cc7++; }}};function create_images(cc2,cc11,iwh,iname,liobj){eval("tary=new Array("+iwh+")");this.cc15=document.createElement("div");this.cc15.style.display="inline"; this.cc15.style.paddingLeft=cc2.imgage_gap+"px"; liobj.insertBefore(this.cc15,liobj.firstChild); this.fi=document.createElement("IMG");this.fi.setAttribute("width",tary[0]); this.fi.setAttribute("height",tary[1]);this.fi.setAttribute("cc2_id",cc11); this.fi.className="plusminus";this.fi.src=iname;this.fi.style.verticalAlign="middle"; this.fi.onclick=cc16;liobj.insertBefore(this.fi,liobj.firstChild); };function cc16(){if(is_animating)return;cc18=this.getAttribute("cc2_id"); cc2=new window["tmenudata"+cc18];cc17=this.parentNode.getElementsByTagName("UL"); if(parseInt(this.parentNode.getAttribute("expanded"))){this.parentNode.setAttribute("expanded",0); if(ulm_mac && ulm_ie){cc17[0].style.display="none";}else {cc27=cc17[0].parentNode;cc27.style.overflow="hidden";cc26=cc27; cc27.style.height=cc17[0].offsetHeight;cc27.style.position="relative"; cc17[0].style.position="relative";is_animating=1;setTimeout("cc29("+(-cc2.animation_jump)+",false,"+cc2.animation_delay+")",0); }this.parentNode.firstChild.src=cc3["img"+cc18].src;}else {this.parentNode.setAttribute("expanded",1);if(ulm_mac && ulm_ie){cc17[0].style.display="block";}else {cc27=cc17[0].parentNode;cc27.style.height="1px";cc27.style.overflow="hidden"; cc27.style.position="relative";cc26=cc27;cc17[0].style.position="relative"; cc17[0].style.display="block";cc28=cc17[0].offsetHeight;cc17[0].style.top=-cc28+"px"; is_animating=1;setTimeout("cc29("+cc2.animation_jump+",1,"+cc2.animation_delay+")",0); }this.parentNode.firstChild.src=cc4["img"+cc18].src;}};function cc29(inc,expand,delay){cc26.style.height=(cc26.offsetHeight+inc)+"px"; cc26.firstChild.style.top=(cc26.firstChild.offsetTop+inc)+"px"; if( (expand &&(cc26.offsetHeight<(cc28)))||(!expand &&(cc26.offsetHeight>Math.abs(inc))) )setTimeout("cc29("+inc+","+expand+","+delay+")",delay);else {if(expand){cc26.style.overflow="visible"; if((ulm_ie)||(ulm_opera && !ulm_strict))cc26.style.height="0px";else cc26.style.height="auto";cc26.firstChild.style.top=0+"px";}else {cc26.firstChild.style.display="none"; cc26.style.height="0px";}is_animating=false;}};function cc6(id,cc2){np_refix="#tmenu"+id;cc20="<style type='text/css'>";cc19="";if(ulm_ie)cc19="height:0px;font-size:1px; ";cc20+=np_refix+" {width:100%;"+cc19+"-moz-user-select:none;margin:0px;padding:0px; list-style:none;"+cc2.main_container_styles+"}";cc20+=np_refix+" li{white-space:nowrap; list-style:none;margin:0px;padding:0px;"+cc2.main_item_styles+"}"; cc20+=np_refix+" ul li{"+cc2.sub_item_styles+"}";cc20+=np_refix+" ul{list-style:none;margin:0px;padding:0px;padding-left:"+cc2.indent+"px; "+cc2.sub_container_styles+"}";cc20+=np_refix+" a{"+cc2.main_link_styles+"}";cc20+=np_refix+" a:hover{"+cc2.main_link_hover_styles+"}";cc20+=np_refix+" ul a{"+cc2.sub_link_styles+"}";cc20+=np_refix+" ul a:hover{"+cc2.sub_link_hover_styles+"}";cc20+=".cc24 {"+cc2.main_expander_hover_styles+"}";if(cc2.sub_expander_hover_styles)cc20+=".cc25 {"+cc2.sub_expander_hover_styles+"}"; else cc20+=".cc25 {"+cc2.main_expander_hover_styles+"}";if(cc2.use_hand_cursor)cc20+=np_refix+" li span,.plusminus{cursor:hand; cursor:pointer;}";else cc20+=np_refix+" li span,.plusminus{cursor:default;}";document.write(cc20+"</style> ");}
+</script>};
+ 
  
  return ($menu_navigator, $menu_text);
 }
@@ -745,7 +889,7 @@ sub header {
  $info{CHARSET} = $self->{CHARSET};
  $info{CONTENT_LANGUAGE}=$attr->{CONTENT_LANGUAGE} if ($attr->{CONTENT_LANGUAGE});
 
- $self->{header} .= $self->tpl_show($self->{METATAGS}, \%info, { OUTPUT2RETURN => 1  });
+ $self->{header} .= $self->tpl_show($self->{METATAGS}, \%info, { OUTPUT2RETURN => 1, ID => $FORM{EXPORT_CONTENT}  });
  return $self->{header};
 
  return $self->{header};
@@ -769,22 +913,23 @@ sub table {
  $self->{MAX_ROWS}=$parent->{MAX_ROWS};
 
  $self->{prototype} = $proto;
- $self->{NO_PRINT} = $proto->{NO_PRINT};
+ $self->{NO_PRINT}  = $proto->{NO_PRINT};
 
  my($attr)=@_;
  $self->{rows}='';
-
  
- my $width = (defined($attr->{width})) ? "width=\"$attr->{width}\"" : '';
- my $border = (defined($attr->{border})) ? "border=\"$attr->{border}\"" : '';
+ my $width       = (defined($attr->{width})) ? "width=\"$attr->{width}\"" : '';
+ my $border      = (defined($attr->{border})) ? "border=\"$attr->{border}\"" : '';
  my $table_class = (defined($attr->{class})) ? "class=\"$attr->{class}\"" : '';
-
+ 
  if (defined($attr->{rowcolor})) {
     $self->{rowcolor} = $attr->{rowcolor};
    }  
  else {
     $self->{rowcolor} = undef;
   }
+
+ $self->{ID}=$attr->{ID} || '';
 
  if (defined($attr->{rows})) {
     my $rows = $attr->{rows};
@@ -793,52 +938,69 @@ sub table {
      }
   }
 
- $self->{table} = "<TABLE $width cellspacing=\"0\" cellpadding=\"0\" border=\"0\"$table_class>\n";
- 
+ $self->{table} = "<TABLE $width cellspacing='0' cellpadding='0' border='0'$table_class>\n";
+ #Table Caption
  if (defined($attr->{caption})) {
-   $self->{table} .= "<TR><TD bgcolor=\"$_COLORS[1]\" align=\"right\" class=\"tcaption\"><b>$attr->{caption}</b></td></TR>\n";
+   $self->{table} .= "<TR><TD bgcolor='$_COLORS[1]' align='right' class='tcaption' colspan='2'><b>$attr->{caption}</b></td></TR>\n";
+  }
+
+ my @header_obj = ();
+ 
+ #Export object
+ if ($attr->{EXPORT} && ! $FORM{EXPORT_CONTENT}) {
+ 	 my($export_name, $params)=split(/:/, $attr->{EXPORT}, 2);
+ 	 $self->{EXPORT_OBJ} = $self->button("$export_name", "qindex=$index$attr->{qs}&pg=$PG&sort=$SORT&desc=$DESC&EXPORT_CONTENT=$attr->{ID}&header=1$params", { ex_params => 'target=_export class=export_button' });
+ 	 push @header_obj, $self->{EXPORT_OBJ};
   }
 
  if (defined($attr->{VIEW})) {
-   $self->{table} .= "<TR><TD bgcolor=\"$_COLORS[1]\" align=\"right\" class=\"tcaption\">$attr->{VIEW}</td></TR>\n";
+   $self->{table} .= "<TR><TD bgcolor='$_COLORS[1]' align='right' class='tcaption'>$attr->{VIEW}</td></TR>\n";
   }
-
 
  if( $attr->{header}) {
-   $self->{table} .= "<tr><td bgcolor=\"$_COLORS[1]\"><div id=\"rules\"><ul><li class=\"center\"> $attr->{header} </li></ul></div></td></tr>\n";
+   push @header_obj,  $attr->{header};
   }
 
- $self->{table} .= "<TR><TD bgcolor=\"$_COLORS[4]\">
-               <TABLE width=\"100%\" cellspacing=\"1\" cellpadding=\"0\" border=\"0\">\n";
+ if ($#header_obj > -1) {
+ 	  $self->{table} .= "<tr><td valign=bottom>$self->{EXPORT_OBJ}</td><td><div id='rules'><ul><li class='center'>";
+    #foreach my $obj (@header_obj) {
+    #   $self->{table} .= $obj. '&nbsp;&nbsp;&nbsp;';   
+    # }
+    $self->{table} .= "$attr->{header}</li></ul></div></td></tr>\n";
+  } 
+
+ $self->{table} .= "<TR><TD bgcolor='$_COLORS[4]' colspan='2'>
+               <TABLE width='100%' cellspacing='1' cellpadding='0' border='0'>\n";
 
  
 
  if (defined($attr->{title})) {
    $SORT = $LIST_PARAMS{SORT};
- 	 $self->{table} .= $self->table_title($SORT, $DESC, $PG, $attr->{title}, $attr->{qs});
+   $self->{table} .= $self->table_title($SORT, $DESC, $PG, $attr->{title}, $attr->{qs});
+   $self->{title_arr} = $attr->{title};
   }
  elsif(defined($attr->{title_plain})) {
    $self->{table} .= $self->table_title_plain($attr->{title_plain});
   }
 
  if (defined($attr->{cols_align})) {
-   $self->{table} .= "<COLGROUP>";
+   $self->{table} .= "<COLGROUP>\n";
    my $cols_align = $attr->{cols_align};
    my $i=0;
    foreach my $line (@$cols_align) {
      my $class = '';
      if ($line =~ /:/) {
        ($line, $class) = split(/:/, $line,  2);
-       $class = " class=\"$class\"";
+       $class = " class='$class'";
       }
-     my $width = (defined($attr->{cols_width}) && defined(@{$attr->{cols_width}}[$i])  ) ? " width=\"@{$attr->{cols_width}}[$i]\"" : '';
-     $self->{table} .= " <COL align=\"$line\"$class$width />\n";
+     my $width = (defined($attr->{cols_width}) && defined(@{$attr->{cols_width}}[$i])  ) ? " width='@{$attr->{cols_width}}[$i]'" : '';
+     $self->{table} .= " <COL align='$line'$class$width />\n";
      $i++;
     }
    $self->{table} .= "</COLGROUP>\n";
   }
  
- if (defined($attr->{pages})) {
+ if ($attr->{pages} && ! $FORM{EXPORT_CONTENT}) {
  	   my $op;
  	   if($FORM{index}) {
  	   	 $op = "index=$FORM{index}";
@@ -860,9 +1022,10 @@ sub addrow {
   my $self = shift;
   my (@row) = @_;
 
+
   if ($self->{rowcolor}) {
     if ($self->{rowcolor} =~ /^#/) {
-    	$class = "' bgcolor='$self->{rowcolor}'";
+    	$class = "' bgcolor='$self->{rowcolor}";
      }
     else {
       $class = "$self->{rowcolor}";
@@ -877,7 +1040,9 @@ sub addrow {
   $row_number++;
   $self->{rows} .= "<tr class='$class' id='row_$row_number'>";
   
-  foreach my $val (@row) {
+  for(my $num=0; $num<=$#row; $num++) {
+     my $val = $row[$num];
+     #print $self->{title_arr}." $val /<br>";
      $self->{rows} .= "<TD$extra>";
      $self->{rows} .= $val if(defined($val));
      $self->{rows} .= "</TD>";
@@ -998,26 +1163,22 @@ sub table_title  {
      $self->{table_title} .= "<th class='table_title'>$line ";
      if ($line ne '-') {
          if ($sort != $i) {
-             $img = 'sort_none.png';
-           }
-         elsif ($desc eq 'DESC') {
-             $img = 'down_pointer.png';
-             $desc='';
-           }
-         elsif($sort > 0) {
-             $img = 'up_pointer.png';
-             $desc='DESC';
-           }
-         
-         if ($FORM{index}) {
-         	  $op="index=$FORM{index}";
+           $img = 'sort_none.png';
           }
-         
-         if ($FORM{index}) {
-         	  $op="index=$FORM{index}";
-         	}
+         elsif ($desc eq 'DESC') {
+           $img = 'down_pointer.png';
+           $desc='';
+          }
+         elsif($sort > 0) {
+           $img = 'up_pointer.png';
+           $desc='DESC';
+          }
 
-         $self->{table_title} .= $self->button("<img src=\"$IMG_PATH/$img\" width=\"12\" height=\"10\" border=\"0\" alt=\"Sort\" title=\"Sort\" class=\"noprint\"/>", "$op$qs&pg=$pg&sort=$i&desc=$desc");
+         if ($FORM{index}) {
+         	 $op="index=$FORM{index}";
+          }
+
+         $self->{table_title} .= $self->button("<img src='$IMG_PATH/$img' width='12' height='10' border='0' alt='Sort' title='Sort' class='noprint'/>", "$op$qs&pg=$pg&sort=$i&desc=$desc");
        }
      else {
          $self->{table_title} .= '';
@@ -1040,18 +1201,21 @@ sub show  {
   my $self = shift;	
   my ($attr) = shift;
   
+  if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $self->{ID} ) {
+  	return '';
+   }
   
-  $self->{show} = $self->{table};
-  $self->{show} .= $self->{rows}; 
-  $self->{show} .= "</TABLE></TD></TR></TABLE>\n";
-
-  $self->{show} = "<div class='table_top'></div>\n"
+  $self->{show} = $self->{table}
+  . $self->{rows} 
+  . "</TABLE>\n"
+  . "</TD></TR></TABLE>\n"
+  . "<div class='table_top'></div>\n"
   . "<div class='table_cont'>$self->{show}</div>\n"
   . "<div class='table_bot'></div>\n";
 
 
   if (defined($self->{pages})) {
- 	   $self->{show} =  '<br>'.$self->{pages} . $self->{show} . $self->{pages} .'<br>';
+    $self->{show} =  '<br>'.$self->{pages} . $self->{show} . $self->{pages} .'<br>';
  	 }
 
   if ((defined($self->{NO_PRINT})) && ( !defined($attr->{OUTPUT2RETURN}) )) {
@@ -1076,6 +1240,7 @@ sub link_former {
   $params =~ s/</&lt;/g;
   $params =~ s/\"/&quot;/g;
   $params =~ s/\*/&#42;/g;
+  $params =~ s/\+/%2B/g;
  
   return $params;
 }
@@ -1090,7 +1255,7 @@ sub button {
   my $ex_attr = ($attr->{ex_params}) ? $attr->{ex_params} : '';
   $params = ($attr->{GLOBAL_URL})? $attr->{GLOBAL_URL} : "$SELF_URL?$params";
   $params = $attr->{JAVASCRIPT} if (defined($attr->{JAVASCRIPT}));
-  $params = $self->link_former($params);
+  $params = $self->link_former($params) if (! $attr->{NO_LINK_FORMER});
   
   $ex_attr.=" TITLE='$attr->{TITLE}'" if (defined($attr->{TITLE}));
   if ( $attr->{NEW_WINDOW} ) {
@@ -1119,11 +1284,18 @@ sub button {
   	$attr->{MESSAGE} =~ s/"/\\'/g;
   	$attr->{MESSAGE} =~ s/\n//g;
   	$attr->{MESSAGE} =~ s/\r//g;
-  	
   	$message = " onclick=\"return confirmLink(this, '$attr->{MESSAGE}')\"";
    }
 
-  my $button = ($attr->{BUTTON}) ? "<a class='link_button' href=\"$params\"$ex_attr$message>$name</a>" : "<a href=\"$params\"$ex_attr$message>$name</a>";
+  my $class = '';
+  if ($attr->{BUTTON})  {
+    $class = "class='link_button'";
+   }
+  elsif ($attr->{CLASS}) {
+    $class = "class='$attr->{CLASS}'";
+   }
+  my $title = ($name !~ /[<#]/) ? "title='$name'" : '';
+  my $button = "<a $title $class href=\"$params\"$ex_attr$message>$name</a>";
 
   return $button;
 }
@@ -1139,12 +1311,20 @@ sub message {
  
  my $head = '';
  $caption .= ': '. $attr->{ID} if ($attr->{ID});
+ my $img = '';
  if ($type eq 'err') {
-   $head = "<tr><th bgcolor=\"#FF0000\" class=err_message>$caption</th></TR>\n";
+   $head = "<tr><th class=err_message colspan=2>$caption</th></TR>\n";
+   $img = '<img src=/img/attention.png border=0 hspace=10 dir=ltr alt=\'Error\'>';
   }
  elsif ($type eq 'info') {
-   $head = "<tr><th bgcolor=\"$_COLORS[0]\" class=info_message>$caption</th></TR>\n";
+   $head = "<tr><th class=info_message colspan=2>$caption</th></TR>\n";
+   $img = '<img src=/img/information.png border=0 hspace=10 dir=ltr alt=\'Information\'>';
   }  
+ 
+ $message =~ s/\n/<br>/g;
+ 
+ 
+ 
  
 my $output = qq{
 <br>
@@ -1155,7 +1335,8 @@ my $output = qq{
 
 <TABLE width="100%">
 $head
-<tr><TD bgcolor="$_COLORS[1]">$message</TD></TR>
+<tr><TD bgcolor="$_COLORS[1]" align=center width=30>$img</TD>
+<TD bgcolor="$_COLORS[1]">$message</TD></TR>
 </TABLE>
 
 </TD></TR>
@@ -1258,9 +1439,32 @@ for(my $i=$begin; ($i<=$count && $i < $PG + $PAGE_ROWS * 10); $i+=$PAGE_ROWS) {
    $self->{pages} .= ($i == $PG) ? $self->b(($i==0) ? 1 : $i).' ' : $self->button(($i==0 ? 1 : $i), "$argument&pg=$i") .' ';
  }
 
-return "<div id=\"rules\"><ul><li class=\"center\">\n". 
-        $self->{pages}.
-       "\n</li></ul></div>\n";
+
+
+return qq{
+
+<div id="rules">
+<ul><li class="center"><a onclick="javascript:showHidePageJump()" ><img src='/img/dropdown.png' /></a> $self->{pages}</li></ul>
+</div>
+<div id="buttonJumpMenu">
+    <div id='pageJumpWindow'>
+    	<h2>Перейти к странице:</h2>
+    	<input id='pagevalue' type='text'  size='5' maxlength=3/>
+    	<button onclick="checkval('index.cgi?$argument&pg=')">OK</button>
+    </div>
+</div>
+};
+
+#return qq{
+#    <div id='pageJumpWindow'>
+#    	<h2>Перейти к странице:</h2>
+#    	<input id='pagevalue' type='text'  size='5' maxlength=3/>
+#    	<button onclick="checkval('index.cgi?index=$index&pg=')">OK</button>
+#    </div>
+#<div id="rules">
+#<ul><li class="center"><a onclick="javascript:showHidePageJump()" ><img src='/img/dropdown.png' /></a> $self->{pages}</li></ul>
+#</div>
+#};
 }
 
 
@@ -1453,6 +1657,11 @@ sub tpl_show {
   my $self = shift;
   my ($tpl, $variables_ref, $attr) = @_;	
 
+  if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $attr->{ID} ) {
+  	return '';
+   }
+  
+
   if (! $attr->{SOURCE}) {
   while($tpl =~ /\%(\w+)(\=?)([A-Za-z0-9]{0,50})\%/g) {
     my $var       = $1;
@@ -1519,7 +1728,7 @@ sub test {
  while(my($k, $v)=each %COOKIES) {
    $output .= "$k | $v\n";
   }
- print "<a href='#' title='$output' class='noprint'><font color=$_COLORS[1]>Debug</font></a>\n";
+ print "<a href='#' title='$output' class='noprint'><font color='$_COLORS[1]'>Debug</font></a>\n";
 }
 
 #**********************************************************

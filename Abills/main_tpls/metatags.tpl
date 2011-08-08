@@ -3,16 +3,16 @@
 <html>
 <head>
  %REFRESH%
- <META HTTP-EQUIV=\"Cache-Control\" content=\"no-cache,no-cache,no-store,must-revalidate\"/>
- <META HTTP-EQUIV=\"Expires\" CONTENT=\"-1\"/>
- <META HTTP-EQUIV=\"Pragma\" CONTENT=\"no-cache\"/>
- <META HTTP-EQUIV=\"Content-Type\" CONTENT=\"text/html; charset=%CHARSET%\"/>
- <META name=\"Author\" content=\"~AsmodeuS~\"/>
- <META HTTP-EQUIV=\"content-language\" content=\"%CONTENT_LANGUAGE%\"/>
+ <META HTTP-EQUIV=\"Cache-Control\" content=\"no-cache,no-store,must-revalidate,private,max-age=0\" >
+ <META HTTP-EQUIV=\"Expires\" CONTENT=\"-1\">
+ <META HTTP-EQUIV=\"Pragma\" CONTENT=\"no-cache\">
+ <META HTTP-EQUIV=\"Content-Type\" CONTENT=\"text/html; charset=%CHARSET%\">
+ <META name=\"Author\" content=\"~AsmodeuS~\">
+ <META HTTP-EQUIV=\"content-language\" content=\"%CONTENT_LANGUAGE%\">
 
- <link rel=\"stylesheet\" media=\"print\" type=\"text/css\" href=\"%PRINTCSS%\" />
+ <link rel=\"stylesheet\" media=\"print\" type=\"text/css\" href=\"%PRINTCSS%\" >
  <script src='%JAVASCRIPT%' type='text/javascript' language='javascript'></script>
- <script src='/calendar.js' language='JavaScript'></script>
+ <script src='/calendar.js' type='text/javascript' language='javascript'></script>
 
 <style type=\"text/css\">
 
@@ -28,13 +28,28 @@ body {
 A:hover {text-decoration: none; color: %_COLOR_9%;}
 
 th.small {
-  color: %_COLOR_9%;
-  font-size: 10px;
+  color: %_COLOR_0%;
+  font-size: 12px;
   height: 10;
+  background-color: %_COLOR_0%;
 }
 
 td.small {
   color: %_COLOR_9%;
+  font-size: 12px;
+  background-color: %_COLOR_0%;
+  height: 10;
+}
+
+td.medium {
+  color: %_COLOR_9%;
+  font-size: 11px;
+  background-color: %_COLOR_2%;
+  height: 14;
+}
+
+td.line {
+  background-color: %_COLOR_0%;
   height: 1;
 }
 
@@ -187,10 +202,26 @@ table tr.even th,
   text-align:right;
 }
 
+.err_message {
+  background-color: #FF0000;
+  color: %_COLOR_9%;
+  height: 20;
+  font-family: Arial, Tahoma, Verdana, Helvetica, sans-serif;
+  font-size: 12px;
+}
+
+.info_message {
+  background-color: %_COLOR_0%;
+  color: %_COLOR_9%;
+  height: 20;
+  font-family: Arial, Tahoma, Verdana, Helvetica, sans-serif;
+  font-size: 12px;
+}
+
 td {
   color: %_COLOR_9%;
   font-family: Arial, Tahoma, Verdana, Helvetica, sans-serif;
-  height: 20;
+  height: 25;
   font-size: 14px;
 }
 
@@ -205,37 +236,249 @@ form {
   background-color: %_COLOR_2%;
   color: %_COLOR_9%;
   font-size: 12px;
+  text-align: center;
 }
 
-a.button_change {
+.export_button {
+	text-decoration: none;
+	font-family:  Arial, Tahoma,Verdana, Helvetica, sans-serif;
 	color: %_COLOR_9%;
- 	background:url(/img/button_change.png) no-repeat left;
+	font-size: 10px;
+}
+
+a.change {
+ 	background:url(/img/button_change.png) no-repeat center;
  	padding-left:22px;
 	padding-top:5px;
 	margin:0;
 	display:block;
-	text-decoration:none;
 	overflow:hidden; 
  	text-indent:-9000px;
 }
 
-a.button_add { 
- 	background:url(/img/button_add.png) no-repeat left;
-  display:block;
-  overflow:hidden; 
- 	text-indent:-60px;
+a.add { 
+	background:url(/img/button_add.png) no-repeat center;
+        padding-left:22px;
+        padding-top:5px;
+        margin:0;
+        display:block;
+        overflow:hidden;
+        text-indent:-9000px;
 }
 
-a.button_del { 
-	color: %_COLOR_9%;
- 	background:url(/img/button_del.png) no-repeat left;
+a.del { 
+ 	background:url(/img/button_del.png) no-repeat center;
  	padding-left:22px;
 	padding-top:5px;
 	margin:0;
 	display:block;
-	text-decoration:none;
 	overflow:hidden; 
  	text-indent:-9000px;
+}
+
+a.users {
+        background:url(/img/button_users.png) no-repeat center;
+        padding-left:22px;
+        padding-top:5px;
+        margin:0;
+        display:block;
+        overflow:hidden;
+        text-indent:-9000px;
+}
+
+a.payments {
+        background:url(/img/button_payments.png) no-repeat center;
+        padding-left:22px;
+        padding-top:5px;
+        height: 22px;
+        margin:0;
+        display:block;
+        overflow:hidden;
+        font-size:0px;
+}
+
+a.fees { 
+        background:url(/img/button_fees.png) no-repeat center;
+        padding-left:22px;
+        padding-top:5px;
+        height: 22px;
+        margin:0;
+        display:block;
+        text-decoration:none;
+        overflow:hidden;
+        text-indent:-9000px;
+}
+
+a.permissions {
+        background:url(/img/button_permissions.png) no-repeat center;
+        padding-left:22px;
+        padding-top:5px;
+        margin:0;
+        display:block;
+        overflow:hidden;
+        text-indent:-9000px;
+}
+
+a.history {
+        background:url(/img/button_history.png) no-repeat center;
+        padding-left:22px;
+        padding-top:5px;
+        margin:0;
+        display:block;
+        overflow:hidden;
+        text-indent:-9000px;
+}
+
+
+a.password {
+        background:url(/img/button_password.png) no-repeat center;
+        padding-left:22px;
+        padding-top:5px;
+        margin:0;
+        display:block;
+        overflow:hidden;
+        text-indent:-9000px;
+}
+
+a.shedule {
+        background:url(/img/button_shedule.png) no-repeat center;
+        padding-left:22px;
+        padding-top:5px;
+        margin:0;
+        display:block;
+        overflow:hidden;
+        text-indent:-9000px;
+}
+a.print {
+        background:url(/img/button_print.png) no-repeat center;
+        padding-left:22px;
+        padding-top:5px;
+        margin:0;
+        display:block;
+        overflow:hidden;
+        text-indent:-9000px;
+}
+
+a.stats {
+        background:url(/img/button_stats.png) no-repeat center;
+        padding-left:22px;
+        padding-top:5px;
+        margin:0;
+        display:block;
+        overflow:hidden;
+        text-indent:-9000px;
+}
+
+a.sql {
+        background:url(/img/button_sql.png) no-repeat center;
+        padding-left:22px;
+        padding-top:5px;
+        margin:0;
+        display:block;
+        overflow:hidden;
+        text-indent:-9000px;
+}
+
+a.download {
+        background:url(/img/button_download.png) no-repeat center;
+        padding-left:22px;
+        padding-top:5px;
+        margin:0;
+        display:block;
+        overflow:hidden;
+        text-indent:-9000px;
+}
+
+a.message {
+        background:url(/img/button_message.png) no-repeat center;
+        padding-left:22px;
+        padding-top:5px;
+        margin:0;
+        display:block;
+        overflow:hidden;
+        text-indent:-9000px;
+}
+
+a.info {
+        background:url(/img/button_info.png) no-repeat center;
+        padding-left:22px;
+        padding-top:5px;
+        margin:0;
+        display:block;
+        overflow:hidden;
+        text-indent:-9000px;
+}
+
+
+a.stats2 {
+        background:url(/img/chart_16.png) no-repeat center;
+        padding-left:22px;
+        padding-top:5px;
+        margin:0;
+        display:block;
+        overflow:hidden;
+        text-indent:-9000px;
+}
+
+a.traffic {
+        background:url(/img/button_traffic.png) no-repeat center;
+        padding-left:22px;
+        padding-top:5px;
+        margin:0;
+        display:block;
+        overflow:hidden;
+        text-indent:-9000px;
+}
+
+a.interval {
+        background:url(/img/button_interval.png) no-repeat center;
+        padding-left:22px;
+        padding-top:5px;
+        margin:0;
+        display:block;
+        overflow:hidden;
+        text-indent:-9000px;
+}
+
+a.show {
+        background:url(/img/button_show.png) no-repeat center;
+        padding-left:22px;
+        padding-top:5px;
+        margin:0;
+        display:block;
+        overflow:hidden;
+        text-indent:-9000px;
+}
+
+a.help {
+        background:url(/img/button_help.png) no-repeat center;
+        padding-left:22px;
+        padding-top:5px;
+        height: 24;
+        margin:0;
+        display:block;
+        overflow:hidden;
+        text-indent:-90000px;
+        font-size: 0px;
+}
+
+
+a.routes {
+        background:url(/img/button_routes.png) no-repeat center;
+        padding-left:22px;
+        padding-top:5px;
+        margin:0;
+        display:block;
+        overflow:hidden;
+        text-indent:-9000px;
+}
+
+
+
+a.rightAlignText {
+	padding-left:20px;
+	padding-top:0px;
+	display:inline-block;
 }
 
 
@@ -254,6 +497,7 @@ a.link_button:hover {
   background:#ccc;
   background-color: %_COLOR_3%;
   border:1px solid #666;
+  cursor: pointer;
 }
 
 input, textarea {
@@ -355,6 +599,7 @@ TABLE.border {
   overflow:hidden;
   height:32px;
   line-height:30px;
+  
 }
 
 #rules li{
@@ -462,6 +707,118 @@ div#tcal td:hover {
     cursor: pointer;
 }
 
+
+#pageJumpWindow {
+	border:2px solid black;
+	padding:5px 5px;;
+	width:130px;
+	height:40px;
+	display:none;
+	position:absolute;
+	background-color:#FFF;
+	z-index:3;
+}
+
+#pageJumpWindow  h2 {
+	margin:0 0 5px 0;
+	font-size:12px;
+	font-family:Tahoma, Geneva, sans-serif;
+		
+}
+
+#buttonJumpMenu {
+	position:relative;
+	width:1px;
+	height:1px;
+}
+
+
+#topNav {
+	margin:0;
+	padding:0;
+}
+
+ 
+
+
+#topNav ul {
+	height:30px;
+}
+
+ #topNav ul,li {
+	margin-left:0px;
+	display:block;
+  	text-decoration: none;
+  	position:relative;
+  	z-index:0;
+}
+
+
+
+#topNav ul li a {
+	font-size:12px; 
+	display: block; 
+	text-decoration: none;
+	text-align:center; 
+	background: #fff; 
+	padding: 5px; 
+	border: 1px solid #ccc; 
+}
+
+
+
+
+
+#topNav li ul {
+	position: absolute; 
+	left: 0px; 
+	top: 20px;
+	display:none;
+	z-index:20;
+	cursor:pointer;
+
+}
+
+
+#topNav li ul li {
+	width:150px;
+}
+
+#topNav li:hover ul {
+ 	display:block;
+ 	z-index:25;
+ 	 
+}
+#topNav li:hover ul li ul,
+#topNav li ul li:hover ul li ul,
+#topNav li ul li ul li:hover ul li ul,
+#topNav li ul li ul li ul li:hover ul li ul{
+	position: absolute; 
+	left:110px; 
+	top:0px;
+	display:none;
+	
+	 
+}
+#topNav li ul li:hover ul,
+#topNav li ul li ul li:hover ul,
+#topNav li ul li ul li ul li:hover ul, 
+#topNav li ul li ul li ul li ul li:hover ul  {
+ display:block;  
+}
+
+#quick_menu #topNav li a img {
+	float:left;
+	margin:0 0 0 5px;
+	padding:0;	
+}
+#quick_menu ul #topNav {
+	text-decoration:none;
+	
+}
+#quick_menu {
+	float:left;
+}
 
 </style>
 

@@ -18,6 +18,9 @@ sub _include {
   my $result = '';
   
   my $sufix = ($attr->{pdf} || $FORM{pdf}) ? '.pdf' : '.tpl';
+  $tpl .= '_'.$attr->{SUFIX} if ($attr->{SUFIX});
+  
+  start:
 
   if ($admin->{DOMAIN_ID}) {
  	  $domain_path="$admin->{DOMAIN_ID}/";
@@ -68,6 +71,14 @@ sub _include {
      if (-f $realfilename) {
         return ($FORM{pdf}) ? $realfilename :  tpl_content($realfilename);
       }
+   }
+
+  if ($attr->{SUFIX}) {
+    $tpl =~ /\/([a-z0-9\_\.\-]+)$/i;
+    $tpl = $1;
+    $tpl =~ s/_$attr->{SUFIX}$//;
+    delete $attr->{SUFIX};
+    goto start;
    }
 
   return "No such template [$tpl]\n";

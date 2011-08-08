@@ -75,9 +75,9 @@ sub take {
   my ($user, $sum, $attr) = @_;
   
   %DATA = $self->get_data($attr, { default => defaults() });
-  my $DESCRIBE = ($attr->{DESCRIBE}) ? $attr->{DESCRIBE} : '';
-  my $DATE  =  ($attr->{DATE}) ? "'$attr->{DATE}'" : 'now()';
-  $DATA{INNER_DESCRIBE} = '' if (! $DATA{INNER_DESCRIBE}) ;
+  my $DATE              =  ($attr->{DATE}) ? "'$attr->{DATE}'" : 'now()';
+  my $DESCRIBE          = ($DATA{DESCRIBE}) ? $DATA{DESCRIBE} : '';
+  $DATA{INNER_DESCRIBE} = '' if (! $DATA{INNER_DESCRIBE});
   
   if ($sum <= 0) {
      $self->{errno} = 12;
@@ -90,6 +90,7 @@ sub take {
      return $self;
    }
 
+ 
   $sum = sprintf("%.6f", $sum);
   
   if ($attr->{BILL_ID}) {
@@ -102,19 +103,21 @@ sub take {
     	 }
 
       if ($CONF->{FEES_PRIORITY}=~/main/ && $user->{EXT_BILL_DEPOSIT} < $sum) {
-      	$Bill->action('take', $user->{EXT_BILL_ID}, $user->{EXT_BILL_DEPOSIT});
-        if($Bill->{errno}) {
-          $self->{errno}  = $Bill->{errno};
-          $self->{errstr} =  $Bill->{errstr};
-          return $self;
-         }
+      	if( $user->{EXT_BILL_DEPOSIT} > 0) {
+      	  $Bill->action('take', $user->{EXT_BILL_ID}, $user->{EXT_BILL_DEPOSIT});
+          if($Bill->{errno}) {
+            $self->{errno}  = $Bill->{errno};
+            $self->{errstr} = $Bill->{errstr};
+            return $self;
+           }
 
-        $self->{SUM}=$self->{EXT_BILL_DEPOSIT};
-        $self->query($db, "INSERT INTO fees (uid, bill_id, date, sum, dsc, ip, last_deposit, aid, vat, inner_describe, method) 
-           values ('$user->{UID}', '$user->{EXT_BILL_ID}', $DATE, '$self->{SUM}', '$DESCRIBE', 
-            INET_ATON('$admin->{SESSION_IP}'), '$Bill->{DEPOSIT}', '$admin->{AID}',
-            '$user->{COMPANY_VAT}', '$DATA{INNER_DESCRIBE}', '$DATA{METHOD}')", 'do');
-        $sum = $sum - $user->{EXT_BILL_DEPOSIT};
+          $self->{SUM}=$self->{EXT_BILL_DEPOSIT};
+          $self->query($db, "INSERT INTO fees (uid, bill_id, date, sum, dsc, ip, last_deposit, aid, vat, inner_describe, method) 
+             values ('$user->{UID}', '$user->{EXT_BILL_ID}', $DATE, '$self->{SUM}', '$DESCRIBE', 
+              INET_ATON('$admin->{SESSION_IP}'), '$Bill->{DEPOSIT}', '$admin->{AID}',
+              '$user->{COMPANY_VAT}', '$DATA{INNER_DESCRIBE}', '$DATA{METHOD}')", 'do');
+          $sum = $sum - $user->{EXT_BILL_DEPOSIT};
+        }
        }
       else {
         $user->{BILL_ID} = $user->{EXT_BILL_ID};	
@@ -144,8 +147,7 @@ sub take {
      }
    }
 
-
-  
+ 
 
   if ($user->{BILL_ID} && $user->{BILL_ID} > 0) {
     $Bill->info( { BILL_ID => $user->{BILL_ID} } );
@@ -236,6 +238,9 @@ sub list {
  # Start letter 
  elsif ($attr->{LOGIN_EXPR}) {
    push @WHERE_RULES, @{ $self->search_expr($attr->{LOGIN_EXPR}, 'STR', 'u.id') };
+  }
+ elsif ($attr->{LOGIN}) {
+   push @WHERE_RULES, @{ $self->search_expr($attr->{LOGIN}, 'STR', 'u.id') };
   }
 
  if ($attr->{BILL_ID}) {
@@ -401,6 +406,10 @@ sub reports {
    	 $date  = "pi.fio";  
    	 $GROUP = 5; 	
     }
+   elsif($attr->{TYPE} eq 'COMPANIES') {
+   	 $ext_tables = 'LEFT JOIN companies c ON (u.company_id=c.id)';
+   	 $date  = "c.name";  
+    }
    elsif($date eq '') {
      $date = "u.id";   	
     }  
@@ -412,7 +421,7 @@ sub reports {
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
  
-  $self->query($db, "SELECT $date, count(DISTINCT f.uid), count(*),  sum(f.sum), f.uid 
+  $self->query($db, "SELECT $date, count(DISTINCT f.uid), count(*),  sum(f.sum), f.uid, u.company_id 
       FROM fees f
       LEFT JOIN users u ON (u.uid=f.uid)
       LEFT JOIN admins a ON (f.aid=a.aid)

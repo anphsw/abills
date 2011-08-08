@@ -24,17 +24,15 @@ sub sqlcmd {
 
 if ($FORM{qindex}) {
   print $html->header();
-
   $Sqlcmd->query($db, "SHOW CREATE TABLE $FORM{TABLE_INFO}");
   my $table = $html->table({ width        => '100%',
-                          caption      => 'SQL Dump',
-                          border       => 1,
-                          rows         => [[ $html->pre($Sqlcmd->{list}->[0]->[1], { OUTPUT2RETURN => 1 }) ]]
-                        });
+                             caption      => 'SQL Dump',
+                             border       => 1,
+                             rows         => [[ $html->pre($Sqlcmd->{list}->[0]->[1], { OUTPUT2RETURN => 1 }) ]]
+                           });
 
   print $table->show();
-
-  print $html->button("$_INFO", "index=$index&TABLE_INFO=$FORM{TABLE_INFO}", { BUTTON => 1}),
+  print $html->button("$_INFO", "index=$index&TABLE_INFO=$FORM{TABLE_INFO}", { CLASS => 'show' }),
   exit;
 }
 
@@ -48,10 +46,8 @@ my @pairs = split(/&/, $FORM{__BUFFER});
 
 $LIST_PARAMS{PAGE_ROWS}=15;
 
-
 if ($FORM{QUERY_ID}) {
-  $Sqlcmd_main->history_query({ %FORM });
-  
+  $Sqlcmd_main->history_query({ %FORM });  
   $FORM{QUERY}    = $Sqlcmd_main->{SQL_QUERY};
   $FORM2{QUERY}   = $FORM{QUERY};
   $Sqlcmd->{QUERY}= $FORM{QUERY};
@@ -96,6 +92,7 @@ if ($FORM{WIZARD}) {
   }
 
 
+
   $table = $html->table( { width        => '100%',
                            border       => 1,
                            caption      => $FORM{TABLE_INFO},
@@ -108,8 +105,8 @@ if ($FORM{WIZARD}) {
 	foreach my $line (@$list) {
 		$table->addrow($line->[0], 
 		$line->[1], 
-		$html->button('QUERY', "index=$index&QUERY_ID=$line->[2]", { BUTTON => 1 }),
-		$html->button("$_DEL", "index=$index&del=$line->[2]", { MESSAGE => "$_DEL $line->[2]?", BUTTON => 1 }),
+		$html->button('QUERY', "index=$index&QUERY_ID=$line->[2]", { CLASS => 'sql' }),
+		$html->button("$_DEL", "index=$index&del=$line->[2]", { MESSAGE => "$_DEL $line->[2]?", CLASS => 'del' }),
 		
 		 );
 	 }
@@ -118,8 +115,9 @@ if ($FORM{WIZARD}) {
  
 
 if (! $FORM{FIELD}) {
- $html->tpl_show(_include('sqlcmd', 'Sqlcmd'), { %$Sqlcmd, \%FORM }) ;
- my $list = $Sqlcmd->list( { %FORM2 } ) if (defined($FORM2{QUERY}) && length($FORM2{QUERY}) > 10);
+	$FORM{QUERY} =~ s/\\'/\'/g;
+  $html->tpl_show(_include('sqlcmd', 'Sqlcmd'), { %$Sqlcmd, %FORM }) ;
+  my $list = $Sqlcmd->list( { %FORM2 } ) if (defined($FORM2{QUERY}) && length($FORM2{QUERY}) > 10);
 
 
 if ($FORM{QUERY} && ! $FORM{xml}) {
@@ -180,7 +178,12 @@ if ($FORM{QUERY} && ! $FORM{xml}) {
 
   print $table->show();
   
-  $Sqlcmd_main->history_add({ %FORM }) if ($FORM{HISTORY});
+  if ($FORM{HISTORY}) {
+  	if (! $FORM{COMMENTS}) {
+  		$FORM{COMMENTS}=substr($FORM{QUERY}, 0,40).'...';
+  	 }
+    $Sqlcmd_main->history_add({ %FORM }) ;
+   }
 }
 
 if ($Sqlcmd->{errno}) {
@@ -408,7 +411,7 @@ my %COLUMN_TYPES = (
 
   $table2 = $html->table({ width        => '100%',
                            border       => 1,
-                           title_plain  => [ $html->form_input('WIZARD', "$_SHOW", {TYPE => 'SUBMIT'}) ]
+                           title_plain  => [ $html->form_input('WIZARD', "$_SHOW", { TYPE => 'SUBMIT'}) ]
                         });
 	
 	
@@ -577,7 +580,7 @@ sub sqlcmd_tables {
     
     $table->addrow(
       @table_rows,
-      $html->button($_SHOW, "index=". ($index - 1).  "&TABLE_INFO=$line->{'Name'}&QUERY=SELECT * FROM $line->{'Name'} LIMIT $PAGE_ROWS", { BUTTON => 1 })
+      $html->button($_SHOW, "index=". ($index - 1).  "&TABLE_INFO=$line->{'Name'}&QUERY=SELECT * FROM $line->{'Name'} LIMIT $PAGE_ROWS", { CLASS => 'show' })
      );
 
     $tables_total++;
@@ -1018,7 +1021,7 @@ sub sqlcmd_procs {
                    $line->[6],
                    $line->[7],
                    $html->button($_DEL, "index=$index&del=$line->[0]", 
-                      { MESSAGE => "$_DEL $line->[0] ?", BUTTON => 1 }) );
+                      { MESSAGE => "$_DEL $line->[0] ?", CLASS => 'del' }) );
    }
 
   print $table->show();
@@ -1094,9 +1097,9 @@ sub sqlcmd_cluster {
 	my(@cluster_hosts) = split(/,/, $conf{SQLCMD_CLUSTER_HOSTS});
 
  
-my $id  = 0;
+my $id          = 0;
 my $active_host = $FORM{HOST_ID} || 0;
-my $ret = 1;
+my $ret         = 1;
 
 my @servers = ();
 if ($FORM{SYNC}) {
@@ -1105,21 +1108,29 @@ if ($FORM{SYNC}) {
                                                   $conf{'SQLCMD_HOST'. $FORM{SYNC} .'_USER'}, 
                                                   $conf{'SQLCMD_HOST'. $FORM{SYNC} .'_PASSWD'},
   { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef  });
+
   my $db_slave = $sql->{db};
-  my $query   = ($id>0) ? "SHOW SLAVE STATUS;" : "SHOW MASTER STATUS;";
-  my $q       = $db_slave->do("stop slave; load data from master; start slave;");
-  if ($db_slave->err) {
-    $html->message('err', $_ERROR.' : '. $id .' : '. $conf{'SQLCMD_HOST'. $id .'_HOSTNAME'}, "$_ERROR: ". $db_slave->err .'/'. $db_slave->errstr);      
+  #my $query    = ($id>0) ? "SHOW SLAVE STATUS;" : "SHOW MASTER STATUS;";
+  my @resync_sql = ("stop slave;",  "load data from master;",  "start slave;"); 
+  
+  foreach my $sql_cmd (@resync_sql) {
+    my $q        = $db_slave->do($sql_cmd);
+
+    if ($db_slave->err) {
+      $html->message('err', $_ERROR.' : DB ID '. $FORM{SYNC} .' : '. $conf{'SQLCMD_HOST'. $FORM{SYNC} .'_HOSTNAME'}, "$_ERROR: ". $db_slave->err .'/'. $db_slave->errstr.' / '. $resync_sql);      
+     }
+    else {
+      $html->message('info', $_INFO.' : '. $FORM{SYNC} .' : '. $conf{'SQLCMD_HOST'. $FORM{SYNC} .'_HOSTNAME'}, "Rebuilding...");
+     }
    }
-  else {
-    $html->message('info', $_INFO.' : '. $FORM{SYNC} .' : '. $conf{'SQLCMD_HOST'. $FORM{SYNC} .'_HOSTNAME'}, "Rebuilding...");
-   }
+
   return 0;
  }
 
 foreach my $host ( ("$_MAIN",  @cluster_hosts) ) {
     #$Sqlcmd_main = Sqlcmd->new($db, $admin, \%conf);
     my $sql;
+    my $db_host = '';
     my $table = $html->table({ width       => '100%',
     	                         caption     => "$id:$host / " . $conf{'SQLCMD_HOST'. $id .'_HOSTNAME'},
     	                         title       => [ 'key', 'val' ],
@@ -1127,25 +1138,27 @@ foreach my $host ( ("$_MAIN",  @cluster_hosts) ) {
                              });
 
     if ($id && ! $conf{'SQLCMD_HOST'. $id .'_HOSTNAME'}) {
-    	$html->message('err', $_ERROR.' : '. $id .' : '. $conf{'SQLCMD_HOST'. $id .'_HOSTNAME'}, "$_ERROR: $_NOT_EXIST"); 
+    	$html->message('err', $_ERROR.' : BD INFO '. $id .' : '. $host .' / '. $conf{'SQLCMD_HOST'. $id .'_HOSTNAME'}, "$_ERROR: $_NOT_EXIST"); 
     	$id++;
     	next     
      }
     elsif ($id == 0) {
       $sql = Abills::SQL->connect($conf{dbtype}, $conf{'dbhost'}, 
-                                                  $conf{'dbname'}, 
-                                                  $conf{'dbuser'}, 
-                                                  $conf{'dbpasswd'},
+                                                 $conf{'dbname'}, 
+                                                 $conf{'dbuser'}, 
+                                                 $conf{'dbpasswd'},
       { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef  });
+      $db_host = $conf{'dbhost'};
      }
     else {
       $sql = Abills::SQL->connect($conf{dbtype}, $conf{'SQLCMD_HOST'. $id .'_HOSTNAME'}, 
-                                                  $conf{'SQLCMD_HOST'. $id .'_DB'}, 
-                                                  $conf{'SQLCMD_HOST'. $id .'_USER'}, 
-                                                  $conf{'SQLCMD_HOST'. $id .'_PASSWD'},
+                                                 $conf{'SQLCMD_HOST'. $id .'_DB'}, 
+                                                 $conf{'SQLCMD_HOST'. $id .'_USER'}, 
+                                                 $conf{'SQLCMD_HOST'. $id .'_PASSWD'},
       { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef  });
       
       $table->addrow($html->button('RESYNC', "index=$index&SYNC=$id", { BUTTON => 1 }), '-');
+      $db_host = $conf{'SQLCMD_HOST'. $id .'_HOSTNAME'};
      }
 
     if (! $sql->{db}) {
@@ -1162,7 +1175,7 @@ foreach my $host ( ("$_MAIN",  @cluster_hosts) ) {
     $q->execute(); 
     
     if ($db_slave->err) {
-      $html->message('err', $_ERROR.' : '. $id .' : '. $conf{'SQLCMD_HOST'. $id .'_HOSTNAME'}, "$_ERROR: ". $db_slave->err .'/'. $db_slave->errstr);      
+      $html->message('err', $_ERROR.' : DB_ID: '. $id .' : '. $db_host .' / '. $conf{'SQLCMD_HOST'. $id .'_HOSTNAME'}, "$_ERROR: ". $db_slave->err .'/'. $db_slave->errstr);      
      }
     $Sqlcmd->{MYSQL_FIELDS_NAMES} = $q->{NAME};
     

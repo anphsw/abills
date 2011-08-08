@@ -20,6 +20,7 @@ use constant ACCOUNTING_REQUEST           => 4;
 use constant ACCOUNTING_RESPONSE          => 5;
 use constant ACCOUNTING_STATUS            => 6;
 
+
 require Abills::Radius;
 Abills::Radius->import();
 
@@ -35,39 +36,6 @@ $conf{'timeshift'} = 0 if (! exists($conf{'VOIP_TIMESHIFT'}));
 use Asterisk::AGI;
 my $agi = new Asterisk::AGI;
 my %data = ();
-
-
-
-
-
-#my  $r = new Radius(Host => 'null', Secret => 'testall');
-#
-#  if( ! defined($r) ) {
-#
-#     exit;
-#   }
-#
-#
-#  $r->load_dictionary;
-#  $r->add_attributes (
-#                { Name => 'User-Name',         Value => 'aa1' },
-#                { Name => 'Password',          Value => 'test123123' },
-#                { Name => 'h323-return-code',  Value => '0' }, # Cisco AV pair
-#                { Name => 'Digest-Attributes', Value => { Method => 'REGISTER' } }
-#  );
-#
-#  print $r->get_error();
-#
-#  
-#  
-#  $r->send_packet (1) and my $type = $r->recv_packet;
-#  print "server response type = $type\n";
-#  for my $a ($r->get_attributes) {
-#        print "attr: name=$a->{'Name'} value=$a->{'Value'}\n";
-#  }
-#
-#exit;
-
 
 # Parsing input data
 my %input = $agi->ReadParse();
@@ -89,7 +57,8 @@ $data{'calledgateway'}   = '';
 # Default values
 $data{'session_timeout'} = $conf{'VOIP_MAX_SESSION_TIME'} || 10800;
 $data{'update_interval'} = 0 ; #$conf{'aliveinterval'} || 0;
-$data{'remote_ip'}       = $agi ->get_variable('SIPCHANINFO(peerip)');
+#$data{'remote_ip'}       = $agi ->get_variable('SIPCHANINFO(peerip)');
+$data{'remote_ip'}       = $agi ->get_variable('CHANNEL(peerip)');
 #$data{'remote_ip'}       = $agi ->get_variable('SIPRECEIVEDIP');
 $data{'theoretical_ip'}  = $agi ->get_variable('SIPTHEORETICALIP');
 $data{'return_code'}     = 0;
@@ -105,7 +74,7 @@ $call_type = "Telephony" if $input{'Channel'} =~ /^(Zap)|(VPB)|(phone)|(Modem)|(
 my $protocol = 'other';
 $protocol = 'sipv2' if $input{'Channel'} =~ /^SIP/i;
 $protocol = 'h323' if $input{'Channel'} =~ /^h323/i;
-
+my $context  = $input{context};
 
 my %rad_attributes = ();
 my %rad_authorize_attributes = ();
@@ -122,12 +91,13 @@ $rad_attributes{'Calling-Station-Id'} = $data{'caller'};
 $rad_attributes{'Called-Station-Id'}  = $data{'called'};
 $rad_attributes{'Service-Type'}       = 'Login-User';
 $rad_attributes{'h323-conf-id'}       = $data{'confid'};
-$rad_attributes{'h323-call-origin'}   = "originate";
+$rad_attributes{'h323-call-origin'}   = ($context eq 'answer') ? 'answer' : 'originate';
 $rad_attributes{'Cisco-Call-Type'}    = "$call_type";
 $rad_attributes{'Cisco-NAS-Port'}     = $data{'channel'};
 $rad_attributes{'Cisco-AVPair'}       = "call-codec=$data{'codec'};";
 $rad_attributes{'Cisco-AVPair'}      .= ($data{'useragent'})? "useragent=$data{'useragent'};" : "";
 $rad_attributes{'Cisco-AVPair'}      .= "session-protocol=$protocol";
+
 
 #Get NAS IP and ID
 if (! exists($conf{'NAS_IP_ADDRESS'}) || ! exists($conf{'VOIP_NAS_ID'})) {
@@ -182,7 +152,8 @@ if ($data{return_code} != 0 && $data{return_code} != 13) {
 	$agi->hangup();
 	exit;
 }
-$agi->set_autohangup($data{'session_timeout'}) if $data{'session_timeout'} > 0;
+
+#$agi->set_autohangup($data{'session_timeout'}) if $data{'session_timeout'} > 0;
 
 
 if ($debug > 0) {
@@ -229,10 +200,10 @@ else {
 # Dial Timeout
 $dialstring .= "|$conf{'VOIP_DEFAULTDIALTIMEOUT'}";
 
-#if ($data{'session_timeout'} > 0){
-#  $dialstring .= "|";
-#  $dialstring .= "S(".$data{'session_timeout'}.")";
-# }
+if ($data{'session_timeout'} > 0){
+  $dialstring .= "|";
+  $dialstring .= "S(".$data{'session_timeout'}.")";
+ }
 
 
 syslog('info', "Start call CHANNEL: $input{'channel'} NUMBER:". $dialstring);

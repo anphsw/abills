@@ -1,5 +1,176 @@
-=====0.52====
+=====0.53=====
 
+22.07.2011\\
+  * ''Paysys'' Добавлена возможность отменять массовые платежи
+  * ''Paysys'' Добавлен бекап обработаных файлов
+  * ''abm_console'' добавлена возможность производить массовые оплаты и снятия исходя из параметров логина
+  * добавлены отчёты по работе компаний оплаты, снятия, интернет
+  * ''Ashield'' Обновлен к версии протокола 6.0. Все действия с аккаунтом пользователя теперь производятся через веб интерфейс билинга
+  * В список систем миграции добавлено MikBill, Nodeny, Stargezer, Trafpro
+  * ''Voip'' Добавлена возможность ведения цен телефонии в условных единица. Условные единицы конвертируются в реальный цены исходя из поточного курса. 
+  * ''Voip'' Добавлена программа получения курса НБУ и пересчёта цен исходя из курса условной единицы
+  * ''Voip'' Добавлены группы расширенно тарификации. Возможность устанавливать предоплаченое время для определённой группы направлений
+
+
+MySQL:
+  CREATE TABLE `docs_main` (
+    `uid` int(11) unsigned NOT NULL default '0' PRIMARY KEY,
+    `send_docs` tinyint(1) unsigned NOT NULL default '0',
+    `periodic_create_docs` tinyint(1) unsigned NOT NULL default '0',
+    `email` varchar(200) NOT NULL default '',
+    `comments` text not null
+   ) COMMENT='Docs users settings';
+  
+  
+  ALTER TABLE abon_user_list ADD COLUMN `create_docs` tinyint(1) unsigned NOT NULL DEFAULT 0;
+  ALTER TABLE abon_user_list ADD COLUMN `send_docs` tinyint(1) unsigned NOT NULL DEFAULT 0;
+  ALTER TABLE ashield_avd_log ADD COLUMN `work_period_begin` DATE NOT NULL;
+  ALTER TABLE voip_route_prices ADD COLUMN `unit_price` double(15,5) unsigned NOT NULL default '0.00000';
+  ALTER TABLE voip_route_prices ADD COLUMN `extra_tarification` smallint(5) unsigned NOT NULL default 0;
+  ALTER TABLE voip_route_prices ADD COLUMN `unit_price` double(15,5) unsigned NOT NULL default '0.00000';
+  ALTER TABLE voip_log ADD COLUMN `route_id` int(11) unsigned NOT NULL default '0';
+  
+  CREATE TABLE `voip_route_extra_tarification` (
+    `id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
+    `name` varchar(32) not null default '',
+    `date` date NOT NULL default '0000-00-00',
+    `prepaid_time` INT UNSIGNED NOT NULL DEFAULT '0',
+    PRIMARY KEY (`id`),
+    UNIQUE (`name`) 
+  ) COMMENT "Voip extra tarification" ;
+  
+  CREATE TABLE `voip_route_groups` (
+   `id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
+   `name` varchar(32) not null default '',
+   PRIMARY KEY (`id`)
+  ) COMMENT "Voip route groups" ;
+
+13.07.2011\\
+  * ''Docs'' добавлена возможность масового выставления счетов на следующий учётный период
+  * ''Docs'' добавлен профайл с возможностью выбора дополнительного емейла для отправки документов и опция генерации месячных документов
+  * ''Abon'' добавлена индивидуальная скидка для каждой услуги
+
+MySQL\\
+  ALTER TABLE  `abon_user_list` ADD COLUMN `discount`  double(6,2) NOT NULL default '0.00';
+
+
+04.07.2011\\
+  * ''Abon'' добавлена опция учета скидок
+  * В журнале пользователей добавлен фильтр по кредиторам
+
+MySQL:\\
+  ALTER TABLE `abon_tariffs` ADD COLUMN `discount` tinyint(1) unsigned NOT NULL default '0';
+
+
+04.07.2011\\
+   * Добавлена возможность выбора типа сервера для автоактивации IPN
+   * В лог ошибок VoIP  добавлен адрес назначения звонка
+   * Paysys  добавлена возможность перекодировок импортируемых файлов
+   * Добавлена проверка на дубликат IP в модуле Vlan
+   * Добавлен импорт/экспорт компаний
+   * Добавлен статус только входящие для модуля VOIP. Устанавливается в начале расчётного периода если у абонента недостаточно средст и до этого был статус активно. В следующем учётном периоде статус меняется на блокировано. $conf{VOIP_ONEMONTH_INCOMMING_ALLOW} 
+   * Добавлен новій тип сервера  cisco_voip. 
+   * Добавлена возможность использовать шаблон определения классов для ISC DHCP Option82
+   * Включения фильтра негативного депозита при разных статусах модуля Dv $conf{DV_STATUS_NEG_DEPOSIT}=1;
+   * Добавлена возможность при масовом импорте пользователей 
+   * Добавлена Offline  работа с Eript
+   * Добавлена поддержка  DvCrypt  для модуля Iptv
+
+MySQL:\\ 
+  ALTER TABLE companies ADD COLUMN `contract_sufix` VARCHAR(5) NOT NULL DEFAULT '';
+  ALTER TABLE iptv_main ADD COLUMN `dvcrypt_id` int unsigned NOT NULL DEFAULT 0; 
+
+
+29.05.2011
+  * Добавлена возможность переключения скорости в зависимости от временных интервалом для mpd шейпера с радиус парами.
+  * Добавлены суфиксы контрактов для компаний
+  * В информационные поля добавлен тип file  возможность прикреплять файлы для компании и аккаунтов пользователей 
+  * В модуль карт Maps добавлена поддержка Google Maps
+  * В модуль карт добавлена возможность отображать сервера доступа
+  * Улучшен шейпер для Linux. Добавлена поддержка хешей
+  * Новый модуль складской учёт [[abills:docs:modules:storage:ru|Storage]]
+  * Улучшена производительность авторизации и аккаунтинга модуля Voip
+  * Добавлена поддержка платёжной системы PayPal
+  * Добавлена поддержка FreeRadius DHCP. Раздача динамических IP исходя из параметров опции 82, гостевой аккаунт
+  * Информационные сообщения по работе billd заносятся в лог ошибок
+  * Добавлена типизация для лога ошибок
+  * Добавлен механизм группирования и ротации записей лога ошибок
+  * Улучшена работа с Cisco ISG. Более быстрая работа с CoA  интерфейсом
+  * Добавлена утилита snmp_control.pl.  Управление скоростью на портах коммутаторов D-Link, Edge core, а также управление VLAN.
+  * Добавлены иконки для кнопок пользовательского интерфейса.
+  * Добавлена возможность создавать произвольное меню пользовательского интерфейса
+  * Добавлена возможность установки даты с которой будет производиться снятие денег модулем Abon
+
+
+MySQL:\\ 
+  ALTER TABLE companies ADD COLUMN `contract_sufix` VARCHAR(5) NOT NULL DEFAULT '';
+
+19.05.2011\\
+MySQL:\\
+  ALTER TABLE districts ADD COLUMN `coordx` DOUBLE(20,14) NOT NULL DEFAULT '0';
+  ALTER TABLE districts ADD COLUMN `coordy` DOUBLE(20,14) NOT NULL DEFAULT '0';
+  ALTER TABLE districts ADD COLUMN `zoom` tinyint(2) NOT NULL DEFAULT '0';
+
+
+16.05.2011\\
+MySQL:\\
+  ALTER TABLE s_detail CHANGE COLUMN  `sent1` `sent1` int(10) unsigned NOT NULL default '0';
+  ALTER TABLE s_detail CHANGE COLUMN  `recv1` `recv1` int(10) unsigned NOT NULL default '0';
+  ALTER TABLE s_detail CHANGE COLUMN  `sent2` `sent2` int(10) unsigned NOT NULL default '0';
+  ALTER TABLE s_detail CHANGE COLUMN  `recv2` `recv2` int(10) unsigned NOT NULL default '0';
+  
+  ALTER TABLE builds ADD COLUMN `coordx` DOUBLE(20,14) NOT NULL DEFAULT '0';
+  ALTER TABLE builds ADD COLUMN `coordy` DOUBLE(20,14) NOT NULL DEFAULT '0';
+
+
+19.04.2011\\
+  * **После обновления пересоздайте файл config.pl c config.pl.default **
+
+17.04.2011\\
+MySQL:\\
+  ALTER TABLE  cards_users ADD COLUMN `commission` double(10,2) unsigned NOT NULL default '0.00';
+  ALTER TABLE abon_tariffs ADD COLUMN `vat` tinyint(1) unsigned NOT NULL DEFAULT '0';
+
+04.04.2011\\
+  * Добавлено уведомление о продлении услуги для модуля Abon
+  * Добавлен внешний обработчик для модуля Abon. Разрешает запускать внешние программы при активации или блокировании услуги.
+  * Комиссия за использование карточки оплаты
+  * Добавлена плотность подключения в журнал адресов
+  * Добавлен экспорт в XML журналов платежей и снятий 
+  * Список адресов с которых разрешено подключаться администратору $conf{ADMINS_ALLOW_IP};
+  * Создание счёта при активации услуги модулем Abon (периодические платежи)
+  * Периодическое оповещение о завершении услуги и отправка счёта на оплату для модуля Abon
+  * Установка типа снятий для модуля Abon
+MySQL:\\
+  ALTER TABLE abon_tariffs ADD COLUMN `activate_notification` tinyint(1) unsigned NOT NULL DEFAULT '0';
+  ALTER TABLE abon_tariffs ADD COLUMN  `ext_cmd` VARCHAR(240) NOT NULL DEFAULT '';
+  ALTER TABLE abon_tariffs ADD COLUMN `create_account` tinyint(1) unsigned NOT NULL DEFAULT '0';
+  ALTER TABLE abon_tariffs ADD COLUMN `fees_type` tinyint(2) unsigned NOT NULL DEFAULT '0';
+  ALTER TABLE abon_tariffs ADD COLUMN `notification1` tinyint(1) unsigned NOT NULL DEFAULT '0';
+  ALTER TABLE abon_tariffs ADD COLUMN `notification2` tinyint(1) unsigned NOT NULL DEFAULT '0';
+  ALTER TABLE abon_tariffs ADD COLUMN `notification3` tinyint(1) unsigned NOT NULL DEFAULT '0';
+  ALTER TABLE abon_tariffs ADD COLUMN `notification_account` tinyint(1) unsigned NOT NULL DEFAULT '0';
+  ALTER TABLE abon_tariffs ADD COLUMN `alert` tinyint(1) unsigned NOT NULL DEFAULT '0';
+  ALTER TABLE abon_tariffs ADD COLUMN `alert_account` tinyint(1) unsigned NOT NULL DEFAULT '0';
+  
+  ALTER TABLE abon_user_list ADD COLUMN `notification1` date NOT NULL default '0000-00-00';
+  ALTER TABLE abon_user_list ADD COLUMN `notification1_account_id` int(11) unsigned NOT NULL DEFAULT 0;
+  ALTER TABLE abon_user_list ADD COLUMN `notification2` date NOT NULL default '0000-00-00';
+
+
+
+
+25.03.2011\\
+
+  * Удаление группы только после полного удаление из неё пользователей
+  * В модуль Ureports (Отчёты пользователя) добавлена функция предупреждения о недостаточности средств на следующий учётный период через sms  или E-mail
+  * Интеграция с системой Turbosms
+  * Добавлен новый отчёт дней до завершения тарифного плана
+  * Добавлено оповещение пользователей через смс и массовый рассылки рекламных акций
+  * Востановление пароля через СМС сообщение
+  * Отправка пользователю СМС с паролем с админ формы
+
+=====0.52====
 18.03.2011\\
   * Добавлена возможность импорта списка цен для Voip  модуля
   * Добавлена возможность импорта списка направлений для Voip  модуля
@@ -59,8 +230,8 @@ MySQL:\\
   ALTER TABLE builds ADD COLUMN `map_y4` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
 
 18.12.2010\\
-  * Только администратор может удалять расписания присвоенные пользователю
-  * В DHCPhost  добавлено поле гостевой VLAN и возможность не блокировать должников на порту а перебрасывать в гостевой VLAN (Dlink, AgeCore)
+  * Только администрартор может удалять расписания присвоенные пользователю
+  * В DHCPhost  добавленно поле гостевой VLAN и возможность не блокировать долников на порту а перебрасывать в гостевой VLAN (Dlink, AgeCore)
 
 MySQL:\\
   ALTER TABLE shedule ADD COLUMN `admin_action` tinyint(1) unsigned NOT NULL default '0';

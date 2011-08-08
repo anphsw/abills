@@ -228,7 +228,20 @@ sub pi_add {
     	  my $value = $1;
     	  push @info_fields_arr, $value;
         if (defined($attr->{$value})) {
-    	    $attr->{$value} =~ s/^ +|[ \n]+$//g;
+    	    #attach
+    	    if ( ref $attr->{$value} eq 'HASH' && $attr->{$value}{filename}) {
+            $self->attachment_add({ 
+            	TABLE        => $value.'_file',
+              CONTENT      => $attr->{$value}{Contents},
+              FILESIZE     => $attr->{$value}{Size},
+              FILENAME     => $attr->{$value}{filename},
+              CONTENT_TYPE => $attr->{$value}{'Content-Type'}
+             });
+            $attr->{$value}=$self->{INSERT_ID};
+           }
+          else {
+          	$attr->{$value} =~ s/^ +|[ \n]+$//g;
+           }
          }
    	    else {
    	    	$attr->{$value} = '';
@@ -245,8 +258,6 @@ sub pi_add {
   my $sufix =''; 
   if ($attr->{CONTRACT_TYPE}) {
   	($prefix, $sufix)=split(/\|/, $attr->{CONTRACT_TYPE});
-  	#$self->query($db,  "SET \@CONTRACT_PREFIX:='$prefix';") if ($prefix);
-  	#$self->query($db,  "SET \@CONTRACT_SUFIX:='$sufix';") if ($sufix);
    }
 
 
@@ -273,6 +284,44 @@ sub pi_add {
   return $self;
 }
 
+
+
+#**********************************************************
+#
+#**********************************************************
+sub attachment_info () {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $WHERE  ='';
+  
+  if ($attr->{ID}) {
+  	$WHERE .= " id='$attr->{ID}'";
+   }
+ 
+  my $content = (! $attr->{INFO_ONLY}) ? ',content' : '';
+ 
+  my $table = $attr->{TABLE};
+ 
+  $self->query($db,  "SELECT id, filename, 
+    content_type, 
+    content_size
+    $content
+   FROM `$table`
+   WHERE $WHERE" );
+
+ return $self if ($self->{TOTAL} < 1);
+
+  ($self->{ATTACHMENT_ID},
+   $self->{FILENAME}, 
+   $self->{CONTENT_TYPE},
+   $self->{FILESIZE},
+   $self->{CONTENT}
+  )= @{ $self->{list}->[0] };
+
+
+  return $self;
+}
 
 
 #**********************************************************
@@ -442,7 +491,23 @@ my %PI_FIELDS = (EMAIL       => 'email',
         my $field_name = $1;
         $PI_FIELDS{$field_name}="$field_name";
         my ($position, $type, $name)=split(/:/, $line->[1]);
-        if ($type == 4) {
+        if ($type == 13) {
+    	    #attach
+    	    if ( ref $attr->{$field_name} eq 'HASH' && $attr->{$field_name}{filename}) {
+            $self->attachment_add({
+            	TABLE        => $field_name.'_file',
+              CONTENT      => $attr->{$field_name}{Contents},
+              FILESIZE     => $attr->{$field_name}{Size},
+              FILENAME     => $attr->{$field_name}{filename},
+              CONTENT_TYPE => $attr->{$field_name}{'Content-Type'}
+             });
+            $attr->{$field_name}=$self->{INSERT_ID};
+           }
+          else {
+          	delete $attr->{$field_name};
+           }
+         }
+        elsif ($type == 4) {
         	$attr->{$field_name} = 0 if (! $attr->{$field_name});
          }
       }
@@ -454,6 +519,8 @@ my %PI_FIELDS = (EMAIL       => 'email',
   	($prefix, $sufix)=split(/\|/, $attr->{CONTRACT_TYPE});
   	$attr->{CONTRACT_SUFIX}=$sufix;
    }
+
+ $admin->{MODULE}='';
 
 	$self->changes($admin, { CHANGE_PARAM => 'UID',
 		                TABLE        => 'users_pi',
@@ -654,13 +721,7 @@ sub list {
     push @WHERE_RULES, "u.id LIKE '$attr->{FIRST_LETTER}%'";
   }
  elsif ($attr->{LOGIN}) {
-    if ($attr->{LOGIN} =~ /^list:(.+)/) {
-    	my $logins = $1;
-    	push @WHERE_RULES, "u.id IN ($logins)";
-     }
-    else {
-      push @WHERE_RULES, "u.id='$attr->{LOGIN}'";
-     }
+   push @WHERE_RULES, @{ $self->search_expr($attr->{LOGIN}, 'STR', 'u.id') };
   }
  # Login expresion
  elsif ($attr->{LOGIN_EXPR}) {
@@ -692,7 +753,8 @@ sub list {
 
 
  if($attr->{NOT_FILLED}) {
- 	 push @WHERE_RULES, @{ $self->search_expr(0, 'INT', 'pi.location_id' ) };
+ 	 push @WHERE_RULES, "builds.id IS NULL";
+ 	 $EXT_TABLES .= "LEFT JOIN builds ON (builds.id=pi.location_id)";
   }
  elsif ($attr->{LOCATION_ID}) {
    push @WHERE_RULES, @{ $self->search_expr($attr->{LOCATION_ID}, 'INT', 'pi.location_id', { EXT_FIELD => 'streets.name, builds.number, builds.id' }) };
@@ -711,6 +773,13 @@ sub list {
      $EXT_TABLES .= "LEFT JOIN builds ON (builds.id=pi.location_id)
       LEFT JOIN streets ON (streets.id=builds.street_id)
       LEFT JOIN districts ON (districts.id=streets.district_id) ";
+    }
+   elsif ($CONF->{ADDRESS_REGISTER}) {
+     if ($attr->{ADDRESS_STREET}) {
+       push @WHERE_RULES, @{ $self->search_expr($attr->{ADDRESS_STREET}, 'STR', 'streets.name', { EXT_FIELD => 'streets.name' }) };
+       $EXT_TABLES .= "INNER JOIN builds ON (builds.id=pi.location_id)
+        INNER JOIN streets ON (streets.id=builds.street_id)";
+      }
     }
    elsif ($attr->{ADDRESS_STREET}) {
      push @WHERE_RULES, @{ $self->search_expr($attr->{ADDRESS_STREET}, 'STR', 'pi.address_street', { EXT_FIELD => 1 }) };
@@ -849,7 +918,7 @@ sub list {
  	 push @WHERE_RULES,  "(u.expire<curdate() or u.expire='0000-00-00') and u.credit + if(company.id IS NULL, b.deposit, cb.deposit) > 0 and u.disable=0 ";
   }
 
- if (! $admin->{permissions}->{0} || ! $admin->{permissions}->{0}->{8} || 
+ if ((! $admin->{permissions}->{0} && ! $admin->{permissions}->{0}->{8}) || 
     ($attr->{USER_STATUS} && ! $attr->{DELETED})) {
 	 push @WHERE_RULES,  @{ $self->search_expr(0, 'INT', 'u.deleted', { EXT_FIELD => 1 })  };
   }
@@ -985,7 +1054,7 @@ if ($self->{TOTAL} > 0) {
  	  return $list
   }
  #Show last fees
- if ($attr->{FEES} || $attr->{FEES_DAYS}) {    
+ if ($attr->{FEES} || $attr->{FEES_DAYS}) {
     my @HAVING_RULES = @WHERE_RULES;
     if($attr->{PAYMENTS}) {
       my $value = $self->search_expr($attr->{FEES}, 'INT');
@@ -1050,7 +1119,7 @@ if ($self->{TOTAL} > 0) {
      $WHERE = ($#WHERE_RULES > -1) ?  "WHERE " . join(' and ', @WHERE_RULES) : '';
     
      $self->query($db, "SELECT count(DISTINCT u.uid) FROM users u 
-       LEFT JOIN fees f ON (u.uid = p.uid)
+       LEFT JOIN fees f ON (u.uid = f.uid)
        LEFT JOIN users_pi pi ON (u.uid = pi.uid)
        LEFT JOIN bills b ON (u.bill_id = b.id)
       $WHERE;");
@@ -1201,7 +1270,7 @@ sub change {
              );
 
   my $old_info = $self->info($attr->{UID});
-  
+
   if($attr->{CREATE_BILL}) {
   	 use Bills;
   	 my $Bill = Bills->new($db, $admin, $CONF);
@@ -1244,6 +1313,10 @@ sub change {
    }
   if (defined($attr->{REDUCTION}) && $attr->{REDUCTION} == 0) {
      $attr->{REDUCTION_DATE} = '0000-00-00';
+   }
+ 
+  if (! defined($attr->{DISABLE})) {
+  	$attr->{DISABLE}=0;
    }
  
   #Make extrafields use
@@ -1575,10 +1648,10 @@ sub info_field_add {
 	                    " varchar(20) not null default ''",
 	                    " varchar(50) not null default ''",
 	                    " varchar(50) not null default ''",
+	                    " int unsigned NOT NULL default '0' ",
 	                    );
 	
 	$attr->{FIELD_TYPE} = 0 if (! $attr->{FIELD_TYPE});
-	
 
 	my $column_type = $column_types[$attr->{FIELD_TYPE}];
 	my $field_prefix = 'ifu';
@@ -1599,8 +1672,17 @@ sub info_field_add {
        name varchar(120) not null default 0
        )DEFAULT CHARSET=$CONF->{dbcharset};", 'do');    	
      }
-      $self->config_add({ PARAM => $field_prefix. "_$attr->{FIELD_ID}", 
-  	                      VALUE => "$attr->{POSITION}:$attr->{FIELD_TYPE}:$attr->{NAME}"
+    elsif ($attr->{FIELD_TYPE}==13) {
+       $self->query($db, "CREATE TABLE `_$attr->{FIELD_ID}_file` (`id` int(11) unsigned NOT NULL PRIMARY KEY auto_increment,
+         `filename` varchar(250) not null default '',
+         `content_size` varchar(30) not null  default '',
+         `content_type` varchar(250) not null default '',
+         `content` longblob NOT NULL,
+         `create_time` datetime NOT NULL default '0000-00-00 00:00:00') DEFAULT CHARSET=$CONF->{dbcharset};", 'do');    	
+     }
+
+    $self->config_add({ PARAM => $field_prefix. "_$attr->{FIELD_ID}", 
+  	                    VALUE => "$attr->{POSITION}:$attr->{FIELD_TYPE}:$attr->{NAME}"
   	                    });
 
    }
@@ -1788,7 +1870,8 @@ sub config_change {
 		               TABLE        => 'config',
 		               FIELDS       => \%FIELDS,
 		               OLD_INFO     => $self->config_info({ PARAMS => $param, DOMAIN_ID => $attr->{DOMAIN_ID} }),
-		               DATA         => $attr
+		               DATA         => $attr,
+		               %$attr
 		              } );
 
 
@@ -1843,7 +1926,7 @@ sub district_list {
 
  my $WHERE = ($#WHERE_RULES > -1) ?  "WHERE " . join(' and ', @WHERE_RULES) : ''; 
  
- $self->query($db, "SELECT d.id, d.name, d.country, d.city, zip, count(s.id) FROM districts d
+ $self->query($db, "SELECT d.id, d.name, d.country, d.city, zip, count(s.id), d.coordx, d.coordy, d.zoom FROM districts d
      LEFT JOIN streets s ON (d.id=s.district_id)
    $WHERE 
    GROUP BY d.id
@@ -1868,8 +1951,8 @@ sub district_info {
  my ($attr) = @_;
  
  $self->query($db, "select id, name, country, 
- city, zip,
- comments FROM districts WHERE id='$attr->{ID}';");
+ city, zip, comments, coordx, coordy, zoom
+  FROM districts WHERE id='$attr->{ID}';");
 
  return $self if ($self->{errno} || $self->{TOTAL} < 1);
 
@@ -1878,7 +1961,11 @@ sub district_info {
   $self->{COUNTRY},
   $self->{CITY},
   $self->{ZIP},
- 	$self->{COMMENTS}) = @{ $self->{list}->[0] };
+ 	$self->{COMMENTS},
+ 	$self->{COORDX},
+ 	$self->{COORDY},
+ 	$self->{ZOOM},
+ 	) = @{ $self->{list}->[0] };
 
  return $self;
 }
@@ -1895,7 +1982,11 @@ sub district_change {
                COUNTRY  => 'country',
                CITY     => 'city',
                ZIP      => 'zip',
-               COMMENTS => 'comments');
+               COMMENTS => 'comments',
+               COORDX   => 'coordx',
+               COORDY   => 'coordy',
+               ZOOM     => 'zoom',               
+               );
 
  $self->changes($admin, { CHANGE_PARAM => 'ID',
 		               TABLE        => 'districts',
@@ -1914,8 +2005,9 @@ sub district_add {
  my $self = shift;
  my ($attr) = @_;
 
- $self->query($db, "INSERT INTO districts (name, country, city, zip, comments) 
-   values ('$attr->{NAME}', '$attr->{COUNTRY}', '$attr->{CITY}', '$attr->{ZIP}',  '$attr->{COMMENTS}');", 'do');
+ $self->query($db, "INSERT INTO districts (name, country, city, zip, comments, coordx, coordy, zoom) 
+   values ('$attr->{NAME}', '$attr->{COUNTRY}', '$attr->{CITY}', '$attr->{ZIP}',  '$attr->{COMMENTS}',
+   '$attr->{COORDX}', '$attr->{COORDY}','$attr->{ZOOM}');", 'do');
 
  $admin->system_action_add("DISTRICT:$self->{INSERT_ID}:$attr->{NAME}", { TYPE => 1 }) if (! $self->{errno});
  return $self;
@@ -1961,11 +2053,18 @@ sub street_list {
 
  my $WHERE = ($#WHERE_RULES > -1) ?  "WHERE " . join(' and ', @WHERE_RULES) : ''; 
 
- my $EXT_TABLE = '';
- my $EXT_FIELDS = '';
+ my $EXT_TABLE        = '';
+ my $EXT_FIELDS       = '';
+ my $EXT_TABLE_TOTAL  = '';
+ my $EXT_FIELDS_TOTAL = '';
+
+ 
  if ($attr->{USERS_INFO} && ! $admin->{MAX_ROWS}) {
  	 $EXT_TABLE = 'LEFT JOIN users_pi pi ON (b.id=pi.location_id)';
    $EXT_FIELDS = ', count(pi.uid)';
+   $EXT_TABLE_TOTAL  = 'LEFT JOIN builds b ON (b.street_id=s.id) LEFT JOIN users_pi pi ON (b.id=pi.location_id)';
+   $EXT_FIELDS_TOTAL = ', count(DISTINCT b.id), count(pi.uid), sum(b.flats) / count(pi.uid)';
+
   }
 
  $self->query($db, "SELECT s.id, s.name, d.name, count(DISTINCT b.id) $EXT_FIELDS FROM streets s
@@ -1980,8 +2079,13 @@ sub street_list {
  my $list = $self->{list};
 
  if ($self->{TOTAL} > 0) {
-    $self->query($db, "SELECT count(*) FROM streets s $WHERE");
-    ($self->{TOTAL}) = @{ $self->{list}->[0] };
+    $self->query($db, "SELECT count(DISTINCT s.id) $EXT_FIELDS_TOTAL FROM streets s 
+     $EXT_TABLE_TOTAL  $WHERE");
+    ($self->{TOTAL},
+     $self->{TOTAL_BUILDS},
+     $self->{TOTAL_USERS},
+     $self->{DENSITY_OF_CONNECTIONS}
+    ) = @{ $self->{list}->[0] };
    }
 
  return $list;
@@ -2102,12 +2206,16 @@ sub build_list {
  if ($attr->{SHOW_MAPS}) {
    $ext_fields = ",b.map_x, b.map_y, b.map_x2, b.map_y2, b.map_x3, b.map_y3, b.map_x4, b.map_y4";
   }
+ elsif($attr->{SHOW_MAPS_GOOGLE}) {
+   $ext_fields = ",b.coordx, b.coordy";
+   push @WHERE_RULES, "(b.coordx<>0 and b.coordy)";
+  }
 
  my $WHERE = ($#WHERE_RULES > -1) ?  "WHERE " . join(' and ', @WHERE_RULES) : ''; 
  my $sql = '';
  if ($attr->{CONNECTIONS}) {
 	 $sql = "SELECT b.number, b.flors, b.entrances, b.flats, s.name, 
-     count(pi.uid),
+     count(pi.uid), ROUND((count(pi.uid) / b.flats * 100), 0),
 	   b.added, b.id $ext_fields	   
 	   
 	    FROM builds b
@@ -2130,7 +2238,9 @@ sub build_list {
  my $list = $self->{list};
 
  if ($self->{TOTAL} > 0) {
-    $self->query($db, "SELECT count(*) FROM builds b $WHERE");
+    $self->query($db, "SELECT count(*) FROM builds b 
+    LEFT JOIN streets s ON (s.id=b.street_id)
+    $WHERE");
     ($self->{TOTAL}) = @{ $self->{list}->[0] };
    }
  return $list;
@@ -2158,7 +2268,9 @@ sub build_info {
    map_x3,
    map_y3,   
    map_x4,
-   map_y4   
+   map_y4,
+   coordx,
+   coordy   
  FROM builds WHERE id='$attr->{ID}';");
 
  return $self if ($self->{errno} || $self->{TOTAL} < 1);
@@ -2177,7 +2289,9 @@ sub build_info {
  	$self->{MAP_X3},
  	$self->{MAP_Y3},
  	$self->{MAP_X4},
- 	$self->{MAP_Y4}
+ 	$self->{MAP_Y4},
+        $self->{COORDX}, 
+        $self->{COORDY},
  	) = @{ $self->{list}->[0] };
 
  return $self;
@@ -2203,13 +2317,15 @@ sub build_change {
                MAP_X3      => 'map_x3',
                MAP_Y3      => 'map_y3',
                MAP_X4      => 'map_x4',
-               MAP_Y4      => 'map_y4'
+               MAP_Y4      => 'map_y4',
+      	       COORDX 	   => 'coordx',
+	       COORDY 	   => 'coordy',
                );
 
  $self->changes($admin, { CHANGE_PARAM => 'ID',
 		               TABLE        => 'builds',
 		               FIELDS       => \%FIELDS,
-		               OLD_INFO     => $self->street_info({ ID => $id }),
+		               OLD_INFO     => $self->build_info({ ID => $id }),
 		               DATA         => $attr
 		              } );
 

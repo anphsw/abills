@@ -154,11 +154,20 @@ if ($uid > 0) {
     $OUTPUT{MENU}=$html->tpl_show(templates('form_client_custom_menu'), $user, { OUTPUT2RETURN => 1 });
    }
   else {
-   (undef, $OUTPUT{MENU}) = $html->menu(\%menu_items, \%menu_args, undef, 
-     { EX_ARGS         => "&sid=$sid", 
-     	 ALL_PERMISSIONS => 1,
-     	 FUNCTION_LIST   => \%functions
-     });
+    if ($conf{MENU_NEW}) {
+ 	    (undef, $OUTPUT{MENU}) = $html->menu2(\%menu_items, \%menu_args, undef, 
+        { EX_ARGS         => "&sid=$sid", 
+     	    ALL_PERMISSIONS => 1,
+       	  FUNCTION_LIST   => \%functions
+        });
+     }
+    else {
+      (undef, $OUTPUT{MENU}) = $html->menu(\%menu_items, \%menu_args, undef, 
+       { EX_ARGS         => "&sid=$sid", 
+     	   ALL_PERMISSIONS => 1,
+     	  FUNCTION_LIST   => \%functions
+       });
+     }
    }
 
   if ($html->{ERROR}) {
@@ -182,6 +191,8 @@ if ($uid > 0) {
   $LIST_PARAMS{LOGIN}= $user->{LOGIN};
 
   $index = $FORM{qindex} if ($FORM{qindex});
+  print $html->header() if ($FORM{header});
+
   my $lang_file = '';
   foreach my $prefix (@INC) {
     my $realfilename = "$prefix/Abills/modules/$module{$index}/lng_$html->{language}.pl";
@@ -459,14 +470,17 @@ sub form_info {
    }
 
   #Show users info field
-  my $i=0; 
+  my $i=-1; 
   foreach my $field_id ( @{ $user->{INFO_FIELDS_ARR} } ) {
     my($position, $type, $name, $user_portal)=split(/:/, $user->{INFO_FIELDS_HASH}->{$field_id});
-    
-    next if ($user_portal == 0);
-
-  	$user->{INFO_FIELDS}.= "<tr><td>". ( eval "\"$name\"" ). ":</td><td valign=center>$user->{INFO_FIELDS_VAL}->[$i]</td></tr>\n";
     $i++;
+    next if ($user_portal == 0);
+      
+    my $extra = '';
+    if ($field_id eq '_rating') {
+      $extra = $html->button($_RATING, "index=". get_function_index('dv_rating_user'), { BUTTON => 1 });
+     }
+  	$user->{INFO_FIELDS}.= "<tr><td>". ( eval "\"$name\"" ). ":</td><td valign=center>$user->{INFO_FIELDS_VAL}->[$i] $extra</td></tr>\n";
    }
 
   $html->tpl_show(templates('form_client_info'), $user);
@@ -1002,10 +1016,10 @@ sub form_fees {
 
 my $fees = Finance->fees($db, $admin, \%conf);
 my $list = $fees->list( { %LIST_PARAMS } );
-my $table = $html->table( { width      => '100%',
-                            caption    => "$_FEES",
-                            border     => 1,
-                            title      => ['', $_LOGIN, $_DATE, $_DESCRIBE, $_SUM, $_DEPOSIT, $_TYPE, $_BILL],
+my $table = $html->table( { width       => '100%',
+                            caption     => "$_FEES",
+                            border      => 1,
+                            title_plain => ['', $_LOGIN, $_DATE, $_DESCRIBE, $_SUM, $_DEPOSIT, $_TYPE, $_BILL],
                             cols_align => ['right', 'left', 'right', 'right', 'left', 'left', 'left', 'right', 'right'],
                             qs         => $pages_qs,
                             pages      => $fees->{TOTAL},
@@ -1055,7 +1069,7 @@ my $list  = $Payments->list( { %LIST_PARAMS } );
 my $table = $html->table( { width      => '100%',
                             caption    => "$_PAYMENTS",
                             border     => 1,
-                            title      => ['', $_LOGIN, $_DATE, $_DESCRIBE, $_SUM, $_DEPOSIT ], # $_PAYMENT_METHOD, 'EXT ID', "$_BILL"],
+                            title_plain      => ['', $_LOGIN, $_DATE, $_DESCRIBE, $_SUM, $_DEPOSIT ], # $_PAYMENT_METHOD, 'EXT ID', "$_BILL"],
                             cols_align => ['right', 'left', 'left', 'right', 'right', 'left', 'right', 'right', 'left', 'left'],
                             qs         => $pages_qs,
                             pages      => $Payments->{TOTAL},

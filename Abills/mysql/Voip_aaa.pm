@@ -2,6 +2,7 @@ package Voip_aaa;
 # VoIP AAA functions
 #
 
+
 use strict;
 use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
 );
@@ -76,21 +77,12 @@ sub preproces {
 
   if ($RAD->{H323_CALL_ORIGIN}) {
     (undef, $RAD->{H323_CALL_ORIGIN})=split(/=/, $RAD->{H323_CALL_ORIGIN}, 2) if ($RAD->{H323_CALL_ORIGIN} =~ /=/);
-    $RAD->{H323_CALL_ORIGIN} = $CALLS_ORIGIN{$RAD->{H323_CALL_ORIGIN}};
+    $RAD->{H323_CALL_ORIGIN} = $CALLS_ORIGIN{$RAD->{H323_CALL_ORIGIN}} if ($RAD->{H323_CALL_ORIGIN} ne 1);
    }
 
   (undef, $RAD->{H323_DISCONNECT_CAUSE}) = split(/=/, $RAD->{H323_DISCONNECT_CAUSE}, 2) if (defined($RAD->{H323_DISCONNECT_CAUSE}));
 
   $RAD->{CLIENT_IP_ADDRESS} = $RAD->{FRAMED_IP_ADDRESS} if($RAD->{FRAMED_IP_ADDRESS});
-
-#        h323-gw-id = "h323-gw-id=ASMODEUSGK"
-
-#  h323-setup-time = "h323-setup-time=14:48:32.000 EET Mon Dec 26 2005"
-#  h323-connect-time = "h323-connect-time=14:48:58.000 EET Mon Dec 26 2005"
-#  h323-disconnect-time = "h323-disconnect-time=14:51:38.000 EET Mon Dec 26 2005"
-#  h323-disconnect-cause = "h323-disconnect-cause=10"
-#  h323-remote-address = "h323-remote-address=192.168.101.4"
-  
 }
 
 
@@ -103,7 +95,13 @@ sub user_info {
   my $self = shift;
   my ($RAD, $NAS) = @_;
 
-  my $WHERE = " and number='$RAD->{USER_NAME}'";
+  my $WHERE = '';
+  if (defined($RAD->{H323_CALL_ORIGIN}) && $RAD->{H323_CALL_ORIGIN}==0) {
+    $WHERE = " and number='$RAD->{CALLED_STATION_ID}'"; 
+   }
+  else {
+    $WHERE = " and number='$RAD->{USER_NAME}'";
+   }
 
   $self->query($db, "SELECT 
    voip.uid, 
@@ -130,8 +128,6 @@ sub user_info {
    WHERE 
     u.uid=voip.uid
    $WHERE;");
-
-
 
   if ($self->{TOTAL} < 1) {
      return $self;
@@ -160,7 +156,6 @@ sub user_info {
   )= @{ $self->{list}->[0] };
   
   $self->{SIMULTANEOUSLY} = 0;
-
   #Chack Company account if ACCOUNT_ID > 0
   $self->check_company_account() if ($self->{COMPANY_ID} > 0);
 
@@ -181,6 +176,17 @@ if($self->{errno}) {
 sub auth {
   my $self = shift;
   my ($RAD, $NAS) = @_;
+
+
+  if(defined($RAD->{H323_CONF_ID})){
+    preproces($RAD);
+   }
+
+  # For Cisco 
+  if ($RAD->{USER_NAME} =~ /(\S+):(\d+)/) {
+  	$RAD->{USER_NAME} = $2;
+   }
+  
 
   %RAD_PAIRS=();
   $self->user_info($RAD, $NAS);
@@ -211,7 +217,17 @@ sub auth {
 
 
 #DIsable
-if ($self->{DISABLE} ||  $self->{VOIP_DISABLE} || $self->{USER_DISABLE}) {
+if ($self->{VOIP_DISABLE}) {
+	if ($self->{VOIP_DISABLE} == 2 && $RAD->{H323_CALL_ORIGIN} == 1) {
+    $RAD_PAIRS{'Reply-Message'}="Incoming only";	
+    return 1, \%RAD_PAIRS;
+	 }
+	else {
+    $RAD_PAIRS{'Reply-Message'}="Service Disable";	
+    return 1, \%RAD_PAIRS;
+   }
+}
+elsif ($self->{USER_DISABLE}) {
 	#$RAD_PAIRS{'h323-return-code'}=7;
   $RAD_PAIRS{'Reply-Message'}="Account Disable";
   return 1, \%RAD_PAIRS;
@@ -226,7 +242,7 @@ if ($self->{PAYMENT_TYPE} == 0) {
     $RAD_PAIRS{'Reply-Message'}="Negativ deposit '$self->{DEPOSIT}'. Rejected!";
     return 1, \%RAD_PAIRS;
    }
-}
+ }
 else {
   $self->{DEPOSIT}=0;
 }
@@ -236,9 +252,7 @@ else {
   
 #  $self->check_bill_account();
 # if call
-  if(defined($RAD->{H323_CONF_ID})){
-     preproces($RAD);
-   
+  if(defined($RAD->{H323_CONF_ID})){   
      if($self->{ALLOW_ANSWER} < 1 && $RAD->{H323_CALL_ORIGIN} == 0){
        $RAD_PAIRS{'Reply-Message'}="Not allow answer";
        return 1, \%RAD_PAIRS;
@@ -248,46 +262,21 @@ else {
        return 1, \%RAD_PAIRS;
       }
 
-     # Get route
-     my $query_params = '';
-
-     
-     for (my $i=1; $i<=length($RAD->{'CALLED_STATION_ID'}); $i++) { 
-     	 $query_params .= '\''. substr($RAD->{'CALLED_STATION_ID'}, 0, $i) . '\','; 
-     	}
-     chop($query_params);
-
-
-     $self->query($db, "SELECT r.id,
-      r.prefix,
-      r.gateway_id,
-      r.disable
-     FROM voip_routes r
-      WHERE r.prefix in ($query_params)
-      ORDER BY 2 DESC LIMIT 1;");
-
-    if ($self->{TOTAL} < 1) {
-       #$RAD_PAIRS{'h323-return-code'}=8;
-       $RAD_PAIRS{'Reply-Message'}="No route '". $RAD->{'CALLED_STATION_ID'} ."'";
-       return 1, \%RAD_PAIRS;
+    $self->get_route_prefix($RAD);
+    if ($self->{TOTAL}<1) {
+    	$RAD_PAIRS{'Reply-Message'}="No route '". $RAD->{'CALLED_STATION_ID'} ."'";
+    	return 1, \%RAD_PAIRS;
      }
-
-    ($self->{ROUTE_ID},
-     $self->{PREFIX},
-     $self->{GATEWAY_ID}, 
-     $self->{ROUTE_DISABLE},
-     $self->{TRUNK_PROTOCOL},
-     $self->{TRUNK_PATH}
-    )= @{ $self->{list}->[0] };
-  
-    if ($self->{ROUTE_DISABLE} == 1) {
+    elsif ($self->{ROUTE_DISABLE} == 1) {
        $RAD_PAIRS{'Reply-Message'}="Route disabled '". $RAD->{'CALLED_STATION_ID'} ."'";
        return 1, \%RAD_PAIRS;
      }
 
 
     #Get intervals and prices
+    #originate
     if ($RAD->{H323_CALL_ORIGIN} == 1) {
+        $self->{INFO}="$RAD->{'CALLED_STATION_ID'}";       
        $self->get_intervals();
 
        if ($self->{TOTAL} < 1) {
@@ -309,10 +298,12 @@ else {
     
        if ($session_timeout > 0) {
          $RAD_PAIRS{'Session-Timeout'}=$session_timeout;    	
-
          #$RAD_PAIRS{'h323-credit-time'}=$session_timeout;
-       }
-  
+        }
+       elsif ($self->{PAYMENT_TYPE} == 0 && $session_timeout == 0) {
+         $RAD_PAIRS{'Reply-Message'}="Too small deposit for call'";
+         return 1, \%RAD_PAIRS;
+        }
 
 #Make trunk data for asterisk  
 if ($NAS->{NAS_TYPE} eq 'asterisk' and $self->{TRUNK_PROTOCOL}) {
@@ -361,7 +352,10 @@ if ($NAS->{NAS_TYPE} eq 'asterisk' and $self->{TRUNK_PROTOCOL}) {
     $RAD_PAIRS{'session-protocol'}=$self->{TRUNK_PROTOCOL};
     
  }    
-       
+}
+else {
+	$RAD->{USER_NAME} = "$RAD->{CALLED_STATION_ID}";
+}
 
   #Make start record in voip_calls
   my $SESSION_START = 'now()';
@@ -392,13 +386,51 @@ if ($NAS->{NAS_TYPE} eq 'asterisk' and $self->{TRUNK_PROTOCOL}) {
       '$self->{TP_ID}',
       '$self->{ROUTE_ID}',
       '$self->{REDUCTION}');", 'do');
-   }
+#   }
  }
 
   
   return 0, \%RAD_PAIRS;
 }
 
+#**********************************************************
+#
+#**********************************************************
+sub get_route_prefix {
+	my $self = shift;
+	my ($RAD) = @_;
+
+	
+  # Get route
+  my $query_params = '';
+    
+  for (my $i=1; $i<=length($RAD->{'CALLED_STATION_ID'}); $i++) { 
+    $query_params .= '\''. substr($RAD->{'CALLED_STATION_ID'}, 0, $i) . '\','; 
+   }
+  chop($query_params);
+
+  $self->query($db, "SELECT r.id,
+      r.prefix,
+      r.gateway_id,
+      r.disable
+     FROM voip_routes r
+      WHERE r.prefix in ($query_params)
+      ORDER BY 2 DESC LIMIT 1;");
+
+  if ($self->{TOTAL} < 1) {
+     return $self;
+   }
+
+    ($self->{ROUTE_ID},
+     $self->{PREFIX},
+     $self->{GATEWAY_ID}, 
+     $self->{ROUTE_DISABLE},
+     $self->{TRUNK_PROTOCOL},
+     $self->{TRUNK_PATH}
+    )= @{ $self->{list}->[0] };
+  
+  return $self;
+}
 
 
 #**********************************************************
@@ -460,22 +492,71 @@ sub accounting {
 
  my $acct_status_type = $ACCT_TYPES{$RAD->{ACCT_STATUS_TYPE}};
  my $SESSION_START = (defined($RAD->{SESSION_START}) && $RAD->{SESSION_START} > 0) ?  "FROM_UNIXTIME($RAD->{SESSION_START})" : 'now()';
- 
-#   print "aaa $acct_status_type '$RAD->{ACCT_STATUS_TYPE}'  /$RAD->{SESSION_START}/"; 
-#my $a=`echo "test $acct_status_type = $ACCT_TYPES{$RAD->{ACCT_STATUS_TYPE}}"  >> /tmp/12211 `;
- 
+ my $sesssion_sum = 0;
+ $RAD->{CLIENT_IP_ADDRESS}='0.0.0.0' if (! $RAD->{CLIENT_IP_ADDRESS});
+
  preproces($RAD);
+
+ if ($NAS->{NAS_TYPE} eq 'cisco_voip') {
+   if ($RAD->{USER_NAME} =~ /(\S+):(\d+)/) {
+  	 $RAD->{USER_NAME} = $2;
+    }
+   if ($RAD->{H323_CALL_ORIGIN}==0) {
+ 	   $RAD->{H323_CALL_ORIGIN} = 1;
+ 	   $RAD->{USER_NAME}=$RAD->{CALLING_STATION_ID};
+    }
+   else {
+   	 $RAD->{H323_CALL_ORIGIN} = 0;
+   	 $RAD->{USER_NAME}=$RAD->{CALLED_STATION_ID};
+    }
+  }
 
 #Start
 if ($acct_status_type == 1) { 
-  $self->query($db, "UPDATE voip_calls SET
-    status='$acct_status_type',
-    acct_session_id='$RAD->{ACCT_SESSION_ID}'
-    WHERE conf_id='$RAD->{H323_CONF_ID}';", 'do');
-
+  if ($NAS->{NAS_TYPE} eq 'cisco_voip') {
+    # For Cisco 
+    $self->user_info($RAD, $NAS);
+  	
+  	my $sql = "INSERT INTO voip_calls 
+     (  status,
+      user_name,
+      started,
+      lupdated,
+      calling_station_id,
+      called_station_id,
+      nas_id,
+      conf_id,
+      call_origin,
+      uid,
+      bill_id,
+      tp_id,
+      reduction,
+      acct_session_id
+     )
+    values ($acct_status_type, \"$RAD->{USER_NAME}\", $SESSION_START, UNIX_TIMESTAMP(), 
+      '$RAD->{CALLING_STATION_ID}', '$RAD->{CALLED_STATION_ID}', '$NAS->{NAS_ID}',
+      '$RAD->{H323_CONF_ID}',
+      '$RAD->{H323_CALL_ORIGIN}',
+      '$self->{UID}',
+      '$self->{BILL_ID}',
+      '$self->{TP_ID}',
+      '$self->{REDUCTION}',
+      '$RAD->{ACCT_SESSION_ID}'
+      );";
+  	
+  	$self->query($db, $sql, 'do');
+   }
+  else {
+    $self->query($db, "UPDATE voip_calls SET
+      status='$acct_status_type',
+      acct_session_id='$RAD->{ACCT_SESSION_ID}'
+      WHERE conf_id='$RAD->{H323_CONF_ID}';", 'do');
+   }
  }
 # Stop status
 elsif ($acct_status_type == 2) {
+
+
 
   if ($RAD->{ACCT_SESSION_TIME} > 0) {
     $self->query($db, "SELECT 
@@ -501,7 +582,7 @@ elsif ($acct_status_type == 2) {
     FROM voip_calls 
       WHERE 
       conf_id='$RAD->{H323_CONF_ID}'
-      and call_origin='1';");
+      and call_origin='$RAD->{H323_CALL_ORIGIN}';");
 
     if ($self->{TOTAL} < 1) {
    	  $self->{errno}=1;
@@ -538,10 +619,21 @@ elsif ($acct_status_type == 2) {
     )= @{ $self->{list}->[0] };
   
 
+    if ($self->{UID} == 0) {
+  	   $self->{errno}=110;
+	     $self->{errstr}="Number not found '". $RAD->{'USER_NAME'} ."'";
+	     return $self;
+     }
+    elsif ($RAD->{H323_CALL_ORIGIN} == 1) {
+       if (! $self->{ROUTE_ID}) {
+         $self->get_route_prefix($RAD);
+        }
+
        $self->get_intervals();
        if ($self->{TOTAL} < 1) {
-         $RAD_PAIRS{'Reply-Message'}="No price for route prefix '$self->{PREFIX}' number '". $RAD->{'CALLED_STATION_ID'} ."'";
-         return 1, \%RAD_PAIRS;
+    	   $self->{errno}=111;
+   	     $self->{errstr}="No price for route prefix '$self->{PREFIX}' number '". $RAD->{'CALLED_STATION_ID'} ."'";
+  	     return $self;
         }
 
        $Billing->time_calculation({
@@ -556,15 +648,15 @@ elsif ($acct_status_type == 2) {
           PRICE_UNIT          => 'Min'
          });
   
-  
-    if ($Billing->{errno}) {
-   	  $self->{errno}=$Billing->{errno};
-  	  $self->{errstr}=$Billing->{errstr};
-  	  return $self;
-     }
-  
-    my $filename; 
+      $sesssion_sum = $Billing->{SUM};
+      if ($Billing->{errno}) {
+   	    $self->{errno}=$Billing->{errno};
+  	    $self->{errstr}=$Billing->{errstr};
+  	    return $self;
+       }  
+    }
 
+    my $filename;   
     $self->query($db, "INSERT INTO voip_log (uid, start, duration, calling_station_id, called_station_id,
               nas_id, client_ip_address, acct_session_id, 
               tp_id, bill_id, sum,
@@ -572,7 +664,7 @@ elsif ($acct_status_type == 2) {
         VALUES ('$self->{UID}', FROM_UNIXTIME($RAD->{SESSION_START}),  '$RAD->{ACCT_SESSION_TIME}', 
         '$RAD->{CALLING_STATION_ID}', '$RAD->{CALLED_STATION_ID}', 
         '$NAS->{NAS_ID}', INET_ATON('$RAD->{CLIENT_IP_ADDRESS}'), '$RAD->{ACCT_SESSION_ID}', 
-        '$self->{TP_ID}', '$self->{BILL_ID}', '$Billing->{SUM}',
+        '$self->{TP_ID}', '$self->{BILL_ID}', '$sesssion_sum',
         '$RAD->{ACCT_TERMINATE_CAUSE}');", 'do');
 
     if ($self->{errno}) {
@@ -591,25 +683,23 @@ elsif ($acct_status_type == 2) {
   	
    }
 
+
   # Delete from session wtmp
   $self->query($db, "DELETE FROM voip_calls 
      WHERE acct_session_id='$RAD->{ACCT_SESSION_ID}' 
-     and user_name='$RAD->{USER_NAME}' 
      and nas_id='$NAS->{NAS_ID}'
      and conf_id='$RAD->{H323_CONF_ID}';", 'do');
- 
 }
 #Alive status 3
 elsif($acct_status_type eq 3) {
-  #acct_session_time=UNIX_TIMESTAMP()-UNIX_TIMESTAMP(started),
   $self->query($db, "UPDATE voip_calls SET
     status='$acct_status_type',
     client_ip_address=INET_ATON('$RAD->{FRAMED_IP_ADDRESS}'),
     lupdated=UNIX_TIMESTAMP()
    WHERE
     acct_session_id='$RAD->{ACCT_SESSION_ID}' and 
-    user_name='$RAD->{USER_NAME}' and
-    client_ip_address=INET_ATON('$RAD->{CLIENT_IP_ADDRESS}');", 'do');
+    user_name='$RAD->{USER_NAME}'
+    );", 'do');
 }
 else {
   $self->{errno}=1;

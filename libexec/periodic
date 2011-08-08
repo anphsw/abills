@@ -7,6 +7,7 @@ use vars  qw(%RAD %conf @MODULES $db $html $DATE $TIME $GZIP $TAR
   %ADMIN_REPORT 
   $DEBUG
   $users
+  $Log
  );
 
 
@@ -21,7 +22,8 @@ require "Abills/defs.conf";
 require "Abills/templates.pl";
 
 require Abills::Base;
-Abills::Base->import();
+Abills::Base->import(qw{ check_time parse_arguments in_array mk_unique_value 
+sendmail int2byte  int2ml });
 my $begin_time = check_time();
 
 
@@ -228,7 +230,7 @@ else {
    SKIP_MODULES=[modules_list]- Skip this module in periodic proccess
    NO_ADM_REPORT              - Don't send report to admin via e-mail
    SHEDULE                    - Make Shedule
-   LOGINS                     - Periodic action for some logins
+   LOGIN                      - Periodic action for some login
    DEBUG                      - Show debug output\n";
  exit;
 }
@@ -558,7 +560,7 @@ sub backup {
  my $ignore_tables = join(' ', @ignore_tables_arr);
 
  $DEBUG .= "DB backup\n" if ($debug > 1);
- #print qq{ $MYSQLDUMP --routines -v --host=$conf{dbhost} --user="$conf{dbuser}" --password="$conf{dbpasswd}" --ignore-table="$conf{dbname}.ipn_traf_detail" --ignore-table="$conf{dbname}.s_detail" $conf{dbname} | $GZIP > $conf{BACKUP_DIR}/stats-$DATE.sql.gz };
+ print qq{ $MYSQLDUMP --routines -v --host=$conf{dbhost} --user="$conf{dbuser}" --password="$conf{dbpasswd}" --ignore-table="$conf{dbname}.ipn_traf_detail" --ignore-table="$conf{dbname}.s_detail" $conf{dbname} | $GZIP > $conf{BACKUP_DIR}/stats-$DATE.sql.gz } if ($debug > 3);
  $conf{dbcharset}='latin1' if (!$conf{dbcharset});
  my $cmd = qq{ $MYSQLDUMP --default-character-set=$conf{dbcharset} -v $ignore_tables --host=$conf{dbhost} --user="$conf{dbuser}" --password="$conf{dbpasswd}" $conf{dbname} | $GZIP > $conf{BACKUP_DIR}/stats-$DATE.sql.gz };
   

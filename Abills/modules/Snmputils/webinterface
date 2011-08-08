@@ -449,8 +449,8 @@ sub snmputils_periodic {
     	$debug_output .= snmputils_chg_vlan({ %CONF_HASH });
      }
     elsif ($type eq 'dlink_pb') {
-    	 $debug_output .= "D-Link Port binding\n" if ($debug > 0);
-    	 $debug_output .= snmputils_dlink_pb({ %CONF_HASH });
+    	$debug_output .= "D-Link Port binding\n" if ($debug > 0);
+    	$debug_output .= snmputils_dlink_pb({ %CONF_HASH });
      } 
     elsif($type eq 'qbridge') {
     	$debug_output .= "Static MAC Forwarding\n" if ($debug > 0);
@@ -480,6 +480,7 @@ sub snmputils_chg_vlan {
   my $MNG_HOST     = $attr->{MNG_HOST}; # $line->[9];
   my $RAD_PAIRS    = $attr->{RAD_PAIRS}; #$line->[12];
   my $SNMP_COMMUNITY = "$MNG_PASSWORD\@$MNG_HOST";
+  my $version      = '';
   $debug = 4;
   my $debug_output = '';
   my $list = $Snmputils->snmputils_nas_ipmac({ NAS_ID    => $NAS_ID,
@@ -519,7 +520,7 @@ sub snmputils_chg_vlan {
    }
 
 
-  my $version = snmpget($SNMP_COMMUNITY, ".1.3.6.1.2.1.1.1.0");
+  $version = snmpget($SNMP_COMMUNITY, ".1.3.6.1.2.1.1.1.0");
   print "$version \n" if ($debug> 3);
 
   #  в случае со свичами эджкор 3526, длинк 3526 - 25-26 порты магистральные; эджкор 3528 длинк 3028, длинк 3528 - 25-28 порты магистральные; длинк 3052 - 49-50, длинк 3550 - 49-50 порты магистральные
@@ -641,6 +642,7 @@ if ($attr->{NAS_TYPE} eq 'edge_core' || $attr->{NAS_TYPE} eq 'dlink_pb') {
 
   if ($version =~ /ES3528M/ || $version =~ /ES3526/) {
     $DEBUG = $debug_output;
+    goto SAVE_CONF;
     return $debug_output;
    }
 
@@ -731,6 +733,18 @@ if ($attr->{NAS_TYPE} eq 'edge_core' || $attr->{NAS_TYPE} eq 'dlink_pb') {
  }
 elsif ($attr->{NAS_TYPE} eq 'dlink_pb') {
 	
+}
+
+
+SAVE_CONF:
+#save config 
+if ($conf{SNMPUTILS_SAVE_CONF}) {
+  if($attr->{NAS_TYPE} eq 'edge_core') {
+ 	  $debug_output .= snmputils_edgecore_save_conf({ SNMP_COMMUNITY => $SNMP_COMMUNITY, VERSION => $version });
+   }
+  else {
+  	$debug_output .= snmputils_dlink_save_conf({ SNMP_COMMUNITY => $SNMP_COMMUNITY });
+   }
 }
 
 
@@ -858,53 +872,34 @@ sub snmputils_edgecore_save_conf {
 
   my $SNMP_COMMUNITY = $attr->{SNMP_COMMUNITY} || '';
 
-=comments
-3.2. Задать необходимые значения параметров для приведенных ниже OID’ов
-3.2.1 Тип файла
-OID = 1.3.6.1.4.1.259.6.10.94.1.24.1.5.0 i 1
-(Value = (1: opcode), (2: config), (3: bootRom), (5: loader))
-3.2.2 Источник обновления
-OID = 1.3.6.1.4.1.259.6.10.94.1.24.1.1.0 i 4
-(Values = (1: file), (2: runningCfg), (3: startUpCfg), (4: tftp), (5: unit), (6: http))
-3.2.3 Имя копируемого файла
-OID =  1.3.6.1.4.1.259.6.10.94.1.24.1.2.0 s «ES3528_52M_opcode_V1.1.3.8.bix»
-3.2.4 Место копирования файла
-OID = 1.3.6.1.4.1.259.6.10.94.1.24.1.3.0 i 1
-Values = (1: file), (2: runningCfg), (3: startUpCfg), (4: tftp), (5: unit), (6: http)
-3.2.5 Имя, с которым указанный выше файл, будет скопирован
-Object ID = 1.3.6.1.4.1.259.6.10.94.1.24.1.4.0 s «ES3528_52M_opcode_V1.1.3.8.bix»
-3.2.6 IP адрес TFTP сервера
-Object ID = 1.3.6.1.4.1.259.6.10.94.1.24.1.6.0 а «192.168.1.103»
-3.2.7 Запустить процесс копирования с сервера
-OID = 1.3.6.1.4.1.259.6.10.94.1.24.1.8.0 i 2
-Values = (1: notCopying), (2: copy)
-3.2.8 Сделать только что загруженный файл стартовым
-OID= 1.3.6.1.4.1.259.6.10.94.1.7.0 s «ES3528_52M_opcode_V1.1.3.8.bix»
-3.2.9 Перезагрузка устройства
-OID= 1.3.6.1.4.1.259.6.10.94.1.7.3.0 i 3
-Values = (1: running), (2: warmBoot), (3: coldBoot)
-3.3. Просмотреть статут файлов на коммутаторе можно в подгруппе OID’а -1.3.6.1.4.1.259.6.10.94.1.24.2.
+$SNMP_COMMUNITY .= ':167:2:1';
 
 
-1.3.6.1.4.1.259.6.10.94.1.24.1.5.0 i 2
-1.3.6.1.4.1.259.6.10.94.1.24.1.1.0 i 2
+my @snmp_cmd  = ();
+if ($attr->{VERSION} =~ /3528/) {
+  @snmp_cmd = ('1.3.6.1.4.1.259.6.10.94.1.24.1.5.0 integer 2',
+    '1.3.6.1.4.1.259.6.10.94.1.24.1.1.0 integer 2',
+    '1.3.6.1.4.1.259.6.10.94.1.24.1.3.0 integer 3',
+    '1.3.6.1.4.1.259.6.10.94.1.24.1.8.0 integer 2');
+ }
+# 3526
+else {
+  @snmp_cmd = ('1.3.6.1.4.1.259.8.1.5.1.24.1.1.0 integer 2',
+    '1.3.6.1.4.1.259.8.1.5.1.24.1.3.0 integer 3',
+    '1.3.6.1.4.1.259.8.1.5.1.24.1.8.0 integer 2');
+ }
 
-1.3.6.1.4.1.259.6.10.94.1.24.1.2.0 s "ES3528_52M_opcode_V1.1.3.8.bix"
-
-1.3.6.1.4.1.259.6.10.94.1.24.1.3.0 i 3
-Object ID = 1.3.6.1.4.1.259.6.10.94.1.24.1.4.0 s "ES3528_52M_opcode_V1.1.3.8.bix"
-=cut
-
+foreach my $cmd ( @snmp_cmd ) {
+	my ($oid, $type, $value) = split(/ /,$cmd);
 	
-	#Save config
-	my $oid = '1.3.6.1.4.1.171.12.1.2.6.0';
-  $message = "$oid => 4\n";
-  if(snmpset($SNMP_COMMUNITY, $oid, "integer", "3")) {
+  if(snmpset($SNMP_COMMUNITY, $oid, "$type", "$value")) {
    	$message .= " Ok\n";
    }
   else {
-  	$message .= "Error: Can't save config\n";
+  	$message .= "Error: '$oid' Can't save config\n";
    } 
+}
+
   
   return $message; 
 }
@@ -1131,7 +1126,7 @@ if ($RESULT{version} =~ /DES-3550/ ) {
 #iso.3.6.1.4.1.171.12.23.4.1.1.4.10.10.65.54 = Hex-STRING: 00 00 00 00 00 00 00 00 
   	  $RESULT{oid_prefix} = '.1.3.6.1.4.1.171.12.23.';
   	  $RESULT{oid_sufix} = {
-  	  	                    #'STATE'  => '3.2.1.2',
+  	  	                    'STATE'  => '3.2.1.2',
   	                        'IP'     => '4.1.1.1',
                             'MAC'    => '4.1.1.2',
                             'MAKE'   => '4.1.1.3',
@@ -1182,6 +1177,8 @@ sub snmputils_dlink_save_conf {
 
   my $SNMP_COMMUNITY = $attr->{SNMP_COMMUNITY} || '';
 	my $sw_info   = $attr->{SWITCH_INFO} || snmputils_dlink_pb_version({ SNMP_COMMUNITY => $SNMP_COMMUNITY });
+
+	$SNMP_COMMUNITY .= ':167:2:1';
 	
 	#Save config
 	my $oid = '1.3.6.1.4.1.171.12.1.2.6.0';
@@ -1211,14 +1208,20 @@ sub snmputils_dlink_pb_add {
   my $mac       = $attr->{MAC}  || 0;
 	my $oid_prefix= $sw_info->{oid_prefix};
 	my %oid_sufix = %{ $sw_info->{oid_sufix} } ;
+	my @snmp_values = ();
 	
 	#Шаг 1. Задать IP-адрес связки:
+	
+
 	my $oid = $oid_prefix.$oid_sufix{MAKE}.".$ip";
+if($sw_info->{version} !~ /DES-32/) { 
   $message .= "$oid => 4\n";
   if(snmpset($SNMP_COMMUNITY, $oid, "integer", "4")) {
    	$message .= " Ok\n";
    }
-
+  push @snmp_values, $oid, "integer", "4";
+}
+  
   #Шаг 3. Задать MAC-адрес (AA-BB-CC-DD-EE-FF) связки:
   my @mac_arr = split(/:|-/, $mac);
   $mac = '';
@@ -1227,12 +1230,16 @@ sub snmputils_dlink_pb_add {
    }
 
   $message .= "$oid_prefix$oid_sufix{MAC}.$ip => ". unpack("H*",  $mac)."\n";
+if($sw_info->{version} !~ /DES-32/) { 
   if(snmpset($SNMP_COMMUNITY, $oid_prefix.$oid_sufix{MAC}.".$ip", "string", "$mac")) {
     $message .= "Ok\n";
    }
   else {
     print "MAC: '' $SNMP_Session::suppress_warnings / $SNMP_Session::errmsg";	
    }
+}
+  push @snmp_values, $oid_prefix.$oid_sufix{MAC}.".$ip", "string", "$mac";
+
 
   #Шаг 2. Назначить эту связку на порт 1:
   #Convert to D-Link port value
@@ -1253,7 +1260,7 @@ sub snmputils_dlink_pb_add {
    	if ($sw_info->{version} =~ /DES-3052/) {
    	  $port_array[$id-1]=1;
    	 }
-   	elsif ($sw_info->{version} =~ /DES-30|DES-32/) {
+   	elsif ($sw_info->{version} =~ /DES-30/) {
    	  $port_array[$port_count+2-$id]=1;
    	 }
    	else {
@@ -1281,6 +1288,7 @@ sub snmputils_dlink_pb_add {
    }
      
   $message .= $oid_prefix.$oid_sufix{PORT}.".$ip => ". join(':', @ar)."\n";
+if($sw_info->{version} !~ /DES-32/) {   
   if(snmpset($SNMP_COMMUNITY, $oid_prefix.$oid_sufix{PORT}.".$ip", "string", "$port_binding")) {
   	$message .= "Ok\n";
    }
@@ -1288,6 +1296,8 @@ sub snmputils_dlink_pb_add {
     print "PORT: $oid_prefix / $oid_sufix{PORT} / $ip => ". join(':', @ar)."\n";
     print "$SNMP_Session::suppress_warnings / $SNMP_Session::errmsg";	
    }
+ }
+  push @snmp_values, $oid_prefix.$oid_sufix{PORT}.".$ip", "string", "$port_binding";
 
   #Шаг 4. Задать режим связки IP MAC Port Binding (ARP / ACL):
   if ($oid_sufix{MODE}) {
@@ -1298,6 +1308,7 @@ sub snmputils_dlink_pb_add {
     if(snmpset($SNMP_COMMUNITY, $oid_prefix.$oid_sufix{MODE}.".$ip", "integer", $mode)) {
       $message .= "Ok\n";
      }
+    push @snmp_values, $oid_prefix.$oid_sufix{MODE}.".$ip", "integer", $mode;
    }
 
   #Шаг 5. Включить IP-MAC-Port Binding на этом порту:
@@ -1312,8 +1323,21 @@ sub snmputils_dlink_pb_add {
     
    }
   elsif($sw_info->{version} =~ /DES-30|DES-32/) {
+  	push @snmp_values, $oid, "integer", "4";
+  	
   	print "=> $oid\n";
-  	if(snmpset($SNMP_COMMUNITY, $oid, "integer", "4")) {
+  	if ($sw_info->{version} =~ /DES-32/) {
+  		#shift @snmp_values;
+  		#shift @snmp_values;
+  		#shift @snmp_values;
+      if (snmpset($SNMP_COMMUNITY, @snmp_values)) {
+      	$message .= " Ok\n";
+       }
+      else {
+      	 print $html->pre("$SNMP_Session::suppress_warnings / $SNMP_Session::errmsg");
+      }  
+  	 }
+  	elsif(snmpset($SNMP_COMMUNITY, $oid, "integer", "4")) {
    	  $message .= " Ok\n";
      }
    }
@@ -1421,8 +1445,14 @@ sub snmputils_dlink_pb_list {
   print "OID Prefix: $SWITCH_INFO->{oid_prefix} / $SWITCH_INFO->{oid_sufix}{STATE}\n" if ($debug > 0);
 
   my $expr_val = chr(0)."-".chr(255);                                            
-  my $unpack_ = ($SWITCH_INFO->{version} =~ /3550/ || $SWITCH_INFO->{version} =~ /3052/) ? "H2H2H2H2H2H2H2" : "H2H2H2H2";
-
+  my $unpack_ =  "H2H2H2H2";
+  if ($SWITCH_INFO->{version} =~ /3550/ || $SWITCH_INFO->{version} =~ /3052/) {
+  	 $unpack_ = "H2H2H2H2H2H2H2" ;
+   }
+  elsif($SWITCH_INFO->{version} =~ /3200/) {
+  	$unpack_ = "H2H2H2H2H2H2H2H2" ;
+   }
+   
   foreach my $line (@result) {
     print $html->br() ."$line => " if ($debug > 0);
 
@@ -1452,7 +1482,7 @@ sub snmputils_dlink_pb_list {
    	      if ($SWITCH_INFO->{version} =~ /DES-3052/) {
             $port = pos($string);
            }
-   	      elsif ($SWITCH_INFO->{version} =~ /DES-30|DES-32/) {
+   	      elsif ($SWITCH_INFO->{version} =~ /DES-30/) {
             $port = 33 - pos($string);
            }
           else {
@@ -3200,7 +3230,6 @@ if ($FORM{SHOW}) {
      }
 
 #External 
-# Dlink Port binding
     my $function = 'snmputils_'.$FORM{TYPE};
     if (defined(&$function)) {
     	$function->({ SNMP_COMMUNITY => $SNMP_COMMUNITY });

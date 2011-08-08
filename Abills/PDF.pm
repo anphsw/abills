@@ -120,7 +120,6 @@ sub new {
   $SELF_URL = (defined($ENV{HTTP_HOST})) ? "$prot://$ENV{HTTP_HOST}$ENV{SCRIPT_NAME}" : '';
 
   $SESSION_IP = $ENV{REMOTE_ADDR} || '0.0.0.0';
-
   
   @_COLORS = ('#FDE302',  # 0 TH
             '#FFFFFF',  # 1 TD.1
@@ -136,10 +135,10 @@ sub new {
            ); #border
   
   %LIST_PARAMS = ( SORT      => $SORT,
-	                 DESC      => $DESC,
-	                 PG        => $PG,
-	                 PAGE_ROWS => $PAGE_ROWS,
-	                );
+	           DESC      => $DESC,
+	           PG        => $PG,
+	           PAGE_ROWS => $PAGE_ROWS,
+	          );
 
   %functions = ();
   
@@ -162,6 +161,9 @@ sub new {
 	                        NO_PRINT  => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1 
 	                            
 	                            });
+  } 
+  else {
+    $self->{pdf_output}=1;
   }
   
 
@@ -542,9 +544,8 @@ my @s = sort {
 
 
 foreach my $ID (@s) {
- 	my $VALUE_HASH = $menu_items->{$ID};
- 	foreach my $parent (keys %$VALUE_HASH) {
-# 		print "$parent, $ID<br>";
+  my $VALUE_HASH = $menu_items->{$ID};
+  foreach my $parent (keys %$VALUE_HASH) {
     push( @{$menu{$parent}},  "$ID:$VALUE_HASH->{$parent}" );
    }
 }
@@ -1581,7 +1582,6 @@ sub tpl_describe {
   my %TPL_DESCRIBE = ();
 
   if (! -f $filename) {
-  	
   	return \%TPL_DESCRIBE;
    }
 

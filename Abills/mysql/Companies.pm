@@ -96,8 +96,30 @@ sub add {
 
     foreach my $line (@$list) {
       if ($line->[0] =~ /ifc(\S+)/) {
-    	  push @info_fields_arr, $1;
-        push @info_fields_val, "'$attr->{$1}'";
+      	my $value = $1;
+    	  push @info_fields_arr, $value;
+
+        if (defined($attr->{$value})) {
+    	    #attach
+    	    if ( ref $attr->{$value} eq 'HASH' && $attr->{$value}{filename}) {
+            $self->attachment_add({ 
+            	TABLE        => $value.'_file',
+              CONTENT      => $attr->{$value}{Contents},
+              FILESIZE     => $attr->{$value}{Size},
+              FILENAME     => $attr->{$value}{filename},
+              CONTENT_TYPE => $attr->{$value}{'Content-Type'}
+             });
+            $attr->{$value}=$self->{INSERT_ID};
+           }
+          else {
+          	$attr->{$value} =~ s/^ +|[ \n]+$//g;
+           }
+         }
+   	    else {
+   	    	$attr->{$value} = '';
+   	     }
+
+        push @info_fields_val, "'$attr->{$value}'";
       }
 
      }
@@ -105,21 +127,38 @@ sub add {
     $info_fields_val = ', '. join(', ', @info_fields_val);
    }
 
+  my $prefix='';
+  my $sufix =''; 
+  if ($attr->{CONTRACT_TYPE}) {
+  	($prefix, $sufix)=split(/\|/, $attr->{CONTRACT_TYPE});
+   }
+
 
   my %DATA = $self->get_data($attr, { default => defaults() }); 
   $self->query($db, "INSERT INTO companies (name, tax_number, bank_account, bank_name, cor_bank_account, 
      bank_bic, disable, credit, credit_date, address, phone, vat, contract_id, contract_date,
-     bill_id, ext_bill_id, registration, domain_id, representative
+     bill_id, ext_bill_id, registration, domain_id, representative, contract_sufix
      $info_fields) 
      VALUES ('$DATA{COMPANY_NAME}', '$DATA{TAX_NUMBER}', '$DATA{BANK_ACCOUNT}', '$DATA{BANK_NAME}', '$DATA{COR_BANK_ACCOUNT}', 
       '$DATA{BANK_BIC}', '$DATA{DISABLE}', '$DATA{CREDIT}', '$DATA{CREDIT_DATE}',
       '$DATA{ADDRESS}', '$DATA{PHONE}',
       '$DATA{VAT}', '$DATA{CONTRACT_ID}', '$DATA{CONTRACT_DATE}',
-      '$DATA{BILL_ID}', '$DATA{EXT_BILL_ID}', now(), '$admin->{DOMAIN_ID}', '$DATA{REPRESENTATIVE}'
+      '$DATA{BILL_ID}', '$DATA{EXT_BILL_ID}', now(), '$admin->{DOMAIN_ID}', '$DATA{REPRESENTATIVE}', '$sufix'
       $info_fields_val
       );", 'do');
 
   $self->{COMPANY_ID} = $self->{INSERT_ID};
+
+  if ($attr->{CREATE_BILL}) {
+  	$self->change({ 
+  		 DISABLE     => int($DATA{DISABLE}),
+  		 COMPANY_ID  => $self->{COMPANY_ID},
+  		 CREATE_BILL => 1,
+  		 CREATE_EXT_BILL  => $attr->{CREATE_EXT_BILL}  		 
+  		 });
+   }
+
+
 
   return $self;
 }
@@ -168,7 +207,6 @@ sub change {
          $self->{errstr} =  $Bill->{errstr};
          return $self;
         }
-       #$DATA{BILL_ID}=$Bill->{BILL_ID};
        $attr->{EXT_BILL_ID}=$Bill->{BILL_ID};
    }
  
@@ -190,9 +228,11 @@ sub change {
    VAT            => 'vat',
    CONTRACT_ID    => 'contract_id',
    CONTRACT_DATE  => 'contract_date',
+   CONTRACT_SUFIX => 'contract_sufix',
    DOMAIN_ID      => 'domain_id',
    REPRESENTATIVE => 'representative'
    );
+
 
 
   $attr->{DOMAIN_ID}=$admin->{DOMAIN_ID};
@@ -204,12 +244,36 @@ sub change {
         my $field_name = $1;
         $FIELDS{$field_name}="$field_name";
         my ($position, $type, $name)=split(/:/, $line->[1]);
-        if ($type == 4) {
+
+        if ($type == 13) {
+    	    #attach
+    	    if ( ref $attr->{$field_name} eq 'HASH' && $attr->{$field_name}{filename}) {
+            $self->attachment_add({
+            	TABLE        => $field_name.'_file',
+              CONTENT      => $attr->{$field_name}{Contents},
+              FILESIZE     => $attr->{$field_name}{Size},
+              FILENAME     => $attr->{$field_name}{filename},
+              CONTENT_TYPE => $attr->{$field_name}{'Content-Type'}
+             });
+            $attr->{$field_name}=$self->{INSERT_ID};
+           }
+          else {
+          	delete $attr->{$field_name};
+           }
+         }
+        elsif ($type == 4) {
         	$attr->{$field_name} = 0 if (! $attr->{$field_name});
          }
       }
      }
    }
+
+  my ($prefix, $sufix); 
+  if ($attr->{CONTRACT_TYPE}) {
+  	($prefix, $sufix)=split(/\|/, $attr->{CONTRACT_TYPE});
+  	$attr->{CONTRACT_SUFIX}=$sufix;
+   }
+
 
 	$self->changes($admin, { CHANGE_PARAM => 'COMPANY_ID',
 		               TABLE        => 'companies',
@@ -270,7 +334,8 @@ sub info {
   c.ext_bill_id,
   c.registration,
   c.domain_id,
-  c.representative
+  c.representative,
+  c.contract_sufix
   $info_fields
     FROM companies c
     LEFT JOIN bills b ON (c.bill_id=b.id)
@@ -305,6 +370,7 @@ sub info {
    $self->{REGISTRATION},
    $self->{DOMAIN_ID},
    $self->{REPRESENTATIVE},
+   $self->{CONTRACT_SUFIX},
    @INFO_ARR
    ) = @{ $self->{list}->[0] };
   
@@ -349,18 +415,12 @@ sub list {
  
  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
- $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+ $PG   = ($attr->{PG}) ? $attr->{PG} : 0;
  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
  @WHERE_RULES = ();
 
  if ($attr->{CONTRACT_ID}) {
-   $attr->{CONTRACT_ID} =~ s/\*/\%/ig;
-   push @WHERE_RULES, "c.contract_id LIKE '$attr->{CONTRACT_ID}'";
- }
-
- if ($attr->{COMPANY_NAME}) {
-   $attr->{COMPANY_NAME}=~ s/\*/\%/ig;
-   push @WHERE_RULES, "c.name LIKE '$attr->{COMPANY_NAME}'";
+   push @WHERE_RULES, @{ $self->search_expr("$attr->{CONTRACT_ID}", 'STR', 'c.contract_id') };
  }
 
  if ($admin->{DOMAIN_ID}) {
@@ -370,11 +430,14 @@ sub list {
    push @WHERE_RULES, @{ $self->search_expr("$attr->{DOMAIN_ID}", 'INT', 'c.domain_id', { EXT_FIELD => 1 }) };
   }
 
-
  if ($attr->{COMPANY_NAME}) {
-   $attr->{COMPANY_NAME}=~ s/\*/\%/ig;
-   push @WHERE_RULES, "c.name LIKE '$attr->{COMPANY_NAME}'";
- }
+   push @WHERE_RULES, @{ $self->search_expr("$attr->{COMPANY_NAME}", 'STR', 'c.name') };
+  }
+
+ if ($attr->{COMPANY_ID}) {
+   push @WHERE_RULES, @{ $self->search_expr("$attr->{COMPANY_ID}", 'INT', 'c.id') };
+  }
+
 
  if ($attr->{CREDIT_DATE}) {
    push @WHERE_RULES, @{ $self->search_expr("$attr->{CREDIT_DATE}", 'INT', 'c.credit_date') };
@@ -385,8 +448,7 @@ sub list {
   }
 
  if ($attr->{LOGIN_EXPR}) {
-    $attr->{LOGIN_EXPR} =~ s/\*/\%/ig;
-    push @WHERE_RULES,  "c.name LIKE '$attr->{LOGIN_EXPR}'";
+   push @WHERE_RULES, @{ $self->search_expr("$attr->{LOGIN_EXPR}", 'STR', 'c.name') };
   }
 
  my $WHERE = ($#WHERE_RULES > -1) ?  "WHERE " . join(' and ', @WHERE_RULES) : ''; 
@@ -422,7 +484,7 @@ sub admins_list {
  
  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
- $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+ $PG   = ($attr->{PG}) ? $attr->{PG} : 0;
  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
  my @WHERE_RULES = ();
  my $WHERE = '';
@@ -432,13 +494,21 @@ sub admins_list {
  	 push @WHERE_RULES, "u.uid='$attr->{UID}'";
   }
 
+ if ($attr->{GET_ADMINS}) {
+ 	 push @WHERE_RULES, "ca.uid>0";
+  }
+
+ if ($attr->{COMPANY_ID}) {
+ 	 push @WHERE_RULES, "c.id='$attr->{COMPANY_ID}'";
+  }
+
  $WHERE = ' AND ' . join(' and ', @WHERE_RULES) if   ($#WHERE_RULES > -1); 
 
- $self->query($db, "SELECT if(ca.uid is null, 0, 1), u.id, pi.fio, u.uid
+ $self->query($db, "SELECT if(ca.uid is null, 0, 1), u.id, pi.fio, pi.email, u.uid
     FROM (companies  c, users u)
     LEFT JOIN companie_admins ca ON (ca.uid=u.uid)
     LEFT JOIN users_pi pi ON (pi.uid=u.uid)
-    WHERE u.company_id=c.id AND c.id='$attr->{COMPANY_ID}' $WHERE
+    WHERE u.company_id=c.id $WHERE
     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;");
 
  my $list = $self->{list};

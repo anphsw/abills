@@ -9,14 +9,16 @@ use Dv_Sessions;
 use Shedule;
 use Tariffs;
 use Nas;
-
+use Log;
+use POSIX;    
 
 my $Dv       = Dv->new($db, $admin, \%conf);
 my $fees     = Fees->new($db, $admin, \%conf);
 my $payments = Payments->new($db, $admin, \%conf);
 my $tariffs  = Tariffs->new($db, \%conf, $admin);
 my $sessions = Dv_Sessions->new($db, $admin, \%conf);
-my $Nas      = Nas->new($db, \%conf);  
+my $Nas      = Nas->new($db, \%conf);
+$Log         = Log->new($db, \%conf);
 
 my %FORM_BASE = ();
 my %TRAFFIC_NAMES = ();
@@ -34,7 +36,7 @@ sub dv_user_del {
 
  $Dv->{UID}=$uid;
  $Dv->del({ UID => $uid });
- $Nas->log_del({ LOGIN => $attr->{LOGIN} });
+ $Log->log_del({ LOGIN => $attr->{LOGIN} });
 
  return 0;
 }
@@ -115,7 +117,7 @@ if ($FORM{set}) {
     	($year, $month, $day)=split(/-/, $FORM{DATE}, 3);
      }
 
- 	  use POSIX;    
+
     my $seltime = POSIX::mktime(0, 0, 0, $day, ($month - 1), ($year - 1900));
     
     if ($seltime <= time()) {
@@ -289,7 +291,7 @@ sub dv_users_list {
  $Dv->{GROUP_SEL}    = sel_groups();
  $Dv->{STATUS_SEL}   = $html->form_select('STATUS', 
                                           { 
- 	                                          SELECTED     => $FORM{STATUS},
+ 	                                          SELECTED     => $FORM{STATUS} || 0,
  	                                          SEL_HASH     => { '' => "$_ALL",
  	                                          	                0  => $service_status[0],
  	                                          	                1  => $service_status[1],
@@ -378,7 +380,7 @@ my $table = $html->table( { width      => '100%',
                            });
 
 foreach my $line (@$list) {
-  my $payments = ($permissions{1}) ?  $html->button("$_PAYMENTS", "index=2&UID=". $line->[6+$Dv->{SEARCH_FIELDS_COUNT}], { BUTTON => 1 }) : ''; 
+  my $payments = ($permissions{1}) ?  $html->button("$_PAYMENTS", "index=2&UID=". $line->[6+$Dv->{SEARCH_FIELDS_COUNT}], { CLASS => 'payments' }) : ''; 
   
   my @fields_array  = ();
   for(my $i=0; $i<$Dv->{SEARCH_FIELDS_COUNT}; $i++){
@@ -386,7 +388,7 @@ foreach my $line (@$list) {
    }
 
   $table->addrow(
-   $html->button("$line->[0]", "index=15&UID=". $line->[6+$Dv->{SEARCH_FIELDS_COUNT}]), 
+   user_ext_menu($line->[6+$Dv->{SEARCH_FIELDS_COUNT}], $line->[0]),
    "$line->[1]",
    "$line->[2]", 
    "$line->[3]", 
@@ -394,7 +396,7 @@ foreach my $line (@$list) {
    ($line->[5] > 0) ? $html->color_mark($service_status[$line->[5]], $service_status_colors[$line->[5]]) : "$service_status[$line->[5]]",
    @fields_array, 
    $payments, 
-   $html->button("$_STATS", "index=". ((! $FORM{TP_SHOW}) ? $index + 3 : $index - 9 ) ."&UID=". $line->[6+$Dv->{SEARCH_FIELDS_COUNT}], { BUTTON => 1 })
+   $html->button("$_STATS", "index=". ((! $FORM{TP_SHOW}) ? $index + 3 : $index - 9 ) ."&UID=". $line->[6+$Dv->{SEARCH_FIELDS_COUNT}], { CLASS => 'stats' })
 
    );
 }
@@ -567,7 +569,7 @@ sub dv_user {
 	  $Dv->{LNG_ACTION}=$_CHANGE;
 	  
     if ($permissions{0}{10} ) {
-      $Dv->{CHANGE_TP_BUTTON}=$html->button($_CHANGE, 'UID='.$Dv->{UID}.'&index='. get_function_index('dv_chg_tp'), { BUTTON => 1 });
+      $Dv->{CHANGE_TP_BUTTON}=$html->button($_CHANGE, 'UID='.$Dv->{UID}.'&index='. get_function_index('dv_chg_tp'), { CLASS => 'change rightAlignText' });
      } 
 
     # Get next payment period
@@ -604,7 +606,8 @@ sub dv_user {
       }
       
     $Dv->{NETMASK_COLOR} = ($Dv->{NETMASK} ne '255.255.255.255') ? $_COLORS[0] : $_COLORS[1];
-    $Dv->{SHEDULE}=$html->button("$_SHEDULE", "UID=$FORM{UID}&Shedule=status&index=". ($index+4), { BUTTON => 1 });
+    my $shedule_index = get_function_index('dv_sheduler');
+    $Dv->{SHEDULE}=$html->button("$_SHEDULE", "UID=$FORM{UID}&Shedule=status&index=". (($shedule_index)? $shedule_index : $index + 4), { CLASS => 'shedule rightAlignText' });
 
     my $list = $sessions->online({ UID => $Dv->{UID} });
     
@@ -618,8 +621,11 @@ sub dv_user {
          my ($nas_id, $nas_port_id, $acct_session_id, $user_name) = split(/ /, $FORM{hangup}, 4);
        	 $table->addrow(int2ip($line->[3]), $line->[4], int2byte($line->[5]), int2byte($line->[6]), "$_NAS: $line->[18]",
        	 $html->button('Z', "index=$online_index&zap=$line->[18]+$line->[20]+$line->[21]".$pages_qs, { TITLE => 'Zap', BUTTON => 1 }),
-       	 $html->button('H', "index=$online_index&FRAMED_IP_ADDRESS=$line->[10]&hangup=$line->[18]+$line->[20]+$line->[21]+$line->[19]&$pages_qs", { TITLE => 'Hangup', BUTTON => 1 }));
+       	 $html->button('H', "index=$online_index&FRAMED_IP_ADDRESS=$line->[10]&hangup=$line->[18]+$line->[20]+$line->[21]+$line->[19]&$pages_qs", { TITLE => 'Hangup', BUTTON => 1, NO_LINK_FORMER => 1 })
+       	        	 );
         }
+
+
 
       $Dv->{ONLINE_TABLE}=$table->show();
      }
@@ -844,10 +850,13 @@ elsif(defined($FORM{del}) && $FORM{is_js_confirmed}) {
    }
 }
 
-
-
 if ($tariffs->{errno}) {
+  if ($tariffs->{errno} == 7) {
+    $html->message('err', $_ERROR, "$_TARIF_PLAN $_EXIST");	
+   }
+  else {
     $html->message('err', $_ERROR, "[$tariffs->{errno}] $err_strs{$tariffs->{errno}}");	
+   }
  }
 
 
@@ -924,7 +933,7 @@ else {
 
 $html->tpl_show(_include('dv_tp', 'Dv'), $tarif_info, { SKIP_VARS => 'IP' });
 
-my $list = $tariffs->list({ %LIST_PARAMS });	
+my $list = $tariffs->list({ %LIST_PARAMS, MODULE => 'Dv' });	
 
 # Time tariff Name Begin END Day fee Month fee Simultaneously - - - 
 my $table = $html->table( { width      => '100%',
@@ -940,8 +949,8 @@ my $table = $html->table( { width      => '100%',
 my ($delete, $change);
 foreach my $line (@$list) {
   if ($permissions{4}{1}) {
-    $delete = $html->button($_DEL, "index=$index&del=$line->[18]", { MESSAGE => "$_DEL $line->[0]?", BUTTON => 1 }); 
-    $change = $html->button($_CHANGE, "index=$index&TP_ID=$line->[18]", { BUTTON => 1 });
+    $delete = $html->button($_DEL, "index=$index&del=$line->[18]", { MESSAGE => "$_DEL $line->[0]?", CLASS => 'del' }); 
+    $change = $html->button($_CHANGE, "index=$index&TP_ID=$line->[18]", { CLASS => 'change' });
    }
   
   if($FORM{TP_ID} eq $line->[18]) {
@@ -959,7 +968,7 @@ foreach my $line (@$list) {
    $line->[7], 
    $line->[8], 
    $line->[9],
-   $html->button($_INTERVALS, "index=". get_function_index('form_intervals') ."&subf=73&TP_ID=$line->[18]", { BUTTON => 1 }),
+   $html->button($_INTERVALS, "index=". get_function_index('form_intervals') ."&subf=73&TP_ID=$line->[18]", { CLASS => 'interval' }),
    $change,
    $delete);
 }
@@ -1050,7 +1059,6 @@ sub dv_rating_periodic {
    return 0;
   } 	
 
-
  my %LIST_PARAMS = (PAGE_ROWS => 1000000);
  $LIST_PARAMS{LOGIN} = $attr->{LOGIN} if ($attr->{LOGIN});
  $LIST_PARAMS{TP_ID} = $attr->{TP_ID} if ($attr->{TP_ID});
@@ -1077,6 +1085,73 @@ sub dv_rating_periodic {
   return $debug_output;
 } 
 
+
+#*******************************************************************
+#
+#*******************************************************************
+sub dv_rating_user {
+	
+ eval { require Bonus_rating; };
+ if (! $@) {
+   Bonus_rating->import();
+  }
+ else {
+   print "Can't load 'Bonus_rating'. Purchase this module http://abills.net.ua";
+   return 0;
+  } 	
+
+  my $Bonus_rating = Bonus_rating->new($db, $admin, \%conf);
+  $users = $user if (! $users);	
+
+ 	$Bonus_rating->users_rating_info({ UID => $LIST_PARAMS{UID} });
+
+  if ($Bonus_rating->{TOTAL} == 0) {
+    $html->message('info', $_INFO,  "$_BONUS $_NOT_ACTIVE");
+    return 0;
+   }
+
+
+  if ($FORM{UP_RATING_PRE}) {
+  	 my $need_percents = int(($FORM{UP_RATING} - $Bonus_rating->{RATING_PER}));
+  	 $FORM{NEED_SUM} = sprintf("%.2f", $need_percents * ($Bonus_rating->{ONE_PERCENT_SUM} * $Bonus_rating->{ONE_PERCENT_COUNT}));
+  	
+  	 $html->tpl_show(_include('dv_user_rating_pre', 'Dv'), { %$Bonus_rating, %FORM }); 	
+  	 return 0;
+   }
+	elsif ($FORM{UP_RATING}) {
+    my $need_percents = int(($FORM{UP_RATING} - $Bonus_rating->{RATING_PER}));
+    my $need_sum = $need_percents * ($Bonus_rating->{ONE_PERCENT_SUM} * $Bonus_rating->{ONE_PERCENT_COUNT});
+    	
+    if ($users->{CREDIT} + $users->{DEPOSIT} < $need_sum) {
+    	$html->message('err', $_ERROR,  "$ERR_SMALL_DEPOSIT");
+     }
+    else {
+    	for(my $i=0; $i<int($need_percents * $Bonus_rating->{ONE_PERCENT_COUNT}); $i++) {
+    		$fees->take($users, $Bonus_rating->{ONE_PERCENT_SUM}, { DESCRIBE => "$_RATING_UP" } );
+    		$users->{DEPOSIT} -= $Bonus_rating->{ONE_PERCENT_SUM};
+    	 }
+    	$Bonus_rating->{RATING_PER}=$FORM{UP_RATING}; 
+    	$html->message('info', $_INFO,  "$_UP_RATING $FORM{UP_RATING}");
+    	
+    	$users->pi_change({ _rating => $Bonus_rating->{RATING_PER}, UID => $LIST_PARAMS{UID} });
+     }
+	 }
+
+  $Bonus_rating->{UP_RATING} = int(($users->{CREDIT} + $users->{DEPOSIT})  / ($Bonus_rating->{ONE_PERCENT_SUM} * $Bonus_rating->{ONE_PERCENT_COUNT})) + $Bonus_rating->{RATING_PER};
+
+  if ($Bonus_rating->{UP_RATING} > 100) {
+  	$Bonus_rating->{UP_RATING}=100;
+   }
+  elsif ($Bonus_rating->{UP_RATING} < 0) {
+  	$Bonus_rating->{UP_RATING}=0;
+   }
+
+
+  $Bonus_rating->{ONE_PERCENT_SUM}=sprintf("%.2f", $Bonus_rating->{ONE_PERCENT_SUM} * $Bonus_rating->{ONE_PERCENT_COUNT});
+  
+  $html->tpl_show(_include('dv_user_rating', 'Dv'), $Bonus_rating); 	
+}
+
 #*******************************************************************
 # online users
 #*******************************************************************
@@ -1086,15 +1161,16 @@ my $message;
 if ($FORM{ping}) {
   if ($FORM{ping} =~ /^(\d){1,3}\.(\d){1,3}\.(\d){1,3}\.(\d){1,3}$/) {
     my $res = `$PING -c 5 $FORM{ping}`;
-    $html->message('info', $_INFO,  "Ping  $FORM{ping}". $html->br(). 'Result:' . $html->br(). $html->pre($res));
+    $html->message('info', $_INFO,  "Ping  $FORM{ping} \n Result: \n". $html->pre($res, { OUTPUT2RETURN => 1 }));
    }
   else {
     $html->message('err', $_ERROR,  "$ERR_WRONG_DATA");
    }
  }
 elsif ($FORM{hangup}) {
-  my ($nas_id, $nas_port_id, $acct_session_id, $user_name) = split(/ /, $FORM{hangup}, 4);
+  my ($nas_id, $nas_port_id, $acct_session_id, $user_name) = split(/ |\+/, $FORM{hangup}, 4);
   $Nas->info({ NAS_ID => $nas_id });
+  
   
   if ($Nas->{errno}) {
     $html->message('err', $_NAS, "$Nas->{errstr}");
@@ -1107,19 +1183,7 @@ elsif ($FORM{hangup}) {
   	                                                     UID               => $FORM{UID} });
 
   if ($ret == 0) {
-    my $table = $html->table( { width   => '100%',
-                                caption => $_HANGUPED,
-                                rows    => [ 
-                                            [ "$_NAS ID",   $nas_id          ],
-                                            [ "$_NAS IP",   $Nas->{NAS_IP}   ],
-                                            [ "$_PORT",     $nas_port_id     ],
-                                            [ "SESSION_ID", $acct_session_id ],
-                                            [ "",           $ret             ] 
-                                           ]
-                               } );
-
-
-     $message = $table->show();
+     $message = "$_NAS ID:  $nas_id\n $_NAS IP: $Nas->{NAS_IP}\n $_PORT: $nas_port_id\n SESSION_ID: $acct_session_id\n\n  $ret";
      sleep 3;
      $admin->action_add("$FORM{UID}", "$user_name", { MODULE => 'Dv', TYPE => 15 });
    }
@@ -1137,23 +1201,16 @@ elsif($FORM{zap}) {
   my($nas_id, $nas_port_id, $acct_session_id)=split(/ /, $FORM{zap}, 3);
   $sessions->zap($nas_id, $nas_port_id, $acct_session_id, { %FORM });
 
+
+
   if ($sessions->{errno}) {
   	 $html->message('err', $_ERROR, "[$sessions->{errno}] $err_strs{$sessions->{errno}}");
   	 return 0;
    }
 
   $Nas->info({NAS_ID => $nas_id });
-
-  my $table = $html->table( { width   => '100%',
-                              caption => $_CLOSED,
-                              rows    => [ 
-                                          [ "$_NAS ID",   $nas_id],
-                                          [ "$_NAS IP",   $Nas->{NAS_IP} ],
-                                          [ "$_PORT",     $nas_port_id   ],
-                                          [ "SESSION_ID", $acct_session_id ],
-                                        ]
-                               } );
-  $message = $table->show();
+  $message = "\n$_NAS ID:   $nas_id\n $_NAS IP: $Nas->{NAS_IP} \n $_PORT: $nas_port_id\n SESSION_ID: $acct_session_id\n\n";
+  
   $sessions->list({ ACCT_SESSION_ID => $acct_session_id, 
   	                NAS_PORT        => $nas_port_id,
   	                NAS_ID          => $Nas->{NAS_ID} });  
@@ -1231,7 +1288,6 @@ elsif($FORM{tolog}) {
         else {
         	push @results, "$ACCT_INFO->{USER_NAME} $_ADDED";
          }
-
      }
  	 }
 
@@ -1254,43 +1310,43 @@ elsif($FORM{tolog}) {
                                            ACCT_SESSION_ID => $FORM{tolog}
                                        });
 
-  if ($ACCT_INFO->{TOTAL} < 1) {
-    $html->message('err', $_ERROR, "$_NOT_EXIST");	
-    return 0;
-   }
+    if ($ACCT_INFO->{TOTAL} < 1) {
+      $html->message('err', $_ERROR, "$_NOT_EXIST");	
+      return 0;
+     }
 
-  $ACCT_INFO->{INBYTE}           = $ACCT_INFO->{ACCT_INPUT_OCTETS};
-  $ACCT_INFO->{OUTBYTE}          = $ACCT_INFO->{ACCT_OUTPUT_OCTETS};
-  $ACCT_INFO->{INBYTE2}          = $ACCT_INFO->{ACCT_EX_INPUT_OCTETS};
-  $ACCT_INFO->{OUTBYTE2}         = $ACCT_INFO->{ACCT_EX_OUTPUT_OCTETS};
-  $ACCT_INFO->{ACCT_STATUS_TYPE} = 'Stop';
-  $ACCT_INFO->{ACCT_TERMINATE_CAUSE} = 3;
+    $ACCT_INFO->{INBYTE}           = $ACCT_INFO->{ACCT_INPUT_OCTETS};
+    $ACCT_INFO->{OUTBYTE}          = $ACCT_INFO->{ACCT_OUTPUT_OCTETS};
+    $ACCT_INFO->{INBYTE2}          = $ACCT_INFO->{ACCT_EX_INPUT_OCTETS};
+    $ACCT_INFO->{OUTBYTE2}         = $ACCT_INFO->{ACCT_EX_OUTPUT_OCTETS};
+    $ACCT_INFO->{ACCT_STATUS_TYPE} = 'Stop';
+    $ACCT_INFO->{ACCT_TERMINATE_CAUSE} = 3;
 
-  # Exppp VENDOR params           
-  my $r = $Acct->accounting($ACCT_INFO, $Nas);
+    # Exppp VENDOR params           
+    my $r = $Acct->accounting($ACCT_INFO, $Nas);
   
 
-  if ($Acct->{errno}) {
-    $html->message('err', $_ERRNO, "$Acct->{errno} $Acct->{errstr}");	
-   }
-  else {
-  	my $table = $html->table( { width => '100%'} );
-  	foreach my $k (sort keys %$ACCT_INFO) {
- 		  $table->addrow($k, $ACCT_INFO->{$k});
-  	 }
+    if ($Acct->{errno}) {
+      $html->message('err', $_ERRNO, "$Acct->{errno} $Acct->{errstr}");	
+     }
+    else {
+  	  my $table = $html->table( { width => '100%'} );
+  	  foreach my $k (sort keys %$ACCT_INFO) {
+ 		    $table->addrow($k, $ACCT_INFO->{$k});
+  	   }
 
-    $table->addrow('-', '-');
-  	foreach my $k (sort keys %$Acct) {
+      $table->addrow('-', '-');
+  	  foreach my $k (sort keys %$Acct) {
  		    $table->addrow($k, $Acct->{$k});
   	  }
 
-  	$html->message('info', $_ADDED, $table->show());	
-   }
+    	$html->message('info', $_ADDED, $table->show());	
+     }
   
-  $sessions->online_del({ NAS_ID          => $ACCT_INFO->{NAS_ID},
-                          NAS_PORT        => $ACCT_INFO->{NAS_PORT},
-                          ACCT_SESSION_ID => $ACCT_INFO->{ACCT_SESSION_ID}
-                        });
+    $sessions->online_del({ NAS_ID          => $ACCT_INFO->{NAS_ID},
+                            NAS_PORT        => $ACCT_INFO->{NAS_PORT},
+                            ACCT_SESSION_ID => $ACCT_INFO->{ACCT_SESSION_ID}
+                          });
    }
  }
 elsif($FORM{del} || $FORM{dellist}) {
@@ -1372,8 +1428,7 @@ if ($sessions->{TOTAL} > 500)  {
                             title      => [ "NAS ID", "NAS $_NAME", "NAS IP", "$_TYPE", "$_SESSIONS", "$_USERS", "ZAPPED", "$_ERROR", "-"  ],
                             cols_align => ['right', 'left', 'right', 'right', 'right', 'right', 'right', 'right',  'right', 'center:noprint' ],
                             qs         => $pages_qs,
-                            ID         => 'ONLINE'
-                            
+                            ID         => 'ONLINE'                            
                          } );
 
   foreach my $line (@$list) {
@@ -1387,7 +1442,7 @@ if ($sessions->{TOTAL} > 500)  {
     $line->[5],
     ($line->[6] > 0) ? $html->button("$line->[6]", "index=$index&NAS_ID=$line->[0]&ZAPED=1") : 0,
     $line->[7],
-    $html->button("$_SHOW", "index=$index&NAS_ID=$line->[0]", { BUTTON => 1 })
+    $html->button("$_SHOW", "index=$index&NAS_ID=$line->[0]", { CLASS => 'show' })
    );
   }
   print $table->show();
@@ -1462,7 +1517,8 @@ foreach my $nas_row (@$nas_list) {
   my $total = $#{ $l } + 1;  
   $table->{rowcolor}= 'row_active';
   $table->{extra}   = "colspan='". ($#CAPTION + 1 ) . "' class='small'";
-  $table->addrow("$nas_row->[0]:". $html->b($nas_row->[1]) .":$nas_row->[3]:$_TOTAL: $total (". $html->button("Zap $_SESSIONS", "index=$index&zapall=1&NAS_ID=$nas_row->[0]", { MESSAGE => "Do you realy want zap all sessions on NAS '$nas_row->[0]' ?" }) .') '. $html->button("", "#", { IMG => ':chart_16.png', IMG_ALT => "$_GRAPH $_NAS", NEW_WINDOW => ((-f '../graphics.cgi') ? "../graphics.cgi?NAS_ID=$nas_row->[0]&DAILY=1" : "index.cgi?MODULE=grapher&qindex=-1"), NEW_WINDOW_SIZE => "670:340" }) );
+  $table->addrow("$nas_row->[0]:". $html->button($html->b($nas_row->[1]), "index=". get_function_index('form_nas') ."&NAS_ID=$nas_row->[0]")  
+  .":$nas_row->[3]:$_TOTAL: $total (". $html->button("Zap $_SESSIONS", "index=$index&zapall=1&NAS_ID=$nas_row->[0]", { MESSAGE => "Do you realy want zap all sessions on NAS '$nas_row->[0]' ?" }) .') '. $html->button("", "#", { IMG => ':chart_16.png', IMG_ALT => "$_GRAPH $_NAS", NEW_WINDOW => ((-f '../graphics.cgi') ? "../graphics.cgi?NAS_ID=$nas_row->[0]&DAILY=1" : "index.cgi?MODULE=grapher&qindex=-1"), NEW_WINDOW_SIZE => "670:340" }) );
   
   foreach my $line (@$l) {
     undef($table->{rowcolor});
@@ -1486,12 +1542,12 @@ foreach my $nas_row (@$nas_list) {
                            "CONNECT_INFO: \n".
                            "UPDATES: $line->[$#ACTIVE_FIELDS+8]";
 
-    	  	$value = "<acronym title='$user_info'>".$html->button($line->[0], "index=15&UID=$line->[$#ACTIVE_FIELDS+3]")."</acronym>";
+    	  	$value = "<acronym title='$user_info'>".user_ext_menu("$line->[$#ACTIVE_FIELDS+3]", $line->[0])."</acronym>";
           #Dublicate logins color yelow
  	  	    if (defined($dub_logins->{$line->[0]}) && $dub_logins->{$line->[0]} > 1) { $table->{rowcolor}='#FFFF00'; }
     	   }	
     	  # Dub ports color green
-    	  elsif ($nas_row->[4] ne 'ipcad' && $ACTIVE_FIELDS[$i] == 2) {
+    	  elsif ($nas_row->[4] ne 'ipcad' && $nas_row->[4] ne 'dhcp' && $ACTIVE_FIELDS[$i] == 2) {
            if (defined($dub_ports->{$nas_row->[0]}{$line->[$i]}) && $dub_ports->{$nas_row->[0]}{$line->[$i]} > 1) { $table->{rowcolor}='#00FF40';    }
     	   }
     	  elsif ($ACTIVE_FIELDS[$i] == 3) {
@@ -1501,14 +1557,14 @@ foreach my $nas_row (@$nas_list) {
       }
 
     if ($line->[$#ACTIVE_FIELDS + 9] > 3)  { $table->{rowcolor}='#FF0000';  }
-    my $zap = $html->button('Z', "index=$index&zap=$nas_row->[0]+".$line->[$#ACTIVE_FIELDS + 12]."+". $line->[($#ACTIVE_FIELDS + 13)].$pages_qs, { TITLE => 'Zap', BUTTON => 1 });
+    my $zap = $html->button('Z', "index=$index&zap=$nas_row->[0]+".$line->[$#ACTIVE_FIELDS + 12]."+". $line->[($#ACTIVE_FIELDS + 13)].$pages_qs, { TITLE => 'Zap', BUTTON => 1, NO_LINK_FORMER => 1 });
     my $hangup = ($FORM{ZAPED}) ? $html->form_input('dellist', "$line->[$#ACTIVE_FIELDS + 13]", { TYPE => 'checkbox', BUTTON => 1  } ) : $html->button('H', "index=$index&FRAMED_IP_ADDRESS=$line->[$#ACTIVE_FIELDS+2]&hangup=$nas_row->[0]+$line->[$#ACTIVE_FIELDS + 12]+$line->[$#ACTIVE_FIELDS + 13]+$line->[$#ACTIVE_FIELDS + 11]&UID=$line->[$#ACTIVE_FIELDS+3]$pages_qs", { TITLE => 'Hangup', BUTTON => 1 });
 
     $table->addrow(@rows,
      $html->button('P', "index=$index&NAS_ID=$FORM{NAS_ID}&ping=$line->[$#ACTIVE_FIELDS+2]$pages_qs", { TITLE => 'ping', BUTTON => 1 }),
      "$zap",
      "$hangup",
-     $html->button("", "#", { IMG => ':chart.png', NEW_WINDOW => ((-f '../graphics.cgi') ? "../graphics.cgi?LOGIN=$line->[0]&DAILY=1" : "index.cgi?MODULE=grapher&qindex=-1"), IMG_ALT => "$_GRAPH $_USER", NEW_WINDOW_SIZE => "670:340" })
+     $html->button("$_GRAPH $_USER", "#", { CLASS => 'stats2', NEW_WINDOW => ((-f '../graphics.cgi') ? "../graphics.cgi?LOGIN=$line->[0]&DAILY=1" : "index.cgi?MODULE=grapher&qindex=-1"), NEW_WINDOW_SIZE => "670:340" })
      );
   }
 }
@@ -1599,6 +1655,10 @@ my $table = $html->table( { width       => '100%',
 #**********************************************************
 sub dv_sessions {
   my ($list, $sessions, $attr) = @_;
+  
+  
+
+  
   my %ACCT_TERMINATE_CAUSES = (                      '' => '',
                       0  => 'Unknown',
                       1  => 'User-Request',
@@ -1676,6 +1736,7 @@ if ($sessions->{SEARCH_FIELDS_COUNT}) {
 	push @caption, 'TC';
 }
 
+
 my $table = $html->table( { width      => '100%',
                             caption    => "$_SESSIONS",
                             border     => 1,
@@ -1694,7 +1755,7 @@ my $Billing = Billing->new($db, \%conf);
 foreach my $line (@$list) {
   if ($permissions{3}{1} && $LIST_PARAMS{UID}) {
     $delete = $html->button($_DEL, "index=". $index ."$pages_qs&del=". ($line->[12+$sessions->{SEARCH_FIELDS_COUNT}]). "+$line->[11]+$line->[7]+$line->[1]+$line->[9]+$line->[0]", 
-       { MESSAGE => "$_DEL Session SESSION_ID ". ($line->[11+$sessions->{SEARCH_FIELDS_COUNT}])."?", BUTTON => 1 }
+       { MESSAGE => "$_DEL $_SESSION $_SESSION_ID ". ($line->[11+$sessions->{SEARCH_FIELDS_COUNT}])."?", CLASS => 'del', NO_LINK_FORMER => 1 }
       );
    }
   my @rows=();
@@ -1715,7 +1776,7 @@ foreach my $line (@$list) {
      $line->[10+$sessions->{SEARCH_FIELDS_COUNT}], 
      "$line->[9]", 
      @rows,
-     $html->button("D", "index=$index&UID=". ($line->[12+$sessions->{SEARCH_FIELDS_COUNT}])."&SESSION_ID=". ($line->[11+$sessions->{SEARCH_FIELDS_COUNT}]), { TITLE => "$_DETAIL", BUTTON => 1 }), 
+     $html->button("D", "index=". get_function_index(($user->{UID}) ? 'dv_user_stats' : 'dv_stats') ."&UID=". ($line->[12+$sessions->{SEARCH_FIELDS_COUNT}])."&SESSION_ID=". ($line->[11+$sessions->{SEARCH_FIELDS_COUNT}]), { TITLE => "$_DETAIL", CLASS => 'stats' }), 
      $delete);
 }
 
@@ -1820,7 +1881,8 @@ my %INFO_LISTS = ();
   	        	                 }, 
   	        EXT_TYPE      => { TP              => "$_TARIF_PLANS",
   	        	                 GID             => "$_GROUPS",
-  	        	                 TERMINATE_CAUSE => 'TERMINATE_CAUSE'
+  	        	                 TERMINATE_CAUSE => 'TERMINATE_CAUSE',
+  	        	                 COMPANIES       => $_COMPANIES
   	        	                 }, 
   	        PERIOD_FORM		=> 1,
   	        FIELDS        => { %CAPTIONS_HASH },
@@ -1864,7 +1926,7 @@ my @CHART_TYPE2 = ('area', 'area');
 my $graph_type='';
 
 #Day reposrt
-if (defined($FORM{DATE})) {
+if ($FORM{DATE}) {
   #Used Traffic
   $table_sessions = $html->table({ width      => '100%',
 	                                 caption    => "$_SESSIONS", 
@@ -1966,6 +2028,10 @@ else {
     	$caption[0]="$_USER";
   	  #$caption[1]="$_LOGINS";
      }
+    if ($FORM{TYPE} eq 'COMPANIES') {
+    	$caption[0]="$_COMPANIES";
+  	  #$caption[1]="$_LOGINS";
+     }
     elsif ($FORM{TYPE} eq 'TERMINATE_CAUSE') {
     	$caption[0]="$_ERROR";
     	@CHART_TYPE=('pie');
@@ -2042,6 +2108,9 @@ else {
     	  }
     	 elsif ($FORM{TYPE} eq 'TP') {
     	 	 $button = $line->[0].'. ' .$html->button($TP_NAMES{$line->[0]}, "index=$index&TP_ID=$line->[0]$pages_qs");
+    	  }
+    	 elsif ($FORM{TYPE} eq 'COMPANIES') {
+    	 	 $button = $html->button("$line->[0]", "index=13&COMPANY_ID=$line->[8]");
     	  }
     	 elsif ($FORM{TYPE} eq 'GID') {
     	 	 $button = $line->[0].'. ' .$html->button($GROUP_NAMES{$line->[0]}, "index=$index&GID=$line->[0]$pages_qs");
@@ -2173,14 +2242,16 @@ sub dv_error {
   my $login  = ''; 
 
   my %log_levels_rev = reverse %log_levels;
+  my @ACTIONS = ('', 'AUTH', 'ACCT', 'HANGUP', 'CALCULATION', 'CMD');
+ 
 
 if ($attr->{USER}) {
   my $user = $attr->{USER};
-  $login = $user->{LOGIN};
+  $login   = $user->{LOGIN};
   $LIST_PARAMS{LOGIN_EXPR} = $user->{LOGIN};
 }
 elsif ($FORM{LOGIN_EXPR}) {
-  $login = $FORM{LOGIN_EXPR};
+  $login     = $FORM{LOGIN_EXPR};
   $LIST_PARAMS{LOGIN_EXPR} = $FORM{LOGIN_EXPR};
   $pages_qs .= "&LOGIN_EXPR=$FORM{LOGIN_EXPR}";
  }
@@ -2214,6 +2285,14 @@ if ($conf{ERROR2DB}) {
                            NO_ID     => 1
    	                      }) ;
 
+  
+
+  $Dv->{ACTIONS_SEL} = $html->form_select('ACTION', 
+                                          { 
+ 	                                          SELECTED     => $FORM{ACTION},
+ 	                                          SEL_ARRAY    => \@ACTIONS,
+ 	                                        });
+
 
   form_search({ SEARCH_FORM => $html->tpl_show(_include('dv_errors_search', 'Dv'),
  	                                            { %FORM, %$Dv },
@@ -2229,8 +2308,8 @@ if ($conf{ERROR2DB}) {
     $LIST_PARAMS{INTERVAL} = "$FORM{FROM_DATE}/$FORM{TO_DATE}";
    }
 
-
-  $list = $Nas->log_list({ %LIST_PARAMS  });
+  
+  $list = $Log->log_list({ %LIST_PARAMS  });
   my $table = $html->table( { 
   	                    caption    => $_TOTAL,
 	                      width      => '100%',
@@ -2238,7 +2317,7 @@ if ($conf{ERROR2DB}) {
 	                       } );
 
   my $total = 0;
-	foreach my $line (@{ $Nas->{list} }) {
+	foreach my $line (@{ $Log->{list} }) {
 		$table->addrow(
 		$log_levels_rev{$line->[0]},
 		$line->[1]
@@ -2636,6 +2715,9 @@ return $table->show();
 #**********************************************************
 sub dv_user_stats {
 
+
+
+
  if(defined($FORM{SESSION_ID})) {
   	$pages_qs .= "&SESSION_ID=$FORM{SESSION_ID}";
   	dv_session_detail({ LOGIN => $LIST_PARAMS{LOGIN} });
@@ -2705,10 +2787,13 @@ if ($sessions->{errno})	{
 
 if ($FORM{rows}) {
   $LIST_PARAMS{PAGE_ROWS}=$FORM{rows};
-  $LIST_PARAMS{PG}=$FORM{rows};
+  $LIST_PARAMS{PG}=$FORM{pg};
   $conf{list_max_recs}=$FORM{rows};
   $pages_qs .= "&rows=$conf{list_max_recs}";
  }
+
+
+
 
 #online sessions
 my $list = $sessions->online( { USER_NAME => $LIST_PARAMS{LOGIN}, 
@@ -3173,8 +3258,6 @@ if ($Dv->{MONTH_ABON}> 0 && ! $Dv->{STATUS} && ! $user->{DISABLE} &&
  }
 
 if ($FORM{set}) {
-	use POSIX;
-
   if (! $FORM{TP_ID} || $FORM{TP_ID} < 1 ) {
   	$html->message('err', "$_ERROR", "$ERR_WRONG_DATA: $_TARIF_PLAN", { ID => 141 });
    }
@@ -3337,8 +3420,6 @@ if ($FORM{set}) {
 
     if ($Dv->{ABON_DATE}) {
       ($year, $month, $day)=split(/-/, $Dv->{ABON_DATE}, 3);
- 	    use POSIX;
-   
       my $seltime = POSIX::mktime(0, 0, 0, $day, ($month-1), ($year - 1900));
 
       if ($seltime <= time()) {
@@ -3351,13 +3432,13 @@ if ($FORM{set}) {
        }
 
       $Shedule->add( {UID     => $LIST_PARAMS{UID},
-                     TYPE     => 'tp',
-                     ACTION   => $FORM{TP_ID},
-    	               D        => $day,
-                     M        => $month,
-                     Y        => $year,
-                     MODULE   => 'Dv',
-                     COMMENTS => "$_FROM: $Dv->{TP_ID}:$Dv->{TP_NAME}"
+                      TYPE     => 'tp',
+                      ACTION   => $FORM{TP_ID},
+    	                D        => $day,
+                      M        => $month,
+                      Y        => $year,
+                      MODULE   => 'Dv',
+                      COMMENTS => "$_FROM: $Dv->{TP_ID}:$Dv->{TP_NAME}"
                     });
 
       if ($Shedule->{errno}) {
@@ -3476,12 +3557,10 @@ elsif($FORM{del}) {
 
    $tariffs->{PARAMS}   .= form_period($period, { ABON_DATE => $Dv->{ABON_DATE}, TP => $tariffs }) if ($conf{DV_USER_CHG_TP_SHEDULE} && ! $conf{DV_USER_CHG_TP_NPERIOD});	
    $tariffs->{ACTION}    = $html->form_input('set', $_CHANGE, { TYPE => 'submit', OUTPUT2RETURN => 1  } );
-#   $tariffs->{ACTION}    = 'set';
-#   $tariffs->{LNG_ACTION}= $_CHANGE;
   }
 
-   $tariffs->{UID}=$attr->{USER}->{UID};
-   $tariffs->{m}=$m;
+   $tariffs->{UID}     = $attr->{USER}->{UID};
+   $tariffs->{m}       = $m;
    $tariffs->{TP_ID}   = $Dv->{TP_ID};
    $tariffs->{TP_NAME} = "$Dv->{TP_ID}:$Dv->{TP_NAME}";
 
@@ -3492,12 +3571,346 @@ elsif($FORM{del}) {
 #**********************************************************
 # dv_user_info
 #**********************************************************
-sub dv_user_info {
-  my $NAS_ID = 0;
+sub cisco_isg_cmd {
+  my ($user_ip, $command, $attr) = @_;  
 
+  my $debug = $conf{ISG_DEBUG} || 0;
+  
+  if ($debug > 0) {
+  	 print "Content-Type: text/html\n\n";
+  	 print "Command: $command". $html->br();
+   }
+
+  #Get user NAS server from ip pools
+  if (! $Nas->{NAS_ID}) {
+    my $list = $Nas->nas_ip_pools_list();
+    foreach my $line (@$list) {
+      if ($line->[3] <= ip2int($user_ip) && ip2int($user_ip) <= $line->[4]) {
+    	  $Nas->info({ NAS_ID => $line->[0] });
+    	  next;
+       }
+     }
+   }
+
+  if (! $Nas->{NAS_ID}) {
+  	$html->message('err', $_ERROR, "$ERR_UNKNOWN_IP", { ID => 13 });
+   	return 0;
+   }
+
+
+  #Get Active session info  
+  my %RAD_PAIRS = ();
+  my $type;
+  my $r = new Radius(Host   => "$Nas->{NAS_MNG_IP_PORT}",
+                     Secret => "$Nas->{NAS_MNG_PASSWORD}") or return "Can't connect '$Nas->{NAS_MNG_IP_PORT}' $!";
+
+  $conf{'dictionary'}=$base_dir.'/Abills/dictionary' if (! $conf{'dictionary'});
+  $r->load_dictionary($conf{'dictionary'});
+
+  $r->clear_attributes();
+  $r->add_attributes ({ Name => 'User-Name', Value => "$attr->{USER_NAME}" }) ;
+  $r->add_attributes ({ Name => 'Cisco-Account-Info',  Value => "S$user_ip" });
+  
+
+if ($command eq 'account-status-query') {
+  $r->add_attributes ({ Name => 'Cisco-AVPair', Value => "subscriber:command=account-status-query"});
+  $r->send_packet (43) and $type = $r->recv_packet;
+
+  if( ! defined $type ) {
+    $html->message('err', $_ERROR,  "No responce from  CoA server '$Nas->{NAS_MNG_IP_PORT}' $! / ". $r->get_error(), { ID => 106 });
+    return 0;
+   }
+   
+  for my $a ($r->get_attributes) {
+    if ($a->{'Value'}=~/\$MA(\S+)/) {
+    	$Dv->{ISG_CID_CUR}=$1;
+     }
+    elsif ($a->{'Value'} =~ /^S(\S+)/) {
+    	$Dv->{ISG_CID_CUR}=$1;
+     }
+    elsif ($a->{'Value'} =~ /^N1TURBO_SPEED(\d+);(\d+)/) {
+      $Dv->{TURBO_MODE_RUN}=$2;
+     }
+  	elsif ($a->{'Value'} =~ /^N1(TP_[0-9\_]+);(\d+)/) {
+  	  $Dv->{CURE_SERVICE}=$1;
+  	  $Dv->{ISG_SESSION_DURATION}=$2;
+  	 }
+    $RAD_PAIRS{$a->{'Name'}}=$a->{'Value'};
+    if ($debug > 0) {
+    	print "$a->{'Name'} -> $a->{'Value'}".$html->br();
+     }
+   }  
+
+# name=Cisco-Account-Info value=N1TP_100;3541;test;8657;8149;1781505;2915555
+# name=User-Name value=test
+# name=Cisco-Command-Code value=1
+# name=Cisco-Account-Info value=S85.132.11.5
+# name=Cisco-AVPair value=sg-version=1.0
+# name=Cisco-NAS-Port value=0/0/1/40
+# name=NAS-Port value=0
+# name=NAS-Port-Id value=0/0/1/40
+# name=Framed-IP-Address value=85.132.11.5 Content-Type: text/html
+	
+ # If ISG return error push error to log
+  if ($RAD_PAIRS{'Error-Cause'}) {
+  	my $message = "NAS: $Nas->{NAS_ID}, $RAD_PAIRS{'Error-Cause'} / $RAD_PAIRS{'Reply-Message'}";
+  	$html->message('err', $_ERROR, $message, { ID => 100 });
+  	$Log->log_add({LOG_TYPE => $log_levels{'LOG_WARNING'},
+                   ACTION   => 'AUTH', 
+                   USER_NAME=> $attr->{USER_NAME} || '-',
+                   MESSAGE  => "$message",
+                   DB       => 1
+                  });
+ 	  	
+    return 0;
+   }
+  else {
+    if(! $Dv->{ISG_CID_CUR}) {
+  	  $html->message('err', $_ERROR, "$_NOT_EXIST ID: '$user_ip' ", { ID =>  11 });
+     }
+    elsif ($Dv->{ISG_CID_CUR} =~ /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/) {
+  	  $DHCP_INFO = dv_dhcp_get_mac($Dv->{ISG_CID_CUR});
+  	  $Dv->{ISG_CID_CUR} = $DHCP_INFO->{MAC} || '';
+  	  if ($Dv->{ISG_CID_CUR} eq '') {
+  		  $html->message('err', $_ERROR, "IP: '$user_ip', MAC $_NOT_EXIST. DHCP $_ERROR ", { ID => 12 });
+        return 0; 
+  	   }
+     }
+   }
+}
+elsif ($command eq 'deactivate-service') {
+  # Deactivate cur service
+  $r->add_attributes ({ Name => 'Cisco-AVPair', Value => "subscriber:subscriber:command=deactivate-service"});
+  $r->add_attributes ({ Name => 'Cisco-AVPair', Value => "subscriber:service-name=$attr->{CURE_SERVICE}"});
+  $r->send_packet (43) and $type = $r->recv_packet;
+  
+  if( ! defined $type ) {
+    $html->message('err', $_ERROR,  "No responce from  CoA server '$Nas->{NAS_MNG_IP_PORT}' $! / ". $r->get_error(), { ID => 106 });
+    return 0;
+   }
+ }
+elsif ($command eq 'activate-service') {
+  $r->add_attributes ({ Name => 'Cisco-AVPair', Value => "subscriber:command=activate-service"});
+  $r->add_attributes ({ Name => 'Cisco-AVPair', Value => "subscriber:service-name=$attr->{SERVICE_NAME}"});
+  $r->send_packet (43) and $type = $r->recv_packet;
+
+  if( ! defined $type ) {
+    $html->message('err', $_ERROR,  "No responce from  CoA server '$Nas->{NAS_MNG_IP_PORT}' $! / ". $r->get_error(), { ID => 106 });
+    return 0;
+   }
+
+  for my $a ($r->get_attributes) {
+     #MAC as ID
+     if ($val =~ /\$MA(\S+)/) {
+        $Dv->{ISG_CID_CUR}=$1;
+       }
+     #IP user ID
+     elsif ($val =~ /S(\S+)/) {
+       $Dv->{ISG_CID_CUR}=$1;
+  	  }
+     $RAD_PAIRS{$a->{'Name'}}=$a->{'Value'};
+   }
+	  
+  if ($RAD_PAIRS{'Error-Cause'}) {
+ 	 	$html->message('err', $_ERROR, "$RAD_PAIRS{'Error-Cause'} / $RAD_PAIRS{'Reply-Message'}", { ID => 101 }); 	        	
+   	$Log->log_add({LOG_TYPE => $log_levels{'LOG_WARNING'},
+                   ACTION   => 'AUTH', 
+                   USER_NAME=> $attr->{USER_NAME} || '-',
+                   MESSAGE  => "Service Enable IP: $user_ip '$service_name' Error: $RAD_PAIRS{'Error-Cause'} / $RAD_PAIRS{'Reply-Message'}",
+                   DB       => 1
+                 });
+ 	 }
+  else {
+    $html->message('info', $_INFO, "$_SERVICE $_ENABLE");
+ 		$Log->log_add({LOG_TYPE => $log_levels{'LOG_INFO'},
+                   ACTION   => 'AUTH', 
+                   USER_NAME=> $attr->{USER_NAME} || '-',
+                   MESSAGE  => "Service Enable '$service_name' IP: $user_ip",
+                   DB       => 1
+                 });
+    return 0;
+   }
+}
+elsif ($command eq 'account-logon') {
+  $r->add_attributes ({ Name => 'Cisco-AVPair', Value => "subscriber:command=account-logon"});
+  $r->send_packet (43) and $type = $r->recv_packet;
+
+  if( ! defined $type ) {
+    $html->message('err', $_ERROR,  "No responce from  CoA server '$Nas->{NAS_MNG_IP_PORT}' $! / ". $r->get_error(), { ID => 106 });
+    return 0;
+   }
+
+  for my $a ($r->get_attributes) {
+    #MAC as ID
+    if ($val =~ /\$MA(\S+)/) {
+      $Dv->{ISG_CID_CUR}=$1;
+     }
+    #IP user ID
+    elsif ($val =~ /S(\S+)/) {
+      $Dv->{ISG_CID_CUR}=$1;
+     }
+    $RAD_PAIRS{$a->{'Name'}}=$a->{'Value'};
+   }  
+	  
+	if ($RAD_PAIRS{'Error-Cause'}) {
+ 	 	 $html->message('err', $_ERROR, "$_LOGON $_ERROR [$RAD_PAIRS{'Error-Cause'}] $RAD_PAIRS{'Reply-Message'}", { ID => 101 }); 	        	
+     $Log->log_add({LOG_TYPE => $log_levels{'LOG_WARNING'},
+                     ACTION   => 'AUTH', 
+                     USER_NAME=> $attr->{USER_NAME} || '-',
+                     MESSAGE  => "Logon Error: $RAD_PAIRS{'Error-Cause'} / $RAD_PAIRS{'Reply-Message'}",
+                     DB       => 1
+                    });
+ 	 }
+  else {
+    $html->message('info', $_INFO, "$_LOGON");
+ 	 	$Log->log_add({LOG_TYPE => $log_levels{'LOG_INFO'},
+                   ACTION   => 'AUTH', 
+                   USER_NAME=> $attr->{USER_NAME} || '-',
+                   MESSAGE  => "Logon",
+                   DB       => 1
+                 });
+
+   return 0;
+  }
+ }
+elsif ($command eq 'account-logoff') {
+  $r->add_attributes ({ Name => 'Cisco-AVPair', Value => "subscriber:command=account-logon"});
+  $r->send_packet (43) and $type = $r->recv_packet;
+
+  if( ! defined $type ) {
+    $html->message('err', $_ERROR,  "No responce from  CoA server '$Nas->{NAS_MNG_IP_PORT}' $! / ". $r->get_error(), { ID => 106 });
+    return 0;
+   }
+
+  for my $a ($r->get_attributes) {
+    #MAC as ID
+    if ($val =~ /\$MA(\S+)/) {
+      $Dv->{ISG_CID_CUR}=$1;
+     }
+    #IP user ID
+    elsif ($val =~ /S(\S+)/) {
+      $Dv->{ISG_CID_CUR}=$1;
+     }
+    $RAD_PAIRS{$a->{'Name'}}=$a->{'Value'};
+   }  
+	  
+	if ($RAD_PAIRS{'Error-Cause'}) {
+ 	 	 $html->message('err', $_ERROR, "$_LOGON $_ERROR [$RAD_PAIRS{'Error-Cause'}] $RAD_PAIRS{'Reply-Message'}", { ID => 101 }); 	        	
+     $Log->log_add({LOG_TYPE => $log_levels{'LOG_WARNING'},
+                     ACTION   => 'AUTH', 
+                     USER_NAME=> $attr->{USER_NAME} || '-',
+                     MESSAGE  => "Logon Error: $RAD_PAIRS{'Error-Cause'} / $RAD_PAIRS{'Reply-Message'}",
+                     DB       => 1
+                    });
+ 	 }
+  else {
+    $html->message('info', $_INFO, "$_LOGON");
+ 	 	$Log->log_add({LOG_TYPE => $log_levels{'LOG_INFO'},
+                   ACTION   => 'AUTH', 
+                   USER_NAME=> $attr->{USER_NAME} || '-',
+                   MESSAGE  => "Logon",
+                   DB       => 1
+                 });
+
+   return 0;
+  }
+ } 
+#old way 
+#=comments
+#
+#  	#get  PBHK identifier (IP or MAC) from NAS and account info
+#    #my $isg_cmd = "/bin/echo \"User-Name=\\\"$user->{LOGIN}\\\",cisco-avpair=\\\"subscriber:command=account-status-query\\\",Cisco-Account-Info=\\\"S$user->{REMOTE_ADDR}\\\"\" | #/usr/local/bin/radclient -x $Nas->{NAS_MNG_IP_PORT} coa $Nas->{NAS_MNG_PASSWORD}";
+#    #my $result = `$isg_cmd`;
+#
+#
+#
+#redirect service:
+#        Cisco-Account-Info=N1SERVICE_406_L4R;12;;0;0;0;0,
+#        Cisco-Account-Info=N1PBHK_SERVICE;12;;0;0;0;0,
+#        Cisco-Command-Code=0,
+#        Cisco-Account-Info=S79.124.108.107,
+#        Cisco-AVPair=sg-version=1.0,
+#        NAS-Port-Id=33555320,
+#        NAS-Port-Id=nas-port:0.0.0.0:0/0/2/888,
+#        Framed-IP-Address=79.124.108.107,
+#
+#Sending CoA-Request of id 218 to 77.87.152.66 port 1700
+#        User-Name = "test"
+#        Cisco-AVPair = "subscriber:command=account-status-query"
+#        Cisco-Account-Info = "S79.124.98.3"
+#rad_recv: CoA-ACK packet from host 77.87.152.66:1700, id=218, length=211
+#        Cisco-Account-Info = "N1SERVICE_406_L4R;224;;0;0;0;0"
+#        Cisco-Account-Info = "N1PBHK_SERVICE;224;;0;0;0;0"
+#        Cisco-Account-Info = "$MA0018.f3f8.f85a"
+#        Cisco-Account-Info = "S79.124.98.3"
+#        Cisco-Command-Code = "\0040"
+#        Cisco-AVPair = "sg-version=1.0"
+#        NAS-Port = 0
+#        NAS-Port-Id = "nas-port:0.0.0.0:0/0/2/1416"
+#        Framed-IP-Address = 79.124.98.3
+#pROFILRE
+#
+#        Cisco-Account-Info = "N1PBHK_SERVICE;399;chao;0;0;0;0"
+#        Cisco-Account-Info = "N1TP_214;399;chao;0;46;0;2867"
+#        User-Name = "chao"
+#        Cisco-Command-Code = "\0041"
+#        Cisco-Account-Info = "S79.124.99.40"
+#        Cisco-Account-Info = "ATP_214"
+#        Cisco-Account-Info = "NSERVICE_406_BOD1M"
+#        Cisco-Account-Info = "NBasic_Internet_Service"
+#        Cisco-Account-Info = "N1PBHK_SERVICE;399;chao;0;0;0;0"
+#        Idle-Timeout = 1800
+#        User-Name = "chao"
+#        Cisco-AVPair = "accounting-list=BH_ACCNT_LIST1"
+#        Cisco-AVPair = "sg-version=1.0"
+#        NAS-Port = 33555320
+#        NAS-Port-Id = "nas-port:0.0.0.0:0/0/2/888"
+#        Framed-IP-Address = 79.124.99.40
+#        
+#
+#	my @arr = split(/\n/, $result);
+#  	my %RAD_PAIRS = ();
+#  	foreach my $line (@arr) {
+#        my($key, $val)=split(/ = /, $line);
+#
+#        $val =~ s/\"//g;
+#        $key =~ s/\t//g;
+#        $key =~ s/ //g;
+#        
+#      	$RAD_PAIRS{$key}=$val;
+#        #Mac as ID
+#        if ($val =~ /\$MA(\S+)/) {
+#      	  $Dv->{ISG_CID_CUR}=$1;
+#      	 }
+#  	    #IP user ID
+#  	    elsif ($val =~ /^S(\S+)/) {
+#  	    	$Dv->{ISG_CID_CUR}=$1;
+#  	     }
+#        elsif ($val =~ /^N1TURBO_SPEED(\d+);(\d+)/) {
+#          $Dv->{TURBO_MODE_RUN}=$2;
+#         }
+#  	    elsif ($val =~ /^N1(TP_\d+);(\d+)/) {
+#  	      $Dv->{CURE_SERVICE}=$1;
+#  	      $Dv->{ISG_SESSION_DURATION}=$2;
+#  	     }
+#  	 }
+#=cut
+
+
+ 
+   return 1;
+
+}
+
+
+#**********************************************************
+# dv_user_info
+#**********************************************************
+sub dv_user_info {
   my $DHCP_INFO = undef;
 
-  if ($conf{DV_ISG}) {
+
+if ($conf{DV_ISG}) {
     #Check deposit and disable STATUS
     my $list = $Dv->list({ LOGIN         => $user->{LOGIN}, 
                            TP_CREDIT     => '>0',
@@ -3517,162 +3930,28 @@ sub dv_user_info {
        return 0;
      }
 
-  	#Get user NAS server from ip pools
-    $list = $Nas->nas_ip_pools_list();
-    foreach my $line (@$list) {
-    	if ($line->[3] <= ip2int($user->{REMOTE_ADDR}) && ip2int($user->{REMOTE_ADDR}) <= $line->[4]) {
-    		$NAS_ID = $line->[0];
-    		$Nas->info({ NAS_ID => $line->[0] });
-    		next;
-    	 }
-     }
 
-    if (! $Nas->{NAS_ID}) {
-    	$html->message('err', $_ERROR, "$ERR_UNKNOWN_IP", { ID => 13 });
-    	return 0;
-     }
- 	
-  	#get  PBHK identifier (IP or MAC) from NAS and account info
-    my $isg_cmd = "/bin/echo \"User-Name=\\\"$user->{LOGIN}\\\",cisco-avpair=\\\"subscriber:command=account-status-query\\\",Cisco-Account-Info=\\\"S$user->{REMOTE_ADDR}\\\"\" | /usr/local/bin/radclient -x $Nas->{NAS_MNG_IP_PORT} coa $Nas->{NAS_MNG_PASSWORD}";
-    my $result = `$isg_cmd`;
+  	 
+  if (! cisco_isg_cmd($user->{REMOTE_ADDR}, "account-status-query", { USER_NAME => $user->{LOGIN} })) {
 
-=comments
-redirect service:
-        Cisco-Account-Info=N1SERVICE_406_L4R;12;;0;0;0;0,
-        Cisco-Account-Info=N1PBHK_SERVICE;12;;0;0;0;0,
-        Cisco-Command-Code=0,
-        Cisco-Account-Info=S79.124.108.107,
-        Cisco-AVPair=sg-version=1.0,
-        NAS-Port-Id=33555320,
-        NAS-Port-Id=nas-port:0.0.0.0:0/0/2/888,
-        Framed-IP-Address=79.124.108.107,
+     return 0;
+   } 	
 
-Sending CoA-Request of id 218 to 77.87.152.66 port 1700
-        User-Name = "test"
-        Cisco-AVPair = "subscriber:command=account-status-query"
-        Cisco-Account-Info = "S79.124.98.3"
-rad_recv: CoA-ACK packet from host 77.87.152.66:1700, id=218, length=211
-        Cisco-Account-Info = "N1SERVICE_406_L4R;224;;0;0;0;0"
-        Cisco-Account-Info = "N1PBHK_SERVICE;224;;0;0;0;0"
-        Cisco-Account-Info = "$MA0018.f3f8.f85a"
-        Cisco-Account-Info = "S79.124.98.3"
-        Cisco-Command-Code = "\0040"
-        Cisco-AVPair = "sg-version=1.0"
-        NAS-Port = 0
-        NAS-Port-Id = "nas-port:0.0.0.0:0/0/2/1416"
-        Framed-IP-Address = 79.124.98.3
-pROFILRE
-
-        Cisco-Account-Info = "N1PBHK_SERVICE;399;chao;0;0;0;0"
-        Cisco-Account-Info = "N1TP_214;399;chao;0;46;0;2867"
-        User-Name = "chao"
-        Cisco-Command-Code = "\0041"
-        Cisco-Account-Info = "S79.124.99.40"
-        Cisco-Account-Info = "ATP_214"
-        Cisco-Account-Info = "NSERVICE_406_BOD1M"
-        Cisco-Account-Info = "NBasic_Internet_Service"
-        Cisco-Account-Info = "N1PBHK_SERVICE;399;chao;0;0;0;0"
-        Idle-Timeout = 1800
-        User-Name = "chao"
-        Cisco-AVPair = "accounting-list=BH_ACCNT_LIST1"
-        Cisco-AVPair = "sg-version=1.0"
-        NAS-Port = 33555320
-        NAS-Port-Id = "nas-port:0.0.0.0:0/0/2/888"
-        Framed-IP-Address = 79.124.99.40
-
-=cut
-  	my @arr = split(/\n/, $result);
-  	my %RAD_PAIRS = ();
-  	foreach my $line (@arr) {
-        my($key, $val)=split(/ = /, $line);
-
-        $val =~ s/\"//g;
-        $key =~ s/\t//g;
-        $key =~ s/ //g;
-        
-      	$RAD_PAIRS{$key}=$val;
-        #Mac as ID
-        if ($val =~ /\$MA(\S+)/) {
-      	  $Dv->{ISG_CID_CUR}=$1;
-      	 }
-  	    #IP user ID
-  	    elsif ($val =~ /^S(\S+)/) {
-  	    	$Dv->{ISG_CID_CUR}=$1;
-  	     }
-        elsif ($val =~ /^N1TURBO_SPEED(\d+);(\d+)/) {
-          $Dv->{TURBO_MODE_RUN}=$2;
-         }
-  	    elsif ($val =~ /^N1(TP_\d+);(\d+)/) {
-  	      $Dv->{CURE_SERVICE}=$1;
-  	      $Dv->{ISG_SESSION_DURATION}=$2;
-  	     }
-  	 }
-
-	
-	  #$Dv->{ISG_CID_CUR} = '192.168.0.1';
-	  #
- 	  if ($RAD_PAIRS{'Error-Cause'}) {
- 	  	$html->message('err', $_ERROR, "NAS: $NAS_ID, $RAD_PAIRS{'Error-Cause'} / $RAD_PAIRS{'Reply-Message'}", { ID => 100 });
-      return 0;
- 	   }
-    elsif(! $Dv->{ISG_CID_CUR}) {
-    	$html->message('err', $_ERROR, "$_NOT_EXIST ID: '$user->{REMOTE_ADDR}' ", { ID =>  11 });
-     }
-    elsif ($Dv->{ISG_CID_CUR} =~ /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/) {
-    	$DHCP_INFO = dv_dhcp_get_mac($Dv->{ISG_CID_CUR});
-    	$Dv->{ISG_CID_CUR} = $DHCP_INFO{MAC} || '';
-    	if ($Dv->{ISG_CID_CUR} eq '') {
-    		$html->message('err', $_ERROR, "IP: '$user->{REMOTE_ADDR}', MAC $_NOT_EXIST. DHCP $_ERROR ", { ID => 12 });
-        return 0; 
-    	 }
-     }
-
-
- if ($Dv->{ISG_CID_CUR}) {
-   #change speed (active turbo mode)
-   if ($FORM{SPEED}) {
+  if ($Dv->{ISG_CID_CUR}) {
+    #change speed (active turbo mode)
+    if ($FORM{SPEED}) {
         if ($Dv->{CURE_SERVICE} =~ /TP/ || ! $Dv->{TURBO_MODE_RUN} ) {
            my $service_name = 'TURBO_SPEED'. $FORM{SPEED};
            #Deactive cure service (TP Service)
            if ($Dv->{CURE_SERVICE} =~ /TP/) {
-             my $isg_cmd = "/bin/echo \"User-Name=\\\"$user->{LOGIN}\\\",cisco-avpair=\\\"subscriber:command=deactivate-service\\\",cisco-avpair+=\\\"subscriber:service-name=$Dv->{CURE_SERVICE}\\\",Cisco-Account-Info=\\\"S$user->{REMOTE_ADDR}\\\",  \" | /usr/local/bin/radclient -x $Nas->{NAS_MNG_IP_PORT} coa $Nas->{NAS_MNG_PASSWORD}";
-             print "<!-- $isg_cmd -->";
-             my $result = `$isg_cmd`;
+             if (! cisco_isg_cmd($user->{REMOTE_ADDR}, "deactivate-service", { USER_NAME => $user->{LOGIN}, CURE_SERVICE => $Dv->{CURE_SERVICE} })) {
+
+              } 	
             }
-
-           #Active service (TURBO mode)
-           $isg_cmd = "/bin/echo \"User-Name=\\\"$user->{LOGIN}\\\",cisco-avpair=\\\"subscriber:command=activate-service\\\",cisco-avpair+=\\\"subscriber:service-name=$service_name\\\",Cisco-Account-Info=\\\"S$user->{REMOTE_ADDR}\\\",  \" | /usr/local/bin/radclient -x $Nas->{NAS_MNG_IP_PORT} coa $Nas->{NAS_MNG_PASSWORD}";
-     
-           #print "<!-- $isg_cmd -->"; 
-           my $result = `$isg_cmd`;
-           $result = `/bin/echo \`date \"+ %Y-%m-%d %H:%M:%S\"\` \"$user->{LOGIN} $service_name \" >> /usr/abills/var/log/turbo.log`;
-
-           my @arr = split(/\n/, $result);
-  	       my %RAD_PAIRS = ();
-
-  	       foreach my $line (@arr) {
-             my($key, $val)=split(/ = /, $line);
-             $val =~ s/\"//g;
-             $key =~ s/\t//g;
-             $key =~ s/ //g;        
-             $RAD_PAIRS{$key}=$val;
-             #MAC as ID
-             if ($val =~ /\$MA(\S+)/) {
-      	        $Dv->{ISG_CID_CUR}=$1;
-      	      }
-  	         #IP user ID
-  	         elsif ($val =~ /S(\S+)/) {
-  	    	     $Dv->{ISG_CID_CUR}=$1;
-  	          }
-  	        }
-	  
-	     	  if ($RAD_PAIRS{'Error-Cause'}) {
- 	        	$html->message('err', $_ERROR, "$RAD_PAIRS{'Error-Cause'} / $RAD_PAIRS{'Reply-Message'}", { ID => 101 });
- 	         }
-          else {
-      	    $html->message('info', $_INFO, "TURBO $_ENABLE");
-            return 0;
-           }
+          #Activate service
+          if (! cisco_isg_cmd($user->{REMOTE_ADDR}, "deactivate-service", { USER_NAME => $user->{LOGIN}, SERVICE_NAME => $service_name })) {
+              return 0;
+           } 	
        }
       elsif ($Dv->{TURBO_MODE_RUN}){
       	$html->message('info', $_INFO, "TURBO $_MODE $_ENABLE");
@@ -3680,16 +3959,16 @@ pROFILRE
   	 }
    }
  }
+# Users autoregistrations
 elsif ($conf{DV_IP_DISCOVERY}) {
 	$DHCP_INFO = dv_dhcp_get_mac($user->{REMOTE_ADDR}, { CHECK_STATIC => 1 });
  	if (! $DHCP_INFO->{MAC}) {
- 		$html->message('err', $_ERROR, "IP: '$user->{REMOTE_ADDR}', MAC: $_NOT_EXIST. DHCP $_ERROR ", { ID => 112 });
+ 		$html->message('err', $_ERROR, "DHCP $_ERROR \n MAC: $_NOT_EXIST \n IP: '$user->{REMOTE_ADDR}'", { ID => 112 });
     return 0; 
  	 }
   elsif ($DHCP_INFO->{STATIC}) {
-  	my (undef, $mac, $ip)=split(/;/, $DHCP_INFO->{MAC});
-  	if ($ip ne "$user->{REMOTE_ADDR}") {
-  	  $html->message('err', $_ERROR, "IP: '$ip', MAC: $_NOT_EXIST. Address Conflict", { ID => 114 });
+  	if ($DHCP_INFO->{IP} ne "$user->{REMOTE_ADDR}") {
+  	  $html->message('err', $_ERROR, "$ERR_IP_ADDRESS_CONFLICT \n MAC: $_NOT_EXIST \n IP: '$user->{REMOTE_ADDR}' ", { ID => 114 });
   	 }
    }
   else {
@@ -3708,30 +3987,33 @@ elsif ($conf{DV_IP_DISCOVERY}) {
   	  	dv_get_month_fee($Dv) if (! $Dv->{STATUS});
   	   }
   	  else {
-  	  	if ($Dv->{ISG_CID_CUR}) {
-  	  	  my $res = `/bin/echo "User-Name=\"$user->{LOGIN}\",cisco-avpair=\"subscriber:commandmy=account-logon\",Cisco-Account-Info=\"S$user->{REMOTE_ADDR}\"" | /usr/local/bin/radclient -x  $Nas->{NAS_MNG_IP_PORT} coa $Nas->{NAS_MNG_PASSWORD}`;
-         }
-
-  	  	$html->message('err', $_ACTIVATE, "$_ERROR CID: $Dv->{ISG_CID_CUR}", { ID => 102 });
+ 	  	 	$html->message('err', $_ACTIVATE, "$_ERROR CID: $Dv->{ISG_CID_CUR}", { ID => 102 });
   	   }
+      #Log on
+      if (! cisco_isg_cmd($user->{REMOTE_ADDR}, "account-logon", { USER_NAME => $user->{LOGIN} })) {
+        return 0;
+       } 	
    }
   elsif ($FORM{logon}) {
-  	my $res = `/bin/echo "User-Name=\"$user->{LOGIN}\",cisco-avpair=\"subscriber:commandmy=account-logon\",Cisco-Account-Info=\"S$user->{REMOTE_ADDR}\"" | /usr/local/bin/radclient -x  $Nas->{NAS_MNG_IP_PORT} coa $Nas->{NAS_MNG_PASSWORD}`;
-  	$html->message('info', $_INFO, "$_LOGON");
+    #Logon
+    if (! cisco_isg_cmd($user->{REMOTE_ADDR}, "account-logon", { USER_NAME => $user->{LOGIN} })) {
+      return 0;
+     } 	
    }
   elsif ($FORM{discovery}) {  
     if(dv_dhcp_get_mac_add($user->{REMOTE_ADDR}, $DHCP_INFO)) {
-    	$html->message('info', $_INFO, "$_ACTIVATE IP: $Dv->{NEW_IP} CID: $DHCP_INFO->{MAC}");
+    	$html->message('info', $_INFO, "$_ACTIVATE \n\n IP: $Dv->{NEW_IP} \n CID: $DHCP_INFO->{MAC}");
      }
-    else {
-    	$html->message('err', $_ACTIVATE, "$_ERROR IP: $user->{REMOTE_ADDR} CID: $DHCP_INFO->{MAC}", { ID => 113 });
-     }
+    #else {
+    #	#$html->message('err', $_ACTIVATE, "$_ERROR IP: $user->{REMOTE_ADDR} CID: $DHCP_INFO->{MAC}", { ID => 113 });
+    # }
    }
   elsif ($FORM{hangup}) {
   	require "Abills/nas.pl";
     my $ret = hangup($Nas, "0", "$user->{LOGIN}", { ACCT_SESSION_ID   => '',
   	                                                FRAMED_IP_ADDRESS => $user->{REMOTE_ADDR},
-  	                                                UID               => $user->{UID} });
+  	                                                UID               => $user->{UID},
+  	                                                USER              => $user->{LOGIN} });
    }
   
   $Dv->info($LIST_PARAMS{UID});
@@ -3798,16 +4080,16 @@ elsif ($conf{DV_IP_DISCOVERY}) {
 
   $user->{SERVICE_STATUS} = $Dv->{STATUS};  
   if ($conf{DV_USER_CHG_TP}) {
-    $Dv->{TP_CHANGE} = $html->button("$_CHANGE", 'index='. get_function_index('dv_user_chg_tp').'&sid='.$sid, { BUTTON => 1 } );
+    $Dv->{TP_CHANGE} = $html->button("$_CHANGE", 'index='. get_function_index('dv_user_chg_tp').'&sid='.$sid, { CLASS => 'change rightAlignText' } );
    }
 
   #Activate Cisco ISG Account
   if ($conf{DV_ISG}) {
-    if ($user->{DISABLE}) {
+    if ($user->{DISABLE} && $user->{DISABLE} =~ /ENABLE/) {
     	$html->message('err', $_ERROR, "$_USER  $_DISABLE", { ID => 16 });
      }
     elsif ($Dv->{CID} ne $Dv->{ISG_CID_CUR} || $Dv->{CID} eq '') {
-      $html->message('info', $_INFO, "$_NOT_ACTIVE CID: $Dv->{ISG_CID_CUR} IP: $user->{REMOTE_ADDR} ");
+      $html->message('info', $_INFO, "$_NOT_ACTIVE \n\n CID: $Dv->{ISG_CID_CUR} \n IP: $user->{REMOTE_ADDR} ");
       $html->form_main({ CONTENT => '',
   	                     HIDDEN  => { index => "$index",
   	                         	        CID   => "$Dv->{ISG_CID_CUR}",
@@ -3821,13 +4103,13 @@ elsif ($conf{DV_IP_DISCOVERY}) {
   	 }
     #Self hangup
     elsif ($Dv->{CID} eq $Dv->{ISG_CID_CUR}) {
-      $table = $html->table({ width     => '500',
-	                          rowcolor    => 'row_active',
-                            rows        => [[ "$_DURATION: ", $Dv->{ISG_SESSION_DURATION},
-                            ($Dv->{CURE_SERVICE} !~ /TP/ && !$Dv->{TURBO_MODE_RUN}) ? $html->form_input('logon', "$_LOGON ", { TYPE => 'submit', OUTPUT2RETURN => 1 }) : '',
-                            $html->form_input('hangup', $_HANGUP, { TYPE => 'submit', OUTPUT2RETURN => 1 })
-                                         ]],                                   
-                         });
+      $table = $html->table({ width     => '600',
+	                            rowcolor    => 'row_active',
+                              rows        => [[ ($Dv->{ISG_SESSION_DURATION}) ? "$_SESSIONS $_DURATION: ". sec2time($Dv->{ISG_SESSION_DURATION}, { str => 1 }) : '',
+                              ($Dv->{CURE_SERVICE} !~ /TP/ && !$Dv->{TURBO_MODE_RUN}) ? $html->form_input('logon', "$_LOGON ", { TYPE => 'submit', OUTPUT2RETURN => 1 }) : '',
+                              #$html->form_input('hangup', $_HANGUP, { TYPE => 'submit', OUTPUT2RETURN => 1 })
+                                        ]],                                   
+                           });
       
       print $html->form_main({ CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
   	                     HIDDEN  => { index => "$index",
@@ -3886,7 +4168,7 @@ sub dv_holdup_service {
   my $list = $Shedule->list({ UID    => $user->{UID},
                               MODULE => 'Dv',
                               TYPE   => 'status' 
-                              });
+                           });
 
   my %Shedule_val = ();
   my $del_ids = '';
@@ -3898,7 +4180,7 @@ sub dv_holdup_service {
   chop($del_ids);
 
   if($Shedule->{TOTAL} > 0) {
-  	$html->message('info', $_INFO, "$_HOLD_UP $Shedule_val{3} -> $Shedule_val{0} " . (($Shedule->{TOTAL} > 1) ? $html->button("$_DEL", "index=$index&del=$del_ids&sid=$sid", { BUTTON => 1 }) : '')
+  	$html->message('info', $_INFO, "$_HOLD_UP $Shedule_val{3} -> $Shedule_val{0} " . (($Shedule->{TOTAL} > 1) ? $html->br().$html->button("$_DEL", "index=$index&del=$del_ids&sid=$sid", { BUTTON => 1,  MESSAGE =>  "$_DEL $_HOLD_UP?" }) : '')
   	);
         
   	return 0;
@@ -3945,13 +4227,7 @@ sub dv_holdup_service {
                     });
 
       if (! $Shedule->{errno}) {
-      	$html->message('info', $_INFO, "$_HOLD_UP $_DATE: $FORM{FROM_DATE} -> $FORM{TO_DATE}   $_DAYS: ". sprintf("%d", $block_days));
-      	if ($active_fees && $active_fees > 0) {
-      	  $fees->take($user, $active_fees, { DESCRIBE => "$_HOLD_UP" } );
-      	  if ($fees->{errno}) {
-      	  	$html->message('err', $_ERROR, "$fees->{errno} $fees->{errstr}");
-      	   }
-      	 }
+      	$html->message('info', $_INFO, "$_HOLD_UP \n $_DATE: $FORM{FROM_DATE} -> $FORM{TO_DATE} \n  $_DAYS: ". sprintf("%d", $block_days));
   	    return 0;
        }
      }
@@ -3981,6 +4257,7 @@ sub dv_holdup_service {
  	                                                MONTHES   => \@MONTHES, 
  	                                             });
 
+
 	$html->tpl_show(_include('dv_hold_up', 'Dv'), $Dv);
 }
 
@@ -3991,6 +4268,9 @@ sub dv_periodic_logrotate {
 	my ($attr) = @_;
   my $debug = $attr->{DEBUG} || 0;
 
+
+  return '' if ($attr->{SKIP_ROTATE});
+
   # Clean s_detail table
   my ($y, $m, $d)=split(/-/, $ADMIN_REPORT{DATE}, 3);
   $conf{DV_LOG_CLEAN_PERIOD}=180 if (! $conf{DV_LOG_CLEAN_PERIOD});
@@ -4000,6 +4280,9 @@ sub dv_periodic_logrotate {
 
     $sessions->log_rotate({ TYPES  => [ 'SESSION_DETAILS', 'SESSION_INTERVALS'],
   	                        PERIOD => $conf{DV_LOG_CLEAN_PERIOD} });
+   }
+  else {
+  	$sessions->log_rotate({ DAILY => 1 });
    }
 }
 
@@ -4018,7 +4301,7 @@ sub dv_daily_fees {
  	  return $debug_output;;
   }
 
- $debug_output .= "DV: Daily periodic payments\n" if ($debug > 1);
+ $debug_output .= "DV: Daily periodic fees\n" if ($debug > 1);
 
  $LIST_PARAMS{TP_ID}     = $attr->{TP_ID} if ($attr->{TP_ID});
  $LIST_PARAMS{DOMAIN_ID} = $DOMAIN_ID; 
@@ -4064,6 +4347,7 @@ sub dv_daily_fees {
          SORT      => 1,
          PAGE_ROWS => 1000000,
          TP_CREDIT => '>=0',
+         DELETED      => 0,
          %DV_LIST_PARAMS
  	   	 });
 
@@ -4379,7 +4663,8 @@ sub dv_monthly_fees {
  	 my $postpaid    = $line->[4];
    my $month_fee   = $line->[6];
    my $activate_date = "<='$ADMIN_REPORT{DATE}'";
-   my $ext_deposit_op = $line->[14];
+   my $tp_ext_deposit_op = $line->[14];
+
 
    $TP_INFO{POSTPAID_MONTHLY} = $line->[13];
    $TP_INFO{REDUCTION}        = $line->[11];
@@ -4387,7 +4672,7 @@ sub dv_monthly_fees {
    my %used_traffic = ();
    #Monthfee & min use
  	 if ($month_fee > 0 || $min_use_sum > 0) {
- 	   $debug_output .= "TP ID: $line->[0] MF: $line->[6] POSTPAID: $TP_INFO{POSTPAID_MONTHLY} REDUCTION: $TP_INFO{REDUCTION} EXT_BILL_ID: $ext_deposit_op CREDIT: $line->[15] MIN_USE: $min_use_sum ABON_DISTR: $abon_distrib\n" if ($debug > 1);
+ 	   $debug_output .= "TP ID: $line->[0] MF: $line->[6] POSTPAID: $TP_INFO{POSTPAID_MONTHLY} REDUCTION: $TP_INFO{REDUCTION} EXT_BILL_ID: $tp_ext_deposit_op CREDIT: $line->[15] MIN_USE: $min_use_sum ABON_DISTR: $abon_distrib\n" if ($debug > 1);
 
  	   #get used  traffic for min use functions
  	   my %processed_users = ();
@@ -4422,12 +4707,13 @@ sub dv_monthly_fees {
          SORT         => 1,
          PAGE_ROWS    => 1000000,
          TP_CREDIT    => '>=0',
+         DELETED      => 0,
          %DV_LIST_PARAMS
  	   	 });
 
      my $extfield_count = $Dv->{SEARCH_FIELDS_COUNT};
-
      foreach my $u (@$ulist) {
+     	 my $ext_deposit_op = $tp_ext_deposit_op;
        my %user = (
             LOGIN      => $u->[0],  
             UID        => $u->[6+ $extfield_count],
@@ -4443,6 +4729,8 @@ sub dv_monthly_fees {
            );
 
 
+
+
        $debug_output .= " Login: $user{LOGIN} ($user{UID}) TP_ID: ". ($u->[9 +$extfield_count ]  ) ." Fees: $line->[6] REDUCTION: $user{REDUCTION} DEPOSIT: $u->[2] CREDIT $user{CREDIT} ACTIVE: $user{ACTIVATE} TP: $u->[11]\n" if ($debug > 3); 	
        
        if (! $user{BILL_ID} && $user{MAIN_BILL_ID}) {
@@ -4450,6 +4738,8 @@ sub dv_monthly_fees {
        	 $user{MAIN_BILL_ID}=0;
        	 $ext_deposit_op=0;
         }
+
+
        
        if (($user{BILL_ID} && $user{BILL_ID} > 0) && defined($user{DEPOSIT})) {
          my %FEES_PARAMS = (
@@ -4553,7 +4843,7 @@ sub dv_monthly_fees {
              $activate_m--;
              $active_unixtime =  mktime(0, 0, 0, $activate_d, $activate_m, $activate_y - 1900, 0, 0, 0);
             }
-          
+
            #Get 2 time fees from main account and ext account and from main
            if ($conf{BONUS_EXT_FUNCTIONS} && $ext_deposit_op > 0) {
          	  	# Small deposit
@@ -4563,6 +4853,7 @@ sub dv_monthly_fees {
            	  	 }
          	  	 }
            	  elsif ($sum > $user{EXT_DEPOSIT} && $user{EXT_DEPOSIT} > 0) {
+           	  	
            	    # Take some sum from ext deposit other from main
            	    if ((($user{ACTIVATE} eq '0000-00-00' and $d == $START_PERIOD_DAY) || $abon_distrib) || $user{ACTIVATE} ne '0000-00-00') {
            	  	  if ($date_unixtime - $active_unixtime < 30 * 86400) {
@@ -4586,7 +4877,7 @@ sub dv_monthly_fees {
               	$user{DEPOSIT} = $user{EXT_DEPOSIT};
                }
             } 
-   
+
            #If deposit is above-zero or TARIF PALIN is POST PAID or PERIODIC PAYMENTS is POSTPAID
            if($postpaid == 1 || $user{DEPOSIT} + $user{CREDIT} > 0 || $TP_INFO{POSTPAID_MONTHLY} == 1) {
 	           #***************************************************************
@@ -4615,9 +4906,10 @@ sub dv_monthly_fees {
             	    }
 
                  #Change activation to cure date
-                 $users->change($user{UID}, { 
-        	                      UID      => $user{UID},
-        	                      ACTIVATE => $ADMIN_REPORT{DATE} });
+                 # !!! We need change activation only if payments add
+#                 $users->change($user{UID}, { 
+#        	                      UID      => $user{UID},
+#        	                      ACTIVATE => $ADMIN_REPORT{DATE} });
 
                  $debug_output .= " SMALL_DEPOSIT_BLOCK." if ($debug > 3);
                  next;
@@ -4802,7 +5094,7 @@ if ($d == 1) {
                             METHOD   => 0 );  
 
          if ($RESULT->{TRAFFIC_IN}) {
-         	 $FEES_PARAMS{DESCRIBE} = "$_USED $_TRAFFIC: $RESULT->{TRAFFIC_IN} SUM: $RESULT->{PRICE_IN}";
+         	 $FEES_PARAMS{DESCRIBE} = "$_USED \n $_TRAFFIC: $RESULT->{TRAFFIC_IN} \n SUM: $RESULT->{PRICE_IN}";
          	 $sum     = $RESULT->{TRAFFIC_IN} * $RESULT->{PRICE_IN};
           }
 
@@ -5022,6 +5314,19 @@ sub dv_sheduler {
     $Dv->change({ UID    => $uid, 
     	            STATUS => $action 
     	          });
+    
+    #Get fee for holdup service
+    if ($action == 3) {
+       my ($hold_up_min_period, $hold_up_max_period, $hold_up_period, $holdup_fees, $hold_fees_deposit, $active_fees)=split(/:/, $conf{DV_USER_SERVICE_HOLDUP});
+     	 if ($active_fees && $active_fees > 0) {
+     	 	  my $user = $users->info( $uid );
+      	  $fees->take($user, $active_fees, { DESCRIBE => "$_HOLD_UP",
+      	  	                                 DATE     => "$ADMIN_REPORT{DATE} $TIME", } );
+      	  if ($fees->{errno}) {
+      	  	print "Error: Holdup fees: $fees->{errno} $fees->{errstr}\n";
+      	   }
+      	}
+     }
 
     if ($Dv->{errno} && $Dv->{errno} == 15) {
     	return $Dv->{errno};
@@ -5147,6 +5452,7 @@ sub dv_cards {
  	 	  	  $FORM{$k}=clearquotes($v);
   	 	   }
 
+
   	 	  $FORM{'1.LOGIN'}      = $line->{LOGIN};
   	 	  $FORM{'1.PASSWORD'}   = $line->{PASSWORD};
   	 	  $FORM{'1.CREATE_BILL'}= 1;        
@@ -5159,7 +5465,7 @@ sub dv_cards {
   	 	  else {
   	 	    #Confim card creation
   	 	    $added_count++;
-  	 	    $table->addrow($html->button($FORM{'1.LOGIN'}, "index=11&UID=$UID"), "$UID", "$FORM{ex_message}");
+  	 	    $table->addrow($html->button($line->{LOGIN}, "index=11&UID=$UID"), "$UID", "$FORM{ex_message}");
   	 	  	if(cards_users_gen_confim({ %$line, SUM => ($FORM{'5.SUM'}) ? $FORM{'5.SUM'} : 0  }) == 0) {
   	 	  		 return 0;
   	 	  		}
@@ -5325,25 +5631,28 @@ sub dv_wizard_user {
        }
 
       #4 Dv
-      if ( $add_values{4}{IP} =~ /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/ &&  $add_values{4}{IP} ne '0.0.0.0') {
-      	my $list = $Dv->list({ IP => $add_values{4}{IP} });
-      	if ($Dv->{TOTAL} > 0 && $list->[0][6+$Dv->{SEARCH_FIELDS_COUNT}] != $FORM{UID}) {
-      	  $html->message('err', $_ERROR, "IP: $FORM{IP} $_EXIST. $_LOGIN: ". $html->button("$list->[0][0]", "index=15&UID=". $list->[0][6+$Dv->{SEARCH_FIELDS_COUNT}]));
-        	return 0;
-    	   }
-       }
+      # Make Dv service only with TP
+      if ($add_values{4}{TP_ID}) {
+        if ( $add_values{4}{IP} =~ /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/ &&  $add_values{4}{IP} ne '0.0.0.0') {
+      	  my $list = $Dv->list({ IP => $add_values{4}{IP} });
+      	  if ($Dv->{TOTAL} > 0 && $list->[0][6+$Dv->{SEARCH_FIELDS_COUNT}] != $FORM{UID}) {
+      	    $html->message('err', $_ERROR, "IP: $FORM{IP} $_EXIST. \n $_LOGIN: ". $html->button("$list->[0][0]", "index=15&UID=". $list->[0][6+$Dv->{SEARCH_FIELDS_COUNT}]));
+        	  return 0;
+    	     }
+         }
 
-      my $user_fees;
-   	  $Dv->add({ UID => $UID, %{$add_values{4}} });
-      if ($Dv->{errno}) {
-        $html->message('err', "Dv:$_ERROR", "Dv Modules [$Dv->{errno}] $err_strs{$Dv->{errno}}");	
-        return 0;
-       }
-      elsif (! $FORM{SERIAL}) {
-        if (! $add_values{4}{STATUS} && $Dv->{TP_INFO}->{MONTH_FEE} > 0) {
-          $Dv->{UID}=$UID;
-          $Dv->{ACTIVATE}=$add_values{1}{ACTIVATE};
-          $user_fees = dv_get_month_fee($Dv);
+        my $user_fees;
+   	    $Dv->add({ UID => $UID, %{$add_values{4}} });
+        if ($Dv->{errno}) {
+          $html->message('err', "Dv:$_ERROR", "Dv Modules [$Dv->{errno}] $err_strs{$Dv->{errno}}");	
+          return 0;
+         }
+        elsif (! $FORM{SERIAL}) {
+          if (! $add_values{4}{STATUS} && $Dv->{TP_INFO}->{MONTH_FEE} > 0) {
+            $Dv->{UID}=$UID;
+            $Dv->{ACTIVATE}=$add_values{1}{ACTIVATE};
+            $user_fees = dv_get_month_fee($Dv);
+           }
          }
        }
 
@@ -5390,6 +5699,18 @@ sub dv_wizard_user {
         $FORM{add}=$UID;
         msgs_admin_add({ SEND_ONLY => 1 });
        }
+
+      # Abon
+      if (in_array('Abon', \@MODULES) && $add_values{9}) {
+        require "Abills/modules/Abon/webinterface";
+        #my $Msgs = Msgs->new($db, $admin, \%conf);
+        
+        %FORM=%{ $add_values{9} };
+        $FORM{UID}=$UID;
+        $FORM{change}=$UID;
+        abon_user({ QUITE => 1 });
+       }
+
 
       # Info
       my $dv = $Dv->info($UID);
@@ -5455,6 +5776,17 @@ sub dv_wizard_user {
    
   } 
 
+	
+	foreach my $k (keys %FORM) {
+  	next if ($k eq '__BUFFER');
+  	my $val = $FORM{$k};
+    if ($k =~ /\d+\.([A-Z0-9\_]+)/ig) {
+    	 my $key=$1;
+    	 $FORM{"$key"}=$val;
+     }
+   }
+   
+ 
 
   my $users_defaults = $users->defaults();
   $users_defaults->{DISABLE}=($users_defaults->{DISABLE} == 1) ? ' checked' : '';
@@ -5465,10 +5797,6 @@ sub dv_wizard_user {
   if (! $attr->{NO_EXTRADATA}) {
     $users_defaults->{EXDATA}  =  $user_info->{EXDATA} .=  $html->tpl_show(templates('form_user_exdata_add'), { CREATE_BILL => ' checked' }, { OUTPUT2RETURN => 1 });
     $users_defaults->{EXDATA} .=  $html->tpl_show(templates('form_ext_bill_add'), { CREATE_EXT_BILL => ' checked' }, { OUTPUT2RETURN => 1 }) if ($conf{EXT_BILL_ACCOUNT});
-    
-#    $html->tpl_show(templates('form_user_exdata'), 
-#       { CREATE_BILL  => ' checked' }, 
-#       { notprint => 1 });
    }
   
   my $dv_defaults = $Dv->defaults();
@@ -5480,33 +5808,21 @@ sub dv_wizard_user {
  	                                          ARRAY_NUM_ID => 1
  	                                        });
 
-  $payments->{SEL_METHOD} =  $html->form_select('METHOD', 
-                                { SELECTED      => $FORM{METHOD} || undef,
- 	                                SEL_ARRAY     => \@PAYMENT_METHODS,
- 	                                ARRAY_NUM_ID  => 1
- 	                               });
-  $payments->{SUM} = '0.00';
-
-  my $er = $payments->exchange_list();
-  $payments->{SEL_ER} = "<select name=ER>\n";
-  $payments->{SEL_ER} .= "<option value=''>\n";
-  foreach my $line (@$er) {
-    $payments->{SEL_ER} .= "<option value=$line->[4]";
-    $payments->{SEL_ER} .= ">$line->[1] : $line->[2]\n";
-   }
-  $payments->{SEL_ER} .= "</select>\n";
 
   $dv_defaults->{TP_ID} = $html->form_select('TP_ID', 
                                          { 
- 	                                         SELECTED  => $user->{TP_ID},
+ 	                                         SELECTED          => $FORM{TP_ID},
  	                                         SEL_MULTI_ARRAY   => $tariffs->list({ MODULE => 'Dv' }),
  	                                         MULTI_ARRAY_KEY   => 0,
  	                                         MULTI_ARRAY_VALUE => 1,
  	                                        });
+  delete($FORM{TP_ID});
   $dv_defaults->{CALLBACK} = '';
  	             
  my $password_form;                           
- $password_form->{GEN_PASSWORD}=mk_unique_value(8);
+ $password_form->{GEN_PASSWORD}= mk_unique_value(8);
+ $password_form->{PW_CHARS}    = $conf{PASSWD_SYMBOLS}|| "abcdefhjmnpqrstuvwxyz23456789ABCDEFGHJKLMNPQRSTUVWYXZ";
+ $password_form->{PW_LENGTH}   = $conf{PASSWD_LENGTH} || 6; 
  
  #Info fields
   my %pi_form = ();
@@ -5535,6 +5851,12 @@ sub dv_wizard_user {
        }
       elsif ($type == 4) {
       	$input = $html->form_input($field_id, 1, { TYPE  => 'checkbox', STATE => ($FORM{$field_id}) ? 1 : undef  });
+       }
+      elsif ($type == 3) {
+        $input = $html->form_textarea($field_id, "$users->{INFO_FIELDS_VAL}->[$i]");
+       }
+      elsif ($type == 13) {
+        $input = $html->form_input($field_id, "$users->{INFO_FIELDS_VAL}->[$i]", { TYPE => 'file' });
        }
       else {
     	  $input = $html->form_input($field_id, "", { SIZE => 40 });
@@ -5566,10 +5888,10 @@ sub dv_wizard_user {
      }
 
   $pi_form{PASPORT_DATE} = $html->date_fld2('PASPORT_DATE', { FORM_NAME => 'user_form',
-  	                                                            WEEK_DAYS => \@WEEKDAYS,
-  	                                                            MONTHES   => \@MONTHES,
-  	                                                            DATE      => $user_pi->{PASPORT_DATE}
-  	                                                            });
+  	                                                          WEEK_DAYS => \@WEEKDAYS,
+  	                                                          MONTHES   => \@MONTHES,
+  	                                                          DATE      => $user_pi->{PASPORT_DATE}
+  	                                                         });
 
   $pi_form{CONTRACT_DATE} = $html->date_fld2('CONTRACT_DATE', { FORM_NAME => 'user_form',
   	                                                              WEEK_DAYS => \@WEEKDAYS,
@@ -5585,14 +5907,32 @@ else {
  }
 
  $dv_defaults->{JOIN_SERVICE}='';
+ 
+
  my %tpls = (
-	            "1:$_LOGIN::"    => $html->tpl_show(templates('form_user'), $users_defaults,    { OUTPUT2RETURN => 1, ID => 'FORM_USER'     }),  
-	            "2:$_PASSWD::"   => $html->tpl_show(templates('form_password'), $password_form, { OUTPUT2RETURN => 1, ID => 'FORM_PASSWORD' }),
-	            "3:$_INFO::"     => $html->tpl_show(templates('form_pi'), \%pi_form,            { OUTPUT2RETURN => 1, ID => 'FORM_PI'       }), 
-	            "4:Internet::"   => $html->tpl_show(_include('dv_user', 'Dv'), $dv_defaults,    { OUTPUT2RETURN => 1, ID => 'DV_USER'       }),
+	            "1:$_LOGIN::"    => $html->tpl_show(templates('form_user'), { %$users_defaults, %FORM},    { OUTPUT2RETURN => 1, ID => 'FORM_USER'     }),  
+	            "2:$_PASSWD::"   => $html->tpl_show(templates('form_password'), { %$password_form, %FORM}, { OUTPUT2RETURN => 1, ID => 'FORM_PASSWORD' }),
+	            "3:$_INFO::"     => $html->tpl_show(templates('form_pi'), { %pi_form, %FORM},           { OUTPUT2RETURN => 1, ID => 'FORM_PI'       }), 
+	            "4:Internet::"   => $html->tpl_show(_include('dv_user', 'Dv'), { %$dv_defaults, %FORM},    { OUTPUT2RETURN => 1, ID => 'DV_USER'       }),
              );
  
- if($permissions{1} && $permissions{1}{0}) {
+ #Payments
+ if($permissions{1} && $permissions{1}{1}) {
+ 	 $payments->{SEL_METHOD} =  $html->form_select('METHOD', 
+                                { SELECTED      => $FORM{METHOD} || undef,
+ 	                                SEL_ARRAY     => \@PAYMENT_METHODS,
+ 	                                ARRAY_NUM_ID  => 1
+ 	                               });
+   $payments->{SUM} = '0.00';
+   $payments->{SEL_ER}=$html->form_select('ER', 
+                                { 
+ 	                                SELECTED          => undef,
+ 	                                SEL_MULTI_ARRAY   => [ ['', '', '', '', ''], @{ $payments->exchange_list() } ],
+ 	                                MULTI_ARRAY_KEY   => 4,
+ 	                                MULTI_ARRAY_VALUE => '1,2',
+ 	                                NO_ID             => 1
+ 	                               });
+ 	
  	 $tpls{"5:$_PAYMENTS::"} = $html->tpl_show(templates('form_payments'), $payments,      { OUTPUT2RETURN => 1, ID => 'FORM_PAYMENTS' });
   }
  
@@ -5648,20 +5988,13 @@ else {
  
  foreach my $key (@sorted_templates) {
      my($n, $descr, $pre, $post)=split(/:/, $key, 4);
-
      $template .= "<tr bgcolor=\"$_COLORS[0]\"><th>$descr</th></tr>\n";
-     #$wizard = $pre;
      my $sub_tpl .= $html->tpl_show($tpls{"$key"}, $wizard, { OUTPUT2RETURN => 1, ID => "$descr" });
      $sub_tpl =~ s/(<input .*?UID.*?>)//gi;
      $sub_tpl =~ s/(<input .*?index.*?>)//gi;
-     $sub_tpl =~ s/name=([A-Z_]+)/name=$n.$1/gi;
-     $sub_tpl =~ s/name="([A-Z_]+)"/name=$n.$1/gi;
-     $sub_tpl =~ s/name='([A-Z_]+)'/name=$n.$1/gi;
-
+     $sub_tpl =~ s/name=[\'\"]?([A-Z_0-9]+)[\'\"]? /name=$n.$1 /ig;
      $template .= "<tr><th align=\"center\">". $sub_tpl . "</th></tr>\n";
    }
-
-
 
   $template =~ s/(<form .*?>)//gi;
   $template =~ s/<\/form>//ig;
@@ -5798,6 +6131,8 @@ sub dv_get_month_fee {
 
   my %total_sum =( ACTIVATE  => 0,
   	               MONTH_FEE => 0 ) ;
+  
+  $users = $user if ($user->{UID});
   #Make bonus
   if ($conf{DV_BONUS}) {
     eval { require Bonus_rating; };
@@ -5899,6 +6234,7 @@ sub dv_get_month_fee {
        
         return \%total_sum if ($sum == 0);
         
+        
         my $periods = 0;
         if ($active_m > 0 && $active_m < $m) {
         	$periods = $m - $active_m;
@@ -5919,8 +6255,14 @@ sub dv_get_month_fee {
         	$message .= " - $_ABON_DISTRIBUTION";
          }
         
-        if ($Dv->{ACTIVATE} ne '0000-00-00' && $Dv->{OLD_STATUS} == 5 && $periods == 1 && $d < $active_d) {
-        	$periods=0;
+        if ($Dv->{ACTIVATE} ne '0000-00-00' && $Dv->{OLD_STATUS} == 5) {
+        	#if activation in cure month curmonth
+        	if($periods == 0 || ( $periods == 1 && $d < $active_d ) ) {
+          	$periods = -1;
+           }
+          else {
+          	$periods = 0;
+           }
          }
         
         $m = $active_m if ($active_m > 0);
@@ -5936,19 +6278,22 @@ sub dv_get_month_fee {
   	        $sum     = $Dv->{TP_INFO}->{MONTH_FEE};
             $message = "$_MONTH_FEE: $sum ($Dv->{TP_INFO}->{ID})";
             $DATE    = "$active_y-$m-01";
-            $TIME    = "00:00:00";
            }
           elsif ($Dv->{ACTIVATE} && $Dv->{ACTIVATE} ne '0000-00-00'){
-            $DATE    = "$active_y-$m-$active_d";
-            $TIME    = "00:00:00";
-            
             if ($Dv->{TP_INFO}->{PERIOD_ALIGNMENT}) {
               $users->change($Dv->{UID}, { ACTIVATE => '0000-00-00',
               	                           UID      => $Dv->{UID} });
              }
+            elsif($Dv->{OLD_STATUS} == 5) {
+              $users->change($Dv->{UID}, { ACTIVATE => "$DATE",
+              	                           UID      => $Dv->{UID} });
+             } 
+            else {
+            	$DATE    = "$active_y-$m-$active_d";            
+             }
            }
           
-         
+          $TIME    = "00:00:00";
           if ($conf{EXT_BILL_ACCOUNT}) {
           	if ($user->{EXT_BILL_DEPOSIT} < $sum && $user->{MAIN_BILL_ID}) {
           		$sum = $sum - $user->{EXT_BILL_DEPOSIT};
@@ -5960,7 +6305,7 @@ sub dv_get_month_fee {
         	    $user->{MAIN_BILL_ID}=undef;
           	 }
            }
-         
+
           $fees->take($users, $sum, { DESCRIBE  => $message, 
         	                            METHOD    => 1, 
         	                            DATE      => "$DATE $TIME"
@@ -5985,12 +6330,13 @@ sub dv_get_month_fee {
 # Add discovery mac to Dhcphosts
 #**********************************************************
 sub dv_dhcp_get_mac_add {
-	my ($ip, $DHCP_INFO, $attr)=@_;
+	my ($ip, $DHCP_INFO, $attr)=@_; 
   
   use Dhcphosts;
   my $Dhcphosts = Dhcphosts->new($db, $admin, \%conf);
   my @dhcp_nets = split(/;/, $conf{DV_IP_DISCOVERY});
   my $default_params = "IP,MAC";
+
 
   foreach my $nets (@dhcp_nets) {
   	my %PARAMS_HASH = ();
@@ -6016,10 +6362,8 @@ sub dv_dhcp_get_mac_add {
       	                                  SORT      => 3,
       	                                  DESC      => 'DESC',
       	                                  PAGE_ROWS => 1,
-      	                                  %PARAMS_HASH
+      	                                  #%PARAMS_HASH
       	                                });
-
-
 
       #make Discovery	                                  
       if ($Dhcphosts->{errno}) {
@@ -6027,6 +6371,7 @@ sub dv_dhcp_get_mac_add {
         return 0;
        }
       elsif ($Dhcphosts->{TOTAL} < 1) {
+
       	$Dhcphosts->network_info($id);
       	if($Dhcphosts->{TOTAL} < 0) {
           $html->message('err', $_ACTIVATE, "$_ERROR Can't find your network '$id' ", { ID => 117 });
@@ -6045,10 +6390,10 @@ sub dv_dhcp_get_mac_add {
      		                     %PARAMS_HASH
      		                     });
 
-
       if ($Dhcphosts->{errno}) {
         if ($Dhcphosts->{errno} == 7) {
-        	$html->message('err', $_ACTIVATE, "$_ERROR: MAC: '$DHCP_INFO->{MAC}' IP: '$DHCP_INFO->{IP}' $_EXIST", { ID => 118 });
+        	$html->message('err', $_ERROR .' '.$_ACTIVATE, $html->b("$ERR_HOST_REGISTRED"). 
+        	"\n $_RENEW_IP \n \n MAC: '$DHCP_INFO->{MAC}' \n IP: '$DHCP_INFO->{IP}' \n HOST: '$user->{LOGIN}_$id'", { ID => 118 });
          }
         else {
         	$html->message('err', $_ACTIVATE, "$_ERROR: DHCP add hosts error", { ID => 119 });
@@ -6059,6 +6404,7 @@ sub dv_dhcp_get_mac_add {
       	dhcphosts_config({ NETWORKS => $id, 
       	                   reconfig => 1,
       	                   QUITE    => 1,
+      	                   %PARAMS_HASH
       	                  });
       	$Dv->{NEW_IP}=$PARAMS_HASH->{IP};
       	return 1;
@@ -6082,24 +6428,28 @@ sub dv_dhcp_get_mac {
 
  use Dhcphosts;
  my $Dhcphosts = Dhcphosts->new($db, $admin, \%conf);
+
  $Dhcphosts->host_info(0, { IP => $ip });
  my $MAC    = '';
  my %PARAMS = ();
 
  if ($Dhcphosts->{TOTAL} > 0) {
  	 %PARAMS = (IP     => $Dhcphosts->{IP},
-  	            MAC    => $Dhcphosts->{MAC},
-  	            NAS_ID => $list->[0]->[11],
-  	            PORTS  => $list->[0]->[12],
-  	            VLAN   => $list->[0]->[13],
-  	           );
+ 	            MAC    => $Dhcphosts->{MAC},
+              NAS_ID => $Dhcphosts->{NAS_ID},
+              PORTS  => $Dhcphosts->{PORTS},
+              VLAN   => $Dhcphosts->{VLAN}  	           
+              );
 
    if ($attr->{CHECK_STATIC}) {
-     $PARAMS{STATIC}=1;
+       $PARAMS{STATIC}=1;
     }
-	 return \%PARAMS;
+   if ($PARAMS{MAC} ne '00:00:00:00:00:00') {
+         return \%PARAMS;
+    }
   }
 
+ #Get mac from DB
  if ($conf{DHCPHOSTS_LEASES} eq 'db') {
    my $list = $Dhcphosts->leases_list({ IP => $ip, STATE => 2 });
  
@@ -6113,6 +6463,7 @@ sub dv_dhcp_get_mac {
     }
    return \%PARAMS;
   }
+ #Get mac from leases file
  else {
    my $logfile = $conf{DHCPHOSTS_LEASES} || '/var/db/dhcpd/dhcpd.leases';
    my %list = ();
@@ -6315,7 +6666,7 @@ elsif ($FORM{del} && $FORM{is_js_confirmed}) {
                           });
 
 foreach my $line (@$list) {
-  my $delete = ($permissions{4}{3}) ?  $html->button($_DEL, "index=$index&del=$line->[14]&UID=$line->[13]", { MESSAGE =>  "$_DEL [$line->[13]]?", BUTTON => 1 }) : '-'; 
+  my $delete = ($permissions{4}{3}) ?  $html->button($_DEL, "index=$index&del=$line->[14]&UID=$line->[13]", { MESSAGE =>  "$_DEL [$line->[13]]?", CLASS => 'del', TEXT => $_DEL }) : '-'; 
 
 
   $table->addrow($html->b($line->[0]), $line->[1], $line->[2], 
@@ -6405,8 +6756,8 @@ foreach my $line (@$list) {
     "$line->[2]", 
     "$line->[3]",  
     "$line->[4]",  
-    $html->button("$_CHANGE", "index=$index&chg=$line->[0]", { BUTTON => 1 } ),
-    $html->button("$_DEL", "index=$index&del=$line->[0]",  { MESSAGE => "$_DEL $line->[0]?", BUTTON => 1 })
+    $html->button("$_CHANGE", "index=$index&chg=$line->[0]", { CLASS => 'change' } ),
+    $html->button("$_DEL", "index=$index&del=$line->[0]",  { MESSAGE => "$_DEL $line->[0]?", CLASS => 'del' })
    );
 }
 print $table->show();
@@ -6420,6 +6771,8 @@ return 0;
 sub dv_payments_maked {
 	my ($attr) = @_;
 	
+	return '' if ($FORM{DISABLE});
+	
 	$Dv->info($attr->{USER}->{UID});
 
   my $deposit = $attr->{USER}->{DEPOSIT} + (($attr->{USER}->{CREDIT} > 0) ? $attr->{USER}->{CREDIT} : $Dv->{TP_CREDIT});
@@ -6430,11 +6783,10 @@ sub dv_payments_maked {
     $Dv->{ACTIVATE}=$attr->{USER}->{ACTIVATE} || '0000-00-00';
     
 #    if ($Dv->{ACTIVATE} ne '0000-00-00') {
-#      use POSIX;    
 #      my ($Y, $M, $D)=split(/-/, $Dv->{ACTIVATE}, 3);
 #      my $seltime = POSIX::mktime(0, 0, 0, $D, ($M - 1), ($Y - 1900));
 #
-#      # If activation time less then 300 days  we don't need take month fee    
+#      # If activation time less then 30 days  we don't need take month fee    
 #      if (time() - $seltime < 86000* 30 ) {
 #        return ;	
 #       }
@@ -6501,5 +6853,6 @@ sub dv_pay_to {
   
   $html->tpl_show(_include('dv_pay_to', 'Dv'), $Dv);
 }
+
 1
 

@@ -11,7 +11,7 @@ $DEBUG
 );
 #use strict;
 
-my $version = 0.4;
+my $version = 0.5;
 my $debug   = 0;
 
 use FindBin '$Bin';
@@ -63,6 +63,7 @@ my $fees     = Fees->new($db, $admin, \%conf);
 my $tariffs  = Tariffs->new($db, \%conf, $admin);
 my $Sessions = Dv_Sessions->new($db, $admin, \%conf);
 
+
 require $Bin ."/../language/$html->{language}.pl";
 require $Bin ."/../Abills/modules/Ureports/lng_$html->{language}.pl";
 
@@ -112,12 +113,20 @@ sub ureports_send_reports {
   if ($type == 0) {
   	my $subject = $attr->{SUBJECT} || '';
   	if (! sendmail($conf{ADMIN_MAIL}, $destination, $subject, $message."\n[$attr->{REPORT_ID}]", $conf{MAIL_CHARSET})) {
-
   		 return 0;
   	 }
    }
   elsif($type == 1) {
-  	if ($conf{UREPORTS_SMS_CMD}) {
+  	if (in_array('Sms', \@MODULES) ) {
+  		require "Abills/modules/Sms/webinterface";
+      sms_send({ NUMBER  => $destination,
+     	           MESSAGE => $message,
+                 DEBUG   => $debug,
+                 UID     => $attr->{UID},
+                 PERRIODIC => 1
+               });
+  	 }
+  	elsif ($conf{UREPORTS_SMS_CMD}) {
   	  my $cmd = `$conf{UREPORTS_SMS_CMD} $destination $message`;
   	 }
    }
@@ -127,6 +136,7 @@ sub ureports_send_reports {
  
   return 1;
 }
+
 
 #**********************************************************
 # ureports_periodic_reports
@@ -156,17 +166,16 @@ sub ureports_periodic_reports {
      $TP_INFO{POSTPAID}   = $line->[12];
      $TP_INFO{REDUCTION}  = $line->[11];
 
-
  	   $debug_output .= "TP ID: $TP_ID DF: $line->[5] MF: $line->[6] POSTPAID: $TP_INFO{POSTPAID_DAILY} REDUCTION: $TP_INFO{REDUCTION} EXT_BILL: $line->[13] CREDIT: $line->[14]\n" if ($debug > 1);
 
      #Get users
-     #$Ureports->{debug}=1;
  	   my $ulist = $Ureports->tp_user_reports_list({
          DATE      => '0000-00-00',
          TP_ID     => $TP_ID,
          SORT      => 1,
          PAGE_ROWS => 1000000,
          REPORT_ID => '',
+         DV_TP     => 1,
          %SERVICE_LIST_PARAMS
  	   	 });
 
@@ -188,9 +197,9 @@ sub ureports_periodic_reports {
  	      TP_ID            => $TP_ID,
  	      DISABLE          => $u->[10],
  	      CREDIT_EXPIRE    => $u->[11],
+ 	      TP_EXPIRE        => $u->[12],
+ 	      TP_MONTH_FEE     => $u->[13],
      	 ); 
-
-
 
 
        if ($user{BILL_ID} > 0 && defined($user{DEPOSIT})) {
@@ -312,13 +321,42 @@ sub ureports_periodic_reports {
            else {
            	  next;
             }
-
          }
-        }
-       else {
-       	  print "[ $user{UID} ] $user{LOGIN} - Don't have money account\n";
-       	  next;
-        }
+        # 9 - X days for expire
+        elsif($user{REPORT_ID} == 9) {
+         	 if ($user{TP_EXPIRE}==$user{VALUE}) {
+         	   %PARAMS = (
+               DESCRIBE => "$_REPORTS ($user{REPORT_ID}) ",
+               DATE     => "$ADMIN_REPORT{DATE} $TIME",
+               METHOD   => 1,
+               MESSAGE  => "$_DAYS_TO_EXPIRE: $user{TP_EXPIRE}", 
+         	 	   SUBJECT  =>  "$_TARIF_PLAN $_EXPIRE"
+              );
+         	  }
+           else {
+           	  next;
+            }
+         }
+        # 10 - tOO SMALL DEPOSIT FOR NEXT MONTH WORK
+        elsif($user{REPORT_ID} == 10) {
+         	 if ($user{TP_MONTH_FEE} > $user{DEPOSIT} + $user{CREDIT}) {
+         	   %PARAMS = (
+               DESCRIBE => "$_REPORTS ($user{REPORT_ID}) ",
+               DATE     => "$ADMIN_REPORT{DATE} $TIME",
+               METHOD   => 1,
+               MESSAGE  => "$_SMALL_DEPOSIT_FOR_NEXT_MONTH. $_DEPOSIT: $user{DEPOSIT} $_TARIF_PLAN $user{TP_MONTH_FEE}", 
+         	 	   SUBJECT  => "$ERR_SMALL_DEPOSIT"
+              );
+         	  }
+           else {
+           	  next;
+            }
+         }
+       } 
+   else {
+   	  print "[ $user{UID} ] $user{LOGIN} - Don't have money account\n";
+   	  next;
+    }
 
 
 #Send reports section
@@ -326,7 +364,10 @@ sub ureports_periodic_reports {
          	 	 ureports_send_reports($user{DESTINATION_TYPE}, 
          	 	                       $user{DESTINATION_ID}, 
          	 	                       $PARAMS{MESSAGE}, 
-         	 	                       { SUBJECT => $PARAMS{SUBJECT}, REPORT_ID => $user{REPORT_ID} });
+         	 	                       { SUBJECT   => $PARAMS{SUBJECT}, 
+         	 	                       	 REPORT_ID => $user{REPORT_ID},
+         	 	                       	 UID       => $user{UID}
+         	 	                       	  });
          	 	 
          	 	 $Ureports->tp_user_reports_update({ UID       => $user{UID},
          	 	 	                                   REPORT_ID => $user{REPORT_ID} 

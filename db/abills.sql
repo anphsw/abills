@@ -63,6 +63,13 @@ CREATE TABLE `admins` (
   UNIQUE KEY `id` (`id`)
 );
 
+CREATE TABLE `admins_allow_ips` (
+  `aid` smallint(6) unsigned NOT NULL default 0,
+  `ip` int(11) unsigned NOT NULL default 0,
+   UNIQUE KEY `aid` (`aid`, `ip`)
+) ;
+
+
 CREATE TABLE `admins_groups` (
   `gid` smallint(6) unsigned NOT NULL default '0',
   `aid` smallint(5) unsigned NOT NULL default '0',
@@ -133,7 +140,7 @@ CREATE TABLE `dv_log_intervals` (
   `traffic_type` tinyint(4) unsigned NOT NULL default '0',
   `sum` double(14,6) unsigned NOT NULL default '0.000000',
   `acct_session_id` varchar(25) NOT NULL default '',
-  `added` timestamp(14) NOT NULL,
+  `added` timestamp NOT NULL,
   KEY `acct_session_id` (`acct_session_id`),
   KEY `session_interval` (`acct_session_id`,`interval_id`)
 ) ;
@@ -172,6 +179,7 @@ CREATE TABLE `companies` (
   `ext_bill_id` int(10) unsigned NOT NULL DEFAULT '0',
   `domain_id` smallint(6) unsigned not null default 0,
   `representative` VARCHAR(120) NOT NULL DEFAULT '',
+  `contract_sufix` VARCHAR(5) NOT NULL DEFAULT '',
   PRIMARY KEY  (`id`),
   KEY `bill_id` (`bill_id`),
   UNIQUE KEY `id` (`id`),
@@ -266,6 +274,14 @@ CREATE TABLE `docs_invoice_orders` (
   KEY `invoice_id` (`invoice_id`)
 ) COMMENT='Docs invoices orders';
 
+CREATE TABLE `docs_main` (
+  `uid` int(11) unsigned NOT NULL default '0' PRIMARY KEY,
+  `send_docs` tinyint(1) unsigned NOT NULL default '0',
+  `periodic_create_docs` tinyint(1) unsigned NOT NULL default '0',
+  `email` varchar(200) NOT NULL default '',
+  `comments` text not null
+) COMMENT='Docs users settings';
+
 
 CREATE TABLE `docs_tax_invoices` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
@@ -317,7 +333,7 @@ CREATE TABLE `exchange_rate` (
   `money` varchar(30) NOT NULL default '',
   `short_name` varchar(30) NOT NULL default '',
   `rate` double(12,4) NOT NULL default '0.0000',
-  `changed` date default NULL,
+  `changed` date NOT NULL default '0000-00-00',
   `id` smallint(6) unsigned NOT NULL auto_increment,
   UNIQUE KEY `money` (`money`),
   UNIQUE KEY `short_name` (`short_name`),
@@ -508,11 +524,11 @@ CREATE TABLE `msgs_admins` (
   UNIQUE KEY `aid` (`aid`,`chapter_id`)
 ) COMMENT='Msgs admins';
 
-CREATE TABLE `msgs_attachments` (   `id` bigint(20) NOT NULL auto_increment,
+CREATE TABLE `msgs_attachments` (   `id` bigint(20) unsigned NOT NULL auto_increment,
    `message_id` bigint(20) NOT NULL default '0',
-   `filename` varchar(250) default NULL,
-   `content_size` varchar(30) default NULL,
-   `content_type` varchar(250) default NULL,
+   `filename` varchar(250) NOT NULL  default '',
+   `content_size` varchar(30) NOT NULL default '',
+   `content_type` varchar(250) NOT NULL default '',
    `content` longblob NOT NULL,
    `create_time` datetime NOT NULL default '0000-00-00 00:00:00',
    `create_by` int(11) NOT NULL default '0',
@@ -772,10 +788,10 @@ CREATE TABLE `s_detail` (
   `acct_status` tinyint(2) unsigned NOT NULL default '0',
   `start` datetime default NULL,
   `last_update` int(11) unsigned NOT NULL default '0',
-  `sent1` int(10) unsigned NOT NULL default '0',
-  `recv1` int(10) unsigned NOT NULL default '0',
-  `sent2` int(10) unsigned NOT NULL default '0',
-  `recv2` int(10) unsigned NOT NULL default '0',
+  `sent1` bigint unsigned NOT NULL default '0',
+  `recv1` bigint unsigned NOT NULL default '0',
+  `sent2` bigint unsigned NOT NULL default '0',
+  `recv2` bigint unsigned NOT NULL default '0',
   `id` varchar(16) NOT NULL default '',
   `sum` double(14,6) NOT NULL default '0.000000',
   KEY `sid` (`acct_session_id`)
@@ -823,7 +839,7 @@ CREATE TABLE `tarif_plans` (
   `credit_tresshold` double(8,2) unsigned NOT NULL default '0.00',
   `age` smallint(6) unsigned NOT NULL default '0',
   `octets_direction` tinyint(2) unsigned NOT NULL default '0',
-  `max_session_duration` smallint(6) unsigned NOT NULL default '0',
+  `max_session_duration` mediumint unsigned NOT NULL default '0',
   `filter_id` varchar(15) NOT NULL default '',
   `payment_type` tinyint(1) NOT NULL default '0',
   `min_session_cost` double(14,5) unsigned NOT NULL default '0.00000',
@@ -1035,6 +1051,7 @@ CREATE TABLE `voip_log` (
   `tp_id` smallint(6) unsigned NOT NULL default '0',
   `bill_id` int(11) unsigned NOT NULL default '0',
   `sum` double(14,6) NOT NULL default '0.000000',
+  `route_id` int(11) unsigned NOT NULL default '0',
   `terminate_cause` tinyint(4) unsigned NOT NULL default '0'
 ) ;
 
@@ -1053,26 +1070,33 @@ CREATE TABLE `voip_main` (
   KEY `uid` (`uid`)
 ) ;
 
-# --------------------------------------------------------
+CREATE TABLE `voip_route_extra_tarification` (
+  `id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(32) not null default '',
+  `date` date NOT NULL default '0000-00-00',
+  `prepaid_time` INT UNSIGNED NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE(`name`)
+) COMMENT "Voip extra tarification" ;
 
-#
-# Структура таблиці `voip_route_prices`
-#
+CREATE TABLE `voip_route_groups` (
+  `id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(32) not null default '',
+  PRIMARY KEY (`id`)
+) COMMENT "Voip route groups" ;
+
 
 CREATE TABLE `voip_route_prices` (
   `route_id` int(11) unsigned NOT NULL default '0',
   `interval_id` int(11) unsigned NOT NULL default '0',
   `price` double(15,5) unsigned NOT NULL default '0.00000',
+  `unit_price` double(15,5) unsigned NOT NULL default '0.00000',
+  `extra_tarification` smallint(5) unsigned NOT NULL default 0,
   `date` date NOT NULL default '0000-00-00',
   `trunk` SMALLINT UNSIGNED NOT NULL DEFAULT '0',
   UNIQUE KEY `route_id` (`route_id`,`interval_id`)
 ) ;
 
-# --------------------------------------------------------
-
-#
-# Структура таблиці `voip_routes`
-#
 
 CREATE TABLE `voip_routes` (
   `prefix` varchar(14) NOT NULL default '',
@@ -1167,6 +1191,9 @@ CREATE TABLE `districts` (
   `zip` VARCHAR(7) NOT NULL DEFAULT '',
   `city` VARCHAR(30) NOT NULL DEFAULT '',  
   `comments` TEXT NOT NULL,
+  `coordx` DOUBLE(20,14) NOT NULL DEFAULT '0',
+  `coordy` DOUBLE(20,14) NOT NULL DEFAULT '0',
+  `zoom` tinyint(2) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `id` (`id`),
   UNIQUE KEY `name` (`name`),
@@ -1190,6 +1217,8 @@ CREATE TABLE `builds` (
   `map_y3` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `map_x4` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `map_y4` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `coordx` DOUBLE(20,14) NOT NULL DEFAULT '0',
+  `coordy` DOUBLE(20,14) NOT NULL DEFAULT '0',
   `flats` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `id` (`id`),

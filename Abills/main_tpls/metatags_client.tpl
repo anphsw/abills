@@ -12,7 +12,7 @@
  
  <link rel=\"stylesheet\" media=\"print\" type=\"text/css\" href=\"%PRINTCSS%\" />
  <script src=\"%JAVASCRIPT%\" type=\"text/javascript\" language=\"javascript\"></script>
- <script src='/calendar.js' language='JavaScript'></script>
+ <script src='/calendar.js' type=\"text/javascript\" language='JavaScript'></script>
 
 <style type=\"text/css\">
 
@@ -24,10 +24,14 @@ body {
   /* this attribute sets the basis for all the other scrollbar colors (Internet Explorer 5.5+ only) */
 }
 
+#content #dv_user_info {
+	background-image:none;
+	padding:0;	
+}
 
 td.menu_cel_main {
   color: %_COLOR_9%;
-  height: 28;
+  height: 38;
   font-family: Arial, Tahoma, Verdana, Helvetica, sans-serif;
   font-size: 14px;
   padding-left:5px;
@@ -45,11 +49,15 @@ td.menu_cel {
 td.menu_cel_main a {
   text-decoration:none;
   font: 1em Trebuchet MS;
+  padding-left:30px;
 }
+
 
 td.menu_cel_main a:hover {
   text-decoration:underline;
+  
 }
+
 
 td.menu_cel a {
   text-decoration:none;
@@ -67,8 +75,15 @@ th.small {
 
 td.small {
   color: %_COLOR_9%;
-  background-color: %_COLOR_9%;
+  background-color: %_COLOR_0%;
   height: 1;
+}
+
+td.medium {
+  color: %_COLOR_9%;
+  font-size: 11px;
+  background-color: %_COLOR_3%;
+  height: 14;
 }
 
 th, li {
@@ -85,6 +100,17 @@ th, li {
   font-family: Arial, Tahoma, Verdana, Helvetica, sans-serif;
   font-size: 12px;
 }
+
+
+
+table tr.active_menu td,
+.active_menu {
+  background: %_COLOR_0%;
+  height: 38;
+  font-family: Arial, Tahoma, Verdana, Helvetica, sans-serif;
+  font-size: 12px;
+}
+
 
 /* odd items 1,3,5,7,... */
 table tr.odd th,
@@ -163,6 +189,24 @@ table tr.hover td {
   text-align:right;
 }
 
+.err_message {
+  background-color: #FF0000;
+  color: %_COLOR_9%;
+  height: 20;
+  font-family: Arial, Tahoma, Verdana, Helvetica, sans-serif;
+  font-size: 12px;
+}
+
+.info_message {
+  background-color: %_COLOR_0%;
+  color: %_COLOR_9%;
+  height: 20;
+  font-family: Arial, Tahoma, Verdana, Helvetica, sans-serif;
+  font-size: 12px;
+}
+
+
+
 td {
   color: %_COLOR_9%;
   font-family: Arial, Tahoma, Verdana, Helvetica, sans-serif;
@@ -183,37 +227,118 @@ form {
   font-size: 12px;
 }
 
-a.button_change {
+
+a.stats {
+        background:url(/img/button_stats.png) no-repeat center;
+        padding-left:22px;
+        padding-top:5px;
+        height: 22px;
+        margin:0;
+        display:block;
+        overflow:hidden;
+        text-indent:-9000px;
+}
+
+a.change {
 	color: %_COLOR_9%;
  	background:url(/img/button_change.png) no-repeat left;
  	padding-left:22px;
 	padding-top:5px;
 	margin:0;
 	display:block;
-	text-decoration:none;
 	overflow:hidden; 
  	text-indent:-9000px;
 }
 
-a.button_add { 
- 	background:url(/img/button_add.png) no-repeat left;
-  display:block;
-  overflow:hidden; 
- 	text-indent:-60px;
+a.add { 
+	background:url(/img/button_add.png) no-repeat left;
+	display:block;
+	overflow:hidden; 
+	text-indent:-60px;
 }
 
-a.button_del { 
-	color: %_COLOR_9%;
- 	background:url(/img/button_del.png) no-repeat left;
+a.del { 
+ 	background:url(/img/button_del.png) no-repeat center;
  	padding-left:22px;
 	padding-top:5px;
 	margin:0;
 	display:block;
-	text-decoration:none;
 	overflow:hidden; 
  	text-indent:-9000px;
 }
 
+a.print {
+        background:url(/img/button_print.png) no-repeat center;
+        padding-left:22px;
+        padding-top:5px;
+        margin:0;
+        display:block;
+        overflow:hidden;
+        text-indent:-9000px;
+}
+
+a.download {
+        background:url(/img/button_download.png) no-repeat center;
+        padding-left:22px;
+        padding-top:5px;
+        margin:0;
+        display:block;
+        overflow:hidden;
+        text-indent:-9000px;
+}
+
+a.show {
+        background:url(/img/button_show.png) no-repeat center;
+        padding-left:22px;
+        padding-top:5px;
+        height: 22px;
+        margin:0;
+        display:block;
+        overflow:hidden;
+        text-indent:-9000px;
+}
+
+a.rightAlignText {
+        padding-left:15px;
+        padding-top:0px;
+        display:inline-block;
+}
+
+#rules {
+  float:center;
+  text-align:center;
+  padding: 0 0 6px 0;
+  overflow:hidden;
+  height:32px;
+  line-height:30px;
+}
+
+#rules li{
+  display:inline;
+  padding:0;
+}
+
+#rules .center a {
+  padding:2px 5px;
+  font-weight:100;
+  font-size:11;
+  background:%_COLOR_2%;
+  border:1px solid %_COLOR_4%;
+  color:#000;
+  text-decoration:none;
+  margin:1px 1px;
+}
+
+#rules .center a:hover{
+  background:#ccc;
+  border:1px solid #666;
+}
+
+#rules .center a.active{
+  background:#666;
+  border:1px solid #666;
+  color:#fff;
+}
 
 .link_button {
   font-family:  Arial, Tahoma,Verdana, Helvetica, sans-serif;
@@ -230,6 +355,7 @@ a.link_button:hover {
   background:#ccc;
   background-color: %_COLOR_3%;
   border:1px solid #666;
+  cursor: pointer;
 }
 
 input, textarea {
@@ -256,113 +382,9 @@ TABLE.border {
   border-width : 1px;
 }
 
-.l_user_menu {
-      width: 100%;
-      border-right: 1px solid #000;
-      padding: 0 0 6px 0;
-      margin-bottom: 1px;
-      font-family: 'Trebuchet MS', 'Lucida Grande',
-      Verdana, Lucida, Geneva, Helvetica, 
-      Arial, sans-serif;
-      background-color: %_COLOR_2%;
-      color: #333;
-      }
-
-.l_user_menu ul {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      border: none;
-      }
-		
-.l_user_menu li {
-      border-bottom: 1px solid %_COLOR_2%;
-      margin: 0;
-      }
-
-.l_user_menu li a {
-      display: block;
-      padding: 5px 5px 5px 0.5em;
-      border-left: 4px solid %_COLOR_0%;
-      border-right: 5px solid %_COLOR_4%;
-      background-color: %_COLOR_3%;
-      color: %_COLOR_9%;
-      text-decoration: none;
-      width: 100%;
-      }
-
-.l_user_menu li a {
-      width: auto;
-      }
-
-.l_user_menu li a:hover {
-      border-left: 4px solid %_COLOR_9%;
-      border-right: 5px solid %_COLOR_2%;
-      background-color: %_COLOR_0%;
-      color: %_COLOR_9%;
-      }
-
-
-#tabs ul {
-      margin-left: 0;
-      padding-left: 0;
-      display: inline;
-      } 
-
-#tabs ul li {
-      margin-left: 0;
-      margin-bottom: 0;
-      padding: 2px 15px 5px;
-      border: 1px solid %_COLOR_3%;
-      list-style: none;
-      display: inline;
-      }
-		
-#tabs ul li.active {
-      border-bottom: 1px solid %_COLOR_0%;
-      list-style: none;
-      display: inline;
-      }
-
-#rules {
-  float:center;
-  text-align:center;
-  padding: 0 0 6px 0;
-  overflow:hidden;
-  height:32px;
-  line-height:30px;
-}
-
-#rules li{
-  display:inline;
-  padding:0;
-}
-
-#rules .center a {
-  padding:1px 5px;
-  font-weight:100;
-  font-size:11;
-  background:%_COLOR_2%;
-  border:1px solid %_COLOR_4%;
-  color:#000;
-  text-decoration:none;
-  margin:0 1px;
-}
-
-#rules .center a:hover{
-  background:#ccc;
-  border:1px solid #666;
-}
-
-#rules .center a.active{
-  background:#666;
-  border:1px solid #666;
-  color:#fff;
-}
-
 .MENU_BACK {
-  background:%_COLOR_3%;
-  width:200px;
+  background:CECECE;
+  width:260px;
 }
 
 
@@ -435,6 +457,105 @@ div#tcal td:hover {
     font-size: 11px;
     width: 22px;
     cursor: pointer;
+}
+
+#pageJumpWindow {
+        border:2px solid black;
+        padding:5px 5px;;
+        width:130px;
+        height:40px;
+        display:none;
+        position:absolute;
+        background-color:#FFF;
+        z-index:3;
+}
+
+#pageJumpWindow  h2 {
+        margin:0 0 5px 0;
+        font-size:12px;
+        font-family:Tahoma, Geneva, sans-serif;
+
+}
+
+#buttonJumpMenu {
+        position:relative;
+        width:1px;
+        height:1px;
+}
+
+
+#form_payments {
+	background-image: url(/img/money_operation.png);
+}
+#form_info {
+	background-image:url(/img/user.png);
+}
+#form_passwd {
+	background-image: url(/img/key.png);
+}
+
+#dv_user_info {
+	background-image: url(/img/internet3.png);
+}
+#ashield_user {
+	background-image: url(/img/drweb.png);
+}
+#msgs_user {
+	background-image:url(/img/call_help.png);
+}
+#mail_users_list {
+	background-image:url(/img/mail5.png);
+}
+#docs_accounts_list {
+	background-image:url(/img/documents.png);
+}
+#cards_user_payment {
+	background-image:url(/img/payment-card.png);
+}
+#voip_user_info {
+	background-image: url(/img/voip.png);
+}
+#logout {
+	background-image: url(/img/logout.png);
+}	
+#ureports_user_info  {
+	background-image: url(/img/ureports_user_info.png);
+}
+#sharing_user_info {
+	background-image: url(/img/sharing_user_info.png);	
+} 
+#iptv_user_info {
+	background-image: url(/img/iptv_user_info.png);	
+} 
+#filearch_user_video {
+	background-image: url(/img/filearch_user_video.png);
+}
+
+#ipn_user_activate {
+        background-image: url(/img/ipn_user_activate.png);
+}
+
+#filearch_user_video,
+#iptv_user_info,
+#form_payments,
+#form_info,
+#form_passwd,
+#dv_user_info,
+#ashield_user,
+#msgs_user,
+#mail_users_list,
+#docs_accounts_list,
+#cards_user_payment,
+#voip_user_info,
+#logout,
+#ureports_user_info,
+#sharing_user_info,
+#ipn_user_activate {
+	background-repeat:no-repeat;
+	background-position:0% 0%;
+	padding:8px 0 5px 37px;
+	margin-left:0px;
+	z-index:1;
 }
 
 </style>

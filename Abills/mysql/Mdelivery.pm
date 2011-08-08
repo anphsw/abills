@@ -331,6 +331,10 @@ sub user_list {
   	push @WHERE_RULES, @{ $self->search_expr($attr->{STATUS}, 'INT', "mdl.status") };
    } 
 
+  if (defined($attr->{LOGIN})) {
+  	push @WHERE_RULES, @{ $self->search_expr($attr->{LOGIN}, 'INT', "u.id") };
+   } 
+
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
 
@@ -467,7 +471,22 @@ sub attachment_info () {
   else {
   	return $self->{list};
    }
+}
 
+#**********************************************************
+#
+#**********************************************************
+sub reset {
+  my ($self) = shift;
+  my ( $attr )	= @_;
+	
+
+
+  $self->query($db, "UPDATE mdelivery_list SET status=0 WHERE id='$attr->{ID}';", 'do');
+  $self->query($db, "UPDATE mdelivery_users SET status=0 WHERE mdelivery_id='$attr->{ID}';", 'do');
+
+  
+  return $self;
 
 }
 

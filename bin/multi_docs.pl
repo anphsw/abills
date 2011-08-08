@@ -13,6 +13,9 @@ use vars  qw(%RAD %conf @MODULES $db $html $DATE $TIME $GZIP $TAR
   $MYSQLDUMP
   %ADMIN_REPORT
   $DEBUG
+  %FORM
+  $users
+  $Docs
 
   @ones
   @twos
@@ -23,7 +26,11 @@ use vars  qw(%RAD %conf @MODULES $db $html $DATE $TIME $GZIP $TAR
   @tens
   @hundred
   @money_unit_names
-  
+
+
+  $_DEBT
+  $_TARIF_PLAN
+  $_ACCOUNT
  );
 
 
@@ -51,6 +58,11 @@ require Admins;
 Admins->import();
 require Docs;
 Docs->import();
+require Tariffs;
+Tariffs->import();
+require Dv;
+Dv->import();
+
 require Abills::HTML;
 Abills::HTML->import();
 $html = Abills::HTML->new({ CONF => \%conf, pdf => 1 });
@@ -64,18 +76,17 @@ $admin->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });
 
 require Finance;
 Finance->import();
-my $Fees = Finance->fees($db, $admin, \%conf);
-
-
-
-
-my $users = Users->new($db, $admin, \%conf);
-
+my $Fees    = Finance->fees($db, $admin, \%conf);
+my $Users   = Users->new($db, $admin, \%conf);
+$users = $Users;
+my $Tariffs = Tariffs->new($db, $admin, \%conf);
+#my $Docs    = Docs->new($db, $admin, \%conf);
+my $Dv      = Dv->new($db, $admin, \%conf);
 
 require $Bin ."/../Abills/modules/Docs/lng_$conf{default_language}.pl";
+require "language/$conf{default_language}.pl";
 
 my $ARGV = parse_arguments(\@ARGV);
-
 if (defined($ARGV->{help})) {
 	help();
 	exit;
@@ -98,20 +109,291 @@ if (! -d $pdf_result_path) {
   print "Directory no exists '$pdf_result_path'. Created." if ($debug > 0);
  }
 
+require $Bin ."/../Abills/modules/Docs/webinterface";
 
 $docs_in_file    = $ARGV->{DOCS_IN_FILE} || $docs_in_file;
-
 my $save_filename = $pdf_result_path .'/multidoc_.pdf';
-
-
 
 if (! -d $pdf_result_path) {
 	mkdir ($pdf_result_path);
 }
 
-$Fees->{debug}=1 if ($debug > 6);
-#Fees get month fees - abon. payments
-my $fees_list = $Fees->reports({ INTERVAL => "$Y-$m-01/$DATE",  
+my %LIST_PARAMS = ();
+
+if ($ARGV->{POSTPAID_ACCOUNT}) {
+	postpaid_accounts();
+ }
+elsif ($ARGV->{PREPAID_ACCOUNTS}) {
+	prepaid_accounts() if (! $ARGV->{COMPANY_ID});
+	prepaid_accounts_company() if (! $ARGV->{LOGIN});
+ }
+else {
+	help();
+}
+
+
+if ($begin_time > 0)  {
+    Time::HiRes->import(qw(gettimeofday));
+    my $end_time = gettimeofday();
+    my $gen_time = $end_time - $begin_time;
+    printf(" GT: %2.5f\n", $gen_time);
+ }
+
+
+#**********************************************************
+#
+#**********************************************************
+sub send_accounts {
+  my ($attr) = @_;
+
+  foreach my $id ( @{ $attr->{ACCOUNTS_IDS} } ) {
+   	$FORM{pdf}   = 1;
+   	$FORM{print} = $id;
+
+    docs_account({ GET_EMAIL_INFO    => 1,
+            	     SEND_EMAIL        => 1,
+            	     %$attr
+                 });
+    if ($debug > 3) {
+    	print "ID: $id Sended\n";
+     }
+   }
+
+}
+
+
+
+
+#**********************************************************
+#
+#**********************************************************
+sub prepaid_accounts {
+ # Modules
+ #Dv
+ my @MODULES = ('Dv');
+
+
+ require $MODULES[0].'.pm';
+ $MODULES[0]->import();
+ my $Module_name = $MODULES[0]->new($db, $admin, \%conf);
+ $LIST_PARAMS{TP_ID} = $ARGV->{TP_ID} if ($ARGV->{TP_ID});
+ $LIST_PARAMS{LOGIN} = $ARGV->{LOGIN} if ($ARGV->{LOGIN});
+ my $TP_LIST = get_tps();
+
+ my $list = $Module_name->list({ 
+ 	                          #DEPOSIT       => '<0',
+		                        DISABLE       => 0,
+		                        COMPANY_ID    => 0,
+                            CONTRACT_ID   => '*',
+                            CONTRACT_DATE => '>=0000-00-00',
+                            ADDRESS_STREET=> '*',
+                            ADDRESS_BUILD => '*',
+                            ADDRESS_FLAT  => '*',
+                            
+		                        PAGE_ROWS     => 1000000,
+#		                        %INFO_FIELDS_SEARCH,
+		                        SORT          => $sort,
+		                        SKIP_TOTAL    => 1,
+		                        %LIST_PARAMS,
+		                       });
+
+  my @MULTI_ARR = ();
+  my %EXTRA    = ();
+  my $doc_num = 0;
+
+foreach my $line (@$list) {
+	my $uid      = $line->[(6+$Module_name->{SEARCH_FIELDS_COUNT})];
+  my $tp_id    = $line->[(9+$Module_name->{SEARCH_FIELDS_COUNT})];
+
+
+ 	print "UID: $uid LOGIN: $line->[0] FIO: $line->[1] TP: $tp_id / $Module_name->{SEARCH_FIELDS_COUNT}\n" if ($debug > 2);
+
+  $Docs->user_info($uid);
+  if (! $Docs->{PERIODIC_CREATE_DOCS} ) {
+  	print "Skip create docs\n" if ($debug > 2);
+  	next;
+   }
+
+  %FORM = (
+           UID       => $uid,
+ 	         create    => 1,
+ 	         SEND_EMAIL=> $Docs->{SEND_DOCS},
+ 	         pdf       => 1,
+ 	         CUSTOMER  => '-',
+ 	         EMAIL     => $Docs->{EMAIL}
+ 	         );
+
+
+	#Add debetor accouns
+  if ($line->[2] && $line->[2] < 0) {
+		print "  DEPOSIT: $line->[2]\n" if ($debug > 2);
+		$FORM{SUM}  =abs($line->[2]);
+    $FORM{ORDER}="$_DEBT";
+    docs_account({ QUITE => 1 });
+	 } 
+	
+	#add  tp account
+  if ($TP_LIST->{$tp_id}) {
+  	my ($tp_name, $fees_sum)=split(/;/, $TP_LIST->{$tp_id});
+    print "  TP_ID: $tp_id FEES: $fees_sum\n" if ($debug > 2);
+		$FORM{SUM}  =$fees_sum;
+    $FORM{ORDER}="$_TARIF_PLAN";
+    docs_account({ QUITE => 1 });	         
+   }
+
+ }
+print "TOTAL USERS: $Module_name->{TOTAL} DOCS: $doc_num\n";
+}
+
+#**********************************************************
+#
+#**********************************************************
+sub get_tps {
+	my ($attr)=@_;
+	
+  #Get TPS
+  my %TP_LIST=();
+  my $tp_list = $Tariffs->list({ %LIST_PARAMS });
+  foreach my $line (@$tp_list) {
+ 	  if ($line->[6] > 0) {
+ 	    $TP_LIST{$line->[0]}="$line->[2];$line->[6]",
+ 	   }
+    elsif ($line->[5] > 0) {
+   	  $TP_LIST{$line->[0]}="$line->[2];".($line->[5]*30); 
+     }
+   }
+
+	return \%TP_LIST;
+}
+
+
+#**********************************************************
+#
+#**********************************************************
+sub prepaid_accounts_company {
+ # Modules
+ #Dv
+ require Customers;
+ Customers->import();
+ my $customer = Customers->new($db, $admin, \%conf);
+ my $Company = $customer->company();
+
+
+ require $MODULES[0].'.pm';
+ $MODULES[0]->import();
+ $LIST_PARAMS{TP_ID} = $ARGV->{TP_ID} if ($ARGV->{TP_ID});
+ $LIST_PARAMS{LOGIN} = $ARGV->{LOGIN} if ($ARGV->{LOGIN});
+ $LIST_PARAMS{COMPANY_ID} = $ARGV->{COMPANY_ID} if ($ARGV->{COMPANY_ID});
+
+ my $TP_LIST = get_tps();
+ my @accounts_ids = ();
+
+ #$Company->{debug}=1;
+ my $list = $Company->list({ 
+		                        DISABLE       => 0,
+		                        PAGE_ROWS     => 1000000,
+#		                        %INFO_FIELDS_SEARCH,
+		                        SORT          => $sort,
+		                        SKIP_TOTAL    => 1,
+		                        %LIST_PARAMS,
+		                       });
+  my @MULTI_ARR = ();
+  my $doc_num = 0;
+  my %EXTRA    = ();
+
+foreach my $line (@$list) {
+	my $name       = $line->[0];
+	my $deposit    = $line->[1];
+	my $company_id = $line->[5];
+  
+  print "COMPANY: $name CID: $company_id DEPOSIT: $deposit\n" if ($debug > 2);
+
+  #get main user
+  my $admin_user = 0;
+  my $admin_user_email = '';
+  my $admin_list = $Company->admins_list({ GET_ADMINS => 1 });
+  
+  if ($Company->{TOTAL} < 1) {
+  	print "Company don't have admin user\n";
+  	next;
+   }
+  else {
+  	$admin_user = $admin_list->[0]->[4];
+  	$admin_user_email = $admin_list->[0]->[3];
+   }
+  #Check month periodic
+  $Docs->user_info($admin_user);
+  if (! $Docs->{PERIODIC_CREATE_DOCS} ) {
+  	print "Skip create docs\n" if ($debug > 2);
+  	next;
+   }
+
+  %FORM = (
+           UID       => $admin_user,
+   	       create    => 1,
+   	       SEND_EMAIL=> $Docs->{SEND_DOCS},
+   	       pdf       => 1,
+   	       CUSTOMER  => '-',
+   	       EMAIL     => $Docs->{EMAIL}
+   	      );
+
+   
+  # make debt account
+  if ($deposit < 0) {
+    $FORM{SUM}= abs($deposit);
+    $FORM{ORDER}="$_DEBT";
+    docs_account({ QUITE => 1 });
+   }
+
+  #Get company users
+  my $list = $Dv->list({ 
+ 		                        DISABLE       => 0,
+		                        COMPANY_ID    => $company_id,
+		                        PAGE_ROWS     => 1000000,
+#		                        %INFO_FIELDS_SEARCH,
+		                        SORT          => $sort,
+		                        SKIP_TOTAL    => 1,
+		                        %LIST_PARAMS,
+		                       });
+  my $tp_sum  = 0;
+  my $doc_num = 0;
+  foreach my $line (@$list) {
+  	my $uid      = $line->[(6+$Dv->{SEARCH_FIELDS_COUNT})];
+    my $tp_id    = $line->[(9+$Dv->{SEARCH_FIELDS_COUNT})] || 0;
+    my $fio      = $line->[1] || '';
+    
+ 	  print "UID: $uid LOGIN: $line->[0] FIO: $fio TP: $tp_id\n" if ($debug > 2);
+	  #Add debetor accouns
+    if ($TP_LIST->{$tp_id}) {
+    	my ($tp_name, $fees_sum)=split(/;/, $TP_LIST->{$tp_id});
+    	$tp_sum += $fees_sum;
+		  print "  DEPOSIT: $line->[2]\n" if ($debug > 2);
+		  $doc_num++		  
+	   }
+   }
+  # make tps account
+  if ($tp_sum > 0) {
+  	print "TP SUM: $tp_sum\n";
+    $FORM{SUM}= $tp_sum;
+    $FORM{ORDER}="$_TARIF_PLAN";
+    docs_account({ QUITE => 1 });	         
+   }
+ }
+
+
+print "TOTAL USERS: $Company->{TOTAL} DOCS: $doc_num\n";
+}
+
+
+
+#**********************************************************
+#
+#**********************************************************
+sub postpaid_accounts {
+  $save_filename = $pdf_result_path .'/multidoc_postpaid_accounts.pdf';
+  $Fees->{debug}=1 if ($debug > 6);
+  #Fees get month fees - abon. payments
+  my $fees_list = $Fees->reports({ INTERVAL => "$Y-$m-01/$DATE",  
 	                               METHODS  => 1,
 	                               TYPE     => 'USERS' 
 	                               });
@@ -133,8 +415,8 @@ foreach my $line (@$fees_list) {
   	$INFO_FIELDS_SEARCH{$key}='*';
    }
 
-  $users->{debug}=1 if ($debug > 6);
-	my $list = $users->list({ DEPOSIT       => '<0',
+  $Users->{debug}=1 if ($debug > 6);
+	my $list = $Users->list({ DEPOSIT       => '<0',
 		                        DISABLE       => 0,
                             CONTRACT_ID   => '*',
                             CONTRACT_DATE => '>=0000-00-00',
@@ -147,8 +429,8 @@ foreach my $line (@$fees_list) {
 		                        SORT          => $sort
 		                       });
 
-if ($users->{EXTRA_FIELDS}) {
-  foreach my $line (@{ $users->{EXTRA_FIELDS} }) {
+if ($Users->{EXTRA_FIELDS}) {
+  foreach my $line (@{ $Users->{EXTRA_FIELDS} }) {
     if ($line->[0] =~ /ifu(\S+)/) {
       my $field_id = $1;
       my ($position, $type, $name)=split(/:/, $line->[1]);
@@ -157,8 +439,8 @@ if ($users->{EXTRA_FIELDS}) {
 }
 
 
-  my @MULTI_ARR = ();
-  my $doc_num = 0;
+my @MULTI_ARR = ();
+my $doc_num = 0;
   
 
 
@@ -168,10 +450,10 @@ foreach my $line (@$list) {
     
     my $full_address = '';
     
-    if ($ARGV->{ADDRESS2} && $line->[$users->{SEARCH_FIELDS_COUNT} + 4 - 2]) {
-      $full_address  = $line->[$users->{SEARCH_FIELDS_COUNT} + 4 - 2] || '';
-      $full_address .= ' ' . $line->[$users->{SEARCH_FIELDS_COUNT} + 4 - 1] || '';
-      $full_address .= '/' . $line->[$users->{SEARCH_FIELDS_COUNT} + 4] || '';
+    if ($ARGV->{ADDRESS2} && $line->[$Users->{SEARCH_FIELDS_COUNT} + 4 - 2]) {
+      $full_address  = $line->[$Users->{SEARCH_FIELDS_COUNT} + 4 - 2] || '';
+      $full_address .= ' ' . $line->[$Users->{SEARCH_FIELDS_COUNT} + 4 - 1] || '';
+      $full_address .= '/' . $line->[$Users->{SEARCH_FIELDS_COUNT} + 4] || '';
      }
     else {
       $full_address  = $line->[5+$ext_bill] || '';  #/ B: $line->[6] / f: $line->[7]";
@@ -179,7 +461,7 @@ foreach my $line (@$list) {
       $full_address .= '/' . $line->[7+$ext_bill] || '';
      }
     
-    my $month_fee = ($FEES_LIST_HASH{$line->[$users->{SEARCH_FIELDS_COUNT} + 5]}) ? $FEES_LIST_HASH{$line->[$users->{SEARCH_FIELDS_COUNT} + 5]} : '0.00';
+    my $month_fee = ($FEES_LIST_HASH{$line->[$Users->{SEARCH_FIELDS_COUNT} + 5]}) ? $FEES_LIST_HASH{$line->[$Users->{SEARCH_FIELDS_COUNT} + 5]} : '0.00';
 
     push @MULTI_ARR, { LOGIN         => $line->[0], 
     	                 FIO           => $line->[1], 
@@ -217,20 +499,13 @@ foreach my $line (@$list) {
     $doc_num++
 	 }
 
-print "TOTAL: ".$users->{TOTAL};
+print "TOTAL: ".$Users->{TOTAL};
 
 if ($debug < 5) {
   multi_tpls(_include('docs_multi_invoice', 'Docs'), \@MULTI_ARR );
  }
 
-
-
-if ($begin_time > 0)  {
-    Time::HiRes->import(qw(gettimeofday));
-    my $end_time = gettimeofday();
-    my $gen_time = $end_time - $begin_time;
-    printf(" GT: %2.5f\n", $gen_time);
- }
+}
 
 
 
@@ -255,14 +530,24 @@ sub multi_tpls {
 #**********************************************************
 sub help {
 
-print << "[END]";	
-	RESULT_DIR=    - Output dir (default: abills/cgi-bin/admin/pdf)
-	DOCS_IN_FILE=  - docs in single file (default: $docs_in_file)
-  ADDRESS2       - User second address (fields: _c_address, _c_build, _c_flat)
-  SORT=          - Sort by 
-	DEBUG=[1..5]   - Debug mode
+print << "[END]";
+Multi documents creator	
+  POSTPAID_ACCOUNT - Created for previe month debetors
+  PREPAID_ACCOUNTS - Create cridit account and next month payments account
+  
+  LOGIN            - User login
+  TP_ID            - Tariff Plan
+  COMPANY_ID       - Company id. if defined company id generated only companies accounts. U can use wilde card *
+  
+  RESULT_DIR=      - Output dir (default: abills/cgi-bin/admin/pdf)
+  DOCS_IN_FILE=    - docs in single file (default: $docs_in_file)
+  ADDRESS2         - User second address (fields: _c_address, _c_build, _c_flat)
+  DATE=YYYY-MM-DD  - Accounts create date
+  SORT=            - Sort by 
+  DEBUG=[1..5]     - Debug mode
 [END]
 }
+
 
 
 

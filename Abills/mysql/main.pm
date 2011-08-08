@@ -271,14 +271,14 @@ sub search_expr {
     $self->{SEARCH_FIELDS_COUNT}++;
  	 }	
  
-  if ($value =~ s/;/,/g ) {
+  if (defined($value) && $value =~ s/;/,/g ) {
   	my @val_arr     = split(/,/, $value);  
   	$value = "'". join("', '", @val_arr) ."'";
   	return [ "$field IN ($value)" ];
    }
 
-
-  my @val_arr     = split(/,/, $value);  
+  my @val_arr     = split(/,/, $value) if (defined($value));  
+  
   my @result_arr  = ();
 
   foreach my $v (@val_arr) { 
@@ -355,6 +355,8 @@ sub changes {
     $DATA{DISABLE} = (defined($DATA{'DISABLE'}) && $DATA{DISABLE} ne '') ? $DATA{DISABLE} : undef;
    }
 
+
+
   if(defined($DATA{EMAIL}) && $DATA{EMAIL} ne '') {
     if ($DATA{EMAIL} !~ /(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))/) {
       $self->{errno} = 11;
@@ -372,13 +374,14 @@ sub changes {
 
   my $CHANGES_QUERY = "";
   my $CHANGES_LOG = "";
-
   while(my($k, $v)=each(%DATA)) {
-#  	print "$k, $v ->  $OLD_DATA->{$k} / $DATA{$k}<br>\n";
-    if ($FIELDS->{$k} && (! defined($DATA{$k}) || $OLD_DATA->{$k} ne $DATA{$k})) {
+  	#print "$k / $v -> $FIELDS->{$k} && $DATA{$k} && $OLD_DATA->{$k} ne $DATA{$k}<br>\n";
+    if ($FIELDS->{$k} && defined($DATA{$k}) && $OLD_DATA->{$k} ne $DATA{$k}) {
         if ($k eq 'PASSWORD' || $k eq 'NAS_MNG_PASSWORD') {
-          $CHANGES_LOG .= "$k *->*;";
-          $CHANGES_QUERY .= "$FIELDS->{$k}=ENCODE('$DATA{$k}', '$CONF->{secretkey}'),";
+          if ($DATA{$k}) {
+            $CHANGES_LOG .= "$k *->*;";
+            $CHANGES_QUERY .= "$FIELDS->{$k}=ENCODE('$DATA{$k}', '$CONF->{secretkey}'),";
+           }
          }
         elsif($k eq 'IP' || $k eq 'NETMASK') {
           if ($DATA{$k} !~ /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/) {
@@ -392,19 +395,22 @@ sub changes {
           $CHANGES_QUERY .= "$FIELDS->{$k}=now(),";
          }
         else {
-          if (! defined($OLD_DATA->{$k}) && ($DATA{$k} eq '0' || $DATA{$k} eq '')) {
-        	next;
+          if (! $OLD_DATA->{$k} && ($DATA{$k} eq '0' || $DATA{$k} eq '')) {
+        	  next;
            }
-
 
           if ($k eq 'DISABLE') {
             if (defined($DATA{$k}) && $DATA{$k} == 0 || ! defined($DATA{$k})){
-              $self->{ENABLE} = 1;
-              $self->{DISABLE}= undef;
+            	if ($self->{DISABLE} != 0) {
+                $self->{ENABLE} = 1;
+                $self->{DISABLE}= undef;
+               }
              }
             else {
             	$self->{DISABLE}=1;
              }
+           }
+          elsif ($k eq 'DOMAIN_ID' && $OLD_DATA->{$k} == 0 && ! $DATA{$k}) {
            }
           elsif($k eq 'STATUS') {
             $self->{CHG_STATUS}=$OLD_DATA->{$k}.'->'.$DATA{$k};
@@ -420,6 +426,7 @@ sub changes {
             $self->{CHG_CREDIT}=$OLD_DATA->{$k}.'->'.$DATA{$k};
            }
           else {
+
             $CHANGES_LOG .= "$k $OLD_DATA->{$k}->$DATA{$k};";
            }
 
@@ -427,7 +434,6 @@ sub changes {
          }
      }
    }
-
 
 
 if ($CHANGES_QUERY eq '') {
@@ -446,8 +452,13 @@ else {
   if($self->{errno}) {
     return $self;
    }
+  if ($attr->{EXT_CHANGE_INFO}) {
+    $CHANGES_LOG = $attr->{EXT_CHANGE_INFO}.' '.$CHANGES_LOG;
+   }
+  else {
+    $attr->{EXT_CHANGE_INFO} = '';
+   }
 
-  $CHANGES_LOG = $attr->{EXT_CHANGE_INFO}.' '.$CHANGES_LOG if ($attr->{EXT_CHANGE_INFO});
   if (defined($DATA{UID}) && $DATA{UID} > 0 && defined($admin)) {
     if ($attr->{'ACTION_ID'}) {
       $admin->action_add($DATA{UID}, $attr->{EXT_CHANGE_INFO}, { TYPE => $attr->{'ACTION_ID'} });
@@ -462,7 +473,8 @@ else {
       $admin->action_add($DATA{UID}, "", { TYPE => 8 });
      }
 
-    if ($CHANGES_LOG ne '' && $CHANGES_LOG ne $attr->{EXT_CHANGE_INFO}.' ') {
+
+    if ($CHANGES_LOG ne '' && ($CHANGES_LOG ne $attr->{EXT_CHANGE_INFO}.' ')) {
       $admin->action_add($DATA{UID}, "$CHANGES_LOG", { TYPE => 2});
      }
 
@@ -497,6 +509,23 @@ else {
    }
 
   return $self->{result};
+}
+
+
+
+#**********************************************************
+#
+#**********************************************************
+sub attachment_add () {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query($db,  "INSERT INTO $attr->{TABLE}
+        (filename, content_type, content_size, content, create_time) 
+        VALUES ('$attr->{FILENAME}', '$attr->{CONTENT_TYPE}', '$attr->{FILESIZE}', ?, now())",  
+        'do', { Bind => [ $attr->{CONTENT}  ] } );
+
+  return $self;
 }
 
 

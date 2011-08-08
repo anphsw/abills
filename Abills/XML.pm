@@ -56,7 +56,7 @@ my $debug;
 my %log_levels;
 my $IMG_PATH;
 my $row_number = 0;
-
+my $CONF;
 
 #**********************************************************
 # Create Object
@@ -66,6 +66,7 @@ sub new {
   my ($attr) = @_;
   
   $IMG_PATH = (defined($attr->{IMG_PATH})) ? $attr->{IMG_PATH} : '../img/';
+  $CONF = $attr->{CONF} if (defined($attr->{CONF}));
 
   my $self = { };
   bless($self, $class);
@@ -113,11 +114,14 @@ sub new {
   $index = $FORM{index} || 0;  
   
   
-  if (defined($COOKIES{language}) && $COOKIES{language} ne '') {
-    $self->{language}=$COOKIES{language};
+  if ($attr->{language}) {
+    $self->{language}=$attr->{language};
+   }
+  elsif ($COOKIES{language}) {
+  	$self->{language}=$COOKIES{language};
    }
   else {
-    $self->{language} = 'english';
+    $self->{language} = $CONF->{default_language} || 'english';
    }
 
   return $self;
@@ -191,8 +195,15 @@ sub form_input {
 }
 
 
-
+#**********************************************************
+# HTML Input form
+#**********************************************************
 sub form_main {
+	my ($attr) = @_;
+  if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $attr->{ID} ) {
+  	return '';
+   }
+	
   my $self = shift;
   my ($attr)	= @_;
 	
@@ -350,6 +361,12 @@ sub getCookies {
 #**********************************************************
 # Functions list
 #**********************************************************
+sub menu2 {
+  my $self = shift;
+  my ($menu_items, $menu_args, $permissions, $attr) = @_;
+  $self->menu($menu_items, $menu_args, $permissions, $attr);
+}
+
 sub menu {
  my $self = shift;
  my ($menu_items, $menu_args, $permissions, $attr) = @_;
@@ -493,6 +510,7 @@ sub table {
       $self->addrow(@$line);
      }
   }
+ $self->{ID}=$attr->{ID};
 
  $self->{table} = "<TABLE";
 
@@ -513,7 +531,7 @@ sub table {
    $self->{table} .= $self->table_title_plain($attr->{title_plain});
   }
 
- if (defined($attr->{pages})) {
+ if ($attr->{pages} && ! $FORM{EXPORT_CONTENT}) {
  	   my $op;
  	   if($FORM{index}) {
  	   	 $op = "index=$FORM{index}";
@@ -674,6 +692,11 @@ sub table_title  {
 sub show  {
   my $self = shift;	
   my ($attr) = @_;
+  
+  if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $self->{ID} ) {
+  	return '';
+   }
+
   
   $self->{show} = $self->{table};
   $self->{show} .= "<DATA>\n";
@@ -889,7 +912,7 @@ sub log_print {
  my ($level, $text) = @_;	
 
  if($debug < $log_levels{$level}) {
-     return 0;	
+    return 0;	
   }
 
 print << "[END]";
@@ -912,6 +935,10 @@ sub tpl_show {
   my ($tpl, $variables_ref, $attr) = @_;	
   
   my $tpl_name = $attr->{ID} || '';
+  
+  if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $tpl_name ) {
+  	return '';
+   }
   
   my $xml_tpl = "<INFO name=\"$tpl_name\">\n";  
   
@@ -991,9 +1018,14 @@ sub p {
 #**********************************************************
 sub letters_list {
  my ($self, $attr) = @_;
+
+  if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $attr->{ID} ) {
+      return ""; #"<a> $FORM{EXPORT_CONTENT} </a>";
+   }
+
  my $pages_qs = $attr->{pages_qs} if (defined($attr->{pages_qs}));
   
-my $output = $self->button('All ', "index=$index");
+my $output = '<LETTERS>'.$self->button('All ', "index=$index");
 for (my $i=97; $i<123; $i++) {
   my $l = chr($i);
   if ($FORM{letter} && $FORM{letter} eq $l) {
@@ -1003,14 +1035,15 @@ for (my $i=97; $i<123; $i++) {
      $output .= $self->button("$l", "index=$index&letter=$l$pages_qs") . "\n";
    }
  }
+$output .= '</LETTERS>';
 
   if (defined($self->{NO_PRINT})) {
   	$self->{OUTPUT}.=$output;
-  	return '';
+ 	return '';
    }
-	else {
- 	  print $output;
-	 }
+  else {
+     print $output;
+   }
 
 }
 
@@ -1019,7 +1052,10 @@ for (my $i=97; $i<123; $i++) {
 #*******************************************************************
 sub color_mark {
  my $self = shift;
- my ($message, $color) = @_;
+ my ($message, $color, $attr) = @_;
+ 
+ return $message if ($attr->{SKIP_XML});
+ 
  my $output = "<color_mark color=\"$color\">$message</color_mark>";
  return $output;
 }

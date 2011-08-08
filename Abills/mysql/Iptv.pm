@@ -78,7 +78,9 @@ sub user_info {
    tp.day_fee,
    tp.postpaid_monthly_fee,
    tp.payment_type,
-   tp.period_alignment
+   tp.period_alignment,
+   tp.id,
+   service.dvcrypt_id
      FROM iptv_main service
      LEFT JOIN tarif_plans tp ON (service.tp_id=tp.tp_id)
    $WHERE;");
@@ -105,6 +107,8 @@ sub user_info {
    $self->{POSTPAID_ABON}, 
    $self->{PAYMENT_TYPE},
    $self->{PERIOD_ALIGNMENT},
+   $self->{TP_NUM},
+   $self->{DVCRYPT_ID}
   )= @{ $self->{list}->[0] };
   
   
@@ -130,7 +134,8 @@ sub defaults {
    CID            => '',
    CALLBACK       => 0,
    PORT           => 0,
-   PIN            =>
+   PIN            => '',
+   DVCRYPT_ID     => ''
   );
 
   $self = \%DATA ;
@@ -171,13 +176,15 @@ sub user_add {
              disable, 
              filter_id,
              pin,
-             vod
+             vod,
+             dvcrypt_id
              )
         VALUES ('$DATA{UID}', now(),
         '$DATA{TP_ID}', '$DATA{STATUS}',
         '$DATA{FILTER_ID}',
         '$DATA{PIN}',
-        '$DATA{VOD}'
+        '$DATA{VOD}',
+        '$DATA{DVCRYPT_ID}'
          );", 'do');
 
   return $self if ($self->{errno});
@@ -204,6 +211,7 @@ sub user_change {
               FILTER_ID        => 'filter_id',
               PIN              => 'pin',
               VOD              => 'vod',
+              DVCRYPT_ID       => 'dvcrypt_id'
              );
   
   $attr->{VOD} = (! defined($attr->{VOD})) ? 0 : 1;
@@ -299,52 +307,6 @@ sub user_list {
  undef @WHERE_RULES;
  push @WHERE_RULES, "u.uid = service.uid";
  
-# if ($attr->{USERS_WARNINGS}) {
-#   $self->query($db, "SELECT u.id, pi.email, dv.tp_id, u.credit, b.deposit, tp.name, tp.uplimit
-#         FROM (users u,
-#               dv_main dv,
-#               bills b,
-#               tarif_plans tp)
-#         LEFT JOIN users_pi pi ON u.uid = pi.uid
-#         WHERE
-#               u.uid=dv.uid
-#           and u.bill_id=b.id
-#           and dv.tp_id = tp.id
-#           and b.deposit<tp.uplimit AND tp.uplimit > 0 AND b.deposit+u.credit>0
-#         GROUP BY u.uid
-#         ORDER BY u.id;");
-#
-#
-#   return $self if ($self->{errno});
-#   
-#   my $list = $self->{list};
-#   return $list;
-#  }
-# elsif($attr->{CLOSED}) {
-#   $self->query($db, "SELECT u.id, pi.fio, if(company.id IS NULL, b.deposit, b.deposit), 
-#      u.credit, tp.name, u.disable, 
-#      u.uid, u.company_id, u.email, u.tp_id, if(l.start is NULL, '-', l.start)
-#     FROM ( users u, bills b )
-#     LEFT JOIN users_pi pi ON u.uid = dv.uid
-#     LEFT JOIN tarif_plans tp ON  (tp.id=u.tp_id) 
-#     LEFT JOIN companies company ON  (u.company_id=company.id) 
-#     LEFT JOIN dv_log l ON  (l.uid=u.uid) 
-#     WHERE  
-#        u.bill_id=b.id
-#        and (b.deposit+u.credit-tp.credit_tresshold<=0
-#        and tp.hourp+tp.df+tp.abon>=0)
-#        or (
-#        (u.expire<>'0000-00-00' and u.expire < CURDATE())
-#        AND (u.activate<>'0000-00-00' and u.activate > CURDATE())
-#        )
-#        or u.disable=1
-#     GROUP BY u.uid
-#     ORDER BY $SORT $DESC;");
-#
-#   my $list = $self->{list};
-#   return $list;
-#  }
-
  # Start letter 
  if ($attr->{FIRST_LETTER}) {
     push @WHERE_RULES, "u.id LIKE '$attr->{FIRST_LETTER}%'";
@@ -372,6 +334,9 @@ sub user_list {
     $self->{SEARCH_FIELDS_COUNT}++;
   }
 
+ if ($attr->{DVCRYPT_ID}) {
+   push @WHERE_RULES, @{ $self->search_expr($attr->{DVCRYPT_ID}, 'INT', 'service.dvcrypt_id', { EXT_FIELD => 1 }) };
+  }
 
  if ($attr->{FIO}) {
     $attr->{FIO} =~ s/\*/\%/ig;
@@ -380,18 +345,12 @@ sub user_list {
 
 
  if ($attr->{COMMENTS}) {
-   $attr->{COMMENTS} =~ s/\*/\%/ig;
-   push @WHERE_RULES, "u.comments LIKE '$attr->{COMMENTS}'";
-   
-   $self->{SEARCH_FIELDS} .= 'service.comments, ';
-   $self->{SEARCH_FIELDS_COUNT}++;
+   push @WHERE_RULES, @{ $self->search_expr($attr->{COMMENTS}, 'INT', 'service.comments', { EXT_FIELD => 1 }) };
   }
 
  # Show users for spec tarifplan 
  if (defined($attr->{TP_ID})) {
-    push @WHERE_RULES, "service.tp_id='$attr->{TP_ID}'";
-    $self->{SEARCH_FIELDS} .= 'tp.name, ';
-    $self->{SEARCH_FIELDS_COUNT}++;
+ 	  push @WHERE_RULES, @{ $self->search_expr($attr->{TP_ID}, 'INT', 'service.tp_id', { EXT_FIELD => 1 }) };
   }
 
  # Show debeters
@@ -460,7 +419,9 @@ if ($attr->{SHOW_CHANNELS}) {
         ti_c.channel_id, 
         c.num,
         c.name,
-        ti_c.month_price 
+        ti_c.month_price,
+        u.disable,
+        service.disable
    from (intervals i, 
      iptv_ti_channels ti_c,
      users u,
@@ -468,7 +429,7 @@ if ($attr->{SHOW_CHANNELS}) {
      iptv_users_channels uc,
      iptv_channels c)
     
-     LEFT JOIN tarif_plans tp ON (tp.id=service.tp_id) 
+     LEFT JOIN tarif_plans tp ON (tp.tp_id=service.tp_id) 
      LEFT JOIN bills b ON (u.bill_id = b.id)
      LEFT JOIN companies company ON  (u.company_id=company.id) 
      LEFT JOIN bills cb ON  (company.bill_id=cb.id)
@@ -864,7 +825,7 @@ sub channel_ti_list {
 
  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
- $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+ $PG   = ($attr->{PG}) ? $attr->{PG} : 0;
  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
  undef @WHERE_RULES;
@@ -896,6 +857,7 @@ sub channel_ti_list {
  
  if ($attr->{INTERVAL_ID}) {
    push @WHERE_RULES, @{ $self->search_expr($attr->{TI}, 'INT', 'ic.interval_id') };
+   $attr->{TI}=$attr->{INTERVAL_ID};
   }
 
  if ($attr->{MANDATORY}) {

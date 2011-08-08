@@ -19,15 +19,15 @@ $_CHANGED='Changed';
 $_ROWS='Rows';
 $_FEES='Fees';
 $_SIMULTANEOUSLY='Simultaneously';
-$_MONETARY_UNIT='Monetary unit';
-$_INPAYMENTS ='Inpayments';
-$_BACK_PAY='Return';
+#$_MONETARY_UNIT='Monetary unit';
+#$_INPAYMENTS ='Inpayments';
+#$_BACK_PAY='Return';
 $_BACK_MONEY='Money return';
 $_NOT_EXIST='Not found';
 $_SEND_MAIL='Send e-mail';
 $_MESSAGE='Message';
-$_MESSAGES='Messages';
-$_MESSAGES_DESCRIBE='По всіх питаннях які Вас цікавлять можете відправити повідомлення адміністратору.';
+$_MESSAGES='Help Desk';
+#$_MESSAGES_DESCRIBE='По всіх питаннях які Вас цікавлять можете відправити повідомлення адміністратору.';
 $_SUBJECT='Subject';
 $_DEPOSIT='Deposit';
 $_ACTIVATE='Activation';
@@ -108,7 +108,6 @@ $_LAST_PAYMENT='Late payment';
 $_LAST_LOGIN='Last session';
 $_LAST='Last sessions';
 $_NOT_LOGINED='Not logged in';
-$_WELCOME='Welcome';
 $_SHOW='Show';
 $_SESSIONS='Sessions';
 $_SESSION_ID='Session ID';
@@ -127,7 +126,6 @@ $_END='END';
 
 $_EXIST='Already exists';
 $_COUNT='Count';
-$_CREDITORS='Creditors';
 $_PERMISSION='Permissions';
 
 #Online
@@ -249,14 +247,13 @@ $_ALLOW_ALL = 'Allow all';
 $_DEFAULT='Default';
 $_GO = 'Go';
 $_LANGUAGE='Language';
-$_REVISION='Revision';
 $_LOG='History';
 $_SHEDULE='Schedule';
 
 $ERR_SELECT_TP='Select Tarif Plan';
 $ERR_WRONG_NAME='Wrong name';
 $ERR_ENTER_USER_NAME='Enter user login';
-$ERR_SHORT_PASSWD='Short password. Minimum 6 symbols';
+$ERR_SHORT_PASSWD='Short password. Minimum symbols';
 $ERR_WRONG_PASSWD='Wrong password';
 $ERR_SYMBOLS_PASSWD='Wrong chars in password.';
 $ERR_WRONG_CONFIRM='Wrong Confirmation';
@@ -270,6 +267,12 @@ $ERR_CANT_CREATE_FILE='Can\'t create file or folder';
 $ERR_WRONG_FILE_NAME='Wrong file name or type';
 $ERR_WRONG_SUM="Wrong sum. Enter sum.";
 $ERR_ACCESS_DENY='Access Deny';
+$ERR_UNALLOW_IP='Unallow IP';
+
+#
+$ERR_IP_ADDRESS_CONFLICT='IP Address Conflict.';
+$ERR_HOST_REGISTRED='Host already registred.';
+$_RENEW_IP='Please renew ip. If error not gone please contact administrator';
 
 
 #Mail section
@@ -395,6 +398,7 @@ $_BILL_INFO='Billing server info';
 $_PRIMARY='Primary';
 $_EXTRA='Extra';
 $_DEBETORS='Debitors';
+$_DEBT='Debt';
 $_NON_PAYMENT='Non Payment';
 
 
@@ -462,3 +466,15 @@ $_STORAGE='Storage ';
 $_RESTS='Rests';
 $_SUPPLIERS='Suppliers';
 $_ACCOUNTABILITY="Accountability";
+$_DISCARDS='Discards';
+$_DISCARD='Discard';
+$_ARTICLES='Articles';
+$_ARTICLE='Article';
+$_INSTALATIONS='Instalations';
+$_DENSITY_OF_CONNECTIONS='Density Of Connections';
+$_UP_RATING='Up rating';
+$_LOADING='Loading';
+$_OPERATION_FEES='From your account will taken ';
+$_CONTINUE='Continue';
+$_NOTEPAD='Notepad';
+$_EXTRA_TARIFICATION='Extra tarification';

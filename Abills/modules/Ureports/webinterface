@@ -31,7 +31,9 @@ my %REPORTS = ( 1 => "$_DEPOSIT_BELOW",
                 6 => "$_DAY: $_DEPOSIT + $_CREDIT + $_TRAFFIC",
               
                 7 => "$_CREDIT $_EXPIRE",
-                8 => "$_LOGIN $_DISABLE "
+                8 => "$_LOGIN $_DISABLE ",
+                9 => "$_DAYS_TO_EXPIRE",
+                10 => "$_SMALL_DEPOSIT_FOR_NEXT_MONTH"
 
              );
 
@@ -131,7 +133,8 @@ my $table = $html->table( { width      => '100%',
                             title      => \@TITLE,
                             cols_align => ['left', 'left', 'right', 'right', 'left', 'center', 'center:noprint', 'center:noprint'],
                             qs         => $pages_qs,
-                            pages      => $Ureports->{TOTAL}
+                            pages      => $Ureports->{TOTAL},
+                            ID         => 'UREPORTS_USERS'
                            });
 
 foreach my $line (@$list) {
@@ -159,7 +162,7 @@ print $table->show();
 
 $table = $html->table( { width      => '100%',
                          cols_align => ['right', 'right'],
-                         rows       => [ [ "$_TOTAL:", $html->b($Ureports->{TOTAL}) ] ]
+                         rows       => [ [ "$_TOTAL: ", $html->b($Ureports->{TOTAL}) ] ]
                         } );
 print $table->show();
 
@@ -266,8 +269,6 @@ sub ureports_user {
                               ID         => 'REPORTS_TP'
                            } );
 
-
-    
     my $list = $Ureports->tp_user_reports_list({ %LIST_PARAMS, TP_ID => $Ureports->{TP_ID} });
   
     foreach my $line (@$list) {
@@ -282,6 +283,7 @@ sub ureports_user {
 
     $Ureports->{REPORTS_LIST} = $table->show({ OUTPUT2RETURN => 1 }); 
 	} 
+
 
   $Ureports->{TYPE_SEL}            = $html->form_select('TYPE', 
                                           { 
@@ -853,9 +855,6 @@ $html->make_charts({
 	 TRANSITION => 1,
 
   });
-
-
-
 }
 
 #**********************************************************
@@ -1467,62 +1466,6 @@ if ($tarif_plan->{errno}) {
 
 
 
-#**********************************************************
-#
-#**********************************************************
-sub turbosms_reports {
-	
-eval { require Turbosms; };
-if (! $@) {
-  Turbosms->import();
- }
-else {
-  $html->message('err', $_ERROR, "Can't load 'Bonus_rating'. Purchase this module http://abills.net.ua");
-  return 0;
- }	
-
-my $Turbosms = Turbosms->new($db, $admin, \%conf);
-
-
-my $list = $Turbosms->info({ %LIST_PARAMS });
-
-
-  my $table = $html->table( { width      => '100%',
-                              caption    => "$_REPORTS - Turbosms",
-                              border     => 1,
-                              title      => ['id', 'msg_id', 'number', 'sign', 'message', 'wappush', 'cost', 
-                                'credits', 'send_time', 'sended', 'updated', 'status', 'dlr_status' ],
-                              cols_align => ['center', 'left',  'center'],
-                              qs         => $pages_qs,
-                              ID         => 'REPORTS_TURBOSMS',
-                              pages     => $Turbosms->{TOTAL}
-                           } );
-
-
-  foreach my $line (@$list) {
-     $table->addrow($line->[0],
-     $line->[1],
-     $line->[2],
-     $line->[4],
-     $line->[5],
-     $line->[6],
-     $line->[7],
-     $line->[8],
-     $line->[9],
-     );
-  }
-
-print $table->show();
-
-
-$table = $html->table( { width      => '100%',
-                         cols_align => ['right', 'right'],
-                         rows       => [ [ "$_TOTAL:", $html->b($Turbosms->{TOTAL}) ] ]
-                        } );
-print $table->show();
-
-	
-}
 
 1
 

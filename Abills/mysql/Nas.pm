@@ -41,7 +41,16 @@ sub list {
 
   my $ext_fields = '';
   my $EXT_TABLES = '';
-  if ($attr->{SHOW_MAPS}) {
+  if ($attr->{SHOW_MAPS_GOOGLE}) {
+    $ext_fields = ",b.coordx, b.coordy";
+    $EXT_TABLES = "INNER JOIN builds b ON (b.id=nas.location_id)";
+    if ($attr->{DISTRICT_ID}) {
+     push @WHERE_RULES, @{ $self->search_expr($attr->{DISTRICT_ID}, 'INT', 'streets.district_id', { EXT_FIELD => 'districts.name' }) };
+     $EXT_TABLES .= "LEFT JOIN streets ON (streets.id=b.street_id)
+      LEFT JOIN districts ON (districts.id=streets.district_id) ";
+    }    
+   }
+  elsif ($attr->{SHOW_MAPS}) {
     $ext_fields = ",b.map_x, b.map_y, b.map_x2, b.map_y2, b.map_x3, b.map_y3, b.map_x4, b.map_y4";
     $EXT_TABLES = "INNER JOIN builds b ON (b.id=nas.location_id)";
     if ($attr->{DISTRICT_ID}) {
@@ -53,7 +62,7 @@ sub list {
 
 
   if(defined($attr->{TYPE})) {
-  	push @WHERE_RULES, "nas.nas_type='$attr->{TYPE}'";
+    push @WHERE_RULES, @{ $self->search_expr($attr->{TYPE}, 'STR', 'nas.nas_type') };
   }
 
   if(defined($attr->{DISABLE})) {
@@ -94,7 +103,8 @@ sub list {
   nas.rad_pairs, 
   nas.ext_acct,
   nas.auth_type
-  $ext_fields
+  $ext_fields,
+  nas.mac
   FROM nas
   LEFT JOIN nas_groups ng ON (ng.id=nas.gid)
   $EXT_TABLES
@@ -511,114 +521,6 @@ sub stats {
    ORDER BY $SORT $DESC;");
 
  return $self->{list};	
-}
-
-
-
-
-#**********************************************************
-# Nas list
-#**********************************************************
-sub log_list {
- my $self = shift;
- my ($attr) = @_;
-
-  my @WHERE_RULES  = ();
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
-
-
-  if(defined($attr->{USER})) {
-  	push @WHERE_RULES, @{ $self->search_expr($attr->{USER}, 'STR', 'l.user') };
-  }
-  elsif($attr->{LOGIN_EXPR}) {
-  	push @WHERE_RULES, @{ $self->search_expr($attr->{LOGIN_EXPR}, 'STR', 'l.user') };
-  }
-
-  if ($attr->{INTERVAL}) {
- 	  my ($from, $to)=split(/\//, $attr->{INTERVAL}, 2);
-    push @WHERE_RULES, "date_format(l.date, '%Y-%m-%d')>='$from' and date_format(l.date, '%Y-%m-%d')<='$to'";
-   }
-
-  if(defined($attr->{MESSAGE})) {
-  	push @WHERE_RULES, @{ $self->search_expr($attr->{MESSAGE}, 'STR', 'l.message') };
-  }
-
-  if($attr->{DATE}) {
-  	push @WHERE_RULES, @{ $self->search_expr($attr->{DATE}, 'INT', 'l.date') };
-   }
-
-  if($attr->{TIME}) {
-  	push @WHERE_RULES, @{ $self->search_expr($attr->{TIME}, 'INT', 'l.time') };
-   }
-
-  if($attr->{LOG_TYPE}) {
-  	push @WHERE_RULES, @{ $self->search_expr($attr->{LOG_TYPE}, 'INT', 'l.log_type') };
-   }
-
-  if($attr->{NAS_ID}) {
-  	push @WHERE_RULES, @{ $self->search_expr($attr->{NAS_ID}, 'INT', 'l.nas_id') };
-   }
- 
- $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
- 
- $self->query($db, "SELECT l.date, l.log_type, l.action, l.user, l.message, l.nas_id
-  FROM errors_log l
-  $WHERE
-  ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;");
-
- my $list = $self->{list};
- $self->{OUTPUT_ROWS}=$self->{TOTAL};
-
- $self->query($db, "SELECT l.log_type, count(*)
-  FROM errors_log l
-  $WHERE
-  GROUP BY 1
-  ORDER BY 1;");  
-
- return $list;
-}
-
-#**********************************************************
-# Add nas server
-# add($self)
-#**********************************************************
-sub log_add {
- my $self = shift;
- my ($attr) = @_;
- 
- %DATA = $self->get_data($attr); 
- # $date, $time, $log_type, $action, $user, $message
- $DATA{MESSAGE} =~ s/'/\\'/g;
- $self->{NAS_ID}=0 if (! $self->{NAS_ID});
-
- $self->query($db, "INSERT INTO errors_log (date, log_type, action, user, message, nas_id)
- values (now(), '$DATA{LOG_TYPE}', '$DATA{ACTION}', '$DATA{USER_NAME}', '$DATA{MESSAGE}',  '$self->{NAS_ID}');", 'do');
-
-
- return 0;	
-}
-
-
-#**********************************************************
-# Add nas server
-# add($self)
-#**********************************************************
-sub log_del {
- my $self = shift;
- my ($attr) = @_;
- 
- my $WHERE='';
- 
- if ($attr->{LOGIN}) {
- 	 $WHERE = "user='$attr->{LOGIN}'";
-  }
- 
- $self->query($db, "DELETE FROM errors_log WHERE $WHERE;", 'do');
-
- return 0;	
 }
 
 

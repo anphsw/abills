@@ -36,7 +36,32 @@ $VERSION = 2.00;
   &clearquotes
  );
 
-@EXPORT_OK = ();
+@EXPORT_OK = qw(
+  null
+  convert
+  parse_arguments
+  int2ip
+  ip2int
+  int2byte
+  sec2date
+  sec2time
+  time2sec
+  int2ml
+  show_log
+  mk_unique_value
+  decode_base64
+  check_time
+  get_radius_params
+  test_radius_returns
+  sendmail
+  in_array
+  tpl_parse
+  encode_base64
+  cfg2hash
+  clearquotes
+);
+
+
 %EXPORT_TAGS = ();
 
 
@@ -82,8 +107,9 @@ sub in_array {
  my ($value, $array) = @_;
 
  return 0 if (! defined($value)); 
- foreach my $line (@$array) {
- 	 return 1 if ($value eq $line);
+
+ for(my $i=0; $i<=$#{ $array }; $i++) {
+ 	 return 1 if ($value eq $array->[$i]);
   }
 
  return 0;	
@@ -216,7 +242,7 @@ sub utf82win {
   my $Code='';
   for(@ChArray){
     $Code=ord;
-    if($Code==0x0406) { $Unicode.=chr(0xB2); }
+    if($Code==0x0406)       { $Unicode.=chr(0xB2); }
     elsif($Code==0x0454)    { $Unicode.=chr(0xBA); } #
     elsif($Code==0x0456)    { $Unicode.=chr(0xB3); } # CYRILLIC SMALL LETTER BYELORUSSIAN-UKRAINIAN I
     elsif($Code==0x0491)    { $Unicode.=chr(0xB4); } # 
@@ -233,6 +259,9 @@ sub utf82win {
     elsif($Code==0xb2+0x350){$Unicode.=chr(0x406-0x350);}
     elsif($Code==0xaf+0x350){$Unicode.=chr(0x407-0x350);}
     elsif($Code==0xbf+0x350){$Unicode.=chr(0x457-0x350);}
+    
+    #elsif(($Code>=0x81)&&($Code<=0x200+0x44f)){ $Unicode.=chr($Code - 170); }
+    
     #elsif($Code==0x49){ $Unicode.='I';     	}
     #elsif($Code==0x69){ $Unicode.='i';     	}
     #elsif($Code==0x3F){ $Unicode.='?';     	}
@@ -240,7 +269,8 @@ sub utf82win {
     #elsif($Code==0x2C){ $Unicode.=',';     	}
     #elsif($Code==0x2E){ $Unicode.='.';     	}
     #elsif($Code==0x64){ $Unicode.='d';     	}
-    else{ $Unicode.= $_;  	}
+    else{ $Unicode.= $_;  	
+    	}
    }
 
   return $Unicode;
@@ -271,12 +301,16 @@ sub parse_arguments {
 # sendmail($from, $to, $subject, $message, $charset, $priority)
 # MAil Priorities:
 #
-#
-#
+# returns
+# 1 - error
+# 2 - reciever email not specified
 #
 #***********************************************************
 sub sendmail {
   my ($from, $to_addresses, $subject, $message, $charset, $priority, $attr) = @_;
+  if($to_addresses eq '') {
+    return 2;
+   }
   my $SENDMAIL = (defined($attr->{SENDMAIL_PATH})) ? $attr->{SENDMAIL_PATH} : '/usr/sbin/sendmail';
   
   my $header = '';
@@ -354,7 +388,7 @@ $message .= "--$boundary"."--\n\n";
      }
   }
 
-  return 0;
+  return 1;
 }
 
 
@@ -439,7 +473,7 @@ sub show_log {
 #**********************************************************
 sub mk_unique_value {
    my ($passsize, $attr) = @_;
-   my $symbols = (defined($attr->{SYMBOLS})) ? $attr->{SYMBOLS} : "qwertyupasdfghjikzxcvbnmQWERTYUPASDFGHJKLZXCVBNM23456789";
+   my $symbols = (defined($attr->{SYMBOLS})) ? $attr->{SYMBOLS} : "qwertyupasdfghjikzxcvbnmQWERTYUPASDFGHJKLZXCVBNM123456789";
 
    my $value  = '';
    my $random = '';
@@ -514,8 +548,11 @@ sub sec2time {
     $b=int(($value % 3600) / 60);
     $c=int(($value % (24*3600)) / 3600);
     $d=int($value / (24 * 3600));
-
- if($attr->{str}) {
+ if($attr->{format}) {
+   $c=int($value / 3600);
+   return sprintf("%.2d:%.2d:%.2d", $c,$b, $a);
+  }
+ elsif($attr->{str}) {
    return sprintf("+%d %.2d:%.2d:%.2d", $d, $c,$b, $a);
   }
  else {
@@ -718,8 +755,10 @@ if ($second ne '') {
  use POSIX qw(locale_h);
  my $locale = $attr->{LOCALE} || 'ru_RU.CP1251';
  setlocale(LC_ALL, $locale);
+ $ret = ucfirst $ret;
+ setlocale(LC_NUMERIC, "");
  
- return ucfirst $ret;
+ return $ret;
 }
 
 #**********************************************************

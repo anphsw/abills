@@ -523,9 +523,9 @@ function CheckAllINBOX() {
 	    $line->[5],
 	    $status[$line->[6]],
 	    ($line->[7]) ? "$_SUBNET: $line->[7]" : "$_NETWORK",
-	    $html->button($_DEL, "index=$index&del=$line->[0]", { MESSAGE => "$_DEL $line->[0]?", BUTTON => 1 }),
-	    $html->button($_CHANGE, "index=$index&chg=$line->[0]", { BUTTON => 1 }),
-	    $html->button("$_ROUTES", "index=".get_function_index('dhcphosts_routes')."&NET_ID=$line->[0]", { BUTTON => 1 })
+       $html->button("$_ROUTES", "index=".get_function_index('dhcphosts_routes')."&NET_ID=$line->[0]", { CLASS => 'routes' }),
+        $html->button($_CHANGE, "index=$index&chg=$line->[0]", { CLASS => 'change' }),     
+	    $html->button($_DEL, "index=$index&del=$line->[0]", { MESSAGE => "$_DEL $line->[0]?", CLASS => 'del' }),
      );
     };
 
@@ -552,6 +552,14 @@ sub dhcphosts_hosts {
   
   my $nas_list =  $Nas->list();
   if (! $FORM{UID}) {
+ 	  $Dhcphosts->{STATUS_SEL} = $html->form_select('STATUS',
+			                                   {   SELECTED => $FORM{STATUS} || 0,
+		                                         SEL_HASH => { 0   => "Not Set",
+                                                           -1  => $_DISABLE,
+                                                           1   => "$_ENABLE" } 
+                                          });
+
+  	
     $Dhcphosts->{NETWORKS_SEL} = dhcphosts_network_sel({ SEARCH  => 1 });
     $Dhcphosts->{SWITCH_SEL} = $html->form_select('NAS_ID',
                                           {
@@ -577,6 +585,7 @@ sub dhcphosts_hosts {
   	foreach my $line (@$nas_list) {
   		$NAS_HASH{$line->[0]}=$line->[1];
   	 }
+  	$pages_qs .= "&VIEW=1";
    }
   
   
@@ -608,15 +617,21 @@ sub dhcphosts_hosts {
     my @arr = ();
 
     if ($FORM{VIEW}) {
-    	$uid = $line->[14+$Dhcphosts->{SEARCH_FIELDS_COUNT}];
+    	$status=$line->[6];
+
+ 		  if ($status == 0)    { $status_color=$_COLORS[9]; }
+   	  elsif($status == 1 ) { $status_color=$_COLORS[6]; }
+	    elsif($status == 2 ) { $status_color=$_COLORS[6]; }
+    	
+    	$uid = $line->[12+$Dhcphosts->{SEARCH_FIELDS_COUNT}];
     	push @arr, $line->[0], 
   	    $html->button($line->[1], "index=15&UID=$uid&MODULE=Dhcphosts"),
-	      $line->[12],
+	      $line->[10],
 	      $line->[3],
-	      $line->[5].": ".$line->[4],
-  	    $line->[6], 
-	      $html->color_mark($status[$line->[7]], $status_color),
-	      $NAS_HASH{$line->[9]}, $line->[10], $line->[11];
+	      $line->[4],
+  	    $line->[5], 
+	      $html->color_mark($status[$line->[6]], $status_color),
+	      $NAS_HASH{$line->[7]}, $line->[8], $line->[9];
      }
     else {
     	$uid = $line->[13+$Dhcphosts->{SEARCH_FIELDS_COUNT}];
@@ -632,8 +647,8 @@ sub dhcphosts_hosts {
      }
 
     $table->addrow(@arr,
-	    $html->button($_CHANGE, "index=$index&chg=$line->[0]&MODULE=Dhcphosts&UID=$uid", { BUTTON => 1 }),
-	    $html->button($_DEL, "index=$index&del=$line->[0]&UID=$uid&IP=$line->[11]", { MESSAGE => "$_DEL $line->[0]?", BUTTON => 1 })
+	    $html->button($_CHANGE, "index=". get_function_index('dhcphosts_user') ."&chg=$line->[0]&MODULE=Dhcphosts&UID=$uid", { CLASS => 'change' }),
+	    $html->button($_DEL, "index=". get_function_index('dhcphosts_user') ."&del=$line->[0]&UID=$uid&IP=$line->[11]", { MESSAGE => "$_DEL $line->[0]?", CLASS => 'del' })
      );
    };
   print $table->show();	
@@ -714,8 +729,8 @@ sub dhcphosts_routes {
 	    $line->[2],
 	    $line->[3],
 	    $line->[4],
-	    $html->button($_CHANGE, "index=$index&chg=$line->[0]&NET_ID=".$FORM{NET_ID}, { BUTTON => 1 } ),
-	    $html->button($_DEL, "index=$index&del=$line->[0]&NET_ID=".$FORM{NET_ID}, { MESSAGE => "$_DEL $line->[0]?", BUTTON => 1 }),
+	    $html->button($_CHANGE, "index=$index&chg=$line->[0]&NET_ID=".$FORM{NET_ID}, { CLASS => 'change' } ),
+	    $html->button($_DEL, "index=$index&del=$line->[0]&NET_ID=".$FORM{NET_ID}, { MESSAGE => "$_DEL $line->[0]?", CLASS => 'del' }),
       );
     };
 
@@ -796,7 +811,6 @@ sub dhcphosts_user {
 
     if ($FORM{MAC} !~ /[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}/i) {
       $html->message('err', $_ERROR, "WRONG MAC ");
-      #00:19:5b:4f:98:7a	
      }	
     else {
       if (! $FORM{NETWORK}) {
@@ -1013,7 +1027,10 @@ sub dhcphosts_config {
   my $nas_list = $Nas->list();
 
   foreach my $line (@$nas_list) {
-  	if ($line->[12] =~ /Called-Station-Id=[\"\'](.+)[\'\"]/i){
+  	if ($line->[15]) {
+  		$NAS_MACS{$line->[0]}="$line->[1],$line->[15]";
+  	 }
+  	elsif ($line->[12] =~ /Called-Station-Id=[\"\'](.+)[\'\"]/i){
   	 $NAS_MACS{$line->[0]}="$line->[1],$1";
   	}
    }
@@ -1038,7 +1055,7 @@ foreach my $line (@$list) {
   $INFO{DATETIME}     = "$DATE $TIME / Dhcphosts";
   
   $INFO{NETWORK_ID}   = $Dhcphosts->{ID};
-  $INFO{NETWORK_NAME} = $Dhcphosts->{NAME};
+  $INFO{NETWORK_NAME} = $Dhcphosts->{NAME} || 'NETWORK_NAME';
   $INFO{BLOCK_NETWORK}= $Dhcphosts->{BLOCK_NETWORK};
   $INFO{BLOCK_MASK}   = $Dhcphosts->{BLOCK_MASK};
   $INFO{NETWORK}      = $Dhcphosts->{NETWORK};
@@ -1119,8 +1136,10 @@ foreach my $line (@$list) {
 
      }
 
+   	$INFO{LOGIN}      = $line->[1];
     $INFO{CLIENT_MAC} = $line->[6];
     $INFO{CLIENT_IP}  = $line->[11];
+    
     #Option 82
     if ($line->[13]) {
       $INFO{CLIENT_MAC}    =~ s/^00/0/;
@@ -1133,14 +1152,16 @@ foreach my $line (@$list) {
       #Check swich
     	if ($NAS_MACS{$line->[15]}) {
          ($INFO{OPTION82_NAS_NAME}, $INFO{OPTION82_NAS_MAC})=split(/,/, $NAS_MACS{$line->[15]}, 2);
-    	   $INFO{OPTION82_NAS_MAC} =~ s/^00/0/;
-    	   $INFO{OPTION82_NAS_MAC} =~ s/:0/:/g;
+    	   if ($INFO{OPTION82_NAS_MAC} =~ /:/) {
+    	     $INFO{OPTION82_NAS_MAC} =~ s/^00/0/;
+    	     $INFO{OPTION82_NAS_MAC} =~ s/:0/:/g;
+    	    }
     	   $INFO{OPTION82_NAS_MAC} = lc($INFO{OPTION82_NAS_MAC});
-
+         $INFO{OPTION82_NAS_NAME}=~ s/ /\_/g;
          push @OPTION82_MATCHES, "binary-to-ascii(16, 8, \":\", substring(option agent.remote-id, 2, 6)) = \"$INFO{OPTION82_NAS_MAC}\"";
     	 }
       else {
-      	print "Can't find NAS '$line->[15]' MAC\n";
+      	print "Can't find NAS '$line->[15]' MAC\n" if (! $attr->{QUITE});
       	$INFO{OPTION82_NAS_NAME}='';
       	$INFO{OPTION82_NAS_MAC}='';
        }
@@ -1150,23 +1171,25 @@ foreach my $line (@$list) {
 
       #Client MAC
       push @OPTION82_MATCHES, "binary-to-ascii (16, 8, \":\", substring(hardware, 1, 7))=\"$INFO{CLIENT_MAC}\"" if ($INFO{CLIENT_MAC} ne '0:0:0:0:0:0' && $conf{DHCPHOSTS_O82_USE_MAC});
-      #push @OPTION82_MATCHES, "binary-to-ascii(10, 8, \"\", substring(option agent.circuit-id, 6, 1)) = \"-$INFO{CLIENT_MAC}\"" if ($INFO{CLIENT_MAC} ne '0:0:0:0:0:0' );
 
       #Vlan option
       push @OPTION82_MATCHES, "binary-to-ascii (10, 16, \"\", substring( option agent.circuit-id, 2, 2)) = \"$INFO{CLIENT_VLAN}\" " if ($INFO{CLIENT_VLAN} > 0 );
 
       my $matches = join(' and ', @OPTION82_MATCHES);
+      $INFO{DHCPHOSTS_O82_CLASS_NAME}="$INFO{OPTION82_NAS_NAME}-$INFO{OPTION82_NAS_MAC}-port-$INFO{OPTION82_NAS_PORT}";
 
-      $INFO{OPTION82_CLASS} .= "# LOGIN: $line->[1]\nclass \"$INFO{OPTION82_NAS_NAME}-$INFO{OPTION82_NAS_MAC}-port-$INFO{OPTION82_NAS_PORT}";
       if ($conf{DHCPHOSTS_O82_USE_MAC}) {
-      	$INFO{OPTION82_CLASS} .= "-$INFO{CLIENT_MAC}";
+      	$INFO{OPTION82_CLASS_NAME} .= "-$INFO{CLIENT_MAC}";
        }
-      $INFO{OPTION82_CLASS} .= "\" { match if $matches ;  \n}\n\n";
-    	$INFO{OPTION82_POOLS} .= "pool { range $line->[11]; allow members of \"$INFO{OPTION82_NAS_NAME}-$INFO{OPTION82_NAS_MAC}-port-$INFO{OPTION82_NAS_PORT}";
-      if ($conf{DHCPHOSTS_O82_USE_MAC}) {
-      	$INFO{OPTION82_POOLS} .= "-$INFO{CLIENT_MAC}";
+
+      if ($conf{DHCPHOSTS_O82_CLASS_TPL}) {
+      	$INFO{OPTION82_CLASS} .=  $html->tpl_show(_include('dhcphosts_dhcp_conf_o82_class', 'Dhcphosts'), \%INFO, { OUTPUT2RETURN => 1 });
        }
-      $INFO{OPTION82_POOLS} .= "\"; }\n";
+      else {
+        $INFO{OPTION82_CLASS} .= "# LOGIN: $line->[1]\nclass \"$INFO{DHCPHOSTS_O82_CLASS_NAME}\" { match if $matches ;  \n }\n\n";
+       }
+
+    	$INFO{OPTION82_POOLS} .= "pool { range $line->[11]; allow members of \"$INFO{DHCPHOSTS_O82_CLASS_NAME}\"; }\n";
      }
     else {
       #Static hosts
@@ -1201,7 +1224,7 @@ $INFO{NETWORKS}='';
 foreach my $id (sort keys %{ $SUBNETS{0} } ) {
 	my $net_content = $SUBNETS{0}{$id};
 	$INFO{NETWORKS} .= "#share network - $id 
-shared-network NETWORK_NAME_$id {	 
+shared-network $INFO{NETWORK_NAME}_$id {	 
 $net_content";
   #Add subnets
   while(my($id_sub, $subnet_content) = each %{ $SUBNETS{$id} }) {
@@ -1442,6 +1465,9 @@ my %DHCP_MESSAGE_TYPES_REV = reverse %DHCP_MESSAGE_TYPES;
    	 push @{ $Dhcphosts->{IDS} }, $FORM{MESSAGE};
     }
 
+   if ($FORM{MESSAGE_TYPE}) {
+   	 $LIST_PARAMS{MESSAGE_TYPE}=$FORM{MESSAGE_TYPE};
+    }
 
 	 my $list = $Dhcphosts->log_list({ %LIST_PARAMS });
    my $table = $html->table({ width    => '100%',

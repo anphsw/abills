@@ -308,6 +308,10 @@ sub change {
            BIRTHDAY      => 'birthday'           
    );
  
+  if (! $attr->{A_LOGIN}) {
+  	delete $FIELDS{A_LOGIN};
+   }
+ 
   $admin->{MODULE}='';
   $IP   = $admin->{SESSION_IP};
   
@@ -650,5 +654,93 @@ sub online {
 
  return ($online_users, $online_count);
 }
+
+
+
+
+
+
+
+
+
+
+
+=comments
+
+#**********************************************************
+# allow_ip_list()
+#**********************************************************
+sub allow_ip_list {
+ my $self = shift;
+ my ($attr) = @_;
+
+ @WHERE_RULES = ();
+ 
+ if ($attr->{IP}) {
+ 	 push @WHERE_RULES, "aip.ip=INET_ATON('$attr->{IP}')";
+  }
+ 
+ if ($attr->{AID}) {
+   push @WHERE_RULES, "aip.aid='$attr->{AID}'";
+  }
+
+ 
+ $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+ 
+ $self->query($db, "SELECT INET_NTOA(aip.ip)
+ FROM admins_allow_ips aip
+ $WHERE
+ ORDER BY $SORT $DESC;");
+
+ return $self->{list};
+}
+
+
+
+#**********************************************************
+# add()
+#**********************************************************
+sub allow_ip_add {
+  my $self = shift;
+  my ($attr) = @_;
+  %DATA = $self->get_data($attr); 
+
+  $self->query($db, "INSERT INTO admins_allow_ips (ip) 
+   VALUES ('$DATA{AID}', INET_ATON('$DATA{IP}'));", 'do');
+
+  if ($self->{errno}) {
+  	return $self;
+   }
+
+  $self->system_action_add("ALLOW IP: $DATA{IP}", { TYPE => 1 });  
+  return $self;
+}
+
+
+#**********************************************************
+# delete()
+#**********************************************************
+sub allow_ip_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query($db, "DELETE FROM admins_allow_ips WHERE ip=INET_ATON('$attr->{IP}');", 'do');
+  
+  $self->system_action_add("ALLOW IP: $attr->{IP}", { TYPE => 10 });  
+  return $self;
+}
+
+
+=cut
+
+
+
+
+
+
+
+
+
+
 
 1
