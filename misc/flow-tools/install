@@ -5,4 +5,5 @@
 #Make ng_flow sensor
 :OS=FREEBSD:FILE=ng_flow       > [/usr/local/etc]/rc.d/ng_flow
 :OS=FREEBSD:abills_ng_flow_enable="YES"\nabills_ng_flow_interfaces="%FLOW_INTERFACE%"\n  >> [/etc/]/rc.conf
-
+:OS=LINUX:FILE=flow-capture.conf > [/etc]/flow-tools/flow-capture.conf
+:OS=LINUX:exec:/etc/init.d/flow-capture start

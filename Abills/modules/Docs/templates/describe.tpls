@@ -1,12 +1,23 @@
 #
-docs_account.tpl:russian:Счёт (КВИТАНЦІЯ) для оплаты физическим лицами
-docs_account_add.tpl:russian:Форма выписки счёта
-docs_account_company.tpl:russian:Счёт для оплаты юридическими лицами
-docs_account_order_row.tpl:russian:Форма строки товаров в счете абонента
-docs_act.tpl:russian:Форма акта оказания услуг
-docs_contract.tpl:russian:Форма договора
-docs_invoice.tpl:russian:Форма счёта фактуры (чека), выставляется абоненту после внесения суммы на счёт,
-docs_multi_invoice.tpl:russian:Форма мультивыгрузки счетов
-docs_search.tpl:russian:Форма поиска по документам
-docs_tax_invoice.tpl:russian:Налоговая накладная
+docs_invoice.tpl:russian:РїРµС‡Р°С‚РЅР°СЏ С„РѕРјР° СЃС‡С‘С‚Р°
+docs_invoice_add.tpl:russian:Р¤РѕСЂРјР° СЃРѕР·РґР°РЅРёСЏ СЃС‡С‘С‚Р°
+docs_invoice_company.tpl:russian:РџРµС‡Р°С‚РЅР°СЏ С„РѕСЂРјР° СЃС‡С‘С‚Р° РґР»СЏ РєРѕРјРїР°РЅРёР№
+docs_invoice_multi_add.tpl:russian:Р¤РѕСЂРјР° СЃРѕРґР°РЅРёСЏ РіСЂСѓРїРїС‹ РґРѕРєСѓРјРµРЅС‚РѕРІ
+docs_invoice_multi_sel.tpl:russian:Р’С‹Р±РѕСЂ РіСЂСѓРїРїС‹ РґРѕРєСѓРјРµРЅС‚РѕРІ
+docs_invoice_order_row.tpl:russian:РЁР°Р±Р»РѕРЅ С‚Р°Р±Р»РёС‡РЅРѕР№ С‡Р°СЃС‚Рё РїРµС‡Р°С‚РЅРѕРіРѕ РґРѕРєСѓРјРµРЅС‚Р° СЃС‡С‘С‚Р°
+docs_invoice_orders.tpl:russian:Р¤РѕСЂРјР° РґРѕР±Р°РІР»РµРЅРёСЏ  СЃРµСЂРІРёСЃРѕРІ РІ СЃС‡РµС‚
+docs_invoice_search.tpl:russian:Р¤РѕСЂРјР° РїРѕРёСЃРєР° СЃС‡РµС‚РѕРІ
+docs_act.tpl:russian:РџРµС‡Р°С‚РЅР°СЏ С„РѕСЂРјР° Р°РєС‚Р° РѕРєР°Р·Р°РЅРёСЏ СѓСЃР»СѓРі
+docs_company_contract.tpl:russian:РџРµС‡Р°С‚РЅР°СЏ С„РѕСЂРјР° РґРѕРіРѕРІРѕСЂР° РґР»СЏ РєРѕРјРїР°РЅРёР№
+docs_contract.tpl:russian:РџРµС‡Р°С‚РЅР°СЏ С„РѕСЂРјР° РґРѕРіРѕРІРѕСЂР°
+docs_contract_company.tpl:russian:РџРµС‡Р°С‚РЅР°СЏ С„РѕСЂРјР° РґРѕРіРѕРІРѕСЂР° РґР»СЏ РєРѕРјРїР°РЅРёР№
+docs_receipt.tpl:russian:РџРµС‡Р°С‚РЅР°СЏ С„РѕСЂРјР° СЃС‡РµС‚Р° С„Р°РєС‚СѓСЂС‹
+docs_receipt_add.tpl:russian:С„РѕСЂРјР° РґРѕР±Р°РІР»РµРЅРёСЏ СЃС‡РµС‚Р° С„Р°РєС‚СѓСЂС‹
+docs_receipt_search.tpl:russian:Р¤РѕСЂРјР° РїРѕРёСЃРєР° СЃС‡РµС‚Р° С„Р°РєС‚СѓСЂС‹
+docs_multi_receipt.tpl:russian:Р¤РѕСЂРјР° РіСЂСѓРїРїС‹ СЃС‡РµС‚РѕРІ С„Р°РєС‚СѓСЂС‹
+docs_search.tpl:russian:Р¤РѕСЂРјР° РїРѕРёСЃРєР°Рґ РѕРєСѓРјРµРЅС‚РѕРІ
+docs_tax_export.tpl:russian:Р¤РѕСЂРјР° РµРєСЃРїРѕСЂС‚Р° РЅР°Р»РѕРіРѕРІС‹С… РЅР°РєР»Р°РґРЅС‹С… РІ РµР»РµРєС‚РЅРѕРЅРЅРѕРј РІРёРґРµ
+docs_tax_invoice.tpl:russian:РџРµС‡Р°С‚РЅР°СЏ С„РѕСЂРјР° РЅР°Р»РѕРіРѕРІРѕР№
+docs_user.tpl:russian:Р¤РѕСЂРјР° СѓРїСЂР°РІР»РµРЅРёСЏ РЅР°СЃС‚СЂРѕР№РєР°РјРё РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ
+
 

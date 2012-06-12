@@ -196,13 +196,15 @@ sub list {
 
  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
   
- $self->query($db, "SELECT s.h, s.d, s.m, s.y, s.counts, u.id, s.type, s.action, s.module, a.id, s.date, s.comments, a.aid, s.uid, s.id  
+ $self->query($db, "SELECT s.h, s.d, s.m, s.y, s.counts, u.id AS login, s.type, s.action, s.module, a.id AS admin_name, s.date, s.comments, a.aid, s.uid, s.id  
     FROM shedule s
     LEFT JOIN users u ON (u.uid=s.uid)
     LEFT JOIN admins a ON (a.aid=s.aid) 
    $WHERE
   ORDER BY $SORT $DESC
-  LIMIT $PG, $PAGE_ROWS");
+  LIMIT $PG, $PAGE_ROWS",
+  undef, 
+  $attr);
 
  my $list = $self->{list};
 

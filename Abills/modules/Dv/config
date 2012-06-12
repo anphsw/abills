@@ -19,11 +19,18 @@
                    "23:19:$_LAST:dv_sessions:"                => 4,
                    "24:19:$_USED:dv_use:"                     => 4,
                    "25:24:$_MONTH:dv_use_allmonthes:"         => 4,
+                   "26:19:$_DEBETORS:dv_report_debetors:"     => 4,
 
                    "36:0:Internet:dv_online:"                 => 6,
-                   "37:0:$_DV $_STATS:dv_use:COMPANY_ID"      => 13
+                   "38:0:$_DV $_STATS:dv_use:COMPANY_ID"      => 13
                    );
 
+
+
+if ($conf{DV_TURBO_MODE}) {
+  $FUNCTIONS_LIST{"37:0:Turbo:dv_turbo_mode:"}=6;
+  $FUNCTIONS_LIST{"26:19:Turbo:dv_turbo_mode_report:"}=4;
+ }
 
 
 if ($permissions{0} && $permissions{0}{1}) {
@@ -60,7 +67,7 @@ if ($conf{DV_BONUS}) {
   
   $USER_FUNCTION_LIST{"05:1:Bonus:dv_rating_user:"}=0;
   
-  $PERIODIC{daily} = [ 'dv_rating_periodic', @{ $PERIODIC{daily} } ];
+  $PERIODIC{daily} = [ @{ $PERIODIC{daily} }, 'dv_rating_periodic' ];
  }
 
 

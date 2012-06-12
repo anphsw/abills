@@ -5,4 +5,8 @@
 <tr><td>NAS</td><td>%SEL_NAS%</td></tr>
 <tr><td>NAS Port</td><td><input type=text name=NAS_PORT value='%NAS_PORT%'></td></tr>
 <tr><td>SESSION_ID</td><td><input type=text name=ACCT_SESSION_ID value='%ACCT_SESSION_ID%'></td></tr>
-<tr><td>$_HANGUP $_STATUS:</td><td>%TERMINATE_CAUSE_SEL% $_SHOW: <input type=checkbox name=SHOW_TERMINATE_CAUSE %SHOW_TERMINATE_CAUSE% value=1></td></tr>
+<tr><td>$_HANGUP $_STATUS:</td><td>%TERMINATE_CAUSE_SEL% </td></tr>
+
+<tr><td colspan=2>$_SHOW: <input type=checkbox name=SHOW_TERMINATE_CAUSE %SHOW_TERMINATE_CAUSE% value=1> $_STATUS
+<input type=checkbox name=BILL_ID %SHOW_BILL_ID% value='*'> BILL_ID
+</td></tr>

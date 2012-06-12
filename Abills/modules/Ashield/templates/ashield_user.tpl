@@ -11,7 +11,8 @@
 <tr><td colspan=4 class=small></td></tr>
 <tr><td colspan=2><input type=radio name=STATUS value='1'> $_DISABLE</td><td>%EXPIRES_DATE%</td><th>%RESET_EXPIRE%</th></tr>
 
+<tr><th class=even colspan=4>%ACTION%</th></tr>
 </table>
-%ACTION%
+
 </form>
 

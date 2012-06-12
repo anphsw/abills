@@ -1,6 +1,6 @@
 <form action=$SELF_URL>
 <input type=hidden name=index value=$index>
-<table width=400>
+<table width=400 class=form>
 <tr><th class=form_title colspan=2>$_SHEDULE</th></tr>
 <tr><td>$_DAY:</td><td>%SEL_D%</td></tr>
 <tr><td>$_MONTH:</td><td>%SEL_M%</td></tr>
@@ -11,7 +11,7 @@
 <tr><th colspan=2><textarea cols=60 rows=10 name=ACTION>%ACTION%</textarea></td></tr>
 <tr><th colspan=2>$_COMMENTS:</td></tr>
 <tr><th colspan=2><textarea cols=60 rows=3 name=COMMENTS>%COMMENTS%</textarea></td></tr>
-
+<tr><th class=even colspan=2><input type=submit name=add value=$_ADD></th></tr>
 </table>
-<input type=submit name=add value=$_ADD>
+
 </form>

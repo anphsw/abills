@@ -6,8 +6,9 @@
                    "06:1:$_DILLERS $_TARIF_PLANS:cards_dillers_tp:"     => 5,
                    "08:0:$_ICARDS:cards_user_payment:UID"   => 2,
                    "09:0:$_ICARDS:cards_report:"            => 4,
-                   #"11:9:$_DILLERS:cards_report_dillers:"   => 4,
+                   #"11:9:$_DILLERS:cards_report_dillers:"  => 4,
                    "12:9:$_PAYMENTS:cards_report_payments:" => 4,
+                   "13:9:$_DILLERS:cards_report_dillers:"   => 4,
                    "15:0:$_DILLERS:cards_dillers_list:"     => 1,
                    "16:0:$_DILLERS:cards_diller:UID"        => 15,
                    );
@@ -21,7 +22,7 @@
                             );
 
 
-%PERIODIC = (daily   => [ 'cards_bruteforce_clean' ] );
+%PERIODIC = (daily   => [ 'cards_bruteforce_clean', 'cards_periodic' ] );
 
 
 1

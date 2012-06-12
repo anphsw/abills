@@ -66,7 +66,8 @@ sub info {
    disable, 
    dhcp,
    pppoe,
-   nas_id
+   nas_id,
+   INET_NTOA(unnumbered_ip)
      FROM vlan_main
    $WHERE;");
 
@@ -82,7 +83,8 @@ sub info {
    $self->{DISABLE},
    $self->{DHCP},
    $self->{PPPOE},
-   $self->{NAS_ID}
+   $self->{NAS_ID},
+   $self->{UNNUMBERED_IP},
   )= @{ $self->{list}->[0] };
 
   return $self;
@@ -103,7 +105,8 @@ sub defaults {
    NETMASK        => '255.255.255.255', 
    DHCP           => 0,
    NAS_ID         => 0,
-   PPPOE          => 0
+   PPPOE          => 0,
+   UNNUMBERED_IP     => 0
   );
 
   $self = \%DATA;
@@ -128,16 +131,18 @@ sub add {
              disable, 
              dhcp,
              pppoe,
-             nas_id
+             nas_id,
+             unnumbered_ip
            )
         VALUES ('$DATA{UID}', '$DATA{VLAN_ID}', INET_ATON('$DATA{IP}'), 
         INET_ATON('$DATA{NETMASK}'), '$DATA{DISABLE}', 
         '$DATA{DHCP}',
         '$DATA{PPPOE}',
-        '$DATA{NAS_ID}');", 'do');
+        '$DATA{NAS_ID}',
+        INET_ATON('$DATA{UNNUMBERED_IP}'));", 'do');
 
   return $self if ($self->{errno});
-  $admin->action_add("$DATA{UID}", "ACTIVE");
+  $admin->action_add("$DATA{UID}", "$DATA{VLAN_ID}", { TYPE => 1 });
   return $self;
 }
 
@@ -156,7 +161,8 @@ sub change {
               DHCP             => 'dhcp',
               PPPOE            => 'pppoe',
               UID              => 'uid',
-              NAS_ID           => 'nas_id'
+              NAS_ID           => 'nas_id',
+              UNNUMBERED_IP       => 'unnumbered_ip' 
              );
   
   $attr->{DHCP} = ($attr->{DHCP}) ? $attr->{DHCP} : 0;
@@ -214,52 +220,27 @@ sub list {
  push @WHERE_RULES, "u.uid = vlan.uid";
  
 
- # Start letter 
- if ($attr->{FIRST_LETTER}) {
-    push @WHERE_RULES, "u.id LIKE '$attr->{FIRST_LETTER}%'";
-  }
- elsif ($attr->{LOGIN}) {
-    $attr->{LOGIN_EXPR} =~ s/\*/\%/ig;
-    push @WHERE_RULES, "u.id='$attr->{LOGIN}'";
-  }
- # Login expresion
- elsif ($attr->{LOGIN_EXPR}) {
-    $attr->{LOGIN_EXPR} =~ s/\*/\%/ig;
-    push @WHERE_RULES, "u.id LIKE '$attr->{LOGIN_EXPR}'";
+ if ($attr->{LOGIN}) {
+   push @WHERE_RULES, @{ $self->search_expr($attr->{LOGIN}, 'STR', 'u.id') };
   }
  elsif ($attr->{UID}) {
     push @WHERE_RULES, @{ $self->search_expr($attr->{UID}, 'INT', 'vlan.uid') };
   }
+
  
 
   if ($attr->{IP}) {
-    if ($attr->{IP} =~ m/\*/g) {
-      my ($i, $first_ip, $last_ip);
-      my @p = split(/\./, $attr->{IP});
-      for ($i=0; $i<4; $i++) {
-
-         if ($p[$i] eq '*') {
-           $first_ip .= '0';
-           $last_ip .= '255';
-          }
-         else {
-           $first_ip .= $p[$i];
-           $last_ip .= $p[$i];
-          }
-         if ($i != 3) {
-           $first_ip .= '.';
-           $last_ip .= '.';
-          }
-       }
-      push @WHERE_RULES, "(vlan.ip>=INET_ATON('$first_ip') and vlan.ip<=INET_ATON('$last_ip'))";
-     }
-    else {      
-      push @WHERE_RULES, @{ $self->search_expr($attr->{IP}, 'IP', 'vlan.ip') };
-    }
-
+    push @WHERE_RULES, @{ $self->search_expr($attr->{IP}, 'IP', 'vlan.ip') };
     $self->{SEARCH_FIELDS} = 'INET_NTOA(vlan.ip), ';
     $self->{SEARCH_FIELDS_COUNT}++;
-  }
+   }
+ 
+  if ($attr->{UNNUMBERED_IP}) {
+    push @WHERE_RULES, @{ $self->search_expr($attr->{UNNUMBERED_IP}, 'IP', 'vlan.unnumbered_ip') };
+    $self->{SEARCH_FIELDS} = 'INET_NTOA(vlan.unnumbered_ip), ';
+    $self->{SEARCH_FIELDS_COUNT}++;
+   }
+
 
  if ($attr->{PPPOE}) {
     push @WHERE_RULES, "vlan.pppoe='$attr->{PPPOE}'";
@@ -295,7 +276,7 @@ sub list {
 
  # Show groups
  if ($attr->{VLAN_ID}) {
-    push @WHERE_RULES, "vlan.vlan_id='$attr->{VLAN_ID}'";
+   push @WHERE_RULES, "vlan.vlan_id='$attr->{VLAN_ID}'";
   }
 
 
@@ -308,7 +289,7 @@ sub list {
 
  if (defined($attr->{VLAN_GROUP})) {
    $GROUP_BY = "GROUP BY vlan.vlan_id";
-   $self->{SEARCH_FIELDS} = 'max(INET_NTOA(vlan.ip)), min(INET_NTOA(vlan.netmask)),';
+   $self->{SEARCH_FIELDS} = 'max(INET_NTOA(vlan.ip)), min(INET_NTOA(vlan.netmask)), INET_NTOA(vlan.unnumbered_ip),';
    $self->{SEARCH_FIELDS_COUNT}+=2;
   }
 
@@ -322,8 +303,7 @@ sub list {
       u.credit, 
       vlan.vlan_id,
       INET_NTOA(vlan.ip),
-      CONCAT(INET_NTOA(vlan.ip+1), ' - ',
-        INET_NTOA(vlan.ip + 4294967294 - vlan.netmask - 1)),
+      CONCAT(INET_NTOA(vlan.ip+1), ' - ', INET_NTOA(vlan.ip + 4294967294 - vlan.netmask - 1)),
       vlan.disable, 
       vlan.dhcp,
       vlan.pppoe,

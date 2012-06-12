@@ -10,7 +10,7 @@
 <tr><td>$_PROVIDER IP</td><td><input type=text name=PROVIDER_IP value='%PROVIDER_IP%'></td></tr> 	
 <tr><td>$_EXTRA $_PARAMS</td><td><input type=text name=EXT_PARAMS value='%EXT_PARAMS%'></td></tr> 	
 <tr><td>$_FAILOVER_TRUNK</td><td>%FAILOVER_TRUNK_SEL%</td></tr> 	
-
+<tr><th colspan=2><input type=submit name=%ACTION% value='%LNG_ACTION%'></th></tr>
 </table>
-<input type=submit name=%ACTION% value='%LNG_ACTION%'>
+
 </FORM>

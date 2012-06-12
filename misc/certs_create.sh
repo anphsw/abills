@@ -11,12 +11,13 @@ CA_pl='/usr/src/crypto/openssl/apps/CA.pl';
 
 hostname=`hostname`;
 password=whatever;
-VERSION=1.81;
-days=730;
+VERSION=1.88;
+DAYS=730;
 DATE=`date`;
 CERT_TYPE=$1;
 CERT_USER="";
 OPENSSL=`which openssl`
+CERT_LENGTH=2048;
 
 
 if [ w$1 = whelp ]; then
@@ -31,23 +32,25 @@ if [ w$1 = w ] ; then
   echo " eap            - Create Server and users SSL Certs"
   echo " postfix_tls    - Create postfix TLS Certs"
   echo " express_oplata - Express oplata payment system"
-  echo " easysoft [public_key] - Easysoft payment system"
+  echo " easysoft [public_key] - Easysoft payment system x509 certs"
+  echo " privatbank [public_key] - privatbank payment system x509 certs"
   echo " info [file]    - Get info from SSL cert"
   echo " ssh [USER]     - Create SSH DSA Keys"
   echo "                USER - SSH remote user"
   echo " -D [PATH]      - Path for ssl certs"
   echo " -U [username]  - Cert owner (Default: apache=www, postfix=vmail)"
-  echo " -LENGTH        - Cert length (Default: 1024)"
-  echo " -DAYS          - Cert period in days (Default: 730)"
+  echo " -LENGTH        - Cert length (Default: ${CERT_LENGTH})"
+  echo " -DAYS          - Cert period in days (Default: ${DAYS})"
   echo " -PASSSWORD     - Password for Certs (Default: whatever)"
   echo " -HOSTNAME      - Hostname for Certs (default: system hostname)"
+  echo " -UPLOAD        - Upload ssh certs to host via ssh (default: )"
+  echo " -UPLOAD_FTP    - Upload ssh certs to host via ftp"
   
 
   exit;
 fi
 
 CERT_PATH=/usr/abills/Certs/
-CERT_LENGTH=1024;
 
 # Proccess command-line options
 #
@@ -64,7 +67,7 @@ for _switch ; do
         -LENGTH) CERT_LENGTH=$3
                 shift; shift
                 ;;
-        -DAYS) CERT_LENGTH=$3
+        -DAYS) DAYS=$3
                 shift; shift
                 ;;
         -PASSWORD) password=$3
@@ -72,6 +75,12 @@ for _switch ; do
                 ;;
         -HOSTNAME) hostname=$3
                 shift; shift
+                ;;
+        -UPLOAD) UPLOAD=y; HOST=$4
+                #shift; shift;
+                ;;
+        -UPLOAD_FTP) UPLOAD_FTP=y; UPLOAD=y; HOST=$4
+                #shift; 
                 ;;
         esac
 done
@@ -83,60 +92,69 @@ fi
 cd ${CERT_PATH};
 
 #Default Cert user
-if [ w${CERT_USER} = w ];  then
-  APACHE_USER=www;
+if [ x${CERT_USER} = x ];  then
+  if [ x`uname` = xLinux ]; then
+     APACHE_USER="www-data";
+  else 
+    APACHE_USER=www;
+  fi;
 else 
   APACHE_USER=${CERT_USER};
 fi;
 
 
 #**********************************************************
+# Create x509 key
 # easysoft payments system
 # http://easysoft.com.ua/
 # kabanets@easysoft.com.ua
 #**********************************************************
-easysoft_cert () {
+x509_cert () {
   echo "#******************************************************************************"
-  echo "#Creating EasySoft certs"
+  echo "#Creating ${SYSTEM_NAME} certs"
   echo "#"
   echo "#******************************************************************************"
   echo
 
-  if [ w$1 = w  ]; then
-    echo "Enter path to EasySoft public key: ";
+  SYSTEM_NAME=$1;
+  SEND_EMAIL=$2;
+  PUBLIC_KEY=$3;
+  
+
+  if [ x${PUBLIC_KEY} = x  ]; then
+    echo "Enter path to ${SYSTEM_NAME} public key: ";
     read EASYSOFT_PUBLIC_KEY
   else
-    EASYSOFT_PUBLIC_KEY=$1;
+    PUBLIC_KEY=$1;
   fi;
 
-  if [ w${EASYSOFT_PUBLIC_KEY} = w ]; then
-    echo "Enter easysoft public key";
+  if [ x${PUBLIC_KEY} = x ]; then
+    echo "Enter ${SYSTEM_NAME} public key";
     exit;
   fi;
  
-  if [ w${EASYSOFT_PUBLIC_KEY} != w ]; then
-    cp ${EASYSOFT_PUBLIC_KEY} ${CERT_PATH}/easysoft_server_public.pem
-    chown ${APACHE_USER} ${CERT_PATH}/easysoft_server_public.pem
-    echo "Easy soft public key copy to ${CERT_PATH}/easysoft_server_public.pem"
+  if [ x${PUBLIC_KEY} != x ]; then
+    cp ${PUBLIC_KEY} ${CERT_PATH}/${SYSTEM_NAME}_server_public.pem
+    chown ${APACHE_USER} ${CERT_PATH}/${SYSTEM_NAME}_server_public.pem
+    echo "Easy soft public key copy to ${CERT_PATH}/${SYSTEM_NAME}_server_public.pem"
   fi;
 
-  ${OPENSSL} x509 -inform pem -in ${EASYSOFT_PUBLIC_KEY} -pubkey -out ${CERT_PATH}/easysoft_public_key.pem > ${CERT_PATH}/easysoft_server_public.pem
+  ${OPENSSL} x509 -inform pem -in ${EASYSOFT_PUBLIC_KEY} -pubkey -out ${CERT_PATH}/${SYSTEM_NAME}_public_key.pem > ${CERT_PATH}/${SYSTEM_NAME}_server_public.pem
 
 
   CERT_LENGTH=1024;
   # Private key
-  ${OPENSSL} genrsa -out easysoft_private.ppk ${CERT_LENGTH} 
-  ${OPENSSL} req -new -key easysoft_private.ppk -out easysoft.req 
-  #${OPENSSL} ca -in easysoft.req -out easysoft.cer 
-  ${OPENSSL} x509 -req -days 730 -in easysoft.req -signkey easysoft_private.ppk -out easysoft.cer
-  ${OPENSSL} rsa -in  ${CERT_PATH}/easysoft_private.ppk -out ${CERT_PATH}/easysoft_public.pem -pubout
+  ${OPENSSL} genrsa -out ${SYSTEM_NAME}_private.ppk ${CERT_LENGTH} 
+  ${OPENSSL} req -new -key ${SYSTEM_NAME}_private.ppk -out ${SYSTEM_NAME}.req 
+  #${OPENSSL} ca -in ${SYSTEM_NAME}.req -out ${SYSTEM_NAME}.cer 
+  ${OPENSSL} x509 -req -days ${DAYS} -in ${SYSTEM_NAME}.req -signkey ${SYSTEM_NAME}_private.ppk -out ${SYSTEM_NAME}.cer
+  ${OPENSSL} rsa -in  ${CERT_PATH}/${SYSTEM_NAME}_private.ppk -out ${CERT_PATH}/${SYSTEM_NAME}_public.pem -pubout
 
-  chmod u=r,go= ${CERT_PATH}/easysoft.cer
-  chown ${APACHE_USER} ${CERT_PATH}/easysoft.cer ${CERT_PATH}/easysoft_private.ppk ${CERT_PATH}/easysoft_public.pem
+  chmod u=r,go= ${CERT_PATH}/${SYSTEM_NAME}.cer
+  chown ${APACHE_USER} ${CERT_PATH}/${SYSTEM_NAME}.cer ${CERT_PATH}/${SYSTEM_NAME}_private.ppk ${CERT_PATH}/${SYSTEM_NAME}_public.pem
 
   echo "Sert created: ";
-  echo "Send this file to EasyPay (kabanets@easysoft.com.ua): ${CERT_PATH}/easysoft.cer";
-
+  echo "Send this file to ${SYSTEM_NAME} (${SEND_EMAIL}): ${CERT_PATH}/${SYSTEM_NAME}.cer";
 }
 
 #**********************************************************
@@ -154,8 +172,15 @@ apache_cert () {
   ${OPENSSL} req -new -key server.key -out server.csr \
   -passin pass:${password} -passout pass:${password}
 
-  ${OPENSSL} x509 -req -days ${days} -in server.csr -signkey server.key -out server.crt \
-   -passin pass:${password}
+  ${OPENSSL} x509 -req -days ${DAYS} -in server.csr -signkey server.key -out server.crt \
+  -passin pass:${password}
+
+  #Make public key
+  ${OPENSSL} rsa -in ${CERT_PATH}/server.key -out ${CERT_PATH}/server_public.pem -pubout \
+  -passin pass:${password}
+
+  #PKS12 Public key
+#  ${OPENSSL} pkcs12 -export -in server.crt -inkey server.key -out server_public.pem.p12
 
   chmod u=r,go= ${CERT_PATH}/server.key
   chmod u=r,go= ${CERT_PATH}/server.crt
@@ -165,6 +190,7 @@ apache_cert () {
 
   ${OPENSSL} rsa -in server.key.org -out server.key \
    -passin pass:${password} -passout pass:${password}
+
 
   #Cert info
   #${OPENSSL} x509 -in server.crt -noout -subject
@@ -180,28 +206,33 @@ apache_cert () {
 # Create SSH certs
 #**********************************************************
 ssh_key () {
+  USER=$1;
   echo "**************************************************************************"
   echo "Creating SSH authentication Key"
   echo " Make ssh-keygen with empty password."
   echo "**************************************************************************"
-  echo
+  echo 
+  echo User: ${USER}
 
-  USER=$1;
+
 
   if [ w${CERT_TYPE} = w ]; then
     id_dsa_file=id_dsa;
   else
-    id_dsa_file=id_dsa.$1;
+    id_dsa_file=id_dsa.${USER};
   fi;
 
-  # If exist only upload
+  # If exist only upload  
   if [ -f ${CERT_PATH}${id_dsa_file} ]; then
-     echo "Upload to remote host[Y/n]: "
-     read UPLOAD
+     echo "Cert exists: ${CERT_PATH}${id_dsa_file}";
+     if [ x${UPLOAD} = x ]; then
+       echo "Upload to remote host[Y/n]: "
+       read UPLOAD
+     fi;
   fi;
 
  
-  if [ w${UPLOAD} != wy ]; then
+  if [ ! -f ${CERT_PATH}${id_dsa_file} ]; then
     ssh-keygen -t dsa -C "ABillS remote machine manage key (${DATE})" -f "${CERT_PATH}${id_dsa_file}"
 
     chown ${APACHE_USER} ${CERT_PATH}${id_dsa_file}
@@ -212,13 +243,21 @@ ssh_key () {
     read UPLOAD
   fi;
 
-  if [ w${UPLOAD} = wy ]; then
-    echo -n "Enter host: "
-    read HOST
+  if [ x${UPLOAD} = xy ]; then
+    if [ x${HOST} = x ]; then
+      echo -n "Enter host: "
+      read HOST
+    fi;
     
-    echo "Make upload to: ${HOST} "
-    ssh ${USER}@${HOST} "mkdir ~/.ssh"
-    scp ${CERT_PATH}${id_dsa_file}.pub ${USER}@${HOST}:~/.ssh/authorized_keys
+    echo "Make upload to: ${USER}@${HOST} "
+
+    if [ x${UPLOAD_FTP} = xy ]; then
+      ftp ${USER}@${HOST}:  ${CERT_PATH}${id_dsa_file}.pub
+    else 
+      ssh ${USER}@${HOST} "mkdir ~/.ssh"
+      scp ${CERT_PATH}${id_dsa_file}.pub ${USER}@${HOST}:~/.ssh/authorized_keys
+    fi;
+    
     
     echo -n "Connect to remote host: ${HOST}  (y/n): "
     read CONNECT
@@ -228,7 +267,8 @@ ssh_key () {
     fi;
   else 
     echo 
-    echo "Copy ${CERT_PATH}${id_dsa_file}.pub to REMOTE_HOST User home dir (/home/${USER}/.ssh/authorized_keys) "
+    echo "Copy certs manual: "
+    echo "${CERT_PATH}${id_dsa_file}.pub to REMOTE_HOST User home dir (/home/${USER}/.ssh/authorized_keys) "
     echo 
   fi;
  }
@@ -309,7 +349,7 @@ postfix_cert () {
   echo "Make POSTFIX TLS sertificats"
   echo "******************************************************************************"
 
-  ${OPENSSL} req -new -x509 -nodes -out smtpd.pem -keyout smtpd.pem -days ${days} \
+  ${OPENSSL} req -new -x509 -nodes -out smtpd.pem -keyout smtpd.pem -days ${DAYS} \
     -passin pass:${password} -passout pass:${password}
 }
 
@@ -340,7 +380,7 @@ if [ w$2 = wclient ]; then
 
   # Request a new PKCS#10 certificate.
   # First, newreq.pem will be overwritten with the new certificate request
-  ${OPENSSL} req -new -keyout newreq.pem -out newreq.pem -days ${days} \
+  ${OPENSSL} req -new -keyout newreq.pem -out newreq.pem -days ${DAYS} \
    -passin pass:${password} -passout pass:${password}
 
 
@@ -394,7 +434,7 @@ extendedKeyUsage = 1.3.6.1.5.5.7.3.1
   # Generate a new self-signed certificate.
   # After invocation, newreq.pem will contain a private key and certificate
   # newreq.pem will be used in the next step
-  ${OPENSSL} req -new -x509 -keyout newreq.pem -out newreq.pem -days ${days} \
+  ${OPENSSL} req -new -x509 -keyout newreq.pem -out newreq.pem -days ${DAYS} \
    -passin pass:${password} -passout pass:${password}
 
 
@@ -439,7 +479,7 @@ echo
 
 # Request a new PKCS#10 certificate.
 # First, newreq.pem will be overwritten with the new certificate request
-${OPENSSL} req -new -keyout newreq.pem -out newreq.pem -days ${days} \
+${OPENSSL} req -new -keyout newreq.pem -out newreq.pem -days ${DAYS} \
 -passin pass:${password} -passout pass:${password}
 
 # Sign the certificate request. The policy is defined in the ${OPENSSL}.cnf file.
@@ -486,7 +526,10 @@ case ${CERT_TYPE} in
               postfix_cert;
                 ;;
         easysoft)
-              easysoft_cert $2;
+              x509_cert "easysoft" "kabanets@easysoft.com.ua" "$2";
+                ;;
+        privatbank)
+              x509_cert "privatbank" "" "$2";
                 ;;
         eap)
               eap_cert; 

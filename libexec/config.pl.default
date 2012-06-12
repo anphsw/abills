@@ -15,9 +15,9 @@ $conf{dbcharset}='';
 #Mail configuration
 $conf{ADMIN_MAIL}='admin@yourhost.com';
 $conf{USERS_MAIL_DOMAIN}='yourhost.com';
-$conf{MAIL_CHARSET}='windows-1251';
+$conf{MAIL_CHARSET}='utf-8';
 $conf{default_language}='russian';
-$conf{default_charset}='windows-1251';
+$conf{default_charset}='utf-8';
 $conf{WEB_TITLE}='';
 
 
@@ -50,7 +50,7 @@ $conf{secretkey}="test12345678901234567890";
 $conf{s_detalization}=1; #make session detalization recomended for vpn leathed lines
 $conf{ERROR2DB}=1;
 
-$conf{version}='0.53b'; #05.04.2011
+$conf{version}='0.54b'; #05.04.2011
 
 #Octets direction
 # server - Count octets from server side
@@ -59,6 +59,7 @@ $conf{octets_direction}='user';
 
 #Check web interface brute force
 $conf{wi_bruteforce}=10;
+$conf{user_finance_menu}=1; 
 
 #Minimum session costs
 $conf{MINIMUM_SESSION_TIME}=10; # minimum session time for push session to db
@@ -72,9 +73,9 @@ $conf{USERS_WEB_ADMIN_ID}=3;
 
 #System Langs
 $conf{LANGS}="english:English;
- russian:Русский;
- ukraine:Українська;
- bulgarian:Болгарска;
+ russian:Р СѓСЃСЃРєРёР№;
+ ukraine:РЈРєСЂР°С—РЅСЃСЊРєР°;
+ bulgarian:Р‘РѕР»РіР°СЂСЃСЊРєР°;
  french:French";
 
 #Web interface

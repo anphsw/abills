@@ -16,11 +16,14 @@ CREATE TABLE `dhcphosts_hosts` (
   `nas` smallint(6) unsigned NOT NULL default '0',
   `option_82` tinyint(1) unsigned NOT NULL default '0',
   `boot_file` VARCHAR( 150 ) NOT NULL default '',
+  `next_server` VARCHAR( 40 ) NOT NULL default '',
+  `ipn_activate` tinyint(1) NOT NULL default '0',
   changed datetime not null default '0000-00-00 00:00:00',
   PRIMARY KEY  (`id`),
-  UNIQUE KEY `cid` (`ip`),
+  UNIQUE KEY `ip` (`ip`),
   UNIQUE KEY `mac` (`mac`),
-  UNIQUE KEY `host` (`hostname`)
+  UNIQUE KEY `host` (`hostname`),
+  KEY `uid` (`uid`)
 ) COMMENT='Dhcphosts hosts';
 
 
@@ -41,12 +44,15 @@ CREATE TABLE `dhcphosts_networks` (
   `block_network` int(10) unsigned NOT NULL default '0',
   `block_mask` int(10) unsigned NOT NULL default '0',
   `suffix` varchar(20) NOT NULL default '',
-  `dns` varchar(100) NOT NULL default '',
+  `dns` varchar(32) NOT NULL default '',
+  `dns2` varchar(32) NOT NULL default '',
+  `ntp` varchar(100) NOT NULL default '',
   `coordinator` varchar(50) NOT NULL default '',
   `phone` varchar(20) NOT NULL default '',
   `routers` int(11) unsigned NOT NULL default '0',
   `ip_range_first` int(11) unsigned NOT NULL DEFAULT '0',
   `ip_range_last` int(11) unsigned NOT NULL DEFAULT '0',
+  `static` tinyint(1) unsigned NOT NULL default '0',
   `disable` tinyint(1) unsigned NOT NULL default '0',
   `comments` varchar(250) not null default '',
   `deny_unknown_clients` tinyint(1) unsigned not null default 0,

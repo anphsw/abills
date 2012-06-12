@@ -63,9 +63,6 @@ sub create {
 
   $self->{BILL_ID} = $self->{INSERT_ID} if (! $self->{errno});
 
-#  $admin->action_add($uid, "ADD BILL [$self->{INSERT_ID}]");
-    
-
 	return $self;
 }
 

@@ -13,7 +13,7 @@
 <tr><td rowspan=2>$_SPEED (Kbits):</td><td>IN</td><td><input type=text size=12 name='TT_SPEED_IN' value='%TT_SPEED_IN%'></td></tr>
 <tr><td>OUT</td><td><input type=text size=12 name='TT_SPEED_OUT' value='%TT_SPEED_OUT%'></td></tr>
 <tr><td colspan=2>$_DESCRIBE:</td><td><input type=text name='TT_DESCRIBE' value='%TT_DESCRIBE%'></td></tr>
-<tr><td colspan=2>$_EXPRASSION:</td><td><textarea name='TT_EXPRASSION' cols=40 rows=8>%TT_EXPRASSION%</textarea></td></tr>
+<tr><td colspan=2>$_EXPRESSION:</td><td><textarea name='TT_EXPRASSION' cols=40 rows=8>%TT_EXPRASSION%</textarea></td></tr>
 
 <tr><th colspan=3>NETS (192.168.101.0/24;10.0.0.0/28) </th></tr>
 <tr><th colspan=3><textarea cols=40 rows=4 name='TT_NETS'>%TT_NETS%</textarea></th></tr>

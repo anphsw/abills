@@ -1,9 +1,5 @@
-<TABLE width=500 cellspacing=0 cellpadding=0 border=0>
-<TR><TD bgcolor=#E1E1E1>
-<TABLE width=100% cellspacing=1 cellpadding=0 border=0>
-<TR><TD bgcolor=#FFFFFF>
-<table width=100%>
-<tr><th bgcolor=$_COLORS[0]>
+<TABLE width=500 class=form>
+<tr><th class='title_color'>
 Congratulation
 </th></tr>
 <tr><td>
@@ -16,7 +12,4 @@ Congratulation
 </td>
 </tr>
 </table>
-
-</td></tr></table>
-</td></tr></table>
 

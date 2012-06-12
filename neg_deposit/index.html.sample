@@ -1,15 +1,22 @@
-<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"> 
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<META HTTP-EQUIV="Cache-Control" content="no-cache,no-store,must-revalidate,private,max-age=0" >
+<META HTTP-EQUIV="Expires" CONTENT="-1">
+<META HTTP-EQUIV="Pragma" CONTENT="no-cache">
+<META name="Author" content="~AsmodeuS~">
+<META HTTP-EQUIV="content-language" content="">
 <title>Доступ запрещен</title> 
 </head>
 <body style="background-color:#232020;">
 
 <div style="
-	    height:100%; 
-	    width:100%; 
-	    position:relative; 
-	    margin: 0px; 
-	    padding: 0px; 
-	    text-align: left;
+    height:100%; 
+    width:100%; 
+    position:relative; 
+    margin: 0px; 
+    padding: 0px; 
+    text-align: left;
 		background:  #232020;
 		background-position: center top;
 		background-repeat: no-repeat; no-repeat;
@@ -18,18 +25,36 @@
 <br><br><br><br><br><br><br><br><br><br><br><br>
 	    <center>
 <div style="
-        display: block;
+    display: block;
 		position: relative;
 		width: 650px; 
-	    height: 300px;
-	    font-size: 20px;">
+	  height: 300px;
+	  font-size: 20px;">
+
     <div style="width: 185px; height: 300px; float: left; display: block;"></div>
-  	<p style="font-size:32px; color: #ffffff; text-align: left;"> На Вашем счету <font color="#FF8000" size=+7>0</font> <font color="#fbb117"> грн</font></p>
-    <p style="color: #9b9a9a; text-align: left; margin-top: 35px;"> Для дальнейшего пользования услугой Интернет, <br>пожалуйста, пополните Ваш счет! </p>
+  	<p style="font-size:32px; color: #ffffff; text-align: center;"> На Вашем счету <font color="#FF8000" size=+7>0</font> <font color="#fbb117"> грн</font></p>
+    <p style="color: #9b9a9a; text-align: center; margin-top: 35px;"> Для дальнейшего пользования услугой Интернет полном объёме, <br>пожалуйста, пополните Ваш счет! </p>
+
+    <p style="color: #9b9a9a; text-align: center; margin-top: 35px;">Для работы в режиме минимальной пропускной способности активируйте ограниченый режим</p>
+
+
+    <a href='https://your_host:9443/skip_warning.cgi?redirect=' style="
+        font-family:Arial, Tahoma,Verdana, Helvetica, sans-serif;
+        background-color:#eeeeee;
+        color:#000000;
+        font-size:14px;
+        border:1px outset;
+        text-decoration:none;
+        border-color:#9F9F9F;
+        padding:1px 5px;
+">Активировать  Ограниченый режим работы</a>
     <br>
-
-
+    
+    <br>
 </div>
+
+
+
 </center>
 </div>
 

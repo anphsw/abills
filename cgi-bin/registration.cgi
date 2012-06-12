@@ -102,8 +102,10 @@ $INFO_HASH{SEL_LANGUAGE} = $html->form_select('language',
 if ($FORM{FORGOT_PASSWD}) {
 	password_recovery();
  }
+elsif ($FORM{qindex} && $FORM{qindex}==30) {
+	form_address_sel();
+ }
 elsif($#REGISTRATION > -1) {
-
 	my $m = $REGISTRATION[0];
 	if ($FORM{module}) {
 	  $m = $FORM{module};
@@ -137,15 +139,22 @@ elsif($#REGISTRATION > -1) {
     	  }
      }
     else {
+      
       # create a new object
       $INFO_HASH{CAPTCHA_OBJ} = Authen::Captcha->new(
          data_folder   => $base_dir.'/cgi-bin/captcha/',
          output_folder => $base_dir.'/cgi-bin/captcha/',
         );
 
+
+
       my $number_of_characters = 5;
       my $md5sum = $INFO_HASH{CAPTCHA_OBJ}->generate_code($number_of_characters);
-    
+      if($@) {
+        print "Content-Type: text/html\n\n";
+        print $@;
+        exit;
+       }
       $INFO_HASH{CAPTCHA}  = "
        <input type=hidden name=C value=$md5sum>
        <tr><td align=right><img src='/captcha/". $md5sum.".png'></td><td><input type='text' name='CCODE'></td></tr>";
@@ -305,3 +314,100 @@ sub _external {
     return 0;
    }
 }
+
+
+
+#**********************************************************
+# Ajax address form
+#**********************************************************
+sub form_address_sel {
+
+   print "Content-Type: text/html\n\n";
+   my $js_list = ''; 	
+ 	 my $id        =   $FORM{'JsHttpRequest'};
+   my $jsrequest =   $FORM{'jsrequest'};
+   ($id, undef)  = split(/-/,$id);   	
+
+   if ($FORM{STREET}) {
+     my $list = $users->build_list({ STREET_ID => $FORM{STREET}, PAGE_ROWS => 10000 });
+     if ($users->{TOTAL} > 0) {
+       foreach my $line (@$list) {
+         $js_list .= "<option class='spisok' value='p3|$line->[0]|l3|$line->[6]'>$line->[0]</option>"; 
+        }
+      }
+     else {
+       $js_list .= "<option class='spisok' value='p3||l3|0'>$_NOT_EXIST</option>"; 
+      }
+
+      my $size = ($users->{TOTAL} > 10) ? 10 : $users->{TOTAL};
+      $size = 2 if ($size < 2); 
+      $js_list = "<select style='width: inherit;' size='$size' onchange='insert(this)' id='build'>".
+        $js_list . "</select>";
+
+     print qq{JsHttpRequest.dataReady({ "id": "$id", 
+   	     "js": { "list": "$js_list" }, 
+         "text": "" }) };
+    }
+   elsif ($FORM{DISTRICT_ID}) {
+     my $list = $users->street_list({ DISTRICT_ID => $FORM{DISTRICT_ID}, PAGE_ROWS => 1000 });
+     if ($users->{TOTAL} > 0) {
+       foreach my $line (@$list) {
+         $js_list .= "<option class='spisok' value='p2|$line->[1]|l2|$line->[0]'>$line->[1]</option>"; 
+        }
+      }
+     else {
+       $js_list .= "<option class='spisok' value='p2||l2|0'>$_NOT_EXIST</option>"; 
+      }
+
+     my $size = ($users->{TOTAL} > 10) ? 10 : $users->{TOTAL};
+     $size = 2 if ($size < 2);
+     $js_list = "<select style='width: inherit;' size='$size' onchange='insert(this)' id='street'>".
+         $js_list . "</select>";
+
+     print qq{JsHttpRequest.dataReady({ "id": "$id", 
+   	    "js": { "list": "$js_list" }, 
+        "text": "" }) };
+    } 	
+   else {
+     my $list = $users->district_list({ %LIST_PARAMS, PAGE_ROWS => 1000 });
+     foreach my $line (@$list) {
+     	 $js_list .= "<option class='spisok' value='p1|$line->[1]|l1|$line->[0]'>$line->[1]</option>"; 
+      }
+
+     my $size = ($users->{TOTAL} > 10) ? 10 : $users->{TOTAL};
+     $size=2 if ($size < 2);
+     $js_list = "<select style='width: inherit;' size='$size' onchange='insert(this)' id='block'>".
+       $js_list . "</select>";
+
+     print qq{JsHttpRequest.dataReady({ "id": "$id", 
+   	    "js": { "list": "$js_list" }, 
+        "text": "" }) };
+    }
+ 	 exit;
+}
+
+
+#**********************************************************
+# Get function index
+#
+# get_function_index($function_name, $attr) 
+#**********************************************************
+sub get_function_index  {
+  my ($function_name, $attr) = @_;
+  my $function_index = 0;
+  
+  foreach my $k (keys %functions) { 	
+  	my $v = $functions{$k};
+    if ($v eq "$function_name") {
+       $function_index = $k;
+       if ($attr->{ARGS} && $attr->{ARGS} ne $menu_args{$k}) {
+       	 next;
+        }
+       last;
+     }
+   }
+
+  return $function_index;
+}
+
+1

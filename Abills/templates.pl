@@ -19,7 +19,7 @@ sub _include {
   
   my $sufix = ($attr->{pdf} || $FORM{pdf}) ? '.pdf' : '.tpl';
   $tpl .= '_'.$attr->{SUFIX} if ($attr->{SUFIX});
-  
+
   start:
 
   if ($admin->{DOMAIN_ID}) {
@@ -35,6 +35,7 @@ sub _include {
     return ($FORM{pdf}) ? '../../Abills/templates/'. $domain_path. $module . '_' . $tpl . $sufix : tpl_content('../../Abills/templates/'. $module . '_' . $tpl . "_$html->{language}" . $sufix);
    }
   elsif (-f $Bin .'/../Abills/templates/'. $module . '_' . $tpl . "_$html->{language}".$sufix) {
+
     return ($FORM{pdf}) ? $Bin .'/../Abills/templates/'. $module . '_' . $tpl . "_$html->{language}" . $sufix : tpl_content($Bin .'/../Abills/templates/'. $module . '_' . $tpl . "_$html->{language}".$sufix);
    }
   elsif (-f '../Abills/templates/'.$domain_path. $module . '_' . $tpl . "_$html->{language}" .$sufix) {
@@ -44,6 +45,9 @@ sub _include {
     return ($FORM{pdf}) ? '../Abills/templates/'. $module . '_' . $tpl . "_$html->{language}". '.tpl' : tpl_content('../Abills/templates/'. $module . '_' . $tpl  . "_$html->{language}" . $sufix);
    }
   elsif (-f $Bin .'/../Abills/templates/$domain_path'. $module . '_' . $tpl . "_$html->{language}" .$sufix) {
+  	
+
+  	
     return ($FORM{pdf}) ? $Bin .'/../Abills/templates/'.$domain_path. $module . '_' . $tpl . "_$html->{language}" .$sufix : tpl_content($Bin .'/../Abills/templates/'. $module . '_' . $tpl . "_$html->{language}" .$sufix);
    }
 #Lang
@@ -51,6 +55,9 @@ sub _include {
     return ($FORM{pdf}) ? '../../Abills/templates/'. $domain_path. $module . '_' . $tpl . $sufix : tpl_content('../../Abills/templates/'. $module . '_' . $tpl . $sufix);
    }
   elsif (-f $Bin .'/../Abills/templates/'. $module . '_' . $tpl .$sufix) {
+  	
+
+  	
     return ($FORM{pdf}) ? $Bin .'/../Abills/templates/'. $module . '_' . $tpl .$sufix : tpl_content($Bin .'/../Abills/templates/'. $module . '_' . $tpl .$sufix);
    }
   elsif (-f '../Abills/templates/'.$domain_path. $module . '_' . $tpl .$sufix) {

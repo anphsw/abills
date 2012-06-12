@@ -105,7 +105,7 @@ function district(go) {
 
 	if (document.getElementById(\"p1\").value.length > 0 || go == 0) {
 		JsHttpRequest.query	(
-			\"$SELF_URL\",
+			\"script.GET $SELF_URL\",
 			{
 				\"go\": go,
 				\"qindex\": 30,
@@ -141,7 +141,7 @@ function street(go) {
 	{
 		JsHttpRequest.query
 		(
-			\"$SELF_URL\",
+			\"script.GET $SELF_URL\",
 			{
 				\"go\": go,
 				\"qindex\": 30,
@@ -180,7 +180,7 @@ function build (go) {
 	{
 		JsHttpRequest.query
 		(
-      \"$SELF_URL\",
+      \"script.GET $SELF_URL\",
 			{
 				\"go\": go,
 				\"qindex\": 30,
@@ -231,7 +231,7 @@ function build (go) {
 </TD></TR>
 
 <TR bgcolor='$_COLORS[2]'><TD>$_ADDRESS_BUILD:</TD><TD>
-<div><input id=\"p3\" type=\"text\" class=\"input\" value=\"%ADDRESS_BUILD%\" onkeyup=\"build()\" onclick=\"hide_unhide('l3')\" autocomplete=off> 
+<div><input name=\"ADDRESS_BUILD\" id=\"p3\" type=\"text\" class=\"input\" value=\"%ADDRESS_BUILD%\" onkeyup=\"build()\" onclick=\"hide_unhide('l3')\" autocomplete=off> 
 <!-- <a href=\"javascript:openwindow('$SELF_URL?qindex=68&header=1')\"  class=link_button>$_ADD</a> --> </div> 
 <div id=\"l3\" class=\"lists\"></div>
 </TD></TR> 

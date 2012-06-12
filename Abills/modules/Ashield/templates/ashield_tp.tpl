@@ -24,8 +24,8 @@
   <tr><th colspan=2 bgcolor=$_COLORS[2]>$_DESCRIBE</th></tr>
   <tr><th colspan=2><textarea cols=55 rows=5 name=COMMENTS>%COMMENTS%</textarea></th></tr>
 
+<tr><th class=even colspan=2><input type=submit name='%ACTION%' value='%LNG_ACTION%'></th></tr>
 </table>
-<input type=submit name='%ACTION%' value='%LNG_ACTION%'>
 </form>
 
 

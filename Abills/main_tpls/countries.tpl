@@ -1,3 +1,4 @@
+004:Afghanistan
 031:Azerbaijan
 036:Australia
 040:Austria
@@ -53,3 +54,4 @@
 804:Ukraine
 826:United Kingdom
 840:United States of America
+860:Uzbekistan

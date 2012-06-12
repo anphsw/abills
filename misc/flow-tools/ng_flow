@@ -26,7 +26,7 @@ rcvar=`set_rcvar`
 
 
 start_cmd="${name}_start"
-stop_cmd=":"
+stop_cmd="${name}_stop"
 
 load_kernel_modules() {
 /sbin/kldload netgraph.ko > /dev/null 2>&1
@@ -39,12 +39,23 @@ if [ x${abills_ng_flow_interfaces} = x ]; then
 fi;
 }
 
+
+abills_ng_flow_stop() {
+
+for abills_ng_flow_interface in ${abills_ng_flow_interfaces}; do
+  /usr/sbin/ngctl shutdown ${abills_ng_flow_interface}:
+done
+
+/usr/sbin/ngctl shutdown netflow:
+
+}
+
+
 abills_ng_flow_start() {
 	load_kernel_modules
 	
 	echo "Interfaces: ${abills_ng_flow_interfaces} ";
 for abills_ng_flow_interface in ${abills_ng_flow_interfaces}; do
- 
 
 /usr/sbin/ngctl -f - << SEQ
   mkpeer ${abills_ng_flow_interface}: tee lower left
@@ -60,6 +71,7 @@ for abills_ng_flow_interface in ${abills_ng_flow_interfaces}; do
   msg ksocket: connect inet/${abills_ng_flow_export_ip}
 SEQ
 done;
+
 }
 
 

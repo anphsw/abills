@@ -3,23 +3,30 @@
 #
 
 use Fees;
-my $Fees = Fees->new($db, $admin, \%conf); 
+my $Fees  = Fees->new($db, $admin, \%conf); 
 my $Users = Users->new($db, $admin, \%conf); 
 
+
+
 my $Turbosms;
+
+
+#**********************************************************
+# Connect to torbosms
+#**********************************************************
+sub turbosms_connect {
 eval { require Turbosms; };
 if (! $@) {
   eval { require Turbosms; };
   Turbosms->import();
   $Turbosms  = Turbosms->new($db, $admin, \%conf);
-
  }
 else {
 	print $@;
   $html->message('err', $_ERROR, "Can't load 'Turbosms'. Purchase this module http://abills.net.ua");
   exit;
 }
-
+}
 
 
 
@@ -35,11 +42,11 @@ else {
 sub sms_send {
   my ($attr) = @_;
 
-  
+  turbosms_connect();
   
   $Turbosms->send_sms({ NUMBERS => $attr->{NUMBERS},
   	                    NUMBER  => $attr->{NUMBER},
-     	                  MESSAGE => $attr->{MESSAGE},
+     	                  MESSAGE => (($conf{TURBOSMS_MESSAGE_HEADER}) ? $conf{TURBOSMS_MESSAGE_HEADER} : ''). $attr->{MESSAGE},
                         DEBUG   => $attr->{DEBUG} || 0
                       });
 
@@ -76,6 +83,8 @@ sub sms_send {
 #**********************************************************
 sub sms_info {
   my ($id, $attr) = @_;
+  
+  turbosms_connect();
 
   $Turbosms->$Turbosms->info({ ID => $id });
 
@@ -91,15 +100,12 @@ sub sms_info {
 #
 #**********************************************************
 sub turbosms_reports {
-	
-#eval { require Turbosms; };
-#if (! $@) {
-#  Turbosms->import();
-# }
-#else {
-#  $html->message('err', $_ERROR, "Can't load 'Turbosms'. Purchase this module http://abills.net.ua");
-#  return 0;
-# }	
+  turbosms_connect();
+
+  if ($Turbosms::VERSION < 2.02) {
+  	$html->message('info', "UPDATE", "Please update module 'Turbosms' to version 2.02 or higher. http://abills.net.ua/");
+  	return 0;
+   }
 
 my $Turbosms = Turbosms->new($db, $admin, \%conf);
 
@@ -119,15 +125,13 @@ my $list = $Turbosms->info({ %LIST_PARAMS });
                               pages      => $Turbosms->{TOTAL}
                            } );
 
-  use Encode;
-  
-
+  use Encode; 
 
   foreach my $line (@$list) {
-  	 my $status  = $line->[11];
-     my $message = $line->[4];
-  	 Encode::from_to($status, 'utf-8', 'windows-1251');
-  	 Encode::from_to($message, 'utf-8', 'windows-1251');
+  	 my $status  = $line->[11] || 0;
+     my $message = $line->[4] || '';
+  	 if ($conf{dbcharset} ne 'utf8') { Encode::from_to($status, 'utf-8', 'windows-1251') }
+  	 if ($conf{dbcharset} ne 'utf8') { Encode::from_to($message, 'utf-8', 'windows-1251') }
 
      $table->addrow($line->[0],
      $line->[1],

@@ -11,7 +11,7 @@ $DEBUG
 );
 #use strict;
 
-my $version = 0.5;
+my $version = 0.51;
 my $debug   = 0;
 
 use FindBin '$Bin';
@@ -74,7 +74,7 @@ my %REPORTS = ( 1 => "$_DEPOSIT_BELOW",
                 2 => "$_PREPAID_TRAFFIC_BELOW",
                 3 => "$_TRAFFIC_BELOW",
                 4 => "$_MONTH_REPORT",
-             );
+               );
 
 use POSIX qw(strftime);
 
@@ -147,10 +147,9 @@ sub ureports_periodic_reports {
 	my $debug = $attr->{DEBUG} || 0;
   my $debug_output = '';
 
- $debug_output .= "Ureports: Daily spool former\n" if ($debug > 1);
+ $debug_output      .= "Ureports: Daily spool former\n" if ($debug > 1);
  $LIST_PARAMS{MODULE}='Ureports';
  $LIST_PARAMS{TP_ID} = $ARGV->{TP_IDS} if ($ARGV->{TP_IDS});
-
 
  my %SERVICE_LIST_PARAMS = ();
  $SERVICE_LIST_PARAMS{LOGIN} = $ARGV->{LOGINS} if ($ARGV->{LOGINS});
@@ -161,7 +160,7 @@ sub ureports_periodic_reports {
   my $reports_type = 0;
 
  foreach my $line (@$list) {
-     my $TP_ID = $line->[0];
+     my $TP_ID   = $line->[18];
      my %TP_INFO = ();
      $TP_INFO{POSTPAID}   = $line->[12];
      $TP_INFO{REDUCTION}  = $line->[11];
@@ -169,6 +168,7 @@ sub ureports_periodic_reports {
  	   $debug_output .= "TP ID: $TP_ID DF: $line->[5] MF: $line->[6] POSTPAID: $TP_INFO{POSTPAID_DAILY} REDUCTION: $TP_INFO{REDUCTION} EXT_BILL: $line->[13] CREDIT: $line->[14]\n" if ($debug > 1);
 
      #Get users
+     $Ureports->{debug}=1 if ($debug > 5);
  	   my $ulist = $Ureports->tp_user_reports_list({
          DATE      => '0000-00-00',
          TP_ID     => $TP_ID,
@@ -176,6 +176,8 @@ sub ureports_periodic_reports {
          PAGE_ROWS => 1000000,
          REPORT_ID => '',
          DV_TP     => 1,
+         ACCOUNT_STATUS => 0,
+         STATUS         => 0,
          %SERVICE_LIST_PARAMS
  	   	 });
 
@@ -205,8 +207,7 @@ sub ureports_periodic_reports {
        if ($user{BILL_ID} > 0 && defined($user{DEPOSIT})) {
          #Skip action for pay opearation
      	 	 if ($user{MSG_PRICE} > 0 && $user{DEPOSIT} + $user{CREDIT} < 0 && $TP_INFO{POSTPAID}  == 0) {
-     	 	 	  #print "/$TP_ID/$user{UID} / val: $user{VALUE} / report: $user{REPORT_ID} / $user{MSG_PRICE} print !!!!!!!!!!!!; \\ \n ";
-     	 	 	  $debug_output .= "UID: $user{UID} REPORT_ID: $user{REPORT_ID} DEPOSIT: $user{DEPOSIT}/$user{CREDIT} Small Deposit\n" if ($debug > 0);
+     	 	 	  $debug_output .= "UID: $user{UID} REPORT_ID: $user{REPORT_ID} DEPOSIT: $user{DEPOSIT}/$user{CREDIT} Skip action Small Deposit for sending\n" if ($debug > 0);
      	 	 	  next;
      	 	  }
 
@@ -817,8 +818,6 @@ if ($d == 1) {
 
          $fees->take(\%user, $sum, { %FEES_PARAMS } );  
         }
-
-
       }
    } 	
   	
@@ -835,7 +834,7 @@ if ($d == 1) {
 sub help () {
 	
 print << "[END]";
-Ureports sender.
+Ureports sender ($version).
 
   DEBUG=0..6           - Debug mode
   DATE="YYYY-MM-DD"    - Send date

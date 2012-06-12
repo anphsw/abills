@@ -16,7 +16,7 @@ function postthread(param) {
 <input type=hidden name=UID value=$FORM{UID}>
 <input type=hidden name=BILL_ID value=%BILL_ID%>
 
-<TABLE>
+<TABLE class=form>
 <TR><TH class='form_title' colspan=3>$_PAYMENTS / $_FEES</TH></TR>
 
 <TR><TD colspan=2>$_SUM:</TD><TD><input type=text name=SUM value='$FORM{SUM}'></TD></TR>
@@ -31,8 +31,8 @@ function postthread(param) {
 	// individual template parameters can be modified via the calendar variable
 	o_cal.a_tpl.yearscroll = false;
 	o_cal.a_tpl.weekstart  = 1;
- 	o_cal.a_tpl.months     = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
-	o_cal.a_tpl.weekdays   = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Суб'];
+ 	o_cal.a_tpl.months     = ['РЇРЅРІР°СЂСЊ', 'Р¤РµРІСЂР°Р»СЊ', 'РњР°СЂС‚', 'РђРїСЂРµР»СЊ', 'РњР°Р№', 'РСЋРЅСЊ', 'РСЋР»СЊ', 'РђРІРіСѓСЃС‚', 'РЎРµРЅС‚СЏР±СЂСЊ', 'РћРєС‚СЏР±СЂСЊ', 'РќРѕСЏР±СЂСЊ', 'Р”РµРєР°Р±СЂСЊ'];
+	o_cal.a_tpl.weekdays   = ['Р’СЃ', 'РџРЅ', 'Р’С‚', 'РЎСЂ', 'Р§С‚', 'РџС‚', 'РЎСѓР±'];
 
 </script>
 
@@ -40,7 +40,8 @@ function postthread(param) {
 <TR><TD colspan=2>$_PAYMENT_METHOD:</TD><TD>%SEL_METHOD%</TD></TR>
 <TR><TD colspan=2>EXT ID:</TD><TD><input type=text name='EXT_ID' value='%EXT_ID%'></TD></TR>
 %DATE%
+<tr><th class=evan colspan=2><input type=submit name=add value='$_EXECUTE' ID='submitbutton' ></th></tr>
 </TABLE>
-<input type=submit name=add value='$_EXECUTE' ID='submitbutton' >
+
 </form>
 </div>

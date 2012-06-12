@@ -3,7 +3,7 @@
 
 AUTH_LOG=/usr/abills/var/log/abills.log
 ACCT_LOG=/usr/abills/var/log/acct.log
-VERSION=0.11
+VERSION=0.14
 
 
 USER_NAME=test
@@ -16,8 +16,10 @@ VOIP_NAS_IP_ADDRESS=192.168.202.15
 VOIP_USER_NAME=200
 VOIP_CHAP_PASSWORD=''; #123456
 
+PATH=${PATH}:/usr/local/freeradius/bin/
 RAUTH="./rauth.pl";
 RACCT="./racct.pl";
+RADTEST=radtest
 echo `pwd -P`;
 
 
@@ -80,8 +82,7 @@ for _switch ; do
                 echo "Version: ${VERSION}";
                 exit;
                 ;;
-        -u)  
-                USER_NAME=$2;
+        -u)     USER_NAME=$2;
                 shift; shift
                 ;;
         -p)     USER_PASSWORD=$2;
@@ -92,7 +93,7 @@ for _switch ; do
                 ;;
         acct)   ACCOUNTING_ACTION=$2;
                 ACTION=acct 
-                shift; 
+                shift; shift;
                 ;;
         auth)   ACTION=auth;
                 shift;
@@ -120,7 +121,10 @@ for _switch ; do
                 ;;
         -alive_count) ALIVE_COUNT=$2;
                 shift; shift;
-                ;;       
+                ;;
+        -radtest)RADTEST=$2;
+                shift; shift;
+                ;;
         esac
 done
 
@@ -142,15 +146,28 @@ if [ x${RADIUS_ACTION} = x1 ]; then
 
   if [ x${RADIUS_IP} = x ]; then
     RADIUS_IP=127.0.0.1;
+  else 
+    PORT=`echo ${RADIUS_IP}  | awk -F : '{ print $2 }'`
+    RADIUS_IP=`echo ${RADIUS_IP}  | awk -F : '{ print $1 }'`
   fi;
 
-  if [ x${ACTION} = x"acct" ]; then
-    PORT=1813;
-    radclient -f ${RAD_FILE}  ${RADIUS_IP}:${PORT} ${ACTION} ${RADIUS_SECRET}
-    echo "radclient -f ${RAD_FILE}  ${RADIUS_IP}:${PORT} ${ACTION} ${RADIUS_SECRET}";
+  echo "RAD FILE: ${RAD_FILE}";
+  
+  if [ x${RAD_FILE} != x ]; then
+    if [ x${ACTION} = xacct ]; then
+      if [ x${PORT} = x ]; then      
+        PORT=1813;
+      fi;
+    fi;
+    
+    radclient -x -f ${RAD_FILE}  ${RADIUS_IP}:${PORT} ${ACTION} ${RADIUS_SECRET}
+    echo "radclient -x -f ${RAD_FILE}  ${RADIUS_IP}:${PORT} ${ACTION} ${RADIUS_SECRET}";
   else
-    PORT=1812
-    radtest ${USER_NAME} ${USER_PASSWORD} ${RADIUS_IP}:${PORT} 0 ${RADIUS_SECRET} 0 ${NAS_IP_ADDRESS}
+     if [ x${PORT} = x ]; then      
+        PORT=1812;
+     fi;
+
+    ${RADTEST} ${USER_NAME} ${USER_PASSWORD} ${RADIUS_IP}:${PORT} 0 ${RADIUS_SECRET} 0 ${NAS_IP_ADDRESS}
   fi;
 
   echo "Send params to radius: ${RADIUS_IP}:${PORT}"

@@ -1,5 +1,5 @@
 
-<table width=400>
+<table width=400 class=form>
 
 <tr><th colspan=2 class=form_title>$_MONEY_TRANSFER</th></tr>
 <tr><th colspan=2>$_ADDED</th></tr>

@@ -9,3 +9,4 @@ $_PAYMENT_TO_DATE='Payment to date';
 $_DEBTS_DAYS='Debets days';
 $_FORUM_ACTIVITY='Forum Activity';
 $_PRE_TP='Last Parif Plan';
+$_LAST_FEES_DATE='Last fees';
