@@ -35,7 +35,7 @@ CREATE TABLE `cards_users` (
   `diller_sold_date` date NOT NULL default '0000-00-00',
   `sum` double(10,2) unsigned NOT NULL default '0.00',
   `serial` varchar(10) NOT NULL default '',
-  `pin` blob NOT NULL default '',
+  `pin` blob NOT NULL,
   `uid` int(11) unsigned NOT NULL default '0',
   `domain_id` smallint(6) unsigned not null default 0,
   `created` DATETIME NOT NULL,

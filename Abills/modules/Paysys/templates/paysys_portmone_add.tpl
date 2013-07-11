@@ -1,13 +1,4 @@
 <FORM ACTION='https://www.portmone.com.ua/secure/gate/pay.php' method='POST' >
-
-<TABLE width='500'cellspacing='0' cellpadding='0' border='0'><TR><TD bgcolor='#E1E1E1'>
-<TABLE width='100%' cellspacing='1' cellpadding='0' border='0'>
-<tr><td class='odd'>
-
-<table width=100%>
-<tr><th class='form_title' colspan=2>Visa / Mastercard (Portmone)</th></tr>
-
-
 <INPUT TYPE='HIDDEN' NAME='PAYEE_ID' VALUE='$conf{PAYSYS_PORTMONE_PAYEE_ID}' />
 <INPUT TYPE='HIDDEN' NAME='PAYEE_NAME' VALUE='$conf{WEB_TITLE}'>
 <INPUT TYPE='HIDDEN' NAME='PAYEE_HOME_PAGE_URL' VALUE='$conf{PAYSYS_PORTMONE_HOME_PAGE_URL}'>
@@ -28,12 +19,8 @@
 <input type=hidden name='ADD_PARAM[1][VALUE]' value='$LIST_PARAMS{UID}' />
 
 
-
-<tr><td>ID:</td><td>$FORM{OPERATION_ID}</td></tr>
-<tr><td>$_DESCRIBE:</td><td>$FORM{DESCRIBE}</td></tr>
-<tr><td>$_SUM:</td><td>$FORM{SUM}</td></tr>
-
-<tr><th colspan=2><INPUT TYPE='submit' NAME='submit' VALUE='$_ADD' /></td></tr>
+<table width=100% class=form>
+<tr><th class='form_title' colspan=2>Visa / Mastercard (Portmone)</th></tr>
 
 <tr><th colspan=2 align=center>
 <a href='https://secure.privatbank.ua/help/verified_by_visa.html'
@@ -42,10 +29,15 @@
 <img src='/img/mastercard-sc.gif' width=140 height=75 border=0>
 </a>
 </td></tr>
+
+
+<tr><td>ID:</td><td>$FORM{OPERATION_ID}</td></tr>
+<tr><td>$_DESCRIBE:</td><td>$FORM{DESCRIBE}</td></tr>
+<tr><td>$_SUM:</td><td>$FORM{SUM}</td></tr>
+
+<tr><th colspan=2><INPUT TYPE='submit' NAME='submit' VALUE='$_ADD' /></td></tr>
 </table>
 
-<td></tr></table>
-<td></tr></table>
 
 </FORM>
 

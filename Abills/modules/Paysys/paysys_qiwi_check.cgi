@@ -2,30 +2,27 @@
 # PaySys Console
 # Console interface for payments and fees import
 
-
 use vars qw($begin_time %FORM %LANG
 $DATE $TIME
 $CHARSET
 @MODULES);
 
-
-
 BEGIN {
- my $libpath = '../../../';
- $sql_type='mysql';
- unshift(@INC, './');
- unshift(@INC, $libpath ."Abills/$sql_type/");
- unshift(@INC, "/usr/abills/Abills/$sql_type/");
- unshift(@INC, "/usr/abills/");
- unshift(@INC, $libpath);
- unshift(@INC, $libpath . 'libexec/');
+  my $libpath = '../../../';
+  $sql_type = 'mysql';
+  unshift(@INC, './');
+  unshift(@INC, $libpath . "Abills/$sql_type/");
+  unshift(@INC, "/usr/abills/Abills/$sql_type/");
+  unshift(@INC, "/usr/abills/");
+  unshift(@INC, $libpath);
+  unshift(@INC, $libpath . 'libexec/');
 
- eval { require Time::HiRes; };
- if (! $@) {
+  eval { require Time::HiRes; };
+  if (!$@) {
     Time::HiRes->import(qw(gettimeofday));
     $begin_time = gettimeofday();
-   }
- else {
+  }
+  else {
     $begin_time = 0;
   }
 }
@@ -33,7 +30,6 @@ BEGIN {
 use FindBin '$Bin';
 
 require $Bin . '/../../../libexec/config.pl';
-
 
 use Abills::Base;
 use Abills::SQL;
@@ -44,31 +40,33 @@ use Finance;
 use Admins;
 
 my $html = Abills::HTML->new();
-my $sql = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd});
-my $db = $sql->{db};
+my $sql  = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
+ { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
+my $db   = $sql->{db};
+require "Abills/Misc.pm";
 #Operation status
 
-my $admin    = Admins->new($db, \%conf);
+my $admin = Admins->new($db, \%conf);
 $admin->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });
-my $payments = Finance->payments($db, $admin, \%conf);
-my $fees     = Finance->fees($db, $admin, \%conf);
-my $Paysys   = Paysys->new($db, $admin, \%conf);
-my $Users    = Users->new($db, $admin, \%conf);
-my $debug    = 0;
-my $error_str= '';
-%PAYSYS_PAYMENTS_METHODS=%{ cfg2hash($conf{PAYSYS_PAYMENTS_METHODS}) };
+my $payments  = Finance->payments($db, $admin, \%conf);
+my $fees      = Finance->fees($db, $admin, \%conf);
+my $Paysys    = Paysys->new($db, $admin, \%conf);
+my $Users     = Users->new($db, $admin, \%conf);
+my $debug     = 0;
+my $error_str = '';
+%PAYSYS_PAYMENTS_METHODS = %{ cfg2hash($conf{PAYSYS_PAYMENTS_METHODS}) };
 
 #Arguments
 my $ARGV = parse_arguments(\@ARGV);
 
 if (defined($ARGV->{help})) {
-	help();
-	exit;
+  help();
+  exit;
 }
 
 if ($ARGV->{DEBUG}) {
-	$debug=$ARGV->{DEBUG};
-	print "DEBUG: $debug\n";
+  $debug = $ARGV->{DEBUG};
+  print "DEBUG: $debug\n";
 }
 
 $DATE = $ARGV->{DATE} if ($ARGV->{DATE});
@@ -79,195 +77,145 @@ qiwi_check();
 #
 #**********************************************************
 sub qiwi_check {
-	my ($attr)=@_;
-	require "Abills/modules/Paysys/Qiwi.pm";
-	my $payment_system    = 'QIWI';
-	my $payment_system_id = 59;
+  my ($attr) = @_;
+  require "Abills/modules/Paysys/Qiwi.pm";
+  my $payment_system    = 'QIWI';
+  my $payment_system_id = 59;
 
+  $Paysys->{debug} = 1 if ($debug > 6);
+  my ($Y, $M, $D) = split(/-/, $DATE, 3);
+
+  my $list = $Paysys->list(
+    {
+      %LIST_PARAMS,
+      PAYMENT_SYSTEM => $payment_system_id,
+      #INFO           => '-',
+      STATUS         => 1,
+      PAGE_ROWS      => $ARGV->{ROWS} || 1000,
+      MONTH          => "$Y-$M",
+      COLS_NAME      => 1
+    }
+  );
+
+  my %status_hash = (
+    10  => 'ÐÐµ Ð¾Ð±Ñ€Ð°Ð±Ð¾Ñ‚Ð°Ð½Ð°',
+    20  => 'ÐžÑ‚Ð¿Ñ€Ð°Ð²Ð»ÐµÐ½ Ð·Ð°Ð¿Ñ€Ð¾Ñ Ð¿Ñ€Ð¾Ð²Ð°Ð¹Ð´ÐµÑ€Ñƒ',
+    25  => 'ÐÐ²Ñ‚Ð¾Ñ€Ð¸Ð·ÑƒÐµÑ‚ÑÑ',
+    30  => 'ÐÐ²Ñ‚Ð¾Ñ€Ð¸Ð·Ð¾Ð²Ð°Ð½Ð°',
+    48  => 'ÐŸÑ€Ð¾Ñ…Ð¾Ð´Ð¸Ñ‚ Ñ„Ð¸Ð½Ð°Ð½ÑÐ¾Ð²Ñ‹Ð¹ ÐºÐ¾Ð½Ñ‚Ñ€Ð¾Ð»ÑŒ',
+    49  => 'ÐŸÑ€Ð¾Ñ…Ð¾Ð´Ð¸Ñ‚ Ñ„Ð¸Ð½Ð°Ð½ÑÐ¾Ð²Ñ‹Ð¹ ÐºÐ¾Ð½Ñ‚Ñ€Ð¾Ð»ÑŒ',
+    50  => 'ÐŸÑ€Ð¾Ð²Ð¾Ð´Ð¸Ñ‚ÑÑ',
+    51  => 'ÐŸÑ€Ð¾Ð²ÐµÐ´ÐµÐ½Ð° (51)',
+    58  => 'ÐŸÐµÑ€ÐµÐ¿Ñ€Ð¾Ð²Ð¾Ð´Ð¸Ñ‚ÑÑ',
+    59  => 'ÐŸÑ€Ð¸Ð½ÑÑ‚Ð° Ðº Ð¾Ð¿Ð»Ð°Ñ‚Ðµ',
+    60  => 'ÐŸÑ€Ð¾Ð²ÐµÐ´ÐµÐ½Ð°',
+    61  => 'ÐŸÑ€Ð¾Ð²ÐµÐ´ÐµÐ½Ð°',
+    125 => 'ÐÐµ ÑÐ¼Ð¾Ð³Ð»Ð¸ Ð¾Ñ‚Ð¿Ñ€Ð°Ð²Ð¸Ñ‚ÑŒ Ð¿Ñ€Ð¾Ð²Ð°Ð¹Ð´ÐµÑ€Ñƒ',
+    130 => 'ÐžÑ‚ÐºÐ°Ð· Ð¾Ñ‚ Ð¿Ñ€Ð¾Ð²Ð°Ð¹Ð´ÐµÑ€Ð°',
+    148 => 'ÐÐµ Ð¿Ñ€Ð¾ÑˆÐµÐ» Ñ„Ð¸Ð½. ÐºÐ¾Ð½Ñ‚Ñ€Ð¾Ð»ÑŒ',
+    149 => 'ÐÐµ Ð¿Ñ€Ð¾ÑˆÐµÐ» Ñ„Ð¸Ð½. ÐºÐ¾Ð½Ñ‚Ñ€Ð¾Ð»ÑŒ',
+    150 => 'ÐžÑˆÐ¸Ð±ÐºÐ° Ð°Ð²Ñ‚Ð¾Ñ€Ð¸Ð·Ð°Ñ†Ð¸Ð¸ (Ð½ÐµÐ²ÐµÑ€Ð½Ñ‹Ð¹ Ð»Ð¾Ð³Ð¸Ð½/Ð¿Ð°Ñ€Ð¾Ð»ÑŒ)',
+    160 => 'ÐÐµ Ð¿Ñ€Ð¾Ð²ÐµÐ´ÐµÐ½Ð°',
+    161 => 'ÐžÑ‚Ð¼ÐµÐ½ÐµÐ½ (Ð˜ÑÑ‚ÐµÐºÐ»Ð¾ Ð²Ñ€ÐµÐ¼Ñ)'
+  );
+
+  my @ids_arr = ();
   
-  $Paysys->{debug}=1 if ($debug > 6);
-  my ($Y, $M, $D)=split(/-/, $DATE, 3);
-  
-my $list = $Paysys->list( { %LIST_PARAMS, 
-	                          PAYMENT_SYSTEM => $payment_system_id, 
-	                          INFO           => '-',
-	                          PAGE_ROWS      => $ARGV->{ROWS} || 1000,
-	                          MONTH          => "$Y-$M"
-	                        } );	
+  foreach my $line (@$list) {
+    push @ids_arr, $line->{transaction_id};
+    if ($debug > 5) {
+      print "Unregrequest: $line->{transaction_id}\n";
+    }
+  }
 
-my %status_hash = (
-10 => 'Íå îáðàáîòàíà',
-20 => 'Îòïðàâëåí çàïðîñ ïðîâàéäåðó',
-25 => 'Àâòîðèçóåòñÿ',
-30 => 'Àâòîðèçîâàíà',
-48 => 'Ïðîõîäèò ôèíàíñîâûé êîíòðîëü',
-49 => 'Ïðîõîäèò ôèíàíñîâûé êîíòðîëü',
-50 => 'Ïðîâîäèòñÿ',
-51 => 'Ïðîâåäåíà (51)',
-58 => 'Ïåðåïðîâîäèòñÿ',
-59 => 'Ïðèíÿòà ê îïëàòå',
-60 => 'Ïðîâåäåíà',
-61 => 'Ïðîâåäåíà',
-125 => 'Íå ñìîãëè îòïðàâèòü ïðîâàéäåðó',
-130 => 'Îòêàç îò ïðîâàéäåðà',
-148 => 'Íå ïðîøåë ôèí. êîíòðîëü',
-149 => 'Íå ïðîøåë ôèí. êîíòðîëü',
-150 => 'Îøèáêà àâòîðèçàöèè (íåâåðíûé ëîãèí/ïàðîëü)',
-160 => 'Íå ïðîâåäåíà',
-161 => 'Îòìåíåí (Èñòåêëî âðåìÿ)'
-);
+  my $result = qiwi_status(
+    {
+      IDS   => \@ids_arr,
+      DEBUG => $debug
+    }
+  );
 
+  if ($result->{'result-code'}->[0]->{fatal} && $result->{'result-code'}->[0]->{fatal} eq 'true') {
+    print "Error: " . $result->{'result-code'}->[0]->{content} . ' ' . $status_hash{ $result->{'result-code'}->[0]->{content} } . "\n";
+    exit;
+  }
 
+  my %res_hash = ();
+  foreach my $id (keys %{ $result->{'bills-list'}->[0]->{bill} }) {
+    my $status = int($result->{'bills-list'}->[0]->{bill}->{$id}->{status});
+    if ($debug > 5) {
+      print "$id / " . $status . "\n";
+    }
+    $res_hash{$id} = $status;
+  }
 
-my @ids_arr = ();
-foreach my $line (@$list) {
-  push @ids_arr, $line->[5];
-  if ($debug > 5) {
-  	print "Unregrequest: $line->[5]\n";
-   }
-}
+  foreach my $line (@$list) {
+    print "$line->{id} LOGIN: $line->{login}:$line->{datetime} SUM: $line->{sum} PAYSYS: $line->{system_id} TRANSACTION_ID: $line->{transaction_id}  $line->{status} STATUS: $res_hash{$line->{transaction_id}}\n" if ($debug > 0);
+    if ($res_hash{ $line->{transaction_id} } == 50) {
 
-my $result = qiwi_status({ IDS   => \@ids_arr,
-	                         DEBUG => $debug });
+    }
+    elsif ($res_hash{ $line->{transaction_id} } == 60 || $res_hash{ $line->{transaction_id} } == 61 || $res_hash{ $line->{transaction_id} } == 51) {
+      my $user = $Users->info($line->{uid});
 
-
-if ($result->{'result-code'}->[0]->{fatal} && $result->{'result-code'}->[0]->{fatal} eq 'true') {
-	print "Error: ".  $result->{'result-code'}->[0]->{content} .
-	 ' '.  $status_hash{$result->{'result-code'}->[0]->{content}} ."\n";
-	exit;
-} 
-
-my %res_hash = ();
-foreach my $id ( keys %{ $result->{'bills-list'}->[0]->{bill} } ) {
-  if ($debug > 5) {
-         print "$id / ". $result->{'bills-list'}->[0]->{bill}->{$id}->{status} ."\n";
-   }
-
-	$res_hash{$id}=$result->{'bills-list'}->[0]->{bill}->{$id}->{status};
-}
-
-foreach my $line (@$list) {
-  print "$line->[1] LOGIN: $line->[8]:$line->[2] SUM: $line->[3] PAYSYS: $line->[4] PAYSYS_ID: $line->[5]  $line->[6] STATUS: $res_hash{$line->[5]}\n" if ($debug > 0);
-  if ($res_hash{$line->[5]} == 50) {
-  	
-   }
-  elsif ( $res_hash{$line->[5]} == 60 ||  $res_hash{$line->[5]} == 61 || $res_hash{$line->[5]} == 51) {
-  	 my $user = $Users->info($line->[8]);
-  	 
-  	 if ($Users->{TOTAL}<1) {
-  	 	 print "$line->[1] LOGIN: $line->[8] $line->[2] $line->[5] Not exists\n";
-  	 	 next;
-  	  }
-  	 elsif($Users->{errno}) {
-  	 	 print "$line->[1] LOGIN: $line->[8] $line->[2] $line->[5] [$Users->{error}] $Users->{errstr}\n";
-  	 	 next;
-  	  }
-  	 
-     $payments->add($user, {SUM         => $line->[3],
-    	                     DESCRIBE     => "$payment_system", 
-    	                     METHOD       => ($conf{PAYSYS_PAYMENTS_METHODS} && $PAYSYS_PAYMENTS_METHODS{$payment_system_id}) ? $payment_system_id : '2',  
-  	                       EXT_ID       => "$payment_system:$line->[5]",
-  	                       CHECK_EXT_ID => "$payment_system_id:$line->[5]" } );  
-
-     if($payments->{error}) {
-     	  print "Payments: $line->[1] LOGIN: $line->[8]:$line->[2] $line->[5] [$payments->{error}] $payments->{errstr}\n";
-     	  next;
+      if ($Users->{TOTAL} < 1) {
+        print "$line->{id} LOGIN: $line->{login} $line->{datetime} $line->{transaction_id} Not exists\n";
+        next;
+      }
+      elsif ($Users->{errno}) {
+        print "$line->{id} LOGIN: $line->{login} $line->{datetime} $line->{transaction_id} [$Users->{error}] $Users->{errstr}\n";
+        next;
       }
 
-     $Paysys->change({ ID        => $line->[0],
-     	                 PAYSYS_IP => $ENV{'REMOTE_ADDR'},
- 	                     INFO      => "$_DATE: $DATE $TIME $res_hash{$line->[5]} - $status_hash{$res_hash{$line->[5]}}",
- 	                     STATUS    => 2
-      	            });
-   }
-  elsif (in_array($res_hash{$line->[5]}, [ 160, 161 ])) {
-     $Paysys->change({ ID        => $line->[0],
-     	                 PAYSYS_IP => $ENV{'REMOTE_ADDR'},
- 	                     INFO      => "$_DATE: $DATE $TIME $res_hash{$line->[5]} - $status_hash{$res_hash{$line->[5]}}",
- 	                     STATUS    => 2
-      	            });
-   }
-}
-	
-	return 0;
+      $payments->add(
+        $user,
+        {
+          SUM          => $line->{sum},
+          DESCRIBE     => "$payment_system",
+          METHOD       => ($conf{PAYSYS_PAYMENTS_METHODS} && $PAYSYS_PAYMENTS_METHODS{$payment_system_id}) ? $payment_system_id : '2',
+          EXT_ID       => "$payment_system:$line->{transaction_id}",
+          CHECK_EXT_ID => "$payment_system_id:$line->{transaction_id}"
+        }
+      );
+
+      if ($payments->{error}) {
+        print "Payments: $line->{id} LOGIN: $line->{login}:$line->{datetime} $line->{transaction_id} [$payments->{error}] $payments->{errstr}\n";
+        next;
+      }
+
+      $Paysys->change(
+        {
+          ID        => $line->{id},
+          PAYSYS_IP => $ENV{'REMOTE_ADDR'},
+          INFO      => "DATE: $DATE $TIME $res_hash{$line->{transaction_id}} - $status_hash{$res_hash{$line->{transaction_id}}}",
+          STATUS    => 2
+        }
+      );
+    }
+    elsif (in_array($res_hash{ $line->{transaction_id} }, [ 160, 161 ])) {
+      $Paysys->change(
+        {
+          ID        => $line->{id},
+          PAYSYS_IP => $ENV{'REMOTE_ADDR'},
+          INFO      => "$_DATE: $DATE $TIME $res_hash{$line->{transaction_id}} - $status_hash{$res_hash{$line->{transaction_id}}}",
+          STATUS    => 2
+        }
+      );
+    }
+  }
+
+  return 0;
 }
 
 #**********************************************************
 #
 #**********************************************************
-sub	help {
-
-print << "[END]";	
+sub help {
+  print << "[END]";
   QIWI checker:
     DEBUG=... - debug mode
     ROWS=..   - Rows for analise
     help      - this help
 [END]
 
-}
-
-
-
-#**********************************************************
-# Calls function for all registration modules if function exist
-#
-# cross_modules_call(function_sufix, attr)
-#**********************************************************
-sub cross_modules_call  {
-  my ($function_sufix, $attr) = @_;
-  my %full_return  = ();
-
-eval {
-  my @skip_modules = ();
- 
-  if ($attr->{SKIP_MODULES}) {
-  	$attr->{SKIP_MODULES}=~s/\s+//g;
-  	@skip_modules=split(/,/, $attr->{SKIP_MODULES});
-   }
- 
-  foreach my $mod (@MODULES) {
-  	if (in_array($mod, \@skip_modules)) {
-  		next;
-  	 }
-    require "Abills/modules/$mod/webinterface";
-    my $function = lc($mod).$function_sufix;
-    my $return;
-    if (defined(&$function)) {
-     	$return = $function->($attr);
-     }
-    $full_return{$mod}=$return;
-   }
-};
-
-  return \%full_return;
-}
-
-
-
-#**********************************************************
-# load_module($string, \%HASH_REF);
-#**********************************************************
-sub load_module {
-	my ($module, $attr) = @_;
-
-	my $lang_file = '';
-  foreach my $prefix (@INC) {
-    my $realfilename = "$prefix/Abills/modules/$module/lng_$attr->{language}.pl";
-    if (-f $realfilename) {
-      $lang_file =  $realfilename;
-      last;
-     }
-    elsif (-f "$prefix/Abills/modules/$module/lng_english.pl") {
-    	$lang_file = "$prefix/Abills/modules/$module/lng_english.pl";
-     }
-   }
-
-  if ($lang_file ne '') {
-    require $lang_file;
-   }
-
- 	require "Abills/modules/$module/webinterface";
-
-	return 0;
 }
 1

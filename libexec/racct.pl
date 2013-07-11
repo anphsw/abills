@@ -3,11 +3,9 @@
 #
 
 use vars qw(%RAD %conf %ACCT
-$DATE $TIME
 %RAD_REQUEST %RAD_REPLY %RAD_CHECK
 $begin_time
-$access_deny
-$Log
+$rlm_perl
 );
 use strict;
 
@@ -20,8 +18,6 @@ Abills::Base->import(qw(check_time get_radius_params));
 my %acct_mod = ();
 
 require Abills::SQL;
-my $sql = Abills::SQL->connect($conf{dbtype}, "$conf{dbhost}", $conf{dbname}, $conf{dbuser}, $conf{dbpasswd});
-my $db = $sql->{db};
 
 require Acct;
 Acct->import();
@@ -86,30 +82,30 @@ my %ACCT_TERMINATE_CAUSES = (
 #####################################################################
 
 my $access_deny = sub {
-  my ($user, $message, $nas_num) = @_;
-  if (!$Log) {
-    $Log = Log->new($db, \%conf);
-    $Log->{ACTION} = 'ACCT';
-  }
+  my ($user, $message, $nas, $db) = @_;
+  my $Log = Log->new($db, \%conf);
+  $Log->{ACTION} = 'ACCT';
 
-  $Log->log_print('LOG_WARNING', $user, "$message", { ACTION => 'ACCT', NAS => { NAS_ID => $nas_num } });
+  $Log->log_print('LOG_WARNING', $user, "$message", { ACTION => 'ACCT', NAS => $nas });
   return 1;
 };
 
 # Files account section
 my $RAD;
-my $nas = undef;
-if (scalar(%RAD_REQUEST) < 1) {
+if (! $rlm_perl) {
   $RAD = get_radius_params();
+
+  my $sql = Abills::SQL->connect($conf{dbtype}, "$conf{dbhost}", $conf{dbname}, $conf{dbuser}, $conf{dbpasswd});
+  my $db  = $sql->{db};
 
   if (!defined($RAD->{NAS_IP_ADDRESS})) {
     $RAD->{USER_NAME} = '-' if (!defined($RAD->{USER_NAME}));
-    $access_deny->("$RAD->{USER_NAME}", "Not specified NAS server", 0);
+    $access_deny->("$RAD->{USER_NAME}", "Not specified NAS server", 0, $db);
     exit 1;
   }
   else {
     require Nas;
-    $nas = Nas->new($db, \%conf);
+    my $Nas = Nas->new($db, \%conf);
     my %NAS_PARAMS = ();
 
     if ($RAD->{NAS_IP_ADDRESS} eq '0.0.0.0') {
@@ -123,18 +119,20 @@ if (scalar(%RAD_REQUEST) < 1) {
       $NAS_PARAMS{NAS_IDENTIFIER} = $RAD->{NAS_IDENTIFIER};
     }
 
-    $nas->info({%NAS_PARAMS});
+    $Nas->info({%NAS_PARAMS});
 
     my $acct;
-    if ($nas->{errno} || $nas->{TOTAL} < 1) {
-      $access_deny->("$RAD->{USER_NAME}", "Unknow server '$RAD->{NAS_IP_ADDRESS}'", 0);
+    if ($Nas->{errno}) {
+      $access_deny->("$RAD->{USER_NAME}", "Unknow server '$RAD->{NAS_IP_ADDRESS}'", 0, $db);
     }
     else {
-      $acct = acct($db, $RAD, $nas);
+      $acct = acct($db, $RAD, $Nas);
     }
 
     if ($acct->{errno}) {
-      $Log->log_print('LOG_ERR', $RAD->{USER_NAME}, "$acct->{errstr}" . ((defined($acct->{sql_errstr})) ? " ($acct->{sql_errstr})" : ''));
+    	$access_deny->("$RAD->{USER_NAME}", "$acct->{errstr}". ((defined($acct->{sql_errstr})) ? " ($acct->{sql_errstr})" : ''), $Nas, $db);
+#      my $Log = Log->new($db, \%conf);
+#      $Log->log_print('LOG_ERR', $RAD->{USER_NAME}, "$acct->{errstr}" . ((defined($acct->{sql_errstr})) ? " ($acct->{sql_errstr})" : ''));
     }
   }
 }
@@ -146,7 +144,7 @@ sub acct {
   my ($db, $RAD, $nas) = @_;
   my $r = 0;
 
-  $Log = Log->new($db, \%conf);
+  my $Log = Log->new($db, \%conf);
   $Log->{ACTION} = 'ACCT';
 
   my $begin_time = check_time();
@@ -155,7 +153,7 @@ sub acct {
     && $USER_TYPES{ $RAD->{SERVICE_TYPE} }
     && ($USER_TYPES{ $RAD->{SERVICE_TYPE} } == 6 || $USER_TYPES{ $RAD->{SERVICE_TYPE} } == 7))
   {
-    $Log->log_print('LOG_DEBUG', "$RAD->{USER_NAME}", "$RAD->{SERVICE_TYPE}");
+    $Log->log_print('LOG_DEBUG', "$RAD->{USER_NAME}", "$RAD->{SERVICE_TYPE}", { ACTION => 'ACCT', NAS => $nas });
     return 0;
   }
 
@@ -342,7 +340,7 @@ sub acct {
 
           # ACCT_STATUS IP_ADDRESS NAS_PORT
           $res = `$conf{extern_acct_dir}/$file $acct_status_type $RAD->{NAS_IP_ADDRESS} $RAD->{NAS_PORT} $nas->{NAS_TYPE} $RAD->{USER_NAME} $RAD->{FRAMED_IP_ADDRESS}`;
-          $Log->log_print('LOG_DEBUG', $RAD->{USER_NAME}, "External accounting program '$conf{extern_acct_dir}' / '$file' pairs '$res'");
+          $Log->log_print('LOG_DEBUG', $RAD->{USER_NAME}, "External accounting program '$conf{extern_acct_dir}' / '$file' pairs '$res'", { ACTION => 'ACCT', NAS => $nas });
         }
       }
 
@@ -372,10 +370,8 @@ sub acct {
     $r = $acct_mod{"default"}->accounting($RAD, $nas);
   }
 
-  #my $aaaaaaa = `echo "// $r->{errno} //" >> /tmp/12211`;
-
   if ($r->{errno}) {
-    $access_deny->("$RAD->{USER_NAME}", "[$r->{errno}] $r->{errstr}", $nas->{NAS_ID});
+    $access_deny->("$RAD->{USER_NAME}", "[$r->{errno}] $r->{errstr}", $nas->{NAS_ID}, $db);
   }
 
   if ($conf{ACCT_DEBUG} && $begin_time > 0) {

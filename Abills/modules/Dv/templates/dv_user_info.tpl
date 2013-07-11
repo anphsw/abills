@@ -11,6 +11,7 @@
 <tr><td>CID:</td><td>%CID%</td></tr>
 <tr><td>$_STATUS:</td><td>%STATUS%</td></tr>
 <tr><td>$_ABON:</td><td>%ABON_DATE%</td></tr>
+<tr><td>$_EXPIRE:</td><td>%DV_EXPIRE%</td></tr>
 </table>
 
 </div>

@@ -1,0 +1,8 @@
+$_DEAR, %FIO%
+
+$_SMALL_DEPOSIT_FOR_NEXT_MONTH. 
+
+$_DEPOSIT: $user->{DEPOSIT} 
+$_CREDIT: $user->{CREDIT} 
+
+$_MONTH_FEE: $user->{TP_MONTH_FEE}

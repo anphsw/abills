@@ -22,4 +22,28 @@
 <TR class='odd'><TD><b>$_SUM:</b></TD><TD>%PAYMENT_SUM%</TD></TR>
 </TABLE>
 
+
+<div id='open_popup_block_middle' style='width:400px; height:200px'>
+  <a id='close_popup_window'>x</a>
+  <div id='popup_window_content'><br/>
+    <p>
+
+    <form action=$SELF_URL>
+    <input type=hidden name='index' value='$index'>
+    <input type=hidden name='sid' value='$sid'>
+    
+    <b>$_CHANGE $_CREDIT</b><BR>
+    $_SUM: %CREDIT_SUM%
+    <br>
+    <br>
+    $_PRICE: %CREDIT_CHG_PRICE%
+    <br>
+    <br>
+    $_ACCEPT: <input type=checkbox value='$user->{CREDIT_SUM}' name='change_credit'> <br>
+    </p>
+    <input type=submit value='$_SET' name='set'>
+    </form>
+  </div>
+</div>
+
 <br/>

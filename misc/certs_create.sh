@@ -11,14 +11,14 @@ CA_pl='/usr/src/crypto/openssl/apps/CA.pl';
 
 hostname=`hostname`;
 password=whatever;
-VERSION=1.88;
+VERSION=1.92;
 DAYS=730;
 DATE=`date`;
 CERT_TYPE=$1;
 CERT_USER="";
 OPENSSL=`which openssl`
 CERT_LENGTH=2048;
-
+OS=`uname`;
 
 if [ w$1 = whelp ]; then
   shift ;
@@ -44,7 +44,7 @@ if [ w$1 = w ] ; then
   echo " -PASSSWORD     - Password for Certs (Default: whatever)"
   echo " -HOSTNAME      - Hostname for Certs (default: system hostname)"
   echo " -UPLOAD        - Upload ssh certs to host via ssh (default: )"
-  echo " -UPLOAD_FTP    - Upload ssh certs to host via ftp"
+  echo " -UPLOAD_FTP    - Upload ssh certs to host via ftp (-UPLOAD_FTP user@host )"
   
 
   exit;
@@ -73,14 +73,17 @@ for _switch ; do
         -PASSWORD) password=$3
                 shift; shift
                 ;;
-        -HOSTNAME) hostname=$3
+        -HOSTNAME) HOSTNAME=$3
                 shift; shift
                 ;;
-        -UPLOAD) UPLOAD=y; HOST=$4
+        -UPLOAD) UPLOAD=y; HOSTNAME=$4
                 #shift; shift;
                 ;;
-        -UPLOAD_FTP) UPLOAD_FTP=y; UPLOAD=y; HOST=$4
+        -UPLOAD_FTP) UPLOAD_FTP=y; UPLOAD=y; HOSTNAME=$4
                 #shift; 
+                ;;
+        -SKIP_UPLOAD_CERT) SKIP_UPLOAD_CERT=1
+                shift;
                 ;;
         esac
 done
@@ -140,7 +143,6 @@ x509_cert () {
   fi;
 
   ${OPENSSL} x509 -inform pem -in ${EASYSOFT_PUBLIC_KEY} -pubkey -out ${CERT_PATH}/${SYSTEM_NAME}_public_key.pem > ${CERT_PATH}/${SYSTEM_NAME}_server_public.pem
-
 
   CERT_LENGTH=1024;
   # Private key
@@ -207,6 +209,11 @@ apache_cert () {
 #**********************************************************
 ssh_key () {
   USER=$1;
+  
+  if [ x${USER} = x ]; then
+    USER=abills_admin
+  fi;
+  
   echo "**************************************************************************"
   echo "Creating SSH authentication Key"
   echo " Make ssh-keygen with empty password."
@@ -214,7 +221,7 @@ ssh_key () {
   echo 
   echo User: ${USER}
 
-
+  SSH_PORT=22
 
   if [ w${CERT_TYPE} = w ]; then
     id_dsa_file=id_dsa;
@@ -226,7 +233,7 @@ ssh_key () {
   if [ -f ${CERT_PATH}${id_dsa_file} ]; then
      echo "Cert exists: ${CERT_PATH}${id_dsa_file}";
      if [ x${UPLOAD} = x ]; then
-       echo "Upload to remote host[Y/n]: "
+       echo -n "Upload to remote host via ssh [Y/n]: "
        read UPLOAD
      fi;
   fi;
@@ -237,32 +244,58 @@ ssh_key () {
 
     chown ${APACHE_USER} ${CERT_PATH}${id_dsa_file}
     chmod u=r,go= ${CERT_PATH}/${id_dsa_file}.pub
-    echo "Set Cert user: ${CERT_USER}";
 
-    echo -n "Upload file to remote host (y/n): "
+    echo "Set Cert user: ${CERT_USER}";
+    echo -n "Upload file to remote host via ssh [Y/n]: "
     read UPLOAD
   fi;
 
   if [ x${UPLOAD} = xy ]; then
-    if [ x${HOST} = x ]; then
+    if [ x${HOSTNAME} = x ]; then
       echo -n "Enter host: "
-      read HOST
+      read HOSTNAME
+      SSH_PORT=`echo ${HOSTNAME} | awk -F: '{ print $2 }'`
+      HOSTNAME=`echo ${HOSTNAME} | awk -F: '{ print $1 }'`
+      if [ x${SSH_PORT} = x ]; then
+        SSH_PORT=22;
+      fi;
     fi;
     
-    echo "Make upload to: ${USER}@${HOST} "
+    
 
     if [ x${UPLOAD_FTP} = xy ]; then
-      ftp ${USER}@${HOST}:  ${CERT_PATH}${id_dsa_file}.pub
+      FTP_PORT=21
+      echo "Make upload to: ${HOSTNAME}:${FTP_PORT}/${id_dsa_file}.pub ${CERT_PATH}${id_dsa_file}.pub"
+
+      CHECK_USER=`echo ${HOSTNAME} | grep @`;
+      if [ x${CHECK_USER} != x ]; then
+        USER=`echo ${HOSTNAME} | awk -F@ '{ print $1 }'`
+        HOSTNAME=`echo ${HOSTNAME} | awk -F@ '{ print $2 }'`
+      fi;
+
+      echo -n "Enter ftp password: "
+      read FTP_PASSWD
+
+      if [ x${OS} = xFreeBSD ] ; then
+         ftp -u ftp://${USER}:${FTP_PASSWD}@${HOSTNAME}:${FTP_PORT}/${id_dsa_file}.pub ${CERT_PATH}${id_dsa_file}.pub
+      else
+        (echo user ${USER} "${FTP_PASSWD}"; echo "cd /"; echo "ls"; echo "lcd ${CERT_PATH}";  echo "put ${id_dsa_file}.pub"; ) | ftp -ivn ${HOSTNAME}
+      fi;
+
+
+      HOSTNAME=`echo ${HOSTNAME} | awk -F@ '{print $2}'`;
+      exit;
     else 
-      ssh ${USER}@${HOST} "mkdir ~/.ssh"
-      scp ${CERT_PATH}${id_dsa_file}.pub ${USER}@${HOST}:~/.ssh/authorized_keys
+      echo "Making upload to: ${USER}@${HOSTNAME} "
+      ssh -p ${SSH_PORT} ${USER}@${HOSTNAME} "mkdir ~/.ssh"
+      scp -P ${SSH_PORT} ${CERT_PATH}${id_dsa_file}.pub ${USER}@${HOSTNAME}:~/.ssh/authorized_keys
     fi;
     
     
-    echo -n "Connect to remote host: ${HOST}  (y/n): "
+    echo -n "Connect to remote host: ${HOSTNAME} [y/n]: "
     read CONNECT
     if [ w${CONNECT} = wy ]; then
-      ssh -o StrictHostKeyChecking=no -i ${CERT_PATH}${id_dsa_file}  ${USER}@${HOST}
+      ssh -p ${SSH_PORT} -o StrictHostKeyChecking=no -i ${CERT_PATH}${id_dsa_file}  ${USER}@${HOSTNAME}
       exit;
     fi;
   else 
@@ -349,8 +382,29 @@ postfix_cert () {
   echo "Make POSTFIX TLS sertificats"
   echo "******************************************************************************"
 
-  ${OPENSSL} req -new -x509 -nodes -out smtpd.pem -keyout smtpd.pem -days ${DAYS} \
-    -passin pass:${password} -passout pass:${password}
+
+mkdir ${CERT_PATH}
+cd ${CERT_PATH}
+
+openssl genrsa -des3 -rand /etc/hosts -out smtpd.key 1024
+#вводим пароль для нашего файла-ключа smtpd.key
+
+chmod 600 smtpd.key
+openssl req -new -key smtpd.key -out smtpd.csr
+#снова вводим пароль от smtpd.key, а затем требуемую информацию
+
+openssl x509 -req -days 3650 -in smtpd.csr -signkey smtpd.key -out smtpd.crt
+#снова пароль от smtpd.key
+
+openssl rsa -in smtpd.key -out smtpd.key.unencrypted
+#и снова пароль от smtpd.key
+
+mv -f smtpd.key.unencrypted smtpd.key
+openssl req -new -x509 -extensions v3_ca -keyout cakey.pem -out cacert.pem -days 3650
+#угадайте что? да, пароль от smtpd.key, и снова доп. информацию
+
+#  ${OPENSSL} req -new -x509 -nodes -out smtpd.pem -keyout smtpd.pem -days ${DAYS} \
+#    -passin pass:${password} -passout pass:${password}
 }
 
 #**********************************************************
@@ -522,7 +576,7 @@ case ${CERT_TYPE} in
         info)
               cert_info $2;
                 ;;
-        postfix)
+        postfix_tls)
               postfix_cert;
                 ;;
         easysoft)

@@ -10,8 +10,11 @@
 не оплативших 2 и более месяцев - <a href=\"$SELF_URL?SHOW_REPORT=total_debtors\">%REPORT_DEBETORS2%</a> </li>
 </ul>
 <form action=\"$SELF_URL\" method=\"get\" name=\"search_form\" >
-<input type=hidden name=index value=11>
+<input type=hidden name=index value=15>
+<input type=hidden name='STATUS' value=1>
+
 <button name='SEARCH' value=1>$_USERS</button>
+
 <br />
 <ul id=\"buttons\">
   <li>
@@ -21,16 +24,20 @@
 <button name=del value=1>$_DEL</button>
   </li>
   <li>
-<button name=STATUS value=1>$_DISABLE</button>
+<button name=change value=1>$_BLOCK</button>
   </li>
+  <li>
+<button name=change value=2>$_UNBLOCK</button>
+  </li>
+  
 </ul>
 <div id=\"search\">
 <button type=\"submit\" name=\"SEARCH\" value=1>$_SEARCH</button>
 <input type=\"text\" name=\"QUERY\" value=\"\"/>
 <select name=\"TYPE\">
-  <option value=\"login\">$_LOGIN</option>
   <option value=\"address\">$_ADDRESS</option>
-  
+  <option value=\"login\">$_LOGIN</option>
+  <option value=\"fio\">$_FIO</option>
   <option value=\"contract_id\">$_CONTRACT_ID</option>
   <option value=\"phone\">$_PHONE</option>
   <option value=\"ip\">IP</option>

@@ -1,4 +1,5 @@
-<tr><td>$_ORDER:</td><td>%SEL_ORDER%</td></tr>
+<tr><td>$_ORDER $_DESCRIBE:</td><td>%SEL_ORDER%</td></tr>
+<tr><td>&nbsp;</td><td><input type=text name=ORDER2 value='%ORDER2%' size=40></td></tr>
 <tr><td>$_SUM:</td><td><input type=text name=SUM value='%SUM%'></td></tr>
 
 

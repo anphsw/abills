@@ -4,8 +4,9 @@
 ACTION=$1
 NAS_IP=$2
 PORT_ID=$3
-NAS_LOGIN=$3
-NAS_PASSWORD=$3
+TP_ID=$4
+NAS_LOGIN=$5
+NAS_PASSWORD=$6
 
 PATH_LOG="/usr/abills/var/log/iptv"
 PATH_CONF="/usr/abills/var/log/iptv/lock"
@@ -20,7 +21,7 @@ VERSION=0.01
 
 if [ "${ACTION}" = "" ] ; then
   echo "Arguments not specified ";
-  echo "$0 [up/down] [nas_ip] [port_id] [nas_login] [nas_password]";
+  echo "$0 [up/down] [nas_ip] [port_id] [tp_id] [nas_login] [nas_password]";
   exit;
 fi;
 
@@ -54,13 +55,13 @@ echo $TIMESTAMP > $PATH_CONF/lock/lock_${NAS_IP}_e${PORT_ID}
 while [ $RETRY -gt 0 ]; do
 	#init ssh session and writing output to file
 	echo "---------------------------------------------" > $PATH_LOG/$TODAY/$FILE
-	echo "`date "+%Y-%m-%d %H:%M:%S"` Parameters: ${NAS_IP} ${PORT_ID}" >> $PATH_LOG/$TODAY/$FILE
+	echo "`date "+%Y-%m-%d %H:%M:%S"` Parameters: ${NAS_IP} ${PORT_ID} ${TP_ID} ${NAS_LOGIN} ${NAS_PASSWORD}" >> $PATH_LOG/$TODAY/$FILE
 	echo "---------------------------------------------" >> $PATH_LOG/$TODAY/$FILE
 	
 	if [ x${ACTION} = xup ]; then
-	  ${PROGRAMS_PATH}/enable "${NAS_IP}" "${PORT_ID}" "${NAS_LOGIN}" "${NAS_PASSWORD}">> $PATH_LOG/$TODAY/$FILE
+	  ${PROGRAMS_PATH}/enable "${NAS_IP}" "${PORT_ID}" "${TP_ID}" "${NAS_LOGIN}" "${NAS_PASSWORD}">> $PATH_LOG/$TODAY/$FILE
 	else
-	  ${PROGRAMS_PATH}/disable "${NAS_IP}" "${PORT_ID}" "${NAS_LOGIN}" "${NAS_PASSWORD}" >> $PATH_LOG/$TODAY/$FILE
+	  ${PROGRAMS_PATH}/disable "${NAS_IP}" "${PORT_ID}" "${TP_ID}" "${NAS_LOGIN}" "${NAS_PASSWORD}" >> $PATH_LOG/$TODAY/$FILE
 	fi;
 
 	#parsing logfile

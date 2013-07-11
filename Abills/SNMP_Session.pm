@@ -40,16 +40,16 @@
 ### Gerry Dalton <gerry.dalton@consolidated.com>: strict subs bug
 ######################################################################
 
-package SNMP_Session;		
+package SNMP_Session;    
 
 require 5.002;
 
 use strict;
 use Exporter;
 use vars qw(@ISA $VERSION @EXPORT $errmsg
-	    $suppress_warnings
-	    $default_avoid_negative_request_ids
-	    $default_use_16bit_request_ids);
+      $suppress_warnings
+      $default_avoid_negative_request_ids
+      $default_use_16bit_request_ids);
 use Socket;
 use BER '1.05';
 use Carp;
@@ -136,10 +136,10 @@ BEGIN {
     $SNMP_Session::ipv6available = 0;
 
     if (eval {require Socket6;} &&
-	eval {require IO::Socket::INET6; IO::Socket::INET6->VERSION("1.26");}) {
+  eval {require IO::Socket::INET6; IO::Socket::INET6->VERSION("1.26") < 2.00;}) {
         Socket6->import(qw(inet_pton getaddrinfo pack_sockaddr_in6));
-	$ipv6_addr_len = length(pack_sockaddr_in6(161, inet_pton(AF_INET6(), "::1")));
-	$SNMP_Session::ipv6available = 1;
+  $ipv6_addr_len = length(pack_sockaddr_in6(161, inet_pton(AF_INET6(), "::1")));
+  $SNMP_Session::ipv6available = 1;
     }
 }
 
@@ -175,13 +175,13 @@ sub set_timeout {
 sub set_retries {
     my ($session, $retries) = @_;
     croak ("retries ($retries) must be a non-negative integer")
-	unless $retries == int ($retries) && $retries >= 0;
+  unless $retries == int ($retries) && $retries >= 0;
     $session->{'retries'} = $retries; 
 }
 sub set_backoff {
     my ($session, $backoff) = @_;
     croak ("backoff ($backoff) must be a number >= 1.0")
-	unless $backoff == int ($backoff) && $backoff >= 1.0;
+  unless $backoff == int ($backoff) && $backoff >= 1.0;
     $session->{'backoff'} = $backoff; 
 }
 
@@ -191,27 +191,27 @@ sub encode_request_3 ($$$@) {
     local($_);
 
     $this->{request_id} = ($this->{request_id} == 0x7fffffff)
-	? -0x80000000 : $this->{request_id}+1;
+  ? -0x80000000 : $this->{request_id}+1;
     $this->{request_id} += 0x80000000
-	if ($this->{avoid_negative_request_ids} && $this->{request_id} < 0);
+  if ($this->{avoid_negative_request_ids} && $this->{request_id} < 0);
     $this->{request_id} &= 0x0000ffff
-	if ($this->{use_16bit_request_ids});
+  if ($this->{use_16bit_request_ids});
     foreach $_ (@{$encoded_oids_or_pairs}) {
       if (ref ($_) eq 'ARRAY') {
-	$_ = &encode_sequence ($_->[0], $_->[1])
-	  || return $this->ber_error ("encoding pair");
+  $_ = &encode_sequence ($_->[0], $_->[1])
+    || return $this->ber_error ("encoding pair");
       } else {
-	$_ = &encode_sequence ($_, encode_null())
-	  || return $this->ber_error ("encoding value/null pair");
+  $_ = &encode_sequence ($_, encode_null())
+    || return $this->ber_error ("encoding value/null pair");
       }
     }
     $request = encode_tagged_sequence
-	($reqtype,
-	 encode_int ($this->{request_id}),
-	 defined $i1 ? encode_int ($i1) : encode_int_0 (),
-	 defined $i2 ? encode_int ($i2) : encode_int_0 (),
-	 encode_sequence (@{$encoded_oids_or_pairs}))
-	  || return $this->ber_error ("encoding request PDU");
+  ($reqtype,
+   encode_int ($this->{request_id}),
+   defined $i1 ? encode_int ($i1) : encode_int_0 (),
+   defined $i2 ? encode_int ($i2) : encode_int_0 (),
+   encode_sequence (@{$encoded_oids_or_pairs}))
+    || return $this->ber_error ("encoding request PDU");
     return $this->wrap_request ($request);
 }
 
@@ -228,7 +228,7 @@ sub encode_getnext_request {
 sub encode_getbulk_request {
     my($this, $non_repeaters, $max_repetitions, @oids) = @_;
     return encode_request_3 ($this, getbulk_request, \@oids,
-			     $non_repeaters, $max_repetitions);
+           $non_repeaters, $max_repetitions);
 }
 
 sub encode_set_request {
@@ -243,16 +243,16 @@ sub encode_trap_request ($$$$$$@) {
 
     foreach $_ (@pairs) {
       if (ref ($_) eq 'ARRAY') {
-	$_ = &encode_sequence ($_->[0], $_->[1])
-	  || return $this->ber_error ("encoding pair");
+  $_ = &encode_sequence ($_->[0], $_->[1])
+    || return $this->ber_error ("encoding pair");
       } else {
-	$_ = &encode_sequence ($_, encode_null())
-	  || return $this->ber_error ("encoding value/null pair");
+  $_ = &encode_sequence ($_, encode_null())
+    || return $this->ber_error ("encoding value/null pair");
       }
     }
     $request = encode_tagged_sequence
-	(trap_request, $ent, $agent, $gen, $spec, $dt, encode_sequence (@pairs))
-	  || return $this->ber_error ("encoding trap PDU");
+  (trap_request, $ent, $agent, $gen, $spec, $dt, encode_sequence (@pairs))
+    || return $this->ber_error ("encoding trap PDU");
     return $this->wrap_request ($request);
 }
 
@@ -271,31 +271,31 @@ sub decode_get_response {
 sub decode_trap_request ($$) {
     my ($this, $trap) = @_;
     my ($snmp_version, $community, $ent, $agent, $gen, $spec, $dt,
-	$request_id, $error_status, $error_index,
-	$bindings);
+  $request_id, $error_status, $error_index,
+  $bindings);
     ($snmp_version, $community,
      $ent, $agent,
      $gen, $spec, $dt,
      $bindings)
-	= decode_by_template ($trap, "%{%i%s%*{%O%A%i%i%u%{%@",
-			    trap_request);
+  = decode_by_template ($trap, "%{%i%s%*{%O%A%i%i%u%{%@",
+          trap_request);
     if (!defined $snmp_version) {
-	($snmp_version, $community,
-	 $request_id, $error_status, $error_index,
-	 $bindings)
-	    = decode_by_template ($trap, "%{%i%s%*{%i%i%i%{%@",
-				  trap2_request);
-	if (!defined $snmp_version) {
-	    ($snmp_version, $community,$request_id, $error_status, $error_index, $bindings)
-		= decode_by_template ($trap, "%{%i%s%*{%i%i%i%{%@", inform_request);
-	}
-	return $this->error_return ("v2 trap/inform request contained errorStatus/errorIndex "
-				    .$error_status."/".$error_index)
-	    if defined $error_status && defined $error_index
-	    && ($error_status != 0 || $error_index != 0);
+  ($snmp_version, $community,
+   $request_id, $error_status, $error_index,
+   $bindings)
+      = decode_by_template ($trap, "%{%i%s%*{%i%i%i%{%@",
+          trap2_request);
+  if (!defined $snmp_version) {
+      ($snmp_version, $community,$request_id, $error_status, $error_index, $bindings)
+    = decode_by_template ($trap, "%{%i%s%*{%i%i%i%{%@", inform_request);
+  }
+  return $this->error_return ("v2 trap/inform request contained errorStatus/errorIndex "
+            .$error_status."/".$error_index)
+      if defined $error_status && defined $error_index
+      && ($error_status != 0 || $error_index != 0);
     }
     if (!defined $snmp_version) {
-	return $this->error_return ("BER error decoding trap:\n  ".$BER::errmsg);
+  return $this->error_return ("BER error decoding trap:\n  ".$BER::errmsg);
     }
     return ($community, $ent, $agent, $gen, $spec, $dt, $bindings);
 }
@@ -312,26 +312,26 @@ sub wait_for_response {
 sub get_request_response ($@) {
     my($this, @oids) = @_;
     return $this->request_response_5 ($this->encode_get_request (@oids),
-				      get_response, \@oids, 1);
+              get_response, \@oids, 1);
 }
 
 sub set_request_response ($@) {
     my($this, @pairs) = @_;
     return $this->request_response_5 ($this->encode_set_request (@pairs),
-				      get_response, \@pairs, 1);
+              get_response, \@pairs, 1);
 }
 
 sub getnext_request_response ($@) {
     my($this,@oids) = @_;
     return $this->request_response_5 ($this->encode_getnext_request (@oids),
-				      get_response, \@oids, 1);
+              get_response, \@oids, 1);
 }
 
 sub getbulk_request_response ($$$@) {
     my($this,$non_repeaters,$max_repetitions,@oids) = @_;
     return $this->request_response_5
-	($this->encode_getbulk_request ($non_repeaters,$max_repetitions,@oids),
-	 get_response, \@oids, 1);
+  ($this->encode_getbulk_request ($non_repeaters,$max_repetitions,@oids),
+   get_response, \@oids, 1);
 }
 
 sub trap_request_send ($$$$$$@) {
@@ -342,7 +342,7 @@ sub trap_request_send ($$$$$$@) {
     ## Encoding may have returned an error.
     return undef unless defined $req;
     $this->send_query($req)
-	|| return $this->error ("send_trap: $!");
+  || return $this->error ("send_trap: $!");
     return 1;
 }
 
@@ -353,14 +353,14 @@ sub v2_trap_request_send ($$$@) {
     my($req);
 
     unshift @pairs, [encode_oid (@snmpTrapOID_OID,0),
-		     encode_oid (@{$trap_oid})];
+         encode_oid (@{$trap_oid})];
     unshift @pairs, [encode_oid (@sysUptime_OID,0),
-		     encode_timeticks ($dt)];
+         encode_timeticks ($dt)];
     $req = $this->encode_v2_trap_request (@pairs);
     ## Encoding may have returned an error.
     return undef unless defined $req;
     $this->send_query($req)
-	|| return $this->error ("send_trap: $!");
+  || return $this->error ("send_trap: $!");
     return 1;
 }
 
@@ -375,50 +375,50 @@ sub request_response_5 ($$$$$) {
 
     $timeleft = $timeout;
     while ($retries > 0) {
-	$this->send_query ($req)
-	    || return $this->error ("send_query: $!");
-	# IlvJa
-	# Add request pdu to capture_buffer
-	push @{$this->{'capture_buffer'}}, $req
-	    if (defined $this->{'capture_buffer'}
-		and ref $this->{'capture_buffer'} eq 'ARRAY');
-	#
+  $this->send_query ($req)
+      || return $this->error ("send_query: $!");
+  # IlvJa
+  # Add request pdu to capture_buffer
+  push @{$this->{'capture_buffer'}}, $req
+      if (defined $this->{'capture_buffer'}
+    and ref $this->{'capture_buffer'} eq 'ARRAY');
+  #
       wait_for_response:
-	($nfound, $timeleft) = $this->wait_for_response($timeleft);
-	if ($nfound > 0) {
-	    my($response_length);
+  ($nfound, $timeleft) = $this->wait_for_response($timeleft);
+  if ($nfound > 0) {
+      my($response_length);
 
-	    $response_length
-		= $this->receive_response_3 ($response_tag, $oids, $errorp);
-	    if ($response_length) {
-		# IlvJa
-		# Add response pdu to capture_buffer
-		push (@{$this->{'capture_buffer'}},
-		      substr($this->{'pdu_buffer'}, 0, $response_length)
-		      )
-		      if (defined $this->{'capture_buffer'}
-			  and ref $this->{'capture_buffer'} eq 'ARRAY');
-		#
-		return $response_length;
-	    } elsif (defined ($response_length)) {
-		goto wait_for_response;
-		# A response has been received, but for a different
-		# request ID or from a different IP address.
-	    } else {
-		return undef;
-	    }
-	} else {
-	    ## No response received - retry
-	    --$retries;
-	    $timeout *= $this->backoff;
-	    $timeleft = $timeout;
-	}
+      $response_length
+    = $this->receive_response_3 ($response_tag, $oids, $errorp);
+      if ($response_length) {
+    # IlvJa
+    # Add response pdu to capture_buffer
+    push (@{$this->{'capture_buffer'}},
+          substr($this->{'pdu_buffer'}, 0, $response_length)
+          )
+          if (defined $this->{'capture_buffer'}
+        and ref $this->{'capture_buffer'} eq 'ARRAY');
+    #
+    return $response_length;
+      } elsif (defined ($response_length)) {
+    goto wait_for_response;
+    # A response has been received, but for a different
+    # request ID or from a different IP address.
+      } else {
+    return undef;
+      }
+  } else {
+      ## No response received - retry
+      --$retries;
+      $timeout *= $this->backoff;
+      $timeleft = $timeout;
+  }
     }
     # IlvJa
     # Add empty packet to capture_buffer
     push @{$this->{'capture_buffer'}}, "" 
-	if (defined $this->{'capture_buffer'}
-	    and ref $this->{'capture_buffer'} eq 'ARRAY');
+  if (defined $this->{'capture_buffer'}
+      and ref $this->{'capture_buffer'} eq 'ARRAY');
     #
     $this->error ("no response received");
 }
@@ -426,14 +426,14 @@ sub request_response_5 ($$$$$) {
 sub map_table ($$$) {
     my ($session, $columns, $mapfn) = @_;
     return $session->map_table_4 ($columns, $mapfn,
-				  $session->default_max_repetitions ());
+          $session->default_max_repetitions ());
 }
 
 sub map_table_4 ($$$$) {
     my ($session, $columns, $mapfn, $max_repetitions) = @_;
     return $session->map_table_start_end ($columns, $mapfn,
-					  "", undef,
-					  $max_repetitions);
+            "", undef,
+            $max_repetitions);
 }
 
 sub map_table_start_end ($$$$$$) {
@@ -444,48 +444,48 @@ sub map_table_start_end ($$$$$$) {
     my $base_index = $start;
 
     do {
-	foreach (@encoded_oids = @{$columns}) {
-	    $_=encode_oid (@{$_},split '\.',$base_index)
-		|| return $session->ber_error ("encoding OID $base_index");
-	}
-	if ($session->getnext_request_response (@encoded_oids)) {
-	    my $response = $session->pdu_buffer;
-	    my ($bindings) = $session->decode_get_response ($response);
-	    my $smallest_index = undef;
-	    my @collected_values = ();
+  foreach (@encoded_oids = @{$columns}) {
+      $_=encode_oid (@{$_},split '\.',$base_index)
+    || return $session->ber_error ("encoding OID $base_index");
+  }
+  if ($session->getnext_request_response (@encoded_oids)) {
+      my $response = $session->pdu_buffer;
+      my ($bindings) = $session->decode_get_response ($response);
+      my $smallest_index = undef;
+      my @collected_values = ();
 
-	    my @bases = @{$columns};
-	    while ($bindings ne '') {
-		my ($binding, $oid, $value);
-		my $base = shift @bases;
-		($binding, $bindings) = decode_sequence ($bindings);
-		($oid, $value) = decode_by_template ($binding, "%O%@");
+      my @bases = @{$columns};
+      while ($bindings ne '') {
+    my ($binding, $oid, $value);
+    my $base = shift @bases;
+    ($binding, $bindings) = decode_sequence ($bindings);
+    ($oid, $value) = decode_by_template ($binding, "%O%@");
 
-		my $out_index;
+    my $out_index;
 
-		$out_index = &oid_diff ($base, $oid);
-		my $cmp;
-		if (!defined $smallest_index
-		    || ($cmp = index_compare ($out_index,$smallest_index)) == -1) {
-		    $smallest_index = $out_index;
-		    grep ($_=undef, @collected_values);
-		    push @collected_values, $value;
-		} elsif ($cmp == 1) {
-		    push @collected_values, undef;
-		} else {
-		    push @collected_values, $value;
-		}
-	    }
-	    (++$call_counter,
-	     &$mapfn ($smallest_index, @collected_values))
-		if defined $smallest_index;
-	    $base_index = $smallest_index;
-	} else {
-	    return undef;
-	}
+    $out_index = &oid_diff ($base, $oid);
+    my $cmp;
+    if (!defined $smallest_index
+        || ($cmp = index_compare ($out_index,$smallest_index)) == -1) {
+        $smallest_index = $out_index;
+        grep ($_=undef, @collected_values);
+        push @collected_values, $value;
+    } elsif ($cmp == 1) {
+        push @collected_values, undef;
+    } else {
+        push @collected_values, $value;
+    }
+      }
+      (++$call_counter,
+       &$mapfn ($smallest_index, @collected_values))
+    if defined $smallest_index;
+      $base_index = $smallest_index;
+  } else {
+      return undef;
+  }
     }
     while (defined $base_index
-	   && (!defined $end || index_compare ($base_index, $end) < 0));
+     && (!defined $end || index_compare ($base_index, $end) < 0));
     $call_counter;
 }
 
@@ -535,11 +535,11 @@ sub pretty_address {
     # complaining about AF_INET6 when Socket6 is not available
 
     if( (defined $ipv6_addr_len) && (length $addr == $ipv6_addr_len)) {
-	($port,$addrunpack) = unpack_sockaddr_in6 ($addr);
-	$addrstr = inet_ntop (AF_INET6(), $addrunpack);
+  ($port,$addrunpack) = unpack_sockaddr_in6 ($addr);
+  $addrstr = inet_ntop (AF_INET6(), $addrunpack);
     } else {
-	($port,$addrunpack) = unpack_sockaddr_in ($addr);
-	$addrstr = inet_ntoa ($addrunpack);
+  ($port,$addrunpack) = unpack_sockaddr_in ($addr);
+  $addrstr = inet_ntoa ($addrunpack);
     }
 
     return sprintf ("[%s].%d", $addrstr, $port);
@@ -552,8 +552,8 @@ sub error_return ($$) {
     my ($this,$message) = @_;
     $SNMP_Session::errmsg = $message;
     unless ($SNMP_Session::suppress_warnings) {
-	$message =~ s/^/  /mg;
-	carp ("Error:\n".$message."\n");
+  $message =~ s/^/  /mg;
+  carp ("Error:\n".$message."\n");
     }
     return undef;
 }
@@ -563,9 +563,9 @@ sub error ($$) {
     my $session = $this->to_string;
     $SNMP_Session::errmsg = $message."\n".$session;
     unless ($SNMP_Session::suppress_warnings) {
-	$session =~ s/^/  /mg;
-	$message =~ s/^/  /mg;
-	carp ("SNMP Error:\n".$SNMP_Session::errmsg."\n");
+  $session =~ s/^/  /mg;
+  $message =~ s/^/  /mg;
+  carp ("SNMP Error:\n".$SNMP_Session::errmsg."\n");
     }
     return undef;
 }
@@ -580,7 +580,7 @@ sub ber_error ($$) {
 
 package SNMPv1_Session;
 
-use strict qw(vars subs);	# see above
+use strict qw(vars subs);  # see above
 use vars qw(@ISA);
 use SNMP_Session;
 use Socket;
@@ -590,7 +590,7 @@ use Carp;
 
 BEGIN {
     if($SNMP_Session::ipv6available) {
-	import IO::Socket::INET6;
+  import IO::Socket::INET6;
         Socket6->import(qw(inet_pton getaddrinfo));
     }
 }
@@ -615,86 +615,86 @@ sub open {
     $port = SNMP_Session::standard_udp_port unless defined $port;
     $max_pdu_len = 8000 unless defined $max_pdu_len;
     $max_repetitions = $default_max_repetitions
-	unless defined $max_repetitions;
+  unless defined $max_repetitions;
 
     if ($ipv4only || ! $SNMP_Session::ipv6available) {
-	# IPv4-only code, uses only Socket and INET calls
+  # IPv4-only code, uses only Socket and INET calls
     if (defined $remote_hostname) {
-	$remote_addr = inet_aton ($remote_hostname)
-	    or return $this->error_return ("can't resolve \"$remote_hostname\" to IP address");
+  $remote_addr = inet_aton ($remote_hostname)
+      or return $this->error_return ("can't resolve \"$remote_hostname\" to IP address");
     }
     if ($SNMP_Session::recycle_socket && defined $the_socket) {
-	$socket = $the_socket;
+  $socket = $the_socket;
     } else {
-	$socket = IO::Socket::INET->new(Proto => 17,
-					Type => SOCK_DGRAM,
-					LocalAddr => $local_hostname,
-					LocalPort => $local_port)
-	    || return $this->error_return ("creating socket: $!");
-	$the_socket = $socket
-	    if $SNMP_Session::recycle_socket;
+  $socket = IO::Socket::INET->new(Proto => 17,
+          Type => SOCK_DGRAM,
+          LocalAddr => $local_hostname,
+          LocalPort => $local_port)
+      || return $this->error_return ("creating socket: $!");
+  $the_socket = $socket
+      if $SNMP_Session::recycle_socket;
     }
     $remote_addr = pack_sockaddr_in ($port, $remote_addr)
-	if defined $remote_addr;
+  if defined $remote_addr;
     } else {
-	# IPv6-capable code. Will use IPv6 or IPv4 depending on the address.
-	# Uses Socket6 and INET6 calls.
+  # IPv6-capable code. Will use IPv6 or IPv4 depending on the address.
+  # Uses Socket6 and INET6 calls.
 
-	# If it's a numeric IPv6 addresses, remove square brackets
-	if ($remote_hostname =~ /^\[(.*)\]$/) {
-	    $remote_hostname = $1;
-	}
+  # If it's a numeric IPv6 addresses, remove square brackets
+  if ($remote_hostname =~ /^\[(.*)\]$/) {
+      $remote_hostname = $1;
+  }
 
-	my (@res, $socktype_tmp, $proto_tmp, $canonname_tmp);
-	@res = getaddrinfo($remote_hostname, $port, AF_UNSPEC, SOCK_DGRAM);
-	($sockfamily, $socktype_tmp, $proto_tmp, $remote_addr, $canonname_tmp) = @res;
-	if (scalar(@res) < 5) {
-	    return $this->error_return ("can't resolve \"$remote_hostname\" to IPv6 address");
-	}
+  my (@res, $socktype_tmp, $proto_tmp, $canonname_tmp);
+  @res = getaddrinfo($remote_hostname, $port, AF_UNSPEC, SOCK_DGRAM);
+  ($sockfamily, $socktype_tmp, $proto_tmp, $remote_addr, $canonname_tmp) = @res;
+  if (scalar(@res) < 5) {
+      return $this->error_return ("can't resolve \"$remote_hostname\" to IPv6 address");
+  }
 
-	if ($SNMP_Session::recycle_socket && defined $the_socket) {
-	    $socket = $the_socket;
-	} elsif ($sockfamily == AF_INET) {
-	    $socket = IO::Socket::INET->new(Proto => 17,
-					    Type => SOCK_DGRAM,
-					    LocalAddr => $local_hostname,
-					    LocalPort => $local_port)
-	         || return $this->error_return ("creating socket: $!");
-	} else {
-	    $socket = IO::Socket::INET6->new(Proto => 17,
-					     Type => SOCK_DGRAM,
-					     LocalAddr => $local_hostname,
-					     LocalPort => $local_port)
-	         || return $this->error_return ("creating socket: $!");
-	    $the_socket = $socket
-	        if $SNMP_Session::recycle_socket;
-	}
+  if ($SNMP_Session::recycle_socket && defined $the_socket) {
+      $socket = $the_socket;
+  } elsif ($sockfamily == AF_INET) {
+      $socket = IO::Socket::INET->new(Proto => 17,
+              Type => SOCK_DGRAM,
+              LocalAddr => $local_hostname,
+              LocalPort => $local_port)
+           || return $this->error_return ("creating socket: $!");
+  } else {
+      $socket = IO::Socket::INET6->new(Proto => 17,
+               Type => SOCK_DGRAM,
+               LocalAddr => $local_hostname,
+               LocalPort => $local_port)
+           || return $this->error_return ("creating socket: $!");
+      $the_socket = $socket
+          if $SNMP_Session::recycle_socket;
+  }
     }
     bless {
-	   'sock' => $socket,
-	   'sockfileno' => fileno ($socket),
-	   'community' => $community,
-	   'remote_hostname' => $remote_hostname,
-	   'remote_addr' => $remote_addr,
-	   'sockfamily' => $sockfamily,
-	   'max_pdu_len' => $max_pdu_len,
-	   'pdu_buffer' => '\0' x $max_pdu_len,
-	   'request_id' => (int (rand 0x10000) << 16)
-	       + int (rand 0x10000) - 0x80000000,
-	   'timeout' => $default_timeout,
-	   'retries' => $default_retries,
-	   'backoff' => $default_backoff,
-	   'debug' => $default_debug,
-	   'error_status' => 0,
-	   'error_index' => 0,
-	   'default_max_repetitions' => $max_repetitions,
-	   'use_getbulk' => 1,
-	   'lenient_source_address_matching' => 1,
-	   'lenient_source_port_matching' => 1,
-	   'avoid_negative_request_ids' => $SNMP_Session::default_avoid_negative_request_ids,
-	   'use_16bit_request_ids' => $SNMP_Session::default_use_16bit_request_ids,
-	   'capture_buffer' => undef,
-	  };
+     'sock' => $socket,
+     'sockfileno' => fileno ($socket),
+     'community' => $community,
+     'remote_hostname' => $remote_hostname,
+     'remote_addr' => $remote_addr,
+     'sockfamily' => $sockfamily,
+     'max_pdu_len' => $max_pdu_len,
+     'pdu_buffer' => '\0' x $max_pdu_len,
+     'request_id' => (int (rand 0x10000) << 16)
+         + int (rand 0x10000) - 0x80000000,
+     'timeout' => $default_timeout,
+     'retries' => $default_retries,
+     'backoff' => $default_backoff,
+     'debug' => $default_debug,
+     'error_status' => 0,
+     'error_index' => 0,
+     'default_max_repetitions' => $max_repetitions,
+     'use_getbulk' => 1,
+     'lenient_source_address_matching' => 1,
+     'lenient_source_port_matching' => 1,
+     'avoid_negative_request_ids' => $SNMP_Session::default_avoid_negative_request_ids,
+     'use_16bit_request_ids' => $SNMP_Session::default_use_16bit_request_ids,
+     'capture_buffer' => undef,
+    };
 }
 
 sub open_trap_session (@) {
@@ -710,8 +710,8 @@ sub pdu_buffer { $_[0]->{pdu_buffer} }
 sub max_pdu_len { $_[0]->{max_pdu_len} }
 sub default_max_repetitions {
     defined $_[1]
-	? $_[0]->{default_max_repetitions} = $_[1]
-	    : $_[0]->{default_max_repetitions} }
+  ? $_[0]->{default_max_repetitions} = $_[1]
+      : $_[0]->{default_max_repetitions} }
 sub debug { defined $_[1] ? $_[0]->{debug} = $_[1] : $_[0]->{debug} }
 
 sub close {
@@ -719,7 +719,7 @@ sub close {
     ## Avoid closing the socket if it may be shared with other session
     ## objects.
     if (! defined $the_socket || $this->sock ne $the_socket) {
-	close ($this->sock) || $this->error ("close: $!");
+  close ($this->sock) || $this->error ("close: $!");
     }
 }
 
@@ -728,17 +728,17 @@ sub wrap_request {
     my($request) = shift;
 
     encode_sequence (encode_int ($this->snmp_version),
-		     encode_string ($this->{community}),
-		     $request)
+         encode_string ($this->{community}),
+         $request)
       || return $this->ber_error ("wrapping up request PDU");
 }
 
 my @error_status_code = qw(noError tooBig noSuchName badValue readOnly
-			   genErr noAccess wrongType wrongLength
-			   wrongEncoding wrongValue noCreation
-			   inconsistentValue resourceUnavailable
-			   commitFailed undoFailed authorizationError
-			   notWritable inconsistentName);
+         genErr noAccess wrongType wrongLength
+         wrongEncoding wrongValue noCreation
+         inconsistentValue resourceUnavailable
+         commitFailed undoFailed authorizationError
+         notWritable inconsistentName);
 
 sub unwrap_response_5b {
     my ($this,$response,$tag,$oids,$errorp) = @_;
@@ -748,31 +748,31 @@ sub unwrap_response_5b {
      $this->{error_status},
      $this->{error_index},
      @rest)
-	= decode_by_template ($response, "%{%i%s%*{%i%i%i%{%@",
-			      $tag);
+  = decode_by_template ($response, "%{%i%s%*{%i%i%i%{%@",
+            $tag);
     return $this->ber_error ("Error decoding response PDU")
       unless defined $snmpver;
     return $this->error ("Received SNMP response with unknown snmp-version field $snmpver")
-	unless $snmpver == $this->snmp_version;
+  unless $snmpver == $this->snmp_version;
     if ($this->{error_status} != 0) {
       if ($errorp) {
-	my ($oid, $errmsg);
-	$errmsg = $error_status_code[$this->{error_status}] || $this->{error_status};
-	$oid = $oids->[$this->{error_index}-1]
-	  if $this->{error_index} > 0 && $this->{error_index}-1 <= $#{$oids};
-	$oid = $oid->[0]
-	  if ref($oid) eq 'ARRAY';
-	return ($community, $request_id,
-		$this->error ("Received SNMP response with error code\n"
-			      ."  error status: $errmsg\n"
-			      ."  index ".$this->{error_index}
-			      .(defined $oid
-				? " (OID: ".&BER::pretty_oid($oid).")"
-				: "")));
+  my ($oid, $errmsg);
+  $errmsg = $error_status_code[$this->{error_status}] || $this->{error_status};
+  $oid = $oids->[$this->{error_index}-1]
+    if $this->{error_index} > 0 && $this->{error_index}-1 <= $#{$oids};
+  $oid = $oid->[0]
+    if ref($oid) eq 'ARRAY';
+  return ($community, $request_id,
+    $this->error ("Received SNMP response with error code\n"
+            ."  error status: $errmsg\n"
+            ."  index ".$this->{error_index}
+            .(defined $oid
+        ? " (OID: ".&BER::pretty_oid($oid).")"
+        : "")));
       } else {
-	if ($this->{error_index} == 1) {
-	  @rest[$this->{error_index}-1..$this->{error_index}] = ();
-	}
+  if ($this->{error_index} == 1) {
+    @rest[$this->{error_index}-1..$this->{error_index}] = ();
+  }
       }
     }
     ($community, $request_id, @rest);
@@ -805,23 +805,23 @@ sub sa_equal_p ($$$) {
     # Disable strict subs to stop old versions of perl from
     # complaining about AF_INET6 when Socket6 is not available
     if($this->{'sockfamily'} == AF_INET) {
-	# IPv4 addresses
-	($p1,$a1) = unpack_sockaddr_in ($sa1);
-	($p2,$a2) = unpack_sockaddr_in ($sa2);
+  # IPv4 addresses
+  ($p1,$a1) = unpack_sockaddr_in ($sa1);
+  ($p2,$a2) = unpack_sockaddr_in ($sa2);
     } elsif($this->{'sockfamily'} == AF_INET6()) {
-	# IPv6 addresses
-	($p1,$a1) = unpack_sockaddr_in6 ($sa1);
-	($p2,$a2) = unpack_sockaddr_in6 ($sa2);
+  # IPv6 addresses
+  ($p1,$a1) = unpack_sockaddr_in6 ($sa1);
+  ($p2,$a2) = unpack_sockaddr_in6 ($sa2);
     } else {
-	return 0;
+  return 0;
     }
     use strict "subs";
 
     if (! $this->{'lenient_source_address_matching'}) {
-	return 0 if $a1 ne $a2;
+  return 0 if $a1 ne $a2;
     }
     if (! $this->{'lenient_source_port_matching'}) {
-	return 0 if $p1 != $p2;
+  return 0 if $p1 != $p2;
     }
     return 1;
 }
@@ -831,10 +831,10 @@ sub receive_response_3 {
     my ($remote_addr);
     $remote_addr = recv ($this->sock,$this->{'pdu_buffer'},$this->max_pdu_len,0);
     return $this->error ("receiving response PDU: $!")
-	unless defined $remote_addr;
+  unless defined $remote_addr;
     return $this->error ("short (".length $this->{'pdu_buffer'}
-			 ." bytes) response PDU")
-	unless length $this->{'pdu_buffer'} > 2;
+       ." bytes) response PDU")
+  unless length $this->{'pdu_buffer'} > 2;
     my $response = $this->{'pdu_buffer'};
     ##
     ## Check whether the response came from the address we've sent the
@@ -842,34 +842,34 @@ sub receive_response_3 {
     ## it, as it may relate to another request.
     ##
     if (defined $this->{'remote_addr'}) {
-	if (! $this->sa_equal_p ($remote_addr, $this->{'remote_addr'})) {
-	    if ($this->{'debug'} && !$SNMP_Session::recycle_socket) {
-		carp ("Response came from ".&SNMP_Session::pretty_address($remote_addr)
-		      .", not ".&SNMP_Session::pretty_address($this->{'remote_addr'}))
-			unless $SNMP_Session::suppress_warnings;
-	    }
-	    return 0;
-	}
+  if (! $this->sa_equal_p ($remote_addr, $this->{'remote_addr'})) {
+      if ($this->{'debug'} && !$SNMP_Session::recycle_socket) {
+    carp ("Response came from ".&SNMP_Session::pretty_address($remote_addr)
+          .", not ".&SNMP_Session::pretty_address($this->{'remote_addr'}))
+      unless $SNMP_Session::suppress_warnings;
+      }
+      return 0;
+  }
     }
     $this->{'last_sender_addr'} = $remote_addr;
     my ($response_community, $response_id, @unwrapped)
-	= $this->unwrap_response_5b ($response, $response_tag,
-				     $oids, $errorp);
+  = $this->unwrap_response_5b ($response, $response_tag,
+             $oids, $errorp);
     if ($response_community ne $this->{community}
         || $response_id ne $this->{request_id}) {
-	if ($this->{'debug'}) {
-	    carp ("$response_community != $this->{community}")
-		unless $SNMP_Session::suppress_warnings
-		    || $response_community eq $this->{community};
-	    carp ("$response_id != $this->{request_id}")
-		unless $SNMP_Session::suppress_warnings
-		    || $response_id == $this->{request_id};
-	}
-	return 0;
+  if ($this->{'debug'}) {
+      carp ("$response_community != $this->{community}")
+    unless $SNMP_Session::suppress_warnings
+        || $response_community eq $this->{community};
+      carp ("$response_id != $this->{request_id}")
+    unless $SNMP_Session::suppress_warnings
+        || $response_id == $this->{request_id};
+  }
+  return 0;
     }
     if (!defined $unwrapped[0]) {
-	$this->{'unwrapped'} = undef;
-	return undef;
+  $this->{'unwrapped'} = undef;
+  return undef;
     }
     $this->{'unwrapped'} = \@unwrapped;
     return length $this->pdu_buffer;
@@ -882,9 +882,9 @@ sub receive_trap {
     return undef unless $remote_addr;
 
     if( (defined $ipv6_addr_len) && (length $remote_addr == $ipv6_addr_len)) {
-	($port,$iaddr) = unpack_sockaddr_in6($remote_addr);
+  ($port,$iaddr) = unpack_sockaddr_in6($remote_addr);
     } else {
-	($port,$iaddr) = unpack_sockaddr_in($remote_addr);
+  ($port,$iaddr) = unpack_sockaddr_in($remote_addr);
     }
 
     $trap = $this->{'pdu_buffer'};
@@ -916,7 +916,7 @@ sub to_string {
      .$prefix."    backoff: ".$this->{backoff}.")");
 ##    sprintf ("SNMP_Session: %s (size %d timeout %g)",
 ##    &SNMP_Session::pretty_address ($this->remote_addr),$this->max_pdu_len,
-##	       $this->timeout);
+##         $this->timeout);
 }
 
 ### SNMP Agent support
@@ -927,13 +927,13 @@ sub receive_request {
     my ($remote_addr, $iaddr, $port, $request);
 
     $remote_addr = recv($this->sock, $this->{'pdu_buffer'}, 
-			$this->{'max_pdu_len'}, 0);
+      $this->{'max_pdu_len'}, 0);
     return undef unless $remote_addr;
 
     if( (defined $ipv6_addr_len) && (length $remote_addr == $ipv6_addr_len)) {
-	($port,$iaddr) = unpack_sockaddr_in6($remote_addr);
+  ($port,$iaddr) = unpack_sockaddr_in6($remote_addr);
     } else {
-	($port,$iaddr) = unpack_sockaddr_in($remote_addr);
+  ($port,$iaddr) = unpack_sockaddr_in($remote_addr);
     }
 
     $request = $this->{'pdu_buffer'};
@@ -945,27 +945,27 @@ sub decode_request {
     my ($snmp_version, $community, $requestid, $errorstatus, $errorindex, $bindings);
 
     ($snmp_version, $community, $requestid, $errorstatus, $errorindex, $bindings)
-	= decode_by_template ($request, "%{%i%s%*{%i%i%i%@", SNMP_Session::get_request);
+  = decode_by_template ($request, "%{%i%s%*{%i%i%i%@", SNMP_Session::get_request);
     if (defined $snmp_version)
     {
-	# Its a valid get_request
-	return(SNMP_Session::get_request, $requestid, $bindings, $community);
+  # Its a valid get_request
+  return(SNMP_Session::get_request, $requestid, $bindings, $community);
     }
 
     ($snmp_version, $community, $requestid, $errorstatus, $errorindex, $bindings)
-	= decode_by_template ($request, "%{%i%s%*{%i%i%i%@", SNMP_Session::getnext_request);
+  = decode_by_template ($request, "%{%i%s%*{%i%i%i%@", SNMP_Session::getnext_request);
     if (defined $snmp_version)
     {
-	# Its a valid getnext_request
-	return(SNMP_Session::getnext_request, $requestid, $bindings, $community);
+  # Its a valid getnext_request
+  return(SNMP_Session::getnext_request, $requestid, $bindings, $community);
     }
 
     ($snmp_version, $community, $requestid, $errorstatus, $errorindex, $bindings)
-	= decode_by_template ($request, "%{%i%s%*{%i%i%i%@", SNMP_Session::set_request);
+  = decode_by_template ($request, "%{%i%s%*{%i%i%i%@", SNMP_Session::set_request);
     if (defined $snmp_version)
     {
-	# Its a valid set_request
-	return(SNMP_Session::set_request, $requestid, $bindings, $community);
+  # Its a valid set_request
+  return(SNMP_Session::set_request, $requestid, $bindings, $community);
     }
 
     # Something wrong with this packet
@@ -974,7 +974,7 @@ sub decode_request {
 }
 
 package SNMPv2c_Session;
-use strict qw(vars subs);	# see above
+use strict qw(vars subs);  # see above
 use vars qw(@ISA);
 use SNMP_Session;
 use BER;
@@ -1002,103 +1002,103 @@ sub map_table_start_end ($$$$$$) {
     my @collected_values = ();
 
     if (! $session->{'use_getbulk'}) {
-	return SNMP_Session::map_table_start_end
-	    ($session, $columns, $mapfn, $start, $end, $max_repetitions);
+  return SNMP_Session::map_table_start_end
+      ($session, $columns, $mapfn, $start, $end, $max_repetitions);
     }
     $max_repetitions = $session->default_max_repetitions
-	unless defined $max_repetitions;
+  unless defined $max_repetitions;
 
     for (;;) {
-	foreach (@encoded_oids = @{$columns}) {
-	    $_=encode_oid (@{$_},split '\.',$base_index)
-		|| return $session->ber_error ("encoding OID $base_index");
-	}
-	if ($session->getbulk_request_response (0, $max_repetitions,
-						@encoded_oids)) {
-	    my $response = $session->pdu_buffer;
-	    my ($bindings) = $session->decode_get_response ($response);
-	    my @colstack = ();
-	    my $k = 0;
-	    my $j;
+  foreach (@encoded_oids = @{$columns}) {
+      $_=encode_oid (@{$_},split '\.',$base_index)
+    || return $session->ber_error ("encoding OID $base_index");
+  }
+  if ($session->getbulk_request_response (0, $max_repetitions,
+            @encoded_oids)) {
+      my $response = $session->pdu_buffer;
+      my ($bindings) = $session->decode_get_response ($response);
+      my @colstack = ();
+      my $k = 0;
+      my $j;
 
-	    my $min_index = undef;
+      my $min_index = undef;
 
-	    my @bases = @{$columns};
-	    my $n_bindings = 0;
-	    my $binding;
+      my @bases = @{$columns};
+      my $n_bindings = 0;
+      my $binding;
 
-	    ## Copy all bindings into the colstack.
-	    ## The colstack is a vector of vectors.
-	    ## It contains one vector for each "repeater" variable.
-	    ##
-	    while ($bindings ne '') {
-		($binding, $bindings) = decode_sequence ($bindings);
-		my ($oid, $value) = decode_by_template ($binding, "%O%@");
+      ## Copy all bindings into the colstack.
+      ## The colstack is a vector of vectors.
+      ## It contains one vector for each "repeater" variable.
+      ##
+      while ($bindings ne '') {
+    ($binding, $bindings) = decode_sequence ($bindings);
+    my ($oid, $value) = decode_by_template ($binding, "%O%@");
 
-		push @{$colstack[$k]}, [$oid, $value];
-		++$k; $k = 0 if $k >= $ncols;
-	    }
+    push @{$colstack[$k]}, [$oid, $value];
+    ++$k; $k = 0 if $k >= $ncols;
+      }
 
-	    ## Now collect rows from the column stack:
-	    ##
-	    ## Iterate through the column stacks to find the smallest
-	    ## index, collecting the values for that index in
-	    ## @collected_values.
-	    ##
-	    ## As long as a row can be assembled, the map function is
-	    ## called on it and the iteration proceeds.
-	    ##
-	    $base_index = undef;
-	  walk_rows_from_pdu:
-	    for (;;) {
-		my $min_index = undef;
+      ## Now collect rows from the column stack:
+      ##
+      ## Iterate through the column stacks to find the smallest
+      ## index, collecting the values for that index in
+      ## @collected_values.
+      ##
+      ## As long as a row can be assembled, the map function is
+      ## called on it and the iteration proceeds.
+      ##
+      $base_index = undef;
+    walk_rows_from_pdu:
+      for (;;) {
+    my $min_index = undef;
 
-		for ($k = 0; $k < $ncols; ++$k) {
-		    $collected_values[$k] = undef;
-		    my $pair = $colstack[$k]->[0];
-		    unless (defined $pair) {
-			$min_index = undef;
-			last walk_rows_from_pdu;
-		    }
-		    my $this_index
-			= SNMP_Session::oid_diff ($columns->[$k], $pair->[0]);
-		    if (defined $this_index) {
-			my $cmp
-			    = !defined $min_index
-				? -1
-				    : SNMP_Session::index_compare
-					($this_index, $min_index);
-			if ($cmp == -1) {
-			    for ($j = 0; $j < $k; ++$j) {
-				unshift (@{$colstack[$j]},
-					 [$min_index,
-					  $collected_values[$j]]);
-				$collected_values[$j] = undef;
-			    }
-			    $min_index = $this_index;
-			}
-			if ($cmp <= 0) {
-			    $collected_values[$k] = $pair->[1];
-			    shift @{$colstack[$k]};
-			}
-		    }
-		}
-		($base_index = undef), last
-		    if !defined $min_index;
-		last
-		    if defined $end
-		    and SNMP_Session::index_compare ($min_index, $end) >= 0;
-		&$mapfn ($min_index, @collected_values);
-		++$call_counter;
-		$base_index = $min_index;
-	    }
-	} else {
-	    return undef;
-	}
-	last if !defined $base_index;
-	last
-	    if defined $end
-	    and SNMP_Session::index_compare ($base_index, $end) >= 0;
+    for ($k = 0; $k < $ncols; ++$k) {
+        $collected_values[$k] = undef;
+        my $pair = $colstack[$k]->[0];
+        unless (defined $pair) {
+      $min_index = undef;
+      last walk_rows_from_pdu;
+        }
+        my $this_index
+      = SNMP_Session::oid_diff ($columns->[$k], $pair->[0]);
+        if (defined $this_index) {
+      my $cmp
+          = !defined $min_index
+        ? -1
+            : SNMP_Session::index_compare
+          ($this_index, $min_index);
+      if ($cmp == -1) {
+          for ($j = 0; $j < $k; ++$j) {
+        unshift (@{$colstack[$j]},
+           [$min_index,
+            $collected_values[$j]]);
+        $collected_values[$j] = undef;
+          }
+          $min_index = $this_index;
+      }
+      if ($cmp <= 0) {
+          $collected_values[$k] = $pair->[1];
+          shift @{$colstack[$k]};
+      }
+        }
+    }
+    ($base_index = undef), last
+        if !defined $min_index;
+    last
+        if defined $end
+        and SNMP_Session::index_compare ($min_index, $end) >= 0;
+    &$mapfn ($min_index, @collected_values);
+    ++$call_counter;
+    $base_index = $min_index;
+      }
+  } else {
+      return undef;
+  }
+  last if !defined $base_index;
+  last
+      if defined $end
+      and SNMP_Session::index_compare ($base_index, $end) >= 0;
     }
     $call_counter;
 }

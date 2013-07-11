@@ -6,10 +6,10 @@
 <input type='hidden' name='SNMP_HOST' value='$FORM{SNMP_HOST}'>
 <input type='hidden' name='SNMP_COMMUNITY' value='$FORM{SNMP_COMMUNITY}'>
 
-<TABLE>
+<TABLE class=form>
   <TBODY>
   <TR>
-    <TH bgcolor=$_COLORS[0] colspan=2 align=right>Static MAC Forwarding</TH>
+    <TH class=form_title colspan=2 align=right>Static MAC Forwarding</TH>
   </TR>
 
   <TR>

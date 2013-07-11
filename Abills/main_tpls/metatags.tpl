@@ -1,21 +1,33 @@
-<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">
+<!DOCTYPE HTML PUBLIC '-//W3C//DTD HTML 4.01 Transitional//EN'>
 
 <html>
 <head>
  %REFRESH%
- <META HTTP-EQUIV=\"Cache-Control\" content=\"no-cache,no-store,must-revalidate,private,max-age=0\" >
- <META HTTP-EQUIV=\"Expires\" CONTENT=\"-1\">
- <META HTTP-EQUIV=\"Pragma\" CONTENT=\"no-cache\">
- <META HTTP-EQUIV=\"Content-Type\" CONTENT=\"text/html; charset=%CHARSET%\">
- <META name=\"Author\" content=\"~AsmodeuS~\">
- <META HTTP-EQUIV=\"content-language\" content=\"%CONTENT_LANGUAGE%\">
- <link rel=\"stylesheet\" media=\"print\" type=\"text/css\" href=\"%PRINTCSS%\" >
+ <META HTTP-EQUIV='Cache-Control' content='no-cache,no-store,must-revalidate,private,max-age=0' >
+ <META HTTP-EQUIV='Expires' CONTENT='-1'>
+ <META HTTP-EQUIV='Pragma' CONTENT='no-cache'>
+ <META HTTP-EQUIV='Content-Type' CONTENT='text/html; charset=%CHARSET%'>
+ <META name='Author' content='~AsmodeuS~'>
+ <META HTTP-EQUIV='content-language' content='%CONTENT_LANGUAGE%'>
+ <link rel='stylesheet' media='print' type='text/css' href='%PRINTCSS%' >
+ <script type='text/javascript' src='/js/jquery.js'></script>
+ <script type='text/javascript' src='/js/jquery.cookie.js' ></script>
  <script src='%JAVASCRIPT%' type='text/javascript' language='javascript'></script>
  <script src='/calendar.js' type='text/javascript' language='javascript'></script>
- <script  src='/js/jquery.js' type='text/javascript'></script>
- <script  src='/js/jquery.cookie.js' type='text/javascript'></script>
+ <link rel='stylesheet' type='text/css' href='/styles/default/chosen.css' />
+<script type='text/javascript' src='/styles/default/js/chosen.jquery.min.js' ></script>
 
-<style type=\"text/css\">
+<script type='text/javascript' src='/styles/default/js/jquery.tabSlideOut.v1.2.js' ></script>
+<script type='text/javascript' src='/styles/default/js/script.js' ></script>
+<script language='JavaScript' type='text/javascript'>
+    \$(document).ready(function(){
+      \$('select:not(#type)').chosen({no_results_text: '$_NOT_EXIST', allow_single_deselect: true, placeholder_text: '$_CHANGE'});
+  }); 
+</script>
+
+ 
+
+<style type='text/css'>
 body {
 	background-color:%_COLOR_10%;
 	color:%_COLOR_9%;
@@ -304,9 +316,12 @@ a.routes {
 	background:url(/img/button_routes.png) no-repeat center;
 }
 
-a.change,
+a.change {
+        background:url(/img/button_change.png) no-repeat center;
+}
+
 a.search {
-	background:url(/img/button_change.png) no-repeat center;
+	background:url(/img/button_search.png) no-repeat center;
 }
 
 a.payments,
@@ -368,14 +383,13 @@ a.add.rightAlignText {
 	margin:0 5px 0 0;
 }
 a.rightAlignText {
-	background-position:right;
-
+	background-position:left,center;
 	display:inline-block;
 	overflow:hidden;
 	text-indent:-90000px;
 	font-size:0;
-	padding-left:5px;
-	
+	padding-left:10px;
+	vertical-align: middle;	
 }
 
 .link_button {
@@ -395,7 +409,7 @@ a.link_button:hover {
 	border:1px solid #666;
 	cursor:pointer;
 }
-
+/*
 input,textarea {
 	font-family:Verdana, Arial, sans-serif;
 	font-size:12px;
@@ -405,6 +419,35 @@ input,textarea {
 	border-color:#9F9F9F;
 }
 
+*/
+textarea {
+	font-family:Verdana, Arial, sans-serif;
+	font-size:12px;
+}
+
+input,textarea, button, .link_button, #rules li a{
+  background-color: #ffffff;
+  -webkit-border-radius: 5px;
+  -moz-border-radius   : 5px;
+  border-radius        : 5px;
+  -moz-background-clip   : padding;
+  -webkit-background-clip: padding-box;
+  background-clip        : padding-box;
+  border: 1px solid #aaaaaa;
+  -webkit-box-shadow: 0 0 3px #ffffff inset, 0 1px 1px rgba(0,0,0,0.1);
+  -moz-box-shadow   : 0 0 3px #ffffff inset, 0 1px 1px rgba(0,0,0,0.1);
+  box-shadow        : 0 0 3px #ffffff inset, 0 1px 1px rgba(0,0,0,0.1);
+  margin:3px 0px 3px 0px;
+
+  line-height: 24px;
+  padding: 0 8 0 8px;
+  color: #444444;
+  text-decoration: none;
+  
+}
+input, button, .link_button {
+  height: 23px;
+}
 select {
 	font-family:Verdana, Arial, sans-serif;
 	font-size:12px;
@@ -498,9 +541,8 @@ TABLE.border {
 #rules .center a {
 	font-weight:100;
 	font-size:11px;
-	background:%_COLOR_2%;
-	border:1px solid %_COLOR_4%;
-	color:%_COLOR_9%;
+
+
 	text-decoration:none;
 	margin:1px;
 	padding:2px 5px;
@@ -542,23 +584,25 @@ TABLE.border {
 	background:#f6f6f6;
 }
 
-#close_popup_window img {
-	position:absolute;
-	top:12px;
-	right:7px;
-}
 
 #close_popup_window {
-	float:right;
-	font:10px Verdana, Geneva, sans-serif;
-	color:#999;
-	display:block;
-	margin:-15px 10px 0 0;
+    background: none repeat scroll 0 0 #AAAAAA;
+    border-radius: 12px 12px 12px 12px;
+    color: #FFFFFF;
+    font-weight: bold;
+    line-height: 25px;
+    position: absolute;
+    right: 12px;
+    text-align: center;
+    text-decoration: none;
+    top: 10px;
+    width: 24px;
+    cursor:pointer;
 }
 
 #close_popup_window:hover {
-	cursor:pointer;
-	color:red;
+  cursor:pointer;
+  background: none repeat scroll 0 0 #CCCCCC;
 }
 
 #popup_content {
@@ -618,7 +662,7 @@ TABLE.border {
  input box in default state */
 .tcalInput {
 	background:url(/img/cal.gif) 100% 50% no-repeat;
-	padding-right:20px;
+	padding-right:10px;
 	cursor:pointer;
 }
 
@@ -639,7 +683,7 @@ TABLE.border {
 	-moz-box-shadow:3px 3px 4px silver;
 	-webkit-box-shadow:3px 3px 4px silver;
 	box-shadow:3px 3px 4px silver;
-	-ms-filter:\"progid:DXImageTransform.Microsoft.Shadow(Strength=4, Direction=135, Color='silver')\";
+	-ms-filter:'progid:DXImageTransform.Microsoft.Shadow(Strength=4, Direction=135, Color='silver')';
 	filter:progid:DXImageTransform.Microsoft.Shadow(Strength=4, Direction=135, Color='silver');
 	padding:0 2px 2px;
 }
@@ -762,12 +806,6 @@ TABLE.border {
 	padding:0;
 }
 
-
-
-
-
-
-
 #topNav ul {
 	height:30px;
 }
@@ -826,13 +864,11 @@ TABLE.border {
 	margin:0 0 0 5px;
 	padding:0;
 	padding-right: 1px;
-	//visibility:hidden;
-	//width:0px;
-	//height:0px;
-	//display:none;
+	/*visibility:hidden; */
+	/*width:0px; */
+	/*height:0px; */
+	/*display:none; */
 }
-
-
 
 #quick_menu {
 	float:left;
@@ -856,7 +892,12 @@ TABLE.border {
 	display:none;
 	z-index:10;
 	overflow:hidden;
-	background:#f6f6f6;
+	/*background:#f6f6f6; */
+  padding: 5px 10px 50px;
+  border: 4px solid #666666;
+
+  border-radius: 10px 10px 10px 10px;
+  background: none repeat scroll 0 0 #FFFFFF;
 }
 
 #popup_window_content {
@@ -912,10 +953,7 @@ table tr.marked th,table tr.marked,.odd:hover,.even:hover,.hover,table tr.odd:ho
 	color:%_COLOR_9%;
 }
 
-
-
 /* ---------- */
-
 .dropdown-box {
 	position:relative;
 }
@@ -955,8 +993,6 @@ table tr.marked th,table tr.marked,.odd:hover,.even:hover,.hover,table tr.odd:ho
 	right:15px;
 }
 
-
-
 #info_message {
 	text-align:center;
 	position:relative;
@@ -989,11 +1025,59 @@ table tr.marked th,table tr.marked,.odd:hover,.even:hover,.hover,table tr.odd:ho
 	top:27px;	
 }
 
+.login_form_border {
+  width:400px;
+  margin: 180px auto;
+}
+
+form #type_chzn {
+  position:relative;
+  top:8px;
+}
+
+form #TP_ID_chzn {
+  position:relative;
+  top:8px;
+}
+
+.slide-out-div {
+  padding: 10px 10px 80px;
+  width: 200px;
+  background: #f2f2f2;
+  border: #29216d 2px solid;
+}
 
 </style>
 
 <title>%title%</title>
+
+<script>
+         \$(function(){
+             \$('.slide-out-div').tabSlideOut({
+                 tabHandle: '.handle',                              //класс элемента
+                 pathToTabImage: '/img/contact_tab.gif',          //путь к изображению *required*
+                 imageHeight: '122px',                               //высота  *required*
+                 imageWidth: '40px',                               //width of tab image *required*    
+                 tabLocation: 'left',                               //side of screen where tab lives, top, right, bottom, or left
+                 speed: 300,                                        //speed of animation
+                 action: 'click',                                   //options: 'click' or 'hover', action to trigger animation
+                 topPos: '500px',                                   //position from the top
+                 fixedPosition: true                               //options: true makes it stick(fixed position) on scroll
+             });
+         });
+         
+
+jQuery(document).ready(function(){
+  if(jQuery('.slide-out-div').length>0) {
+    start(1002)
+  }         
+});
+</script>
+
 </head>
-<body style=\"margin: 0\" bgcolor=\"%_COLOR_10%\" text=\"%_COLOR_9%\" link=\"%_COLOR_8%\"  vlink=\"%_COLOR_7%\">
+<body style='margin: 0' bgcolor='%_COLOR_10%' text='%_COLOR_9%' link='%_COLOR_8%'  vlink='%_COLOR_7%'>
+%CALLCENTER_MENU%
 
 <div id='popup_window'></div>
+
+

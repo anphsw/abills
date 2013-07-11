@@ -23,3 +23,5 @@ CREATE TABLE `netlist_ips` (
   PRIMARY KEY  (`ip`),
   UNIQUE KEY `ip` (`ip`)
 ) COMMENT='Netlist ips';
+
+

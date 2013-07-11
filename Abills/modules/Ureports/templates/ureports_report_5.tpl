@@ -1,0 +1,5 @@
+$_DEAR, %FIO%
+
+$_DAY: $_TRAFFIC_MORE
+
+%MESSAGE%

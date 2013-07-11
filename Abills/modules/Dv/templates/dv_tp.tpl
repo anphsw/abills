@@ -20,6 +20,7 @@
   <tr class='even'><td>$_MONTH_FEE $_POSTPAID:</td><td><input type=checkbox name=POSTPAID_MONTH_FEE value=1 %POSTPAID_MONTH_FEE%></td></tr>
   <tr class='even'><td>$_MONTH_ALIGNMENT:</td><td><input type=checkbox name='PERIOD_ALIGNMENT' value='1' %PERIOD_ALIGNMENT%></td></tr>
   <tr class='even'><td>$_ABON_DISTRIBUTION:</td><td><input type=checkbox name='ABON_DISTRIBUTION' value='1' %ABON_DISTRIBUTION%></td></tr>
+  <tr class='even'><td>$_FIXED_FEES_DAY:</td><td><input type=checkbox name='FIXED_FEES_DAY' value='1' %FIXED_FEES_DAY%></td></tr>
   <tr class='even'><td>$_SMALL_DEPOSIT_ACTION:</td><td>%SMALL_DEPOSIT_ACTION_SEL%</td></tr>
   <tr><td>$_REDUCTION:</td><td><input type=checkbox name=REDUCTION_FEE value=1 %REDUCTION_FEE%></td></tr>
   <tr><td>$_FEES $_TYPE:</td><td>%SEL_METHOD%</td></tr>

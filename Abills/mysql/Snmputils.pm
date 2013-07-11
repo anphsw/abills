@@ -1,4 +1,5 @@
 package Snmputils;
+
 # Message system
 #
 
@@ -8,36 +9,36 @@ use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
 
 use Exporter;
 $VERSION = 2.00;
-@ISA = ('Exporter');
+@ISA     = ('Exporter');
 
 @EXPORT = qw();
 
-@EXPORT_OK = ();
+@EXPORT_OK   = ();
 %EXPORT_TAGS = ();
 
 use main;
-@ISA  = ("main");
-
+@ISA = ("main");
 
 #**********************************************************
-# Init 
+# Init
 #**********************************************************
 sub new {
   my $class = shift;
-  ($db, $admin, $CONF) = @_;
-  my $self = { };
+  my $db    = shift;
+  ($admin, $CONF) = @_;
+  
+  my $self = {};
   bless($self, $class);
-  #$self->{debug}=1;
-  
-  if ($CONF->{DELETE_USER}) {
-    $self->{UID}=$CONF->{DELETE_USER};
-    $self->snmp_binding_del({ UID => $CONF->{DELETE_USER} });
-   }
 
-  
+  $self->{db}=$db;
+
+  if ($CONF->{DELETE_USER}) {
+    $self->{UID} = $CONF->{DELETE_USER};
+    $self->snmp_binding_del({ UID => $CONF->{DELETE_USER} });
+  }
+
   return $self;
 }
-
 
 #**********************************************************
 # accounts_list
@@ -46,32 +47,34 @@ sub snmputils_nas_ipmac {
   my $self = shift;
   my ($attr) = @_;
 
- $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
- $SORT      = ($attr->{SORT}) ? $attr->{SORT} : 1;
- $DESC      = (defined($attr->{DESC})) ? $attr->{DESC} : 'DESC';
+  $PAGE_ROWS = ($attr->{PAGE_ROWS})     ? $attr->{PAGE_ROWS} : 25;
+  $SORT      = ($attr->{SORT})          ? $attr->{SORT}      : 1;
+  $DESC      = (defined($attr->{DESC})) ? $attr->{DESC}      : 'DESC';
 
- @WHERE_RULES = ();
- if (defined($attr->{DISABLE})) {
- 	 push @WHERE_RULES, "u.disable='$attr->{DISABLE}'";
+  @WHERE_RULES = ();
+  if (defined($attr->{DISABLE})) {
+    push @WHERE_RULES, "u.disable='$attr->{DISABLE}'";
   }
 
- 
- $WHERE = ($#WHERE_RULES > -1) ? 'AND ' . join(' AND ', @WHERE_RULES)  : '';
+  $WHERE = ($#WHERE_RULES > -1) ? 'AND ' . join(' AND ', @WHERE_RULES) : '';
 
- $self->query($db,   "SELECT un.nas_id, 
+  $self->query2("SELECT un.nas_id, 
      u.uid, 
-     INET_NTOA(d.ip), 
+     INET_NTOA(d.ip) AS ip, 
      d.mac,
-     if(u.company_id > 0, cb.deposit+u.credit, ub.deposit+u.credit), 
+     if(u.company_id > 0, cb.deposit+u.credit, ub.deposit+u.credit) AS deposit, 
      d.comments,
      d.vid,
      d.ports,
      d.nas,
-     u.id,
+     u.id AS login,
      d.network,
-     if(u.disable=1, 1, if((u.expire='0000-00-00' or u.expire > CURDATE())
+     if(u.disable=1, 1,
+      if (d.disable=1, 1,
+       if((u.expire='0000-00-00' or u.expire > CURDATE())
         AND (u.activate='0000-00-00' or u.activate <= CURDATE()), 0, 1)
-       )
+      )
+     ) AS status
    FROM (users u, dhcphosts_hosts d)
      LEFT JOIN bills ub ON (u.bill_id = ub.id)
      LEFT JOIN companies company ON  (u.company_id=company.id)
@@ -81,103 +84,83 @@ sub snmputils_nas_ipmac {
                and (d.nas='$attr->{NAS_ID}' or un.nas_id='$attr->{NAS_ID}')
                $WHERE
             ORDER BY $SORT $DESC
-            LIMIT $PG, $PAGE_ROWS;");
+            LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
+  );
 
- my $list = $self->{list};  
- return $list;
+  my $list = $self->{list};
+  return $list;
 }
-
 
 #**********************************************************
 # Bill
 #**********************************************************
 sub snmp_binding_add {
-	my $self = shift;
-	my ($attr) = @_;
+  my $self = shift;
+  my ($attr) = @_;
 
-  %DATA = $self->get_data($attr, { default => \%DATA }); 
+  $self->query_add('snmputils_binding', $attr);
 
-  $self->query($db, "insert into snmputils_binding (uid, binding, comments, params)
-    values ('$DATA{UID}', '$DATA{BINDING}', '$DATA{COMMENTS}', '$DATA{PARAMS}');", 'do');
-
-	return $self;
+  return $self;
 }
 
 #**********************************************************
 # Bill
 #**********************************************************
 sub snmp_binding_del {
-	my $self = shift;
-	my ($attr) = @_;
-  
-  if ($attr->{UID}) {
-  	$WHERE = "uid='$attr->{UID}'";
-   }
-  else {
-  	$WHERE = "binding='$attr->{ID}'";
-   }
-  
-  $self->query($db, "DELETE FROM snmputils_binding WHERE $WHERE", 'do');
-	return $self;
-}
+  my $self = shift;
+  my ($attr) = @_;
 
+  if ($attr->{UID}) {
+    $WHERE = "uid='$attr->{UID}'";
+  }
+  else {
+    $WHERE = "binding='$attr->{ID}'";
+  }
+
+  $self->query2("DELETE FROM snmputils_binding WHERE $WHERE", 'do');
+  return $self;
+}
 
 #**********************************************************
 # group_info()
 #**********************************************************
 sub snmp_binding_change {
- my $self = shift;
- my ($attr) = @_;
- 
+  my $self = shift;
+  my ($attr) = @_;
 
- my %FIELDS = (UID      => 'uid',
-               BINDING  => 'binding',
-               COMMENTS => 'comments',
-               PARAMS   => 'params',
-               ID       => 'id'
-               );
+  $self->changes(
+    $admin,
+    {
+      CHANGE_PARAM => 'ID',
+      TABLE        => 'snmputils_binding',
+      DATA         => $attr
+    }
+  );
 
- $self->changes($admin, { CHANGE_PARAM => 'ID',
-		               TABLE        => 'snmputils_binding',
-		               FIELDS       => \%FIELDS,
-		               OLD_INFO     => $self->snmp_binding_info($attr->{ID}),
-		               DATA         => $attr
-		              } );
-
-
- return $self;
+  return $self;
 }
 
 #**********************************************************
 # Bill
 #**********************************************************
 sub snmp_binding_info {
-	my $self = shift;
-	my ($id, $attr) = @_;
+  my $self = shift;
+  my ($id, $attr) = @_;
 
-
-  $self->query($db, "SELECT  uid,
+  $self->query2("SELECT  uid,
     binding,
     comments,
     params
     FROM snmputils_binding
-   WHERE id='$id';");
+   WHERE id='$id';",
+   undef,
+   { INFO => 1 }
+  );
 
-  if ($self->{TOTAL} < 1) {
-     $self->{errno} = 2;
-     $self->{errstr} = 'ERROR_NOT_EXIST';
-     return $self;
-   }
-
-  ($self->{UID}, 
-   $self->{BINDING},
-   $self->{COMMENTS},
-   $self->{PARAMS}
-  )= @{ $self->{list}->[0] };
-	
-	return $self;
+  return $self;
 }
-
 
 #**********************************************************
 # accounts_list
@@ -186,20 +169,17 @@ sub snmputils_binding_list {
   my $self = shift;
   my ($attr) = @_;
 
- $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
- $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
- $DESC = (defined($attr->{DESC})) ? $attr->{DESC} : 'DESC';
+  $PAGE_ROWS = ($attr->{PAGE_ROWS})     ? $attr->{PAGE_ROWS} : 25;
+  $SORT      = ($attr->{SORT})          ? $attr->{SORT}      : 1;
+  $DESC      = (defined($attr->{DESC})) ? $attr->{DESC}      : 'DESC';
 
- @WHERE_RULES = ();
- 
- if ($attr->{BINDING}) {
-   $attr->{BINDING} =~ s/\*/\%/ig;
-   push @WHERE_RULES, "b.binding LIKE '$attr->{BINDING}'";
+  @WHERE_RULES = ();
+
+  if ($attr->{BINDING}) {
+    push @WHERE_RULES, @{ $self->search_expr("$attr->{BINDING}", 'STR', 'b.binding') };
   }
- elsif($attr->{IDS}) {
-   #push @WHERE_RULES, "b.binding IN ($attr->{IDS})";
-   
-   $self->query($db,   "SELECT u.id, b.binding,  b.params, b.comments, b.id, 
+  elsif ($attr->{IDS}) {
+    $self->query2("SELECT u.id, b.binding,  b.params, b.comments, b.id, 
             b.uid,
             if(u.company_id > 0, cb.deposit+u.credit, ub.deposit+u.credit),
             u.disable
@@ -210,52 +190,36 @@ sub snmputils_binding_list {
             LEFT JOIN bills cb ON  (company.bill_id=cb.id)
             WHERE b.binding IN ($attr->{IDS})
             ORDER BY $SORT $DESC
-            LIMIT $PG, $PAGE_ROWS;");
-      
-    my $list = $self->{list};
-    return $list;
-  }
- 
+            LIMIT $PG, $PAGE_ROWS;",
+      undef,
+      $attr
+    );
 
-
- if ($attr->{PARAMS}) {
-   $attr->{PARAMS} =~ s/\*/\%/ig;
-   push @WHERE_RULES, "b.params LIKE '$attr->{PARAMS}'";
+    return $self->{list};
   }
 
- if ($attr->{UID}) {
-   push @WHERE_RULES, "u.uid = '$attr->{UID}'";
-  }
-
- if ($attr->{LOGIN_EXPR}) {
-   $attr->{LOGIN_EXPR} =~ s/\*/\%/ig;
-   push @WHERE_RULES, "u.id LIKE '$attr->{LOGIN_EXPR}'";
-  }
-
-
- $WHERE = ($#WHERE_RULES > -1) ? 'WHERE ' . join(' and ', @WHERE_RULES)  : '';
+  my $WHERE = $self->search_former($attr, [
+      [ 'LOGIN',           'STR', 'u.id'     ],
+      [ 'UID',             'INT', 'u.uid'    ],
+      [ 'PARAMS',          'STR', 'b.params' ],
+    ],
+    { WHERE => 1,
+    	WHERE_RULES => \@WHERE_RULES
+    }    
+    );
 
 
- $self->query($db,   "SELECT u.id, b.binding,  b.params, b.comments, b.id, b.uid 
+  $self->query2("SELECT u.id, b.binding,  b.params, b.comments, b.id, b.uid 
             from (snmputils_binding b)
             LEFT JOIN users u ON (u.uid = b.uid)
             $WHERE
             ORDER BY $SORT $DESC
-            LIMIT $PG, $PAGE_ROWS;");
+            LIMIT $PG, $PAGE_ROWS;"
+  );
 
- my $list = $self->{list};
+  my $list = $self->{list};
 
-  
- return $list;
+  return $list;
 }
-
-
-
-
-
-
-
-
-
 
 1

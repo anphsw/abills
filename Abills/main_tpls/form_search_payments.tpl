@@ -1,7 +1,7 @@
 <!-- PAYMENTS -->
 
 <tr><td colspan='2'><hr/></td></tr>
-<tr><td>$_GROUP:</td><td>%GROUPS_SEL%</td></td></tr>
+<tr><td>$_GROUP:</td><td>%GROUPS_SEL%</td></tr>
 <tr><td>$_OPERATOR ($_LOGIN):</td><td><input type='text' name='A_LOGIN' value='%A_LOGIN%'/></td></tr>
 <tr><td>$_DESCRIBE $_USERS (*):</td><td><input type='text' name='DESCRIBE' value='%DESCRIBE%'/></td></tr>
 <tr><td>$_DESCRIBE $_INNER (*):</td><td><input type='text' name='INNER_DESCRIBE' value='%INNER_DESCRIBE%'/></td></tr>

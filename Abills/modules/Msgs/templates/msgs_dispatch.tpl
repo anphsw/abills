@@ -13,21 +13,17 @@ function samechanged(what) {
 samechanged('RESPOSIBLE');
 
 </SCRIPT>
-
-
 <FORM action='$SELF_URL' METHOD='POST'  >
 <input type='hidden' name='index' value='$index'/>
 <input type='hidden' name='ID' value='%ID%'/>
 
 <TABLE>
-<tr><th colspan=2 class='title_color' align=right>$_DISPATCH:</th></tr>
+<tr><th colspan=2 class='form_title'>$_DISPATCH:</th></tr>
 <tr><td>$_EXECUTION:</td><td><input type=text name=PLAN_DATE value='%PLAN_DATE%'></td></tr>
 <tr><th colspan=2 class='title_color'>$_COMMENTS:</th></tr>
 <tr><th colspan=2><textarea name=COMMENTS rows=8 cols=50>%COMMENTS%</textarea></td></tr>
 <tr><td>$_STATUS:</td><td>%STATE_SEL%</td></tr>
 <tr><td>$_RESPOSIBLE:</td><td>%RESPOSIBLE_SEL%</td></tr>
+<tr><th colspan=2 class='even'><input type=submit name='%ACTION%' value='%LNG_ACTION%'></th></tr>
 </TABLE>
-
-<input type=submit name='%ACTION%' value='%LNG_ACTION%'>
-
 </form>

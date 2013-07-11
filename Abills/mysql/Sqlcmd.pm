@@ -24,10 +24,15 @@ my $MODULE = 'Sqlcmd';
 #**********************************************************
 sub new {
   my $class = shift;
-  ($db, $admin, $CONF) = @_;
+  my $db    = shift;
+  ($admin, $CONF) = @_;
+
   $admin->{MODULE} = $MODULE;
   my $self = {};
   bless($self, $class);
+  
+  $self->{db}=$db;
+  
   return $self;
 }
 
@@ -87,8 +92,8 @@ sub info {
     
     my $like = '';
     if ($attr->{TABLES} && $attr->{search} ) {
-    	$attr->{TABLES} =~ s/\*/\%/g;
-    	$like =  "LIKE '$attr->{TABLES}'";
+      $attr->{TABLES} =~ s/\*/\%/g;
+      $like =  "LIKE '$attr->{TABLES}'";
     }
     
     print "SHOW TABLE STATUS FROM $CONF->{dbname} $like";
@@ -131,7 +136,7 @@ sub info {
     return $list;
   }
   elsif ($type eq 'showtriggers') {
-    $self->query($db, "SHOW TRIGGERS");
+    $self->query2("SHOW TRIGGERS");
     return $self->{list};
   }
 
@@ -173,9 +178,12 @@ sub list {
   foreach my $query (@QUERY_ARRAY) {
     next if (length($query) < 5);
     my $q;
+    $query =~ s/^ //g;
 
-    if ($query =~ /CREATE /i) {
-      $self->{AFFECTED} = $db->do("$query") || print $db->errstr;
+    if ($query =~ /CREATE |UPDATE |INSERT |ALTER /i) {
+    	$db->{mysql_client_found_rows}=1;
+      my $count = $db->do("$query") || print $db->errstr;
+      $self->{AFFECTED} = sprintf("%d", (defined ($count) ? $count : 0));
     }
     else {
       $q = $db->prepare("$query", { "mysql_use_result" => ($query !~ /!SELECT/gi) ? 0 : 1 }) || print $db->errstr;
@@ -272,8 +280,7 @@ sub history_add {
   my ($attr) = @_;
 
   $attr->{SQL_QUERY} =~ s/\'/\\\'/g;
-  $self->query(
-    $db, "INSERT INTO sqlcmd_history (datetime,
+  $self->query2("INSERT INTO sqlcmd_history (datetime,
                   aid,  sql_query,  db_id,  comments)
                VALUES (now(), '$admin->{AID}', '$attr->{SQL_QUERY}', '$attr->{DB_ID}', '$attr->{COMMENTS}');", 'do'
   );
@@ -298,7 +305,7 @@ sub history_del {
     $DEL = "id='$attr->{ID}'";
   }
 
-  $self->query($db, "DELETE from sqlcmd_history WHERE $DEL;", 'do');
+  $self->query2("DELETE from sqlcmd_history WHERE $DEL;", 'do');
 
   return $self->{result};
 }
@@ -308,12 +315,12 @@ sub history_del {
 #**********************************************************
 sub history_list {
   my $self = shift;
-  my $list;
+  my ($attr) = @_;
 
-  $self->query(
-    $db, "SELECT datetime, comments, id FROM sqlcmd_history WHERE aid='$admin->{AID}' 
+  $self->query2("SELECT datetime, comments, id FROM sqlcmd_history WHERE aid='$admin->{AID}' 
   ORDER BY 1 DESC
-  LIMIT $PG, $PAGE_ROWS;"
+  LIMIT $PG, $PAGE_ROWS;",
+  undef, $attr
   );
 
   return $self->{list};
@@ -326,21 +333,17 @@ sub history_query {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query(
-    $db, "SELECT datetime, 
+  $self->query2("SELECT datetime, 
    sql_query,
    comments, 
-   id FROM sqlcmd_history 
+   id 
+   FROM sqlcmd_history 
    WHERE aid='$admin->{AID}' 
    AND id = '$attr->{QUERY_ID}';
-   "
+   ",
+   undef,
+   { INFO => 1 }
   );
-
-  if ($self->{TOTAL} < 1) {
-    return $self;
-  }
-
-  ($self->{DATETIME}, $self->{SQL_QUERY}, $self->{COMENTS}, $self->{ID}) = @{ $self->{list}->[0] };
 
   return $self;
 }

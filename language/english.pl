@@ -4,7 +4,7 @@ $CONTENT_LANGUAGE='EN';
 
 @PERIODS=('Today', 'Yesterday', 'Week', 'Month', 'All sessions', 'From activation');
 @MONTHES=('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',  'September', 'October', 'November', 'December');
-@WEEKDAYS=('Hollidays', 'Mon', 'Tue', 'Wen', 'Thu', 'Fri', 'Sat', 'Sun');
+@WEEKDAYS=('Holidays', 'Mon', 'Tue', 'Wen', 'Thu', 'Fri', 'Sat', 'Sun');
 
 $_ADD='Add';
 $_GET='Get';
@@ -16,6 +16,9 @@ $_ADDED='Added';
 $_DELETED='Deleted';
 $_UNDELETE='Undelete';
 $_CHANGED='Changed';
+$_APPLY='Apply';
+$_APPLIED='Applied';
+$_UNAPPLIED='Unapplied';
 $_ROWS='Rows';
 $_FEES='Fees';
 $_SIMULTANEOUSLY='Simultaneously';
@@ -31,6 +34,8 @@ $_MESSAGES='Help Desk';
 #$_MESSAGES_DESCRIBE='По всіх питаннях які Вас цікавлять можете відправити повідомлення адміністратору.';
 $_SUBJECT='Subject';
 $_DEPOSIT='Deposit';
+$_OPERATION_DEPOSIT='Opearation Deposit';
+$_CURRENT_DEPOSIT='Current Deposit';
 $_ACTIVATE='Activation';
 $_ACTIV='Active';
 $_SEND='Send';
@@ -51,6 +56,7 @@ $_MAP='Map';
 $_PHONE='Phone';
 $_COMMENTS='Comments';
 $_REGISTRATION='Registration';
+$_MEMO='Memo';
 $_REGISTRATION_COMPLETE='Registration Complete';
 $_EXPIRE='Expired';
 
@@ -103,6 +109,7 @@ $_ENTER='Enter';
 $_BALANCE='Balance';
 $_PERIOD='Period';
 $_NEXT_PERIOD='Next account period';
+$_NEXT_FEES='Next Fees';
 $_SENT='Sent';
 $_RECV='Received';
 $_LAST_PAYMENT='Late payment';
@@ -178,6 +185,7 @@ $_NASS='NAS';
 $_PORT='Port';
 $_REDUCTION='Discount';
 $_STATIC='Static';
+$_FIXED_FEES_DAY='Fixed fees day';
 
 
 $_SEARCH='Search';
@@ -202,6 +210,7 @@ $_INVOICE='Invoice';
 $_INVOICE_CREATE='Create Invoice';
 $_INVOICES='Invoices';
 $_TAX_INVOICE='Tax invoice';
+$_DONT_CREATE_INVOICE='Don\'t Create invoice';
 $_ACTS='Acts';
 $_ACT='Act';
 $_CREATE='Create';
@@ -213,6 +222,7 @@ $_PRINT='Print';
 $_ACCOUNT_EXIST='Account already exists';
 $_SDETAIL='Sessions detalization';
 $_DETAIL='Detail';
+$_MODEL='Model';
 
 $_AUTH='Authorization';
 $_SHORT_NAME="Short name";
@@ -263,6 +273,8 @@ $ERR_WRONG_CONFIRM='Wrong Confirmation';
 $ERR_NAME_TOOLONG='Login is too long';
 $ERR_WRONG_DATA="Wrong data input";
 $ERR_SMALL_DEPOSIT='Too Small Deposit';
+$ERR_DELETE_INVOICE='Delete invoice first';
+$ERR_DELETE_RECEIPT='Delete receipt first';
 $ERR_UNKNOWN_IP="Not registred IP Address. Can't find your NAS.";
 $ERR_ACCEPT_RULES='Don\'t accepted rules';
 $ERR_CREDIT_CHANGE_LIMIT_REACH='Credit change limit reach';
@@ -271,6 +283,7 @@ $ERR_WRONG_FILE_NAME='Wrong file name or type';
 $ERR_WRONG_SUM="Wrong sum. Enter sum.";
 $ERR_ACCESS_DENY='Access Deny';
 $ERR_UNALLOW_IP='Unallow IP';
+$ERR_UNKNOWN='Unknown error';
 
 #
 $ERR_IP_ADDRESS_CONFLICT='IP Address Conflict.';
@@ -287,14 +300,16 @@ $_RELAYS='Relay',
 $_ACCESS='Access';
 $_TRANSPORT = 'Transport';
 $_ANTIVIRUS='Antivirus';
+$_VIRUS_ALERT='Virus allert';
 $_ANTISPAM='Antispam';
 $_FOLDER='Folder';
 
 #==new
 $_LIST='List';
 $_REPORTS = 'Reports';
+$_REPORTS_WIZARD='Reports Wizard';
 $_MODULES = 'Modules';
-$_SYSTEM = 'System configuration';
+$_SYSTEM = 'Configuration';
 $_GENERED_PARRWORD = 'Generate password';
 $_DISABLE='Disable';
 $_HOLD_UP='Hold Up';
@@ -460,6 +475,7 @@ $_BIRTHDAY='Birthday';
 $_FLATS='Flats';
 $_ACTION='Action';
 $_EXECUTE='Execute';
+$_EXECUTED='Executed';
 $_PAY='Pay';
 $_GRAPH='Charts for';
 $_VIEW='View';
@@ -496,4 +512,13 @@ $_MONTH_FEE_SHORT='M/F';
 $_DAY_FEE_SHORT='D/F';
 $_CURRENCY='Currency';
 $_ACCOMULATION='Accomulation';
+$_UNIVERSAL='Universal';
+$_YEAR_SHORT='y.';
+$_ACTIVATION_PAYMENT='Activation payment';
+$_GUEST='Guest';
+
+$_ACTIVATE_NEXT_PERIOD='For next activation period';
+
+$_EQUIPMENT='Equipment';
+$_VENDOR='Vendor';
 

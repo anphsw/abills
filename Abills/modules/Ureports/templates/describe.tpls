@@ -1,0 +1,15 @@
+ureports_report_1.tpl:russian:Депозит ниже допустимого лимита
+ureports_report_2.tpl:russian:Депозит и кредит ниже допустимого лимита
+ureports_report_3.tpl:russian:Предоплаченный трафик исчерпан
+ureports_report_4.tpl:russian:
+ureports_report_5.tpl:russian:Лимит дневного трафика превышен
+ureports_report_6.tpl:russian:
+ureports_report_7.tpl:russian:Время кредита истекло
+ureports_report_8.tpl:russian:Логин отключён
+ureports_report_9.tpl:russian:ДО завершения услуги осталось ХХ дней
+ureports_report_10.tpl:russian:Слишком маленький депозит для работы в следующем месяце
+ureports_report_11.tpl:russian:Слишком маленький депозит для работы в следующем месяце Вурсия: 2
+ureports_report_12.tpl:russian:Сообщение о пополнении счета
+ureports_report_13.tpl:russian:Все услуши завершатся через XX дней
+ureports_sms_message.tpl:russian:ОБщий шаблон SMS сообщения
+ureports_email_message.tpl:russian:ОБщий шаблон E-mail сообщения

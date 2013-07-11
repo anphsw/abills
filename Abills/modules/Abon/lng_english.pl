@@ -12,3 +12,7 @@ $_SERVICE_ACTIVATE_NOTIFICATION='Service Activate notification';
 $_VAT_INCLUDE='Vat Include';
 
 $_SEND_NOTIFICATION='Send Notification';
+
+
+$_MANUAL_ACTIVATE='Manual Activate';
+$_USER_PORTAL='User portal';

@@ -50,7 +50,7 @@ $conf{secretkey}="test12345678901234567890";
 $conf{s_detalization}=1; #make session detalization recomended for vpn leathed lines
 $conf{ERROR2DB}=1;
 
-$conf{version}='0.54b'; #05.04.2011
+$conf{version}='0.55b'; #08.12.2012
 
 #Octets direction
 # server - Count octets from server side
@@ -84,7 +84,7 @@ $conf{MAX_USERNAME_LENGTH}=15;
 # User name expration
 $conf{USERNAMEREGEXP}="^[a-z0-9_][a-z0-9_-]*\$";
 $conf{list_max_recs}=25;
-$conf{web_session_timeout} = 1800;
+$conf{web_session_timeout} = 86000;
 $conf{user_chg_passwd}=0;
 #Max session traffic Mb
 #$conf{MAX_SESSION_TRAFFIC} = 2047; 
@@ -104,6 +104,7 @@ $conf{debugmods}='LOG_ALERT LOG_WARNING LOG_ERR LOG_INFO';
 #show auth and accounting time need Time::HiRes module (available from CPAN)
 # Check script runnig time
 $conf{time_check}=1;
+$conf{RADIUS2}=1;
 
 #Firewall start rule numbers
 # (GLobal, Class 1, Class 2)

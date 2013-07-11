@@ -76,13 +76,7 @@ button:hover {
 
 }
 
-table {
-margin-top:15px;
-text-align: center;
 
-
-
-}
 
 th {
 height:35px;
@@ -91,14 +85,7 @@ background-color: #F0F0F0;
 }
 
 
-.tcaption {
 
-float:right;
-padding: 0px 10px 0px 0px;
-font-size:1.2em;
-font-weight:800;
-
-}
 
 #wrapper {
 	width: 1000px;
@@ -487,6 +474,14 @@ font-weight:800;
 	top:27px;	
 }
 
+.tcaption {
+	background-color:#FFFFFF;
+	text-align:right;
+	font-size:12px;
+	font-weight:700;
+}
+
+
 
 
 
@@ -505,33 +500,16 @@ font-weight:800;
 </head>
 
 <body>
-<div id=\"wrapper\">
-  <div id=\"header\"> </div>
-  <!-- #header-->
-  
-  <div id=\"content\">
-    <ul id=\"menu\">
-      <li><a href=\"$SELF_URL?index=11&NEW_USER=1\" title='Вспливающая подсказка'>$_ADD_USER</a></li>
-      <li><a href=\"$SELF_URL\">$_SEARCH</a></li>
-      <li><a href=\"$SELF_URL?SHOW_REPORT=users_total\">$_REPORTS</a></li>
-    </ul>
-    <div id=\"auth\"> <br />
-      <p><strong>менеджер</strong>:<br />
-        <strong><a href=\"#\">%ADMIN_NAME%</a></strong></p>
-      <a href='$SELF_URL?index=1000' class='href_buttons'>$_LOGOUT</a>
-    </div>
-	%FILTER%
-	%CONTENT%
 
-  </div>
-  
+<div id=\"wrapper\"><div id=\"header\"></div>
+  <!-- #header-->
+  %MENU%  
   <!-- #content-->
-  
   <!-- <div id=\"footer\"></div> --> 
   <!-- #footer --> 
-  
 </div>
 <!-- #wrapper -->
+
 
 </body>
 </html>

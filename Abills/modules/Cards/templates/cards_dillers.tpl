@@ -18,7 +18,10 @@
 <tr><td>$_REGISTRATION:</td><td>%REGISTRATION%</td></tr>
 <tr><th colspan='2' class=titel_color>$_COMMENTS</th></tr>
 <tr><th colspan='2'><textarea name='COMMENTS' cols='60' rows='6'>%COMMENTS%</textarea></th></tr>
-<tr><th colspan='2' class=even><input type='submit' name='%ACTION%' value='%LNG_ACTION%'></th></tr>
+
+<tr><th class=even>
+%DEL_BUTTON%</th>
+<th><input type=submit name='%ACTION%' value='%LNG_ACTION%'></th></tr>
 </table>
 
 </form>

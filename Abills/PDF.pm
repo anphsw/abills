@@ -109,7 +109,7 @@ sub new {
   $domain   = $ENV{SERVER_NAME};
   $web_path = '';
   $secure   = '';
-  my $prot = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
+  my $prot  = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
   $SELF_URL = (defined($ENV{HTTP_HOST})) ? "$prot://$ENV{HTTP_HOST}$ENV{SCRIPT_NAME}" : '';
 
   $SESSION_IP = $ENV{REMOTE_ADDR} || '0.0.0.0';
@@ -155,10 +155,7 @@ sub new {
     $self = Abills::XML->new(
       {
         IMG_PATH => $IMG_PATH,
-        NO_PRINT => defined($attr->{'NO_PRINT'})
-        ? $attr->{'NO_PRINT'}
-        : 1
-
+        NO_PRINT => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1
       }
     );
   }
@@ -675,8 +672,6 @@ sub header {
   my $filename = ($attr->{NAME}) ? $attr->{NAME} . 'pdf' : int(rand(32768)) . '.pdf';
   $self->{header} = "Content-type: application/pdf; filename=$filename\n";
   $self->{header} .= "Cache-Control: no-cache\n";
-
-  # $self->{header}.= "Content-disposition: inline; name=\"$filename\"\n\n";
   $self->{header} .= "Content-disposition: inline; name=\"$filename\"\n\n";
 
   return $self->{header};
@@ -754,7 +749,7 @@ sub table {
     $self->{table} .= "</COLGROUP>\n";
   }
 
-  if (defined($attr->{pages})) {
+  if ($attr->{pages}) {
     my $op;
     if ($FORM{index}) {
       $op = "index=$FORM{index}";
@@ -908,15 +903,12 @@ sub show {
 
   $self->{show} = $self->{table};
   $self->{show} .= $self->{rows};
-  $self->{show} .= "</TABLE></TD></TR></TABLE>\n";
 
   if (defined($self->{pages})) {
-    $self->{show} = '<br>' . $self->{pages} . $self->{show} . $self->{pages} . '<br>';
+    $self->{show} = $self->{pages} . $self->{show} . $self->{pages};
   }
   if ((defined($self->{NO_PRINT})) && (!defined($attr->{OUTPUT2RETURN}))) {
     $self->{prototype}->{OUTPUT} .= $self->{show};
-
-    #$self->{OUTPUT} .= $self->{show};
     $self->{show} = '';
   }
 
@@ -1033,61 +1025,6 @@ sub pages {
   }
 
   return $self->{pages};
-}
-
-#*******************************************************************
-# Make data field
-# date_fld($base_name)
-#*******************************************************************
-sub date_fld {
-  my $self = shift;
-  my ($base_name, $attr) = @_;
-
-  my $MONTHES = $attr->{MONTHES};
-
-  my ($sec, $min, $hour, $mday, $mon, $curyear, $wday, $yday, $isdst) = localtime(time);
-
-  if ($attr->{DATE}) {
-    my ($y, $m, $d) = split(/-/, $attr->{DATE});
-    $mday = $d;
-  }
-  else {
-    $mday = 1;
-  }
-
-  my $day   = $FORM{ $base_name . 'D' } || $mday;
-  my $month = $FORM{ $base_name . 'M' } || $mon;
-  my $year  = $FORM{ $base_name . 'Y' } || $curyear + 1900;
-
-  my $result = "<SELECT name=" . $base_name . "D>";
-  for (my $i = 1 ; $i <= 31 ; $i++) {
-    $result .= sprintf("<option value=%.2d", $i);
-    $result .= ' selected' if ($day == $i);
-    $result .= ">$i\n";
-  }
-  $result .= '</select>';
-
-  $result .= "<SELECT name=" . $base_name . "M>";
-
-  my $i = 0;
-  foreach my $line (@$MONTHES) {
-    $result .= sprintf("<option value=%.2d", $i);
-    $result .= ' selected' if ($month == $i);
-
-    $result .= ">$line\n";
-    $i++;
-  }
-  $result .= '</select>';
-
-  $result .= "<SELECT name=" . $base_name . "Y>";
-  for ($i = 2002 ; $i <= $curyear + 1900 + 2 ; $i++) {
-    $result .= "<option value=$i";
-    $result .= ' selected' if ($year eq $i);
-    $result .= ">$i\n";
-  }
-  $result .= '</select>' . "\n";
-
-  return $result;
 }
 
 #*******************************************************************
@@ -1232,9 +1169,9 @@ sub tpl_show {
 
   $debug = 0;
   $filename =~ s/\.[a-z]{3}$//;
-  my $tpl_describe = tpl_describe($filename, { debug => $self->{debug} });
+  my $tpl_describe = tpl_describe("$filename", { debug => $self->{debug} });
   $filename = $filename . '.pdf';
-  my $pdf = PDF::API2->open($filename);
+  my $pdf = PDF::API2->open("$filename");
   my $tpl;
 
   my $moddate .= '';
@@ -1246,8 +1183,8 @@ sub tpl_show {
     'ModDate'      => "D:$moddate" . "+02'00'",
     'Creator'      => ($attr->{ADMIN}) ? $attr->{ADMIN} : "ABillS pdf manager",
     'Producer'     => "ABillS pdf manager",
-    'Title'        => "Account",
-    'Subject'      => "Account",
+    'Title'        => $attr->{TITLE} || "Invoice",
+    'Subject'      => $attr->{SUBJECT} || "Invoice",
     'Keywords'     => ""
   );
 
@@ -1260,13 +1197,13 @@ sub tpl_show {
   if ($encode =~ /utf-8/) {
     $font_name = '/usr/abills/Abills/templates/fonts/FreeSerif.ttf';
     $font = $pdf->ttfont($font_name, -encode => "$encode");
+    #$font = $pdf->corefont($font_name, -encode => "$encode");
   }
   else {
     $font = $pdf->corefont($font_name, -encode => "$encode");
   }
 
   MULTIDOC_LABEL:
-
   for my $key (sort keys %$tpl_describe) {
     my @patterns = ();
 
@@ -1345,7 +1282,6 @@ sub tpl_show {
       $txt->translate($x, $y);
 
       if (defined($variables_ref->{$key})) {
-
         $text = $variables_ref->{$key};
         if ($tpl_describe->{$key}->{EXPR}) {
           my @expr_arr = split(/\//, $tpl_describe->{$key}->{EXPR}, 2);
@@ -1355,7 +1291,7 @@ sub tpl_show {
       }
 
       #else {
-      #	$text = ''; #"'$key: $x/$y'";
+      #  $text = ''; #"'$key: $x/$y'";
       # }
 
       if ($text_file ne '') {
@@ -1406,10 +1342,11 @@ sub tpl_show {
         else {
           $txt->text($text, -align => $align || 'justified');
         }
-
       }
     }
   }
+
+
 
   if ($attr->{MULTI_DOCS} && $multi_doc_count <= $#{ $attr->{MULTI_DOCS} }) {
     if ($attr->{DOCS_IN_FILE} && $multi_doc_count > 0 && $multi_doc_count % $attr->{DOCS_IN_FILE} == 0) {

@@ -13,4 +13,20 @@
 <tr><th class='even' colspan=2>%ACTION%</th></tr>
 </TABLE>
 
+
+<div id='open_popup_block_middle' style='width:400px; height:200px'>
+  <a id='close_popup_window'>x</a>
+  <div id='popup_window_content'><br/>
+    <p>
+    
+    $_CHANGE<BR>
+    
+    $_TARIF_PLAN    <br>
+    
+    $_ACCEPT: <input type=checkbox value='$_HOLD_UP' name='ACCEPT_RULES'> <br>
+    </p>
+    <input type=submit value='$_SET' name='set'>
+  </div>
+</div>
+
 </form>

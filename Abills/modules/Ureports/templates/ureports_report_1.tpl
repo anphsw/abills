@@ -1,0 +1,5 @@
+$_DEAR, %FIO%
+
+$_DEPOSIT: %DEPOSIT%
+$_DATE: %DATE%
+

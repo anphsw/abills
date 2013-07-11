@@ -1,4 +1,4 @@
 	
-	var latlng = new GLatLng(%MAP_NAS_Y%, %MAP_NAS_X% );	
-	map.addOverlay(createMarker(latlng, '%NAS_INFO%', 'yellow', 'NAS')); 
+	var latlng = new google.maps.LatLng(%MAP_NAS_Y%, %MAP_NAS_X% );	
+	createMarker(latlng, '%NAS_INFO%', 'nas', 'NAS'); 
 	

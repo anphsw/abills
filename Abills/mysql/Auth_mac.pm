@@ -36,7 +36,7 @@ sub new {
   bless($self, $class);
 
   my $Auth = Auth->new($db, $conf);
-  $Billing = Billing->new($db, $conf);	
+  $Billing = Billing->new($db, $conf);  
 
   return $self;
 }
@@ -52,17 +52,17 @@ sub user_info {
   my $EXT_TABLES = '';
   
   if ($conf->{AUTH_MAC_DHCP}) {
-  	if ($RAD->{CALLING_STATION_ID} && $RAD->{CALLING_STATION_ID} =~ /([A-Fa-f0-9]{2})([A-Fa-f0-9]{2})\.([A-Fa-f0-9]{2})([A-Fa-f0-9]{2})\.([A-Fa-f0-9]{2})([A-Fa-f0-9]{2})/) {
-  		$RAD->{CALLING_STATION_ID} = "$1:$2:$3:$4:$5:$6";
-  	 }
+    if ($RAD->{CALLING_STATION_ID} && $RAD->{CALLING_STATION_ID} =~ /([A-Fa-f0-9]{2})([A-Fa-f0-9]{2})\.([A-Fa-f0-9]{2})([A-Fa-f0-9]{2})\.([A-Fa-f0-9]{2})([A-Fa-f0-9]{2})/) {
+      $RAD->{CALLING_STATION_ID} = "$1:$2:$3:$4:$5:$6";
+     }
     elsif ($RAD->{USER_NAME} =~ /([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})/i) {
       $RAD->{CALLING_STATION_ID} = "$1:$2:$3:$4:$5:$6";
      }
-  	else { 
-  		$RAD->{CALLING_STATION_ID} =~ s/\-/:/g;
-  	 }
+    else { 
+      $RAD->{CALLING_STATION_ID} =~ s/\-/:/g;
+     }
 
-    $WHERE = " and dhcp.mac='$RAD->{CALLING_STATION_ID}'";	
+    $WHERE = " and dhcp.mac='$RAD->{CALLING_STATION_ID}'";  
     $EXT_TABLES = "INNER JOIN dhcphosts_hosts dhcp ON (dhcp.uid=u.uid)";
    }
   else {
@@ -101,11 +101,11 @@ sub user_info {
     u.uid=dv.uid
    $WHERE;");
 
-	if($self->{TOTAL} < 1) {
-  	return $self;
+  if($self->{TOTAL} < 1) {
+    return $self;
    }
-	elsif($self->{errno}) {
-  	return $self;
+  elsif($self->{errno}) {
+    return $self;
    }
 
 
@@ -169,10 +169,10 @@ sub auth {
     
     #Make guest vlan for unknown users
     if ($conf->{AUTH_MAC_GUEST_VID}) {
-    	$RAD_PAIRS{'Tunnel-Type'}='VLAN';
-    	$RAD_PAIRS{'Tunnel-Private-Group-Id'}="$conf->{AUTH_MAC_GUEST_VID}";
-    	$RAD_PAIRS{'Tunnel-Medium-Type'}='IEEE-802';
-    	return 0, \%RAD_PAIRS;
+      $RAD_PAIRS{'Tunnel-Type'}='VLAN';
+      $RAD_PAIRS{'Tunnel-Private-Group-Id'}="$conf->{AUTH_MAC_GUEST_VID}";
+      $RAD_PAIRS{'Tunnel-Medium-Type'}='IEEE-802';
+      return 0, \%RAD_PAIRS;
      }
     else {
       $RAD_PAIRS{'Reply-Message'}="User Not Exist '$RAD->{CALLING_STATION_ID}'";
@@ -202,7 +202,7 @@ if ($self->{PAYMENT_TYPE} == 0) {
   #Check deposit
 
   if($self->{DEPOSIT}  <= 0) {
-  	if (! $self->{NEG_DEPOSIT_FILTER_ID}) {
+    if (! $self->{NEG_DEPOSIT_FILTER_ID}) {
       $RAD_PAIRS{'Reply-Message'}="Negativ deposit '$self->{DEPOSIT}'. Rejected!";
       return 1, \%RAD_PAIRS;
      }
@@ -217,7 +217,7 @@ else {
   if ($self->{TP_RAD_PAIRS}) {
     my @p = split(/,/, $self->{TP_RAD_PAIRS});
     foreach my $line (@p) {
-    	$line =~ s/\n//g;
+      $line =~ s/\n//g;
       if ($line =~ /([a-zA-Z0-9\-]{6,25})\+\=(.{1,200})/gi) {
         my $left = $1;
         my $right= $2;
@@ -229,10 +229,10 @@ else {
          $left =~ s/^ //g;
          if ($left =~ s/^!//) {
            delete $RAD_PAIRS{"$left"};
-   	      }
-   	     else {
-   	       $RAD_PAIRS{"$left"}="$right";
-   	      }
+           }
+          else {
+            $RAD_PAIRS{"$left"}="$right";
+           }
        }
      }
    }
@@ -254,20 +254,20 @@ if ($attr->{NAS_TYPE} eq 'mac_auth') {
   my $password = $RAD->{USER_NAME};
 
   if ($conf->{AUTH_MAC_DHCP}) {
-  	if ($RAD->{CALLING_STATION_ID} && $RAD->{CALLING_STATION_ID} =~ /([A-Fa-f0-9]{2})([A-Fa-f0-9]{2})\.([A-Fa-f0-9]{2})([A-Fa-f0-9]{2})\.([A-Fa-f0-9]{2})([A-Fa-f0-9]{2})/) {
-  		$RAD->{CALLING_STATION_ID} = "$1:$2:$3:$4:$5:$6";
-  	 }
+    if ($RAD->{CALLING_STATION_ID} && $RAD->{CALLING_STATION_ID} =~ /([A-Fa-f0-9]{2})([A-Fa-f0-9]{2})\.([A-Fa-f0-9]{2})([A-Fa-f0-9]{2})\.([A-Fa-f0-9]{2})([A-Fa-f0-9]{2})/) {
+      $RAD->{CALLING_STATION_ID} = "$1:$2:$3:$4:$5:$6";
+     }
     elsif ($RAD->{USER_NAME} && $RAD->{USER_NAME} =~ /([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})/i) {
       $RAD->{CALLING_STATION_ID} = "$1:$2:$3:$4:$5:$6";
      }
-  	else { 
-  		$RAD->{CALLING_STATION_ID} =~ s/\-/:/g;
-  	 }
+    else { 
+      $RAD->{CALLING_STATION_ID} =~ s/\-/:/g;
+     }
    }
 
   $self->query($db, "SELECT ip FROM dhcphosts_hosts WHERE mac='$RAD->{CALLING_STATION_ID}';");
   if ($self->{TOTAL} > 0) {
-  	my $list = $self->{list}->[0];
+    my $list = $self->{list}->[0];
    
     if ($CONF->{RADIUS2}) {
        print "Cleartext-Password := \"$password\";\n";
@@ -287,12 +287,12 @@ if ($attr->{NAS_TYPE} eq 'mac_auth') {
 elsif ($RAD->{MS_CHAP_CHALLENGE} || $RAD->{EAP_MESSAGE}) {
   my $login = $RAD->{USER_NAME} || '';
   if ($login =~ /:(.+)/) {
-    $login = $1;	 
+    $login = $1;   
   }
 
   $self->query($db, "SELECT DECODE(password, '$CONF->{secretkey}') FROM users WHERE id='$login';");
   if ($self->{TOTAL} > 0) {
-  	my $list = $self->{list}->[0];
+    my $list = $self->{list}->[0];
     my $password = $list->[0];
     
     if ($CONF->{RADIUS2}) {

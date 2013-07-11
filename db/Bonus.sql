@@ -53,10 +53,7 @@ CREATE TABLE `bonus_tps` (
 CREATE TABLE `bonus_accoumulation` (
   `tp_id` smallint(6) unsigned NOT NULL default 0,
   `dv_tp_id` smallint(6) unsigned NOT NULL default 0,
-  `scores` smallint(6) unsigned NOT NULL default 0,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `id` (`id`),
-  UNIQUE KEY `name` (`name`)
+  `scores` smallint(6) unsigned NOT NULL default 0
 ) COMMENT "Bonus accoumulation"  ;
 
 
@@ -80,3 +77,19 @@ CREATE TABLE `bonus_main` (
   UNIQUE KEY `uid` (`uid`)
 )  COMMENT='Bonus users' ;
 
+
+CREATE TABLE `bonus_rules_accomulation` (
+  `tp_id` smallint(6) unsigned NOT NULL DEFAULT '0',
+  `dv_tp_id` smallint(6) unsigned NOT NULL DEFAULT '0',
+  `cost` double(15,6) NOT NULL default '0.000000',
+  UNIQUE KEY `tp_id` (`tp_id`,`dv_tp_id`)
+) COMMENT "Bonus accomulation rules"  ;
+
+
+CREATE TABLE `bonus_rules_accomulation_scores` (
+  `uid` int(11) unsigned NOT NULL DEFAULT '0',
+  `dv_tp_id` smallint(6) unsigned NOT NULL DEFAULT '0',
+  `cost` double(15,6) NOT NULL default '0.000000',
+  `changed` date not null default '0000-00-00',
+  PRIMARY KEY `uid` (`uid`)
+) COMMENT "Bonus accomulation scores"  ;

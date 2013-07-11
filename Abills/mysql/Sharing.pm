@@ -1201,11 +1201,11 @@ sub list {
   }
 
   if ($attr->{SPEED}) {
-  	push @WHERE_RULES, @{ $self->search_expr($attr->{SPEED}, 'INT', 'sharing.speed', { EXT_FIELD => 1 }) }
+    push @WHERE_RULES, @{ $self->search_expr($attr->{SPEED}, 'INT', 'sharing.speed', { EXT_FIELD => 1 }) }
   }
 
   if ($attr->{CID}) {
-  	push @WHERE_RULES, @{ $self->search_expr($attr->{CID}, 'INT', 'sharing.cid', { EXT_FIELD => 1 }) }
+    push @WHERE_RULES, @{ $self->search_expr($attr->{CID}, 'INT', 'sharing.cid', { EXT_FIELD => 1 }) }
   }
 
   if (defined($attr->{TP_ID})) {
@@ -1340,7 +1340,7 @@ sub sessions_list {
   }
 
   #else {
-  #	 push @WHERE_RULES, "date_format(start, '%Y-%m-%d')=curdate()";
+  #   push @WHERE_RULES, "date_format(start, '%Y-%m-%d')=curdate()";
   #}
   #From To
 
@@ -1478,10 +1478,10 @@ sub tt_info {
 
   $self->query(
     $db, "SELECT id, interval_id, in_price, out_price, prepaid, in_speed, out_speed, 
-	     descr, 
-	     nets,
-	     expression,
-	     tp_id
+       descr, 
+       nets,
+       expression,
+       tp_id
      FROM sharing_trafic_tarifs 
      WHERE 
      tp_id='$attr->{TP_ID}'
@@ -1555,7 +1555,7 @@ sub tt_del {
 
   $self->query(
     $db, "DELETE FROM sharing_trafic_tarifs 
-	 WHERE  tp_id='$attr->{TI_ID}'  and id='$attr->{TT_ID}' ;", 'do'
+   WHERE  tp_id='$attr->{TI_ID}'  and id='$attr->{TT_ID}' ;", 'do'
   );
 
   return $self;
@@ -1674,7 +1674,7 @@ sub errors_del {
 
   $self->query(
     $db, "DELETE FROM sharing_trafic_tarifs 
-	 WHERE  tp_id='$attr->{TI_ID}'  and id='$attr->{TT_ID}' ;", 'do'
+   WHERE  tp_id='$attr->{TI_ID}'  and id='$attr->{TT_ID}' ;", 'do'
   );
 
   return $self;

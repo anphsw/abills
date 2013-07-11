@@ -20,6 +20,8 @@ CREATE TABLE `abon_tariffs` (
   `alert_account` tinyint(1) unsigned NOT NULL DEFAULT '0',
   `ext_cmd` VARCHAR(240) NOT NULL DEFAULT '' ,
   `discount` tinyint(1) unsigned NOT NULL default '0',
+  `manual_activate` tinyint(1) NOT NULL default 0,
+  `user_portal` tinyint(1) NOT NULL default 0,
   PRIMARY KEY  (`id`),
   UNIQUE KEY `id` (`id`),
   UNIQUE KEY `name` (`name`)
@@ -36,5 +38,7 @@ CREATE TABLE `abon_user_list` (
   `discount`  double(6,2) NOT NULL default '0.00',
   `create_docs` tinyint(1) unsigned NOT NULL DEFAULT 0,
   `send_docs` tinyint(1) unsigned NOT NULL DEFAULT 0,
+  `service_count` smallint(4) unsigned NOT NULL DEFAULT 1,
+  `manual_fee` tinyint(1) unsigned NOT NULL DEFAULT 0,
   KEY `uid` (`uid`, `tp_id`)
 ) COMMENT='Abon user list';

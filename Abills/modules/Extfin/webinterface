@@ -23,7 +23,7 @@ sub extfin_export_customers {
   $pages_qs .= "&TYPE=$FORM{TYPE}";
 
   if ($FORM{TYPE} && $FORM{TYPE} eq 'CUSTOMERS') {
-    $LIST_PARAMS{PAGE_ROWS} = 1000000;
+    $LIST_PARAMS{PAGE_ROWS} = ($FORM{PAGE_ROWS} ) ? $FORM{PAGE_ROWS} : 1000000;
     $LIST_PARAMS{PG}        = $FORM{PG} || 0;
     $LIST_PARAMS{USER_TYPE} = $FORM{USER_TYPE};
     $pages_qs .= "&USER_TYPE=$FORM{USER_TYPE}";
@@ -33,7 +33,8 @@ sub extfin_export_customers {
         {
           width   => '100%',
           caption => "$_USERS",
-          title   => [ 'ID', $_NAME, $_FIO, "$_GROUP ID", "$_GROUP", $_TYPE, $_ADDRESS, $_PHONE, $_CONTRACT_ID, 'BILL ID', "BANK ACCOUNT", 'BANK NAME', 'COR ACCT' ],
+          title   => [ 'ID', $_NAME, $_FIO, "$_GROUP ID", "$_GROUP", $_TYPE, $_ADDRESS, $_PHONE, 
+           $_CONTRACT_ID, "$_CONTRACT_DATE", 'BILL ID', "BANK ACCOUNT", 'BANK NAME', 'COR ACCT' ],
           ID      => 'EXTFIN_CUSTOMERS',
           qs      => $pages_qs,
           rows    => [ [ 10000000, "$_TOTAL $_USERS", "$_TOTAL $_USERS", 0, '', 1, '', '', '', '', '', '', '' ] ],
@@ -45,7 +46,7 @@ sub extfin_export_customers {
       return 0;
     }
 
-    my @TITLE = ('ID', $_NAME, $_FIO, "$_GROUP ID", "$_GROUP", $_TYPE, $_ADDRESS, $_PHONE, "$_CONTRACT $_TYPE", $_CONTRACT_ID, 'BILL ID', "BANK ACCOUNT", 'BANK NAME', 'COR ACCT');
+    my @TITLE = ('ID', $_NAME, $_FIO, "$_GROUP ID", "$_GROUP", $_TYPE, $_ADDRESS, $_PHONE, "$_CONTRACT $_TYPE", $_CONTRACT_ID, "$_CONTRACT $_DATE", 'BILL ID', "BANK ACCOUNT", 'BANK NAME', 'COR ACCT', 'UID');
 
     if ($FORM{INFO_FIELDS} || $FORM{INFO_FIELDS_COMPANIES}) {
       push @TITLE, split(/, /, $FORM{INFO_FIELDS} . $FORM{INFO_FIELDS_COMPANIES});
@@ -72,11 +73,27 @@ sub extfin_export_customers {
       my @arr = ();
       if ($Extfin->{SEARCH_FIELDS_COUNT}) {
         for (my $i = 0 ; $i <= $Extfin->{SEARCH_FIELDS_COUNT} ; $i++) {
-          push @arr, $line->[ 14 + $i ];
+          push @arr, $line->[ 15 + $i ];
         }
       }
 
-      $table->addrow($line->[0], $line->[1], $line->[2], $line->[3], $line->[4], $line->[5], $line->[6], $line->[7], $line->[8], $line->[9], $line->[10], $line->[11], $line->[12], $line->[13], @arr);
+      $table->addrow($line->[0], 
+        $line->[1], 
+        $line->[2], 
+        $line->[3], 
+        $line->[4], 
+        $line->[5], 
+        $line->[6], 
+        $line->[7], 
+        $line->[8], 
+        $line->[9], 
+        $line->[10], 
+        $line->[11], 
+        $line->[12], 
+        $line->[13], 
+        $line->[14],
+        $line->[15],
+        @arr);
     }
 
     print $table->show();
@@ -446,7 +463,8 @@ sub extfin_paids {
           width   => '80%',
           caption => "$_PERIOD",
           border  => 1,
-          title   => [ '#', "$_TYPE", "$_SUM", "$_DESCRIBE", "$_ACCOUNT", "$_ADMIN", "$_DATE" ]
+          title   => [ '#', "$_TYPE", "$_SUM", "$_DESCRIBE", "$_ACCOUNT", "$_ADMIN", "$_DATE" ],
+          ID      => 'EXTFIN_PERIOD'
         }
       );
 
@@ -502,13 +520,14 @@ sub extfin_paids {
   $list  = $Extfin->paids_list({%LIST_PARAMS});
   $table = $html->table(
     {
-      width   => '100%',
-      caption => "$_FEES",
-      border  => 1,
-      title   => [ '#', $_DATE, $_USER, $_SUM, $_TYPE, $_DESCRIBE, $_ACCOUNT, $_ADMIN, $_STATUS, "$_CLOSED $_DATE", 'EXT ID', '-', '-' ],
+      width      => '100%',
+      caption    => "$_FEES",
+      border     => 1,
+      title      => [ '#', $_DATE, $_USER, $_SUM, $_TYPE, $_DESCRIBE, $_ACCOUNT, $_ADMIN, $_STATUS, "$_CLOSED $_DATE", 'EXT ID', '-', '-' ],
       cols_align => [ 'right', 'left', 'left', 'right', 'left', 'left', 'left', 'center', 'right', 'left', 'center:noprint', 'center:noprint' ],
       pages      => $Extfin->{TOTAL},
       qs         => $pages_qs,
+      ID         => 'EXTFIN_FEES'
     }
   );
 
@@ -674,9 +693,9 @@ sub extfin_report_deeds {
         rows     => [
           [
             "$_FROM: ",
-            $html->date_fld('FROM_', { MONTHES => \@MONTHES }),
+            $html->date_fld2('FROM_', { MONTHES => \@MONTHES }),
             "$_TO: ",
-            $html->date_fld('TO_', { MONTHES => \@MONTHES }),
+            $html->date_fld2('TO_', { MONTHES => \@MONTHES }),
             "$_PERIOD: ",
             $html->form_select(
               'MONTH',
@@ -824,11 +843,12 @@ sub extfin_report_paids {
     my $list = $Extfin->paids_list({%LIST_PARAMS});
     $table_sessions = $html->table(
       {
-        width   => '100%',
-        caption => "$_FEES",
-        border  => 1,
-        title   => [ '#', $_DATE, $_USER, $_SUM, $_TYPE, $_DESCRIBE, "$_PAYMENT_METHOD", $_ADMIN, $_STATUS, "$_CLOSED $_DATE", 'EXT ID', '-', '-' ],
+        width      => '100%',
+        caption    => "$_FEES",
+        border     => 1,
+        title      => [ '#', $_DATE, $_USER, $_SUM, $_TYPE, $_DESCRIBE, "$_PAYMENT_METHOD", $_ADMIN, $_STATUS, "$_CLOSED $_DATE", 'EXT ID', '-', '-' ],
         cols_align => [ 'right', 'left', 'right', 'left', 'right', 'left', 'center', 'right', 'center:noprint', 'center:noprint' ],
+        ID         => 'EXTFIN_FEES'
       }
     );
 
@@ -1213,7 +1233,7 @@ sub extfin_debetors {
       rows     => [
         [
           "$_PERIOD: ",
-          $html->form_input('SEL_DATE', 1, { TYPE => 'checkbox' }) . $html->date_fld('from', { MONTHES => \@MONTHES }),
+          $html->form_input('SEL_DATE', 1, { TYPE => 'checkbox' }) . $html->date_fld2('from', { MONTHES => \@MONTHES }),
           "$_STATUS: "
           . $html->form_select(
             'STATUS',
@@ -1460,9 +1480,9 @@ sub extfin_users_balance {
         rows     => [
           [
             "$_FROM: ",
-            $html->date_fld('FROM_', { MONTHES => \@MONTHES }),
+            $html->date_fld2('FROM_', { MONTHES => \@MONTHES }),
             "$_TO: ",
-            $html->date_fld('TO_', { MONTHES => \@MONTHES }),
+            $html->date_fld2('TO_', { MONTHES => \@MONTHES }),
             "$_PERIOD: ",
             $html->form_select(
               'MONTH',

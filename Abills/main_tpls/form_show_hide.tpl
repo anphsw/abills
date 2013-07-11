@@ -1,4 +1,4 @@
-<script src=\"/js/jquery.spoiler.js\"></script>
+<script src=\"/js/jquery.spoiler.js\" type='text/javascript'></script>
 
 <div class=\"dropdown-container\"> 
   <div class=\"dropdown-box\" id=\"%ID%\">

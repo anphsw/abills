@@ -1,4 +1,4 @@
-</div class=noprint id=form_msg_add>
+<div class=noprint id=form_msg_add>
 
 <FORM action='$SELF_URL' METHOD='POST'  enctype='multipart/form-data'>
 <input type='hidden' name='index' value='$index'/>

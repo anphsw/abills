@@ -4,6 +4,7 @@ use Iptv;
 use Tariffs;
 use Fees;
 use Shedule;
+use Encode;
 
 my $Tariffs = Tariffs->new($db, \%conf, $admin);
 my $Iptv    = Iptv->new($db, $admin, \%conf);
@@ -12,6 +13,25 @@ my $Fees    = Fees->new($db, $admin, \%conf);
 my $debug          = 0;
 my @status         = ($_ENABLE, $_DISABLE);
 my @service_status = ("$_ENABLE", "$_DISABLE", "$_NOT_ACTIVE");
+my @service_status_colors = ("$_COLORS[9]", "$_COLORS[6]", '#808080', '#0000FF', '#FF8000', '#009999');
+
+my %tp_list = ();
+
+my $Iptv_stalker;
+my $Stalker_api;
+
+if ($conf{IPTV_STALKER_DB}) {
+  eval { require Iptv_stalker; };
+  if (!$@){
+    Iptv_stalker->import();
+    $Iptv_stalker = Iptv_stalker->new($db, $admin, \%conf);
+  }
+  else {
+    #print $@; 
+  }
+}
+
+
 
 #*******************************************************************
 # Delete user from module
@@ -100,8 +120,7 @@ sub iptv_chg_tp {
     && ( $users->{DEPOSIT} + $users->{CREDIT} > 0
       || $Iptv->{POSTPAID_ABON}
       || $Iptv->{PAYMENT_TYPE} == 1)
-  )
-  {
+  ) {
 
     if ($users->{ACTIVATE} ne '0000-00-00') {
       my ($Y, $M, $D) = split(/-/, $users->{ACTIVATE}, 3);
@@ -126,7 +145,7 @@ sub iptv_chg_tp {
     }
   }
 
-  $shedule = Shedule->new($db, $admin);
+  $shedule = Shedule->new($db, $admin, \%conf);
 
   if ($FORM{set}) {
     if (!$permissions{0}{4}) {
@@ -151,7 +170,7 @@ sub iptv_chg_tp {
           D            => $day,
           M            => $month,
           Y            => $year,
-          COMMENTS     => "$_FROM: $Dv->{TP_ID}:$Dv->{TP_NAME}",
+          COMMENTS     => "$_FROM: $Iptv->{TP_ID}:$Iptv->{TP_NAME}",
           ADMIN_ACTION => 1,
           MODULE       => 'Iptv'
         }
@@ -172,15 +191,18 @@ sub iptv_chg_tp {
         $html->message('err', $_ERROR, "[$users->{errno}] $err_strs{$users->{errno}}");
       }
       else {
-
         #Take Fees
-        if ($Iptv->{TP_INFO}->{MONTH_FEE} > 0 && !$Iptv->{STATUS}) {
-          iptv_get_month_fee($Iptv);
+        if (! $Iptv->{STATUS} && $FORM{GET_ABON}) {
+          service_get_month_fee($Iptv, { SERVICE_NAME => "$_TV" });
         }
 
         $html->message('info', $_CHANGED, "$_CHANGED");
         $Iptv->user_info($user->{UID});
         iptv_user_channels({ QUIET => 1, USER_INFO => $Iptv });
+        $FORM{change}= 1;
+         if (iptv_account_action({ CHANGE_TP => 1 })){
+           $html->message('err', $_ERROR, "$Iptv->{errno} $Iptv->{errstr}");
+         }
       }
     }
   }
@@ -209,7 +231,8 @@ sub iptv_chg_tp {
         width      => '100%',
         caption    => "$_SHEDULE",
         cols_align => [ 'left', 'left' ],
-        rows       => [ [ "$_TARIF_PLAN:", "$shedule->{ACTION}" ], [ "$_DATE:", "$shedule->{D}-$shedule->{M}-$shedule->{Y}" ], [ "$_ADMIN:", "$shedule->{ADMIN_NAME}" ], [ "$_ADDED:", "$shedule->{DATE}" ], [ "ID:", "$shedule->{SHEDULE_ID}" ] ]
+        rows       => [ [ "$_TARIF_PLAN:", "$shedule->{ACTION}" ], [ "$_DATE:", "$shedule->{D}-$shedule->{M}-$shedule->{Y}" ], [ "$_ADMIN:", "$shedule->{ADMIN_NAME}" ], [ "$_ADDED:", "$shedule->{DATE}" ], [ "ID:", "$shedule->{SHEDULE_ID}" ] ],
+        ID         => 'SHEDULE_INFO'
       }
     );
 
@@ -240,29 +263,49 @@ sub iptv_chg_tp {
   $Tariffs->{UID}     = $attr->{USER_INFO}->{UID};
   $Tariffs->{TP_ID}   = $Iptv->{TP_ID};
   $Tariffs->{TP_NAME} = "$Iptv->{TP_NUM}:$Iptv->{TP_NAME}";
-  print $html->tpl_show(templates('form_chg_tp'), $Tariffs);
+  $html->tpl_show(templates('form_chg_tp'), $Tariffs);
 }
 
-#**********************************************************
-# user_iptv
-#**********************************************************
-sub iptv_users_list {
-  if ($FORM{TP_ID}) {
-    $LIST_PARAMS{TP_ID} = $FORM{TP_ID};
-    $pages_qs .= "&TP_ID=$FORM{TP_ID}";
-  }
 
+
+#**********************************************************
+#
+#**********************************************************
+sub iptv_users_search {
+  my ($Iptv) = @_;
+  
   $FORM{GROUP_SEL}  = sel_groups();
   $FORM{STATUS_SEL} = $html->form_select(
     'STATUS',
     {
       SELECTED     => $FORM{STATUS},
-      SEL_ARRAY    => [ '', @service_status ],
+      SEL_ARRAY    => [ @service_status ],
+      SEL_OPTIONS  => { '' => '' },
       ARRAY_NUM_ID => 1
     }
   );
 
-  form_search({ SEARCH_FORM => $html->tpl_show(_include('iptv_users_search', 'Iptv'), {%FORM}, { notprint => 1 }) });
+  form_search({ SEARCH_FORM => $html->tpl_show(_include('iptv_users_search', 'Iptv'), 
+              { %FORM }, 
+              { OUTPUT2RETURN=> 1 }),
+              ADDRESS_FORM => 1 });
+
+}
+
+
+#**********************************************************
+# user_iptv
+#**********************************************************
+sub iptv_users_list {
+
+  if ($FORM{TP_ID}) {
+    $LIST_PARAMS{TP_ID} = $FORM{TP_ID};
+    $pages_qs .= "&TP_ID=$FORM{TP_ID}";
+  }
+
+  if ($FORM{search_form}) {
+  	iptv_users_search();
+  }
 
   print $html->letters_list({ pages_qs => $pages_qs });
 
@@ -271,57 +314,61 @@ sub iptv_users_list {
     $pages_qs .= "&letter=$FORM{letter}";
   }
 
-  my $list = $Iptv->user_list({%LIST_PARAMS});
-
-  my @TITLE = ($_LOGIN, $_FIO, $_DEPOSIT, $_CREDIT, $_TARIF_PLANS, $_STATUS, 'Dv Crypt', '-');
-  for (my $i = 0 ; $i < $Iptv->{SEARCH_FIELDS_COUNT} ; $i++) {
-    push @TITLE, '-';
-    $TITLE[ 7 + $i ] = "$_SEARCH";
+  for(my $i=0; $i<=2; $i++) {
+  	my $name = $service_status[$i];
+    if (defined($FORM{SERVICE_STATUS}) && $FORM{SERVICE_STATUS} == $i && $FORM{SERVICE_STATUS} ne '') {
+      $LIST_PARAMS{SERVICE_STATUS} = $FORM{SERVICE_STATUS};
+      $pages_qs   .= "&SERVICE_STATUS=$i";
+      $status_bar .= ' ' . $html->b($name);
+    }
+    else {
+      my $qs = $pages_qs;
+      $qs =~ s/\&SERVICE_STATUS=\d//;
+      $status_bar .= ' ' . $html->button($html->color_mark($name, $service_status_colors[$i]), "index=$index&SERVICE_STATUS=$i$qs");
+    }
   }
+
+  my ($table, $list) = result_former({
+     INPUT_DATA      => $Iptv,
+     FUNCTION        => 'user_list',
+     BASE_FIELDS     => 1,
+     DEFAULT_FIELDS  => 'LOGIN,FIO,DEPOSIT,CREDIT,TP_NAME,SERVICE_STATUS',
+     FUNCTION_FIELDS => 'form_payments',
+     EXT_TITLES      => {
+       'port'        => $_PORT,
+       'cid'         => 'CID',
+       'filter_id'   => 'Filter ID',
+       'tp_name'     => "$_TARIF_PLAN",
+       'iptv_status' => "$_STATUS",
+       'dvcrypt_id'  => 'DvCrypt',
+       'iptv_expire' => "$_TV $_EXPIRE"
+     },
+     TABLE           => {
+       width      => '100%',
+       caption    => "$_TV - $_USERS",
+       border     => 1,
+       qs         => $pages_qs,
+       header     => $status_bar,
+       ID         => 'IPTV_USERS_LIST',
+       SHOW_COLS  => \%SEARCH_TITLES,
+       ACTIVE_COLS=> \%ACTIVE_TITLES,
+       EXPORT     => 1,
+       MENU       => "$_ADD:index=" . get_function_index('form_wizard') . ':add' . ";$_SEARCH:index=$index&search_form=1:search",
+     },
+     MAKE_ROWS    => 1,
+     MODULE       => 'Iptv',
+     TOTAL        => 1
+    });
 
   if ($Iptv->{errno}) {
     $html->message('err', $_ERROR, "[$Iptv->{errno}] $err_strs{$Iptv->{errno}}");
     return 0;
   }
-  elsif ($Iptv->{TOTAL} == 1) {
-    $FORM{MODULE} = 'Iptv';
-
-    form_users({ USER => user_info($list->[0]->[ $Iptv->{SEARCH_FIELDS_COUNT} + 6 ]) });
-    return 0;
-  }
-
-  my $table = $html->table(
-    {
-      width      => '100%',
-      border     => 1,
-      caption    => 'IPTV',
-      title      => \@TITLE,
-      cols_align => [ 'left', 'left', 'right', 'right', 'left', 'center', 'left', 'center', 'center', 'center' ],
-      qs         => $pages_qs,
-      pages      => $Iptv->{TOTAL}
-    }
-  );
-
-  foreach my $line (@$list) {
-    my $payments = ($permissions{1}) ? $html->button($_PAYMENTS, "index=2&UID=" . ($line->[ $Iptv->{SEARCH_FIELDS_COUNT} + 6 ]), { CLASS => 'payments' }) : '';
-
-    my @fields_array = ();
-    for (my $i = 0 ; $i < $Iptv->{SEARCH_FIELDS_COUNT} ; $i++) {
-      push @fields_array, $line->[ 7 + $i ];
-    }
-
-    $table->addrow(user_ext_menu($line->[ $Iptv->{SEARCH_FIELDS_COUNT} + 6 ], $line->[0], { EXT_PARAMS => "&MODULE=Iptv" }), "$line->[1]", "$line->[2]", "$line->[3]", "$line->[4]", $status[ $line->[5] ], "$line->[6]", @fields_array, $payments);
-  }
-  print $table->show();
-
-  $table = $html->table(
-    {
-      width      => '100%',
-      cols_align => [ 'right', 'right' ],
-      rows       => [ [ "$_TOTAL:", $html->b($Iptv->{TOTAL}) ] ]
-    }
-  );
-  print $table->show();
+  #elsif ($Iptv->{TOTAL} == 1) {
+  #  $FORM{MODULE} = 'Iptv';
+  #  form_users({ USER => user_info($list->[0]->{uid}) });
+  #  return 0;
+  #}
 
   return 0;
 }
@@ -333,43 +380,41 @@ sub iptv_user {
   my ($attr) = @_;
   $Iptv->{UID} = $FORM{UID};
   
-  #Check stalker instalation
-  my $Iptv_stalker;
-  eval { require Iptv_stalker; };
-  if (!$@) {
-    Iptv_stalker->import();
-    $Iptv_stalker = Iptv_stalker->new($db, $admin, \%conf);
+  $FORM{CID} = $FORM{CID2} || $FORM{CID};
+  
+  if($FORM{send_message}) {
+    if (! $FORM{send}) {
+      $user->{IPTV_MODEMS} = $html->tpl_show(_include('iptv_send_message', 'Iptv'), { %$attr, %$user } );
+      return 0;
+    }
   }
-
-  if ($FORM{add}) {
+  elsif ($FORM{add}) {
     $Iptv->user_add({%FORM});
     if (!$Iptv->{errno}) {
       $Iptv->{ACCOUNT_ACTIVATE} = $attr->{USER_INFO}->{ACTIVATE};
-      iptv_get_month_fee($Iptv) if (!$FORM{STATUS});
+      service_get_month_fee($Iptv, { SERVICE_NAME => "$_TV" }) if (!$FORM{STATUS});
       $html->message('info', $_INFO, "$_ADDED");
-      if ($conf{IPTV_DVCRYPT_FILENAME}) {
-        dv_crypt();
-      }
-
-      if ($conf{IPTV_USER_EXT_CMD}) {
-      	iptv_ext_cmd($conf{IPTV_USER_EXT_CMD}, { %$users, %$Iptv })
+      
+      if ($attr->{REGISTRATION}) {
+#        $html->tpl_show(_include('iptv_user_info', 'Dv'), $Dv);
+        return 0;
       }
     }
   }
-  elsif ($FORM{set}) {
+  elsif ($FORM{change}) {
     $Iptv->user_change({%FORM});
     if (!$Iptv->{errno}) {
       $Iptv->{ACCOUNT_ACTIVATE} = $attr->{USER_INFO}->{ACTIVATE};
-      iptv_get_month_fee($Iptv) if (!$FORM{STATUS});
-      $Iptv->user_channels({ UID => $FORM{UID} });
-      $html->message('info', $_INFO, "$_CHANGED");
-      if ($conf{IPTV_DVCRYPT_FILENAME}) {
-        dv_crypt();
+      
+      if (! $FORM{STATUS} && ($FORM{GET_ABON} || !$FORM{TP_ID})) {
+        service_get_month_fee($Iptv, { SERVICE_NAME => "$_TV" });
       }
 
-      if ($conf{IPTV_USER_EXT_CMD}) {
-      	iptv_ext_cmd($conf{IPTV_USER_EXT_CMD}, { %$users, %$Iptv })
+      if ($FORM{change_now}) {
+        $Iptv->user_channels({ UID => $FORM{UID} });
       }
+
+      $html->message('info', $_INFO, "$_CHANGED");
     }
   }
   elsif ($FORM{del} && $FORM{is_js_confirmed}) {
@@ -378,31 +423,54 @@ sub iptv_user {
       $html->message('info', $_INFO, "$_CHANGED");
     }
   }
-
+  
   if ($Iptv->{errno}) {
     $html->message('err', $_ERROR, "[$Iptv->{errno}] $err_strs{$Iptv->{errno}}");
   }
+  else {
+    if (iptv_account_action()) {
+      $html->message('err', $_ERROR, "$Iptv->{errno} $Iptv->{errstr}");
+    }
+  }
+
   my $user = $Iptv->user_info($FORM{UID});
   if ($user->{TOTAL} < 1) {
-    $html->message('info', $_INFO, $_NOT_ACTIVE);
     $user               = $Iptv->defaults();
-    $user->{ACTION}     = 'add';
-    $user->{LNG_ACTION} = $_ACTIVATE;
+
+    if ($attr->{ACTION}) {
+      $user->{ACTION}     = $attr->{ACTION};
+      $user->{LNG_ACTION} = $attr->{LNG_ACTION};
+    }
+    else {
+      $user->{ACTION}     = 'add';
+      $user->{LNG_ACTION} = $_ACTIVATE;
+      $html->message('info', $_INFO, "$_NOT_ACTIVE");
+    }
+
     $user->{TP_NUM}     = $html->form_select(
       'TP_ID',
       {
-        SELECTED          => $user->{TP_ID},
+        SELECTED          => $Iptv->{TP_ID},
         SEL_MULTI_ARRAY   => $Tariffs->list({ MODULE => 'Iptv' }),
         MULTI_ARRAY_KEY   => 18,
         MULTI_ARRAY_VALUE => '0,1',
         NO_ID             => 1,
       }
     );
-
   }
   else {
-    $user->{ACTION}           = 'set';
-    $user->{LNG_ACTION}       = $_CHANGE;
+    iptv_user_channels_list({ UID =>  $FORM{UID}, TP_ID => $Iptv->{TP_ID} });
+    $user->{TP_IDS}           = $Iptv->{TP_ID};
+
+    if ($attr->{ACTION}) {
+      $user->{ACTION}     = $attr->{ACTION};
+      $user->{LNG_ACTION} = $attr->{LNG_ACTION};
+    }
+    else {
+      $user->{ACTION}     = 'change';
+      $user->{LNG_ACTION} = $_CHANGE;
+    }    
+
     $user->{CHANGE_TP_BUTTON} = $html->button($_CHANGE, 'UID=' . $FORM{UID} . '&index=' . get_function_index('iptv_chg_tp'), { CLASS => 'change rightAlignText' });
   }
 
@@ -416,24 +484,41 @@ sub iptv_user {
   );
 
   if ($Iptv_stalker) {
-    $user->{MODEMS} = $html->form_select(
-      'CID',
-      {
-        SELECTED          => $FORM{TP_ID},
-        SEL_MULTI_ARRAY   => $Iptv_stalker->stalker_users_list({ UNREGISTER => 1 }),
-        MULTI_ARRAY_KEY   => 0,
-        MULTI_ARRAY_VALUE => 1,
-      }
-    );
+    my $stalker_modems_list = $Iptv_stalker->stalker_users_list({ UNREGISTER => 1 });
+    if (! $Iptv_stalker->{errno}) {
+      $user->{MODEMS} = $html->form_select(
+        'CID2',
+        {
+          SELECTED          => $Iptv->{CID},
+          SEL_MULTI_ARRAY   => $stalker_modems_list,
+          MULTI_ARRAY_KEY   => 1,
+          MULTI_ARRAY_VALUE => 1,
+          SEL_OPTIONS       => { '' => ''},
+          NO_ID             => 1
+        }
+      );
+      
+     if ($user->{CID}) {
+       $user->{SEND_MESSAGE} = $html->button("$_SEND $_MESSAGE", "index=$index&UID=$FORM{UID}&send_message=1", { BUTTON => 1 });
+     }
 
-    $user->{IPTV_MODEMS} = $html->tpl_show(_include('iptv_modems', 'Iptv'), { %$attr, %$user }, { OUTPUT2RETURN => 1 });
+     $user->{IPTV_MODEMS} = $html->tpl_show(_include('iptv_modems', 'Iptv'), { %$attr, %$user }, { OUTPUT2RETURN => 1 });
+    }
+    else {
+      $html->message('err', $_ERROR, "$Iptv_stalker->{errno} $Iptv_stalker->{errstr}");
+    }
+  }
+  else {
+    $user->{SEND_MESSAGE} = $html->button("$_SEND $_MESSAGE", "index=$index&UID=$FORM{UID}&send_message=1", { BUTTON => 1 });
   }
 
   $html->tpl_show(_include('iptv_user', 'Iptv'), { %$attr, %$user });
 
-  if ($user->{TOTAL} > 0) {
+  if ($user->{UID}) {
     iptv_user_channels({ USER_INFO => $user });
   }
+  
+  return 0;
 }
 
 
@@ -441,67 +526,68 @@ sub iptv_user {
 #
 #**********************************************************
 sub iptv_ext_cmd {
-	my ($cmd, $attr)=@_;
+  my ($cmd, $attr)=@_;
 
   if (in_array('Dhcphosts', \@MODULES)) {
-  	use Dhcphosts;
-    my $Dhcphosts = Dhcphosts->new($db, $admin, \%conf);
-    my $hosts_list = $Dhcphosts->hosts_list({ PORTS => '!',
-    	                                        UID   => $attr->{UID},
-    	                                        NAS_ID=> '>0',
-    	                                        NAS_IP=> '!0.0.0.0',
-    	                                        COLS_NAME => 1
-    	                                        });
+    use Dhcphosts;
+    my $Dhcphosts  = Dhcphosts->new($db, $admin, \%conf);
+    my $hosts_list = $Dhcphosts->hosts_list({ PORTS             => '!',
+                                              UID               => $attr->{UID},
+                                              NAS_ID            => '>0',
+                                              NAS_IP            => '!0.0.0.0',
+                                              SHOW_NAS_MNG_INFO => 1,
+                                              COLS_NAME         => 1
+                                              });
     my $cmd_tpl = $cmd;
     my @cmd_arr = ();
     foreach my $host (@$hosts_list) {
-      $cmd = tpl_parse("$cmd_tpl", { LOGIN    => $host->{login},
-      	                             NAS_IP   => $host->{mng_host_port} || $host->{nas_ip},
-      	                             NAS_ID   => $host->{nas},
-      	                             PORT_ID  => $host->{ports},
-      	                             IP       => $host->{ip},
-      	                             NAS_LOGIN=> $host->{mng_user},
-      	                             NAS_PASSWORD => $host->{ip},
-      	                           });    	
-      
+      $cmd = tpl_parse("$cmd_tpl", { LOGIN        => $host->{login},
+                                     NAS_IP       => $host->{mng_host_port} || $host->{nas_ip},
+                                     NAS_ID       => $host->{nas},
+                                     PORT_ID      => $host->{ports},
+                                     IP           => $host->{ip},
+                                     NAS_LOGIN    => $host->{mng_user},
+                                     NAS_PASSWORD => $host->{mng_password},
+                                   });      
       push @cmd_arr, $cmd;
     }
     
     if ($#cmd_arr > -1) {
-    	$cmd = join(';', @cmd_arr);
+      $cmd = join(';', @cmd_arr);
     }
   }
 
-
+  if (! $attr->{ACTION}) {
+    $attr->{ACTION}='up';
+  }
+  
   $cmd = tpl_parse("$cmd", $attr);
   
-  print $cmd;
-  
+  print $cmd if ($attr->{debug});
   my $output = `$cmd`;
 }
-
 
 
 #**********************************************************
 #
 #**********************************************************
 #sub iptv_payments_maked {
-#	my ($attr) = @_;
+#  my ($attr) = @_;
 #
-#	return '' if ($FORM{DISABLE});
+#  return '' if ($FORM{DISABLE});
 #
-#	$Iptv->info($attr->{USER_INFO}->{UID});
+#  $Iptv->info($attr->{USER_INFO}->{UID});
 #
 #  my $deposit = $attr->{USER_INFO}->{DEPOSIT} + (($attr->{USER_INFO}->{CREDIT} > 0) ? $attr->{USER_INFO}->{CREDIT} : $Dv->{TP_CREDIT});
 #
 #  my $abon_fees = ($attr->{USER_INFO}->{REDUCTION} ) ? $Dv->{MONTH_ABON} + $Dv->{DAY_ABON} : ($Dv->{MONTH_ABON} + $Dv->{DAY_ABON}) * (100 - $attr->{USER_INFO}->{REDUCTION}) / 100;
 #
-#	if ($Iptv->{STATUS} > 3 && ($deposit > $abon_fees || $Iptv->{ABON_DISTRIBUTION})) {
-#		$Iptv->change({ UID     => $attr->{USER_INFO}->{UID},
-#			            STATUS  => 0  });
+#  if ($Iptv->{STATUS} > 3 && ($deposit > $abon_fees || $Iptv->{ABON_DISTRIBUTION})) {
+#    $Iptv->change({ UID     => $attr->{USER_INFO}->{UID},
+#                  STATUS  => 0  });
 #    $Iptv->{ACCOUNT_ACTIVATE}=$attr->{USER_INFO}->{ACTIVATE} || '0000-00-00';
-#		iptv_get_month_fee($Iptv, $attr);
-#	 }
+#    service_get_month_fee($Iptv, $attr);
+#   }
 #}
 
 #**********************************************************
@@ -522,11 +608,24 @@ sub iptv_ti_channels {
 
   if (defined($attr->{TP})) {
     if ($FORM{change}) {
-      $Iptv->channel_ti_change({%FORM});
-      if (!$Iptv->{errno}) {
-        $html->message('info', $_INFO, "$_CHANGED");
+
+      if (defined($Iptv_stalker)) {
+        $Iptv_stalker->stalker_channel_ti_change({%FORM});
+        
+        if (!$Iptv_stalker->{errno}) {
+          stalker_tariff_export();
+          $html->message('info', $_INFO, "$_CHANGED");
+        } else {
+          $html->message('err', $_ERROR, "$Iptv_stalker->{errno} $Iptv_stalker->{errstr}");
+        }
+      } 
+      else {
+        $Iptv->channel_ti_change({%FORM});
+        if (!$Iptv->{errno}) {
+          $html->message('info', $_INFO, "$_CHANGED");
+        }  
       }
-    }
+    } 
   }
   else {
     iptv_tp({ f => 'iptv_ti_channels' });
@@ -545,8 +644,9 @@ sub iptv_ti_channels {
   $list = $Iptv->channel_ti_list(
     {
       %LIST_PARAMS,
-      TI     => $FORM{channels},
-      STATUS => 0
+      INTERVAL_ID => $FORM{channels},
+      STATUS      => 0,
+      COLS_NAME   => 1
     }
   );
 
@@ -558,19 +658,20 @@ sub iptv_ti_channels {
       title      => [ "# ", "$_NUM", $_NAME, $_DESCRIBE, "$_MONTH $_PRICE", "$_DAY $_PRICE", "$_MANDATORY " ],
       cols_align => [ 'right', 'right', 'left', 'left', 'right', 'right', 'center' ],
       qs         => $pages_qs . "&TP_ID=$FORM{TP_ID}",
-
-      #pages      => $Iptv->{TOTAL},
-      ID => 'IPTV_INTERVAL_CHANNELS',
+      ID         => 'IPTV_INTERVAL_CHANNELS',
+      EXPORT     => 1
     }
   );
 
   foreach my $line (@$list) {
     $table->addrow(
-      $html->form_input('IDS', "$line->[9]", { TYPE => 'checkbox', STATE => $line->[0] || undef }),
-      $line->[1], $line->[2], $line->[3],
-      $html->form_input("MONTH_PRICE_" . $line->[9], (($line->[4]) ? $line->[4] : 0.00), { SIZE => 8 }),
-      $html->form_input("DAY_PRICE_" . $line->[9],   (($line->[5]) ? $line->[5] : 0.00), { SIZE => 8 }),
-      $html->form_input("MANDATORY_" . $line->[9], 1, { TYPE => 'checkbox', STATE => (($line->[6]) ? 1 : undef) })
+      $html->form_input('IDS', "$line->{channel_id}", { TYPE => 'checkbox', STATE => $line->{interval_channel_id} || undef }),
+      $line->{channel_num}, 
+      $line->{name}, 
+      $line->{comments},
+      $html->form_input("MONTH_PRICE_" . $line->{channel_id}, (($line->{month_price}) ? $line->{month_price} : 0.00), { SIZE => 8 }),
+      $html->form_input("DAY_PRICE_" . $line->{channel_id},   (($line->{day_price}) ? $line->{day_price} : 0.00), { SIZE => 8 }),
+      $html->form_input("MANDATORY_" . $line->{channel_id}, 1, { TYPE => 'checkbox', STATE => (($line->{mandatory}) ? 1 : undef) })
     );
   }
 
@@ -749,7 +850,7 @@ sub iptv_intervals {
           ($h_b, $h_e, $color, $p) = split(/\|/, $line, 4);
           if (($h >= $h_b) && ($h < $h_e)) {
 
-            #     	   	 print "$i // $h => $h_b && $h <= $h_e // $color <br> \n";
+            #             print "$i // $h => $h_b && $h <= $h_e // $color <br> \n";
             $tdcolor = '#' . $color;
             $link = $html->button('#', "index=$index&TP_ID=$FORM{TP_ID}&subf=$FORM{subf}&chg=$p", { BUTTON => 1 });
             last;
@@ -792,18 +893,30 @@ sub iptv_intervals {
 #**********************************************************
 sub iptv_tp {
   my $tarif_info;
-  my @Payment_Types = ($_PREPAID, $_POSTPAID);
+
+  my @Payment_Types         = ($_PREPAID, $_POSTPAID);
   $tarif_info               = $Tariffs->defaults();
   $tarif_info->{LNG_ACTION} = $_ADD;
   $tarif_info->{ACTION}     = 'ADD_TP';
-
+  
+  
+  if($FORM{STALKER_TP_EXPORT}) {
+    stalker_tariff_export();
+  }
+  # -- end  Export tarrif plan from stalker -- # 
   if ($FORM{ADD_TP}) {
-    $FORM{TP_ID} = $FORM{CHG_TP_ID};
+    if (defined($Iptv_stalker)) {
+      $FORM{ID} = $Iptv_stalker->stalker_tp_add({%FORM});
+      #stalker_tariff_export({WITHOUT_SUBSCRIPTION => 1});      
+    }
+
+    $FORM{ID} = $FORM{CHG_TP_ID};
     $Tariffs->add({ %FORM, MODULE => 'Iptv' });
     if (!$Tariffs->{errno}) {
       $html->message('info', $_ADDED, "$_ADDED $Tariffs->{TP_ID}");
     }
   }
+
   elsif (defined($FORM{TP_ID})) {
     $tarif_info = $Tariffs->info($FORM{TP_ID});
 
@@ -815,7 +928,8 @@ sub iptv_tp {
     $pages_qs .= "&TP_ID=$FORM{TP_ID}&subf=$FORM{subf}";
     $LIST_PARAMS{TP} = $FORM{TP_ID};
     %F_ARGS = (TP => $Tariffs);
-
+    
+    $index = get_function_index('iptv_tp');
     $Tariffs->{NAME_SEL} = $html->form_main(
       {
         CONTENT => $html->form_select(
@@ -837,12 +951,16 @@ sub iptv_tp {
         'ID'   => $Tariffs->{TP_ID},
         $_NAME => $Tariffs->{NAME_SEL}
       },
-      {},
+      { 
+        $_INFO     => ":TP_ID=$FORM{TP_ID}",
+        $_INTERVALS=> get_function_index('form_intervals').":TP_ID=$FORM{TP_ID}",
+        $_NAS      => get_function_index('form_nas_allow').":TP_ID=$FORM{TP_ID}",        
+        $_USERS    => get_function_index('iptv_users_list').":TP_ID=$FORM{TP_ID}"
+      },
       { f_args => {%F_ARGS} }
     );
 
     if ($FORM{subf}) {
-
       return 0;
     }
     elsif ($FORM{change}) {
@@ -855,6 +973,11 @@ sub iptv_tp {
 
     $tarif_info->{LNG_ACTION} = $_CHANGE;
     $tarif_info->{ACTION}     = 'change';
+    $FORM{add_form}=1;
+
+    if (defined($Iptv_stalker)) {
+      $tarif_info->{DISABLED}   = "readonly='readonly'";
+    }
 
   }
   elsif (defined($FORM{del}) && $FORM{is_js_confirmed}) {
@@ -863,61 +986,104 @@ sub iptv_tp {
     if (!$Tariffs->{errno}) {
       $html->message('info', $_DELETE, "$_DELETED $FORM{del}");
     }
+    if(defined($FORM{del_stalker_tp}) && $FORM{del_stalker_tp} > 0) {
+      
+      if (defined($Iptv_stalker)) {
+        $Iptv_stalker->stalker_del_tp({ UID => $FORM{del_stalker_tp} });
+        $Iptv->user_del({ UID => $uid });
+      }      
+    }
   }
 
   if ($Tariffs->{errno}) {
     $html->message('err', $_ERROR, "[$Tariffs->{errno}] $err_strs{$Tariffs->{errno}}");
   }
 
-  $tarif_info->{PAYMENT_TYPE_SEL} = $html->form_select(
-    'PAYMENT_TYPE',
-    {
-      SELECTED     => $tarif_info->{PAYMENT_TYPE},
-      SEL_ARRAY    => \@Payment_Types,
-      ARRAY_NUM_ID => 1
+  if($FORM{add_form}) {
+    $tarif_info->{PAYMENT_TYPE_SEL} = $html->form_select(
+      'PAYMENT_TYPE',
+      {
+        SELECTED     => $tarif_info->{PAYMENT_TYPE},
+        SEL_ARRAY    => \@Payment_Types,
+        ARRAY_NUM_ID => 1
+      }
+    );
+
+    $tarif_info->{GROUPS_SEL} = $html->form_select(
+      'TP_GID',
+      {
+        SELECTED          => $tarif_info->{TP_GID},
+        SEL_MULTI_ARRAY   => [ [ '', '' ], @{ $Tariffs->tp_group_list() } ],
+        MULTI_ARRAY_KEY   => 0,
+        MULTI_ARRAY_VALUE => 1,
+      }
+    );
+
+    $tarif_info->{REDUCTION_FEE}    = ($tarif_info->{REDUCTION_FEE})    ? 'checked' : '';
+    $tarif_info->{POSTPAID_FEE}     = ($tarif_info->{POSTPAID_FEE})     ? 'checked' : '';
+    $tarif_info->{PERIOD_ALIGNMENT} = ($tarif_info->{PERIOD_ALIGNMENT}) ? 'checked' : '';
+
+    my $tp_list = $Tariffs->list({ MODULE => 'Iptv', DOMAIN_ID => $admin->{DOMAIN_ID} });
+
+    $tarif_info->{SMALL_DEPOSIT_ACTION_SEL} = $html->form_select(
+      'SMALL_DEPOSIT_ACTION',
+      {
+        SELECTED          => $tarif_info->{SMALL_DEPOSIT_ACTION},
+        SEL_MULTI_ARRAY   => [ [ '', '' ], [ '-1', "$_HOLD_UP" ], @{$tp_list} ],
+        MULTI_ARRAY_KEY   => 0,
+        MULTI_ARRAY_VALUE => 1,
+      }
+    );
+
+    $tarif_info->{NEXT_TARIF_PLAN_SEL} = $html->form_select(
+      'NEXT_TARIF_PLAN',
+      {
+        SELECTED          => $tarif_info->{NEXT_TARIF_PLAN},
+        SEL_MULTI_ARRAY   => [ [ '', '' ], @{$tp_list} ],
+        MULTI_ARRAY_KEY   => 0,
+        MULTI_ARRAY_VALUE => 1,
+      }
+    );
+
+    if ($conf{EXT_BILL_ACCOUNT}) {
+      my $checked = ($tarif_info->{EXT_BILL_ACCOUNT}) ? ' checked' : '';
+      $tarif_info->{EXT_BILL_ACCOUNT} = "<tr><td>$_EXTRA $_BILL:</td><td><input type='checkbox' name='EXT_BILL_ACCOUNT' value='1' $checked></td></tr>\n";
     }
-  );
 
-  $tarif_info->{GROUPS_SEL} = $html->form_select(
-    'TP_GID',
-    {
-      SELECTED          => $tarif_info->{TP_GID},
-      SEL_MULTI_ARRAY   => [ [ '', '' ], @{ $Tariffs->tp_group_list() } ],
-      MULTI_ARRAY_KEY   => 0,
-      MULTI_ARRAY_VALUE => 1,
-    }
-  );
-
-  $tarif_info->{REDUCTION_FEE}    = ($tarif_info->{REDUCTION_FEE})    ? 'checked' : '';
-  $tarif_info->{POSTPAID_FEE}     = ($tarif_info->{POSTPAID_FEE})     ? 'checked' : '';
-  $tarif_info->{PERIOD_ALIGNMENT} = ($tarif_info->{PERIOD_ALIGNMENT}) ? 'checked' : '';
-
-  if ($conf{EXT_BILL_ACCOUNT}) {
-    my $checked = ($tarif_info->{EXT_BILL_ACCOUNT}) ? ' checked' : '';
-    $tarif_info->{EXT_BILL_ACCOUNT} = "<tr><td>$_EXTRA $_BILL:</td><td><input type='checkbox' name='EXT_BILL_ACCOUNT' value='1' $checked></td></tr>\n";
+    $html->tpl_show(_include('iptv_tp', 'Iptv'), { %FORM, %$tarif_info });
   }
-
-  $html->tpl_show(_include('iptv_tp', 'Iptv'), $tarif_info);
-
+ 
   my $list = $Tariffs->list({ %LIST_PARAMS, MODULE => 'Iptv' });
 
   # Time tariff Name Begin END Day fee Month fee Simultaneously - - -
   my $table = $html->table(
     {
-      width   => '100%',
-      caption => "$_TARIF_PLANS",
-      border  => 1,
-      title   => [ '#', $_NAME, $_HOUR_TARIF, $_TRAFIC_TARIFS, $_PAYMENT_TYPE, $_DAY_FEE, $_MONTH_FEE, $_SIMULTANEOUSLY, $_AGE, $_GROUP, '-', '-', '-' ],
+      width      => '100%',
+      caption    => "$_TARIF_PLANS",
+      border     => 1,
+      title      => [ '#', $_NAME, $_HOUR_TARIF, $_TRAFIC_TARIFS, $_PAYMENT_TYPE, $_DAY_FEE, $_MONTH_FEE, $_SIMULTANEOUSLY, $_AGE, $_GROUP, '-', '-', '-' ],
       cols_align => [ 'right', 'left', 'center', 'center', 'center', 'right', 'right', 'right', 'right', 'center:noprint', 'center:noprint', 'center:noprint' ],
-      ID         => 'IPTV_TARIF_PLANS'
+      ID         => 'IPTV_TARIF_PLANS',
+      EXPORT     => 1,
+      MENU       => "$_ADD:index=$index&add_from=1:add"
     }
   );
 
   my ($delete, $change);
   foreach my $line (@$list) {
-    if ($permissions{4}{1}) {
-      $delete = $html->button($_DEL, "index=$index&del=$line->[18]", { MESSAGE => "$_DEL $line->[0]?", CLASS => 'del' });
-      $change = $html->button($_CHANGE, "index=$index&TP_ID=$line->[18]", { CLASS => 'change' });
+    if (defined($Iptv_stalker)) {
+     my $stalker_tp_id = ($line->[0] - $CONF->{STALKER_TP_ID} > 0 ? $line->[0] - $CONF->{STALKER_TP_ID} : 0);   
+     if ($permissions{4}{1}) {
+        $delete = $html->button($_DEL, "index=$index&del=$line->[18]&del_stalker_tp=$stalker_tp_id", { MESSAGE => "$_DEL $line->[0]?", CLASS => 'del' });
+        $change = $html->button($_CHANGE, "index=$index&TP_ID=$line->[18]", { CLASS => 'change' });
+        #$html->button($_CHANGE, "index=$index&TP_ID=$line->[18]", { CLASS => 'change' });
+      }      
+    }
+    else {
+     if ($permissions{4}{1}) {
+        $delete = $html->button($_DEL, "index=$index&del=$line->[18]", { MESSAGE => "$_DEL $line->[0]?", CLASS => 'del' });
+        $change = $html->button($_CHANGE, "index=$index&TP_ID=$line->[18]", { CLASS => 'change' });
+      }      
     }
 
     if ($FORM{TP_ID} eq $line->[18]) {
@@ -933,8 +1099,14 @@ sub iptv_tp {
       $bool_vals[ $line->[2] ],
       $bool_vals[ $line->[3] ],
       $Payment_Types[ $line->[4] ],
-      $line->[5], $line->[6], $line->[7], $line->[8], $line->[9], $html->button($_INTERVALS, "index=" . get_function_index('iptv_intervals') . "&subf=73&TP_ID=$line->[18]", { CLASS => 'interval' }),
-      $change, $delete
+      $line->[5], 
+      $line->[6], 
+      $line->[7], 
+      $line->[8], 
+      $line->[9], 
+      $html->button($_INTERVALS, "index=" . get_function_index('iptv_intervals') . "&subf=73&TP_ID=$line->[18]", { CLASS => 'interval' }),
+      $change, 
+      $delete
     );
   }
 
@@ -944,7 +1116,8 @@ sub iptv_tp {
     {
       width      => '100%',
       cols_align => [ 'right', 'right' ],
-      rows       => [ [ "$_TOTAL:", $html->b($Tariffs->{TOTAL}) ] ]
+      rows       => [ [ ($conf{IPTV_STALKET_DB}) ? $html->button("Stalker $_EXPORT_TARIFFS", "index=$index&STALKER_TP_EXPORT=1", { BUTTON => 1 }) : '', 
+      "$_TOTAL:", $html->b($Tariffs->{TOTAL}) ] ]
     }
   );
   print $table->show();
@@ -957,14 +1130,179 @@ sub iptv_tp {
 #**********************************************************
 sub iptv_channels {
 
+  if ($FORM{message}) {        
+    $html->message('info', $_INFO, "$FORM{message}");  
+  }
+
   $Iptv->{ACTION}     = 'add';
   $Iptv->{LNG_ACTION} = $_ADD;
+  $Iptv->{ACTION_STALKER}='stalker_add';
+  $Iptv->{ACTION_LNG_STALKER}=$_ADD;
+  
+  my @tv_genre_id = (
+     '-----------',
+     $_INFORMATIVE,
+     $_ENTERTAINMENT,
+     $_BABY,
+     $_MOVIE,
+     $_SCIENCE,
+     $_SPORT,
+     $_MUSIC,
+     $_BUSINESS,
+     $_CULTURE,
+     $_ADULT,
+  );
+      
+  if ($FORM{stalker_add}) {  
+    if ($FORM{NAME} ne '' && $FORM{NUMBER} =~ /\d{1,3}/) {
+    $Iptv->stalker_channel_add({ %FORM });
+    
+      if (! $Iptv->{errno}) {
+      stalker_export();
+        $html->tpl_show(_include('iptv_redirect', 'Iptv'), { 
+          SECTION => '',
+          MESSAGE => "$_ADDED",
+        });    
+      }
+    }
+    else {
+      $FORM{TV_GENRE_ID}=$html->form_select("TV_GENRE_ID", 
+      {
+        SELECTED     => $FORM{TV_GENRE_ID},
+        SEL_ARRAY    => \@tv_genre_id,
+        ARRAY_NUM_ID => 0,  
+      });
+      
+      $html->message('info', $_INFO, "$_FIELD_ARE_REQUIRED 
+        $_NUM,
+        $_NAME"
+      );
+    }
+  } 
+  elsif ($FORM{stalker_del}) {
+    $Iptv->stalker_channel_del( {STALKER_NAME =>$FORM{stalker_del}, ABILLS_ID => $FORM{abills_id}} );
+    if (! $Iptv->{errno}){
+      stalker_export();
+        $html->tpl_show(_include('iptv_redirect', 'Iptv'), { 
+          SECTION => '',
+          MESSAGE => "$_DELETED",
+        });          
+    }
+  }
+  elsif ($FORM{stalker_chg}) {
+    $Iptv->{ACTION_STALKER}='stalker_change';
+    $Iptv->{ACTION_LNG_STALKER}=$_CHANGE;
+    $Iptv->stalker_channel_info({ NAME => $FORM{stalker_chg},});
+
+    
+    foreach my $line (%{$Iptv}) {
+
+      if($line eq 'WOWZA_TMP_LINK' ||
+         $line eq 'CENSORED' ||
+         $line eq 'HD' ||
+         $line eq 'BASE_CH' ||
+         $line eq 'BONUS_CH' ||
+         $line eq 'ENABLE_TV_ARCHIVE' ||
+         $line eq 'WOWZA_DVR' ||
+         $line eq 'USE_HTTP_TMP_LINK' ||
+         $line eq 'ENABLE_WOWZA_LOAD_BALANCING' ||
+         $line eq 'ENABLE_MONITORING') {
+
+         if($Iptv->{$line} == 1){
+           $Iptv->{$line} = "checked='checked'";
+         }
+      }
+      elsif($line eq 'STATUS') {
+         if($Iptv->{$line} == 0){
+           $Iptv->{$line} = "checked='checked'";
+         }
+      }
+
+    }
+   
+    if (! $Iptv->{errno}) {
+      $html->message('info', $_INFO, "$_CHANGING");  
+    }
+  }
+  elsif ($FORM{stalker_change}) {
+    my $change_errors = 0;
+    
+    if ($FORM{NAME} ne '' && $FORM{NUMBER} =~ /\d{1,3}/) {
+      if($FORM{NUMBER} != $FORM{OLD_NUMBER}) {
+        $list = $Iptv->stalker_channel_list( { NUMBER => $FORM{NUMBER} });
+        if(defined($list->[0]->[0])){
+          $change_errors = 2          
+        }
+      }      
+      if($change_errors == 0) {
+        $Iptv->stalker_change_channels({ %FORM });
+        if (!$Iptv->{errno}) {   
+          stalker_export();
+          $html->tpl_show(_include('iptv_redirect', 'Iptv'), { 
+            SECTION => '',
+            MESSAGE => "$_CHANGED",
+          });      
+        }
+      }
+    }
+    else {
+      $change_errors = 1
+    }
+  if($change_errors > 0) {
+    $Iptv->{ACTION_STALKER}='stalker_change';
+    $Iptv->{ACTION_LNG_STALKER}=$_CHANGE;
+
+    foreach my $line (keys %FORM) {
+
+      if($line eq 'WOWZA_TMP_LINK' ||
+         $line eq 'CENSORED' ||
+         $line eq 'HD' ||
+         $line eq 'BASE_CH' ||
+         $line eq 'BONUS_CH' ||
+         $line eq 'ENABLE_TV_ARCHIVE' ||
+         $line eq 'WOWZA_DVR' ||
+         $line eq 'USE_HTTP_TMP_LINK' ||
+         $line eq 'ENABLE_WOWZA_LOAD_BALANCING' ||
+         $line eq 'ENABLE_MONITORING') {
+
+         if($FORM{$line} == 1 || $FORM{$line} eq 'on'){
+           $FORM{$line} = "checked='checked'";
+         }
+      }
+      elsif($line eq 'STATUS') {
+         if($FORM{$line} == 0 || $FORM{$line} eq 'on' ){
+           $FORM{$line} = "checked='checked'";
+         }
+      }
+    }
+
+    $FORM{TV_GENRE_ID}=$html->form_select("TV_GENRE_ID", 
+    {
+      SELECTED     => $FORM{TV_GENRE_ID},
+      SEL_ARRAY    => \@tv_genre_id,
+      ARRAY_NUM_ID => 0,  
+    });
+
+    if($change_errors == 1) {
+      $html->message('info', $_INFO, "$_FIELD_ARE_REQUIRED 
+        $_NUM,
+        $_NAME"
+      );        
+    }
+    elsif($change_errors == 2) {
+      $html->message('info', $_INFO, $_THIS_NUMBER_ALREADY_EXISTS);           
+    }
+  }  
+}
 
   if ($FORM{add}) {
     $Iptv->channel_add({%FORM});
     if (!$Iptv->{errno}) {
       $html->message('info', $_ADDED, "$_ADDED '$FORM{NAME}' ");
-    }
+    }    
+  }
+  elsif($FORM{stalker_export}) {        
+    stalker_export();
   }
   elsif ($FORM{change}) {
     $Iptv->channel_change({%FORM});
@@ -994,7 +1332,22 @@ sub iptv_channels {
   }
 
   $Iptv->{DISABLE} = ' checked' if ($Iptv->{DISABLE} == 1);
-  $html->tpl_show(_include('iptv_channel', 'Iptv'), $Iptv);
+
+  $Iptv->{CHANGE_PARAM} = defined($Iptv->{CHANGE_PARAM}) ? $Iptv->{CHANGE_PARAM} : $FORM{CHANGE_PARAM};
+  $Iptv->{OLD_NUMBER} = defined($Iptv->{OLD_NUMBER}) ? $Iptv->{OLD_NUMBER} : $FORM{OLD_NUMBER};
+  $Iptv->{TV_GENRE_ID}=$html->form_select("TV_GENRE_ID", 
+  {
+    SELECTED     => (defined($Iptv->{TV_GENRE_ID_SELECT}) ? $Iptv->{TV_GENRE_ID_SELECT} : (defined($FORM{TV_GENRE_ID}) ? $FORM{TV_GENRE_ID} : 0)),
+    SEL_ARRAY    => \@tv_genre_id,
+    ARRAY_NUM_ID => 0,  
+  });
+
+    if (defined($Iptv_stalker)) {
+      $html->tpl_show(_include('iptv_stalker_ch_add', 'Iptv'), {%$Iptv, %FORM});
+    }
+    else {
+      $html->tpl_show(_include('iptv_channel', 'Iptv'), $Iptv);
+    }
 
   my %SEARCH_FIELDS = (
     $_NUM      => "NUMBER",
@@ -1006,13 +1359,13 @@ sub iptv_channels {
 
   $output .= form_search({ SIMPLE => \%SEARCH_FIELDS, });
 
-  my $list  = $Iptv->channel_list({%LIST_PARAMS});
+  my $list  = $Iptv->channel_list({%LIST_PARAMS, COLS_NAME => 1 });
   my $table = $html->table(
     {
-      width   => '100%',
-      caption => "$_CHANNELS",
-      border  => 1,
-      title   => [ $_NUM, $_NAME, $_DESCRIBE, "$_PORT", $_STATUS, '-', '-' ],
+      width      => '100%',
+      caption    => "$_CHANNELS",
+      border     => 1,
+      title      => [ $_NUM, $_NAME, $_DESCRIBE, "$_PORT", $_STATUS, '-', '-' ],
       cols_align => [ 'right', 'left', 'left', 'right', 'center', 'center' ],
       qs         => $pages_qs,
       pages      => $Iptv->{TOTAL},
@@ -1024,12 +1377,24 @@ sub iptv_channels {
   my ($delete, $change);
   foreach my $line (@$list) {
     if ($permissions{4}{1}) {
-      $delete = $html->button($_DEL, "index=$index&del=$line->[5]", { MESSAGE => "$_DEL $line->[1] / $line->[2]?", CLASS => 'del' });
-      $change = $html->button($_CHANGE, "index=$index&chg=$line->[5]", { CLASS => 'change' });
+
+      if (defined($Iptv_stalker)) {
+        $delete = $html->button($_DEL, "index=$index&stalker_del=$line->{name}&abills_id=$line->{id}", { MESSAGE => "$_DEL $line->{num} / $line->{name}?", CLASS => 'del' });
+        $change = $html->button($_CHANGE, "index=$index&stalker_chg=$line->{name}&abills_id=$line->{id}", { CLASS => 'change' });        
+      }
+      else {
+        $delete = $html->button($_DEL, "index=$index&del=$line->{id}", { MESSAGE => "$_DEL $line->{num} / $line->{name}?", CLASS => 'del' });
+        $change = $html->button($_CHANGE, "index=$index&chg=$line->{id}", { CLASS => 'change' });
+      }
     }
 
-    $table->addrow($line->[0], $line->[1], $line->[2], $line->[3], $status[ $line->[4] ], $change, $delete);
-
+    $table->addrow($line->{num}, 
+      $line->{name}, 
+      $line->{comments}, 
+      $line->{port}, 
+      $html->color_mark($status[ $line->{disable} ], $service_status_colors[ $line->{disable} ]),
+      $change, 
+      $delete);
   }
   print $table->show();
 
@@ -1037,7 +1402,9 @@ sub iptv_channels {
     {
       width      => '100%',
       cols_align => [ 'right', 'right' ],
-      rows       => [ [ "$_TOTAL:", $html->b($Iptv->{TOTAL}) ] ]
+      rows       => [ [ ($conf{IPTV_STALKET_DB}) ? $html->button("Stalker $_EXPORT", "index=$index&stalker_export=1", { BUTTON => 1 }) : '', 
+      "$_TOTAL:", $html->b($Iptv->{TOTAL}) ] ]
+      
     }
   );
   print $table->show();
@@ -1047,8 +1414,10 @@ sub iptv_channels {
 # online users
 #*******************************************************************
 sub iptv_online {
-
-  my $nas = Nas->new($db, \%conf);
+  
+  use Nas;
+  my $nas      = Nas->new($db, \%conf);
+  my $sessions = $Iptv;
   my $message;
 
   if ($FORM{ping}) {
@@ -1218,51 +1587,105 @@ sub iptv_online {
     $cure = 'Zap';
   }
   else {
-    $sessions->online({ ZAPED => 'yes' });
-    $form_link = $html->button($_ZAPED, "index=$index&ZAPED=1", { BUTTON => 1 }) . " ($sessions->{TOTAL})";
+    #$sessions->online({ ZAPED => 1 });
+    #$form_link = $html->button($_ZAPED, "index=$index&ZAPED=1", { BUTTON => 1 }) . " ($sessions->{TOTAL})";
     $cure = 'Online';
   }
+  %LIST_PARAMS =  ( %LIST_PARAMS,
+  	                   LOGIN         => '_SHOW',
+  	                   FIO           => '_SHOW',
+  	                   STARTED       => '_SHOW',
+  	                   DURATION      => '_SHOW',
+  	                   CLIENT_IP     => '_SHOW',
+  	                   TP_NAME       => '_SHOW',
+  	                   ONLINE_BASE   => '_SHOW',
+                   );
 
-  $sessions->online({%LIST_PARAMS});
   my $dub_ports  = $sessions->{dub_ports};
   my $dub_logins = $sessions->{dub_logins};
 
-  my $table = $html->table(
-    {
-      caption    => "$cure",
-      width      => '100%',
-      title      => [ "$_USER", "$_FIO", "CALLING_STATION_ID", "CALLING_STATION_ID", "$_DURATION", "CLIENT_IP_ADDRESS", "-", "-", "-" ],
-      cols_align => [ 'left', 'left', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'center' ],
-      qs         => $pages_qs,
-    }
-  );
+  my ($table, $list) = result_former({
+     INPUT_DATA      => $sessions,
+     FUNCTION        => 'online',
+     BASE_FIELDS     => 1,
+     FUNCTION_FIELDS => 'iptv_ping, iptv_zap, iptv_hangup',
+     EXT_TITLES      => {
+       'ip'          => 'IP',
+       'netmask'     => 'NETMASK',
+       'speed'       => $_SPEED,
+       'port'        => $_PORT,
+       'CID'         => 'CID',
+       'filter_id'   => 'Filter ID',
+       'tp_name'     => "$_TARIF_PLAN",
+       'dv_status'   => "$_STATUS",
+       'started',    => $_START,
+       'duration'    => $_DURATION, 
+       'last_alive'  => "Last alive",
+       'iptv_expire' => "$_TV $_EXPIRE",
+       'acct_session_id'=> "ACCT_SESSION_ID",
+         },
+     TABLE           => {
+       width      => '100%',
+       caption    => "$cure",
+       border     => 1,
+       qs         => $pages_qs,
+       ID         => 'IPTV_ONLINE',
+       EXPORT     => 1,
+     },
+#     MAKE_ROWS    => 1,
+#     TOTAL        => 1
+    });
 
   my $bg;
   my $online = $sessions->{nas_sorted};
+  my $nas_list = $nas->list({ COLS_NAME => 1 });
 
-  my $nas_list = $nas->list();
-
-  foreach my $nas_row (@$nas_list) {
-    next if (!defined($online->{ $nas_row->[0] }));
+  foreach my $nas_row (( 0 )) {
+    $nas_row->{nas_id} = 0;
+    next if (!defined($online->{ $nas_row->{nas_id} }));
 
     $table->{rowcolor} = $_COLORS[0];
-    $table->{extra}    = "colspan=\"9\" class=\"small\"";
-    $table->addrow("$nas_row->[0]:<b>$nas_row->[1]</b>:$nas_row->[4]");
+    $table->{extra}    = "colspan=". (1+$sessions->{SEARCH_FIELDS_COUNT}) ." class=\"small\"";
+    $table->addrow("$nas_row->{nas_id}:". $html->b($nas_row->{nas_name}). ":$nas_row->{nas_type}");
 
-    my $l = $online->{ $nas_row->[0] };
-    foreach my $line (@$l) {
+    my $online_users = $online->{ $nas_row->{nas_id} };
+    foreach my $line (@$online_users) {
+      my @fields_array = ();
+      for (my $i = 0; $i < 1+$sessions->{SEARCH_FIELDS_COUNT}; $i++) {
+        if ($conf{EXT_BILL_ACCOUNT} && $sessions->{COL_NAMES_ARR}->[$i] eq 'ext_bill_deposit') {
+          $line->{ext_bill_deposit} = ($line->{ext_bill_deposit} < 0) ? $html->color_mark($line->{ext_bill_deposit}, $_COLORS[6]) : $line->{ext_bill_deposit};
+        }
+        elsif ($sessions->{COL_NAMES_ARR}->[$i] eq 'deleted') {
+          $line->{deleted} = $html->color_mark($bool_vals[ $line->{deleted} ], ($line->{deleted} == 1) ? $state_colors[ $line->{deleted} ] : '');
+        }
+        elsif ($sessions->{COL_NAMES_ARR}->[$i] eq 'login') {
+          $line->{login} = user_ext_menu($line->{uid}, $line->{login});
+        }
+
+        if ($FORM{UNIVERSAL_SEARCH}) {
+          $line->{$users->{COL_NAMES_ARR}->[$i]} =~ s/(.*)$FORM{UNIVERSAL_SEARCH}(.*)/$1$search_color_mark$2/;
+        }
+
+        push @fields_array, $line->{$sessions->{COL_NAMES_ARR}->[$i]};
+      }
+
       undef($table->{rowcolor});
       undef($table->{extra});
-      if (defined($dub_logins->{ $line->[0] })) { $bg = '#FFFF00'; }
+      if (defined($dub_logins->{ $line->{login} })) { 
+      	$bg = '#FFFF00'; 
+      }
+      elsif ($line->{status} == 3) { 
+      	$bg = '#FF0000'; 
+      }
+      else { 
+      	$bg = ($bg eq $_COLORS[1]) ? $_COLORS[2] : $_COLORS[1]; 
+      }
 
-      #    elsif (defined($dub_ports->{$nas_row->[4]}{$line->[2]})) { $bg='#00FF40';    }
-      elsif ($line->[9] == 3) { $bg = '#FF0000'; }
-      else                    { $bg = ($bg eq $_COLORS[1]) ? $_COLORS[2] : $_COLORS[1]; }
-
-      my $zap = $html->button('Z', "index=$index&zap=$nas_row->[0]+$line->[9]", { TITLE => 'Zap', BUTTON => 1 });
-      my $hangup = ($FORM{ZAPED}) ? $html->form_input('dellist', "$line->[9]", { TYPE => 'checkbox', { BUTTON => 1 } }) : $html->button('H', "index=$index&hangup=$nas_row->[0]+$line->[2]+$line->[9]+$line->[0]", { TITLE => 'Hangup', BUTTON => 1 });
-
-      $table->addrow(user_ext_menu($line->[8], $line->[0]), $line->[1], $line->[2], $line->[3], $line->[4], $line->[5], $html->button('P', "index=$index&ping=$line->[3]", { TITLE => 'Ping', BUTTON => 1 }), "$zap", "$hangup");
+      $table->addrow(@fields_array,
+        $html->button('P', "index=$index&ping=$line->{client_ip}", { TITLE => 'Ping', BUTTON => 1 }), 
+        $html->button('Z', "index=$index&zap=$nas_row->[0]+$line->{acct_session_id}", { TITLE => 'Zap', BUTTON => 1 }),
+        ($FORM{ZAPED}) ? $html->form_input('dellist', "$line->{acct_session_id}", { TYPE => 'checkbox', { BUTTON => 1 } }) : $html->button('H', "index=$index&hangup=$nas_row->[0]+$line->{acct_session_id}", { TITLE => 'Hangup', BUTTON => 1 })
+        );
     }
   }
 
@@ -1324,7 +1747,7 @@ sub iptv_use_allmonthes {
 }
 
 #**********************************************************
-# dv_use();
+# iptv_use();
 #**********************************************************
 sub iptv_use {
   reports(
@@ -1463,7 +1886,7 @@ sub iptv_error {
     #    $table->{rowcolor}='#FF0000';
     #   }
     #  else {
-    #  	$table->{rowcolor}=undef;
+    #    $table->{rowcolor}=undef;
     #   }
 
     $table->addrow($line);
@@ -1510,7 +1933,7 @@ sub iptv_user_info {
     $Iptv->{TP_CHANGE} = $html->button("$_CHANGE", 'index=' . get_function_index('iptv_user_chg_tp') . '&sid=' . $sid, { BUTTON => 1 });
   }
 
-  $Iptv->{DISABLE} = $_ENABLE;
+  $Iptv->{DISABLE} = $html->color_mark($service_status[ $Iptv->{STATUS} ], $service_status_colors[ $Iptv->{STATUS} ]),
   $html->tpl_show(_include('iptv_user_info', 'Iptv'), $Iptv);
 
   iptv_user_channels({ USER_INFO => $user });
@@ -1554,12 +1977,10 @@ sub iptv_user_chg_tp {
   if ($Iptv->{TP_ID} == $FORM{TP_ID}) {
 
   }
-  elsif ($FORM{set}) {
-    use POSIX;
-
+  elsif ($FORM{change}) {
     if ($period == 1 && $conf{IPTV_USER_CHG_TP_SHEDULE}) {
 
-      my $seltime = POSIX::mktime(0, 0, 0, $FORM{date_D}, $FORM{date_M}, ($FORM{date_Y} - 1900));
+      my $seltime = mktime(0, 0, 0, $FORM{date_D}, $FORM{date_M}, ($FORM{date_Y} - 1900));
 
       if ($seltime <= time()) {
         $html->message('info', $_INFO, "$ERR_WRONG_DATA");
@@ -1614,7 +2035,7 @@ sub iptv_user_chg_tp {
       }
       $M = sprintf("%02.d", $M);
 
-      my $seltime = POSIX::mktime(0, 0, 0, $D, $M, ($Y - 1900));
+      my $seltime = mktime(0, 0, 0, $D, $M, ($Y - 1900));
 
       if ($seltime > time()) {
         $shedule->add(
@@ -1640,7 +2061,7 @@ sub iptv_user_chg_tp {
         }
         else {
           if ($Iptv->{TP_INFO}->{MONTH_FEE} > 0 && !$Iptv->{STATUS}) {
-            iptv_get_month_fee($Iptv);
+            service_get_month_fee($Iptv, { SERVICE_NAME => "$_TV" });
           }
 
           $html->message('info', $_CHANGED, "$_CHANGED");
@@ -1724,17 +2145,16 @@ sub iptv_user_channels {
     $Iptv->user_info($LIST_PARAMS{UID});
   }
 
-  my $list = $Tariffs->ti_list({ TP_ID => $Iptv->{TP_ID} });
+  my $list = $Tariffs->ti_list({ TP_ID => $Iptv->{TP_ID}, COLS_NAME => 1 });
   my @interval_ids = ();
 
   if ($Tariffs->{TOTAL} < 1) {
-    $html->message('info', $_INFO, "$_INTERVAL $_NOT_EXIST", { ID => '404' }) if (!$attr->{QUIET});
+    #$html->message('info', $_INFO, "$_INTERVALS $_NOT_EXIST", { ID => '404' }) if (!$attr->{QUIET});
     return 0;
   }
 
   my $intervals             = $Tariffs->{TOTAL};
-  $LIST_PARAMS{INTERVAL_ID} = $list->[0]->[0];
-  $LIST_PARAMS{TI}          = $list->[0]->[0];
+  $LIST_PARAMS{INTERVAL_ID} = $list->[0]->{id};
   $LIST_PARAMS{DISABLE}     = 0;
 
   #Active channels
@@ -1742,25 +2162,27 @@ sub iptv_user_channels {
 
   $list = $Iptv->user_channels_list(
     {
-      TP_ID => $Iptv->{TP_ID},
-      UID   => $Iptv->{UID}
+      TP_ID     => $Iptv->{TP_ID},
+      UID       => $Iptv->{UID},
+      PAGE_ROWS => 10000,
+      COLS_NAME => 1
     }
   );
   foreach my $line (@$list) {
-    $select_channels{ $line->[2] } = $line->[3];
+    $select_channels{ $line->{channel_id} } = $line->{changed};
   }
 
   my @mandatory_arr = ();
 
   #LIst channels
-  $list = $Iptv->channel_ti_list({ %LIST_PARAMS, MANDATORY => 1 });
+  $list = $Iptv->channel_ti_list({ %LIST_PARAMS, MANDATORY => 1, COLS_NAME => 1 });
 
   foreach my $line (@$list) {
-    if ($FORM{add} || $FORM{set}) {
-      if (($users->{CREDIT} + $users->{DEPOSIT}) > $line->[4] || $Iptv->{PEYMENT_TYPE}) {
+    if (($FORM{add} || $FORM{change}) && $FORM{change_now}) {
+      if (($users->{CREDIT} + $users->{DEPOSIT}) > $line->{month_price} || $Iptv->{PEYMENT_TYPE}) {
         $Iptv->{TP_INFO}->{PERIOD_ALIGNMENT} = $Iptv->{PERIOD_ALIGNMENT} || 0;
-        $Iptv->{TP_INFO}->{MONTH_FEE}        = $line->[4];
-        $Iptv->{TP_INFO}->{DAY_FEE}          = $line->[5];
+        $Iptv->{TP_INFO}->{MONTH_FEE}        = $line->{month_price};
+        $Iptv->{TP_INFO}->{DAY_FEE}          = $line->{day_price};
         $Iptv->{TP_INFO}->{TP_ID}            = $Iptv->{TP_ID};
 
         my %PARAMS = (
@@ -1770,34 +2192,26 @@ sub iptv_user_channels {
 
         if ($Iptv->{TP_INFO}->{MONTH_FEE} > 0) {
           $Iptv->{ACCOUNT_ACTIVATE} = $users->{ACTIVATE};
-          iptv_get_month_fee($Iptv, { EXT_DESCRIBE => " $_CHANNEL: $line->[1]", QUIET => 1 });
+          service_get_month_fee($Iptv, { EXT_DESCRIBE => " $_CHANNEL: $line->{channel_num}", 
+          	                             SERVICE_NAME => "$_TV",
+          	                             QUIET        => 1 
+          	                           });
         }
         else {
           $Fees->take($users, $Iptv->{TP_INFO}->{DAY_FEE}, {%PARAMS});
         }
 
-        push @mandatory_arr, $line->[9];
+        push @mandatory_arr, $line->{channel_id};
       }
       else {
         $html->message('err', $_ERROR, "$ERR_SMALL_DEPOSIT") if (!$attr->{QUIET});
       }
     }
     else {
-      push @mandatory_arr, $line->[9];
+      push @mandatory_arr, $line->{channel_id};
     }
   }
-
-  if ($FORM{add} || $FORM{set}) {
-    $Iptv->user_channels(
-      {
-        UID   => $Iptv->{UID},
-        TP_ID => $Iptv->{TP_ID},
-        IDS   => join(', ', @mandatory_arr)
-      }
-    );
-    $html->message('info', $_INFO, "$_CHANNELS: " . join(', ', @mandatory_arr)) if (!$attr->{QUIET});
-  }
-
+    
   my $Shedule = Shedule->new($db, $admin, \%conf);
   if ($FORM{change}) {
     $FORM{IDS} =~ s/, /;/g;
@@ -1862,12 +2276,12 @@ sub iptv_user_channels {
 
     @new_arr = keys %ids_hash;
     if ($#new_arr > -1) {
-      my $list = $Iptv->channel_ti_list({ %LIST_PARAMS, IDS => join('; ', @new_arr) });
+      my $list = $Iptv->channel_ti_list({ %LIST_PARAMS, COLS_NAME => 1, IDS => join('; ', @new_arr) });
       foreach my $line (@$list) {
-        if (($users->{CREDIT} + $users->{DEPOSIT}) > $line->[4] || $Iptv->{PEYMENT_TYPE}) {
+        if (($users->{CREDIT} + $users->{DEPOSIT}) > $line->{month_price} || $Iptv->{PEYMENT_TYPE}) {
           $Iptv->{TP_INFO}->{PERIOD_ALIGNMENT} = $Iptv->{PERIOD_ALIGNMENT} || 0;
-          $Iptv->{TP_INFO}->{MONTH_FEE}        = $line->[4];
-          $Iptv->{TP_INFO}->{DAY_FEE}          = $line->[5];
+          $Iptv->{TP_INFO}->{MONTH_FEE}        = $line->{month_price};
+          $Iptv->{TP_INFO}->{DAY_FEE}          = $line->{day_price};
           $Iptv->{TP_INFO}->{TP_ID}            = $Iptv->{TP_ID};
 
           my %PARAMS = (
@@ -1877,14 +2291,15 @@ sub iptv_user_channels {
 
           if ($Iptv->{TP_INFO}->{MONTH_FEE} > 0) {
             $Iptv->{ACCOUNT_ACTIVATE} = $users->{ACTIVATE};
-            iptv_get_month_fee($Iptv, { EXT_DESCRIBE => " $_CHANNEL: $line->[1]" });
+            service_get_month_fee($Iptv, { EXT_DESCRIBE => " $_CHANNEL: $line->[1]",
+            	                             SERVICE_NAME => "$_TV" });
           }
           else {
             $Fees->take($users, $Iptv->{TP_INFO}->{DAY_FEE}, {%PARAMS});
           }
 
-          $select_channels{ $line->[9] } = '1111';
-          push @add_arr, $line->[9];
+          $select_channels{ $line->{channel_id} } = '1';
+          push @add_arr, $line->{channel_id};
         }
         else {
           $html->message('err', $_ERROR, "$ERR_SMALL_DEPOSIT") if (!$attr->{QUIET});
@@ -1904,6 +2319,9 @@ sub iptv_user_channels {
 
     if (!$Iptv->{errno}) {
       $html->message('info', $_INFO, "$_CHANGED") if (!$attr->{QUIET});
+      if ($conf{IPTV_DVCRYPT_FILENAME}) {
+        iptv_crypt();
+      }
     }
     else {
       $html->message('err', $_ERROR, "[$Iptv->{errno}] $err_strs{$Iptv->{errno}}") if (!$attr->{QUIET});
@@ -1948,26 +2366,28 @@ sub iptv_user_channels {
   %select_channels = ();
   $list            = $Iptv->user_channels_list(
     {
-      TP_ID => $Iptv->{TP_ID},
-      UID   => $Iptv->{UID}
+      TP_ID     => $Iptv->{TP_ID},
+      UID       => $Iptv->{UID},
+      COLS_NAME => 1
     }
   );
   foreach my $line (@$list) {
-    $select_channels{ $line->[2] } = $line->[3];
+    $select_channels{ $line->{channel_id} } = $line->{changed};
   }
 
-  $list = $Iptv->channel_ti_list({%LIST_PARAMS});
+  $list = $Iptv->channel_ti_list({%LIST_PARAMS, COLS_NAME => 1});
 
   my $table = $html->table(
     {
-      width   => '100%',
-      caption => $_CHANNELS,
-      border  => 1,
-      title   => [ '#', $_NUM, $_NAME, $_DESCRIBE, "$_MONTH $_PRICE", "$_DAY $_PRICE", "$_MANDATORY", "$_PORT" ],
+      width      => '100%',
+      caption    => $_CHANNELS,
+      border     => 1,
+      title      => [ '#', $_NUM, $_NAME, $_DESCRIBE, "$_MONTH $_PRICE", "$_DAY $_PRICE", "$_MANDATORY", "$_PORT" ],
       cols_align => [ 'right', 'left', 'left', 'right' ],
       qs         => $pages_qs,
       pages      => $Iptv->{TOTAL},
       ID         => 'IPTV_CHANNELS',
+      EXPORT     => 1
     }
   );
 
@@ -1976,24 +2396,24 @@ sub iptv_user_channels {
 
     if ($conf{IPTV_USER_CHG_CHANNELS}) {
 
-      $status = ($select_channels{ $line->[9] }) ? $html->b($status[0]) . ' ' : $html->b($status[1]) . ' ';
+      $status = ($select_channels{ $line->{channel_id} }) ? $html->b($status[0]) . ' ' : $html->b($status[1]) . ' ';
 
-      if ($Shedule->{Y} && !$line->[6]) {
-        if ($shedule{ $line->[9] }) {
-          $status .= "/ $_ENABLE $_FROM: $shedule{$line->[9]}";
+      if ($Shedule->{Y} && !$line->{mandatory}) {
+        if ($shedule{ $line->{channel_id} }) {
+          $status .= "/ $_ENABLE $_FROM: $shedule{$line->{channel_id}}";
         }
         else {
           $status .= "/ $_DISABLE $_FROM: $Shedule->{EXEC_DATE}";
         }
       }
       else {
-        if (!$line->[6]) {
+        if (!$line->{mandatory}) {
           $status .= $html->form_input(
             'IDS',
-            "$line->[9]",
+            "$line->{channel_id}",
             {
               TYPE          => 'checkbox',
-              STATE         => (($select_channels{ $line->[9] }) ? 1 : undef),
+              STATE         => (($select_channels{ $line->{channel_id} }) ? 1 : undef),
               OUTPUT2RETURN => 1
             }
           );
@@ -2001,19 +2421,18 @@ sub iptv_user_channels {
       }
     }
     else {
-      $status = $status[ $line->[6] ];
+      $status = $status[ $line->{mandatory} ];
     }
 
     $table->addrow(
       $status,
-      $line->[1],
-      $line->[2],
-      $line->[3],
-      ($line->[4]) ? $line->[4]  : '0.00',
-      ($line->[5]) ? $line->[5]  : '0.00',
-      ($line->[6]) ? $_MANDATORY : '',
-      $line->[7]
-
+      $line->{channel_num},
+      $line->{name},
+      $line->{comments},
+      $line->{month_price} || '0.00',
+      $line->{day_price} || '0.00',
+      ($line->{mandatory}) ? $_MANDATORY : '',
+      $line->{port}
     );
   }
 
@@ -2064,7 +2483,10 @@ sub iptv_daily_fees {
   require Tariffs;
   Tariffs->import();
   my $Tariffs = Tariffs->new($db, $conf, $admin);
-  my $list = $Tariffs->list({ %LIST_PARAMS, MODULE => 'Iptv' });
+  my $list = $Tariffs->list({ %LIST_PARAMS, 
+  	                          TP_NAME => '_SHOW',
+  	                          MODULE  => 'Iptv' 
+  	                        });
 
   foreach my $tp (@$list) {
     if ($tp->{daily_fee} > 0) {
@@ -2074,6 +2496,9 @@ sub iptv_daily_fees {
           ACTIVATE     => "<=$ADMIN_REPORT{DATE}",
           EXPIRE       => "0000-00-00,>$ADMIN_REPORT{DATE}",
           DISABLE      => '0',
+          DEPOSIT      => '_SHOW',
+          DEPOSIT      => '_CREDIT',
+          BILL_ID      => '_SHOW',
           TP           => $tp->{tp_id},
           COLS_NAME    => 1
         }
@@ -2175,6 +2600,11 @@ sub iptv_monthly_fees {
           EXPIRE       => "0000-00-00,>$ADMIN_REPORT{DATE}",
           STATUS       => 0,
           LOGIN_STATUS => 0,
+          SERVICE_STATUS=> '_SHOW',
+          DEPOSIT      => '_SHOW',
+          CREDIT       => '_SHOW',
+          BILL_ID      => '_SHOW',
+          REDUCTION    => '_SHOW',
           TP_ID        => $TP_ID,
           SORT         => 1,
           PAGE_ROWS    => 1000000,
@@ -2184,9 +2614,9 @@ sub iptv_monthly_fees {
       );
 
       foreach my $u (@$ulist) {
-        $debug_output .= " Login: $u->{id} ($u->{uid})  TP_ID: $u->{tp_id} Fees: $tp->{month_fee} REDUCTION: $u->{reduction}  $u->{deposit} $u->{credit}\n" if ($debug > 3);
+        $debug_output .= " Login: $u->{login} ($u->{uid})  TP_ID: $u->{tp_id} Fees: $tp->{month_fee} REDUCTION: $u->{reduction}  $u->{deposit} $u->{credit}\n" if ($debug > 3);
         my %user = (
-          LOGIN     => $u->{id},
+          LOGIN     => $u->{login},
           UID       => $u->{uid},
           BILL_ID   => ($tp->{ext_bill_account} > 0) ? $u->{ext_bill_id} : $u->{bill_id},
           REDUCTION => $u->{reduction},
@@ -2278,12 +2708,17 @@ sub iptv_monthly_fees {
       {
         ACTIVATE      => "<=$ADMIN_REPORT{DATE}",
         EXPIRE        => "0000-00-00,>$ADMIN_REPORT{DATE}",
-        STATUS        => 0,
+        SERVICE_STATUS=> 0,
         LOGIN_STATUS  => 0,
         TP_ID         => $TP_ID,
         SORT          => 1,
         PAGE_ROWS     => 1000000,
         SHOW_CHANNELS => 1,
+        DEPOSIT       => '_SHOW',
+        CREDIT        => '_SHOW',
+        BILL_ID       => '_SHOW',
+        REDUCTION     => '_SHOW',
+        EXT_BILL_ID   => '_SHOW',
         MONTH_PRICE   => '>0',
         COLS_NAME     => 1,
         %USERS_LIST_PARAMS
@@ -2293,11 +2728,11 @@ sub iptv_monthly_fees {
     foreach my $u (@$ulist) {
       my $channel_num = $u->{channel_id};
       my $sum         = $u->{month_price};
-      $debug_output .= " Login: $u->{id} ($u->{uid})  TP_ID: $u->{tp_id} Channel: $channel_num Month Price: $sum REDUCTION: $u->{reduction}  $u->{credit} $u->{credit}\n" if ($debug > 3);
+      $debug_output .= " Login: $u->{login} ($u->{uid})  TP_ID: $u->{tp_id} Channel: $channel_num Month Price: $sum REDUCTION: $u->{reduction}  $u->{credit} $u->{credit}\n" if ($debug > 3);
 
       #Check bill id and deposit
       my %user = (
-        LOGIN     => $u->{id},
+        LOGIN     => $u->{login},
         UID       => $u->{uid},
         BILL_ID   => ($tp->{ext_bill_account} > 0) ? $u->{ext_bill_id} : $u->{bill_id},
         REDUCTION => $u->{reduction},
@@ -2398,6 +2833,13 @@ sub iptv_sheduler {
         TP_ID => $action
       }
     );
+
+    $FORM{change}= 1;
+    $FORM{UID}   = $uid;
+    $FORM{TP_ID} = $action;
+     if (iptv_account_action({ CHANGE_TP => 1 })) {
+      $html->message('err', $_ERROR, "$Iptv->{errno} $Iptv->{errstr}");
+    }
   }
 
   #Set channel
@@ -2468,132 +2910,132 @@ sub iptv_report {
 #
 #Make month feee
 #**********************************************************
-sub iptv_get_month_fee {
-  my ($Iptv, $attr) = @_;
-
-  my $info_message = '';
-
-  #Get active price
-  if ($Iptv->{TP_INFO}->{ACTIV_PRICE}) {
-    my $users = Users->new($db, $admin, \%conf);
-    my $user  = $users->info($Iptv->{UID});
-    my $date  = ($user->{ACTIVATE} ne '0000-00-00') ? $user->{ACTIVATE} : $DATE;
-    my $time  = ($user->{ACTIVATE} ne '0000-00-00') ? '00:00:00' : $TIME;
-
-    $Fees->take(
-      $user,
-      $Iptv->{TP_INFO}->{ACTIV_PRICE},
-      {
-        DESCRIBE => "$_ACTIVATE $_TARIF_PLAN",
-        DATE     => "$date $time"
-      }
-    );
-
-    $info_message .= "$_ACTIVATE $_TARIF_PLAN\n";
-  }
-
-  #Get month fee
-  if ($Iptv->{TP_INFO}->{MONTH_FEE} > 0) {
-    my $sum   = $Iptv->{TP_INFO}->{MONTH_FEE};
-    my $users = Users->new($db, $admin, \%conf);
-    my $user  = $users->info($Iptv->{UID});
-
-    if ($Iptv->{TP_INFO}->{EXT_BILL_ACCOUNT}) {
-      $user->{BILL_ID} = $user->{EXT_BILL_ID} if ($user->{EXT_BILL_ID});
-    }
-
-    my $message = '';
-
-    #Current Month
-    my ($y, $m, $d) = split(/-/, $DATE, 3);
-    my ($active_y, $active_m, $active_d) = split(/-/, $Iptv->{ACCOUNT_ACTIVATE}, 3);
-    if (int("$y$m$d") < int("$active_y$active_m$active_d")) {
-      return;
-    }
-
-    if ($Iptv->{TP_INFO}->{PERIOD_ALIGNMENT} && !$Iptv->{TP_INFO}->{ABON_DISTRIBUTION}) {
-      $message = "$_MONTH_ALIGNMENT\n";
-      my $days_in_month = ($m != 2 ? (($m % 2) ^ ($m > 7)) + 30 : (!($y % 400) || !($y % 4) && ($y % 25) ? 29 : 28));
-
-      if ($Iptv->{ACCOUNT_ACTIVATE} && $Iptv->{ACCOUNT_ACTIVATE} ne '0000-00-00') {
-        $days_in_month = ($active_m != 2 ? (($active_m % 2) ^ ($active_m > 7)) + 30 : (!($active_y % 400) || !($active_y % 4) && ($active_y % 25) ? 29 : 28));
-        $d = $active_d;
-      }
-
-      $conf{START_PERIOD_DAY} = 1 if (!$conf{START_PERIOD_DAY});
-      $sum = sprintf("%.2f", $sum / $days_in_month * ($days_in_month - $d + $conf{START_PERIOD_DAY}));
-    }
-
-    return 0 if ($sum == 0);
-
-    my $periods = 0;
-    if ($active_m > 0 && $active_m < $m) {
-      $periods = $m - $active_m;
-    }
-    elsif ($active_m > 0 && ($active_m >= $m && $active_y < $y)) {
-      $periods = 12 - $active_m + $m;
-    }
-
-    $message .= "$_MONTH_FEE: $sum ($Iptv->{TP_INFO}->{TP_ID})";
-    $message .= $attr->{EXT_DESCRIBE} if ($attr->{EXT_DESCRIBE});
-
-    if ($Iptv->{TP_INFO}->{ABON_DISTRIBUTION}) {
-      $sum = $sum / (($m != 2 ? (($m % 2) ^ ($m > 7)) + 30 : (!($y % 400) || !($y % 4) && ($y % 25) ? 29 : 28)));
-      $message .= " - $_ABON_DISTRIBUTION";
-    }
-
-    $m = $active_m if ($active_m > 0);
-    for (my $i = 0 ; $i <= $periods ; $i++) {
-      if ($m > 12) {
-        $m        = 1;
-        $active_y = $active_y + 1;
-      }
-
-      $m = sprintf("%.2d", $m);
-
-      if ($i > 0) {
-        $sum     = $Iptv->{TP_INFO}->{MONTH_FEE};
-        $message = "$_MONTH_FEE: $sum ($Iptv->{TP_INFO}->{TP_ID})";
-
-        $message .= $attr->{EXT_DESCRIBE} if ($attr->{EXT_DESCRIBE});
-        $DATE = "$active_y-$m-01";
-        $TIME = "00:00:00";
-      }
-      elsif ($Iptv->{ACCOUNT_ACTIVATE} && $Iptv->{ACCOUNT_ACTIVATE} ne '0000-00-00') {
-        $DATE = "$active_y-$m-$active_d";
-        $TIME = "00:00:00";
-
-        if ($Iptv->{TP_INFO}->{PERIOD_ALIGNMENT}) {
-          $users->change(
-            $Iptv->{UID},
-            {
-              ACTIVATE => '0000-00-00',
-              UID      => $Iptv->{UID}
-            }
-          );
-        }
-      }
-
-      $Fees->take(
-        $users, $sum,
-        {
-          DESCRIBE => "$_TV: $message",
-          METHOD   => 1,
-          DATE     => "$DATE $TIME"
-        }
-      );
-
-      if ($Fees->{errno}) {
-        $html->message('err', $_ERROR, "[$Fees->{errno}] $Fees->{errstr}") if (!$attr->{QUIET});
-        return 0;
-      }
-      $info_message .= "$_DATE: $DATE $message\n";
-      $m++;
-    }
-  }
-
-  $html->message('info', $_INFO, $info_message) if ($info_message && !$attr->{QUIET});
-}
+#sub iptv_get_month_fee {
+#  my ($Iptv, $attr) = @_;
+#
+#  my $info_message = '';
+#
+#  #Get active price
+#  if ($Iptv->{TP_INFO}->{ACTIV_PRICE}) {
+#    my $users = Users->new($db, $admin, \%conf);
+#    my $user  = $users->info($Iptv->{UID});
+#    my $date  = ($user->{ACTIVATE} ne '0000-00-00') ? $user->{ACTIVATE} : $DATE;
+#    my $time  = ($user->{ACTIVATE} ne '0000-00-00') ? '00:00:00' : $TIME;
+#
+#    $Fees->take(
+#      $user,
+#      $Iptv->{TP_INFO}->{ACTIV_PRICE},
+#      {
+#        DESCRIBE => "$_ACTIVATE $_TARIF_PLAN",
+#        DATE     => "$date $time"
+#      }
+#    );
+#
+#    $info_message .= "$_ACTIVATE $_TARIF_PLAN\n";
+#  }
+#
+#  #Get month fee
+#  if ($Iptv->{TP_INFO}->{MONTH_FEE} > 0) {
+#    my $sum   = $Iptv->{TP_INFO}->{MONTH_FEE};
+#    my $users = Users->new($db, $admin, \%conf);
+#    my $user  = $users->info($Iptv->{UID});
+#
+#    if ($Iptv->{TP_INFO}->{EXT_BILL_ACCOUNT}) {
+#      $user->{BILL_ID} = $user->{EXT_BILL_ID} if ($user->{EXT_BILL_ID});
+#    }
+#
+#    my $message = '';
+#
+#    #Current Month
+#    my ($y, $m, $d) = split(/-/, $DATE, 3);
+#    my ($active_y, $active_m, $active_d) = split(/-/, $Iptv->{ACCOUNT_ACTIVATE}, 3);
+#    if (int("$y$m$d") < int("$active_y$active_m$active_d")) {
+#      return;
+#    }
+#
+#    if ($Iptv->{TP_INFO}->{PERIOD_ALIGNMENT} && !$Iptv->{TP_INFO}->{ABON_DISTRIBUTION}) {
+#      $message = "$_MONTH_ALIGNMENT\n";
+#      my $days_in_month = ($m != 2 ? (($m % 2) ^ ($m > 7)) + 30 : (!($y % 400) || !($y % 4) && ($y % 25) ? 29 : 28));
+#
+#      if ($Iptv->{ACCOUNT_ACTIVATE} && $Iptv->{ACCOUNT_ACTIVATE} ne '0000-00-00') {
+#        $days_in_month = ($active_m != 2 ? (($active_m % 2) ^ ($active_m > 7)) + 30 : (!($active_y % 400) || !($active_y % 4) && ($active_y % 25) ? 29 : 28));
+#        $d = $active_d;
+#      }
+#
+#      $conf{START_PERIOD_DAY} = 1 if (!$conf{START_PERIOD_DAY});
+#      $sum = sprintf("%.2f", $sum / $days_in_month * ($days_in_month - $d + $conf{START_PERIOD_DAY}));
+#    }
+#
+#    return 0 if ($sum == 0);
+#
+#    my $periods = 0;
+#    if ($active_m > 0 && $active_m < $m) {
+#      $periods = $m - $active_m;
+#    }
+#    elsif ($active_m > 0 && ($active_m >= $m && $active_y < $y)) {
+#      $periods = 12 - $active_m + $m;
+#    }
+#
+#    $message .= "$_MONTH_FEE: $sum ($Iptv->{TP_INFO}->{TP_ID})";
+#    $message .= $attr->{EXT_DESCRIBE} if ($attr->{EXT_DESCRIBE});
+#
+#    if ($Iptv->{TP_INFO}->{ABON_DISTRIBUTION}) {
+#      $sum = $sum / (($m != 2 ? (($m % 2) ^ ($m > 7)) + 30 : (!($y % 400) || !($y % 4) && ($y % 25) ? 29 : 28)));
+#      $message .= " - $_ABON_DISTRIBUTION";
+#    }
+#
+#    $m = $active_m if ($active_m > 0);
+#    for (my $i = 0 ; $i <= $periods ; $i++) {
+#      if ($m > 12) {
+#        $m        = 1;
+#        $active_y = $active_y + 1;
+#      }
+#
+#      $m = sprintf("%.2d", $m);
+#
+#      if ($i > 0) {
+#        $sum     = $Iptv->{TP_INFO}->{MONTH_FEE};
+#        $message = "$_MONTH_FEE: $sum ($Iptv->{TP_INFO}->{TP_ID})";
+#
+#        $message .= $attr->{EXT_DESCRIBE} if ($attr->{EXT_DESCRIBE});
+#        $DATE = "$active_y-$m-01";
+#        $TIME = "00:00:00";
+#      }
+#      elsif ($Iptv->{ACCOUNT_ACTIVATE} && $Iptv->{ACCOUNT_ACTIVATE} ne '0000-00-00') {
+#        $DATE = "$active_y-$m-$active_d";
+#        $TIME = "00:00:00";
+#
+#        if ($Iptv->{TP_INFO}->{PERIOD_ALIGNMENT}) {
+#          $users->change(
+#            $Iptv->{UID},
+#            {
+#              ACTIVATE => '0000-00-00',
+#              UID      => $Iptv->{UID}
+#            }
+#          );
+#        }
+#      }
+#
+#      $Fees->take(
+#        $users, $sum,
+#        {
+#          DESCRIBE => "$_TV: $message",
+#          METHOD   => 1,
+#          DATE     => "$DATE $TIME"
+#        }
+#      );
+#
+#      if ($Fees->{errno}) {
+#        $html->message('err', $_ERROR, "[$Fees->{errno}] $Fees->{errstr}") if (!$attr->{QUIET});
+#        return 0;
+#      }
+#      $info_message .= "$_DATE: $DATE $message\n";
+#      $m++;
+#    }
+#  }
+#
+#  $html->message('info', $_INFO, $info_message) if ($info_message && !$attr->{QUIET});
+#}
 
 #**********************************************************
 #
@@ -2604,21 +3046,21 @@ sub iptv_crypt {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
   );
+
   my $filename = $conf{IPTV_DVCRYPT_FILENAME} || $conf{TPL_DIR} . '/dvcrypt.conf';
   my $content = '';
 
-  my %tp_channels_list = ();
   my %users_channels   = ();
   my $tp_list          = $Tariffs->list({ %LIST_PARAMS, MODULE => 'Iptv', COLS_NAME => 1 });
-
   foreach my $tp (@$tp_list) {
     my $TP_ID       = $tp->{tp_id};
     my $min_use     = $tp->{min_use};
     my $postpaid    = $tp->{payment_type};
     my $tp_postpaid = $tp->{postpaid_monthly_fee};
     my $month_fee   = $tp->{month_fee};
+    my %tp_channels_list = ();
 
-    $Tariffs->ti_list({ TP_ID => $TP_ID });
+    $Tariffs->ti_list({ TP_ID => $TP_ID, COLS_NAME => 1 });
 
     if ($Tariffs->{TOTAL} == 0) {
       next;
@@ -2626,14 +3068,15 @@ sub iptv_crypt {
 
     my $channels_list = $Iptv->channel_ti_list(
       {
-        INTERVAL_ID => $Tariffs->{list}->[0]->[0],
-        MANDATORY   => 1
+        INTERVAL_ID => $Tariffs->{list}->[0]->{id},
+        MANDATORY   => 1,
+        COLS_NAME   => 1
       }
     );
-    foreach my $line (@$channels_list) {
-      $tp_channels_list{ $line->[1] } = $line->[9];
-    }
 
+    foreach my $line (@$channels_list) {
+      $tp_channels_list{ $line->{channel_num} } = $line->{channel_id};
+    }
 
     #Main users list
     my $ulist = $Iptv->user_list(
@@ -2641,8 +3084,10 @@ sub iptv_crypt {
         ACTIVATE     => "<=$DATE",
         EXPIRE       => "0000-00-00,>$DATE",
         DVCRYPT_ID   => '>0',
-        STATUS       => ">=0",
-        LOGIN_STATUS => ">=0",
+        SERVICE_STATUS=> '_SHOW',
+        LOGIN_STATUS => '_SHOW',
+        DEPOSIT      => '_SHOW',
+        CREDIT       => '_SHOW',
         TP_ID        => $TP_ID,
         SORT         => 1,
         PAGE_ROWS    => 1000000,
@@ -2651,6 +3096,7 @@ sub iptv_crypt {
     );
 
     foreach my $u (@$ulist) {
+        
       if ($u->{deposit} + $u->{credit} > 0 && $u->{iptv_status} == 0) {
         %{ $users_channels{ $u->{dvcrypt_id} } } = %tp_channels_list;
       }
@@ -2666,21 +3112,23 @@ sub iptv_crypt {
         DVCRYPT_ID    => '>0',
         ACTIVATE      => "<=$DATE",
         EXPIRE        => "0000-00-00,>$DATE",
-        STATUS        => ">=0",
-        LOGIN_STATUS  => ">=0",
+        SERVICE_STATUS=> '_SHOW',
+        LOGIN_STATUS  => '_SHOW',
+        DEPOSIT       => '_SHOW',
+        CREDIT        => '_SHOW',
         TP_ID         => $TP_ID,
         SORT          => 1,
         SHOW_CHANNELS => 1,
-        COLS_NAME     => 1
+        COLS_NAME     => 1,        
       }
     );
 
     foreach my $u (@$list) {
       if ($u->{deposit} + $u->{credit} > 0 && $u->{login_status} + $u->{iptv_status} == 0) {
-        $users_channels{ $u->{dvcrypt_id} }{ $u->{channel_id} } = "$u->{deposit}";
+        $users_channels{ $u->{dvcrypt_id} }{ $u->{channel_num} } = "$u->{deposit}";
       }
       else {
-        $users_channels{ $u->{dvcrypt_id} }{ $u->{channel_id} } = 0;
+        $users_channels{ $u->{dvcrypt_id} }{ $u->{channel_num} } = 0;
       }
     }
   }
@@ -2704,6 +3152,8 @@ sub iptv_crypt {
   }
 
   print "Generated '$filename'\n" if ($debug > 1);
+  
+  return "Generated '$filename'\n";
 }
 
 #**********************************************************
@@ -2738,6 +3188,576 @@ sub iptv_reports_channels {
   #print $table->show();
 
 }
+
+
+
+#**********************************************************
+#
+#**********************************************************
+sub iptv_user_channels_list {
+  my ($attr) = @_;
+
+  my %tp_channels_list = ();
+  my %users_channels   = ();
+  my $tp_list          = $Tariffs->list({ %LIST_PARAMS, 
+                                          MODULE => 'Iptv', 
+                                          COLS_NAME => 1 
+                                        });
+  
+  foreach my $tp (@$tp_list) {
+    my $TP_ID       = $tp->{tp_id};
+    $Tariffs->ti_list({ TP_ID => $TP_ID, COLS_NAME => 1 });
+
+    if ($Tariffs->{TOTAL} == 0) {
+      next;
+    }
+
+    my $channels_list = $Iptv->channel_ti_list(
+      {
+        INTERVAL_ID => $Tariffs->{list}->[0]->{id},
+        MANDATORY   => 1,
+        COLS_NAME   => 1
+      }
+    );
+    foreach my $line (@$channels_list) {
+      $tp_channels_list{ $line->{channel_num} } = $line->{channel_id};
+    }
+
+    #Main users list
+    my $ulist = $Iptv->user_list(
+      {
+        ACTIVATE     => "<=$DATE",
+        EXPIRE       => "0000-00-00,>$DATE",
+        SERVICE_STATUS=> '_SHOW',
+        LOGIN_STATUS => '_SHOW',
+        DEPOSIT      => '_SHOW',
+        CREDIT       => '_SHOW',
+        TP_ID        => $TP_ID,
+        SORT         => 1,
+        PAGE_ROWS    => 1000000,
+        COLS_NAME    => 1,
+        UID           => $attr->{UID} || $LIST_PARAMS{UID}
+      }
+    );
+
+    foreach my $u (@$ulist) {
+      if ($u->{deposit} + $u->{credit} > 0 && $u->{iptv_status} == 0) {
+        %{ $users_channels{ $u->{uid} } } = %tp_channels_list;
+      }
+    }
+
+ 
+    # Custom channels users list
+    my $list = $Iptv->user_list(
+      {
+        PAGE_ROWS     => 1000000,
+        DVCRYPT_ID    => '>0',
+        ACTIVATE      => "<=$DATE",
+        EXPIRE        => "0000-00-00,>$DATE",
+        SERVICE_STATUS=> '_SHOW',
+        LOGIN_STATUS => '_SHOW',
+        DEPOSIT      => '_SHOW',
+        CREDIT       => '_SHOW',
+        TP_ID         => $TP_ID,
+        SORT          => 1,
+        SHOW_CHANNELS => 1,
+        COLS_NAME     => 1,
+        UID           => $attr->{UID} || $LIST_PARAMS{UID}
+      }
+    );
+
+    foreach my $u (@$list) {
+      if ($u->{deposit} + $u->{credit} > 0 && $u->{login_status} + $u->{iptv_status} == 0) {
+        $users_channels{ $u->{uid} }{ $u->{channel_num} } = $u->{channel_id} ;
+      }
+      #else {
+      #  $users_channels{ $u->{uid} }{ $u->{channel_id} } = 0;
+      #}
+    }
+  }
+
+  return join(',', keys %{ $users_channels{$attr->{UID}} });
+}
+
+sub stalker_export {
+  my ($attr) = @_;
+  
+    if (defined($Iptv_stalker)) {
+      $Iptv_stalker->stalker_channel_export();
+      if (!$Iptv_stalker->{errno}) {
+        if(!defined($FORM{stalker_del} && !defined($FORM{stalker_change}))) {
+          $html->message('info', $_INFO, "$_ADDED");
+        }
+      }
+      else {
+        $html->message('err', $_ERROR, "$Iptv_stalker->{errno} $Iptv_stalker->{errstr}");
+      }
+    }
+
+}
+
+#**********************************************************
+# stalker export tariff plan
+#**********************************************************
+sub stalker_tariff_export {
+  my ($attr) = @_;
+  my @stalker_tp_id;
+    
+    if (defined($Iptv_stalker)) {
+      
+      #debug
+      if (!$Iptv_stalker->{errno}) {
+        #Export from DB stalker - table tariff_plan
+        $list_tariffs = $Iptv_stalker->stalker_db_list_tariffs();
+        
+        foreach my $stalker_tp_id ( @$list_tariffs ) {
+          $Iptv_stalker->stalker_tp_export($stalker_tp_id->[0]); 
+        }
+        
+        #return 0;
+        #Export id columns of tariff_plan(table) from stalker DB
+
+          #print $stalker_id2num{197} . 'zo';
+          #print $abills_num2id{101} . 'zo';
+          #print $package_tp_id{3} . 'zo';
+          #print $tariffs_id_intervals{10402} . 'zo';
+          
+          
+        #return 0;
+
+        foreach my $line ( @$list_tariffs ) {
+          #print $line->[0] . 'oz';
+          
+          $Iptv_stalker->replace_interval_id($line->[0]);
+          #push(@stalker_tp_id, $line->[0]);
+        }
+        
+        if(!defined($attr->{WITHOUT_SUBSCRIPTION})) {
+          $Iptv_stalker->stalker_subscribe_export();
+        }
+        
+        
+        return 0;
+        #Add intervals to abills with stalkers tariff ids
+        #$Iptv_stalker->intervals_stalker_tp(\@stalker_tp_id);
+ 
+      } 
+      else {
+        $html->message('err', $_ERROR, "$Iptv_stalker->{errno} $Iptv_stalker->{errstr}");
+      }
+    } 
+    #$Iptv_stalker->stalker_tp_export()
+}
+
+
+
+#**********************************************************
+#
+#**********************************************************
+sub iptv_stalker {
+  eval { require "modules/Iptv/Stalker_api.pm"; };
+
+  if (!$@) {
+    eval { require "modules/Iptv/Stalker_api.pm"; };
+    Stalker_api->import();
+    $Stalker_api = Stalker_api->new($db, $admin, \%conf);
+  }
+  else {
+    print $@;
+    $html->message('err', $_ERROR, "Can't load 'Stalker_api'. Purchase this module http://abills.net.ua");
+    exit;
+  }
+
+ if ($FORM{send_message}) {
+   $Iptv->user_info($FORM{UID});
+   $FORM{UID}=$Iptv->{CID};
+ 	 $Stalker_api->send_message({ %FORM });
+
+ 	 return $Stalker_api->{error};
+ }
+ elsif ($FORM{add} || $FORM{change}) {
+   $users->info($users->{UID} || $FORM{UID},
+                { 
+                  SHOW_PASSWORD => 1,
+                 });
+   $users->pi({ UID => $users->{UID} || $FORM{UID} });
+
+   $Stalker_api->user_action({ %$users, %$Iptv, %FORM });
+   
+   if ($Stalker_api->{errstr} eq 'Account not found') {
+     $FORM{UID}=$Iptv->{CID};
+     $Stalker_api->user_action({ %$users, %$Iptv, %FORM });
+
+     if ($Stalker_api->{errstr} eq 'Account not found') {
+       $Stalker_api->user_action({ %$users, 
+                                 %$Iptv, 
+                                 %FORM,
+                                 add   => 1,
+                                 change=> undef });
+     }
+   }   
+   
+   return $Stalker_api->{error};
+ }
+
+ print $html->button("$_ACCOUNTS", "index=$index", { BUTTON => 1 }).
+  $html->button("STB", "index=$index&list=STB", { BUTTON => 1 }).
+  $html->button("$_CHANNELS", "index=$index&list=ITV", { BUTTON => 1 }).
+  $html->button("TV_SUBSCRIPTION", "index=$index&list=ITV_SUBSCRIPTION", { BUTTON => 1 }).
+  $html->button("$_TARIF_PLANS", "index=$index&list=tariffs", { BUTTON => 1 }).
+  $html->br();
+
+  # Get tps
+  my $list = $Tariffs->list({ MODULE    => 'Iptv',
+                              COLS_NAME => 1 
+                           });
+  foreach my $tp (@$list) {
+    $tp_list{$tp->{id}}=$tp->{tp_id};
+  }
+
+ 
+ if ($FORM{register}) {
+   if (! $tp_list{$FORM{TP_ID}}) {
+     $html->message('err', $_ERROR, "$_TARF_PLAN $_NOT_EXIST");
+   }
+   else {
+     $users->add({ %FORM });
+     $FORM{TP_ID} = $tp_list{$FORM{TP_ID}};
+     if (! $users->{errno} ) {
+       $Iptv->user_add({ %FORM, UID => $users->{UID} });
+     }
+     else {
+       $html->message('err', $_ERROR, "$users->{error}/$users->{errstr} ");
+     }
+   }
+ }
+ elsif ($FORM{tp_add}) {
+   $Tariffs->add({ %FORM, MODULE => 'Iptv' });
+   if (!$Tariffs->{errno}) {
+     $html->message('info', $_ADDED, "$_ADDED $Tariffs->{TP_ID}");
+   }
+   else {
+     $html->message('err', $_ERROR, "$Tariffs->{error}/$Tariffs->{errstr} ");
+   }
+ }
+ 
+ if ($FORM{list}) {
+   iptv_stalker_show_list($FORM{list});
+   return 0;   
+ }
+ elsif ($FORM{del}) {
+
+   return 0;
+ }
+
+  $Stalker_api->get_users();
+  
+  if ($Stalker_api->{error} ) {
+    $html->message('err', $_ERROR, "$Stalker_api->{error}/ ");
+  }
+
+ # Get abills users 
+ my %register_stb = ();
+ $list = $Iptv->user_list({ PAGE_ROWS => 1000000, 
+                            CID       => '_SHOW',
+                            COLS_NAME => 1 });
+ 
+ foreach my $line (@$list) {
+   $register_stb{$line->{cid}} = $line->{uid};
+ }
+
+
+ my @TITLE = ();
+ if ($Stalker_api->{RESULT}->{results}) {
+   @TITLE = keys %{ $Stalker_api->{RESULT}->{results}->[0] }; 
+ }
+
+  my $table = $html->table(
+    {
+      width      => '100%',
+      title      => [ @TITLE, '-' ],
+      caption    => "$_ACCOUNTS",
+      ID         => 'CLOSE_PERIOD'
+    }
+  );
+  
+  
+  foreach my $account_hash ( @{ $Stalker_api->{RESULT}->{results} } ) {
+    my @row = ();
+    while( ($key, $val)=each %{ $account_hash } ) {
+      if ($key eq 'tariff_plan') {
+        if (! $tp_list{$val}){ 
+          $val = "$val ". $html->br(). $html->color_mark($_NOT_EXIST, 'red') . $html->button($_ADD, "ID=$val&index=". get_function_index('iptv_tp'), { CLASS => 'add' }) ;
+        }
+        push @row, $val;
+      }
+      elsif ( ref $val eq 'ARRAY') {
+        push @row, join($html->br(), @$val);
+      }
+      elsif ($key eq 'stb_mac') {
+        $val = $html->button("$val", "index=$index&list=STB_MODULES&MAC=$val");
+        push @row, "$val";
+      }
+      else {
+        if ($key =~ /full_name|comment/ ) {
+          Encode::_utf8_off($val);
+        }     	
+
+        push @row, "$val";
+      }
+    }
+    
+    if ($account_hash->{stb_mac} && $register_stb{$account_hash->{stb_mac}}) {
+      push @row, $html->button($_SHOW, "index=15&UID=$register_stb{$account_hash->{stb_mac}}", { CLASS => 'show', TITLE => $account_hash->{stb_mac} });
+    }
+    else {
+      push @row, $html->button($_ADD, "index=$index&register=1&LOGIN=".
+       (( $account_hash->{login}) ? $account_hash->{login} : $account_hash->{stb_mac}). "&PASSWORD=&TP_ID=$account_hash->{tariff_plan}&STATUS=$account_hash->{status}&CREATE_BILL=1&CID=$account_hash->{stb_mac}", { CLASS => 'add' });
+    }
+
+    $table->addrow(@row);
+  }
+
+  print $table->show();
+}
+
+#**********************************************************
+#
+#**********************************************************
+sub iptv_stalker_show_list {
+  my ($list_name) = @_;
+
+  my %channel_list = ();
+  if ($list_name eq 'ITV') {
+    print $html->button("$_IMPORT $_CHANNELS", "index=$index&list=ITV&import_channels=1", { BUTTON => 1 });
+    my $list = $Iptv->channel_list({ COLS_NAME => 1,  PAGE_ROWS => 10000 });
+    foreach my $line (@$list) {
+      $channel_list{$line->{num}}=$line->{name};
+    }
+  }
+
+  $Stalker_api->send_request({ ACTION => "$list_name/$FORM{MAC}",
+                             });
+
+  if ($Stalker_api->{error}) {
+    $html->message('err', $_ERROR, "$Stalker_api->{error}/$Stalker_api->{errstr} ");
+  }
+
+  if (ref $Stalker_api->{RESULT}->{results} ne 'ARRAY') {
+    my $table = $html->table(
+    {
+      width      => '100%',
+      title      => [ $_PARAMS, $_VALUE ],
+      caption    => "$_ACCOUNTS",
+      ID         => 'CLOSE_PERIOD'
+    }
+    );
+
+    while( ($key, $val)=each %{ $Stalker_api->{RESULT}->{results} } ) {
+      my @row = ();
+      if ( ref $val eq 'ARRAY') {
+        push @row, $key, join($html->br(), @$val);
+      }
+      else {
+        if ($key eq 'mac') {
+          $val = $html->button($val, "index=$index&list=STB_MODULES&MAC=$val");
+        }
+        push @row, "$key", "$val";
+      }
+
+      $table->addrow(@row);
+    }
+    
+    print $table->show();
+    return 0;
+  }
+
+  my @TITLE = keys %{ $Stalker_api->{RESULT}->{results}->[0] }; 
+
+  my $table = $html->table(
+    {
+      width      => '100%',
+      title      => [ @TITLE, '-' ],
+      caption    => "$_ACCOUNTS",
+      ID         => ''
+    }
+    );
+
+  foreach my $account_hash ( @{ $Stalker_api->{RESULT}->{results} } ) {
+    my @row = ();
+    while( ($key, $val)=each %{ $account_hash } ) {
+      Encode::_utf8_off($account_hash->{name}) if ($account_hash->{name});
+
+      if ( ref $val eq 'ARRAY') {
+        my $col_values = '';
+        foreach my $v (@$val) {
+          if (ref $v eq 'HASH') {
+            while(my($k, $v) = each %$v) {
+              Encode::_utf8_off($k);
+              Encode::_utf8_off($v);
+              $col_values .= " $k - $v". $html->br();
+            }
+          }
+          else {
+            $col_values .= $v . $html->br();
+          }
+        }
+        
+        push @row, $col_values;
+      }
+      elsif ( ref $val eq 'HASH') {
+        my $col_values = '';
+        while(my($k, $v) = each %$val) {
+          $col_values .= " $k - $v". $html->br();
+        }
+        push @row, $col_values;
+      }
+      else {
+        if ($key eq 'mac') {
+          $val = $html->button($val, "index=$index&list=STB_MODULES&MAC=$val");
+        }
+        push @row, "$val";
+      }
+    }
+    
+    if ($list_name eq 'ITV') {
+      if ($FORM{import_channels}) {
+        $Iptv->channel_add({
+               ID        => $account_hash->{id}, 
+               NAME      => $account_hash->{name}, 
+               NUMBER    => $account_hash->{number}, 
+               PORT      => $account_hash->{number}, 
+               DESCRIBE  => $account_hash->{name}, 
+               DISABLE   => 
+               });
+
+        if (! $Iptv->{errno}) {
+          push @row, "$_ADDED";
+        }
+        else {
+          push @row, $html->color_mark("$Iptv->{errno} $Iptv->{errstr}", 'red');
+        }
+      }
+      elsif ($channel_list{$account_hash->{number}}) {
+        push @row, "+";
+      }
+    }
+    elsif ($register_stb{$account_hash->{stb_mac}}) {
+      push @row, $html->button($_SHOW, "index=15&UID=$register_stb{$account_hash->{stb_mac}}", { CLASS => 'show' });
+    }
+    elsif ($account_hash->{external_id}) {
+      push @row, (! $tp_list{$account_hash->{external_id}}) ? $html->button($_ADD, "list=tariffs&index=$index&tp_add=1&ID=$account_hash->{external_id}&NAME=$account_hash->{name}", { CLASS => 'add' }) :
+        $html->button($_ADD, "index=". get_function_index('iptv_tp') ."&TP_ID=$tp_list{$account_hash->{external_id}}", { CLASS => 'show' }) ;
+    }    
+    elsif(defined($account_hash->{login})) {
+      push @row, $html->button($_ADD, "index=$index&register=1&LOGIN=".
+       (( $account_hash->{login}) ? $account_hash->{login} : $account_hash->{stb_mac}). "&PASSWORD=&TP_ID=$account_hash->{tariff_plan}&STATUS=$account_hash->{status}&CREATE_BILL=1&CID=$account_hash->{stb_mac}", { CLASS => 'add' });
+    }
+    else {
+      push @row, '';
+    }
+
+    $table->addrow(@row);
+  }
+
+  print $table->show();
+}
+
+#**********************************************************
+#
+#**********************************************************
+sub iptv_account_action {
+  my ($attr) = @_;
+  
+  my $result = 0;
+  
+  if ($FORM{add}) {
+    if ($conf{IPTV_DVCRYPT_FILENAME}) {
+      iptv_crypt();
+    }
+
+    #Api function
+    if ($conf{IPTV_STALKER_API_HOST}) {
+      iptv_stalker();
+      if ($Stalker_api->{error}) {
+        $Iptv->{errno}  = $Stalker_api->{errno}; 
+        $Iptv->{errstr} = $Stalker_api->{errstr};
+        $result = 1;
+      }
+    }
+    #DB functions
+    elsif ($Iptv_stalker) {
+      $Iptv_stalker->stalker_user_chg_tp(($FORM{TP_IDS} eq '') ? $FORM{TP_ID} : $FORM{TP_IDS}, ($FORM{CID2} ne '') ? $FORM{CID2} : $FORM{CID});
+      if ($Iptv_stalker->{errno}) {
+        $result = 1;
+      }
+    }
+
+    if ($conf{IPTV_USER_EXT_CMD}) {
+      $Iptv->{ACTION}='down' if ($FORM{STATUS});
+      iptv_ext_cmd($conf{IPTV_USER_EXT_CMD}, { %$users, %$Iptv })
+    }
+  }
+  elsif ($FORM{change}) {
+
+    if ($conf{IPTV_DVCRYPT_FILENAME}) {
+      iptv_crypt();
+    }
+
+    if ($conf{IPTV_STALKER_API_HOST}) {
+      iptv_stalker();
+      if ($Stalker_api->{error}) {
+        $Iptv->{errno}  = $Stalker_api->{errno}; 
+        $Iptv->{errstr} = $Stalker_api->{errstr};
+        $result = 1;
+      }      
+    }
+    elsif ($Iptv_stalker) {
+      #$Iptv_stalker->stalker_user_chg_tp($FORM{TP_ID}, $Iptv_stalker->a2s_uid($FORM{UID}, 1));
+      $Iptv_stalker->stalker_user_chg_tp(($FORM{TP_IDS} eq '') ? $FORM{TP_ID} : $FORM{TP_IDS}, ($FORM{CID2} ne '') ? $FORM{CID2} : $FORM{CID});
+      if ($Iptv_stalker->{errno}) {
+        $result = 1;
+      }
+    }
+
+    if ($conf{IPTV_USER_EXT_CMD}) {
+      $Iptv->{ACTION}='down' if ($FORM{STATUS});
+      iptv_ext_cmd($conf{IPTV_USER_EXT_CMD}, { %$users, %$Iptv })
+    }
+  }
+  elsif ($FORM{chg}) {
+    
+  }
+  elsif ($FORM{send_message}) {
+    if ($conf{IPTV_STALKER_API_HOST}) {
+      iptv_stalker();
+      if ($Stalker_api->{error}) {
+        $Iptv->{errno}  = $Stalker_api->{errno}; 
+        $Iptv->{errstr} = $Stalker_api->{errstr};
+        $result = 1;
+      }
+    }
+    elsif ($Iptv_stalker) {
+      $Iptv_stalker->send_msg({ %FORM });
+      
+      if ($Iptv_stalker->{errno}) {
+         $html->message('err', $_ERROR, "$Iptv_stalker->{errno} $Iptv_stalker->{errstr}");
+      }
+      else {
+        $html->message('info', $_INFO, "$_SENDED");
+      }
+    }
+  }
+  elsif ($FORM{del}) {
+    
+  }
+
+  return $result;
+}
+
+
+
+
 
 1
 

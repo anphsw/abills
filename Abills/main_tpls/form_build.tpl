@@ -11,6 +11,7 @@
 <TR><TD>$_FLATS:</TD><TD><input type='text' name='FLATS' value='%FLATS%' size=6  /></TD></TR>
 <TR><TD>$_MAP:</TD><TD>X: <input type='text' name='MAP_X' value='%MAP_X%' size=6 /> Y: <input type='text' name='MAP_Y' value='%MAP_Y%' size=6/></TD></TR>
 <TR><TD>$_ADDED:</TD><TD>%ADDED%</TD></TR>
+<TR><TH colspan=2 class=even><input type='submit' name='%ACTION%' value='%LNG_ACTION%' class='button'/></TH></TR>
 </TABLE>
-<input type='submit' name='%ACTION%' value='%LNG_ACTION%' class='button'/>
+
 </form>

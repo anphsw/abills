@@ -10,7 +10,7 @@ $begin_time
 use strict;
 use FindBin '$Bin';
 
-my $VERSION     = 3.12;
+my $VERSION     = 3.13;
 my $config_file = '/usr/abills/libexec/config.pl';
 
 $conf{OS}       = uc(`uname`);
@@ -159,7 +159,8 @@ if (!-f $config_file) {
         $res = `$mysql --default-character-set=$mk_config{dbcharset} -u $mysql_root_user --password=$mysql_root_passwd -e "select version();"`;
         if ($res !~ /Unknown database/) {
           my $add_mysql_user =
-            "USE mysql;"
+          "SET sql_mode=NO_ENGINE_SUBSTITUTION;"
+          . "USE mysql;"
           . "INSERT INTO user (Host, User, Password) VALUES ('$mk_config{dbhost}','$mk_config{dbuser}', password('$mk_config{dbpasswd}'));"
           . "INSERT INTO db (Host, Db, User, Select_priv, Insert_priv, Update_priv, Delete_priv, Create_priv, Drop_priv, Index_priv, Alter_priv, Lock_tables_priv, Create_tmp_table_priv, Trigger_priv,Create_view_priv, Show_view_priv, Execute_priv, Event_priv) VALUES ('$mk_config{dbhost}', '$mk_config{dbname}', '$mk_config{dbuser}', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y'); "
           . "CREATE DATABASE $mk_config{dbname} DEFAULT CHARACTER SET $mk_config{dbcharset} COLLATE $MYSQL_COLLATE;"
@@ -451,12 +452,11 @@ sub check_install {
     elsif ($file =~ /^:(\S{0,100}):(.+) (>{1,2}) +\[(\S+)\]\/(.+)/) {
       my $params = $1;
       my $value  = $2;
-      $type   = $3;
-      $folder = $4;
-      $dest   = $5;
+      $type      = $3;
+      $folder    = $4;
+      $dest      = $5;
 
       $value =~ s/\\n/\n/g;
-
       my %PARAMS_HASH         = ();
       my %EXCLUDE_PARAMS_HASH = ();
 
@@ -469,7 +469,9 @@ sub check_install {
           if ($param_name2 =~ /^!(.+)/) {
             $param_name2 = $1;
             if (defined($ARGV->{$param_name2}) && $ARGV->{$param_name2} eq $param_value2) {
+            	print "$value\n Skip..\n" if ($debug > 2);
               $skip = 1;
+              last;
             }
           }
           elsif (!defined($ARGV->{$param_name2}) || $ARGV->{$param_name2} ne $param_value2) {
@@ -487,6 +489,7 @@ sub check_install {
         next if ($skip);
       }
 
+
       if ($value =~ /^FILE=(\S+)/) {
         $config_body = get_file($conf{WORK_DIR} . "/$program/" . $1);
       }
@@ -495,13 +498,14 @@ sub check_install {
       }
     }
     elsif ($file =~ /^(\S+) +([>]{1,2}) +\[(\S+)\]\/(.+)/) {
-      my $config = $1;
+      my $config   = $1;
       $type        = $2;
       $folder      = $3;
       $dest        = $4;
       $config_body = get_file($conf{WORK_DIR} . "/$program/$config");
     }
     else {
+    	print "Unknown options:\n $file\n";
       next;
     }
 
@@ -531,7 +535,6 @@ sub check_install {
 
     }
     else {
-
       #print "$type$folder/$dest";
       if ($type eq '>>') {
 

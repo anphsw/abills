@@ -61,22 +61,10 @@ sub info {
     comments,
     id
      FROM bonus_main 
-   $WHERE;"
+   $WHERE;",
+   undef,
+   { INFO => 1 }
   );
-
-  if ($self->{TOTAL} < 1) {
-    $self->{errno}  = 2;
-    $self->{errstr} = 'ERROR_NOT_EXIST';
-    return $self;
-  }
-
-  ($self->{TP_ID}, 
-   $self->{PERIOD}, 
-   $self->{RANGE_BEGIN}, 
-   $self->{RANGE_END}, 
-   $self->{SUM}, 
-   $self->{COMMENTS}, 
-   $self->{ID}) = @{ $self->{list}->[0] };
 
   return $self;
 }
@@ -142,7 +130,6 @@ sub change {
       CHANGE_PARAM => 'ID',
       TABLE        => 'bonus_main',
       FIELDS       => \%FIELDS,
-      OLD_INFO     => $self->info($attr->{ID}),
       DATA         => $attr
     }
   );
@@ -330,7 +317,7 @@ sub tp_list {
 
 #**********************************************************
 # User information
-# info()
+# rule_info()
 #**********************************************************
 sub rule_info {
   my $self = shift;
@@ -466,18 +453,13 @@ sub user_info {
   $self->query(
     $db, "SELECT uid,
     tp_id,
-    state
+    state,
+    accept_rules
      FROM bonus_main
-   $WHERE;"
+   $WHERE;",
+   undef,
+   { INFO => 1 }
   );
-
-  if ($self->{TOTAL} < 1) {
-    $self->{errno}  = 2;
-    $self->{errstr} = 'ERROR_NOT_EXIST';
-    return $self;
-  }
-
-  ($self->{UID}, $self->{TP_ID}, $self->{STATE}) = @{ $self->{list}->[0] };
 
   return $self;
 }
@@ -495,6 +477,13 @@ sub user_add {
         VALUES ('$DATA{UID}', '$DATA{TP_ID}', '$DATA{STATE}', '$DATA{ACCEPT_RULES}');", 'do'
   );
 
+  if ($CONF->{BONUS_ACCOMULATION}){
+    $self->accomulation_first_rule($attr);
+  }
+
+  $admin->{MODULE} = $MODULE;
+  $admin->action_add("$DATA{UID}", "", { TYPE => 1 });
+
   return $self;
 }
 
@@ -505,21 +494,15 @@ sub user_change {
   my $self = shift;
   my ($attr) = @_;
 
-  my %FIELDS = (
-    UID   => 'uid',
-    TP_ID => 'tp_id',
-    STATE => 'state',
-  );
+  $attr->{STATE} = ($attr->{STATE}) ? $attr->{STATE} : 0;
+  $attr->{ACCEPT_RULES} = ($attr->{ACCEPT_RULES}) ? 1 : 0;
 
-  $attr->{STATE} = ($attr->{STATE}) ? 1 : 0;
-
+  $admin->{MODULE} = $MODULE;
   $self->changes(
     $admin,
     {
       CHANGE_PARAM => 'UID',
       TABLE        => 'bonus_main',
-      FIELDS       => \%FIELDS,
-      OLD_INFO     => $self->user_info($attr->{UID}),
       DATA         => $attr
     }
   );
@@ -551,22 +534,74 @@ sub user_list {
   $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
   $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
-  undef @WHERE_RULES;
+
+  @WHERE_RULES = ("bu.uid = u.uid");
+
+  push @WHERE_RULES, @{ $self->search_expr_users({ %$attr, 
+                             EXT_FIELDS => [
+                                            'PHONE',
+                                            'EMAIL',
+                                            'ADDRESS_FLAT',
+                                            'PASPORT_DATE',
+                                            'PASPORT_NUM', 
+                                            'PASPORT_GRANT',
+                                            'CITY', 
+                                            'ZIP',
+                                            'GID',
+                                            'CONTRACT_ID',
+                                            'CONTRACT_SUFIX',
+                                            'CONTRACT_DATE',
+                                            'EXPIRE',
+
+                                            'CREDIT',
+                                            'CREDIT_DATE', 
+                                            'REDUCTION',
+                                            'REGISTRATION',
+                                            'REDUCTION_DATE',
+                                            'COMMENTS',
+                                            'BILL_ID',
+                                            
+                                            'ACTIVATE',
+                                            'EXPIRE',
+
+                                             ] }) };
 
   if ($attr->{TP_ID}) {
-    push @WHERE_RULES, "tp_id='$attr->{TP_ID}'";
+    push @WHERE_RULES, "bu.tp_id='$attr->{TP_ID}'";
+  }
+
+  if ($attr->{DV_TP_ID}) {
+    push @WHERE_RULES, "tp.tp_id='$attr->{DV_TP_ID}'";
+    $self->{EXT_TABLES} .= "LEFT JOIN dv_main dv ON (dv.uid = u.uid)
+      LEFT JOIN tarif_plans tp  ON (tp.id = dv.tp_id)
+    ";
+  }
+
+  if ($CONF->{BONUS_ACCOMULATION}){
+    $self->{EXT_TABLES} .= "LEFT JOIN bonus_rules_accomulation_scores ras ON (ras.uid = u.uid)";
+    $self->{SEARCH_FIELDS} .= 'ras.cost, ';
+    $self->{SEARCH_FIELDS_COUNT}++;
   }
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
   $self->query(
-    $db, "SELECT u.id, pi.fio, b_tp.name, bu.state, bu.uid
+    $db, "SELECT u.id AS login, pi.fio, b_tp.name, bu.state, 
+      if(company.id IS NULL, b.deposit, cb.deposit) AS deposit, 
+      if(u.company_id=0, u.credit, 
+          if (u.credit=0, company.credit, u.credit)) AS credit, u.disable, 
+     $self->{SEARCH_FIELDS}     
+     bu.uid
+      
      FROM (bonus_main bu, users u)
      LEFT JOIN users_pi pi ON (u.uid=pi.uid)
      LEFT JOIN bonus_tps b_tp ON (b_tp.id=bu.tp_id)
-     WHERE bu.uid=u.uid
+     $self->{EXT_TABLES}
+     $WHERE
      ORDER BY $SORT $DESC
-     LIMIT $PG, $PAGE_ROWS;"
+     LIMIT $PG, $PAGE_ROWS;",
+     undef,
+     $attr
   );
 
   return $self if ($self->{errno});
@@ -1014,7 +1049,6 @@ sub bonus_turbo_add {
   my ($attr) = @_;
   my %DATA   = $self->get_data($attr);
 
-  $self->{debug}=1;
   $self->query($db, "INSERT INTO bonus_turbo (service_period, registration_days, turbo_count, comments)
         VALUES ('$DATA{SERVICE_PERIOD}', '$DATA{REGISTRATION_DAYS}', '$DATA{TURBO_COUNT}', '$DATA{DESCRIBE}');", 'do'
   );
@@ -1105,6 +1139,211 @@ sub bonus_turbo_list {
 
   return $list;
 }
+
+#**********************************************************
+# 
+# accomulation_rule_info()
+#**********************************************************
+sub accomulation_rule_info {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $WHERE = "WHERE id='$attr->{TP_ID} AND dv_tp_id='$attr->{DV_TP_ID}'";
+
+  $self->query(
+    $db, "SELECT tp_id,
+    dv_tp_id,
+    cost
+     FROM bonus_rules 
+   $WHERE;",
+   undef,
+   { INFO => 1 }
+  );
+
+  if ($self->{TOTAL} < 1) {
+    $self->{errno}  = 2;
+    $self->{errstr} = 'ERROR_NOT_EXIST';
+    return $self;
+  }
+
+  return $self;
+}
+
+#**********************************************************
+# accomulation_rule_add()
+#**********************************************************
+sub accomulation_rule_change {
+  my $self   = shift;
+  my ($attr) = @_;
+  my %DATA   = $self->get_data($attr);
+
+  my @ids = split(/, /, $attr->{DV_TP_ID});
+
+  foreach my $id (@ids) {
+    $self->query(
+    $db, "REPLACE INTO bonus_rules_accomulation (tp_id, dv_tp_id, cost)
+        VALUES ('$DATA{TP_ID}', '$id', '". $DATA{'COST_'.$id} ."');", 'do'
+    );
+  }
+
+  return $self;
+}
+
+
+
+#**********************************************************
+# accomulation_rule_list()
+#**********************************************************
+sub accomulation_rule_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+  @WHERE_RULES = ("tp.module='Dv'");
+  #if ($attr->{TP_ID}) {
+  #  push @WHERE_RULES, "";
+  #}
+
+  my $JOIN_WHERE = '';
+  if ($attr->{DV_TP_ID}) {
+    push @WHERE_RULES, "dv_tp_id='$attr->{DV_TP_ID}'";
+    $JOIN_WHERE = "AND br.tp_id='$attr->{TP_ID}'";
+  }
+
+  if ($attr->{COST}) {
+    push @WHERE_RULES, @{ $self->search_expr("$attr->{COST}", 'INT', 'cost') };
+  }
+
+ 
+  $WHERE = ($#WHERE_RULES > -1) ? join(' and ', @WHERE_RULES) : '';
+
+  $self->query(
+    $db, "SELECT br.tp_id, tp.name, tp.tp_id AS dv_tp_id, br.cost
+     FROM tarif_plans tp
+     LEFT JOIN bonus_rules_accomulation br ON (br.dv_tp_id=tp.tp_id $JOIN_WHERE)
+     WHERE $WHERE 
+     ORDER BY $SORT $DESC;",
+    undef,
+    $attr
+  );
+
+  return $self if ($self->{errno});
+
+  my $list = $self->{list};
+
+  return $list;
+}
+
+
+
+#**********************************************************
+#
+# accomulation_scores_info()
+#**********************************************************
+sub accomulation_scores_info {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $WHERE = "WHERE uid='$attr->{UID}'";
+
+  $self->query($db, "SELECT  dv_tp_id, cost, changed
+     FROM bonus_rules_accomulation_scores
+   $WHERE;",
+   undef,
+   { INFO => 1 }
+  );
+
+  if ($self->{TOTAL} < 1) {
+    $self->{errno}  = 2;
+    $self->{errstr} = 'ERROR_NOT_EXIST';
+    return $self;
+  }
+
+  return $self;
+}
+
+#**********************************************************
+# accomulation_scores_add()
+#**********************************************************
+sub accomulation_scores_change {
+  my $self   = shift;
+  my ($attr) = @_;
+  my %DATA   = $self->get_data($attr);
+
+  $self->query($db, "REPLACE INTO bonus_rules_accomulation_scores (uid, dv_tp_id, cost)
+        VALUES ('$DATA{UID}', '$DATA{DV_TP_ID}', '$DATA{SCORE}');", 'do'
+  );
+
+  return $self;
+}
+
+
+#**********************************************************
+# accomulation_scores_list()
+#**********************************************************
+sub accomulation_scores_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  undef @WHERE_RULES;
+
+  if ($attr->{REGISTRATION_DAYS}) {
+    push @WHERE_RULES, @{ $self->search_expr("$attr->{REGISTRATION_DAYS}", 'INT', 'registration_days') };
+  }
+
+  if ($attr->{PERIODS}) {
+    push @WHERE_RULES, @{ $self->search_expr("$attr->{PERIODS}", 'INT', 'service_period') };
+  }
+
+  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+
+  $self->query(
+    $db, "SELECT service_period, registration_days, turbo_count, id
+     FROM bonus_rules_accomulation_scores bs
+     INNER JOIN users u ON (u.uid=bs.uid)
+     $WHERE 
+     ORDER BY $SORT $DESC
+     LIMIT $PG, $PAGE_ROWS;"
+  );
+
+  return $self if ($self->{errno});
+
+  my $list = $self->{list};
+
+  return $list;
+}
+
+
+#**********************************************************
+#
+#**********************************************************
+sub accomulation_first_rule {
+  my $self   = shift;
+  my ($attr) = @_;
+  
+  $CONF->{BONUS_ACCOMULATION_FIRST_BONUS}=40 if (! $CONF->{BONUS_ACCOMULATION_FIRST_BONUS});
+  $CONF->{BONUS_ACCOMULATION_FIRST_INTERVAL}=3 if (! defined($CONF->{BONUS_ACCOMULATION_FIRST_INTERVAL}));
+
+  $self->query($db, "SELECT PERIOD_DIFF(DATE_FORMAT(max(date), '%Y%m'), 
+DATE_FORMAT(min(date), '%Y%m')) FROM fees where uid='$attr->{UID}' AND
+    date>=curdate() - INTERVAL $CONF->{BONUS_ACCOMULATION_FIRST_INTERVAL} MONTH");
+    
+  if ($self->{list}->[0]->[0]>=$CONF->{BONUS_ACCOMULATION_FIRST_INTERVAL}) { 
+    $self->query($db, 
+    "REPLACE INTO bonus_rules_accomulation_scores (uid, cost, changed)
+SELECT $attr->{UID}, IF((SELECT \@A:=min(last_deposit) FROM fees WHERE uid='$attr->{UID}' AND date>=curdate() - INTERVAL $CONF->{BONUS_ACCOMULATION_FIRST_INTERVAL} MONTH) >= 0 OR \@A is null , $CONF->{BONUS_ACCOMULATION_FIRST_BONUS}, 0), curdate();", 'do');
+  }
+  return $self;
+}
+
+
 
 1
 

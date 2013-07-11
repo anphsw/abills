@@ -35,7 +35,7 @@ sub new {
   bless($self, $class);
 
   my $Auth = Auth->new($db, $conf);
-  $Billing = Billing->new($db, $conf);	
+  $Billing = Billing->new($db, $conf);  
 
   return $self;
 }
@@ -49,7 +49,7 @@ sub user_info {
 
   my $WHERE;
   if ($RAD_REQUEST->{'DHCP_MESSAGE_TYPE'}) {
-  	$WHERE = " and dv.CID='$RAD_REQUEST->{USER_NAME}'";
+    $WHERE = " and dv.CID='$RAD_REQUEST->{USER_NAME}'";
    }
   else {
     $WHERE = " and dv.CID='$RAD_REQUEST->{USER_NAME}'";
@@ -90,11 +90,11 @@ sub user_info {
    $WHERE
    GROUP BY u.uid;");
 
-	if($self->{TOTAL} < 1) {
-  	return $self;
+  if($self->{TOTAL} < 1) {
+    return $self;
    }
-	elsif($self->{errno}) {
-  	return $self;
+  elsif($self->{errno}) {
+    return $self;
    }
 
   ($self->{USER_NAME},
@@ -151,8 +151,8 @@ sub auth {
 #ISG Section  
 #Make TP
   if ($RAD_REQUEST->{USER_NAME} =~ /^TP_/) {
-  	return  $self->make_tp($RAD_REQUEST);
- 	 }
+    return  $self->make_tp($RAD_REQUEST);
+    }
   elsif ($RAD_REQUEST->{USER_NAME} =~ /\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}/) {
 #Get statis DHCP address
     $RAD_REQUEST->{CALLING_STATION_ID}=$RAD_REQUEST->{USER_NAME};
@@ -177,7 +177,7 @@ sub auth {
          }
        }
       else {
-        $RAD_REQUEST->{USER_NAME} = get_isg_mac($RAD_REQUEST->{USER_NAME});	
+        $RAD_REQUEST->{USER_NAME} = get_isg_mac($RAD_REQUEST->{USER_NAME});  
        }
      }
 
@@ -188,7 +188,7 @@ sub auth {
    }
   # Free radius dhcp
   elsif ($RAD_REQUEST->{DHCP_CLIENT_HARDWARE_ADDRESS}) {
-  	$RAD_REQUEST->{USER_NAME}=$RAD_REQUEST->{DHCP_CLIENT_HARDWARE_ADDRESS};
+    $RAD_REQUEST->{USER_NAME}=$RAD_REQUEST->{DHCP_CLIENT_HARDWARE_ADDRESS};
    }  
 
   $self->user_info($RAD_REQUEST, $NAS);
@@ -227,7 +227,7 @@ if ($self->{PAYMENT_TYPE} == 0) {
   #Check deposit
 
   if($self->{DEPOSIT}  <= 0) {
-  	if (! $self->{NEG_DEPOSIT_FILTER_ID}) {
+    if (! $self->{NEG_DEPOSIT_FILTER_ID}) {
       $RAD_REPLY{'Reply-Message'}="Negativ deposit '$self->{DEPOSIT}'. Rejected!";
       return 1, \%RAD_REPLY;
      }
@@ -249,10 +249,10 @@ if ($NAS->{NAS_TYPE} eq 'dhcp') {
 
   my $REQUEST_TYPE = $RAD_REQUEST->{'DHCP_MESSAGE_TYPE'};
 
-	if ($self->{IP} ne '0.0.0.0') {
-	  $RAD_REPLY{'DHCP-Your-IP-Address'}=$self->{IP};
-	 }
-	else {
+  if ($self->{IP} ne '0.0.0.0') {
+    $RAD_REPLY{'DHCP-Your-IP-Address'}=$self->{IP};
+   }
+  else {
     my $ip = $self->get_ip($NAS->{NAS_ID}, "$RAD_REQUEST->{NAS_IP_ADDRESS}", { TP_IPPOOL => $self->{TP_IPPOOL} });
     if ($ip eq '-1') {
       $RAD_REPLY{'Reply-Message'}="Rejected! There is no free IPs in address pools (USED: $self->{USED_IPS})";
@@ -265,7 +265,7 @@ if ($NAS->{NAS_TYPE} eq 'dhcp') {
     else {
       $RAD_REPLY{'DHCP-Your-IP-Address'} = "$ip";
      }
-	 }
+   }
 
    $RAD_REPLY{'DHCP-Subnet-Mask'}        = '255.255.255.255';
    $RAD_REPLY{'DHCP-IP-Address-Lease-Time'} = 86000;
@@ -290,14 +290,14 @@ if ($NAS->{NAS_TYPE} eq 'dhcp') {
 else {
   #IP
   if ($self->{IP} ne '0.0.0.0') {
-	  $RAD_REPLY{'Framed-IP-Address'}=$self->{IP};
+    $RAD_REPLY{'Framed-IP-Address'}=$self->{IP};
    }
 
   my $debug = 0;
   if ($self->{TT_COUNTS} > 0) {
     $self->query($db, "SELECT id FROM trafic_tarifs WHERE interval_id='$self->{INTERVAL_ID}';");
     foreach my $line ( @{ $self->{list} }) {
-  	  push @{ $RAD_REPLY{'Cisco-Account-Info'} }, "ATP_$self->{TP_ID}_$line->[0]";
+      push @{ $RAD_REPLY{'Cisco-Account-Info'} }, "ATP_$self->{TP_ID}_$line->[0]";
      }
    }
   else {
@@ -325,8 +325,8 @@ sub dhcp_accounting {
   my $self = shift;
   my ($RAD_REQUEST, $NAS) = @_;
 
-	
-	return $self;
+  
+  return $self;
 }
 
 
@@ -350,7 +350,7 @@ sub make_tp {
     $TT_ID = $2;
    }
   elsif ($RAD_REQUEST->{USER_NAME} =~ /TP_(\d+)/) {
-  	$TP_ID = $1;
+    $TP_ID = $1;
    }
   my $RAD_REPLY ;
 
@@ -371,8 +371,8 @@ $self->query($db, "select
 
 
   if($self->{errno}) {
-  	$RAD_REPLY->{'Reply-Message'}='SQL error';
-  	return 1, $RAD_REPLY;
+    $RAD_REPLY->{'Reply-Message'}='SQL error';
+    return 1, $RAD_REPLY;
    }
   elsif ($self->{TOTAL} < 1) {
     $RAD_REPLY->{'Reply-Message'}="Can't find TP '$TP_ID' TT: '$TT_ID'";
@@ -413,10 +413,10 @@ $self->query($db, "select
          my($left, $right)=split(/=/, $line, 2);
          if ($left =~ s/^!//) {
            delete $RAD_REPLY->{"$left"};
-   	      }
-   	     else {  
-   	       $RAD_REPLY->{"$left"}="$right";
-   	      }
+           }
+          else {  
+            $RAD_REPLY->{"$left"}="$right";
+           }
        }
      }
    }
@@ -428,7 +428,7 @@ $self->query($db, "select
      $self->{INTERVAL_TRAF_TARIF}) = $Billing->time_intervals($TP_ID);
 
     my ($remaining_time, $ret_attr) = $Billing->remaining_time(0, {
-    	    TIME_INTERVALS      => $self->{TIME_INTERVALS},
+          TIME_INTERVALS      => $self->{TIME_INTERVALS},
           INTERVAL_TIME_TARIF => $self->{INTERVAL_TIME_TARIF},
           INTERVAL_TRAF_TARIF => $self->{INTERVAL_TRAF_TARIF},
           SESSION_START       => $self->{SESSION_START},
@@ -453,15 +453,15 @@ $self->query($db, "select
       #Get intervals
       while(my($k, $v)=each( %TT_IDS)) {
         #print "> $k, $v\n" if ($debug > 0);
- 	      next if ($k ne 'TT');
- 	      my $list = $tariffs->tt_list({ TI_ID => $v });
- 	      foreach my $line (@$list)  {
- 	    	  $speeds{$line->[0]}{IN}="$line->[4]";
- 	    	  $speeds{$line->[0]}{OUT}="$line->[5]";
- 	    	  $names{$line->[0]}= ($line->[6]) ? "$line->[6]" : "Service_$line->[0]";
- 	    	  $expr{$line->[0]}="$line->[8]" if (length($line->[8]) > 5);
- 	    	  #print "$line->[0] $line->[6] $line->[4]\n";
- 	       }
+         next if ($k ne 'TT');
+         my $list = $tariffs->tt_list({ TI_ID => $v });
+         foreach my $line (@$list)  {
+           $speeds{$line->[0]}{IN}="$line->[4]";
+           $speeds{$line->[0]}{OUT}="$line->[5]";
+           $names{$line->[0]}= ($line->[6]) ? "$line->[6]" : "Service_$line->[0]";
+           $expr{$line->[0]}="$line->[8]" if (length($line->[8]) > 5);
+           #print "$line->[0] $line->[6] $line->[4]\n";
+          }
        }
     }
   
@@ -471,7 +471,7 @@ $self->query($db, "select
 #  
 #print "Expresion:================================\n" if ($debug > 0);
 #  my $RESULT = $Billing->expression($self->{UID}, \%expr, { START_PERIOD => $self->{ACCOUNT_ACTIVATE}, 
-#  	                                                      debug        => $debug } );
+#                                                          debug        => $debug } );
 #print "\nEND: =====================================\n" if ($debug > 0);
 #  
 #  if (! $RESULT->{SPEED}) {
@@ -479,8 +479,8 @@ $self->query($db, "select
 #    $speeds{0}{OUT}=$RESULT->{SPEED_OUT} if($RESULT->{SPEED_OUT});
 #   }
 #  else {
-#  	$speeds{0}{IN}=$RESULT->{SPEED};
-#  	$speeds{0}{OUT}=$RESULT->{SPEED};
+#    $speeds{0}{IN}=$RESULT->{SPEED};
+#    $speeds{0}{OUT}=$RESULT->{SPEED};
 #   }
 #
 #  
@@ -495,13 +495,13 @@ $self->query($db, "select
     my $speed_out_rule = '';
 
     if ($speed_in > 0) {
-    	$speed_in_rule = "D;" . ($speed_in * 1000) .";". 
+      $speed_in_rule = "D;" . ($speed_in * 1000) .";". 
       ( $speed_in / 8 * 1000 ).';'.
       ( $speed_in / 4 * 1000 ).';';
      }
 
     if ($speed_out > 0) {
-    	$speed_out_rule = "U;". ($speed_out * 1000 ) .";". 
+      $speed_out_rule = "U;". ($speed_out * 1000 ) .";". 
       ( $speed_out / 8 * 1000 ).';'.
       ( $speed_out / 4 * 1000 );
      }
@@ -511,7 +511,7 @@ $self->query($db, "select
       $RAD_REPLY->{'Cisco-Service-Info'} = "Q$speed_out_rule;$speed_in_rule";
      }
 
-	return 0, $RAD_REPLY;
+  return 0, $RAD_REPLY;
 }
 
 
@@ -546,8 +546,8 @@ sub get_isg_mac {
        }
    }
  close FILE;
-	
-	return ($list{$ip}{hardware}) ?  $list{$ip}{hardware} : '';
+  
+  return ($list{$ip}{hardware}) ?  $list{$ip}{hardware} : '';
 }
 
 

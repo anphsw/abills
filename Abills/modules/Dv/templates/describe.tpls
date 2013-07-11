@@ -24,3 +24,5 @@ dv_reg_complete_mail.tpl:russian:E-mail об успешной регистрац
 dv_stats.tpl:russian:фома статистики
 dv_user_rating.tpl:russian:Форма велдения рейтинга пользователя
 dv_user_rating_pre.tpl:russian:Предварительный просмотр рейтинга
+
+dv_user_memo.tpl:russian:Памятка абонента в  HTML виде:

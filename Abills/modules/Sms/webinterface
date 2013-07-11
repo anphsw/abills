@@ -3,165 +3,252 @@
 #
 
 use Fees;
-my $Fees  = Fees->new($db, $admin, \%conf); 
-my $Users = Users->new($db, $admin, \%conf); 
+my $Fees  = Fees->new($db, $admin, \%conf);
+my $Users = Users->new($db, $admin, \%conf);
 
-
-
-my $Turbosms;
-
+my $Sms_service;
+my %sms_status = (
+0  => 'В очереди отправки',
+1  => 'Недостаточно денег для рассылки',
+2  => 'В процессе рассылки',
+3  => 'Отправлено',
+4  => 'Нет правильных номеров получателей',
+5  => 'Частично отправлено',
+6  => 'Спам',
+7  => 'Недействительное имя отправителя',
+8  => 'Пауза',
+9  => 'Запланирована',
+10 => 'Ожидает модерации'
+);
 
 #**********************************************************
 # Connect to torbosms
 #**********************************************************
-sub turbosms_connect {
-eval { require Turbosms; };
-if (! $@) {
+sub sms_service_connect {
+
+if ($conf{SMS_LITTLESMS_USER}) {
+  eval { require "modules/Sms/Littlesms.pm"; };
+  if (!$@) {
+    eval { require "modules/Sms/Littlesms.pm"; };
+    Littlesms->import();
+    $Sms_service = Littlesms->new($db, $admin, \%conf);
+    return $Sms_service;
+  }
+  else {
+    print $@;
+    $html->message('err', $_ERROR, "Can't load 'Littlesms'. Purchase this module http://abills.net.ua");
+    exit;
+  }
+}
+elsif ($conf{SMS_EPOCHTASMS_OPENKEY}) {
+  eval { require "modules/Sms/Epochtasms.pm"; };
+  if (!$@) {
+    eval { require "modules/Sms/Epochtasms.pm"; };
+    Epochtasms->import();
+    $Sms_service = Epochtasms->new($db, $admin, \%conf);
+    return $Sms_service;
+  }
+  else {
+    print $@;
+    $html->message('err', $_ERROR, "Can't load 'Epochtasms'. Purchase this module http://abills.net.ua");
+    exit;
+  }
+}
+elsif ($conf{TURBOSMS_PASSWD}) {
   eval { require Turbosms; };
-  Turbosms->import();
-  $Turbosms  = Turbosms->new($db, $admin, \%conf);
- }
+  if (! $@) {
+    eval { require Turbosms; };
+    Turbosms->import();
+    $Sms_service = Turbosms->new($db, $admin, \%conf);
+
+    if ($Turbosms::VERSION < 2.04) {
+      $html->message('info', "UPDATE", "Please update module 'Turbosms' to version 2.04 or higher. http://abills.net.ua/");
+      return 0;
+    }
+    
+    return $Sms_service;
+  }
+  else {
+    print $@;
+    $html->message('err', $_ERROR, "Can't load 'Turbosms'. Purchase this module http://abills.net.ua");
+    exit;
+  }
+}  
 else {
-	print $@;
-  $html->message('err', $_ERROR, "Can't load 'Turbosms'. Purchase this module http://abills.net.ua");
-  exit;
-}
+  $html->message('err', $_ERROR, "Sms service not connected");
 }
 
-
+}
 
 #**********************************************************
 # NUMBER   - User number
 # MESSAGE  - Message
-# UID      - User iD 
+# UID      - User iD
 #
-# Multi send sms 
+# Multi send sms
 # NUMBERS  - Hash of NUMBER => UID
 #   MOre priority then NUMBER option
 #**********************************************************
 sub sms_send {
   my ($attr) = @_;
 
-  turbosms_connect();
+  sms_service_connect();
   
-  $Turbosms->send_sms({ NUMBERS => $attr->{NUMBERS},
-  	                    NUMBER  => $attr->{NUMBER},
-     	                  MESSAGE => (($conf{TURBOSMS_MESSAGE_HEADER}) ? $conf{TURBOSMS_MESSAGE_HEADER} : ''). $attr->{MESSAGE},
-                        DEBUG   => $attr->{DEBUG} || 0
-                      });
+  if (! $attr->{NUMBER} && ! $attr->{NUMBERS}) {
+    $html->message('err', $_ERROR, "$_ERR_PHONE_NOT_DEFINED");
+  }
+  elsif (! $attr->{NUMBERS} && $attr->{NUMBER} !~ /(\d{12})/) {
+    $html->message('err', $_ERROR, "$_ERR_WRONG_PHONE");
+  }
 
-  if ($Turbosms->{errno}) {
+  if ($attr->{NUMBER} && $conf{SMS_NUMBER_EXPR}) {
+    $attr->{NUMBER} = number_expr($attr->{NUMBER});
+  }
+
+  $Sms_service->send_sms(
+    {
+      NUMBERS => $attr->{NUMBERS},
+      NUMBER  => $attr->{NUMBER},
+      MESSAGE => (($conf{TURBOSMS_MESSAGE_HEADER}) ? $conf{TURBOSMS_MESSAGE_HEADER}.' ' : '') . $attr->{MESSAGE},
+      DEBUG   => $attr->{DEBUG} || 0
+    }
+  );
+
+  if ($Sms_service->{errno}) {
     if ($attr->{QUITE}) {
-      print "[$Turbosms->{errno}] $err_strs{$Turbosms->{errno}}\n";
-     }
+      print "[$Sms_service->{errno}] $err_strs{$Sms_service->{errno}} $Sms_service->{errstr}\n";
+    }
     else {
-    	$html->message('err', "Turbosms - $_ERROR", "[$Turbosms->{errno}] $err_strs{$Turbosms->{errno}}");
-     }
+      $html->message('err', "$Sms_service->{SERVICE_NAME} - $_ERROR", "[$Sms_service->{errno}] $err_strs{$Sms_service->{errno}} $Sms_service->{errstr}");
+    }
     return 0;
-   }
+  }
   else {
     if ($conf{TURBOSMS_SEND_FEES}) {
       if ($attr->{NUMBERS}) {
-    	  while(my($number, $uid)=each %{ $attr->{NUMBERS} }) {
+        while (my ($number, $uid) = each %{ $attr->{NUMBERS} }) {
           $Users->info($attr->{UID});
-    	    $Fees->take($users, $conf{TURBOSMS_SEND_FEES}, { DESCRIBE => 'Sms '.  $attr->{NUMBER} } );  
-    	   }
-    	 }
-      elsif($attr->{UID}) {
+          $Fees->take($users, $conf{TURBOSMS_SEND_FEES}, { DESCRIBE => 'Sms ' . $attr->{NUMBER} });
+        }
+      }
+      elsif ($attr->{UID}) {
         $Users->info($attr->{UID});
-  	    $Fees->take($users, $conf{TURBOSMS_SEND_FEES}, { DESCRIBE => 'Sms '.  $attr->{NUMBER} } );  
-  	   }
-     }
-   }
+        $Fees->take($users, $conf{TURBOSMS_SEND_FEES}, { DESCRIBE => 'Sms ' . $attr->{NUMBER} });
+      }
+    }
+  }
 
   return 1;
 }
-
 
 #**********************************************************
 #
 #**********************************************************
 sub sms_info {
   my ($id, $attr) = @_;
-  
-  turbosms_connect();
 
-  $Turbosms->$Turbosms->info({ ID => $id });
+  sms_service_connect();
 
-  if ($Turbosms->{errno}) {
-    print "[$Turbosms->{errno}] $err_strs{$Turbosms->{errno}}\n";
-   }
+  $Sms_service->$Sms_service->info({ ID => $id });
+
+  if ($Sms_service->{errno}) {
+    print "[$Sms_service->{errno}] $err_strs{$Sms_service->{errno}}\n";
+  }
 
   return 0;
 }
 
+#**********************************************************
+#
+#**********************************************************
+sub sms_reports {
+  $Sms_service = sms_service_connect();
+  
+  if (! $Sms_service ) {
+    return 0;
+  }
+
+  if (! $FORM{desc} && ! $FORM{sort}) {
+    $LIST_PARAMS{DESC} = 'DESC';
+    $LIST_PARAMS{SORT} = 1;
+  }
+
+  my $list = $Sms_service->info({%LIST_PARAMS, COLS_NAME => 1 });
+
+  if ($Sms_service->{errno}) {
+    $html->message('err', "$Sms_service->{SERVICE_NAME} - $_ERROR", "[$Sms_service->{errno}] $err_strs{$Sms_service->{errno}} $Sms_service->{errstr}");
+  }
+
+  my $table = $html->table(
+    {
+      width      => '100%',
+      caption    => "$Sms_service->{SERVICE_NAME} - $_REPORTS",
+      border     => 1,
+      title      => [ 'id', 'msg_id', 'number', 'sign', 'message', 'wappush', 'cost', 'credits', 'send_time', 'sended', 'updated', 'status', 'dlr_status' ],
+      cols_align => [ 'center', 'left', 'left', 'left', 'left', 'left', 'left', 'left', 'left', 'left', 'left', 'left', 'left' ],
+      qs         => $pages_qs,
+      ID         => 'REPORTS_SMS',
+      pages      => $Sms_service->{TOTAL}
+    }
+  );
+
+  use Encode;
+  foreach my $line (@$list) {
+    my $status  = $sms_status{$line->{status}} || 0;
+    my $message = $line->{message}  || '';
+    if ($conf{dbcharset} ne 'utf8') { Encode::from_to($status,  'utf-8', 'windows-1251') }
+
+    $table->addrow(
+      $line->{id},
+      $line->{msg_id},
+      $line->{number},
+      $line->{sign},
+      $message,
+      $line->{wappush},
+      $line->{cost},
+      $line->{credits},
+      $line->{send_time},
+      ($line->{sended}) ? $_YES: $_NO,
+      $line->{updated},
+      $status,
+      #convert( substr("$line->[11]", 0, 16), {  utf82win => 1 }).$html->br().
+      #convert(convert("Отсутств", {  win2utf8 => 1 })),
+      $line->{dlr_status},
+    );
+  }
+
+  print $table->show();
+
+  $table = $html->table(
+    {
+      width      => '100%',
+      cols_align => [ 'right', 'right' ],
+      rows       => [ [ "$_TOTAL:", $html->b($Sms_service->{TOTAL}) ] ]
+    }
+  );
+  print $table->show();
+}
 
 #**********************************************************
 #
 #**********************************************************
-sub turbosms_reports {
-  turbosms_connect();
+sub number_expr {
+  my ($number_origin) = @_;
+  my @num_expr = split(/;/, $conf{SMS_NUMBER_EXPR});
 
-  if ($Turbosms::VERSION < 2.02) {
-  	$html->message('info', "UPDATE", "Please update module 'Turbosms' to version 2.02 or higher. http://abills.net.ua/");
-  	return 0;
-   }
-
-my $Turbosms = Turbosms->new($db, $admin, \%conf);
-
-
-my $list = $Turbosms->info({ %LIST_PARAMS });
-
-
-  my $table = $html->table( { width      => '100%',
-                              caption    => "$_REPORTS - Turbosms",
-                              border     => 1,
-                              title      => ['id', 'msg_id', 'number', 'sign', 'message', 'wappush', 'cost', 
-                                'credits', 'send_time', 'sended', 'updated', 'status', 'dlr_status' ],
-                              cols_align => ['center', 'left',  'left', 'left',  'left', 'left',  'left',
-                               'left',  'left', 'left',  'left', 'left',  'left' ],
-                              qs         => $pages_qs,
-                              ID         => 'REPORTS_TURBOSMS',
-                              pages      => $Turbosms->{TOTAL}
-                           } );
-
-  use Encode; 
-
-  foreach my $line (@$list) {
-  	 my $status  = $line->[11] || 0;
-     my $message = $line->[4] || '';
-  	 if ($conf{dbcharset} ne 'utf8') { Encode::from_to($status, 'utf-8', 'windows-1251') }
-  	 if ($conf{dbcharset} ne 'utf8') { Encode::from_to($message, 'utf-8', 'windows-1251') }
-
-     $table->addrow($line->[0],
-     $line->[1],
-     $line->[2],
-     $line->[3],
-     $message,
-     $line->[5],
-     $line->[6],
-     $line->[7],
-     $line->[8],
-     $line->[9],
-     $line->[10],
-     $status,
-     #convert( substr("$line->[11]", 0, 16), {  utf82win => 1 }).$html->br().
-     #convert(convert("��������", {  win2utf8 => 1 })),
-     $line->[12],          
-     );
+  my $number = $number_origin;
+  for (my $i = 0 ; $i <= $#num_expr ; $i++) {
+    my ($left, $right) = split(/\//, $num_expr[$i]);
+    my $r = eval "\"$right\"";
+    if ($number =~ s/$left/$r/) {
+      return $number;
+    }
   }
 
-print $table->show();
-
-
-$table = $html->table( { width      => '100%',
-                         cols_align => ['right', 'right'],
-                         rows       => [ [ "$_TOTAL:", $html->b($Turbosms->{TOTAL}) ] ]
-                        } );
-print $table->show();
-
-	
+  return $number;
 }
+
+
 
 
 1

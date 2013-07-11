@@ -261,7 +261,6 @@ sub processing {
     if ($intervals->{$user_tp_interval}->{TIME_TARIFF}) {
       my $time_tariff = $intervals->{$user_tp_interval}->{TIME_TARIFF};
       $total_user_sum = ($time_tariff > 0) ? $interium_time / 60 / 60 * $time_tariff : 0;
-
       $extended .= sprintf("Time| Price:%5s %d=%f\n", $time_tariff, $interium_time, $total_user_sum);
     }
 

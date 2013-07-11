@@ -11,3 +11,6 @@ $_EXT_CMD='Внешняя обработка';
 $_SERVICE_ACTIVATE_NOTIFICATION='Оповещать о продлении услуги';
 $_VAT_INCLUDE='С учётом НДС';
 $_SEND_NOTIFICATION='Отправить уведомление';
+
+$_MANUAL_ACTIVATE='Ручное включение услуги';
+$_USER_PORTAL='Портал Абонента';

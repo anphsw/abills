@@ -19,15 +19,24 @@ dictionary.microsoft >> [/etc/radiusclient]/dictionary
 pppd.dictionary      >> [/etc/radiusclient]/dictionary
 #PPPoE Section
 pppoe-server-options > [/etc/ppp]/pppoe-server-options
-:PPPOE_ENABLE=y:/sbin/modprobe pppoe >> /etc/rc.local
-:PPPOE_ENABLE=y:/usr/sbin/pppoe-server -k -N 500 -I %PPPOE_INTERFACE% -L %LOCAL_PPPOE_IP% -O /etc/ppp/pppoe-server-options >> /etc/rc.local
+#:PPPOE_ENABLE=y:/sbin/modprobe pppoe >> /etc/rc.local
+#:PPPOE_ENABLE=y:/usr/sbin/pppoe-server -k -N 500 -I %PPPOE_INTERFACE% -L %LOCAL_PPPOE_IP% -O /etc/ppp/pppoe-server-options >> /etc/rc.local
+
+:PPPOE=1:FILE=pppoe > [/etc]/init.d/pppoe
+:PPPOE=1:exec: chmod +x /etc/init.d/pppoe
+:PPPOE=1:exec: update-rc.d pppoe start 70 2 3 4 5 . stop 20 0 1 6 .
+:PPPOE=1:exec: /etc/init.d/pppoe start
+
 #Patch for gigawords
 PPP_VERSION=4:exec:mkdir ~/src/ && cd ~/src && wget ftp://ftp.samba.org/pub/ppp/ppp-2.4.4.tar.gz && wget http://bugs.gentoo.org/attachment.cgi?id=102981 -O radius-gigawords.patch
 PPP_VERSION=4:exec:tar zxvf ppp-2.4.4.tar.gz && cd ppp-2.4.4 && patch -p1 -l < ../radius-gigawords.patch && ./configure --prefix=/usr && make && make install
 
-#Accel-pptp
-:ACCEL_PPTP=1:accel-pptp > /etc/init.d/accel-pptp
-:ACCEL_PPTP=1:accel-pptp.conf /etc/accel-pptp.conf
-:ACCEL_PPTP=1:pppd.dictionary >> /usr/local/share/accel-ppp/radius/dictionary
+#Accel-ppp
+:ACCEL_PPTP=1:FILE=accel-ppp > [/etc]/init.d/accel-ppp
+:ACCEL_PPTP=1:exec: chmod +x /etc/init.d/accel-ppp
+:ACCEL_PPTP=1:FILE=accel-ppp.conf  > [/etc]/accel-ppp.conf
+:ACCEL_PPTP=1:FILE=pppd.dictionary >> /usr/local/share/accel-ppp/radius/dictionary
 :ACCEL_PPTP=1:exec:update-rc.d accel-ppp defaults
-:ACCEL_PPTP=1:exec:/etc/init.d/accel-pptp restart
+:ACCEL_PPTP=1:exec:/etc/init.d/accel-ppp restart
+
+

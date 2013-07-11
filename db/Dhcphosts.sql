@@ -13,6 +13,7 @@ CREATE TABLE `dhcphosts_hosts` (
   `comments` varchar(250) NOT NULL default '',
   `ports` varchar(100) NOT NULL DEFAULT '',
   `vid` smallint(6) unsigned NOT NULL default '0',
+  `server_vid` smallint(6) unsigned NOT NULL default '0',
   `nas` smallint(6) unsigned NOT NULL default '0',
   `option_82` tinyint(1) unsigned NOT NULL default '0',
   `boot_file` VARCHAR( 150 ) NOT NULL default '',
@@ -90,5 +91,7 @@ CREATE TABLE `dhcphosts_log` (
   `message_type` TINYINT(2) UNSIGNED NOT NULL DEFAULT '0',
   `message` VARCHAR(90) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `id` (`id`)
+  UNIQUE KEY `id` (`id`),
+  INDEX datetime (datetime),
+  INDEX hostname (hostname)
 ) COMMENT='Dhcphosts log';

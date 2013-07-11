@@ -1,5 +1,6 @@
 <form action='$SELF_URL' METHOD='POST'>
 <input type=hidden name='index' value='$index'>
+<input type=hidden name='search_form' value='1'>
 %HIDDEN_FIELDS%
 <TABLE>
 <TR><TH colspan='2' class='form_title'>$_SEARCH</TH></TR>

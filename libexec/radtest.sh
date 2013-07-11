@@ -12,9 +12,9 @@ NAS_IP_ADDRESS=127.0.0.1
 ACCT_SESSION_ID='123456789012345';
 
 #Voip defauls
-VOIP_NAS_IP_ADDRESS=192.168.202.15
-VOIP_USER_NAME=200
-VOIP_CHAP_PASSWORD=''; #123456
+#VOIP_NAS_IP_ADDRESS=192.168.202.15
+#VOIP_USER_NAME=200
+#VOIP_CHAP_PASSWORD=''; #123456
 
 PATH=${PATH}:/usr/local/freeradius/bin/
 RAUTH="./rauth.pl";
@@ -98,6 +98,10 @@ for _switch ; do
         auth)   ACTION=auth;
                 shift;
                 ;;
+                
+        voip)   VOIP=1;
+                shift;
+                ;;        
         -cid)   CALLING_STATION_ID=$2;
                 shift; shift
                 ;;
@@ -128,6 +132,122 @@ for _switch ; do
         esac
 done
 
+#**********************************************************
+#
+#**********************************************************
+voip_auth () {
+	
+	#voip
+  echo "Voip";
+
+  if [ x${ACTION} = xauth ] ; then
+   echo Auth;
+     ${RAUTH}  NAS_IP_ADDRESS="${NAS_IP_ADDRESS}" \
+     NAS_PORT_TYPE="Virtual" \
+     NAS_IDENTIFIER="" \
+     CLIENT_IP_ADDRESS="192.168.101.17" \
+     CISCO_AVPAIR="h323-ivr-out=terminal-alias:100;" \
+     SERVICE_TYPE="Login-User" \
+     CHAP_CHALLENGE="0x43a28c01" \
+     USER_NAME="${USER_NAME}" \
+     CALLING_STATION_ID="3456"\
+     FRAMED_IP_ADDRESS="192.168.101.23" \
+     CALLED_STATION_ID="001363" \
+     H323_CONF_ID="h323-conf-id=16000 647BEE1D 80F000A F453DBFD"\
+     H323_CALL_ORIGIN="h323-call-origin=originate"
+#     HUNTGROUP_NAME="voips" 
+#     CHAP_PASSWORD="0x06a8f3fb0ab5f4a8e90a590686c845c456" \
+  elif [ t${ACCOUNTING_ACTION} = 'tStart' ] ; then
+    echo "Start\n";
+
+    ${RAUTH} NAS_IP_ADDRESS="${NAS_IP_ADDRESS}" \
+       CHAP_PASSWORD="0x0338b5a0e6ade0557eb9e5d208fe0f5eee" \
+       H323_CONF_ID="h323-conf-id=16000 647BEE1D 80F000A F453DBFD"\
+       H323_GW_ID="h323-gw-id=ASMODEUSGK"\
+       NAS_PORT_TYPE="Virtual"\
+       CALLING_STATION_ID="101"\
+       H323_CALL_ORIGIN="h323-call-origin=originate"\
+       NAS_IDENTIFIER="ASMODEUSGK"\
+       SERVICE_TYPE="Login-User"\
+       CLIENT_IP_ADDRESS="192.168.101.17"\
+       CHAP_CHALLENGE="0x43aea616"\
+       FRAMED_IP_ADDRESS="192.168.101.23"\
+       USER_NAME="${USER_NAME}"\
+       CALLED_STATION_ID="613"\
+       H323_CALL_TYPE="h323-call-type=VoIP"\
+       HUNTGROUP_NAME="voips"
+
+# RadAliasAuth
+#      ${RAUTH}  NAS_IP_ADDRESS="192.168.101.17" \
+#       USER_PASSWORD="101"\
+#       H323_CONF_ID="h323-conf-id=16000 647BEE1D 80F000A F453DBFD"\
+#       H323_GW_ID="h323-gw-id=ASMODEUSGK"\
+#       NAS_PORT_TYPE="Virtual"\
+#       CALLING_STATION_ID="101"\
+#       H323_CALL_ORIGIN="h323-call-origin=originate"\
+#       NAS_IDENTIFIER="ASMODEUSGK"\
+#       SERVICE_TYPE="Login-User"\
+#       CLIENT_IP_ADDRESS="192.168.101.17"\
+#       FRAMED_IP_ADDRESS="192.168.101.23"\
+#       USER_NAME="101"\
+#       CALLED_STATION_ID="613"\
+#       H323_CALL_TYPE="h323-call-type=VoIP"\
+#       HUNTGROUP_NAME="voips"
+
+
+    ${RACCT}  ACCT_UNIQUE_SESSION_ID="7ae849dcfba1c03f"\
+      H323_CONF_ID="h323-conf-id=16000 647BEE1D 80F000A F453DBFD"\
+      NAS_PORT_TYPE="Virtual"\
+      H323_CALL_ORIGIN="h323-call-origin=proxy"\
+      NAS_IDENTIFIER="ASMODEUSGK"\
+      CLIENT_IP_ADDRESS="192.168.101.17"\
+      CISCO_AVPAIR="h323-ivr-out=h323-call-id:16000 660DB41B 209000A F453DBFD"\
+      ACCT_STATUS_TYPE="Start"\
+      SERVICE_TYPE="Login-User"\
+      H323_SETUP_TIME="h323-setup-time=15:59:47.000 EET Sun Dec 25 2005"\
+      USER_NAME="${USER_NAME}"\
+      NAS_IP_ADDRESS="${NAS_IP_ADDRESS}"\
+      H323_GW_ID="h323-gw-id=ASMODEUSGK"\
+      CALLING_STATION_ID="101"\
+      H323_REMOTE_ADDRESS="h323-remote-address=192.168.101.4"\
+      ACCT_SESSION_ID="43ad25ca0000000e"\
+      FRAMED_IP_ADDRESS="192.168.101.23"\
+      ACCT_DELAY_TIME="0"\
+      H323_CALL_TYPE="h323-call-type=VoIP"\
+      CALLED_STATION_ID="613"
+
+
+   elif [ t${ACCOUNTING_ACTION} = 'tStop' ] ; then
+     echo "Voip Stop"
+     ${RACCT}  ACCT_UNIQUE_SESSION_ID="7ae849dcfba1c03f"\
+   H323_CONF_ID="h323-conf-id=16000 647BEE1D 80F000A F453DBFD"\
+   NAS_PORT_TYPE="Virtual"\
+   H323_CALL_ORIGIN="h323-call-origin=proxy"\
+   NAS_IDENTIFIER="ASMODEUSGK"\
+   CLIENT_IP_ADDRESS="192.168.101.17"\
+   CISCO_AVPAIR="h323-ivr-out=h323-call-id:16000 660DB41B 209000A F453DBFD"\
+   H323_DISCONNECT_CAUSE="h323-disconnect-cause=10"\
+   ACCT_STATUS_TYPE="Stop"\
+   SERVICE_TYPE="Login-User"\
+   H323_SETUP_TIME="h323-setup-time=15:59:47.000 EET Sun Dec 25 2005"\
+   H323_DISCONNECT_TIME="h323-disconnect-time=16:01:54.000 EET Sun Dec 25 2005"\
+   USER_NAME="101"\
+   NAS_IP_ADDRESS="${NAS_IP_ADDRESS}"\
+   ACCT_SESSION_TIME="99"\
+   H323_GW_ID="h323-gw-id=ASMODEUSGK"\
+   CALLING_STATION_ID="101"\
+   H323_CONNECT_TIME="h323-connect-time=16:00:15.000 EET Sun Dec 25 2005"\
+   H323_REMOTE_ADDRESS="h323-remote-address=192.168.101.4"\
+   ACCT_SESSION_ID="43ad25ca0000000e"\
+   FRAMED_IP_ADDRESS="192.168.101.23"\
+   H323_CALL_TYPE="h323-call-type=VoIP"\
+   CALLED_STATION_ID="613"\
+   ACCT_DELAY_TIME="0"\
+
+fi
+	
+	exit;
+}
 
 # Get user name
 if [ w${ACTION} != whelp ]; then
@@ -176,9 +296,11 @@ fi;
 
 
 
+if [ x${VOIP} = x1 ] ; then 
+  voip_auth;
 #testing program
 # Auth test
-if [ t${ACTION} = 'tauth' ] ; then
+elif [ x${ACTION} = 'xauth' ] ; then
   echo "Auth test Begin"
   ${RAUTH} \
         SERVICE_TYPE=VPN \
@@ -248,7 +370,7 @@ elif [ t${ACTION} = tdhcp ]; then
 
 
 
-elif [ t${ACTION} = 'tacct' ]; then
+elif [ x${ACTION} = 'xacct' ]; then
   echo "Accounting test begin";
 
   if [ t${ACCOUNTING_ACTION} = 'tStart' ]; then
@@ -348,116 +470,6 @@ elif [ t${ACTION} = 'tacctgt' ]; then
 elif [ t${ACTION} = 'tauthgt' ]; then
 
   cat $AUTH_LOG | grep GT | awk '{ print $10"  "$1" "$2" "$5" "$8 }' | sort -n
-
-
-elif [ t${ACTION} = 'tvoip' ] ; then 
-
- echo "Voip";
-  if [ t$2 = 'tauth' ] ; then
-   echo Auth;
-     ${RAUTH}  NAS_IP_ADDRESS="${VOIP_NAS_IP_ADDRESS}" \
-     NAS_PORT_TYPE="Virtual" \
-     NAS_IDENTIFIER="" \
-     CLIENT_IP_ADDRESS="192.168.101.17" \
-     CISCO_AVPAIR="h323-ivr-out=terminal-alias:100;" \
-     SERVICE_TYPE="Login-User" \
-     CHAP_CHALLENGE="0x43a28c01" \
-     USER_NAME="${VOIP_USER_NAME}" \
-     CALLING_STATION_ID="3456"\
-     FRAMED_IP_ADDRESS="192.168.101.23" \
-     CALLED_STATION_ID="001363" \
-     H323_CONF_ID="h323-conf-id=16000 647BEE1D 80F000A F453DBFD"\
-     H323_CALL_ORIGIN="h323-call-origin=originate"
-#     HUNTGROUP_NAME="voips" 
-#     CHAP_PASSWORD="0x06a8f3fb0ab5f4a8e90a590686c845c456" \
-  elif [ t${ACCOUNTING_ACTION} = 'tStart' ] ; then
-    echo "Start\n";
-
-    ${RAUTH} NAS_IP_ADDRESS="${VOIP_NAS_IP_ADDRESS}" \
-       CHAP_PASSWORD="0x0338b5a0e6ade0557eb9e5d208fe0f5eee" \
-       H323_CONF_ID="h323-conf-id=16000 647BEE1D 80F000A F453DBFD"\
-       H323_GW_ID="h323-gw-id=ASMODEUSGK"\
-       NAS_PORT_TYPE="Virtual"\
-       CALLING_STATION_ID="101"\
-       H323_CALL_ORIGIN="h323-call-origin=originate"\
-       NAS_IDENTIFIER="ASMODEUSGK"\
-       SERVICE_TYPE="Login-User"\
-       CLIENT_IP_ADDRESS="192.168.101.17"\
-       CHAP_CHALLENGE="0x43aea616"\
-       FRAMED_IP_ADDRESS="192.168.101.23"\
-       USER_NAME="${VOIP_USER_NAME}"\
-       CALLED_STATION_ID="613"\
-       H323_CALL_TYPE="h323-call-type=VoIP"\
-       HUNTGROUP_NAME="voips"
-
-# RadAliasAuth
-#      ${RAUTH}  NAS_IP_ADDRESS="192.168.101.17" \
-#       USER_PASSWORD="101"\
-#       H323_CONF_ID="h323-conf-id=16000 647BEE1D 80F000A F453DBFD"\
-#       H323_GW_ID="h323-gw-id=ASMODEUSGK"\
-#       NAS_PORT_TYPE="Virtual"\
-#       CALLING_STATION_ID="101"\
-#       H323_CALL_ORIGIN="h323-call-origin=originate"\
-#       NAS_IDENTIFIER="ASMODEUSGK"\
-#       SERVICE_TYPE="Login-User"\
-#       CLIENT_IP_ADDRESS="192.168.101.17"\
-#       FRAMED_IP_ADDRESS="192.168.101.23"\
-#       USER_NAME="101"\
-#       CALLED_STATION_ID="613"\
-#       H323_CALL_TYPE="h323-call-type=VoIP"\
-#       HUNTGROUP_NAME="voips"
-
-
-    ${RACCT}  ACCT_UNIQUE_SESSION_ID="7ae849dcfba1c03f"\
-      H323_CONF_ID="h323-conf-id=16000 647BEE1D 80F000A F453DBFD"\
-      NAS_PORT_TYPE="Virtual"\
-      H323_CALL_ORIGIN="h323-call-origin=proxy"\
-      NAS_IDENTIFIER="ASMODEUSGK"\
-      CLIENT_IP_ADDRESS="192.168.101.17"\
-      CISCO_AVPAIR="h323-ivr-out=h323-call-id:16000 660DB41B 209000A F453DBFD"\
-      ACCT_STATUS_TYPE="Start"\
-      SERVICE_TYPE="Login-User"\
-      H323_SETUP_TIME="h323-setup-time=15:59:47.000 EET Sun Dec 25 2005"\
-      USER_NAME="${VOIP_USER_NAME}"\
-      NAS_IP_ADDRESS="${VOIP_NAS_IP_ADDRESS}"\
-      H323_GW_ID="h323-gw-id=ASMODEUSGK"\
-      CALLING_STATION_ID="101"\
-      H323_REMOTE_ADDRESS="h323-remote-address=192.168.101.4"\
-      ACCT_SESSION_ID="43ad25ca0000000e"\
-      FRAMED_IP_ADDRESS="192.168.101.23"\
-      ACCT_DELAY_TIME="0"\
-      H323_CALL_TYPE="h323-call-type=VoIP"\
-      CALLED_STATION_ID="613"
-
-
-   elif [ t${ACCOUNTING_ACTION} = 'tStop' ] ; then
-     echo "Voip Stop"
-     ${RACCT}  ACCT_UNIQUE_SESSION_ID="7ae849dcfba1c03f"\
-   H323_CONF_ID="h323-conf-id=16000 647BEE1D 80F000A F453DBFD"\
-   NAS_PORT_TYPE="Virtual"\
-   H323_CALL_ORIGIN="h323-call-origin=proxy"\
-   NAS_IDENTIFIER="ASMODEUSGK"\
-   CLIENT_IP_ADDRESS="192.168.101.17"\
-   CISCO_AVPAIR="h323-ivr-out=h323-call-id:16000 660DB41B 209000A F453DBFD"\
-   H323_DISCONNECT_CAUSE="h323-disconnect-cause=10"\
-   ACCT_STATUS_TYPE="Stop"\
-   SERVICE_TYPE="Login-User"\
-   H323_SETUP_TIME="h323-setup-time=15:59:47.000 EET Sun Dec 25 2005"\
-   H323_DISCONNECT_TIME="h323-disconnect-time=16:01:54.000 EET Sun Dec 25 2005"\
-   USER_NAME="101"\
-   NAS_IP_ADDRESS="${VOIP_NAS_IP_ADDRESS}"\
-   ACCT_SESSION_TIME="99"\
-   H323_GW_ID="h323-gw-id=ASMODEUSGK"\
-   CALLING_STATION_ID="101"\
-   H323_CONNECT_TIME="h323-connect-time=16:00:15.000 EET Sun Dec 25 2005"\
-   H323_REMOTE_ADDRESS="h323-remote-address=192.168.101.4"\
-   ACCT_SESSION_ID="43ad25ca0000000e"\
-   FRAMED_IP_ADDRESS="192.168.101.23"\
-   H323_CALL_TYPE="h323-call-type=VoIP"\
-   CALLED_STATION_ID="613"\
-   ACCT_DELAY_TIME="0"\
-
-fi
 
 else 
  echo "Arguments (auth | acct | authgt | acctgt)"

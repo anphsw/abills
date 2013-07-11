@@ -20,6 +20,7 @@
                    "24:19:$_USED:dv_use:"                     => 4,
                    "25:24:$_MONTH:dv_use_allmonthes:"         => 4,
                    "26:19:$_DEBETORS:dv_report_debetors:"     => 4,
+                   "27:19:$_TARIF_PLANS:dv_report_tp:"        => 4,
 
                    "36:0:Internet:dv_online:"                 => 6,
                    "38:0:$_DV $_STATS:dv_use:COMPANY_ID"      => 13

@@ -5,10 +5,10 @@
 <input type='hidden' name='SHOW' value='1'>
 <input type='hidden' name='SNMP_HOST' value='$FORM{SNMP_HOST}'>
 <input type='hidden' name='SNMP_COMMUNITY' value='$FORM{SNMP_COMMUNITY}'>
-<TABLE>
+<TABLE class=form>
   <TBODY>
   <TR>
-    <TH bgcolor=$_COLORS[0] colspan=2 align=right>Static MAC Forwarding</TH>
+    <TH bgcolor=form_title colspan=2 align=right>Static MAC Forwarding</TH>
   </TR>
   <TR>
     <TD>MAC Address (HEX)</TD> <TD><INPUT maxLength=2 size=2 name=MAC_1 value=%MAC_1%><STRONG>:</STRONG> 

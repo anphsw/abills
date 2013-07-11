@@ -12,9 +12,16 @@ CREATE TABLE `admin_actions` (
   KEY `uid` (`uid`)
 ) COMMENT="Users changes log" ;
 
+CREATE TABLE `admin_settings` (
+  `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `object` varchar(20) NOT NULL default '',
+  `setting` text not null,
+  PRIMARY KEY  (`aid`, `object`)
+) COMMENT="Admins settings";
+
 
 CREATE TABLE `admin_system_actions` (
- `id` INTEGER(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `id` INTEGER(11) UNSIGNED NOT NULL AUTO_INCREMENT,
   `actions` varchar(200) NOT NULL default '',
   `datetime` DATETIME NOT NULL,
   `ip` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
@@ -113,6 +120,8 @@ CREATE TABLE `dv_calls` (
   `ex_output_octets` bigint(14) unsigned NOT NULL default '0',
   `connect_term_reason` int(4) unsigned NOT NULL default '0',
   `framed_ip_address` int(11) unsigned NOT NULL default '0',
+  `framed_ipv6_prefix` varbinary(16) not null default '',
+  `framed_interface_id` varbinary(16) not null default '',
   `lupdated` int(11) unsigned NOT NULL default '0',
   `sum` double(14,6) NOT NULL default '0.000000',
   `CID` varchar(18) NOT NULL default '',
@@ -129,6 +138,7 @@ CREATE TABLE `dv_calls` (
   `guest` tinyint(1) unsigned NOT NULL default '0',
   KEY `user_name` (`user_name`),
   KEY `acct_session_id` (`acct_session_id`),
+  KEY `framed_ip_address` (`framed_ip_address`),
   KEY `uid` (`uid`)
 );
 
@@ -142,9 +152,11 @@ CREATE TABLE `dv_log_intervals` (
   `sum` double(14,6) unsigned NOT NULL default '0.000000',
   `acct_session_id` varchar(25) NOT NULL default '',
   `added` timestamp NOT NULL,
+  `uid` int(11) unsigned NOT NULL default '0', 
   KEY `acct_session_id` (`acct_session_id`),
-  KEY `session_interval` (`acct_session_id`,`interval_id`)
-) ;
+  KEY `session_interval` (`acct_session_id`,`interval_id`),
+  KEY `uid` (`uid`)
+) COMMENT='DV interval summary stats';
 
 
 CREATE TABLE `errors_log` (
@@ -230,8 +242,10 @@ CREATE TABLE `docs_invoice_orders` (
   `unit` tinyint(3) unsigned NOT NULL default '0',
   `price` double(10,2) unsigned NOT NULL default '0.00',
   `fees_id` int(11) unsigned NOT NULL default 0,
-  KEY `invoice_id` (`invoice_id`)
+  KEY `invoice_id` (`invoice_id`),
+  FOREIGN KEY (`invoice_id`) REFERENCES docs_invoices(id)
 )  COMMENT='Docs Invoice Orders' ;
+
 
 CREATE TABLE `docs_acts` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
@@ -250,40 +264,6 @@ CREATE TABLE `docs_acts` (
 ) COMMENT='Docs Acts';
 
 
-
-CREATE TABLE `docs_receipts` (
-  `id` int(11) NOT NULL auto_increment,
-  `date` date NOT NULL default '0000-00-00',
-  `customer` varchar(200) NOT NULL default '',
-  `phone` varchar(16) NOT NULL default '0',
-  `aid` smallint(6) unsigned NOT NULL default '0',
-  `uid` int(11) unsigned NOT NULL default '0',
-  `created` datetime NOT NULL default '0000-00-00 00:00:00',
-  `receipt_num` int(10) unsigned NOT NULL default '0',
-  `vat` double(5,2) unsigned NOT NULL default '0.00',
-  `by_proxy_seria` varchar(40) NOT NULL default '',
-  `by_proxy_person` varchar(15) NOT NULL default '',
-  `by_proxy_date` date NOT NULL default '0000-00-00',
-  `domain_id` smallint(6) unsigned not null default 0,
-  `payment_id` int(11) unsigned NOT NULL default 0,
-  `deposit` double(15,6) NOT NULL default '0.000000',
-  `delivery_status` tinyint(2) unsigned NOT NULL default '0',
-  `exchange_rate` double(12,4) NOT NULL default '0.0000',
-  `currency` smallint(6) unsigned  NOT NULL default 0,
-  PRIMARY KEY  (`id`),
-  KEY `payment_id` (`payment_id`),
-  KEY `domain_id` (`domain_id`)
-)  COMMENT='Docs Receipts';
-
-CREATE TABLE `docs_receipt_orders` (
-  `receipt_id` int(11) unsigned NOT NULL default '0',
-  `orders` varchar(200) NOT NULL default '',
-  `counts` int(10) unsigned NOT NULL default '0',
-  `unit` tinyint(3) unsigned NOT NULL default '0',
-  `price` double(10,2) unsigned NOT NULL default '0.00',
-  `fees_id` int(11) unsigned NOT NULL default 0,
-  KEY `receipt_id` (`receipt_id`)
-) COMMENT='Docs receipt orders';
 
 CREATE TABLE `docs_main` (
   `uid` int(11) unsigned NOT NULL default '0' PRIMARY KEY,
@@ -339,6 +319,7 @@ CREATE TABLE `dv_main` (
   `join_service` int(11) unsigned NOT NULL DEFAULT '0',
   `turbo_mode` tinyint(1) unsigned NOT NULL default '0',
   `free_turbo_mode` smallint(6) unsigned NOT NULL default '0',
+  `expire` date NOT NULL default '0000-00-00',
   PRIMARY KEY  (`uid`),
   KEY `tp_id` (`tp_id`),
   KEY CID (CID)
@@ -395,10 +376,12 @@ CREATE TABLE `filters` (
 
 CREATE TABLE `groups` (
   `gid` smallint(4) unsigned NOT NULL default '0',
-  `name` varchar(30) NOT NULL default '',
+  `name` varchar(60) NOT NULL default '',
   `descr` varchar(200) NOT NULL default '',
   `domain_id` smallint(6) unsigned not null default 0,
   `separate_docs` tinyint(1) unsigned not null default 0,
+  `allow_credit` tinyint(1) unsigned not null default 0,
+  `disable_paysys` tinyint(1) unsigned not null default 0,
   PRIMARY KEY  (`gid`),
   UNIQUE KEY `name` (`domain_id`, `name`)
 ) ;
@@ -431,6 +414,7 @@ CREATE TABLE `ippools` (
   `priority` tinyint(4) NOT NULL DEFAULT '0',
   `static` tinyint(1) unsigned NOT NULL DEFAULT '0',
   `speed` int(10) unsigned NOT NULL default '0',
+#  `ipv6_prefix` VARBINARY(16) not null default '',
   PRIMARY KEY  (`id`),
   UNIQUE KEY `nas` (`nas`,`ip`)
 )  ;
@@ -441,8 +425,6 @@ CREATE TABLE `dv_log` (
   `duration` int(11) NOT NULL default '0',
   `sent` int(10) unsigned NOT NULL default '0',
   `recv` int(10) unsigned NOT NULL default '0',
-  `minp` double(10,2) unsigned NOT NULL default '0.00',
-  `kb` double(10,2) unsigned NOT NULL default '0.00',
   `sum` double(14,6) NOT NULL default '0.000000',
   `port_id` smallint(5) unsigned NOT NULL default '0',
   `nas_id` tinyint(3) unsigned NOT NULL default '0',
@@ -454,6 +436,7 @@ CREATE TABLE `dv_log` (
   `bill_id` int(11) unsigned NOT NULL default '0',
   `uid` int(11) unsigned NOT NULL default '0',
   `terminate_cause` tinyint(4) unsigned NOT NULL default '0',
+  `framed_ipv6_prefix` varbinary(16) not null default '',
   `acct_input_gigawords` smallint(4) unsigned NOT NULL default '0',
   `acct_output_gigawords` smallint(4) unsigned NOT NULL default '0',
   `ex_input_octets_gigawords` smallint(4) unsigned NOT NULL default '0',
@@ -461,11 +444,6 @@ CREATE TABLE `dv_log` (
   KEY `uid` (`uid`,`start`)
 ) ;
 
-# --------------------------------------------------------
-
-#
-# Структура таблиці `mail_access`
-#
 
 CREATE TABLE `mail_access` (
   `pattern` varchar(30) NOT NULL default '',
@@ -537,7 +515,8 @@ CREATE TABLE `msgs_admins` (
   UNIQUE KEY `aid` (`aid`,`chapter_id`)
 ) COMMENT='Msgs admins';
 
-CREATE TABLE `msgs_attachments` (   `id` bigint(20) unsigned NOT NULL auto_increment,
+CREATE TABLE `msgs_attachments` (   
+   `id` bigint(20) unsigned NOT NULL auto_increment,
    `message_id` bigint(20) NOT NULL default '0',
    `filename` varchar(250) NOT NULL  default '',
    `content_size` varchar(30) NOT NULL default '',
@@ -586,8 +565,8 @@ CREATE TABLE `msgs_messages` (
   `par` int(11) unsigned NOT NULL default '0',
   `uid` int(11) unsigned NOT NULL default '0',
   `chapter` smallint(6) unsigned NOT NULL default '0',
-  `message` text not null default '',
-  `reply` text not null default '',
+  `message` text not null,
+  `reply` text not null,
   `ip` int(11) unsigned NOT NULL default '0',
   `date` datetime NOT NULL default '0000-00-00 00:00:00',
   `state` tinyint(2) unsigned default '0',
@@ -610,13 +589,15 @@ CREATE TABLE `msgs_messages` (
   `deligation_level` tinyint(4) unsigned NOT NULL default '0',
   `survey_id` smallint(6) unsigned NOT NULL DEFAULT '0',
   PRIMARY KEY  (`id`),
-  KEY `uid` (`uid`)
+  KEY `uid` (`uid`),
+  KEY `chapter` (`chapter`),
+  KEY `state` (`state`)
 ) COMMENT='Msgs Messages';
 
 CREATE TABLE `msgs_reply` (
   `id` int(11) unsigned NOT NULL auto_increment,
   `main_msg` int(11) unsigned NOT NULL default '0',
-  `text` text NOT NULL default '',
+  `text` text NOT NULL,
   `datetime` datetime NOT NULL default '0000-00-00 00:00:00',
   `aid` smallint(6) unsigned NOT NULL default '0',
   `status` tinyint(4) unsigned NOT NULL default '0',
@@ -706,13 +687,13 @@ CREATE TABLE `nas` (
   `ip` varchar(15) default NULL,
   `nas_type` varchar(20) default NULL,
   `auth_type` tinyint(3) unsigned NOT NULL default '0',
-  `mng_host_port` varchar(21) default NULL,
+  `mng_host_port` varchar(25) not null default '',
   `mng_user` varchar(20) default NULL,
   `mng_password` blob NOT NULL,
   `rad_pairs` text NOT NULL,
   `alive` smallint(6) unsigned NOT NULL default '0',
   `disable` tinyint(6) unsigned NOT NULL default '0',
-  `ext_acct` tinyint(1) unsigned NOT NULL, 
+  `ext_acct` tinyint(1) unsigned NOT NULL default '0', 
   `domain_id` smallint(6) unsigned not null default 0,
   `address_street` varchar(100) NOT NULL default '',
   `address_build` varchar(10) NOT NULL default '',
@@ -753,11 +734,6 @@ CREATE TABLE `netflow_address` (
   UNIQUE KEY `client_ip` (`client_ip`)
 ) ;
 
-# --------------------------------------------------------
-
-#
-# Структура таблиці `networks`
-#
 
 CREATE TABLE `networks` (
   `ip` int(11) unsigned NOT NULL default '0',
@@ -773,7 +749,7 @@ CREATE TABLE `networks` (
   `web_control` varchar(21) NOT NULL default '',
   PRIMARY KEY  (`ip`,`netmask`),
   UNIQUE KEY `id` (`id`)
-)  ;
+) COMMENT='Networks list'; 
 
 
 CREATE TABLE `payments` (
@@ -791,11 +767,59 @@ CREATE TABLE `payments` (
   `inner_describe` varchar(80) NOT NULL default '',
   `amount` double(10,2) NOT NULL default '0.00',
   `currency` smallint unsigned not null default 0,
+  `reg_date` datetime NOT NULL default '0000-00-00 00:00:00',
   PRIMARY KEY  (`id`),
   UNIQUE KEY `id` (`id`),
   KEY `date` (`date`),
   KEY `uid` (`uid`)
 ) COMMENT "Payments log"  ;
+
+
+
+CREATE TABLE `docs_receipts` (
+  `id` int(11) unsigned NOT NULL auto_increment,
+  `date` date NOT NULL default '0000-00-00',
+  `customer` varchar(200) NOT NULL default '',
+  `phone` varchar(16) NOT NULL default '0',
+  `aid` smallint(6) unsigned NOT NULL default '0',
+  `uid` int(11) unsigned NOT NULL default '0',
+  `created` datetime NOT NULL default '0000-00-00 00:00:00',
+  `receipt_num` int(10) unsigned NOT NULL default '0',
+  `vat` double(5,2) unsigned NOT NULL default '0.00',
+  `by_proxy_seria` varchar(40) NOT NULL default '',
+  `by_proxy_person` varchar(15) NOT NULL default '',
+  `by_proxy_date` date NOT NULL default '0000-00-00',
+  `domain_id` smallint(6) unsigned not null default 0,
+  `payment_id` int(11) unsigned NOT NULL default 0,
+  `deposit` double(15,6) NOT NULL default '0.000000',
+  `delivery_status` tinyint(2) unsigned NOT NULL default '0',
+  `exchange_rate` double(12,4) NOT NULL default '0.0000',
+  `currency` smallint(6) unsigned  NOT NULL default 0,
+  PRIMARY KEY  (`id`),
+  KEY `payment_id` (`payment_id`),
+  KEY `domain_id` (`domain_id`),
+  FOREIGN KEY (payment_id) REFERENCES payments(id)
+)  COMMENT='Docs Receipts';
+
+CREATE TABLE `docs_receipt_orders` (
+  `receipt_id` int(11) unsigned NOT NULL default '0',
+  `orders` varchar(200) NOT NULL default '',
+  `counts` int(10) unsigned NOT NULL default '0',
+  `unit` tinyint(3) unsigned NOT NULL default '0',
+  `price` double(10,2) unsigned NOT NULL default '0.00',
+  `fees_id` int(11) unsigned NOT NULL default 0,
+  KEY `receipt_id` (`receipt_id`),
+  FOREIGN KEY (receipt_id) REFERENCES docs_receipts(id)
+) COMMENT='Docs receipt orders';
+
+CREATE TABLE docs_invoice2payments (
+  `invoice_id` int(11) unsigned NOT NULL default 0,
+  `payment_id` int(11) unsigned NOT NULL default 0,
+  `sum` double(10,2) NOT NULL default '0.00',
+  PRIMARY  KEY `invoice2payments` (`invoice_id`, `payment_id`),
+  FOREIGN KEY (payment_id) REFERENCES payments(id),
+  FOREIGN KEY (invoice_id) REFERENCES docs_invoices(id)
+) COMMENT='Docs Invoice to payments' ;
 
 
 CREATE TABLE fees_types (
@@ -841,13 +865,14 @@ CREATE TABLE `shedule` (
   `admin_action` tinyint(1) unsigned NOT NULL default '0',
   PRIMARY KEY  (`id`),
   UNIQUE KEY `id` (`id`),
-  UNIQUE KEY `uniq_action` (`h`,`d`,`m`,`y`,`type`,`uid`),
+  UNIQUE KEY `uniq_action` (`h`,`d`,`m`,`y`,`type`,`uid`, `module`),
   KEY `date_type_uid` (`date`,`type`,`uid`)
 ) COMMENT='Shedules';
 
 CREATE TABLE `tarif_plans` (
   `id` smallint(5) unsigned NOT NULL default '0',
   `month_fee` double(14,2) unsigned NOT NULL default '0.00',
+  `fixed_fees_day` tinyint(1) NOT NULL default '0',
   `uplimit` double(14,2) NOT NULL default '0.00',
   `name` varchar(40) NOT NULL default '',
   `day_fee` double(14,2) unsigned NOT NULL default '0.00',
@@ -865,7 +890,7 @@ CREATE TABLE `tarif_plans` (
   `credit_tresshold` double(8,2) unsigned NOT NULL default '0.00',
   `age` smallint(6) unsigned NOT NULL default '0',
   `octets_direction` tinyint(2) unsigned NOT NULL default '0',
-  `max_session_duration` mediumint unsigned NOT NULL default '0',
+  `max_session_duration` int(11) unsigned NOT NULL default '0',
   `filter_id` varchar(15) NOT NULL default '',
   `payment_type` tinyint(1) NOT NULL default '0',
   `min_session_cost` double(14,5) unsigned NOT NULL default '0.00000',
@@ -889,7 +914,7 @@ CREATE TABLE `tarif_plans` (
   `total_time_limit` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
   `total_traf_limit` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
   `priority` smallint(5) unsigned NOT NULL DEFAULT '0',
-  `comments` text not null default '',
+  `comments` text not null,
   `bills_priority` tinyint(5) unsigned NOT NULL DEFAULT '0',
   `fine` double(14,2) unsigned NOT NULL default '0.00',
   `neg_deposit_ippool` smallint(6) unsigned NOT NULL DEFAULT '0',
@@ -909,7 +934,7 @@ CREATE TABLE `tp_bonus_rating` (
   `change_bonus` double(14,2) unsigned NOT NULL default '0.00',
   `activate_bonus` double(14,2) unsigned NOT NULL default '0.00',
   `ext_bill_account` tinyint(1) unsigned NOT NULL DEFAULT '0',
-  `comments` text NOT NULL default '',
+  `comments` text NOT NULL,
   PRIMARY KEY  (`tp_id`)
 ) COMMENT='Tarif plans bonus rating';
 
@@ -923,16 +948,12 @@ CREATE TABLE `tp_groups` (
   UNIQUE KEY `name` (`name`)
 ) COMMENT='Tarif Plans Groups';
 
-# --------------------------------------------------------
-#
-# Структура таблиці `tp_nas`
-#
 
 CREATE TABLE `tp_nas` (
   `tp_id` smallint(5) unsigned NOT NULL default '0',
   `nas_id` smallint(5) unsigned NOT NULL default '0',
   KEY `vid` (`tp_id`)
-) ;
+) COMMENT='TP nas servers';
 
 CREATE TABLE `trafic_tarifs` (
   `id` tinyint(4) NOT NULL default '0',
@@ -962,7 +983,7 @@ CREATE TABLE `traffic_classes` (
   UNIQUE KEY `name` (`name`)
 ) COMMENT='Traffic Classes';
 
-INSERT INTO traffic_classes (id, name, nets) VALUES (1, 'Global', '0.0.0.0/0');
+INSERT INTO traffic_classes (id, name, nets, comments) VALUES (1, 'Global', '0.0.0.0/0', '');
 
 
 
@@ -1022,7 +1043,7 @@ CREATE TABLE `users_nas` (
 
 CREATE TABLE `users_pi` (
   `uid` int(11) unsigned NOT NULL auto_increment,
-  `fio` varchar(60) NOT NULL default '',
+  `fio` varchar(120) NOT NULL default '',
   `phone` varchar(16) NOT NULL default '',
   `email` varchar(250) NOT NULL default '',
   `country_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
@@ -1031,7 +1052,7 @@ CREATE TABLE `users_pi` (
   `address_flat` varchar(10) NOT NULL default '',
   `comments` text NOT NULL,
   `contract_id` varchar(10) NOT NULL default '',
-  `contract_date` date NOT NULL,
+  `contract_date` date NOT NULL DEFAULT '0000-00-00',
   `contract_sufix` VARCHAR(5) NOT NULL DEFAULT '',
   `pasport_num` varchar(16) NOT NULL default '',
   `pasport_date` date NOT NULL default '0000-00-00',
@@ -1093,15 +1114,17 @@ CREATE TABLE `voip_main` (
   `registration` date NOT NULL default '0000-00-00',
   `ip` int(11) unsigned NOT NULL default '0',
   `cid` varchar(35) NOT NULL default '',
+  `filter_id` varchar(150) NOT NULL default '',
   `allow_answer` tinyint(1) unsigned NOT NULL default '1',
   `allow_calls` tinyint(1) unsigned NOT NULL default '1',
   `logins` tinyint(3) unsigned NOT NULL default '0',
   `provision_nas_id` smallint(6) unsigned NOT NULL default '0',
   `provision_port` smallint(6) unsigned NOT NULL default '0',
   `nat` tinyint(1) unsigned NOT NULL default '1',
+  `expire` date NOT NULL default '0000-00-00',
   PRIMARY KEY (`number`),
   KEY `uid` (`uid`)
-) ;
+) COMMENT "Voip users accounts";
 
 CREATE TABLE `voip_route_extra_tarification` (
   `id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
@@ -1219,7 +1242,7 @@ CREATE TABLE `streets` (
 CREATE TABLE `districts` (
   `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(100) NOT NULL DEFAULT '',
-  `country` TINYINT(4) UNSIGNED NOT NULL,
+  `country` TINYINT(4) UNSIGNED NOT NULL default 0,
   `zip` VARCHAR(7) NOT NULL DEFAULT '',
   `city` VARCHAR(30) NOT NULL DEFAULT '',  
   `comments` TEXT NOT NULL,
@@ -1232,7 +1255,7 @@ CREATE TABLE `districts` (
   UNIQUE KEY `name_2` (`name`)
 ) COMMENT='Locations districts';
 
-INSERT INTO districts (name) VALUES ('Main District');
+INSERT INTO districts (name, comments) VALUES ('Main District', '');
 
 CREATE TABLE `builds` (
   `id` INTEGER(11) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -1265,13 +1288,14 @@ CREATE TABLE `web_online` (
   `page_index` int unsigned NOT NULL Default 0,
   `sid` varchar(32) NOT NULL default '',
   `ext_info` varchar(200) NOT NULL default '',
-  PRIMARY KEY  (`sid`),
+  `aid` smallint(6) unsigned NOT NULL default '0',
+  KEY  (`aid`),
   UNIQUE KEY `sid` (`sid`)
 ) COMMENT="Online admins" ;
 
 CREATE TABLE `reg_wizard` (
   `param` varchar(40) NOT NULL default '',
-  `value` text NOT NULL default '',
+  `value` text NOT NULL,
   `aid` smallint(6) unsigned NOT NULL default '0',
   `module` varchar(40) NOT NULL default '',
   `step` tinyint(2) NOT NULL default '0',
@@ -1280,11 +1304,9 @@ CREATE TABLE `reg_wizard` (
 ) COMMENT "Registration wizard temp table";
 
     
-
-
-INSERT INTO admins (id, name, regdate, password, gid, aid, disable, phone, web_options) VALUES ('abills','abills',curdate(), ENCODE('abills', 'test12345678901234567890'), 0, 1,0,'', '');
-INSERT INTO admins (id, name, regdate, password, gid, aid, disable, phone, web_options) VALUES ('system','System user',curdate(), ENCODE(md5(RAND()), 'test12345678901234567890'), 0, 2, 0,'', '');
-INSERT INTO admins (id, name, regdate, password, gid, aid, disable, phone, web_options) VALUES ('users_web','Users web portal', curdate(), ENCODE(md5(RAND()), 'test12345678901234567890'), 0, 3, 0,'', '');
+INSERT INTO admins (id, name, regdate, password, gid, aid, disable, phone, web_options,comments) VALUES ('abills','abills',curdate(), ENCODE('abills', 'test12345678901234567890'), 0, 1,0,'', '', '');
+INSERT INTO admins (id, name, regdate, password, gid, aid, disable, phone, web_options, comments) VALUES ('system','System user',curdate(), ENCODE(md5(RAND()), 'test12345678901234567890'), 0, 2, 0,'', '', '');
+INSERT INTO admins (id, name, regdate, password, gid, aid, disable, phone, web_options,comments) VALUES ('users_web','Users web portal', curdate(), ENCODE(md5(RAND()), 'test12345678901234567890'), 0, 3, 0,'', '', '');
 INSERT INTO `admin_permits` (`aid`, `section`, `actions`, `module`) VALUES 
   (1,0,0,''),
   (1,0,1,''),
@@ -1321,17 +1343,17 @@ INSERT INTO `admin_permits` (`aid`, `section`, `actions`, `module`) VALUES
 
 INSERT INTO `users` (`id`, `activate`, `expire`, `credit`, `reduction`, `registration`, `password`, `uid`, `gid`, `disable`, `company_id`, `bill_id`, `ext_bill_id`, `credit_date`, `domain_id`) VALUES ('test','0000-00-00','0000-00-00',0.00,0.00,'2009-08-03', ENCODE('123456','test12345678901234567890'),1,0,0,0,1,0,'0000-00-00',0);
 
-INSERT INTO `users_pi` (uid, fio) VALUES (1,'Test user');
+INSERT INTO `users_pi` (uid, fio,comments) VALUES (1,'Test user','');
 
 INSERT INTO `bills` VALUES (1,0.000000,1,0,'2009-08-03');
 
-INSERT INTO `tarif_plans` (id, name, payment_type, module) VALUES (100,'Admin',1, 'Dv');
+INSERT INTO `tarif_plans` (id, name, payment_type, module, rad_pairs, comments) VALUES (100,'Admin',1, 'Dv', '', '');
 
-INSERT INTO `dv_main` VALUES (1,100,0,'2009-08-03',0,'',0,4294967295,'','',0,0,0,0,0,0);
+INSERT INTO `dv_main` VALUES (1,100,0,'2009-08-03',0,'',0,4294967295,'','',0,0,0,0,0,0,'0000-00-00');
 
 INSERT INTO `admin_actions` VALUES ('LOGIN:test','2009-08-03 11:42:53',1534854767,1,1,1,'',7),('BILL_ID ->1;','2009-08-03 11:42:53',1534854767,1,1,2,'',2),('PASSWORD *->*;','2009-08-03 11:42:53',1534854767,1,1,3,'',2),('ADD PI','2009-08-03 11:42:53',1534854767,1,1,4,'',0),('ACTIVE','2009-08-03 11:42:53',1534854767,1,1,5,'Dv',1);
 
-INSERT INTO `nas` (id, name, nas_identifier, descr, ip, nas_type, auth_type, mng_host_port, mng_user, mng_password, alive) VALUES (1,'NAS Server','','NAS Server','127.0.0.1','mpd5', 0,'127.0.0.1:5005','admin', ENCODE('secretpass','test12345678901234567890'),300);
+INSERT INTO `nas` (id, name, nas_identifier, descr, ip, nas_type, auth_type, mng_host_port, mng_user, mng_password, alive, rad_pairs) VALUES (1,'NAS Server','','NAS Server','127.0.0.1','mpd5', 0,'127.0.0.1:5005','admin', ENCODE('secretpass','test12345678901234567890'),300,'');
 INSERT INTO `ippools` ( id, nas, ip, counts, name, priority) VALUES (1,1,167772161,256,'Main',0);
 
 INSERT INTO `nas_ippools` (pool_id, nas_id) VALUES (1,1);

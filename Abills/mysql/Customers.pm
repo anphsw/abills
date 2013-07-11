@@ -18,21 +18,20 @@ $VERSION = 2.00;
 %EXPORT_TAGS = ();
 
 use Companies;
-
-my $db;
-my $admin;
-my $CONF;
-
-# Customer id
+my ($admin, $CONF);
 
 #**********************************************************
 # Init
 #**********************************************************
 sub new {
   my $class = shift;
-  ($db, $admin, $CONF) = @_;
+  my $db    = shift;
+  ($admin, $CONF) = @_;
   my $self = {};
   bless($self, $class);
+  
+  $self->{db}=$db;
+  
   return $self;
 }
 
@@ -41,7 +40,7 @@ sub new {
 #**********************************************************
 sub company {
   my $self = shift;
-  my $Companies = Companies->new($db, $admin, $CONF);
+  my $Companies = Companies->new($self->{db}, $admin, $CONF);
 
   return $Companies;
 }

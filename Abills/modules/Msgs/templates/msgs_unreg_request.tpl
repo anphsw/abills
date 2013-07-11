@@ -3,6 +3,7 @@
 <input type='hidden' name='ID' value='%ID%'/>
 
 <table class=form>
+<tr><th class='form_title'colspan='2'>$_REQUESTS</th></tr>
 <tr><td>$_DATE:</td><td>%DATE%</td></tr>
 <tr><td>$_CHAPTERS:</td><td>%CHAPTER_SEL%</td></tr>
 <tr><td>$_SUBJECT:</td><td><input type='text' name='SUBJECT' value='%SUBJECT%' size='50'/></td></tr>

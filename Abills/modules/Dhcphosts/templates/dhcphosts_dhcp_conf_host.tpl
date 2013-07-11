@@ -4,4 +4,5 @@ host %HOSTNAME% {
   fixed-address %IP%;
   option routers %ROUTERS%;
   %BOOT_FILE%
+  %NEXT_SERVER%
 }

@@ -28,12 +28,14 @@ function make_unique() {
 <input type='hidden' name='OP_SID' value='%OP_SID%' ID=OP_SID>
 <input type='hidden' name='sid' value='$sid'>
 <input type='hidden' name='SUM' value='' ID='SUM'>
-<table width=600>
-<tr bgcolor='$_COLORS[0]'><th colspan=2 align=right>$_ICARDS</th></tr>
+<table width=600 class=form>
+<tr><th colspan=2 class=form_title>$_ICARDS</th></tr>
 <tr><td>$_COUNT:</td><td><input type='text' name='COUNT' value='%COUNT%'></td></tr>
 <tr><td>$_SUM:</td><td><input type='text' name='SUM_NEW' value='0.00' ID=SUM_NEW></td></tr>
+
+<tr><th colspan=2 class=even><input type='submit' name='add' value='$_ADD' onclick=\"make_unique(this.form)\"></th></tr>
 </table>
 
-<input type='submit' name='add' value='$_ADD' onclick=\"make_unique(this.form)\">
+
 </form>
 

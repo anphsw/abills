@@ -1,5 +1,5 @@
 #!/bin/sh
-# /etc/init.d/accel-pppd: set up the accel-ppp server
+# /etc/init.d/accel-ppp: set up the accel-ppp server
 ### BEGIN INIT INFO
 # Provides:          accel-ppp
 # Required-Start:    $networking

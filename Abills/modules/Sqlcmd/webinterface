@@ -187,6 +187,7 @@ sub sqlcmd {
     $pages_qs .= "&QUERY=$FORM{QUERY}";
 
     my @CAPTION = ();
+    
     @CAPTION = @{ $Sqlcmd->{MYSQL_FIELDS_NAMES} } if ($Sqlcmd->{MYSQL_FIELDS_NAMES});
     $table = $html->table(
       {

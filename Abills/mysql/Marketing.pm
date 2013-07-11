@@ -39,12 +39,15 @@ my %SEARCH_PARAMS = (
 #**********************************************************
 sub new {
   my $class = shift;
-  ($db, $admin, $CONF) = @_;
+  my $db    = shift;
+  ($admin, $CONF) = @_;
   $admin->{MODULE} = $MODULE;
   my $self = {};
 
   bless($self, $class);
-
+  
+  $self->{db}=$db;
+  
   return $self;
 }
 
@@ -64,39 +67,29 @@ sub report1 {
   $self->{SEARCH_FIELDS}       = '';
   $self->{SEARCH_FIELDS_COUNT} = 0;
 
-  @WHERE_RULES = ('u.disable=0');
+  @WHERE_RULES = ('u.disable=0',
+   'u.uid=pi.uid');
 
-  # Start letter
-  if ($attr->{FIRST_LETTER}) {
-    push @WHERE_RULES, "u.id LIKE '$attr->{FIRST_LETTER}%'";
-  }
-  elsif ($attr->{LOGIN}) {
-    $attr->{LOGIN_EXPR} =~ s/\*/\%/ig;
-    push @WHERE_RULES, "u.id='$attr->{LOGIN}'";
-  }
+  my $WHERE =  $self->search_former($attr, [
+    ],
+    { WHERE       => 1,
+    	WHERE_RULES => \@WHERE_RULES,
+    	USERS_FIELD => 1
+    }    
+    );
 
-  # Login expresion
-  elsif ($attr->{LOGIN_EXPR}) {
-    $attr->{LOGIN_EXPR} =~ s/\*/\%/ig;
-    push @WHERE_RULES, "u.id LIKE '$attr->{LOGIN_EXPR}'";
-  }
 
-  if ($attr->{DEPOSIT}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{DEPOSIT}, 'INT', 'u.deposit') };
-  }
-
-  $WHERE = ($#WHERE_RULES > -1) ? 'and ' . join(' and ', @WHERE_RULES) : '';
-
-  $self->query(
-    $db, "SELECT 
+  $self->query2("SELECT 
       if (pi._c_address <> '', pi._c_address, pi.address_street),
       if (pi._c_build <> '', pi._c_build, pi.address_build),
       count(*) 
      FROM (users_pi pi, users u)
-     WHERE u.uid=pi.uid $WHERE
+     $WHERE
      GROUP BY 1,2
      ORDER BY $SORT $DESC 
-     LIMIT $PG, $PAGE_ROWS;"
+     LIMIT $PG, $PAGE_ROWS;",
+     undef,
+     $attr
   );
 
   return $self if ($self->{errno});
@@ -104,11 +97,9 @@ sub report1 {
   my $list = $self->{list};
 
   if ($self->{TOTAL} >= 0) {
-    $self->query(
-      $db, "SELECT count(*) FROM (users u, users_pi pi) 
-    WHERE u.uid=pi.uid"
+    $self->query2("SELECT count(*) AS total FROM (users u, users_pi pi) 
+    WHERE u.uid=pi.uid", undef, { INFO => 1 }
     );
-    ($self->{TOTAL}) = @{ $self->{list}->[0] };
   }
 
   return $list;
@@ -150,8 +141,7 @@ sub internet_fees_monitor {
 
   my $WHERE = ($#WHERE_RULES > -1) ? 'WHERE ' . join(' and ', @WHERE_RULES) : '';
 
-  $self->query(
-    $db, "select u.uid,  u.id, 
+  $self->query2("select u.uid,  u.id, 
    u.disable,
    dv.disable,
    dv.tp_id, 
@@ -167,7 +157,9 @@ sub internet_fees_monitor {
   $WHERE
   GROUP BY u.uid
      ORDER BY $SORT $DESC 
-     LIMIT $PG, $PAGE_ROWS;"
+     LIMIT $PG, $PAGE_ROWS;",
+  undef,
+  $attr
   );
 
   return $self if ($self->{errno});
@@ -175,14 +167,14 @@ sub internet_fees_monitor {
   my $list = $self->{list};
 
   if ($self->{TOTAL} >= 0) {
-    $self->query(
-      $db, "SELECT count(distinct u.uid) FROM  users u
+    $self->query2("SELECT count(distinct u.uid) AS total FROM  users u
      inner join dv_main dv on (dv.uid=u.uid)
      inner join tarif_plans tp on (dv.tp_id=tp.id)
      left join fees f on (f.uid=u.uid)
-    $WHERE;"
+    $WHERE;",
+    undef,
+    { INFO => 1 }
     );
-    ($self->{TOTAL}) = @{ $self->{list}->[0] };
   }
 
   return $list;
@@ -204,8 +196,8 @@ sub evolution_report {
   $self->{SEARCH_FIELDS}       = '';
   $self->{SEARCH_FIELDS_COUNT} = 0;
 
-  @WHERE_RULES = ();
-
+  @WHERE_RULES   = ();
+  my $EXT_TABLES = '';
   my $date = 'DATE_FORMAT(datetime, \'%Y-%m\')';
 
   if ($attr->{PERIOD}) {
@@ -219,7 +211,10 @@ sub evolution_report {
     push @WHERE_RULES, 'aa.module=\'\'';
   }
 
-  if ($attr->{MONTH}) {
+  if ($attr->{DATE}) {
+  	push @WHERE_RULES, @{ $self->search_expr($attr->{DATE}, 'INT', 'date_format(aa.datetime, \'%Y-%m-%d\')') };
+  }
+  elsif ($attr->{MONTH}) {
     push @WHERE_RULES, "date_format(aa.datetime, '%Y-%m')='$attr->{MONTH}'";
     $date = "DATE_FORMAT(datetime, \'%Y-%m-%d\')";
   }
@@ -228,19 +223,26 @@ sub evolution_report {
     push @WHERE_RULES, "date_format(aa.datetime, '%Y-%m-%d')>='$from' and date_format(aa.datetime, '%Y-%m-%d')<='$to'";
   }
 
+  if ($attr->{GID}) {
+  	push @WHERE_RULES, @{ $self->search_expr($attr->{GID}, 'INT', 'u.gid') };
+  	$EXT_TABLES .= "LEFT JOIN users u ON (u.uid=aa.uid)";
+  }
+
   my $WHERE = ($#WHERE_RULES > -1) ? 'WHERE ' . join(' and ', @WHERE_RULES) : '';
 
-  $self->query(
-    $db, "select $date,
+  $self->query2("select $date,
   sum(if(action_type = 7, 1, 0)),
   sum(if(action_type = 9, 1, 0))-sum(if(action_type = 8, 1, 0)),
   sum(if(action_type = 8, 1, 0)),
   sum(if(action_type = 12, 1, 0))  
   FROM admin_actions aa
+  $EXT_TABLES
   $WHERE 
   GROUP BY 1
      ORDER BY $SORT $DESC 
-     LIMIT $PG, $PAGE_ROWS;"
+     LIMIT $PG, $PAGE_ROWS;",
+  undef,
+  $attr
   );
 
   return $self if ($self->{errno});
@@ -249,10 +251,10 @@ sub evolution_report {
 
   if ($self->{TOTAL} >= 0) {
     $self->query(
-      $db, "SELECT count(distinct $date) FROM admin_actions aa
-    $WHERE;"
+      $db, "SELECT count(distinct $date) AS total FROM admin_actions aa
+      $EXT_TABLES
+      $WHERE;"
     );
-    ($self->{TOTAL}) = @{ $self->{list}->[0] };
   }
 
   return $list;
@@ -285,12 +287,19 @@ sub evolution_users_report {
     push @WHERE_RULES, 'aa.module=\'\'';
   }
 
-  if ($attr->{MONTH}) {
+  if ($attr->{DATE}) {
+  	push @WHERE_RULES, @{ $self->search_expr($attr->{DATE}, 'INT', 'date_format(aa.datetime, \'%Y-%m-%d\')') };
+  }
+  elsif ($attr->{MONTH}) {
     push @WHERE_RULES, "date_format(aa.datetime, '%Y-%m')='$attr->{MONTH}'";
   }
   elsif ($attr->{INTERVAL}) {
     my ($from, $to) = split(/\//, $attr->{INTERVAL}, 2);
     push @WHERE_RULES, "date_format(aa.datetime, '%Y-%m-%d')>='$from' and date_format(aa.datetime, '%Y-%m-%d')<='$to'";
+  }
+
+  if ($attr->{GID}) {
+  	push @WHERE_RULES, @{ $self->search_expr($attr->{GID}, 'INT', 'u.gid') };
   }
 
   my $user = 'u.id';
@@ -299,8 +308,7 @@ sub evolution_users_report {
   }
   elsif ($attr->{DISABLED}) {
     my $WHERE = ($#WHERE_RULES > -1) ? 'WHERE ' . join(' and ', @WHERE_RULES) : '';
-    $self->query(
-      $db, "select max($date), $user, a.id, u.registration, aa.uid,
+    $self->query2("select max($date), $user, a.id, u.registration, aa.uid,
      sum(if(aa.action_type=9, 1, 0)) - sum(if(aa.action_type=8, 1, 0)) As ACTIONS  
      FROM admin_actions aa 
      LEFT JOIN users u ON (aa.uid=u.uid) 
@@ -309,7 +317,9 @@ sub evolution_users_report {
      GROUP BY 2 
      HAVING ACTIONS > 0
      ORDER BY $SORT $DESC 
-     LIMIT $PG, $PAGE_ROWS;"
+     LIMIT $PG, $PAGE_ROWS;",
+     undef,
+     $attr
     );
 
     return $self if ($self->{errno});
@@ -340,15 +350,16 @@ sub evolution_users_report {
 
   my $WHERE = ($#WHERE_RULES > -1) ? 'WHERE ' . join(' and ', @WHERE_RULES) : '';
 
-  $self->query(
-    $db, "select $date, $user, a.id, u.registration, aa.uid
+  $self->query2("select $date, $user, a.id, u.registration, aa.uid
   FROM admin_actions aa
   LEFT JOIN users u ON (aa.uid=u.uid)
   LEFT JOIN admins a ON (a.aid=aa.aid)
   $WHERE 
   GROUP BY 1
      ORDER BY $SORT $DESC 
-     LIMIT $PG, $PAGE_ROWS;"
+     LIMIT $PG, $PAGE_ROWS;",
+  undef,
+  $attr
   );
 
   return $self if ($self->{errno});
@@ -356,11 +367,11 @@ sub evolution_users_report {
   my $list = $self->{list};
 
   if ($self->{TOTAL} >= 0) {
-    $self->query(
-      $db, "SELECT count(distinct $date) FROM admin_actions aa
-    $WHERE;"
-    );
-    ($self->{TOTAL}) = @{ $self->{list}->[0] };
+    $self->query2("SELECT count(distinct $date) AS total FROM admin_actions aa
+       LEFT JOIN users u ON (aa.uid=u.uid)
+       $WHERE;",
+       undef, { INFO => 1 }
+      );
   }
 
   return $list;
@@ -379,118 +390,42 @@ sub report_2 {
   $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  $self->{SEARCH_FIELDS}       = '';
-  $self->{SEARCH_FIELDS_COUNT} = 0;
-
-  @WHERE_RULES = ();
-
-  if ($attr->{REGISTRATION}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{REGISTRATION}, 'INT', 'registration') };
-  }
-
-  if ($attr->{LOCATION}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{LOCATION}, 'STR', '_segment') };
-  }
-
-  if ($attr->{DISTRICT}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{DISTRICT}, 'STR', '_district') };
-  }
-  elsif ($attr->{DISTRICT_ID}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{DISTRICT_ID}, 'INT', 'address_district_id') };
-  }
-
-  if ($attr->{ADDRESS_STREET}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{ADDRESS_STREET}, 'STR', 'address_street') };
-  }
-  elsif ($attr->{ADDRESS_STREET_ID}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{ADDRESS_STREET_ID}, 'INT', 'address_street_id') };
-  }
-
-  if ($attr->{ADDRESS_BUILD}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{ADDRESS_BUILD}, 'STR', 'address_build') };
-  }
-
-  if ($attr->{ENTRANCE}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{ENTRANCE}, 'STR', '_entrance') };
-  }
-
-  if ($attr->{FLOR}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{FLOR}, 'INT', '_flor') };
-  }
-
-  if ($attr->{ADDRESS_FLAT}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{ADDRESS_FLAT}, 'INT', 'address_flat') };
-  }
-
-  if ($attr->{TP_ID}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{TP_ID}, 'INT', 'tp_id') };
-  }
-
-  if ($attr->{PRE_TP_ID}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{PRE_TP_ID}, 'INT', 'last_tp_id') };
-  }
-
-  if ($attr->{TARIF_PLAN_CHANGED}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{TARIF_PLAN_CHANGED}, 'INT', 'last_tp_changed') };
-  }
-
-  if ($attr->{CREDIT}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{CREDIT}, 'INT', 'credit') };
-  }
-
-  if ($attr->{DEPOSIT}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{DEPOSIT}, 'INT', 'deposit') };
-  }
-
-  if ($attr->{LAST_PAYMENT_DATE}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{LAST_PAYMENT_DATE}, 'INT', 'last_payment_date') };
-  }
-
-  if (defined($attr->{LAST_PAYMENT_METHOD}) && $attr->{LAST_PAYMENT_METHOD} ne '') {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{LAST_PAYMENT_METHOD}, 'INT', 'last_payment_method') };
-  }
-
-  if ($attr->{LAST_PAYMENT_SUM}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{LAST_PAYMENT_SUM}, 'INT', 'last_payment_sum') };
-  }
-
-  if ($attr->{PAYMENT_TO_DATE}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{PAYMENT_TO_DATE}, 'INT', 'to_payments_date') };
-  }
-
-  if ($attr->{DEBTS_DAYS}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{DEBTS_DAYS}, 'INT', 'prosrochennyh_dney') };
-  }
-
-  if (defined($attr->{STATUS}) && $attr->{STATUS} ne '') {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{STATUS}, 'INT', 'status') };
-  }
-
-  if ($attr->{FORUM}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{FORUM}, 'STR', 'forum_activity') };
-  }
-
-  if ($attr->{BONUS}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{BONUS}, 'STR', 'bonus') };
-  }
-
-  if ($attr->{DISABLE_DATE}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{DISABLE_DATE}, 'INT', 'disable_date') };
-  }
-
-  if ($attr->{DISABLE_REASON}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{DISABLE_REASON}, 'STR', 'disable_comments') };
-  }
-
-  if ($attr->{UID}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{DISABLE_DATE}, 'INT', 'uid') };
-  }
-
   my $CHARSET = "CHARACTER SET '$CONF->{dbcharset}'" if ($CONF->{dbcharset});
-  my $WHERE = ($#WHERE_RULES > -1) ? ' WHERE ' . join(' and ', @WHERE_RULES) : '';
 
-  $self->query(
-    $db, "
+  my $WHERE =  $self->search_former($attr, [
+     ['STATUS',             'INT', 'status'              ],
+     ['FORUM',              'STR', 'forum_activity'      ],
+     ['BONUS',              'STR', 'bonus'               ],
+     ['DISABLE_DATE',       'INT', 'disable_date'        ],
+     ['DISABLE_REASON',     'STR', 'disable_comments'    ],
+     ['UID',                'INT', 'uid'                 ],
+     ['REGISTRATION',       'INT', 'registration'        ],
+     ['LOCATION',           'STR', '_segment'            ],
+     ['DISTRICT',           'STR', '_district'           ],
+     ['DISTRICT_ID',        'INT', 'address_district_id' ],
+     ['ADDRESS_STREET',     'STR', 'address_street'      ],
+     ['ADDRESS_STREET_ID',  'INT', 'address_street_id'   ],
+     ['ADDRESS_BUILD',      'STR', 'address_build'       ],
+     ['ENTRANCE',           'STR', '_entrance'           ],
+     ['FLOR',               'INT', '_flor'               ],
+     ['ADDRESS_FLAT',       'INT', 'address_flat'        ],
+     ['TP_ID',              'INT', 'tp_id'               ],
+     ['PRE_TP_ID',          'INT', 'last_tp_id'          ],
+     ['TARIF_PLAN_CHANGED', 'INT', 'last_tp_changed'     ],
+     ['CREDIT',             'INT', 'credit'              ],
+     ['DEPOSIT',            'INT', 'deposit'             ],
+     ['LAST_PAYMENT_DATE',  'INT', 'last_payment_date'   ],
+     ['LAST_PAYMENT_METHOD','INT', 'last_payment_method' ],
+     ['LAST_PAYMENT_SUM',   'INT', 'last_payment_sum'    ],
+     ['PAYMENT_TO_DATE',    'INT', 'to_payments_date'    ],
+     ['DEBTS_DAYS',         'INT', 'prosrochennyh_dney'  ]
+    ],
+    { WHERE       => 1,
+    }    
+    );
+
+
+  $self->query2("
 CREATE TEMPORARY TABLE IF NOT EXISTS marketing_report_2
 (
 login varchar(40) not null default '',
@@ -529,8 +464,7 @@ uid int unsigned not null default 0
 ) $CHARSET ;", 'do'
   );
 
-  $self->query(
-    $db, "
+  $self->query2("
 insert into marketing_report_2
 
 SELECT 
@@ -590,8 +524,7 @@ WHERE u.domain_id='$admin->{DOMAIN_ID}'
 GROUP BY u.uid", 'do'
   );
 
-  $self->query(
-    $db, "SELECT login,
+  $self->query2("SELECT login,
 fio,
 registration,
 aid,  
@@ -627,7 +560,7 @@ from marketing_report_2
 $WHERE 
     ORDER BY $SORT $DESC 
     LIMIT $PG, $PAGE_ROWS;
- ;"
+ ;", undef, $attr
   );
 
   return $self if ($self->{errno});
@@ -635,11 +568,9 @@ $WHERE
   my $list = $self->{list};
 
   if ($self->{TOTAL} >= 0) {
-    $self->query(
-      $db, "SELECT count(*) FROM marketing_report_2
-    $WHERE;"
+    $self->query2("SELECT count(*) AS total FROM marketing_report_2
+    $WHERE;", undef, { INFO => 1 }
     );
-    ($self->{TOTAL}) = @{ $self->{list}->[0] };
   }
 
   return $list;
@@ -658,19 +589,14 @@ sub triplay_stats {
   $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  $self->{SEARCH_FIELDS}       = '';
-  $self->{SEARCH_FIELDS_COUNT} = 0;
+  my $WHERE =  $self->search_former($attr, [
+     ['LOCATION_ID', 'INT', 'pi.location_id' ]
+    ],
+    { WHERE       => 1,
+    }    
+    );
 
-  @WHERE_RULES = ();
-
-  if ($attr->{LOCATION_ID}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{LOCATION_ID}, 'INT', 'pi.location_id') };
-  }
-
-  my $WHERE = ($#WHERE_RULES > -1) ? 'WHERE ' . join(' and ', @WHERE_RULES) : '';
-
-  $self->query(
-    $db, "SELECT CONCAT(s.name, ', ', b.number), pi.address_flat,  u.id,
+  $self->query2("SELECT CONCAT(s.name, ', ', b.number), pi.address_flat,  u.id,
    
    dv_tp.name,
    voip_tp.name,
@@ -694,7 +620,9 @@ sub triplay_stats {
 $WHERE  
    GROUP BY pi.uid
    ORDER BY $SORT $DESC 
-   LIMIT $PG, $PAGE_ROWS;"
+   LIMIT $PG, $PAGE_ROWS;",
+   undef,
+   $attr
   );
 
   return $self if ($self->{errno});
@@ -702,15 +630,97 @@ $WHERE
   my $list = $self->{list};
 
   if ($self->{TOTAL} >= 0) {
-    $self->query(
-      $db, "SELECT count(DISTINCT pi.uid) 
+    $self->query2("SELECT count(DISTINCT pi.uid)  AS total
       FROM streets s
   LEFT JOIN builds b ON (s.id=b.street_id)
   LEFT JOIN users_pi pi ON (b.id=pi.location_id)
-    $WHERE;"
+    $WHERE;",
+    undef, { INFO => 1 }
     );
-    ($self->{TOTAL}) = @{ $self->{list}->[0] };
+
   }
+
+  return $list;
+}
+
+#**********************************************************
+#
+#**********************************************************
+sub dhcp_full_list {
+  my $self   = shift;
+  my ($attr) = @_;
+  my @list   = ();
+
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  my $WHERE =  $self->search_former($attr, [
+     ['TP_ID',    'INT', 'dv.tp_id' ],
+     ['NAS_ID',   'INT', 'dhcp.nas' ]
+    ],
+    { WHERE       => 1,
+    	USERS_FILES => 1
+    }    
+    );
+
+  
+
+
+  $self->query2("SELECT u.id AS login, 
+    g.name AS group_name, 
+    u.registration, 
+if(company.id IS NULL, b.deposit, cb.deposit) AS deposit,
+tp.name AS tp_name,
+INET_NTOA(dhcp.ip) AS ip,
+n.name AS nas_name,
+dhcp.ports,
+pi.fio,
+CONCAT(pi.address_street, ' ', pi.address_build, ',', pi.address_flat) AS address_full,
+pi.phone,
+dhcp.nas AS nas_id,
+u.uid
+FROM dhcphosts_hosts dhcp
+INNER JOIN users u ON (u.uid=dhcp.uid)
+  LEFT JOIN bills b ON (u.bill_id = b.id)
+  LEFT JOIN companies company ON  (u.company_id=company.id) 
+  LEFT JOIN bills cb ON  (company.bill_id=cb.id)
+
+  LEFT JOIN users_pi pi ON (pi.uid=u.uid)
+  LEFT JOIN dv_main dv ON (dv.uid=u.uid)
+  LEFT JOIN tarif_plans tp ON (tp.id=dv.tp_id)
+  LEFT JOIN nas n ON (dhcp.nas=n.id)
+  LEFT JOIN groups g ON (g.gid=u.gid)
+$WHERE
+GROUP BY dhcp.id
+   ORDER BY $SORT $DESC 
+   LIMIT $PG, $PAGE_ROWS;",
+   undef,
+   $attr
+  );
+
+  return $self if ($self->{errno});
+  my $list = $self->{list};
+
+
+$self->query($db, "SELECT count(*) AS total_users FROM dhcphosts_hosts dhcp
+INNER JOIN users u ON (u.uid=dhcp.uid)
+  LEFT JOIN bills b ON (u.bill_id = b.id)
+  LEFT JOIN companies company ON  (u.company_id=company.id) 
+  LEFT JOIN bills cb ON  (company.bill_id=cb.id)
+
+  LEFT JOIN users_pi pi ON (pi.uid=u.uid)
+  LEFT JOIN dv_main dv ON (dv.uid=u.uid)
+  LEFT JOIN tarif_plans tp ON (tp.id=dv.tp_id)
+  LEFT JOIN nas n ON (dhcp.nas=n.id)
+  LEFT JOIN groups g ON (g.gid=u.gid)
+$WHERE
+;",
+   undef,
+   { INFO => 1 }
+  );
+
 
   return $list;
 }

@@ -344,218 +344,218 @@ eval("use integer;") if (int($]) > 4);
 );
 
 sub des_set_key
-	{
-	local($param)=@_;
-	local(@key);
-	local($c,$d,$i,$s,$t);
-	local(@ks)=();
+  {
+  local($param)=@_;
+  local(@key);
+  local($c,$d,$i,$s,$t);
+  local(@ks)=();
 
-	# Get the bytes in the order we want.
-	@key=unpack("C8",$param);
+  # Get the bytes in the order we want.
+  @key=unpack("C8",$param);
 
-	$c=	($key[0]    )|
-		($key[1]<< 8)|
-		($key[2]<<16)|
-		($key[3]<<24);
-	$d=	($key[4]    )|
-		($key[5]<< 8)|
-		($key[6]<<16)|
-		($key[7]<<24);
+  $c=  ($key[0]    )|
+    ($key[1]<< 8)|
+    ($key[2]<<16)|
+    ($key[3]<<24);
+  $d=  ($key[4]    )|
+    ($key[5]<< 8)|
+    ($key[6]<<16)|
+    ($key[7]<<24);
 
-	&doPC1(*c,*d);
+  &doPC1(*c,*d);
 
-	for $i (@shifts2)
-		{
-		if ($i)
-			{
-			$c=($c>>2)|($c<<26);
-			$d=($d>>2)|($d<<26);
-			}
-		else
-			{
-			$c=($c>>1)|($c<<27);
-			$d=($d>>1)|($d<<27);
-			}
-		$c&=0x0fffffff;
-		$d&=0x0fffffff;
-		$s=	$skb0[ ($c    )&0x3f                 ]|
-			$skb1[(($c>> 6)&0x03)|(($c>> 7)&0x3c)]|
-			$skb2[(($c>>13)&0x0f)|(($c>>14)&0x30)]|
-			$skb3[(($c>>20)&0x01)|(($c>>21)&0x06) |
-					     (($c>>22)&0x38)];
-		$t=     $skb4[ ($d    )&0x3f                ]|
-			$skb5[(($d>> 7)&0x03)|(($d>> 8)&0x3c)]|
-			$skb6[ ($d>>15)&0x3f                 ]|
-			$skb7[(($d>>21)&0x0f)|(($d>>22)&0x30)];
-		push(@ks,(($t<<16)|($s&0x0000ffff))&0xffffffff);
-		$s=      (($s>>16)&0x0000ffff)|($t&0xffff0000) ;
-		push(@ks,(($s<<4)|(($s>>28)&0xf))&0xffffffff);
-		}
-	@ks;
-	}
+  for $i (@shifts2)
+    {
+    if ($i)
+      {
+      $c=($c>>2)|($c<<26);
+      $d=($d>>2)|($d<<26);
+      }
+    else
+      {
+      $c=($c>>1)|($c<<27);
+      $d=($d>>1)|($d<<27);
+      }
+    $c&=0x0fffffff;
+    $d&=0x0fffffff;
+    $s=  $skb0[ ($c    )&0x3f                 ]|
+      $skb1[(($c>> 6)&0x03)|(($c>> 7)&0x3c)]|
+      $skb2[(($c>>13)&0x0f)|(($c>>14)&0x30)]|
+      $skb3[(($c>>20)&0x01)|(($c>>21)&0x06) |
+               (($c>>22)&0x38)];
+    $t=     $skb4[ ($d    )&0x3f                ]|
+      $skb5[(($d>> 7)&0x03)|(($d>> 8)&0x3c)]|
+      $skb6[ ($d>>15)&0x3f                 ]|
+      $skb7[(($d>>21)&0x0f)|(($d>>22)&0x30)];
+    push(@ks,(($t<<16)|($s&0x0000ffff))&0xffffffff);
+    $s=      (($s>>16)&0x0000ffff)|($t&0xffff0000) ;
+    push(@ks,(($s<<4)|(($s>>28)&0xf))&0xffffffff);
+    }
+  @ks;
+  }
 
 sub doPC1
-	{
-	local(*a,*b)=@_;
-	local($t);
+  {
+  local(*a,*b)=@_;
+  local($t);
 
-	$t=(($b>>4)^$a)&0x0f0f0f0f;
-	$b^=($t<<4); $a^=$t;
-	# do $a first 
-	$t=(($a<<18)^$a)&0xcccc0000;
-	$a=$a^$t^(($t>>18)&0x00003fff);
-	$t=(($a<<17)^$a)&0xaaaa0000;
-	$a=$a^$t^(($t>>17)&0x00007fff);
-	$t=(($a<< 8)^$a)&0x00ff0000;
-	$a=$a^$t^(($t>> 8)&0x00ffffff);
-	$t=(($a<<17)^$a)&0xaaaa0000;
-	$a=$a^$t^(($t>>17)&0x00007fff);
+  $t=(($b>>4)^$a)&0x0f0f0f0f;
+  $b^=($t<<4); $a^=$t;
+  # do $a first 
+  $t=(($a<<18)^$a)&0xcccc0000;
+  $a=$a^$t^(($t>>18)&0x00003fff);
+  $t=(($a<<17)^$a)&0xaaaa0000;
+  $a=$a^$t^(($t>>17)&0x00007fff);
+  $t=(($a<< 8)^$a)&0x00ff0000;
+  $a=$a^$t^(($t>> 8)&0x00ffffff);
+  $t=(($a<<17)^$a)&0xaaaa0000;
+  $a=$a^$t^(($t>>17)&0x00007fff);
 
-	# now do $b
-	$t=(($b<<24)^$b)&0xff000000;
-	$b=$b^$t^(($t>>24)&0x000000ff);
-	$t=(($b<< 8)^$b)&0x00ff0000;
-	$b=$b^$t^(($t>> 8)&0x00ffffff);
-	$t=(($b<<14)^$b)&0x33330000;
-	$b=$b^$t^(($t>>14)&0x0003ffff);
-	$b=(($b&0x00aa00aa)<<7)|(($b&0x55005500)>>7)|($b&0xaa55aa55);
-	$b=(($b>>8)&0x00ffffff)|((($a&0xf0000000)>>4)&0x0fffffff);
-	$a&=0x0fffffff;
-	}
+  # now do $b
+  $t=(($b<<24)^$b)&0xff000000;
+  $b=$b^$t^(($t>>24)&0x000000ff);
+  $t=(($b<< 8)^$b)&0x00ff0000;
+  $b=$b^$t^(($t>> 8)&0x00ffffff);
+  $t=(($b<<14)^$b)&0x33330000;
+  $b=$b^$t^(($t>>14)&0x0003ffff);
+  $b=(($b&0x00aa00aa)<<7)|(($b&0x55005500)>>7)|($b&0xaa55aa55);
+  $b=(($b>>8)&0x00ffffff)|((($a&0xf0000000)>>4)&0x0fffffff);
+  $a&=0x0fffffff;
+  }
 
 sub doIP
-	{
-	local(*a,*b)=@_;
-	local($t);
+  {
+  local(*a,*b)=@_;
+  local($t);
 
-	$t=(($b>> 4)^$a)&0x0f0f0f0f;
-	$b^=($t<< 4); $a^=$t;
-	$t=(($a>>16)^$b)&0x0000ffff;
-	$a^=($t<<16); $b^=$t;
-	$t=(($b>> 2)^$a)&0x33333333;
-	$b^=($t<< 2); $a^=$t;
-	$t=(($a>> 8)^$b)&0x00ff00ff;
-	$a^=($t<< 8); $b^=$t;
-	$t=(($b>> 1)^$a)&0x55555555;
-	$b^=($t<< 1); $a^=$t;
-	$t=$a;
-	$a=$b&0xffffffff;
-	$b=$t&0xffffffff;
-	}
+  $t=(($b>> 4)^$a)&0x0f0f0f0f;
+  $b^=($t<< 4); $a^=$t;
+  $t=(($a>>16)^$b)&0x0000ffff;
+  $a^=($t<<16); $b^=$t;
+  $t=(($b>> 2)^$a)&0x33333333;
+  $b^=($t<< 2); $a^=$t;
+  $t=(($a>> 8)^$b)&0x00ff00ff;
+  $a^=($t<< 8); $b^=$t;
+  $t=(($b>> 1)^$a)&0x55555555;
+  $b^=($t<< 1); $a^=$t;
+  $t=$a;
+  $a=$b&0xffffffff;
+  $b=$t&0xffffffff;
+  }
 
 sub doFP
-	{
-	local(*a,*b)=@_;
-	local($t);
+  {
+  local(*a,*b)=@_;
+  local($t);
 
-	$t=(($b>> 1)^$a)&0x55555555;
-	$b^=($t<< 1); $a^=$t;
-	$t=(($a>> 8)^$b)&0x00ff00ff;
-	$a^=($t<< 8); $b^=$t;
-	$t=(($b>> 2)^$a)&0x33333333;
-	$b^=($t<< 2); $a^=$t;
-	$t=(($a>>16)^$b)&0x0000ffff;
-	$a^=($t<<16); $b^=$t;
-	$t=(($b>> 4)^$a)&0x0f0f0f0f;
-	$b^=($t<< 4); $a^=$t;
-	$a&=0xffffffff;
-	$b&=0xffffffff;
-	}
+  $t=(($b>> 1)^$a)&0x55555555;
+  $b^=($t<< 1); $a^=$t;
+  $t=(($a>> 8)^$b)&0x00ff00ff;
+  $a^=($t<< 8); $b^=$t;
+  $t=(($b>> 2)^$a)&0x33333333;
+  $b^=($t<< 2); $a^=$t;
+  $t=(($a>>16)^$b)&0x0000ffff;
+  $a^=($t<<16); $b^=$t;
+  $t=(($b>> 4)^$a)&0x0f0f0f0f;
+  $b^=($t<< 4); $a^=$t;
+  $a&=0xffffffff;
+  $b&=0xffffffff;
+  }
 
 sub des_ecb_encrypt
-	{
-	local($ks,$encrypt,$in)=@_;
-	local($l,$r,$i,$t,$u,@input);
-	
-	@input=unpack("C8",$in);
-	# Get the bytes in the order we want.
-	$l=	($input[0]    )|
-		($input[1]<< 8)|
-		($input[2]<<16)|
-		($input[3]<<24);
-	$r=	($input[4]    )|
-		($input[5]<< 8)|
-		($input[6]<<16)|
-		($input[7]<<24);
+  {
+  local($ks,$encrypt,$in)=@_;
+  local($l,$r,$i,$t,$u,@input);
+  
+  @input=unpack("C8",$in);
+  # Get the bytes in the order we want.
+  $l=  ($input[0]    )|
+    ($input[1]<< 8)|
+    ($input[2]<<16)|
+    ($input[3]<<24);
+  $r=  ($input[4]    )|
+    ($input[5]<< 8)|
+    ($input[6]<<16)|
+    ($input[7]<<24);
 
-	$l&=0xffffffff;
-	$r&=0xffffffff;
-	&doIP(*l,*r);
-	if ($encrypt)
-		{
-		for ($i=0; $i<32; $i+=4)
-			{
-			$t=((($r&0x7fffffff)<<1)|(($r>>31)&0x00000001));
-			$u=$t^$$ks[$i  ];
-			$t=$t^$$ks[$i+1];
-			$t2=(($t&0x0000000f)<<28);
+  $l&=0xffffffff;
+  $r&=0xffffffff;
+  &doIP(*l,*r);
+  if ($encrypt)
+    {
+    for ($i=0; $i<32; $i+=4)
+      {
+      $t=((($r&0x7fffffff)<<1)|(($r>>31)&0x00000001));
+      $u=$t^$$ks[$i  ];
+      $t=$t^$$ks[$i+1];
+      $t2=(($t&0x0000000f)<<28);
 
-			$t=((($t>>4)&0x0fffffff)|(($t&0x0000000f)<<28));
-			$l^=	$SP1[ $t     &0x3f]|
-				$SP3[($t>> 8)&0x3f]|
-				$SP5[($t>>16)&0x3f]|
-				$SP7[($t>>24)&0x3f]|
-				$SP0[ $u     &0x3f]|
-				$SP2[($u>> 8)&0x3f]|
-				$SP4[($u>>16)&0x3f]|
-				$SP6[($u>>24)&0x3f];
+      $t=((($t>>4)&0x0fffffff)|(($t&0x0000000f)<<28));
+      $l^=  $SP1[ $t     &0x3f]|
+        $SP3[($t>> 8)&0x3f]|
+        $SP5[($t>>16)&0x3f]|
+        $SP7[($t>>24)&0x3f]|
+        $SP0[ $u     &0x3f]|
+        $SP2[($u>> 8)&0x3f]|
+        $SP4[($u>>16)&0x3f]|
+        $SP6[($u>>24)&0x3f];
 
-			$t=(($l<<1)|(($l>>31)&0x1))&0xffffffff;
-			$u=$t^$$ks[$i+2];
-			$t=$t^$$ks[$i+3];
-			$t=((($t>>4)&0x0fffffff)|($t<<28))&0xffffffff;
-			$r^=	$SP1[ $t     &0x3f]|
-				$SP3[($t>> 8)&0x3f]|
-				$SP5[($t>>16)&0x3f]|
-				$SP7[($t>>24)&0x3f]|
-				$SP0[ $u     &0x3f]|
-				$SP2[($u>> 8)&0x3f]|
-				$SP4[($u>>16)&0x3f]|
-				$SP6[($u>>24)&0x3f];
-			}
-		}
-	else	
-		{
-		for ($i=30; $i>0; $i-=4)
-			{
-			$t=(($r<<1)|(($r>>31)&0x1))&0xffffffff;
-			$u=$t^$$ks[$i  ];
-			$t=$t^$$ks[$i+1];
-			$t=((($t>>4)&0x0fffffff)|($t<<28))&0xffffffff;
-			$l^=	$SP1[ $t     &0x3f]|
-				$SP3[($t>> 8)&0x3f]|
-				$SP5[($t>>16)&0x3f]|
-				$SP7[($t>>24)&0x3f]|
-				$SP0[ $u     &0x3f]|
-				$SP2[($u>> 8)&0x3f]|
-				$SP4[($u>>16)&0x3f]|
-				$SP6[($u>>24)&0x3f];
+      $t=(($l<<1)|(($l>>31)&0x1))&0xffffffff;
+      $u=$t^$$ks[$i+2];
+      $t=$t^$$ks[$i+3];
+      $t=((($t>>4)&0x0fffffff)|($t<<28))&0xffffffff;
+      $r^=  $SP1[ $t     &0x3f]|
+        $SP3[($t>> 8)&0x3f]|
+        $SP5[($t>>16)&0x3f]|
+        $SP7[($t>>24)&0x3f]|
+        $SP0[ $u     &0x3f]|
+        $SP2[($u>> 8)&0x3f]|
+        $SP4[($u>>16)&0x3f]|
+        $SP6[($u>>24)&0x3f];
+      }
+    }
+  else  
+    {
+    for ($i=30; $i>0; $i-=4)
+      {
+      $t=(($r<<1)|(($r>>31)&0x1))&0xffffffff;
+      $u=$t^$$ks[$i  ];
+      $t=$t^$$ks[$i+1];
+      $t=((($t>>4)&0x0fffffff)|($t<<28))&0xffffffff;
+      $l^=  $SP1[ $t     &0x3f]|
+        $SP3[($t>> 8)&0x3f]|
+        $SP5[($t>>16)&0x3f]|
+        $SP7[($t>>24)&0x3f]|
+        $SP0[ $u     &0x3f]|
+        $SP2[($u>> 8)&0x3f]|
+        $SP4[($u>>16)&0x3f]|
+        $SP6[($u>>24)&0x3f];
 
-			$t=(($l<<1)|(($l>>31)&0x1))&0xffffffff;
-			$u=$t^$$ks[$i-2];
-			$t=$t^$$ks[$i-1];
-			$t=((($t>>4)&0x0fffffff)|($t<<28))&0xffffffff;
-			$r^=	$SP1[ $t     &0x3f]|
-				$SP3[($t>> 8)&0x3f]|
-				$SP5[($t>>16)&0x3f]|
-				$SP7[($t>>24)&0x3f]|
-				$SP0[ $u     &0x3f]|
-				$SP2[($u>> 8)&0x3f]|
-				$SP4[($u>>16)&0x3f]|
-				$SP6[($u>>24)&0x3f];
-			}
-		}
-	&doFP(*l,*r);
+      $t=(($l<<1)|(($l>>31)&0x1))&0xffffffff;
+      $u=$t^$$ks[$i-2];
+      $t=$t^$$ks[$i-1];
+      $t=((($t>>4)&0x0fffffff)|($t<<28))&0xffffffff;
+      $r^=  $SP1[ $t     &0x3f]|
+        $SP3[($t>> 8)&0x3f]|
+        $SP5[($t>>16)&0x3f]|
+        $SP7[($t>>24)&0x3f]|
+        $SP0[ $u     &0x3f]|
+        $SP2[($u>> 8)&0x3f]|
+        $SP4[($u>>16)&0x3f]|
+        $SP6[($u>>24)&0x3f];
+      }
+    }
+  &doFP(*l,*r);
 
-	pack("C8",$l&0xff, 
-	          (($l>> 8)&0x00ffffff) & 0xff,
-	          (($l>>16)&0x0000ffff) & 0xff,
-		  ($l>>24)&0x000000ff,
-		  $r&0xff,
-	          (($r>> 8)&0x00ffffff) & 0xff,
-	          (($r>>16)&0x0000ffff) & 0xff,
-		  ($r>>24)&0x000000ff);
-	}
+  pack("C8",$l&0xff, 
+            (($l>> 8)&0x00ffffff) & 0xff,
+            (($l>>16)&0x0000ffff) & 0xff,
+      ($l>>24)&0x000000ff,
+      $r&0xff,
+            (($r>> 8)&0x00ffffff) & 0xff,
+            (($r>>16)&0x0000ffff) & 0xff,
+      ($r>>24)&0x000000ff);
+  }
 
 
 1;

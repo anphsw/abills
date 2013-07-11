@@ -2,7 +2,7 @@
 <input type='hidden' name='index' value='$index'>
 <input type='hidden' name='NAS_ID' value='$FORM{NAS_ID}'>
 <input type='hidden' name='change' value='1'>
-<table>
+<table class=form>
 <tr><td>SNMP Host:</td><td><input type='text' name='SNMP_HOST' value='%SNMP_HOST%'></td></tr>
 <tr><td>SNMP Community:</td><td><input type='text' name='SNMP_COMMUNITY' value='%SNMP_COMMUNITY%'></td></tr>
 
@@ -11,6 +11,7 @@
 <tr><td>VALUE:</td><td><input type='text' name='SNMP_VALUE' value='%SNMP_VALUE%'></td></tr>
 
 <tr><td>$_TYPE:</td><td>%SNMP_TYPE_SEL%</td></tr>
+<tr><th class=even colspan=2><input type='submit' name='change' value='$_GET'> <input type='submit' name='set' value='$_SET'></th></tr>
 </table>
-<input type='submit' name='change' value='$_GET'> <input type='submit' name='set' value='$_SET'>
+
 </FORM>

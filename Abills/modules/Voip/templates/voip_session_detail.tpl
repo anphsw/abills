@@ -1,8 +1,4 @@
-<div class='noprint'>
-<br>
-<TABLE width=600 cellspacing=0 cellpadding=0 border=0>
- <TR><TD bgcolor=#E1E1E1>
-<TABLE width=100% cellspacing=1 cellpadding=0 border=0>
+<TABLE width=500 class=form>
 <tr class='add'><td>$_SESSION_ID:</td><td>%SESSION_ID%</td></tr>
 <tr class='add'><td>$_BEGIN:</td><td align=right>%START%</td></tr>
 <tr class='add'><td>$_END:</td><td align=right>%STOP%</td></tr>
@@ -21,9 +17,4 @@
 
 <tr class='add'><td>$_ROUTE:</td><td>%ROUTE_ID%</td></tr>
 <tr class='add'><td>ACCT_TERMINATE_CAUSE:</td><td>%ACCT_TERMINATE_CAUSE%</td></tr>
-
-
 </td></tr></table>
-</table>
-<br>
-</div>

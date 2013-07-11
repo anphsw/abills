@@ -1,6 +1,6 @@
 <form method='POST' action='$SELF_URL'>
 <input type='hidden' name='index' value='$index'>
-<input type='hidden' name='sid' value='$FORM{sid}'>
+<input type='hidden' name='sid' value='$sid'>
 
 <input type='hidden' name='OPERATION_ID' value='%OPERATION_ID%'>
 <table width=300 class=form>

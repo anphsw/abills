@@ -9,6 +9,7 @@ CREATE TABLE `iptv_main` (
   `pin` BLOB NOT NULL,
   `vod` tinyint(1) unsigned NOT NULL default '0',
   `dvcrypt_id` int(10) unsigned NOT NULL DEFAULT '0',
+  `expire` date NOT NULL default '0000-00-00',
   PRIMARY KEY  (`uid`),
   KEY `tp_id` (`tp_id`)
 ) COMMENT='IPTV users settings';
@@ -61,3 +62,26 @@ CREATE TABLE `iptv_users_channels` (
 )
 COMMENT='Iptv users channels';
 
+
+CREATE TABLE `iptv_calls` (
+  `status` int(3) NOT NULL default '0',
+  `started` datetime NOT NULL default '0000-00-00 00:00:00',
+  `nas_ip_address` int(11) unsigned NOT NULL default '0',
+  `nas_port_id` int(6) unsigned NOT NULL default '0',
+  `acct_session_id` varchar(25) NOT NULL default '',
+  `acct_session_time` int(11) unsigned NOT NULL default '0',
+  `connect_term_reason` int(4) unsigned NOT NULL default '0',
+  `framed_ip_address` int(11) unsigned NOT NULL default '0',
+  `lupdated` int(11) unsigned NOT NULL default '0',
+  `sum` double(14,6) NOT NULL default '0.000000',
+  `CID` varchar(18) NOT NULL default '',
+  `CONNECT_INFO` varchar(35) NOT NULL default '',
+  `tp_id` smallint(5) unsigned NOT NULL default '0',
+  `nas_id` smallint(6) unsigned NOT NULL default '0',
+  `uid` int(11) unsigned NOT NULL default '0',
+  `join_service` int(11) unsigned NOT NULL default '0',
+  `turbo_mode` varchar(30) NOT NULL default '',
+  `guest` tinyint(1) unsigned NOT NULL default '0',
+  KEY `acct_session_id` (`acct_session_id`),
+  KEY `uid` (`uid`)
+) COMMENT "Iptv online";

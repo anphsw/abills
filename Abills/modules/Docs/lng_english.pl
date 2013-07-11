@@ -1,7 +1,7 @@
 $_ORG_NAME  ='Customer name';
 $_WRONG_SUM ='Small sum';
 @MONTHES_LIT=('січня', 'лютого', 'березня', 'квітня', 'травня', 'червня', 'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня');
-$_YEAR='y.';
+$_YEAR_SHORT='y.';
 @units = ('unit');
 
 $ERR_NO_ORDERS='No orders';
@@ -44,3 +44,4 @@ $_CURRENCY='Currency';
 $_LAST_INVOICE_DATE='Last Invoice date';
 $_NEXT_INVOICE_DATE='Next Invoice Date';
 $_INCLUDE_DEPOSIT='Include current balance';
+$_APPLY_TO_INVOICE='Auto apply to invoice';

@@ -48,7 +48,6 @@ sub hangup {
   }
   elsif ($nas_type eq 'mikrotik') {
     hangup_radius($NAS, $PORT, $USER, $attr);
-
     #hangup_mikrotik_telnet($NAS, $PORT, $USER);
   }
   elsif ($nas_type eq 'chillispot') {
@@ -103,9 +102,14 @@ sub hangup {
     hangup_radius($NAS, $PORT, "", $attr);
   }
   elsif ($nas_type eq 'mx80') {
-    hangup_radius($NAS, $PORT, "$USER", $attr);
+    #if ( $attr->{'CONNECT_INFO'}  !~ /demux/) {
+    #  hangup_radius($NAS, $PORT, "$attr->{CID}", $attr);
+    #}
+    #else {
+    #  hangup_radius($NAS, $PORT, "$USER", $attr);
+    #}
     
-    hangup_radius($NAS, $PORT, "$attr->{CID}", $attr) if ($attr->{CID});
+    hangup_radius($NAS, $PORT, "$USER", { %$attr, SESSION_ID => $attr->{ACCT_SESSION_ID} });    
   }
   elsif ($nas_type eq 'lisg_cst') {
     hangup_radius($NAS, $PORT, "$attr->{FRAMED_IP_ADDRESS}", $attr);
@@ -428,7 +432,7 @@ sub hangup_radius {
     return 'ERR:';
   }
 
-  my ($ip, $mng_port) = split(/:/, $NAS->{NAS_MNG_IP_PORT}, 2);
+  my ($ip, $mng_port, $second_port) = split(/:/, $NAS->{NAS_MNG_IP_PORT}, 3);
   $Log->log_print('LOG_DEBUG', "$USER", "HANGUP: User-Name=$USER Framed-IP-Address=$attr->{FRAMED_IP_ADDRESS} NAS_MNG: $ip:$mng_port '$NAS->{NAS_MNG_PASSWORD}'", { ACTION => 'CMD', NAS => $NAS });
 
   my %RAD_PAIRS = ();
@@ -436,24 +440,53 @@ sub hangup_radius {
   my $type;
   my $r = new Radius(
     Host   => "$NAS->{NAS_MNG_IP_PORT}",
-    Secret => "$NAS->{NAS_MNG_PASSWORD}"
+    Secret => "$NAS->{NAS_MNG_PASSWORD}",
+    Debug  => $attr->{DEBUG} || 0
   ) or return "Can't connect '$NAS->{NAS_MNG_IP_PORT}' $!";
 
   $conf{'dictionary'} = $base_dir . '/Abills/dictionary' if (!$conf{'dictionary'});
 
   $r->load_dictionary($conf{'dictionary'});
 
-  $r->add_attributes({ Name => 'User-Name', Value => "$USER" }) if ($USER);
-  $r->add_attributes({ Name => 'Framed-IP-Address', Value => "$attr->{FRAMED_IP_ADDRESS}" });
-  $r->send_packet(POD_REQUEST) and $type = $r->recv_packet;
-
-  if (!defined $type) {
-
-    # No responce from POD server
-    $Log->log_print('LOG_DEBUG', "$USER", "No responce from POD server '$NAS->{NAS_MNG_IP_PORT}'", { ACTION => 'CMD' });
+  if ($attr->{SESSION_ID}) {
+    $r->add_attributes({ Name => 'Acct-Session-Id', Value => "$attr->{SESSION_ID}" }) if ($USER);
+  }
+  else {
+    $r->add_attributes({ Name => 'User-Name', Value => "$USER" }) if ($USER);
+    $r->add_attributes({ Name => 'Framed-IP-Address', Value => "$attr->{FRAMED_IP_ADDRESS}" }) if ($attr->{FRAMED_IP_ADDRESS});
+  
+    if ($attr->{RAD_PAIRS}) {
+      while(my($k, $v)=each %{ $attr->{RAD_PAIRS} }) {
+        $r->add_attributes({ Name => "$k", Value => $v });
+      }
+    }
+  }
+  
+  my $request_type = ($attr->{COA}) ? 'COA' : 'POD';
+  if ($attr->{COA}) {
+    $r->send_packet(COA_REQUEST) and $type = $r->recv_packet;
+  }
+  else {
+    $r->send_packet(POD_REQUEST) and $type = $r->recv_packet;
   }
 
-  return $result;
+  if (!defined $type) {
+    # No responce from COA/POD server
+    $Log->log_print('LOG_DEBUG', "$USER", "No responce from $request_type server '$NAS->{NAS_MNG_IP_PORT}'", { ACTION => 'CMD' });
+  }
+
+
+  for my $a ($r->get_attributes) {
+    $result .= "  $a->{'Name'} -> $a->{'Value'}\n";    
+  }
+
+  if ($attr->{DEBUG}) {
+     print "Radius Return: $type\n $result";
+  }
+
+  $r = undef;
+
+ return $result;
 }
 
 #*******************************************************************
@@ -480,9 +513,13 @@ sub hangup_ipcad {
 
   my $result = '';
   my $ip        = $attr->{FRAMED_IP_ADDRESS};
-  my $netmask   = $attr->{NETMASK} || 32;
+  my $netmask   = $attr->{NETMASK} || $attr->{netmask} || 32;
   my $FILTER_ID = $attr->{FILTER_ID} || '';
-
+  
+  if ($netmask ne '32') {
+    my $ips = 4294967296 - ip2int($netmask);
+    $netmask = 32 - length(sprintf("%b", $ips)) + 1;
+  }
 
   require Ipn;
   Ipn->import();
@@ -490,7 +527,7 @@ sub hangup_ipcad {
 
   $Ipn->acct_stop({ %$attr, SESSION_ID => $attr->{ACCT_SESSION_ID} });
   if ($NAS->{NAS_TYPE} eq 'dhcp' || $nas_type eq 'dlink_pb' || $nas_type eq 'dlink' || $nas_type eq 'edge_core' ) {
-  	$Ipn->query($db, "DELETE FROM dhcphosts_leases WHERE ip=INET_ATON('$ip')", 'do');
+    $Ipn->query($db, "DELETE FROM dhcphosts_leases WHERE ip=INET_ATON('$ip')", 'do');
   }
 
   my $num = 0;
@@ -513,6 +550,10 @@ sub hangup_ipcad {
     $ENV{NAS_TYPE}        = $NAS->{NAS_TYPE};
   }
 
+  if (! $UID) {
+    $UID=$attr->{UID};
+  }
+
   if ($conf{IPN_FILTER}) {
     my $cmd = "$conf{IPN_FILTER}";
     $cmd =~ s/\%STATUS/HANGUP/g;
@@ -521,6 +562,8 @@ sub hangup_ipcad {
     $cmd =~ s/\%FILTER_ID/$FILTER_ID/g;
     $cmd =~ s/\%UID/$UID/g;
     $cmd =~ s/\%PORT/$PORT/g;
+    $cmd =~ s/\%MASK/$netmask/g;
+
     system($cmd);
     print "IPN FILTER: $cmd\n" if ($attr->{debug} && $attr->{debug} > 5);
   }
@@ -531,6 +574,7 @@ sub hangup_ipcad {
     $cmd =~ s/\%MASK/$netmask/g;
     $cmd =~ s/\%NUM/$rule_num/g;
     $cmd =~ s/\%LOGIN/$USER_NAME/g;
+    $cmd =~ s/\%MASK/$netmask/g;
 
     $Log->log_print('LOG_DEBUG', '', "$cmd", { ACTION => 'CMD' });
     if ($attr->{debug} && $attr->{debug} > 4) {
@@ -779,10 +823,16 @@ sub hangup_mpd5 {
     return "Error";
   }
 
-  if ($NAS->{NAS_MNG_USER} eq '') {
+  my ($hostname, $radius_port, $telnet_port) = ('127.0.0.1', '3799', '5005');
+
+  ($hostname, $radius_port, $telnet_port) = split(/:/, $NAS->{NAS_MNG_IP_PORT}, 3);
+
+  if (! $attr->{LOCAL_HANGUP}) {
+  	$NAS->{NAS_MNG_IP_PORT}="$hostname:$radius_port";
     return hangup_radius($NAS, $PORT, $USER, $attr);
   }
-
+  
+  $hostname='127.0.0.1';
   my $ctl_port = "L-$PORT";
   if ($attr->{ACCT_SESSION_ID}) {
     if ($attr->{ACCT_SESSION_ID} =~ /^\d+\-(.+)/) {
@@ -798,7 +848,7 @@ sub hangup_mpd5 {
     $commands[3] = "\\[\\] \tiface $attr->{IFACE}";
   }
 
-  my $result = telnet_cmd("$NAS->{NAS_MNG_IP_PORT}", \@commands, { debug => 1 });
+  my $result = telnet_cmd("$hostname:$telnet_port", \@commands, { debug => 1 });
 
   return $result;
 }

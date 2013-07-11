@@ -5,7 +5,7 @@
 <input type=hidden name=REGISTRATION_REQUEST value=1>
 
 
-<TABLE width=500 cellspacing=0 cellpadding=0 border=0>
+<TABLE width=500 cellspacing=0 cellpadding=0 border=0 class=form>
 <TR><td bgcolor=#E1E1E1>
 <TABLE width=100% cellspacing=1 cellpadding=0 border=0>
 <TR><td bgcolor=#FFFFFF>

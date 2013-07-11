@@ -65,8 +65,6 @@ require "Abills/templates.pl";
 my $Nas  = Nas->new($db, \%conf);
 my $Voip = Voip->new($db, undef, \%conf);
 
-
-
 # номер модели
 #PN =>  $FORM{PN},
 # Mac

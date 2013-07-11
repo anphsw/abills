@@ -7,5 +7,5 @@
 <tr><td>$_STATUS:</td><td>%STATUS_SEL%</td></tr>
 <tr><th colspan=2>Option 82</th></tr>
 <tr><td>$_PORT (*):</td><td><input type=text name=PORTS value='%PORTS%'></td></tr>
-<tr><td>VLAN ID:</td><td><input type=text name=VID value='%VID%'></td></tr>
+<tr><td>VLAN ID:</td><td>$_USER: <input type=text name=VID value='%VID%' size=10> Server: <input type=text name=SERVER_VID value='%SERVER_VID%' size=10> </td></tr>
 <tr><td>$_SWITCH:</td><td>%SWITCH_SEL%</td></tr>

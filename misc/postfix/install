@@ -53,6 +53,7 @@ local.cf           > [/usr/local/etc/mail/spamassassin]/local.cf
 
 :OS=FREEBSD,CLAMAV=1:exec:a=`grep vscan:*:110:clamav /etc/group` ; if [ w$a != w ]; then cp /etc/group /etc/group_back && /bin/cat /etc/group_back | /usr/bin/sed 's/vscan:\*:110:/vscan:\*:110:clamav/' > /etc/group; fi; > [/dev]/null
 
+:OS=FREEBSD:exec:/usr/local/etc/rc.d/clamav-freshclam restart
 :OS=FREEBSD:exec:/usr/local/etc/rc.d/clamav-clamd restart
 :OS=FREEBSD:exec:/usr/local/etc/rc.d/amavisd restart
 

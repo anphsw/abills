@@ -12,6 +12,7 @@ CHECK_NEG_DEPOSIT_SPEED=`grep abills_neg_deposit_speed /etc/rc.conf`
 
 if [ x${CHECK_NEG_DEPOSIT_SPEED} = x ]; then
   echo "Content-Type: text/plain";
+  echo ""
   echo "Neg deposit speed disable"
   exit;
 fi;

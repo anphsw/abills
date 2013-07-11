@@ -20,6 +20,7 @@ $PG
 $PAGE_ROWS
 $SELF_URL
 $SESSION_IP
+$CONFIG_TPL_SHOW
 @MONTHES
 );
 
@@ -81,27 +82,14 @@ sub new {
   $DESC      = ($FORM{desc}) ? 'DESC' : '';
   $PG        = $FORM{pg} || 0;
   $PAGE_ROWS = $FORM{PAGE_ROWS} || 25;
-  $self->{CHARSET} = (defined($attr->{CHARSET})) ? $attr->{CHARSET} : 'windows-1251';
+  $self->{CHARSET} = (defined($attr->{CHARSET})) ? $attr->{CHARSET} : 'utf8';
   $domain          = $ENV{SERVER_NAME};
   $web_path        = '';
   $secure          = '';
   my $prot = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
   $SELF_URL = (defined($ENV{HTTP_HOST})) ? "$prot://$ENV{HTTP_HOST}$ENV{SCRIPT_NAME}" : '';
   $SESSION_IP = $ENV{REMOTE_ADDR} || '0.0.0.0';
-
-  @_COLORS = (
-    '#FDE302',    # 0 TH
-    '#FFFFFF',    # 1 TD.1
-    '#eeeeee',    # 2 TD.2
-    '#dddddd',    # 3 TH.sum, TD.sum
-    '#E1E1E1',    # 4 border
-    '#FFFFFF',    # 5
-    '#FFFFFF',    # 6
-    '#000088',    # 7 vlink
-    '#0000A0',    # 8 Link
-    '#000000',    # 9 Text
-    '#FFFFFF',    #10 background
-  );              #border
+  $CONFIG_TPL_SHOW = $attr->{CONFIG_TPL_SHOW};
 
   %LIST_PARAMS = (
     SORT      => $SORT,
@@ -192,15 +180,14 @@ sub form_input {
 # HTML Input form
 #**********************************************************
 sub form_main {
+  my $self = shift;
   my ($attr) = @_;
+
   if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $attr->{ID}) {
     return '';
   }
 
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->{FORM} = "<FORM action=\"$SELF_URL\" METHOD=\"POST\">\n";
+  $self->{FORM} = "<FORM action=\"$SELF_URL\">\n";
 
   if (defined($attr->{HIDDEN})) {
     my $H = $attr->{HIDDEN};
@@ -209,7 +196,7 @@ sub form_main {
     }
   }
 
-  if (defined($attr->{CONTENT})) {
+  if ($attr->{CONTENT}) {
     $self->{FORM} .= $attr->{CONTENT};
   }
 
@@ -229,6 +216,24 @@ sub form_main {
 
   return $self->{FORM};
 }
+
+#*******************************************************************
+# form_input
+#*******************************************************************
+sub form_textarea {
+  my $self = shift;
+  my ($name, $value, $attr) = @_;
+
+  $self->{FORM_INPUT} = "<textarea id='$name' name='$name'>$value</textarea>";
+
+  if (defined($self->{NO_PRINT}) && (!defined($attr->{OUTPUT2RETURN}))) {
+    $self->{OUTPUT} .= $self->{FORM_INPUT};
+    $self->{FORM_INPUT} = '';
+  }
+
+  return $self->{FORM_INPUT};
+}
+
 
 #**********************************************************
 #
@@ -312,7 +317,6 @@ sub form_select {
 # setCookie($name, $value, $expiration, $path, $domain, $secure);
 #*******************************************************************
 sub setCookie {
-
   # end a set-cookie header with the word secure and the cookie will only
   # be sent through secure connections
   my $self = shift;
@@ -438,27 +442,27 @@ sub make_charts () {
 sub header {
   my $self       = shift;
   my ($attr)     = @_;
-  my $admin_name = $ENV{REMOTE_USER};
-  my $admin_ip   = $ENV{REMOTE_ADDR};
-  $self->{header} = "Content-Type: text/xml\n\n";
-  if ($COOKIES{colors} && $COOKIES{colors} ne '') {
-    @_COLORS = split(/, /, $COOKIES{colors});
+  
+  if ($FORM{DEBUG}) {
+    print "Content-Type: text/plain\n\n";
   }
 
-  my $JAVASCRIPT = ($attr->{PATH}) ? "$attr->{PATH}functions.js" : "functions.js";
-  my $css = '';    #css();
+  $self->{header} = "Content-Type: text/xml\n\n";
 
-  my $CHARSET = (defined($attr->{CHARSET})) ? $attr->{CHARSET} : $self->{CHARSET} || 'windows-1251';
+  my $JAVASCRIPT = ($attr->{PATH}) ? "$attr->{PATH}functions.js" : "functions.js";
+  my $css = '';
+
+  my $CHARSET = (defined($attr->{CHARSET})) ? $attr->{CHARSET} : $self->{CHARSET} || 'utf8';
   $CHARSET =~ s/ //g;
   $self->{header} .= qq{<?xml version="1.0"  encoding="$CHARSET" ?>};
 
   return $self->{header};
 }
 
-#********************************************************************
+#**********************************************************
 #
 # css()
-#********************************************************************
+#**********************************************************
 sub css {
   my $css = "";
   return $css;
@@ -492,8 +496,8 @@ sub table {
       $self->addrow(@$line);
     }
   }
-  $self->{ID} = $attr->{ID};
 
+  $self->{ID} = $attr->{ID};
   $self->{table} = "<TABLE";
 
   if (defined($attr->{caption})) {
@@ -540,7 +544,7 @@ sub addrow {
   $row_number++;
   $self->{rows} .= "  <ROW>";
   foreach my $val (@row) {
-    $self->{rows} .= "<TD$extra>" . $self->link_former($val, { SKIP_SPACE => 1 }) . "</TD>";
+    $self->{rows} .= "<TD>" . (($self->{SKIP_FORMER}) ? $val : $self->link_former($val, { SKIP_SPACE => 1 })) . "</TD>";
   }
 
   $self->{rows} .= "</ROW>\n";
@@ -585,10 +589,9 @@ sub td {
   my ($value, $attr) = @_;
   my $extra = '';
 
-  while (my ($k, $v) = each %$attr) {
-
-    #$extra.=" $k=\"$v\"";
-  }
+#  while (my ($k, $v) = each %$attr) {
+#    #$extra.=" $k=\"$v\"";
+#  }
 
   my $td = '';
   if ($attr->{TH}) {
@@ -642,19 +645,6 @@ sub table_title {
   my $i = 1;
   foreach my $line (@$caption) {
     $self->{table_title} .= " <COLUMN_" . $i . " NAME=\"$line\" ";
-    if ($line ne '-') {
-      if ($sort != $i) {
-      }
-      elsif ($desc eq 'DESC') {
-        $desc = '';
-        $self->{table_title} .= " SORT=\"ASC\"";
-      }
-      elsif ($sort > 0) {
-        $self->{table_title} .= " SORT=\"DESC\"";
-        $desc = 'DESC';
-      }
-    }
-
     $self->{table_title} .= "/>\n";
     $i++;
   }
@@ -672,7 +662,8 @@ sub img {
   my ($img, $name, $attr) = @_;
 
   my $img_path = ($img =~ s/^://) ? "$IMG_PATH/" : '';
-  return "<img alt='$name' src='$img_path$img' border='0'>";
+  $img =~ s/\&/\&amp;/g;
+  return "<img alt='$name' src='$img_path$img'/>";
 }
 
 #**********************************************************
@@ -698,8 +689,6 @@ sub show {
 
   if ((defined($self->{NO_PRINT})) && (!defined($attr->{OUTPUT2RETURN}))) {
     $self->{prototype}->{OUTPUT} .= $self->{show};
-
-    #$self->{OUTPUT} .= $self->{show};
     $self->{show} = '';
   }
 
@@ -729,18 +718,13 @@ sub link_former {
 sub button {
   my $self = shift;
   my ($name, $params, $attr) = @_;
-  my $ex_params = (defined($attr->{ex_params})) ? $attr->{ex_params} : '';
   my $ex_attr = '';
 
   $params = ($attr->{GLOBAL_URL}) ? $attr->{GLOBAL_URL} : "$params";
-
-  $params = $attr->{JAVASCRIPT} if (defined($attr->{JAVASCRIPT}));
   $params = $self->link_former($params);
 
   $ex_attr = " TITLE='$attr->{TITLE}'" if (defined($attr->{TITLE}));
-  my $message = (defined($attr->{MESSAGE})) ? "onclick=\"return confirmLink(this, '$attr->{MESSAGE}')\"" : '';
-
-  my $button = "<BUTTON VALUE=\"$params\" $ex_attr>$name</BUTTON>";
+  my $button = "<BUTTON VALUE=\"$params\"$ex_attr>$name</BUTTON>";
 
   return $button;
 }
@@ -762,7 +746,6 @@ sub message {
   else {
     print $output;
   }
-
 }
 
 #*******************************************************************
@@ -795,52 +778,6 @@ sub pages {
 # Make data field
 # date_fld($base_name)
 #*******************************************************************
-sub date_fld {
-  my $self = shift;
-  my ($base_name, $attr) = @_;
-
-  my $MONTHES = $attr->{MONTHES};
-
-  my ($sec, $min, $hour, $mday, $mon, $curyear, $wday, $yday, $isdst) = localtime(time);
-
-  my $day   = $FORM{ $base_name . 'D' } || 1;
-  my $month = $FORM{ $base_name . 'M' } || $mon;
-  my $year  = $FORM{ $base_name . 'Y' } || $curyear + 1900;
-
-  my $result = "<SELECT name=\"" . $base_name . "D\">";
-  for (my $i = 1 ; $i <= 31 ; $i++) {
-    $result .= sprintf("<option value=\"%.2d\"", $i);
-    $result .= ' selected="1"' if ($day == $i);
-    $result .= ">$i</option>\n";
-  }
-  $result .= '</SELECT>';
-  $result .= "<SELECT name=\"" . $base_name . "M\">";
-
-  my $i = 0;
-  foreach my $line (@$MONTHES) {
-    $result .= sprintf("<option value=\"%.2d\"", $i);
-    $result .= ' selected="1"' if ($month == $i);
-    $result .= ">$line</option>\n";
-    $i++;
-  }
-
-  $result .= '</SELECT>';
-
-  $result .= "<SELECT name=\"" . $base_name . "Y\">";
-  for ($i = 2001 ; $i <= $curyear + 1900 ; $i++) {
-    $result .= "<option value=\"$i\"";
-    $result .= ' selected="1"' if ($year eq $i);
-    $result .= ">$i</option>\n";
-  }
-  $result .= '</SELECT>';
-
-  return $result;
-}
-
-#*******************************************************************
-# Make data field
-# date_fld($base_name)
-#*******************************************************************
 sub date_fld2 {
   my $self = shift;
   my ($base_name, $attr) = @_;
@@ -849,37 +786,31 @@ sub date_fld2 {
 
   my ($sec, $min, $hour, $mday, $mon, $curyear, $wday, $yday, $isdst) = localtime(time);
 
-  my $day   = $FORM{ $base_name . 'D' } || 1;
-  my $month = $FORM{ $base_name . 'M' } || $mon;
+  my $day   = sprintf("%.2d", $FORM{ $base_name . 'D' } || 1);
+  my $month = sprintf("%.2d", $FORM{ $base_name . 'M' } || $mon);
   my $year  = $FORM{ $base_name . 'Y' } || $curyear + 1900;
+  my $result = "<$base_name Y=\"$year\" M=\"$month\" D=\"$day\" />";
 
-  my $result = "<SELECT name=\"" . $base_name . "D\">";
-  for (my $i = 1 ; $i <= 31 ; $i++) {
-    $result .= sprintf("<option value=\"%.2d\"", $i);
-    $result .= ' selected="1"' if ($day == $i);
-    $result .= ">$i</option>\n";
+  if ($FORM{$base_name}) {
+    my $date = $FORM{$base_name};
+    $self->{$base_name} = $date;
   }
-  $result .= '</SELECT>';
+  elsif (!$attr->{NO_DEFAULT_DATE}) {
+    my ($sec, $min, $hour, $mday, $mon, $curyear, $wday, $yday, $isdst) = localtime(time + (($attr->{NEXT_DAY}) ? 86400 : 0));
 
-  $result .= "<SELECT name=\"" . $base_name . "M\">";
+    my $month = $mon + 1;
+    my $year  = $curyear + 1900;
+    my $day   = $mday;
 
-  my $i = 0;
-  foreach my $line (@$MONTHES) {
-    $result .= sprintf("<option value=\"%.2d\"", $i);
-    $result .= ' selected="1"' if ($month == $i);
-    $result .= ">$line</option>\n";
-    $i++;
+    if ($base_name =~ /to/i) {
+      $day = ($month != 2 ? (($month % 2) ^ ($month > 7)) + 30 : (!($year % 400) || !($year % 4) && ($year % 25) ? 29 : 28));
+    }
+    elsif ($base_name =~ /from/i && !$attr->{NEXT_DAY}) {
+      $day = 1;
+    }
+    my $date = sprintf("%d-%.2d-%.2d", $year, $month, $day);
+    $self->{$base_name} = $date;
   }
-
-  $result .= '</SELECT>';
-
-  $result .= "<SELECT name=\"" . $base_name . "Y\">";
-  for ($i = 2001 ; $i <= $curyear + 1900 ; $i++) {
-    $result .= "<option value=\"$i\"";
-    $result .= ' selected="1"' if ($year eq $i);
-    $result .= ">$i</option>\n";
-  }
-  $result .= '</SELECT>';
 
   return $result;
 }
@@ -902,6 +833,27 @@ $text
 [END]
 }
 
+#*******************************************************************
+# HTML element
+#*******************************************************************
+sub element {
+  my $self = shift;
+  my ($name, $value, $attr) = @_;
+
+  if ($attr->{ID}) {
+    $value = "<$attr->{ID}>$value</$attr->{ID}>";
+  }
+
+  $self->{FORM_INPUT} = "$value";
+
+  if (defined($self->{NO_PRINT}) && (!defined($attr->{OUTPUT2RETURN}))) {
+    $self->{OUTPUT} .= $self->{FORM_INPUT};
+    $self->{FORM_INPUT} = '';
+  }
+
+  return $self->{FORM_INPUT};
+}
+
 #**********************************************************
 # show tamplate
 # tpl_show
@@ -913,6 +865,10 @@ $text
 sub tpl_show {
   my $self = shift;
   my ($tpl, $variables_ref, $attr) = @_;
+
+  if ($attr->{CONFIG_TPL}) {
+    return $CONFIG_TPL_SHOW->($self, $tpl, $variables_ref, $attr);
+  }
 
   my $tpl_name = $attr->{ID} || '';
 
@@ -936,8 +892,8 @@ sub tpl_show {
   }
 
   $tpl =~ s/&nbsp;/&#160;/g;
-
   $xml_tpl .= "</INFO>\n";
+
   if ($attr->{OUTPUT2RETURN}) {
     return $xml_tpl;
   }

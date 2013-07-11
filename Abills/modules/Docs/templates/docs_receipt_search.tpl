@@ -4,3 +4,4 @@
 <tr><td>$_ADMIN:</td><td><input type=text name=AID value='%AID%'></td></tr>
 <tr><td>$_SUM:</td><td><input type=text name=SUM value='%SUM%'></td></tr>
 <tr><td>$_PAYMENT_METHOD:</td><td>%PAYMENT_METHOD_SEL%</td></tr>
+<tr><td>$_PAYMENTS ID:</td><td><input type=text name=PAYMENT_ID value='%PAYMENT_ID%'></td></tr>

@@ -11,11 +11,10 @@ use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
 @EXPORT_OK = qw(log_add log_print);
 @EXPORT    = qw(%log_levels);
 
-my $db;
-my $attr;
+my ($CONF, $attr);
 use main;
 @ISA = ("main");
-my $CONF;
+
 
 # Log levels. For details see <syslog.h>
 %log_levels = (
@@ -35,18 +34,20 @@ my $CONF;
 #**********************************************************
 sub new {
   my $class = shift;
-  ($db, $CONF, $attr) = @_;
+  my $db    = shift;
+  ($CONF, $attr) = @_;
 
   my $self = {};
   bless($self, $class);
   
   if ($attr->{DEBUG_LEVEL}) {
-  	my %rev_log_level = reverse %log_levels;
-  	for(my $i=0; $i<=$attr->{DEBUG_LEVEL}; $i++) {
-  		$self->{debugmods} .= "$rev_log_level{$i} ";
-  	}
+    my %rev_log_level = reverse %log_levels;
+    for(my $i=0; $i<=$attr->{DEBUG_LEVEL}; $i++) {
+      $self->{debugmods} .= "$rev_log_level{$i} ";
+    }
   }
   
+  $self->{db}=$db;
 
   return $self;
 }
@@ -102,22 +103,24 @@ sub log_list {
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query(
-    $db, "SELECT l.date, l.log_type, l.action, l.user, l.message, l.nas_id
+  $self->query2("SELECT l.date, l.log_type, l.action, l.user, l.message, l.nas_id
   FROM errors_log l
   $WHERE
-  ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;"
+  ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+  undef,
+  $attr
   );
 
   my $list = $self->{list};
   $self->{OUTPUT_ROWS} = $self->{TOTAL};
 
-  $self->query(
-    $db, "SELECT l.log_type, count(*)
+  $self->query2("SELECT l.log_type, count(*)
   FROM errors_log l
   $WHERE
   GROUP BY 1
-  ORDER BY 1;"
+  ORDER BY 1;",
+  undef,
+  $attr
   );
 
   return $list;
@@ -128,7 +131,8 @@ sub log_list {
 # log_print($self)
 #**********************************************************
 sub log_print {
-  my ($self, $LOG_TYPE, $USER_NAME, $MESSAGE, $attr) = @_;
+  my $self = shift;
+  my ($LOG_TYPE, $USER_NAME, $MESSAGE, $attr) = @_;
   my $Nas = $attr->{NAS} || undef;
 
   my $action = $attr->{'ACTION'} || $self->{ACTION} || '';
@@ -191,8 +195,7 @@ sub log_add {
   $DATA{MESSAGE} =~ s/'/\\'/g;
   $DATA{NAS_ID} = (!$attr->{NAS_ID}) ? 0 : $attr->{NAS_ID};
 
-  $self->query(
-    $db, "INSERT INTO errors_log (date, log_type, action, user, message, nas_id)
+  $self->query2("INSERT INTO errors_log (date, log_type, action, user, message, nas_id)
  values (now(), '$DATA{LOG_TYPE}', '$DATA{ACTION}', '$DATA{USER_NAME}', '$DATA{MESSAGE}',  '$DATA{NAS_ID}');", 'do'
   );
 
@@ -213,7 +216,7 @@ sub log_del {
     $WHERE = "user='$attr->{LOGIN}'";
   }
 
-  $self->query($db, "DELETE FROM errors_log WHERE $WHERE;", 'do');
+  $self->query2("DELETE FROM errors_log WHERE $WHERE;", 'do');
 
   return 0;
 }

@@ -31,3 +31,15 @@ clients.conf     > [/usr/local/etc/raddb]/clients.conf
 #:OS=FREEBSD:exec: LD_P=`grep -c LD_PRELOAD /usr/local/etc/rc.d/radiusd`; if [ w$LD_P = w0 ]; then  PERL_VERSION=`pkg_info | grep perl- | sed "s/.*-\([0-9\.]*\).*/\1/g"`; sed -i '' -e "s,run_rc_command,start_precmd=\\\"export LD_PRELOAD=/usr/local/lib/perl5/${PERL_VERSION}/mach/CORE/libperl.so\\\"; run_rc_command,g" "/usr/local/etc/rc.d/radiusd"; fi; /usr/local/etc/rc.d/radiusd restart
 :OS=FREEBSD:exec:/usr/local/etc/rc.d/radiusd restart
 
+#Linux autoconf
+
+:OS=LINUX,FREERADIUS=2,RLM_PERL=1:FILE=v2/users_perl    > [/usr/local/freeradius/etc/raddb]/users
+:OS=LINUX,FREERADIUS=2:FILE=v2/perl > [/usr/local/freeradius/etc/raddb]/modules/perl
+:OS=LINUX,FREERADIUS=2,RLM_PERL=1:FILE=v2/default_rlm_perl  > [/usr/local/freeradius/etc/raddb]/sites-enabled/abills_default
+:OS=LINUX,FREERADIUS=2:exec rm /usr/local/freeradius/etc/raddb/sites-enabled/inner-tunnel
+:OS=LINUX,FREERADIUS=2:exec:touch /usr/abills/var/log/abills.log; chown freerad /usr/abills/var/log/abills.log
+:OS=LINUX,FREERADIUS=2:FILE=linux/radiusd.conf  > [/usr/local/freeradius/etc/raddb]/radiusd.conf
+:OS=LINUX,FREERADIUS=2:FILE=clients.conf > [/usr/local/freeradius]/etc/raddb]/clients.conf
+:OS=LINUX,FREERADIUS=2:FILE=linux/freeradius  > /etc/init.d/freeradius
+:OS=LINUX,FREERADIUS=2:exec:chmod +x /etc/init.d/freeradius; update-rc.d freeradius defaults; /etc/init.d/freeradius restart
+

@@ -6,7 +6,7 @@
   <form action='$SELF_URL'><input type='hidden' name='index' value='7'/><input type='hidden' name='search' value='1'/> $_SEARCH: %SEL_TYPE% <input type='text' name='LOGIN' value=''><a class='help rightAlignText' href='#' onclick=\"window.open('help.cgi?index=$index&amp;FUNCTION=$functions{$index}','help',
     'height=550,width=500,resizable=0,scrollbars=yes,menubar=no, status=yes');\">?</a> </form> </td></tr>
 </table>
-
 </div>
+</td></tr>
 <tr><td class=line colspan=2> </td></tr>
 %TECHWORK%

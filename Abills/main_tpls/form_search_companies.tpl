@@ -19,6 +19,5 @@
 <TR><TD colspan='2'>$_BANK_BIC:</TD><TD><input type=text name=BANK_BIC value='%BANK_BIC%' size=60></TD></TR>
 <TR><TD colspan='2'>$_CONTRACT_ID:</TD><TD><input type=text name=CONTRACT_ID value='%CONTRACT_ID%' size=10>
 <tr><td colspan='2'>$_DISABLE:</TD><TD><input type=checkbox name=DISABLE value='1' %DISABLE%></TD></TR>
-
-
+%INFO_FIELDS%
 </table>

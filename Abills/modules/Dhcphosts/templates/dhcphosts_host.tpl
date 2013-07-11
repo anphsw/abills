@@ -18,9 +18,10 @@
 <tr><td>$_COMMENTS:</td><td><input type=text name=COMMENTS value='%COMMENTS%'></td></tr>
 
 <tr><th colspan=2><input type=checkbox name=OPTION_82 onClick='samechanged(this)' value='1' %OPTION_82% NAME='same'> Option 82 </th></tr>
-<tr><td>$_PORT (1,2,5):</td><td><input type=text name=PORTS value='%PORTS%'></td></tr>
-<tr><td>VLAN ID:</td><td><input type=text name=VID value='%VID%'></td></tr>
 <tr><td>$_SWITCH:</td><td>%NAS_SEL%</td></tr>
+<tr><td>$_PORT (1,2,5):</td><td><input type=text name=PORTS value='%PORTS%' size=10></td></tr>
+<tr><td>VLAN ID:</td><td><input type=text name=VID value='%VID%' size=10> Server: <input type=text name=SERVER_VID value='%SERVER_VID%' size=10> </td></tr>
+
 
 <tr class=even><td>$_ACTIVATE IPN:</td><td><input type=checkbox name=IPN_ACTIVATE value=1 %IPN_ACTIVATE%>%IPN_ACTIVATE_BUTTON%</td></tr>
 <tr><th class=even colspan=2>

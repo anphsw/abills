@@ -6,10 +6,12 @@
   <tr><th>#</th><td><input type=text name=ID value='%ID%'></td></tr>
   <tr><td>$_NAME:</td><td><input type=text name=NAME value='%NAME%'></td></tr>
   <tr><td>$_UPLIMIT:</td><td><input type=text name=ALERT value='%ALERT%'></td></tr>
+  <tr><td>$_SIMULTANEOUSLY:</td><td><input type=text name=SIMULTANEOUSLY value='%SIMULTANEOUSLY%'></td></tr>
 
   <tr><td>$_DAY_FEE:</td><td><input type=text name=DAY_FEE value='%DAY_FEE%'></td></tr>
-  <tr><td>$_MONTH_FEE:</td><td><input type=text name=MONTH_FEE value='%MONTH_FEE%'></td></tr>
-  <tr><td>$_SIMULTANEOUSLY:</td><td><input type=text name=SIMULTANEOUSLY value='%SIMULTANEOUSLY%'></td></tr>
+  <tr><td>$_DAY_FEE $_POSTPAID:</td><td><input type=checkbox name=POSTPAID_DAY_FEE value=1 %POSTPAID_DAY_FEE%></td></tr>
+  <tr class='even'><td>$_MONTH_FEE:</td><td><input type=text name=MONTH_FEE value='%MONTH_FEE%'></td></tr>
+  <tr class='even'><td>$_MONTH_FEE $_POSTPAID:</td><td><input type=checkbox name=POSTPAID_MONTH_FEE value=1 %POSTPAID_MONTH_FEE%></td></tr>
 <!--   <tr><td>$_HOUR_TARIF (1 Hour):</td><td><input type=text name=TIME_TARIF value='%TIME_TARIF%'></td></tr> -->
   <tr><th colspan=2 class='title_color'>$_TIME_LIMIT (sec)</th></tr> 
   <tr><td>$_DAY</td><td><input type=text name=DAY_TIME_LIMIT value='%DAY_TIME_LIMIT%'></td></tr> 
@@ -30,6 +32,9 @@
   <tr><td>$_NEXT_PERIOD:</td><td><input type=text name=NEXT_PERIOD value='%NEXT_PERIOD%'></td></tr>
   <tr><td>$_NEXT_PERIOD_STEP:</td><td><input type=text name=NEXT_PERIOD_STEP value='%NEXT_PERIOD_STEP%'></td></tr>
   <tr><td>$_TIME_DIVISION ($_SECONDS .):</td><td><input type=text name=TIME_DIVISION value='%TIME_DIVISION%'></td></tr>
+  
+    <tr><td>FILTER_ID:</td><td><input type=text name=FILTER_ID value='%FILTER_ID%'></td></tr>
+  
   <tr><th colspan=2 class='even'><input type=submit name='%ACTION%' value='%LNG_ACTION%'></th></tr> 
 </table>
 

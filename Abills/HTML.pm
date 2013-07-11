@@ -59,8 +59,6 @@ my $CONF;
 
 my $row_number = 0;
 
-#require "Abills/templates.pl";
-
 #**********************************************************
 # Create Object
 #**********************************************************
@@ -86,7 +84,7 @@ sub new {
 
   $SORT = $FORM{sort} || 1;
   $DESC = ($FORM{desc}) ? 'DESC' : '';
-  $PG = $FORM{pg} || 0;
+  $PG   = $FORM{pg} || 0;
   $self->{CHARSET} = (defined($attr->{CHARSET})) ? $attr->{CHARSET} : 'windows-1251';
 
   if ($FORM{PAGE_ROWS}) {
@@ -111,7 +109,7 @@ sub new {
   $domain   = $ENV{SERVER_NAME};
   $web_path = '';
   $secure   = '';
-  my $prot = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
+  my $prot  = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
   $SELF_URL = (defined($ENV{HTTP_HOST})) ? "$prot://$ENV{HTTP_HOST}$ENV{SCRIPT_NAME}" : '';
 
   $SESSION_IP = $ENV{REMOTE_ADDR} || '0.0.0.0';
@@ -136,6 +134,7 @@ sub new {
     PG        => $PG,
     PAGE_ROWS => $PAGE_ROWS,
   );
+
   %functions = ();
   $pages_qs  = '';
   $index     = int($FORM{index} || 0);
@@ -179,9 +178,53 @@ sub new {
         IMG_PATH => $IMG_PATH,
         NO_PRINT => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1,
         CONF     => $CONF,
-        CHARSET  => $attr->{CHARSET}
+        CHARSET  => $attr->{CHARSET},
+        CONFIG_TPL_SHOW => \&tpl_show
       }
     );
+  }
+  elsif ($FORM{csv} || $attr->{csv}) {
+    require Abills::CONSOLE;
+    $self = Abills::CONSOLE->new(
+        {
+          IMG_PATH => $IMG_PATH,
+          NO_PRINT => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1,
+          CONF     => $CONF,
+          CHARSET  => $attr->{CHARSET}
+        }
+      );
+  }
+  elsif ($FORM{xls} || $attr->{xls}) {
+    $FORM{xls} = 1;
+    eval { require Spreadsheet::WriteExcel; };
+    if (!$@) {
+      Spreadsheet::WriteExcel->import();
+      require Abills::EXCEL;
+      $self = Abills::EXCEL->new(
+        {
+          IMG_PATH => $IMG_PATH,
+          NO_PRINT => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1,
+          CONF     => $CONF,
+          CHARSET  => $attr->{CHARSET}
+        }
+      );
+    }
+    else {
+      print "Content-Type: text/html\n\n";
+      print "Can't load 'Spreadsheet::WriteExcel'. Get it from http://cpan.org $@";
+      exit;    #return 0;
+    }
+  }
+  elsif ($CONF->{HTML5}) {
+    require Abills::HTML5;
+    $self = Abills::HTML5->new(
+        {
+          IMG_PATH => $IMG_PATH,
+          NO_PRINT => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1,
+          CONF     => $CONF,
+          CHARSET  => $attr->{CHARSET}
+        }
+      );
   }
 
   return $self;
@@ -341,7 +384,7 @@ sub form_input {
     }
   }
 
-  my $state = (defined($attr->{STATE})) ? ' checked ' : '';
+  my $state = ($attr->{STATE}) ? ' checked ' : '';
   my $size = (defined($attr->{SIZE})) ? " SIZE=\"$attr->{SIZE}\"" : '';
 
   $self->{FORM_INPUT} = "<input type=\"$type\" name=\"$name\" value=\"$value\"$state$size$class$ex_params ID=\"$name\"/>";
@@ -375,6 +418,30 @@ sub form_textarea {
 }
 
 #*******************************************************************
+# HTML element
+#*******************************************************************
+sub element {
+  my $self = shift;
+  my ($name, $value, $attr) = @_;
+
+  my $params = '';
+  if (ref $attr eq 'HASH') {
+    while(my($k, $v)=each %$attr) {
+      $params .= "$k='$v' ";
+    }  
+  }
+
+  $self->{FORM_INPUT} = "<$name $params>$value</$name>";
+
+  if (defined($self->{NO_PRINT}) && (!defined($attr->{OUTPUT2RETURN}))) {
+    $self->{OUTPUT} .= $self->{FORM_INPUT};
+    $self->{FORM_INPUT} = '';
+  }
+
+  return $self->{FORM_INPUT};
+}
+
+#*******************************************************************
 # form_main
 #*******************************************************************
 sub form_main {
@@ -387,11 +454,11 @@ sub form_main {
 
   my $METHOD = ($attr->{METHOD}) ? $attr->{METHOD} : 'POST';
   $self->{FORM} = "<FORM ";
-  $self->{FORM} .= "ID=\"$attr->{ID}\" "           if ($attr->{ID});
-  $self->{FORM} .= "name=\"$attr->{NAME}\" "       if ($attr->{NAME});
-  $self->{FORM} .= "enctype=\"$attr->{ENCTYPE}\" " if ($attr->{ENCTYPE});
-
-  $self->{FORM} .= "action=\"$SELF_URL\" METHOD=\"$METHOD\">\n";
+  $self->{FORM} .= "ID='$attr->{ID}' "           if ($attr->{ID});
+  $self->{FORM} .= "name='$attr->{NAME}' "       if ($attr->{NAME});
+  $self->{FORM} .= "enctype='$attr->{ENCTYPE}' " if ($attr->{ENCTYPE});
+  $self->{FORM} .= "target='$attr->{TARGET}' "   if ($attr->{TARGET});
+  $self->{FORM} .= "action='$SELF_URL' METHOD='$METHOD'>\n";
 
   if (defined($attr->{HIDDEN})) {
     my $H = $attr->{HIDDEN};
@@ -476,7 +543,7 @@ sub form_select {
       $self->{SELECT} .= '>';
 
       #Value
-      $self->{SELECT} .= "$v->[$key]:" if (!$attr->{NO_ID});
+      $self->{SELECT} .= "$v->[$key] " if (!$attr->{NO_ID});
 
       if ($value =~ /,/) {
         my @values      = split(/,/, $value);
@@ -494,9 +561,43 @@ sub form_select {
       $self->{SELECT} .= "\n";
     }
   }
-  elsif (defined($attr->{SEL_HASH})) {
-    my @H = ();
+  elsif ($attr->{SEL_LIST}) {
+    my $key                      = $attr->{SEL_KEY} || 'id';
+    my $value                    = $attr->{SEL_VALUE} || 'name';
+    my $H                        = $attr->{SEL_LIST};
+    my @SEL_VALUE_PREFIX = ();
 
+    if ($attr->{SEL_VALUE_PREFIX}) {
+      @SEL_VALUE_PREFIX = split(/,/, $attr->{SEL_VALUE_PREFIX});
+    }
+
+    foreach my $v (@$H) {
+      $self->{SELECT} .= "<option value='$v->{$key}'";
+      $self->{SELECT} .= ' selected' if (defined($attr->{SELECTED}) && $v->{$key} eq $attr->{SELECTED});
+      $self->{SELECT} .= '>';
+
+      #Value
+      $self->{SELECT} .= "$v->{$key} " if (!$attr->{NO_ID});
+
+      if ($value =~ /,/) {
+        my @values      = split(/,/, $value);
+        my @valuesr_arr = ();
+        for( my $key_num; $key_num<=$#values; $key_num++) {
+          my $val_keys = $values[$key_num];
+          push @valuesr_arr, (($attr->{SEL_VALUE_PREFIX} && $SEL_VALUE_PREFIX[$key_num]) ? $SEL_VALUE_PREFIX[$key_num] . $v->{$val_keys} : $v->{$val_keys});
+        }
+        $self->{SELECT} .= join(' : ', @valuesr_arr);
+      }
+      else {
+        $self->{SELECT} .= "$v->{$value}";
+      }
+      $self->{SELECT} .= "\n";
+    }
+  }
+  elsif ($attr->{SEL_HASH}) {
+    my @H = ();
+    my @group_colors = ('#000000','#008000','#0000A0','#D76B00','#790000','#808000','#3D7A7A');
+    my $group_id = 0;
     if ($attr->{SORT_KEY}) {
       @H = sort keys %{ $attr->{SEL_HASH} };
     }
@@ -517,17 +618,25 @@ sub form_select {
           $self->{SELECT} .= ' selected' if (defined($attr->{SELECTED}) && $val eq $attr->{SELECTED});
           $self->{SELECT} .= ">";
 
-          #$self->{SELECT} .= "$val:" if (! $attr->{NO_ID});
+          #$self->{SELECT} .= "$val " if (! $attr->{NO_ID});
           $self->{SELECT} .= "$val\n";
         }
         $self->{SELECT} .= "</optgroup>";
       }
       elsif (ref $attr->{SEL_HASH}->{$k} eq 'HASH') {
         $self->{SELECT} .= "<optgroup label=\"$k\" title=\"$k\">\n";
-
+         
         foreach my $val (sort keys %{ $attr->{SEL_HASH}->{$k} }) {
           $self->{SELECT} .= "<option value='$val'";
           $self->{SELECT} .= " style='COLOR:$attr->{STYLE}->[$val];' " if ($attr->{STYLE});
+          
+          if ($attr->{STYLE}) {
+            $self->{SELECT} .= " style='COLOR:$attr->{STYLE}->[$val];' ";
+          }
+          elsif($attr->{GROUP_COLOR}){
+            $self->{SELECT} .= " style='COLOR:$group_colors[$group_id];' ";
+          }
+          
           if (defined($attr->{SELECTED}) && $val eq $attr->{SELECTED}) {
             $self->{SELECT} .= ' selected';
           }
@@ -535,13 +644,17 @@ sub form_select {
           $self->{SELECT} .= "$attr->{SEL_HASH}->{$k}->{$val}\n";
         }
         $self->{SELECT} .= "</optgroup>";
+        $group_id++;
       }
       else {
         $self->{SELECT} .= "<option value='$k'";
-        $self->{SELECT} .= " style='COLOR:$attr->{STYLE}->[$k];' " if ($attr->{STYLE});
+        if ($attr->{STYLE}) {
+          $self->{SELECT} .= " style='COLOR:$attr->{STYLE}->[$k];' " ;
+        }
+        
         $self->{SELECT} .= ' selected' if (defined($attr->{SELECTED}) && $k eq $attr->{SELECTED});
         $self->{SELECT} .= ">";
-        $self->{SELECT} .= "$k:" if (!$attr->{NO_ID});
+        $self->{SELECT} .= "$k " if (!$attr->{NO_ID});
         $self->{SELECT} .= "$attr->{SEL_HASH}{$k}\n";
       }
     }
@@ -550,7 +663,7 @@ sub form_select {
   $self->{SELECT} .= "</select>\n";
 
   if ($attr->{MAIN_MENU}) {
-    $self->{SELECT} .= ' ' . $self->button('info', "index=$attr->{MAIN_MENU}" . (($attr->{MAIN_MENU_AGRV}) ? "&$attr->{MAIN_MENU_AGRV}" : ''), { CLASS => 'show rightAlignText' });
+    $self->{SELECT} .= ' ' . $self->button('info', "index=$attr->{MAIN_MENU}" . (($attr->{MAIN_MENU_AGRV}) ? "&$attr->{MAIN_MENU_AGRV}" : ''), { CLASS => 'change rightAlignText' });
   }
 
   return $self->{SELECT};
@@ -594,27 +707,29 @@ sub form_window {
   return $self->{WINDOW};
 }
 
-sub dirname {
-  my ($x) = @_;
-  if ($x !~ s@[/\\][^/\\]+$@@) {
-    $x = '.';
-  }
-  $x;
-}
-
 #*******************************************************************
 #Set cookies
 # setCookie($name, $value, $expiration, $path, $domain, $secure);
 #*******************************************************************
 sub setCookie {
-
-  # end a set-cookie header with the word secure and the cookie will only
-  # be sent through secure connections
   my $self = shift;
   my ($name, $value, $expiration, $path, $domain, $secure) = @_;
 
-  print "Set-Cookie: ";
-  print $name, "=$value; expires=\"", $expiration, "\"; path=$path; domain=", $domain, "; ", $secure, "\n";
+  $expiration = gmtime(time() + (($CONF->{web_session_timeout}) ? $CONF->{web_session_timeout} : 86000 )) . " GMT" if (! $expiration); 
+  $value='' if (! $value);
+
+  my $cookie = "Set-Cookie: $name=$value; expires=\"$expiration\"; ";
+
+  if ($path ne ""){
+    $cookie .= " path=$path; ";
+  }
+  if ($domain ne ""){
+    $cookie .= " domain=$domain; ";
+  } 
+
+  $cookie .= " $secure\n";
+
+  print $cookie;
 }
 
 #********************************************************************
@@ -652,8 +767,8 @@ sub menu () {
   my %tree           = ();
   my %menu           = ();
   my $sub_menu_array;
-  my $EX_ARGS = (defined($attr->{EX_ARGS})) ? $attr->{EX_ARGS} : '';
-  my $fl = $attr->{FUNCTION_LIST};
+  my $EX_ARGS        = (defined($attr->{EX_ARGS})) ? $attr->{EX_ARGS} : '';
+  my $fl             = $attr->{FUNCTION_LIST};
 
   # make navigate line
   if ($index > 0) {
@@ -672,7 +787,8 @@ sub menu () {
         }
       }
 
-      $menu_navigator = " " . $self->button($name, "index=$root_index$ex_params") . '/' . $menu_navigator;
+      #$menu_navigator = " " . $self->button($name, "index=$root_index$ex_params") . '/' . $menu_navigator;
+      $menu_navigator = " " . $self->button($name, "index=$root_index$ex_params", { BUTTON => 1 }) . ' ' . $menu_navigator;
       $tree{$root_index} = 1;
       if ($par_key > 0) {
         $root_index = $par_key;
@@ -720,7 +836,6 @@ sub menu () {
   while (my $sm_item = pop @$sub_menu_array) {
     my ($ID, $name) = split(/:/, $sm_item, 2);
     next if ((!defined($attr->{ALL_PERMISSIONS})) && (!defined($permissions->{ $ID - 1 })) && $parent == 0);
-
     my $active = 'odd';
     if (defined($tree{$ID})) {
       $name   = $self->b($name);
@@ -747,7 +862,6 @@ sub menu () {
       }
     }
     else {
-
       #next;
       #$link = "<a href='$SELF_URL?index=$ID&$menu_args->{$ID}'>$name</a>";
     }
@@ -905,14 +1019,13 @@ cc0=document.getElementsByTagName("UL");for(mi=0;mi<cc0.length; mi++){if(cc1=cc0
 sub header {
   my $self       = shift;
   my ($attr)     = @_;
-  my $admin_name = $ENV{REMOTE_USER};
-  my $admin_ip   = $ENV{REMOTE_ADDR};
+
   $self->{header} = "Content-Type: text/html\n\n";
 
   if ($self->{colors}) {
     @_COLORS = split(/, /, $self->{colors});
   }
-  elsif (defined($COOKIES{colors}) && $COOKIES{colors} ne '') {
+  elsif ($COOKIES{colors}) {
     @_COLORS = split(/, /, $COOKIES{colors});
   }
 
@@ -938,6 +1051,7 @@ sub header {
   $info{REFRESH} = ($FORM{REFRESH})     ? "<META HTTP-EQUIV=\"Refresh\" CONTENT=\"$FORM{REFRESH}; URL=$ENV{REQUEST_URI}\"/>\n" : '';
   $info{CHARSET} = $self->{CHARSET};
   $info{CONTENT_LANGUAGE} = $attr->{CONTENT_LANGUAGE} if ($attr->{CONTENT_LANGUAGE});
+  $info{CALLCENTER_MENU}  = $self->{CALLCENTER_MENU};
 
   $self->{header} .= $self->tpl_show($self->{METATAGS}, \%info, { OUTPUT2RETURN => 1, ID => $FORM{EXPORT_CONTENT} });
   return $self->{header};
@@ -984,56 +1098,126 @@ sub table {
     }
   }
 
-  $self->{table} = "<TABLE $width cellspacing='0' cellpadding='0' border='0'$table_class>\n";
+  $self->{table} = "<TABLE $width cellspacing='0' cellpadding='0' border='0'$table_class summary=''>\n";
 
   #Table Caption
   if (defined($attr->{caption})) {
-    $self->{table} .= "<TR><TD class='tcaption' colspan='3'>$attr->{caption}</td></TR>\n";
+  	my $show_cols = '';
+  	if ($attr->{SHOW_COLS}) {
+      $self->{table} .= "<tr><td>
+      <div id='open_popup_block_middle' style='width:300px; height:400px'>
+      <a id='close_popup_window'><img id='close_popup_window_img' src='/img/popup_window/close.png' title='CLOSE' /></a>
+      <form action=$SELF_URL METHOD=post>";
+      
+      foreach my $param_name ('index', 'sort', 'desc', 'pg', 'PAGE_ROWS', 'search', 'USERS_STATUS', 'STATUS', 'STATE') {
+      	if ($FORM{$param_name}) {
+          $self->{table} .= "<input type=hidden name=$param_name value='$FORM{$param_name}'>\n";
+      	}
+      }
+
+      $self->{table} .= "<div id='popup_window_content'><br/>";
+
+      foreach my $k (sort keys %{ $attr->{SHOW_COLS} }){
+      	my $v = $attr->{SHOW_COLS}->{$k};
+      	my $uc_name = ($k !~ /^_/) ? uc($k) : $k;
+      	$self->{table} .= "<input type=checkbox name=show_columns value=$uc_name";
+      	#$self->{table} .= ( $attr->{ACTIVE_COLS}->{$k} && $attr->{ACTIVE_COLS}->{$k} ne '1') ? "$attr->{ACTIVE_COLS}->{$k}" : '_SHOW';
+      	$self->{table} .= ( $attr->{ACTIVE_COLS}->{$k} ) ? ' checked' : '';
+      	$self->{table} .= "> $v ";
+      	#$self->{table} .= ( $attr->{ACTIVE_COLS}->{$k} ) ? " ($attr->{ACTIVE_COLS}->{$k})" : '';
+      	$self->{table} .= "<br>\n";
+      }
+
+      
+      $self->{table} .= "
+      <input type=submit name=show_cols value=show>
+      <input type=submit name=del_cols value=default>
+      </form>
+      </div></div></td></tr>\n";  	
+      
+      $show_cols = "<img class='js_cols_name' src=/img/controls.png />";
+    }
+    
+
+    $self->{table} .= "<TR><TD class='tcaption' colspan='3'>$attr->{caption}<img class='tableHideShowImg' style='padding:5px;' src=/img/dropdown.png />$show_cols</td></TR>\n";
   }
 
+
   my @header_obj = ();
+
+  if ($attr->{header}) {
+    if (ref $attr->{header} eq 'ARRAY') {
+      $attr->{header}=$self->table_header($attr->{header});
+    }
+
+    push @header_obj, $attr->{header};
+  }
+
+
+  if($attr->{SELECT_ALL}) {
+	  my ($form_name, $element_name, $caption) = split(/:/, $attr->{SELECT_ALL});
+    $self->{SELECT_ALL} = qq{<script language="JavaScript" type="text/javascript">
+<!-- 
+function CheckAllINBOX() {
+  for (var i = 0; i < document.$form_name.elements.length; i++) {
+    if(document.$form_name.elements[i].type == 'checkbox' && document.$form_name.elements[i].name == '$element_name'){
+      document.$form_name.elements[i].checked =         !(document.$form_name.elements[i].checked);
+    }
+  }
+}
+//-->
+</script>
+<a href="javascript:void(0)" onClick="CheckAllINBOX();" class='link_button'>$caption</a>};
+   }
+
 
   if ($attr->{MENU}) {
     my @menu_arr = split(/;/, $attr->{MENU});
     foreach my $line (@menu_arr) {
       my ($name, $ext_attr, $class) = split(/:/, $line);
-
-      #push @header_obj, $self->button("$name", "$ext_attr", { CLASS => $class  });
-      #push @header_obj,
       $self->{EXPORT_OBJ} .= ' ' . $self->button("$name", "$ext_attr", { IMG_BUTTON => "/img/button_$class.png" });
     }
   }
 
   #Export object
   if ($attr->{EXPORT} && !$FORM{EXPORT_CONTENT}) {
-    my ($export_name, $params) = split(/:/, $attr->{EXPORT}, 2);
-    $self->{EXPORT_OBJ} .= ' ' . $self->button("$export_name", "qindex=$index$attr->{qs}&pg=$PG&sort=$SORT&desc=$DESC&EXPORT_CONTENT=$attr->{ID}&header=1$params", { ex_params => 'target=_export', IMG_BUTTON => '/img/button_xml.png' });
-    push @header_obj, $self->{EXPORT_OBJ};
+    my @export_formats = ('xml', 'csv');
+      
+    eval { require Spreadsheet::WriteExcel; };
+    if (!$@) {
+      push @export_formats, 'xls';
+    }      
+
+    foreach my $export_name ( @export_formats ) {
+      my $params = "&$export_name=1";
+      if ($attr->{qs} !~ /PAGE_ROWS\=/) {
+        $params .= "&PAGE_ROWS=1000000";
+      }  
+      else {
+      	$attr->{qs} =~ s/PAGE_ROWS\=\d+/PAGE_ROWS\=100000/;
+      } 
+       
+      $self->{EXPORT_OBJ} .= ' ' . $self->button("$export_name", "qindex=$index$attr->{qs}&pg=$PG&sort=$SORT&desc=$DESC&EXPORT_CONTENT=$attr->{ID}&header=1$params", { ex_params => 'target=\'export\'', IMG_BUTTON => '/img/button_'. $export_name .'.png' });
+    }
   }
+
+  push @header_obj, $self->{EXPORT_OBJ} if ($self->{EXPORT_OBJ});
 
   if (defined($attr->{VIEW})) {
     $self->{table} .= "<TR><TD class='tcaption'>$attr->{VIEW}</td></TR>\n";
   }
 
-  if ($attr->{header}) {
-    push @header_obj, $attr->{header};
-  }
-
   if ($#header_obj > -1) {
-    $self->{table} .= "<tr><td width=20% valign=bottom>$self->{EXPORT_OBJ}</td><td width=60%><div id='rules'><ul><li class='center'>";
-
-    #foreach my $obj (@header_obj) {
-    #   $self->{table} .= $obj. '&nbsp;&nbsp;&nbsp;';
-    # }
-    $self->{table} .= "$attr->{header}</li></ul></div></td><td width=20%>&nbsp</td></tr>\n";
+    $self->{table} .= "<tr><td width=20% valign=bottom>$self->{EXPORT_OBJ}</td><td width=60%><div id='rules'><ul><li class='center'>&nbsp;";
+    $self->{table} .= "$self->{SELECT_ALL}$attr->{header}</li></ul></div></td><td width=20%>&nbsp;</td></tr>\n";
   }
 
   $self->{table} .= "<TR><TD class=cel_border colspan='3'>
-               <TABLE width='100%' cellspacing='1' cellpadding='0' border='0'>\n";
+               <TABLE width='100%' cellspacing='1' cellpadding='0' border='0' summary=''>\n";
 
   if (defined($attr->{title})) {
-    $SORT = $LIST_PARAMS{SORT};
-    $self->{table} .= $self->table_title($SORT, $FORM{desc}, $PG, $attr->{title}, $attr->{qs});
+    $SORT              = $LIST_PARAMS{SORT};
+    $self->{table}    .= $self->table_title($SORT, $FORM{desc}, $PG, $attr->{title}, $attr->{qs});
     $self->{title_arr} = $attr->{title};
   }
   elsif (defined($attr->{title_plain})) {
@@ -1196,6 +1380,34 @@ sub table_title_plain {
 
   $self->{table_title} .= "</TR>\n";
   return $self->{table_title};
+}
+
+#*******************************************************************
+# Show table column  titles with wort derectives
+# Arguments
+# table_header($header);
+# $header_arr - array of elements
+#*******************************************************************
+sub table_header {
+  my $self = shift;
+  my ($header_arr) = @_;
+  
+  my $header = '';
+  
+  foreach my $element ( @{ $header_arr } ) {
+    my ($name, $url)= split(/:/, $element, 2);
+    #$header .= ' <li>';
+    $header .= ' ';
+    if ($url) {
+      $header .= $self->button($name, $url, { BUTTON => 1 });
+    }
+    else {
+      $header .= $self->b($name);
+    }
+    #$header .= '</li>';
+  }
+
+  return $header;
 }
 
 #*******************************************************************
@@ -1395,8 +1607,8 @@ sub message {
 my $output = qq{
 <br>
 <div id=info_message>
-	<div class=$class>$caption</div>
-	<div>$img $message</div>	
+  <div class=$class>$caption</div>
+  <div>$img $message</div>  
 </div>
 <br>
 };
@@ -1497,81 +1709,13 @@ sub pages {
 </div>
 <div id="buttonJumpMenu">
     <div id='pageJumpWindow'>
-    	<h2>Перейти к странице:</h2>
-    	<input id='pagevalue' type='text'  size='5' maxlength=3/>
-    	<button onclick="checkval('index.cgi?$argument&pg=')">OK</button>
+      <h2>Перейти к странице:</h2>
+      <input id='pagevalue' type='text'  size='5' maxlength=3/>
+      <button onclick="checkval('index.cgi?$argument&pg=')">OK</button>
     </div>
 </div>
 };
 
-}
-
-#*******************************************************************
-# Make data field
-# date_fld($base_name)
-#*******************************************************************
-sub date_fld {
-  my $self = shift;
-  my ($base_name, $attr) = @_;
-
-  my $MONTHES = $attr->{MONTHES};
-
-  my ($sec, $min, $hour, $mday, $mon, $curyear, $wday, $yday, $isdst) = localtime(time);
-
-  if ($attr->{DATE}) {
-    my ($y, $m, $d) = split(/-/, $attr->{DATE});
-    $mday = $d;
-  }
-  else {
-    $mday = 1;
-  }
-
-  my $month = $FORM{ $base_name . 'M' } || $mon;
-  my $year  = $FORM{ $base_name . 'Y' } || $curyear + 1900;
-  my $day;
-
-  if ($FORM{ $base_name . 'D' }) {
-    $day = $FORM{ $base_name . 'D' };
-  }
-  else {
-    if ($base_name =~ /to/i) {
-      my $m = $month + 1;
-      $day = ($m != 2 ? (($m % 2) ^ ($m > 7)) + 30 : (!($year % 400) || !($year % 4) && ($year % 25) ? 29 : 28));
-    }
-    else {
-      $day = $mday;
-    }
-  }
-
-  my $result = "<SELECT name=" . $base_name . "D>";
-  for (my $i = 1 ; $i <= 31 ; $i++) {
-    $result .= sprintf("<option value=%.2d", $i);
-    $result .= ' selected' if ($day == $i);
-    $result .= ">$i\n";
-  }
-  $result .= '</select>';
-
-  $result .= "<SELECT name=" . $base_name . "M>";
-
-  my $i = 0;
-  foreach my $line (@$MONTHES) {
-    $result .= sprintf("<option value=%.2d", $i);
-    $result .= ' selected' if ($month == $i);
-
-    $result .= ">$line\n";
-    $i++;
-  }
-  $result .= '</select>';
-
-  $result .= "<SELECT name=" . $base_name . "Y>";
-  for ($i = 2002 ; $i <= $curyear + 1900 + 2 ; $i++) {
-    $result .= "<option value=$i";
-    $result .= ' selected' if ($year eq $i);
-    $result .= ">$i\n";
-  }
-  $result .= '</select>' . "\n";
-
-  return $result;
 }
 
 #*******************************************************************
@@ -1597,8 +1741,8 @@ sub date_fld2 {
   }
   elsif ($FORM{$base_name}) {
     $date = $FORM{$base_name};
+    $self->{$base_name} = $date;
   }
-
   # Default Date
   elsif (!$attr->{NO_DEFAULT_DATE}) {
     my ($sec, $min, $hour, $mday, $mon, $curyear, $wday, $yday, $isdst) = localtime(time + (($attr->{NEXT_DAY}) ? 86400 : 0));
@@ -1634,19 +1778,19 @@ sub date_fld2 {
   my $tabindex = ($attr->{TABINDEX}) ? "tabindex=$attr->{TABINDEX}" : '';
 
   my $result = qq{
-<script language="JavaScript">
+<script language="JavaScript" type="text/javascript">
  A_TCALCONF = {
-	'cssprefix'  : 'tcal',
-	'months'     : [$monthes],
-	'weekdays'   : [$week_days],
-	'longwdays'  : ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thirsday', 'Friday', 'Saturday'],
-	'yearscroll' : false, // show year scroller
-	'weekstart'  : 1, // first day of week: 0-Su or 1-Mo
-	'prevyear'   : 'Previous Year',
-	'nextyear'   : 'Next Year',
-	'prevmonth'  : 'Previous Month',
-	'nextmonth'  : 'Next Month',
-	'format'     : 'Y-m-d'
+  'cssprefix'  : 'tcal',
+  'months'     : [$monthes],
+  'weekdays'   : [$week_days],
+  'longwdays'  : ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thirsday', 'Friday', 'Saturday'],
+  'yearscroll' : false, // show year scroller
+  'weekstart'  : 1, // first day of week: 0-Su or 1-Mo
+  'prevyear'   : 'Previous Year',
+  'nextyear'   : 'Next Year',
+  'prevmonth'  : 'Previous Month',
+  'nextmonth'  : 'Next Month',
+  'format'     : 'Y-m-d'
 };
 </script>
 <input type=text name='$base_name' value='$date' size=$size rel='tcal' ID='$base_name' $tabindex> 
@@ -1705,16 +1849,16 @@ sub tpl_show {
   }
 
   if (!$attr->{SOURCE}) {
-    while ($tpl =~ /\%(\w+)(\=?)([A-Za-z0-9\_\.\/\\\]\[:\-]{0,50})\%/g) {
+    while ($tpl =~ /\%(\w{1,60})(\=?)([A-Za-z0-9\_\.\/\\\]\[:\-]{0,50})\%/g) {
       my $var       = $1;
       my $delimiter = $2;
       my $default   = $3;
 
       #    if ($var =~ /$\{exec:.+\}$/) {
-      #    	my $exec = $1;
-      #    	if ($exec !~ /$\/usr/abills\/\misc\/ /);
-      #    	my $exec_content = system("$1");
-      #    	$tpl =~ s/\%$var\%/$exec_content/g;
+      #      my $exec = $1;
+      #      if ($exec !~ /$\/usr/abills\/\misc\/ /);
+      #      my $exec_content = system("$1");
+      #      $tpl =~ s/\%$var\%/$exec_content/g;
       #     }
       #    els
 
@@ -1865,24 +2009,24 @@ sub make_charts {
   my $data = '<chart>' . $ex_params
 
   . '
-	<series_color>
-	  <color>00EE00</color>
-		<color>FF8844</color>
-		<color>7e6cee</color>
-		<color>BBBBFF</color>
-		<color>E8AC71</color>
-		<color>99FB5E</color>
-	 </series_color>
+  <series_color>
+    <color>00EE00</color>
+    <color>FF8844</color>
+    <color>7e6cee</color>
+    <color>BBBBFF</color>
+    <color>E8AC71</color>
+    <color>99FB5E</color>
+   </series_color>
 
   <chart_grid_h alpha="10" color="0066FF" thickness="1"  />
-	<chart_grid_v alpha="10" color="0066FF" thickness="1" />
+  <chart_grid_v alpha="10" color="0066FF" thickness="1" />
   <chart_label shadow="low" color="000000" alpha="95" size="10" position="inside" as_percentage="true" />
   <chart_border color="000000" top_thickness="1" bottom_thickness="2" left_thickness="0" right_thickness="0" />
   <chart_rect x="' . $CHART_RECT_x . '" y="' . $CHART_RECT_y . '" width="' . $CHART_RECT_width . '" height="' . $CHART_RECT_height . '" positive_color="FFFFFF" positive_alpha="40" />
   <chart_pref select="true" />
 
-	<axis_category font="arial" bold="1" size="11" color="000000" alpha="50" skip="' . $AXIS_CATEGORY_skip . '" />
-	<axis_ticks value_ticks="" category_ticks="1" major_thickness="2" minor_thickness="1" minor_count="3" major_color="000000" minor_color="888888" position="outside" />
+  <axis_category font="arial" bold="1" size="11" color="000000" alpha="50" skip="' . $AXIS_CATEGORY_skip . '" />
+  <axis_ticks value_ticks="" category_ticks="1" major_thickness="2" minor_thickness="1" minor_count="3" major_color="000000" minor_color="888888" position="outside" />
 
   <axis_value font="arial" size="7" color="000000" alpha="75" steps="4" prefix="" suffix="' . $suffix . '" 
   decimals="0" separator="" show_min="1" orientation="diagonal_up" />
@@ -1893,17 +2037,17 @@ sub make_charts {
 
 
 
-	<draw>
-		<text layer="background" shadow="low" color="ffffff" alpha="5" size="30" x="0" y="0" width="400" height="150" >|||||||||||||||||||||||||||||||||||||||||||||||</text>
-		<text layer="background"  shadow="low" color="ffffff" alpha="5" size="30" x="0" y="140" width="400" height="150" v_align="bottom">|||||||||||||||||||||||||||||||||||||||||||||||</text>
-	</draw>
+  <draw>
+    <text layer="background" shadow="low" color="ffffff" alpha="5" size="30" x="0" y="0" width="400" height="150" >|||||||||||||||||||||||||||||||||||||||||||||||</text>
+    <text layer="background"  shadow="low" color="ffffff" alpha="5" size="30" x="0" y="140" width="400" height="150" v_align="bottom">|||||||||||||||||||||||||||||||||||||||||||||||</text>
+  </draw>
 
-	<filter>
-		<shadow id="low" distance="2" angle="45" color="0" alpha="50" blurX="5" blurY="5" />
-		<bevel id="data" angle="45" blurX="10" blurY="10" distance="3" highlightAlpha="5" highlightColor="ffffff" shadowColor="000000" shadowAlpha="50" type="full" />
-		<bevel id="bg" angle="10" blurX="20" blurY="20" distance="10" highlightAlpha="25" highlightColor="ff8888" shadowColor="8888ff" shadowAlpha="25" type="full" />
-		<glow id="glow1" color="ff88ff" alpha="75" blurX="30" blurY="30" inner="false" />
-	</filter>
+  <filter>
+    <shadow id="low" distance="2" angle="45" color="0" alpha="50" blurX="5" blurY="5" />
+    <bevel id="data" angle="45" blurX="10" blurY="10" distance="3" highlightAlpha="5" highlightColor="ffffff" shadowColor="000000" shadowAlpha="50" type="full" />
+    <bevel id="bg" angle="10" blurX="20" blurY="20" distance="10" highlightAlpha="25" highlightColor="ff8888" shadowColor="8888ff" shadowAlpha="25" type="full" />
+    <glow id="glow1" color="ff88ff" alpha="75" blurX="30" blurY="30" inner="false" />
+  </filter>
 
 
   ';
@@ -2021,7 +2165,7 @@ sub make_charts {
   $CHART_RECT_width  += 80;
   $CHART_RECT_height += 90;
   my $output = qq { 
-	
+  
 <!-- charts start -->
 <script language="javascript">AC_FL_RunContent = 0;</script>
 <script language="javascript">DetectFlashVer = 0; </script>
@@ -2038,46 +2182,46 @@ var requiredRevision     = 45;
 <script language="JavaScript" type="text/javascript">
 <!--
 if (AC_FL_RunContent == 0 || DetectFlashVer == 0) {
-	alert("This page requires AC_RunActiveContent.js.");
+  alert("This page requires AC_RunActiveContent.js.");
 } else {
-	var hasRightVersion = DetectFlashVer(requiredMajorVersion, requiredMinorVersion, requiredRevision);
-	if(hasRightVersion) { 
-		AC_FL_RunContent(
-			'codebase', 'http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=9,0,45,0',
-			'width', '$CHART_RECT_width',
-			'height', '$CHART_RECT_height',
-			'scale', 'noscale',
-			'salign', 'TL',
-			'bgcolor', '#EEEEEE',
-			'wmode', 'opaque',
-			'movie', 'charts',
-			'src', 'charts',
-			'FlashVars', 'library_path=$PATH/charts_library&xml_source=$file_xml.xml', 
-			'id', 'my_chart',
-			'name', 'my_chart',
-			'menu', 'true',
-			'allowFullScreen', 'true',
-			'allowScriptAccess','sameDomain',
-			'quality', 'high',
-			'align', 'middle',
-			'pluginspage', 'http://www.macromedia.com/go/getflashplayer',
-			'play', 'true',
-			'devicefont', 'false'
-			); 
-	} else { 
-		var alternateContent = 'This content requires the Adobe Flash Player. '
-		+ '<u><a href=http://www.macromedia.com/go/getflash/>Get Flash</a></u>.';
-		document.write(alternateContent); 
-	}
+  var hasRightVersion = DetectFlashVer(requiredMajorVersion, requiredMinorVersion, requiredRevision);
+  if(hasRightVersion) { 
+    AC_FL_RunContent(
+      'codebase', 'http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=9,0,45,0',
+      'width', '$CHART_RECT_width',
+      'height', '$CHART_RECT_height',
+      'scale', 'noscale',
+      'salign', 'TL',
+      'bgcolor', '#EEEEEE',
+      'wmode', 'opaque',
+      'movie', 'charts',
+      'src', 'charts',
+      'FlashVars', 'library_path=$PATH/charts_library&xml_source=$file_xml.xml', 
+      'id', 'my_chart',
+      'name', 'my_chart',
+      'menu', 'true',
+      'allowFullScreen', 'true',
+      'allowScriptAccess','sameDomain',
+      'quality', 'high',
+      'align', 'middle',
+      'pluginspage', 'http://www.macromedia.com/go/getflashplayer',
+      'play', 'true',
+      'devicefont', 'false'
+      ); 
+  } else { 
+    var alternateContent = 'This content requires the Adobe Flash Player. '
+    + '<u><a href=http://www.macromedia.com/go/getflash/>Get Flash</a></u>.';
+    document.write(alternateContent); 
+  }
 }
 // -->
 </script>
 <noscript>
-	<P>This content requires JavaScript.</P>
+  <P>This content requires JavaScript.</P>
 </noscript>
 <!-- charts end -->
-<br>	
-	};
+<br>  
+  };
 
   if ($attr->{OUTPUT2RETURN}) {
     return $output;

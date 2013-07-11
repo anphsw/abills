@@ -20,4 +20,21 @@ CREATE TABLE IF NOT EXISTS `maps_routes_coords` (
   PRIMARY KEY  (`id`)
 ) COMMENT='Routes coords';
 
+CREATE TABLE IF NOT EXISTS `maps_wells` (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `name` varchar(100) default NULL,
+  `coordx` double(20,14) default '0.00000000000000',
+  `coordy` double(20,14) default '0.00000000000000',
+  `comment` text NOT NULL,
+  PRIMARY KEY  (`id`)
+) COMMENT='Wells coord';
+
+CREATE TABLE IF NOT EXISTS `maps_wifi_zones` (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `radius` int(10) unsigned default '0',
+  `coordx` double(20,14) default '0.00000000000000',
+  `coordy` double(20,14) default '0.00000000000000',
+  PRIMARY KEY  (`id`)
+)  COMMENT='Wifi zones';
+
 

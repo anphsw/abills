@@ -1,16 +1,15 @@
-<TABLE WIDTH='100%' class=form>
-<TR class='even' id='statusbar'>
-
-<TD width=33% align='left'><b>$_USER:</b> %LOGIN% <b>IP:</b> %IP%</TD>
-<TD width=33% align='center'><b>$_STATE:</b> %STATE%</TD>
-<TD width=33% align='right'><b>$_DATE:</b> %DATE% <b>$_TIME:</b> %TIME%</TD>
-
-</TR></TABLE>
-<TABLE border='0' width='100%' style='margin: 0'>
-<TR><TD width='200' valign='top' class=MENU_BACK >%MENU%</TD><TD align='center'>
-<div id=CONTENT>
+<div class='index content'>
+<div class='overflow kabinet-inner'>
+<ul class='top_status border_rad'>
+<li class='top_status-item flRight'><strong>$_TIME:</strong> %TIME%</li>
+<li class='top_status-item flRight'><strong>$_DATE:</strong> %DATE%</li>
+<li class='top_status-item flLeft'><strong>$_USER:</strong> %LOGIN%</li>
+<li class='top_status-item flLeft'><strong>IP:</strong> %IP%</li>
+<li class='top_status-item tCenter'><strong>$_STATE:</strong> %STATE_CODE%</li>
+</ul>
+%MENU%
+<div class='kabinet-center_col'>				
 %BODY%
- <div id='contentBody'>  
-    </div>
-</div>
-</TD></TR></TABLE>
+</div><!--kabinet-center_col-->
+</div><!--overflow kabinet-inner-->
+</div><!--index content-->

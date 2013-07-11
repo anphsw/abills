@@ -1391,6 +1391,7 @@ sub multidoms_reseller_tp_nas {
 #
 #**********************************************************
 sub multidoms_domains_sel {
+  my ($attr) = @_;
 
   return $html->form_select(
     "DOMAIN_ID",
@@ -1398,7 +1399,7 @@ sub multidoms_domains_sel {
       SELECTED          => $FORM{DOMAIN_ID},
       SEL_MULTI_ARRAY   => $Multidoms->multidoms_domains_list({ PAGE_ROWS => 100000 }),
       MULTI_ARRAY_KEY   => 0,
-      MULTI_ARRAY_VALUE => 1,
+      MULTI_ARRAY_VALUE => ($attr->{SHOW_ID}) ? '0,1' : 1,
       SEL_OPTIONS       => { 0 => "$_ALL" },
       NO_ID             => 1
     }
@@ -1517,7 +1518,7 @@ sub multidoms_cards_dillers {
   $Cards->{ACTION}     = 'add';
   $Cards->{LNG_ACTION} = $_ADD;
 
-  print "cONTENT-tYPE: TEXT/HTML\n\n";
+  print "content-type: text/html\n\n";
 
   if ($FORM{info}) {
 

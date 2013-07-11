@@ -79,14 +79,14 @@ sub genres_change {
                  SR_NAME   => 'sharereactor'
                 );   
  
-	$self->changes($admin, { CHANGE_PARAM => 'ID',
-		                TABLE        => 'filearch_video_genres',
-		                FIELDS       => \%FIELDS,
-		                OLD_INFO     => $self->genres_info($attr->{ID}, $attr),
-		                DATA         => $attr
-		              } );
+  $self->changes($admin, { CHANGE_PARAM => 'ID',
+                    TABLE        => 'filearch_video_genres',
+                    FIELDS       => \%FIELDS,
+                    OLD_INFO     => $self->genres_info($attr->{ID}, $attr),
+                    DATA         => $attr
+                  } );
  
-	return $self;
+  return $self;
 }
 
 #**********************************************************
@@ -95,7 +95,7 @@ sub genres_change {
 sub genres_del {
   my $self = shift;
   my ($id) = @_;
-  	
+    
   $self->query($db, "DELETE FROM filearch_video_genres WHERE id='$id';", 'do');
   
  return $self;
@@ -146,12 +146,12 @@ sub actors_list() {
   $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
   if ($attr->{NAME}) {
-  	$attr->{NAME} =~ s/\*/\%/g;
+    $attr->{NAME} =~ s/\*/\%/g;
     push @WHERE_RULES, "(a.name LIKE '$attr->{NAME}' or a.origin_name LIKE '$attr->{NAME}')";
    }
   
   if ($attr->{IDS}) {
-  	push @WHERE_RULES, "(a.origin_name IN ($attr->{IDS}) or a.name IN ($attr->{IDS}))";
+    push @WHERE_RULES, "(a.origin_name IN ($attr->{IDS}) or a.name IN ($attr->{IDS}))";
    }
 
  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : ''; 
@@ -189,8 +189,8 @@ sub actors_add {
 
   
   %DATA = $self->get_data($attr, { default => { NAME        => '',
-  	                                            ORIGIN_NAME => '',
-  	                                            BIO         => '' } }); 
+                                                ORIGIN_NAME => '',
+                                                BIO         => '' } }); 
 
   $self->query($db, "INSERT INTO filearch_video_actors (name, origin_name, bio)
     values ('$DATA{NAME}', '$DATA{ORIGIN_NAME}', '$DATA{BIO}');", 'do');
@@ -215,14 +215,14 @@ sub actors_change {
                  ORIGIN_NAME => 'origin_name'
                 );   
  
-	$self->changes($admin, { CHANGE_PARAM => 'ID',
-		                TABLE        => 'filearch_video_actors',
-		                FIELDS       => \%FIELDS,
-		                OLD_INFO     => $self->actors_info($attr->{ID}, $attr),
-		                DATA         => $attr
-		              } );
+  $self->changes($admin, { CHANGE_PARAM => 'ID',
+                    TABLE        => 'filearch_video_actors',
+                    FIELDS       => \%FIELDS,
+                    OLD_INFO     => $self->actors_info($attr->{ID}, $attr),
+                    DATA         => $attr
+                  } );
  
-	return $self;
+  return $self;
 }
 
 #**********************************************************
@@ -231,7 +231,7 @@ sub actors_change {
 sub actors_del {
   my $self = shift;
   my ($id) = @_;
-  	
+    
   $self->query($db, "DELETE FROM filearch_video_actors WHERE id='$id';", 'do');
   
  return $self;
@@ -356,7 +356,7 @@ sub video_list() {
    }
 
   if ($attr->{NAME}) {
-  	$attr->{NAME} =~ s/\*/\%/ig;
+    $attr->{NAME} =~ s/\*/\%/ig;
     push @WHERE_RULES, "(f.name LIKE '$attr->{NAME}' or f.filename LIKE '$attr->{NAME}')";
    }
 
@@ -367,12 +367,12 @@ sub video_list() {
 
 
   if ($attr->{COMMENTS}) {
-  	$attr->{COMMENTS} =~ s/\*/\%/ig;
+    $attr->{COMMENTS} =~ s/\*/\%/ig;
     push @WHERE_RULES, "f.filename LIKE '$attr->{COMMENTS}'";
    }
 
   if ($attr->{SIZE}) {
-  	my $value = $self->search_expr($attr->{SIZE}, 'INT');
+    my $value = $self->search_expr($attr->{SIZE}, 'INT');
     push @WHERE_RULES, "f.size$value";
    }
 
@@ -400,7 +400,7 @@ sub video_list() {
   
   if (defined($attr->{STATE})) {
     if ($attr->{STATE} == 0) {
-    	push @WHERE_RULES, "fs.state IS NULL";
+      push @WHERE_RULES, "fs.state IS NULL";
       }
     else {
       push @WHERE_RULES, "fs.state='$attr->{STATE}'";
@@ -408,7 +408,7 @@ sub video_list() {
   }
 
   if ($attr->{WIHOUT_INFO}) {
-  	push @WHERE_RULES, "v.id IS NULL";
+    push @WHERE_RULES, "v.id IS NULL";
    }
 
  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : ''; 
@@ -468,7 +468,7 @@ sub video_list() {
 # change
 #**********************************************************
 sub video_next {
-	my $self = shift;
+  my $self = shift;
   my ($attr) = @_;
 
   $self->query($db, "SELECT f.id, f.filename 
@@ -484,7 +484,7 @@ sub video_next {
    $self->{FILENAME}
    ) = @$ar;
 
-  return $self;  	
+  return $self;    
 }
 
 #**********************************************************
@@ -522,21 +522,21 @@ sub video_change {
   my $OLD_INFO = $self->video_info($attr->{ID}, $attr);
   
   if ($OLD_INFO->{EXT_INFO} < 1) {
-  	 $self->video_add($attr);
-  	 return $self;
+     $self->video_add($attr);
+     return $self;
    }
  
-	$self->changes($admin, { CHANGE_PARAM => 'ID',
-		                       TABLE        => 'filearch_video',
-		                       FIELDS       => \%FIELDS,
-		                       OLD_INFO     => $OLD_INFO,
-		                       DATA         => $attr
-		                      } );
+  $self->changes($admin, { CHANGE_PARAM => 'ID',
+                           TABLE        => 'filearch_video',
+                           FIELDS       => \%FIELDS,
+                           OLD_INFO     => $OLD_INFO,
+                           DATA         => $attr
+                          } );
  
   $self->film_genres_add({ ID => "$attr->{ID}", GENRE => $attr->{GENRES} }) if ($attr->{GENRES});
   $self->film_actors_add( $attr ) if ($attr->{ACTORS});
 
-	return $self;
+  return $self;
 }
 
 #**********************************************************
@@ -638,7 +638,7 @@ sub video_info {
   #Get parents
   $self->video_list({ PARENT => $id });
   if ($self->{TOTAL} > 0) {
-  	 $self->{PARTS} = $self->{list};
+     $self->{PARTS} = $self->{list};
    }
   
 
@@ -665,33 +665,33 @@ sub file_list() {
    }
 
   if ($attr->{FILENAME}) {
-  	$attr->{FILENAME} =~ s/\*/\%/ig;
+    $attr->{FILENAME} =~ s/\*/\%/ig;
     push @WHERE_RULES, "f.filename LIKE '$attr->{FILENAME}'";
    }
 
   if ($attr->{PATH}) {
-  	$attr->{PATH} =~ s/\*/\%/ig;
+    $attr->{PATH} =~ s/\*/\%/ig;
     push @WHERE_RULES, "f.path LIKE '$attr->{PATH}'";
    }
 
   if ($attr->{NAME}) {
-  	$attr->{NAME} =~ s/\*/\%/ig;
+    $attr->{NAME} =~ s/\*/\%/ig;
     push @WHERE_RULES, "f.name LIKE '$attr->{NAME}'";
    }
 
   if ($attr->{COMMENTS}) {
-  	$attr->{COMMENTS} =~ s/\*/\%/ig;
+    $attr->{COMMENTS} =~ s/\*/\%/ig;
     push @WHERE_RULES, "f.filename LIKE '$attr->{COMMENTS}'";
    }
   
   if ($attr->{CHECKSUM}) {
-  	$attr->{CHECKSUM} =~ s/\*/\%/ig;
+    $attr->{CHECKSUM} =~ s/\*/\%/ig;
     push @WHERE_RULES, "f.checksum LIKE '$attr->{CHECKSUM}'";
    }
 
 
   if ($attr->{SIZE}) {
-  	my $value = $self->search_expr($attr->{SIZE}, 'INT');
+    my $value = $self->search_expr($attr->{SIZE}, 'INT');
     push @WHERE_RULES, "f.size$value";
    }
 
@@ -736,14 +736,14 @@ sub file_list() {
 # Add
 #**********************************************************
 sub file_country_add {
-	my $self = shift;
+  my $self = shift;
   my ($attr) = @_;
 
   $self->query($db, "INSERT INTO filearch_countries (name) VALUES ('$attr->{COUNTRY_NAME}');", 'do');
   
   $self->{COUNTRY_ID}=$self->{INSERT_ID};
 
-  return $self;	
+  return $self;  
 }      
 
 
@@ -763,10 +763,10 @@ sub file_country_info {
    WHERE $WHERE;", 'do');
 
   if ($attr->{ADD} && $self->{TOTAL} == 0) {
-  	$self->file_country_add({ COUNTRY_NAME => $attr->{COUNTRY_NAME} });
+    $self->file_country_add({ COUNTRY_NAME => $attr->{COUNTRY_NAME} });
    }
 
-  return $self;	
+  return $self;  
 }
 
 #**********************************************************
@@ -778,7 +778,7 @@ sub file_country_list {
 
   $self->query($db, "SELECT id, name FROM filearch_countries");
   
-  return $self->{list};	
+  return $self->{list};  
 }
 
 
@@ -833,17 +833,17 @@ sub file_change {
                  STATE     => 'state'
                 );   
 
-	$self->changes($admin, { CHANGE_PARAM => 'ID',
-		                       TABLE        => 'filearch',
-		                       FIELDS       => \%FIELDS,
-		                       OLD_INFO     => $self->file_info($attr->{ID}, $attr),
-		                       DATA         => $attr
-		                      } );
+  $self->changes($admin, { CHANGE_PARAM => 'ID',
+                           TABLE        => 'filearch',
+                           FIELDS       => \%FIELDS,
+                           OLD_INFO     => $self->file_info($attr->{ID}, $attr),
+                           DATA         => $attr
+                          } );
  
     
 
  
-	return $self;
+  return $self;
 }
 
 #**********************************************************
@@ -917,7 +917,7 @@ sub film_genres_list() {
     WHERE fg.genre_id=g.id and fg.video_id='$id';");
   
   foreach my $line ( @{$self->{list}} ) {
-  	$GENRE_HASH{$line->[0]}=$line->[1];
+    $GENRE_HASH{$line->[0]}=$line->[1];
    }
 
   return \%GENRE_HASH;
@@ -960,7 +960,7 @@ sub film_actors_list() {
     ORDER BY a.name;");
 
   foreach my $line ( @{$self->{list}} ) {
-  	$ACTORS_HASH{$line->[0]}="$line->[1] /$line->[2]/";
+    $ACTORS_HASH{$line->[0]}="$line->[1] /$line->[2]/";
    }
 
   return \%ACTORS_HASH;
@@ -977,7 +977,7 @@ sub film_actors_add {
   my %DATA = $self->get_data($attr);   
 
   if (! $attr->{ACTORS}) {
-  	return $self;
+    return $self;
    }
   
   my @actors_arr = split(/, /, $attr->{ACTORS});
@@ -990,7 +990,7 @@ sub film_actors_add {
        my $origin_name = $2;
        $name =~ s/( +)$//g;
        $actors_info_hash{"$origin_name"}="$name";
-    	}
+      }
     else {
       $actors_info_hash{"$line"}="$line";
      }
@@ -1003,8 +1003,8 @@ sub film_actors_add {
   my $list = $self->actors_list({ IDS => $ids });
 
   foreach my $line (@$list) {
-   	$actors_hash{"$line->[2]"}=$line->[0];
-   	$actors_hash{"$line->[1]"}=$line->[0];
+     $actors_hash{"$line->[2]"}=$line->[0];
+     $actors_hash{"$line->[1]"}=$line->[0];
    }
 
   $self->query($db, "DELETE FROM filearch_film_actors  WHERE video_id='$DATA{ID}';", 'do');
@@ -1012,15 +1012,15 @@ sub film_actors_add {
   while(my($origin_name, $name)=each(%actors_info_hash)) {
     my $actor_id = 0;
     if (! defined($actors_hash{"$origin_name"})) {
-    	$self->actors_add({ NAME        => "$name",
-    		                  ORIGIN_NAME => "$origin_name" });
-    	$actor_id = $self->{ACTOR_ID};
-    	if ($self->{errno}) {
-    		print " $name / $origin_name\n";
-    	 }
+      $self->actors_add({ NAME        => "$name",
+                          ORIGIN_NAME => "$origin_name" });
+      $actor_id = $self->{ACTOR_ID};
+      if ($self->{errno}) {
+        print " $name / $origin_name\n";
+       }
      }
     else {
-    	$actor_id=$actors_hash{"$origin_name"};
+      $actor_id=$actors_hash{"$origin_name"};
      }
     
     $self->query($db, "INSERT INTO filearch_film_actors (video_id, actor_id)
@@ -1135,7 +1135,7 @@ sub chapters_list() {
   undef @WHERE_RULES;
   
   if ($attr->{NAME}) {
-  	$attr->{NAME} =~ s/\*/\%/ig;
+    $attr->{NAME} =~ s/\*/\%/ig;
     push @WHERE_RULES, "(f.name LIKE '$attr->{NAME}' or f.filename LIKE '$attr->{NAME}')";
    }
 
@@ -1187,14 +1187,14 @@ sub chapter_change {
   
   my $OLD_INFO = $self->chapter_info($attr->{ID}, $attr);
  
-	$self->changes($admin, { CHANGE_PARAM => 'ID',
-		                       TABLE        => 'filearch_chapters',
-		                       FIELDS       => \%FIELDS,
-		                       OLD_INFO     => $OLD_INFO,
-		                       DATA         => $attr
-		                      } );
+  $self->changes($admin, { CHANGE_PARAM => 'ID',
+                           TABLE        => 'filearch_chapters',
+                           FIELDS       => \%FIELDS,
+                           OLD_INFO     => $OLD_INFO,
+                           DATA         => $attr
+                          } );
  
-	return $self;
+  return $self;
 }
 
 #**********************************************************

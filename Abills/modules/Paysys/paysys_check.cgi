@@ -19,6 +19,7 @@ $html
 $systems_ips
 %systems_ident_params
 %system_params
+$silent
 );
 
 BEGIN {
@@ -50,10 +51,13 @@ use Paysys;
 use Finance;
 use Admins;
 
-$debug = $conf{PAYSYS_DEBUG} || 0;
-$html = Abills::HTML->new();
-my $sql = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
-my $db = $sql->{db};
+$silent  = 1;
+$debug   = $conf{PAYSYS_DEBUG} || 0;
+$html    = Abills::HTML->new();
+my $sql  = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
+my $db   = $sql->{db};
+require "Misc.pm";
+
 
 #Operation status
 my $status = '';
@@ -127,11 +131,11 @@ if ($conf{PAYSYS_PASSWD}) {
   }
 }
 
-$Paysys = Paysys->new($db, undef, \%conf);
-$admin = Admins->new($db, \%conf);
+$Paysys   = Paysys->new($db, undef, \%conf);
+$admin    = Admins->new($db, \%conf);
 $admin->info($conf{SYSTEM_ADMIN_ID}, { IP => $ENV{REMOTE_ADDR} });
 $payments = Finance->payments($db, $admin, \%conf);
-$users = Users->new($db, $admin, \%conf);
+$users    = Users->new($db, $admin, \%conf);
 
 %PAYSYS_PAYMENTS_METHODS = %{ cfg2hash($conf{PAYSYS_PAYMENTS_METHODS}) };
 
@@ -140,7 +144,6 @@ $users = Users->new($db, $admin, \%conf);
 my $output2 = '';
 
 #read(STDIN, $output2, $ENV{'CONTENT_LENGTH'});
-#$output2 = '!!';
 if ($debug > 0) {
   while (my ($k, $v) = each %FORM) {
     $output2 .= "$k -> $v\n" if ($k ne '__BUFFER');
@@ -189,8 +192,21 @@ if ($conf{PAYSYS_SUCCESSIONS}) {
   }
 }
 
-if (check_ip($ENV{REMOTE_ADDR}, '213.186.115.164/24')) {
+if (check_ip($ENV{REMOTE_ADDR}, '213.160.149.0/24')) {
   require "Ibox.pm";
+  exit;
+}
+elsif ($FORM{ok_txn_id} || check_ip($ENV{REMOTE_ADDR}, '78.140.166.69')) {
+  require "Okpay.pm";
+  exit;
+}
+# Perfectmoney
+elsif ($FORM{PAYEE_ACCOUNT} && check_ip($ENV{REMOTE_ADDR}, '77.109.141.170')) {
+  require "Perfectmoney.pm";
+  exit;
+}
+elsif (check_ip($ENV{REMOTE_ADDR}, '85.192.45.0/24,194.67.81.0/24,91.142.251.0/24,89.111.54.0/24,95.163.74.0/24')) {
+  require "Smsonline.pm";
   exit;
 }
 elsif ($FORM{__BUFFER} =~ /^{.+}$/ && 
@@ -220,16 +236,24 @@ elsif ($FORM{params}) {
   require "Sberbank.pm";
   exit;
 }
+elsif ($FORM{from} eq 'Payonline') {
+  require "Payonline.pm";
+  exit;
+}
+elsif ($conf{PAYSYS_EXPPAY_ACCOUNT_KEY}
+  && ( $FORM{action} == 1
+    || $FORM{action} == 2
+    || $FORM{action} == 4 )) {
+  require "Express.pm";
+  exit;
+}
 elsif ($FORM{action} && $conf{PAYSYS_TELCELL_ACCOUNT_KEY}) {
   require "Telcell.pm";
   exit;
 }
-elsif ($FORM{action}) {
+elsif ($FORM{action} && $conf{PAYSYS_CYBERPLAT_ACCOUNT_KEY}) {
   require "Cyberplat.pm";
   exit;
-}
-elsif ($FORM{txn_id} || $FORM{prv_txn} || defined($FORM{prv_id}) || ($FORM{command} && $FORM{account})) {
-  osmp_payments();
 }
 elsif ($FORM{SHOPORDERNUMBER}) {
   portmone_payments();
@@ -252,17 +276,27 @@ elsif ($FORM{ACT}) {
 elsif ($conf{PAYSYS_GIGS_IPS} && $conf{PAYSYS_GIGS_IPS} =~ /$ENV{REMOTE_ADDR}/) {
   require "Gigs.pm";
 }
+elsif (check_ip($ENV{REMOTE_ADDR}, '217.77.49.157,192.168.1.102')) {
+  require "Rucard.pm";
+  exit;
+}
 elsif ($conf{PAYSYS_EPAY_ACCOUNT_KEY} && $FORM{command} && $FORM{txn_id}) {
   require "Epay.pm";
   exit;
+}
+elsif (check_ip($ENV{REMOTE_ADDR}, '77.73.26.162,77.73.26.163,77.73.26.164,217.73.198.66')) {
+  require "Deltapay.pm";
+  exit;
+}
+elsif ($FORM{txn_id} || $FORM{prv_txn} || defined($FORM{prv_id}) || ($FORM{command} && $FORM{account})) {
+  osmp_payments();
 }
 elsif (
   $conf{PAYSYS_GAZPROMBANK_ACCOUNT_KEY}
   && ( $FORM{lsid}
     || $FORM{trid}
     || $FORM{dtst})
-)
-{
+) {
   require "Gazprombank.pm";
   exit;
 }
@@ -274,10 +308,16 @@ elsif (check_ip($ENV{REMOTE_ADDR}, '77.222.134.205')) {
   require "Ipay.pm";
   exit;
 }
-elsif (check_ip($ENV{REMOTE_ADDR}, '213.230.106.112/28,213.230.65.85/28,192.168.1.102')) {
+elsif (check_ip($ENV{REMOTE_ADDR}, '62.149.15.210,62.149.8.166,82.207.125.57')) {
+  require "Platezhka.pm";
+  exit;
+}
+elsif (check_ip($ENV{REMOTE_ADDR}, '213.230.106.112/28,213.230.65.85/28')) {
   require "Paynet.pm";
   exit;
 }
+
+
 
 #Check payment system by IP
 if (check_ip($ENV{REMOTE_ADDR}, '92.125.0.0/24')) {
@@ -298,13 +338,17 @@ elsif (check_ip($ENV{REMOTE_ADDR}, '79.142.16.0/21')) {
 }
 
 #USMP
-elsif (check_ip($ENV{REMOTE_ADDR}, '77.222.138.142,78.30.232.14')) {
+elsif (check_ip($ENV{REMOTE_ADDR}, '77.222.138.142,78.30.232.14,77.120.96.58,91.105.201.31')) {
   require "Usmp.pm";
   exit;
 }
 elsif ($FORM{payment} && $FORM{payment} =~ /pay_way/) {
   require "P24.pm";
   p24_payments();
+  exit;
+}
+elsif($conf{'PAYSYS_YANDEX_ACCCOUNT'} && $FORM{code}) {
+  yandex();
   exit;
 }
 
@@ -323,38 +367,38 @@ print "Content-Type: text/html\n\n";
 #closedir DIR;
 #
 #for(my $i=0; $i<=$#paysys_modules; $i++) {
-#	my $paysys_module = $paysys_modules[$i];
-#	undef $system_ips;
-#	undef $systems_ident_params;
+#  my $paysys_module = $paysys_modules[$i];
+#  undef $system_ips;
+#  undef $systems_ident_params;
 #
 #  print "$paysys_module";
 #  require "$modules_dir$paysys_module";
 #
 #  my $pay_function = $paysys_module.'_payment';
 #  if (! defined(&$pay_function)) {
-#  	print "Not found" if ($debug > 2);
-#  	next;
+#    print "Not found" if ($debug > 2);
+#    next;
 #   }
 #
-#	if ($debug > 3) {
+#  if ($debug > 3) {
 #
-#	  if ($system_ips) {
-#	    my @ips = split(/,/, $system_ips);
-#	    foreach my $ip (@ips) {
-#	      $systems_ips{$ip}="$paysys_module"."_payment";
-#	     }
-#	   }
-#	  elsif (defined(%systems_ident_params)) {
-#	    while(my ($param, $function) = %systems_ident_params) {
-#	      $systemS_params{$param}="$paysys_module:$function";;
-#	     }
-#	   }
+#    if ($system_ips) {
+#      my @ips = split(/,/, $system_ips);
+#      foreach my $ip (@ips) {
+#        $systems_ips{$ip}="$paysys_module"."_payment";
+#       }
+#     }
+#    elsif (defined(%systems_ident_params)) {
+#      while(my ($param, $function) = %systems_ident_params) {
+#        $systemS_params{$param}="$paysys_module:$function";;
+#       }
+#     }
 #
-#	  if (!$@) {
-#	  	print "Loaded";
-#	   }
-#	  print "<br>\n";
-#	 }
+#    if (!$@) {
+#      print "Loaded";
+#     }
+#    print "<br>\n";
+#   }
 #}
 
 payments();
@@ -367,8 +411,9 @@ sub payments {
   if ($FORM{LMI_PAYMENT_NO}) {    # || $FORM{LMI_HASH}) {
     wm_payments();
   }
-  elsif ($FORM{rupay_action}) {
-    rupay_payments();
+  elsif ($FORM{userField_UID}) {
+    require "Rbkmoney.pm";
+    #print 'lol';
   }
   elsif ($FORM{id_ups}) {
     require "Ukrpays.pm";
@@ -436,15 +481,17 @@ sub portmone_payments {
   my $list   = $Paysys->list(
     {
       TRANSACTION_ID => "$FORM{'SHOPORDERNUMBER'}",
-      INFO           => '-'
+      INFO           => '-',
+      SUM            => '_SHOW',
+      COLS_NAME      => 1,
     }
   );
 
   if ($Paysys->{TOTAL} > 0) {
 
     #$html->message('info', $_INFO, "$_ADDED $_SUM: $list->[0][3] ID: $FORM{SHOPORDERNUMBER }");
-    my $uid  = $list->[0][8];
-    my $sum  = $list->[0][3];
+    my $uid  = $list->[0]{uid};
+    my $sum  = $list->[0]{sum};
     my $user = $users->info($uid);
     $payments->add(
       $user,
@@ -458,17 +505,20 @@ sub portmone_payments {
     );
 
     #Exists
-    if ($payments->{errno} && $payments->{errno} == 7) {
-      $status = 8;
-    }
-    elsif ($payments->{errno}) {
-      $status = 4;
+    if ($payments->{errno}) {
+    	if ($payments->{errno} == 7) {
+        $status = 8;
+      }
+      else {
+        $status = 4;
+      }
     }
     else {
       $Paysys->change(
         {
-          ID   => $list->[0][0],
-          INFO => "APPROVALCODE: $FORM{APPROVALCODE}"
+          ID     => $list->[0]{id},
+          INFO   => "APPROVALCODE: $FORM{APPROVALCODE}",
+          STATUS => 2
         }
       );
       $status = 1;
@@ -631,7 +681,6 @@ sub osmp_payments {
       }
     }
   }
-
   print "Content-Type: text/xml\n\n";
 
   my $payment_system    = $attr->{SYSTEM_SHORT_NAME} || 'OSMP';
@@ -685,11 +734,13 @@ sub osmp_payments {
   my $results = '';
 
   mk_log("$payment_system: $ENV{QUERY_STRING}") if ($debug > 0);
-
   #Check user account
-  #https://service.someprovider.ru:8443/payment_app.cgi?command=check&txn_id=1234567&account=0957835959&sum=10.45
+  #https://service.someprovider.ru:8443/paysys_check.cgi?command=check&txn_id=1234567&account=0957835959&sum=10.45
   if ($command eq 'check') {
-    my $list = $users->list({ $CHECK_FIELD => $FORM{account} });
+    my $list = $users->list({ $CHECK_FIELD  => $FORM{account}, 
+    	                        DISABLE_PAYSYS=> '_SHOW',
+    	                        GROUP_NAME    => '_SHOW',
+    	                        COLS_NAME     => 1 });
 
     if (!$conf{PAYSYS_PEGAS} && !$FORM{sum}) {
       $status = 300;
@@ -715,11 +766,15 @@ sub osmp_payments {
 
     $RESULT_HASH{result} = $status;
 
+    if ($list->[0]->{disable_paysys}) {
+    	$RESULT_HASH{disable_paysys}=1;
+    }
+
     #For OSMP
     if ($payment_system_id == 44) {
       $RESULT_HASH{$txn_id} = $FORM{txn_id};
       $RESULT_HASH{prv_txn} = $FORM{prv_txn};
-      $RESULT_HASH{comment} = "Balance: $list->[0]->[2]" if ($status == 0);
+      $RESULT_HASH{comment} = "Balance: $list->[0]->{deposit}" if ($status == 0);
     }
   }
 
@@ -728,10 +783,12 @@ sub osmp_payments {
     my $prv_txn = $FORM{prv_txn};
     $RESULT_HASH{prv_txn} = $prv_txn;
 
-    my $list = $payments->list({ ID     => "$prv_txn", 
-    	                           EXT_ID => "PEGAS:*" });
+    my $list = $payments->list({ ID        => "$prv_txn", 
+                                 EXT_ID    => "PEGAS:*",
+                                 BILL_ID   => '_SHOW',
+                                 COLS_NAME => 1 });
 
-    if ($payments->{errno}) {
+    if ($payments->{errno} && $payments->{errno} != 7) {
       $RESULT_HASH{result} = 1;
     }
     elsif ($payments->{TOTAL} < 1) {
@@ -744,8 +801,8 @@ sub osmp_payments {
     }
     else {
       my %user = (
-        BILL_ID => $list->[10],
-        UID     => $list->[11]
+        BILL_ID => $list->{bill_id},
+        UID     => $list->{uid}
       );
 
       $payments->del(\%user, $prv_txn);
@@ -789,6 +846,22 @@ sub osmp_payments {
       $status = 300;
     }
     else {
+      cross_modules_call('_pre_payment', 
+            {
+              USER_INFO  => $user,
+              SUM        => $FORM{sum},
+              QUITE      => 1
+            }
+       );
+
+      my $er = 1;
+      if ($conf{PAYSYS_OSMP_CURRENCY}) {
+        $payments->exchange_info(0, { ISO => $conf{PAYSYS_OSMP_CURRENCY} });
+        if ($payments->{TOTAL} > 0) {
+          $er = $payments->{ER_RATE};
+        }
+      }
+
 
       #Add payments
       $payments->add(
@@ -802,7 +875,9 @@ sub osmp_payments {
         }
       );
 
-      cross_modules_call('_payments_maked', { USER_INFO => $user, QUITE => 1 });
+      cross_modules_call('_payments_maked', { USER_INFO => $user, 
+                                              SUM       => $FORM{sum},
+                                              QUITE     => 1 });
 
       #Exists
       if ($payments->{errno} && $payments->{errno} == 7) {
@@ -1088,7 +1163,7 @@ sub osmp_payments_v4 {
       $result_code = 1;
     }
     else {
-
+      cross_modules_call('_pre_payment', { USER_INFO => $user, QUITE => 1, SUM => $sum });
       #Add payments
       $payments->add(
         $user,
@@ -1101,7 +1176,7 @@ sub osmp_payments_v4 {
         }
       );
 
-      cross_modules_call('_payments_maked', { USER_INFO => $user, QUITE => 1 });
+      cross_modules_call('_payments_maked', { USER_INFO => $user, SUM => $sum, QUITE => 1 });
 
       #Exists
       if ($payments->{errno} && $payments->{errno} == 7) {
@@ -1195,6 +1270,13 @@ sub osmp_payments_v4 {
         $result_code = 0;
       }
       else {
+        cross_modules_call('_pre_payment', 
+            {
+              USER_INFO  => $user,
+              SUM        => $FORM{PAY_AMOUNT},
+              QUITE      => 1
+            }
+        );
 
         #Add payments
         $payments->add(
@@ -1247,7 +1329,7 @@ sub osmp_payments_v4 {
 <account-number>$account_number</account-number>
 </to>
 </payment>
-	
+  
 };
 
     }
@@ -1371,108 +1453,6 @@ sub smsproxy_payments {
 
 }
 
-#**********************************************************
-#
-#**********************************************************
-sub rupay_payments {
-
-  $md5->reset;
-  my $checksum = '';
-  my $info     = '';
-  my $user     = $users->info($FORM{user_field_UID});
-
-  if ($user->{errno}) {
-    $status = "ERROR: $user->{errno}";
-  }
-  elsif ($user->{TOTAL} < 0) {
-    $status = "User not exist";
-  }
-  elsif ($FORM{rupay_site_id} ne $conf{PAYSYS_RUPAY_ID}) {
-    $status = 'Not valid money account';
-  }
-
-  while (my ($k, $v) = each %FORM) {
-    $info .= "$k, $v\n" if ($k =~ /^rupay|^user_field/);
-  }
-
-  #notification
-  #Make checksum
-  if ($FORM{rupay_action} eq 'add') {
-    $md5->add("$FORM{rupay_action}::$FORM{rupay_site_id}::$FORM{rupay_order_id}::$FORM{rupay_name_service}::$FORM{rupay_id}::$FORM{rupay_sum}::$FORM{rupay_user}::$FORM{rupay_email}::$FORM{rupay_data}::$conf{PAYSYS_RUPAY_SECRET_KEY}");
-    $checksum = $md5->hexdigest();
-
-    $status = 'Preview Request';
-    if ($FORM{rupay_hash} ne $checksum) {
-      $status = "Incorect checksum '$checksum'";
-    }
-
-    #Info section
-    $Paysys->add(
-      {
-        SYSTEM_ID      => 42,
-        DATETIME       => '',
-        SUM            => $FORM{rupay_sum},
-        UID            => $FORM{user_field_UID},
-        IP             => $FORM{user_field_IP},
-        TRANSACTION_ID => "$FORM{rupay_order_id}",
-        INFO           => "STATUS, $status\n$info",
-        PAYSYS_IP      => "$ENV{'REMOTE_ADDR'}"
-      }
-    );
-  }
-
-  #Add paymets
-  elsif ($FORM{rupay_action} eq 'update') {
-
-    #Make checksum
-    $md5->add("$FORM{rupay_action}::$FORM{rupay_site_id}::$FORM{rupay_order_id}::$FORM{rupay_sum}::$FORM{rupay_id}::$FORM{rupay_data}::$FORM{rupay_status}::$conf{PAYSYS_RUPAY_SECRET_KEY}");
-    $checksum = $md5->hexdigest();
-
-    if ($FORM{rupay_hash} ne $checksum) {
-      $status = 'Incorect checksum';
-    }
-    elsif ($status eq '') {
-
-      #Add payments
-      my $er = ($FORM{'5.ER'}) ? $payments->exchange_info() : { ER_RATE => 1 };
-      $payments->add(
-        $user,
-        {
-          SUM      => $FORM{rupay_sum},
-          DESCRIBE => 'RUpay',
-          METHOD   => ($conf{PAYSYS_PAYMENTS_METHODS} && $PAYSYS_PAYMENTS_METHODS{42}) ? 42 : '2',
-          EXT_ID   => $FORM{rupay_order_id},
-          ER       => $er->{ER_RATE}
-        }
-      );
-
-      if ($payments->{errno}) {
-        $info = "PAYMENT ERROR: $payments->{errno}\n";
-      }
-      else {
-        $status = "Added $payments->{INSERT_ID}\n";
-      }
-    }
-
-    #Info section
-    $Paysys->add(
-      {
-        SYSTEM_ID      => 42,
-        DATETIME       => '',
-        SUM            => $FORM{rupay_sum},
-        UID            => $FORM{user_field_UID},
-        IP             => $FORM{user_field_IP},
-        TRANSACTION_ID => "$FORM{rupay_order_id}",
-        INFO           => "STATUS, $status\n$info",
-        PAYSYS_IP      => "$ENV{'REMOTE_ADDR'}"
-      }
-    );
-
-    $output2 .= "Paysys:" . $Paysys->{errno} if ($Paysys->{errno});
-    $output2 .= "CHECK_SUM: $checksum\n";
-  }
-
-}
 
 #**********************************************************
 # https://merchant.webmoney.ru/conf/guide.asp
@@ -1566,7 +1546,7 @@ sub wm_payments {
       }
     );
 
-    cross_modules_call('_payments_maked', { USER_INFO => $user, QUITE => 1 });
+    cross_modules_call('_payments_maked', { USER_INFO => $user, SUM => $FORM{LMI_PAYMENT_AMOUNT}, QUITE => 1 });
 
     $output2 .= "Paysys:" . $Paysys->{errno} if ($Paysys->{errno});
     $output2 .= "CHECK_SUM: $checksum\n";
@@ -1583,30 +1563,30 @@ sub wm_payments {
 #
 #  my $checksum = wm_validate();
 #  my $info = '';
-#	my $user = $users->info($FORM{UID});
+#  my $user = $users->info($FORM{UID});
 #
-#	my @ACCOUNTS = split(/;/, $conf{PAYSYS_WEBMONEY_ACCOUNTS});
+#  my @ACCOUNTS = split(/;/, $conf{PAYSYS_WEBMONEY_ACCOUNTS});
 #
 #  if (! in_array($FORM{LMI_PAYEE_PURSE}, \@ACCOUNTS)) {
-#  	$status = 'Not valid money account';
-#  	#return 0;
+#    $status = 'Not valid money account';
+#    #return 0;
 #   }
 #  elsif (defined($FORM{LMI_MODE}) && $FORM{LMI_MODE} == 1) {
-#  	$status = 'Test mode';
-#  	#return 0;
+#    $status = 'Test mode';
+#    #return 0;
 #   }
 #  elsif (length($FORM{LMI_HASH}) != 32 ) {
-#  	$status = 'Not MD5 checksum';
+#    $status = 'Not MD5 checksum';
 #   }
 #  elsif ($FORM{LMI_HASH} ne $checksum) {
-#  	$status = "Incorect checksum '$checksum'";
+#    $status = "Incorect checksum '$checksum'";
 #   }
 #  elsif ($user->{errno}) {
-#		$status = "ERROR: $user->{errno}";
-#	 }
-#	elsif ($user->{TOTAL} < 0) {
-#		$status = "User not exist";
-#	 }
+#    $status = "ERROR: $user->{errno}";
+#   }
+#  elsif ($user->{TOTAL} < 0) {
+#    $status = "User not exist";
+#   }
 #  else {
 #    #Add payments
 #    my $er = 1;
@@ -1616,23 +1596,23 @@ sub wm_payments {
 #      my $payment_unit = 'WM'.$1;
 #      $payments->exchange_info(0, { SHORT_NAME => "$payment_unit"  });
 #      if ($payments->{TOTAL} > 0) {
-#      	$er = $payments->{ER_RATE};
+#        $er = $payments->{ER_RATE};
 #       }
 #     }
 #
 #    #my $er = ($FORM{'5.ER'}) ? $payments->exchange_info() : { ER_RATE => 1 } ;
 #    $payments->add($user, {SUM          => $FORM{LMI_PAYMENT_AMOUNT},
-#    	                     DESCRIBE     => 'Webmoney',
-#    	                     METHOD       => '2',
-#  	                       EXT_ID       => $FORM{SHOPORDERNUMBER},
-#  	                       ER           => $er
-#  	                       } );
+#                           DESCRIBE     => 'Webmoney',
+#                           METHOD       => '2',
+#                           EXT_ID       => $FORM{SHOPORDERNUMBER},
+#                           ER           => $er
+#                           } );
 #
 #    if ($payments->{errno}) {
 #      $info = "PAYMENT ERROR: $payments->{errno}\n";
 #     }
 #    else {
-#    	$status = "Added $payments->{INSERT_ID}\n";
+#      $status = "Added $payments->{INSERT_ID}\n";
 #     }
 #   }
 #
@@ -1642,9 +1622,9 @@ sub wm_payments {
 #
 #  #Info section
 #  $Paysys->add({ SYSTEM_ID      => 41,
-#  	             DATETIME       => '',
-#  	             SUM            => $FORM{SUM},
-#  	             UID            => $FORM{UID},
+#                 DATETIME       => '',
+#                 SUM            => $FORM{SUM},
+#                 UID            => $FORM{UID},
 #                 IP             => $FORM{IP},
 #                 TRANSACTION_ID => "$FORM{SHOPORDERNUMBER}",
 #                 INFO           => "STATUS, $status\n$info",
@@ -1741,86 +1721,46 @@ sub mk_log {
     close(FILE);
   }
   else {
-  	print "Content-Type: text/plain\n\n";
+    print "Content-Type: text/plain\n\n";
     print "Can't open file '$paysys_log_file' $!\n";
   }
 }
 
+
+
 #**********************************************************
-# Calls function for all registration modules if function exist
 #
-# cross_modules_call(function_sufix, attr)
 #**********************************************************
-sub cross_modules_call {
-  my ($function_sufix, $attr) = @_;
-  my $timeout = $attr->{timeout} || 3;
-
-  $attr->{USER_INFO}->{DEPOSIT} += $attr->{SUM} if ($attr->{SUM});
-
-  eval {
-    my %full_return  = ();
-    my @skip_modules = ();
-
-    #disable stdout output
-    open($SAVEOUT, ">&", STDOUT) or die "XXXX: $!";
-
-    #Reset out
-    open STDIN,  '/dev/null';
-    open STDOUT, '/dev/null';
-    open STDERR, '/dev/null';
-
-    if ($attr->{SKIP_MODULES}) {
-      $attr->{SKIP_MODULES} =~ s/\s+//g;
-      @skip_modules = split(/,/, $attr->{SKIP_MODULES});
-    }
-
-    local $SIG{ALRM} = sub { die "alarm\n" };    # NB: \n required
-    alarm $timeout;
-
-    foreach my $mod (@MODULES) {
-      if (in_array($mod, \@skip_modules)) {
-        next;
-      }
-      require "Abills/modules/$mod/webinterface";
-      my $function = lc($mod) . $function_sufix;
-      my $return;
-      if (defined(&$function)) {
-        $return = $function->($attr);
-      }
-      $full_return{$mod} = $return;
-    }
-  };
-
-  # off disable stdout output
-  open(STDOUT, ">&", $SAVEOUT);
-  return \%full_return;
+sub yandex () {
+  my ($attr)=@_;
+  my $payment_system    = $attr->{SYSTEM_SHORT_NAME} || 'Yandex';
+  my $payment_system_id = $attr->{SYSTEM_ID}         || 73;
+  
+  print "Location: https://$ENV{SERVER_NAME}:$ENV{SERVER_PORT}/index.cgi?get_index=paysys_payment&PAYMENT_SYSTEM=$payment_system_id&code=$FORM{code}\n\n";
 }
 
 #**********************************************************
-# load_module($string, \%HASH_REF);
+# get_fees_types
+#
+# return $Array_ref
 #**********************************************************
-sub load_module {
-  my ($module, $attr) = @_;
+sub get_fees_types {
+  my ($attr) = @_;
 
-  my $lang_file = '';
-  foreach my $prefix (@INC) {
-    my $realfilename = "$prefix/Abills/modules/$module/lng_$attr->{language}.pl";
-    if (-f $realfilename) {
-      $lang_file = $realfilename;
-      last;
+  use Finance;
+  my %FEES_METHODS = ();
+  my $fees         = Finance->fees($db, $admin, \%conf);
+  my $list         = $fees->fees_type_list({ PAGE_ROWS => 10000 });
+  foreach my $line (@$list) {
+    if ($FORM{METHOD} && $FORM{METHOD} == $line->[0]) {
+      $FORM{SUM}      = $line->[3] if ($line->[3] > 0);
+      $FORM{DESCRIBE} = $line->[2] if ($line->[2]);
     }
-    elsif (-f "$prefix/Abills/modules/$module/lng_english.pl") {
-      $lang_file = "$prefix/Abills/modules/$module/lng_english.pl";
-    }
+
+    $FEES_METHODS{ $line->[0] } = (($line->[1] =~ /\$/) ? eval($line->[1]) : $line->[1]) . (($line->[3] > 0) ? (($attr->{SHORT}) ? ":$line->[3]" : " ($_SERVICE $_PRICE: $line->[3])") : '');
   }
 
-  if ($lang_file ne '') {
-    require $lang_file;
-  }
-
-  require "Abills/modules/$module/webinterface";
-
-  return 0;
+  return \%FEES_METHODS;
 }
 
 1

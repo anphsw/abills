@@ -19,6 +19,7 @@ $_SWITCH='Switch';
 $_AUTO='Auto';
 $_NETWORK='Network';
 $_SUBNET='Subnet';
+$_EXPIRED='Expired';
 $ERR_WRONG_NETWORK  = 'Wrong network. Check network IP/MAC range';
 $ERR_WRONG_RANGE='Wrong IP range';
 

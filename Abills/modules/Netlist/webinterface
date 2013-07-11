@@ -1,3 +1,5 @@
+#Network managment 
+
 require "Netlist.pm";
 Netlist->import();
 my $Netlist = Netlist->new($db, $admin, \%conf);
@@ -173,6 +175,7 @@ sub netlist_list {
      }
     $Netlist->{ACTION}='change';
     $Netlist->{ACTION_LNG}=$_CHANGE;
+    $FORM{add_form}=1;
   }
   elsif(defined($FORM{del}) && defined($FORM{is_js_confirmed}) ) {
     $Netlist->ip_del($FORM{del});
@@ -222,19 +225,21 @@ $Netlist->{GROUP_SEL}=$html->form_select('GID',
  	                                          ARRAY_NUM_ID => 1
  	                                        });
 
-
-$html->tpl_show(_include('netlist_ip_search', 'Netlist'), { %$Netlist, %FORM }); 
+if ($FORM{search_form}) {
+  $html->tpl_show(_include('netlist_ip_search', 'Netlist'), { %$Netlist, %FORM }); 
+}
+if ($FORM{add_form}) {
+  $html->tpl_show(_include('netlist_ip', 'Netlist'), $Netlist); 
+}
 
 $pages_qs .= "&GID=$FORM{GID}" if ($FORM{GID});
 
-my $list = $Netlist->ip_list( { %LIST_PARAMS, %FORM } );
-
+my $list = $Netlist->ip_list({ %LIST_PARAMS, %FORM, COLS_NAME => 1 });
 
 if ($Netlist->{errno}) {
 	$html->message('err', $_ERROR, "[$Netlist->{errno}] $err_strs{$Netlist->{errno}}");	
 	return 0;
 }
-
 
 my $table = $html->table( { width      => '100%',
                             caption    => "$_LIST IP",
@@ -245,25 +250,24 @@ my $table = $html->table( { width      => '100%',
                             qs         => $pages_qs,
                             pages      => $Netlist->{TOTAL},
                             ID         => 'NETLIST_LIST',
-                            EXPORT     => "$_EXPORT XML:&xml=1",
+                            EXPORT     => 1,
+                            MENU       => "$_ADD:add_form=1&index=$index:add;$_SEARCH:index=$index:search"
                            });
 
 
 
   foreach my $line (@$list) {
-     my $delete = $html->button($_DEL, "index=$index&del=$line->[0]", { MESSAGE => "$_DEL $line->[0]?", CLASS => 'del' }); 
-     my $change = $html->button($_INFO, "index=$index&chg=$line->[0]", { CLASS => 'show' });
-
+     my $delete = $html->button($_DEL, "index=$index&del=$line->{ip_num}", { MESSAGE => "$_DEL $line->{ip}?", CLASS => 'del' }); 
+     my $change = $html->button($_INFO, "index=$index&chg=$line->{ip_num}", { CLASS => 'show' });
      $table->addrow(
-     $line->[7].' '.$html->form_input('IDS', "$line->[0]", { TYPE => 'checkbox', EX_PARAMS => 'class="noprint"' } ), 
-     $line->[1], 
-     $line->[2], 
-     $line->[3], 
-     $line->[4], 
-     $status[$line->[5]], 
-
-     $line->[6], 
-     $html->button("P", "index=$index&ping=$line->[0]$pages_qs", { TITLE => 'Ping', BUTTON => 1 }),
+     $line->{ip}.' '.$html->form_input('IDS', "$line->{ip_num}", { TYPE => 'checkbox', EX_PARAMS => 'class="noprint"' } ), 
+     $line->{netmask}, 
+     $line->{hostname}, 
+     $line->{descr}, 
+     $line->{name}, 
+     $status[$line->{status}], 
+     $line->{date}, 
+     $html->button("P", "index=$index&ping=$line->{ip_num}$pages_qs", { TITLE => 'Ping', BUTTON => 1 }),
      $change,
      $delete
      );
@@ -297,8 +301,6 @@ my $table2 = $html->table( { width       => '100%',
                         });
 
   print $table->show();
-
-  $html->tpl_show(_include('netlist_ip', 'Netlist'), $Netlist); 
 }
 
 

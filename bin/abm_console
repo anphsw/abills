@@ -11,8 +11,8 @@ $UID $user $admin $sid
 );
 
 #use strict;
-my $version = 0.18;
-my $debug   = 0;
+my $version = 0.21;
+my $debug   = 1;
 
 use FindBin '$Bin';
 require $Bin . '/../libexec/config.pl';
@@ -43,7 +43,7 @@ if ($ENV{SSH_CLIENT} =~ /(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/) {
   $ip = $1;
 }
 else {
-  $ip = `if [ \`uname\` = 'FreeBSD' ]; then W_FLAG="-n"; fi; cure_tty=\`tty | sed  's/.*\\(p\\d*\\)/\\1/g'\`; w ${W_FLAG} | grep \${cure_tty} | awk '{ print \$3 }'`;
+  $ip = `if [ \`uname\` = 'FreeBSD' ]; then cure_tty=\`tty | sed  's/.*\\(p\\d*\\)/\\1/g'\`; w -n | grep \${cure_tty} | awk '{ print \$3 }' else  who -m --ips | awk '{ print \$5 }'; fi`;  
 }
 
 chomp($ip);
@@ -160,8 +160,8 @@ sub dv_users {
   my ($attr) = @_;
 
   if ($ARGV->{CONTRACT_ID}) {
-    my $list = $users->list({ CONTRACT_ID => $ARGV->{CONTRACT_ID} });
-    $ARGV->{DV_USER} = $list->[0]->[0];
+    my $list = $users->list({ CONTRACT_ID => $ARGV->{CONTRACT_ID}, COLS_NAME => 1 });
+    $ARGV->{DV_USER} = $list->[0]->{login};
   }
 
   $users->info(0, { LOGIN => $ARGV->{DV_USER} });
@@ -170,13 +170,9 @@ sub dv_users {
 
   if ($ARGV->{add}) {
 
-    #0001	12345	3.ADDRESS_STREET="Красноармейская 56 кв 54"	3.FIO="Катрич Андрей Николаевич"	3._interface="1"	3._monitor_ip="172.16.1.232"	4.CID="10.1.232.2"	4.IP="10.1.232.2"	4.TP_ID="20"	5.SUM="3.23"
-
-    #0002	12345	3.ADDRESS_STREET="Красноармейская 56 кв 29"	3.FIO="Борисова В И"	3.PHONE="067 115-63-30"	3._interface="2"	3._monitor_ip="172.16.1.232"	4.CID="10.1.232.6"	4.IP="10.1.232.6"	4.TP_ID="20"
-
   }
   elsif ($ARGV->{change}) {
-    $Dv->change({ UID => $users->{UID}, %{$ARGV} });
+    $Dv->change({ UID => $users->{UID}, $ARGV });
 
     if ($Dv->{TP_INFO}->{MONTH_FEE} > 0) {
       $Dv->{ACTIVATE} = ($ARGV->{ACTIVATE}) ? $ARGV->{ACTIVATE} : $users->{ACTIVATE};
@@ -399,8 +395,6 @@ sub mk_menu {
       #$fl .= "$FUNTION_NAME $maxnumber\n";
       $menu_args{$maxnumber} = $ARGV;
 
-      #print "$line -- $ID, $SUB, $NAME, $FUNTION_NAME  // $module_fl{$SUB} PARENT: $v<br/>";
-
       if ($SUB > 0) {
         $menu_items{$maxnumber}{ $module_fl{$SUB} } = $NAME;
       }
@@ -519,14 +513,17 @@ sub check_permissions {
 sub help {
   print << "[END]";
 abm_console console ABillS managment. Version: $version
-  PAYMENTS=[login] - Payments: info (default), ADD, DEL 
+  PAYMENTS=[login] - Payments: info (default), ADD=[sum], DEL 
    Extended:
     DATE           - DATE
     METHOD         - Method ID 
     UID            - UID
+    ID             - Payments id
     ....
-  FEES=[login]     - Fees. info (default), GET, DEL   
-   Extended:
+  FEES=[login]     - Fees. info (default), GET=[sum], DEL   
+    UID            - UID
+    ID             - Fees id
+    Extended:
     ....
 
   PI=              - Personal info
@@ -644,10 +641,14 @@ sub form_users {
     push @user_functions, "$_FEES:form_fees" if ($permissions{3});
     push @user_functions, "$_DV:dv_user_main" if (in_array('Dv', \@MODULES));
 
-    my $list = $users->list({%LIST_PARAMS});
-
+    my $list = $users->list({ FIO           => '_SHOW',
+    	                        DEPOSIT       => '_SHOW',
+    	                        CREDIT        => '_SHOW',
+    	                        LOGIN_STATUS  => '_SHOW',
+    	                        %LIST_PARAMS, 
+    	                        COLS_NAME => 1});
     if ($users->{TOTAL} == 1) {
-      my $uid = $list->[0]->[ 5 + $users->{SEARCH_FIELDS_COUNT} ];
+      my $uid = $list->[0]->{uid};
       user_info($uid);
       print "$_FUNCTIONS_LIST: \n";
 
@@ -668,11 +669,6 @@ sub form_users {
         elsif ($input =~ /exit|quite|q/ || $input == 1) {
           return 0;
         }
-
-        #      elsif (int($input) =~ /3 (\d+)/){
-        #      	%change_params =
-        #      	$users->change($user->{UID}, { UID => $LIST_PARAMS{UID}, %change_params });
-        #       }
         elsif (int($input) =~ /(\d+)/) {
           my $function_id = $1;
           if ($user_functions[$function_id]) {
@@ -688,17 +684,17 @@ sub form_users {
     }
     else {
       foreach my $line (@$list) {
-        print "$line->[0], $line->[1], $line->[2], $line->[3], " . $status[ $line->[4] ] . "\n";
+        print "$line->{login}, $line->{fio}, $line->{deposit}, $line->{credit}, " . $status[ $line->{login_status} ] . "\n";
       }
     }
     return 0;
   }
 
   if (!$attr->{UID}) {
-    my $list = $users->list({%LIST_PARAMS});
+    my $list = $users->list({%LIST_PARAMS, COLS_NAME => 1 });
 
     if ($users->{TOTAL} == 1) {
-      $LIST_PARAMS{UID} = $list->[0]->[ 5 + $users->{SEARCH_FIELDS_COUNT} ];
+      $LIST_PARAMS{UID} = $list->[0]->{uid};
 
     }
     else {
@@ -756,9 +752,12 @@ sub form_fees {
   }
 
   if ($ARGV->{GET}) {
-    $ARGV->{LOGIN} = $ARGV->{FEES} if (!$ARGV->{LOGIN});
+    if (! $ARGV->{UID}) {
+      $ARGV->{LOGIN} = $ARGV->{FEES} if (!$ARGV->{LOGIN});
+    }
+    
     delete $ARGV->{FEES};
-    my $list = $users->list({ BILL_ID => '>0', %$ARGV, PAGE_ROWS => 1000000, COLS_NAME => 1 });
+    my $list = $users->list({ BILL_ID => '_SHOW', %$ARGV, PAGE_ROWS => 1000000, COLS_NAME => 1 });
     $FORM->{SUM}      = $ARGV->{GET}      || $ARGV->{SUM};
     $FORM->{DESCRIBE} = $ARGV->{DESCRIBE} || '';
     $FORM->{METHOD}   = $ARGV->{METHOD}   || '';
@@ -768,7 +767,8 @@ sub form_fees {
           UID     => $line->{uid},
           BILL_ID => $line->{bill_id},
         };
-        print "LOGIN: $line->{id} UID: $user->{UID} BILL_ID: $user->{BILL_ID} \n" if ($debug > 0);
+
+        print "LOGIN: $line->{login} UID: $user->{UID} BILL_ID: $user->{BILL_ID} \n" if ($debug > 0);
         $fees->take($user, $FORM->{SUM}, { %$FORM, %$ARGV });
         
         if($fees->{errno}) {
@@ -834,9 +834,11 @@ sub form_payments {
   }
 
   if ($ARGV->{ADD}) {
-    $ARGV->{LOGIN} = $ARGV->{PAYMENTS} if (!$ARGV->{LOGIN});
+  	if (! $ARGV->{UID}) {
+      $ARGV->{LOGIN} = $ARGV->{PAYMENTS} if (!$ARGV->{LOGIN});
+    }
     delete $ARGV->{PAYMENTS};
-    my $list = $users->list({ BILL_ID => '>0', %$ARGV, PAGE_ROWS => 1000000, COLS_NAME => 1 });
+    my $list = $users->list({ BILL_ID => '_SHOW', %$ARGV, PAGE_ROWS => 1000000, COLS_NAME => 1 });
     $FORM->{SUM}      = $ARGV->{ADD}      || $ARGV->{SUM};
     $FORM->{DESCRIBE} = $ARGV->{DESCRIBE} || '';
     $FORM->{METHOD}   = $ARGV->{METHOD} || '';
@@ -847,7 +849,7 @@ sub form_payments {
           UID     => $line->{uid},
           BILL_ID => $line->{bill_id},
         };
-        print "LOGIN: $line->{id} UID: $user->{UID} BILL_ID: $user->{BILL_ID} \n" if ($debug > 0);
+        print "LOGIN: $line->{login} UID: $user->{UID} BILL_ID: $user->{BILL_ID} \n" if ($debug > 0);
         $payments->add(
           $user,
           {

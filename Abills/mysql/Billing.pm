@@ -18,7 +18,6 @@ $VERSION     = 2.00;
 use main;
 use Tariffs;
 @ISA = ("main");
-my $db;
 my $CONF;
 
 my $tariffs;
@@ -35,6 +34,7 @@ sub new {
   my $self = {};
   bless($self, $class);
   $CONF->{MB_SIZE} = $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE};
+  $self->{db}=$db;
 
   return $self;
 }
@@ -101,9 +101,8 @@ sub traffic_calculations {
       }
 
       #Get using traffic
-      $self->query(
-        $db, "select sum(sent / $CONF->{MB_SIZE} + 4092 * acct_output_gigawords), 
-     sum(recv  / $CONF->{MB_SIZE} + 4092 * acct_input_gigawords),
+      $self->query2("select sum(sent / $CONF->{MB_SIZE} + 4096 * acct_output_gigawords), 
+     sum(recv  / $CONF->{MB_SIZE} + 4096 * acct_input_gigawords),
      sum(sent2) / $CONF->{MB_SIZE},  
      sum(recv2) / $CONF->{MB_SIZE},
      DATE_FORMAT(start, '%Y-%m')
@@ -158,10 +157,15 @@ sub traffic_calculations {
     }
 
     if ($CONF->{rt_billing}) {
-      $used_traffic->{TRAFFIC_IN}    += int($RAD->{INBYTE} / $CONF->{MB_SIZE});
-      $used_traffic->{TRAFFIC_OUT}   += int($RAD->{OUTBYTE} / $CONF->{MB_SIZE});
-      $used_traffic->{TRAFFIC_IN_2}  += ($RAD->{INBYTE2}) ? int($RAD->{INBYTE2} / $CONF->{MB_SIZE}) : 0;
-      $used_traffic->{TRAFFIC_OUT_2} += ($RAD->{OUTBYTE2}) ? int($RAD->{OUTBYTE2} / $CONF->{MB_SIZE}) : 0;
+      if ($CONF->{DV_INTERVAL_PREPAID}) {
+        #($sent, $recv) = (0,0);
+      }
+      else {
+        $used_traffic->{TRAFFIC_IN}    += int($recv / $CONF->{MB_SIZE});
+        $used_traffic->{TRAFFIC_OUT}   += int($sent / $CONF->{MB_SIZE});
+        $used_traffic->{TRAFFIC_IN_2}  += ($RAD->{INBYTE2}) ? int($RAD->{INBYTE2} / $CONF->{MB_SIZE}) : 0;
+        $used_traffic->{TRAFFIC_OUT_2} += ($RAD->{OUTBYTE2}) ? int($RAD->{OUTBYTE2} / $CONF->{MB_SIZE}) : 0;
+      }
     }
     elsif ($RAD->{ACCT_INPUT_GIGAWORDS}) {
       $recv = $recv + $RAD->{ACCT_INPUT_GIGAWORDS} * 4294967296;
@@ -186,8 +190,8 @@ sub traffic_calculations {
       $used_traffic->{ONLINE2}       = $sent2;
     }
     else {
-      $used_traffic->{TRAFFIC_SUM}   = $used_traffic->{TRAFFIC_OUT} + $used_traffic->{TRAFFIC_IN};
-      $used_traffic->{TRAFFIC_SUM_2} = $used_traffic->{TRAFFIC_OUT_2} + $used_traffic->{TRAFFIC_IN_2};
+      $used_traffic->{TRAFFIC_SUM}   = ($used_traffic->{TRAFFIC_OUT}) ? $used_traffic->{TRAFFIC_OUT} + $used_traffic->{TRAFFIC_IN} : 0;
+      $used_traffic->{TRAFFIC_SUM_2} = ($used_traffic->{TRAFFIC_OUT_2}) ? $used_traffic->{TRAFFIC_OUT_2} + $used_traffic->{TRAFFIC_IN_2} : 0;
       $used_traffic->{ONLINE}        = $sent + $recv;
       $used_traffic->{ONLINE2}       = $sent2 + $recv2;
     }
@@ -198,7 +202,6 @@ sub traffic_calculations {
       $traf_price{in}{0}  = 0;
       $traf_price{out}{0} = 0;
     }
-
     #
     elsif ($used_traffic->{TRAFFIC_SUM} + $used_traffic->{ONLINE} / $CONF->{MB_SIZE} > $prepaid{0}
       && $used_traffic->{TRAFFIC_SUM} < $prepaid{0})
@@ -303,14 +306,19 @@ sub get_traffic {
   }
 
   if ($CONF->{DV_INTERVAL_PREPAID}) {
-  	$self->query($db, "SELECT li.traffic_type, li.sent, li.recv  FROM dv_log l, dv_log_intervals li
-  	   WHERE l.acct_session_id=li.acct_session_id AND uid $WHERE and li.interval_id='$self->{TI_ID}' and ($period)");
+    my $period2 =$period;
+    $period2 =~ s/start/li\.added/g;
+    my $sql = "SELECT li.traffic_type, sum(li.sent) / $CONF->{MB_SIZE}, sum(li.recv) / $CONF->{MB_SIZE} FROM dv_log_intervals li
+           WHERE li.uid $WHERE
+           AND li.interval_id='$self->{TI_ID}'
+           AND ($period2)";
+    $self->query2($sql);
   
-	  if ($self->{TOTAL} > 0) {
-	  	foreach my $line ($self->{list}) {
-	  		my $sufix = ($line->[0] == 0) ? '' : "_".($line->[0]+1);
-        $result{'TRAFFIC_OUT'.$sufix}   += $line->[1];
-        $result{'TRAFFIC_IN'.$sufix}    += $line->[2];
+    if ($self->{TOTAL} > 0) {
+      foreach my $line (@{ $self->{list} }) {
+        my $sufix = ($line->[0] == 0) ? '' : "_".($line->[0]+1);
+        $result{'TRAFFIC_OUT'.$sufix} = ($result{'TRAFFIC_OUT'.$sufix}) ? $result{'TRAFFIC_OUT'.$sufix} + $line->[1] : $line->[1];
+        $result{'TRAFFIC_IN'.$sufix}  = ($result{'TRAFFIC_IN'.$sufix}) ? $result{'TRAFFIC_IN'.$sufix} + $line->[2] : $line->[2];
       }
     }
 
@@ -318,8 +326,7 @@ sub get_traffic {
     return \%result;
   }
 
-  $self->query(
-    $db, "SELECT sum(sent)  / $CONF->{MB_SIZE} + sum(acct_output_gigawords) * 4096,  
+  $self->query2("SELECT sum(sent)  / $CONF->{MB_SIZE} + sum(acct_output_gigawords) * 4096,  
                             sum(recv)  / $CONF->{MB_SIZE} + sum(acct_input_gigawords) * 4096, 
                             sum(sent2) / $CONF->{MB_SIZE}, 
                             sum(recv2) / $CONF->{MB_SIZE},
@@ -330,7 +337,10 @@ sub get_traffic {
   );
 
   if ($self->{TOTAL} > 0) {
-    ($result{TRAFFIC_OUT}, $result{TRAFFIC_IN}, $result{TRAFFIC_OUT_2}, $result{TRAFFIC_IN_2}) = @{ $self->{list}->[0] };
+    ($result{TRAFFIC_OUT}, 
+     $result{TRAFFIC_IN}, 
+     $result{TRAFFIC_OUT_2}, 
+     $result{TRAFFIC_IN_2}) = @{ $self->{list}->[0] };
   }
 
   if ($attr->{STATS_ONLY}) {
@@ -338,8 +348,7 @@ sub get_traffic {
     return \%result;
   }
 
-  $self->query(
-    $db, "SELECT sum(acct_output_octets)  / $CONF->{MB_SIZE} + sum(acct_output_gigawords) * 4096,  
+  $self->query2("SELECT sum(acct_output_octets)  / $CONF->{MB_SIZE} + sum(acct_output_gigawords) * 4096,  
                             sum(acct_input_octets)  / $CONF->{MB_SIZE} + sum(acct_input_gigawords) * 4096, 
                             sum(acct_output_octets) / $CONF->{MB_SIZE}, 
                             sum(ex_input_octets) / $CONF->{MB_SIZE},
@@ -401,8 +410,7 @@ sub get_traffic_ipn {
     $WHERE = "IN ($attr->{UIDS})";
   }
 
-  $self->query(
-    $db, "SELECT traffic_class,
+  $self->query2("SELECT traffic_class,
                             sum(traffic_out) / $CONF->{MB_SIZE},  
                             sum(traffic_in) / $CONF->{MB_SIZE}
        FROM ipn_log 
@@ -461,11 +469,10 @@ sub session_sum {
   $self->{HANGUP} = undef;
 
   if ($attr->{UID}) {
-    $self->query(
-      $db, "SELECT 
-    UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME($SESSION_START), '%Y-%m-%d')),
-    DAYOFWEEK(FROM_UNIXTIME($SESSION_START)),
-    DAYOFYEAR(FROM_UNIXTIME($SESSION_START)),
+    $self->query2("SELECT 
+    UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME($SESSION_START), '%Y-%m-%d')) AS day_begin,
+    DAYOFWEEK(FROM_UNIXTIME($SESSION_START)) AS day_of_week,
+    DAYOFYEAR(FROM_UNIXTIME($SESSION_START)) AS day_of_year,
     u.reduction,
     u.bill_id,
     u.activate,
@@ -474,114 +481,118 @@ sub session_sum {
     u.credit,
     u.ext_bill_id
    FROM users u
-   WHERE u.uid='$attr->{UID}';"
+   WHERE u.uid='$attr->{UID}';",
+   undef,
+   { INFO => 1 }
     );
 
     if ($self->{errno}) {
-      return -3, 0, 0, 0, 0, 0;
-    }
-
-    #user not found
-    elsif ($self->{TOTAL} < 1) {
-      return -2, 0, 0, 0, 0, 0;
+    	if ($self->{errno} == 2) {
+        return -2, 0, 0, 0, 0, 0;    		
+    	}
+    	else {
+        return -3, 0, 0, 0, 0, 0;
+      }
     }
 
     $self->{UID} = $attr->{UID};
-    ($self->{DAY_BEGIN}, $self->{DAY_OF_WEEK}, $self->{DAY_OF_YEAR}, $self->{REDUCTION}, $self->{BILL_ID}, $self->{ACTIVATE}, $self->{COMPANY_ID}, $attr->{DOMAIN_ID}, $self->{CREDIT}, $self->{EXT_BILL_ID}) = @{ $self->{list}->[0] };
 
-    $self->query(
-      $db, "SELECT 
+    $self->query2("SELECT 
     tp.min_session_cost,
     tp.payment_type,
     tp.octets_direction,
     tp.traffic_transfer_period,
     tp.total_time_limit,
     tp.total_traf_limit,
+    tp.month_traf_limit,
     tp.tp_id,
     tp.neg_deposit_filter_id,
-    tp.bills_priority
+    tp.bills_priority,
+    tp.credit AS tp_credit
    FROM tarif_plans tp
-   WHERE tp.id='$attr->{TP_NUM}' AND tp.domain_id='$attr->{DOMAIN_ID}';"
+   WHERE tp.id='$attr->{TP_NUM}' AND tp.domain_id='$self->{DOMAIN_ID}';",
+   undef,
+   { INFO => 1 }
     );
 
     if ($self->{errno}) {
-      return -3, 0, 0, 0, 0, 0;
+      #TP not found
+      if ($self->{errno} == 2) {
+        return -5, 0, 0, 0, 0, 0;
+      }
+      else {
+        return -3, 0, 0, 0, 0, 0;
+      }
     }
 
-    #TP not found
-    elsif ($self->{TOTAL} < 1) {
-      return -5, 0, 0, 0, 0, 0;
-    }
 
     $self->{TP_NUM} = $attr->{TP_NUM};
-
-    ($self->{MIN_SESSION_COST}, $self->{PAYMENT_TYPE}, $self->{OCTETS_DIRECTION}, $self->{TRAFFIC_TRANSFER_PERIOD}, $self->{TOTAL_TIME_LIMIT}, $self->{TOTAL_TRAF_LIMIT}, $self->{TP_ID}, $self->{NEG_DEPOSIT_FILTER}, $self->{BILLS_PRIORITY}) = @{ $self->{list}->[0] };
   }
-
   #If defined TP_NUM
   elsif ($attr->{TP_NUM}) {
-    $self->query(
-      $db, "SELECT 
+    $self->query2("SELECT 
     u.uid,
-    UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME($SESSION_START), '%Y-%m-%d')),
-    DAYOFWEEK(FROM_UNIXTIME($SESSION_START)),
-    DAYOFYEAR(FROM_UNIXTIME($SESSION_START)),
+    UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME($SESSION_START), '%Y-%m-%d')) AS day_begin,
+    DAYOFWEEK(FROM_UNIXTIME($SESSION_START)) AS day_of_week,
+    DAYOFYEAR(FROM_UNIXTIME($SESSION_START)) AS day_of_year,
     u.reduction,
     u.bill_id,
     u.activate,
     u.company_id,
     u.ext_bill_id
    FROM users u
-   WHERE  u.id='$USER_NAME' and u.domain_id='$attr->{DOMAIN_ID}';"
+   WHERE  u.id='$USER_NAME' and u.domain_id='$attr->{DOMAIN_ID}';",
+   undef,
+   { INFO => 1 }   
     );
 
     if ($self->{errno}) {
-      return -3, 0, 0, 0, 0, 0;
+      #user not found
+      if ($self->{errno} == 2) {
+        return -2, 0, 0, 0, 0, 0;
+      }
+      else {
+        return -3, 0, 0, 0, 0, 0;
+      }
     }
 
-    #user not found
-    elsif ($self->{TOTAL} < 1) {
-      return -2, 0, 0, 0, 0, 0;
-    }
-
-    ($self->{UID}, $self->{DAY_BEGIN}, $self->{DAY_OF_WEEK}, $self->{DAY_OF_YEAR}, $self->{REDUCTION}, $self->{BILL_ID}, $self->{ACTIVATE}, $self->{COMPANY_ID}, $self->{EXT_BILL_ID},) = @{ $self->{list}->[0] };
-
-    $self->query(
-      $db, "SELECT 
+    $self->query2("SELECT 
     tp.min_session_cost,
     tp.payment_type,
     tp.octets_direction,
     tp.traffic_transfer_period,
     tp.total_time_limit,
     tp.total_traf_limit,
+    tp.month_traf_limit,
     tp.tp_id,
-    tp.bills_priority
+    tp.bills_priority,
+    tp.credit
    FROM tarif_plans tp
-   WHERE tp.id='$attr->{TP_NUM}' AND tp.domain_id='$attr->{DOMAIN_ID}';"
+   WHERE tp.id='$attr->{TP_NUM}' AND tp.domain_id='$attr->{DOMAIN_ID}';",
+   undef,
+   { INFO => 1 }
     );
 
     if ($self->{errno}) {
-      return -3, 0, 0, 0, 0, 0;
+      #TP not found
+      if ($self->{errno} == 2) {
+        return -5, 0, 0, 0, 0, 0;
+      }
+      else {
+        return -3, 0, 0, 0, 0, 0;
+      }
     }
 
-    #TP not found
-    elsif ($self->{TOTAL} < 1) {
-      return -5, 0, 0, 0, 0, 0;
-    }
 
     $self->{TP_NUM} = $attr->{TP_NUM};
-
-    ($self->{MIN_SESSION_COST}, $self->{PAYMENT_TYPE}, $self->{OCTETS_DIRECTION}, $self->{TRAFFIC_TRANSFER_PERIOD}, $self->{TOTAL_TIME_LIMIT}, $self->{TOTAL_TRAF_LIMIT}, $self->{TP_ID}, $self->{BILLS_PRIORITY}) = @{ $self->{list}->[0] };
-
   }
   else {
-    $self->query(
-      $db, "SELECT 
+    $self->query2("SELECT 
     u.uid,
-    tp.id, 
-    UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME($SESSION_START), '%Y-%m-%d')),
-    DAYOFWEEK(FROM_UNIXTIME($SESSION_START)),
-    DAYOFYEAR(FROM_UNIXTIME($SESSION_START)),
+    tp.id AS tp_num, 
+    UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME($SESSION_START), '%Y-%m-%d')) AS day_begin,
+    DAYOFWEEK(FROM_UNIXTIME($SESSION_START)) AS day_of_week,
+    DAYOFYEAR(FROM_UNIXTIME($SESSION_START)) AS day_of_year,
     u.reduction,
     u.bill_id,
     u.activate,
@@ -595,57 +606,57 @@ sub session_sum {
     tp.tp_id,
     tp.total_time_limit,
     tp.total_traf_limit,
+    tp.month_traf_limit,
     u.ext_bill_id,
-    tp.bills_priority
+    tp.bills_priority,
+    tp.credit AS tp_credit
    FROM (users u, 
       dv_main dv) 
    LEFT JOIN tarif_plans tp ON (dv.tp_id=tp.id AND tp.domain_id='$attr->{DOMAIN_ID}')
    WHERE dv.uid=u.uid AND u.domain_id='$attr->{DOMAIN_ID}'
-   and u.id='$USER_NAME';"
+   and u.id='$USER_NAME';",
+   undef,
+   { INFO => 1 }
     );
 
     if ($self->{errno}) {
-      return -3, 0, 0, 0, 0, 0;
+      #user not found
+      if ($self->{errno} == 2) {
+        return -2, 0, 0, 0, 0, 0;
+      }
+      else {
+        return -3, 0, 0, 0, 0, 0;
+      }
     }
-
-    #user not found
-    elsif ($self->{TOTAL} < 1) {
-      return -2, 0, 0, 0, 0, 0;
-    }
-
-    (
-      $self->{UID},          $self->{TP_NUM},           $self->{DAY_BEGIN},        $self->{DAY_OF_WEEK},      $self->{DAY_OF_YEAR},      $self->{REDUCTION},               $self->{BILL_ID},
-      $self->{ACTIVATE},     $self->{MIN_SESSION_COST}, $self->{COMPANY_ID},       $self->{PAYMENT_TYPE},     $self->{OCTETS_DIRECTION}, $self->{TRAFFIC_TRANSFER_PERIOD}, $self->{NEG_DEPOSIT_FILTER},
-      $self->{JOIN_SERVICE}, $self->{TP_ID},            $self->{TOTAL_TIME_LIMIT}, $self->{TOTAL_TRAF_LIMIT}, $self->{EXT_BILL_ID},      $self->{BILLS_PRIORITY}
-    ) = @{ $self->{list}->[0] };
   }
 
   if ($self->{JOIN_SERVICE}) {
     if ($self->{JOIN_SERVICE} > 1) {
-      $self->query(
-        $db, "SELECT 
-        tp.id, 
+      $self->query2("SELECT 
+        tp.id as tp_num, 
         tp.min_session_cost,
         tp.payment_type,
         tp.octets_direction,
         tp.traffic_transfer_period,
         tp.neg_deposit_filter_id,
-        tp.tp_id
+        tp.tp_id,
+        tp.credit AS tp_credit
        FROM (dv_main dv,  tarif_plans tp)
        WHERE dv.tp_id=tp.id AND tp.domain_id='$attr->{DOMAIN_ID}'
-       and dv.uid='$self->{JOIN_SERVICE}';"
+       and dv.uid='$self->{JOIN_SERVICE}';",
+       undef,
+       { INFO => 1 }
       );
 
       if ($self->{errno}) {
-        return -3, 0, 0, 0, 0, 0;
+        #user not found
+        if ($self->{errno} == 2) {
+          return -2, 0, 0, 0, 0, 0;
+        }
+        else {
+          return -3, 0, 0, 0, 0, 0;
+        }
       }
-
-      #user not found
-      elsif ($self->{TOTAL} < 1) {
-        return -2, 0, 0, 0, 0, 0;
-      }
-
-      ($self->{TP_NUM}, $self->{MIN_SESSION_COST}, $self->{PAYMENT_TYPE}, $self->{OCTETS_DIRECTION}, $self->{TRAFFIC_TRANSFER_PERIOD}, $self->{NEG_DEPOSIT_FILTER}, $self->{TP_ID}) = @{ $self->{list}->[0] };
 
       $self->{UIDS} = "$self->{JOIN_SERVICE}";
     }
@@ -654,7 +665,7 @@ sub session_sum {
       $self->{JOIN_SERVICE} = $self->{UID};
     }
 
-    $self->query($db, "SELECT uid FROM dv_main WHERE join_service='$self->{JOIN_SERVICE}';");
+    $self->query2("SELECT uid FROM dv_main WHERE join_service='$self->{JOIN_SERVICE}';");
     foreach my $line (@{ $self->{list} }) {
       $self->{UIDS} .= ", $line->[0]";
     }
@@ -668,8 +679,9 @@ sub session_sum {
   }
 
   if ($self->{NEG_DEPOSIT_FILTER}) {
-    $self->query($db, "SELECT deposit FROM bills WHERE id='$self->{BILL_ID}';");
+    $self->query2("SELECT deposit FROM bills WHERE id='$self->{BILL_ID}';");
     if ($self->{TOTAL} > 0) {
+      $self->{CREDIT} = ($self->{CREDIT}>0) ? $self->{CREDIT} : $self->{TP_CREDIT};
       ($self->{DEPOSIT}) = @{ $self->{list}->[0] };
       if ($self->{DEPOSIT} + $self->{CREDIT} < 0) {
         return $self->{UID}, 0, $self->{BILL_ID}, $self->{TP_NUM}, 0, 0;
@@ -680,10 +692,20 @@ sub session_sum {
     }
   }
 
-  if ($self->{TOTAL_TRAF_LIMIT} && $self->{CHECK_SESSION}) {
-    if ($sent + $recv >= $self->{TOTAL_TRAF_LIMIT}) {
-      $self->{HANGUP} = 1;
-      return $self->{UID}, 0, $self->{BILL_ID}, $self->{TP_NUM}, 0, 0;
+
+  if ($self->{CHECK_SESSION}) {
+    if ($self->{TOTAL_TRAF_LIMIT}) {
+      if ($sent + $recv >= $self->{TOTAL_TRAF_LIMIT}) {
+        $self->{HANGUP} = 1;
+        return $self->{UID}, 0, $self->{BILL_ID}, $self->{TP_NUM}, 0, 0;
+      }
+    }
+    elsif ($self->{MONTH_TRAF_LIMIT}) {
+      my $counters = $self->get_traffic({ UID => $self->{UID} });
+      if ($counters->{TRAFFIC_IN} + $counters->{TRAFFIC_OUT} >= $self->{MONTH_TRAF_LIMIT}) {
+        $self->{HANGUP} = 1;
+        return $self->{UID}, 0, $self->{BILL_ID}, $self->{TP_NUM}, 0, 0;
+      }
     }
   }
 
@@ -691,9 +713,9 @@ sub session_sum {
     return $self->{UID}, $sum, $self->{BILL_ID}, $self->{TP_NUM}, 0, 0;
   }
 
+
   $tariffs = Tariffs->new($db, $CONF);
   $self->session_splitter($SESSION_START, $SESSION_DURATION, $self->{DAY_BEGIN}, $self->{DAY_OF_WEEK}, $self->{DAY_OF_YEAR}, { TP_ID => $self->{TP_ID} });
-
   #session devisions
   my @sd = @{ $self->{TIME_DIVISIONS_ARR} };
 
@@ -732,7 +754,7 @@ sub session_sum {
   }
 
   if ($self->{COMPANY_ID} && $self->{COMPANY_ID} > 0) {
-    $self->query($db, "SELECT bill_id, vat FROM companies
+    $self->query2("SELECT bill_id, vat FROM companies
     WHERE id='$self->{COMPANY_ID}';"
     );
 
@@ -745,8 +767,7 @@ sub session_sum {
   }
 
   if ($CONF->{BONUS_EXT_FUNCTIONS} && $self->{EXT_BILL_ID} && $sum > 0 && $self->{BILLS_PRIORITY}) {
-    $self->query($db, "SELECT deposit FROM bills WHERE id='$self->{EXT_BILL_ID}';");
-    ($self->{EXT_DEPOSIT}) = @{ $self->{list}->[0] };
+    $self->query2("SELECT deposit AS ext_deposit FROM bills WHERE id='$self->{EXT_BILL_ID}';", undef, {INFO => 1 });
     if ($self->{EXT_DEPOSIT} > $sum || $self->{BILLS_PRIORITY} == 2) {
       $self->{BILL_ID} = $self->{EXT_BILL_ID};
     }
@@ -765,8 +786,7 @@ sub time_intervals {
   my $self = shift;
   my ($TP_ID, $attr) = @_;
 
-  $self->query(
-    $db, "SELECT i.day, TIME_TO_SEC(i.begin),
+  $self->query2("SELECT i.day, TIME_TO_SEC(i.begin),
    TIME_TO_SEC(i.end),
    i.tarif,
    if(sum(tt.in_price+tt.out_price) IS NULL || sum(tt.in_price+tt.out_price)=0, 0, sum(tt.in_price+tt.out_price)),
@@ -824,7 +844,7 @@ sub session_splitter {
   }
 
   if ($time_intervals == 0) {
-    $self->{NO_TPINTERVALS} = 'y';
+    $self->{NO_TPINTERVALS} = 1;
     $self->{SUM}            = 0;
     return $self;
   }
@@ -1008,19 +1028,14 @@ sub time_calculation() {
 sub get_timeinfo {
   my $self = shift;
 
-  $self->query(
-    $db, "select
-    UNIX_TIMESTAMP(),
-    UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME(UNIX_TIMESTAMP()), '%Y-%m-%d')),
-    DAYOFWEEK(FROM_UNIXTIME(UNIX_TIMESTAMP())),
-    DAYOFYEAR(FROM_UNIXTIME(UNIX_TIMESTAMP()));"
+  $self->query2("select
+    UNIX_TIMESTAMP() AS session_start,
+    UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME(UNIX_TIMESTAMP()), '%Y-%m-%d')) AS day_begin,
+    DAYOFWEEK(FROM_UNIXTIME(UNIX_TIMESTAMP())) AS day_of_week,
+    DAYOFYEAR(FROM_UNIXTIME(UNIX_TIMESTAMP())) AS day_of_year;",
+    undef,
+    { INFO => 1 }
   );
-
-  if ($self->{errno}) {
-    return $self;
-  }
-
-  ($self->{SESSION_START}, $self->{DAY_BEGIN}, $self->{DAY_OF_WEEK}, $self->{DAY_OF_YEAR}) = @{ $self->{list}->[0] };
 
   return $self;
 }
@@ -1132,7 +1147,6 @@ sub remaining_time {
 
     TIME_INTERVALS:
 
-    #my @intervals = sort keys %$cur_int;
     my @intervals = sort { $a <=> $b } keys %$cur_int;
     $i = -1;
 
@@ -1283,7 +1297,7 @@ sub mk_session_log {
   my $self        = shift;
   my ($acct_info) = @_;
   my $filename    = "$acct_info->{USER_NAME}.$acct_info->{ACCT_SESSION_ID}";
-
+  $filename =~ s/\//_/g;
   open(FILE, ">$CONF->{SPOOL_DIR}/$filename") || die "Can't open file '$CONF->{SPOOL_DIR}/$filename' $!";
   while (my ($k, $v) = each(%$acct_info)) {
     print FILE "$k:$v\n";

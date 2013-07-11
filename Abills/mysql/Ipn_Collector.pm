@@ -36,13 +36,13 @@ Tariffs->import();
 my $Tariffs;
 
 my %ips = ();
-my $db;
 my $CONF;
 my $debug = 0;
 
 my %intervals   = ();
 my %tp_interval = ();
 my %ip_range    = ();
+my %ip_user_hash= ();
 my @zoneids;
 my %ip_class_tables = ();
 
@@ -51,7 +51,9 @@ my %ip_class_tables = ();
 #**********************************************************
 sub new {
   my $class = shift;
-  ($db, $CONF) = @_;
+  my $db    = shift;
+  ($CONF)   = @_;
+
   my $self = {};
   bless($self, $class);
 
@@ -62,6 +64,8 @@ sub new {
   if (!defined($CONF->{KBYTE_SIZE})) {
     $CONF->{KBYTE_SIZE} = 1024;
   }
+
+  $self->{db}=$db;
 
   $CONF->{IPN_DETAIL_MIN_SIZE}  = 0 if (!$CONF->{IPN_DETAIL_MIN_SIZE});
   $CONF->{MB_SIZE}              = $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE};
@@ -93,30 +97,30 @@ sub user_ips {
 
   if ($CONF->{IPN_STATIC_IP}) {
     $sql = "select u.uid, dv.ip, u.id AS login, 
-	   if(calls.acct_session_id, calls.acct_session_id, '') AS acct_session_id,
-	   dv.tp_id, 
-		 if (u.company_id > 0, cb.id, b.id) AS bill_id,
-		 if (c.name IS NULL, b.deposit, cb.deposit)+u.credit AS deposit,
-		 tp.payment_type,
-		 tp.octets_direction,
-		 u.reduction,
-		 u.activate,
-		 dv.netmask,
-		 dv.ip AS dv_ip,
+     if(calls.acct_session_id, calls.acct_session_id, '') AS acct_session_id,
+     dv.tp_id, 
+     if (u.company_id > 0, cb.id, b.id) AS bill_id,
+     if (c.name IS NULL, b.deposit, cb.deposit)+u.credit AS deposit,
+     tp.payment_type,
+     tp.octets_direction,
+     u.reduction,
+     u.activate,
+     dv.netmask,
+     dv.ip AS dv_ip,
      calls.acct_input_gigawords,
      calls.acct_output_gigawords,
      dv.join_service
-		 FROM (users u, dv_main dv)
-		 LEFT JOIN companies c ON (u.company_id=c.id)
-		 LEFT JOIN bills b ON (u.bill_id=b.id)
-		 LEFT JOIN bills cb ON (c.bill_id=cb.id)
-		 LEFT JOIN tarif_plans tp ON (tp.id=dv.tp_id)
-		 LEFT JOIN dv_calls calls ON (u.id=calls.user_name)
+     FROM (users u, dv_main dv)
+     LEFT JOIN companies c ON (u.company_id=c.id)
+     LEFT JOIN bills b ON (u.bill_id=b.id)
+     LEFT JOIN bills cb ON (c.bill_id=cb.id)
+     LEFT JOIN tarif_plans tp ON (tp.id=dv.tp_id)
+     LEFT JOIN dv_calls calls ON (u.id=calls.user_name)
      LEFT JOIN users_nas un ON(u.uid=un.uid)
-		 WHERE u.uid=dv.uid and u.domain_id=0
-		  and dv.ip > 0 and u.disable=0 and dv.disable=0
-		  and (un.nas_id IN ($DATA->{NAS_ID}) or un.nas_id IS NULL)
-		 GROUP BY u.uid;";
+     WHERE u.uid=dv.uid and u.domain_id=0
+      and dv.ip > 0 and u.disable=0 and dv.disable=0
+      and (un.nas_id IN ($DATA->{NAS_ID}) or un.nas_id IS NULL)
+     GROUP BY u.uid;";
   }
   elsif ($CONF->{IPN_DEPOSIT_OPERATION}) {
     $sql = "select u.uid, calls.framed_ip_address AS ip, 
@@ -170,7 +174,7 @@ sub user_ips {
    and calls.nas_id IN ($DATA->{NAS_ID});";
   }
 
-  $self->query($db, $sql, undef, { COLS_NAME => 1 });
+  $self->query2($sql, undef, { COLS_NAME => 1 });
 
   if ($self->{errno}) {
     print "SQL Error: Get online users\n";
@@ -193,8 +197,12 @@ sub user_ips {
     #Get IP/mask
     if ($line->{netmask} && $line->{netmask} < 4294967295) {
       my $count = 4294967295 - $line->{netmask};
+      my $ip2hash = $ip;
       $ip = pack('N4N4', $ip, $count);
       $ip_range{ $line->{uid} } = $ip;
+      for (my $i =0; $i <= $count; $i++) {
+        $ip_user_hash{$ip2hash+$i} = $line->{uid};
+      }
     }
     $ips{$ip} = $line->{uid};
 
@@ -273,16 +281,11 @@ sub traffic_agregate_users {
     $y++;
   }
   else {
-    while (my ($uid, $ip_count) = each %ip_range) {
-      my ($ip, $count) = unpack('N4N4', $ip_count);
-      my $last_ip = $ip + $count;
-
-      if ($ip <= $DATA->{SRC_IP} && $DATA->{SRC_IP} <= $last_ip) {
-        push @{ $self->{AGREGATE_USERS}{$uid}{OUT} }, {%$DATA};
-        $DATA->{UID} = $uid;
-        $y++;
-        last;
-      }
+    if ($ip_user_hash{$DATA->{SRC_IP}}) {
+      my $uid = $ip_user_hash{$DATA->{SRC_IP}};  
+      push @{ $self->{AGREGATE_USERS}{$uid}{OUT} }, {%$DATA};
+      $DATA->{UID} = $uid;
+      $y++;
     }
   }
 
@@ -298,16 +301,11 @@ sub traffic_agregate_users {
     $y++;
   }
   else {
-    while (my ($uid, $ip_count) = each %ip_range) {
-      my ($ip, $count) = unpack('N4N4', $ip_count);
-      my $last_ip = $ip + $count;
-
-      if ($ip <= $DATA->{DST_IP} && $DATA->{DST_IP} <= $last_ip) {
-        push @{ $self->{AGREGATE_USERS}{$uid}{IN} }, {%$DATA};
-        $DATA->{UID} = $uid;
-        $y++;
-        last;
-      }
+    if (defined($ip_user_hash{$DATA->{DST_IP}})) {
+      my $uid = $ip_user_hash{$DATA->{DST_IP}};
+      push @{ $self->{AGREGATE_USERS}{$uid}{IN} }, {%$DATA};
+      $DATA->{UID} = $uid;
+      $y++;
     }
 
     #Unknown Ips
@@ -365,7 +363,7 @@ sub traffic_agregate_nets {
 
   #my $ips             = $self->{USERS_IPS};
   my $user_info = $self->{USERS_INFO};
-  $Dv = Dv->new($db, undef, $CONF);
+  $Dv = Dv->new($self->{db}, undef, $CONF);
 
   #Get user and session TP
   while (my ($uid, $session_tp) = each(%{ $user_info->{TPS} })) {
@@ -495,7 +493,7 @@ sub get_zone {
   my $tariff = $attr->{TP_INTERVAL} || 0;
 
   #Get traffic classes and prices
-  $Tariffs = Tariffs->new($db, undef, $CONF);
+  $Tariffs = Tariffs->new($self->{db}, undef, $CONF);
   my $list = $Tariffs->tt_list({ TI_ID => $tariff });
 
   foreach my $line (@$list) {
@@ -515,7 +513,7 @@ sub get_zone {
 
   #Get IP addresse for each traffic zones
   if (!%ip_class_tables) {
-    $self->query($db, "SELECT id, nets FROM traffic_classes;");
+    $self->query2("SELECT id, nets FROM traffic_classes;");
     foreach my $line (@{ $self->{list} }) {
       my $zoneid = $line->[0];
       $line->[1] =~ s/\n//g;
@@ -541,11 +539,6 @@ sub get_zone {
             my @PORTS_ARRAY = split(/,/, $6);
             foreach my $port (@PORTS_ARRAY) {
               push @{ $ip_class_tables{$zoneid}[$i]{Ports} }, $port;
-
-              #while (my $ref2=$sth2->fetchrow_hashref()) {
-              #  if ($DEBUG) { print "$ref2->{'PortNum'} "; }
-              #  push @{$zones{$zoneid}{A}[$i]{Ports}}, $ref2->{'PortNum'};
-              #}
             }
           }
           $i++;
@@ -584,9 +577,7 @@ sub ip_in_zone($$$$) {
     my $a_neg       = $$adr_hash{'Neg'};
     my $a_ports_ref = \@{ $$adr_hash{'Ports'} };
     if ( (($a_ip & $a_msk) == ($ip_num & $a_msk))
-      && (is_exist($a_ports_ref, $port)))
-    {
-
+      && (is_exist($a_ports_ref, $port))) {
       if ($a_neg) {
         $res = 0;
       }
@@ -610,8 +601,7 @@ sub traffic_add_user {
   my $stop  = (!$DATA->{STOP})  ? 0       : "'$DATA->{STOP}'";
 
   if ($DATA->{INBYTE} + $DATA->{OUTBYTE} > 0) {
-    $self->query(
-      $db, "insert into ipn_log (
+    $self->query2("insert into ipn_log (
          uid,
          start,
          stop,
@@ -659,16 +649,16 @@ sub traffic_user_get2 {
   if ($attr->{JOIN_SERVICE}) {
     my @uids_arr = ();
     if ($attr->{JOIN_SERVICE} == 1) {
-    	push @uids_arr, $uid;
-    	$attr->{JOIN_SERVICE} = $uid;
+      push @uids_arr, $uid;
+      $attr->{JOIN_SERVICE} = $uid;
     }
 
-  	$self->query($db, "SELECT uid FROM dv_main WHERE join_service='$attr->{JOIN_SERVICE}'");
+    $self->query2("SELECT uid FROM dv_main WHERE join_service='$attr->{JOIN_SERVICE}'");
      
     foreach my $line (@{ $self->{list} }) {
-    	push @uids_arr, $line->[0];
+      push @uids_arr, $line->[0];
     }
-      	  
+          
     $WHERE = "uid IN (". join(', ', @uids_arr) .") AND ";
   }
   else {
@@ -703,8 +693,7 @@ sub traffic_user_get2 {
     $WHERE .= "and traffic_class='$attr->{TRAFFIC_ID}'";
   }
 
-  $self->query(
-    $db, "SELECT    started,
+  $self->query2("SELECT    started,
    uid,
    traffic_class,
    traffic_in / $CONF->{MB_SIZE},
@@ -714,9 +703,8 @@ sub traffic_user_get2 {
   );
 
   if ($self->{TOTAL} < 1) {
-    $self->query(
-      $db, "INSERT INTO traffic_prepaid_sum (uid, started, traffic_class, traffic_in, traffic_out)
-   	   VALUES ('$uid', $attr->{ACTIVATE}, '$attr->{TRAFFIC_ID}', '$attr->{TRAFFIC_IN}', '$attr->{TRAFFIC_OUT}')", 'do'
+    $self->query2("INSERT INTO traffic_prepaid_sum (uid, started, traffic_class, traffic_in, traffic_out)
+        VALUES ('$uid', $attr->{ACTIVATE}, '$attr->{TRAFFIC_ID}', '$attr->{TRAFFIC_IN}', '$attr->{TRAFFIC_OUT}')", 'do'
     );
 
     $result{ $attr->{TRAFFIC_ID} }{TRAFFIC_IN}  = 0;
@@ -732,8 +720,7 @@ sub traffic_user_get2 {
     $result{ $line->[2] }{TRAFFIC_OUT} = $line->[4];
   }
 
-  $self->query(
-    $db, "UPDATE traffic_prepaid_sum SET 
+  $self->query2("UPDATE traffic_prepaid_sum SET 
      traffic_in=traffic_in+$attr->{TRAFFIC_IN},
      traffic_out=traffic_out+$attr->{TRAFFIC_OUT}
     WHERE uid='$uid'
@@ -759,16 +746,16 @@ sub traffic_user_get {
   if ($attr->{JOIN_SERVICE}) {
     my @uids_arr = ();
     if ($attr->{JOIN_SERVICE} == 1) {
-    	push @uids_arr, $uid;
-    	$attr->{JOIN_SERVICE} = $uid;
+      push @uids_arr, $uid;
+      $attr->{JOIN_SERVICE} = $uid;
     }
 
-  	$self->query($db, "SELECT uid FROM dv_main WHERE join_service='$attr->{JOIN_SERVICE}'");
+    $self->query2("SELECT uid FROM dv_main WHERE join_service='$attr->{JOIN_SERVICE}'");
      
     foreach my $line (@{ $self->{list} }) {
-    	push @uids_arr, $line->[0];
+      push @uids_arr, $line->[0];
     }
-      	  
+          
     $WHERE = " uid IN (". join(', ', @uids_arr) .") AND ";
   }
   else {
@@ -790,8 +777,7 @@ sub traffic_user_get {
     $WHERE .= "DATE_FORMAT(start, '%Y-%m')>=DATE_FORMAT(curdate(), '%Y-%m')";
   }
 
-  $self->query(
-    $db, "SELECT traffic_class, sum(traffic_in) / $CONF->{MB_SIZE}, sum(traffic_out) / $CONF->{MB_SIZE} 
+  $self->query2("SELECT traffic_class, sum(traffic_in) / $CONF->{MB_SIZE}, sum(traffic_out) / $CONF->{MB_SIZE} 
     FROM ipn_log
         WHERE $WHERE
         GROUP BY uid, traffic_class;", undef, $attr
@@ -819,8 +805,7 @@ sub traffic_add {
   $DATA->{START} = (!$DATA->{START}) ? 'now()' : "'$DATA{START}'";
   $DATA->{STOP}  = (!$DATA->{STOP})  ? 'now()' : "'$DATA{STOP}'";
 
-  $self->query(
-    $db, "insert into ipn_traf_detail (src_addr,
+  $self->query2("insert into ipn_traf_detail (src_addr,
        dst_addr,
        src_port,
        dst_port,
@@ -854,8 +839,7 @@ sub acct_update {
   my $self = shift;
   my ($DATA) = @_;
 
-  $self->query(
-    $db, "UPDATE dv_calls SET
+  $self->query2("UPDATE dv_calls SET
       sum=sum+$DATA->{SUM},
       acct_input_octets=acct_input_octets+$DATA->{INTERIUM_INBYTE},
       acct_output_octets=acct_output_octets+$DATA->{INTERIUM_OUTBYTE},
@@ -877,7 +861,7 @@ sub acct_update {
 
     #Take money from bill
     if ($DATA->{SUM} > 0) {
-      $self->query($db, "UPDATE bills SET deposit=deposit-$DATA->{SUM} WHERE id='$self->{USERS_INFO}->{BILL_ID}->{$DATA->{UID}}';", 'do');
+      $self->query2("UPDATE bills SET deposit=deposit-$DATA->{SUM} WHERE id='$self->{USERS_INFO}->{BILL_ID}->{$DATA->{UID}}';", 'do');
     }
 
     #If negative deposit hangup
@@ -909,15 +893,15 @@ sub acct_stop {
   my $sql = "select u.uid, calls.framed_ip_address, 
       calls.user_name,
       calls.acct_session_id,
-      calls.acct_input_octets,
-      calls.acct_output_octets,
+      calls.acct_input_octets AS input_octets,
+      calls.acct_output_octets AS output_octets,
       dv.tp_id,
       if(u.company_id > 0, cb.id, b.id) AS bill_id,
       if(c.name IS NULL, b.deposit, cb.deposit)+u.credit AS deposit,
-      calls.started,
-      UNIX_TIMESTAMP()-UNIX_TIMESTAMP(calls.started),
+      calls.started AS start,
+      UNIX_TIMESTAMP()-UNIX_TIMESTAMP(calls.started) AS acct_session_time,
       nas_id,
-      nas_port_id
+      nas_port_id AS nas_port
     FROM (dv_calls calls, users u)
       LEFT JOIN companies c ON (u.company_id=c.id)
       LEFT JOIN bills b ON (u.bill_id=b.id)
@@ -925,46 +909,30 @@ sub acct_stop {
       LEFT JOIN dv_main dv ON (u.uid=dv.uid)
     WHERE u.id=calls.user_name and acct_session_id='$session_id';";
 
-  $self->query($db, $sql);
+  $self->query2($sql, undef, { INFO => 1 });
 
-  if ($self->{TOTAL} < 1) {
-    $self->{errno}  = 2;
-    $self->{errstr} = 'ERROR_NOT_EXIST';
-    return $self;
-  }
-
-  ($self->{UID}, $self->{FRAMED_IP_ADDRESS}, $self->{USER_NAME}, $self->{ACCT_SESSION_ID}, $self->{INPUT_OCTETS}, $self->{OUTPUT_OCTETS}, $self->{TP_ID}, $self->{BILL_ID}, $self->{DEPOSIT}, $self->{START}, $self->{ACCT_SESSION_TIME}, $self->{NAS_ID}, $self->{NAS_PORT}) = @{ $self->{list}->[0] };
-
-  $self->query(
-    $db, "SELECT sum(l.traffic_in), 
-   sum(l.traffic_out),
-   sum(l.sum),
+  $self->query2("SELECT sum(l.traffic_in) AS traffic_in, 
+   sum(l.traffic_out) AS traffic_out,
+   sum(l.sum) AS sum,
    l.nas_id
    from ipn_log l
    WHERE session_id='$session_id'
-   GROUP BY session_id  ;"
+   GROUP BY session_id  ;",
+   undef,
+   { INFO => 1 }
   );
 
   if ($self->{TOTAL} < 1) {
-    $self->{TRAFFIC_IN}  = 0;
-    $self->{TRAFFIC_OUT} = 0;
-    $self->{SUM}         = 0;
-    $self->{NAS_ID}      = 0;
-    $self->query($db, "DELETE from dv_calls WHERE acct_session_id='$self->{ACCT_SESSION_ID}';", 'do');
+    $self->query2("DELETE from dv_calls WHERE acct_session_id='$self->{ACCT_SESSION_ID}';", 'do');
     return $self;
   }
 
-  ($self->{TRAFFIC_IN}, $self->{TRAFFIC_OUT}, $self->{SUM}) = @{ $self->{list}->[0] };
-
-  $self->query(
-    $db, "INSERT INTO dv_log (uid, 
+  $self->query2("INSERT INTO dv_log (uid, 
     start, 
     tp_id, 
     duration, 
     sent, 
     recv, 
-    minp, 
-    kb,
     sum, 
     nas_id, 
     port_id,
@@ -978,7 +946,7 @@ sub acct_stop {
         VALUES ('$self->{UID}', '$self->{START}', '$self->{TP_ID}', 
           '$self->{ACCT_SESSION_TIME}', 
           '$self->{OUTPUT_OCTETS}', '$self->{INPUT_OCTETS}', 
-          '0', '0', '$self->{SUM}', '$self->{NAS_ID}',
+          '$self->{SUM}', '$self->{NAS_ID}',
           '$self->{NAS_PORT}', 
           '$self->{FRAMED_IP_ADDRESS}', 
           '',
@@ -989,7 +957,7 @@ sub acct_stop {
           '$ACCT_TERMINATE_CAUSE');", 'do'
   );
 
-  $self->query($db, "DELETE from dv_calls WHERE acct_session_id='$self->{ACCT_SESSION_ID}';", 'do');
+  $self->query2("DELETE from dv_calls WHERE acct_session_id='$self->{ACCT_SESSION_ID}';", 'do');
 }
 
 #**********************************************************
@@ -1012,9 +980,8 @@ sub unknown_add {
   my $self = shift;
   my ($from, $to, $size, $nas_id, $attr) = @_;
 
-  $self->query(
-    $db, "INSERT INTO ipn_unknow_ips (src_ip, dst_ip, size, nas_id, datetime)
-   	   VALUES ($from, $to, $size, $nas_id, now());", 'do'
+  $self->query2("INSERT INTO ipn_unknow_ips (src_ip, dst_ip, size, nas_id, datetime)
+        VALUES ($from, $to, $size, $nas_id, now());", 'do'
   );
 
   return $self;

@@ -26,6 +26,7 @@ my %FIELDS = (
   DAY_FEE                 => 'day_fee',
   ACTIVE_DAY_FEE          => 'active_day_fee',
   MONTH_FEE               => 'month_fee',
+  FIXED_FEES_DAY          => 'fixed_fees_day',
   REDUCTION_FEE           => 'reduction_fee',
   POSTPAID_DAY_FEE        => 'postpaid_daily_fee',
   POSTPAID_MONTH_FEE      => 'postpaid_monthly_fee',
@@ -75,10 +76,13 @@ my %FIELDS = (
 #**********************************************************
 sub new {
   my $class = shift;
-  ($db, $CONF, $admin) = @_;
+  my $db    = shift;
+  ($CONF, $admin) = @_;
   my $self = {};
   bless($self, $class);
-
+  
+  $self->{db}=$db;
+  
   return $self;
 }
 
@@ -89,8 +93,8 @@ sub new {
 sub ti_del {
   my $self = shift;
   my ($id) = @_;
-  $self->query($db, "DELETE FROM intervals WHERE id='$id';", 'do');
-  $self->query($db, "DELETE FROM trafic_tarifs WHERE interval_id='$id';", 'do');
+  $self->query2("DELETE FROM intervals WHERE id='$id';", 'do');
+  $self->query2("DELETE FROM trafic_tarifs WHERE interval_id='$id';", 'do');
 
   $admin->system_action_add("TI:$id", { TYPE => 10 });
   return $self;
@@ -104,8 +108,7 @@ sub ti_add {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query(
-    $db, "INSERT INTO intervals (tp_id, day, begin, end, tarif)
+  $self->query2("INSERT INTO intervals (tp_id, day, begin, end, tarif)
      values ('$self->{TP_ID}', '$attr->{TI_DAY}', '$attr->{TI_BEGIN}', '$attr->{TI_END}', '$attr->{TI_TARIF}');", 'do'
   );
 
@@ -133,8 +136,7 @@ sub ti_list {
     $TP_ID     = $attr->{TP_ID};
   }
 
-  $self->query(
-    $db, "SELECT i.id, i.day, $begin_end
+  $self->query2("SELECT i.id, i.day, $begin_end
    i.tarif,
    count(tt.id),
    i.id
@@ -142,7 +144,9 @@ sub ti_list {
    LEFT JOIN  trafic_tarifs tt ON (tt.interval_id=i.id)
    WHERE i.tp_id='$TP_ID'
    GROUP BY i.id
-   ORDER BY $SORT $DESC"
+   ORDER BY $SORT $DESC",
+   undef,
+   $attr
   );
 
   return $self->{list};
@@ -194,20 +198,18 @@ sub ti_info {
   my $self = shift;
   my ($ti_id, $attr) = @_;
 
-  $self->query(
-    $db, "SELECT day, begin, end, tarif, id
+  $self->query2("SELECT day AS ti_day, 
+     begin AS ti_begin, 
+     end AS ti_end, 
+     tarif AS ti_tarif, 
+     id
     FROM intervals 
-    WHERE id='$ti_id';"
+    WHERE id='$ti_id';",
+    undef,
+    { INFO => 1 }
   );
 
-  if ($self->{TOTAL} < 1) {
-    $self->{errno}  = 2;
-    $self->{errstr} = 'ERROR_NOT_EXIST';
-    return $self;
-  }
-
   $self->{TI_ID} = $ti_id;
-  ($self->{TI_DAY}, $self->{TI_BEGIN}, $self->{TI_END}, $self->{TI_TARIF}) = @{ $self->{list}->[0] };
 
   return $self;
 }
@@ -239,7 +241,7 @@ sub ti_defaults {
 sub tp_group_del {
   my $self = shift;
   my ($id) = @_;
-  $self->query($db, "DELETE FROM tp_groups WHERE id='$id';", 'do');
+  $self->query2("DELETE FROM tp_groups WHERE id='$id';", 'do');
 
   $admin->system_action_add("TP_GROUP:$id", { TYPE => 10 });
   return $self;
@@ -253,10 +255,9 @@ sub tp_group_add {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query(
-    $db, "INSERT INTO tp_groups (id, name, user_chg_tp)
-     values ('$attr->{GID}', '$attr->{NAME}', '$attr->{USER_CHG_TP}');", 'do'
-  );
+  $self->query_add('tp_groups', { %$attr,
+  	                              ID => $attr->{GID} 
+  	                             });
 
   $admin->system_action_add("TP_GROUP:$attr->{GID}", { TYPE => 1 });
   return $self;
@@ -272,12 +273,13 @@ sub tp_group_list {
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : "2, 3";
 
-  $self->query(
-    $db, "SELECT tg.id, tg.name, tg.user_chg_tp, count(tp.id)
+  $self->query2("SELECT tg.id, tg.name, tg.user_chg_tp, count(tp.id) AS tarif_plans_count
    FROM tp_groups tg
    LEFT JOIN tarif_plans tp ON (tg.id=tp.gid)
    GROUP BY tg.id
-   ORDER BY $SORT $DESC"
+   ORDER BY $SORT $DESC",
+   undef,
+   $attr
   );
 
   return $self->{list};
@@ -324,20 +326,14 @@ sub tp_group_info {
   my $self = shift;
   my ($tp_group_id, $attr) = @_;
 
-  $self->query(
-    $db, "SELECT name, user_chg_tp
+  $self->query2("SELECT name, user_chg_tp
     FROM tp_groups 
-    WHERE id='$tp_group_id';"
+    WHERE id='$tp_group_id';",
+    undef,
+    { INFO => 1 }
   );
 
-  if ($self->{TOTAL} < 1) {
-    $self->{errno}  = 2;
-    $self->{errstr} = 'ERROR_NOT_EXIST';
-    return $self;
-  }
-
   $self->{GID} = $tp_group_id;
-  ($self->{NAME}, $self->{USER_CHG_TP}) = @{ $self->{list}->[0] };
 
   return $self;
 }
@@ -431,12 +427,11 @@ sub add {
   %DATA = $self->get_data($attr, { default => \%DATA });
 
   if (!$DATA{ID}) {
-    $self->query($db, "SELECT id FROM tarif_plans WHERE domain_id='$admin->{DOMAIN_ID}' ORDER BY 1 DESC LIMIT 1");
+    $self->query2("SELECT id FROM tarif_plans WHERE domain_id='$admin->{DOMAIN_ID}' ORDER BY 1 DESC LIMIT 1");
     $DATA{ID} = int($self->{list}->[0]->[0]) + 1;
   }
 
-  $self->query(
-    $db, "INSERT INTO tarif_plans (id, uplimit, name, 
+  $self->query2("INSERT INTO tarif_plans (id, uplimit, name, 
      month_fee, day_fee, active_day_fee, reduction_fee, 
      postpaid_daily_fee, 
      postpaid_monthly_fee,
@@ -459,7 +454,8 @@ sub add {
      fine,
      neg_deposit_ippool,
      next_tp_id,
-     fees_method
+     fees_method,
+     fixed_fees_day
      )
     values ('$DATA{ID}', '$DATA{ALERT}', \"$DATA{NAME}\", 
      '$DATA{MONTH_FEE}', '$DATA{DAY_FEE}', '$DATA{ACTIVE_DAY_FEE}', '$DATA{REDUCTION_FEE}', 
@@ -488,7 +484,8 @@ sub add {
      '$DATA{FINE}',
      '$DATA{NEG_DEPOSIT_IPPOOL}',
      '$DATA{NEXT_TARIF_PLAN}',
-     '$DATA{FEES_METHOD}'
+     '$DATA{FEES_METHOD}',
+     '$DATA{FIXED_FEES_DAY}'
      );", 'do'
   );
 
@@ -513,6 +510,7 @@ sub change {
   $attr->{SMALL_DEPOSIT_ACTION} = 0 if (!$attr->{SMALL_DEPOSIT_ACTION});
   $attr->{BILLS_PRIORITY}       = 0 if (!$attr->{BILLS_PRIORITY});
   $attr->{ACTIVE_DAY_FEE}       = 0 if (!$attr->{ACTIVE_DAY_FEE});
+  $attr->{FIXED_FEES_DAY}           = 0 if (!$attr->{FIXED_FEES_DAY});
 
   $self->changes(
     $admin,
@@ -544,7 +542,7 @@ sub del {
     $WHERE = " and module='$attr->{MODULE}'";
   }
 
-  $self->query($db, "DELETE FROM tarif_plans WHERE tp_id='$id'$WHERE;", 'do');
+  $self->query2("DELETE FROM tarif_plans WHERE tp_id='$id'$WHERE;", 'do');
   $admin->system_action_add("TP:$id", { TYPE => 10 });
 
   return $self;
@@ -563,8 +561,8 @@ sub info {
     push @WHERE_RULES, "module='$attr->{MODULE}'";
   }
 
-  if (defined($attr->{TP_ID})) {
-    push @WHERE_RULES, "tp.tp_id='$attr->{TP_ID}'";
+  if ($attr->{TP_ID}) {
+    push @WHERE_RULES, "tp_id='$attr->{TP_ID}'";
   }
 
   if ($attr->{ID}) {
@@ -579,21 +577,26 @@ sub info {
 
   my $WHERE = ($#WHERE_RULES > -1) ? join(' and ', @WHERE_RULES) : '';
 
-  $self->query(
-    $db, "SELECT id, name,
-      day_fee, active_day_fee, month_fee, reduction_fee, postpaid_daily_fee, postpaid_monthly_fee, 
+  $self->query2("SELECT id, 
+      name,
+      day_fee, 
+      active_day_fee,
+      month_fee, 
+      reduction_fee, 
+      postpaid_daily_fee AS postpaid_day_fee, 
+      postpaid_monthly_fee AS postpaid_month_fee, 
       ext_bill_account,
-      logins, age,
+      logins AS SIMULTANEOUSLY, age,
       day_time_limit, week_time_limit,  month_time_limit, total_time_limit, 
       day_traf_limit, week_traf_limit,  month_traf_limit, total_traf_limit, 
-      activate_price, change_price, credit_tresshold, uplimit, octets_direction, 
+      activate_price AS activ_price, change_price, credit_tresshold, uplimit AS alert, octets_direction, 
       max_session_duration,
       filter_id,
       payment_type,
       min_session_cost,
       rad_pairs,
       traffic_transfer_period,
-      gid,
+      gid AS tp_gid,
       neg_deposit_filter_id,
       module,
       credit,
@@ -609,68 +612,14 @@ sub info {
       bills_priority,
       fine,
       neg_deposit_ippool,
-      next_tp_id,
-      fees_method
+      next_tp_id AS next_tarif_plan,
+      fees_method,
+      fixed_fees_day
     FROM tarif_plans
-    WHERE $WHERE;"
+    WHERE $WHERE;",
+    undef,
+    { INFO => 1 }
   );
-
-  if ($self->{TOTAL} < 1) {
-    $self->{errno}  = 2;
-    $self->{errstr} = 'ERROR_NOT_EXIST';
-    return $self;
-  }
-
-  (
-    $self->{ID},                   
-    $self->{NAME},             
-    $self->{DAY_FEE},          
-    $self->{ACTIVE_DAY_FEE},   
-    $self->{MONTH_FEE},       
-    $self->{REDUCTION_FEE},           
-    $self->{POSTPAID_DAY_FEE},     
-    $self->{POSTPAID_MONTH_FEE},
-    $self->{EXT_BILL_ACCOUNT},     
-    $self->{SIMULTANEOUSLY},   
-    $self->{AGE},              
-    $self->{DAY_TIME_LIMIT},   
-    $self->{WEEK_TIME_LIMIT}, 
-    $self->{MONTH_TIME_LIMIT},        
-    $self->{TOTAL_TIME_LIMIT},     
-    $self->{DAY_TRAF_LIMIT},
-    $self->{WEEK_TRAF_LIMIT},      
-    $self->{MONTH_TRAF_LIMIT}, 
-    $self->{TOTAL_TRAF_LIMIT}, 
-    $self->{ACTIV_PRICE},      
-    $self->{CHANGE_PRICE},    
-    $self->{CREDIT_TRESSHOLD},        
-    $self->{ALERT},                
-    $self->{OCTETS_DIRECTION},
-    $self->{MAX_SESSION_DURATION}, 
-    $self->{FILTER_ID},        
-    $self->{PAYMENT_TYPE},     
-    $self->{MIN_SESSION_COST}, 
-    $self->{RAD_PAIRS},       
-    $self->{TRAFFIC_TRANSFER_PERIOD}, 
-    $self->{TP_GID},               
-    $self->{NEG_DEPOSIT_FILTER_ID},
-    $self->{MODULE},               
-    $self->{CREDIT},           
-    $self->{IPPOOL},           
-    $self->{PERIOD_ALIGNMENT}, 
-    $self->{MIN_USE},         
-    $self->{ABON_DISTRIBUTION},       
-    $self->{SMALL_DEPOSIT_ACTION}, 
-    $self->{TP_ID},
-    $self->{DOMAIN_ID},            
-    $self->{PRIORITY},         
-    $self->{COMMENTS},         
-    $self->{BILLS_PRIORITY},   
-    $self->{FINE},            
-    $self->{NEG_DEPOSIT_IPPOOL},      
-    $self->{NEXT_TARIF_PLAN},      
-    $self->{FEES_METHOD},
-  ) = @{ $self->{list}->[0] };
 
   return $self;
 }
@@ -688,44 +637,7 @@ sub list {
   my @WHERE_RULES = ();
   $self->{SEARCH_FIELDS} = '';
 
-  if (defined($attr->{TP_GID})) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{TP_GID}, 'INT', 'tp.gid') };
-  }
 
-  if (defined($attr->{TP_ID})) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{TP_ID}, 'INT', 'tp.id') };
-  }
-
-  if ($attr->{COMMENTS}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{COMMENTS}, 'STR', 'tp.comments', { EXT_FIELD => 1 }) };
-  }
-
-  if (defined($attr->{MODULE})) {
-    push @WHERE_RULES, "tp.module='$attr->{MODULE}'";
-  }
-
-  if (defined($attr->{MIN_USE})) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{MIN_USE}, 'INT', 'tp.min_use') };
-  }
-
-  if ($admin->{DOMAIN_ID}) {
-    push @WHERE_RULES, @{ $self->search_expr($admin->{DOMAIN_ID}, 'INT', 'tp.domain_id') };
-  }
-  elsif (defined($attr->{DOMAIN_ID})) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{DOMAIN_ID}, 'INT', 'tp.domain_id') };
-  }
-
-  if ($attr->{PAYMENT_TYPE}) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{PAYMENT_TYPE}", 'INT', 'tp.payment_type') };
-  }
-
-  if ($attr->{ACTIVE_DAY_FEE}) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{ACTIVE_DAY_FEE}", 'INT', 'tp.active_day_fee') };
-  }
-
-  if ($attr->{NEXT_TARIF_PLAN}) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{NEXT_TARIF_PLAN}", 'INT', 'tp.next_tp_id') };
-  }
 
   if ($attr->{CHANGE_PRICE}) {
     my $sql = '';
@@ -740,10 +652,36 @@ sub list {
     push @WHERE_RULES, $sql;
   }
 
-  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+  my $WHERE =  $self->search_former($attr, [
+        [ 'TP_GID',            'INT', 'tp.gid'            ],
+        [ 'NAME',              'STR', 'tp.name',          ],
+        [ 'DAY_FEE',           'INT', 'tp.day_fee',       ],
+        [ 'MONTH_FEE',         'INT', 'tp.month_fee',     ],
+        [ 'PAYMENT_TYPE',      'INT', 'tp.payment_type',  ],
+        [ 'TP_ID',             'INT', 'tp.id'             ],
+        [ 'COMMENTS',          'STR', 'tp.comments',     1],
+        [ 'CREDIT',            'STR', 'tp.credit',        ],
+        [ 'MODULE',            'STR', 'tp.module'         ],
+        [ 'MIN_USE',           'INT', 'tp.min_use'        ],
+        [ 'DOMAIN_ID',         'INT', 'tp.domain_id'      ],
+        [ 'PAYMENT_TYPE',      'INT', 'tp.payment_type'   ],
+        [ 'ACTIVE_DAY_FEE',    'INT', 'tp.active_day_fee' ],
+        [ 'FIXED_FEES_DAY',    'INT', 'tp.fixed_fees_day' ],
+        [ 'NEXT_TARIF_PLAN',   'INT', 'tp.next_tp_id'     ],
+        [ 'ACTIVE_DAY_FEE',    'INT', 'tp.active_day_fee' ],
+        [ 'FIXED_FEES_DAY',    'INT', 'tp.fixed_fees_day',    1],
+        [ 'REDUCTION_FEE',     'INT', 'tp.reduction_fee',      ],
+        [ 'POSTPAID_DAY_FEE',  'INT', 'tp.postpaid_daily_fee', ],
+        [ 'POSTPAID_MONTH_FEE','INT', 'tp.postpaid_monthly_fee'],
+        [ 'EXT_BILL_ACCOUNT',  'INT', 'tp.ext_bill_account'    ]
+        
+    ],
+    { WHERE => 1,
+    	WHERE_RULES => \@WHERE_RULES
+    }    
+    );
 
-  $self->query(
-    $db, "SELECT tp.id, 
+  $self->query2("SELECT tp.id, 
     tp.name, 
     if(sum(i.tarif) is NULL or sum(i.tarif)=0, 0, 1) AS time_tarifs, 
     if(sum(tt.in_price + tt.out_price)> 0, 1, 0) AS traf_tarifs, 
@@ -772,7 +710,7 @@ sub list {
     LEFT JOIN trafic_tarifs tt ON (tt.interval_id=i.id)
     LEFT JOIN tp_groups tp_g ON (tp.gid=tp_g.id)
     $WHERE
-    GROUP BY tp.id
+    GROUP BY tp.tp_id
     ORDER BY $SORT $DESC;",
     undef,
     $attr
@@ -789,10 +727,10 @@ sub nas_list {
   my ($attr) = @_;
 
   if ($attr->{NAS_ID}) {
-    $self->query($db, "SELECT tp_id FROM tp_nas WHERE nas_id='$self->{NAS_ID}';");
+    $self->query2("SELECT tp_id FROM tp_nas WHERE nas_id='$self->{NAS_ID}';");
   }
   else {
-    $self->query($db, "SELECT nas_id FROM tp_nas WHERE tp_id='$self->{TP_ID}';");
+    $self->query2("SELECT nas_id FROM tp_nas WHERE tp_id='$self->{TP_ID}';");
   }
   return $self->{list};
 }
@@ -806,8 +744,7 @@ sub nas_add {
 
   $self->nas_del();
   foreach my $line (@$nas) {
-    $self->query(
-      $db, "INSERT INTO tp_nas (nas_id, tp_id)
+    $self->query2("INSERT INTO tp_nas (nas_id, tp_id)
         VALUES ('$line', '$self->{TP_ID}');", 'do'
     );
   }
@@ -821,7 +758,7 @@ sub nas_add {
 #**********************************************************
 sub nas_del {
   my $self = shift;
-  $self->query($db, "DELETE FROM tp_nas WHERE tp_id='$self->{TP_ID}';", 'do');
+  $self->query2("DELETE FROM tp_nas WHERE tp_id='$self->{TP_ID}';", 'do');
 
   #$admin->action_add($uid, "DELETE NAS");
   return $self;
@@ -860,9 +797,8 @@ sub tt_list {
   if (defined($attr->{TI_ID})) {
     my $show_nets = ($attr->{SHOW_NETS}) ? ', tc.nets' : '';
 
-    $self->query(
-      $db, "SELECT tt.id, in_price, out_price, prepaid, in_speed, 
-	    out_speed, descr, tc.name, expression, tt.net_id $show_nets
+    $self->query2("SELECT tt.id, in_price, out_price, prepaid, in_speed, 
+      out_speed, descr, tc.name, expression, tt.net_id $show_nets
      FROM trafic_tarifs  tt 
      LEFT JOIN  traffic_classes tc ON (tc.id=tt.net_id)
      WHERE tt.interval_id='$attr->{TI_ID}'
@@ -870,8 +806,7 @@ sub tt_list {
     );
   }
   else {
-    $self->query(
-      $db, "SELECT id, in_price, out_price, prepaid, in_speed, out_speed, descr, net_id, expression
+    $self->query2("SELECT id, in_price, out_price, prepaid, in_speed, out_speed, descr, net_id, expression
      FROM trafic_tarifs 
      WHERE tp_id='$self->{TP_ID}'
      ORDER BY tt.id;"
@@ -905,11 +840,10 @@ sub tt_info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query(
-    $db, "SELECT id, interval_id, in_price, out_price, prepaid, in_speed, out_speed, 
-	     descr, 
-	     net_id,
-	     expression
+  $self->query2("SELECT id, interval_id, in_price, out_price, prepaid, in_speed, out_speed, 
+       descr, 
+       net_id,
+       expression
      FROM trafic_tarifs 
      WHERE 
      interval_id='$attr->{TI_ID}'
@@ -938,8 +872,7 @@ sub tt_add {
     return $self;
   }
 
-  $self->query(
-    $db, "INSERT INTO trafic_tarifs  
+  $self->query2("INSERT INTO trafic_tarifs  
     (interval_id, id, descr,  in_price,  out_price,  net_id,  prepaid,  in_speed, out_speed, expression)
     VALUES 
     ('$DATA{TI_ID}', '$DATA{TT_ID}',   '$DATA{TT_DESCRIBE}', '$DATA{TT_PRICE_IN}',  '$DATA{TT_PRICE_OUT}',
@@ -964,8 +897,7 @@ sub tt_change {
 
   my %DATA = $self->get_data($attr, { default => $self->tt_defaults() });
 
-  $self->query(
-    $db, "UPDATE trafic_tarifs SET 
+  $self->query2("UPDATE trafic_tarifs SET 
     descr='" . $DATA{TT_DESCRIBE} . "', 
     in_price='" . $DATA{TT_PRICE_IN} . "',
     out_price='" . $DATA{TT_PRICE_OUT} . "',
@@ -1032,9 +964,8 @@ sub tt_del {
 
   my %DATA = $self->get_data($attr, { default => $self->tt_defaults() });
 
-  $self->query(
-    $db, "DELETE FROM trafic_tarifs 
-	 WHERE  interval_id='$attr->{TI_ID}'  and id='$attr->{TT_ID}' ;", 'do'
+  $self->query2("DELETE FROM trafic_tarifs 
+   WHERE  interval_id='$attr->{TI_ID}'  and id='$attr->{TT_ID}' ;", 'do'
   );
 
   if ($CONF->{DV_EXPPP_NETFILES} && -f "$CONF->{DV_EXPPP_NETFILES}/$attr->{TI_ID}.nets" && $attr->{NETS}) {
@@ -1073,7 +1004,7 @@ sub holidays_list {
   $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $year = (defined($attr->{year})) ? $attr->{year} : 'YEAR(CURRENT_DATE)';
   my $format = (defined($attr->{format}) && $attr->{format} eq 'daysofyear') ? "DAYOFYEAR(CONCAT($year, '-', day)) as dayofyear" : 'day';
-  $self->query($db, "SELECT $format, descr  FROM holidays ORDER BY $SORT $DESC;");
+  $self->query2("SELECT $format, descr  FROM holidays ORDER BY $SORT $DESC;");
 
   return $self->{list};
 }
@@ -1088,8 +1019,7 @@ sub holidays_add {
   $DATA{MONTH} = (defined($attr->{MONTH})) ? $attr->{MONTH} : 1;
   $DATA{DAY}   = (defined($attr->{DAY}))   ? $attr->{DAY}   : 1;
 
-  $self->query(
-    $db, "INSERT INTO holidays (day)
+  $self->query2("INSERT INTO holidays (day)
        VALUES ('$DATA{MONTH}-$DATA{DAY}');", 'do'
   );
 
@@ -1103,7 +1033,7 @@ sub holidays_add {
 sub holidays_del {
   my $self = shift;
   my ($id) = @_;
-  $self->query($db, "DELETE from holidays WHERE day='$id';", 'do');
+  $self->query2("DELETE from holidays WHERE day='$id';", 'do');
   $admin->system_action_add("HOLIDAYS:$id", { TYPE => 10 });
   return $self;
 }
@@ -1117,10 +1047,7 @@ sub traffic_class_add {
 
   my %DATA = $self->get_data($attr, { default => defaults() });
 
-  $self->query(
-    $db, "INSERT INTO traffic_classes (name, nets, comments)
-        VALUES ('$DATA{NAME}', '$DATA{NETS}', '$DATA{COMMENTS}');", 'do'
-  );
+  $self->query_add('traffic_classes', $attr );
 
   return $self if ($self->{errno});
 
@@ -1165,7 +1092,7 @@ sub traffic_class_del {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query($db, "DELETE from traffic_classes WHERE id='$attr->{ID}';", 'do');
+  $self->query2("DELETE from traffic_classes WHERE id='$attr->{ID}';", 'do');
 
   $admin->action_add($self->{UID}, "$self->{UID}", { TYPE => 10 });
   return $self->{result};
@@ -1179,20 +1106,19 @@ sub traffic_class_list {
   my ($attr) = @_;
   my @list   = ();
 
-  @WHERE_RULES = ();
-
-  if ($attr->{NETS}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{NETS}, 'STR', 'nets') };
-  }
-
-  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
-
-  $self->query(
-    $db, "SELECT id, name, nets, comments, changed
-     FROM traffic_classes;"
+  my $WHERE =  $self->search_former($attr, [
+        [ 'NETS',          'STR', 'nets' ],
+    ],
+    { 
+    	WHERE => 1,
+    }    
   );
 
-  return $self if ($self->{errno});
+  $self->query2("SELECT id, name, nets, comments, changed
+     FROM traffic_classes;",
+     undef,
+     $attr
+  );
 
   my $list = $self->{list};
 
@@ -1209,19 +1135,13 @@ sub traffic_class_info {
 
   $WHERE = "WHERE id='$id'";
 
-  $self->query(
-    $db, "SELECT id, name, comments, nets
+  $self->query2("SELECT id, name, comments, nets
      FROM traffic_classes
-   $WHERE;"
+   $WHERE;",
+   undef,
+   { INFO => 1 }
   );
 
-  if ($self->{TOTAL} < 1) {
-    $self->{errno}  = 2;
-    $self->{errstr} = 'ERROR_NOT_EXIST';
-    return $self;
-  }
-
-  ($self->{ID}, $self->{NAME}, $self->{COMMENTS}, $self->{NETS},) = @{ $self->{list}->[0] };
 
   return $self;
 }

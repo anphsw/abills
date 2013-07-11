@@ -1,10 +1,9 @@
 #!/usr/bin/perl -w
 
 use vars qw(%RAD %conf %AUTH
-%RAD_REQUEST %RAD_REPLY %RAD_CHECK
-$nas
-$Log
-$begin_time
+ %RAD_REQUEST %RAD_REPLY %RAD_CHECK
+ $begin_time
+ $rlm_perl
 );
 
 use strict;
@@ -18,10 +17,9 @@ $begin_time = check_time();
 
 my %auth_mod = ();
 require Abills::SQL;
-my $sql = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd});
-my $db = $sql->{db};
+
 require Nas;
-$nas = undef;
+Nas->import();
 
 require Auth;
 Auth->import();
@@ -32,22 +30,26 @@ Log->import('log_print');
 my $GT = '';
 my $rr = '';
 
-my $RAD = get_radius_params();
+if (! $rlm_perl) {
+  my $RAD = get_radius_params();
+  my $sql = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd});
+  my $db  = $sql->{db};
+  my $Log = Log->new($db, \%conf);
+  my $Nas = get_nas_info($db, $RAD);
+  my $ret = 0;
 
-if ($RAD->{NAS_IP_ADDRESS}) {
-  $Log = Log->new($db, \%conf);
-  my $ret = get_nas_info($db, $RAD);
-  if (defined($ARGV[0]) && $ARGV[0] eq 'pre_auth') {
-    auth($db, $RAD, $nas, { pre_auth => 1 });
-    exit 0;
-  }
-  elsif (defined($ARGV[0]) && $ARGV[0] eq 'post_auth') {
-    inc_postauth($db, $RAD, $nas);
-    exit 0;
-  }
-
-  if ($ret == 0) {
-    $ret = auth($db, $RAD, $nas);
+  if (! $Nas->{error}) {
+    if ($ARGV[0] && $ARGV[0] eq 'pre_auth') {
+      auth($db, $RAD, $Nas, { pre_auth => 1 });
+      exit 0;
+    }
+    elsif ($ARGV[0] && $ARGV[0] eq 'post_auth') {
+      inc_postauth($db, $RAD, $Nas);
+      exit 0;
+    }
+    else {
+      $ret = auth($db, $RAD, $Nas);
+    }
   }
 
   if ($ret == 0) {
@@ -66,7 +68,7 @@ if ($RAD->{NAS_IP_ADDRESS}) {
 sub get_nas_info {
   my ($db, $RAD) = @_;
 
-  $nas = Nas->new($db, \%conf);
+  my $nas = Nas->new($db, \%conf);
 
   $RAD->{NAS_IP_ADDRESS} = '' if (!defined($RAD->{NAS_IP_ADDRESS}));
   $RAD->{USER_NAME}      = '' if (!defined($RAD->{USER_NAME}));
@@ -80,32 +82,36 @@ sub get_nas_info {
   $NAS_PARAMS{NAS_IDENTIFIER} = $RAD->{NAS_IDENTIFIER} if ($RAD->{NAS_IDENTIFIER});
   $nas->info({%NAS_PARAMS});
 
-  if (defined($nas->{errno}) || $nas->{TOTAL} < 1) {
+  if ($nas->{errno}) {
     if ($RAD->{MIKROTIK_HOST_IP}) {
       $nas->info({ NAS_ID => $RAD->{NAS_IDENTIFIER} });
-      if (defined($nas->{errno}) || $nas->{TOTAL} < 1) {
-        access_deny("$RAD->{USER_NAME}", "Unknow server '$RAD->{NAS_IP_ADDRESS}'" . (($RAD->{NAS_IDENTIFIER}) ? " Nas-Identifier: $RAD->{NAS_IDENTIFIER}" : '') . ' ' . (($RAD->{NAS_IP_ADDRESS} eq '0.0.0.0') ? $RAD->{CALLED_STATION_ID} : ''), 0, $db);
+      if ($nas->{errno}) {
+        access_deny("$RAD->{USER_NAME}", "Unknow server '$RAD->{NAS_IP_ADDRESS}'" . (($RAD->{NAS_IDENTIFIER}) ? " Nas-Identifier: $RAD->{NAS_IDENTIFIER}" : '') . ' ' . (($RAD->{NAS_IP_ADDRESS} eq '0.0.0.0') ? $RAD->{CALLED_STATION_ID} : ''), $nas, $db);
         $RAD_REPLY{'Reply-Message'} = "Unknow server '$RAD->{NAS_IP_ADDRESS}'";
-        return 1;
+        return $nas;
       }
       $nas->{NAS_IP} = $RAD->{NAS_IP_ADDRESS};
     }
     else {
-      access_deny("$RAD->{USER_NAME}", "Unknow server '$RAD->{NAS_IP_ADDRESS}'" . (($RAD->{NAS_IDENTIFIER}) ? " Nas-Identifier: $RAD->{NAS_IDENTIFIER}" : '') . ' ' . (($RAD->{NAS_IP_ADDRESS} eq '0.0.0.0' && !$RAD->{'DHCP_MESSAGE_TYPE'}) ? $RAD->{CALLED_STATION_ID} : ''), 0, $db);
+      access_deny("$RAD->{USER_NAME}", "Unknow server '$RAD->{NAS_IP_ADDRESS}'" . (($RAD->{NAS_IDENTIFIER}) ? " Nas-Identifier: $RAD->{NAS_IDENTIFIER}" : '') . ' ' . (($RAD->{NAS_IP_ADDRESS} eq '0.0.0.0' && !$RAD->{'DHCP_MESSAGE_TYPE'}) ? $RAD->{CALLED_STATION_ID} : ''), $nas, $db);
       $RAD_REPLY{'Reply-Message'} = "Unknow server '$RAD->{NAS_IP_ADDRESS}'";
-      return 1;
+      $nas->{error}=1;
+      return $nas;
     }
   }
   elsif (!$nas->{NAS_TYPE} eq 'dhcp' && (!defined($RAD->{USER_NAME}) || $RAD->{USER_NAME} eq '')) {
-    return 1;
+    $nas->{error}=2;
+    return $nas;
   }
   elsif ($nas->{NAS_DISABLE} > 0) {
-    access_deny("$RAD->{USER_NAME}", "Disabled NAS server '$RAD->{NAS_IP_ADDRESS}'", 0, $db);
-    return 1;
+    access_deny("$RAD->{USER_NAME}", "Disabled NAS server '$RAD->{NAS_IP_ADDRESS}'", $nas, $db);
+    $nas->{error}=3;
+    return $nas;
   }
 
   $nas->{at} = 0 if (defined($RAD->{CHAP_PASSWORD}) && defined($RAD->{CHAP_CHALLENGE}));
-  return 0;
+
+  return $nas;
 }
 
 #*******************************************************************
@@ -115,7 +121,7 @@ sub auth {
   my ($db, $RAD, $nas, $attr) = @_;
   my ($r, $RAD_PAIRS);
 
-  $Log = Log->new($db, \%conf);
+  my $Log = Log->new($db, \%conf);
   $Log->{ACTION} = 'AUTH';
 
   if (defined($conf{tech_works})) {
@@ -180,35 +186,37 @@ sub auth {
       undef %auth_mod;
     }
 
-    if ($auth_mod{"default"}->{errstr}) {
+    if ($auth_mod{"default"}->{errstr} && $auth_mod{"default"}->{errno} != 2) {
       $auth_mod{"default"}->{errstr} =~ s/\n//g;
       $message .= $auth_mod{"default"}->{errstr};
     }
 
     my $CID = ($RAD->{CALLING_STATION_ID}) ? " CID: $RAD->{CALLING_STATION_ID} " : '';
-    access_deny("$RAD->{USER_NAME}", "$message$CID", $nas->{NAS_ID}, $db);
+    access_deny("$RAD->{USER_NAME}", "$message$CID", $nas, $db);
     $RAD_CHECK{'Auth-Type'} = 'Reject';
     return $r;
   }
   else {
 
     #GEt Nas rad pairs
-    $nas->{NAS_RAD_PAIRS} =~ tr/\n\r//d;
+    if ($nas->{NAS_RAD_PAIRS}) {
+      $nas->{NAS_RAD_PAIRS} =~ tr/\n\r//d;
 
-    my @pairs_arr = split(/,/, $nas->{NAS_RAD_PAIRS});
-    foreach my $line (@pairs_arr) {
-      if ($line =~ /([a-zA-Z0-9\-]{6,25})\+\=(.{1,200})/) {
-        my $left  = $1;
-        my $right = $2;
-        push @{ $RAD_REPLY{"$left"} }, $right;
-      }
-      else {
-        my ($left, $right) = split(/=/, $line, 2);
-        if ($left =~ s/^!//) {
-          delete $RAD_REPLY{"$left"};
+      my @pairs_arr = split(/,/, $nas->{NAS_RAD_PAIRS});
+      foreach my $line (@pairs_arr) {
+        if ($line =~ /([a-zA-Z0-9\-]{6,25})\+\=(.{1,200})/) {
+          my $left  = $1;
+          my $right = $2;
+          push @{ $RAD_REPLY{"$left"} }, $right;
         }
         else {
-          $RAD_REPLY{"$left"} = "$right";
+          my ($left, $right) = split(/=/, $line, 2);
+          if ($left =~ s/^!//) {
+            delete $RAD_REPLY{"$left"};
+          }
+          else {
+            $RAD_REPLY{"$left"} = "$right";
+          }
         }
       }
     }
@@ -246,7 +254,7 @@ sub auth {
 # inc_postauth()
 #*******************************************************************
 sub inc_postauth {
-  my ($db, $RAD) = @_;
+  my ($db, $RAD, $nas) = @_;
 
   use constant L_DBG   => 1;
   use constant L_AUTH  => 2;
@@ -254,6 +262,8 @@ sub inc_postauth {
   use constant L_ERR   => 4;
   use constant L_PROXY => 5;
   use constant L_CONS  => 128;
+
+  my $Log = Log->new($db, \%conf);
   $Log->{ACTION} = 'AUTH';
   my $reject_info = '';
 
@@ -277,8 +287,6 @@ sub inc_postauth {
     }
 
     $nas->{NAS_TYPE} = 'dhcp';
-    my $Log = Log->new($db, \%conf);
-    $Log->{ACTION} = 'AUTH';
     if (!defined($auth_mod{"$nas->{NAS_TYPE}"})) {
       require $AUTH{ $nas->{NAS_TYPE} } . ".pm";
       $AUTH{ $nas->{NAS_TYPE} }->import();
@@ -298,7 +306,7 @@ sub inc_postauth {
     }
     else {
       $RAD_REPLY{'DHCP-DHCP-Error-Message'} = "$message";
-      access_deny($RAD_PAIRS->{'User-Name'}, "$message$GT", $nas->{NAS_ID}, $db);
+      access_deny($RAD_PAIRS->{'User-Name'}, "$message$GT", $nas, $db);
       $r = 1 if (!$r);
     }
 
@@ -332,7 +340,8 @@ sub inc_postauth {
     if ($RAD_REQUEST{'Calling-Station-Id'}) {
       $reject_info = "CID: $RAD_REQUEST{'Calling-Station-Id'}";
     }
-    $Log->log_print('LOG_WARNING', $RAD_REQUEST{'User-Name'}, "REJECT Wrong password or account not exists $reject_info$GT", { NAS => $nas });
+
+    $Log->log_print('LOG_WARNING', $RAD_REQUEST{'User-Name'}, "REJECT Wrong password, expire or account not exists $reject_info$GT", { NAS => $nas });
     return 0;
   }
   else {
@@ -340,7 +349,7 @@ sub inc_postauth {
       $reject_info = "CID: $RAD->{CALLING_STATION_ID}";
     }
 
-    $Log->log_print('LOG_WARNING', $RAD->{USER_NAME}, "REJECT Wrong password or account not exists $reject_info$GT", { NAS => $nas });
+    $Log->log_print('LOG_WARNING', $RAD->{USER_NAME}, "REJECT Wrong password, expire or account not exists $reject_info$GT", { NAS => $nas });
   }
 }
 
@@ -348,7 +357,7 @@ sub inc_postauth {
 # access_deny($user, $message);
 #*******************************************************************
 sub access_deny {
-  my ($user_name, $message, $nas_num, $db, $attr) = @_;
+  my ($user_name, $message, $nas, $db, $attr) = @_;
 
   my $Log = Log->new($db, \%conf);
   $Log->{ACTION} = 'AUTH';

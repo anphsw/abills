@@ -1,3 +1,223 @@
+=====0.55=====
+
+24.06.20013\\
+
+  * Добавлено отдельное поле завершение для каждой услуги
+  * В консольный генератор счетов добавлена опция включения текущего депозита в счёт
+  * Добавлена опция заведения номера дома в адрес адресов из формы персональной информации абонента
+  * Добавлены платёжные системы Okpay, PerfectPay
+  * Обновлён портал в свободной версии
+  * Добавлены кнопки перехода с учётной записи абонента на карту сети с отображением его местоположения
+  * ''Cards'' Добавлен фильтр для печати карточек
+  * Операции изменения кредита, приостановки из личного кабинета выполняются после подтверждения пользователем прочтения правил
+  * ''Ureports'' предупреждение о абон. плате за несколько дней до списания  
+  * ''Ureports''  оповещение о зачислении средств
+  * ''Ureports''  Все отчёты вынесены в отдельные шаблоны
+  * ''Dv'' добавлено поле Online в список абонентов
+
+
+MySQL:\\
+
+  ALTER TABLE dv_main ADD COLUMN `expire` date NOT NULL default '0000-00-00';
+  ALTER TABLE iptv_main ADD COLUMN `expire` date NOT NULL default '0000-00-00';
+  ALTER TABLE voip_main ADD COLUMN `expire` date NOT NULL default '0000-00-00';
+
+15.05.20013\\
+ 
+  * Активация учётной записи после подтверждения её супер администратором 
+  * ''Snmputils''  добавлена выборка MAC с зарегистрированных коммутаторов 
+  * ''Snmputils''  поиск дубликатов маков на разных коммутаторах
+  * ''Snmputils''  загрузка списка коммутаторов из файла
+  * ''Snmputils''  поиск мака по списку коммутаторов
+  * Freeradius DHCP выражения распознавания опции 82  стали более гибкими
+  * Более гибкая настройка списков отображения
+  * Разрешение кредита из личного кабинета для определённых групп
+  * Запрет пополнения через терминалы и личный кабинет для определённых групп 
+  * ''Snmputils''  добавлена блокировка портов для коммутаторов 
+  * ''Rwizard'' добавлены поля по умолчанию для формирования отчётов
+
+
+MySQL:\\
+
+  ALTER TABLE groups ADD COLUMN `allow_credit` tinyint(1) unsigned not null default 0;
+  ALTER TABLE groups ADD COLUMN `disable_paysys` tinyint(1) unsigned not null default 0;
+  
+  CREATE TABLE `admin_settings` (
+    `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+    `object` varchar(20) NOT NULL default '',
+    `setting` text not null default '',
+    PRIMARY KEY  (`aid`, `object`)
+  ) COMMENT="Admins settings";
+
+
+
+03.04.2013\\
+  * Добавлена в основную ветку поддержка IPv6
+
+MySQL:\\
+
+  ALTER TABLE dv_calls ADD COLUMN framed_interface_id VARBINARY(16) not null default '';
+  ALTER TABLE dv_calls ADD COLUMN framed_ipv6_prefix VARBINARY(16) not null default '';
+  ALTER TABLE dv_log ADD COLUMN framed_ipv6_prefix VARBINARY(16) not null default '';  
+  ALTER TABLE ippools  ADD COLUMN ipv6_prefix VARBINARY(16) not null default '';
+  
+
+28.03.2013\\
+
+  * Возврат потерянных сессий в биллинг.
+  * Быстрый переход на карту в учётной записи пользователя и в серверах доступа
+  * Добавлена ssh консоль для быстрой работы с сервером доступа через веб
+  * Быстрый переход на SNMP  управления с сервера доступа
+  * Отображение абонентов определённого коммутатора
+  * Перерасчёт тарифных планов при не плановом изменении
+  * ''Rwizard'' добавлен импорт экспорт отчётов
+  * ''Rwizard'' добавлены мета символы для запросов и панель выборки
+
+MySQL:\\
+  ALTER TABLE dv_log_intervals ADD COLUMN `uid` int(11) unsigned NOT NULL default '0';
+  ALTER TABLE dv_log_intervals ADD KEY `uid` (`uid`);
+  ALTER TABLE dv_log DROP column kb;
+  ALTER TABLE dv_log DROP column minp;
+
+
+05.03.2013 \\
+  * ''Dv'' $conf{DV_PREPAID_PERIOD_CREDIT}  кредит на предоплаченній период
+  * ''Dv'' Снятие абоплаты статически каждого месяца в один и тотже день
+
+MySQL:\\
+  ALTER TABLE tarif_plans ADD COLUMN `fixed_fees_day` tinyint(1) NOT NULL default '0';
+  ALTER TABLE nas change column mng_host_port `mng_host_port` varchar(25) not null default '';
+
+
+
+05.02.2013 \\
+
+  * ''Cards'' Процентное начисление дилеру при пополнении карточкой
+  * ''Dv'' Новый статус  "Заблокирован из за вирусов"
+  * ''Dv'' Добавлено сообщение о суме оплаты для активации заблокированной  услуги в кабинете администратора 
+  * ''Dv'' фильтр гостевой доступ
+  * ''Dv'' добавлена поддержка [[abills:docs:modules:dv:ru?&#pppoe|PPPoE+]]
+  * ''Ipn'' Переинициализация сессий  добавлено фильтр по IP
+  * ''Maps'' Добавлен фильтр активные/неактивные пользователи дома
+  * ''Paysys'' Liqpay  добалена поддержка Multidoms
+  * ''Paysys'' Liqpay  добалена поддержка конвертации при платеже
+  * ''Paysys'' Добавлена система [[abills:docs:modules:paysys:ru?&#express_pay|Express Pay]]
+  * ''Snmputils'' Добавлена проверка радио сигнала для MIkrotik
+  * Coockie авторизация добавлена кнопка выхода с админ интерфейса
+  * Поднятие шейперов для Mikrotik 6 billd checkspeed mikrotik RECONFIGURE=1 NAS_IDS=1 MIKROTIK6=1
+  * Добавлен лог выполняемых на микротике команд 
+  * ''Sms'' Выравнивание неправильно набраных номеров $conf{SMS_NUMBER_EXPR}
+  * ''Dhcphosts'' Freeradius Принудительная атворизация по маку для определённых коммутаторов $conf{DHCPHOSTS_SWITCH_MAC_AUTH}
+  * ''Iptv'' поддержка Stalker API (возможность держать Cталкер на удалённом хосте)
+  * Добавлен для линукса общий скрипт поднятия фаервола и шейпера shaper_start.sh
+
+
+03.10.2012 \\
+  * ''Abon'' галочка снимать абон. плату только в ручном режиме 
+  * ''Abon'' ручная активация услуг. Возможность заказать и дозаказать услугу на дополнительный термин
+  * ''Dv'' настраиваемые шаблоны журнала начислений [[abills:docs:modules:dv:ru#shablon_formirovanija_opisanija_nachislenij|Подробней]]
+
+MySQL:\\
+  ALTER TABLE `abon_user_list` ADD COLUMN `manual_fee` tinyint(1) unsigned NOT NULL DEFAULT 0;
+
+
+17.09.2012 \\
+
+  * ''Ureports'' $conf{UREPORTS_SKIP_ACTIVATE_SMS}=1;  не отправлять SMS при активации и изменении данных услуги
+  * ''Cards'' В интерфейсе дилера добавлена печать отдельных карточек списка 
+  * ''Voip'' Добавлены фильтры оповещения о негативном депозите и маленьком депозите перед разговором, лимит оповещения устанавливается в ТП
+  * ''Dv'' Изменены названия шаблонов памятки абонента  dv_user_info на dv_user_memo
+  * ''Marketing'' Добавлен расширенный отчёт **IP/DHCP**
+  * ''Paysys'' Добавлена опция указывающая суму минимальной оплаты для платежей через портал $conf{PAYSYS_MIN_SUM}=0;
+  * Добавлена детализация выполнены расписаний
+  * ''Ipn'' Добавлены фильтр активации и переинициализации сессий: LOGINS, GIDS, TP_IDS
+  * ''Dv'' Добавлены возможность периодически выводить сообщение о необходимости пополнить депозит для абонентов с негативным депозитом 
+  * ''Abon'' Ручная активация простроченных услуг 
+  * Включение дополнительных услуг в аккаунте абонента
+
+MySQL:\\
+
+   ALTER TABLE `voip_main` ADD COLUMN  `filter_id` varchar(150) NOT NULL default '';
+   ALTER TABLE `abon_tariffs` ADD COLUMN  `manual_activate` tinyint(1) NOT NULL default 0;
+   ALTER TABLE `abon_tariffs` ADD COLUMN  `user_portal` tinyint(1) NOT NULL default 0;
+   CREATE TABLE reports_wizard (
+     id int(11) unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+     name varchar(100) not null default '',
+     comments text not null default '',
+     query text not null default '',
+     query_total text not null default '',
+     fields text not null default '',
+     date date not null default '0000-00-00',
+     aid smallint(11) unsigned NOT NULL default 0,
+     unique (name)
+   ) COMMENT 'Reports Wizard';
+
+
+
+06.08.2012 \\
+  * Добавлена возможность отключать отображение депозита для администратора 
+  * ''Snmputils'' Добавлена поддержка управления портами HP, Cisco  коммутаторов
+  * Добавлен мульти поиск при введении данные в правом верхнем углу система ищет по Логину, ФИО, Номеру контракта, Адресу, Номеру паспорта, UID, Email, кометарию. Система выделяет цветом найденные соответствия поиска.
+  * ''Dv'' Добавлен отчёт по Тарифным планам
+  * При добавлении абонента можно внести номер дома и если он не существует в системе его будет добавлено
+  * ''Sms'' Добавлены службы рассылки СМС: EpochtaSMS, LittleSMS
+  * ''Maps'' Добавлены колодцы, зоны покрытия 
+
+
+20.07.2012\\
+
+  * ''Dv'' Добавлено разделение груп тарифных планов цветами
+  * ''Dv'' $conf{DV_CURDATE_ACTIVATE}=1; Активировать приостановленный за неуплату сервис текущей датой. по умолчанию сервис 
+активируется следующей учётной датой. 
+  * ''Docs'' Привязка оплат к счетам с возможностью привязывать одну оплату к нескольким счетам или один счет к нескольким оплатам.
+  * ''Dhcphosts'' Добавлен Server Vlan  для авторизации q-in-q
+
+
+
+MySQL: \\
+
+  ALTER TABLE payments ADD COLUMN `reg_date` datetime NOT NULL default '0000-00-00 00:00:00';
+  CREATE TABLE docs_invoice2payments (
+  `invoice_id` int(11) unsigned NOT NULL default 0,
+  `payment_id` int(11) unsigned NOT NULL default 0,
+  `sum` double(10,2) NOT NULL default '0.00',
+  PRIMARY  KEY `invoice2payments` (`invoice_id`, `payment_id`),
+  FOREIGN KEY (payment_id) REFERENCES payments(id),
+  FOREIGN KEY (invoice_id) REFERENCES docs_invoices(id)
+  ) COMMENT='Docs Invoice to payments' ;
+  REPLACE INTO docs_invoice2payments (SELECT i.id, i.payment_id, p.sum FROM docs_invoices i, payments p WHERE i.payment_id=p.id);
+  
+  create table id (id int not null default 0);
+  
+  DELETE FROM id;
+  INSERT INTO id SELECT r.id from docs_receipts r LEFT JOIN payments p ON (p.id=r.payment_id) WHERE p.id IS null;
+  DELETE from docs_receipts  WHERE id in (SELECT id from id);
+  
+  DELETE FROM id;
+  INSERT INTO id SELECT ro.receipt_id from docs_receipt_orders ro LEFT JOIN docs_receipts r ON (r.id=ro.receipt_id) WHERE ro.receipt_id IS null;
+  DELETE from docs_receipt_orders  WHERE receipt_id in (SELECT id from id);
+  
+  ALTER TABLE docs_receipts ADD FOREIGN KEY (payment_id) REFERENCES payments(id);
+  ALTER TABLE docs_receipt_orders ADD FOREIGN KEY (receipt_id) REFERENCES docs_receipts(id);
+  ALTER TABLE docs_invoice_orders ADD FOREIGN KEY (invoice_id) REFERENCES docs_invoices(id);
+   
+  ALTER TABLE `dhcphosts_hosts` ADD COLUMN `server_vid` smallint(6) unsigned NOT NULL default '0';
+
+
+09.06.2012\\
+  * Добавлен экспорт в csv
+  * Создан автоконфигуратор mikrotik
+  * Добавленно создание правил NAT  при инициализации праивл шейпера
+  * Добавлен плагин billd чистки Dhcpleases (dhcp_clean_leases)
+  * ''Ipn'' Поддержка sflow
+  * ''Docs''  добавлена возможность выводить типы услуг в счетах с  типов начислений $conf{DOCS_FEES_METHOD_ORDERS}=1;
+  * ''Abon'' возможность указывать несколько однотипных услуг для абон. платы 
+
+MySQL:\\
+  ALTER TABLE `abon_user_list` ADD COLUMN `service_count` smallint(4) unsigned NOT NULL DEFAULT 1;
+  UPDATE abon_user_list SET service_count=1;
+
+
 =====0.54=====
 
 04.06.2012\\
@@ -79,34 +299,33 @@ MySQL:\\
   ALTER TABLE payments ADD COLUMN currency smallint unsigned not null default 0;
   ALTER TABLE payments ADD COLUMN amount double(10,2) NOT NULL default '0.00';
   
-  ALTER TABLE docs_acct ADD  COLUMN deposit double(15,6) NOT NULL default '0.000000';
-  ALTER TABLE docs_acct ADD  COLUMN delivery_status tinyint(2) unsigned NOT NULL default '0';
-  ALTER TABLE docs_invoice_orders ADD COLUMN `fees_id` int(11) unsigned NOT NULL default 0;
-  ALTER TABLE docs_invoice_orders ADD key fees_id (fees_id);
-  ALTER TABLE docs_acct ADD COLUMN currency smallint unsigned  NOT NULL default 0;
-  ALTER TABLE docs_acct_orders ADD COLUMN fees_id int(11) unsigned NOT NULL default 0;
-  
   RENAME TABLE docs_invoice TO docs_receipts;
-  RENAME TABLE docs_invoice_orders TO docs_receipt_orders;
   ALTER TABLE docs_receipts CHANGE COLUMN invoice_id receipt_num int(10) unsigned NOT NULL default '0';
   ALTER TABLE docs_receipts ADD COLUMN  exchange_rate double(12,4) NOT NULL default '0.0000';
   ALTER TABLE docs_receipts ADD COLUMN  currency smallint(6) unsigned  NOT NULL default 0;
+  
+  RENAME TABLE docs_invoice_orders TO docs_receipt_orders;
+  ALTER TABLE docs_receipt_orders ADD COLUMN `fees_id` int(11) unsigned NOT NULL default 0;
+  ALTER TABLE docs_receipt_orders ADD key fees_id (fees_id);
   ALTER TABLE docs_receipt_orders CHANGE COLUMN invoice_id receipt_id int(11) unsigned NOT NULL default '0';
   ALTER TABLE docs_receipt_orders DROP KEY invoice_id;
   ALTER TABLE docs_receipt_orders ADD KEY receipt_id (receipt_id);
   
   RENAME TABLE docs_acct TO docs_invoices;
-  RENAME TABLE docs_acct_orders TO docs_invoice_orders;
   ALTER TABLE docs_invoices CHANGE COLUMN acct_id invoice_num int(10) unsigned NOT NULL default '0';
   ALTER TABLE docs_invoices ADD COLUMN deposit double(15,6) NOT NULL default '0.000000';
   ALTER TABLE docs_invoices ADD COLUMN delivery_status tinyint(2) unsigned NOT NULL default '0';
-  ALTER TABLE docs_invoices ADD COLUMN  exchange_rate double(12,4) NOT NULL default '0.0000';
-  ALTER TABLE docs_invoices ADD COLUMN  currency smallint unsigned  NOT NULL default 0;
+  ALTER TABLE docs_invoices ADD COLUMN exchange_rate double(12,4) NOT NULL default '0.0000';
+  ALTER TABLE docs_invoices ADD COLUMN currency smallint unsigned  NOT NULL default 0;
+  
+  RENAME TABLE docs_acct_orders TO docs_invoice_orders;
+  ALTER TABLE docs_invoice_orders ADD COLUMN fees_id int(11) unsigned NOT NULL default 0;
   ALTER TABLE docs_invoice_orders CHANGE COLUMN acct_id invoice_id int(10) unsigned NOT NULL default '0';
   ALTER TABLE docs_invoice_orders DROP KEY aid;
   ALTER TABLE docs_invoice_orders ADD KEY invoice_id (invoice_id);
   
   ALTER TABLE docs_main ADD COLUMN  invoice_date date NOT NULL default '0000-00-00';
+
  
 
 6.02.2012\\

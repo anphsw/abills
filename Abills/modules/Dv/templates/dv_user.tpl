@@ -19,6 +19,10 @@ function check_status(object, text) {
 
 %ONLINE_TABLE%
 <br>
+<b>%PAYMENT_MESSAGE%
+<br>
+%NEXT_FEES_WARNING%
+</b>
 <form action='$SELF_URL' method='post'>
 <input type=hidden name='index' value='$index'>
 <input type=hidden name='UID' value='$FORM{UID}'>
@@ -30,7 +34,7 @@ function check_status(object, text) {
 %JOIN_SERVICE%
 <tr><td>IP:</td><td><input type=text name=IP value='%IP%'> <br>Static IP Pool:<br>%STATIC_IP_POOL%</td></tr>
 <tr><td>Netmask:</td><td bgcolor='%NETMASK_COLOR%'><input type=text name=NETMASK value='%NETMASK%'></td></tr>
-<tr><td>CID:</td><td><input type=text name='CID' value='%CID%'>
+<tr><td>CID ($_DELISMITER ;):</td><td><input type=text name='CID' value='%CID%'>
 <tr><td>$_SPEED (kb):</td><td><input type=text name=SPEED value='%SPEED%' size=10>
  &nbsp; $_SIMULTANEOUSLY:<input type=text name=SIMULTANEONSLY value='%SIMULTANEONSLY%' size=10> </td></tr>
 <tr><td>$_FILTERS:</td><td><input type=text name=FILTER_ID value='%FILTER_ID%' size=45></td></tr>
@@ -40,7 +44,8 @@ function check_status(object, text) {
 </td></tr>
 <tr><td>TURBO:</td><td>%TURBO_MODE_SEL%</td></tr>
 <tr><td>TURBO $_COUNT:</td><td><input type=text name=FREE_TURBO_MODE value='%FREE_TURBO_MODE%'></td></tr>
-<tr><td>%NEXT_FEES_WARNING%:</td><td>%ABON_DATE%</td></tr>
+<TR><TD>$_EXPIRE:</TD><TD><input type=text name=DV_EXPIRE value='%DV_EXPIRE%' ID='DV_EXPIRE' size=12 rel='tcal'>	
+<!-- <tr><td>%NEXT_FEES_WARNING%:</td><td>%ABON_DATE%</td></tr> -->
 <tr><td colspan='2'>%REGISTRATION_INFO%  %REGISTRATION_INFO_PDF%</td></tr>
 <tr><th colspan='2' class=even>%BACK_BUTTON%
 <input type=submit name='%ACTION%' value='%LNG_ACTION%' class='noprint' onclick=\"return check_status(this, '$_DELETE ?')\">

@@ -16,18 +16,18 @@ $VERSION = 2.00;
 %EXPORT_TAGS = ();
 
 use main;
+@ISA = ("main");
 
 my $MODULE = 'Abon';
 
-@ISA = ("main");
-my $uid;
 
 #**********************************************************
 # Init
 #**********************************************************
 sub new {
   my $class = shift;
-  ($db, $admin, $CONF) = @_;
+  my $db    = shift;
+  ($admin, $CONF) = @_;
 
   my $self = {};
   bless($self, $class);
@@ -38,6 +38,8 @@ sub new {
     $self->{UID} = $CONF->{DELETE_USER};
     $self->del({ UID => $CONF->{DELETE_USER} });
   }
+
+  $self->{db}=$db;
 
   return $self;
 }
@@ -51,7 +53,7 @@ sub del {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query($db, "DELETE from abon_user_list WHERE uid='$self->{UID}';", 'do');
+  $self->query2("DELETE from abon_user_list WHERE uid='$self->{UID}';", 'do');
 
   $admin->action_add($self->{UID}, "$self->{UID}", { TYPE => 10 });
   return $self->{result};
@@ -70,8 +72,7 @@ sub tariff_info {
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query(
-    $db, "SELECT 
+  $self->query2("SELECT 
    name,
    period,
    price,
@@ -91,21 +92,14 @@ sub tariff_info {
    ext_cmd,
    activate_notification,
    vat,
-   discount   
+   discount,
+   manual_activate,
+   user_portal
      FROM abon_tariffs
-   $WHERE;"
+   $WHERE;",
+   undef,
+   { INFO => 1 }
   );
-
-  if ($self->{TOTAL} < 1) {
-    $self->{errno}  = 2;
-    $self->{errstr} = 'ERROR_NOT_EXIST';
-    return $self;
-  }
-
-  (
-    $self->{NAME},      $self->{PERIOD},        $self->{SUM},           $self->{PAYMENT_TYPE},         $self->{PERIOD_ALIGNMENT}, $self->{NONFIX_PERIOD}, $self->{EXT_BILL_ACCOUNT}, $self->{ABON_ID},               $self->{PRIORITY}, $self->{CREATE_ACCOUNT},
-    $self->{FEES_TYPE}, $self->{NOTIFICATION1}, $self->{NOTIFICATION2}, $self->{NOTIFICATION_ACCOUNT}, $self->{ALERT},            $self->{ALERT_ACCOUNT}, $self->{EXT_CMD},          $self->{ACTIVATE_NOTIFICATION}, $self->{VAT},      $self->{DISCOUNT}
-  ) = @{ $self->{list}->[0] };
 
   return $self;
 }
@@ -135,27 +129,8 @@ sub tariff_add {
   my ($attr) = @_;
 
   %DATA = $self->get_data($attr);
-
-  $self->query(
-    $db, "INSERT INTO abon_tariffs (id, name, period, price, payment_type, period_alignment, nonfix_period, ext_bill_account,
-         priority, create_account, 
-           fees_type,
-  notification1,
-  notification2,
-  notification_account,
-  alert_account,
-  ext_cmd, activate_notification, vat, discount)
-        VALUES ('$DATA{ID}', '$DATA{NAME}', '$DATA{PERIOD}', '$DATA{SUM}', '$DATA{PAYMENT_TYPE}', '$DATA{PERIOD_ALIGNMENT}',
-        '$DATA{NONFIX_PERIOD}', '$DATA{EXT_BILL_ACCOUNT}',
-        '$DATA{PRIORITY}', '$DATA{CREATE_ACCOUNT}',
-        '$DATA{FEES_TYPE}', 
-        '$DATA{NOTIFICATION1}', 
-        '$DATA{NOTIFICATION2}', 
-        '$DATA{NOTIFICATION_ACCOUNT}', 
-        '$DATA{ALERT_ACCOUNT}',
-        '$DATA{EXT_CMD}', '$DATA{ACTIVATE_NOTIFICATION}', '$DATA{VAT}',
-        '$DATA{DISCOUNT}');", 'do'
-  );
+   
+  $self->query_add('abon_tariffs', \%DATA);
 
   return $self if ($self->{errno});
   $admin->system_action_add("ABON_ID:$DATA{ID}", { TYPE => 1 });
@@ -169,30 +144,6 @@ sub tariff_change {
   my $self = shift;
   my ($attr) = @_;
 
-  my %FIELDS = (
-    ABON_ID               => 'id',
-    NAME                  => 'name',
-    PERIOD                => 'period',
-    SUM                   => 'price',
-    PAYMENT_TYPE          => 'payment_type',
-    PERIOD_ALIGNMENT      => 'period_alignment',
-    NONFIX_PERIOD         => 'nonfix_period',
-    EXT_BILL_ACCOUNT      => 'ext_bill_account',
-    PRIORITY              => 'priority',
-    CREATE_ACCOUNT        => 'create_account',
-    FEES_TYPE             => 'fees_type',
-    NOTIFICATION1         => 'notification1',
-    NOTIFICATION2         => 'notification2',
-    NOTIFICATION_ACCOUNT  => 'notification_account',
-    ALERT                 => 'alert',
-    ALERT_ACCOUNT         => 'alert_account',
-    EXT_CMD               => 'ext_cmd',
-    ACTIVATE_NOTIFICATION => 'activate_notification',
-    VAT                   => 'vat',
-    NONFIX_PERIOD         => 'nonfix_period',
-    DISCOUNT              => 'discount'
-  );
-
   $attr->{CREATE_ACCOUNT}        = 0 if (!$attr->{CREATE_ACCOUNT});
   $attr->{FEES_TYPE}             = 0 if (!$attr->{FEES_TYPE});
   $attr->{NOTIFICATION_ACCOUNT}  = 0 if (!$attr->{NOTIFICATION_ACCOUNT});
@@ -203,14 +154,17 @@ sub tariff_change {
   $attr->{VAT}                   = 0 if (!$attr->{VAT});
   $attr->{NONFIX_PERIOD}         = 0 if (!$attr->{NONFIX_PERIOD});
   $attr->{DISCOUNT}              = 0 if (!$attr->{DISCOUNT});
+  $attr->{EXT_BILL_ACCOUNT}      = 0 if (!$attr->{EXT_BILL_ACCOUNT});
+  $attr->{USER_PORTAL}           = 0 if (!$attr->{USER_PORTAL});
+  $attr->{MANUAL_ACTIVATE}       = 0 if (!$attr->{MANUAL_ACTIVATE});
+
+  $attr->{ID}=$attr->{ABON_ID};
 
   $self->changes(
     $admin,
     {
-      CHANGE_PARAM    => 'ABON_ID',
+      CHANGE_PARAM    => 'ID',
       TABLE           => 'abon_tariffs',
-      FIELDS          => \%FIELDS,
-      OLD_INFO        => $self->tariff_info($attr->{ABON_ID}),
       DATA            => $attr,
       EXT_CHANGE_INFO => "ABON_ID:$attr->{ABON_ID}"
     }
@@ -228,7 +182,7 @@ sub tariff_del {
   my $self = shift;
   my ($id) = @_;
 
-  $self->query($db, "DELETE from abon_tariffs WHERE id='$id';", 'do');
+  $self->query2("DELETE from abon_tariffs WHERE id='$id';", 'do');
   $admin->system_action_add("ABON_ID:$id", { TYPE => 10 });
   return $self->{result};
 }
@@ -252,23 +206,50 @@ sub tariff_list {
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query(
-    $db, "SELECT name, price, period, payment_type, 
+  $self->query2("SELECT name, price, period, payment_type, 
      priority,
      period_alignment,
-     count(ul.uid),
-     abon_tariffs.id,
+     count(ul.uid) AS user_count,
+     abon_tariffs.id AS tp_id,
      fees_type,
      create_account,
      ext_cmd,
      activate_notification,
      vat,
-     abon_tariffs.discount
+     abon_tariffs.discount,
+     manual_activate,
+     user_portal,
+     \@nextfees_date := if (nonfix_period = 1, 
+      if (period = 0, curdate() + INTERVAL 2 DAY, 
+       if (period = 1, curdate() + INTERVAL 2 MONTH, 
+         if (period = 2, curdate() + INTERVAL 6 MONTH, 
+           if (period = 3, curdate() + INTERVAL 12 MONTH, 
+             if (period = 4, curdate() + INTERVAL 2 YEAR, 
+               '-'
+              )
+            )
+          )
+        )
+       ),
+      if (period = 0, curdate()+ INTERVAL 1 DAY, 
+       if (period = 1, DATE_FORMAT(curdate() + INTERVAL 2 MONTH, '%Y-%m-01'), 
+         if (period = 2, CONCAT(YEAR(curdate() + INTERVAL 6 MONTH), '-' ,(QUARTER((curdate() + INTERVAL 6 MONTH))*6-2), '-01'), 
+           if (period = 3, CONCAT(YEAR(curdate() + INTERVAL 12 MONTH), '-', if(MONTH(curdate() + INTERVAL 12 MONTH) > 12, '06', '01'), '-01'), 
+             if (period = 4, DATE_FORMAT(curdate() + INTERVAL 2 YEAR, '%Y-01-01'), 
+               '-'
+              )
+            )
+          )
+        )
+       )
+      ) AS next_abon_date
      FROM abon_tariffs
      LEFT JOIN abon_user_list ul ON (abon_tariffs.id=ul.tp_id)
      $WHERE
      GROUP BY abon_tariffs.id
-     ORDER BY $SORT $DESC;"
+     ORDER BY $SORT $DESC;",
+    undef,
+    $attr
   );
 
   return $self->{list};
@@ -317,10 +298,13 @@ sub user_list {
     push @WHERE_RULES, "at.id='$attr->{ABON_ID}'";
   }
 
+  if (defined($attr->{MANUAL_FEE})) {
+    push @WHERE_RULES, @{ $self->search_expr("$attr->{MANUAL_FEE}", 'INT', 'ul.manual_fee') };
+  }
+
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query(
-    $db, "SELECT u.id, pi.fio, at.name, ul.comments, at.price, at.period,
+  $self->query2("SELECT u.id AS login, pi.fio, at.name AS tp_name, ul.comments, at.price, at.period,
      ul.date, 
      if (at.nonfix_period = 1, 
       if (at.period = 0, ul.date+ INTERVAL 1 DAY, 
@@ -347,26 +331,26 @@ sub user_list {
           )
         )
        )
-      ),
+      ) AS next_abon,
+     ul.manual_fee,
      u.uid, 
-     at.id
+     at.id AS tp_id
      FROM (users u, abon_user_list ul, abon_tariffs at)
      LEFT JOIN users_pi pi ON u.uid = pi.uid
      $WHERE
      GROUP BY ul.uid, ul.tp_id
      ORDER BY $SORT $DESC
-     LIMIT $PG, $PAGE_ROWS;"
+     LIMIT $PG, $PAGE_ROWS;",
+  undef,
+  $attr
   );
   my $list = $self->{list};
 
   if ($self->{TOTAL} > 0) {
-    $self->query(
-      $db, "SELECT count(u.uid)
+    $self->query2("SELECT count(u.uid) AS total
      FROM (users u, abon_user_list ul, abon_tariffs at)
-     $WHERE"
+     $WHERE", undef, { INFO => 1 }
     );
-
-    ($self->{TOTAL}) = @{ $self->{list}->[0] };
   }
 
   return $list;
@@ -381,9 +365,13 @@ sub user_tariff_list {
 
   # @WHERE_RULES = ("ul.uid='$uid'");
   # $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
-
-  $self->query(
-    $db, "SELECT at.id, at.name, comments, at.price, at.period, ul.date, 
+  $self->query2("SELECT at.id, 
+      at.name, 
+      if(ul.comments <> '', ul.comments, '') AS comments, 
+      at.price, 
+      at.period, 
+      sum(ul.service_count) AS service_count,
+      max(ul.date) AS date, 
       if (at.nonfix_period = 1, 
       if (at.period = 0, ul.date+ INTERVAL 1 DAY, 
        if (at.period = 1, ul.date + INTERVAL 1 MONTH, 
@@ -395,10 +383,8 @@ sub user_tariff_list {
             )
           )
         )
-       )
-      ,
-      
-      if (at.period = 0, ul.date+ INTERVAL 1 DAY, 
+       ),      
+      \@next_abon := if (at.period = 0, ul.date+ INTERVAL 1 DAY, 
        if (at.period = 1, DATE_FORMAT(ul.date + INTERVAL 1 MONTH, '%Y-%m-01'), 
          if (at.period = 2, CONCAT(YEAR(ul.date + INTERVAL 3 MONTH), '-' ,(QUARTER((ul.date + INTERVAL 3 MONTH))*3-2), '-01'), 
            if (at.period = 3, CONCAT(YEAR(ul.date + INTERVAL 6 MONTH), '-', if(MONTH(ul.date + INTERVAL 6 MONTH) > 6, '06', '01'), '-01'), 
@@ -409,18 +395,23 @@ sub user_tariff_list {
           )
         )
        )
-      ),
-   ul.discount,
-   count(ul.uid),
+      ) AS next_abon,
+   ul.manual_fee,   
+   max(ul.discount) AS discount,
+   count(ul.uid) AS active_service,
    ul.notification1,
    ul.notification1_account_id,
    ul.notification2,
    ul.create_docs,
-   ul.send_docs
+   ul.send_docs,
+   at.manual_activate,
+   if (\@next_abon < curdate(), 1, 0) AS missing
      FROM abon_tariffs at
      LEFT JOIN abon_user_list ul ON (at.id=ul.tp_id and ul.uid='$uid')
      GROUP BY at.id
-     ORDER BY $SORT $DESC;"
+     ORDER BY $SORT $DESC;",
+   undef,
+   $attr
   );
 
   my $list = $self->{list};
@@ -429,7 +420,7 @@ sub user_tariff_list {
 }
 
 #**********************************************************
-# user_tariffs()
+# user_tariff_change()
 #**********************************************************
 sub user_tariff_change {
   my $self = shift;
@@ -437,9 +428,32 @@ sub user_tariff_change {
 
   my $abon_add = '';
   my $abon_del = '';
+ 
+  $admin->{MODULE} = $MODULE;
+ 
+  if ($attr->{CHANGE_INFO}) {
+    $self->query2("UPDATE abon_user_list SET 
+      comments='$attr->{COMMENTS}', 
+      discount='$attr->{DISCOUNT}', 
+      create_docs='$attr->{CREATE_DOCS}', 
+      send_docs='$attr->{SEND_DOCS}', 
+      service_count='$attr->{SERVICE_COUNT}',
+      manual_fee='$attr->{MANUAL_FEE}'
+      WHERE uid='$attr->{UID}' AND tp_id='$attr->{TP_ID}';
+      ", 'do');
 
-  if ($attr->{DEL}) {
-    $self->query($db, "DELETE from abon_user_list WHERE uid='$attr->{UID}' AND  tp_id IN ($attr->{DEL});", 'do');
+    $admin->action_add($attr->{UID}, "ADD: $abon_add DEL: $abon_del", { TYPE => 3 });
+    return $self;
+  }
+  elsif($attr->{ACTIVATE}) {
+    $self->query2("UPDATE abon_user_list SET 
+      date='$attr->{ABON_DATE}'
+      WHERE uid='$attr->{UID}' AND tp_id='$attr->{ACTIVATE}';
+      ", 'do');    
+    return 0;
+  }
+  elsif ($attr->{DEL}) {
+    $self->query2("DELETE from abon_user_list WHERE uid='$attr->{UID}' AND tp_id IN ($attr->{DEL});", 'do');
     $abon_del = "$attr->{DEL}";
   }
 
@@ -469,10 +483,9 @@ sub user_tariff_change {
       $date = 'curdate()';
     }
 
-    $self->query(
-      $db, "INSERT INTO abon_user_list (uid, tp_id, comments, date, discount, create_docs, send_docs) 
+    $self->query2("INSERT INTO abon_user_list (uid, tp_id, comments, date, discount, create_docs, send_docs, service_count, manual_fee) 
      VALUES ('$attr->{UID}', '$tp_id', '" . $attr->{ 'COMMENTS_' . $tp_id } . "', $date, '" . $attr->{ 'DISCOUNT_' . $tp_id } . "',
-     '" . $attr->{ 'CREATE_DOCS_' . $tp_id } . "', '" . $attr->{ 'SEND_DOCS_' . $tp_id } . "');", 'do'
+     '" . $attr->{ 'CREATE_DOCS_' . $tp_id } . "', '" . $attr->{ 'SEND_DOCS_' . $tp_id } . "', '". $attr->{'SERVICE_COUNT_'. $tp_id} ."', '" . $attr->{ 'MANUAL_FEE_' . $tp_id } . "');", 'do'
     );
     $abon_add .= "$tp_id, ";
   }
@@ -497,7 +510,7 @@ sub user_tariff_del {
     $WHERE = "tp_id='$attr->{TP_ID}'";
   }
 
-  $self->query($db, "DELETE from abon_user_list WHERE uid='$attr->{UID}' AND $WHERE;", 'do');
+  $self->query2("DELETE from abon_user_list WHERE uid='$attr->{UID}' AND $WHERE;", 'do');
 
   $admin->action_add($attr->{UID}, "$attr->{TP_IDS}");
   return $self;
@@ -525,14 +538,12 @@ sub user_tariff_update {
       $set = "notification2=$DATE";
     }
 
-    $self->query(
-      $db, "UPDATE abon_user_list SET $set
+    $self->query2("UPDATE abon_user_list SET $set
      WHERE uid='$attr->{UID}' and tp_id='$attr->{TP_ID}';", 'do'
     );
   }
   else {
-    $self->query(
-      $db, "UPDATE abon_user_list SET date=$DATE, 
+    $self->query2("UPDATE abon_user_list SET date=$DATE, 
      notification1='0000-00-00',
      notification1_account_id='0',
      notification2='0000-00-00'
@@ -567,22 +578,27 @@ sub periodic_list {
     push @WHERE_RULES, @{ $self->search_expr("$attr->{LOGIN_STATUS}", 'INT', 'u.disable', { EXT_FIELD => 1 }) };
   }
 
+  if (defined($attr->{MANUAL_FEE})) {
+    push @WHERE_RULES, @{ $self->search_expr("$attr->{MANUAL_FEE}", 'INT', 'ul.manual_fee') };
+  }
+
+  if ($attr->{UID}) {
+    push @WHERE_RULES, @{ $self->search_expr("$attr->{UID}", 'INT', 'u.uid') };
+  }
+
   my $WHERE = ($#WHERE_RULES > -1) ? "AND " . join(' and ', @WHERE_RULES) : '';
 
   my $EXT_TABLE = '';
 
-  $self->query(
-    $db, "SELECT at.period, at.price, u.uid, 
+  $self->query2("SELECT at.period, at.price, u.uid, 
   if(u.company_id > 0, c.bill_id, u.bill_id) AS bill_id,
-  u.id, 
-  at.id, 
-  at.name,
-  if(c.name IS NULL, b.deposit, cb.deposit),
-  if(c.name IS NULL, u.credit, 
-    if (c.credit = 0, u.credit, c.credit) 
-   ),
+  u.id AS login, 
+  at.id AS tp_id, 
+  at.name AS tp_name,
+  if(c.name IS NULL, b.deposit, cb.deposit) AS deposit,
+  if(u.credit, u.credit,
+    if (c.credit <> 0, c.credit, 0) ) AS credit,
   u.disable,
-  at.id,
   at.payment_type,
   ul.comments,
   \@last_fees_date := if(ul.date='0000-00-00', curdate(), ul.date),
@@ -609,7 +625,7 @@ sub periodic_list {
           )
         )
        )
-      ) AS fees_date,
+      ) AS abon_date,
    at.ext_bill_account,
    if(u.company_id > 0, c.ext_bill_id, u.ext_bill_id) AS ext_bill_id,
    at.priority,
@@ -649,11 +665,13 @@ sub periodic_list {
           )
         )
        )
-      ) AS nextfees_date,
+      ) AS next_abon_date,
     if(ul.discount>0, ul.discount,
-     if(at.discount=1, u.reduction, 0)),
+     if(at.discount=1, u.reduction, 0)) AS discount,
      ul.create_docs,
-     ul.send_docs
+     ul.send_docs,
+     ul.service_count,
+     ul.manual_fee
   FROM (abon_tariffs at, abon_user_list ul, users u)
      LEFT JOIN bills b ON (u.bill_id=b.id)
      LEFT JOIN companies c ON (u.company_id=c.id)
@@ -664,7 +682,9 @@ at.id=ul.tp_id and
 ul.uid=u.uid
 $WHERE
 AND u.deleted='0'
-ORDER BY at.priority;"
+ORDER BY at.priority;",
+undef,
+$attr
   );
 
   my $list = $self->{list};

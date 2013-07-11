@@ -1,4 +1,3 @@
-<div calls=noprint id=CARDS_ADD>
 <form action='$SELF_URL' METHOD='POST' ENCTYPE='multipart/form-data' id='CARDS_ADD'>
 <input type='hidden' name='index' value='$index'>
 
@@ -28,6 +27,4 @@
 <tr><td>$_DILLERS:</td><td>%DILLERS_SEL%</td></tr>
 <tr><th colspan='2' class=even><input type='submit' name='create' value='$_CREATE'></th></tr>
 </table>
-
 </form>
-</div>
