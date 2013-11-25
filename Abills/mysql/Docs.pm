@@ -497,7 +497,8 @@ sub invoices_list {
     ],
     { WHERE       => 1,
     	WHERE_RULES => \@WHERE_RULES,
-    	USERS_FIELDS=> 1
+    	USERS_FIELDS=> 1,
+    	SKIP_USERS_FIELDS=> [ 'UID' ]
     }
     );
 
@@ -533,8 +534,8 @@ sub invoices_list {
   
   $self->query2("SELECT count(distinct d.id) AS total_invoices,
      count(distinct d.uid) AS total_users,
-     \@total_sum := if (i2p.sum IS NULL, sum(o.price * o.counts),  sum(o.price * o.counts) /count( DISTINCT i2p.payment_id)) AS total_sum, 
-     \@payment_sum := sum(i2p.sum) / count(DISTINCT o.orders) AS payment_sum,
+     \@total_sum := if (i2p.sum IS NULL, sum(o.price * o.counts), sum(o.price * o.counts)) AS total_sum, 
+     \@payment_sum := sum(DISTINCT i2p.sum) AS payment_sum,
      1
     FROM docs_invoices d
     INNER JOIN docs_invoice_orders o ON (o.invoice_id=d.id)
@@ -793,7 +794,7 @@ sub invoice_info {
   $self->query2("SELECT d.invoice_num, 
    d.date, 
    d.customer,  
-   \@TOTAL_SUM := sum(o.price * o.counts) AS total_sum, 
+   \@TOTAL_SUM := sum(o.price * o.counts) / if(count(DISTINCT p.id)>0,count(DISTINCT p.id),1)  AS total_sum , 
    if(d.vat>0, FORMAT(sum(o.price * o.counts) / ((100+d.vat)/ d.vat), 2), FORMAT(0, 2)) AS vat,
    u.id AS login, 
    a.name AS admin, 
@@ -1444,11 +1445,10 @@ sub user_list {
       ))";      
     }
     else {
-      push @WHERE_RULES, "((u.activate='0000-00-00' AND service.invoice_date + INTERVAL service.invoicing_period MONTH - INTERVAL $CONF->{DOCS_PRE_INVOICE_PERIOD} day='$attr->{PRE_INVOICE_DATE}') 
-      OR (u.activate<>'0000-00-00' AND service.invoice_date + INTERVAL 30*service.invoicing_period+service.invoicing_period DAY   - INTERVAL $CONF->{DOCS_PRE_INVOICE_PERIOD} day='$attr->{PRE_INVOICE_DATE}'))";
+       push @WHERE_RULES,  '('. @{ $self->search_expr("$attr->{PRE_INVOICE_DATE}", "DATE","u.activate='0000-00-00' AND service.invoice_date + INTERVAL service.invoicing_period MONTH - INTERVAL $CONF->{DOCS_PRE_INVOICE_PERIOD} day") }[0] . ' OR '. 
+       @{ $self->search_expr("$attr->{PRE_INVOICE_DATE}", "DATE", "u.activate<>'0000-00-00' AND service.invoice_date + INTERVAL 30*service.invoicing_period+service.invoicing_period DAY - INTERVAL $CONF->{DOCS_PRE_INVOICE_PERIOD} day") }[0] .')';
     }
   }
-
 
   my $EXT_TABLES  = $self->{EXT_TABLES};
 

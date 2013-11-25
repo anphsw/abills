@@ -11,21 +11,25 @@
 #       $6      the parameter specified by the 'ipparam' option to pppd
 #
 
-AWK=/usr/bin/awk;
-TC=/sbin/tc
+
+START=$(date +%s)
+
+AWK="/usr/bin/awk";
+TC="/sbin/tc"
+IPTABLES="/sbin/iptables"
 
 debug=0;
 NEW_MODEL=
 
-if [ -f /var/run/radattr.$1 ];
-   then
-   IFNAME=$1
+IFNAME=$1;
+
+if [ -f /var/run/radattr.${IFNAME} ]; then
    DOWNSPEED=`${AWK}  '/PPPD-Downstream-Speed-Limit/ {print $2}'  /var/run/radattr.${IFNAME}`
    UPSPEED=`${AWK}  '/PPPD-Upstream-Speed-Limit/ {print $2}'  /var/run/radattr.${IFNAME}`
    FILTERS=`${AWK}  '/Filter-Id/ {print $2}'  /var/run/radattr.${IFNAME}`
    USER_NAME=`${AWK}  '/User-Name/ {print $2}'  /var/run/radattr.${IFNAME}`
 
-   if [ w${debug} = w1 ] ; then
+   if [ w${debug} = w1 ]; then
      echo "Debug mode"
      echo $DOWNSPEED
      echo $UPSPEED
@@ -69,13 +73,44 @@ if [ -f /var/run/radattr.$1 ];
      #Put there filters rule
      #echo "Filter: ${FILTERS}"
 
+     REDIRECT_IP="172.16.250.1"
+     ALLOW_NET="172.16.250.0/24"
+     
+     if [ -f /var/run/radattr.$IFNAME ]; then
+       FILTERS=`${AWK}  '/Filter-Id/ {print $2}'  /var/run/radattr.${IFNAME}`
+     fi;
+
+     EXIST=`${IPTABLES} -t nat -L PREROUTING -v | grep "${IFNAME} ";  ${IPTABLES} -L -v | grep DROP | grep "${IFNAME} "` 
+     
+     if [ w != w"${EXIST}" ]; then
+       ${IPTABLES} -t nat -D PREROUTING -i ${IFNAME} -p tcp -m tcp --dport 80 -j DNAT --to-destination ${REDIRECT_IP}:80
+       ${IPTABLES} -D FORWARD -i ${IFNAME} -j DROP
+     fi;
+
+
+     if [ w${FILTERS} = wNEG_DEPOSIT ] ; then
+       #### Filters
+       $IPTABLES -t nat -A PREROUTING -i ${IFNAME} -p tcp -m tcp --dport 80 -j DNAT --to-destination $REDIRECT_IP:80
+       $IPTABLES -t nat -A PREROUTING -i ${IFNAME} -d ${ALLOW_NET} -j RETURN
+       $IPTABLES -I FORWARD -i ${IFNAME} -d ${ALLOW_NET} -j ACCEPT 
+       $IPTABLES -A FORWARD -i ${IFNAME} -j DROP
+       if [ w${DEBUG} != w ] ; then
+          END=$(date +%s)
+          DIFF=$(( $END - $START ))
+          echo "UP neg filter User: ${USER_NAME} Filter: ${FILTERS} IF: ${IFNAME} Time: ${DIFF}" >> /tmp/neg
+       fi;
+     fi;
+
+
+
      #Max TCP Sessions filter
      FILTER_ID=`echo ${FILTERS} | awk -F: '{ print $1 }'`;
      if [ w${FILTER_ID} = wMAX_TCP ]; then
        COUNT=`echo ${FILTERS} | awk -F: '{ print $2 }'`;
-       
      fi;
    fi;
 
  fi;
 
+END=$(date +%s)
+DIFF=$(( $END - $START ))

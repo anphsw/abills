@@ -10,7 +10,10 @@
 <input type=hidden name=INCOMING_ID value=%INCOMING_ID%>
 <input type=hidden name=\"type\" value=\"prihod2\">
 <input type=hidden name=\"storage_status\" value=\"1\">
-<table border=\"0\" >
+<table class=form>
+  <tr>
+    <th colspan=2 class=form_title>$_SEARCH</th>
+  </tr>
   <tr>
     <td align=right>$_TYPE:</td>
     <td>%ARTICLE_TYPES%</td>
@@ -30,6 +33,10 @@
     <td>%STORAGE_STORAGES%
     </td>
   </tr>
+  <tr>
+    <th colspan=2 class=even><input type=submit name=storage_status value=$_SHOW></th>
+  </tr>
+
 </table>
-<input type=submit name=storage_status value=$_SHOW>
+
 </form>

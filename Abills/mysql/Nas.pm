@@ -189,7 +189,7 @@ sub change {
   my %FIELDS = (
     NAS_ID           => 'id',
     NAS_NAME         => 'name',
-    NAS_INDENTIFIER  => 'nas_identifier',
+    NAS_IDENTIFIER  => 'nas_identifier',
     NAS_DESCRIBE     => 'descr',
     NAS_IP           => 'ip',
     NAS_TYPE         => 'nas_type',
@@ -246,7 +246,7 @@ sub add {
   $self->query2("INSERT INTO nas (name, nas_identifier, descr, ip, nas_type, auth_type, mng_host_port, mng_user, 
  mng_password, rad_pairs, alive, disable, ext_acct, 
  address_build, address_street, address_flat, zip, city, country, domain_id, gid, mac, location_id)
- values ('$DATA{NAS_NAME}', '$DATA{NAS_INDENTIFIER}', '$DATA{NAS_DESCRIBE}', '$DATA{NAS_IP}', '$DATA{NAS_TYPE}', '$DATA{NAS_AUTH_TYPE}',
+ values ('$DATA{NAS_NAME}', '$DATA{NAS_IDENTIFIER}', '$DATA{NAS_DESCRIBE}', '$DATA{NAS_IP}', '$DATA{NAS_TYPE}', '$DATA{NAS_AUTH_TYPE}',
   '$DATA{NAS_MNG_IP_PORT}', '$DATA{NAS_MNG_USER}', ENCODE('$DATA{NAS_MNG_PASSWORD}', '$SECRETKEY'), '$DATA{NAS_RAD_PAIRS}',
   '$DATA{NAS_ALIVE}', '$DATA{NAS_DISABLE}', '$DATA{NAS_EXT_ACCT}',
   '$DATA{ADDRESS_BUILD}', '$DATA{ADDRESS_STREET}', '$DATA{ADDRESS_FLAT}', '$DATA{ZIP}', '$DATA{CITY}', '$DATA{COUNTRY}', '$DATA{DOMAIN_ID}',

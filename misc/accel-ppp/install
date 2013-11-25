@@ -1,0 +1,20 @@
+:DEFAULT:RADIUS_AUTH_SERVER=127.0.0.1:Radius auth server ip
+:DEFAULT:RADIUS_AUTH_PORT=1812:Radius auth port
+:DEFAULT:RADIUS_ACCT_SERVER=127.0.0.1:Radius accounting ip
+:DEFAULT:RADIUS_ACCT_PORT=1813:Radius accounting port
+:DEFAULT:RADIUS_SECRET=radsecr12:Radius Secret key
+:DEFAULT:RAD_ACCT_ALIVE=300:Radius Alive period. Recomended 300 sec
+:DEFAULT:BILLING_IP=127.0.0.1:Billing server IP for hangup and CoA request
+:DEFAULT:POD_PASSWORD=secretpass:POD and CoA password
+:DEFAULT:POD_PORT=3799:PoD/CoA Port
+:DEFAULT:FOR_RADIUS_IP=127.0.0.1:Ip address for radius server request
+:DEFAULT:FIRST_INTERFACE=0:First interface number
+:DEFAULT:INTERFACE_COUNT=100:Create interfaces
+
+accel-ppp.conf   > [/etc/]/accel-ppp.conf
+accel-ppp        > [/etc/init.d/]/accel-ppp
+:exec:update-rc.d accel-ppp defaults
+:exec:/etc/init.d/accel-ppp restart
+
+
+

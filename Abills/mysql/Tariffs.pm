@@ -138,7 +138,7 @@ sub ti_list {
 
   $self->query2("SELECT i.id, i.day, $begin_end
    i.tarif,
-   count(tt.id),
+   count(tt.id) AS traffic_classes,
    i.id
    FROM intervals i
    LEFT JOIN  trafic_tarifs tt ON (tt.interval_id=i.id)
@@ -636,8 +636,6 @@ sub list {
 
   my @WHERE_RULES = ();
   $self->{SEARCH_FIELDS} = '';
-
-
 
   if ($attr->{CHANGE_PRICE}) {
     my $sql = '';

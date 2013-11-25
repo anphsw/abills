@@ -90,11 +90,10 @@ my $Tariffs = Tariffs->new($db, $admin, \%conf);
 my $Docs    = Docs->new($db, $admin, \%conf);
 my $Dv      = Dv->new($db, $admin, \%conf);
 
-
-load_module('Docs');
 require "language/$conf{default_language}.pl";
 $html->{language} = $conf{default_language};
 
+load_module('Docs');
 
 my $ARGV = parse_arguments(\@ARGV);
 if (defined($ARGV->{help})) {
@@ -112,29 +111,32 @@ else {
   $pdf_result_path = $pdf_result_path . "/$Y-$m/";
 }
 
-my $sort = ($ARGV->{SORT}) ? $ARGV->{SORT} : 1;
+my $sort = 1;
 
-if (!-d $pdf_result_path) {
-  mkdir($pdf_result_path);
-  print "Directory no exists '$pdf_result_path'. Created." if ($debug > 0);
+if($ARGV->{SORT}) {
+  if ($ARGV->{SORT} eq 'ADDRESS') {
+  	$sort = "streets.name, builds.number+1, pi.address_flat+1";
+  }
+  else {
+    $sort = $ARGV->{SORT};
+  }
+   
 }
 
-load_module('Docs');
 
 $docs_in_file = $ARGV->{DOCS_IN_FILE} || $docs_in_file;
 my $save_filename = $pdf_result_path . '/multidoc_.pdf';
-
-if (!-d $pdf_result_path) {
-  mkdir($pdf_result_path);
-}
 
 my %LIST_PARAMS = ();
 
 if ($ARGV->{LOGIN}) {
   $LIST_PARAMS{LOGIN} = $ARGV->{LOGIN};
 }
+elsif ($ARGV->{UID}) {
+  $LIST_PARAMS{UID}    = $ARGV->{UID};
+}
 
-if ($ARGV->{POSTPAID_INVOICE}) {
+if ($ARGV->{POSTPAID_INVOICES}) {
   postpaid_invoices();
 }
 elsif ($ARGV->{PERIODIC_INVOICE}) {
@@ -292,8 +294,8 @@ sub periodic_invoice {
       $FORM{FROM_DATE} = $user{ACTIVATE};
       ($Y, $M, $D) = split(/-/, $FORM{FROM_DATE}, 3);
       $start_period_unixtime = (mktime(0, 0, 0, $D, ($M - 1), ($Y - 1900), 0, 0, 0) + 30 * 86400);
-      $user{INVOICE_PERIOD_START} = strftime '%Y-%m-%d', localtime((mktime(0, 0, 0, $D, ($M - 1), ($Y - 1900), 0, 0, 0) + 31 * 86400));
-      $user{INVOICE_PERIOD_STOP}  = strftime '%Y-%m-%d', localtime((mktime(0, 0, 0, $D, ($M - 1), ($Y - 1900), 0, 0, 0) + 31 * 86400));
+      $user{INVOICE_PERIOD_START} = strftime '%Y-%m-%d', localtime(mktime(0, 0, 0, $D, ($M - 1), ($Y - 1900), 0, 0, 0) + 31 * 86400);
+      $user{INVOICE_PERIOD_STOP}  = strftime '%Y-%m-%d', localtime(mktime(0, 0, 0, $D, ($M - 1), ($Y - 1900), 0, 0, 0) + 31 * 86400);
       ($Y, $M, $D) = split(/-/, $user{INVOICE_PERIOD_START}, 3);
     }
     else {
@@ -411,15 +413,15 @@ sub periodic_invoice {
       if ($debug < 5) {
         $Docs->invoice_add({ %user, 
         	                   %ORDERS_HASH,
-        	                   DATE => $ARGV->{INVOICE_DATE} || undef
-        	                    });
+        	                   DATE    => $ARGV->{INVOICE_DATE} || undef,
+        	                   DEPOSIT => ($ARGV->{INCLUDE_DEPOSIT}) ?  $user{DEPOSIT} : 0
+        	                 });
 
         $Docs->user_change(
           {
             UID          => $user{UID},
             INVOICE_DATE => $user{NEXT_INVOICE_DATE},
             CHANGE_DATE  => 1,
-            DEPOSIT      => ($ARGV->{INCLUDE_DEPOSIT}) ?  $user{DEPOSIT} : 0
           }
         );
 
@@ -456,7 +458,7 @@ sub send_invoices {
     $FORM{pdf}   = 1;
     $FORM{print} = $id;
 
-    docs_invoices(
+    docs_invoice(
       {
         GET_EMAIL_INFO => 1,
         SEND_EMAIL     => 1,
@@ -482,25 +484,28 @@ sub prepaid_invoices {
 
   require $MODULES[0] . '.pm';
   $MODULES[0]->import();
-  my $Module_name     = $MODULES[0]->new($db, $admin, \%conf);
-  $LIST_PARAMS{TP_ID} = $ARGV->{TP_ID} if ($ARGV->{TP_ID});
-  $LIST_PARAMS{LOGIN} = $ARGV->{LOGIN} if ($ARGV->{LOGIN});
-  $LIST_PARAMS{GID}   = $ARGV->{GID}   if ($ARGV->{GID});
-  $LIST_PARAMS{DEPOSIT}    = $ARGV->{DEPOSIT}    if ($ARGV->{DEPOSIT});
-  my $TP_LIST         = get_tps();
+  my $Module_name      = $MODULES[0]->new($db, $admin, \%conf);
+  $LIST_PARAMS{TP_ID}  = $ARGV->{TP_ID} if ($ARGV->{TP_ID});
+  $LIST_PARAMS{GID}    = $ARGV->{GID}   if ($ARGV->{GID});
+  $LIST_PARAMS{DEPOSIT}= $ARGV->{DEPOSIT}    if ($ARGV->{DEPOSIT});
+  my $TP_LIST          = get_tps();
+  %INFO_FIELDS_SEARCH  = ();
+  $Module_name->{debug}=1 if ($debug > 6);
 
   my $list = $Module_name->list(
     {
-      #DEPOSIT       => '<0',
       DISABLE        => 0,
       COMPANY_ID     => 0,
-      CONTRACT_ID    => '*',
-      CONTRACT_DATE  => '>=0000-00-00',
-      ADDRESS_STREET => '*',
-      ADDRESS_BUILD  => '*',
-      ADDRESS_FLAT   => '*',
+      CONTRACT_ID    => '_SHOW',
+      FIO            => '_SHOW',
+      ADDRESS_STREET => '_SHOW',
+      ADDRESS_BUILD  => '_SHOW',
+      ADDRESS_FLAT   => '_SHOW',
+      TP_NAME        => '_SHOW',
+      DEPOSIT        => '_SHOW',
+      CONTRACT_DATE  => '>=0000-00-00',      
       PAGE_ROWS      => 1000000,
-      #		                        %INFO_FIELDS_SEARCH,
+      %INFO_FIELDS_SEARCH,
       SORT           => $sort,
       SKIP_TOTAL     => 1,
       %LIST_PARAMS,
@@ -521,7 +526,7 @@ sub prepaid_invoices {
     $Docs->user_info($uid);
 
     if ($ARGV->{INVOICE2ALL} || ! $Docs->{PERIODIC_CREATE_DOCS}) {
-      print "Skip create docs\n" if ($debug > 2);
+      print "Skip create docs INVOICE2ALL: $ARGV->{INVOICE2ALL} PERIODIC_CREATE_DOCS: $Docs->{PERIODIC_CREATE_DOCS}\n" if ($debug > 2);
       next;
     }
 
@@ -534,23 +539,50 @@ sub prepaid_invoices {
       EMAIL      => $Docs->{EMAIL}
     );
 
+    my @orders = ();
+
     #Add debetor invoice
     if ($line->{deposit} && $line->{deposit} < 0) {
-      print "  DEPOSIT: $line->{deposit}\n" if ($debug > 2);
-      $FORM{SUM}   = abs($line->[2]);
-      $FORM{ORDER} = "$_DEBT";
-      docs_invoices({ QUITE => 1 });
+      print "  DEPOSIT: $line->{deposit} SEND: $FORM{SEND_EMAIL}\n" if ($debug > 2);
+      push @orders, { ORDER => "$_DEBT",
+                      SUM   => abs($line->{deposit}) };
     }
 
     #add  tp invoice
     if ($TP_LIST->{$tp_id}) {
       my ($tp_name, $fees_sum) = split(/;/, $TP_LIST->{$tp_id});
       print "  TP_ID: $tp_id FEES: $fees_sum\n" if ($debug > 2);
-      $FORM{SUM}   = $fees_sum;
-      $FORM{ORDER} = "$_TARIF_PLAN";
-      docs_invoice({ QUITE => 1 });
+      push @orders, { ORDER => "$_TARIF_PLAN",
+                      SUM   => $fees_sum };
+
+    }
+    
+    if ($#orders > -1 ) {
+    	my @ids = ();
+    	for(my $i=0; $i<=$#orders; $i++) {
+        if ($ARGV->{SINGLE_ORDER}) {
+          $FORM{ORDER} = "$_DEBT";
+          $FORM{SUM}   += $orders[$i]->{SUM};
+        }
+        else {
+          $FORM{'ORDER_' . ($i+1)} = $orders[$i]->{ORDER};  
+          $FORM{'SUM_' . ($i+1)}   = $orders[$i]->{SUM};
+          push @ids, ($i+1);
+        }
+      }
+
+      $FORM{'IDS'}=join(', ', @ids) if ($#ids);
+
+      docs_invoice({ QUITE => 1,
+                     SEND_EMAIL     => $FORM{SEND_EMAIL} || 0,
+                     UID            => $FORM{UID},
+      	             GET_EMAIL_INFO => 1 
+                	 });
+      
+      $doc_num+=$#orders+1;
     }
   }
+
   print "TOTAL USERS: $Module_name->{TOTAL} DOCS: $doc_num\n";
 }
 
@@ -590,7 +622,6 @@ sub prepaid_invoices_company {
   require $MODULES[0] . '.pm';
   $MODULES[0]->import();
   $LIST_PARAMS{TP_ID}      = $ARGV->{TP_ID}      if ($ARGV->{TP_ID});
-  $LIST_PARAMS{LOGIN}      = $ARGV->{LOGIN}      if ($ARGV->{LOGIN});
   $LIST_PARAMS{COMPANY_ID} = $ARGV->{COMPANY_ID} if ($ARGV->{COMPANY_ID});
   $LIST_PARAMS{DEPOSIT}    = $ARGV->{DEPOSIT}    if ($ARGV->{DEPOSIT});
 
@@ -771,6 +802,19 @@ sub postpaid_invoices {
   $save_filename = $pdf_result_path . '/multidoc_postpaid_invoices.pdf';
   $Fees->{debug} = 1 if ($debug > 6);
 
+  if (!-d $pdf_result_path) {
+    print "Directory no exists '$pdf_result_path'\n" if ($debug > 0);
+    if(! mkdir($pdf_result_path)) {
+  	  print "Error: $!\n";
+  	  exit;
+    }
+    else {
+      " Created.\n" if ($debug > 0);
+    }
+  }
+
+  $LIST_PARAMS{DEPOSIT}= $ARGV->{DEPOSIT}    if ($ARGV->{DEPOSIT});
+
   #Fees get month fees - abon. payments
   my $fees_list = $Fees->reports(
     {
@@ -797,7 +841,7 @@ sub postpaid_invoices {
   my %INFO_FIELDS_SEARCH = ();
 
   foreach my $key (keys %INFO_FIELDS) {
-    $INFO_FIELDS_SEARCH{$key} = '*';
+    $INFO_FIELDS_SEARCH{$key} = '_SHOW';
   }
 
   $Users->{debug} = 1 if ($debug > 6);
@@ -805,16 +849,17 @@ sub postpaid_invoices {
     {
       FIO            => '_SHOW',
       LOGIN_STATUS   => '_SHOW',
-      DEPOSIT        => '<0',
+      DEPOSIT        => '_SHOW',
       DISABLE        => 0,
       CONTRACT_ID    => '_SHOW',
       CONTRACT_DATE  => '_SHOW',
       ADDRESS_STREET => '_SHOW',
       ADDRESS_BUILD  => '_SHOW',
       ADDRESS_FLAT   => '_SHOW',
-
+      #ADDRESS_FULL   => '_SHOW',
       PAGE_ROWS      => 1000000,
       %INFO_FIELDS_SEARCH,
+      %LIST_PARAMS,
       SORT           => $sort,
       COLS_NAME      => 1
     }
@@ -861,13 +906,16 @@ sub postpaid_invoices {
       ORDER_TOTAL_SUM_VAT => ($conf{DOCS_VAT_INCLUDE}) ? sprintf("%.2f", abs($line->{deposit} / ((100 + $conf{DOCS_VAT_INCLUDE}) / $conf{DOCS_VAT_INCLUDE}))) : 0.00,
       NUMBER              => $line->{bill_id} . "-$m",
       ACTIVATE            => '>=$DATE',
-      EXPIRE              => '0000-00-00',
+      EXPIRE_DATE         => ($conf{DOCS_ACCOUNT_EXPIRE_PERIOD})  ? strftime '%Y-%m-%d', localtime(mktime(0, 0, 0, $d, ($m - 1), ($Y - 1900), 0, 0, 0) + $conf{DOCS_ACCOUNT_EXPIRE_PERIOD} * 86400) : '0000-00-00',
       MONTH_FEE           => $month_fee,
       TOTAL_SUM           => sprintf("%.2f", abs($line->{deposit})),
       CONTRACT_ID         => $line->{contract_id},
       CONTRACT_DATE       => $line->{contract_date},
       DATE                => $DATE,
       FULL_ADDRESS        => $full_address,
+      ADDRESS_STREET      => $line->{address_street},
+      ADDRESS_BUILD       => $line->{address_build},
+      ADDRESS_FLAT        => $line->{address_flat},
       SUM_LIT             => int2ml(
         sprintf("%.2f", abs($line->{deposit})),
         {
@@ -886,7 +934,7 @@ sub postpaid_invoices {
       DOC_NUMBER => sprintf("%.6d", $doc_num),
     };
 
-    print "UID: LOGIN: $line->{login} FIO: $line->{fio} SUM: $line->{deposit}\n" if ($debug > 2);
+    print "UID: $line->{uid} LOGIN: $line->{login} FIO: $line->{fio} SUM: $line->{deposit}\n" if ($debug > 2);
 
     $doc_num++;
   }
@@ -894,6 +942,7 @@ sub postpaid_invoices {
   print "TOTAL: " . $Users->{TOTAL};
 
   if ($debug < 5) {
+  	$FORM{pdf}=1;
     multi_tpls(_include('docs_multi_invoice', 'Docs'), \@MULTI_ARR);
   }
 
@@ -905,10 +954,23 @@ sub postpaid_invoices {
 sub multi_tpls {
   my ($tpl, $MULTI_ARR, $attr) = @_;
 
+  PDF::API2->import();
+  require Abills::PDF;
+  my $pdf = Abills::PDF->new(
+      {
+        IMG_PATH => $IMG_PATH,
+        NO_PRINT => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1,
+        CONF     => \%conf,
+        CHARSET  => $conf{default_charset}
+      }
+    );
+  $html = $pdf;
+  
   my $single_tpl = $html->tpl_show(
     $tpl, undef,
     {
       MULTI_DOCS   => $MULTI_ARR,
+      MULTI_DOCS_PAGE_RECS => $ARGV->{PAGE_DOCS} || undef,
       SAVE_AS      => $save_filename,
       DOCS_IN_FILE => $docs_in_file,
       debug        => $debug
@@ -950,11 +1012,13 @@ Multi documents creator
      INVOICE_DATE    - Invoice create date XXXX-XX-XX (Default: curdate)
   POSTPAID_INVOICES- Created for previe month debetors
   PREPAID_INVOICES - Create credit invoice and next month payments invoice
-                     INVOICE2ALL=1 - Create and send invoice to all users
-  
+     INVOICE2ALL=1 - Create and send invoice to all users
+     SINGLE_ORDER  - All order by 1 position  
+     
 Extra filter parameters
   LOGIN            - User login
   TP_ID            - Tariff Plan
+  UID              - UID
   GID              - User Gid
   DEPOSIT          - filter user deposit
   COMPANY_ID       - Company id. if defined company id generated only companies invoicess. U can use wilde card *
@@ -963,7 +1027,7 @@ Extra filter parameters
   DOCS_IN_FILE=    - docs in single file (default: $docs_in_file)
   ADDRESS2         - User second address (fields: _c_address, _c_build, _c_flat)
   DATE=YYYY-MM-DD  - Document create date of period "YYYY-MM-DD/YYYY-MM-DD"
-  SORT=            - Sort by 
+  SORT=            - Sort by column number. Special symbol ADDRESS sort by address
   DEBUG=[1..5]     - Debug mode
 [END]
 }

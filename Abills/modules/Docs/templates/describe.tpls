@@ -1,5 +1,7 @@
 #
 docs_invoice.tpl:russian:печатная фома счёта
+docs_invoice_alt.tpl:russian:печатная фома альтернативного счета счёта
+docs_invoice_company_alt.tpl:russian:печатная фома альтернативного счета счёта для компании
 docs_invoice_add.tpl:russian:Форма создания счёта
 docs_invoice_company.tpl:russian:Печатная форма счёта для компаний
 docs_invoice_multi_add.tpl:russian:Форма содания группы документов

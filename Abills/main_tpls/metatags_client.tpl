@@ -21,7 +21,6 @@
 <script type='text/javascript' src='styles/default/js/selectbox/jquery.selectbox-0.6.1.js'></script>
 <script type='text/javascript' src='styles/default/js/functions.js'></script>
 <script type='text/javascript' src='styles/default/js/calendar.js'></script>
-<script type='text/javascript' src='%JAVASCRIPT%'></script>
 <!--[if lt IE 9]>
 <script type='text/javascript' src='js/html5.js'></script>
 <![endif]-->	

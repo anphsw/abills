@@ -5,6 +5,7 @@
 use vars qw($begin_time %LANG $CHARSET @MODULES $USER_FUNCTION_LIST
 $UID $user $admin
 $sid
+$db
 
 @ones
 @twos
@@ -60,7 +61,7 @@ $html = Abills::HTML->new(
 );
 
 my $sql = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
-my $db = $sql->{db};
+$db = $sql->{db};
 $html->{language} = $FORM{language} if (defined($FORM{language}) && $FORM{language} =~ /[a-z_]/);
 
 require "../language/$html->{language}.pl";
@@ -341,7 +342,8 @@ sub form_info {
     my ($sum, $days, $price, $month_changes, $payments_expr) = split(/:/, $conf{user_credit_change});
     $month_changes = 0 if (!$month_changes);
     my $credit_date = strftime "%Y-%m-%d", localtime(time + int($days) * 86400);
-    if (in_array('Dv', \@MODULES)) {
+
+    if (in_array('Dv', \@MODULES) && $sum == 0) {
       load_module('Dv', $html);
       my $Dv = Dv->new($db, $admin, \%conf);
       $Dv->info($user->{UID});
@@ -385,7 +387,7 @@ sub form_info {
         {
           UID          => $user->{UID},
           PAYMENT_DAYS => ">$params{PERIOD}",
-          SUM          => ">$params{MIN_PAYMENT_SUM}"
+          SUM          => ">=$params{MIN_PAYMENT_SUM}"
         }
       );
 
@@ -422,7 +424,7 @@ sub form_info {
 
           cross_modules_call('_payments_maked', { 
           	  USER_INFO => $user, 
-          	  SUM       => $sum,          	  
+          	  #SUM       => $sum,
           	  QUITE     => 1 });
           if ($conf{external_userchange}) {
             if (!_external($conf{external_userchange}, $user)) {
@@ -438,7 +440,7 @@ sub form_info {
       	#$user->{CREDIT_CHG_PRICE} = (($price && $price > 0) ? sprintf(" (%s: %.2f)", "$_CREDIT $_CHANGE $_PRICE", $price) : undef);
       	$user->{CREDIT_CHG_PRICE} = sprintf("%.2f", $price);
       	$user->{CREDIT_SUM} = sprintf("%.2f", $sum);
-        $user->{CREDIT_CHG_BUTTON} = $html->button("$_SET $_CREDIT", '#', { ex_params => "ID=hold_up_window", BUTTON => 1 });
+        $user->{CREDIT_CHG_BUTTON} = $html->button("$_SET $_CREDIT", '#', { ex_params => "ID=hold_up_window name=hold_up_window", BUTTON => 1 });
         #$html->form_input('hold_up_window', "$_SET $_CREDIT", { OUTPUT2RETURN => 1 });
         #$html->button(
         #  "$_SET $_CREDIT: " . $user->{CREDIT_SUM} . $user->{CREDIT_CHG_PRICE} ,
@@ -451,6 +453,7 @@ sub form_info {
 
   if ($attr->{NEG_DEPOSIT}) {
     form_neg_deposit($user);
+    #return 0;
   }
   else {
     if (!$conf{DOCS_SKIP_NEXT_PERIOD_ACCOUNT}) {
@@ -972,10 +975,7 @@ sub reports {
 
   if ($attr->{PERIOD_FORM}) {
     my @rows =
-    (   "$_FROM: "
-      . $html->date_fld2('FROM_DATE', { MONTHES => \@MONTHES, FORM_NAME => 'form_reports', WEEK_DAYS => \@WEEKDAYS })
-      . " $_TO: "
-      . $html->date_fld2('TO_DATE', { MONTHES => \@MONTHES, FORM_NAME => 'form_reports', WEEK_DAYS => \@WEEKDAYS }));
+    ("$_DATE: " . $html->date_fld2('FROM_DATE', { DATE => $FORM{FROM_DATE}, MONTHES => \@MONTHES, FORM_NAME => 'form_reports', WEEK_DAYS => \@WEEKDAYS }) . " - " . $html->date_fld2('TO_DATE', { MONTHES => \@MONTHES, FORM_NAME => 'form_reports', WEEK_DAYS => \@WEEKDAYS }));
 
     if (!$attr->{NO_GROUP}) {
       push @rows, "$_TYPE:",
@@ -1351,7 +1351,7 @@ sub form_neg_deposit {
   
   $user->{TOTAL_DEBET} = 0;
   
-  my $cross_modules_return = cross_modules_call('_docs');
+  my $cross_modules_return = cross_modules_call('_docs', { UID => $LIST_PARAMS{UID} });
   foreach my $module (sort keys %$cross_modules_return) {
     if (ref $cross_modules_return->{$module} eq 'ARRAY') {
       next if ($#{ $cross_modules_return->{$module} } == -1);
@@ -1362,7 +1362,12 @@ sub form_neg_deposit {
     }
   }
 
-  $user->{TOTAL_DEBET} += abs($user->{DEPOSIT}) if ($user->{DEPOSIT} < 0);
+  $user->{TOTAL_DEBET} = ($user->{DEPOSIT} < 0) ? $user->{TOTAL_DEBET} + abs($user->{DEPOSIT}) :  $user->{TOTAL_DEBET} - $user->{DEPOSIT};
+
+  if ($user->{TOTAL_DEBET} > int($user->{TOTAL_DEBET})) {
+    $user->{TOTAL_DEBET} = sprintf("%.2f", int($user->{TOTAL_DEBET})+1);
+  }
+
   $user->{TOTAL_DEBET} = sprintf("%.2f", $user->{TOTAL_DEBET});
   $pages_qs = "&SUM=$user->{TOTAL_DEBET}&sid=$sid";
 
@@ -1383,37 +1388,6 @@ sub form_neg_deposit {
 
 
   $html->tpl_show(templates('form_neg_deposit'), $user);
-}
-
-#**********************************************************
-# Make external operations
-#**********************************************************
-sub _external {
-  my ($file, $attr) = @_;
-
-  my $arguments = '';
-  $attr->{LOGIN}      = $users->{LOGIN};
-  $attr->{DEPOSIT}    = $users->{DEPOSIT};
-  $attr->{CREDIT}     = $users->{CREDIT};
-  $attr->{GID}        = $users->{GID};
-  $attr->{COMPANY_ID} = $users->{COMPANY_ID};
-
-  while (my ($k, $v) = each %$attr) {
-    if ($k ne '__BUFFER' && $k =~ /[A-Z0-9_]/) {
-      $arguments .= " $k=\"$v\"";
-    }
-  }
-
-  my $result = `$file $arguments`;
-  my ($num, $message) = split(/:/, $result, 2);
-  if ($num == 1) {
-    $html->message('info', "_EXTERNAL $_ADDED", "$message");
-    return 1;
-  }
-  else {
-    $html->message('err', "_EXTERNAL $_ERROR", "[$num] $message");
-    return 0;
-  }
 }
 
 #**********************************************************

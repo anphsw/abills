@@ -127,7 +127,7 @@ sub messages_list {
   
   $self->{COL_NAMES_ARR}=undef;
 
-  $attr->{SKIP_GID} = 1;
+  #$attr->{SKIP_GID} = 1;
   if ($attr->{PLAN_FROM_DATE}) {
     push @WHERE_RULES, "(date_format(m.plan_date, '%Y-%m-%d')>='$attr->{PLAN_FROM_DATE}' and date_format(m.plan_date, '%Y-%m-%d')<='$attr->{PLAN_TO_DATE}')";
   }
@@ -172,6 +172,14 @@ sub messages_list {
     }
   }
 
+  if ($admin->{GID} || $admin->{GIDS}) {
+    if ($admin->{GID}) {
+      $admin->{GIDS} .= ", $admin->{GID}";
+    }
+    $attr->{SKIP_GID}=1;
+    push @WHERE_RULES, "(u.gid IN ($admin->{GIDS}) or m.gid IN ($admin->{GIDS}))";
+  }
+  
   my $WHERE = $self->search_former($attr, [
       ['MSG_ID',       'INT',  'm.id'             ],
       ['DISABLE',      'INT',  'u.disable',     1 ],
@@ -195,20 +203,21 @@ sub messages_list {
       ['PLAN_TIME',    'INT',  'm.plan_time',   1 ],
       ['DISPATCH_ID',  'INT',  'm.dispatch_id', 1 ],
       ['IP',           'IP',   'm.ip',  'INET_NTOA(m.ip)', 1 ],
-      ['DATE',         'DATE',  "date_format(m.date, '%Y-%m-%d')" ],
+      ['DATE',         'DATE', "date_format(m.date, '%Y-%m-%d')" ],
       ['FROM_DATE|TO_DATE', 'DATE', "date_format(m.date, '%Y-%m-%d')" ],
       ['A_LOGIN',      'INT',  'a.aid',  'a.id AS admin_login',  1 ],
       ['A_NAME',       'INT',  'a.name', 'a.name AS admin_name', 1 ],
       ['REPLIES_COUNTS','',    '',       'if(r.id IS NULL, 0, count(r.id)) AS replies_counts' ],
     ],
-    { WHERE       => 1,
-    	WHERE_RULES => \@WHERE_RULES,
-    	USERS_FIELDS=> 1
+    { WHERE             => 1,
+      WHERE_RULES       => \@WHERE_RULES,
+      USERS_FIELDS      => 1,
+      SKIP_USERS_FIELDS => [ 'GID' ]
     }
     );
 
   if ($attr->{DEPOSIT}) {
-  	$self->{EXT_TABLES} .= "LEFT JOIN bills b ON (u.bill_id = b.id)
+    $self->{EXT_TABLES} .= "LEFT JOIN bills b ON (u.bill_id = b.id)
       LEFT JOIN companies company ON  (u.company_id=company.id) 
       LEFT JOIN bills cb ON (company.bill_id=cb.id)";
   }
@@ -255,13 +264,15 @@ GROUP BY m.id
 
   if ($self->{TOTAL} > 0 || $PG > 0) {
     $self->query2("SELECT count(DISTINCT m.id) AS total, 
-   sum(if(m.admin_read = '0000-00-00 00:00:00', 1, 0)) AS in_work,
-   sum(if(m.state = 0, 1, 0)) AS open,
-   sum(if(m.state = 1, 1, 0)) AS unmaked,
-   sum(if(m.state = 2, 1, 0)) AS closed
-    FROM (msgs_messages m)
+      sum(if(m.admin_read = '0000-00-00 00:00:00', 1, 0)) AS in_work,
+      sum(if(m.state = 0, 1, 0)) AS open,
+      sum(if(m.state = 1, 1, 0)) AS unmaked,
+      sum(if(m.state = 2, 1, 0)) AS closed
+    FROM msgs_messages m
     LEFT JOIN users u ON (m.uid=u.uid)
+    LEFT JOIN msgs_reply r ON (m.id=r.main_msg)
     LEFT JOIN msgs_chapters mc ON (m.chapter=mc.id)
+    $EXT_TABLE
     $WHERE",
     undef,
     { INFO => 1 }
@@ -283,9 +294,9 @@ sub message_add {
 
   %DATA = $self->get_data($attr, { default => \%DATA });
   $self->query_add('msgs_messages', { %DATA,
-  	                                       CLOSED_DATE => ($DATA{STATE} == 1 || $DATA{STATE} == 2) ? 'now()' : "0000-00-00 00:00:00",
-  	                                       AID         => $admin->{AID},
-  	                                       DATE        => 'now()'
+                                           CLOSED_DATE => ($DATA{STATE} == 1 || $DATA{STATE} == 2) ? 'now()' : "0000-00-00 00:00:00",
+                                           AID         => $admin->{AID},
+                                           DATE        => 'now()'
                                          });
 
   $self->{MSG_ID} = $self->{INSERT_ID};
@@ -689,7 +700,7 @@ sub messages_reply_list {
       ['FROM_DATE|TO_DATE',   'DATE',  "date_format(m.date, '%Y-%m-%d')"      ],
     ],
     { WHERE       => 1,
-    	WHERE_RULES => \@WHERE_RULES
+      WHERE_RULES => \@WHERE_RULES
     }
     );  
 
@@ -812,7 +823,7 @@ sub attachment_info () {
   );
 
   if ($self->{errno} && $self->{errno} == 2) {
-  	$self->{errno} = undef;
+    $self->{errno} = undef;
   }
 
   return $self;
@@ -956,7 +967,7 @@ sub dispatch_list {
       ['CHAPTERS',     'INT',  'd.id'           ],
     ],
     { WHERE => 1,
-      WHERE_RULES => \@WHERE_RULES    	
+      WHERE_RULES => \@WHERE_RULES      
     }
   );
 
@@ -985,8 +996,8 @@ sub dispatch_add {
   %DATA = $self->get_data($attr, { default => \%DATA });
 
   $self->query_add('msgs_dispatch', { %DATA,
-  	                                  CREATED => 'now()' 
-  	                                 }); 
+                                      CREATED => 'now()' 
+                                     }); 
 
   $self->{DISPATCH_ID} = $self->{INSERT_ID};
 
@@ -1090,7 +1101,8 @@ sub dispatch_admins_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("SELECT dispatch_id, aid FROM msgs_dispatch_admins WHERE dispatch_id='$attr->{DISPATCH_ID}';");
+  $self->query2("SELECT dispatch_id, aid FROM msgs_dispatch_admins WHERE dispatch_id='$attr->{DISPATCH_ID}';",
+    undef, $attr);
 
   return $self->{list};
 }
@@ -1142,17 +1154,17 @@ sub unreg_requests_list {
       ['PRIORITY',     'INT',  'm.state',         ],
       ['PLAN_DATE',    'INT',  'm.plan_date',   1 ], 
       ['PLAN_TIME',    'INT',  'm.plan_time',   1 ],
-      ['DISPATCH_ID',  'INT',  'm.dispatch_id',  1 ],
-      ['IP',           'IP',   'm.ip',  'INET_NTOA(m.ip)', 1 ],
-      ['DATE',         'DATE',  "date_format(m.date, '%Y-%m-%d')" ],
-      ['FROM_DATE|TO_DATE', 'DATE', "date_format(m.date, '%Y-%m-%d')" ],
-      ['A_LOGIN',      'INT',  'a.aid',  'a.id AS admin_login',  1 ],
+      ['DISPATCH_ID',  'INT',  'm.dispatch_id', 1 ],
+      ['IP',           'IP',   'm.ip',  'INET_NTOA(m.ip) AS ip' ],
+      ['DATE',         'DATE',  "date_format(m.datetime, '%Y-%m-%d')" ],
+      ['FROM_DATE|TO_DATE', 'DATE', "date_format(m.datetime, '%Y-%m-%d')" ],
+      ['A_LOGIN',      'INT',  'a.aid',  'a.id AS admin_login', ],
 
       ['PRIORITY',     'INT',  'm.state'         ],
       ['SHOW_TEXT',    '',    '',       'm.message' ],
     ],
     { WHERE => 1,
-    	WHERE_RULES => \@WHERE_RULES
+      WHERE_RULES => \@WHERE_RULES
     }
     );
 
@@ -1428,8 +1440,8 @@ sub survey_subject_add {
   %DATA = $self->get_data($attr, { default => \%DATA });
 
   $self->query_add('msgs_survey_subjects',  { %DATA,
-  	                                          CREATED => 'now()'
-  	                                        });
+                                              CREATED => 'now()'
+                                            });
 
   return $self;
 }

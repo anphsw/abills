@@ -22,12 +22,14 @@ use main;
 @ISA = ("main");
 my $uid;
 
+
 #**********************************************************
 # Init
 #**********************************************************
 sub new {
   my $class = shift;
-  ($db, $admin, $CONF) = @_;
+  my $db    = shift;
+  ($admin, $CONF) = @_;
 
   my $self = {};
   bless($self, $class);
@@ -56,6 +58,7 @@ sub info {
   my $WHERE;
 
   if (defined($attr->{LOGIN}) && defined($attr->{PASSWORD})) {
+
     $WHERE = "WHERE u.id='$attr->{LOGIN}' and DECODE(u.password, '$CONF->{secretkey}')='$attr->{PASSWORD}'";
     if (defined($attr->{ACTIVATE})) {
       my $value = $self->search_expr("$attr->{ACTIVATE}", 'INT');
@@ -79,15 +82,13 @@ sub info {
   }
 
   if ($attr->{DOMAIN_ID}) {
-    $WHERE = "AND u.domain_id='$attr->{DOMAIN_ID}'";
+    $WHERE .= "AND u.domain_id='$attr->{DOMAIN_ID}'";
   }
 
   my $password = "''";
   if ($attr->{SHOW_PASSWORD}) {
     $password = "DECODE(u.password, '$CONF->{secretkey}') AS password";
   }
-
-
 
   $self->query2("SELECT u.uid,
    u.gid, 
@@ -236,17 +237,17 @@ sub pi_add {
     ($prefix, $sufix) = split(/\|/, $attr->{CONTRACT_TYPE});
   }
 
-  if ($DATA{STREET_ID} && $DATA{ADDRESS_BUILD} && ! $DATA{LOCATION_ID}) {
+  if ($DATA{STREET_ID} && $DATA{ADD_ADDRESS_BUILD} && ! $DATA{LOCATION_ID}) {
     my $list = $self->build_list({ STREET_ID => $DATA{STREET_ID}, 
-                        NUMBER    => $attr->{ADDRESS_BUILD}, 
-                        COLS_NAME => 1 
-                      });
+                                   NUMBER    => $attr->{ADD_ADDRESS_BUILD}, 
+                                   COLS_NAME => 1 
+                                 });
 
     if ($self->{TOTAL} > 0) {
       $DATA{LOCATION_ID}=$list->[0]->{id};
     }
     else {
-      $self->build_add({ NUMBER    => $DATA{ADDRESS_BUILD}, 
+      $self->build_add({ NUMBER    => $DATA{ADD_ADDRESS_BUILD}, 
                          STREET_ID => $DATA{STREET_ID},  
                       });
       $DATA{LOCATION_ID}=$self->{INSERT_ID};
@@ -405,7 +406,8 @@ sub pi {
       d.city, 
       d.name AS address_district, 
       s.name AS address_street, 
-      b.number AS address_build
+      b.number AS address_build,
+      s.id AS street_id
      FROM builds b
      LEFT JOIN streets s  ON (s.id=b.street_id)
      LEFT JOIN districts d  ON (d.id=s.district_id)
@@ -454,19 +456,21 @@ sub pi_change {
     LOCATION_ID    => 'location_id'
   );
 
-  if ($attr->{STREET_ID} && $attr->{ADDRESS_BUILD} && ! $attr->{LOCATION_ID}) {
+  if ($attr->{STREET_ID} && $attr->{ADD_ADDRESS_BUILD}) {
+    
     my $list = $self->build_list({ STREET_ID => $attr->{STREET_ID}, 
-                        NUMBER    => $attr->{ADDRESS_BUILD}, 
-                        COLS_NAME => 1 
-                      });
+                                   NUMBER    => $attr->{ADD_ADDRESS_BUILD}, 
+                                   COLS_NAME => 1 
+                                 });
 
     if ($self->{TOTAL} > 0) {
       $attr->{LOCATION_ID}=$list->[0]->{id};
     }
     else {
-      $self->build_add({ NUMBER    => $attr->{ADDRESS_BUILD}, 
+      $self->build_add({ NUMBER    => $attr->{ADD_ADDRESS_BUILD}, 
                          STREET_ID => $attr->{STREET_ID},  
                       });
+
       $attr->{LOCATION_ID}=$self->{INSERT_ID};
     }
   }
@@ -777,6 +781,9 @@ sub list {
     $self->{EXT_TABLES} .= "
             LEFT JOIN bills ext_b ON (u.ext_bill_id = ext_b.id)
             LEFT JOIN bills ext_cb ON  (company.ext_bill_id=ext_cb.id) ";
+    if ($self->{EXT_TABLES} !~ /company /) {
+    	$self->{EXT_TABLES} = "LEFT JOIN companies company ON  (u.company_id=company.id) ". $self->{EXT_TABLES};
+    }
   }
 
   # Show debeters
@@ -794,27 +801,19 @@ sub list {
 
   my $EXT_TABLES = $self->{EXT_TABLES};
 
-  if ( (!$admin->{permissions}->{0}->{8})
-    || ($attr->{USER_STATUS} && !$attr->{DELETED})) {
-    push @WHERE_RULES, @{ $self->search_expr(0, 'INT', 'u.deleted', { EXT_FIELD => 1 }) };
-  }
-  elsif ($attr->{DELETED}) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{DELETED}", 'INT', 'u.deleted', { EXT_FIELD => 1 }) };
-  }
-
   #Show last paymenst
   if ($attr->{PAYMENTS} || $attr->{PAYMENT_DAYS}) {
     my @HAVING_RULES = @WHERE_RULES;
 
     if ($attr->{PAYMENTS}) {
-      my $value = $self->search_expr($attr->{PAYMENTS}, 'INT');
+      my $value = @{ $self->search_expr($attr->{PAYMENTS}, 'INT') }[0];
       push @WHERE_RULES,  "p.date$value";
       push @HAVING_RULES, "max(p.date)$value";
       $self->{SEARCH_FIELDS} .= 'max(p.date) AS last_payments, ';
       $self->{SEARCH_FIELDS_COUNT}++;
     }
     elsif ($attr->{PAYMENT_DAYS}) {
-      my $value = "curdate() - INTERVAL $attr->{PAYMENT_DAYS} DAY";
+      my $value = "now() - INTERVAL $attr->{PAYMENT_DAYS} DAY";
       $value =~ s/([<>=]{1,2})//g;
       $value = $1 . $value;
 
@@ -825,12 +824,7 @@ sub list {
     }
 
     my $HAVING = ($#HAVING_RULES > -1) ? "HAVING " . join(' and ', @HAVING_RULES) : '';
-
-    $self->query2("SELECT u.id, 
-       pi.fio, 
-       if(company.id IS NULL, b.deposit, cb.deposit) AS deposit, 
-       if(u.company_id=0, u.credit, 
-          if (u.credit=0, company.credit, u.credit)) AS credit, u.disable, 
+    $self->query2("SELECT u.id AS login, 
        $self->{SEARCH_FIELDS}
        u.uid, 
        u.company_id, 
@@ -850,7 +844,6 @@ sub list {
      undef,
      $attr
     );
-
     return $self if ($self->{errno});
 
     my $list = $self->{list};
@@ -893,7 +886,7 @@ sub list {
       $self->{SEARCH_FIELDS_COUNT}++;
     }
     elsif ($attr->{FEES_DAYS}) {
-      my $value = "curdate() - INTERVAL $attr->{FEES_DAYS} DAY";
+      my $value = "now() - INTERVAL $attr->{FEES_DAYS} DAY";
       $value =~ s/([<>=]{1,2})//g;
       $value = $1 . $value;
 
@@ -906,10 +899,6 @@ sub list {
     my $HAVING = ($#WHERE_RULES > -1) ? "HAVING " . join(' and ', @HAVING_RULES) : '';
 
     $self->query2("SELECT u.id AS login, 
-       pi.fio, 
-       if(company.id IS NULL, b.deposit, cb.deposit) AS deposit, 
-       if(u.company_id=0, u.credit, 
-          if (u.credit=0, company.credit, u.credit)) AS credit, u.disable, 
        $self->{SEARCH_FIELDS}
        u.uid, 
        u.company_id, 
@@ -932,7 +921,7 @@ sub list {
     return $self if ($self->{errno});
 
     my $list = $self->{list};
-
+    
     if ($self->{TOTAL} > 0) {
       if ($attr->{FEES}) {
         $WHERE_RULES[$#WHERE_RULES] = @{ $self->search_expr($attr->{PAYMENTS}, 'INT', 'f.date') };
@@ -1094,7 +1083,7 @@ sub change {
 
   if ($attr->{CREATE_BILL}) {
     use Bills;
-    my $Bill = Bills->new($db, $admin, $CONF);
+    my $Bill = Bills->new($self->{db}, $admin, $CONF);
     $Bill->create({ UID => $self->{UID} });
     if ($Bill->{errno}) {
       $self->{errno}  = $Bill->{errno};
@@ -1117,7 +1106,7 @@ sub change {
   elsif ($attr->{CREATE_EXT_BILL}) {
 
     use Bills;
-    my $Bill = Bills->new($db, $admin, $CONF);
+    my $Bill = Bills->new($self->{db}, $admin, $CONF);
     $Bill->create({ UID => $self->{UID} });
     $attr->{DISABLE} = $old_info->{DISABLE};
 
@@ -1227,7 +1216,7 @@ sub nas_del {
   my $self = shift;
 
   $self->query2("DELETE FROM users_nas WHERE uid='$self->{UID}';", 'do');
-  return $self if ($db->err > 0);
+  return $self if ($self->{db}->err > 0);
 
   $admin->action_add($self->{UID}, "DELETE NAS");
   return $self;
@@ -1858,8 +1847,6 @@ sub street_list {
   if ($self->{TOTAL} > 0) {
     my $sql = "SELECT count(DISTINCT s.id) $EXT_FIELDS_TOTAL FROM streets s 
      $EXT_TABLE_TOTAL  $WHERE";
-    #my $sql = "SELECT count(DISTINCT s.id) , count(DISTINCT builds.id), count(users_pi.uid), sum(builds.flats) / count(users_pi.uid) FROM users_pi
-    #LEFT JOIN builds ON (builds.id=users_pi.location_id) LEFT JOIN streets  s ON (builds.street_id=s.id) $WHERE";
     $self->query2($sql);
     ($self->{TOTAL}, $self->{TOTAL_BUILDS}, $self->{TOTAL_USERS}, $self->{DENSITY_OF_CONNECTIONS}) = @{ $self->{list}->[0] };
   }
@@ -2004,24 +1991,7 @@ sub build_info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("select id, 
-   number, 
-   street_id,
-   flors,
-   entrances,
-   flats,
-   added,
-   map_x,
-   map_y,
-   map_x2,
-   map_y2,
-   map_x3,
-   map_y3,
-   map_x4,
-   map_y4,
-   coordx,
-   coordy
- FROM builds WHERE id='$attr->{ID}';",
+  $self->query2("select * FROM builds WHERE id='$attr->{ID}';",
  undef,
  { INFO => 1 }
   );
@@ -2036,32 +2006,11 @@ sub build_change {
   my $self = shift;
   my ($id, $attr) = @_;
 
-  my %FIELDS = (
-    ID        => 'id',
-    NUMBER    => 'number',
-    STREET_ID => 'street_id',
-    FLORS     => 'flors',
-    FLATS     => 'flats',
-    ENTRANCES => 'entrances',
-    MAP_X     => 'map_x',
-    MAP_Y     => 'map_y',
-    MAP_X2    => 'map_x2',
-    MAP_Y2    => 'map_y2',
-    MAP_X3    => 'map_x3',
-    MAP_Y3    => 'map_y3',
-    MAP_X4    => 'map_x4',
-    MAP_Y4    => 'map_y4',
-    COORDX    => 'coordx',
-    COORDY    => 'coordy',
-  );
-
   $self->changes(
     $admin,
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'builds',
-      FIELDS       => \%FIELDS,
-      OLD_INFO     => $self->build_info({ ID => $id }),
       DATA         => $attr
     }
   );

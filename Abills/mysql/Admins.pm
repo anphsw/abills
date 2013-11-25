@@ -248,7 +248,7 @@ sub list {
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query2("select a.aid, a.id, a.name, a.regdate, a.disable, g.name, d.name 
+  $self->query2("select a.aid, a.id AS login, a.name, a.regdate, a.disable, g.name, d.name 
  FROM admins a
   LEFT JOIN groups g ON (a.gid=g.gid) 
   LEFT JOIN domains d ON (d.id=a.domain_id) 

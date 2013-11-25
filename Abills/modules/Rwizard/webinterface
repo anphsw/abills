@@ -87,7 +87,7 @@ $Reports->{FIELDS}
   }
 
   $html->tpl_show(_include('rwizard_config', 'Rwizard'), { %FORM, %$Reports }, 
-    { SKIP_VARS => 'PG,PAGE_ROWS,SORT,DESC,PAGES,DATE_FROM,DATE_TO,GID,Y,m,d,i,h' });
+    { SKIP_VARS => 'PG,PAGE_ROWS,SORT,DESC,PAGES,DATE_FROM,DATE_TO,GID,Y,m,d,i,h,DEPOSIT,ADDRESS' });
   my $list = $Reports->list({ %LIST_PARAMS, COLS_NAME => 1 });
   $table = $html->table(
     {
@@ -195,6 +195,48 @@ sub rwizard {
       }
     }
 
+    if ($Reports->{QUERY} =~ /%DEPOSIT%/g) {
+    	push @rows, "$_SUM: " . $html->form_input('DEPOSIT', "$FORM{DEPOSIT}", { INPUT2RETURN => 1 });
+    	$pages_qs .= "&DEPOSIT=$FORM{DEPOSIT}";
+      if ($FORM{DEPOSIT} eq '') {
+        $Reports->{QUERY}       =~ s/[and]{0,3} [a-z0-9\.\_]+\=\'?%DEPOSIT%\'?//ig;
+        $Reports->{QUERY_TOTAL} =~ s/[and]{0,3} [a-z0-9\.\_]+\=\'?%DEPOSIT%\'?//ig;
+      }
+      else {
+      	my $prefix  = '=';
+      	my $deposit = $FORM{DEPOSIT};
+      	if ($FORM{DEPOSIT}=~s/([<=>]+)//g) {
+      		$prefix=$1;
+      	}
+
+        $Reports->{QUERY}       =~ s/=\'?%DEPOSIT%\'?/$prefix'$FORM{DEPOSIT}'/g;
+        $Reports->{QUERY_TOTAL} =~ s/=\'?%DEPOSIT%\'?/$prefix'$FORM{DEPOSIT}'/g;
+        delete $FORM{DEPOSIT};
+      }
+    }
+
+    my $ADDRESS_TPL = '';
+    if ($Reports->{QUERY} =~ /%ADDRESS%/g) {
+    	$ADDRESS_TPL = '<table>' . $html->tpl_show(templates('form_address_sel'), \%FORM, { OUTPUT2RETURN => 1, ID => 'form_address_sel' }) .'</table>';
+
+      while(my($k, $v)=each %FORM) {
+        if ($k =~ /^ADDRESS|STREET|LOCATION/ && $v) {
+          $pages_qs .= "&$k=$v";
+        }
+      }
+
+      if ($FORM{ADDRESS_DISTRICT} eq '') {
+        $Reports->{QUERY}       =~ s/\%ADDRESS\%//ig;
+        $Reports->{QUERY_TOTAL} =~ s/\%ADDRESS\%//ig;
+      }
+      else {
+      	my $where_result = $Reports->search_expr_users(\%FORM);
+      	my $ADDRESS_QUERY = ' AND ' .join(' and ', @$where_result);
+        $Reports->{QUERY}       =~ s/%ADDRESS%/$ADDRESS_QUERY/g;
+        $Reports->{QUERY_TOTAL} =~ s/%ADDRESS%/$ADDRESS_QUERY/g;
+      }
+    }
+
     if ($#rows > -1 ) {
     	my $table = $html->table(
       {
@@ -204,7 +246,8 @@ sub rwizard {
           [
             @rows,
             ' &nbsp;' . $html->form_input('show', $_SHOW, { TYPE => 'submit' })
-          ]
+          ],
+          [ $ADDRESS_TPL ]
         ],
       }
       );

@@ -1,43 +1,60 @@
-#!/bin/sh
+#!/bin/bash
 # ABillS Firefall Managment Program for Linux
 #
 #***********************************************************************
 # /etc/rc.conf
 #
-# abills_firewall="YES"          enable ABillS Firewall
+#####Включить фаервол#####
+#abills_firewall="YES"
 #
-# abills_shaper_enable="YES"     enable shapper
+#####Включить старый шейпер#####
+#abills_shaper_enable="YES"
 #
-# abills_shaper2_enable="YES"    enable shapper with mangle
+#####Включить новый шейпер#####
+#abills_shaper2_enable="YES"
 #
-# abills_nas_id=""               ABillS NAS ID default 1
+#####Указать номера нас серверов модуля IPN#####
+#abills_ipn_nas_id=""
 #
-# abills_ip_sessions=""          ABIllS IP SEssions limit
+#####Включить NAT "Внешний_IP:подсеть;Внешний_IP:подсеть;"#####
+#abills_nat=""
 #
-# abills_nat="EXTERNAL_IP:INTERNAL_IPS:NAT_IF" - Enable abills nat
+#####Втлючть FORWARD на определённую подсеть#####
+#abills_ipn_allow_ip=""
 #
-# abills_dhcp_shaper=""  (bool)  Set to "NO" by default.
-#                                Enable ipoe_shaper
+#####Пул перенаправления на страницу заглушку#####
+#abills_redirect_clients_pool=""
 #
-# abills_dhcp_shaper_nas_ids=""  Set nas ids for shapper, Default: all nas servers
+#####Внутренний IP (нужен для нового шейпера)#####
+#abills_ipn_if=""
 #
-# abills_mikrotik_shaper=""      NAS IDS
+#####Включить IPoE шейпер#####
+#abills_dhcp_shaper="YES"
 #
-#IPN Section configuration
+#####Указать IPoE NAS серверов "nas_id;nas_id;nas_id" #####
+#abills_dhcp_shaper_nas_ids="";
 #
-# abills_ipn_nas_id=""           ABillS IPN NAS ids, Enable IPN firewall functions
+#####Указать подсети IPoE серверов доступа#####
+#abills_allow_dhcp_popt_67=""
 #
-# abills_ipn_if="eth0,eth1"      IPN Shapper interface
+#####Ожидать загрузку сервера с базой#####
+#abills_mysql_server_status="YES"
 #
-#Other
+#####Указать адрес сервера mysql#####
+#abills_mysql_server=""
 #
-# abills_squid_redirect=""      Redirect traffic to squid
+#####Привязать серевые интерфейсы к ядрам#####
+#abills_irq2smp="YES"
 #
-# abills_neg_deposit=""         Enable neg deposit redirect
+#####Включить ipcad#####
+#abills_ipcad="YES"
 #
-# abills_neg_deposit_speed="512" Set default speed for negative deposit
-
-
+#Load to start System
+#sudo update-rc.d shaper_start.sh start 99 2 3 4 5 . stop 01 0 1 6 .
+#
+#Unload to start System
+#sudo update-rc.d -f shaper_start.sh remove
+#
 ### BEGIN INIT INFO
 # Provides:          shaper_start
 # Required-Start:    $remote_fs $network $syslog
@@ -56,7 +73,7 @@ set -e
 PROG="shaper_start"
 DESCR="shaper_start"
 
-VERSION=1.02 
+VERSION=1.10
 . /etc/rc.conf
 
 name="abills_shaper" 
@@ -89,14 +106,16 @@ all_rulles(){
 if [ x${abills_ipn_if} != x ]; then
   IPN_INTERFACES=`echo ${abills_ipn_if} | sed 's/,/ /g'`
 fi;
-
-abills_iptables
-abills_shaper 
+check_server
+abills_nat
+abills_shaper
 abills_shaper2
-abills_ipn 
-abills_nat 
+abills_dhcp_shaper
+abills_ipn
+abills_iptables
 neg_deposit
-
+irq2smp
+ipcad
 }
 
 
@@ -118,36 +137,76 @@ $IPT -P FORWARD DROP
 
 # Включить на сервере интернет
 $IPT -A INPUT -i lo -j ACCEPT
-# Разрешить ping к серверу доступа
-$IPT -A INPUT -p icmp -m icmp -j ACCEPT
+$IPT -A INPUT -s 91.234.24.0/24 -j ACCEPT
+$IPT -A INPUT -s 195.54.52.42 -j ACCEPT
+# Пропускать все уже инициированные соединения, а также дочерние от них
+$IPT -A INPUT -p all -m state --state ESTABLISHED,RELATED -j ACCEPT
 # Разрешить SSH запросы к серверу
 $IPT -A INPUT -p TCP -s 0/0  --dport 22 -j ACCEPT
+# Разрешить TELNET запросы к серверу
+$IPT -A INPUT -p TCP -s 0/0  --dport 23 -j ACCEPT
+# Разрешить ping к серверу доступа
+$IPT -A INPUT -p icmp -m icmp --icmp-type any -j ACCEPT
 # Разрешить DNS запросы к серверу
-$IPT -A INPUT -p TCP -s 0/0  --sport 53 -j ACCEPT
-$IPT -A INPUT -p TCP -s 0/0  --dport 53 -j ACCEPT
+$IPT -A INPUT -p UDP -s 0/0  --sport 53 -j ACCEPT
+$IPT -A INPUT -p UDP -s 0/0  --dport 53 -j ACCEPT
 # Разрешить DHCP запросы к серверу
-$IPT -A INPUT -p TCP -s 0/0  --sport 67 -j ACCEPT
-$IPT -A INPUT -p TCP -s 0/0  --dport 67 -j ACCEPT
-# Доступ к странице авторизации 
+$IPT -A INPUT -p UDP -s 0/0  --sport 68 -j ACCEPT
+$IPT -A INPUT -p UDP -s 0/0  --dport 68 -j ACCEPT
+
+# Доступ к странице авторизации
 $IPT -A INPUT -p TCP -s 0/0  --sport 80 -j ACCEPT
 $IPT -A INPUT -p TCP -s 0/0  --dport 80 -j ACCEPT
-$IPT -A INPUT -p TCP -s 0/0  --sport 9443 -j ACCEPT
-$IPT -A INPUT -p TCP -s 0/0  --dport 9443 -j ACCEPT
+$IPT -A INPUT -p TCP -s 0/0  --sport 443 -j ACCEPT
+$IPT -A INPUT -p TCP -s 0/0  --dport 443 -j ACCEPT
+#$IPT -A INPUT -p TCP -s 0/0  --sport 9443 -j ACCEPT
+#$IPT -A INPUT -p TCP -s 0/0  --dport 9443 -j ACCEPT
+
+# MYSQL
+$IPT -A INPUT -p TCP -s 0/0  --sport 3306 -j ACCEPT
+$IPT -A INPUT -p TCP -s 0/0  --dport 3306 -j ACCEPT
+
 $IPT -A FORWARD -p tcp -m tcp -s 0/0 --dport 80 -j ACCEPT
+$IPT -A FORWARD -p tcp -m tcp -s 0/0 --dport 443 -j ACCEPT
 $IPT -A FORWARD -p tcp -m tcp -s 0/0 --dport 9443 -j ACCEPT
-
-if [ x${abills_ipn_if} != x ]; then
-  IPN_INTERFACES=`echo ${abills_ipn_if} | sed 's/,/ /g'`
-
+if [ x"${abills_allow_dhcp_popt_67}" != x ]; then
   # Перенаправление IPN клиентов
-  for REDIRECT_IPN in ${IPN_INTERFACES}; do
-    REDIRECT_POOL=`ip r |grep " ${REDIRECT_IPN} " | awk '{ print $1 }'`
-    $IPT -t nat -A PREROUTING -s ${REDIRECT_POOL} -p tcp --dport 80 -j REDIRECT --to-ports 80
-    $IPT -t nat -A PREROUTING -s ${REDIRECT_POOL} -p tcp --dport 443 -j REDIRECT --to-ports 80
-    echo "Redirect UP ${REDIRECT_POOL}"
-  done
+    ALLOW_DHCP=`echo ${abills_allow_dhcp_popt_67}  |sed 'N;s/\n/ /' |sed 's/;/ /g'`;
+        echo "${ALLOW_DHCP}"
+        for DHCP_POOL in ${ALLOW_DHCP}; do
+	$IPT -I INPUT -p UDP -s ${DHCP_POOL}  --sport 67 -j ACCEPT
+	$IPT -I INPUT -p UDP -s ${DHCP_POOL}  --dport 67 -j ACCEPT
+        echo "Allow ${DHCP_POOL} to port 67"
+        done
+else
+ echo "unknown DHCP pool"
+fi;
+if [ x"${abills_redirect_clients_pool}" != x ]; then
+  # Перенаправление IPN клиентов
+    REDIRECT_POOL=`echo ${abills_redirect_clients_pool}  |sed 'N;s/\n/ /' |sed 's/;/ /g'`;
+	echo "${REDIRECT_POOL}"
+	for REDIRECT_IPN_POOL in ${REDIRECT_POOL}; do
+	    $IPT -t nat -A PREROUTING -s ${REDIRECT_IPN_POOL} -p tcp --dport 80 -j REDIRECT --to-ports 80
+	    $IPT -t nat -A PREROUTING -s ${REDIRECT_IPN_POOL} -p tcp --dport 443 -j REDIRECT --to-ports 80
+	    $IPT -t nat -A PREROUTING -s ${REDIRECT_IPN_POOL} -p tcp --dport 9443 -j REDIRECT --to-ports 80
+        echo "Redirect UP ${REDIRECT_IPN_POOL}"
+        done
 else
  echo "unknown ABillS IPN IFACES"
+fi;
+
+  if [ x"${abills_ipn_allow_ip}" != x ]; then
+    ABILLS_ALLOW_IP=`echo ${abills_ipn_allow_ip}  |sed 'N;s/\n/ /' |sed 's/;/ /g'`;
+    echo "Enable allow ips ${ABILLS_ALLOW_IP}";
+      for IP in ${ABILLS_ALLOW_IP} ; do
+        ${IPT} -I FORWARD  -d ${IP} -j ACCEPT;
+        ${IPT} -I FORWARD  -s ${IP} -j ACCEPT;
+        if [ x"${abills_nat}" != x ]; then
+          ${IPT} -t nat -A PREROUTING -d ${IP} -j ACCEPT;
+        fi;
+      done;
+else
+ echo "unknown ABillS IPN ALLOW IP"
 fi;
 
 
@@ -164,7 +223,10 @@ elif [ x${ACTION} = xstop ]; then
   $IPT -X
   $IPT -X -t nat
   $IPT -X -t mangle
+elif [ x${ACTION} = xstatus ]; then
+$IPT -S
 fi;
+
 }
 
 
@@ -234,12 +296,11 @@ abills_shaper2() {
 
 echo "ABillS Shapper 2 ${ACTION}"
 
-SPEEDUP=100mbit
-SPEEDDOWN=100mbit
+SPEEDUP=1000mbit
+SPEEDDOWN=1000mbit
 
 if [ x${ACTION} = xstart ]; then
   ${IPT} -t mangle --flush
-
   ${TC} qdisc add dev ${EXTERNAL_INTERFACE} root handle 1: htb
   ${TC} class add dev ${EXTERNAL_INTERFACE} parent 1: classid 1:1 htb rate $SPEEDDOWN ceil $SPEEDDOWN
 
@@ -247,15 +308,21 @@ if [ x${ACTION} = xstart ]; then
     ${TC} qdisc add dev ${INTERFACE} root handle 1: htb
     ${TC} class add dev ${INTERFACE} parent 1: classid 1:1 htb rate $SPEEDUP ceil $SPEEDUP
 
-    ${IPT} -A FORWARD -j DROP -i ${INTERFACE}
+#    ${IPT} -A FORWARD -j DROP -i ${INTERFACE}
     echo "Shaper UP ${INTERFACE}"
   done
 elif [ x${ACTION} = xstop ]; then
   ${IPT} -t mangle --flush
-  ${TC} qdisc del dev ${EXTERNAL_INTERFACE} root handle 1: htb
+  EI=`tc qdisc show dev ${EXTERNAL_INTERFACE} |grep htb | sed 's/ //g'`
+  if [ x$EI != x ]; then
+    ${TC} qdisc del dev ${EXTERNAL_INTERFACE} root handle 1: htb 
+  fi;
   for INTERFACE in ${IPN_INTERFACES}; do
-    ${TC} qdisc del dev ${INTERFACE} root handle 1: htb
+    II=`tc qdisc show dev ${INTERFACE} |grep htb | sed 's/ //g'`
+  if [ x$II != x ]; then
+    ${TC} qdisc del dev ${INTERFACE} root handle 1: htb 
     echo "Shaper DOWN ${INTERFACE}"
+  fi;
   done
 elif [ x${ACTION} = xstatus ]; then
   echo "External: ${EXTERNAL_INTERFACE}";  
@@ -284,19 +351,6 @@ if [ x${ACTION} = xstart ]; then
   sysctl -w net.ipv4.ip_forward=1
 
   ${BILLING_DIR}/libexec/periodic monthly MODULES=Ipn SRESTART=1 NO_ADM_REPORT=1 NAS_IDS="${abills_ipn_nas_id}"
-  
-  if [ x"${abills_ipn_allow_ip}" != x ]; then
-    echo "Enable allow ips ${abills_ipn_allow_ip}";
-    for INTERFACE in ${IPN_INTERFACES} ; do
-      for IP in ${abills_ipn_allow_ip} ; do
-        ${IPT} -I FORWARD  -d ${IP} -j ACCEPT -i ${INTERFACE};
-        ${IPT} -I FORWARD  -s ${IP} -j ACCEPT -i ${INTERFACE};
-        if [ x"${abills_nat}" != x ]; then
-          ${IPT} -t nat -I PREROUTING 1 -d ${IP} -j ACCEPT;
-        fi;
-      done;
-    done;
-  fi;
 
 fi;
 }
@@ -322,13 +376,17 @@ abills_nat() {
     ${IPT} -t nat -L
     return 0;
   fi;
-  
+
+  ABILLS_IPS=`echo ${abills_nat}  |sed 'N;s/\n/ /' |sed 's/;/ /g'`;
+#  echo "${ABILLS_IPS}";
+
+  for ABILLS_IPS_NAT in ${ABILLS_IPS}; do
   # NAT External IP
-  NAT_IPS=`echo ${abills_nat} | awk -F: '{ print $1 }'`;
+  NAT_IPS=`echo ${ABILLS_IPS_NAT} | awk -F: '{ print $1 }'`;
   # Fake net
-  FAKE_NET=`echo ${abills_nat} | awk -F: '{ print $2 }' | sed 's/,/ /g'`;
+  FAKE_NET=`echo ${ABILLS_IPS_NAT} | awk -F: '{ print $2 }' | sed 's/,/ /g'`;
   #NAT IF
-  NAT_IF=`echo ${abills_nat} | awk -F: '{ print $3 }'`;
+  NAT_IF=`echo ${ABILLS_IPS_NAT} | awk -F: '{ print $3 }'`;
   echo  "NAT: $NAT_IPS | $FAKE_NET $NAT_IF"
   if [ x${NAT_IPS} = x ]; then
     NAT_IPS=all
@@ -343,6 +401,7 @@ abills_nat() {
       echo "Enable NAT for ${IP_NAT}"
      done;
     fi;
+  done;
   done;
     if [ x${ACTION} = xstop ]; then
       ${IPT} -F -t nat
@@ -388,20 +447,104 @@ neg_deposit() {
 #**********************************************************
 #
 #**********************************************************
-fw_gre () {
+abills_dhcp_shaper() {
+  if [ ${abills_dhcp_shaper} = NO ]; then
+    return 0;
+  elif [ x${abills_dhcp_shaper} = x ]; then
+    return 0;
+  fi;
 
-  INTERFACE="-i eth3"
+  if [ -f ${BILLING_DIR}/libexec/ipoe_shapper.pl ]; then
+    if [ x${abills_dhcp_shaper_nas_ids} != x ]; then
+      NAS_IDS="NAS_IDS=${abills_dhcp_shaper_nas_ids}"
+    fi;
+    if [ w${ACTION} = wstart ]; then
+      ${BILLING_DIR}/libexec/ipoe_shapper.pl -d ${NAS_IDS} IPN_SHAPPER
+	echo " ${BILLING_DIR}/libexec/ipoe_shapper.pl -d ${NAS_IDS} IPN_SHAPPER";
+    elif [ w${ACTION} = wstop ]; then
+        if [ -f ${BILLING_DIR}/var/log/ipoe_shapper.pid ]; then
+        IPOE_PID=`cat ${BILLING_DIR}/var/log/ipoe_shapper.pid`
+        echo "kill -9 ${IPOE_PID}"
+        kill -9 ${IPOE_PID}
+        rm ${BILLING_DIR}/var/log/ipoe_shapper.pid
+        else
+        echo "Can\'t find 'ipoe_shapper.pid' "
+        fi;
+    fi;
+  else
+    echo "Can\'t find 'ipoe_shapper.pl' "
+  fi;
+}
+#**********************************************************
+#
+#**********************************************************
+check_server(){
+  if [ ${abills_mysql_server_status} = NO ]; then
+    return 0;
+  elif [ x${abills_mysql_server_status} = x ]; then
+    return 0;
 
-  iptables -I FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
-  iptables -A INPUT -i ${INTERFACE} -p tcp -m tcp --dport 53 -j ACCEPT
-  iptables -A INPUT -i ${INTERFACE} -p udp -m udp --dport 53 -j ACCEPT
-  iptables -A INPUT -i ${INTERFACE} -p tcp -m tcp --dport 9443 -j ACCEPT
-  iptables -A INPUT -i ${INTERFACE} -m state --state RELATED,ESTABLISHED -j ACCEPT
-  iptables -A INPUT -i ${INTERFACE} -p tcp --dport 1723 -j ACCEPT
-  iptables -A INPUT -i ${INTERFACE} -p gre -j ACCEPT
-  iptables -A INPUT -i ${INTERFACE} -p icmp -j ACCEPT
-  iptables -A INPUT -i ${INTERFACE} -j DROP
-  iptables -A OUTPUT -j ACCEPT
+if [ w${ACTION} = wstart ]; then
+while : ; do
+
+if ping -c5 -l5 -W2 ${abills_mysql_server} 2>&1 | grep "64 bytes from" > /dev/null ;
+then echo "Abills Mysql server is UP!!!" ;
+sleep 30;
+return 0;
+else echo "Abills Mysql server is DOWN!!!" ;
+fi;
+sleep 5
+done
+#}
+fi;
+}
+#**********************************************************
+#
+#**********************************************************
+irq2smp(){
+  if [ ${abills_irq2smp} = NO ]; then
+    return 0;
+  elif [ x${abills_irq2smp} = x ]; then
+    return 0;
+  fi;
+
+if [ w${ACTION} = wstart ]; then
+ncpus=`grep -ciw ^processor /proc/cpuinfo`
+test "$ncpus" -gt 1 || exit 1
+
+n=0
+for irq in `cat /proc/interrupts | grep eth | awk '{print $1}' | sed s/\://g`
+do
+    f="/proc/irq/$irq/smp_affinity"
+    test -r "$f" || continue
+    cpu=$[$ncpus - ($n % $ncpus) - 1]
+    if [ $cpu -ge 0 ]
+            then
+                mask=`printf %x $[2 ** $cpu]`
+                echo "Assign SMP affinity: eth$n, irq $irq, cpu $cpu, mask 0x$mask"
+                echo "$mask" > "$f"
+                let n+=1
+    fi
+done
+fi;
+}
+#**********************************************************
+#
+#**********************************************************
+ipcad(){
+  if [ ${abills_ipcad} = NO ]; then
+    return 0;
+  elif [ x${abills_ipcad} = x ]; then
+    return 0;
+  fi;
+
+if [ w${ACTION} = wstart ]; then
+echo "ipcad start"
+ipcad -rds
+fi;
+if [ w${ACTION} = wstatus ]; then
+ps -ax |grep ipcad
+fi;
 
 }
 

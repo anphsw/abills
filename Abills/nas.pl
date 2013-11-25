@@ -454,14 +454,14 @@ sub hangup_radius {
   else {
     $r->add_attributes({ Name => 'User-Name', Value => "$USER" }) if ($USER);
     $r->add_attributes({ Name => 'Framed-IP-Address', Value => "$attr->{FRAMED_IP_ADDRESS}" }) if ($attr->{FRAMED_IP_ADDRESS});
-  
-    if ($attr->{RAD_PAIRS}) {
-      while(my($k, $v)=each %{ $attr->{RAD_PAIRS} }) {
-        $r->add_attributes({ Name => "$k", Value => $v });
-      }
+  }
+
+  if ($attr->{RAD_PAIRS}) {
+    while(my($k, $v)=each %{ $attr->{RAD_PAIRS} }) {
+      $r->add_attributes({ Name => "$k", Value => $v });
     }
   }
-  
+
   my $request_type = ($attr->{COA}) ? 'COA' : 'POD';
   if ($attr->{COA}) {
     $r->send_packet(COA_REQUEST) and $type = $r->recv_packet;
@@ -521,9 +521,9 @@ sub hangup_ipcad {
     $netmask = 32 - length(sprintf("%b", $ips)) + 1;
   }
 
-  require Ipn;
-  Ipn->import();
-  my $Ipn = Ipn->new($db, \%conf);
+  require Ipn_Collector;
+  Ipn_Collector->import();
+  my $Ipn = Ipn_Collector->new($db, \%conf);
 
   $Ipn->acct_stop({ %$attr, SESSION_ID => $attr->{ACCT_SESSION_ID} });
   if ($NAS->{NAS_TYPE} eq 'dhcp' || $nas_type eq 'dlink_pb' || $nas_type eq 'dlink' || $nas_type eq 'edge_core' ) {
@@ -583,7 +583,7 @@ sub hangup_ipcad {
     $result = system($cmd);
   }
 
-  print $result;
+  return  $result;
 }
 
 #*******************************************************************

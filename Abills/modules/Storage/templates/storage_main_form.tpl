@@ -7,7 +7,7 @@
 <form action=$SELF_URL?index=$index\&add_article=1  name=\"depot_form\" method=POST >
 <input type=hidden name=index value=$index>
 <input type=hidden name=ID value=%ID%>
-<input type=hidden name=INCOMING_ID value=%INCOMING_ID%>
+<input type=hidden name=INCOMING_ID value=%STORAGE_INCOMING_ID%>
 <input type=hidden name=\"type\" value=\"prihod2\">
 <input type=hidden name=\"add_article\" value=\"1\">
 <table border=\"0\" >
@@ -61,7 +61,10 @@
     <td>$_COMMENTS</td>
     <td><textarea name=\"COMMENTS\">%COMMENTS%</textarea></td>
   </tr>
+  
+  <tr>
+    <th colspan=2 class=even><input type=submit name=%ACTION% value=%ACTION_LNG%></th>
+  </tr>
+  
 </table>
-<br />
-<input type=submit name=%ACTION% value=%ACTION_LNG%>
 </form>

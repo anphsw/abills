@@ -7,7 +7,7 @@
 <tr><th colspan=2 class='form_title'>$_TARIF_PLANS</th></tr>
 <TR><TD>$_FROM:</TD><TD class='even'>$user->{TP_ID} %TP_NAME% </TD></TR>
 <TR><TD>$_TO:</TD><TD>%TARIF_PLAN_SEL%</TD></TR>
-<TR><TD>$_GET $_ABON:</TD><TD><input type=checkbox name=GET_ABON value=1 checked> $_RECALCULATE: <input type=checkbox name=RECALCULATE value=1 checked></TD></TR>
+<TR><TD>$_GET $_ABON:</TD><TD><input type=checkbox name=GET_ABON value=1 checked> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; $_RECALCULATE: <input type=checkbox name=RECALCULATE value=1 checked></TD></TR>
 
 %PARAMS%
 

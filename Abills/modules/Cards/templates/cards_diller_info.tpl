@@ -1,6 +1,4 @@
-<TABLE width='600' cellspacing='0' cellpadding='0' border='0' class=form>
-<TR><TD bgcolor='#E1E1E1'>
-<TABLE width='100%' cellspacing='1' cellpadding='0' border='0'>
+<TABLE class=form width=500>
 
 <tr class=title_color><th colspan=2 align=right>$_INFO</th></tr>
 <tr class=odd><td>$_DEPOSIT:</td><td align=right>%DEPOSIT%</td></tr>
@@ -19,4 +17,3 @@
 <tr class=odd><td>$_REGISTRATION:</td><td>%REGISTRATION%</td></tr>
 
 </TABLE>
-</TD></TR></TABLE>

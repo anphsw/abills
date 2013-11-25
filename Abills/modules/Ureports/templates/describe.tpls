@@ -11,5 +11,6 @@ ureports_report_10.tpl:russian:Слишком маленький депозит 
 ureports_report_11.tpl:russian:Слишком маленький депозит для работы в следующем месяце Вурсия: 2
 ureports_report_12.tpl:russian:Сообщение о пополнении счета
 ureports_report_13.tpl:russian:Все услуши завершатся через XX дней
+ureports_report_15.tpl:russian:Изменён статус услуги интернет
 ureports_sms_message.tpl:russian:ОБщий шаблон SMS сообщения
 ureports_email_message.tpl:russian:ОБщий шаблон E-mail сообщения

@@ -9,3 +9,4 @@
    <tr><td>$_TARIF_PLAN (ID):</td><td><input type='text' name='TP_NUM' value='%TP_NUM%'></td></tr>
    <tr><td>$_STATUS:</td><td>%STATUS_SEL%</td></tr>
    <tr><td>FILTER ID (*):</td><td><input type='text' name='FILTER_ID' value='%FILTER_ID%'></td></tr>
+   <tr><td>$_EXPIRE:</td><td><input type=text name=DV_EXPIRE value='%DV_EXPIRE%' ID='DV_EXPIRE' size=12 rel='tcal'>	</td></tr>

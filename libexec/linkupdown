@@ -458,13 +458,18 @@ if ($ACTION eq 'up' || $OS eq 'Linux') {
       if ($conf{ng_car}) {
         # First out traffic table, second in
         #Add user to unlime rules
-        my $prefix = 10000;
+        my $prefix = $conf{ng_car_prefix} || 10000;
+        my $ng_id  = $user->{UID};
+
+        if ($conf{ng_interface_shaper} && $INTERFACE =~ /ng(\d+)/) {
+        	$ng_id = $1;
+        }
 
         # Delete from unlim table
         push @FW_ACTIONS, "$IPFW table $users_table_number delete $CLIENT_IP";
         push @FW_ACTIONS, "$IPFW table " . ($users_table_number + 1) . " delete $CLIENT_IP";
-        my $tablearg_in  = $user->{UID} + $prefix + $prefix * ($traf_type * 2);
-        my $tablearg_out = $user->{UID} + $prefix + $prefix * ($traf_type * 2 + 1);
+        my $tablearg_in  = $ng_id + $prefix * ($traf_type * 2);
+        my $tablearg_out = $ng_id + $prefix * ($traf_type * 2 + 1);
         push @FW_ACTIONS, "$IPFW table $users_table_number add $CLIENT_IP/$BIT_MASK " . $tablearg_in;
         push @FW_ACTIONS, "$IPFW table " . ($users_table_number + 1) . " add $CLIENT_IP/$BIT_MASK " . $tablearg_out;
         ng_car_shape("$USER", $tablearg_in, $tablearg_out, "class$traf_type", $speed_in * 1024, $speed_out * 1024);
@@ -615,12 +620,18 @@ sub mikrotik {
     push @commands, qq{/ip firewall address-list add list=CLIENTS_$tp_id  address=$CLIENT_IP };
   }
 
+  my ($nas_host_ip, $nas_port_coa, $nas_port) = split(/:/, $nas_host, 3);
+
+  if (!$nas_port) {
+    $nas_port = 22;
+  }
+
   #Make ssh command
   my $result = '';
   $result .= `echo "===> Initialising remote commands executing:" >> /var/log/shaper`;
   foreach my $cmd (@commands) {
     print "$cmd\n" if ($debug > 0);
-    $result .= `$SSH $nas_admin\@$nas_host "$cmd"; echo "$cmd" >> /var/log/shaper`;
+    $result .= `$SSH -p $nas_port $nas_admin\@$nas_host_ip "$cmd"; echo "$cmd" >> /var/log/shaper`;
   }
 
   print $result;
@@ -697,40 +708,51 @@ sub user_info {
 # linux ipn shapper
 #************************************************
 sub linux_ipn2 {
-	my ($attr)=@_;
+  my ($attr)=@_;
 
-my $ruleid_in=$attr->{UID}+101;
-my $ruleid_out=$attr->{UID}+$START_FW[0] + 101;
-
-if ($ACTION eq 'up') {
-  push @FW_ACTIONS, "$IPTABLES -t mangle -A FORWARD -d $CLIENT_IP -j MARK --set-mark $ruleid_in",
-                    "$IPTABLES -t mangle -A FORWARD -s $CLIENT_IP -j MARK --set-mark $ruleid_out";
+  my $ruleid_out=$attr->{UID}+101;
+  my $ruleid_in=$attr->{UID}+5101;
 
   if (! $WAN_IF) {
     $WAN_IF = `/sbin/ip route get 1.1.1.1 | head -1 | sed s/.*dev// |awk '{ print \$1 }'`;
-    chop($WAN_IF);	
-  } 
-  my $SCOUNT='';
-  if ($attr->{SPEED})  {
-    $speeds{ 0 }{IN}  = "$attr->{SPEED}";
+    chop($WAN_IF);
+  }
+
+if ($ACTION eq 'up') {
+  push @FW_ACTIONS, "$IPTABLES -t mangle -A FORWARD -s $CLIENT_IP -j MARK --set-mark $ruleid_in";
+  push @FW_ACTIONS, "$IPTABLES -t mangle -A FORWARD -d $CLIENT_IP -j MARK --set-mark $ruleid_out";
+
+  my $SCOUNT='Kbit';
+
+  if ($attr->{SPEED}) {
+    $speeds{ 0 }{IN} = "$attr->{SPEED}";
     $speeds{ 0 }{OUT} = "$attr->{SPEED}";
   }
 
   #Download
   push @FW_ACTIONS, "$TC class add dev $WAN_IF parent 1:1 classid 1:$ruleid_in htb rate $speeds{ 0 }{IN}$SCOUNT";
   push @FW_ACTIONS, "$TC filter add dev $WAN_IF parent 1: protocol ip prio 3 handle $ruleid_in fw classid 1:$ruleid_in";
+  push @FW_ACTIONS, "$TC qdisc add dev $WAN_IF parent 1:$ruleid_in handle $ruleid_in: sfq perturb 10";
 
   #Upload
-  push @FW_ACTIONS, "$TC class add dev $INTERFACE parent 1:1 classid 1:$ruleid_out htb rate  $speeds{ 0 }{OUT}$SCOUNT";
+  push @FW_ACTIONS, "$TC class add dev $INTERFACE parent 1:1 classid 1:$ruleid_out htb rate $speeds{ 0 }{OUT}$SCOUNT";
   push @FW_ACTIONS, "$TC filter add dev $INTERFACE parent 1: protocol ip prio 3 handle $ruleid_out fw classid 1:$ruleid_out";
+  push @FW_ACTIONS, "$TC qdisc add dev $INTERFACE parent 1:$ruleid_out handle $ruleid_out: sfq perturb 10";
 }
 #stop
 else {
-  push @FW_ACTIONS, "$IPTABLES -t mangle -D FORWARD -d $CLIENT_IP -j MARK --set-mark $ruleid_in";
+  #Download
+  push @FW_ACTIONS, "$TC filter del dev $WAN_IF parent 1: protocol ip prio 3 handle $ruleid_in fw classid 1:$ruleid_in > /dev/null 2>&1";
+  push @FW_ACTIONS, "$TC class del dev $WAN_IF parent 1:1 classid 1:$ruleid_in > /dev/null 2>&1";
+  #Upload
+  push @FW_ACTIONS, "$TC filter del dev $INTERFACE parent 1: protocol ip prio 3 handle $ruleid_out fw classid 1:$ruleid_out > /dev/null 2>&1";
+  push @FW_ACTIONS, "$TC class del dev $INTERFACE parent 1:1 classid 1:$ruleid_out > /dev/null 2>&1";
+
+  push @FW_ACTIONS, "$IPTABLES -t mangle -D FORWARD -s $CLIENT_IP -j MARK --set-mark $ruleid_in";
   push @FW_ACTIONS, "$IPTABLES -t mangle -D FORWARD -d $CLIENT_IP -j MARK --set-mark $ruleid_out";
 }
 
-  goto FW_ACTION;
+goto FW_ACTION;
 }
 
 

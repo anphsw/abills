@@ -1113,47 +1113,48 @@ sub get_pdf {
   return $pdf;
 }
 
-#**********************************************************
+##**********************************************************
+##
+##**********************************************************
+#sub multi_tpls {
+#  my ($tpl, $MULTI_ARR, $attr) = @_;
 #
-#**********************************************************
-sub multi_tpls {
-  my ($tpl, $MULTI_ARR, $attr) = @_;
-
-  my $multi_pdf = PDF::API2->new;
-
-  $tmp_path        = $attr->{TMP_PATH}        if ($attr->{TMP_PATH});
-  $pdf_result_path = $attr->{PDF_RESULT_PATH} if ($attr->{PDF_RESULT_PATH});
-
-  for (my $i = 0 ; $i <= 10 ; $i++) {
-    push @{$MULTI_ARR},
-    {
-      FIO     => 'fio' . $i,
-      DEPOSIT => '00.00' . $i,
-      CREDIT  => 0.00 + $i,
-      SUM     => 10.00 + $i
-    };
-
-  }
-
-  my $num      = 0;
-  my $rand_num = rand(32768);
-  foreach my $line (@$MULTI_ARR) {
-    my $single_tpl = tpl_show($tpl, { DOC_NUMBER => $num }, { MULTI_DOCS => $MULTI_ARR, });
-
-    my $page_count = $single_tpl->pages;
-    $single_tpl->saveas($tmp_path . '/single.' . $rand_num . '.pdf');
-
-    ##Multidocs section
-    print "Document: $num Pages: $page_count ================================\n" if ($debug > 0);
-    $num++;
-    my $main_tpl = PDF::API2->open($tmp_path . '/single' . $rand_num . '.pdf');
-
-    for (my $i = 1 ; $i <= $page_count ; $i++) {
-      my $page = $multi_pdf->importpage($main_tpl, $i);
-    }
-  }
-  $multi_pdf->saveas($pdf_result_path . '/' . $tpl . '.pdf');
-}
+#  my $multi_pdf = PDF::API2->new;
+#
+#  $tmp_path        = $attr->{TMP_PATH}        if ($attr->{TMP_PATH});
+#  $pdf_result_path = $attr->{PDF_RESULT_PATH} if ($attr->{PDF_RESULT_PATH});
+#
+##  for (my $i = 0 ; $i <= 10 ; $i++) {
+##    push @{$MULTI_ARR},
+##    {
+##      FIO     => 'fio' . $i,
+##      DEPOSIT => '00.00' . $i,
+##      CREDIT  => 0.00 + $i,
+##      SUM     => 10.00 + $i
+##    };
+##
+##  }
+#
+#  my $num      = 0;
+#  my $rand_num = rand(32768);
+#
+#  foreach my $line (@$MULTI_ARR) {
+#    my $single_tpl = tpl_show($tpl, { DOC_NUMBER => $num }, { MULTI_DOCS => $MULTI_ARR, });
+#
+#    my $page_count = $single_tpl->pages;
+#    $single_tpl->saveas($tmp_path . '/single.' . $rand_num . '.pdf');
+#
+#    ##Multidocs section
+#    print "Document: $num Pages: $page_count ================================\n" if ($debug > 0);
+#    $num++;
+#    my $main_tpl = PDF::API2->open($tmp_path . '/single' . $rand_num . '.pdf');
+#
+#    for (my $i = 1 ; $i <= $page_count ; $i++) {
+#      my $page = $multi_pdf->importpage($main_tpl, $i);
+#    }
+#  }
+#  $multi_pdf->saveas($pdf_result_path . '/' . $tpl . '.pdf');
+#}
 
 #**********************************************************
 # show tamplate
@@ -1193,6 +1194,7 @@ sub tpl_show {
   my $font_name       = 'Verdana';
   my $encode          = $self->{CHARSET} || 'windows-1251';
   my $font;
+  my $multi_recs      = 0;
 
   if ($encode =~ /utf-8/) {
     $font_name = '/usr/abills/Abills/templates/fonts/FreeSerif.ttf';
@@ -1204,6 +1206,9 @@ sub tpl_show {
   }
 
   MULTIDOC_LABEL:
+  my $start_position_num = 0;
+  NEXT_RECORDS:
+
   for my $key (sort keys %$tpl_describe) {
     my @patterns = ();
 
@@ -1221,16 +1226,19 @@ sub tpl_show {
     my $font_color;
     my $align     = '';
     my $text_file = '';
+   
+    #foreach my $pattern (@patterns) {
+    for(my $i=$start_position_num; $i<=$#patterns; $i++) {
+    	my $pattern = $patterns[$i];
 
-    foreach my $pattern (@patterns) {
       $x = $1 if ($pattern =~ /x=(\d+)/);
       $y = $1 if ($pattern =~ /y=(\d+)/);
       next if ($x == 0 && $y == 0);
 
-      my $text = '';
-      $doc_page = ($pattern =~ /page=(\d+)/) ? $1 : 1;
+      my $text      = '';
+      $doc_page     = ($pattern =~ /page=(\d+)/) ? $1 : 1;
       my $work_page = ($attr->{DOCS_IN_FILE}) ? $doc_page + $page_count * int($multi_doc_count - 1) - ($page_count * $attr->{DOCS_IN_FILE} * int(($multi_doc_count - 1) / $attr->{DOCS_IN_FILE})) : $doc_page + (($multi_doc_count) ? $page_count * $multi_doc_count - $page_count : 0);
-      my $page = $pdf->openpage($work_page);
+      my $page      = $pdf->openpage($work_page);
       if (!$page) {
         print "Content-Type: text/plain\n\n";
         print "Can't open page: $work_page ($pattern) '$!' / $doc_page + $page_count * $multi_doc_count\n";
@@ -1265,7 +1273,7 @@ sub tpl_show {
       if ($pattern =~ /font_name=(\S+)/) {
         $font_name = $1;
         if ($font_name =~ /\.ttf$/) {
-          $font = $pdf->ttffont($font_name, -encode => "$encode");
+          $font = $pdf->ttfont($font_name, -encode => "$encode");
         }
         else {
           $font = $pdf->corefont($font_name, -encode => "$encode");
@@ -1343,12 +1351,16 @@ sub tpl_show {
           $txt->text($text, -align => $align || 'justified');
         }
       }
+
+      if($attr->{MULTI_DOCS_PAGE_RECS} && $i == $attr->{MULTI_DOCS_PAGE_RECS}-1) {
+      	print "$i % $attr->{MULTI_DOCS_PAGE_RECS} // $start_position_num // $variables_ref->{LOGIN}\n" if ($debug > 1);
+        last;
+      }
     }
   }
 
 
-
-  if ($attr->{MULTI_DOCS} && $multi_doc_count <= $#{ $attr->{MULTI_DOCS} }) {
+  if ($attr->{MULTI_DOCS} && ($multi_doc_count * (($attr->{MULTI_DOCS_PAGE_RECS}) ? $attr->{MULTI_DOCS_PAGE_RECS} : 1 )) <= $#{ $attr->{MULTI_DOCS} }) {
     if ($attr->{DOCS_IN_FILE} && $multi_doc_count > 0 && $multi_doc_count % $attr->{DOCS_IN_FILE} == 0) {
       my $outfile = $attr->{SAVE_AS};
       my $filenum = int($multi_doc_count / $attr->{DOCS_IN_FILE});
@@ -1371,8 +1383,21 @@ sub tpl_show {
       }
     }
 
-    $variables_ref = $attr->{MULTI_DOCS}[$multi_doc_count];
-    print "Doc: $multi_doc_count\n" if ($attr->{debug});
+    my $array_num = ($multi_doc_count*(($attr->{MULTI_DOCS_PAGE_RECS}) ? $attr->{MULTI_DOCS_PAGE_RECS} : 1  ))+$multi_recs;
+
+    $variables_ref = $attr->{MULTI_DOCS}[$array_num];
+    print "Doc: $multi_doc_count : $array_num\n" if ($attr->{debug});
+
+    if ($attr->{MULTI_DOCS_PAGE_RECS} && $multi_doc_count / $attr->{MULTI_DOCS_PAGE_RECS} && ! $multi_recs) {
+      $start_position_num = 2;
+      $multi_recs = 1;
+      goto NEXT_RECORDS;
+    }
+    else {
+    	$multi_recs=0;
+    }
+
+    $multi_recs = 0;
 
     if ($multi_doc_count > 0) {
       for (my $i = 1 ; $i <= $page_count ; $i++) {
@@ -1380,7 +1405,7 @@ sub tpl_show {
       }
     }
 
-    $multi_doc_count++;
+    $multi_doc_count++;    
     goto MULTIDOC_LABEL;
   }
 

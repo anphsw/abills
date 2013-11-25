@@ -1,6 +1,4 @@
-<br/>
 <TABLE width='600' class='form'>
-
 <TR class='even'><TD><b>$_LOGIN:</b></TD><TD><b>%LOGIN%</b> <i>(UID: %UID%)</i></TD></TR>
 <TR class='odd'><TD><b>$_DEPOSIT:</b></TD><TD>%DEPOSIT%  &nbsp; %DOCS_ACCOUNT% &nbsp; %PAYSYS_PAYMENTS%</TD></TR>
 %EXT_DATA%
@@ -29,7 +27,7 @@
     <p>
 
     <form action=$SELF_URL>
-    <input type=hidden name='index' value='$index'>
+    <input type=hidden name='index' value='10'>
     <input type=hidden name='sid' value='$sid'>
     
     <b>$_CHANGE $_CREDIT</b><BR>
@@ -46,4 +44,3 @@
   </div>
 </div>
 
-<br/>

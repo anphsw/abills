@@ -8,6 +8,7 @@ if (!$@) {
 else {
   print "Content-Type: text/html\n\n" if ($user->{UID});
   print "Can't load 'Storage'. Purchase this module http://abills.net.ua";
+  print $@;
   exit;    #return 0;
 }
 
@@ -27,16 +28,6 @@ sub storage_articles {
   $Storage->{ACTION}        = 'add';
   $Storage->{ACTION_LNG}    = $_ADD;
   $Storage->{ADD_DATE}      = '0000-00-00';
-  $Storage->{ARTICLE_TYPES} = $html->form_select(
-    "ARTICLE_TYPE",
-    {
-      SELECTED          => $FORM{ARTICLE_TYPE},
-      SEL_MULTI_ARRAY   => [ [ '', '' ], @{ $Storage->storage_types_list() } ],
-      MULTI_ARRAY_KEY   => 0,
-      MULTI_ARRAY_VALUE => 1,
-      NO_ID             => 1
-    }
-  );
 
   if ($FORM{add}) {
 
@@ -60,10 +51,8 @@ sub storage_articles {
     }
   }
   elsif ($FORM{del}) {
-
-    #$Storage->{debug}=1;
-    $list = $Storage->storage_incoming_articles_list({ ARTICLE_ID => $FORM{del} });
-    if (defined($list->[0]->[0])) {
+    $list = $Storage->storage_incoming_articles_list({ ARTICLE_ID => $FORM{del}, COLS_NAME => 1 });
+    if (defined($list->[0]->{id})) {
       $html->message('info', $_INFO, "$_CANT_DELETE_ERROR1 ");
     }
     else {
@@ -75,8 +64,6 @@ sub storage_articles {
   }
   elsif ($FORM{change}) {
     if ($FORM{NAME} ne '' and $FORM{ARTICLE_TYPE} != '' and $FORM{MEASURE} ne '') {
-
-      #$Storage->{debug}=1;
       $Storage->storage_articles_change({%FORM});
       if (!$Storage->{errno}) {
         $html->tpl_show(
@@ -95,8 +82,6 @@ sub storage_articles {
     }
   }
   elsif ($FORM{chg}) {
-
-    #$Storage->{debug}=1;
     $Storage->{ACTION}     = 'change';
     $Storage->{ACTION_LNG} = $_CHANGE;
     $Storage->storage_articles_info({ ID => $FORM{chg}, });
@@ -104,46 +89,47 @@ sub storage_articles {
       $html->message('info', $_INFO, "$_CHANGING");
     }
   }
+
   $Storage->{ARTICLE_TYPES} = $html->form_select(
     "ARTICLE_TYPE",
     {
-      SELECTED          => $Storage->{ARTICLE_TYPE},
-      SEL_MULTI_ARRAY   => [ [ '', '' ], @{ $Storage->storage_types_list() } ],
-      MULTI_ARRAY_KEY   => 0,
-      MULTI_ARRAY_VALUE => 1,
-      NO_ID             => 1
+      SELECTED   => $Storage->{ARTICLE_TYPE},
+      SEL_LIST   => $Storage->storage_types_list({ COLS_NAME => 1 }),
+      NO_ID      => 1,
+      SEL_OPTIONS=> { '' => '--' },
     }
   );
 
   if (!$FORM{add} and !$FORM{change}) {
-
     $html->tpl_show(_include('storage_articles', 'Storage'), $Storage);
   }
 
-  my $table = $html->table(
-    {
-      width   => '100%',
-      caption => $_STORAGE,
-      border  => 1,
-      title   => [ $_NAME, $_TYPE, $_MEASURE, $_DATE, $_COMMENTS, '-', '-' ],
-      cols_align => [ 'left', 'right', 'right', 'right', 'center', 'center' ],
-      pages      => $Storage->{TOTAL},
-      ID         => 'STORAGE_ID'
-    }
-  );
-
-  #$Storage->{debug}=1;
-  $list = $Storage->storage_articles_list({});
-
+  $list = $Storage->storage_articles_list({ COLS_NAME => 1 });
   if ($Storage->{errno}) {
     $html->message('err', $_ERROR, "[$Storage->{errno}] $err_strs{$Storage->{errno}}");
   }
 
+  my $table = $html->table(
+    {
+      width      => '100%',
+      caption    => $_STORAGE,
+      border     => 1,
+      title      => [ '#', $_NAME, $_TYPE, $_MEASURE, $_DATE, $_COMMENTS, '-', '-' ],
+      cols_align => [ 'left', 'right', 'right', 'right', 'center', 'center' ],
+      pages      => $Storage->{TOTAL},
+      ID         => 'ARTICLES_LIST'
+    }
+  );
+ 
   foreach my $line (@$list) {
-    $table->addrow(
-      $line->[1], $line->[6], $line->[3], $line->[4], $line->[5],
-      $html->button($_INFO, "index=$index&chg=$line->[0]", { CLASS => 'change' }),
-      (defined($permissions{0}{5})) ? $html->button($_DEL, "index=$index&del=$line->[0]", { MESSAGE => "$_DEL $_ARTICLE $line->[1]?", CLASS => 'del' }) : ''
+    $table->addrow($line->{id},
+      $line->{name}, 
+      $line->{type_name}, 
+      $line->{measure}, 
+      $line->{add_date}, 
+      $line->{comments},
+      $html->button($_INFO, "index=$index&chg=$line->{id}", { CLASS => 'change' }),
+      (defined($permissions{0}{5})) ? $html->button($_DEL, "index=$index&del=$line->{id}", { MESSAGE => "$_DEL $_ARTICLE $line->{name}?", CLASS => 'del' }) : ''
     );
   }
   print $table->show();
@@ -191,8 +177,6 @@ sub storage_articles_types {
       $html->message('info', $_INFO, "$_CANT_DELETE_ERROR2 ");
     }
     else {
-
-      #$Storage->{debug}=1;
       $Storage->storage_types_del({ ID => $FORM{del} });
       if (!$Storage->{errno}) {
         $html->message('info', $_INFO, "$_DELETED");
@@ -201,8 +185,6 @@ sub storage_articles_types {
   }
   elsif ($FORM{change}) {
     if ($FORM{NAME} ne '') {
-
-      #$Storage->{debug}=1;
       $Storage->storage_types_change({%FORM});
       if (!$Storage->{errno}) {
         $html->tpl_show(
@@ -224,8 +206,6 @@ sub storage_articles_types {
   elsif ($FORM{chg}) {
     $Storage->{ACTION}     = 'change';
     $Storage->{ACTION_LNG} = $_CHANGE;
-
-    #$Storage->{debug}=1;
     $Storage->storage_articles_types_info({ ID => $FORM{chg}, });
   }
   if (!$FORM{add} and !$FORM{change}) {
@@ -243,15 +223,16 @@ sub storage_articles_types {
     }
   );
 
-  #$Storage->{debug}=1;
-  $list = $Storage->storage_types_list({});
+  $list = $Storage->storage_types_list({ COLS_NAME => 1 });
 
   if ($Storage->{errno}) {
     $html->message('err', $_ERROR, "[$Storage->{errno}] $err_strs{$Storage->{errno}}");
   }
 
   foreach my $line (@$list) {
-    $table->addrow($line->[1], $line->[2], $html->button($_INFO, "index=$index&chg=$line->[0]", { CLASS => 'change' }), (defined($permissions{0}{5})) ? $html->button($_DEL, "index=$index&del=$line->[0]", { MESSAGE => "$_DEL $_TYPE $line->[1]?", CLASS => 'del' }) : '');
+    $table->addrow($line->{name}, 
+      $line->{comments}, 
+      $html->button($_INFO, "index=$index&chg=$line->{id}", { CLASS => 'change' }), (defined($permissions{0}{5})) ? $html->button($_DEL, "index=$index&del=$line->{id}", { MESSAGE => "$_DEL $_TYPE $line->{name}?", CLASS => 'del' }) : '');
   }
   print $table->show();
 
@@ -283,7 +264,6 @@ sub suppliers_main {
       $html->message('info', $_INFO, "$_CANT_DELETE_ERROR3");
     }
     else {
-      #$Storage->{debug}=1;
       $Storage->suppliers_del({ ID => $FORM{del} });
       if (!$Storage->{errno}) {
         $html->message('info', $_INFO, "$_DELETED");
@@ -292,8 +272,6 @@ sub suppliers_main {
   }
   elsif ($FORM{change}) {
     if ($FORM{NAME} ne '') {
-
-      #$Storage->{debug}=1;
       $Storage->suppliers_change({%FORM});
       if (!$Storage->{errno}) {
 
@@ -359,7 +337,6 @@ sub suppliers_main {
     }
   );
 
-  #$Storage->{debug}=1;
   $list = $Storage->suppliers_list({});
   if ($Storage->{errno}) {
     $html->message('err', $_ERROR, "[$Storage->{errno}] $err_strs{$Storage->{errno}}");
@@ -388,8 +365,8 @@ sub suppliers_main {
 #***********************************************************
 sub storage_main {
 
-  if ($Cards::VERSION < 2.01) {
-    $html->message('info', "UPDATE", "Please update module 'Storage' to version 2.01 or higher. http://abills.net.ua/");
+  if ($Storage::VERSION < 2.03) {
+    $html->message('info', "UPDATE", "Current version: $Storage::VERSION Please update module 'Storage' to version 2.03 or higher. http://abills.net.ua/");
     return 0;
   }
 
@@ -402,8 +379,6 @@ sub storage_main {
   }
 
   if ($FORM{del}) {
-
-    #$Storage->{debug}=1;
     $list = $Storage->storage_incoming_articles_list({ ID => $FORM{del} });
 
     if ($Storage->{errno}) {
@@ -437,10 +412,13 @@ sub storage_main {
   }
   elsif ($FORM{change}) {
 
-    if ($FORM{COUNT} != '' and $FORM{SUM} != '' and $FORM{ARTICLE_TYPE_ID} != '' and $FORM{ARTICLE_ID} != '' and $FORM{STORAGE_ID} != '') {
+    if ($FORM{COUNT} != '' 
+        && $FORM{SUM}
+        && $FORM{ARTICLE_TYPE_ID}
+        && $FORM{ARTICLE_ID}
+        && $FORM{STORAGE_ID}) {
 
-      #$Storage->{debug}=1;
-      $Storage->storage_incoming_articles_change({%FORM});
+      $Storage->storage_incoming_articles_change({ %FORM });
       if (!$Storage->{errno}) {
 
         #$html->message('info', $_INFO, "$_CHANGED");
@@ -453,7 +431,6 @@ sub storage_main {
           }
         );
       }
-
     }
     else {
       $Storage->{ACTION}     = 'change';
@@ -463,35 +440,29 @@ sub storage_main {
       my $ARTICLE_TYPES = $Storage->{ARTICLE_TYPES} = $html->form_select(
         "ARTICLE_TYPE_ID",
         {
-          SELECTED          => $FORM{ARTICLE_TYPE_ID},
-          SEL_MULTI_ARRAY   => [ [ '', '' ], @{ $Storage->storage_types_list() } ],
-          MULTI_ARRAY_KEY   => 0,
-          MULTI_ARRAY_VALUE => 1,
-          NO_ID             => 1,
-          EX_PARAMS         => 'onchange="autoReload();"',
-          MAIN_MENU         => get_function_index('storage_articles_types'),
+          SELECTED   => $FORM{ARTICLE_TYPE_ID},
+          SEL_LIST   => $Storage->storage_types_list({ COLS_NAME => 1 }),
+          EX_PARAMS  => 'onchange="autoReload();"',
+          MAIN_MENU  => get_function_index('storage_articles_types'),
+          SEL_OPTIONS=> { '' => '--' },
         }
       );
 
       my $ARTICLE_ID = $Storage->{ARTICLE_ID} = $html->form_select(
         "ARTICLE_ID",
         {
-          SELECTED          => $FORM{ARTICLE_ID},
-          SEL_MULTI_ARRAY   => [ [ '', '' ], @{ $Storage->storage_articles_list({ ARTICLE_TYPE => $FORM{ARTICLE_TYPE_ID} }) } ],
-          MULTI_ARRAY_KEY   => 0,
-          MULTI_ARRAY_VALUE => 1,
-          NO_ID             => 1
+          SELECTED   => $FORM{ARTICLE_ID},
+          SEL_LIST   => $Storage->storage_articles_list({ ARTICLE_TYPE => $FORM{ARTICLE_TYPE_ID}, COLS_NAME => 1 }),
+          SEL_OPTIONS=> { '' => '--' },
         }
       );
 
       my $SUPPLIER_ID = $Storage->{SUPPLIER_ID} = $html->form_select(
         "SUPPLIER_ID",
         {
-          SELECTED          => $FORM{SUPPLIER_ID},
-          SEL_MULTI_ARRAY   => [ [ '', '' ], @{ $Storage->suppliers_list() } ],
-          MULTI_ARRAY_KEY   => 0,
-          MULTI_ARRAY_VALUE => 1,
-          NO_ID             => 1
+          SELECTED   => $FORM{SUPPLIER_ID},
+          SEL_LIST   => $Storage->suppliers_list({ COLS_NAME => 1 }),
+          SEL_OPTIONS=> { '' => '--' },
         }
       );
 
@@ -515,15 +486,12 @@ sub storage_main {
           ARTICLE_TYPES => $ARTICLE_TYPES,
           SUPPLIER_ID   => $SUPPLIER_ID,
           STORAGE_ID    => $STORAGE_STORAGES,
-
         }
       );
     }
 
   }
   elsif ($FORM{add_article} == 1 and $FORM{chg}) {
-
-    #$Storage->{debug}=1;
     $Storage->{ACTION}     = 'change';
     $Storage->{ACTION_LNG} = $_CHANGE;
     $Storage->{DISABLED}   = 'readonly';
@@ -534,8 +502,6 @@ sub storage_main {
     }
   }
   elsif ($FORM{divide}) {
-
-    #$Storage->{debug}=1;
     $list = $Storage->storage_incoming_articles_list({ ID => $FORM{divide} });
 
     if ($Storage->{errno}) {
@@ -581,11 +547,10 @@ sub storage_main {
     $Storage->{AID}        = $html->form_select(
       "AID",
       {
-        SELECTED          => 1,
-        SEL_MULTI_ARRAY   => [ [ '', '' ], @{ $Storage->storage_admins_list({}) } ],
-        MULTI_ARRAY_KEY   => 0,
-        MULTI_ARRAY_VALUE => 1,
-        NO_ID             => 1
+        SELECTED   => 1,
+        SEL_LIST   => $Storage->storage_admins_list({ COLS_NAME => 1 }),
+        SEL_KEY    => 'aid',
+        SEL_OPTIONS=> { '' => '--' },
       }
     );
 
@@ -600,8 +565,6 @@ sub storage_main {
 
   }
   elsif ($FORM{add_discard}) {
-
-    #$Storage->{debug}=1;
     if ($FORM{COMMENTS} ne '') {
 
       $list = $Storage->storage_incoming_articles_list({ ID => $FORM{ID} });
@@ -632,7 +595,6 @@ sub storage_main {
             {
               SECTION => '&storage_status=1',
               MESSAGE => "$_DISCARDED",
-
             }
           );
         }
@@ -665,8 +627,6 @@ sub storage_main {
   }
 
   if ($FORM{add_accountability}) {
-
-    #$Storage->{debug}=1;
     $list = $Storage->storage_incoming_articles_list({ ID => $FORM{ID} });
 
     if ($Storage->{errno}) {
@@ -677,8 +637,6 @@ sub storage_main {
 
     # $Storage->{list}->[0]->[21];
     if (($leftover - $FORM{COUNT}) > -1 and $FORM{COUNT} ne '' and $FORM{COUNT} != 0) {
-
-      #$Storage->{debug}=1;
       $Storage->storage_accountability_add({%FORM});
       if (!$Storage->{errno}) {
 
@@ -701,11 +659,10 @@ sub storage_main {
       $Storage->{AID}        = $html->form_select(
         "AID",
         {
-          SELECTED          => $FORM{AID},
-          SEL_MULTI_ARRAY   => [ [ '', '' ], @{ $Storage->storage_admins_list({}) } ],
-          MULTI_ARRAY_KEY   => 0,
-          MULTI_ARRAY_VALUE => 1,
-          NO_ID             => 1
+          SELECTED   => $FORM{AID},
+          SEL_SEL    => $Storage->storage_admins_list({ COLS_NAME => 1 }),
+          SEL_KEY    => 'aid',
+          SEL_OPTIONS=> { '' => '--' },
         }
       );
       $html->message('info', $_INFO, "$_CANT_ACCOUNTABILITY_ADD_MAX_VALUE $leftover ");
@@ -714,8 +671,6 @@ sub storage_main {
 
   }
   elsif ($FORM{add_reserve}) {
-
-    #$Storage->{debug}=1;
     $list = $Storage->storage_incoming_articles_list({ ID => $FORM{ID} });
     if ($Storage->{errno}) {
       $html->message('err', $_ERROR, "[$Storage->{errno}] $err_strs{$Storage->{errno}}");
@@ -723,8 +678,6 @@ sub storage_main {
 
     $leftover = $list->[0]->[21];
     if (($leftover - $FORM{COUNT}) > -1 and $FORM{COUNT} ne '' and $FORM{COUNT} != 0) {
-
-      #$Storage->{debug}=1;
       $Storage->storage_reserve_add({%FORM});
       if (!$Storage->{errno}) {
         $html->tpl_show(
@@ -744,16 +697,14 @@ sub storage_main {
       $Storage->{AID}        = $html->form_select(
         "AID",
         {
-          SELECTED          => $FORM{AID},
-          SEL_MULTI_ARRAY   => [ [ '', "" ], @{ $Storage->storage_admins_list({}) } ],
-          MULTI_ARRAY_KEY   => 0,
-          MULTI_ARRAY_VALUE => 1,
-          NO_ID             => 1
+          SELECTED   => $FORM{AID},
+          SEL_LIST   => $Storage->storage_admins_list({ COLS_NAME => 1 }),
+          SEL_KEY    => 'aid',
+          SEL_OPTIONS=> { '' => '--' },
         }
       );
       $html->message('info', $_INFO, "$_CANT_RESERVE_MAX_VALUE $leftover ");
       $html->tpl_show(_include('storage_reserve', 'Storage'), { %$Storage, %FORM, AID => $Storage->{AID}, });
-
     }
 
   }
@@ -761,11 +712,11 @@ sub storage_main {
   $Storage->{SUPPLIER_ID} = $html->form_select(
     "SUPPLIER_ID",
     {
-      SELECTED          => $Storage->{SUPPLIER_ID},
-      SEL_MULTI_ARRAY   => [ [ '', '' ], @{ $Storage->suppliers_list() } ],
-      MULTI_ARRAY_KEY   => 0,
-      MULTI_ARRAY_VALUE => 1,
-      NO_ID             => 1
+      SELECTED   => $Storage->{SUPPLIER_ID},
+      SEL_LIST   => $Storage->suppliers_list({ COLS_NAME => 1 }),
+      SEL_KEY    => 'id',
+      SEL_VALUE  => 'name',
+      SEL_OPTIONS=> { '' => '--' },
     }
   );
 
@@ -773,49 +724,40 @@ sub storage_main {
     $Storage->{ARTICLE_ID} = $html->form_select(
       "ARTICLE_ID",
       {
-        SELECTED          => $Storage->{ARTICLE_ID},
-        SEL_MULTI_ARRAY   => [ [ '', '' ], @{ $Storage->storage_articles_list({ ARTICLE_TYPE => $FORM{ARTICLE_TYPE_ID}, }) } ],
-        MULTI_ARRAY_KEY   => 0,
-        MULTI_ARRAY_VALUE => 1,
-        NO_ID             => 1,
-        MAIN_MENU         => get_function_index('storage_articles'),
+        SELECTED   => $Storage->{ARTICLE_ID},
+        SEL_LIST   => $Storage->storage_articles_list({ ARTICLE_TYPE => $FORM{ARTICLE_TYPE_ID}, COLS_NAME => 1 }),
+        MAIN_MENU  => get_function_index('storage_articles'),
+        SEL_OPTIONS=> { '' => '--' },
       }
     );
 
     $Storage->{ARTICLE_TYPES} = $html->form_select(
       "ARTICLE_TYPE_ID",
       {
-        SELECTED          => $FORM{ARTICLE_TYPE_ID},
-        SEL_MULTI_ARRAY   => [ [ '', '' ], @{ $Storage->storage_types_list() } ],
-        MULTI_ARRAY_KEY   => 0,
-        MULTI_ARRAY_VALUE => 1,
-        NO_ID             => 1,
-        EX_PARAMS         => 'onchange="autoReload();"'
+        SELECTED    => $FORM{ARTICLE_TYPE_ID} || $Storage->{TYPE_ID},
+        SEL_LIST    => $Storage->storage_types_list({ COLS_NAME => 1 }),
+        SEL_OPTIONS => { '' => '--' },
+        EX_PARAMS   => 'onchange="autoReload();"'
       }
     );
-
   }
   else {
     $Storage->{ARTICLE_ID} = $html->form_select(
       "ARTICLE_ID",
       {
-        SELECTED          => $Storage->{ARTICLE_ID},
-        SEL_MULTI_ARRAY   => [ [ '', '' ], @{ $Storage->storage_articles_list({ ARTICLE_TYPE => $Storage->{ARTICLE_TYPE_ID} }) } ],
-        MULTI_ARRAY_KEY   => 0,
-        MULTI_ARRAY_VALUE => 1,
-        NO_ID             => 1
+        SELECTED    => $Storage->{ARTICLE_ID},
+        SEL_LIST    => $Storage->storage_articles_list({ ARTICLE_TYPE => $Storage->{ARTICLE_TYPE_ID}, COLS_NAME => 1 }),
+        SEL_OPTIONS => { '' => '--' },
       }
     );
 
     $Storage->{ARTICLE_TYPES} = $html->form_select(
       "ARTICLE_TYPE_ID",
       {
-        SELECTED          => $Storage->{ARTICLE_TYPE_ID},
-        SEL_MULTI_ARRAY   => [ [ '', '' ], @{ $Storage->storage_types_list() } ],
-        MULTI_ARRAY_KEY   => 0,
-        MULTI_ARRAY_VALUE => 1,
-        NO_ID             => 1,
-        EX_PARAMS         => 'onchange="autoReload();"'
+        SELECTED    => $Storage->{ARTICLE_TYPE_ID},
+        SEL_LIST    => $Storage->storage_types_list({ COLS_NAME => 1 }),
+        SEL_OPTIONS => { '' => '--' },
+        EX_PARAMS   => 'onchange="autoReload();"'
       }
     );
   }
@@ -831,6 +773,7 @@ sub storage_main {
       }
     );
   }
+
   my @storage_storages = ('', split(/,/, $conf{STORAGE_STORAGES}));
 
   if ($FORM{sn} == 1) {
@@ -855,12 +798,13 @@ sub storage_main {
   }
 
   if ($FORM{add_article} == 1 and $FORM{add}) {
-
-    #$Storage->{debug}=1;
     $Storage->{ACTION}     = 'add';
     $Storage->{ACTION_LNG} = $_ADD;
-    if ($FORM{COUNT} != '' and $FORM{SUM} != '' and $FORM{ARTICLE_TYPE_ID} != '' and $FORM{ARTICLE_ID} != '' and $FORM{STORAGE_ID} != '') {
-
+    if ($FORM{COUNT} 
+         && $FORM{SUM} != '' 
+         && $FORM{ARTICLE_TYPE_ID}
+         && $FORM{ARTICLE_ID}
+         && $FORM{STORAGE_ID} != '') {
       $Storage->storage_incoming_articles_add({%FORM});
       if (!$Storage->{errno}) {
 
@@ -876,39 +820,32 @@ sub storage_main {
       }
     }
     else {
-
       my $ARTICLE_TYPES = $Storage->{ARTICLE_TYPES} = $html->form_select(
         "ARTICLE_TYPE_ID",
         {
-          SELECTED          => $FORM{ARTICLE_TYPE_ID},
-          SEL_MULTI_ARRAY   => [ [ '', '' ], @{ $Storage->storage_types_list() } ],
-          MULTI_ARRAY_KEY   => 0,
-          MULTI_ARRAY_VALUE => 1,
-          NO_ID             => 1,
-          EX_PARAMS         => 'onchange="autoReload();"',
-          MAIN_MENU         => get_function_index('storage_articles_types'),
+          SELECTED    => $FORM{ARTICLE_TYPE_ID},
+          SEL_LIST    => $Storage->storage_types_list({ COLS_NAME => 1 }),
+          EX_PARAMS   => 'onchange="autoReload();"',
+          MAIN_MENU   => get_function_index('storage_articles_types'),
+          SEL_OPTIONS => { '' => '--' },
         }
       );
 
       my $ARTICLE_ID = $Storage->{ARTICLE_ID} = $html->form_select(
         "ARTICLE_ID",
         {
-          SELECTED          => $FORM{ARTICLE_ID},
-          SEL_MULTI_ARRAY   => [ [ '', '' ], @{ $Storage->storage_articles_list({ ARTICLE_TYPE => $FORM{ARTICLE_TYPE_ID} }) } ],
-          MULTI_ARRAY_KEY   => 0,
-          MULTI_ARRAY_VALUE => 1,
-          NO_ID             => 1
+          SELECTED    => $FORM{ARTICLE_ID},
+          SEL_LIST    => $Storage->storage_articles_list({ ARTICLE_TYPE => $FORM{ARTICLE_TYPE_ID}, COLS_NAME => 1 }),
+          SEL_OPTIONS => { '' => '--' },
         }
       );
 
       my $SUPPLIER_ID = $Storage->{SUPPLIER_ID} = $html->form_select(
         "SUPPLIER_ID",
         {
-          SELECTED          => $FORM{SUPPLIER_ID},
-          SEL_MULTI_ARRAY   => [ [ '', '' ], @{ $Storage->suppliers_list() } ],
-          MULTI_ARRAY_KEY   => 0,
-          MULTI_ARRAY_VALUE => 1,
-          NO_ID             => 1
+          SELECTED    => $FORM{SUPPLIER_ID},
+          SEL_LIST    => $Storage->suppliers_list({ COLS_NAME => 1 }),
+          SEL_OPTIONS => { '' => '--' },
         }
       );
 
@@ -942,35 +879,29 @@ sub storage_main {
     $Storage->{ARTICLE_TYPES} = $html->form_select(
       "ARTICLE_TYPE_ID",
       {
-        SELECTED          => $FORM{ARTICLE_TYPE_ID},
-        SEL_MULTI_ARRAY   => [ [ '', "$_ALL" ], @{ $Storage->storage_types_list() } ],
-        MULTI_ARRAY_KEY   => 0,
-        MULTI_ARRAY_VALUE => 1,
-        NO_ID             => 1,
-        EX_PARAMS         => 'onchange="autoReload();"',
-        MAIN_MENU         => get_function_index('storage_articles_types'),
+        SELECTED    => $FORM{ARTICLE_TYPE_ID},
+        SEL_LIST    => $Storage->storage_types_list({ COLS_NAME => 1 }),
+        EX_PARAMS   => 'onchange="autoReload();"',
+        MAIN_MENU   => get_function_index('storage_articles_types'),
+        SEL_OPTIONS => { '' => '--' },
       }
     );
 
     $Storage->{ARTICLE_ID} = $html->form_select(
       "ARTICLE_ID",
       {
-        SELECTED          => $FORM{ARTICLE_ID},
-        SEL_MULTI_ARRAY   => [ [ '', "$_ALL" ], @{ $Storage->storage_articles_list({ ARTICLE_TYPE => $FORM{ARTICLE_TYPE_ID} }) } ],
-        MULTI_ARRAY_KEY   => 0,
-        MULTI_ARRAY_VALUE => 1,
-        NO_ID             => 1
+        SELECTED   => $FORM{ARTICLE_ID},
+        SEL_LIST   => $Storage->storage_articles_list({ ARTICLE_TYPE => $FORM{ARTICLE_TYPE_ID}, COLS_NAME => 1 }),
+        SEL_OPTIONS=> { '' => '--' },
       }
     );
 
     $Storage->{SUPPLIER_ID} = $html->form_select(
       "SUPPLIER_ID",
       {
-        SELECTED          => $FORM{SUPPLIER_ID},
-        SEL_MULTI_ARRAY   => [ [ '', "$_ALL" ], @{ $Storage->suppliers_list() } ],
-        MULTI_ARRAY_KEY   => 0,
-        MULTI_ARRAY_VALUE => 1,
-        NO_ID             => 1
+        SELECTED   => $FORM{SUPPLIER_ID},
+        SEL_LIST   => $Storage->suppliers_list({ COLS_NAME => 1 }),
+        SEL_OPTIONS=> { '' => '--' },      
       }
     );
 
@@ -999,7 +930,6 @@ sub storage_main {
       }
     );
 
-    #$Storage->{debug}=1;
     $list = $Storage->storage_incoming_articles_list(
       {
         ARTICLE_ID    => $FORM{ARTICLE_ID},
@@ -1108,8 +1038,6 @@ sub storage_main {
     $html->tpl_show(_include('storage_installation_add', 'Storage'), $Storage);
   }
   elsif ($FORM{install}) {
-
-    #$Storage->{debug}=1;
     my $NAS = $Storage->{NAS} = $html->form_select(
       "NAS",
       {
@@ -1215,7 +1143,6 @@ sub storage_main {
       }
     );
 
-    #Storage->{debug}=1;
     $list = $Storage->storage_accountability_list({ AID => $FORM{AID} });
 
     if ($Storage->{errno}) {
@@ -1230,8 +1157,6 @@ sub storage_main {
 
   }
   elsif ($FORM{del_accountability}) {
-
-    #$Storage->{debug}=1;
     $Storage->storage_accountability_del({ ID => $FORM{del_accountability} });
     if (!$Storage->{errno}) {
       $html->tpl_show(
@@ -1279,7 +1204,6 @@ sub storage_main {
       }
     );
 
-    #Storage->{debug}=1;
     $list = $Storage->storage_reserve_list({ AID => $FORM{AID} });
 
     if ($Storage->{errno}) {
@@ -1320,8 +1244,6 @@ sub storage_main {
     $html->tpl_show(_include('storage_reserve', 'Storage'), $Storage);
   }
   elsif ($FORM{del_reserve}) {
-
-    #$Storage->{debug}=1;
     $Storage->storage_reserve_del({ ID => $FORM{del_reserve} });
     if (!$Storage->{errno}) {
       $html->tpl_show(
@@ -1381,7 +1303,6 @@ sub storage_main {
       }
     );
 
-    #$Storage->{debug}=1;
     $list = $Storage->storage_installation_list(
       {
         AID       => $FORM{AID},
@@ -1414,8 +1335,6 @@ sub storage_main {
 
   }
   elsif ($FORM{return_storage}) {
-
-    #$Storage->{debug}=1;
     $list = $Storage->storage_installation_list({ ID => $FORM{return_storage} });
 
     if ($Storage->{errno}) {
@@ -1465,7 +1384,6 @@ sub storage_main {
       }
     );
 
-    #$Storage->{debug}=1;
     $list = $Storage->storage_discard_list({});
 
     if ($Storage->{errno}) {
@@ -1502,7 +1420,6 @@ sub storage_log {
   my @storage_id = split(/,/, $conf{STORAGE_STORAGES});
   my @action = ("$_ARRIVAL_OF_THE_GOODS", "$_INSTALLATION", "$_DISCARDED", "$_NARRATED_TO_ACCOUNTABILITY", "$_RETURN_TO_THE_MANUFACTURER", "$_RESERVE", "$_RETURNED_STORAGE", "$_RECORD_CREATED", "$_RECORD_CHANGED");
 
-  #$Storage->{debug}=1;
   $list = $Storage->storage_log_list({});
   if ($Storage->{errno}) {
     $html->message('err', $_ERROR, "[$Storage->{errno}] $err_strs{$Storage->{errno}}");
@@ -1538,8 +1455,6 @@ sub storage_orders {
   $Storage->{ACTION_LNG} = $_ADD;
 
   if ($FORM{add_order} == 1 and $FORM{chg}) {
-
-    #$Storage->{debug}=1;
     $Storage->{ACTION}     = 'change';
     $Storage->{ACTION_LNG} = $_CHANGE;
     $Storage->{CHG}        = '<input type=hidden name=chg value=1>';
@@ -1551,8 +1466,6 @@ sub storage_orders {
   if ($FORM{change}) {
 
     if ($FORM{ARTICLE_TYPE_ID} != '' and $FORM{ARTICLE_ID} != '') {
-
-      #$Storage->{debug}=1;
       $Storage->storage_orders_change({%FORM});
       if (!$Storage->{errno}) {
 
@@ -1665,8 +1578,6 @@ sub storage_orders {
   }
 
   if ($FORM{add_order} == 1 and $FORM{add}) {
-
-    #$Storage->{debug}=1;
     $Storage->{ACTION}     = 'add';
     $Storage->{ACTION_LNG} = $_ADD;
     if ($FORM{ARTICLE_TYPE_ID} != '' and $FORM{ARTICLE_ID} != '') {
@@ -1741,7 +1652,6 @@ sub storage_orders {
     }
   );
 
-  #$Storage->{debug}=1;
   $list = $Storage->storage_orders_list({});
 
   if ($Storage->{errno}) {
@@ -1766,7 +1676,7 @@ sub storage_orders {
 #***********************************************************
 sub storage_hardware {
 
-  #$Storage->{debug} = 1;
+
   if ($FORM{message}) {
     $html->message('info', $_INFO, "$FORM{message}");
   }
@@ -1774,49 +1684,38 @@ sub storage_hardware {
   $Storage->{ACTION_LNG} = $_ADD;
   $Storage->{DATE}       = '0000-00-00';
 
-  #"$_INSTALLED", "$_SOLD", "$_RENT"
-  my @status;
-
-  $status[0] = "$_INSTALLED";
-  $status[1] = "$_SOLD";
-  $status[2] = "$_RENT";
+  my @status = ( "$_INSTALLED", "$_SOLD", "$_RENT" );
 
   my @storage_storages = ('', split(/,/, $conf{STORAGE_STORAGES}));
 
   # ADD HARDWARE TO USER -------------------------------------
-
   if ($FORM{add} and defined($FORM{UID}) and $FORM{UID} ne '') {
 
     if (defined($FORM{MAC}) and $FORM{MAC} ne '') {
       if (in_array('Dhcphosts', \@MODULES)) {
         load_module('Dhcphosts', $html);
         my $result = dhcphosts_user({ REGISTRATION => 1 });
-
-        #$FORM{AUTO_IP}=1;
       }
     }
 
     if ($FORM{ARTICLE_ID}) {
-
-      #$Storage->{debug} = 1;
-      $list = $Storage->storage_incoming_articles_list({ ID => $FORM{ARTICLE_ID} });
+      $list = $Storage->storage_incoming_articles_list({ ID        => $FORM{ARTICLE_ID},
+      	                                                 COLS_NAME => 1 });
 
       if ($Storage->{errno}) {
         $html->message('err', $_ERROR, "[$Storage->{errno}] $err_strs{$Storage->{errno}}");
       }
 
-      $leftover = $list->[0]->[21];
+      $leftover = $list->[0]->{total};
 
-      my $sell_price = $list->[0]->[29] * $FORM{COUNT};
-      my $rent_price = $list->[0]->[30] * $FORM{COUNT};
-
-      #$fees->{debug}=1;
+      my $sell_price = $list->[0]->{sell_price} * $FORM{COUNT};
+      my $rent_price = $list->[0]->{rent_price} * $FORM{COUNT};
 
       if ($FORM{STATUS} == 1) {
-        $fees->take($users, $sell_price, { DESCRIBE => "$_PAY_FOR_SELL $list->[0]->[14]" });
+        $fees->take($users, $sell_price, { DESCRIBE => "$_PAY_FOR_SELL $list->[0]->{article_name}" });
       }
       elsif ($FORM{STATUS} == 2) {
-        $fees->take($users, $rent_price, { DESCRIBE => "$_PAY_FOR_RENT $list->[0]->[14]" });
+        $fees->take($users, $rent_price, { DESCRIBE => "$_PAY_FOR_RENT $list->[0]->{article_name}" });
       }
 
       if ($leftover == '') {
@@ -1828,11 +1727,10 @@ sub storage_hardware {
         $Storage->storage_installation_user_add(
           {
             %FORM,
-            COUNT_INCOMING               => $list->[0]->[2],
-            SUM_TOTAL                    => $list->[0]->[23],
-            MAIN_ARTICLE_ID              => $list->[0]->[0],
+            COUNT_INCOMING               => $list->[0]->{sia_count},
+            SUM_TOTAL                    => $list->[0]->{total_sum},
+            MAIN_ARTICLE_ID              => $list->[0]->{sia_id},
             STORAGE_INCOMING_ARTICLES_ID => $FORM{ARTICLE_ID},
-
           }
         );
 
@@ -1851,7 +1749,6 @@ sub storage_hardware {
       else {
         $Storage->{ID} = $FORM{ID};
         $html->message('info', $_INFO, "$_CANT_INSTALL_MAX_VALUE $leftover ");
-
         #          $html->tpl_show(_include('storage_hardware_installation', 'Storage'), {
         #            %$Storage,
         #            %FORM,
@@ -1885,8 +1782,6 @@ sub storage_hardware {
   # RETURN HARDWARE TO STORAGE -------------------------------
 
   elsif ($FORM{return_storage} and defined($FORM{UID}) and $FORM{UID} ne '') {
-
-    #$Storage->{debug}=1;
     $list = $Storage->storage_installation_list({ ID => $FORM{return_storage} });
 
     print $FORM{COMMENTS};
@@ -1929,8 +1824,6 @@ sub storage_hardware {
   # CHANGE USER HARDWARE -------------------------------------
 
   if ($FORM{change}) {
-
-    #$Storage->{debug}=1;
     $Storage->storage_installation_change({%FORM});
     if (!$Storage->{errno}) {
       $html->tpl_show(
@@ -1943,7 +1836,6 @@ sub storage_hardware {
     }
   }
 
-  #$Storage->{debug}=1;
   if ($FORM{chg} and defined($FORM{UID}) and $FORM{UID} ne '') {
     $Storage->{ACTION}     = 'change';
     $Storage->{ACTION_LNG} = $_CHANGE;
@@ -1978,17 +1870,16 @@ sub storage_hardware {
   $val = $Storage->storage_types_list();
   $FORM{ARTICLE_TYPE_ID} = defined($FORM{ARTICLE_TYPE_ID}) ? $FORM{ARTICLE_TYPE_ID} : (defined($Storage->{ARTICLE_TYPE_ID}) ? $Storage->{ARTICLE_TYPE_ID} : $val->[0]->[0]);
 
-  #$Storage->{debug}=1;
-
   $Storage->{ARTICLE_ID} = $html->form_select(
     "ARTICLE_ID",
     {
-      SELECTED => defined($FORM{ARTICLE_ID}) ? $FORM{ARTICLE_ID} : $Storage->{ARTICLE_ID},
-      SEL_MULTI_ARRAY   => [ @{ $Storage->storage_incoming_articles_list({ ARTICLE_TYPES => $FORM{ARTICLE_TYPE_ID}, HIDE_ZERO_VALUE => 1 }) } ],
-      MULTI_ARRAY_KEY   => 0,
-      MULTI_ARRAY_VALUE => '14, 21',
-      NO_ID             => 1,
-      EX_PARAMS         => $Storage->{DISABLE}
+      SELECTED  => defined($FORM{ARTICLE_ID}) ? $FORM{ARTICLE_ID} : $Storage->{ARTICLE_ID},
+      SEL_LIST  => $Storage->storage_incoming_articles_list({ ARTICLE_TYPES => $FORM{ARTICLE_TYPE_ID}, HIDE_ZERO_VALUE => 1, COLS_NAME => 1 }),
+      SEL_KEY   => 'sia_id',
+      SEL_VALUE => 'article_name',
+      NO_ID     => 1,
+      EX_PARAMS => $Storage->{DISABLE},
+      MAIN_MENU => get_function_index('storage_articles'),
     }
   );
 
@@ -1998,18 +1889,14 @@ sub storage_hardware {
     "STATUS",
     {
       SELECTED      => $FORM{STATUS},
-      SEL_ARRAY     => [@status],
+      SEL_ARRAY     => \@status,
       ARRAY_NUM_ID  => 1,
       OUTPUT2RETURN => 1,
     }
   );
 
   if (in_array('Dhcphosts', \@MODULES)) {
-
     load_module('Dhcphosts', $html);
-
-    #use Dhcphosts;
-    #my $Dhcphosts = Dhcphosts->new($db, $admin, \%conf);
 
     if (defined($Storage->{NETWORK})) {
       $FORM{NETWORK} = $Storage->{NETWORK};
@@ -2021,7 +1908,6 @@ sub storage_hardware {
     }
 
     $Storage->{NETWORKS_SEL} = dhcphosts_network_sel();
-
   }
   if (!defined($FORM{return_comment})) {
 
@@ -2067,8 +1953,6 @@ sub storage_hardware {
       }
     );
 
-    #$Storage->{debug}=1;
-
     #($FORM{SHOW_STATUS} == 2) ? "UID => $FORM{UID}, STATUS => $FORM{SHOW_STATUS}" : "UID => $FORM{UID}, STATUS => 1"
 
     $list = $Storage->storage_installation_list(
@@ -2105,8 +1989,6 @@ sub storage_hardware {
     }
 
     print $table->show();
-
-    #$Storage->{debug}=1;
 
     # USER HARDWARE LOG  ----------------------------------------
 
@@ -2160,9 +2042,8 @@ sub storage_hardware {
 }
 
 #***********************************************************
-#   storage_monthly_fees
+# storage_monthly_fees
 #***********************************************************
-
 sub storage_monthly_fees {
   my ($attr) = @_;
 
@@ -2172,19 +2053,14 @@ sub storage_monthly_fees {
   my ($y, $m, $d) = split(/-/, $ADMIN_REPORT{DATE}, 3);
 
   if ($d == 01) {
-
-    #$Storage->{debug}=1;
-    my $list = $Storage->storage_rent_fees({});
+    my $list = $Storage->storage_rent_fees({ COLS_NAME => 1 });
 
     foreach my $line (@$list) {
+      $users->{BILL_ID}   = $line->{bill_id};
+      $users->{UID}       = $line->{id};
+      $line->{rent_price} = $line->{rent_price} * $line->{count};
 
-      $users->{BILL_ID} = $line->[4];
-      $users->{UID}     = $line->[1];
-
-      $line->[2] = $line->[2] * $line->[3];
-
-      #$fees->{debug}=1;
-      $fees->take($users, $line->[2], { DESCRIBE => "$_PAY_FOR_RENT $line->[5]" });
+      $fees->take($users, $line->{rent_price}, { DESCRIBE => "$_PAY_FOR_RENT $line->{article_name}" });
 
       if ($fees->{errno}) {
         $html->message('err', $_ERROR, "[$fees->{errno}] $err_strs{$fees->{errno}}");
@@ -2192,6 +2068,4 @@ sub storage_monthly_fees {
 
     }
   }
-
-  #print 'ok';
 }

@@ -21,6 +21,17 @@ sub neg_deposit_warning {
     $Sessions->{debug}=1;
   }
   
+  my $custom_rules;
+  if ($ARGV->{DEPOSIT}) {
+  	$LIST_PARAMS{DEPOSIT}=$ARGV->{DEPOSIT};
+  	$custom_rules=1;
+  }
+
+  if ($ARGV->{CREDIT}) {
+  	$LIST_PARAMS{CREDIT}=$ARGV->{CREDIT};
+  	$custom_rules=1;
+  }
+
   $Sessions->online({	USER_NAME      => '_SHOW', 
       NAS_PORT_ID    => '_SHOW', 
       CONNECT_INFO   => '_SHOW',
@@ -34,18 +45,28 @@ sub neg_deposit_warning {
       DEPOSIT        => '_SHOW',
       CREDIT         => '_SHOW',
       PAYMENT_METHOD => '_SHOW',
+      GUEST          => '_SHOW',
       NAS_ID         => $LIST_PARAMS{NAS_IDS},
       %LIST_PARAMS,
     }
   );
 
+  if ($Sessions->{errno}) {
+  	print "Error: $Sessions->{errno} $Sessions->{errstr}\n";
+  }
+
+  
+
   #my $online      = $sessions->{nas_sorted};
 
-  foreach my $info (@{ $sessions->{list} }) {
+  foreach my $info (@{ $Sessions->{list} }) {
   print "Login: $info->{user_name} IP: $info->{client_ip} DEPOSIT: $info->{deposit} CREDIT: $info->{credit}\n" if ($debug);
-    if ($info->{deposit} + $info->{credit} <= 0 && $info->{payment_type} == 0) {
-    	mk_redirect({ IP => $info->{ip} });
+    if ((($info->{deposit} + $info->{credit} <= 0 && $info->{payment_type} == 0) || $custom_rules) && $debug < 7) {
+    	mk_redirect({ IP => $info->{client_ip} });
     }
+  }
+  if ($debug> 3) {
+  	print "Total: $Sessions->{TOTAL}\n";
   }
 }
 
@@ -60,7 +81,7 @@ sub mk_redirect {
 	
 	if ($conf{NEG_DEPOSIT_WARNING_CMD}) {
 		$cmd = $conf{NEG_DEPOSIT_WARNING_CMD};
-		$cmd =~ s/IP/$attr->{IP}/g;
+		$cmd =~ s/\%IP\%/$attr->{IP}/g;
 	}
 	elsif ($OS eq 'FreeBSD') {
 		$cmd = "/usr/local/bin/sudo /sbin/ipfw table 32 add $attr->{IP}";

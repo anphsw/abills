@@ -365,6 +365,14 @@ sub abon_user_list {
     return 0;
   }
 
+  if ($FORM{search_form}) {
+    form_search({ SEARCH_FORM  => $html->tpl_show(_include('abon_users_search', 'Abon'), 
+      { %$Abon, %FORM }, 
+      { OUTPUT2RETURN => 1 }),
+        ADDRESS_FORM  => 1
+    });
+  }
+
   $LIST_PARAMS{COMPANY_ID} = $FORM{COMPANY_ID} if ($FORM{COMPANY_ID});
 
   my $list  = $Abon->user_list({%LIST_PARAMS,
@@ -379,7 +387,8 @@ sub abon_user_list {
       cols_align => [ 'left', 'right', 'left', 'right' ],
       qs         => $pages_qs,
       pages      => $Abon->{TOTAL},
-      ID         => "ABON_USERS"
+      ID         => "ABON_USERS",
+      MENU       => "$_SEARCH:search_form=1&index=$index:search",
     }
   );
 

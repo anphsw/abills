@@ -38,7 +38,7 @@ sub new {
   bless($self, $class);
   
   $self->{db}=$db;
-
+  
   return $self;
 }
 
@@ -50,7 +50,7 @@ sub info {
   my $self = shift;
   my ($uid, $attr) = @_;
 
-  if (defined($attr->{LOGIN})) {
+  if (defined($attr->{LOGIN}) && $attr->{LOGIN} ne '') {
     my $users = Users->new($self->{db}, $admin, $CONF);
     $users->info(0, { LOGIN => "$attr->{LOGIN}" });
     if ($users->{errno}) {
@@ -109,7 +109,8 @@ sub info {
    tp.age AS tp_age,
    tp.filter_id AS tp_filter_id,
    tp.period_alignment AS tp_period_alignment,
-   tp.fixed_fees_day
+   tp.fixed_fees_day,
+   tp.comments
      FROM dv_main dv
      LEFT JOIN tarif_plans tp ON ((tp.module='Dv' or tp.module='') AND dv.tp_id=tp.id and tp.domain_id='$domain_id')
    $WHERE;",
@@ -401,7 +402,7 @@ sub list {
                                             'ACTIVATE',
                                             'EXPIRE',
                                             'DEPOSIT',
-                                            'DOMAIN_ID'
+                                            'DOMAIN_ID',
                                              ] }) };
 
   if ($attr->{USERS_WARNINGS}) {
@@ -524,11 +525,12 @@ sub list {
       ['SHOW_PASSWORD',  '',    '',  "DECODE(u.password, '$CONF->{secretkey}') AS password," ],
       ['STATUS',         'INT', 'dv.disable as dv_status',          1 ],
       ['DV_EXPIRE',      'DATE','dv.expire as dv_expire',           1 ],
+      ['UID',            'INT', 'dv.uid',                           1 ],
     ],
     { WHERE       => 1,
     	WHERE_RULES => \@WHERE_RULES,
     	USERS_FIELDS=> 1,
-    	SKIP_USERS_FIELDS=> [ 'FIO' ]
+    	SKIP_USERS_FIELDS=> [ 'FIO', 'UID' ]
     }    
     );
 

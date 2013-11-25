@@ -551,6 +551,38 @@ sub form_select {
       $self->{SELECT} .= "\n";
     }
   }
+  elsif ($attr->{SEL_LIST}) {
+    my $key                      = $attr->{SEL_KEY} || 'id';
+    my $value                    = $attr->{SEL_VALUE} || 'name';
+    my $H                        = $attr->{SEL_LIST};
+    my @SEL_VALUE_PREFIX = ();
+
+    if ($attr->{SEL_VALUE_PREFIX}) {
+      @SEL_VALUE_PREFIX = split(/,/, $attr->{SEL_VALUE_PREFIX});
+    }
+
+    foreach my $v (@$H) {
+      $self->{SELECT} .= "<option value='$v->{$key}'";
+      $self->{SELECT} .= ' selected ' if (defined($attr->{SELECTED}) && $v->{$key} eq $attr->{SELECTED});
+      $self->{SELECT} .= '>';
+      #Value
+      $self->{SELECT} .= " $v->{$key} " if (!$attr->{NO_ID});
+
+      if ($value =~ /,/) {
+        my @values      = split(/,/, $value);
+        my @valuesr_arr = ();
+        for( my $key_num; $key_num<=$#values; $key_num++) {
+          my $val_keys = $values[$key_num];
+          push @valuesr_arr, (($attr->{SEL_VALUE_PREFIX} && $SEL_VALUE_PREFIX[$key_num]) ? $SEL_VALUE_PREFIX[$key_num] . $v->{$val_keys} : $v->{$val_keys});
+        }
+        $self->{SELECT} .= join(' : ', @valuesr_arr);
+      }
+      else {
+        $self->{SELECT} .= "$v->{$value}";
+      }
+      $self->{SELECT} .= "</option>\n";
+    }
+  }
   elsif (defined($attr->{SEL_HASH})) {
     my @H            = ();
     my @group_colors = ('#000000', '#008000', '#0000A0', '#D76B00', '#790000', '#808000', '#3D7A7A');
@@ -1602,74 +1634,6 @@ sub pages {
 
 }
 
-##*******************************************************************
-## Make data field
-## date_fld($base_name)
-##*******************************************************************
-#sub date_fld {
-#  my $self = shift;
-#  my ($base_name, $attr) = @_;
-#
-#  my $MONTHES = $attr->{MONTHES};
-#
-#  my ($sec, $min, $hour, $mday, $mon, $curyear, $wday, $yday, $isdst) = localtime(time);
-#
-#  if ($attr->{DATE}) {
-#    my ($y, $m, $d) = split(/-/, $attr->{DATE});
-#    $mday = $d;
-#  }
-#  else {
-#    $mday = 1;
-#  }
-#
-#  my $month = $FORM{ $base_name . 'M' } || $mon;
-#  my $year  = $FORM{ $base_name . 'Y' } || $curyear + 1900;
-#  my $day;
-#
-#  if ($FORM{ $base_name . 'D' }) {
-#    $day = $FORM{ $base_name . 'D' };
-#  }
-#  else {
-#    if ($base_name =~ /to/i) {
-#      my $m = $month + 1;
-#      $day = ($m != 2 ? (($m % 2) ^ ($m > 7)) + 30 : (!($year % 400) || !($year % 4) && ($year % 25) ? 29 : 28));
-#    }
-#    else {
-#      $day = $mday;
-#    }
-#  }
-#
-#  my $result = "<SELECT name=" . $base_name . "D>";
-#  for (my $i = 1 ; $i <= 31 ; $i++) {
-#    $result .= sprintf("<option value=%.2d", $i);
-#    $result .= ' selected' if ($day == $i);
-#    $result .= ">$i\n";
-#  }
-#  $result .= '</select>';
-#
-#  $result .= "<SELECT name=" . $base_name . "M>";
-#
-#  my $i = 0;
-#  foreach my $line (@$MONTHES) {
-#    $result .= sprintf("<option value=%.2d", $i);
-#    $result .= ' selected' if ($month == $i);
-#
-#    $result .= ">$line\n";
-#    $i++;
-#  }
-#  $result .= '</select>';
-#
-#  $result .= "<SELECT name=" . $base_name . "Y>";
-#  for ($i = 2002 ; $i <= $curyear + 1900 + 2 ; $i++) {
-#    $result .= "<option value=$i";
-#    $result .= ' selected' if ($year eq $i);
-#    $result .= ">$i\n";
-#  }
-#  $result .= '</select>' . "\n";
-#
-#  return $result;
-#}
-
 #*******************************************************************
 # Make data field
 # date_fld($base_name)
@@ -1693,8 +1657,8 @@ sub date_fld2 {
   }
   elsif ($FORM{$base_name}) {
     $date = $FORM{$base_name};
+    $self->{$base_name} = $date;
   }
-
   # Default Date
   elsif (!$attr->{NO_DEFAULT_DATE}) {
     my ($sec, $min, $hour, $mday, $mon, $curyear, $wday, $yday, $isdst) = localtime(time + (($attr->{NEXT_DAY}) ? 86400 : 0));

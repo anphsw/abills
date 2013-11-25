@@ -1,6 +1,43 @@
 =====0.55=====
+1.11.2013\\
 
-24.06.20013\\
+   * Обновлена функция перерасчёта при изменении тарифного плана
+   * ''Paysys'' Добавлены CashCom, PayU
+   * ''Paysys'' Обновлён Privat Terminal
+   * ''Dv'' Добавлены параметры радиус пар для фильтров
+   * shaper_start.sh  добавлена автонастройка для распределения трафика по нескольким каналам 
+   * Добавлен параметр идентификации времени завершения услуги
+   * ''Sms'' Добавлен более гибкий шаблон восстановления пароля
+   * ''Sms'' добавлен фильтр отчёта
+   * ''Docs'': Добавлен альтернативный шаблон для счетов 
+   * Порядок работы радиус дополнительных радиус параметров изменён на tp -> user -> nas
+   * ''Abon'' добавлена форма поиска
+   * Обновлён алгоритм поиска и сортировки по IP и Адресам
+   * ''Docs'' добавлено формирование документов с фиксированной датой услуги
+   * ''Dhcphosts'' добавлена проверка на не заполненные мак адреса для абонентов с одинаковым портом коммутатора
+   * ''Dhcphosts'' добавлено поле статуса услуги Internet
+   * ''Ureports'' добавлен отчёт изменения услуги интернет
+   * ''Rwizard'' добавлен дополнительный фильтр по адресу
+   * обновлён mikrotik шейпер
+   * ''Ureports'' добавлено во все отчёты, рекомендованная сума оплаты и время завершения услуг
+   * Работаем с реестром запрещенных ресурсов
+
+18.07.2013\\
+  * Добавлен импорт адресов и дополнительные поля для домов
+  * ''Paysys'' добавлена возможность импортировать файлы по маске
+  * ''Paysys'' протокол OSMP добавлен курс обмена при оплате
+  * ''Pasysy'' добавлена система [[abills:docs:modules:paysys:ru#sms_online|SMSOnline]]
+  * multi_docs.pl добавлена дата создания документа и поточный депозит
+
+MySQL:\\
+
+  ALTER TABLE builds ADD COLUMN contract_id varchar(12) not null default '';
+  ALTER TABLE builds ADD COLUMN contract_date date not null default '0000-00-00';
+  ALTER TABLE builds ADD COLUMN contract_price double(15,6) NOT NULL default '0.000000';
+  ALTER TABLE builds ADD COLUMN comments text;
+  
+
+24.06.2013\\
 
   * Добавлено отдельное поле завершение для каждой услуги
   * В консольный генератор счетов добавлена опция включения текущего депозита в счёт
@@ -22,7 +59,7 @@ MySQL:\\
   ALTER TABLE iptv_main ADD COLUMN `expire` date NOT NULL default '0000-00-00';
   ALTER TABLE voip_main ADD COLUMN `expire` date NOT NULL default '0000-00-00';
 
-15.05.20013\\
+15.05.2013\\
  
   * Активация учётной записи после подтверждения её супер администратором 
   * ''Snmputils''  добавлена выборка MAC с зарегистрированных коммутаторов 
@@ -45,7 +82,7 @@ MySQL:\\
   CREATE TABLE `admin_settings` (
     `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
     `object` varchar(20) NOT NULL default '',
-    `setting` text not null default '',
+    `setting` text not null,
     PRIMARY KEY  (`aid`, `object`)
   ) COMMENT="Admins settings";
 
@@ -143,10 +180,10 @@ MySQL:\\
    CREATE TABLE reports_wizard (
      id int(11) unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
      name varchar(100) not null default '',
-     comments text not null default '',
+     comments text not null,
      query text not null default '',
-     query_total text not null default '',
-     fields text not null default '',
+     query_total text not null,
+     fields text not null,
      date date not null default '0000-00-00',
      aid smallint(11) unsigned NOT NULL default 0,
      unique (name)
@@ -382,7 +419,7 @@ MySQL:\\
     `id` int(11) NOT NULL auto_increment,
     `storage_incoming_articles_id` smallint(6) NOT NULL,
     `storage_installation_id` smallint(6) NOT NULL,
-    `serial` text character set utf8 NOT NULL,
+    `serial` text NOT NULL,
     PRIMARY KEY  (`id`)
   ) DEFAULT CHARSET=utf8;
 
@@ -464,7 +501,7 @@ MYSQL:\\
   
   CREATE TABLE `reg_wizard` (
     `param` varchar(40) NOT NULL default '',
-    `value` text NOT NULL default '',
+    `value` text NOT NULL,
     `aid` smallint(6) unsigned NOT NULL default '0',
     `module` varchar(40) NOT NULL default '',
     `step` tinyint(2) NOT NULL default '0',
@@ -753,7 +790,7 @@ MySQL\\
     `change_bonus` double(14,2) unsigned NOT NULL default '0.00',
     `activate_bonus` double(14,2) unsigned NOT NULL default '0.00',
     `ext_bill_account` tinyint(1) unsigned NOT NULL DEFAULT '0',
-    `comments` text NOT NULL default '',
+    `comments` text NOT NULL,
     PRIMARY KEY  (`tp_id`)
   ) COMMENT='Tarif plans bonus rating';
 

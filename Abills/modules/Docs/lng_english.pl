@@ -45,3 +45,5 @@ $_LAST_INVOICE_DATE='Last Invoice date';
 $_NEXT_INVOICE_DATE='Next Invoice Date';
 $_INCLUDE_DEPOSIT='Include current balance';
 $_APPLY_TO_INVOICE='Auto apply to invoice';
+$_PRINT_EXT='Extenssion print';
+$_PRINT_EXT_LIST='Print List Extended';

@@ -25,7 +25,7 @@ require "Abills/templates.pl";
 require Abills::Base;
 Abills::Base->import(
   qw{ check_time parse_arguments in_array mk_unique_value
-  sendmail int2byte  int2ml ip2int int2ip tpl_parse }
+  sendmail int2byte  int2ml ip2int int2ip tpl_parse date_diff }
 );
 my $begin_time = check_time();
 
@@ -270,14 +270,6 @@ if ($args->{DEBUG}) {
 # sheduler()
 #**********************************************************
 sub sheduler {
-
-  #my %shedule_type = ('tp'      => $_TARIF_PLAN,
-  #                    'fees'    => $_FEES,
-  #                    'message' => $_MESSAGES,
-  #                    'status'  => $_STATUS,
-  #                    'sql'     => 'SQL'
-  # );
-
   $DEBUG .= "Shedule\n" if ($debug > 1);
 
   #Change tp
@@ -289,13 +281,16 @@ sub sheduler {
   Fees->import();
   my $fees = Fees->new($db, $admin, \%conf);
 
+  $shedule->{debug}=1 if ($debug>6);
+
   my $list = $shedule->list(
     {
       Y         => "$Y,\\*",
       M         => "$M,\\*",
       D         => "$D,\\*",
       PAGE_ROWS => 1000000,
-      COLS_NAME => 1
+      COLS_NAME => 1,
+      %LIST_PARAMS
     }
   );
 
@@ -399,8 +394,14 @@ sub admin_report_daily {
   $LIST_PARAMS{DESC}      = 'DESC';
   $LIST_PARAMS{PAGE_ROWS} = 1000000;
 
-  $list = $Payments->list({ %LIST_PARAMS, 
-  	                        FIO       => '*',
+  $list = $Payments->list({ LOGIN     => '_SHOW',
+  	                        FIO       => '_SHOW',
+  	                        DESCRIBE  => '_SHOW',
+  	                        SUM       => '_SHOW',
+  	                        ADMIN_NAME=> '_SHOW',
+  	                        IP        => '_SHOW',
+  	                        DATE      => '_SHOW',
+  	                        %LIST_PARAMS, 
   	                        COLS_NAME => 1 
   	                      });
 
@@ -426,9 +427,19 @@ sub admin_report_daily {
   $ADMIN_REPORT{FEES} .= sprintf("%-14s|%-28s| %8s| %20s| %12s| %15s| %8s\n", $_LOGIN, $_FIO, $_DESCRIBE, $_SUM, $_TYPE, $_ADMINS, 'IP', $_DEPOSIT);
   $ADMIN_REPORT{FEES} .= "---------------------------------------------------------\n";
 
-  $list = $Fees->list({ %LIST_PARAMS, 
-  	                    FIO       => '*',
+  $list = $Fees->list({ 
+                        LOGIN     => '_SHOW',
+                        FIO       => '_SHOW',
+                        DESCRIBE  => '_SHOW',
+                        SUM       => '_SHOW',
+                        ADMIN_NAME=> '_SHOW',
+                        IP        => '_SHOW',
+                        DATE      => '_SHOW',
+                        METHOD    => '_SHOW',
+                        DEPOSIT   => '_SHOW',
+                        %LIST_PARAMS, 
   	                    COLS_NAME => 1 });
+
   foreach my $line (@$list) {
     $ADMIN_REPORT{FEES} .= sprintf("%-14s|%-28s| %20s| %8.4f| %12s | %12s| %15s| %8.4f\n", 
       ($line->{login}) ? $line->{login} : "!Unknown", 

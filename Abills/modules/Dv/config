@@ -8,7 +8,7 @@
                    "07:2:$_COMPENSATION:dv_compensation:UID"  => 11,
                    "10:0:Internet:null:"                      => 5,
                    "11:10:$_TARIF_PLANS:dv_tp:"               => 5,
-                   "12:11:$_ADD:dv_tp:"                       => 5,
+#                   "12:11:$_ADD:dv_tp:"                       => 5,
                    "13:11:$_INTERVALS:form_intervals:TP_ID"   => 5,
                    "14:11:$_NASS:form_nas_allow:TP_ID"        => 5,
                    "15:11:$_USERS:dv_users_list:TP_ID"        => 5,

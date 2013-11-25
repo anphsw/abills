@@ -71,7 +71,7 @@ sub new {
   $CONF->{MB_SIZE}              = $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE};
   $self->{TRAFFIC_ROWS}         = 0;
   $self->{UNKNOWN_TRAFFIC_ROWS} = 0;
-  $Billing = Billing->new($db, $CONF);
+  $Billing = Billing->new($self->{db}, $CONF);
 
   return $self;
 }
@@ -833,7 +833,7 @@ sub traffic_add {
 }
 
 #**********************************************************
-# Acct_stop
+# Acct_update
 #**********************************************************
 sub acct_update {
   my $self = shift;
@@ -895,6 +895,8 @@ sub acct_stop {
       calls.acct_session_id,
       calls.acct_input_octets AS input_octets,
       calls.acct_output_octets AS output_octets,
+      acct_input_gigawords, 
+      acct_output_gigawords,
       dv.tp_id,
       if(u.company_id > 0, cb.id, b.id) AS bill_id,
       if(c.name IS NULL, b.deposit, cb.deposit)+u.credit AS deposit,
@@ -927,12 +929,30 @@ sub acct_stop {
     return $self;
   }
 
+  if ($self->{OUTPUT_OCTETS} && $self->{OUTPUT_OCTETS} > 4294967296) {
+    $self->{ACCT_OUTPUT_GIGAWORDS} = int($self->{OUTPUT_OCTETS} / 4294967296);
+    $self->{OUTPUT_OCTETS} = $self->{OUTPUT_OCTETS} - ($self->{ACCT_OUTPUT_GIGAWORDS} * 4294967296);
+  }
+  else {
+  	$self->{INPUT_OCTETS}=0;
+  }
+  
+  if ($self->{INPUT_OCTETS} && $self->{INPUT_OCTETS} > 4294967296) {
+    $self->{ACCT_INPUT_GIGAWORDS} = int($self->{INPUT_OCTETS} / 4294967296);
+    $self->{INPUT_OCTETS} = $self->{INPUT_OCTETS} - ($self->{ACCT_INPUT_GIGAWORDS} * 4294967296);
+  } 
+  else {
+  	$self->{INPUT_OCTETS}=0;
+  }
+
   $self->query2("INSERT INTO dv_log (uid, 
     start, 
     tp_id, 
     duration, 
     sent, 
     recv, 
+    acct_output_gigawords,
+    acct_input_gigawords, 
     sum, 
     nas_id, 
     port_id,
@@ -946,6 +966,7 @@ sub acct_stop {
         VALUES ('$self->{UID}', '$self->{START}', '$self->{TP_ID}', 
           '$self->{ACCT_SESSION_TIME}', 
           '$self->{OUTPUT_OCTETS}', '$self->{INPUT_OCTETS}', 
+          '$self->{ACCT_OUTPUT_GIGAWORDS}', '$self->{ACCT_INPUT_GIGAWORDS}',
           '$self->{SUM}', '$self->{NAS_ID}',
           '$self->{NAS_PORT}', 
           '$self->{FRAMED_IP_ADDRESS}', 

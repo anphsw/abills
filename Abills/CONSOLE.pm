@@ -1011,4 +1011,29 @@ sub br () {
   return "\n";
 }
 
+
+#*******************************************************************
+# element
+#*******************************************************************
+sub element {
+  my $self = shift;
+  my ($name, $value, $attr) = @_;
+
+  my $params = '';
+  if (ref $attr eq 'HASH') {
+    while(my($k, $v)=each %$attr) {
+      $params .= "$k='$v' ";
+    }  
+  }
+
+  $self->{FORM_INPUT} = "<$name $params>$value</$name>";
+
+  if (defined($self->{NO_PRINT}) && (!defined($attr->{OUTPUT2RETURN}))) {
+    $self->{OUTPUT} .= $self->{FORM_INPUT};
+    $self->{FORM_INPUT} = '';
+  }
+
+  return $self->{FORM_INPUT};
+}
+
 1

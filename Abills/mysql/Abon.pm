@@ -34,11 +34,6 @@ sub new {
 
   $admin->{MODULE} = $MODULE;
 
-  if ($CONF->{DELETE_USER}) {
-    $self->{UID} = $CONF->{DELETE_USER};
-    $self->del({ UID => $CONF->{DELETE_USER} });
-  }
-
   $self->{db}=$db;
 
   return $self;
@@ -267,42 +262,26 @@ sub user_list {
   $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  @WHERE_RULES = ("u.uid=ul.uid", "at.id=ul.tp_id");
+  my @WHERE_RULES = ("u.uid=ul.uid", "at.id=ul.tp_id");
+  my $EXT_TABLE       = '';
+  $self->{EXT_TABLES} = '';
 
-  if ($attr->{LOGIN}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{LOGIN}, 'STR', 'u.id') };
-  }
+  my $WHERE =  $self->search_former($attr, [
+      ['FIO',        'STR', 'pi.fio',           ],
+      ['ABON_ID',    'INT', 'at.id',            ],
+      ['TP_ID',      'INT', 'ul.tp_id',         ],
+      ['COMMENTS',   'STR', 'ul.comments',      ],
+      ['LAST_ABON',  'INT', 'ul.date',          ],
+      ['MANUAL_FEE', 'INT', 'ul.manual_fee',    ],
+    ],
+    { WHERE             => 1,
+    	WHERE_RULES       => \@WHERE_RULES,
+    	USERS_FIELDS      => 1,
+    	SKIP_USERS_FIELDS => [ 'FIO' ]
+    }
+    );
 
-  if ($attr->{COMPANY_ID}) {
-    push @WHERE_RULES, "u.company_id='$attr->{COMPANY_ID}'";
-  }
-
-  if ($attr->{GIDS}) {
-    push @WHERE_RULES, "u.gid IN ($attr->{GIDS})";
-  }
-  elsif ($attr->{GID}) {
-    push @WHERE_RULES, "u.gid='$attr->{GID}'";
-  }
-
-  if ( !$admin->{permissions}->{0}
-    || !$admin->{permissions}->{0}->{8}
-    || ($attr->{USER_STATUS} && !$attr->{DELETED}))
-  {
-    push @WHERE_RULES, @{ $self->search_expr(0, 'INT', 'u.deleted', { EXT_FIELD => 1 }) };
-  }
-  elsif ($attr->{DELETED}) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{DELETED}", 'INT', 'u.deleted', { EXT_FIELD => 1 }) };
-  }
-
-  if ($attr->{ABON_ID}) {
-    push @WHERE_RULES, "at.id='$attr->{ABON_ID}'";
-  }
-
-  if (defined($attr->{MANUAL_FEE})) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{MANUAL_FEE}", 'INT', 'ul.manual_fee') };
-  }
-
-  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+  $EXT_TABLE = $self->{EXT_TABLES} if ($self->{EXT_TABLES});
 
   $self->query2("SELECT u.id AS login, pi.fio, at.name AS tp_name, ul.comments, at.price, at.period,
      ul.date, 

@@ -15,3 +15,5 @@ $_ALL_SERVICE_EXPIRE='All Service expired throught XX days';
 $_DEAR='Dear';
 
 $_DEPOSIT_NOTIFY_BEFORE_ABON='Send deposit before abon payment';
+
+$_RECOMMENDED_PAYMENT='Recommended payment';

@@ -12,7 +12,8 @@
 
 #:DEFAULT:PPP_CONTROL_PASSWORD=secret:PPP control password 
 #
-ip-up.local        > [/etc/ppp]/ip-up.local
+ip-up.local        > [/etc/ppp]/ip-up
+ip-down        > [/etc/ppp]/ip-down
 pptpd.conf         > [/etc]/pptpd.conf
 pptpd.options      > [/etc/ppp]/pptpd.options
 dictionary.microsoft >> [/etc/radiusclient]/dictionary   

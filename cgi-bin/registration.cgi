@@ -12,6 +12,7 @@ $users
 $Bin
 $ERR_WRONG_DATA
 $ERR_CANT_CREATE_FILE
+$_BUILD
 $DATE
 $TIME
 $sid
@@ -74,6 +75,7 @@ my $admin = Admins->new($db, \%conf);
 $admin->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });
 my $payments = Finance->payments($db, $admin, \%conf);
 $users = Users->new($db, $admin, \%conf);
+
 
 #my $Paysys = Paysys->new($db, undef, \%conf);
 
@@ -154,6 +156,7 @@ elsif ($#REGISTRATION > -1) {
        <tr><td align=right><img src='/captcha/" . $md5sum . ".png'></td><td><input type='text' name='CCODE'></td></tr>";
     }
   }
+
   $INFO_HASH{RULES} = $html->tpl_show(templates('form_accept_rules'), {}, { OUTPUT2RETURN => 1 });
   $INFO_HASH{language} = $html->{language};
 
@@ -162,7 +165,7 @@ elsif ($#REGISTRATION > -1) {
     $INFO_HASH{DOMAIN_ID} = 0;
   }
 
-  load_module($m);
+  load_module($m, $html);
 
   $m = lc($m);
   my $function = $m . '_registration';
@@ -223,6 +226,7 @@ sub password_recovery {
       my $email   = $FORM{EMAIL} || '';
       my $phone   = $list->[0]{phone};
       my $uid     = $list->[0]{uid};
+      my ($user, $pi);
 
       if ($FORM{LOGIN} && !$FORM{EMAIL}) {
         $email = $u[0]{email};
@@ -232,11 +236,14 @@ sub password_recovery {
         if ($FORM{EMAIL}) {
           $uid = $line->{uid};
         }
-        $users->info($uid, { SHOW_PASSWORD => 1 });
+
+        $pi    = $users->pi({ UID => $uid });
+        $user  = $users->info($uid, { SHOW_PASSWORD => 1 });
+
         $message .= "$_LOGIN:  $users->{LOGIN}\n" . "$_PASSWD: $users->{PASSWORD}\n" . "================================================\n";
       }
 
-      $message = $html->tpl_show(templates('msg_passwd_recovery'), { MESSAGE => $message }, { OUTPUT2RETURN => 1 });
+      $message = $html->tpl_show(templates('msg_passwd_recovery'), { MESSAGE => $message, %$user, %$pi }, { OUTPUT2RETURN => 1 });
 
       if ($email ne '') {
         sendmail("$conf{ADMIN_MAIL}", "$email", "$PROGRAM Password Repair", "$message", "$conf{MAIL_CHARSET}", "");
@@ -248,7 +255,7 @@ sub password_recovery {
       }
 
       if ($FORM{SEND_SMS} && in_array('Sms', \@MODULES)) {
-      	load_module('Sms');
+      	load_module('Sms', $html);
         if (
           sms_send(
             {
@@ -277,30 +284,7 @@ sub password_recovery {
   $html->tpl_show(templates('form_forgot_passwd'), \%info);
 }
 
-#**********************************************************
-# Make external operations
-#**********************************************************
-sub _external {
-  my ($file, $attr) = @_;
 
-  my $arguments = '';
-  while (my ($k, $v) = each %$attr) {
-    if ($k ne '__BUFFER' && $k =~ /[A-Z0-9_]/) {
-      $arguments .= " $k=\"$v\"";
-    }
-  }
-
-  my $result = `$file $arguments`;
-  my ($num, $message) = split(/:/, $result, 2);
-  if ($num == 1) {
-    $html->message('info', "_EXTERNAL $_ADDED", "$message");
-    return 1;
-  }
-  else {
-    $html->message('err', "_EXTERNAL $_ERROR", "[$num] $message");
-    return 0;
-  }
-}
 
 #**********************************************************
 # Ajax address form
@@ -314,56 +298,38 @@ sub form_address_sel {
   ($id, undef) = split(/-/, $id);
 
   if ($FORM{STREET}) {
-    my $list = $users->build_list({ STREET_ID => $FORM{STREET}, PAGE_ROWS => 10000 });
+    my $list = $users->build_list({ STREET_ID => $FORM{STREET}, PAGE_ROWS => 10000, COLS_NAME => 1 });
     if ($users->{TOTAL} > 0) {
       foreach my $line (@$list) {
-        $js_list .= "<option class='spisok' value='p3|$line->[0]|l3|$line->[6]'>$line->[0]</option>";
+        $line->{number} =~ s/\'/&rsquo;/g;
+        $js_list .= "<option value='$line->{id}'>$line->{number}</option>";
       }
     }
-    else {
-      $js_list .= "<option class='spisok' value='p3||l3|0'>$_NOT_EXIST</option>";
-    }
-
     my $size = ($users->{TOTAL} > 10) ? 10 : $users->{TOTAL};
     $size = 2 if ($size < 2);
-    $js_list = "<select style='width: inherit;' size='$size' onchange='insert(this)' id='build'>" . $js_list . "</select>";
-
-    print qq{JsHttpRequest.dataReady({ "id": "$id", 
-   	     "js": { "list": "$js_list" }, 
-         "text": "" }) };
+    print "<option value=''></option>" . $js_list;
   }
   elsif ($FORM{DISTRICT_ID}) {
-    my $list = $users->street_list({ DISTRICT_ID => $FORM{DISTRICT_ID}, PAGE_ROWS => 1000 });
+    my $list = $users->street_list({ DISTRICT_ID => $FORM{DISTRICT_ID}, PAGE_ROWS => 10000, SORT => 2, COLS_NAME => 1 });
     if ($users->{TOTAL} > 0) {
       foreach my $line (@$list) {
-        $js_list .= "<option class='spisok' value='p2|$line->[1]|l2|$line->[0]'>$line->[1]</option>";
+        $line->{name} =~ s/\'/&rsquo;/g;
+        $js_list .= "<option value='$line->{id}'>$line->{street_name}</option>";
       }
     }
-    else {
-      $js_list .= "<option class='spisok' value='p2||l2|0'>$_NOT_EXIST</option>";
-    }
-
     my $size = ($users->{TOTAL} > 10) ? 10 : $users->{TOTAL};
     $size = 2 if ($size < 2);
-    $js_list = "<select style='width: inherit;' size='$size' onchange='insert(this)' id='street'>" . $js_list . "</select>";
-
-    print qq{JsHttpRequest.dataReady({ "id": "$id", 
-   	    "js": { "list": "$js_list" }, 
-        "text": "" }) };
+    print "<option value=''></option>" . $js_list;
   }
   else {
-    my $list = $users->district_list({ %LIST_PARAMS, PAGE_ROWS => 1000 });
+    my $list = $users->district_list({ %LIST_PARAMS, PAGE_ROWS => 1000, COLS_NAME => 1 });
     foreach my $line (@$list) {
-      $js_list .= "<option class='spisok' value='p1|$line->[1]|l1|$line->[0]'>$line->[1]</option>";
+      $js_list .= "<option  value='$line->{id}'>$line->{name}</option>";
     }
 
     my $size = ($users->{TOTAL} > 10) ? 10 : $users->{TOTAL};
     $size = 2 if ($size < 2);
-    $js_list = "<select style='width: inherit;' size='$size' onchange='insert(this)' id='block'>" . $js_list . "</select>";
-
-    print qq{JsHttpRequest.dataReady({ "id": "$id", 
-   	    "js": { "list": "$js_list" }, 
-        "text": "" }) };
+      print "<option value=''></option>" . $js_list;
   }
   exit;
 }

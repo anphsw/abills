@@ -2,3 +2,4 @@
 #my.cnf                          > [/etc/]/my.cnf
 :OS=FREEBSD:exec:/usr/local/etc/rc.d/mysql-server restart
 :OS=LINUX:exec:/etc/init.d/mysqld start
+:OS=LINUX:exec:/etc/init.d/mysql start

@@ -111,7 +111,7 @@ if (!exists($conf{'NAS_IP_ADDRESS'}) || !exists($conf{'VOIP_NAS_ID'})) {
   if (!exists($conf{'VOIP_NAS_ID'})) { $conf{'VOIP_NAS_ID'} = $hostname; }
   if (!exists($conf{'VOIP_NAS_IP_ADDRESS'})) {
     use Socket;
-    $conf{'VOIP_NAS_IP_ADDRESS'} = inet_ntoa(scalar(gethostbyname($hostname || 'localhost')));
+    $rad_attributes{'NAS-IP-Address'} = inet_ntoa(scalar(gethostbyname($hostname || 'localhost')));
   }
 }
 

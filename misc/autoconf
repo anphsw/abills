@@ -10,11 +10,16 @@ $begin_time
 use strict;
 use FindBin '$Bin';
 
-my $VERSION     = 3.13;
+my $VERSION     = 3.14;
 my $config_file = '/usr/abills/libexec/config.pl';
 
 $conf{OS}       = uc(`uname`);
 chop($conf{OS});
+
+if ($conf{OS} =~ /Linux/) {
+	$conf{OS}='LINUX';
+}
+
 $conf{WORK_DIR} = $Bin;
 my $debug       = 0;
 require $Bin . '/../Abills/Base.pm';
@@ -122,7 +127,6 @@ if (!-f $config_file) {
         if ($conf{OS} eq 'FREEBSD') {
 
         }
-
         #Other OS
         else {
           $mysql = '/usr/bin/mysql';
@@ -359,7 +363,10 @@ sub check_install {
 
     #Reg expression
     print $file if ($debug > 4);
-
+    $file =~ s/[\r\n]+//g;
+    
+    next if ( ! $file);
+    
     # :DEFAULT:DEFAULT_VALUE_NAME=DEFAULT_VALUE_VALUE:DESCRIBE
     # Get default values
     if ($file =~ /^:DEFAULT:(.+)/) {
@@ -437,8 +444,8 @@ sub check_install {
         $exec_file = $1;
       }
 
-      if ($exec_file =~ /\// && !-x $exec_file) {
-        print "File '$exec_file' not exist or not executeble\n";
+      if ($exec_file =~ /\// && ! -x $exec_file) {
+        print "Error: File '$exec_file' not exist or not executeble\n";
         return 0;
       }
       my $res = `$exec_cmd`;
@@ -505,7 +512,7 @@ sub check_install {
       $config_body = get_file($conf{WORK_DIR} . "/$program/$config");
     }
     else {
-    	print "Unknown options:\n $file\n";
+    	print "Unknown options:\n '$file'\n";
       next;
     }
 

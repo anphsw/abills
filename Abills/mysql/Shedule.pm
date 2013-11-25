@@ -139,57 +139,28 @@ sub list {
   $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  @WHERE_RULES = ();
+  @WHERE_RULES        = ();
+  my $EXT_TABLE       = '';
+  $self->{EXT_TABLES} = '';
 
-  if ($attr->{UID}) {
-    push @WHERE_RULES, "s.uid='$attr->{UID}'";
-  }
-
-  if ($attr->{AID}) {
-    push @WHERE_RULES, "s.aid='$attr->{AID}'";
-  }
-
-  if ($attr->{TYPE}) {
-    push @WHERE_RULES, "s.type='$attr->{TYPE}'";
-  }
-
-  if ($attr->{Y}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{Y}, 'STR', 's.y') };
-  }
-
-  if ($attr->{M}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{M}, 'STR', 's.m') };
-  }
-
-  if ($attr->{D}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{D}, 'STR', 's.d') };
-  }
-
-  if ($attr->{MODULE}) {
-    push @WHERE_RULES, "s.module='$attr->{MODULE}'";
-  }
-
-  if ($attr->{COMMENTS}) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{COMMENTS}", 'STR', 's.comments') };
-  }
-
-  if (defined($attr->{ACTION})) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{ACTION}", 'STR', 's.action') };
-  }
-
-  if (defined($attr->{ADMIN_ACTION})) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{ADMIN_ACTION}", 'STR', 's.admin_action') };
-  }
-
-  # Show groups
-  if ($attr->{GIDS}) {
-    push @WHERE_RULES, "u.gid IN ($attr->{GIDS})";
-  }
-  elsif ($attr->{GID}) {
-    push @WHERE_RULES, "u.gid='$attr->{GID}'";
-  }
-
-  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+  my $WHERE =  $self->search_former($attr, [
+      [ 'UID',     'INT', 's.uid'     ],
+      [ 'AID',     'INT', 's.aid'     ],
+      [ 'TYPE',    'INT', 's.type'    ],
+      [ 'Y',       'STR', 's.y'       ],
+      [ 'M',       'STR', 's.m'       ],
+      [ 'D',       'STR', 's.d'       ],
+      [ 'MODULE',  'STR', 's.module'  ],
+      [ 'COMMENTS','STR', 's.comments'],
+      [ 'ACTION',  'STR', 's.action'  ],
+      [ 'ADMIN_ACTION', 'STR', 's.admin_action' ]
+     ],
+    { WHERE             => 1,
+    	WHERE_RULES       => \@WHERE_RULES,
+    	USERS_FIELDS      => 1,
+    	SKIP_USERS_FIELDS => [ 'FIO' ]
+    }
+    );
 
   $self->query2("SELECT s.h, s.d, s.m, s.y, s.counts, u.id AS login, s.type, s.action, s.module, a.id AS admin_name, s.date, s.comments, a.aid, s.uid, s.id  
     FROM shedule s

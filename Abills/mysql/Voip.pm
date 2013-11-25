@@ -137,7 +137,7 @@ sub user_add {
   my $self = shift;
   my ($attr) = @_;
 
-  $attr->{CID} = lc('$attr->{CID}');
+  $attr->{CID} = lc("$attr->{CID}");
   $self->query_add('voip_main', $attr);
 
   $self->{TP_INFO} = $tariffs->info($attr->{TP_ID});
@@ -206,7 +206,6 @@ sub user_list {
   $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-
   @WHERE_RULES = ( "u.uid = service.uid" );
   my $EXT_TABLES = '';
   $self->{EXT_TABLES}='';
@@ -271,8 +270,7 @@ sub user_list {
       ['VOIP_EXPIRE',    'DATE','service.expire AS voip_expire',    1 ],
       ['PROVISION_PORT', 'INT', 'service.provision_port',           1 ],
       ['PROVISION_NAS_ID','INT','service.provision_nas_id',         1 ],
-      ['PASSWORD',       '',    '',  "DECODE(u.password, '$CONF->{secretkey}') AS password" ],
-
+      #['PASSWORD',       'STR', "DECODE(u.password, '$CONF->{secretkey}')",  "DECODE(u.password, '$CONF->{secretkey}') AS password" ],
     ],
     { WHERE       => 1,
     	WHERE_RULES => \@WHERE_RULES,
@@ -282,13 +280,15 @@ sub user_list {
     );
 
   $EXT_TABLES = $self->{EXT_TABLES} if ($self->{EXT_TABLES});
+  if ($self->{SEARCH_FIELDS}=~/pi\./) {
+    $EXT_TABLES .= 'LEFT JOIN users_pi pi ON (u.uid = pi.uid)';
+  }
 
   $self->query2("SELECT u.id AS login, 
       $self->{SEARCH_FIELDS}
       u.uid, 
       service.tp_id
      FROM (users u, voip_main service)
-     LEFT JOIN users_pi pi ON (u.uid = pi.uid)
      LEFT JOIN tarif_plans tp ON (tp.tp_id=service.tp_id) 
      $EXT_TABLES
      $WHERE 
@@ -303,7 +303,9 @@ sub user_list {
   my $list = $self->{list};
 
   if ($self->{TOTAL} >= 0) {
-    $self->query2("SELECT count(u.id) AS total FROM (users u, voip_main service) $WHERE",
+    $self->query2("SELECT count(u.id) AS total FROM (users u, voip_main service)
+    $EXT_TABLES
+     $WHERE",
     undef, { INFO => 1 });
   }
 

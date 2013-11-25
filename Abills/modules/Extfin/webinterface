@@ -1233,7 +1233,7 @@ sub extfin_debetors {
       rows     => [
         [
           "$_PERIOD: ",
-          $html->form_input('SEL_DATE', 1, { TYPE => 'checkbox' }) . $html->date_fld2('from', { MONTHES => \@MONTHES }),
+          $html->form_input('SEL_DATE', 1, { TYPE => 'checkbox' }) . $html->date_fld2('FROM_DATE', { MONTHES => \@MONTHES }),
           "$_STATUS: "
           . $html->form_select(
             'STATUS',
@@ -1263,18 +1263,25 @@ sub extfin_debetors {
   );
 
   if ($FORM{show}) {
-    $FORM{fromM}++;
-    $LIST_PARAMS{DATE} = "$FORM{fromY}-$FORM{fromM}-$FORM{fromD}" if ($FORM{show} && $FORM{SEL_DATE});
+    $LIST_PARAMS{DATE} = "$FORM{FROM_DATE}" if ($FORM{show} && $FORM{SEL_DATE});
     $LIST_PARAMS{STATUS} = $FORM{STATUS};
   }
+  else {
+  	$LIST_PARAMS{DATE}=$DATE;
+  }
 
-  my $list  = $Extfin->extfin_debetors({ %LIST_PARAMS, });
+  my $list  = $Extfin->extfin_debetors({ %LIST_PARAMS,  });
+  
+  if ($Extfin->{errno}) {
+    $html->message('err', $_ERROR, "[$Extfin->{errno}] $err_strs{$Extfin->{errno}}");
+  }
+  
   my $table = $html->table(
     {
-      width   => '100%',
-      caption => "$_DEBETORS",
-      border  => 1,
-      title   => [ '#', $_LOGIN, $_CONTRACT_ID, $_FIO, $_REGISTRATION, "$_STATUS", "$_TARIF_PLAN", $_DEPOSIT, "< 32 days", "33 - 64 days", "65 - 96 days", "97 - 183 days", "184 - 365 days", "> 365 days" ],
+      width      => '100%',
+      caption    => "$_DEBETORS",
+      border     => 1,
+      title      => [ '#', $_LOGIN, $_CONTRACT_ID, $_FIO, $_REGISTRATION, "$_STATUS", "$_TARIF_PLAN", $_DEPOSIT, "< 32 days", "33 - 64 days", "65 - 96 days", "97 - 183 days", "184 - 365 days", "> 365 days" ],
       cols_align => [ 'right', 'left', 'left', 'left', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right' ],
       ID         => 'DEBETORS'
     }

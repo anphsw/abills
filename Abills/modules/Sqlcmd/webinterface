@@ -1083,7 +1083,7 @@ sub sqlcmd_cluster {
     }
 
     if (!$sql->{db}) {
-      $html->messages('info', $_INFO, "Can't connect to $host '" . $conf{ 'SQLCMD_HOST' . $id . '_HOSTNAME' } . "'");
+      $html->messages('info', $_INFO, "Can't connect to $host ($id) '" . $conf{ 'SQLCMD_HOST' . $id . '_HOSTNAME' } . "'");
       return 0;
     }
 

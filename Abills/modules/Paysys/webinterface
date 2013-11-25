@@ -67,6 +67,8 @@ my %PAY_SYSTEMS = (
   87 => 'OKPay',
   88 => 'Bitcoin',
   89 => 'Smsonline',
+  90 => 'Cashcom',
+  91 => 'PayU',
 );
 
 my %CONF_OPTIONS = (
@@ -119,6 +121,8 @@ my %CONF_OPTIONS = (
   PAYSYS_OKPAY_KEY                          => 87,
   PAYSYS_BITCOIN_KEY                        => 88,
   PAYSYS_SMSONLINE_KEY                      => 89,
+  PAYSYS_CASHCOM_PROVIDER_ID                => 90,
+  PAYSYS_PAYU_MERCHANT                      => 91
 );
 
 my @status = ("$_UNKNOWN",
@@ -440,7 +444,8 @@ sub paysys_import_form {
           cols_align => [ 'left', 'left', 'right', 'right', 'left', 'right', 'right', 'center:noprint', 'center:noprint' ],
           qs         => $pages_qs,
           ID         => 'PAYSYS_IMPORT_LIST',
-          SELECT_ALL => "FORM_IMPORT:IDS:$_SELECT_ALL"
+          SELECT_ALL => "FORM_IMPORT:IDS:$_SELECT_ALL",
+          EXPORT     => 1,
         }
       );
 
@@ -733,6 +738,13 @@ sub paysys_payment {
   elsif ($FORM{PAYMENT_SYSTEM} == 89) {
     paysys_smsonline();
   }  
+  elsif ($FORM{PAYMENT_SYSTEM} == 90) {
+    paysys_cashcom();
+  }  
+  elsif ($FORM{PAYMENT_SYSTEM} == 91) {
+    paysys_upay();
+  }  
+
   else {
     PRE_LABEL:
     my %info = ();
@@ -759,7 +771,9 @@ sub paysys_payment {
       85 => 'PAYSYS_WEBMONEY_TERMINAL',
       86 => 'PAYSYS_PERFECTMONEY_ACCOUNTID',
       87 => 'PAYSY_OKPAY_RECEIVER',
-      89 => 'PAYSYS_SMSONLINE'
+      89 => 'PAYSYS_SMSONLINE',
+      90 => 'PAYSYS_CASHCOM_PROVIDER_ID',
+      91 => 'PAYSYS_PAYU_MERCHANT'
     );
 
     while (my ($k, $v) = each %PAY_SYSTEMS) {
@@ -1383,6 +1397,12 @@ sub paysys_portmone () {
     return 0;
   }
   else {
+  	my %PAYSYS_PAYMENT_METHODS = ();
+  	
+  	if($conf{PAYSYS_PAYMENTS_METHODS}) {
+  	  %PAYSYS_PAYMENT_METHODS = %{ cfg2hash($conf{PAYSYS_PAYMENTS_METHODS}) };
+  	}
+
     #Info section
     $Paysys->add(
       {
@@ -2243,6 +2263,10 @@ sub paysys_qiwi {
         if ($result->{'result-code'}->[0]->{content} == 150) {
           $error .= " $ERR_TERMINAL";
         }
+        elsif ($result->{'result-code'}->[0]->{content} == 298) {
+        	$error .= " $_REGISTER_IN QIWI-wallet";
+        } 
+
         $html->message('err', "$_ERROR", "$_ERROR: $error");
       }
       else {
@@ -3004,5 +3028,115 @@ sub paysys_smsonline {
       STATUS         => 1
       });
 }
+
+
+#**********************************************************
+# 80567161228 vadim
+# vadim.ignatkin@pbank.com.ua
+#**********************************************************
+sub paysys_cashcom {
+  my %info = ();
+
+  $html->tpl_show(_include('paysys_cashcom_add', 'Paysys'), \%info);
+}
+
+#**********************************************************
+# 
+# 
+#**********************************************************
+sub paysys_payu {
+  my %info = ();
+
+  my $payment_system    = 'UPAY';
+  my $payment_system_id = 91;
+  my $order_id          = $FORM{orderid};
+
+  if ($FORM{FALSE}) {
+    if ($FORM{reasoncode} == 11) {
+      $FORM{reasoncodedesc} = "$ERR_INVALID_SIGNATURE";
+    }
+    elsif ($FORM{reasoncode} == 2) {
+      $FORM{reasoncodedesc} = "$ERR_TRANSACTION_DECLINED";
+    }
+    $html->message('err', $_ERROR, "$_FAILED ID: $FORM{orderid} [$FORM{reasoncode}/$FORM{responsecode}] $FORM{reasoncodedesc} ");
+    $html->setCookie('lastindex', "", "Fri, 1-Jan-2038 00:00:01", $web_path, $domain, $secure);
+
+    return 0;
+  }
+  elsif ($FORM{TRUE}) {
+    my $list = $Paysys->list(
+      {
+        TRANSACTION_ID => "$FORM{orderid}",
+        UID            => $LIST_PARAMS{UID},
+        SUM            => '_SHOW',
+        COLS_NAME      => 1
+      }
+    );
+
+    if ($Paysys->{TOTAL} > 0) {
+      $html->message('info', $_INFO, "$_ADDED $_SUM: $list->[0]->{sum} ID: $FORM{OPERATION_ID}");
+    }
+    else {
+      $html->message('err', $_ERROR, "$_FAILED ID: $FORM{OPERATION_ID} $_ERR_NO_TRANSACTION");
+    }
+    $html->setCookie('lastindex', "", "Fri, 1-Jan-2038 00:00:01", $web_path, $domain, $secure);
+
+    return 0;
+  }
+  else {
+    if ($FORM{SUM} <= 0) {
+      $html->message('info', $_ERROR, "$ERR_WRONG_SUM $FORM{SUM}");
+      return 0;
+    }
+
+    #Info section
+    $Paysys->add(
+      {
+        SYSTEM_ID      => $payment_system_id,
+        DATETIME       => "$DATE $TIME",
+        SUM            => $FORM{SUM},
+        UID            => $user->{UID},
+        IP             => "$ENV{'REMOTE_ADDR'}",
+        TRANSACTION_ID => "$FORM{OPERATION_ID}",
+        INFO           => '-',
+        PAYSYS_IP      => "$ENV{'REMOTE_ADDR'}",
+        STATUS         => 1
+      }
+    );
+
+    if ($Paysys->{errno}) {
+      $html->message('err', "$_ERROR", "$_ERROR Paysys ID: '$FORM{OPERATION_ID}'");
+      return 0;
+    }
+
+  }
+
+  $html->setCookie('lastindex', "$index", "Fri, 1-Jan-2038 00:00:01", $web_path, $domain, $secure);
+  $info{OPERATION_ID}   = $FORM{OPERATION_ID};
+  $info{AMOUNT}         = sprintf("%.12d", int($FORM{SUM} * 100));
+  $info{AMOUNT2}        = sprintf("%.12d", int($info{AMOUNT2}));
+  $info{AdditionalData} = "index=$index&UID=$user->{UID}";
+
+  #SHA1 signature
+  #----------------------------
+  eval { require Digest::SHA1; };
+  if (!$@) {
+    Digest::SHA1->import();
+  }
+  else {
+    print "Content-Type: text/html\n\n" if ($user->{UID});
+    print "Can't load 'Digest::SHA1' check http://www.cpan.org";
+    exit;
+  }
+
+  my $ctx = Digest::SHA1->new;
+  $ctx->add($conf{PAYSYS_PB_PW} . $conf{PAYSYS_PB_MERID} . '414963' . $info{OPERATION_ID} . $info{AMOUNT} . '980' . $info{AMOUNT2} . '840' . $info{AdditionalData});
+  $info{ORDER_HASH}            = $ctx->b64digest();
+
+
+  $html->tpl_show(_include('paysys_upay_add', 'Paysys'), \%info);
+}
+
+
 1
 

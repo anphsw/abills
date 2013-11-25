@@ -91,8 +91,8 @@ my $Dv = Dv->new($db, $admin, \%conf);
 my %LIST_PARAMS = ();
 
 if ($ARGV->{DEBUG}) {
-	$debug = $fees->{DEBUG};
-  if ($ARGV->{DEBUG} > 5) {
+	$debug = $ARGV->{DEBUG};
+  if ($ARGV->{DEBUG} > 6) {
     $users->{debug}=1; 
     $fees->{debug}=1;
     $payments->{debug}=1;
@@ -786,7 +786,14 @@ sub form_fees {
     }
   }
 
-  my $list = $fees->list({%LIST_PARAMS, COLS_NAME => 1 });
+  my $list = $fees->list({LOGIN     => '_SWOW',
+  	                      DATE      => '_SWOW',
+  	                      SUM       => '_SWOW',
+  	                      DSC       => '_SHOW',
+  	                      %LIST_PARAMS, 
+  	                      COLS_NAME => 1 
+  	                      });
+
   foreach my $line (@$list) {
     printf("%-5d| %-16s|%19s|%11f|%-20s|\n", $line->{id}, $line->{login}, $line->{date}, $line->{sum}, $line->{dsc});
 

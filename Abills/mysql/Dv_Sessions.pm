@@ -121,22 +121,32 @@ sub online_count {
   my ($attr) = @_;
 
   my $EXT_TABLE = '';
-  my $WHERE = '';
+  my @WHERE_RULES = ();
   if($attr->{DOMAIN_ID}) {
-    $EXT_TABLE = ' INNER JOIN users u ON (c.uid=u.uid)';
-    $WHERE = " AND u.domain_id='$attr->{DOMAIN_ID}'";
+    @WHERE_RULES = ("u.domain_id='$attr->{DOMAIN_ID}'");
+  }
+
+  my $WHERE = $self->search_former($attr, [ ],
+    {
+      USERS_FIELDS  => 1,
+      WHERE_RULES   => \@WHERE_RULES,
+    }
+  );
+
+  if ($WHERE =~ / u\./) {
+    $EXT_TABLE = ' INNER JOIN users u ON (c.uid=u.uid)';  
   }
 
   $self->query2("SELECT n.id AS nas_id, 
    n.name AS nas_name, n.ip AS nas_ip, n.nas_type,  
    sum(if (c.status=1 or c.status>=3, 1, 0)) AS nas_total_sessions,
    count(distinct c.uid) AS nas_total_users,
-   sum(if (status=2, 1, 0)) AS nas_zaped, 
-   sum(if (status>3, 1, 0)) AS nas_error_sessions
+   sum(if (c.status=2, 1, 0)) AS nas_zaped, 
+   sum(if (c.status>3, 1, 0)) AS nas_error_sessions
  FROM dv_calls c  
  INNER JOIN nas n ON (c.nas_id=n.id)
  $EXT_TABLE
- WHERE c.status<11 $WHERE
+ $WHERE
  GROUP BY c.nas_id
  ORDER BY $SORT $DESC;",
  undef,
@@ -195,18 +205,14 @@ sub online {
   if ($attr->{ZAPED}) {
     push @WHERE_RULES, "c.status=2";
   }
-  elsif ($attr->{ALL}) {
-
-  }
-  elsif ($attr->{STATUS}) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{STATUS}", 'INT', 'c.status') };
+  elsif ($attr->{ALL} || $attr->{STATUS}) {
   }
   else {
     push @WHERE_RULES, "((c.status=1 or c.status>=3) AND c.status<11)";
   }
 
   if ($attr->{FILTER}) {
-  	$attr->{$attr->{FILTER_FIELD}} = $attr->{FILTER};
+    $attr->{$attr->{FILTER_FIELD}} = $attr->{FILTER};
   }
 
   my $WHERE =  $self->search_former($attr, [
@@ -260,12 +266,13 @@ sub online {
       ['ACCT_SESSION_ID',   'STR', 'c.acct_session_id',                           1 ],
       ['UID',               'INT', 'c.uid'                                          ],
       ['LAST_ALIVE',        'INT', 'UNIX_TIMESTAMP() - c.lupdated AS last_alive', 1 ],
-      ['ONLINE_BASE',  	    '',    '', 'c.CID, c.acct_session_id, UNIX_TIMESTAMP() - c.lupdated AS last_alive, c.uid' ]
+      ['ONLINE_BASE',        '',   '', 'c.CID, c.acct_session_id, UNIX_TIMESTAMP() - c.lupdated AS last_alive, c.uid' ]
     ],
-    { WHERE        => 1,
-    	WHERE_RULES  => \@WHERE_RULES,
-    	USERS_FIELDS => 1
-    }    
+    { WHERE             => 1,
+      WHERE_RULES       => \@WHERE_RULES,
+      USERS_FIELDS      => 1,
+      SKIP_USERS_FIELDS => [ 'UID' ]
+    }
     );
 
   foreach my $field ( keys %$attr ) {
@@ -284,16 +291,14 @@ sub online {
   }
 
   $EXT_TABLE .= $self->{EXT_TABLES} if ($self->{EXT_TABLES});
-  
+
   delete $self->{COL_NAMES_ARR};
 
   $self->query2("SELECT $self->{SEARCH_FIELDS} c.uid,c.nas_id,c.acct_session_id
        FROM dv_calls c
        LEFT JOIN users u     ON (u.uid=c.uid)
        LEFT JOIN dv_main service ON (service.uid=u.uid)
-
        $EXT_TABLE
-
        $WHERE
        ORDER BY $SORT $DESC;", 
    undef,
@@ -369,7 +374,7 @@ sub online_del {
             and acct_session_id='$ACCT_SESSION_ID'";
   }
 
-  $self->query2("SELECT uid, user_name, started, SEC_TO_TIME(lupdated-UNIX_TIMESTAMP(started)), sum FROM dv_calls WHERE $WHERE");
+  $self->query2("SELECT uid, user_name, started, if(lupdated>0, SEC_TO_TIME(lupdated-UNIX_TIMESTAMP(started)), '00:00:00'), sum FROM dv_calls WHERE $WHERE");
   foreach my $line (@{ $self->{list} }) {
     $admin->action_add("$line->[0]", "START: $line->[2] DURATION: $line->[3] SUM: $line->[4]", { MODULE => 'Dv', TYPE => 13 });
   }
@@ -397,32 +402,35 @@ sub online_info {
     }    
     );
 
-  $self->query2("SELECT user_name, 
-    UNIX_TIMESTAMP(started) AS session_start, 
-    acct_session_time, 
-   acct_input_octets,
-   acct_output_octets,
-   ex_input_octets,
-   ex_output_octets,
-   connect_term_reason,
-   INET_NTOA(framed_ip_address) AS framed_ip_address,
-   lupdated as last_update,
-   nas_port_id as nas_port,
-   INET_NTOA(nas_ip_address) AS nas_ip_address , 
-   CID AS calling_session_id,
-   CONNECT_INFO,
-   acct_session_id,
-   nas_id,
-   started AS acct_session_started,
-   acct_input_gigawords 
-   acct_output_gigawords 
-   FROM dv_calls 
+  $self->query2("SELECT c.user_name, 
+    UNIX_TIMESTAMP(c.started) AS session_start, 
+    c.acct_session_time, 
+   c.acct_input_octets,
+   c.acct_output_octets,
+   c.ex_input_octets,
+   c.ex_output_octets,
+   c.connect_term_reason,
+   INET_NTOA(c.framed_ip_address) AS framed_ip_address,
+   c.lupdated as last_update,
+   c.nas_port_id as nas_port,
+   INET_NTOA(c.nas_ip_address) AS nas_ip_address , 
+   c.CID AS calling_station_id,
+   c.CONNECT_INFO,
+   c.acct_session_id,
+   c.nas_id,
+   c.started AS acct_session_started,
+   c.acct_input_gigawords, 
+   c.acct_output_gigawords,
+   if(dv.filter_id != '', dv.filter_id, if(tp.filter_id is null, '', tp.filter_id)) AS filter_id 
+   FROM dv_calls c 
+   LEFT JOIN dv_main dv ON (c.uid=dv.uid)
+   LEFT JOIN tarif_plans tp ON (dv.tp_id=tp.id and module='Dv')
    $WHERE",
    undef,
    { INFO => 1 }
   );
 
-  $self->{CID} = $self->{CALLING_SESSION_ID};
+  $self->{CID} = $self->{CALLING_STATION_ID};
 
   return $self;
 }
@@ -669,7 +677,9 @@ sub prepaid_rest {
     tp.day_traf_limit,
     tp.week_traf_limit,
     tp.month_traf_limit,
-    tt.interval_id
+    tt.interval_id,
+    tt.in_price,
+    tt.out_price
   from (users u,
         dv_main dv,
         tarif_plans tp,
@@ -892,18 +902,19 @@ sub list {
       [ 'UID',             'INT', 'l.uid'                            ],
     ], 
     { WHERE             => 1,
-    	WHERE_RULES       => \@WHERE_RULES,
-    	USERS_FIELDS      => 1,
-    	SKIP_USERS_FIELDS => [ 'UID' ]
+      WHERE_RULES       => \@WHERE_RULES,
+      USERS_FIELDS      => 1,
+      SKIP_USERS_FIELDS => [ 'UID' ]
     }    
     );
 
   my $EXT_TABLE = '';
 
-  if ($self->{SEARCH_FIELDS} =~ /pi\./) {
+  if ($self->{SEARCH_FIELDS} =~ / pi\./) {
     $EXT_TABLE .= "LEFT JOIN users_pi pi ON (pi.uid=l.uid)";
   }
-  if ($self->{SEARCH_FIELDS} =~ /u\./) {
+
+  if ($self->{SEARCH_FIELDS} =~ /\s?u\./ || $WHERE =~ / u\./) {
     $EXT_TABLE .= "INNER JOIN users u ON (u.uid=l.uid)";
   }
 
@@ -1104,12 +1115,12 @@ sub reports {
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
   $self->{REPORT_FIELDS}{DATE} = $date;
-  my $fields = "$date, count(DISTINCT l.uid), 
-      count(l.uid),
-      sum(l.sent + 4294967296 * acct_output_gigawords + l.recv + 4294967296 * acct_input_gigawords), 
-      sum(l.sent2 + l.recv2),
+  my $fields = "$date, count(DISTINCT l.uid) AS users_count, 
+      count(l.uid) AS sessions_count,
+      sum(l.sent + 4294967296 * acct_output_gigawords + l.recv + 4294967296 * acct_input_gigawords) AS sent, 
+      sum(l.sent2 + l.recv2) AS sent2,
       sec_to_time(sum(l.duration)), 
-      sum(l.sum)";
+      sum(l.sum) AS sum";
 
   if ($attr->{FIELDS}) {
     my @fields_array    = split(/, /, $attr->{FIELDS});
@@ -1156,7 +1167,9 @@ sub reports {
       $EXT_TABLES
       $WHERE 
       GROUP BY 1 
-      ORDER BY $SORT $DESC"
+      ORDER BY $SORT $DESC",
+      undef,
+      $attr
       );
     }
     else {
@@ -1167,7 +1180,9 @@ sub reports {
       $EXT_TABLES
       $WHERE 
       GROUP BY l.uid 
-      ORDER BY $SORT $DESC"
+      ORDER BY $SORT $DESC",
+      undef,
+      $attr
       );
     }
   }
@@ -1182,7 +1197,9 @@ sub reports {
        $EXT_TABLES
        $WHERE    
        GROUP BY 1 
-       ORDER BY $SORT $DESC;"
+       ORDER BY $SORT $DESC;",
+      undef,
+      $attr
     );
   }
 

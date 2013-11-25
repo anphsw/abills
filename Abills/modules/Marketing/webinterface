@@ -272,7 +272,7 @@ sub marketing_internet {
           ),
 
           "$_ROWS: ",
-          $html->form_input('rows', int($conf{list_max_recs}), { SIZE => 4 }),
+          $html->form_input('rows', $FORM{rows} || int($conf{list_max_recs}), { SIZE => 4 }),
           $html->form_input('show', $_SHOW,                    { TYPE => 'submit' })
         ]
       ],
@@ -290,9 +290,14 @@ sub marketing_internet {
     }
   );
 
+  if ($FORM{rows}) {
+    $LIST_PARAMS{PAGE_ROWS} = $FORM{rows};
+    $pages_qs .= "&rows=$LIST_PARAMS{PAGE_ROWS}";
+  }
+
   $pages_qs .= "&TP_ID=$FORM{TP_ID}"   if ($FORM{TP_ID});
   $pages_qs .= "&STATUS=$FORM{STATUS}" if (defined($FORM{STATUS}));
-  my $list = $Marketing->internet_fees_monitor({ %LIST_PARAMS, %FORM });
+  my $list = $Marketing->internet_fees_monitor({ %LIST_PARAMS, %FORM, COLS_NAME => 1 });
   #@service_status = ("$_ENABLE", "$_DISABLE", "$_NOT_ACTIVE");
   my $table = $html->table(
     {
@@ -307,16 +312,16 @@ sub marketing_internet {
 
   foreach my $line (@$list) {
     $table->addrow(
-      $line->[0],
-      $html->button($line->[1], "index=11&UID=$line->[0]"),
+      $line->{uid},
+      $html->button($line->{login}, "index=11&UID=$line->{uid}"),
 
-      $html->color_mark($service_status[ $line->[2] ], $service_status_colors[$line->[2]]),
-      $html->color_mark($service_status[ $line->[3] ], $service_status_colors[$line->[3]]),
-      $line->[4],
-      $line->[5],
-      $line->[6],
-      $line->[7],
-      $line->[8],
+      $html->color_mark($service_status[ $line->{account_status} ], $service_status_colors[$line->{account_status}]),
+      $html->color_mark($service_status[ $line->{dv_status} ], $service_status_colors[$line->{dv_status}]),
+      $line->{tp_id},
+      $line->{tp_name},
+      $line->{month_fee},
+      $line->{fees_count},
+      $line->{last_fees_date},
     );
   }
 

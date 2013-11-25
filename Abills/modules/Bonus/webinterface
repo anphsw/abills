@@ -137,10 +137,10 @@ sub bonus_user_log {
   my $list  = $Bonus->bonus_operation_list({%LIST_PARAMS});
   my $table = $html->table(
     {
-      width   => '100%',
-      caption => "$_BONUS",
-      border  => 1,
-      title   => [ 'ID', $_LOGIN, $_DATE, $_DESCRIBE, $_SUM, $_DEPOSIT, $_EXPIRE, $_PAYMENT_METHOD, 'EXT ID', "$_BILL", $_ADMINS, 'IP', "$_ACTION", '-' ],
+      width      => '100%',
+      caption    => "$_BONUS",
+      border     => 1,
+      title      => [ 'ID', $_LOGIN, $_DATE, $_DESCRIBE, $_SUM, $_DEPOSIT, $_EXPIRE, $_PAYMENT_METHOD, 'EXT ID', "$_BILL", $_ADMINS, 'IP', "$_ACTION", '-' ],
       cols_align => [ 'right', 'left', 'right', 'right', 'left', 'left', 'right', 'right', 'left', 'left', 'center:noprint' ],
       qs         => $pages_qs,
       pages      => $Bonus->{TOTAL},
@@ -488,8 +488,6 @@ sub bonus_user {
 
   $Bonus->user_info($FORM{UID});
 
-
-
   if ($Bonus->{TOTAL} < 1) {
     $Bonus->{ACTION}      = $html->form_input('add', "$_REGISTRATION", { TYPE => 'submit', OUTPUT2RETURN => 1 });
     $Bonus->{ACCEPT_RULES}= $html->form_input('ACCEPT_RULES', '1', { STATE => $Bonus->{ACCEPT_RULES}, TYPE => 'checkbox', OUTPUT2RETURN => 1 });
@@ -509,12 +507,10 @@ sub bonus_user {
   $Bonus->{TARIF_SEL} = $html->form_select(
     'TP_ID',
     {
-      SELECTED          => $Bonus->{TP_ID},
-      SEL_MULTI_ARRAY   => [ @{ $Bonus->tp_list({   }) } ],
-      MULTI_ARRAY_KEY   => 0,
-      MULTI_ARRAY_VALUE => 1,
-      MAIN_MENU         => get_function_index('bonus_tp'),
-      MAIN_MENU_AGRV    => "TP_ID=$Bonus->{TP_ID}"
+      SELECTED       => $Bonus->{TP_ID},
+      SEL_LIST       => $Bonus->tp_list({ COLS_NAME => 1 }),
+      MAIN_MENU      => get_function_index('bonus_tp'),
+      MAIN_MENU_AGRV => "TP_ID=$Bonus->{TP_ID}"
       
     }
   );
@@ -543,21 +539,28 @@ sub bonus_user {
 sub bonus_users_list {
   my ($attr) = @_;
 
-  my $list = $Bonus->user_list();
+  my $list = $Bonus->user_list({ COLS_NAME => 1, DEPOSIT => '_SHOW' });
 
   my $table = $html->table(
     {
       width      => '100%',
       caption    => "$_BONUS",
       border     => 1,
-      title      => [ "$_LOGIN", $_FIO, "$_TARIF_PLAN", "$_STATE", '-' ],
+      title      => [ "$_LOGIN", $_FIO, "$_TARIF_PLAN", "$_STATE", "$_DEPOSIT", "$_CREDIT", '-' ],
       cols_align => [ 'right', 'left', 'center', 'center:noprint', 'center:noprint', 'center:noprint' ],
     }
   );
 
   my ($add);
   foreach my $line (@$list) {
-    $table->addrow($line->[0], $line->[1], $line->[2], ($line->[3]) ? $html->color_mark($status[ $line->[3] ], $_COLORS[6]) : $status[ $line->[3] ], $html->button($_INFO, "index=15&MODULE=Bonus&UID=$line->[4]", { CLASS => 'show' }));
+    $table->addrow(
+       $html->button($line->{login}, "index=15&UID=$line->{uid}"),
+       $line->{fio}, 
+       $line->{tp_name}, 
+       $line->{deposit}, 
+       $line->{credit}, 
+       ($line->{state}) ? $html->color_mark($status[ $line->{state} ], $_COLORS[6]) : $status[ $line->{state} ], 
+       $html->button($_INFO, "index=15&MODULE=Bonus&UID=$line->{uid}", { CLASS => 'show' }));
   }
 
   print $table->show();
@@ -566,7 +569,7 @@ sub bonus_users_list {
     {
       width      => '100%',
       cols_align => [ 'right', 'right' ],
-      rows       => [ [ "$_TOTAL:", $html->b($Tariffs->{TOTAL}) ] ]
+      rows       => [ [ "$_TOTAL:", $html->b($Bonus->{TOTAL}) ] ]
     }
   );
 
@@ -691,12 +694,12 @@ sub bonus_service_discount_client {
   my $payments_sum         = 0;
 
   my %RULES = ();
-  my $list = $Bonus->service_discount_list({ PAGE_ROWS => 1000 });
+  my $list = $Bonus->service_discount_list({ PAGE_ROWS => 1000, COLS_NAME => 1 });
   foreach my $line (@$list) {
-    if ($line->[1] > 0) {
+    if ($line->{registration_days} > 0) {
       $RULES{PERIOD} = 1;
     }
-    elsif ($line->[2] > 0) {
+    elsif ($line->{total_payments_sum} > 0) {
       $RULES{TOTAL_PAYMENT} = 1;
     }
   }
@@ -722,17 +725,18 @@ sub bonus_service_discount_client {
       REGISTRATION_DAYS  => "<=$registration_days,>=0",
       TOTAL_PAYMENTS_SUM => $RULES{TOTAL_PAYMENT} ? "<=$payments_sum,>=0" : undef,
       PAGE_ROWS          => 1,
-      SORT               => "1 DESC, 2 DESC, 3 DESC"
+      SORT               => "1 DESC, 2 DESC, 3 DESC",
+      COLS_NAME          => 1
     }
   );
 
   if ($Bonus->{TOTAL} > 0) {
     #$RESULT{TOTAL_PAYMENT}     = $list->[0]->[2] || 0;
-    $RESULT{DISCOUNT}          = $list->[0]->[3] || 0;
-    $RESULT{DISCOUNT_PERIOD}   = $list->[0]->[4] || 0;
-    $RESULT{BONUS_SUM}         = $list->[0]->[5] || 0;
-    $RESULT{BONUS_PERCENT}     = $list->[0]->[6] || 0;
-    $RESULT{BONUS_EXT_ACCOUNT} = $list->[0]->[7] || 0;
+    $RESULT{DISCOUNT}          = $list->[0]->{discount} || 0;
+    $RESULT{DISCOUNT_PERIOD}   = $list->[0]->{discount_days} || 0;
+    $RESULT{BONUS_SUM}         = $list->[0]->{bonus_sum} || 0;
+    $RESULT{BONUS_PERCENT}     = $list->[0]->{bonus_percent} || 0;
+    $RESULT{BONUS_EXT_ACCOUNT} = $list->[0]->{ext_account} || 0;
   }
 
   $html->tpl_show(_include('bonus_service_discount_client', 'Bonus'), { %$Bonus, %RESULT });
@@ -1106,7 +1110,6 @@ sub bonus_turbo_mk {
 #**********************************************************
 sub bonus_users {
 	my ($attr)=@_;
-	
 	bonus_service_discount_client();
 }
 

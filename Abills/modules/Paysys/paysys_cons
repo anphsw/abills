@@ -163,18 +163,18 @@ sub paysys_import_form {
   my $users = Users->new($db, $admin, \%conf);
   my $list = $users->list(
     {
+      FIO            => '_SHOW',
+      LOGIN          => '_SHOW',
       $BINDING_FIELD => "$ids",
-      PAGE_ROWS      => 1000000
+      PAGE_ROWS      => 1000000,
+      COLS_NAME      => 1
     }
   );
-  $binding_field_id = 5;
-  $binding_field_id++ if ($conf{EXT_BILL_ACCOUNT});
-  if ($BINDING_FIELD eq 'LOGIN') {
-    $binding_field_id = 0;
-  }
+
+  $binding_field_id = lc($BINDING_FIELD);
 
   foreach my $line (@$list) {
-    $binding_hash{ lc($line->[$binding_field_id]) } = $line->[ 5 + $users->{SEARCH_FIELDS_COUNT} ] . ":$line->[0]:" . (($line->[1]) ? $line->[1] : '');
+    $binding_hash{ lc($line->{$binding_field_id}) } = "$line->{uid}:$line->{login}:" . (($line->{fio}) ? $line->{fio} : '');
   }
 
   my $error = 0;
@@ -332,9 +332,10 @@ sub paysys_import_fees {
 sub paysys_import_payments {
   my @files = ();
   my $filename = $ARGV->{FILE} || '';
+  my $dir = '';
 
   if ($filename =~ s/\*/\.\+/g) {
-    my $dir = dirname($filename);
+    $dir = dirname($filename);
     $filename =~ s/$dir\///;
     opendir DIR, $dir or die "Can't open dir '$dir' $!\n";
       @files = grep /^$filename$/, readdir DIR;
@@ -345,6 +346,7 @@ sub paysys_import_payments {
   }
 
   foreach my $filename (@files) {
+    $filename = "$dir/$filename" if ($dir);
     my $content = '';
     open(FILE, "$filename") || die "Can't open file '$filename' $!\n";
       while (<FILE>) {

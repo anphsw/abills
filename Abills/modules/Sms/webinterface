@@ -61,8 +61,8 @@ elsif ($conf{TURBOSMS_PASSWD}) {
     Turbosms->import();
     $Sms_service = Turbosms->new($db, $admin, \%conf);
 
-    if ($Turbosms::VERSION < 2.04) {
-      $html->message('info', "UPDATE", "Please update module 'Turbosms' to version 2.04 or higher. http://abills.net.ua/");
+    if ($Turbosms::VERSION < 2.05) {
+      $html->message('info', "UPDATE", "Please update module 'Turbosms' to version 2.05 or higher. http://abills.net.ua/");
       return 0;
     }
     
@@ -173,6 +173,22 @@ sub sms_reports {
     $LIST_PARAMS{SORT} = 1;
   }
 
+  if($FORM{search_form}) {
+  	$Sms_service->{STATUS_SEL} = $html->form_select('STATUS',
+      {
+        SELECTED => $FORM{STATUS} || '',
+        SEL_HASH => { '' => $_ALL, %sms_status },
+        NO_ID    => 1
+      }
+    ); 	 
+  	
+  	$Sms_service->{GROUP_SEL} = sel_groups();
+  	
+    form_search({ SEARCH_FORM => $html->tpl_show(_include('sms_search', 'Sms'), { %FORM, %$Sms_service }, { OUTPUT2RETURN => 1 }) });
+  }
+
+
+
   my $list = $Sms_service->info({%LIST_PARAMS, COLS_NAME => 1 });
 
   if ($Sms_service->{errno}) {
@@ -188,7 +204,8 @@ sub sms_reports {
       cols_align => [ 'center', 'left', 'left', 'left', 'left', 'left', 'left', 'left', 'left', 'left', 'left', 'left', 'left' ],
       qs         => $pages_qs,
       ID         => 'REPORTS_SMS',
-      pages      => $Sms_service->{TOTAL}
+      pages      => $Sms_service->{TOTAL},
+      MENU       => "$_SEARCH:index=$index&search_form=1:search",
     }
   );
 

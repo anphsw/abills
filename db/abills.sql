@@ -112,7 +112,7 @@ CREATE TABLE `dv_calls` (
   `started` datetime NOT NULL default '0000-00-00 00:00:00',
   `nas_ip_address` int(11) unsigned NOT NULL default '0',
   `nas_port_id` int(6) unsigned NOT NULL default '0',
-  `acct_session_id` varchar(25) NOT NULL default '',
+  `acct_session_id` varchar(32) NOT NULL default '',
   `acct_session_time` int(11) unsigned NOT NULL default '0',
   `acct_input_octets` bigint(14) unsigned NOT NULL default '0',
   `acct_output_octets` bigint(14) unsigned NOT NULL default '0',
@@ -315,7 +315,7 @@ CREATE TABLE `dv_main` (
   `password` BLOB NOT NULL,
   `disable` tinyint(1) unsigned NOT NULL default '0',
   `callback` tinyint(1) unsigned NOT NULL default '0',
-  `port` int(11) unsigned NOT NULL default '0',
+  `port` varchar(40) NOT NULL DEFAULT '',
   `join_service` int(11) unsigned NOT NULL DEFAULT '0',
   `turbo_mode` tinyint(1) unsigned NOT NULL default '0',
   `free_turbo_mode` smallint(6) unsigned NOT NULL default '0',
@@ -414,7 +414,7 @@ CREATE TABLE `ippools` (
   `priority` tinyint(4) NOT NULL DEFAULT '0',
   `static` tinyint(1) unsigned NOT NULL DEFAULT '0',
   `speed` int(10) unsigned NOT NULL default '0',
-#  `ipv6_prefix` VARBINARY(16) not null default '',
+  `ipv6_prefix` VARBINARY(16) not null default '',
   PRIMARY KEY  (`id`),
   UNIQUE KEY `nas` (`nas`,`ip`)
 )  ;
@@ -1275,6 +1275,10 @@ CREATE TABLE `builds` (
   `coordx` DOUBLE(20,14) NOT NULL DEFAULT '0',
   `coordy` DOUBLE(20,14) NOT NULL DEFAULT '0',
   `flats` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `contract_id` varchar(12) not null default '',
+  `contract_date` date not null default '0000-00-00',
+  `contract_price` double(15,6) NOT NULL default '0.000000',
+  `comments` text,
   PRIMARY KEY (`id`),
   UNIQUE KEY `id` (`id`),
   UNIQUE KEY `street_id` (`street_id`, `number`)

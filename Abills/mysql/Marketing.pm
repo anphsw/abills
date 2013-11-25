@@ -141,14 +141,14 @@ sub internet_fees_monitor {
 
   my $WHERE = ($#WHERE_RULES > -1) ? 'WHERE ' . join(' and ', @WHERE_RULES) : '';
 
-  $self->query2("select u.uid,  u.id, 
-   u.disable,
-   dv.disable,
+  $self->query2("select u.uid,  u.id AS login, 
+   u.disable AS account_status,
+   dv.disable AS dv_status,
    dv.tp_id, 
-   tp.name, 
+   tp.name AS tp_name, 
    tp.month_fee,
-   sum(if (DATE_FORMAT($date, '%Y-%m-01')=DATE_FORMAT(f.date, '%Y-%m-%d'), 1, 0)),
-   max(f.date)
+   sum(if (DATE_FORMAT($date, '%Y-%m-01')=DATE_FORMAT(f.date, '%Y-%m-%d'), 1, 0)) AS fees_count,
+   max(f.date) AS last_fees_date
 
   from users u
   inner join dv_main dv on (dv.uid=u.uid)
@@ -661,12 +661,9 @@ sub dhcp_full_list {
      ['NAS_ID',   'INT', 'dhcp.nas' ]
     ],
     { WHERE       => 1,
-    	USERS_FILES => 1
+    	USERS_FIELDS=> 1
     }    
     );
-
-  
-
 
   $self->query2("SELECT u.id AS login, 
     g.name AS group_name, 

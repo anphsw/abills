@@ -1,11 +1,14 @@
 <form action=$SELF_URL?index=$index&splid=%ID% name=\"suppliers_form\" method=POST>
 <input type=hidden name=index value=$index>
 <input type=hidden name=ID value=%ID%>
-<table border=\"0\" >
+<table class=form >
+  <tr><th class=form_title colspan=2> $_SUPPLIERS</th></tr>
+<!-- 
   <tr>
     <td>TESTING:</td>
     <td>%WND%</td>
   </tr>
+-->
   <tr>
     <td>$_NAME:</td>
     <td><input name=\"NAME\" type=\"text\" value=\"%NAME%\" /></td>
@@ -83,6 +86,8 @@
     <td>$_ACCOUNTANT:</td>
     <td><input name=\"MANAGMENT\" type=\"text\" value=\"%MANAGMENT%\" /></td>
   </tr>
+  <tr>
+    <th colspan=2 class=even><input type=submit name='%ACTION%' value='%ACTION_LNG%'></th>
+  </tr>
 </table>
-<input type=submit name=%ACTION% value=%ACTION_LNG%>
 </form>

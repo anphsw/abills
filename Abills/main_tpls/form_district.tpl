@@ -8,6 +8,7 @@
 <TR><TD>$_CITY:</TD><TD><input type='text' name='CITY' value='%CITY%'/></TD></TR>
 <TR><TD>$_ZIP:</TD><TD><input type='text' name='ZIP' value='%ZIP%'/></TD></TR>
 <tr><td>$_MAP (*.jpg, *.gif, *.png):</td><td><input name='FILE_UPLOAD' type='file' class='fixed'>
+<tr><td>$_IMPORT:</td><td><input name='IMPORT' type='file' class='fixed'>
 <TR><TH colspan=2>$_COMMENTS</TH></TD></TR>
 <TR><TH colspan=2><textarea name=COMMENTS rows=4 cols=50>%COMMENTS%</textarea></TH></TD></TR>
 <TR><TH colspan=2 class='even'><input type='submit' name='%ACTION%' value='%LNG_ACTION%' class='button'/></TH></TD></TR>

@@ -37,6 +37,7 @@ $VERSION = 2.00;
 &clearquotes
 &cmd
 &ssh_cmd
+&date_diff
 );
 
 @EXPORT_OK = qw(
@@ -64,6 +65,7 @@ cfg2hash
 clearquotes
 cmd
 ssh_cmd
+date_diff
 );
 
 %EXPORT_TAGS = ();
@@ -1029,4 +1031,20 @@ sub ssh_cmd {
   return \@value;  
 }
 
+#**********************************************************
+# days = date_diff(from_date, to_date)
+# 
+#**********************************************************
+sub date_diff {
+	my ($from_date, $to_date) = @_;
+
+  my ($from_year, $from_month, $from_day) = split(/-/, $from_date, 3);
+  my ($to_year,   $to_month,   $to_day)   = split(/-/, $to_date,   3);
+  my $from_seltime = POSIX::mktime(0, 0, 0, $from_day, ($from_month - 1), ($from_year - 1900));
+  my $to_seltime   = POSIX::mktime(0, 0, 0, $to_day,   ($to_month - 1),   ($to_year - 1900));
+
+  my $days = int(($to_seltime - $from_seltime) / 86400);	
+	
+	return $days;
+}
 1;

@@ -26,7 +26,9 @@ sub load_module {
     require $lang_file;
   }
 
-   require "Abills/modules/$module/webinterface";
+  if (! require "Abills/modules/$module/webinterface") {
+  	print "Error: load module '$module' $!";
+  }
 
   return 0;
 }
@@ -269,7 +271,7 @@ sub service_get_month_fee {
 
     if (!$Service->{OLD_STATUS} || $Service->{OLD_STATUS} == 2) {
       $fees->take(
-        $user,
+        $users,
         $Service->{TP_INFO}->{ACTIV_PRICE},
         {
           DESCRIBE => "$_ACTIVATE $_TARIF_PLAN",
@@ -286,34 +288,6 @@ sub service_get_month_fee {
   my ($y, $m, $d)   = split(/-/, $DATE, 3);
   my $days_in_month = ($m != 2 ? (($m % 2) ^ ($m > 7)) + 30 : (!($y % 400) || !($y % 4) && ($y % 25) ? 29 : 28));
 
-  if ( $FORM{RECALCULATE} ) {
-
-    my $rest_days     = $days_in_month - $d + 1;
-    #my $rest_day_sum1 = (! $Service->{TP_INFO}->{ABON_DISTRIBUTION}) ? $Service->{TP_INFO}->{MONTH_FEE} /  $days_in_month * $rest_days : 0;
-    my $rest_day_sum2 = (! $Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION}) ? $Service->{TP_INFO_OLD}->{MONTH_FEE} /  $days_in_month * $rest_days : 0;
-    $sum              = $rest_day_sum2; # sprintf("%.5f", $rest_day_sum1 - $rest_day_sum2);
-
-    #PERIOD_ALIGNMENT
-    $Service->{TP_INFO}->{PERIOD_ALIGNMENT}=1;
-    #Compensation
-    if ($sum > 0) {
-      $payments->add($users,
-          {
-           SUM      => abs($sum),
-           METHOD   => 8,
-           DESCRIBE => "$_TARIF_PLAN: $Service->{TP_INFO_OLD}->{NAME} ($Service->{TP_INFO_OLD}->{ID})",
-          }
-      );
-              
-      if ($payments->{errno}) {
-        $html->message('err', $_ERROR, "[$payments->{errno}] $err_strs{$payments->{errno}}");
-      }
-      else {
-    	  $message .= "$_RECALCULATE\n$_RETURNED: ". sprintf("%.2f", abs($sum))."\n";
-      }
-    }
-  }
-
   my $TIME = "00:00:00";
   my %FEES_PARAMS = (
               DATE   => "$DATE $TIME",
@@ -321,7 +295,44 @@ sub service_get_month_fee {
             );
 
   #Get month fee
-  if ($Service->{TP_INFO}->{MONTH_FEE} > 0) {    
+  if ($Service->{TP_INFO}->{MONTH_FEE} && $Service->{TP_INFO}->{MONTH_FEE} > 0) {
+    if ( $FORM{RECALCULATE} ) {
+    	my $rest_days     = 0;
+      my $rest_day_sum2 = 0;
+      $sum              = 0;
+    	
+      if ($users->{ACTIVATE} eq '0000-00-00') {
+        $rest_days     = $days_in_month - $d + 1;
+        $rest_day_sum2 = (! $Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION}) ? $Service->{TP_INFO_OLD}->{MONTH_FEE} /  $days_in_month * $rest_days : 0;
+        $sum           = $rest_day_sum2;
+        #PERIOD_ALIGNMENT
+        $Service->{TP_INFO}->{PERIOD_ALIGNMENT}=1;
+      }
+      else {
+      	if ( $attr->{SHEDULER} && date_diff($users->{ACTIVATE}, $DATE) >= 31 ) {
+      	  return \%total_sum;
+      	}
+      }     
+
+      #Compensation
+      if ($sum > 0) {
+        $payments->add($users,
+            {
+             SUM      => abs($sum),
+             METHOD   => 8,
+             DESCRIBE => "$_TARIF_PLAN: $Service->{TP_INFO_OLD}->{NAME} ($Service->{TP_INFO_OLD}->{ID}) ($_DAYS: $rest_days)",
+            }
+        );
+
+        if ($payments->{errno}) {
+          $html->message('err', $_ERROR, "[$payments->{errno}] $err_strs{$payments->{errno}}") if (!$attr->{QUITE});
+        }
+        else {
+    	    $message .= "$_RECALCULATE\n$_RETURNED: ". sprintf("%.2f", abs($sum))."\n" if (!$attr->{QUITE});
+        }
+      }
+    }
+
     my $sum   = $Service->{TP_INFO}->{MONTH_FEE};
 
     if ($Service->{TP_INFO}->{EXT_BILL_ACCOUNT}) {
@@ -369,7 +380,6 @@ sub service_get_month_fee {
       if (int($active_d) > int($d)) {
         $periods--;
       }
-      #$active_m++;
     }
     elsif (int($active_m) > 0 && (int($active_m) >= int($m) && int($active_y) < int($y))) {
       $periods = 12 - $active_m + $m;
@@ -379,7 +389,7 @@ sub service_get_month_fee {
     }
 
     #Make reduction
-    if ($user->{REDUCTION} > 0 && $Service->{TP_INFO}->{REDUCTION_FEE}) {
+    if ($users->{REDUCTION} && $users->{REDUCTION} > 0 && $Service->{TP_INFO}->{REDUCTION_FEE}) {
       $sum = $sum * (100 - $users->{REDUCTION}) / 100;
     }
 
@@ -388,7 +398,7 @@ sub service_get_month_fee {
       $FEES_DSC{EXTRA} = " - $_ABON_DISTRIBUTION";
     }
 
-    if ($Service->{ACCOUNT_ACTIVATE} ne '0000-00-00' && ($Service->{OLD_STATUS} == 5)) {
+    if ($Service->{ACCOUNT_ACTIVATE} && $Service->{ACCOUNT_ACTIVATE} ne '0000-00-00' && ($Service->{OLD_STATUS} == 5)) {
       if ($conf{DV_CURDATE_ACTIVATE}) {
         $periods = 0;        
       }
@@ -415,7 +425,7 @@ sub service_get_month_fee {
       if ($i > 0) {
         $FEES_DSC{EXTRA} = '';
       	$message         = '';
-        if ($user->{REDUCTION} > 0 && $Service->{TP_INFO}->{REDUCTION_FEE}) {
+        if ($users->{REDUCTION} > 0 && $Service->{TP_INFO}->{REDUCTION_FEE}) {
           $sum = $Service->{TP_INFO}->{MONTH_FEE} * (100 - $users->{REDUCTION}) / 100;
         }
         else {
@@ -506,6 +516,22 @@ sub service_get_month_fee {
     }
   }
 
+  my $external_cmd = '_EXTERNAL_CMD';
+  if ($service_name eq 'Internet') {
+  	$external_cmd = 'DV'.$external_cmd;
+  }
+  else {
+  	$external_cmd = uc($service_name).$external_cmd;
+  }
+  
+  if ($conf{$external_cmd}) {
+    if (!_external($conf{$external_cmd}, { %FORM, %$users, %$Service, %$attr })) {
+      print "Error: external cmd '$conf{$external_cmd}'\n";
+    }
+  }
+
+  undef $user;
+
   return \%total_sum;
 }
 
@@ -568,6 +594,7 @@ sub result_former {
 
   %SEARCH_TITLES = (
     'disable'       => "$_STATUS",
+    'dv_status'     => "Internet $_STATUS",
     'login_status'  => "$_LOGIN $_STATUS",
     'deposit'       => "$_DEPOSIT",
     'credit'        => "$_CREDIT",
@@ -615,7 +642,7 @@ sub result_former {
         my $field_id = $1;
         my ($position, $type, $name, $user_portal) = split(/:/, $line->[1]);
         if ($type == 2) {
-          $SEARCH_TITLES{ $field_id . '_list_name' } = eval "\"$name\"";
+          $SEARCH_TITLES{ $field_id } = eval "\"$name\"";
         }
         else {
           $SEARCH_TITLES{ $field_id } = eval "\"$name\"";
@@ -666,8 +693,8 @@ sub result_former {
         my @fields_array = ();
         for (my $i = 0 ; $i < $data->{SEARCH_FIELDS_COUNT}+$base_fields ; $i++) {
           my $val = '';
-      
-          if ($data->{COL_NAMES_ARR}->[$i] eq 'login' && $line->{uid}) {
+
+          if ($data->{COL_NAMES_ARR}->[$i] eq 'login' && $line->{uid} && defined(&user_ext_menu)) {
       	    $val = user_ext_menu($line->{uid}, $line->{login}, { EXT_PARAMS => ($attr->{MODULE} ? "MODULE=$attr->{MODULE}": undef) }); 
           }
           elsif($data->{COL_NAMES_ARR}->[$i] =~ /status/) {
@@ -754,5 +781,43 @@ sub dirname {
   }
   $x;
 }
+
+#**********************************************************
+# Make external operations
+#**********************************************************
+sub _external {
+  my ($file, $attr) = @_;
+
+  my $arguments = '';
+  $attr->{LOGIN}      = $users->{LOGIN};
+  $attr->{DEPOSIT}    = $users->{DEPOSIT};
+  $attr->{CREDIT}     = $users->{CREDIT};
+  $attr->{GID}        = $users->{GID};
+  $attr->{COMPANY_ID} = $users->{COMPANY_ID};
+
+  while (my ($k, $v) = each %$attr) {
+    if ($k ne '__BUFFER' && $k =~ /[A-Z0-9_]/) {
+      if ($v && $v ne '') {
+        $arguments .= " $k=\"$v\"";	
+      }
+      else {
+      	$arguments .= " $k=\"\"";
+      }
+    }
+  }
+
+  my $result = `$file $arguments`;
+  my $error = $!;
+  my ($num, $message) = split(/:/, $result, 2);
+  if ($num == 1) {
+    $html->message('info', "_EXTERNAL $_ADDED", "$message") if (!$attr->{QUITE});;
+    return 1;
+  }
+  else {
+    $html->message('err', "_EXTERNAL $_ERROR", "[$num] $message $error"); # if (!$attr->{QUITE});;
+    return 0;
+  }
+}
+
 
 1

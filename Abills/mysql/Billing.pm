@@ -695,7 +695,19 @@ sub session_sum {
 
   if ($self->{CHECK_SESSION}) {
     if ($self->{TOTAL_TRAF_LIMIT}) {
-      if ($sent + $recv >= $self->{TOTAL_TRAF_LIMIT}) {
+    	my $counters = $self->get_traffic({ UID => $self->{UID} });
+      if ($self->{OCTETS_DIRECTION} == 1) {
+        $counters->{TRAFFIC_SUM}   = $counters->{TRAFFIC_IN};
+      }
+      #Sent / Out
+      elsif ($self->{OCTETS_DIRECTION} == 2) {
+        $counters->{TRAFFIC_SUM}   = $counters->{TRAFFIC_OUT};
+      }
+      else {
+        $counters->{TRAFFIC_SUM}   = ($counters->{TRAFFIC_OUT}) ? $counters->{TRAFFIC_OUT} + $counters->{TRAFFIC_IN} : 0;
+      }
+
+      if ($counters->{TRAFFIC_SUM} >= $self->{TOTAL_TRAF_LIMIT}) {
         $self->{HANGUP} = 1;
         return $self->{UID}, 0, $self->{BILL_ID}, $self->{TP_NUM}, 0, 0;
       }

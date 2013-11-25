@@ -53,8 +53,8 @@ $PG        = 0;
 $PAGE_ROWS = 25;
 
 my $query_count = 0;
-
 use DBI;
+use Abills::Base qw(ip2int int2ip in_array);
 
 #**********************************************************
 # Connect to DB
@@ -75,7 +75,7 @@ sub connect {
     $self->{db}->do("SET sql_mode='$sql_mode';");
   } 
   else {
-  	print "Content-Type: text/html\n\nError: Unable connect to DB server '$dbhost:$dbname'\n";
+    print "Content-Type: text/html\n\nError: Unable connect to DB server '$dbhost:$dbname'\n";
     $self->{error} = $DBI::errstr;
     my $a = `echo "Connection Error: $DBI::errstr" >> /tmp/sql_errors `;
   }
@@ -145,8 +145,8 @@ sub query {
     require Log;
     Log->import('log_print');
 
-  	log_print(undef, 'LOG_ERR', '', "\n$query\n --$self->{sql_errno}\n --$self->{sql_errstr}\nundefined \$db", { NAS => 0, LOG_FILE => "/tmp/sql_errors" });
-  	return $self;
+    log_print(undef, 'LOG_ERR', '', "\n$query\n --$self->{sql_errno}\n --$self->{sql_errstr}\nundefined \$db", { NAS => 0, LOG_FILE => "/tmp/sql_errors" });
+    return $self;
   }
 
   if (defined($attr->{test})) {
@@ -296,30 +296,33 @@ sub search_former {
   my $self = shift;
   my ($data, $search_params, $attr)=@_;
 
-  my @WHERE_RULES              = ();
-  $self->{SEARCH_FIELDS}       = '';
-  $self->{SEARCH_FIELDS_COUNT} = 0;
-
+  my @WHERE_RULES                = ();
+  $self->{SEARCH_FIELDS}         = '';
+  $self->{SEARCH_FIELDS_COUNT}   = 0;
+  @{ $self->{SEARCH_FIELDS_ARR} }= ();
+  
+  
   foreach my $search_param (@$search_params) {
-  	my ($param, $field_type, $sql_field, $show, $ex_params)=@$search_param;
+    my ($param, $field_type, $sql_field, $show, $ex_params)=@$search_param;
     my $param2 = '';
-  	if ($param =~ /^(.*)\|(.*)$/) {
-  		$param  = $1;
-  		$param2 = $2;
-  	}
+    if ($param =~ /^(.*)\|(.*)$/) {
+      $param  = $1;
+      $param2 = $2;
+    }
 
-  	if($data->{$param} || ($field_type eq 'INT' && defined($data->{$param}) && $data->{$param} ne '')) {
-  		if ($sql_field eq '') {
+    if($data->{$param} || ($field_type eq 'INT' && defined($data->{$param}) && $data->{$param} ne '')) {
+      if ($sql_field eq '') {
         $self->{SEARCH_FIELDS} .= "$show, ";
         $self->{SEARCH_FIELDS_COUNT}++;
-   		}
-  	  elsif ($param2) {
+        push @{ $self->{SEARCH_FIELDS_ARR} }, $show;
+       }
+      elsif ($param2) {
         push @WHERE_RULES, "($sql_field>='$data->{$param}' and $sql_field<='$data->{$param2}')";
-  	  }
-  	  else {
-  		  push @WHERE_RULES, @{ $self->search_expr($data->{$param}, "$field_type", "$sql_field", { EXT_FIELD => $show }) };
-  		}
-  	}
+      }
+      else {
+        push @WHERE_RULES, @{ $self->search_expr($data->{$param}, "$field_type", "$sql_field", { EXT_FIELD => $show }) };
+      }
+    }
   }
 
   if ($attr->{USERS_FIELDS}) {
@@ -359,7 +362,7 @@ sub search_former {
   }
 
   if ($attr->{WHERE_RULES}) {
-  	push @WHERE_RULES, @{ $attr->{WHERE_RULES} };
+    push @WHERE_RULES, @{ $attr->{WHERE_RULES} };
   }
 
   my $WHERE = ($#WHERE_RULES > -1) ?  (($attr->{WHERE}) ? 'WHERE ' : '') . join(' and ', @WHERE_RULES) : '';
@@ -386,10 +389,12 @@ sub search_expr {
   if ($attr->{EXT_FIELD}) {
     $self->{SEARCH_FIELDS} .= ($attr->{EXT_FIELD} ne '1') ? "$attr->{EXT_FIELD}, " : "$field, ";
     $self->{SEARCH_FIELDS_COUNT}++;
+
+    push @{ $self->{SEARCH_FIELDS_ARR} }, ($attr->{EXT_FIELD} ne '1') ? split(', ', $attr->{EXT_FIELD}) : "$field";
   }
   my @result_arr = ();
   if (! defined($value)) {
-  	$value = '';
+    $value = '';
   }
 
   return \@result_arr if ( $value eq '_SHOW');
@@ -453,8 +458,8 @@ sub search_expr {
         my ($i, $first_ip, $last_ip);
         my @p = split(/\./, $value);
         for ($i = 0 ; $i < 4 ; $i++) {
-          if ($p[$i] eq '*') {
-            $first_ip .= '0';
+          if ($p[$i] =~ /(\d{0,2})\*/) {
+            $first_ip .= $1 . '0';
             $last_ip  .= '255';
           }
           else {
@@ -467,7 +472,6 @@ sub search_expr {
           }
         }
         push @result_arr, "($field>=INET_ATON('$first_ip') and $field<=INET_ATON('$last_ip'))";
-
         return \@result_arr;
       }
       else {      
@@ -533,8 +537,8 @@ sub changes {
 
   $OLD_DATA = $attr->{OLD_INFO};
   if ($OLD_DATA->{errno}) {
-  	print  "Old date errors: $OLD_DATA->{errno} '$TABLE' $attr->{CHANGE_PARAM}=$DATA{$CHANGE_PARAM}\n";
-  	print %DATA;
+    print  "Old date errors: $OLD_DATA->{errno} '$TABLE' $attr->{CHANGE_PARAM}=$DATA{$CHANGE_PARAM}\n";
+    print %DATA;
     $self->{errno}  = $OLD_DATA->{errno};
     $self->{errstr} = $OLD_DATA->{errstr};
     return $self;
@@ -551,8 +555,13 @@ sub changes {
   
       while (defined(my $row = $q->fetchrow_hashref())) {
         while(my ($k, $v) = each %$row ) {
-          $OLD_DATA->{ uc($k) }=$v;
-          $FIELDS->{ uc($k) }=$k;
+          my $field_name = uc($k);
+          if ($field_name eq 'IP') {
+            $v = int2ip($v);
+          }
+
+          $OLD_DATA->{ $field_name }=$v;
+          $FIELDS->{ $field_name }=$k;
         }
       }
   }
@@ -576,10 +585,10 @@ sub changes {
         $CHANGES_LOG   .= "$k $OLD_DATA->{$k}->$DATA{$k};";
         $CHANGES_QUERY .= "$FIELDS->{$k}=INET_ATON('$DATA{$k}'),";
       }
-    	elsif ($k eq 'IPV6_PREFIX') {
-    		$CHANGES_LOG   .= "$k $OLD_DATA->{$k}->$DATA{$k};";
-    		$CHANGES_QUERY .= "$FIELDS->{$k}=INET6_ATON('$DATA{$k}'),";
-    	}
+      elsif ($k eq 'IPV6_PREFIX') {
+        $CHANGES_LOG   .= "$k $OLD_DATA->{$k}->$DATA{$k};";
+        $CHANGES_QUERY .= "$FIELDS->{$k}=INET6_ATON('$DATA{$k}'),";
+      }
       elsif ($k eq 'CHANGED') {
         $CHANGES_QUERY .= "$FIELDS->{$k}=now(),";
       }
@@ -637,7 +646,7 @@ sub changes {
   $self->{AFFECTED} = sprintf("%d", (defined ($self->{AFFECTED}) ? $self->{AFFECTED} : 0));
   
   if ($self->{AFFECTED} == 0) {
-  	return $self; 
+    return $self; 
   }
   elsif ($self->{errno}) {
     return $self;
@@ -723,9 +732,10 @@ sub search_expr_users () {
   my @fields = ();
 
   if (! $attr->{SUPPLEMENT}) {
-    $self->{SEARCH_FIELDS}       = '';
-    $self->{SEARCH_FIELDS_COUNT} = 0;
-    $self->{EXT_TABLES}          = '';
+    $self->{SEARCH_FIELDS}         = '';
+    $self->{SEARCH_FIELDS_COUNT}   = 0;
+    $self->{EXT_TABLES}            = '';
+    @{ $self->{SEARCH_FIELDS_ARR} } = ();
   }
 
   #ID:type:Field name
@@ -762,20 +772,19 @@ sub search_expr_users () {
     REDUCTION_DATE=> 'INT:u.reduction_date',
     COMMENTS      => 'STR:pi.comments',
     BILL_ID       => 'INT:if(company.id IS NULL,b.id,cb.id) AS bill_id',
-    PASSWORD      => "STR:DECODE(u.password, '$CONF->{secretkey}') AS password"
-
+    PASSWORD      => "STR:DECODE(u.password, '$CONF->{secretkey}') AS password",
     #ADDRESS_FLAT  => 'STR:pi.address_flat', 
   );
 
   if ($attr->{DEPOSIT} && $attr->{DEPOSIT} ne '_SHOW') {
-  	$users_fields_hash{DEPOSIT}='INT:b.deposit'
+    $users_fields_hash{DEPOSIT}='INT:b.deposit'
   }
 
   if ($attr->{CONTRACT_SUFIX}) {
     $attr->{CONTRACT_SUFIX} =~ s/\|//g;
   }
 
-  my $info_field = 0;
+  my $info_field = $attr->{LOGIN} || 0;
   my %filled     = (); 
 
   foreach my $key ( @{ $attr->{EXT_FIELDS} }, keys %{ $attr } ) {
@@ -788,7 +797,13 @@ sub search_expr_users () {
       }
 
       my ($type, $field) = split(/:/, $users_fields_hash{$key});
-      next if ($type eq 'STR' && ! $attr->{$key});
+      if ($type eq 'STR' && ! $attr->{$key}) {
+      	next; 
+      }
+#      elsif ($type eq 'STR' && $attr->{$key} eq '') {
+#      	next;
+#      }
+
       push @fields, @{ $self->search_expr($attr->{$key}, $type, "$field", { EXT_FIELD => in_array($key, $attr->{EXT_FIELDS}) }) };
       $filled{$key}=1;
     }
@@ -809,30 +824,21 @@ sub search_expr_users () {
           if (defined($attr->{$field_name}) && $type == 4) {
             push @fields, 'pi.' . $field_name . "='$attr->{$field_name}'";
           }
-
           #Skip for bloab
           elsif ($type == 5) {
             next;
           }
           elsif ($attr->{$field_name}) {
             if ($type == 1) {
-              my $value = @{ $self->search_expr("$attr->{$field_name}", 'INT') }[0];
-              push @fields, "(pi." . $field_name . "$value)";
+              push @fields, @{ $self->search_expr("$attr->{$field_name}", 'INT', "pi.$field_name", { EXT_FIELD => 1 }) };
             }
             elsif ($type == 2) {
-              push @fields, "(pi.$field_name='$attr->{$field_name}')";
-              $self->{SEARCH_FIELDS} .= "$field_name" . '_list.name AS '. $field_name. '_list_name, ';
-              $self->{SEARCH_FIELDS_COUNT}++;
-
+              push @fields, @{ $self->search_expr("$attr->{$field_name}", 'INT', "pi.$field_name", { EXT_FIELD => $field_name . '_list.name AS '. $field_name }) };
               $self->{EXT_TABLES} .= "LEFT JOIN $field_name" . "_list ON (pi.$field_name = $field_name" . "_list.id)";
-              next;
             }
             else {
-              $attr->{$field_name} =~ s/\*/\%/ig;
-              push @fields, "pi.$field_name LIKE '$attr->{$field_name}'";
+              push @fields, @{ $self->search_expr("$attr->{$field_name}", 'STR', "pi.$field_name", { EXT_FIELD => 1 }) };
             }
-            $self->{SEARCH_FIELDS} .= "pi.$field_name, ";
-            $self->{SEARCH_FIELDS_COUNT}++;
           }
         }
       }
@@ -841,7 +847,7 @@ sub search_expr_users () {
   }
 
   if ($attr->{SKIP_GID}) {
-  	push @fields,  @{ $self->search_expr($attr->{GID}, 'INT', 'u.gid', { EXT_FIELD => in_array('GID', $attr->{EXT_FIELDS}) }) };
+    push @fields,  @{ $self->search_expr($attr->{GID}, 'INT', 'u.gid', { EXT_FIELD => in_array('GID', $attr->{EXT_FIELDS}) }) };
   }
   elsif ($attr->{GIDS}) {
     if ($admin->{GIDS}) {
@@ -871,11 +877,11 @@ sub search_expr_users () {
   }
 
   if ($attr->{GROUP_NAME}) {
-  	push @fields, @{ $self->search_expr("$attr->{GROUP_NAME}", 'STR', 'g.name', { EXT_FIELD => 'g.name AS group_name' }) };
-  	$self->{EXT_TABLES} .= " LEFT JOIN groups g ON (g.gid=u.gid)";
-  	if (defined($attr->{DISABLE_PAYSYS})) {
-	  	push @fields, @{ $self->search_expr("$attr->{DISABLE_PAYSYS}", 'INT', 'g.disable_paysys', { EXT_FIELD => 1 }) };
-  	}
+    push @fields, @{ $self->search_expr("$attr->{GROUP_NAME}", 'STR', 'g.name', { EXT_FIELD => 'g.name AS group_name' }) };
+    $self->{EXT_TABLES} .= " LEFT JOIN groups g ON (g.gid=u.gid)";
+    if (defined($attr->{DISABLE_PAYSYS})) {
+      push @fields, @{ $self->search_expr("$attr->{DISABLE_PAYSYS}", 'INT', 'g.disable_paysys', { EXT_FIELD => 1 }) };
+    }
   }
 
   if (! $attr->{DOMAIN_ID} && $admin->{DOMAIN_ID}) {
@@ -901,46 +907,57 @@ sub search_expr_users () {
     }
     elsif ($attr->{DISTRICT_ID}) {
       push @fields, @{ $self->search_expr($attr->{DISTRICT_ID}, 'INT', 'streets.district_id', { EXT_FIELD => 'districts.name AS district_name' }) };
-      $self->{EXT_TABLES} .= "LEFT JOIN builds ON (builds.id=pi.location_id)
+      $self->{EXT_TABLES} .= " LEFT JOIN builds ON (builds.id=pi.location_id)
       LEFT JOIN streets ON (streets.id=builds.street_id)
       LEFT JOIN districts ON (districts.id=streets.district_id) ";
     }
     elsif ($CONF->{ADDRESS_REGISTER}) {
-      if ($attr->{ADDRESS_FULL}) {
-      	$attr->{BUILD_DELIMITER}=',' if (! $attr->{BUILD_DELIMITER});
-         push @WHERE_RULES, @{ $self->search_expr("$attr->{ADDRESS_FULL}", "STR", "CONCAT(streets.name, ' ', builds.number, '$attr->{BUILD_DELIMITER}', pi.address_flat) AS address_full", { EXT_FIELD => 1 }) };
-
-         $self->{EXT_TABLES} .= "LEFT JOIN builds ON (builds.id=pi.location_id)
-          LEFT JOIN streets ON (streets.id=builds.street_id)";
-      }
-      elsif ($attr->{ADDRESS_STREET}) {
+      if ($attr->{ADDRESS_STREET}) {
         push @fields, @{ $self->search_expr($attr->{ADDRESS_STREET}, 'STR', 'streets.name AS address_street', { EXT_FIELD => 1 }) };
         $self->{EXT_TABLES} .= "LEFT JOIN builds ON (builds.id=pi.location_id)
         LEFT JOIN streets ON (streets.id=builds.street_id)";
       }
-      elsif($attr->{SHOW_ADDRESS}) {
-        $self->{SEARCH_FIELDS_COUNT} += 4;
-        $self->{SEARCH_FIELDS}       .= 'streets.name AS address_street, builds.number AS address_build, pi.address_flat, streets.id AS street_id, pi.address_flat, ';
+      elsif ($attr->{ADDRESS_FULL}) {
+        $attr->{BUILD_DELIMITER}=',' if (! $attr->{BUILD_DELIMITER});
+         push @fields, @{ $self->search_expr("$attr->{ADDRESS_FULL}", "STR", "CONCAT(streets.name, ' ', builds.number, '$attr->{BUILD_DELIMITER}', pi.address_flat) AS address_full", { EXT_FIELD => 1 }) };
+
+        $self->{EXT_TABLES} .= "LEFT JOIN builds ON (builds.id=pi.location_id)
+          LEFT JOIN streets ON (streets.id=builds.street_id)";
+      }
+      elsif ($attr->{SHOW_ADDRESS}) {
+        push @{ $self->{SEARCH_FIELDS_ARR} }, 'streets.name AS address_street', 'builds.number AS address_build', 'pi.address_flat', 'streets.id AS street_id';
+
         $self->{EXT_TABLES} .= "LEFT JOIN builds ON (builds.id=pi.location_id)
         LEFT JOIN streets ON (streets.id=builds.street_id)";
       }
-    }
-    elsif ($attr->{ADDRESS_STREET}) {
-      push @fields, @{ $self->search_expr($attr->{ADDRESS_STREET}, 'STR', 'pi.address_street', { EXT_FIELD => 1 }) };
-    }
 
-    if ($CONF->{ADDRESS_REGISTER}) {
       if ($attr->{ADDRESS_BUILD}) {
         push @fields, @{ $self->search_expr($attr->{ADDRESS_BUILD}, 'STR', 'builds.number', { EXT_FIELD => 'builds.number AS address_build' }) };
+
         $self->{EXT_TABLES} .= "LEFT JOIN builds ON (builds.id=pi.location_id)" if ($self->{EXT_TABLES} !~ /builds/);
       }
-    }
-    elsif ($attr->{ADDRESS_BUILD}) {
-      push @fields, @{ $self->search_expr($attr->{ADDRESS_BUILD}, 'STR', 'pi.address_build', { EXT_FIELD => 1 }) };
-    }
 
-    if ($attr->{COUNTRY_ID}) {
-      push @fields, @{ $self->search_expr($attr->{COUNTRY_ID}, 'STR', 'pi.country_id', { EXT_FIELD => 1 }) };
+    }
+    else {
+      if($attr->{SHOW_ADDRESS}) {
+        push @{ $self->{SEARCH_FIELDS_ARR} }, 'pi.address_street', 'pi.address_build', 'pi.address_flat';
+      }
+      elsif ($attr->{ADDRESS_FULL}) {
+         $attr->{BUILD_DELIMITER}=',' if (! $attr->{BUILD_DELIMITER});
+         push @fields, @{ $self->search_expr("$attr->{ADDRESS_FULL}", "STR", "CONCAT(pi.address_street, ' ', pi.address_build, '$attr->{BUILD_DELIMITER}', pi.address_flat) AS address_full", { EXT_FIELD => 1 }) };
+      }
+
+      if ($attr->{ADDRESS_STREET}) {
+        push @fields, @{ $self->search_expr($attr->{ADDRESS_STREET}, 'STR', 'pi.address_street', { EXT_FIELD => 1 }) };
+      }
+
+      if ($attr->{ADDRESS_BUILD}) {
+        push @fields, @{ $self->search_expr($attr->{ADDRESS_BUILD}, 'STR', 'pi.address_build', { EXT_FIELD => 1 }) };
+      }
+
+      if ($attr->{COUNTRY_ID}) {
+        push @fields, @{ $self->search_expr($attr->{COUNTRY_ID}, 'STR', 'pi.country_id', { EXT_FIELD => 1 }) };
+      }
     }
   }
 
@@ -969,8 +986,33 @@ sub search_expr_users () {
       LEFT JOIN bills cb ON (company.bill_id=cb.id) ";
   }
 
-  delete ($self->{COL_NAMES_ARR});
+  if ( (!$admin->{permissions}->{0}->{8})
+    || ($attr->{USER_STATUS} && !$attr->{DELETED})) {
+    push @WHERE_RULES, @{ $self->search_expr(0, 'INT', 'u.deleted', { EXT_FIELD => 1 }) };
+  }
+  elsif (defined($attr->{DELETED})) {
+    push @WHERE_RULES, @{ $self->search_expr("$attr->{DELETED}", 'INT', 'u.deleted', { EXT_FIELD => 1 }) };
+  }
 
+  $self->{SEARCH_FIELDS}         = join(', ', @{ $self->{SEARCH_FIELDS_ARR} }).',' if (@{ $self->{SEARCH_FIELDS_ARR} });
+  $self->{SEARCH_FIELDS_COUNT}   = $#{ $self->{SEARCH_FIELDS_ARR} } + 1;
+
+  if ($attr->{SORT}) {
+  	my $sort_position = ($attr->{SORT}-2 < 1) ? 1 : $attr->{SORT}-2;
+    if ($self->{SEARCH_FIELDS_ARR}->[$sort_position]){
+      if ( $self->{SEARCH_FIELDS_ARR}->[$sort_position] =~ m/build$|flat$/i) {
+        if ($self->{SEARCH_FIELDS_ARR}->[$sort_position] =~ m/([a-z\._0-9\(\)]+)\s+/i) {
+      	  $self->{SEARCH_FIELDS_ARR}->[$sort_position]=$1;
+        }
+    	  $SORT = $self->{SEARCH_FIELDS_ARR}->[$sort_position] ."*1";
+      }
+      elsif ($self->{SEARCH_FIELDS_ARR}->[$sort_position] =~ m/ [a-z0-9\.]{0,12}ip/i) {
+      	$SORT = 'ip+0';
+      }
+    }
+  }
+
+  delete ($self->{COL_NAMES_ARR});
   return \@fields;
 }
 
@@ -990,16 +1032,16 @@ sub query_add {
   while (defined(my $row = $q->fetchrow_hashref())) {
     my $column = uc($row->{COLUMN_NAME});
     if ($values->{$column}) {
-    	if ($column eq 'IP' || $column eq 'NETMASK') {
-    		push @inserts_arr, "$row->{COLUMN_NAME}=INET_ATON('$values->{$column}')";
-    	}
-    	elsif ($column eq 'IPV6_PREFIX') {
-    		push @inserts_arr, "$row->{COLUMN_NAME}=INET6_ATON('$values->{$column}')";
-    	}
-    	else {
-    		if ($values->{$column} =~ /[a-z]+\(\)$/) {
-    			push @inserts_arr, "$row->{COLUMN_NAME}=$values->{$column}";
-    	  }
+      if ($column eq 'IP' || $column eq 'NETMASK') {
+        push @inserts_arr, "$row->{COLUMN_NAME}=INET_ATON('$values->{$column}')";
+      }
+      elsif ($column eq 'IPV6_PREFIX') {
+        push @inserts_arr, "$row->{COLUMN_NAME}=INET6_ATON('$values->{$column}')";
+      }
+      else {
+        if ($values->{$column} =~ /[a-z]+\(\)$/) {
+          push @inserts_arr, "$row->{COLUMN_NAME}=$values->{$column}";
+        }
         else {
           push @inserts_arr, "$row->{COLUMN_NAME}='$values->{$column}'";
         }

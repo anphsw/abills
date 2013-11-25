@@ -685,8 +685,6 @@ sub paids_list {
   my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 100;
 
-  @WHERE_RULES = ("p.uid=u.uid and p.aid=a.aid");
-
   if ($attr->{INTERVAL}) {
     ($attr->{FROM_DATE}, $attr->{TO_DATE})= split(/\//, $attr->{INTERVAL}, 2);
   }
@@ -706,18 +704,18 @@ sub paids_list {
       ['PAYMENT_METHOD',   'INT',   'p.maccount_id'                   ],
       ['DESCRIBE',         'STR',   'p.comments'                      ],
     ],
-    { WHERE => 1,
-    	WHERE_RULES => \@WHERE_RULES,
+    { WHERE       => 1,
     	USERS_FIELDS=> 1
     }    
     );
 
   $self->query2("SELECT p.id, p.date, u.id, p.sum, pt.name, p.comments, p.maccount_id, a.id, p.status, 
     p.status_date,  p.ext_id, p.uid, p.aid, p.type_id
-   FROM (extfin_paids p, 
-        users u,
-        admins a)
+    FROM extfin_paids p
+   INNER JOIN admins a ON (a.aid=p.aid)
+   INNER JOIN users u ON (u.uid=p.uid)
    LEFT JOIN extfin_paids_types pt ON (p.type_id=pt.id)
+   LEFT JOIN users_pi pi ON (pi.uid=u.uid)
   $WHERE
   $GROUP
   ORDER BY $SORT $DESC 
@@ -730,9 +728,11 @@ sub paids_list {
 
   if ($self->{TOTAL} > 0 || $PG > 0) {
     $self->query2("SELECT count(p.id) AS total, sum(sum) AS sum
-     FROM (extfin_paids p, admins a)
+      FROM extfin_paids p, 
+    INNER JOIN admins a ON (a.aid=p.aid)
     LEFT JOIN extfin_paids_types pt ON (p.type_id=pt.id)
-    WHERE p.aid=a.aid $WHERE;",
+    LEFT JOIN users_pi pi ON (pi.uid=u.uid)
+    $WHERE;",
     undef,
      {INFO => 1 }
     );
@@ -973,7 +973,7 @@ sub extfin_debetors {
      LEFT JOIN companies company ON  (u.company_id=company.id)
      LEFT JOIN bills cb ON  (company.bill_id=cb.id)
      LEFT JOIN dv_main dv ON  (u.uid=dv.uid)
-WHERE u.uid=f.uid $WHERE
+$WHERE
 GROUP BY f.uid
 HAVING debet < 0
 ORDER BY f.date DESC;",

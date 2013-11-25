@@ -29,7 +29,7 @@
   <TD>$_DISTRICTS:</TD>
   <TD><div>
       <select name='ADDRESS_DISTRICT' id='p1' style='width:250px;'>
-        <option value='%DISTRICT_ID%'>%ADDRESS_DISTRICT%</option>
+        <option value='%DISTRICT_ID%' selected>%ADDRESS_DISTRICT%</option>
       </select>
     </div></TD>
 </TR>
@@ -37,7 +37,7 @@
   <TD>$_ADDRESS_STREET:</TD>
   <TD><div>
       <select name='ADDRESS_STREET' id='p2' style='width:250px;'>
-        <option value='%STREET_ID%'>%ADDRESS_STREET%</option>
+        <option value='%STREET_ID%' selected>%ADDRESS_STREET%</option>
       </select>
     </div></TD>
 </TR>
@@ -45,14 +45,14 @@
   <TD>$_ADDRESS_BUILD:</TD>
   <TD><div>
       <select name='ADDRESS_BUILD' id='p3' style='width:250px;'>
-        <option value='%ADDRESS_BUILD%'>%ADDRESS_BUILD%</option>
-      </select><a id='addBuildInput' class='change rightAlignText' style='margin-left:10px'>$_ADD $_BUILD</a>
+        <option value='%ADDRESS_BUILD%' selected>%ADDRESS_BUILD%</option>
+      </select><a id='addBuildInput' class='change rightAlignText' style='margin-left:10px'>$_ADD $_BUILDS</a>
     </div></TD>
 </TR>
 <TR class='even addBuildMenu' style='display:none;'>
   <TD>$_ADDRESS_BUILD:</TD>
   <TD><div>
-      <input type='text' name='ADD_ADDRESS_BUILD'/><a id='changeBuildInput' class='change rightAlignText' style='margin-left:10px'>$_ADD $_BUILD</a>
+      <input type='text' name='ADD_ADDRESS_BUILD'/><a id='changeBuildInput' class='change rightAlignText' style='margin-left:10px'>$_ADD $_BUILDS</a>
     </div>
   </TD>
 </TR>

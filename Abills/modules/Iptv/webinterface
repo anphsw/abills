@@ -592,7 +592,7 @@ sub iptv_ext_cmd {
 
 #**********************************************************
 # Time intervals
-# form_intervals()
+# iptv_nas()
 #**********************************************************
 sub iptv_nas {
   $FORM{subf} = 18;
@@ -601,7 +601,7 @@ sub iptv_nas {
 
 #**********************************************************
 # Time intervals
-# form_intervals()
+# iptv_ti_channels()
 #**********************************************************
 sub iptv_ti_channels {
   my ($attr) = @_;
@@ -653,7 +653,7 @@ sub iptv_ti_channels {
   my $table = $html->table(
     {
       width      => '100%',
-      caption    => $_CHANNELS,
+      caption    => "$_CHANNELS",
       border     => 1,
       title      => [ "# ", "$_NUM", $_NAME, $_DESCRIBE, "$_MONTH $_PRICE", "$_DAY $_PRICE", "$_MANDATORY " ],
       cols_align => [ 'right', 'right', 'left', 'left', 'right', 'right', 'center' ],
@@ -698,6 +698,7 @@ sub iptv_ti_channels {
       HIDDEN  => {
         TP_ID       => "$FORM{TP_ID}",
         index       => "$index",
+        subf        => $FORM{subf},
         channels    => "$FORM{channels}",
         INTERVAL_ID => "$FORM{channels}"
       },
@@ -719,7 +720,7 @@ sub iptv_ti_channels {
 
 #**********************************************************
 # Time intervals
-# form_intervals()
+# iptv_intervals()
 #**********************************************************
 sub iptv_intervals {
   my ($attr) = @_;
@@ -821,6 +822,8 @@ sub iptv_intervals {
     return 0;
   }
 
+  $index = $FORM{subf};
+
   if ($tarif_plan->{errno}) {
     $html->message('err', $_ERROR, "[$tarif_plan->{errno}] $err_strs{$tarif_plan->{errno}} $tarif_plan->{errstr}");
   }
@@ -882,6 +885,9 @@ sub iptv_intervals {
       ARRAY_NUM_ID => 1
     }
   );
+
+  
+
 
   $html->tpl_show(_include('iptv_ti', 'Iptv'), $tarif_plan);
 
@@ -953,7 +959,7 @@ sub iptv_tp {
       },
       { 
         $_INFO     => ":TP_ID=$FORM{TP_ID}",
-        $_INTERVALS=> get_function_index('form_intervals').":TP_ID=$FORM{TP_ID}",
+        $_INTERVALS=> get_function_index('iptv_intervals').":TP_ID=$FORM{TP_ID}",
         $_NAS      => get_function_index('form_nas_allow').":TP_ID=$FORM{TP_ID}",        
         $_USERS    => get_function_index('iptv_users_list').":TP_ID=$FORM{TP_ID}"
       },
@@ -2175,7 +2181,10 @@ sub iptv_user_channels {
   my @mandatory_arr = ();
 
   #LIst channels
-  $list = $Iptv->channel_ti_list({ %LIST_PARAMS, MANDATORY => 1, COLS_NAME => 1 });
+  $list = $Iptv->channel_ti_list({ %LIST_PARAMS, 
+  	                               MANDATORY => 1, 
+  	                               COLS_NAME => 1,
+  	                               USER_INTERVAL_ID => $LIST_PARAMS{INTERVAL_ID} });
 
   foreach my $line (@$list) {
     if (($FORM{add} || $FORM{change}) && $FORM{change_now}) {
@@ -2276,7 +2285,10 @@ sub iptv_user_channels {
 
     @new_arr = keys %ids_hash;
     if ($#new_arr > -1) {
-      my $list = $Iptv->channel_ti_list({ %LIST_PARAMS, COLS_NAME => 1, IDS => join('; ', @new_arr) });
+      my $list = $Iptv->channel_ti_list({ %LIST_PARAMS, 
+      	                                  COLS_NAME        => 1, 
+      	                                  USER_INTERVAL_ID => $LIST_PARAMS{INTERVAL_ID},
+      	                                  IDS              => join('; ', @new_arr) });
       foreach my $line (@$list) {
         if (($users->{CREDIT} + $users->{DEPOSIT}) > $line->{month_price} || $Iptv->{PEYMENT_TYPE}) {
           $Iptv->{TP_INFO}->{PERIOD_ALIGNMENT} = $Iptv->{PERIOD_ALIGNMENT} || 0;
@@ -2291,7 +2303,7 @@ sub iptv_user_channels {
 
           if ($Iptv->{TP_INFO}->{MONTH_FEE} > 0) {
             $Iptv->{ACCOUNT_ACTIVATE} = $users->{ACTIVATE};
-            service_get_month_fee($Iptv, { EXT_DESCRIBE => " $_CHANNEL: $line->[1]",
+            service_get_month_fee($Iptv, { EXT_DESCRIBE => " $_CHANNEL: $line->{interval_channel_id}",
             	                             SERVICE_NAME => "$_TV" });
           }
           else {
@@ -2375,12 +2387,14 @@ sub iptv_user_channels {
     $select_channels{ $line->{channel_id} } = $line->{changed};
   }
 
-  $list = $Iptv->channel_ti_list({%LIST_PARAMS, COLS_NAME => 1});
+  $list = $Iptv->channel_ti_list({%LIST_PARAMS, 
+  	                              USER_INTERVAL_ID => $LIST_PARAMS{INTERVAL_ID},
+  	                              COLS_NAME => 1});
 
   my $table = $html->table(
     {
       width      => '100%',
-      caption    => $_CHANNELS,
+      caption    => "$_CHANNELS",
       border     => 1,
       title      => [ '#', $_NUM, $_NAME, $_DESCRIBE, "$_MONTH $_PRICE", "$_DAY $_PRICE", "$_MANDATORY", "$_PORT" ],
       cols_align => [ 'right', 'left', 'left', 'right' ],
@@ -3166,7 +3180,7 @@ sub iptv_reports_channels {
   my $table = $html->table(
     {
       width      => '100%',
-      caption    => $_CHANNELS,
+      caption    => "$_CHANNELS",
       border     => 1,
       title      => [ $_NUM, $_NAME, $_USERS, $_DEBETORS ],
       cols_align => [ 'right', 'left', 'right', 'right' ],
@@ -3180,12 +3194,6 @@ sub iptv_reports_channels {
     $table->addrow($html->b($line->[0]), $line->[1], $line->[2], $line->[3],);
   }
   print $table->show();
-
-  #$table = $html->table( { width      => '100%',
-  #                         cols_align => ['right', 'right'],
-  #                         rows       => [ [ "$_TOTAL:", $html->b($Iptv->{TOTAL}) ] ]
-  #                     } );
-  #print $table->show();
 
 }
 

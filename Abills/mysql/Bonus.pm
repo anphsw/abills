@@ -7,7 +7,7 @@ use strict;
 use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION);
 
 use Exporter;
-$VERSION = 2.00;
+$VERSION = 2.02;
 @ISA     = ('Exporter');
 
 @EXPORT = qw();
@@ -32,11 +32,14 @@ my $MODULE = 'Bonus';
 #**********************************************************
 sub new {
   my $class = shift;
-  ($db, $admin, $CONF) = @_;
+  my $db    = shift;
+  ($admin, $CONF) = @_;
   $admin->{MODULE} = $MODULE;
   my $self = {};
 
   bless($self, $class);
+  
+  $self->{db}=$db;
   $Bill = Bills->new($db, $admin, $CONF);
 
   return $self;
@@ -52,8 +55,7 @@ sub info {
 
   my $WHERE = "WHERE id='$id'";
 
-  $self->query(
-    $db, "SELECT tp_id, 
+  $self->query2("SELECT tp_id, 
     period,
     range_begin, 
     range_end,
@@ -93,20 +95,6 @@ sub defaults {
   return $self;
 }
 
-##**********************************************************
-## add()
-##**********************************************************
-#sub add {
-#  my $self = shift;
-#  my ($attr) = @_;
-#  my %DATA = $self->get_data($attr);
-#
-#  $self->query($db,  "INSERT INTO bonus_main (tp_id, range_begin, range_end, sum, comments, period)
-#        VALUES ('$DATA{TP_ID}',
-#        '$DATA{RANGE_BEGIN}', '$DATA{RANGE_END}', '$DATA{SUM}', '$DATA{COMMENTS}', '$DATA{PERIOD}');", 'do');
-#  return $self;
-#}
-
 #**********************************************************
 # change()
 #**********************************************************
@@ -136,17 +124,6 @@ sub change {
   return $self->{result};
 }
 
-##**********************************************************
-## Delete user info from all tables
-##
-## del(attr);
-##**********************************************************
-#sub del {
-#  my $self = shift;
-#  my ($attr) = @_;
-#  $self->query($db, "DELETE from bonus_main WHERE id='$attr->{ID}';", 'do');
-#  return $self->{result};
-#}
 
 #**********************************************************
 # list()
@@ -163,11 +140,12 @@ sub list {
   undef @WHERE_RULES;
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query(
-    $db, "SELECT tp_id, period, range_begin, range_end, sum, comments, id
+  $self->query2("SELECT tp_id, period, range_begin, range_end, sum, comments, id
      FROM bonus_main
      $WHERE 
-     ORDER BY $SORT $DESC;"
+     ORDER BY $SORT $DESC;",
+     undef,
+     $attr
   );
 
   return $self if ($self->{errno});
@@ -175,8 +153,7 @@ sub list {
   my $list = $self->{list};
 
   if ($self->{TOTAL} >= 0) {
-    $self->query($db, "SELECT count(b.id) FROM bonus_main b $WHERE");
-    ($self->{TOTAL}) = @{ $self->{list}->[0] };
+    $self->query2("SELECT count(b.id) AS total FROM bonus_main b $WHERE", undef, { INFO => 1 });
   }
 
   return $list;
@@ -206,21 +183,14 @@ sub tp_info {
 
   my $WHERE = "WHERE id='$id'";
 
-  $self->query(
-    $db, "SELECT id, 
+  $self->query2("SELECT id AS tp_id, 
     name,
     state
      FROM bonus_tps 
-   $WHERE;"
+   $WHERE;",
+   undef,
+   { INFO => 1 }
   );
-
-  if ($self->{TOTAL} < 1) {
-    $self->{errno}  = 2;
-    $self->{errstr} = 'ERROR_NOT_EXIST';
-    return $self;
-  }
-
-  ($self->{TP_ID}, $self->{NAME}, $self->{STATE}) = @{ $self->{list}->[0] };
 
   return $self;
 }
@@ -233,8 +203,7 @@ sub tp_add {
   my ($attr) = @_;
   my %DATA   = $self->get_data($attr);
 
-  $self->query(
-    $db, "INSERT INTO bonus_tps (name, state)
+  $self->query2("INSERT INTO bonus_tps (name, state)
         VALUES ('$DATA{NAME}', '$DATA{STATE}');", 'do'
   );
 
@@ -248,12 +217,6 @@ sub tp_change {
   my $self = shift;
   my ($attr) = @_;
 
-  my %FIELDS = (
-    ID    => 'id',
-    NAME  => 'name',
-    STATE => 'state'
-  );
-
   $attr->{STATE} = ($attr->{STATE}) ? 1 : 0;
 
   $self->changes(
@@ -261,8 +224,6 @@ sub tp_change {
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'bonus_tps',
-      FIELDS       => \%FIELDS,
-      OLD_INFO     => $self->tp_info($attr->{ID}),
       DATA         => $attr
     }
   );
@@ -277,7 +238,7 @@ sub tp_change {
 sub tp_del {
   my $self = shift;
   my ($attr) = @_;
-  $self->query($db, "DELETE from bonus_tps WHERE id='$attr->{ID}';", 'do');
+  $self->query2("DELETE from bonus_tps WHERE id='$attr->{ID}';", 'do');
   return $self->{result};
 }
 
@@ -296,11 +257,12 @@ sub tp_list {
   undef @WHERE_RULES;
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query(
-    $db, "SELECT id, name, state
+  $self->query2("SELECT id, name, state
      FROM bonus_tps
      $WHERE 
-     ORDER BY $SORT $DESC;"
+     ORDER BY $SORT $DESC;",
+     undef,
+     $attr
   );
 
   return $self if ($self->{errno});
@@ -308,8 +270,7 @@ sub tp_list {
   my $list = $self->{list};
 
   if ($self->{TOTAL} >= 0) {
-    $self->query($db, "SELECT count(b.id) FROM bonus_tps b $WHERE");
-    ($self->{TOTAL}) = @{ $self->{list}->[0] };
+    $self->query2("SELECT count(b.id) AS total FROM bonus_tps b $WHERE", undef, { INFO => 1 });
   }
 
   return $list;
@@ -325,24 +286,17 @@ sub rule_info {
 
   my $WHERE = "WHERE id='$id'";
 
-  $self->query(
-    $db, "SELECT tp_id,
+  $self->query2("SELECT tp_id,
     period,
     rules,
     rule_value,
     actions,
     id
      FROM bonus_rules 
-   $WHERE;"
+   $WHERE;",
+   undef,
+   { INFO => 1 }
   );
-
-  if ($self->{TOTAL} < 1) {
-    $self->{errno}  = 2;
-    $self->{errstr} = 'ERROR_NOT_EXIST';
-    return $self;
-  }
-
-  ($self->{TP_ID}, $self->{PERIOD}, $self->{RULE}, $self->{RULE_VALUE}, $self->{ACTIONS}, $self->{ID}) = @{ $self->{list}->[0] };
 
   return $self;
 }
@@ -355,8 +309,7 @@ sub rule_add {
   my ($attr) = @_;
   my %DATA   = $self->get_data($attr);
 
-  $self->query(
-    $db, "INSERT INTO bonus_rules (tp_id,
+  $self->query2("INSERT INTO bonus_rules (tp_id,
     period,
     rules,
     rule_value,
@@ -374,22 +327,11 @@ sub rule_change {
   my $self = shift;
   my ($attr) = @_;
 
-  my %FIELDS = (
-    ID         => 'id',
-    TP_ID      => 'tp_id',
-    PERIOD     => 'period',
-    RULE       => 'rules',
-    RULE_VALUE => 'rule_value',
-    ACTIONS    => 'actions'
-  );
-
   $self->changes(
     $admin,
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'bonus_rules',
-      FIELDS       => \%FIELDS,
-      OLD_INFO     => $self->rule_info($attr->{ID}),
       DATA         => $attr
     }
   );
@@ -405,7 +347,7 @@ sub rule_change {
 sub rule_del {
   my $self = shift;
   my ($attr) = @_;
-  $self->query($db, "DELETE from bonus_rules WHERE id='$attr->{ID}';", 'do');
+  $self->query2("DELETE from bonus_rules WHERE id='$attr->{ID}';", 'do');
   return $self;
 }
 
@@ -426,11 +368,12 @@ sub rule_list {
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query(
-    $db, "SELECT period, rules, rule_value, actions, id
+  $self->query2("SELECT period, rules, rule_value, actions, id
      FROM bonus_rules
      $WHERE 
-     ORDER BY $SORT $DESC;"
+     ORDER BY $SORT $DESC;",
+     undef,
+     $attr
   );
 
   return $self if ($self->{errno});
@@ -450,8 +393,7 @@ sub user_info {
 
   my $WHERE = "WHERE uid='$id'";
 
-  $self->query(
-    $db, "SELECT uid,
+  $self->query2("SELECT uid,
     tp_id,
     state,
     accept_rules
@@ -472,8 +414,7 @@ sub user_add {
   my ($attr) = @_;
   my %DATA   = $self->get_data($attr);
 
-  $self->query(
-    $db, "INSERT INTO bonus_main (uid, tp_id, state, accept_rules)
+  $self->query2("INSERT INTO bonus_main (uid, tp_id, state, accept_rules)
         VALUES ('$DATA{UID}', '$DATA{TP_ID}', '$DATA{STATE}', '$DATA{ACCEPT_RULES}');", 'do'
   );
 
@@ -518,7 +459,7 @@ sub user_change {
 sub user_del {
   my $self = shift;
   my ($attr) = @_;
-  $self->query($db, "DELETE from bonus_main WHERE uid='$attr->{UID}';", 'do');
+  $self->query2("DELETE from bonus_main WHERE uid='$attr->{UID}';", 'do');
 
   return $self;
 }
@@ -537,56 +478,30 @@ sub user_list {
 
   @WHERE_RULES = ("bu.uid = u.uid");
 
-  push @WHERE_RULES, @{ $self->search_expr_users({ %$attr, 
-                             EXT_FIELDS => [
-                                            'PHONE',
-                                            'EMAIL',
-                                            'ADDRESS_FLAT',
-                                            'PASPORT_DATE',
-                                            'PASPORT_NUM', 
-                                            'PASPORT_GRANT',
-                                            'CITY', 
-                                            'ZIP',
-                                            'GID',
-                                            'CONTRACT_ID',
-                                            'CONTRACT_SUFIX',
-                                            'CONTRACT_DATE',
-                                            'EXPIRE',
+  my $WHERE =  $self->search_former($attr, [
+      ['TP_ID',          'INT', 'bu.tp_id',  1 ],
+      ['DV_TP_ID',       'INT', 'tp.tp_id',  1 ],
+      ['BONUS_ACCOMULATION', '', '', 'ras.cost'],
+    ],
+    { WHERE             => 1,
+    	WHERE_RULES       => \@WHERE_RULES,
+    	USERS_FIELDS      => 1,
+    }
+    );
 
-                                            'CREDIT',
-                                            'CREDIT_DATE', 
-                                            'REDUCTION',
-                                            'REGISTRATION',
-                                            'REDUCTION_DATE',
-                                            'COMMENTS',
-                                            'BILL_ID',
-                                            
-                                            'ACTIVATE',
-                                            'EXPIRE',
+  my $EXT_TABLE = $self->{EXT_TABLES} if ($self->{EXT_TABLES});
 
-                                             ] }) };
-
-  if ($attr->{TP_ID}) {
-    push @WHERE_RULES, "bu.tp_id='$attr->{TP_ID}'";
+  if ($CONF->{BONUS_ACCOMULATION}){
+    $EXT_TABLE .= "LEFT JOIN bonus_rules_accomulation_scores ras ON (ras.uid = u.uid)";
   }
 
   if ($attr->{DV_TP_ID}) {
-    push @WHERE_RULES, "tp.tp_id='$attr->{DV_TP_ID}'";
-    $self->{EXT_TABLES} .= "LEFT JOIN dv_main dv ON (dv.uid = u.uid)
+    $EXT_TABLE .= "LEFT JOIN dv_main dv ON (dv.uid = u.uid)
       LEFT JOIN tarif_plans tp  ON (tp.id = dv.tp_id)
     ";
   }
 
-  if ($CONF->{BONUS_ACCOMULATION}){
-    $self->{EXT_TABLES} .= "LEFT JOIN bonus_rules_accomulation_scores ras ON (ras.uid = u.uid)";
-    $self->{SEARCH_FIELDS} .= 'ras.cost, ';
-    $self->{SEARCH_FIELDS_COUNT}++;
-  }
-
-  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
-
-  $self->query(
-    $db, "SELECT u.id AS login, pi.fio, b_tp.name, bu.state, 
+  $self->query2("SELECT u.id AS login, pi.fio, b_tp.name AS tp_name, bu.state, 
       if(company.id IS NULL, b.deposit, cb.deposit) AS deposit, 
       if(u.company_id=0, u.credit, 
           if (u.credit=0, company.credit, u.credit)) AS credit, u.disable, 
@@ -596,7 +511,7 @@ sub user_list {
      FROM (bonus_main bu, users u)
      LEFT JOIN users_pi pi ON (u.uid=pi.uid)
      LEFT JOIN bonus_tps b_tp ON (b_tp.id=bu.tp_id)
-     $self->{EXT_TABLES}
+     $EXT_TABLE
      $WHERE
      ORDER BY $SORT $DESC
      LIMIT $PG, $PAGE_ROWS;",
@@ -604,9 +519,17 @@ sub user_list {
      $attr
   );
 
-  return $self if ($self->{errno});
-
   my $list = $self->{list};
+
+  $self->query2("SELECT count(DISTINCT bu.uid) AS total      
+     FROM (bonus_main bu, users u)
+     LEFT JOIN users_pi pi ON (u.uid=pi.uid)
+     LEFT JOIN bonus_tps b_tp ON (b_tp.id=bu.tp_id)
+     $EXT_TABLE
+     $WHERE;",
+     undef,
+     { INFO => 1 }
+  );
 
   return $list;
 }
@@ -627,7 +550,7 @@ sub bonus_operation {
   }
 
   if ($DATA{CHECK_EXT_ID}) {
-    $self->query($db, "SELECT id, date FROM bonus_log WHERE ext_id='$DATA{CHECK_EXT_ID}';");
+    $self->query2("SELECT id, date FROM bonus_log WHERE ext_id='$DATA{CHECK_EXT_ID}';");
     if ($self->{TOTAL} > 0) {
       $self->{errno}  = 7;
       $self->{errstr} = 'ERROR_DUBLICATE';
@@ -637,7 +560,7 @@ sub bonus_operation {
     }
   }
 
-  #$db->{AutoCommit}=0;
+  #$self->{db}->{AutoCommit}=0;
   $user->{EXT_BILL_ID} = $attr->{BILL_ID} if ($attr->{BILL_ID});
 
   if ($user->{EXT_BILL_ID} > 0) {
@@ -656,8 +579,7 @@ sub bonus_operation {
     }
 
     my $date = ($DATA{DATE}) ? "'$DATA{DATE}'" : 'now()';
-    $self->query(
-      $db, "INSERT INTO bonus_log (uid, bill_id, date, sum, dsc, ip, last_deposit, aid, method, ext_id,
+    $self->query2("INSERT INTO bonus_log (uid, bill_id, date, sum, dsc, ip, last_deposit, aid, method, ext_id,
            inner_describe, action_type, expire) 
            values ('$user->{UID}', '$user->{EXT_BILL_ID}', $date, '$DATA{SUM}', '$DATA{DESCRIBE}', INET_ATON('$admin->{SESSION_IP}'), 
            '$Bill->{DEPOSIT}', '$admin->{AID}', '$DATA{METHOD}', 
@@ -671,8 +593,8 @@ sub bonus_operation {
     $self->{errstr} = 'No Bill';
   }
 
-  #$db->commit;
-  #$db->rollback;
+  #$self->{db}->commit;
+  #$self->{db}->rollback;
 
   return $self;
 }
@@ -684,7 +606,7 @@ sub bonus_operation_del {
   my $self = shift;
   my ($user, $id) = @_;
 
-  $self->query($db, "SELECT sum, bill_id, action_type from bonus_log WHERE id='$id';");
+  $self->query2("SELECT sum, bill_id, action_type from bonus_log WHERE id='$id';");
 
   if ($self->{TOTAL} < 1) {
     $self->{errno}  = 2;
@@ -702,7 +624,7 @@ sub bonus_operation_del {
   }
   $Bill->action($bill_action, $bill_id, $sum);
 
-  $self->query($db, "DELETE FROM bonus_log WHERE id='$id';", 'do');
+  $self->query2("DELETE FROM bonus_log WHERE id='$id';", 'do');
   $admin->action_add($user->{UID}, "BONUS $bill_action:$id SUM:$sum", { TYPE => 10 });
 
   return $self;
@@ -821,8 +743,7 @@ sub bonus_operation_list {
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query(
-    $db, "SELECT p.id, u.id, $self->{SEARCH_FIELDS} p.date, p.dsc, p.sum, p.last_deposit, p.expire, p.method, 
+  $self->query2("SELECT p.id, u.id, $self->{SEARCH_FIELDS} p.date, p.dsc, p.sum, p.last_deposit, p.expire, p.method, 
       p.ext_id, p.bill_id, if(a.name is null, 'Unknown', a.name),
       INET_NTOA(p.ip), p.action_type, p.uid, p.inner_describe
     FROM bonus_log p
@@ -841,8 +762,7 @@ sub bonus_operation_list {
   return $self->{list} if ($self->{TOTAL} < 1);
   my $list = $self->{list};
 
-  $self->query(
-    $db, "SELECT count(p.id) AS total, sum(p.sum) AS sum, count(DISTINCT p.uid) AS total_users FROM bonus_log p
+  $self->query2("SELECT count(p.id) AS total, sum(p.sum) AS sum, count(DISTINCT p.uid) AS total_users FROM bonus_log p
   LEFT JOIN users u ON (u.uid=p.uid)
   LEFT JOIN admins a ON (a.aid=p.aid)
   $EXT_TABLES
@@ -866,8 +786,7 @@ sub service_discount_info {
 
   my $WHERE = "WHERE id='$id'";
 
-  $self->query(
-    $db, "SELECT id,
+  $self->query2("SELECT id,
     service_period,
     registration_days,
     discount,
@@ -877,16 +796,11 @@ sub service_discount_info {
     bonus_percent,
     ext_account
      FROM bonus_service_discount
-   $WHERE;"
+   $WHERE;",
+   undef,
+   { INFO => 1 }
   );
 
-  if ($self->{TOTAL} < 1) {
-    $self->{errno}  = 2;
-    $self->{errstr} = 'ERROR_NOT_EXIST';
-    return $self;
-  }
-
-  ($self->{ID}, $self->{SERVICE_PERIOD}, $self->{REGISTRATION_DAYS}, $self->{DISCOUNT}, $self->{DISCOUNT_DAYS}, $self->{TOTAL_PAYMENTS_SUM}, $self->{BONUS_SUM}, $self->{BONUS_PERCENT}, $self->{EXT_ACCOUNT}) = @{ $self->{list}->[0] };
 
   return $self;
 }
@@ -899,8 +813,7 @@ sub service_discount_add {
   my ($attr) = @_;
   my %DATA   = $self->get_data($attr);
 
-  $self->query(
-    $db, "INSERT INTO bonus_service_discount (service_period, registration_days, discount, discount_days,
+  $self->query2("INSERT INTO bonus_service_discount (service_period, registration_days, discount, discount_days,
     total_payments_sum, bonus_sum, ext_account, bonus_percent)
         VALUES ('$DATA{SERVICE_PERIOD}', '$DATA{REGISTRATION_DAYS}', '$DATA{DISCOUNT}', '$DATA{DISCOUNT_DAYS}',
     '$DATA{TOTAL_PAYMENTS_SUM}', '$DATA{BONUS_SUM}', '$DATA{EXT_ACCOUNT}', '$DATA{BONUS_PERCENT}');", 'do'
@@ -916,18 +829,6 @@ sub service_discount_change {
   my $self = shift;
   my ($attr) = @_;
 
-  my %FIELDS = (
-    ID                 => 'id',
-    SERVICE_PERIOD     => 'service_period',
-    REGISTRATION_DAY   => 'registration_day',
-    DISCOUNT           => 'discount',
-    DISCOUNT_DAYS      => 'discount_days',
-    TOTAL_PAYMENTS_SUM => 'total_payments_sum',
-    BONUS_SUM          => 'bonus_sum',
-    EXT_ACCOUNT        => 'ext_account',
-    BONUS_PERCENT      => 'bonus_percent'
-  );
-
   $attr->{STATE} = ($attr->{STATE}) ? 1 : 0;
 
   $self->changes(
@@ -935,8 +836,6 @@ sub service_discount_change {
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'bonus_service_discount',
-      FIELDS       => \%FIELDS,
-      OLD_INFO     => $self->service_discount_info($attr->{ID}),
       DATA         => $attr
     }
   );
@@ -953,7 +852,7 @@ sub service_discount_change {
 sub service_discount_del {
   my $self = shift;
   my ($attr) = @_;
-  $self->query($db, "DELETE from bonus_service_discount WHERE id='$attr->{ID}';", 'do');
+  $self->query2("DELETE from bonus_service_discount WHERE id='$attr->{ID}';", 'do');
 
   return $self;
 }
@@ -990,13 +889,14 @@ sub service_discount_list {
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query(
-    $db, "SELECT service_period, registration_days, total_payments_sum,
+  $self->query2("SELECT service_period, registration_days, total_payments_sum,
   discount, discount_days,  bonus_sum,  bonus_percent, ext_account, id
      FROM bonus_service_discount
      $WHERE 
      ORDER BY $SORT $DESC
-     LIMIT $PG, $PAGE_ROWS;"
+     LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
   );
 
   return $self if ($self->{errno});
@@ -1016,27 +916,16 @@ sub bonus_turbo_info {
 
   my $WHERE = "WHERE id='$id'";
 
-  $self->query(
-    $db, "SELECT id,
+  $self->query2("SELECT id,
     service_period,
     registration_days,
     turbo_count,
     comments
      FROM bonus_turbo
-   $WHERE;"
+   $WHERE;",
+   undef,
+   { INFO => 1 }
   );
-
-  if ($self->{TOTAL} < 1) {
-    $self->{errno}  = 2;
-    $self->{errstr} = 'ERROR_NOT_EXIST';
-    return $self;
-  }
-
-  ($self->{ID}, 
-  $self->{SERVICE_PERIOD}, 
-  $self->{REGISTRATION_DAYS}, 
-  $self->{TURBO_COUNT},
-  $self->{COMMENTS}) = @{ $self->{list}->[0] };
 
   return $self;
 }
@@ -1049,7 +938,7 @@ sub bonus_turbo_add {
   my ($attr) = @_;
   my %DATA   = $self->get_data($attr);
 
-  $self->query($db, "INSERT INTO bonus_turbo (service_period, registration_days, turbo_count, comments)
+  $self->query2("INSERT INTO bonus_turbo (service_period, registration_days, turbo_count, comments)
         VALUES ('$DATA{SERVICE_PERIOD}', '$DATA{REGISTRATION_DAYS}', '$DATA{TURBO_COUNT}', '$DATA{DESCRIBE}');", 'do'
   );
 
@@ -1063,14 +952,6 @@ sub bonus_turbo_change {
   my $self = shift;
   my ($attr) = @_;
 
-  my %FIELDS = (
-    ID                 => 'id',
-    SERVICE_PERIOD     => 'service_period',
-    REGISTRATION_DAY   => 'registration_day',
-    TURBO_COUNT        => 'turbo_count',
-    COMMENTS           => 'comments'
-  );
-
   $attr->{STATE} = ($attr->{STATE}) ? 1 : 0;
 
   $self->changes(
@@ -1078,8 +959,6 @@ sub bonus_turbo_change {
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'bonus_turbo',
-      FIELDS       => \%FIELDS,
-      OLD_INFO     => $self->bonus_turbo_info($attr->{ID}),
       DATA         => $attr
     }
   );
@@ -1096,13 +975,13 @@ sub bonus_turbo_change {
 sub bonus_turbo_del {
   my $self = shift;
   my ($attr) = @_;
-  $self->query($db, "DELETE from bonus_turbo WHERE id='$attr->{ID}';", 'do');
+  $self->query2("DELETE from bonus_turbo WHERE id='$attr->{ID}';", 'do');
 
   return $self;
 }
 
 #**********************************************************
-# service_discount_list()
+# bonus_turbo_list()
 #**********************************************************
 sub bonus_turbo_list {
   my $self = shift;
@@ -1125,12 +1004,13 @@ sub bonus_turbo_list {
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query(
-    $db, "SELECT service_period, registration_days, turbo_count, id
+  $self->query2("SELECT service_period, registration_days, turbo_count, id
      FROM bonus_turbo
      $WHERE 
      ORDER BY $SORT $DESC
-     LIMIT $PG, $PAGE_ROWS;"
+     LIMIT $PG, $PAGE_ROWS;",
+     undef,
+     $attr
   );
 
   return $self if ($self->{errno});
@@ -1150,8 +1030,7 @@ sub accomulation_rule_info {
 
   my $WHERE = "WHERE id='$attr->{TP_ID} AND dv_tp_id='$attr->{DV_TP_ID}'";
 
-  $self->query(
-    $db, "SELECT tp_id,
+  $self->query2("SELECT tp_id,
     dv_tp_id,
     cost
      FROM bonus_rules 
@@ -1159,12 +1038,6 @@ sub accomulation_rule_info {
    undef,
    { INFO => 1 }
   );
-
-  if ($self->{TOTAL} < 1) {
-    $self->{errno}  = 2;
-    $self->{errstr} = 'ERROR_NOT_EXIST';
-    return $self;
-  }
 
   return $self;
 }
@@ -1180,8 +1053,7 @@ sub accomulation_rule_change {
   my @ids = split(/, /, $attr->{DV_TP_ID});
 
   foreach my $id (@ids) {
-    $self->query(
-    $db, "REPLACE INTO bonus_rules_accomulation (tp_id, dv_tp_id, cost)
+    $self->query2("REPLACE INTO bonus_rules_accomulation (tp_id, dv_tp_id, cost)
         VALUES ('$DATA{TP_ID}', '$id', '". $DATA{'COST_'.$id} ."');", 'do'
     );
   }
@@ -1215,12 +1087,10 @@ sub accomulation_rule_list {
   if ($attr->{COST}) {
     push @WHERE_RULES, @{ $self->search_expr("$attr->{COST}", 'INT', 'cost') };
   }
-
  
   $WHERE = ($#WHERE_RULES > -1) ? join(' and ', @WHERE_RULES) : '';
 
-  $self->query(
-    $db, "SELECT br.tp_id, tp.name, tp.tp_id AS dv_tp_id, br.cost
+  $self->query2("SELECT br.tp_id, tp.name, tp.tp_id AS dv_tp_id, br.cost
      FROM tarif_plans tp
      LEFT JOIN bonus_rules_accomulation br ON (br.dv_tp_id=tp.tp_id $JOIN_WHERE)
      WHERE $WHERE 
@@ -1248,18 +1118,12 @@ sub accomulation_scores_info {
 
   my $WHERE = "WHERE uid='$attr->{UID}'";
 
-  $self->query($db, "SELECT  dv_tp_id, cost, changed
+  $self->query2("SELECT  dv_tp_id, cost, changed
      FROM bonus_rules_accomulation_scores
    $WHERE;",
    undef,
    { INFO => 1 }
   );
-
-  if ($self->{TOTAL} < 1) {
-    $self->{errno}  = 2;
-    $self->{errstr} = 'ERROR_NOT_EXIST';
-    return $self;
-  }
 
   return $self;
 }
@@ -1272,7 +1136,7 @@ sub accomulation_scores_change {
   my ($attr) = @_;
   my %DATA   = $self->get_data($attr);
 
-  $self->query($db, "REPLACE INTO bonus_rules_accomulation_scores (uid, dv_tp_id, cost)
+  $self->query2("REPLACE INTO bonus_rules_accomulation_scores (uid, dv_tp_id, cost)
         VALUES ('$DATA{UID}', '$DATA{DV_TP_ID}', '$DATA{SCORE}');", 'do'
   );
 
@@ -1304,13 +1168,13 @@ sub accomulation_scores_list {
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query(
-    $db, "SELECT service_period, registration_days, turbo_count, id
+  $self->query2("SELECT service_period, registration_days, turbo_count, id
      FROM bonus_rules_accomulation_scores bs
      INNER JOIN users u ON (u.uid=bs.uid)
      $WHERE 
      ORDER BY $SORT $DESC
-     LIMIT $PG, $PAGE_ROWS;"
+     LIMIT $PG, $PAGE_ROWS;",
+     undef, $attr
   );
 
   return $self if ($self->{errno});
@@ -1331,15 +1195,15 @@ sub accomulation_first_rule {
   $CONF->{BONUS_ACCOMULATION_FIRST_BONUS}=40 if (! $CONF->{BONUS_ACCOMULATION_FIRST_BONUS});
   $CONF->{BONUS_ACCOMULATION_FIRST_INTERVAL}=3 if (! defined($CONF->{BONUS_ACCOMULATION_FIRST_INTERVAL}));
 
-  $self->query($db, "SELECT PERIOD_DIFF(DATE_FORMAT(max(date), '%Y%m'), 
+  $self->query2( "SELECT PERIOD_DIFF(DATE_FORMAT(max(date), '%Y%m'), 
 DATE_FORMAT(min(date), '%Y%m')) FROM fees where uid='$attr->{UID}' AND
     date>=curdate() - INTERVAL $CONF->{BONUS_ACCOMULATION_FIRST_INTERVAL} MONTH");
     
   if ($self->{list}->[0]->[0]>=$CONF->{BONUS_ACCOMULATION_FIRST_INTERVAL}) { 
-    $self->query($db, 
-    "REPLACE INTO bonus_rules_accomulation_scores (uid, cost, changed)
+    $self->query2("REPLACE INTO bonus_rules_accomulation_scores (uid, cost, changed)
 SELECT $attr->{UID}, IF((SELECT \@A:=min(last_deposit) FROM fees WHERE uid='$attr->{UID}' AND date>=curdate() - INTERVAL $CONF->{BONUS_ACCOMULATION_FIRST_INTERVAL} MONTH) >= 0 OR \@A is null , $CONF->{BONUS_ACCOMULATION_FIRST_BONUS}, 0), curdate();", 'do');
   }
+
   return $self;
 }
 

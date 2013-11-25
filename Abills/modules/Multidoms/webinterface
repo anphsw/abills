@@ -1490,25 +1490,25 @@ sub multidoms_domains {
   print $table->show();
 }
 
-#**********************************************************
+##**********************************************************
+##
+##**********************************************************
+#sub cards_dillers_sel {
+#  my $dillers_sel = '';
+#  $dillers_sel = $html->form_select(
+#    'DILLER_ID',
+#    {
+#      SELECTED          => $FORM{DILLER_ID},
+#      SEL_MULTI_ARRAY   => [ [ '', '' ], @{ $Multidoms->multidoms_domains_list({ DISABLE => 0, SORT => 2, PAGE_ROWS => 10000 }) } ],
+#      MULTI_ARRAY_KEY   => 0,
+#      MULTI_ARRAY_VALUE => 2,
 #
-#**********************************************************
-sub cards_dillers_sel {
-  my $dillers_sel = '';
-  $dillers_sel = $html->form_select(
-    'DILLER_ID',
-    {
-      SELECTED          => $FORM{DILLER_ID},
-      SEL_MULTI_ARRAY   => [ [ '', '' ], @{ $Multidoms->multidoms_domains_list({ DISABLE => 0, SORT => 2, PAGE_ROWS => 10000 }) } ],
-      MULTI_ARRAY_KEY   => 0,
-      MULTI_ARRAY_VALUE => 2,
-
-      #NO_ID             => 1,
-    }
-  );
-
-  return $dillers_sel;
-}
+#      #NO_ID             => 1,
+#    }
+#  );
+#
+#  return $dillers_sel;
+#}
 
 #**********************************************************
 #
@@ -1602,98 +1602,98 @@ sub multidoms_cards_dillers {
   print $table->show();
 }
 
-#**********************************************************
+##**********************************************************
+##
+##**********************************************************
+#sub cards_report_dillers {
+#  my ($attr) = @_;
 #
-#**********************************************************
-sub cards_report_dillers {
-  my ($attr) = @_;
-
-  if ($FORM{DILLER_ID}) {
-    $LIST_PARAMS{DILLER_ID} = $FORM{DILLER_ID};
-
-    cards_report();
-    return 0;
-  }
-  elsif ($FORM{SERIAL}) {
-    $LIST_PARAMS{SERIAL} = $FORM{SERIAL};
-    cards_report();
-    return 0;
-  }
-
-  if (!$FORM{DATE}) {
-    reports(
-      {
-        DATE        => $FORM{DATE},
-        REPORT      => '',
-        EX_PARAMS   => { 1 => $_DILLERS, 2 => $_ICARDS },
-        PERIOD_FORM => 1
-      }
-    );
-  }
-
-  my $list = $Cards->cards_report_dillers({%LIST_PARAMS});
-  $table = $html->table(
-    {
-      width   => '100%',
-      caption => $attr->{CAPTION},
-
-      #title      => ['ID', "$_LOGIN", "$_ADDED", "$_GROUP", "$_STATUS", "$_EXPIRE", "$_DILLERS", "$_ADMINS", '-'],
-      cols_align => [ 'left', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right' ],
-      qs         => $pages_qs,
-      pages      => $Cards->{TOTAL}
-    }
-  );
-
-  $table->addtd(
-    $table->td($attr->{CAPTION}, { bgcolor => $_COLORS[0], rowspan => 2 }),
-    $table->td($_ENABLE,         { bgcolor => $_COLORS[0], colspan => 2 }),
-    $table->td($_DISABLE,        { bgcolor => $_COLORS[0], colspan => 2 }),
-    $table->td($_PAYMENTS,       { bgcolor => $_COLORS[0], colspan => 2 }),
-    $table->td($_LOGIN,          { bgcolor => $_COLORS[0], colspan => 2 }),
-    $table->td($_TAKE,           { bgcolor => $_COLORS[0], colspan => 2 }),
-    $table->td($_SOLD,           { bgcolor => $_COLORS[0], colspan => 3 }),
-    $table->td($_RETURNED,       { bgcolor => $_COLORS[0], colspan => 2 }),
-    $table->td($_TOTAL,          { bgcolor => $_COLORS[0], colspan => 2 })
-  );
-
-  $table->{rowcolor} = $_COLORS[0];
-  $table->addrow("$_COUNT", "$_SUM", "$_COUNT", "$_SUM", "$_COUNT", "$_SUM", "$_COUNT", "$_SUM", "$_COUNT", "$_SUM", "$_COUNT", "$_SUM", "$_PERCENTAGE", "$_COUNT", "$_SUM", "$_COUNT", "$_SUM");
-
-  $table->{rowcolor} = undef;
-
-  foreach $line (@$list) {
-    my $button = ($LIST_PARAMS{GROUP}) ? $html->button($line->[0], "index=$index&SERIAL=$line->[0]$pages_qs") : $html->button($line->[0], "index=$index&DILLER_ID=$line->[18]$pages_qs");
-    $table->addrow(
-      $button,
-      $line->[1],
-      $line->[2],
-      $line->[3],
-      $line->[4],
-      $line->[5],
-      $line->[6],
-      $line->[7],
-      $line->[8],
-      $line->[9],
-      $line->[10],
-      $line->[11],
-      $line->[12],
-      $line->[13],
-      $line->[14],
-      $line->[15],
-      $line->[16],
-      $line->[17]
-
-    );
-
-  }
-
-  $table->{rowcolor} = $_COLORS[3];
-  $table->addrow(
-    "$_TOTAL:",           $Cards->{ENABLE_TOTAL},   $Cards->{ENABLE_TOTAL_SUM}, $Cards->{DISABLE_TOTAL},  $Cards->{DISABLE_TOTAL_SUM},     $Cards->{PAYMENT_TOTAL}, $Cards->{PAYMENT_TOTAL_SUM}, $Cards->{LOGIN_TOTAL}, $Cards->{LOGIN_TOTAL_SUM},
-    $Cards->{TAKE_TOTAL}, $Cards->{TAKE_TOTAL_SUM}, $Cards->{SOLD_TOTAL},       $Cards->{SOLD_TOTAL_SUM}, $Cards->{SOLD_TOTAL_PERCENTAGE}, $Cards->{RETURN_TOTAL},  $Cards->{RETURN_TOTAL_SUM},  $Cards->{COUNT_TOTAL}, $Cards->{COUNT_TOTAL_SUM}
-  );
-  print $table->show();
-}
+#  if ($FORM{DILLER_ID}) {
+#    $LIST_PARAMS{DILLER_ID} = $FORM{DILLER_ID};
+#
+#    cards_report();
+#    return 0;
+#  }
+#  elsif ($FORM{SERIAL}) {
+#    $LIST_PARAMS{SERIAL} = $FORM{SERIAL};
+#    cards_report();
+#    return 0;
+#  }
+#
+#  if (!$FORM{DATE}) {
+#    reports(
+#      {
+#        DATE        => $FORM{DATE},
+#        REPORT      => '',
+#        EX_PARAMS   => { 1 => $_DILLERS, 2 => $_ICARDS },
+#        PERIOD_FORM => 1
+#      }
+#    );
+#  }
+#
+#  my $list = $Cards->cards_report_dillers({%LIST_PARAMS});
+#  $table = $html->table(
+#    {
+#      width   => '100%',
+#      caption => $attr->{CAPTION},
+#
+#      #title      => ['ID', "$_LOGIN", "$_ADDED", "$_GROUP", "$_STATUS", "$_EXPIRE", "$_DILLERS", "$_ADMINS", '-'],
+#      cols_align => [ 'left', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right' ],
+#      qs         => $pages_qs,
+#      pages      => $Cards->{TOTAL}
+#    }
+#  );
+#
+#  $table->addtd(
+#    $table->td($attr->{CAPTION}, { bgcolor => $_COLORS[0], rowspan => 2 }),
+#    $table->td($_ENABLE,         { bgcolor => $_COLORS[0], colspan => 2 }),
+#    $table->td($_DISABLE,        { bgcolor => $_COLORS[0], colspan => 2 }),
+#    $table->td($_PAYMENTS,       { bgcolor => $_COLORS[0], colspan => 2 }),
+#    $table->td($_LOGIN,          { bgcolor => $_COLORS[0], colspan => 2 }),
+#    $table->td($_TAKE,           { bgcolor => $_COLORS[0], colspan => 2 }),
+#    $table->td($_SOLD,           { bgcolor => $_COLORS[0], colspan => 3 }),
+#    $table->td($_RETURNED,       { bgcolor => $_COLORS[0], colspan => 2 }),
+#    $table->td($_TOTAL,          { bgcolor => $_COLORS[0], colspan => 2 })
+#  );
+#
+#  $table->{rowcolor} = $_COLORS[0];
+#  $table->addrow("$_COUNT", "$_SUM", "$_COUNT", "$_SUM", "$_COUNT", "$_SUM", "$_COUNT", "$_SUM", "$_COUNT", "$_SUM", "$_COUNT", "$_SUM", "$_PERCENTAGE", "$_COUNT", "$_SUM", "$_COUNT", "$_SUM");
+#
+#  $table->{rowcolor} = undef;
+#
+#  foreach $line (@$list) {
+#    my $button = ($LIST_PARAMS{GROUP}) ? $html->button($line->[0], "index=$index&SERIAL=$line->[0]$pages_qs") : $html->button($line->[0], "index=$index&DILLER_ID=$line->[18]$pages_qs");
+#    $table->addrow(
+#      $button,
+#      $line->[1],
+#      $line->[2],
+#      $line->[3],
+#      $line->[4],
+#      $line->[5],
+#      $line->[6],
+#      $line->[7],
+#      $line->[8],
+#      $line->[9],
+#      $line->[10],
+#      $line->[11],
+#      $line->[12],
+#      $line->[13],
+#      $line->[14],
+#      $line->[15],
+#      $line->[16],
+#      $line->[17]
+#
+#    );
+#
+#  }
+#
+#  $table->{rowcolor} = $_COLORS[3];
+#  $table->addrow(
+#    "$_TOTAL:",           $Cards->{ENABLE_TOTAL},   $Cards->{ENABLE_TOTAL_SUM}, $Cards->{DISABLE_TOTAL},  $Cards->{DISABLE_TOTAL_SUM},     $Cards->{PAYMENT_TOTAL}, $Cards->{PAYMENT_TOTAL_SUM}, $Cards->{LOGIN_TOTAL}, $Cards->{LOGIN_TOTAL_SUM},
+#    $Cards->{TAKE_TOTAL}, $Cards->{TAKE_TOTAL_SUM}, $Cards->{SOLD_TOTAL},       $Cards->{SOLD_TOTAL_SUM}, $Cards->{SOLD_TOTAL_PERCENTAGE}, $Cards->{RETURN_TOTAL},  $Cards->{RETURN_TOTAL_SUM},  $Cards->{COUNT_TOTAL}, $Cards->{COUNT_TOTAL_SUM}
+#  );
+#  print $table->show();
+#}
 
 #**********************************************************
 #

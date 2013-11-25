@@ -567,72 +567,64 @@ sub hosts_list {
 
   @WHERE_RULES = ();
   my $EXT_TABLES = '';
-
-  # Deposit chech
-  my $extra_fields = '';
-  if (defined($attr->{DHCPHOSTS_EXT_DEPOSITCHECK})) {
-    $EXT_TABLES = "
-            LEFT JOIN companies company ON  (u.company_id=company.id) 
-            LEFT JOIN bills ext_b ON (u.ext_bill_id = ext_b.id)
-            LEFT JOIN bills ext_cb ON  (company.ext_bill_id=ext_cb.id) ";
-  }
-  elsif (defined($attr->{DHCPHOSTS_DEPOSITCHECK})) {
-    $EXT_TABLES = 'LEFT JOIN bills b ON (u.bill_id = b.id)
-     LEFT JOIN companies company ON  (u.company_id=company.id) 
-     LEFT JOIN bills cb ON  (company.bill_id=cb.id)';
-  }
+  $self->{EXT_TABLES} = '';
 
   if ($attr->{NAS_IP}) {
     $EXT_TABLES .= "LEFT JOIN nas  ON  (h.nas=nas.id) ";
   }
 
+  my $WHERE =  $self->search_former($attr, [
+     ['ID',              'INT', 'h.id'                         ],
+     ['LOGIN',           'INT', 'u.id',   'u.id AS login'      ],
+     ['IP',              'IP',  'h.ip', 'INET_NTOA(h.ip) AS ip'],
+     ['HOSTNAME',        'STR', 'h.hostname',     1            ],
+     ['NETWORK_NAME',    'STR', 'n.name AS netwirk_name', 1    ],
+     ['NETWORK',         'INT', 'h.network',      1],
+     ['MAC',             'STR', 'h.mac',          1],  
+     ['STATUS',          'INT', 'h.disable',      'h.disable AS status'],
+     ['IPN_ACTIVATE',    'INT', 'h.ipn_activate', 1],
+     ['EXPIRE',          'DATE','h.expire',       1],
+     ['USER_DISABLE',    'INT', 'u.disable',      1],
+     ['OPTION_82',       'INT', 'h.option_82',    1],
+     ['PORTS',           'STR', 'h.ports',        1],
+     ['VID',             'INT', 'h.vid',          1],
+     ['SERVER_VID',      'INT', 'h.server_vid',   1],
+     ['NAS_ID',          'INT', 'h.nas AS nas_id',1],
+     ['NAS_IP',          'STR', 'nas.ip',  'nas.ip AS nas_ip'],
+     ['DHCPHOSTS_EXT_DEPOSITCHECK', '', '', 'if(company.id IS NULL,ext_b.deposit,ext_cb.deposit) AS ext_deposit' ],
+     ['BOOT_FILE',       'STR', 'h.boot_file',   1],
+     ['NEXT_SERVER',     'STR', 'h.next_server', 1],
+     ['UID',             'INT', 'h.uid'          ],
+     ['SHOW_NAS_MNG_INFO','',   '', "nas.mng_host_port, nas.mng_user, DECODE(nas.mng_password, '$CONF->{secretkey}') AS mng_password, " ]
+    ],
+    { WHERE            => 1,
+    	WHERE_RULES      => \@WHERE_RULES,
+    	USERS_FIELDS     => 1,
+    	SKIP_USERS_FIELDS=> [ 'UID' ]
+    }    
+    );
+
   if ($CONF->{DHCPHOSTS_USE_DV_STATUS}) {
     if (defined($attr->{STATUS})) {
-      push @WHERE_RULES, "dv.disable='$attr->{STATUS}'";
+      push @WHERE_RULES, @{ $self->search_expr($attr->{STATUS}, 'INT', 'dv.disable', { EXT_FIELD => 'dv.disable dv_status' }) };
     }
     
     $EXT_TABLES .= " LEFT JOIN dv_main dv ON  (dv.uid=u.uid) ";
   }
 
-  my $WHERE =  $self->search_former($attr, [
-     ['ID',              'INT', 'h.id'      ],
-     ['UID',             'INT', 'h.uid'     ],
-     ['HOSTNAME',        'STR', 'h.hostname'],
-     ['MAC',             'STR', 'h.mac'     ],  
-     ['IPN_ACTIVATE',    'INT', 'h.ipn_activate', 1],
-     ['NETWORK',         'INT', 'h.network' ],
-     ['IP',              'IP',  'h.ip'      ],
-     ['EXPIRE',          'DATE','h.expire'  ],
-     ['STATUS',          'INT', 'h.disable' ],
-     ['USER_DISABLE',    'INT', 'u.disable' ],
-     ['OPTION_82',       'INT', 'h.option_82',  1],
-     ['PORTS',           'STR', 'h.ports',      1],
-     ['VID',             'INT', 'h.vid',        1],
-     ['SERVER_VID',      'INT', 'h.server_vid', 1],
-     ['NAS_ID',          'INT', 'h.nas AS nas_id',   1],
-     ['NAS_IP',          'STR', 'nas.ip',  'nas.ip AS nas_ip'],
-     ['DHCPHOSTS_EXT_DEPOSITCHECK', '', '', 'if(company.id IS NULL,ext_b.deposit,ext_cb.deposit) AS ext_deposit' ],
-     ['DHCPHOSTS_DEPOSITCHECK',     '', '', 'if(company.id IS NULL, b.deposit, cb.deposit) + u.credit AS deposit_credit' ],
-     ['BOOT_FILE',       'STR', 'h.boot_file',  1],
-     ['NEXT_SERVER',     'STR', 'h.next_server',1],
-     ['SHOW_NAS_MNG_INFO','',   '', "nas.mng_host_port, nas.mng_user, DECODE(nas.mng_password, '$CONF->{secretkey}') AS mng_password, " ]
-    ],
-    { WHERE => 1,
-    	WHERE_RULES => \@WHERE_RULES,
-    	USERS_FIELDS=> 1
-    }    
-    );
+  if (defined($attr->{DHCPHOSTS_EXT_DEPOSITCHECK}) && $attr->{DHCPHOSTS_EXT_DEPOSITCHECK} ne '') {
+    $EXT_TABLES .= "
+            LEFT JOIN companies ext_company ON  (u.company_id=ext_company.id) 
+            LEFT JOIN bills ext_b ON (u.ext_bill_id = ext_b.id)
+            LEFT JOIN bills ext_cb ON  (ext_company.ext_bill_id=ext_cb.id) ";
+  }
 
   $EXT_TABLES .= $self->{EXT_TABLES} if ($self->{EXT_TABLES});
 
+  $SORT =~ s/ip/h.ip/;
+
   $self->query2("SELECT 
        h.id, 
-       u.id AS login, 
-       INET_NTOA(h.ip) AS ip, 
-       h.hostname, 
-       n.name AS network_name, 
-       h.mac, 
-       h.disable AS status,
        $self->{SEARCH_FIELDS} 
        h.uid,
        h.network AS network_id, 

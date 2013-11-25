@@ -696,7 +696,7 @@ sub channel_ti_list {
         [ 'NAME',         'STR',  'name'     ],
         [ 'IDS',          'INT',  'c.id'     ],
         [ 'ID',           'INT',  'c.id'     ],        
-        [ 'INTERVAL_ID',  'STR',  'ic.interval_id' ],
+        [ 'USER_INTERVAL_ID', 'INT',  'ic.interval_id' ],
         [ 'MANDATORY',    'STR',  'ic.mandatory'   ],                        
     ],
     { 

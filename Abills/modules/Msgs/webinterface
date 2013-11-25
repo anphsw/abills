@@ -68,7 +68,7 @@ sub msgs_admins {
       my $privileges = $html->form_select(
         'PRIORITY_' . $line->[0],
         {
-          SELECTED => ($A_PRIVILEGES{ $line->[0] }) ? $A_PRIVILEGES{ $line->[0] } : 0,
+          SELECTED     => ($A_PRIVILEGES{ $line->[0] }) ? $A_PRIVILEGES{ $line->[0] } : 0,
           SEL_ARRAY    => \@privilages_arr,
           ARRAY_NUM_ID => 1
         }
@@ -77,7 +77,7 @@ sub msgs_admins {
       my $deligation_level = $html->form_select(
         'DELIGATION_LEVEL_' . $line->[0],
         {
-          SELECTED => ($A_DELIGATION_LEVEL{ $line->[0] }) ? $A_DELIGATION_LEVEL{ $line->[0] } : 0,
+          SELECTED     => ($A_DELIGATION_LEVEL{ $line->[0] }) ? $A_DELIGATION_LEVEL{ $line->[0] } : 0,
           ,
           SEL_ARRAY    => \@DELIGATION_LEVEL_ARR,
           ARRAY_NUM_ID => 1
@@ -398,12 +398,10 @@ sub msgs_admin_add {
   $Msgs->{CHAPTER_SEL} = $html->form_select(
     'CHAPTER',
     {
-      SELECTED          => $Msgs->{CHAPTER},
-      SEL_MULTI_ARRAY   => $Msgs->chapters_list({ CHAPTERS => $LIST_PARAMS{CHAPTERS} }),
-      MULTI_ARRAY_KEY   => 0,
-      MULTI_ARRAY_VALUE => 1,
-      MAIN_MENU         => get_function_index('msgs_chapters'),
-      MAIN_MENU_AGRV    => "chg=$Msgs->{CHAPTER}"
+      SELECTED       => $Msgs->{CHAPTER},
+      SEL_LIST       => $Msgs->chapters_list({ CHAPTERS => $LIST_PARAMS{CHAPTERS}, COLS_NAME => 1 }),
+      MAIN_MENU      => get_function_index('msgs_chapters'),
+      MAIN_MENU_AGRV => "chg=$Msgs->{CHAPTER}"
     }
   );
 
@@ -427,14 +425,13 @@ sub msgs_admin_add {
     }
   );
 
-  #$Msgs->{PLAN_TIME}   = "";
   $Msgs->{DISPATCH_SEL} = $html->form_select(
     'DISPATCH_ID',
     {
-      SELECTED          => $Msgs->{DISPATCH_ID} || 0,
-      SEL_MULTI_ARRAY   => [ [ 0, '' ], @{ $Msgs->dispatch_list({ STATE => 0 }) } ],
-      MULTI_ARRAY_KEY   => 0,
-      MULTI_ARRAY_VALUE => '2,1',
+      SELECTED  => $Msgs->{DISPATCH_ID} || '',
+      SEL_LIST  => $Msgs->dispatch_list({ STATE => 0, COLS_NAME => 1 }),
+      SEL_KEY   => 'id',
+      SEL_VALUE => 'plan_date,comments'      
     }
   );
 
@@ -479,10 +476,11 @@ sub msgs_admin_add {
   $Msgs->{RESPOSIBLE} = $html->form_select(
     'RESPOSIBLE',
     {
-      SELECTED => $Msgs->{RESPOSIBLE} || 0,
-      SEL_MULTI_ARRAY => [ [ 0, $_ALL ], @{ $admin->list({ GIDS => $admins->{GIDS} }) } ],
-      MULTI_ARRAY_KEY => 0,
-      MULTI_ARRAY_VALUE => 1,
+      SELECTED   => $Msgs->{RESPOSIBLE} || 0,
+      SEL_LIST   => $admin->list({ GIDS => $admins->{GIDS}, COLS_NAME => 1 }),
+      SEL_KEY    => 'aid',
+      SEL_VALUE  => 'id',
+      SEL_OPTIONS=> { 0 => $_ALL },
     }
   );
 
@@ -529,7 +527,7 @@ sub msgs_search {
     $Msgs->{PRIORITY_SEL} = $html->form_select(
       'PRIORITY',
       {
-        SELECTED => $FORM{PRIORITY} || 5,
+        SELECTED     => $FORM{PRIORITY} || 5,
         SEL_OPTIONS  => { '' => $_ALL },
         SEL_ARRAY    => [@priority],
         STYLE        => \@priority_colors,
@@ -540,12 +538,11 @@ sub msgs_search {
     $Msgs->{CHAPTER_SEL} = $html->form_select(
       'CHAPTER',
       {
-        SELECTED => $FORM{CHAPTER} || 0,
-        SEL_MULTI_ARRAY => [ [ '', "$_ALL" ], @{ $Msgs->chapters_list({ CHAPTERS => join(',', keys %A_PRIVILEGES) }) } ],
-        MULTI_ARRAY_KEY => 0,
-        MULTI_ARRAY_VALUE => 1,
-        MAIN_MENU         => get_function_index('msgs_chapters'),
-        MAIN_MENU_AGRV    => "chg=$Msgs->{CHAPTER}"
+        SELECTED       => $FORM{CHAPTER} || 0,
+        SEL_LIST       => $Msgs->chapters_list({ CHAPTERS => join(',', keys %A_PRIVILEGES), COLS_NAME => 1 }),
+        MAIN_MENU      => get_function_index('msgs_chapters'),
+        MAIN_MENU_AGRV => "chg=$Msgs->{CHAPTER}",
+        SEL_OPTIONS    => { '' => $_ALL },
       }
     );
 
@@ -555,11 +552,12 @@ sub msgs_search {
     $Msgs->{RESPOSIBLE_SEL} = $html->form_select(
       'RESPOSIBLE',
      {
-      SELECTED          => $FORM{RESPOSIBLE} || '',
-      SEL_MULTI_ARRAY   => [ [ '', $_ALL ], @{ $admin->list({ GIDS => $admins->{GIDS} }) } ],
-      MULTI_ARRAY_KEY   => 0,
-      MULTI_ARRAY_VALUE => 1,
-      NO_ID             => 1
+      SELECTED    => $FORM{RESPOSIBLE} || '',
+      SEL_LIST    => $admin->list({ GIDS => $admins->{GIDS}, COLS_NAME => 1 }),
+      SEL_KEY     => 'aid',
+      SEL_VALUE   => 'id',
+      NO_ID       => 1,
+      SEL_OPTIONS => { '' => $_ALL },
      }
     );
     
@@ -737,7 +735,7 @@ sub msgs_admin {
     $Msgs->{STATE_SEL}  = $html->form_select(
       'STATE',
       {
-        SELECTED => $Msgs->{STATE} || 0,
+        SELECTED     => $Msgs->{STATE} || 0,
         SEL_ARRAY    => \@msg_status,
         STYLE        => \@style,
         ARRAY_NUM_ID => 0,
@@ -762,12 +760,11 @@ sub msgs_admin {
     $Msgs->{CHAPTERS_SEL} = $html->form_select(
       'CHAPTER_ID',
       {
-        SELECTED          => '',
-        SEL_MULTI_ARRAY   => [ [ '', '' ], @{ $Msgs->chapters_list({ CHAPTERS => join(',', keys %A_PRIVILEGES) }) } ],
-        MULTI_ARRAY_KEY   => 0,
-        MULTI_ARRAY_VALUE => 1,
-        MAIN_MENU         => get_function_index('msgs_chapters'),
-        MAIN_MENU_AGRV    => "chg=$Msgs->{CHAPTER}"
+        SELECTED       => '',
+        SEL_LIST       => $Msgs->chapters_list({ CHAPTERS => join(',', keys %A_PRIVILEGES), COLS_NAME => 1  }),
+        MAIN_MENU      => get_function_index('msgs_chapters'),
+        MAIN_MENU_AGRV => "chg=$Msgs->{CHAPTER}",
+        SEL_OPTIONS    => { '' => '' },
       }
     );
 
@@ -784,22 +781,24 @@ sub msgs_admin {
     $Msgs->{RESPOSIBLE} = $html->form_select(
       'RESPOSIBLE',
       {
-        SELECTED => $Msgs->{RESPOSIBLE} || 0,
-        SEL_MULTI_ARRAY => [ [ 0, $_ALL ], @{ $admin->list({ GIDS => $admins->{GIDS} }) } ],
-        MULTI_ARRAY_KEY => 0,
-        MULTI_ARRAY_VALUE => 1,
+        SELECTED    => $Msgs->{RESPOSIBLE} || 0,
+        SEL_LIST    => $admin->list({ GIDS => $admins->{GIDS}, COLS_NAME => 1 }),
+        SEL_KEY     => 'aid',
+        SEL_VALUE   => 'id',
+        SEL_OPTIONS => { 0 => $_ALL },
       }
     );
 
     $Msgs->{DISPATCH_SEL} = $html->form_select(
       'DISPATCH_ID',
       {
-        SELECTED          => $Msgs->{DISPATCH_ID} || 0,
-        SEL_MULTI_ARRAY   => [ [ 0, '' ], @{ $Msgs->dispatch_list({ STATE => 0 }) } ],
-        MULTI_ARRAY_KEY   => 0,
-        MULTI_ARRAY_VALUE => 1,
-        MAIN_MENU         => get_function_index('msgs_dispatch'),
-        MAIN_MENU_AGRV    => "chg=$Msgs->{DISPATCH_ID}"
+        SELECTED       => $Msgs->{DISPATCH_ID} || 0,
+        SEL_LIST       => $Msgs->dispatch_list({ STATE => 0, COLS_NAME => 1 }),
+        SEL_KEY        => 'id',
+        SEL_VALUE      => 'comments',
+        MAIN_MENU      => get_function_index('msgs_dispatch'),
+        MAIN_MENU_AGRV => "chg=$Msgs->{DISPATCH_ID}",
+        SEL_OPTIONS    => { 0 => '' },
       }
     );
 
@@ -898,7 +897,7 @@ sub msgs_admin {
     }
 
     if ($Msgs->{FILENAME}) {
-      $Msgs->{ATTACHMENT} = "$_ATTACHMENT: " . $html->button("$Msgs->{FILENAME}", "qindex=$index&ATTACHMENT=$Msgs->{ATTACHMENT_ID}", { TARGET => '_new' }) . " ($_SIZE: " . int2byte($Msgs->{FILESIZE}) . ')';
+      $Msgs->{ATTACHMENT} = "$_ATTACHMENT: " . $html->button("$Msgs->{FILENAME}", "qindex=$index&ATTACHMENT=$Msgs->{ATTACHMENT_ID}", { TARGET => '_new' }) . " ($_SIZE: " . int2byte($Msgs->{CONTENT_SIZE}) . ')';
     }
 
     $html->tpl_show(_include('msgs_show', 'Msgs'), $Msgs);
@@ -1090,6 +1089,8 @@ sub msgs_admin {
 # msgs_dispatch_sel();
 #**********************************************************
 sub msgs_dispatch_sel {
+  my ($attr) = @_;
+
   my $table = $html->table(
     {
       width      => '100%',
@@ -1101,13 +1102,12 @@ sub msgs_dispatch_sel {
           $html->form_select(
             'DISPATCH_ID',
             {
-              SELECTED          => $Msgs->{DISPATCH_ID},
-              SEL_MULTI_ARRAY   => [ @{ $Msgs->dispatch_list({ STATE => 0 }) } ],
-              MULTI_ARRAY_KEY   => 0,
-              MULTI_ARRAY_VALUE => 1,
-              MAIN_MENU         => get_function_index('msgs_dispatch'),
-              MAIN_MENU_AGRV    => "chg=$Msgs->{DISPATCH_ID}"
-
+              SELECTED       => $Msgs->{DISPATCH_ID} || '',
+              SEL_LIST       => $Msgs->dispatch_list({ STATE => 0, COLS_NAME => 1 }),
+              SEL_KEY        => 'id',
+              SEL_VALUE      => 'plan_date,comments',
+              MAIN_MENU      => get_function_index('msgs_dispatch'),
+              MAIN_MENU_AGRV => "chg=$Msgs->{DISPATCH_ID}"
             }
           ),
           $html->form_input('add_dispatch', "$_ADD", { TYPE => 'submit', OUTPUT2RETURN => 1 })
@@ -1446,12 +1446,10 @@ sub msgs_user {
     $Msgs->{CHAPTER_SEL} = $html->form_select(
       'CHAPTER',
       {
-        SELECTED          => $Msgs->{CHAPTER},
-        SEL_MULTI_ARRAY   => $Msgs->chapters_list({ INNER_CHAPTER => 0 }),
-        MULTI_ARRAY_KEY   => 0,
-        MULTI_ARRAY_VALUE => 1,
-        MAIN_MENU         => get_function_index('msgs_chapters'),
-        MAIN_MENU_AGRV    => "chg=$Msgs->{CHAPTER}"
+        SELECTED       => $Msgs->{CHAPTER},
+        SEL_LIST       => $Msgs->chapters_list({ INNER_CHAPTER => 0, COLS_NAME => 1 }),
+        MAIN_MENU      => get_function_index('msgs_chapters'),
+        MAIN_MENU_AGRV => "chg=$Msgs->{CHAPTER}"
       }
     );
 
@@ -1636,18 +1634,21 @@ sub msgs_chapters {
 # dispatch admins
 #*******************************************************************
 sub msgs_dispatch_admins {
+	my ($attr) = @_;
+	
   if ($FORM{change_admins}) {
     $Msgs->dispatch_admins_change({%FORM});
     $html->message('info', $_INFO, "$_CHANGED") if (!$Msgs->{errno});
   }
 
-  my $list = $Msgs->dispatch_admins_list({ DISPATCH_ID => $FORM{chg} });
+  my $list = $Msgs->dispatch_admins_list({ DISPATCH_ID => $attr->{DISPATCH_ID} || $FORM{chg},
+  	                                       COLS_NAME   => 1 });
   my %active_admins = ();
   foreach my $line (@$list) {
-    $active_admins{ $line->[1] } = 1;
+    $active_admins{ $line->{aid} } = 1;
   }
 
-  $list = $admin->list({%LIST_PARAMS});
+  $list = $admin->list({%LIST_PARAMS, COLS_NAME => 1 });
 
   my $table = $html->table(
     {
@@ -1669,9 +1670,9 @@ sub msgs_dispatch_admins {
           TYPE  => 'checkbox',
           STATE => ($active_admins{ $line->{aid} }) ? 1 : undef
         }
-      ),
-      $line->{aid},
-      $line->{admin_login}
+      ) . $line->{aid},
+      $line->{login},
+      $line->{name}
     );
   }
 
@@ -1698,12 +1699,12 @@ sub msgs_dispatch {
 
   if ($FORM{add}) {
     $Msgs->dispatch_add({%FORM});
-
     $html->message('info', $_INFO, "$_ADDED") if (!$Msgs->{errno});
   }
   elsif ($FORM{print}) {
     print $html->header();
     $Msgs->dispatch_info($FORM{print});
+
     my $list = $Msgs->messages_list(
       {
         DISPATCH_ID  => $FORM{print},
@@ -1712,6 +1713,7 @@ sub msgs_dispatch {
         MESSAGE      => '_SHOW',
         PASSWORD     => '_SHOW',
         FIO          => '_SHOW',
+        PHONE        => '_SHOW',
         COLS_NAME    => 1
       }
     );
@@ -1751,6 +1753,7 @@ sub msgs_dispatch {
 
     $Msgs->{ACTION}     = 'change';
     $Msgs->{LNG_ACTION} = $_CHANGE;
+    $FORM{add_form}     = 1;
     $html->message('info', $_INFO, "$_CHANGING") if (!$Msgs->{errno});
   }
   elsif ($FORM{del} && $FORM{is_js_confirmed}) {
@@ -1786,14 +1789,15 @@ sub msgs_dispatch {
       }
     );
 
+
     $Msgs->{RESPOSIBLE_SEL} = $html->form_select(
       'RESPOSIBLE',
       {
-        SELECTED          => $Msgs->{RESPOSIBLE_ID} || 0,
-        SEL_MULTI_ARRAY   => [ [ 0, '' ], @{ $admin->list({ GIDS => $admins->{GIDS} }) } ],
-        MULTI_ARRAY_KEY   => 0,
-        MULTI_ARRAY_VALUE => 1,
-        EX_PARAMS         => " STYLE='background-color: $_COLORS[3]' DISABLED"
+        SELECTED    => $Msgs->{RESPOSIBLE_ID} || 0,
+        SEL_LIST    => $admin->list({ GIDS => $admins->{GIDS}, DISABLE => 0, COLS_NAME => 1 }),
+        SEL_KEY     => 'aid',
+        SEL_VALUE   => 'id',
+        SEL_OPTIONS => { 0 => '' },
       }
     );
 
@@ -1918,7 +1922,8 @@ sub msgs_dispatch {
       }
     );
 
-    msgs_dispatch_admins();
+    msgs_dispatch_admins({ DISPATCH_ID => $LIST_PARAMS{DISPATCH_ID} });
+    return 0;
   }
 
   if (!defined($FORM{STATE}) && !$FORM{ALL_MSGS}) {
@@ -2618,8 +2623,8 @@ sub msgs_unreg_requests_list {
     $Msgs->{PRIORITY_SEL} = $html->form_select(
       'PRIORITY',
       {
-        SELECTED => $FORM{PRIORITY} || 2,
-        SEL_ARRAY    => [@priority],
+        SELECTED     => $FORM{PRIORITY} || 2,
+        SEL_ARRAY    => \@priority,
         STYLE        => \@priority_colors,
         ARRAY_NUM_ID => 1
       }
@@ -2628,8 +2633,8 @@ sub msgs_unreg_requests_list {
     $Msgs->{STATE_SEL} = $html->form_select(
       'STATE',
       {
-        SELECTED => $Msgs->{STATE} || 3,
-        SEL_ARRAY    => [@msg_status],
+        SELECTED     => $Msgs->{STATE} || 3,
+        SEL_ARRAY    => \@msg_status,
         STYLE        => \@style,
         ARRAY_NUM_ID => 0
       }
@@ -2671,7 +2676,7 @@ sub msgs_unreg_requests_list {
     $Msgs->{PRIORITY_SEL} = $html->form_select(
       'PRIORITY',
       {
-        SELECTED => $FORM{PRIORITY} || 2,
+        SELECTED     => $FORM{PRIORITY} || 2,
         SEL_ARRAY    => [ @priority, "$_ALL" ],
         STYLE        => \@priority_colors,
         ARRAY_NUM_ID => 1
@@ -2681,12 +2686,11 @@ sub msgs_unreg_requests_list {
     $Msgs->{CHAPTER_SEL} = $html->form_select(
       'CHAPTER',
       {
-        SELECTED => $Msgs->{CHAPTER} || $FORM{CHAPTER} || 0,
-        SEL_MULTI_ARRAY => [ [ 0, "$_ALL" ], @{ $Msgs->chapters_list() } ],
-        MULTI_ARRAY_KEY => 0,
-        MULTI_ARRAY_VALUE => 1,
-        MAIN_MENU         => get_function_index('msgs_chapters'),
-        MAIN_MENU_AGRV    => "chg=$Msgs->{CHAPTER}"
+        SELECTED       => $Msgs->{CHAPTER} || $FORM{CHAPTER} || 0,
+        SEL_LIST       => $Msgs->chapters_list({ COLS_NAME => 1 }),
+        MAIN_MENU      => get_function_index('msgs_chapters'),
+        MAIN_MENU_AGRV => "chg=$Msgs->{CHAPTER}",
+        SEL_OPTIONS    => { 0 => $_ALL },
       }
     );
 
@@ -2831,7 +2835,7 @@ sub msgs_unreg_requests {
   $Msgs->{PRIORITY_SEL} = $html->form_select(
     'PRIORITY',
     {
-      SELECTED => $FORM{PRIORITY} || 2,
+      SELECTED     => $FORM{PRIORITY} || 2,
       SEL_ARRAY    => \@priority,
       STYLE        => \@priority_colors,
       ARRAY_NUM_ID => 1
@@ -2850,23 +2854,23 @@ sub msgs_unreg_requests {
   $Msgs->{RESPOSIBLE} = $html->form_select(
     'RESPOSIBLE',
     {
-      SELECTED => $Msgs->{RESPOSIBLE} || 0,
-      SEL_MULTI_ARRAY => [ [ 0, $_ALL ], @{ $admin->list({ GIDS => $admins->{GIDS} }) } ],
-      MULTI_ARRAY_KEY => 0,
-      MULTI_ARRAY_VALUE => 1,
+      SELECTED    => $Msgs->{RESPOSIBLE} || 0,
+      SEL_LIST    => $admin->list({ GIDS => $admins->{GIDS}, COLS_NAME => 1 }),
+      SEL_KEY     => 'aid',
+      SEL_VALUE   => 'id',
+      SEL_OPTIONS => { 0 => $_ALL },
     }
   );
 
   $Msgs->{DATE}        = "$DATE $TIME";
+
   $Msgs->{CHAPTER_SEL} = $html->form_select(
     'CHAPTER',
     {
-      SELECTED          => $Msgs->{CHAPTER},
-      SEL_MULTI_ARRAY   => $Msgs->chapters_list({ CHAPTERS => $LIST_PARAMS{CHAPTERS} }),
-      MULTI_ARRAY_KEY   => 0,
-      MULTI_ARRAY_VALUE => 1,
-      MAIN_MENU         => get_function_index('msgs_chapters'),
-      MAIN_MENU_AGRV    => "chg=$Msgs->{CHAPTER}"
+      SELECTED       => $Msgs->{CHAPTER} || undef,
+      SEL_LIST       => $Msgs->chapters_list({ CHAPTERS => $LIST_PARAMS{CHAPTERS}, COLS_NAME => 1 }),
+      MAIN_MENU      => get_function_index('msgs_chapters'),
+      MAIN_MENU_AGRV => "chg=". ($Msgs->{CHAPTER} || '')
     }
   );
 
@@ -2897,7 +2901,7 @@ sub msgs_unreg_requests {
 
   if ($FORM{REGISTRATION_REQUEST}) {
     if (in_array('Maps', \@MODULES)) {
-      require "Abills/modules/Maps/webinterface";
+      load_module('Maps', $html);
       $Msgs->{MAPS} = google_maps_show_client({ OUTPUT2RETURN => 1 });
     }
 
@@ -2918,9 +2922,9 @@ sub msgs_registration {
   my ($attr) = @_;
 
   $FORM{REGISTRATION_REQUEST} = 1 if ($conf{MSGS_REG_REQUEST});
+
   if ($FORM{REGISTRATION_REQUEST}) {
     msgs_unreg_requests();
-
     return 0;
   }
   elsif ($FORM{reg}) {
@@ -2960,7 +2964,6 @@ sub msgs_registration {
 
         if ($user->{errno}) {
           $Msgs->{MESSAGE} = $html->message('err', $_ERROR, "[$user->{errno}] $err_strs{$user->{errno}}");
-          goto REG_FORM;
         }
         else {
           $html->tpl_show(_include('msgs_reg_complete', 'Msgs'), { %$Msgs, %FORM });
@@ -2968,8 +2971,9 @@ sub msgs_registration {
           #Send mail to user
           my $message = $html->tpl_show(_include('msgs_reg_complete_mail', 'Msgs'), { %$Msgs, %FORM, PASSWORD => "$password" }, { OUTPUT2RETURN => 1 });
           sendmail("$conf{ADMIN_MAIL}", "$FORM{EMAIL}", "$_REGISTRATION", "$message", "$conf{MAIL_CHARSET}", '');
+          return 2;
         }
-        return 2;
+        
       }
       else {
         if ($user->{errno} == 7) {
@@ -2978,12 +2982,10 @@ sub msgs_registration {
         else {
           $html->message('err', $_ERROR, "[$user->{errno}] $err_strs{$user->{errno}}");
         }
-        goto REG_FORM;
       }
     }
   }
 
-  REG_FORM:
   $html->tpl_show(_include('msgs_registration', 'Msgs'), { %$Msgs, %FORM, %$attr }, { ID => 'MSGS_REGISTRATION' });
 
   return 0;
@@ -2995,16 +2997,15 @@ sub msgs_registration {
 sub msgs_survey_sel {
   my ($attr) = @_;
 
-  my $list = $Msgs->survey_subjects_list({ PAGE_ROWS => 10000 });
+  my $list = $Msgs->survey_subjects_list({ PAGE_ROWS => 10000, COLS_NAME => 1 });
 
   if ($Msgs->{TOTAL} > 0) {
     return $html->form_select(
       'SURVEY_ID',
       {
-        SELECTED          => '',
-        SEL_MULTI_ARRAY   => [ [ undef, "" ], @{$list} ],
-        MULTI_ARRAY_KEY   => 0,
-        MULTI_ARRAY_VALUE => 1,
+        SELECTED   => '',
+        SEL_LIST   => $list,
+        SEL_OPTIONS=> { undef => '' },
       }
     );
   }
@@ -3057,7 +3058,7 @@ sub msgs_survey {
     $html->tpl_show(_include('msgs_survey_subject', 'Msgs'), $Msgs);
   }
 
-  my $list  = $Msgs->survey_subjects_list({%LIST_PARAMS});
+  my $list  = $Msgs->survey_subjects_list({%LIST_PARAMS, COLS_NAME => 1 });
   my $table = $html->table(
     {
       width      => '100%',
@@ -3128,34 +3129,37 @@ sub msgs_survey_questions {
   $Msgs->{FILL_DEFAULT}  = ($Msgs->{FILL_DEFAULT})  ? 'checked' : '';
 
   $html->tpl_show(_include('msgs_survey_question', 'Msgs'), $Msgs);
-  my $list = $Msgs->survey_questions_list({ SURVEY => $FORM{SURVEY}, %LIST_PARAMS });
+  my $list = $Msgs->survey_questions_list({ SURVEY => $FORM{SURVEY}, 
+  	                                        %LIST_PARAMS,
+  	                                        COLS_NAME => 1
+  	                                       });
   my $table = $html->table(
     {
-      width       => '100%',
-      caption     => "$_SURVEY",
-      title_plain => [ '#', "$_QUESTION", "$_PARAMS", "$_COMMENTS", "$_USER $_COMMENTS", $_DEFAULT, '-', '-' ],
+      width      => '100%',
+      caption    => "$_SURVEY",
+      title_plain=> [ '#', "$_QUESTION", "$_PARAMS", "$_COMMENTS", "$_USER $_COMMENTS", $_DEFAULT, '-', '-' ],
       cols_align => [ 'left', 'left', 'right', 'center', 'center:noprint', 'center:noprint' ],
       qs         => $pages_qs,
     }
   );
 
   foreach my $line (@$list) {
-    my $params = ($line->[3])
+    my $params = ($line->{params})
     ? $html->form_select(
-      'PARAMS_' . $line->[0],
+      'PARAMS_' . $line->{num},
       {
         SELECTED     => '',
-        SEL_ARRAY    => [ split(/;/, $line->[3]) ],
+        SEL_ARRAY    => [ split(/;/, $line->{params}) ],
         ARRAY_NUM_ID => 1
       }
     )
     : '';
     $table->addrow(
-      $line->[0], $line->[1], $line->[2], $params,
-      ($line->[4]) ? $html->form_input('USER_COMMENTS', '') : '',
-      $bool_vals[ $line->[5] ],
-      $html->button("$_CHANGE", "index=$index&chg=$line->[6]&SURVEY=$FORM{SURVEY}", { CLASS => 'change' }),
-      $html->button($_DEL, "index=$index&del=$line->[6]&SURVEY=$FORM{SURVEY}", { MESSAGE => "$_DEL $line->[0]?", CLASS => 'del' })
+      $line->{num}, $line->{question}, $line->{comments}, $params,
+      ($line->{user_comments}) ? $html->form_input('USER_COMMENTS', '') : '',
+      $bool_vals[ $line->{fill_default} ],
+      $html->button("$_CHANGE", "index=$index&chg=$line->{id}&SURVEY=$FORM{SURVEY}", { CLASS => 'change' }),
+      $html->button($_DEL, "index=$index&del=$line->{id}&SURVEY=$FORM{SURVEY}", { MESSAGE => "$_DEL $line->{num}?", CLASS => 'del' })
     );
   }
 
@@ -3228,7 +3232,7 @@ sub msgs_survey_show {
       ? $html->form_select(
         'PARAMS_' . $line->{id},
         {
-          SELECTED => (defined($answers{ $line->{fill_default} })) ? $answers{ $line->{fill_default} }{ANSWER} : '',
+          SELECTED     => (defined($answers{ $line->{fill_default} })) ? $answers{ $line->{fill_default} }{ANSWER} : '',
           SEL_ARRAY    => \@params_arr,
           ARRAY_NUM_ID => 1,
           NO_ID        => 1

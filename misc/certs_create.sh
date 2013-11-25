@@ -111,6 +111,7 @@ fi;
 # easysoft payments system
 # http://easysoft.com.ua/
 # kabanets@easysoft.com.ua
+# it@easypay.ua
 #**********************************************************
 x509_cert () {
   echo "#******************************************************************************"
@@ -128,7 +129,7 @@ x509_cert () {
     echo "Enter path to ${SYSTEM_NAME} public key: ";
     read EASYSOFT_PUBLIC_KEY
   else
-    PUBLIC_KEY=$1;
+    PUBLIC_KEY=$3;
   fi;
 
   if [ x${PUBLIC_KEY} = x ]; then
@@ -155,8 +156,10 @@ x509_cert () {
   chmod u=r,go= ${CERT_PATH}/${SYSTEM_NAME}.cer
   chown ${APACHE_USER} ${CERT_PATH}/${SYSTEM_NAME}.cer ${CERT_PATH}/${SYSTEM_NAME}_private.ppk ${CERT_PATH}/${SYSTEM_NAME}_public.pem
 
-  echo "Sert created: ";
-  echo "Send this file to ${SYSTEM_NAME} (${SEND_EMAIL}): ${CERT_PATH}/${SYSTEM_NAME}.cer";
+  if [ x${SEND_EMAIL} !=  x ]; then
+    echo "Sert created: ";
+    echo "Send this file to ${SYSTEM_NAME} (${SEND_EMAIL}): ${CERT_PATH}/${SYSTEM_NAME}.cer";
+  fi;
 }
 
 #**********************************************************
@@ -580,7 +583,7 @@ case ${CERT_TYPE} in
               postfix_cert;
                 ;;
         easysoft)
-              x509_cert "easysoft" "kabanets@easysoft.com.ua" "$2";
+              x509_cert "easysoft" "kabanets@easysoft.com.ua,it@easypay.ua" "$2";
                 ;;
         privatbank)
               x509_cert "privatbank" "" "$2";

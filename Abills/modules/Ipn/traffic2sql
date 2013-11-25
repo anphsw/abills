@@ -15,7 +15,7 @@ if ($#ARGV < 1) {
    flowdir    - Folder where stored flow-capture result files
    FLOWTOOLS_IP_AGGREGATION - Aggregate Netflow files to ip.
    FLOWTOOLS_FT_BACKUP=dir - Backup old flow-tools ft* file. For debug only
-   debug      - Set debug mode (1,2)
+   DEBUG      - Set debug mode (1,2)
    DETAIL_ONLY- Make IP detalisation only
    UNKNOWN_IP_LOG - Enable unknown ip login
    PREPAID_STORE - Use alternative prepaid store for prepaid traffic colection.
@@ -48,9 +48,9 @@ my $ARGV     = parse_arguments(\@ARGV);
 my $flow_dir = ($ARGV->{flowdir}) ? $ARGV->{flowdir} : $var_dir . "log/ipn/";
 my $log_file = "$flow_dir/traffic2sql.log";
 
-if (defined($ARGV->{debug})) {
+if (defined($ARGV->{DEBUG})) {
   print "Debug mode on\n";
-  $debug = $ARGV->{debug};
+  $debug = $ARGV->{DEBUG};
 }
 elsif (defined($ARGV->{help})) {
   print "Help:\n";

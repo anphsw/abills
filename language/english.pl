@@ -521,4 +521,4 @@ $_ACTIVATE_NEXT_PERIOD='For next activation period';
 
 $_EQUIPMENT='Equipment';
 $_VENDOR='Vendor';
-
+$_LAST_UPDATE='Last Update';

@@ -2,7 +2,6 @@
 <html lang="ru" dir="ltr" class="no-js">
 <head>
     <meta charset="utf-8" />
-    <!--[if IE]><meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" /><![endif]-->
     <title>abills:docs_03:install:en [Advanced Billing Solution]</title>
     <script>(function(H){H.className=H.className.replace(/\bno-js\b/,'js')})(document.documentElement)</script>
     <meta name="generator" content="DokuWiki"/>
@@ -12,14 +11,14 @@
 <link rel="search" type="application/opensearchdescription+xml" href="/wiki/lib/exe/opensearch.php" title="Advanced Billing Solution"/>
 <link rel="start" href="/wiki/"/>
 <link rel="contents" href="/wiki/doku.php/abills:docs_03:install:en?do=index" title="Все страницы"/>
-<link rel="alternate" type="application/rss+xml" title="Recent Changes" href="/wiki/feed.php"/>
-<link rel="alternate" type="application/rss+xml" title="Current Namespace" href="/wiki/feed.php?mode=list&amp;ns=abills:docs_03:install"/>
+<link rel="alternate" type="application/rss+xml" title="Недавние изменения" href="/wiki/feed.php"/>
+<link rel="alternate" type="application/rss+xml" title="Current namespace" href="/wiki/feed.php?mode=list&amp;ns=abills:docs_03:install"/>
 <link rel="alternate" type="text/html" title="Plain HTML" href="/wiki/doku.php/abills:docs_03:install:en?do=export_xhtml"/>
 <link rel="alternate" type="text/plain" title="Wiki Markup" href="/wiki/doku.php/abills:docs_03:install:en?do=export_raw"/>
-<link rel="stylesheet" type="text/css" href="/wiki/lib/exe/css.php?t=dokuwiki&amp;tseed=1369768647"/>
-<script type="text/javascript">/*<![CDATA[*/var NS='abills:docs_03:install';var JSINFO = {"id":"abills:docs_03:install:en","namespace":"abills:docs_03:install"};
+<link rel="stylesheet" type="text/css" href="/wiki/lib/exe/css.php?t=dokuwiki&amp;tseed=57eb6a2e06a0549c860111a200d3da16"/>
+<script type="text/javascript">/*<![CDATA[*/var NS='abills:docs_03:install';var JSINFO = {"id":"abills:docs_03:install:en","namespace":"abills:docs_03:install","hasbookcreatoraccess":1,"wikipagelink":"\/wiki\/doku.php\/abills:docs_03:install:en","DOKU_COOKIEPATH":"\/wiki\/"};
 /*!]]>*/</script>
-<script type="text/javascript" charset="utf-8" src="/wiki/lib/exe/js.php?tseed=1369768647"></script>
+<script type="text/javascript" charset="utf-8" src="/wiki/lib/exe/js.php?tseed=57eb6a2e06a0549c860111a200d3da16"></script>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <link rel="shortcut icon" href="/wiki/lib/tpl/dokuwiki/images/favicon.ico" />
 <link rel="apple-touch-icon" href="/wiki/lib/tpl/dokuwiki/images/apple-touch-icon.png" />
@@ -27,8 +26,7 @@
 
 <body>
     <!--[if lte IE 7 ]><div id="IE7"><![endif]--><!--[if IE 8 ]><div id="IE8"><![endif]-->
-    <div id="dokuwiki__site"><div id="dokuwiki__top"
-        class="dokuwiki site mode_show showSidebar hasSidebar">
+    <div id="dokuwiki__site"><div id="dokuwiki__top" class="site dokuwiki mode_show tpl_dokuwiki  notFound  showSidebar hasSidebar">
 
         
 <!-- ********** HEADER ********** -->
@@ -48,16 +46,16 @@
                     <div id="dokuwiki__usertools">
                 <h3 class="a11y">Инструменты пользователя</h3>
                 <ul>
-                    <li><a href="/wiki/doku.php/abills:docs_03:install:en?do=login&amp;sectok=9ae8882b8a4b5ed74885aa98ddd3bf3e"  class="action login" rel="nofollow" title="Войти">Войти</a></li>                </ul>
+                    <li><a href="/wiki/doku.php/abills:docs_03:install:en?do=login&amp;sectok=80afe63de76ef688d8160ff9044f8a35"  class="action login" rel="nofollow" title="Войти">Войти</a></li>                </ul>
             </div>
         
         <!-- SITE TOOLS -->
         <div id="dokuwiki__sitetools">
             <h3 class="a11y">Инструменты сайта</h3>
-            <form action="/wiki/doku.php/abills" accept-charset="utf-8" class="search" id="dw__search" method="get"><div class="no"><input type="hidden" name="do" value="search" /><input type="text" id="qsearch__in" accesskey="f" name="id" class="edit" title="[F]" /><input type="submit" value="Поиск" class="button" title="Поиск" /><div id="qsearch__out" class="ajax_qsearch JSpopup"></div></div></form>            <div class="mobileTools">
-                <form action="/wiki/doku.php" method="get" accept-charset="utf-8"><div class="no"><input type="hidden" name="id" value="abills:docs_03:install:en" /><select name="do" class="edit quickselect" title="Инструменты"><option value="">Инструменты</option><optgroup label="Инструменты страницы"><option value="edit">Показать исходный текст</option><option value="revisions">История страницы</option><option value="backlink">Ссылки сюда</option></optgroup><optgroup label="Инструменты сайта"><option value="recent">Недавние изменения</option><option value="media">Media Manager</option><option value="index">Все страницы</option></optgroup><optgroup label="Инструменты пользователя"><option value="login">Войти</option></optgroup></select><input type="submit" value="&gt;" /></div></form>            </div>
+            <form action="/wiki/doku.php/abills" accept-charset="utf-8" class="search" id="dw__search" method="get" role="search"><div class="no"><input type="hidden" name="do" value="search" /><input type="text" id="qsearch__in" accesskey="f" name="id" class="edit" title="[F]" /><input type="submit" value="Поиск" class="button" title="Поиск" /><div id="qsearch__out" class="ajax_qsearch JSpopup"></div></div></form>            <div class="mobileTools">
+                <form action="/wiki/doku.php" method="get" accept-charset="utf-8"><div class="no"><input type="hidden" name="id" value="abills:docs_03:install:en" /><select name="do" class="edit quickselect" title="Инструменты"><option value="">Инструменты</option><optgroup label="Инструменты страницы"><option value="edit">Показать исходный текст</option><option value="revisions">История страницы</option><option value="backlink">Ссылки сюда</option></optgroup><optgroup label="Инструменты сайта"><option value="recent">Недавние изменения</option><option value="media">Управление медиафайлами</option><option value="index">Все страницы</option></optgroup><optgroup label="Инструменты пользователя"><option value="login">Войти</option></optgroup></select><input type="submit" value="&gt;" /></div></form>            </div>
             <ul>
-                <li><a href="/wiki/doku.php/abills:docs_03:install:en?do=recent"  class="action recent" accesskey="r" rel="nofollow" title="Недавние изменения [R]">Недавние изменения</a></li><li><a href="/wiki/doku.php/abills:docs_03:install:en?do=media&amp;ns=abills%3Adocs_03%3Ainstall"  class="action media" rel="nofollow" title="Media Manager">Media Manager</a></li><li><a href="/wiki/doku.php/abills:docs_03:install:en?do=index"  class="action index" accesskey="x" rel="nofollow" title="Все страницы [X]">Все страницы</a></li>            </ul>
+                <li><a href="/wiki/doku.php/abills:docs_03:install:en?do=recent"  class="action recent" accesskey="r" rel="nofollow" title="Недавние изменения [R]">Недавние изменения</a></li><li><a href="/wiki/doku.php/abills:docs_03:install:en?do=media&amp;ns=abills%3Adocs_03%3Ainstall"  class="action media" rel="nofollow" title="Управление медиафайлами">Управление медиафайлами</a></li><li><a href="/wiki/doku.php/abills:docs_03:install:en?do=index"  class="action index" accesskey="x" rel="nofollow" title="Все страницы [X]">Все страницы</a></li>            </ul>
         </div>
 
     </div>
@@ -75,7 +73,7 @@
 
                             <!-- ********** ASIDE ********** -->
                 <div id="dokuwiki__aside"><div class="pad include group">
-                    <h3 class="toggle">Боковая колонна</h3>
+                    <h3 class="toggle">Боковая панель</h3>
                     <div class="content">
                                                                         
 <h1 class="sectionedit1" id="documentation_index">Documentation index</h1>
@@ -231,7 +229,7 @@
 </li>
 <li class="level4"><div class="li"> <a href="/wiki/doku.php/abills:docs:linux:lepppd:ru" class="wikilink1" title="abills:docs:linux:lepppd:ru">Linux PPPD IPv4 zone counters</a></div>
 </li>
-<li class="level4"><div class="li"> <a href="/wiki/doku.php/abills:docs:linux:pppd_radattr:ru" class="wikilink1" title="abills:docs:linux:pppd_radattr:ru">Linux PPPD + radattr.so</a></div>
+<li class="level4"><div class="li"> <span class="curid"><a href="/wiki/doku.php/abills:docs:linux:pppd_radattr:ru" class="wikilink1" title="abills:docs:linux:pppd_radattr:ru">Linux PPPD + radattr.so</a></span></div>
 </li>
 <li class="level4"><div class="li"> <a href="/wiki/doku.php/abills:docs:linux:accel_pptp:ru" class="wikilink1" title="abills:docs:linux:accel_pptp:ru">Linux accel-pptp</a></div>
 </li>
@@ -332,7 +330,7 @@
         
 <!-- ********** FOOTER ********** -->
 <div id="dokuwiki__footer"><div class="pad">
-    <div class="license">За исключением случаев, когда указано иное, содержимое этой вики предоставляется на условиях следующей лицензии: <a href="http://creativecommons.org/licenses/by-nc-sa/3.0/" rel="license" class="urlextern">CC Attribution-Noncommercial-Share Alike 3.0 Unported</a></div>
+    <div class="license">За исключением случаев, когда указано иное, содержимое этой вики предоставляется на условиях следующей лицензии: <bdi><a href="http://creativecommons.org/licenses/by-nc-sa/3.0/" rel="license" class="urlextern">CC Attribution-Noncommercial-Share Alike 3.0 Unported</a></bdi></div>
     <div class="buttons">
         <a href="http://creativecommons.org/licenses/by-nc-sa/3.0/" rel="license"><img src="/wiki/lib/images/license/button/cc-by-nc-sa.png" alt="CC Attribution-Noncommercial-Share Alike 3.0 Unported" /></a>        <a href="http://www.dokuwiki.org/donate" title="Donate" ><img
             src="/wiki/lib/tpl/dokuwiki/images/button-donate.gif" width="80" height="15" alt="Donate" /></a>
@@ -349,7 +347,7 @@
 
     </div></div><!-- /site -->
 
-    <div class="no"><img src="/wiki/lib/exe/indexer.php?id=abills%3Adocs_03%3Ainstall%3Aen&amp;1372085932" width="2" height="1" alt="" /></div>
+    <div class="no"><img src="/wiki/lib/exe/indexer.php?id=abills%3Adocs_03%3Ainstall%3Aen&amp;1385368313" width="2" height="1" alt="" /></div>
     <div id="screen__mode" class="no"></div>    <!--[if ( lte IE 7 | IE 8 ) ]></div><![endif]-->
 </body>
 </html>

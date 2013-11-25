@@ -100,7 +100,10 @@ sub add {
 
   if ($DATA{CHECK_EXT_ID}) {
     $self->query2("SELECT id, date, sum, uid FROM payments WHERE ext_id='$DATA{CHECK_EXT_ID}';");
-    if ($self->{TOTAL} > 0) {
+    if ($self->{error}) {
+      return $self;
+    }
+    elsif ($self->{TOTAL} > 0) {
       $self->{errno}  = 7;
       $self->{errstr} = 'ERROR_DUBLICATE';
       $self->{ID}     = $self->{list}->[0][0];
@@ -216,14 +219,23 @@ sub list {
   $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
+  @WHERE_RULES = ();
+
   my $login_field = '';
   if (! $attr->{PAYMENT_DAYS}) {
   	$attr->{PAYMENT_DAYS}=0;
   }
+  elsif ($attr->{PAYMENT_DAYS}) {
+    my $expr = '=';
+    if ($attr->{PAYMENT_DAYS} =~ s/^(<|>)//) {
+      $expr = $1;
+    }
+    push @WHERE_RULES, "p.date $expr curdate() - INTERVAL $attr->{PAYMENT_DAYS} DAY";
+  }
 
   my $WHERE =  $self->search_former($attr, [
       ['DATETIME',       'DATE','p.date AS datetime',          1], 
-      ['SUM',            'INT', 'p.sum'                         ],
+      ['SUM',            'INT', 'p.sum',                        ],
       ['PAYMENT_METHOD', 'INT', 'p.method',                     ],
       ['A_LOGIN',        'STR', 'a.id'                          ],
       ['DESCRIBE',       'STR', 'p.dsc'                         ],
@@ -232,7 +244,7 @@ sub list {
       ['CURRENCY',       'INT', 'p.currency',                  1],
       ['METHOD',         'INT', 'p.method'                      ],
       ['BILL_ID',        'INT', 'p.bill_id',                   1],
-      ['AID',            'INT', 'p.id',                         ],
+      ['AID',            'INT', 'p.aid',                        ],
       ['IP',             'INT', 'INET_NTOA(p.ip)',  'INET_NTOA(p.ip) AS ip'],
       ['EXT_ID',         'STR', 'p.ext_id',                                ],
       ['INVOICE_NUM',    'INT', 'd.invoice_num',                          1],
@@ -240,12 +252,12 @@ sub list {
       ['REG_DATE',       'DATE','p.reg_date',                             1],      
       ['MONTH',          'DATE','date_format(p.date, \'%Y-%m\') AS month'  ],
       ['ID',             'INT', 'p.id'                                     ],
-      ['PAYMENT_DAYS',   'DATE', "curdate() - INTERVAL $attr->{PAYMENT_DAYS} DAY"],
       ['FROM_DATE_TIME|TO_DATE_TIME','DATE', "p.date"                      ],
       ['FROM_DATE|TO_DATE', 'DATE',    'date_format(p.date, \'%Y-%m-%d\')' ],
       ['UID',            'INT', 'p.uid',                                  1],
     ],
     { WHERE       => 1,
+    	WHERE_RULES => \@WHERE_RULES,
     	USERS_FIELDS=> 1,
     	SKIP_USERS_FIELDS=> [ 'BILL_ID', 'UID' ]
     }    
@@ -260,10 +272,10 @@ sub list {
   }
 
   if ($WHERE =~ /pi\./ || $self->{SEARCH_FIELDS} =~ /pi\./) {
-    $EXT_TABLES  .= 'LEFT JOIN users_pi pi ON (u.uid=pi.uid)'.$EXT_TABLES ;
+    $EXT_TABLES  = 'LEFT JOIN users_pi pi ON (u.uid=pi.uid)'.$EXT_TABLES ;
   }
   elsif ($EXT_TABLES =~ /builds/ && $EXT_TABLES !~ /users_pi/) {
-    $EXT_TABLES .= 'LEFT JOIN users_pi pi ON (u.uid=pi.uid) '. $EXT_TABLES;
+    $EXT_TABLES = 'LEFT JOIN users_pi pi ON (u.uid=pi.uid) '. $EXT_TABLES;
   }
   
   my $list;
@@ -296,7 +308,7 @@ sub list {
     $list = $self->{list};
   }
 
-  $self->query2("SELECT count(p.id) AS total, sum(p.sum) AS sum, count(DISTINCT p.uid) AS total_users
+  $self->query2("SELECT count(DISTINCT p.id) AS total, sum(DISTINCT p.sum) AS sum, count(DISTINCT p.uid) AS total_users
     FROM payments p
   LEFT JOIN users u ON (u.uid=p.uid)
   LEFT JOIN admins a ON (a.aid=p.aid) 
@@ -332,7 +344,7 @@ sub reports {
   }
 
   if (defined($attr->{METHOD}) and $attr->{METHOD} ne '') {
-    push @WHERE_RULES, "p.method IN ($attr->{METHOD}) ";
+    push @WHERE_RULES, @{ $self->search_expr("$attr->{METHOD}", 'INT', 'p.method') };
   }
 
   if (defined($attr->{DATE})) {

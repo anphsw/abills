@@ -27,3 +27,4 @@ $_PAYMENT_ERROR='Payment Error';
 $_DUBLICATE='Payment Exists'; 
 $_USER_ERROR='User Error'; 
 $_SMALL_PAYMENT_SUM='Small Payment sum';
+$_REGISTER_IN='Please register in ';

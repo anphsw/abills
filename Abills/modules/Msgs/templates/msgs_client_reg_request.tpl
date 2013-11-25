@@ -5,13 +5,8 @@
 <input type=hidden name=REGISTRATION_REQUEST value=1>
 
 
-<TABLE width=500 cellspacing=0 cellpadding=0 border=0 class=form>
-<TR><td bgcolor=#E1E1E1>
-<TABLE width=100% cellspacing=1 cellpadding=0 border=0>
-<TR><td bgcolor=#FFFFFF>
 
-
-<table>
+<TABLE class=form>
 <tr><th class=form_title colspan=2>$_REGISTRATION</th></tr>
 <!-- <tr><td>$_DATE:</td><td>%DATE%</td></tr> -->
 %ADDRESS_TPL%
@@ -40,12 +35,8 @@
 
 %CAPTCHA%
 
-
+<tr><th colspan='2'><input type='submit' name='%ACTION%' value='%LNG_ACTION%'/></textarea></th></tr>
 </table>
-</td></tr></table>
-</td></tr></table>
-<input type='submit' name='%ACTION%' value='%LNG_ACTION%'/>
 </FORM>
-
 
 %MAPS%

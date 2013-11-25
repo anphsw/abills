@@ -62,7 +62,7 @@ sub new {
   }
 
   $self->{TRAFFIC_ROWS} = 0;
-  $Billing = Billing->new($db, $CONF);
+  $Billing = Billing->new($self->{db}, $CONF);
   return $self;
 }
 
@@ -76,7 +76,6 @@ sub user_del {
 
   $self->query2("DELETE FROM ipn_log WHERE uid='$attr->{UID}';", 'do');
 
-  #$admin->action_add($attr->{UID}, "$attr->{UID}", { TYPE => 10 });
   return $self;
 }
 
@@ -180,93 +179,6 @@ sub traffic_recalc_bill {
   );
 
   return $self;
-}
-
-#**********************************************************
-# Acct_stop
-#**********************************************************
-sub acct_stop {
-  my $self = shift;
-  my ($attr) = @_;
-  my $session_id;
-
-  if (defined($attr->{SESSION_ID})) {
-    $session_id = $attr->{SESSION_ID};
-  }
-  else {
-    return $self;
-  }
-
-  my $ACCT_TERMINATE_CAUSE = (defined($attr->{ACCT_TERMINATE_CAUSE})) ? $attr->{ACCT_TERMINATE_CAUSE} : 0;
-
-  my $sql = "select u.uid, calls.framed_ip_address, 
-      calls.user_name,
-      calls.acct_session_id,
-      calls.acct_input_octets AS input_octets,
-      calls.acct_output_octets AS output_octets,
-      dv.tp_id,
-      if(u.company_id > 0, cb.id, b.id) AS bill_id,
-      if(c.name IS NULL, b.deposit, cb.deposit)+u.credit AS deposit,
-      calls.started AS start,
-      UNIX_TIMESTAMP()-UNIX_TIMESTAMP(calls.started) AS acct_session_time,
-      nas_id,
-      nas_port_id AS nas_port
-    FROM (dv_calls calls, users u)
-      LEFT JOIN companies c ON (u.company_id=c.id)
-      LEFT JOIN bills b ON (u.bill_id=b.id)
-      LEFT JOIN bills cb ON (c.bill_id=cb.id)
-      LEFT JOIN dv_main dv ON (u.uid=dv.uid)
-    WHERE u.id=calls.user_name and acct_session_id='$session_id';";
-
-  $self->query2($sql, undef, { INFO => 1 });
-
-  $self->query2("SELECT sum(l.traffic_in) AS traffic_in, 
-   sum(l.traffic_out) AS traffic_out,
-   sum(l.sum) AS sum,
-   l.nas_id
-   from ipn_log l
-   WHERE session_id='$session_id'
-   GROUP BY session_id  ;",
-   undef,
-   { INFO => 1 }
-  );
-
-  if ($self->{TOTAL} < 1) {
-    $self->query2("DELETE from dv_calls WHERE acct_session_id='$self->{ACCT_SESSION_ID}';", 'do');
-    return $self;
-  }
-
-  $self->query2("INSERT INTO dv_log (uid, 
-    start, 
-    tp_id, 
-    duration, 
-    sent, 
-    recv, 
-    sum, 
-    nas_id, 
-    port_id,
-    ip, 
-    CID, 
-    sent2, 
-    recv2, 
-    acct_session_id, 
-    bill_id,
-    terminate_cause) 
-        VALUES ('$self->{UID}', '$self->{START}', '$self->{TP_ID}', 
-          '$self->{ACCT_SESSION_TIME}', 
-          '$self->{OUTPUT_OCTETS}', '$self->{INPUT_OCTETS}', 
-          '$self->{SUM}', '$self->{NAS_ID}',
-          '$self->{NAS_PORT}', 
-          '$self->{FRAMED_IP_ADDRESS}', 
-          '',
-          '0', 
-          '0',
-          '$self->{ACCT_SESSION_ID}', 
-          '$self->{BILL_ID}',
-          '$ACCT_TERMINATE_CAUSE');", 'do'
-  );
-
-  $self->query2("DELETE from dv_calls WHERE acct_session_id='$self->{ACCT_SESSION_ID}';", 'do');
 }
 
 #**********************************************************
@@ -410,7 +322,7 @@ sub stats {
   my $GROUP = 'l.uid, l.ip, l.traffic_class';
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
-  $self->query2("SELECT u.id, min(l.start), INET_NTOA(l.ip), 
+  $self->query2("SELECT u.id AS login, min(l.start) AS start, INET_NTOA(l.ip) AS ip, 
    l.traffic_class,
    tt.descr,
    sum(l.traffic_in), sum(l.traffic_out),
@@ -461,7 +373,15 @@ sub reports_users {
   undef @WHERE_RULES;
   if ($attr->{UID}) {
     push @WHERE_RULES, "l.uid='$attr->{UID}'";
-    $date  = " DATE_FORMAT(start, '%Y-%m-%d') AS start, l.traffic_class, tt.descr";
+    
+    if ($attr->{HOURS}) {
+      $date  = "DATE_FORMAT(start, '%Y-%m-%d %H') AS hours";
+    }
+    else {
+      $date = "DATE_FORMAT(start, '%Y-%m-%d') AS start";
+    }
+
+    $date  = " $date, l.traffic_class, tt.descr";
     $GROUP = '1, 2';
   }
   else {
@@ -531,7 +451,7 @@ sub reports_users {
       $date = "u.gid";
     }
     elsif ($attr->{TYPE} eq 'USER') {
-      $date = "u.id, u.uid";
+      $date = "u.id AS login, u.uid";
     }
 
     #   elsif ($attr->{GID} eq 'GID') {
@@ -560,23 +480,22 @@ sub reports_users {
   elsif ($attr->{HOUR}) {
     push @WHERE_RULES, "date_format(start, '%Y-%m-%d %H')='$attr->{HOUR}'";
     $GROUP = "1, 2, 3";
-    $date  = "DATE_FORMAT(start, '%Y-%m-%d %H') AS hours, u.id, l.traffic_class, tt.descr ";
+    $date  = "DATE_FORMAT(start, '%Y-%m-%d %H') AS hours, u.id AS login, l.traffic_class, tt.descr ";
   }
   elsif ($attr->{DATE}) {
     push @WHERE_RULES, "date_format(start, '%Y-%m-%d')='$attr->{DATE}'";
-    if ($attr->{UID}) {
-      $GROUP = "1, 2";
-
-      #push @WHERE_RULES, "l.uid='$attr->{UID}'";
-      $date = " DATE_FORMAT(start, '%Y-%m-%d %H') AS hours, l.traffic_class, tt.descr";
-    }
-    elsif ($attr->{HOURS}) {
+    #if ($attr->{UID}) {
+    #  $GROUP = "1, 2";
+    #   $date = " DATE_FORMAT(start, '%Y-%m-%d %H') AS hours, l.traffic_class, tt.descr";
+    #}
+    
+    if ($attr->{HOURS}) {
       $GROUP = "1, 3";
       $date  = "DATE_FORMAT(start, '%Y-%m-%d %H') AS hours, count(DISTINCT u.id) AS user_counts, l.traffic_class, tt.descr ";
     }
     else {
       $GROUP = "1, 2, 3";
-      $date  = "DATE_FORMAT(start, '%Y-%m-%d') AS start, u.id, l.traffic_class, tt.descr ";
+      $date  = "DATE_FORMAT(start, '%Y-%m-%d') AS start, u.id AS login, l.traffic_class, tt.descr ";
     }
   }
   elsif (defined($attr->{MONTH})) {
@@ -616,7 +535,7 @@ sub reports_users {
    $WHERE
    GROUP BY $GROUP";
 
-  my $sql2 = "SELECT count(*),  sum(l.traffic_in), sum(l.traffic_out)
+  my $sql2 = "SELECT count(*) AS count,  sum(l.traffic_in) AS traffic_in_sum, sum(l.traffic_out) AS traffic_out_sum
   from  %TABLE% l
   $WHERE ";
 
@@ -653,9 +572,7 @@ sub reports_users {
   my $list = $self->{list};
 
   #totals query
-  $self->query2($full_sql2);
-
-  ($self->{COUNT}, $self->{SUM}) = @{ $self->{list}->[0] };
+  $self->query2($full_sql2, undef, { INFO => 1 });
 
   return $list;
 }
@@ -1073,10 +990,10 @@ sub ipn_log_rotate {
 
     $self->query2("SHOW TABLES LIKE 'ipn_traf_detail_%'");
     foreach my $table_name (@{ $self->{list} }) {
-    	$table_name->[0] =~ /(\d{4})\_(\d{2})\_(\d{2})$/;
-    	my ($log_y, $log_m, $log_d) = ($1, $2, $3);
-      my $seltime = POSIX::mktime(0, 0, 0, $log_d, ($log_m - 1), ($log_y - 1900));    	
-    	if ((time - $seltime) > 86400 * $attr->{PERIOD}) {
+      $table_name->[0] =~ /(\d{4})\_(\d{2})\_(\d{2})$/;
+      my ($log_y, $log_m, $log_d) = ($1, $2, $3);
+      my $seltime = POSIX::mktime(0, 0, 0, $log_d, ($log_m - 1), ($log_y - 1900));      
+      if ((time - $seltime) > 86400 * $attr->{PERIOD}) {
         push @rq, "DROP table ipn_traf_detail_". $log_y .'_'.$log_m.'_'. "$log_d;";
       }
     }

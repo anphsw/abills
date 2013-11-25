@@ -101,8 +101,9 @@ if ($conf{PAYSYS_IPS}) {
   #Send info mail to admin
   if (!$allow) {
     print "Content-Type: text/html\n\n";
-    print "Error: IP '$ENV{REMOTE_ADDR}' DENY by System";
+    my $error = "Error: IP '$ENV{REMOTE_ADDR}' DENY by System";
     sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "ABillS - Paysys", "IP '$ENV{REMOTE_ADDR}' DENY by System", "$conf{MAIL_CHARSET}", "2 (High)");
+    mk_log($error);
     exit;
   }
 }
@@ -168,7 +169,6 @@ $md5 = new Digest::MD5;
 if ($conf{PAYSYS_SUCCESSIONS}) {
   $conf{PAYSYS_SUCCESSIONS} =~ s/[\n\r]+//g;
   my @systems_arr = split(/;/, $conf{PAYSYS_SUCCESSIONS});
-
   # IPS:ID:NAME:SHORT_NAME:MODULE_function;
   foreach my $line (@systems_arr) {
     my ($ips, $id, $name, $short_name, $function) = split(/:/, $line);
@@ -215,8 +215,11 @@ elsif ($FORM{__BUFFER} =~ /^{.+}$/ &&
   exit;
 }
 # Privat bank terminal interface
-elsif (check_ip($ENV{REMOTE_ADDR}, '107.22.173.15,107.22.173.86,217.117.64.232/28,75.101.163.115,213.154.214.76')) {
-  require "Privat_terminal.pm";
+elsif (check_ip($ENV{REMOTE_ADDR}, '107.22.173.15,107.22.173.86,217.117.64.232/28,75.101.163.115,213.154.214.76,192.168.1.107,217.117.64.232/29,192.168.1.103')) {
+  eval { require "Privat_terminal.pm" };
+  if ( $@ ) {
+  	print $@;
+  }
   exit;
 }
 elsif ($FORM{signature} && $FORM{operation_xml}) {
@@ -230,7 +233,11 @@ elsif ($FORM{merchantid}) {
   require "Regulpay.pm";
   exit;
 }
-
+# IP: 77.120.97.36
+#elsif (check_ip($ENV{REMOTE_ADDR}, '192.168.1.103')) {
+#  require "PayU.pm";
+#  exit;
+#}
 # IP: -
 elsif ($FORM{params}) {
   require "Sberbank.pm";
@@ -247,7 +254,7 @@ elsif ($conf{PAYSYS_EXPPAY_ACCOUNT_KEY}
   require "Express.pm";
   exit;
 }
-elsif ($FORM{action} && $conf{PAYSYS_TELCELL_ACCOUNT_KEY}) {
+elsif ( check_ip($ENV{REMOTE_ADDR}, '62.89.31.36,95.140.194.139')) {
   require "Telcell.pm";
   exit;
 }
@@ -276,7 +283,7 @@ elsif ($FORM{ACT}) {
 elsif ($conf{PAYSYS_GIGS_IPS} && $conf{PAYSYS_GIGS_IPS} =~ /$ENV{REMOTE_ADDR}/) {
   require "Gigs.pm";
 }
-elsif (check_ip($ENV{REMOTE_ADDR}, '217.77.49.157,192.168.1.102')) {
+elsif (check_ip($ENV{REMOTE_ADDR}, '217.77.49.157')) {
   require "Rucard.pm";
   exit;
 }
@@ -480,16 +487,14 @@ sub portmone_payments {
   my $status = 0;
   my $list   = $Paysys->list(
     {
-      TRANSACTION_ID => "$FORM{'SHOPORDERNUMBER'}",
-      INFO           => '-',
+      TRANSACTION_ID => "PM:$FORM{'SHOPORDERNUMBER'}",
       SUM            => '_SHOW',
+      STATUS         => 1,
       COLS_NAME      => 1,
     }
   );
 
   if ($Paysys->{TOTAL} > 0) {
-
-    #$html->message('info', $_INFO, "$_ADDED $_SUM: $list->[0][3] ID: $FORM{SHOPORDERNUMBER }");
     my $uid  = $list->[0]{uid};
     my $sum  = $list->[0]{sum};
     my $user = $users->info($uid);
@@ -541,9 +546,6 @@ sub portmone_payments {
     print "Location: $home_url?index=$FORM{index}&sid=$FORM{sid}&SHOPORDERNUMBER=$FORM{SHOPORDERNUMBER}&TRUE=1" . "\n\n";
   }
   else {
-
-    #print "Content-Type: text/html\n\n";
-    #print "FAILED PAYSYS: Portmone SUM: $FORM{BILL_AMOUNT} ID: $FORM{SHOPORDERNUMBER} STATUS: $status";
     print "Location: $home_url?index=$FORM{index}&sid=$FORM{sid}&SHOPORDERNUMBER=$FORM{SHOPORDERNUMBER}" . "\n\n";
   }
 
@@ -681,12 +683,16 @@ sub osmp_payments {
       }
     }
   }
+  
+  if ($debug > 1) {
+  	print "Content-Type: text/plain\n\n";
+  }
+  
   print "Content-Type: text/xml\n\n";
 
   my $payment_system    = $attr->{SYSTEM_SHORT_NAME} || 'OSMP';
   my $payment_system_id = $attr->{SYSTEM_ID}         || 44;
   my $CHECK_FIELD       = $conf{PAYSYS_OSMP_ACCOUNT_KEY} || $attr->{CHECK_FIELDS} || 'UID';
-
   my $txn_id = 'osmp_txn_id';
 
   my %status_hash = (
@@ -740,9 +746,10 @@ sub osmp_payments {
     my $list = $users->list({ $CHECK_FIELD  => $FORM{account}, 
     	                        DISABLE_PAYSYS=> '_SHOW',
     	                        GROUP_NAME    => '_SHOW',
-    	                        COLS_NAME     => 1 });
+    	                        COLS_NAME     => 1 
+    	                      });
 
-    if (!$conf{PAYSYS_PEGAS} && !$FORM{sum}) {
+    if ($payment_system_id == 44 && !$FORM{sum}) {
       $status = 300;
     }
     elsif ($users->{errno}) {
@@ -828,9 +835,7 @@ sub osmp_payments {
     }
     else {
       my $list = $users->list({ $CHECK_FIELD => $FORM{account}, COLS_NAME => 1 });
-
       if (!$users->{errno} && $users->{TOTAL} > 0) {
-
         my $uid = $list->[0]->{uid};
         $user = $users->info($uid);
       }
@@ -862,7 +867,6 @@ sub osmp_payments {
         }
       }
 
-
       #Add payments
       $payments->add(
         $user,
@@ -871,13 +875,10 @@ sub osmp_payments {
           DESCRIBE     => "$payment_system",
           METHOD       => ($conf{PAYSYS_PAYMENTS_METHODS} && $PAYSYS_PAYMENTS_METHODS{$payment_system_id}) ? $payment_system_id : '2',
           EXT_ID       => "$payment_system:$FORM{txn_id}",
-          CHECK_EXT_ID => "$payment_system:$FORM{txn_id}"
+          CHECK_EXT_ID => "$payment_system:$FORM{txn_id}",
+          ER           => $er
         }
       );
-
-      cross_modules_call('_payments_maked', { USER_INFO => $user, 
-                                              SUM       => $FORM{sum},
-                                              QUITE     => 1 });
 
       #Exists
       if ($payments->{errno} && $payments->{errno} == 7) {
@@ -903,6 +904,10 @@ sub osmp_payments {
             STATUS         => 2
           }
         );
+        
+        cross_modules_call('_payments_maked', { USER_INFO => $user, 
+                                                SUM       => $FORM{sum},
+                                                QUITE     => 1 });
       }
     }
 
@@ -927,7 +932,7 @@ $results
 
   print $response;
   if ($debug > 0) {
-    mk_log($response);
+    mk_log("$response", { PAYSYS_ID => "$attr->{SYSTEM_ID}/$attr->{SYSTEM_SHORT_NAME}" });
   }
 
   exit;

@@ -57,6 +57,8 @@ sub sql_connect {
 
   convert_radpairs();
 
+  return $db if (!$REQUEST{NAS_IP_ADDRESS});
+
   $REQUEST{NAS_IDENTIFIER} = '' if (!$REQUEST{NAS_IDENTIFIER});
   if (!$NAS_INFO{ $REQUEST{NAS_IP_ADDRESS} . '_' . $REQUEST{NAS_IDENTIFIER} }) {
     $nas = get_nas_info($db, \%REQUEST);
@@ -133,8 +135,10 @@ sub post_auth {
   $begin_time = check_time();
 
   my $db     = sql_connect();
-  
-  print "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz $db zzzzzzz\n";
+
+  if (! $db) {  
+    print "!!!!!!!!!!!!!!!!!! Can't connect db: $db !!!!!!!!!!!!!!\n";
+  }
   
   my $return = inc_postauth($db, \%REQUEST, $nas);
   if ($return == 0) {

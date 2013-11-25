@@ -28,7 +28,6 @@ sub notepad_main {
     $html->message('info', $_INFO, "$FORM{message}");
   }
 
-  my $status_bar = msgs_status_bar();
   $list_of_notice = $Notepad->notepad_notice({});
 
   foreach my $line (@$list_of_notice) {

@@ -1,0 +1,244 @@
+#!/bin/sh
+# Mikrotik autoconfigurator
+#
+
+VERSION=0.62
+DEBUG=
+
+
+#while [ "${NAS_ID}" = "" ]; do
+#  read -p "Nas ID:" NAS_ID
+#done;
+
+RAD_ACCT_ALIVE=300
+CERT_PATH=/usr/abills/Certs/
+SSH=ssh
+SSH_PORT=22
+
+#**********************************************************
+#
+#**********************************************************
+ssh_cmds () {
+  CONTROL_USER=$1
+
+for i in 1 2 3 4 5 6 7  8 9 10 11 12 13 14 15; do
+  cmd=`eval "echo \"\\${CMDS_${i}}\""`
+  if [ "${cmd}" != "" ]; then
+    echo "$i ${cmd}"
+    ${SSH} -p ${MIKROTIK_SSH_PORT} -l ${CONTROL_USER} -o StrictHostKeyChecking=no -i ${CERT_PATH}/${id_dsa_file} ${MIKROTIK_IP} "${cmd}"
+  fi;
+done
+
+}
+
+#**********************************************************
+#
+# get variable value
+#**********************************************************
+get_value () {
+  VARIABLE_NAME=$1
+  DESCRIBE=$2
+  DEFAULT_VALUE=$3
+
+  if [ x${DEFAULT_VALUE} != x ]; then
+    DEFAULT_VALUE_INFO="(${DEFAULT_VALUE})"
+  fi;
+
+  while [ "${VALUE}" = "" ]; do
+    read -p "${DESCRIBE} ${DEFAULT_VALUE_INFO}: " VALUE
+
+    if [ "${VALUE}" = "" -a "${DEFAULT_VALUE}" != "" ]; then
+      VALUE="${DEFAULT_VALUE}"
+    fi;
+  done;
+
+  eval "${VARIABLE_NAME}"=${VALUE}
+
+  VALUE=""
+  DEFAULT_VALUE=""
+  DEFAULT_VALUE_INFO=""
+
+  return 0
+}
+
+#**********************************************************
+#
+#Generate and UPLOAD key
+#**********************************************************
+cert_upload () {
+
+/usr/abills/misc/certs_create.sh ssh ${MIKROTIK_CONTROL_USER} -UPLOAD_FTP "${MIKROTIK_ADMIN_USER}@${MIKROTIK_IP}"
+
+id_dsa_file=id_dsa.${MIKROTIK_CONTROL_USER};
+
+#ftp ${MIKROTIK_ADMIN_USER}@${MIKROTIK_IP}: ${CERT_PATH}${id_dsa_file}.pub
+
+CMDS_1="/user add name=${MIKROTIK_CONTROL_USER} group=write"
+CMDS_2="/user ssh-keys import public-key-file=${id_dsa_file}.pub user=${MIKROTIK_CONTROL_USER}"
+
+ssh_cmds ${MIKROTIK_ADMIN_USER}
+
+echo "Test connect: "
+CMDS_1="/system identity print"
+ssh_cmds ${MIKROTIK_CONTROL_USER}
+}
+
+
+#**********************************************************
+#
+#**********************************************************
+add_config () {
+
+CMDS_1="/radius add address=${RADIUS_AUTH_SERVER} secret=${RADIUS_SECRET} service=ppp,dhcp" 
+CMDS_2="/radius incoming set accept=yes port=1700" 
+
+CMDS_3="/ppp aaa set accounting=yes use-radius=yes interim-update=${RAD_ACCT_ALIVE}"
+CMDS_4="/ppp profile set default local-address=${MIKROTIK_IP}"
+
+echo "CONNECTION_TYPE: '${CONNECTION_TYPE}'"
+
+##PPPoE
+if [ "${CONNECTION_TYPE}" = pppoe ]; then
+  PPPOE_INTERFACES=ether1
+  get_value PPPOE_INTERFACES "PPPoE listen interfaces" ether1
+  for PPPOE_INTERFACE in ${PPPOE_INTERFACES}; do
+    CMDS_5="/interface pppoe-server server add interface=${PPPOE_INTERFACE} service-name=pppoe-in authentication=chap disabled=no"
+  done
+fi;
+
+#PPTP
+if [ "${CONNECTION_TYPE}" = pptp ]; then
+  CMDS_6="/interface pptp-server server set enabled=yes authentication=chap"
+fi;
+
+#IPN
+if [ "${CONNECTION_TYPE}" = ipn ]; then
+  get_value FLOW_COLLECTOR "Netflow collector ip"
+  FLOW_PORT=9996
+  
+  CMDS_7="/ip traffic-flow set enabled=yes"
+  CMDS_8="/ip traffic-flow target add address=${FLOW_COLLECTOR}:${FLOW_PORT} version=5"
+  CMDS_9="/ip traffic-flow set interfaces=ether3 active-flow-timeout=30m inactive-flow-timeout=15s cache-entries=4k enabled=yes "
+fi;
+
+#FReeradius DHCP
+if [ "${CONNECTION_TYPE}" = freeradius_dhcp ]; then
+  CMDS_7=""
+  CMDS_8=""
+  CMDS_9=""
+fi;
+
+
+#Redirect to user portal
+get_value PORTAL_IP "User Portal IP"
+get_value CLIENTS_NET "Clients network" "10.0.0.0/24"
+
+CMDS_10="/ip firewall nat add chain=dstnat action=dst-nat to-addresses=${PORTAL_IP} to-ports=80 protocol=tcp src-address=${CLIENTS_NET} dst-address=0.0.0.0/0 dst-port=80"
+
+ssh_cmds ${MIKROTIK_CONTROL_USER}
+
+}
+
+#**********************************************************
+#
+#**********************************************************
+mk_shapper () {
+  echo "Make shapper"
+  
+  get_value USE_NAT "Use nat (y/n)"
+  
+  if [ "${USE_NAT}"  != n ]; then
+    /usr/abills/libexec/billd checkspeed mikrotik RECONFIGURE=1 NAS_IDS=${NAS_ID} SSH_PORT=${MIKROTIK_SSH_PORT} NAT=${USE_NAT}
+  fi;
+
+}
+
+#**********************************************************
+#
+#**********************************************************
+get_mikrotik_info () {
+
+get_value MIKROTIK_ADMIN_USER "Mikrotik admin user" admin
+get_value NAS_ID "Nas ID"
+get_value CONNECTION_TYPE "Connection type [pppoe,pptp,ipn]"
+get_value MIKROTIK_CONTROL_USER "Mikrotik control user" abills_admin
+get_value RADIUS_AUTH_SERVER "Radius IP" 
+get_value RADIUS_SECRET "Radius Secret" radsecret
+
+if [ x${RADIUS_AUTH_SERVER} != x ]; then
+  for file in /usr/local/etc/raddb/client.conf  /usr/local/freeradius/etc/raddb/client.conf; do
+    if [ -f ${file} ]; then
+      check_nas=`grep ${RADIUS_AUTH_SERVER} ${file}`;
+      if [ x${check_nas} = x ]; then  
+        get_value ADD_RADIUS_CLIENT "Add to radius client file '${file}' "
+        if [ x${ADD_RADIUS_CLIENT} != x ]; then   
+          echo "client {
+   secret = ${RADIUS_SECRET}
+   }
+" >> ${file}
+         killall -1 radiusd
+        fi;
+      fi;
+    fi;
+  done;  
+fi;
+
+}
+
+
+#**********************************************************
+#
+#**********************************************************
+save_config () {
+  echo -n "Save config [Y/n]:"
+  read SAVE
+
+  if [ x${SAVE} = xy ]; then
+    echo "MIKROTIK_IP ${MIKROTIK_IP}:${MIKROTIK_SSH_PORT}" > ${config_file}
+    echo "MIKROTIK_ADMIN_USER ${MIKROTIK_ADMIN_USER}" >> ${config_file}
+    echo "NAS_ID ${NAS_ID}" >> ${config_file}
+    echo "CONNECTION_TYPE ${CONNECTION_TYPE}" >> ${config_file}
+    echo "MIKROTIK_CONTROL_USER ${MIKROTIK_CONTROL_USER}" >> ${config_file}
+    echo "RADIUS_AUTH_SERVER ${RADIUS_AUTH_SERVER}" >> ${config_file}
+    echo "RADIUS_SECRET ${RADIUS_SECRET}" >> ${config_file}
+  fi;
+}
+
+
+
+#**********************************************************
+#
+#**********************************************************
+read_config () {
+  echo "Reading config: ${config_file}"
+  
+  cat ${config_file};
+  
+  exit;
+}
+
+get_value MIKROTIK_IP "Enter Mikrotik IP"
+
+MIKROTIK_SSH_PORT=`echo ${MIKROTIK_IP} | awk -F: '{ print $2 }'`
+MIKROTIK_IP=`echo ${MIKROTIK_IP} | awk -F: '{ print $1 }'`
+if [ x${MIKROTIK_SSH_PORT} = x ]; then
+  MIKROTIK_SSH_PORT=22;
+fi;
+
+config_file="${MIKROTIK_IP}.conf"
+
+if [ -f ${config_file} ]; then
+  echo -n "Use config? [Y/n]"
+  read USER_CONFIG
+fi;
+
+if [ x${USER_CONFIG} = xy ]; then
+  read_config
+else
+  get_mikrotik_info
+fi;
+
+cert_upload
+add_config
+mk_shapper
+save_config

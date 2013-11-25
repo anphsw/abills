@@ -12,7 +12,7 @@ $html
 
 #use strict;
 
-my $version = 0.54;
+my $version = 0.55;
 my $debug   = 0;
 
 use FindBin '$Bin';
@@ -114,10 +114,11 @@ sub ureports_send_reports {
   $message = $html->tpl_show(_include('ureports_report_'.$attr->{REPORT_ID}, 'Ureports'), $attr, {  OUTPUT2RETURN => 1 });
 
   if ($debug > 6) {
-  	print "$type $destination $message\n";
+    print "$type $destination $message\n";
   }
   elsif ($type == 0) {
-  	$message = $html->tpl_show(_include('ureports_email_message', 'Ureports'), $attr, { OUTPUT2RETURN => 1 });
+    $attr->{MESSAGE} = $message;  
+    $message = $html->tpl_show(_include('ureports_email_message', 'Ureports'), $attr, { OUTPUT2RETURN => 1 });
 
     my $subject = $attr->{SUBJECT} || '';
     if (!sendmail($conf{ADMIN_MAIL}, $destination, $subject, $message . "\n[$attr->{REPORT_ID}]", $conf{MAIL_CHARSET})) {
@@ -126,7 +127,8 @@ sub ureports_send_reports {
   }
   elsif ($type == 1) {
     if (in_array('Sms', \@MODULES)) {
-    	$message = $html->tpl_show(_include('ureports_sms_message', 'Ureports'), $attr, { OUTPUT2RETURN => 1 });
+    	$attr->{MESSAGE} = $message;
+      $message = $html->tpl_show(_include('ureports_sms_message', 'Ureports'), $attr, { OUTPUT2RETURN => 1 });
 
       load_module('Sms');
       sms_send(
@@ -170,15 +172,15 @@ sub ureports_periodic_reports {
 
   $SERVICE_LIST_PARAMS{LOGIN}     =  $ARGV->{LOGIN} if ($ARGV->{LOGIN});
 
-  $tariffs->{debug}=1 if ($debug > 6);
+  $tariffs->{debug}= 1 if ($debug > 6);
   my $list         = $tariffs->list({
-  	                                 REDUCTION_FEE   => '_SHOW',
-  	                                 DAY_FEE         => '_SHOW',
-  	                                 MONTH_FEE       => '_SHOW',
-  	                                 PAYMENT_TYPE    => '_SHOW',
-  	                                 EXT_BILL_ACCOUNT=> '_SHOW',
-  	                                 %LIST_PARAMS,
-  	                                 COLS_NAME   => 1 });
+                                     REDUCTION_FEE   => '_SHOW',
+                                     DAY_FEE         => '_SHOW',
+                                     MONTH_FEE       => '_SHOW',
+                                     PAYMENT_TYPE    => '_SHOW',
+                                     EXT_BILL_ACCOUNT=> '_SHOW',
+                                     %LIST_PARAMS,
+                                     COLS_NAME   => 1 });
 
   $ADMIN_REPORT{DATE} = $DATE if (!$ADMIN_REPORT{DATE});
   $SERVICE_LIST_PARAMS{CUR_DATE}=$ADMIN_REPORT{DATE};
@@ -199,10 +201,11 @@ sub ureports_periodic_reports {
         PAGE_ROWS      => 1000000,
         DV_TP          => 1,
         ACCOUNT_STATUS => 0,
+        DV_STATUS      => '_SHOW',
         STATUS         => 0,
         %SERVICE_LIST_PARAMS,
         COLS_NAME      => 1,
-        COLS_UPPER     => 1
+        COLS_UPPER     => 1,
       }
     );
     
@@ -211,7 +214,7 @@ sub ureports_periodic_reports {
       my %PARAMS = ();
       $user->{TP_ID} = $TP_ID;
 
-      $debug_output .= "LOGIN: $user->{LOGIN} ($user->{UID}) DEPOSIT: $user->{deposit} CREDIT: $user->{credit}\n" if ($debug > 3);
+      $debug_output .= "LOGIN: $user->{LOGIN} ($user->{UID}) DEPOSIT: $user->{deposit} CREDIT: $user->{credit} Report id: $user->{REPORT_ID}\n" if ($debug > 3);
 
       if ($user->{BILL_ID} > 0 && defined($user->{DEPOSIT})) {
         #Skip action for pay opearation
@@ -219,6 +222,39 @@ sub ureports_periodic_reports {
           $debug_output .= "UID: $user->{UID} REPORT_ID: $user->{REPORT_ID} DEPOSIT: $user->{DEPOSIT}/$user->{CREDIT} Skip action Small Deposit for sending\n" if ($debug > 0);
           next;
         }
+
+        # Recomended payments
+        my $total_daily_fee = 0;
+        my $cross_modules_return = cross_modules_call('_docs', { FEES_INFO    => 1, 
+        	                                                       UID          => $user->{UID},
+        	                                                       SKIP_MODULES => 'Ureports'  });
+
+        $user->{RECOMMENDED_PAYMENT} = 0;
+        foreach my $module (sort keys %$cross_modules_return) {
+          if (ref $cross_modules_return->{$module} eq 'HASH') {
+            if ($cross_modules_return->{$module}{day}) {
+              $total_daily_fee += $cross_modules_return->{$module}{day} ;
+            	$user->{RECOMMENDED_PAYMENT} += $cross_modules_return->{$module}{day} * 30;
+            }
+
+            if ($cross_modules_return->{$module}{abon_distribution}) {
+              $total_daily_fee += ($cross_modules_return->{$module}{month} / 30);
+              $user->{RECOMMENDED_PAYMENT} += $cross_modules_return->{$module}{month};
+            }
+          }
+        }
+
+        if ($user->{DEPOSIT} + $user->{CREDIT} > 0) {
+         	$user->{RECOMMENDED_PAYMENT} = sprintf("%.2f", $user->{RECOMMENDED_PAYMENT} - ($user->{DEPOSIT} + $user->{CREDIT}));
+        }
+        else {
+         	$user->{RECOMMENDED_PAYMENT} += sprintf("%.2f", abs($user->{DEPOSIT} + $user->{CREDIT}));
+        }
+
+        $user->{DEPOSIT} = sprintf("%.2f", $user->{DEPOSIT});
+
+        $user->{EXPIRE_DAYS} = int($user->{DEPOSIT} / $total_daily_fee) if ($total_daily_fee > 0);
+        $user->{EXPIRE_DATE} = strftime("%Y-%m-%d", localtime(time + $user->{EXPIRE_DAYS} * 86400));
 
         #Report 1
         if ($user->{REPORT_ID} == 1) {
@@ -234,7 +270,7 @@ sub ureports_periodic_reports {
           }
         }
 
-        #Report 2
+        #Report 2 DEposit + credit below
         elsif ($user->{REPORT_ID} == 2) {
           if ($user->{VALUE} > $user->{DEPOSIT} + $user->{CREDIT}) {
             %PARAMS = (
@@ -362,21 +398,19 @@ sub ureports_periodic_reports {
         }
         #All service expired throught
         elsif ($user->{REPORT_ID} == 13) {
-        	my $total_daily_fee = 0;
-          my $cross_modules_return = cross_modules_call('_docs', { FEES_INFO => 1, UID => $user->{UID}  });
-          foreach my $module (sort keys %$cross_modules_return) {
-            if (ref $cross_modules_return->{$module} eq 'HASH') {
-              $total_daily_fee += $cross_modules_return->{$module}{day} if ($cross_modules_return->{$module}{day});
-            }
-          }
-
           if ($total_daily_fee > 0) {
-            my $expire_days = int($user->{DEPOSIT} / $total_daily_fee);
-            if ($expire_days < $user->{VALUE}) {
-              $_ALL_SERVICE_EXPIRE =~ s/XX/ $expire_days /;
+            $debug_output .= "(Day fee: $total_daily_fee / $user->{EXPIRE_DAYS} -> $user->{VALUE} \n" if ($debug > 4);
+
+            if ($user->{EXPIRE_DAYS} <= $user->{VALUE}) {
+              $_ALL_SERVICE_EXPIRE =~ s/XX/ $user->{EXPIRE_DAYS} /;
+              
+              my $message = $_ALL_SERVICE_EXPIRE;
+              
+              $message .= "\n $_RECOMMENDED_PAYMENT:  $user->{RECOMMENDED_PAYMENT}\n";
+
               %PARAMS = (
                 DESCRIBE => "$_REPORTS ($user->{REPORT_ID}) ",
-                MESSAGE  => "$_ALL_SERVICE_EXPIRE",
+                MESSAGE  => "$message",
                 SUBJECT  => "$_ALL_SERVICE_EXPIRE"
                 );
             }
@@ -398,6 +432,19 @@ sub ureports_periodic_reports {
             else {
               next;
             }
+          }
+        }
+        #15 Dv change status
+        elsif ($user->{REPORT_ID} == 15) {
+          if ($user->{DV_STATUS} && $user->{DV_STATUS} != 3) {
+            my @service_status = ("$_ENABLE", "$_DISABLE", "$_NOT_ACTIVE", "$_HOLD_UP", 
+              "$_DISABLE: $_NON_PAYMENT", "$ERR_SMALL_DEPOSIT",
+              "$_VIRUS_ALERT" );
+            %PARAMS = (
+                DESCRIBE => "$_REPORTS",
+                MESSAGE  => "Internet: $service_status[$user->{DV_STATUS}]",
+                SUBJECT  => "Internet: $service_status[$user->{DV_STATUS}]"
+            );
           }
         }
       }
@@ -847,17 +894,17 @@ sub ureports_periodic_monthly {
           #Summary for company users
           #         my @UIDS  = ();
           #         if ($$processed_users{$user{COMPANY_ID}}) {
-          #         	 next;
+          #            next;
           #          }
           #
           #         if ($user{COMPANY_ID}) {
           #           my $company_users = $ulist = $Ureports->list({ TP_ID      => $tp_line->[0],
           #                                                    COMPANY_ID => $user{COMPANY_ID}
-          #         	                                        });
+          #                                                   });
           #           $$processed_users{$user{COMPANY_ID}}=1;
           #
           #           foreach my $c_user ( @$company_users ) {
-          #         	    push @UIDS, $c_user->[7];
+          #               push @UIDS, $c_user->[7];
           #            }
           #
           #           print "$user{LOGIN} hello $user{COMPANY_ID} // ";

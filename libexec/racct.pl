@@ -100,7 +100,7 @@ if (! $rlm_perl) {
 
   if (!defined($RAD->{NAS_IP_ADDRESS})) {
     $RAD->{USER_NAME} = '-' if (!defined($RAD->{USER_NAME}));
-    $access_deny->("$RAD->{USER_NAME}", "Not specified NAS server", 0, $db);
+    $access_deny->("$RAD->{USER_NAME}", "Not specified NAS server", undef, $db);
     exit 1;
   }
   else {
@@ -123,7 +123,7 @@ if (! $rlm_perl) {
 
     my $acct;
     if ($Nas->{errno}) {
-      $access_deny->("$RAD->{USER_NAME}", "Unknow server '$RAD->{NAS_IP_ADDRESS}'", 0, $db);
+      $access_deny->("$RAD->{USER_NAME}", "Unknow server '$RAD->{NAS_IP_ADDRESS}'", undef, $db);
     }
     else {
       $acct = acct($db, $RAD, $Nas);
@@ -131,8 +131,6 @@ if (! $rlm_perl) {
 
     if ($acct->{errno}) {
     	$access_deny->("$RAD->{USER_NAME}", "$acct->{errstr}". ((defined($acct->{sql_errstr})) ? " ($acct->{sql_errstr})" : ''), $Nas, $db);
-#      my $Log = Log->new($db, \%conf);
-#      $Log->log_print('LOG_ERR', $RAD->{USER_NAME}, "$acct->{errstr}" . ((defined($acct->{sql_errstr})) ? " ($acct->{sql_errstr})" : ''));
     }
   }
 }
@@ -158,6 +156,10 @@ sub acct {
   }
 
   my $acct_status_type = $ACCT_TYPES{ $RAD->{ACCT_STATUS_TYPE} };
+  
+  if ($acct_status_type > 6) {
+  	return $r;
+  }
 
   $RAD->{INTERIUM_INBYTE}   = 0;
   $RAD->{INTERIUM_OUTBYTE}  = 0;
@@ -371,7 +373,7 @@ sub acct {
   }
 
   if ($r->{errno}) {
-    $access_deny->("$RAD->{USER_NAME}", "[$r->{errno}] $r->{errstr}", $nas->{NAS_ID}, $db);
+    $access_deny->("$RAD->{USER_NAME}", "[$r->{errno}] $r->{errstr}", $nas, $db);
   }
 
   if ($conf{ACCT_DEBUG} && $begin_time > 0) {

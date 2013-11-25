@@ -1,8 +1,7 @@
 $_ADD_ORDER = 'Добавить заказ';
-$_ORDERED='Заказано';
-$_ORDER_FOR='заказ на';
-$_SUPPLIER='поставщикa';
-$_PHONE='Телефон';
+$_ORDERED='Ordered';
+$_ORDER_FOR='Order';
+$_SUPPLIER='Suplier';
 $_MEASURE='Ед. изм.';
 $_SITE='Web-сайт';
 $_OKPO='ОКПО/ЕДРПОУ';
@@ -89,7 +88,7 @@ $_NETWORK='Network';
 $_SUBNET='Subnet';
 $_SELL_PRICE='Sell price';
 $_RENT_PRICE='Rent price';
-$_SUM_ALL = 'Purchase price(Total)';
+$_SUM_ALL='Total Purchase Price';
 $_PAY_FOR_RENT = 'Payment for rental equipment  - ';
 $_PAY_FOR_SELL = 'Payment for the sale of equipment  - ';
 $_VIEW_HARDWARE_LOG = 'View hardware log';
@@ -98,3 +97,4 @@ $_GROUND = 'GROUND';
 $_RECORD_CREATED = 'Record created';
 $_RECORD_CHANGED = 'Record changed';
 $_AUTHOR = 'Author: ';
+

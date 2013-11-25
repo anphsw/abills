@@ -116,6 +116,7 @@ sub accounting {
          CID='$RAD->{CALLING_STATION_ID}', 
          CONNECT_INFO='$RAD->{CONNECT_INFO}'
          WHERE user_name='$RAD->{USER_NAME}' AND nas_id='$NAS->{NAS_ID}' AND acct_session_id='IP' AND (framed_ip_address=INET_ATON('$RAD->{FRAMED_IP_ADDRESS}') OR framed_ip_address=0) 
+         ORDER BY started
          LIMIT 1;";
           $self->query2("$sql", 'do');
           last;
@@ -227,7 +228,9 @@ sub accounting {
         acct_output_gigawords) 
         VALUES ('$self->{UID}', FROM_UNIXTIME($RAD->{SESSION_START}), '$self->{TARIF_PLAN}', '$RAD->{ACCT_SESSION_TIME}', 
         '$RAD->{OUTBYTE}', '$RAD->{INBYTE}', '$self->{SUM}', '$NAS->{NAS_ID}',
-        '$RAD->{NAS_PORT}', INET_ATON('$RAD->{FRAMED_IP_ADDRESS}'), '$RAD->{CALLING_STATION_ID}',
+        '$RAD->{NAS_PORT}', INET_ATON('$RAD->{FRAMED_IP_ADDRESS}'), '" . 
+         (($RAD->{CALLING_STATION_ID}) ? $RAD->{CALLING_STATION_ID} :  '')
+        ."',
         '$RAD->{OUTBYTE2}', '$RAD->{INBYTE2}', '$RAD->{ACCT_SESSION_ID}', 
         '$self->{BILL_ID}',
         '$RAD->{ACCT_TERMINATE_CAUSE}',
