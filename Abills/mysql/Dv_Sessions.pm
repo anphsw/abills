@@ -130,10 +130,11 @@ sub online_count {
     {
       USERS_FIELDS  => 1,
       WHERE_RULES   => \@WHERE_RULES,
+      WHERE         => 1
     }
   );
 
-  if ($WHERE =~ / u\./) {
+  if ($WHERE =~ /u\./) {
     $EXT_TABLE = ' INNER JOIN users u ON (c.uid=u.uid)';  
   }
 
@@ -156,13 +157,15 @@ sub online_count {
   my $list = $self->{list};
   $self->{ONLINE}=0;
   if ($self->{TOTAL} > 0) {
+    my $WHERE = ($WHERE) ? "$WHERE AND c.status<11" : " WHERE c.status<11";
+    
     $self->query2(
       "SELECT 1, count(c.uid) AS total_users,  
       sum(if (c.status=1 or c.status>=3, 1, 0)) AS online,
       sum(if (c.status=2, 1, 0)) AS zaped
    FROM dv_calls c 
    $EXT_TABLE
-   WHERE c.status<11 $WHERE
+   $WHERE
    GROUP BY 1;",
    undef,
    { INFO => 1 }
@@ -241,7 +244,7 @@ sub online {
       ['JOIN_SERVICE',     'INT', 'c.join_service',                               1 ],
       ['NAS_IP',           'IP',  'nas_ip',                 'INET_NTOA(c.nas_ip_address) AS nas_ip'],
       ['ACCT_SESSION_TIME','INT', 'UNIX_TIMESTAMP() - UNIX_TIMESTAMP(c.started) AS acct_session_time',1 ],
-      ['DURATION_SEC',     'INT', 'if(c.lupdated>0, c.lupdated - UNIX_TIMESTAMP(c.started), 0) AS duration_sec', 1 ],
+      ['DURATION_SEC',     'INT', 'if(c.lupdated>UNIX_TIMESTAMP(c.started), c.lupdated - UNIX_TIMESTAMP(c.started), 0) AS duration_sec', 1 ],
       ['FILTER_ID',        'STR', 'if(service.filter_id<>\'\', service.filter_id, tp.filter_id) AS filter_id',  1 ],
       ['SESSION_START',    'INT', 'UNIX_TIMESTAMP(started) AS started_unixtime',  1 ],
       ['SERVICE_STATUS',   'INT', 'service.disable AS service_status',            1 ],
@@ -260,13 +263,13 @@ sub online {
       ['PORT',              'INT', 'service.port',                                1 ],
       ['FILTER_ID',         'STR', 'service.filter_id',                           1 ],
       ['STATUS',            'INT', 'service.disable AS service_status',           1 ],
-      ['SESSION_IDS',       'STR', 'c.acct_session_id',                           1 ],
       ['FRAMED_IP_ADDRESS', 'IP',  'c.framed_ip_address',                         1 ],
       ['NAS_ID',            'INT', 'c.nas_id',                                    1 ],
       ['ACCT_SESSION_ID',   'STR', 'c.acct_session_id',                           1 ],
       ['UID',               'INT', 'c.uid'                                          ],
       ['LAST_ALIVE',        'INT', 'UNIX_TIMESTAMP() - c.lupdated AS last_alive', 1 ],
-      ['ONLINE_BASE',        '',   '', 'c.CID, c.acct_session_id, UNIX_TIMESTAMP() - c.lupdated AS last_alive, c.uid' ]
+      ['ONLINE_BASE',        '',   '', 'c.CID, c.acct_session_id, UNIX_TIMESTAMP() - c.lupdated AS last_alive, c.uid' ],
+      ['SHOW_TP_ID',        'INT', 'tp.tp_id', 'tp.tp_id AS real_tp_id' ]
     ],
     { WHERE             => 1,
       WHERE_RULES       => \@WHERE_RULES,
@@ -279,7 +282,7 @@ sub online {
     if (! $field) {
       print "dv_calls/online: Wrong field name\n";
     }
-    elsif ($field =~ /TP_BILLS_PRIORITY|TP_NAME|FILTER_ID|TP_CREDIT|PAYMENT_METHOD/ && $EXT_TABLE !~ /tarif_plans/) {
+    elsif ($field =~ /TP_BILLS_PRIORITY|TP_NAME|FILTER_ID|TP_CREDIT|PAYMENT_METHOD|SHOW_TP_ID/ && $EXT_TABLE !~ /tarif_plans/) {
       $EXT_TABLE .= " LEFT JOIN tarif_plans tp ON (tp.id=service.tp_id AND MODULE='Dv')";
     }
     elsif ($field =~ /NAS_NAME/ && $EXT_TABLE !~ / nas /) {
@@ -294,7 +297,14 @@ sub online {
 
   delete $self->{COL_NAMES_ARR};
 
-  $self->query2("SELECT $self->{SEARCH_FIELDS} c.uid,c.nas_id,c.acct_session_id
+	my $sort_position = ($SORT-1 < 1) ? 1 : $SORT-1;
+  	
+  if($self->{SEARCH_FIELDS_ARR}->[$sort_position] =~ /ip/) {
+  	$SORT = " c.framed_ip_address+0";
+  }
+
+  $self->query2("SELECT $self->{SEARCH_FIELDS} 
+    c.uid,c.nas_id,c.acct_session_id
        FROM dv_calls c
        LEFT JOIN users u     ON (u.uid=c.uid)
        LEFT JOIN dv_main service ON (service.uid=u.uid)
@@ -308,24 +318,28 @@ sub online {
 
   my %dub_logins = ();
   my %dub_ports  = ();
+  my %dub_ips    = ();
   my %nas_sorted = ();
 
   if ($self->{TOTAL} < 1) {
     $self->{dub_ports}  = \%dub_ports;
     $self->{dub_logins} = \%dub_logins;
     $self->{nas_sorted} = \%nas_sorted;
+    $self->{dub_ips}    = \%dub_ips;
     return $self->{list};
   }
 
   my $list = $self->{list};
   foreach my $line (@$list) {
-     push @{ $nas_sorted{$line->{nas_id}} }, $line ;
-     $dub_logins{ $line->{user_name} }++ if ($line->{user_name});
-     $dub_ports{ $line->{nas_id} }{ $line->{nas_port_id} }++ if ($line->{nas_port_id});
+    push @{ $nas_sorted{$line->{nas_id}} }, $line ;
+    $dub_logins{ $line->{user_name} }++ if ($line->{user_name});
+    $dub_ports{ $line->{nas_id} }{ $line->{nas_port_id} }++ if ($line->{nas_port_id});
+    $dub_ips{ $line->{nas_id} }{ $line->{client_ip} }++ if ($line->{client_ip});
   }
 
   $self->{dub_ports}  = \%dub_ports;
   $self->{dub_logins} = \%dub_logins;
+  $self->{dub_ips}    = \%dub_ips;
   $self->{nas_sorted} = \%nas_sorted;
 
   return $self->{list};
@@ -393,10 +407,12 @@ sub online_info {
   my ($attr) = @_;
 
   my $WHERE =  $self->search_former($attr, [
-      ['NAS_ID',         'INT', 'nas_id'         ],
-      ['NAS_IP_ADDRESS', 'IP',  'nas_ip_address' ],
-      ['NAS_PORT',       'INT', 'nas_port_id',   ],
-      ['ACCT_SESSION_ID','STR', 'acct_session_id'],
+      ['NAS_ID',           'INT', 'nas_id'            ],
+      ['NAS_IP_ADDRESS',   'IP',  'nas_ip_address'    ],
+      ['NAS_PORT',         'INT', 'nas_port_id',      ],
+      ['ACCT_SESSION_ID',  'STR', 'acct_session_id'   ],
+      ['UID',              'INT', 'c.uid'             ],
+      ['FRAMED_IP_ADDRESS','IP',  'framed_ip_address' ]
     ],
     { WHERE => 1,
     }    
@@ -662,17 +678,17 @@ sub prepaid_rest {
 
   $CONF->{MB_SIZE} = $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE};
   #Get User TP and intervals
-  $self->query2("select tt.id AS traffic_class, 
+  $self->query2("SELECT tt.id AS traffic_class, 
     i.begin AS interval_begin, 
     i.end AS interval_end, 
-    if(u.activate<>'0000-00-00', u.activate, DATE_FORMAT(curdate(), '%Y-%m-01')) AS activate, 
+    IF(u.activate<>'0000-00-00', u.activate, DATE_FORMAT(curdate(), '%Y-%m-01')) AS activate, 
     tt.prepaid, 
     u.id AS login, 
     tp.octets_direction, 
     u.uid, 
     dv.tp_id, 
     tp.name AS tp_name,
-    if (PERIOD_DIFF(DATE_FORMAT(curdate(),'%Y%m'),DATE_FORMAT(u.registration, '%Y%m')) < tp.traffic_transfer_period, 
+    IF (PERIOD_DIFF(DATE_FORMAT(curdate(),'%Y%m'),DATE_FORMAT(u.registration, '%Y%m')) < tp.traffic_transfer_period, 
       PERIOD_DIFF(DATE_FORMAT(curdate(),'%Y%m'),DATE_FORMAT(u.registration, '%Y%m'))+1, tp.traffic_transfer_period) AS traffic_transfert, 
     tp.day_traf_limit,
     tp.week_traf_limit,
@@ -680,17 +696,17 @@ sub prepaid_rest {
     tt.interval_id,
     tt.in_price,
     tt.out_price
-  from (users u,
+  FROM (users u,
         dv_main dv,
         tarif_plans tp,
         intervals i,
         trafic_tarifs tt)
 WHERE
      u.uid=dv.uid
- and dv.tp_id=tp.id
- and tp.tp_id=i.tp_id
- and i.id=tt.interval_id
- and u.uid='$attr->{UID}'
+ AND dv.tp_id=tp.id
+ AND tp.tp_id=i.tp_id
+ AND i.id=tt.interval_id
+ AND u.uid='$attr->{UID}'
  ORDER BY 1
  ",
  undef,
@@ -763,7 +779,7 @@ WHERE
     $WHERE = "date_format(l.start, '%Y-%m-%d')>='$attr->{FROM_DATE}' and date_format(l.start, '%Y-%m-%d')<='$attr->{TO_DATE}'";
   }
   else {
-    $WHERE = "DATE_FORMAT(start, '%Y-%m-%d')>='$self->{INFO_LIST}->[0]->{activate}' - INTERVAL $traffic_transfert MONTH ";
+    $WHERE = "DATE_FORMAT(start, '%Y-%m-%d')>=DATE_FORMAT('$self->{INFO_LIST}->[0]->{activate}' - INTERVAL $traffic_transfert MONTH, '%Y-%m-%d') ";
   }
 
   if ($CONF->{DV_INTERVAL_PREPAID}) {
@@ -782,7 +798,7 @@ WHERE
      DATE_FORMAT(l.start, '%Y-%m'), 
      1
      FROM dv_log l
-     WHERE $uid  and l.tp_id='$self->{INFO_LIST}->[0]->{tp_id}' and
+     WHERE $uid AND l.tp_id='$self->{INFO_LIST}->[0]->{tp_id}' and
       (  $WHERE
         ) 
      GROUP BY $GROUP
@@ -881,6 +897,8 @@ sub list {
   my $WHERE = $self->search_former($attr, [
       [ 'LOGIN',           'STR', 'u.id AS login',                1],
       [ 'DATE',            'DATE','l.start',                      1],
+      [ 'START',           'DATE','l.start',                      1],
+      [ 'END',             'DATE','l.start+interval l.duration second', 'l.start+interval l.duration second AS end '],
       [ 'DURATION',        'DATE','SEC_TO_TIME(l.duration) AS duration',   1 ],
       [ 'SENT',            'INT', 'l.sent + 4294967296 * acct_output_gigawords AS sent', 1 ], 
       [ 'RECV',            'INT', 'l.recv + 4294967296 * acct_input_gigawords AS recv',  1 ], 
@@ -914,10 +932,13 @@ sub list {
     $EXT_TABLE .= "LEFT JOIN users_pi pi ON (pi.uid=l.uid)";
   }
 
-  if ($self->{SEARCH_FIELDS} =~ /\s?u\./ || $WHERE =~ / u\./) {
+  if ($self->{SEARCH_FIELDS} =~ /\s?u\.|company\.id/ || $WHERE =~ / u\./) {
     $EXT_TABLE .= "INNER JOIN users u ON (u.uid=l.uid)";
   }
 
+  $EXT_TABLE .= $self->{EXT_TABLES};
+
+  $SORT = $self->{SEARCH_FIELDS_COUNT}+2 if ($SORT > $self->{SEARCH_FIELDS_COUNT}+2);
 
   $self->query2("SELECT $self->{SEARCH_FIELDS} l.acct_session_id, l.uid
     FROM dv_log l
@@ -1287,9 +1308,9 @@ sub log_rotate {
     push @rq, 'CREATE TABLE IF NOT EXISTS errors_log_new LIKE errors_log;',
     'CREATE TABLE IF NOT EXISTS errors_log_new_sorted LIKE errors_log;',
     'RENAME TABLE errors_log TO errors_log_old, errors_log_new TO errors_log;',
-    'INSERT INTO errors_log_new_sorted SELECT max(date), log_type, action, user, message, nas_id FROM errors_log_old GROUP BY user,message,nas_id ORDER BY 1;',
-    'INSERT INTO errors_log_new_sorted SELECT max(date), log_type, action, user, message, nas_id FROM errors_log GROUP BY user,message,nas_id ORDER BY 1;',
+    'INSERT INTO errors_log_new_sorted SELECT max(date), log_type, action, user, message, nas_id FROM errors_log_old GROUP BY user ORDER BY 1;',
     'DROP TABLE errors_log_old;',
+    'INSERT INTO errors_log_new_sorted SELECT max(date), log_type, action, user, message, nas_id FROM errors_log GROUP BY user;',
     'RENAME TABLE errors_log TO errors_log_old, errors_log_new_sorted TO errors_log;',
     'DROP TABLE errors_log_old;';
 

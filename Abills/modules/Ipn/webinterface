@@ -1227,7 +1227,6 @@ sub ipn_user_activate {
   my $ip       = '0.0.0.0';
   my $IP_INPUT = '';
   my $Dv       = Dv->new($db, $admin, \%conf);
-  
 
   $Dv = $Dv->info($LIST_PARAMS{UID});
   my $static_ip = $Dv->{IP};
@@ -1255,7 +1254,7 @@ sub ipn_user_activate {
   }
   else {
     if ($static_ip ne '0.0.0.0' && $ENV{REMOTE_ADDR} ne $static_ip) {
-      $html->message('err', $_ERROR, "$ERR_UNALLOW_IP '$ENV{REMOTE_ADDR}' // $static_ip");
+      $html->message('err', $_ERROR, "$ERR_UNALLOW_IP '$ENV{REMOTE_ADDR}'\n $_STATIC IP: $static_ip");
       return 0;
     }
     $ip = $attr->{IP} || $ENV{REMOTE_ADDR};
@@ -1293,11 +1292,11 @@ sub ipn_user_activate {
       $Ipn->{NAS_SEL} = $html->form_select(
         'NAS_ID',
         {
-          SELECTED          => $nas_id,
-          SEL_MULTI_ARRAY   => $Nas->list({ DISABLE => 0, %NAS_PARAMS_LIST }),
-          MULTI_ARRAY_KEY   => 0,
-          MULTI_ARRAY_VALUE => 1,
-          MAIN_MENU         => get_function_index('form_nas')
+          SELECTED   => $nas_id,
+          SEL_LIST   => $Nas->list({ DISABLE => 0, COLS_NAME => 1, %NAS_PARAMS_LIST  }),
+          SEL_KEY    => 'nas_id',
+          SEL_VALUE  => 'nas_name',
+          MAIN_MENU  => get_function_index('form_nas')
         }
       );
     }
@@ -1574,7 +1573,7 @@ sub ipn_change_status {
   }
 
   my $ip              = $attr->{FRAMED_IP_ADDRESS};
-  my $netmask         = $attr->{NETMASK} || 32;
+  my $netmask         = $attr->{NETMASK} || '32';
   my $STATUS          = $attr->{STATUS} || '';
   my $USER_NAME       = $attr->{USER_NAME} || '';
   my $ACCT_SESSION_ID = $attr->{ACCT_SESSION_ID} || '';
@@ -1586,6 +1585,7 @@ sub ipn_change_status {
   my $speed_in  = 0;
   my $speed_out = 0;
 
+  #netmask to bitmask
   if ($netmask ne '32') {
     my $ips = 4294967296 - ip2int($netmask);
     $netmask = 32 - length(sprintf("%b", $ips)) + 1;
@@ -1663,6 +1663,8 @@ sub ipn_change_status {
     }
   }
 
+  my $bitmask = $netmask;
+
   if (!$cmd) {
     print "Error: Not defined external command for status: $STATUS\n";
     return 0;
@@ -1693,6 +1695,7 @@ sub ipn_change_status {
     $cmd = "$conf{IPN_FILTER}";
     $cmd =~ s/\%STATUS/$STATUS/g;
     $cmd =~ s/\%IP/$ip/g;
+    $cmd =~ s/\%MASK/$netmask/g;
     $cmd =~ s/\%LOGIN/$USER_NAME/g;
     $cmd =~ s/\%FILTER_ID/$FILTER_ID/g;
     $cmd =~ s/\%UID/$UID/g;
@@ -2385,17 +2388,17 @@ sub ipn_recalculate {
           . $html->form_select(
             'TP_ID',
             {
-              SELECTED          => $FORM{TP_ID},
-              SEL_MULTI_ARRAY   => [ [ '', '' ], @{ $tariffs->list() } ],
-              MULTI_ARRAY_KEY   => 0,
-              MULTI_ARRAY_VALUE => 1,
+              SELECTED  => $FORM{TP_ID},
+              SEL_LIST  => $tariffs->list({ COLS_NAME => 1 }),
+              SEL_KEY   => 'id',
+              SEL_VALUE => 'id,name',
             }
           ),
 
           $html->form_select(
             'ACTION',
             {
-              SELECTED => $FORM{ACTION} || 0,
+              SELECTED     => $FORM{ACTION} || 0,
               SEL_ARRAY    => [ $_SHOW, $_RECALCULATE ],
               ARRAY_NUM_ID => 1
             }
@@ -2504,7 +2507,9 @@ sub ipn_periodic_session_restart {
   );
   my %nas_info = ();
   foreach my $line (@$nas_list) {
-    if ($line->{NAS_TYPE} eq 'ipcad' || $line->{NAS_TYPE} eq 'dhcp') {
+    if ($line->{NAS_TYPE} eq 'ipcad' || 
+        $line->{NAS_TYPE} eq 'dhcp'  ||
+        $line->{NAS_TYPE} eq 'mikrotik_dhcp') {
       $nas_info{ $line->{NAS_ID} }  = $line;
     }
   }
@@ -2519,18 +2524,19 @@ sub ipn_periodic_session_restart {
   use Auth;
   my $Auth = Auth->new($db, \%conf);
   $Sessions->{debug}=1 if ($debug > 6);
+
   my $list = $Sessions->online(
     {      
-      USER_NAME   => '_SHOW',
-      CLIENT_IP   => '_SHOW',
-      NAS_ID      => '_SHOW',
-      NAS_IP      => '_SHOW',
-      CONNECT_INFO => '_SHOW',
+      USER_NAME       => '_SHOW',
+      CLIENT_IP       => '_SHOW',
+      NAS_ID          => '_SHOW',
+      NAS_IP          => '_SHOW',
+      CONNECT_INFO    => '_SHOW',
       ACCT_SESSION_ID => '_SHOW', 
-      FILTER_ID   => '_SHOW', 
-      NAS_PORT_ID => '_SHOW',
-      NETMASK     => '_SHOW',
-      NAS_ID      => join(', ', @nas_ids_arr),
+      FILTER_ID       => '_SHOW', 
+      NAS_PORT_ID     => '_SHOW',
+      NETMASK         => '_SHOW',
+      NAS_ID          => join('; ', @nas_ids_arr),
       %LIST_PARAMS
     }
   );
@@ -2750,7 +2756,7 @@ sub ipn_start_active {
       EXPIRE        => "0000-00-00,>$DATE",
       IP            => '>' . (($conf{IPN_DHCP_ACTIVE}) ? '=' : '') . '0.0.0.0',
       NETMASK       => '_SHOW',
-      STATUS        => 0,
+      DV_STATUS     => 0,
       LOGIN_STATUS  => 0,
       ALL_FILTER_ID => '_SHOW',
       PORT          => '_SHOW',

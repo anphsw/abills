@@ -274,6 +274,8 @@ sub extfin_monthly_summary {
   my ($y, $m, $d) = split(/-/, $ADMIN_REPORT{DATE}, 3);
 
   $conf{START_PERIOD_DAY} = 1 if (!$conf{START_PERIOD_DAY});
+  $Extfin->{debug}=1 if ($debug > 6);
+
 
   if ($d != $conf{START_PERIOD_DAY}) {
     $DEBUG .= $debug_output;

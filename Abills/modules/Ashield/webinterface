@@ -23,10 +23,11 @@ use Abills::Base;
 use Fees;
 use POSIX;
 use Shedule;
+use Encode;
 
 my $Ashield = Ashield->new($db, $admin, \%conf);
 my $Tariffs = Tariffs->new($db, \%conf, $admin);
-my $fees    = Fees->new($db, $admin, \%conf);
+my $Fees    = Fees->new($db, $admin, \%conf);
 
 my $debug                 = 0;
 my @service_status_colors = ("$_COLORS[9]", "$_COLORS[6]");
@@ -127,11 +128,11 @@ sub ashield_tp {
         CONTENT => $html->form_select(
           'TP_ID',
           {
-            SELECTED          => $FORM{TP_ID},
-            SEL_MULTI_ARRAY   => $Tariffs->list({ %LIST_PARAMS, MODULE => 'Ashield' }),
-            MULTI_ARRAY_KEY   => 18,
-            MULTI_ARRAY_VALUE => '0,1',
-            NO_ID             => 1
+            SELECTED  => $FORM{TP_ID},
+            SEL_LIST  => $Tariffs->list({ %LIST_PARAMS, MODULE => 'Ashield', COLS_NAME => 1 }),
+            SEL_KEY   => 'tp_id',
+            SEL_VALUE => 'id,name',
+            NO_ID     => 1
           }
         ),
         HIDDEN => { index => "$index" },
@@ -197,10 +198,11 @@ sub ashield_tp {
   $tarif_info->{GROUPS_SEL} = $html->form_select(
     'TP_GID',
     {
-      SELECTED          => $tarif_info->{TP_GID},
-      SEL_MULTI_ARRAY   => [ [ '', '' ], @{ $Tariffs->tp_group_list() } ],
-      MULTI_ARRAY_KEY   => 0,
-      MULTI_ARRAY_VALUE => 1,
+      SELECTED       => $tarif_info->{TP_GID},
+      SEL_LIST       => $Tariffs->tp_group_list({ COLS_NAME => 1 }),
+      SEL_OPTIONS    => { '' => '' },
+      MAIN_MENU      => get_function_index('tp_groups'),
+      MAIN_MENU_AGRV => "chg=$tarif_info->{TP_GID}",
     }
   );
 
@@ -216,7 +218,7 @@ sub ashield_tp {
 
   $html->tpl_show(_include('ashield_tp', 'Ashield'), { %FORM, %$tarif_info });
 
-  my $list = $Tariffs->list({ %LIST_PARAMS, MODULE => 'Ashield' });
+  my $list = $Tariffs->list({ %LIST_PARAMS, MODULE => 'Ashield', COLS_NAME => 1 });
   my $table = $html->table(
     {
       width       => '100%',
@@ -231,20 +233,28 @@ sub ashield_tp {
   my ($delete, $change);
   foreach my $line (@$list) {
     if ($permissions{4}{1}) {
-      $delete = $html->button($_DEL, "index=$index&del=$line->[18]&ID=$ashield_tps_info->{$line->[1]}{ID}", { MESSAGE => "$_DEL $line->[0]?", CLASS => 'del' });
-      $change = $html->button($_CHANGE, "index=$index&TP_ID=$line->[18]", { CLASS => 'change' });
+      $delete = $html->button($_DEL, "index=$index&del=$line->{tp_id}&ID=$ashield_tps_info->{$line->{name}}{ID}", { MESSAGE => "$_DEL $line->{name} $line->{id}?", CLASS => 'del' });
+      $change = $html->button($_CHANGE, "index=$index&TP_ID=$line->{tp_id}", { CLASS => 'change' });
     }
 
-    if ($FORM{TP_ID} eq $line->[0]) {
+    if ($FORM{TP_ID} eq $line->{id}) {
       $table->{rowcolor} = $_COLORS[0];
     }
     else {
       undef($table->{rowcolor});
     }
 
-    $table->addrow($html->b($line->[0]), $html->button($line->[1], "index=$index&TP_ID=$line->[18]"), $Payment_Types[ $line->[4] ], $line->[5], $line->[6], $line->[7], $line->[9], $change, $delete);
+    $table->addrow($html->b($line->{id}), 
+      $html->button($line->{name}, "index=$index&TP_ID=$line->{tp_id}"), 
+      $Payment_Types[ $line->{payment_type} ], 
+      $line->{day_fee}, 
+      $line->{month_fee}, 
+      $line->{age}, 
+      $line->{tp_group_name}, 
+      $change, 
+      $delete);
 
-    delete($ashield_tps_info->{ $line->[1] });
+    delete($ashield_tps_info->{ $line->{name} });
   }
 
   print $table->show();
@@ -278,7 +288,14 @@ sub ashield_tp {
       $add = $html->button($_ADD, "index=$index&ADD_TP=1&IMPORT=$key", { CLASS => 'add' });
     }
 
-    $table->addrow($html->color_mark($id, 'code'), $key, ($conf{dbcharset} eq 'utf8') ? $ashield_tps_info->{$key}->{COMMENTS} : convert($ashield_tps_info->{$key}->{COMMENTS}, { utf82win => 1 }), $ashield_tps_info->{$key}->{GRACE_PERIOD}, $ashield_tps_info->{$key}->{PARENT_NAME}, $add, $delete);
+    $table->addrow($html->color_mark($id, 'code'), 
+      $key, 
+      ($conf{dbcharset} eq 'utf8') ? $ashield_tps_info->{$key}->{COMMENTS} : convert($ashield_tps_info->{$key}->{COMMENTS}, { utf82win => 1 }), 
+      $ashield_tps_info->{$key}->{GRACE_PERIOD}, 
+      $ashield_tps_info->{$key}->{PARENT_NAME}, 
+      $add, 
+      $delete
+    );
 
     delete($ashield_tps_info->{ $line->[1] });
   }
@@ -300,7 +317,6 @@ sub ashield_tp {
 sub ashield_user {
   my ($attr) = @_;
 
-  use Encode;
   Encode::_utf8_off($name);
 
   if ($Ashield::VERSION < 6.10) {
@@ -501,8 +517,8 @@ sub ashield_user {
         my $days_in_month = ($m != 2 ? (($m % 2) ^ ($m > 7)) + 30 : (!($y % 400) || !($y % 4) && ($y % 25) ? 29 : 28));
 
         my $sum = ($Tariffs->{MONTH_FEE} / $days_in_month) * ($days_in_month - $d);
-        $fees->take($users, $sum, {%FEES_PARAMS});
-        if (!$fees->{error}) {
+        $Fees->take($users, $sum, {%FEES_PARAMS});
+        if (!$Fees->{error}) {
           $html->message('info', $_INFO, "$_ACTIVATE");
         }
       }
@@ -1008,9 +1024,7 @@ sub ashield_users_list {
   my %drweb_logins      = ();
 
   foreach my $line (@{ $result_hash->{customers}->[0]->{customer} }) {
-
     # Computer -> Hash info
-    use Encode;
     Encode::_utf8_off($line->{name}->[0]);
     my $comp_name = ($conf{dbcharset} eq 'utf8') ? $line->{name}->[0] : convert($line->{name}->[0], { utf82win => 1 });
     $drweb_logins{$comp_name} = keys %{ $line->{group} };
@@ -1149,6 +1163,9 @@ sub ashield_drweb_groups {
     my $total = $result_hash->{groups}->[0]->{total};
 
     foreach my $val (@{ $result_hash->{groups}->[0]->{group} }) {
+      Encode::_utf8_off($val->{name}->[0]);
+      Encode::_utf8_off($val->{description}->[0]);
+
       $table->addrow(
         $val->{id}->[0],
         $val->{name}->[0],
@@ -1824,7 +1841,6 @@ sub ashield_drweb_report_users {
     }
 
     #my $tp_name = ($AVD_TPS{$tp}) ? $AVD_TPS{$tp} : $tp;
-    use Encode;
     Encode::_utf8_off($line->{name}->[0]);
     my $comp_name = ($conf{dbcharset} eq 'utf8') ? $line->{name}->[0] : convert($line->{name}->[0], { utf82win => 1 });
 
@@ -2088,9 +2104,9 @@ sub ashield_monthly2 {
                 DATE     => $ADMIN_REPORT{DATE}
               );
 
-              $fees->take(\%user, $sum, {%FEES_PARAMS});
-              if ($fees->{error}) {
-                print "Error: User: $user->{LOGIN} Fees error: $fees->{error}\n";
+              $Fees->take(\%user, $sum, {%FEES_PARAMS});
+              if ($Fees->{error}) {
+                print "Error: User: $user->{LOGIN} Fees error: $Fees->{error}\n";
               }
               $debug_output .= " $user{LOGIN}  UID: $user{UID} SUM: $sum REDUCTION: $user{REDUCTION}\n" if ($debug > 0);
             }
@@ -2247,9 +2263,9 @@ sub ashield_monthly {
               DATE     => $ADMIN_REPORT{DATE}
             );
 
-            $fees->take(\%user, $sum, {%FEES_PARAMS});
-            if ($fees->{error}) {
-              print "Error: User: $user{LOGIN} Fees error: $fees->{error}\n";
+            $Fees->take(\%user, $sum, {%FEES_PARAMS});
+            if ($Fees->{error}) {
+              print "Error: User: $user{LOGIN} Fees error: $Fees->{error}\n";
             }
             $debug_output .= " $user{LOGIN}  UID: $user{UID} SUM: $sum REDUCTION: $user{REDUCTION}\n" if ($debug > 0);
           }

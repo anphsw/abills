@@ -45,8 +45,17 @@ sub _include {
 
   foreach my $result_template (@search_paths) {
     if (-f $result_template) {
-      return ($FORM{pdf}) ? $result_template : tpl_content($result_template) ;
+      if ($attr->{CHECK_ONLY}) {
+      	return 1;
+      }
+      else { 
+        return ($FORM{pdf}) ? $result_template : tpl_content($result_template) ;
+      }
     }
+  }
+
+  if ($attr->{CHECK_ONLY}) {
+    return 0;
   }
 
   if ($module) {
@@ -103,7 +112,6 @@ sub templates {
   }
   elsif ($FORM{NAS_GID} && -f $Bin . "/../Abills/templates/$domain_path" . '/' . $FORM{NAS_GID} . '/' . "_$tpl_name" . ".tpl") {
     return tpl_content($Bin . "/../Abills/templates/$domain_path" . '/' . $FORM{NAS_GID} . '/' . "_$tpl_name" . ".tpl");
-
   }
 
   #Lang tpls

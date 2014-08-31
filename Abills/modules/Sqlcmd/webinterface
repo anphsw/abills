@@ -437,6 +437,7 @@ sub sqlcmd_tables {
     $FORM{mk_backup} = 1;
     form_sql_backup({ TABLES => $FORM{TABLES} });
   }
+  
 
   $html->tpl_show(_include('sqlcmd_search_tables', 'Sqlcmd'), { %$Sqlcmd, %FORM });  
 
@@ -458,9 +459,13 @@ sub sqlcmd_tables {
     {
       width      => '100%',
       border     => 1,
+      caption    => $_TABLES,
       title      => \@ACTIVE_FIELDS,
       cols_align => [ 'left', 'left', 'left', 'left', 'right', 'right', 'center' ],
-      qs         => "&fields=$FORM{fields}"
+      qs         => "&fields=$FORM{fields}",
+      ID         => 'SQLCMD_TABLES',
+      SELECT_ALL => "tables_list:TABLES:$_SELECT_ALL",
+      MENU       => "$_ADD:index=" . get_function_index('sqlcmd') . ':sql',
     }
   );
 
@@ -578,7 +583,9 @@ sub sqlcmd_tables {
       CONTENT => $table->show() . $table2->show() . $table3->show(),
       HIDDEN  => { index => "$index" },
       METHOD  => 'GET',
-      SUBMIT  => { $_SHOW => "$_ACTION" }
+      SUBMIT  => { $_SHOW => "$_ACTION" },
+      NAME    => 'tables_list',
+      ID      => 'TABLES_LIST',
     }
   );
 }

@@ -7,7 +7,7 @@ use strict;
 use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION);
 
 use Exporter;
-$VERSION = 2.02;
+$VERSION = 2.04;
 @ISA     = ('Exporter');
 
 @EXPORT = qw();
@@ -102,25 +102,15 @@ sub change {
   my $self = shift;
   my ($attr) = @_;
 
-  my %FIELDS = (
-    TP_ID       => 'tp_id',
-    RANGE_BEGIN => 'range_begin',
-    RANGE_END   => 'range_end',
-    SUM         => 'sum',
-    COMMENTS    => 'comments',
-    ID          => 'id',
-    PERIOD      => 'period'
-  );
-
   $self->changes(
     $admin,
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'bonus_main',
-      FIELDS       => \%FIELDS,
       DATA         => $attr
     }
   );
+
   return $self->{result};
 }
 
@@ -414,6 +404,8 @@ sub user_add {
   my ($attr) = @_;
   my %DATA   = $self->get_data($attr);
 
+  $DATA{STATE} = 1;
+
   $self->query2("INSERT INTO bonus_main (uid, tp_id, state, accept_rules)
         VALUES ('$DATA{UID}', '$DATA{TP_ID}', '$DATA{STATE}', '$DATA{ACCEPT_RULES}');", 'do'
   );
@@ -436,9 +428,11 @@ sub user_change {
   my ($attr) = @_;
 
   $attr->{STATE} = ($attr->{STATE}) ? $attr->{STATE} : 0;
-  $attr->{ACCEPT_RULES} = ($attr->{ACCEPT_RULES}) ? 1 : 0;
 
   $admin->{MODULE} = $MODULE;
+
+  $attr->{ACCEPT_RULES} = ($attr->{ACCEPT_RULES}) ? 1 : 0;
+ 
   $self->changes(
     $admin,
     {
@@ -477,6 +471,7 @@ sub user_list {
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   @WHERE_RULES = ("bu.uid = u.uid");
+  $self->{EXT_TABLES}='';
 
   my $WHERE =  $self->search_former($attr, [
       ['TP_ID',          'INT', 'bu.tp_id',  1 ],
@@ -484,8 +479,8 @@ sub user_list {
       ['BONUS_ACCOMULATION', '', '', 'ras.cost'],
     ],
     { WHERE             => 1,
-    	WHERE_RULES       => \@WHERE_RULES,
-    	USERS_FIELDS      => 1,
+      WHERE_RULES       => \@WHERE_RULES,
+      USERS_FIELDS      => 1,
     }
     );
 
@@ -562,6 +557,7 @@ sub bonus_operation {
 
   #$self->{db}->{AutoCommit}=0;
   $user->{EXT_BILL_ID} = $attr->{BILL_ID} if ($attr->{BILL_ID});
+
 
   if ($user->{EXT_BILL_ID} > 0) {
     my $bill_action_type = '';
@@ -643,109 +639,49 @@ sub bonus_operation_list {
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
   $self->{SEARCH_FIELDS} = '';
   undef @WHERE_RULES;
-  my $EXT_TABLES = '';
 
-  if ($attr->{UID}) {
-    push @WHERE_RULES, "p.uid='$attr->{UID}' ";
-  }
-  elsif ($attr->{LOGIN_EXPR}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{LOGIN_EXPR}, 'STR', 'u.id') };
-  }
+  $self->{EXT_TABLES}     = '';
+  $self->{SEARCH_FIELDS}  = '';
+  $self->{SEARCH_FIELDS_COUNT}=0;
 
-  if ($attr->{AID}) {
-    push @WHERE_RULES, "p.aid='$attr->{AID}' ";
-  }
+  my $WHERE =  $self->search_former($attr, [
+      ['LOGIN',          'STR', 'u.id'                          ], 
+      ['DATETIME',       'DATE','p.date',   'p.date AS datetime'], 
+      ['SUM',            'INT', 'p.sum',                        ],
+      ['PAYMENT_METHOD', 'INT', 'p.method',                     ],
+      ['A_LOGIN',        'STR', 'a.id AS admin_login',        1 ],
+      ['DESCRIBE',       'STR', 'p.dsc'                         ],
+      ['INNER_DESCRIBE', 'STR', 'p.inner_describe'              ],
+      ['AMOUNT',         'INT', 'p.amount',                    1],
+      ['CURRENCY',       'INT', 'p.currency',                  1],
+      ['METHOD',         'INT', 'p.method',                    1],
+      ['BILL_ID',        'INT', 'p.bill_id',                   1],
+      ['IP',             'INT', 'INET_NTOA(p.ip)',  'INET_NTOA(p.ip) AS ip'],
+      ['EXT_ID',         'STR', 'p.ext_id',                               1],
+      ['INVOICE_NUM',    'INT', 'd.invoice_num',                          1],
+      ['DATE',           'DATE','date_format(p.date, \'%Y-%m-%d\')'        ], 
+      ['EXPIRE',         'DATE','date_format(p.expire, \'%Y-%m-%d\')',   'date_format(p.expire, \'%Y-%m-%d\') AS expire' ], 
+      ['REG_DATE',       'DATE','p.reg_date',                             1],      
+      ['MONTH',          'DATE','date_format(p.date, \'%Y-%m\') AS month'  ],
+      ['ID',             'INT', 'p.id'                                     ],
+      ['AID',            'INT', 'p.aid',                                   ],
+      ['FROM_DATE_TIME|TO_DATE_TIME','DATE', "p.date"                      ],
+      ['FROM_DATE|TO_DATE', 'DATE',    'date_format(p.date, \'%Y-%m-%d\')' ],
+      ['UID',            'INT', 'p.uid',                                  1],
+    ],
+    { WHERE       => 1,
+      WHERE_RULES => \@WHERE_RULES,
+      USERS_FIELDS=> 1,
+      SKIP_USERS_FIELDS=> [ 'BILL_ID', 'UID' ]
+    }    
+    );
 
-  if ($attr->{A_LOGIN}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{A_LOGIN}, 'STR', 'a.id') };
-  }
+    my $EXT_TABLES = $self->{EXT_TABLES};
 
-  if ($attr->{DESCRIBE}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{DESCRIBE}, 'STR', 'p.dsc') };
-  }
-
-  if ($attr->{INNER_DESCRIBE}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{INNER_DESCRIBE}, 'STR', 'p.inner_describe') };
-  }
-
-  if ($attr->{SUM}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{SUM}, 'INT', 'p.sum') };
-  }
-
-  if (defined($attr->{METHOD})) {
-    push @WHERE_RULES, "p.method IN ($attr->{METHOD}) ";
-  }
-
-  if ($attr->{DOMAIN_ID}) {
-    push @WHERE_RULES, "u.domain_id='$attr->{DOMAIN_ID}' ";
-  }
-
-  if ($attr->{DATE}) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{DATE}", 'INT', 'date_format(p.date, \'%Y-%m-%d\')') };
-  }
-  elsif ($attr->{MONTH}) {
-    my $value = $self->search_expr("$attr->{MONTH}", 'INT');
-    push @WHERE_RULES, " date_format(p.date, '%Y-%m')$value ";
-  }
-
-  # Date intervals
-  elsif ($attr->{FROM_DATE}) {
-    push @WHERE_RULES, @{ $self->search_expr(">=$attr->{FROM_DATE}", 'DATE', 'date_format(p.date, \'%Y-%m-%d\')') }, @{ $self->search_expr("<=$attr->{TO_DATE}", 'DATE', 'date_format(p.date, \'%Y-%m-%d\')') };
-  }
-  elsif ($attr->{PAYMENT_DAYS}) {
-    my $expr = '=';
-    if ($attr->{PAYMENT_DAYS} =~ s/^(<|>)//) {
-      $expr = $1;
-    }
-    push @WHERE_RULES, "p.date $expr curdate() - INTERVAL $attr->{PAYMENT_DAYS} DAY";
-  }
-
-  if ($attr->{EXPIRE}) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{EXPIRE}", 'INT', 'date_format(p.expire, \'%Y-%m-%d\')') };
-  }
-
-  if ($attr->{DEPOSIT}) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{DEPOSIT}", 'INT', 'b.deposit', { EXT_FIELD => 1 }) };
-    $EXT_TABLES .= "INNER JOIN bills b ON p.bill_id=b.id";
-  }
-
-  if ($attr->{BILL_ID}) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{BILL_ID}", 'INT', 'p.bill_id') };
-  }
-  elsif ($attr->{COMPANY_ID}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{COMPANY_ID}, 'INT', 'u.company_id') };
-  }
-
-  if ($attr->{EXT_ID}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{EXT_ID}, 'STR', 'p.ext_id') };
-  }
-  elsif ($attr->{EXT_IDS}) {
-    push @WHERE_RULES, "p.ext_id in ($attr->{EXT_IDS})";
-  }
-
-  if ($attr->{ID}) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{ID}", 'INT', 'p.id') };
-  }
-
-  # Show groups
-  if ($attr->{GIDS}) {
-    push @WHERE_RULES, "u.gid IN ( $attr->{GIDS} )";
-  }
-  elsif ($attr->{GID}) {
-    push @WHERE_RULES, "u.gid='$attr->{GID}'";
-  }
-
-  if ($attr->{FIO}) {
-    $EXT_TABLES .= 'LEFT JOIN users_pi pi ON (u.uid=pi.uid)';
-    $self->{SEARCH_FIELDS} .= 'pi.fio, ';
-    $self->{SEARCH_FIELDS_COUNT}++;
-  }
-
-  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
-
-  $self->query2("SELECT p.id, u.id, $self->{SEARCH_FIELDS} p.date, p.dsc, p.sum, p.last_deposit, p.expire, p.method, 
+    $self->query2("SELECT p.id, u.id AS login, $self->{SEARCH_FIELDS} 
+      p.date, p.dsc, p.sum, p.last_deposit, p.expire, p.method, 
       p.ext_id, p.bill_id, if(a.name is null, 'Unknown', a.name),
-      INET_NTOA(p.ip), p.action_type, p.uid, p.inner_describe
+      INET_NTOA(p.ip) AS ip, p.action_type, p.uid, p.inner_describe
     FROM bonus_log p
     LEFT JOIN users u ON (u.uid=p.uid)
     LEFT JOIN admins a ON (a.aid=p.aid)
@@ -770,9 +706,7 @@ sub bonus_operation_list {
   undef,
   { INFO => 1 }
   );
-
-
-
+  exit;
   return $list;
 }
 
@@ -786,21 +720,11 @@ sub service_discount_info {
 
   my $WHERE = "WHERE id='$id'";
 
-  $self->query2("SELECT id,
-    service_period,
-    registration_days,
-    discount,
-    discount_days,
-    total_payments_sum,
-    bonus_sum,
-    bonus_percent,
-    ext_account
-     FROM bonus_service_discount
+  $self->query2("SELECT * FROM bonus_service_discount
    $WHERE;",
    undef,
    { INFO => 1 }
   );
-
 
   return $self;
 }
@@ -813,11 +737,7 @@ sub service_discount_add {
   my ($attr) = @_;
   my %DATA   = $self->get_data($attr);
 
-  $self->query2("INSERT INTO bonus_service_discount (service_period, registration_days, discount, discount_days,
-    total_payments_sum, bonus_sum, ext_account, bonus_percent)
-        VALUES ('$DATA{SERVICE_PERIOD}', '$DATA{REGISTRATION_DAYS}', '$DATA{DISCOUNT}', '$DATA{DISCOUNT_DAYS}',
-    '$DATA{TOTAL_PAYMENTS_SUM}', '$DATA{BONUS_SUM}', '$DATA{EXT_ACCOUNT}', '$DATA{BONUS_PERCENT}');", 'do'
-  );
+  $self->query_add('bonus_service_discount', \%DATA);
 
   return $self;
 }
@@ -869,28 +789,23 @@ sub service_discount_list {
   $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  undef @WHERE_RULES;
+  $self->{SEARCH_FIELDS}      = '';
+  $self->{SEARCH_FIELDS_COUNT}= 0;
 
-  if ($attr->{TP_ID}) {
-    push @WHERE_RULES, "tp_id='$attr->{TP_ID}'";
-  }
-
-  if ($attr->{REGISTRATION_DAYS}) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{REGISTRATION_DAYS}", 'INT', 'registration_days') };
-  }
-
-  if ($attr->{PERIODS}) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{PERIODS}", 'INT', 'service_period') };
-  }
-
-  if ($attr->{TOTAL_PAYMENTS_SUM}) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{TOTAL_PAYMENTS_SUM}", 'INT', 'total_payments_sum') };
-  }
-
-  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+  my $WHERE =  $self->search_former($attr, [
+      ['TP_ID',             'INT', 'tp_id'                ], 
+      ['REGISTRATION_DAYS', 'INT', 'registration_days'    ], 
+      ['PERIODS',           'INT', 'service_period'       ],
+      ['TOTAL_PAYMENTS_SUM','INT', 'total_payments_sum'   ],
+      ['PAY_METHOD',        'INT', 'pay_method'           ],
+    ],
+    { WHERE       => 1,
+      WHERE_RULES => \@WHERE_RULES,
+    }    
+    );
 
   $self->query2("SELECT service_period, registration_days, total_payments_sum,
-  discount, discount_days,  bonus_sum,  bonus_percent, ext_account, id
+  discount, discount_days,  bonus_sum,  bonus_percent, ext_account, pay_method, id
      FROM bonus_service_discount
      $WHERE 
      ORDER BY $SORT $DESC
@@ -1074,13 +989,15 @@ sub accomulation_rule_list {
   $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
   @WHERE_RULES = ("tp.module='Dv'");
-  #if ($attr->{TP_ID}) {
-  #  push @WHERE_RULES, "";
-  #}
+  
+  
+  if ($attr->{TP_ID}) {
+    push @WHERE_RULES, "br.tp_id='$attr->{TP_ID}'";
+  }
 
   my $JOIN_WHERE = '';
   if ($attr->{DV_TP_ID}) {
-    push @WHERE_RULES, "dv_tp_id='$attr->{DV_TP_ID}'";
+    push @WHERE_RULES, "br.dv_tp_id='$attr->{DV_TP_ID}'";
     $JOIN_WHERE = "AND br.tp_id='$attr->{TP_ID}'";
   }
 
@@ -1129,7 +1046,7 @@ sub accomulation_scores_info {
 }
 
 #**********************************************************
-# accomulation_scores_add()
+# accomulation_scores_change()
 #**********************************************************
 sub accomulation_scores_change {
   my $self   = shift;
@@ -1139,6 +1056,39 @@ sub accomulation_scores_change {
   $self->query2("REPLACE INTO bonus_rules_accomulation_scores (uid, dv_tp_id, cost)
         VALUES ('$DATA{UID}', '$DATA{DV_TP_ID}', '$DATA{SCORE}');", 'do'
   );
+
+  $admin->{MODULE} = $MODULE;
+  $admin->action_add("$DATA{UID}", "SCORE:$DATA{SCORE}", { TYPE => 2 });
+
+  return $self;
+}
+
+
+#**********************************************************
+# accomulation_scores_add()
+#**********************************************************
+sub accomulation_scores_add {
+  my $self   = shift;
+  my ($attr) = @_;
+  my %DATA   = $self->get_data($attr);
+
+  $self->query2("UPDATE bonus_rules_accomulation_scores SET  
+        uid='$DATA{UID}', 
+        dv_tp_id='$DATA{DV_TP_ID}', 
+        cost=cost + $DATA{SCORE}
+      WHERE uid='$attr->{UID}';", 'do'
+  );
+
+  if ($self->{AFFECTED} == 0 && $CONF->{BONUS_PAYMENTS_AUTO}){
+    $self->accomulation_scores_change({ 
+           UID      => $attr->{UID}, 
+           SCORE    => $attr->{SCORE},
+           DV_TP_ID => 0  });
+
+  }
+
+  $admin->{MODULE} = $MODULE;
+  $admin->action_add("$DATA{UID}", "SCORE:$DATA{SCORE}", { TYPE => 1 });
 
   return $self;
 }
@@ -1192,7 +1142,7 @@ sub accomulation_first_rule {
   my $self   = shift;
   my ($attr) = @_;
   
-  $CONF->{BONUS_ACCOMULATION_FIRST_BONUS}=40 if (! $CONF->{BONUS_ACCOMULATION_FIRST_BONUS});
+  $CONF->{BONUS_ACCOMULATION_FIRST_BONUS}=0 if (! $CONF->{BONUS_ACCOMULATION_FIRST_BONUS});
   $CONF->{BONUS_ACCOMULATION_FIRST_INTERVAL}=3 if (! defined($CONF->{BONUS_ACCOMULATION_FIRST_INTERVAL}));
 
   $self->query2( "SELECT PERIOD_DIFF(DATE_FORMAT(max(date), '%Y%m'), 

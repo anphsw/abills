@@ -121,6 +121,10 @@ my $IPTABLES = '/sbin/iptables';
 
 my @START_FW = (5000, 3000, 1000);
 
+if ($conf{FW_START_RULES}) {
+	@START_FW = split(/,\s?/, $conf{FW_START_RULES});
+}
+
 # Arguments
 my ($ACTION, $INTERFACE, $USER, $CLIENT_IP);
 my $inum = 0;
@@ -180,7 +184,7 @@ if ($INTERFACE eq 'getif') {
   }
 }
 
-if ($inum == 0) {
+if (! $inum) {
   $inum = $INTERFACE;
   $inum =~ s/[a-z\.]+//g;
 }
@@ -243,6 +247,10 @@ if ($conf{DV_TURBO_MODE}) {
 if (defined($argv->{LINUX_IPN2})) {
  	linux_ipn2($user);
  	exit;
+}
+elsif (defined($argv->{LINUX_IPN3})) {
+  linux_ipn3($user);
+  exit;
 }
 
 
@@ -328,6 +336,7 @@ if ($ACTION eq 'up' || $OS eq 'Linux') {
   #Create shaper dev for linux
   #Traf type shapper
   foreach my $traf_type (sort keys %speeds) {
+    $users_table_number = $conf{FW_TABLE_USERS} || 10;  	
     my $speed;
     if ($Billing->{RESULT}{$traf_type}->{SPEED_IN}) {
       $speed->{IN}  = $Billing->{RESULT}{$traf_type}->{SPEED_IN};
@@ -664,6 +673,7 @@ sub user_info {
   my ($attr) = @_;
 
   my $list = $Dv->get_speed($attr);
+
   if ($Dv->{errno}) {
     print "Error: User not exist '$USER' IP: $CLIENT_IP ([$Dv->{errno}] $Dv->{errstr})\n";
     my $a = `echo "$DATE $TIME / $USER - $Dv->{errno}" >> /tmp/linkupdown`;
@@ -688,6 +698,8 @@ sub user_info {
         $speeds{ $line->[2] }{OUT} = "$line->[4]";
         $nets_id{ $line->[2] } = $line->[5] if ($line->[5]);
         $expr{ $line->[2] } = "$line->[6]";
+        
+        print "Class: $line->[2] IN: $line->[3] OUT: $line->[4]\n" if ($debug> 3);
       }
 
       if ($Dv->{TOTAL} > 1) {
@@ -707,18 +719,28 @@ sub user_info {
 #************************************************
 # linux ipn shapper
 #************************************************
+#************************************************
+# linux ipn shapper
+#************************************************
 sub linux_ipn2 {
-  my ($attr)=@_;
+my ($attr)=@_;
 
-  my $ruleid_out=$attr->{UID}+101;
-  my $ruleid_in=$attr->{UID}+5101;
+my $ruleid_out=$attr->{UID}+101;
+my $ruleid_in=$attr->{UID}+5101;
 
-  if (! $WAN_IF) {
-    $WAN_IF = `/sbin/ip route get 1.1.1.1 | head -1 | sed s/.*dev// |awk '{ print \$1 }'`;
-    chop($WAN_IF);
-  }
+my @wan = split(/,/, $WAN_IF);
+foreach my $line (@wan) {
+  print "$line \n" if ($debug);
+}
+
+if (! $WAN_IF) {
+  $WAN_IF = `/sbin/ip route get 1.1.1.1 | head -1 | sed s/.*dev// |awk '{ print \$1 }'`;
+  chop($WAN_IF);
+}
 
 if ($ACTION eq 'up') {
+  push @FW_ACTIONS, "$IPTABLES -t mangle -D FORWARD -s $CLIENT_IP -j MARK --set-mark $ruleid_in";
+  push @FW_ACTIONS, "$IPTABLES -t mangle -D FORWARD -d $CLIENT_IP -j MARK --set-mark $ruleid_out";
   push @FW_ACTIONS, "$IPTABLES -t mangle -A FORWARD -s $CLIENT_IP -j MARK --set-mark $ruleid_in";
   push @FW_ACTIONS, "$IPTABLES -t mangle -A FORWARD -d $CLIENT_IP -j MARK --set-mark $ruleid_out";
 
@@ -729,10 +751,14 @@ if ($ACTION eq 'up') {
     $speeds{ 0 }{OUT} = "$attr->{SPEED}";
   }
 
-  #Download
-  push @FW_ACTIONS, "$TC class add dev $WAN_IF parent 1:1 classid 1:$ruleid_in htb rate $speeds{ 0 }{IN}$SCOUNT";
-  push @FW_ACTIONS, "$TC filter add dev $WAN_IF parent 1: protocol ip prio 3 handle $ruleid_in fw classid 1:$ruleid_in";
-  push @FW_ACTIONS, "$TC qdisc add dev $WAN_IF parent 1:$ruleid_in handle $ruleid_in: sfq perturb 10";
+  my @wan = split(/,/, $WAN_IF);
+
+  foreach my $WANIFACE (@wan) {
+    #Download
+    push @FW_ACTIONS, "$TC class add dev $WANIFACE parent 1:1 classid 1:$ruleid_in htb rate $speeds{ 0 }{IN}$SCOUNT";
+    push @FW_ACTIONS, "$TC filter add dev $WANIFACE parent 1: protocol ip prio 3 handle $ruleid_in fw classid 1:$ruleid_in";
+    push @FW_ACTIONS, "$TC qdisc add dev $WANIFACE parent 1:$ruleid_in handle $ruleid_in: sfq perturb 10";
+  }
 
   #Upload
   push @FW_ACTIONS, "$TC class add dev $INTERFACE parent 1:1 classid 1:$ruleid_out htb rate $speeds{ 0 }{OUT}$SCOUNT";
@@ -741,9 +767,13 @@ if ($ACTION eq 'up') {
 }
 #stop
 else {
-  #Download
-  push @FW_ACTIONS, "$TC filter del dev $WAN_IF parent 1: protocol ip prio 3 handle $ruleid_in fw classid 1:$ruleid_in > /dev/null 2>&1";
-  push @FW_ACTIONS, "$TC class del dev $WAN_IF parent 1:1 classid 1:$ruleid_in > /dev/null 2>&1";
+  my @wan = split(/,/, $WAN_IF);
+  foreach my $WANIFACE (@wan) {
+    #Download
+    push @FW_ACTIONS, "$TC filter del dev $WANIFACE parent 1: protocol ip prio 3 handle $ruleid_in fw classid 1:$ruleid_in > /dev/null 2>&1";
+    push @FW_ACTIONS, "$TC class del dev $WANIFACE parent 1:1 classid 1:$ruleid_in > /dev/null 2>&1";
+  }
+
   #Upload
   push @FW_ACTIONS, "$TC filter del dev $INTERFACE parent 1: protocol ip prio 3 handle $ruleid_out fw classid 1:$ruleid_out > /dev/null 2>&1";
   push @FW_ACTIONS, "$TC class del dev $INTERFACE parent 1:1 classid 1:$ruleid_out > /dev/null 2>&1";
@@ -759,6 +789,48 @@ goto FW_ACTION;
 
 if ($conf{linkupdown_external}) {
   my $res = `$conf{linkupdown_external} "$ACTION" "$INTERFACE" "$USER" "$CLIENT_IP"`;
+}
+
+
+#************************************************
+# linux ipn shapper version 3 (ipset & IPMARK)
+#************************************************
+sub linux_ipn3 {
+  my ($attr)=@_;
+
+  if (! $WAN_IF) {
+    $WAN_IF = `/sbin/ip route get 1.1.1.1 | head -1 | sed s/.*dev// |awk '{ print \$1 }'`;
+    chop($WAN_IF);
+  }
+
+  my @a = split(/\./,$CLIENT_IP);
+  my $ip1 = sprintf("%02x", $a[2]);
+  my $ip2 = sprintf("%02x", $a[3]);
+  my $ID = "$ip1$ip2";
+
+if ($ACTION eq 'up') {
+  my $SCOUNT='Kbit';
+
+  if ($attr->{SPEED}) {
+    $speeds{ 0 }{IN} = "$attr->{SPEED}";
+    $speeds{ 0 }{OUT} = "$attr->{SPEED}";
+  }
+  if ($speeds{ 0 }{IN} <= 80000) {
+    #Download
+    push @FW_ACTIONS, "$TC class replace dev $WAN_IF parent 1: classid 1:$ID htb rate $speeds{ 0 }{IN}$SCOUNT burst 100k cburst 100k prio 1";
+    #Upload
+    push @FW_ACTIONS, "$TC class replace dev $INTERFACE parent 1: classid 1:$ID htb rate $speeds{ 0 }{OUT}$SCOUNT burst 100k cburst 100k prio 1";
+  }
+}
+#stop
+else {
+  #Download
+  push @FW_ACTIONS, "$TC class del dev $WAN_IF parent 1: classid 1:$ID";
+  #Upload
+  push @FW_ACTIONS, "$TC class del dev $INTERFACE parent 1: classid 1:$ID ";
+}
+
+goto FW_ACTION;
 }
 
 1

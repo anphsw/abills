@@ -217,7 +217,7 @@ sub take {
 #**********************************************************
 sub del {
   my $self = shift;
-  my ($user, $id) = @_;
+  my ($user, $id, $attr) = @_;
 
   $self->query2("SELECT sum, bill_id from fees WHERE id='$id';");
 
@@ -235,7 +235,10 @@ sub del {
   $Bill->action('add', $bill_id, $sum);
 
   $self->query2("DELETE FROM fees WHERE id='$id';", 'do');
-  $admin->action_add($user->{UID}, "$id $sum", { TYPE => 17 });
+
+ 	my $comments = ($attr->{COMMENTS}) ? $attr->{COMMENTS} : '';
+
+  $admin->action_add($user->{UID}, "$id $sum $comments", { TYPE => 17 });
 
   return $self->{result};
 }
@@ -254,7 +257,7 @@ sub list {
 
   my $WHERE =  $self->search_former($attr, [
       ['ID',             'INT', 'f.id',                              ],
-      ['DATE',           'DATE','f.date',                          1 ],
+      ['DATETIME',      'DATE','f.date',        'f.date AS datetime' ],
       ['LOGIN',          'STR', 'u.id AS login',                   1 ],
       ['FIO',            'STR', 'pi.fio',                          1 ],
       ['DESCRIBE',       'STR', 'f.dsc',                           1 ],
@@ -359,10 +362,10 @@ sub reports {
   }
   elsif (defined($attr->{MONTH})) {
     push @WHERE_RULES, "date_format(f.date, '%Y-%m')='$attr->{MONTH}'";
-    $date = "date_format(f.date, '%Y-%m-%d')";
+    $date = "date_format(f.date, '%Y-%m-%d') AS date";
   }
   else {
-    $date = "date_format(f.date, '%Y-%m')";
+    $date = "date_format(f.date, '%Y-%m') AS month";
   }
 
   my $GROUP = 1;
@@ -370,16 +373,19 @@ sub reports {
   my $EXT_TABLES = '';
 
   if ($attr->{TYPE} eq 'HOURS') {
-    $date = "date_format(f.date, '%H')";
+    $date = "date_format(f.date, '%H') AS hour";
   }
   elsif ($attr->{TYPE} eq 'DAYS') {
-    $date = "date_format(f.date, '%Y-%m-%d')";
+    $date = "date_format(f.date, '%Y-%m-%d') AS date";
   }
   elsif ($attr->{TYPE} eq 'METHOD') {
     $date = "f.method";
   }
   elsif ($attr->{TYPE} eq 'ADMINS') {
-    $date = "a.id";
+    $date = "a.id AS admin_login";
+  }
+  elsif ($attr->{TYPE} eq 'PER_MONTH') {
+    $date = "date_format(f.date, '%Y-%m') AS date";
   }
   elsif ($attr->{TYPE} eq 'FIO') {
     $EXT_TABLES = 'LEFT JOIN users_pi pi ON (u.uid=pi.uid)';
@@ -388,10 +394,10 @@ sub reports {
   }
   elsif ($attr->{TYPE} eq 'COMPANIES') {
     $EXT_TABLES = 'LEFT JOIN companies c ON (u.company_id=c.id)';
-    $date       = "c.name";
+    $date       = "c.name AS company_name";
   }
   elsif ($date eq '') {
-    $date = "u.id";
+    $date = "u.id AS login";
   }
 
   if (defined($attr->{METHODS}) and $attr->{METHODS} ne '') {

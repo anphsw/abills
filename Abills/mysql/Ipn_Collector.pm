@@ -363,7 +363,8 @@ sub traffic_agregate_nets {
 
   #my $ips             = $self->{USERS_IPS};
   my $user_info = $self->{USERS_INFO};
-  $Dv = Dv->new($self->{db}, undef, $CONF);
+  
+  my $Dv = Dv->new($self->{db}, undef, $CONF);
 
   #Get user and session TP
   while (my ($uid, $session_tp) = each(%{ $user_info->{TPS} })) {
@@ -493,7 +494,7 @@ sub get_zone {
   my $tariff = $attr->{TP_INTERVAL} || 0;
 
   #Get traffic classes and prices
-  $Tariffs = Tariffs->new($self->{db}, undef, $CONF);
+  $Tariffs = Tariffs->new($self->{db}, $CONF, undef);
   my $list = $Tariffs->tt_list({ TI_ID => $tariff });
 
   foreach my $line (@$list) {
@@ -890,7 +891,7 @@ sub acct_stop {
 
   my $ACCT_TERMINATE_CAUSE = (defined($attr->{ACCT_TERMINATE_CAUSE})) ? $attr->{ACCT_TERMINATE_CAUSE} : 0;
 
-  my $sql = "select u.uid, calls.framed_ip_address, 
+  my $sql = "SELECT u.uid, calls.framed_ip_address, 
       calls.user_name,
       calls.acct_session_id,
       calls.acct_input_octets AS input_octets,
@@ -913,19 +914,19 @@ sub acct_stop {
 
   $self->query2($sql, undef, { INFO => 1 });
 
-  $self->query2("SELECT sum(l.traffic_in) AS traffic_in, 
-   sum(l.traffic_out) AS traffic_out,
-   sum(l.sum) AS sum,
-   l.nas_id
-   from ipn_log l
-   WHERE session_id='$session_id'
-   GROUP BY session_id  ;",
-   undef,
-   { INFO => 1 }
-  );
+#  $self->query2("SELECT sum(l.traffic_in) AS traffic_in, 
+#   sum(l.traffic_out) AS traffic_out,
+#   sum(l.sum) AS sum,
+#   l.nas_id
+#   from ipn_log l
+#   WHERE session_id='$session_id'
+#   GROUP BY session_id  ;",
+#   undef,
+#   { INFO => 1 }
+#  );
 
   if ($self->{TOTAL} < 1) {
-    $self->query2("DELETE from dv_calls WHERE acct_session_id='$self->{ACCT_SESSION_ID}';", 'do');
+    $self->query2("DELETE from dv_calls WHERE acct_session_id='$session_id';", 'do');
     return $self;
   }
 
@@ -933,16 +934,16 @@ sub acct_stop {
     $self->{ACCT_OUTPUT_GIGAWORDS} = int($self->{OUTPUT_OCTETS} / 4294967296);
     $self->{OUTPUT_OCTETS} = $self->{OUTPUT_OCTETS} - ($self->{ACCT_OUTPUT_GIGAWORDS} * 4294967296);
   }
-  else {
-  	$self->{INPUT_OCTETS}=0;
+  elsif(! $self->{OUTPUT_OCTETS}) {
+    $self->{OUTPUT_OCTETS}=0;
   }
   
   if ($self->{INPUT_OCTETS} && $self->{INPUT_OCTETS} > 4294967296) {
     $self->{ACCT_INPUT_GIGAWORDS} = int($self->{INPUT_OCTETS} / 4294967296);
     $self->{INPUT_OCTETS} = $self->{INPUT_OCTETS} - ($self->{ACCT_INPUT_GIGAWORDS} * 4294967296);
   } 
-  else {
-  	$self->{INPUT_OCTETS}=0;
+  elsif(! $self->{INPUT_OCTETS}) {
+    $self->{INPUT_OCTETS}=0;
   }
 
   $self->query2("INSERT INTO dv_log (uid, 
@@ -967,7 +968,8 @@ sub acct_stop {
           '$self->{ACCT_SESSION_TIME}', 
           '$self->{OUTPUT_OCTETS}', '$self->{INPUT_OCTETS}', 
           '$self->{ACCT_OUTPUT_GIGAWORDS}', '$self->{ACCT_INPUT_GIGAWORDS}',
-          '$self->{SUM}', '$self->{NAS_ID}',
+          '". (($self->{SUM}) ? $self->{SUM} : 0)."', 
+          '$self->{NAS_ID}',
           '$self->{NAS_PORT}', 
           '$self->{FRAMED_IP_ADDRESS}', 
           '',

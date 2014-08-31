@@ -34,11 +34,10 @@ print $html->form_main({ CONTENT => $table->show(),
 	                       HIDDEN  => { index =>  "$index" },
 	                       METHOD  => 'GET'
                         });
-     
-     
+
    if (! $conf{SQUID_HOST}) {
-   	  return 0;
-    }
+   	 return 0;
+   }
 
    my $server_info = '';
     my @commands = ("-\tGET cache_object://localhost/active_requests HTTP/1.0\r\n");
@@ -47,17 +46,12 @@ print $html->form_main({ CONTENT => $table->show(),
 
     my $total_sessions=0;
     my $total_users=0;
-   
-    
+
     my $result = telnet_cmd2("$conf{SQUID_HOST}:$conf{SQUID_PORT}", \@commands);
 
- 
     my @rows = split(/\n\n/, $result);
-
     #print "<textarea cols=80 rows=50>$rows[0]\n----\n\n$result</textarea>"; 
-    
-    
-   
+
     if ($rows[0] !~ /HTTP\/1.0 200 OK/) {
     	my ($header, $body)=split(/\r\n\r\n/, $rows[0]);
       $html->message('err', $ERROR, "Can't Connect '$conf{SQUID_HOST}:$conf{SQUID_PORT}'
@@ -90,32 +84,23 @@ print $html->form_main({ CONTENT => $table->show(),
        }
      }
 
+$table = $html->table({ width       => '100%',
+                        caption     => "$conf{SQUID_HOST}:$conf{SQUID_PORT} ($server_info)",
+                        border      => 1,
+                        title       => ["IP", "URL", "$_SIZE", "$_TIME", "-"],
+                        cols_align  => ['left', 'left', 'right', 'right', 'center'],
+                        qs          => $pages_qs
+                      });
 
-
-
-
-
-
-$table = $html->table( { width       => '100%',
-                         caption     => "$conf{SQUID_HOST}:$conf{SQUID_PORT} ($server_info)",
-                         border      => 1,
-                         title       => ["IP", "URL", "$_SIZE", "$_TIME", "-"],
-                         cols_align  => ['left', 'left', 'right', 'right', 'center'],
-                         qs          => $pages_qs
-                           });
 my $user_info;
 if ($conf{SQUID_IP_USERS}) {
   require Dv_Sessions;
   Dv_Sessions->import();
   my $sessions = $sessions->new($db, $admin, \%conf);
-
-  
-
   $user_info = " ()";
 }
 
 while(my($ip, $v)=each %sessions) {
-  
 	$ip = gethostbyaddr(inet_aton($ip), AF_INET) || $ip if ($conf{SQUID_RESOLVIP});
 
   $table->addtd( $table->td("<b>$ip</b>$user_info", { bgcolor => $_COLORS[3] }), $table->td('', { colspan => 4, bgcolor => $_COLORS[3]  })  );
@@ -134,7 +119,6 @@ while(my($ip, $v)=each %sessions) {
 
 print $table->show();
 
-
 $table = $html->table({ width       => '100%',
                         rowcolor    => $_COLORS[3],
                         cols_align  => ['right', 'left', 'right', 'right', 'center'],    
@@ -142,7 +126,6 @@ $table = $html->table({ width       => '100%',
                       });
 
 print $table->show();
-
 }
 
 

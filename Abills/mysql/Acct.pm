@@ -69,9 +69,7 @@ sub accounting {
   }
 
   if ($NAS->{NAS_TYPE} eq 'cid_auth') {
-    $self->query2("select
-  u.uid,
-  u.id
+    $self->query2("SELECT u.uid, u.id
      FROM users u, dv_main dv
      WHERE dv.uid=u.uid AND dv.CID='$RAD->{CALLING_STATION_ID}';"
     );
@@ -106,7 +104,7 @@ sub accounting {
 
     if ($self->{TOTAL} > 0) {
       foreach my $line (@{ $self->{list} }) {
-        if ($line->[0] eq 'IP') {
+        if ($line->[0] eq 'IP' || $line->[0] eq	"$RAD->{ACCT_SESSION_ID}") {
           my $sql = "UPDATE dv_calls SET
          status='$acct_status_type',
          started=$SESSION_START, 
@@ -115,7 +113,9 @@ sub accounting {
          acct_session_id='$RAD->{ACCT_SESSION_ID}', 
          CID='$RAD->{CALLING_STATION_ID}', 
          CONNECT_INFO='$RAD->{CONNECT_INFO}'
-         WHERE user_name='$RAD->{USER_NAME}' AND nas_id='$NAS->{NAS_ID}' AND acct_session_id='IP' AND (framed_ip_address=INET_ATON('$RAD->{FRAMED_IP_ADDRESS}') OR framed_ip_address=0) 
+         WHERE user_name='$RAD->{USER_NAME}' AND nas_id='$NAS->{NAS_ID}' 
+           AND (acct_session_id='IP' OR acct_session_id='$RAD->{ACCT_SESSION_ID}')
+           AND (framed_ip_address=INET_ATON('$RAD->{FRAMED_IP_ADDRESS}') OR framed_ip_address=0) 
          ORDER BY started
          LIMIT 1;";
           $self->query2("$sql", 'do');
@@ -123,8 +123,8 @@ sub accounting {
         }
       }
     }
-    # If not found auth records
-    else {
+    # If not found auth records and session > 2 sec
+    else { #if($RAD->{ACCT_SESSION_TIME} && $RAD->{ACCT_SESSION_TIME} > 2) {
       #Get TP_ID
       $self->query2("SELECT u.uid, dv.tp_id, dv.join_service FROM (users u, dv_main dv)
        WHERE u.uid=dv.uid and u.id='$RAD->{USER_NAME}';"
@@ -138,13 +138,16 @@ sub accounting {
           if ($self->{JOIN_SERVICE} == 1) {
             $self->{JOIN_SERVICE} = $self->{UID};
           }
-          $self->{TP_ID} = '';
+          else {
+            $self->{TP_ID} = '0';
+          }
         }
       }
       else {
         $RAD->{USER_NAME} = '! ' . $RAD->{USER_NAME};
       }
 
+      $self->{debug}=1;
       my $sql = "REPLACE INTO dv_calls
        (status, user_name, started, lupdated, nas_ip_address, nas_port_id, acct_session_id, framed_ip_address, CID, CONNECT_INFO,   nas_id, tp_id,
         uid, join_service)
@@ -165,6 +168,10 @@ sub accounting {
 
       $self->query2("DELETE FROM dv_calls WHERE nas_id='$NAS->{NAS_ID}' AND acct_session_id='IP' AND (framed_ip_address=INET_ATON('$RAD->{FRAMED_IP_ADDRESS}') or UNIX_TIMESTAMP()-UNIX_TIMESTAMP(started) > 120 );", 'do');
     }
+    # Ignoring quick alive rad packets
+    #else {
+    #	
+    #}
   }
 
   # Stop status
@@ -378,12 +385,12 @@ sub accounting {
     elsif ($conf->{rt_billing}) {
       $self->rt_billing($RAD, $NAS);
       
-      if ($self->{errno}  && $self->{errno}  == 2) {
+      if ($self->{errno}  && $self->{errno}  == 2 && ($RAD->{ACCT_SESSION_TIME} && $RAD->{ACCT_SESSION_TIME} > 2)) {
         $self->query2("SELECT u.uid, dv.tp_id, dv.join_service 
          FROM users u, dv_main dv 
          WHERE u.uid=dv.uid AND u.id='$RAD->{USER_NAME}';", 
          undef,
-         { INFO  => 1 });    	
+         { INFO  => 1 });
 
          my $sql = "REPLACE INTO dv_calls
          (status, user_name, started, lupdated, nas_ip_address, nas_port_id, acct_session_id, framed_ip_address, CID, CONNECT_INFO,   nas_id, tp_id,

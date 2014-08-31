@@ -904,12 +904,12 @@ sub tpl_show {
     return $tpl;
   }
   elsif ($attr->{notprint} || $self->{NO_PRINT}) {
-    $self->{OUTPUT} .= "<div class='table_top'></div>\n" . "<div class='table_cont'>$tpl</div>" . "<div class='table_bot'></div>\n";
+    $self->{OUTPUT} .= $tpl;
 
     return $tpl;
   }
   else {
-    print "<div class='table_top'></div>\n" . "<div class='table_cont'>$tpl</div>\n" . "<div class='table_bot'></div>\n";
+    print "$tpl";
   }
 }
 

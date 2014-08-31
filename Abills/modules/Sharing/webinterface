@@ -412,7 +412,7 @@ sub sharing_users_list {
   print $html->letters_list({ pages_qs => $pages_qs });
 
   if ($FORM{letter}) {
-    $LIST_PARAMS{FIRST_LETTER} = $FORM{letter};
+    $LIST_PARAMS{LOGIN} = "$FORM{letter}*";
     $pages_qs .= "&letter=$FORM{letter}";
   }
 

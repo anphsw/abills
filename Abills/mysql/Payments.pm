@@ -173,7 +173,7 @@ sub add {
 #**********************************************************
 sub del {
   my $self = shift;
-  my ($user, $id) = @_;
+  my ($user, $id, $attr) = @_;
 
   $self->query2("SELECT sum, bill_id from payments WHERE id='$id';");
 
@@ -192,10 +192,12 @@ sub del {
   $Bill->action('take', $bill_id, $sum);
   if (! $Bill->{errno}) {
     $self->query2("DELETE FROM docs_invoice2payments WHERE payment_id='$id';", 'do');
+    $self->query2("DELETE FROM docs_receipt_orders WHERE receipt_id=(SELECT id FROM docs_receipts WHERE payment_id='$id');", 'do');
     $self->query2("DELETE FROM docs_receipts WHERE payment_id='$id';", 'do');    
     $self->query2("DELETE FROM payments WHERE id='$id';", 'do');
     if (! $self->{errno}) {
-      $admin->action_add($user->{UID}, "$id $sum", { TYPE => 16 });
+    	my $comments = ($attr->{COMMENTS}) ? $attr->{COMMENTS} : '';
+      $admin->action_add($user->{UID}, "$id $sum $comments", { TYPE => 16 });
       $self->{db}->commit();
     }
     else {
@@ -234,7 +236,7 @@ sub list {
   }
 
   my $WHERE =  $self->search_former($attr, [
-      ['DATETIME',       'DATE','p.date AS datetime',          1], 
+      ['DATETIME',       'DATE','p.date',   'p.date AS datetime'], 
       ['SUM',            'INT', 'p.sum',                        ],
       ['PAYMENT_METHOD', 'INT', 'p.method',                     ],
       ['A_LOGIN',        'STR', 'a.id'                          ],
@@ -248,7 +250,7 @@ sub list {
       ['IP',             'INT', 'INET_NTOA(p.ip)',  'INET_NTOA(p.ip) AS ip'],
       ['EXT_ID',         'STR', 'p.ext_id',                                ],
       ['INVOICE_NUM',    'INT', 'd.invoice_num',                          1],
-      ['DATE',           'DATE','date_format(p.date, \'%Y-%m-%d\') AS date'], 
+      ['DATE',           'DATE','date_format(p.date, \'%Y-%m-%d\')'        ], 
       ['REG_DATE',       'DATE','p.reg_date',                             1],      
       ['MONTH',          'DATE','date_format(p.date, \'%Y-%m\') AS month'  ],
       ['ID',             'INT', 'p.id'                                     ],
@@ -267,8 +269,9 @@ sub list {
   $EXT_TABLES  = $self->{EXT_TABLES} if($self->{EXT_TABLES});
   
   if ($attr->{INVOICE_NUM}) {
-    $EXT_TABLES  .= 'LEFT JOIN docs_invoice2payments i2p ON (p.id=i2p.payment_id)
-    LEFT JOIN docs_invoices d ON (d.id=i2p.invoice_id)';
+    $EXT_TABLES  .= '  LEFT JOIN (SELECT payment_id, invoice_id FROM docs_invoice2payments GROUP BY payment_id) i2p ON (p.id=i2p.payment_id)
+  LEFT JOIN (SELECT id, invoice_num FROM docs_invoices GROUP BY id) d ON (d.id=i2p.invoice_id) 
+';
   }
 
   if ($WHERE =~ /pi\./ || $self->{SEARCH_FIELDS} =~ /pi\./) {
@@ -282,7 +285,7 @@ sub list {
   if (!$attr->{TOTAL_ONLY}) {
     $self->query2("SELECT p.id, 
       u.id AS login, 
-      p.date, 
+      p.date AS datetime, 
       p.dsc, 
       p.sum, 
       p.last_deposit, 
@@ -308,7 +311,7 @@ sub list {
     $list = $self->{list};
   }
 
-  $self->query2("SELECT count(DISTINCT p.id) AS total, sum(DISTINCT p.sum) AS sum, count(DISTINCT p.uid) AS total_users
+  $self->query2("SELECT count(DISTINCT p.id) AS total, sum(p.sum) AS sum, count(p.uid) AS total_users
     FROM payments p
   LEFT JOIN users u ON (u.uid=p.uid)
   LEFT JOIN admins a ON (a.aid=p.aid) 
@@ -369,6 +372,9 @@ sub reports {
       $date       = "pi.fio";
       $GROUP      = 5;
     }
+    elsif ($attr->{TYPE} eq 'PER_MONTH') {
+      $date = "date_format(p.date, '%Y-%m') AS date";
+    }
     elsif ($attr->{TYPE} eq 'ADMINS') {
       $date = "a.id AS admin_name";
     }
@@ -376,7 +382,7 @@ sub reports {
       $date = "u.id AS login";
     }
   }
-  elsif (defined($attr->{MONTH})) {
+  elsif ($attr->{MONTH}) {
     push @WHERE_RULES, "date_format(p.date, '%Y-%m')='$attr->{MONTH}'";
     $date = "date_format(p.date, '%Y-%m-%d') AS date";
   }
@@ -395,6 +401,7 @@ sub reports {
     push @WHERE_RULES, @{ $self->search_expr($attr->{ADMINS}, 'STR', 'a.id') };
     $date = 'u.id AS login';
   }
+
 
   if ($admin->{DOMAIN_ID}) {
     push @WHERE_RULES, @{ $self->search_expr("$admin->{DOMAIN_ID}", 'INT', 'u.domain_id', { EXT_FIELD => 0 }) };

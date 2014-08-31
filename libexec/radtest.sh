@@ -3,24 +3,27 @@
 
 AUTH_LOG=/usr/abills/var/log/abills.log
 ACCT_LOG=/usr/abills/var/log/acct.log
-VERSION=0.14
+VERSION=0.16
 
 
 USER_NAME=test
 USER_PASSWORD=123456
 NAS_IP_ADDRESS=127.0.0.1
 ACCT_SESSION_ID='123456789012345';
+RADIUS_SECRET=radsecret;
 
 #Voip defauls
 #VOIP_NAS_IP_ADDRESS=192.168.202.15
 #VOIP_USER_NAME=200
 #VOIP_CHAP_PASSWORD=''; #123456
 
+RADCLIENT=radclient
 PATH=${PATH}:/usr/local/freeradius/bin/
-RAUTH="./rauth.pl";
-RACCT="./racct.pl";
+DIRNAME=`dirname $0`
+RAUTH=${DIRNAME}"/rauth.pl";
+RACCT=${DIRNAME}"/racct.pl";
 RADTEST=radtest
-echo `pwd -P`;
+#echo `pwd -P`;
 
 
 #Default Alive packes
@@ -118,6 +121,9 @@ for _switch ; do
                 shift; shift;
                 ;;
         -rad_ip)RADIUS_IP=$2;
+                shift; shift;
+                ;;
+        -rad_dict) RAD_DICT=$2;
                 shift; shift;
                 ;;
         -isg)  test_isg;
@@ -260,9 +266,9 @@ fi;
 
 # Make direct radius request
 if [ x${RADIUS_ACTION} = x1 ]; then
-  if [ x${RADIUS_SECRET} = x ]; then
-    RADIUS_SECRET=radsecret;
-  fi;
+  #if [ x${RADIUS_SECRET} = x ]; then
+  #  RADIUS_SECRET=radsecret;
+  #fi;
 
   if [ x${RADIUS_IP} = x ]; then
     RADIUS_IP=127.0.0.1;
@@ -272,6 +278,10 @@ if [ x${RADIUS_ACTION} = x1 ]; then
   fi;
 
   echo "RAD FILE: ${RAD_FILE}";
+
+  if [ x${RAD_DICT} != x ]; then  
+    OPTIONS="-d ${RAD_DICT}";
+  fi;
   
   if [ x${RAD_FILE} != x ]; then
     if [ x${ACTION} = xacct ]; then
@@ -279,15 +289,29 @@ if [ x${RADIUS_ACTION} = x1 ]; then
         PORT=1813;
       fi;
     fi;
-    
-    radclient -x -f ${RAD_FILE}  ${RADIUS_IP}:${PORT} ${ACTION} ${RADIUS_SECRET}
-    echo "radclient -x -f ${RAD_FILE}  ${RADIUS_IP}:${PORT} ${ACTION} ${RADIUS_SECRET}";
-  else
-     if [ x${PORT} = x ]; then      
-        PORT=1812;
-     fi;
 
-    ${RADTEST} ${USER_NAME} ${USER_PASSWORD} ${RADIUS_IP}:${PORT} 0 ${RADIUS_SECRET} 0 ${NAS_IP_ADDRESS}
+    ${RADCLIENT} ${OPTIONS} -x -f ${RAD_FILE}  ${RADIUS_IP}:${PORT} ${ACTION} ${RADIUS_SECRET}
+    echo "${RADCLIENT} -x -f ${RAD_FILE}  ${RADIUS_IP}:${PORT} ${ACTION} ${RADIUS_SECRET}";
+  else
+    if [ x${PORT} = x ]; then      
+       PORT=1812;
+    fi;
+
+    NAS_ADDR_ATTR="NAS-IP-Address"
+    PASSWORD="User-Password"
+
+    (
+        echo "User-Name = \"${USER_NAME}\""
+        echo "${PASSWORD} = \"${USER_PASSWORD}\""
+        echo "${NAS_ADDR_ATTR} = ${NAS_IP_ADDRESS}"
+        echo "NAS-Port = 1"
+        echo "Message-Authenticator = 0x00"
+
+        if [ "${CALLING_STATION_ID}" ]; then
+          echo "Calling-Station-Id = \"${CALLING_STATION_ID}\""
+        fi
+    ) | ${RADCLIENT} ${OPTIONS} -x  ${RADIUS_IP}:${PORT} auth "${RADIUS_SECRET}"
+
   fi;
 
   echo "Send params to radius: ${RADIUS_IP}:${PORT}"
@@ -488,10 +512,11 @@ DHCP Function
        -cid   - CALLING_STATION_ID (Default: )
        -session_id ACCT_SESSION_ID (Default: ${ACCT_SESSION_ID})
 
-       -rad     -  Send request to RADIUS
+       -rad     - Send request to RADIUS
        -rad_secret - RADIUS secret (Default: radsecret)
-       -rad_ip  -  RADIUS IP address (Default: 127.0.0.1)
-       -rad_file-  Get data from file
+       -rad_ip  - RADIUS IP address (Default: 127.0.0.1)
+       -rad_file- Get data from file
+       -rad_dict- Radius dictionary folder 
 
        -debug - Debug mode
        -v     - Show version

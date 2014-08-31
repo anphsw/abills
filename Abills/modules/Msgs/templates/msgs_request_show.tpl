@@ -3,6 +3,7 @@
 <input type='hidden' name='UID' value='$FORM{UID}'/>
 <input type='hidden' name='ID' value='%ID%'/>
 <input type='hidden' name='PARENT' value='%PARENT%'/>
+<input type='hidden' name='header' value='1'/>
 
 <TABLE width='100%' class=form cellspacing='1' cellpadding='0' border='0'>
 <TR><TD class=cel_border valign='top'>
@@ -27,14 +28,16 @@
 <tr><th align=left class='odd'>$_FIO:</th><th align=left  class='odd'> %FIO% </th></tr>
 <tr><th align=left class='odd'>$_COMPANY:</th><td class='odd'> %COMPANY%</td></tr>
 <tr><th align=left class='odd'>$_PHONE:</th><td class='odd'> %PHONE% </td></tr>
-<tr><th align=left class='odd'>$_ADDRESS:</th><td class='odd'> %ADDRESS_STREET%  %ADDRESS_BUILD% %ADDRESS_FLAT%</td></tr>
+<tr><th align=left class='odd'>$_ADDRESS:</th><td class='odd'>%ADDRESS_DISTRICT% %ADDRESS_STREET%, %ADDRESS_BUILD%  %ADDRESS_FLAT%</td></tr>
 <tr><th align=left class='odd'>E-mail:</th><td class='odd'> %EMAIL%</td></tr>
 </table>
 </td></tr>
 <tr><td class='odd' colspan='4'>&nbsp; %REQUEST%</td></tr>
 <tr><td class='even' colspan='4' class=small></td></tr>
 <tr><td colspan='4' class='even' align=center><textarea cols=70 rows=20 name=COMMENTS>%COMMENTS%</textarea></td></tr>
-<tr><td colspan='4' class='odd' align=center><input type=submit name=change value=$_CHANGE></td></tr>
+<tr><td colspan='4' class='odd' align=center><input type=submit name=change value='$_CHANGE'>
+
+</td></tr>
 </TABLE>
 
 </TD>

@@ -224,8 +224,6 @@ sub user_change {
     {
       CHANGE_PARAM => 'UID',
       TABLE        => 'iptv_main',
-#      FIELDS       => \%FIELDS,
-#      OLD_INFO     => $old_info,
       DATA         => $attr
     }
   );
@@ -1144,7 +1142,6 @@ sub online {
       ['STATUS',            'INT', 'service.disable',                             1 ],
       ['IPTV_EXPIRE',       'INT', 'service.expire AS iptv_expire',               1 ],      
       ['USER_NAME',         'STR', 'c.user_name',                                 1 ],
-      ['SESSION_IDS',       'STR', 'c.acct_session_id',                           1 ],
       ['FRAMED_IP_ADDRESS', 'IP',  'c.framed_ip_address',                         1 ],
       ['NAS_ID',            'INT', 'c.nas_id',                                    1 ],
       ['GUEST',             'INT', 'c.guest',                                     1 ],

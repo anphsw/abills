@@ -1,4 +1,4 @@
-<table width=300>
+<table width=300 class=form>
 <tr><th class='form_title'>PrivatBank</th></tr>
 <tr><td>
 
@@ -28,33 +28,28 @@
 
 <FORM id='checkout' name='checkout' method=post action='https://ecommerce.liqpay.com/ecommerce/CheckOutPagen'>
 
-<input id='Version'             type='hidden' name='Version' value='1.0.0'>
-	<input id='MerID'             type='hidden' value='$conf{PAYSYS_PB_MERID}' name='MerID'>
-	<input id='AcqID'             type='hidden' value='414963' name='AcqID'>
-	<input id='MerRespURL'        type='hidden' value='https://$ENV{SERVER_NAME}:$ENV{SERVER_PORT}/paysys_check.cgi'  name='MerRespURL'>
-	
-	<input id='MerRespURL2'        type='hidden' value='https://$ENV{SERVER_NAME}:$ENV{SERVER_PORT}/paysys_check.cgi'  name='MerRespURL2'>
-	
-	<input id='PurchaseAmt'       type='hidden' value='%AMOUNT%' name='PurchaseAmt'>
-	<input id='PurchaseCurrency'  type='hidden' value='980' name='PurchaseCurrency'>
+  <input id='Version'           type='hidden' name='version' value='1.0.0'>
+	<input id='OrderID'           type='hidden' name='orderid' value='%OPERATION_ID%' >
+	<input id='MerRespURL'        type='hidden' name='merrespurl' value='$ENV{PROT}://$ENV{SERVER_NAME}:$ENV{SERVER_PORT}/paysys_check.cgi'>
+	<input id='MerID'             type='hidden' name='merid' value='$conf{PAYSYS_PB_MERID}' >
+	<input id='AcqID'             type='hidden' name='acqid' value='414963' >
+	<input id='PurchaseAmt'       type='hidden' name='purchaseamt' value='%AMOUNT%' >
+	<input id='PurchaseCurrencyExponent' type='hidden' name='purchasecurrencyexponent'  value='2' >
+	<input id='PurchaseCurrency'  type='hidden' name='purchasecurrency' value='980' >
+	<input id='Signature'         type='hidden' name='signature' value ='%HASH%' >
+	<input id='orderdescription'  type='hidden' name='orderdescription' value='$FORM{DESCRIBE}'>
+	<input id='MerRespURL2'       type='hidden' value='$ENV{PROT}://$ENV{SERVER_NAME}:$ENV{SERVER_PORT}/paysys_check.cgi'  name='MerRespURL2'>
 
-  <input id='PurchaseAmt2'      type='hidden' value='%AMOUNT2%' name='PurchaseAmt2'>
-	<input id='PurchaseCurrency2' type='hidden' value='840' name='PurchaseCurrency2'>
-
-	<input id='PurchaseCurrencyExponent' type='hidden' value='2' name='PurchaseCurrencyExponent'>
-	<input id='OrderID'           type='hidden' value='%OPERATION_ID%' name='OrderID'>
-	<input id='SignatureMethod'   type='hidden' value='%SignatureMethod%' name='SignatureMethod'>
-	<input id='Signature' type='hidden' value ='%HASH%' name='Signature'>
+<!--	
+  <input id='SignatureMethod'   type='text' value='%SignatureMethod%' name='SignatureMethod'>
 	<input id='CaptureFlag'       type='hidden' value='A' name='CaptureFlag'>
-
+-->
   <input id='AdditionalData' type=hidden value='%AdditionalData%' name='AdditionalData'>
-
-  
+ 
 <script>
 document.getElementById('checkout').submit();
 </script>
 </FORM>
-
 
 </td></tr>
 </table>

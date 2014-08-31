@@ -71,7 +71,6 @@ sub storage_articles {
           {
             SECTION => '',
             MESSAGE => "$_CHANGED",
-
           }
         );
       }
@@ -260,7 +259,6 @@ sub suppliers_main {
     }
 
     if (defined($list->[0]->[0])) {
-
       $html->message('info', $_INFO, "$_CANT_DELETE_ERROR3");
     }
     else {
@@ -297,8 +295,6 @@ sub suppliers_main {
 
       $Storage->suppliers_add({%FORM});
       if (!$Storage->{errno}) {
-
-        #$html->message('info', $_INFO, "$_ADDED");
         $html->tpl_show(
           _include('storage_redirect', 'Storage'),
           {
@@ -327,34 +323,32 @@ sub suppliers_main {
   }
   my $table = $html->table(
     {
-      width   => '100%',
-      caption => $_SUPPLIERS,
-      border  => 1,
-      title   => [ $_NAME, $_PHONE, 'email', 'icq', $_SITE, $_DIRECTOR, $_BILL, '-', '-' ],
+      width      => '100%',
+      caption    => $_SUPPLIERS,
+      border     => 1,
+      title      => [ $_NAME, $_PHONE, 'email', 'icq', $_SITE, $_DIRECTOR, $_BILL, '-', '-' ],
       cols_align => [ 'left', 'right', 'right', 'right', 'center', 'center' ],
       pages      => $Storage->{TOTAL},
       ID         => 'STORAGE_ID'
     }
   );
 
-  $list = $Storage->suppliers_list({});
+  $list = $Storage->suppliers_list({ COLS_NAME => 1 });
   if ($Storage->{errno}) {
     $html->message('err', $_ERROR, "[$Storage->{errno}] $err_strs{$Storage->{errno}}");
   }
 
   foreach my $line (@$list) {
     $table->addrow(
-      $line->[1],
-      $line->[9],
-      $line->[13],
-      $line->[14],
-      $line->[12],
-      $line->[16],
-      $line->[8],
-
-      #$line->[2], DATE
-      $html->button($_INFO, "index=$index&chg=$line->[0]", { CLASS => 'change' }),
-      (defined($permissions{0}{5})) ? $html->button($_DEL, "index=$index&del=$line->[0]", { MESSAGE => "$_DEL $_SUPPLIER $line->[1]?", CLASS => 'del' }) : ''
+      $line->{name},
+      $line->{phone},
+      $line->{email},
+      $line->{icq},
+      $line->{site},
+      $line->{director},
+      $line->{mfo},
+      $html->button($_INFO, "index=$index&chg=$line->{id}", { CLASS => 'change' }),
+      (defined($permissions{0}{5})) ? $html->button($_DEL, "index=$index&del=$line->{id}", { MESSAGE => "$_DEL $_SUPPLIER $line->{name}?", CLASS => 'del' }) : ''
     );
   }
   print $table->show();
@@ -366,7 +360,7 @@ sub suppliers_main {
 sub storage_main {
 
   if ($Storage::VERSION < 2.03) {
-    $html->message('info', "UPDATE", "Current version: $Storage::VERSION Please update module 'Storage' to version 2.03 or higher. http://abills.net.ua/");
+    $html->message('info', "UPDATE", "Current version: $Storage::VERSION Please update module 'Storage' to version 2.04 or higher. http://abills.net.ua/");
     return 0;
   }
 
@@ -1641,14 +1635,14 @@ sub storage_orders {
 
   my $table = $html->table(
     {
-      width   => '100%',
-      caption => ORDERS,
-      border  => 1,
-      title   => [ $_TYPE, $_NAME, $_COUNT, $_COMMENTS, '-', '-' ],
+      width      => '100%',
+      caption    => ORDERS,
+      border     => 1,
+      title      => [ $_TYPE, $_NAME, $_COUNT, $_COMMENTS, '-', '-' ],
       cols_align => [ 'right', 'center', 'center', 'center', 'center' ],
       pages      => $Storage->{TOTAL},
       ID         => 'STORAGE_ID',
-      header => $html->button($_ADD_ORDER, "index=$index&add_order=1", { BUTTON => 1 }),
+      header     => $html->button($_ADD_ORDER, "index=$index&add_order=1", { BUTTON => 1 }),
     }
   );
 
@@ -1771,8 +1765,6 @@ sub storage_hardware {
           ARTICLE_ID    => $Storage->{ARTICLE_ID},
           ARTICLE_TYPES => $Storage->{ARTICLE_TYPES},
           STATUS        => $Storage->{STATUS},
-
-          #NAS  => $NAS,
         }
       );
     }

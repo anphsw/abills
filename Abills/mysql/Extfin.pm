@@ -244,71 +244,75 @@ sub payment_deed {
 
   #Get fees
   $self->query2("SELECT
-  if(u.company_id > 0, company.bill_id, u.bill_id),
-  sum(f.sum),
-  if(u.company_id > 0, company.name, if(pi.fio<>'', pi.fio, u.id)),
-  if(u.company_id > 0, company.name, if(pi.fio<>'', pi.fio, u.id)),
-  if(u.company_id > 0, 1, 0),
-  if(u.company_id > 0, company.vat, 0),
+  if(u.company_id > 0, company.bill_id, u.bill_id) AS bill_id,
+  sum(f.sum) AS sum,
+  if(u.company_id > 0, company.name, if(pi.fio<>'', pi.fio, u.id)) AS fio,
+  if(u.company_id > 0, 1, 0) AS is_company,
+  if(u.company_id > 0, company.vat, 0) AS vat,
   u.uid,
-  max(date) $info_fields
+  max(f.date) AS max_date
+  $info_fields
      FROM (users u, fees f)
      LEFT JOIN users_pi pi ON (u.uid = pi.uid)
      LEFT JOIN companies company ON  (u.company_id=company.id)
 
      WHERE u.uid=f.uid and $WHERE
-     GROUP BY 1
+     GROUP BY u.uid
      ORDER BY $SORT $DESC
-     $LIMIT;"
+     $LIMIT;",
+   undef,
+   { COLS_NAME => 1 }
   );
 
   foreach my $line (@{ $self->{list} }) {
-    next if (!$line->[0]);
+    next if (!$line->{bill_id});
 
-    $PAYMENT_DEED{ $line->[0] } = $line->[1];
+    $PAYMENT_DEED{ $line->{bill_id} } = $line->{sum};
 
     #Name|Type|VAT
-    $NAMES{ $line->[0] } = "$line->[2]|$line->[4]|$line->[5]";
+    $NAMES{ $line->{bill_id} } = "$line->{fio}|$line->{is_company}|$line->{vat}";
     if ($info_fields_count > 0) {
       for (my $i = 0 ; $i <= $info_fields_count ; $i++) {
-        $NAMES{ $line->[0] } .= "|" . $line->[ 8 + $i ];
+        $NAMES{ $line->{bill_id} } .= "|" . $line->{ $self->{COL_NAMES_ARR}->[ 7 + $i ] };
       }
     }
   }
 
   #Get Dv use
   $self->query2("SELECT
- if(u.company_id > 0, company.bill_id, u.bill_id),
- sum(dv.sum),
- if(u.company_id > 0, company.name, if(pi.fio<>'', pi.fio, u.id)),
- if(u.company_id > 0, company.name, if(pi.fio<>'', pi.fio, u.id)),
-  if(u.company_id > 0, 1, 0),
-  if(u.company_id > 0, company.vat, 0),
-  u.uid $info_fields
+ if(u.company_id > 0, company.bill_id, u.bill_id) AS bill_id,
+ sum(dv.sum) AS sum,
+ if(u.company_id > 0, company.name, if(pi.fio<>'', pi.fio, u.id)) AS fio,
+  if(u.company_id > 0, 1, 0) AS is_company,
+  if(u.company_id > 0, company.vat, 0) AS vat,
+  u.uid 
+  $info_fields
      FROM (users u, dv_log dv)
      LEFT JOIN users_pi pi ON (u.uid = pi.uid)
      LEFT JOIN companies company ON  (u.company_id=company.id)
      WHERE u.uid=dv.uid and $WHERE_DV
      GROUP BY 1
      ORDER BY 2 DESC
-  $LIMIT;"
+  $LIMIT;",
+  undef,
+  { COLS_NAME => 1 }
   );
 
   foreach my $line (@{ $self->{list} }) {
-    if (!$PAYMENT_DEED{ $line->[0] }) {
-      $PAYMENT_DEED{ $line->[0] } += $line->[1];
+    if (!$PAYMENT_DEED{ $line->{bill_id} }) {
+      $PAYMENT_DEED{ $line->{bill_id} } += $line->{sum};
 
       #Name|Type|VAT
-      $NAMES{ $line->[0] } = "$line->[2]|$line->[4]|$line->[5]";
+      $NAMES{ $line->{bill_id} } = "$line->{fio}|$line->{is_company}|$line->{vat}";
 
       if ($info_fields_count > 0) {
         for (my $i = 0 ; $i <= $info_fields_count ; $i++) {
-          $NAMES{ $line->[0] } .= "|" . $line->[ 8 + $i ];
+          $NAMES{ $line->{bill_id} } .= "|" . $line->{ $self->{COL_NAMES_ARR}->[ 7 + $i ] };
         }
       }
     }
     else {
-      $PAYMENT_DEED{ $line->[0] } += $line->[1];
+      $PAYMENT_DEED{ $line->{bill_id} } += $line->{sum};
     }
   }
 
@@ -1070,7 +1074,7 @@ sub report_payments_fees {
   $GROUP = 'u.uid';
   $self->query2("SELECT '', u.id,  pi.fio, 
       (select sum(p.sum) FROM payments p WHERE u.uid=p.uid $PAYMENTS_WHERE)
-      , sum(f.sum), u.uid
+      , sum(f.sum) AS sum, u.uid
       FROM users u      
       LEFT JOIN users_pi pi  ON (u.uid=pi.uid)
       LEFT JOIN fees f  ON (u.uid=f.uid $FEES_WHERE)

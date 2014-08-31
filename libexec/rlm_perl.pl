@@ -135,17 +135,19 @@ sub post_auth {
   $begin_time = check_time();
 
   my $db     = sql_connect();
+#  if (! $db) {
+#    print "!!!!!!!!!!!!!!!!!! Can't connect db: $db !!!!!!!!!!!!!!\n";
+#    my $a = `echo "RADIUS: Can't connect db: $db\n" >> /tmp/mysql_error `;
+#  }
 
-  if (! $db) {  
-    print "!!!!!!!!!!!!!!!!!! Can't connect db: $db !!!!!!!!!!!!!!\n";
-  }
-  
-  my $return = inc_postauth($db, \%REQUEST, $nas);
-  if ($return == 0) {
-    return RLM_MODULE_OK;
-  }
-  else {
-    return $return;
+  if ($db) { 
+    my $return = inc_postauth($db, \%REQUEST, $nas);
+    if ($return == 0) {
+      return RLM_MODULE_OK;
+    }
+    else {
+      return $return;
+    }
   }
 
   return RLM_MODULE_REJECT;

@@ -18,7 +18,7 @@
 
 <TR><TH class='form_title' colspan='2'>$_COMMENTS</TH></TR>
 
-<TR><TH colspan='2'><textarea cols=60 rows=6>%COMMENTS%</textarea></TH></TR>
+<TR><TH colspan='2'><textarea cols=60 rows=6 name=COMMENTS>%COMMENTS%</textarea></TH></TR>
 
 
 

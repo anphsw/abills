@@ -43,23 +43,33 @@ ATTRIBUTE  Acct-Output-Octets  43  integer
 ATTRIBUTE  Acct-Session-Id    44  string
 ATTRIBUTE  Acct-Authentic    45  integer
 ATTRIBUTE  Acct-Session-Time  46  integer
-ATTRIBUTE       Acct-Input-Packets  47  integer
-ATTRIBUTE       Acct-Output-Packets  48  integer
-ATTRIBUTE  Acct-Terminate-Cause  49  integer
-ATTRIBUTE  Acct-Multi-Session-Id  50  string
-ATTRIBUTE  Acct-Link-Count    51  integer
-ATTRIBUTE  Event-Timestamp    55  integer
+ATTRIBUTE  Acct-Input-Packets  47  integer
+ATTRIBUTE  Acct-Output-Packets  48  integer
+ATTRIBUTE  Acct-Terminate-Cause 49  integer
+ATTRIBUTE  Acct-Multi-Session-Id 50  string
+ATTRIBUTE  Acct-Link-Count       51  integer
+ATTRIBUTE  Event-Timestamp       55  integer
 
-ATTRIBUTE  CHAP-Challenge    60  string
-ATTRIBUTE  NAS-Port-Type    61  integer
-ATTRIBUTE  Port-Limit    62  integer
-ATTRIBUTE  Login-LAT-Port    63  integer
+ATTRIBUTE  CHAP-Challenge        60  string
+ATTRIBUTE  NAS-Port-Type         61  integer
+ATTRIBUTE  Port-Limit            62  integer
+ATTRIBUTE  Login-LAT-Port        63  integer
 
-ATTRIBUTE  Connect-Info    77  string
-ATTRIBUTE       NAS-Port-Id    87  string
+ATTRIBUTE  Connect-Info          77  string
+ATTRIBUTE  NAS-Port-Id           87  string
 
-ATTRIBUTE  Digest-Response    206  string
-ATTRIBUTE  Digest-Attributes  207  sublist
+ATTRIBUTE  Digest-Response      206  string
+ATTRIBUTE  Digest-Attributes    207  sublist
+
+ATTRIBUTE  PPPD-Upstream-Speed-Limit     230 integer
+ATTRIBUTE  PPPD-Downstream-Speed-Limit   231 integer
+ATTRIBUTE  PPPD-Upstream-Speed-Limit-1   232 integer
+ATTRIBUTE  PPPD-Downstream-Speed-Limit-1 233 integer
+ATTRIBUTE  PPPD-Upstream-Speed-Limit-2   234 integer
+ATTRIBUTE  PPPD-Downstream-Speed-Limit-2 235 integer
+ATTRIBUTE  PPPD-Upstream-Speed-Limit-3   236 integer
+ATTRIBUTE  PPPD-Downstream-Speed-Limit-3 237 integer
+
 
 #
 #  Experimental Non Protocol Attributes used by Cistron-Radiusd
@@ -208,17 +218,17 @@ VALUE           Acct-Terminate-Cause    Host-Request            18
 #  Non-Protocol Integer Translations
 #
 
-VALUE    Auth-Type    Local        0
+VALUE    Auth-Type    Local       0
 VALUE    Auth-Type    System      1
-VALUE    Auth-Type    SecurID      2
-VALUE    Auth-Type    Crypt-Local  3
+VALUE    Auth-Type    SecurID     2
+VALUE    Auth-Type    Crypt-Local 3
 VALUE    Auth-Type    Reject      4
-VALUE    Auth-Type    ActivCard    4
+VALUE    Auth-Type    ActivCard   4
 
 #
 #  Cistron extensions
 #
-VALUE    Auth-Type    Pam          253
+VALUE    Auth-Type    Pam         253
 VALUE    Auth-Type    Accept      254
 
 #
@@ -306,3 +316,4 @@ VENDOR          ERX                             4874
 
 ATTRIBUTE       ERX-Service-Activate    65      string ERX
 ATTRIBUTE       ERX-Service-Deactivate  66      string ERX
+

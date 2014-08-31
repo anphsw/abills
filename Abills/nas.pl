@@ -95,11 +95,11 @@ sub hangup {
   elsif ($nas_type eq 'pppd_coa') {
     hangup_pppd_coa($NAS, $PORT, $attr);
   }
-  elsif ($nas_type eq 'accel_pptp') {
+  elsif ($nas_type eq 'accel_ppp') {
     hangup_radius($NAS, $PORT, "", $attr);
   }
   elsif ($nas_type eq 'redback') {
-    hangup_radius($NAS, $PORT, "", $attr);
+    hangup_radius($NAS, $PORT, "$USER", { %$attr, SESSION_ID => $attr->{ACCT_SESSION_ID} });
   }
   elsif ($nas_type eq 'mx80') {
     #if ( $attr->{'CONNECT_INFO'}  !~ /demux/) {
@@ -473,6 +473,7 @@ sub hangup_radius {
   if (!defined $type) {
     # No responce from COA/POD server
     $Log->log_print('LOG_DEBUG', "$USER", "No responce from $request_type server '$NAS->{NAS_MNG_IP_PORT}'", { ACTION => 'CMD' });
+    $result = "No responce from $request_type server '$NAS->{NAS_MNG_IP_PORT}'";
   }
 
 
@@ -1055,10 +1056,13 @@ sub hangup_pppd_coa {
   $r->send_packet(POD_REQUEST) and $type = $r->recv_packet;
 
   if (!defined $type) {
-
     # No responce from POD server
     $result = 1;
     $Log->log_print('LOG_DEBUG', '', "No responce from POD server '$NAS->{NAS_MNG_IP_PORT}' ", { ACTION => '' });
+  }
+  
+  if ($nas_type eq 'pppd_coa' || $nas_type eq 'accel_ppp') {
+    return 1;
   }
 
   return $result;
@@ -1074,7 +1078,7 @@ sub setspeed {
   $NAS      = $Nas;
   $nas_type = $NAS->{NAS_TYPE};
 
-  if ($nas_type eq 'pppd_coa') {
+  if ($nas_type eq 'pppd_coa' || $nas_type eq 'accel_ppp') {
     return setspeed_pppd_coa($NAS, $PORT, $UPSPEED, $DOWNSPEED, $attr);
   }
   else {
@@ -1126,7 +1130,11 @@ sub setspeed_pppd_coa {
 
   $r->load_dictionary($conf{'dictionary'});
 
-  $r->add_attributes({ Name => 'Framed-Protocol', Value => 'PPP' }, { Name => 'NAS-Port', Value => "$PORT" }, { Name => 'PPPD-Upstream-Speed-Limit', Value => "$UPSPEED" }, { Name => 'PPPD-Downstream-Speed-Limit', Value => "$DOWNSPEED" });
+  $r->add_attributes({ Name => 'Framed-Protocol', Value => 'PPP' }, 
+                     { Name => 'NAS-Port', Value => "$PORT" }, 
+                     { Name => 'PPPD-Upstream-Speed-Limit', Value => "$UPSPEED" }, 
+                     { Name => 'PPPD-Downstream-Speed-Limit', Value => "$DOWNSPEED" });
+
   $r->add_attributes({ Name => 'Framed-IP-Address', Value => "$attr->{FRAMED_IP_ADDRESS}" }) if $attr->{FRAMED_IP_ADDRESS};
   $r->send_packet(COA_REQUEST) and $type = $r->recv_packet;
 

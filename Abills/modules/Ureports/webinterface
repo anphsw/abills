@@ -96,14 +96,14 @@ sub ureports_users_list {
   print $html->letters_list({ pages_qs => $pages_qs });
 
   if ($FORM{letter}) {
-    $LIST_PARAMS{FIRST_LETTER} = $FORM{letter};
+    $LIST_PARAMS{LOGIN} = "$FORM{letter}*";
     $pages_qs .= "&letter=$FORM{letter}";
   }
 
   my ($table, $user_list) = result_former({
      INPUT_DATA      => $Ureports,
      FUNCTION        => 'user_list',
-     BASE_FIELDS     => 5,
+     BASE_FIELDS     => 6,
      FUNCTION_FIELDS => 'stats',
      EXT_TITLES      => {
         speed      => $_SPEED,
@@ -129,7 +129,7 @@ sub ureports_users_list {
   foreach my $line (@$user_list) {
     my @fields_array = ();
 
-    for (my $i = 0; $i < 5+$Ureports->{SEARCH_FIELDS_COUNT}; $i++) {
+    for (my $i = 0; $i < 6+$Ureports->{SEARCH_FIELDS_COUNT}; $i++) {
        my $val        = '';
       my $field_name = $Ureports->{COL_NAMES_ARR}->[$i];      
 
@@ -175,8 +175,8 @@ sub ureports_users_list {
 sub ureports_user {
   my ($attr) = @_;
 
-  if ($Ureports::VERSION < 2.29) {
-    $html->message('info', "UPDATE", "Please update module 'Ureports' to version 2.29 or higher. http://abills.net.ua/");
+  if ($Ureports::VERSION < 2.30) {
+    $html->message('info', "UPDATE", "Please update module 'Ureports' to version 2.30 or higher. http://abills.net.ua/");
     return 0;
   }
 
@@ -1226,28 +1226,35 @@ sub ureports_daily_resets {
   my ($attr) = @_;
 
   my $debug = $attr->{DEBUG} || 0;
-  my $debug_output = 'Daily reports reset';
+  my $debug_output = '';
 
   $debug_output = "Daily reports reset\n" if ($debug > 1);
+
+  $LIST_PARAMS{GID}  = $attr->{GID} if ($attr->{GID});
+  $LIST_PARAMS{LOGIN}= $attr->{LOGIN} if ($attr->{LOGIN});
   
-  $self->{debug} = 1 if ($debug > 6);
+  $Ureports->{debug} = 1 if ($debug > 6);
+
   my $list = $Ureports->tp_user_reports_list(
     {
       RESET     => 1,
-      REPORT_ID => 1,
+      REPORT_ID => "1",
       DATE      => '>0000-00-00',
+      %LIST_PARAMS,
       COLS_NAME => 1
     }
   );
 
   foreach my $line (@$list) {
     $debug_output .= "UID: $line->{uid} REPORT_ID: $line->{report_id} VALUE: $line->{value} DEPOSIT: $line->{deposit}\n" if ($debug > 1);
-    $Ureports->tp_user_reports_reset_date(
-      {
-        REPORT_ID => $line->{report_id},
-        UID       => $line->{uid}
-      }
-    );
+    if ($debug < 5) {
+      $Ureports->tp_user_reports_reset_date(
+        {
+          REPORT_ID => $line->{report_id},
+          UID       => $line->{uid}
+        }
+      );
+    }
   }
 
   $DEBUG .= $debug_output;
@@ -1355,7 +1362,6 @@ sub ureports_periodic_reports {
                 STATUS      => 0
               }
             );
-
           }
         }
       }
@@ -1531,7 +1537,6 @@ sub ureports_payments_maked {
       
   return '' if ($FORM{DISABLE} || $FORM{CREDIT} );
   return '' if (int($attr->{SUM}) == 0);
-  
 
   $Ureports->tp_user_reports_list({ UID              => $user->{UID},
                                     REPORT_ID        => 12,

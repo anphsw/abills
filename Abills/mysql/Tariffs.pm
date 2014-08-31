@@ -665,7 +665,7 @@ sub list {
         [ 'PAYMENT_TYPE',      'INT', 'tp.payment_type'   ],
         [ 'ACTIVE_DAY_FEE',    'INT', 'tp.active_day_fee' ],
         [ 'FIXED_FEES_DAY',    'INT', 'tp.fixed_fees_day' ],
-        [ 'NEXT_TARIF_PLAN',   'INT', 'tp.next_tp_id'     ],
+        [ 'NEXT_TARIF_PLAN',   'INT', 'tp.next_tp_id',   1],
         [ 'ACTIVE_DAY_FEE',    'INT', 'tp.active_day_fee' ],
         [ 'FIXED_FEES_DAY',    'INT', 'tp.fixed_fees_day',    1],
         [ 'REDUCTION_FEE',     'INT', 'tp.reduction_fee',      ],

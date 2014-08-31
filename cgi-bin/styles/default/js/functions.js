@@ -367,8 +367,16 @@ $(document).ready(function(){
 });
 
 
+/**
 
+*/
+function comments_add (theLink, Message, CustomMsg) {
+  Q=prompt(Message,'');
 
+  if (Q == '' || Q == null) {
+  	alert('Enter comments' );
+  }
+}
 
 
 

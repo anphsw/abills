@@ -180,7 +180,7 @@ sub ureports_periodic_reports {
                                      PAYMENT_TYPE    => '_SHOW',
                                      EXT_BILL_ACCOUNT=> '_SHOW',
                                      %LIST_PARAMS,
-                                     COLS_NAME   => 1 });
+                                     COLS_NAME       => 1 });
 
   $ADMIN_REPORT{DATE} = $DATE if (!$ADMIN_REPORT{DATE});
   $SERVICE_LIST_PARAMS{CUR_DATE}=$ADMIN_REPORT{DATE};
@@ -203,12 +203,13 @@ sub ureports_periodic_reports {
         ACCOUNT_STATUS => 0,
         DV_STATUS      => '_SHOW',
         STATUS         => 0,
+        ACTIVATE       => '_SHOW',
         %SERVICE_LIST_PARAMS,
         COLS_NAME      => 1,
         COLS_UPPER     => 1,
       }
     );
-    
+
     foreach my $user (@$ulist) {
       #Check bill id and deposit
       my %PARAMS = ();
@@ -239,13 +240,16 @@ sub ureports_periodic_reports {
 
             if ($cross_modules_return->{$module}{abon_distribution}) {
               $total_daily_fee += ($cross_modules_return->{$module}{month} / 30);
+            }
+            elsif($cross_modules_return->{$module}{month}) {
               $user->{RECOMMENDED_PAYMENT} += $cross_modules_return->{$module}{month};
             }
           }
         }
 
         if ($user->{DEPOSIT} + $user->{CREDIT} > 0) {
-         	$user->{RECOMMENDED_PAYMENT} = sprintf("%.2f", $user->{RECOMMENDED_PAYMENT} - ($user->{DEPOSIT} + $user->{CREDIT}));
+         	$user->{RECOMMENDED_PAYMENT} = sprintf("%.2f", 
+         	  ($user->{RECOMMENDED_PAYMENT} - $user->{DEPOSIT} > 0) ? ($user->{RECOMMENDED_PAYMENT} - $user->{DEPOSIT} + 0.01)  : 0 );
         }
         else {
          	$user->{RECOMMENDED_PAYMENT} += sprintf("%.2f", abs($user->{DEPOSIT} + $user->{CREDIT}));
@@ -253,12 +257,18 @@ sub ureports_periodic_reports {
 
         $user->{DEPOSIT} = sprintf("%.2f", $user->{DEPOSIT});
 
-        $user->{EXPIRE_DAYS} = int($user->{DEPOSIT} / $total_daily_fee) if ($total_daily_fee > 0);
+        if ($total_daily_fee > 0) {
+          $user->{EXPIRE_DAYS} = int($user->{DEPOSIT} / $total_daily_fee);
+        }
+        else {
+        	$user->{EXPIRE_DAYS} = $user->{TP_EXPIRE};
+        }
+
         $user->{EXPIRE_DATE} = strftime("%Y-%m-%d", localtime(time + $user->{EXPIRE_DAYS} * 86400));
 
-        #Report 1
+        #Report 1 Deposit belove and dv status active
         if ($user->{REPORT_ID} == 1) {
-          if ($user->{VALUE} > $user->{DEPOSIT}) {
+          if ($user->{VALUE} > $user->{DEPOSIT} && ! $user->{DV_STATUS}) {
             %PARAMS = (
               DESCRIBE => "$_REPORTS ($user->{REPORT_ID}) ",
               MESSAGE  => "$_DEPOSIT: $user->{DEPOSIT}",
@@ -397,7 +407,7 @@ sub ureports_periodic_reports {
           }
         }
         #All service expired throught
-        elsif ($user->{REPORT_ID} == 13) {
+        elsif ($user->{REPORT_ID} == 13 && ! $user->{DV_STATUS}) {
           if ($total_daily_fee > 0) {
             $debug_output .= "(Day fee: $total_daily_fee / $user->{EXPIRE_DAYS} -> $user->{VALUE} \n" if ($debug > 4);
 
@@ -421,17 +431,15 @@ sub ureports_periodic_reports {
         }
         #NOtify before abon
         elsif ($user->{REPORT_ID} == 14) {
-          if ($user->{VALUE} == $user->{TP_EXPIRE}) {
-            if ($expire_days < $user->{VALUE}) {
-              %PARAMS = (
-                DESCRIBE => "$_REPORTS",
-                MESSAGE  => "",
-                SUBJECT  => "$_DEPOSIT"
-                );
-            }
-            else {
-              next;
-            }
+          if ($user->{EXPIRE_DAYS} <= $user->{VALUE}) {
+            %PARAMS = (
+              DESCRIBE => "$_REPORTS",
+              MESSAGE  => "",
+              SUBJECT  => "$_DEPOSIT"
+            );
+          }
+          else {
+            next;
           }
         }
         #15 Dv change status

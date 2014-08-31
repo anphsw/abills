@@ -23,6 +23,11 @@
 <tr><th colspan=2 class='title_color'>$_OTHER</th></tr>
 <TR><TD>$_MAX_ROWS:</TD><TD><input type=text name=MAX_ROWS value='%MAX_ROWS%'></TD></TR>
 <TR><TD>$_MIN_SEARCH_CHARS</TD><TD><input type=text name=MIN_SEARCH_CHARS value='%MIN_SEARCH_CHARS%'></TD></TR>
+
+<TR><TD>$_MAX $_CREDIT:</TD><TD><input type=text name=MAX_CREDIT value='%MAX_CREDIT%'></TD></TR>
+<TR><TD>$_MAX $_CREDIT $_DAYS:</TD><TD><input type=text name=CREDIT_DAYS value='%CREDIT_DAYS%'></TD></TR>
+
+
 <tr><th colspan=2 class='even'><input type=submit name='%ACTION%' value='%LNG_ACTION%'></th></tr>
 </TABLE>
 

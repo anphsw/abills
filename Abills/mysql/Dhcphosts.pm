@@ -569,10 +569,6 @@ sub hosts_list {
   my $EXT_TABLES = '';
   $self->{EXT_TABLES} = '';
 
-  if ($attr->{NAS_IP}) {
-    $EXT_TABLES .= "LEFT JOIN nas  ON  (h.nas=nas.id) ";
-  }
-
   my $WHERE =  $self->search_former($attr, [
      ['ID',              'INT', 'h.id'                         ],
      ['LOGIN',           'INT', 'u.id',   'u.id AS login'      ],
@@ -591,7 +587,8 @@ sub hosts_list {
      ['SERVER_VID',      'INT', 'h.server_vid',   1],
      ['NAS_ID',          'INT', 'h.nas AS nas_id',1],
      ['NAS_IP',          'STR', 'nas.ip',  'nas.ip AS nas_ip'],
-     ['DHCPHOSTS_EXT_DEPOSITCHECK', '', '', 'if(company.id IS NULL,ext_b.deposit,ext_cb.deposit) AS ext_deposit' ],
+     ['NAS_NAME',        'STR', 'nas.name', 'nas.name AS nas_name'],
+     ['DHCPHOSTS_EXT_DEPOSITCHECK', '', '', 'if(ext_company.id IS NULL,ext_b.deposit,ext_cb.deposit) AS ext_deposit' ],
      ['BOOT_FILE',       'STR', 'h.boot_file',   1],
      ['NEXT_SERVER',     'STR', 'h.next_server', 1],
      ['UID',             'INT', 'h.uid'          ],
@@ -619,6 +616,11 @@ sub hosts_list {
             LEFT JOIN bills ext_cb ON  (ext_company.ext_bill_id=ext_cb.id) ";
   }
 
+  if ($self->{SEARCH_FIELDS} =~ /nas\./) {
+    $EXT_TABLES .= "
+            LEFT JOIN nas ON  (nas.id=h.nas) ";
+  }
+
   $EXT_TABLES .= $self->{EXT_TABLES} if ($self->{EXT_TABLES});
 
   $SORT =~ s/ip/h.ip/;
@@ -629,10 +631,10 @@ sub hosts_list {
        h.uid,
        h.network AS network_id, 
        if ((u.expire <> '0000-00-00' && curdate() > u.expire) || (h.expire <> '0000-00-00' && curdate() > h.expire), 1, 0) AS expire
-     FROM (dhcphosts_hosts h)
-     left join dhcphosts_networks n on h.network=n.id
-     left join users u on (h.uid=u.uid)
-     left join users_pi pi on (pi.uid=u.uid)
+     FROM dhcphosts_hosts h
+     LEFT JOIN dhcphosts_networks n on h.network=n.id
+     LEFT JOIN users u on (h.uid=u.uid)
+     LEFT JOIN users_pi pi on (pi.uid=u.uid)
      $EXT_TABLES
      $WHERE
      ORDER BY $SORT $DESC 
@@ -880,12 +882,13 @@ sub log_list {
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE = $self->search_former($attr, [
-     ['MESSAGE',     'STR', 'l.message' ],
-     ['MAC',         'STR', 'l.mac'     ],
-     ['HOSTNAME',    'STR', 'l.hostname'],
-     ['ID',          'INT', 'l.id'      ],
-     ['NAS_ID',      'INT', 'nas_id'    ],
-     ['FROM_DATE|TO_DATE', 'DATE', "(date_format(l.datetime, '%Y-%m-%d')" ],
+     ['MESSAGE',     'STR', 'l.message'   ],
+     ['MAC',         'STR', 'l.mac'       ],
+     ['HOSTNAME',    'STR', 'l.hostname'  ],
+     ['ID',          'INT', 'l.id'        ],
+     ['NAS_ID',      'INT', 'nas_id'      ],
+     ['MESSAGE_TYPE','INT', 'message_type'],
+     ['FROM_DATE|TO_DATE', 'DATE', "date_format(l.datetime, '%Y-%m-%d')" ],
     ],
     { WHERE => 1,
     	WHERE_RULES => \@WHERE_RULES
@@ -905,9 +908,11 @@ sub log_list {
   undef,
   $attr);
 
-  return $self if ($self->{errno});
-
   my $list = $self->{list};
+
+  return $list if ($self->{errno});
+
+
 
   if ($self->{TOTAL} > 0) {
     $self->query2("SELECT count(*) AS total FROM dhcphosts_log l $WHERE", undef, { INFO => 1 });

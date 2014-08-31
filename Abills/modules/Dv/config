@@ -38,7 +38,7 @@ if ($permissions{0} && $permissions{0}{1}) {
   $FUNCTIONS_LIST{"20:1:$_USERS $_ADD:dv_wizard_user:"} = 11;
   if (in_array('Cards', \@MODULES)) {
     $FUNCTIONS_LIST{"21:1:$_ICARDS:dv_cards:"} = 11;
-   }   
+  }   
 }
 
 %USER_FUNCTION_LIST = ("01:0:Internet:dv_user_info:"     => 0,

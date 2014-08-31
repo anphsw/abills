@@ -30,7 +30,9 @@ use main;
 #**********************************************************
 sub new {
   my $class = shift;
-  ($db, $admin, $CONF) = @_;
+  my $db    = shift;
+  ($admin, $CONF) = @_;
+
   $admin->{MODULE} = 'Mail';
   my $self = {};
   bless($self, $class);
@@ -59,7 +61,7 @@ sub mbox_add {
     (username,  domain_id, descr, maildir, create_date, change_date, mails_limit, box_size, status, 
      uid, 
      antivirus, antispam, expire, password) values
-    ('$DATA{USERNAME}', '$DATA{DOMAIN_ID}', '$DATA{COMMENTS}', '$DATA{MAILDIR}', now(), now(), 
+    ('$DATA{USERNAME}', '$DATA{MAIL_DOMAIN_ID}', '$DATA{COMMENTS}', '$DATA{MAILDIR}', now(), now(), 
      '$DATA{MAILS_LIMIT}', '$DATA{BOX_SIZE}', '$DATA{DISABLE}', 
     '$DATA{UID}', 
     '$DATA{ANTIVIRUS}', '$DATA{ANTISPAM}', '$DATA{EXPIRE}', 
@@ -207,22 +209,31 @@ sub mbox_list {
 
   @WHERE_RULES = ();
 
-  if (defined($attr->{UID})) {
-    push @WHERE_RULES, "mb.uid='$attr->{UID}'";
-  }
-  if ($attr->{FIRST_LETTER}) {
-    push @WHERE_RULES, "mb.username LIKE '$attr->{FIRST_LETTER}%'";
-  }
+  my $WHERE =  $self->search_former($attr, [
+      ['FIO',          'STR', 'pi.fio',                  ],
+      ['USERNAME',     'INT', 'mb.username',             ],
+      ['DOMAIN',       'INT', 'mb.username',             ],
+      ['DESCR',         'STR', 'mb.descr',                ],
+      ['mails_limit',  'INT', 'mb.mails_limit',          ],
+      ['box_size',     'INT', 'mb.box_size',             ],
+      ['antivirus',    'INT', 'mb.antivirus',            ], 
+      ['antispam',     'INT', 'mb.antispam',             ],
+      ['status',       'INT', 'mb.status',               ],
+      ['create_date',  'INT', 'mb.create_date',          ],      
+    ],
+    { WHERE       => 1,
+    	WHERE_RULES => \@WHERE_RULES,
+    	USERS_FIELDS=> 1,
+    	SKIP_USERS_FIELDS=> [ 'FIO' ]
+    }    
+    );
 
-  # Show groups
-  if ($attr->{GIDS}) {
-    push @WHERE_RULES, "u.gid IN ($attr->{GIDS})";
-  }
-  elsif ($attr->{GID}) {
-    push @WHERE_RULES, "u.gid='$attr->{GID}'";
-  }
+  my $EXT_TABLES = '';
+  $EXT_TABLES = $self->{EXT_TABLES} if ($self->{EXT_TABLES});
 
-  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+  if ($self->{SEARCH_FIELDS}=~/pi\./) {
+    $EXT_TABLES .= 'LEFT JOIN users_pi pi ON (u.uid = pi.uid)';
+  }
 
   $self->query2("SELECT mb.username, md.domain, u.id, mb.descr, mb.mails_limit, 
         mb.box_size,
@@ -231,9 +242,10 @@ sub mbox_list {
         mb.create_date, mb.change_date, mb.expire, mb.maildir, 
         mb.uid, 
         mb.id
-        FROM mail_boxes mb
+      FROM mail_boxes mb
         LEFT JOIN mail_domains md ON  (md.id=mb.domain_id)
         LEFT JOIN users u ON  (mb.uid=u.uid) 
+        $EXT_TABLES
         $WHERE
         ORDER BY $SORT $DESC
         LIMIT $PG, $PAGE_ROWS;",
@@ -300,6 +312,7 @@ sub domain_change {
   );
 
   $attr->{BACKUP_MX} = (!defined($attr->{BACKUP_MX})) ? 0 : 1;
+
   $self->changes(
     $admin,
     {
@@ -469,7 +482,7 @@ sub alias_list {
   my $list = $self->{list};
 
   if ($self->{TOTAL} >= $attr->{PAGE_ROWS} || $PG > 0) {
-    $self->query2("SELECT count(*) AS totalFROM mail_aliases $WHERE", undef, { INFO => 1 });
+    $self->query2("SELECT count(*) AS total FROM mail_aliases $WHERE", undef, { INFO => 1 });
   }
 
   return $list;

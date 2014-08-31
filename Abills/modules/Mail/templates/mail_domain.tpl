@@ -1,6 +1,6 @@
 <form action='$SELF_URL' METHOD='POST'>
 <input type=hidden name=index value=$index>
-<input type=hidden name=MAIL_DOMAIN_ID value=%MAIL_DOMAIN_ID%>
+<input type=hidden name=MAIL_DOMAIN_ID value=$FORM{MAIL_DOMAIN_ID}>
 <table class=form>
 <tr><th class=form_title colspan=2>E-mail domains</th></tr>
 <tr><td>$_DOMAIN:</td><td><input type=text name=DOMAIN value='%DOMAIN%' size=40></td></tr>

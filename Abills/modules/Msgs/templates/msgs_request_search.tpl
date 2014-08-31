@@ -9,5 +9,4 @@
 <tr><td class=small></td></tr>
 <tr><td>$_FIO (*):</td><td><input type=text name=FIO value='%FIO%' size=45></td></tr>
 <tr><td>$_PHONE:</td><td><input type=text name=PHONE value='%PHONE%' size=45></td></tr>
-%ADDRESS_TPL%
 <!-- <tr><td>$_PRIORITY:</td><td>%PRIORITY_SEL%</td></tr> -->

@@ -1,32 +1,13 @@
 [%NUMBER%] ; #%FIO%
-callwaiting = yes
-cid_number  =
-email       =
-fullname    = %NUMBER%
-callerid    = \"%CALLER_ID%\" <%NUMBER%>
-host        = %HOST%
-mailbox     = %NUMBER%
-secret      = %PASSWORD%
-vmsecret    = %PASSWORD%
-group       =
-hasagent    = yes
-hasdirectory = no
-hasiax      = yes
-hasmanager  = no
-hassip      = yes
-hasvoicemail = no
-zapchan     =
-registeriax = yes
-registersip = yes
-canreinvite = no
-nat         = no
-context     =  default
-dtmfmode    = rfc2833
-disallow    = all
-allow       = alaw
-allow       = ulaw
-allow       = g729
-allow       = g726
-allow       = gsm
-threewaycalling = yes
-
+type=friend
+;canreinvite=no
+host=dynamic
+username=%NUMBER%
+secret=%PASSWORD%
+dtmfmode=rfc2833
+nat=yes
+context=default
+%FILTER_ID%
+;callerid=\"%CALLER_ID%\" <%NUMBER%>
+;allow=ulaw
+;allow=alaw

@@ -72,6 +72,8 @@ CHECK speed
   speed_expr       - Speed Expration
   SHOW_CUR_SPEED   - Show current users speed
   OS               - Local OS (Linux|FreeBSD). Optional params
+  miktorik         - check speed on mikrotik
+  accel_ppp        - push speed to accel-ppp
  PLUGINS
 $plugins
  CHECK connection Alive
@@ -256,6 +258,7 @@ sub check_lines {
   print "==> check_lines\n" if ($debug > 1);
   my $online   = $Sessions->{nas_sorted};
   my $nas_list = $Nas->list({%LIST_PARAMS, COLS_NAME => 1, COLS_UPPER=> 1 });
+  my $dub_ips  = $Sessions->{dub_ips};
 
   require Acct;
   Acct->import();
@@ -295,13 +298,17 @@ sub check_lines {
         session_hangup($nas, $online, "Change TP $online->{calls_tp_id} -> $online->{tp_num} DEPOSIT: $online->{deposit} CREDIT: $online->{credit} SESSION_SUM: $online->{session_sum} STATUS: $state SESSION_ID: $online->{acct_session_id} GUEST: $online->{guest}");
         next if ($nas->{NAS_ALIVE} > 0 && ($online->{last_alive} < $nas->{NAS_ALIVE} * $error_alive_count));
       }
-      elsif ($online->{status} == 9) {
-        session_hangup($nas, $online, "Lost session DEPOSIT: $online->{deposit} CREDIT: $online->{credit} SESSION_SUM: $online->{session_sum} STATUS: $state SESSION_ID: $online->{acct_session_id} GUEST: $online->{guest}");
+      elsif ($online->{status} == 9 && $online->{last_alive} < $nas->{NAS_ALIVE} * $error_alive_count * 2) {
+        session_hangup($nas, $online, "Lost session ($online->{status}) DEPOSIT: $online->{deposit} CREDIT: $online->{credit} SESSION_SUM: $online->{session_sum} STATUS: $state SESSION_ID: $online->{acct_session_id} GUEST: $online->{guest}");
         next;
       }
       elsif ($online->{expired} || $online->{dv_expired}) {
         session_hangup($nas, $online, "Expired $online->{expire}/$online->{dv_expire} DEPOSIT: $online->{deposit} CREDIT: $online->{credit} SESSION_SUM: $online->{session_sum} STATUS: $state SESSION_ID: $online->{acct_session_id} GUEST: $online->{guest}");
         next;
+      }
+      elsif($dub_ips->{$nas->{NAS_ID}}{$online->{client_ip}} > 1 ) {
+        session_hangup($nas, $online, "Dublicate ip: $online->{client_ip} DEPOSIT: $online->{deposit} CREDIT: $online->{credit} SESSION_SUM: $online->{session_sum} STATUS: $state SESSION_ID: $online->{acct_session_id} GUEST: $online->{guest}");
+      	next;
       }
 
       #Get stats from nas servers which don't support rad Alive
@@ -309,8 +316,10 @@ sub check_lines {
       if ($nas->{NAS_ALIVE} > 0
         && ($online->{last_alive} > $nas->{NAS_ALIVE} * $error_alive_count))
       {
-
-        if ($online->{last_alive} > ($nas->{NAS_ALIVE} * $error_alive_count * 2)) {
+        if ($nas->{NAS_TYPE} eq 'ipcad' && $online->{last_alive} >= 86400) {
+          session_hangup($nas, $online, '');
+        }
+        elsif ($online->{last_alive} > ($nas->{NAS_ALIVE} * $error_alive_count * 2) ) {
           my $ACCT_INFO = $Sessions->online_info(
             {
               NAS_ID          => $online->{nas_id},
@@ -1101,6 +1110,10 @@ sub check_speed {
     check_speed_mikrotik();
     exit;
   }
+  elsif (defined($ARGV->{accel_ppp})) {
+    check_speed_accel();
+    exit;
+  }
   elsif ($ARGV->{NEW}) {
     check_speed_linux_new();
     exit;
@@ -1264,7 +1277,6 @@ sub check_speed {
       STARTED      => '_SHOW', 
       CONNECT_INFO => '_SHOW',
       %LIST_PARAMS,
-      STATUS       => '<11',
       NAS_ID       => $LIST_PARAMS{NAS_IDS},
     }
   );
@@ -1300,6 +1312,11 @@ sub check_speed {
     my $l = $online->{ $nas_info->{nas_id} };
     foreach my $line (@$l) {
       my $user_speed   = ($TURBO_SPEEDS{ $line->{user_name} }) ? $TURBO_SPEEDS{ $line->{user_name} } : $line->{speed};
+
+      if (! defined($user_speed)){
+        next;
+      }
+
       print "$line->{user_name} IF:$line->{nas_port_id} TP:$line->{calls_tp_id} SPEED:$user_speed JOIN: $line->{join_service} IP:$line->{client_ip} UID:$line->{uid} DURATION:$line->{duration_sec} STARTED: $line->{started} \n" if ($debug > 1);
       $USER_IFACES{ $line->{user_name} } = "$line->{nas_port_id}:$line->{calls_tp_id}:$user_speed:$line->{join_service}:$line->{client_ip}:$line->{uid}:$line->{duration_sec}:$line->{CONNECT_INFO}:$line->{started}";
     }
@@ -1310,6 +1327,7 @@ sub check_speed {
     push @FW_ACTIONS, "$IPFW -q flush";
     push @FW_ACTIONS, "$IPFW -q pipe flush";
     push @FW_ACTIONS, "$IPFW -q table $users_table_number flush";
+    push @FW_ACTIONS, "$IPFW -q table ". ($users_table_number+1). " flush";
 
     #Make pipe forward rules for traffic class
     for (my $i = 0 ; $i <= $#START_FW ; $i++) {
@@ -2084,41 +2102,43 @@ sub check_ifaces {
   }
 
   my $unallow_ips = 0;
-  while (my ($ip_address, $info) = each %$ip_pid_hash) {
-    my ($pid, $iface) = split(/:/, $info, 2);
-    if ($conf{DV_PPP_UNCHECKED}) {
-      next if ($ip_address =~ /$conf{DV_PPP_UNCHECKED}/);
-    }
+  while (my ($ip_address, $info_arr) = each %$ip_pid_hash) {
+    foreach my $info ( @$info_arr ) {
+      my ($pid, $iface, $extra) = split(/:/, $info, 3);
+      if ($conf{DV_PPP_UNCHECKED}) {
+        next if ($ip_address =~ /$conf{DV_PPP_UNCHECKED}/);
+      }
 
-    my $res = '';
-    if ($attr->{MPD}) {
-      if ($debug < 5) {
-        my $ret = hangup(
-          $nas_info,
-          "0", 
-          "",
-          {
-            ACCT_SESSION_ID   => "",
-            FRAMED_IP_ADDRESS => $ip_address,
-            IFACE             => "ng$iface",
-            LOCAL_HANGUP      => 1
-          }
-        );
+      my $res = '';
+      if ($attr->{MPD}) {
+        if ($debug < 5) {
+          my $ret = hangup(
+            $nas_info,
+            "0", 
+            "",
+            {
+              ACCT_SESSION_ID   => "",
+              FRAMED_IP_ADDRESS => $ip_address,
+              IFACE             => "ng$iface",
+              LOCAL_HANGUP      => 1
+            }
+          );
+        }
+        else {
+
+        }
+      }
+      elsif ($pid > 0) {
+        $res = `/bin/kill -9 $pid; /sbin/ifconfig tun$iface delete down`;
       }
       else {
-        
+        $res = `/sbin/ifconfig tun$iface delete down`;
       }
-    }
-    elsif ($pid > 0) {
-      $res = `/bin/kill -9 $pid; /sbin/ifconfig tun$iface delete down`;
-    }
-    else {
-      $res = `/sbin/ifconfig tun$iface delete down`;
-    }
-    print "Killed IP: $ip_address IF: $iface PID: '$pid' -- $res ($DATE $TIME)\n";
+      print "Killed IP: $ip_address IF: $iface PID: '$pid' -- $res ($DATE $TIME)\n";
 
-    get_pid_info($pid) if (-f "/var/log/ppp.log" && $pid > 0);
-    $unallow_ips++;
+      get_pid_info($pid) if (-f "/var/log/ppp.log" && $pid > 0);
+      $unallow_ips++;
+    }
   }
 
   print "Unallow ips: $unallow_ips\n" if ($debug > 1);
@@ -2131,11 +2151,18 @@ sub get_db_info {
   my ($ip_pid_hash) = @_;
 
   $Sessions->{debug} = 1 if ($debug > 4);
-  my $list = $Sessions->online({ CLIENT_IP => '_SHOW', NAS_ID => $LIST_PARAMS{NAS_IDS} });
+  my $list = $Sessions->online({ CLIENT_IP => '_SHOW', 
+  	                             PORT      => '_SHOW',
+  	                             NAS_ID    => $LIST_PARAMS{NAS_IDS} });
 
   foreach my $line (@$list) {
     my $ip = $line->{client_ip};
     print "exist: $ip\n" if ($debug > 3);
+
+    if($#{ $ip_pid_hash->{$ip} } > 0) {
+    	next;
+    }
+
     delete $ip_pid_hash->{$ip};
   }
 }
@@ -2181,7 +2208,7 @@ sub get_if_info {
         chomp($pid);
 
         print "$tunnum $addr $pid\n" if ($debug > 0);
-        $ip_pid_hash{"$addr"} = "$pid:$tunnum";
+        push @{ $ip_pid_hash{"$addr"} }, "$pid:$tunnum";
       }
     }
     close(IFC);
@@ -2189,7 +2216,7 @@ sub get_if_info {
 
   #mpd5
   elsif ($attr->{MPD}) {
-    open(IFC, "$IFCONFIG |") || die "Can't open file '$IFCONFIG' $!";
+    open(IFC, "$IFCONFIG |") || die "Can't open file '$IFCONFIG' $!\n";
     while (my $l = <IFC>) {
       $ifconfig .= $l;
     }
@@ -2199,7 +2226,7 @@ sub get_if_info {
       my $if   = $1;
       my $addr = $2;
       my $pid  = 0;
-      $ip_pid_hash{"$addr"} = "$pid:$if";
+      push @{ $ip_pid_hash{"$addr"} }, "$pid:$if";
     }
   }
 
@@ -2235,7 +2262,7 @@ sub get_if_info {
         next;
       }
       else {
-        $ip_pid_hash{"$addr"} = "$pid:$tunnum";
+        push @{ $ip_pid_hash{"$addr"} }, "$pid:$tunnum";
       }
       print "$tunnum $addr $pid\n" if ($debug > 0);
     }
@@ -2516,30 +2543,20 @@ sub check_speed_mikrotik {
   my ($attr) = @_;
 
   if (!$LIST_PARAMS{NAS_IDS}) {
-    $LIST_PARAMS{TYPE} = 'mikrotik';
+    $LIST_PARAMS{TYPE} = 'mikrotik,mikrotik_dhcp';
   }
   
   my $mikrotik_cmd_log = "$log_dir/mikrotik_cmd.log";
   
   my $result   = '';
-  #Get TP speed
-  my %TARIF_SPEEDS = ();
-  my %class2nets   = ();
-  $Dv->{debug}=1 if ($debug>6);
-  my $list         = $Dv->get_speed({ CHECK_NETS => 1 ,
-                                      TP_ID      => $ARGV->{TP_ID} || undef,
-                                      COLS_NAME  => 1
-                                      });
-
   my $parent_in='global-in';
   my $parent_out='global-out';
 
-  foreach my $line (@$list) {
-    print "TP ID: $line->{tp_id} $line->{tp_num} TT: $line->{tt_id} IN: $line->{in_speed} OUT: $line->{out_speed}\n" if ($debug > 1);
-    $TARIF_SPEEDS{ $line->{tp_id} }{ $line->{tt_id} }{IN}  = $line->{in_speed};
-    $TARIF_SPEEDS{ $line->{tp_id} }{ $line->{tt_id} }{OUT} = $line->{out_speed};
-    $class2nets{ $line->{tp_id} }{ $line->{tt_id} }        = $line->{net_id};
-  }
+  #Get TP speed
+  my ($TARIF_SPEEDS, $class2nets)=get_tp_cure_speed($attr);
+
+  my %TARIF_SPEEDS = %{ $TARIF_SPEEDS };
+  my %class2nets   = %{ $class2nets };
 
   $Nas->{debug} = 1 if ($debug > 5);
   my $nas_list = $Nas->list({%LIST_PARAMS, COLS_NAME => 1, COLS_UPPER => 1 });
@@ -2627,8 +2644,8 @@ Flags: X - disabled, I - invalid
       foreach my $traf_type (sort keys %$speeds) {
         
         my $speed     = $speeds->{$traf_type};
-        my $speed_in  = (defined($speed->{IN})) ? $speed->{IN} * 1024 : 0;
-        my $speed_out = (defined($speed->{OUT})) ? $speed->{OUT} * 1024 : 0;
+        my $speed_in  = (defined($speed->{IN})) ? $speed->{IN} * 1000 : 0;
+        my $speed_out = (defined($speed->{OUT})) ? $speed->{OUT} * 1000 : 0;
         my $priority  = 5 - $traf_type;
         print "Add shaper: TP_ID: $tp_id Class: $traf_type\n" if ($debug > 0);
         #Global Shapper
@@ -2637,13 +2654,13 @@ Flags: X - disabled, I - invalid
 
           if (! $count->[0] || $count->[0] == 0) {
             push @commands,
-              "/ip firewall mangle add chain=forward action=mark-packet new-packet-mark=ALLOW_TRAFFIC_CLASS_" . $tp_id . '_in' . " passthrough=yes src-address-list=CLIENTS_$tp_id dst-address=0.0.0.0/0";
+              "/ip firewall mangle add chain=forward action=mark-packet new-packet-mark=ALLOW_TRAFFIC_CLASS_" . $tp_id . '_out' . " passthrough=yes src-address-list=CLIENTS_$tp_id dst-address=0.0.0.0/0";
             push @commands,
               "/ip firewall mangle add chain=forward action=mark-packet new-packet-mark=ALLOW_TRAFFIC_CLASS_" 
-              . $tp_id . '_out'
+              . $tp_id . '_in'
               . " passthrough=yes src-address=0.0.0.0/0 dst-address-list=CLIENTS_$tp_id";
-            push @commands, "/queue type add name=\"" . 'TP_' . $tp_id . "_in_global_speed\" kind=pcq pcq-rate=$speed_out pcq-classifier=src-address ";
-            push @commands, "/queue type add name=\"" . 'TP_' . $tp_id . "_out_global_speed\" kind=pcq pcq-rate=$speed_in pcq-classifier=dst-address ";
+            push @commands, "/queue type add name=\"" . 'TP_' . $tp_id . "_in_global_speed\" kind=pcq pcq-rate=$speed_out pcq-classifier=dst-address ";
+            push @commands, "/queue type add name=\"" . 'TP_' . $tp_id . "_out_global_speed\" kind=pcq pcq-rate=$speed_in pcq-classifier=src-address ";
             push @commands,
               "/queue tree add name=\"" . 'TP_' . $tp_id . "_in_global\" parent=$parent_out queue=\"" . 'TP_' . $tp_id . "_in_global_speed\" packet-mark=ALLOW_TRAFFIC_CLASS_" . $tp_id . '_in' . " priority=$priority burst-limit=0 burst-threshold=0 burst-time=0s";
             push @commands,
@@ -2702,24 +2719,27 @@ Flags: X - disabled, I - invalid
      if ($ARGV->{NAT}) {
        my $skip_nat_ips = ($ARGV->{SKIP_NAT_IPS}) ? " dst-address=!$ARGV->{SKIP_NAT_IPS}" : '';
        push @commands, qq{/ip firewall nat add chain=srcnat action=masquerade $skip_nat_ips src-address-list=CLIENTS_$tp_id };
+       
+       print qq{/ip firewall nat add chain=srcnat action=masquerade $skip_nat_ips src-address-list=CLIENTS_$tp_id };
      }
     }
 
     #Add/Check Nets
-    $list = $Tariffs->traffic_class_list();
+    my $list = $Tariffs->traffic_class_list();
     foreach my $line (@$list) {
       my $id   = $line->[0];
       my $nets = $line->[2];
       $count   = get_mikrotik_value(qq{/ip firewall address-list print count-only where list=TRAFFIC_CLASS_$id }, $nas_info);
-      if (!$count->[0] || $count->[0] == 0) {
 
-        #Add traffic_class nets
-        my @nets_arr = ();
-        $nets =~ s/[\r\n]+//g;
-        $nets =~ s/;/,/g;
-        $nets =~ s/ //g;
-        @nets_arr = split(/,/, $nets);
-        foreach my $address (@nets_arr) {
+      #Add traffic_class nets
+      my @nets_arr = ();
+      $nets =~ s/[\r\n]+//g;
+      $nets =~ s/;/,/g;
+      $nets =~ s/ //g;
+      @nets_arr = split(/,/, $nets);
+
+      if (!$count->[0] || $count->[0] < $#nets_arr+1 ) {
+         foreach my $address (@nets_arr) {
           push @commands, qq{ /ip firewall address-list add list=TRAFFIC_CLASS_$id address=$address };
         }
       }
@@ -2752,19 +2772,119 @@ sub get_tp_cure_speed {
   $Dv->{debug}=1 if ($debug>6);
   my $list         = $Dv->get_speed({ CHECK_NETS => 1 ,
                                       TP_ID      => $ARGV->{TP_ID} || undef,
-                                      COLS_NAME  => 1
+                                      COLS_NAME  => 1,
+                                      LOGIN      => $ARGV->{LOGINS}
                                       });
 
   foreach my $line (@$list) {
-    print "TP ID: $line->{tp_id} $line->{tp_num} $line->{tt_id} $line->{in_speed} $line->{out_speed}\n" if ($debug > 1);
-    $TARIF_SPEEDS{ $line->{tp_id} }{ $line->{tt_id} }{IN}  = $line->{in_speed};
-    $TARIF_SPEEDS{ $line->{tp_id} }{ $line->{tt_id} }{OUT} = $line->{out_speed};
+    print "TP ID: $line->{tp_id} $line->{tp_num} TT: $line->{tt_id} IN: $line->{in_speed} OUT: $line->{out_speed}\n" if ($debug > 1);
+    $TARIF_SPEEDS{ $line->{tp_id} }{ $line->{tt_id} }{IN}  = ($conf{octets_direction} && $conf{octets_direction} eq 'server') ? $line->{in_speed} : $line->{out_speed};
+    $TARIF_SPEEDS{ $line->{tp_id} }{ $line->{tt_id} }{OUT} = ($conf{octets_direction} && $conf{octets_direction} eq 'server') ? $line->{out_speed} : $line->{in_speed};
     $class2nets{ $line->{tp_id} }{ $line->{tt_id} }        = $line->{net_id};
   }
  
   return \%TARIF_SPEEDS, \%class2nets; 
 }
 
+#**********************************************************
+# Manage accel-ppp bandwidth
+# 3 type of actions
+#  up
+#  down
+#  check
+#**********************************************************
+sub check_speed_accel {
+  my ($attr) = @_;
+  my $result = '';
+
+  if ($debug > 3) {
+  	print "Check speed accel-ppp\n";
+  }
+
+  my ($TARIF_SPEEDS, $class2nets)=get_tp_cure_speed($attr);
+
+  if ($ARGV->{LOGINS}) {
+    $LIST_PARAMS{USER_NAME} = $ARGV->{LOGINS};
+  }
+
+  $Sessions->online(
+    {
+      USER_NAME    => '_SHOW', 
+      NAS_PORT_ID  => '_SHOW', 
+      CALLS_TP_ID  => '_SHOW', 
+      SHOW_TP_ID   => '_SHOW',
+      SPEED        => '_SHOW', 
+      JOIN_SERVICE => '_SHOW', 
+      CLIENT_IP    => '_SHOW', 
+      DURATION_SEC => '_SHOW', 
+      STARTED      => '_SHOW', 
+      CONNECT_INFO => '_SHOW',
+      ACCT_SESSION_ID=>'_SHOW',
+      %LIST_PARAMS,
+      NAS_ID       => $LIST_PARAMS{NAS_IDS},
+    }
+  );
+  
+  if ($Sessions->{errno}) {
+    print "$Sessions->{error} $Sessions->{err_str}\n";
+    exit;
+  }
+
+  # Check turbo mode
+  my %TURBO_SPEEDS = ();
+  if ($conf{DV_TURBO_MODE}) {
+    require "Turbo.pm";
+    Turbo->import();
+    my $Turbo = Turbo->new($db, $Admin, \%conf);
+    my $list = $Turbo->list({ ACTIVE => 1, });
+
+    foreach my $line (@$list) {
+      $TURBO_SPEEDS{ $line->[0] } = $line->[5];
+    }
+  }
+
+  my $online      = $Sessions->{nas_sorted};
+  my $nas_list    = $Nas->list({%LIST_PARAMS, COLS_NAME => 1 });
+
+  my $NAS_TYPE = '';
+
+  foreach my $nas_info (@$nas_list) {
+    next if (!$online->{ $nas_info->{nas_id} });
+    $NAS_TYPE = $nas_info->{nas_type} || '';
+
+    my $l = $online->{ $nas_info->{nas_id} };
+    foreach my $line (@$l) {
+      my $user_speed   = ($TURBO_SPEEDS{ $line->{user_name} }) ? $TURBO_SPEEDS{ $line->{user_name} } : $line->{speed};
+     
+      my $speed_in  = ($user_speed > 0) ? $user_speed : ($TARIF_SPEEDS->{$line->{real_tp_id}}->{0}->{IN} || 0);
+      my $speed_out = ($user_speed > 0) ? $user_speed : ($TARIF_SPEEDS->{$line->{real_tp_id}}->{0}->{OUT} || 0);
+
+      print "$line->{user_name} IF:$line->{nas_port_id} TP:$line->{real_tp_id} SPEED:$speed_in/$speed_out JOIN: $line->{join_service} IP:$line->{client_ip} UID:$line->{uid} DURATION:$line->{duration_sec} STARTED: $line->{started} \n" if ($debug > 1);
+
+      my $ret = setspeed(
+              { NAS_TYPE        => $nas_info->{nas_type},
+              	NAS_MNG_IP_PORT => $nas_info->{nas_mng_ip_port},
+                NAS_MNG_PASSWORD=> $nas_info->{nas_mng_password}
+              	},
+              "$line->{nas_port_id}",
+              "$line->{user_name}",
+              $speed_in,
+              $speed_out,
+              {
+                ACCT_SESSION_ID   => $line->{acct_session_id},
+                FRAMED_IP_ADDRESS => $line->{client_ip},
+                UID               => $line->{uid},
+                debug             => $debug
+              }
+            );
+
+      print "Change speed: $online->{user_name} SESSION_ID: $online->{acct_session_id}, SPEED: $speed_in/$speed_out"
+            . (($ret > -1) ? ", ERROR: $ret" : "")
+            . "\n" if ($debug > 0);
+    }
+  }
+
+}
 
 
 #**********************************************************

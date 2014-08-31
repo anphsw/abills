@@ -29,6 +29,7 @@ CREATE TABLE `bonus_service_discount` (
   `bonus_sum` double(10,2) NOT NULL default '0.00',
   `bonus_percent` double(10,2) NOT NULL default '0.00',
   `ext_account` tinyint(1) unsigned NOT NULL default '0',
+  `pay_method` tinyint(4) NOT NULL default '0',
   PRIMARY KEY  (`id`)
 ) COMMENT "Bonus service discount"  ;
 

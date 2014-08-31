@@ -30,6 +30,7 @@ sub new {
   bless($self, $class);
   $CONF->{DOCS_ACCOUNT_EXPIRE_PERIOD} = 30 if (!$CONF->{DOCS_ACCOUNT_EXPIRE_PERIOD});
   $CONF->{DOCS_INVOICE_ORDERS}=12 if (! $CONF->{DOCS_INVOICE_ORDERS});
+  $CONF->{DOCS_ACCOUNT_EXPIRE_DAY}=0 if (! $CONF->{DOCS_ACCOUNT_EXPIRE_DAY});
   
   $self->{db}=$db;
   
@@ -451,6 +452,7 @@ sub invoices_list {
     $attr->{UNPAIMENT}=$attr->{PAID_STATUS};
   }
 
+  my $HAVING = '';
   if ($attr->{UNPAIMENT}) {
     my $st = '<>';
     if ($attr->{UNPAIMENT} == 2) {
@@ -460,10 +462,11 @@ sub invoices_list {
         (SELECT sum(orders.counts*orders.price) FROM docs_invoice_orders orders WHERE orders.invoice_id=d.id)))" . (( $attr->{ID} ) ? "d.id='$attr->{ID}'" : '');
     }
     else {
-      push @WHERE_RULES, "(i2p.sum IS NULL OR 
-       ( (SELECT sum(sum) FROM  docs_invoice2payments WHERE invoice_id=d.id)
-       <>
-        (SELECT sum(orders.counts*orders.price) FROM docs_invoice_orders orders WHERE orders.invoice_id=d.id)))" . (( $attr->{ID} ) ? "d.id='$attr->{ID}'" : '');
+#      push @WHERE_RULES, "(i2p.sum IS NULL OR 
+#       ( (SELECT sum(sum) FROM  docs_invoice2payments WHERE invoice_id=d.id)
+#       <>
+#        (SELECT sum(orders.counts*orders.price) FROM docs_invoice_orders orders WHERE orders.invoice_id=d.id)))" . (( $attr->{ID} ) ? "d.id='$attr->{ID}'" : '');
+       $HAVING = "HAVING total_sum - if(payment_sum<>'', payment_sum, 0)  > 0";
     }
   }
 
@@ -504,11 +507,20 @@ sub invoices_list {
 
   my $EXT_TABLES  = $self->{EXT_TABLES};
 
+  if ($self->{SEARCH_FIELDS} =~ /p\./) {
+  	$EXT_TABLES .= " 	
+  	LEFT JOIN docs_invoice2payments i2p ON (d.id=i2p.invoice_id)
+    LEFT JOIN payments p ON (i2p.payment_id=p.id)  	
+  	";
+  }
+
   $self->query2("SELECT d.invoice_num, 
      d.date, 
      if(d.customer='-' or d.customer='', pi.fio, d.customer) AS customer,
-     if (i2p.sum IS NULL, sum(o.price * o.counts),  sum(o.price * o.counts) /count( DISTINCT i2p.payment_id)) AS total_sum, 
-     if (i2p.payment_id IS NOT NULL, sum(i2p.sum), 0) / count(DISTINCT o.orders) AS payment_sum,
+     sum(o.price * o.counts) AS total_sum, 
+     (SELECT sum(i2p.sum) FROM docs_invoice2payments i2p
+              WHERE d.id=i2p.invoice_id
+      ) AS payment_sum,
      $self->{SEARCH_FIELDS}
      d.payment_id,
      d.uid, 
@@ -518,11 +530,10 @@ sub invoices_list {
     LEFT JOIN users u ON (d.uid=u.uid)
     LEFT JOIN admins a ON (d.aid=a.aid)
     LEFT JOIN users_pi pi ON (pi.uid=u.uid)
-    LEFT JOIN docs_invoice2payments i2p ON (d.id=i2p.invoice_id)
-    LEFT JOIN payments p ON (i2p.payment_id=p.id)
     $EXT_TABLES
     $WHERE
-    GROUP BY d.id, i2p.invoice_id 
+    GROUP BY d.id
+    $HAVING
     ORDER BY $SORT $DESC
     LIMIT $PG, $PAGE_ROWS;",
     undef,
@@ -534,18 +545,16 @@ sub invoices_list {
   
   $self->query2("SELECT count(distinct d.id) AS total_invoices,
      count(distinct d.uid) AS total_users,
-     \@total_sum := if (i2p.sum IS NULL, sum(o.price * o.counts), sum(o.price * o.counts)) AS total_sum, 
-     \@payment_sum := sum(DISTINCT i2p.sum) AS payment_sum,
-     1
+     SUM((SELECT SUM(o.price * o.counts) FROM docs_invoice_orders o WHERE o.invoice_id=d.id)) AS total_sum, 
+     SUM((SELECT SUM(i2p.sum)  FROM docs_invoice2payments i2p
+         WHERE d.id=i2p.invoice_id
+      )) AS payment_sum
     FROM docs_invoices d
-    INNER JOIN docs_invoice_orders o ON (o.invoice_id=d.id)
     LEFT JOIN users u ON (d.uid=u.uid)
     LEFT JOIN admins a ON (d.aid=a.aid)
     LEFT JOIN companies company ON (u.company_id=company.id)
-    LEFT JOIN docs_invoice2payments i2p ON (d.id=i2p.invoice_id)
-    LEFT JOIN payments p ON (i2p.payment_id=p.id)
     $WHERE
-    GROUP BY 5",
+    ",
     undef,
     { INFO => 1 }
   );
@@ -586,21 +595,23 @@ sub docs_nextid {
 
   my $sql = '';
 
+  my $date = ($attr->{DATE} =~ /\d{4}-\d{2}-\d{2}/) ? "'$attr->{DATE}'" : 'curdate()';
+
   if ($attr->{TYPE} eq 'INVOICE') {
     $sql = "SELECT max(d.invoice_num), count(*) FROM docs_invoices d
-     WHERE YEAR(date)=YEAR(curdate());";
+     WHERE YEAR(date)=YEAR($date);";
   }
   elsif ($attr->{TYPE} eq 'RECEIPT') {
     $sql = "SELECT max(d.receipt_num), count(*) FROM docs_receipts d
-     WHERE YEAR(date)=YEAR(curdate());";
+     WHERE YEAR(date)=YEAR($date);";
   }
   elsif ($attr->{TYPE} eq 'TAX_INVOICE') {
     $sql = "SELECT max(d.tax_invoice_id), count(*) FROM docs_tax_invoices d
-     WHERE YEAR(date)=YEAR(curdate());";
+     WHERE YEAR(date)=YEAR($date);";
   }
   elsif ($attr->{TYPE} eq 'ACT') {
     $sql = "SELECT max(d.act_id), count(*) FROM docs_acts d
-     WHERE YEAR(date)=YEAR(curdate());";
+     WHERE YEAR(date)=YEAR($date);";
   }
 
   $self->query2("$sql");
@@ -707,7 +718,7 @@ sub invoice_add {
   my @invoice_num_arr = ();
 
   while( $order_number <= $orders ) {
-    $DATA{INVOICE_NUM} = ($attr->{INVOICE_NUM}) ? $attr->{INVOICE_NUM} : $self->docs_nextid({ TYPE => 'INVOICE' });
+    $DATA{INVOICE_NUM} = ($attr->{INVOICE_NUM}) ? $attr->{INVOICE_NUM} : $self->docs_nextid({ TYPE => 'INVOICE', %$attr });
     return $self if ($self->{errno});
 
     $self->query2("INSERT INTO docs_invoices (invoice_num, date, created, customer, phone, aid, uid, payment_id, vat, deposit, 
@@ -808,7 +819,8 @@ sub invoice_info {
    if (d.phone<>0, d.phone, pi.phone) AS phone,
    pi.contract_id,
    pi.contract_date,
-   d.date + interval $CONF->{DOCS_ACCOUNT_EXPIRE_PERIOD} day AS expire_date,
+   if($CONF->{DOCS_ACCOUNT_EXPIRE_DAY}>0, date_format(d.date, '%Y-%m-$CONF->{DOCS_ACCOUNT_EXPIRE_DAY}')
+       ,d.date + interval $CONF->{DOCS_ACCOUNT_EXPIRE_PERIOD} day) AS expire_date,
    u.company_id,
    c.name company_name,
    d.payment_id,
@@ -820,7 +832,10 @@ sub invoice_info {
    d.currency,
    \@CHARGED := sum(if (o.fees_id>0, o.price * o.counts, 0)) AS charged_sum,
    \@TOTAL_SUM - \@CHARGED AS pre_payment,
-   c.phone AS company_phone
+   c.phone AS company_phone,
+   (SELECT sum(i2p.sum) FROM docs_invoice2payments i2p
+              WHERE d.id=i2p.invoice_id
+      ) AS payment_sum
     FROM (docs_invoices d, docs_invoice_orders o)
     LEFT JOIN users u ON (d.uid=u.uid)
     LEFT JOIN companies c ON (u.company_id=c.id)
@@ -1182,7 +1197,6 @@ sub acts_list {
   $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
-
   my $WHERE =  $self->search_former($attr, [
       ['UID',            'INT', 'd.uid'                               ],
       ['SUM',            'INT', 'd.sum'                               ],
@@ -1195,15 +1209,20 @@ sub acts_list {
       ['FROM_DATE|TO_DATE','DATE', "date_format(d.date, '%Y-%m-%d')"   ],
     ],
     { WHERE       => 1,
-    	WHERE_RULES => \@WHERE_RULES,
     	USERS_FIELDS=> 1
     }    
     );
 
-  $self->query2("SELECT d.act_id, d.date, c.name, d.sum, a.name, d.created, d.uid, d.company_id, d.id
-    FROM (docs_acts d)
-    LEFT JOIN companies c ON (d.company_id=c.id)
+  $self->query2("SELECT d.act_id, d.date, company.name AS company_name, 
+      d.sum, 
+      a.name AS admin_name, 
+      d.created, d.uid, d.company_id, d.id
+    FROM docs_acts d
+    LEFT JOIN companies company  ON (d.company_id=company.id)
+    LEFT JOIN users u ON (u.company_id=company.id)
     LEFT JOIN admins a ON (d.aid=a.aid)
+      LEFT JOIN bills b ON (u.bill_id = b.id)
+      LEFT JOIN bills cb ON (company.bill_id=cb.id)
     $WHERE
     GROUP BY d.act_id 
     ORDER BY $SORT $DESC
@@ -1217,8 +1236,11 @@ sub acts_list {
   my $list = $self->{list};
 
   $self->query2("SELECT count(DISTINCT d.act_id) AS total, sum(d.sum) AS sum
-    FROM (docs_acts d)
-    LEFT JOIN companies c ON (d.company_id=c.id)
+    FROM docs_acts d
+      LEFT JOIN companies company ON (d.company_id=company.id)
+      LEFT JOIN users u ON (u.company_id=company.id)
+      LEFT JOIN bills b ON (u.bill_id = b.id)
+      LEFT JOIN bills cb ON (company.bill_id=cb.id)
     $WHERE",
     undef, { INFO => 1 }
   );
@@ -1327,7 +1349,7 @@ sub act_change {
 
 #**********************************************************
 # User information
-# info()
+# user_info()
 #**********************************************************
 sub user_info {
   my $self = shift;
@@ -1345,7 +1367,7 @@ sub user_info {
    service.personal_delivery,
    service.invoicing_period,
    service.invoice_date,
-   if (u.activate='0000-00-00',  service.invoice_date + INTERVAL service.invoicing_period MONTH - INTERVAL $CONF->{DOCS_PRE_INVOICE_PERIOD} day, service.invoice_date + INTERVAL 30*service.invoicing_period+service.invoicing_period DAY - INTERVAL $CONF->{DOCS_PRE_INVOICE_PERIOD} day) AS next_invoice_date
+   if (u.activate='0000-00-00'  or '$CONF->{FIXED_FEES_DAY}' <> '',  service.invoice_date + INTERVAL service.invoicing_period MONTH - INTERVAL $CONF->{DOCS_PRE_INVOICE_PERIOD} day, service.invoice_date + INTERVAL 30*service.invoicing_period+service.invoicing_period DAY - INTERVAL $CONF->{DOCS_PRE_INVOICE_PERIOD} day) AS next_invoice_date
      FROM docs_main service
    INNER JOIN users u ON (u.uid=service.uid) 
    $WHERE;", undef, { INFO => 1 }
@@ -1427,7 +1449,7 @@ sub user_list {
 
   $CONF->{DOCS_PRE_INVOICE_PERIOD}=10 if (! defined($CONF->{DOCS_PRE_INVOICE_PERIOD}));
   
-  my @WHERE_RULES = ( "u.uid=service.uid" );
+  my @WHERE_RULES = (  );
 
   if ($attr->{PRE_INVOICE_DATE}) {
     if ($attr->{PRE_INVOICE_DATE} =~ /(\d{4}-\d{2}-\d{2})\/(\d{4}-\d{2}-\d{2})/) {
@@ -1444,7 +1466,7 @@ sub user_list {
            AND service.invoice_date + INTERVAL 30*service.invoicing_period+service.invoicing_period-1 DAY - INTERVAL $CONF->{DOCS_PRE_INVOICE_PERIOD} day<='$to_date' 
       ))";      
     }
-    else {
+    elsif($attr->{PRE_INVOICE_DATE} ne '_SHOW') {
        push @WHERE_RULES,  '('. @{ $self->search_expr("$attr->{PRE_INVOICE_DATE}", "DATE","u.activate='0000-00-00' AND service.invoice_date + INTERVAL service.invoicing_period MONTH - INTERVAL $CONF->{DOCS_PRE_INVOICE_PERIOD} day") }[0] . ' OR '. 
        @{ $self->search_expr("$attr->{PRE_INVOICE_DATE}", "DATE", "u.activate<>'0000-00-00' AND service.invoice_date + INTERVAL 30*service.invoicing_period+service.invoicing_period DAY - INTERVAL $CONF->{DOCS_PRE_INVOICE_PERIOD} day") }[0] .')';
     }
@@ -1479,16 +1501,16 @@ sub user_list {
      service.invoice_date, 
      if(u.activate='0000-00-00', 
        service.invoice_date + INTERVAL service.invoicing_period MONTH,
-       service.invoice_date + INTERVAL 30*service.invoicing_period+service.invoicing_period-1 DAY) - INTERVAL 10 day AS pre_invoice_date,
+       service.invoice_date + INTERVAL 30*service.invoicing_period+service.invoicing_period-1 DAY) - INTERVAL $CONF->{DOCS_PRE_INVOICE_PERIOD} day AS pre_invoice_date,
      service.invoicing_period,  
      (service.invoice_date + INTERVAL service.invoicing_period MONTH) AS next_invoice_date,     
+     $self->{SEARCH_FIELDS}
      service.email, 
      service.send_docs,
-     service.uid,
-     $self->{SEARCH_FIELDS}
-     u.activate
-   FROM (users u, docs_main service)
-   
+     u.activate,
+     service.uid
+   FROM users u
+   INNER JOIN docs_main service ON (u.uid=service.uid)
    LEFT JOIN users_pi pi ON (u.uid = pi.uid)
    LEFT JOIN bills b ON (u.bill_id = b.id)
    LEFT JOIN companies company ON  (u.company_id=company.id) 

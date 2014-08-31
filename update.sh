@@ -6,7 +6,7 @@
 
 
 
-VERSION=1.03;
+VERSION=1.08;
 
 #ABillS Rel Version
 REL_VERSION="rel-0-5";
@@ -127,17 +127,18 @@ if [ x${OS} = xFreeBSD ]; then
   #}
 elif [ x${OS} = xLinux ]; then
    #CPU=`grep -i  "MHz proc" /var/log/dmesg |awk '{print $2, $3}'`
-   CPU=`cat /proc/cpuinfo |egrep '(model name|cpu MHz)' | sed 's/.*\: //'|paste -s`
+   # Model and current speed
+   #CPU=`cat /proc/cpuinfo |egrep '(model name|cpu MHz)' | sed 's/.*\: //'|paste -s`
+   CPU_COUNT=" ("`expr \`cat /proc/cpuinfo | grep 'processor' | tail -1 | sed 's/.*\: //'\` + 1`")";
+   CPU=`cat /proc/cpuinfo |egrep '(model name)' | tail -1 |sed 's/.*\: //'|paste -s`
    INTERFACES=`lspci -mm |grep Ethernet |cut -f4- -d " "`
    RAM=`free -mo |grep Mem |awk '{print $2}'`
    VGA=`lspci |grep VGA |cut -f5- -d " "`
    hdd_size=`fdisk -l |head -2 |tail -1|awk '{print $3,$4}'|sed 's/,//'`
    hdd_system_name=`fdisk -l | head -2 | tail -1 |awk '{ print $2 }' | sed 's/://'`
    if [ ! -f '/sbin/hdparm' ]; then
-     if [ "${OS_NAME}" = 'Debian' ]; then
-       apt-get install hdparm
-     elif [ "${OS_NAME}" = 'Ubuntu' ]; then
-       apt-get install hdparm
+     if [ "${OS_NAME}" = 'Debian' -o "${OS_NAME}" = 'Ubuntu' ]; then
+       _install hdparm
      fi;
    fi;
 
@@ -145,7 +146,7 @@ elif [ x${OS} = xLinux ]; then
    hdd_serial=`hdparm -I ${hdd_system_name} |grep Serial |awk -F ":" '{print $2}' |tr -cs -`
 fi;
 
-sys_info="${CPU}^${RAM}^${VGA}^${hdd_model}^${hdd_serial}^${hdd_size}^${OS}^${OS_VERSION}^${OS_NAME}${INTERFACES}"
+sys_info="${CPU}${CPU_COUNT}^${RAM}^${VGA}^${hdd_model}^${hdd_serial}^${hdd_size}^${OS}^${OS_VERSION}^${OS_NAME}^${INTERFACES}"
 CHECKSUM=`echo "${sys_info}" | ${MD5} | awk '{print $1 }'`
 
 if [ x"${REGISTRATION}" != x ]; then
@@ -174,7 +175,7 @@ fi;
 
 
 SYSTEM_INFO="System information
-  CPU    -    ${CPU} MHz
+  CPU    -    ${CPU} ${CPU_COUNT}
   RAM    -    ${RAM} Mb
   VGA    -    ${VGA}
               manufacture: ${VGA_vendor}
@@ -259,24 +260,41 @@ fi;
 
 
 #**********************************************
-# Update SQL Section
-#
+# get sql access params
 #**********************************************
-update_sql () {
-  
+sql_get_conf () {
+
   if [ ! -f ${BILLING_DIR}/libexec/config.pl ]; then
     return 0;
   fi;
   
-DB_USER=`cat ${BILLING_DIR}/libexec/config.pl |grep '^$conf{dbuser}' |awk -F"'" '{print $2}'`
-DB_PASSWD=`cat ${BILLING_DIR}/libexec/config.pl |grep '^$conf{dbpasswd}' |awk -F"'" '{print $2}'`
-DB_NAME=`cat ${BILLING_DIR}/libexec/config.pl |grep '^$conf{dbname}' |awk -F"'" '{print $2}'`
-DB_HOST=`cat ${BILLING_DIR}/libexec/config.pl |grep '^$conf{dbhost}' |awk -F"'" '{print $2}'`
-DB_CHARSET=`cat ${BILLING_DIR}/libexec/config.pl |grep '^$conf{dbcharset}' |awk -F"'" '{print $2}'`
+  echo "Get conf date";
+  
+  DB_USER=`cat ${BILLING_DIR}/libexec/config.pl |grep '^$conf{dbuser}' |awk -F"'" '{print $2}'`
+  DB_PASSWD=`cat ${BILLING_DIR}/libexec/config.pl |grep '^$conf{dbpasswd}' |awk -F"'" '{print $2}'`
+  DB_NAME=`cat ${BILLING_DIR}/libexec/config.pl |grep '^$conf{dbname}' |awk -F"'" '{print $2}'`
+  DB_HOST=`cat ${BILLING_DIR}/libexec/config.pl |grep '^$conf{dbhost}' |awk -F"'" '{print $2}'`
+  DB_CHARSET=`cat ${BILLING_DIR}/libexec/config.pl |grep '^$conf{dbcharset}' |awk -F"'" '{print $2}'`
+
+  return 1;
+}
+
+
+#**********************************************
+# Update SQL Section
+#
+#**********************************************
+update_sql () {
+
+  sql_get_conf
+
+  if [ x"${DB_NAME}" = x1 ]; then
+    return 0;
+  fi;
 
 if [ "${SKIP_CHECK_SQL}" != 1 ]; then
   #Check MySQL Version
-  MYSQL_VERSION=`${MYSQL} -u ${DB_USER} -p${DB_PASSWD} -h ${DB_HOST} -D ${DB_NAME} -e "SELECT version()"`
+  MYSQL_VERSION=`${MYSQL} -N -u ${DB_USER} -p${DB_PASSWD} -h ${DB_HOST} -D ${DB_NAME} -e "SELECT version()"`
   echo "MySQL: Version: ${MYSQL_VERSION}"
   MYSQL_VERSION=`echo ${MYSQL_VERSION} | sed 's/.*\([0-9]\)\.\([0-9]*\)\.\([0-9]*\).*/\1\2/'`;
   
@@ -284,6 +302,7 @@ if [ "${SKIP_CHECK_SQL}" != 1 ]; then
     echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
     echo "! Please Update Mysql Server to version 5.6 or higher                        !"
     echo "! More information http://abills.net.ua/forum/viewtopic.php?f=1&t=6951       !"
+    echo "! use -skip_check_sql                                                        !"
     echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
     exit;
   fi;
@@ -347,7 +366,24 @@ rm -rf ${TMP_DIR}/dates ${TMP_DIR}/changes.sql ${TMP_DIR}/changes ${TMP_DIR}/che
 }
 
 
+#**********************************************
+#
+#**********************************************
+sql_innodb_optimize () {
+  sql_get_conf
+  if [ "${get_conf}" = 1 ]; then
+    return 0;
+  fi;
 
+  echo "Optimize innodb: ${DB_NAME}"
+
+  TABLES=`${MYSQL} -N -h "${DB_HOST}" -u "${DB_USER}" --password="${DB_PASSWD}" -D "${DB_NAME}" -e "SHOW TABLES;"` 
+  
+  for table in ${TABLES} ; do
+    TYPE=`${MYSQL} -h "${DB_HOST}" -u "${DB_USER}" --password="${DB_PASSWD}" -D ${DB_NAME} -e "OPTIMIZE TABLE ${table};"` 
+    echo "${table} optimized"
+  done;
+}
 
 #**********************************************
 # Check modules version for update
@@ -466,6 +502,7 @@ help () {
   -full             - Make full Source update
   -speedy           - Replace perl to speedy
   -myisam2inodb     - Convert MyISAM table to InoDB
+  -sql_optimize     - Innodb optimize
   -skip_tables      - Skip tables in converting
   -h,help,-help     - Help
   -debug            - Debug mode
@@ -476,7 +513,7 @@ help () {
   -skip_backup      - Skip current system backup
   -skip_sql_update  - Skip SQL update
   -get_snapshot     - Update from snapshot system (Alternative way)
-  -skip_update      - Skip check new version of updater
+  -skip_update      - Skip check new version of update.sh
   -check_modules    - Check new version of modules 
   -skip_check_sql   - Skip check mysql version
   -m [MODULE]       - Update only modules
@@ -519,13 +556,13 @@ convert2inodb () {
     echo "db_name: ${db_name}";
   fi;
   
-  TABLES=`${MYSQL} -h "${db_host}" -u "${db_user}" --password="${db_password}" -D ${db_name} -e "SHOW TABLES;"` 
+  TABLES=`${MYSQL} -N -h "${db_host}" -u "${db_user}" --password="${db_password}" -D ${db_name} -e "SHOW TABLES;"` 
   SKIP_TABLES=`echo ${SKIP_TABLES} | sed 's/\%/\.\*/g'`
   
   echo "SKIP_TABLES: ${SKIP_TABLES}"
   
   for table in ${TABLES} ; do
-    TYPE=`${MYSQL} -h "${db_host}" -u "${db_user}" --password="${db_password}" -D ${db_name} -e "SHOW TABLE STATUS LIKE '${table}';" | tail -1 | awk '{ print \$2 }'` 
+    TYPE=`${MYSQL} -N -h "${db_host}" -u "${db_user}" --password="${db_password}" -D ${db_name} -e "SHOW TABLE STATUS LIKE '${table}';" | tail -1 | awk '{ print \$2 }'` 
     IGNORE=""
     
     if [ "${TYPE}" = "InnoDB" ]; then
@@ -835,7 +872,10 @@ for _switch ; do
                 ;;
         -skip_check_sql) SKIP_CHECK_SQL=1
                 shift;
-                ;;        
+                ;;
+        -sql_optimize) OPTIMIZE_DB=1
+                shift;
+                ;;
         -reg)   REGISTRATION=1;
                 shift;
         esac
@@ -845,6 +885,11 @@ update_self
 
 if [ w${HELP} != w ] ; then
   help;
+  exit;
+fi;
+
+if [ w${OPTIMIZE_DB} != w ] ; then
+  sql_innodb_optimize;
   exit;
 fi;
 

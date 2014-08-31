@@ -236,7 +236,10 @@ sub list {
       vlan.vlan_id,
       INET_NTOA(vlan.ip) AS ip,
       if (vlan.unnumbered_ip>0, CONCAT(INET_NTOA(vlan.unnumbered_ip),'/', INET_NTOA(vlan.netmask)), 
-        CONCAT(INET_NTOA(vlan.ip+1), ' - ', INET_NTOA((4294967294 - vlan.netmask - 1)+vlan.ip))) AS ip_range,
+        if (vlan.ip=0, '', 
+          CONCAT(INET_NTOA(vlan.ip+1), ' - ', INET_NTOA(4294967294 + vlan.ip - vlan.netmask - 1))
+        ) 
+      ) AS ip_range,
       vlan.disable, 
       vlan.dhcp,
       vlan.pppoe,

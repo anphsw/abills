@@ -5,4 +5,6 @@ PASPORT_DATE:дата выдачи паспорта:russian:(x=350;y=170;page=3,
 PASPORT_GRANT:кем выдан паспорт:russian:(x=350;y=180;page=3,x=343;y=358;page=4)
 Inn:Индивидуальный налоговый номер:russian:f(x=350;y=160;page=3,x=343;y=338;page=4)
 CONTRACT_ID:Номер Договора:russian:(x=355;y=802;page=1,x=387;y=791;page=4)
-ADDRESS:Адрес предприятия:russian:(x=350;y=200;page=3)
+#ADDRESS:Адрес предприятия:russian:(x=350;y=200;page=3)
+ADDRESS_FULL:full address:russian:(x=350;y=200;page=3)
+

@@ -39,14 +39,18 @@
 #
 #   abills_squid_redirect="" Redirect traffic to squid
 #
-#   abills_neg_deposit="" Enable neg deposit redirect
+#   abills_neg_deposit="" Enable neg deposit redirect for VPN connection
+#   
+#   abills_neg_deposit_allow="" Neg deposit allow sites
 #
 #   abills_neg_deposit_speed="512" Set default speed for negative deposit
+#
+#   abills_neg_deposit_fwd_ip="127.0.0.1" Neg deposit forward ip
 #
 
 
 CLASSES_NUMS='2 3'
-VERSION=6.02
+VERSION=6.07
 
 
 name="abills_shaper"
@@ -70,6 +74,7 @@ rcvar=`set_rcvar`
 : ${abills_dhcp_shaper_nas_ids=""}
 : ${abills_neg_deposit="NO"}
 : ${abills_neg_deposit_speed=""}
+: ${abills_neg_deposit_fwd_ip="127.0.0.1"}
 : ${abills_portal_ip="me"}
 : ${abills_mikrotik_shaper=""}
 : ${abills_squid_redirect="NO"}
@@ -77,7 +82,6 @@ rcvar=`set_rcvar`
 : ${abills_ipn_nas_id=""}
 : ${abills_ipn_if=""}
 : ${abills_ipn_allow_ip=""}
-
 
 
 load_rc_config $name
@@ -96,7 +100,7 @@ if [ x${abills_mikrotik_shaper} != x ]; then
 fi;
 
 #Negative deposit forward (default: )
-FWD_WEB_SERVER_IP=127.0.0.1;
+FWD_WEB_SERVER_IP=${abills_neg_deposit_fwd_ip}
 #Your user portal IP (Default: me)
 USER_PORTAL_IP=${abills_portal_ip}
 
@@ -274,13 +278,14 @@ abills_ipn() {
   if [ x${abills_ipn_nas_id} = x ]; then
     return 0;
   fi;
+
   if [ w${ACTION} = wstart ]; then
   	if [ x${abills_ipn_if} != x ]; then
-    		IFACE=" via ${abills_ipn_if}"
+   	  IFACE=" via ${abills_ipn_if}"
   	fi;
 
   	#Redirect unauth ips to portal
-  	${IPFW} add 64000 fwd 127.0.0.1,80 tcp from any to any dst-port 80 ${IFACE} in
+  	${IPFW} add 64000 fwd ${FWD_WEB_SERVER_IP},80 tcp from any to any dst-port 80 ${IFACE} in
 
   	# Разрешить ping к серверу доступа
   	${IPFW} add 64100 allow icmp from any to me  ${IFACE}
@@ -360,6 +365,11 @@ for IPS_NAT in ${abills_ips_nat}; do
   #NAT IF
   NAT_IF=`echo ${IPS_NAT} | awk -F: '{ print $3 }'`;
 
+  if [ x"${NAT_IPS}" = x ]; then
+    IP=`ifconfig \`route -n get default | grep interface | awk '{ print $2 }'\` | grep "inet " | awk '{ print $2 }'`
+    NAT_IPS=${IP}
+  fi;
+
   echo " NAT ${ACTION}"
 
   # nat configuration
@@ -416,7 +426,7 @@ if [ w${ACTION} = wstart ]; then
   fi;
 
   ${IPFW} add 60010 nat tablearg ip from table\(` expr ${NAT_REAL_TO_FAKE_TABLE_NUM} + 1 `\) to any $NAT_IF
-  ${IPFW} add 20 nat tablearg ip from any to table\(${NAT_REAL_TO_FAKE_TABLE_NUM}\) $NAT_IF
+  ${IPFW} add 1020 nat tablearg ip from any to table\(${NAT_REAL_TO_FAKE_TABLE_NUM}\) $NAT_IF in
 elif [ w${ACTION} = wstop ]; then
   ${IPFW} table ${NAT_REAL_TO_FAKE_TABLE_NUM} flush
   ${IPFW} table ` expr ${NAT_REAL_TO_FAKE_TABLE_NUM} + 1 ` flush
@@ -435,16 +445,13 @@ neg_deposit() {
     return 0;
   fi;
 
-  echo "Negative Deposit Forward Section ${ACTION}"
-  if [ w${WEB_SERVER_IP} = w ]; then
-    FWD_WEB_SERVER_IP=127.0.0.1;
-  fi;
+  echo "Negative Deposit Forward Section (for mpd) ${ACTION}"
   
   if [ w${DNS_IP} = w ]; then
     DNS_IP=`cat /etc/resolv.conf | grep nameserver | awk '{ print $2 }' | head -1`
   fi;
 
-  FWD_RULE=10014;
+  FWD_RULE=1014;
 
   #Forwarding start
   if [ x${ACTION} = xstart ]; then

@@ -8,7 +8,7 @@
                    
                     );
 
-require "Abills/modules/Msgs/webinterface";
+load_module("Msgs", $html);
 
 if (defined($user->{UID})) {
   my $count=msgs_new({ UID => $UID });

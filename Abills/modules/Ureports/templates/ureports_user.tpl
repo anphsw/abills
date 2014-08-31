@@ -3,8 +3,8 @@
 <input type=hidden name='UID' value='$FORM{UID}'>
 <table width=450 class=form>
 <tr><td>$_TARIF_PLAN:</td><th  align='left' valign='middle'>%TP_ID% %TP_NAME% %CHANGE_TP_BUTTON%</th></tr>
-<tr bgcolor=$_COLORS[2]><td>$_TYPE:</td><td>%TYPE_SEL%</td></tr>
-<tr bgcolor=$_COLORS[2]><td>$_DESTINATION:</td><td><input type=text name=DESTINATION value='%DESTINATION%'></td></tr>
+<tr class=total><td>$_TYPE:</td><td>%TYPE_SEL%</td></tr>
+<tr class=total><td>$_DESTINATION:</td><td><input type=text name=DESTINATION value='%DESTINATION%'></td></tr>
 <tr><td>$_STATUS:</td><td>%STATUS_SEL%</td></tr>
 <tr><td>$_REGISTRATION:</td><td>%REGISTRATION%</td></tr>
 

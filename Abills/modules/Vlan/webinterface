@@ -5,9 +5,9 @@ use Vlan;
 my $Vlan = Vlan->new($db, $admin, \%conf);
 my $Nas = Nas->new($db, \%conf);
 
-my $SUDO  = $conf{SUDO} || '';
-my $SSH   = '/usr/bin/ssh';
-my $SCP   = '/usr/bin/scp';
+my $SUDO  = $conf{FILE_SUDO} || 'sudo';
+my $SSH   = $conf{FILE_SSH} || '/usr/bin/ssh';
+my $SCP   = $conf{FILE_SCP} || '/usr/bin/scp';
 my $debug = $FORM{VLAN_DEBUG} || 0;
 
 $conf{VLAN_IF_CREATE} = 'if [ `uname` = Linux ]; then /usr/bin/sudo /sbin/vconfig add %PARENT_INTERFACE% %VLAN_ID%; else /usr/local/bin/sudo /sbin/ifconfig vlan%VLAN_ID% create vlan %VLAN_ID% vlandev %PARENT_INTERFACE% up; fi' if (!$conf{VLAN_IF_CREATE});
@@ -19,6 +19,9 @@ $conf{VLAN_IP_DELETE} = 'if [ `uname` = Linux ]; then /usr/bin/sudo /sbin/ifconf
 $conf{VLAN_IF_DESTROY} = 'if [ `uname` = Linux ]; then /usr/bin/sudo /sbin/ifconfig %PARENT_INTERFACE%.%VLAN_ID% down;  /usr/bin/sudo /sbin/vconfig rem %PARENT_INTERFACE%.%VLAN_ID%; else /sbin/ifconfig vlan%VLAN_ID% destroy; fi' if (!$conf{VLAN_IF_DESTROY});
 
 $conf{VLAN_CREATE_PPPOE} = undef if (!$conf{VLAN_CREATE_PPPOE});
+
+#Get Vlan information
+#$conf{VLAN_INFO}='';
 
 #*******************************************************************
 # Delete user from module
@@ -55,14 +58,14 @@ sub vlan_users_list {
   print $html->letters_list({ pages_qs => $pages_qs });
 
   if ($FORM{letter}) {
-    $LIST_PARAMS{FIRST_LETTER} = $FORM{letter};
+    $LIST_PARAMS{LOGIN} = "$FORM{letter}*";
     $pages_qs .= "&letter=$FORM{letter}";
   }
 
   my $list = $Vlan->list({UNNUMBERED_IP => '_SHOW',
-  	                      %LIST_PARAMS,   	                      
-  	                      COLS_NAME     => 1 
-  	                     });
+                          %LIST_PARAMS,                           
+                          COLS_NAME     => 1 
+                         });
 
   my @TITLE = ($_LOGIN, $_FIO, $_DEPOSIT, $_CREDIT, 'VLAN ID', "$_INTERFACE IP", 
     "IP $_RANGE", "DHCP", "PPPoE", $_STATUS);
@@ -165,14 +168,14 @@ sub vlan_user {
     else {
       $Vlan->{TOTAL} = 0;
       if ((!$FORM{UNNUMBERED_IP} || $FORM{UNNUMBERED_IP} eq '0.0.0.0') && $FORM{IP} ne '0.0.0.0') {
-
         #Check dublicate
-        $list = $Vlan->list({ IP => "$FORM{IP}" });
+        $Vlan->{debug}=1;
+        $list = $Vlan->list({ IP => "$FORM{IP}", PAGE_ROWS=>1, COLS_NAME => 1 });
       }
 
       if ($Vlan->{TOTAL} > 0) {
         $Vlan->{errno} = 8;
-        $login_button = $html->button($list->[0][0], 'index=15&UID=' . $list->[0][12]);
+        $login_button = $html->button($list->[0]->{login}, 'index=15&UID=' . $list->[0]->{uid});
       }
       else {
         $Vlan->add({%FORM});
@@ -287,14 +290,17 @@ sub vlan_user {
     'NAS_ID',
     {
       SELECTED => $Vlan->{NAS_ID} || 0,
-      SEL_MULTI_ARRAY => $Nas->list(
+      SEL_ARRAY => $Nas->list(
         {
           TYPE      => 'vlan',
+          COLS_NAME => 1,
           PAGE_ROWS => 1000
         }
       ),
-      MULTI_ARRAY_KEY   => 0,
-      MULTI_ARRAY_VALUE => 1,
+      SEL_KEY        => 'nas_id',
+      SEL_VALUE      => 'nas_name',
+      MAIN_MENU      => get_function_index('form_nass'),
+      MAIN_MENU_AGRV => "chg=$tarif_info->{NAS_ID}",
     }
   );
 
@@ -356,6 +362,7 @@ sub vlan_create {
 
   $debug = $attr->{DEBUG} || 0;
   my $debug_output = '';
+  $debug_output .= "Vlan: Daily periodic\n" if ($debug > 1);
 
   $attr->{NAS_IDS} = $attr->{LOCAL_NAS_IDS} if ($attr->{LOCAL_NAS_IDS});
   my $list = $Nas->list(
@@ -396,32 +403,31 @@ sub vlan_create {
     }
     else {
       $debug_output .= "!!! No Interface name. Push 'IP-Interface-Name=\"fxp0\"' to NAS RADIUS pairs\n";
-      next;
+      #next;
     }
 
     my $NAS_ID          = '';
-    my $nas_mng_ip_port = '';
-    my $nas_mng_user    = '';
-    my $nas_mng_passwd  = '';
-    my $nas_mng_ip      = '';
-    my $nas_mng_port    = '';
 
     if (!$attr->{LOCAL_NAS_IDS}) {
-      $NAS_ID          = $line->[0];
-      $nas_mng_ip_port = $line->[9];
-      $nas_mng_user    = $line->[10];
-      $nas_mng_passwd  = $line->[11];
+      $NAS_ID                = $line->[0];
+      $INFO{NAS_IP}          = $line->[3];
+      $INFO{NAS_MNG_IP_PORT} = $line->[9] || '';
+      $INFO{NAS_MNG_USER}    = $line->[10];
+      $INFO{NAS_MNG_PASSWD}  = $line->[11];
 
-      ($nas_mng_ip, $nas_mng_port) = split(/:/, $nas_mng_ip_port);
-      $nas_mng_port = 22 if (!$nas_mng_port);
-      $ENV{NAS_IP_ADDRESS}  = $nas_mng_ip;
-      $ENV{NAS_MNG_USER}    = $nas_mng_user;
-      $ENV{NAS_MNG_IP_PORT} = (($nas_mng_ip) ? $nas_mng_ip : '') . ':' . (($nas_mng_port) ? $nas_mng_port : '');
+      ($INFO{NAS_MNG_IP}, $INFO{NAS_MNG_PORT}) = split(/:/, $INFO{NAS_MNG_IP_PORT});
+      $INFO{NAS_MNG_PORT} = 22 if (!$INFO{NAS_MNG_PORT});
+      $ENV{NAS_IP_ADDRESS}  = $INFO{NAS_MNG_IP};
+      $ENV{NAS_MNG_IP_PORT} = $INFO{NAS_MNG_IP_PORT};
       $ENV{NAS_ID}          = $NAS_ID;
       $ENV{NAS_TYPE}        = 'vlan';
-      $ENV{NAS_IP_PORT}     = $nas_mng_port;
-      $ENV{NAS_MNG_USER}    = $nas_mng_user;
-      $ENV{NAS_MNG_PASSWD}  = $nas_mng_passwd;
+      $ENV{NAS_IP_PORT}     = $INFO{NAS_MNG_PORT};
+      $ENV{NAS_MNG_USER}    = $INFO{NAS_MNG_USER};
+      $ENV{NAS_MNG_PASSWD}  = $INFO{NAS_MNG_PASSWD};
+
+      $INFO{NAS_IP_ADDRESS}  = $INFO{NAS_MNG_IP};
+      $INFO{NAS_ID}          = $NAS_ID;
+      $INFO{NAS_TYPE}        = 'vlan';
     }
 
     my $vlan_list = $Vlan->list(
@@ -436,32 +442,31 @@ sub vlan_create {
       }
     );
 
-    my $sudo = ($nas_mng_ip_port ne '') ? $SUDO : '';
+    my $sudo = ($INFO{NAS_MNG_IP_PORT} ne '') ? $SUDO : '';
     my $vlans_info = vlan_info(
       {
-        NAS_MNG_IP   => $nas_mng_ip,
-        NAS_MNG_PORT => $nas_mng_port,
-        NAS_MNG_USER => $nas_mng_user,
+        %INFO,
         DEBUG        => $debug,
         PARENT_IF    => $parent_interface
       }
     );
-    my %if_created = ();
+
+    my %if_created   = ();
+    my @vlan_add_arr = ();
     foreach my $vlan (@$vlan_list) {
       #Port
-      $debug_output .= "$vlan->{login}: VLAN ID: $vlan->{vlan_id} IP: $vlan->{ip}/$vlan->{netmask} NETMASK: $vlan->{netnask}" . " USER IPs: $vlan->{ip_range} DHCP: $vlan->{dhcp} PPPoE: $vlan->{pppoe} UNNUMBERED_IP: \n" if ($debug > 2);
+      $debug_output .= "$vlan->{login}: VLAN ID: $vlan->{vlan_id} IP: $vlan->{ip}/$vlan->{netmask} NETMASK: $vlan->{netmask}" . " USER IPs: $vlan->{ip_range} DHCP: $vlan->{dhcp} PPPoE: $vlan->{pppoe} UNNUMBERED_IP: \n" if ($debug > 2);
 
-      $INFO{VLAN_IF_NETMASK} = '';
+      $INFO{VLAN_IF_NETMASK} = $vlan->{netmask};
       $INFO{LOGIN}           = $vlan->{login};
       $INFO{VLAN_ID}         = $vlan->{vlan_id};
       $INFO{VLAN_IF_IP}      = $vlan->{ip};
       $INFO{DHCP}            = $vlan->{dhcp};
       $INFO{PPPOE}           = $vlan->{pppoe};
       $INFO{UNNUMBERED_IP}   = $vlan->{unnumbered_ip};
-      #$INFO{USER_IP}         = $line->[6];
 
-      if (($INFO{VLAN_IF_NETMASK} && $vlan->{netmask} ne '255.255.255.255') || !$INFO{VLAN_IF_NETMASK}) {
-        $INFO{VLAN_IF_NETMASK} = $vlan->{netmask};
+      #Make bit mask
+      if ($INFO{VLAN_IF_NETMASK} ne '255.255.255.255') {
         my $ips = 4294967296 - ip2int($INFO{VLAN_IF_NETMASK});
         $INFO{VLAN_IF_BIT_NETMASK} = 32 - length(sprintf("%b", $ips)) + 1;
       }
@@ -472,17 +477,15 @@ sub vlan_create {
       $INFO{PARENT_INTERFACE} = $parent_interface;
       if ($INFO{DHCP} == 1 && $INFO{VLAN_IF_IP} ne '0.0.0.0') {
         my ($first_ip, $last_ip) = split(/ - /, $vlan->{ip_range});
+        
         $INFO{NETWORK}      = int2ip(ip2int($INFO{VLAN_IF_IP}) - 1);
         $INFO{NETWORK_MASK} = $INFO{VLAN_IF_NETMASK};
         $INFO{RANGE}        = "range $first_ip $last_ip;";
         $INFO{ROUTERS}      = "option routers $INFO{VLAN_IF_IP};";
         $INFO{DESCRIBE}     = "Vlan ID: $INFO{VLAN_ID} PARENT: $INFO{PARENT_INTERFACE} LOGIN: $INFO{LOGIN}";
+        $INFO{SUBNETS}     .= $html->tpl_show(_include('dhcphosts_dhcp_conf_subnet', 'Dhcphosts'), \%INFO, { notprint => 'yes' });
 
-        $INFO{SUBNETS} .= $html->tpl_show(_include('dhcphosts_dhcp_conf_subnet', 'Dhcphosts'), \%INFO, { notprint => 'yes' });
-
-        $DHCP_SUBNETS{"$nas_mng_ip_port"} .= $html->tpl_show(_include('dhcphosts_dhcp_conf_subnet', 'Dhcphosts'), \%INFO, { notprint => 'yes' });
-
-        #$INFO{SUBNETS} .= $html->tpl_show($subnets, \%INFO, { notprint => 'yes' });
+        $DHCP_SUBNETS{"$INFO{NAS_MNG_IP_PORT}"} .= $html->tpl_show(_include('dhcphosts_dhcp_conf_subnet', 'Dhcphosts'), \%INFO, { notprint => 'yes' });
       }
 
       if ($attr->{RECONFIGURE}) {
@@ -505,7 +508,6 @@ sub vlan_create {
 
       # if not exists create it
       if (!$vlans_info->{ $INFO{VLAN_ID} } && ! $if_created{$INFO{VLAN_ID}}) {
-     	
         push @commands, tpl_parse($conf{VLAN_IF_CREATE}, \%INFO);
 
         if ($INFO{VLAN_IF_IP} ne '0.0.0.0') {
@@ -522,7 +524,9 @@ sub vlan_create {
 
         $if_created{$INFO{VLAN_ID}}++;
         $debug_output .= "Vlan ID: $INFO{VLAN_ID} IP: $INFO{VLAN_IF_IP}/$INFO{VLAN_IF_NETMASK} Created\n" if ($debug > 0);
+        push @vlan_add_arr, { %INFO };
       }
+      #If wrong ip delete ad create
       elsif ($vlans_info->{ $INFO{VLAN_ID} } && $vlans_info->{ $INFO{VLAN_ID} } ne $INFO{VLAN_IF_IP}) {
         #Set VLAN IP
         if ($INFO{VLAN_IF_IP} ne '0.0.0.0') {
@@ -546,6 +550,7 @@ sub vlan_create {
           push @client_interfaces_unused, "vlan$INFO{VLAN_ID}";
         }
       }
+      #Create unnumbered
       elsif ($INFO{UNNUMBERED_IP}) {
         push @commands, tpl_parse($conf{VLAN_IF_IP}, { %INFO, UNNUMBERED_ADD  => 1 } );
         $debug_output .= "Vlan ID: $INFO{VLAN_ID} IP: $INFO{VLAN_IF_IP} UNNUMBERED_IP: $INFO{UNNUMBERED_IP} Changed\n" if ($debug > 0);
@@ -557,6 +562,58 @@ sub vlan_create {
 
     }
 
+    #Make DHCP Nets
+    if ($INFO{SUBNETS}) {
+      $INFO{SUBNETS} = $DHCP_SUBNETS{"$INFO{NAS_MNG_IP_PORT}"};
+
+      vlan_dhcp(
+        {
+          INFO         => \%INFO
+        }
+      );
+    }
+
+
+    #Vlan add/del section
+    if ($conf{VLAN_ADD}) {
+      if($conf{VLAN_DEL}) {
+      	my @_del = sort { $a <=> $b } keys %$vlans_info;
+
+        $attr->{DEBUG}=3;
+        $INFO{VLANS}=join(',', @_del);
+        my $cmd = tpl_parse($conf{VLAN_DEL}, \%INFO);
+
+        print $cmd. "\n" if ($attr->{DEBUG} && $attr->{DEBUG} > 2);
+        my $ifconfig = '';
+        open(IFCONFIG, "$cmd | ") || die "Can't open '$conf{VLAN_INFO}' $!";
+          while (my $l = <IFCONFIG>) {
+            $ifconfig .= $l;
+          }
+        close(IFCONFIG);
+        print $ifconfig if ($debug > 1);
+      }
+
+      my @_add = ();
+      foreach my $vlan_ (@vlan_add_arr) {
+        push @_add, "$vlan_->{VLAN_ID}:$vlan_->{VLAN_IF_IP}:$vlan_->{VLAN_IF_NETMASK}";
+      }
+
+      $INFO{VLANS}=join(',', @_add);
+      my $cmd = tpl_parse($conf{VLAN_ADD}, \%INFO);
+    
+      print $cmd. "\n" if ($attr->{DEBUG} && $attr->{DEBUG} > 2);
+      my $ifconfig = '';
+      open(IFCONFIG, "$cmd | ") || die "Can't open '$conf{VLAN_INFO}' $!";
+        while (my $l = <IFCONFIG>) {
+          $ifconfig .= $l;
+        }
+      close(IFCONFIG);
+       
+      print $ifconfig if ($debug > 1);
+      next;
+    }
+
+    # Standart section
     # Delete not allow vlans
     while (my ($vlan_id, $ip) = each %$vlans_info) {
       if ($static_vlans{$NAS_ID}{$vlan_id}) {
@@ -565,8 +622,10 @@ sub vlan_create {
       }
 
       $debug_output .= "DELETED VLAN $vlan_id, $ip\n" if ($debug > 3);
+
       push @commands, tpl_parse($conf{VLAN_IF_DESTROY}, { VLAN_ID => $vlan_id, PARENT_INTERFACE => $parent_interface });
       push @client_interfaces_unused, "vlan$vlan_id";
+
       delete $client_interfaces{"vlan$vlan_id"};
     }
 
@@ -577,8 +636,8 @@ sub vlan_create {
         $cmds .= ($sudo ne '') ? "$sudo $cmd; " : "$cmd; ";
       }
 
-      if ($nas_mng_ip && $nas_mng_ip ne '') {
-        $cmds = "$SSH -p $nas_mng_port -o StrictHostKeyChecking=no -i $base_dir/Certs/id_dsa.$nas_mng_user $nas_mng_user\@$nas_mng_ip \"$cmds\" ";
+      if ($INFO{NAS_MNG_IP} && $INFO{NAS_MNG_PORT} ne '') {
+        $cmds = "$SSH -p $INFO{NAS_MNG_PORT} -o StrictHostKeyChecking=no -i $base_dir/Certs/id_dsa.$INFO{NAS_MNG_USER} $INFO{NAS_MNG_USER}\@$INFO{NAS_MNG_IP}\"$cmds\" ";
       }
 
       system($cmds) if ($debug < 5);
@@ -586,36 +645,17 @@ sub vlan_create {
       print $cmds if ($conf{VLAN_CMD_SHOW});
     }
 
-    #Make DHCP Nets
-    if ($INFO{SUBNETS}) {
-      $INFO{SUBNETS} = $DHCP_SUBNETS{"$nas_mng_ip_port"};
-
-      vlan_dhcp(
-        {
-          NAS_MNG_IP   => $nas_mng_ip,
-          NAS_MNG_PORT => $nas_mng_port,
-          NAS_MNG_USER => $nas_mng_user,
-          NAS_ID       => $NAS_ID,
-          INFO         => \%INFO
-        }
-      );
-    }
-
     #Make PPPoE Realy
     if (scalar keys %client_interfaces > 0) {
       vlan_pppoe_relay(
         {
           CLIENT_INTERFACES        => \%client_interfaces,
-          NAS_MNG_IP               => $nas_mng_ip,
-          NAS_MNG_PORT             => $nas_mng_port,
-          NAS_MNG_USER             => $nas_mng_user,
           PARENT_INTERFACE         => $parent_interface,
           CLIENT_INTERFACES_UNUSED => \@client_interfaces_unused,
           PPPOE_CHECK              => $attr->{PPPOE_CHECK}
         }
       );
     }
-
   }
 
   $DEBUG .= $debug_output;
@@ -631,6 +671,29 @@ sub vlan_info {
   my %VLANS        = ();
   my $ifconfig     = '';
   my $IFCONFIG_CMD = $IFCONFIG;
+  my $vlan_count   = 0;
+
+  if ($conf{VLAN_INFO}) {
+    my $cmd = tpl_parse($conf{VLAN_INFO}, $attr);
+    print $cmd. "\n" if ($attr->{DEBUG} && $attr->{DEBUG} > 2);
+    my $ifconfig = '';
+    open(IFCONFIG, "$cmd |") || die "Can't open '$cmd' $!";
+    while (<IFCONFIG>) {
+      $ifconfig .= $_;
+    }
+    close(IFCONFIG);
+
+    my @ifconfig_arr = split(/[\n\r]/, $ifconfig);
+
+    foreach my $if (@ifconfig_arr) {
+      my($if_num, $ip, $mask)=split(/:/, $if);
+      if (int($if_num) > 0) {
+        $VLANS{$if_num}=$ip || '0.0.0.0';
+      }
+    }
+    
+    return \%VLANS;
+  }
 
   if ($attr->{NAS_MNG_IP}) {
     $IFCONFIG_CMD = "$SSH -p $attr->{NAS_MNG_PORT} -o StrictHostKeyChecking=no -i $base_dir/Certs/id_dsa.$attr->{NAS_MNG_USER} $attr->{NAS_MNG_USER}\@$attr->{NAS_MNG_IP} \"$IFCONFIG\"";
@@ -638,9 +701,9 @@ sub vlan_info {
 
   print $IFCONFIG_CMD. "\n" if ($attr->{DEBUG} && $attr->{DEBUG} > 2);
   open(IFCONFIG, "$IFCONFIG_CMD | ") || die "Can't open '$IFCONFIG_CMD' $!";
-  while (my $l = <IFCONFIG>) {
-    $ifconfig .= $l;
-  }
+    while (my $l = <IFCONFIG>) {
+      $ifconfig .= $l;
+    }
   close(IFCONFIG);
 
   #FreeBSD 6.xx VLANS analize
@@ -670,7 +733,6 @@ sub vlan_info {
   }
 
   #FreeBSD 7.xx VLANS analize
-  my $vlan_count = 0;
   while ($ifconfig =~ m/vlan(\d+): .+\n\s+.+\n\s+.+\n((\s+inet\s+\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\s+netmask.+\n)?\s.*[\n\sa-zA-Z0-9:]+\n\s.*\n)/gi) {
     my $ip        = '0.0.0.0';
     my $if_num    = $1;
@@ -707,7 +769,7 @@ sub vlan_info {
 
     $VLANS{$if_num} = $ip;    # if (! $attr->{PARENT_IF} || $attr->{PARENT_IF} eq $parent_if);
 
-    print "Vlan: $if_num IP: $ip Parent: '$parent_if'\n$res\n" if ($attr->{DEBUG} && $attr->{DEBUG} > 4);
+    print "Vlan: $if_num IP: $ip Parent: '$parent_if'\n" if ($attr->{DEBUG} && $attr->{DEBUG} > 4);
   }
 
   return \%VLANS;
@@ -790,7 +852,8 @@ sub vlan_pppoe_relay {
       {
         ACTION     => 'START',
         INTERFACES => $interfaces,
-        NAS_IP     => $attr->{NAS_MNG_IP} || '127.0.0.1',
+        NAS_IP     => $attr->{NAS_IP},
+        NAS_MNG_IP => $attr->{NAS_MNG_IP} || '127.0.0.1',
         DESCRIBE   => ''
       }
     );

@@ -125,7 +125,9 @@ sub tariff_add {
 
   %DATA = $self->get_data($attr);
    
-  $self->query_add('abon_tariffs', \%DATA);
+  $self->query_add('abon_tariffs', { %DATA,
+  	                                 DOMAIN_ID => $admin->{DOMAIN_ID} || 0 
+  	                               });
 
   return $self if ($self->{errno});
   $admin->system_action_add("ABON_ID:$DATA{ID}", { TYPE => 1 });
@@ -188,18 +190,20 @@ sub tariff_del {
 sub tariff_list {
   my $self = shift;
   my ($attr) = @_;
-  @WHERE_RULES = ();
 
   $SORT      = ($attr->{SORT})      ? $attr->{SORT}           : 1;
   $DESC      = ($attr->{DESC})      ? $attr->{DESC}           : '';
   $PG        = ($attr->{PG})        ? $attr->{PG}             : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? int($attr->{PAGE_ROWS}) : 25;
-
-  if ($attr->{IDS}) {
-    push @WHERE_RULES, "abon_tariffs.id IN ($attr->{IDS})";
-  }
-
-  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+ 
+  my $WHERE =  $self->search_former($attr, [
+        [ 'IDS',              'INT', 'abon_tariffs.id'         ],
+        [ 'EXT_BILL_ACCOUNT', 'INT', 'ext_bill_account',      1],
+        [ 'DOMAIN_ID',        'INT', 'abon_tariffs.domain_id', ],
+    ],
+    { WHERE => 1,
+    }    
+  );
 
   $self->query2("SELECT name, price, period, payment_type, 
      priority,
@@ -214,6 +218,7 @@ sub tariff_list {
      abon_tariffs.discount,
      manual_activate,
      user_portal,
+     $self->{SEARCH_FIELDS}
      \@nextfees_date := if (nonfix_period = 1, 
       if (period = 0, curdate() + INTERVAL 2 DAY, 
        if (period = 1, curdate() + INTERVAL 2 MONTH, 
@@ -342,8 +347,9 @@ sub user_tariff_list {
   my $self = shift;
   my ($uid, $attr) = @_;
 
-  # @WHERE_RULES = ("ul.uid='$uid'");
-  # $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
+  @WHERE_RULES = ("at.domain_id='$admin->{DOMAIN_ID}'");
+  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
+
   $self->query2("SELECT at.id, 
       at.name, 
       if(ul.comments <> '', ul.comments, '') AS comments, 
@@ -387,6 +393,7 @@ sub user_tariff_list {
    if (\@next_abon < curdate(), 1, 0) AS missing
      FROM abon_tariffs at
      LEFT JOIN abon_user_list ul ON (at.id=ul.tp_id and ul.uid='$uid')
+     $WHERE
      GROUP BY at.id
      ORDER BY $SORT $DESC;",
    undef,
@@ -540,43 +547,40 @@ sub periodic_list {
   my $self = shift;
   my ($attr) = @_;
 
-  @WHERE_RULES = ();
-  if ($attr->{LOGIN}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{LOGIN}, 'INT', 'u.id') };
+  my @WHERE_RULES = ();
+  my $EXT_TABLES = '';
+
+  my $WHERE =  $self->search_former($attr, [
+      ['LOGIN',          'STR', 'u.id  ',                    ],
+      ['TP_ID',          'INT', 'ul.tp_id',                  ],
+      ['DELETED',        'INT', 'u.deleted',               1 ],
+      ['LOGIN_STATUS',   'INT', 'u.disable',               1 ],
+      ['MANUAL_FEE',     'INT', 'ul.manual_fee',           1 ],
+      ['LAST_DEPOSIT',   'INT', 'f.last_deposit',          1 ],
+      ['UID',            'INT', 'u.uid',                   1 ],
+    ],
+    { WHERE       => 1,      
+      WHERE_RULES => \@WHERE_RULES
+    }
+    );
+
+  $EXT_TABLES  .= $self->{EXT_TABLES} if ($self->{EXT_TABLES});
+
+  if ($CONF->{EXT_BILL_ACCOUNT}) {  	
+  	$EXT_TABLES = "    LEFT JOIN bills ext_b ON (u.ext_bill_id = ext_b.id)
+     LEFT JOIN bills ext_cb ON  (company.ext_bill_id=ext_cb.id)";
+   	$self->{SEARCH_FIELDS} .= 'if(company.id IS NULL,ext_b.deposit,ext_cb.deposit) AS ext_deposit,';
   }
 
-  if ($attr->{TP_ID}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{TP_ID}, 'INT', 'ul.tp_id') };
-  }
-
-  if (defined($attr->{DELETED})) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{DELETED}", 'INT', 'u.deleted', { EXT_FIELD => 1 }) };
-  }
-
-  if (defined($attr->{LOGIN_STATUS})) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{LOGIN_STATUS}", 'INT', 'u.disable', { EXT_FIELD => 1 }) };
-  }
-
-  if (defined($attr->{MANUAL_FEE})) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{MANUAL_FEE}", 'INT', 'ul.manual_fee') };
-  }
-
-  if ($attr->{UID}) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{UID}", 'INT', 'u.uid') };
-  }
-
-  my $WHERE = ($#WHERE_RULES > -1) ? "AND " . join(' and ', @WHERE_RULES) : '';
-
-  my $EXT_TABLE = '';
 
   $self->query2("SELECT at.period, at.price, u.uid, 
-  if(u.company_id > 0, c.bill_id, u.bill_id) AS bill_id,
+  if(u.company_id > 0, company.bill_id, u.bill_id) AS bill_id,
   u.id AS login, 
   at.id AS tp_id, 
   at.name AS tp_name,
-  if(c.name IS NULL, b.deposit, cb.deposit) AS deposit,
+  if(company.name IS NULL, b.deposit, cb.deposit) AS deposit,
   if(u.credit, u.credit,
-    if (c.credit <> 0, c.credit, 0) ) AS credit,
+    if (company.credit <> 0, company.credit, 0) ) AS credit,
   u.disable,
   at.payment_type,
   ul.comments,
@@ -606,7 +610,7 @@ sub periodic_list {
        )
       ) AS abon_date,
    at.ext_bill_account,
-   if(u.company_id > 0, c.ext_bill_id, u.ext_bill_id) AS ext_bill_id,
+   if(u.company_id > 0, company.ext_bill_id, u.ext_bill_id) AS ext_bill_id,
    at.priority,
    
    fees_type,
@@ -650,17 +654,17 @@ sub periodic_list {
      ul.create_docs,
      ul.send_docs,
      ul.service_count,
+     $self->{SEARCH_FIELDS}
      ul.manual_fee
-  FROM (abon_tariffs at, abon_user_list ul, users u)
+  FROM abon_tariffs at 
+     INNER JOIN abon_user_list ul ON (at.id=ul.tp_id)
+     INNER JOIN users u ON (ul.uid=u.uid)
      LEFT JOIN bills b ON (u.bill_id=b.id)
-     LEFT JOIN companies c ON (u.company_id=c.id)
-     LEFT JOIN bills cb ON (c.bill_id=cb.id)
+     LEFT JOIN companies company ON (u.company_id=company.id)
+     LEFT JOIN bills cb ON (company.bill_id=cb.id)
      LEFT JOIN users_pi pi ON (pi.uid=u.uid)
-WHERE
-at.id=ul.tp_id and
-ul.uid=u.uid
+     $EXT_TABLES     
 $WHERE
-AND u.deleted='0'
 ORDER BY at.priority;",
 undef,
 $attr

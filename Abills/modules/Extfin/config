@@ -14,7 +14,7 @@
 
 
 %PERIODIC = (
-             monthly => [ 'extfin_monthly_summary', 'extfin_periodic_paids' ]
+             daily => [ 'extfin_monthly_summary', 'extfin_periodic_paids' ]
              );
 
 1

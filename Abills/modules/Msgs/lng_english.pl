@@ -22,3 +22,5 @@ $_QUESTIONS='Questions';
 $_QUESTION='Question';
 $_CONNECTION_TIME='Connection time';
 $_NO_SUBJECT='No subject';
+$_USER_READ='User read';
+$_ADMIN_READ='Admin read';

@@ -1,3 +1,112 @@
+=====0.56=====
+
+18.08.2014 \\
+  * Исправлена ошибка аккаунтинга для оборудования Cisco 
+  * ''Docs''  добавлен отдельный шаблон для уже оплаченных счетов
+  * ''Docs''  добавлено учёт задолженности при создании счета из портала абонентов 
+  * ''Bonus'' Новый тип бонусной программы **Накопительный бонус пополнения**
+  * ''Paysys'' Добавлена система Redsys (Испания)
+  * ''Paysys'' Добавлена система Minbank (Россия)
+  * ''Paysys'' Обновлена система Privatbank Merchant
+  * ''Paysys'' Обновлена система Eript
+  * ''Paysys'' Обновлена система Webmoney
+  * ''Paysys'' Приватбанк разные мерчанты для разных груп абонентов  
+  * ''Paysys'' Приватбанк внешняя обработка для не зарегистрированыx абонентов 
+  * ''Dv''  исправлена ошибка в месячном перерасчете при расписании 
+  * ''Dv'' добавлена опция внешней диагностики $conf{DV_EXTERNAL_DIAGNOSTIC}
+  * ''Msgs'' проверка логина при заведении абонента с заявки на подключение
+  * ''Ureports'' добавлен поиск по телефону с отчёта СМС
+  * Программа контроля Vlan  на коммутаторах Cisco 
+  * ''Voip''  обновлён информатор баланса, добавлена мультиязычность
+  * ''SMS'' обновлён отчёт
+  * ''Vlan'' полностью переработан механизм работы 
+  * добавлена испанская локализация
+  * добавлены армянские шрифты для документов
+
+
+22.07.2014\\
+
+   * Добавлен модуль для работы с фильтрами РОСКОМНАДЗОР и автоматическая выгрузка фильтров для серверов доступа
+   * Добавлена быстрая регистрация абонентов с заявок на подключение
+
+MySQL: \\
+  ALTER TABLE `msgs_unreg_requests` ADD COLUMN `login` varchar(24) not null default '';
+
+
+
+16.06.2014\\
+  * ''Dv'' Отдельный пароль для сервиса
+  * ''Dv'' мониторинг дубликаты IP  адресов отмечаются синим
+  * ''Dv'' Дополнительная программа диагностики соединения $conf{DV_EXTERNAL_DIAGNOSTIC}
+  * accel_ppp динамическое изменении скорости через RADIUS CoA
+  * ''Paysys'' добавлен [[abills:docs:modules:paysys:ru#interaktivnyj_rezhim|интерактивные режим пополнения]]
+  * ''Paysys'' добавлена минимальная максимальная сума пополнения
+
+MySQL:\\
+  ALTER TABLE admins ADD COLUMN max_credit double(12,4) NOT NULL default '0.00';
+  ALTER TABLE admins ADD COLUMN credit_days SMALLINT not null default 0;
+ 
+12.05.2014\\
+
+  * Voip IVR  добавлена возможность выставление кредита
+  * Voip IVR  запись заявки на технические работы
+  * Voip IVR  Оповещение о рекламных акциях
+  * Voip IVR  информация о всех услугах абонента
+  * ''Paysys'' Обновлён Eript к версии 0.5
+  * ''Paysys'' Обновлён Liqpay
+  * ''Paysys'' Обновлён CoPayCo
+  * ''Paysys'' Webmoney   добавлен максимальный   минимальный лимит пополнения 
+  * ''Docs'' Добавлена переменная счета DOCS_ACCOUNT_EXPIRE_DAY
+  * ''Dv'' Обновлена ротация логов детализации
+  * ''Dv'' Обновлён модуль Mx80  и Redback
+  * ''Voip'' Добавлена поддержка [[abills:docs:nas:eltex:ru:eltex_smg|Eltex SMG]]
+  * ''Msgs'' Добавлена возможность регистрации абонентов через заявки подключения
+  * Добавлена атворизация в личном кабинете по нескольким параметрам
+  * Обновлено Snmputils
+  * Улучшен визард настройки Mikrotik [[http://www.youtube.com/watch?v=M6YU9g9W9VU|Видео демонстрация]]
+
+MySQL:\\
+  ALTER TABLE `dv_log_intervals` CHANGE  `sent` `sent` bigint(14) unsigned NOT NULL default '0';
+  ALTER TABLE `dv_log_intervals` CHANGE  `recv` `recv` bigint(14) unsigned NOT NULL default '0';
+  ALTER TABLE `msgs_unreg_requests` ADD COLUMN `tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
+  ALTER TABLE `equipment_models` ADD COLUMN  manage_web varchar(50) NOT NULL default '';
+  ALTER TABLE `equipment_models` ADD COLUMN  manage_ssh varchar(50) NOT NULL default '';
+  CREATE TABLE voip_ivr_log (
+    id int unsigned not null auto_increment primary key,
+    datetime datetime NOT NULL default '0000-00-00 00:00:00',
+    phone varchar(16) NOT NULL default '',
+    comment  varchar(20) NOT NULL default '',
+    uid int unsigned NOT NULL default 0,
+    KEY uid(uid)
+  ) COMMENT 'Voip ivr log'
+
+24.02.2014\\
+  * ''Docs'' Новые переменнЫе шаблонов счетов
+  * ''Equipment'' добавлен опрос оборудования и отчёты по портам 
+  * ''Dv'' Добавлена возможность запрета перехода на ТП определённым групам абонентов
+  * Обновления в модулях портала, документов,интернет,карт
+  * 'Mx80' добавлены выражения определения DHCP Option 82
+
+MySQL:\\
+
+  ALTER TABLE `groups` ADD COLUMN `disable_chg_tp` tinyint(1) unsigned not null default 0;
+
+12.01.2014\\
+  * Введен новый тип записи в логе подключений GUEST_MODE
+  * Добавлен отчёт оплаты снятия с разрезом по месяцам
+  * ''Abon''  добавлена поддержка мультидомености
+  * ''Paysys'' Privat 24  добавлена возможность введения комиссии провайдера
+  * Ускорена авторизации при больших нагрузках 
+  * Доработан механизм компенсаций за нерабочие дни
+  * MX80 добавлена авторизацию PPPoE Pluse
+  * MX80 добавлена ведение MAC адресов в едином формате xx:xx:xx:xx:xx:xx для совместимости с другими серверами доступа
+  * Добавлено ведение комментариев при удалении оплат и снятий денег
+  * Мелкие правки в Docs,Snmputils,Mdelivery,Msgs
+
+MySQL:\\
+
+  ALTER TABLE abon_tariffs ADD COLUMN `domain_id` smallint(6) unsigned not null default 0;
+
 =====0.55=====
 1.11.2013\\
 

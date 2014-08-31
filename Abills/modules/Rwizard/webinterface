@@ -87,7 +87,7 @@ $Reports->{FIELDS}
   }
 
   $html->tpl_show(_include('rwizard_config', 'Rwizard'), { %FORM, %$Reports }, 
-    { SKIP_VARS => 'PG,PAGE_ROWS,SORT,DESC,PAGES,DATE_FROM,DATE_TO,GID,Y,m,d,i,h,DEPOSIT,ADDRESS' });
+    { SKIP_VARS => 'PG,PAGE_ROWS,SORT,DESC,PAGES,DATE_FROM,DATE_TO,MONTH,GID,Y,m,d,i,h,DEPOSIT,PARAMETER,ADDRESS' });
   my $list = $Reports->list({ %LIST_PARAMS, COLS_NAME => 1 });
   $table = $html->table(
     {
@@ -149,7 +149,6 @@ sub rwizard {
   my @rows = ("$_REPORTS: $Reports->{REPORTS_SEL}");
 
   #$html->tpl_show(_include('rwizard_panel', 'Rwizard'), {%$Reports});
- 
   if ($FORM{REPORT}) {
     $Reports->info({ ID => $FORM{REPORT}, %LIST_PARAMS });
 
@@ -178,7 +177,9 @@ sub rwizard {
       $Reports->{QUERY}       =~ s/%DATE_TO%/$html->{DATE_TO}/g;
       $Reports->{QUERY_TOTAL} =~ s/%DATE_FROM%/$html->{DATE_FROM}/g;
       $Reports->{QUERY_TOTAL} =~ s/%DATE_TO%/$html->{DATE_TO}/g;
-      
+      $Reports->{QUERY}       =~ s/%MONTH%/$html->{MONTH}/g;
+      $Reports->{QUERY_TOTAL} =~ s/%MONTH%/$html->{MONTH}/g;
+     
       $pages_qs .= "&DATE_FROM=$html->{DATE_FROM}&DATE_TO=$html->{DATE_TO}";
     }
 
@@ -195,25 +196,32 @@ sub rwizard {
       }
     }
 
-    if ($Reports->{QUERY} =~ /%DEPOSIT%/g) {
-    	push @rows, "$_SUM: " . $html->form_input('DEPOSIT', "$FORM{DEPOSIT}", { INPUT2RETURN => 1 });
-    	$pages_qs .= "&DEPOSIT=$FORM{DEPOSIT}";
-      if ($FORM{DEPOSIT} eq '') {
-        $Reports->{QUERY}       =~ s/[and]{0,3} [a-z0-9\.\_]+\=\'?%DEPOSIT%\'?//ig;
-        $Reports->{QUERY_TOTAL} =~ s/[and]{0,3} [a-z0-9\.\_]+\=\'?%DEPOSIT%\'?//ig;
-      }
-      else {
-      	my $prefix  = '=';
-      	my $deposit = $FORM{DEPOSIT};
-      	if ($FORM{DEPOSIT}=~s/([<=>]+)//g) {
-      		$prefix=$1;
-      	}
-
-        $Reports->{QUERY}       =~ s/=\'?%DEPOSIT%\'?/$prefix'$FORM{DEPOSIT}'/g;
-        $Reports->{QUERY_TOTAL} =~ s/=\'?%DEPOSIT%\'?/$prefix'$FORM{DEPOSIT}'/g;
-        delete $FORM{DEPOSIT};
+    my @params_array = ('DEPOSIT', 'PARAMETER');
+    foreach my $_params (@params_array) {
+      if ($Reports->{QUERY} =~ /%$_params%/g) {
+    	  push @rows, "$_params: " . $html->form_input($_params, "$FORM{$_params}", { INPUT2RETURN => 1 });
+    	  $pages_qs .= '&'."$_params=$FORM{$_params}";
+   	  
+        if ($FORM{$_params} eq '') {
+          $Reports->{QUERY}       =~ s/[and]{0,3} [a-z0-9\.\_]+\=\'?\%$_params\%\'?//ig;
+          $Reports->{QUERY_TOTAL} =~ s/[and]{0,3} [a-z0-9\.\_]+\=\'?\%$_params\%\'?//ig;
+        }
+        else {
+      	  my $prefix  = '=';
+      	  my $deposit = $FORM{$_params};
+      	  if ($FORM{$_params}=~s/([<=>]+)//g) {
+      		  $prefix=$1;
+      	  }
+        	
+        	my $var = '%'.$_params.'%';
+       	  
+          $Reports->{QUERY}       =~ s/[=<>]{1}\s?\'?$var\'?/$prefix'$FORM{$_params}'/g;
+          $Reports->{QUERY_TOTAL} =~ s/[=<>]{1}\s?\'?$var\'?/$prefix'$FORM{$_params}'/g;
+          delete $FORM{$_params};
+        }
       }
     }
+
 
     my $ADDRESS_TPL = '';
     if ($Reports->{QUERY} =~ /%ADDRESS%/g) {
@@ -235,6 +243,35 @@ sub rwizard {
         $Reports->{QUERY}       =~ s/%ADDRESS%/$ADDRESS_QUERY/g;
         $Reports->{QUERY_TOTAL} =~ s/%ADDRESS%/$ADDRESS_QUERY/g;
       }
+    }
+
+    if ($Reports->{QUERY} =~ /%PAYMENT_METHODS%/g) {
+
+      push @PAYMENT_METHODS, @EX_PAYMENT_METHODS if (@EX_PAYMENT_METHODS);
+
+      for (my $i = 0 ; $i <= $#PAYMENT_METHODS ; $i++) {
+        $PAYMENTS_METHODS{"$i"} = "$PAYMENT_METHODS[$i]";
+      }
+
+      my %PAYSYS_PAYMENT_METHODS = %{ cfg2hash($conf{PAYSYS_PAYMENTS_METHODS}) };
+
+      while (my ($k, $v) = each %PAYSYS_PAYMENT_METHODS) {
+        $PAYMENTS_METHODS{$k} = $v;
+      }
+
+    	push @rows, "$_PAYMENT_METHODS: " . $html->form_select(
+      'PAYMENT_METHODS',
+        {
+          SELECTED => (defined($FORM{PAYMENT_METHODS}) && $FORM{PAYMENT_METHODS} ne '') ? $FORM{PAYMENT_METHODS} : 0,
+          SEL_HASH => \%PAYMENTS_METHODS,
+          NO_ID    => 1,
+        }
+      );
+
+    	$pages_qs .= "&PAYMENT_METHODS=$FORM{PAYMENT_METHODS}";
+    	
+      $Reports->{QUERY}       =~ s/%PAYMENT_METHODS%/$html->{PAYMENT_METHODS}/g;
+      $Reports->{QUERY_TOTAL} =~ s/%PAYMENT_METHODS%/$html->{PAYMENT_METHODS}/g;
     }
 
     if ($#rows > -1 ) {

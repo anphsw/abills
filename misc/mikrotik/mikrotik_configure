@@ -2,7 +2,7 @@
 # Mikrotik autoconfigurator
 #
 
-VERSION=0.62
+VERSION=0.63
 DEBUG=
 
 
@@ -60,6 +60,46 @@ get_value () {
 
   return 0
 }
+#**********************************************************
+#
+# set dns
+#**********************************************************
+set_dns () {
+
+  echo "checking dns"
+  cmd="/ip dns print" 
+
+  check=`${SSH} -p ${MIKROTIK_SSH_PORT} -l ${CONTROL_USER} -o StrictHostKeyChecking=no -i ${CERT_PATH}/${id_dsa_file} ${MIKROTIK_IP} "${cmd}" | grep 'servers: [0-9]' `
+#  echo "${SSH} -p ${MIKROTIK_SSH_PORT} -l ${CONTROL_USER} -o StrictHostKeyChecking=no -i ${CERT_PATH}/${id_dsa_file} ${MIKROTIK_IP} \"${cmd}\" | head -1 | awk '{ print \$2 }'"
+ 
+  if [ x"${check}" = x ]; then
+    get_value dns 'dns' "8.8.8.8"
+    CMDS_1="/ip dns set server=${dns}"
+  else
+    echo "DNS: $check"
+  fi;
+  ssh_cmds ${MIKROTIK_ADMIN_USER}
+   
+}
+
+        
+#**********************************************************
+#
+# check_set default route gateway
+#**********************************************************
+check_set_default_gateway () {
+  cmd="/ip route print where dst-address=0.0.0.0/0"
+  check=`${SSH} -p ${MIKROTIK_SSH_PORT} -l ${CONTROL_USER} -o StrictHostKeyChecking=no -i ${CERT_PATH}/${id_dsa_file} ${MIKROTIK_IP} "${cmd}" | grep '0.0.0.0' `
+  
+  if [ x"${check}" = x ]; then
+    get_value gateway 'IP route GATEWAY' "192.168.1.1"
+    CMDS_1="/ip route add gateway=${gateway}"
+  fi; 
+ 
+  ssh_cmds ${MIKROTIK_ADMIN_USER}
+  
+}
+                                        
 
 #**********************************************************
 #
@@ -80,6 +120,7 @@ ssh_cmds ${MIKROTIK_ADMIN_USER}
 
 echo "Test connect: "
 CMDS_1="/system identity print"
+CMDS_2="/system package print where name~\"system\""
 ssh_cmds ${MIKROTIK_CONTROL_USER}
 }
 
@@ -109,6 +150,8 @@ fi;
 #PPTP
 if [ "${CONNECTION_TYPE}" = pptp ]; then
   CMDS_6="/interface pptp-server server set enabled=yes authentication=chap"
+  CMSD_7="/interface pptp-client set profile=default"
+  
 fi;
 
 #IPN
@@ -116,9 +159,9 @@ if [ "${CONNECTION_TYPE}" = ipn ]; then
   get_value FLOW_COLLECTOR "Netflow collector ip"
   FLOW_PORT=9996
   
-  CMDS_7="/ip traffic-flow set enabled=yes"
-  CMDS_8="/ip traffic-flow target add address=${FLOW_COLLECTOR}:${FLOW_PORT} version=5"
-  CMDS_9="/ip traffic-flow set interfaces=ether3 active-flow-timeout=30m inactive-flow-timeout=15s cache-entries=4k enabled=yes "
+  CMDS_8="/ip traffic-flow set enabled=yes"
+  CMDS_9="/ip traffic-flow target add address=${FLOW_COLLECTOR}:${FLOW_PORT} version=5"
+  CMDS_10="/ip traffic-flow set interfaces=ether3 active-flow-timeout=30m inactive-flow-timeout=15s cache-entries=4k enabled=yes "
 fi;
 
 #FReeradius DHCP
@@ -160,7 +203,7 @@ get_mikrotik_info () {
 
 get_value MIKROTIK_ADMIN_USER "Mikrotik admin user" admin
 get_value NAS_ID "Nas ID"
-get_value CONNECTION_TYPE "Connection type [pppoe,pptp,ipn]"
+get_value CONNECTION_TYPE "Connection type [pppoe,pptp,ipn,freeradius_dhcp]"
 get_value MIKROTIK_CONTROL_USER "Mikrotik control user" abills_admin
 get_value RADIUS_AUTH_SERVER "Radius IP" 
 get_value RADIUS_SECRET "Radius Secret" radsecret
@@ -239,6 +282,8 @@ else
 fi;
 
 cert_upload
+set_dns
+check_set_default_gateway
 add_config
 mk_shapper
 save_config

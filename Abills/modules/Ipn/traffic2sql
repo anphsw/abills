@@ -9,6 +9,7 @@ if ($#ARGV < 1) {
   print "ABillS Ic collector
   traffic2sql [NAS_IDS] [Options]
    NAS_IDS    - Ids of NAS servers 1,2,3 or 1-100
+   NAS_TYPE   - Nas types
  Options:
    log        - Log file for trafd
    INTERFACE  - Interface for trafd

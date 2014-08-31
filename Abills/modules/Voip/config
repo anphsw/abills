@@ -20,6 +20,7 @@
                    "22:20:$_LAST:voip_sessions:"             => 4,
                    "23:20:$_USED:voip_use:"                  => 4,
                    "24:22:$_MONTH:voip_use_allmonthes:"      => 4,
+                   "25:20:IVR:voip_ivr_log:"                  => 4,
                    "30:0:VoIP:voip_online:"                  => 6,
                    "31:30:Gatekeeper:voip_gk_console:"       => 6,
 

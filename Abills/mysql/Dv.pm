@@ -78,7 +78,6 @@ sub info {
   elsif ($attr->{DOMAIN_ID}) {
     $domain_id = $attr->{DOMAIN_ID};
   }
-  
 
   $self->query2("SELECT dv.uid, 
    dv.tp_id, 
@@ -110,7 +109,9 @@ sub info {
    tp.filter_id AS tp_filter_id,
    tp.period_alignment AS tp_period_alignment,
    tp.fixed_fees_day,
-   tp.comments
+   tp.comments,
+   tp.reduction_fee,
+   DECODE(dv.password, '$CONF->{secretkey}') AS password
      FROM dv_main dv
      LEFT JOIN tarif_plans tp ON ((tp.module='Dv' or tp.module='') AND dv.tp_id=tp.id and tp.domain_id='$domain_id')
    $WHERE;",
@@ -158,26 +159,29 @@ sub add {
   if ($DATA{TP_ID} > 0 && !$DATA{STATUS}) {
     my $tariffs = Tariffs->new($self->{db}, $CONF, $admin);
 
-    $self->{TP_INFO} = $tariffs->info(0, { ID => $DATA{TP_ID}, MODULE => 'Dv' });
-      #Take activation price
-      if ($tariffs->{ACTIV_PRICE} > 0) {
-        my $user = Users->new($self->{db}, $admin, $CONF);
-        $user->info($DATA{UID});
+    $self->{TP_INFO} = $tariffs->info(0, { ID     => $DATA{TP_ID}, 
+    	                                     MODULE => 'Dv',
+    	                                     DOMAIN_ID => $admin->{DOMAIN_ID} || undef
+    	                                    });
+    #Take activation price
+    if ($tariffs->{ACTIV_PRICE} > 0) {
+      my $user = Users->new($self->{db}, $admin, $CONF);
+      $user->info($DATA{UID});
 
-        if ($CONF->{FEES_PRIORITY} =~ /bonus/ && $user->{EXT_BILL_DEPOSIT}) {
-          $user->{DEPOSIT} += $user->{EXT_BILL_DEPOSIT};
-        }
-
-        if ($user->{DEPOSIT} + $user->{CREDIT} < $tariffs->{ACTIV_PRICE} && $tariffs->{PAYMENT_TYPE} == 0) {
-          $self->{errno} = 15;
-          return $self;
-        }
-
-        my $fees = Fees->new($self->{db}, $admin, $CONF);
-        $fees->take($user, $tariffs->{ACTIV_PRICE}, { DESCRIBE => "ACTIV TP" });
-
-        $tariffs->{ACTIV_PRICE} = 0;
+      if ($CONF->{FEES_PRIORITY} =~ /bonus/ && $user->{EXT_BILL_DEPOSIT}) {
+        $user->{DEPOSIT} += $user->{EXT_BILL_DEPOSIT};
       }
+
+      if ($user->{DEPOSIT} + $user->{CREDIT} < $tariffs->{ACTIV_PRICE} && $tariffs->{PAYMENT_TYPE} == 0) {
+        $self->{errno} = 15;
+        return $self;
+      }
+
+      my $fees = Fees->new($self->{db}, $admin, $CONF);
+      $fees->take($user, $tariffs->{ACTIV_PRICE}, { DESCRIBE => "ACTIV TP" });
+
+      $tariffs->{ACTIV_PRICE} = 0;
+    }
   }
 
   $self->query2("INSERT INTO dv_main (uid, registration, 
@@ -194,13 +198,15 @@ sub add {
              join_service,
              turbo_mode,
              free_turbo_mode,
-             expire)
+             expire,
+             password)
         VALUES ('$DATA{UID}', now(),
         '$DATA{TP_ID}', '$DATA{SIMULTANEONSLY}', '$DATA{STATUS}', INET_ATON('$DATA{IP}'), 
         INET_ATON('$DATA{NETMASK}'), '$DATA{SPEED}', '$DATA{FILTER_ID}', LOWER('$DATA{CID}'),
         '$DATA{CALLBACK}',
         '$DATA{PORT}', '$DATA{JOIN_SERVICE}', '$DATA{TURBO_MODE}', '$DATA{FREE_TURBO_MODE}',
-        '$DATA{DV_EXPIRE}');", 'do'
+        '$DATA{DV_EXPIRE}',
+        '$DATA{PASSWORD}');", 'do'
   );
 
   return $self if ($self->{errno});
@@ -232,7 +238,8 @@ sub change {
     JOIN_SERVICE   => 'join_service',
     TURBO_MODE     => 'turbo_mode',
     FREE_TURBO_MODE=> 'free_turbo_mode',
-    DV_EXPIRE      => 'expire'
+    DV_EXPIRE      => 'expire',
+    PASSWORD       => 'password'
   );
 
   if (!$attr->{CALLBACK}) {
@@ -244,10 +251,14 @@ sub change {
 
   if ($attr->{TP_ID} && $old_info->{TP_ID} != $attr->{TP_ID}) {
     my $tariffs = Tariffs->new($self->{db}, $CONF, $admin);
-    $tariffs->info(0, { ID => $old_info->{TP_ID}, MODULE => 'Dv' });
+    $tariffs->info(0, { ID        => $old_info->{TP_ID}, 
+    	                  MODULE    => 'Dv',
+    	                  DOMAIN_ID => $admin->{DOMAIN_ID} || undef });
 
     %{ $self->{TP_INFO_OLD} } = %{ $tariffs };
-    $self->{TP_INFO}     = $tariffs->info(0, { ID => $attr->{TP_ID}, MODULE => 'Dv' });
+    $self->{TP_INFO}     = $tariffs->info(0, { ID        => $attr->{TP_ID}, 
+    	                                         MODULE    => 'Dv',
+    	                                         DOMAIN_ID => $admin->{DOMAIN_ID} || undef });
 
     my $user = Users->new($self->{db}, $admin, $CONF);
 
@@ -310,7 +321,9 @@ sub change {
          || $old_info->{STATUS} == 4 
          || $old_info->{STATUS} == 5) && $attr->{STATUS} == 0) {
     my $tariffs = Tariffs->new($self->{db}, $CONF, $admin);
-    $self->{TP_INFO} = $tariffs->info(0, { ID => $old_info->{TP_ID}, MODULE => 'Dv' });
+    $self->{TP_INFO} = $tariffs->info(0, { ID        => $old_info->{TP_ID}, 
+    	                                     MODULE    => 'Dv',
+    	                                     DOMAIN_ID => $admin->{DOMAIN_ID} || undef });
   }
   elsif ($old_info->{STATUS} == 3 
         && $attr->{STATUS} == 0 
@@ -336,9 +349,11 @@ sub change {
     }
   );
 
-  $self->{TP_INFO}->{ACTIV_PRICE} = 0;
+  $self->{TP_INFO}->{ACTIV_PRICE} = 0 if ($self->{OLD_STATUS} != 2);
 
-  $self->info($attr->{UID});
+  if($self->{AFFECTED}) {
+    $self->info($attr->{UID});
+  }
 
   return $self;
 }
@@ -522,10 +537,14 @@ sub list {
       ['TP_CREDIT',      'INT', 'tp.credit', 'tp.credit AS tp_credit' ],
       ['ONLINE',         'INT', 'c.uid',            'c.uid AS online' ],
       ['PAYMENT_TYPE',   'INT', 'tp.payment_type',                  1 ],
-      ['SHOW_PASSWORD',  '',    '',  "DECODE(u.password, '$CONF->{secretkey}') AS password," ],
-      ['STATUS',         'INT', 'dv.disable as dv_status',          1 ],
+      ['DV_PASSWORD',    '',    '',  "DECODE(dv.password, '$CONF->{secretkey}') AS dv_password" ],
+      ['DV_STATUS',      'INT', 'dv.disable as dv_status',          1 ],
       ['DV_EXPIRE',      'DATE','dv.expire as dv_expire',           1 ],
-      ['UID',            'INT', 'dv.uid',                           1 ],
+      ['DV_STATUS_DATE', '',    '', '(SELECT aa.datetime FROM admin_actions aa WHERE aa.uid=dv.uid AND aa.module=\'Dv\' AND aa.action_type=4
+       ORDER BY aa.datetime DESC LIMIT 1) AS dv_status_date',
+      ['UID',            'INT', 'dv.uid',                           1 ], 
+        ]
+
     ],
     { WHERE       => 1,
     	WHERE_RULES => \@WHERE_RULES,
@@ -719,12 +738,21 @@ sub report_tp {
   $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
   $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
-  
-  $WHERE = ($#WHERE_RULES > -1) ? "AND " . join(' and ', @WHERE_RULES) : '';
+
+  $self->{EXT_TABLES}     = '';
+  $self->{SEARCH_FIELDS}  = '';
+  $self->{SEARCH_FIELDS_COUNT}=0;
+
+  my $WHERE =  $self->search_former($attr, [
+      ['DOMAIN_ID',            'INT', 'tp.domain_id',  ],
+    ],
+    { WHERE       => 1,
+    }
+    );
 
   $self->query2("SELECT tp.id, tp.name, count(DISTINCT dv.uid) AS counts,
       sum(if(dv.disable=0, 1, 0)) AS active,
-      sum(if(dv.disable=1, 1, 0)) AS disabled,
+      sum(if(dv.disable=1 or u.disable=1, 1, 0)) AS disabled,
       sum(if(if(u.company_id > 0, cb.deposit, b.deposit) <= 0, 1, 0)) AS debetors,
       tp.tp_id
       FROM users u
@@ -733,6 +761,7 @@ sub report_tp {
     LEFT JOIN tarif_plans tp ON (tp.id=dv.tp_id) 
     LEFT JOIN companies company ON  (u.company_id=company.id) 
     LEFT JOIN bills cb ON  (company.bill_id=cb.id)
+    $WHERE
      GROUP BY tp.id
      ORDER BY $SORT $DESC;",
      undef,

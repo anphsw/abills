@@ -15,6 +15,9 @@ $VERSION = 2.02;
 &check_bill_account
 &get_ip
 &online_add
+&rad_pairs_former
+%connect_errors_ids
+
 );
 
 @EXPORT_OK   = ();
@@ -29,6 +32,17 @@ my $Billing;
 my $CONF;
 my $debug = 0;
 my $RAD_PAIRS;
+
+my %connect_errors_ids = (
+  1 => 'WRONG_PASS',
+  2 => 'USER_NOT_EXIST',
+  3 => 'AUTH_ERROR',
+  4 => 'NEG_DEPOSIT',
+  5 => 'NOT_ALLOW_SERVICE',
+  6 => 'DISABLE',
+  7 => 'WRONG_PORT',
+  8 => 'WRONG_CID' );
+
 
 #**********************************************************
 # Init
@@ -69,7 +83,12 @@ sub dv_auth {
   my $MAX_SESSION_TRAFFIC = $CONF->{MAX_SESSION_TRAFFIC} || 0;
   my $DOMAIN_ID = ($NAS->{DOMAIN_ID}) ? "AND tp.domain_id='$NAS->{DOMAIN_ID}'" : "AND tp.domain_id='0'";
 
-  $self->query2("select  if (dv.logins=0, if(tp.logins is null, 0, tp.logins), dv.logins) AS logins,
+  
+  if(! $NAS->{NAS_ID}) {
+  	my $zz = `echo "$NAS->{NAS_ID} / $RAD->{NAS_IP_ADDRESS} / $RAD->{USER_NAME}" >> /tmp/nas_error`;
+  }
+
+  $self->query2("SELECT  if (dv.logins=0, if(tp.logins is null, 0, tp.logins), dv.logins) AS logins,
   if(dv.filter_id != '', dv.filter_id, if(tp.filter_id is null, '', tp.filter_id)) AS filter,
   if(dv.ip>0, INET_NTOA(dv.ip), 0) AS ip,
   INET_NTOA(dv.netmask) AS netmask,
@@ -167,9 +186,9 @@ sub dv_auth {
   # Make join service operations
   if ($self->{JOIN_SERVICE}) {
     if ($self->{JOIN_SERVICE} > 1) {
-      $self->query2("select  
-  if ($self->{LOGINS}>0, $self->{LOGINS}, tp.logins) AS logins,
-  if('$self->{FILTER}' != '', '$self->{FILTER}', tp.filter_id) AS filter,
+      $self->query2("SELECT  
+  IF($self->{LOGINS}>0, $self->{LOGINS}, tp.logins) AS logins,
+  IF('$self->{FILTER}' != '', '$self->{FILTER}', tp.filter_id) AS filter,
   dv.tp_id AS tp_num,
   tp.total_time_limit,
   tp.day_time_limit,
@@ -183,13 +202,13 @@ sub dv_auth {
   tp.month_traf_limit,
   tp.octets_direction,
 
-  if (count(un.uid) + count(tp_nas.tp_id) = 0, 0,
-    if (count(un.uid)>0, 1, 2)) AS nas,
+  IF (count(un.uid) + count(tp_nas.tp_id) = 0, 0,
+    IF (count(un.uid)>0, 1, 2)) AS nas,
   tp.max_session_duration,
   tp.payment_type,
   tp.credit_tresshold,
   tp.rad_pairs,
-  count(i.id) AS intervals,
+  COUNT(i.id) AS intervals,
   tp.age AS account_age,
   tp.traffic_transfer_period,
   tp.neg_deposit_filter_id,
@@ -222,6 +241,7 @@ sub dv_auth {
     }
     else {
       $self->{UIDS} = "$self->{UID}";
+      $self->{JOIN_SERVICE}=$self->{UID};
     }
 
     $self->query2("SELECT uid FROM dv_main WHERE join_service='$self->{JOIN_SERVICE}';");
@@ -252,14 +272,21 @@ sub dv_auth {
 
   my $pppoe_pluse = ''; 
   my $ignore_cid  = 0;
-  if ($CONF->{DV_PPPOE_PLUSE_PARAM} && $RAD->{$CONF->{DV_PPPOE_PLUSE_PARAM}}) {
-    $pppoe_pluse = $RAD->{$CONF->{DV_PPPOE_PLUSE_PARAM}} ;
-    if ($self->{PORT} && $self->{PORT} !~ /any/i) {
-      $ignore_cid  = 1;
-    }
-    elsif (! $self->{PORT}) {
-      $self->query2("UPDATE dv_main SET port='$RAD->{$CONF->{DV_PPPOE_PLUSE_PARAM}}' WHERE uid='$self->{UID}';", 'do');
-      $self->{PORT}=$RAD->{$CONF->{DV_PPPOE_PLUSE_PARAM}};
+  
+  if ($CONF->{DV_PPPOE_PLUSE_PARAM}) {
+    my $pppo_pluse_param = $CONF->{DV_PPPOE_PLUSE_PARAM};
+    $pppo_pluse_param =~  tr/[a-z]\-/[A-Z]\_/;
+
+  	if($RAD->{$pppo_pluse_param}) {
+      $pppoe_pluse = $RAD->{$pppo_pluse_param};
+
+      if ($self->{PORT} && $self->{PORT} !~ /any/i) {
+        $ignore_cid  = 1;
+      }
+      elsif (! $self->{PORT}) {
+        $self->query2("UPDATE dv_main SET port='$RAD->{$pppo_pluse_param}' WHERE uid='$self->{UID}';", 'do');
+        $self->{PORT}=$RAD->{$pppo_pluse_param};
+      }
     }
   }
   else {
@@ -284,28 +311,32 @@ sub dv_auth {
 
   #Check  simultaneously logins if needs
   if ($self->{LOGINS} > 0) {
-    $self->query2("SELECT CID, INET_NTOA(framed_ip_address), nas_id, status FROM dv_calls WHERE user_name='$RAD->{USER_NAME}' and (status <> 2);");
-    my ($active_logins) = $self->{TOTAL};
-    my %active_nas      = ();
-    foreach my $line (@{ $self->{list} }) {
-      # If exist reserv add get it      
-      if ($line->[3] == 11) {
-        $self->{IP}       = $line->[1];
-        $self->{REASSIGN} = 1;
-        $active_logins--;
+    $self->query2("SELECT CID, INET_NTOA(framed_ip_address) AS ip, nas_id, status FROM dv_calls WHERE user_name='$RAD->{USER_NAME}' and (status <> 2);");
+    my ($active_logins)  = $self->{TOTAL};
+    my $cid              = $RAD->{CALLING_STATION_ID};
+    if (length($RAD->{CALLING_STATION_ID}) > 20) {
+      $cid = substr($RAD->{CALLING_STATION_ID}, 0, 20);
+    }
+
+    if (! $CONF->{hard_simultaneously_control}) {
+      foreach my $line (@{ $self->{list} }) {
+        # If exist reserv add get it      
+        if ($line->[3] == 11 && $line->[2] eq $NAS->{NAS_ID}) {
+          $self->{IP}       = $line->[1];
+          $self->{REASSIGN} = 1;
+          $active_logins--;
+        }
+        # Zap session with same CID
+        elsif ( $line->[0] ne ''
+          && ($line->[0] eq $cid && $line->[2] eq $NAS->{NAS_ID})
+          && $NAS->{NAS_TYPE} ne 'ipcad'
+          )
+        {
+          $self->query2("UPDATE dv_calls SET status=2 WHERE user_name='$RAD->{USER_NAME}' and CID='$cid ' and status <> 2;", 'do');
+          $self->{IP} = $line->[1] if ($line->[2] eq $NAS->{NAS_ID});
+          $active_logins--;
+        }
       }
-      # Zap session with same CID
-      elsif ( $line->[0] ne ''
-        && $line->[0] eq $RAD->{CALLING_STATION_ID}
-        && $NAS->{NAS_TYPE} ne 'ipcad'
-        && $active_nas{ $line->[2] }
-        && $active_nas{ $line->[2] } eq $line->[0])
-      {
-        $self->query2("UPDATE dv_calls SET status=2 WHERE user_name='$RAD->{USER_NAME}' and CID='$RAD->{CALLING_STATION_ID}' and status <> 2;", 'do');
-        $self->{IP} = $line->[1];
-        $active_logins--;
-      }
-      $active_nas{ $line->[2] } = $line->[0];
     }
 
     if ($active_logins >= $self->{LOGINS}) {
@@ -438,14 +469,14 @@ sub dv_auth {
 
       if ($self->{TOTAL} == 0) {
         push(@time_limits, $self->{ $line . '_TIME_LIMIT' }) if ($self->{ $line . '_TIME_LIMIT' } > 0);
-        $session_traf_limit = $self->{ $line . '_TRAF_LIMIT' } if ($self->{ $line . '_TRAF_LIMIT' } > 0);
+        $session_traf_limit = $self->{ $line . '_TRAF_LIMIT' } if ($self->{ $line . '_TRAF_LIMIT' } && $self->{ $line . '_TRAF_LIMIT' } > 0);
       }
       else {
         ($session_time_limit, $session_traf_limit) = @{ $self->{list}->[0] };
-        push(@time_limits, $session_time_limit) if ($self->{ $line . '_TIME_LIMIT' } > 0);
+        push(@time_limits, $session_time_limit) if ($self->{ $line . '_TIME_LIMIT' } && $self->{ $line . '_TIME_LIMIT' } > 0);
       }
 
-      if ($self->{ $line . '_TRAF_LIMIT' } && $self->{ $line . '_TRAF_LIMIT' } > 0 && ($traf_limit > $session_traf_limit || !$traf_limit)) {
+      if ($self->{ $line . '_TRAF_LIMIT' } && $self->{ $line . '_TRAF_LIMIT' } > 0 && (! $traf_limit || $traf_limit > $session_traf_limit )) {
         $traf_limit = $session_traf_limit;
       }
 
@@ -467,7 +498,7 @@ sub dv_auth {
     }
   }
 
-  if ($self->{ACCOUNT_EXPIRE} != 0) {
+  if ($self->{ACCOUNT_EXPIRE} && $self->{ACCOUNT_EXPIRE} != 0) {
     my $to_expire = $self->{ACCOUNT_EXPIRE} - $self->{SESSION_START};
     if ($to_expire < $time_limit) {
       $time_limit = $to_expire;
@@ -703,7 +734,7 @@ sub dv_auth {
 ###########################################################
   # pppd + RADIUS plugin (Linux) http://samba.org/ppp/
   # lepppd - PPPD IPv4 zone counters
-  elsif ($NAS->{NAS_TYPE} eq 'accel_pptp'
+  elsif ($NAS->{NAS_TYPE} eq 'accel_ppp'
     or ($NAS->{NAS_TYPE} eq 'lepppd')
     or ($NAS->{NAS_TYPE} eq 'pppd'))
   {
@@ -746,6 +777,8 @@ sub dv_auth {
       $RAD_PAIRS->{'PPPD-Downstream-Speed-Limit'} = int($EX_PARAMS->{speed}->{0}->{OUT});
       $RAD_PAIRS->{'PPPD-Upstream-Speed-Limit'}   = int($EX_PARAMS->{speed}->{0}->{IN});
     }
+
+    $RAD_PAIRS->{'Acct-Interim-Interval'} = $NAS->{NAS_ALIVE} if ($NAS->{NAS_ALIVE});
   }
 
   #Chillispot
@@ -853,7 +886,6 @@ sub Auth_CID {
           && $RAD->{CALLING_STATION_ID} !~ /\./
           && $CONF->{DHCP_CID_MAC})
         {
-
           #MAC
           push(@CID_POOL, $mac);
         }
@@ -862,12 +894,10 @@ sub Auth_CID {
           && $RAD->{CALLING_STATION_ID} =~ /\./
           && $CONF->{DHCP_CID_IP})
         {
-
           #IP
           push(@CID_POOL, $ip);
         }
         elsif ($RAD->{CALLING_STATION_ID} =~ /\// && $CONF->{DHCP_CID_MPD}) {
-
           #MPD IP+MAC
           push(@CID_POOL, "$ip/$mac");
         }
@@ -875,21 +905,22 @@ sub Auth_CID {
     }
   }
 
+  my $cid = $RAD->{CALLING_STATION_ID};
+
   foreach my $TEMP_CID (@CID_POOL) {
     if ($TEMP_CID ne '') {
       if (($TEMP_CID =~ /:/ || $TEMP_CID =~ /\-/)
         && $TEMP_CID !~ /\./)
       {
         @MAC_DIGITS_GET = split(/:|-/, $TEMP_CID);
-
         #NAS MPD 3.18 with patch
-        if ($RAD->{CALLING_STATION_ID} =~ /\//) {
-          $RAD->{CALLING_STATION_ID} =~ s/ //g;
+        if ($cid =~ /\//) {
+          $cid =~ s/ //g;
           my ($cid_ip, $trash);
-          ($cid_ip, $RAD->{CALLING_STATION_ID}, $trash) = split(/\//, $RAD->{CALLING_STATION_ID}, 3);
+          ($cid_ip, $cid, $trash) = split(/\//, $cid, 3);
         }
 
-        my @MAC_DIGITS_NEED = split(/:|\-|\./, $RAD->{CALLING_STATION_ID});
+        my @MAC_DIGITS_NEED = split(/:|\-|\./, $cid);
         my $counter = 0;
 
         for (my $i = 0 ; $i <= 5 ; $i++) {
@@ -897,19 +928,23 @@ sub Auth_CID {
             $counter++;
           }
         }
-        return 0 if ($counter eq '6');
+        
+        if ($counter eq '6') {
+          #$RAD->{CALLING_STATION_ID}=join(/:/, @MAC_DIGITS_NEED);
+          return 0 
+        }
       }
 
       # If like MPD CID
       # 192.168.101.2 / 00:0e:0c:4a:63:56
       elsif ($TEMP_CID =~ /\//) {
-        $RAD->{CALLING_STATION_ID} =~ s/ //g;
-        my ($cid_ip, $cid_mac, $trash) = split(/\//, $RAD->{CALLING_STATION_ID}, 3);
+        $cid =~ s/ //g;
+        my ($cid_ip, $cid_mac, $trash) = split(/\//, $cid, 3);
         if ("$cid_ip/$cid_mac" eq $TEMP_CID) {
           return 0;
         }
       }
-      elsif ($TEMP_CID eq $RAD->{CALLING_STATION_ID}) {
+      elsif ($TEMP_CID eq $cid) {
         return 0;
       }
     }
@@ -1015,7 +1050,7 @@ sub authentication {
       $WHERE = "AND u.domain_id='0'";
     }
 
-    $self->query2("select
+    $self->query2("SELECT
   u.uid,
   DECODE(password, '$SECRETKEY') AS passwd,
   UNIX_TIMESTAMP() AS session_start,
@@ -1041,6 +1076,7 @@ sub authentication {
   { INFO => 1 }
     );
   }
+
   if ($self->{errno}) {
     if($self->{errno} == 2) {
       $RAD_PAIRS{'Reply-Message'} = "Login Not Exist or Expire";
@@ -1049,6 +1085,13 @@ sub authentication {
       $RAD_PAIRS{'Reply-Message'} = 'SQL error';
     }
     return 1, \%RAD_PAIRS;
+  }
+
+  if ($CONF->{DV_PASSWORD}) {
+  	$self->query2("SELECT DECODE(password, '$CONF->{secretkey}') AS password FROM dv_main WHERE uid='$self->{UID}';");
+  	if($self->{list}->[0]->[0]) {
+  		$self->{PASSWD}=$self->{list}->[0]->[0];
+  	}
   }
 
   #Auth chap
@@ -1371,13 +1414,13 @@ sub ex_traffic_params {
     #End expresion
   }
   else {
-    if ($in_prices{0} > 0 && $out_prices{0} > 0) {
+    if ($in_prices{0} && $in_prices{0} > 0 && $out_prices{0} > 0) {
       $trafic_limits{0} = ($deposit / (($in_prices{0} + $out_prices{0}) / 2));
     }
-    elsif ($in_prices{0} > 0 && $out_prices{0} == 0) {
+    elsif ($in_prices{0} && $in_prices{0} > 0 && $out_prices{0} == 0) {
       $trafic_limits{0} = ($deposit / $in_prices{0});
     }
-    elsif ($in_prices{0} == 0 && $out_prices{0} > 0) {
+    elsif ($in_prices{0} && $in_prices{0} == 0 && $out_prices{0} > 0) {
       $trafic_limits{0} = ($deposit / $out_prices{0});
     }
 
@@ -1435,6 +1478,18 @@ sub ex_traffic_params {
 sub get_ip {
   my $self = shift;
   my ($nas_num, $nas_ip, $attr) = @_;
+
+  if (! $self->{LOGINS}) {
+  	$self->{USER_NAME} = '' if (! $self->{USER_NAME});
+    $self->query2("SELECT INET_NTOA(framed_ip_address) AS ip FROM dv_calls 
+       WHERE user_name='$self->{USER_NAME}' 
+         AND status=11 
+         AND nas_id='$nas_num'
+         AND framed_ip_address > 0;");
+    if ($self->{TOTAL} > 0) {
+      return $self->{list}->[0]->[0];
+    }
+  }
 
   if ($attr->{TP_IPPOOL}) {
     $self->query2("SELECT ippools.ip, ippools.counts, ippools.id FROM ippools
@@ -1552,6 +1607,10 @@ sub online_add {
        #nas_ip_address  => $attr->{NAS_IP_ADDRESS},
        framed_ip_address => $attr->{FRAMED_IP_ADDRESS}
   );
+
+  if (! $attr->{NAS_ID}) {
+    my $x = `echo "$self->{USER_NAME} nas_id: $attr->{NAS_ID} guest:  $attr->{GUEST} " >> /tmp/nas_id`;
+  }
 
   my $sql = "INSERT INTO dv_calls SET started=now(),
        lupdated        = UNIX_TIMESTAMP(),
@@ -1767,6 +1826,8 @@ sub neg_deposit_filter_former () {
     $RAD_PAIRS->{'Filter-Id'} = "$NEG_DEPOSIT_FILTER_ID";
   }
 
+  $self->{GUEST_MODE}=1 if (! $attr->{USER_FILTER});
+
   if ($attr->{USER_FILTER}) {
     return 0;
   }
@@ -1791,12 +1852,12 @@ sub rad_pairs_former () {
     if ($line =~ /([a-zA-Z0-9\-]{6,25})\s?\+\=\s?(.{1,200})/) {
       my $left  = $1;
       my $right = $2;
-
       #$right =~ s/\"//g;
       push(@{ $RAD_PAIRS->{"$left"} }, $right);
     }
     else {
       my ($left, $right) = split(/=/, $line, 2);
+      $left=~s/^ //g;
       if ($left =~ s/^!//) {
         delete $RAD_PAIRS->{"$left"};
       }

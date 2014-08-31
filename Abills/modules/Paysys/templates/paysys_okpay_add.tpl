@@ -5,7 +5,7 @@
 <input type='hidden' name='ok_item_1_type' value='service'/>
 <input type='hidden' name='ok_item_1_price' value='$FORM{SUM}'/>
 <input type='hidden' name='ok_return_success' value='https://$ENV{SERVER_NAME}:$ENV{SERVER_PORT}/index.cgi?index=$index&sid=$sid&TRUE=1&OPERATION_ID=$FORM{OPERATION_ID}&PAYMENT_SYSTEM=87'/>
-<input type='hidden' name='ok_return_fail' value='https://$ENV{SERVER_NAME}:$ENV{SERVER_PORT}/index.cgi?index=$index&sid=$sid&ERROR=1&OPERATION_ID=$FORM{OPERATION_ID}&PAYMENT_SYSTEM=87'/>
+<input type='hidden' name='ok_return_fail' value='$ENV{PROT}://$ENV{SERVER_NAME}:$ENV{SERVER_PORT}/index.cgi?index=$index&sid=$sid&ERROR=1&OPERATION_ID=$FORM{OPERATION_ID}&PAYMENT_SYSTEM=87'/>
 <input type='hidden' name='ok_ipn' value='http://$ENV{SERVER_NAME}/paysys_check.cgi'/>
 <input type='hidden' name='ok_item_1_custom_1_title' value='UID'>
 <input type='hidden' name='ok_item_1_custom_1_value' maxlength='127' value='$UID'>

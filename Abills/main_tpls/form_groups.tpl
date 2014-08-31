@@ -8,7 +8,9 @@
 <TR><TD>$_DESCRIBE:</TD><TD><input type='text' name='DESCR' value='%DESCR%'></TD></TR>
 <TR><TD>$_ALLOW $_CREDIT</TD><TD><input type='checkbox' name='ALLOW_CREDIT' value='1' %ALLOW_CREDIT%></TD></TR>
 <TR><TD>$_DISABLE PAYSYS</TD><TD><input type='checkbox' name='DISABLE_PAYSYS' value='1' %DISABLE_PAYSYS%></TD></TR>
+<TR><TD>$_DISABLE $_USER_CHG_TP:</TD><TD><input type='checkbox' name='DISABLE_CHG_TP' value='1' %DISABLE_PAYSYS%></TD></TR>
 <TR><TD>$_SEPARATE_DOCS:</TD><TD><input type='checkbox' name='SEPARATE_DOCS' value='1' %SEPARATE_DOCS%></TD></TR>
+
 <TR><TH colspan=2 class=even><input type='submit' name='%ACTION%' value='%LNG_ACTION%' class='button'/></TH></TR>
 </TABLE>
 

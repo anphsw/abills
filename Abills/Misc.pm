@@ -26,8 +26,12 @@ sub load_module {
     require $lang_file;
   }
 
-  if (! require "Abills/modules/$module/webinterface") {
-  	print "Error: load module '$module' $!";
+  eval{ require "Abills/modules/$module/webinterface" };
+
+  if ($@) {
+  	print "Content-Type: text/html\n\n";
+    print "Error: load module '$module' $!";
+    print $@;
   }
 
   return 0;
@@ -45,7 +49,15 @@ sub cross_modules_call {
   my ($function_sufix, $attr) = @_;
   my $timeout = $attr->{timeout} || 3;
 
-  $attr->{USER_INFO}->{DEPOSIT} += $attr->{SUM} if ($attr->{SUM});
+  if ($attr->{SUM} && ! $added) {
+    $attr->{USER_INFO}->{DEPOSIT} += $attr->{SUM} ;
+    $added=1;
+  }
+  
+  if (defined($attr->{SILENT})) {
+  	$silent=$attr->{SILENT};
+  }
+  
   my %full_return  = ();
   my @skip_modules = ();
   eval {
@@ -176,7 +188,7 @@ sub fees_dsc_former {
   
   $conf{DV_FEES_DSC}='%SERVICE_NAME%: %FEES_PERIOD_MONTH%%FEES_PERIOD_DAY% %TP_NAME% (%TP_ID%)%EXTRA%%PERIOD%' if (! $conf{DV_FEES_DSC});
   if (! $attr->{SERVICE_NAME}) {
-  	$attr->{SERVICE_NAME}='Internet';
+    $attr->{SERVICE_NAME}='Internet';
   }
   my $text = $conf{DV_FEES_DSC};
 
@@ -203,6 +215,8 @@ sub service_get_month_fee {
   my $fees     = Finance->fees($Service->{db}, $admin, \%conf);
   my $payments = Finance->payments($Service->{db}, $admin, \%conf);
   my $users    = Users->new($Service->{db}, $admin, \%conf);
+
+  $conf{START_PERIOD_DAY} = 1 if (!$conf{START_PERIOD_DAY});
 
   my %total_sum = (
     ACTIVATE  => 0,
@@ -285,6 +299,9 @@ sub service_get_month_fee {
 
   my $message = '';
   #Current Month
+
+  $DATE=$attr->{DATE} if ($attr->{DATE});
+
   my ($y, $m, $d)   = split(/-/, $DATE, 3);
   my $days_in_month = ($m != 2 ? (($m % 2) ^ ($m > 7)) + 30 : (!($y % 400) || !($y % 4) && ($y % 25) ? 29 : 28));
 
@@ -294,24 +311,52 @@ sub service_get_month_fee {
               METHOD => ($Service->{TP_INFO}->{FEES_METHOD}) ? $Service->{TP_INFO}->{FEES_METHOD} : 1
             );
 
+  if ($attr->{SHEDULER} && $users->{ACTIVATE} ne '0000-00-00') {
+    undef $user;
+    return \%total_sum;
+  }
+
   #Get month fee
-  if ($Service->{TP_INFO}->{MONTH_FEE} && $Service->{TP_INFO}->{MONTH_FEE} > 0) {
+  if (($Service->{TP_INFO}->{MONTH_FEE} && $Service->{TP_INFO}->{MONTH_FEE} > 0) ||
+      ($Service->{TP_INFO_OLD}->{MONTH_FEE} && $Service->{TP_INFO_OLD}->{MONTH_FEE} > 0)
+      ) {
+
     if ( $FORM{RECALCULATE} ) {
-    	my $rest_days     = 0;
+      my $rest_days     = 0;
       my $rest_day_sum2 = 0;
       $sum              = 0;
-    	
+
+      if ($attr->{SHEDULER} && $Service->{TP_INFO_OLD}->{MONTH_FEE} == $Service->{TP_INFO}->{MONTH_FEE}) {
+        if ($attr->{SHEDULER}) {
+          undef $user;
+        }
+        return \%total_sum;
+      }
+      
       if ($users->{ACTIVATE} eq '0000-00-00') {
-        $rest_days     = $days_in_month - $d + 1;
-        $rest_day_sum2 = (! $Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION}) ? $Service->{TP_INFO_OLD}->{MONTH_FEE} /  $days_in_month * $rest_days : 0;
-        $sum           = $rest_day_sum2;
-        #PERIOD_ALIGNMENT
-        $Service->{TP_INFO}->{PERIOD_ALIGNMENT}=1;
+        if ($d != $conf{START_PERIOD_DAY}) {
+          $rest_days     = $days_in_month - $d + 1;
+          $rest_day_sum2 = (! $Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION}) ? $Service->{TP_INFO_OLD}->{MONTH_FEE} /  $days_in_month * $rest_days : 0;
+          $sum           = $rest_day_sum2;
+          #PERIOD_ALIGNMENT
+          $Service->{TP_INFO}->{PERIOD_ALIGNMENT}=1;
+        }
       }
       else {
-      	if ( $attr->{SHEDULER} && date_diff($users->{ACTIVATE}, $DATE) >= 31 ) {
-      	  return \%total_sum;
-      	}
+        #If 
+        if ( $attr->{SHEDULER} && date_diff($users->{ACTIVATE}, $DATE) >= 31 ) {
+          if ($attr->{SHEDULER}) {
+            undef $user;
+          }
+          
+          return \%total_sum;
+        }
+        elsif (! $attr->{SHEDULER} && date_diff($users->{ACTIVATE}, $DATE) < 31) {
+        	$rest_days     = 30 - date_diff($users->{ACTIVATE}, $DATE);
+          $rest_day_sum2 = (! $Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION}) ? $Service->{TP_INFO_OLD}->{MONTH_FEE} /  30 * $rest_days : 0;
+          $sum           = $rest_day_sum2;
+        
+        }
       }     
 
       #Compensation
@@ -328,12 +373,12 @@ sub service_get_month_fee {
           $html->message('err', $_ERROR, "[$payments->{errno}] $err_strs{$payments->{errno}}") if (!$attr->{QUITE});
         }
         else {
-    	    $message .= "$_RECALCULATE\n$_RETURNED: ". sprintf("%.2f", abs($sum))."\n" if (!$attr->{QUITE});
+          $message .= "$_RECALCULATE\n$_RETURNED: ". sprintf("%.2f", abs($sum))."\n" if (!$attr->{QUITE});
         }
       }
     }
 
-    my $sum   = $Service->{TP_INFO}->{MONTH_FEE};
+    my $sum   = $Service->{TP_INFO}->{MONTH_FEE} || 0;
 
     if ($Service->{TP_INFO}->{EXT_BILL_ACCOUNT}) {
       if ($user->{EXT_BILL_ID}) {
@@ -356,6 +401,9 @@ sub service_get_month_fee {
     my ($active_y, $active_m, $active_d) = split(/-/, $Service->{ACCOUNT_ACTIVATE} || $users->{ACTIVATE}, 3);
 
     if (int("$y$m$d") < int("$active_y$active_m$active_d")) {
+      if ($attr->{SHEDULER}) {
+        undef $user;
+      }
       return \%total_sum;
     }
 
@@ -366,13 +414,19 @@ sub service_get_month_fee {
         $days_in_month = ($active_m != 2 ? (($active_m % 2) ^ ($active_m > 7)) + 30 : (!($active_y % 400) || !($active_y % 4) && ($active_y % 25) ? 29 : 28));
         $d = $active_d;
       }
-      $conf{START_PERIOD_DAY} = 1 if (!$conf{START_PERIOD_DAY});
+
       my $calculation_days = ($d < $conf{START_PERIOD_DAY}) ? $conf{START_PERIOD_DAY} - $d : $days_in_month - $d + $conf{START_PERIOD_DAY};
 
       $sum = sprintf("%.2f", ($sum / $days_in_month) * $calculation_days);
     }
 
-    return \%total_sum if ($sum == 0);
+    if ($sum == 0) {
+      if ($attr->{SHEDULER}) {
+        undef $user;
+      }
+
+      return \%total_sum 
+    }
 
     my $periods = 0;
     if (int($active_m) > 0 && int($active_m) < $m) {
@@ -424,12 +478,12 @@ sub service_get_month_fee {
       my $days_in_month = ($m != 2 ? (($m % 2) ^ ($m > 7)) + 30 : (!($active_y % 400) || !($active_y % 4) && ($active_y % 25) ? 29 : 28));
       if ($i > 0) {
         $FEES_DSC{EXTRA} = '';
-      	$message         = '';
+        $message         = '';
         if ($users->{REDUCTION} > 0 && $Service->{TP_INFO}->{REDUCTION_FEE}) {
           $sum = $Service->{TP_INFO}->{MONTH_FEE} * (100 - $users->{REDUCTION}) / 100;
         }
         else {
-        	$sum = $Service->{TP_INFO}->{MONTH_FEE};
+          $sum = $Service->{TP_INFO}->{MONTH_FEE};
         }
 
         if ($Service->{ACCOUNT_ACTIVATE}) {
@@ -518,10 +572,10 @@ sub service_get_month_fee {
 
   my $external_cmd = '_EXTERNAL_CMD';
   if ($service_name eq 'Internet') {
-  	$external_cmd = 'DV'.$external_cmd;
+    $external_cmd = 'DV'.$external_cmd;
   }
   else {
-  	$external_cmd = uc($service_name).$external_cmd;
+    $external_cmd = uc($service_name).$external_cmd;
   }
   
   if ($conf{$external_cmd}) {
@@ -529,8 +583,11 @@ sub service_get_month_fee {
       print "Error: external cmd '$conf{$external_cmd}'\n";
     }
   }
-
-  undef $user;
+  
+  #Undef ?
+  if ($attr->{SHEDULER}) {
+    undef $user;
+  }
 
   return \%total_sum;
 }
@@ -545,24 +602,24 @@ sub result_former {
   my @cols = ();
 
   if($FORM{del_cols}) {
-  	$admin->settings_del($attr->{TABLE}->{ID});
+    $admin->settings_del($attr->{TABLE}->{ID});
     if ($attr->{DEFAULT_FIELDS}){
-    	$attr->{DEFAULT_FIELDS}=~s/[\n ]+//g;
+      $attr->{DEFAULT_FIELDS}=~s/[\n ]+//g;
       @cols = split(/,/, $attr->{DEFAULT_FIELDS});
     }
   }
   elsif ($FORM{show_columns}) {
-	  print $FORM{del_cols};
-  	@cols = split(/, /, $FORM{show_columns});
+    print $FORM{del_cols};
+    @cols = split(/, /, $FORM{show_columns});
     $admin->settings_add({
-    	  SETTING => $FORM{show_columns},
-    	  OBJECT  => $attr->{TABLE}->{ID}
-    	});
+        SETTING => $FORM{show_columns},
+        OBJECT  => $attr->{TABLE}->{ID}
+      });
   }  
   else {
-  	$admin->settings_info($attr->{TABLE}->{ID});
+    $admin->settings_info($attr->{TABLE}->{ID});
     if ($admin->{TOTAL} == 0 && $attr->{DEFAULT_FIELDS}){
-    	$attr->{DEFAULT_FIELDS}=~s/[\n ]+//g;
+      $attr->{DEFAULT_FIELDS}=~s/[\n ]+//g;
       @cols = split(/,/, $attr->{DEFAULT_FIELDS});
     }
     else {
@@ -571,20 +628,20 @@ sub result_former {
   }
 
   foreach my $line (@cols) {
-  	if (! defined($LIST_PARAMS{$line}) || $LIST_PARAMS{$line} eq '') {
-  		$LIST_PARAMS{$line}='_SHOW';
-  	}
-  } 	
+    if (! defined($LIST_PARAMS{$line}) || $LIST_PARAMS{$line} eq '') {
+      $LIST_PARAMS{$line}='_SHOW';
+    }
+  }   
 
   my $data = $attr->{INPUT_DATA};
   if ($attr->{FUNCTION}) {
-  	my $fn   = $attr->{FUNCTION};
-  	my $list = $data->$fn({ COLS_NAME => 1, %LIST_PARAMS, SHOW_COLUMNS => $FORM{show_columns} });
-	  $data->{list} = $list;
+    my $fn   = $attr->{FUNCTION};
+    my $list = $data->$fn({ COLS_NAME => 1, %LIST_PARAMS, SHOW_COLUMNS => $FORM{show_columns} });
+    $data->{list} = $list;
   }
 
   if ($data->{error}) {
-  	return undef, undef;
+    return undef, undef;
   }
 
   my @service_status_colors = ("$_COLORS[9]", "$_COLORS[6]", '#808080', '#0000FF', '#FF8000', '#009999');
@@ -651,7 +708,12 @@ sub result_former {
     }
   }
 
-  %SEARCH_TITLES = ( %SEARCH_TITLES, %{ $attr->{EXT_TITLES} } );
+  if ($attr->{SKIP_USER_TITLE}) {
+  	%SEARCH_TITLES = %{ $attr->{EXT_TITLES} };
+  }
+  else {
+    %SEARCH_TITLES = ( %SEARCH_TITLES, %{ $attr->{EXT_TITLES} } );
+  }
 
   my $base_fields  = $attr->{BASE_FIELDS};
   my @EX_TITLE_ARR = @{ $data->{COL_NAMES_ARR} };
@@ -695,10 +757,10 @@ sub result_former {
           my $val = '';
 
           if ($data->{COL_NAMES_ARR}->[$i] eq 'login' && $line->{uid} && defined(&user_ext_menu)) {
-      	    $val = user_ext_menu($line->{uid}, $line->{login}, { EXT_PARAMS => ($attr->{MODULE} ? "MODULE=$attr->{MODULE}": undef) }); 
+            $val = user_ext_menu($line->{uid}, $line->{login}, { EXT_PARAMS => ($attr->{MODULE} ? "MODULE=$attr->{MODULE}": undef) }); 
           }
-          elsif($data->{COL_NAMES_ARR}->[$i] =~ /status/) {
-      	    $val = ($line->{$data->{COL_NAMES_ARR}->[$i]} > 0) ? $html->color_mark($service_status[ $line->{$data->{COL_NAMES_ARR}->[$i]} ], $service_status_colors[ $line->{$data->{COL_NAMES_ARR}->[$i]} ]) : "$service_status[$line->{$data->{COL_NAMES_ARR}->[$i]}]";
+          elsif($data->{COL_NAMES_ARR}->[$i] =~ /status$/) {
+            $val = ($line->{$data->{COL_NAMES_ARR}->[$i]} > 0) ? $html->color_mark($service_status[ $line->{$data->{COL_NAMES_ARR}->[$i]} ], $service_status_colors[ $line->{$data->{COL_NAMES_ARR}->[$i]} ]) : "$service_status[$line->{$data->{COL_NAMES_ARR}->[$i]}]";
           }
           elsif($data->{COL_NAMES_ARR}->[$i] =~ /deposit/) {
             $val = ($permissions{0}{12}) ? '--' : ($line->{deposit} + $line->{credit} < 0) ? $html->color_mark($line->{deposit}, $_COLORS[6]) : $line->{deposit},
@@ -707,35 +769,35 @@ sub result_former {
             $val = ($line->{online}) ? $html->color_mark('Online', '#00FF00') : '';
           }
           else {
-      	    $val = $line->{ $data->{COL_NAMES_ARR}->[$i]  };
+            $val = $line->{ $data->{COL_NAMES_ARR}->[$i]  };
           }
 
           if ($i==0 && $attr->{MULTISELECT}) {
-          	my($id, $value) = split(/:/, $attr->{MULTISELECT});
-          	$val = $html->form_input($id, $line->{$value}, { TYPE => 'checkbox' }) . ' '. $val;
+            my($id, $value) = split(/:/, $attr->{MULTISELECT});
+            $val = $html->form_input($id, $line->{$value}, { TYPE => 'checkbox' }) . ' '. $val;
           }
 
           push @fields_array, $val;
         }
 
         if($#function_fields > -1) {
-        	for($i=0; $i<=$#function_fields; $i++) {
-        		if($function_fields[$i] eq 'form_payments') {
-        			push @fields_array, ($permissions{1}) ? $html->button($function_fields[$i], "UID=$line->{uid}&index=2", { CLASS=>'payments' }) : '-';
-        		}
-        		elsif($function_fields[$i] =~ /stats/) {
-        			push @fields_array, $html->button($function_fields[$i], "UID=$line->{uid}&index=".get_function_index($#function_fields), { CLASS=>'stats' });
-        		}
-        		elsif($function_fields[$i] eq 'change') {
-        			push @fields_array, $html->button($_CHANGE, "index=$index&chg=$line->{id}". ($line->{uid} ? "&UID=$line->{uid}": undef). ($attr->{MODULE} ? "&MODULE=$attr->{MODULE}": undef), { CLASS=>'change' });
-        		}
-        		elsif($function_fields[$i] eq 'del') {
-        			push @fields_array, $html->button($_DEL, "&index=$index&del=$line->{id}". ($line->{uid} ? "&UID=$line->{uid}": undef) . ($attr->{MODULE} ? "&MODULE=$attr->{MODULE}": undef), { CLASS=>'del', MESSAGE => "$_DEL $line->{id}?" });
-        		}
-        		else {
-        		  push @fields_array, $html->button($function_fields[$i], "UID=$line->{uid}&index=".get_function_index($#function_fields), { BUTTON => 1 });
-        		}
-        	}
+          for($i=0; $i<=$#function_fields; $i++) {
+            if($function_fields[$i] eq 'form_payments') {
+              push @fields_array, ($permissions{1}) ? $html->button($function_fields[$i], "UID=$line->{uid}&index=2", { CLASS=>'payments' }) : '-';
+            }
+            elsif($function_fields[$i] =~ /stats/) {
+              push @fields_array, $html->button($function_fields[$i], "UID=$line->{uid}&index=".get_function_index($#function_fields), { CLASS=>'stats' });
+            }
+            elsif($function_fields[$i] eq 'change') {
+              push @fields_array, $html->button($_CHANGE, "index=$index&chg=$line->{id}". ($line->{uid} ? "&UID=$line->{uid}": undef). ($attr->{MODULE} ? "&MODULE=$attr->{MODULE}": undef), { CLASS=>'change' });
+            }
+            elsif($function_fields[$i] eq 'del') {
+              push @fields_array, $html->button($_DEL, "&index=$index&del=$line->{id}". ($line->{uid} ? "&UID=$line->{uid}": undef) . ($attr->{MODULE} ? "&MODULE=$attr->{MODULE}": undef), { CLASS=>'del', MESSAGE => "$_DEL $line->{id}?" });
+            }
+            else {
+              push @fields_array, $html->button($function_fields[$i], "UID=$line->{uid}&index=".get_function_index($#function_fields), { BUTTON => 1 });
+            }
+          }
         }
 
         $table->addrow(@fields_array);
@@ -743,7 +805,7 @@ sub result_former {
     }
     
     if ($attr->{TOTAL}) {
-  	  my $result = $table->show();
+      my $result = $table->show();
       if (! $admin->{MAX_ROWS}) {
         $table = $html->table(
           {
@@ -756,10 +818,10 @@ sub result_former {
       }
 
       if ($attr->{OUTPUT2RETURN}) {
-      	return $result, $data->{list};
+        return $result, $data->{list};
       }
       else {
-      	print $result;
+        print $result;
       }
     }
     else {
@@ -767,7 +829,7 @@ sub result_former {
     }
   }
   else {
-    return \@title;	
+    return \@title;  
   }
 }
 
@@ -789,22 +851,30 @@ sub _external {
   my ($file, $attr) = @_;
 
   my $arguments = '';
-  $attr->{LOGIN}      = $users->{LOGIN};
+  $attr->{LOGIN}      = $users->{LOGIN} || $attr->{LOGIN};
   $attr->{DEPOSIT}    = $users->{DEPOSIT};
   $attr->{CREDIT}     = $users->{CREDIT};
   $attr->{GID}        = $users->{GID};
   $attr->{COMPANY_ID} = $users->{COMPANY_ID};
 
   while (my ($k, $v) = each %$attr) {
-    if ($k ne '__BUFFER' && $k =~ /[A-Z0-9_]/) {
+    if ($k eq 'TABLE_SHOW') {
+      
+    }
+    elsif ($k ne '__BUFFER' && $k =~ /[A-Z0-9_]/) {
       if ($v && $v ne '') {
-        $arguments .= " $k=\"$v\"";	
+        $arguments .= " $k=\"$v\"";  
       }
       else {
-      	$arguments .= " $k=\"\"";
+        $arguments .= " $k=\"\"";
       }
     }
   }
+
+  #if (! -x $file) {
+  #	$html->message('info', "_EXTERNAL $file", "$file not executable") if (!$attr->{QUITE});;
+  #	return 0;
+  #}
 
   my $result = `$file $arguments`;
   my $error = $!;
@@ -816,6 +886,58 @@ sub _external {
   else {
     $html->message('err', "_EXTERNAL $_ERROR", "[$num] $message $error"); # if (!$attr->{QUITE});;
     return 0;
+  }
+}
+
+
+#**********************************************************
+# get_fees_types
+#
+# return $Array_ref
+#**********************************************************
+sub get_fees_types {
+  my ($attr) = @_;
+
+  use Finance;
+  my %FEES_METHODS = ();
+
+  my $Fees         = Finance->fees($db, $admin, \%conf);
+  my $list         = $Fees->fees_type_list({ PAGE_ROWS => 10000 });
+  foreach my $line (@$list) {
+    if ($FORM{METHOD} && $FORM{METHOD} == $line->[0]) {
+      $FORM{SUM}      = $line->[3] if ($line->[3] > 0);
+      $FORM{DESCRIBE} = $line->[2] if ($line->[2]);
+    }
+
+    $FEES_METHODS{ $line->[0] } = (($line->[1] =~ /\$/) ? eval($line->[1]) : $line->[1]) . (($line->[3] > 0) ? (($attr->{SHORT}) ? ":$line->[3]" : " ($_SERVICE $_PRICE: $line->[3])") : '');
+  }
+
+  return \%FEES_METHODS;
+}
+
+
+#**********************************************************
+# Make log file for paysys request
+# mk_log
+#**********************************************************
+sub mk_log {
+  my ($message, $attr) = @_;
+  my $paysys = $attr->{PAYSYS_ID} || '';
+  my $paysys_log_file = 'paysys_check.log';
+
+  if (open(FILE, ">>$paysys_log_file")) {
+    print FILE "\n$DATE $TIME $ENV{REMOTE_ADDR} $paysys =========================\n";
+
+    if ($attr->{REQUEST}) {
+      print FILE "$attr->{REQUEST}\n=======\n";
+    }
+
+    print FILE $message;
+    close(FILE);
+  }
+  else {
+    print "Content-Type: text/plain\n\n";
+    print "Can't open log file '$paysys_log_file' $!\n";
   }
 }
 

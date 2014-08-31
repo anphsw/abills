@@ -109,7 +109,8 @@ sub new {
   $domain   = $ENV{SERVER_NAME};
   $web_path = '';
   $secure   = '';
-  my $prot = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
+  my $prot  = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
+  $ENV{PROT}= $prot;
   $SELF_URL = (defined($ENV{HTTP_HOST})) ? "$prot://$ENV{HTTP_HOST}$ENV{SCRIPT_NAME}" : '';
 
   $SESSION_IP = $ENV{REMOTE_ADDR} || '0.0.0.0';

@@ -25,7 +25,8 @@ my ($conf, $Billing);
 my %RAD_PAIRS = ();
 my %ACCT_TYPES = ('Start' =>          1, 
                   'Stop'  =>          2, 
-                  'Alive' =>          3, 
+                  'Alive' =>          3,
+                  'Interim-Update'=>  3, 
                   'Accounting-On' =>  7, 
                   'Accounting-Off'=>  8
                  );

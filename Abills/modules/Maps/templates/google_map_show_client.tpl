@@ -1,8 +1,4 @@
-
-
-
-
-    <script src=\"http://maps.google.com/maps?file=api&amp;v=2&amp;key=ABQIAAAA-O3c-Om9OcvXMOJXreXHAxQGj0PqsCtxKvarsoS-iqLdqZSKfxS27kJqGZajBjvuzOBLizi931BUow\"
+    <script src=\"https://maps.google.com/maps?file=api&amp;v=2&amp;key=ABQIAAAA-O3c-Om9OcvXMOJXreXHAxQGj0PqsCtxKvarsoS-iqLdqZSKfxS27kJqGZajBjvuzOBLizi931BUow\"
       type=\"text/javascript\"></script>
  
     <script type=\"text/javascript\">
@@ -18,11 +14,6 @@ var map;
 var lastPosX;
 var lastPosY;
 var lastZoom;
-
-
-
-
-
 
 function getIcon(color) {
   var icon = new GIcon();

@@ -1,4 +1,4 @@
-<script type='text/javascript' src='http://maps.google.com/maps/api/js?%MAP_API_KEY%sensor=false'></script>
+<script type='text/javascript' src='https://maps.google.com/maps/api/js?%MAP_API_KEY%sensor=false'></script>
 <style type=\"text/css\">
 	body { font-family: Arial, sans serif; font-size: 11px; }
 	#hand_b { width:31px; height:31px; background-image: url(/img/google_map/Bsu.png); }

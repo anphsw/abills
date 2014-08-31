@@ -474,8 +474,8 @@ sub mail_users_list {
   if (!defined($FORM{UID})) {
     print $html->letters_list();
     if ($FORM{letter}) {
-      $LIST_PARAMS{FIRST_LETTER} = $FORM{letter};
-      $pages_qs .= "&letter=$FORM{letter}";
+      $LIST_PARAMS{LOGIN} = $FORM{letter};
+      $pages_qs          .= "&letter=$FORM{letter}";
     }
   }
   else {
@@ -519,7 +519,13 @@ sub mail_users_list {
     $table->addrow(
       $html->button($line->[0], "index=$index&MBOX_ID=$line->[14]&UID=$line->[13]"),
       "$line->[1]", $html->button($line->[2], "index=11&UID=$line->[13]&MODULE=Mail"),
-      "$line->[3]", "$line->[4]", "$line->[5]", "$status[$line->[6]]", "$status[$line->[7]]", "$status[$line->[8]]", $html->button($_CHANGE, "index=$index&MBOX_ID=$line->[14]&UID=$line->[13]", { CLASS => 'change' }), $delete
+      "$line->[3]", 
+      "$line->[4]", 
+      "$line->[5]", 
+      "$status[$line->[6]]", 
+      "$status[$line->[7]]", 
+      "$status[$line->[8]]", 
+      $html->button($_CHANGE, "index=$index&MBOX_ID=$line->[14]&UID=$line->[13]", { CLASS => 'change' }), $delete
     );
   }
   print $table->show();
@@ -555,7 +561,6 @@ sub mail_user_boxes {
       if ($FORM{SEND_MAIL}) {
         my $message = $html->tpl_show(_include('mail_test_msg', 'Mail'), $Mail, { notprint => 1 });
         sendmail("$conf{ADMIN_MAIL}", "$Mail->{USER_EMAIL}", "Test mail", "$message", "$conf{MAIL_CHARSET}", "");
-
       }
 
       $html->message('info', $_INFO, "$_ADDED");
@@ -617,14 +622,13 @@ sub mail_user_boxes {
   $Mail->{DISABLE}   = ' checked' if ($Mail->{DISABLE} == 1);
 
   $Mail->{DOMAINS_SEL} = $html->form_select(
-    'DOMAIN_ID',
+    'MAIL_DOMAIN_ID',
     {
-      SELECTED          => $Mail->{DOMAIN_ID},
-      SEL_MULTI_ARRAY   => $Mail->domain_list({ BACKUP_MX => 0 }),
-      MULTI_ARRAY_KEY   => 8,
-      MULTI_ARRAY_VALUE => 0,
-      SEL_OPTIONS       => { 0 => '-N/S-' },
-      NO_ID             => 1
+      SELECTED   => $Mail->{DOMAIN_ID},
+      SEL_LIST   => $Mail->domain_list({ BACKUP_MX => 0, COLS_NAME => 1 }),
+      SEL_KEY    => 'id',
+      SEL_VALUE  => 'domain',
+      NO_ID      => 1
     }
   );
 
@@ -713,7 +717,13 @@ sub mail_domains {
 
   foreach my $line (@$list) {
     $delete = $html->button($_DEL, "index=$index&del=$line->[8]", { MESSAGE => "$_DEL '$line->[0]'?", CLASS => 'del' });
-    $table->addrow($html->b($line->[0]), "$line->[1]", "$status[$line->[2]]", "$bool_vals[$line->[3]]", "$line->[4]", "$line->[5]", "$line->[6]", $html->button($_CHANGE, "index=$index&MAIL_DOMAIN_ID=$line->[8]", { CLASS => 'change' }), $delete);
+    $table->addrow($html->b($line->[0]), 
+      "$line->[1]", 
+      "$status[$line->[2]]", 
+      "$bool_vals[$line->[3]]", 
+      "$line->[4]", 
+      "$line->[5]", 
+      "$line->[6]", $html->button($_CHANGE, "index=$index&MAIL_DOMAIN_ID=$line->[8]", { CLASS => 'change' }), $delete);
   }
   print $table->show();
 
@@ -1151,12 +1161,10 @@ sub mail_wizard {
         $input = $html->form_select(
           "$field_id",
           {
-            SELECTED          => $FORM{$field_id},
-            SEL_MULTI_ARRAY   => $users->info_lists_list({ LIST_TABLE => $field_id . '_list' }),
-            MULTI_ARRAY_KEY   => 0,
-            MULTI_ARRAY_VALUE => 1,
-            SEL_OPTIONS       => { 0 => '-N/S-' },
-            NO_ID             => 1
+            SELECTED    => $FORM{$field_id},
+            SEL_LIST    => $users->info_lists_list({ LIST_TABLE => $field_id . '_list', COLS_NAME => 1 }),
+            SEL_OPTIONS => { 0 => '-N/S-' },
+            NO_ID       => 1
           }
         );
 
@@ -1196,12 +1204,11 @@ sub mail_wizard {
     $Mail->{DOMAINS_SEL} = $html->form_select(
       'DOMAIN_ID',
       {
-        SELECTED          => $Mail->{DOMAIN_ID},
-        SEL_MULTI_ARRAY   => $Mail->domain_list(),
-        MULTI_ARRAY_KEY   => 8,
-        MULTI_ARRAY_VALUE => 0,
-        SEL_OPTIONS       => { 0 => '-N/S-' },
-        NO_ID             => 1
+        SELECTED    => $Mail->{DOMAIN_ID},
+        SEL_LIST    => $Mail->domain_list({ COLS_NAME => 1 }),
+        SEL_VALUE   => 'domain',
+        SEL_OPTIONS => { 0 => '-N/S-' },
+        NO_ID       => 1
       }
     );
 
@@ -1213,8 +1220,6 @@ sub mail_wizard {
   if ($attr->{TPLS}) {
     while (my ($k, $v) = each %{ $attr->{TPLS} }) {
       $tpls{$k} = $v;
-
-      #print "$k, $v<br>";
     }
   }
 

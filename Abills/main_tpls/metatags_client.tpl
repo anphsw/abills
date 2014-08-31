@@ -12,6 +12,7 @@
 <link rel='stylesheet' type='text/css' href='styles/default/client.css' />
 <link rel='stylesheet' type='text/css' href='%PRINTCSS%' media='print' />
 <link rel='stylesheet' type='text/css' href='styles/default/js/selectbox/jquery.selectbox.css' />
+<link rel='stylesheet' type='text/css' href='/styles/default/chosen.css' />
 <!--[if lt IE 9]>
 <link rel='stylesheet' type='text/css' href='css/default/styleIE.css' />
 <![endif]-->
@@ -21,6 +22,7 @@
 <script type='text/javascript' src='styles/default/js/selectbox/jquery.selectbox-0.6.1.js'></script>
 <script type='text/javascript' src='styles/default/js/functions.js'></script>
 <script type='text/javascript' src='styles/default/js/calendar.js'></script>
+<script type='text/javascript' src='/styles/default/js/chosen.jquery.min.js' ></script>
 <!--[if lt IE 9]>
 <script type='text/javascript' src='js/html5.js'></script>
 <![endif]-->	

@@ -2,7 +2,7 @@ $_ORG_NAME  ='Customer name';
 $_WRONG_SUM ='Small sum';
 @MONTHES_LIT=('січня', 'лютого', 'березня', 'квітня', 'травня', 'червня', 'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня');
 $_YEAR_SHORT='y.';
-@units = ('unit');
+@units = ('unit', 'serv.', 'm.');
 
 $ERR_NO_ORDERS='No orders';
 

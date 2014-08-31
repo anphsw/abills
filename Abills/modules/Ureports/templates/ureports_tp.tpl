@@ -3,11 +3,11 @@
 <input type=hidden name='index' value='$index'>
 <input type=hidden name='TP_ID' value='%TP_ID%'>
 <table border='0' class=form>
-  <tr><th>#</th><td><input type='text' name='ID' value='%ID%'></td></tr>
+  <tr><th>#</th><td>%ID% <!-- <input type='text' name='ID' value='%ID%'> --></td></tr>
   <tr><td>$_NAME:</td><td><input type=text name=NAME value='%NAME%'></td></tr>
 
     <tr><td>$_MSG_PRICE:</td><td><input type=text name=MSG_PRICE value='%MSG_PRICE%'></td></tr>
-  <tr><th colspan=2 bgcolor=$_COLORS[0]>$_ABON</th></tr> 
+  <tr><th colspan=2 class=form_title>$_ABON</th></tr> 
   <!-- 
   <tr><td>$_DAY_FEE:</td><td><input type=text name=DAY_FEE value='%DAY_FEE%'></td></tr>
   <tr><td>$_POSTPAID:</td><td><input type=checkbox name=POSTPAID_DAY_FEE value=1 %POSTPAID_DAY_FEE%></td></tr>

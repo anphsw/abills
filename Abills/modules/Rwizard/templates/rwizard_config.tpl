@@ -11,7 +11,7 @@
 <tr><td><textarea name=QUERY rows=12 cols=75>%QUERY%</textarea></td></tr>
 <tr><td>$_QUERY: $_TOTAL</td></tr>
 <tr><td><textarea name=QUERY_TOTAL rows=8 cols=75>%QUERY_TOTAL%</textarea></td></tr>
-<tr><td>$_FIELDS</td></tr>
+<tr><td>$_FIELDS ($_FIELD:$_NAME)</td></tr>
 <tr><td><textarea name=FIELDS rows=5 cols=75>%FIELDS%</textarea></td></tr>
 <tr><td>$_IMPORT: <input name=IMPORT id=IMPORT type=file></td></tr>
 <tr><th><input type=submit name=%ACTION% value='%LNG_ACTION%'</th></tr>

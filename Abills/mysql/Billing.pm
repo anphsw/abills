@@ -1057,6 +1057,7 @@ sub get_timeinfo {
 #  returns
 #    -1 = access deny not allow day
 #    -2 = access deny not allow hour
+#    -3 = Too small deposit
 #********************************************************************
 sub remaining_time {
   my ($self) = shift;
@@ -1247,6 +1248,9 @@ sub remaining_time {
         }
         elsif ($price > 0) {
           $int_prepaid = int($deposit / $price * $PRICE_UNIT);
+          if ($int_prepaid == 0) {
+          	return -3, \%ATTR;
+          }
         }
         else {
           $int_prepaid = $int_duration;

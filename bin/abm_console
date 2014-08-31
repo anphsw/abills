@@ -11,7 +11,7 @@ $UID $user $admin $sid
 );
 
 #use strict;
-my $version = 0.21;
+my $version = 0.22;
 my $debug   = 1;
 
 use FindBin '$Bin';
@@ -91,7 +91,7 @@ my $Dv = Dv->new($db, $admin, \%conf);
 my %LIST_PARAMS = ();
 
 if ($ARGV->{DEBUG}) {
-	$debug = $ARGV->{DEBUG};
+  $debug = $ARGV->{DEBUG};
   if ($ARGV->{DEBUG} > 6) {
     $users->{debug}=1; 
     $fees->{debug}=1;
@@ -102,7 +102,7 @@ if ($ARGV->{DEBUG}) {
 $LIST_PARAMS{PAGE_ROWS} = ($ARGV->{PAGE_ROWS}) ? $ARGV->{PAGE_ROWS} : 1000000;
 
 foreach my $key ( %$ARGV ) {
-	$LIST_PARAMS{$key}=$ARGV->{$key};
+  $LIST_PARAMS{$key}=$ARGV->{$key};
 }
 
 #Intercat mode
@@ -126,7 +126,6 @@ if ($#ARGV == -1) {
       form_users();
     }
   }
-
 }
 
 if ($ARGV->{DV_USER}) {
@@ -138,7 +137,7 @@ elsif ($ARGV->{PAYMENTS}) {
 elsif ($ARGV->{FEES}) {
   form_fees();
 }
-elsif ($ARGV->{LOGIN}) {
+elsif ($ARGV->{LOGIN} || $ARGV->{ADD_USER}) {
   form_users({%$ARGV});
 }
 elsif ($ARGV->{PI}) {
@@ -630,6 +629,40 @@ sub form_users_change {
 sub form_users {
   my ($attr) = @_;
 
+  if($ARGV->{ADD_USER}) {
+  	$ARGV->{LOGIN}=$ARGV->{ADD_USER};
+    $ARGV->{CREATE_BILL}=1;
+
+    my $user_info = $users->add($ARGV);
+    if (! $users->{errno}) {
+    	$ARGV->{UID}=$users->{UID};
+      my $user_pi = $users->pi_add($ARGV);
+      
+      if (! $users->{errno}) {
+        print "$ARGV->{ADD_USER} added\n";
+        $ARGV->{SUM}=$ARGV->{DEPOSIT};
+        delete($ARGV->{DEPOSIT});
+        if ($ARGV->{SUM} > 0) {
+        	$ARGV->{ADD}=1;
+        	form_payments();
+        }
+        elsif($ARGV->{SUM} < 0) {
+        	$ARGV->{GET}=1;
+        	form_fees();
+        }       
+      }
+      else {
+        print "[$users->{errno}] $users->{errstr}\n";
+      }
+      return 0;
+    }
+    else {
+       print "[$users->{errno}] $users->{errstr}\n";
+    }
+    
+    return 0;
+  }
+
   if ($interact) {
     my @user_functions = ("<-:help", "EXIT:exit");
 
@@ -642,11 +675,11 @@ sub form_users {
     push @user_functions, "$_DV:dv_user_main" if (in_array('Dv', \@MODULES));
 
     my $list = $users->list({ FIO           => '_SHOW',
-    	                        DEPOSIT       => '_SHOW',
-    	                        CREDIT        => '_SHOW',
-    	                        LOGIN_STATUS  => '_SHOW',
-    	                        %LIST_PARAMS, 
-    	                        COLS_NAME => 1});
+                              DEPOSIT       => '_SHOW',
+                              CREDIT        => '_SHOW',
+                              LOGIN_STATUS  => '_SHOW',
+                              %LIST_PARAMS, 
+                              COLS_NAME => 1});
     if ($users->{TOTAL} == 1) {
       my $uid = $list->[0]->{uid};
       user_info($uid);
@@ -757,10 +790,15 @@ sub form_fees {
     }
     
     delete $ARGV->{FEES};
-    my $list = $users->list({ BILL_ID => '_SHOW', %$ARGV, PAGE_ROWS => 1000000, COLS_NAME => 1 });
-    $FORM->{SUM}      = $ARGV->{GET}      || $ARGV->{SUM};
+    my $list = $users->list({ BILL_ID   => '_SHOW', 
+    	                        %$ARGV, 
+    	                        PAGE_ROWS => 1000000, 
+    	                        COLS_NAME => 1 });
+
+    $FORM->{SUM}      = abs($ARGV->{SUM}      || $ARGV->{GET});
     $FORM->{DESCRIBE} = $ARGV->{DESCRIBE} || '';
     $FORM->{METHOD}   = $ARGV->{METHOD}   || '';
+
     if ($users->{TOTAL} > 0) {
       foreach my $line (@$list) {
         my $user = {
@@ -768,11 +806,12 @@ sub form_fees {
           BILL_ID => $line->{bill_id},
         };
 
-        print "LOGIN: $line->{login} UID: $user->{UID} BILL_ID: $user->{BILL_ID} \n" if ($debug > 0);
+        print "LOGIN: $line->{login} UID: $user->{UID} BILL_ID: $user->{BILL_ID} SUM: $FORM->{SUM}\n" if ($debug > 0);
+
         $fees->take($user, $FORM->{SUM}, { %$FORM, %$ARGV });
-        
+
         if($fees->{errno}) {
-        	print "Error: $fees->{errno}";        	
+          print "Error: $fees->{errno}";          
         }
       }
     }
@@ -786,13 +825,13 @@ sub form_fees {
     }
   }
 
-  my $list = $fees->list({LOGIN     => '_SWOW',
-  	                      DATE      => '_SWOW',
-  	                      SUM       => '_SWOW',
-  	                      DSC       => '_SHOW',
-  	                      %LIST_PARAMS, 
-  	                      COLS_NAME => 1 
-  	                      });
+  my $list = $fees->list({LOGIN     => '_SHOW',
+                          DATE_TIME => '_SHOW',
+                          SUM       => '_SHOW',
+                          DSC       => '_SHOW',
+                          %LIST_PARAMS, 
+                          COLS_NAME => 1 
+                          });
 
   foreach my $line (@$list) {
     printf("%-5d| %-16s|%19s|%11f|%-20s|\n", $line->{id}, $line->{login}, $line->{date}, $line->{sum}, $line->{dsc});
@@ -813,6 +852,7 @@ sub form_fees {
 sub form_payments {
   my ($attr) = @_;
   my $FORM;
+ 
   if ($interact) {
     print ">> $_PAYMENTS:\n";
 
@@ -841,11 +881,16 @@ sub form_payments {
   }
 
   if ($ARGV->{ADD}) {
-  	if (! $ARGV->{UID}) {
+    if (! $ARGV->{UID}) {
       $ARGV->{LOGIN} = $ARGV->{PAYMENTS} if (!$ARGV->{LOGIN});
     }
+
     delete $ARGV->{PAYMENTS};
-    my $list = $users->list({ BILL_ID => '_SHOW', %$ARGV, PAGE_ROWS => 1000000, COLS_NAME => 1 });
+    my $list = $users->list({ BILL_ID   => '_SHOW', 
+    	                        %$ARGV, 
+    	                        PAGE_ROWS => 1000000, 
+    	                        COLS_NAME => 1 });
+
     $FORM->{SUM}      = $ARGV->{ADD}      || $ARGV->{SUM};
     $FORM->{DESCRIBE} = $ARGV->{DESCRIBE} || '';
     $FORM->{METHOD}   = $ARGV->{METHOD} || '';

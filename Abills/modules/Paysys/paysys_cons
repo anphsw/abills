@@ -67,7 +67,7 @@ require "Abills/templates.pl";
 #Arguments
 my $ARGV = parse_arguments(\@ARGV);
 
-if ($#ARGV < 0) {
+if ($#ARGV < 0 || defined($ARGV->{help}) || defined($ARGV->{'-h'}) ) {
   help();
   exit;
 }
@@ -161,6 +161,7 @@ sub paysys_import_form {
   #Make users binding hash
   my $ids = join(';', @$BINDING_IDS);
   my $users = Users->new($db, $admin, \%conf);
+  $users->{debug}=1 if ($debug > 7);
   my $list = $users->list(
     {
       FIO            => '_SHOW',
@@ -174,6 +175,7 @@ sub paysys_import_form {
   $binding_field_id = lc($BINDING_FIELD);
 
   foreach my $line (@$list) {
+  	$line->{login} = (! $line->{login}) ? $line->{id} : $line->{login};
     $binding_hash{ lc($line->{$binding_field_id}) } = "$line->{uid}:$line->{login}:" . (($line->{fio}) ? $line->{fio} : '');
   }
 
@@ -223,7 +225,7 @@ sub paysys_import_form {
         }
 
         if ($payments->{errno} && $payments->{errno} == 7) {
-          $error_str = "ERROR: EXIST: EXT_ID: $ext_id\n";
+          $error_str .= "ERROR: EXIST: EXT_ID: $ext_id\n";
           $error     = 1;
         }
         else {
@@ -257,7 +259,7 @@ sub paysys_import_form {
         }
 
         if ($fees->{errno} && $fees->{errno} == 7) {
-          $error_str = "ERROR: EXIST: EXT_ID: $DATA_ARR->[$i]->{DATE}.$ID\n";
+          $error_str .= "ERROR: EXIST: EXT_ID: $DATA_ARR->[$i]->{DATE}.$ID\n";
           $error     = 1;
         }
       }
@@ -308,6 +310,10 @@ sub paysys_import_form {
   print "
   TOTAL: $total_count SUM: $total_sum
   ADDED: $total_added_count SUM: $total_added_sum\n" if ($debug > 0);
+
+  if ($error_str) {
+  	print "Error: $error_str\n";
+  }
 
   return ($error) ? 0 : 1;
 }
@@ -718,23 +724,21 @@ $import_rules
 sub eript_202 {
   my $message     = '';
   my $msgs_header = '';
-  my $msg_num     = time();
+  my $msg_num     = substr(time(), 2, 10);
   my $msg_file    = $msg_num . '.202';
 
-  my $msg_version = 3;
+  my $msg_version = 5;
 
   "$DATE$TIME" =~ /(\d{4})\-(\d{2})\-(\d{2})(\d{2}):(\d{2}):(\d{2})/;
   my $msg_date = "$1$2$3$4$5$6";
   "$DATE$TIME" =~ /(\d{4})\-(\d{2})\-(\d{2})(\d{2}):(\d{2}):(\d{2})/;
-  my $payment_period = '';    #"$3$2.$1";
+  my $payment_period = "$2.$1";    #"$3$2.$1";
 
   my $record_total_count = 0;
 
   #
-  my $msg_provider_id = $conf{PAYSYS_ERIPT_PROVIDER_ID} || 123456;    # Код отправителя сообщения  M, N8
-  my $msg_provider_num = $conf{PAYSYS_ERIPT_PROVIDER_NUM}
-  || 123456
-  ;    # Учетный номер плательщика производителя услуг  M, N9, должно содержать три последние цифры кода МФО банка, в котором открыт расчетный счет производителя услуги;
+  my $msg_provider_id           = $conf{PAYSYS_ERIPT_PROVIDER_ID} || 123456;    # Код отправителя сообщения  M, N8
+  my $msg_provider_num          = $conf{PAYSYS_ERIPT_PROVIDER_NUM} || 123456;  # Учетный номер плательщика производителя услуг  M, N9, должно содержать три последние цифры кода МФО банка, в котором открыт расчетный счет производителя услуги;
   my $msg_provider_bank_id      = $conf{PAYSYS_ERIPT_PROVIDER_BANK_ID}      || 123456;    # Код банка производителя услуг  M, N3
   my $msg_provider_bank_account = $conf{PAYSYS_ERIPT_PROVIDER_BANK_ACCOUNT} || 123456;    # Номер услуги у производителя услуг  O, N8
   my $msg_provider_service_id   = 1;
@@ -753,29 +757,32 @@ sub eript_202 {
 
   my $account_key = ($conf{PAYSYS_ERIP_ACCOUNT_KEY} && $conf{PAYSYS_ERIP_ACCOUNT_KEY} eq 'LOGIN') ? 'u.id' : 'u.uid';
 
-  $Paysys->query(
-    $db, "SELECT $account_key, pi.fio, concat(pi.address_street, ', ', pi.address_build, ', ', pi.address_flat), u.credit, dv.tp_id, tp.month_fee FROM users u, 
-    users_pi pi, dv_main dv, tarif_plans tp
+  $Paysys->query2("SELECT $account_key AS account_key, pi.fio, 
+      concat(pi.address_street, ', ', pi.address_build, ', ', pi.address_flat) AS full_address, u.credit, dv.tp_id, tp.month_fee 
+    FROM users u, users_pi pi, dv_main dv, tarif_plans tp
     WHERE u.uid=pi.uid AND u.deleted=0
-    AND u.uid=dv.uid
-    AND dv.tp_id=tp.id
+      AND u.uid=dv.uid
+      AND dv.tp_id=tp.id
     $WHERE
-    "
+    ",
+    undef,
+    { COLS_NAME => 1 }
   );
 
   my $list = $Paysys->{list};
 
   foreach my $line (@{$list}) {
     $num++;
-    my $uid      = $line->[0];
-    my $fio      = $line->[1];
-    my $address  = $line->[2];
+
+    my $uid      = $line->{account_key};
+    my $fio      = convert($line->{fio}, { utf82win => 1 });
+    my $address  = convert($line->{full_address}, { utf82win => 1 });
     my $credit   = 0;            #$line->[3];
     my $comments = '';
     my $ext_info = '';
 
     # TP
-    my $tp_id   = $line->[4];
+    my $tp_id   = $line->{tp_id};
     my $tarif_1 = '';            #$line->[5];
     my $tarif_2 = '';
 
@@ -784,10 +791,14 @@ sub eript_202 {
 
     my $tariffs_fields = '';     #"1~$tp_id~5~$tarif_1~$tarif_2~0~0~0";
 
-    $message .= "$num^$uid^$fio^$address^$payment_period^$credit^$tariffs_fields^$payment_date^$comments^$ext_info^^^\r\n";
+    # V2
+    #$message .= "$num^$uid^$fio^$address^$payment_period^$credit^$tariffs_fields^$payment_date^$comments^$ext_info^^^^^^\r\n";
+
+    # V5
+    $message .= "2^$uid^$fio^$address^$payment_period^$credit^$tariffs_fields^$payment_date^$comments^$ext_info^^^^^\r\n";
   }
 
-  $message = "$msg_version^$msg_provider_id^$msg_num^$msg_date^$record_total_count^$msg_provider_num^$msg_provider_bank_id^$msg_provider_bank_account^$msg_provider_service_id^$msg_valuta\r\n" . $message;
+  $message = "$msg_version^$msg_provider_id^$msg_num^$msg_date^$record_total_count^$conf{PAYSYS_ERIPT_PROVIDER_NUM}^$msg_provider_bank_id^$msg_provider_bank_account^$msg_provider_service_id^$msg_valuta^\r\n" . $message;
 
   if ($debug > 4) {
     print $message;
@@ -853,8 +864,6 @@ sub eript_202 {
 По результатам обработки сообщения 202 в региональном узле должен формироваться ответ.
 Имя файла ответа имеет вид NNNNNNNN.204, где NNNNNNNN – номер сообщения.
 Структура ответа приведена в таблице 1.4.
-
-
 
 =cut  
 

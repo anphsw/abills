@@ -971,7 +971,9 @@ sub pre {
   my $self = shift;
   my ($message) = @_;
 
-  my $output = '';
+  my $output = $message;
+
+  return $output;
 }
 
 #*******************************************************************
@@ -981,7 +983,7 @@ sub b {
   my $self = shift;
   my ($message) = @_;
 
-  my $output = "<b>$message</b>";
+  my $output = "$message";
 
   return $output;
 }
@@ -993,7 +995,7 @@ sub color_mark {
   my $self = shift;
   my ($message, $color) = @_;
 
-  my $output = "";
+  my $output = $message;
 
   return $output;
 }
@@ -1014,9 +1016,6 @@ sub pages {
 
   $self->{pages} = '';
   $begin = ($PG - $PAGE_ROWS * 3 < 0) ? 0 : $PG - $PAGE_ROWS * 3;
-
-  $argument .= "&sort=$FORM{sort}" if ($FORM{sort});
-  $argument .= "&desc=$FORM{desc}" if ($FORM{sort});
 
   return $self->{pages} if ($count < $PAGE_ROWS);
 
@@ -1113,49 +1112,6 @@ sub get_pdf {
   return $pdf;
 }
 
-##**********************************************************
-##
-##**********************************************************
-#sub multi_tpls {
-#  my ($tpl, $MULTI_ARR, $attr) = @_;
-#
-#  my $multi_pdf = PDF::API2->new;
-#
-#  $tmp_path        = $attr->{TMP_PATH}        if ($attr->{TMP_PATH});
-#  $pdf_result_path = $attr->{PDF_RESULT_PATH} if ($attr->{PDF_RESULT_PATH});
-#
-##  for (my $i = 0 ; $i <= 10 ; $i++) {
-##    push @{$MULTI_ARR},
-##    {
-##      FIO     => 'fio' . $i,
-##      DEPOSIT => '00.00' . $i,
-##      CREDIT  => 0.00 + $i,
-##      SUM     => 10.00 + $i
-##    };
-##
-##  }
-#
-#  my $num      = 0;
-#  my $rand_num = rand(32768);
-#
-#  foreach my $line (@$MULTI_ARR) {
-#    my $single_tpl = tpl_show($tpl, { DOC_NUMBER => $num }, { MULTI_DOCS => $MULTI_ARR, });
-#
-#    my $page_count = $single_tpl->pages;
-#    $single_tpl->saveas($tmp_path . '/single.' . $rand_num . '.pdf');
-#
-#    ##Multidocs section
-#    print "Document: $num Pages: $page_count ================================\n" if ($debug > 0);
-#    $num++;
-#    my $main_tpl = PDF::API2->open($tmp_path . '/single' . $rand_num . '.pdf');
-#
-#    for (my $i = 1 ; $i <= $page_count ; $i++) {
-#      my $page = $multi_pdf->importpage($main_tpl, $i);
-#    }
-#  }
-#  $multi_pdf->saveas($pdf_result_path . '/' . $tpl . '.pdf');
-#}
-
 #**********************************************************
 # show tamplate
 # tpl_show
@@ -1174,6 +1130,8 @@ sub tpl_show {
   $filename = $filename . '.pdf';
   my $pdf = PDF::API2->open("$filename");
   my $tpl;
+
+  print "Tpl File: $filename\n" if ($self->{debug});
 
   my $moddate .= '';
   $attr->{DOCS_IN_FILE} = 0 if (!$attr->{DOCS_IN_FILE});
@@ -1197,9 +1155,8 @@ sub tpl_show {
   my $multi_recs      = 0;
 
   if ($encode =~ /utf-8/) {
-    $font_name = '/usr/abills/Abills/templates/fonts/FreeSerif.ttf';
+    $font_name = $CONF->{TPL_DIR}.'/fonts/FreeSerif.ttf';
     $font = $pdf->ttfont($font_name, -encode => "$encode");
-    #$font = $pdf->corefont($font_name, -encode => "$encode");
   }
   else {
     $font = $pdf->corefont($font_name, -encode => "$encode");
@@ -1264,6 +1221,7 @@ sub tpl_show {
           next;
         }
       }
+
       $align      = '';
       $text_file  = $1 if ($pattern =~ /text=([0-9a-zA-Z_\.]+)/);
       $font_size  = $1 if ($pattern =~ /font_size=(\d+)/);
@@ -1321,7 +1279,7 @@ sub tpl_show {
           $txt->lead($string_height);
           my ($idt, $y2) = $txt->paragraph(
             $content, $text_width, $text_height,
-            -align => $align || 'justified',
+            -align     => $align || 'justified',
             -spillover => 2
           );    # ,400,14,@text);
           next;
@@ -1552,6 +1510,17 @@ sub tpl_describe {
 sub br () {
   my $self = shift;
   my ($attr) = @_;
+
+  return '';
+}
+
+
+#*******************************************************************
+# element
+#*******************************************************************
+sub element {
+  my $self = shift;
+  my ($name, $value, $attr) = @_;
 
   return '';
 }

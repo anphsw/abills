@@ -65,6 +65,8 @@ CREATE TABLE `admins` (
   `pasport_grant` varchar(100) NOT NULL default '',
   `inn` varchar(20) NOT NULL default '',
   `birthday` DATE NOT NULL default '0000-00-00',
+  `max_credit` double(12,4) NOT NULL default '0.00',
+  `credit_days` SMALLINT not null default 0,
   PRIMARY KEY  (`aid`),
   UNIQUE KEY `aid` (`aid`),
   UNIQUE KEY `id` (`id`)
@@ -124,7 +126,7 @@ CREATE TABLE `dv_calls` (
   `framed_interface_id` varbinary(16) not null default '',
   `lupdated` int(11) unsigned NOT NULL default '0',
   `sum` double(14,6) NOT NULL default '0.000000',
-  `CID` varchar(18) NOT NULL default '',
+  `CID` varchar(20) NOT NULL default '',
   `CONNECT_INFO` varchar(35) NOT NULL default '',
   `tp_id` smallint(5) unsigned NOT NULL default '0',
   `nas_id` smallint(6) unsigned NOT NULL default '0',
@@ -166,8 +168,7 @@ CREATE TABLE `errors_log` (
   `user` varchar(20) NOT NULL,
   `message` varchar(120) NOT NULL,
   `nas_id` smallint(5) unsigned NOT NULL DEFAULT '0',
-  KEY `user` (`user`),
-  KEY `date` (`date`),
+  KEY `i_user_date` (`user`, `date`),
   KEY `log_type` (`log_type`)
 ) COMMENT='Error log';
 
@@ -212,6 +213,16 @@ CREATE TABLE `config` (
   `domain_id` smallint(6) unsigned not null default '0',
   UNIQUE KEY `param` (`domain_id`, `param`)
 ) COMMENT='System config' ;
+
+
+CREATE TABLE `config_variables` (
+  `param` varchar(30) NOT NULL default '',
+  `type` tinyint(2) unsigned not null default 0,
+  `value` varchar(250) NOT NULL default '',
+  `comments` text,
+  UNIQUE KEY `param` (`param`)
+) COMMENT='System config variables list' ;
+
 
 CREATE TABLE `docs_invoices` (
   `id` int(11) unsigned NOT NULL auto_increment,
@@ -382,6 +393,7 @@ CREATE TABLE `groups` (
   `separate_docs` tinyint(1) unsigned not null default 0,
   `allow_credit` tinyint(1) unsigned not null default 0,
   `disable_paysys` tinyint(1) unsigned not null default 0,
+  `disable_chg_tp` tinyint(1) unsigned not null default 0,
   PRIMARY KEY  (`gid`),
   UNIQUE KEY `name` (`domain_id`, `name`)
 ) ;
@@ -417,7 +429,7 @@ CREATE TABLE `ippools` (
   `ipv6_prefix` VARBINARY(16) not null default '',
   PRIMARY KEY  (`id`),
   UNIQUE KEY `nas` (`nas`,`ip`)
-)  ;
+) COMMENT="IP Pools" ;
 
 CREATE TABLE `dv_log` (
   `start` datetime NOT NULL default '0000-00-00 00:00:00',
@@ -442,7 +454,7 @@ CREATE TABLE `dv_log` (
   `ex_input_octets_gigawords` smallint(4) unsigned NOT NULL default '0',
   `ex_output_octets_gigawords` smallint(4) unsigned NOT NULL default '0',
   KEY `uid` (`uid`,`start`)
-) ;
+) COMMENT="Internet sessions logs" ;
 
 
 CREATE TABLE `mail_access` (
@@ -454,7 +466,7 @@ CREATE TABLE `mail_access` (
   `status` tinyint(1) unsigned NOT NULL default '0',
   PRIMARY KEY  (`pattern`),
   UNIQUE KEY `id` (`id`)
-) ;
+) COMMENT="Mail access list" ;
 
 CREATE TABLE `mail_aliases` (
   `address` varchar(255) NOT NULL default '',
@@ -634,7 +646,9 @@ CREATE TABLE `msgs_unreg_requests` (
   `location_id` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
   `ip` INTEGER(11) UNSIGNED NOT NULL,
   `closed_date` DATETIME NOT NULL,
+  `tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `uid` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
+  `login` varchar(24) not null default '', 
   `connection_time` DATETIME NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `id` (`id`),
@@ -975,7 +989,7 @@ CREATE TABLE `trafic_tarifs` (
 CREATE TABLE `traffic_classes` (
   `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(25) NOT NULL DEFAULT '',
-  `nets` TEXT,
+  `nets` MEDIUMTEXT,
   `comments` TEXT NOT NULL,
   `changed` DATETIME NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`),

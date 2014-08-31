@@ -157,11 +157,12 @@ foreach my $m (@MODULES) {
 }
 
 
-push @daily_functions,    'admin_report_daily';
+push @daily_functions,    'admin_report_daily' if (! $args->{MODULES});
 push @monthly_functions,  'admin_report_monthly' if (! $args->{NO_ADM_REPORT});
 push @monthly_functions,  'logrotate', 'backup' if (! $args->{MODULES});
+
 if ($args->{SHEDULE}) {
-   @daily_functions = ('sheduler');
+  @daily_functions = ('sheduler');
 }
 elsif(! $args->{MODULES}) {
 	push @daily_functions, 'sheduler';
@@ -173,6 +174,7 @@ if ($args->{DATE}) {
     print "Wrong date format. Format: YYYY-MM-DD\n";
     exit;
   }
+
   ($Y, $M, $D) = split(/-/, $args->{DATE});
   $YESTERDAY = (strftime '%Y-%m-%d', localtime(POSIX::mktime(0, 10, 1, $D, ($M - 1), ($Y - 1900)) - 86400));
 
@@ -199,7 +201,10 @@ $ADMIN_REPORT{YESTERDAY} = $YESTERDAY;
 if (defined($args->{monthly})) {
   for (my $i=0; $i <= $#monthly_functions; $i++) {
     my $f = $monthly_functions[$i];
-    print "==> FUNCTION: " . $f . "\n" if ($args->{DEBUG} && $args->{DEBUG} > 4);
+    if ($args->{DEBUG} && $args->{DEBUG} > 0) {
+      print "==> FUNCTION: " . $f . "\n" ;
+      $DEBUG .= "==> FUNCTION: " . $f . "\n" ;
+    }
 
     $f->({ %$args, %ADMIN_REPORT });
   }
@@ -218,7 +223,11 @@ if (defined($args->{monthly})) {
 elsif (defined($args->{daily})) {
   for (my $i=0; $i<=$#daily_functions; $i++) {
     my $f = $daily_functions[$i];
-    $DEBUG .= "==> FUNCTION: " . $f . "\n" if ($args->{DEBUG} && $args->{DEBUG} > 4);
+    if ($args->{DEBUG} && $args->{DEBUG} > 0) {
+      print "==> FUNCTION: " . $f . "\n";
+      $DEBUG .= "==> FUNCTION: " . $f . "\n";
+    }
+   
     $f->({ %$args, %ADMIN_REPORT });
   }
 
@@ -231,7 +240,22 @@ elsif (defined($args->{daily})) {
 
   if (!$args->{NO_ADM_REPORT}) {
     my $message = $html->tpl_show(templates('admin_report_day'), \%ADMIN_REPORT, { notprint => 1 });
-    sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "$ADMIN_REPORT{HOSTNAME}: Daily billing report ($YESTERDAY)", "$message", "$conf{MAIL_CHARSET}", "2 (High)");
+    sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", 
+             "$ADMIN_REPORT{HOSTNAME}: Daily billing report ($YESTERDAY)", 
+             "Admin Report", 
+             "$conf{MAIL_CHARSET}", 
+             "2 (High)",
+             {
+               ATTACHMENTS => [
+                 {
+                   CONTENT      => $message,
+                   CONTENT_TYPE => 'Content-type: application/pdf',
+                   FILENAME     => 'report_'.$YESTERDAY .'.txt',
+                 }
+              ],
+              TEST => ($debug>5) ? 1 : undef
+             }
+            );
   }
 }
 elsif (defined($args->{backup})) {
@@ -288,9 +312,10 @@ sub sheduler {
       Y         => "$Y,\\*",
       M         => "$M,\\*",
       D         => "$D,\\*",
-      PAGE_ROWS => 1000000,
       COLS_NAME => 1,
-      %LIST_PARAMS
+      %LIST_PARAMS,
+      DOMAIN_ID => undef,
+      PAGE_ROWS => 1000000,
     }
   );
 
@@ -350,7 +375,7 @@ sub sheduler {
       my $function = lc $s->{module} . "_sheduler";
       
       if (defined(&$function) ) {
-        $ret = $function->($s->{type}, "$action", $s->{uid});
+        $ret = $function->($s->{type}, "$action", $s->{uid}, { DATE => $ADMIN_REPORT{DATE} });
       }
       else {
       	print "ID: $shedule_id Function not defined '$function'\n";
@@ -394,13 +419,13 @@ sub admin_report_daily {
   $LIST_PARAMS{DESC}      = 'DESC';
   $LIST_PARAMS{PAGE_ROWS} = 1000000;
 
-  $list = $Payments->list({ LOGIN     => '_SHOW',
+  my $list = $Payments->list({ LOGIN     => '_SHOW',
   	                        FIO       => '_SHOW',
   	                        DESCRIBE  => '_SHOW',
   	                        SUM       => '_SHOW',
   	                        ADMIN_NAME=> '_SHOW',
   	                        IP        => '_SHOW',
-  	                        DATE      => '_SHOW',
+  	                        DATETIME  => '_SHOW',
   	                        %LIST_PARAMS, 
   	                        COLS_NAME => 1 
   	                      });
@@ -434,7 +459,7 @@ sub admin_report_daily {
                         SUM       => '_SHOW',
                         ADMIN_NAME=> '_SHOW',
                         IP        => '_SHOW',
-                        DATE      => '_SHOW',
+                        DATETIME  => '_SHOW',
                         METHOD    => '_SHOW',
                         DEPOSIT   => '_SHOW',
                         %LIST_PARAMS, 
@@ -454,7 +479,7 @@ sub admin_report_daily {
   }
 
   $ADMIN_REPORT{FEES} .= "---------------------------------------------------------\n";
-  $ADMIN_REPORT{FEES} .= sprintf("%-14s| %8s|\n%-14s| %8s|\n", $_TOTAL, $Fees->{TOTAL}, $_SUM, $Fees->{SUM});
+  $ADMIN_REPORT{FEES} .= sprintf("\n%-14s| %8s|\n%-14s| %8s|\n", $_TOTAL, $Fees->{TOTAL}, $_SUM, $Fees->{SUM});
 
   #Module report functions
   foreach my $function (@reports) {
@@ -583,7 +608,7 @@ sub backup {
   $DEBUG .= "DB backup\n" if ($debug > 1);
   $conf{dbcharset} = 'latin1' if (!$conf{dbcharset});
   my $cmd =
-qq{ ( $MYSQLDUMP --default-character-set=$conf{dbcharset} -d --host=$conf{dbhost} --user="$conf{dbuser}" --password="$conf{dbpasswd}" $conf{dbname} ;$MYSQLDUMP --skip-triggers --no-create-info --default-character-set=$conf{dbcharset} -v $ignore_tables --host=$conf{dbhost} --user="$conf{dbuser}" --password="$conf{dbpasswd}" $conf{dbname}) | $GZIP > $conf{BACKUP_DIR}/stats-$DATE.sql.gz };
+qq{ ( $MYSQLDUMP --default-character-set=$conf{dbcharset} -d --host=$conf{dbhost} --user="$conf{dbuser}" --password="$conf{dbpasswd}" $conf{dbname} ;$MYSQLDUMP --skip-triggers --single-transaction --no-create-info --default-character-set=$conf{dbcharset} -v $ignore_tables --host=$conf{dbhost} --user="$conf{dbuser}" --password="$conf{dbpasswd}" $conf{dbname}) | $GZIP > $conf{BACKUP_DIR}/stats-$DATE.sql.gz };
 
   $DEBUG .= $cmd . "\n" if ($debug > 1);
   if ($debug < 5) {
@@ -648,7 +673,7 @@ sub credit_operation {
   );
   
   foreach my $line (@{ $list }) {
-    $DEBUG .= "$line->{login} ($line->{uid}) DEPOSIT: $line->{deposit} CREDIT: $line->{credit} CREDIT_DATE: $line->{credit_date}\n" if ($debug > 0);
+    $DEBUG .= "$line->{login} ($line->{uid}) DEPOSIT: $line->{deposit} CREDIT: $line->{credit} CREDIT_DATE: $line->{credit_date}\n" if ($debug > 1);
 
     if ($debug < 5) {
       $users->change(
@@ -673,7 +698,7 @@ sub credit_operation {
   );
 
   foreach my $line (@$list) {
-    $DEBUG .= "$line->{name} ($line->{id}) DEPOSIT: $line->{deposit} CREDIT: $line->{credit} CREDIT_DATE: $line->{credit_date}\n" if ($debug > 0);
+    $DEBUG .= "$line->{name} ($line->{id}) DEPOSIT: $line->{deposit} CREDIT: $line->{credit} CREDIT_DATE: $line->{credit_date}\n" if ($debug > 1);
 
     if ($debug < 5) {
       $Company->change(
@@ -804,6 +829,7 @@ sub credit_full_set {
     		                 CREDIT      => ($full_sum+1),
     		                 CREDIT_DATE => ($CREDIT_EXPIRE_DATE) ? $CREDIT_EXPIRE_DATE : undef
     		              });
+
     	$DEBUG .= "SUM: $full_sum\n" if ($debug > 0);
     }
   }
@@ -831,7 +857,7 @@ sub reduction_operation {
   );
 
   foreach my $line (@$list) {
-    $DEBUG .= "$line->{login} ($line->{uid}) REDUCTION: $line->{reduction} REDUCTION_DATE: $line->{reduction_date}\n" if ($debug > 0);
+    $DEBUG .= "$line->{login} ($line->{uid}) REDUCTION: $line->{reduction} REDUCTION_DATE: $line->{reduction_date}\n" if ($debug > 1);
     if ($debug < 5) {
       $users->change(
         $line->{uid},
@@ -1009,28 +1035,5 @@ sub debetors_group_create {
   return 0;
 }
 
-
-#**********************************************************
-# get_fees_types
-#
-# return $Array_ref
-#**********************************************************
-sub get_fees_types {
-  my ($attr) = @_;
-
-  my %FEES_METHODS = ();
-  my $fees         = Finance->fees($db, $admin, \%conf);
-  my $list         = $fees->fees_type_list({ PAGE_ROWS => 10000 });
-  foreach my $line (@$list) {
-    if ($FORM{METHOD} && $FORM{METHOD} == $line->[0]) {
-      $FORM{SUM}      = $line->[3] if ($line->[3] > 0);
-      $FORM{DESCRIBE} = $line->[2] if ($line->[2]);
-    }
-
-    $FEES_METHODS{ $line->[0] } = (($line->[1] =~ /\$/) ? eval($line->[1]) : $line->[1]) . (($line->[3] > 0) ? (($attr->{SHORT}) ? ":$line->[3]" : " ($_SERVICE $_PRICE: $line->[3])") : '');
-  }
-
-  return \%FEES_METHODS;
-}
 
 1

@@ -5,8 +5,7 @@
 	display: none;
 }
 </style>
-<link rel='stylesheet' type='text/css' href='/styles/default/chosen.css' />
-<script type='text/javascript' src='/styles/default/js/chosen.jquery.min.js' ></script>
+
 <script language='JavaScript' type='text/javascript'>
     \$(document).ready(function(){
       \$('#p1').chosen({no_results_text: '$_NOT_EXIST', allow_single_deselect: true, placeholder_text: '$_CHANGE'});
@@ -16,8 +15,8 @@
 </script>
 
 <div id='selfs_address' style='display:none' >$SELF_URL</div>
-<input type='hidden' name='STREET_ID' value='%STREET_ID%' ID='STREET_ID'>
 <input type='hidden' name='DISTRICT_ID' value='%DISTRICT_ID%' ID='DISTRICT_ID'>
+<input type='hidden' name='STREET_ID' value='%STREET_ID%' ID='STREET_ID'>
 <input type='hidden' name='LOCATION_ID' value='%LOCATION_ID%' ID='LOCATION_ID'>
 <TR>
   <TH colspan=2 class='form_title'>$_ADDRESS</TH>

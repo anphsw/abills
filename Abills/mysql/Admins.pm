@@ -189,6 +189,8 @@ sub info {
      a.pasport_grant,
      a.inn,
      a.birthday,
+     a.max_credit, 
+     a.credit_days,
      $PASSWORD
      FROM 
       admins a
@@ -232,6 +234,9 @@ sub list {
 
   @WHERE_RULES = ();
 
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
   if ($attr->{GIDS}) {
     push @WHERE_RULES, "a.gid IN ($attr->{GIDS})";
   }
@@ -248,7 +253,8 @@ sub list {
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query2("select a.aid, a.id AS login, a.name, a.regdate, a.disable, g.name, d.name 
+  $self->query2("select a.aid, a.id AS login, a.name, a.regdate, a.disable, 
+    g.name AS g_name, d.name AS domain_name 
  FROM admins a
   LEFT JOIN groups g ON (a.gid=g.gid) 
   LEFT JOIN domains d ON (d.id=a.domain_id) 
@@ -289,7 +295,9 @@ sub change {
     PASPORT_DATE     => 'pasport_date',
     PASPORT_GRANT    => 'pasport_grant',
     INN              => 'inn',
-    BIRTHDAY         => 'birthday'
+    BIRTHDAY         => 'birthday',
+    MAX_CREDIT       => 'max_credit', 
+    CREDIT_DAYS      => 'credit_days'
   );
 
   if (!$attr->{A_LOGIN}) {
@@ -326,11 +334,13 @@ sub add {
 
   $self->query2("INSERT INTO admins (id, name, regdate, phone, disable, gid, email, comments, password, domain_id,
   min_search_chars, max_rows,
-  address, cell_phone, pasport_num, pasport_date, pasport_grant, inn, birthday) 
+  address, cell_phone, pasport_num, pasport_date, pasport_grant, inn, birthday,
+  max_credit, credit_days) 
    VALUES ('$DATA{A_LOGIN}', '$DATA{A_FIO}', now(),  '$DATA{A_PHONE}', '$DATA{DISABLE}', '$DATA{GID}', 
    '$DATA{EMAIL}', '$DATA{A_COMMENTS}', '$DATA{PASSWORD}', '$DATA{DOMAIN_ID}',
    '$DATA{MIN_SEARCH_CHARS}', '$DATA{MAX_ROWS}',
-   '$DATA{ADDRESS}', '$DATA{CELL_PHONE}', '$DATA{PASPORT_NUM}', '$DATA{PASPORT_DATE}', '$DATA{PASPORT_GRANT}', '$DATA{INN}', '$DATA{BIRTHDAY}');", 'do'
+   '$DATA{ADDRESS}', '$DATA{CELL_PHONE}', '$DATA{PASPORT_NUM}', '$DATA{PASPORT_DATE}', '$DATA{PASPORT_GRANT}', '$DATA{INN}', '$DATA{BIRTHDAY}',
+   '$DATA{MAX_CREDIT}', '$DATA{CREDIT_DAYS}');", 'do'
   );
 
   $self->{AID} = $self->{INSERT_ID};
@@ -470,6 +480,7 @@ sub action_list {
   my $WHERE = $self->search_former($attr, [
       ['UID',          'INT',  'aa.uid',          ],
       ['LOGIN',        'STR',  'u.id',            ],
+      ['DATETIME',     'DATE', 'aa.datetime'      ],
       ['RESPOSIBLE',   'INT',  'm.resposible',    ],
       ['ACTION',       'INT',  'aa.actions',      ],
       ['TYPE',         'INT',  'aa.action_type',  ], 
@@ -490,7 +501,8 @@ sub action_list {
     $EXT_TABLE = " LEFT JOIN users_pi pi ON (u.uid=pi.uid) ".$EXT_TABLE ;
   }
 
-  $self->query2("select aa.id, u.id AS login, aa.datetime, aa.actions, a.id as admin_login, INET_NTOA(aa.ip) AS ip, aa.module, 
+  $self->query2("select aa.id, u.id AS login, aa.datetime, aa.actions, a.id as admin_login, 
+      INET_NTOA(aa.ip) AS ip, aa.module, 
       aa.action_type,
       aa.uid, 
       $self->{SEARCH_FIELDS}

@@ -2,7 +2,7 @@
 # ABillS Auto Programs Building
 
 
-VERSION=4.43;
+VERSION=4.54
 
 PORTS_LOCATION="/usr/ports/"
 TMPOPTIONSFILE="/tmp/abills.tmp"
@@ -26,11 +26,28 @@ fi;
 WEB_SERVER_USER=www
 INSTALL_IPCAD=1
 
-
 GetVersionFromFile() {
-	VERSION=`cat $1 | tr "\n" ' ' | sed s/.*VERSION.*=\ // `
+  VERSION=`cat $1 | tr "\n" ' ' | sed s/.*VERSION.*=\ // `
 }
 
+
+#**********************************************************
+# uninstall
+#**********************************************************
+_uninstall () {
+  echo -n  "Uninstall system? (y/n): "
+
+  read UNINSTALL=
+  if [ x${UNINSTALL} != xy ]; then
+    echo "reset";
+    exit;
+  fi;
+
+  echo "Clear db"
+  mysql -D mysql -u root -e "DELETE FROM user WHERE user='abills'; DELETE * FROM db WHERE user='abills'; DROP DATABASE abills;";
+  echo "Remove abills dir"
+  mv /usr/abills /usr/abills_;
+}
 
 #**********************************************************
 #
@@ -65,55 +82,54 @@ MACH=`uname -m`
 OS_NAME=""
 
 if [ "${OS}" = "SunOS" ] ; then
-	OS=Solaris
-	ARCH=`uname -p`	
-	OSSTR="${OS} ${OS_VERSION}(${ARCH} `uname -v`)"
+  OS=Solaris
+  ARCH=`uname -p`  
+  OSSTR="${OS} ${OS_VERSION}(${ARCH} `uname -v`)"
 elif [ "${OS}" = "AIX" ] ; then
-	OSSTR="${OS} `oslevel` (`oslevel -r`)"
+  OSSTR="${OS} `oslevel` (`oslevel -r`)"
 elif [ "${OS}" = "FreeBSD" ] ; then
-	OS_NAME="FreeBSD";
+  OS_NAME="FreeBSD";
 elif [ "${OS}" = "Linux" ] ; then
   #GetVersionFromFile
-	KERNEL=`uname -r`
-	if [ -f /etc/altlinux-release ]; then 	  
+  KERNEL=`uname -r`
+  if [ -f /etc/altlinux-release ]; then     
     OS_NAME=`cat /etc/altlinux-release | awk '{ print $1 $2 }'`
     OS_VERSION=`cat /etc/altlinux-release | awk '{ print $3 }'`
-	#RedHat CentOS
-	elif [ -f /etc/redhat-release ] ; then
-		#OS_NAME='RedHat'
-		OS_NAME=`cat /etc/redhat-release | awk '{ print $1 }'`
-		PSUEDONAME=`cat /etc/redhat-release | sed s/.*\(// | sed s/\)//`
-		OS_VERSION=`cat /etc/redhat-release | sed s/.*release\ // | sed s/\ .*//`
-	elif [ -f /etc/SuSE-release ] ; then
+  #RedHat CentOS
+  elif [ -f /etc/redhat-release ] ; then
+    #OS_NAME='RedHat'
+    OS_NAME=`cat /etc/redhat-release | awk '{ print $1 }'`
+    PSUEDONAME=`cat /etc/redhat-release | sed s/.*\(// | sed s/\)//`
+    OS_VERSION=`cat /etc/redhat-release | sed s/.*release\ // | sed s/\ .*//`
+  elif [ -f /etc/SuSE-release ] ; then
     OS_NAME='openSUSE'
-		#OS_NAME=`cat /etc/SuSE-release | tr "\n" ' '| sed s/VERSION.*//`
-		OS_VERSION=`cat /etc/SuSE-release | grep 'VERSION' | tr "\n" ' ' | sed s/.*=\ //`
-	elif [ -f /etc/mandrake-release ] ; then
-		OS_NAME='Mandrake'
-		PSUEDONAME=`cat /etc/mandrake-release | sed s/.*\(// | sed s/\)//`
-		OS_VERSION=`cat /etc/mandrake-release | sed s/.*release\ // | sed s/\ .*//`
-#	elif [ -f /etc/debian_version ] ; then
-#		OS_NAME="Debian `cat /etc/debian_version`"
-#		OS_VERSION=`cat /etc/issue | head -1 |awk '{ print $3 }'`
+    #OS_NAME=`cat /etc/SuSE-release | tr "\n" ' '| sed s/VERSION.*//`
+    OS_VERSION=`cat /etc/SuSE-release | grep 'VERSION' | tr "\n" ' ' | sed s/.*=\ //`
+  elif [ -f /etc/mandrake-release ] ; then
+    OS_NAME='Mandrake'
+    PSUEDONAME=`cat /etc/mandrake-release | sed s/.*\(// | sed s/\)//`
+    OS_VERSION=`cat /etc/mandrake-release | sed s/.*release\ // | sed s/\ .*//`
+#  elif [ -f /etc/debian_version ] ; then
+#    OS_NAME="Debian `cat /etc/debian_version`"
+#    OS_VERSION=`cat /etc/issue | head -1 |awk '{ print $3 }'`
   elif [ -f /etc/slackware-version ]; then 
     OS_NAME=`cat /etc/slackware-version | awk '{ print $1 }'`
-    OS_VERSION=`cat /etc/slackware-version | awk '{ print $2 }'` 	
+    OS_VERSION=`cat /etc/slackware-version | awk '{ print $2 }'`   
   else
     #Debian 
     OS_NAME=`cat /etc/issue| head -1 |awk '{ print $1 }'`
     OS_VERSION=`cat /etc/issue | head -1 |awk '{ print $3 }'`
-	fi
+  fi
 
-	if [ -f /etc/UnitedLinux-release ] ; then
-		OS_NAME="${OS_NAME}[`cat /etc/UnitedLinux-release | tr "\n" ' ' | sed s/VERSION.*//`]"
-	fi
+  if [ -f /etc/UnitedLinux-release ] ; then
+    OS_NAME="${OS_NAME}[`cat /etc/UnitedLinux-release | tr "\n" ' ' | sed s/VERSION.*//`]"
+  fi
 
   if [ x"${OS_NAME}" = xUbuntu ]; then
     OS_VERSION=`cat /etc/issue|awk '{ print $2 }'`
   fi;
-	#OSSTR="${OS} ${OS_NAME} ${OS_VERSION}(${PSUEDONAME} ${KERNEL} ${MACH})"
+  #OSSTR="${OS} ${OS_NAME} ${OS_VERSION}(${PSUEDONAME} ${KERNEL} ${MACH})"
 fi
-
 
 }
 
@@ -147,9 +163,11 @@ echo "
  ABillS Ports Builder (ver. ${VERSION})
   -d     Debug mode
   -V     Verbose mode
+  -b     make benchmark
   -r     Rebuild packages
   -s     Make Source update
   -v     Show Version
+  -u     Uninstall (abills mysql)
   -h     This help
 "
   exit;
@@ -213,7 +231,7 @@ if [ -f ${KERNEL_FILE} ]; then
 
   echo -n "Install kernel ${KERNEL_FILE}? (y/n): "
   read INSTALL_KERNEL=
-  if [ w${INSTALL_KERNEL} = wy ]; then
+  if [ x${INSTALL_KERNEL} = xy ]; then
     make installkernel KERNCONF=${KERNEL_FILE}
   fi;
 else 
@@ -241,17 +259,20 @@ fi;
 #Add hosts
 if [ "${OS}" = "FreeBSD" ]; then
   if [ x"${HOSTNAME}" = x ]; then 
-    echo "${DEFAULT_HOSTNAME}" >> /etc/rc.conf
+    echo "${DEFAULT_HOSTNAME}." >> /etc/rc.conf
     HOSTNAME=${DEFAULT_HOSTNAME}
     hostname ${DEFAULT_HOSTNAME}
   fi;
   
   CHECK_HOSTS=`grep ${HOSTNAME} /etc/hosts`
+
+  IP=`ifconfig \`route -n get default | grep interface | awk '{ print $2 }'\` | grep "inet " | awk '{ print $2 }'`
   
-  if [ x${CHECK_HOSTS} = x ]; then
-    IP=`ifconfig \`route -n get default | grep interface | awk '{ print $2 }'\` | grep inet | awk '{ print $2 }'`
+  if [ x"${CHECK_HOSTS}" = x ]; then
     echo "${IP}  ${HOSTNAME}" >> /etc/hosts
   fi;
+  
+  BILLING_WEB_IP=${IP}
 fi;
 }
 
@@ -263,25 +284,34 @@ install_fsbackup() {
 cd ~ ;
 url="http://www.opennet.ru/dev/fsbackup/src/fsbackup-1.2pl2.tar.gz"
 
-if [ w${OS} = wLinux ]; then
+if [ x"${OS}" = xLinux ]; then
   wget "${url}";
 else 
   fetch "${url}";
 fi;
-   
-cmd=${cmd}"tar zxvf fsbackup-1.2pl2.tar.gz; "
-cmd=${cmd}"cd fsbackup-1.2pl2; "
-cmd=${cmd}"./install.pl "
-cmd=${cmd}"&& mkdir /usr/local/fsbackup/archive; "
 
-${cmd}
+tar zxvf fsbackup-1.2pl2.tar.gz;
+cd fsbackup-1.2pl2;
+./install.pl;
+mkdir /usr/local/fsbackup/archive;
+
+#if [ x${DEBUG} != x ]; then
+#  echo ${cmd}
+#fi;
+#
+#`${cmd}`
 
 echo "!/usr/local/fsbackup" >> /usr/local/fsbackup/cfg_example
 cp /usr/local/fsbackup/create_backup.sh /usr/local/fsbackup/create_backup.sh_back
 cat /usr/local/fsbackup/create_backup.sh_back | sed 's/config_files=\".*\"/config_files=\"cfg_example\"/' > /usr/local/fsbackup/create_backup.sh
 
+echo "hellooo";
 
-echo "18 4 * * * root /usr/local/fsbackup/create_backup.sh| mail -s \"`uname -n` backup report\" root" >> /etc/crontab
+check_fsbackup_cron=`grep create_backup /etc/crontab`
+if [ x"${check_fsbackup_cron}" = x ]; then
+  echo "18 4 * * * root /usr/local/fsbackup/create_backup.sh| mail -s \"`uname -n` backup report\" root" >> /etc/crontab
+fi;
+
 }
 
 
@@ -290,24 +320,38 @@ echo "18 4 * * * root /usr/local/fsbackup/create_backup.sh| mail -s \"`uname -n`
 #**********************************************************
 mk_sysbench() {
 
-if [ "${OS}" = Linux ]; then
-  _install sysbench  
-else 
-  cd /usr/ports/benchmarks/sysbench make && make install clean
+is_sysbench=`which sysbench`;
+
+if [ x${is_sysbench} = x ]; then
+  if [ "${OS}" = Linux ]; then
+    _install sysbench  
+  else 
+    cd /usr/ports/benchmarks/sysbench && make && make install clean
+  fi;
 fi;
 
 test_file_size=5G
+echo "Making benchmark. Please wait..."
 
 #CPU test
 sysbench --test=cpu --cpu-max-prime=20000 run > cpu.sysbench
 #RAM test
-sysbench --test=memory run > mamory.sysbench
+sysbench --test=memory --memory-total-size=32M --memory-block-size=64 run > memory.sysbench
+
 #HDD test
 sysbench --test=fileio --file-total-size=${test_file_siz} prepare
 sysbench --test=fileio --file-total-size=${test_file_siz} --file-test-mode=rndrw --max-time=300 --max-requests=0 run > fileio.sysbench
 #sysbench --test=threads
-rm test_file.*
+rm -f test_file.*
 
+echo "CPU"
+cat cpu.sysbench
+echo "Memory"
+cat memory.sysbench
+echo "Filesystem"
+cat fileio.sysbench
+
+#${DIALOG} --msgbox "Benchmark\n" 20  52
 
 }
 
@@ -320,25 +364,23 @@ install_accel_ppp() {
 # Install radius client
 if [ ${OS_NAME} = Mandriva -o ${OS_NAME} = ARCH ]; then 
   cmd="${BUILD_OPTIONS} freeradius-client;";
-elif [ ${OS_NAME} = Fedora -o ${OS_NAME} = fedora ]; then 
-  echo "install freeradius";
-elif [ ${OS_NAME} = centos ]; then 
+elif [ ${OS_NAME} = Fedora -o ${OS_NAME} = fedora -o ${OS_NAME} = centos ]; then 
   echo "install freeradius";
 else
   cmd=${cmd}"${BUILD_OPTIONS} radiusclient1;";
 fi;
-	  
+    
 if [ ${OS_NAME} = Mandriva -o ${OS_NAME} = Fedora ]; then
   echo "to install pptpd you need to download sources";
 #elif [ ${OS_NAME} = centos ]; then
 #  rpm -Uvh http://pptpclient.sourceforge.net/yum/stable/rhel5/pptp-release-current.noarch.rpm;
 #  cmd=${cmd}"${BUILD_OPTIONS} pptpd;"
 else 
-	    
-#	    cmd="${BUILD_OPTIONS} git cmake libssl-dev libpcre3-dev libnl2-dev pptp-linux build-essential gawk;";
-#	    cmd="${cmd}mkdir /usr/abills/src/;"
-#	    cmd="${cmd}cd /usr/abills/src/;"
-#	    cmd="${cmd}git clone git://accel-ppp.git.sourceforge.net/gitroot/accel-ppp/accel-ppp;"
+      
+#      cmd="${BUILD_OPTIONS} git cmake libssl-dev libpcre3-dev libnl2-dev pptp-linux build-essential gawk;";
+#      cmd="${cmd}mkdir /usr/abills/src/;"
+#      cmd="${cmd}cd /usr/abills/src/;"
+#      cmd="${cmd}git clone git://accel-ppp.git.sourceforge.net/gitroot/accel-ppp/accel-ppp;"
 #      cmd="${cmd}cd accel-ppp;"
 #      cmd="${cmd}git tag;"
 #      cmd="${cmd}git checkout -b 1.37 --track origin/1.3;"
@@ -349,7 +391,6 @@ else
     # http://linuxsoid.ucoz.com/publ/rukovodstvo_po_ubuntu/faq_ubuntu_11_04_programmnoe_obespechenie_i_igry/accel_pptp_v_ubuntu_server_10_04/34-1-0-718
      
   PKGS="bzip2 cmake libnl2-dev pptp-linux build-essential gawk"
-
   
 
   PPP_LIB_DIR="/usr/lib/pppd/2.4.5/";
@@ -384,7 +425,6 @@ else
   cmd="${cmd}echo \"pppoe\" >> /etc/modules;"
   AUTOCONF_PROGRAMS="${AUTOCONF_PROGRAMS} pppd "
   AUTOCONF_PROGRAMS_FLAGS="${AUTOCONF_PROGRAMS_FLAGS} ACCEL_PPTP=1"
-
 fi;
 
 #autostart
@@ -552,7 +592,11 @@ install_ipn() {
 #**********************************************************
 install_ipcad() {
   #http://bubuntulinux.blogspot.com/2012/04/ipcad-debian-squeeze.html
-  apt-get install libpcap-dev
+  _install libpcap-dev  
+  
+  if [ "${OS}" = "Ubuntu" ]; then
+   _install build-essential  linux-libc-dev  rsh-client
+  fi;
 
   wget http://lionet.info/soft/ipcad-3.7.3.tar.gz
   tar zxvf ipcad-3.7.3.tar.gz
@@ -571,7 +615,7 @@ install_freeradius() {
 
  _install make gcc libmysqlclient-dev libmysqlclient16 libgdbm3 libgdbm-dev 
 
- if [ "${OS}" = "CentOS" ]; then
+ if [ "${OS_NAME}" = "CentOS" -o "${OS_NAME}" = "Fedora" ]; then
    _install perl-devel perl-ExtUtils-Embed
  fi;
 
@@ -599,13 +643,14 @@ else
   echo "Perl lib: ${PERL_LIB_DIR}libperl.so"
 fi;
 
-FREERADIUS_VERSION="2.2.2"
+FREERADIUS_VERSION="2.2.3"
  
 wget ftp://ftp.freeradius.org/pub/freeradius/freeradius-server-${FREERADIUS_VERSION}.tar.gz
 tar zxvf freeradius-server-${FREERADIUS_VERSION}.tar.gz
 
 cd freeradius-server-${FREERADIUS_VERSION}
 ./configure --prefix=/usr/local/freeradius --with-rlm-perl-lib-dir=${PERL_LIB_DIR} --without-openssl --with-dhcp 
+echo "./configure --prefix=/usr/local/freeradius --with-rlm-perl-lib-dir=${PERL_LIB_DIR} --without-openssl --with-dhcp " > configure_abills
 make && make install
 
 ln -s /usr/local/freeradius/sbin/radiusd /usr/sbin/radiusd
@@ -624,7 +669,7 @@ if [ ${OS} = 'CentOS' ]; then
 else
 (cat <<EOF
 #!/bin/sh
-# Start/stop the FreeRADIUS daemon.
+# Start/stop the FreeRADIUS daemon. (ABillS)
 
 ### BEGIN INIT INFO
 # Provides:          freeradius
@@ -639,7 +684,11 @@ else
 
 set -e
 
+if [ -f /lib/lsb/init-functions ]; then
 . /lib/lsb/init-functions
+elif [ -f /lib/lsb/init-functions ]; then
+. /etc/init.d/functions
+fi;
 
 PROG="freeradius"
 PROGRAM="/usr/sbin/radiusd"
@@ -775,7 +824,7 @@ echo -e '\a \a \a';
 
 DIALOG_TITLE="ABillS Installation"
 DIALOG_TITLE="${DIALOG_TITLE} Server: ${OS} ${OS_VERSION} ${MACH}";
-if [ w${DEBUG} != w ] ; then
+if [ x${DEBUG} != x ] ; then
   DIALOG_TITLE=${DIALOG_TITLE}" (DEBUG MODE)";
 fi
 
@@ -785,8 +834,29 @@ if [ "${RESUL}" = "" ]; then
   echo 'WITHOUT_GUI=yes' >> /etc/make.conf
 fi;
 
+if [ x"${BENCHMARTK}" != x ]; then
+  mk_sysbench;
+  exit;
+fi;
+
+PKG_TOOL=pkg_info
+
+#new version PKG tools
+if [ ! -f /usr/sbin/pkg -o -f /usr/local/sbin/pkg ]; then
+  pkg_add -r pkg
+  /usr/local/sbin/pkg2ng
+
+  CHECK_PKGNG=`grep WITH_PKGNG /etc/make.conf`;
+  if [ x"${CHECK_PKGNG}" = x"" ]; then
+    echo 'WITH_PKGNG=yes' >> /etc/make.conf
+  fi;
+
+  PKG_TOOL="pkg info"
+fi;
+
+
 ${DIALOG} --checklist "${DIALOG_TITLE}" 50 75 15 "billing" "Billing Server"  off \
-     "nas"		"Nas server"	off  \
+     "nas"    "Nas server"  off  \
      2>${TMPOPTIONSFILE}
 
 RESULT=`cat ${TMPOPTIONSFILE}`;
@@ -795,31 +865,29 @@ if [ "${RESULT}" = "" ]; then
   exit;
 fi;
 
-
 echo -e '\a\a\a\a\a'
 
-vim_install=`pkg_info  | grep vim | awk -F- '{ print $2 }' | sed 's/ .*//'`;
+vim_install=`${PKG_TOOL}  | grep vim | awk -F- '{ print $2 }' | sed 's/ .*//'`;
 if [ x != x${vim_install} ]; then
   vim_install="(installed)"
 fi;
 
-bash_install=`pkg_info  | grep bash | awk -F- '{ print $2 }' | sed 's/ .*//'`;
+bash_install=`${PKG_TOOL}  | grep bash | awk -F- '{ print $2 }' | sed 's/ .*//'`;
 if [ x != x${bash_install} ]; then
   bash_install="(installed)"
 fi;
 
-
-mysql_install=`pkg_info  | grep mysql-server | awk -F- '{ print $3 }' | sed 's/ .*//' `;
+mysql_install=`${PKG_TOOL}  | grep mysql-server | awk -F- '{ print $3 }' | sed 's/ .*//' `;
 if [ x != x${mysql_install} ]; then
   mysql_install="(installed ${mysql_install})"
 fi;
 
-apache_install=`pkg_info | grep apache | awk -F- '{ print $2 }' | sed 's/ .*//' `;
+apache_install=`${PKG_TOOL} | grep apache | awk -F- '{ print $2 }' | sed 's/ .*//' `;
 if [ x != x${apache_install} ]; then
   apache_install="(installed ${apache_install})"
 fi;
 
-freeradius_install=`pkg_info | grep freeradius | awk -F- '{ print $2 }' | sed 's/ .*//' `;
+freeradius_install=`${PKG_TOOL} | grep freeradius | awk -F- '{ print $2 }' | sed 's/ .*//' `;
 if [ x != x${freeradius_install} ]; then
   freeradius_install="(installed ${freeradius_install})"
 fi;
@@ -828,49 +896,52 @@ fi;
 
 for name in $RESULT; do
   if [ "${name}" = \"billing\" ]; then
-    DIALOG_TITLE="Billing Server Options"
+
     DIALOG_TITLE="Options for ABillS FreeBSD ports"
+
     ${DIALOG} --checklist "${DIALOG_TITLE}" 50 75 15 update "Source Update"  on \
-     bash		      "Bash	${bash_install}" on  \
-  	 vim          "vim ${vim_install}"  on \
      mysql56      "Mysql Server ${mysql_install}"  on \
- 	   apache22	    "Apache	${apache_install}" on \
+     apache22     "Apache  ${apache_install}" on \
      Perl_Modules "Perl modules" on \
      freeradius   "FreeRADIUS ${freeradius_install}" on\
      DHCP         "ISC DHCP Server" on\
      Mail         "Mail Server" off \
-     MRTG		      "Mrtg"  on \
-     IPN          "IPN collector" off\
+     MRTG         "Mrtg"  on \
+     IPN          "IPN" off\
      fsbackup     "fsbackup" off\
      Build_Kernel "Build kernel" off\
      PERL_SPEEDY  "Speed_CGI" off\
-     Monit        "Monit" off\
+     Utils        "bash,vim,tmux,monit" on\
     2>${TMPOPTIONSFILE}
     RESULT=`cat ${TMPOPTIONSFILE}`;
   fi;
 
   if [ "${name}" = \"nas\" ]; then
-  
-    mpd_install=`pkg_info | grep mpd | awk -F- '{ print $2 }' | sed 's/ .*//' `;
+    mpd_install=`${PKG_TOOL} | grep mpd | awk -F- '{ print $2 }' | sed 's/ .*//' `;
     if [ x != x${mpd_install} ]; then
       mpd_install="(installed ${mpd_install})"
     fi;
-  
-    DIALOG_TITLE="Billing Server Options"
-    DIALOG_TITLE="Options for ABillS FreeBSD ports"
+
+    DIALOG_TITLE="NAS Server Options"
+
     ${DIALOG} --checklist "${DIALOG_TITLE}" 50 75 15 update "Source Update"  on \
-     bash		      "Bash	${bash_install}" on  \
-  	 vim          "vim ${vim_install}"  on \
-     Perl_Modules           "Perl modules" on \
-     DHCP         "ISC DHCP Server" on\
-     MRTG		Mrtg  on \
-     IPN          "IPN collector" off\
-     mpd          "Mpd ${mpd_install}"      off\
-     fsbackup     fsbackup off\
-     Build_Kernel "Build kernel" off\
-     Monit        Monit off\
+     Perl_Modules   "Perl modules" on \
+     DHCP           "ISC DHCP Server" on\
+     IPN            "IPN (IPoE)" off\
+     mpd            "Mpd (VPN/PPPoE) ${mpd_install}"      off\
+     fsbackup       fsbackup off\
+     Build_Kernel   "Build kernel" off\
+     MRTG           "Mrtg"  on \
+     Utils          "bash,vim,tmux,monit" on\
     2>${TMPOPTIONSFILE}
     RESULT=${RESULT}" "`cat ${TMPOPTIONSFILE}`;
+    
+    # Add gatewayenable
+    check_gate=`cat /etc/rc.conf | grep gateway_enable`;
+    if [ x"${check_gate}" = x ]; then
+      echo "gateway_enable=\"YES\"" >> /etc/rc.conf
+    fi;
+    
   fi;
 done;
 
@@ -891,20 +962,20 @@ if [ x"${LIBTOOL__EXIST}" != x ]; then
   fi;
 fi;
 
-for name in $RESULT; do
+
+
+for name in ${RESULT}; do
   echo "Program: ${name}";
   cmd="";
   
   #System and ports update
   if [ ${name} = \"update\" ] ; then
     # freebsd-update
-    #cmd="${cmd}freebsd-update fetch"
-    
     #Subversion update 
     pkg_add -r subversion
-    MAGOR_VERSION=`uname -r | awk -F\. '{ print $1 }'`
-    svn co svn://svn.freebsd.org/base/stable/${MAGOR_VERSION} /usr/src
-    
+    MAJOR_VERSION=`uname -r | awk -F\. '{ print $1 }'`
+    svn co svn://svn.freebsd.org/base/stable/${MAJOR_VERSION} /usr/src
+   
     #Csup update. Old style
     #cmd="cat /usr/share/examples/cvsup/standard-supfile | sed 's/CHANGE_THIS/cvsup5/g' > /etc/standard-supfile;"
     #cmd="${cmd}echo \"ports-all tag=.\" >> /etc/standard-supfile;"
@@ -915,7 +986,7 @@ for name in $RESULT; do
     cmd="${cmd}portsnap update;"
     
     #Build perl 5.16 on new systems
-    PERL_EXIST=`pkg_info | grep perl-|awk '{print $1}'`;
+    PERL_EXIST=`${PKG_TOOL} | grep perl-|awk '{print $1}'`;
     if [ x"${PERL_EXIST}" = x ]; then
       cd /usr/ports/lang/perl5.16 && make && make install
     fi;
@@ -931,12 +1002,10 @@ for name in $RESULT; do
     AUTOCONF_PROGRAMS="apache"
   fi;
 
-  if [ ${name} = \"bash\" ]; then
+  if [ ${name} = \"Utils\" ]; then
     cmd="cd ${PORTS_LOCATION}/shells/bash  ${BUILD_OPTIONS};";
-  fi;
-
-  if [ ${name} = \"vim\" ]; then
-    cmd="cd ${PORTS_LOCATION}/editors/vim-lite ${BUILD_OPTIONS};";
+    cmd="${cmd}cd ${PORTS_LOCATION}/editors/vim-lite ${BUILD_OPTIONS};";
+    cmd="${cmd}cd ${PORTS_LOCATION}/sysutils/tmux ${BUILD_OPTIONS};"; 
   fi;
 
   if [ ${name} = \"mysql56\" ]; then
@@ -1050,11 +1119,6 @@ for name in $RESULT; do
     AUTOCONF_PROGRAMS_FLAGS="${AUTOCONF_PROGRAMS_FLAGS} MPD5=1"
   fi;
 
-  if [ ${name} = \"Monit\" ]; then
-    cmd="cd ${PORTS_LOCATION}/sysutils/monit ${BUILD_OPTIONS};";
-    AUTOCONF_PROGRAMS="${AUTOCONF_PROGRAMS} monit"
-  fi;
-
   if [ ${name} = \"Build_Kernel\" ]; then
     build_kernel
   fi;
@@ -1069,6 +1133,7 @@ for name in $RESULT; do
   fi;  
 
 done
+
 }
 
 
@@ -1105,15 +1170,15 @@ else
   echo ""; #You did not make a valid selection!"
 fi;
 
-OPTIONS="mysql         Mysql   off
-    apache      Apache  off
-    Perl_Modules           perl_modules off
-    freeradius      FreeRADIUS off
-    DHCP            DHCP  off
-    MRTG                Mrtg  off
-    IPN             IPN_collector off
-    ACCEL-PPP        accel-ppp    off
-    fsbackup     fsbackup	off
+OPTIONS="mysql   Mysql   off
+    apache       Apache  off
+    Perl_Modules perl_modules off
+    freeradius   FreeRADIUS off
+    DHCP         DHCP  off
+    MRTG         Mrtg  off
+    IPN          IPN_collector off
+    ACCEL-PPP    accel-ppp    off
+    fsbackup     fsbackup  off
     mk_sysbench  mk_sysbench off
 "
 
@@ -1171,24 +1236,30 @@ case "${OS_NAME}" in
     
     _install dialog cvs gcc vim make wget aptitude perl-devel libperl-dev
   ;;
-	*edora)
+  *edora)
     if [ w${REBUILD} != w ]; then
-	    BUILD_OPTIONS=" yum -y remove "
-	  else
-	    BUILD_OPTIONS=" yum -y install ";
-	  fi;
+      BUILD_OPTIONS=" yum -y remove "
+    else
+      BUILD_OPTIONS=" yum -y install ";
+    fi;
 
     rpm -q dialog > /dev/null 2>&1
-	  if [ $? = '1' ]; then
-		  yum -y install dialog
-	  fi;
+    if [ $? = '1' ]; then
+      _install dialog
+    fi;
 
-	  rpm -q cvs > /dev/null 2>&1
-	  if [ $? = '1' ]; then
-	    yum -y install cvs
-	  fi;
+    rpm -q cvs > /dev/null 2>&1
+    if [ $? = '1' ]; then
+      _install cvs
+    fi;
 
-	;;
+    WEB_SERVER_USER=apache
+    RADIUS_SERVER_USER=radiusd
+    RESTART_MYSQL=/etc/init.d/mysql
+    RESTART_RADIUS=/etc/rc.d/init.d/freeradius
+    RESTART_APACHE="service httpd"
+    
+  ;;
   openSUSE)
     WEB_SERVER_USER=wwwrun
     RADIUS_SERVER_USER=radiusd
@@ -1196,52 +1267,56 @@ case "${OS_NAME}" in
     RESTART_RADIUS=/etc/init.d/freeradius
     RESTART_APACHE=/etc/init.d/apache
 
-	  if [ w${REBUILD} != w ]; then
-		  BUILD_OPTIONS=" zypper  remove "
-	  else
-		  BUILD_OPTIONS=" zypper  install ";
-	  fi;
+    if [ w${REBUILD} != w ]; then
+      BUILD_OPTIONS=" zypper  remove "
+    else
+      BUILD_OPTIONS=" zypper  install ";
+    fi;
 
-  	zypper se -i dialog > /dev/null 2>&1
-		if [ $? = '0' ]; then
-		  ${BUILD_OPTIONS} dialog
-		fi;
+    zypper se -i dialog > /dev/null 2>&1
+    if [ $? = '0' ]; then
+      ${BUILD_OPTIONS} dialog
+    fi;
 
-		zypper se -i cvs > /dev/null 2>&1
-		if [ $? = '0' ]; then
- 		  ${BUILD_OPTIONS} cvs
-		fi;
+    zypper se -i cvs > /dev/null 2>&1
+    if [ $? = '0' ]; then
+       ${BUILD_OPTIONS} cvs
+    fi;
 
     PERL_MODULES="perl-DBD-mysql perl-XML-Simple"
   ;;
   CentOS)
-  	rpm -q dialog > /dev/null 2>&1
-		if [ $? = '1' ]; then
-			yum -y install dialog
-		fi;
+    yum -y update
 
-		rpm -q cvs > /dev/null 2>&1
-		if [ $? = '1' ]; then
-			yum -y install cvs
-		fi;
+    if [ w${REBUILD} != w ]; then
+      BUILD_OPTIONS=" yum -y remove "
+    else
+      BUILD_OPTIONS=" yum -y install ";
+    fi;
+
+    rpm -q dialog > /dev/null 2>&1
+    if [ $? = '1' ]; then
+      _install dialog
+    fi;
+
+    rpm -q cvs > /dev/null 2>&1
+    if [ $? = '1' ]; then
+      _install cvs
+    fi;
                          
     rpm -q bc > /dev/null 2>&1
     if [ $? = '1' ]; then
-      yum -y install bc
+      _install bc
     fi;
 
-	  if [ w${REBUILD} != w ]; then
-		  BUILD_OPTIONS=" yum -y remove "
-		else
-		  BUILD_OPTIONS=" yum -y install ";
-		fi;
+    _install mod_ssl openssl
 
-		WEB_SERVER_USER=apache
+    WEB_SERVER_USER=apache
     RESTART_MYSQL=/etc/init.d/mysqld
     RESTART_RADIUS=/etc/init.d/freeradius
     RESTART_APACHE=/etc/init.d/httpd
   ;;
-	*andriva     )
+  *andriva)
     rpm -qa | grep dialog > /dev/null 2>&1
     a=`echo $?`;
     if [ $a = 1 ];  then
@@ -1302,6 +1377,12 @@ case "${OS_NAME}" in
     RESTART_RADIUS=/etc/rc.d/rc.radius
     RESTART_APACHE=/etc/rc.d/rc.httpd
 
+    my is_slackpkg=`which slackpkg`;
+    if [ "${is_slackpkg}" = "" ]; then
+      wget http://www.slackpkg.org/stable/slackpkg-2.82.0-noarch-2.tgz
+      installpkg slackpkg-2.82.0-noarch-2.tgz
+    fi;
+
     if [ w${REBUILD} != w ]; then
       BUILD_OPTIONS="slackpkg"
     else
@@ -1317,10 +1398,16 @@ case "${OS_NAME}" in
   ;;
 esac
 
-DIALOG_TITLE="Options for ABillS LINUX"
+if [ x"${BENCHMARTK}" != x ]; then
+  mk_sysbench;
+  exit;
+fi;
+
+
+DIALOG_TITLE="Options for ABillS LINUX";
 DIALOG_TITLE=${DIALOG_TITLE}`echo ; uname -a`;
 if [ w${DEBUG} != w ] ; then
-  DIALOG_TITLE=${DIALOG_TITLE}" (DEBUG MODE)";
+  DIALOG_TITLE=${DIALOG_TITLE}' (DEBUG MODE)';
 fi;
 
 dialog --checklist "${DIALOG_TITLE}" 50 75 15 ${OPTIONS} 2>${TMPOPTIONSFILE}
@@ -1331,53 +1418,54 @@ if [ "${RESULT}" = "" ]; then
   exit;
 fi;
 
+
 for name in $RESULT; do
   echo "Program: ${name}";
   cmd="";
 
-  if [ ${name} = \"apache\" ]; then
-   if [ ${OS_NAME} = Mandriva ];	then 
-     cmd=${cmd}"${BUILD_OPTIONS} apache-mpm-worker apache-mod_php; ";
-	 elif [ ${OS_NAME} = ARCH ]; then 
-	   cmd=${cmd}"${BUILD_OPTIONS} apache php; "; 
-	 elif [ ${OS_NAME} = Fedora -o ${OS_NAME} = fedora ];then 
-	   cmd=${cmd}"${BUILD_OPTIONS} httpd php; ";
-	 elif [ ${OS_NAME} = CentOS ]; then 
-	   cmd=${cmd}"${BUILD_OPTIONS} httpd mod_ssl php; ";
-	   cmd=${cmd}"chkconfig httpd on;"
-	 else 
-	   cmd="${BUILD_OPTIONS} apache2; a2enmod ssl; a2enmod rewrite;";
-     #sudo ln -s /etc/apache2/mods-available/rewrite.load /etc/apache2/mods-enabled/rewrite.load;";
-     #ALT LINUX
-     #apt-get install apache2-mod_ssl
-     #apt-get install apache2-rewrite
-   fi;
+  if [ "${name}" = \"apache\" ]; then
+    if [ "${OS_NAME}" = Mandriva ];  then 
+      cmd=${cmd}"${BUILD_OPTIONS} apache-mpm-worker apache-mod_php; ";
+    elif [ ${OS_NAME} = ARCH ]; then 
+      cmd=${cmd}"${BUILD_OPTIONS} apache php; "; 
+    elif [ ${OS_NAME} = Fedora -o ${OS_NAME} = fedora ];then 
+      cmd=${cmd}"${BUILD_OPTIONS} httpd php; ";
+    elif [ ${OS_NAME} = CentOS ]; then 
+      cmd=${cmd}"${BUILD_OPTIONS} httpd mod_ssl php; ";
+      cmd=${cmd}"chkconfig httpd on;"
+    else 
+      cmd="${BUILD_OPTIONS} apache2; a2enmod ssl; a2enmod rewrite;";
+      #sudo ln -s /etc/apache2/mods-available/rewrite.load /etc/apache2/mods-enabled/rewrite.load;";
+      #ALT LINUX
+      #apt-get install apache2-mod_ssl
+      #apt-get install apache2-rewrite
+    fi;
 
-	 AUTOCONF_PROGRAMS="${AUTOCONF_PROGRAMS} apache"
+    AUTOCONF_PROGRAMS="${AUTOCONF_PROGRAMS} apache";
   fi;
 
-#pptp
-if [ ${name} = \"PPTP\" ]; then
-	if [ ${OS_NAME} = ARCH -o ${OS_NAME} = Fedora ]; then   
-	  cmd="${BUILD_OPTIONS} ppp; ";
-	elif [ ${OS_NAME} = centos ];	then 
-	  cmd="${BUILD_OPTIONS} ppp; ";
-	else
-	  cmd="${BUILD_OPTIONS} pptp-linux";
-	  pptp=`apt-cache show ppp |grep Version | awk '{print $2}' | cut -c 1-5`;
-		if [ $pptp1="2.4.4" ]; then 
-		  for pkg in patch make gcc; do
-  		  apt-get -y install ${pkg};
-		  done 
+  #pptp
+  if [ ${name} = \"PPTP\" ]; then
+    if [ ${OS_NAME} = ARCH -o ${OS_NAME} = Fedora ]; then   
+      cmd="${BUILD_OPTIONS} ppp; ";
+    elif [ ${OS_NAME} = centos ];  then 
+      cmd="${BUILD_OPTIONS} ppp; ";
+    else
+      cmd="${BUILD_OPTIONS} pptp-linux";
+      pptp=`apt-cache show ppp |grep Version | awk '{print $2}' | cut -c 1-5`;
+      if [ $pptp1="2.4.4" ]; then 
+        for pkg in patch make gcc; do
+          apt-get -y install ${pkg};
+        done 
 
-		  mkdir ~/src/ && cd ~/src && wget wget ftp://ftp.samba.org/pub/ppp/ppp-2.4.4.tar.gz && wget http://bugs.gentoo.org/attachment.cgi?id=102981 -O radius-gigawords.patch;
-		  tar zxvf ppp-2.4.4.tar.gz && cd ppp-2.4.4 && patch -p1 -l < ../radius-gigawords.patch && ./configure --prefix=/usr && make && make install;
-	  fi;	
-	fi;
-	#pptp=`yum info ppp |grep Version | awk '{print $3}' |uniq`;
-fi;
+        mkdir ~/src/ && cd ~/src && wget wget ftp://ftp.samba.org/pub/ppp/ppp-2.4.4.tar.gz && wget http://bugs.gentoo.org/attachment.cgi?id=102981 -O radius-gigawords.patch;
+        tar zxvf ppp-2.4.4.tar.gz && cd ppp-2.4.4 && patch -p1 -l < ../radius-gigawords.patch && ./configure --prefix=/usr && make && make install;
+      fi;  
+    fi;
+    #pptp=`yum info ppp |grep Version | awk '{print $3}' |uniq`;
+  fi;
 
-
+  #MYSQL
   if [ ${name} = \"mysql\" ]; then
     if [ "${OS_NAME}" = Mandriva ];  then 
       cmd=${cmd}"${BUILD_OPTIONS} MySQL;";
@@ -1390,7 +1478,7 @@ fi;
     fi;
   fi;
 
-  if [ ${name} = \"freeradius\" ]; then
+  if [ "${name}" = \"freeradius\" ]; then
     install_freeradius;
   fi;
 
@@ -1421,7 +1509,7 @@ fi;
   #Check apache php support
   if [ ${name} = \"MRTG\" ]; then
     if [ x${OS_NAME} = xMandriva ]; then
-		  echo "install mrtg from sources";
+      echo "install mrtg from sources";
     elif [ x${OS_NAME} = xSlackware ]; then
       wget --no-check-certificate https://bitbucket.org/pierrejoye/gd-libgd/get/GD_2_0_33.tar.gz
       tar zxvf GD_2_0_33.tar.gz
@@ -1452,37 +1540,37 @@ fi;
   fi;
 
   if [ ${name} = \"IPN\" ]; then
-		if [ ${OS_NAME} = ARCH -o ${OS_NAME} = Slackware ]; then 
-		  echo "install from sources";
-		  install_ipn
-		fi;
+    if [ ${OS_NAME} = ARCH -o ${OS_NAME} = Slackware ]; then 
+      echo "install from sources";
+      install_ipn
+    fi;
 
     cmd=${cmd}"${BUILD_OPTIONS} flow-tools;";
 
-		if [ ${OS_NAME} = Mandriva -o ${OS_NAME} = Fedora ]; then
-		  echo "to install ipcad you need to download sources";
-		elif [ ${OS_NAME} = debian -o ${OS_NAME} = Debian ]; then
-		  echo "install ipcad from source http://lionet.info/soft/ipcad-3.7.3.tar.gz";
-		  install_ipcad ;
-		else 
-		  cmd=${cmd}"${BUILD_OPTIONS} ipcad;";
-	  fi;
-	  
-	  install_sudo ;
-	  
+    if [ ${OS_NAME} = Mandriva -o ${OS_NAME} = Fedora ]; then
+      echo "to install ipcad you need to download sources";
+    elif [ ${OS_NAME} = debian -o ${OS_NAME} = Debian ]; then
+      echo "install ipcad from source http://lionet.info/soft/ipcad-3.7.3.tar.gz";
+      install_ipcad ;
+    else 
+      cmd=${cmd}"${BUILD_OPTIONS} ipcad;";
+    fi;
+    
+    install_sudo ;
+    
   fi;
 
 
   # PPTP
   if [ ${name} = \"PPTPD\" ]; then
-	  if [ ${OS_NAME} = Mandriva -o ${OS_NAME} = Fedora ]; then
-	    echo "to install pptpd you need to download sources";
-	  elif [ ${OS_NAME} = centos ]; then
-	    rpm -Uvh http://pptpclient.sourceforge.net/yum/stable/rhel5/pptp-release-current.noarch.rpm;
-	    cmd=${cmd}"${BUILD_OPTIONS} pptpd;"
-	  else 
-	    cmd=${cmd}"${BUILD_OPTIONS} pptpd;";
-	  fi;
+    if [ ${OS_NAME} = Mandriva -o ${OS_NAME} = Fedora ]; then
+      echo "to install pptpd you need to download sources";
+    elif [ ${OS_NAME} = centos ]; then
+      rpm -Uvh http://pptpclient.sourceforge.net/yum/stable/rhel5/pptp-release-current.noarch.rpm;
+      cmd=${cmd}"${BUILD_OPTIONS} pptpd;"
+    else 
+      cmd=${cmd}"${BUILD_OPTIONS} pptpd;";
+    fi;
   fi;
   
   #Accel-PPTP Build
@@ -1517,12 +1605,30 @@ done
 #RESTART_MYSQL=/etc/init.d/mysqld
 #RESTART_RADIUS=/etc/init.d/freeradius
 #RESTART_APACHE=/etc/init.d/apache2
-
-
 }
 
 
+#**********************************************************
+# Check active services
+#**********************************************************
+check_ps () {
 
+PROCESS_LIST="mysqld radiusd httpd flow-capture mpd named"  
+
+ps ax |grep "radius" | grep -v "grep"
+RESULT="-------------------------------------------"
+for ps_name in ${PROCESS_LIST}; do
+  status="Not running";
+  ps_status=`ps ax | grep ${ps_name} | grep -v "grep"`;
+  
+  if [ x"${ps_status}" != x ]; then
+    status="Running";
+  fi;
+  
+  RESULT="${RESULT}\n${ps_name} ${status}";
+done;
+
+}
 
 
 # Proccess command-line options
@@ -1537,6 +1643,9 @@ for _switch ; do
                 shift; shift
                 ;;
 
+        -b)     BENCHMARTK=1;
+                shift;
+                ;;
         -r)     REBUILD=1
                 shift; shift
                 ;;
@@ -1548,6 +1657,9 @@ for _switch ; do
                 exit;
                 shift; shift
                 ;;
+        -u)     UNINSTALL=1;
+                shift; shift
+                ;;
         -h)
                 help
                 exit;
@@ -1557,10 +1669,19 @@ for _switch ; do
 done
 
 
-mk_resolve
+if [ x"${UNINSTALL}" != x ]; then
+  _uninstall
+  exit;
+fi;
 
 while [ "${OS_NAME}" = "" ]; do
   get_os
+  mk_resolve
+  # Set correct date time
+  CHECK_NTPDATE=`which ntpdate`
+  if [ x"${CHECK_NTPDATE}" != x ]; then
+    ntpdate europe.pool.ntp.org
+  fi;
 
   if [ x${OS} = xLinux ]; then
     linux_build 
@@ -1599,7 +1720,12 @@ echo "Autoconf programs: ${AUTOCONF_PROGRAMS}";
 
 ./autoconf PROGRAMS=${AUTOCONF_PROGRAMS} ${AUTOCONF_PROGRAMS_FLAGS} 
 
-${DIALOG} --msgbox "ABillS\n\nInstall complete\nAdmin  Interface\n https://your.host:9443/admin/\n Login: abills\n Password: abills" 15  50
+if [ x"${BILLING_WEB_IP}" = x ]; then
+  BILLING_WEB_IP="your.host"
+fi;
+
+check_ps
+${DIALOG} --msgbox "ABillS Install complete\n\nAdmin  Interface\n https://${BILLING_WEB_IP}:9443/admin/\n Login: abills\n Password: abills\n${RESULT}" 20  52
 
 
 

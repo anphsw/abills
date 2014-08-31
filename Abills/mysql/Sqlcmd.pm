@@ -71,10 +71,20 @@ sub info {
           $sth = $db->do("RENAME TABLE $table TO $table" . "_$DATE, $table" . "_2 TO $table;");
         }
       }
-      elsif($attr->{ACTION} && 'BACKUP_DEL') {
+      elsif($attr->{ACTION} eq 'OPTIMIZE') {
         my @tables_arr = split(/, /, $attr->{TABLES});
         foreach my $table (@tables_arr) {
-          if ($table =~ /\d{4}\_\d{2}\_\d{2}$/) {
+          if ($table !~ /\d{4}\_\d{2}\_\d{2}$/) {
+            my $sql = "OPTIMIZE TABLE $table;";
+            print $sql;
+            my $sth = $db->do($sql);
+          }
+        }
+      }
+      elsif($attr->{ACTION} eq 'DEL_BACKUP') {
+        my @tables_arr = split(/, /, $attr->{TABLES});
+        foreach my $table (@tables_arr) {
+          if ($table =~ /\_\d{2,4}\_\d{2}$/) {
             my $sql = "DROP TABLE $table;";
             print $sql;
             my $sth = $db->do($sql);
@@ -181,7 +191,7 @@ sub list {
     $query =~ s/^ //g;
 
     if ($query =~ /CREATE |UPDATE |INSERT |ALTER /i) {
-    	$db->{mysql_client_found_rows}=1;
+      $db->{mysql_client_found_rows}=1;
       my $count = $db->do("$query") || print $db->errstr;
       $self->{AFFECTED} = sprintf("%d", (defined ($count) ? $count : 0));
     }

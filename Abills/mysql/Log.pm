@@ -26,7 +26,7 @@ use main;
   'LOG_NOTICE'  => 5,
   'LOG_INFO'    => 6,
   'LOG_DEBUG'   => 7,
-  'LOG_SQL'     => 8
+  'LOG_SQL'     => 8,
 );
 
 #**********************************************************
@@ -65,43 +65,23 @@ sub log_list {
   $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  if (defined($attr->{USER})) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{USER}, 'STR', 'l.user') };
-  }
-  elsif ($attr->{LOGIN_EXPR}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{LOGIN_EXPR}, 'STR', 'l.user') };
-  }
-
-  if ($attr->{INTERVAL}) {
-    my ($from, $to) = split(/\//, $attr->{INTERVAL}, 2);
-    push @WHERE_RULES, "date_format(l.date, '%Y-%m-%d')>='$from' and date_format(l.date, '%Y-%m-%d')<='$to'";
-  }
-
-  if (defined($attr->{MESSAGE})) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{MESSAGE}, 'STR', 'l.message') };
-  }
-
-  if ($attr->{DATE}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{DATE}, 'INT', 'l.date') };
-  }
-
-  if ($attr->{TIME}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{TIME}, 'INT', 'l.time') };
-  }
-
-  if ($attr->{LOG_TYPE}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{LOG_TYPE}, 'INT', 'l.log_type') };
-  }
-
-  if ($attr->{ACTION}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{ACTION}, 'INT', 'l.action') };
-  }
-
   if ($attr->{NAS_ID}) {
     push @WHERE_RULES, @{ $self->search_expr($attr->{NAS_ID}, 'INT', 'l.nas_id') };
   }
 
-  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+  my $WHERE =  $self->search_former($attr, [
+      ['DATE',              'DATE', "date_format(l.date, '%Y-%m-%d')", 1 ],
+      ['LOG_TYPE',          'INT',  'l.log_type',                      1 ],
+      ['ACTION',            'INT',  'l.action',                        1 ],
+      ['LOGIN',             'STR',  'l.user',                          1 ],
+      ['USER',              'STR',  'l.user',                          1 ],
+      ['MESSAGE',           'STR',  'l.message',                       1 ],
+      ['NAS_ID',            'INT',  'l.nas_id',                        1 ],
+      ['FROM_DATE|TO_DATE', 'DATE', "date_format(l.date, '%Y-%m-%d')",   ],
+    ],
+    { WHERE       => 1,
+    }    
+    );
 
   $self->query2("SELECT l.date, l.log_type, l.action, l.user, l.message, l.nas_id
   FROM errors_log l
@@ -114,7 +94,7 @@ sub log_list {
   my $list = $self->{list};
   $self->{OUTPUT_ROWS} = $self->{TOTAL};
 
-  $self->query2("SELECT l.log_type, count(*)
+  $self->query2("SELECT l.log_type, count(*) AS count
   FROM errors_log l
   $WHERE
   GROUP BY 1

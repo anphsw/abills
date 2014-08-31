@@ -180,13 +180,13 @@ sub voip_chg_tp {
     $tariffs->{TARIF_PLAN_SEL} = $html->form_select(
       'TP_ID',
       {
-        SELECTED          => $user->{TP_ID},
-        SEL_MULTI_ARRAY   => $Voip->tp_list(),
-        MULTI_ARRAY_KEY   => 8,
-        MULTI_ARRAY_VALUE => '0,1',
-        NO_ID             => 1,
-        MAIN_MENU         => get_function_index('voip_tp'),
-        MAIN_MENU_AGRV    => "TP_ID=$Voip->{TP_ID}"
+        SELECTED       => $user->{TP_ID},
+        SEL_LIST       => $Voip->tp_list({ COLS_NAME => 1 }),
+        SEL_KEY       => 'tp_id',
+        SEL_VALUE     => 'id,name',
+        NO_ID          => 1,
+        MAIN_MENU      => get_function_index('voip_tp'),
+        MAIN_MENU_AGRV => "TP_ID=$Voip->{TP_ID}"
       }
     );
 
@@ -234,12 +234,13 @@ sub voip_users_list {
   $Voip->{TP_SEL}    = $html->form_select(
     'TP_ID',
     {
-      SELECTED          => $FORM{TP_ID},
-      SEL_MULTI_ARRAY   => [ [ '', '' ], @{ $Voip->tp_list() } ],
-      MULTI_ARRAY_KEY   => 8,
-      MULTI_ARRAY_VALUE => '0,1',
-      NO_ID             => 1,
-      MAIN_MENU         => get_function_index('voip_tp'),
+      SELECTED   => $FORM{TP_ID},
+      SEL_LIST   => $Voip->tp_list({ COLS_NAME => 1 }),
+      SEL_KEY    => 'tp_id',
+      SEL_VALUE  => 'id,name',
+      NO_ID      => 1,
+      SEL_OPTIONS=> { '' => $_ALL },
+      MAIN_MENU  => get_function_index('voip_tp'),
     }
   );
   
@@ -250,7 +251,7 @@ sub voip_users_list {
   print $html->letters_list({ pages_qs => $pages_qs });
 
   if ($FORM{letter}) {
-    $LIST_PARAMS{FIRST_LETTER} = $FORM{letter};
+    $LIST_PARAMS{LOGIN} = "$FORM{letter}*";
     $pages_qs .= "&letter=$FORM{letter}";
   }
 
@@ -295,12 +296,12 @@ sub voip_users_list {
        MENU       => "$_ADD:index=" . get_function_index('form_wizard') . ':add' . ";$_SEARCH:index=$index&search_form=1:search",
      },
      MAKE_ROWS    => 1,
-     MODULE       => 'Iptv',
+     MODULE       => 'Voip',
      TOTAL        => 1
     });
 
-  if ($Iptv->{errno}) {
-    $html->message('err', $_ERROR, "[$Iptv->{errno}] $err_strs{$Iptv->{errno}}");
+  if ($Voip->{errno}) {
+    $html->message('err', $_ERROR, "[$Voip->{errno}] $err_strs{$Voip->{errno}}");
     return 0;
   }
 
@@ -314,6 +315,7 @@ sub voip_user {
   $Voip->{UID} = $FORM{UID};
 
   voip_provision();
+
   if ($FORM{add}) {
     if ($FORM{NUMBER} < 1) {
       $html->message('err', $_ERROR, "$ERR_WRONG_DATA $_NUMBER");
@@ -349,6 +351,7 @@ sub voip_user {
       	                            PROVISION_NAS_ID=> $FORM{PROVISION_NAS_ID},
       	                            COLS_NAME       => 1 
       	                         });
+
       if ($Voip->{TOTAL} > 0 && $list->[0]{uid} != $FORM{UID}) {
         $html->message('err', $_ERROR, "$_PORT: $FORM{PROVISION_PORT}  $_EXIST. $_LOGIN: " . $html->button("$list->[0]{login}", "index=15&UID=" . $list->[0]{uid} ));
         return 0;
@@ -365,7 +368,6 @@ sub voip_user {
     if (!$FORM{STATUS} && ($FORM{GET_ABON} || !$FORM{TP_ID})) {
       voip_get_month_fee($Voip);
     }
-
 
     if ($conf{VOIP_ASTERISK_USERS}) {
       voip_mk_users_conf();
@@ -392,12 +394,12 @@ sub voip_user {
     $user->{TP_NAME}    = $html->form_select(
       'TP_ID',
       {
-        SELECTED          => $FORM{TP_ID},
-        SEL_MULTI_ARRAY   => $Voip->tp_list(),
-        MULTI_ARRAY_KEY   => 8,
-        MULTI_ARRAY_VALUE => '0,1',
-        NO_ID             => 1,
-        MENU              => get_function_index('voip_tp')
+        SELECTED  => $FORM{TP_ID},
+        SEL_LIST  => $Voip->tp_list({ COLS_NAME => 1 }),
+        SEL_KEY   => 'tp_id',
+        SEL_VALUE => 'id,name',
+        NO_ID     => 1,
+        MENU      => get_function_index('voip_tp')
       }
     );
 
@@ -433,12 +435,12 @@ sub voip_user {
   $user->{NAS_SEL} = $html->form_select(
     'PROVISION_NAS_ID',
     {
-      SELECTED => $user->{PROVISION_NAS_ID} || $FORM{PROVISION_NAS_ID},
-      SEL_MULTI_ARRAY   => $Nas->list({ TYPE => 'ls_pap2t;ls_spa8000' }),
-      MULTI_ARRAY_KEY   => 0,
-      MULTI_ARRAY_VALUE => 1,
-      MAIN_MENU         => get_function_index('form_nas'),
-      MAIN_MENU_AGRV    => "chg=$user->{NAS_ID}"
+      SELECTED       => $user->{PROVISION_NAS_ID} || $FORM{PROVISION_NAS_ID},
+      SEL_LIST       => $Nas->list({ TYPE => 'ls_pap2t;ls_spa8000', COLS_NAME => 1 }),
+      SEL_KEY        => 'nas_id',
+      SEL_VALUE      => 'nas_name',
+      MAIN_MENU      => get_function_index('form_nas'),
+      MAIN_MENU_AGRV => "chg=$user->{NAS_ID}"
     }
   );
 
@@ -482,7 +484,6 @@ sub voip_tp_routes {
     @DAY_NAMES = ("$_ALL", 'Sun', 'Mon', 'Tue', 'Wen', 'The', 'Fri', 'Sat', "$_HOLIDAYS");
     my $list = $Voip_tp->ti_list({%LIST_PARAMS});
     foreach my $line (@$list) {
-
       push @caption,      "$_SUM (Min): " . $DAY_NAMES[ $line->[1] ] . "/ $line->[2]-$line->[3]";
       push @aligns,       'center';
       push @interval_ids, $line->[0];
@@ -637,10 +638,11 @@ sub voip_tp_routes {
         "t_$line->[4]" . '_' . "$interval_ids[$i]",
         {
           SELECTED          => $trunks{"$interval_ids[$i]"}{"$line->[4]"},
-          SEL_MULTI_ARRAY   => [ [ 0, '-' ], @{$TRUNKS_MARR} ],
+          SEL_MULTI_ARRAY   => [ @{$TRUNKS_MARR} ],
           MULTI_ARRAY_KEY   => 0,
           MULTI_ARRAY_VALUE => 1,
-          NO_ID             => 1
+          NO_ID             => 1,
+          SEL_OPTIONS       => { 0 => '-' },
         }
       );
 
@@ -648,10 +650,11 @@ sub voip_tp_routes {
         "et_$line->[4]" . '_' . "$interval_ids[$i]",
         {
           SELECTED => $et{"$interval_ids[$i]"}{"$line->[4]"} || 0,
-          SEL_MULTI_ARRAY => [ [ 0, '-' ], @{$extra_tarification_list} ],
-          MULTI_ARRAY_KEY => 0,
+          SEL_MULTI_ARRAY   => [ @{$extra_tarification_list} ],
+          MULTI_ARRAY_KEY   => 0,
           MULTI_ARRAY_VALUE => 1,
-          NO_ID             => 1
+          NO_ID             => 1,
+          SEL_OPTIONS       => { 0 => '-' },
         }
       );
 
@@ -1083,11 +1086,9 @@ sub voip_trunks {
   $Voip->{FAILOVER_TRUNK_SEL} = $html->form_select(
     'FAILOVER_TRUNK',
     {
-      SELECTED          => $Voip->{FAILOVER_TRUNK},
-      SEL_MULTI_ARRAY   => [ [ 0, '-' ], @{ $Voip->trunk_list() } ],
-      MULTI_ARRAY_KEY   => 0,
-      MULTI_ARRAY_VALUE => 1,
-      NO_ID             => 1
+      SELECTED    => $Voip->{FAILOVER_TRUNK},
+      SEL_LIST    => $Voip->trunk_list({ COLS_NAME => 1 }),
+      SEL_OPTIONS => { 1 => $_MAIN },
     }
   );
 
@@ -1200,7 +1201,7 @@ sub voip_routes {
       $html->message('info', $_INFO, "$_CHANGED");
     }
   }
-  elsif ($FORM{change}) {
+  elsif ($FORM{del}) {
     $Voip->route_del($FORM{del});
     if (!$Voip->{errno}) {
       $html->message('info', $_INFO, "$_DELETED");
@@ -1239,6 +1240,7 @@ sub voip_routes {
 
     $Voip->{ACTION}     = 'change';
     $Voip->{LNG_ACTION} = $_CHANGE;
+    $FORM{add_form}     = 1;
   }
   elsif (defined($FORM{del}) && $FORM{is_js_confirmed}) {
     $Voip->route_del($FORM{del});
@@ -1258,7 +1260,11 @@ sub voip_routes {
   }
 
   $Voip->{DISABLE} = ' checked' if ($Voip->{DISABLE} == 1);
-  $html->tpl_show(_include('voip_route', 'Voip'), $Voip);
+  
+  
+  if ($FORM{add_form}) {
+    $html->tpl_show(_include('voip_route', 'Voip'), $Voip);
+  }
 
   my %SEARCH_FIELDS = (
     $_PREFIX   => "ROUTE_PREFIX",
@@ -1266,8 +1272,10 @@ sub voip_routes {
     $_DISABLE  => "DISABLE",
     $_DESCRIBE => "DESCRIBE"
   );
-
-  $output .= form_search({ SIMPLE => \%SEARCH_FIELDS, });
+  
+  if ($FORM{search_form}) {
+    $output .= form_search({ SIMPLE => \%SEARCH_FIELDS, });
+  }
 
 ##
   my %new_hash     = ();
@@ -1285,7 +1293,8 @@ sub voip_routes {
       qs         => $pages_qs,
       pages      => $Voip->{TOTAL},
       ID         => 'VOIP_ROUTES',
-      header     => $html->button($_EXPORT, "qindex=$index&export=1", { BUTTON => 1 })
+      header     => $html->button($_EXPORT, "qindex=$index&export=1", { BUTTON => 1 }),
+      MENU       => "$_ADD:index=$index&add_form=1:add;$_SEARCH:index=$index&search_form=1:search",      
     }
   );
 
@@ -1709,12 +1718,13 @@ sub voip_sessions {
     $sessions->{SEL_NAS} = $html->form_select(
       'NAS_ID',
       {
-        SELECTED          => $FORM{NAS_ID},
-        SEL_MULTI_ARRAY   => [ [ '', $_ALL ], @{ $Nas->list({%LIST_PARAMS}) } ],
-        MULTI_ARRAY_KEY   => 0,
-        MULTI_ARRAY_VALUE => 1,
-        MAIN_MENU         => get_function_index('form_nas'),
-        MAIN_MENU_AGRV    => "NAS_ID=$FORM{NAS_ID}"
+        SELECTED       > $FORM{NAS_ID},
+        SEL_LIST       => $Nas->list({%LIST_PARAMS, COLS_NAME => 1 }),
+        SEL_KEY        => 'nas_id',
+        SEL_VALUE      => 'nas_name',
+        MAIN_MENU      => get_function_index('form_nas'),
+        MAIN_MENU_AGRV => "NAS_ID=$FORM{NAS_ID}",
+        SEL_OPTIONS    => { '' => $_ALL },
       }
     );
 
@@ -1930,9 +1940,12 @@ sub voip_error {
       0  => 'UNKNOWN',
     );
 
-    my $list = $Nas->list({ TYPE => 'asterisk,gnugk,cisco_voip' });
+    my $list = $Nas->list({ TYPE      => 'asterisk,gnugk,cisco_voip,eltex_smg',
+    	                      COLS_NAME => 1 
+    	                     });
+
     foreach my $line (@$list) {
-      $nas_ids{ $line->[0] } = $line->[1];
+      $nas_ids{ $line->{nas_id} } = $line->{nas_name};
     }
 
     $Voip->{LOG_TYPE_SEL} = $html->form_select(
@@ -1974,7 +1987,7 @@ sub voip_error {
 
     $LIST_PARAMS{NAS_ID} = join(';', keys %nas_ids);
 
-    $list = $Log->log_list({%LIST_PARAMS});
+    $list = $Log->log_list({%LIST_PARAMS, COLS_NAME => 1});
     my $table = $html->table(
       {
         caption    => $_TOTAL,
@@ -1985,8 +1998,8 @@ sub voip_error {
 
     my $total = 0;
     foreach my $line (@{ $Log->{list} }) {
-      $table->addrow($log_levels_rev{ $line->[0] }, $line->[1]);
-      $total += $line->[1];
+      $table->addrow($log_levels_rev{ $line->{log_type} }, $line->{count});
+      $total += $line->{count};
     }
 
     $table->addrow($_TOTAL, $total);
@@ -1995,17 +2008,34 @@ sub voip_error {
 
     $table = $html->table(
       {
-        caption => "$_ERROR",
+        caption => "Internet $_ERROR",
         width   => '100%',
         title   => [ $_DATE, "$_TYPE", "$_ACTION", "$_USER", "$_TEXT", "NAS" ],
         pages   => $total,
         qs      => $pages_qs,
-        ID      => 'DV_ERRORS'
+        ID      => 'VOIP_ERRORS',
+        EXPORT  => ' XML:&xml=1',
+        MENU    => "$_SEARCH:index=$index&search_form=1:search",
       }
     );
 
     foreach my $line (@$list) {
-      $table->addrow($line->[0], $log_levels_rev{ $line->[1] }, $line->[2], $html->button($line->[3], "index=11&LOGIN=$line->[3]"), ($line->[1] < 5) ? $html->color_mark($line->[4], "#FF0000") : $line->[4], $nas_ids{ $line->[5] });
+      my $message = $line->{message};
+    
+      if($line->{log_type} < 5) {
+      	$message = $html->color_mark($line->{message}, "$_COLORS[6]");
+      }
+      elsif($line->{action} eq 'GUEST_MODE') {
+    	  $message = $html->color_mark($line->{message}, "$_COLORS[8]");
+    	  $line->{action} = $html->color_mark($line->{action}, "$_COLORS[8]");
+      }
+
+      $table->addrow($line->{date}, 
+      $log_levels_rev{ $line->{log_type} }, 
+      $line->{action}, 
+      $html->button($line->{user}, "index=". ( get_function_index('voip_users_list') ) ."&NUMBER=$line->{user}&search=1&search_form=1"), 
+      $message, 
+      $nas_ids{ $line->{nas_id} });
     }
 
     print $table->show();
@@ -2635,7 +2665,6 @@ sub voip_monthly_fees {
           ACTIVATE     => '_SHOW',
           DEPOSIT      => '_SHOW',
           CREDIT       => '_SHOW',
-          SERVICE_STATUS => '_SHOW',          
           %VOIP_LIST_PARAMS,
           COLS_UPPER  => 1
         }
@@ -2740,7 +2769,9 @@ sub voip_gk_console {
       border     => 1,
       title      => [ "#", "$_NAME", 'NAS-Identifier', 'IP' ],
       cols_align => [ 'right', 'left', 'left', 'right' ],
-      qs         => $pages_qs
+      qs         => $pages_qs,
+      ID         => 'NAS_INFO'
+      
     }
   );
 
@@ -2803,9 +2834,9 @@ sub voip_gk_console {
       if ($FORM{command} =~ /\!|CurrentCalls/) {
         my $table = $html->table(
           {
-            width  => '100%',
-            border => 1,
-            title  => [ 'NUMBER', 'ACF', 'Caller_IP:Port', 'Caller_EPID', 'CRV', 'DestinationInfo', 'SrcInfo', 'IsAnswered', '-' ],
+            width      => '100%',
+            border     => 1,
+            title      => [ 'NUMBER', 'ACF', 'Caller_IP:Port', 'Caller_EPID', 'CRV', 'DestinationInfo', 'SrcInfo', 'IsAnswered', '-' ],
             cols_align => [ 'right', 'center', 'right', 'left', 'left', 'center' ],
             qs         => $pages_qs,
             caption    => 'Associated'
@@ -2973,7 +3004,6 @@ sub voip_mk_users_conf {
       DATE      => $DATE,
       TIME      => $TIME
     );
-
     $content .= $html->tpl_show(_include('voip_users_conf', 'Voip'), \%info, { OUTPUT2RETURN => 1, CONFIG_TPL => 1 });
   }
 
@@ -3213,7 +3243,7 @@ sub voip_provision {
 
   my $conf = $html->tpl_show(_include('voip_provision_dhcp_conf', 'Voip'), { HOSTS => $hosts }, { OUTPUT2RETURN => 1 });
 
-  if (open(FILE, ">/usr/abills/Abills/templates/provision_dhcp.conf")) {
+  if (open(FILE, ">$base_dir/Abills/templates/provision_dhcp.conf")) {
     print FILE "$conf\n";
     close(FILE);
   }
@@ -3452,6 +3482,47 @@ sub voip_get_month_fee {
   return \%total_sum;	
 	
 }
+
+#**********************************************************
+#
+#**********************************************************
+sub voip_ivr_log {
+  my ($attr)=@_;
+
+  if (! $FORM{sort}) {
+  	$LIST_PARAMS{SORT}=1;
+  	$LIST_PARAMS{DESC}='DESC';
+  }
+
+  my ($table, $list) = result_former({
+     INPUT_DATA      => $Voip,
+     FUNCTION        => 'log_list',
+     BASE_FIELDS     => 5,
+     DEFAULT_FIELDS  => 'ID,DATETIME,PHONE,COMMENTS,UID',
+     FUNCTION_FIELDS => 'change,del',
+     EXT_TITLES      => {
+     	 phone    => $_PHONE,
+     	 comment  => $_COMMNETS,
+     	 datetime => "$_DATE $_TIME"
+     },
+     TABLE           => {
+       width      => '100%',
+       caption    => "IVR",
+       border     => 1,
+       qs         => $pages_qs,
+       header     => $status_bar,
+       ID         => 'VOIP_USERS_LIST',
+       SHOW_COLS  => \%SEARCH_TITLES,
+       ACTIVE_COLS=> \%ACTIVE_TITLES,
+       EXPORT     => 1,
+     },
+     MAKE_ROWS    => 1,
+     MODULE       => 'Voip',
+     TOTAL        => 1
+    });
+}
+
+
 
 1
 

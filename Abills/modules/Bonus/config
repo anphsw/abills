@@ -11,7 +11,7 @@
 if($conf{BONUS_ACCOMULATION}) {
   %USER_FUNCTION_LIST = ("01:0:$_BONUS:bonus_user:" => 0);
   $FUNCTIONS_LIST{"02:0:$_BONUS:bonus_user:UID"}    = 20;
-  #$FUNCTIONS_LIST{"10:7:$_BONUS $_ACCOMULATION:bonus_tp_accomulation:"}= 5;
+  $FUNCTIONS_LIST{"10:7:$_BONUS $_ACCOMULATION:bonus_tp_accomulation:TP_ID"}= 5;
 }
 else {
   $FUNCTIONS_LIST{"02:0:$_BONUS:bonus_users:UID"}=20;

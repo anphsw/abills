@@ -11,7 +11,7 @@
 <TR><TD>$_DESCRIBE:</TD><TD><input type=text name=NAS_DESCRIBE value='%NAS_DESCRIBE%'></TD></TR>
 <TR><TD>$_TYPE:</TD><TD>%SEL_TYPE%</TD></TR>
 <TR><TD>MAC:</TD><TD><input type=text name=MAC value='%MAC%'></TD></TR>
-<TR><TD>$_MODEL:</TD><TD>%SEL_NAS_MODEL%</TD></TR>
+<!-- <TR><TD>$_MODEL:</TD><TD>%SEL_NAS_MODEL%</TD></TR> -->
 <TR><TD>$_AUTH:</TD><TD>%SEL_AUTH_TYPE%</TD></TR>
 <TR><TD>External Accounting:</TD><TD>%NAS_EXT_ACCT%</TD></TR>
 <TR><TD>Alive (sec.):</TD><TD><input type=text name=NAS_ALIVE value='%NAS_ALIVE%'></TD></TR>
@@ -30,6 +30,7 @@
 
 <a href='$SELF_URL?index=$index&console=1&NAS_ID=%NAS_ID%&full=1' class='link_button'>Console</a>
 <a href='$SELF_URL?get_index=snmp_info_form&console=1&NAS_ID=%NAS_ID%&full=1' class='link_button'>SNMP</a>
+%EQUIPMENT%
 </TD></TR>
 <TR><TH colspan=2 class=even><input type=submit name=%ACTION% value='%LNG_ACTION%'></TH></TR>
 </TABLE>

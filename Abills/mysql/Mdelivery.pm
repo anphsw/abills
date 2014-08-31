@@ -78,7 +78,7 @@ sub info {
      md.text,
      md.priority,
      u.id AS login,
-     g.name AS group
+     g.name AS group_name
      FROM mdelivery_list md
      LEFT JOIN admins a ON (md.aid=a.aid)
      LEFT JOIN groups g ON (md.gid=g.gid)
@@ -305,7 +305,8 @@ sub user_list {
     }    
     );
 
-  $self->query2("SELECT u.id, pi.fio, mdl.status, mdl.uid, pi.email FROM (mdelivery_users mdl, users u)
+  $self->query2("SELECT u.id AS login, pi.fio, mdl.status, mdl.uid, pi.email 
+     FROM (mdelivery_users mdl, users u)
      LEFT JOIN users_pi pi ON (mdl.uid=pi.uid)
      $WHERE
      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
@@ -349,7 +350,7 @@ sub list {
     );
 
   $self->query2("SELECT 
-    md.id,  md.date, md.subject, md.sender, a.id, md.added, length(md.text), md.status
+    md.id,  md.date, md.subject, md.sender, a.id AS admin_login, md.added, length(md.text) AS message_text, md.status
      FROM mdelivery_list md
      LEFT JOIN admins a ON (md.aid=a.aid)
      $WHERE
@@ -414,10 +415,10 @@ sub attachment_info () {
    FROM  mdelivery_attachments 
    WHERE $WHERE",
    undef,
-   { INFO => 1 }
+   $attr
   );
 
-  retunr $self;
+  return $self;
 }
 
 #**********************************************************

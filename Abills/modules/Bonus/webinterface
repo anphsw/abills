@@ -134,7 +134,7 @@ sub bonus_user_log {
 
   $LIST_PARAMS{ID} = $FORM{ID} if ($FORM{ID});
 
-  my $list  = $Bonus->bonus_operation_list({%LIST_PARAMS});
+  my $list  = $Bonus->bonus_operation_list({%LIST_PARAMS, COLS_NAME => 1 });
   my $table = $html->table(
     {
       width      => '100%',
@@ -453,7 +453,7 @@ sub bonus_user {
   my ($attr) = @_;
 
   if (! $FORM{UID}) {
-  	$FORM{UID} = $LIST_PARAMS{UID};
+    $FORM{UID} = $LIST_PARAMS{UID};
   }
 
   if ($FORM{add} && $FORM{ACCEPT_RULES}) {
@@ -463,15 +463,25 @@ sub bonus_user {
     }
   }
   elsif ($FORM{change}) {
-  	if ($user->{UID}) {
-  		%FORM       = ();
-  		$FORM{STATE}= 0;
-  		$FORM{UID}  = $user->{UID};
-  	}
+    if ($user->{UID}) {
+    	my $accept_rules = $FORM{ACCEPT_RULES} ;
+      %FORM       = ();
+      $FORM{STATE}= 1;
+      $FORM{UID}  = $user->{UID};
+      $FORM{ACCEPT_RULES} = $accept_rules;
+    }
+   
     $Bonus->user_change({%FORM});
 
     if (!$Bonus->{errno}) {
       $html->message('info', $_INFO, "$_CHANGED ID: $FORM{ID}");
+    }
+    
+    if ($FORM{SCORE} > 0) {
+      $Bonus->accomulation_scores_change({ %FORM });
+      if (!$Bonus->{errno}) {
+        $html->message('info', $_INFO, "$_CHANGED $_SUM: $FORM{SCORE}");
+      }
     }
   }
   elsif ($FORM{del} && $FORM{is_js_confirmed}) {
@@ -487,11 +497,13 @@ sub bonus_user {
   }
 
   $Bonus->user_info($FORM{UID});
+  my $allow_transfer = $Bonus->{ACCEPT_RULES};
+  my $active_status  = $Bonus->{STATE};
 
   if ($Bonus->{TOTAL} < 1) {
     $Bonus->{ACTION}      = $html->form_input('add', "$_REGISTRATION", { TYPE => 'submit', OUTPUT2RETURN => 1 });
     $Bonus->{ACCEPT_RULES}= $html->form_input('ACCEPT_RULES', '1', { STATE => $Bonus->{ACCEPT_RULES}, TYPE => 'checkbox', OUTPUT2RETURN => 1 });
-    $Bonus->{STATE} = $html->form_input('STATE', '1', { STATE => $Bonus->{STATE}, TYPE => 'checkbox', OUTPUT2RETURN => 1 });
+    $Bonus->{STATE}       = $html->form_input('STATE', '1', { STATE => $Bonus->{STATE}, TYPE => 'checkbox', OUTPUT2RETURN => 1 });
 
   }
   elsif (! $user->{UID}) {
@@ -500,32 +512,47 @@ sub bonus_user {
     $Bonus->{STATE}       = $html->form_input('STATE', '1', { STATE => ($Bonus->{STATE}==1) ? $Bonus->{STATE} : undef, TYPE => 'checkbox', OUTPUT2RETURN => 1 });
   }
   else {
-    $Bonus->{ACCEPT_RULES}= $_YES; #$bool_vals[1];
-    $Bonus->{STATE}       = $status[$Bonus->{STATE}] . '  '. (($Bonus->{STATE}==1) ?  $html->button("$_DISABLE", "index=$index&change=1&STATE=0", { MESSAGE => "$_DISABLE $_BONUS ?", BUTTON => 1 }) : '');
+    if ($Bonus->{ACCEPT_RULES}) {
+    	$Bonus->{ACCEPT_RULES} = $_YES
+    } 
+    else {
+      $Bonus->{ACCEPT_RULES} = $html->form_input('ACCEPT_RULES', '1', { STATE => $Bonus->{ACCEPT_RULES}, TYPE => 'checkbox', OUTPUT2RETURN => 1 });
+      $Bonus->{ACTION}       = $html->form_input('change', "$_ACTIVATE", { TYPE => 'submit', OUTPUT2RETURN => 1 });
+    }
+
+    $Bonus->{STATE}       = $status[$Bonus->{STATE}]; # . '  '. (($Bonus->{STATE}==1) ?  $html->button("$_DISABLE", "index=$index&change=1&STATE=0", { MESSAGE => "$_DISABLE $_BONUS ?", BUTTON => 1 }) : '');
   }
 
-  $Bonus->{TARIF_SEL} = $html->form_select(
-    'TP_ID',
-    {
-      SELECTED       => $Bonus->{TP_ID},
-      SEL_LIST       => $Bonus->tp_list({ COLS_NAME => 1 }),
-      MAIN_MENU      => get_function_index('bonus_tp'),
-      MAIN_MENU_AGRV => "TP_ID=$Bonus->{TP_ID}"
-      
-    }
-  );
+
+  if (! $conf{BONUS_PAYMENTS}) {
+    $Bonus->{TARIF_SEL} = "--".$html->form_select(
+      'TP_ID',
+      {
+        SELECTED       => $Bonus->{TP_ID},
+        SEL_LIST       => $Bonus->tp_list({ COLS_NAME => 1 }),
+        MAIN_MENU      => get_function_index('bonus_tp'),
+        MAIN_MENU_AGRV => "TP_ID=$Bonus->{TP_ID}"
+      } 
+    );
+    
+    $Bonus->{TARIF_SEL_NAME}=$_TARIF_PLAN;
+  }
 
   if ($conf{BONUS_ACCOMULATION}) {
-  	$Bonus->accomulation_scores_info({ UID => $FORM{UID} });
-  	if (! $Bonus->{TOTAL}) {
-  		$Bonus->{COST}='0.00';
-  	}
-  	
-  	$html->tpl_show(_include('bonus_user_accomulation', 'Bonus'), $Bonus);
-  	
-  	if ($Bonus->{COST} > 0) {
-  	  bonus_accomulation_transfer()
-  	}
+    $Bonus->accomulation_scores_info({ UID => $FORM{UID} });
+    if (! $Bonus->{TOTAL}) {
+      $Bonus->{COST}='0.00';
+    }
+
+    if (! $user->{UID} && $Bonus->{UID}) {
+  	  $Bonus->{COST} = $html->form_input('SCORE', $Bonus->{COST});
+    }
+
+    $html->tpl_show(_include('bonus_user_accomulation', 'Bonus'), $Bonus);
+    
+    if ($Bonus->{COST} > 0 && $Bonus->{UID} && $allow_transfer && $active_status) {
+      bonus_accomulation_transfer()
+    }
   }
   else {
     $html->tpl_show(_include('bonus_user', 'Bonus'), $Bonus);
@@ -548,6 +575,7 @@ sub bonus_users_list {
       border     => 1,
       title      => [ "$_LOGIN", $_FIO, "$_TARIF_PLAN", "$_STATE", "$_DEPOSIT", "$_CREDIT", '-' ],
       cols_align => [ 'right', 'left', 'center', 'center:noprint', 'center:noprint', 'center:noprint' ],
+      ID         => 'BONUS_USERS'
     }
   );
 
@@ -560,7 +588,8 @@ sub bonus_users_list {
        $line->{deposit}, 
        $line->{credit}, 
        ($line->{state}) ? $html->color_mark($status[ $line->{state} ], $_COLORS[6]) : $status[ $line->{state} ], 
-       $html->button($_INFO, "index=15&MODULE=Bonus&UID=$line->{uid}", { CLASS => 'show' }));
+       $html->button($_INFO, "index=15&MODULE=Bonus&UID=$line->{uid}", { CLASS => 'show' })
+    );
   }
 
   print $table->show();
@@ -587,44 +616,64 @@ sub bonus_periodic_daily {
   my $debug_output = '';
   $debug_output .= "Bonus - Daily periodic\n" if ($debug > 1);
 
+  if ($conf{BONUS_PAYMENTS}) {
+    if ($conf{BONUS_RESET_PERIOD}) {
+
+    }
+    return $debug_output 
+  }
+
   #del expired bonus
   #list expire
+  $LIST_PARAMS{LOGIN} = $attr->{LOGIN} if ($attr->{LOGIN});
+  
+  $Bonus->{debug} = 1 if ($debug > 6);
 
   my $list = $Bonus->bonus_operation_list(
     {
-      EXPIRE    => $ADMIN_REPORT{DATE},
-      DEPOSIT   => '>0',
-      PAGE_ROWS => 1000000,
+      EXPIRE     => $ADMIN_REPORT{DATE},
+      DEPOSIT    => '>0',
+      SUM        => '_SHOW',
+      BILL_ID    => '_SHOW',
+      EXT_BILL_ID=> '_SHOW',
+      EXPIRE     => '_SHOW',
+      PAGE_ROWS  => 1000000,
+      COLS_NAME  => 1,
+      %LIST_PARAMS
     }
   );
+
   my %last_deposits = ();
   foreach my $line (@$list) {
-    if ($line->[1]) {
-      my $sum  = $line->[5];
+    if ($line->{login}) {
+      my $sum  = $line->{sum};
       my %user = (
-        EXT_BILL_ID => $line->[10],
-        UID         => $line->[14],
-        DEPOSIT     => $line->[2]
+        EXT_BILL_ID => $line->{ext_bill_id} || $line->{bill_id},
+        UID         => $line->{uid},
+        DEPOSIT     => $line->{deposit},
+        BILL_ID     => $line->{bill_id}
       );
 
       my $deposit = ($last_deposits{ $user{UID} }) ? $last_deposits{ $user{UID} } : $user{DEPOSIT};
-      $debug_output .= "LOGIN: $line->[1] [$user{UID}] DEPOSIT: $deposit SUM: $sum EXPIRE: $line->[7] BILL_ID: $line->[10] ADD DATE: $line->[3]\n" if ($debug > 1);
+      $debug_output .= "LOGIN: $line->{login} [$user{UID}] DEPOSIT: $deposit SUM: $sum EXPIRE: $line->{expire} BILL_ID: $line->{bill_id} ADD DATE: $line->{date}\n" if ($debug > 1);
 
       if ($sum > $deposit) {
         $sum = $deposit;
       }
+
+      next if ($sum<=0);
 
       $Bonus->bonus_operation(
         \%user,
         {
           ACTION_TYPE => 1,
           SUM         => $sum,
-          DESCRIBE    => "$_EXPIRE ID: $line->[0]",
+          DESCRIBE    => "$_EXPIRE ID: $line->{id}",
         }
       );
 
       if ($Bonus->{errno}) {
-        print "[$Bonus->{errno}] $err_strs{$Bonus->{errno}}";
+        print "LOGIN: $line->{login} [$user{UID}] [$Bonus->{errno}] $err_strs{$Bonus->{errno}}\n";
       }
       else {
         $last_deposits{ $user{UID} } = ($last_deposits{ $user{UID} }) ? $last_deposits{ $user{UID} } -= $sum : $user{DEPOSIT} -= $sum;
@@ -645,6 +694,9 @@ sub bonus_periodic_monthly {
   my $debug = $attr->{DEBUG} || 0;
   my $debug_output = '';
   $debug_output .= "Bonus - Monthly periodic\n" if ($debug > 1);
+
+  return $debug_output if ($conf{BONUS_PAYMENTS});
+
   if ($conf{BONUS_ACCOMULATION}) {
     $debug_output .= bonus_periodic_accomulation($attr)
   }
@@ -681,6 +733,73 @@ sub bonus_pre_payment {
 
   return $REPORT;
 }
+
+
+#**********************************************************
+#
+#**********************************************************
+sub bonus_payments_maked {
+  my ($attr) = @_;
+
+  my $user=$attr->{USER_INFO} if ($attr->{USER_INFO});
+  if (! $conf{BONUS_PAYMENTS}) {
+    return '';
+  }
+  elsif(! $attr->{SUM} ) {
+  	return '';
+  }
+
+  my $score = 0;
+  my %RESULT = ();
+ 
+  my ($year, $month, $day) = split(/-/, $attr->{USER_INFO}->{REGISTRATION}, 3);
+  my $seltime = POSIX::mktime(0, 0, 0, $day, ($month - 1), ($year - 1900));
+  my $registration_days = int((time() - $seltime) / 86400);
+
+  $Bonus->user_info($user->{UID});
+  
+  if (! $Bonus->{STATE} || ! $Bonus->{ACCEPT_RULES}) {
+  	return '';
+  }
+
+  my $list = $Bonus->service_discount_list(
+        {
+          REGISTRATION_DAYS => "<=$registration_days,>=0",
+          #PERIODS           => "<=$periods",
+          PAY_METHOD        => "$FORM{METHOD};-1",
+          PAGE_ROWS         => 1,
+          SORT              => "1 DESC, 2 DESC, pay_method DESC",
+          COLS_NAME         => 1
+        }
+      );
+
+  if ($Bonus->{TOTAL} > 0) {
+    $RESULT{DISCOUNT}          = $list->[0]->{discount};
+    $RESULT{DISCOUNT_PERIOD}   = $list->[0]->{discount_days};
+    $RESULT{BONUS_SUM}         = $list->[0]->{bonus_sum};
+    $RESULT{BONUS_PERCENT}     = $list->[0]->{bonus_percent};
+    $RESULT{BONUS_EXT_ACCOUNT} = $list->[0]->{ext_account};
+
+    if ($RESULT{DISCOUNT_PERIOD} > 0) {
+      $RESULT{DISCOUNT_PERIOD} = strftime "%Y-%m-%d", localtime(time + 86400 * $RESULT{DISCOUNT_PERIOD});
+    }
+    
+    if ($RESULT{BONUS_PERCENT}) {
+      $score = $attr->{SUM}  / 100 * $RESULT{BONUS_PERCENT};
+    }
+  }
+
+  if (! $attr->{QUITE}) {
+  	if ($attr->{SUM} > 0) {
+  	  $html->message('info', $_BONUS, "$_ADD $_BONUS ". sprintf('%.2f', $score));
+  	}
+  }
+
+  $Bonus->accomulation_scores_add({ UID   => $user->{UID},
+                                    SCORE => $score 
+                                  });
+}
+
 
 #**********************************************************
 #
@@ -760,16 +879,19 @@ sub bonus_service_discount_mk {
   @excluder_arr    = split(/,\s?/, $exclude);
 
   if ($FORM{METHOD} && in_array($FORM{METHOD}, \@excluder_arr)) {
-  	return 0;
+    return 0;
   }
 
   my %RULES = ();
-  my $list = $Bonus->service_discount_list({ PAGE_ROWS => 1000 });
+  my $list = $Bonus->service_discount_list({ PAGE_ROWS => 1000,
+                                             COLS_NAME => 1 });
+
+
   foreach my $line (@$list) {
-    if ($line->[1] > 0) {
+    if ($line->{registration_days} > 0) {
       $RULES{PERIOD} = 1;
     }
-    elsif ($line->[2] > 0) {
+    elsif ($line->{total_payments_sum} > 0) {
       $RULES{TOTAL_PAYMENT} = 1;
     }
   }
@@ -877,7 +999,7 @@ sub bonus_service_discount_mk {
           $html->message('err', $_ERROR, "$ERR_WRONG_SUM");
         }
         elsif ($Payments->{errno} == 14) {
-        	my $message = ($RESULT{BONUS_EXT_ACCOUNT}) ? "$_EXTRA" : '';
+          my $message = ($RESULT{BONUS_EXT_ACCOUNT}) ? "$_EXTRA" : '';
           $html->message('err', $_ERROR, "$message $_BILL $_NOT_EXIST $bill_id");
         }
         else {
@@ -939,16 +1061,45 @@ sub bonus_service_discount {
 
   $Bonus->{EXT_ACCOUNT} = 'checked' if ($Bonus->{EXT_ACCOUNT});
 
+  my %PAYMENTS_METHODS = ();
+  my %BILL_ACCOUNTS = ();
+
+  $PAYMENTS_METHODS{'-1'}=$_ALL;
+
+  my @PAYMENT_METHODS_ = @PAYMENT_METHODS;
+  push @PAYMENT_METHODS_, @EX_PAYMENT_METHODS if (@EX_PAYMENT_METHODS);
+
+  for (my $i = 0 ; $i <= $#PAYMENT_METHODS_ ; $i++) {
+    $PAYMENTS_METHODS{"$i"} = "$PAYMENT_METHODS_[$i]";
+  }
+
+  my %PAYSYS_PAYMENT_METHODS = %{ cfg2hash($conf{PAYSYS_PAYMENTS_METHODS}) };
+
+  while (my ($k, $v) = each %PAYSYS_PAYMENT_METHODS) {
+    $PAYMENTS_METHODS{$k} = $v;
+  }
+
+  $Bonus->{PAYMENT_TYPES_SEL} = $html->form_select(
+      'PAY_METHOD',
+      {
+        SELECTED => (defined($Bonus->{PAY_METHOD}) && $Bonus->{PAY_METHOD} ne '') ? $Bonus->{PAY_METHOD} : 0,
+        SEL_HASH => \%PAYMENTS_METHODS,
+        NO_ID    => 1,
+      }
+    );
+
   $html->tpl_show(_include('bonus_service_discount', 'Bonus'), $Bonus);
 
-  my $list = $Bonus->service_discount_list({%LIST_PARAMS});
+  my $list = $Bonus->service_discount_list({%LIST_PARAMS,
+                                            COLS_NAME => 1
+                                           });
 
   my $table = $html->table(
     {
-      width   => '100%',
-      caption => "$_BONUS",
-      border  => 1,
-      title   => [ "$_SERVICE $_PERIOD ($_MONTH)", "$_REGISTRATION $_DAYS", "$_TOTAL $_PAYMENTS ($_SUM)", "$_REDUCTION %", "$_REDUCTION $_DAYS", "$_BONUS $_SUM", "$_BONUS_PERCENT", "$_EXTRA $_ACCOUNT", '-', '-' ],
+      width      => '100%',
+      caption    => "$_BONUS $_SERVICE",
+      border     => 1,
+      title      => [ "$_SERVICE $_PERIOD ($_MONTH)", "$_REGISTRATION $_DAYS", "$_TOTAL $_PAYMENTS ($_SUM)", "$_REDUCTION %", "$_REDUCTION $_DAYS", "$_BONUS $_SUM", "$_BONUS_PERCENT", "$_EXTRA $_ACCOUNT", "$_PAYMENT $_TYPE", '-', '-' ],
       cols_align => [ 'right', 'right', 'right', 'right', 'right', 'center:noprint', 'center:noprint' ],
       qs         => $pages_qs,
       pages      => $Bonus->{TOTAL},
@@ -957,8 +1108,17 @@ sub bonus_service_discount {
   );
 
   foreach my $line (@$list) {
-    my $delete = $html->button($_DEL, "index=$index&del=$line->[8]", { MESSAGE => "$_DEL [$line->[0]] ?", CLASS => 'del' });
-    $table->addrow($line->[0], $line->[1], $line->[2], $line->[3], $line->[4], $line->[5], $line->[6], ($line->[7]) ? $_YES : $_NO, $html->button($_DEL, "index=$index&chg=$line->[8]", { CLASS => 'change' }), $delete);
+    my $delete = $html->button($_DEL, "index=$index&del=$line->{id}", { MESSAGE => "$_DEL [$line->{id}] ?", CLASS => 'del' });
+    $table->addrow($line->{service_period}, 
+       $line->{registration_days}, 
+       $line->{total_payments_sum}, 
+       $line->{discount}, 
+       $line->{discount_days}, 
+       $line->{bonus_sum}, 
+       $line->{bonus_percent}, 
+       ($line->{ext_account}) ? $_YES : $_NO, 
+       ($line->{pay_method}==-1) ? $_ALL : $PAYMENTS_METHODS{$line->{pay_method}},
+       $html->button($_DEL, "index=$index&chg=$line->{id}", { CLASS => 'change' }), $delete);
   }
 
   print $table->show();
@@ -1054,7 +1214,7 @@ sub bonus_turbo_mk {
   my $return = 0;
 
   if ($FORM{METHOD} == 4 || $FORM{METHOD} == 6) {
-  	return 0;
+    return 0;
    }
 
   my %RULES = ();
@@ -1094,7 +1254,7 @@ sub bonus_turbo_mk {
     if ($RESULT{TURBO_COUNT} && $RESULT{TURBO_COUNT} > 0) {
       $Dv->change(        
         { 
-        	UID                   => $attr->{USER_INFO}->{UID}, 
+          UID                   => $attr->{USER_INFO}->{UID}, 
           FREE_TURBO_MODE       => $RESULT{TURBO_COUNT}
         }
       );
@@ -1109,15 +1269,15 @@ sub bonus_turbo_mk {
 #
 #**********************************************************
 sub bonus_users {
-	my ($attr)=@_;
-	bonus_service_discount_client();
+  my ($attr)=@_;
+  bonus_service_discount_client();
 }
 
 #**********************************************************
 #
 #**********************************************************
 sub bonus_tp_accomulation {
-	my ($attr)=@_;
+  my ($attr)=@_;
 
   if ($FORM{change}) {
     my $list = $Bonus->accomulation_rule_change( \%FORM );
@@ -1131,10 +1291,10 @@ sub bonus_tp_accomulation {
   }
 
   my $list = $Bonus->accomulation_rule_list({ 
-  	                          %LIST_PARAMS, 
-  	                          TP_ID     => $FORM{TP_ID},
-  	                          COLS_NAME => 1 
-  	                        });
+                              %LIST_PARAMS, 
+                              TP_ID     => $FORM{TP_ID},
+                              COLS_NAME => 1 
+                            });
   
   my $table = $html->table(
     {
@@ -1179,42 +1339,45 @@ sub bonus_tp_accomulation {
 #
 #**********************************************************
 sub bonus_periodic_accomulation {
-	my ($attr)=@_;
+  my ($attr)=@_;
   my $debug = $attr->{DEBUG} || 0;
   my $debug_output = '';
   $debug_output .= "Bonus - Accoumulation\n" if ($debug > 1);
-	
-	if ( $D != 1) {
+  
+  if ( $D != 1) {
     $DEBUG .= $debug_output;
     return $debug_output;
-	}
-	
-	$LIST_PARAMS{LOGIN} = $attr->{LOGIN} if ($attr->{LOGIN});
-	
-	$Bonus->{debug}=1 if ($debug > 6);
-	
-	my $tp_list = $Bonus->accomulation_rule_list({ COST => '>0', COLS_NAME => 1 });
-	foreach my $tp (@$tp_list) {
-		$debug_output .= "TP ID: $tp->{tp_id} DV TP: $tp->{dv_tp_id}  COST: $tp->{cost}\n" if ($debug> 1);
-	  my $list = $Bonus->user_list({ DV_TP_ID  => $tp->{dv_tp_id},
-	  	                             TP_ID     => $tp->{tp_id}, 
-	  	                             COLS_NAME => 1, 
-	  	                             DEPOSIT   => '>=0',
-	  	                             %LIST_PARAMS, 
-	  	                             PAGE_ROWS => 1000000,
-	  	                           });	
+  }
+  
+  $LIST_PARAMS{LOGIN} = $attr->{LOGIN} if ($attr->{LOGIN});
+  
+  $Bonus->{debug}=1 if ($debug > 6);
+  
+  my $tp_list = $Bonus->accomulation_rule_list({ COST => '>0', 
+                                                 COLS_NAME => 1 
+                                                });
 
-	  foreach my $user (@$list) {
-	  	$user->{cost} = 0 if (! $user->{cost});
-	  	$debug_output .= "$user->{login}:$user->{uid} Score: $user->{cost}  \n" if ($debug> 1);
-	  	if ($debug < 5) {
+  foreach my $tp (@$tp_list) {
+    $debug_output .= "TP ID: $tp->{tp_id} DV TP: $tp->{dv_tp_id}  COST: $tp->{cost}\n" if ($debug> 1);
+    my $list = $Bonus->user_list({ DV_TP_ID  => $tp->{dv_tp_id},
+                                   TP_ID     => $tp->{tp_id}, 
+                                   COLS_NAME => 1, 
+                                   DEPOSIT   => '>=0',
+                                   %LIST_PARAMS, 
+                                   PAGE_ROWS => 1000000,
+                                 });  
+
+    foreach my $user (@$list) {
+      $user->{cost} = 0 if (! $user->{cost});
+      $debug_output .= "$user->{login}:$user->{uid} Score: $user->{cost}  \n" if ($debug> 1);
+      if ($debug < 5) {
         $Bonus->accomulation_scores_change({ UID => $user->{uid}, 
-        	 SCORE    => $user->{cost}+$tp->{cost},
-        	 DV_TP_ID => 0  });
-	    }
-	  }
-	}
-	
+           SCORE    => $user->{cost}+$tp->{cost},
+           DV_TP_ID => 0  });
+      }
+    }
+  }
+  
 
   return $debug_output;
 }
@@ -1225,44 +1388,44 @@ sub bonus_periodic_accomulation {
 #
 #**********************************************************
 sub bonus_accomulation_transfer {
-	my ($attr)=@_;
+  my ($attr)=@_;
 
   $conf{BONUS_ACCOMULATION_TRANSFER_MIN}=1 if (! $conf{BONUS_ACCOMULATION_TRANSFER_MIN} );
   $conf{BONUS_ACCOMULATION_TRANSFER_PERCENT}=0 if (! $conf{BONUS_ACCOMULATION_TRANSFER_PERCENT});
 
-	
 if ($FORM{transfer}) {
-	my $rechange_sum = $FORM{COST};
+  my $rechange_sum = $FORM{COST};
   if ($Bonus->{COST} < $FORM{COST}) {
-  	$html->message('err', $_ERROR, "$ERR_SMALL_DEPOSIT");
+    $html->message('err', $_ERROR, "$ERR_SMALL_DEPOSIT");
   }
   elsif ($conf{BONUS_ACCOMULATION_TRANSFER_MIN} > $FORM{COST}) {
-  	$html->message('err', $_ERROR, "$ERR_SMALL_DEPOSIT");
+    $html->message('err', $_ERROR, "$ERR_SMALL_DEPOSIT");
   }
   else {
-  	if ($conf{BONUS_ACCOMULATION_TRANSFER_PERCENT}) {
-  		$rechange_sum = $FORM{COST} - ($FORM{COST} / 100 * $conf{BONUS_ACCOMULATION_TRANSFER_PERCENT});
-  	}
+    if ($conf{BONUS_ACCOMULATION_TRANSFER_PERCENT}) {
+      $rechange_sum = $FORM{COST} - ($FORM{COST} / 100 * $conf{BONUS_ACCOMULATION_TRANSFER_PERCENT});
+    }
   
     $Bonus->accomulation_scores_change({ UID => $user->{UID} || $FORM{UID}, 
-        	 SCORE    => $Bonus->{COST}-$FORM{COST},
-        	 DV_TP_ID => 0  });
+           SCORE    => $Bonus->{COST}-$FORM{COST},
+           DV_TP_ID => 0  });
 
     if (! $Bonus->{error}) {
       if (! $user->{UID}){ 
-    	  $user = $users->info($FORM{UID});
+        $user = $users->info($FORM{UID});
       }
 
       $Payments->add($user, { SUM    => $rechange_sum, 
-    	                      METHOD => 4 
-    	                     });
-      $html->message('info', $_INFO, "$_ADDED $rechange_sum");	            
+                              METHOD => 4 
+                             });
+      $html->message('info', $_INFO, "$_ADDED $rechange_sum");              
     }
   }
-}	
+}  
+
 
 $html->tpl_show(_include('bonus_accomulation_transfer', 'Bonus'), $Bonus);
-	
+  
 }
 
 1

@@ -171,10 +171,17 @@ sub auth {
     $auth_mod{"$nas->{NAS_TYPE}"}->{INFO} = undef;
     $auth_mod{"$nas->{NAS_TYPE}"} = $AUTH{ $nas->{NAS_TYPE} }->new($db, \%conf);
     ($r, $RAD_PAIRS) = $auth_mod{"$nas->{NAS_TYPE}"}->auth($RAD, $nas, { RAD_REQUEST => \%RAD_REQUEST });
+
+    if($auth_mod{"$nas->{NAS_TYPE}"}->{GUEST_MODE}) {
+    	$Log->{ACTION} = 'GUEST_MODE';
+    }
   }
   else {
     $auth_mod{'default'} = Auth->new($db, \%conf);
     ($r, $RAD_PAIRS) = $auth_mod{"default"}->dv_auth($RAD, $nas, { MAX_SESSION_TRAFFIC => $conf{MAX_SESSION_TRAFFIC} });
+    if($auth_mod{'default'}->{GUEST_MODE}) {
+    	$Log->{ACTION} = 'GUEST_MODE';
+    }
   }
 
   %RAD_REPLY = %$RAD_PAIRS;
@@ -197,7 +204,6 @@ sub auth {
     return $r;
   }
   else {
-
     #GEt Nas rad pairs
     if ($nas->{NAS_RAD_PAIRS}) {
       $nas->{NAS_RAD_PAIRS} =~ tr/\n\r//d;
@@ -229,7 +235,7 @@ sub auth {
         $rr .= "$rs += " . join(",\n$rs += ", @$ls);
         $rr .= ",\n";
       }
-      else {
+      elsif(defined($ls)) {
         $rr .= "$rs = $ls,\n";
       }
     }

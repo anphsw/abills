@@ -244,13 +244,13 @@ sub iptv_chg_tp {
     $Tariffs->{TARIF_PLAN_SEL} = $html->form_select(
       'TP_ID',
       {
-        SELECTED          => $Iptv->{TP_ID},
-        SEL_MULTI_ARRAY   => $Tariffs->list({ MODULE => 'Iptv' }),
-        MULTI_ARRAY_KEY   => 18,
-        MULTI_ARRAY_VALUE => '0,1',
-        NO_ID             => 1,
-        MAIN_MENU         => ($permissions{0}{10}) ? get_function_index('iptv_tp') : undef,
-        MAIN_MENU_AGRV    => "TP_ID=$Iptv->{TP_ID}"
+        SELECTED       => $Iptv->{TP_ID},
+        SEL_LIST       => $Tariffs->list({ MODULE => 'Iptv', COLS_NAME => 1 }),
+        SEL_KEY        => 'tp_id',
+        SEL_VALUE      => 'id,name',
+        NO_ID          => 1,
+        MAIN_MENU      => ($permissions{0}{10}) ? get_function_index('iptv_tp') : undef,
+        MAIN_MENU_AGRV => "TP_ID=$Iptv->{TP_ID}"
       }
     );
 
@@ -310,7 +310,7 @@ sub iptv_users_list {
   print $html->letters_list({ pages_qs => $pages_qs });
 
   if ($FORM{letter}) {
-    $LIST_PARAMS{FIRST_LETTER} = $FORM{letter};
+    $LIST_PARAMS{LOGIN} = "$FORM{letter}*";
     $pages_qs .= "&letter=$FORM{letter}";
   }
 
@@ -450,11 +450,13 @@ sub iptv_user {
     $user->{TP_NUM}     = $html->form_select(
       'TP_ID',
       {
-        SELECTED          => $Iptv->{TP_ID},
-        SEL_MULTI_ARRAY   => $Tariffs->list({ MODULE => 'Iptv' }),
-        MULTI_ARRAY_KEY   => 18,
-        MULTI_ARRAY_VALUE => '0,1',
-        NO_ID             => 1,
+        SELECTED       => $Iptv->{TP_ID},
+        SEL_LIST       => $Tariffs->list({ MODULE => 'Iptv', COLS_NAME => 1 }),
+        SEL_KEY        => 'tp_id',
+        SEL_VALUE      => 'id,name',
+        NO_ID          => 1,
+        MAIN_MENU      => get_function_index('iptv_tp'),
+        MAIN_MENU_AGRV => "TP_ID=$Voip->{TP_ID}"
       }
     );
   }
@@ -484,17 +486,16 @@ sub iptv_user {
   );
 
   if ($Iptv_stalker) {
-    my $stalker_modems_list = $Iptv_stalker->stalker_users_list({ UNREGISTER => 1 });
     if (! $Iptv_stalker->{errno}) {
       $user->{MODEMS} = $html->form_select(
         'CID2',
         {
-          SELECTED          => $Iptv->{CID},
-          SEL_MULTI_ARRAY   => $stalker_modems_list,
-          MULTI_ARRAY_KEY   => 1,
-          MULTI_ARRAY_VALUE => 1,
-          SEL_OPTIONS       => { '' => ''},
-          NO_ID             => 1
+          SELECTED    => $Iptv->{CID},
+          SEL_LIST    => $Iptv_stalker->stalker_users_list({ UNREGISTER => 1, COLS_NAME => 1 }),
+          SEL_KEY     => 'mac',
+          SEL_VALUE   => 'mac',
+          SEL_OPTIONS => { '' => ''},
+          NO_ID       => 1
         }
       );
       
@@ -941,10 +942,10 @@ sub iptv_tp {
         CONTENT => $html->form_select(
           'TP_ID',
           {
-            SELECTED          => $FORM{TP_ID},
-            SEL_MULTI_ARRAY   => $Tariffs->list({ %LIST_PARAMS, MODULE => 'Iptv' }),
-            MULTI_ARRAY_KEY   => 0,
-            MULTI_ARRAY_VALUE => 1,
+            SELECTED  => $FORM{TP_ID},
+            SEL_LIST  => $Tariffs->list({ %LIST_PARAMS, MODULE => 'Iptv', COLS_NAME => 1 }),
+            SEL_KEY   => 'tp_id',
+            SEL_VALUE => 'name',
           }
         ),
         HIDDEN => { index => "$index" },
@@ -1018,10 +1019,8 @@ sub iptv_tp {
     $tarif_info->{GROUPS_SEL} = $html->form_select(
       'TP_GID',
       {
-        SELECTED          => $tarif_info->{TP_GID},
-        SEL_MULTI_ARRAY   => [ [ '', '' ], @{ $Tariffs->tp_group_list() } ],
-        MULTI_ARRAY_KEY   => 0,
-        MULTI_ARRAY_VALUE => 1,
+        SELECTED   => $tarif_info->{TP_GID},
+        SEL_LIST   => $Tariffs->tp_group_list(),
       }
     );
 
@@ -1029,25 +1028,23 @@ sub iptv_tp {
     $tarif_info->{POSTPAID_FEE}     = ($tarif_info->{POSTPAID_FEE})     ? 'checked' : '';
     $tarif_info->{PERIOD_ALIGNMENT} = ($tarif_info->{PERIOD_ALIGNMENT}) ? 'checked' : '';
 
-    my $tp_list = $Tariffs->list({ MODULE => 'Iptv', DOMAIN_ID => $admin->{DOMAIN_ID} });
+    my $tp_list = $Tariffs->list({ MODULE => 'Iptv', DOMAIN_ID => $admin->{DOMAIN_ID}, COLS_NAME => 1 });
 
     $tarif_info->{SMALL_DEPOSIT_ACTION_SEL} = $html->form_select(
       'SMALL_DEPOSIT_ACTION',
       {
-        SELECTED          => $tarif_info->{SMALL_DEPOSIT_ACTION},
-        SEL_MULTI_ARRAY   => [ [ '', '' ], [ '-1', "$_HOLD_UP" ], @{$tp_list} ],
-        MULTI_ARRAY_KEY   => 0,
-        MULTI_ARRAY_VALUE => 1,
+        SELECTED    => $tarif_info->{SMALL_DEPOSIT_ACTION},
+        SEL_LIST    => $tp_list,
+        SEL_OPTIONS => { '' => "", '-1' => "$_HOLD_UP" },
       }
     );
 
     $tarif_info->{NEXT_TARIF_PLAN_SEL} = $html->form_select(
       'NEXT_TARIF_PLAN',
       {
-        SELECTED          => $tarif_info->{NEXT_TARIF_PLAN},
-        SEL_MULTI_ARRAY   => [ [ '', '' ], @{$tp_list} ],
-        MULTI_ARRAY_KEY   => 0,
-        MULTI_ARRAY_VALUE => 1,
+        SELECTED    => $tarif_info->{NEXT_TARIF_PLAN},
+        SEL_LIST    => $tp_list,
+        SEL_OPTIONS => { '' => '' },
       }
     );
 
@@ -2116,10 +2113,10 @@ sub iptv_user_chg_tp {
     $Tariffs->{TARIF_PLAN_SEL} = $html->form_select(
       'TP_ID',
       {
-        SELECTED          => $Iptv->{TP_ID},
-        SEL_MULTI_ARRAY   => $Tariffs->list({ TP_GID => $Iptv->{TP_GID}, MODULE => 'Iptv' }),
-        MULTI_ARRAY_KEY   => 0,
-        MULTI_ARRAY_VALUE => 1,
+        SELECTED  => $Iptv->{TP_ID},
+        SEL_LIST  => $Tariffs->list({ TP_GID => $Iptv->{TP_GID}, MODULE => 'Iptv', COLS_NAME => 1 }),
+        SEL_KEY   => 'tp_id',
+        SEL_VALUE => 1,
       }
     );
 

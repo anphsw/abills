@@ -22,6 +22,7 @@ CREATE TABLE `abon_tariffs` (
   `discount` tinyint(1) unsigned NOT NULL default '0',
   `manual_activate` tinyint(1) NOT NULL default 0,
   `user_portal` tinyint(1) NOT NULL default 0,
+  `domain_id` smallint(6) unsigned not null default 0,
   PRIMARY KEY  (`id`),
   UNIQUE KEY `id` (`id`),
   UNIQUE KEY `name` (`name`)

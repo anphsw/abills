@@ -5,7 +5,7 @@
 <li class='top_status-item flRight'><strong>$_DATE:</strong> %DATE%</li>
 <li class='top_status-item flLeft'><strong>$_USER:</strong> %LOGIN%</li>
 <li class='top_status-item flLeft'><strong>IP:</strong> %IP%</li>
-<li class='top_status-item tCenter'><strong>$_STATE:</strong> %STATE_CODE%</li>
+<li class='top_status-item tCenter'><strong>$_STATE:</strong> %STATE% <!-- %STATE_CODE% --></li>
 </ul>
 %MENU%
 <div class='kabinet-center_col'>				

@@ -23,6 +23,7 @@ use main;
 my $uid;
 
 
+
 #**********************************************************
 # Init
 #**********************************************************
@@ -240,7 +241,8 @@ sub pi_add {
   if ($DATA{STREET_ID} && $DATA{ADD_ADDRESS_BUILD} && ! $DATA{LOCATION_ID}) {
     my $list = $self->build_list({ STREET_ID => $DATA{STREET_ID}, 
                                    NUMBER    => $attr->{ADD_ADDRESS_BUILD}, 
-                                   COLS_NAME => 1 
+                                   COLS_NAME => 1,
+                                   PAGE_ROWS => 1
                                  });
 
     if ($self->{TOTAL} > 0) {
@@ -318,12 +320,13 @@ sub pi {
   my ($attr) = @_;
 
   my $UID = ($attr->{UID}) ? $attr->{UID} : $self->{UID};
-
   #Make info fields use
   my $info_fields     = '';
   my @info_fields_arr = ();
 
-  my $list = $self->config_list({ PARAM => 'ifu*', SORT => 2 });
+  my $list = $self->config_list({ PARAM     => 'ifu*', 
+  	                              SORT      => 2,
+  	                              DOMAIN_ID => $self->{DOMAIN_ID} });
   if ($self->{TOTAL} > 0) {
     my %info_fields_hash = ();
 
@@ -402,29 +405,19 @@ sub pi {
   }
 
   if (! $self->{errno} && $self->{LOCATION_ID}) {
-    $self->query2("select d.id AS district_id, 
-      d.city, 
-      d.name AS address_district, 
-      s.name AS address_street, 
-      b.number AS address_build,
-      s.id AS street_id
-     FROM builds b
-     LEFT JOIN streets s  ON (s.id=b.street_id)
-     LEFT JOIN districts d  ON (d.id=s.district_id)
-     WHERE b.id='$self->{LOCATION_ID}'",
-     undef,
-     { INFO => 1 }
-    );
+  	$self->address_info($self->{LOCATION_ID});
 
     if ($self->{errno} && $self->{errno} == 2) {
     	delete $self->{errno};
     }
   }
-  
+
+  $self->{ADDRESS_FULL}="$self->{ADDRESS_STREET}, $self->{ADDRESS_BUILD}/$self->{ADDRESS_FLAT}";  
 
   $self->{TOTAL}=1;
   return $self;
 }
+
 
 #**********************************************************
 # Personal Info change
@@ -609,7 +602,11 @@ sub groups_list {
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query2("SELECT g.gid, g.name, g.descr, count(u.uid) AS users_count, g.allow_credit, g.disable_paysys, g.domain_id FROM groups g
+  $self->query2("SELECT g.gid, g.name, g.descr, count(u.uid) AS users_count, g.allow_credit, 
+        g.disable_paysys, 
+        g.disable_chg_tp,
+        g.domain_id 
+        FROM groups g
         LEFT JOIN users u ON  (u.gid=g.gid $USERS_WHERE) 
         $WHERE
         GROUP BY g.gid
@@ -643,7 +640,7 @@ sub group_info {
 }
 
 #**********************************************************
-# group_info()
+# group_change()
 #**********************************************************
 sub group_change {
   my $self = shift;
@@ -652,6 +649,7 @@ sub group_change {
   $attr->{SEPARATE_DOCS} = ($attr->{SEPARATE_DOCS}) ? 1 : 0;
   $attr->{ALLOW_CREDIT}  = ($attr->{ALLOW_CREDIT}) ? 1 : 0;
   $attr->{DISABLE_PAYSYS}= ($attr->{DISABLE_PAYSYS}) ? 1 : 0;
+  $attr->{DISABLE_CHG_TP}= ($attr->{DISABLE_CHG_TP}) ? 1 : 0;
 
   $self->changes(
     $admin,
@@ -739,6 +737,9 @@ sub list {
     }
 
     @WHERE_RULES = ("(". join(' or ', @us_query) .")");
+    if ($admin->{DOMAIN_ID} || ($attr->{DOMAIN_ID} && $attr->{DOMAIN_ID} ne '_SHOW' )) {
+      push @WHERE_RULES, 'u.domain_id=\'' . ($admin->{DOMAIN_ID} || $attr->{DOMAIN_ID} || 0) . '\'';
+    }
   }
   else {
     push @WHERE_RULES, @{ $self->search_expr_users({ %$attr, 
@@ -761,9 +762,6 @@ sub list {
         'CONTRACT_SUFIX',
         'CONTRACT_DATE',
         'EXPIRE',
-
-#        'CREDIT:skip',
-
         'REDUCTION',
         'REGISTRATION',
         'REDUCTION_DATE',
@@ -991,17 +989,20 @@ sub add {
 
   my %DATA = $self->get_data($attr, { default => defaults() });
 
-  if (!defined($DATA{LOGIN})) {
-    $self->{errno}  = 8;
-    $self->{errstr} = 'ERROR_ENTER_NAME';
-    return $self;
+  if (! $DATA{LOGIN}) {
+    #check autofill trigger
+    $self->query2("SHOW TRIGGERS LIKE '%users%'");
+    if (! $self->{TOTAL}) {
+      $self->{errno}  = 8;
+      $self->{errstr} = 'ERROR_ENTER_NAME';
+      return $self;
+    }
   }
   elsif (length($DATA{LOGIN}) > $CONF->{MAX_USERNAME_LENGTH}) {
     $self->{errno}  = 9;
     $self->{errstr} = 'ERROR_LONG_USERNAME';
     return $self;
   }
-
   #ERROR_SHORT_PASSWORD
   elsif ($DATA{LOGIN} !~ /$usernameregexp/) {
     $self->{errno}  = 10;
@@ -1684,6 +1685,31 @@ sub config_del {
 }
 
 #**********************************************************
+# Address register full address info
+# address_info();
+#**********************************************************
+sub address_info {
+  my $self = shift;
+  my ($id) = @_;
+ 
+  $self->query2("SELECT d.id AS district_id, 
+      d.city, 
+      d.name AS address_district, 
+      s.name AS address_street, 
+      b.number AS address_build,
+      s.id AS street_id
+     FROM builds b
+     LEFT JOIN streets s  ON (s.id=b.street_id)
+     LEFT JOIN districts d  ON (d.id=s.district_id)
+     WHERE b.id='$id'",
+     undef,
+     { INFO => 1 }
+    );
+
+  return $self;
+}
+
+#**********************************************************
 # district_list()
 #**********************************************************
 sub district_list {
@@ -1702,8 +1728,15 @@ sub district_list {
     }
     );
 
-  $self->query2("SELECT d.id, d.name, d.country, d.city, zip, count(s.id) AS street_count, 
-       d.coordx, d.coordy, d.zoom 
+  $self->query2("SELECT d.id, 
+       d.name, 
+       d.country, 
+       d.city, 
+       zip, 
+       count(s.id) AS street_count, 
+       d.coordx, 
+       d.coordy, 
+       d.zoom 
      FROM districts d
      LEFT JOIN streets s ON (d.id=s.district_id)
    $WHERE 
@@ -1746,25 +1779,11 @@ sub district_change {
   my $self = shift;
   my ($id, $attr) = @_;
 
-  my %FIELDS = (
-    ID       => 'id',
-    NAME     => 'name',
-    COUNTRY  => 'country',
-    CITY     => 'city',
-    ZIP      => 'zip',
-    COMMENTS => 'comments',
-    COORDX   => 'coordx',
-    COORDY   => 'coordy',
-    ZOOM     => 'zoom',
-  );
-
   $self->changes(
     $admin,
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'districts',
-      FIELDS       => \%FIELDS,
-      OLD_INFO     => $self->district_info({ ID => $id }),
       DATA         => $attr
     }
   );
@@ -1929,9 +1948,10 @@ sub build_list {
     $SORT = "length(b.number), b.number";
   }
 
+  my $maps_google_fields = '';
   if ($attr->{SHOW_MAPS_GOOGLE}) {
-    $self->{SEARCH_FIELDS} = ",b.coordx, b.coordy";
     push @WHERE_RULES, "(b.coordx<>0 and b.coordy)";
+    $maps_google_fields = "b.coordx, b.coordy, ";
   }
 
   my $WHERE = $self->search_former($attr, [
@@ -1947,21 +1967,20 @@ sub build_list {
     }
     );
 
+  $self->{SEARCH_FIELDS} .= $maps_google_fields;
 
   my $sql = '';
   if ($attr->{CONNECTIONS}) {
     $sql = "SELECT b.number, b.flors, b.entrances, b.flats, s.name AS street_name, 
      count(pi.uid) AS users_count, ROUND((count(pi.uid) / b.flats * 100), 0) AS users_connections,
      b.added, $self->{SEARCH_FIELDS} b.id
-
       FROM builds b
      LEFT JOIN streets s ON (s.id=b.street_id)
      LEFT JOIN users_pi pi ON (b.id=pi.location_id)
      $WHERE 
      GROUP BY b.id
      ORDER BY $SORT $DESC
-     LIMIT $PG, $PAGE_ROWS
-     ;";
+     LIMIT $PG, $PAGE_ROWS;";
   }
   else {
     $sql = "SELECT b.number, b.flors, b.entrances, b.flats, s.name, b.added, $self->{SEARCH_FIELDS} b.id FROM builds b

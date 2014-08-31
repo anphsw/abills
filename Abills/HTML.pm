@@ -110,6 +110,7 @@ sub new {
   $web_path = '';
   $secure   = '';
   my $prot  = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
+  $ENV{PROT}= $prot;
   $SELF_URL = (defined($ENV{HTTP_HOST})) ? "$prot://$ENV{HTTP_HOST}$ENV{SCRIPT_NAME}" : '';
 
   $SESSION_IP = $ENV{REMOTE_ADDR} || '0.0.0.0';
@@ -695,13 +696,15 @@ sub form_window {
          <span id='popup_info_form_id'>$form_id</span>
          <span id='popup_info_template'>$template</span>
         </div>
-        <div id=\"popclick\" style='display:inline; cursor:pointer;'>
-         <img src=\"/img/button_search.png\" border=0 />
+        <div id='popclick' style='display:inline; cursor:pointer;'>
+         <img src='/img/button_search.png' border=0 />
         </div>
-        <div id=\"clear_results\" style='display:inline; cursor:pointer;'>
-         <img src=\"/img/button_del.png\" border=0/>
+        <div id='clear_results' style='display:inline; cursor:pointer;'>
+         <img src='/img/button_del.png' border=0/>
         </div>
-        <script type=\"text/javascript\" src=\"/js/" . $js_script . ".js\"></script> \n";
+        <script type='text/javascript' src='/js/" . $js_script . ".js'></script>\n";
+
+  #$self->{WINDOW}='';
 
   return $self->{WINDOW};
 }
@@ -786,8 +789,8 @@ sub menu () {
         }
       }
 
-      #$menu_navigator = " " . $self->button($name, "index=$root_index$ex_params") . '/' . $menu_navigator;
-      $menu_navigator = " " . $self->button($name, "index=$root_index$ex_params", { BUTTON => 1 }) . ' ' . $menu_navigator;
+      $menu_navigator = " " . $self->button($name, "index=$root_index$ex_params") . '/' . $menu_navigator;
+      #$menu_navigator = " " . $self->button($name, "index=$root_index$ex_params", { BUTTON => 1 }) . ' ' . $menu_navigator;
       $tree{$root_index} = 1;
       if ($par_key > 0) {
         $root_index = $par_key;
@@ -817,7 +820,6 @@ sub menu () {
   my @last_array = ();
 
   my $menu_text = "
- <div class='menu_top'></div>
  <div class='menu_main'>
  <table border='0' width='100%' cellspacing='2'>\n";
 
@@ -881,8 +883,7 @@ sub menu () {
     goto label;
   }
 
-  $menu_text .= "</table>\n</div>
- <div class='menu_bot'></div>\n";
+  $menu_text .= "</table>\n</div>";
 
   return ($menu_navigator, $menu_text);
 }
@@ -1117,6 +1118,11 @@ sub table {
       $self->{table} .= "<div id='popup_window_content'><br/>";
 
       foreach my $k (sort keys %{ $attr->{SHOW_COLS} }){
+      	if ($k eq 'uid' && ($FORM{UID} && $FORM{UID} ne '_SHOW')) {
+      		$self->{table} .= "<input type=hidden name=UID value=$FORM{UID}>";
+      		next;
+      	}
+
       	my $v = $attr->{SHOW_COLS}->{$k};
       	my $uc_name = ($k !~ /^_/) ? uc($k) : $k;
       	$self->{table} .= "<input type=checkbox name=show_columns value=$uc_name";
@@ -1187,14 +1193,15 @@ function CheckAllINBOX() {
 
     foreach my $export_name ( @export_formats ) {
       my $params = "&$export_name=1";
-      if ($attr->{qs} !~ /PAGE_ROWS\=/) {
+      my $qs = $attr->{qs};
+      if ($qs !~ /PAGE_ROWS\=/) {
         $params .= "&PAGE_ROWS=1000000";
       }  
       else {
-      	$attr->{qs} =~ s/PAGE_ROWS\=\d+/PAGE_ROWS\=100000/;
+      	$qs =~ s/PAGE_ROWS\=\d+/PAGE_ROWS\=100000/;
       } 
        
-      $self->{EXPORT_OBJ} .= ' ' . $self->button("$export_name", "qindex=$index$attr->{qs}&pg=$PG&sort=$SORT&desc=$DESC&EXPORT_CONTENT=$attr->{ID}&header=1$params", { ex_params => 'target=\'export\'', IMG_BUTTON => '/img/button_'. $export_name .'.png' });
+      $self->{EXPORT_OBJ} .= ' ' . $self->button("$export_name", "qindex=$index$qs&pg=$PG&sort=$SORT&desc=$DESC&EXPORT_CONTENT=$attr->{ID}&header=1$params", { ex_params => 'target=\'export\'', IMG_BUTTON => '/img/button_'. $export_name .'.png' });
     }
   }
 
@@ -1557,6 +1564,9 @@ sub button {
     $attr->{MESSAGE} =~ s/\n//g;
     $attr->{MESSAGE} =~ s/\r//g;
     $message = " onclick=\"return confirmLink(this, '$attr->{MESSAGE}')\"";
+  }
+  elsif($attr->{COMMENTS_ADD}) {
+  	$message = " onclick=\"return comments_add(this, '$attr->{COMMENTS_ADD}')\"";
   }
 
   my $class = '';
