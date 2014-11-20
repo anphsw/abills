@@ -72,8 +72,8 @@ sub mbox_add {
 
   $self->{MBOX_ID} = $self->{INSERT_ID};
 
-  if ($DATA{DOMAIN_ID}) {
-    $self->domain_info({ MAIL_DOMAIN_ID => $DATA{DOMAIN_ID} });
+  if ($DATA{MAIL_DOMAIN_ID}) {
+    $self->domain_info({ MAIL_DOMAIN_ID => $DATA{MAIL_DOMAIN_ID} });
   }
   else {
     $self->{DOMAIN} = '';
@@ -420,13 +420,16 @@ sub alias_change {
   my ($attr) = @_;
 
   my %FIELDS = (
-    MAIL_ADDRESS  => 'address',
+    ADDRESS       => 'address',
     GOTO          => 'goto',
     COMMENTS      => 'comments',
     CHANGE_DATE   => 'change_date',
     DISABLE       => 'status',
     MAIL_ALIAS_ID => 'id'
   );
+
+  $attr->{DISABLE} = (! $attr->{DISABLE}) ? 0 : 1;
+
 
   $self->changes(
     $admin,

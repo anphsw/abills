@@ -1515,6 +1515,8 @@ CREATE TABLE voip_ivr_log (
   datetime datetime NOT NULL default '0000-00-00 00:00:00',
   phone varchar(16) NOT NULL default '',
   comment  varchar(20) NOT NULL default '',
+  ip int(11) unsigned NOT NULL default '0',
+  status tinyint(2) unsigned NOT NULL default '0',
   uid int unsigned NOT NULL default 0,
   KEY uid(uid)
 ) COMMENT 'Voip ivr log'

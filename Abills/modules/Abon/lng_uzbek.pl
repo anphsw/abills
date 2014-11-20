@@ -1,0 +1,15 @@
+﻿$_QUARTER="Kvartal";
+$_SIX_MONTH="Yarim yil";
+$_LAST_ABON="So'ngi abonent to'lovi";
+$_NEXT_ABON="Navbatdagi abonent to'lovi";
+$_NONFIX_PERIOD="Chegaralanmagan davr";
+$_NOTIFICATION="To'lov haqida ogohlantirish";
+$_DAYS_TO_END="Tamomlanishiga qadar qolgan kunlar";
+$_ENDED="Tamomlangandan so'ng";
+$_SEND_ACCOUNT="Hisob taqdim etish";
+$_EXT_CMD="Tashqi tahlil";
+$_SERVICE_ACTIVATE_NOTIFICATION="Hizmat ko'rsatish davri uzaytirilganligi to'g'risida habar";
+$_VAT_INCLUDE="QQS bilan";
+$_SEND_NOTIFICATION="Habarnoma jo'natish";
+$_MANUAL_ACTIVATE="Hizmatni yoqish";
+$_USER_PORTAL="Abonent portali";

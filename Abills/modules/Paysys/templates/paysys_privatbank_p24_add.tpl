@@ -14,7 +14,7 @@
 <input type='hidden' name='ccy' value='$conf{PAYSYS_P24_MERCHANT_CURRENCY}' />
 <input type='hidden' name='merchant' value='$conf{PAYSYS_P24_MERCHANT_ID}' />
 <input type='hidden' name='order' value='$FORM{OPERATION_ID}' />
-<input type='hidden' name='details' value='%LOGIN% $FORM{DESCRIBE}' />
+<input type='hidden' name='details' value='%LOGIN% $FORM{DESCRIBE} # $FORM{OPERATION_ID}' />
 <input type='hidden' name='ext_details' value='%FIO% %CONTRACT_ID% %CONTRACT_DATE%' />
 <input type='hidden' name='pay_way' value='privat24' />
 <input type='hidden' name='return_url' value='$ENV{PROT}://$ENV{SERVER_NAME}:$ENV{SERVER_PORT}/paysys_check.cgi' />

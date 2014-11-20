@@ -1,5 +1,5 @@
-<dir class=noprint id=dhcphosts_host>
-<FORM action='$SELF_URL' MATHOD='POST' id=form_host>
+<div class=noprint id=dhcphosts_host>
+<FORM action='$SELF_URL' MATHOD='POST' id='form_host'>
 <input type=hidden name=index value=$index>
 <input type=hidden name=UID value=$FORM{UID}>
 <input type=hidden name=ID value=$FORM{chg}>

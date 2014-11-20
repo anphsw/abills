@@ -147,7 +147,7 @@ sub msgs_admins {
       $table->td($msgs),
       $table->td($bool_vals[$mail_send]),
       $table->td($deligation_level),
-      $table->td($html->button("$_CHANGE", "index=$index&chg=$aid&AID=$aid", { CLASS => 'change' }), { rowspan => (($rows > 0) ? $rows + 1 : 1) })
+      $table->td($html->button("$_CHANGE", "index=$index&chg=$aid&AID=$aid", { class => 'change' }), { rowspan => (($rows > 0) ? $rows + 1 : 1) })
     );
 
     if ($rows > 0) {
@@ -261,7 +261,7 @@ sub msgs_admin_add {
       }
 
       if ($cmd ne '') {
-        $cmd = tpl_parse($cmd, { ACTION => 'add', UIDS => "UIDS " . join(',', @uids) });
+        $cmd = tpl_parse($cmd, { ACTION => 'add', UIDS => join(',', @uids) });
         my $res = `$cmd`;
       }
 
@@ -296,7 +296,7 @@ sub msgs_admin_add {
         $users->pi({ UID => $FORM{UID} });
         if ($conf{MSGS_REDIRECT_FILTER_ADD}) {
           if ($cmd ne '') {
-            $cmd = tpl_parse($cmd, { ACTION => 'add', UIDS => "UIDS " . $FORM{UID} });
+            $cmd = tpl_parse($cmd, { ACTION => 'add', UIDS => $FORM{UID} });
             my $res = `$cmd`;
           }
           if ($rad ne '') {
@@ -1054,8 +1054,8 @@ sub msgs_admin {
           push @fields_array, $val;
         }
 
-        push @fields_array,  $html->button("$_SHOW", "index=$index&chg=$line->{id}&UID=$line->{uid}", { CLASS => 'show' });
-        push @fields_array, (($A_PRIVILEGES{ $line->{chapter_id} } > 2 || $#A_CHAPTER == -1) ? $html->button($_DEL, "index=$index&del=$line->{id}$pages_qs", { MESSAGE => "$_DEL [$line->{id}] $line->{subject} ?", CLASS => 'del' }) : '');
+        push @fields_array,  $html->button("$_SHOW", "index=$index&chg=$line->{id}&UID=$line->{uid}", { class => 'show' });
+        push @fields_array, (($A_PRIVILEGES{ $line->{chapter_id} } > 2 || $#A_CHAPTER == -1) ? $html->button($_DEL, "index=$index&del=$line->{id}$pages_qs", { MESSAGE => "$_DEL [$line->{id}] $line->{subject} ?", class => 'del' }) : '');
 
         $table->addrow(@fields_array);
     } 
@@ -1219,6 +1219,62 @@ sub msgs_notify_admins {
     sendmail("$conf{ADMIN_MAIL}", "$line->{email}", "$conf{WEB_TITLE} - $_NEW_MESSAGE", "$message", "$conf{MAIL_CHARSET}", undef, { MAIL_HEADER => [ "X-ABillS-Msg-ID: $Msgs->{INSERT_ID}", "X-ABillS-Reply-ID: $Msgs->{REPLY_ID}" ] });
   }
 }
+
+
+#*******************************************************************
+#
+#*******************************************************************
+sub msgs_show_last {
+  my ($attr) = @_;
+
+  my $list  = $Msgs->messages_list({UID       => $attr->{UID}, 
+  	                                USER_READ => '0000-00-00 00:00:00',
+  	                                COLS_NAME => 1});
+
+  if ($Msgs->{TOTAL} > 0) {
+  	$Msgs->message_info($list->[0]->{id});
+    $html->tpl_show(_include('msgs_message_show', 'Msgs'), $Msgs);
+    
+    $Msgs->message_change(
+        {
+          UID       => $attr->{UID},
+          ID        => $list->[0]->{id},
+          USER_READ => "$DATE $TIME",
+        }
+      );
+
+    if ($conf{MSGS_REDIRECT_FILTER_DEL}) {
+      msgs_del_redirect_filter({ UID => $LIST_PARAMS{UID} });
+    }
+  }
+  else {
+  	$html->message('info', $_INFO, "not found  new message");
+  }
+
+}
+
+#*******************************************************************
+#
+#*******************************************************************
+sub msgs_del_redirect_filter {
+	my ($attr) = @_;
+	
+  require "Dv.pm";
+  my $Dv = Dv->new($db, $admin, \%conf);
+  $Dv->change({ UID => $attr->{UID}, FILTER_ID => '' });
+  if ($conf{MSGS_REDIRECT_FILTER_DEL} =~ /EXEC:(.+)/) {
+    my $cmd = $1;
+    $cmd =~ s/\%IP\%/$ENV{REMOTE_ADDR}/g;
+    $cmd =~ s/\%DATE\%/$DATE $TIME/g;
+    $cmd =~ s/\%LOGIN\%/$attr->{LOGIN}/g;
+    $cmd =~ s/\%MSG_ID\%/$attr->{MSG_ID}/g;
+    my $res = `$cmd`;
+  }
+
+  return 0;
+}
+
+
 
 #*******************************************************************
 #
@@ -1413,14 +1469,7 @@ sub msgs_user {
       );
 
       if ($conf{MSGS_REDIRECT_FILTER_DEL}) {
-        require "Dv.pm";
-        my $Dv = Dv->new($db, $admin, \%conf);
-        $Dv->change({ UID => $LIST_PARAMS{UID}, FILTER_ID => '' });
-        if ($conf{MSGS_REDIRECT_FILTER_DEL} =~ /EXEC:(.+)/) {
-          my $cmd = $1;
-          $cmd =~ s/\%IP\%/$ENV{REMOTE_ADDR}/g;
-          my $res = `$cmd`;
-        }
+        msgs_del_redirect_filter({ UID => $LIST_PARAMS{UID} });
       }
     }
 
@@ -1536,7 +1585,7 @@ sub msgs_user {
       $line->{chapter_name}, 
       $line->{date},
       ($line->{state} == 6) ? "<blink>$msg_status_all[$line->{state}]</blink>" : $html->color_mark($msg_status_all[ $line->{state} ], $msgs_status_colors[ $line->{state} ]),
-      $html->button($_SHOW, "index=$index&ID=$line->{id}&sid=$sid", { CLASS => 'show' })
+      $html->button($_SHOW, "index=$index&ID=$line->{id}&sid=$sid", { class => 'show' })
     );
   }
 
@@ -1564,6 +1613,8 @@ sub msgs_user {
   );
   print $table->show();
 }
+
+
 
 #*******************************************************************
 #
@@ -1624,8 +1675,8 @@ sub msgs_chapters {
     $line->{name}, 
     $bool_vals[ $line->{inner_chapter} ], 
     $html->button($line->{messages}, ""), 
-    $html->button("$_CHANGE", "index=$index&chg=$line->{id}", { CLASS => 'change' }), 
-    $html->button($_DEL, "index=$index&del=$line->{id}", { MESSAGE => "$_DEL $line->{id}?", CLASS => 'del' })
+    $html->button("$_CHANGE", "index=$index&chg=$line->{id}", { class => 'change' }), 
+    $html->button($_DEL, "index=$index&del=$line->{id}", { MESSAGE => "$_DEL $line->{id}?", class => 'del' })
     );
   }
 
@@ -1907,8 +1958,8 @@ sub msgs_dispatch {
           push @fields_array, $val;
         }
 
-        push @fields_array,  $html->button("$_SHOW", "index=". get_function_index('msgs_admin') ."&chg=$line->{id}&UID=$line->{uid}", { CLASS => 'show' });
-        #push @fields_array, (($A_PRIVILEGES{ $line->{chapter_id} } > 2 || $#A_CHAPTER == -1) ? $html->button($_DEL, "index=". get_function_index('msgs_admin') ."&del=$line->{id}$pages_qs", { MESSAGE => "$_DEL [$line->{id}] $line->{subject} ?", CLASS => 'del' }) : '');
+        push @fields_array,  $html->button("$_SHOW", "index=". get_function_index('msgs_admin') ."&chg=$line->{id}&UID=$line->{uid}", { class => 'show' });
+        #push @fields_array, (($A_PRIVILEGES{ $line->{chapter_id} } > 2 || $#A_CHAPTER == -1) ? $html->button($_DEL, "index=". get_function_index('msgs_admin') ."&del=$line->{id}$pages_qs", { MESSAGE => "$_DEL [$line->{id}] $line->{subject} ?", class => 'del' }) : '');
 
         $table->addrow(@fields_array);
     } 
@@ -1982,11 +2033,11 @@ sub msgs_dispatch {
         {
           NEW_WINDOW      => "$SELF_URL?qindex=$index&print=$line->{id}",
           NEW_WINDOW_SIZE => "640:750",
-          CLASS           => 'print'
+          class           => 'print'
         }
       ),
-      $html->button("$_CHANGE", "index=$index&chg=$line->{id}", { CLASS => 'change' }),
-      $html->button($_DEL, "index=$index&del=$line->{id}", { MESSAGE => "$_DEL $line->{id}?", CLASS => 'del' })
+      $html->button("$_CHANGE", "index=$index&chg=$line->{id}", { class => 'change' }),
+      $html->button($_DEL, "index=$index&del=$line->{id}", { MESSAGE => "$_DEL $line->{id}?", class => 'del' })
     );
   }
 
@@ -2031,18 +2082,10 @@ sub msgs_new {
           );
 
           if ($conf{MSGS_REDIRECT_FILTER_DEL}) {
-            require "Dv.pm";
-            my $Dv = Dv->new($db, $admin, \%conf);
-            $Dv->change({ UID => $user->{UID}, FILTER_ID => '' });
-            if ($conf{MSGS_REDIRECT_FILTER_DEL} =~ /EXEC:(.+)/) {
-              my $cmd = $1;
-              $cmd =~ s/\%DATE\%/$DATE $TIME/g;
-              $cmd =~ s/\%IP\%/$ENV{REMOTE_ADDR}/g;
-              $cmd =~ s/\%LOGIN\%/$user->{LOGIN}/g;
-              $cmd =~ s/\%MSG_ID\%/$Msgs->{MSG_ID}/g;
-              my $res = `$cmd`;
-            }
-
+          	msgs_del_redirect_filter({ UID   => $LIST_PARAMS{UID},
+                                       LOGIN => $user->{LOGIN},
+                                       MSG_ID=> $Msgs->{MSG_ID}
+          		                        });
           }
 
           print "Location: $URL?GID=$user->{GID}&MESSAGE_CHAPTER=$Msgs->{CHAPTER}&MSG_ID=$Msgs->{MSG_ID}", "\n\n";
@@ -2072,25 +2115,37 @@ sub msgs_new {
       $SHOW_PARAMS{CHAPTERS} = join(', ', @A_CHAPTER);
     }
 
-    my $list = $Msgs->messages_new({ %SHOW_PARAMS, SHOW_CHAPTERS => 1 });
+    my $list = $Msgs->messages_new({ %SHOW_PARAMS, 
+    	                               SHOW_CHAPTERS => 1,
+    	                               COLS_NAME     => 1 });
     my $id = 11;
     $Msgs->{UNREAD} = 0;
+
     foreach my $line (@$list) {
       $id++;
       my $count = '';
-      if ($line->[4] > 0) {
-        $count = '(' . (($line->[2] > 2) ? $html->color_mark($line->[2], $_COLORS[6], { SKIP_XML => 1 }) : 0) . "/$line->[3]/$line->[4]/" . (($line->[5] > 0) ? $html->color_mark($line->[5], '#F07800', { SKIP_XML => 1 }) : 0) . ")";
-        $Msgs->{UNREAD}     += $line->[2];
-        $Msgs->{TODAY}      += $line->[3];
-        $Msgs->{OPENED}     += $line->[4];
-        $Msgs->{RESPOSIBLE} += $line->[5];
+      if ($line->{open_count} > 0) {
+        $count = $html->badge($line->{admin_unread_count}, { TYPE => ($line->{admin_unread_count} > 2) ? 'alert-danger' : '' })
+          . $html->badge($line->{today_plan_count}, { TYPE => 'alert-warning' })
+          . $html->badge($line->{open_count})
+          . $html->badge($line->{resposible_count}, { TYPE => ($line->{resposible_count} > 0) ? 'alert-warning' : '' });
+
+        $Msgs->{UNREAD}     += $line->{admin_unread_count};
+        $Msgs->{TODAY}      += $line->{today_plan_count};
+        $Msgs->{OPENED}     += $line->{open_count};
+        $Msgs->{RESPOSIBLE} += $line->{resposible_count};
       }
-      $FUNCTIONS_LIST{"$id:10:$line->[1] $count:msgs_admin:CHAPTER=$line->[0]"} = 8;
+
+      $FUNCTIONS_LIST{"$id:10:$line->{name} $count:msgs_admin:CHAPTER=$line->{id}"} = 8;
     }
+
     $id++;
-    $FUNCTIONS_LIST{ "$id:10:$_RESPOSIBLE " . (($Msgs->{RESPOSIBLE} && $Msgs->{RESPOSIBLE} > 0) ? '(' . $html->color_mark($Msgs->{RESPOSIBLE}, '#F07800', { SKIP_XML => 1 }) . ')' : 0) . ":msgs_admin:&STATE=8" } = 8;
+    $FUNCTIONS_LIST{ "$id:10:$_RESPOSIBLE " . (($Msgs->{RESPOSIBLE} && $Msgs->{RESPOSIBLE} > 0) ? $html->badge($Msgs->{RESPOSIBLE}, { TYPE => 'progress-bar-danger' }) : 0) . ":msgs_admin:&STATE=8" } = 8;
+
     if ($Msgs->{OPENED} && $Msgs->{OPENED} > 0) {
-      return '(' . (($Msgs->{UNREAD} > 0) ? $html->color_mark($Msgs->{UNREAD}, $_COLORS[6], { SKIP_XML => 1 }) : 0) . "/$Msgs->{TODAY}/$Msgs->{OPENED})";
+      return $html->badge($Msgs->{UNREAD}, { TYPE => $Msgs->{UNREAD} ? 'progress-bar-danger' : '' }) 
+       .  $html->badge($Msgs->{TODAY})
+       .  $html->badge($Msgs->{OPENED});
     }
   }
 
@@ -2164,7 +2219,7 @@ sub msgs_shedule {
 
   if ($period == 1) {
     $LIST_PARAMS{PLAN_FROM_DATE} = $DATE;
-    $LIST_PARAMS{PLAN_TO_DATE} = strftime "%Y-%m-%d", localtime(time + 86400 * 5);
+    $LIST_PARAMS{PLAN_TO_DATE} = strftime("%Y-%m-%d", localtime(time + 86400 * 5));
   }
   elsif ($period == 2) {
     $LIST_PARAMS{PLAN_WEEK} = 1;
@@ -2886,12 +2941,12 @@ sub msgs_unreg_requests_list {
         push @fields_array, $html->button($_SHOW, "#", {
                                    NEW_WINDOW      => "$SELF_URL?qindex=" . (($attr->{LIST_ONLY}) ? $index - 1 : $index) . "&chg=$line->{id}&header=1",
                                    NEW_WINDOW_SIZE => "640:700",
-                                   CLASS           => 'show'
+                                   class           => 'show'
                                   });
 
-        push @fields_array, ($line->{uid}) ? $html->button($_INFO, "index=15&UID=$line->{uid}", { CLASS => 'info' })  : $html->button($_ADD, "index=$index&add_user=$line->{id}", { CLASS => 'add', TITLE => "$_ADD_USER" });   
+        push @fields_array, ($line->{uid}) ? $html->button($_INFO, "index=15&UID=$line->{uid}", { class => 'info' })  : $html->button($_ADD, "index=$index&add_user=$line->{id}", { class => 'add', TITLE => "$_ADD_USER" });   
 
-        push @fields_array, (($A_PRIVILEGES{ $line->{chapter_id} } > 2 || $#A_CHAPTER == -1) ? $html->button($_DEL, "index=$index&del=$line->{id}$pages_qs", { MESSAGE => "$_DEL [$line->{id}] $line->{subject} ?", CLASS => 'del' }) : '');
+        push @fields_array, (($A_PRIVILEGES{ $line->{chapter_id} } > 2 || $#A_CHAPTER == -1) ? $html->button($_DEL, "index=$index&del=$line->{id}$pages_qs", { MESSAGE => "$_DEL [$line->{id}] $line->{subject} ?", class => 'del' }) : '');
 
         $table->addrow(@fields_array);
     } 
@@ -2962,11 +3017,11 @@ sub msgs_unreg_requests_list {
 #        {
 #          NEW_WINDOW => "$SELF_URL?qindex=" . (($attr->{LIST_ONLY}) ? $index - 1 : $index) . "&chg=$line->{id}&header=1",
 #          NEW_WINDOW_SIZE => "640:700",
-#          CLASS           => 'show'
+#          class           => 'show'
 #        }
 #      ),
 #
-#      (($A_PRIVILEGES{ $line->{responsible_admin} } > 2 || $#A_CHAPTER == -1) ? $html->button($_DEL, "index=$index&del=$line->{id}$pages_qs", { MESSAGE => "$_DEL '$line->{id} ?", CLASS => 'del' }) : '')
+#      (($A_PRIVILEGES{ $line->{responsible_admin} } > 2 || $#A_CHAPTER == -1) ? $html->button($_DEL, "index=$index&del=$line->{id}$pages_qs", { MESSAGE => "$_DEL '$line->{id} ?", class => 'del' }) : '')
 #    );
 #  }
 #
@@ -3270,9 +3325,9 @@ sub msgs_survey {
       $line->{comments}, 
       $line->{aid}, 
       $line->{created},
-      $html->button("$_QUESTIONS", "index=$index&SURVEY=$line->{id}", { CLASS => 'help' }),
-      $html->button("$_CHANGE",    "index=$index&chg=$line->{id}",    { CLASS => 'change' }),
-      $html->button($_DEL, "index=$index&del=$line->{id}", { MESSAGE => "$_DEL $line->{id}?", CLASS => 'del' })
+      $html->button("$_QUESTIONS", "index=$index&SURVEY=$line->{id}", { class => 'help' }),
+      $html->button("$_CHANGE",    "index=$index&chg=$line->{id}",    { class => 'change' }),
+      $html->button($_DEL, "index=$index&del=$line->{id}", { MESSAGE => "$_DEL $line->{id}?", class => 'del' })
     );
   }
 
@@ -3350,8 +3405,8 @@ sub msgs_survey_questions {
       $line->{num}, $line->{question}, $line->{comments}, $params,
       ($line->{user_comments}) ? $html->form_input('USER_COMMENTS', '') : '',
       $bool_vals[ $line->{fill_default} ],
-      $html->button("$_CHANGE", "index=$index&chg=$line->{id}&SURVEY=$FORM{SURVEY}", { CLASS => 'change' }),
-      $html->button($_DEL, "index=$index&del=$line->{id}&SURVEY=$FORM{SURVEY}", { MESSAGE => "$_DEL $line->{num}?", CLASS => 'del' })
+      $html->button("$_CHANGE", "index=$index&chg=$line->{id}&SURVEY=$FORM{SURVEY}", { class => 'change' }),
+      $html->button($_DEL, "index=$index&del=$line->{id}&SURVEY=$FORM{SURVEY}", { MESSAGE => "$_DEL $line->{num}?", class => 'del' })
     );
   }
 

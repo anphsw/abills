@@ -495,19 +495,24 @@ sub admin_report_monthly {
 
   #Payments
   my $payments = Finance->payments($db, $admin, \%conf);
+  if ($debug > 6) {
+  	$payments->{debug}=1;
+  }
 
-  $ADMIN_REPORT{PAYMENTS} = sprintf(" %19s| %9s| %12s|\n", $_DATE, $_COUNT, $_SUM);
+
+  $ADMIN_REPORT{PAYMENTS} = sprintf(" %19s| %9s| %9s| %12s|\n", $_DATE, $_USERS, $_COUNT, $_SUM);
   $ADMIN_REPORT{PAYMENTS} .= "---------------------------------------------------------\n";
   my ($Y, $M, $D) = split(/-/, $YESTERDAY, 3);
 
   $LIST_PARAMS{MONTH}     = "$Y-$M";
   $LIST_PARAMS{PAGE_ROWS} = 100000;
 
-  $list = $payments->reports({%LIST_PARAMS});
+  $list = $payments->reports({%LIST_PARAMS, COLS_NAME => 1});
 
   foreach my $line (@$list) {
-    $ADMIN_REPORT{PAYMENTS} .= sprintf(" %19s| %9s| %12s|\n", "$line->[0]", "$line->[1]", "$line->[2]");
+    $ADMIN_REPORT{PAYMENTS} .= sprintf(" %19s| %9s| %9s| %12s|\n", "$line->{date}", "$line->{login_count}", "$line->{count}", "$line->{sum}");
   }
+
 
   $ADMIN_REPORT{PAYMENTS} .= "---------------------------------------------------------\n";
   $ADMIN_REPORT{PAYMENTS} .= sprintf("%-14s| %12s|\n%-14s| %12s|\n", $_TOTAL, $payments->{TOTAL}, $_SUM, $payments->{SUM});
@@ -515,17 +520,21 @@ sub admin_report_monthly {
   #Fees
   my $fees = Finance->fees($db, $admin, \%conf);
 
-  $ADMIN_REPORT{FEES} .= sprintf(" %19s| %9s| %12s|\n", $_DATE, $_COUNT, $_SUM);
+  if ($debug > 6) {
+  	$fees->{debug}=1;
+  }
+
+  $ADMIN_REPORT{FEES} .= sprintf(" %19s| %9s| %9s| %12s|\n", $_DATE, $_USERS, $_COUNT, $_SUM);
   $ADMIN_REPORT{FEES} .= "---------------------------------------------------------\n";
 
-  $list = $fees->reports({%LIST_PARAMS});
+  $list = $fees->reports({%LIST_PARAMS, COLS_NAME => 1 });
   foreach my $line (@$list) {
-    $ADMIN_REPORT{FEES} .= sprintf(" %19s| %9s| %12s|\n", $line->[0], $line->[1], $line->[2]);
+    $ADMIN_REPORT{FEES} .= sprintf(" %19s| %9s| %9s| %12s|\n", $line->{date}, "$line->{login_count}", "$line->{count}", "$line->{sum}");
 
   }
 
   $ADMIN_REPORT{FEES} .= "---------------------------------------------------------\n";
-  $ADMIN_REPORT{FEES} .= sprintf("%-14s| %12s|\n%-14s| %12s|\n", $_TOTAL, $fees->{TOTAL}, $_SUM, $fees->{SUM});
+  $ADMIN_REPORT{FEES} .= sprintf("%-14s|  %12s|\n%-14s| %12s|\n", $_TOTAL, $fees->{TOTAL}, $_SUM, $fees->{SUM});
 
   #Module report functions
   foreach my $function (@reports) {

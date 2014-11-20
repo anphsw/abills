@@ -893,7 +893,6 @@ sub acct_stop {
 
   my $sql = "SELECT u.uid, calls.framed_ip_address, 
       calls.user_name,
-      calls.acct_session_id,
       calls.acct_input_octets AS input_octets,
       calls.acct_output_octets AS output_octets,
       acct_input_gigawords, 
@@ -975,12 +974,12 @@ sub acct_stop {
           '',
           '0', 
           '0',
-          '$self->{ACCT_SESSION_ID}', 
+          '$session_id', 
           '$self->{BILL_ID}',
           '$ACCT_TERMINATE_CAUSE');", 'do'
   );
 
-  $self->query2("DELETE from dv_calls WHERE acct_session_id='$self->{ACCT_SESSION_ID}';", 'do');
+  $self->query2("DELETE from dv_calls WHERE acct_session_id='$session_id';", 'do');
 }
 
 #**********************************************************

@@ -1,5 +1,5 @@
 $_PAY_SYSTEM='Плат. система';
-$_TRANSACTION='Трансакция';
+$_TRANSACTION='Транзакция';
 $_TEST_MODE='Тестовый режим';
 $_ERR_NO_TRANSACTION='Превод не зарегистрирован';
 $_TRANSACTION_PROCESSING='Платёж обрабатывается';

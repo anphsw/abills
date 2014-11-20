@@ -4,7 +4,7 @@
 my $action   = $ARGV[0];
 my $nas_ip   = $ARGV[1];
 my $vlan_id  = $ARGV[2];
-my $version  = '0.02';
+my $version  = '0.03';
 
 
 BEGIN {
@@ -54,6 +54,16 @@ my @skip_vlans = ();
 
 if ($skip_vlans) {
 	@skip_vlans = split(/,/, $skip_vlans);
+}
+
+
+my $nas_port = 23;
+if ($nas_ip && $nas_ip ne '0.0.0.0') {
+  ($nas_ip, $nas_port) = split(/:/, $nas_ip, 2);
+ 
+  if (! $nas_port) {
+    $nas_port = 23;
+  }
 }
 
 

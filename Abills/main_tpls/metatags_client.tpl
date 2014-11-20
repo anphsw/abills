@@ -24,7 +24,7 @@
 <script type='text/javascript' src='styles/default/js/calendar.js'></script>
 <script type='text/javascript' src='/styles/default/js/chosen.jquery.min.js' ></script>
 <!--[if lt IE 9]>
-<script type='text/javascript' src='js/html5.js'></script>
+<script type='text/javascript' src='/styles/default/js/html5.js'></script>
 <![endif]-->	
 </head>
 <body>

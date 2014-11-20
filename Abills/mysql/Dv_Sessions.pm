@@ -54,20 +54,23 @@ sub del {
     if ($self->{TOTAL} > 0) {
       $self->query2(
          "UPDATE traffic_prepaid_sum pl, dv_log l SET 
-         traffic_in=traffic_in-(l.recv + 4294967296 * acct_input_gigawords),
-         traffic_out=traffic_out-(l.sent + 4294967296 * acct_output_gigawords),
-         li.sum=li.sum-l.sum
-         WHERE pl.uid=l.uid AND l.uid='$uid' and l.start='$session_start' and l.nas_id='$nas_id' 
-          and l.acct_session_id='$session_id';", 'do'
+           traffic_in=traffic_in-(l.recv + 4294967296 * acct_input_gigawords),
+           traffic_out=traffic_out-(l.sent + 4294967296 * acct_output_gigawords)
+         WHERE pl.uid=l.uid 
+           AND l.uid='$uid' 
+           AND l.start='$session_start' 
+           AND l.nas_id='$nas_id' 
+           AND l.acct_session_id='$session_id';", 'do'
       );
     }
 
     $self->query2(
          "UPDATE dv_log_intervals li, dv_log l SET 
-         li.recv=li.recv-(l.recv + 4294967296 * l.acct_input_gigawords),
-         li.sent=li.sent-(l.sent + 4294967296 * l.acct_output_gigawords),
-         li.sum=li.sum-l.sum
-         WHERE li.uid=l.uid AND li.acct_session_id=l.acct_session_id
+           li.recv=li.recv-(l.recv + 4294967296 * l.acct_input_gigawords),
+           li.sent=li.sent-(l.sent + 4294967296 * l.acct_output_gigawords),
+           li.sum=li.sum-l.sum
+         WHERE li.uid=l.uid 
+           AND li.acct_session_id=l.acct_session_id
            AND l.uid='$uid' 
            AND l.acct_session_id='$session_id';", 'do'
       );

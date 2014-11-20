@@ -64,6 +64,7 @@ sub list {
       ['NAS_IP',           'STR', 'nas.ip'             ],
       ['GID',              'INT', 'nas.gid',         1 ],
       ['DISTRICT_ID',      'INT', 'streets.district_id', 'districts.name' ],
+      ['LOCATION_ID',      'INT', 'nas.location_id', 1 ],
       ['SHOW_MAPS',        '',    'b.map_x, b.map_y, b.map_x2, b.map_y2, b.map_x3, b.map_y3, b.map_x4, b.map_y4' ], 
       ['SHOW_MAPS_GOOGLE', 'SHOW_MAPS_GOOGLE', 'b.coordx, b.coordy' ]
     ],
@@ -352,13 +353,9 @@ sub ip_pools_info {
 
   my $fields_v6 = ($CONF->{IPV6}) ? ", INET6_NTOA(ipv6_prefix) AS ipv6_prefix" : '';
 
-  $self->query2("SELECT id, 
-      INET_NTOA(ip) AS nas_ip_sip, 
-      counts AS nas_ip_count, 
-      name AS pool_name, 
-      priority AS pool_priority, 
-      static, 
-      speed AS pool_speed $fields_v6
+  $self->query2("SELECT *, 
+      INET_NTOA(ip) AS ip
+      $fields_v6
    FROM ippools  WHERE id='$id';",
    undef,
    { INFO => 1 }
@@ -375,17 +372,6 @@ sub ip_pools_change {
   my $self = shift;
   my ($attr) = @_;
 
-  my %FIELDS = (
-    ID             => 'id',
-    POOL_NAME      => 'name',
-    NAS_IP_COUNT   => 'counts',
-    POOL_PRIORITY  => 'priority',
-    NAS_IP_SIP_INT => 'ip',
-    STATIC         => 'static',
-    POOL_SPEED     => 'speed',
-    IPV6_PREFIX    => ($CONF->{IPV6}) ? 'ipv6_prefix' : undef
-  );
-
   $attr->{STATIC} = ($attr->{STATIC}) ? $attr->{STATIC} : 0;
 
   $self->changes(
@@ -393,8 +379,6 @@ sub ip_pools_change {
     {
       CHANGE_PARAM    => 'ID',
       TABLE           => 'ippools',
-      FIELDS          => \%FIELDS,
-      OLD_INFO        => $self->ip_pools_info($attr->{ID}),
       DATA            => $attr,
       EXT_CHANGE_INFO => "POOL:$attr->{ID}"
     }
@@ -464,12 +448,7 @@ sub ip_pools_add {
   $attr->{IPV6_PREFIX}  = undef if (! $CONF->{IPV6});
 
   $self->query_add('ippools', { %$attr, 
- 	                             NAS      => undef, 
- 	                             IP       => "$DATA{NAS_IP_SIP}", 
- 	                             COUNTS   => $attr->{NAS_IP_COUNT}, 
- 	                             NAME     => $attr->{POOL_NAME}, 
- 	                             PRIORITY => $attr->{POOL_PRIORITY}, 
- 	                             SPEED    => $attr->{POOL_SPEED},
+  	                            NAS      => undef, 
  	                           });
 
   $admin->system_action_add("NAS_ID:$DATA{NAS_ID} POOLS:" . (join(',', split(/, /, $attr->{ids}))), { TYPE => 1 });

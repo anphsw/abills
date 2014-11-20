@@ -566,7 +566,9 @@ sub bonus_user {
 sub bonus_users_list {
   my ($attr) = @_;
 
-  my $list = $Bonus->user_list({ COLS_NAME => 1, DEPOSIT => '_SHOW' });
+  my $list = $Bonus->user_list({ %LIST_PARAMS,
+                                 COLS_NAME => 1, 
+                                 DEPOSIT   => '_SHOW' });
 
   my $table = $html->table(
     {
@@ -575,7 +577,9 @@ sub bonus_users_list {
       border     => 1,
       title      => [ "$_LOGIN", $_FIO, "$_TARIF_PLAN", "$_STATE", "$_DEPOSIT", "$_CREDIT", '-' ],
       cols_align => [ 'right', 'left', 'center', 'center:noprint', 'center:noprint', 'center:noprint' ],
-      ID         => 'BONUS_USERS'
+      ID         => 'BONUS_USERS',
+      qs         => $pages_qs,
+      pages      => $Bonus->{TOTAL},
     }
   );
 
@@ -762,6 +766,10 @@ sub bonus_payments_maked {
   	return '';
   }
 
+  if (! defined($FORM{METHOD})) {
+  	$FORM{METHOD}=2;
+  }
+
   my $list = $Bonus->service_discount_list(
         {
           REGISTRATION_DAYS => "<=$registration_days,>=0",
@@ -781,7 +789,7 @@ sub bonus_payments_maked {
     $RESULT{BONUS_EXT_ACCOUNT} = $list->[0]->{ext_account};
 
     if ($RESULT{DISCOUNT_PERIOD} > 0) {
-      $RESULT{DISCOUNT_PERIOD} = strftime "%Y-%m-%d", localtime(time + 86400 * $RESULT{DISCOUNT_PERIOD});
+      $RESULT{DISCOUNT_PERIOD} = strftime("%Y-%m-%d", localtime(time + 86400 * $RESULT{DISCOUNT_PERIOD}));
     }
     
     if ($RESULT{BONUS_PERCENT}) {
@@ -929,7 +937,7 @@ sub bonus_service_discount_mk {
         $RESULT{BONUS_EXT_ACCOUNT} = $list->[0]->[7];
 
         if ($RESULT{DISCOUNT_PERIOD} > 0) {
-          $RESULT{DISCOUNT_PERIOD} = strftime "%Y-%m-%d", localtime(time + 86400 * $RESULT{DISCOUNT_PERIOD});
+          $RESULT{DISCOUNT_PERIOD} = strftime("%Y-%m-%d", localtime(time + 86400 * $RESULT{DISCOUNT_PERIOD}));
         }
       }
     }
@@ -960,7 +968,7 @@ sub bonus_service_discount_mk {
         $RESULT{BONUS_EXT_ACCOUNT} = $list->[0]->[7];
 
         if ($RESULT{DISCOUNT_PERIOD} > 0) {
-          $RESULT{DISCOUNT_PERIOD} = strftime "%Y-%m-%d", localtime(time + 86400 * $RESULT{DISCOUNT_PERIOD});
+          $RESULT{DISCOUNT_PERIOD} = strftime( "%Y-%m-%d", localtime(time + 86400 * $RESULT{DISCOUNT_PERIOD}));
         }
       }
     }

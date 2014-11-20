@@ -119,23 +119,18 @@ sub network_add {
 
   my %DATA = $self->get_data($attr, { default => network_defaults() });
 
-  $self->query2("INSERT INTO dhcphosts_networks 
-     (name,network,mask, routers, coordinator, phone, dns, dns2, ntp,
-      suffix, disable,
-      ip_range_first, ip_range_last, comments,  deny_unknown_clients,  authoritative, net_parent, guest_vlan, static) 
-     VALUES('$DATA{NAME}', INET_ATON('$DATA{NETWORK}'), INET_ATON('$DATA{MASK}'), INET_ATON('$DATA{ROUTERS}'),
-       '$DATA{COORDINATOR}', '$DATA{PHONE}', '$DATA{DNS}', '$DATA{DNS2}',  '$DATA{NTP}', 
-       '$DATA{DOMAINNAME}',
-       '$DATA{DISABLE}',
-       INET_ATON('$DATA{IP_RANGE_FIRST}'),
-       INET_ATON('$DATA{IP_RANGE_LAST}'),
-       '$DATA{COMMENTS}',
-       '$DATA{DENY_UNKNOWN_CLIENTS}',
-       '$DATA{AUTHORITATIVE}',
-       '$DATA{NET_PARENT}',
-       '$DATA{GUEST_VLAN}',
-       '$DATA{STATIC}'
-       )", 'do'
+  $self->{debug}=1;
+
+  $self->query_add('dhcphosts_networks',
+     { %$attr,
+     	 NETWORK        => "INET_ATON('$DATA{NETWORK}')", 
+     	 MASK           => "INET_ATON('$DATA{MASK}')", 
+     	 ROUTERS        => "INET_ATON('$DATA{ROUTERS}')",
+     	 BLOCK_NETWORK  => "INET_ATON('$DATA{BLOCK_NETWORK}')",
+       BLOCK_MASK     => "INET_ATON('$DATA{BLOCK_MASK}')",
+   	   IP_RANGE_FIRST => "INET_ATON('$DATA{IP_RANGE_FIRST}')",
+       IP_RANGE_LAST  => "INET_ATON('$DATA{IP_RANGE_LAST}')",
+     }
   );
 
   $admin->system_action_add("DHCPHOSTS_NET:$self->{INSERT_ID}", { TYPE => 1 });
@@ -164,31 +159,6 @@ sub network_change {
   my $self = shift;
   my ($attr) = @_;
 
-  my %FIELDS = (
-    ID                   => 'id',
-    NAME                 => 'name',
-    NETWORK              => 'network',
-    MASK                 => 'mask',
-    BLOCK_NETWORK        => 'block_network',
-    BLOCK_MASK           => 'block_mask',
-    DOMAINNAME           => 'suffix',
-    DNS                  => 'dns',
-    DNS2                 => 'dns2',
-    NTP                  => 'ntp',
-    COORDINATOR          => 'coordinator',
-    PHONE                => 'phone',
-    ROUTERS              => 'routers',
-    DISABLE              => 'disable',
-    IP_RANGE_FIRST       => 'ip_range_first',
-    IP_RANGE_LAST        => 'ip_range_last',
-    COMMENTS             => 'comments',
-    DENY_UNKNOWN_CLIENTS => 'deny_unknown_clients',
-    AUTHORITATIVE        => 'authoritative',
-    NET_PARENT           => 'net_parent',
-    GUEST_VLAN           => 'guest_vlan',
-    STATIC               => 'static'
-  );
-
   $attr->{DENY_UNKNOWN_CLIENTS} = (defined($attr->{DENY_UNKNOWN_CLIENTS})) ? 1 : 0;
   $attr->{AUTHORITATIVE}        = (defined($attr->{AUTHORITATIVE}))        ? 1 : 0;
   $attr->{DISABLE}              = (defined($attr->{DISABLE}))              ? 1 : 0;
@@ -199,8 +169,6 @@ sub network_change {
     {
       CHANGE_PARAM    => 'ID',
       TABLE           => 'dhcphosts_networks',
-      FIELDS          => \%FIELDS,
-      OLD_INFO        => $self->network_info($attr->{ID}),
       DATA            => $attr,
       EXT_CHANGE_INFO => "DHCPHOSTS_NET:$attr->{ID}"
     }
@@ -216,29 +184,14 @@ sub network_info {
   my $self = shift;
   my ($id) = @_;
 
-  $self->query2("SELECT
-   id,
-   name,
+  $self->query2("SELECT *,
    INET_NTOA(network) AS network,
    INET_NTOA(mask) AS mask,
-   INET_NTOA(routers) AS ROUTERS,
+   INET_NTOA(routers) AS routers,
    INET_NTOA(block_network) AS blocK_network,
    INET_NTOA(block_mask) AS block_mask,
-   suffix AS domainname,
-   dns,
-   dns2,
-   ntp,
-   coordinator,
-   phone,
-   disable,
    INET_NTOA(ip_range_first) AS ip_range_first,
-   INET_NTOA(ip_range_last) AS ip_range_last,
-   static,
-   comments,
-   deny_unknown_clients,
-   authoritative,
-   net_parent,
-   guest_vlan
+   INET_NTOA(ip_range_last) AS ip_range_last
   FROM dhcphosts_networks
 
   WHERE id='$id';",
@@ -609,11 +562,10 @@ sub hosts_list {
     $EXT_TABLES .= " LEFT JOIN dv_main dv ON  (dv.uid=u.uid) ";
   }
 
-  if (defined($attr->{DHCPHOSTS_EXT_DEPOSITCHECK}) && $attr->{DHCPHOSTS_EXT_DEPOSITCHECK} ne '') {
+  if (defined($attr->{EXT_DEPOSIT}) && $attr->{EXT_DEPOSIT} ne '') {
     $EXT_TABLES .= "
-            LEFT JOIN companies ext_company ON  (u.company_id=ext_company.id) 
-            LEFT JOIN bills ext_b ON (u.ext_bill_id = ext_b.id)
-            LEFT JOIN bills ext_cb ON  (ext_company.ext_bill_id=ext_cb.id) ";
+     LEFT JOIN companies ext_company ON  (u.company_id=ext_company.id)
+      ";
   }
 
   if ($self->{SEARCH_FIELDS} =~ /nas\./) {

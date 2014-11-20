@@ -159,6 +159,7 @@ $_AVG='AVG';
 $_MAX='Max';
 $_INTERVALS='Intervals';
 $_NO_RECORD='Record does not exist';
+$_HARDWARE='Hardware';
 
 #leased
 

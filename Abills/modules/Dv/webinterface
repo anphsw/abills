@@ -303,7 +303,7 @@ sub dv_users_search {
   $Dv->{STATUS_SEL} = $html->form_select(
     'DV_STATUS',
     {
-      SELECTED => $FORM{DV_STATUS} || 0,
+      SELECTED => $FORM{DV_STATUS} || '',
       SEL_HASH => {
         '' => "$_ALL",
         0  => $service_status[0],
@@ -318,6 +318,10 @@ sub dv_users_search {
       STYLE => \@service_status_colors,
     }
   );
+
+  if ($conf{DV_LOGIN}) {
+  	$Dv->{DV_LOGIN_FORM}="<tr><td>Internet $_LOGIN:</td><td><input type=text name='DV_LOGIN' value='%DV_LOGIN%'></td></tr>";
+  }
 
   form_search({ SEARCH_FORM  => $html->tpl_show(_include('dv_users_search', 'Dv'), 
       { %$Dv, %FORM }, 
@@ -391,7 +395,9 @@ sub dv_users_list {
        'dv_status'   => "Internet $_STATUS",
        'dv_status_date' => "$_STATUS $_DATE",
        'online'      => 'Online',
-       'dv_expire'   => "Internet $_EXPIRE"
+       'dv_expire'   => "Internet $_EXPIRE",
+       'dv_login'    => "$_SERVICE $_LOGIN",
+       'dv_password' => "$_SERVICE $_PASSWD"       
          },
      TABLE           => {
        width      => '100%',
@@ -506,7 +512,6 @@ sub dv_user {
     $password_form->{PW_LENGTH}  = $conf{PASSWD_LENGTH}  || 6;
     $password_form->{ACTION}     = 'change';
     $password_form->{LNG_ACTION} = "$_CHANGE";
-
     $password_form->{ACTION}     = 'change';
     $password_form->{LNG_ACTION} = "$_CHANGE";
 
@@ -840,8 +845,8 @@ sub dv_user {
       $Dv->{ONLINE_TABLE} = $table->show();
     }
 
-    $list = $admin->action_list({ TYPE => '4;14', 
-                                  UID  => $FORM{UID}, 
+    $list = $admin->action_list({ TYPE      => '4;14', 
+                                  UID       => $FORM{UID}, 
                                   DATETIME  => '_SHOW',
                                   PAGE_ROWS => 1, 
                                   COLS_NAME => 1,
@@ -849,9 +854,8 @@ sub dv_user {
     if ($admin->{TOTAL} > 0) {
       $list->[0]->{datetime} =~ /(\d{4}-\d{2}-\d{2})/;
       my $status_date = $1;
-
       my $days = date_diff($status_date, $DATE);
-
+      
       $Dv->{STATUS_INFO} = "$_FROM: $status_date ($_DAYS: $days)";
       if ($conf{DV_REACTIVE_PERIOD}) {
         my ($period, $sum) = split(/:/, $conf{DV_REACTIVE_PERIOD});
@@ -863,7 +867,7 @@ sub dv_user {
     $Dv->{CALLBACK}          = ($Dv->{CALLBACK} == 1) ? ' checked' : '';
     $Dv->{REGISTRATION_INFO} = $html->button("$_MEMO", "qindex=$index&UID=$Dv->{UID}&REGISTRATION_INFO=1", { BUTTON => 1, ex_params => 'target=_new' });
     $Dv->{PASSWORD_BTN}      = ($conf{DV_PASSWORD}) ?  $html->button($html->color_mark("$_PASSWD", ($Dv->{PASSWORD}) ? '' : 'red' ), "UID=$FORM{UID}&PASSWORD=1&index=$index", { BUTTON => 1 }) : '';
-    $Dv->{DEL_SERVICE}       = (! $permissions{4}{14}) ? $html->br() . $html->form_input('del', 1, { TYPE => 'checkbox' }) . " $_DEL"  : '';
+    $Dv->{DEL_SERVICE}       = ($permissions{0}{14}) ? $html->br() . $html->form_input('del', 1, { TYPE => 'checkbox' }) . " $_DEL"  : '';
     
 
     if ($conf{DOCS_PDF_PRINT}) {
@@ -946,8 +950,6 @@ sub dv_user {
     {
       SELECTED   => $FORM{STATIC_POOL},
       SEL_LIST   => $Nas->ip_pools_list({ STATIC => 1, COLS_NAME => 1 }),
-      SEL_KEY    => 'id',
-      SEL_VALUE  => 'name',
       SEL_OPTIONS=> { '' => '' },
       NO_ID      => 1
     }
@@ -981,7 +983,11 @@ sub dv_user {
     
     $Dv->{PAYMENT_MESSAGE} = "$_ACTIVATION_PAYMENT $sum " . $html->button("$_PAYMENTS", "UID=$FORM{UID}&index=2&SUM=$sum", {CLASS => 'payments rightAlignText'});
   }
-  
+
+  if ($conf{DV_LOGIN}) {
+  	$Dv->{LOGIN_FORM}="<tr><td>$_LOGIN:</td><td><input type=text name='DV_LOGIN' value='$Dv->{DV_LOGIN}'></td></tr>";
+  }
+
   $html->tpl_show(_include('dv_user', 'Dv'), { %$admin, %$attr, %$Dv }, { ID => 'dv_user' });
   return 0;
 }
@@ -1001,15 +1007,15 @@ sub dv_get_static_ip {
     return '0.0.0.0';
   }
 
-  my $start_ip = ip2int($Nas->{NAS_IP_SIP});
-  my $end_ip   = $start_ip + $Nas->{NAS_IP_COUNT};
+  my $start_ip = ip2int($Nas->{IP});
+  my $end_ip   = $start_ip + $Nas->{COUNTS};
 
   my %users_ips = ();
 
   my $list = $Dv->list(
     {
       PAGE_ROWS => 100000,
-      IP        => ">=$Nas->{NAS_IP_SIP}",
+      IP        => ">=$Nas->{IP}",
       SKIP_GID  => 1,
       COLS_NAME => 1
     }

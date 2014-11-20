@@ -10,13 +10,21 @@ my $SSH   = $conf{FILE_SSH} || '/usr/bin/ssh';
 my $SCP   = $conf{FILE_SCP} || '/usr/bin/scp';
 my $debug = $FORM{VLAN_DEBUG} || 0;
 
+#Templates
+#
+# PARENT_INTERFACE
+# VLAN_ID
+# VLAN_IF_IP
+# VLAN_IF_NETMASK
+#
+
 $conf{VLAN_IF_CREATE} = 'if [ `uname` = Linux ]; then /usr/bin/sudo /sbin/vconfig add %PARENT_INTERFACE% %VLAN_ID%; else /usr/local/bin/sudo /sbin/ifconfig vlan%VLAN_ID% create vlan %VLAN_ID% vlandev %PARENT_INTERFACE% up; fi' if (!$conf{VLAN_IF_CREATE});
 
 $conf{VLAN_IF_IP} = 'if [ `uname` = Linux ]; then /usr/bin/sudo /sbin/ifconfig %PARENT_INTERFACE%.%VLAN_ID% %VLAN_IF_IP% netmask %VLAN_IF_NETMASK% up; else /usr/local/bin/sudo /sbin/ifconfig vlan%VLAN_ID% inet %VLAN_IF_IP% netmask %VLAN_IF_NETMASK%; fi' if (!$conf{VLAN_IF_IP});
 
 $conf{VLAN_IP_DELETE} = 'if [ `uname` = Linux ]; then /usr/bin/sudo /sbin/ifconfig %PARENT_INTERFACE%.%VLAN_ID% delete %VLAN_IF_IP%; else /usr/local/bin/sudo /sbin/ifconfig vlan%VLAN_ID% delete %VLAN_IF_IP%; fi' if (!$conf{VLAN_IP_DELETE});
 
-$conf{VLAN_IF_DESTROY} = 'if [ `uname` = Linux ]; then /usr/bin/sudo /sbin/ifconfig %PARENT_INTERFACE%.%VLAN_ID% down;  /usr/bin/sudo /sbin/vconfig rem %PARENT_INTERFACE%.%VLAN_ID%; else /sbin/ifconfig vlan%VLAN_ID% destroy; fi' if (!$conf{VLAN_IF_DESTROY});
+$conf{VLAN_IF_DESTROY} = 'if [ `uname` = Linux ]; then /usr/bin/sudo /sbin/ifconfig %PARENT_INTERFACE%.%VLAN_ID% down;  /usr/bin/sudo /sbin/vconfig rem %PARENT_INTERFACE%.%VLAN_ID%; else /usr/local/bin/sudo /sbin/ifconfig vlan%VLAN_ID% destroy; fi' if (!$conf{VLAN_IF_DESTROY});
 
 $conf{VLAN_CREATE_PPPOE} = undef if (!$conf{VLAN_CREATE_PPPOE});
 
@@ -169,7 +177,6 @@ sub vlan_user {
       $Vlan->{TOTAL} = 0;
       if ((!$FORM{UNNUMBERED_IP} || $FORM{UNNUMBERED_IP} eq '0.0.0.0') && $FORM{IP} ne '0.0.0.0') {
         #Check dublicate
-        $Vlan->{debug}=1;
         $list = $Vlan->list({ IP => "$FORM{IP}", PAGE_ROWS=>1, COLS_NAME => 1 });
       }
 
@@ -290,7 +297,7 @@ sub vlan_user {
     'NAS_ID',
     {
       SELECTED => $Vlan->{NAS_ID} || 0,
-      SEL_ARRAY => $Nas->list(
+      SEL_LIST => $Nas->list(
         {
           TYPE      => 'vlan',
           COLS_NAME => 1,
@@ -299,7 +306,7 @@ sub vlan_user {
       ),
       SEL_KEY        => 'nas_id',
       SEL_VALUE      => 'nas_name',
-      MAIN_MENU      => get_function_index('form_nass'),
+      MAIN_MENU      => get_function_index('form_nas'),
       MAIN_MENU_AGRV => "chg=$tarif_info->{NAS_ID}",
     }
   );
@@ -579,13 +586,16 @@ sub vlan_create {
       if($conf{VLAN_DEL}) {
       	my @_del = sort { $a <=> $b } keys %$vlans_info;
 
-        $attr->{DEBUG}=3;
+        if ($conf{VLAN_CMD_SHOW} && $attr->{DEBUG} < 3) {
+          $attr->{DEBUG}=3;
+        }
+
         $INFO{VLANS}=join(',', @_del);
         my $cmd = tpl_parse($conf{VLAN_DEL}, \%INFO);
 
         print $cmd. "\n" if ($attr->{DEBUG} && $attr->{DEBUG} > 2);
         my $ifconfig = '';
-        open(IFCONFIG, "$cmd | ") || die "Can't open '$conf{VLAN_INFO}' $!";
+        open(IFCONFIG, "$cmd | ") || die "Can't open '$cmd' $!";
           while (my $l = <IFCONFIG>) {
             $ifconfig .= $l;
           }
@@ -595,7 +605,7 @@ sub vlan_create {
 
       my @_add = ();
       foreach my $vlan_ (@vlan_add_arr) {
-        push @_add, "$vlan_->{VLAN_ID}:$vlan_->{VLAN_IF_IP}:$vlan_->{VLAN_IF_NETMASK}";
+        push @_add, "$vlan_->{VLAN_ID}:$vlan_->{VLAN_IF_IP}:$vlan_->{VLAN_IF_NETMASK}:$parent_interface";
       }
 
       $INFO{VLANS}=join(',', @_add);
@@ -603,7 +613,7 @@ sub vlan_create {
     
       print $cmd. "\n" if ($attr->{DEBUG} && $attr->{DEBUG} > 2);
       my $ifconfig = '';
-      open(IFCONFIG, "$cmd | ") || die "Can't open '$conf{VLAN_INFO}' $!";
+      open(IFCONFIG, "$cmd | ") || die "Can't open '$cmd' $!";
         while (my $l = <IFCONFIG>) {
           $ifconfig .= $l;
         }
@@ -673,8 +683,13 @@ sub vlan_info {
   my $IFCONFIG_CMD = $IFCONFIG;
   my $vlan_count   = 0;
 
+  if ($conf{VLAN_CMD_SHOW} && $attr->{DEBUG} < 3) {
+    $attr->{DEBUG}=3;
+  }
+
   if ($conf{VLAN_INFO}) {
     my $cmd = tpl_parse($conf{VLAN_INFO}, $attr);
+   
     print $cmd. "\n" if ($attr->{DEBUG} && $attr->{DEBUG} > 2);
     my $ifconfig = '';
     open(IFCONFIG, "$cmd |") || die "Can't open '$cmd' $!";
@@ -686,7 +701,7 @@ sub vlan_info {
     my @ifconfig_arr = split(/[\n\r]/, $ifconfig);
 
     foreach my $if (@ifconfig_arr) {
-      my($if_num, $ip, $mask)=split(/:/, $if);
+      my($if_num, $ip, $mask,$parent)=split(/:/, $if);
       if (int($if_num) > 0) {
         $VLANS{$if_num}=$ip || '0.0.0.0';
       }

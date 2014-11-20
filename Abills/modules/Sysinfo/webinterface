@@ -92,7 +92,7 @@ sub sysinfo_perl {
     my @cols;
     my $name = $module->{'mods'}->[$mi];
     my ($desc, $ver) = &module_desc($module, $mi);
-    my $date = strftime "%Y-%m-%d %H-%M-%S", localtime($module->{'time'});
+    my $date = strftime("%Y-%m-%d %H-%M-%S", localtime($module->{'time'}));
 
     $table->addrow(
       $html->button($name, "index=$index&MODULE=$name&idx=$module->{'index'}"),

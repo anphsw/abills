@@ -816,7 +816,7 @@ sub dv_auth {
   {
     my $cid = $RAD->{CALLING_STATION_ID};  	
 
-  	if ($RAD->{CALLING_STATION_ID} =~ /\/\s+([a-z0-9:]+)\s+\//) {
+  	if ($RAD->{CALLING_STATION_ID} =~ /\/\s+([A-Za-z0-9:]+)\s+\//) {
   		$cid = $1;
   	}
 
@@ -1050,6 +1050,18 @@ sub authentication {
       $WHERE = "AND u.domain_id='0'";
     }
 
+    if ($CONF->{DV_LOGIN}) {
+    	$self->query2("SELECT uid, dv_login AS login FROM dv_main WHERE dv_login='$RAD->{USER_NAME}';", undef, { INFO => 1 });
+    }
+
+    if ($self->{UID}) {
+      $WHERE = "u.uid='$self->{UID}' " . $WHERE;
+    }
+    else {
+    	$WHERE = "u.id='$RAD->{USER_NAME}' " . $WHERE;
+    }
+    
+    
     $self->query2("SELECT
   u.uid,
   DECODE(password, '$SECRETKEY') AS passwd,
@@ -1067,7 +1079,7 @@ sub authentication {
   UNIX_TIMESTAMP(u.expire) AS account_expire
      FROM users u
      WHERE 
-        u.id='$RAD->{USER_NAME}' $WHERE
+        $WHERE
         AND (u.expire='0000-00-00' or u.expire > CURDATE())
         AND (u.activate='0000-00-00' or u.activate <= CURDATE())
         AND u.deleted='0'
@@ -1492,13 +1504,15 @@ sub get_ip {
   }
 
   if ($attr->{TP_IPPOOL}) {
-    $self->query2("SELECT ippools.ip, ippools.counts, ippools.id FROM ippools
+    $self->query2("SELECT ippools.ip, ippools.counts, ippools.id, ippools.next_pool_id
+    FROM ippools
      WHERE ippools.id='$attr->{TP_IPPOOL}'
      ORDER BY ippools.priority;"
     );
   }
   else {
-    $self->query2("SELECT ippools.ip, ippools.counts, ippools.id FROM ippools, nas_ippools
+    $self->query2("SELECT ippools.ip, ippools.counts, ippools.id, ippools.next_pool_id 
+    FROM ippools, nas_ippools
      WHERE ippools.id=nas_ippools.pool_id AND nas_ippools.nas_id='$nas_num'
      ORDER BY ippools.priority;"
     );
@@ -1511,11 +1525,13 @@ sub get_ip {
   my @pools_arr      = ();
   my $list           = $self->{list};
   my @used_pools_arr = ();
+  my $next_pool_id   = 0;
 
   foreach my $line (@$list) {
     my $sip   = $line->[0];
     my $count = $line->[1];
     my $id    = $line->[2];
+    $next_pool_id = $line->[3];
     push @used_pools_arr, $id;
     my %pools = ();
 
@@ -1523,6 +1539,10 @@ sub get_ip {
       $pools{$i} = 1;
     }
     push @pools_arr, \%pools;
+
+    if($next_pool_id) {
+    	last;
+    }
   }
 
   my $used_pools = join(', ', @used_pools_arr);
@@ -1580,6 +1600,9 @@ sub get_ip {
     $self->{db}->do('unlock tables');
     if ($attr->{TP_POOLS}) {
       $self->get_ip($nas_num, $nas_ip, $attr);
+    }
+    elsif($next_pool_id) {
+    	$self->get_ip($nas_num, $nas_ip, { TP_POOLS => $next_pool_id });
     }
     else {
       return -1;

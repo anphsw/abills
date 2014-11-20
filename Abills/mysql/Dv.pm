@@ -82,9 +82,10 @@ sub info {
   $self->query2("SELECT dv.uid, 
    dv.tp_id, 
    tp.name AS tp_name, 
-   dv.logins as SIMULTANEONSLY, 
+   dv.logins, 
+   dv.dv_login,
    INET_NTOA(dv.ip) AS ip, 
-   INET_NTOA(dv.netmask) AS netmask, 
+   INET_NTOA(dv.netmask) AS netmask,
    dv.speed, 
    dv.filter_id, 
    dv.cid,
@@ -184,30 +185,10 @@ sub add {
     }
   }
 
-  $self->query2("INSERT INTO dv_main (uid, registration, 
-             tp_id, 
-             logins, 
-             disable, 
-             ip, 
-             netmask, 
-             speed, 
-             filter_id, 
-             cid,
-             callback,
-             port,
-             join_service,
-             turbo_mode,
-             free_turbo_mode,
-             expire,
-             password)
-        VALUES ('$DATA{UID}', now(),
-        '$DATA{TP_ID}', '$DATA{SIMULTANEONSLY}', '$DATA{STATUS}', INET_ATON('$DATA{IP}'), 
-        INET_ATON('$DATA{NETMASK}'), '$DATA{SPEED}', '$DATA{FILTER_ID}', LOWER('$DATA{CID}'),
-        '$DATA{CALLBACK}',
-        '$DATA{PORT}', '$DATA{JOIN_SERVICE}', '$DATA{TURBO_MODE}', '$DATA{FREE_TURBO_MODE}',
-        '$DATA{DV_EXPIRE}',
-        '$DATA{PASSWORD}');", 'do'
-  );
+  $self->query_add('dv_main', { %DATA,
+  	                            REGISTRATION => 'now()',
+  	                            DISABLE      => $DATA{STATUS}
+  	                          });
 
   return $self if ($self->{errno});
 
@@ -223,28 +204,11 @@ sub change {
   my $self = shift;
   my ($attr) = @_;
 
-  my %FIELDS = (
-    SIMULTANEONSLY => 'logins',
-    STATUS         => 'disable',
-    IP             => 'ip',
-    NETMASK        => 'netmask',
-    TP_ID          => 'tp_id',
-    SPEED          => 'speed',
-    CID            => 'cid',
-    UID            => 'uid',
-    FILTER_ID      => 'filter_id',
-    CALLBACK       => 'callback',
-    PORT           => 'port',
-    JOIN_SERVICE   => 'join_service',
-    TURBO_MODE     => 'turbo_mode',
-    FREE_TURBO_MODE=> 'free_turbo_mode',
-    DV_EXPIRE      => 'expire',
-    PASSWORD       => 'password'
-  );
-
   if (!$attr->{CALLBACK}) {
     $attr->{CALLBACK} = 0;
   }
+
+  $attr->{DISABLE}=$attr->{STATUS};
 
   my $old_info = $self->info($attr->{UID});
   $self->{OLD_STATUS} = $old_info->{STATUS};
@@ -338,13 +302,12 @@ sub change {
   #$attr->{JOIN_SERVICE} = ($attr->{JOIN_SERVICE}) ? $attr->{JOIN_SERVICE} : 0;
 
   $admin->{MODULE} = $MODULE;
+
   $self->changes(
     $admin,
     {
       CHANGE_PARAM => 'UID',
       TABLE        => 'dv_main',
-      FIELDS       => \%FIELDS,
-      OLD_INFO     => $old_info,
       DATA         => $attr
     }
   );
@@ -537,14 +500,13 @@ sub list {
       ['TP_CREDIT',      'INT', 'tp.credit', 'tp.credit AS tp_credit' ],
       ['ONLINE',         'INT', 'c.uid',            'c.uid AS online' ],
       ['PAYMENT_TYPE',   'INT', 'tp.payment_type',                  1 ],
+      ['DV_LOGIN',       'STR', 'dv.dv_login',                      1 ],
       ['DV_PASSWORD',    '',    '',  "DECODE(dv.password, '$CONF->{secretkey}') AS dv_password" ],
       ['DV_STATUS',      'INT', 'dv.disable as dv_status',          1 ],
       ['DV_EXPIRE',      'DATE','dv.expire as dv_expire',           1 ],
       ['DV_STATUS_DATE', '',    '', '(SELECT aa.datetime FROM admin_actions aa WHERE aa.uid=dv.uid AND aa.module=\'Dv\' AND aa.action_type=4
-       ORDER BY aa.datetime DESC LIMIT 1) AS dv_status_date',
+       ORDER BY aa.datetime DESC LIMIT 1) AS dv_status_date' ],
       ['UID',            'INT', 'dv.uid',                           1 ], 
-        ]
-
     ],
     { WHERE       => 1,
     	WHERE_RULES => \@WHERE_RULES,

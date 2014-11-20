@@ -2214,12 +2214,12 @@ sub docs_invoice {
         }
       }
 
-      my $sufix = ($Doc{PAYMENT_SUM} == $Doc{TOTAL_SUM} && _include($invoice_blank.'_paid', 'Docs', {  CHECK_ONLY => 1  })) ? '_paid' : '';
 
       if ($Doc{COMPANY_ID}) {
         $Company->info($Doc{COMPANY_ID});
         delete $Company->{DEPOSIT};
         my $invoice_blank = ($FORM{alt_tpl}) ? 'invoice_company_alt' : 'invoice_company';
+        my $sufix = ($Doc{PAYMENT_SUM} == $Doc{TOTAL_SUM} && _include('docs_'.$invoice_blank.'_paid', 'Docs', { CHECK_ONLY => 1  })) ? '_paid' : '';
         return docs_print("$invoice_blank$sufix", { %Doc, %$Company, %$attr, 
         	                                          SUFIX   => ($Doc{VAT} > 0) ? 'vat' : '',
         	                                          ALT_TPL => $invoice_blank
@@ -2227,6 +2227,7 @@ sub docs_invoice {
       }
       else {
       	my $invoice_blank = ($FORM{alt_tpl}) ? 'invoice_alt' : 'invoice';
+        my $sufix = ($Doc{PAYMENT_SUM} == $Doc{TOTAL_SUM} && _include('docs_'.$invoice_blank.'_paid', 'Docs', { CHECK_ONLY => 1  })) ? '_paid' : '';
         return docs_print("$invoice_blank$sufix", { %Doc, %$attr, ALT_TPL => $invoice_blank });
       }
     }
@@ -3709,6 +3710,7 @@ sub docs_pre_payment {
 
   if ($FORM{INVOICE_ID} && $FORM{INVOICE_ID} eq 'create') {
     $FORM{INVOICE_ID} = undef;
+    $FORM{INCLUDE_DEPOSIT}=1;
     $LIST_PARAMS{UID} = $FORM{UID};
     $FORM{create}     = 1;
     $FORM{CUSTOMER}   = '-';

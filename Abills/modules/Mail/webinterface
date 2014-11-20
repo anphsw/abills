@@ -624,11 +624,13 @@ sub mail_user_boxes {
   $Mail->{DOMAINS_SEL} = $html->form_select(
     'MAIL_DOMAIN_ID',
     {
-      SELECTED   => $Mail->{DOMAIN_ID},
-      SEL_LIST   => $Mail->domain_list({ BACKUP_MX => 0, COLS_NAME => 1 }),
-      SEL_KEY    => 'id',
-      SEL_VALUE  => 'domain',
-      NO_ID      => 1
+      SELECTED       => $Mail->{DOMAIN_ID},
+      SEL_LIST       => $Mail->domain_list({ BACKUP_MX => 0, COLS_NAME => 1, PAGE_ROWS => 10000 }),
+      SEL_KEY        => 'id',
+      SEL_VALUE      => 'domain',
+      NO_ID          => 1,
+      MAIN_MENU      => get_function_index('mail_domains'),
+      MAIN_MENU_AGRV => "chg=$Mail->{DOMAIN_ID}"
     }
   );
 

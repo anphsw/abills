@@ -788,7 +788,7 @@ sub service_discount_list {
   $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
   $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
-
+  @WHERE_RULES = ();
   $self->{SEARCH_FIELDS}      = '';
   $self->{SEARCH_FIELDS_COUNT}= 0;
 
@@ -1072,8 +1072,9 @@ sub accomulation_scores_add {
   my ($attr) = @_;
   my %DATA   = $self->get_data($attr);
 
+  $DATA{DV_TP_ID}=0 if (! $DATA{DV_TP_ID});
+
   $self->query2("UPDATE bonus_rules_accomulation_scores SET  
-        uid='$DATA{UID}', 
         dv_tp_id='$DATA{DV_TP_ID}', 
         cost=cost + $DATA{SCORE}
       WHERE uid='$attr->{UID}';", 'do'

@@ -82,7 +82,14 @@ sub hangup {
   elsif ($nas_type eq 'openvpn') {
     hangup_openvpn($NAS, $PORT, $USER);
   }
-  elsif ($nas_type eq 'ipcad' || $nas_type eq 'dhcp' || $nas_type eq 'dlink_pb' || $nas_type eq 'dlink' || $nas_type eq 'edge_core') {
+  elsif ($nas_type eq 'ipcad' 
+          || $nas_type eq 'dhcp' 
+          || $nas_type eq 'dlink_pb' 
+          || $nas_type eq 'dlink' 
+          || $nas_type eq 'edge_core'
+          || $nas_type eq 'gpon'
+          || $nas_type eq 'epon'
+        ) {
     hangup_ipcad($NAS, $PORT, $USER, $attr);
   }
   elsif ($nas_type eq 'patton') {

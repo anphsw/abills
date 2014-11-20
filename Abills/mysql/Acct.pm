@@ -71,7 +71,8 @@ sub accounting {
   if ($NAS->{NAS_TYPE} eq 'cid_auth') {
     $self->query2("SELECT u.uid, u.id
      FROM users u, dv_main dv
-     WHERE dv.uid=u.uid AND dv.CID='$RAD->{CALLING_STATION_ID}';"
+     WHERE dv.uid=u.uid AND dv.CID='$RAD->{CALLING_STATION_ID}'
+     FOR UPDATE;"
     );
 
     if ($self->{TOTAL} < 1) {
@@ -91,7 +92,7 @@ sub accounting {
   #Start
   if ($acct_status_type == 1) {
     $self->query2("SELECT acct_session_id FROM dv_calls 
-    WHERE user_name='$RAD->{USER_NAME}' AND nas_id='$NAS->{NAS_ID}' AND (framed_ip_address=INET_ATON('$RAD->{FRAMED_IP_ADDRESS}') OR framed_ip_address=0);"
+    WHERE user_name='$RAD->{USER_NAME}' AND nas_id='$NAS->{NAS_ID}' AND (framed_ip_address=INET_ATON('$RAD->{FRAMED_IP_ADDRESS}') OR framed_ip_address=0) FOR UPDATE;"
     );
 
     #Get connection speed
@@ -596,11 +597,11 @@ sub rt_billing {
       );
     }
     else {
-      $self->query2("INSERT INTO dv_log_intervals (interval_id, sent, recv, duration, traffic_type, sum, acct_session_id, uid)
+      $self->query2("INSERT INTO dv_log_intervals (interval_id, sent, recv, duration, traffic_type, sum, acct_session_id, uid, added)
         values ('$Billing->{TI_ID}', 
           '" . $RAD->{ 'INTERIUM_OUTBYTE' . $RAD_TRAFF_SUFIX[$traffic_type] } . "', 
           '" . $RAD->{ 'INTERIUM_INBYTE' . $RAD_TRAFF_SUFIX[$traffic_type] } . "', 
-        '$RAD->{INTERIUM_ACCT_SESSION_TIME}', '$traffic_type', '$self->{SUM}', '$RAD->{ACCT_SESSION_ID}', '$self->{UID}');", 'do'
+        '$RAD->{INTERIUM_ACCT_SESSION_TIME}', '$traffic_type', '$self->{SUM}', '$RAD->{ACCT_SESSION_ID}', '$self->{UID}', now());", 'do'
       );
     }
   }

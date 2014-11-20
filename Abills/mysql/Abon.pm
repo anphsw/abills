@@ -350,6 +350,11 @@ sub user_tariff_list {
   @WHERE_RULES = ("at.domain_id='$admin->{DOMAIN_ID}'");
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
 
+  $SORT      = ($attr->{SORT})      ? $attr->{SORT}           : 1;
+  $DESC      = ($attr->{DESC})      ? $attr->{DESC}           : '';
+  $PG        = ($attr->{PG})        ? $attr->{PG}             : 0;
+  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? int($attr->{PAGE_ROWS}) : 25;
+
   $self->query2("SELECT at.id, 
       at.name, 
       if(ul.comments <> '', ul.comments, '') AS comments, 

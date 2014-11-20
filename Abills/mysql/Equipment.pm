@@ -23,7 +23,7 @@ sub new {
   bless($self, $class);
   
   $self->{db}=$db;
-  
+
   return $self;
 }
 
@@ -466,7 +466,7 @@ sub port_list() {
       ['IP',             'IP',  'dhcp.ip',    'INET_NTOA(dhcp.ip) AS ip' ],
       ['NETMASK',        'IP',  'dhcp.netmask', 'INET_NTOA(dhcp.netmask) AS netmask' ],
       ['TP_ID',          'INT', 'dv.tp_id',                         1 ],
-      ['TP_NAME',        'STR', 'tp.name',               'tp.tp_name' ],
+      ['TP_NAME',        'STR', 'tp.name',       'tp.name AS tp_name' ],
       ['UID',            'INT', 'u.uid',                            1 ],
       ['GID',            'INT', 'u.gid',                            1 ],
       ['NAS_ID',         'INT', 'p.nas_id',                           ]
@@ -479,7 +479,7 @@ sub port_list() {
 
   my $EXT_TABLE = $self->{EXT_TABLES};
 
-  if ($self->{SEARCH_FIELDS} =~ /pi\.|u\.|dv\./) {
+  if ($self->{SEARCH_FIELDS} =~ /pi\.|u\.|dv\.|tp\./) {
    	$EXT_TABLE = "LEFT JOIN users u ON (u.uid=dhcp.uid)
    	LEFT JOIN users_pi pi ON (pi.uid=u.uid)". $EXT_TABLE;
   }
@@ -490,7 +490,7 @@ sub port_list() {
 
   if ($self->{SEARCH_FIELDS} =~ /dv\.|tp\./) {
     $EXT_TABLE .= "LEFT JOIN dv_main dv ON (dv.uid=u.uid)
-    LEFT JOIN tariff_plans tp ON (dv.tp_id=tp.id AND tp.modules='Dv') ";
+    LEFT JOIN tarif_plans tp ON (dv.tp_id=tp.id AND tp.module='Dv') ";
   }
 
 

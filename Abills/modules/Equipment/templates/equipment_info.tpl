@@ -10,15 +10,17 @@
 
 <tr><td>$_MODEL</td><td>%MODEL_SEL% (%VENDOR% / %TYPE%) %MANAGE_WEB%</td></tr>
 <tr><td>System info</td><td><input type=text name=SYSTEM_ID value='%SYSTEM_ID%'></td></tr>
-<tr><td>Ports:</td><td><input type=text name=PORTS value='%PORTS%'></td></tr>
 <tr><td>Firmware:</td><td><input type=text name=FIRMWARE value='%FIRMWARE%'></td></tr>
+<tr><td>$_PORTS:</td><td><input type=text name=PORTS value='%PORTS%'></td></tr>
+<tr><td>$_FREE_PORTS:</td><td>%FREE_PORTS%</td></tr>
 <tr><td>$_SERIAL:</td><td><input type=text name=SERIAL value='%SERIAL%'></td></tr>
 <tr><td>$_START_UP_DATE:</td><td><input type=text name=START_UP_DATE value='%START_UP_DATE%' ID='START_UP_DATE' size=12 rel='tcal'></td></tr>
 <tr><td>$_STATUS:</td><td>%STATUS_SEL%</td></tr>
+<tr><td>$_LAST_ACTIVITY:</td><td>%LAST_ACTIVITY%</td></tr>
 <tr><th colspan=2 class=form_title>$_COMMENTS</th></tr>
-<tr><th colspan=2><textarea name=COMMENTS cols=60 rows=7>%COMMENTS%</textarea></th></tr>
+<tr><th colspan=2><textarea name=COMMENTS cols=40 rows=4>%COMMENTS%</textarea></th></tr>
 <tr><th colspan=2 class=even><input type=submit name=%ACTION%  value='%ACTION_LNG%'>
-<input type=submit name=get_info  value='get_info'>
+<input type=submit name=get_info  value='SNMP $_GET_INFO'>
 </th><tr>
 
 </table>

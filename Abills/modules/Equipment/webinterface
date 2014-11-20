@@ -10,6 +10,15 @@ use SNMP_util;
 use BER;
 my $Nas;
 
+my $Dhcphosts;
+if (in_array('Dhcphosts', \@MODULES)) {
+ 	use Dhcphosts;
+  $Dhcphosts = Dhcphosts->new($db, $admin, \%conf);
+}
+
+my $used_ports;
+my @service_status_colors = ("$_COLORS[9]", "840000", '#808080', '#0000FF', "$_COLORS[6]", '#009999');
+
 #**********************************************************
 #
 #**********************************************************
@@ -324,6 +333,9 @@ sub equipment_info {
   }
   else {
     $Equipment->_info($FORM{NAS_ID});
+    
+    my $ports = $Equipment->{PORTS};
+    
     if (!$Equipment->{errno}) {
     	$FORM{COMMENTS}=$Equipment->{COMMENTS};
     	$Equipment->model_info( $Equipment->{MODEL_ID} );
@@ -334,7 +346,7 @@ sub equipment_info {
     			GLOBAL_URL => $Equipment->{MANAGE_WEB},
     			BUTTON     => 1 }); 
     	}
-    	
+    	$Equipment->{PORTS}=$ports if ($ports);
       $Equipment->{ACTION}     = 'change';
       $Equipment->{ACTION_LNG} = $_CHANGE;
     }
@@ -342,7 +354,7 @@ sub equipment_info {
   
   if ($FORM{PORT_SHOW}) {
   	$FORM{SELECT}=1;
-  	equipment_ports();
+  	equipment_ports({ NAS_INFO => $Equipment });
   	return 0;
   }
 
@@ -361,22 +373,27 @@ sub equipment_info {
   $Equipment->{STATUS_SEL} = $html->form_select(
     'STATUS',
     {
-      SELECTED => $FORM{STATUS} || 0,
+      SELECTED => $Equipment->{STATUS} || $FORM{STATUS} || 0,
       SEL_HASH => {
         0  => $_ENABLE,
         1  => $_DISABLE,
         2  => $_NOT_ACTIVE,
         3  => $_ERROR,
+        4  => $_BREAKING
       },
       NO_ID => 1,
       STYLE => \@service_status_colors,
     }
   );
 
+  $used_ports = equipments_get_used_ports({ NAS_ID => $FORM{NAS_ID} });
+
+  $Equipment->{FREE_PORTS} = $Equipment->{PORTS} - scalar( keys %$used_ports );
+
   $html->tpl_show(_include('equipment_info', 'Equipment'), { %$Nas, %$Equipment, %FORM });
 
   if ($Equipment->{PORTS} > 0) {
-    equipment_ports();
+    equipment_ports({ NAS_INFO => $Equipment });
   }
  
 }
@@ -399,7 +416,8 @@ sub equipment_list {
       cols_align => [ 'left', 'left', 'left', 'left', 'center:noprint', 'center:noprint' ],
       qs         => $pages_qs,
       pages      => $Equipment->{TOTAL},
-      ID         => 'EQUIPMENT_MODELS'
+      ID         => 'EQUIPMENT_MODELS',
+      MENU       => "$_ADD:add_form=1&index=" . get_function_index('form_nas') . ':add' . ";$_SEARCH:index=$index&search_form=1:search",
     }
   );
 
@@ -409,7 +427,7 @@ sub equipment_list {
 
     $table->addrow($line->{nas_id},
       $line->{system_id},
-      $status[$line->{status}],
+      $html->color_mark($status[$line->{status}], $service_status_colors[$line->{status}]),
       $line->{model_name}, 
       $line->{vendor_name}, 
       $line->{type_name}, 
@@ -438,6 +456,8 @@ sub equipment_list {
 sub equipment_test {
 	my ($attr)=@_;
 	
+	return {};
+	
 	my %info = ();
   my %snmp_info = (
    DESCRIBE  => '.1.3.6.1.2.1.1.1.0',
@@ -455,17 +475,52 @@ sub equipment_test {
 	if ($FORM{ping}) {
 	  #exec("ping -qo -c3 -t2 ".$ip,$out);
 	}
-	elsif($FORM{ports_info}) {
-		my @ports_info = &snmpwalk("$attr->{SNMP_COMMUNITY}", '.1.3.6.1.2.1.2.2.1.8');
-		my %ports_info = ();
-		foreach my $port (@ports_info) {
-			my ($port_id, $status)=split(/:/, $port);
-			$ports_info{$port_id}=$status;
-		}
-		
-		return \%ports_info;
+
+	my %ports_info = ();	
+
+  my %snmp_ports_info = (
+    status => '.1.3.6.1.2.1.2.2.1.8',
+    in     => '.1.3.6.1.2.1.2.2.1.10',
+    out    => '.1.3.6.1.2.1.2.2.1.16',
+    speed  => '.1.3.6.1.2.1.2.2.1.5',
+  );
+  my $message;
+
+  if ($attr->{PORT_STATUS}) {
+    my ($port, $status)=split(/:/, $attr->{PORT_STATUS});
+
+    if (snmpset($SNMP_COMMUNITY, $snmp_ports_info{status}.'.'.$port, "integer", "$status")) {
+      $message .= " Ok\n";
+    }
+
+    return 0;
+  }
+
+  if ($attr->{NAS_INFO}->{MODEL}=~/dlink/i) {
+    #Dlink cable length
+    #pairs_length => '1.3.6.1.4.1.171.12.58.1.1.1.8',
+    #('1.3.6.1.4.1.171.12.58.1.1.1.8', '1.3.6.1.4.1.171.12.58.1.1.1.9', '1.3.6.1.4.1.171.12.58.1.1.1.10', '1.3.6.1.4.1.171.12.58.1.1.1.11')
+	  $snmp_ports_info{pair_length} = '1.3.6.1.4.1.171.12.58.1.1.1.8';
 	}
-	elsif($FORM{get_info}) {
+	
+	if($attr->{PORT_INFO}) {
+		foreach my $type ( split(/,\s?/, $attr->{PORT_INFO}) ) {
+			next if (! $snmp_ports_info{$type});
+			
+		  my @ports_info = &snmpwalk("$attr->{SNMP_COMMUNITY}", $snmp_ports_info{$type});
+
+		  if ($SNMP_Session::errmsg) {
+		    last;
+		  }
+
+		  foreach my $port (@ports_info) {
+			  my ($port_id, $data)=split(/:/, $port);
+			  $ports_info{$port_id}{$type}=$data;
+  	  }
+  	}
+	}
+
+  if($FORM{get_info}) {
     my %result_hash = ();
     foreach my $key ( keys %snmp_info) {
       my $snmp_oid = $snmp_info{$key};
@@ -494,7 +549,7 @@ sub equipment_test {
 	}
 	
 	
-	return \%info;
+	return \%ports_info;
 }
 
 
@@ -502,6 +557,9 @@ sub equipment_test {
 #
 #**********************************************************
 sub equipment_ports {
+
+  my @ports_state = ('', $_ACTIV, $_DISABLE);
+  my @ports_state_color = ('', '#008000', '#FF0000');
 
   if ($FORM{add}) {
     $Equipment->port_add({%FORM});
@@ -514,6 +572,9 @@ sub equipment_ports {
     $Equipment->port_change({%FORM});
     if (!$Equipment->{errno}) {
       $html->message('info', $_INFO, "$_CHANGED");
+      
+      equipment_test({ SNMP_COMMUNITY => "$Nas->{NAS_MNG_PASSWORD}\@". (($Nas->{NAS_MNG_IP_PORT}) ? $Nas->{NAS_MNG_IP_PORT} : $Nas->{NAS_IP}),
+      	  PORT_STATUS => "$Equipment->{PORT}:$Equipment->{STATUS}"  });
     }
   }
   elsif ($FORM{PORT}) {
@@ -540,44 +601,34 @@ sub equipment_ports {
     }
   }
 
-  $FORM{visual} = 0 if (! $FORM{visual});
+  $FORM{visual} = 2 if (! $FORM{visual} && ! $FORM{PORT} );
 
   my %ports_visualisation = (0 => "$_SHORT",
-                             1 => "$_USERS",
+                             #1 => "$_USERS",
                              2 => "$_FULL",
-                            # 4 => "$_CHANGE" 
+                             3 => "ARP $_TABLE",
+                             4 => "FDB $_TABLE",
+                             5 => "SNMP $_INFO", 
+                             # 4 => "$_CHANGE" 
                             );  
 
   foreach my $key (sort keys %ports_visualisation) {
   	my $value = $ports_visualisation{$key};
-  	if ($FORM{visual} eq $key) {
+  	if (defined($FORM{visual}) && $FORM{visual} eq $key) {
       print $html->b($value);
     }
   	else {
-  	  print $html->button("$value", "index=$index&visual=$key&NAS_ID=$FORM{NAS_ID}", { BUTTON => 1 });
+  	  print $html->button("$value", "index=". (($key == 5) ? get_function_index('snmp_info_form') : $index) ."&visual=$key&NAS_ID=$FORM{NAS_ID}", { BUTTON => 1 }).' ';
   	}
   }
 
   my $ports      = $Equipment->{PORTS};
 
   #Get users from dhcp
-  my %used_ports = ();
-  my $Dhcphosts;
-  if (in_array('Dhcphosts', \@MODULES)) {
-    	use Dhcphosts;
-      $Dhcphosts = Dhcphosts->new($db, $admin, \%conf);
-      my $list = $Dhcphosts->hosts_list({ NAS_ID    => $FORM{NAS_ID},
-      	                                  PORTS     => '_SHOW',
-      	                                  LOGIN     => '_SHOW',
-      	                                  COLS_NAME => 1,
-      	                                  PAGE_ROWS => 10000
-      	                                });
+  if (! $used_ports ) {
+    $used_ports = equipments_get_used_ports({ NAS_ID => $FORM{NAS_ID} });
+  }
 
-      foreach my $line (@$list) {
-      	push @{ $used_ports{$line->{ports}} }, "$line->{uid}:$line->{login}";
-      }
-  }    
-  
   if ($FORM{visual} == 0 && ! $FORM{PORT}) {
     $table = $html->table(
      { 
@@ -598,16 +649,16 @@ sub equipment_ports {
       my $tdcolor = 'white';
       my $ui      = '';
 
-      if ($used_ports{$i}) {
+      if ($used_ports->{$i}) {
       	$tdcolor = '#00FF00';
-      	foreach my $uinfo (@{ $used_ports{$i} }) {
+      	foreach my $uinfo (@{ $used_ports->{$i} }) {
       		my ($uid, $login)=split(/:/, $uinfo);
       	  $ui .= user_ext_menu($uid, $login, { SHOW_LOGIN => 1 });
       	}
       }
 
       if ($FORM{SELECT}) {
-        push(@cols, $table->td( $html->b($i) . ((!$used_ports{$i}) ? $html->form_input('PORT_ID', "$i", { TYPE=>'radio' }) : '')  , 
+        push(@cols, $table->td( $html->b($i) . ((!$used_ports->{$i}) ? $html->form_input('PORT_ID', "$i", { TYPE=>'radio' }) : '')  , 
         { align => 'center', bgcolor => $tdcolor  }));
       }
       else {
@@ -617,12 +668,14 @@ sub equipment_ports {
     }
 
     $table->addtd(@cols);
-
     print $table->show();
   }
   elsif ($FORM{visual} == 2) {
-  	$FORM{ports_info}=1;
-  	my $ports_link_status=equipment_test({ SNMP_COMMUNITY => "$Nas->{NAS_MNG_PASSWORD}\@". (($Nas->{NAS_MNG_IP_PORT}) ? $Nas->{NAS_MNG_IP_PORT} : $Nas->{NAS_IP}) });
+
+  	my $ports_snmp= equipment_test({ SNMP_COMMUNITY => "$Nas->{NAS_MNG_PASSWORD}\@". (($Nas->{NAS_MNG_IP_PORT}) ? $Nas->{NAS_MNG_IP_PORT} : $Nas->{NAS_IP}),
+  	PORT_INFO => 'status,in,out,speed,pair_length',
+  	%$attr
+  	 });
 
     my $list  = $Dhcphosts->hosts_list({
     	                                  LOGIN        => '_SHOW',
@@ -643,9 +696,6 @@ sub equipment_ports {
     	$ports_dhcp_info{$line->{ports}}=$line
     }
 
-    my @ports_state = ('', 'up', 'down');
-    my @ports_state_color = ('', '#008000', '#FF0000');
-
     my $list  = $Equipment->port_list({
     	                                 NAS_ID       => $FORM{NAS_ID},
     	                                 TP_NAME      => '_SHOW',
@@ -654,17 +704,21 @@ sub equipment_ports {
     	                                 COLS_NAME    => 1 
     	                                });
 
+    if ($Equipment->{errno}) {
+      $html->message('err', $_ERROR, "[$Equipment->{errno}] $err_strs{$Equipment->{errno}}");
+    }
+
     my %ports_db_info = ();
     foreach my $line (@$list) {
     	$ports_db_info{$line->{port}}=$line
     }
-
+    
     my $table = $html->table(
       {
         width      => '100%',
         caption    => "$_EQUIPMENT",
         border     => 1,
-        title      => [ $_PORT, "$_STATUS", 'UP', "UPLINK", "$_USER", "MAC", "IP", "$_ADDRESS", "$_DEPOSIT", "$_TARIF_PLAN", "$_DESCRIBE", '-', '-' ],
+        title      => [ $_PORT, "$_STATUS", 'UP', "UPLINK", "$_USER", "MAC", "IP", "$_ADDRESS", "$_DEPOSIT", "$_TARIF_PLAN", "$_DESCRIBE", $_TRAFFIC, '-', '-' ],
         cols_align => [ 'left', 'left', 'left', 'left', 'center:noprint', 'center:noprint' ],
         qs         => $pages_qs,
         pages      => $Equipment->{TOTAL},
@@ -672,14 +726,17 @@ sub equipment_ports {
       }
     );
 
-    for(my $port=1; $port <= $Equipment->{PORTS}; $port++){ 
+    for(my $port=1; $port <= $Equipment->{PORTS}; $port++) {
+    	$ports_snmp->{$port}{status}=1;
       my $delete = $html->button($_DEL, "index=$index&PORT=$port&del=$ports_db_info{$port}->{id}&NAS_ID=$FORM{NAS_ID}", { MESSAGE => "$_DEL $_PORT: $port?", CLASS => 'del' });
       my $change = $html->button($_INFO, "index=$index&PORT=$port&chg=$ports_db_info{$port}->{id}&NAS_ID=$FORM{NAS_ID}", { CLASS => 'show' });
 
       $table->addrow($port, 
-      ($ports_db_info{$port}->{status}) ? $html->color_mark($ports_state[$ports_db_info{$port}->{status}], $ports_state_color[$ports_db_info{$port}->{status}]) : '', 
-      ($ports_link_status->{$port}) ? $html->color_mark($ports_state[$ports_link_status->{$port}], $ports_state_color[$ports_link_status->{$port}]) : '', 
-      ($ports_db_info{$port}->{uplink})? $ports_db_info{$port}->{uplink} : '', 
+      (defined($ports_db_info{$port}->{status})) ? $html->color_mark($ports_state[$ports_db_info{$port}->{status}+1], $ports_state_color[$ports_db_info{$port}->{status}+1]) : '', 
+      ($ports_snmp->{$port}{status}) ? $html->button($html->color_mark($ports_state[$ports_snmp->{$port}{status}], $ports_state_color[$ports_snmp->{$port}{status}]), "index=$index&change=1&ID=$ports_db_info{$port}->{id}&PORT=$port&STATUS=". (($ports_snmp->{$port}{status}) ? 1 : 0) ."&NAS_ID=$FORM{NAS_ID}", { TITLE => (($ports_snmp->{$port}{status}) ? "$_HANGUP" : "$_ACTIVE" )  } )  : '' .
+      (($ports_snmp->{$port}{speed} && $ports_snmp->{$port}{speed} > 0) ? $html->br() . $ports_snmp->{$port}{speed}/1000 . 'Mb/s' : '').
+      (($ports_snmp->{$port}{pair_length}) ? $html->br().$ports_snmp->{$port}{pair_length} : '' ), 
+      ($ports_db_info{$port}->{uplink})? $html->button($ports_db_info{$port}->{uplink}, "index=$index&NAS_ID=$ports_db_info{$port}->{uplink}") : '', 
       $html->button($ports_dhcp_info{$port}->{login}, "index=11&UID=$ports_dhcp_info{$port}->{uid}"),
       $ports_dhcp_info{$port}->{mac}, 
       $ports_dhcp_info{$port}->{ip}, 
@@ -687,12 +744,18 @@ sub equipment_ports {
       $ports_dhcp_info{$port}->{deposit},
       $ports_db_info{$port}->{tp_name},
       $ports_db_info{$port}->{comments},
+      "in: ". int2byte($ports_snmp->{$port}{in}). 
+        $html->br().
+      "out: ".  int2byte($ports_snmp->{$port}{out}),
       $change, 
       $delete
       );
     }
 
     print $table->show();
+  }
+  elsif ($FORM{visual} == 3) {
+  	equipment_snmp_info({ ARP =>1 });
   }
   else {
     $Equipment->{TYPE_SEL} = $html->form_select(
@@ -720,11 +783,132 @@ sub equipment_ports {
       }
     );
 
+    $Equipment->{UPLINK_SEL} = $html->form_select(
+          'UPLINK',
+          {
+            SELECTED   => $FORM{UPLINK} || '',
+            SEL_LIST   => $Nas->list({ %LIST_PARAMS, NAS_ID => undef, COLS_NAME => 1 }),
+            SEL_KEY    => 'nas_id',
+            SEL_VALUE  => 'nas_name',
+            SEL_OPTIONS=> { '' => '' },
+          }
+        );
+
+
     $html->tpl_show(_include('equipment_port', 'Equipment'), { %$Equipment, %FORM });
   }
 
   return 0;
+}
+
+#**********************************************************
+#
+#**********************************************************
+sub snmp_hash {
+  my ($h_ref, $host, $name, $oid, $inst, $value) = @_;
+  $inst =~ s/^\.+//;
+
+  my %ipNetToMediaType = (
+    1 => 'other',
+    2 => 'invalid',
+    3 => 'dynamic',
+    4 => 'static'
+  );
+
+  if ($name =~ /ifPhysAddress/ || $name =~ /ipNetToMediaPhysAddress/) {
+    my $mac = '';
+    map { $mac .= sprintf("%02X:", $_) } unpack "CCCCCC", $value;
+    $value = $mac;
+  }
+  elsif ($name =~ /ipNetToMediaType/) {
+    $value = $ipNetToMediaType{$value};
+  }
+
+  $h_ref->{$name}->{$inst} = $value;
+}
+
+#**********************************************************
+#
+#**********************************************************
+sub equipment_snmp_info {
+	my ($attr)=@_;
+	
+	my $oid = '';
+	
+	if ($attr->{ARP}) {
+		$oid = '1.3.6.1.2.1.4.22';
+	}
+
+  my %result  = &snmpwalkhash("$SNMP_COMMUNITY", \&snmp_hash, $oid);
+  my @CAPTION = keys %result;
+  my @RES_ARR = sort { $a <=> $b } keys %{ $result{"$CAPTION[0]"} };
+
+  if ($SNMP_Session::errmsg) {
+    print $html->message('err', $_ERROR, "$FORM{TYPE}" . $html->br() . "$SNMP_Session::suppress_warnings / $SNMP_Session::errmsg");
+  }
+
+
+  my $table = $html->table(
+        {
+          width      => '100%',
+          caption    => "$_RESULT: $SNMP_COMMUNITY",
+          border     => 1,
+          title      => [ 'MIB', 'OID Name', "inst", "$_VALUE", "ACCESS", "$_DESCRIBE" ],
+          cols_align => [ 'left', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'center' ],
+          ID         => 'EQUIPMENT_SNMP_INFO',
+        }
+  );
+
+  $rows_count=0;
+  foreach my $oid (keys %result) {
+    foreach my $inst (sort { $a <=> $b } keys %{ $result{$oid} }) {
+      $table->addrow(
+        "$OIDS_EXINFO{$oid}{MIB}", "$oid", "$inst",
+        $result{$oid}{$inst},
+        ($OIDS_EXINFO{$oid}{ACCESS} eq 'read-write') ? $html->button($_CHANGE, "index=$index&change=y&SNMP_INDEX=$inst&SNMP_OID=$OIDS_HASH{$oid}$page_qs", { BUTTON => 1 }) : $OIDS_EXINFO{$oid}{ACCESS},
+        $OIDS_EXINFO{$oid}{DESCRIBE}
+      );
+    }
+    $rows_count++;
+  }
+	
+	print $table->show();
+	
+  $table = $html->table(
+      {
+        width      => '100%',
+        cols_align => [ 'right', 'right' ],
+        rowcolor   => $_COLORS[0],
+        rows       => [ [ "$_TOTAL:", $html->b($rows_count) ] ]
+      }
+    );
+  print $table->show();
 
 }
+
+#**********************************************************
+#
+#**********************************************************
+sub equipments_get_used_ports {
+	my ($attr) = @_;
+
+  my %used_ports = ();
+
+  if (in_array('Dhcphosts', \@MODULES)) {
+    my $list = $Dhcphosts->hosts_list({ NAS_ID    => $attr->{NAS_ID},
+      	                                PORTS     => '_SHOW',
+      	                                LOGIN     => '_SHOW',
+      	                                COLS_NAME => 1,
+      	                                PAGE_ROWS => 10000
+      	                              });
+
+    foreach my $line (@$list) {
+    	push @{ $used_ports{$line->{ports}} }, "$line->{uid}:$line->{login}";
+    }
+  }    
+
+	return \%used_ports;
+}
+
 1
 

@@ -46,7 +46,7 @@
                     <div id="dokuwiki__usertools">
                 <h3 class="a11y">Инструменты пользователя</h3>
                 <ul>
-                    <li><a href="/wiki/doku.php/abills:docs_03:install:ru?do=login&amp;sectok=c88d8049a6bd36b606f2dd1ce99d1eb9"  class="action login" rel="nofollow" title="Войти">Войти</a></li>                </ul>
+                    <li><a href="/wiki/doku.php/abills:docs_03:install:ru?do=login&amp;sectok=b70a13181e19a747d0ce0e2c8428e71f"  class="action login" rel="nofollow" title="Войти">Войти</a></li>                </ul>
             </div>
         
         <!-- SITE TOOLS -->
@@ -108,7 +108,7 @@
 </li>
 <li class="level1"><div class="li"> Modules</div>
 <ul>
-<li class="level4"><div class="li"> <a href="/wiki/doku.php/abills:docs:abon:ru" class="wikilink1" title="abills:docs:abon:ru">Abon</a></div>
+<li class="level4"><div class="li"> <a href="/wiki/doku.php/abills:docs:modules:abon:ru" class="wikilink1" title="abills:docs:modules:abon:ru">Abon</a></div>
 </li>
 <li class="level4"><div class="li"> <a href="/wiki/doku.php/abills:docs:modules:ashield:ru" class="wikilink1" title="abills:docs:modules:ashield:ru">Ashield</a></div>
 </li>
@@ -118,13 +118,15 @@
 </li>
 <li class="level4"><div class="li"> <a href="/wiki/doku.php/abills:docs:modules:cards:ru" class="wikilink1" title="abills:docs:modules:cards:ru">Cards</a></div>
 </li>
-<li class="level4"><div class="li"> <span class="curid"><a href="/wiki/doku.php/abills:docs:modules:dv:ru" class="wikilink1" title="abills:docs:modules:dv:ru">Dv</a></span> (Internet)</div>
+<li class="level4"><div class="li"> <a href="/wiki/doku.php/abills:docs:modules:dv:ru" class="wikilink1" title="abills:docs:modules:dv:ru">Dv</a> (Internet)</div>
 </li>
 <li class="level4"><div class="li"> <a href="/wiki/doku.php/abills:docs:modules:dhcphosts:ru" class="wikilink1" title="abills:docs:modules:dhcphosts:ru">Dhcphosts</a></div>
 </li>
 <li class="level4"><div class="li"> <a href="/wiki/doku.php/abills:docs:docs:ru" class="wikilink1" title="abills:docs:docs:ru">Docs</a></div>
 </li>
 <li class="level4"><div class="li"> <a href="/wiki/doku.php/abills:docs:dunes:ru" class="wikilink1" title="abills:docs:dunes:ru">Dunes</a></div>
+</li>
+<li class="level4"><div class="li"> <span class="curid"><a href="/wiki/doku.php/abills:docs:modules:equipment:ru" class="wikilink1" title="abills:docs:modules:equipment:ru">Equipment</a></span></div>
 </li>
 <li class="level4"><div class="li"> <a href="/wiki/doku.php/abills:docs:modules:extfin:ru" class="wikilink1" title="abills:docs:modules:extfin:ru">Extfin</a></div>
 </li>
@@ -354,7 +356,7 @@
 
     </div></div><!-- /site -->
 
-    <div class="no"><img src="/wiki/lib/exe/indexer.php?id=abills%3Adocs_03%3Ainstall%3Aru&amp;1409489313" width="2" height="1" alt="" /></div>
+    <div class="no"><img src="/wiki/lib/exe/indexer.php?id=abills%3Adocs_03%3Ainstall%3Aru&amp;1410773375" width="2" height="1" alt="" /></div>
     <div id="screen__mode" class="no"></div>    <!--[if ( lte IE 7 | IE 8 ) ]></div><![endif]-->
 </body>
 </html>

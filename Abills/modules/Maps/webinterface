@@ -517,6 +517,7 @@ sub generateImage {
           PAGE_ROWS   => '1000'
         }
       );
+
       foreach my $line2 (@$list2) {
         $poly2_border = new GD::Polygon;
         $poly2_border->addPt($line2->[15],      $line2->[16]);
@@ -568,11 +569,9 @@ sub google_maps_add {
   my $line_opacity = $conf{MAP_LINE_OPACITY} || 0.5;
 
   if ($FORM{change}) {
-    $Maps->build_change("$FORM{LOCATION_ID}", { %FORM, ID => $FORM{LOCATION_ID} });
+    $users->build_change("$FORM{LOCATION_ID}", { %FORM, ID => $FORM{LOCATION_ID} });
 
     if (!$users->{errno}) {
-
-      #$html->message('info', $_ADDRESS_BUILD, "$_CHANGED");
       $html->tpl_show(
         _include('maps_redirect', 'Maps'),
         {
@@ -606,38 +605,46 @@ sub google_maps_add {
         {
           SECTION => '',
           MESSAGE => "$_ADDED",
-
         }
       );
     }
-
   }
 
-  if ($FORM{chg_route}) {
-    $Maps->{ACTION}     = 'change_route';
-    $Maps->{ACTION_LNG} = $_CHANGE;
-
-    $Maps->route_info({ ID => $FORM{chg_route} });
-    $Maps->{TYPES} = $html->form_select(
-      "TYPES",
-      {
-        SELECTED     => $Maps->{TYPES},
-        SEL_ARRAY    => [@TYPES],
-        ARRAY_NUM_ID => 0,
-        NO_ID        => 1
-      }
-    );
-
-    if (!$Maps->{errno}) {
-      $html->message('info', $_INFO, "$_CHANGING");
-    }
-    $html->tpl_show(_include('google_add_route', 'Maps'), {%$Maps});
-  }
-
-  if (defined($FORM{route}) and $FORM{route} eq 'add' and !$FORM{add_route}) {
+  if ($FORM{route} || $FORM{chg_route} || $FORM{chg_route}) { # and $FORM{route} eq 'add' and !$FORM{add_route}) {
     $Maps->{ACTION}     = 'add_route';
     $Maps->{ACTION_LNG} = $_ADD;
 
+    if ($FORM{change_route}) {
+      if ($FORM{NAME} ne '') {
+        $Maps->route_change({%FORM});
+        if (!$Maps->{errno}) {
+          $html->tpl_show(
+            _include('maps_redirect', 'Maps'),
+            {
+              SECTION => '&route=add',
+              MESSAGE => "$_CHANGED",
+            }
+          );
+        }
+      }
+      else {
+        $Maps->{ACTION}     = 'change_route';
+        $Maps->{ACTION_LNG} = $_CHANGE;
+        $FORM{chg_route}    = $FORM{ID};
+        $html->message('info', $_INFO, "$_FIELDS_FOR_NAME_ARE_REQUIRED");
+      }
+    }
+    elsif ($FORM{chg_route}) {
+      $Maps->{ACTION}     = 'change_route';
+      $Maps->{ACTION_LNG} = $_CHANGE;
+
+      $Maps->route_info({ ID => $FORM{chg_route} });
+
+      if (!$Maps->{errno}) {
+        $html->message('info', $_INFO, "$_CHANGING");
+      }
+    }
+
     $Maps->{TYPES} = $html->form_select(
       "TYPES",
       {
@@ -648,10 +655,42 @@ sub google_maps_add {
       }
     );
 
-    $html->tpl_show(_include('google_add_route', 'Maps'), {%$Maps});
+    my $list = $Nas->list(
+        {
+          LOCATION_ID => ">0",
+          PAGE_ROWS   => '1000',
+          COLS_NAME   => 1
+        }
+      );
+
+    $Maps->{NAS1_SEL} = $html->form_select(
+          'NAS1',
+          {
+            SELECTED       => $Maps->{NAS1},
+            SEL_LIST       => $list,
+            SEL_KEY        => 'nas_id',
+            SEL_VALUE      => 'nas_name',
+            MAIN_MENU      => get_function_index('form_nas'),
+            MAIN_MENU_AGRV => "chg=$FORM{NAS_ID}"
+          }
+        );
+
+    $Maps->{NAS2_SEL} = $html->form_select(
+          'NAS2',
+          {
+            SELECTED       => $Maps->{NAS2},
+            SEL_LIST       => $list,
+            SEL_KEY        => 'nas_id',
+            SEL_VALUE      => 'nas_name',
+            MAIN_MENU      => get_function_index('form_nas'),
+            MAIN_MENU_AGRV => "chg=$FORM{NAS_ID}"
+          }
+        );
+
+    $html->tpl_show(_include('google_add_route', 'Maps'), { %$Maps });
   }
 
-  if (defined($FORM{add_route})) {
+  if ($FORM{add_route}) {
 
     if ($FORM{NAME} ne '') {
       $Maps->add_route({%FORM});
@@ -661,7 +700,6 @@ sub google_maps_add {
           {
             SECTION => '&route=add',
             MESSAGE => "$_ADDED",
-
           }
         );
       }
@@ -683,7 +721,6 @@ sub google_maps_add {
     }
   }
   elsif ($FORM{del_route}) {
-
     $Maps->del_route({ ID => $FORM{del_route} });
     if (!$Maps->{errno}) {
       $html->tpl_show(
@@ -695,39 +732,11 @@ sub google_maps_add {
       );
     }
   }
-  elsif ($FORM{change_route}) {
-    if ($FORM{NAME} ne '') {
-      $Maps->route_change({%FORM});
-      if (!$Maps->{errno}) {
-        $html->tpl_show(
-          _include('maps_redirect', 'Maps'),
-          {
-            SECTION => '&route=add',
-            MESSAGE => "$_CHANGED",
-          }
-        );
-      }
-    }
-    else {
-      $Maps->{ACTION}     = 'change_route';
-      $Maps->{ACTION_LNG} = $_CHANGE;
-      $FORM{chg_route}    = $FORM{ID};
-      $html->message('info', $_INFO, "$_FIELDS_FOR_NAME_ARE_REQUIRED");
-      $FORM{TYPES} = $html->form_select(
-        "TYPES",
-        {
-          SELECTED     => $FORM{TYPES},
-          SEL_ARRAY    => [@TYPES],
-          ARRAY_NUM_ID => 0,
-          NO_ID        => 1
-        }
-      );
-      $html->tpl_show(_include('google_add_route', 'Maps'), { %$Maps, %FORM, });
 
-    }
-  }
-
- if (defined($FORM{route}) and $FORM{route} eq 'add' or $FORM{chg_route} or $FORM{add_route} or $FORM{change_route}) {
+ if ($FORM{route}
+       || $FORM{chg_route} 
+       || $FORM{add_route} 
+       || $FORM{change_route}) {
 
     my $table = $html->table(
       {
@@ -915,11 +924,8 @@ sub google_maps_add {
 
   #-----------markers info add --- #
   if (defined($FORM{coordx})) {
-
     $users->{ADDRESS_TPL} = $html->tpl_show(templates('form_address_sel'), $users, { OUTPUT2RETURN => 1 });
-
     $html->tpl_show(_include('google_maps_add_form', 'Maps'), { %$users, COORDX => $FORM{coordx}, COORDY => $FORM{coordy} });
-
   }
 
   #-----------districts info add --- #
@@ -996,21 +1002,21 @@ sub google_maps_add {
 # menu: Google maps show
 #***********************************************************
 sub google_maps_show {
+  my ($attr) = @_;
 
   if ($FORM{message}) {
     $html->message('info', $_INFO, "$FORM{message}");
   }
+
   if (check_version()) {
     return 0;
   }
 
-  my ($attr) = @_;
-
-  @TYPES = ($_COAXIAL, $_FIBER_OPTIC);
+  @TYPES                 = ($_COAXIAL, $_FIBER_OPTIC);
   @TYPES_COLORS          = ('#ff0000',  '#000000');
   @POLYLINE_MARKER_COLOR = ('red_poly', 'black_poly');
-  my $line_size    = $conf{MAP_LINE_SIZE} || 7;
-  my $line_opacity = $conf{MAP_LINE_OPACITY} || 0.5;
+  my $line_size          = $conf{MAP_LINE_SIZE} || 7;
+  my $line_opacity       = $conf{MAP_LINE_OPACITY} || 0.5;
 
   if ($FORM{del}) {
     $Maps->del_districts({ ID => $FORM{del} });
@@ -1037,13 +1043,13 @@ sub google_maps_show {
   }
   # Set filter cookies
   #Get users online  *****************************************
-  my $list = $Maps->users_online_list({ PAGE_ROWS => 4000 });
+  my $list = $Maps->users_online_list({ PAGE_ROWS => 4000, COLS_NAME => 1 });
 
   foreach my $line (@$list) {
-    push @{ $USERS_ONLINE{ $line->[2] } }, {
-      LOGIN => $line->[0],
-      UID   => $line->[2],
-      IP    => $line->[1]
+    push @{ $USERS_ONLINE{ $line->{UID} } }, {
+      LOGIN => $line->{LOGIN},
+      IP    => $line->{IP},
+      UID   => $line->{UID},
     };
   }
 
@@ -1061,7 +1067,6 @@ sub google_maps_show {
 
   my %NAS_INFO = ();
   foreach my $line2 (@$list2) {
-
     push @{ $NAS_INFO{ $line2->[15] } },
     {
       NAS_X    => $line2->[15],

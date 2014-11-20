@@ -207,7 +207,7 @@ sub query {
       $self->{errstr}     = 'SQL_ERROR';    # . ( ($self->{db}->strerr) ? $self->{db}->strerr : '' );
       require Log;
       Log->import('log_print');
-      log_print(undef, 'LOG_ERR', '', "\n$query\n --$self->{sql_errno}\n --$self->{sql_errstr}\n --AutoCommit: $db->{AutoCommit}\n", { NAS => 0, LOG_FILE => "/tmp/sql_errors" });
+      log_print(undef, 'LOG_ERR', '', "index:$attr->{index}\n$query\n --$self->{sql_errno}\n --$self->{sql_errstr}\n --AutoCommit: $db->{AutoCommit}\n", { NAS => 0, LOG_FILE => "/tmp/sql_errors" });
     }
     return $self;
   }
@@ -570,9 +570,16 @@ sub changes {
           if ($field_name eq 'IP') {
             $v = int2ip($v);
           }
+          elsif ($field_name eq 'NETMASK') {
+            $v = int2ip($v);
+          }
+          elsif($field_name eq 'DISABLE') {
+          	$self->{DISABLE}=$v;
+          }
 
           $OLD_DATA->{ $field_name }=$v;
           $FIELDS->{ $field_name }=$k;
+          
         }
       }
   }
@@ -614,22 +621,30 @@ sub changes {
           next;
         }
 
-        if ($k eq 'DISABLE') {
+        if ($k eq 'STATUS') {
+          $self->{CHG_STATUS} = $OLD_DATA->{$k} . '->' . $DATA{$k};
+          $self->{'STATUS'} = $DATA{$k};
+        }
+        elsif ($k eq 'DISABLE') {
           if (defined($DATA{$k}) && $DATA{$k} == 0 || !defined($DATA{$k})) {
             if ($self->{DISABLE} != 0) {
               $self->{ENABLE}  = 1;
               $self->{DISABLE} = undef;
             }
           }
+          elsif ($DATA{$k} > 1) {
+	          $self->{CHG_STATUS} = $OLD_DATA->{$k} . '->' . $DATA{$k};
+            $self->{'STATUS'} = $DATA{$k};
+          }
           else {
             $self->{DISABLE_ACTION} = 1;
           }
+          
+          if (defined($self->{'STATUS'}) && $self->{'STATUS'} ne '') {
+          	$self->{CHG_STATUS} = $OLD_DATA->{$k} . '->' . $DATA{$k};
+          }
         }
         elsif ($k eq 'DOMAIN_ID' && $OLD_DATA->{$k} == 0 && !$DATA{$k}) {
-        }
-        elsif ($k eq 'STATUS') {
-          $self->{CHG_STATUS} = $OLD_DATA->{$k} . '->' . $DATA{$k};
-          $self->{'STATUS'} = $DATA{$k};
         }
         elsif ($k eq 'TP_ID') {
           $self->{CHG_TP} = $OLD_DATA->{$k} . '->' . $DATA{$k};
@@ -796,6 +811,7 @@ sub search_expr_users () {
     COMMENTS      => 'STR:pi.comments',
     BILL_ID       => 'INT:if(company.id IS NULL,b.id,cb.id) AS bill_id',
     PASSWORD      => "STR:DECODE(u.password, '$CONF->{secretkey}') AS password",
+    EXT_DEPOSIT   => 'INT:if(company.id IS NULL,ext_b.deposit,ext_cb.deposit) AS ext_deposit'
     #ADDRESS_FLAT  => 'STR:pi.address_flat', 
   );
 
@@ -968,6 +984,10 @@ sub search_expr_users () {
         LEFT JOIN streets ON (streets.id=builds.street_id)";
       }
 
+      if ($attr->{ADD_ADDRESS_BUILD}) {
+      	$attr->{ADDRESS_BUILD}=$attr->{ADD_ADDRESS_BUILD};
+      }
+
       if ($attr->{ADDRESS_BUILD}) {
         push @fields, @{ $self->search_expr($attr->{ADDRESS_BUILD}, 'STR', 'builds.number', { EXT_FIELD => 'builds.number AS address_build' }) };
         $self->{EXT_TABLES} .= "LEFT JOIN builds ON (builds.id=pi.location_id)" if ($self->{EXT_TABLES} !~ /builds/);
@@ -1033,6 +1053,15 @@ sub search_expr_users () {
     push @WHERE_RULES, @{ $self->search_expr("$attr->{DELETED}", 'INT', 'u.deleted', { EXT_FIELD => 1 }) };
   }
 
+  if ($attr->{EXT_DEPOSIT}) {
+    $self->{EXT_TABLES} .= "
+            LEFT JOIN bills ext_b ON (u.ext_bill_id = ext_b.id)
+            LEFT JOIN bills ext_cb ON  (company.ext_bill_id=ext_cb.id) ";
+    if ($self->{EXT_TABLES} !~ /company /) {
+    	$self->{EXT_TABLES} = "LEFT JOIN companies company ON  (u.company_id=company.id) ". $self->{EXT_TABLES};
+    }
+  }
+
   $self->{SEARCH_FIELDS}         = join(', ', @{ $self->{SEARCH_FIELDS_ARR} }).',' if (@{ $self->{SEARCH_FIELDS_ARR} });
   $self->{SEARCH_FIELDS_COUNT}   = $#{ $self->{SEARCH_FIELDS_ARR} } + 1;
 
@@ -1080,6 +1109,9 @@ sub query_add {
       }
       elsif ($column eq 'IPV6_PREFIX') {
         push @inserts_arr, "$row->{COLUMN_NAME}=INET6_ATON('$values->{$column}')";
+      }
+      elsif($values->{$column} =~ /INET_ATON/i)  {
+        push @inserts_arr, "$row->{COLUMN_NAME}=$values->{$column}";
       }
       else {
         if ($values->{$column} =~ /[a-z]+\(\)$/) {

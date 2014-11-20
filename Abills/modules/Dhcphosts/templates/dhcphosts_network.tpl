@@ -21,7 +21,7 @@
 <tr><td>$_HOSTS_NETWORKS_COORDINATOR_PHONE:</td><td colspan=2><input type=text name='PHONE' value='%PHONE%'></td></tr>
 <tr><td>$_DISABLE:</td><td colspan=2><input type=checkbox name='DISABLE' value=1 %DISABLE%></td></tr>
 <tr><td>$_TYPE:</td><td colspan=2>%PARENT_SEL%</td></tr>
-<tr><td>GUEST VLAN:</td><td colspan=2><input type=text name='GUEST_VLAN' value='%GUEST_VLAN%'></td></tr>
+<tr><td></td><td>VLAN: <input type=text name='VLAN' value='%VLAN%' size=5></td><td>GUEST VLAN: <input type=text name='GUEST_VLAN' value='%GUEST_VLAN%' size=5></td></tr>
 <tr><th colspan=3 class=even><input type=submit name=%ACTION% value='%ACTION_LNG%'></th></tr>
 </table>
 </form>

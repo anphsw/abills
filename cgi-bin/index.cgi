@@ -115,6 +115,26 @@ delete($conf{PASSWORDLESS_ACCESS}) if ($FORM{xml});
 
 $user = Users->new($db, $admin, \%conf);
 
+if ($FORM{SHOW_MESSAGE}) {
+	print "Content-Type: text/html\n\n";
+	($uid, $sid, $login) = auth("$login", "$passwd", "$sid", { PASSWORDLESS_ACCESS => 1 });
+	
+	if($uid) {
+	  load_module('Msgs', $html);
+	  msgs_show_last({ UID => $uid });
+
+    print $html->header();
+    $OUTPUT{BODY} = "$html->{OUTPUT}";
+    print $html->tpl_show(templates('form_client_start'), \%OUTPUT, { MAIN => 1 });
+
+		exit;
+  }
+  else {
+  	$html->message('err', $_ERROR, "IP not found");
+  }
+}
+
+
 ($uid, $sid, $login) = auth("$login", "$passwd", "$sid");
 
 my %uf_menus = ();
@@ -661,7 +681,7 @@ sub auth_radius {
 # auth($login, $pass)
 #*******************************************************************
 sub auth {
-  my ($login, $password, $sid) = @_;
+  my ($login, $password, $sid, $attr) = @_;
   my $uid                  = 0;
   my $ret                  = 0;
   my $res                  = 0;
@@ -669,7 +689,15 @@ sub auth {
   my $HTTP_X_FORWARDED_FOR = $ENV{'HTTP_X_FORWARDED_FOR'} || '';
   my $ip                   = "$REMOTE_ADDR/$HTTP_X_FORWARDED_FOR";
 
-  $conf{PASSWORDLESS_ACCESS} = $ENV{USER_CHECK_DEPOSIT} if (!$conf{PASSWORDLESS_ACCESS});
+  if (!$conf{PASSWORDLESS_ACCESS}) {
+  	if($ENV{USER_CHECK_DEPOSIT}) {
+      $conf{PASSWORDLESS_ACCESS} = $ENV{USER_CHECK_DEPOSIT};
+    }
+    elsif($attr->{PASSWORDLESS_ACCESS}) {
+    	$conf{PASSWORDLESS_ACCESS}=1;
+    }
+  }
+  
 
   #Passwordless Access
   if ($conf{PASSWORDLESS_ACCESS}) {

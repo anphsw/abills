@@ -4,9 +4,6 @@ package Filesearcher;
 
 
 
-
-
-
 #use strict;
 use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
 %SEARCH_EXPRESSiONS

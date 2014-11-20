@@ -710,7 +710,7 @@ sub list {
   if ($attr->{UNIVERSAL_SEARCH}) {
     my @us_fields = ('u.uid:INT', 'u.id:STR', 'pi.fio:STR', 'pi.contract_id:STR', 'pi.email:STR', 'pi.phone:STR', 'pi.comments:STR');
     $self->{SEARCH_FIELDS_COUNT}+=5;
-    $self->{SEARCH_FIELDS} = 'pi.fio,if(company.id IS NULL, b.deposit, cb.deposit) AS deposit,u.credit,';
+    $self->{SEARCH_FIELDS} = 'pi.fio,if(company.id IS NULL, b.deposit, cb.deposit) AS deposit,u.credit,u.disable AS login_status,';
 
 
     if ($CONF->{ADDRESS_REGISTER}) {
@@ -746,6 +746,7 @@ sub list {
                       EXT_FIELDS => [ 
         'FIO',
         'DEPOSIT',
+        'EXT_DEPOSIT',
         'CREDIT',
         'CREDIT_DATE',
         'LOGIN_STATUS',
@@ -772,16 +773,6 @@ sub list {
         'DOMAIN_ID',
         'UID',
          ] }) };
-  }
-
-  if ($attr->{EXT_DEPOSIT}) {
-  	push @WHERE_RULES, @{ $self->search_expr($attr->{EXT_BILL_ID}, 'INT', 'if(company.id IS NULL,ext_b.id,ext_cb.id)', { EXT_FIELD => 'if(company.id IS NULL,ext_b.deposit,ext_cb.deposit) AS ext_deposit' }) };
-    $self->{EXT_TABLES} .= "
-            LEFT JOIN bills ext_b ON (u.ext_bill_id = ext_b.id)
-            LEFT JOIN bills ext_cb ON  (company.ext_bill_id=ext_cb.id) ";
-    if ($self->{EXT_TABLES} !~ /company /) {
-    	$self->{EXT_TABLES} = "LEFT JOIN companies company ON  (u.company_id=company.id) ". $self->{EXT_TABLES};
-    }
   }
 
   # Show debeters
@@ -861,10 +852,12 @@ sub list {
       $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
       $self->query2("SELECT count(DISTINCT u.uid) AS total FROM users u 
-       LEFT JOIN payments p ON (u.uid = p.uid)
        LEFT JOIN users_pi pi ON (u.uid = pi.uid)
        LEFT JOIN bills b ON (u.bill_id = b.id)
-      $WHERE;",
+       LEFT JOIN (
+          SELECT max(date) AS date, uid FROM payments GROUP BY uid
+        ) AS p  ON u.uid=p.uid
+       $WHERE;",
       undef,
       { INFO => 1 }
       );
@@ -1945,7 +1938,7 @@ sub build_list {
   @WHERE_RULES = ();
   
   if ($SORT == 1 && $DESC eq '') {
-    $SORT = "length(b.number), b.number";
+    $SORT = "b.number+1";
   }
 
   my $maps_google_fields = '';

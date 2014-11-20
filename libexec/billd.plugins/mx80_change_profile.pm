@@ -49,7 +49,8 @@ sub mx80_change_profile {
      CID          => '_SHOW',
      NAS_ID       => $LIST_PARAMS{NAS_IDS},
      %LIST_PARAMS
-  );
+
+ });
 
   my $online      = $sessions->{nas_sorted};
 

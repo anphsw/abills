@@ -60,6 +60,7 @@ sub cross_modules_call {
   
   my %full_return  = ();
   my @skip_modules = ();
+  
   eval {
     if ($silent) {
       #disable stdout output
@@ -168,7 +169,7 @@ sub get_period_dates {
       else {
         $start_date = "$start_y-$start_m-01";
         if ($attr->{ACCOUNT_ACTIVATE}) {
-          my $end_date = strftime "%Y-%m-%d", localtime((mktime(0, 0, 0, $start_d, ($start_m - 1), ($start_y - 1900), 0, 0, 0) + 30 * 86400));
+          my $end_date = strftime("%Y-%m-%d", localtime((mktime(0, 0, 0, $start_d, ($start_m - 1), ($start_y - 1900), 0, 0, 0) + 30 * 86400)));
         }        
       }
 
@@ -321,6 +322,7 @@ sub service_get_month_fee {
       ($Service->{TP_INFO_OLD}->{MONTH_FEE} && $Service->{TP_INFO_OLD}->{MONTH_FEE} > 0)
       ) {
 
+
     if ( $FORM{RECALCULATE} ) {
       my $rest_days     = 0;
       my $rest_day_sum2 = 0;
@@ -332,7 +334,7 @@ sub service_get_month_fee {
         }
         return \%total_sum;
       }
-      
+
       if ($users->{ACTIVATE} eq '0000-00-00') {
         if ($d != $conf{START_PERIOD_DAY}) {
           $rest_days     = $days_in_month - $d + 1;
@@ -488,7 +490,7 @@ sub service_get_month_fee {
 
         if ($Service->{ACCOUNT_ACTIVATE}) {
           $DATE          = $Service->{ACCOUNT_ACTIVATE};
-          my $end_period = strftime "%Y-%m-%d", localtime((mktime(0, 0, 0, $active_d, ($m - 1), ($active_y - 1900), 0, 0, 0) + 30 * 86400));
+          my $end_period = strftime("%Y-%m-%d", localtime((mktime(0, 0, 0, $active_d, ($m - 1), ($active_y - 1900), 0, 0, 0) + 30 * 86400)));
           $FEES_DSC{PERIOD} = "($active_y-$m-$active_d-$end_period)";
           $users->change(
             $Service->{UID},
@@ -497,7 +499,7 @@ sub service_get_month_fee {
               UID      => $Service->{UID}
             }
           );
-          $Service->{ACCOUNT_ACTIVATE} = strftime "%Y-%m-%d", localtime((mktime(0, 0, 0, $active_d, ($m - 1), ($active_y - 1900), 0, 0, 0) + 31 * 86400));
+          $Service->{ACCOUNT_ACTIVATE} = strftime("%Y-%m-%d", localtime((mktime(0, 0, 0, $active_d, ($m - 1), ($active_y - 1900), 0, 0, 0) + 31 * 86400)));
         }
         else {
           $DATE             = "$active_y-$m-01";
@@ -505,7 +507,7 @@ sub service_get_month_fee {
         }
       }
       elsif ($Service->{ACCOUNT_ACTIVATE} && $Service->{ACCOUNT_ACTIVATE} ne '0000-00-00') {
-        my $end_period = strftime "%Y-%m-%d", localtime((mktime(0, 0, 0, $active_d, ($m - 1), ($active_y - 1900), 0, 0, 0) + 30 * 86400));
+        my $end_period = strftime("%Y-%m-%d", localtime((mktime(0, 0, 0, $active_d, ($m - 1), ($active_y - 1900), 0, 0, 0) + 30 * 86400)));
 
         if ($Service->{TP_INFO}->{PERIOD_ALIGNMENT}) {
           $users->change(
@@ -533,7 +535,7 @@ sub service_get_month_fee {
           $DATE = "$active_y-$m-$active_d";
         }
 
-        $Service->{ACCOUNT_ACTIVATE} = ($Service->{TP_INFO}->{PERIOD_ALIGNMENT}) ? undef : strftime "%Y-%m-%d", localtime((mktime(0, 0, 0, $active_d, ($m - 1), ($active_y - 1900), 0, 0, 0) + 31 * 86400));
+        $Service->{ACCOUNT_ACTIVATE} = ($Service->{TP_INFO}->{PERIOD_ALIGNMENT}) ? undef : strftime("%Y-%m-%d", localtime((mktime(0, 0, 0, $active_d, ($m - 1), ($active_y - 1900), 0, 0, 0) + 31 * 86400)));
         $FEES_DSC{PERIOD} = "($active_y-$m-$active_d-$end_period)";
       }
       else {
@@ -649,15 +651,17 @@ sub result_former {
   "$_DISABLE: $_NON_PAYMENT", "$ERR_SMALL_DEPOSIT",
   "$_VIRUS_ALERT" );
 
+  if ($attr->{STATUS_VALS}) {
+  	@service_status = @{ $attr->{STATUS_VALS} };
+  }
+
   %SEARCH_TITLES = (
     'disable'       => "$_STATUS",
-    'dv_status'     => "Internet $_STATUS",
     'login_status'  => "$_LOGIN $_STATUS",
     'deposit'       => "$_DEPOSIT",
     'credit'        => "$_CREDIT",
     'login'         => "$_LOGIN",
     'fio'           => "$_FIO",
-    'ext_deposit'   => "$_EXTRA $_DEPOSIT",
     'last_payment'  => "$_PAYMENTS $_DATE",
     'email'         => 'E-Mail',
     'pasport_date'  => "$_PASPORT $_DATE",
@@ -686,10 +690,18 @@ sub result_former {
 
     'deleted'       => "$_DELETED",
     'gid'           => "$_GROUP",
-    'group_name'   => "$_GROUP $_NAME",
+    'group_name'    => "$_GROUP $_NAME",
 #    'build_id'      => 'Location ID',
     'uid'           => 'UID',
   );
+
+  if (in_array('Dv', \@MODULES)) {
+    $SEARCH_TITLES{'dv_status'}="Internet $_STATUS";
+  }
+
+  if ($conf{EXT_BILL_ACCOUNT}) {
+    $SEARCH_TITLES{'ext_deposit'}="$_EXTRA $_DEPOSIT";
+  }
   
   %ACTIVE_TITLES = ();
   

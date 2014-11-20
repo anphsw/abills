@@ -1,5 +1,8 @@
    <tr><td colspan=2><hr></td></tr>
    <tr><td>$_GROUP:</td><td>%GROUP_SEL%</td></tr>
+   
+   %DV_LOGIN_FORM%
+   
    <tr><td>IP (!,>,<):</td><td><input type='text' name='IP' value='%IP%'></td></tr>
    <tr><td>NETMASK (!,>,<):</td><td><input type='text' name='NETMASK' value='%NETMASK%'></td></tr>
    <tr><td>CID:</td><td><input type='text' name='CID' value='%CID%'></td></tr>

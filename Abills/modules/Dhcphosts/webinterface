@@ -85,7 +85,7 @@ sub dhcphosts_mac_block_show {
   }
 
   if (defined($conf{DHCPHOSTS_EXT_DEPOSITCHECK})) { 
-   	$PARAMS{DHCPHOSTS_EXT_DEPOSITCHECK} = '_SHOW';
+   	$PARAMS{EXT_DEPOSIT} = '_SHOW';
   }
 
   my $list = $Dhcphosts->hosts_list(
@@ -306,8 +306,8 @@ sub dhcphosts_monitor {
     foreach my $line (@$list) {
       if ($line->{port} == 0 ) {
         if($line->{circuit_id} =~ /0:4:0:([0-9a-f]+):0:([0-9a-f]+)/i) {
-                $line->{port}=hex($1);
-                $line->{vlan}=hex($2);
+                $line->{vlan}=hex($1);
+                $line->{port}=hex($2);
         }
       }
       
@@ -539,7 +539,12 @@ sub dhcphosts_networks {
   }
 
   if ($Dhcphosts->{errno}) {
-    $html->message('err', $_ERROR, "[$Dhcphosts->{errno}] $err_strs{$Dhcphosts->{errno}}");
+    if ($Dhcphosts->{errno} == 7) {
+      $html->message('err', "IP/Dhcp:$_ERROR", "$_EXIST");
+    }
+    else {
+      $html->message('err', $_ERROR, "[$Dhcphosts->{errno}] $err_strs{$Dhcphosts->{errno}}");
+    }
   }
 
   $Dhcphosts->{STATIC}               = ' checked' if ($Dhcphosts->{STATIC});
@@ -553,9 +558,7 @@ sub dhcphosts_networks {
     'NET_PARENT',
     {
       SELECTED   => $Dhcphosts->{NET_PARENT},
-      SEL_LIST   => $Dhcphosts->networks_list({ PARENT => 0, COLS_NAME => 1 }),
-      SEL_KEY    => 'id',
-      SEL_VALUE  => 'name',
+      SEL_LIST   => $Dhcphosts->networks_list({ PARENT => 0, COLS_NAME => 1, PAGE_ROWS => 100000 }),
       SEL_OPTIONS=> { '' => '' },
     }
   );
@@ -591,6 +594,7 @@ sub dhcphosts_networks {
       $line->{phone},
       $status[ $line->{disable} ],
       ($line->{net_parent}) ? "$_SUBNET: $line->{net_parent}" : "$_NETWORK",
+      $html->button("$_USERS", "index=" . get_function_index('dhcphosts_hosts') . "&NETWORK=$line->{id}&search=1", { BUTTON => 1 }),
       $html->button("$_ROUTES", "index=" . get_function_index('dhcphosts_routes') . "&NET_ID=$line->{id}", { CLASS => 'routes' }),
       $html->button($_CHANGE,   "index=$index&chg=$line->{id}",                                            { CLASS => 'change' }),
       $html->button($_DEL, "index=$index&del=$line->{id}", { MESSAGE => "$_DEL $line->{id} $line->{name}?", CLASS => 'del' }),
@@ -1318,7 +1322,7 @@ sub dhcphosts_config {
     }
 
     if (defined($conf{DHCPHOSTS_EXT_DEPOSITCHECK})) { 
-    	$PARAMS{DHCPHOSTS_EXT_DEPOSITCHECK} = '_SHOW';
+    	$PARAMS{EXT_DEPOSIT} = '_SHOW';
     }
 
     $list = $Dhcphosts->hosts_list(

@@ -414,7 +414,7 @@ sub reports {
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query2("SELECT $date, count(DISTINCT f.uid), count(*),  sum(f.sum), f.uid, u.company_id 
+  $self->query2("SELECT $date, count(DISTINCT f.uid) AS login_count, count(*) AS count,  sum(f.sum) AS sum, f.uid, u.company_id 
       FROM fees f
       LEFT JOIN admins a ON (f.aid=a.aid)
       $EXT_TABLES

@@ -150,7 +150,7 @@ sub ureports_users_list {
     }
 
     push @fields_array,  
-      $html->button("$_STATS", "index=" . (get_function_index('ureports_user')) . "&UID=$line->{uid}", { CLASS => 'stats' });
+      $html->button("$_STATS", "index=" . (get_function_index('ureports_user')) . "&UID=$line->{uid}", { class => 'stats' });
  
     $table->addrow(@fields_array);
   }
@@ -247,11 +247,11 @@ sub ureports_user {
     $Ureports->{TP_ID} = $html->form_select(
       'TP_ID',
       {
-        SELECTED          => $Ureports->{TP_ID},
-        SEL_MULTI_ARRAY   => $tariffs->list({ MODULE => 'Ureports' }),
-        MULTI_ARRAY_KEY   => 18,
-        MULTI_ARRAY_VALUE => 1,
-        NO_ID             => 1
+        SELECTED  => $Ureports->{TP_ID},
+        SEL_LIST  => $tariffs->list({ MODULE => 'Ureports', COLS_NAME => 1 }),
+        SEL_KEY   => 'tp_id',
+        SEL_VALUE => 'name',
+        NO_ID     => 1
       }
     );
 
@@ -284,7 +284,7 @@ sub ureports_user {
         $REPORTS{ $line->{report_id} },
         $html->form_input("VALUE_$line->{report_id}", (($line->{value}) ? $line->{value} : 0), { OUTPUT2RETURN => 1, SIZE => 6 }),
         (($line->{msg_price}) ? $line->{msg_price} : '0.00'),
-        $line->{date} . (($line->{date} && $line->{date} ne '0000-00-00') ? $html->button($_RESET, "index=$index&UID=$line->{uid}&REPORT_ID=$line->{report_id}&reset_date=1", { MESSAGE => "$_RESET", CLASS => 'del' }) : '')
+        $line->{date} . (($line->{date} && $line->{date} ne '0000-00-00') ? $html->button($_RESET, "index=$index&UID=$line->{uid}&REPORT_ID=$line->{report_id}&reset_date=1", { MESSAGE => "$_RESET", class => 'del' }) : '')
       );
     }
 
@@ -309,19 +309,19 @@ sub ureports_user {
     }
   );
 
-  $Ureports->{TP_NAME} = $html->button($_TARIF_PLAN, "TP_ID=$Ureports->{TP_ID}&index=" . get_function_index('ureports_tp'), { CLASS => 'change rightAlignText' });
+  $Ureports->{TP_NAME} = $html->button($_TARIF_PLAN, "TP_ID=$Ureports->{TP_ID}&index=" . get_function_index('ureports_tp'), { class => 'change rightAlignText' });
   $Ureports->{TP_ID} = $html->form_select(
     'TP_ID',
     {
-      SELECTED          => $Ureports->{TP_ID},
-      SEL_MULTI_ARRAY   => $tariffs->list({ MODULE => 'Ureports' }),
-      MULTI_ARRAY_KEY   => 18,
-      MULTI_ARRAY_VALUE => 1,
-      NO_ID             => 1
+      SELECTED  => $Ureports->{TP_ID},
+      SEL_LIST  => $tariffs->list({ MODULE => 'Ureports', COLS_NAME => 1 }),
+      SEL_KEY   => 'tp_id',
+      SEL_VALUE => 'name',
+      NO_ID     => 1
     }
   );
 
-  $html->tpl_show(_include('ureports_user', 'Ureports'), $Ureports);
+  $html->tpl_show(_include('ureports_user', 'Ureports'), { %$attr, %$Ureports });
 
   return 0;
 }
@@ -527,8 +527,8 @@ sub ureports_tp {
     }
 
     if ($permissions{4}{1}) {
-      $delete = $html->button($_DEL, "index=$index&del=$line->{tp_id}", { MESSAGE => "$_DEL $line->{name}?", CLASS => 'del' });
-      $change = $html->button($_CHANGE, "index=$index&TP_ID=$line->{tp_id}", { CLASS => 'change' });
+      $delete = $html->button($_DEL, "index=$index&del=$line->{tp_id}", { MESSAGE => "$_DEL $line->{name}?", class => 'del' });
+      $change = $html->button($_CHANGE, "index=$index&TP_ID=$line->{tp_id}", { class => 'change' });
     }
 
     if ($FORM{TP_ID} eq $line->{tp_id}) {
@@ -1038,10 +1038,10 @@ sub ureports_stats {
 
   foreach my $line (@$list) {
     if ($permissions{3}{1} && $LIST_PARAMS{UID}) {
-      $delete = $html->button($_DEL, "index=" . $index . "$pages_qs&del=$line->[0]&MSG_ID=$line->[0]", { MESSAGE => "$_DEL Session MSG_ID $line->[0]?", CLASS => 'del' });
+      $delete = $html->button($_DEL, "index=" . $index . "$pages_qs&del=$line->[0]&MSG_ID=$line->[0]", { MESSAGE => "$_DEL Session MSG_ID $line->[0]?", class => 'del' });
     }
 
-    $table->addrow($line->[0], $html->button("$line->[1]", "index=11&UID=$line->[7]"), $line->[2], $line->[3], $line->[4], $line->[5], $line->[6], $html->button("D", "index=$index&UID=$line->[7]&MSG_ID=$line->[0]", { TITLE => "$_DETAIL", CLASS => 'show' }), $delete);
+    $table->addrow($line->[0], $html->button("$line->[1]", "index=11&UID=$line->[7]"), $line->[2], $line->[3], $line->[4], $line->[5], $line->[6], $html->button("D", "index=$index&UID=$line->[7]&MSG_ID=$line->[0]", { TITLE => "$_DETAIL", class => 'show' }), $delete);
   }
 
   print $table->show();
@@ -1232,16 +1232,41 @@ sub ureports_daily_resets {
 
   $LIST_PARAMS{GID}  = $attr->{GID} if ($attr->{GID});
   $LIST_PARAMS{LOGIN}= $attr->{LOGIN} if ($attr->{LOGIN});
-  
   $Ureports->{debug} = 1 if ($debug > 6);
 
+  my ($y, $m, $d)      = split(/-/, $ADMIN_REPORT{DATE}, 3);
+  if ($d == 1) {
+    my $list = $Ureports->tp_user_reports_list(
+      {
+        REPORT_ID => 14,
+        DATE      => '>0000-00-00',
+        %LIST_PARAMS,
+        COLS_NAME => 1,
+        PAGE_ROWS => 1000000
+      }
+    );
+
+    foreach my $line (@$list) {
+      $debug_output .= "UID: $line->{uid} REPORT_ID: $line->{report_id} VALUE: $line->{value} DEPOSIT: $line->{deposit}\n" if ($debug > 1);
+      if ($debug < 5) {
+        $Ureports->tp_user_reports_reset_date(
+          {
+            REPORT_ID => $line->{report_id},
+            UID       => $line->{uid}
+          }
+        );
+      }
+    }
+  }
+  
   my $list = $Ureports->tp_user_reports_list(
     {
       RESET     => 1,
       REPORT_ID => "1",
       DATE      => '>0000-00-00',
       %LIST_PARAMS,
-      COLS_NAME => 1
+      COLS_NAME => 1,
+      PAGE_ROWS => 1000000
     }
   );
 
@@ -1493,7 +1518,8 @@ sub ureports_tp_reports {
     );
 
     foreach my $report_id (sort keys %REPORTS) {
-      $table->addrow($html->form_input("IDS", "$report_id", { TYPE => 'checkbox', STATE => ($TP_REPORTS{$report_id}) ? 1 : undef }), $REPORTS{$report_id}, $html->form_input("PRICE_$report_id", (($TP_REPORTS{$report_id}) ? $TP_REPORTS{$report_id} : '0.00')),);
+      $table->addrow($html->form_input("IDS", "$report_id", { TYPE => 'checkbox', STATE => ($TP_REPORTS{$report_id}) ? 1 : undef }).$report_id, $REPORTS{$report_id}, 
+      $html->form_input("PRICE_$report_id", (($TP_REPORTS{$report_id}) ? $TP_REPORTS{$report_id} : '0.00')),);
     }
 
     print $html->form_main(

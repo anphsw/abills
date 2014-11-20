@@ -272,6 +272,7 @@ $_OPERATION_DEPOSIT='Депозит операции';
 $_PREFIX='Префикс';
 $_CONTRACT_ID='Номер контракта';
 $CHARSET='utf-8';
+$_HARDWARE='Оборудование';
 $_MONTH_FEE='Абонплата за месяц';
 $_TEMPLATES='Шаблоны';
 $_CLOSED='Закрытые';

@@ -125,6 +125,9 @@ else {
     $ENV{HTTP_CGI_AUTHORIZATION} =~ s/basic\s+//i;
     my ($REMOTE_USER, $REMOTE_PASSWD) = split(/:/, decode_base64($ENV{HTTP_CGI_AUTHORIZATION}));
 
+#    $REMOTE_USER=~s/\\//g;
+#    $REMOTE_PASSWD=~s/\\//g;
+
     my $res = check_permissions("$REMOTE_USER", "$REMOTE_PASSWD");
     if ($res == 1) {
       print "WWW-Authenticate: Basic realm=\"$conf{WEB_TITLE} Billing System\"\n";
@@ -265,7 +268,7 @@ if ($FORM{AWEB_OPTIONS}) {
 
 #===========================================================
 my @actions = (
-  [ $_INFO, $_ADD, $_LIST, $_PASSWD, $_CHANGE, $_DEL, $_ALL, $_MULTIUSER_OP, "$_SHOW $_DELETED", "$_CREDIT", "$_TARIF_PLANS", "$_REDUCTION", "$_DISABLE $_DEPOSIT", "$_CONFIRM $_ACTION" ],    # Users
+  [ $_INFO, $_ADD, $_LIST, $_PASSWD, $_CHANGE, $_DEL, $_ALL, $_MULTIUSER_OP, "$_SHOW $_DELETED", "$_CREDIT", "$_TARIF_PLANS", "$_REDUCTION", "$_DISABLE $_DEPOSIT", "$_CONFIRM $_ACTION", "$_DELETED $_SERVICE" ],    # Users
   [ $_LIST, $_ADD, $_DEL, $_ALL, $_DATE ],   # Payments
   [ $_LIST, $_GET, $_DEL, $_ALL ],           # Fees
   [ $_LIST, $_DEL ],                         # reports view
@@ -670,6 +673,14 @@ sub check_permissions {
 sub form_start {
 
   return 0 if ($FORM{'xml'} && $FORM{'xml'} == 1);
+
+  if (! $conf{MODINFO_SKIP}) {
+    eval { require "Abills/modules/Modinfo/webinterface"; };
+  
+    if ( ! @$ ) {
+      modinfo_show_info();
+    }
+  }
 
   my %new_hash = ();
 
@@ -4380,6 +4391,8 @@ sub form_nas_add {
     'gnugk'      => 'GNU GateKeeper',
     'cid_auth'   => 'Auth clients by CID',
     'cisco'      => 'Cisco',
+    'gpon'       => 'Huawei MA56**',
+    'epon'       => 'BDCOM p3100',    
     'cisco_voip' => 'Cisco Voip',
     'dell'       => 'Dell Switch',
     'cisco_isg'  => 'Cisco ISG',
