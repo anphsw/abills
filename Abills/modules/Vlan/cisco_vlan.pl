@@ -82,8 +82,8 @@ if ($action) {
   }
 }
 else {
-	&help();
-	exit;
+  &help();
+  exit;
 }
 
 my $output = make_cmds(\@cmds);
@@ -100,7 +100,8 @@ if ($action eq 'show'|| $debug > 2) {
 sub make_cmds {
   my ($cmds, $attr)=@_;
 
-  use Net::Telnet::Cisco;
+  require Net::Telnet::Cisco;
+  Net::Telnet::Cisco->import();
   my $session = Net::Telnet::Cisco->new(Host      => $nas_ip, 
                                         Input_log => "$cisco_log");
 

@@ -55,7 +55,10 @@ use Admins;
 $silent  = 1;
 $debug   = $conf{PAYSYS_DEBUG} || 0;
 $html    = Abills::HTML->new();
-my $db  = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
+my $sql  = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
+
+
+$db = $sql->{db};
 
 
 require "Misc.pm";
@@ -321,7 +324,7 @@ elsif (check_ip($ENV{REMOTE_ADDR}, '79.142.16.0/21')) {
   exit;
 }
 #USMP
-elsif (check_ip($ENV{REMOTE_ADDR}, '77.222.138.142,78.30.232.14,77.120.96.58,91.105.201.31')) {
+elsif (check_ip($ENV{REMOTE_ADDR}, '77.222.138.142,78.30.232.14,77.120.96.58,91.105.201.0/24')) {
   load_pay_module('Usmp');
 }
 elsif ($FORM{payment} && $FORM{payment} =~ /pay_way/) {
@@ -1646,6 +1649,23 @@ sub load_pay_module {
   return 1;	
 }
 
+
+#**********************************************************
+#
+#**********************************************************
+sub conf_gid_split {
+  my ($attr) = @_;
+
+  my $gid    = $attr->{GID};
+  if ($attr->{PARAMS}) {
+    my $params = $attr->{PARAMS};
+    foreach my $key ( @$params ) {
+      if ($conf{$key .'_'. $gid}) {        
+        $conf{$key} = $conf{$key .'_'. $gid};
+      }
+    }
+  }
+}
 
 
 1

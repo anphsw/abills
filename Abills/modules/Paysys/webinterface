@@ -686,6 +686,21 @@ sub paysys_payment {
     }
   }
 
+  if($FORM{INTERACT}) {
+    if(! $FORM{UID}) {
+      $info{MESSAGE} = $html->message('err', $_ERROR, "$_ENTER UID", { OUTPUT2RETURN => 1 });
+      goto PRE_LABEL;
+    }
+    else {
+      my $list = $users->list({ UID => $FORM{UID} });
+      if ($users->{TOTAL} == 0) {
+        $info{MESSAGE} = $html->message('err', $_ERROR, "$_USER_NOT_EXIST", { OUTPUT2RETURN => 1 });
+        goto PRE_LABEL;
+      }
+    }
+  }
+
+
   if ($conf{PAYSYS_MIN_SUM} && $FORM{SUM}>0 && $conf{PAYSYS_MIN_SUM} > $FORM{SUM}  ) {
     $html->message('err', $_ERROR, "$_TARIF_PLAN_SUM $conf{PAYSYS_MIN_SUM}");
     goto PRE_LABEL;
@@ -694,7 +709,10 @@ sub paysys_payment {
     $html->message('err', $_ERROR, "ERR_BIG_SUM: $conf{PAYSYS_MAX_SUM}");
     goto PRE_LABEL;
   }
-  elsif ($FORM{PAYMENT_SYSTEM} == 41 || $FORM{PAYMENT_SYSTEM} == 85 || $FORM{LMI_PAYMENT_NO}) {
+  elsif ($FORM{PAYMENT_SYSTEM} == 41 || $FORM{PAYMENT_SYSTEM} == 85
+   # || $FORM{LMI_PAYMENT_NO}
+   #
+   ) {
     paysys_webmoney();
   }
   elsif ($FORM{PAYMENT_SYSTEM} == 42) {
@@ -711,6 +729,9 @@ sub paysys_payment {
   }
   elsif ($FORM{PAYMENT_SYSTEM} == 48) {
     paysys_privatbank();
+  }
+  elsif ($FORM{PAYMENT_SYSTEM} == 50) {
+  	paysys_comepay();
   }
   elsif ($FORM{PAYMENT_SYSTEM} == 54) {
     paysys_privatbank_p24();
@@ -783,6 +804,7 @@ sub paysys_payment {
       45 => 'PAYSYS_PORTMONE_PAYEE_ID',
       46 => 'PAYSYS_UKRPAYS_SECRETKEY',
       48 => 'PAYSYS_PB_MERID',
+      50 => 'PAYSYS_COMEPAY',
       54 => 'PAYSYS_P24_MERCHANT_ID',
       58 => 'PAYSYS_LR_ACCOUNT_NUMBER',
       59 => 'PAYSYS_QIWI_TERMINAL_ID',
@@ -1794,6 +1816,7 @@ sub paysys_p24_get_payments {
       }
 
       Encode::_utf8_off($v->{col}->{BPL_OSND}->{content});
+      Encode::_utf8_off($v->{col}->{BPL_NUM_DOC}->{content});
       my $description = $v->{col}->{BPL_OSND}->{content};
       my $sum         = $v->{col}->{BPL_SUM}->{content};
       my $date        = $v->{col}->{BPL_DAT_OD}->{content};
@@ -2005,7 +2028,7 @@ sub paysys_p24_get_payments {
 #
 #**********************************************************
 sub paysys_p24 {
-  paysy_Load('P24');
+  paysys_load('P24');
 
   if ($FORM{info_card}) {
     my $info = p24({ CARD_INFO => $FORM{CARD_ID} || $conf{'PAYSYS_P24_CARDNUM'} });
@@ -2228,7 +2251,10 @@ sub paysys_liqpay {
   $html->setCookie('lastindex', "$index", "Fri, 1-Jan-2038 00:00:01", $web_path, $domain, $secure) if (! $FORM{INTERACT});
   
   #($info{SIGN}, $info{XML_ENCODED}) =  liqpay_make_request({ DOMAIN_ID => $user->{DOMAIN_ID}, %FORM });
-  ($info{SIGN}, $info{BODY}) =  liqpay_make_request2({ DOMAIN_ID => $user->{DOMAIN_ID}, %FORM });
+  ($info{SIGN}, $info{BODY}) =  liqpay_make_request2({ DOMAIN_ID => $user->{DOMAIN_ID}, 
+                                                       GID       => $user->{GID},
+                                                       %FORM });
+
   
   $html->tpl_show(_include('paysys_liqpay_add', 'Paysys'), { %info, %$user });
 }
@@ -3452,6 +3478,9 @@ sub paysys_paymaster () {
   if ($FORM{FALSE}) {
     $html->message('err', $_ERROR, "$_FAILED $_TRANSACTION ID: $FORM{LMI_PAYMENT_NO}");
   }
+  elsif($FORM{LMI_CLIENT_MESSAGE}) {
+    $html->message('err', $_ERROR, "$FORM{LMI_CLIENT_MESSAGE}");
+  }
   elsif ($FORM{LMI_PAYMENT_NO}) {
     my $users = Users->new($db, $admin, \%conf);
     my $user = $users->info($FORM{UID});
@@ -3478,7 +3507,7 @@ sub paysys_paymaster () {
           }
         }
         else {
-          $html->message('err', $_ERROR, "$_FAILED ID: $FORM{LMI_PAYMENT_NO} $_ERR_NO_TRANSACTION");
+          $html->message('err', $_INFO, "$_TRANSACTION_PROCESSING \n ID: $FORM{LMI_PAYMENT_NO}");
         }
       }
     }
@@ -3522,6 +3551,123 @@ sub paysys_paymaster () {
 
   $html->tpl_show(_include('paysys_paymaster_add', 'Paysys'), \%info);
 }
+
+
+#**********************************************************
+# User portal payments system with Comepay
+#
+# https://shop.comepay.ru/Data/ComePayAPIIS.pdf
+#**********************************************************
+sub paysys_comepay {
+  my ($attr) = @_;
+
+  paysys_load('Comepay');
+
+  my $payment_system_id = 50;
+  my $payment_system    = 'COMEPAY';
+
+
+  my %info = ();
+
+  if (defined($FORM{TRUE})) {
+    my $order_id = "$payment_system:$FORM{order}" || '-';
+    my $list = $Paysys->list(
+      {
+        TRANSACTION_ID => "$order_id",
+        UID            => $LIST_PARAMS{UID},
+        SUM            => '_SHOW',
+        COLS_NAME      => 1
+      }
+    );
+
+    if ($Paysys->{TOTAL} > 0) {
+      if ($list->[0]->{status} == 2) {
+        $html->message('info', $_INFO, "$_ADDED\n $_SUM: $list->[0]->{sum}\n ID: $order_id");
+      }
+      else {
+        $html->message('err', $_ERROR, "$_FAILED\n ID: $order_id\n $_STATUS: $status[$list->[0]->{status}]");
+      }
+    }
+    else {
+      $html->message('err', $_ERROR, "$_FAILED\n ID: $order_id\n $_ERR_NO_TRANSACTION\n $_STATUS: $status[$list->[0]->{status}]");
+    }
+
+    $html->setCookie('lastindex', "", "Fri, 1-Jan-2038 00:00:01", $web_path, $domain, $secure) if (! $FORM{INTERACT});
+    return 0;
+  }
+  else {
+     if (! $FORM{PHONE}) {
+       $user->pi({ UID => $LIST_PARAMS{UID} });
+       $info{PHONE}=$user->{PHONE};
+       $FORM{PHONE}=$user->{PHONE};
+     }
+     else {
+     	 $info{PHONE}=$FORM{PHONE};
+     }
+  }
+
+  $info{PAYSYS_URL}='https://shop.comepay.ru/Order/external/main.action';
+  if ($info{PHONE} !~ /\d{10}/) {
+  	$info{PHONE_ERR} = $html->color_mark($ERR_WRONG_PHONE, 'red');
+    $info{PAYSYS_URL}=$SELF_URL;
+    $info{PARAMS} = "<input type=hidden name=index value=$index>
+     <input type=hidden name=PAYMENT_SYSTEM value=$FORM{PAYMENT_SYSTEM}>
+     <input type=hidden name=OPERATION_ID value=$FORM{OPERATION_ID}>
+     <input type=hidden name=SUM value=$FORM{SUM}>
+    ";
+  }
+  else {
+  	$info{TRANSACTION_ID} = comepay_mk_request({ %FORM });
+  	
+  	if ($info{TRANSACTION_ID} == 0) {
+  		$info{PAYSYS_URL}=$SELF_URL;
+  		
+      $info{PARAMS} = "Error: $info{TRANSACTION_ID}
+      $ERR_TRANSACTION_DECLINED
+     <input type=hidden name=index value=$index>
+     <input type=hidden name=PAYMENT_SYSTEM value=$FORM{PAYMENT_SYSTEM}>
+     <input type=hidden name=OPERATION_ID value=$FORM{OPERATION_ID}>
+     <input type=hidden name=SUM value=$FORM{SUM}>
+    ";
+  	}
+  	else {
+      $Paysys->add(
+        {
+          SYSTEM_ID      => $payment_system_id,
+          DATETIME       => "$DATE $TIME",
+          SUM            => $FORM{SUM},
+          UID            => $LIST_PARAMS{UID},
+          IP             => $FORM{IP},
+          TRANSACTION_ID => "$payment_system:$FORM{OPERATION_ID}",
+          PAYSYS_IP      => "$ENV{'REMOTE_ADDR'}",
+          STATUS         => 1
+        }
+      );
+  	}
+  }
+  
+  $html->tpl_show(_include('paysys_comepay_add', 'Paysys'), { %info, %$user });
+}
+
+
+#**********************************************************
+#
+#**********************************************************
+sub conf_gid_split {
+  my ($attr) = @_;
+
+  my $gid    = $attr->{GID};
+  if ($attr->{PARAMS}) {
+    my $params = $attr->{PARAMS};
+
+    foreach my $key ( @$params ) {
+      if ($conf{$key .'_'. $gid}) {
+        $conf{$key} = $conf{$key .'_'. $gid};
+      }
+    }
+  }
+}
+
 
 
 1

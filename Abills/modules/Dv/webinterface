@@ -699,90 +699,9 @@ sub dv_user {
       $Dv->{CHANGE_TP_BUTTON} = $html->button($_CHANGE, 'UID=' . $Dv->{UID} . '&index=' . get_function_index('dv_chg_tp'), { CLASS => 'change rightAlignText' });
     }
 
-    # Get next payment period
-    if (
-      !$Dv->{STATUS}
-      && !$users->{DISABLE}
-      && ( $users->{DEPOSIT} + $users->{CREDIT} > 0
-        || $Dv->{POSTPAID_ABON}
-        || $Dv->{PAYMENT_TYPE} == 1)
-    )
-    {
-       my $days_to_fees = 0 ;
-       my ($from_year, $from_month, $from_day) = split(/-/, $DATE,            3);
-      if ($Dv->{MONTH_ABON} > 0) {
-        
-        if ($Dv->{REDUCTION_FEE} && $users->{REDUCTION} == 100) {
-          $Dv->{NEXT_FEES_WARNING} = "$_NEXT_FEES: -- $_REDUCTION: 100%";
-        }
-        elsif ($Dv->{ABON_DISTRIBUTION} && $Dv->{MONTH_ABON} > 0) {
-          if ($users->{REDUCTION} < 100) {
-            $days_to_fees = int(($users->{DEPOSIT} + $users->{CREDIT}) * (100 / (100 - $users->{REDUCTION})) / ($Dv->{MONTH_ABON} / 30));
-            $Dv->{NEXT_FEES_WARNING} = "$_SERVICE_ENDED";
-            $Dv->{NEXT_FEES_WARNING} =~ s/\%DAYS\%/$days_to_fees/g;
-          }
-        }
-        else {
-          $Dv->{NEXT_FEES_WARNING} = "$_NEXT_FEES: ";
-          if ($users->{ACTIVATE} ne '0000-00-00') {
-            my ($Y, $M, $D) = split(/-/, $users->{ACTIVATE}, 3);
-            if($Dv->{FIXED_FEES_DAY}) {
-              if ($M == 12) {
-                $M = 0;
-                $Y++;
-              }
-
-              $Dv->{ABON_DATE} = strftime("%Y-%m-%d", localtime(mktime(0, 0, 0, $D, $M, ($Y - 1900), 0, 0, 0)));
-            }
-            else {
-              $M--;
-              $Dv->{ABON_DATE} = strftime("%Y-%m-%d", localtime((mktime(0, 0, 0, $D, $M, ($Y - 1900), 0, 0, 0) + 31 * 86400)));
-            }
-          }
-          else {
-            my ($Y, $M, $D) = split(/-/, $DATE, 3);
-            if ($conf{START_PERIOD_DAY} && $conf{START_PERIOD_DAY} > $D) {
-            }
-            else {
-              $M++;
-            }
-
-            if ($M == 13) {
-              $M = 1;
-              $Y++;
-            }
-            if ($conf{START_PERIOD_DAY}) {
-              $D = $conf{START_PERIOD_DAY};
-            }
-            else {
-              $D = '01';
-            }
-            $Dv->{ABON_DATE} = sprintf("%d-%02d-%02d", $Y, $M, $D);
-          }
-        
-          $Dv->{NEXT_FEES_WARNING} .= "$Dv->{ABON_DATE}";
-        }
-      }
-      elsif ($Dv->{DAY_ABON} > 0) {
-        if ($users->{REDUCTION} < 100) {
-          $days_to_fees = int(($users->{DEPOSIT} + $users->{CREDIT} > 0) ?  ($users->{DEPOSIT} + $users->{CREDIT}) * (100 / (100 - $users->{REDUCTION}) / $Dv->{DAY_ABON}) : 0);
-          $Dv->{NEXT_FEES_WARNING} = "$_SERVICE_ENDED: $days_to_fees";
-        }
-      }
-
-      if ($days_to_fees && $days_to_fees < 5) {
-        $Dv->{NEXT_FEES_WARNING} = $html->color_mark($Dv->{NEXT_FEES_WARNING}, "red");
-      }
-
-      if ($days_to_fees > 0) {
-        my $expire_date = strftime "%Y-%m-%d", localtime(POSIX::mktime(0, 0, 0, $from_day, ($from_month - 1), ($from_year - 1900)) + 86400 * $days_to_fees);
-        $Dv->{NEXT_FEES_WARNING} .= " ($expire_date)";
-      }
-      elsif ($Dv->{DV_EXPIRE} ne '0000-00-00') {
-        $Dv->{SERVICE_EXPIRE_DATE}=$Dv->{DV_EXPIRE} if ($FORM{xml});
-      }
-    }
-    
+    $Dv->{NEXT_FEES_WARNING} = dv_warning({ USER => $users,
+                                            DV   => $Dv 
+                                          });
 
     $Dv->{NETMASK_COLOR} = ($Dv->{NETMASK} ne '255.255.255.255') ? $_COLORS[0] : $_COLORS[1];
     my $shedule_index    = get_function_index('dv_sheduler');
@@ -4639,71 +4558,9 @@ sub dv_user_info {
     return 0;
   }
 
-  # Get next payment period
-  if (
-       !$Dv->{STATUS}
-    && !$user->{DISABLE}
-    && ( $user->{DEPOSIT} + $user->{CREDIT} > 0
-      || $Dv->{POSTPAID_ABON}
-      || $Dv->{PAYMENT_TYPE} == 1)
-  ){
-    if ($user->{ACTIVATE} ne '0000-00-00') {
-      my ($Y, $M, $D) = split(/-/, $user->{ACTIVATE}, 3);
-      $M--;
-      $Dv->{ABON_DATE} = strftime("%Y-%m-%d", localtime((mktime(0, 0, 0, $D, $M, ($Y - 1900), 0, 0, 0) + 31 * 86400)));
-    }
-    else {
-      my ($Y, $M, $D) = split(/-/, $DATE, 3);
-      $M++;
-      if ($M == 13) {
-        $M = 1;
-        $Y++;
-      }
-
-      if ($conf{START_PERIOD_DAY}) {
-        $D = $conf{START_PERIOD_DAY};
-      }
-      else {
-        $D = '01';
-      }
-
-      $Dv->{ABON_DATE} = sprintf("%d-%02d-%02d", $Y, $M, $D);
-    }
-
-    my ($from_year, $from_month, $from_day) = split(/-/, $DATE,            3);
-    my ($to_year,   $to_month,   $to_day)   = split(/-/, $Dv->{ABON_DATE}, 3);
-    my $days_to_fees = 0;
-    if ($Dv->{MONTH_ABON} > 0) {
-      if ($Dv->{ABON_DISTRIBUTION} && $user->{REDUCTION} < 100) {
-        $days_to_fees = int(($user->{DEPOSIT} + $user->{CREDIT}) * (100 / (100 - $user->{REDUCTION})) / ($Dv->{MONTH_ABON} / 30));
-
-        $Dv->{NEXT_FEES_WARNING} = "$_SERVICE_ENDED";
-        $Dv->{NEXT_FEES_WARNING} =~ s/\%DAYS\%/$days_to_fees/g;
-      }
-      else {
-        $days_to_fees = date_diff($DATE, $Dv->{ABON_DATE});
-        $Dv->{NEXT_FEES_WARNING} = "$_NEXT_FEES_THROUGHT";
-        $Dv->{NEXT_FEES_WARNING} =~ s/\%DAYS\%/$days_to_fees/g;
-      }
-    }
-    elsif ($Dv->{DAY_ABON} > 0) {
-      $days_to_fees = int(($user->{DEPOSIT} + $user->{CREDIT}) * (100 / (100 - $user->{REDUCTION})) / $Dv->{DAY_ABON});
-      $Dv->{NEXT_FEES_WARNING} = "$_SERVICE_ENDED: $days_to_fees";
-    }
-    
-    if ($days_to_fees < 5) {
-      $Dv->{NEXT_FEES_WARNING} = $html->color_mark($Dv->{NEXT_FEES_WARNING}, "red");
-    }
-
-    if ($days_to_fees > 0) {
-      my $expire_date = strftime "%Y-%m-%d", localtime(POSIX::mktime(0, 0, 0, $from_day, ($from_month - 1), ($from_year - 1900)) + 86400 * $days_to_fees);
-      $Dv->{NEXT_FEES_WARNING} .= " ($expire_date)";
-      $Dv->{SERVICE_EXPIRE_DATE}=$expire_date if ($FORM{xml});
-    }
-    elsif ($Dv->{DV_EXPIRE} ne '0000-00-00') {
-      $Dv->{SERVICE_EXPIRE_DATE}=$Dv->{DV_EXPIRE} if ($FORM{xml});
-    }
-  }
+  $Dv->{NEXT_FEES_WARNING} = dv_warning({ USER => $user,
+                                          DV   => $Dv 
+                                        });
 
   if ($Dv->{STATUS} == 2) {
     $Dv->{STATUS} = $html->color_mark($service_status[ $Dv->{STATUS} ], $service_status_colors[ $Dv->{STATUS} ]) . ' ';
@@ -6216,13 +6073,12 @@ sub dv_users_warning_messages {
     return 0;
   }
 
-
   my $debug = $attr->{DEBUG} || 0;
   my $debug_output = '';
   $debug_output .= "DV: Daily warning messages\n" if ($debug > 1);
 
   my %LIST_PARAMS     = (USERS_WARNINGS => 1);
-  $LIST_PARAMS{ALERT_PERIOD}=$conf{DV_ALERT_REDIRECT} if ($conf{DV_ALERT_REDIRECT});
+  $LIST_PARAMS{ALERT_PERIOD}=$conf{DV_ALERT_REDIRECT_DAYS} if ($conf{DV_ALERT_REDIRECT_DAYS});
   $LIST_PARAMS{LOGIN} = $attr->{LOGIN} if ($attr->{LOGIN});
   $Dv->{debug}=1 if($debug > 5);
   my $dv_list         = $Dv->list({ %LIST_PARAMS, 
@@ -6240,12 +6096,11 @@ sub dv_users_warning_messages {
     return $debug_output;
   }
 
-  my @allert_redirect_days = split(/,\s?/, $conf{DV_ALERT_REDIRECT} || '');
+  my @allert_redirect_days = split(/,\s?/, $conf{DV_ALERT_REDIRECT_DAYS} || '');
   
   foreach my $u (@$dv_list) {
     my $type='email';
     my $email = ((!defined($u->{EMAIL})) || $u->{EMAIL} eq '') ? (($conf{USERS_MAIL_DOMAIN}) ? "$u->{LOGIN}\@$conf{USERS_MAIL_DOMAIN}" : '') : "$u->{EMAIL}";
-    if ($email eq '') { next; }
 
     if($conf{DV_ALERT_REDIRECT_FILTER} && in_array($u->{to_next_period}, \@allert_redirect_days)) {
       $type='redirect';
@@ -6254,6 +6109,7 @@ sub dv_users_warning_messages {
                   });
     }
 
+    if ($email eq '') { next; }
     my $info = sprintf("%-14s| %4d|%-20s| %9.4f| %8.2f| %6s|\n", $u->{login}, 
        $u->{tp_num}, 
        $u->{tp_name}, 
@@ -8001,6 +7857,136 @@ sub get_oui_info {
   return $result;
 }
 
+#***************************************************************
+#
+#***************************************************************
+sub dv_warning {
+  my ($attr) = @_; 
+  my $warning = '';
+
+  my $users = $attr->{USER};
+  my $Dv    = $attr->{DV};
+
+  # Get next payment period
+  if (
+      !$Dv->{STATUS}
+      && !$users->{DISABLE}
+      && ( $users->{DEPOSIT} + $users->{CREDIT} > 0
+        || $Dv->{POSTPAID_ABON}
+        || $Dv->{PAYMENT_TYPE} == 1)
+  ){
+    my $days_to_fees = 0 ;
+    my ($from_year, $from_month, $from_day) = split(/-/, $DATE, 3);
+    $users->{REDUCTION} = 0 if (! $Dv->{REDUCTION_FEE});
+
+    if ($Dv->{REDUCTION_FEE} && $users->{REDUCTION} == 100) {
+      $warning = "$_NEXT_FEES: -- $_REDUCTION: 100%";
+    }
+    elsif ($Dv->{MONTH_ABON} > 0) {
+      if ($Dv->{ABON_DISTRIBUTION} && $Dv->{MONTH_ABON} > 0) {
+        $days_in_month = 30;
+      
+        if ($users->{ACTIVATE} eq '0000-00-00') {
+          my ($y, $m, $d)=split(/-/, $DATE);
+          my $rest_days    = 0;
+          my $rest_day_sum = 0;
+          my $deposit      = $users->{DEPOSIT} + $users->{CREDIT};
+         
+          while($rest_day_sum < $deposit) {
+            $days_in_month   = ($m != 2 ? (($m % 2) ^ ($m > 7)) + 30 : (!($y % 400) || !($y % 4) && ($y % 25) ? 29 : 28));
+            my $month_day_fee= $Dv->{MONTH_ABON} * ((100 - $users->{REDUCTION}) / 100) / $days_in_month;
+            my $rest_days    = $days_in_month - $d;
+            $rest_day_sum    = $rest_days * $month_day_fee;
+
+            if ($rest_day_sum > $deposit) {
+              $days_to_fees += int($deposit / $month_day_fee);
+            }
+            else {
+              $deposit = $deposit - $month_day_fee * $rest_days;
+              $days_to_fees += $rest_days;
+              $rest_day_sum = 0;
+              $d = 1;
+              $m++;
+              if ($m > 12) {
+                $m = 1;
+                $y++;
+              }
+              #print "/$deposit // $days_to_fees<br>";
+            }
+          }
+        }
+        else {
+          $days_to_fees = int(($users->{DEPOSIT} + $users->{CREDIT}) * (100 / (100 - $users->{REDUCTION}))  / ($Dv->{MONTH_ABON} /  $days_in_month));
+        }
+        
+        $warning = "$_SERVICE_ENDED";
+        $warning =~ s/\%DAYS\%/$days_to_fees/g;
+      }
+      else {
+        #$warning = "$_NEXT_FEES: ";
+        if ($users->{ACTIVATE} ne '0000-00-00') {
+          my ($Y, $M, $D) = split(/-/, $users->{ACTIVATE}, 3);
+          if($Dv->{FIXED_FEES_DAY}) {
+            if ($M == 12) {
+              $M = 0;
+              $Y++;
+            }
+
+            $Dv->{ABON_DATE} = strftime("%Y-%m-%d", localtime(mktime(0, 0, 0, $D, $M, ($Y - 1900), 0, 0, 0)));
+          }
+          else {
+            $M--;
+            $Dv->{ABON_DATE} = strftime("%Y-%m-%d", localtime((mktime(0, 0, 0, $D, $M, ($Y - 1900), 0, 0, 0) + 31 * 86400)));
+          }
+        }
+        else {
+          my ($Y, $M, $D) = split(/-/, $DATE, 3);
+          if ($conf{START_PERIOD_DAY} && $conf{START_PERIOD_DAY} > $D) {
+          }
+          else {
+            $M++;
+          }
+
+          if ($M == 13) {
+            $M = 1;
+            $Y++;
+          }
+          if ($conf{START_PERIOD_DAY}) {
+            $D = $conf{START_PERIOD_DAY};
+          }
+          else {
+            $D = '01';
+          }
+          $Dv->{ABON_DATE} = sprintf("%d-%02d-%02d", $Y, $M, $D);
+        }
+
+        my $days_to_fees = date_diff($DATE, $Dv->{ABON_DATE});
+        if ($days_to_fees > 0) {
+          $warning = "$_NEXT_FEES_THROUGHT ($Dv->{ABON_DATE})";
+          $warning =~ s/\%DAYS\%/$days_to_fees/g;
+        }
+      }
+    }
+    elsif ($Dv->{DAY_ABON} > 0) {
+      $days_to_fees = int(($users->{DEPOSIT} + $users->{CREDIT} > 0) ?  ($users->{DEPOSIT} + $users->{CREDIT}) * (100 / (100 - $users->{REDUCTION}) / $Dv->{DAY_ABON}) : 0);
+      $warning = "$_SERVICE_ENDED: $days_to_fees";
+    }
+
+    if ($days_to_fees && $days_to_fees < 5) {
+      $warning = $html->color_mark($warning, "red");
+    }
+
+    if ($days_to_fees > 0) {
+      my $expire_date = strftime "%Y-%m-%d", localtime(mktime(0, 0, 0, $from_day, ($from_month - 1), ($from_year - 1900)) + 86400 * $days_to_fees);
+      $warning .= " ($expire_date)"; # $days_to_fees";
+    }
+    elsif ($Dv->{DV_EXPIRE} && $Dv->{DV_EXPIRE} ne '0000-00-00') {
+      $Dv->{SERVICE_EXPIRE_DATE}=$Dv->{DV_EXPIRE} if ($FORM{xml});
+    }
+  }    
+ 
+  return $warning;
+}
 
 
 

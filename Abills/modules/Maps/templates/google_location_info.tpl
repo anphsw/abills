@@ -1,25 +1,23 @@
 
  
-	var latlng = new google.maps.LatLng(%MAP_Y%, %MAP_X% );
-	var online = '%USERS_ONLINE%';
-	var offline = '%USER_OFFLINE%';
+	var latlng     = new google.maps.LatLng(%MAP_Y%, %MAP_X% );
+	var online     = '%USERS_ONLINE%';
+	var offline    = '%USER_OFFLINE%';
 	var sub_online = '%SUB_ONLINE%';
 	var Mcolor;
 	var thOnline;
-	var showOnline = '';
+	var showOnline  = '';
 	var showOffline = '';
-	var thAll ='';
+	var thAll       = '';
 	
-	if (online == '' ) {
-		 
+	if (online == '' ) {		 
 		Mcolor = 'build_off';
 		if(sub_online == 1) {
 		  Mcolor = 'build_on';
 		}  
-		thOnline ='';
-		
-		
-	} else {
+		thOnline ='';		
+	} 
+	else {
 		Mcolor = 'build_on';
 		thOnline = '<tr><th class=\"table_title\">$_USER:</th><th class=\"table_title\">IP:</th></tr>';
 		showOnline = '<strong><font color=green>$_USERS online(%USER_COUNT_ONLINE%)</font></strong><br /><table border=0 cellspacing=0 cellpadding=0 width=300>'+ thOnline +' %USERS_ONLINE% </table>';

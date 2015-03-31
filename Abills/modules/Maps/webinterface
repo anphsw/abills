@@ -3,6 +3,8 @@
 # Жовтий -     [switch] відображення свічів
 # Червоний -   [error] поломки на свічах
 # Оранжевий -  [inwork] тех. роботи на свічах
+
+
 my %map_colors = (
   online  => [ 0,   159, 2 ],
   offline => [ 131, 9,   159 ],
@@ -204,15 +206,19 @@ sub maps_main {
 sub maps_map_show {
   my ($attr) = @_;
 
-  my $list = $Maps->users_online_list({ PAGE_ROWS => 10000,
-  	                                    COLS_NAME => 1 });
+  require Dv_Sessions;
+  Dv_Sessions->import();
+  my $Dv_sessions = Dv_Sessions->new($db, $admin, \%conf);
+  my $list = $Dv_sessions->online({ USER_NAME => '_SHOW',
+                                    CLIENT_IP => '_SHOW',
+                                    PAGE_ROWS => 100000, 
+                                    COLS_NAME => 1 });
 
   foreach my $line (@$list) {
     push @{ $USERS_ONLINE{ $line->{uid} } }, {
-      LOGIN => $line->{login},
+      LOGIN => $line->{user_name},
+      IP    => $line->{client_ip},
       UID   => $line->{uid},
-      IP    => $line->{ip}
-      #DURATION => $line->[9]
     };
   }
 
@@ -462,7 +468,6 @@ sub generateImage {
 
       foreach my $line (@$list) {
         next if($line->{map_x} == 0);
-
         $poly_border = new GD::Polygon;
         $poly_border->addPt($line->{map_x},  $line->{map_y});
         $poly_border->addPt($line->{map_x2}, $line->{map_y2});
@@ -598,6 +603,7 @@ sub google_maps_add {
   }
   elsif ($FORM{add_route_info}) {
     $Maps->add_route_info({%FORM});
+    
     if (!$users->{errno}) {
 
       $html->tpl_show(
@@ -646,10 +652,10 @@ sub google_maps_add {
     }
 
     $Maps->{TYPES} = $html->form_select(
-      "TYPES",
+      "TYPE",
       {
-        SELECTED     => $Maps->{TYPES},
-        SEL_ARRAY    => [@TYPES],
+        SELECTED     => $Maps->{TYPE},
+        SEL_ARRAY    => \@TYPES,
         ARRAY_NUM_ID => 0,
         NO_ID        => 1
       }
@@ -709,10 +715,10 @@ sub google_maps_add {
       $Maps->{ACTION_LNG} = $_ADD;
       $html->message('info', $_INFO, "$_FIELDS_FOR_NAME_ARE_REQUIRED");
       $FORM{TYPES} = $html->form_select(
-        "TYPES",
+        "TYPE",
         {
-          SELECTED     => $FORM{TYPES},
-          SEL_ARRAY    => [@TYPES],
+          SELECTED     => $FORM{TYPE},
+          SEL_ARRAY    => \@TYPES,
           ARRAY_NUM_ID => 0,
           NO_ID        => 1
         }
@@ -957,9 +963,9 @@ sub google_maps_add {
   elsif (defined($FORM{coordlx})) {
 
     my $ROUTE_ID = $users->{ROUTE_ID} = $html->form_select(
-      "ROUTE_ID",
+      "ROUTES_ID",
       {
-        SELECTED          => $FORM{ROUTE_ID},
+        SELECTED          => $FORM{ROUTES_ID},
         SEL_MULTI_ARRAY   => [ @{ $Maps->list_routes({}) } ],
         MULTI_ARRAY_KEY   => 0,
         MULTI_ARRAY_VALUE => 1,
@@ -1031,7 +1037,7 @@ sub google_maps_show {
     }
   }
   elsif ($FORM{dcoordx} and $FORM{dcoordy}) {
-    $Maps->del_build({ DCOORDX => $FORM{dcoordx}, DCOORDY => $FORM{dcoordy} });
+    $Maps->del_build({ %FORM });
     if (!$Maps->{errno}) {
       $html->tpl_show(_include('maps_redirect', 'Maps'),
         {
@@ -1043,13 +1049,20 @@ sub google_maps_show {
   }
   # Set filter cookies
   #Get users online  *****************************************
-  my $list = $Maps->users_online_list({ PAGE_ROWS => 4000, COLS_NAME => 1 });
+
+  require Dv_Sessions;
+  Dv_Sessions->import();
+  my $Dv_sessions = Dv_Sessions->new($db, $admin, \%conf);
+  my $list = $Dv_sessions->online({ USER_NAME => '_SHOW',
+                                    CLIENT_IP => '_SHOW',
+                                    PAGE_ROWS => 100000, 
+                                    COLS_NAME => 1 });
 
   foreach my $line (@$list) {
-    push @{ $USERS_ONLINE{ $line->{UID} } }, {
-      LOGIN => $line->{LOGIN},
-      IP    => $line->{IP},
-      UID   => $line->{UID},
+    push @{ $USERS_ONLINE{ $line->{uid} } }, {
+      LOGIN => $line->{user_name},
+      IP    => $line->{client_ip},
+      UID   => $line->{uid},
     };
   }
 
@@ -1162,22 +1175,23 @@ sub google_maps_show {
     # template 	(maps_location_info)   +++DISTRICT_ID => $attr->{DISTRICT_ID},
     #***********************************************************
     #%ufilter = $html->getCookies();
- 
+
+
+  my $sub_online = '';
   if($count_online > 0) {
     $sub_online = 1;
   }
   
   if($FORM{UFILTER} == 1) {
-    $user_info = '';
+    $user_info     = '';
     $count_offline = ''
   }
   elsif($FORM{UFILTER} == 2) {
     $count_online = '';
-    $user_online = '';
+    $user_online  = '';
   } 
 
-
-    $tpl_obj .= $html->tpl_show(
+  $tpl_obj .= $html->tpl_show(
       _include('google_location_info', 'Maps'),
       {
         STREET_ID          => $line->{street_name},
@@ -1190,7 +1204,6 @@ sub google_maps_show {
         USER_COUNT_ONLINE  => $count_online,
         SUB_ONLINE         => $sub_online,
         BUILD_ID           => $line->{id}
-
       },
       { OUTPUT2RETURN => 1 }
     );
@@ -1279,8 +1292,9 @@ sub google_maps_show {
   #-----------show routes --- #
   my $routes_markers = '';
   my $route_info     = "";
-  $list_routes = $Maps->list_routes({});
+  $list_routes = $Maps->list_routes({  });
   foreach my $line2 (@$list_routes) {
+    
     $list_routes_info = $Maps->list_route_info({ ID => $line2->[0] });
 
     if (defined($list_routes_info->[0]->[0])) {

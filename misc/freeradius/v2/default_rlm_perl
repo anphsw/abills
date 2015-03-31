@@ -23,7 +23,7 @@ authorize {
  
 preacct { 
   preprocess 
- } 
+} 
 
 accounting {
 # don't use simultaneously 'perl' and files

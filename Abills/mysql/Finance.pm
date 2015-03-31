@@ -28,11 +28,13 @@ use Bills;
 #**********************************************************
 sub new {
   my $class = shift;
-  ($db, $admin, $CONF) = @_;
+  my $db    = shift;
+  ($admin, $CONF) = @_;
   my $self = { };
   bless($self, $class);
+
+  $self->{db}=$db;
   
-  #$self->{debug}=1;
   return $self;
 }
 
@@ -41,8 +43,7 @@ sub new {
 #**********************************************************
 sub fees {
   my $class = shift;
-  ($db, $admin) = @_;
-
+  my ($db, $admin) = @_;
 
   use Fees;
   my $fees = Fees->new($db, $admin, $CONF);
@@ -55,7 +56,7 @@ sub fees {
 #**********************************************************
 sub payments {
   my $class = shift;
-  ($db, $admin) = @_;
+  my ($db, $admin) = @_;
 
   use Payments;
   my $payments = Payments->new($db, $admin, $CONF);

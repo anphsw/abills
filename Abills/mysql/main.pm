@@ -1066,7 +1066,7 @@ sub search_expr_users () {
   $self->{SEARCH_FIELDS_COUNT}   = $#{ $self->{SEARCH_FIELDS_ARR} } + 1;
 
   if ($attr->{SORT}) {
-  	my $sort_position = ($attr->{SORT}-1 < 1) ? 1 : $attr->{SORT}-1;
+  	my $sort_position = ($attr->{SORT}-1 < 1) ? 1 : $attr->{SORT}-2;
   	
     if ($self->{SEARCH_FIELDS_ARR}->[$sort_position]){
       if ( $self->{SEARCH_FIELDS_ARR}->[$sort_position] =~ m/build$|flat$/i) {

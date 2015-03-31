@@ -524,3 +524,4 @@ $_EQUIPMENT='Equipment';
 $_VENDOR='Vendor';
 $_LAST_UPDATE='Last Update';
 $_PER_MONTH='Per month';
+$_REPAIR='Repair';

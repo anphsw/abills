@@ -123,6 +123,9 @@ sub online_count {
   my $self = shift;
   my ($attr) = @_;
 
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+
   my $EXT_TABLE = '';
   my @WHERE_RULES = ();
   if($attr->{DOMAIN_ID}) {

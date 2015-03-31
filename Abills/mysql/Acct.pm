@@ -148,7 +148,6 @@ sub accounting {
         $RAD->{USER_NAME} = '! ' . $RAD->{USER_NAME};
       }
 
-      $self->{debug}=1;
       my $sql = "REPLACE INTO dv_calls
        (status, user_name, started, lupdated, nas_ip_address, nas_port_id, acct_session_id, framed_ip_address, CID, CONNECT_INFO,   nas_id, tp_id,
         uid, join_service)
@@ -553,27 +552,10 @@ sub rt_billing {
     }
   );
 
-  #  my $a = `date >> /tmp/echoccc;
-  #   echo "
-  #   UID: $self->{UID},
-  #   SUM: $self->{SUM} / $self->{CALLS_SUM},
-  #   BILL_ID: $self->{BILL_ID},
-  #   TP: $self->{TARIF_PLAN},
-  #   TIME_TARRIF: $self->{TIME_TARIF},
-  #   TRAFF_TARRIF: $self->{TRAF_TARIF},
-  #   TIME INTERVAL ID: $Billing->{TI_ID}
-  #
-  #   DURATION: $RAD->{INTERIUM_ACCT_SESSION_TIME},
-  #   IN: $RAD->{INTERIUM_INBYTE},
-  #   OUT: $RAD->{INTERIUM_OUTBYTE},
-  #   IN2: $RAD->{INTERIUM_INBYTE1},
-  #   OUT2: $RAD->{INTERIUM_OUTBYTE1}
-  #   \n" >> /tmp/echoccc`;
-
   $self->query2("SELECT traffic_type FROM dv_log_intervals 
      WHERE acct_session_id='$RAD->{ACCT_SESSION_ID}' 
            AND interval_id='$Billing->{TI_ID}'
-           AND uid='$self->{UID}';"
+           AND uid='$self->{UID}' FOR UPDATE;"
   );
 
   my %intrval_traffic = ();

@@ -99,7 +99,7 @@ sub add {
   }
 
   if ($DATA{CHECK_EXT_ID}) {
-    $self->query2("SELECT id, date, sum, uid FROM payments WHERE ext_id='$DATA{CHECK_EXT_ID}';");
+    $self->query2("SELECT id, date, sum, uid FROM payments WHERE ext_id='$DATA{CHECK_EXT_ID}' LOCK IN SHARE MODE;");
     if ($self->{error}) {
       return $self;
     }
@@ -115,6 +115,7 @@ sub add {
   }
 
   $self->{db}->{AutoCommit} = 0;
+  
   $user->{BILL_ID} = $attr->{BILL_ID} if ($attr->{BILL_ID});
 
   $DATA{AMOUNT} = $DATA{SUM};

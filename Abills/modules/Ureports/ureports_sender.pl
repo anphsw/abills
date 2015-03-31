@@ -12,7 +12,7 @@ $html
 
 #use strict;
 
-my $version = 0.55;
+my $version = 0.56;
 my $debug   = 0;
 
 use FindBin '$Bin';
@@ -214,6 +214,7 @@ sub ureports_periodic_reports {
       #Check bill id and deposit
       my %PARAMS = ();
       $user->{TP_ID} = $TP_ID;
+      next if ($user->{DV_STATUS} == 1 || $user->{DV_STATUS} == 2 || $user->{DV_STATUS} == 3);
 
       $debug_output .= "LOGIN: $user->{LOGIN} ($user->{UID}) DEPOSIT: $user->{deposit} CREDIT: $user->{credit} Report id: $user->{REPORT_ID}\n" if ($debug > 3);
 

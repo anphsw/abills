@@ -436,8 +436,12 @@ sub form_info {
         $sum = 0;
       }
     }
+    $user->group_info( $user->{GID} );
 
-    if ($user->{DISABLE}) {
+    if ($user->{TOTAL} > 0 && ! $user->{ALLOW_CREDIT}) {
+      $FORM{change_credit}=0;      
+    }
+    elsif ($user->{DISABLE}) {
 
     }
     elsif ($user->{CREDIT} < sprintf("%.2f", $sum)) {

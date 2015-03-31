@@ -1,20 +1,20 @@
-<style type=\"text/css\">
+<style type='text/css'>
 a:hover div {background:#eee;}
 #infoWindowSize {max-height:400px; max-width:400px;}
 #MarkerInfoWindow a {text-decoration:none;}
 #MarkerInfoWindow a:hover { font-weight:800;}
 
-.red_text {color:#ff0000; font-weight:800;}
+.red_text   {color:#ff0000; font-weight:800;}
 .green_text {color:#14ba0b; font-weight:800;}
 .black_text {color:#000; font-weight:800;} 
-.user_list {color:#000}
+.user_list  {color:#000}
          
 </style>
 
 <script type='text/javascript' src='https://maps.google.com/maps/api/js?%MAP_API_KEY%&sensor=false'></script>
-<script type=\"text/javascript\">
-var COLORS = [[\"red\", \"#ff0000\"], [\"orange\", \"#ff8800\"], [\"green\",\"#008000\"],
-              [\"blue\", \"#000080\"], [\"purple\", \"#800080\"]];
+<script type='text/javascript'>
+var COLORS = [['red', '#ff0000'], ['orange', '#ff8800'], ['green','#008000'],
+              ['blue', '#000080'], ['purple', '#800080']];
 var options = {};
 var colorIndex_ = 0;
 var map;
@@ -48,13 +48,13 @@ else if('$conf{MAP_VIEW}' == 'TERRAIN') {
 
 
 function select(buttonId) {
-  document.getElementById(\"hand_b\").className=\"unselected\";
-  document.getElementById(\"placemark_b\").className=\"unselected\";
-  document.getElementById(buttonId).className=\"selected\";
+  document.getElementById('hand_b').className='unselected';
+  document.getElementById('placemark_b').className='unselected';
+  document.getElementById(buttonId).className='selected';
 }
 
 function stopEditing() {
-  select(\"hand_b\");
+  select('hand_b');
 }
 
 function getColor(named) {
@@ -62,7 +62,7 @@ function getColor(named) {
 }
 
 function getIcon(color) {
-  var icon = new google.maps.MarkerImage(\"/img/google_map/\" + color + \".png\",
+  var icon = new google.maps.MarkerImage('/img/google_map/' + color + '.png',
       new google.maps.Size(32, 37),
       new google.maps.Point(0,0),
       new google.maps.Point(15, 32));
@@ -72,24 +72,25 @@ function getIcon(color) {
 
 function createMarker(latlng, message, color, title,id) {
 
-      var Marker = new google.maps.Marker({
+    var Marker = new google.maps.Marker({
       	position: latlng,
       	draggable: false,
       	icon: getIcon(color),
       	map: map,
       	title:title,
       	id:id
-      });
-      //alert(id);
+    });
+    //alert(id);
       
       
-      var contentString = \"\" + message + \"<br/>\";
-  	  infowindows[id] = new google.maps.InfoWindow({
+    var contentString = '' + message + '<br/>';
+ 	  infowindows[id] = new google.maps.InfoWindow({
   	     	content: contentString
-  	  });	
+	  });	
 
        
-      google.maps.event.addListener(Marker, 'click', function(e) {
+    google.maps.event.addListener(Marker, 'click', function(e) {
+
 	  if (infowindow) {
 	  	infowindow.close();
 	  }
@@ -106,22 +107,25 @@ function createMarker(latlng, message, color, title,id) {
 	  });
 
 	  if(title != 'NAS') {
-	      google.maps.event.addListener(Marker, 'rightclick', function(e) {
-		  if (infowindow) {
-		  	infowindow.close();
-		  }
-		  infowindow = new google.maps.InfoWindow({
-		     	content: '<div id=\"MarkerInfoWindow\"><a href=\"index.cgi?index=$index&dcoordx=' + e.latLng.lng() + '&dcoordy='+ e.latLng.lat() + '\">$_DEL_MARKER<\/a></div>'
-		  });	  	
-		  if (PolyInfoWindow) {
-				PolyInfoWindow.close();
-		  }
+	    google.maps.event.addListener(Marker, 'rightclick', function(e) {
+
+		    if (infowindow) {
+		  	  infowindow.close();
+		    }
+		    infowindow = new google.maps.InfoWindow({
+		     	content: '<div id=MarkerInfoWindow><a href=\"index.cgi?index=$index&dcoordx=' + e.latLng.lng() + '&dcoordy='+ e.latLng.lat() + '&BUILD_ID=' +Marker.id +'\">$_DEL_MARKER<\/a></div>'
+        });	  	
+
+        if (PolyInfoWindow) {
+  				PolyInfoWindow.close();
+        }
 		  	infowindow.open(map,Marker);
 		  });	
-     }
-     markers[id] = Marker;  
+    }
+
+    markers[id] = Marker;  
      
-     return Marker;
+    return Marker;
 }
 
 function initialize() {
@@ -142,6 +146,7 @@ function initialize() {
 	      mapTypeId: google.maps.MapTypeId.MapView
 	    }			
 	}
+
 	map = new google.maps.Map(document.getElementById('map'), myOptions);
   %NAS%
   %OBJECTS%  
@@ -216,7 +221,7 @@ google.maps.event.addDomListener(window, 'load', initialize);
 jQuery(document).ready(function(){
 
   jQuery('#UFILTER,#GID').change(function() {
-    jQuery(\"#mapUserShow\").submit() 
+    jQuery('#mapUserShow').submit() 
   });
 });
 
@@ -228,8 +233,8 @@ jQuery(document).ready(function(){
 <table>
 <tr>
   <td>
-    <a class='link_button' id=\"districtButton\" onclick=javascript:hideShowDistrict()>$_HIDE_DISTRICTS</a>
-    <a class='link_button' id=\"districtButton2\" onclick=javascript:fullScreenDistrict()>$_IN_NEW_WINDOW</a>
+    <a class='link_button' id='districtButton' onclick=javascript:hideShowDistrict()>$_HIDE_DISTRICTS</a>
+    <a class='link_button' id='districtButton2' onclick=javascript:fullScreenDistrict()>$_IN_NEW_WINDOW</a>
   </td>  
   <td>
     %UFILTER%
@@ -244,11 +249,11 @@ jQuery(document).ready(function(){
 
 
 <table>
-  <tr style=\"vertical-align:top\">
+  <tr style='vertical-align:top'>
     <td style='width:15em;' id='districts' >
-      <input type='hidden' id=\"featuredetails\" rows=2 >
-      <table id =\"featuretable\">
-        <tbody id=\"featuretbody\"></tbody>
+      <input type='hidden' id='featuredetails' rows=2 >
+      <table id='featuretable'>
+        <tbody id='featuretbody'></tbody>
       </table>
       <br />
       <div align=center >%DISTRICTS%  %DELDISTRICT%</div>
@@ -259,8 +264,8 @@ jQuery(document).ready(function(){
     </div> 
   </td>
   <td>
-    <div id=\"frame\"></div>
-    <div id=\"map\" style=\"width:800px; height:500px\" ></div>
+    <div id='frame'></div>
+    <div id='map' style='width:800px; height:500px'></div>
   </td>
 </tr>
 </table>

@@ -10,15 +10,11 @@ $begin_time
 use strict;
 use FindBin '$Bin';
 
-my $VERSION     = 3.14;
-my $config_file = '/usr/abills/libexec/config.pl';
+my $VERSION       = 3.20;
+my $config_file   = '/usr/abills/libexec/config.pl';
+my %startup_files = ();
 
-$conf{OS}       = uc(`uname`);
-chop($conf{OS});
-
-if ($conf{OS} =~ /Linux/) {
-	$conf{OS}='LINUX';
-}
+$conf{OS}       = uc($^O);
 
 $conf{WORK_DIR} = $Bin;
 my $debug       = 0;
@@ -29,8 +25,17 @@ Abills::Base->import();
 my $db_storage_engine = 'InnoDB';
 
 my $ARGV = parse_arguments(\@ARGV);
-$ARGV->{OS} = $conf{OS} if (!$ARGV->{OS});
+if (! $ARGV->{OS}) {
+  $ARGV->{OS} = $conf{OS};
+}
+else {
+  $ARGV->{OS} = uc($ARGV->{OS});
+  $conf{OS}   = $ARGV->{OS};
+}
+
 print "OS: $conf{OS}\n";
+
+startup_files();
 
 if ($ARGV->{debug}) {
   $debug = int($ARGV->{debug});
@@ -91,19 +96,19 @@ if (!-f $config_file) {
       #Open config
       my $config_text = '';
 
-      open(FILE, "< $config_file" . '.default') || die "Can't open file '$config_file.default' $!\n";
-      while (<FILE>) {
+      open(my $fh, "< $config_file" . '.default') || die "Can't open file '$config_file.default' $!\n";
+      while (<$fh>) {
         $config_text .= $_;
       }
-      close(FILE);
+      close($fh);
 
       while (my ($k, $v) = each %mk_config) {
         $config_text =~ s/\{$k\}\=\'\S{0,50}\'/\{$k\}\=\'$v\'/g;
       }
 
-      open(FILE, ">$config_file") || die "Can't open file '$config_file.default' $!\n";
-      print FILE $config_text;
-      close(FILE);
+      open($fh, ">$config_file") || die "Can't open file '$config_file.default' $!\n";
+        print $fh $config_text;
+      close($fh);
 
       print "Config file maked...\n";
 
@@ -266,12 +271,12 @@ sub programs_info {
   my $install_file = $Bin . "/$program/install";
 
   my @files = ();
-  open(FILE, "< $install_file") || die "Can't open file '$install_file'  $!";
-  while (<FILE>) {
-    next if (/^#/);
-    push @files, $_;
-  }
-  close(FILE);
+  open(my $fh, "< $install_file") || die "Can't open file '$install_file'  $!";
+    while (<$fh>) {
+      next if (/^#/);
+      push @files, $_;
+    }
+  close($fh);
 
   my %DEFAULT_VALUE    = (WORK_DIR => $conf{WORK_DIR});
   my %DEFAULT_DESCRIBE = ();
@@ -343,12 +348,12 @@ sub check_install {
   my $install_file = $conf{WORK_DIR} . "/$program/install";
 
   my @files = ();
-  open(FILE, "< $install_file") || die "Can't open file '$install_file'  $!";
-  while (<FILE>) {
-    next if (/^#/);
-    push @files, $_;
-  }
-  close(FILE);
+  open(my $fh, "< $install_file") || die "Can't open file '$install_file'  $!";
+    while (<$fh>) {
+      next if (/^#/);
+      push @files, $_;
+    }
+  close($fh);
 
   my %DEFAULT_VALUE    = ();
   my %DEFAULT_DESCRIBE = ();
@@ -362,7 +367,7 @@ sub check_install {
     my $dest        = '';
 
     #Reg expression
-    print $file if ($debug > 4);
+    print " > $file" if ($debug > 4);
     $file =~ s/[\r\n]+//g;
     
     next if ( ! $file);
@@ -496,7 +501,6 @@ sub check_install {
         next if ($skip);
       }
 
-
       if ($value =~ /^FILE=(\S+)/) {
         $config_body = get_file($conf{WORK_DIR} . "/$program/" . $1);
       }
@@ -517,6 +521,9 @@ sub check_install {
     }
 
     $config_body = _parse($config_body, \%DEFAULT_VALUE, \%DEFAULT_DESCRIBE);
+    if ($folder) {
+      $folder = _parse($folder, \%DEFAULT_VALUE, \%DEFAULT_DESCRIBE);
+    }
 
     #Copy config
     if (!-d $folder) {
@@ -546,13 +553,12 @@ sub check_install {
       if ($type eq '>>') {
 
         #Check fo existing record in file
-
         my $dest_body = '';
-        open(FILE, "$folder/$dest") || die "Can't open file '$folder/$dest'  $!";
-        while (<FILE>) {
-          $dest_body .= $_;
-        }
-        close(FILE);
+        open(my $fh, "$folder/$dest") || die "Can't open file '$folder/$dest'  $!";
+          while (<$fh>) {
+            $dest_body .= $_;
+          }
+        close($fh);
 
         $dest_body =~ s/\n|\r//g;
         my $check_body = $config_body;
@@ -579,9 +585,9 @@ sub check_install {
         }
       }
 
-      open(FILE, "$type$folder/$dest") || die "Can't open file '$type$folder/$dest'  $!";
-      print FILE $config_body;
-      close(FILE);
+      open(my $fh, "$type$folder/$dest") || die "Can't open file '$type$folder/$dest'  $!";
+        print $fh $config_body;
+      close($fh);
     }
 
   }
@@ -598,11 +604,11 @@ sub get_file {
   my $content = '';
 
   #Open local config
-  open(FILE, "< $file") || die "Can't open file '$file'  $!";
-  while (<FILE>) {
-    $content .= $_;
-  }
-  close(FILE);
+  open(my $fh, "< $file") || die "Can't open file '$file'  $!";
+    while (<$fh>) {
+      $content .= $_;
+    }
+  close($fh);
 
   return $content;
 }
@@ -701,9 +707,11 @@ sub make_checksum {
 sub _parse {
   my ($parameter, $DEFAULT_VALUE, $DEFAULT_DESCRIBE) = @_;
 
+  my %parse_value = (%startup_files, %conf);
+
   while ($parameter =~ /%([A-Z\_0-9]+)%/g) {
     my $VARIABLE = $1;
-    if (!$conf{$VARIABLE}) {
+    if (!$parse_value{$VARIABLE}) {
       print $DEFAULT_DESCRIBE->{"$VARIABLE"} . "\n" if ($DEFAULT_DESCRIBE->{"$VARIABLE"});
       print " $VARIABLE";
       print ' [' . $DEFAULT_VALUE->{"$VARIABLE"} . ']' if (defined($DEFAULT_VALUE->{"$VARIABLE"}));
@@ -715,15 +723,15 @@ sub _parse {
 
       #print "$VARIABLE  / $read\n";
       if ($read eq '' && defined($DEFAULT_VALUE->{"$VARIABLE"})) {
-        $conf{$VARIABLE} = $DEFAULT_VALUE->{"$VARIABLE"};
+        $parse_value{$VARIABLE} = $DEFAULT_VALUE->{"$VARIABLE"};
       }
       else {
-        $conf{$VARIABLE} = $read;
+        $parse_value{$VARIABLE} = $read;
       }
     }
   }
 
-  while (my ($key, $val) = each %conf) {
+  while (my ($key, $val) = each %parse_value ) {
     $parameter =~ s/%$key%/$val/g;
   }
 
@@ -736,11 +744,11 @@ sub _parse {
 sub read_file {
   my ($filename) = @_;
   my $content = '';
-  open(FILE, "$filename") || die "Can't open file '$filename' $!";
-  while (<FILE>) {
-    $content .= $_;
-  }
-  close(FILE);
+  open(my $fh, "$filename") || die "Can't open file '$filename' $!";
+    while (<$fh>) {
+      $content .= $_;
+    }
+  close($fh);
 
   return $content;
 }
@@ -756,9 +764,9 @@ sub write_file {
   }
 
   $mode = ($mode) ? $mode : '>';
-  open(FILE, "$mode$filename") || die "Can't open file '$filename' $!";
-  print FILE $content;
-  close(FILE);
+  open(my $fh, "$mode$filename") || die "Can't open file '$filename' $!";
+    print $fh $content;
+  close($fh);
 
   return $content;
 }
@@ -782,17 +790,13 @@ sub interact_mode {
   }
 
   my @installed = ();
-
   my $read = '';
-  goto label;
 
   while (1) {
-    chop($read = <STDIN>);
-    if ($read =~ /exit/gi) {
+    if ($read && $read =~ /exit/gi) {
       exit;
     }
     else {
-      label:
       if ($read =~ /\d+/ && $read > 0) {
         my $program = $PROGRAMS[ $read - 1 ];
         print "Configuration: $program\n";
@@ -806,6 +810,8 @@ sub interact_mode {
 
       print "Select program or exit: ";
     }
+
+    chop($read = <STDIN>);
   }
 
 }
@@ -912,6 +918,58 @@ sub other_options {
 
   # named_enable="YES"
 }
+
+#**********************************************************
+#
+#**********************************************************
+sub startup_files {
+	my ($attr) = @_;
+
+	my $startup_conf = '/usr/abills/Abills/programs';
+  my $content = '';
+  if($conf{OS} eq 'FREEBSD') {
+    %startup_files = (
+      WEB_SERVER_USER    => "www",
+      RADIUS_SERVER_USER => "freerad",
+      APACHE_CONF_DIR    => '/usr/local/apache22/Include/',
+      RESTART_MYSQL      => '/usr/local/etc/rc.d/mysqld',
+      RESTART_RADIUS     => '/usr/local/etc/rc.d/freeradius',
+      RESTART_APACHE     => '/usr/local/etc/rc.d/apache22',
+      RESTART_DHCP       => '/usr/local/etc/rc.d/isc-dhcp-server',
+    );
+  }
+  else {
+    %startup_files = (
+      WEB_SERVER_USER    => "www-data",
+      APACHE_CONF_DIR    => '/etc/apache2/sites-enabled/',
+      RADIUS_SERVER_USER => "freerad",
+      RESTART_MYSQL      => '/etc/init.d/mysqld',
+      RESTART_RADIUS     => '/etc/init.d/freeradius',
+      RESTART_APACHE     => '/etc/init.d/apache2',
+      RESTART_DHCP       => '/etc/init.d/isc-dhcp-server'
+    );
+
+  }
+
+if ( -f $startup_conf ) {
+	if (open(my $fh, "$startup_conf") ) {
+		while( <$fh> ) {
+			$content .= $_;
+		}
+	  close($fh);
+	}
+	
+	my @rows = split(/[\r\n]+/, $content);
+	foreach my $line (@rows) {
+	  my ($key, $val) = split(/=/, $line, 2);
+	  next if (!$key);
+	  next if (!$val);
+	  $startup_files{$key}=$val;
+	}
+}
+
+}
+
 
 #**********************************************************
 #

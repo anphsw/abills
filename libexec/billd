@@ -215,6 +215,8 @@ sub cross_moduless_actions {
 sub check_lines {
   $Sessions->{debug} = 1 if ($debug > 4);
 
+  $Sessions->query2("DELETE FROM dv_calls WHERE nas_id=0", 'do');
+
   $Sessions->online_del({ SESSIONS_LIST => ['IP'],
                           QUICK         => 1 });
   $Sessions->online(
@@ -327,10 +329,12 @@ sub check_lines {
             }
           );
 
-          $ACCT_INFO->{INBYTE}               = $online->{acct_input_octets};
-          $ACCT_INFO->{OUTBYTE}              = $online->{acct_output_octets};
-          $ACCT_INFO->{INBYTE2}              = $online->{ex_input_octets};
-          $ACCT_INFO->{OUTBYTE2}             = $online->{ex_output_octets};
+          $ACCT_INFO->{INBYTE}               = ( $conf{rt_billing} ) ? 0 : $online->{acct_input_octets};
+          $ACCT_INFO->{OUTBYTE}              = ( $conf{rt_billing} ) ? 0 : $online->{acct_output_octets};
+          $ACCT_INFO->{INBYTE2}              = ( $conf{rt_billing} ) ? 0 : $online->{ex_input_octets};
+          $ACCT_INFO->{OUTBYTE2}             = ( $conf{rt_billing} ) ? 0 : $online->{ex_output_octets};
+          $ACCT_INFO->{ACCT_INPUT_GIGAWORDS} = ( $conf{rt_billing} ) ? 0 : $ACCT_INFO->{ACCT_INPUT_GIGAWORDS};
+          $ACCT_INFO->{ACCT_OUTPUT_GIGAWORDS}= ( $conf{rt_billing} ) ? 0 : $ACCT_INFO->{ACCT_OUTPUT_GIGAWORDS};
           $ACCT_INFO->{ACCT_STATUS_TYPE}     = 'Stop';
           $ACCT_INFO->{ACCT_SESSION_TIME}    = $online->{acct_session_time};
           $ACCT_INFO->{ACCT_TERMINATE_CAUSE} = 23;
@@ -1275,6 +1279,7 @@ sub check_speed {
       DURATION_SEC => '_SHOW', 
       STARTED      => '_SHOW', 
       CONNECT_INFO => '_SHOW',
+      GUEST        => '_SHOW',
       %LIST_PARAMS,
       NAS_ID       => $LIST_PARAMS{NAS_IDS},
     }
@@ -1302,6 +1307,7 @@ sub check_speed {
   my $nas_list    = $Nas->list({%LIST_PARAMS, COLS_NAME => 1 });
   my %USER_IFACES = ();
   my %TP_HASH     = ();
+  my %guest_ips   = ();
 
   my $NAS_TYPE = '';
   foreach my $nas_info (@$nas_list) {
@@ -1310,6 +1316,11 @@ sub check_speed {
 
     my $l = $online->{ $nas_info->{nas_id} };
     foreach my $line (@$l) {
+      if ($line->{guest}) {
+        $guest_ips{$line->{client_ip}}="$line->{user_name}:$line->{duration_sec}";
+        next 
+      }
+
       my $user_speed   = ($TURBO_SPEEDS{ $line->{user_name} }) ? $TURBO_SPEEDS{ $line->{user_name} } : $line->{speed};
 
       if (! defined($user_speed)){
@@ -1339,6 +1350,35 @@ sub check_speed {
     push @FW_ACTIONS, "$IPFW -q add 10025 allow ip from any to table\\(9\\) $via_if_out";
     %pipe_rules = ();
     %fw_ips     = ();
+  }
+
+  if ($ARGV->{CHECK_GUEST}) {
+    my %fw_guest_ips   = ();
+    my $fw_guest_table = 32;
+    if (open(my $ph, "/sbin/ipfw table $fw_guest_table list |")) {
+      while (<$ph>) {
+        if (/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\/\d+\s?(\d+)/) {
+          $fw_guest_ips{$1} = $2 || '-';
+        }
+      }
+      close($ph);
+    }
+
+    while(my($ip, $uid) = each %guest_ips) {
+      if ($fw_guest_ips{$ip}) {
+        delete $guest_ips{$ip};
+      }
+      
+      if($fw_ips{$ip}) {
+        push @FW_ACTIONS, "$IPFW table 10 delete $ip";
+        print "Delete ip '$ip' from work net\n";
+      }
+    }
+
+    foreach my $ip ( sort keys %guest_ips) {
+            print "ip: $ip ($guest_ips{$ip}) not in guest table\n";
+      push @FW_ACTIONS, "$IPFW table $fw_guest_table add $ip";
+    }
   }
 
   # Table shaper
@@ -1449,7 +1489,7 @@ sub check_speed {
 
               if ($speed_in > 0) {
                 if (!$pipe_rules{$pipe_rule_in} || $pipe_rules{$pipe_rule_in} != $speed_in) {
-                   my $queue_in = (! $conf{DV_SKIP_QUEUE}) ? "queue ". (( $speed_in / 10 > 1000) ? 1000 : int( $speed_out / 10 ) ) ."Kbytes " : '';
+                   my $queue_in = (! $conf{DV_SKIP_QUEUE}) ? "queue ". (( $speed_in / 10 > 1000) ? 1000 : int( $speed_in / 10 ) ) ."Kbytes " : '';
 
                   push @FW_ACTIONS, "$IPFW -q pipe $pipe_rule_in config bw " . $speed_in . "Kbit/s ". $queue_in ."mask dst-ip 0xfffffffff";
                   print "Change TP: $tp Class: $traf_type Pipe: $pipe_rule_in IN: " . (($pipe_rules{$pipe_rule_in}) ? $pipe_rules{$pipe_rule_in} : 'Not set') . " -> $speed_in\n";
@@ -1459,7 +1499,7 @@ sub check_speed {
 
               if ($speed_out > 0) {
                 if (!$pipe_rules{$pipe_rule_out} || $pipe_rules{$pipe_rule_out} != $speed_out) {
-                   my $queue_out  = (! $conf{DV_SKIP_QUEUE}) ? "queue ". (( $speed_in / 10 > 1000 ) ? 1000 : int( $speed_in / 10 )) ."Kbytes " : '';
+                   my $queue_out  = (! $conf{DV_SKIP_QUEUE}) ? "queue ". (( $speed_out / 10 > 1000 ) ? 1000 : int( $speed_out / 10 )) ."Kbytes " : '';
 
                   push @FW_ACTIONS, "$IPFW -q pipe $pipe_rule_out config bw " . $speed_out . "Kbit/s ". $queue_out ." mask src-ip 0xffffffff";
 

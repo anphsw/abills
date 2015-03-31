@@ -876,7 +876,7 @@ sub tpl_show {
     return '';
   }
 
-  my $xml_tpl = "<INFO name=\"$tpl_name\">\n";
+  my $xml_tpl = "<INFO". (($tpl_name) ? " name=\"$tpl_name\"" : '' ) .">\n";
 
   while ($tpl =~ /\%(\w+)\%/g) {
     my $var = $1;

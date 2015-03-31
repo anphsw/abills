@@ -104,13 +104,26 @@ sub sms_send {
     $html->message('err', $_ERROR, "$_ERR_WRONG_PHONE");
   }
 
-  if ($attr->{NUMBER} && $conf{SMS_NUMBER_EXPR}) {
-    $attr->{NUMBER} = number_expr($attr->{NUMBER});
+  my $numbers = $attr->{NUMBERS};
+
+  if ($conf{SMS_NUMBER_EXPR}) {
+    if($attr->{NUMBER}) {
+      $attr->{NUMBER} = number_expr($attr->{NUMBER});
+    }
+    elsif($attr->{NUMBERS}) {
+      my %new_numbers  = ();
+      while(my($k, $v)=each %{ $attr->{NUMBERS} }) {
+        my $num = number_expr($k);
+        $new_numbers{$num}=$uid;
+      }
+
+      $numbers = \%new_numbers;
+    }
   }
 
   $Sms_service->send_sms(
     {
-      NUMBERS => $attr->{NUMBERS},
+      NUMBERS => $numbers,
       NUMBER  => $attr->{NUMBER},
       MESSAGE => (($conf{TURBOSMS_MESSAGE_HEADER}) ? $conf{TURBOSMS_MESSAGE_HEADER}.' ' : '') . $attr->{MESSAGE},
       DEBUG   => $attr->{DEBUG} || 0
