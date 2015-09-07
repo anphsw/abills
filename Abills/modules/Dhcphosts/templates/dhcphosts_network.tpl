@@ -11,7 +11,7 @@
 <tr><td>DNS:</td><td colspan=2><input type=text name='DNS' value='%DNS%'></td></tr>
 <tr><td>DNS 2:</td><td colspan=2><input type=text name='DNS2' value='%DNS2%'></td></tr>
 <tr><td>NTP:</td><td colspan=2><input type=text name='NTP' value='%NTP%'></td></tr>
-<tr><td>DOMAINNAME:</td><td colspan=2><input type=text name='DOMAINNAME' value='%DOMAINNAME%'></td></tr>
+<tr><td>DOMAINNAME:</td><td colspan=2><input type=text name='SUFFIX' value='%SUFFIX%'></td></tr>
 
 <tr><td>$_DENY_UNKNOWN_CLIENTS:</td><td colspan=2><input type=checkbox value=1 name='DENY_UNKNOWN_CLIENTS' %DENY_UNKNOWN_CLIENTS%></td></tr>
 <tr><td>$_AUTHORITATIVE:</td><td colspan=2><input type=checkbox name='AUTHORITATIVE' value=1 %AUTHORITATIVE%></td></tr>

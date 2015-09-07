@@ -7,9 +7,9 @@ $DATE $TIME
 $CHARSET
 @MODULES
 $Paysys
-$debug
 $payments
 $html
+$db
 );
 
 BEGIN {
@@ -46,19 +46,17 @@ use Paysys;
 use Finance;
 use Admins;
 
-$html    = Abills::HTML->new();
-my $sql  = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
-my $db   = $sql->{db};
+$html   = Abills::HTML->new();
+$db  = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, { %conf, CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
 
 #Operation status
-
 my $admin  = Admins->new($db, \%conf);
 $admin->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });
 $payments  = Finance->payments($db, $admin, \%conf);
 my $fees   = Finance->fees($db, $admin, \%conf);
 $Paysys    = Paysys->new($db, $admin, \%conf);
-my $status = '';
-$debug     = 0;
+my $status    = '';
+my $debug     = 0;
 my $error_str = '';
 
 require "Abills/Misc.pm";
@@ -97,10 +95,10 @@ elsif ($ARGV->{TYPE}) {
     paysys_import_ftp();
   }
   elsif ($ARGV->{TYPE} eq 'PAYMENTS' || $ARGV->{TYPE} eq 'CANCEL_PAYMENTS') {
-    paysys_import_payments();
+    paysys_import_payments_cons();
   }
   elsif ($ARGV->{TYPE} eq 'FEES') {
-    paysys_import_fees();
+    paysys_import_fees_cons();
   }
   elsif ($ARGV->{TYPE} eq 'ERIPT') {
     eript_202();
@@ -110,7 +108,7 @@ elsif ($ARGV->{TYPE}) {
 #**********************************************************
 # Import fees from_file
 #**********************************************************
-sub paysys_import_form {
+sub paysys_import_form_cons {
   my ($attr) = @_;
   my @import_types = ();
   if ($attr->{IMPORT_RULES}) {
@@ -118,7 +116,6 @@ sub paysys_import_form {
   }
 
   my $table;
-
   #Default import extration
   my $import_expr = ($attr->{IMPORT_EXPR}) ? $attr->{IMPORT_EXPR} : '(\d+)\t(.+)\t(\d+)\t(\S+)\t([0-9.,]+)\t(\d{2}-\d{2}-\d{4})\t(.+)\t(.+):ID, FIO, PHONE, CONTRACT_ID, SUM, DATE, ADDRESS, DESCRIBE';
 
@@ -149,11 +146,11 @@ sub paysys_import_form {
     $content = $attr->{CONTENT};
   }
   else {
-    open(FILE, "$filename") || die "Can't open file '$filename' $!\n";
-    while (<FILE>) {
+    open(my $fh, "$filename") || die "Can't open file '$filename' $!\n";
+    while (<$fh>) {
       $content .= $_;
     }
-    close(FILE);
+    close($fh);
   }
 
   ($DATA_ARR, $BINDING_IDS) = payasys_import_parse($content, $import_expr, $BINDING_FIELD);
@@ -175,9 +172,16 @@ sub paysys_import_form {
   $binding_field_id = lc($BINDING_FIELD);
 
   foreach my $line (@$list) {
+  	if (! defined($line->{$binding_field_id})) {
+  		print "Not defined bind field '$binding_field_id'\n";
+  		exit;
+  	}
+  	
   	$line->{login} = (! $line->{login}) ? $line->{id} : $line->{login};
     $binding_hash{ lc($line->{$binding_field_id}) } = "$line->{uid}:$line->{login}:" . (($line->{fio}) ? $line->{fio} : '');
   }
+
+  $payments->{debug} = 1 if ($debug > 4);
 
   my $error = 0;
   for (my $i = 0 ; $i <= $#{$DATA_ARR} ; $i++) {
@@ -201,15 +205,19 @@ sub paysys_import_form {
         $inner_describe = convert($inner_describe, { $ARGV->{DECODE} => 1 });
       }
 
+      $db->{db}->{AutoCommit}=0;
+      $db->{TRANSACTION}=1;
+
       if ($ARGV->{TYPE} eq 'PAYMENTS') {
         my $ext_id = '';
-        if ($debug < 5) {
+        if ($debug < 6) {
           if (!$DATA_ARR->[$i]->{DATE} && $DATA_ARR->[$i]->{DATE_DMY}) {
             $DATA_ARR->[$i]->{DATE_DMY} =~ /(\d{2})(\d{2})(\d{4})/;
             $DATA_ARR->[$i]->{DATE} = "$3-$2-$1";
           }
           my $method = $DATA_ARR->[$i]->{PAYMENT_METHOD} || $ARGV->{METHOD} || 2;
           $ext_id = $DATA_ARR->[$i]->{EXT_ID} || "$DATA_ARR->[$i]->{DATE}_$FORM{IMPORT_TYPE}.$ID";
+
           $payments->add(
             $user,
             {
@@ -225,7 +233,7 @@ sub paysys_import_form {
         }
 
         if ($payments->{errno} && $payments->{errno} == 7) {
-          $error_str .= "ERROR: EXIST: EXT_ID: $ext_id\n";
+          $error_str .= "ERROR: EXIST EXT_ID: $ext_id\n";
           $error     = 1;
         }
         else {
@@ -271,7 +279,6 @@ sub paysys_import_form {
             push @payments_arr, $DATA_ARR->[$i]->{EXT_ID};
           }
         }
-        $payments->{debug} = 1 if ($debug > 5);
 
         if ($#payments_arr == -1) {
           print "Select ext ID for cancel payments\n";
@@ -293,8 +300,16 @@ sub paysys_import_form {
       }
 
       if (!$error) {
+        if (! $db->{db}->{AutoCommit}) {
+          $db->{db}->commit();
+          $db->{db}->{AutoCommit}=1;
+        }
+        
         $total_added_count++;
         $total_added_sum += $DATA_ARR->[$i]->{SUM};
+      }
+      else {
+        $db->{db}->rollback();
       }
     }
     else {
@@ -321,8 +336,8 @@ sub paysys_import_form {
 #**********************************************************
 # Import fees from_file
 #**********************************************************
-sub paysys_import_fees {
-  paysys_import_form(
+sub paysys_import_fees_cons {
+  paysys_import_form_cons(
     {
       TYPE           => 'FEES',
       BINDING_FIELDS => $conf{PAYSYS_FEES_BINDING},
@@ -335,7 +350,7 @@ sub paysys_import_fees {
 #**********************************************************
 # Import fees from_file
 #**********************************************************
-sub paysys_import_payments {
+sub paysys_import_payments_cons {
   my @files = ();
   my $filename = $ARGV->{FILE} || '';
   my $dir = '';
@@ -343,9 +358,9 @@ sub paysys_import_payments {
   if ($filename =~ s/\*/\.\+/g) {
     $dir = dirname($filename);
     $filename =~ s/$dir\///;
-    opendir DIR, $dir or die "Can't open dir '$dir' $!\n";
-      @files = grep /^$filename$/, readdir DIR;
-    closedir DIR;
+    opendir my $dh, $dir or die "Can't open dir '$dir' $!\n";
+      @files = grep /^$filename$/, readdir $dh;
+    closedir $dh;
   }
   else {
     push @files, $filename;
@@ -354,13 +369,13 @@ sub paysys_import_payments {
   foreach my $filename (@files) {
     $filename = "$dir/$filename" if ($dir);
     my $content = '';
-    open(FILE, "$filename") || die "Can't open file '$filename' $!\n";
-      while (<FILE>) {
+    open(my $fh, "$filename") || die "Can't open file '$filename' $!\n";
+      while (<$fh>) {
         $content .= $_;
       }
-    close(FILE);
+    close($fh);
 
-    paysys_import_form(
+    paysys_import_form_cons(
     {
       TYPE         => $ARGV->{TYPE},
       IMPORT_RULE  => $ARGV->{IMPORT_RULE},
@@ -436,7 +451,8 @@ sub payasys_import_parse {
 #**********************************************************
 sub paysys_import_pop3 {
   print "POP3 check\n" if ($debug > 2);
-  use Net::POP3;
+
+  load_pmodule('Net::POP3');
 
   # Constructors
   my @mailboxes = split(/;/, $conf{PAYSYS_EMAIL_CHECK});
@@ -532,7 +548,7 @@ sub paysys_import_pop3 {
         }
 
         if (
-          paysys_import_form(
+          paysys_import_form_cons(
             {
               TYPE         => $ARGV->{TYPE},
               IMPORT_RULE  => $ARGV->{IMPORT_RULE},
@@ -575,7 +591,7 @@ sub paysys_import_ftp {
   my ($attr) = @_;
 
   print "FTP check\n" if ($debug > 2);
-  use Net::FTP;
+  load_pmodule('Net::FTP');
 
   # Constructors
   my @hosts = split(/;/, $conf{PAYSYS_FTP_CHECK});
@@ -619,18 +635,18 @@ sub paysys_import_ftp {
 
         $filename =~ /\/?([a-zA-Z0-9\.\-\_\?]+)$/;
         my $local_filename = $1;
-        open(FILE, "$local_filename") || die "Can't open file '$filename' $!\n";
-        while (<FILE>) {
+        open(my $fh, "$local_filename") || die "Can't open file '$filename' $!\n";
+        while (<$fh>) {
           $content .= $_;
         }
-        close(FILE);
+        close($fh);
 
         if ($ARGV->{DECODE}) {
           $content = convert($content, { $ARGV->{DECODE} => 1 });
         }
 
         if (
-          paysys_import_form(
+          paysys_import_form_cons(
             {
               TYPE         => $ARGV->{TYPE},
               IMPORT_RULE  => $ARGV->{IMPORT_RULE},
@@ -638,9 +654,7 @@ sub paysys_import_ftp {
               CONTENT      => $content
             }
           )
-        )
-        {
-
+        ){
           if ($ARGV->{BACKUP_FILES} && -d $ARGV->{BACKUP_FILES}) {
             my $a = `cp $local_filename $ARGV->{BACKUP_FILES}`;
           }
@@ -806,9 +820,9 @@ sub eript_202 {
   else {
     my $upload_file = '/tmp/' . $msg_file;
 
-    open(FILE, ">$upload_file") or die "Can't create file '$upload_file' $!\n";
-    print FILE $message;
-    close(FILE);
+    open(my $fh, ">$upload_file") or die "Can't create file '$upload_file' $!\n";
+      print $fh $message;
+    close($fh);
     paysys_import_ftp({ UPLOAD => $upload_file, FTP_DIR => '/in/' });
   }
 

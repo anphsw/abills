@@ -11,7 +11,11 @@ if ($conf{PAYSYS_QIWI_TERMINAL_ID}) {
 }
 
 if ($conf{PAYSYS_P24_MERCHANT_ID}) {
-  $FUNCTIONS_LIST{"03:2:Privat 24:paysys_p24:"}=4;
+  $FUNCTIONS_LIST{"04:2:Privat 24:paysys_p24:"}=4;
+}
+
+if ($conf{PAYSYS_STRIPE_SECRET_KEY}) {
+  $FUNCTIONS_LIST{"05:2:Stripe:paysys_stripe_report:"}=4;
 }
 
 %USER_FUNCTION_LIST = ("01:0:$_BALANCE_RECHARCHE:paysys_payment:"  => 40,

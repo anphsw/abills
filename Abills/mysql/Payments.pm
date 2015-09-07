@@ -1,7 +1,7 @@
 package Payments;
 
 # Payments Finance module
-#
+#************************************************************
 
 use strict;
 use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
@@ -114,8 +114,13 @@ sub add {
     }
   }
 
-  $self->{db}->{AutoCommit} = 0;
-  
+  if ($self->{db}->{db}) {
+    $self->{db}->{db}->{AutoCommit} = 0;
+  }
+  else {
+    $self->{db}->{AutoCommit} = 0;
+  }
+
   $user->{BILL_ID} = $attr->{BILL_ID} if ($attr->{BILL_ID});
 
   $DATA{AMOUNT} = $DATA{SUM};
@@ -151,10 +156,22 @@ sub add {
         );
       }
       $self->{SUM} = $DATA{SUM};
-      $self->{db}->commit() if (!$attr->{TRANSACTION});
+      if (!$attr->{TRANSACTION}) {
+        if ($self->{db}->{db}) {
+          $self->{db}->{db}->commit() ;
+        }
+        else {
+          $self->{db}->commit() ;
+        }
+      }
     }
     else {
-      $self->{db}->rollback();
+      if ($self->{db}->{db}) {
+        $self->{db}->{db}->rollback() ;
+      }
+      else {
+        $self->{db}->rollback();
+      }     
     }
 
     $self->{PAYMENT_ID} = $self->{INSERT_ID};
@@ -164,7 +181,14 @@ sub add {
     $self->{errstr} = 'No Bill';
   }
 
-  $self->{db}->{AutoCommit} = 1 if (!$attr->{NO_AUTOCOMMIT} && !$attr->{TRANSACTION});
+  if (!$attr->{NO_AUTOCOMMIT} && !$attr->{TRANSACTION}) {
+    if ($self->{db}->{db}) {
+      $self->{db}->{db}->{AutoCommit} = 1 
+    }
+    else {
+      $self->{db}->{AutoCommit} = 1  
+    }
+  }
 
   return $self;
 }

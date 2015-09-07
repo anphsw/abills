@@ -1,0 +1,85 @@
+.arcticmodal-overlay,
+.arcticmodal-container { position: fixed; left: 0; top: 0; right: 0; bottom: 0; z-index: 1000; }
+.arcticmodal-container { overflow: auto; margin: 0; padding: 0; border: 0; border-collapse: collapse; }
+*:first-child+html .arcticmodal-container { height: 100% }
+.arcticmodal-container_i { height: 100%; margin: 0 auto; border: 0; text-align: center;}
+.arcticmodal-container_i2 { padding: 24px; margin: 0; border: 0; vertical-align: middle; }
+.arcticmodal-error { padding: 20px; border-radius: 10px; background: #000; color: #fff; }
+.arcticmodal-loading { width: 80px; height: 80px; border-radius: 10px; background: #000 url(loading.gif) no-repeat 50% 50%; }
+.arcticmodal-confirm, .arcticmodal-cancel {
+    font-size: 10pt;
+
+    display: inline-block;
+    width: 120px;
+    height: 40px;
+ padding: 5px 10px 5px 10px;
+    margin: 0 0 5px 0;
+    background-clip: padding-box;
+
+    cursor: pointer;
+    text-decoration: none;
+    text-align: center;
+
+    -webkit-border-radius: 50px;
+    border-radius: 50px;
+    -webkit-transition: all 0.2s linear;
+    -moz-transition: all 0.2s linear;
+    -o-transition: all 0.2s linear;
+    transition: all 0.2s linear;
+}
+
+.arcticmodal-confirm {
+    border: 2px solid #16a085;
+    background: #f4f4f4;
+    color: #16a085;
+}
+
+.arcticmodal-confirm:hover, .arcticmodal-confirm:active {
+    background: #16a085;
+    color: #f4f4f4;
+}
+
+.arcticmodal-cancel {
+    border: 2px solid #c0392b;
+    background: #f4f4f4;
+    color: #c0392b;
+}
+
+.arcticmodal-cancel:hover, .arcticmodal-cancel:active {
+    background: #c0392b;
+    color: #f4f4f4;
+}
+
+
+.QBinfo {
+    background: #000; opacity: 0.85; color:#fff;
+    border-radius: 5px;
+    display: none; z-index: 9999; padding:5px;
+    -webkit-box-shadow: 2px 5px 15px 1px #707070;
+    box-shadow: 2px 5px 15px 1px #707070;
+}
+.titleQBinfo {
+    font-size:16px; color:#fff; font-weight:bold; font-family: arial;
+}
+.closeQBinfo a {
+    color:#fff; font-size:12px; font-family:arial; text-decoration: none; font-weight: bold; margin:5px;
+}
+.topQBinfo {
+}
+.msgQBinfo {
+    padding:5px; font-size:13px;
+}
+
+.box-modal {
+        position: relative;
+        width: 500px;
+        padding: 16px;
+        background: #fff;
+        color: #3c3c3c;
+        font: 14px/18px Arial, "Helvetica CY", "Nimbus Sans L", sans-serif;
+        box-shadow: 0 0 0 6px rgba(153, 153, 153, .3);
+        border-radius: 6px;
+}
+.box-modal_close { position: absolute; right: 10px; top: 6px; font-size: 11px; line-height: 15px; color: #999; cursor: pointer; }
+.box-modal_close:hover { color: #666; }
+

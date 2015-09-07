@@ -903,7 +903,7 @@ sub cards_user_payment () {
         }
 
         cross_modules_call('_payments_maked', { USER_INFO    => $user,
-        	                                      SUM          => $Cards->{SUM}, 
+                                                SUM          => $Cards->{SUM}, 
                                                 SKIP_MODULES => 'Cards,Sqlcmd',
                                                 QUITE        => 1,
                                                 SILENT       => 1

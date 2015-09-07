@@ -2,16 +2,19 @@
 # Mikrotik autoconfigurator
 #
 
-VERSION=0.63
+VERSION=0.73
 DEBUG=
-
+ARGV=$1
 
 #while [ "${NAS_ID}" = "" ]; do
 #  read -p "Nas ID:" NAS_ID
 #done;
 
 RAD_ACCT_ALIVE=300
+
+BILLING_DIR=/usr/abills/
 CERT_PATH=/usr/abills/Certs/
+
 SSH=ssh
 SSH_PORT=22
 
@@ -19,12 +22,25 @@ SSH_PORT=22
 #
 #**********************************************************
 ssh_cmds () {
-  CONTROL_USER=$1
+  CONTROL_USER=$1;
+  GET=$2
+
+  if [ "${DEBUG}" != "" ]; then
+    echo "USER: ${CONTROL_USER}";
+  fi;
+
+  if  [ "$GET" != "" ]; then
+    VAL=`${SSH} -p ${MIKROTIK_SSH_PORT} -l ${CONTROL_USER} -o StrictHostKeyChecking=no -i ${CERT_PATH}/${id_dsa_file} ${MIKROTIK_IP} "${GET}"`;
+
+    echo "${VAL}";
+
+    return
+  fi;
 
 for i in 1 2 3 4 5 6 7  8 9 10 11 12 13 14 15; do
   cmd=`eval "echo \"\\${CMDS_${i}}\""`
   if [ "${cmd}" != "" ]; then
-    echo "$i ${cmd}"
+    echo "Try: $i ${cmd}"
     ${SSH} -p ${MIKROTIK_SSH_PORT} -l ${CONTROL_USER} -o StrictHostKeyChecking=no -i ${CERT_PATH}/${id_dsa_file} ${MIKROTIK_IP} "${cmd}"
   fi;
 done
@@ -60,13 +76,15 @@ get_value () {
 
   return 0
 }
+
+
 #**********************************************************
 #
 # set dns
 #**********************************************************
 set_dns () {
 
-  echo "checking dns"
+  echo "Checking DNS"
   cmd="/ip dns print" 
 
   check=`${SSH} -p ${MIKROTIK_SSH_PORT} -l ${CONTROL_USER} -o StrictHostKeyChecking=no -i ${CERT_PATH}/${id_dsa_file} ${MIKROTIK_IP} "${cmd}" | grep 'servers: [0-9]' `
@@ -75,11 +93,13 @@ set_dns () {
   if [ x"${check}" = x ]; then
     get_value dns 'dns' "8.8.8.8"
     CMDS_1="/ip dns set server=${dns}"
+    CMDS_2=""
+    ssh_cmds ${CONTROL_USER}
   else
     echo "DNS: $check"
   fi;
-  ssh_cmds ${MIKROTIK_ADMIN_USER}
-   
+
+  
 }
 
         
@@ -94,10 +114,10 @@ check_set_default_gateway () {
   if [ x"${check}" = x ]; then
     get_value gateway 'IP route GATEWAY' "192.168.1.1"
     CMDS_1="/ip route add gateway=${gateway}"
+    CMDS_2=""
+    ssh_cmds "${CONTROL_USER}"
   fi; 
- 
-  ssh_cmds ${MIKROTIK_ADMIN_USER}
-  
+
 }
                                         
 
@@ -107,7 +127,7 @@ check_set_default_gateway () {
 #**********************************************************
 cert_upload () {
 
-/usr/abills/misc/certs_create.sh ssh ${MIKROTIK_CONTROL_USER} -UPLOAD_FTP "${MIKROTIK_ADMIN_USER}@${MIKROTIK_IP}"
+${BILLING_DIR}/misc/certs_create.sh ssh ${MIKROTIK_CONTROL_USER} -UPLOAD_FTP "${MIKROTIK_ADMIN_USER}@${MIKROTIK_IP}"
 
 id_dsa_file=id_dsa.${MIKROTIK_CONTROL_USER};
 
@@ -116,12 +136,15 @@ id_dsa_file=id_dsa.${MIKROTIK_CONTROL_USER};
 CMDS_1="/user add name=${MIKROTIK_CONTROL_USER} group=write"
 CMDS_2="/user ssh-keys import public-key-file=${id_dsa_file}.pub user=${MIKROTIK_CONTROL_USER}"
 
-ssh_cmds ${MIKROTIK_ADMIN_USER}
+ssh_cmds "${MIKROTIK_ADMIN_USER}"
 
-echo "Test connect: "
+echo "Test connect user - ${MIKROTIK_CONTROL_USER}: "
 CMDS_1="/system identity print"
 CMDS_2="/system package print where name~\"system\""
-ssh_cmds ${MIKROTIK_CONTROL_USER}
+
+CONTROL_USER=${MIKROTIK_CONTROL_USER};
+ssh_cmds "${MIKROTIK_CONTROL_USER}"
+
 }
 
 
@@ -140,6 +163,14 @@ echo "CONNECTION_TYPE: '${CONNECTION_TYPE}'"
 
 ##PPPoE
 if [ "${CONNECTION_TYPE}" = pppoe ]; then
+
+  #get interfaces
+  PPPOE_IFS=`ssh_cmds ${CONTROL_USER} " /interface print where type=ether or type=bridge"`;
+  if [ "${PPPOE_IFS}" != "" ]; then
+    echo "Interfaces: ";
+    echo "${PPPOE_IFS}" | awk '{ print $3 "\t" $4 }'
+  fi;
+
   PPPOE_INTERFACES=ether1
   get_value PPPOE_INTERFACES "PPPoE listen interfaces" ether1
   for PPPOE_INTERFACE in ${PPPOE_INTERFACES}; do
@@ -171,12 +202,27 @@ if [ "${CONNECTION_TYPE}" = freeradius_dhcp ]; then
   CMDS_9=""
 fi;
 
+#Hotspot
+if [ "${CONNECTION_TYPE}" = hotspot ]; then
+  CMDS_20=""
+  CMDS_21=""
+  CMDS_22=""
+fi;
+
 
 #Redirect to user portal
 get_value PORTAL_IP "User Portal IP"
 get_value CLIENTS_NET "Clients network" "10.0.0.0/24"
 
-CMDS_10="/ip firewall nat add chain=dstnat action=dst-nat to-addresses=${PORTAL_IP} to-ports=80 protocol=tcp src-address=${CLIENTS_NET} dst-address=0.0.0.0/0 dst-port=80"
+CMDS_100="/ip firewall nat add chain=dstnat action=dst-nat to-addresses=${PORTAL_IP} to-ports=80 protocol=tcp src-address=${CLIENTS_NET} dst-address=0.0.0.0/0 dst-port=80"
+
+#Redirect negative pool
+# CMDS_101="/ip firewall nat add chain=dstnat action=dst-nat to-addresses=${PORTAL_IP} to-ports=80 protocol=tcp dst-address=0.0.0.0/0 src-address-list=negative dst-port=80"
+# Block negative
+# CMDS_102="/ip firewall filter add chain=forward action=drop src-address-list=negative dst-address=0.0.0.0/0"
+#
+# 
+
 
 ssh_cmds ${MIKROTIK_CONTROL_USER}
 
@@ -187,11 +233,11 @@ ssh_cmds ${MIKROTIK_CONTROL_USER}
 #**********************************************************
 mk_shapper () {
   echo "Make shapper"
-  
+
   get_value USE_NAT "Use nat (y/n)"
   
   if [ "${USE_NAT}"  != n ]; then
-    /usr/abills/libexec/billd checkspeed mikrotik RECONFIGURE=1 NAS_IDS=${NAS_ID} SSH_PORT=${MIKROTIK_SSH_PORT} NAT=${USE_NAT}
+    ${BILLING_DIR}/libexec/billd checkspeed mikrotik RECONFIGURE=1 NAS_IDS=${NAS_ID} SSH_PORT=${MIKROTIK_SSH_PORT} NAT=${USE_NAT}
   fi;
 
 }
@@ -203,18 +249,19 @@ get_mikrotik_info () {
 
 get_value MIKROTIK_ADMIN_USER "Mikrotik admin user" admin
 get_value NAS_ID "Nas ID"
-get_value CONNECTION_TYPE "Connection type [pppoe,pptp,ipn,freeradius_dhcp]"
 get_value MIKROTIK_CONTROL_USER "Mikrotik control user" abills_admin
+get_value CONNECTION_TYPE "Connection type [pppoe,pptp,ipn,freeradius_dhcp]"
 get_value RADIUS_AUTH_SERVER "Radius IP" 
-get_value RADIUS_SECRET "Radius Secret" radsecret
+get_value RADIUS_SECRET "Radius Secret" secretpass
 
-if [ x${RADIUS_AUTH_SERVER} != x ]; then
+if [ x"${RADIUS_AUTH_SERVER}" != x ]; then
   for file in /usr/local/etc/raddb/client.conf  /usr/local/freeradius/etc/raddb/client.conf; do
     if [ -f ${file} ]; then
       check_nas=`grep ${RADIUS_AUTH_SERVER} ${file}`;
-      if [ x${check_nas} = x ]; then  
+      #Make radius conf
+      if [ x"${check_nas}" = x ]; then  
         get_value ADD_RADIUS_CLIENT "Add to radius client file '${file}' "
-        if [ x${ADD_RADIUS_CLIENT} != x ]; then   
+        if [ x"${ADD_RADIUS_CLIENT}" != x ]; then   
           echo "client {
    secret = ${RADIUS_SECRET}
    }
@@ -244,7 +291,11 @@ save_config () {
     echo "MIKROTIK_CONTROL_USER ${MIKROTIK_CONTROL_USER}" >> ${config_file}
     echo "RADIUS_AUTH_SERVER ${RADIUS_AUTH_SERVER}" >> ${config_file}
     echo "RADIUS_SECRET ${RADIUS_SECRET}" >> ${config_file}
+    echo "PORTAL_IP ${PORTAL_IP}" >> ${config_file}
+    echo "CLIENTS_NET ${CLIENTS_NET}" >> ${config_file}
+    echo "USE_NAT ${USE_NAT}" >> ${config_file}
   fi;
+
 }
 
 
@@ -255,10 +306,54 @@ save_config () {
 read_config () {
   echo "Reading config: ${config_file}"
   
-  cat ${config_file};
+  info=`cat ${config_file}`;
+
+  while read line; do
+    VARIABLE_NAME=`echo ${line} | awk '{ print $1 }'`;
+    eval "${VARIABLE_NAME}"=`echo ${line} |  awk '{print $2 }'`
+  done < ${config_file}
   
-  exit;
+  MIKROTIK_SSH_PORT=`echo ${MIKROTIK_IP} | awk -F: '{ print $2 }'`
+  MIKROTIK_IP=`echo ${MIKROTIK_IP} | awk -F: '{ print $1 }'`
+
 }
+
+#**********************************************************
+#
+#**********************************************************
+save_mikrotik_config () {
+  echo "Make mikrotik config backup:";
+  
+  config_file="${MIKROTIK_IP}.backup"
+
+  cmd="export compact"
+  
+  id_dsa_file=id_dsa.${MIKROTIK_CONTROL_USER};
+  
+  if [ "${DEBUG}" != "" ]; then
+    echo "${SSH} -p ${MIKROTIK_SSH_PORT} -l ${MIKROTIK_CONTROL_USER} -o StrictHostKeyChecking=no -i ${CERT_PATH}/${id_dsa_file} ${MIKROTIK_IP}"
+  fi;
+
+  ${SSH} -p ${MIKROTIK_SSH_PORT} -l ${MIKROTIK_CONTROL_USER} -o StrictHostKeyChecking=no -i ${CERT_PATH}/${id_dsa_file} ${MIKROTIK_IP} "${cmd}" > ${config_file}
+
+  
+}
+
+#**********************************************************
+#
+#**********************************************************
+help () {
+  echo "Mikrotik autoconfigure program"
+  echo "Version: ${VERSION}"
+
+
+
+}
+
+
+
+
+#**********************************************************
 
 get_value MIKROTIK_IP "Enter Mikrotik IP"
 
@@ -270,16 +365,22 @@ fi;
 
 config_file="${MIKROTIK_IP}.conf"
 
-if [ -f ${config_file} ]; then
+if [ -f "${config_file}" ]; then
   echo -n "Use config? [Y/n]"
   read USER_CONFIG
 fi;
 
-if [ x${USER_CONFIG} = xy ]; then
+if [ x"${USER_CONFIG}" = xy ]; then
   read_config
 else
   get_mikrotik_info
 fi;
+
+if [ "${ARGV}" = get_conf ]; then
+  save_mikrotik_config
+  exit;
+fi;
+
 
 cert_upload
 set_dns
@@ -287,3 +388,4 @@ check_set_default_gateway
 add_config
 mk_shapper
 save_config
+save_mikrotik_config

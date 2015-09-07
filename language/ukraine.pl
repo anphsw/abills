@@ -461,3 +461,4 @@ $_RELAYS='Relay,';
 $_GUEST_ACCOUNT='Гостьовий доступ';
 $_BILLS='Грошові рахунки';
 $_PAY_TO='Оплатити до дати';
+$_OPERATOR_CALL_CENTER='Оператор Call-центра';

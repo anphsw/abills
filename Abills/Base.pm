@@ -1,12 +1,17 @@
 package Abills::Base;
 
 #Base functions
+no if $] >= 5.017011, warnings => 'experimental::smartmatch';
 
 use strict;
 use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
 );
 
+use POSIX qw(locale_h);
+
+
 use Exporter;
+
 
 $VERSION = 2.00;
 @ISA     = ('Exporter');
@@ -26,8 +31,6 @@ $VERSION = 2.00;
 &mk_unique_value
 &decode_base64
 &check_time
-&get_radius_params
-&test_radius_returns
 &sendmail
 &in_array
 &tpl_parse
@@ -37,6 +40,9 @@ $VERSION = 2.00;
 &cmd
 &ssh_cmd
 &date_diff
+&date_format
+&_bp
+&get_radius_params
 );
 
 @EXPORT_OK = qw(
@@ -54,8 +60,6 @@ show_log
 mk_unique_value
 decode_base64
 check_time
-get_radius_params
-test_radius_returns
 sendmail
 in_array
 tpl_parse
@@ -65,6 +69,9 @@ clearquotes
 cmd
 ssh_cmd
 date_diff
+date_format
+_bp
+get_radius_params
 );
 
 %EXPORT_TAGS = ();
@@ -74,7 +81,8 @@ date_diff
 #
 #**********************************************************
 sub null {
-  return 0;
+
+  return 1;
 }
 
 #**********************************************************
@@ -102,7 +110,7 @@ sub cfg2hash {
 }
 
 #**********************************************************
-# isvalue()
+# in_array()
 # Check value in array
 #**********************************************************
 sub in_array {
@@ -110,8 +118,8 @@ sub in_array {
 
   return 0 if (!defined($value));
 
-  for (my $i = 0 ; $i <= $#{$array} ; $i++) {
-    return 1 if ($value eq $array->[$i]);
+  if ($value ~~ @$array) {
+    return 1;
   }
 
   return 0;
@@ -121,6 +129,7 @@ sub in_array {
 # Converter
 #   Attributes
 #     text2html - convert text to HTML
+#     html2text - 
 #
 #   Transpation
 #    win2koi
@@ -135,15 +144,22 @@ sub in_array {
 sub convert {
   my ($text, $attr) = @_;
 
+  # $str =~ s/([^A-Za-z0-9])/sprintf("%%%02X", ord($1))/seg;
   if (defined($attr->{text2html})) {
     $text =~ s/</&lt;/g;
     $text =~ s/>/&gt;/g;
     $text =~ s/\"/&quot;/g;
     $text =~ s/\n/<br\/>\n/gi;
     $text =~ s/\%/\&#37/g;
+    $text =~ s/\*/&#42;/g;
+    #$text =~ s/\+/\%2B/g;
+
     if ($attr->{SHOW_URL}) {
       $text =~ s/([https|http]+:\/\/[a-z\.0-9\/\?\&\-\_\#:\=]+)/<a href=\'$1\' target=_new>$1<\/a>/ig;
     }
+  }
+  elsif (defined($attr->{html2text})) {
+  	$text =~ s/\%([A-Fa-f0-9]{2})/pack('C', hex($1))/seg;
   }
   elsif ($attr->{'from_tpl'}) {
     $text =~ s/textarea/__textarea__/g;
@@ -151,8 +167,8 @@ sub convert {
   elsif ($attr->{'2_tpl'}) {
     $text =~ s/__textarea__/textarea/g;
   }
-  elsif ($attr->{win2utf8}) { $text = win2utf8($text); }
-  elsif ($attr->{utf82win}) { $text = utf82win($text); }
+  elsif ($attr->{win2utf8}) { $text = win2utf8($text);}
+  elsif ($attr->{utf82win}) { $text = utf82win($text);}
   elsif ($attr->{win2koi})  { $text = win2koi($text); }
   elsif ($attr->{koi2win})  { $text = koi2win($text); }
   elsif ($attr->{win2iso})  { $text = win2iso($text); }
@@ -243,7 +259,8 @@ sub win2utf8 {
 sub utf82win {
   my ($text) = @_;
 
-  use Encode;
+  require Encode;
+  Encode->import();
   my $win1251 = encode('cp1251', decode('utf8', $text));
   return $win1251;
 
@@ -401,17 +418,17 @@ $data}
       print "$message";
     }
     else {
-      open(MAIL, "| $SENDMAIL -t") || die "Can't open file '$SENDMAIL' $!\n";
-      print MAIL "To: $to\n";
-      print MAIL "From: $from\n";
-      print MAIL $ext_header;
-      print MAIL "Content-Type: text/plain; charset=$charset\n" if (!$attr->{ATTACHMENTS});
-      print MAIL "X-Priority: $priority\n" if ($priority);
-      print MAIL "X-Mailer: ABillS\n";
-      print MAIL $header;
-      print MAIL "Subject: $subject \n\n";
-      print MAIL "$message";
-      close(MAIL);
+      open(my $mail, "| $SENDMAIL -t") || die "Can't open file '$SENDMAIL' $!\n";
+      print $mail "To: $to\n";
+      print $mail "From: $from\n";
+      print $mail $ext_header;
+      print $mail "Content-Type: text/plain; charset=$charset\n" if (!$attr->{ATTACHMENTS});
+      print $mail "X-Priority: $priority\n" if ($priority);
+      print $mail "X-Mailer: ABillS\n";
+      print $mail $header;
+      print $mail "Subject: $subject \n\n";
+      print $mail "$message";
+      close($mail);
     }
   }
 
@@ -439,9 +456,9 @@ sub show_log {
 
   $login =~ s/\*/\[\.\]\{0,100\}/g if ($login ne '');
 
-  open(FILE, "$logfile") || die "Can't open log file '$logfile' $!\n";
+  open(my $fh, "$logfile") || die "Can't open log file '$logfile' $!\n";
   my ($date, $time, $log_type, $action, $user, $message);
-  while (<FILE>) {
+  while (<$fh>) {
 
     #Old
     #my ($date, $time, $log_type, $action, $user, $message)=split(/ /, $_, 6);
@@ -478,7 +495,7 @@ sub show_log {
       $types{$log_type}++;
     }
   }
-  close(FILE);
+  close($fh);
 
   my $total = $#err_recs;
   my @list;
@@ -772,8 +789,8 @@ sub int2ml {
     $ret .= "";
   }
 
-  use locale;
-  use POSIX qw(locale_h);
+  require locale;
+  locale->import();
   my $locale = $attr->{LOCALE} || 'ru_RU.CP1251';
   setlocale(LC_ALL, $locale);
   $ret = ucfirst $ret;
@@ -816,7 +833,8 @@ sub encode_base64 ($;$) {
     }
   }
 
-  use integer;
+  require integer;
+  integer->import();
 
   my $eol = $_[1];
   $eol = "\n" unless defined $eol;
@@ -854,6 +872,227 @@ sub check_time {
   }
 
   return $begin_time;
+}
+
+
+#**********************************************************
+# For clearing quotes
+# clearquotes( $text, $attr_hash )
+#**********************************************************
+sub clearquotes {
+  my ($text, $attr) = @_;
+  if ($text ne '""') {
+    my $extra = $attr->{EXTRA} || '';
+    $text =~ s/\"$extra//g;
+  }
+  else {
+    $text = '';
+  }
+  return $text;
+}
+
+#**********************************************************
+# tpl_parse($string, \%HASH_REF);
+#**********************************************************
+sub tpl_parse {
+  my ($string, $HASH_REF, $attr) = @_;
+
+  while (my ($k, $v) = each %$HASH_REF) {
+    if (!defined($v)) {
+      $v = '';
+    }
+    $string =~ s/\%$k\%/$v/g;
+    if ($attr->{SET_ENV}) {
+      $ENV{$k}=$v;
+    }
+  }
+
+  return $string;
+}
+
+#**********************************************************
+# cmd($cmd, \%HASH_REF);
+#**********************************************************
+sub cmd {
+  my ($cmd, $attr) = @_;
+
+  my $debug   = $attr->{debug} || 0;
+  my $timeout = defined($attr->{timeout}) ? $attr->{timeout} : 5;
+  my $result  = '';
+
+  my $saveerr;
+  if (! $attr->{SHOW_RESULT} && ! $debug) {
+    open($saveerr, ">&STDERR");
+    close(STDERR);
+  }
+
+  if ($debug > 1) {
+    $attr->{PARAMS}{DEBUG}=$debug;
+  }
+
+  if ($attr->{PARAMS}) {
+    $cmd = tpl_parse($cmd, $attr->{PARAMS}, { SET_ENV => $attr->{SET_ENV} });
+  }
+
+  if ($attr->{ARGV}) {
+    foreach my $key ( sort keys %{ $attr->{PARAMS} } ) {
+      next if (in_array($key, [ 'EXT_TABLES', 'SEARCH_FIELDS', 'SEARCH_FIELDS_ARR', 'SEARCH_FIELDS_COUNT', 
+        'COL_NAMES_ARR', 'db', 'list', 'dbo', 'TP_INFO', 'TP_INFO_OLD', 'CHANGES_LOG' ]));
+      
+      $cmd .= " $key=\"$attr->{PARAMS}->{$key}\""; 
+    }
+  }
+
+  if($debug>2) {
+    print $cmd."\n"; 
+    if ($debug > 5) {
+      return $result;
+    }
+  }
+
+  eval {
+    local $SIG{ALRM} = sub { die "alarm\n" };    # NB: \n required
+    
+    if ($timeout) {
+      alarm $timeout;
+    }
+
+    #$result = system($cmd);
+    $result = `$cmd`;
+    alarm 0;
+  };
+
+  if ($@) {
+    die unless $@ eq "alarm\n";                  # propagate unexpected errors
+    print "timed out\n" if ($debug>2);
+  }
+  else {
+    # didn't
+    print "didn't\n" if ($debug>2);
+  }
+  
+  if ($debug) {
+    print $result;
+  }
+
+  if ($saveerr) {
+    open(STDERR, ">&", $saveerr);
+  }
+
+  return $result;
+}
+
+#**********************************************************
+# get_ssh_value($cmd, \%HASH_REF);
+#**********************************************************
+sub ssh_cmd {
+  my ($cmd, $attr) = @_;
+
+  my @mng_array = split(/:/, $attr->{NAS_MNG_IP_PORT});
+
+  my $nas_host =  $mng_array[0];
+  my $nas_port = 22;
+
+  if ($#mng_array < 1) {
+    $nas_port=22;
+  }
+  else {
+ 	  $nas_port=$mng_array[$#mng_array];
+  }
+
+  my $base_dir  = $attr->{BASE_DIR}    || '/usr/abills/';
+  my $nas_admin = $attr->{NAS_MNG_USER}|| 'abills_admin';
+  my $SSH       = $attr->{SSH_CMD}     || "/usr/bin/ssh -p $nas_port -o StrictHostKeyChecking=no -i $base_dir/Certs/id_dsa." . $nas_admin;
+
+  my @value = ();
+  $cmd =~ s/[\r\n]/ /g;
+  my $cmds = "$SSH $nas_admin\@$nas_host '$cmd'";
+  
+  if ($attr->{DEBUG}) {
+  	print $cmds;
+  }
+  
+  open(my $CMD, "$cmds |") || die "Can't open '$cmds' $!\n";
+    @value = <$CMD>;
+  close($CMD);
+
+  return \@value;  
+}
+
+#**********************************************************
+# days = date_diff(from_date, to_date)
+# 
+#**********************************************************
+sub date_diff {
+	my ($from_date, $to_date) = @_;
+
+  my ($from_year, $from_month, $from_day) = split(/-/, $from_date, 3);
+  my ($to_year,   $to_month,   $to_day)   = split(/-/, $to_date,   3);
+  my $from_seltime = POSIX::mktime(0, 0, 0, $from_day, ($from_month - 1), ($from_year - 1900));
+  my $to_seltime   = POSIX::mktime(0, 0, 0, $to_day,   ($to_month - 1),   ($to_year - 1900));
+
+  my $days = int(($to_seltime - $from_seltime) / 86400);	
+	
+	return $days;
+}
+
+#**********************************************************
+# convert date to other date format
+#**********************************************************
+sub date_format {
+  my ($date, $format, $attr) = @_; 
+
+  my $year   = 0;
+  my $month  = 0;
+  my $day    = 0;
+  my $hour   = 0;
+  my $min    = 0;
+  my $sec    = 0;
+
+  if ($date =~ /(\d{4})\-(\d{2})\-(\d{2}) (\d{2}):(\d{2}):(\d{2})/) {
+    $year   = $1;
+    $month  = $2;
+    $day    = $3;
+    $hour   = $4;
+    $min    = $5;
+    $sec    = $6;
+  }
+
+  $date = POSIX::strftime( $format,
+                  localtime(POSIX::mktime($sec, $min, $hour, $day, ($month - 1), ($year - 1900)) ) );
+
+  return $date;
+}
+
+#**********************************************************
+# breake point
+#  Args 
+#   HEADER    - show header html
+#   SHOW      - show input
+#   SKIP_EXIT - skip exit on point
+#
+#**********************************************************
+sub _bp {
+  my ($attr) = @_;
+
+  if ($attr->{HEADER}) {
+    print "Content-Type: text/html\n\n";
+  }
+
+  if ($attr->{SHOW}) {
+    print "$attr->{SHOW}";
+  }
+
+  my ($package, $filename, $line) = caller;
+  print "_BP File: $filename Line: $line ($package)\n";
+  # warn("foo");
+
+
+  if ($attr->{EXIT}) {
+    exit;
+  }
+
+  return 1;
 }
 
 #**********************************************************
@@ -899,151 +1138,5 @@ sub get_radius_params {
 
   return \%RAD;
 }
-
-#**********************************************************
-# For clearing quotes
-# clearquotes( $text, $attr_hash )
-#**********************************************************
-sub clearquotes {
-  my ($text, $attr) = @_;
-  if ($text ne '""') {
-    my $extra = $attr->{EXTRA} || '';
-    $text =~ s/\"$extra//g;
-  }
-  else {
-    $text = '';
-  }
-  return $text;
-}
-
-#**********************************************************
-# Get testing information
-# test_radius_returns()
-#**********************************************************
-sub test_radius_returns {
-  my ($RAD) = @_;
-
-  my $test = " ==ARGV\n";
-
-  foreach my $line (@ARGV) {
-    $test .= "  $line\n";
-  }
-
-  $test .= "\n\n ==ENV\n";
-  while (my ($k, $v) = each(%ENV)) {
-    $test .= "  $k - $v\n";
-  }
-
-  $test .= "\n\n ==RAD\n";
-  my @sorted_rad = sort keys %$RAD;
-
-  foreach my $line (@sorted_rad) {
-    $test .= "  $line - $RAD->{$line}\n";
-  }
-
-  #  log_print('LOG_DEBUG', "$test");
-  return $test;
-}
-
-#**********************************************************
-# tpl_parse($string, \%HASH_REF);
-#**********************************************************
-sub tpl_parse {
-  my ($string, $HASH_REF, $attr) = @_;
-
-  while (my ($k, $v) = each %$HASH_REF) {
-    if (!defined($v)) {
-      $v = '';
-    }
-    $string =~ s/\%$k\%/$v/g;
-    if ($attr->{SET_ENV}) {
-      $ENV{$k}=$v;
-    }
-  }
-
-  return $string;
-}
-
-#**********************************************************
-# cmd($cmd, \%HASH_REF);
-#**********************************************************
-sub cmd {
-  my ($cmd, $attr) = @_;
-
-  my $timeout = $attr->{timeout} || 5;
-
-  eval {
-    local $SIG{ALRM} = sub { die "alarm\n" };    # NB: \n required
-    alarm $timeout;
-    system($cmd);
-    alarm 0;
-  };
-
-  if ($@) {
-    die unless $@ eq "alarm\n";                  # propagate unexpected errors
-    print "timed out\n" if ($attr->{debug});
-  }
-  else {
-
-    # didn't
-    print "didn't\n" if ($attr->{debug});
-  }
-}
-
-#**********************************************************
-# get_ssh_value($cmd, \%HASH_REF);
-#**********************************************************
-sub ssh_cmd {
-  my ($cmd, $attr) = @_;
-
-  my @mng_array = split(/:/, $attr->{NAS_MNG_IP_PORT});
-
-  my $nas_host =  $mng_array[0];
-  my $nas_port = 22;
-
-  if ($#mng_array < 1) {
-    $nas_port=22;
-  }
-  else {
- 	  $nas_port=$mng_array[$#mng_array];
-  }
-
-  my $base_dir  = $attr->{BASE_DIR} || '/usr/abills/';
-  my $nas_admin = $attr->{NAS_MNG_USER}    || 'abills_admin';
-  my $SSH       = $attr->{SSH_CMD}         || "/usr/bin/ssh -p $nas_port -o StrictHostKeyChecking=no -i $base_dir/Certs/id_dsa." . $nas_admin;
-
-  my @value = ();
-  $cmd =~ s/[\r\n]/ /g;
-  my $cmds = "$SSH $nas_admin\@$nas_host '$cmd'";
-  
-  if ($attr->{DEBUG}) {
-  	print $cmds;
-  }
-  
-  open(CMD, "$cmds |") || die "Can't open '$cmds' $!\n";
-    @value = <CMD>;
-  close(CMD);
-
-  return \@value;  
-}
-
-#**********************************************************
-# days = date_diff(from_date, to_date)
-# 
-#**********************************************************
-sub date_diff {
-	my ($from_date, $to_date) = @_;
-
-  my ($from_year, $from_month, $from_day) = split(/-/, $from_date, 3);
-  my ($to_year,   $to_month,   $to_day)   = split(/-/, $to_date,   3);
-  my $from_seltime = POSIX::mktime(0, 0, 0, $from_day, ($from_month - 1), ($from_year - 1900));
-  my $to_seltime   = POSIX::mktime(0, 0, 0, $to_day,   ($to_month - 1),   ($to_year - 1900));
-
-  my $days = int(($to_seltime - $from_seltime) / 86400);	
-	
-	return $days;
-}
-
-
 
 1;

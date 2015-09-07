@@ -706,7 +706,6 @@ sub bonus_operation_list {
   undef,
   { INFO => 1 }
   );
-  exit;
   return $list;
 }
 

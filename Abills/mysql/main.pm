@@ -1,6 +1,7 @@
 package main;
 #Main SQL function
 
+
 use strict;
 use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
 $db
@@ -116,7 +117,12 @@ sub query2 {
   my ($query, $type, $attr) = @_;
 
   my $db = $self->{db};
- 
+
+  if ($self->{db}->{db}) {
+    #$self->{dbo}=$self->{db};
+    $db = $self->{db}->{db};
+  }
+
   if ( $attr->{DB_REF} ) {
     $db = $attr->{DB_REF};
   }
@@ -532,7 +538,9 @@ sub changes {
   my %DATA         = $self->get_data($attr->{DATA});
   my $db           = $self->{db};
 
-
+  if ($self->{db}->{db}) {
+    $db = $self->{db}->{db};
+  }
 
   if (!$DATA{UNCHANGE_DISABLE}) {
     $DATA{DISABLE} = (defined($DATA{'DISABLE'}) && $DATA{DISABLE} ne '') ? $DATA{DISABLE} : undef;
@@ -631,12 +639,15 @@ sub changes {
               $self->{ENABLE}  = 1;
               $self->{DISABLE} = undef;
             }
+
+            $self->{CHG_STATUS} = $OLD_DATA->{$k} . '->' . $DATA{$k};
           }
           elsif ($DATA{$k} > 1) {
-	          $self->{CHG_STATUS} = $OLD_DATA->{$k} . '->' . $DATA{$k};
+	          #$self->{CHG_STATUS} = $OLD_DATA->{$k} . '->' . $DATA{$k};
             $self->{'STATUS'} = $DATA{$k};
           }
           else {
+            $self->{'STATUS'} = $DATA{$k};
             $self->{DISABLE_ACTION} = 1;
           }
           
@@ -704,11 +715,13 @@ sub changes {
     }
 
     if ($self->{'DISABLE_ACTION'}) {
-      $admin->action_add($DATA{UID}, "", { TYPE => 9, ACTION_COMMENTS => $DATA{ACTION_COMMENTS} });
+      $admin->action_add($DATA{UID}, $self->{CHG_STATUS}, { TYPE => 9, ACTION_COMMENTS => $DATA{ACTION_COMMENTS} });
+      return $self->{result};
     }
 
     if ($self->{'ENABLE'}) {
-      $admin->action_add($DATA{UID}, "", { TYPE => 8 });
+      $admin->action_add($DATA{UID}, "$self->{CHG_STATUS}", { TYPE => 8 });
+      return $self->{result};
     }
 
     if ($CHANGES_LOG ne '' && ($CHANGES_LOG ne $attr->{EXT_CHANGE_INFO} . ' ')) {
@@ -724,7 +737,7 @@ sub changes {
     }
 
     if ($self->{CHG_STATUS}) {
-      $admin->action_add($DATA{UID}, "$self->{'STATUS'}" . (($attr->{EXT_CHANGE_INFO}) ? ' ' . $attr->{EXT_CHANGE_INFO} : ''), { TYPE => ($self->{'STATUS'} == 3) ? 14 : 4 });
+      $admin->action_add($DATA{UID}, (($self->{CHG_STATUS}) ? $self->{CHG_STATUS} : $self->{'STATUS'}) . (($attr->{EXT_CHANGE_INFO}) ? ' ' . $attr->{EXT_CHANGE_INFO} : ''), { TYPE => ($self->{'STATUS'} == 3) ? 14 : 4 });
     }
 
     if ($self->{CHG_CREDIT}) {
@@ -804,7 +817,8 @@ sub search_expr_users () {
     ACTIVATE      => 'DATE:u.activate',
     EXPIRE        => 'DATE:u.expire',
     
-    CREDIT        => 'INT:u.credit',
+#    CREDIT        => 'INT:u.credit',
+    CREDIT        => 'INT:if(u.credit > 0, u.credit, if(company.id IS NULL, 0, company.credit)) AS credit',
     CREDIT_DATE   => 'DATE:u.credit_date', 
     REDUCTION     => 'INT:u.reduction',
     REDUCTION_DATE=> 'INT:u.reduction_date',
@@ -1039,7 +1053,7 @@ sub search_expr_users () {
     $self->{EXT_TABLES} .= "LEFT JOIN admin_actions aa ON (u.uid=aa.uid)" if ($self->{EXT_TABLES} !~ /admin_actions/);
   }
 
-  if ($attr->{DEPOSIT} || ($attr->{BILL_ID} && ! in_array('BILL_ID', $attr->{SKIP_USERS_FIELDS}))) {
+  if ($attr->{DEPOSIT} || $attr->{CREDIT} || ($attr->{BILL_ID} && ! in_array('BILL_ID', $attr->{SKIP_USERS_FIELDS}))) {
     $self->{EXT_TABLES} .= " LEFT JOIN bills b ON (u.bill_id = b.id)
       LEFT JOIN companies company ON  (u.company_id=company.id) 
       LEFT JOIN bills cb ON (company.bill_id=cb.id) ";
@@ -1066,7 +1080,7 @@ sub search_expr_users () {
   $self->{SEARCH_FIELDS_COUNT}   = $#{ $self->{SEARCH_FIELDS_ARR} } + 1;
 
   if ($attr->{SORT}) {
-  	my $sort_position = ($attr->{SORT}-1 < 1) ? 1 : $attr->{SORT}-2;
+    my $sort_position = ($attr->{SORT}-1 < 1) ? 1 : $attr->{SORT}-2;
   	
     if ($self->{SEARCH_FIELDS_ARR}->[$sort_position]){
       if ( $self->{SEARCH_FIELDS_ARR}->[$sort_position] =~ m/build$|flat$/i) {
@@ -1088,19 +1102,59 @@ sub search_expr_users () {
   return \@fields;
 }
 
+
+#**********************************************************
+#
+#**********************************************************
+sub query_del {
+  my $self = shift;
+  my ($table, $values, $extended_params)=@_;
+
+  my @WHERE_FIELDS = ();
+  my @WHERE_VALUES = ();
+
+  if ($values->{ID}) {
+        my @id_arr = split(/,/, $values->{ID});
+    push @WHERE_FIELDS, "id IN (". join(',', map { '?' } @id_arr) .')';
+    push @WHERE_VALUES, @id_arr;
+  }
+
+  while(my ($k, $v) = each %$extended_params) {
+        if (defined($v)) {
+      push @WHERE_FIELDS, "$k = ?";
+      push @WHERE_VALUES, $v;
+    }
+  }
+
+  if ($#WHERE_FIELDS == -1) {
+        return $self;
+  }
+
+  $self->query2("DELETE FROM `$table` WHERE ". join(' AND ', @WHERE_FIELDS),
+    'do', { Bind => \@WHERE_VALUES });
+
+  return $self;
+}
+
+
+
 #**********************************************************
 #
 #**********************************************************
 sub query_add {
   my $self = shift;
   my ($table, $values, $attr)=@_;
-  
+
   my $db=$self->{db};
+
+  if ($self->{db}->{db}) {
+    $db = $self->{db}->{db};
+  }
 
   my $q = $db->column_info(undef, undef, $table, '%');
   $q->execute();
   my @inserts_arr = ();
-  
+
   while (defined(my $row = $q->fetchrow_hashref())) {
     my $column = uc($row->{COLUMN_NAME});
     if ($values->{$column}) {

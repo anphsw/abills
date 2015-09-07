@@ -186,7 +186,7 @@ sub change {
   my $self = shift;
   my ($attr) = @_;
 
-  my %DATA = $self->get_data($attr);
+#  my %DATA = $self->get_data($attr);
 
   $attr->{NAS_DISABLE} = (defined($attr->{NAS_DISABLE})) ? 1 : 0;
 
@@ -227,9 +227,9 @@ sub change {
       CHANGE_PARAM    => 'NAS_ID',
       TABLE           => 'nas',
       FIELDS          => \%FIELDS,
-      OLD_INFO        => $self->info({ NAS_ID => $self->{NAS_ID} }),
+      OLD_INFO        => $self->info({ NAS_ID => $self->{NAS_ID} || $attr->{NAS_ID} }),
       DATA            => $attr,
-      EXT_CHANGE_INFO => "NAS_ID:$self->{NAS_ID}"
+      EXT_CHANGE_INFO => "NAS_ID:". ($self->{NAS_ID} || $attr->{NAS_ID})
     }
   );
 

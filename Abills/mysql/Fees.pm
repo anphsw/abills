@@ -94,7 +94,15 @@ sub take {
   my $company_vat = $user->{COMPANY_VAT} || 0;
 
   $sum = sprintf("%.4f", $sum);
-  $self->{db}->{AutoCommit} = 0;
+
+  if($self->{db}->{db}) {
+    $self->{db}->{db}->{AutoCommit} = 0;
+  }
+  else {
+    $self->{db}->{AutoCommit} = 0;
+  }
+
+
   if ($attr->{BILL_ID}) {
     $user->{BILL_ID} = $attr->{BILL_ID};
   }
@@ -165,7 +173,14 @@ sub take {
     }
     
     if ($sum == 0) {
-      $self->{db}->{AutoCommit} = 1 if (!$attr->{NO_AUTOCOMMIT});
+      if (!$attr->{NO_AUTOCOMMIT}) {
+        if($self->{db}->{db}) {
+          $self->{db}->{db}->{AutoCommit} = 1;
+        }
+        else {
+          $self->{db}->{AutoCommit} = 1;
+        }
+      }
       return $self;
     }
   }
@@ -195,11 +210,21 @@ sub take {
     );
 
     if ($self->{errno}) {
-      $self->{db}->rollback();
+      if($self->{db}->{db}) { 
+        $self->{db}->{db}->rollback();
+      }
+      else {
+        $self->{db}->rollback();
+      }
       return $self;
     }
     else {
-      $self->{db}->commit();
+      if($self->{db}->{db}) { 
+        $self->{db}->{db}->commit();
+      }
+      else {
+        $self->{db}->commit();
+      }
     }
   }
   else {
@@ -207,7 +232,14 @@ sub take {
     $self->{errstr} = 'No Bill';
   }
 
-  $self->{db}->{AutoCommit} = 1 if (!$attr->{NO_AUTOCOMMIT});
+  if (!$attr->{NO_AUTOCOMMIT}) {
+    if($self->{db}->{db}) { 
+      $self->{db}->{db}->{AutoCommit} = 1;
+    }
+    else {
+      $self->{db}->{AutoCommit} = 1 ;
+    }
+  }
 
   return $self;
 }

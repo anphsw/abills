@@ -209,6 +209,7 @@ sub change {
   }
 
   $attr->{DISABLE}=$attr->{STATUS};
+  $attr->{EXPIRE}=$attr->{DV_EXPIRE};
 
   my $old_info = $self->info($attr->{UID});
   $self->{OLD_STATUS} = $old_info->{STATUS};
@@ -516,14 +517,6 @@ sub list {
     );
 
   my $EXT_TABLE = $self->{EXT_TABLES};
-
-  if ($attr->{EXT_BILL}) {
-    $self->{SEARCH_FIELDS} .= 'if(u.company_id > 0, ext_cb.deposit, ext_b.deposit), ';
-    $self->{SEARCH_FIELDS_COUNT}++;
-    $EXT_TABLE .= "
-     LEFT JOIN bills ext_b ON (u.ext_bill_id = ext_b.id)
-     LEFT JOIN bills ext_cb ON  (company.ext_bill_id=ext_cb.id) ";
-  }
 
   if($attr->{ONLINE}) {
     $EXT_TABLE .= "

@@ -9,7 +9,7 @@
 <TR class='odd'><TD><strong>$_PHONE:</strong></TD><TD>%PHONE%</TD></TR>
 <TR class='odd'><TD><strong>$_ADDRESS:</strong></TD><TD>%ADDRESS_STREET%, %ADDRESS_BUILD%/%ADDRESS_FLAT%</TD></TR>
 <TR class='odd'><TD><strong>E-mail:</strong></TD><TD>%EMAIL%</TD></TR>
-<TR class='even'><TD><strong>$_CONTRACT:</strong></TD><TD>%CONTRACT_ID%%CONTRACT_SUFIX% <a class='link_button' target='new' href='$SELF_URL?qindex=10&UID=%UID%&PRINT_CONTRACT=%CONTRACT_ID%&sid=$sid&pdf=$conf{DOCS_PDF_PRINT}' title='$_PRINT'>$_PRINT</a>
+<TR class='even'><TD><strong>$_CONTRACT:</strong></TD><TD>%CONTRACT_ID%%CONTRACT_SUFIX% <a class='link_button' target='new' href='$SELF_URL?qindex=10&PRINT_CONTRACT=%CONTRACT_ID%&sid=$sid&pdf=$conf{DOCS_PDF_PRINT}' title='$_PRINT'>$_PRINT</a>
 <TR class='even'><TD><strong>$_CONTRACT $_DATE:</strong></TD><TD>%CONTRACT_DATE%</TD></TR>
 <TR class='odd'><TD><strong>$_STATUS:</strong></TD><TD>%STATUS%</TD></TR>
 <TR class='total'><TD colspan='2'>&nbsp;</TD></TR>

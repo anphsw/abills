@@ -1,3 +1,6 @@
+
+%MESSAGE%
+
 <form method='POST' action='$SELF_URL'>
 <input type='hidden' name='index' value='$index'>
 <input type='hidden' name='INTERACT' value='1'>

@@ -9,6 +9,7 @@ Congratulation
 <p><b>$_PASSWD: %PASSWD%</b></p>
 <br><b>$_FIO:</b> %FIO%
 <br><b>EMAIL:</b> %EMAIL%
+<p><b>UID: %UID%</b></p>
 <p>All information was sended to your E-mail</p>
 </td>
 </tr>

@@ -982,7 +982,20 @@ sub add {
 
   my %DATA = $self->get_data($attr, { default => defaults() });
 
-  if (! $DATA{LOGIN}) {
+  if (! $attr->{LOGIN}) {
+    #check autofill trigger
+    $self->query2("SHOW TRIGGERS LIKE '%users%'");
+    if (! $self->{TOTAL}) {
+      $self->{errno}  = 8;
+      $self->{errstr} = 'ERROR_ENTER_NAME';
+      return $self;
+    }
+   
+    if ($attr->{PREFIX}) {
+      $self->query2("SET \@login_prefix = '$attr->{PREFIX}';");
+    }
+  }
+  elsif (! $DATA{LOGIN}) {
     #check autofill trigger
     $self->query2("SHOW TRIGGERS LIKE '%users%'");
     if (! $self->{TOTAL}) {

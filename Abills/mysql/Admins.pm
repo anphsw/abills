@@ -6,7 +6,6 @@ package Admins;
 use strict;
 use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
 );
-
 use Exporter;
 $VERSION = 2.05;
 @ISA     = ('Exporter');
@@ -646,14 +645,15 @@ sub online {
 
   my $online_count = $self->{TOTAL} + 0;
   my $list         = $self->{list};
+
   foreach my $row (@$list) {
     $online_users .= "$row->[0] - $row->[1]\n";
     $curuser{"$row->[0]"} = "$row->[1]" if ($row->[0] eq $self->{A_LOGIN});
   }
 
-  if ($curuser{ $self->{A_LOGIN} } ne $self->{SESSION_IP}) {
-    $self->query2("REPLACE INTO web_online (admin, ip, logtime, aid, sid)
-     values ('$self->{A_LOGIN}', '$self->{SESSION_IP}', UNIX_TIMESTAMP(), '$self->{AID}', '$self->{SID}');", 'do'
+  if ($curuser{ $self->{A_LOGIN} } ne $self->{SESSION_IP} || $self->{SIP_NUMBER}) {
+    $self->query2("REPLACE INTO web_online (admin, ip, logtime, aid, sid, sip_number)
+     values ('$self->{A_LOGIN}', '$self->{SESSION_IP}', UNIX_TIMESTAMP(), '$self->{AID}', '$self->{SID}', '$self->{SIP_NUMBER}');", 'do'
     );
     $online_users .= "$self->{A_LOGIN} - $self->{SESSION_IP};\n";
     $online_count++;
@@ -662,6 +662,7 @@ sub online {
   return ($online_users, $online_count);
 }
 
+
 #**********************************************************
 # Online Administrators
 #**********************************************************
@@ -669,7 +670,7 @@ sub online_info {
   my $self         = shift;
   my ($attr) = @_;
 
-  $self->query2("SELECT aid, ip, admin FROM web_online WHERE sid='$attr->{SID}';", 
+  $self->query2("SELECT aid, ip, admin, sip_number FROM web_online WHERE sid='$attr->{SID}';", 
    undef,
    { INFO => 1 });
 

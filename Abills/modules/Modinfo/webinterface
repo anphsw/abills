@@ -81,15 +81,14 @@ sub web_request {
  my $host='';
  my $port=80;
 
- $request =~ /http:\/\/([a-zA-Z.-]+)\/(.+)/;
- $host    = $1; 
- $request = '/'.$2;
+ if ($request =~ /http:\/\/([a-zA-Z.-]+)\/(.+)/) {
+   $host    = $1; 
+   $request = '/'.$2;
+ }
 
  if ($host =~ /:/) {
- 	 ($host, $port)=split(/:/, $host, 2);
+   ($host, $port)=split(/:/, $host, 2);
  }	
-
-
 
  $request =~ s/ /%20/g;
  $request = "GET $request HTTP/1.0\r\n";

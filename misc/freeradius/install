@@ -1,6 +1,6 @@
 :DEFAULT:RLM_PERL=1:Configure RLM_PERL
 :DEFAULT:RADIUS_CLIENT_IP=127.0.0.1:Radius client IP address
-:DEFAULT:RADIUS_SECRET=radsecret:Radius Secret key
+:DEFAULT:RADIUS_SECRET=secretpass:Radius Secret key
 :DEFAULT:RADIUS_SHORTNAME=nas1:Radius Client short name
 :DEFAULT:FREERADIUS=2:Radius Version 1 fo 1.xx or 2 for 2.xx
 :FREERADIUS=1,RLM_PERL=0:FILE=users            > [/usr/local/etc/raddb]/users
@@ -9,7 +9,8 @@
 :FREERADIUS=1,RLM_PERL=1:FILE=rlm_perl.conf       > [/usr/local/etc/raddb]/radiusd.conf 
 :FREERADIUS=1,RLM_PERL=1:FILE=users_perl          > [/usr/local/etc/raddb]/users
 eap.conf         > [/usr/local/etc/raddb]/eap.conf 
-:OS=FREEBSD:FILE=clients.conf     > [/usr/local/etc/raddb]/clients.conf
+#:OS=FREEBSD:FILE=clients.conf     > [/usr/local/etc/raddb]/clients.conf
+:OS=FREEBSD:exec: echo ""  > [/usr/local/etc/raddb]/clients.conf
 :OS=FREEBSD:radiusd_enable="YES"  >> [/etc/]/rc.conf
 :OS=FREEBSD:12  9    *   *  *    root   find /var/log/radacct/ -type f -mtime +30d -delete  >> [/etc/]/crontab
 
@@ -41,7 +42,8 @@ eap.conf         > [/usr/local/etc/raddb]/eap.conf
 :OS=LINUX,FREERADIUS=2,RLM_PERL=1:FILE=v2/default_rlm_perl  > [/usr/local/freeradius/etc/raddb]/sites-enabled/abills_default
 :OS=LINUX,FREERADIUS=2:exec:touch /usr/abills/var/log/abills.log; chown %RADIUS_SERVER_USER% /usr/abills/var/log/abills.log
 :OS=LINUX,FREERADIUS=2:FILE=linux/radiusd.conf  > [/usr/local/freeradius/etc/raddb]/radiusd.conf
-:OS=LINUX,FREERADIUS=2:FILE=clients.conf > [/usr/local/freeradius]/etc/raddb/clients.conf
+#:OS=LINUX,FREERADIUS=2:FILE=clients.conf > [/usr/local/freeradius]/etc/raddb/clients.conf
+:OS=LINUX,FREERADIUS=2:exec:echo "" > [/usr/local/freeradius]/etc/raddb/clients.conf
 :OS=LINUX,FREERADIUS=2:FILE=linux/freeradius  > [/etc/init.d]/freeradius
 :OS=LINUX,FREERADIUS=2:exec:chmod +x /etc/init.d/freeradius; update-rc.d freeradius defaults; /etc/init.d/freeradius restart
 

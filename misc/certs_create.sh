@@ -2,16 +2,15 @@
 # ABILLS Certificat creator
 
 
-
-SSL=/usr/local/${OPENSSL}
+SSL=/usr/local/openssl
 export PATH=/usr/src/crypto/${OPENSSL}/apps/:${SSL}/bin/:${SSL}/ssl/misc:${PATH}
-export LD_LIBRARY_PATH=${SSL}/lib
+export LD_LIBRARY_PATH=/openssl/lib
 CA_pl='/usr/src/crypto/openssl/apps/CA.pl';
 
 
 hostname=`hostname`;
 password=whatever;
-VERSION=1.92;
+VERSION=2.03;
 DAYS=730;
 DATE=`date`;
 CERT_TYPE=$1;
@@ -19,6 +18,7 @@ CERT_USER="";
 OPENSSL=`which openssl`
 CERT_LENGTH=2048;
 OS=`uname`;
+
 
 if [ w$1 = whelp ]; then
   shift ;
@@ -50,7 +50,8 @@ if [ w$1 = w ] ; then
   exit;
 fi
 
-CERT_PATH=/usr/abills/Certs/
+BILLING_DIR=/usr/abills
+CERT_PATH=${BILLING_DIR}/Certs/
 
 # Proccess command-line options
 #
@@ -94,14 +95,21 @@ if [ ! -d ${CERT_PATH} ] ; then
 fi
 cd ${CERT_PATH};
 
+
+#Get users 
+if [ -f /usr/abills/Abills/programs ]; then
+  CERT_USER=`cat /usr/abills/Abills/programs | grep WEB_SERVER_USER | awk -F= '{ print $2 }'`;
+  RESTART_APACHE=`cat /usr/abills/Abills/programs | grep RESTART_APACHE | awk -F= '{ print $2 }'`;
+fi;
+
 #Default Cert user
-if [ x${CERT_USER} = x ];  then
+if [ x"${CERT_USER}" = x ];  then
   if [ x`uname` = xLinux ]; then
      APACHE_USER="www-data";
   else 
     APACHE_USER=www;
   fi;
-else 
+else
   APACHE_USER=${CERT_USER};
 fi;
 
@@ -138,9 +146,10 @@ x509_cert () {
   fi;
  
   if [ x${PUBLIC_KEY} != x ]; then
+    EASYSOFT_PUBLIC_KEY=${PUBLIC_KEY};
     cp ${PUBLIC_KEY} ${CERT_PATH}/${SYSTEM_NAME}_server_public.pem
     chown ${APACHE_USER} ${CERT_PATH}/${SYSTEM_NAME}_server_public.pem
-    echo "Easy soft public key copy to ${CERT_PATH}/${SYSTEM_NAME}_server_public.pem"
+    echo "Easy soft public key '${PUBLIC_KEY}' copy to ${CERT_PATH}/${SYSTEM_NAME}_server_public.pem"
   fi;
 
   ${OPENSSL} x509 -inform pem -in ${EASYSOFT_PUBLIC_KEY} -pubkey -out ${CERT_PATH}/${SYSTEM_NAME}_public_key.pem > ${CERT_PATH}/${SYSTEM_NAME}_server_public.pem
@@ -166,23 +175,60 @@ x509_cert () {
 #Apache Certs
 #**********************************************************
 apache_cert () {
+
+  check_ssl_conf;
+
   echo "*******************************************************************************"
   echo "Creating Apache server private key and certificate"
   echo "When prompted enter the server name in the Common Name field."
   echo "*******************************************************************************"
   echo
 
+  if [ -f "${CERT_PATH}/server.crt" ]; then
+    echo "Certificat for apache exist";
+    ls ${CERT_PATH}/server.*
+    
+    echo "Remove it [Y/n]";
+    read RM_CERTS
+    
+    if [ "${RM_CERTS}" != "n" ]; then
+      rm ${CERT_PATH}/server.*
+    fi;
+  fi;
+
+  OLD=1;
+
+#Old way des3
+if [ "${OLD}" != "" ] ; then
+
   ${OPENSSL} genrsa -des3 -passout pass:${password} -out server.key ${CERT_LENGTH}
 
   ${OPENSSL} req -new -key server.key -out server.csr \
-  -passin pass:${password} -passout pass:${password}
+    -passin pass:${password} -passout pass:${password}
 
   ${OPENSSL} x509 -req -days ${DAYS} -in server.csr -signkey server.key -out server.crt \
-  -passin pass:${password}
+    -passin pass:${password}
 
   #Make public key
   ${OPENSSL} rsa -in ${CERT_PATH}/server.key -out ${CERT_PATH}/server_public.pem -pubout \
-  -passin pass:${password}
+    -passin pass:${password}
+
+  #PKS12 Public key
+  #  ${OPENSSL} pkcs12 -export -in server.crt -inkey server.key -out server_public.pem.p12
+#New way
+else
+#New way
+   #1. Generate Private Key on the Server Running Apache + mod_ssl
+   # openssl genrsa -des3 -out www.thegeekstuff.com.key 1024
+
+   #2. Generate a Certificate Signing Request (CSR)
+   #
+   ${OPENSSL} req -new -newkey "rsa:${CERT_LENGTH}" -nodes -sha256 -out server.csr -keyout server.key 
+   #-subj "/C=UA/ST=Calvados/L=CAEN/O=INTERNET/CN=abills.mydomain.com" 
+ 
+   #3. Generate a Self-Signed SSL Certificate
+   ${OPENSSL} x509 -req -days ${DAYS} -in server.csr -signkey server.key -out server.crt
+fi;
 
   #PKS12 Public key
 #  ${OPENSSL} pkcs12 -export -in server.crt -inkey server.key -out server_public.pem.p12
@@ -196,14 +242,22 @@ apache_cert () {
   ${OPENSSL} rsa -in server.key.org -out server.key \
    -passin pass:${password} -passout pass:${password}
 
-
-  #Cert info
-  #${OPENSSL} x509 -in server.crt -noout -subject
   cert_info server.crt
 
   chmod 400 server.key
 
-  echo "Please restart apache";
+  RESTART_APACHE=`cat ${BILLING_DIR}/Abills/programs | grep RESTART_APACHE | awk -F= '{ print $2 }'`;
+
+  if [ "${RESTART_APACHE}" != "" ]; then
+    echo -n "Restart apache: [Y/n]";
+    read RESATRT
+    
+    if [ "${RESATRT}" != "n" ]; then
+      ${RESTART_APACHE} restart
+    fi;
+  else
+    echo "Please restart apache";    
+  fi;
 }
 
 
@@ -268,6 +322,13 @@ ssh_key () {
 
     if [ x${UPLOAD_FTP} = xy ]; then
       FTP_PORT=21
+      
+      FTP=`which ftp`
+      if [ "${FTP}" = "" ] ; then
+        ehco "ftp client not install.";
+        exit;  
+      fi;
+      
       echo "Make upload to: ${HOSTNAME}:${FTP_PORT}/${id_dsa_file}.pub ${CERT_PATH}${id_dsa_file}.pub"
 
       CHECK_USER=`echo ${HOSTNAME} | grep @`;
@@ -280,9 +341,9 @@ ssh_key () {
       read FTP_PASSWD
 
       if [ x${OS} = xFreeBSD ] ; then
-         ftp -u ftp://${USER}:${FTP_PASSWD}@${HOSTNAME}:${FTP_PORT}/${id_dsa_file}.pub ${CERT_PATH}${id_dsa_file}.pub
+         ${FTP} -u ftp://${USER}:${FTP_PASSWD}@${HOSTNAME}:${FTP_PORT}/${id_dsa_file}.pub ${CERT_PATH}${id_dsa_file}.pub
       else
-        (echo user ${USER} "${FTP_PASSWD}"; echo "cd /"; echo "ls"; echo "lcd ${CERT_PATH}";  echo "put ${id_dsa_file}.pub"; ) | ftp -ivn ${HOSTNAME}
+        (echo user ${USER} "${FTP_PASSWD}"; echo "cd /"; echo "ls"; echo "lcd ${CERT_PATH}";  echo "put ${id_dsa_file}.pub"; ) | ${FTP} -ivn ${HOSTNAME}
       fi;
 
 
@@ -338,7 +399,7 @@ express_oplata () {
   echo -n "Send public key '${CERT_PATH}/express_oplata_public.pem' to Express Oplata? (y/n): ";
 
   read _SEND_MAIL
-  if [ w${_SEND_MAIL} = wy ]; then
+  if [ w"${_SEND_MAIL}" = wy ]; then
     EO_EMAIL="onwave@express-oplata.ru";
   
     echo -n "Enter comments: "
@@ -367,14 +428,14 @@ cert_info () {
   echo "******************************************************************************"
 
   FILENAME=$1;
-  if [ w$FILENAME = w ] ; then 
+  if [ w"$FILENAME" = w ] ; then 
     echo "Select Cert file";
     exit;
   else 
     echo "Cert file: $FILENAME";
   fi;
 
-  ${OPENSSL} x509 -in ${FILENAME} -noout -subject  -startdate -enddate
+  ${OPENSSL} x509 -in ${FILENAME} -noout -subject  -startdate -enddate -fingerprint -sha256
 }
 
 #**********************************************************
@@ -385,6 +446,7 @@ postfix_cert () {
   echo "Make POSTFIX TLS sertificats"
   echo "******************************************************************************"
 
+  check_ssl_conf
 
 mkdir ${CERT_PATH}
 cd ${CERT_PATH}
@@ -563,7 +625,16 @@ rm newcert.pem newreq.pem
 
 }
 
-
+#**********************************************************
+# check ssl config 
+#**********************************************************
+check_ssl_conf () {
+  #Freebsd
+  if [ -f /usr/local/openssl/openssl.cnf.sample -a ! -d /usr/local/openssl/openssl.cnf ]  ; then
+    cp /usr/local/openssl/openssl.cnf.sample /usr/local/openssl/openssl.cnf
+    echo "Maked openssl config '/usr/local/openssl/openssl.cnf'";
+  fi;
+}
 
 #Cert functions
 case ${CERT_TYPE} in

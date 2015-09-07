@@ -1309,6 +1309,7 @@ CREATE TABLE `web_online` (
   `sid` varchar(32) NOT NULL default '',
   `ext_info` varchar(200) NOT NULL default '',
   `aid` smallint(6) unsigned NOT NULL default '0',
+  `sip_number`  VARCHAR( 15 ) NOT NULL DEFAULT '', 
   KEY  (`aid`),
   UNIQUE KEY `sid` (`sid`)
 ) COMMENT="Online admins" ;

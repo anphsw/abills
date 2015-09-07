@@ -2,6 +2,7 @@
 # Main  registration engine
 #
 #
+#**********************************************************
 
 use vars qw($begin_time %FORM %LANG %conf $CHARSET
 @MODULES
@@ -16,6 +17,7 @@ $_BUILD
 $DATE
 $TIME
 $sid
+$db
 );
 
 BEGIN {
@@ -25,6 +27,8 @@ BEGIN {
   unshift(@INC, $libpath . "Abills/$sql_type/");
   unshift(@INC, $libpath);
   unshift(@INC, $libpath . 'libexec/');
+  unshift(@INC, $libpath . 'Abills/');
+
 
   eval { require Time::HiRes; };
   if (!$@) {
@@ -55,7 +59,7 @@ use Sharing;
 $html = Abills::HTML->new({ CONF => \%conf, NO_PRINT => 1, });
 
 my $sql = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
-my $db = $sql->{db};
+$db = $sql->{db};
 $sid = '';
 
 if ($conf{LANGS}) {
@@ -75,8 +79,6 @@ my $admin = Admins->new($db, \%conf);
 $admin->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });
 my $payments = Finance->payments($db, $admin, \%conf);
 $users = Users->new($db, $admin, \%conf);
-
-
 #my $Paysys = Paysys->new($db, undef, \%conf);
 
 if (! @REGISTRATION) {
@@ -145,13 +147,15 @@ elsif ($#REGISTRATION > -1) {
 
       my $number_of_characters = 5;
 
-      my $md5sum               = $INFO_HASH{CAPTCHA_OBJ}->generate_code($number_of_characters);
+      my $md5sum  = eval{ return $INFO_HASH{CAPTCHA_OBJ}->generate_code($number_of_characters) };
 
-      if ($@) {
+      if (! $md5sum) {
         print "Content-Type: text/html\n\n";
+        print "Can't make captcha\n";
         print $@;
         exit;
       }
+
       $INFO_HASH{CAPTCHA} = "
        <input type=hidden name=C value=$md5sum>
        <tr><td align=right><img src='/captcha/" . $md5sum . ".png'></td><td><input type='text' name='CCODE'></td></tr>";

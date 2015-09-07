@@ -10,7 +10,7 @@
 
 <tr><th colspan=2 class='form_title'>ComePay</th></tr>
 <tr><td>Operation ID:</td><td>$FORM{OPERATION_ID}</td></tr>
-<tr><td><br>PHONE (+79000000000):</td><td>%PHONE_ERR%<br><input type=text name=PHONE value='%PHONE%'></td></tr>  
+<tr><td><br>PHONE (79000000000):</td><td>%PHONE_ERR%<br><input type=text name=PHONE value='%PHONE%'></td></tr>  
 <tr><td>$_BALANCE_RECHARCHE_SUM:</td><td>$FORM{SUM}</td></tr>
 
 

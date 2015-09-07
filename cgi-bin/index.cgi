@@ -371,6 +371,7 @@ sub form_info {
 
 
   if (defined($FORM{PRINT_CONTRACT})) {
+    $FORM{UID}=$LIST_PARAMS{UID};
     load_module('Docs', $html);
     docs_contract();
     return 0;

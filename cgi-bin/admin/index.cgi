@@ -59,6 +59,8 @@ use Abills::SQL;
 use Abills::HTML;
 use Nas;
 use Admins;
+use Data::Dumper;
+
 
 my $sql = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
 
@@ -280,7 +282,11 @@ my @actions = (
   [$_PROFILE],
   [ $_LIST, $_ADD, $_CHANGE, $_DEL ],
 );
+if (in_array('Callcenter', \@MODULES)) {
+  $actions[0]->[15] = "$_OPERATOR_CALL_CENTER";
+}
 
+#"OPERATOR CALL-CENTER"
 if ($admin->{GIDS}) {
   #$LIST_PARAMS{GIDS} = $admin->{GIDS};
 }
@@ -318,7 +324,9 @@ my @service_status_colors = ("$_COLORS[9]", "$_COLORS[6]", '#808080', '#0000FF',
 #Add modules
 foreach my $m (@MODULES) {
   next if ($admin->{MODULES} && !$admin->{MODULES}{$m});
-  require "Abills/modules/$m/config";
+  
+  load_module("$m", { %$html, CONFIG_ONLY => 1 });
+  
   my %module_fl = ();
 
   my @sordet_module_menu = sort keys %FUNCTIONS_LIST;
@@ -434,6 +442,15 @@ if (($FORM{UID} && $FORM{UID} =~ /^(\d+)$/ && $FORM{UID} > 0) || ($FORM{LOGIN} &
   }
 }
 
+if ($FORM{SIP_NUMBER}) {
+  $admin->{SIP_NUMBER} = $FORM{SIP_NUMBER};
+}
+if (in_array('Callcenter', \@MODULES)) {
+  $admin->{QINDEX} = get_function_index('callcenter_users_phone');
+}
+else {
+  $permissions{0}{15} = 0;
+}
 print $html->header();
 my ($menu_text, $navigat_menu) = mk_navigator();
 ($admin->{ONLINE_USERS}, $admin->{ONLINE_COUNT}) = $admin->online({ SID => $sid });
@@ -611,8 +628,13 @@ sub check_permissions {
           my ($k, $v) = split(/=/, $line);
           $admin->{WEB_OPTIONS}{$k} = $v;
           $html->{$k}=$v;
+          if($admin->{WEB_OPTIONS}{PAGE_ROWS} ) {
+            $PAGE_ROWS = $admin->{WEB_OPTIONS}{PAGE_ROWS};
+            $LIST_PARAMS{PAGE_ROWS}=$PAGE_ROWS;
+          }
         }
       }
+
 
       $sid          = $session_sid;
       $admin->{SID} = $session_sid;
@@ -2092,7 +2114,7 @@ sub user_pi {
     }
 
     $user_pi->{INFO_FIELDS} .= $html->element('tr', 
-        $html->element('td', (eval "\"$name\"")).
+        $html->element('td', ( _translate($name)  )).
         $html->element('td', $input, { valign=>'center' }),
       #{ ID => "$field_id"  }
     );
@@ -2178,6 +2200,29 @@ sub user_pi {
     );
     $user_pi->{ADDRESS_TPL} = $html->tpl_show(templates('form_address'), $user_pi, { OUTPUT2RETURN => 1 });
   }
+  if (in_array('Callcenter', \@MODULES)) {
+    load_module('Callcenter', $html);
+    my $Callcenter = Callcenter->new($db, $admin, \%conf);
+    $user_phones = $Callcenter->list({UID => $user_pi->{UID}, FUNC => USERS_PHONE,  COLS_NAME => 1, COLS_UPPER=> 1});
+    $user_pi->{QINDEX} = get_function_index('callcenter_users_phone');
+    $user_pi->{SIP_NUMBER} = $admin->{SIP_NUMBER};
+
+    my $i = 1;
+    foreach my $line (@{$user_phones}) {
+      $user_pi->{PHONES} .= "<tr><td colspan=2 >
+         <input type=hidden id=id\_$i name=id\_$i value=\"$line->{ID}\">
+         $_PHONE: \
+         <input id=phone\_$i class=phone size=10 type=text value=\"$line->{PHONE}\" name=PHONE\_$i>
+         <input id=name\_$i size=10 type=text value=\"$line->{NAME}\" name=NAME\_$i>
+         <a class=link_button href=# onclick=\"remphone($i); return false;\">$_DEL</a>
+         <a class=link_button href=# onclick=\"savephone($i); return false;\">$_SAVE</a></td></tr>
+        ";
+      $i++;
+    }
+    $user_pi->{PHONES} .= "<tr id=\"last_row\"></tr>";
+    $user_pi->{PHONES} .= "<tr add ><td colspan=2  align='right'><a class=link_button href=# onclick=\"addphone(); return false;\">$_ADD $_PHONE</a></td></tr>";
+
+  }
 
   $html->tpl_show(templates('form_pi'), { %$attr, UID => $LIST_PARAMS{UID}, %$user_pi, }, { ID => 'form_pi' });
 }
@@ -2246,15 +2291,18 @@ sub form_users {
         print "</td></table>\n";
         return 0;
       }
-      elsif (!$permissions{0}{9} && $user_info->{CREDIT} != $FORM{CREDIT}) {
+
+      if (!$permissions{0}{9} && defined($user_info->{CREDIT}) && $user_info->{CREDIT} != $FORM{CREDIT}) {
         $html->message('err', $_ERROR, "$_CHANGE $_CREDIT $ERR_ACCESS_DENY");
-        $FORM{CREDIT} = undef;
+        delete($FORM{CREDIT});
       }
-      elsif (!$permissions{0}{11} && $user_info->{REDUCTION} != $FORM{REDUCTION}) {
+
+      if (!$permissions{0}{11} && defined($FORM{REDUCTION}) && $user_info->{REDUCTION} != $FORM{REDUCTION}) {
         $html->message('err', $_ERROR, "$_REDUCTION $ERR_ACCESS_DENY");
-        $FORM{REDUCTION} = undef;
+        delete($FORM{REDUCTION});
       }
-      elsif ($permissions{0}{13} && $user_info->{DISABLE} == 2) {
+
+      if ($permissions{0}{13} && $user_info->{DISABLE} == 2) {
         $FORM{DISABLE} = 2;
       }
 
@@ -3280,11 +3328,16 @@ sub form_changes {
     }
 
     my $message = $line->[3];
-    if ($line->[7] == 4) {
+    if (in_array($line->[7], [ 4,8,9,14 ]) && $message =~ m/(\d+)\-\>(\d+)/) {
+      my $from_status = $1;
+      my $to_status   = $2;
+      $message = $service_status[$from_status].'->'. $service_status[$to_status];
+    }
+    elsif ($line->[7] == 4) {
       $message = $service_status[$message];
     }
 
-    $table->addrow($html->b($line->[0]), $html->button($line->[1], "index=15&UID=$line->[8]"), $html->color_mark($line->[2], $color), $html->color_mark($message, $color), $line->[4], $line->[5], $line->[6], $html->color_mark($action_types{ $line->[7] }, $color), $delete);
+    $table->addrow($html->b($line->[0]), $html->button($line->[1], "index=15&UID=$line->[8]"), $html->color_mark($line->[2], $color), $html->color_mark($message, $color), $line->[4], $line->[5], $line->[6], $html->color_mark($action_types{ $line->[7] }, $color). "($line->[7])", $delete);
   }
 
   print $table->show();
@@ -6601,33 +6654,9 @@ sub form_fees_types {
   foreach my $line (@$list) {
     my $delete = $html->button($_DEL, "index=$index$pages_qs&del=$line->[0]", { MESSAGE => "$_DEL [$line->[0]]?", CLASS => 'del' });
 
-    $table->addrow($line->[0], ($line->[1] =~ /\$/) ? eval($line->[1]) : $line->[1], "$line->[2]", "$line->[3]", $html->button($_CHANGE, "index=$index&chg=$line->[0]", { CLASS => 'change' }), $delete);
+    $table->addrow($line->[0], ($line->[1] =~ /\$/) ? _translate($line->[1]) : $line->[1], "$line->[2]", "$line->[3]", $html->button($_CHANGE, "index=$index&chg=$line->[0]", { CLASS => 'change' }), $delete);
   }
   print $table->show();
-}
-
-#**********************************************************
-# get_fees_types
-#
-# return $Array_ref
-#**********************************************************
-sub get_fees_types {
-  my ($attr) = @_;
-
-  use Finance;
-  my %FEES_METHODS = ();
-  my $fees         = Finance->fees($db, $admin, \%conf);
-  my $list         = $fees->fees_type_list({ PAGE_ROWS => 10000 });
-  foreach my $line (@$list) {
-    if ($FORM{METHOD} && $FORM{METHOD} == $line->[0] && ! $FORM{search}) {
-      $FORM{SUM}      = $line->[3] if ($line->[3] > 0);
-      $FORM{DESCRIBE} = $line->[2] if ($line->[2]);
-    }
-
-    $FEES_METHODS{ $line->[0] } = (($line->[1] =~ /\$/) ? eval($line->[1]) : $line->[1]) . (($line->[3] > 0) ? (($attr->{SHORT}) ? ":$line->[3]" : " ($_SERVICE $_PRICE: $line->[3])") : '');
-  }
-
-  return \%FEES_METHODS;
 }
 
 #**********************************************************
@@ -6991,7 +7020,7 @@ sub form_fees {
   foreach my $line (@$fees_list) {
 #    my $delete = ($permissions{2}{2}) ? $html->button($_DEL, "index=3&del=$line->{id}&UID=$line->{uid}", { MESSAGE => "$_DEL ID: $line->{id}?", CLASS => 'del' }) : '';
 
-    my $delete = ($permissions{1}{2}) ? $html->button($_DEL, "index=3&del=$line->{id}&UID=$line->{uid}$pages_qs", { COMMENTS_ADD => "$_DEL [$line->{id}] ? $_COMMENTS:", CLASS => 'del' }) : '';
+    my $delete = ($permissions{2}{2}) ? $html->button($_DEL, "index=3&del=$line->{id}&UID=$line->{uid}$pages_qs", { COMMENTS_ADD => "$_DEL [$line->{id}] ? $_COMMENTS:", CLASS => 'del' }) : '';
 
     my @fields_array = ();
     for (my $i = 0; $i < 1+$fees->{SEARCH_FIELDS_COUNT}; $i++) {
@@ -7312,7 +7341,7 @@ sub form_search {
             $input = $html->form_input($field_id, "$FORM{$field_id}", { SIZE => 40 });
           }
 
-          $info{INFO_FIELDS} .= "<tr><td colspan='2'>" . (eval "\"$name\"") . ":</td><td>$input</td></tr>\n";
+          $info{INFO_FIELDS} .= "<tr><td colspan='2'>" . (_translate($name)) . ":</td><td>$input</td></tr>\n";
           $i++;
         }
 
@@ -7409,7 +7438,7 @@ sub form_search {
             $input = $html->form_input($field_id, "$FORM{$field_id}", { SIZE => 40 });
           }
 
-          $info{INFO_FIELDS} .= "<tr><td colspan='2'>" . (eval "\"$name\"") . ":</td><td>$input</td></tr>\n";
+          $info{INFO_FIELDS} .= "<tr><td colspan='2'>" . (_translate($name)) . ":</td><td>$input</td></tr>\n";
           $i++;
         }
 
@@ -7800,6 +7829,11 @@ sub form_templates {
     $info{TEMPLATE} =~ s/"/\\"/g;
     $info{TEMPLATE} =~ s/\@/\\@/g;
 
+    unless ($FORM{tpl_name} =~ /^([-\@\w.]+)$/) {
+      $html->message('err', $_ERROR, "Security error.\n");
+      return 0;
+    }
+
     if (open(FILE, ">$conf{TPL_DIR}/$FORM{tpl_name}")) {
       print FILE "$info{TEMPLATE}";
       close(FILE);
@@ -7836,6 +7870,11 @@ sub form_templates {
     }
   }
   elsif ($FORM{tpl_name}) {
+    unless ($FORM{tpl_name} =~ /^([-\@\w.]+)$/) {
+      $html->message('err', $_ERROR, "Security error.\n");
+      return 0;
+    }
+
     show_tpl_info("$conf{TPL_DIR}/$FORM{tpl_name}");
 
     if (-f "$conf{TPL_DIR}/$FORM{tpl_name}") {

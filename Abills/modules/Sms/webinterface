@@ -1,3 +1,4 @@
+#!perl
 # Sms functions
 #
 #
@@ -27,7 +28,35 @@ my %sms_status = (
 #**********************************************************
 sub sms_service_connect {
 
-if ($conf{SMS_LITTLESMS_USER}) {
+if ($conf{SMS_TXTLOCAL_APIKEY}) {
+  eval { require "modules/Sms/Txtlocal.pm"; };
+  if (!$@) {
+    eval { require "modules/Sms/Txtlocal.pm"; };
+    Txtlocal->import();
+    $Sms_service = Txtlocal->new($db, $admin, \%conf);
+    return $Sms_service;
+  }
+  else {
+    print $@;
+    $html->message('err', $_ERROR, "Can't load 'Txtlocal'. Purchase this module http://abills.net.ua");
+    exit;
+  }
+}
+elsif ($conf{SMS_SMSC_USER}) {
+  eval { require "modules/Sms/Smsc.pm"; };
+  if (!$@) {
+    eval { require "modules/Sms/Smsc.pm"; };
+    Smsc->import();
+    $Sms_service = Smsc->new($db, $admin, \%conf);
+    return $Sms_service;
+  }
+  else {
+    print $@;
+    $html->message('err', $_ERROR, "Can't load 'Smsc'. Purchase this module http://abills.net.ua");
+    exit;
+  }
+}
+elsif ($conf{SMS_LITTLESMS_USER}) {
   eval { require "modules/Sms/Littlesms.pm"; };
   if (!$@) {
     eval { require "modules/Sms/Littlesms.pm"; };
@@ -96,11 +125,13 @@ sub sms_send {
   my ($attr) = @_;
 
   sms_service_connect();
+
+  $conf{SMS_NUMBER}= "[0-9]{12}" if (! $conf{SMS_NUMBER});
   
   if (! $attr->{NUMBER} && ! $attr->{NUMBERS}) {
     $html->message('err', $_ERROR, "$_ERR_PHONE_NOT_DEFINED");
   }
-  elsif (! $attr->{NUMBERS} && $attr->{NUMBER} !~ /(\d{12})/) {
+  elsif (! $attr->{NUMBERS} && $attr->{NUMBER} !~ /$conf{SMS_NUMBER}/) {
     $html->message('err', $_ERROR, "$_ERR_WRONG_PHONE");
   }
 
@@ -119,6 +150,10 @@ sub sms_send {
 
       $numbers = \%new_numbers;
     }
+  }
+
+  if ($conf{SMS_TRANSLIT}) {
+    $attr->{MESSAGE} = txt2translit($attr->{MESSAGE});
   }
 
   $Sms_service->send_sms(
@@ -283,7 +318,36 @@ sub number_expr {
 }
 
 
+#**********************************************************
+# convert to translit
+#**********************************************************
+sub txt2translit {
+  my $text = shift;
 
+  $text =~ y/абвгдеёзийклмнопрстуфхъыьэієї/abvgdeezijklmnoprstufh'y'eiei/;
+  $text =~ y/АБВГДЕЁЗИЙКЛМНОПРСТУФХЪЫЬЭІЄЇ/ABVGDEEZIJKLMNOPRSTUFH'Y'EIEI/;
+  my %mchars = (
+    'ж' => 'zh',
+    'ц' => 'ts',
+    'ч' => 'ch',
+    'ш' => 'sh',
+    'щ' => 'sch',
+    'ю' => 'ju',
+    'я' => 'ja',
+    'Ж' => 'Zh',
+    'Ц' => 'Ts',
+    'Ч' => 'Ch',
+    'Ш' => 'Sh',
+    'Щ' => 'Sch',
+    'Ю' => 'Ju',
+    'Я' => 'Ja'
+  );
+  for my $c (keys %mchars) {
+    $text =~ s/$c/$mchars{$c}/g;
+  }
+
+  return $text;
+}
 
 1
 

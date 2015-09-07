@@ -5,4 +5,6 @@ if(defined($admin->{AID})) {
   my $count=notepad_new({ AID => $admin->{AID} });
   %FUNCTIONS_LIST = ("01:0:$_NOTEPAD $count:notepad_main:"				=> 9,
   );                 
-}               
+}
+
+1               

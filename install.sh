@@ -5,9 +5,8 @@
 #
 #**************************************************************
 
-VERSION=4.70
+VERSION=4.79
 
-PORTS_LOCATION="/usr/ports/"
 TMPOPTIONSFILE="/tmp/abills.tmp"
 CMD_LOG="/tmp/ports_builder_cmd.log"
 BILLING_DIR='/usr/abills';
@@ -47,9 +46,35 @@ _uninstall () {
   fi;
 
   echo "Clear db"
+
   mysql -D mysql -u root -e "DELETE FROM user WHERE user='abills'; DELETE * FROM db WHERE user='abills'; DROP DATABASE abills;";
+
   echo "Remove abills dir"
   mv /usr/abills /usr/abills_;
+}
+
+#**********************************************************
+#
+#**********************************************************
+_get_version () {
+
+for program_name in $@; do
+  if [ "${OS}" = "FreeBSD" ]; then
+    test_program="pkg info"
+  fi;
+
+  RET=`${test_program} ${program_name}*`;
+
+  if [ $? = 0 ]; then
+    program_name=`echo "${program_name}" | sed s/\-/_/`;
+    
+    echo ${program_name};
+    
+    installed="${program_name}_install"
+    eval "${installed}"="\(${RET}\)"
+  fi;
+done;
+
 }
 
 #**********************************************************
@@ -60,23 +85,31 @@ _install () {
   for pkg in $@; do
     if [ "${OS_NAME}" = "CentOS" ]; then
       test_program="rpm -q"
-    else 
+    elif [ "${OS}" = "FreeBSD" ]; then
+      test_program="pkg info"
+    else
       test_program="dpkg -s"
     fi;
 
-    ${test_program}  ${pkg} > /dev/null 2>&1
+    ${test_program} ${pkg} > /dev/null 2>&1
 
     res=$?
 
     if [ ${res} = 1 ]; then
       ${BUILD_OPTIONS} ${pkg}
-    elif [ ${res} = 127 ]; then
+      echo "Pkg: ${BUILD_OPTIONS} ${pkg} ${res}";
+    elif [ ${res} = 127 -o ${res} = 70 ]; then
       ${BUILD_OPTIONS} ${pkg}
+      echo "Pkg: ${BUILD_OPTIONS} ${pkg} ${res}";
     else
-      echo "${pkg} ${res}"
+      echo -n "  ${pkg}"
+      if [ "${res}" = 0 ]; then
+        echo " Installed";
+      else 
+        echo " ${res}"
+      fi;
     fi; 
-
-    echo "Pkg: ${BUILD_OPTIONS} ${pkg} ${res}";
+    
   done;
 }
 
@@ -98,6 +131,7 @@ elif [ "${OS}" = "AIX" ] ; then
   OSSTR="${OS} `oslevel` (`oslevel -r`)"
 elif [ "${OS}" = "FreeBSD" ] ; then
   OS_NAME="FreeBSD";
+  OS_NUM=`uname -r | awk -F\. '{ print $1 }'`
 elif [ "${OS}" = "Linux" ] ; then
   #GetVersionFromFile
   KERNEL=`uname -r`
@@ -161,6 +195,17 @@ PING=${FILE_PING}
 " > /usr/abills/Abills/programs
 }
 
+
+#*****************************************
+#
+#*****************************************
+nat_config () {
+
+echo "Nat config"
+${DIALOG} --msgbox "Benchmark\n" 20  52
+
+}
+
 #*****************************************
 # ipn configure
 #*****************************************
@@ -211,6 +256,19 @@ echo "====================================================="
 echo " ${UNAME}                                            "
 echo " ${KERNEL_FILE}                                      "
 echo "====================================================="
+
+
+echo -n "Update source (y/n)?: "
+read UPDATE_SRC=
+
+if [ x"${UPDATE_SRC}" = xy ]; then
+  #System source update
+  #Subversion update
+  _install subversion
+
+  MAJOR_VERSION=`uname -r | awk -F\. '{ print $1 }'`
+  svn co svn://svn.freebsd.org/base/stable/${MAJOR_VERSION} /usr/src
+fi;
 
 if [ ! -d /usr/src/sys ]; then
   echo "Kernel Source not found";
@@ -317,12 +375,6 @@ cd fsbackup-1.2pl2;
 ./install.pl;
 mkdir /usr/local/fsbackup/archive;
 
-#if [ x${DEBUG} != x ]; then
-#  echo ${cmd}
-#fi;
-#
-#`${cmd}`
-
 echo "!/usr/local/fsbackup" >> /usr/local/fsbackup/cfg_example
 cp /usr/local/fsbackup/create_backup.sh /usr/local/fsbackup/create_backup.sh_back
 cat /usr/local/fsbackup/create_backup.sh_back | sed 's/config_files=\".*\"/config_files=\"cfg_example\"/' > /usr/local/fsbackup/create_backup.sh
@@ -358,24 +410,36 @@ test_file_size=5G
 echo "Making benchmark. Please wait..."
 
 #CPU test
-sysbench --test=cpu --cpu-max-prime=20000 run > cpu.sysbench
+sysbench --test=cpu --cpu-max-prime=5000 --num-threads=1 run | egrep 'total time:' | sed 's/[ ^t]* total time: [ ^t]*//' > cpu.sysbench
+sysbench --test=cpu --cpu-max-prime=5000 --num-threads=4 run | egrep 'total time:' | sed 's/[ ^t]* total time: [ ^t]*//' >> cpu.sysbench
 #RAM test
-sysbench --test=memory --memory-total-size=32M --memory-block-size=64 run > memory.sysbench
-
+sysbench --test=memory --memory-total-size=1G --memory-access-mode=rnd --memory-oper=write run | egrep 'total time:' | sed 's/[ ^t]* total time: [ ^t]*//' > memory.sysbench
+sysbench --test=memory --memory-total-size=1G --memory-access-mode=rnd --memory-oper=read run | egrep 'total time:' | sed 's/[ ^t]* total time: [ ^t]*//' >> memory.sysbench
 #HDD test
-sysbench --test=fileio --file-total-size=${test_file_siz} prepare
-sysbench --test=fileio --file-total-size=${test_file_siz} --file-test-mode=rndrw --max-time=300 --max-requests=0 run > fileio.sysbench
+sysbench --test=fileio --file-total-size=${test_file_size} prepare
+sysbench --test=fileio --file-total-size=${test_file_size} --file-test-mode=seqwr --max-time=0 run | egrep 'total time:' | sed 's/[ ^t]* total time: [ ^t]*//' > fileio.sysbench 
+sysbench --test=fileio --file-total-size=${test_file_size} --file-test-mode=seqrd --max-time=0 run | egrep 'total time:' | sed 's/[ ^t]* total time: [ ^t]*//' >> fileio.sysbench
+sysbench --test=fileio --file-total-size=${test_file_size} cleanup
+
 #sysbench --test=threads
-rm -f test_file.*
 
-echo "CPU"
-cat cpu.sysbench
-echo "Memory"
-cat memory.sysbench
-echo "Filesystem"
-cat fileio.sysbench
+CPU1=`cat cpu.sysbench | head -1`
+CPU2=`cat cpu.sysbench | tail -1`
+echo "CPU one thread  : ${CPU1}"
+echo "CPU multi thread: ${CPU2}"
 
-#${DIALOG} --msgbox "Benchmark\n" 20  52
+MEM1=`cat memory.sysbench | head -1`
+MEM2=`cat memory.sysbench | tail -1`
+echo "Memory write: ${MEM1}"
+echo "Memory read : ${MEM2}"
+
+FILE1=`cat fileio.sysbench | head -1`
+FILE2=`cat fileio.sysbench | tail -1`
+echo "Filesystem write: ${FILE1}"
+echo "Filesystem read : ${FILE2}"
+
+fetch https://support.abills.net.ua/sysbench.cgi?CPU_ONE=$CPU1&CPU_MULT=$CPU2&MEM_WR=$MEM1&MEM_RD=$MEM2&FILE_WR=$FILE1&FILE_RD=$FILE2
+${DIALOG} --msgbox "Benchmark\n" 20  52
 
 }
 
@@ -398,16 +462,24 @@ cat fileio.sysbench
 #**********************************************************
 install_accel_ipoe() {
 
- echo "Accel IPoE start install";
+  echo "Accel IPoE start install";
 
- _install make cmake libcrypto++-dev libssl-dev libpcre3 libpcre3-dev git
- _install linux-headers-`uname -r` 
+  _install make cmake libcrypto++-dev libssl-dev libpcre3 libpcre3-dev git
+
+  DKDIR="/usr/src/linux-headers-"`uname -r`
+
+  if [ "${OS_NAME}" = "CentOS" ] ; then
+    _install kernel-headers kernel-devel
+    DKDIR="/usr/src/kernels/"`ls /usr/src/kernels/`
+  else 
+    _install linux-headers-`uname -r` 
+  fi;
 
  cmd="cd /usr/src/ ; pwd ";
  cmd="${cmd}; git clone git://git.code.sf.net/p/accel-ppp/code accel-ppp.git"
  cmd="${cmd}; mkdir accel-ppp-build"
  cmd="${cmd}; cd accel-ppp-build"
- cmd="${cmd}; cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DKDIR=/usr/src/linux-headers-`uname -r` -DRADIUS=TRUE -DSHAPER=TRUE -DLOG_PGSQL=FALSE -DBUILD_IPOE_DRIVER=TRUE ../accel-ppp.git"
+ cmd="${cmd}; cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DKDIR=${DKDIR} -DRADIUS=TRUE -DSHAPER=TRUE -DLOG_PGSQL=FALSE -DBUILD_IPOE_DRIVER=TRUE ../accel-ppp.git"
  cmd="${cmd}; make"
  cmd="${cmd}; make install"
 
@@ -437,7 +509,7 @@ install_accel_ipoe() {
 install_accel_ppp() {
 
 # Install radius client
-if [ ${OS_NAME} = Mandriva -o ${OS_NAME} = ARCH ]; then 
+if [ "${OS_NAME}" = Mandriva -o "${OS_NAME}" = ARCH ]; then 
   cmd="${BUILD_OPTIONS} freeradius-client;";
 elif [ ${OS_NAME} = Fedora -o ${OS_NAME} = fedora -o ${OS_NAME} = centos ]; then 
   echo "install freeradius";
@@ -447,11 +519,7 @@ fi;
     
 if [ ${OS_NAME} = Mandriva -o ${OS_NAME} = Fedora ]; then
   echo "to install pptpd you need to download sources";
-#elif [ ${OS_NAME} = centos ]; then
-#  rpm -Uvh http://pptpclient.sourceforge.net/yum/stable/rhel5/pptp-release-current.noarch.rpm;
-#  cmd=${cmd}"${BUILD_OPTIONS} pptpd;"
 else 
-      
 #      cmd="${BUILD_OPTIONS} git cmake libssl-dev libpcre3-dev libnl2-dev pptp-linux build-essential gawk;";
 #      cmd="${cmd}mkdir /usr/abills/src/;"
 #      cmd="${cmd}cd /usr/abills/src/;"
@@ -464,7 +532,8 @@ else
 #      cmd="${cmd}make;"
 #      cmd="${cmd}make install;"
     # http://linuxsoid.ucoz.com/publ/rukovodstvo_po_ubuntu/faq_ubuntu_11_04_programmnoe_obespechenie_i_igry/accel_pptp_v_ubuntu_server_10_04/34-1-0-718
-     
+
+
   PKGS="bzip2 cmake libnl2-dev pptp-linux build-essential gawk"
 
   PPP_LIB_DIR="/usr/lib/pppd/2.4.5/";
@@ -480,15 +549,16 @@ else
     PPP_LIB_DIR="/usr/lib64/pppd/2.4.5";
   else
     PKGS="${PKGS} libssl-dev libpcre3-dev ppp-dev"
-  fi; 
+  fi;
 
   _install "${PKGS}"
 
-  #cmd="${cmd}wget \"http://netcologne.dl.sourceforge.net/project/accel-ppp/accel-ppp-1.7.0.tar.bz2\";"
-  cmd="cd /usr/src/; rm accel-ppp-1.7.3*;";
-  cmd="${cmd}wget \"http://garr.dl.sourceforge.net/project/accel-ppp/accel-ppp-1.7.3.tar.bz2\";"
-  cmd="${cmd}bzip2 -d accel-ppp-1.7.3.tar.bz2; tar xvf accel-ppp-1.7.3.tar;"
-  cmd="${cmd}mkdir accel-ppp-build; cd accel-ppp-build; cmake -I/usr/include/pcre/ -DCMAKE_INSTALL_PREFIX=/usr/local -DRADIUS=TRUE ../accel-ppp-1.7.3;"
+  ACCEL_PPPP_VERSION='1.9.0' #'1.7.3';
+
+  cmd="cd /usr/src/; rm accel-ppp-${ACCEL_PPPP_VERSION}*;";
+  cmd="${cmd}wget \"http://garr.dl.sourceforge.net/project/accel-ppp/accel-ppp-${ACCEL_PPPP_VERSION}.tar.bz2\";"
+  cmd="${cmd}bzip2 -d accel-ppp-${ACCEL_PPPP_VERSION}.tar.bz2; tar xvf accel-ppp-${ACCEL_PPPP_VERSION}.tar;"
+  cmd="${cmd}mkdir accel-ppp-build; cd accel-ppp-build; cmake -I/usr/include/pcre/ -DCMAKE_INSTALL_PREFIX=/usr/local -DRADIUS=TRUE ../accel-ppp-${ACCEL_PPPP_VERSION};"
   cmd="${cmd}make;"
   cmd="${cmd}cd ../accel-pptp-1.7.3/pppd_plugin/;"
   cmd="${cmd}sudo ./configure;"
@@ -499,12 +569,12 @@ else
   cmd="${cmd}echo \"pptp\" >> /etc/modules;"
   cmd="${cmd}echo \"pppoe\" >> /etc/modules;"
 
-  AUTOCONF_PROGRAMS="${AUTOCONF_PROGRAMS} pppd "
-  AUTOCONF_PROGRAMS_FLAGS="${AUTOCONF_PROGRAMS_FLAGS} ACCEL_PPTP=1"
+  AUTOCONF_PROGRAMS="${AUTOCONF_PROGRAMS} accel_ppp "
+  AUTOCONF_PROGRAMS_FLAGS="${AUTOCONF_PROGRAMS_FLAGS}"
 fi;
 
 #autostart
-if [ ${OS} = 'CentOS' ]; then
+if [ "${OS}" = 'CentOS' ]; then
 
 (cat <<EOF
 #!/bin/bash
@@ -680,16 +750,36 @@ install_ipcad() {
   ./configure
   make 
   make install
-  
+
   echo "/usr/local/bin/ipcad -d" >> /etc/rc.local
 }
+
+#**********************************************************
+# rstat statistic utilits
+#**********************************************************
+install_rstat() {
+
+ RSTAT_URL="http://heanet.dl.sourceforge.net/project/abills/Misc/rstat-0.21/rstat-0.21.tgz";
+
+ if [ w${OS} = wLinux ]; then
+   wget \"${RSTAT_URL}\"
+ else 
+   fetch \"${RSTAT_URL}\"
+ fi;
+
+ tar zxvf rstat-0.21.tgz ;
+ cd rstat ;
+ make install ;
+
+}
+
 
 #**********************************************************
 # Install Freeradius from source
 #**********************************************************
 install_freeradius() {
 
- _install make gcc libmysqlclient-dev libmysqlclient16 libgdbm3 libgdbm-dev 
+ _install make gcc libmysqlclient-dev libmysqlclient16 libgdbm3 libgdbm-dev libperl-dev
 
  if [ "${OS_NAME}" = "CentOS" -o "${OS_NAME}" = "Fedora" ]; then
    _install perl-devel perl-ExtUtils-Embed
@@ -719,13 +809,12 @@ else
   echo "Perl lib: ${PERL_LIB_DIR}libperl.so"
 fi;
 
-FREERADIUS_VERSION="2.2.6"
+FREERADIUS_VERSION="2.2.7"
  
 wget ftp://ftp.freeradius.org/pub/freeradius/freeradius-server-${FREERADIUS_VERSION}.tar.gz
 
 if [ ! -f freeradius-server-${FREERADIUS_VERSION}.tar.gz ]; then
   echo "Can\'t download freeradius. PLease download and install manual";
- 
   exit;
 fi;
 
@@ -738,15 +827,15 @@ make && make install
 
 ln -s /usr/local/freeradius/sbin/radiusd /usr/sbin/radiusd
 
-groupadd freerad
-useradd -g freerad -s /bash/bash freerad
-chown -R freerad:freerad /usr/local/freeradius/etc/raddb
-
+#Add user
+groupadd ${RADIUS_SERVER_USER}
+useradd -g ${RADIUS_SERVER_USER} -s /bash/bash ${RADIUS_SERVER_USER}
+chown -R ${RADIUS_SERVER_USER}:${RADIUS_SERVER_USER} /usr/local/freeradius/etc/raddb
 
 
 #autostart
-if [ ${OS} = 'CentOS' ]; then
-   
+if [ "${OS}" = 'CentOS' ]; then
+
   echo ""
   
 else
@@ -827,15 +916,7 @@ EOF
 
 fi;
 
-#Add freeradius user
-groupadd freerad
-useradd -g freerad -s /bash/bash freerad
-chown -R freerad:freerad /usr/local/freeradius/etc/raddb
-
-
 AUTOCONF_PROGRAMS="${AUTOCONF_PROGRAMS} freeradius"
-
-
 }
 
 
@@ -903,29 +984,12 @@ fi;
 #**********************************************************
 # Build freebsd programs
 #**********************************************************
-freebsd_build_pkg () {
-echo -e '\a \a \a';
-
-#Build perl 5.16 on new systems
-PERL_EXIST=`${PKG_TOOL} | grep perl-|awk '{print $1}'`;
-if [ x"${PERL_EXIST}" = x ]; then
-    pkg install -Rf perl5
-fi;
-
-
-
-}
-
-
-#**********************************************************
-# Build freebsd programs
-#**********************************************************
 freebsd_build () {
 echo -e '\a \a \a';
 
-
 FILE_PING='/sbin/ping';
 
+PORTS_LOCATION="/usr/ports/"
 DIALOG_TITLE="ABillS Installation"
 DIALOG_TITLE="${DIALOG_TITLE} Server: ${OS} ${OS_VERSION} ${MACH}";
 if [ x${DEBUG} != x ] ; then
@@ -1093,24 +1157,12 @@ for name in ${RESULT}; do
   if [ "${name}" = "update" ] ; then
     #System update
     # freebsd-update
-
-    #System source update
-    #Subversion update
-    ${PKG_ADD} install subversion
-
-    MAJOR_VERSION=`uname -r | awk -F\. '{ print $1 }'`
-    svn co svn://svn.freebsd.org/base/stable/${MAJOR_VERSION} /usr/src
-   
-    #Csup update. Old style
-    #cmd="cat /usr/share/examples/cvsup/standard-supfile | sed 's/CHANGE_THIS/cvsup5/g' > /etc/standard-supfile;"
-    #cmd="${cmd}echo \"ports-all tag=.\" >> /etc/standard-supfile;"
-    #cmd="${cmd}/usr/bin/csup -g -L 2 /etc/standard-supfile;"
-    
+    #ports update    
     cmd="${cmd}portsnap fetch;"
     cmd="${cmd}portsnap extract;"
     cmd="${cmd}portsnap update;"
     
-    #Build perl 5.16 on new systems
+    #Build perl 5.18 on new systems
     PERL_EXIST=`${PKG_TOOL} | grep perl-|awk '{print $1}'`;
     if [ x"${PERL_EXIST}" = x ]; then
       cd /usr/ports/lang/perl5.18 && make && make install clean
@@ -1125,7 +1177,7 @@ for name in ${RESULT}; do
   fi;
 
   if [ "${name}" = "apache22" ]; then
-    cmd="cd ${PORTS_LOCATION}/www/apache24 ${BUILD_OPTIONS};";
+    cmd="cd ${PORTS_LOCATION}/www/apache22 ${BUILD_OPTIONS};";
     AUTOCONF_PROGRAMS="apache"
   fi;
 
@@ -1203,10 +1255,7 @@ for name in ${RESULT}; do
 
   if [ "${name}" = "MRTG" ]; then
     cmd="cd ${PORTS_LOCATION}/net-mgmt/mrtg ${BUILD_OPTIONS};";
-    cmd=${cmd}"fetch http://garr.dl.sourceforge.net/project/abills/Misc/rstat-0.21/rstat-0.21.tgz;"
-    cmd=${cmd}"tar zxvf rstat-0.21.tgz;"
-    cmd=${cmd}"cd rstat;"
-    cmd=${cmd}"make install;"
+    install_rstat;
     AUTOCONF_PROGRAMS="${AUTOCONF_PROGRAMS} mrtg"    
   fi;
 
@@ -1259,8 +1308,252 @@ for name in ${RESULT}; do
     fi;
   fi;  
 
-
   AUTOCONF_PROGRAMS="${AUTOCONF_PROGRAMS} freebsd"
+
+done
+
+
+}
+
+
+#**********************************************************
+# Build freebsd programs
+#**********************************************************
+freebsd_build2 () {
+echo -e '\a \a \a';
+
+FILE_PING='/sbin/ping';
+
+DIALOG_TITLE="ABillS Installation"
+DIALOG_TITLE="${DIALOG_TITLE} Server: ${OS} ${OS_VERSION} ${MACH}";
+if [ x${DEBUG} != x ] ; then
+  DIALOG_TITLE=${DIALOG_TITLE}" (DEBUG MODE)";
+fi
+
+RESULT=`grep 'WITHOUT="X11"' /etc/make.conf`;
+if [ "${RESUL}" = "" ]; then
+  #echo 'WITHOUT_X11=yes' >> /etc/make.conf
+  echo 'WITHOUT="X11"' >> /etc/make.conf
+  echo 'WITHOUT_GUI=yes' >> /etc/make.conf
+fi;
+
+if [ x"${BENCHMARTK}" != x ]; then
+  mk_sysbench;
+  exit;
+fi;
+
+PKG_TOOL="pkg info"
+PKG_ADD="pkg"
+
+${DIALOG} --checklist "${DIALOG_TITLE}" 50 75 15 billing "Billing Server"  off \
+     nas    "Nas server"  off  \
+     2>${TMPOPTIONSFILE}
+
+RESULT=`cat ${TMPOPTIONSFILE}`;
+
+if [ "${RESULT}" = "" ]; then
+  exit;
+fi;
+
+echo -e '\a\a\a\a\a'
+
+_get_version apache mysql-server freeradius
+
+for name in ${RESULT}; do
+  name=`echo "${name}" | sed s/\"//g;`;
+  
+  if [ "${name}" = "billing" ]; then
+
+    DIALOG_TITLE="Options for ABillS FreeBSD ports"
+
+    ${DIALOG} --checklist "${DIALOG_TITLE}" 50 75 15 update "Source Update"  on \
+     mysql56      "Mysql Server ${mysql_server_install}"  on \
+     apache22     "Apache  ${apache_install}" on \
+     Perl_Modules "Perl modules" on \
+     freeradius   "FreeRADIUS ${freeradius_install}" on\
+     DHCP         "ISC DHCP Server" on\
+     Mail         "Mail Server" off \
+     MRTG         "Mrtg"  on \
+     IPN          "IPN" off\
+     fsbackup     "fsbackup" off\
+     Build_Kernel "Build kernel" off\
+     PERL_SPEEDY  "Speed_CGI" off\
+     Utils        "bash,vim,tmux,monit" on\
+    2>${TMPOPTIONSFILE}
+    RESULT=`cat ${TMPOPTIONSFILE}`;
+  fi;
+
+  if [ "${name}" = "nas" ]; then
+    _get_version mpd
+
+    DIALOG_TITLE="NAS Server Options"
+
+    ${DIALOG} --checklist "${DIALOG_TITLE}" 50 75 15 update "Source Update"  on \
+     Perl_Modules   "Perl modules" on \
+     DHCP           "ISC DHCP Server" on\
+     IPN            "IPN (IPoE)" off\
+     mpd            "Mpd (VPN/PPPoE) ${mpd_install}"      off\
+     fsbackup       fsbackup off\
+     Build_Kernel   "Build kernel" off\
+     MRTG           "Mrtg"  on \
+     Utils          "bash,vim,tmux,monit" on\
+    2>${TMPOPTIONSFILE}
+    RESULT=${RESULT}" "`cat ${TMPOPTIONSFILE}`;
+    
+    # Add gatewayenable
+    check_gate=`cat /etc/rc.conf | grep gateway_enable`;
+    if [ x"${check_gate}" = x ]; then
+      echo "gateway_enable=\"YES\"" >> /etc/rc.conf
+    fi;
+    
+  fi;
+done;
+
+if [ w${REBUILD} != w ]; then
+  BUILD_OPTIONS="${PKG_ADD} remove"
+else
+  BUILD_OPTIONS="${PKG_ADD} install";
+fi;
+
+#Checklibtools
+#
+LIBTOOL__EXIST=`which libtool`;
+if [ x"${LIBTOOL__EXIST}" != x ]; then
+  LIBTOOL_VERSION=`libtool --version | head -1| awk '{ print $4 }' | sed 's/\.//g'`
+
+  if [ "${LIBTOOL_VERSION}" -lt 2400 ]; then
+    RESULT="libtool "${RESULT}
+  fi;
+fi;
+
+for name in ${RESULT}; do
+  name=`echo "${name}" | sed s/\"//g;`;
+  echo "Program: ${name}";
+  cmd="";
+  
+  #System and ports update
+  if [ "${name}" = "update" ] ; then
+    #System update
+    # freebsd-update
+    #ports update    
+    
+    ${PKG_ADD} upgrade
+  fi;
+
+  if [ "${name}" = "apache22" ]; then
+    _install apache22
+    AUTOCONF_PROGRAMS="${AUTOCONF_PROGRAMS} apache"
+  fi;
+
+  if [ "${name}" = "Utils" ]; then
+    _install bash vim-lite tmux git
+  fi;
+
+  if [ "${name}" = "mysql56" ]; then
+    _install mysql56-server
+    RESTART_MYSQL=/usr/local/etc/rc.d/mysql-server
+  fi;
+
+  if [ "${name}" = "freeradius" ]; then
+    _install freeradius
+    AUTOCONF_PROGRAMS="${AUTOCONF_PROGRAMS} freeradius"
+  fi;
+
+  if [ "${name}" = "DHCP" ]; then
+    _install isc-dhcp43-server
+
+    install_sudo
+    AUTOCONF_PROGRAMS="${AUTOCONF_PROGRAMS} dhcp"
+  fi;
+
+  if [ "${name}" = "Perl_Modules" ]; then
+    _install p5-Digest-MD4 p5-Digest-MD5 p5-Digest-SHA1 p5-DBD-mysql p5-PDF-API2 \
+      p5-Time-HiRes \
+      p5-XML-Simple \
+      p5-RRD-Simple \
+      p5-Spreadsheet-WriteExcel
+  fi;
+
+  if [ "${name}" = "Mail" ]; then
+    cmd="cd ${PORTS_LOCATION}/security/cyrus-sasl2 ${BUILD_OPTIONS};";
+    cmd=${cmd}"cd ${PORTS_LOCATION}/mail/postfix27 ${BUILD_OPTIONS};"; 
+    cmd=${cmd}"cd ${PORTS_LOCATION}/mail/maildrop && make WITH_AUTHLIB=yes MAILDROP_TRUSTED_USERS=vmail MAILDROP_SUID=1005 MAILDROP_SGID=1005 && make install;";
+    cmd=${cmd}"cd ${PORTS_LOCATION}/security/courier-authlib-base ${BUILD_OPTIONS};"
+    cmd=${cmd}"cd ${PORTS_LOCATION}/security/courier-authlib ${BUILD_OPTIONS};"
+    cmd=${cmd}"cd ${PORTS_LOCATION}/mail/courier-imap ${BUILD_OPTIONS} ;"
+    cmd=${cmd}"cd ${PORTS_LOCATION}/mail/p5-Mail-SpamAssassin/ ${BUILD_OPTIONS} ;"
+    cmd=${cmd}"cd ${PORTS_LOCATION}/security/clamav ${BUILD_OPTIONS};"
+    cmd=${cmd}"cd ${PORTS_LOCATION}/security/amavisd-new ${BUILD_OPTIONS};"
+    cmd=${cmd}"cd ${PORTS_LOCATION}/mail/squirrelmail ${BUILD_OPTIONS};"
+
+    #Check apache php support
+    APACHE_CONFIG='/usr/local/etc/apache22/httpd.conf'
+    check_php_conf=`grep 'x-httpd-php' ${APACHE_CONFIG}`
+    if [ w${check_php_conf} = w ]; then
+      echo -n "Can\'t find php in apache config add it? (y/n): "
+      read PHP_CONF=
+      if [ w${PHP_CONF} = wy ]; then
+        echo "AddType application/x-httpd-php .php" >> ${APACHE_CONFIG}
+      fi;
+    fi;
+ 
+    PHP_INDEX=`grep index.php ${APACHE_CONFIG}`;
+    if [ x"${PHP_INDEX}" = x ]; then
+      cp ${APACHE_CONFIG} ${APACHE_CONFIG}_bak
+      cat ${APACHE_CONFIG}_bak | sed 's/DirectoryIndex index.html/DirectoryIndex index.html index.php/' > ${APACHE_CONFIG}      
+    fi;
+
+    AUTOCONF_PROGRAMS="${AUTOCONF_PROGRAMS} postfix"
+    AUTOCONF_PROGRAMS_FLAGS="${AUTOCONF_PROGRAMS_FLAGS} AMAVIS=1 CLAMAV=1"
+  fi;
+
+
+  if [ "${name}" = "MRTG" ]; then
+    _install mrtg;
+    install_rstat;
+    AUTOCONF_PROGRAMS="${AUTOCONF_PROGRAMS} mrtg"    
+  fi;
+
+  if [ "${name}" = "fsbackup" ]; then
+    install_fsbackup
+  fi;
+
+  if [ "${name}" = "IPN" ]; then
+    _install flow-tools;
+    if [ x${INSTALL_IPCAD} = x1 ]; then
+      _install ipcad
+      AUTOCONF_PROGRAMS="${AUTOCONF_PROGRAMS} ipcad freebsd"
+    fi;
+
+    install_sudo
+
+    AUTOCONF_PROGRAMS="${AUTOCONF_PROGRAMS} flow-tools"
+    
+    if [ -d ${BILLING_DIR} ]; then
+      ls -s ${BILLING_DIR}/Abills/modules/Ipn/traffic2sql ${BILLING_DIR}/libexec/
+    fi;
+  fi;
+
+  if [ "${name}" = "PERL_SPEEDY" ]; then
+     mkdir src
+     cd src
+     fetch http://daemoninc.com/SpeedyCGI/CGI-SpeedyCGI-2.22.tar.gz
+     tar zxvf CGI-SpeedyCGI-2.22.tar.gz
+     cd CGI-SpeedyCGI-2.22
+     perl Makefile.PL
+     make
+     make install
+  fi;
+
+  if [ "${name}" = "mpd" ]; then
+    _install mpd5
+    AUTOCONF_PROGRAMS="${AUTOCONF_PROGRAMS} mpd freebsd"
+    AUTOCONF_PROGRAMS_FLAGS="${AUTOCONF_PROGRAMS_FLAGS} MPD5=1"
+  fi;
+
+  if [ "${name}" = "Build_Kernel" ]; then
+    freebsd_build_kernel
+  fi;
 
 done
 
@@ -1347,6 +1640,7 @@ case "${OS_NAME}" in
     RESTART_MYSQL=/etc/init.d/mysql
     RESTART_RADIUS=/etc/init.d/freeradius
     RESTART_APACHE=/etc/init.d/apache2
+
     if [ -f /etc/apt/apt.conf ]; then 
       if [ x`grep 'APT::Cache-Limit' /etc/apt/apt.conf` = x]; then
         echo 'APT::Cache-Limit "50000000";' >> /etc/apt/apt.conf
@@ -1396,7 +1690,7 @@ case "${OS_NAME}" in
     RESTART_APACHE="service httpd"
     
   ;;
-  openSUSE)
+  *penSUSE)
     WEB_SERVER_USER=wwwrun
     RADIUS_SERVER_USER=radiusd
     RESTART_MYSQL=/etc/init.d/mysql
@@ -1430,7 +1724,7 @@ case "${OS_NAME}" in
       BUILD_OPTIONS=" yum -y install ";
     fi;
 
-    _install dialog cvs bc wget mod_ssl perl-DB_File openssl policycoreutils-python
+    _install dialog cvs bc wget mod_ssl perl-DB_File openssl policycoreutils-python expat-devel expat
     PERL_MODULES="perl-DBD-mysql perl-XML-Simple"
 
     semanage port -a -t http_port_t -p tcp 9443
@@ -1494,7 +1788,13 @@ case "${OS_NAME}" in
     RESTART_RADIUS=/etc/init.d/radiusd
     RESTART_APACHE=/etc/init.d/httpd
 
-    yum -y install dialog cvs perl-Time-HiRes;
+    if [ w${REBUILD} != w ]; then
+      BUILD_OPTIONS=" yum -y remove "
+    else
+      BUILD_OPTIONS=" yum -y install ";
+    fi;
+
+    _install dialog cvs perl-Time-HiRes git;
   ;;
   Slackware)
     WEB_SERVER_USER=apache
@@ -1579,9 +1879,9 @@ for name in $RESULT; do
 
   #pptp
   if [ ${name} = "PPTP" ]; then
-    if [ ${OS_NAME} = ARCH -o ${OS_NAME} = Fedora ]; then   
+    if [ "${OS_NAME}" = ARCH -o "${OS_NAME}" = Fedora ]; then   
       cmd="${BUILD_OPTIONS} ppp; ";
-    elif [ ${OS_NAME} = centos ];  then 
+    elif [ "${OS_NAME}" = centos ];  then 
       cmd="${BUILD_OPTIONS} ppp; ";
     else
       cmd="${BUILD_OPTIONS} pptp-linux";
@@ -1625,7 +1925,7 @@ for name in $RESULT; do
   fi;
 
   if [ ${name} = "DHCP" ]; then
-    if [ x${OS_NAME} = xDebian ];  then 
+    if [ "${OS_NAME}" = Debian ];  then 
       cmd=${cmd}"${BUILD_OPTIONS} dhcp3-server;";
 #    elif [ x${OS_NAME} = xSlackware ]; then
 #      install_dhcp
@@ -1637,10 +1937,11 @@ for name in $RESULT; do
   fi;
 
   if [ ${name} = "Perl_Modules" ]; then
-    cmd=${cmd}"${BUILD_OPTIONS} libdbi-perl libdbd-mysql-perl libdigest-sha1-perl libdigest-md4-perl libcrypt-des-perl;";
-    cmd=${cmd}"${BUILD_OPTIONS} perl-XML-Simple perl-URI libpdf-api2-perl;"
     if [ "${PERL_MODULES}" != "" ];  then
       cmd=${cmd}"${BUILD_OPTIONS} ${PERL_MODULES};"
+    else 
+      cmd=${cmd}"${BUILD_OPTIONS} libdbi-perl libdbd-mysql-perl libdigest-sha1-perl libdigest-md4-perl libcrypt-des-perl";
+      cmd=${cmd}"${BUILD_OPTIONS} perl-XML-Simple perl-URI libpdf-api2-perl"
     fi;
   fi;
 
@@ -1666,10 +1967,8 @@ for name in $RESULT; do
       cmd="${BUILD_OPTIONS} mrtg wget;"
     fi;
 
-    cmd=${cmd}"wget http://garr.dl.sourceforge.net/project/abills/Misc/rstat-0.21/rstat-0.21.tgz ;"
-    cmd=${cmd}"tar zxvf rstat-0.21.tgz;"
-    cmd=${cmd}"cd rstat;"
-    cmd=${cmd}"make install;"
+    install_rstat;
+
     AUTOCONF_PROGRAMS="${AUTOCONF_PROGRAMS} mrtg"
   fi;
 
@@ -1698,7 +1997,6 @@ for name in $RESULT; do
     
   fi;
 
-
   # PPTP
   if [ ${name} = "PPTPD" ]; then
     if [ ${OS_NAME} = Mandriva -o ${OS_NAME} = Fedora ]; then
@@ -1720,7 +2018,6 @@ for name in $RESULT; do
   if [ ${name} = "ACCEL-IPoE" ]; then
     install_accel_ipoe
   fi;
-
 
   #PPPoE
   if [ ${name} = "PPPoE" ]; then
@@ -1774,6 +2071,24 @@ done;
 
 }
 
+#**********************************************************
+# Fetch free distro
+#**********************************************************
+fetch_free_distro () {
+  echo "fetching distro";
+
+  URL="http://downloads.sourceforge.net/project/abills/abills/0.58/abills-0.58_rc1.tgz"
+
+  if [ "${OS}" = "Linux" ]; then
+    wget -q "${URL}";
+  else 
+    fetch -q "${URL}";
+  fi;
+  
+  tar zxvf abills-0.58_rc1.tgz -C /usr/
+
+}
+
 
 # Proccess command-line options
 #
@@ -1786,7 +2101,9 @@ for _switch ; do
         -V)     VERBOSE=1
                 shift; shift
                 ;;
-
+        -f)     FETCH_FREE_DISTR=1;
+                shift; shift
+                ;;
         -b)     BENCHMARTK=1;
                 shift;
                 ;;
@@ -1832,16 +2149,23 @@ while [ "${OS_NAME}" = "" ]; do
   if [ x${OS} = xLinux ]; then
     linux_build 
   else 
-    freebsd_build
+    if [ "${OS_NUM}" -lt 10 ] ; then
+      # Old ports build
+      freebsd_build
+    else 
+      freebsd_build2
+    fi;
   fi;
 done;
 
-if [ ! -d ${BILLING_DIR} ]; then
+if [ "${FETCH_FREE_DISTR}"  != "" ] ; then
+  fetch_free_distro;  
+elif [ ! -d "${BILLING_DIR}" ]; then
   UPDATE_URL=http://abills.net.ua/misc/update.sh
   # make cvs 
   cd ${BASE_PWD} 
   if [ ! -f update.sh ]; then
-    if [ w${OS} = wLinux ]; then
+    if [ "${OS}" = "Linux" ]; then
       wget -q -O update.sh "${UPDATE_URL}";
     else 
       fetch -q -o update.sh "${UPDATE_URL}";
@@ -1855,6 +2179,8 @@ fi;
 mk_file_definition
 
 cd ${BILLING_DIR}/misc/
+mkdir /usr/abills/var/ /usr/abills/var/log/
+
 AUTOCONF_PROGRAMS=`echo ${AUTOCONF_PROGRAMS} | sed 's/ /,/g'`
 echo "Autoconf: ${AUTOCONF_PROGRAMS}";
 
@@ -1877,5 +2203,5 @@ if [ x"${BILLING_WEB_IP}" = x ]; then
 fi;
 
 check_ps
-
+exit;
 ${DIALOG} --msgbox "ABillS Install complete\n\nAdmin  Interface\n https://${BILLING_WEB_IP}:9443/admin/\n Login: abills\n Password: abills\n${RESULT}" 20  52

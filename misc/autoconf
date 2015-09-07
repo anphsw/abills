@@ -206,8 +206,7 @@ if (!-f $config_file) {
 
   if (!-d '/usr/abills/backup') {
     my $ret = `mkdir /usr/abills/backup`;
-    $ret = `chown www /usr/abills/backup /usr/abills/cgi-bin/ /usr/abills/Abills/templates/`;
-
+    $ret = `chown $startup_files{WEB_SERVER_USER} /usr/abills/backup /usr/abills/cgi-bin/ /usr/abills/Abills/templates/`;
   }
 
   if (!confirm_yn("Continue configuration [y]: ", "y")) {
@@ -243,9 +242,8 @@ elsif ($ARGV->{PROGRAMS}) {
 
   foreach my $program (@programs) {
     print "  PROGRAM: $program\n" if ($debug > 1);
-    if (!-f $conf{WORK_DIR} . "/$program/install") {
+    if (!-f $conf{WORK_DIR} . "/$program/install" && ! defined($ARGV->{'-s'})) {
       print "Can't find program configuration '$conf{WORK_DIR}/$program/install'\n";
-      exit 0;
     }
     elsif ($debug < 6) {
       check_install("$program");
@@ -731,8 +729,9 @@ sub _parse {
     }
   }
 
-  while (my ($key, $val) = each %parse_value ) {
-    $parameter =~ s/%$key%/$val/g;
+  foreach my $key ( sort keys %parse_value) {
+    my $val = $parse_value{$key};
+    $parameter =~ s/\%$key\%/$val/g;
   }
 
   return $parameter;
@@ -930,9 +929,9 @@ sub startup_files {
   if($conf{OS} eq 'FREEBSD') {
     %startup_files = (
       WEB_SERVER_USER    => "www",
-      RADIUS_SERVER_USER => "freerad",
+      RADIUS_SERVER_USER => "freeradius",
       APACHE_CONF_DIR    => '/usr/local/apache22/Include/',
-      RESTART_MYSQL      => '/usr/local/etc/rc.d/mysqld',
+      RESTART_MYSQL      => '/usr/local/etc/rc.d/mysql-server',
       RESTART_RADIUS     => '/usr/local/etc/rc.d/freeradius',
       RESTART_APACHE     => '/usr/local/etc/rc.d/apache22',
       RESTART_DHCP       => '/usr/local/etc/rc.d/isc-dhcp-server',
@@ -982,6 +981,7 @@ print "Auto configuration script Version: $VERSION
   INFO=[PROGRAMS,...]     - Program information (postfix,freeradius,exppp)
   SYSTEM                  - System config
   -f                      - Force mode. Rewrite exists files withot prompt
+  -s                      - skip exit for unknown install programs
   OS=                     - Operation system
   PARAMS=                 - Extended parameters
     FREEBSD               - OS FreeBSD make startup config

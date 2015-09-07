@@ -13,6 +13,10 @@
  <script type='text/javascript' src='/js/jquery.js'></script>
  <script type='text/javascript' src='/js/jquery.cookie.js' ></script>
  <script src='%JAVASCRIPT%' type='text/javascript' language='javascript'></script>
+<script type='text/javascript' src='/styles/default/js/QBinfo.js'></script>
+<script type='text/javascript' src='/styles/default/js/jquery.arcticmodal-0.3.min.js'></script>
+
+<link rel='stylesheet' href='/styles/default/jquery.arcticmodal-0.3.css'>
  <script src='/calendar.js' type='text/javascript' language='javascript'></script>
  <link rel='stylesheet' type='text/css' href='/styles/default/chosen.css' />
 <script type='text/javascript' src='/styles/default/js/chosen.jquery.min.js' ></script>

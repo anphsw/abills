@@ -1,3 +1,4 @@
+#!perl
 # IPN web functions
 
 use Ipn;
@@ -1382,6 +1383,7 @@ sub ipn_user_activate {
         );
 
         my $Auth = Auth->new($db, \%conf);
+        $Auth->{UID}=$user->{UID};
         my ($r, $RAD_PAIRS) = $Auth->dv_auth(\%DATA, $Nas, { SECRETKEY => $conf{secretkey} });
         delete ($RAD->{'Session-Timeout'});
         if ($RAD_PAIRS->{'Filter-Id'}) {
@@ -2505,15 +2507,16 @@ sub ipn_periodic_session_restart {
       COLS_UPPER=> 1
     }
   );
+
   my %nas_info = ();
   foreach my $line (@$nas_list) {
-    if ($line->{NAS_TYPE} eq 'ipcad' || 
+    if ($line->{NAS_TYPE} && (
+        $line->{NAS_TYPE} eq 'ipcad' || 
         $line->{NAS_TYPE} eq 'dhcp'  ||
-        $line->{NAS_TYPE} eq 'mikrotik_dhcp') {
+        $line->{NAS_TYPE} eq 'mikrotik_dhcp') ) {
       $nas_info{ $line->{NAS_ID} }  = $line;
     }
   }
-
   my @nas_ids_arr = keys %nas_info;
 
   if ($#nas_ids_arr < 0) {
@@ -2605,6 +2608,7 @@ sub ipn_periodic_session_restart {
         FILTER_ID          => $online->{filter_id} || '',
       );
 
+      $Auth->{UID}=$online->{uid};
       my ($r, $RAD_PAIRS) = $Auth->dv_auth(\%DATA, $nas_info{$nas_id}, { SECRETKEY => $conf{secretkey} });
 
       if ($r == 1) {

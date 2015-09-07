@@ -1,6 +1,8 @@
 package Finance;
 # Finance module
 #
+# Main module for payments fees
+#**********************************************************
 
 use strict;
 use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
@@ -73,7 +75,7 @@ sub exchange_list {
  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
- $self->query($db, "SELECT money, short_name, rate, iso, changed, id 
+ $self->query2("SELECT money, short_name, rate, iso, changed, id 
     FROM exchange_rate
     ORDER BY $SORT $DESC;",
  undef,
@@ -94,7 +96,7 @@ sub exchange_add {
   my $short_name = (defined($attr->{ER_SHORT_NAME})) ? $attr->{ER_SHORT_NAME} :  '';
   my $rate = (defined($attr->{ER_RATE})) ? $attr->{ER_RATE} :  '0';
   
-  $self->query($db, "INSERT INTO exchange_rate (money, short_name, rate, iso, changed) 
+  $self->query2("INSERT INTO exchange_rate (money, short_name, rate, iso, changed) 
    values ('$money', '$short_name', '$rate', '$attr->{ISO}', now());", 'do');
 
   $self->exchange_log_add({ RATE_ID => $self->{INSERT_ID}, 
@@ -118,7 +120,7 @@ sub exchange_add {
 sub exchange_del {
   my $self = shift;
   my ($id) = @_;
-  $self->query($db, "DELETE FROM exchange_rate WHERE id='$id';", 'do');
+  $self->query2("DELETE FROM exchange_rate WHERE id='$id';", 'do');
 
   $admin->system_action_add("$id", { TYPE => 42 });
   return $self;
@@ -137,7 +139,7 @@ sub exchange_change {
   my $rate = (defined($attr->{ER_RATE})) ? $attr->{ER_RATE} :  '0';
 
  
-  $self->query($db, "UPDATE exchange_rate SET
+  $self->query2("UPDATE exchange_rate SET
     money='$money', 
     short_name='$short_name', 
     rate='$rate',
@@ -174,7 +176,7 @@ sub exchange_info {
     $WHERE = "id='$id'";
    }
 
-  $self->query($db, "SELECT money, short_name, rate, iso, changed FROM exchange_rate WHERE $WHERE;");
+  $self->query2("SELECT money, short_name, rate, iso, changed FROM exchange_rate WHERE $WHERE;");
   
   return $self if ($self->{TOTAL} < 1);
   
@@ -220,7 +222,7 @@ sub exchange_log_list {
 
  $WHERE = ($#WHERE_RULES > -1) ?  "WHERE " . join(' and ', @WHERE_RULES) : '';
 
- $self->query($db, "SELECT rl.date, r.money, rl.rate, rl.id, r.iso
+ $self->query2("SELECT rl.date, r.money, rl.rate, rl.id, r.iso
     FROM exchange_rate_log rl
     LEFT JOIN exchange_rate  r ON (r.id=rl.exchange_rate_id)
     $WHERE
@@ -238,7 +240,7 @@ sub exchange_log_add {
   my $self = shift;
   my ($attr) = @_;  
  
-  $self->query($db, "INSERT INTO exchange_rate_log (date, exchange_rate_id, rate) 
+  $self->query2("INSERT INTO exchange_rate_log (date, exchange_rate_id, rate) 
    values (now(), $attr->{RATE_ID}, '$attr->{RATE}');", 'do');
 
   return $self;
@@ -250,7 +252,7 @@ sub exchange_log_add {
 sub exchange_log_del {
   my $self = shift;
   my ($id) = @_;
-  $self->query($db, "DELETE FROM exchange_rate_log WHERE id='$id';", 'do');
+  $self->query2("DELETE FROM exchange_rate_log WHERE id='$id';", 'do');
 
   $admin->system_action_add("$id", { TYPE => 42 });
   return $self;

@@ -11,6 +11,7 @@
 <TR><TD>$_FIO:*</TD><TD><textarea name='FIO' rows=2 cols=45>%FIO%</textarea>
 <TR><TD>$_ACCEPT_RULES:</TD><TD>%ACCEPT_RULES%</TD></TR>
 <TR><TD>$_PHONE:</TD><TD><input type=text name=PHONE value='%PHONE%'></TD></TR>
+%PHONES%
 %ADDRESS_TPL%
 <TR><TD>E-mail (;):</TD><TD><input type=text name=EMAIL value='%EMAIL%' size=45></TD></TR>
 <TR><TD>$_CONTRACT_ID:</TD><TD><input type=text name=CONTRACT_ID value='%CONTRACT_ID%' size=10>%CONTRACT_SUFIX% $_DATE: 
@@ -32,3 +33,75 @@
 </TABLE>
 
 </form>
+
+<script>
+function addphone() {
+  var c = \$(\".phone\").size() + 1;
+  var id = '';
+  \$.ajax({
+        type: 'GET',
+        url: 'index.cgi',
+        data: {qindex : %QINDEX%, add : 1, UID : %UID% },
+        async: false,
+        success: function(txt){
+        id = txt;
+        }
+      });
+  var phone = '';
+  \$.ajax({
+        type: 'GET',
+        url: 'index.cgi',
+        data: {qindex : %QINDEX%, get_phone : 1, SIP_NUMBER : '%SIP_NUMBER%' },
+        async: false,
+        success: function(txt){
+        phone = txt;
+        }
+      });
+
+  var new_insert = \$(\"#last_row\").before('\\
+     <tr><td colspan=2 > \\
+     <input type=hidden id=id\_'+c+' name=id\_'+c+' value=\"'+id+'\">\\
+     $_PHONE: \\
+     <input id=phone\_'+c+' class=phone size=10 type=text value=\"'+phone+'\" name=PHONE>\\
+     <input id=name\_'+c+' size=10 type=text value=\"\" name=NAME>\\
+     <a class=link_button href=# onclick=\"remphone('+c+'); return false;\">$_DEL</a>\\
+     <a class=link_button href=# onclick=\"savephone('+c+'); return false;\">$_SAVE</a></td></tr>\\
+  ').prev();
+}
+
+function remphone(q)
+{
+   var id = \$('#id_'+q).val();
+   \$.ajax({
+        type: 'GET',
+        url: 'index.cgi',
+        data: {qindex : %QINDEX%, del : id },
+        async: false,
+        success: function(txt){
+         id = txt;
+        }
+      });
+  \$(\"#phone_\"+q).parent().parent().remove();
+}
+
+function savephone(q)
+{
+   var id = \$('#id_'+q).val();
+   var phone = \$('#phone_'+q).val();
+   var name = \$('#name_'+q).val();
+
+   \$.ajax({
+        type: 'GET',
+        url: 'index.cgi',
+        data: {qindex : %QINDEX%, change : 1, ID : id, PHONE : phone, NAME : name },
+        async: false,
+        success: function(txt){
+        alert(txt);
+        }
+      });
+
+}
+
+
+</script>
+

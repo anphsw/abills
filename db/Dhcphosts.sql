@@ -44,7 +44,7 @@ CREATE TABLE `dhcphosts_networks` (
   `mask` int(11) unsigned NOT NULL default '4294967294',
   `block_network` int(10) unsigned NOT NULL default '0',
   `block_mask` int(10) unsigned NOT NULL default '0',
-  `suffix` varchar(20) NOT NULL default '',
+  `suffix` varchar(30) NOT NULL default '',
   `dns` varchar(32) NOT NULL default '',
   `dns2` varchar(32) NOT NULL default '',
   `ntp` varchar(100) NOT NULL default '',

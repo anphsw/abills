@@ -506,7 +506,7 @@ sub dv_auth {
   }
 
   if ($time_limit > 0) {
-    $RAD_PAIRS->{'Session-Timeout'} = ($self->{NEG_DEPOSIT_FILTER_ID} && $time_limit < 5) ? int($time_limit + 600) : "$time_limit";
+    $RAD_PAIRS->{'Session-Timeout'} = ($self->{NEG_DEPOSIT_FILTER_ID} && $time_limit < 5) ? int($time_limit + 600) : $time_limit+1;
   }
   elsif ($time_limit < 0) {
     $RAD_PAIRS->{'Reply-Message'} = "Rejected! Time limit utilized '$time_limit'";
@@ -1599,10 +1599,10 @@ sub get_ip {
   else {    # no addresses available in pools
     $self->{db}->do('unlock tables');
     if($next_pool_id) {
-      $self->get_ip($nas_num, $nas_ip, { TP_IPPOOL => $next_pool_id });
+      return $self->get_ip($nas_num, $nas_ip, { TP_IPPOOL => $next_pool_id });
     }
     elsif ($attr->{TP_IPPOOL}) {
-      $self->get_ip($nas_num, $nas_ip, $attr);
+      return $self->get_ip($nas_num, $nas_ip, $attr);
     }
     else {
       return -1;
@@ -1838,8 +1838,10 @@ sub neg_deposit_filter_former () {
       }
     }
   }
-
-  $NEG_DEPOSIT_FILTER_ID =~ s/\%IP\%/$RAD_PAIRS->{'Framed-IP-Address'}/g;
+  
+  if ($RAD_PAIRS->{'Framed-IP-Address'}) {
+    $NEG_DEPOSIT_FILTER_ID =~ s/\%IP\%/$RAD_PAIRS->{'Framed-IP-Address'}/g;
+  }
   $NEG_DEPOSIT_FILTER_ID =~ s/\%LOGIN\%/$RAD->{'USER_NAME'}/g;
   $self->{INFO} = "Neg filter";
   if ($NEG_DEPOSIT_FILTER_ID =~ /RAD:(.+)/) {
