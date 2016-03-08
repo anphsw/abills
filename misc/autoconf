@@ -10,9 +10,8 @@ $begin_time
 use strict;
 use FindBin '$Bin';
 
-my $VERSION       = 3.20;
+my $VERSION       = 3.21;
 my $config_file   = '/usr/abills/libexec/config.pl';
-my %startup_files = ();
 
 $conf{OS}       = uc($^O);
 
@@ -35,7 +34,7 @@ else {
 
 print "OS: $conf{OS}\n";
 
-startup_files();
+my $startup_files = startup_files();
 
 if ($ARGV->{debug}) {
   $debug = int($ARGV->{debug});
@@ -206,7 +205,7 @@ if (!-f $config_file) {
 
   if (!-d '/usr/abills/backup') {
     my $ret = `mkdir /usr/abills/backup`;
-    $ret = `chown $startup_files{WEB_SERVER_USER} /usr/abills/backup /usr/abills/cgi-bin/ /usr/abills/Abills/templates/`;
+    $ret = `chown $startup_files->{WEB_SERVER_USER} /usr/abills/backup /usr/abills/cgi-bin/ /usr/abills/Abills/templates/`;
   }
 
   if (!confirm_yn("Continue configuration [y]: ", "y")) {
@@ -705,7 +704,7 @@ sub make_checksum {
 sub _parse {
   my ($parameter, $DEFAULT_VALUE, $DEFAULT_DESCRIBE) = @_;
 
-  my %parse_value = (%startup_files, %conf);
+  my %parse_value = (%$startup_files, %conf);
 
   while ($parameter =~ /%([A-Z\_0-9]+)%/g) {
     my $VARIABLE = $1;
@@ -916,57 +915,6 @@ sub other_options {
   #ntpdate_enable="YES"
 
   # named_enable="YES"
-}
-
-#**********************************************************
-#
-#**********************************************************
-sub startup_files {
-	my ($attr) = @_;
-
-	my $startup_conf = '/usr/abills/Abills/programs';
-  my $content = '';
-  if($conf{OS} eq 'FREEBSD') {
-    %startup_files = (
-      WEB_SERVER_USER    => "www",
-      RADIUS_SERVER_USER => "freeradius",
-      APACHE_CONF_DIR    => '/usr/local/apache22/Include/',
-      RESTART_MYSQL      => '/usr/local/etc/rc.d/mysql-server',
-      RESTART_RADIUS     => '/usr/local/etc/rc.d/freeradius',
-      RESTART_APACHE     => '/usr/local/etc/rc.d/apache22',
-      RESTART_DHCP       => '/usr/local/etc/rc.d/isc-dhcp-server',
-    );
-  }
-  else {
-    %startup_files = (
-      WEB_SERVER_USER    => "www-data",
-      APACHE_CONF_DIR    => '/etc/apache2/sites-enabled/',
-      RADIUS_SERVER_USER => "freerad",
-      RESTART_MYSQL      => '/etc/init.d/mysqld',
-      RESTART_RADIUS     => '/etc/init.d/freeradius',
-      RESTART_APACHE     => '/etc/init.d/apache2',
-      RESTART_DHCP       => '/etc/init.d/isc-dhcp-server'
-    );
-
-  }
-
-if ( -f $startup_conf ) {
-	if (open(my $fh, "$startup_conf") ) {
-		while( <$fh> ) {
-			$content .= $_;
-		}
-	  close($fh);
-	}
-	
-	my @rows = split(/[\r\n]+/, $content);
-	foreach my $line (@rows) {
-	  my ($key, $val) = split(/=/, $line, 2);
-	  next if (!$key);
-	  next if (!$val);
-	  $startup_files{$key}=$val;
-	}
-}
-
 }
 
 

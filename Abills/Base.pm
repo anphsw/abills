@@ -17,9 +17,11 @@ $VERSION = 2.00;
 @ISA     = ('Exporter');
 
 @EXPORT = qw(
+&get_radius_params
 &null
 &convert
 &parse_arguments
+&startup_files
 &int2ip
 &ip2int
 &int2byte
@@ -42,13 +44,16 @@ $VERSION = 2.00;
 &date_diff
 &date_format
 &_bp
-&get_radius_params
+&urlencode
+&urldecode
 );
 
 @EXPORT_OK = qw(
 null
 convert
+get_radius_params
 parse_arguments
+startup_files
 int2ip
 ip2int
 int2byte
@@ -71,7 +76,8 @@ ssh_cmd
 date_diff
 date_format
 _bp
-get_radius_params
+urlencode
+urldecode
 );
 
 %EXPORT_TAGS = ();
@@ -113,13 +119,20 @@ sub cfg2hash {
 # in_array()
 # Check value in array
 #**********************************************************
-sub in_array {
+sub in_array($$) {
   my ($value, $array) = @_;
 
   return 0 if (!defined($value));
 
-  if ($value ~~ @$array) {
-    return 1;
+  if ( $] <= 5.010 ) {
+    if (grep { $_ eq $value } @$array) {
+      return 1;
+    }
+  }
+  else {
+    if ($value ~~ @$array) {
+      return 1;
+    }
   }
 
   return 0;
@@ -802,7 +815,7 @@ sub int2ml {
 #**********************************************************
 # decode_base64()
 #**********************************************************
-sub decode_base64 {
+sub decode_base64($) {
   local ($^W) = 0;    # unpack("u",...) gives bogus warning in 5.00[123]
   my $str = shift;
   my $res = "";
@@ -921,9 +934,13 @@ sub cmd {
   my $result  = '';
 
   my $saveerr;
+  my $error_output;
+  #Close error output
   if (! $attr->{SHOW_RESULT} && ! $debug) {
     open($saveerr, ">&STDERR");
     close(STDERR);
+    #Add o scallar error message
+    open STDERR, ">", \$error_output or die "Can't make error scalar variable $!?\n";
   }
 
   if ($debug > 1) {
@@ -967,8 +984,7 @@ sub cmd {
     print "timed out\n" if ($debug>2);
   }
   else {
-    # didn't
-    print "didn't\n" if ($debug>2);
+    print "NO errors\n" if ($debug>2);
   }
   
   if ($debug) {
@@ -976,6 +992,7 @@ sub cmd {
   }
 
   if ($saveerr) {
+    close(STDERR);
     open(STDERR, ">&", $saveerr);
   }
 
@@ -1075,12 +1092,34 @@ sub date_format {
 sub _bp {
   my ($attr) = @_;
 
+  if (! $ENV{DEBUG}) {
+    #return 1; 
+  }
+
   if ($attr->{HEADER}) {
     print "Content-Type: text/html\n\n";
   }
+  
+  my $break_line = " <br>\n";
 
   if ($attr->{SHOW}) {
-    print "$attr->{SHOW}";
+    print $break_line . "SHOW: ";
+    if (ref $attr->{SHOW} eq 'ARRAY') {
+      print "(Array_ref)";
+      foreach my $key (sort @{ $attr->{SHOW} }) {
+        print "$key ".$break_line;
+      }
+    }
+    if (ref $attr->{SHOW} eq 'HASH') {
+      print "(Hash_ref)";
+      foreach my $key (sort keys %{ $attr->{SHOW} }) {
+        print "$key -> $attr->{SHOW}->{$key}". $break_line;
+      }
+    }
+    else {
+      print '('. (ref $attr->{SHOW}) .') '. "'$attr->{SHOW}'".$break_line;
+    }
+    print "<br>\n";
   }
 
   my ($package, $filename, $line) = caller;
@@ -1093,6 +1132,31 @@ sub _bp {
   }
 
   return 1;
+}
+
+#**********************************************************
+#
+#**********************************************************
+sub urlencode {
+  my ($s) = @_;
+
+  #$s =~ s/ /+/g;
+  #$s =~ s/([^A-Za-z0-9\+-])/sprintf("%%%02X", ord($1))/seg;
+  $s =~ s/([^A-Za-z0-9])/sprintf("%%%2.2X", ord($1))/ge;
+
+  return $s;
+}
+
+#**********************************************************
+#
+#**********************************************************
+sub urldecode {
+  my ($s) = @_;
+
+  $s =~ s/\+/ /g;
+  $s =~ s/\%([A-Fa-f0-9]{2})/pack('C', hex($1))/seg;
+
+  return $s;
 }
 
 #**********************************************************
@@ -1138,5 +1202,77 @@ sub get_radius_params {
 
   return \%RAD;
 }
+
+
+#**********************************************************
+=head2 startup_files($attr) - Get deamon startup information and other params of system
+
+Analise file /usr/abills/Abills/programs and return hash_ref of params
+  
+  Atributes:
+    $attr
+
+  Returns:
+    hash_ref
+
+=cut
+#**********************************************************
+sub startup_files {
+	my ($attr) = @_;
+
+  my %startup_files = ();
+
+	my $startup_conf = '/usr/abills/Abills/programs';
+  my $content = '';
+  if(lc($^O) eq 'freebsd') {
+    %startup_files = (
+      WEB_SERVER_USER    => "www",
+      RADIUS_SERVER_USER => "freeradius",
+      APACHE_CONF_DIR    => '/usr/local/apache22/Include/',
+      RESTART_MYSQL      => '/usr/local/etc/rc.d/mysql-server',
+      RESTART_RADIUS     => '/usr/local/etc/rc.d/freeradius',
+      RESTART_APACHE     => '/usr/local/etc/rc.d/apache22',
+      RESTART_DHCP       => '/usr/local/etc/rc.d/isc-dhcp-server',
+    );
+  }
+  else {
+    %startup_files = (
+      WEB_SERVER_USER    => "www-data",
+      APACHE_CONF_DIR    => '/etc/apache2/sites-enabled/',
+      RADIUS_SERVER_USER => "freerad",
+      RESTART_MYSQL      => '/etc/init.d/mysqld',
+      RESTART_RADIUS     => '/etc/init.d/freeradius',
+      RESTART_APACHE     => '/etc/init.d/apache2',
+      RESTART_DHCP       => '/etc/init.d/isc-dhcp-server'
+    );
+  }
+
+  if ( -f $startup_conf ) {
+	  if (open(my $fh, "$startup_conf") ) {
+		  while( <$fh> ) {
+			  $content .= $_;
+		  }
+	    close($fh);
+	  }
+	
+  	my @rows = split(/[\r\n]+/, $content);
+	  foreach my $line (@rows) {
+	    my ($key, $val) = split(/=/, $line, 2);
+  	  next if (!$key);
+	    next if (!$val);
+	    $startup_files{$key}=$val;
+	  }
+  }
+
+  return \%startup_files;
+}
+
+=head1 AUTHOR
+
+~AsmodeuS~ (http://abills.net.ua/)
+
+=cut
+
+
 
 1;

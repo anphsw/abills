@@ -462,3 +462,4 @@ $_GUEST_ACCOUNT='Гостьовий доступ';
 $_BILLS='Грошові рахунки';
 $_PAY_TO='Оплатити до дати';
 $_OPERATOR_CALL_CENTER='Оператор Call-центра';
+$ERR_WRONG_PHONE='Введіть телефон';

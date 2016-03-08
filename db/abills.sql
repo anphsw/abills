@@ -152,7 +152,7 @@ CREATE TABLE `dv_log_intervals` (
   `duration` int(11) unsigned NOT NULL default '0',
   `traffic_type` tinyint(4) unsigned NOT NULL default '0',
   `sum` double(14,6) unsigned NOT NULL default '0.000000',
-  `acct_session_id` varchar(25) NOT NULL default '',
+  `acct_session_id` varchar(32) NOT NULL default '',
   `added` timestamp NOT NULL,
   `uid` int(11) unsigned NOT NULL default '0', 
   KEY `acct_session_id` (`acct_session_id`),
@@ -445,7 +445,7 @@ CREATE TABLE `dv_log` (
   `ip` int(10) unsigned NOT NULL default '0',
   `sent2` int(11) unsigned NOT NULL default '0',
   `recv2` int(11) unsigned NOT NULL default '0',
-  `acct_session_id` varchar(20) NOT NULL default '',
+  `acct_session_id` varchar(32) NOT NULL default '',
   `CID` varchar(18) NOT NULL default '',
   `bill_id` int(11) unsigned NOT NULL default '0',
   `uid` int(11) unsigned NOT NULL default '0',
@@ -849,7 +849,7 @@ CREATE TABLE fees_types (
 
 
 CREATE TABLE `s_detail` (
-  `acct_session_id` varchar(25) NOT NULL default '',
+  `acct_session_id` varchar(32) NOT NULL default '',
   `nas_id` smallint(5) unsigned NOT NULL default '0',
   `acct_status` tinyint(2) unsigned NOT NULL default '0',
   `start` datetime default NULL,
@@ -1085,7 +1085,7 @@ CREATE TABLE `users_pi` (
 CREATE TABLE `voip_calls` (
   `status` tinyint(4) unsigned NOT NULL default '0',
   `user_name` varchar(32) NOT NULL default '',
-  `acct_session_id` varchar(25) NOT NULL default '',
+  `acct_session_id` varchar(32) NOT NULL default '',
   `calling_station_id` varchar(32) NOT NULL default '',
   `called_station_id` varchar(32) NOT NULL default '',
   `lupdated` int(11) unsigned NOT NULL default '0',
@@ -1112,7 +1112,7 @@ CREATE TABLE `voip_log` (
   `called_station_id` varchar(16) NOT NULL default '',
   `nas_id` smallint(6) NOT NULL default '0',
   `client_ip_address` int(11) unsigned NOT NULL default '0',
-  `acct_session_id` varchar(25) NOT NULL default '',
+  `acct_session_id` varchar(32) NOT NULL default '',
   `tp_id` smallint(6) unsigned NOT NULL default '0',
   `bill_id` int(11) unsigned NOT NULL default '0',
   `sum` double(14,6) NOT NULL default '0.000000',

@@ -472,10 +472,8 @@ sub form_info {
               return 0;
             }
           }
+          $user->info($user->{UID});
         }
-
-        $user->{CREDIT}      = $sum;
-        $user->{CREDIT_DATE} = $credit_date;
       }
       else {
         $user->{CREDIT_CHG_PRICE} = sprintf("%.2f", $price);

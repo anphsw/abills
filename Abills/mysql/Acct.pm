@@ -128,7 +128,7 @@ sub accounting {
     else { #if($RAD->{ACCT_SESSION_TIME} && $RAD->{ACCT_SESSION_TIME} > 2) {
       #Get TP_ID
       $self->query2("SELECT u.uid, dv.tp_id, dv.join_service FROM (users u, dv_main dv)
-       WHERE u.uid=dv.uid and u.id='$RAD->{USER_NAME}' FOR UPDATE;"
+       WHERE u.uid=dv.uid and u.id='$RAD->{USER_NAME}';"
       );
       if ($self->{TOTAL} > 0) {
         ($self->{UID},
@@ -480,48 +480,23 @@ sub rt_billing {
     return $self;
   }
 
-#  $self->query2("SELECT lupdated, UNIX_TIMESTAMP()-lupdated,
-#   if($RAD->{INBYTE}   >= acct_input_octets AND $RAD->{ACCT_INPUT_GIGAWORDS}=acct_input_gigawords,
-#        $RAD->{INBYTE} - acct_input_octets,
-#        4294967296-acct_input_octets+4294967296*($RAD->{ACCT_INPUT_GIGAWORDS}-acct_input_gigawords-1)+$RAD->{INBYTE}),
-#   if($RAD->{OUTBYTE}  >= acct_output_octets AND $RAD->{ACCT_OUTPUT_GIGAWORDS}=acct_output_gigawords,
-#        $RAD->{OUTBYTE} - acct_output_octets,
-#        4294967296-acct_output_octets+4294967296*($RAD->{ACCT_OUTPUT_GIGAWORDS}-acct_output_gigawords-1)+$RAD->{OUTBYTE}),
-#   if($RAD->{INBYTE2}  >= ex_input_octets, $RAD->{INBYTE2}  - ex_input_octets, ex_input_octets),
-#   if($RAD->{OUTBYTE2} >= ex_output_octets, $RAD->{OUTBYTE2} - ex_output_octets, ex_output_octets),
-#   sum,
-#   tp_id,
-#   uid
-#   FROM dv_calls
-#  WHERE nas_id='$NAS->{NAS_ID}' and acct_session_id='$RAD->{ACCT_SESSION_ID}';"
-#  );
-
   $self->query2("SELECT lupdated, UNIX_TIMESTAMP()-lupdated,
-   if($RAD->{INBYTE}   >= acct_input_octets AND ". $RAD->{ACCT_INPUT_GIGAWORDS} ."=acct_input_gigawords,
+   if($RAD->{INBYTE}   >= acct_input_octets AND $RAD->{ACCT_INPUT_GIGAWORDS}=acct_input_gigawords,
         $RAD->{INBYTE} - acct_input_octets,
-        if(". $RAD->{ACCT_INPUT_GIGAWORDS} ." - acct_input_gigawords > 0, 4294967296 * (". $RAD->{ACCT_INPUT_GIGAWORDS} ." - acct_input_gigawords) - acct_input_octets + $RAD->{INBYTE}, 0)),
-   if($RAD->{OUTBYTE}  >= acct_output_octets AND ".$RAD->{ACCT_OUTPUT_GIGAWORDS} ."=acct_output_gigawords,
+        4294967296-acct_input_octets+4294967296*($RAD->{ACCT_INPUT_GIGAWORDS}-acct_input_gigawords-1)+$RAD->{INBYTE}),
+   if($RAD->{OUTBYTE}  >= acct_output_octets AND $RAD->{ACCT_OUTPUT_GIGAWORDS}=acct_output_gigawords,
         $RAD->{OUTBYTE} - acct_output_octets,
-        if(". $RAD->{ACCT_OUTPUT_GIGAWORDS} ." - acct_output_gigawords > 0, 4294967296 * (". $RAD->{ACCT_OUTPUT_GIGAWORDS} ." - acct_output_gigawords) - acct_output_octets + $RAD->{OUTBYTE}, 0)),
+        4294967296-acct_output_octets+4294967296*($RAD->{ACCT_OUTPUT_GIGAWORDS}-acct_output_gigawords-1)+$RAD->{OUTBYTE}),
    if($RAD->{INBYTE2}  >= ex_input_octets, $RAD->{INBYTE2}  - ex_input_octets, ex_input_octets),
    if($RAD->{OUTBYTE2} >= ex_output_octets, $RAD->{OUTBYTE2} - ex_output_octets, ex_output_octets),
    sum,
    tp_id,
    uid
    FROM dv_calls
-  WHERE nas_id='$NAS->{NAS_ID}' and acct_session_id='". $RAD->{ACCT_SESSION_ID} ."';");
+  WHERE nas_id='$NAS->{NAS_ID}' and acct_session_id='$RAD->{ACCT_SESSION_ID}';"
+  );
 
   if ($self->{errno}) {
-    if ($conf->{ACCT_DEBUG}) {
-      $self->query2("SELECT $RAD->{INBYTE}, acct_input_octets, ". $RAD->{ACCT_INPUT_GIGAWORDS} .", acct_input_gigawords,
-         $RAD->{OUTBYTE}, acct_output_octets, ".$RAD->{ACCT_OUTPUT_GIGAWORDS} .", acct_output_gigawords
-      FROM dv_calls 
-      WHERE nas_id='$NAS->{NAS_ID}' and acct_session_id='". $RAD->{ACCT_SESSION_ID} ."';");
-
-      my $line = $self->{list}->[0];
-      my $echo_ = `echo  "$RAD->{ACCT_SESSION_ID} - rad: $line->[0], $line->[1], rad: $line->[2], $line->[3] \n rad: $line->[4], $line->[5], rad: $line->[6], $line->[7]" >> /tmp/dv_calls_error`; 
-    }
-    
     return $self;
   }
   elsif ($self->{TOTAL} < 1) {

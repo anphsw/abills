@@ -83,7 +83,8 @@ sub hangup {
     hangup_openvpn($NAS, $PORT, $USER);
   }
   elsif ($nas_type eq 'ipcad' 
-          || $nas_type eq 'dhcp' 
+          || $nas_type eq 'mikrotik_dhcp'
+          || $nas_type eq 'dhcp'
           || $nas_type eq 'dlink_pb' 
           || $nas_type eq 'dlink' 
           || $nas_type eq 'edge_core'
@@ -102,7 +103,7 @@ sub hangup {
   elsif ($nas_type eq 'pppd_coa') {
     hangup_pppd_coa($NAS, $PORT, $attr);
   }
-  elsif ($nas_type eq 'accel_ppp') {
+  elsif ($nas_type eq 'accel_ppp' or $nas_type eq 'accel_ipoe') {
     hangup_radius($NAS, $PORT, "", $attr);
   }
   elsif ($nas_type eq 'redback') {
@@ -534,7 +535,7 @@ sub hangup_ipcad {
   my $Ipn = Ipn_Collector->new($db, \%conf);
 
   $Ipn->acct_stop({ %$attr, SESSION_ID => $attr->{ACCT_SESSION_ID} });
-  if ($NAS->{NAS_TYPE} eq 'dhcp' || $nas_type eq 'dlink_pb' || $nas_type eq 'dlink' || $nas_type eq 'edge_core' ) {
+  if ($NAS->{NAS_TYPE} eq 'dhcp' || $NAS->{NAS_TYPE} eq 'mikrotik_dhcp' || $nas_type eq 'dlink_pb' || $nas_type eq 'dlink' || $nas_type eq 'edge_core' ) {
     $Ipn->query($db, "DELETE FROM dhcphosts_leases WHERE ip=INET_ATON('$ip')", 'do');
   }
 
@@ -1068,7 +1069,7 @@ sub hangup_pppd_coa {
     $Log->log_print('LOG_DEBUG', '', "No responce from POD server '$NAS->{NAS_MNG_IP_PORT}' ", { ACTION => '' });
   }
   
-  if ($nas_type eq 'pppd_coa' || $nas_type eq 'accel_ppp') {
+  if ($nas_type eq 'pppd_coa' || $nas_type eq 'accel_ppp' || $nas_type eq 'accel_ipoe') {
     return 1;
   }
 

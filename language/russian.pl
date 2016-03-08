@@ -462,3 +462,4 @@ $_MAX_SESSION_DURATION='Макc. время сессии';
 $_LOADING='Загрузка';
 $_HANGUPED='Отключен';
 $_OPERATOR_CALL_CENTER='Оператор Call-центра';
+$ERR_WRONG_PHONE='Неправильный телефонный номер';

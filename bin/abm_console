@@ -183,6 +183,10 @@ sub dv_users {
     }
   }
 
+  if ($Dv->{errno}) {
+    print "Error: [$Dv->{errno}] $Dv->{errstr}\n";
+  }
+
 }
 
 #************************************************

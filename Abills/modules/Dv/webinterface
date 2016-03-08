@@ -3824,7 +3824,6 @@ sub dv_user_chg_tp {
         $FORM{UID} = $LIST_PARAMS{UID};
         $FORM{STATUS} = 0 if ($Dv->{STATUS} == 5);
         $Dv->change({%FORM});
-print "// !! $user !! //";
         $user->change(
           $LIST_PARAMS{UID},
           {
@@ -4033,7 +4032,6 @@ print "// !! $user !! //";
         cols_align => [ 'left', 'left' ],
       }
     );
-
     my $tp_list = $tariffs->list(
       {
         TP_GID       => $Dv->{TP_GID},
@@ -7030,9 +7028,12 @@ sub dv_registration {
     elsif ($attr->{SKIP_EMAIL_CHECK} && $FORM{EMAIL} !~ /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/) {
       $Dv->{MESSAGE} = $html->message('err', $_ERROR, "$_WRONG_EMAIL");
     }
-    if ($conf{REGISTRATION_CHECK_PHONE} && ! $FORM{PHONE}) {
-      $Dv->{MESSAGE} = $html->message('err', $_ERROR, $ERR_WRONG_PHONE);
-    }  
+    elsif ($conf{REGISTRATION_CHECK_FIO} && ! $FORM{FIO}) {
+      $Dv->{MESSAGE} = $html->message('err', $_ERROR, "$ERR_WRONG_DATA: $_FIO");
+    }
+    elsif ($conf{REGISTRATION_CHECK_PHONE} && ! $FORM{PHONE}) {
+      $Dv->{MESSAGE} = $html->message('err', $_ERROR, "$ERR_WRONG_PHONE");
+    }
     elsif (! $FORM{ACCEPT_RULES}) {
       $html->message('err', $_ERROR, "$ERR_ACCEPT_RULES");
     }
@@ -7118,8 +7119,13 @@ sub dv_registration {
 
           if ($FORM{PHONE} && in_array('Sms', \@MODULES) && ! $FORM{REGISTRATION_SKIP_SEND_SMS}) {
             load_module('Sms', $html);
+            my %hash_info = (); 
  
-            my $message = $html->tpl_show(_include('dv_reg_complete_sms', 'Dv'), { %$Cards, %FORM }, { OUTPUT2RETURN => 1  });;
+            if($Cards) {
+              %hash_info = %$Cards;
+            }
+ 
+            my $message = $html->tpl_show(_include('dv_reg_complete_sms', 'Dv'), { %hash_info, %FORM }, { OUTPUT2RETURN => 1  });;
                 sms_send({
                   NUMBER  => $FORM{PHONE},
                   MESSAGE => $message,

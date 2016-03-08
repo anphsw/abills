@@ -526,3 +526,4 @@ $_LAST_UPDATE='Last Update';
 $_PER_MONTH='Per month';
 $_REPAIR='Repair';
 $_OPERATOR_CALL_CENTER='Call center manager';
+$ERR_WRONG_PHONE='Wrong phone';

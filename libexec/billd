@@ -308,7 +308,7 @@ sub check_lines {
         session_hangup($nas, $online, "Expired $online->{expire}/$online->{dv_expire} DEPOSIT: $online->{deposit} CREDIT: $online->{credit} SESSION_SUM: $online->{session_sum} STATUS: $state SESSION_ID: $online->{acct_session_id} GUEST: $online->{guest}");
         next;
       }
-      elsif($dub_ips->{$nas->{NAS_ID}}{$online->{client_ip}} > 1 ) {
+      elsif($dub_ips->{$nas->{NAS_ID}} && $dub_ips->{$nas->{NAS_ID}}{$online->{client_ip}} &&  $dub_ips->{$nas->{NAS_ID}}{$online->{client_ip}} > 1 ) {
         session_hangup($nas, $online, "Dublicate ip: $online->{client_ip} DEPOSIT: $online->{deposit} CREDIT: $online->{credit} SESSION_SUM: $online->{session_sum} STATUS: $state SESSION_ID: $online->{acct_session_id} GUEST: $online->{guest}");
       }
 

@@ -215,7 +215,7 @@ my %ip_binded_system = (
     => 'Easysoft',
   '77.120.97.36'
     => 'PayU',
-  '87.248.226.170,217.195.80.50,94.138.149.208,94.138.149.36,94.138.149.196'
+  '87.248.226.170,217.195.80.50,94.138.149.0/24'
     => 'Sberbank',
   '46.51.203.221'
     => 'Comepay',
@@ -1366,7 +1366,7 @@ sub wm_payments {
       $status      = 'Test mode';
       $status_code = 12;
     }
-    elsif (length($FORM{LMI_HASH}) != 32) {
+    elsif (length($FORM{LMI_HASH}) < 32) {
       $status      = 'Not MD5 checksum' . $FORM{LMI_HASH};
       $status_code = 5;
     }
@@ -1417,22 +1417,42 @@ sub get_date {
 # Webmoney MD5 validate
 #**********************************************************
 sub wm_validate {
-  $md5->reset;
 
-  $md5->add($FORM{LMI_PAYEE_PURSE});
-  $md5->add($FORM{LMI_PAYMENT_AMOUNT});
-  $md5->add($FORM{LMI_PAYMENT_NO});
-  $md5->add($FORM{LMI_MODE});
-  $md5->add($FORM{LMI_SYS_INVS_NO});
-  $md5->add($FORM{LMI_SYS_TRANS_NO});
-  $md5->add($FORM{LMI_SYS_TRANS_DATE});
-  $md5->add($conf{PAYSYS_LMI_SECRET_KEY});
+  my $digest;
 
-  #$md5->add($FORM{LMI_SECRET_KEY});
-  $md5->add($FORM{LMI_PAYER_PURSE});
-  $md5->add($FORM{LMI_PAYER_WM});
+  if (length($FORM{LMI_HASH}) == 32 ) {
+    $md5->reset;
+    $md5->add($FORM{LMI_PAYEE_PURSE});
+    $md5->add($FORM{LMI_PAYMENT_AMOUNT});
+    $md5->add($FORM{LMI_PAYMENT_NO});
+    $md5->add($FORM{LMI_MODE});
+    $md5->add($FORM{LMI_SYS_INVS_NO});
+    $md5->add($FORM{LMI_SYS_TRANS_NO});
+    $md5->add($FORM{LMI_SYS_TRANS_DATE});
+    $md5->add($conf{PAYSYS_LMI_SECRET_KEY});
 
-  my $digest = uc($md5->hexdigest());
+    #$md5->add($FORM{LMI_SECRET_KEY});
+    $md5->add($FORM{LMI_PAYER_PURSE});
+    $md5->add($FORM{LMI_PAYER_WM});
+
+    $digest = uc($md5->hexdigest());
+  }
+  else {
+    load_pmodule('Digest::SHA', { IMPORT => 'sha256_hex' }); 
+
+    my $sign_string =  $FORM{LMI_PAYEE_PURSE}.
+        $FORM{LMI_PAYMENT_AMOUNT}.
+        $FORM{LMI_PAYMENT_NO}.
+        $FORM{LMI_MODE}.
+        $FORM{LMI_SYS_INVS_NO}.
+        $FORM{LMI_SYS_TRANS_NO}.
+        $FORM{LMI_SYS_TRANS_DATE}.
+        $conf{PAYSYS_LMI_SECRET_KEY}.
+        $FORM{LMI_PAYER_PURSE}.
+        $FORM{LMI_PAYER_WM};
+
+    $digest = uc(sha256_hex($sign_string));
+  }
 
   return $digest;
 }
