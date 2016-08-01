@@ -1,39 +1,88 @@
-<script language=\"JavaScript\" type=\"text/javascript\">
+<script language='JavaScript' type='text/javascript'>
 <!--
 function postthread(param) {
        param = document.getElementById(param);
 //       var id = setTimeout(param.disabled=true,10);
-       param.value='$_IN_PROGRESS...';
-       param.style.backgroundColor='#dddddd'; 
+    param.value = '_{IN_PROGRESS}_...';
+       param.style.backgroundColor='#dddddd';
 }
 -->
 </script>
 
-<div class='noprint'>
-<form action='$SELF_URL' METHOD='POST' name='user' onsubmit=\"postthread('submitbutton');\">
-<input type=hidden name=index value=$index>
-<input type=hidden name=subf value=$FORM{subf}>
-<input type=hidden name=OP_SID value=%OP_SID%>
-<input type=hidden name=UID value=%UID%>
-<input type=hidden name=step value=$FORM{step}>
+<form class='form-horizontal' action='$SELF_URL' method='post' id='user_form' name='user_form' role='form' onsubmit=\"postthread('submitbutton');\">
+<input type=hidden name=index value='$index'>
+<input type=hidden name=subf value='$FORM{subf}'>
+<input type=hidden name=OP_SID value='%OP_SID%'>
+<input type=hidden name=UID value='%UID%'>
+<input type=hidden name=step value='$FORM{step}'>
 
-<TABLE class='form'>
-<TR><TH class='form_title' colspan=3>$_PAYMENTS</TH></TR>
-<TR><TD colspan=2>$_SUM:</TD><TD><input type=text name=SUM value='$FORM{SUM}'></TD></TR>
-<TR><TD rowspan=2>$_DESCRIBE:</TD><TD>$_USER:</TD><TD><input type=text name=DESCRIBE value='%DESCRIBE%' size=40></TD></TR>
-<TR> <TD>$_INNER:</TD><TD><input type=text name=INNER_DESCRIBE value='%INNER_DESCRIBE%' size=40></TD></TR>
-<TR><TD colspan=2>$_CURRENCY : $_EXCHANGE_RATE:</TD><TD>%SEL_ER%</TD></TR>
-<TR><TD colspan=3><hr size=1></TD></TR>
-<TR><TD colspan=2>$_PAYMENT_METHOD:</TD><TD>%SEL_METHOD%</TD></TR>
-<TR><TD colspan=2>EXT ID:</TD><TD><input type=text name='EXT_ID' value='%EXT_ID%'></TD></TR>
-%DATE%
+<fieldset>
+<div class='panel panel-primary panel-form'>
+<div class='panel-heading text-center'><h4>_{PAYMENTS}_</h4></div>
+<div class='panel-body'>
 
-%EXT_DATA%
+
+
+<div class='form-group'>
+    <label class='control-label col-md-3 required' for='SUM'>_{SUM}_:</label>
+  <div class='col-md-4'>
+      <input id='SUM' name='SUM' value='$FORM{SUM}' required placeholder='$FORM{SUM}' class='form-control' type='text'>
+   </div>
+</div>
+
+<div class='form-group'>
+    <label class='control-label col-md-3' for='DESCRIBE'>_{DESCRIBE}_:</label>
+  <div class='col-md-9'>
+    <input id='DESCRIBE' type='text' name='DESCRIBE' value='%DESCRIBE%' class='form-control'>
+  </div>
+</div>
+
+<div class='form-group'>
+    <label class='control-label col-md-3' for='INNER_DESCRIBE'>_{INNER}_:</label>
+  <div class='col-md-9'>
+     <input id='INNER_DESCRIBE' type='text' name='INNER_DESCRIBE' value='%INNER_DESCRIBE%' class='form-control'>
+  </div>
+</div>
+
+<div class='form-group'>
+    <label class='control-label col-md-3' for='PAYMENT_METHOD'>_{PAYMENT_METHOD}_:</label>
+  <div class='col-md-9'>
+    %SEL_METHOD%
+  </div>
+</div>
+<!-- <div class='form-group'>
+    <label class='control-label col-md-3' for='CASHBOX'>_{CASHBOX}_:</label>
+    <div class='col-md-9'>
+        %CASHBOX_SELECT%
+     </div>
+</div> -->
+
+%ER_FORM%
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='EXT_ID'>EXT ID:</label>
+  <div class='col-md-9'>
+    <input id='EXT_ID' type='text' name='EXT_ID' value='%EXT_ID%' class='form-control'>
+  </div>
+</div>
+
+%DATE_FORM%
+
+%EXT_DATA_FORM%
 
 %DOCS_INVOICE_RECEIPT_ELEMENT%
-
-<TR><TH class='even' colspan=3>%BACK_BUTTON% <input type=submit name=%ACTION% value='%LNG_ACTION%' ID='submitbutton'></TH></TR>
-</TABLE>
-
-</form>
 </div>
+<div class='panel-footer'>
+    %BACK_BUTTON% <input type=submit name=%ACTION% value='%LNG_ACTION%' ID='submitbutton' class='btn btn-primary'>
+
+</div>
+</div>
+
+
+
+
+
+
+</fieldset>
+</form>
+

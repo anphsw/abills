@@ -1,107 +1,198 @@
-<TABLE width='100%'>
-<tr><TH class=form_title>$_USER_INFO</TH></tr>
-</TABLE>
-<form action='$SELF_URL' method='post' name='users_pi' enctype='multipart/form-data'>
+<style>
+  #_main {
+    min-height: 250px;
+  }
 
-%MAIN_USER_TPL%
+  #_address {
+    min-height: 250px;
+  }
 
-<input type=hidden name=index value=$index>
-<input type=hidden name=UID value='%UID%'>
-<TABLE width=450 class=form>
-<TR><TD>$_FIO:*</TD><TD><textarea name='FIO' rows=2 cols=45>%FIO%</textarea>
-<TR><TD>$_ACCEPT_RULES:</TD><TD>%ACCEPT_RULES%</TD></TR>
-<TR><TD>$_PHONE:</TD><TD><input type=text name=PHONE value='%PHONE%'></TD></TR>
-%PHONES%
-%ADDRESS_TPL%
-<TR><TD>E-mail (;):</TD><TD><input type=text name=EMAIL value='%EMAIL%' size=45></TD></TR>
-<TR><TD>$_CONTRACT_ID:</TD><TD><input type=text name=CONTRACT_ID value='%CONTRACT_ID%' size=10>%CONTRACT_SUFIX% $_DATE: 
-%CONTRACT_DATE% <br>%CONTRACT_TYPE% %PRINT_CONTRACT%</TD></TR>
-<TR><TH colspan='2' class='even'>$_PASPORT</TH></TR>
-<TR><TD>$_NUM:</TD><TD><input type=text name=PASPORT_NUM value='%PASPORT_NUM%'> $_DATE: %PASPORT_DATE%</TD></TR>
- </TD></TR>
-<TR><TD>$_GRANT:</TD><TD><textarea name=PASPORT_GRANT rows=3 cols=45>%PASPORT_GRANT%</textarea></TD></TR>
-%INFO_FIELDS%
+  #_comment {
+    min-height: 150px;
+  }
+</style>
 
-<TR><TD colspan=2 align=right>%ADD_INFO_FIELD%</TD></TR>
-<TR><th colspan=2  class=even>:$_COMMENTS:</th></TR>
-<TR><th colspan=2><textarea name=COMMENTS rows=5 cols=60>%COMMENTS%</textarea></th></TR>
-<TR><th colspan=3 class='even'>
+<form class='form-horizontal' action='$SELF_URL' name='users_pi' METHOD='POST' ENCTYPE='multipart/form-data'>
 
-%BACK_BUTTON%
-<input type=submit name='%ACTION%' value='%LNG_ACTION%'>
-</th></TR>
-</TABLE>
+  <input type='hidden' name='index' value='$index'>
+  %MAIN_USER_TPL%
+  <input type=hidden name=UID value='%UID%'>
+
+  <!-- General panel -->
+  <div class='panel panel-default '>
+    <div class='panel-body'>
+      <legend>_{USER_INFO}_</legend>
+
+      <!-- Main info panel -->
+      <div class='row'>
+        <div class='col-md-6'>
+          <div class='panel panel-default panel-form'>
+            <div class='panel-heading'>
+              <a data-toggle='collapse' data-parent='#accordion' href='#_main'>_{MAIN}_</a>
+            </div>
+            <div id='_main' class='panel-body panel-collapse collapse in' height=100px>
+              <div class='form-group'>
+                <label class='control-label col-md-2' for='FIO'>_{FIO}_</label>
+                <div class='col-md-10'>
+                  <textarea name='FIO' class='form-control' rows='1' id='FIO'>%FIO%</textarea>
+                </div>
+              </div>
+
+              %ACCEPT_RULES_FORM%
+
+              <div class='form-group'>
+                <label class='col-md-2 control-label' for='PHONE'>_{PHONE}_</label>
+                <div class='col-md-10'>
+                  <input id='PHONE' name='PHONE' value='%PHONE%' placeholder='%PHONE%'
+                         class='form-control' type='text'>
+                </div>
+              </div>
+
+              <div class='form-group'>
+                <label class='control-label col-md-3' for='EMAIL'>E-mail (;)</label>
+                <div class='col-md-9'>
+                  <div class='input-group'>
+                    <input id='EMAIL' name='EMAIL' value='%EMAIL%' placeholder='%EMAIL%'
+                           class='form-control' type='text'>
+                    <span class='input-group-addon'>
+                    <a href='$SELF_URL?UID=$FORM{UID}&get_index=msgs_admin&add_form=1&SEND_TYPE=1&header=1&full=1'
+                       class='glyphicon glyphicon-envelope'></a>
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div class='form-group'>
+                <label class='control-label col-md-3' for='CONTRACT_ID'>_{CONTRACT_ID}_</label>
+                <div class='col-sm-4'>
+                  <div class='input-group'>
+                    <input id='CONTRACT_ID' name='CONTRACT_ID' value='%CONTRACT_ID%'
+                           placeholder='%CONTRACT_ID%' class='form-control' type='text'>
+                    <div class='input-group-btn'>
+                      <button type='button' class='btn btn-default dropdown-toggle'
+                              data-toggle='dropdown'
+                              aria-expanded='false'><span class='caret'></span></button>
+                      <ul class='dropdown-menu dropdown-menu-right' role='menu'>
+                        <li><span class='input-group-addon'>%PRINT_CONTRACT%</span></li>
+                        <li><span class='input-group-addon'><a
+                            href='$SELF_URL?qindex=15&UID=$FORM{UID}&PRINT_CONTRACT=%CONTRACT_ID%&SEND_EMAIL=1&pdf=1'
+                            class='glyphicon glyphicon-envelope' target=_new>
+                        </a></span></li>
+                      </ul>
+                    </div>
+                  </div>
+                  %CONTRACT_SUFIX%
+                </div>
+                <label class='control-label col-md-1' for='CONTRACT_DATE'>_{DATE}_</label>
+                <div class='col-md-4'>
+                  <input id='CONTRACT_DATE' type='text' name='CONTRACT_DATE'
+                         value='%CONTRACT_DATE%' class='tcal form-control'>
+                </div>
+              </div>
+
+              %CONTRACT_TYPE%
+            </div>
+          </div>
+        </div>
+
+        <!-- Address panel -->
+        <div class='col-md-6'>
+          <div class='panel panel-default panel-form'>
+            <div class='panel-heading'>
+              <a data-toggle='collapse' data-parent='#accordion' href='#_address'>_{ADDRESS}_</a>
+            </div>
+
+            <div id='_address' class='panel-body panel-collapse collapse in'>
+              %ADDRESS_TPL%
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Pasport panel -->
+      <div class='row'>
+        <div class='col-md-6'>
+          <div class='panel panel-default panel-form'>
+            <div class='panel-heading'>
+              <a data-toggle='collapse' data-parent='#accordion' href='#_pasport'>_{PASPORT}_</a>
+            </div>
+            <div id='_pasport' class='panel-body panel-collapse collapse in'>
+              <div class='form-group'>
+                <!-- <label class='col-md-12 bg-primary'>_{PASPORT}_</label> -->
+                <label class='control-label col-md-2' for='PASPORT_NUM'>_{NUM}_</label>
+                <div class='col-sm-4'>
+                  <input id='PASPORT_NUM' name='PASPORT_NUM' value='%PASPORT_NUM%'
+                         placeholder='%PASPORT_NUM%'
+                         class='form-control' type='text'>
+                </div>
+
+                <label class='control-label col-md-2' for='PASPORT_DATE'>_{DATE}_</label>
+                <div class='col-sm-4'>
+                  <input id='PASPORT_DATE' type='text' name='PASPORT_DATE' value='%PASPORT_DATE%'
+                         class='tcal form-control'>
+                </div>
+              </div>
+              <div class='form-group'>
+                <label class='control-label col-md-2' for='PASPORT_GRANT'>_{GRANT}_</label>
+                <div class='col-md-10'>
+                    <textarea class='form-control' id='PASPORT_GRANT' name='PASPORT_GRANT'
+                              rows='2'>%PASPORT_GRANT%</textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+        <!-- comment panel -->
+        <div class='col-md-6'>
+          <div class='panel panel-default panel-form'>
+            <div class='panel-heading'>
+              <a data-toggle='collapse' data-parent='#accordion' href='#_comment'>_{COMMENTS}_</a>
+            </div>
+            <div id='_comment' class='panel-body panel-collapse collapse in'>
+              <div class='form-group'>
+                <label class='control-label col-sm-3' for='COMMENTS'>_{COMMENTS}_</label>
+                <div class='col-md-9'>
+                   <textarea class='form-control' id='COMMENTS' name='COMMENTS' rows='3'>%COMMENTS%</textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- info fields + contacts panel -->
+      <div class='row'>
+        <div class='col-md-6'>
+          <div class='panel panel-default panel-form'>
+            <div class='panel-heading'>
+              <a data-toggle='collapse' data-parent='#accordion' href='#_other'>_{OTHER}_</a>
+            </div>
+            <div id='_other' class='panel-body panel-collapse collapse in'>
+              %INFO_FIELDS%
+            </div>
+          </div>
+        </div>
+
+        <div class='col-md-6' style='display: %SHOW_PRETTY_USER_CONTACTS%'>
+          <div class='panel panel-default panel-form'>
+            <div class='panel-heading'>
+              <a data-toggle='collapse' data-parent='#accordion' href='#contacts_content'>_{CONTACTS}_</a>
+            </div>
+            <div id='contacts_content' class='panel-body panel-collapse collapse in'>
+              %CONTACTS%
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class='panel-footer'>
+      <input type=submit class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
+    </div>
+
+
+  </div>
 
 </form>
-
-<script>
-function addphone() {
-  var c = \$(\".phone\").size() + 1;
-  var id = '';
-  \$.ajax({
-        type: 'GET',
-        url: 'index.cgi',
-        data: {qindex : %QINDEX%, add : 1, UID : %UID% },
-        async: false,
-        success: function(txt){
-        id = txt;
-        }
-      });
-  var phone = '';
-  \$.ajax({
-        type: 'GET',
-        url: 'index.cgi',
-        data: {qindex : %QINDEX%, get_phone : 1, SIP_NUMBER : '%SIP_NUMBER%' },
-        async: false,
-        success: function(txt){
-        phone = txt;
-        }
-      });
-
-  var new_insert = \$(\"#last_row\").before('\\
-     <tr><td colspan=2 > \\
-     <input type=hidden id=id\_'+c+' name=id\_'+c+' value=\"'+id+'\">\\
-     $_PHONE: \\
-     <input id=phone\_'+c+' class=phone size=10 type=text value=\"'+phone+'\" name=PHONE>\\
-     <input id=name\_'+c+' size=10 type=text value=\"\" name=NAME>\\
-     <a class=link_button href=# onclick=\"remphone('+c+'); return false;\">$_DEL</a>\\
-     <a class=link_button href=# onclick=\"savephone('+c+'); return false;\">$_SAVE</a></td></tr>\\
-  ').prev();
-}
-
-function remphone(q)
-{
-   var id = \$('#id_'+q).val();
-   \$.ajax({
-        type: 'GET',
-        url: 'index.cgi',
-        data: {qindex : %QINDEX%, del : id },
-        async: false,
-        success: function(txt){
-         id = txt;
-        }
-      });
-  \$(\"#phone_\"+q).parent().parent().remove();
-}
-
-function savephone(q)
-{
-   var id = \$('#id_'+q).val();
-   var phone = \$('#phone_'+q).val();
-   var name = \$('#name_'+q).val();
-
-   \$.ajax({
-        type: 'GET',
-        url: 'index.cgi',
-        data: {qindex : %QINDEX%, change : 1, ID : id, PHONE : phone, NAME : name },
-        async: false,
-        success: function(txt){
-        alert(txt);
-        }
-      });
-
-}
-
-
-</script>
 

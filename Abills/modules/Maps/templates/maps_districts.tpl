@@ -1,1 +1,4 @@
- <option>%DISTRICT_ID%</option>
+<script>
+    districts[districts.length] = '%DISTRICT_ID%';
+</script>
+

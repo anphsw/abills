@@ -1,19 +1,65 @@
-<TABLE class=form width=500>
-
-<tr class=title_color><th colspan=2 align=right>$_INFO</th></tr>
-<tr class=odd><td>$_DEPOSIT:</td><td align=right>%DEPOSIT%</td></tr>
-<tr class=odd><td>$_CREDIT:</td><td align=right>%CREDIT%</td></tr>
-
-
-<tr class=odd><td>$_NAME:</td><td>%NAME%</td></tr>
-<tr class=odd><td>$_ADDRESS:</td><td>%ADDRESS%</td></tr>
-<tr class=odd><td>$_PHONE:</td><td>%PHONE%</td></tr>
-<tr class=odd><td>E-Mail:</td><td>%EMAIL%</td></tr>
-
-<tr class=odd><td>$_TARIF_PLAN:</td><td>%TP_NAME%</td></tr>
-
-<tr class=odd><td>$_PERCENTAGE:</td><td>%PERCENTAGE%</td></tr>
-<tr class=odd><td>$_DISABLE:</td><td>%DISABLE%</td></tr>
-<tr class=odd><td>$_REGISTRATION:</td><td>%REGISTRATION%</td></tr>
-
-</TABLE>
+<div class='panel panel-info panel-form form-horizontal'>
+<div class='panel-heading text-center'>_{INFO}_</div>
+<div class='panel-body'>
+  <div class='form-group'>
+    <label class='col-md-3 control-label text-center'>_{DEPOSIT}_</label>
+    <div class='col-md-9'>
+    <input type='text' class='form-control' value='%DEPOSIT%' disabled>
+    </div>
+  </div>
+  <div class='form-group'>
+    <label class='col-md-3 control-label text-center'>_{CREDIT}_</label>
+    <div class='col-md-9'>
+    <input type='text' class='form-control' value='%CREDIT%' disabled>
+    </div>
+  </div>
+  <div class='form-group'>
+    <label class='col-md-3 control-label text-center'>_{NAME}_</label>
+    <div class='col-md-9'>
+    <input type='text' class='form-control' value='%NAME%' disabled>
+    </div>
+  </div>
+  <div class='form-group'>
+    <label class='col-md-3 control-label text-center'>_{PHONE}_</label>
+    <div class='col-md-9'>
+    <input type='text' class='form-control' value='%PHONE%' disabled>
+    </div>
+  </div>
+  <div class='form-group'>
+    <label class='col-md-3 control-label text-center'>_{ADDRESS}_</label>
+    <div class='col-md-9'>
+    <input type='text' class='form-control' value='%ADDRESS%' disabled>
+    </div>
+  </div>
+  <div class='form-group'>
+    <label class='col-md-3 control-label text-center'>E-Mail:</label>
+    <div class='col-md-9'>
+    <input type='text' class='form-control' value='%EMAIL%' disabled>
+    </div>
+  </div>
+  <div class='form-group'>
+    <label class='col-md-3 control-label text-center'>_{TARIF_PLAN}_</label>
+    <div class='col-md-9'>
+    <input type='text' class='form-control' value='%TP_NAME%' disabled>
+    </div>
+  </div>
+  <div class='form-group'>
+    <label class='col-md-3 control-label text-center'>_{PERCENTAGE}_</label>
+    <div class='col-md-9'>
+    <input type='text' class='form-control' value='%PERCENTAGE%' disabled>
+    </div>
+  </div>
+  <div class='form-group'>
+    <label class='col-md-3 control-label text-center'>_{DISABLE}_</label>
+    <div class='col-md-9'>
+    <input type='text' class='form-control' value='%DISABLE%' disabled>
+    </div>
+  </div>
+  <div class='form-group'>
+    <label class='col-md-3 control-label text-center'>_{REGISTRATION}_</label>
+    <div class='col-md-9'>
+    <input type='text' class='form-control' value='%REGISTRATION%' disabled>
+    </div>
+  </div>
+</div>
+</div>

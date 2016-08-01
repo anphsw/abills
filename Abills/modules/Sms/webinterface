@@ -1,150 +1,146 @@
 #!perl
-# Sms functions
-#
-#
 
+=head1 NAME
+
+  Sms functions
+
+  Error ID: 16xx
+
+=cut
+
+
+use strict;
+use warnings FATAL => 'all';
+use Encode;
 use Fees;
+use Sms;
+use Abills::Filters;
+use Abills::Base qw(convert);
+
+our $db;
+our $admin;
+our %conf;
+our $html;
+our %lang;
+our %err_strs;
+
+
+my $Sms   = Sms->new($db, $admin, \%conf);
 my $Fees  = Fees->new($db, $admin, \%conf);
 my $Users = Users->new($db, $admin, \%conf);
+my $debug = 0;
 
-my $Sms_service;
-my $servise_name = '';
+
 my %sms_status = (
-0  => 'В очереди отправки',
-1  => 'Недостаточно денег для рассылки',
-2  => 'В процессе рассылки',
-3  => 'Отправлено',
-4  => 'Нет правильных номеров получателей',
-5  => 'Частично отправлено',
-6  => 'Спам',
-7  => 'Недействительное имя отправителя',
-8  => 'Пауза',
-9  => 'Запланирована',
-10 => 'Ожидает модерации'
+  0  => 'В очереди отправки',
+  1  => 'Недостаточно денег для рассылки',
+  2  => 'В процессе рассылки',
+  3  => 'Отправлено',
+  4  => 'Нет правильных номеров получателей',
+  5  => 'Частично отправлено',
+  6  => 'Спам', # Сообщение запрещено (по тексту или по имени отправителя).
+  7  => 'Недействительное имя отправителя  или пароль',
+  8  => 'Пауза',
+  9  => 'Запланирована',
+  10 => 'Ожидает модерации',
+  11 => 'Ошибка в параметрах',
+  12 => 'IP-адрес временно заблокирован из-за частых ошибок в запросах',
+  14 => 'Сообщение на указанный номер не может быть доставлено.',
+  15 => 'Отправка более одного одинакового запроса на передачу SMS-сообщения либо более пяти одинаковых запросов на получение стоимости сообщения в течение минуты.',
+  16 => '',
 );
 
 #**********************************************************
-# Connect to torbosms
+=head2 sms_service_connect() - Connect to sms service
+
+=cut
 #**********************************************************
 sub sms_service_connect {
 
-if ($conf{SMS_TXTLOCAL_APIKEY}) {
-  eval { require "modules/Sms/Txtlocal.pm"; };
-  if (!$@) {
-    eval { require "modules/Sms/Txtlocal.pm"; };
-    Txtlocal->import();
-    $Sms_service = Txtlocal->new($db, $admin, \%conf);
-    return $Sms_service;
-  }
-  else {
-    print $@;
-    $html->message('err', $_ERROR, "Can't load 'Txtlocal'. Purchase this module http://abills.net.ua");
-    exit;
-  }
-}
-elsif ($conf{SMS_SMSC_USER}) {
-  eval { require "modules/Sms/Smsc.pm"; };
-  if (!$@) {
-    eval { require "modules/Sms/Smsc.pm"; };
-    Smsc->import();
-    $Sms_service = Smsc->new($db, $admin, \%conf);
-    return $Sms_service;
-  }
-  else {
-    print $@;
-    $html->message('err', $_ERROR, "Can't load 'Smsc'. Purchase this module http://abills.net.ua");
-    exit;
-  }
-}
-elsif ($conf{SMS_LITTLESMS_USER}) {
-  eval { require "modules/Sms/Littlesms.pm"; };
-  if (!$@) {
-    eval { require "modules/Sms/Littlesms.pm"; };
-    Littlesms->import();
-    $Sms_service = Littlesms->new($db, $admin, \%conf);
-    return $Sms_service;
-  }
-  else {
-    print $@;
-    $html->message('err', $_ERROR, "Can't load 'Littlesms'. Purchase this module http://abills.net.ua");
-    exit;
-  }
-}
-elsif ($conf{SMS_EPOCHTASMS_OPENKEY}) {
-  eval { require "modules/Sms/Epochtasms.pm"; };
-  if (!$@) {
-    eval { require "modules/Sms/Epochtasms.pm"; };
-    Epochtasms->import();
-    $Sms_service = Epochtasms->new($db, $admin, \%conf);
-    return $Sms_service;
-  }
-  else {
-    print $@;
-    $html->message('err', $_ERROR, "Can't load 'Epochtasms'. Purchase this module http://abills.net.ua");
-    exit;
-  }
-}
-elsif ($conf{TURBOSMS_PASSWD}) {
-  eval { require Turbosms; };
-  if (! $@) {
-    eval { require Turbosms; };
-    Turbosms->import();
-    $Sms_service = Turbosms->new($db, $admin, \%conf);
+  my $Sms_service;
 
-    if ($Turbosms::VERSION < 2.08) {
-      $html->message('info', "UPDATE", "Please update module 'Turbosms' to version 2.08 or higher. http://abills.net.ua/");
-      return 0;
+  my @sms_systems = (
+    { SMS_BROKER_LOGIN       => 'Sms_Broker' },
+    { SMS_TXTLOCAL_APIKEY    => 'Txtlocal'   },
+    { SMS_SMSC_USER          => 'Smsc'       },
+    { SMS_LITTLESMS_USER     => 'Littlesms'  },
+    { SMS_EPOCHTASMS_OPENKEY => 'Epochtasms' },
+    { SMS_TURBOSMS_PASSWD    => 'Turbosms'   },
+  );
+
+  foreach my $sms_system ( @sms_systems ) {
+    my $config_key = ( keys %$sms_system )[0];
+    if ($conf{ $config_key } ) {
+      $Sms_service = $sms_system->{$config_key};
+
+      eval { require "Sms/$Sms_service.pm"; };
+      if (!$@) {
+        $Sms_service->import();
+        $Sms_service = $Sms_service->new($db, $admin, \%conf);
+        if ($debug) {
+           print "$sms_system->{$config_key} Loaded...";
+        }
+        last;
+      }
+      else {
+        print $@;
+        $html->message('err', $lang{ERROR}, "Can't load '$Sms_service'. Purchase this module http://abills.net.ua");
+        exit;
+      }
     }
-
-    %sms_status = %{ $Sms_service->error_codes() };
-    $servise_name = 'turbosms';
-    return $Sms_service;
   }
-  else {
-    print $@;
-    $html->message('err', $_ERROR, "Can't load 'Turbosms'. Purchase this module http://abills.net.ua");
-    exit;
-  }
-}  
-else {
-  $html->message('err', $_ERROR, "Sms service not connected");
-}
 
+  if (! $Sms_service) {
+    $html->message('err', $lang{ERROR}, "Sms service not connected", { ID => 1600 });
+  }
+
+  return $Sms_service;
 }
 
 #**********************************************************
-# NUMBER   - User number
-# MESSAGE  - Message
-# UID      - User iD
-#
-# Multi send sms
-# NUMBERS  - Hash of NUMBER => UID
-#   MOre priority then NUMBER option
+=head2 sms_send($attr) - Send SMS
+
+  Arguments:
+    NUMBER   - User number
+    MESSAGE  - Message
+    UID      - User iD
+
+   Multi send sms
+    NUMBERS  - Hash of NUMBER => UID
+   MOre priority then NUMBER option
+
+  Returns:
+    Sended Sms ID or fail
+
+=cut
 #**********************************************************
 sub sms_send {
   my ($attr) = @_;
 
-  sms_service_connect();
+  my $Sms_service = sms_service_connect();
+  my $status = 0;
 
   $conf{SMS_NUMBER}= "[0-9]{12}" if (! $conf{SMS_NUMBER});
-  
+
   if (! $attr->{NUMBER} && ! $attr->{NUMBERS}) {
-    $html->message('err', $_ERROR, "$_ERR_PHONE_NOT_DEFINED");
+    $html->message('err', $lang{ERROR}, "$lang{ERR_PHONE_NOT_DEFINED}", { ID => 1601 });
   }
   elsif (! $attr->{NUMBERS} && $attr->{NUMBER} !~ /$conf{SMS_NUMBER}/) {
-    $html->message('err', $_ERROR, "$_ERR_WRONG_PHONE");
+    $html->message('warn', $lang{ERROR}, "$lang{ERR_WRONG_PHONE} '$attr->{NUMBER}' ". ((! $user->{UID}) ? "\n $lang{OPTIONS} \$conf{SMS_NUMBER}" : ''), { ID => 1602 });
+    if($attr->{RIZE_ERROR}) {
+      return 0;
+    }
   }
 
   my $numbers = $attr->{NUMBERS};
-
   if ($conf{SMS_NUMBER_EXPR}) {
     if($attr->{NUMBER}) {
-      $attr->{NUMBER} = number_expr($attr->{NUMBER});
+      $attr->{NUMBER} = _expr($attr->{NUMBER}, $conf{SMS_NUMBER_EXPR});
     }
     elsif($attr->{NUMBERS}) {
       my %new_numbers  = ();
-      while(my($k, $v)=each %{ $attr->{NUMBERS} }) {
-        my $num = number_expr($k);
+      while(my($number, $uid)=each %{ $attr->{NUMBERS} }) {
+        my $num = _expr($number, $conf{SMS_NUMBER_EXPR});
         $new_numbers{$num}=$uid;
       }
 
@@ -153,7 +149,14 @@ sub sms_send {
   }
 
   if ($conf{SMS_TRANSLIT}) {
-    $attr->{MESSAGE} = txt2translit($attr->{MESSAGE});
+    $attr->{MESSAGE} = convert($attr->{MESSAGE}, { txt2translit => 1 });
+  }
+
+  if ($attr->{DEBUG} && $attr->{DEBUG} > 9) {
+    print qq{ Service: $Sms_service->{SERVICE_NAME}, NUMBERS => };
+    print join(',', keys %$numbers) ;
+    print qq{ NUMBER  => $attr->{NUMBER}, $attr->{MESSAGE} };
+    return 0;
   }
 
   $Sms_service->send_sms(
@@ -161,7 +164,7 @@ sub sms_send {
       NUMBERS => $numbers,
       NUMBER  => $attr->{NUMBER},
       MESSAGE => (($conf{TURBOSMS_MESSAGE_HEADER}) ? $conf{TURBOSMS_MESSAGE_HEADER}.' ' : '') . $attr->{MESSAGE},
-      DEBUG   => $attr->{DEBUG} || 0
+      DEBUG   => $attr->{DEBUG} || $conf{SMS_DEBUG} || 0
     }
   );
 
@@ -170,16 +173,19 @@ sub sms_send {
       print "[$Sms_service->{errno}] $err_strs{$Sms_service->{errno}} $Sms_service->{errstr}\n";
     }
     else {
-      $html->message('err', "$Sms_service->{SERVICE_NAME} - $_ERROR", "[$Sms_service->{errno}] $err_strs{$Sms_service->{errno}} $Sms_service->{errstr}");
+      $html->message('err', "SMS: $Sms_service->{SERVICE_NAME} : $lang{ERROR}",
+        "[$Sms_service->{errno}] ". (($sms_status{$Sms_service->{errno}}) ? $sms_status{$Sms_service->{errno}} : '' )
+        . " $Sms_service->{errstr}", { ID => 1603 });
     }
+
     return 0;
   }
   else {
     if ($conf{TURBOSMS_SEND_FEES}) {
       if ($attr->{NUMBERS}) {
         while (my ($number, $uid) = each %{ $attr->{NUMBERS} }) {
-          $Users->info($attr->{UID});
-          $Fees->take($users, $conf{TURBOSMS_SEND_FEES}, { DESCRIBE => 'Sms ' . $attr->{NUMBER} });
+          $Users->info($uid);
+          $Fees->take($users, $conf{TURBOSMS_SEND_FEES}, { DESCRIBE => 'Sms ' . $number });
         }
       }
       elsif ($attr->{UID}) {
@@ -187,34 +193,104 @@ sub sms_send {
         $Fees->take($users, $conf{TURBOSMS_SEND_FEES}, { DESCRIBE => 'Sms ' . $attr->{NUMBER} });
       }
     }
+    elsif($conf{SMS_FEES}) {
+      if ($attr->{NUMBERS}) {
+        while (my ($number, $uid) = each %{ $attr->{NUMBERS} }) {
+          $Users->info($uid);
+          $Fees->take($users, $conf{SMS_FEES}, { DESCRIBE => 'Sms ' . $number });
+        }
+      }
+      elsif ($attr->{UID}) {
+        $Users->info($attr->{UID});
+        $Fees->take($users, $conf{SMS_FEES}, { DESCRIBE => 'Sms ' . $attr->{NUMBER} });
+      }
+    }
   }
 
-  return 1;
+  if ($attr->{NUMBERS} && ! $attr->{NUMBER}) {
+    $attr->{NUMBER} = (keys %{ $attr->{NUMBERS} })[0];
+  }
+
+  $Sms->add({
+    UID          => $attr->{UID},
+    MESSAGE      => $attr->{MESSAGE},
+    PHONE        => $attr->{NUMBER},
+    DATETIME     => "$DATE $TIME",
+    STATUS       => $status || 0,
+    EXT_ID       => $Sms_service->{id} || '',
+    STATUS_DATE  => "$DATE $TIME",
+    EXT_STATUS   => $Sms_service->{status} || '',
+  });
+
+  return $Sms_service->{id} || 1;
 }
 
 #**********************************************************
-#
+=head2 sms_info($id, $attr);
+
+=cut
 #**********************************************************
 sub sms_info {
-  my ($id, $attr) = @_;
+  my ($id) = @_;
 
-  sms_service_connect();
+  my $Sms_service = sms_service_connect();
 
-  $Sms_service->$Sms_service->info({ ID => $id });
+  $Sms_service->info({ ID => $id });
 
-  if ($Sms_service->{errno}) {
-    print "[$Sms_service->{errno}] $err_strs{$Sms_service->{errno}}\n";
-  }
+  _error_show($Sms_service);
 
   return 0;
 }
 
 #**********************************************************
-#
+=head2 sms_account_info($attr)
+
+=cut
+#**********************************************************
+sub sms_account_info {
+  #my ($attr) = @_;
+
+  my $Sms_service = sms_service_connect();
+
+  if (! $Sms_service ) {
+    return 0;
+  }
+
+  my $list = $Sms_service->account_info({
+                                  %LIST_PARAMS,
+                                  DEBUG        => $conf{SMS_DEBUG} || 0,
+                                  COLS_NAME    => 1
+                                });
+
+  my $table = $html->table(
+    {
+      width      => '100%',
+      caption    => "$Sms_service->{SERVICE_NAME} - $lang{INFO}",
+      ID         => 'REPORTS_SMS',
+    }
+  );
+
+  foreach my $line (@$list) {
+    while(my($k, $v,) = each %$line) {
+      $table->addrow($k, $v);
+    }
+  }
+
+  print $table->show();
+
+  return 1;
+}
+
+
+#**********************************************************
+=head2 sms_reports()
+
+=cut
 #**********************************************************
 sub sms_reports {
-  $Sms_service = sms_service_connect();
-  
+
+  my $Sms_service = sms_service_connect();
+
   if (! $Sms_service ) {
     return 0;
   }
@@ -225,128 +301,137 @@ sub sms_reports {
   }
 
   if($FORM{search_form}) {
-  	$Sms_service->{STATUS_SEL} = $html->form_select('STATUS',
+    $Sms_service->{STATUS_SEL} = $html->form_select('STATUS',
       {
         SELECTED => $FORM{STATUS} || '',
-        SEL_HASH => { '' => $_ALL, %sms_status },
+        SEL_HASH => { '' => $lang{ALL}, %sms_status },
         NO_ID    => 1
       }
-    ); 	 
-  	
-  	$Sms_service->{GROUP_SEL} = sel_groups();
-  	
+    );   
+
+    $Sms_service->{GROUP_SEL} = sel_groups();
     form_search({ SEARCH_FORM => $html->tpl_show(_include('sms_search', 'Sms'), { %FORM, %$Sms_service }, { OUTPUT2RETURN => 1 }) });
   }
 
-  my $list = $Sms_service->info({%LIST_PARAMS, COLS_NAME => 1 });
-
-  if ($Sms_service->{errno}) {
-    $html->message('err', "$Sms_service->{SERVICE_NAME} - $_ERROR", "[$Sms_service->{errno}] $err_strs{$Sms_service->{errno}} $Sms_service->{errstr}");
-  }
-
-  my $table = $html->table(
+  reports(
     {
-      width      => '100%',
-      caption    => "$Sms_service->{SERVICE_NAME} - $_REPORTS",
-      border     => 1,
-      title      => [ '#', $_MSG_ID, "$_NUMBERS", "$_SIGN", "$_MESSAGE", 'wappush', "$_PRICE", $_DEPOSIT, 
-           "$_SEND_TIME", "$_SENDED", "$_UPDATED", "$_STATUS", "$_ERROR" ],
-      cols_align => [ 'center', 'left', 'left', 'left', 'left', 'left', 'left', 'left', 'left', 'left', 'left', 'left', 'left' ],
-      qs         => $pages_qs,
-      ID         => 'REPORTS_SMS',
-      pages      => $Sms_service->{TOTAL},
-      MENU       => "$_SEARCH:index=$index&search_form=1:search",
+      #DATE        => $FORM{DATE},
+      #REPORT      => '',
+      PERIOD_FORM => 1,
+      NO_TAGS     => 1
     }
   );
 
-  use Encode;
-  foreach my $line (@$list) {
-    my $status  = ($sms_status{$line->{status}}) ? $sms_status{$line->{status}} : $line->{status};
-    my $message = $line->{message}  || '';
-    if ($conf{dbcharset} ne 'utf8') { Encode::from_to($status,  'utf-8', 'windows-1251') }
-    my $destination = $line->{number};
-    $destination =~ s/[\+\ ]+//; 
-   
-    $table->addrow(
-      $line->{id},
-      $line->{msg_id},
-      $html->button($line->{number}, "index=".get_function_index('ureports_users_list'). "&DESTINATION=$destination&search=1&search_form=1"),
-      $line->{sign},
-      $message,
-      $line->{wappush},
-      $line->{cost},
-      $line->{credits} || $line->{balance},
-      $line->{send_time},
-      ($line->{sended}=~/\d{4}/) ? $line->{sended} : ($line->{sended}) ? $_YES: $_NO,
-      $line->{updated},
-      $status,
-      #convert( substr("$line->[11]", 0, 16), {  utf82win => 1 }).$html->br().
-      #convert(convert("Отсутств", {  win2utf8 => 1 })),
-      ($sms_status{$line->{error_code}}) ? $sms_status{$line->{error_code}} : $line->{error_code},
+  if($Sms_service->can('info')){
+    my @header_arr = ("$lang{MAIN}:index=$index",
+      "Direct:index=$index&direct=1");
+
+    print $html->table_header( \@header_arr, { TABS => 1 } );
+  }
+
+  if ($FORM{direct}){
+    $pages_qs .= "&direct=1";
+    my $list = $Sms_service->info( { %LIST_PARAMS,
+        DEBUG     => $conf{SMS_DEBUG} || 0,
+        COLS_NAME => 1
+      } );
+
+    if ( $Sms_service->{errno} ){
+      $html->message( 'err', "$Sms_service->{SERVICE_NAME} - $lang{ERROR}",
+        "[$Sms_service->{errno}] $sms_status{$Sms_service->{errno}} $Sms_service->{errstr}" );
+    }
+
+    my $table = $html->table(
+      {
+        width   => '100%',
+        caption => "$Sms_service->{SERVICE_NAME} ($Sms_service->{SERVICE_VERSION}) - $lang{REPORTS}",
+        title   => [ '#', $lang{MSG_ID}, $lang{NUM}, $lang{SIGN}, $lang{MESSAGE}, 'wappush', $lang{PRICE}, $lang{DEPOSIT},
+          $lang{SEND_TIME}, $lang{SENDED}, $lang{UPDATED}, $lang{STATUS}, $lang{ERROR} ],
+        qs      => $pages_qs,
+        ID      => 'REPORTS_SMS',
+        #pages  => ($Sms_service->{TOTAL}) ? $Sms_service->{TOTAL} : 0,
+        MENU    => "$lang{SEARCH}:index=$index&search_form=1:search",
+      }
     );
-  }
 
-  print $table->show();
+    foreach my $line ( @{$list} ){
+      my $status = ($sms_status{$line->{status}}) ? $sms_status{$line->{status}} : $line->{status};
+      #my $message = $line->{message}  || '';
+      Encode::_utf8_off( $line->{message} );
+      Encode::_utf8_off( $line->{number} );
+      my $destination = $line->{number} || '';
+      Encode::_utf8_off( $destination );
+      my $error_code = $line->{error_code} || '';
+      if ( $conf{dbcharset} ne 'utf8' ){ Encode::from_to( $status, 'utf-8', 'windows-1251' ) }
 
-  $table = $html->table(
-    {
-      width      => '100%',
-      cols_align => [ 'right', 'right' ],
-      rows       => [ [ "$_TOTAL:", $html->b($Sms_service->{TOTAL}) ] ]
+      $destination =~ s/[\+\ ]+//;
+
+      $table->addrow(
+        $line->{id},
+        $line->{msg_id},
+        $html->button( $destination,
+          "index=" . get_function_index( 'ureports_users_list' ) . "&DESTINATION=$destination&search=1&search_form=1" ),
+        $line->{sign},
+        $line->{message},
+        $line->{wappush},
+        $line->{cost},
+        $line->{credits} || $line->{balance},
+        $line->{send_time},
+          ($line->{sended} && $line->{sended} =~ /\d{4}/) ? $line->{sended} : ($line->{sended}) ? $lang{YES} : $lang{NO},
+        $line->{updated},
+        $status,
+        #convert( substr("$line->[11]", 0, 16), {  utf82win => 1 }).$html->br().
+        #convert(convert("Отсутств", {  win2utf8 => 1 })),
+          ($sms_status{$error_code}) ? $sms_status{$error_code} : $error_code,
+      );
     }
-  );
-  print $table->show();
-}
 
-#**********************************************************
-#
-#**********************************************************
-sub number_expr {
-  my ($number_origin) = @_;
-  my @num_expr = split(/;/, $conf{SMS_NUMBER_EXPR});
+    print $table->show();
 
-  my $number = $number_origin;
-  for (my $i = 0 ; $i <= $#num_expr ; $i++) {
-    my ($left, $right) = split(/\//, $num_expr[$i]);
-    my $r = eval "\"$right\"";
-    if ($number =~ s/$left/$r/) {
-      return $number;
-    }
+    $table = $html->table(
+      {
+        width      => '100%',
+        cols_align => [ 'right', 'right' ],
+        rows       => [ [ "$lang{TOTAL}:", $html->b( $Sms_service->{TOTAL} ) ] ]
+      }
+    );
+
+    print $table->show();
+  }
+  else {
+    result_former({
+      INPUT_DATA      => $Sms,
+      FUNCTION        => 'list',
+      DEFAULT_FIELDS  => 'DATETIME,LOGIN,STATUS,PHONE',
+      #FUNCTION_FIELDS => 'change,del',
+      #SKIP_USER_TITLE => 1,
+      FILTER_COLS  => {
+        status => \%sms_status,
+      },
+      EXT_TITLES => {
+        datetime      => $lang{DATE},
+        status        => $lang{STATUS},
+        phone         => $lang{PHONE},
+        message       => $lang{MESSAGE},
+        ext_id        => 'EXT ID',
+        ext_status    => 'EXT status',
+        status_date   => "$lang{STATUS} $lang{DATE}",
+      },
+      TABLE => {
+        width      => '100%',
+        caption    => "SMS $lang{REPORTS}",
+        qs         => $pages_qs,
+        ID         => 'SMS_REPOSRT',
+        EXPORT     => 1,
+        MENU       => "$lang{SEARCH}:index=$index&search_form=1&$pages_qs:search",
+      },
+      MAKE_ROWS    => 1,
+      SEARCH_FORMER=> 1,
+      TOTAL        => 1
+    });
   }
 
-  return $number;
-}
-
-
-#**********************************************************
-# convert to translit
-#**********************************************************
-sub txt2translit {
-  my $text = shift;
-
-  $text =~ y/абвгдеёзийклмнопрстуфхъыьэієї/abvgdeezijklmnoprstufh'y'eiei/;
-  $text =~ y/АБВГДЕЁЗИЙКЛМНОПРСТУФХЪЫЬЭІЄЇ/ABVGDEEZIJKLMNOPRSTUFH'Y'EIEI/;
-  my %mchars = (
-    'ж' => 'zh',
-    'ц' => 'ts',
-    'ч' => 'ch',
-    'ш' => 'sh',
-    'щ' => 'sch',
-    'ю' => 'ju',
-    'я' => 'ja',
-    'Ж' => 'Zh',
-    'Ц' => 'Ts',
-    'Ч' => 'Ch',
-    'Ш' => 'Sh',
-    'Щ' => 'Sch',
-    'Ю' => 'Ju',
-    'Я' => 'Ja'
-  );
-  for my $c (keys %mchars) {
-    $text =~ s/$c/$mchars{$c}/g;
-  }
-
-  return $text;
+  return 1;
 }
 
 1

@@ -49,8 +49,7 @@ sub mx80_change_profile {
      CID          => '_SHOW',
      NAS_ID       => $LIST_PARAMS{NAS_IDS},
      %LIST_PARAMS
-
- });
+  });
 
   my $online      = $sessions->{nas_sorted};
 
@@ -138,9 +137,6 @@ sub mx80_change_profile {
   }
 
 =comments
-Удалять:
-
-Добавлять:
 ERX-Service-Activate:3 = svc-global-ipoe(73400320,73400320)
 
         Acct-Interim-Interval = 90

@@ -1,43 +1,225 @@
-<FORM action='$SELF_URL' METHOD='POST'>
-<INPUT type='hidden' name='index' value='$index'>
-<INPUT type='hidden' name='ABON_ID' value='$FORM{ABON_ID}'>
-<table class=form>
-<tr><th colspan=3 class=form_title>%ACTION_LNG% $_ABON</th></tr>
-<tr><td>$_NAME:</td><td colspan=2><input type='text' name='NAME' value='%NAME%' size=45></td></tr>
-<tr><td>$_SUM:</td><td colspan=2><input type='text' name='PRICE' value='%PRICE%' size=10></td></tr>
-<tr><td>$_PERIOD:</td><td colspan=2>%PERIOD_SEL%</td></tr>
-<tr><td>$_PAYMENT_TYPE:</td><td colspan=2>%PAYMENT_TYPE_SEL%</td></tr>
-<tr><td>$_NONFIX_PERIOD:</td><td colspan=2><input type='checkbox' name='NONFIX_PERIOD' value='1' %NONFIX_PERIOD%></td></tr>
+<!--Abon_apon_tp.tpl-->
 
-<tr><td>$_MANUAL_ACTIVATE:</td><td colspan=2><input type='checkbox' name='MANUAL_ACTIVATE' value='1' %MANUAL_ACTIVATE%></td></tr>
-<tr><td>$_USER_PORTAL:</td><td colspan=2><input type='checkbox' name='USER_PORTAL' value='1' %USER_PORTAL%></td></tr>
+<form action='$SELF_URL' method='post' class='form-horizontal'>
+  <input class='form-control' type='hidden' name='index' value='$index' />
+  <input class='form-control' type='hidden' name='ABON_ID' value='$FORM{ABON_ID}' /> %EXT_BILL_ACCOUNT%
 
-<tr><td>$_MONTH_ALIGNMENT:</td><td colspan=2><input type=checkbox name=PERIOD_ALIGNMENT value=1 %PERIOD_ALIGNMENT%></td></tr>
-<tr><td>$_REDUCTION:</td><td colspan=2><input type=checkbox name=DISCOUNT value=1 %DISCOUNT%></td></tr>
-<tr><td>$_PRIORITY:</td><td colspan=2>%PRIORITY%</td></tr>
-<!-- <tr><td>$_ACCOUNT $_FEES:</td><td>%ACCOUNT_SEL%</td></tr> -->
+  <div class='panel panel-form panel-default'>
+   <div class='panel-heading'>
+        <legend>%ACTION_LNG% _{ABON}_</legend>
+   </div>
 
-%EXT_BILL_ACCOUNT%
+	<div class='panel-body'>
+	  <div class='form-group'>
+		<div class='col-md-3'>
+			<label for='%NAME%'>_{NAME}_:</label>
+		</div>
+		<div class='col-md-9'>
+			<input class='form-control' type='text' name='NAME' value='%NAME%' maxlength='45'  />
+		</div>
+      </div>
+
+      <div class='form-group'>
+	  	<div class='col-md-3'>
+			<label for='PRICE'>_{SUM}_:</label>
+		</div>
+		<div class='col-md-9'>
+			<input class='form-control' type='text' name='PRICE' value='%PRICE%' maxlength='10' />
+		</div>
+      </div>
+
+      <div class='form-group'>
+	  	<div class='col-md-3'>
+			<label for='PERIOD_SEL'>_{PERIOD}_:</label>
+		</div>
+		<div class='col-md-9'>
+			%PERIOD_SEL%
+		</div>
+      </div>
+
+      <div class='form-group'>
+	  	<div class='col-md-3'>
+			<label for='PAYMENT_TYPE_SEL'>_{PAYMENT_TYPE}_:</label>
+		</div>
+		<div class='col-md-9'>
+			%PAYMENT_TYPE_SEL%
+		</div>
+      </div>
+
+      <div class='form-group'>
+	  	<div class='col-md-7'>
+			<label for='NONFIX_PERIOD'>_{NONFIX_PERIOD}_:</label>
+		</div>
+		<div class='col-md-5'>
+			<input type='checkbox' name='NONFIX_PERIOD' value='1' %NONFIX_PERIOD% />
+		</div>
+      </div>
+
+      <div class='form-group'>
+	  	<div class='col-md-7'>
+			<label for='MANUAL_ACTIVATE'>_{MANUAL_ACTIVATE}_:</label>
+		</div>
+		<div class='col-md-5'>
+			<input type='checkbox' name='MANUAL_ACTIVATE' %MANUAL_ACTIVATE% value='1' />
+		</div>
+      </div>
+
+      <div class='form-group'>
+	  	<div class='col-md-7'>
+			<label for='USER_PORTAL'>_{USER_PORTAL}_:</label>
+		</div>
+		<div class='col-md-5'>
+			<input type='checkbox' name='USER_PORTAL' %USER_PORTAL% value='1' />
+		</div>
+      </div>
+
+      <div class='form-group'>
+	  	<div class='col-md-7'>
+			<label for='PERIOD_ALIGNMENT'>_{MONTH_ALIGNMENT}_:</label>
+		</div>
+		<div class='col-md-5'>
+			<input type='checkbox' name='PERIOD_ALIGNMENT' %PERIOD_ALIGNMENT% value='1' />
+		</div>
+      </div>
+
+      <div class='form-group'>
+	  	<div class='col-md-7'>
+			<label for='DISCOUNT'>_{REDUCTION}_:</label>
+		</div>
+		<div class='col-md-5'>
+			<input type='checkbox' name='DISCOUNT' %DISCOUNT% value='1' />
+		</div>
+      </div>
 
 
-<tr><th colspan=3 >&nbsp;</th></tr>
-<tr><td>$_FEES $_TYPE:</td><td colspan=2>%FEES_TYPES_SEL%</td></tr>
-
-<tr><td>$_CREATE, $_SEND_ACCOUNT:</td><td colspan=2><input type=checkbox name=CREATE_ACCOUNT value='1' %CREATE_ACCOUNT%></td></tr>
-<tr><td>$_VAT_INCLUDE:</td><td colspan=2><input type=checkbox name=VAT value='1' %VAT%></td></tr>
+	  <!---->									<!---->
 
 
-<tr><td>$_SERVICE_ACTIVATE_NOTIFICATION</td><td colspan=2><input type=checkbox name=ACTIVATE_NOTIFICATION value='1' %ACTIVATE_NOTIFICATION%></td></tr>
-<tr><th colspan=3 class=form_title>$_NOTIFICATION (E-mail)</th></tr>
-<tr><td> 1: $_DAYS_TO_END:</td><td ><input type=text name=NOTIFICATION1 value='%NOTIFICATION1%' size=6> </td><td>$_CREATE, $_SEND_ACCOUNT: <input type=checkbox name=NOTIFICATION_ACCOUNT value='1' %NOTIFICATION_ACCOUNT% size=6></td></tr>
-<tr><td> 2: $_DAYS_TO_END:</td><td colspan=2><input type=text name=NOTIFICATION2 value='%NOTIFICATION2%' size=6></td></tr>
-<tr><td> 3: $_ENDED:</td><td><input type=checkbox name=ALERT value='1' %ALERT% size=6> </td><td>$_SEND_ACCOUNT: <input type=checkbox name=ALERT_ACCOUNT value='1' %ALERT_ACCOUNT% size=6></td></tr>
+      <div class='form-group'>
+	  	<div class='col-md-3'>
+			<label for='PRIORITY'>_{PRIORITY}_:</label>
+		</div>
+		<div class='col-md-9'>
+			%PRIORITY%
+		</div>
+      </div>
+
+        <!-- <div class='form-group'><td>_{ACCOUNT}_ _{FEES}_:</td><td>%ACCOUNT_SEL%</td></div> -->
+
+      <div class='form-group'>
+	  	<div class='col-md-3'>
+			<label for='FEES_TYPES_SEL'>_{FEES}_ _{TYPE}_:</label>
+		</div>
+		<div class='col-md-9'>
+			%FEES_TYPES_SEL%
+		</div>
+      </div>
+
+      <div class='form-group'>
+	  	<div class='col-md-7'>
+			<label for='CREATE_ACCOUNT'>_{CREATE}_, _{SEND_ACCOUNT}_:</label>
+		</div>
+		<div class='col-md-5'>
+			<input type='checkbox' name='CREATE_ACCOUNT' %CREATE_ACCOUNT% value='1' />
+		</div>
+      </div>
+
+      <div class='form-group'>
+	  	<div class='col-md-7'>
+			<label for='VAT'>_{VAT_INCLUDE}_:</label>
+		</div>
+		<div class='col-md-5'>
+			<input type='checkbox' name='VAT' %VAT% value='1' />
+		</div>
+      </div>
+
+      <div class='form-group'>
+	  	<div class='col-md-7'>
+			<label for='ACTIVATE_NOTIFICATION'>_{SERVICE_ACTIVATE_NOTIFICATION}_</label>
+		</div>
+		<div class='col-md-5'>
+			<input type='checkbox' name='ACTIVATE_NOTIFICATION' %ACTIVATE_NOTIFICATION% value='1' />
+		</div>
+      </div>
+
+	<div class='form-group'>
+		<button class='btn btn-secondary' type='button' data-toggle='collapse' data-target='#notification' aria-expanded='true' aria-controls='collapseExample'>
+			_{NOTIFICATION}_ (E-mail)
+		</button>
+	</div>
+		<div class='collapse' id='notification'>
+		  <div class='well'>
+			<div class='form-group'>
+				<div class='col-md-4'>
+					<label for='NOTIFICATION1'>1: _{DAYS_TO_END}_:</label>
+				</div>
+				<div class='col-md-2'>
+					<input class='form-control' type='text' name='NOTIFICATION1' value='%NOTIFICATION1%' maxlength='2'/>
+				</div>
+
+				<div class='col-md-4'>
+					<label for='NOTIFICATION_ACCOUNT'>_{CREATE}_, _{SEND_ACCOUNT}_: </label>
+				</div>
+				<div class='col-md-2'>
+					<input type='checkbox' name='NOTIFICATION_ACCOUNT' %NOTIFICATION_ACCOUNT% value='1' />
+				</div>
+			</div>
+
+			<div class='form-group'>
+				<div class='col-md-4'>
+					<label for='NOTIFICATION2'>2: _{DAYS_TO_END}_:</label>
+				</div>
+				<div class='col-md-2'>
+					<input class='form-control' type='text' name='NOTIFICATION2' value='%NOTIFICATION2%' maxlength='2'/>
+				</div>
+				<div class='clearfix-visible-xs-6'></div>
+			</div>
+
+			<div class='form-group'>
+				<div class='col-md-4'>
+					<label for='ALERT'>3: _{ENDED}_:</label>
+				</div>
+				<div class='col-md-2'>
+					<input type='checkbox' name='ALERT' %ALERT% value='1'/>
+				</div>
+
+				<div class='col-md-4'>
+					<label for='ALERT_ACCOUNT'>_{SEND_ACCOUNT}_:</label>
+				</div>
+				<div class='col-md-2'>
+					<input type='checkbox' name='ALERT_ACCOUNT' %ALERT_ACCOUNT% value='1'/>
+				</div>
+			</div>
+		  </div>
+		</div>
 
 
-<tr><td>$_EXT_CMD:</td><td colspan=2><input type=text size=60 name=EXT_CMD value='%EXT_CMD%'></td></tr>
-<!-- <tr><td>$_DATE:</td><td></td></tr> -->
-<tr><th colspan=3 class=even><INPUT type='submit' name='%ACTION%' value='%ACTION_LNG%'></th></tr>
-</table>
 
 
-</FORM>
+<div class='form-group'>
+	<div class='col-md-3'>
+	  <label for='EXT_CMD'>_{EXT_CMD}_:</label>
+	</div>
+	<div class='col-md-9'>
+	<input class='form-control'  type='text' name='EXT_CMD' value='%EXT_CMD%' maxlength='60' />
+</div>
+</div>
+
+<div class='form-group'>
+	<div class='col-md-3'>
+	  <label for='SERVICE_LINK'>URL:(caption|url)</label>
+	</div>
+	<div class='col-md-9'>
+	<input class='form-control'  type='text' name='SERVICE_LINK' value='%SERVICE_LINK%' maxlength='60' />
+</div>
+</div>
+
+  </div>
+	<div class='panel-footer'>
+        <th colspan='3' class='even'>
+          <input type='submit' class='btn btn-primary' name='%ACTION%' value='%ACTION_LNG%' />
+        </th>
+      </div>
+	</div>
+</form>
+

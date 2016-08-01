@@ -22,13 +22,13 @@ sub neg_deposit_warning {
   }
   
   my $custom_rules;
-  if ($ARGV->{DEPOSIT}) {
-  	$LIST_PARAMS{DEPOSIT}=$ARGV->{DEPOSIT};
+  if ($argv->{DEPOSIT}) {
+  	$LIST_PARAMS{DEPOSIT}=$argv->{DEPOSIT};
   	$custom_rules=1;
   }
 
-  if ($ARGV->{CREDIT}) {
-  	$LIST_PARAMS{CREDIT}=$ARGV->{CREDIT};
+  if ($argv->{CREDIT}) {
+  	$LIST_PARAMS{CREDIT}=$argv->{CREDIT};
   	$custom_rules=1;
   }
 

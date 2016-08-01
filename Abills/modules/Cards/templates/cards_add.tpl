@@ -1,30 +1,96 @@
-<form action='$SELF_URL' METHOD='POST' ENCTYPE='multipart/form-data' id='CARDS_ADD'>
+
+<form action='$SELF_URL' METHOD='POST' ENCTYPE='multipart/form-data' id='CARDS_ADD' class='form-horizontal'>
 <input type='hidden' name='index' value='$index'>
 
-<table width=400 class=form>
-<tr ><th class=table_title colspan=2>$_ICARDS : %TYPE_CAPTION%</th></tr>
-<tr><td>$_SERIAL:</td><td><input type='text' name='SERIAL' value='%SERIAL%'></td></tr>
-<tr><td>$_BEGIN:</td><td><input type=text name='BEGIN' value='%BEGIN%'></td></tr>
-<tr><td>$_COUNT:</td><td><input type=text name='COUNT' value='%COUNT%'></td></tr>
+
+<div class='panel panel-default panel-form'>
+  <div class='panel-body'>
+
+<legend>_{ICARDS}_ : %TYPE_CAPTION%</legend>
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='SERIAL'>_{SERIAL}_</label>
+  <div class='col-md-9'>
+    <input id='SERIAL' name='SERIAL' value='%SERIAL%' placeholder='_{SERIAL}_' class='form-control' type='text'>
+  </div>
+</div>
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='BEGIN'>_{BEGIN}_</label>
+  <div class='col-md-9'>
+    <input id='BEGIN' name='BEGIN' value='%BEGIN%' placeholder='_{BEGIN}_' class='form-control' type='text'>
+  </div>
+</div>
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='COUNT'>_{COUNT}_</label>
+  <div class='col-md-9'>
+    <input id='COUNT' name='COUNT' value='%COUNT%' placeholder='_{COUNT}_' class='form-control' type='text'>
+  </div>
+</div>
 
 <!-- Card type payment or service -->
 %CARDS_TYPE%
-<!-- Card type payment or service end -->
 
-<tr bgcolor='$_COLORS[0]'><th colspan=2>$_PASSWD / PIN</th></tr>
-<tr><td>$_SYMBOLS:</td><td><input type='text' name='PASSWD_SYMBOLS' value='%PASSWD_SYMBOLS%'></td></tr>
-<tr><td>$_SIZE:</td><td><input type='text' name='PASSWD_LENGTH' value='%PASSWD_LENGTH%'></td></tr>
-<tr><td colspan=2>&nbsp;
-%EXPARAMS%
-</td></tr>
-<tr><th class=table_title colspan=2>&nbsp;</th></tr>
-<tr><td>$_EXPIRE:</td><td><input type='text' name='EXPIRE' value='%EXPIRE%'>
-<tr><th class=table_title colspan=2>$_EXPORT:</th></tr>
-<tr><td colspan='2'><input type='radio' name='EXPORT' value='TEXT' checked> Text<br>
-<input type='radio' name='EXPORT' value='XML'> XML<br>
-</td></tr>
-<tr><th class=table_title colspan=2>-</th></tr>
-<tr><td>$_DILLERS:</td><td>%DILLERS_SEL%</td></tr>
-<tr><th colspan='2' class=even><input type='submit' name='create' value='$_CREATE'></th></tr>
-</table>
+<div class='form-group'>
+  <label class='control-label col-md-12'>_{PASSWD}_ / PIN</label>
+</div>
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='PASSWD_SYMBOLS'>_{SYMBOLS}_</label>
+  <div class='col-md-9'>
+    <input id='PASSWD_SYMBOLS' name='PASSWD_SYMBOLS' value='%PASSWD_SYMBOLS%' placeholder='%PASSWD_SYMBOLS%' class='form-control' type='text'>
+  </div>
+</div>
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='PASSWD_LENGTH'>_{SIZE}_</label>
+  <div class='col-md-9'>
+    <input id='PASSWD_LENGTH' name='PASSWD_LENGTH' value='%PASSWD_LENGTH%' placeholder='%PASSWD_LENGTH%' class='form-control' type='text'>
+  </div>
+</div>
+
+</div>
+</div>
+
+
+  <!-- Card type payment or service end -->
+<div>
+
+    %EXPARAMS%
+
+</div>
+
+
+<div class='panel panel-default panel-form'>
+  <div class='panel-body'>
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='EXPIRE'>_{EXPIRE}_</label>
+  <div class='col-md-9'>
+    <input id='EXPIRE' name='EXPIRE' value='%EXPIRE%' placeholder='%EXPIRE%' class='form-control tcal' type='text'>
+  </div>
+</div>
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='EXPORT'>_{EXPORT}_</label>
+  <div class='col-md-9'>
+     <input type='radio' class='form-control-sm' name='EXPORT' value='TEXT' checked> Text<br>
+     <input type='radio' class='form-control-sm' name='EXPORT' value='XML'> XML
+  </div>
+</div>
+
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='DILLER_ID'>_{DILLERS}_</label>
+  <div class='col-md-9'>
+     %DILLERS_SEL%
+  </div>
+</div>
+
+<input type='submit' name='create' value='_{CREATE}_' class='btn btn-primary'>
+
+</div>
+</div>
+
 </form>

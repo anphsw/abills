@@ -1,3 +1,13 @@
-<tr><th colspan=2 class=form_title>Provision</th></tr>
-<tr><td>$_NAS:</td><td>%NAS_SEL%</td></tr>
-<tr><td>$_PORT:</td><td><input type=text name=PROVISION_PORT value='%PROVISION_PORT%' size=5></td></tr>
+<div class='form-group'>
+    <label class='control-label col-md-6' for='NAS_ID'>_{NAS}_</label>
+    <div class='col-md-3'>
+        %NAS_SEL%
+    </div>
+</div>
+
+<div class='form-group'>
+    <label class='control-label col-md-6' for='PROVISION_PORT'>_{PORT}_</label>
+    <div class='col-md-3'>
+        <input type=text name=PROVISION_PORT value='%PROVISION_PORT%' ID=PROVISION_PORT class='form-control'>
+    </div>
+</div>

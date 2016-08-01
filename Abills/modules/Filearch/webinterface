@@ -4,7 +4,7 @@ if (!$conf{DOWNLOADS}) {
 
   $conf{DOWNLOADS} = '%INFO% [ <a href="ftp://your.host/Video/Movies/%FOLDER%/%FILE%">FTP</a> ]
 [ <a href="http://ftp.yes.ko.if.ua/ftp/Video/Movies/%FOLDER%/%FILE%">HTTP</a> ]
-[ <a href="file:\\\ftp.yes.ko.if.ua\Share\Video\Movies\%FOLDER%\%FILE%">SMB</a> ]' . " [ <a href=\"#\" 
+[ <a href="file:\\\ftp.yes.ko.if.ua\Share\Video\Movies\%FOLDER%\%FILE%">SMB</a> ]' . " [ <a href=\"#\"
          onclick=\"window.open('$SELF_URL?qindex=$index&VOD=" . (($FORM{ID}) ? $FORM{ID} : 0) . "', null,
             'toolbar=0,location=0,directories=0,status=1,menubar=0,'+
             'scrollbars=1,resizable=1,'+
@@ -53,13 +53,13 @@ require "Abills/modules/Filearch/Filesearcher.pm";
 Filesearcher->import();
 
 my %langs = (
-  'Ðóññêèé äóáëèðîâàííûé'                      => 0,
-  'Ðóññêèé ïðîôåññèîíàëüíûé ïåðåâîä' => 1,
-  'Ðóññêèé ëþáèòåëüñêèé ïåðåâîä'         => 2,
-  'Ðóññêèé'                                                 => 3
+  'ÃÃ³Ã±Ã±ÃªÃ¨Ã© Ã¤Ã³Ã¡Ã«Ã¨Ã°Ã®Ã¢Ã Ã­Ã­Ã»Ã©'                      => 0,
+  'ÃÃ³Ã±Ã±ÃªÃ¨Ã© Ã¯Ã°Ã®Ã´Ã¥Ã±Ã±Ã¨Ã®Ã­Ã Ã«Ã¼Ã­Ã»Ã© Ã¯Ã¥Ã°Ã¥Ã¢Ã®Ã¤' => 1,
+  'ÃÃ³Ã±Ã±ÃªÃ¨Ã© Ã«Ã¾Ã¡Ã¨Ã²Ã¥Ã«Ã¼Ã±ÃªÃ¨Ã© Ã¯Ã¥Ã°Ã¥Ã¢Ã®Ã¤'         => 2,
+  'ÃÃ³Ã±Ã±ÃªÃ¨Ã©'                                                 => 3
 );
 
-my @VIDEO_STATE = ("$_NEW", "$_WATCHED", "$_FAVORIT");
+my @VIDEO_STATE = ("$lang{NEW}", "$lang{WATCHED}", "$lang{FAVORIT}");
 
 #terminator
 #http://www.kinopoisk.ru/index.php?level=7&m_act%5Bwhat%5D=item&from=forma&m_act%5Bfind%5D=Achtung%2Cfertig+Charliei&m_act%5Bid%5D=0
@@ -70,19 +70,19 @@ my @VIDEO_STATE = ("$_NEW", "$_WATCHED", "$_FAVORIT");
 #*******************************************************************
 sub filearch_main {
   $Filearch->{ACTION}     = 'add';
-  $Filearch->{LNG_ACTION} = $_ADD;
+  $Filearch->{LNG_ACTION} = $lang{ADD};
 
   if ($FORM{add}) {
     $Filearch->file_add({%FORM});
     if (!$Filearch->{errno}) {
-      $html->message('info', $_INFO, "$_ADDED ");
+      $html->message('info', $lang{INFO}, "$lang{ADDED} ");
       return 0;
     }
   }
   elsif ($FORM{change}) {
     $Filearch->file_change({%FORM});
     if (!$Filearch->{errno}) {
-      $html->message('info', $_INFO, "$_CHANGED ");
+      $html->message('info', $lang{INFO}, "$lang{CHANGED} ");
       return 0;
     }
   }
@@ -90,12 +90,12 @@ sub filearch_main {
     $Filearch->file_info({ ID => $FORM{ID} });
 
     if (!$Filearch->{errno}) {
-      $html->message('info', $_INFO, "$_CHANGING ");
+      $html->message('info', $lang{INFO}, "$lang{CHANGING} ");
       return 0;
     }
 
     $Filearch->{ACTION}     = 'change';
-    $Filearch->{LNG_ACTION} = $_CHANGE;
+    $Filearch->{LNG_ACTION} = $lang{CHANGE};
 
     $html->tpl_show(_include('filearch_file', 'Filearch'), {%$Filearch});
 
@@ -105,21 +105,21 @@ sub filearch_main {
     $Filearch->file_info($FORM{del});
 
     if (unlink $conf{FILEARCH_PATH} . "/$Filearch->{PATH}/$Filearch->{FILENAME}") {
-      $html->message('info', $_INFO, "$_DELETED '" . $conf{FILEARCH_PATH} . "/$Filearch->{PATH}/$Filearch->{FILENAME}" . "'");
+      $html->message('info', $lang{INFO}, "$lang{DELETED} '" . $conf{FILEARCH_PATH} . "/$Filearch->{PATH}/$Filearch->{FILENAME}" . "'");
     }
     else {
-      $html->message('err', $_ERROR, "$_DELETED '" . $conf{FILEARCH_PATH} . "/$Filearch->{PATH}/$Filearch->{FILENAME}" . "' $!");
+      $html->message('err', $lang{ERROR}, "$lang{DELETED} '" . $conf{FILEARCH_PATH} . "/$Filearch->{PATH}/$Filearch->{FILENAME}" . "' $!");
     }
 
     $Filearch->file_del($FORM{del});
 
     if (!$Filearch->{errno}) {
-      $html->message('info', $_INFO, "$_DELETED ID: $FORM{del} '$Filearch->{FILENAME}'");
+      $html->message('info', $lang{INFO}, "$lang{DELETED} ID: $FORM{del} '$Filearch->{FILENAME}'");
     }
   }
 
   if ($Filearch->{errno}) {
-    $html->message('err', $_ERROR, "[$Filearch->{errno}] $err_strs{$Filearch->{errno}}");
+    $html->message('err', $lang{ERROR}, "[$Filearch->{errno}] $err_strs{$Filearch->{errno}}");
     return 0;
   }
 
@@ -134,9 +134,9 @@ sub filearch_main {
   $table = $html->table(
     {
       width   => '100%',
-      caption => "$_ARCHIVE",
+      caption => "$lang{ARCHIVE}",
       border  => 1,
-      title   => [ '-', "$_FILE", "$_FOLDER", "$_NAME", "$_SIZE", "$_DATE", "CHECKSUM", "-", "-", "-" ],
+      title   => [ '-', "$lang{FILE}", "$lang{FOLDER}", "$lang{NAME}", "$lang{SIZE}", "$lang{DATE}", "CHECKSUM", "-", "-", "-" ],
       cols_align => [ 'left', 'left', 'right', 'right', 'center' ],
       qs         => $pages_qs,
       pages      => $Filearch->{TOTAL}
@@ -154,8 +154,8 @@ sub filearch_main {
       $html->button($line->[1], "index=$index&ID=$line->[0]"),
       $line->[2], $line->[3], $line->[4], $line->[5], $line->[6],
       $html->button("VIDEO", "index=" . ($index + 1) . "&ID=$line->[0]"),
-      $html->button("$_SHOW", "index=$index&chg=$line->[0]"),
-      $html->button($_DEL, "index=$index$pages_qs&del=$line->[0]", { MESSAGE => "$_DEL [$line->[0]] ?" })
+      $html->button("$lang{SHOW}", "index=$index&chg=$line->[0]"),
+      $html->button($lang{DEL}, "index=$index$pages_qs&del=$line->[0]", { MESSAGE => "$lang{DEL} [$line->[0]] ?" })
     );
   }
 
@@ -164,7 +164,7 @@ sub filearch_main {
     {
       width      => '100%',
       cols_align => [ 'left', 'right' ],
-      rows       => [ [ "$_TOTAL:", "$Filearch->{TOTAL}" ] ]
+      rows       => [ [ "$lang{TOTAL}:", "$Filearch->{TOTAL}" ] ]
     }
   );
 
@@ -181,7 +181,7 @@ sub filearch_video_chapters {
   if ($FORM{add}) {
     $Filearch->video_add({%FORM});
     if (!$Filearch->{errno}) {
-      $html->message('info', $_INFO, "$_ADDED ");
+      $html->message('info', $lang{INFO}, "$lang{ADDED} ");
       return 0;
     }
   }
@@ -189,49 +189,49 @@ sub filearch_video_chapters {
     $Filearch->video_change({%FORM});
 
     #if (! $Filearch->{errno}) {
-    #  $html->message('info', $_INFO, "$_CHANGED ");
+    #  $html->message('info', $lang{INFO}, "$lang{CHANGED} ");
     # }
   }
   elsif ($FORM{ID}) {
     $Filearch->video_info($FORM{ID});
 
     if (!$Filearch->{errno}) {
-      $html->message('info', $_INFO, "$_CHANGING ");
+      $html->message('info', $lang{INFO}, "$lang{CHANGING} ");
     }
 
     $Filearch->{ACTION}     = 'change';
-    $Filearch->{LNG_ACTION} = $_CHANGE;
+    $Filearch->{LNG_ACTION} = $lang{CHANGE};
   }
   elsif ($FORM{del} && $FORM{is_js_confirmed}) {
     $Filearch->video_del($FORM{del});
 
     if (!$Filearch->{errno}) {
-      $html->message('info', $_INFO, "$_DELETED $FORM{del}");
+      $html->message('info', $lang{INFO}, "$lang{DELETED} $FORM{del}");
       return 0;
     }
   }
 
   if ($Filearch->{errno}) {
-    $html->message('err', $_ERROR, "[$Filearch->{errno}] $err_strs{$Filearch->{errno}}");
+    $html->message('err', $lang{ERROR}, "[$Filearch->{errno}] $err_strs{$Filearch->{errno}}");
     return 0;
   }
 
 =comments
 
 
- 
- 
-Biography 
-Film-Noir 
-Game-Show 
-News 
-Reality-TV 
-Sci-Fi 
-Short 
-Sport 
-Talk-Show 
-War 
-Western 
+
+
+Biography
+Film-Noir
+Game-Show
+News
+Reality-TV
+Sci-Fi
+Short
+Sport
+Talk-Show
+War
+Western
 
 
 =cut
@@ -244,7 +244,7 @@ Western
 #*******************************************************************
 sub filearch_video {
   $Filearch->{ACTION}     = 'add';
-  $Filearch->{LNG_ACTION} = $_ADD;
+  $Filearch->{LNG_ACTION} = $lang{ADD};
 
   my $genres_list = $Filearch->genres_list();
 
@@ -259,7 +259,7 @@ sub filearch_video {
   if ($FORM{add}) {
     $Filearch->video_add({%FORM});
     if (!$Filearch->{errno}) {
-      $html->message('info', $_INFO, "$_ADDED ");
+      $html->message('info', $lang{INFO}, "$lang{ADDED} ");
       return 0;
     }
   }
@@ -273,7 +273,7 @@ sub filearch_video {
     $name =~ s/(\.cd(\d+))//;
     $name =~ s/\./ /g;
 
-    print "( " . $html->button($_NEXT_FILE, "&index=$index&extdb_type=$FORM{extdb_type}&NEXT_FILE=" . int($FORM{ID})) . " )";
+    print "( " . $html->button($lang{NEXT_FILE}, "&index=$index&extdb_type=$FORM{extdb_type}&NEXT_FILE=" . int($FORM{ID})) . " )";
     print $html->form_main(
       {
         CONTENT => $html->form_input('external_db', "$name", { SIZE => 40 })
@@ -290,18 +290,18 @@ sub filearch_video {
           index => $index,
           ID    => $FORM{ID}
         },
-        SUBMIT => { show => $_SEARCH }
+        SUBMIT => { show => $lang{SEARCH} }
       }
     );
 
     ##
-    my $res = web_request($SEARCH_EXPRESSiONS{$type}{SEARCH_LINK} . $name);
+    my $res = web_request2($SEARCH_EXPRESSiONS{$type}{SEARCH_LINK} . $name);
 
     $table = $html->table(
       {
         width       => '600',
-        caption     => "$_RESULT",
-        title_plain => [ '-', $_NAME, "$_YEAR", "$_GENRE" ],
+        caption     => "$lang{RESULT}",
+        title_plain => [ '-', $lang{NAME}, "$lang{YEAR}", "$lang{GENRE}" ],
       }
     );
 
@@ -375,7 +375,7 @@ sub filearch_video {
           ID         => $FORM{ID},
           extdb_type => $type
         },
-        SUBMIT => { show => $_SHOW }
+        SUBMIT => { show => $lang{SHOW} }
       }
     );
 
@@ -392,7 +392,7 @@ sub filearch_video {
       }
       else {
         if ($FORM{ACCESS}) {
-          $html->message('err', $_ERROR, "$ERR_WRONG_PASSWD");
+          $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_PASSWD}");
         }
 
         $html->tpl_show(_include('iptv_pin_access', 'Iptv'), {});
@@ -421,14 +421,14 @@ sub filearch_video {
 
       }
       elsif (!-f "$conf{FILEARCH_PATH}/$FORM{FILENAME}") {
-        $html->message('err', $_ERROR, "Can't find origin file '$conf{FILEARCH_PATH}/$FORM{FILENAME}' ");
+        $html->message('err', $lang{ERROR}, "Can't find origin file '$conf{FILEARCH_PATH}/$FORM{FILENAME}' ");
       }
       elsif (!rename "$conf{FILEARCH_PATH}/$FORM{FILENAME}", "$conf{FILEARCH_PATH}/$ORIGIN_NAME") {
-        $html->message('err', $_ERROR, "Can't Rename '$conf{FILEARCH_PATH}/$FORM{FILENAME}' -> '$conf{FILEARCH_PATH}/$ORIGIN_NAME' $!");
+        $html->message('err', $lang{ERROR}, "Can't Rename '$conf{FILEARCH_PATH}/$FORM{FILENAME}' -> '$conf{FILEARCH_PATH}/$ORIGIN_NAME' $!");
         goto FILE_INFO;
       }
       else {
-        $html->message('info', $_CHANGED, "'$conf{FILEARCH_PATH}/$FORM{FILENAME}' -> '$conf{FILEARCH_PATH}/$ORIGIN_NAME' $!");
+        $html->message('info', $lang{CHANGED}, "'$conf{FILEARCH_PATH}/$FORM{FILENAME}' -> '$conf{FILEARCH_PATH}/$ORIGIN_NAME' $!");
         $FORM{RENAME_FILE} = $ORIGIN_NAME;
       }
     }
@@ -443,7 +443,7 @@ sub filearch_video {
 
     $Filearch->video_change({ %FORM, UPDATED => "$DATE $TIME" });
     if (!$Filearch->{errno}) {
-      $html->message('info', $_INFO, "$_CHANGED ");
+      $html->message('info', $lang{INFO}, "$lang{CHANGED} ");
       $FORM{NEXT_FILE} = $FORM{ID};
       goto NEXT_FILE;
     }
@@ -459,11 +459,11 @@ sub filearch_video {
     $Filearch->{DOWNLOAD} = $conf{DOWNLOADS};
 
     if (!$Filearch->{errno}) {
-      $html->message('info', $_INFO, "$_CHANGING ");
+      $html->message('info', $lang{INFO}, "$lang{CHANGING} ");
     }
 
     $Filearch->{ACTION}     = 'change';
-    $Filearch->{LNG_ACTION} = $_CHANGE;
+    $Filearch->{LNG_ACTION} = $lang{CHANGE};
 
     my $INFO;
     if ($FORM{EXT_CHECK}) {
@@ -474,18 +474,18 @@ sub filearch_video {
         }
       }
       else {
-        my $res = web_request("$FORM{EXT_CHECK}", { 'TimeOut' => 60 });
+        my $res = web_request2("$FORM{EXT_CHECK}", { 'TimeOut' => 60 });
         $INFO = parse_info($res, { EXPRESSIONS => $SEARCH_EXPRESSiONS{ $FORM{extdb_type} }{GET_INFO} });
       }
     }
 
     if ($FORM{EXT_CHECK}) {
-      $Filearch->{EXT_CHECK} = $html->form_input('EXT_CHECK', "$FORM{EXT_CHECK}", { EX_PARAMS => ' SIZE="70"' }) . $html->form_input('GET', "$_GET", { TYPE => 'SUBMIT' });
+      $Filearch->{EXT_CHECK} = $html->form_input('EXT_CHECK', "$FORM{EXT_CHECK}", { EX_PARAMS => ' SIZE="70"' }) . $html->form_input('GET', "$lang{GET}", { TYPE => 'SUBMIT' });
 
     }
     elsif ($Filearch->{CHECKSUM} =~ /ed2k/) {
       my ($type, $key) = split(/\|/, $Filearch->{CHECKSUM}, 2);
-      $Filearch->{EXT_CHECK} = 'http://www.sharereactor.ru' . $html->form_input('EXT_CHECK', "http://www.sharereactor.ru/cgi-bin/mzsearch.cgi?search=$key", { EX_PARAMS => ' SIZE="70"' }) . $html->form_input('GET', "$_GET", { TYPE => 'SUBMIT' });
+      $Filearch->{EXT_CHECK} = 'http://www.sharereactor.ru' . $html->form_input('EXT_CHECK', "http://www.sharereactor.ru/cgi-bin/mzsearch.cgi?search=$key", { EX_PARAMS => ' SIZE="70"' }) . $html->form_input('GET', "$lang{GET}", { TYPE => 'SUBMIT' });
     }
 
     $Filearch->{SIZE} = int2byte($Filearch->{SIZE});
@@ -511,7 +511,7 @@ sub filearch_video {
       'COUNTRY_ID',
       {
         SELECTED          => $INFO->{COUNTRY_ID},
-        SEL_MULTI_ARRAY   => [ [ 0, $_OTHER ], @{ $Filearch->file_country_list() } ],
+        SEL_MULTI_ARRAY   => [ [ 0, $lang{OTHER} ], @{ $Filearch->file_country_list() } ],
         MULTI_ARRAY_KEY   => 0,
         MULTI_ARRAY_VALUE => 1,
       }
@@ -524,13 +524,13 @@ sub filearch_video {
     $Filearch->video_del($FORM{del});
 
     if (!$Filearch->{errno}) {
-      $html->message('info', $_INFO, "$_DELETED $FORM{del}");
+      $html->message('info', $lang{INFO}, "$lang{DELETED} $FORM{del}");
       return 0;
     }
   }
 
   if ($Filearch->{errno}) {
-    $html->message('err', $_ERROR, "[$Filearch->{errno}] $err_strs{$Filearch->{errno}}");
+    $html->message('err', $lang{ERROR}, "[$Filearch->{errno}] $err_strs{$Filearch->{errno}}");
     return 0;
   }
 
@@ -550,7 +550,7 @@ sub filearch_video {
     $html->tpl_show(_include('filearch_video_search', 'Filearch'), { %$Filearch, %$INFO });
   }
 
-  print $html->letters_list({ EXPR => 'À-ß' });
+  print $html->letters_list({ EXPR => 'Ã€-ÃŸ' });
   if ($FORM{letter}) {
     $LIST_PARAMS{NAME} = "$FORM{letter}*";
     $pages_qs .= "&letter=$FORM{letter}";
@@ -565,7 +565,7 @@ sub filearch_video {
       width   => '100%',
       caption => "Video",
       border  => 1,
-      title   => [ '-', "$_NAME", "$_YEAR", "$_GENRE", "$_QUALITY", "$_FORMAT", "$_SIZE", "$_ADDED", "-", "-", "-" ],
+      title   => [ '-', "$lang{NAME}", "$lang{YEAR}", "$lang{GENRE}", "$lang{QUALITY}", "$lang{FORMAT}", "$lang{SIZE}", "$lang{ADDED}", "-", "-", "-" ],
       cols_align => [ 'center', 'left', 'right', 'left', 'left', 'right', 'right', 'center:noprint', 'center:noprint' ],
       qs         => $pages_qs,
       pages      => $Filearch->{TOTAL}
@@ -578,15 +578,15 @@ sub filearch_video {
       ($type, $search_string) = split(/\|/, $line->[6], 2);
     }
 
-    my $parent = ($line->[16] > 0) ? ' (' . $html->button($_PARENT, "index=$index&ID=$line->[16]") . ')' : '';
+    my $parent = ($line->[16] > 0) ? ' (' . $html->button($lang{PARENT}, "index=$index&ID=$line->[16]") . ')' : '';
     $table->addrow(
       $html->form_input("IDS", $line->[0], { TYPE => 'checkbox' }),
       $html->button($line->[1], "index=$index&ID=$line->[0]") . $parent,
       $line->[2], $line->[3], $line->[4], $line->[5], int2byte($line->[6]),
       $line->[7],
       $html->button('Internet DB', "index=$index$pages_qs&external_db=$line->[9]&ID=$line->[0]"),
-      $html->button("$_SHOW",      "index=$index&ID=$line->[0]"),
-      $html->button($_DEL, "index=$index$pages_qs&del=$line->[0]", { MESSAGE => "$_DEL [$line->[0]] ?" }),
+      $html->button("$lang{SHOW}",      "index=$index&ID=$line->[0]"),
+      $html->button($lang{DEL}, "index=$index$pages_qs&del=$line->[0]", { MESSAGE => "$lang{DEL} [$line->[0]] ?" }),
     );
   }
 
@@ -597,7 +597,7 @@ sub filearch_video {
     {
       width      => '100%',
       cols_align => [ 'left', 'right' ],
-      rows       => [ [ "$_TOTAL:", "$Filearch->{TOTAL}" ] ]
+      rows       => [ [ "$lang{TOTAL}:", "$Filearch->{TOTAL}" ] ]
     }
   );
 
@@ -660,7 +660,7 @@ sub filearch_user_video {
       }
       else {
         if ($FORM{ACCESS}) {
-          $html->message('err', $_ERROR, "$ERR_WRONG_PASSWD");
+          $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_PASSWD}");
         }
 
         $html->tpl_show(_include('iptv_pin_access', 'Iptv'), {});
@@ -677,14 +677,14 @@ sub filearch_user_video {
   elsif ($FORM{IDS}) {
     $Filearch->video_check({ UID => $user->{UID}, %FORM });
     if (!$Filearch->{errno}) {
-      $html->message('info', $_INFO, "$_CHANGING ");
+      $html->message('info', $lang{INFO}, "$lang{CHANGING} ");
     }
 
     $Filearch->{SIZE} = int2byte($Filearch->{SIZE});
   }
 
   if ($Filearch->{errno}) {
-    $html->message('err', $_ERROR, "[$Filearch->{errno}] $err_strs{$Filearch->{errno}}");
+    $html->message('err', $lang{ERROR}, "[$Filearch->{errno}] $err_strs{$Filearch->{errno}}");
     return 0;
   }
 
@@ -724,7 +724,7 @@ sub filearch_user_video {
     }
   }
 
-  print $html->letters_list({ EXPR => 'À-ß' });
+  print $html->letters_list({ EXPR => 'Ã€-ÃŸ' });
   if ($FORM{letter}) {
     $LIST_PARAMS{NAME} = "$FORM{letter}*";
     $pages_qs .= "&letter=$FORM{letter}";
@@ -737,7 +737,7 @@ sub filearch_user_video {
       width   => '100%',
       caption => "Video",
       border  => 1,
-      title   => [ '-', "$_NAME", "$_YEAR", "$_GENRE", "$_QUALITY", "$_FORMAT", "$_SIZE", "$_ADDED", "$_STATE", "-" ],
+      title   => [ '-', "$lang{NAME}", "$lang{YEAR}", "$lang{GENRE}", "$lang{QUALITY}", "$lang{FORMAT}", "$lang{SIZE}", "$lang{ADDED}", "$lang{STATE}", "-" ],
       cols_align => [ 'center', 'left', 'right', 'left', 'left', 'right', 'right', 'center:noprint' ],
       qs         => $pages_qs,
       pages      => $Filearch->{TOTAL}
@@ -762,14 +762,14 @@ sub filearch_user_video {
       $line->[2], $line->[3], $line->[4], $line->[5], int2byte($line->[6]),
       $line->[7],
       $VIDEO_STATE[ $line->[8] ],
-      $html->button("$_SHOW", "index=$index&ID=$line->[0]$pages_qs"),
+      $html->button("$lang{SHOW}", "index=$index&ID=$line->[0]$pages_qs"),
     );
   }
 
   my $table_navigat = $html->table(
     {
       width       => '100%',
-      title_plain => [ $Filearch->{STATE_SEL} . $html->form_input('SET', $_CHANGE, { TYPE => 'SUBMIT', OUTPUT2RETURN => 1 }) ]
+      title_plain => [ $Filearch->{STATE_SEL} . $html->form_input('SET', $lang{CHANGE}, { TYPE => 'SUBMIT', OUTPUT2RETURN => 1 }) ]
     }
   );
 
@@ -784,7 +784,7 @@ sub filearch_user_video {
     {
       width      => '100%',
       cols_align => [ 'left', 'right' ],
-      rows       => [ [ "$_TOTAL:", "$Filearch->{TOTAL}" ] ]
+      rows       => [ [ "$lang{TOTAL}:", "$Filearch->{TOTAL}" ] ]
     }
   );
 
@@ -798,37 +798,37 @@ sub filearch_user_video {
 #*******************************************************************
 sub filearch_video_actors {
   $Filearch->{ACTION}     = 'add';
-  $Filearch->{LNG_ACTION} = $_ADD;
+  $Filearch->{LNG_ACTION} = $lang{ADD};
 
   if ($FORM{add}) {
     $Filearch->actors_add({%FORM});
     if (!$Filearch->{errno}) {
-      $html->message('info', $_INFO, "$_ADDED");
+      $html->message('info', $lang{INFO}, "$lang{ADDED}");
     }
   }
   elsif ($FORM{change}) {
     $Filearch->actors_change({%FORM});
     if (!$Filearch->{errno}) {
-      $html->message('info', $_INFO, "$_CHANGING ");
+      $html->message('info', $lang{INFO}, "$lang{CHANGING} ");
     }
   }
   elsif ($FORM{ID}) {
     $Filearch->actors_info($FORM{ID});
     if (!$Filearch->{errno}) {
-      $html->message('info', $_INFO, "$_CHANGING ");
+      $html->message('info', $lang{INFO}, "$lang{CHANGING} ");
     }
     $Filearch->{ACTION}     = 'change';
-    $Filearch->{LNG_ACTION} = $_CHANGE;
+    $Filearch->{LNG_ACTION} = $lang{CHANGE};
   }
   elsif ($FORM{del} && $FORM{is_js_confirmed}) {
     $Filearch->actors_del($FORM{del});
     if (!$Filearch->{errno}) {
-      $html->message('info', $_INFO, "$_CHANGING ");
+      $html->message('info', $lang{INFO}, "$lang{CHANGING} ");
     }
   }
 
   if ($Filearch->{errno}) {
-    $html->message('err', $_ERROR, "[$Filearch->{errno}] $err_strs{$Filearch->{errno}}");
+    $html->message('err', $lang{ERROR}, "[$Filearch->{errno}] $err_strs{$Filearch->{errno}}");
     return 0;
   }
 
@@ -847,7 +847,7 @@ sub filearch_video_actors {
       width      => '100%',
       caption    => "Video",
       border     => 1,
-      title      => [ '-', "$_NAME", "$_ORIGIN_NAME", "$_FILMS", "-", "-" ],
+      title      => [ '-', "$lang{NAME}", "$lang{ORIGIN_NAME}", "$lang{FILMS}", "-", "-" ],
       cols_align => [ 'center', 'left', 'left', 'right', 'center:noprint', 'center:noprint' ],
       qs         => $pages_qs,
       pages      => $Filearch->{TOTAL}
@@ -855,7 +855,7 @@ sub filearch_video_actors {
   );
 
   foreach $line (@$list) {
-    $table->addrow($line->[0], $line->[1], $line->[2], $html->button("$line->[3]", "index=" . ($index - 1) . "&search=y&ACTOR_ID=$line->[0]"), $html->button("$_SHOW", "index=$index&ID=$line->[0]"), $html->button($_DEL, "index=$index$pages_qs&del=$line->[0]", { MESSAGE => "$_DEL [$line->[0]] ?" }));
+    $table->addrow($line->[0], $line->[1], $line->[2], $html->button("$line->[3]", "index=" . ($index - 1) . "&search=y&ACTOR_ID=$line->[0]"), $html->button("$lang{SHOW}", "index=$index&ID=$line->[0]"), $html->button($lang{DEL}, "index=$index$pages_qs&del=$line->[0]", { MESSAGE => "$lang{DEL} [$line->[0]] ?" }));
   }
 
   print $table->show();
@@ -863,7 +863,7 @@ sub filearch_video_actors {
     {
       width      => '100%',
       cols_align => [ 'left', 'right' ],
-      rows       => [ [ "$_TOTAL:", "$Filearch->{TOTAL}" ] ]
+      rows       => [ [ "$lang{TOTAL}:", "$Filearch->{TOTAL}" ] ]
     }
   );
 
@@ -877,37 +877,37 @@ sub filearch_video_actors {
 #*******************************************************************
 sub filearch_video_genres {
   $Filearch->{ACTION}     = 'add';
-  $Filearch->{LNG_ACTION} = $_ADD;
+  $Filearch->{LNG_ACTION} = $lang{ADD};
 
   if ($FORM{add}) {
     $Filearch->genres_add({%FORM});
     if (!$Filearch->{errno}) {
-      $html->message('info', $_INFO, "$_ADDED");
+      $html->message('info', $lang{INFO}, "$lang{ADDED}");
     }
   }
   elsif ($FORM{change}) {
     $Filearch->genres_change({%FORM});
     if (!$Filearch->{errno}) {
-      $html->message('info', $_INFO, "$_CHANGING ");
+      $html->message('info', $lang{INFO}, "$lang{CHANGING} ");
     }
   }
   elsif ($FORM{ID}) {
     $Filearch->genres_info($FORM{ID});
     if (!$Filearch->{errno}) {
-      $html->message('info', $_INFO, "$_CHANGING ");
+      $html->message('info', $lang{INFO}, "$lang{CHANGING} ");
     }
     $Filearch->{ACTION}     = 'change';
-    $Filearch->{LNG_ACTION} = $_CHANGE;
+    $Filearch->{LNG_ACTION} = $lang{CHANGE};
   }
   elsif ($FORM{del} && $FORM{is_js_confirmed}) {
     $Filearch->genres_del($FORM{del});
     if (!$Filearch->{errno}) {
-      $html->message('info', $_INFO, "$_CHANGING ");
+      $html->message('info', $lang{INFO}, "$lang{CHANGING} ");
     }
   }
 
   if ($Filearch->{errno}) {
-    $html->message('err', $_ERROR, "[$Filearch->{errno}] $err_strs{$Filearch->{errno}}");
+    $html->message('err', $lang{ERROR}, "[$Filearch->{errno}] $err_strs{$Filearch->{errno}}");
     return 0;
   }
 
@@ -917,16 +917,16 @@ sub filearch_video_genres {
   $table = $html->table(
     {
       width      => '100%',
-      caption    => "$_GENRES",
+      caption    => "$lang{GENRES}",
       border     => 1,
-      title      => [ "$_NAME", "$_COUNT", "ShareReaktor", "ImDB", "-", "-" ],
+      title      => [ "$lang{NAME}", "$lang{COUNT}", "ShareReaktor", "ImDB", "-", "-" ],
       cols_align => [ 'left', 'right', 'left', 'left', 'center:noprint', 'center:noprint' ],
       qs         => $pages_qs,
     }
   );
 
   foreach my $line (@$list) {
-    $table->addrow($line->[0], $line->[1], $line->[2], $line->[3], $html->button("$_SHOW", "index=$index&ID=$line->[4]"), $html->button($_DEL, "index=$index$pages_qs&del=$line->[4]", { MESSAGE => "$_DEL [$line->[0]] ?" }));
+    $table->addrow($line->[0], $line->[1], $line->[2], $line->[3], $html->button("$lang{SHOW}", "index=$index&ID=$line->[4]"), $html->button($lang{DEL}, "index=$index$pages_qs&del=$line->[4]", { MESSAGE => "$lang{DEL} [$line->[0]] ?" }));
   }
 
   print $table->show();
@@ -934,7 +934,7 @@ sub filearch_video_genres {
     {
       width      => '100%',
       cols_align => [ 'left', 'right' ],
-      rows       => [ [ "$_TOTAL:", "$Filearch->{TOTAL}" ] ]
+      rows       => [ [ "$lang{TOTAL}:", "$Filearch->{TOTAL}" ] ]
     }
   );
 
@@ -959,37 +959,37 @@ sub filearch_ext_check {
 sub filearch_chapters {
 
   $Filearch->{ACTION}     = 'add';
-  $Filearch->{LNG_ACTION} = $_ADD;
+  $Filearch->{LNG_ACTION} = $lang{ADD};
 
   if ($FORM{add}) {
     $Filearch->chapter_add({%FORM});
     if (!$Filearch->{errno}) {
-      $html->message('info', $_INFO, "$_ADDED");
+      $html->message('info', $lang{INFO}, "$lang{ADDED}");
     }
   }
   elsif ($FORM{change}) {
     $Filearch->chapter_change({%FORM});
     if (!$Filearch->{errno}) {
-      $html->message('info', $_INFO, "$_CHANGING ");
+      $html->message('info', $lang{INFO}, "$lang{CHANGING} ");
     }
   }
   elsif ($FORM{ID}) {
     $Filearch->chapter_info($FORM{ID});
     if (!$Filearch->{errno}) {
-      $html->message('info', $_INFO, "$_CHANGING ");
+      $html->message('info', $lang{INFO}, "$lang{CHANGING} ");
     }
     $Filearch->{ACTION}     = 'change';
-    $Filearch->{LNG_ACTION} = $_CHANGE;
+    $Filearch->{LNG_ACTION} = $lang{CHANGE};
   }
   elsif ($FORM{del} && $FORM{is_js_confirmed}) {
     $Filearch->chapter_del($FORM{del});
     if (!$Filearch->{errno}) {
-      $html->message('info', $_INFO, "$_CHANGING ");
+      $html->message('info', $lang{INFO}, "$lang{CHANGING} ");
     }
   }
 
   if ($Filearch->{errno}) {
-    $html->message('err', $_ERROR, "[$Filearch->{errno}] $err_strs{$Filearch->{errno}}");
+    $html->message('err', $lang{ERROR}, "[$Filearch->{errno}] $err_strs{$Filearch->{errno}}");
     return 0;
   }
 
@@ -1008,16 +1008,16 @@ sub filearch_chapters {
   $table = $html->table(
     {
       width   => '100%',
-      caption => "$_CHAPTERS",
+      caption => "$lang{CHAPTERS}",
       border  => 1,
-      title   => [ "ID", "$_NAME", "$_TYPE", "$_FOLDER", '-', '-' ],
+      title   => [ "ID", "$lang{NAME}", "$lang{TYPE}", "$lang{FOLDER}", '-', '-' ],
       cols_align => [ 'right', 'left', 'left', 'center:noprint', 'center:noprint' ],
       qs         => $pages_qs,
     }
   );
 
   foreach my $line (@$list) {
-    $table->addrow($line->[0], $line->[1], $line->[2], $line->[3], $html->button("$_SHOW", "index=$index&ID=$line->[0]"), $html->button($_DEL, "index=$index$pages_qs&del=$line->[0]", { MESSAGE => "$_DEL [$line->[0]] ?" }));
+    $table->addrow($line->[0], $line->[1], $line->[2], $line->[3], $html->button("$lang{SHOW}", "index=$index&ID=$line->[0]"), $html->button($lang{DEL}, "index=$index$pages_qs&del=$line->[0]", { MESSAGE => "$lang{DEL} [$line->[0]] ?" }));
   }
 
   print $table->show();
@@ -1025,7 +1025,7 @@ sub filearch_chapters {
     {
       width      => '100%',
       cols_align => [ 'left', 'right' ],
-      rows       => [ [ "$_TOTAL:", "$Filearch->{TOTAL}" ] ]
+      rows       => [ [ "$lang{TOTAL}:", "$Filearch->{TOTAL}" ] ]
     }
   );
 

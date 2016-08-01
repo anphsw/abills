@@ -1,32 +1,40 @@
 package Log;
 
-#Make logs
+=head1 NAME
+  Make logs DB or File mode
+
+  Error levels
+
+    LOG_EMERG   => 0
+    LOG_ALERT   => 1
+    LOG_CRIT    => 2
+    LOG_ERR     => 3
+    LOG_WARNING => 4
+    LOG_NOTICE  => 5
+    LOG_INFO    => 6
+    LOG_DEBUG   => 7
+    LOG_SQL     => 8
+
+=cut
 
 use strict;
-use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
+use base qw(Exporter main);
+our @EXPORT_OK = qw(log_add log_print);
 
-%log_levels
-);
-
-@EXPORT_OK = qw(log_add log_print);
-@EXPORT    = qw(%log_levels);
-
-my ($CONF, $attr);
-use main;
-@ISA = ("main");
-
+#our @ISA = ("main");
 
 # Log levels. For details see <syslog.h>
-%log_levels = (
-  'LOG_EMERG'   => 0,
-  'LOG_ALERT'   => 1,
-  'LOG_CRIT'    => 2,
-  'LOG_ERR'     => 3,
-  'LOG_WARNING' => 4,
-  'LOG_NOTICE'  => 5,
-  'LOG_INFO'    => 6,
-  'LOG_DEBUG'   => 7,
-  'LOG_SQL'     => 8,
+our %log_levels = (
+  'LOG_EMERG'   => 0, # system is unusable
+  'LOG_ALERT'   => 1, # action must be taken immediately
+  'LOG_CRIT'    => 2, # critical conditions
+  'LOG_ERR'     => 3, # error conditions
+  'LOG_WARNING' => 4, # warning conditions
+  'LOG_NOTICE'  => 5, # normal but significant condition
+  'LOG_INFO'    => 6, # informational
+  'LOG_DEBUG'   => 7, # debug-level messages
+  'LOG_SQL'     => 8, # SQL debuginf
+  'LOG_UNKNOWN' => 10 # For unknow log message
 );
 
 #**********************************************************
@@ -34,39 +42,45 @@ use main;
 #**********************************************************
 sub new {
   my $class = shift;
-  my $db    = shift;
-  ($CONF, $attr) = @_;
+  my ($db, $CONF, $attr) = @_;
 
   my $self = {};
   bless($self, $class);
-  
+
   if ($attr->{DEBUG_LEVEL}) {
     my %rev_log_level = reverse %log_levels;
     for(my $i=0; $i<=$attr->{DEBUG_LEVEL}; $i++) {
       $self->{debugmods} .= "$rev_log_level{$i} ";
     }
   }
-  
+
   $self->{db}=$db;
+  $self->{conf}=$CONF;
+
+  #if ($CONF->{LOGFILE}) {
+  #  $self->{LOG_FILE} = $CONF->{LOGFILE};
+  #}
 
   return $self;
 }
 
 #**********************************************************
-# Log list
+=head2 log_list($attr) - Log list
+
+=cut
 #**********************************************************
 sub log_list {
   my $self = shift;
   my ($attr) = @_;
 
   my @WHERE_RULES = ();
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  if ($attr->{NAS_ID}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{NAS_ID}, 'INT', 'l.nas_id') };
+  if (defined($attr->{LOGIN})) {
+    push @WHERE_RULES, "l.user = '$attr->{LOGIN}'";
   }
 
   my $WHERE =  $self->search_former($attr, [
@@ -80,8 +94,8 @@ sub log_list {
       ['FROM_DATE|TO_DATE', 'DATE', "date_format(l.date, '%Y-%m-%d')",   ],
     ],
     { WHERE       => 1,
-    }    
-    );
+    }
+  );
 
   $self->query2("SELECT l.date, l.log_type, l.action, l.user, l.message, l.nas_id
   FROM errors_log l
@@ -107,8 +121,30 @@ sub log_list {
 }
 
 #**********************************************************
-# Make log records
-# log_print($self)
+=head2 log_print($LOG_TYPE, $USER_NAME, $MESSAGE, $attr) - Make log records
+
+  Arguments:
+    $LOG_TYPE   -
+    $USER_NAME  -
+    $MESSAGE    -
+    $attr       -
+      LOG_FILE  - Log file
+      ACTION    - 
+      NAS       - NAS object
+      PRINT     - Print message 
+      LOG_LEVEL - Current log level for system
+
+  Results:
+    $self
+
+  Examples:
+  DB save
+    $Log->log_print('LOG_WARNING', $online->{user_name}, "Last Alive: $online->{last_alive}, Session-ID: $online->{acct_session_id}", { ACTION => 'CALCULATION', NAS => $Nas });
+
+  File save
+    $Log->log_print('LOG_ERR', '', "Some SQL error", { LOG_FILE => "/tmp/sql_errors" });
+
+=cut
 #**********************************************************
 sub log_print {
   my $self = shift;
@@ -116,35 +152,53 @@ sub log_print {
   my $Nas = $attr->{NAS} || undef;
 
   my $action = $attr->{'ACTION'} || $self->{ACTION} || '';
-  if ($self->{LOG_FILE}) {
-    $attr->{LOG_FILE}=$self->{LOG_FILE};
+
+  if ($attr->{LOG_FILE}) {
+    $self->{LOG_FILE} = $attr->{LOG_FILE};
   }
 
   if ($self->{debugmods}) {
-    $CONF->{debugmods}=$self->{debugmods}; 
+    $self->{conf}->{debugmods}=$self->{debugmods};
   }
 
-  if (!$CONF->{debugmods} || $CONF->{debugmods} =~ /$LOG_TYPE/) {
-    if ($CONF->{ERROR2DB} && !$attr->{LOG_FILE}) {
+  if (! defined($LOG_TYPE)) {
+    $LOG_TYPE = 'LOG_UNKNOWN';
+  }
+
+  my $make_log = 0;
+  if ($attr->{LOG_LEVEL}) {
+    if ($log_levels{$LOG_TYPE} <= $attr->{LOG_LEVEL}) {
+      $make_log = 1;
+    }
+  }
+  elsif(!$self->{conf}->{debugmods} || $self->{conf}->{debugmods} =~ /$LOG_TYPE/) {
+    $make_log = 1;
+  }
+
+  if ($make_log) {
+    if (!$self->{LOG_FILE}) {
       $self->log_add(
         {
           LOG_TYPE  => $log_levels{$LOG_TYPE},
           ACTION    => $action,
-          USER_NAME => $USER_NAME || '-',
-          MESSAGE   => "$MESSAGE",
-          NAS_ID    => $Nas->{NAS_ID}
+          USER_NAME => $USER_NAME,
+          MESSAGE   => $MESSAGE,
+          NAS_ID    => $Nas->{NAS_ID} || 0
         }
       );
     }
     else {
       use POSIX qw(strftime);
-      my $DATE = strftime "%Y-%m-%d", localtime(time);
-      my $TIME = strftime "%H:%M:%S", localtime(time);
-      my $nas = (defined($Nas->{NAS_ID})) ? "NAS: $Nas->{NAS_ID} ($Nas->{NAS_IP}) " : '';
-      my $logfile = ($attr->{LOG_FILE}) ? $attr->{LOG_FILE} : $CONF->{LOGFILE};
-      if (open(FILE, ">>$logfile")) {
-        print FILE "$DATE $TIME $LOG_TYPE: $action [$USER_NAME] $nas$MESSAGE\n";
-        close(FILE);
+      my $DATE = POSIX::strftime("%Y-%m-%d", localtime(time));
+      my $TIME = POSIX::strftime("%H:%M:%S", localtime(time));
+
+      my $nas  = (defined($Nas->{NAS_ID})) ? "NAS: $Nas->{NAS_ID} ($Nas->{NAS_IP}) " : '';
+      my $logfile = $self->{LOG_FILE};
+
+      if (open(my $fh, '>>', "$logfile")) {
+        my $user_name = ($USER_NAME) ? "[$USER_NAME]" : '';
+        print $fh "$DATE $TIME $LOG_TYPE: $action $user_name $nas$MESSAGE\n";
+        close($fh);
       }
       else {
         print "Can't open file '$logfile' $!\n";
@@ -153,53 +207,98 @@ sub log_print {
 
     if ($self->{PRINT} || $attr->{PRINT}) {
       use POSIX qw(strftime);
-      my $DATE = strftime "%Y-%m-%d", localtime(time);
-      my $TIME = strftime "%H:%M:%S", localtime(time);
+      my $DATE = POSIX::strftime("%Y-%m-%d", localtime(time));
+      my $TIME = POSIX::strftime("%H:%M:%S", localtime(time));
       my $nas = (defined($Nas->{NAS_ID})) ? "NAS: $Nas->{NAS_ID} ($Nas->{NAS_IP}) " : '';
       print "$DATE $TIME $LOG_TYPE: $action [$USER_NAME] $nas$MESSAGE\n";
     }
   }
+
+  return $self;
 }
 
 #**********************************************************
-# Add log records
-# log_add($self)
+=head2 log_add($attr) - Add log records to DB
+
+  Arguments:
+    $attr
+      LOG_TYPE
+      ACTION
+        AUTH
+        ACCT
+        HANGUP
+        LOST_ALIVE
+        CALCULATIO
+      USER_NAME
+      MESSAGE
+      NAS_ID
+
+  Returns:
+    TRUE or FALSE
+
+=cut
 #**********************************************************
 sub log_add {
   my $self = shift;
   my ($attr) = @_;
 
-  my %DATA = $self->get_data($attr);
-
-  # $date, $time, $log_type, $action, $user, $message
-  $DATA{MESSAGE} =~ s/'/\\'/g;
-  $DATA{NAS_ID} = (!$attr->{NAS_ID}) ? 0 : $attr->{NAS_ID};
-
   $self->query2("INSERT INTO errors_log (date, log_type, action, user, message, nas_id)
- values (now(), '$DATA{LOG_TYPE}', '$DATA{ACTION}', '$DATA{USER_NAME}', '$DATA{MESSAGE}',  '$DATA{NAS_ID}');", 'do'
+ VALUES (NOW(), ?, ?, ?, ?, ?);",
+ 'do',
+ { Bind => [ $attr->{LOG_TYPE}, 
+             $attr->{ACTION}, 
+             $attr->{USER_NAME} || '-', 
+             $attr->{MESSAGE}, 
+             (! $attr->{NAS_ID}) ? 0 : $attr->{NAS_ID}
+             ] }
   );
 
   return 0;
 }
 
 #**********************************************************
-# Del log records
-# log_del($self)
+=head2 log_del($attr) - Del log records
+
+=cut 
 #**********************************************************
 sub log_del {
   my $self = shift;
   my ($attr) = @_;
 
-  my $WHERE = '';
-
-  if ($attr->{LOGIN}) {
-    $WHERE = "user='$attr->{LOGIN}'";
-  }
-
-  $self->query2("DELETE FROM errors_log WHERE $WHERE;", 'do');
+  $self->query2("DELETE FROM errors_log WHERE user= ? ;", 'do', { Bind => [ $attr->{LOGIN} ] });
 
   return 0;
 }
+
+
+#**********************************************************
+=head2 log_reports() - Show log reports
+
+  Arguments:
+    $attr   - 
+      RETRIES
+
+  Returns:
+    hash_ref_array
+
+=cut
+#**********************************************************
+sub log_reports {
+  my $self = shift;
+  my ($attr) = @_;
+
+  if ($attr->{RETRIES}) {
+    $self->query2("SELECT user, count(*) AS count FROM errors_log WHERE date>curdate() 
+     GROUP BY user
+     ORDER BY 2 DESC
+     LIMIT $attr->{RETRIES};", undef, $attr);
+  }
+
+  my $list = $self->{list};
+
+  return $list; 
+}
+
 
 1
 

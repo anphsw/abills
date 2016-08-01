@@ -17,12 +17,18 @@
 <tr><th class='form_title' colspan=2>eCommerce Connect</th></tr>
 
 <tr><td>Operation ID:</td><td>$FORM{OPERATION_ID}</td></tr>
-<tr><td>$_BALANCE_RECHARCHE_SUM:</td><td>%TOTALSUM%</td></tr>
-<tr><td>$_DESCRIBE:</td><td>%DESCRIBE%</td></tr>
+    <tr>
+        <td>_{BALANCE_RECHARCHE_SUM}_:</td>
+        <td>%TOTALSUM%</td>
+    </tr>
+    <tr>
+        <td>_{DESCRIBE}_:</td>
+        <td>%DESCRIBE%</td>
+    </tr>
 
-<tr>  
+<tr>
 
-<th colspan=2 class=even><input type=submit name=add value='$_PAY'>
+    <th colspan=2 class=even><input type=submit name=add value='_{PAY}_'>
 </table>
 
 

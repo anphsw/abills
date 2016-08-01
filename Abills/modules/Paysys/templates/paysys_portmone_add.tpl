@@ -32,10 +32,18 @@
 
 
 <tr><td>ID:</td><td>$FORM{OPERATION_ID}</td></tr>
-<tr><td>$_DESCRIBE:</td><td>$FORM{DESCRIBE}</td></tr>
-<tr><td>$_SUM:</td><td>$FORM{SUM}</td></tr>
+    <tr>
+        <td>_{DESCRIBE}_:</td>
+        <td>$FORM{DESCRIBE}</td>
+    </tr>
+    <tr>
+        <td>_{SUM}_:</td>
+        <td>$FORM{SUM}</td>
+    </tr>
 
-<tr><th colspan=2><INPUT TYPE='submit' NAME='submit' VALUE='$_ADD' /></td></tr>
+    <tr>
+        <th colspan=2><INPUT TYPE='submit' NAME='submit' VALUE='_{ADD}_'/>
+        </td></tr>
 </table>
 
 

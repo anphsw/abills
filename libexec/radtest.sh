@@ -3,14 +3,14 @@
 
 AUTH_LOG=/usr/abills/var/log/abills.log
 ACCT_LOG=/usr/abills/var/log/acct.log
-VERSION=0.16
+VERSION=0.17
 
 
 USER_NAME=test
 USER_PASSWORD=123456
 NAS_IP_ADDRESS=127.0.0.1
 ACCT_SESSION_ID='123456789012345';
-RADIUS_SECRET=radsecret;
+RADIUS_SECRET=secretpass;
 
 #Voip defauls
 #VOIP_NAS_IP_ADDRESS=192.168.202.15

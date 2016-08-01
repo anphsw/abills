@@ -10,7 +10,7 @@ CA_pl='/usr/src/crypto/openssl/apps/CA.pl';
 
 hostname=`hostname`;
 password=whatever;
-VERSION=2.03;
+VERSION=2.05;
 DAYS=730;
 DATE=`date`;
 CERT_TYPE=$1;
@@ -54,34 +54,39 @@ BILLING_DIR=/usr/abills
 CERT_PATH=${BILLING_DIR}/Certs/
 
 # Proccess command-line options
-#
 for _switch ; do
         case $_switch in
+        ssh)    USER=$2; 
+                CERT_TYPE=ssh;
+                shift; shift;
+                ;;
         -D)
-                CERT_PATH="$3"
+                CERT_PATH=$2;
                 shift; shift
                 ;;
+        #Cert owner
         -U)
                 CERT_USER="$3"
                 shift; shift
                 ;;
-        -LENGTH) CERT_LENGTH=$3
+        -LENGTH) CERT_LENGTH=$2
                 shift; shift
                 ;;
         -DAYS) DAYS=$3
                 shift; shift
                 ;;
-        -PASSWORD) password=$3
+        -PASSWORD) password=$2
                 shift; shift
                 ;;
-        -HOSTNAME) HOSTNAME=$3
+        -HOSTNAME) HOSTNAME=$2
                 shift; shift
                 ;;
-        -UPLOAD) UPLOAD=y; HOSTNAME=$4
-                #shift; shift;
+        -UPLOAD) UPLOAD=y; HOSTNAME=$3
+                shift;
                 ;;
-        -UPLOAD_FTP) UPLOAD_FTP=y; UPLOAD=y; HOSTNAME=$4
-                #shift; 
+        -UPLOAD_FTP) UPLOAD_FTP=y; UPLOAD=y; HOSTNAME=$2
+                echo "Upload ftp: ${HOSTNAME}";
+                shift; shift;
                 ;;
         -SKIP_UPLOAD_CERT) SKIP_UPLOAD_CERT=1
                 shift;
@@ -265,10 +270,15 @@ fi;
 # Create SSH certs
 #**********************************************************
 ssh_key () {
-  USER=$1;
-  
-  if [ x${USER} = x ]; then
+
+  if [ "${USER}" = "" ]; then
     USER=abills_admin
+  fi;
+
+  if [ "${CERT_TYPE}" = "" ]; then
+    id_dsa_file=id_dsa;
+  else
+    id_dsa_file=id_dsa.${USER};
   fi;
   
   echo "**************************************************************************"
@@ -276,35 +286,33 @@ ssh_key () {
   echo " Make ssh-keygen with empty password."
   echo "**************************************************************************"
   echo 
-  echo User: ${USER}
+  echo "Create cert for User: ${USER}"
+  echo "  ${CERT_PATH}${id_dsa_file}"
 
   SSH_PORT=22
-
-  if [ w${CERT_TYPE} = w ]; then
-    id_dsa_file=id_dsa;
-  else
-    id_dsa_file=id_dsa.${USER};
-  fi;
 
   # If exist only upload  
   if [ -f ${CERT_PATH}${id_dsa_file} ]; then
      echo "Cert exists: ${CERT_PATH}${id_dsa_file}";
+    if [ ! SKIP_UPLOAD_CERT ]; then
      if [ x${UPLOAD} = x ]; then
        echo -n "Upload to remote host via ssh [Y/n]: "
        read UPLOAD
      fi;
-  fi;
+    fi;
 
+  fi;
  
   if [ ! -f ${CERT_PATH}${id_dsa_file} ]; then
     ssh-keygen -t dsa -C "ABillS remote machine manage key (${DATE})" -f "${CERT_PATH}${id_dsa_file}"
 
     chown ${APACHE_USER} ${CERT_PATH}${id_dsa_file}
     chmod u=r,go= ${CERT_PATH}/${id_dsa_file}.pub
-
-    echo "Set Cert user: ${CERT_USER}";
-    echo -n "Upload file to remote host via ssh [Y/n]: "
-    read UPLOAD
+    if [ ! SKIP_UPLOAD_CERT ]; then
+      echo "Set Cert user: ${CERT_USER}";
+      echo -n "Upload file to remote host via ssh [Y/n]: "
+      read UPLOAD
+    fi;
   fi;
 
   if [ x${UPLOAD} = xy ]; then
@@ -325,11 +333,14 @@ ssh_key () {
       
       FTP=`which ftp`
       if [ "${FTP}" = "" ] ; then
-        ehco "ftp client not install.";
+        echo "ftp client not install.";
+        echo "Please install ftp client";
         exit;  
       fi;
-      
-      echo "Make upload to: ${HOSTNAME}:${FTP_PORT}/${id_dsa_file}.pub ${CERT_PATH}${id_dsa_file}.pub"
+
+      if [ ! SKIP_UPLOAD_CERT ]; then
+        echo "Make upload to: ${HOSTNAME}:${FTP_PORT}/${id_dsa_file}.pub ${CERT_PATH}${id_dsa_file}.pub"
+      fi;
 
       CHECK_USER=`echo ${HOSTNAME} | grep @`;
       if [ x${CHECK_USER} != x ]; then
@@ -362,11 +373,13 @@ ssh_key () {
       ssh -p ${SSH_PORT} -o StrictHostKeyChecking=no -i ${CERT_PATH}${id_dsa_file}  ${USER}@${HOSTNAME}
       exit;
     fi;
-  else 
-    echo 
-    echo "Copy certs manual: "
-    echo "${CERT_PATH}${id_dsa_file}.pub to REMOTE_HOST User home dir (/home/${USER}/.ssh/authorized_keys) "
-    echo 
+  else
+    if [ ! SKIP_UPLOAD_CERT ]; then
+      echo
+      echo "Copy certs manual: "
+      echo "${CERT_PATH}${id_dsa_file}.pub to REMOTE_HOST User home dir (/home/${USER}/.ssh/authorized_keys) "
+      echo
+    fi
   fi;
  }
 
@@ -452,21 +465,21 @@ mkdir ${CERT_PATH}
 cd ${CERT_PATH}
 
 openssl genrsa -des3 -rand /etc/hosts -out smtpd.key 1024
-#вводим пароль для нашего файла-ключа smtpd.key
+#пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ-пїЅпїЅпїЅпїЅпїЅ smtpd.key
 
 chmod 600 smtpd.key
 openssl req -new -key smtpd.key -out smtpd.csr
-#снова вводим пароль от smtpd.key, а затем требуемую информацию
+#пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ smtpd.key, пїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 
 openssl x509 -req -days 3650 -in smtpd.csr -signkey smtpd.key -out smtpd.crt
-#снова пароль от smtpd.key
+#пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ smtpd.key
 
 openssl rsa -in smtpd.key -out smtpd.key.unencrypted
-#и снова пароль от smtpd.key
+#пїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ smtpd.key
 
 mv -f smtpd.key.unencrypted smtpd.key
 openssl req -new -x509 -extensions v3_ca -keyout cakey.pem -out cacert.pem -days 3650
-#угадайте что? да, пароль от smtpd.key, и снова доп. информацию
+#пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ? пїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ smtpd.key, пїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ. пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 
 #  ${OPENSSL} req -new -x509 -nodes -out smtpd.pem -keyout smtpd.pem -days ${DAYS} \
 #    -passin pass:${password} -passout pass:${password}

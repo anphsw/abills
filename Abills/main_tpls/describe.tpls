@@ -1,11 +1,17 @@
 # $tpl, $lang, $describe
+admin_menu.tpl:russian:Индивидуальное меню администратора
+client_menu.tpl:russian:Индивидуально меню абонента
 form_client_hotspot_start.tpl:russian:Первая страница отображаемая пользователям при заходе на Hotspot
 form_client_hotspot_start.tpl:english:First page loding for hotspot users
+form_base.tpl:russian:Основной шаблон субстраниц для start.cgi
+form_base.tpl:russian:Subpage backgroud for start.cgi
+
 admin_report_day.tpl:russian:Форма дневного отчёта приходящена на E-mail администратору
 admin_report_month.tpl:russian:Форма месячного отчёта приходящена на E-mail администратору
 form_chg_tp.tpl:russian:Форма изминения тарифного плана
 form_buy_cards.tpl:english:Buy cards interface
 form_buy_cards_card.tpl:english:Buy cards interface card designe
+
 
 form_buy_cards.tpl:russian:Форма покупки карточек
 form_buy_cards_card.tpl:russian:Дизайн карточки из формы покупки
@@ -55,3 +61,9 @@ form_user.tpl:russian:Форма добавления/изменения акк�
 form_client_info.tpl:english:User information form
 form_client_login.tpl:russian:Users Login form
 form_client_main.tpl:russian:Main user portal template
+
+
+form_start_page.tpl:english:Admin interface start page
+form_start_page.tpl:russian:Стартовая страница административного интерфейса
+form_start_page.tpl:ukraine:Стартова сторінка адмін інтерфейсу
+

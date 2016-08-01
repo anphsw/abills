@@ -27,14 +27,14 @@
 
 BEGIN {
  my $libpath = '../';
- 
+
  $sql_type='mysql';
  unshift(@INC, $libpath ."Abills/$sql_type/");
  unshift(@INC, $libpath ."Abills/");
  unshift(@INC, $libpath);
  unshift(@INC, $libpath . 'libexec/');
 
- 
+
 
  eval { require Time::HiRes; };
  if (! $@) {
@@ -47,16 +47,13 @@ BEGIN {
 }
 
 use Abills::HTML;
-#$html = Abills::HTML->new({ IMG_PATH => 'img/',
-#	                          NO_PRINT => 1,
-#	                          CONF     => \%conf,
-#	                          CHARSET  => $conf{default_charset},
-#	                          #METATAGS => templates('metatags_client')
-#	                        });
+
+require "../language/russian.pl";
+require "../libexec/config.pl";
 
 my %COOKIES = getCookies();
 
-$conf{WEB_TITLE}='IWI-FI';
+#$conf{WEB_TITLE}='SkyNET';
 
 my $uamsecret = "secrete";
 
@@ -86,72 +83,40 @@ s/[^$OK_CHARS]/_/go;
 my $query = $_;
 
 
-# If she did not use https tell her that it was wrong.
-if (!($ENV{HTTPS} =~ /^on$/)) {
-    print "Content-type: text/html\n\n
-<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">
-<html>
-<head>
-  <title>$conf{WEB_TITLE} - Login Failed</title>
-  <meta http-equiv=\"Cache-control\" content=\"no-cache\">
-  <meta http-equiv=\"Pragma\" content=\"no-cache\">
-</head>
-<body bgColor = '#FFFFFF'>
-  <h1 style=\"text-align: center;\">$conf{WEB_TITLE} - Login Failed</h1>
-  <center>
-    Login must use encrypted connection.
-  </center>
-</body>
-<!--
-<?xml version=\"1.0\" encoding=\"UTF-8\"?>
-<WISPAccessGatewayParam 
-  xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"
-  xsi:noNamespaceSchemaLocation=\"http://www.acmewisp.com/WISPAccessGatewayParam.xsd\">
-<AuthenticationReply>
-<MessageType>120</MessageType>
-<ResponseCode>102</ResponseCode>
-<ReplyMessage>Login must use encrypted connection</ReplyMessage>
-</AuthenticationReply> 
-</WISPAccessGatewayParam>
--->
-</html>
-";
-    exit(0);
-}
-
-
 #Read form parameters which we care about
 my @array = split('&',$input);
 foreach $var ( @array ) {
-    @array2 = split('=',$var);
-    if ($array2[0] =~ /^UserName$/)  { $username = $array2[1]; }
-    if ($array2[0] =~ /^Password$/)  { $password = $array2[1]; }
-    if ($array2[0] =~ /^challenge$/) { $challenge= $array2[1]; }
-    if ($array2[0] =~ /^button$/)    { $button   = $array2[1]; }
-    if ($array2[0] =~ /^logout$/)    { $logout   = $array2[1]; }
-    if ($array2[0] =~ /^prelogin$/)  { $prelogin = $array2[1]; }
-    if ($array2[0] =~ /^res$/)       { $res      = $array2[1]; }
-    if ($array2[0] =~ /^uamip$/)     { $uamip    = $array2[1]; }
-    if ($array2[0] =~ /^uamport$/)   { $uamport  = $array2[1]; }
-    if ($array2[0] =~ /^userurl$/)   { $userurl  = $array2[1]; }
-    if ($array2[0] =~ /^timeleft$/)  { $timeleft = $array2[1]; }
-    if ($array2[0] =~ /^redirurl$/)  { $redirurl = $array2[1]; }
+  @array2 = split('=',$var);
+  if ($array2[0] =~ /^UserName$/)  { $username = $array2[1]; }
+  if ($array2[0] =~ /^Password$/)  { $password = $array2[1]; }
+  if ($array2[0] =~ /^challenge$/) { $challenge= $array2[1]; }
+  if ($array2[0] =~ /^button$/)    { $button   = $array2[1]; }
+  if ($array2[0] =~ /^logout$/)    { $logout   = $array2[1]; }
+  if ($array2[0] =~ /^prelogin$/)  { $prelogin = $array2[1]; }
+  if ($array2[0] =~ /^res$/)       { $res      = $array2[1]; }
+  if ($array2[0] =~ /^uamip$/)     { $uamip    = $array2[1]; }
+  if ($array2[0] =~ /^uamport$/)   { $uamport  = $array2[1]; }
+  if ($array2[0] =~ /^userurl$/)   { $userurl  = $array2[1]; }
+  if ($array2[0] =~ /^timeleft$/)  { $timeleft = $array2[1]; }
+  if ($array2[0] =~ /^redirurl$/)  { $redirurl = $array2[1]; }
+  if ($array2[0] =~ /^get_pass$/)  { $getpass  = $array2[1]; }
+  if ($array2[0] =~ /^clientState$/)     { $clientstate  = $array2[1]; }
 }
 
 #Read query parameters which we care about
 @array = split('&',$query);
 foreach $var ( @array ) {
-    @array2 = split('=',$var);
-    if ($array2[0] =~ /^res$/)       { $res       = $array2[1]; }
-    if ($array2[0] =~ /^challenge$/) { $challenge = $array2[1]; }
-    if ($array2[0] =~ /^uamip$/)     { $uamip     = $array2[1]; }
-    if ($array2[0] =~ /^uamport$/)   { $uamport   = $array2[1]; }
-    if ($array2[0] =~ /^reply$/)     { $reply     = $array2[1]; }
-    if ($array2[0] =~ /^userurl$/)   { $userurl   = $array2[1]; }
-    if ($array2[0] =~ /^timeleft$/)  { $timeleft  = $array2[1]; }
-    if ($array2[0] =~ /^redirurl$/)  { $redirurl  = $array2[1]; }
+  @array2 = split('=',$var);
+  if ($array2[0] =~ /^res$/)       { $res       = $array2[1]; }
+  if ($array2[0] =~ /^challenge$/) { $challenge = $array2[1]; }
+  if ($array2[0] =~ /^uamip$/)     { $uamip     = $array2[1]; }
+  if ($array2[0] =~ /^uamport$/)   { $uamport   = $array2[1]; }
+  if ($array2[0] =~ /^reply$/)     { $reply     = $array2[1]; }
+  if ($array2[0] =~ /^userurl$/)   { $userurl   = $array2[1]; }
+  if ($array2[0] =~ /^timeleft$/)  { $timeleft  = $array2[1]; }
+  if ($array2[0] =~ /^redirurl$/)  { $redirurl  = $array2[1]; }
+  if ($array2[0] =~ /^clientState$/)     { $clientstate  = $array2[1]; }
 }
-
 
 $reply =~ s/\+/ /g;
 $reply =~s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/seg;
@@ -163,62 +128,18 @@ $userurldecode =~s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/seg;
 $redirurldecode = $redirurl;
 $redirurldecode =~ s/\+/ /g;
 $redirurldecode =~s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/seg;
-
+my $pass = $password;
 $password =~ s/\+/ /g;
 $password =~s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/seg;
 
 # If attempt to login
-if ($button =~ /^Login$/) {
-    $hexchal  = pack "H32", $challenge;
-    if (defined $uamsecret) {
-	$newchal  = md5($hexchal, $uamsecret);
-    }
-    else {
-	$newchal  = $hexchal;
-    }
-    $response = md5_hex("\0", $password, $newchal);
-    $pappassword = unpack "H32", ($password ^ $newchal);
-#sleep 5;
-print "Content-type: text/html\n\n";
-print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">
-<html>
-<head>
-  <title>$conf{WEB_TITLE} - Login</title>
-  <meta http-equiv=\"Cache-control\" content=\"no-cache\">
-  <meta http-equiv=\"Pragma\" content=\"no-cache\">";
-    if ((defined $uamsecret) && defined($userpassword)) {
-	print "  <meta http-equiv=\"refresh\" content=\"0;url=http://$uamip:$uamport/logon?username=$username&password=$pappassword&userurl=$userurl\">";
-    } else {
-	print "  <meta http-equiv=\"refresh\" content=\"0;url=http://$uamip:$uamport/logon?username=$username&response=$response&userurl=$userurl\">";
-    }
-print "</head>
-<body bgColor = '#ffffff'>";
-  print "<h1 style=\"text-align: center;\">Logging in to $conf{WEB_TITLE}</h1>";
-  print "
-  <center>
-    Please wait......
-  </center>
-</body>
-<!--
-<?xml version=\"1.0\" encoding=\"UTF-8\"?>
-<WISPAccessGatewayParam 
-  xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"
-  xsi:noNamespaceSchemaLocation=\"http://www.acmewisp.com/WISPAccessGatewayParam.xsd\">
-<AuthenticationReply>
-<MessageType>120</MessageType>
-<ResponseCode>201</ResponseCode>
-";
-    if ((defined $uamsecret) && defined($userpassword)) {
-	print "<LoginResultsURL>http://$uamip:$uamport/logon?username=$username&password=$pappassword</LoginResultsURL>";
-    } else {
-	print "<LoginResultsURL>http://$uamip:$uamport/logon?username=$username&response=$response&userurl=$userurl</LoginResultsURL>";
-    }
-print "</AuthenticationReply> 
-</WISPAccessGatewayParam>
--->
-</html>
-";
-    exit(0);
+if (defined $getpass) {
+  my $hexchal  = pack "H32", $challenge;
+  my $newchal  = md5($hexchal, $uamsecret);
+  my $pappassword = unpack "H32", ($password ^ $newchal);
+  print "Content-type: text/html\n\n";
+  print "$pappassword";
+  exit(0);
 }
 
 
@@ -226,54 +147,13 @@ print "</AuthenticationReply>
 $result = 0;
 
 # If login successful
-if ($res =~ /^success$/) { 
+if ($res =~ /^.+$/) {
     $result = 1;
 }
 
-# If login failed 
-if ($res =~ /^failed$/) { 
-    $result = 2;
-}
-
-# If logout successful
-if ($res =~ /^logoff$/) { 
-    $result = 3;
-}
-
-# If tried to login while already logged in
-if ($res =~ /^already$/) { 
-    $result = 4;
-}
-
-# If not logged in yet
-if ($res =~ /^notyet$/) { 
-    $result = 5;
-}
-
-# If login from smart client
-if ($res =~ /^smartclient$/) { 
-    $result = 6;
-}
-
-# If requested a logging in pop up window
-if ($res =~ /^popup1$/) { 
-    $result = 11;
-}
-
-# If requested a success pop up window
-if ($res =~ /^popup2$/) { 
-    $result = 12;
-}
-
-# If requested a logout pop up window
-if ($res =~ /^popup3$/) { 
-    $result = 13;
-}
-
-
 # Otherwise it was not a form request
 # Send out an error message
-if ($result == 0) {
+if ($result == 0 && !defined $clientstate) {
     print "Content-type: text/html\n\n
 <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">
 <html>
@@ -295,217 +175,344 @@ if ($result == 0) {
 
 #Generate the output
 print "Content-type: text/html\n\n
-<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">
+<!DOCTYPE html>
 <html>
 <head>
   <title>$conf{WEB_TITLE} - Login</title>
-  <meta http-equiv=\"Cache-control\" content=\"no-cache\">
-  <meta http-equiv=\"Pragma\" content=\"no-cache\">
-  <SCRIPT LANGUAGE=\"JavaScript\">
-    var blur = 0;
-    var starttime = new Date();
-    var startclock = starttime.getTime();
-    var mytimeleft = 0;
+    <meta charset=\"utf-8\">
+    <meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+    <!-- Bootstrap core CSS -->
+    <link href=\"/wifi/css/bootstrap.min.css\" rel=\"stylesheet\">
+    <link href=\"/wifi/css/login.css\" rel=\"stylesheet\">
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+    <script src=\"/wifi/js/html5shiv.min.js\"></script>
+    <script src=\"/wifi/js/respond.min.js\"></script>
+    <![endif]-->
+    <script src=\"/wifi/js/jquery.min.js\"></script>
+    <script src=\"/wifi/js/bootstrap.min.js\"></script>
+    <script src=\"/wifi/js/moment.js\"></script>
+    <script type=\"text/javascript\">
 
-    function doTime() {
-      window.setTimeout( \"doTime()\", 1000 );
-      t = new Date();
-      time = Math.round((t.getTime() - starttime.getTime())/1000);
-      if (mytimeleft) {
-        time = mytimeleft - time;
-        if (time <= 0) {
-          window.location = \"$loginpath?res=popup3&uamip=$uamip&uamport=$uamport\";
-        }
+    \$(function() {
+      \$('#login-form-link').click(function(e) {
+        \$(\"#login-form\").delay(100).fadeIn(100);
+        \$(\"#guest-form\").fadeOut(100);
+        \$('#guest-form-link').removeClass('active');
+        \$(this).addClass('active');
+          e.preventDefault();
+       });
+      \$('#guest-form-link').click(function(e) {
+        \$(\"#guest-form\").delay(100).fadeIn(100);
+        \$(\"#login-form\").fadeOut(100);
+        \$('#login-form-link').removeClass('active');
+        \$(this).addClass('active');
+          e.preventDefault();
+       });
+     });
+     function popUp(result, URL, redirurl, timeleft) {
+      if ((result == 1) || (result == 4) || (result == 12)) {
+        UserURL = window.open(URL, 'userurl');
       }
-      if (time < 0) time = 0;
-      hours = (time - (time % 3600)) / 3600;
-      time = time - (hours * 3600);
-      mins = (time - (time % 60)) / 60;
-      secs = time - (mins * 60);
-      if (hours < 10) hours = \"0\" + hours;
-      if (mins < 10) mins = \"0\" + mins;
-      if (secs < 10) secs = \"0\" + secs;
-      title = \"Online time: \" + hours + \":\" + mins + \":\" + secs;
-      if (mytimeleft) {
-        title = \"Remaining time: \" + hours + \":\" + mins + \":\" + secs;
-      }
-      if(document.all || document.getElementById){
-         document.title = title;
-      }
-      else {   
-        self.status = title;
-      }
-    }
-
-    function popUp(URL) {
-      if (self.name != \"chillispot_popup\") {
-        chillispot_popup = window.open(URL, 'chillispot_popup', 'toolbar=0,scrollbars=0,location=0,statusbar=0,menubar=0,resizable=0,width=500,height=375');
-      }
-    }
-
-    function doOnLoad(result, URL, userurl, redirurl, timeleft) {
-      if (timeleft) {
-        mytimeleft = timeleft;
-      }
-      if ((result == 1) && (self.name == \"chillispot_popup\")) {
-        doTime();
-      }
-      if ((result == 1) && (self.name != \"chillispot_popup\")) {
-        chillispot_popup = window.open(URL, 'chillispot_popup', 'toolbar=0,scrollbars=0,location=0,statusbar=0,menubar=0,resizable=0,width=500,height=375');
-      }
-      if ((result == 2) || result == 5) {
-        document.form1.UserName.focus()
-      }
-      if ((result == 2) && (self.name != \"chillispot_popup\")) {
-        chillispot_popup = window.open('', 'chillispot_popup', 'toolbar=0,scrollbars=0,location=0,statusbar=0,menubar=0,resizable=0,width=400,height=200');
-        chillispot_popup.close();
-      }
-      if ((result == 12) && (self.name == \"chillispot_popup\")) {
-        doTime();
-        if (redirurl) {
-          opener.location = redirurl;
-        }
-        else if (userurl) {
-          opener.location = userurl;
-        }
-        else if (opener.home) {
-          opener.home();
-        }
-        else {
-          opener.location = \"about:home\";
-        }
-        self.focus();
-        blur = 0;
-      }
-      if ((result == 13) && (self.name == \"chillispot_popup\")) {
-        self.focus();
-        blur = 1;
-      }
-    }
-
-    function doOnBlur(result) {
-      if ((result == 12) && (self.name == \"chillispot_popup\")) {
-        if (blur == 0) {
-          blur = 1;
-          self.focus();
-        }
-      }
-    }
-  </script>
+     }
+     function hide_modal() {
+       \$('#loading').modal('hide');
+     }
+     function logon(username, pass) {
+     alert('logining');
+        \$.ajax({
+           type: 'POST',
+           url: 'hotspotlogin.cgi',
+           data: {Password : pass, challenge : challenge, get_pass : '1' },
+           success: function(pappass){
+             \$.getJSON('http://$uamip:$uamport/json/logon?username='+ username +'&chapchallenge='+ challenge +'&chappassword='+ pappass +'&lang=EN&callback=?', function(data) {
+             console.log(data);
+             }).success(
+               function(data) {
+                 console.log(data);
+                 \$(\"#status\").html(data.message);
+                 setTimeout( hide_modal, 2000);
+                 challenge=data.challenge;
+                 if (clientState != data.clientState) {
+                   clientState = data.clientState;
+                   setTimeout( get_content, 2000);
+                 }
+               })
+               .error(
+               function(status){
+               console.log(error);
+               });
+           },
+           error: function(status){
+           console.log(error)
+           }
+         });
+     }
+     function get_status() {
+       var interval=setInterval(\"status()\",10000);
+       status();
+     }
+     function get_content() {
+       \$.post( \"hotspotlogin.cgi?clientState=\"+ clientState +\"&uamip=$uamip&uamport=$uamport\", function( data ) {
+         \$( \"#content\" ).html( data );
+        });
+     }
+     function client_state() {
+      \$.getJSON('http://$uamip:$uamport/json/status?callback=?', function(data) {
+          console.log(data);
+          clientState = data.clientState;
+          challenge = data.challenge;
+          get_content();
+        });
+     }
+     function status() {
+      \$.getJSON('http://$uamip:$uamport/json/status?callback=?', function(data) {
+          console.log(data);
+          clientState = data.clientState;
+          if (clientState == 0) {
+            challenge = data.challenge;
+            URL = data.redir.originalURL;
+          }
+          else if (clientState == 1) {
+            var inputOctets;
+            var outputOctets;
+            var out_type = 'B';
+            var in_type = 'B';
+            if (data.accounting.outputOctets > 1000000000) {
+              output = data.accounting.outputOctets / 1000000000;
+              out_type = 'Gb';
+            }
+            else if (data.accounting.outputOctets > 1000000) {
+              output = data.accounting.outputOctets / 1000000;
+              out_type = 'Mb';
+            }
+            else if (data.accounting.outputOctets > 1000) {
+              output = data.accounting.outputOctets / 1000;
+              out_type = 'Kb';
+            }
+            else {
+              output = data.accounting.outputOctets;
+            }
+            if (data.accounting.inputOctets > 1000000000) {
+              input = data.accounting.inputOctets / 1000000000;
+              in_type = 'Gb';
+            }
+            else if (data.accounting.inputOctets > 1000000) {
+              input = data.accounting.inputOctets / 1000000;
+              in_type = 'Mb';
+            }
+            else if (data.accounting.inputOctets > 1000) {
+              input = data.accounting.inputOctets / 1000;
+              in_type = 'Kb';
+            }
+            else {
+              input = data.accounting.inputOctets;
+            }
+            output = output.toFixed(2);
+            input = input.toFixed(2);
+            var sec = data.accounting.sessionTime;
+	    var h = sec/3600 ^ 0 ;
+            var m = (sec-h*3600)/60 ^ 0 ;
+            var s = sec-h*3600-m*60 ;
+            \$('.logged-user').html('<h3 class=\"panel-title text-center\">Welcome '+ data.session.userName +'</h3>');
+            \$(\"#mac\").parent().remove();
+            \$(\"#speed\").parent().remove();
+            \$(\"#connect\").parent().remove();
+            var i = \$(\"#last_row\").before('<tr><td id=mac>MAC ADDRESS</td><td>'+ data.redir.macAddress +'</td></tr>').prev();
+            i = \$(\"#last_row\").before('<tr><td id=speed>UP/DOWN</td><td>'+ input + '' + in_type +'/'+ output +''+ out_type +' </td></tr>').prev();
+            var i = \$(\"#last_row\").before('<tr><td id=connect>CONNECTED</td><td>'+ (h<10?\"0\"+h:h) +':'+ (m<10?\"0\"+m:m) +':'+ (s<10?\"0\"+s:s) +'</td></tr>').prev();
+          }
+        });
+     }
+    </script>
+    <meta http-equiv=\"Cache-control\" content=\"no-cache\">
+    <meta http-equiv=\"Pragma\" content=\"no-cache\">
 </head>
-<body onLoad=\"javascript:doOnLoad($result, '$loginpath?res=popup2&uamip=$uamip&uamport=$uamport&userurl=$userurl&redirurl=$redirurl&timeleft=$timeleft','$userurldecode', '$redirurldecode', '$timeleft')\" onBlur = \"javascript:doOnBlur($result)\" bgColor = '#ffffff'>";
-
-
-#      if (!window.opener) {
-#        document.bgColor = '#CCCCCC';
-#      }
-
-#print "THE INPUT: $input";
-#foreach $key (sort (keys %ENV)) {
-#	print $key, ' = ', $ENV{$key}, "<br>\n";
-#}
-
-if ($result == 2) {
-    print "
-  <h1 style=\"text-align: center;\">$conf{WEB_TITLE} - Login Failed</h1>";
-    if ($reply) {
-	print "<center> $reply </BR></BR></center>";
-    }
+<body>
+";
+if ($result != 0) {
+print "
+<div class=\"container\">
+  <div class=\"jumbotron jumbotron-sm\">
+    <div class=\"container\">
+      <div class=\"row\">
+        <div class=\"col-xs-12\">
+          <h2 class=\"h2 text-center\">
+            <label><span style='color: red;'></span>$CONF{WEB_TITLE} HotSpot</label>
+          </h2>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id=\"content\">
+  </div>
+</div>
+  <script type=\"text/javascript\">
+    var challenge = '$challenge';
+    var clientState;
+    var URL;
+    client_state();
+//});      
+  </script>
+</body>
+</html>
+";
 }
 
-if ($result == 5) {
-    print "
-  <h1 style=\"text-align: center;\">$conf{WEB_TITLE} - Login</h1>";
-}
 
-if ($result == 2 || $result == 5) {
- 
+if (defined $clientstate && $clientstate == 0) {
   my $hotspot_username='';
   my $hotspot_password='';
- 
+
   if ($COOKIES{hotspot_username}) {
-  	 $hotspot_username = $COOKIES{hotspot_username};
-  	 $hotspot_password = $COOKIES{hotspot_password};
-  	 $userurl          = $COOKIES{hotspot_userurl};
-   }
-
-  print "
-  <form name=\"form1\" method=\"post\" action=\"$loginpath\">
-  <INPUT TYPE=\"hidden\" NAME=\"challenge\" VALUE=\"$challenge\">
-  <INPUT TYPE=\"hidden\" NAME=\"uamip\" VALUE=\"$uamip\">
-  <INPUT TYPE=\"hidden\" NAME=\"uamport\" VALUE=\"$uamport\">
-  <INPUT TYPE=\"hidden\" NAME=\"userurl\" VALUE=\"$userurldecode\">
-  <center>
-  <table border=\"0\" cellpadding=\"5\" cellspacing=\"0\" style=\"width: 217px;\">
-    <tbody>
-      <tr>
-        <td align=\"right\">Username:</td>
-        <td><input STYLE=\"font-family: Arial\" type=\"text\" name=\"UserName\" value=\"$hotspot_username\" size=\"20\" maxlength=\"128\"></td>
-      </tr>
-      <tr>
-        <td align=\"right\">Password:</td>
-        <td><input STYLE=\"font-family: Arial\" type=\"password\" name=\"Password\" value=\"$hotspot_password\" size=\"20\" maxlength=\"128\"></td>
-      </tr>
-      <tr>
-        <td align=\"center\" colspan=\"2\" height=\"23\"><input type=\"submit\" name=\"button\" value=\"Login\" onClick=\"javascript:popUp('$loginpath?res=popup1&uamip=$uamip&uamport=$uamport')\"></td> 
-      </tr>
-    </tbody>
-  </table>
-  </center>
-  </form>
-</body>
-</html>";
-}
-
-if ($result == 1) {
-  print "
-  <h1 style=\"text-align: center;\">Logged in to $conf{WEB_TITLE}</h1>";
-
-  if ($reply) { 
-      print "<center> $reply </BR></BR></center>";
+    $hotspot_username = $COOKIES{hotspot_username};
+    $hotspot_password = $COOKIES{hotspot_password};
+    $userurl          = $COOKIES{hotspot_userurl};
   }
-
   print "
-  <center>
-    <a href=\"http://$uamip:$uamport/logoff\">Logout</a>
-  </center>
+  <div class=\"container\">
+    <div class=\"row\">
+      <div class=\"col-md-6 col-md-offset-3\">
+        <div class=\"panel panel-login\">
+          <div class=\"panel-heading\">
+            <div class=\"row\">
+              <div class=\"col-xs-6\">
+                <a href=\"#\" class=\"active\" id=\"login-form-link\">$lang{AUTH}</a>
+              </div>
+              <div class=\"col-xs-6\">
+                <a href=\"#\" id=\"guest-form-link\">$lang{GUEST}</a>
+              </div>
+            </div>
+            <hr>
+          </div>
+          <div class=\"panel-body\">
+            <div class=\"row\">
+              <div class=\"col-lg-12\">
+                <form id=\"login-form\" method=\"post\" role=\"form\" style=\"display: block;\" action=\"$loginpath\">
+                  <INPUT TYPE=\"hidden\" NAME=\"userurl\" VALUE=\"$userurldecode\">
+                  <INPUT TYPE=\"hidden\" NAME=\"User_type\" VALUE=\"Login\">
+                  <div class=\"form-group\">
+                    <div class='input-group'>
+                      <span class='input-group-addon'><span class='glyphicon glyphicon-user'></span></span>
+                      <input type=\"text\" name=\"UserName\" id=\"username\" tabindex=\"1\" class=\"form-control\" placeholder=\"$lang{LOGIN}\" value=\"\">
+                    </div>
+                  </div>
+                  <div class=\"form-group\">
+                    <div class='input-group'>
+                      <span class='input-group-addon'><span class='glyphicon glyphicon-lock'></span></span>
+                      <input type=\"password\" name=\"Password\" id=\"password\" tabindex=\"2\" class=\"form-control\" placeholder=\"$lang{PASSWD}\">
+                    </div>
+                  </div>
+                  <div class=\"form-group text-center\">
+                    <input type=\"checkbox\" tabindex=\"5\" class=\"\" name=\"remember\" id=\"remember\">
+                    <label for=\"remember\"> Remember Me</label>
+                  </div>
+                  <div class=\"form-group\">
+                    <div class=\"row\">
+                      <div class=\"col-sm-6 col-sm-offset-3\">
+                        <input type=\"submit\" id=\"login-submit\" tabindex=\"4\" class=\"form-control btn btn-login\" name=\"login-submit\" value=\"$lang{ENTER}\">
+                      </div>
+                    </div>
+                  </div>
+                </form>
+                <form id=\"guest-form\" action=\"$loginpath\" method=\"post\" role=\"form\" style=\"display: none;\">
+                  <INPUT TYPE=\"hidden\" NAME=\"userurl\" VALUE=\"$userurldecode\">
+                  <INPUT TYPE=\"hidden\" NAME=\"User_type\" VALUE=\"Guest\">
+                  <INPUT TYPE=\"hidden\" NAME=\"UserName\" VALUE=\"alena\">
+                  <INPUT TYPE=\"hidden\" NAME=\"Password\" VALUE=\"1234567\">
+                  <div class=\"form-group text-center\">
+                    <label>В гостевом режиме интернет предоставляется на 30 минут.</label>
+                  </div>
+                  <div class=\"form-group\">
+                    <div class=\"row\">
+                      <div class=\"col-sm-6 col-sm-offset-3\">
+                        <input type=\"submit\" id=\"guest-submit\" tabindex=\"4\" class=\"form-control btn btn-guest\" value=\"$lang{LOGON} $lang{DV}\">
+                      </div>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Loading modal -->
+  <div class=\"modal fade\" id=\"loading\" tabindex=\"-1\" role=\"dialog\" aria-hidden=\"true\">
+    <div class=\"modal-dialog modal-sm\">
+      <div class=\"modal-content\">
+        <div class=\"modal-header\">
+          <button type=\"button\" class=\"close\" data-dismiss=\"modal\" aria-label=\"Close\"><span aria-hidden=\"true\">&times;</span></button>
+          <h4 class=\"modal-title\">Status...</h4>
+        </div>
+        <div class=\"modal-body\">
+          <p class=\"text-center\" id=\"status\">Please wait while computer is being authorized. <img src='/wifi/img/ajax-loader.gif' /></p>
+        </div>
+      </div>
+    </div>
+  </div>
+    <script type=\"text/javascript\">
+      // Login form processing
+      \$('#guest-form').submit(function(e){
+        e.preventDefault();
+        // Show a loading modal
+        \$('#loading').modal('show');
+         var pass = \$('#guest-form').find('input[name=Password]').val();
+         var username = \$('#guest-form').find('input[name=UserName]').val();
+         logon(username, pass);     
+      });
+      \$('#login-form').submit(function(e){
+        e.preventDefault();
+        // Show a loading modal
+        \$('#loading').modal('show');
+         var pass = \$('#login-form').find('input[name=Password]').val();
+         var username = \$('#login-form').find('input[name=UserName]').val();
+         logon(username, pass);
+      });
+      \$('#loading').on('hidden.bs.modal', function () {
+        \$(\"#status\").html(\"Please wait your device is being authorized. <img src='/wifi/img/ajax-loader.gif'/>\");
+      });
+    </script>
 </body>
 </html>";
 }
+elsif ($clientstate eq 1) {
+#  print "<script type='text/javascript'>\$(location).attr('href','$userurldecode');</script>";
+print "<script>popUp($result, '$userurldecode', '$redirurldecode', '$timeleft');</script>";
+print "<script>get_status();</script>";
+print "
+<div class=\"container\">
+  <div class=\"row\">
+    <div class=\"col-md-4 col-md-offset-4\">
+      <div class=\"panel panel-success\">
+        <div class=\"panel-heading logged-user\">
+        </div>
+        <div class=\"table-logged-user\">
+        </div>
+        <table class=\"table table-bordered table-logged-user\">
+          <tbody>
+            <tr id=\"last_row\"></tr>
+            <tr>
+              <td>Status refresh</td>
+              <td>10 sec</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class=\"col-sm-4 col-sm-offset-4\">
+      <a href=\"http://$uamip:$uamport/logoff\" class=\"form-control btn btn-logout\">$lang{HANGUP}</a>
+    </div>
+  </div>
+</div>
 
-if (($result == 4) || ($result == 12)) {
-  print "
-  <h1 style=\"text-align: center;\">Logged in to $conf{WEB_TITLE}</h1>
-  <center>
-    <a href=\"http://$uamip:$uamport/logoff\">Logout</a>
-  </center>
+</div>
 </body>
 </html>";
+
 }
-
-
-if ($result == 11) {
-  print "<h1 style=\"text-align: center;\">Logging in to $conf{WEB_TITLE}</h1>";
-  print "
-  <center>
-    Please wait......
-  </center>
-</body>
-</html>";
-}
-
-
-if (($result == 3) || ($result == 13)) {
-    print "
-  <h1 style=\"text-align: center;\">Logged out from $conf{WEB_TITLE} -</h1>
-  <center>
-    <a href=\"http://$uamip:$uamport/prelogin\">Login</a>
-  </center>
-</body>
-</html>";
-}
-
-
 
 #********************************************************************
 # get cookie values and return hash of it
@@ -523,10 +530,10 @@ sub getCookies {
 	  foreach(@rawCookies){
 	     my ($key, $val) = split (/=/,$_);
 	     $cookies{$key} = $val;
-	  } 
+	  }
    }
 
-	return %cookies; 
+	return %cookies;
 }
 
 exit(0);

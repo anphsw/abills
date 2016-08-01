@@ -1,29 +1,23 @@
 package Help;
-# Help
-#
+
+=head1 NAME
+
+  Help DB interface
+
+=cut
 
 use strict;
-use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION);
-
-use Exporter;
-$VERSION = 2.00;
-@ISA     = ('Exporter');
-
-@EXPORT = qw();
-
-@EXPORT_OK   = ();
-%EXPORT_TAGS = ();
-
-use main;
-@ISA = ("main");
+use parent 'main';
 my $MODULE = 'Help';
+my ($admin, $CONF);
 
 #**********************************************************
 # Init
 #**********************************************************
 sub new {
   my $class = shift;
-  ($db, $admin, $CONF) = @_;
+  my $db    = shift;
+  ($admin, $CONF) = @_;
   $admin->{MODULE} = $MODULE;
   my $self = {};
   bless($self, $class);
@@ -41,12 +35,12 @@ sub info {
   my $self = shift;
   my ($attr) = @_;
 
-  $WHERE = "WHERE function='$attr->{FUNCTION}'";
-
   $self->query2("SELECT function, title, help
      FROM help
-     $WHERE;",
-     undef, { INFO => 1 }
+     WHERE function= ? ;",
+     undef, 
+     { INFO => 1,
+     	 BInd =>  [ $attr->{FUNCTION} ] }
   );
 
   return $self;
@@ -71,8 +65,7 @@ sub change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes(
-    $admin,
+  $self->changes2(
     {
       CHANGE_PARAM => 'FUNCTION',
       TABLE        => 'help',
@@ -91,7 +84,8 @@ sub change {
 sub del {
   my $self = shift;
   my ($attr) = @_;
-  $self->query2("DELETE from help WHERE function='$self->{FUNCTION}';", 'do');
+
+  $self->query_del('help', undef, $attr);
   return $self->{result};
 }
 

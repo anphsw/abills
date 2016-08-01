@@ -1,11 +1,77 @@
 <input type=hidden name=VIEW value=$FORM{VIEW}>
-<tr><td>$_HOSTS_HOSTNAME:</td><td><input type=text name=HOSTNAME value='%HOSTNAME%'></td></tr>			
-<tr><td>$_HOSTS_NETWORKS:</td><td>%NETWORKS_SEL%</td></tr>
-<tr><td>IP:</td><td><input type=text name=IP value='%IP%'></td></tr>			
-<tr><td>MAC:</td><td><input type=text name=MAC value='%MAC%'></td></tr>			
-<tr><td>$_EXPIRE:</td><td><input type=text name=EXPIRE value='%EXPIRE%'></td></tr>
-<tr><td>$_STATUS:</td><td>%STATUS_SEL%</td></tr>
-<tr><th colspan=2>Option 82</th></tr>
-<tr><td>$_PORT (*):</td><td><input type=text name=PORTS value='%PORTS%'></td></tr>
-<tr><td>VLAN ID:</td><td>$_USER: <input type=text name=VID value='%VID%' size=10> Server: <input type=text name=SERVER_VID value='%SERVER_VID%' size=10> </td></tr>
-<tr><td>$_SWITCH:</td><td>%SWITCH_SEL%</td></tr>
+
+
+<div class='panel panel-default panel-form'>
+<div class='panel-body'>
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='HOSTNAME'>_{HOSTS_HOSTNAME}_(*,)</label>
+  <div class='col-md-5'>
+    <input id='HOSTNAME' name='HOSTNAME' value='%HOSTNAME%' placeholder='%HOSTNAME%' class='form-control' type='text'>
+  </div>
+</div>
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='NETWORKS'>_{HOSTS_NETWORKS}_</label>
+  <div class='col-md-9'>
+    %NETWORKS_SEL%
+  </div>
+</div>
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='IP'>IP</label>
+  <div class='col-md-5'>
+    <input id='IP' name='IP' value='%IP%' placeholder='%IP%' class='form-control' type='text'>
+  </div>
+</div>
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='MAC'>MAC</label>
+  <div class='col-md-5'>
+    <input id='MAC' name='MAC' value='%MAC%' placeholder='%MAC%' class='form-control' type='text'>
+  </div>
+</div>
+
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='EXPIRE'>_{EXPIRE}_</label>
+  <div class='col-md-5'>
+    <input id='EXPIRE' name='EXPIRE' value='%EXPIRE%' placeholder='%EXPIRE%' class='form-control' type='text'>
+  </div>
+</div>
+
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='STATUS'>_{STATUS}_</label>
+  <div class='col-md-5'>
+    %STATUS_SEL%
+  </div>
+</div>
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='PORTS'>_{PORT}_</label>
+  <div class='col-md-5'>
+    <input id='PORTS' name='PORTS' value='%PORTS%' placeholder='%PORTS%' class='form-control' type='text'>
+  </div>
+</div>
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='VID'>VLAN _{USER}_:</label>
+  <div class='col-md-3'>
+     <input id='VID' name='VID' value='%VID%' placeholder='%VID%' class='form-control' type='text'>
+  </div>
+  <label class='control-label col-md-3' for='SERVER_VID'>Server:</label>
+  <div class='col-md-3'>
+     <input id='SERVER_VID' name='SERVER_VID' value='%SERVER_VID%' placeholder='%SERVER_VID%' class='form-control' type='text'>
+  </div>
+</div>
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='NAS'>_{SWITCH}_:</label>
+  <div class='col-md-6'>
+    %SWITCH_SEL%
+  </div>
+</div>
+
+</div>
+</div>

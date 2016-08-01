@@ -2,26 +2,89 @@
 <form action='$SELF_URL' METHOD='POST'>
 <input type=hidden name='index' value='$index'>
 <input type=hidden name='ID' value='%ID%'>
-<table border='0' class=form>
-<tr><th colspan=2 bgcolor=$_COLORS[0]>$_TARIF_PLANS</th></tr>
-<!--  <tr><th>#</th><td><input type='text' name='ID' value='%ID%'></td></tr> -->
-  <tr><td>$_NAME:</td><td><input type=text name=NAME value='%NAME%'></td></tr>
-  <tr><td>$_PERCENTAGE:</td><td><input type=text name=PERCENTAGE value='%PERCENTAGE%'></td></tr>
-  <tr><td>$_OPERATION_PAYMENT (%):</td><td><input type=text name=OPERATION_PAYMENT value='%OPERATION_PAYMENT%'></td></tr>
-  <tr><td>$_OPERATION_PAYMENT $_EXPRESSION:<br>(COUNT>10=PRICE:100;<br>TOTAL_SUM>100=PRICE:20;)</td><td><textarea name=PAYMENT_EXPR cols=20 rows=5>%PAYMENT_EXPR%</textarea></td></tr>
-  <tr><td>$_PAYMENT_TYPE:</td><td>%PAYMENT_TYPE_SEL%</td></tr>
-  <tr><td>$_ACTIVATE:</td><td><input type=text name=ACTIVATE_PRICE value='%ACTIVATE_PRICE%'></td></tr>
-  <tr><td>$_CHANGE:</td><td><input type=text name=CHANGE_PRICE value='%CHANGE_PRICE%'></td></tr>
-  <tr><td>$_CREDIT:</td><td><input type=text name=CREDIT value='%CREDIT%'></td></tr>
-  <tr><td>$_MIN_USE:</td><td><input type=text name=MIN_USE value='%MIN_USE%'></td></tr>
-  <tr><td>$_NAS:</td><td><input type=checkbox name=NAS_TP value='1' %NAS_TP%></td></tr>
-  <tr><td>$_BONUS $_CARDS:</td><td><input type=text name=BONUS_CARDS value='%BONUS_CARDS%'></td></tr>
 
-<tr><th colspan=2>$_COMMENTS</th></tr>
-<tr><th colspan=2><textarea cols=60 rows=6 name=COMMENTS>%COMMENTS%</textarea></th></tr>
-
-<tr><th colspan=2 class=even><input type=submit name='%ACTION%' value='%LNG_ACTION%'></th></tr>
-</table>
+<div class='panel panel-form panel-primary form-horizontal'>
+<div class='panel-heading'>_{TARIF_PLANS}_</div>
+<div class='panel-body'>
+  <div class='form-group'>
+    <label class='col-md-3 control-label'>_{NAME}_:</label>
+    <div class='col-md-9'>
+      <input class='form-control' type=text name=NAME value='%NAME%'>
+    </div>
+  </div>
+  <div class='form-group'>
+    <label class='col-md-3 control-label'>_{PERCENTAGE}_:</label>
+    <div class='col-md-9'>
+      <input class='form-control' type=text name=PERCENTAGE value='%PERCENTAGE%'>
+    </div>
+  </div>
+  <div class='form-group'>
+    <label class='col-md-3 control-label'>_{OPERATION_PAYMENT}_:</label>
+    <div class='col-md-9'>
+      <input class='form-control' type=text name=PERCENTAGE value='%PERCENTAGE%'>
+    </div>
+  </div>
+  <div class='form-group'>
+    <label class='col-md-3 control-label'>_{OPERATION_PAYMENT}_ _{EXPRESSION}_:</label>
+    <div class='col-md-9'>
+      <textarea class='form-control' placeholder='COUNT>10=PRICE:100;
+TOTAL_SUM>100=PRICE:20;' name='PAYMENT_EXPR' cols=20 rows=5>%PAYMENT_EXPR%</textarea>
+    </div>
+  </div>
+  <div class='form-group'>
+    <label class='col-md-3 control-label'>_{PAYMENT_TYPE}_:</label>
+    <div class='col-md-9'>
+      %PAYMENT_TYPE_SEL%
+    </div>
+  </div>
+  <div class='form-group'>
+    <label class='col-md-3 control-label'>_{ACTIVATE}_:</label>
+    <div class='col-md-9'>
+      <input class='form-control' type=text name=ACTIVATE_PRICE value='%ACTIVATE_PRICE%'>
+    </div>
+  </div>
+  <div class='form-group'>
+    <label class='col-md-3 control-label'>_{CHANGE}_:</label>
+    <div class='col-md-9'>
+      <input class='form-control' type=text name=CHANGE_PRICE value='%CHANGE_PRICE%'>
+    </div>
+  </div>
+  <div class='form-group'>
+    <label class='col-md-3 control-label'>_{CREDIT}_:</label>
+    <div class='col-md-9'>
+      <input class='form-control' type=text name=CREDIT value='%CREDIT%'>
+    </div>
+  </div>
+  <div class='form-group'>
+    <label class='col-md-3 control-label'>_{MIN_USE}_:</label>
+    <div class='col-md-9'>
+      <input class='form-control' type=text name=MIN_USE value='%MIN_USE%'>
+    </div>
+  </div>
+  <div class='form-group'>
+  <div class='checkbox'>
+    <label>
+      <input type='checkbox' name=NAS_TP value='1' %NAS_TP%><strong>_{NAS}_</strong>
+    </label>
+  </div>
+  </div>
+  <div class='form-group'>
+    <label class='col-md-3 control-label'>_{BONUS}_ _{CARDS}_:</label>
+    <div class='col-md-9'>
+      <input class='form-control' type=text name=BONUS_CARDS value='%BONUS_CARDS%'>
+    </div>
+  </div>
+  <div class='form-group'>
+    <label class='col-md-3 control-label'>_{COMMENTS}_:</label>
+    <div class='col-md-9'>
+      <textarea class='form-control' cols=60 rows=6 name=COMMENTS>%COMMENTS%</textarea>
+    </div>
+  </div>
+</div>
+<div class='panel-footer'>
+  <input class='btn btn-primary' type=submit name='%ACTION%' value='%LNG_ACTION%'>
+</div>
+</div>
 
 </form>
 </div>

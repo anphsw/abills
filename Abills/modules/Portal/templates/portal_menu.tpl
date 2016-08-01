@@ -1,1 +1,1 @@
-<li><a href=\"%HREF%\">%MENU_NAME%</a></li>
+<li><a href='%HREF%'>%MENU_NAME%</a></li>

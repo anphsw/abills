@@ -1,16 +1,42 @@
 <div class='noprint'>
-<form action='$SELF_URL' name=user>
-<input type=hidden name=UID value='%UID%'>
-<input type=hidden name=index value='$index'>
-<input type=hidden name=subf value='$FORM{subf}'>
-<TABLE class=form>
-<TR><TH colspan=3 class='form_title'>$_FEES $_TYPES</TH></TR>
-<TR><TD colspan=2>ID:</TD><TD><input type='text' name='ID' value='%ID%'></TD></TR>
-<TR><TD colspan=2>$_NAME:</TD><TD><input type='text' name='NAME' value='%NAME%'></TD></TR>
-<TR><TD colspan=2>$_SUM:</TD><TD><input type='text' name='SUM' value='%SUM%'></TD></TR>
-<TR><TD>$_DESCRIBE:</TD><TD>$_USER:</TD><TD><input type=text name=DEFAULT_DESCRIBE value='%DEFAULT_DESCRIBE%' size=40></TD></TR>
-<TR><TH colspan=3 class='even'><input type=submit name='%ACTION%' value='%LNG_ACTION%'></TH></TR>
-</TABLE>
+    <form action='$SELF_URL' name=user class='form form-horizontal'>
+        <input type=hidden name=UID value='%UID%'>
+        <input type=hidden name=index value='$index'>
+        <input type=hidden name=subf value='$FORM{subf}'>
+        <div class='panel panel-primary panel-form'>
+            <div class='panel-heading'>
+                _{FEES}_ _{TYPES}_
+            </div>
+            <div class='panel-body'>
+                <div class='form-group'>
+                    <label class='control-label col-md-3'>ID:</label>
+                    <div class='col-md-9'>
+                        <input type='text' class='form-control' name='ID' value='%ID%'>
+                    </div>
+                </div>
+                <div class='form-group'>
+                    <label class='control-label col-md-3'>_{NAME}_:</label>
+                    <div class='col-md-9'>
+                        <input type='text' class='form-control' name='NAME' value='%NAME%'>
+                    </div>
+                </div>
+                <div class='form-group'>
+                    <label class='control-label col-md-3'>_{SUM}_:</label>
+                    <div class='col-md-9'>
+                        <input type='text' class='form-control' name='SUM' value='%SUM%'>
+                    </div>
+                </div>
+                <div class='form-group'>
+                    <label class='control-label col-md-3'>_{DESCRIBE}_: _{USER}_:</label>
+                    <div class='col-md-9'>
+                        <input type=text class='form-control' name=DEFAULT_DESCRIBE value='%DEFAULT_DESCRIBE%'>
+                    </div>
+                </div>
+            </div>
+            <div class='panel-footer'>
+                <input type=submit class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
+            </div>
+        </div>
 
-</form>
+    </form>
 </div>

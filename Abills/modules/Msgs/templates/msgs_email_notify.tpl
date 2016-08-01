@@ -1,17 +1,18 @@
-$_ADDED $_MESSAGE
+_{NEW}_ _{MESSAGE}_
 =======================================
 ID: %ID%
-$_SUBJECT: %SUBJECT%
-$_STATUS: %STATUS%
-$_LOGIN: %LOGIN% (UID: %UID%)
-$_RESPOSIBLE: %RESPOSIBLE%
+_{SUBJECT}_: %SUBJECT%
+_{STATUS}_: %STATUS%
+_{LOGIN}_: %LOGIN%
+_{RESPOSIBLE}_: %RESPOSIBLE%
 %ADMIN%
 ---------------------------------------
+_{HELLO}_, %FIO%
 
 %MESSAGE%
 
-$_ATTACHMENT: %ATTACHMENT%
+%ATTACHMENT%
 ---------------------------------------
-$_SITE:   %SITE%
+_{SITE}_:   %SITE%
 =======================================
-$_DATE: %DATE% %TIME%
+_{DATE}_: %DATE% %TIME%

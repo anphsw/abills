@@ -1,4 +1,4 @@
-<form action='$SELF_URL'>
+<form action='$SELF_URL' class='form-horizontal'>
 <input type=hidden  name=index value='$index'>
 <input type=hidden  name=LOCATION_ID value='%LOCATION_ID%'>
 <input type=hidden  name=ADDRESS_FLAT value='%ADDRESS_FLAT%'>
@@ -6,15 +6,59 @@
 <input type=hidden  name=NOTIFY_ID value='%ID%'>
 <input type=hidden  name=add_user value='%ID%'>
 
-<table width=600 class=form>
-<tr><td>$_LOGIN:</td><td><input type=text  name=LOGIN value='%LOGIN%'></td></tr>
-<tr><td>$_FIO:</td><td><input type=text  name=FIO value='%FIO%'></td></tr>
-<tr><td>$_TARIF_PLAN:</td><td>%TP_SEL%</td></tr>
-<tr><td>$_GROUP:</td><td>%GID_SEL%</td></tr>
-<tr><td>$_PHONE:</td><td><input type=text  name=PHONE value='%PHONE%'></td></tr>
-<tr><td>E-MAIL:</td><td><input type=text  name=EMAIL value='%EMAIL%'></td></tr>
+%EXT_FIELDS%
 
-<tr><th colspan=2><input type=submit name=add_user_ value='$_ADD'></th></tr>
-</table>
+<fieldset>
+    <legend>_{ADD_USER}_</legend>
 
+<div class='form-group'>
+  <label class='control-label col-md-5' for='ID'>#</label>
+  <div class='col-md-2'>
+    <label class='control-label col-md-6' for='ID'>%ID%</label>
+  </div>
+</div> 
+
+<div class='form-group'>
+    <label class='control-label col-md-4' for='LOGIN'>_{LOGIN}_:</label>
+  <div class='col-md-4'>
+    <input id='LOGIN' name='LOGIN' value='%LOGIN%' placeholder='%LOGIN%' class='form-control' type='text'>
+  </div>
+</div> 
+
+<div class='form-group'>
+    <label class='control-label col-md-4' for='FIO'>_{FIO}_:</label>
+  <div class='col-md-4'>
+    <input id='FIO' name='FIO' value='%FIO%' placeholder='%FIO%' class='form-control' type='text'>
+  </div>
+</div> 
+
+<div class='form-group'>
+    <label class='control-label col-md-4' for='TP_ID'>_{TARIF_PLAN}_:</label>
+  <div class='col-md-4'>%TP_SEL%</div>
+</div> 
+
+<div class='form-group'>
+    <label class='control-label col-md-4' for='TP_ID'>_{GROUP}_:</label>
+  <div class='col-md-4'>
+  	%GID_SEL%
+  </div>
+</div> 
+
+<div class='form-group'>
+    <label class='control-label col-md-4' for='PHONE'>_{PHONE}_:</label>
+  <div class='col-md-4'>
+    <input id='PHONE' name='PHONE' value='%PHONE%' placeholder='%PHONE%' class='form-control' type='text'>
+  </div>
+</div> 
+
+<div class='form-group'>
+  <label class='control-label col-md-4' for='EMAIL'>E-MAIL:</label>
+  <div class='col-md-4'>
+    <input id='EMAIL' name='EMAIL' value='%EMAIL%' placeholder='%EMAIL%' class='form-control' type='text'>
+  </div>
+</div> 
+
+<input type='submit' class='btn btn-primary' name='add_user_' value='%ACTION_LNG%'>
+
+</fieldset>
 </form>

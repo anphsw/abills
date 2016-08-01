@@ -11,9 +11,18 @@
 
 <table style='min-width:350px;' width=auto class=form>
 <tr><th colspan=2 bgcolor=#EEEEEE class=form_title>Stripe</th></tr>
-<tr><td>$_ORDER:</td><td>$FORM{OPERATION_ID}</td></tr>
-<tr><td>$_SUM:</td><td>$FORM{SUM}</td></tr>
-<tr><td>$_DESCRIBE:</td><td>%LOGIN% $FORM{DESCRIBE}</td></tr>
+    <tr>
+        <td>_{ORDER}_:</td>
+        <td>$FORM{OPERATION_ID}</td>
+    </tr>
+    <tr>
+        <td>_{SUM}_:</td>
+        <td>$FORM{SUM}</td>
+    </tr>
+    <tr>
+        <td>_{DESCRIBE}_:</td>
+        <td>%LOGIN% $FORM{DESCRIBE}</td>
+    </tr>
 </table>
 
   <script

@@ -1,20 +1,59 @@
 <div class='noprint'>
 <FORM action='$SELF_URL' METHOD='POST'>
 <input type='hidden' name='index' value='$index'>
-<table width='400' class=form>
-<tr><th class='form_title' colspan='2'>$_SEARCH</th></tr>
-<tr><td>IP:  </td><td><input type='text' name='IP' value='%IP%'></td></tr>
-<tr><td>NETMASK:</td><td><input type='text' name='NETMASK' value='%NETMASK%'></td></tr>
-<tr><td>HOSTNAME:</td><td><input type='text' name='HOSTNAME' value='%HOSTNAME%'></td></tr>
-<tr><td>$_DESCRIBE:</td><td><input type='text' name='DESCR' value='%DESC%'></td></tr>
-<tr><td>Netlist $_GROUP: </td><td>%GROUP_SEL%</td></tr>
-<tr><td>$_STATE:   </td><td>%STATE_SEL%</td></tr>
-<tr><td>$_PHONE:   </td><td><input type='text' name='PHONE' value='%PHONE%'></td></tr>
-<tr><td>E-Mail:</td><td><input type='text' name='EMAIL' value='%EMAIL%'></td></tr>
-<tr><td>$_COMMENTS: </td><td><input type='text' name='COMMENTS' value='%COMMNETS%'></td></tr>
-<tr><td>$_ROWS: </td><td><input type='text' name='PAGE_ROWS' value='%PAGE_ROWS%'></td></tr>
-<tr><th class='even' colspan='2'><input type='submit' name='search' value='$_SEARCH'></th></tr>
-</table>
+
+
+<div class='panel panel-primary panel-form'>
+<div class='panel-heading text-center'>_{SEARCH}_</div>
+
+<div class='panel-body form-horizontal'>
+	<div class='form-group'>
+		<label class='col-md-3 control-label'>IP:</label>
+		<div class='col-md-9'><input class='form-control' type='text' name='IP' value='%IP%'></div>
+	</div>
+	<div class='form-group'>
+		<label class='col-md-3 control-label'>NETMASK:</label>
+		<div class='col-md-9'><input class='form-control' type='text' name='NETMASK' value='%NETMASK%'></div>
+	</div>
+	<div class='form-group'>
+		<label class='col-md-3 control-label'>HOSTNAME:</label>
+		<div class='col-md-9'><input class='form-control' type='text' name='HOSTNAME' value='%HOSTNAME%'></div>
+	</div>
+	<div class='form-group'>
+		<label class='col-md-3 control-label'>_{DESCRIBE}_:</label>
+		<div class='col-md-9'><input class='form-control' type='text' name='DESCR' value='%DESC%'></div>
+	</div>
+	<div class='form-group'>
+		<label class='col-md-3 control-label'>Netlist _{GROUP}_:</label>
+		<div class='col-md-9'>%GROUP_SEL%</div>
+	</div>
+	<div class='form-group'>
+		<label class='col-md-3 control-label'>_{STATE}_:</label>
+		<div class='col-md-9'>%STATE_SEL%</div>
+	</div>
+	<div class='form-group'>
+		<label class='col-md-3 control-label'>_{PHONE}_:</label>
+		<div class='col-md-9'><input class='form-control' type='text' name='PHONE' value='%PHONE%'></div>
+	</div>
+	<div class='form-group'>
+		<label class='col-md-3 control-label'>E-Mail:</label>
+		<div class='col-md-9'><input class='form-control' type='text' name='EMAIL' value='%EMAIL%'></div>
+	</div>
+	<div class='form-group'>
+		<label class='col-md-3 control-label'>_{COMMENTS}_:</label>
+		<div class='col-md-9'><input class='form-control' type='text' name='COMMENTS' value='%COMMNETS%'></div>
+	</div>
+	<div class='form-group'>
+		<label class='col-md-3 control-label'>_{ROWS}_:</label>
+		<div class='col-md-9'><input class='form-control' type='text' name='PAGE_ROWS' value='%PAGE_ROWS%'></div>
+	</div>
+</div>
+
+<div class='panel-footer'>
+	<input class='btn btn-primary' type='submit' name='search' value='_{SEARCH}_'>
+</div>
+
+</div>
 
 </FORM>
 </div>

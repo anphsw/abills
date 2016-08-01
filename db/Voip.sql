@@ -1519,4 +1519,19 @@ CREATE TABLE voip_ivr_log (
   status tinyint(2) unsigned NOT NULL default '0',
   uid int unsigned NOT NULL default 0,
   KEY uid(uid)
-) COMMENT 'Voip ivr log'
+) COMMENT 'Voip ivr log';
+
+
+CREATE TABLE `voip_ivr_menu` (
+  `id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
+  `main_id` smallint(5) unsigned NOT NULL DEFAULT '0',
+  `number` smallint(5) unsigned NOT NULL DEFAULT '0',
+  `name` varchar(100) NOT NULL DEFAULT '',
+  `comments` text,
+  `disable` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  `function` varchar(100) NOT NULL DEFAULT '',
+  `domain_id` smallint(5) unsigned NOT NULL DEFAULT '0',
+  `audio_file` varchar(200) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `name` (`main_id`, `name`)
+) COMMENT='Voip IVR Menu';

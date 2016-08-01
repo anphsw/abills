@@ -16,18 +16,20 @@
 	<td>%OrderId%</td>
 </tr>
 <tr>
-	<td>$_SUM:</td>
+    <td>_{SUM}_:</td>
 	<td>%amount%</td>
 </tr>
 <tr>
-	<td>$_DESCRIBE:</td>
+    <td>_{DESCRIBE}_:</td>
 	<td>%desc%</td>
 </tr>
 <tr>
 	<td>&nbsp;</td>
 	<td>&nbsp;</td>
 </tr>
-<tr><th colspan='2' class='even'><input type='submit' value='$_ADD'></th></tr>
+    <tr>
+        <th colspan='2' class='even'><input type='submit' value='_{ADD}_'></th>
+    </tr>
 </table>
 
 </form>

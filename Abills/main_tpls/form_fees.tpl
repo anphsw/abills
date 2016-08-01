@@ -1,21 +1,72 @@
-<div class='noprint'>
-<form action='$SELF_URL' name=user>
-<input type=hidden name=UID value='%UID%'>
-<input type=hidden name=index value='$index'>
-<input type=hidden name=subf value='$FORM{subf}'>
-<TABLE class=form>
-<TR><TH colspan=3 class='form_title'>$_FEES</TH></TR>
-<TR><TD colspan=2>$_SUM:</TD><TD><input type='text' name='SUM'></TD></TR>
-<TR><TD rowspan=2>$_DESCRIBE:</TD><TD>$_USER:</TD><TD><input type=text name=DESCRIBE value='%DESCRIBE%' size=40></TD></TR>
-<TR><TD>$_INNER:</TD><TD><input type=text name=INNER_DESCRIBE size=40></TD></TR>
-<TR><TD colspan=2>$_TYPE:</TD><TD>%SEL_METHOD%</TD></TR>
-<TR><TD colspan=2>$_EXCHANGE_RATE:</TD><TD>%SEL_ER%</TD></TR>
-%PERIOD_FORM%
-%EXT_DATA%
+<form action='$SELF_URL' class='form-horizontal' method='post' ID=user name=user role='form' onsubmit=\"postthread('submitbutton');\">
+    <input type=hidden name=UID value='%UID%'>
+    <input type=hidden name=index value='$index'>
+    <input type=hidden name=subf value='$FORM{subf}'>
 
-<TR><TD colspan=3>%SHEDULE%</TD></TR>
-<TR><TH colspan=3 class='even'><input type=submit name='take' value='$_TAKE'></TH></TR>
-</TABLE>
+    <fieldset>
 
+        <div class='panel panel-primary panel-form'>
+            <div class='panel-heading text-center'><h4>_{FEES}_</h4></div>
+            <div class='panel-body'>
+
+
+                <div class='form-group'>
+                    <label class='control-label col-md-3' for='SUM'>_{SUM}_:</label>
+                    <div class='col-md-9'>
+                        <input id='SUM' name='SUM' value='$FORM{SUM}' placeholder='$FORM{SUM}' class='form-control'
+                               type='text'>
+                    </div>
+                </div>
+
+
+                <div class='form-group'>
+                    <label class='control-label col-md-3' for='DESCRIBE'>_{DESCRIBE}_:</label>
+                    <div class='col-md-9'>
+                        <input id='DESCRIBE' type='text' name='DESCRIBE' value='%DESCRIBE%' class='form-control'>
+                    </div>
+                </div>
+
+                <div class='form-group'>
+                    <label class='control-label col-md-3' for='INNER_DESCRIBE'>_{INNER}_:</label>
+                    <div class='col-md-9'>
+                        <input id='INNER_DESCRIBE' type='text' name='INNER_DESCRIBE' value='%INNER_DESCRIBE%'
+                               class='form-control'>
+                    </div>
+                </div>
+
+                <div class='form-group'>
+                    <label class='control-label col-md-3' for='METHOD'>_{TYPE}_:</label>
+                    <div class='col-md-9'>
+                        %SEL_METHOD%
+                    </div>
+                </div>
+
+                <div class='form-group'>
+                    <label class='control-label col-md-3' for='CURRENCY'>_{CURRENCY}_ : _{EXCHANGE_RATE}_:</label>
+                    <div class='col-md-9'>
+                        %SEL_ER%
+                    </div>
+                </div>
+
+                <div class='form-group'>
+                    %PERIOD_FORM%
+                </div>
+
+
+                    %EXT_DATA_FORM%
+                  </div>
+
+                    %SHEDULE_FORM%
+
+
+            </div>
+
+            <div class='panel-footer'>
+                <input type=submit name='take' value='_{TAKE}_' class='btn btn-primary'>
+            </div>
+
+
+        </div>
+    </fieldset>
 </form>
-</div>
+

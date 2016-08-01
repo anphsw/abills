@@ -1,11 +1,11 @@
-<tr><td>$_ORDER:</td><td>%SEL_ORDER%</td></tr>
-<tr><td>$_SUM:</td><td><input type=text name=SUM value='%SUM%'></td></tr>
+<tr><td>_{ORDER}_:</td><td>%SEL_ORDER%</td></tr>
+<tr><td>_{SUM}_:</td><td><input type=text name=SUM value='%SUM%'></td></tr>
 
 
 <!--
 <tr><td colspan=2>
 <table width=100%>
-<tr class=even><th>#</th><th>$_ORDER</th><th>$_PRICE</th></tr>
+<tr class=even><th>#</th><th>_{ORDER}_</th><th>_{PRICE}_</th></tr>
 <tr><td>1.</td><td>
 <input type=hidden name=IDS value='1'>
 <input type=hidden name=IDS value='2'>

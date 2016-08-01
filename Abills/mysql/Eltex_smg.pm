@@ -1,28 +1,22 @@
 package Eltex_smg;
-# Eltex_smg VoIP AAA functions
-# http://eltex.nsk.ru/product/smg-1016m
-#
-# Auth
-# http://tools.ietf.org/html/draft-smith-sipping-auth-examples-01
+
+=head1 NAME
+   Eltex_smg VoIP AAA functions
+   http://eltex.nsk.ru/product/smg-1016m
+
+  Auth
+  http://tools.ietf.org/html/draft-smith-sipping-auth-examples-01
+
+=cut
 #**********************************************************
 
 use strict;
-use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
-);
-
-use Exporter;
-$VERSION     = 2.04;
-@ISA         = ('Exporter');
-@EXPORT      = qw();
-@EXPORT_OK   = ();
-%EXPORT_TAGS = ();
-
 # User name expration
 use main;
 use Billing;
 use Auth;
 
-@ISA = ("main");
+our @ISA = ("main");
 my ($conf, $Billing);
 
 my %RAD_PAIRS  = ();
@@ -44,7 +38,7 @@ sub new {
 
   my $self = {};
   bless($self, $class);
-  
+
   $self->{db}=$db;
 
   my $Auth = Auth->new($self->{db}, $conf);
@@ -131,7 +125,7 @@ sub user_info {
    FROM voip_main voip 
    INNER JOIN users u ON (u.uid=voip.uid)
    LEFT JOIN tarif_plans tp ON (tp.tp_id=voip.tp_id)
-   WHERE  
+   WHERE
    $WHERE
    AND (voip.expire='0000-00-00' or voip.expire > CURDATE());",
   undef,
@@ -294,11 +288,11 @@ sub auth {
     $self->query2("SELECT count(*) FROM voip_calls 
        WHERE (calling_station_id='$RAD->{CALLING_STATION_ID}' OR called_station_id='$RAD->{CALLING_STATION_ID}')
        AND status<>2;");
-      
+
     if ($self->{TOTAL} && $self->{list}->[0]->[0] >= $self->{LOGINS}) {
       $RAD_PAIRS{'Reply-Message'} = "More then allow calls ($self->{LOGINS}/$self->{list}->[0]->[0])";
       return 1, \%RAD_PAIRS;
-    }       
+    }
   }
 
   if ($self->{FILTER_ID}) {
@@ -312,7 +306,7 @@ sub auth {
 
     #One month freeperiod
     if ($conf->{VOIP_ONEMONTH_INCOMMING_ALLOW} && ! $self->{VOIP_DISABLE}) {
-      
+
     }
     #Check deposit
     elsif ($self->{DEPOSIT} <= 0) {
@@ -320,7 +314,7 @@ sub auth {
       $RAD_PAIRS{'Filter-Id'}='neg_deposit';
       return 1, \%RAD_PAIRS;
     }
-    
+
     if ($self->{DEPOSIT} < $self->{UPLIMIT}) {
       $RAD_PAIRS{'Reply-Message'} = "Too small deposit please recharge balace ($self->{DEPOSIT})";
       $RAD_PAIRS{'Filter-Id'}='deposit_alert';
@@ -534,7 +528,7 @@ sub get_route_prefix {
     if (t.protocol IS NULL, '', t.failover_trunk),
     rp.extra_tarification
       from intervals i, voip_route_prices rp
-      LEFT JOIN voip_trunks t ON (rp.trunk=t.id)       
+      LEFT JOIN voip_trunks t ON (rp.trunk=t.id)
       where
          i.id=rp.interval_id 
          and i.tp_id  = '$self->{TP_ID}'
@@ -597,7 +591,7 @@ sub accounting {
 
   #Start
   if ($acct_status_type == 1) {
-  	
+
     if ($NAS->{NAS_TYPE} eq 'eltex_smg') {
       # For Cisco
       $self->user_info($RAD, $NAS);
@@ -838,11 +832,11 @@ sub generate_DigestResponce {
   my $md5 = new Digest::MD5; 
   my $a1 = new Digest::MD5; 
   my $a2 = new Digest::MD5;
-  
+
   $md5->reset; 
   $a1->reset; 
   $a2->reset;
-  
+
   $a1->add("$username:$realm:$password");
   $a2->add("$method:$uri");
 
@@ -850,7 +844,7 @@ sub generate_DigestResponce {
   my $s2 = $a2->hexdigest();
 
   $md5->add($s1.":$nonce:".$s2);
-  
+
   return $md5 -> hexdigest();
 }
 
@@ -859,17 +853,9 @@ sub generate_DigestResponce {
 
 
 __END__
+
+
 =comments
-
-
-
-
-599457 авторизация в 18:47 по МСК
-звонок на 675065
-
-
-
-
 
 
 rad_recv: Access-Request packet from host 77.232.143.240 port 60567, id=180, length=332
@@ -1091,7 +1077,7 @@ rad_recv: Accounting-Request packet from host 77.232.143.240 port 60841, id=42, 
         Calling-Station-Id = "0074832599457"
         Called-Station-Id = "675065"
         Acct-Session-Id = "110003f6 52fa39ed 2830f830 28fd2a93"
-        Event-Timestamp = "февр. 11 2014 16:55:42 EET"
+        Event-Timestamp = "пїЅпїЅпїЅпїЅ. 11 2014 16:55:42 EET"
         NAS-Port = 285213686
         NAS-Port-Type = Async
         Cisco-NAS-Port = "SIPT:03f6"
@@ -1118,7 +1104,7 @@ rad_recv: Accounting-Request packet from host 77.232.143.240 port 60841, id=43, 
         Calling-Station-Id = "0074832599457"
         Called-Station-Id = "675065"
         Acct-Session-Id = "110003f6 52fa39ed 2830f830 28fd2a93"
-        Event-Timestamp = "февр. 11 2014 16:56:02 EET"
+        Event-Timestamp = "пїЅпїЅпїЅпїЅ. 11 2014 16:56:02 EET"
         NAS-Port = 285213686
         NAS-Port-Type = Async
         Cisco-NAS-Port = "SIPT:03f6"
@@ -1153,7 +1139,7 @@ rad_recv: Accounting-Request packet from host 77.232.143.240 port 60841, id=44, 
         Calling-Station-Id = "0074832599457"
         Called-Station-Id = "675065"
         Acct-Session-Id = "110003f6 52fa39ed 2830f830 28fd2a93"
-        Event-Timestamp = "февр. 11 2014 16:56:21 EET"
+        Event-Timestamp = "пїЅпїЅпїЅпїЅ. 11 2014 16:56:21 EET"
         NAS-Port = 285213686
         NAS-Port-Type = Async
         Cisco-NAS-Port = "SIPT:03f6"

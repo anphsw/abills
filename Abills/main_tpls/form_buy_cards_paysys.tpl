@@ -1,28 +1,85 @@
+<style>
+body {
+  padding-top: 3%;
+}
+</style>
+
 <form method='POST' action='$SELF_URL'>
-<input type='hidden' name='index' value='$index'>
-<input type='hidden' name='sid' value='$FORM{sid}'>
-<input type='hidden' name='OPERATION_ID' value='%OPERATION_ID%'>
-<input type='hidden' name='SUM' value='%SUM%'>
-<input type='hidden' name='DESCRIBE' value='Hotspot'>
-<input type='hidden' name='BUY_CARDS' value='1'>
-<input type='hidden' name='TP_ID' value='$FORM{TP_ID}'>
-<input type='hidden' name='UID' value='%UID%'>
-<input type='hidden' name='DOMAIN_ID' value='%DOMAIN_ID%'>
-<table width=300>
-<tr bgcolor=$_COLORS[0]><th colspan='2' class=form_title>$_ICARDS - $_BUY</th></tr>
-<tr><td>ID:</td><td>%OPERATION_ID%</td></tr>
-<tr><td>$_SUM:</td><td>%SUM%</td></tr>
-<tr><td>$_DESCRIBE:</td><td>Hotspot</td></tr>
-<tr><td>$_PAY_SYSTEM:</td><td><select name=PAYMENT_SYSTEM  ID=PAYMENT_SYSTEM>
-<option value='46'>Ukrpays
-<!-- 
-<option value='45'>Portmone
-<option value='48'>Privat Bank (Visa/Master Cards)
-<option value='54'>Privat Bank - Privat 24
-<option value='41'>Webmoney
--->
-</select>
-</td></tr>
-</table>
-<input type='submit' name=pre value='$_BUY'>
+      <input type='hidden' name='index' value='$index'>
+      <input type='hidden' name='sid' value='$FORM{sid}'>
+      <input type='hidden' name='OPERATION_ID' value='%OPERATION_ID%'>
+      <input type='hidden' name='SUM' value='%SUM%'>
+      <input type='hidden' name='DESCRIBE' value='Hotspot $FORM{TP_ID}'>
+      <input type='hidden' name='BUY_CARDS' value='1'>
+      <input type='hidden' name='TP_ID' value='$FORM{TP_ID}'>
+      <input type='hidden' name='UID' value='%UID%'>
+      <input type='hidden' name='DOMAIN_ID' value='%DOMAIN_ID%'>
+
+<div class='row'>
+<div class='col-md-3 col-lg-3 col-xs-3 hidden-xs'></div>
+<div class='col-md-6 col-sm-12 col-xs-12 col-lg-6'>
+<div class='panel panel-success'>
+  <div class='panel-heading text-center'>
+    <h3 style='margin:0'> _{ICARDS}_ - _{BUY}_ </h3>
+  </div>
+  <div class='panel-body' style='margin-top: 0%; padding-top: 1%;'>
+  <div class='row' style='margin-left:2%; margin-top:0%;'>
+      <div class='row'>
+        <div class='col-sm-6 col-xs-4 text-right'>
+          <label>ID:</label>
+        </div>
+        <div class='col-sm-6 col-xs-7'>
+          %OPERATION_ID%
+        </div>
+      </div>
+	  
+      <div class='well' style='padding-bottom: 25px; padding-top:5px; margin-bottom: 5px;'>
+        <div class='col-sm-6 col-xs-4 text-right'>
+          <label>_{SUM}_:</label>
+        </div>
+        <div class='col-sm-6  col-xs-8'>
+          %SUM%
+        </div>
+      </div>
+	  
+      <div class='row'>
+        <div class='col-md-6 col-sm-6 col-xs-4 text-right'>
+          <label>_{DESCRIBE}_:</label>
+        </div>
+        <div class='col-md-6 col-sm-6 col-xs-8'>
+          Hotspot $FORM{TP_ID}
+        </div>
+      </div>
+	
+  		<div class='row form-group'>
+        <div class='col-md-6 col-sm-6 col-xs-4 text-right'>
+          <label style='margin-top:5px;'>_{PHONE}_:</label>
+        </div>
+        <div class='col-md-6 col-sm-6 col-xs-8'>
+          <input type=text name='PHONE' value='%PHONE%' class='form-control' placeholder='+380xxxxxxxxx'>
+        </div>
+
+			</div>
+
+
+          <label class='col-md-12 bg-primary text-center' style='margin-top:5px;'>_{PAY_SYSTEM}_:</label>
+
+      %PAYSYS_SYSTEM_SEL%  
+	</div>
+    
+  </div>
+  <div class='panel-footer' style='margin:0%; padding: 0%;'>
+	<div class='row'>
+		<div class='col-sm-5 col-xs-5 col-md-5 col-xs-5 col-lg-5 col-xs-5'></div>
+		  <div class='col-md-4'>
+		    <input class='btn btn-lg btn-primary' type='submit' name=pre value='_{BUY}_' />
+		  </div>
+		<div class='col-sm-5 col-xs-5 col-md-5 col-xs-5 col-lg-5 col-xs-5'></div>
+	</div>	
+  </div>
+</div>
+</div>
+<div class='col-md-3 col-lg-3 col-xs-3 hidden-xs'></div>
+</div>
+
 </form>

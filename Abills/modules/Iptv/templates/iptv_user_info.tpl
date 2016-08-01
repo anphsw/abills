@@ -1,7 +1,22 @@
-<div class='noprint'>
-<TABLE width='500' cellspacing='0' cellpadding='0' border='0' class=form>
-<TR><TD>
-<tr class=even><td>$_TARIF_PLAN:</td><td>[%TP_ID%] <b>%TP_NAME%</b> %TP_CHANGE%</td></tr>
-<tr><td>$_STATUS:</td><td>%DISABLE%</td></tr>
-</table>
+<div class='panel panel-default'>
+<div class='panel-body'>
+
+<div class='form-group'>
+  <label class='control-label col-md-6' for='TP_ID'>_{TARIF_PLAN}_:</label>
+  <label class='control-label col-md-6' for='TP_ID'>
+   [%TP_NUM%]  <b>%TP_NAME%</b> %TP_CHANGE%
+  </label>
 </div>
+
+<div class='form-group'>
+  <label class='control-label col-md-6' for='DISABLE'>_{STATUS}_:</label>
+  <label class='control-label col-md-6' for='TP_ID'>
+    %DISABLE%
+  </label>
+</div>
+
+<div class='form-group col-md-12'>
+  %M3U_LIST%
+</div>
+
+</div></div>

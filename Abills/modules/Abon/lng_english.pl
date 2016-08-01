@@ -1,18 +1,15 @@
-$_QUARTER='Quarter';
-$_SIX_MONTH='Six month';
-$_LAST_ABON='Last Abon payment';
-$_NEXT_ABON='Next Abon payment';
-$_NONFIX_PERIOD='NonFixed Periods';
-$_NOTIFICATION='Notification days';
-$_DAYS_TO_END='Days to end';
-$_ENDED='Finished';
-$_SEND_ACCOUNT='Send account';
-$_EXT_CMD='Extrnal command';
-$_SERVICE_ACTIVATE_NOTIFICATION='Service Activate notification';
-$_VAT_INCLUDE='Vat Include';
-
-$_SEND_NOTIFICATION='Send Notification';
-
-
-$_MANUAL_ACTIVATE='Manual Activate';
-$_USER_PORTAL='User portal';
+$lang{QUARTER}='Quarter';
+$lang{SIX_MONTH}='Six month';
+$lang{LAST_ABON}='Last Abon payment';
+$lang{NEXT_ABON}='Next Abon payment';
+$lang{NONFIX_PERIOD}='NonFixed Periods';
+$lang{NOTIFICATION}='Notification days';
+$lang{DAYS_TO_END}='Days to end';
+$lang{ENDED}='Finished';
+$lang{SEND_ACCOUNT}='Send account';
+$lang{EXT_CMD}='Extrnal command';
+$lang{SERVICE_ACTIVATE_NOTIFICATION}='Service Activate notification';
+$lang{VAT_INCLUDE}='Vat Include';
+$lang{SEND_NOTIFICATION}='Send Notification';
+$lang{MANUAL_ACTIVATE}='Manual Activate';
+$lang{USER_PORTAL}='User portal';

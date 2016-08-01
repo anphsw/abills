@@ -34,11 +34,20 @@ table.naryad td {
 <tr><td>г. xxxxx</td><td></td></tr>
 
 <tr><th colspan=2>Наряд-путевка на производство работ монтажной бригадой</th></tr>
-<tr><td>в составе: </td><td>$_DATE: %PLAN_DATE% </td></tr>
+    <tr>
+        <td>в составе:</td>
+        <td>_{DATE}_: %PLAN_DATE%</td>
+    </tr>
 
 <tr><td colspan=2>
 <table width=600 border=1 class='naryad'>
-<tr><th>#</th><th>Логин</th><th>Место работ($_FIO, $_ADDRESS, $_PHONE)</th><th>Состав работ</th><th>Отметка о выполнении</th></tr>
+    <tr>
+        <th>#</th>
+        <th>Логин</th>
+        <th>Место работ(_{FIO}_, _{ADDRESS}_, _{PHONE}_)</th>
+        <th>Состав работ</th>
+        <th>Отметка о выполнении</th>
+    </tr>
 <tr><td>&nbsp; %ORDER_NUM_1%</td><td>%ORDER_PERSONAL_INFO_LOGIN_1%</td><td>%ORDER_PERSONAL_INFO_1%</td><td>%ORDER_JOB_1% %ORDER_JOB_DATE_1%</td><td> </td></tr>
 <tr><td>&nbsp; %ORDER_NUM_2%</td><td>%ORDER_PERSONAL_INFO_LOGIN_2%</td><td>%ORDER_PERSONAL_INFO_2%</td><td>%ORDER_JOB_2% %ORDER_JOB_DATE_2%</td><td> </td></tr>
 <tr><td>&nbsp; %ORDER_NUM_3%</td><td>%ORDER_PERSONAL_INFO_LOGIN_3%</td><td>%ORDER_PERSONAL_INFO_3%</td><td>%ORDER_JOB_3% %ORDER_JOB_DATE_3%</td><td> </td></tr>
@@ -67,11 +76,10 @@ table.naryad td {
 
 
 </table>
-
 <div class='noprint' align=center>
 <p>
-<a href=\"javascript:window.print();\" class=linkm1><b>$_PRINT</b></a> :: 
+    <a href=\"javascript:window.print();\" class=linkm1><b>_{PRINT}_</b></a> ::
 <a href=\"$SELF_URL?qindex=$FORM{qindex}&print=$FORM{print}&pdf=1\" target=_pdf class=linkm1><b>PDF</b></a> ::
-<a href=\"javascript:window.close();\" class=linkm1><b>$_CLOSE</b></a>
+    <a href=\"javascript:window.close();\" class=linkm1><b>_{CLOSE}_</b></a>
 </p>
 </div>

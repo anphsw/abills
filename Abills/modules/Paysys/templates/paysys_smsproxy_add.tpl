@@ -4,7 +4,10 @@
 <input type='hidden' name='PAYMENT_SYSTEM' value='$FORM{PAYMENT_SYSTEM}'>
 <table>
 <tr><th colspan='2' class='form_title'>SMS Proxy</th></tr>
-<tr><td>$_PASSWD:</td><td><input type='text' name='CODE' value=''></td></tr>
+    <tr>
+        <td>_{PASSWD}_:</td>
+        <td><input type='text' name='CODE' value=''></td>
+    </tr>
 </table>
 <input type='submit' name='button' value=' оплатить ' style='font-family:Verdana, Arial, sans-serif; font-size : 11px;'>
 </form>

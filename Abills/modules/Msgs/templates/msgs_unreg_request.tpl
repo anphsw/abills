@@ -1,31 +1,111 @@
-<FORM action='$SELF_URL' METHOD='POST' name='reg_request_form'>
-<input type='hidden' name='index' value='$index'/>
-<input type='hidden' name='ID' value='%ID%'/>
+<form action='$SELF_URL' METHOD='POST' name='reg_request_form' class='form-horizontal'>
+  <input type='hidden' name='index' value='$index'/>
+  <input type='hidden' name='ID' value='%ID%'/>
 
-<table class=form>
-<tr><th class='form_title'colspan='2'>$_REQUESTS</th></tr>
-<tr><td>$_DATE:</td><td>%DATE%</td></tr>
-<tr><td>$_CHAPTERS:</td><td>%CHAPTER_SEL%</td></tr>
-<tr><td>$_SUBJECT:</td><td><input type='text' name='SUBJECT' value='%SUBJECT%' size='50'/></td></tr>
+  <fieldset>
+    <div class='panel panel-primary panel-form'>
+      <div class='panel-heading text-center'><h4>_{REQUESTS}_</h4></div>
+      <div class='panel-body'>
 
-<tr><th class='title_color'colspan='2'>$_COMMENTS</th></tr>
-<tr><th colspan='2'><textarea name='COMMENTS' cols='70' rows='9'>%COMMENTS%</textarea></th></tr>
-<tr><td>$_COMPANY:</td><td><input type='text' name='COMPANY_NAME' value='%COMPANY_NAME%' size='45'/></td></tr>
-<tr><td>$_FIO:</td><td><input type='text' name='FIO' value='%FIO%' size='45'/></td></tr>
-<tr><td>$_PHONE:</td><td><input type='text' name='PHONE' value='%PHONE%' size='45'/></td></tr>
-<tr><td>E-mail:</td><td><input type='text' name='EMAIL' value='%EMAIL%' size='45'/></td></tr>
-<tr><td>$_CONNECTION_TIME:</td><td><input type='text' name='CONNECTION_TIME' value='%CONNECTION_TIME%' ID='CONNECTION_TIME' rel='tcal'/> 
+        <div class='form-group'>
+          <label class='control-label col-md-3' for='DATE'>_{DATE}_</label>
+          <div class='col-md-9'>
+            %DATE%
+          </div>
+        </div>
+
+        <div class='form-group'>
+          <label class='control-label col-md-3' for='CHAPTERS'>_{CHAPTERS}_</label>
+          <div class='col-md-9'>
+            %CHAPTER_SEL%
+          </div>
+        </div>
+
+        <div class='form-group'>
+          <label class='control-label col-md-3' for='SUBJECT'>_{SUBJECT}_:</label>
+          <div class='col-md-9'>
+            <input id='SUBJECT' name='SUBJECT' value='%SUBJECT%' placeholder='%SUBJECT%' class='form-control'
+                   type='text'>
+          </div>
+        </div>
+
+        <div class='form-group'>
+          <label class='col-sm-offset-2 col-sm-8'>_{COMMENTS}_</label>
+          <div class='col-sm-offset-2 col-sm-10'>
+            <textarea cols='30' rows='4' name='COMMENTS' class='form-control'>%COMMENTS%</textarea>
+          </div>
+        </div>
+
+        <div class='form-group'>
+          <label class='control-label col-md-3' for='COMPANY_NAME'>_{COMPANY}_:</label>
+          <div class='col-md-9'>
+            <input id='COMPANY_NAME' name='COMPANY_NAME' value='%COMPANY_NAME%' placeholder='%COMPANY_NAME%'
+                   class='form-control' type='text'>
+          </div>
+        </div>
+
+        <div class='form-group'>
+          <label class='control-label col-md-3' for='FIO'>_{FIO}_:</label>
+          <div class='col-md-9'>
+            <input id='FIO' name='FIO' value='%FIO%' placeholder='%FIO%' class='form-control' type='text'>
+          </div>
+        </div>
+
+        <div class='form-group'>
+          <label class='control-label col-md-3' for='PHONE'>_{PHONE}_:</label>
+          <div class='col-md-9'>
+            <input id='PHONE' name='PHONE' value='%PHONE%' placeholder='%PHONE%' class='form-control' type='text'>
+          </div>
+        </div>
+
+        <div class='form-group'>
+          <label class='control-label col-md-3' for='EMAIL'>E-mail:</label>
+          <div class='col-md-9'>
+            <input id='EMAIL' name='EMAIL' value='%EMAIL%' placeholder='%EMAIL%' class='form-control' type='text'>
+          </div>
+        </div>
 
 
-</td></tr>
+        <div class='form-group'>
+          <label class='control-label col-md-3' for='SUBJECT'>_{CONNECTION_TIME}_:</label>
+          <div class='col-md-9'>
+            <input id='CONNECTION_TIME' name='CONNECTION_TIME' value='%CONNECTION_TIME%' placeholder='%CONNECTION_TIME%'
+                   class='form-control tcal' type='text'>
+          </div>
+        </div>
 
-%ADDRESS_TPL%
+        %ADDRESS_TPL%
 
-<tr><td>$_STATE:</td><td>%STATE_SEL%</td></tr>  
-<tr><td>$_PRIORITY:</td><td>%PRIORITY_SEL%</td></tr>
-<TR><TD>$_RESPOSIBLE:</TD><TD>%RESPOSIBLE%</TD></TR>
-<TR><TH colspan=2 class=even><input type='submit' name='%ACTION%' value='%LNG_ACTION%'/></TH></TR>
-</table>
+        <div class='form-group'>
+          <label class='control-label col-md-3' for='STATE'>_{STATE}_:</label>
+          <div class='col-md-9'>
+            %STATE_SEL%
+          </div>
+        </div>
 
-</FORM>
+        <div class='form-group'>
+          <label class='control-label col-md-3' for='PRIORITY'>_{PRIORITY}_:</label>
+          <div class='col-md-9'>
+            %PRIORITY_SEL%
+          </div>
+        </div>
 
+
+        <div class='form-group'>
+          <label class='control-label col-md-3' for='RESPOSIBLE'>_{RESPOSIBLE}_:</label>
+          <div class='col-md-9'>
+            %RESPOSIBLE_SEL%
+          </div>
+        </div>
+
+
+      </div>
+      <div class='panel-footer text-center'>
+
+        %BACK_BUTTON% <input type=submit name=%ACTION% value='%LNG_ACTION%' ID='submitbutton' class='btn btn-primary'>
+      </div>
+    </div>
+    </div>
+    </div>
+  </fieldset>
+</form>

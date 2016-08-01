@@ -1,25 +1,34 @@
 CREATE TABLE IF NOT EXISTS `portal_articles` (
-  `id` int(10) unsigned NOT NULL auto_increment,
-  `title` varchar(255) not null default '',
-  `short_description` text NOT NULL default '',
-  `content` text NOT NULL default '',
-  `status` tinyint(1) NOT NULL default 0,
-  `on_main_page` tinyint(1) default '0',
-  `date` datetime default NULL,
-  `portal_menu_id` int(10) unsigned NOT NULL default 0,
-  PRIMARY KEY  (`id`),
+  `id`                INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `title`             VARCHAR(255)     NOT NULL DEFAULT '',
+  `short_description` TEXT             NULL,
+  `content`           TEXT             NULL,
+  `status`            TINYINT(1)       NOT NULL DEFAULT 0,
+  `on_main_page`      TINYINT(1)                DEFAULT '0',
+  `date`              DATETIME                  DEFAULT NULL,
+  `portal_menu_id`    INT(10) UNSIGNED NOT NULL DEFAULT 0,
+  `end_date`          DATETIME                  DEFAULT NULL,
+  `archive`           tinyint(1)       NOT NULL DEFAULT 0,
+  `importance`        tinyint(1)       NOT NULL DEFAULT 0,
+  `gid`               smallint(4)      NOT NULL DEFAULT 0,
+  `tags`              smallint(4)      NOT NULL DEFAULT 0,
+  `district_id`       smallint(6) unsigned NOT NULL DEFAULT 0,
+  `street_id`         smallint(6) unsigned NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
   KEY `fk_portal_content_portal_menu` (`portal_menu_id`)
-)COMMENT='information about article';
+)
+  COMMENT = 'information about article';
 
 
 CREATE TABLE IF NOT EXISTS `portal_menu` (
-  `id` int(10) unsigned NOT NULL auto_increment,
-  `name` varchar(45) not null default '',
-  `url` varchar(100) not null default '',
-  `date` datetime default NULL,
-  `status` tinyint(1) not null default 0,
-  PRIMARY KEY  (`id`)
-)COMMENT='information about menu' ;
+  `id`     INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name`   VARCHAR(45)      NOT NULL DEFAULT '',
+  `url`    VARCHAR(100)     NOT NULL DEFAULT '',
+  `date`   DATETIME                  DEFAULT NULL,
+  `status` TINYINT(1)       NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`)
+)
+  COMMENT = 'information about menu';
 
 
 

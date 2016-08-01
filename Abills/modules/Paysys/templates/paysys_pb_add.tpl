@@ -9,8 +9,14 @@
 
 
 <table width=100%>
-<tr><td>$_ORDER:</td><td>%OPERATION_ID%</td></tr>
-<tr><td>$_SUM:</td><td>$FORM{SUM}</td></tr>
+    <tr>
+        <td>_{ORDER}_:</td>
+        <td>%OPERATION_ID%</td>
+    </tr>
+    <tr>
+        <td>_{SUM}_:</td>
+        <td>$FORM{SUM}</td>
+    </tr>
 
 <tr><th colspan=2 align=center>
 <a href='https://secure.privatbank.ua/help/verified_by_visa.html'

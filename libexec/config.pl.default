@@ -20,26 +20,34 @@ $conf{default_language}='russian';
 $conf{default_charset}='utf-8';
 $conf{WEB_TITLE}='';
 
-
-
-@MODULES = ('Dv',
-            'Voip',
-            'Docs', 
-            'Mail',
+our @MODULES = ('Dv',
+#            'Docs', 
+#            'Mail',
             'Msgs',
-            'Sqlcmd');
+            'Config',
+            'Sysinfo',
+#Device monitoring and manage via snmp
+            'Equipment',
+            'Dhcphosts',
+            'Ipn',
+            'Tags',
+#            'Cards',
+            'Sqlcmd',
+);
 
-
-%ACCT = ();
+our %ACCT = ();
 #For VoIP GNU Gatekeeper accounting
 $ACCT{gnugk} = 'Voip_aaa';
 
-%AUTH = ();
+our %AUTH = ();
 #For VoIP GNU Gatekeeper Auth
 $AUTH{gnugk} = 'Voip_aaa';
 
 #Technical works banner in admin and user interface
 #$conf{tech_works}='Technical works';
+
+$conf{CUSTOM_START_PAGE}=1;
+$conf{AUTH_METHOD}=1;
 
 #Periodic functions
 $conf{p_admin_mails}=1;  # Send periodic admin reports
@@ -47,10 +55,8 @@ $conf{p_users_mails}=1;  # Send user warning  messages
 
 # chap encryption decription key
 $conf{secretkey}="test12345678901234567890";
-#$conf{s_detalization}=1; #make session detalization recomended for vpn leathed lines
+$conf{s_detalization}=1; #make session detalization recomended for vpn leathed lines
 $conf{ERROR2DB}=1;
-
-$conf{version}='0.59/20160308'; #08.01.2016
 
 #Octets direction
 # server - Count octets from server side
@@ -76,25 +82,28 @@ $conf{LANGS}="english:English;
  russian:Русский;
  ukraine:Українська;
  bulgarian:Болгарська;
- french:French";
+ french:French;
+ armenian:Armenian;
+ azeri:Azeri;
+ belarussian:Беларускi;
+ spanish:Spain;
+ uzbek:Uzbek;";
+
 
 #Web interface
 $conf{PASSWD_LENGTH}=6;
 $conf{MAX_USERNAME_LENGTH}=15;
+
 # User name expration
 $conf{USERNAMEREGEXP}="^[a-z0-9_][a-z0-9_-]*\$";
 $conf{list_max_recs}=25;
 $conf{web_session_timeout} = 86000;
 $conf{user_chg_passwd}=0;
-#Max session traffic Mb
-#$conf{MAX_SESSION_TRAFFIC} = 2047; 
 
-
-# Exppp options
-#$conf{DV_EXPPP_NETFILES}='/usr/abills/cgi-bin/admin/nets/';
 #Auto assigning MAC in first connect
-$conf{MAC_AUTO_ASSIGN}=1;
-$conf{KBYTE_SIZE} = 1024;
+$conf{MAC_AUTO_ASSIGN} = 1;
+$conf{KBYTE_SIZE}      = 1024;
+$conf{ADDRESS_REGISTER}= 1;
 
 # Debug mod 
 $conf{debug}=10;
@@ -104,16 +113,6 @@ $conf{debugmods}='LOG_ALERT LOG_WARNING LOG_ERR LOG_INFO';
 #show auth and accounting time need Time::HiRes module (available from CPAN)
 # Check script runnig time
 $conf{time_check}=1;
-$conf{RADIUS2}=1;
-
-#Firewall start rule numbers
-# (GLobal, Class 1, Class 2)
-@START_FW = (5000, 3000, 1000);
-
-
-# Backup SQL data
-$conf{BACKUP_DIR}='/usr/abills/backup';
-
 
 # Folders and files
 $base_dir='/usr/abills/';
@@ -122,20 +121,19 @@ $lib_path=$base_dir .'libexec/';
 $var_dir=$base_dir .'var/';
 $conf{SPOOL_DIR}=$base_dir.'var/q';
 
+# Backup SQL data
+$conf{BACKUP_DIR}=$base_dir.'/backup';
+
 # Template folder
 $conf{TPL_DIR}   = $base_dir . 'Abills/templates/';
 $conf{LOG_DEBUG} = $base_dir . 'var/log/abills.debug';
 $conf{LOGFILE}   = $base_dir . 'var/log/abills.log';
 
-#For file auth type allow file
-$conf{extern_acct_dir}=$base_dir.'libexec/ext_acct/';
-
 use POSIX qw(strftime);
-$DATE = strftime "%Y-%m-%d", localtime(time);
-
-$TIME = strftime "%H:%M:%S", localtime(time);
+$DATE    = strftime "%Y-%m-%d", localtime(time);
+$TIME    = strftime "%H:%M:%S", localtime(time);
 $curtime = strftime("%F %H.%M.%S", localtime(time));
-$year = strftime("%Y", localtime(time));
+$year    = strftime("%Y", localtime(time));
 
 
 1

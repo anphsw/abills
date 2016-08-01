@@ -3,9 +3,17 @@
 
 <TABLE width='100%' cellspacing='0' cellpadding='0' border='0'><TR><TD bgcolor='#E1E1E1'>
 <TABLE width='100%' cellspacing='1' cellpadding='0' border='0'>
-<TR bgcolor='$_COLORS[1]'><td>$_LOGIN:</td><td colspan='3'>%LOGIN%</td></tr>
+    <TR bgcolor='$_COLORS[1]'>
+        <td>_{LOGIN}_:</td>
+        <td colspan='3'>%LOGIN%</td>
+    </tr>
 <tr><th colspan='4' bgcolor='$_COLORS[0]'>Station Information and Status</th></tr>
-<TR bgcolor='$_COLORS[1]'><td>MAC Address</td><td>%MAC%</td><td>$_NAME</td><td>%ClientName%</td></tr>
+    <TR bgcolor='$_COLORS[1]'>
+        <td>MAC Address</td>
+        <td>%MAC%</td>
+        <td>_{NAME}_</td>
+        <td>%ClientName%</td>
+    </tr>
 <TR bgcolor='$_COLORS[1]'><td>IP Address:</td><td>%ClientIpAddress%</td><td>Class</td><td>%ClientIpAddressType%</td></tr>
 <TR bgcolor='$_COLORS[1]'><td>Device:	</td><td>%ClientDevType%</td><td>Software Version</td><td>%ClientSoftwareVersion%</td></tr>
 <TR bgcolor='$_COLORS[1]'><td>CCX Version<td></td><td></td><td> </td></tr>

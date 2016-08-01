@@ -1,8 +1,9 @@
 
 CREATE TABLE `iptv_main` (
+  `id` int(11) unsigned NOT NULL auto_increment,
   `uid` int(11) unsigned NOT NULL default '0',
   `tp_id` smallint(5) unsigned NOT NULL default '0',
-  `filter_id` varchar(15) NOT NULL default '',
+  `filter_id` varchar(100) NOT NULL default '',
   `cid` varchar(35) NOT NULL default '',
   `disable` tinyint(1) unsigned NOT NULL default '0',
   `registration` date default '0000-00-00',
@@ -10,7 +11,9 @@ CREATE TABLE `iptv_main` (
   `vod` tinyint(1) unsigned NOT NULL default '0',
   `dvcrypt_id` int(10) unsigned NOT NULL DEFAULT '0',
   `expire` date NOT NULL default '0000-00-00',
-  PRIMARY KEY  (`uid`),
+  `subscribe_id` int(11) unsigned NOT NULL default 0,
+  `email` varchar(100) NOT NULL default '',
+  PRIMARY KEY  (`id`),
   KEY `tp_id` (`tp_id`)
 ) COMMENT='IPTV users settings';
 
@@ -33,11 +36,15 @@ CREATE TABLE `iptv_tps` (
 
 CREATE TABLE `iptv_channels` (
   `id` smallint(6) unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(50) NOT NULL,
+  `name` varchar(50) NOT NULL DEFAULT '',
   `num` smallint(6) unsigned NOT NULL DEFAULT '0',
   `port` smallint(6) unsigned NOT NULL DEFAULT '0',
   `comments` text NOT NULL,
-  `disable` tinyint(2) unsigned NOT NULL DEFAULT '0',
+  `filter_id` varchar(100) NOT NULL default '',
+  `disable` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  `stream` varchar(150) NOT NULL default '',
+  `state` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  `genre_id` tinyint(1) unsigned NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`),
   UNIQUE KEY `num` (`num`)
@@ -54,11 +61,12 @@ CREATE TABLE `iptv_ti_channels` (
 ) COMMENT='IPTV channels prices';
 
 CREATE TABLE `iptv_users_channels` (
+  `id` INTEGER(10) UNSIGNED NOT NULL DEFAULT '0',
   `uid` INTEGER(10) UNSIGNED NOT NULL DEFAULT '0',
   `tp_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
   `channel_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
   `changed` DATETIME NOT NULL,
-  UNIQUE KEY `uid` (`uid`, `channel_id`, `tp_id`)
+  UNIQUE KEY `id` (`id`, `channel_id`, `tp_id`)
 )
 COMMENT='Iptv users channels';
 
@@ -85,3 +93,41 @@ CREATE TABLE `iptv_calls` (
   KEY `acct_session_id` (`acct_session_id`),
   KEY `uid` (`uid`)
 ) COMMENT "Iptv online";
+
+
+CREATE TABLE `iptv_subscribes` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `status` tinyint(3) unsigned NOT NULL DEFAULT '0',
+  `created` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `ext_id` varchar(20) NOT NULL DEFAULT '',
+  `tp_id` smallint(5) unsigned NOT NULL DEFAULT '0',
+  `expire` date NOT NULL DEFAULT '0000-00-00',
+  `password` BLOB NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY ext_id (ext_id)
+) COMMENT='IPTV Subscribes';
+
+
+CREATE TABLE `iptv_screens` (
+  `id` smallint(6) unsigned NOT NULL AUTO_INCREMENT,
+  `tp_id` smallint(6) unsigned NOT NULL DEFAULT '0',
+  `num` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  `filter_id` varchar(60) NOT NULL DEFAULT '',
+  `name` varchar(60) NOT NULL DEFAULT '',
+  `month_fee` double(15,5) unsigned NOT NULL DEFAULT '0.00000',
+  `day_fee` double(15,5) unsigned NOT NULL DEFAULT '0.00000',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `tp_id` (`tp_id`,`num`)
+) COMMENT='IPTV Extra screens';
+
+
+CREATE TABLE `iptv_users_screens` (
+  `service_id` int(10) unsigned NOT NULL DEFAULT '0',
+  `screen_id` smallint(6) unsigned NOT NULL DEFAULT '0',
+  `date` date NOT NULL DEFAULT '0000-00-00',
+  `cid` varchar(60) NOT NULL DEFAULT '',
+  `serial` varchar(60) NOT NULL DEFAULT '',
+  `hardware_id` int(10) unsigned NOT NULL DEFAULT '0',
+  UNIQUE KEY `service_id` (`service_id`,`screen_id`)
+) COMMENT='IPTV Extra screens';
+

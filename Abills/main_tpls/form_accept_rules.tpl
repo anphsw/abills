@@ -1,32 +1,27 @@
-<center>
-<TABLE width='600' cellspacing='0' cellpadding='0' border='0'>
-<TR><TD bgcolor='#E1E1E1'>
-<TABLE width='100%' cellspacing='1' cellpadding='0' border='0'>
+<form action=$SELF_URL method='post' class='form-horizontal'>
+  <input type='hidden' name='index' value='$index'>
+  <input type='hidden' name='sid' value='$sid'>
 
-<tr><th bgcolor=#DDDDDD>Rules</th></tr>
-<tr><td bgcolor='#FFFFFF'>
-<b>Dear %FIO%</b>
-<p>
+  <div class='row'>
+    <div class='col-md-12' align='center'>
+      <div class='modal-content'>
+        <div class='modal-header'><h4>_{RULES}_</h4></div>
+        <div class='modal-body'>
+          <br>Уважаемый, <b>%FIO%</b>.
+          <p>Вы соглашаетесь с правилам пользования нашими услугами.</p>
+          <p>Здесь пишите правила.</p>
+          <div class='checkbox'>
+            <label class='control-label'>
+              <input type='checkbox' name='ACCEPT' value=1 %CHECKBOX% %HIDDEN%> _{ACCEPT_RULES}_
+            </label>
+          </div>
+        </div>
+        <div class='modal-footer'>
+          <input type=submit class='btn btn-primary' name='accept' value='_{ACCEPT}_' %HIDDEN%>
+          <input type=submit class='btn btn-primary' name='cancel' value='_{CANCEL}_' %HIDDEN%>
+        </div>
+      </div>
+    </div>
+  </div>
 
-Rules!!!!
-
-</p>
-
-Thank you very much
-</td>
-
-<tr><th>
-<form action=$SELF_URL METHOD=POST>
-<input type=hidden name=index value=$index>
-<input type=hidden name=sid value=$sid>
-
-
-
-<input type=checkbox name=ACCEPT value=1> $_ACCEPT_RULES <BR>
-<input type=submit name=accept value='$_ACCEPT'>
-<input type=submit name=cancel value='$_CANCEL'>
-
-</FORM>
-</th></tr>
-</TABLE>
-</TD></TR></TABLE>
+</form>

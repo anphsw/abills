@@ -1,18 +1,32 @@
-<div id=\"open_popup_block_middle\">
-        <a title=\"CLOSE\" id=\"close_popup_window\"> <img  id=\"close_popup_window_img\" src=\"/img/popup_window/close.png\" title=\"CLOSE\"  /></a>
-        <div align='center'><img align='center' id=\"loading\" src=\"/img/loader.gif\" title=\"Loading...\"  /><br /><br /></div>
-        <div id=\"popup_window_content\">
+<script>
+  var formURL                 = '?get_index=%CALLBACK_FN_NAME%&header=2';
+  var should_open_results_tab = '%OPEN_RESULT%' || false;
+</script>
+<div id='open_popup_block_middle'>
+  <div class='modal-content'>
+    <div class='modal-header'>
+      <button type='button' class='close' data-dismiss='modal' aria-label='Close'>
+        <span aria-hidden="true">&times;</span>
+      </button>
+      <div class='row text-center'>
 
+          <input type='button' class='btn' data-toggle='dropdown' onclick='enableSearch_Pill();'
+                 value='_{SEARCH}_'/>
+          <input type='button' class='btn' data-toggle='dropdown' onclick='enableResult_Pill();'
+                 value='_{RESULT}_'/>
 
-                <div align='center'>
-                 <span id='search_window'><a href='#'>SEARCH</a></span><span>   </span><span id='result_window'><a href='#'>RESULT</a></span>          
-                </div>
-                <div id='nas_ajax_content'>
-
-                %SUB_TEMPLATE%
-                </div>
-
-                <div id=\"result\">
-                </div>
+      </div>
+    </div>
+    <div class='modal-body'>
+      <div id='search_pill' class='dropdown-toggle'>%SUB_TEMPLATE%</div>
+      <div id='result_pill' class='dropdown-toggle hidden'>%RESULTS%</div>
+    </div>
+    <div class='modal-footer'>
+      <button type='button' class='btn btn-primary' value='SEARCH' id='search'>
+        <span class='glyphicon glyphicon-search'></span>
+        _{SEARCH}_
+      </button>
+    </div>
+  </div>
 </div>
 

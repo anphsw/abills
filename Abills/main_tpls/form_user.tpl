@@ -1,74 +1,119 @@
-<SCRIPT TYPE=\"text/javascript\">
-<!-- 
-function add_comments () {
+<SCRIPT TYPE='text/javascript'>
+    <!--
+    function add_comments() {
 
-if (document.user_form.DISABLE.checked) {
-  document.user_form.DISABLE.checked=false;
+        if (document.user_form.DISABLE.checked) {
+            document.user_form.DISABLE.checked = false;
 
-  Q=prompt('$_COMMENTS','');
+            var comments = prompt('_{COMMENTS}_', '');
 
-  if (Q == '' || Q == null) {
-  	alert('Enter comments');
-  	document.user_form.DISABLE.checked=false;
-  	document.user_form.ACTION_COMMENTS.style.visibility='hidden';
-  }
-  else {
-  	document.user_form.DISABLE.checked=true;
-    document.user_form.ACTION_COMMENTS.value=Q;
-    document.user_form.ACTION_COMMENTS.style.visibility='visible';
-  }
-}
-else {
-	document.user_form.DISABLE.checked=false;
-	document.user_form.ACTION_COMMENTS.style.visibility='hidden';
-	document.user_form.ACTION_COMMENTS.value='';
-} 
-
-}
-
-A_TCALCONF = {
-	'cssprefix'  : 'tcal',
-	'months'     : ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'],
-	'weekdays'   : ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Суб'],
-	'longwdays'  : ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thirsday', 'Friday', 'Saturday'],
-	'yearscroll' : false, // show year scroller
-	'weekstart'  : 1, // first day of week: 0-Su or 1-Mo
-	'prevyear'   : 'Previous Year',
-	'nextyear'   : 'Next Year',
-	'prevmonth'  : 'Previous Month',
-	'nextmonth'  : 'Next Month',
-	'format'     : 'Y-m-d'
-};
-
--->
+            if (comments == '' || comments == null) {
+                alert('Enter comments');
+                document.user_form.DISABLE.checked = false;
+                document.user_form.ACTION_COMMENTS.style.visibility = 'hidden';
+            }
+            else {
+                document.user_form.DISABLE.checked = true;
+                document.user_form.ACTION_COMMENTS.value = comments;
+                document.user_form.ACTION_COMMENTS.style.visibility = 'visible';
+            }
+        }
+        else {
+            document.user_form.DISABLE.checked = false;
+            document.user_form.ACTION_COMMENTS.style.visibility = 'hidden';
+            document.user_form.ACTION_COMMENTS.value = '';
+        }
+    }
+    -->
 </SCRIPT>
 
 
-<form action='$SELF_URL' METHOD='POST' NAME=user_form>
-<input type=hidden name='index' value='$index'>
-<input type=hidden name=COMPANY_ID value='%COMPANY_ID%'>
-<input type=hidden name=step value='$FORM{step}'>
-<input type=hidden  name=NOTIFY_FN value='%NOTIFY_FN%'>
-<input type=hidden  name=NOTIFY_ID value='%NOTIFY_ID%'>
-<TABLE width='450'  class=form>
-%EXDATA%
-<TR><TD colspan=2>&nbsp;</TD></TR>
+<div class='panel panel-default'>
+    <div class='panel-body'>
 
-<TR><TD>$_CREDIT:</TD><TD><input type=text name='CREDIT' value='%CREDIT%' size=8> 
-$_DATE: <input type=text name='CREDIT_DATE' value='%CREDIT_DATE%' ID='CREDIT_DATE' rel='tcal' size=12> 
-</TD></TR>
-<TR><TD>$_GROUPS:</TD><TD>%GID%:%G_NAME% <a href='$SELF_URL?index=12&UID=$FORM{UID}' class='change rightAlignText'>$_CHANGE</a></TD></TR>
-<TR><TD>$_ACTIVATE:</TD><TD><input type=text name=ACTIVATE value='%ACTIVATE%' ID='ACTIVATE' size=12 rel='tcal'>
-</TD></TR>
-<TR><TD>$_EXPIRE:</TD><TD><input type=text name=EXPIRE value='%EXPIRE%' ID='EXPIRE' size=12 rel='tcal'>	
-<TR><TD>$_REDUCTION (%):</TD><TD><input type=text name=REDUCTION value='%REDUCTION%' size=8>
-$_DATE: <input type=text name='REDUCTION_DATE' value='%REDUCTION_DATE%' ID='REDUCTION_DATE' size=12 rel='tcal'> 
-</TD></TR>
-<TR><TD rowspan=2>$_DISABLE:</TD><TD><input type=checkbox name=DISABLE value='1' onClick=\"add_comments();\" %DISABLE%> %DISABLE_MARK%</TD></TR>
- <TR><TD>%DISABLE_COMMENTS%<input type=text name=ACTION_COMMENTS value='%DISABLE_COMMENTS%'  size=30 style='visibility: hidden;'>%ACTION_COMMENTS%</TD></TR>
-<TR><TD>$_REGISTRATION</TD><TD>%REGISTRATION%</TD></TR>
-<TR><td colspan='2'>%PASSWORD%</TD></TR>
-<TR><th colspan='2' class='even'><input type=submit name='%ACTION%' value='%LNG_ACTION%'></Th></TR>
-</TABLE>
+        <form class='form-horizontal' action='$SELF_URL' method='post' id='user_form' name='user_form' role='form'>
+            <input type=hidden name=index value='$index'>
+            <input type=hidden name=COMPANY_ID value='%COMPANY_ID%'>
+            <input type=hidden name=step value='$FORM{step}'>
+            <input type=hidden name=NOTIFY_FN value='%NOTIFY_FN%'>
+            <input type=hidden name=NOTIFY_ID value='%NOTIFY_ID%'>
 
-</form>
+            <fieldset>
+
+                %EXDATA%
+
+                <!-- CREDIT / DATE  -->
+                <div class='form-group'>
+                    <label class='control-label col-md-2' for='CREDIT'>_{CREDIT}_</label>
+                    <div class='col-md-3'>
+                        <input id='CREDIT' name='CREDIT' value='%CREDIT%' placeholder='%CREDIT%' class='form-control'
+                               type='text'>
+                    </div>
+                    <label class='control-label col-md-2' for='CREDIT_DATE'>_{DATE}_</label>
+                    <div class='col-md-3'>
+                        <input id='CREDIT_DATE' type='text' name='CREDIT_DATE' value='%CREDIT_DATE%'
+                               class='tcal form-control'>
+                    </div>
+                </div>
+
+                <!-- DISCOUNT / DATE  -->
+                <div class='form-group'>
+                    <label class='control-label col-md-2' for='REDUCTION'>_{REDUCTION}_ (%)</label>
+                    <div class='col-md-3'>
+                        <input id='REDUCTION' name='REDUCTION' value='%REDUCTION%' placeholder='%REDUCTION%'
+                               class='form-control' type='text'>
+                    </div>
+                    <label class='control-label col-md-2' for='REDUCTION_DATE'>_{DATE}_</label>
+                    <div class='col-md-3'>
+                        <input id='REDUCTION_DATE' type='text' name='REDUCTION_DATE' value='%REDUCTION_DATE%'
+                               class='tcal form-control'>
+                    </div>
+                </div>
+
+                <!-- ACTIVATION / EXPIRED -->
+                <div class='form-group'>
+                    <label class='control-label col-md-2' for='ACTIVATE'>_{ACTIVATE}_</label>
+                    <div class='col-md-3'>
+                        <input id='ACTIVATE' name='ACTIVATE' value='%ACTIVATE%' placeholder='%ACTIVATE%'
+                               class='form-control tcal' type='text'>
+                    </div>
+                    <label class='control-label col-md-2' for='EXPIRE'>_{EXPIRE}_</label>
+                    <div class='col-md-3 %EXPIRE_COLOR%'>
+                        <input id='EXPIRE' name='EXPIRE' value='%EXPIRE%' placeholder='%EXPIRE%'
+                               class='form-control tcal' type='text'>
+                        <!--    <span class='help-block'>%EXPIRE_COMMENTS%</span> -->
+                    </div>
+                </div>
+
+                <!-- DISABLE -->
+                <div class='form-group'>
+                    <label class='control-label col-md-2' for='DISABLE'>_{DISABLE}_</label>
+                    <div class='col-md-1 %DISABLE_COLOR%'>
+                        <input id='DISABLE' name='DISABLE' value='1' %DISABLE% type='checkbox'
+                               onClick='add_comments();'>
+                        %DISABLE_MARK%
+                    </div>
+                    <div class='col-md-2 %DISABLE_COLOR%'>
+                        %DISABLE_COMMENTS%
+                        <input class='form-control' type=text name=ACTION_COMMENTS value='%DISABLE_COMMENTS%' size=30
+                               style='visibility: hidden;'>%ACTION_COMMENTS%
+                    </div>
+
+                    <label class='control-label col-md-2' for='REG'>_{REGISTRATION}_</label>
+                    <div class='col-md-3'>
+                        <input type=text name='REG' value='%REGISTRATION%' ID='REG' class='form-control' readonly>
+                    </div>
+                </div>
+
+                <label class='col-sm-offset-2 col-sm-8'>%PASSWORD%</label>
+
+                %DEL_FORM%
+
+                <div class='col-sm-offset-2 col-sm-8'>
+                    <input type=submit name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'>
+                </div>
+            </fieldset>
+        </form>
+
+    </div>
+</div>

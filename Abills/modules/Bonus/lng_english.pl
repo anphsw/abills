@@ -1,5 +1,7 @@
-$_TRAFFIC_IN_BONUS_MB='Incomming traffic bonus payments (Mb)';
-$_TRAFFIC_OUT_BONUS_MB='Outgoing traffic bonux payments (Mb)';
-$_TRAFFIC_SUM_BONUS_MB='Total traffic bonus payments (Mb)';
-$_BONUS_PERCENT='Bonus percent';
-$_ACCEPT_RULES='Accept Rules';
+$lang{TRAFFIC_IN_BONUS_MB}='Incomming traffic bonus payments (Mb)';
+$lang{TRAFFIC_OUT_BONUS_MB}='Outgoing traffic bonux payments (Mb)';
+$lang{TRAFFIC_SUM_BONUS_MB}='Total traffic bonus payments (Mb)';
+$lang{BONUS_PERCENT}='Bonus percent';
+$lang{ACCEPT_RULES}='Accept Rules';
+$lang{BONUS_TP_USING}='Bonus tarif using';
+$lang{SCORES}='Scores';

@@ -1,15 +1,43 @@
-<div class='noprint'>
-<form action='$SELF_URL'>
+<form class='form-horizontal' action='$SELF_URL' method='post' role='form'>
 <input type=hidden name='index' value='$index'>
 <input type=hidden name='TP_ID' value='%TP_ID%'>
 <input type=hidden name='TI_ID' value='%TI_ID%'>
- <TABLE width=400 class='form'>
- <TR><TD>$_DAY:</TD><TD>%SEL_DAYS%</TD></TR>
- <TR><TD>$_BEGIN:</TD><TD><input type=text name=TI_BEGIN value='%TI_BEGIN%'></TD></TR>
- <TR><TD>$_END:</TD><TD><input type=text name=TI_END value='%TI_END%'></TD></TR>
- <TR><TD>$_HOUR_TARIF (0.00<!--  / 0% -->):</TD><TD><input type=text name=TI_TARIF value='%TI_TARIF%'></TD></TR>
- <TR><TH colspan=2 class='even'><input type=submit name='%ACTION%' value='%LNG_ACTION%'></TH></TR>
-</TABLE>
 
-</form>
+<div class='panel panel-primary panel-form'>
+
+<div class='panel-body'>
+
+<div class='form-group'>
+  <label class='col-md-3 control-label' for='DAYS'>_{DAY}_</label>
+  <div class='col-md-9'>
+    %SEL_DAYS%
+  </div>
 </div>
+
+<div class='form-group'>
+  <label class='col-md-3 control-label' for='TI_BEGIN'>_{BEGIN}_</label>
+  <div class='col-md-9'>
+    <input id='TI_BEGIN' name='TI_BEGIN' value='%TI_BEGIN%' placeholder='%TI_BEGIN%' class='form-control' type='text'>
+  </div>
+</div>
+
+<div class='form-group'>
+  <label class='col-md-3 control-label' for='TI_END'>_{END}_</label>
+  <div class='col-md-9'>
+    <input id='TI_END' name='TI_END' value='%TI_END%' placeholder='%TI_END%' class='form-control' type='text'>
+  </div>
+</div>
+
+
+<div class='form-group'>
+  <label class='col-md-3 control-label' for='PHONE'>_{HOUR_TARIF}_ (0.00<!--  / 0% -->)</label>
+  <div class='col-md-9'>
+    <input id='TI_TARIF' name='TI_TARIF' value='%TI_TARIF%' placeholder='%TI_TARIF%' class='form-control' type='text'>
+  </div>
+</div>
+</div>
+<div class='panel-footer text-center'>
+<input type=submit class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
+</div>
+</div>
+</form>

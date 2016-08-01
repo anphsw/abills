@@ -7,13 +7,29 @@
 
 <input type='hidden' name='OPERATION_ID' value='%OPERATION_ID%'>
 <table width=300 class=form>
-<tr><th colspan='2' class=form_title>$_BALANCE_RECHARCHE</th></tr>
-<tr><td>$_TRANSACTION #:</td><td>%OPERATION_ID%</td></tr>
+    <tr>
+        <th colspan='2' class=form_title>_{BALANCE_RECHARCHE}_</th>
+    </tr>
+    <tr>
+        <td>_{TRANSACTION}_ #:</td>
+        <td>%OPERATION_ID%</td>
+    </tr>
 <tr><td>UID</td><td><input type='text' name='UID' value='$FORM{UID}'></td></tr>
-<tr><td>$_SUM:</td><td><input type='text' name='SUM' value='$FORM{SUM}'></td></tr>
-<tr><td>$_DESCRIBE:</td><td><input type='text' name='DESCRIBE' value='Пополнение счёта'></td></tr>
-<tr><td>$_PAY_SYSTEM:</td><td>%PAY_SYSTEM_SEL%</td></tr>
-<tr><th colspan='2' class=even><input type='submit' name=pre value='$_NEXT'></th></tr>
+    <tr>
+        <td>_{SUM}_:</td>
+        <td><input type='text' name='SUM' value='$FORM{SUM}'></td>
+    </tr>
+    <tr>
+        <td>_{DESCRIBE}_:</td>
+        <td><input type='text' name='DESCRIBE' value='Пополнение счёта'></td>
+    </tr>
+    <tr>
+        <td>_{PAY_SYSTEM}_:</td>
+        <td>%PAY_SYSTEM_SEL%</td>
+    </tr>
+    <tr>
+        <th colspan='2' class=even><input type='submit' name=pre value='_{NEXT}_'></th>
+    </tr>
 </table>
 
 </form>

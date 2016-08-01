@@ -1,2 +1,2 @@
-$_FUTURES='Можливості';
-$_MODULE='Модуль';
+$lang{FUTURES}='Можливості';
+$lang{MODULE}='Модуль';

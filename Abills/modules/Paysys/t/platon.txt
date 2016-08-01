@@ -1,0 +1,9 @@
+===== Payment =====
+email -> kk@mail.ru
+order -> 4
+card -> 94949494949123
+ext1 -> 1
+status -> SALE
+sign -> 4e15af0e9dadf14f94877c6f25505ff2
+amount -> 1.00
+payment_description -> Test for platon

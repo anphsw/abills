@@ -10,9 +10,16 @@
 <table width=400 class=form>
 <tr><th colspan='2' class='form_title'>Yandex Money</th></tr>
 <tr><td>ID:</td><td>$FORM{OPERATION_ID}</td></tr>
-<tr><td>$_SUM:</td><td>$FORM{SUM}</td></tr>
-<tr><td>$_DESCRIBE:</td><td>%DESCRIBE%
-<tr><th colspan='2' class='even'><input type=submit name='CONFIRM_PAYMENT' value='$_CONFIRM_PAYMENT'></th></tr>
+    <tr>
+        <td>_{SUM}_:</td>
+        <td>$FORM{SUM}</td>
+    </tr>
+    <tr>
+        <td>_{DESCRIBE}_:</td>
+        <td>%DESCRIBE%
+    <tr>
+        <th colspan='2' class='even'><input type=submit name='CONFIRM_PAYMENT' value='_{CONFIRM_PAYMENT}_'></th>
+    </tr>
 </table>
 
 </form>

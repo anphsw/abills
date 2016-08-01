@@ -1,14 +1,74 @@
+<div class='panel panel-default panel-form'>
+<div class='panel-body'>
 
-<tr><td>ID:</td><td><input type='text' name='MSG_ID' value='%MSG_ID%' SIZE=7/>&nbsp;&nbsp; $_INNER:<input type=checkbox name=INNER_MSG value=1 %INNER_MSG%></td></tr>
-<tr><td>$_CHAPTERS:</td><td>%CHAPTER_SEL%</td></tr>
-<tr><td>$_SUBJECT:</td><td><input type='text' name='SUBJECT' value='%SUBJECT%' size='50'/></td></tr>
-<tr><td>$_MESSAGE</td><td><input type=text name=MESSAGE value='%MESSAGE%' size=50></td></tr>
-<tr><td>$_STATE:</td><td>%STATE_SEL%</td></tr>
-<tr><td>$_PRIORITY:</td><td>%PRIORITY_SEL%</td></tr>
-<TR><TD>$_EXECUTION <br>$_DATE</TD><TD>$_FROM:
-<input type=text name='PLAN_FROM_DATE' value='%PLAN_FROM_DATE%' size=12 ID='PLAN_FROM_DATE' rel='tcal'> 
-$_TO: <input type=text name='PLAN_TO_DATE' value='%PLAN_TO_DATE%' size=12 ID='PLAN_TO_DATE' rel='tcal'> 
-</TD></TR>
-<TR><TD>$_RESPOSIBLE:</TD><TD>%RESPOSIBLE_SEL%</TD></TR>
+<div class='form-group'>
+  <label class='control-label col-md-2' for='LOGIN'>ID:</label>
+  <div class='col-md-3'>
+    <input id='MSG_ID' name='MSG_ID' value='%MSG_ID%' placeholder='%MSG_ID%' class='form-control' type='text'>
+  </div>
 
+    <label class='control-label col-md-4' for='INNER_MSG'>_{PRIVATE}_</label>
+  <div class='col-md-1'>
+    <input type=checkbox name=INNER_MSG value=1 %INNER_MSG%>
+  </div>
+</div>
+
+<div class='form-group'>
+    <label class='control-label col-md-2' for='CHAPTER_ID'>_{CHAPTERS}_</label>
+  <div class='col-md-8'>
+    %CHAPTER_SEL%
+  </div>
+</div>
+
+<div class='form-group'>
+    <label class='control-label col-md-2' for='SUBJECT'>_{SUBJECT}_:</label>
+  <div class='col-md-10'>
+    <input id='SUBJECT' name='SUBJECT' value='%SUBJECT%' placeholder='%SUBJECT%' class='form-control' type='text'>
+  </div>
+</div>
+
+<div class='form-group'>
+    <label class='control-label col-md-2' for='MESSAGE'>_{MESSAGE}_:</label>
+  <div class='col-md-10'>
+    <input id='SUBJECT' name='MESSAGE' value='%MESSAGE%' placeholder='%MESSAGE%' class='form-control' type='text'>
+  </div>
+</div>
+
+<div class='form-group'>
+    <label class='control-label col-md-2' for='STATE'>_{STATE}_:</label>
+  <div class='col-md-10'>
+    %STATE_SEL%
+  </div>
+</div>
+
+<div class='form-group'>
+    <label class='control-label col-md-2' for='PRIORITY'>_{PRIORITY}_:</label>
+  <div class='col-md-10'>
+    %PRIORITY_SEL%
+  </div>
+</div>
+
+<div class='form-group'>
+    <label class='control-label col-md-2' for='LOGIN'>_{DATE}_ _{FROM}_:</label>
+  <div class='col-md-4'>
+    <input id='PLAN_FROM_DATE' name='PLAN_FROM_DATE' value='%PLAN_FROM_DATE%' placeholder='%PLAN_FROM_DATE%' class='form-control' type='text'>
+  </div>
+
+    <label class='control-label col-md-2' for='PLAN_TO_DATE'>_{TO}_</label>
+  <div class='col-md-4'>
+    <input id='PLAN_TO_DATE' name='PLAN_TO_DATE' value='%PLAN_TO_DATE%' placeholder='%PLAN_TO_DATE%' class='form-control' type='text'>
+  </div>
+</div>
+
+
+<div class='form-group'>
+    <label class='control-label col-md-2' for='RESPOSIBLE'>_{RESPOSIBLE}_:</label>
+  <div class='col-md-8'>
+    %RESPOSIBLE_SEL%
+  </div>
+</div>
+
+
+</div>
+</div>
 

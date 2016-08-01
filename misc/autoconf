@@ -1,52 +1,74 @@
-#!/usr/bin/perl -w 
-# Auto configure service
-# System conf
+#!/usr/bin/perl -w
+=head1 NAME
 
-use vars qw(%conf $db
-$DATE $TIME
-$begin_time
-);
+ Auto configure service
+ System conf
+
+=cut
 
 use strict;
-use FindBin '$Bin';
 
-my $VERSION       = 3.21;
+BEGIN {
+  our $libpath = '../';
+  my $sql_type = 'mysql';
+  use FindBin '$Bin';
+  unshift( @INC,
+    $Bin.'/'.$libpath."Abills/$sql_type/",
+    $Bin.'/'.$libpath."Abills/modules/",
+    $Bin.'/'.$libpath.'/lib/' );
+
+  eval { require Time::HiRes; };
+  our $begin_time = 0;
+  if (!$@) {
+    Time::HiRes->import( qw(gettimeofday) );
+    $begin_time = Time::HiRes::gettimeofday();
+  }
+}
+
+our (%conf,
+  $db,
+  $DATE,
+  $TIME,
+  $begin_time,
+  @MODULES
+);
+
+my $VERSION       = 4.02;
 my $config_file   = '/usr/abills/libexec/config.pl';
 
 $conf{OS}       = uc($^O);
 
 $conf{WORK_DIR} = $Bin;
 my $debug       = 0;
-require $Bin . '/../Abills/Base.pm';
-Abills::Base->import();
+use Abills::Base qw(startup_files parse_arguments mk_unique_value);
 
 # Default storage engine InnoDB,MyISAM
 my $db_storage_engine = 'InnoDB';
 
-my $ARGV = parse_arguments(\@ARGV);
-if (! $ARGV->{OS}) {
-  $ARGV->{OS} = $conf{OS};
+my $argv = parse_arguments(\@ARGV);
+if (! $argv->{OS}) {
+  $argv->{OS} = $conf{OS};
 }
 else {
-  $ARGV->{OS} = uc($ARGV->{OS});
-  $conf{OS}   = $ARGV->{OS};
+  $argv->{OS} = uc($argv->{OS});
+  $conf{OS}   = $argv->{OS};
 }
 
 print "OS: $conf{OS}\n";
 
 my $startup_files = startup_files();
 
-if ($ARGV->{debug}) {
-  $debug = int($ARGV->{debug});
+if ($argv->{debug}) {
+  $debug = int($argv->{debug});
   print "Debug mode: $debug\n";
 }
 
-if ($ARGV->{SYSTEM}) {
+if ($argv->{SYSTEM}) {
   system_conf();
 }
 
-if ($ARGV->{db_storage_engine}) {
-  $db_storage_engine = $ARGV->{db_storage_engine};
+if ($argv->{db_storage_engine}) {
+  $db_storage_engine = $argv->{db_storage_engine};
 }
 
 if (!-f $config_file) {
@@ -56,151 +78,152 @@ if (!-f $config_file) {
     'dbname'     => 'abills',
     'dbuser'     => 'abills',
     'dbpasswd'   => mk_unique_value(10),
-    'dbcharset'  => 'utf8',
+    #'dbcharset'  => 'utf8',
     'ADMIN_MAIL' => '',
     'WEB_TITLE'  => ''
   );
 
-  if (!confirm_yn("Can't find config '$config_file': Make it ?: ", "y")) {
-    print "Skiped...\n";
-  }
-  else {
-    foreach my $k (sort keys %mk_config) {
-      my $v = $mk_config{$k};
-      print "$k [$v]: ";
-      my $read = '';
-      chop($read = <STDIN>);
-      $read =~ s/^\s*//;
-      $read =~ s/\s*$//;
+  foreach my $k (sort keys %mk_config) {
+    my $v = $mk_config{$k};
+    print "$k [$v]: ";
+    my $read = '';
+    chop($read = <STDIN>);
+    $read =~ s/^\s*//;
+    $read =~ s/\s*$//;
 
-      if ($read eq '') {
-        #$mk_config{$VARIABLE} = $DEFAULT_VALUE{"$VARIABLE"};
-      }
-      else {
-        $mk_config{$k} = $read;
-      }
-    }
-
-    #Print result
-    print "Configure.\n-----------------------------\n";
-    while (my ($k, $v) = each %mk_config) {
-      print "$k: $v\n";
-    }
-
-    if (!confirm_yn("Make config: $config_file ", "y")) {
-      print "Skiped...\n";
+    if ($read eq '') {
+      #$mk_config{$VARIABLE} = $DEFAULT_VALUE{"$VARIABLE"};
     }
     else {
+      $mk_config{$k} = $read;
+    }
+  }
 
-      #Open config
-      my $config_text = '';
+  #Print result
+  print "Configure.\n-----------------------------\n";
+  while (my ($k, $v) = each %mk_config) {
+    print "$k: $v\n";
+  }
 
-      open(my $fh, "< $config_file" . '.default') || die "Can't open file '$config_file.default' $!\n";
-      while (<$fh>) {
-        $config_text .= $_;
-      }
-      close($fh);
+  #Open config
+  my $config_text = '';
 
-      while (my ($k, $v) = each %mk_config) {
-        $config_text =~ s/\{$k\}\=\'\S{0,50}\'/\{$k\}\=\'$v\'/g;
-      }
+  open(my $fh, "< $config_file".'.default') || die "Can't open file '$config_file.default' $!\n";
+  while (<$fh>) {
+    $config_text .= $_;
+  }
+  close($fh);
 
-      open($fh, ">$config_file") || die "Can't open file '$config_file.default' $!\n";
-        print $fh $config_text;
-      close($fh);
+  while (my ($k, $v) = each %mk_config) {
+    $config_text =~ s/\{$k\}\=\'\S{0,50}\'/\{$k\}\=\'$v\'/g;
+  }
 
-      print "Config file maked...\n";
+  open($fh, '>', $config_file) || die "Can't open file '$config_file.default' $!\n";
+  print $fh $config_text;
+  close($fh);
 
-      if (!confirm_yn("Make ABillS mysql user account: ", "n")) {
+  print "Config file maked...\n";
 
-        #Check mysql running
-        my $proc_list = `ps ax`;
-        print $proc_list if ($debug > 5);
+  if (!confirm_yn("Make ABillS mysql user account: ", "n")) {
+    #Check mysql running
+    my $proc_list = `ps ax`;
+    print $proc_list if ($debug > 5);
 
-        # Check /etc/my.cnf
-        if (!-f '/etc/my.cnf') {
-          my $res = `cp mysql/my.cnf /etc/`;
-        }
+    # Check /etc/my.cnf
+    #if (!-f '/etc/my.cnf') {
+    #  my $res = `cp mysql/my.cnf /etc/`;
+    #}
 
-        if ($proc_list !~ /mysqld/) {
-          print "MySQL Not running. Start configure mysql\n";
-          check_install("mysql");
-        }
+    if ($proc_list !~ /mysqld/) {
+      print "MySQL Not running. Start configure mysql\n";
+      check_install("mysql");
+    }
 
-        my $mysql = '/usr/local/bin/mysql';
-        if ($conf{OS} eq 'FREEBSD') {
-
-        }
-        #Other OS
-        else {
-          $mysql = '/usr/bin/mysql';
-        }
-
-        print "Check DB configuretion\n";
-
-        my $read;
-        my $res;
-
-        MYSQL_PROGRAM:
-        if (!-f $mysql) {
-          print "Can't find '$mysql' enter path\n";
-          chop($read = <STDIN>);
-          $mysql = $read if ($read ne '');
-          goto MYSQL_PROGRAM;
-        }
-        print "MySQL path [$mysql]: ";
-
-        my $mysql_root_user   = 'root';
-        my $mysql_root_passwd = '';
-        print "MySQL root user [$mysql_root_user]: ";
-        chop($read = <STDIN>);
-        $mysql_root_user = $read if ($read ne '');
-
-        print "\nMySQL root password [$mysql_root_passwd]: ";
-        chop($read = <STDIN>);
-        $mysql_root_passwd = $read if ($read ne '');
-        my $MYSQL_COLLATE = 'cp1251_general_ci';
-        if ($mk_config{dbcharset} eq 'utf8') {
-          $MYSQL_COLLATE = 'utf8_general_ci';
-        }
-
-        $res = `$mysql --default-character-set=$mk_config{dbcharset} -u $mysql_root_user --password=$mysql_root_passwd -e "select version();"`;
-        if ($res !~ /Unknown database/) {
-          my $add_mysql_user =
-          "SET sql_mode=NO_ENGINE_SUBSTITUTION;"
-          . "USE mysql;"
-          . "INSERT INTO user (Host, User, Password) VALUES ('$mk_config{dbhost}','$mk_config{dbuser}', password('$mk_config{dbpasswd}'));"
-          . "INSERT INTO db (Host, Db, User, Select_priv, Insert_priv, Update_priv, Delete_priv, Create_priv, Drop_priv, Index_priv, Alter_priv, Lock_tables_priv, Create_tmp_table_priv, Trigger_priv,Create_view_priv, Show_view_priv, Execute_priv, Event_priv) VALUES ('$mk_config{dbhost}', '$mk_config{dbname}', '$mk_config{dbuser}', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y'); "
-          . "CREATE DATABASE $mk_config{dbname} DEFAULT CHARACTER SET $mk_config{dbcharset} COLLATE $MYSQL_COLLATE;"
-          . "flush privileges;";
-
-          # if inodb engine convert tables
-
-          if (confirm_yn("Your DB not configure for ABillS using. Configure? [Yes/No/Show conf] ", "y")) {
-            print "Make users\n";
-
-            $res = `$mysql --default-character-set=$mk_config{dbcharset} -u $mysql_root_user --password='$mysql_root_passwd' -e "$add_mysql_user"`;
-            print $res;
-            print "Upload Main Dump and modules\n";
-            $res = `$mysql --default-character-set=$mk_config{dbcharset} -u $mysql_root_user --password='$mysql_root_passwd' -D $mk_config{dbname} < ../db/abills.sql`;
-          }
-          elsif (confirm_yn("Show MySQL configure Settings? ", "y")) {
-            print "----------------------------------------------------------\n" . "$add_mysql_user\n" . "----------------------------------------------------------\n";
-          }
-        }
-        else {
-          print $res;
-        }
-      }
-
-      #Make periodic records in cron
-      if (read_file('/etc/crontab') !~ /abills/ && !confirm_yn("Make Cron records: ", "n")) {
-        my $crontab_content = "*/5  *  *  *  *  root   /usr/abills/libexec/billd -all\n" . "1    0  *  *  *  root   /usr/abills/libexec/periodic daily\n" . "1    1  *  *  *  root   /usr/abills/libexec/periodic monthly\n";
-
-        write_file('/etc/crontab', $crontab_content, '>>');
-      }
+    my $mysql = '/usr/local/bin/mysql';
+    if ($conf{OS} eq 'FREEBSD') {
 
     }
+    #Other OS
+    else {
+      $mysql = '/usr/bin/mysql';
+    }
+
+    print "Check DB configuretion\n";
+
+    my $read;
+    my $res;
+
+    MYSQL_PROGRAM:
+    if (!-f $mysql) {
+      print "Can't find '$mysql' enter path\n";
+      chop($read = <STDIN>);
+      $mysql = $read if ($read ne '');
+      goto MYSQL_PROGRAM;
+    }
+    $mk_config{dbcharset}='utf8';
+    print "MySQL path [$mysql]: ";
+
+    my $mysql_root_user = 'root';
+    my $mysql_root_passwd = '';
+    print "MySQL root user [$mysql_root_user]: ";
+    chop($read = <STDIN>);
+    $mysql_root_user = $read if ($read ne '');
+
+    print "\nMySQL root password [$mysql_root_passwd]: ";
+    chop($read = <STDIN>);
+    $mysql_root_passwd = $read if ($read ne '');
+    my $MYSQL_COLLATE = 'cp1251_general_ci';
+    if ($mk_config{dbcharset} eq 'utf8') {
+      $MYSQL_COLLATE = 'utf8_general_ci';
+    }
+
+    $res = `$mysql --default-character-set=$mk_config{dbcharset} -u $mysql_root_user --password=$mysql_root_passwd -e "select version();"`;
+    if ($res !~ /Unknown database/) {
+      my $add_mysql_user =
+        "SET sql_mode=NO_ENGINE_SUBSTITUTION;"
+          ."USE mysql;"
+          #          . "INSERT INTO user (Host, User, Password) VALUES ('$mk_config{dbhost}','$mk_config{dbuser}', password('$mk_config{dbpasswd}'));"
+          #          . "INSERT INTO db (Host, Db, User, Select_priv, Insert_priv, Update_priv, Delete_priv, Create_priv, Drop_priv, Index_priv, Alter_priv, Lock_tables_priv, Create_tmp_table_priv, Trigger_priv,Create_view_priv, Show_view_priv, Execute_priv, Event_priv) VALUES ('$mk_config{dbhost}', '$mk_config{dbname}', '$mk_config{dbuser}', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y'); "
+          ."GRANT ALL ON $mk_config{dbname}.* TO \'$mk_config{dbuser}\'\@localhost IDENTIFIED BY '$mk_config{dbpasswd}';"
+          ."CREATE DATABASE IF NOT EXISTS $mk_config{dbname} DEFAULT CHARACTER SET $mk_config{dbcharset} COLLATE $MYSQL_COLLATE;"
+          ."flush privileges;";
+
+      # if inodb engine convert tables
+
+      if (confirm_yn("Your DB not configure for ABillS using. Configure? [Yes/No/Show conf] ", "y")) {
+        print "Make users\n";
+        if ($debug) {
+          print $add_mysql_user;
+        }
+
+        $res = `$mysql --default-character-set=$mk_config{dbcharset} -u $mysql_root_user --password='$mysql_root_passwd' -e "$add_mysql_user"`;
+        print $res;
+        print "Upload Main Dump and modules\n";
+        $res = `$mysql --default-character-set=$mk_config{dbcharset} -u $mysql_root_user --password='$mysql_root_passwd' -D $mk_config{dbname} < ../db/abills.sql`;
+
+        #Add connected modules sql dumps
+        require $Bin . "/../libexec/config.pl";
+        foreach my $module (@MODULES) {
+          my $db_file = $Bin . "/../db/$module.sql";
+          if (-f $db_file) {
+            $res = `$mysql --default-character-set=$mk_config{dbcharset} -u $mysql_root_user --password='$mysql_root_passwd' -D $mk_config{dbname} < $db_file`;
+          }
+        }
+      }
+      elsif (confirm_yn("Show MySQL configure Settings? ", "y")) {
+        print "----------------------------------------------------------\n"."$add_mysql_user\n"."----------------------------------------------------------\n";
+      }
+    }
+    else {
+      print $res;
+    }
+  }
+
+  #Make periodic records in cron
+  if (read_file('/etc/crontab') !~ /abills/ && !confirm_yn("Make Cron records: ", "n")) {
+    my $crontab_content = "*/5  *  *  *  *  root   /usr/abills/libexec/billd -all\n"."1    0  *  *  *  root   /usr/abills/libexec/periodic daily\n"."1    1  *  *  *  root   /usr/abills/libexec/periodic monthly\n";
+
+    write_file('/etc/crontab', $crontab_content, '>>');
   }
 
   if (!-d '/usr/abills/backup') {
@@ -219,29 +242,29 @@ $conf{DATE}     = $DATE;
 $conf{TIME}     = $TIME;
 $conf{WORK_DIR} = $Bin;
 
-if ($ARGV->{CSUM}) {
-  checksum();
+if ($argv->{CSUM}) {
+  make_checksum();
   exit;
 }
-elsif ($ARGV->{help}) {
+elsif ($argv->{help}) {
   help();
 }
-elsif (defined($ARGV->{INFO})) {
+elsif (defined($argv->{INFO})) {
   my @programs = ();
-  if ($ARGV->{INFO}) {
-    @programs = split(/,/, $ARGV->{INFO});
+  if ($argv->{INFO}) {
+    @programs = split(/,/, $argv->{INFO});
   }
 
   foreach my $program (@programs) {
     programs_info("$program");
   }
 }
-elsif ($ARGV->{PROGRAMS}) {
-  my @programs = split(/,/, $ARGV->{PROGRAMS});
+elsif ($argv->{PROGRAMS}) {
+  my @programs = split(/,/, $argv->{PROGRAMS});
 
   foreach my $program (@programs) {
     print "  PROGRAM: $program\n" if ($debug > 1);
-    if (!-f $conf{WORK_DIR} . "/$program/install" && ! defined($ARGV->{'-s'})) {
+    if (!-f $conf{WORK_DIR} . "/$program/install" && ! defined($argv->{'-s'})) {
       print "Can't find program configuration '$conf{WORK_DIR}/$program/install'\n";
     }
     elsif ($debug < 6) {
@@ -249,7 +272,7 @@ elsif ($ARGV->{PROGRAMS}) {
     }
   }
 }
-elsif ($ARGV->{INTERACT}) {
+elsif ($argv->{INTERACT}) {
   interact_mode();
 }
 else {
@@ -287,7 +310,7 @@ sub programs_info {
       my $value = $1;
       if ($value =~ /(\S+)=(.+|):(.+)/) {
         my $name     = $1;
-        my $value    = $2;
+        $value    = $2;
         my $describe = $3;
 
         #if ($value eq 'exec' && $describe =~ /(.+):(.+)/) {
@@ -337,15 +360,17 @@ sub programs_info {
 }
 
 #**********************************************************
-# Postfix autoconf
+=head3 check_install()
+
+=cut
 #**********************************************************
 sub check_install {
-  my ($program, $attr) = @_;
+  my ($program) = @_;
 
   my $install_file = $conf{WORK_DIR} . "/$program/install";
 
   my @files = ();
-  open(my $fh, "< $install_file") || die "Can't open file '$install_file'  $!";
+  open(my $fh, '<', $install_file) || die "Can't open file '$install_file'  $!";
     while (<$fh>) {
       next if (/^#/);
       push @files, $_;
@@ -375,7 +400,7 @@ sub check_install {
       my $value = $1;
       if ($value =~ /(\S+)=(.+|):(.{0,500})/) {
         my $name     = $1;
-        my $value    = $2;
+        $value    = $2;
         my $describe = $3;
 
         if ($value =~ /exec:(.+)/) {
@@ -387,8 +412,8 @@ sub check_install {
         print "DEFAULT: $name / $value / $describe \n" if ($debug > 2);
         $DEFAULT_DESCRIBE{"$name"} = $describe;
         $DEFAULT_VALUE{"$name"}    = $value;
-        if (!defined($ARGV->{"$name"})) {
-          $ARGV->{"$name"} = $value;
+        if (!defined($argv->{"$name"})) {
+          $argv->{"$name"} = $value;
         }
       }
       next;
@@ -400,8 +425,8 @@ sub check_install {
       my $params = $1;
       my $value  = $2;
 
-      my $param_name  = '';
-      my $param_value = '';
+      #my $param_name  = '';
+      #my $param_value = '';
 
       if ($params) {
         my $skip = 0;
@@ -411,12 +436,12 @@ sub check_install {
           my ($param_name2, $param_value2) = split(/=/, $param, 2);
           if ($param_name2 =~ /^!(\S+)/) {
             my $val = $1;
-            if ($ARGV->{$val} && $ARGV->{$val} eq $param_value2) {
+            if ($argv->{$val} && $argv->{$val} eq $param_value2) {
               $skip = 1;
               last;
             }
           }
-          elsif (!defined($ARGV->{$param_name2}) || $ARGV->{$param_name2} ne $param_value2) {
+          elsif (!defined($argv->{$param_name2}) || $argv->{$param_name2} ne $param_value2) {
             $skip = 1;
             last;
           }
@@ -466,8 +491,8 @@ sub check_install {
       $dest      = $5;
 
       $value =~ s/\\n/\n/g;
-      my %PARAMS_HASH         = ();
-      my %EXCLUDE_PARAMS_HASH = ();
+      #my %PARAMS_HASH         = ();
+      #my %EXCLUDE_PARAMS_HASH = ();
 
       #Check params
       if ($params) {
@@ -477,19 +502,19 @@ sub check_install {
           my ($param_name2, $param_value2) = split(/=/, $param, 2);
           if ($param_name2 =~ /^!(.+)/) {
             $param_name2 = $1;
-            if (defined($ARGV->{$param_name2}) && $ARGV->{$param_name2} eq $param_value2) {
+            if (defined($argv->{$param_name2}) && $argv->{$param_name2} eq $param_value2) {
             	print "$value\n Skip..\n" if ($debug > 2);
               $skip = 1;
               last;
             }
           }
-          elsif (!defined($ARGV->{$param_name2}) || $ARGV->{$param_name2} ne $param_value2) {
+          elsif (!defined($argv->{$param_name2}) || $argv->{$param_name2} ne $param_value2) {
             $skip = 1;
             last;
           }
           elsif ($param_name2 =~ /^!(\S+)/) {
             my $val = $1;
-            if ($ARGV->{$val} && $ARGV->{$val} eq $param_value2) {
+            if ($argv->{$val} && $argv->{$val} eq $param_value2) {
               $skip = 1;
               last;
             }
@@ -549,13 +574,20 @@ sub check_install {
       #print "$type$folder/$dest";
       if ($type eq '>>') {
 
+        if ( ! -d $folder) {
+          print "Folder not exist '$folder'\n";
+          next; 
+        }
+
         #Check fo existing record in file
         my $dest_body = '';
-        open(my $fh, "$folder/$dest") || die "Can't open file '$folder/$dest'  $!";
-          while (<$fh>) {
-            $dest_body .= $_;
-          }
-        close($fh);
+        if ( -f "$folder/$dest" ) {
+          open(my $fh2, '<', "$folder/$dest") || die "Can't open file '$folder/$dest'  $!";
+            while (<$fh2>) {
+              $dest_body .= $_;
+            }
+          close($fh2);
+        }
 
         $dest_body =~ s/\n|\r//g;
         my $check_body = $config_body;
@@ -570,38 +602,38 @@ sub check_install {
           next;
         }
       }
-      elsif (-e "$folder/$dest" && !defined($ARGV->{'-f'})) {
+      elsif (-e "$folder/$dest" && !defined($argv->{'-f'})) {
         if (!confirm_yn("File: $folder/$dest exist oweride: ", "y")) {
           print "Skiped...\n";
           next;
         }
-        elsif ($ARGV->{BACKUP}) {
+        elsif ($argv->{BACKUP}) {
           print "Make backup '$folder/$dest.bak'\n" if ($debug > 0);
           system("cp -R -pi $folder/$dest $folder/$dest.bak") == 0
           or die "external cp command status was $?";
         }
       }
 
-      open(my $fh, "$type$folder/$dest") || die "Can't open file '$type$folder/$dest'  $!";
-        print $fh $config_body;
-      close($fh);
+      open(my $fh2, $type, "$folder/$dest") || die "Can't open file '$type$folder/$dest'  $!";
+        print $fh2 $config_body;
+      close($fh2);
     }
-
   }
 
+  return 1;
 }
 
 #********************************************************************
 # Get file content
 #********************************************************************
 sub get_file {
-  my ($file, $attr) = @_;
+  my ($file) = @_;
 
   print "Get content: $file\n" if ($debug > 0);
   my $content = '';
 
   #Open local config
-  open(my $fh, "< $file") || die "Can't open file '$file'  $!";
+  open(my $fh, '<', $file) || die "Can't open file '$file'  $!";
     while (<$fh>) {
       $content .= $_;
     }
@@ -618,7 +650,7 @@ sub confirm_yn {
   my $yes = '^(yes|YES|y|Y)$';
   my $no  = '^(no|NO|n|N)$';
   my $read;
-  my $c;
+  #my $c;
 
   if ($confirm && ($confirm =~ /$yes/)) {
     $confirm = "y";
@@ -644,8 +676,8 @@ sub confirm_yn {
 }
 
 #***********************************************
-#
-# Make file checksum
+=head2 make_checksum() -  Make file checksum
+=cut
 #***********************************************
 sub make_checksum {
   use DB_File;
@@ -658,24 +690,24 @@ sub make_checksum {
   my $mode  = '0700';
   my $DB_HASH;
 
-  if ($ARGV->{CSUM_FILES}) {
-    @files = split(/,/, $ARGV->{CSUM_FILES});
+  if ($argv->{CSUM_FILES}) {
+    @files = split(/,/, $argv->{CSUM_FILES});
   }
-  elsif ($ARGV->{CSUM_DIRS}) {
-    @files = get_files($ARGV->{CSUM_DIRS});
+  elsif ($argv->{CSUM_DIRS}) {
+    @files = get_files($argv->{CSUM_DIRS});
   }
 
   my $checksum_type = 'md5';
   my ($checksum, $filedate_time, $permisions);
   my $updated = "$DATE $TIME";
-  my $checksum_file = $ARGV->{CHECKSUM_FILE} || 'checksum.db';
+  my $checksum_file = $argv->{CHECKSUM_FILE} || 'checksum.db';
   print $checksum_file if ($debug > 0);
 
-  my $db = tie %hash, 'DB_File', $checksum_file, $flags, $mode, $DB_HASH
+  my $db_ = tie %hash, 'DB_File', $checksum_file, $flags, $mode, $DB_HASH
   or die "Cannot open file '$checksum_file': $!\n";
 
   #Update checksum file
-  if ($ARGV->{CSUM_UPDATE}) {
+  if ($argv->{CSUM_UPDATE}) {
     foreach my $file (@files) {
       print $file . "\n" if ($debug > 0);
       my $value = "$checksum_type:$checksum:$filedate_time:$permisions:$updated";
@@ -694,8 +726,10 @@ sub make_checksum {
     }
   }
 
-  undef $db;
+  undef $db_;
   untie %hash;
+
+  return 1;
 }
 
 #**********************************************************
@@ -742,7 +776,7 @@ sub _parse {
 sub read_file {
   my ($filename) = @_;
   my $content = '';
-  open(my $fh, "$filename") || die "Can't open file '$filename' $!";
+  open(my $fh, '<', $filename) || die "Can't open file '$filename' $!";
     while (<$fh>) {
       $content .= $_;
     }
@@ -755,14 +789,14 @@ sub read_file {
 # Write file
 #**********************************************************
 sub write_file {
-  my ($filename, $content, $mode, $attr) = @_;
+  my ($filename, $content, $mode) = @_;
 
-  if ($ARGV->{BACKUP}) {
+  if ($argv->{BACKUP}) {
     system("cp -R -pi $filename $filename.bak");
   }
 
   $mode = ($mode) ? $mode : '>';
-  open(my $fh, "$mode$filename") || die "Can't open file '$filename' $!";
+  open(my $fh, $mode, "$filename") || die "Can't open file '$filename' $!";
     print $fh $content;
   close($fh);
 
@@ -770,7 +804,9 @@ sub write_file {
 }
 
 #**********************************************************
-# Intercat secrvice installation
+=head2 interact_mode() Intercat secrvice installation
+
+=cut
 #**********************************************************
 sub interact_mode {
 
@@ -787,7 +823,7 @@ sub interact_mode {
     }
   }
 
-  my @installed = ();
+  #my @installed = ();
   my $read = '';
 
   while (1) {
@@ -812,13 +848,16 @@ sub interact_mode {
     chop($read = <STDIN>);
   }
 
+  return 1;
 }
 
 #**********************************************************
-# System conf
+=head2 system_conf($attr) System conf
+
+=cut
 #**********************************************************
 sub system_conf {
-  my ($attr) = @_;
+  #my ($attr) = @_;
 
   if ($conf{OS} eq 'FREEBSD') {
     print "FreeBSD System configuration\n";

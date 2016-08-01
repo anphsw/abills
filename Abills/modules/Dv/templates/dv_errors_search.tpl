@@ -1,5 +1,33 @@
-<tr><td colspan=2><hr></td></tr>
-<tr><td>$_MESSAGE:</td><td><input type=text name=MESSAGE value='%MESSAGE%'></td></tr>
-<tr><td>$_ACTION:</td><td>%ACTIONS_SEL%</td></tr>
-<tr><td>$_TYPE:</td><td>%LOG_TYPE_SEL%</td></tr>
-<tr><td>$_NAS:</td><td>%NAS_ID_SEL%</td></tr>
+<div class='panel panel-default panel-form'>
+  <div class='panel-body'>
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='MESSAGE'>_{MESSAGE}_</label>
+  <div class='col-md-9'>
+    <input id='MESSAGE' name='MESSAGE' value='%MESSAGE%' placeholder='%MESSAGE%' class='form-control' type='text'>
+  </div>
+</div>
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='ACTION'>_{ACTION}_</label>
+  <div class='col-md-9'>
+    %ACTIONS_SEL%
+  </div>
+</div>
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='TYPE'>_{TYPE}_</label>
+  <div class='col-md-9'>
+    %LOG_TYPE_SEL%
+  </div>
+</div>
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='NAS'>_{NAS}_</label>
+  <div class='col-md-9'>
+    %NAS_ID_SEL%
+  </div>
+</div>
+
+</div>
+</div>

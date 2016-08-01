@@ -1,3 +1,3 @@
-$_QUERY='Query';
-$_FIELDS='Fields';
-$_FIELD='Field';
+$lang{QUERY}='Query';
+$lang{FIELDS}='Fields';
+$lang{FIELD}='Field';

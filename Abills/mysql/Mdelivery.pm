@@ -1,7 +1,10 @@
 package Mdelivery;
 
-# Mail delivery functions
-#
+=head1 NAME
+
+  Mail delivery functions
+
+=cut
 
 use strict;
 use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
@@ -26,7 +29,8 @@ my $uid;
 #**********************************************************
 sub new {
   my $class = shift;
-  ($db, $admin, $CONF) = @_;
+  my $db    = shift; 
+  ($admin, $CONF) = @_;
 
   $admin->{MODULE} = 'Mdelivery';
   my $self = {};
@@ -43,7 +47,7 @@ sub new {
 sub defaults {
   my $self = shift;
 
-  %DATA = (
+  my %DATA = (
     DATE     => '0000-00-00',
     SUBJECT  => '',
     AID      => 0,
@@ -69,7 +73,7 @@ sub info {
   my $WHERE;
 
   $self->query2("SELECT 
-     md.id,  
+     md.id,
      md.date, 
      md.subject, 
      md.sender, 
@@ -129,8 +133,7 @@ sub add {
   my $self = shift;
   my ($attr) = @_;
 
-  my $DATA = defaults();
-  %DATA = $self->get_data($attr, { default => $DATA });
+  my %DATA = $self->get_data($attr, { default => defaults() });
 
   $self->query2("INSERT INTO mdelivery_list (date, added, subject, sender, aid, text, uid, gid,
      priority)
@@ -214,7 +217,7 @@ sub user_list_add {
     ],
     { WHERE => 1,
     	WHERE_RULES => \@WHERE_RULES
-    }    
+    }
     );
 
 
@@ -246,7 +249,7 @@ sub user_list_change {
     ],
     { 
     	WHERE_RULES => \@WHERE_RULES
-    }    
+    }
     );
 
   my $status = 1;
@@ -267,11 +270,7 @@ sub user_list_del {
         [ 'UID',          'INT', 'uid' ],
         [ 'ID',           'INT', 'id' ],
         [ 'MDELIVERY_ID', 'INT', 'mdelivery_id' ],
-    ],
-    { 
-    	WHERE_RULES => \@WHERE_RULES
-    }    
-    );
+    ]);
 
   $self->query2("DELETE FROM mdelivery_users WHERE $WHERE;", 'do');
 
@@ -302,7 +301,7 @@ sub user_list {
     { 
     	WHERE       => 1,
     	WHERE_RULES => \@WHERE_RULES
-    }    
+    }
     );
 
   $self->query2("SELECT u.id AS login, pi.fio, mdl.status, mdl.uid, pi.email 
@@ -346,7 +345,7 @@ sub list {
     ],
     { 
     	WHERE       => 1,
-    }    
+    }
     );
 
   $self->query2("SELECT 

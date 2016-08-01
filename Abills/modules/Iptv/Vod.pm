@@ -1,4 +1,11 @@
 
+use vars qw(
+  %conf
+  @commands
+  $DATE
+  $TIME
+);
+
 $conf{IPTV_VOD_SERVER_CONF}= '/home/asm/iptv/VOD.conf' if (! $conf{IPTV_VOD_SERVER_CONF});
 $conf{IPTV_VOD_SERVER_IP}  = '10.0.0.1'            if (! $conf{IPTV_VOD_SERVER_IP});
 $conf{IPTV_VLC_PASSWORD}   = 'videolan'            if (! $conf{IPTV_VLC_PASSWORD});
@@ -48,9 +55,9 @@ sub vod_addfile {
 
   
 
-	$cfgpath=$conf{IPTV_VOD_SERVER_CONF};		
+  my $cfgpath=$conf{IPTV_VOD_SERVER_CONF};		
   my $content = '';
-  my $VOD_ACTIVE_FILES = ();
+  my %VOD_ACTIVE_FILES = ();
 
   $media_file =~ s/\/{2,5}/\//g;
   

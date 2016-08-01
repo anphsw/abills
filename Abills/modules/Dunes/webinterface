@@ -1,6 +1,9 @@
-#!/usr/bin/perl
-# DUNEs   Windows Dialup User Network Errors
+#!perl
+=head1 NAME
 
+ DUNEs   Windows Dialup User Network Errors
+
+=cut
 
 
 require "Dunes.pm";
@@ -8,43 +11,50 @@ Dunes->import();
 my $Dunes = Dunes->new($db, $admin, \%conf);
 
 #**********************************************************
-# dunes_list
+=head2 dunes_list()
+
+=cut
 #**********************************************************
 sub dunes_list {
- my ($attr)=@_;
 
 print $html->form_main({ CONTENT => "ID: " . $html->form_input('ID', "$FORM{ID}"),
                    HIDDEN  => { index => "$index"
                                      },
-                   SUBMIT  => { show   => "$_SHOW"
-	                      	           } 
+                   SUBMIT  => { show   => "$lang{SHOW}"
+	                      	           },
+	                 class   => 'form-inline'
 	                 });
 
 $LIST_PARAMS{ID}=$FORM{ID} if ($FORM{ID});
-my $list = $Dunes->list( { %LIST_PARAMS } );
+
+#err_id, win_err_handle, translate, error_text, solution
+
+my $list = $Dunes->list({ %LIST_PARAMS,
+	                        COLS_NAME => 1 });
 
 if ($Dunes->{errno}) {
-  $html->message('err', $_ERROR, "[$Dv->{errno}] $err_strs{$Dv->{errno}}");	
+  $html->message('err', $lang{ERROR}, "[$Dv->{errno}] $err_strs{$Dv->{errno}}");
   return 0;
  }
 
 if ($Dunes->{TOTAL} == 1) {
   my $table = $html->table({ width      => '400',
-                            caption     => "Error: $list->[0]->[0]",
-                            title_plain => [ "($list->[0]->[0]) $list->[0]->[3] " ],
+                            caption     => "Error: $list->[0]->{err_id}",
+                            title_plain => [ "($list->[0]->{err_id}) $list->[0]->{error_text} " ],
                             border      => 1,
-                            rows        => [[ $list->[0]->[2] ],
-                                     [ $list->[0]->[4] ],
-                                     [ $list->[0]->[2] ]
+                            rows        => [
+                                     [ $list->[0]->{translate} ],
+                                     [ $list->[0]->{solution}  ],
+                                     [ $list->[0]->{translate} ]
                                     ]
                            });
-  print $table->show();	
+  print $table->show();
 }
 
 my $table = $html->table( { width        => '100%',
                             caption      => "Dunes",
                             border       => 1,
-                            title_plain  => ["$_NUMBER", 'win_err_handle', "$_TEXT"],
+                            title_plain  => ["$lang{NUMBER}", 'win_err_handle', "$lang{TEXT}"],
                             cols_align   => ['left', 'left'],
                             qs           => $pages_qs,
                             pages        => $Dunes->{TOTAL},
@@ -53,9 +63,9 @@ my $table = $html->table( { width        => '100%',
 
 foreach my $line (@$list) {
   $table->addrow(
-    $html->button("$line->[0]",  "index=$index&ID=$line->[0]"),
-    "$line->[3]", 
-    "$line->[2]", 
+    $html->button($line->{err_id},  "index=$index&ID=$line->{$line->{err_id}}"),
+    $line->{error_text},
+    $line->{translate},
    );
 
 }
@@ -63,7 +73,7 @@ print $table->show();
 
 $table = $html->table( { width      => '100%',
                          cols_align => ['right', 'right'],
-                         rows       => [ [ "$_TOTAL:", $html->b($Dunes->{TOTAL}) ] ]
+                         rows       => [ [ "$lang{TOTAL}:", $html->b($Dunes->{TOTAL}) ] ]
                         } );
 print $table->show();
 

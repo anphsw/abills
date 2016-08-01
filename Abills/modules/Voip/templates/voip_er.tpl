@@ -1,12 +1,32 @@
-<form action='$SELF_URL' METHOD='POST'>
-<input type=hidden name='index' value='$index'>
-<input type=hidden name='chg'   value='$FORM{chg}'> 
-<table class=form>
-<tr><th colspan=2 class=form_title>$_EXCHANGE_RATE</th></tr>
-<tr><td>$_EXCHANGE_RATE:</td><td><input type=text name=VOIP_ER value='%VOIP_ER%'></td></tr>
-<tr><td>$_COMMENTS:</td><td><input type=text name=VOIP_ER_NAME value='%VOIP_ER_NAME%'></td></tr>
-<tr><td>$_CHANGED:</td><td>%VOIP_ER_CHANGED%</td></tr>
-<tr><th colspan=2 class=even><input type=submit name='%ACTION%' value='%LNG_ACTION%'></th></tr>
-</table>
+<form action='$SELF_URL' METHOD='POST' class='form-horizontal'>
+    <input type=hidden name='index' value='$index'>
+    <input type=hidden name='chg' value='$FORM{chg}'>
+
+    <div class='panel panel-primary panel-form'>
+        <div class='panel-heading'>_{EXCHANGE_RATE}_</div>
+        <div class='panel-body'>
+            <div class='form-group'>
+                <label class='col-md-3 control-label'>_{EXCHANGE_RATE}_</label>
+                <div class='col-md-9'>
+                    <input class='form-control' type=text name=VOIP_ER value='%VOIP_ER%'>
+                </div>
+            </div>
+            <div class='form-group'>
+                <label class='col-md-3 control-label'>_{COMMENTS}_</label>
+                <div class='col-md-9'>
+                    <input class='form-control' type=text name=VOIP_ER_NAME value='%VOIP_ER_NAME%'>
+                </div>
+            </div>
+            <div class='form-group'>
+                <label class='col-md-3 control-label'>_{CHANGED}_</label>
+                <div class='col-md-9'>
+                    %VOIP_ER_CHANGED%
+                </div>
+            </div>
+        </div>
+        <div class='panel-footer'>
+            <input class='btn btn-primary' type=submit name='%ACTION%' value='%LNG_ACTION%'>
+        </div>
+    </div>
 
 </form>

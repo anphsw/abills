@@ -2,36 +2,95 @@
 <form action='$SELF_URL' METHOD='POST' ID='FORM_UREPORTS'>
 <input type=hidden name='index' value='$index'>
 <input type=hidden name='TP_ID' value='%TP_ID%'>
-<table border='0' class=form>
-  <tr><th>#</th><td>%ID% <!-- <input type='text' name='ID' value='%ID%'> --></td></tr>
-  <tr><td>$_NAME:</td><td><input type=text name=NAME value='%NAME%'></td></tr>
 
-    <tr><td>$_MSG_PRICE:</td><td><input type=text name=MSG_PRICE value='%MSG_PRICE%'></td></tr>
-  <tr><th colspan=2 class=form_title>$_ABON</th></tr> 
+<div class='panel panel-default panel-form'>
+	<legend>_{TARIF_PLAN}_ #%ID%</legend>
+<div class='panel-body form form-horizontal'>
+ 
+  <div class='form-group'>
+  	<label class='control-label col-md-3'>_{NAME}_:</label>
+  	<div class='col-md-9'><input type=text name=NAME value='%NAME%' class='form-control'></div>
+  </div>
+
+   <div class='form-group'>
+   	<label class='col-md-3'>_{MSG_PRICE}_:</label>
+   	<div class='col-md-9'><input type=text name=MSG_PRICE value='%MSG_PRICE%' class='form-control'></div>
+   </div>
+   
+  <div class='form-group'>
+  	<label class='col-md-12 bg-primary'>_{ABON}_</label>
+  </div> 
   <!-- 
-  <tr><td>$_DAY_FEE:</td><td><input type=text name=DAY_FEE value='%DAY_FEE%'></td></tr>
-  <tr><td>$_POSTPAID:</td><td><input type=checkbox name=POSTPAID_DAY_FEE value=1 %POSTPAID_DAY_FEE%></td></tr>
+  <tr><td>_{DAY_FEE}_:</td><td><input type=text name=DAY_FEE value='%DAY_FEE%'></td></tr>
+  <tr><td>_{POSTPAID}_:</td><td><input type=checkbox name=POSTPAID_DAY_FEE value=1 %POSTPAID_DAY_FEE%></td></tr>
   -->
-  <tr class=even><td>$_MONTH_FEE:</td><td><input type=text name=MONTH_FEE value='%MONTH_FEE%'></td></tr>
-  <tr class=even><td>$_POSTPAID:</td><td><input type=checkbox name=POSTPAID_MONTH_FEE value=1 %POSTPAID_MONTH_FEE%></td></tr>
+  <div class='form-group'>
+  	<label class='col-md-3'>_{MONTH_FEE}_:</label>
+  	<div class='col-md-9'><input type=text name=MONTH_FEE value='%MONTH_FEE%' class='form-control'></div>
+  </div>
+  
+  <div class='form-group'>
+  	<div class='col-md-3'>
+  	</div>
+  	<label class='col-md-3'>_{POSTPAID}_:</label>
+  	<div class='col-md-1'>
+  		<input type=checkbox name=POSTPAID_MONTH_FEE value=1 %POSTPAID_MONTH_FEE%>
+  	</div>
+  	<label class='col-md-3'>_{REDUCTION}_:</label>
+  	<div class='col-md-1'><input type=checkbox name=REDUCTION_FEE value=1 %REDUCTION_FEE%></div>
+  </div>
   <!--
-  <tr class=even><td>$_MONTH_ALIGNMENT:</td><td><input type=checkbox name='PERIOD_ALIGNMENT' value='1' %PERIOD_ALIGNMENT%></td></tr>
-  <tr class=even><td>$_ABON_DISTRIBUTION:</td><td><input type=checkbox name='ABON_DISTRIBUTION' value='1' %ABON_DISTRIBUTION%></td></tr>
+  <tr class=even><td>_{MONTH_ALIGNMENT}_:</td><td><input type=checkbox name='PERIOD_ALIGNMENT' value='1' %PERIOD_ALIGNMENT%></td></tr>
+  <tr class=even><td>_{ABON_DISTRIBUTION}_:</td><td><input type=checkbox name='ABON_DISTRIBUTION' value='1' %ABON_DISTRIBUTION%></td></tr>
   -->
 
-  <tr><td>$_REDUCTION:</td><td><input type=checkbox name=REDUCTION_FEE value=1 %REDUCTION_FEE%></td></tr>
   
   
   %EXT_BILL_ACCOUNT%
   
-  <tr><th colspan=2 class=form_tutle>$_OTHER</th></tr>
-  <tr><td>$_ACTIVATE:</td><td><input type=text name=ACTIV_PRICE value='%ACTIV_PRICE%'></td></tr>
-  <tr><td>$_CHANGE:</td><td><input type=text name=CHANGE_PRICE value='%CHANGE_PRICE%'></td></tr>
-  <tr><td>$_CREDIT:</td><td><input type=text name=CREDIT value='%CREDIT%'></td></tr>
-  <tr><td>$_AGE ($_DAYS):</td><td><input type=text name=AGE value='%AGE%'></td></tr>
-  <tr><td>$_MIN_USE:</td><td><input type=text name=MIN_USE value='%MIN_USE%'></td></tr>
-  <tr><th colspan=2 class=even><input type=submit name='%ACTION%' value='%LNG_ACTION%'></th></tr>
-</table>
+  <div class='form-group'>
+  	<label class='col-md-12 bg-primary'>_{OTHER}_</label>
+  </div>
+  <div class='form-group'>
+  	<label class='col-md-3 control-label'>_{ACTIVATE}_:</label>
+  	<div class='col-md-9'>
+  		<input type=text name=ACTIV_PRICE value='%ACTIV_PRICE%' class='form-control'>
+  	</div>
+  </div>
+  
+  <div class='form-group'>
+  	<label class='col-md-3 control-label'>_{CHANGE}_:</label>
+  	<div class='col-md-9'>
+  		<input type=text name=CHANGE_PRICE value='%CHANGE_PRICE%' class='form-control'>
+  	</div>
+  </div>
+  
+  <div class='form-group'>
+  	<label class='col-md-3 control-label'>_{CREDIT}_:</label>
+  	<div class='col-md-9'>
+  		<input type=text name=CREDIT value='%CREDIT%' class='form-control'>
+  	</div>
+  </div>
+  
+  <div class='form-group'>
+  	<label class='col-md-3'>_{AGE}_ (_{DAYS}_):</label>
+  	<div class='col-md-9'>
+  		<input type=text name=AGE value='%AGE%' class='form-control'>
+  	</div>
+ 	</div>
+  
+  <div class='form-group'>
+  	<label class='col-md-3 control-label'>_{MIN_USE}_:</label>
+  	<div class='col-md-9'>
+  		<input type=text name=MIN_USE value='%MIN_USE%' class='form-control'>
+  	</div>
+  </div>
+  
+</div>
+<div class='panel-footer'>
+	<input type=submit name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'>
+</div>
+</div>
 
 </form>
 </div>

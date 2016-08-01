@@ -1,27 +1,29 @@
 package Voip;
-# Voip  managment functions
-#
+
+=head1 NAME
+
+ Voip  managment functions
+
+=cut
+
+=head1 SYNOPSIS
+
+  use Voip;
+  $Voip->new($db, $admin, \%conf);
+
+=cut
 
 use strict;
-use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION);
-
-use Exporter;
-$VERSION = 2.00;
-@ISA     = ('Exporter');
-
-@EXPORT = qw();
-
-@EXPORT_OK   = ();
-%EXPORT_TAGS = ();
-
-use main;
+use parent qw(main);
 use Tariffs;
-my $tariffs = Tariffs->new($db, $CONF, $admin);
 
+my $tariffs;
 my $MODULE = 'Voip';
-
-@ISA = ("main");
-my $uid;
+my ($admin, $CONF);
+my $SORT = 1;
+my $DESC = '';
+my $PG   = 1;
+my $PAGE_ROWS = 25;
 
 #**********************************************************
 # Init
@@ -29,31 +31,36 @@ my $uid;
 sub new {
   my $class = shift;
   my $db    = shift;
+
   ($admin, $CONF) = @_;
   $admin->{MODULE} = $MODULE;
 
-  my $self = {};
+  my $self = {
+    db   => $db,
+    admin=> $admin,
+    conf => $CONF
+  };
   bless($self, $class);
 
-  $self->{db}=$db;
+  $tariffs = Tariffs->new($db, $CONF, $admin);
 
   return $self;
 }
 
 #**********************************************************
-# User information
-# info()
+=head2 user_info($uid, $attr) -  User information
+
+=cut
 #**********************************************************
 sub user_info {
   my $self = shift;
   my ($uid, $attr) = @_;
 
   my @WHERE_RULES = ();
-  my $WHERE       = '';
 
   if (defined($attr->{LOGIN})) {
     use Users;
-    my $users = Users->new($db, $admin, $CONF);
+    my $users = Users->new($self->{db}, $admin, $CONF);
     $users->info(0, { LOGIN => "$attr->{LOGIN}" });
     if ($users->{errno}) {
       $self->{errno}  = 2;
@@ -77,7 +84,7 @@ sub user_info {
     push @WHERE_RULES, "voip.ip=INET_ATON('$attr->{IP}')";
   }
 
-  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
   $self->query2("SELECT 
    voip.uid, 
@@ -116,7 +123,7 @@ sub user_info {
 sub defaults {
   my $self = shift;
 
-  %DATA = (
+  my %DATA = (
     TP_ID            => 0,
     NUMBER           => 0,
     DISABLE          => 0,
@@ -153,8 +160,7 @@ sub log_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes(
-    $admin,
+  $self->changes2(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'voip_ivr_log',
@@ -166,13 +172,13 @@ sub log_change {
 }
 
 #**********************************************************
-# list
+=head2 log_list($attr)
+
+=cut
 #**********************************************************
-sub log_list() {
+sub log_list {
   my $self = shift;
   my ($attr) = @_;
-
-  @WHERE_RULES = ();
 
   $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
   $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
@@ -189,11 +195,10 @@ sub log_list() {
       ['UID',      'INT',  'l.uid'      ]
     ],
     { WHERE       => 1,
-    	WHERE_RULES => \@WHERE_RULES
-    }    
+    }
     );
 
-  $self->query2("SELECT l.id, l.datetime, l.phone, l.comment, $self->{SEARCH_FIELDS} l.uid    
+  $self->query2("SELECT l.id, l.datetime, l.phone, l.comment, $self->{SEARCH_FIELDS} l.uid
     FROM voip_ivr_log l
     LEFT JOIN users u ON (u.uid=l.uid)
     $WHERE
@@ -215,8 +220,12 @@ sub log_list() {
   return $list;
 }
 
+
+
 #**********************************************************
-# add()
+=head2 user_add($attr) - Add voip service
+
+=cut
 #**********************************************************
 sub user_add {
   my $self = shift;
@@ -226,15 +235,15 @@ sub user_add {
   $self->query_add('voip_main', $attr);
 
   $self->{TP_INFO} = $tariffs->info($attr->{TP_ID});
-  return $self if ($self->{errno});
+  return [ ] if ($self->{errno});
 
-  $admin->action_add($DATA{UID}, "ADDED", { TYPE => 1 });
+  $admin->action_add($attr->{UID}, "ADDED", { TYPE => 1 });
 
   return $self;
 }
 
 #**********************************************************
-# change()
+# user_change()
 #**********************************************************
 sub user_change {
   my $self = shift;
@@ -251,8 +260,7 @@ sub user_change {
   $attr->{EXPIRE}= $attr->{VOIP_EXPIRE};
   $attr->{LOGINS}= $attr->{SIMULTANEOUSLY};
 
-  $self->changes(
-    $admin,
+  $self->changes2(
     {
       CHANGE_PARAM => 'UID',
       TABLE        => 'voip_main',
@@ -270,7 +278,6 @@ sub user_change {
 #**********************************************************
 sub user_del {
   my $self = shift;
-  my ($attr) = @_;
 
   $self->query2("DELETE from voip_main WHERE uid='$self->{UID}';", 'do');
   $admin->action_add($self->{UID}, "$self->{UID}", { TYPE => 10 });
@@ -279,25 +286,25 @@ sub user_del {
 }
 
 #**********************************************************
-# list()
+=head2 user_list($attr) - Voip users list
+
+=cut
 #**********************************************************
 sub user_list {
   my $self   = shift;
   my ($attr) = @_;
-  my @list   = ();
 
   $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
   $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
   $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  @WHERE_RULES = ( "u.uid = service.uid" );
+  my @WHERE_RULES = ( "u.uid = service.uid" );
   my $EXT_TABLES = '';
   $self->{EXT_TABLES}='';
 
   if ($attr->{USERS_WARNINGS}) {
-    $self->query(
-      $db, " SELECT u.id, pi.email, dv.tp_id, u.credit, b.deposit, tp.name, tp.uplimit
+    $self->query2(" SELECT u.id, pi.email, dv.tp_id, u.credit, b.deposit, tp.name, tp.uplimit
          FROM (users u, voip_main dv, bills b)
          LEFT JOIN tarif_plans tp ON dv.tp_id = tp.id
          LEFT JOIN users_pi pi ON u.uid = dv.uid
@@ -310,8 +317,7 @@ sub user_list {
     return $list;
   }
   elsif ($attr->{CLOSED}) {
-    $self->query(
-      $db, "SELECT u.id AS login, pi.fio, if(company.id IS NULL, b.deposit, b.deposit), 
+    $self->query2("SELECT u.id AS login, pi.fio, if(company.id IS NULL, b.deposit, b.deposit), 
       u.credit, tp.name, u.disable, 
       u.uid, u.company_id, u.email, u.tp_id, if(l.start is NULL, '-', l.start)
      FROM (users u, bills b)
@@ -319,7 +325,7 @@ sub user_list {
      LEFT JOIN tarif_plans tp ON  (tp.id=u.tp_id) 
      LEFT JOIN companies company ON  (u.company_id=company.id) 
      LEFT JOIN voip_log l ON  (l.uid=u.uid) 
-     WHERE  
+     WHERE
         u.bill_id=b.id
         and (b.deposit+u.credit-tp.credit_tresshold<=0)
         or (
@@ -342,9 +348,8 @@ sub user_list {
   }
 
   my $WHERE =  $self->search_former($attr, [
-      ['FIO',            'STR', 'pi.fio',                           1 ],
       ['NUMBER',         'INT', 'service.number',                   1 ],
-      ['TP_NAME',        'STR', 'tp.name AS tp_name',               1 ],      
+      ['TP_NAME',        'STR', 'tp.name AS tp_name',               1 ],
       ['IP',             'IP',  'service.ip',                 'INET_NTOA(service.ip) AS ip' ],
       ['CID',            'STR', 'service.cid',                      1 ],
       ['SERVICE_STATUS', 'INT', 'service.disable AS voip_status',   1 ],
@@ -356,20 +361,16 @@ sub user_list {
       ['PROVISION_PORT', 'INT', 'service.provision_port',           1 ],
       ['PROVISION_NAS_ID','INT','service.provision_nas_id',         1 ],
     ],
-    { WHERE       => 1,
-    	WHERE_RULES => \@WHERE_RULES,
-    	USERS_FIELDS=> 1,
-    	SKIP_USERS_FIELDS=> [ 'FIO' ]
-    }    
+    { WHERE            => 1,
+    	WHERE_RULES      => \@WHERE_RULES,
+    	USERS_FIELDS_PRE => 1,
+    	USE_USER_PI      => 1
+    }
     );
 
   $EXT_TABLES = $self->{EXT_TABLES} if ($self->{EXT_TABLES});
-  if ($self->{SEARCH_FIELDS}=~/pi\./) {
-    $EXT_TABLES .= 'LEFT JOIN users_pi pi ON (u.uid = pi.uid)';
-  }
 
-  my $sql = "SELECT u.id AS login, 
-      $self->{SEARCH_FIELDS}
+  my $sql = "SELECT $self->{SEARCH_FIELDS}
       u.uid, 
       service.tp_id
      FROM (users u, voip_main service)
@@ -381,10 +382,10 @@ sub user_list {
 
   $self->query2($sql,
      undef,
-     $attr     
+     $attr
   );
 
-  return $self if ($self->{errno});
+  return [ ] if ($self->{errno});
 
   my $list = $self->{list};
 
@@ -403,23 +404,30 @@ sub user_list {
 #**********************************************************
 sub periodic {
   my $self = shift;
-  my ($period) = @_;
-
-  if ($period eq 'daily') {
-    $self->daily_fees();
-  }
+  #my ($period) = @_;
+  #if ($period eq 'daily') {
+  #  $self->daily_fees();
+  #}
 
   return $self;
 }
 
 #**********************************************************
-# route_add
+=head2 route_add($attr) - Add voip route
+
+  Arguments:
+    $attr
+      REPLACE  - Chnage insert statment to replace
+
+  Returns:
+    $self
+
+=cut
 #**********************************************************
 sub route_add {
   my $self = shift;
   my ($attr) = @_;
 
-  %DATA = $self->get_data($attr);
   my $action = 'INSERT';
   if ($attr->{REPLACE}) {
     $action = 'REPLACE';
@@ -427,23 +435,31 @@ sub route_add {
 
   $self->query2("$action INTO voip_routes (prefix, parent, name, disable, date,
         descr) 
-        VALUES ('$DATA{ROUTE_PREFIX}', '$DATA{PARENT_ID}',  '$DATA{ROUTE_NAME}', '$DATA{DISABLE}', now(),
-        '$DATA{DESCRIBE}');", 'do'
+        VALUES (?, ?, ?, ?, now(), ?);", 'do',
+    { Bind => 
+       [ $attr->{ROUTE_PREFIX} || '', 
+         $attr->{PARENT_ID} || 0,
+         $attr->{ROUTE_NAME} || '',
+         $attr->{DISABLE} || 0,
+         $attr->{DESCRIBE} || ''
+       ] 
+    }
   );
 
-  return $self if ($self->{errno});
+  return [ ] if ($self->{errno});
 
-  $admin->system_action_add("ROUTES: $DATA{ROUTE_PREFIX}", { TYPE => 1 });
+  $admin->system_action_add("ROUTES: $attr->{ROUTE_PREFIX}", { TYPE => 1 });
   return $self;
 }
 
 #**********************************************************
-# Route information
-# route_info()
+=head2 route_info($id, $attr) - Route information
+
+=cut
 #**********************************************************
 sub route_info {
   my $self = shift;
-  my ($id, $attr) = @_;
+  my ($id) = @_;
 
   $self->query2("SELECT 
    id AS route_id,
@@ -454,16 +470,19 @@ sub route_info {
    disable,
    descr AS `describe`
      FROM voip_routes
-   WHERE id='$id';",
+   WHERE id= ? ;",
    undef,
-   { INFO => 1 }
+   { INFO => 1,
+     Bind => [ $id ] }
   );
 
   return $self;
 }
 
 #**********************************************************
-# route_del
+=head2 route_del($id, $attr) - Delete route
+
+=cut
 #**********************************************************
 sub route_del {
   my $self = shift;
@@ -473,7 +492,7 @@ sub route_del {
 
   if ($id > 0) {
     $WHERE = "id='$id'";
-    $self->query2("DELETE FROM voip_route_prices WHERE route_id='$id';", 'do');
+    $self->query_del('voip_route_prices', { ID => $id });
   }
   elsif ($attr->{ALL}) {
     $WHERE = "id > '0'";
@@ -481,7 +500,7 @@ sub route_del {
   }
 
   $self->query2("DELETE FROM voip_routes WHERE $WHERE;", 'do');
-  return $self if ($self->{errno});
+  return [ ] if ($self->{errno});
 
   $admin->system_action_add("ROUTES: $id", { TYPE => 10 });
 
@@ -489,7 +508,9 @@ sub route_del {
 }
 
 #**********************************************************
-# route_change()
+=head2 route_change($attr) - Route change
+
+=cut
 #**********************************************************
 sub route_change {
   my $self = shift;
@@ -506,8 +527,7 @@ sub route_change {
 
   $attr->{DISABLE}=(! defined($attr->{DISABLE})) ? 0 : 1;
 
-  $self->changes(
-    $admin,
+  $self->changes2(
     {
       CHANGE_PARAM => 'ROUTE_ID',
       TABLE        => 'voip_routes',
@@ -526,7 +546,6 @@ sub route_change {
 sub routes_list {
   my $self   = shift;
   my ($attr) = @_;
-  my @list   = ();
 
   $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
   $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
@@ -539,11 +558,10 @@ sub routes_list {
       ['ROUTE_PREFIX',   'STR', 'r.prefix'    ],
     ],
     { WHERE => 1,
-    }    
+    }
     );
 
-  $self->query(
-    $db, "SELECT r.prefix, r.name, r.disable, r.date, r.id, r.parent
+  $self->query2("SELECT r.prefix, r.name, r.disable, r.date, r.id, r.parent
      FROM voip_routes r
      $WHERE 
      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
@@ -551,12 +569,12 @@ sub routes_list {
     $attr
   );
 
-  return $self if ($self->{errno});
+  return [ ] if ($self->{errno});
 
   my $list = $self->{list};
 
   if ($self->{TOTAL} >= 0) {
-    $self->query($db, "SELECT count(r.id) AS total FROM voip_routes r $WHERE",
+    $self->query2("SELECT count(r.id) AS total FROM voip_routes r $WHERE",
     undef, { INFO => 1 });
   }
 
@@ -564,8 +582,9 @@ sub routes_list {
 }
 
 #**********************************************************
-# route price list
-# rp_list()
+=head2 rp_list($attr)
+
+=cut
 #**********************************************************
 sub rp_add {
   my $self = shift;
@@ -592,7 +611,7 @@ sub rp_add {
   $self->query2("REPLACE INTO voip_route_prices (route_id, interval_id, price, date, trunk, extra_tarification, unit_price) VALUES
   $value;", 'do'
   );
-  return $self if ($self->{errno});
+  return [ ] if ($self->{errno});
 
   return $self;
 }
@@ -607,39 +626,37 @@ sub rp_change_exhange_rate {
 
   if ($attr->{EXCHANGE_RATE} > 0) {
     $self->query2("UPDATE voip_route_prices SET price = unit_price * $attr->{EXCHANGE_RATE};", 'do');
-    return $self if ($self->{errno});
+    return [ ] if ($self->{errno});
   }
 
   return $self;
 }
 
 #**********************************************************
-# route price list
-# rp_list()
+=head2 rp_list($attr) - route price list
+
+=cut
 #**********************************************************
 sub rp_list {
   my $self   = shift;
   my ($attr) = @_;
-  my @list   = ();
 
-  my $search_fields = '';
-  undef @WHERE_RULES;
+  my @WHERE_RULES   = ();
 
   if ($attr->{PRICE}) {
     my $value = $self->search_expr($attr->{PRICE}, 'INT');
     push @WHERE_RULES, "rp.price$value";
   }
 
-  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
   $self->query2("SELECT rp.interval_id, rp.route_id, rp.date, rp.price, rp.trunk, rp.extra_tarification, rp.unit_price
      FROM voip_route_prices rp 
      $WHERE 
-     ORDER BY $SORT $DESC 
-;"
+     ORDER BY $SORT $DESC;"
   );
 
-  return $self if ($self->{errno});
+  return [] if ($self->{errno});
 
   my $list = $self->{list};
 
@@ -654,20 +671,21 @@ sub rp_list {
 #**********************************************************
 # list
 #**********************************************************
-sub tp_list() {
+sub tp_list {
   my $self = shift;
   my ($attr) = @_;
 
+  my @WHERE_RULES = ('tp.tp_id=voip.id');
+  $SORT = (defined($attr->{SORT})) ? $attr->{SORT} : 1;
+  $DESC = (defined($attr->{DESC})) ? $attr->{DESC} : '';
 
-  @WHERE_RULES = ('tp.tp_id=voip.id');
-  
   my $WHERE =  $self->search_former($attr, [
       ['FREE_TIME',     'INT', 'voip.free_time',    1 ],
       ['TIME_DIVISION', 'STR', 'voip.time_division',1 ],
     ],
     { WHERE => 1,
     	WHERE_RULES => \@WHERE_RULES
-    }    
+    }
     );
 
   $self->query2("SELECT tp.id, tp.name, 
@@ -680,7 +698,7 @@ sub tp_list() {
     tp.tp_id,
     $self->{SEARCH_FIELDS}
     ''
-    
+
     FROM (tarif_plans tp, voip_tps voip)
     LEFT JOIN intervals i ON (i.tp_id=tp.tp_id)
     $WHERE
@@ -731,62 +749,38 @@ sub tp_defaults {
 }
 
 #**********************************************************
-# Add
+=head2 tp_add($attr)
+
+=cut
 #**********************************************************
 sub tp_add {
   my $self = shift;
   my ($attr) = @_;
 
   $attr->{MODULE} = 'Voip';
-  $tariffs->add({%$attr});
+#  $tariffs->{debug}=1;
+  $tariffs->add($attr);
 
   $tariffs->{TP_ID} = $tariffs->{INSERT_ID};
+  $self->{TP_ID}=$tariffs->{INSERT_ID};
 
-  if (defined($tariffs->{errno})) {
+  if ($tariffs->{errno}) {
     $self->{errno} = $tariffs->{errno};
     return $self;
   }
 
-  my $DATA = tp_defaults();
-
-  %DATA = $self->get_data($attr, { default => $DATA });
-
-  $self->query2("INSERT INTO voip_tps (id, 
-     rad_pairs,
-     max_session_duration, 
-     min_session_cost, 
-     day_time_limit, 
-     week_time_limit,  
-     month_time_limit, 
-
-     first_period,
-     first_period_step,
-     next_period,
-     next_period_step,
-     free_time,
-     time_division
-     )
-    values ('$tariffs->{TP_ID}', 
-  '$DATA{RAD_PAIRS}', 
-  '$DATA{MAX_SESSION_DURATION}', 
-  '$DATA{MIN_SESSION_COST}', 
-  '$DATA{DAY_TIME_LIMIT}', 
-  '$DATA{WEEK_TIME_LIMIT}',  
-  '$DATA{MONTH_TIME_LIMIT}', 
-
-  '$DATA{FIRST_PERIOD}',
-  '$DATA{FIRST_PERIOD_STEP}',
-  '$DATA{NEXT_PERIOD}', 
-  '$DATA{NEXT_PERIOD_STEP}', 
-  '$DATA{FREE_TIME}',
-  '$DATA{TIME_DIVISION}');", 'do'
-  );
+  $self->query_add('voip_tps', {
+    %$attr,
+    ID => $tariffs->{TP_ID},
+  });
 
   return $self;
 }
 
 #**********************************************************
-# change
+=head2 tp_change($tp_id, $attr) - Tarif plans change
+
+=cut
 #**********************************************************
 sub tp_change {
   my $self = shift;
@@ -812,11 +806,10 @@ sub tp_change {
     NEXT_PERIOD          => 'next_period',
     NEXT_PERIOD_STEP     => 'next_period_step',
     FREE_TIME            => 'free_time',
-    TIME_DIVISION        => 'time_division',    
+    TIME_DIVISION        => 'time_division',
   );
 
-  $self->changes(
-    $admin,
+  $self->changes2(
     {
       CHANGE_PARAM => 'TP_ID',
       TABLE        => 'voip_tps',
@@ -832,20 +825,25 @@ sub tp_change {
 }
 
 #**********************************************************
-# del
+=head2 tp_del($id) - Tarif plans delete
+
+=cut
 #**********************************************************
 sub tp_del {
   my $self = shift;
   my ($id) = @_;
 
-  $self->query2("DELETE FROM voip_tps WHERE id='$id';", 'do');
+  $self->query_del('voip_tps', { ID => $id });
+
   $tariffs->del($id);
 
   return $self;
 }
 
 #**********************************************************
-# Info
+=head2 tp_info($id, $attr)
+
+=cut
 #**********************************************************
 sub tp_info {
   my $self = shift;
@@ -864,148 +862,86 @@ sub tp_info {
     return $self;
   }
 
-  $self->query2("SELECT tp.id, 
-      voip.day_time_limit, 
-      voip.week_time_limit,  
-      voip.month_time_limit, 
-      voip.max_session_duration,
-      voip.min_session_cost,
-      voip.rad_pairs,
-     voip.first_period,
-     voip.first_period_step,
-     voip.next_period,
-     voip.next_period_step,
-     voip.free_time,
-     voip.id AS tp_id,
-     voip.time_division
-
+  $self->query2("SELECT 
+      voip.*,
+     tp.id 
     FROM (voip_tps voip, tarif_plans tp)
     WHERE 
     voip.id=tp.tp_id AND
-    voip.id='$id';",
+    voip.id= ? ;",
     undef,
-    { INFO => 1 }
+    { INFO => 1,
+      Bind => [ $id ] 
+    }
   );
 
   return $self;
 }
 
 #**********************************************************
-# route_add
+=head2 route_add($attr) - trunk add
+
+=cut
 #**********************************************************
 sub trunk_add {
   my $self = shift;
   my ($attr) = @_;
 
-  %DATA = $self->get_data($attr);
+  $self->query_add('voip_trunks', $attr);
 
-  $self->query2("INSERT INTO voip_trunks (  name,
-  trunkprefix,
-  protocol,
-  provider_ip,
-  removeprefix,
-  addprefix,
-  secondusedreal,
-  secondusedcarrier,
-  secondusedratecard,
-  failover_trunk,
-  addparameter,
-  provider_name
- ) 
-        VALUES ('$DATA{NAME}', '$DATA{TRUNKPREFIX}',  '$DATA{PROTOCOL}', '$DATA{PROVIDER_IP}', 
-        '$DATA{REMOVE_PREFIX}',
-        '$DATA{ADD_PREFIX}',
-        '$DATA{SECONDUSEDREAL}',
-        '$DATA{SECONDUSEDCARRIER}',
-        '$DATA{SECONDUSEDRATECARD}',
-        '$DATA{FAILOVER_TRUNK}',
-        '$DATA{ADDPARAMETER}',
-        '$DATA{PROVIDER_NAME}'
-        );", 'do'
-  );
+  return [ ] if ($self->{errno});
 
-  return $self if ($self->{errno});
-
-  #  $admin->action_add($DATA{UID}, "ADDED", { MODULE => 'voip'});
-
+  #  $admin->action_add($attr->{UID}, "ADDED", { MODULE => 'voip'});
   return $self;
 }
 
 #**********************************************************
-# Route information
-# route_info()
+=head2 trunk_info($id, $attr) - Trunk information
+
+=cut
 #**********************************************************
 sub trunk_info {
   my $self = shift;
-  my ($id, $attr) = @_;
+  my ($id) = @_;
 
-  $self->query2("SELECT 
-   name,
-  trunkprefix,
-  protocol,
-  provider_ip,
-  removeprefix AS remote_prefix,
-  addprefix AS add_prefix,
-  secondusedreal,
-  secondusedcarrier,
-  secondusedratecard,
-  failover_trunk,
-  addparameter,
-  provider_name
-     FROM voip_trunks
-   WHERE id='$id';",
+  $self->query2("SELECT * FROM voip_trunks
+   WHERE id= ? ;",
   undef,
-  { INFO => 1 }
+  { INFO => 1,
+    Bind => [ $id ]
+  }
   );
 
   return $self;
 }
 
 #**********************************************************
-# route_del
+=head2 trunk_del($id) - Trunk del
+
+=cut
 #**********************************************************
 sub trunk_del {
   my $self = shift;
   my ($id) = @_;
 
-  $self->query2("DELETE FROM voip_trunks WHERE id='$id';", 'do');
-  return $self if ($self->{errno});
-
-  #  $admin->action_add($DATA{UID}, "ADDED", { MODULE => 'voip'});
+  $self->query_del('voip_trunks', { ID => $id });
 
   return $self;
 }
 
 #**********************************************************
-# route_change()
+=head2 trunk_change($attr) - Trunk change
+
+=cut
 #**********************************************************
 sub trunk_change {
   my $self = shift;
   my ($attr) = @_;
 
-  my %FIELDS = (
-    ID                 => 'id',
-    NAME               => 'name',
-    TRUNKPREFIX        => 'trunkprefix',
-    PROTOCOL           => 'protocol',
-    PROVIDER_IP        => 'provider_ip',
-    REMOVE_PREFIX      => 'removeprefix',
-    ADD_PREFIX         => 'addprefix',
-    SECONDUSEDREAL     => 'secondusedreal',
-    SECONDUSEDCARRIER  => 'secondusedcarrier',
-    SECONDUSEDRATECARD => 'secondusedratecard',
-    FAILOVER_TRUNK     => 'failover_trunk',
-    ADDPARAMETER       => 'addparameter',
-    PROVIDER_NAME      => 'provider_name'
-  );
-
-  $self->changes(
-    $admin,
+  $self->changes2(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'voip_trunks',
-      FIELDS       => \%FIELDS,
-      OLD_INFO     => $self->trunk_info($attr->{ID}),
       DATA         => $attr
     }
   );
@@ -1014,19 +950,20 @@ sub trunk_change {
 }
 
 #**********************************************************
-# route_list()
+=head2 trunk_list() - Trunk list
+
+=cut
 #**********************************************************
 sub trunk_list {
   my $self   = shift;
   my ($attr) = @_;
-  my @list   = ();
 
   $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
   $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
   $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  @WHERE_RULES = ();
+  my @WHERE_RULES = ();
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
   $self->query2("SELECT id, name, protocol, provider_name, failover_trunk
@@ -1038,7 +975,7 @@ sub trunk_list {
     $attr
   );
 
-  return $self if ($self->{errno});
+  return [ ] if ($self->{errno});
 
   my $list = $self->{list};
 
@@ -1058,9 +995,7 @@ sub extra_tarification_info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("SELECT id,
-  name,
-  prepaid_time
+  $self->query2("SELECT id, name, prepaid_time
      FROM voip_route_extra_tarification
   WHERE id='$attr->{ID}';",
   undef,
@@ -1077,8 +1012,6 @@ sub extra_tarification_add {
   my $self = shift;
   my ($attr) = @_;
 
-  %DATA = $self->get_data($attr);
-
   $self->query_add('voip_route_extra_tarification', { %$attr, DATE => 'now()' });
 
   return $self;
@@ -1091,8 +1024,7 @@ sub extra_tarification_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes(
-    $admin,
+  $self->changes2(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'voip_route_extra_tarification',
@@ -1111,7 +1043,7 @@ sub extra_tarification_del {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("DELETE from voip_route_extra_tarification WHERE id='$attr->{ID}';", 'do');
+  $self->query_del('voip_route_extra_tarification', $attr);
 
   return $self->{result};
 }
@@ -1122,7 +1054,6 @@ sub extra_tarification_del {
 sub extra_tarification_list {
   my $self   = shift;
   my ($attr) = @_;
-  my @list   = ();
 
   $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
   $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
@@ -1134,7 +1065,7 @@ sub extra_tarification_list {
       ['NAME', 'STR', 'et.name',  1 ],
     ],
     { WHERE => 1,
-    }    
+    }
     );
 
   $self->query2("SELECT id, name, prepaid_time
@@ -1145,14 +1076,132 @@ sub extra_tarification_list {
     $attr
   );
 
-  return $self if ($self->{errno});
+  return [ ] if ($self->{errno});
   my $list = $self->{list};
 
   if ($self->{TOTAL} >= 0) {
-    $self->query($db, "SELECT count(id) AS total FROM voip_route_extra_tarification $WHERE",
+    $self->query2("SELECT count(id) AS total FROM voip_route_extra_tarification $WHERE",
     undef, { INFO => 1 });
   }
 
   return $list;
 }
+
+#**********************************************************
+=head2 ivr_menu_info($attr)
+
+=cut
+#**********************************************************
+sub ivr_menu_info {
+  my $self = shift;
+  my ($attr) = @_;
+ 
+  $self->query2("SELECT * FROM voip_ivr_menu WHERE id= ? ", 
+   $attr,
+   { INFO => 1,
+     Bind => [ $attr->{ID} ] 
+    });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 ivr_menu_add($attr)
+
+=cut
+#**********************************************************
+sub ivr_menu_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('voip_ivr_menu', $attr);
+
+  return $self;
+}
+
+#**********************************************************
+=head2 ivr_menu_change($attr)
+
+=cut
+#**********************************************************
+sub ivr_menu_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $attr->{DISABLE}=0 if(! $attr->{DISABLE});
+
+  $self->changes2(
+    {
+      CHANGE_PARAM => 'ID',
+      TABLE        => 'voip_ivr_menu',
+      DATA         => $attr
+    }
+  );
+
+  return $self->{result};
+}
+
+#**********************************************************
+=head2 ivr_menu_del($attr)
+
+=cut
+#**********************************************************
+sub ivr_menu_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('voip_ivr_menu', $attr);
+
+  return $self->{result};
+}
+
+#**********************************************************
+=head2 ivr_menu_list($attr) - IVR menu list item
+
+=cut
+#**********************************************************
+sub ivr_menu_list {
+  my $self   = shift;
+  my ($attr) = @_;
+
+  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  my $WHERE =  $self->search_former($attr, [
+      ['MAIN_ID',    'INT', 'main_id',        1 ],
+      ['NUMBER',     'INT', 'number',         1 ],
+      ['NAME',       'STR', 'name',           1 ],
+      ['DISABLE',    'INT', 'disable',        1 ],
+      ['COMMENTS',   'STR', 'comments',       1 ],
+      ['FUNCTION',   'STR', 'function',       1 ],
+      ['AUDIO_FILE', 'STR', 'audio_file',     1 ],
+      ['ID',         'INT', 'id',               ],
+    ],
+    { WHERE            => 1,
+    }
+  );
+
+  $self->query2("SELECT $self->{SEARCH_FIELDS} id
+     FROM voip_ivr_menu
+     $WHERE 
+     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+     undef,
+     $attr
+  );
+
+  return [ ] if ($self->{errno});
+
+  my $list = $self->{list};
+
+  if ($self->{TOTAL} >= 0) {
+    $self->query2("SELECT count(id) AS total FROM voip_ivr_menu
+     $WHERE",
+    undef, { INFO => 1 });
+  }
+
+  return $list;
+}
+
 1

@@ -1,6 +1,41 @@
-<tr><td colspan='2'><hr></td></tr>
-<tr><td>$_CUSTOMER (*):</td><td><input type=text name=CUSTOMER value='%CUSTOMER%'></td></tr>
-<tr><td>ID (>,<)</td><td><input type=text name=DOC_ID value='%DOC_ID%'></td></tr>
-<tr><td>$_ADMIN:</td><td><input type=text name=AID value='%AID%'></td></tr>
-<tr><td>$_SUM:</td><td><input type=text name=SUM value='%SUM%'></td></tr>
-<tr><td>$_STATUS:</td><td>%PAID_STATUS_SEL%</td></tr>
+
+<div class='panel panel-default panel-form'>
+<div class='panel-body'>
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='CUSTOMER'>_{CUSTOMER}_</label>
+  <div class='col-md-9'>
+ 	  <input type='text' id='CUSTOMER' name='CUSTOMER' value='%CUSTOMER%' placeholder='%CUSTOMER%' class='form-control' >
+ 	</div>
+</div>
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='DOC_ID'>ID (>,<)</label>
+  <div class='col-md-9'>
+ 	  <input type='text' id='DOC_ID' name='DOC_ID' value='%DOC_ID%' placeholder='%DOC_ID%' class='form-control' >
+ 	</div>
+</div>
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='AID'>AID</label>
+  <div class='col-md-9'>
+ 	  <input type='text' id='AID' name='AID' value='%AID%' placeholder='%AID%' class='form-control' >
+ 	</div>
+</div>
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='SUM'>_{SUM}_</label>
+  <div class='col-md-9'>
+ 	  <input type='text' id='SUM' name='SUM' value='%SUM%' placeholder='%SUM%' class='form-control' >
+ 	</div>
+</div>
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='SUM'>_{STATUS}_</label>
+  <div class='col-md-9'>
+ 	  %PAID_STATUS_SEL%
+ 	</div>
+</div>
+
+</div>
+</div>

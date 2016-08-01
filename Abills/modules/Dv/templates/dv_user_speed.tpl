@@ -1,16 +1,29 @@
-<br>
-<FORM action=$SELF_URL METHOD=POST>
- <input type=hidden name=index value=$index>
- <input type=hidden name=CID value=$Dv->{ISG_CID_CUR}>
- <input type=hidden name=sid value='$sid'>
-<TABLE width='600' class=form>
-<tr><th class='form_title' colspan=2>TURBO $_MODE</th></tr>
-<tr class='odd'><th>$_SPEED (kb): %SPEED_SEL%</td></tr> 
-<tr class='odd'><th> 
- <input type=submit name=change value='$_ACTIV'>
-</th></tr>
- 
-</table>
+<style>
+    select {
+        max-width: inherit !important;
+    }
+</style>
 
+<FORM action=$SELF_URL METHOD=POST>
+    <input type=hidden name=index value=$index>
+    <input type=hidden name=CID value=$Dv->{ISG_CID_CUR}>
+    <input type=hidden name=sid value='$sid'>
+
+    <div class='panel panel-default'>
+        <div class='panel-heading text-center'><strong>TURBO _{MODE}_</strong>
+        </div>
+
+        <div class='panel-body form form-horizontal text-center'>
+            <div class='form-group'>
+                <label class='col-md-3 control-label odd'>_{SPEED}_ (kb):</label>
+
+                <div class='col-md-9'>%SPEED_SEL%</div>
+            </div>
+            <div class='form-group text-center'>
+
+                <input type=submit name=change value='_{ACTIVATE}_' class='btn btn-primary'>
+
+            </div>
+        </div>
+    </div>
 </FORM>
-<br>

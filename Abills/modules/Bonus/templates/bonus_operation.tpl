@@ -3,45 +3,85 @@
 function postthread(param) {
        param = document.getElementById(param);
 //       var id = setTimeout(param.disabled=true,10);
-       param.value='$_IN_PROGRESS...';
-       param.style.backgroundColor='#dddddd'; 
+       param.value='_{IN_PROGRESS}_...';
+       param.style.backgroundColor='#dddddd';
 }
 -->
+
+
+
 </script>
 
 <div class='noprint'>
-<form action='$SELF_URL' METHOD='POST' name='bonus_payment' onsubmit=\"postthread('submitbutton');\">
-<input type=hidden name=index value=$index>
-<input type=hidden name=OP_SID value=%OP_SID%>
-<input type=hidden name=UID value=$FORM{UID}>
-<input type=hidden name=BILL_ID value=%BILL_ID%>
+    <form action='$SELF_URL' METHOD='POST' name='bonus_payment' onsubmit='postthread(\"submitbutton\");'>
+        <input type=hidden name=index value=$index>
+        <input type=hidden name=OP_SID value=%OP_SID%>
+        <input type=hidden name=UID value=$FORM{UID}>
+        <input type=hidden name=BILL_ID value=%BILL_ID%>
 
-<TABLE class=form>
-<TR><TH class='form_title' colspan=3>$_PAYMENTS / $_FEES</TH></TR>
+        <div class='panel panel-primary'>
+            <div class='panel-heading'>
+                _{PAYMENTS}_ / _{FEES}_
+            </div>
+            <div class='panel-body'>
 
-<TR><TD colspan=2>$_SUM:</TD><TD><input type=text name=SUM value='$FORM{SUM}'></TD></TR>
-<TR><TD colspan=2>$_ACTION:</TD><TD>%ACTION_TYPES%</TD></TR>
-<TR><TD rowspan=2>$_DESCRIBE:</TD><TD>$_USER:</TD><TD><input type=text name=DESCRIBE value='%DESCRIBE%' size=40></TD></TR>
-<TR> <TD>$_INNER:</TD><TD><input type=text name=INNER_DESCRIBE size=40></TD></TR>
-<TR><TD colspan=3><hr size=1></TD></TR>
-<TR><TD colspan=2>$_EXPIRE:</TD><TD><input type=text name='EXPIRE' value='%EXPIRE%' size=12 ID='EXPIRE' > 
-<script language=\"JavaScript\">
-	var o_cal = new tcal ({	'formname': 'bonus_payment',	'controlname': 'EXPIRE'	});
-	
-	// individual template parameters can be modified via the calendar variable
-	o_cal.a_tpl.yearscroll = false;
-	o_cal.a_tpl.weekstart  = 1;
- 	o_cal.a_tpl.months     = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
-	o_cal.a_tpl.weekdays   = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Суб'];
+                <div class='form-group'>
+                    <label class='control-label col-md-3'>_{SUM}_:</label>
 
-</script>
+                    <div class='col-md-9'>
+                        <input type=text name=SUM value='$FORM{SUM}'>
+                    </div>
+                </div>
+                <div class='form-group'>
+                    <label class='control-label col-md-3'>_{ACTION}_:</label>
 
-</TD></TR>
-<TR><TD colspan=2>$_PAYMENT_METHOD:</TD><TD>%SEL_METHOD%</TD></TR>
-<TR><TD colspan=2>EXT ID:</TD><TD><input type=text name='EXT_ID' value='%EXT_ID%'></TD></TR>
-%DATE%
-<tr><th class=evan colspan=2><input type=submit name=add value='$_EXECUTE' ID='submitbutton' ></th></tr>
-</TABLE>
+                    <div class='col-md-9'>
+                        %ACTION_TYPES%
+                    </div>
+                </div>
+                <div class='form-group'>
+                    <label class='control-label col-md-3'>_{DESCRIBE}_:</label>
+                    <label class='control-label col-md-3'>_{USER}_:</label>
 
-</form>
+                    <div class='col-md-9'>
+                        <input type=text name=DESCRIBE value='%DESCRIBE%' size=40>
+                    </div>
+                </div>
+                <div class='form-group'>
+                    <label class='control-label col-md-3'>_{INNER}_:</label>
+
+                    <div class='col-md-9'>
+                        <input type=text name=INNER_DESCRIBE size=40>
+                    </div>
+                </div>
+                <div class='form-group'>
+                    <label class='control-label col-md-3'>_{EXPIRE}_:</label>
+
+                    <div class='col-md-9'>
+                        <input type=text name='EXPIRE' value='%EXPIRE%' size=12 ID='EXPIRE'>
+                    </div>
+
+                </div>
+                <div class='form-group'>
+                    <label class='control-label col-md-3'>_{PAYMENT_METHOD}_:</label>
+
+                    <div class='col-md-9'>
+                        %SEL_METHOD%
+                    </div>
+                </div>
+                <div class='form-group'>
+                    <label class='control-label col-md-3'>EXT ID:</label>
+
+                    <div class='col-md-9'>
+                        <input type=text name='EXT_ID' value='%EXT_ID%'>
+                    </div>
+                </div>
+                %DATE%
+                <div class='form-group'>
+                    <input type=submit class='btn-btn-primary' name=add value='_{EXECUTE}_' ID='submitbutton'>
+                </div>
+            </div>
+        </div>
+
+    </form>
 </div>

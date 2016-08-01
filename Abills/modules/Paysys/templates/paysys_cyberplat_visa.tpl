@@ -10,7 +10,7 @@
 <td align=\"center\" colspan=2 bgcolor=\"#2d6294\"><font size=2><font color=\"#ffffff\">&nbsp;<b>CyberPlat(VISA/MasterCard)</b></font></td>
 </tr>
 <tr>
-<td colspan=2 bgcolor=\"#6da2d4\"><font size=2><font color=\"#ffffff\">&nbsp;<b>$_ORDER</b></font></td>
+    <td colspan=2 bgcolor=\"#6da2d4\"><font size=2><font color=\"#ffffff\">&nbsp;<b>_{ORDER}_</b></font></td>
 </tr>
 <tr>
 <td bgcolor=\"#ecf2f8\"><font size=2>OrderID (*):</td>
@@ -69,7 +69,7 @@
 <td bgcolor=\"#ecf2f8\"><font size=2>Зарегистрирован<br>в CyberPlatPay?</td>
 <td bgcolor=\"#ffffff\"><input type=checkbox name=registered></td></tr>
 <tr>
-	<td colspan=2 align=center bgcolor=\"#2d6294\"><input type=submit value=\" $_ADD \"></td>
+    <td colspan=2 align=center bgcolor=\"#2d6294\"><input type=submit value=\" _{ADD}_ \"></td>
 </tr>
 </table>
 </td>

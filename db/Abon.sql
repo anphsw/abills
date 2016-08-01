@@ -23,6 +23,7 @@ CREATE TABLE `abon_tariffs` (
   `manual_activate` tinyint(1) NOT NULL default 0,
   `user_portal` tinyint(1) NOT NULL default 0,
   `domain_id` smallint(6) unsigned not null default 0,
+  `service_link` VARCHAR(240) NOT NULL DEFAULT '',
   PRIMARY KEY  (`id`),
   UNIQUE KEY `id` (`id`),
   UNIQUE KEY `name` (`name`)
@@ -41,5 +42,6 @@ CREATE TABLE `abon_user_list` (
   `send_docs` tinyint(1) unsigned NOT NULL DEFAULT 0,
   `service_count` smallint(4) unsigned NOT NULL DEFAULT 1,
   `manual_fee` tinyint(1) unsigned NOT NULL DEFAULT 0,
+  `fees_period` smallint(4) unsigned NOT NULL DEFAULT 0,
   KEY `uid` (`uid`, `tp_id`)
 ) COMMENT='Abon user list';

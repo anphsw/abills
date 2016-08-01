@@ -1,5 +1,10 @@
-#/usr/bin/perl
-# BSR1000 functions
+#!perl
+
+=head1 NAME
+
+  BSR1000 functions
+
+=cut
 
 use SNMP_Session;
 use SNMP_util;
@@ -7,26 +12,7 @@ use BER;
 
 load_module('Snmputils', $html);
 
-#iso.3.6.1.2.1.3.1.1.1.2.1. show ip
-# Byte
-# iso.3.6.1.2.1.2.2.1.10.1
-#
-# iso.3.6.1.2.1.5.7.0
-# iso.3.6.1.2.1.10.127.1.3.3.1.10.1
-# iso.3.6.1.2.1.10.127.1.3.4.1.7.2.17
-#
-# iso.3.6.1.2.1.10.127.7.1.4.1.2.2.37
-#
-# iso.3.6.1.2.1.10.127.7.1.4.1.4.2.57
-#
-# Time
-# iso.3.6.1.2.1.10.127.7.1.4.1.3.2.23
-#
-# MAC
-# iso.3.6.1.2.1.3.1.1.2.2.1.10.0.2.12
-# iso.3.6.1.2.1.4.22.1.2.2.10.0.2.95
-
-$debug = 0;
+my $debug = 0;
 
 my %info_oids = (
   'Events' => '1.3.6.1.2.1.69.1.5.8.1',
@@ -361,13 +347,13 @@ sub Bsr1000_online () {
   my $table = $html->table(
     {
       width      => '100%',
-      caption    => "$_NAS",
+      caption    => "$lang{NAS}",
       border     => 1,
-      title      => [ "ID", "$_NAME", "NAS-Identifier", "IP", "$_TYPE", "$_STATUS", '-', '-' ],
+      title      => [ "ID", "$lang{NAME}", "NAS-Identifier", "IP", "$lang{TYPE}", "$lang{STATUS}", '-', '-' ],
       cols_align => [ 'center', 'left', 'left', 'right', 'left', 'left', 'center', 'center' ],
     }
   );
-  my $list = $nas->list({ %LIST_PARAMS, TYPE => 'bsr1000' });
+  my $list = $nas->list({ %LIST_PARAMS, NAS_TYPE => 'bsr1000' });
 
   foreach my $line (@$list) {
     $table->addrow($line->[0], $line->[1], $line->[2], $line->[3], $line->[4], $status[ $line->[6] ], $html->button("MODEMS", "index=$index&NAS_ID=$line->[0]&command=show cable modem"), $html->button("Commands", "index=$index&NAS_ID=$line->[0]"));
@@ -428,7 +414,7 @@ sub Bsr1000_cmd {
         {
           width      => '100%',
           cols_align => [ 'right', 'right' ],
-          rows       => [ [ "$_TOTAL:", "<b>$total</b>" ] ]
+          rows       => [ [ "$lang{TOTAL}:", "<b>$total</b>" ] ]
         }
       );
       while (my ($k, $v) = each %interfaces) {
@@ -440,7 +426,7 @@ sub Bsr1000_cmd {
     elsif ($FORM{command} =~ /show cable modem detail/) {
 
       if ($result =~ /Unable to locate the cable modem for sid/g) {
-        $html->message('err', $_ERROR, "Unable to locate the cable modem for sid $FORM{SID}");
+        $html->message('err', $lang{ERROR}, "Unable to locate the cable modem for sid $FORM{SID}");
       }
       else {
         $table = $html->table(
@@ -465,7 +451,7 @@ sub Bsr1000_cmd {
     }
     else {
       $result =~ s/\n/<br>/g;
-      $html->message('info', $_INFO, "<code>$result</code>");
+      $html->message('info', $lang{INFO}, "<code>$result</code>");
       if ($FORM{command} =~ /ping|clear cable modem|show cable modem detail/) {
         $FORM{command} = 'show cable modem';
         Bsr1000_cmd();
@@ -481,7 +467,7 @@ sub Bsr1000_cmd {
         index  => "$index",
         NAS_ID => "$FORM{NAS_ID}"
       },
-      SUBMIT => { go => "$_SHOW" }
+      SUBMIT => { go => "$lang{SHOW}" }
     }
   );
 
@@ -520,7 +506,7 @@ sub Bsr1000_log {
     }
   );
 
-  my $list = $nas->list({ %LIST_PARAMS, TYPE => 'bsr1000' });
+  my $list = $nas->list({ %LIST_PARAMS, NAS_TYPE => 'bsr1000' });
 
   foreach my $line (@$list) {
     $table->{rowcolor} = $_COLORS[0];
@@ -601,7 +587,10 @@ sub Bsr1000_Docsis_modems {
   my $total_sessions = 0;
   my $oid_prefix     = '1.3.6.1.2.1.10.127.1.3.3.1.';
 
-  my $list = $nas->list({ %LIST_PARAMS, TYPE => 'bsr1000' });
+  my $list = $nas->list({ %LIST_PARAMS,
+                          NAS_IP => '_SHOW',
+                          NAS_TYPE => 'bsr1000' });
+
   foreach my $line (@$list) {
     my $total_users  = 0;
     my $total_active = 0;
@@ -656,8 +645,8 @@ sub Bsr1000_Docsis_modems {
     $table = $html->table(
       {
         width      => '100%',
-        caption    => "$_SESSIONS",
-        title      => [ "UP", "DOWN", "MAC", "IP", "$_STATE", "Noise", "Rx Power", "$_DURATION", '-', '-' ],
+        caption    => "$lang{SESSIONS}",
+        title      => [ "UP", "DOWN", "MAC", "IP", "$lang{STATE}", "Noise", "Rx Power", "$lang{DURATION}", '-', '-' ],
         cols_align => [ 'right', 'left', 'right', 'right', 'right', 'right', 'right', 'right', 'center', 'center' ],
         qs         => $pages_qs
       }
@@ -742,7 +731,7 @@ sub Bsr1000_Docsis_modems {
         width      => '100%',
         rowcolor   => $_COLORS[3],
         cols_align => [ 'right', 'left', 'right', 'right', 'center' ],
-        rows       => [ [ "$_TOTAL:", "$_USERS:", "$total_users", "Online:", "$total_active" ] ]
+        rows       => [ [ "$lang{TOTAL}:", "$lang{USERS}:", "$total_users", "Online:", "$total_active" ] ]
       }
     );
 
@@ -786,13 +775,12 @@ sub Bsr1000_Docsis_events {
       border      => 1,
       title_plain => [ '-', '-' ],
       cols_align  => [ 'left', 'left' ],
-
       #qs          => $pages_qs,
       caption => 'LOG'
     }
   );
 
-  my $list = $nas->list({ %LIST_PARAMS, TYPE => 'bsr1000' });
+  my $list = $nas->list({ %LIST_PARAMS, NAS_TYPE => 'bsr1000' });
 
   foreach my $line (@$list) {
     my %result  = &snmpwalkhash("$line->[11]\@$line->[3]", \&my_simple_hash, '1.3.6.1.2.1.69.1.5.8.1');
@@ -800,13 +788,13 @@ sub Bsr1000_Docsis_events {
     my @RES_ARR = sort { $a <=> $b } keys %{ $result{"$CAPTION[0]"} };
 
     if ($SNMP_Session::errmsg) {
-      print $html->message('err', $_ERROR, "$FORM{TYPE}<br>$SNMP_Session::suppress_warnings / $SNMP_Session::errmsg");
+      print $html->message('err', $lang{ERROR}, "$FORM{TYPE}<br>$SNMP_Session::suppress_warnings / $SNMP_Session::errmsg");
     }
 
     $table = $html->table(
       {
         width      => '100%',
-        caption    => "$_RESULT: $SNMP_COMMUNITY",
+        caption    => "$lang{RESULT}: $SNMP_COMMUNITY",
         border     => 1,
         title      => [ 'index', @CAPTION ],
         cols_align => [ 'left', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'center' ]

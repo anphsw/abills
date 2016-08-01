@@ -1,13 +1,47 @@
-<form action='$SELF_URL' method='post' name='compensation'>
+<div class='noprint'>
+<div class="panel panel-default panel-form">
+<div class="panel-body">
+
+<form action='$SELF_URL' method='POST' name='compensation' class='form-horizontal'>
 <input type=hidden name='index' value='$index'>
 <input type=hidden name='UID' value='$FORM{UID}'>
-<table width=400 class='form'>
-<tr><th colspan=2 class='form_title'>$_COMPENSATION</th></tr>
-<tr><td>$_FROM:</td><td>%FROM_DATE%</td></tr>
-<tr><td>$_TO:</td><td>%TO_DATE%</td></tr>
-<tr><td>$_DESCRIBE:</td><td><textarea name='DESCRIBE' cols=35 rows=2>%DESCRIBE%</textarea></td></tr>
-<tr><td>$_INNER $_DESCRIBE:</td><td><textarea name='INNER_DESCRIBE' cols=35 rows=2>%INNER_DESCRIBE%</textarea></td></tr>
-<tr><th colspan=2 class=even><input type=submit name='add' value='$_COMPENSATION' class='noprint'></th></tr>
-</table>
+<fieldset>
+  <legend>_{COMPENSATION}_</legend>
 
+  <div class='form-group'>
+    <label class='control-label col-md-3' for='FROM'>_{FROM}_</label>
+    <div class='col-md-9'>
+      <input id='FROM' name='FROM_DATE' value='%FROM_DATE%' class='form-control tcal' type='text'>
+    </div>
+  </div>
+
+  <div class='form-group'>
+    <label class='control-label col-md-3' for='TO'>_{TO}_</label>
+    <div class='col-md-9'>
+      <input id='TO' name='TO_DATE' value='%TO_DATE%' class='form-control tcal' type='text'>
+    </div>
+  </div>
+
+  <div class='form-group'>
+    <label class='control-label col-md-3' for='DESCRIBE'>_{DESCRIBE}_:</label>
+    <div class='col-md-9'>
+      <textarea class='form-control' id='DESCRIBE' name='DESCRIBE' rows='2'>%DESCRIBE%</textarea>
+    </div>
+  </div>
+
+  <div class='form-group'>
+    <label class='control-label col-md-3' for='INNER_DESCRIBE'>_{INNER}_ _{DESCRIBE}_:</label>
+    <div class='col-md-9'>
+      <textarea class='form-control' id='INNER_DESCRIBE' name='INNER_DESCRIBE' rows='2'>%INNER_DESCRIBE%</textarea>
+    </div>
+  </div>
+
+  <div class='col-sm-offset-2 col-sm-8'>
+    <input type=submit class='btn btn-primary' name='add' value='_{COMPENSATION}_'>
+  </div>
+
+</fieldset>
 </form>
+</div>
+</div>
+</div>

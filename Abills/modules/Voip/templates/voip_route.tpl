@@ -1,19 +1,43 @@
 <div class='noprint'>
-<form action='$SELF_URL' method='post'>
-<input type=hidden name='index' value='$index'>
-<input type=hidden name=chg value='%ROUTE_ID%'>
-<input type=hidden name=PARENT_ID value='%PARENT_ID%'>
-<input type=hidden name=ROUTE_ID value='$FORM{ROUTE_ID}'>
-<table width=420 cellspacing=0 cellpadding=3>
-<TR><TH colspan='2' class='form_title'>$_ROUTE</TH></TR>
-<!-- <tr><td>$_PARENT:</td><td>%PARENT%</td></tr> -->
-<tr><td>$_PREFIX:</td><td><input type=text name=ROUTE_PREFIX value='%ROUTE_PREFIX%'></td></tr>
-<tr><td>$_NAME:</td><td><input type=text name=ROUTE_NAME value='%ROUTE_NAME%'></td></tr>
-<tr><td>$_DISABLE:</td><td><input type=checkbox name=DISABLE value='1' %DISABLE%></td></tr>
-<tr><td>$_DESCRIBE:</td><td><input type=text name=DESCRIBE value='%DESCRIBE%'></td></tr>
-<!-- <tr><td>$_GATEWAY:</td><td>%GATWAY_SEL%</td></tr> -->
-<TR><TH colspan='2' class='even'><input type=submit name='%ACTION%' value='%LNG_ACTION%'></TH></TR>
-</table>
+    <form action='$SELF_URL' method='post' class='form-horizontal'>
+        <input type=hidden name='index' value='$index'>
+        <input type=hidden name=chg value='%ROUTE_ID%'>
+        <input type=hidden name=PARENT_ID value='%PARENT_ID%'>
+        <input type=hidden name=ROUTE_ID value='$FORM{ROUTE_ID}'>
 
-</form>
+        <div class='panel panel-primary panel-form'>
+            <div class='panel-heading'>_{ROUTE}_</div>
+            <div class='panel-body'>
+                <div class='form-group'>
+                    <label class='col-md-3 control-label'>_{PREFIX}_</label>
+                    <div class='col-md-9'>
+                        <input class='form-control' type=text name=ROUTE_PREFIX value='%ROUTE_PREFIX%'>
+                    </div>
+                </div>
+                <div class='form-group'>
+                    <label class='col-md-3 control-label'>_{NAME}_</label>
+                    <div class='col-md-9'>
+                        <input class='form-control' type=text name=ROUTE_NAME value='%ROUTE_NAME%'>
+                    </div>
+                </div>
+                <div class='form-group'>
+                    <div class='checkbox'>
+                        <label>
+                            <input type=checkbox name=DISABLE value='1' %DISABLE%>_{DISABLE}_
+                        </label>
+                    </div>
+                </div>
+                <div class='form-group'>
+                    <label class='col-md-3 control-label'>_{DESCRIBE}_</label>
+                    <div class='col-md-9'>
+                        <input class='form-control' type=text name=DESCRIBE value='%DESCRIBE%'>
+                    </div>
+                </div>
+            </div>
+            <div class='panel-footer'>
+                <input class='btn btn-primary' type=submit name='%ACTION%' value='%LNG_ACTION%'>
+            </div>
+        </div>
+
+    </form>
 </div>

@@ -1,14 +1,36 @@
 <div class='noprint'>
-<FORM action='$SELF_URL' METHOD='POST'>
+<FORM action='$SELF_URL' METHOD='POST' class='form-horizontal'>
 <input type='hidden' name='index' value='$index'>
 <input type='hidden' name='ID' value='$FORM{chg}'>
-<table width='400' class=form>
-<tr><th colspan=2 class=form_title>$_VENDOR</th></tr>
-<tr><td>$_VENDOR: </td><td><input type='text' name='NAME' value='%NAME%'></td></tr>
-<tr><td>$_SITE URL: </td><td><input type='text' name='SITE' value='%SITE%'></td></tr>
-<tr><th colspan=2>$_COMMENTS:</th></tr>
-<tr><th colspan='2'><textarea name='COMMENTS' rows='6' cols='60'>%COMMENTS%</textarea></th></tr>
-<tr><th colspan='2' class=even><input type='submit' name='%ACTION%' value='%ACTION_LNG%'></th></tr>
-</table>
+
+<div class='panel panel-primary panel-form'>
+<div class='panel-heading'>_{VENDOR}_</div>
+  <div class='panel-body'>
+    <div class='form-group'>
+      <label class='control-label col-md-3'>_{VENDOR}_:</label>
+      <div class='col-md-9'>
+        <input class='form-control' type='text' name='NAME' value='%NAME%'>
+      </div>
+    </div>
+    <div class='form-group'>
+      <label class='control-label col-md-3'>_{SITE}_ URL:</label>
+      <div class='col-md-9'>
+        <input class='form-control' type='text' name='SITE' value='%SITE%'>
+      </div>
+    </div>
+    <div class='form-group'>
+      <label class='control-label col-md-3'>_{COMMENTS}_:</label>
+      <div class='col-md-9'>
+        <textarea  class='form-control' name='COMMENTS' rows='6' cols='60'>%COMMENTS%</textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class='panel-footer'>
+    <input class='btn btn-primary' type='submit' name='%ACTION%' value='%ACTION_LNG%'>
+  </div>
+</div>
+
+
 </FORM>
 </div>

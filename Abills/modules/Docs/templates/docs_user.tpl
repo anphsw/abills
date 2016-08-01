@@ -1,24 +1,89 @@
-<form action='$SELF_URL' method='post' name='docs_user'>
+<a href='$SELF_URL?qindex=$index&STATEMENT_OF_ACCOUNT=1&UID=$FORM{UID}&header=1' target=new class=''>_{STATEMENT_OF_ACCOUNT}_</a>
+
+<form action='$SELF_URL' method='post'>
 <input type=hidden name=index value=$index>
 <input type=hidden name='UID' value='$FORM{UID}'>
 <input type=hidden name='sid' value='$FORM{sid}'>
 <input type=hidden name='step' value='$FORM{step}'>
-<table class=form>
-<tr><th class='form_title' colspan=2>$_DOCS</th></tr>
-<tr><td>$_INVOICE_AUTO_GEN:</td><td><input type=checkbox name=PERIODIC_CREATE_DOCS value=1 %PERIODIC_CREATE_DOCS%></td></tr>
-<tr><td>$_SEND E-mail:</td><td><input type=checkbox name=SEND_DOCS value=1 %SEND_DOCS%></td></tr>
-<tr><td>$_PERSONAL_DELIVERY</td><td><input type=checkbox name=PERSONAL_DELIVERY value=1 %PERSONAL_DELIVERY%></td></tr>
-<tr><td>E-mail:</td><td><input type=text name=EMAIL value='%EMAIL%'></td></tr>
-<tr><td>$_INVOICING_PERIOD</td><td>%INVOICE_PERIOD_SEL%</td></tr>
-<tr><td>$_INVOICE $_DATE</td><td>%INVOICE_DATE%</td></tr>
 
-<tr><td>$_NEXT_INVOICE_DATE</td><td>%NEXT_INVOICE_DATE%</td></tr>
-<tr><th colspan=2>$_COMMENTS</th></tr>
-<tr><td colspan=2><textarea name=COMMENTS rows=6 cols=60>%COMMENTS%</textarea></td></tr>
-<tr><th class='even' colspan=2>
-%BACK_BUTTON%
-<input type=submit name=%ACTION% value='%LNG_ACTION%'>
-</th></tr>
-</table>
+
+   <div class='panel panel-default panel-form'>
+     <div class='panel-heading'>
+       <h4>_{OPTIONS}_  </h4>
+     </div>
+     <div class='panel-body form form-horizontal'>
+
+
+<fieldset>
+%MENU%
+
+<div class='form-group'>
+<label class='control-label col-md-6' for='PERIODIC_CREATE_DOCS'>_{INVOICE_AUTO_GEN}_</label>
+  <div class='col-md-6'>
+    <input id='PERIODIC_CREATE_DOCS' name='PERIODIC_CREATE_DOCS' value='1' type='checkbox' %PERIODIC_CREATE_DOCS%>
+  </div>
+</div>
+
+<div class='form-group'>
+<label class='control-label col-md-6' for='SEND_DOCS'>_{SEND}_ E-mail</label>
+  <div class='col-md-6'>
+    <input id='SEND_DOCS' name='SEND_DOCS' value='1' type='checkbox' %SEND_DOCS%>
+  </div>
+</div>
+
+<div class='form-group'>
+<label class='control-label col-md-6' for='PERSONAL_DELIVERY'>_{PERSONAL_DELIVERY}_</label>
+  <div class='col-md-6'>
+    <input id='PERSONAL_DELIVERY' name='PERSONAL_DELIVERY' value='1' type='checkbox' %PERSONAL_DELIVERY%>
+  </div>
+</div>
+
+<div class='form-group'>
+<label class='control-label col-md-6' for='IP'>E-mail</label>
+  <div class='col-md-6'>
+    <input id='EMAIL' name='EMAIL' value='%EMAIL%' placeholder='%EMAIL%' class='form-control' type='text'>
+  </div>
+</div>
+
+<div class='form-group'>
+<label class='control-label col-md-6' for='INVOICE_PERIOD'>_{INVOICING_PERIOD}_</label>
+  <div class='col-md-6'>
+    %INVOICE_PERIOD_SEL%
+  </div>
+</div>
+
+<div class='form-group'>
+<label class='control-label col-md-6' for='INVOICE_DATE'>_{INVOICE}_ _{DATE}_</label>
+  <div class='col-md-6'>
+    <input id='INVOICE_DATE' name='INVOICE_DATE' value='%INVOICE_DATE%' placeholder='%INVOICE_DATE%' class='form-control tcal' type='text'>
+  </div>
+</div>
+
+<div class='form-group'>
+<label class='control-label col-md-6' for='IP'>_{NEXT_INVOICE_DATE}_</label>
+  <div class='col-md-6'>
+    %NEXT_INVOICE_DATE%
+</div>
+</div>
+
+<div class='form-group'>
+  <label class='control-label col-md-12' for='COMMENTS'>_{COMMENTS}_</label>
+  <div class='col-md-12'>
+    <textarea class='form-control' id='COMMENTS' name='COMMENTS' rows='3'>%COMMENTS%</textarea>
+  </div>
+</div>
+
+<div class='col-md-12'>
+  %BACK_BUTTON%
+  <input type=submit name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'>
+</div>
+
+</fieldset>
+
+</div>
+</div>
 
 </form>
+
+
+

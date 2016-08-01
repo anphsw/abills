@@ -1,124 +1,119 @@
 package Shedule;
 
-#Shedule SQL backend
+=head1 NAME
+
+  Shedule SQL backend
+
+=cut
+
+no if $] >= 5.017011, warnings => 'experimental::smartmatch';
 
 use strict;
-use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
-);
+use parent 'main';
+use Abills::Base qw( in_array ) ;
 
-use Exporter;
-$VERSION = 2.00;
-@ISA     = ('Exporter');
-
-@EXPORT = qw();
-
-@EXPORT_OK   = ();
-%EXPORT_TAGS = ();
-
-use main;
-@ISA = ("main");
-
-my $uid;
 my $admin;
 my $CONF;
-my %DATA = ();
-
 
 #**********************************************************
 #
 #**********************************************************
-sub new {
+sub new{
   my $class = shift;
-  my $db    = shift;
+  my $db = shift;
   ($admin, $CONF) = @_;
-  my $self = {};
+  my $self = { };
 
   $admin->{MODULE} = '';
-  bless($self, $class);
-  
-  $self->{db}=$db;
-  
+  bless( $self, $class );
+
+  $self->{db} = $db;
+  $self->{admin} = $admin;
+  $self->{conf} = $CONF;
+
   return $self;
 }
 
 #**********************************************************
-# change()
+=head2 change($attr) - Change shedule rule
+
+=cut
 #**********************************************************
-sub change {
+sub change{
   my $self = shift;
   my ($attr) = @_;
 
-  my %FIELDS = (
-    H          => 'h',
-    D          => 'd',
-    M          => 'm',
-    Y          => 'y',
-    COUNTS     => 'counts',
-    ACTION     => 'action',
-    DATE       => 'date',
-    COMMENTS   => 'comments',
-    UID        => 'uid',
-    SHEDULE_ID => 'id',
-  );
+  if ( $attr->{SHEDULE_ID} && !$attr->{ID} ){
+    $attr->{ID} = $attr->{SHEDULE_ID};
+  }
 
-  $self->changes(
-    $admin,
+  $self->changes2(
     {
-      CHANGE_PARAM    => 'SHEDULE_ID',
+      CHANGE_PARAM    => 'ID',
       TABLE           => 'shedule',
-      FIELDS          => \%FIELDS,
-      OLD_INFO        => $self->info({ ID => $attr->{SHEDULE_ID} }),
       DATA            => $attr,
-      EXT_CHANGE_INFO => "SHEDULE:$attr->{SHEDULE_ID}, RESULT: $attr->{RESULT}"
+      EXT_CHANGE_INFO => "SHEDULE:$attr->{ID}, RESULT: $attr->{RESULT}"
     }
   );
 
-  $self->info({ ID => $attr->{SHEDULE_ID} });
+  $self->info( { ID => $attr->{SHEDULE_ID} } );
 
   return $self;
 }
 
 #**********************************************************
-# info()
+=head2 info($attr) - Shedule info
+
+  Arguments:
+    $attr
+      UID
+      TYPE
+      MODULE
+      ID
+
+  Results:
+    Object
+
+=cut
 #**********************************************************
-sub info {
+sub info{
   my $self = shift;
   my ($attr) = @_;
 
-  @WHERE_RULES = ();
+  my @WHERE_RULES = ();
 
-  if ($attr->{UID}) {
+  if ( $attr->{UID} ){
     push @WHERE_RULES, "s.uid='$attr->{UID}'";
   }
 
-  if ($attr->{TYPE}) {
+  if ( $attr->{TYPE} ){
     push @WHERE_RULES, "s.type='$attr->{TYPE}'";
   }
 
-  if ($attr->{MODULE}) {
+  if ( $attr->{MODULE} ){
     push @WHERE_RULES, "s.module='$attr->{MODULE}'";
   }
 
-  if ($attr->{ID}) {
+  if ( $attr->{ID} ){
     push @WHERE_RULES, "s.id='$attr->{ID}'";
   }
 
-  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join( ' and ', @WHERE_RULES ) : '';
 
-  $self->query2("SELECT s.h, 
-     s.d, 
-     s.m, 
-     s.y, 
-     s.counts, 
-     s.action, 
-     s.date, 
-     s.comments, 
-     s.uid, 
-     s.id AS shedule_id, 
-     a.id As admin_name, 
-     s.admin_action 
+  $self->query2( "SELECT s.h,
+     s.d,
+     s.m,
+     s.y,
+     s.counts,
+     s.action,
+     s.date,
+     s.comments,
+     s.uid,
+     s.id AS shedule_id,
+     a.id As admin_name,
+     s.admin_action
     FROM shedule s
-    LEFT JOIN admins a ON (a.aid=s.aid) 
+    LEFT JOIN admins a ON (a.aid=s.aid)
     $WHERE;",
     undef,
     { INFO => 1 }
@@ -128,45 +123,67 @@ sub info {
 }
 
 #**********************************************************
-# list()
+=head2 list() - Shedule list
+
+=cut
 #**********************************************************
-sub list {
+sub list{
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  @WHERE_RULES        = ();
-  my $EXT_TABLE       = '';
+  my @arr = (2, 3, 4);
+
+  if ( in_array( $SORT, \@arr ) ){
+    $attr->{SHEDULE_DATE} = '_SHOW' if (!$attr->{SHEDULE_DATE});
+    $SORT = 16;
+  }
+
   $self->{EXT_TABLES} = '';
-
-  my $WHERE =  $self->search_former($attr, [
-      [ 'UID',     'INT', 's.uid'     ],
-      [ 'AID',     'INT', 's.aid'     ],
-      [ 'TYPE',    'INT', 's.type'    ],
-      [ 'Y',       'STR', 's.y'       ],
-      [ 'M',       'STR', 's.m'       ],
-      [ 'D',       'STR', 's.d'       ],
-      [ 'MODULE',  'STR', 's.module'  ],
-      [ 'COMMENTS','STR', 's.comments'],
-      [ 'ACTION',  'STR', 's.action'  ],
-      [ 'ADMIN_ACTION', 'STR', 's.admin_action' ]
-     ],
+  $attr->{SKIP_DEL_CHECK} = 1;
+  my $WHERE = $self->search_former( $attr, [
+      [ 'UID',          'INT', 's.uid'          ],
+      [ 'AID',          'INT', 's.aid'          ],
+      [ 'TYPE',         'INT', 's.type'         ],
+      [ 'Y',            'STR', 's.y'            ],
+      [ 'M',            'STR', 's.m'            ],
+      [ 'D',            'STR', 's.d'            ],
+      [ 'MODULE',       'STR', 's.module'       ],
+      [ 'COMMENTS',     'STR', 's.comments'     ],
+      [ 'ACTION',       'STR', 's.action'       ],
+      [ 'ADMIN_ACTION', 'STR', 's.admin_action' ],
+      [ 'SHEDULE_DATE', 'DATE', "CONCAT(s.y,'-',s.m,'-',s.d)", "CONCAT(s.y,'-',s.m,'-',s.d)" ]
+    ],
     { WHERE             => 1,
-    	WHERE_RULES       => \@WHERE_RULES,
-    	USERS_FIELDS      => 1,
-    	SKIP_USERS_FIELDS => [ 'FIO' ]
+      USERS_FIELDS      => 1,
+      USE_USER_PI       => 1,
+      SKIP_USERS_FIELDS => [ 'FIO', 'UID' ]
     }
-    );
+  );
 
-  $self->query2("SELECT s.h, s.d, s.m, s.y, s.counts, u.id AS login, s.type, s.action, s.module, a.id AS admin_name, s.date, s.comments, a.aid, s.uid, s.id  
+  my $EXT_TABLE = $self->{EXT_TABLES} || '';
+
+  $self->query2( "SELECT s.h, s.d, s.m, s.y, s.counts,
+      u.id AS login,
+      s.type,
+      s.action,
+      s.module,
+      a.id AS admin_name,
+      s.date,
+      s.comments,
+      a.aid,
+      s.uid,
+      $self->{SEARCH_FIELDS}
+      s.id
     FROM shedule s
     LEFT JOIN users u ON (u.uid=s.uid)
-    LEFT JOIN admins a ON (a.aid=s.aid) 
-   $WHERE
+    LEFT JOIN admins a ON (a.aid=s.aid)
+    $EXT_TABLE
+    $WHERE
   ORDER BY $SORT $DESC
   LIMIT $PG, $PAGE_ROWS",
     undef,
@@ -175,13 +192,13 @@ sub list {
 
   my $list = $self->{list};
 
-  if ($self->{TOTAL} > 0) {
-    $self->query2("SELECT count(*) AS total   FROM shedule s
+  if ( $self->{TOTAL} > 0 ){
+    $self->query2( "SELECT count(*) AS total   FROM shedule s
       LEFT JOIN users u ON (u.uid=s.uid)
-      LEFT JOIN admins a ON (a.aid=s.aid) 
+      LEFT JOIN admins a ON (a.aid=s.aid)
      $WHERE",
-     undef,
-     { INFO => 1 }
+      undef,
+      { INFO => 1 }
     );
   }
 
@@ -189,65 +206,77 @@ sub list {
 }
 
 #**********************************************************
-# Add new shedule
-# add($self)
+=head2  add($attr) Add new shedule
+
+=cut
 #**********************************************************
-sub add {
+sub add{
   my $self = shift;
   my ($attr) = @_;
 
-  my $H            = (defined($attr->{H}))            ? $attr->{H}            : '*';
-  my $D            = (defined($attr->{D}))            ? $attr->{D}            : '*';
-  my $M            = (defined($attr->{M}))            ? $attr->{M}            : '*';
-  my $Y            = (defined($attr->{Y}))            ? $attr->{Y}            : '*';
-  my $COUNT        = (defined($attr->{COUNT}))        ? int($attr->{COUNT})   : 0;
-  my $UID          = (defined($attr->{UID}))          ? int($attr->{UID})     : 0;
-  my $TYPE         = (defined($attr->{TYPE}))         ? $attr->{TYPE}         : '';
-  my $ACTION       = (defined($attr->{ACTION}))       ? $attr->{ACTION}       : '';
-  my $MODULE       = (defined($attr->{MODULE}))       ? $attr->{MODULE}       : '';
-  my $COMMENTS     = (defined($attr->{COMMENTS}))     ? $attr->{COMMENTS}     : '';
-  my $ADMIN_ACTION = (defined($attr->{ADMIN_ACTION})) ? $attr->{ADMIN_ACTION} : '';
+  $self->query_add( 'shedule', {
+      %{$attr},
+      H      => $attr->{H} || '*',
+      D      => $attr->{D} || '*',
+      M      => $attr->{M} || '*',
+      Y      => $attr->{Y} || '*',
+      ACTION => (defined( $attr->{ACTION} )) ? $attr->{ACTION} : '',
+      AID    => $admin->{AID},
+      DATE   => 'NOW()',
+    } );
 
-  $self->query2("INSERT INTO shedule (h, d, m, y, uid, type, action, aid, date, module, comments, admin_action, counts) 
-        VALUES ('$H', '$D', '$M', '$Y', '$UID', '$TYPE', '$ACTION', '$admin->{AID}', now(), '$MODULE', '$COMMENTS', '$ADMIN_ACTION', '$COUNT');", 'do'
-  );
-
-  if ($self->{errno}) {
-    $self->{errno}  = 7;
-    $self->{errstr} = 'ERROR_DUBLICATE';
-    return $self;
+  if ( !$self->{errno} ){
+    if ( $attr->{UID} ){
+      $admin->action_add( $attr->{UID},
+        "SHEDULE:$self->{INSERT_ID} $attr->{TYPE}:$attr->{ACTION}:$attr->{MODULE}:$attr->{COMMENTS}", { TYPE => 27 } );
+    }
+    else{
+      $admin->system_action_add(
+        "SHEDULE:$self->{INSERT_ID} $attr->{TYPE}:$attr->{ACTION}:$attr->{MODULE}:$attr->{COMMENTS}", { TYPE => 27 } );
+    }
   }
-
-  $admin->action_add($UID, "SHEDULE:$self->{INSERT_ID} $TYPE:$ACTION:$MODULE:$COMMENTS", { TYPE => 27 });
 
   return $self;
 }
 
 #**********************************************************
-# Add new shedule
-# add($self)
+=head2 add($self) - del shedule
+
+  Arguments:
+    $attr
+
+  Result:
+    Object
+
+=cut
 #**********************************************************
-sub del {
+sub del{
   my $self = shift;
   my ($attr) = @_;
 
   my $result = $attr->{RESULT} || 0;
-
-  if ($attr->{IDS}) {
-    $self->query2("DELETE FROM shedule WHERE id IN ( $attr->{IDS} );", 'do');
-    $admin->system_action_add("SHEDULE:$attr->{IDS} UID:$self->{UID}", { TYPE => 10 });
+  if ( $attr->{IDS} ){
+    $self->query2( "DELETE FROM shedule WHERE id IN ( $attr->{IDS} );", 'do' );
+    if ( $attr->{UID} ){
+      $admin->action_add( $attr->{UID}, "SHEDULE:$attr->{IDS} RESULT:$result" . $attr->{EXT_INFO},
+        { TYPE => ($attr->{EXECUTE}) ? 29 : 28 } );
+    }
+    else{
+      $admin->system_action_add( "SHEDULE:$attr->{IDS} UID:$self->{UID}", { TYPE => 10 } );
+    }
     return $self;
   }
 
-  $self->info({ ID => $attr->{ID} });
+  $self->info( { ID => $attr->{ID} } );
 
-  if ($self->{TOTAL} > 0) {
-    $self->query2("DELETE FROM shedule WHERE id='$attr->{ID}';", 'do');
-    if ($self->{UID}) {
-      $admin->action_add($self->{UID}, "SHEDULE:$attr->{ID} RESULT:$result" . $attr->{EXT_INFO}, { TYPE => ($attr->{EXECUTE}) ? 29 : 28 });
+  if ( $self->{TOTAL} > 0 ){
+    $self->query_del( 'shedule', $attr );
+    if ( $self->{UID} ){
+      $admin->action_add( $self->{UID}, "SHEDULE:$attr->{ID} RESULT:$result" . $attr->{EXT_INFO},
+        { TYPE => ($attr->{EXECUTE}) ? 29 : 28 } );
     }
-    else {
-      $admin->system_action_add("SHEDULE:$attr->{ID} UID:$self->{UID} RESULT: $result", { TYPE => ($attr->{EXECUTE}) ? 29 : 28 });
+    else{
+      $admin->system_action_add( "SHEDULE:$attr->{ID} RESULT: $result", { TYPE => ($attr->{EXECUTE}) ? 29 : 28 } );
     }
   }
 

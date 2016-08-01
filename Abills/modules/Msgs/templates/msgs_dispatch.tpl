@@ -13,17 +13,48 @@ function samechanged(what) {
 samechanged('RESPOSIBLE');
 
 </SCRIPT>
-<FORM action='$SELF_URL' METHOD='POST'  >
+<div class='panel panel-default panel-form'>
+  <div class='panel-body'>
+
+<FORM action='$SELF_URL' METHOD='POST'  name='add_message' class='form-horizontal' >
+    <legend>_{DISPATCH}_</legend>
+<fieldset>
 <input type='hidden' name='index' value='$index'/>
 <input type='hidden' name='ID' value='%ID%'/>
 
-<TABLE>
-<tr><th colspan=2 class='form_title'>$_DISPATCH:</th></tr>
-<tr><td>$_EXECUTION:</td><td><input type=text name=PLAN_DATE value='%PLAN_DATE%'></td></tr>
-<tr><th colspan=2 class='title_color'>$_COMMENTS:</th></tr>
-<tr><th colspan=2><textarea name=COMMENTS rows=8 cols=50>%COMMENTS%</textarea></td></tr>
-<tr><td>$_STATUS:</td><td>%STATE_SEL%</td></tr>
-<tr><td>$_RESPOSIBLE:</td><td>%RESPOSIBLE_SEL%</td></tr>
-<tr><th colspan=2 class='even'><input type=submit name='%ACTION%' value='%LNG_ACTION%'></th></tr>
-</TABLE>
+
+<div class='form-group'>
+    <label class='control-label col-md-3' for='PLAN_DATE'>_{EXECUTION}_</label>
+	 	  <div class='col-md-9'>
+	 	  	  <input type='text' name='PLAN_DATE' value='%PLAN_DATE%' placeholder='%PLAN_DATE%' class='form-control tcal' >
+ 	  	</div>
+</div>
+
+<div class='form-group'>
+    <label class='control-label col-sm-3' for='COMMENTS'>_{COMMENTS}_</label>
+    <div class='col-md-9'>
+      <textarea class='form-control' id='COMMENTS' name='COMMENTS' rows='3' class='form-control' >%COMMENTS%</textarea>
+    </div>
+</div>
+
+<div class='form-group'>
+    <label class='control-label col-md-3' for='STATUS'>_{STATUS}_</label>
+	 	  <div class='col-md-9'>
+	 	  	  %STATE_SEL%
+ 	  	</div>
+</div>
+
+<div class='form-group'>
+    <label class='control-label col-md-3' for='RESPOSIBLE'>_{RESPOSIBLE}_</label>
+	 	  <div class='col-md-9'>
+	 	  	 %RESPOSIBLE_SEL%
+ 	  	</div>
+</div>
+
+<input type=submit name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'>
+
+</fieldset>
 </form>
+
+</div>
+</div>

@@ -5,15 +5,15 @@
 <input type=hidden name='UP_RATING' value='%UP_RATING%'>
 
 <table width=400 class=form>
-<tr><th colspan=2 class=form_title>$_RATING</th></tr>
+<tr><th colspan=2 class=form_title>_{RATING}_</th></tr>
 <tr><td colspan=2>
 
-$_OPERATION_FEES: %NEED_SUM%<br>
-$_CONTINUE ?
+_{OPERATION_FEES}_: %NEED_SUM%<br>
+_{CONTINUE}_ ?
 
 
  </td></tr>
-<tr><th colspan=2 class=even><input type=submit name=UP value='$_UP_RATING'></th></tr>
+<tr><th colspan=2 class=even><input type=submit name=UP value='_{UP_RATING}_'></th></tr>
 </table>
 
 

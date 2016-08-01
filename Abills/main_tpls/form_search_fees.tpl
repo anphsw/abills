@@ -1,10 +1,63 @@
-<!-- FEES -->
-
-<tr><td colspan='2'><hr/></td></tr>
-<tr><td>$_GROUP:</td><td>%GROUPS_SEL%</td></td></tr>
-<tr><td>$_OPERATOR ($_LOGIN):</td><td><input type='text' name='A_LOGIN' value='%A_LOGIN%'/></td></tr>
-<tr><td>$_DESCRIBE $_USERS (*):</td><td><input type='text' name='DESCRIBE' value='%DESCRIBE%'/></td></tr>
-<tr><td>$_DESCRIBE $_INNER (*):</td><td><input type='text' name='INNER_DESCRIBE' value='%INNER_DESCRIBE%'/></td></tr>
-<tr><td>$_TYPE:</td><td>%SEL_METHOD%</td></tr>
-<tr><td>$_FEES ID (&lt;, &gt;):</td><td><input type='text' name='ID' value='%ID%'/></td></tr>
-<tr><td>$_SUM (&lt;, &gt;):</td><td><input type='text' name='SUM' value='%SUM%'/></td></tr>
+	
+	 <div class='form-group'>
+  <label class='control-label col-md-6' for='GROUP'>_{GROUP}_:</label>
+  <div class='col-md-2'>
+  	<div class='input-group'>
+      %GROUPS_SEL%
+     </div>
+    </div>
+   </div>
+   
+   <div class='form-group'>
+  <label class='control-label col-md-6' for='A_LOGIN'>_{OPERATOR}_ (_{LOGIN}_):</label>
+  <div class='col-md-2'>
+  	<div class='input-group'>
+      <input id='A_LOGIN' name='A_LOGIN' value='%A_LOGIN%' placeholder='%A_LOGIN%' class='form-control' type='text'>
+     </div>
+    </div>
+   </div>  
+   
+   <div class='form-group'>
+  <label class='control-label col-md-6' for='DESCRIBE'>_{DESCRIBE}_ _{USERS}_ (*):</label>
+  <div class='col-md-2'>
+  	<div class='input-group'>
+      <input id='DESCRIBE' name='DESCRIBE' value='%DESCRIBE%' placeholder='%DESCRIBE%' class='form-control' type='text'>
+     </div>
+    </div>
+   </div>  
+   
+   <div class='form-group'>
+  <label class='control-label col-md-6' for='INNER_DESCRIBE'>_{DESCRIBE}_ _{INNER}_ (*):</label>
+  <div class='col-md-2'>
+  	<div class='input-group'>
+      <input id='INNER_DESCRIBE' name='INNER_DESCRIBE' value='%INNER_DESCRIBE%' placeholder='%INNER_DESCRIBE%' class='form-control' type='text'>
+     </div>
+    </div>
+   </div>  
+   
+    <div class='form-group'>
+  <label class='control-label col-md-6' for='SEL_METHOD'>_{TYPE}_:</label>
+  <div class='col-md-2'>
+  	<div class='input-group'>
+      %SEL_METHOD%
+     </div>
+    </div>
+   </div>
+   
+   <div class='form-group'>
+  <label class='control-label col-md-6' for='ID'>_{FEES}_ ID (&lt;, &gt;):</label>
+  <div class='col-md-2'>
+  	<div class='input-group'>
+      <input id='ID' name='ID' value='%ID%' placeholder='%ID%' class='form-control' type='text'>
+     </div>
+    </div>
+   </div>  
+   
+   <div class='form-group'>
+  <label class='control-label col-md-6' for='SUM'>_{SUM}_ (&lt;, &gt;):</label>
+  <div class='col-md-2'>
+  	<div class='input-group'>
+      <input id='SUM' name='SUM' value='%SUM%' placeholder='%SUM%' class='form-control' type='text'>
+     </div>
+    </div>
+   </div>  

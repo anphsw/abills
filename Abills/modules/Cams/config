@@ -1,0 +1,8 @@
+%FUNCTIONS_LIST = (
+  "1:0:Cams:null"              => 5,
+  "2:1:$lang{USERS}:cams_main" => 5,
+   "3:1:$lang{TARIF_PLANS}:cams_tp_main" => 5
+
+);
+
+1

@@ -1,24 +1,98 @@
-<div class='noprint'>
-<form action=$SELF_URL method=post>
-<input type=hidden name=index value=$index>
-<input type=hidden name=UID value='$FORM{UID}'>
-<table width=420 class=form>
-<tr><td>$_NUMBER:</td><td><input type=text name=NUMBER value='%NUMBER%'></td></tr>
-<tr><td>$_TARIF_PLAN:</td><td valign=middle>[%TP_NUM%]<b> %TP_NAME%</b> %CHANGE_TP_BUTTON% </td></tr>
-<tr><td>$_SIMULTANEOUSLY:</td><td><input type=text name=SIMULTANEOUSLY value='%SIMULTANEOUSLY%'></td></tr>
-<tr><td>IP:</td><td><input type=text name=IP value='%IP%'></td></tr>
-<tr><td>CID:</td><td><input type=text name=CID value='%CID%'>
-<tr><td>$_ALLOW_ANSWER:</td><td><input type=checkbox name=ALLOW_ANSWER value='1' %ALLOW_ANSWER%></td></tr>
-<tr><td>$_ALLOW_CALLS:</td><td><input type=checkbox name=ALLOW_CALLS value='1' %ALLOW_CALLS%></td></tr>
+<form action=$SELF_URL method=post id='VOIP_USER_FORM' class='form-horizontal'>
+  <input type=hidden name=index value=$index>
+  <input type=hidden name=UID value='$FORM{UID}'>
+  <div class='panel panel-default panel-form'>
 
-<tr><td>$_STATUS:</td><td bgcolor=%STATUS_COLOR%>%STATUS_SEL%</td></tr>
-<tr><td>FILTER ID:</td><td><input type=text name=FILTER_ID value='%FILTER_ID%'></td></tr>
-%PROVISION%
-<TR><TD>$_EXPIRE:</TD><TD><input type=text name=VOIP_EXPIRE value='%VOIP_EXPIRE%' ID='VOIP_EXPIRE' size=12 rel='tcal'>	
-<tr><th class=even>
-%DEL_BUTTON%</th>
-<th><input type=submit name='%ACTION%' value='%LNG_ACTION%'></th></tr>
-</table>
+
+    <div class='panel-body'>
+
+      <div class='form-group'>
+        <label class='control-label col-md-3' for='NUMBER'>_{NUMBER}_:</label>
+        <div class='col-md-9'>
+          <input id='NUMBER' name='NUMBER' value='%NUMBER%' placeholder='%NUMBER%' class='form-control'
+                 type='text'>
+        </div>
+      </div>
+
+
+      <div class='form-group'>
+        <label class='control-label col-md-3' for='TP'>_{TARIF_PLAN}_</label>
+        <div class='col-md-9'>
+          %TP_ADD%
+          <label class='label label-primary'>%TP_NUM%</label>
+          <label class='label label-default'>%TP_NAME%</label>
+          %CHANGE_TP_BUTTON% <a href='$SELF?index=$index&UID=$FORM{UID}&pay_to=1'
+                                class='$conf{CURRENCY_ICON}' title='_{PAY_TO}_'></a>
+        </div>
+      </div>
+
+      <div class='form-group'>
+        <label class='control-label col-md-3' for='SIMULTANEOUSLY'>_{SIMULTANEOUSLY}_:</label>
+        <div class='col-md-9'>
+          <input id='SIMULTANEOUSLY' name='SIMULTANEOUSLY' value='%SIMULTANEOUSLY%'
+                 placeholder='%SIMULTANEOUSLY%' class='form-control' type='text'>
+        </div>
+      </div>
+
+      <div class='form-group'>
+        <label class='control-label col-md-3' for='IP'>IP:</label>
+        <div class='col-md-9'>
+          <input id='IP' name='IP' value='%IP%' placeholder='%IP%' class='form-control' type='text'>
+        </div>
+      </div>
+
+      <div class='form-group'>
+        <label class='control-label col-md-3' for='CID'>CID:</label>
+        <div class='col-md-9'>
+          <input id='CID' name='CID' value='%CID%' placeholder='%CID%' class='form-control' type='text'>
+        </div>
+      </div>
+
+      <div class='form-group'>
+        <label class='control-label col-md-3' for='ALLOW_ANSWER'>_{ALLOW_ANSWER}_:</label>
+        <div class='col-md-3'>
+          <input id='ALLOW_ANSWER' name='ALLOW_ANSWER' value='1' %ALLOW_ANSWER% type='checkbox'>
+        </div>
+
+        <label class='control-label col-md-3' for='ALLOW_CALLS'>_{ALLOW_CALLS}_:</label>
+        <div class='col-md-3'>
+          <input id='ALLOW_CALLS' name='ALLOW_CALLS' value='1' %ALLOW_CALLS% type='checkbox'>
+        </div>
+      </div>
+
+      <div class='form-group'>
+        <label class='control-label col-md-3' for='STATUS_SEL'>_{STATUS}_:</label>
+        <div class='col-md-9' style='background: %STATUS_COLOR%;'>
+          %STATUS_SEL%
+        </div>
+      </div>
+
+      <div class='form-group'>
+        <label class='control-label col-md-3' for='FILTER_ID'>FILTER ID:</label>
+        <div class='col-md-9'>
+          <input id='FILTER_ID' name='FILTER_ID' value='%FILTER_ID%' placeholder='%FILTER_ID%'
+                 class='form-control' type='text'>
+        </div>
+      </div>
+
+      <div class='form-group'>
+        %PROVISION%
+      </div>
+
+      <div class='form-group'>
+        <label class='control-label col-md-3' for='VOIP_EXPIRE'>_{EXPIRE}_:</label>
+        <div class='col-md-9'>
+          <input id='VOIP_EXPIRE' name='VOIP_EXPIRE' value='%VOIP_EXPIRE%' placeholder='%VOIP_EXPIRE%'
+                 class='tcal form-control' type='text'>
+        </div>
+      </div>
+
+
+    </div>
+    <div class='panel-footer text-center'>
+      %DEL_BUTTON%
+      <input type=submit name=%ACTION% value='%LNG_ACTION%' ID='submitbutton' class='btn btn-primary'>
+    </div>
+  </div>
 
 </form>
-</div>

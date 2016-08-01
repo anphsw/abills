@@ -1,0 +1,293 @@
+.nav-justified {
+    padding-left: 0;
+    margin-left: 0;
+}
+
+.status-line-top {
+    top: 0.5em;
+    position: fixed;
+    margin-top: 0;
+    z-index: 1031;
+    margin-left: 80px;
+    min-width: 80%;
+    margin-right: 3em;
+}
+
+.brand {
+
+    font-size: 1.5em;
+    margin-right: 0.5em;
+}
+
+.navbar {
+    max-height: 2.5em !important;
+    min-height: 2.5em !important;
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: 0;
+    z-index: 1030;
+    display: block;
+    border-radius: 4px;
+}
+
+.menu-toggle {
+    top: 0.25em;
+    left: 0.5em;
+    font-size: 1.5em;
+
+    position: fixed;
+    z-index: 1040;
+}
+
+a {
+    cursor: pointer;
+}
+
+.menu-toggle a {
+    color: grey;
+    padding: 0 5px;
+    /*mix-blend-mode: difference;*/
+}
+
+.menu-toggle a:hover {
+    color: darkred;
+}
+
+/*menu*/
+/*Left menus start*/
+#wrapper {
+    margin-top: 2.5em;
+
+    -webkit-transition: all 0.5s ease;
+    -moz-transition: all 0.5s ease;
+    -o-transition: all 0.5s ease;
+    transition: all 0.5s ease;
+}
+
+
+#sidebar-wrapper {
+    position: fixed;
+    left: 0;
+    width: 240px;
+    height: 92%;
+    overflow-y: auto;
+
+    -webkit-transition: all 0.5s ease;
+    -moz-transition: all 0.5s ease;
+    -o-transition: all 0.5s ease;
+    transition: all 0.5s ease;
+}
+
+#wrapper.toggled #sidebar-wrapper {
+    width: 60px;
+}
+
+#page-content-wrapper {
+    width: 80%;
+    padding: 20px;
+    margin-left: 220px;
+}
+
+#wrapper.toggled #page-content-wrapper {
+    /*position: absolute;*/
+    width: 100%;
+    margin-left: 60px;
+    margin-right: 80px;
+}
+
+@media (max-device-width: 500px) {
+    #wrapper.toggled #page-content-wrapper {
+        width: 75%;
+    }
+}
+
+#wrapper.toggled #sidebar-wrapper span {
+    display: none;
+}
+
+#wrapper.toggled #sidebar-wrapper > ul > ul.mainSubmenu {
+    display: none !important;
+}
+
+/*Custom menu*/
+ul#sidebar-wrapper {
+    list-style: none;
+    overflow: hidden;
+}
+
+#sidebar-wrapper ul {
+    list-style: none;
+}
+
+#sidebar-wrapper li a {
+    /*width:300px;*/
+    padding-left: 10px;
+    display: block;
+    overflow: hidden;
+    position: relative;
+    text-decoration: none;
+    text-transform: uppercase;
+    font-size: 14px;
+
+    -webkit-transition: all 0.5s linear;
+    -moz-transition: all 0.5s linear;
+    -o-transition: all 0.5s linear;
+    transition: all 0.5s linear;
+}
+
+#sidebar-wrapper li a:hover {
+    background: #efefef;
+    color: grey;
+}
+
+#sidebar-wrapper i {
+    margin-right: 15px;
+
+    -webkit-transition: all 0.5s linear;
+    -moz-transition: all 0.5s linear;
+    -o-transition: all 0.5s linear;
+    transition: all 0.5s linear;
+}
+
+#sidebar-wrapper li.selected a {
+    background: #efefef;
+}
+
+#sidebar-wrapper ul li {
+    margin: 0 3px;
+}
+
+#sidebar-wrapper ul ul li {
+    line-height: 40px;
+}
+
+#sidebar-wrapper li:first-child {
+    border-top-left-radius: 10px;
+}
+
+#sidebar-wrapper li:last-child {
+    border-bottom-left-radius: 10px;
+}
+
+.active a {
+    border-bottom-left-radius: 0 !important;
+    border-top-left-radius: 0 !important;
+}
+
+#sidebar-wrapper ul ul {
+    display: none;
+}
+
+/*page-content*/
+
+.text-1 {
+    font-weight: bold;
+    vertical-align: middle;
+    /*text-transform: uppercase;*/
+    text-align: right;
+    border-right: 1px solid rgb(221, 221, 221);
+}
+
+.text-2 {
+    vertical-align: middle;
+}
+
+@media (max-width: 768px) {
+    .text-1 {
+        text-align: center;
+    }
+
+    .text-2 {
+        text-align: center;
+    }
+}
+
+@media (min-width: 1051px) {
+    .text-1 {
+        border-top: 1px solid rgb(221, 221, 221);
+
+    }
+
+    .text-2 {
+        border-top: 1px solid #ddd;
+    }
+}
+
+.table .row:last-child {
+    border-bottom: 1px solid rgb(221, 221, 221);
+    border-bottom-left-radius: 5px;
+    border-bottom-right-radius: 5px;
+}
+
+.table .row {
+    line-height: 2em;
+}
+
+.strong {
+    font-weight: bold;
+}
+
+.extra {
+    float: right;
+}
+
+.extra font {
+    display: none;
+    margin: 2px;
+}
+
+button[data-toggle] {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#chg {
+    text-align: center;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#themeSwitcher ul > li {
+    margin: 5px 0;
+    font-size: 1em;
+}
+
+#themeSwitcher ul > li:hover {
+    background: #efefef;
+}
+
+.extra .btn {
+    margin: 0 0;
+}
+
+a .btn {
+    border: 1px solid silver;
+}
+
+.panel-body {
+    padding-bottom: 0 !important;
+}
+
+.table {
+    margin-bottom: 0 !important;
+}
+
+.control-element {
+    padding-top: 7px;
+}
+
+.panel-form {
+    width: 500px;
+    padding: 0;
+    border-spacing: 0;
+}
+
+.no-border {
+    border: 0 !important;
+}
+
+label.required:after {
+    content: '*';
+    color: red;
+}

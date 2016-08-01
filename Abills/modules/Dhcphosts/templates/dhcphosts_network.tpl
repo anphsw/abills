@@ -1,27 +1,184 @@
-<form action='$SELF_URL' METHOD=POST>
-<input type=hidden name=index value=$index>
-<input type=hidden name=ID value='$FORM{chg}'>
-<table class=form>
-<tr><th class=form_title colspan=3>$_NETWORKS</th><tr>
-<tr><td>$_HOSTS_NETWORKS_NAME:</td><td colspan=2><input type=text name='NAME' value='%NAME%'></td></tr>
-<tr><td>$_COMMENTS:</td><td colspan=2><input type=text name='COMMENTS' value='%COMMENTS%' size=50></td></tr>
-<tr><td>$_HOSTS_NETWORKS_NET:</td><td><input type=text name='NETWORK' value='%NETWORK%'></td><td>NETMASK: <input type=text name='MASK' value='%MASK%'></td></tr>
-<tr><td>$_DEFAULT_ROUTER:</td><td colspan=2><input type=text name='ROUTERS' value='%ROUTERS%'></td></tr>
-<tr><td>IP RANGE:</td><td colspan=2><input type=text name='IP_RANGE_FIRST' value='%IP_RANGE_FIRST%'>-<input type=text name='IP_RANGE_LAST' value='%IP_RANGE_LAST%' size=14> $_STATIC:<input type=checkbox name=STATIC value=1 %STATIC%></td></tr>
-<tr><td>DNS:</td><td colspan=2><input type=text name='DNS' value='%DNS%'></td></tr>
-<tr><td>DNS 2:</td><td colspan=2><input type=text name='DNS2' value='%DNS2%'></td></tr>
-<tr><td>NTP:</td><td colspan=2><input type=text name='NTP' value='%NTP%'></td></tr>
-<tr><td>DOMAINNAME:</td><td colspan=2><input type=text name='SUFFIX' value='%SUFFIX%'></td></tr>
-
-<tr><td>$_DENY_UNKNOWN_CLIENTS:</td><td colspan=2><input type=checkbox value=1 name='DENY_UNKNOWN_CLIENTS' %DENY_UNKNOWN_CLIENTS%></td></tr>
-<tr><td>$_AUTHORITATIVE:</td><td colspan=2><input type=checkbox name='AUTHORITATIVE' value=1 %AUTHORITATIVE%></td></tr>
+<div class='panel panel-default panel-form'>
+    <div class='panel-heading'>_{NETWORKS}_</div>
+    <div class='panel-body'>
+        <form action='$SELF_URL' method='post' class='form-horizontal'>
+            <input type='hidden' name='index' value='$index'/>
+            <input type='hidden' name='ID' value='$FORM{chg}'/>
 
 
-<tr><td>$_HOSTS_NETWORKS_COORDINATOR:</td><td colspan=2><input type=text name='COORDINATOR' value='%COORDINATOR%'></td></tr>
-<tr><td>$_HOSTS_NETWORKS_COORDINATOR_PHONE:</td><td colspan=2><input type=text name='PHONE' value='%PHONE%'></td></tr>
-<tr><td>$_DISABLE:</td><td colspan=2><input type=checkbox name='DISABLE' value=1 %DISABLE%></td></tr>
-<tr><td>$_TYPE:</td><td colspan=2>%PARENT_SEL%</td></tr>
-<tr><td></td><td>VLAN: <input type=text name='VLAN' value='%VLAN%' size=5></td><td>GUEST VLAN: <input type=text name='GUEST_VLAN' value='%GUEST_VLAN%' size=5></td></tr>
-<tr><th colspan=3 class=even><input type=submit name=%ACTION% value='%ACTION_LNG%'></th></tr>
-</table>
-</form>
+            <div class='form-group'>
+                <label for='NAME' class='control-label col-md-3'>_{HOSTS_NETWORKS_NAME}_:</label>
+                <div class='col-md-9'>
+                    <input type='text' class='form-control' name='NAME' id='NAME' value='%NAME%'/>
+                </div>
+            </div>
+
+            <div class='form-group'>
+                <label for='COMMENTS' class='control-label col-md-3'>_{COMMENTS}_:</label>
+                <div class='col-md-9'>
+                    <input class='form-control' type='text' name='COMMENTS' id='COMMENTS' value='%COMMENTS%'
+                           maxlength='50'/>
+                </div>
+            </div>
+
+            <div class='form-group'>
+                <div class='row'>
+                    <label for='NETWORK' class='control-label col-md-2'>_{HOSTS_NETWORKS_NET}_:</label>
+                    <div class='col-md-4'>
+                        <input type='text' class='form-control' name='NETWORK' id='NETWORK' value='%NETWORK%'
+                               maxlength='15'/>
+                    </div>
+
+                    <label for='MASK' class='control-label col-md-2'>NETMASK:</label>
+                    <div class='col-md-4'>
+                        <input type='text' class='form-control' name='MASK' id='MASK' value='%MASK%'
+                               maxlength='15'/>
+                    </div>
+                </div>
+            </div>
+
+            <div class='form-group'>
+                <div class='row'>
+                    <label class='control-label col-md-2' for='IP_RANGE_FIRST'>IP RANGE:</label>
+                    <div class='col-md-4'>
+                        <input type='text' class='form-control' name='IP_RANGE_FIRST' id='IP_RANGE_FIRST'
+                               value='%IP_RANGE_FIRST%'
+                               maxlength='15'/>
+                    </div>
+                    <label class='col-md-2' for='IP_RANGE_LAST'>_</label>
+                    <div class='col-md-4'>
+                        <input type='text' class='form-control' name='IP_RANGE_LAST' id='IP_RANGE_LAST'
+                               value='%IP_RANGE_LAST%'
+                               maxlength='15'/>
+                    </div>
+                </div>
+
+                <div class='row'>
+                    <label for='STATIC' class='control-label col-md-6'>_{STATIC}_:</label>
+                    <div class='col-md-6'>
+                        <input type='checkbox' name='STATIC' id='STATIC' value='1' %STATIC%/>
+                    </div>
+                </div>
+            </div>
+
+            <div class='form-group'>
+                <div class='row'>
+                    <label for='ROUTERS' class='control-label col-md-3'>_{DEFAULT_ROUTER}_:</label>
+                    <div class='col-md-9'>
+                        <input type='text' class='form-control' name='ROUTERS' id='ROUTERS' value='%ROUTERS%'
+                               maxlength='15'/>
+                    </div>
+                </div>
+                <div class='row'>
+                    <label for='DNS' class='control-label col-md-3'>DNS:</label>
+                    <div class='col-md-4'>
+                        <input type='text' class='form-control' name='DNS' id='DNS' value='%DNS%' maxlength='15'/>
+                    </div>
+                    <label for='DNS2' class='control-label col-md-1'>DNS2:</label>
+                    <div class='col-md-4'>
+                        <input type='text' class='form-control' name='DNS2' id='DNS2' value='%DNS2%'
+                               maxlength='15'/>
+                    </div>
+                </div>
+            </div>
+
+            <div class='form-group'>
+                <div class='accordion' id='ADVANCED'>
+                    <div class='accordion-group'>
+
+                        <div class='accordion-heading'>
+                            <a class='accordion-toggle' data-toggle='collapse' data-parent='#ADVANCED'
+                               href='#collapseOne'>
+                                <button class='btn'> Дополнительно</button>
+                            </a>
+                        </div>
+
+                        <div id='collapseOne' class='accordion-body collapse well'>
+                            <div class='accordion-inner'>
+                                <div class='form-group'>
+                                    <label for='NTP' class='control-label col-md-3'>NTP:</label>
+                                    <div class='col-md-9'>
+                                        <input type='text' class='form-control' name='NTP' id='NTP' value='%NTP%'
+                                               maxlength='15'/>
+                                    </div>
+                                </div>
+
+                                <div class='form-group'>
+                                    <label for='SUFFIX' class='control-label col-md-3'>DOMAINNAME:</label>
+                                    <div class='col-md-9'>
+                                        <input type='text' class='form-control' name='SUFFIX' id='SUFFIX'
+                                               value='%SUFFIX%'/>
+                                    </div>
+                                </div>
+                                <div class='form-group'>
+                                    <label for='DENY_UNKNOWN_CLIENTS' class='control-label col-md-9'>_{DENY_UNKNOWN_CLIENTS}_:</label>
+                                    <div class='col-md-3'>
+                                        <input type='checkbox' value='1' name='DENY_UNKNOWN_CLIENTS'
+                                               id='DENY_UNKNOWN_CLIENTS' %DENY_UNKNOWN_CLIENTS%/>
+                                    </div>
+                                </div>
+
+                                <div class='form-group'>
+                                    <label for='AUTHORITATIVE'
+                                           class='control-label col-md-9'>_{AUTHORITATIVE}_:</label>
+                                    <div class='col-md-3'>
+                                        <input type='checkbox' name='AUTHORITATIVE' id='AUTHORITATIVE' value='1'
+                                               %AUTHORITATIVE%/>
+                                    </div>
+                                </div>
+
+                                <div class='form-group'>
+                                    <label for='COORDINATOR' class='control-label col-md-3'>_{HOSTS_NETWORKS_COORDINATOR}_:</label>
+                                    <div class='col-md-9'>
+                                        <input type='text' class='form-control' name='COORDINATOR' id='COORDINATOR'
+                                               value='%COORDINATOR%'/>
+                                    </div>
+                                </div>
+
+                                <div class='form-group'>
+                                    <label for='PHONE' class='control-label col-md-3'>_{HOSTS_NETWORKS_COORDINATOR_PHONE}_:</label>
+                                    <div class='col-md-9'>
+                                        <input type='text' class='form-control' name='PHONE' id='PHONE'
+                                               value='%PHONE%'/>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <div class='form-group'>
+                <label for='DISABLE' class='control-label col-md-7'>_{DISABLE}_:</label>
+                <div class='col-md-5'>
+                    <input type='checkbox' name='DISABLE' id='DISABLE' value='1' %DISABLE%/>
+                </div>
+            </div>
+
+            <div class='form-group'>
+                <label class='control-label col-md-2'>_{TYPE}_:</label>
+
+                <div class='col-md-10'>%PARENT_SEL%</div>
+            </div>
+
+            <div class='form-group'>
+                <div class='row'>
+                    <label for='VLAN' class='control-label col-md-2'>VLAN: </label>
+                    <div class='col-md-4'>
+                        <input type='text' class='form-control' name='VLAN' id='VLAN' value='%VLAN%' maxlength='5'/>
+                    </div>
+                    <label for='GUEST_VLAN' class='control-label col-md-2'>GUEST VLAN: </label>
+                    <div class='col-md-4'>
+                        <input type='text' class='form-control' name='GUEST_VLAN' id='GUEST_VLAN' value='%GUEST_VLAN%'
+                               maxlength='5'/>
+                    </div>
+                </div>
+            </div>
+
+
+            <input type='submit' name='%ACTION%' value='%ACTION_LNG%' class='btn btn-primary'/>
+
+        </form>
+    </div>
+</div>

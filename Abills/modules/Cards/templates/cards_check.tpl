@@ -1,24 +1,24 @@
 <table><tr><td>
 <pre><CODE>
 --------------------------
-$_SERIAL:  %SERIA%
-$_NUM:     %NUMBER%
-$_LOGIN:   %LOGIN%
-PIN / $_PASSWD:       %PIN%
+_{SERIAL}_:  %SERIA%
+_{NUM}_:     %NUMBER%
+_{LOGIN}_:   %LOGIN%
+PIN / _{PASSWD}_:       %PIN%
 
-$_SUM:     %SUM%
+_{SUM}_:     %SUM%
 
-$_DATE:    %DATE%
+_{DATE}_:    %DATE%
 
-$_EXPIRE:  %EXPIRE_DATE%
-$_DILLERS: %DILLER_ID%
+_{EXPIRE}_:  %EXPIRE_DATE%
+_{DILLERS}_: %DILLER_ID%
 --------------------------
 </CODE></pre>
 </td></tr></table>
 
 <div class='noprint' align=center>
 <p>
-<a href=\"javascript:window.print();\" class=linkm1><b>$_PRINT</b></a> :: 
-<a href=\"javascript:window.close();\" class=linkm1><b>$_CLOSE</b></a>
+<a href=\"javascript:window.print();\" class=linkm1><b>_{PRINT}_</b></a> ::
+<a href=\"javascript:window.close();\" class=linkm1><b>_{CLOSE}_</b></a>
 </p>
 </div>

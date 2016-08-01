@@ -1,2 +1,14 @@
-<tr class=even><td>$_EXTRA $_DEPOSIT:</td><td><b>%EXT_BILL_DEPOSIT%</b></td></tr>
-<tr class=even><td>$_EXTRA $_BILL:</td><td>%EXT_BILL_ID%</td></tr>
+<div class='form-group'>
+  <label class='control-label col-md-6' for=''>_{EXTRA}_ _{DEPOSIT}_</label>
+  <div class='col-md-2'>
+    <p>%EXT_BILL_DEPOSIT%</p>
+  </div>
+</div>
+
+<div class='form-group'>
+  <label class='control-label col-md-6' for=''>_{EXTRA}_ _{BILL}_</label>
+  <div class='col-md-2'>
+    <p>%EXT_BILL_ID%</p>
+  </div>
+</div>
+

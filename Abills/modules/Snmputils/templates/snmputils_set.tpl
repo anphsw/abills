@@ -10,8 +10,14 @@
 <tr><td>Index:</td><td><input type='text' name='SNMP_INDEX' value='%SNMP_INDEX%'></td></tr>
 <tr><td>VALUE:</td><td><input type='text' name='SNMP_VALUE' value='%SNMP_VALUE%'></td></tr>
 
-<tr><td>$_TYPE:</td><td>%SNMP_TYPE_SEL%</td></tr>
-<tr><th class=even colspan=2><input type='submit' name='change' value='$_GET'> <input type='submit' name='set' value='$_SET'></th></tr>
+    <tr>
+        <td>_{TYPE}_:</td>
+        <td>%SNMP_TYPE_SEL%</td>
+    </tr>
+    <tr>
+        <th class=even colspan=2><input type='submit' name='change' value='_{GET}_'> <input type='submit' name='set'
+                                                                                            value='_{SET}_'></th>
+    </tr>
 </table>
 
 </FORM>

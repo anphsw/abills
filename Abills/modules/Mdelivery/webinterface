@@ -10,8 +10,8 @@ require "Mdelivery.pm";
 Mdelivery->import();
 my $Mdelivery = Mdelivery->new($db, $admin, \%conf);
 
-my @service_status_colors = ("$_COLORS[9]", "$_COLORS[6]", '#808080',      '#0000FF',   '#FF8000');
-my @service_status        = ("$_ENABLE",    "$_DISABLE",   "$_NOT_ACTIVE", "$_HOLD_UP", "$_DISABLE: $_NON_PAYMENT");
+my @service_status_colors = ($_COLORS[9], $_COLORS[6], '#808080',      '#0000FF',   '#FF8000');
+my @service_status        = ("$lang{ENABLE}",    "$lang{DISABLE}",   "$lang{NOT_ACTIVE}", "$lang{HOLD_UP}", "$lang{DISABLE}: $lang{NON_PAYMENT}");
 
 #*******************************************************************
 # Mail delivery
@@ -25,7 +25,7 @@ sub mdelivery_main {
 
     $Mdelivery->add({%FORM});
     if (!$Mdelivery->{errno}) {
-      $html->message('info', $_INFO, "$_SENDED");
+      $html->message('info', $lang{INFO}, "$lang{SENDED}");
     }
 
     my @ATTACHMENTS = ();
@@ -43,7 +43,7 @@ sub mdelivery_main {
         );
 
         if ($Mdelivery->{errno}) {
-          $html->message('err', $_ERROR, "[$Mdelivery->{errno}] $err_strs{$Mdelivery->{errno}}");
+          $html->message('err', $lang{ERROR}, "[$Mdelivery->{errno}] $err_strs{$Mdelivery->{errno}}");
         }
 
         push @ATTACHMENTS,
@@ -77,7 +77,7 @@ sub mdelivery_main {
     {
       SELECTED => $FORM{STATUS},
       SEL_HASH => {
-        '' => "$_ALL",
+        '' => "$lang{ALL}",
         0  => $service_status[0],
         1  => $service_status[1],
       },
@@ -86,12 +86,12 @@ sub mdelivery_main {
     }
   );
 
-  my @rows = ([ "$_GROUP: ", sel_groups() ], [ "$_ACCOUNT $_STATUS:", $status_sel ]);
+  my @rows = ([ "$lang{GROUP}: ", sel_groups() ], [ "$lang{ACCOUNT} $lang{STATUS}:", $status_sel ]);
 
   my $table = $html->table(
     {
       width   => '100%',
-      caption => $_EXTRA,
+      caption => $lang{EXTRA},
       rows    => \@rows
     }
   );
@@ -109,7 +109,7 @@ sub mdelivery_main {
         SEL_LIST   => $tariffs->list({ MODULE => 'Dv', COLS_NAME => 1 }),
         SEL_KEY    => 'id',
         SEL_VALUE  => 'name',
-        SEL_OPTIONS=> { '' => $_ALL },
+        SEL_OPTIONS=> { '' => $lang{ALL} },
       }
     );
 
@@ -118,7 +118,7 @@ sub mdelivery_main {
       {
         SELECTED => $FORM{DV_STATUS},
         SEL_HASH => {
-          '' => "$_ALL",
+          '' => "$lang{ALL}",
           0  => $service_status[0],
           1  => $service_status[1],
           2  => $service_status[2],
@@ -130,7 +130,7 @@ sub mdelivery_main {
       }
     );
 
-    my @rows = ([ "$_TARIF_PLAN: ", $tp_sel ], [ "$_STATUS:", $status_sel ]);
+    my @rows = ([ "$lang{TARIF_PLAN}: ", $tp_sel ], [ "$lang{STATUS}:", $status_sel ]);
 
     my $table = $html->table(
       {
@@ -149,7 +149,7 @@ sub mdelivery_main {
     $Mdelivery->{EXTRA2} .= $html->tpl_show(templates('form_address'), $Mdelivery, { OUTPUT2RETURN => 1 });
   }
 
-  $Mdelivery->{EXTRA2} .= "<tr bgcolor=$_COLORS[2]><td colspan=1>$_SEND $_PRE:</td><td><input type=checkbox name=SEND_PREVIEW value=1 checked> $conf{ADMIN_MAIL}</td></tr>\n";
+  $Mdelivery->{EXTRA2} .= "<tr bgcolor=$_COLORS[2]><td colspan=1>$lang{SEND} $lang{PRE}:</td><td><input type=checkbox name=SEND_PREVIEW value=1 checked> $conf{ADMIN_MAIL}</td></tr>\n";
 
   $html->tpl_show(templates('mail_form'), $Mdelivery);
 }
@@ -169,7 +169,7 @@ sub mdelivery_list {
   elsif ($FORM{reset}) {
     $Mdelivery->reset({ ID => $FORM{reset} });
     if (!$Mdelivery->{errno}) {
-      $html->message('info', $_INFO, "$_RESET [$FORM{reset}]");
+      $html->message('info', $lang{INFO}, "$lang{RESET} [$FORM{reset}]");
     }
   }
   elsif ($FORM{info}) {
@@ -177,13 +177,13 @@ sub mdelivery_list {
       $Mdelivery->user_list_del({ MDELIVERY_ID => $FORM{info}, UID => $FORM{del_user} });
 
       if (!$Mdelivery->{errno}) {
-        $html->message('info', $_INFO, "$_USER $_DELETED");
+        $html->message('info', $lang{INFO}, "$lang{USER} $lang{DELETED}");
       }
     }
 
     $Mdelivery->info($FORM{info});
     if ($Mdelivery->{errno}) {
-      $html->message('err', $_ERROR, "[$Mdelivery->{errno}] $err_strs{$Mdelivery->{errno}}");
+      $html->message('err', $lang{ERROR}, "[$Mdelivery->{errno}] $err_strs{$Mdelivery->{errno}}");
     }
 
     $Mdelivery->{PRIORITY} = "$Mdelivery->{PRIORITY} ($MAIL_PRIORITY{$Mdelivery->{PRIORITY}})";
@@ -199,7 +199,7 @@ sub mdelivery_list {
             ex_params => 'target=_new'
           }
         )
-        . " $_SIZE: "
+        . " $lang{SIZE}: "
         . int2byte($line->[3]) . ' / ';
       }
     }
@@ -212,8 +212,8 @@ sub mdelivery_list {
     my $table = $html->table(
       {
         width      => '100%',
-        caption    => $_USERS,
-        title      => [ "$_LOGIN", "$_FIO", "$_STATUS", '-' ],
+        caption    => $lang{USERS},
+        title      => [ "$lang{LOGIN}", "$lang{FIO}", "$lang{STATUS}", '-' ],
         cols_align => [ 'left', 'left', 'center', 'center' ],
         qs         => "&info=$FORM{info}",
         pages      => $Mdelivery->{TOTAL},
@@ -222,12 +222,12 @@ sub mdelivery_list {
     );
 
     foreach my $line (@$list) {
-      my $delete = $html->button($_DEL, "index=$index&info=$FORM{info}&del_user=$line->{uid}", { MESSAGE => "$_DEL [$line->{login}]?", CLASS => 'del' });
+      my $delete = $html->button($lang{DEL}, "index=$index&info=$FORM{info}&del_user=$line->{uid}", { MESSAGE => "$lang{DEL} [$line->{login}]?", CLASS => 'del' });
 
       $table->addrow(
         $html->button($line->{login}, "index=15&UID=$line->{uid}"),
         $line->{fio},
-        ($line->{status}) ? $_SENDED : '',
+        ($line->{status}) ? $lang{SENDED} : '',
 
         $delete
       );
@@ -239,7 +239,7 @@ sub mdelivery_list {
       {
         width      => '100%',
         cols_align => [ 'right', 'right', 'right', 'right' ],
-        rows => [ [ "$_TOTAL:", "$Mdelivery->{TOTAL}" ] ]
+        rows => [ [ "$lang{TOTAL}:", "$Mdelivery->{TOTAL}" ] ]
       }
     );
 
@@ -248,10 +248,10 @@ sub mdelivery_list {
   elsif ($FORM{del} && $FORM{is_js_confirmed}) {
     $Mdelivery->del($FORM{del});
     if ($Mdelivery->{errno}) {
-      $html->message('err', $_ERROR, "[$Mdelivery->{errno}] $err_strs{$Mdelivery->{errno}}");
+      $html->message('err', $lang{ERROR}, "[$Mdelivery->{errno}] $err_strs{$Mdelivery->{errno}}");
     }
     else {
-      $html->message('info', $_DELETED, "$_DELETED [$FORM{del}]");
+      $html->message('info', $lang{DELETED}, "$lang{DELETED} [$FORM{del}]");
     }
   }
 
@@ -259,8 +259,8 @@ sub mdelivery_list {
   my $table = $html->table(
     {
       width      => '100%',
-      caption    => $_LIST,
-      title      => [ "ID", "$_DATE", "$_SUBJECT", "$_FROM", "$_ADMIN", "$_ADDED", "$_SIZE", "$_STATUS", '-', '-', '-' ],
+      caption    => $lang{LIST},
+      title      => [ "ID", "$lang{DATE}", "$lang{SUBJECT}", "$lang{FROM}", "$lang{ADMIN}", "$lang{ADDED}", "$lang{SIZE}", "$lang{STATUS}", '-', '-', '-' ],
       cols_align => [ 'right', 'right', 'right', 'left', 'left', 'right', 'center', 'center', 'center', 'center' ],
       qs         => $pages_qs,
       pages      => $Mdelivery->{TOTAL},
@@ -269,7 +269,7 @@ sub mdelivery_list {
   );
 
   foreach my $line (@$list) {
-    my $delete = $html->button($_DEL, "index=$index&del=$line->{id}", { MESSAGE => "$_DEL [$line->{id}]?", CLASS => 'del' });
+    my $delete = $html->button($lang{DEL}, "index=$index&del=$line->{id}", { MESSAGE => "$lang{DEL} [$line->{id}]?", CLASS => 'del' });
 
     $table->{rowcolor} = ($FORM{info} && $FORM{info} == $line->{id}) ? $_COLORS[0] : undef;
 
@@ -281,9 +281,9 @@ sub mdelivery_list {
       $line->{admin_login}, 
       $line->{added}, 
       $line->{message_text},
-      ($line->{status}) ? $_SENDED : '',
-      $html->button($_RESET, "index=$index&reset=$line->{id}", { BUTTON => 1, MESSAGE => "$_RESET  [$line->{id}]?" }),
-      $html->button($_INFO,  "index=$index&info=$line->{id}",  { CLASS  => 'show' }), $delete
+      ($line->{status}) ? $lang{SENDED} : '',
+      $html->button($lang{RESET}, "index=$index&reset=$line->{id}", { BUTTON => 1, MESSAGE => "$lang{RESET}  [$line->{id}]?" }),
+      $html->button($lang{INFO},  "index=$index&info=$line->{id}",  { CLASS  => 'show' }), $delete
     );
   }
   print $table->show();
@@ -292,7 +292,7 @@ sub mdelivery_list {
     {
       width      => '100%',
       cols_align => [ 'right', 'right', 'right', 'right' ],
-      rows       => [ [ "$_TOTAL:", "$Mdelivery->{TOTAL}" ] ]
+      rows       => [ [ "$lang{TOTAL}:", "$Mdelivery->{TOTAL}" ] ]
     }
   );
   print $table->show();

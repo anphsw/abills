@@ -1,12 +1,19 @@
-<tr><td>$_ORDER $_DESCRIBE:</td><td>%SEL_ORDER%</td></tr>
-<tr><td>&nbsp;</td><td><input type=text name=ORDER2 value='%ORDER2%' size=40></td></tr>
-<tr><td>$_SUM:</td><td><input type=text name=SUM value='%SUM%'></td></tr>
+<div class='form-group'>
+    <label class='control-label col-md-3'>_{ORDER}_ _{DESCRIBE}_:</label>
+	<div class='col-md-4'>%SEL_ORDER%</div>
+	<div class='col-md-5'><input type=text name=ORDER2 value='%ORDER2%' class='form-control' placeholder="Введите описание"></div>
+</div>
+
+<div class='form-group'>
+    <label class='control-label col-md-3'>_{SUM}_:</label>
+	<div class='col-md-4'><input type=text name=SUM value='%SUM%' class='form-control'></div>
+</div>
 
 
 <!--
 <tr><td colspan=2>
 <table width=100%>
-<tr class=even><th>#</th><th>$_ORDER</th><th>$_PRICE</th></tr>
+<tr class=even><th>#</th><th>_{ORDER}_</th><th>_{PRICE}_</th></tr>
 <tr><td>1.</td><td>
 <input type=hidden name=IDS value='1'>
 <input type=hidden name=IDS value='2'>

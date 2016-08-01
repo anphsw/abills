@@ -1,10 +1,10 @@
-$_ORG_NAME  ='Customer name';
-$_WRONG_SUM ='Small sum';
+$lang{ORG_NAME}  ='Customer name';
+$lang{WRONG_SUM} ='Small sum';
 @MONTHES_LIT=('січня', 'лютого', 'березня', 'квітня', 'травня', 'червня', 'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня');
-$_YEAR_SHORT='y.';
+$lang{YEAR_SHORT}='y.';
 @units = ('unit', 'serv.', 'm.');
 
-$ERR_NO_ORDERS='No orders';
+$lang{ERR_NO_ORDERS}='No orders';
 
 #@ones = ('гривня', 'тисяча', 'мільйон', 'мільярд', 'трильйон');
 #@twos = ('гривні', 'тисячі', 'мільйони', 'мільярди', 'трильйони');
@@ -22,28 +22,35 @@ $ERR_NO_ORDERS='No orders';
 @hundred = ('', 'сто', 'двісті', 'триста', 'чотириста', 'п\'ятсот', 'шістсот', 'сімсот', 'вісімсот', 'дев\'ятсот');
 @money_unit_names = ('грн','коп');
 
-$_PAID='Paid invoice';
-$_PARTLY_PAID='Partly paid';
-$_UNPAID='UnPaid invoice';
-$_VAT_INCLUDE='Vat include';
-$_AMOUNT_FOR_PAY='Amount for pay';
-$_ACTIVATE_NEXT_PERIOD='For next activation period';
-$_CURENT_BILLING_PERIOD='Current Billing Period';
-$_NEXT_PERIODS='Next billing periods';
+$lang{PAID}='Paid invoice';
+$lang{PARTLY_PAID}='Partly paid';
+$lang{UNPAID}='UnPaid invoice';
+$lang{VAT_INCLUDE}='Vat include';
+$lang{AMOUNT_FOR_PAY}='Amount for pay';
+$lang{ACTIVATE_NEXT_PERIOD}='For next activation period';
+$lang{CURENT_BILLING_PERIOD}='Current Billing Period';
+$lang{NEXT_PERIODS}='Next billing periods';
 
-$_INCLUDE_CUR_BILLING_PERIOD='Include fees for the current period';
-$_NOT_INCLUDE_CUR_BILLING_PERIOD='Not include fees for the  current period';
+$lang{INCLUDE_CUR_BILLING_PERIOD}='Include fees for the current period';
+$lang{NOT_INCLUDE_CUR_BILLING_PERIOD}='Not include fees for the  current period';
 
 
-$_INVOICE_AUTO_GEN='Generate invoices automatically';
-$_INVOICING_PERIOD='Periods for invoicing';
-$_PERSONAL_DELIVERY='Personal invoice delivery';
-$_ALT='Alt.';
-$_CURRENCY='Currency';
+$lang{INVOICE_AUTO_GEN}='Generate invoices automatically';
+$lang{INVOICING_PERIOD}='Periods for invoicing';
+$lang{PERSONAL_DELIVERY}='Personal invoice delivery';
+$lang{ALT}='Alt.';
+$lang{CURRENCY}='Currency';
 
-$_LAST_INVOICE_DATE='Last Invoice date';
-$_NEXT_INVOICE_DATE='Next Invoice Date';
-$_INCLUDE_DEPOSIT='Include current balance';
-$_APPLY_TO_INVOICE='Auto apply to invoice';
-$_PRINT_EXT='Extenssion print';
-$_PRINT_EXT_LIST='Print List Extended';
+$lang{LAST_INVOICE_DATE}='Last Invoice date';
+$lang{NEXT_INVOICE_DATE}='Next Invoice Date';
+$lang{INCLUDE_DEPOSIT}='Include current balance';
+$lang{APPLY_TO_INVOICE}='Auto apply to invoice';
+$lang{PRINT_EXT}='Extenssion print';
+$lang{PRINT_EXT_LIST}='Print List Extended';
+$lang{NEXT_PERIOD_INVOICE}='Next period invoice';
+$lang{STATEMENT_OF_ACCOUNT}='Statement of Account';
+$lang{ORDERS}='Orders';
+$lang{SKIP_PAY_ADD}='Skip invoices';
+
+$lang{CONNECT_TO} = 'Connect to';
+$lang{PAYMENTS_NOT_EQUAL_DOC}='Payments sum not equal invoice sum';

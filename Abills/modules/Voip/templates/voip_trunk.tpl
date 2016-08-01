@@ -1,16 +1,64 @@
-<FORM action=$SELF_URL METHOD=POST>
-<input type=hidden name=index value='$index'>
-<input type=hidden name=ID value='$FORM{chg}'>
-<table>
-<tr><td>VOIP $_PROVIDER</td><td><input type=text name=PROVIDER_NAME value='%PROVIDER_NAME%'></td></tr>
-<tr><td>$_NAME</td><td><input type=text name=NAME value='%NAME%'></td></tr> 	
-<tr><td>$_DEL $_PREFIX</td><td><input type=text name=REMOVE_PREFIX value='%REMOVE_PREFIX%'></td></tr> 	
-<tr><td>$_ADD $_PREFIX</td><td><input type=text name=ADD_PREFIX value='%ADD_PREFIX%'></td></tr> 	
-<tr><td>$_PROTOCOL</td><td>%PROTOCOL_SEL%</td></tr> 	
-<tr><td>$_PROVIDER IP</td><td><input type=text name=PROVIDER_IP value='%PROVIDER_IP%'></td></tr> 	
-<tr><td>$_EXTRA $_PARAMS</td><td><input type=text name=EXT_PARAMS value='%EXT_PARAMS%'></td></tr> 	
-<tr><td>$_FAILOVER_TRUNK</td><td>%FAILOVER_TRUNK_SEL%</td></tr> 	
-<tr><th colspan=2><input type=submit name=%ACTION% value='%LNG_ACTION%'></th></tr>
-</table>
+<FORM action=$SELF_URL METHOD=POST class='form-horizontal'>
+    <input type=hidden name=index value='$index'>
+    <input type=hidden name=ID value='$FORM{chg}'>
+
+
+    <div class='panel panel-primary panel-form'>
+        <div class='panel-heading'>_{TRUNKS}_</div>
+        <div class='panel-body'>
+            <div class='form-group'>
+                <label class='col-md-3 control-label'>VOIP _{PROVIDER}_</label>
+                <div class='col-md-9'>
+                    <input class='form-control' type=text name=PROVIDER_NAME value='%PROVIDER_NAME%'>
+                </div>
+            </div>
+            <div class='form-group'>
+                <label class='col-md-3 control-label'>_{NAME}_</label>
+                <div class='col-md-9'>
+                    <input class='form-control' type=text name=NAME value='%NAME%'>
+                </div>
+            </div>
+            <div class='form-group'>
+                <label class='col-md-3 control-label'>_{DEL}_ _{PREFIX}_</label>
+                <div class='col-md-9'>
+                    <input class='form-control' type=text name=REMOVEPREFIX value='%REMOVEPREFIX%'>
+                </div>
+            </div>
+            <div class='form-group'>
+                <label class='col-md-3 control-label'>_{ADD}_ _{PREFIX}_</label>
+                <div class='col-md-9'>
+                    <input class='form-control' type=text name=ADDPREFIX value='%ADDPREFIX%'>
+                </div>
+            </div>
+            <div class='form-group'>
+                <label class='col-md-3 control-label'>_{PROTOCOL}_</label>
+                <div class='col-md-9'>
+                    %PROTOCOL_SEL%
+                </div>
+            </div>
+            <div class='form-group'>
+                <label class='col-md-3 control-label'>_{PROVIDER}_ IP</label>
+                <div class='col-md-9'>
+                    <input class='form-control' type=text name=PROVIDER_IP value='%PROVIDER_IP%'>
+                </div>
+            </div>
+            <div class='form-group'>
+                <label class='col-md-3 control-label'>_{EXTRA}_ _{PARAMS}_</label>
+                <div class='col-md-9'>
+                    <input class='form-control' type=text name=EXT_PARAMS value='%EXT_PARAMS%'>
+                </div>
+            </div>
+            <div class='form-group'>
+                <label class='col-md-3 control-label'>_{FAILOVER_TRUNK}_</label>
+                <div class='col-md-9'>
+                    %FAILOVER_TRUNK_SEL%
+                </div>
+            </div>
+        </div>
+        <div class='panel-footer'>
+            <input class='btn btn-primary' type=submit name=%ACTION% value='%LNG_ACTION%'>
+        </div>
+
+    </div>
 
 </FORM>

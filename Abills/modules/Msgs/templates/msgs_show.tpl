@@ -1,51 +1,70 @@
-<FORM action='$SELF_URL' METHOD='POST'  enctype='multipart/form-data' name=add_message>
-<input type='hidden' name='index' value='$index'/>
-<input type='hidden' name='UID' value='$FORM{UID}'/>
-<input type='hidden' name='ID' value='%ID%'/>
-<input type='hidden' name='PARENT' value='%PARENT%'/>
-<input type='hidden' name='CHAPTER' value='%CHAPTER%'/>
-<input type='hidden' name='INNER_MSG' value='%INNER_MSG%'/>
+<FORM action='$SELF_URL' METHOD='POST' enctype='multipart/form-data' name='add_message' id='add_message'>
+    <input type='hidden' name='index' value='$index'/>
+    <input type='hidden' name='UID' value='$FORM{UID}'/>
+    <input type='hidden' name='ID' value='%ID%'/>
+    <input type='hidden' name='PARENT' value='%PARENT%'/>
+    <input type='hidden' name='CHAPTER' value='%CHAPTER%'/>
+    <input type='hidden' name='INNER_MSG' value='%INNER_MSG%'/>
 
+    <div class='table'>
+        <div class='col-md-9' id='reply_wrapper' style='margin-top: 15px;'>
 
-<TABLE width='100%' cellspacing='0' cellpadding='0' border='0'>
+            <div class='panel panel-default %MAIN_PANEL_COLOR%'>
+                <div class='panel-heading'>
+                    <div class='panel-title'> %SUBJECT%</div>
+                </div>
+                <div class='panel-body'>
+                        <div class='row'>
+                            <div class='col-md-3 text-left'><strong>#:</strong></div>
+                            <div class='col-md-3 text-left'><span class='badge %MAIN_PANEL_COLOR%'>%ID%</span></div>
 
-<TR><TD bgcolor='#FFFFFF' valign='top'>
-<TABLE width='100%' class=form>
-<!-- <tr bgcolor=$_COLORS[1]><TD>%THREADS%</td></tr> -->
-<tr><th colspan=4 align=left class='even'> > %SUBJECT%</th></tr>
-<tr><td colspan=4>
-<table cellspacing='1' cellpadding='0' border='0' width=100%>
-<tr><td  class='odd'>ID:</td><td class='odd'>%ID%</td><td  class='odd'>$_CHAPTERS:</td><td  class='odd'>%CHAPTER_NAME%</td></tr>
-<tr><td  class='odd'>$_STATUS:</td><td class='odd'>%STATE_NAME%</td><td  class='odd'>$_PRIORITY:</td><td  class='odd'>%PRIORITY_TEXT%</td></tr>
-<tr><td  class='odd'>$_CREATED:</td><td class='odd'>%DATE%</td><td  class='odd'>$_UPDATED:</td><td  class='odd'>%UPDATED%</td></tr>
-</table>
-</th></tr>
-<!-- <tr><th colspan=4 align=left class='odd'>&nbsp;</th></tr> -->
-<tr class='total'><td colspan=4> 
-<table cellspacing='1' cellpadding='0' border='0' width=100%>
-<tr><th align=left class=title_color> %LOGIN% </th></tr>
-<tr><td class=medium align=left>$_ADDED: %DATE%</td></tr>
-</table>
-</td></tr>
-<tr><td class='odd' colspan='4'>%MESSAGE%</td></tr>
-<tr><td class=medium  colspan='4'>%ATTACHMENT%</td></tr>
-<tr><td colspan='4' class='odd'>%REPLY%</td></tr>
-</TABLE>
+                            <div class='col-md-3 text-left'><strong>_{CHAPTERS}_:</strong></div>
+                            <div class='col-md-3 text-left'>%CHAPTER_NAME%</div>
+                        </div>
 
-</TD><td width='200' valign='top' class='even'>
-<TABLE width='100%' cellspacing='1' cellpadding='0' border='0' class=form>
-<tr><td>
+                        <div class='row'>
+                            <div class='col-md-3 text-left'><strong>_{STATUS}_:</strong></div>
+                            <div class='col-md-3 text-left'>%STATE_NAME%</div>
 
+                            <div class='col-md-3 text-left'><strong>_{PRIORITY}_:</strong></div>
+                            <div class='col-md-3 text-left'>%PRIORITY_TEXT%</div>
+                        </div>
 
-%EXT_INFO%
+                        <div class='row'>
+                            <div class='col-md-3 text-left'><strong>_{CREATED}_:</strong></div>
+                            <div class='col-md-3 text-left'>%DATE%</div>
 
+                            <div class='col-md-3 text-left'><strong>_{UPDATED}_:</strong></div>
+                            <div class='col-md-3 text-left'>%UPDATED%</div>
+                        </div>
 
-</td></tr></TABLE>
+                        <!-- progres start -->
+                    %PROGRESSBAR%
+                        <!-- progres -->
+                    </div>
 
+            </div>
+            
 
-</td></TR></TABLE>
+            <div class='panel panel-primary'>
+                <div class='panel-heading'>
+                    <h5 class='panel-title'>%LOGIN% _{ADDED}_: %DATE%</h5>
+                </div>
+                <div class='panel-body' style='text-align: left'>
+                    %MESSAGE%
+                    <div class='pull-right'>%QUOTING% %DELETE%</div>
+                </div>
+                <div class='panel-footer'>%RUN_TIME% %ATTACHMENT%</div>
+            </div>
 
+            %REPLY%
 
+        </div>
+        <div class='col-md-3' id='ext_wrapper'>
+            %EXT_INFO%
+        </div>
 
-
+    </div>
+    <!-- end of table -->
 </form>
+

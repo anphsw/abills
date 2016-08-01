@@ -1,17 +1,45 @@
+<FORM action='$SELF_URL' METHOD='POST' class='form-horizontal'>
+    <input type='hidden' name='SESSION_ID' value='%SESSION_ID%'>
+    <input type='hidden' name='index' value='%INDEX%'>
+    <input type='hidden' name='UID' value='%UID%'>
+    <input type='hidden' name='sid' value='$sid'>
+    <input type='hidden' name='ACCT_INTERIUM_INTERVAL' value='%ACCT_INTERIUM_INTERVAL%'>
 
-<FORM action='$SELF_URL' METHOD='POST'>
-<input type='hidden' name='SESSION_ID' value='%SESSION_ID%'>
-<input type='hidden' name='index' value='%INDEX%'>
-<input type='hidden' name='UID' value='%UID%'>
-<input type='hidden' name='sid' value='$sid'>
-<input type='hidden' name='ACCT_INTERIUM_INTERVAL' value='%ACCT_INTERIUM_INTERVAL%'>
-<table class=form width=400>
-<tr><th colspan=3 class=title_color> $_LOGON Internet </th></tr>
-<tr><th colspan=3> &nbsp; </th></tr>
-<tr><td>IP:  </td><td> %IP% %IP_INPUT_FORM% </td></tr>
-<tr><td>$_NAS: </td><td> %NAS_ID% %NAS_SEL%</td></tr>
+    <div class='panel panel-primary panel-form center-block'>
+        <div class='panel-heading'>
+            <h4>_{LOGON}_ Internet</h4>
+        </div>
+        <div class='panel-body'>
 
-<tr><th colspan=2 class=even><input type='submit' name='%ACTION%' value='%ACTION_LNG% Internet' class='button'></th></tr>
-</table>
+            %MENU%
+
+
+            <div class='form-group'>
+                <label class='control-label col-md-6' for='IP'>IP:</label>
+
+                <div class='col-md-6 control-element'>
+                    %IP% %IP_INPUT_FORM%
+                </div>
+            </div>
+
+
+            <div class='form-group'>
+                <label class='control-label col-md-6' for='NAS'>_{NAS}_:</label>
+
+                <div class='col-md-6 control-element'>
+                    %NAS_ID% %NAS_SEL%
+                </div>
+            </div>
+        </div>
+        <div class='panel-footer text-center'>
+            <input type='submit' name='%ACTION%' value='%ACTION_LNG% Internet' class='btn btn-primary'>
+        </div>
+
+        </fieldset>
+
+
+    </div>
 </form>
+
 %ONLINE%
+

@@ -1,3 +1,5 @@
-$ERR_FIELDS_FOR_NOTIFIED_AND_SUBJECT_ARE_REQUIRED = 'Поле \'Текст\' не заполнено';
-$_ACTIVE = 'Открыта';
-$_INWORK = 'В обработке';
+$lang{ERR_FIELDS_FOR_NOTIFIED_AND_SUBJECT_ARE_REQUIRED} = "Поле \'Текст\' не заполнено";
+$lang{ACTIVE} = 'Открыта';
+$lang{INWORK} = 'В обработке';
+$lang{ONCE} = "Один раз";
+$lang{PERIODICALLY} = "Периодически";

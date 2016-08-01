@@ -1,44 +1,40 @@
 package Sharing;
 
-# Sharing module DB functions
-#
+=head1 NAME
+
+ Sharing module DB functions
+
+=cut
 
 use strict;
-use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
-);
-
-use Exporter;
-$VERSION = 2.00;
-@ISA     = ('Exporter');
-
-@EXPORT = qw();
-
-@EXPORT_OK   = ();
-%EXPORT_TAGS = ();
-
-use main;
-@ISA = ("main");
+use parent 'main';
 
 my $MODULE = 'Sharing';
-my $uid    = 0;
 
-my $db;
-my $admin;
-my $CONF;
+my ($admin, $CONF);
+my $SORT = 1;
+my $DESC = '';
+my $PG = 0;
+my $PAGE_ROWS = 25;
 
 #**********************************************************
 # Init
 #**********************************************************
-sub new {
+sub new{
   my $class = shift;
-  ($db, $admin, $CONF) = @_;
-  my $self = {};
-  bless($self, $class);
+  my $db = shift;
+  ($admin, $CONF) = @_;
+  my $self = { };
+  bless( $self, $class );
 
   $admin->{MODULE} = $MODULE;
 
-  if ($CONF->{DELETE_USER}) {
-    $self->del({ UID => $CONF->{DELETE_USER}, DELETE_USER => $CONF->{DELETE_USER} });
+  $self->{db} = $db;
+  $self->{admin} = $admin;
+  $self->{conf} = $CONF;
+
+  if ( $CONF->{DELETE_USER} ){
+    $self->del( { UID => $CONF->{DELETE_USER}, DELETE_USER => $CONF->{DELETE_USER} } );
   }
 
   return $self;
@@ -47,16 +43,15 @@ sub new {
 #**********************************************************
 # del
 #**********************************************************
-sub session_del {
+sub session_del{
   my $self = shift;
   my ($attr) = @_;
 
-  if ($attr->{DELETE_USER}) {
-    $self->query($db, "DELETE FROM sharing_log WHERE uid='$attr->{DELETE_USER}';", 'do');
+  if ( $attr->{DELETE_USER} ){
+    $self->query2( "DELETE FROM sharing_log WHERE uid='$attr->{DELETE_USER}';", 'do' );
   }
-  else {
-    $self->query(
-      $db, "DELETE FROM sharing_log 
+  else{
+    $self->query2( "DELETE FROM sharing_log
      WHERE start='$attr->{START}' and username='$attr->{USER_NAME}' and url='$attr->{FILE}';", 'do'
     );
   }
@@ -67,31 +62,30 @@ sub session_del {
 #**********************************************************
 # online()
 #**********************************************************
-sub online_update {
+sub online_update{
   my $self = shift;
   my ($attr) = @_;
 
   my @SET_RULES = ();
 
-  push @SET_RULES, 'lupdated=UNIX_TIMESTAMP()' if (defined($attr->{STATUS}) && $attr->{STATUS} == 5);
+  push @SET_RULES, 'lupdated=UNIX_TIMESTAMP()' if (defined( $attr->{STATUS} ) && $attr->{STATUS} == 5);
 
-  if (defined($attr->{in})) {
+  if ( defined( $attr->{in} ) ){
     push @SET_RULES, "acct_input_octets='$attr->{in}'";
   }
 
-  if (defined($attr->{out})) {
+  if ( defined( $attr->{out} ) ){
     push @SET_RULES, "acct_output_octets='$attr->{out}'";
   }
 
-  if (defined($attr->{STATUS})) {
+  if ( defined( $attr->{STATUS} ) ){
     push @SET_RULES, "status='$attr->{STATUS}'";
   }
 
-  my $SET = ($#SET_RULES > -1) ? join(', ', @SET_RULES) : '';
+  my $SET = ($#SET_RULES > -1) ? join( ', ', @SET_RULES ) : '';
 
-  $self->query(
-    $db, "UPDATE sharing_calls SET $SET
-   WHERE 
+  $self->query2( "UPDATE sharing_calls SET $SET
+   WHERE
     user_name='$attr->{USER_NAME}'
     and acct_session_id='$attr->{ACCT_SESSION_ID}'; ", 'do'
   );
@@ -102,7 +96,7 @@ sub online_update {
 #**********************************************************
 # online()
 #**********************************************************
-sub online {
+sub online{
   my $self = shift;
   my ($attr) = @_;
 
@@ -138,13 +132,13 @@ sub online {
 
   my @RES_FIELDS = (0, 1, 2, 3, 4, 5, 6, 7, 8);
 
-  if ($attr->{FIELDS}) {
+  if ( $attr->{FIELDS} ){
     @RES_FIELDS = @{ $attr->{FIELDS} };
   }
 
-  my $fields  = '';
+  my $fields = '';
   my $port_id = 0;
-  for (my $i = 0 ; $i <= $#RES_FIELDS ; $i++) {
+  for ( my $i = 0; $i <= $#RES_FIELDS; $i++ ){
     $port_id = $i if ($RES_FIELDS[$i] == 2);
     $fields .= "$FIELDS_ALL[$RES_FIELDS[$i]], ";
   }
@@ -154,45 +148,44 @@ sub online {
 
   my @WHERE_RULES = ();
 
-  if (defined($attr->{ZAPED})) {
+  if ( defined( $attr->{ZAPED} ) ){
     push @WHERE_RULES, "c.status=2";
   }
-  elsif ($attr->{ALL}) {
+  elsif ( $attr->{ALL} ){
 
   }
-  else {
+  else{
     push @WHERE_RULES, "(c.status=1 or c.status>=3)";
   }
 
-  if (defined($attr->{USER_NAME})) {
+  if ( defined( $attr->{USER_NAME} ) ){
     push @WHERE_RULES, "c.user_name='$attr->{USER_NAME}'";
   }
 
   # Show groups
-  if ($attr->{GIDS}) {
+  if ( $attr->{GIDS} ){
     push @WHERE_RULES, "u.gid IN ($attr->{GIDS})";
   }
-  elsif ($attr->{GID}) {
+  elsif ( $attr->{GID} ){
     push @WHERE_RULES, "u.gid='$attr->{GID}'";
   }
 
-  if (defined($attr->{FRAMED_IP_ADDRESS})) {
+  if ( defined( $attr->{FRAMED_IP_ADDRESS} ) ){
     push @WHERE_RULES, "framed_ip_address=INET_ATON('$attr->{FRAMED_IP_ADDRESS}')";
   }
 
-  if (defined($attr->{NAS_ID})) {
+  if ( defined( $attr->{NAS_ID} ) ){
     push @WHERE_RULES, "nas_id='$attr->{NAS_ID}'";
   }
 
-  if ($attr->{FILTER}) {
+  if ( $attr->{FILTER} ){
     push @WHERE_RULES, "$FIELDS_ALL[$attr->{FILTER_FIELD}]='$attr->{FILTER}'";
   }
 
-  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join( ' and ', @WHERE_RULES ) : '';
 
-  $self->query(
-    $db, "SELECT  $fields
- 
+  $self->query2( "SELECT  $fields
+
    pi.phone,
    INET_NTOA(c.framed_ip_address),
    u.uid,
@@ -208,7 +201,7 @@ sub online {
    c.acct_session_id,
    c.CID,
    sharing.tp_id
-   
+
  FROM sharing_calls c
  LEFT JOIN users u     ON (u.id=user_name)
  LEFT JOIN sharing_main dv  ON (sharing.uid=u.uid)
@@ -217,17 +210,17 @@ sub online {
  LEFT JOIN bills b ON (u.bill_id=b.id)
  LEFT JOIN companies company ON (u.company_id=company.id)
  LEFT JOIN bills cb ON (company.bill_id=cb.id)
- 
+
  $WHERE
  ORDER BY $SORT $DESC;"
   );
 
   my %dub_logins = ();
-  my %dub_ports  = ();
+  my %dub_ports = ();
   my %nas_sorted = ();
 
-  if ($self->{TOTAL} < 1) {
-    $self->{dub_ports}  = \%dub_ports;
+  if ( $self->{TOTAL} < 1 ){
+    $self->{dub_ports} = \%dub_ports;
     $self->{dub_logins} = \%dub_logins;
     $self->{nas_sorted} = \%nas_sorted;
 
@@ -238,21 +231,21 @@ sub online {
 
   my $nas_id_field = $#RES_FIELDS + 10;
 
-  foreach my $line (@$list) {
+  foreach my $line ( @{$list} ){
 
     $dub_logins{ $line->[0] }++;
     $dub_ports{ $line->[$nas_id_field] }{ $line->[$port_id] }++;
 
     my @fields = ();
-    for (my $i = 0 ; $i <= $#RES_FIELDS + 15 ; $i++) {
+    for ( my $i = 0; $i <= $#RES_FIELDS + 15; $i++ ){
       push @fields, $line->[$i];
     }
 
-    push(@{ $nas_sorted{"$line->[$nas_id_field]"} }, [@fields]);
+    push( @{ $nas_sorted{"$line->[$nas_id_field]"} }, [ @fields ] );
 
   }
 
-  $self->{dub_ports}  = \%dub_ports;
+  $self->{dub_ports} = \%dub_ports;
   $self->{dub_logins} = \%dub_logins;
   $self->{nas_sorted} = \%nas_sorted;
 
@@ -262,24 +255,25 @@ sub online {
 #**********************************************************
 # online_del()
 #**********************************************************
-sub online_del {
+sub online_del{
   my $self = shift;
   my ($attr) = @_;
 
-  if ($attr->{SESSIONS_LIST}) {
-    my $session_list = join("', '", @{ $attr->{SESSIONS_LIST} });
+  my $WHERE = '';
+  if ( $attr->{SESSIONS_LIST} ){
+    my $session_list = join( "', '", @{ $attr->{SESSIONS_LIST} } );
     $WHERE = "acct_session_id in ( '$session_list' )";
   }
-  else {
-    my $NAS_ID          = (defined($attr->{NAS_ID}))          ? $attr->{NAS_ID}          : '';
-    my $NAS_PORT        = (defined($attr->{NAS_PORT}))        ? $attr->{NAS_PORT}        : '';
-    my $ACCT_SESSION_ID = (defined($attr->{ACCT_SESSION_ID})) ? $attr->{ACCT_SESSION_ID} : '';
+  else{
+    my $NAS_ID = (defined( $attr->{NAS_ID} )) ? $attr->{NAS_ID} : '';
+    my $NAS_PORT = (defined( $attr->{NAS_PORT} )) ? $attr->{NAS_PORT} : '';
+    my $ACCT_SESSION_ID = (defined( $attr->{ACCT_SESSION_ID} )) ? $attr->{ACCT_SESSION_ID} : '';
     $WHERE = "nas_id='$NAS_ID'
-            and nas_port_id='$NAS_PORT' 
+            and nas_port_id='$NAS_PORT'
             and acct_session_id='$ACCT_SESSION_ID'";
   }
 
-  $self->query($db, "DELETE FROM sharing_calls WHERE $WHERE;", 'do');
+  $self->query2( "DELETE FROM sharing_calls WHERE $WHERE;", 'do' );
 
   return $self;
 }
@@ -289,42 +283,40 @@ sub online_del {
 # online2log()
 #
 #**********************************************************
-sub online2log {
+sub online2log{
   my $self = shift;
-  my ($attr) = @_;
 
-  $self->query($db, "SELECT c.user_name, ", 'do');
+  $self->query2( "SELECT c.user_name, ", 'do' );
 }
 
 #**********************************************************
 # Add online session to log
 # online2log()
 #**********************************************************
-sub online_info {
+sub online_info{
   my $self = shift;
   my ($attr) = @_;
 
-  undef @WHERE_RULES;
+  my @WHERE_RULES = ();
 
-  if ($attr->{NAS_ID}) {
+  if ( $attr->{NAS_ID} ){
     push @WHERE_RULES, "nas_id='$attr->{NAS_ID}'";
   }
-  elsif (defined($attr->{NAS_IP_ADDRESS})) {
+  elsif ( defined( $attr->{NAS_IP_ADDRESS} ) ){
     push @WHERE_RULES, "nas_ip_address=INET_ATON('$attr->{NAS_IP_ADDRESS}')";
   }
 
-  if (defined($attr->{NAS_PORT})) {
+  if ( defined( $attr->{NAS_PORT} ) ){
     push @WHERE_RULES, "nas_port_id='$attr->{NAS_PORT}'";
   }
 
-  if (defined($attr->{ACCT_SESSION_ID})) {
+  if ( defined( $attr->{ACCT_SESSION_ID} ) ){
     push @WHERE_RULES, "acct_session_id='$attr->{ACCT_SESSION_ID}'";
   }
 
-  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join( ' and ', @WHERE_RULES ) : '';
 
-  $self->query(
-    $db, "SELECT user_name, UNIX_TIMESTAMP(started), acct_session_time, 
+  $self->query2( "SELECT user_name, UNIX_TIMESTAMP(started), acct_session_time,
    acct_input_octets,
    acct_output_octets,
    ex_input_octets,
@@ -339,20 +331,23 @@ sub online_info {
       acct_session_id,
       nas_id,
       started
-      FROM sharing_calls 
-   $WHERE 
+      FROM sharing_calls
+   $WHERE
    "
   );
 
-  if ($self->{TOTAL} < 1) {
-    $self->{errno}  = 2;
+  if ( $self->{TOTAL} < 1 ){
+    $self->{errno} = 2;
     $self->{errstr} = 'ERROR_NOT_EXIST';
     return $self;
   }
 
   (
-    $self->{USER_NAME},   $self->{SESSION_START}, $self->{ACCT_SESSION_TIME}, $self->{ACCT_INPUT_OCTETS},  $self->{ACCT_OUTPUT_OCTETS}, $self->{ACCT_EX_INPUT_OCTETS}, $self->{ACCT_EX_OUTPUT_OCTETS}, $self->{CONNECT_TERM_REASON}, $self->{FRAMED_IP_ADDRESS},
-    $self->{LAST_UPDATE}, $self->{NAS_PORT},      $self->{NAS_IP_ADDRESS},    $self->{CALLING_STATION_ID}, $self->{CONNECT_INFO},       $self->{ACCT_SESSION_ID},      $self->{NAS_ID},                $self->{ACCT_SESSION_STARTED}
+    $self->{USER_NAME}, $self->{SESSION_START}, $self->{ACCT_SESSION_TIME}, $self->{ACCT_INPUT_OCTETS},
+    $self->{ACCT_OUTPUT_OCTETS}, $self->{ACCT_EX_INPUT_OCTETS}, $self->{ACCT_EX_OUTPUT_OCTETS},
+    $self->{CONNECT_TERM_REASON}, $self->{FRAMED_IP_ADDRESS},
+    $self->{LAST_UPDATE}, $self->{NAS_PORT}, $self->{NAS_IP_ADDRESS}, $self->{CALLING_STATION_ID}, $self->{CONNECT_INFO}
+    , $self->{ACCT_SESSION_ID}, $self->{NAS_ID}, $self->{ACCT_SESSION_STARTED}
   ) = @{ $self->{list}->[0] };
 
   return $self;
@@ -361,31 +356,31 @@ sub online_info {
 #**********************************************************
 # Session zap
 #**********************************************************
-sub zap {
+sub zap{
   my $self = shift;
   my ($nas_id, $nas_port_id, $acct_session_id, $attr) = @_;
 
-  $WHERE = '';
+  my $WHERE = '';
 
-  if (!defined($attr->{ALL})) {
+  if ( !defined( $attr->{ALL} ) ){
     $WHERE = "WHERE nas_id='$nas_id' and nas_port_id='$nas_port_id' and acct_session_id='$acct_session_id'";
   }
 
-  $self->query($db, "UPDATE sharing_calls SET status='2' $WHERE;", 'do');
+  $self->query2( "UPDATE sharing_calls SET status='2' $WHERE;", 'do' );
   return $self;
 }
 
 #**********************************************************
 # Session detail
 #**********************************************************
-sub session_detail {
+sub session_detail{
   my $self = shift;
   my ($attr) = @_;
 
+  my $WHERE = q{};
   $WHERE = " and l.uid='$attr->{UID}'" if ($attr->{UID});
 
-  $self->query(
-    $db, "SELECT 
+  $self->query2( "SELECT
   l.start,
   l.start + INTERVAL l.duration SECOND,
   l.duration,
@@ -403,27 +398,27 @@ sub session_detail {
   n.name,
   n.ip,
   l.port_id,
-  
+
   l.minp,
   l.kb,
   l.sum,
 
   l.bill_id,
   u.id,
-  
+
   l.uid,
   l.acct_session_id,
   l.terminate_cause
  FROM (sharing_log l, users u)
- LEFT JOIN tarif_plans tp ON (l.tp_id=tp.id) 
- LEFT JOIN nas n ON (l.nas_id=n.id) 
- WHERE l.uid=u.uid 
+ LEFT JOIN tarif_plans tp ON (l.tp_id=tp.id)
+ LEFT JOIN nas n ON (l.nas_id=n.id)
+ WHERE l.uid=u.uid
  $WHERE
  and acct_session_id='$attr->{SESSION_ID}';"
   );
 
-  if ($self->{TOTAL} < 1) {
-    $self->{errno}  = 2;
+  if ( $self->{TOTAL} < 1 ){
+    $self->{errno} = 2;
     $self->{errstr} = 'ERROR_NOT_EXIST';
     return $self;
   }
@@ -438,8 +433,8 @@ sub session_detail {
     $self->{TP_NAME},
     $self->{SENT},
     $self->{RECV},
-    $self->{SENT2},    #?
-    $self->{RECV2},    #?
+    $self->{SENT2}, #?
+    $self->{RECV2}, #?
     $self->{IP},
     $self->{CID},
     $self->{NAS_ID},
@@ -457,7 +452,7 @@ sub session_detail {
     $self->{UID},
     $self->{SESSION_ID},
     $self->{ACCT_TERMINATE_CAUSE}
-  ) = @$ar;
+  ) = @{$ar};
 
   return $self;
 }
@@ -465,7 +460,7 @@ sub session_detail {
 #**********************************************************
 # detail_list()
 #**********************************************************
-sub detail_list {
+sub detail_list{
   my $self = shift;
   my ($attr) = @_;
 
@@ -474,41 +469,39 @@ sub detail_list {
   my $WHERE = ($attr->{SESSION_ID}) ? "and acct_session_id='$attr->{SESSION_ID}'" : '';
   my $GROUP;
 
-  if ($attr->{PERIOD} eq 'days') {
+  if ( $attr->{PERIOD} eq 'days' ){
     $lupdate = "DATE_FORMAT(FROM_UNIXTIME(last_update), '%Y-%m-%d')";
-    $GROUP   = $lupdate;
-    $WHERE   = '';
+    $GROUP = $lupdate;
+    $WHERE = '';
   }
-  elsif ($attr->{PERIOD} eq 'hours') {
+  elsif ( $attr->{PERIOD} eq 'hours' ){
     $lupdate = "DATE_FORMAT(FROM_UNIXTIME(last_update), '%Y-%m-%d %H')";
-    $GROUP   = $lupdate;
-    $WHERE   = '';
+    $GROUP = $lupdate;
+    $WHERE = '';
   }
-  elsif ($attr->{PERIOD} eq 'sessions') {
-    $WHERE   = '';
+  elsif ( $attr->{PERIOD} eq 'sessions' ){
+    $WHERE = '';
     $lupdate = "FROM_UNIXTIME(last_update)";
-    $GROUP   = 'acct_session_id';
+    $GROUP = 'acct_session_id';
   }
-  else {
+  else{
     $lupdate = "FROM_UNIXTIME(last_update)";
-    $GROUP   = $lupdate;
+    $GROUP = $lupdate;
   }
 
-  $self->query(
-    $db, "SELECT $lupdate, acct_session_id, nas_id, 
-   sum(sent1), sum(recv1), sum(sent2), sum(recv2) 
-  FROM s_detail 
+  $self->query2( "SELECT $lupdate, acct_session_id, nas_id,
+   sum(sent1), sum(recv1), sum(sent2), sum(recv2)
+  FROM s_detail
   WHERE id='$attr->{LOGIN}' $WHERE
-  GROUP BY $GROUP 
+  GROUP BY $GROUP
   ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;"
   );
 
   my $list = $self->{list};
 
-  if ($self->{TOTAL} > 0) {
-    $self->query(
-      $db, "SELECT count(DISTINCT $lupdate)
-      FROM s_detail 
+  if ( $self->{TOTAL} > 0 ){
+    $self->query2( "SELECT count(DISTINCT $lupdate)
+      FROM s_detail
      WHERE id='$attr->{LOGIN}' $WHERE ;"
     );
 
@@ -522,22 +515,20 @@ sub detail_list {
 # Periods totals
 # periods_totals($self, $attr);
 #**********************************************************
-sub periods_totals {
+sub periods_totals{
   my $self = shift;
   my ($attr) = @_;
 
   my $WHERE = '';
 
-  if ($attr->{LOGIN}) {
+  if ( $attr->{LOGIN} ){
     $WHERE .= "WHERE username='$attr->{LOGIN}' ";
   }
 
-  $self->query(
-    $db, "SELECT  
-   sum(if(date_format(start, '%Y-%m-%d')=curdate(), sent, 0)), 
-   sum(if(date_format(start, '%Y-%m-%d')=curdate(), recv, 0)), 
-   SEC_TO_TIME(sum(if(date_format(start, '%Y-%m-%d')=curdate(), duration, 0))), 
-
+  $self->query2( "SELECT
+   sum(if(date_format(start, '%Y-%m-%d')=curdate(), sent, 0)),
+   sum(if(date_format(start, '%Y-%m-%d')=curdate(), recv, 0)),
+   SEC_TO_TIME(sum(if(date_format(start, '%Y-%m-%d')=curdate(), duration, 0))),
    sum(if(TO_DAYS(curdate()) - TO_DAYS(start) = 1, sent, 0)),
    sum(if(TO_DAYS(curdate()) - TO_DAYS(start) = 1, recv, 0)),
    SEC_TO_TIME(sum(if(TO_DAYS(curdate()) - TO_DAYS(start) = 1, duration, 0))),
@@ -546,20 +537,22 @@ sub periods_totals {
    sum(if((YEAR(curdate())=YEAR(start)) and  WEEK(curdate()) = WEEK(start), recv, 0)),
    SEC_TO_TIME(sum(if((YEAR(curdate())=YEAR(start)) and WEEK(curdate()) = WEEK(start), duration, 0))),
 
-   sum(if(date_format(start, '%Y-%m')=date_format(curdate(), '%Y-%m'), sent, 0)), 
-   sum(if(date_format(start, '%Y-%m')=date_format(curdate(), '%Y-%m'), recv, 0)), 
+   sum(if(date_format(start, '%Y-%m')=date_format(curdate(), '%Y-%m'), sent, 0)),
+   sum(if(date_format(start, '%Y-%m')=date_format(curdate(), '%Y-%m'), recv, 0)),
    SEC_TO_TIME(sum(if(date_format(start, '%Y-%m')=date_format(curdate(), '%Y-%m'), duration, 0))),
-  
+
    sum(sent), sum(recv), SEC_TO_TIME(sum(duration))
    FROM (sharing_log sl)
-   LEFT join  sharing_priority sp ON (sl.url = sp.file)   
+   LEFT join  sharing_priority sp ON (sl.url = sp.file)
    $WHERE;"
   );
 
-  ($self->{sent_0}, $self->{recv_0}, $self->{duration_0}, $self->{sent_1}, $self->{recv_1}, $self->{duration_1}, $self->{sent_2}, $self->{recv_2}, $self->{duration_2}, $self->{sent_3}, $self->{recv_3}, $self->{duration_3}, $self->{sent_4}, $self->{recv_4}, $self->{duration_4}) =
-  @{ $self->{list}->[0] };
+  ($self->{sent_0}, $self->{recv_0}, $self->{duration_0}, $self->{sent_1}, $self->{recv_1}, $self->{duration_1},
+    $self->{sent_2}, $self->{recv_2}, $self->{duration_2}, $self->{sent_3}, $self->{recv_3}, $self->{duration_3},
+    $self->{sent_4}, $self->{recv_4}, $self->{duration_4}) =
+    @{ $self->{list}->[0] };
 
-  for (my $i = 0 ; $i < 5 ; $i++) {
+  for ( my $i = 0; $i < 5; $i++ ){
     $self->{ 'sum_' . $i } = $self->{ 'sent_' . $i } + $self->{ 'recv_' . $i };
   }
 
@@ -569,31 +562,30 @@ sub periods_totals {
 #**********************************************************
 #
 #**********************************************************
-sub prepaid_rest {
+sub prepaid_rest{
   my $self = shift;
   my ($attr) = @_;
 
   $CONF->{MB_SIZE} = $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE};
 
   #Get User TP and intervals
-  $self->query(
-    $db, "select tt.id,
+  $self->query2( "select tt.id,
     if(u.activate<>'0000-00-00', u.activate, DATE_FORMAT(curdate(), '%Y-%m-01')),
      tt.prepaid,
-     u.id, 
+     u.id,
      tp.octets_direction,
      u.uid,
      sm.tp_id,
      tp.name,
      tp.month_traf_limit,
      sm.extra_byte,
-     count(sa.tp_id)   
+     count(sa.tp_id)
   from (users u,
         sharing_main sm,
         tarif_plans tp,
         sharing_trafic_tarifs tt
         )
-  LEFT JOIN sharing_additions sa ON (tp.id=sa.tp_id) 
+  LEFT JOIN sharing_additions sa ON (tp.id=sa.tp_id)
  WHERE
      u.uid=sm.uid
  and sm.tp_id=tp.id
@@ -606,7 +598,7 @@ sub prepaid_rest {
  "
   );
 
-  if ($self->{TOTAL} < 1) {
+  if ( $self->{TOTAL} < 1 ){
     return 1;
   }
 
@@ -615,7 +607,7 @@ sub prepaid_rest {
     1 => 0
   );
 
-  foreach my $line (@{ $self->{list} }) {
+  foreach my $line ( @{ $self->{list} } ){
     $rest{ $line->[0] } = $line->[2];
   }
 
@@ -624,29 +616,28 @@ sub prepaid_rest {
 
   return 1 if ($attr->{INFO_ONLY});
 
-  $self->{EXTRA_TRAFIC}     = $self->{INFO_LIST}->[0]->[9];
+  $self->{EXTRA_TRAFIC} = $self->{INFO_LIST}->[0]->[9];
   $self->{EXTRA_TRAFIC_USE} = $self->{INFO_LIST}->[0]->[10];
 
   #Check sessions
   #Get using traffic
-  $self->query(
-    $db, "select  
+  $self->query2( "select
   $rest{0} - sum(sl.recv + sl.sent) / $CONF->{MB_SIZE}
- FROM sharing_log sl 
+ FROM sharing_log sl
  INNER JOIN sharing_priority sp ON (sl.url = sp.file)
- WHERE sl.username='$login' 
+ WHERE sl.username='$login'
  and DATE_FORMAT(sl.start, '%Y-%m-%d')>='$self->{INFO_LIST}->[0]->[1]'
  and sp.priority='0'
  GROUP BY sl.username
  ;"
   );
 
-  if ($self->{TOTAL} > 0) {
+  if ( $self->{TOTAL} > 0 ){
     ($rest{0},) = @{ $self->{list}->[0] };
   }
 
-  if ($self->{EXTRA_TRAFIC_USE} > 0 && $rest{0} < 0) {
-    $self->{EXTRA_TRAFIC} = $self->{EXTRA_TRAFIC} - abs($rest{0});
+  if ( $self->{EXTRA_TRAFIC_USE} > 0 && $rest{0} < 0 ){
+    $self->{EXTRA_TRAFIC} = $self->{EXTRA_TRAFIC} - abs( $rest{0} );
   }
 
   #else {
@@ -662,41 +653,40 @@ sub prepaid_rest {
 # session calculation
 # min max average
 #**********************************************************
-sub calculation {
+sub calculation{
   my ($self) = shift;
   my ($attr) = @_;
 
-  @WHERE_RULES = ();
+  my @WHERE_RULES = ();
 
   #Login
-  if ($attr->{UID}) {
+  if ( $attr->{UID} ){
     push @WHERE_RULES, "l.uid='$attr->{UID}'";
   }
 
-  if ($attr->{INTERVAL}) {
-    my ($from, $to) = split(/\//, $attr->{INTERVAL}, 2);
+  if ( $attr->{INTERVAL} ){
+    my ($from, $to) = split( /\//, $attr->{INTERVAL}, 2 );
     push @WHERE_RULES, "date_format(start, '%Y-%m-%d')>='$from' and date_format(start, '%Y-%m-%d')<='$to'";
   }
 
   #Period
-  elsif (defined($attr->{PERIOD})) {
-    my $period = int($attr->{PERIOD});
-    if ($period == 4) {
+  elsif ( defined( $attr->{PERIOD} ) ){
+    my $period = int( $attr->{PERIOD} );
+    if ( $period == 4 ){
 
     }
-    else {
-      if    ($period == 0) { push @WHERE_RULES, "date_format(start, '%Y-%m-%d')=curdate()"; }
-      elsif ($period == 1) { push @WHERE_RULES, "TO_DAYS(curdate()) - TO_DAYS(start) = 1 "; }
-      elsif ($period == 2) { push @WHERE_RULES, "YEAR(curdate()) = YEAR(start) and (WEEK(curdate()) = WEEK(start)) "; }
-      elsif ($period == 3) { push @WHERE_RULES, "date_format(start, '%Y-%m')=date_format(curdate(), '%Y-%m') "; }
-      elsif ($period == 5) { push @WHERE_RULES, "date_format(start, '%Y-%m-%d')='$attr->{DATE}' "; }
+    else{
+      if ( $period == 0 ){ push @WHERE_RULES, "date_format(start, '%Y-%m-%d')=curdate()"; }
+      elsif ( $period == 1 ){ push @WHERE_RULES, "TO_DAYS(curdate()) - TO_DAYS(start) = 1 "; }
+      elsif ( $period == 2 ){ push @WHERE_RULES, "YEAR(curdate()) = YEAR(start) and (WEEK(curdate()) = WEEK(start)) "; }
+      elsif ( $period == 3 ){ push @WHERE_RULES, "date_format(start, '%Y-%m')=date_format(curdate(), '%Y-%m') "; }
+      elsif ( $period == 5 ){ push @WHERE_RULES, "date_format(start, '%Y-%m-%d')='$attr->{DATE}' "; }
     }
   }
 
-  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join( ' and ', @WHERE_RULES ) : '';
 
-  $self->query(
-    $db, "SELECT 
+  $self->query2( "SELECT
   SEC_TO_TIME(min(l.duration)), SEC_TO_TIME(max(l.duration)), SEC_TO_TIME(avg(l.duration)), SEC_TO_TIME(sum(l.duration)),
   min(l.sent), max(l.sent), avg(l.sent), sum(l.sent),
   min(l.recv), max(l.recv), avg(l.recv), sum(l.recv),
@@ -726,7 +716,7 @@ sub calculation {
     $self->{max_sum},
     $self->{avg_sum},
     $self->{total_sum}
-  ) = @$ar;
+  ) = @{$ar};
 
   return $self;
 }
@@ -734,16 +724,19 @@ sub calculation {
 #**********************************************************
 # Use
 #**********************************************************
-sub reports {
+sub reports{
   my ($self) = shift;
   my ($attr) = @_;
 
   $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  undef @WHERE_RULES;
+
+  my @WHERE_RULES = ();
+
   my $date = '';
 
-  my @FIELDS_ARR = ('DATE', 'USERS', 'SESSIONS', 'TRAFFIC_RECV', 'TRAFFIC_SENT', 'TRAFFIC_SUM', 'TRAFFIC_2_SUM', 'DURATION', 'SUM');
+  my @FIELDS_ARR = ('DATE', 'USERS', 'SESSIONS', 'TRAFFIC_RECV', 'TRAFFIC_SENT', 'TRAFFIC_SUM', 'TRAFFIC_2_SUM',
+    'DURATION', 'SUM');
 
   $self->{REPORT_FIELDS} = {
     DATE          => '',
@@ -757,128 +750,125 @@ sub reports {
     TRAFFIC_SENT  => 'sum(l.sent)'
   };
 
-  if ($attr->{GID}) {
+  if ( $attr->{GID} ){
     push @WHERE_RULES, "u.gid='$attr->{GID}'";
   }
 
-  if (defined($attr->{DATE})) {
+  if ( defined( $attr->{DATE} ) ){
     push @WHERE_RULES, " date_format(l.start, '%Y-%m-%d')='$attr->{DATE}'";
   }
-  elsif ($attr->{INTERVAL}) {
-    my ($from, $to) = split(/\//, $attr->{INTERVAL}, 2);
+  elsif ( $attr->{INTERVAL} ){
+    my ($from, $to) = split( /\//, $attr->{INTERVAL}, 2 );
     push @WHERE_RULES, "date_format(l.start, '%Y-%m-%d')>='$from' and date_format(l.start, '%Y-%m-%d')<='$to'";
-    if ($attr->{TYPE} eq 'HOURS') {
+    if ( $attr->{TYPE} eq 'HOURS' ){
       $date = "date_format(l.start, '%H')";
     }
-    elsif ($attr->{TYPE} eq 'DAYS') {
+    elsif ( $attr->{TYPE} eq 'DAYS' ){
       $date = "date_format(l.start, '%Y-%m-%d')";
     }
-    else {
+    else{
       $date = "u.id";
     }
   }
-  elsif (defined($attr->{MONTH})) {
+  elsif ( defined( $attr->{MONTH} ) ){
     push @WHERE_RULES, "date_format(l.start, '%Y-%m')='$attr->{MONTH}'";
     $date = "date_format(l.start, '%Y-%m-%d')";
   }
-  else {
+  else{
     $date = "date_format(l.start, '%Y-%m')";
   }
 
-  if ($attr->{GID}) {
+  if ( $attr->{GID} ){
     push @WHERE_RULES, "u.gid='$attr->{GID}'";
   }
 
-  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join( ' and ', @WHERE_RULES ) : '';
 
   $self->{REPORT_FIELDS}{DATE} = $date;
-  my $fields = "$date, count(DISTINCT l.uid), 
+  my $fields = "$date, count(DISTINCT l.uid),
       count(l.uid),
-      sum(l.sent + l.recv), 
+      sum(l.sent + l.recv),
       sum(l.sent2 + l.recv2),
-      sec_to_time(sum(l.duration)), 
+      sec_to_time(sum(l.duration)),
       sum(l.sum)";
 
-  if ($attr->{FIELDS}) {
-    my @fields_array    = split(/, /, $attr->{FIELDS});
-    my @show_fields     = ();
+  if ( $attr->{FIELDS} ){
+    my @fields_array = split( /, /, $attr->{FIELDS} );
+    my @show_fields = ();
     my %get_fields_hash = ();
 
     #  foreachsh = ();
 
-    foreach my $line (@fields_array) {
+    foreach my $line ( @fields_array ){
       $get_fields_hash{$line} = 1;
     }
 
-    foreach my $k (@FIELDS_ARR) {
+    foreach my $k ( @FIELDS_ARR ){
       push @show_fields, $self->{REPORT_FIELDS}{$k} if ($get_fields_hash{$k});
     }
 
-    $fields = join(', ', @show_fields);
+    $fields = join( ', ', @show_fields );
   }
 
-  if (defined($attr->{DATE})) {
-    if (defined($attr->{HOURS})) {
-      $self->query(
-        $db, "select date_format(l.start, '%Y-%m-%d %H')start, '%Y-%m-%d %H')start, '%Y-%m-%d %H'), count(DISTINCT l.uid), count(l.uid), 
+  if ( defined( $attr->{DATE} ) ){
+    if ( defined( $attr->{HOURS} ) ){
+      $self->query2( "select date_format(l.start, '%Y-%m-%d %H')start, '%Y-%m-%d %H')start, '%Y-%m-%d %H'), count(DISTINCT l.uid), count(l.uid),
     sum(l.sent + l.recv), sum(l.sent2 + l.recv2), sec_to_time(sum(l.duration)), sum(l.sum), l.uid
       FROM sharing_log l
       LEFT JOIN users u ON (u.uid=l.uid)
-      $WHERE 
-      GROUP BY 1 
+      $WHERE
+      GROUP BY 1
       ORDER BY $SORT $DESC"
       );
     }
-    else {
-      $self->query(
-        $db, "select date_format(l.start, '%Y-%m-%d'), if(u.id is NULL, CONCAT('> ', l.uid, ' <'), u.id), count(l.uid), 
+    else{
+      $self->query2( "select date_format(l.start, '%Y-%m-%d'), if(u.id is NULL, CONCAT('> ', l.uid, ' <'), u.id), count(l.uid),
     sum(l.sent + l.recv), sum(l.sent2 + l.recv2), sec_to_time(sum(l.duration)), sum(l.sum), l.uid
       FROM sharing_log l
       LEFT JOIN users u ON (u.uid=l.uid)
-      $WHERE 
-      GROUP BY l.uid 
+      $WHERE
+      GROUP BY l.uid
       ORDER BY $SORT $DESC"
       );
 
       #$WHERE = "WHERE date_format(l.start, '%Y-%m-%d')='$attr->{DATE}'";
     }
   }
-  else {
-    $self->query(
-      $db, "select $fields,
+  else{
+    $self->query2( "select $fields,
       l.uid
        FROM sharing_log l
        LEFT JOIN users u ON (u.uid=l.uid)
-       $WHERE    
-       GROUP BY 1 
+       $WHERE
+       GROUP BY 1
        ORDER BY $SORT $DESC;"
     );
   }
 
   my $list = $self->{list};
 
-  $self->{USERS}     = 0;
-  $self->{SESSIONS}  = 0;
-  $self->{TRAFFIC}   = 0;
+  $self->{USERS} = 0;
+  $self->{SESSIONS} = 0;
+  $self->{TRAFFIC} = 0;
   $self->{TRAFFIC_2} = 0;
-  $self->{DURATION}  = 0;
-  $self->{SUM}       = 0;
+  $self->{DURATION} = 0;
+  $self->{SUM} = 0;
 
   return $list if ($self->{TOTAL} < 1);
 
-  $self->query(
-    $db, "select count(DISTINCT l.uid), 
+  $self->query2( "select count(DISTINCT l.uid),
       count(l.uid),
-      sum(l.sent + l.recv), 
+      sum(l.sent + l.recv),
       sum(l.sent2 + l.recv2),
-      sec_to_time(sum(l.duration)), 
+      sec_to_time(sum(l.duration)),
       sum(l.sum)
        FROM sharing_log l
        LEFT JOIN users u ON (u.uid=l.uid)
        $WHERE;"
   );
 
-  ($self->{USERS}, $self->{SESSIONS}, $self->{TRAFFIC}, $self->{TRAFFIC_2}, $self->{DURATION}, $self->{SUM}) = @{ $self->{list}->[0] };
+  ($self->{USERS}, $self->{SESSIONS}, $self->{TRAFFIC}, $self->{TRAFFIC_2}, $self->{DURATION},
+    $self->{SUM}) = @{ $self->{list}->[0] };
 
   return $list;
 }
@@ -886,26 +876,25 @@ sub reports {
 #**********************************************************
 # List
 #**********************************************************
-sub list_log_intervals {
+sub list_log_intervals{
   my $self = shift;
   my ($attr) = @_;
 
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 2;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 2;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
-  undef @WHERE_RULES;
+  my @WHERE_RULES = ();
 
   #UID
-  if ($attr->{ACCT_SESSION_ID}) {
+  if ( $attr->{ACCT_SESSION_ID} ){
     push @WHERE_RULES, "l.acct_session_id='$attr->{ACCT_SESSION_ID}'";
   }
 
-  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join( ' and ', @WHERE_RULES ) : '';
 
-  $self->query(
-    $db, "SELECT interval_id,
+  $self->query2( "SELECT interval_id,
                            traffic_type,
                            sent,
                            recv,
@@ -924,18 +913,16 @@ sub list_log_intervals {
 #**********************************************************
 # Rotete logs
 #**********************************************************
-sub log_rotate {
+sub log_rotate{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query(
-    $db, "DELETE from s_detail
+  $self->query2( "DELETE from s_detail
             WHERE
   last_update < UNIX_TIMESTAMP()- $attr->{PERIOD} * 24 * 60 * 60;", 'do'
   );
 
-  $self->query(
-    $db, "DELETE LOW_PRIORITY sharing_log_intervals from sharing_log dl, sharing_log_intervals dli
+  $self->query2( "DELETE LOW_PRIORITY sharing_log_intervals from sharing_log dl, sharing_log_intervals dli
 WHERE
   dl.acct_session_id=dli.acct_session_id
   and dl.start < curdate() - INTERVAL $attr->{PERIOD} DAY;", 'do'
@@ -948,12 +935,11 @@ WHERE
 # User information
 # info()
 #**********************************************************
-sub samba_info {
+sub samba_info{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query(
-    $db, "SELECT *
+  $self->query2( "SELECT *
      FROM user
    WHERE username='$attr->{LOGIN}';"
   );
@@ -965,39 +951,40 @@ sub samba_info {
 # User information
 # info()
 #**********************************************************
-sub info {
+sub info{
   my $self = shift;
   my ($uid, $attr) = @_;
 
-  if (defined($attr->{LOGIN})) {
+  my $WHERE = '';
+
+  if ( defined( $attr->{LOGIN} ) ){
     use Users;
-    my $users = Users->new($db, $admin, $CONF);
-    $users->info(0, { LOGIN => "$attr->{LOGIN}" });
-    if ($users->{errno}) {
-      $self->{errno}  = 2;
+    my $users = Users->new( $self->{db}, $admin, $CONF );
+    $users->info( 0, { LOGIN => "$attr->{LOGIN}" } );
+    if ( $users->{errno} ){
+      $self->{errno} = 2;
       $self->{errstr} = 'ERROR_NOT_EXIST';
       return $self;
     }
 
-    $uid                      = $users->{UID};
-    $self->{DEPOSIT}          = $users->{DEPOSIT};
+    $uid = $users->{UID};
+    $self->{DEPOSIT} = $users->{DEPOSIT};
     $self->{ACCOUNT_ACTIVATE} = $users->{ACTIVATE};
-    $WHERE                    = "WHERE sharing.uid='$uid'";
+    $WHERE = "WHERE sharing.uid='$uid'";
   }
 
   $WHERE = "WHERE sharing.uid='$uid'";
 
-  if (defined($attr->{IP})) {
+  if ( defined( $attr->{IP} ) ){
     $WHERE = "WHERE sharing.ip=INET_ATON('$attr->{IP}')";
   }
 
-  $self->query(
-    $db, "SELECT sharing.uid, 
-   sharing.tp_id, 
-   tp.name, 
-   sharing.logins, 
-   sharing.speed, 
-   sharing.filter_id, 
+  $self->query2( "SELECT sharing.uid,
+   sharing.tp_id,
+   tp.name,
+   sharing.logins,
+   sharing.speed,
+   sharing.filter_id,
    sharing.cid,
    sharing.disable,
    sharing.type,
@@ -1010,13 +997,14 @@ sub info {
 
   $self->{TP_GID} = 0;
 
-  if ($self->{TOTAL} < 1) {
-    $self->{errno}  = 2;
+  if ( $self->{TOTAL} < 1 ){
+    $self->{errno} = 2;
     $self->{errstr} = 'ERROR_NOT_EXIST';
     return $self;
   }
 
-  ($self->{UID}, $self->{TP_ID}, $self->{TP_NAME}, $self->{SIMULTANEONSLY}, $self->{SPEED}, $self->{FILTER_ID}, $self->{CID}, $self->{DISABLE}, $self->{TYPE}, $self->{TP_GID}, $self->{EXTRA_TRAFIC}) = @{ $self->{list}->[0] };
+  ($self->{UID}, $self->{TP_ID}, $self->{TP_NAME}, $self->{SIMULTANEONSLY}, $self->{SPEED}, $self->{FILTER_ID},
+    $self->{CID}, $self->{DISABLE}, $self->{TYPE}, $self->{TP_GID}, $self->{EXTRA_TRAFIC}) = @{ $self->{list}->[0] };
 
   return $self;
 }
@@ -1024,7 +1012,7 @@ sub info {
 #**********************************************************
 #
 #**********************************************************
-sub defaults {
+sub defaults{
   my $self = shift;
 
   my %DATA = (
@@ -1039,62 +1027,64 @@ sub defaults {
     TYPE           => 0
   );
 
-  $self = \%DATA;
+  foreach my $key ( keys %DATA ) {
+    $self->{$key}=$DATA{$key};
+  }
+
   return $self;
 }
 
 #**********************************************************
 # add()
 #**********************************************************
-sub add {
+sub add{
   my $self = shift;
   my ($attr) = @_;
 
-  my %DATA = $self->get_data($attr, { default => defaults() });
+  my %DATA = $self->get_data( $attr, { default => defaults() } );
 
-  if ($DATA{TP_ID} > 0) {
-    my $tariffs = Tariffs->new($db, $CONF, $admin);
-    $tariffs->info($DATA{TP_ID});
-    if ($tariffs->{ACTIV_PRICE} > 0) {
-      my $user = Users->new($db, $admin, $CONF);
-      $user->info($DATA{UID});
+  if ( $DATA{TP_ID} > 0 ){
+    my $tariffs = Tariffs->new( $self->{db}, $CONF, $admin );
+    $tariffs->info( $DATA{TP_ID} );
+    if ( $tariffs->{ACTIV_PRICE} > 0 ){
+      my $user = Users->new( $self->{db}, $admin, $CONF );
+      $user->info( $DATA{UID} );
 
-      if ($user->{DEPOSIT} + $user->{CREDIT} < $tariffs->{ACTIV_PRICE}) {
+      if ( $user->{DEPOSIT} + $user->{CREDIT} < $tariffs->{ACTIV_PRICE} ){
         $self->{errno} = 15;
         return $self;
       }
-      my $fees = Fees->new($db, $admin, $CONF);
-      $fees->take($user, $tariffs->{ACTIV_PRICE}, { DESCRIBE => "ACTIV TP" });
+      my $fees = Fees->new( $self->{db}, $admin, $CONF );
+      $fees->take( $user, $tariffs->{ACTIV_PRICE}, { DESCRIBE => "ACTIV TP" } );
     }
   }
 
-  $self->query(
-    $db, "INSERT INTO sharing_main (uid, 
-             tp_id, 
+  $self->query2( "INSERT INTO sharing_main (uid,
+             tp_id,
              type,
-             logins, 
-             disable, 
-             speed, 
-             filter_id, 
+             logins,
+             disable,
+             speed,
+             filter_id,
              cid
               )
-        VALUES ('$DATA{UID}', 
-        '$DATA{TP_ID}', 
+        VALUES ('$DATA{UID}',
+        '$DATA{TP_ID}',
         '$DATA{TYPE}',
-        '$DATA{SIMULTANEONSLY}', '$DATA{DISABLE}',  
+        '$DATA{SIMULTANEONSLY}', '$DATA{DISABLE}',
         '$DATA{SPEED}', '$DATA{FILTER_ID}', LOWER('$DATA{CID}')
          );", 'do'
   );
 
-  return $self if ($self->{errno});
-  $admin->action_add("$DATA{UID}", "ACTIVE");
+  return [ ] if ($self->{errno});
+  $admin->action_add( "$DATA{UID}", "ACTIVE" );
   return $self;
 }
 
 #**********************************************************
 # change()
 #**********************************************************
-sub change {
+sub change{
   my $self = shift;
   my ($attr) = @_;
 
@@ -1110,30 +1100,30 @@ sub change {
     EXTRA_TRAFIC   => 'extra_byte'
   );
 
-  my $old_info = $self->info($attr->{UID});
+  my $old_info = $self->info( $attr->{UID} );
 
-  if ($attr->{TP_ID} && $old_info->{TP_ID} != $attr->{TP_ID}) {
-    my $tariffs = Tariffs->new($db, $CONF, $admin);
-    $tariffs->info(0, { ID => $attr->{TP_ID} });
+  if ( $attr->{TP_ID} && $old_info->{TP_ID} != $attr->{TP_ID} ){
+    my $tariffs = Tariffs->new( $self->{db}, $CONF, $admin );
+    $tariffs->info( 0, { ID => $attr->{TP_ID} } );
 
-    if ($tariffs->{CHANGE_PRICE} > 0) {
-      my $user = Users->new($db, $admin, $CONF);
-      $user->info($attr->{UID});
+    if ( $tariffs->{CHANGE_PRICE} > 0 ){
+      my $user = Users->new( $self->{db}, $admin, $CONF );
+      $user->info( $attr->{UID} );
 
-      if ($user->{DEPOSIT} + $user->{CREDIT} < $tariffs->{CHANGE_PRICE}) {
+      if ( $user->{DEPOSIT} + $user->{CREDIT} < $tariffs->{CHANGE_PRICE} ){
         $self->{errno} = 15;
         return $self;
       }
-      my $fees = Fees->new($db, $admin, $CONF);
-      $fees->take($user, $tariffs->{CHANGE_PRICE}, { DESCRIBE => "CHANGE TP [$attr->{TP_ID}]" });
+      my $fees = Fees->new( $self->{db}, $admin, $CONF );
+      $fees->take( $user, $tariffs->{CHANGE_PRICE}, { DESCRIBE => "CHANGE TP [$attr->{TP_ID}]" } );
     }
 
-    if ($tariffs->{AGE} > 0) {
-      my $user = Users->new($db, $admin, $CONF);
+    if ( $tariffs->{AGE} > 0 ){
+      my $user = Users->new( $self->{db}, $admin, $CONF );
 
       use POSIX qw(strftime);
-      my $EXPITE_DATE   = strftime("%Y-%m-%d", localtime(time + 86400 * $tariffs->{AGE}));
-      my $ACTIVATE_DATE = strftime("%Y-%m-%d", localtime(time));
+      my $EXPITE_DATE = POSIX::strftime( "%Y-%m-%d", localtime( time + 86400 * $tariffs->{AGE} ) );
+      my $ACTIVATE_DATE = POSIX::strftime( "%Y-%m-%d", localtime( time ) );
       $user->change(
         $attr->{UID},
         {
@@ -1146,8 +1136,7 @@ sub change {
   }
 
   $admin->{MODULE} = $MODULE;
-  $self->changes(
-    $admin,
+  $self->changes2(
     {
       CHANGE_PARAM => 'UID',
       TABLE        => 'sharing_main',
@@ -1165,90 +1154,87 @@ sub change {
 #
 # del(attr);
 #**********************************************************
-sub del {
+sub del{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query($db, "DELETE from sharing_main WHERE uid='$attr->{UID}';", 'do');
+  $self->query2( "DELETE from sharing_main WHERE uid='$attr->{UID}';", 'do' );
 
-  $admin->action_add($attr->{UID}, "$attr->{UID}", { TYPE => 10 });
+  $admin->action_add( $attr->{UID}, "$attr->{UID}", { TYPE => 10 } );
   return $self->{result};
 }
 
 #**********************************************************
 # list()
 #**********************************************************
-sub list {
+sub list{
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my @WHERE_RULES = ( "u.uid = sharing.uid" );
-  push @WHERE_RULES, @{ $self->search_expr_users($attr) };
+  push @WHERE_RULES, @{ $self->search_expr_users( $attr ) };
   my $EXT_TABLE = $self->{EXT_TABLES};
-  
 
-  if ($attr->{IP}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{IP}, 'IP', 'sharing.ip', { EXT_FIELD => 1 }) };
+  if ( $attr->{IP} ){
+    push @WHERE_RULES, @{ $self->search_expr( $attr->{IP}, 'IP', 'sharing.ip', { EXT_FIELD => 1 } ) };
   }
 
-  if ($attr->{EXTRA_TRAFIC}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{EXTRA_TRAFIC}, 'INT', 'sharing.extra_byte', { EXT_FIELD => 1 }) }
+  if ( $attr->{EXTRA_TRAFIC} ){
+    push @WHERE_RULES, @{ $self->search_expr( $attr->{EXTRA_TRAFIC}, 'INT', 'sharing.extra_byte', { EXT_FIELD => 1 } ) }
   }
 
-  if ($attr->{SPEED}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{SPEED}, 'INT', 'sharing.speed', { EXT_FIELD => 1 }) }
+  if ( $attr->{SPEED} ){
+    push @WHERE_RULES, @{ $self->search_expr( $attr->{SPEED}, 'INT', 'sharing.speed', { EXT_FIELD => 1 } ) }
   }
 
-  if ($attr->{CID}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{CID}, 'INT', 'sharing.cid', { EXT_FIELD => 1 }) }
+  if ( $attr->{CID} ){
+    push @WHERE_RULES, @{ $self->search_expr( $attr->{CID}, 'INT', 'sharing.cid', { EXT_FIELD => 1 } ) }
   }
 
-  if (defined($attr->{TP_ID})) {
+  if ( defined( $attr->{TP_ID} ) ){
     push @WHERE_RULES, "sharing.tp_id='$attr->{TP_ID}'";
   }
 
-  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join( ' and ', @WHERE_RULES ) : '';
 
-  $self->query(
-    $db, "SELECT u.id, 
-      pi.fio, if(u.company_id > 0, cb.deposit, b.deposit) AS deposit, 
-      u.credit, 
-      tp.name AS tp_name, 
-      sharing.type, 
-      u.disable, 
+  $self->query2( "SELECT u.id,
+      pi.fio, if(u.company_id > 0, cb.deposit, b.deposit) AS deposit,
+      u.credit,
+      tp.name AS tp_name,
+      sharing.type,
+      u.disable,
       $self->{SEARCH_FIELDS}
-      u.uid, 
-      u.company_id, 
-      pi.email, 
-      sharing.tp_id, 
-      u.activate, 
-      u.expire, 
+      u.uid,
+      u.company_id,
+      pi.email,
+      sharing.tp_id,
+      u.activate,
+      u.expire,
       if(u.company_id > 0, company.bill_id, u.bill_id) AS bill_id,
       u.reduction
      FROM (users u, sharing_main sharing)
      LEFT JOIN users_pi pi ON (u.uid = pi.uid)
      LEFT JOIN bills b ON (u.bill_id = b.id)
-     LEFT JOIN tarif_plans tp ON (tp.id=sharing.tp_id and tp.module='Sharing') 
-     LEFT JOIN companies company ON  (u.company_id=company.id) 
+     LEFT JOIN tarif_plans tp ON (tp.id=sharing.tp_id and tp.module='Sharing')
+     LEFT JOIN companies company ON  (u.company_id=company.id)
      LEFT JOIN bills cb ON  (company.bill_id=cb.id)
      $EXT_TABLE
-     $WHERE 
+     $WHERE
      GROUP BY u.uid
      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;"
   );
 
-  return $self if ($self->{errno});
+  return [ ] if ($self->{errno});
 
   my $list = $self->{list};
 
-  if ($self->{TOTAL} >= 0) {
-    $self->query($db, "SELECT count(u.id) FROM (users u, sharing_main sharing) $WHERE");
-    ($self->{TOTAL}) = @{ $self->{list}->[0] };
+  if ( $self->{TOTAL} >= 0 ){
+    $self->query2( "SELECT count(u.id) AS total FROM (users u, sharing_main sharing) $WHERE", undef, { INFO => 1 } );
   }
 
   return $list;
@@ -1257,85 +1243,86 @@ sub list {
 #**********************************************************
 #
 #**********************************************************
-sub sessions_list {
+sub sessions_list{
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  $WHERE = '';
+  my $WHERE = '';
   my @WHERE_RULES = ();
 
   # Show debeters
-  if ($attr->{LOGIN}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{LOGIN}, 'STR', 'sl.username') };
+  if ( $attr->{LOGIN} ){
+    push @WHERE_RULES, @{ $self->search_expr( $attr->{LOGIN}, 'STR', 'sl.username' ) };
   }
 
   #NAS ID
-  if ($attr->{NAS_ID}) {
+  if ( $attr->{NAS_ID} ){
     push @WHERE_RULES, "sl.nas_id='$attr->{NAS_ID}'";
   }
 
   #NAS ID
-  if ($attr->{CID}) {
-    if ($attr->{CID}) {
+  if ( $attr->{CID} ){
+    if ( $attr->{CID} ){
       $attr->{CID} =~ s/\*/\%/ig;
       push @WHERE_RULES, "sl.cid LIKE '$attr->{CID}'";
     }
-    else {
+    else{
       push @WHERE_RULES, "sl.cid='$attr->{CID}'";
     }
   }
 
   #TARIF_PLAN
-  if ($attr->{TARIF_PLAN}) {
+  if ( $attr->{TARIF_PLAN} ){
     push @WHERE_RULES, "sl.tp_id='$attr->{TARIF_PLAN}'";
   }
 
-  if ($attr->{GID}) {
+  if ( $attr->{GID} ){
     push @WHERE_RULES, "u.gid='$attr->{GID}'";
   }
 
-  if ($attr->{TERMINATE_CAUSE}) {
+  if ( $attr->{TERMINATE_CAUSE} ){
     push @WHERE_RULES, "sl.terminate_cause='$attr->{TERMINATE_CAUSE}'";
   }
 
-  if ($attr->{FROM_DATE}) {
-    push @WHERE_RULES, "(date_format(sl.start, '%Y-%m-%d')>='$attr->{FROM_DATE}' and date_format(sl.start, '%Y-%m-%d')<='$attr->{TO_DATE}')";
+  if ( $attr->{FROM_DATE} ){
+    push @WHERE_RULES,
+      "(date_format(sl.start, '%Y-%m-%d')>='$attr->{FROM_DATE}' and date_format(sl.start, '%Y-%m-%d')<='$attr->{TO_DATE}')";
   }
 
-  if ($attr->{DATE}) {
+  if ( $attr->{DATE} ){
     push @WHERE_RULES, "date_format(sl.start, '%Y-%m-%d')>='$attr->{DATE}'";
   }
 
-  if ($attr->{MONTH}) {
+  if ( $attr->{MONTH} ){
     push @WHERE_RULES, "date_format(sl.start, '%Y-%m')>='$attr->{MONTH}'";
   }
 
   #Interval from date to date
-  if ($attr->{INTERVAL}) {
-    my ($from, $to) = split(/\//, $attr->{INTERVAL}, 2);
+  if ( $attr->{INTERVAL} ){
+    my ($from, $to) = split( /\//, $attr->{INTERVAL}, 2 );
     push @WHERE_RULES, "date_format(start, '%Y-%m-%d')>='$from' and date_format(start, '%Y-%m-%d')<='$to'";
   }
 
   #Period
-  elsif (defined($attr->{PERIOD})) {
-    my $period = int($attr->{PERIOD});
-    if ($period == 4) { $WHERE .= ''; }
-    else {
+  elsif ( defined( $attr->{PERIOD} ) ){
+    my $period = int( $attr->{PERIOD} );
+    if ( $period == 4 ){ $WHERE .= ''; }
+    else{
       $WHERE .= ($WHERE ne '') ? ' and ' : 'WHERE ';
-      if    ($period == 0) { push @WHERE_RULES, "date_format(start, '%Y-%m-%d')=curdate()"; }
-      elsif ($period == 1) { push @WHERE_RULES, "TO_DAYS(curdate()) - TO_DAYS(start) = 1 "; }
-      elsif ($period == 2) { push @WHERE_RULES, "YEAR(curdate()) = YEAR(start) and (WEEK(curdate()) = WEEK(start)) "; }
-      elsif ($period == 3) { push @WHERE_RULES, "date_format(start, '%Y-%m')=date_format(curdate(), '%Y-%m') "; }
-      elsif ($period == 5) { push @WHERE_RULES, "date_format(start, '%Y-%m-%d')='$attr->{DATE}' "; }
-      else                 { $WHERE .= "date_format(start, '%Y-%m-%d')=curdate() "; }
+      if ( $period == 0 ){ push @WHERE_RULES, "date_format(start, '%Y-%m-%d')=curdate()"; }
+      elsif ( $period == 1 ){ push @WHERE_RULES, "TO_DAYS(curdate()) - TO_DAYS(start) = 1 "; }
+      elsif ( $period == 2 ){ push @WHERE_RULES, "YEAR(curdate()) = YEAR(start) and (WEEK(curdate()) = WEEK(start)) "; }
+      elsif ( $period == 3 ){ push @WHERE_RULES, "date_format(start, '%Y-%m')=date_format(curdate(), '%Y-%m') "; }
+      elsif ( $period == 5 ){ push @WHERE_RULES, "date_format(start, '%Y-%m-%d')='$attr->{DATE}' "; }
+      else{ $WHERE .= "date_format(start, '%Y-%m-%d')=curdate() "; }
     }
   }
-  elsif ($attr->{DATE}) {
+  elsif ( $attr->{DATE} ){
     push @WHERE_RULES, "date_format(start, '%Y-%m-%d')='$attr->{DATE}'";
   }
 
@@ -1344,15 +1331,14 @@ sub sessions_list {
   #}
   #From To
 
-  $WHERE = "WHERE " . join(' and ', @WHERE_RULES) if ($#WHERE_RULES > -1);
+  $WHERE = "WHERE " . join( ' and ', @WHERE_RULES ) if ($#WHERE_RULES > -1);
 
-  $self->query(
-    $db, "select 
+  $self->query2( "select
   sl.username,
   sl.start,
   SEC_TO_TIME(sl.duration),
   sl.sent,
-  sl.recv,  
+  sl.recv,
   INET_NTOA(sl.remoteip),
   sl.virtualhost,
   sl.connectionstatus,
@@ -1362,7 +1348,7 @@ sub sessions_list {
   sl.statusbeforeredir,
   sl.statusafterredir,
   sl.remoteport,
-  sl.serverid,  
+  sl.serverid,
   sl.requestmethod,
 
   sl.protocol,
@@ -1371,10 +1357,10 @@ sub sessions_list {
   sl.useragent,
   sl.referer,
   sl.uniqueid,
-  
+
   sl.identuser,
   sl.microseconds
-  
+
   FROM (sharing_log sl)
   LEFT join sharing_priority sp ON (sl.url = sp.file)
   $WHERE
@@ -1383,20 +1369,21 @@ sub sessions_list {
  ;"
   );
 
-  return $self if ($self->{errno});
+  return [ ] if ($self->{errno});
 
   my $list = $self->{list};
 
-  if ($self->{TOTAL} > 0) {
-    $self->query(
-      $db, "SELECT count(sl.username), 
-     SEC_TO_TIME(sum(sl.duration)), sum(sl.sent), sum(sl.recv) 
+  if ( $self->{TOTAL} > 0 ){
+    $self->query2( "SELECT count(sl.username) AS total,
+     SEC_TO_TIME(sum(sl.duration)) AS duration,
+     sum(sl.sent) AS traffic_in,
+     sum(sl.recv) AS traffic_out
      FROM (sharing_log sl)
      INNER join  sharing_priority sp ON (sl.url=sp.file)
-     $WHERE;"
+     $WHERE;",
+      undef,
+      { INFO => 1 }
     );
-
-    ($self->{TOTAL}, $self->{DURATION}, $self->{TRAFFIC_IN}, $self->{TRAFFIC_OUT}) = @{ $self->{list}->[0] };
   }
 
   return $list;
@@ -1405,7 +1392,7 @@ sub sessions_list {
 #**********************************************************
 # tt_defaults
 #**********************************************************
-sub tt_defaults {
+sub tt_defaults{
   my $self = shift;
 
   my %TT_DEFAULTS = (
@@ -1429,38 +1416,36 @@ sub tt_defaults {
 #**********************************************************
 # tt_info
 #**********************************************************
-sub tt_list {
+sub tt_list{
   my $self = shift;
   my ($attr) = @_;
 
-  if (defined($attr->{TI_ID})) {
-    $self->query(
-      $db, "SELECT id, in_price, out_price, prepaid, in_speed, out_speed, descr, nets, expression
+  if ( defined( $attr->{TI_ID} ) ){
+    $self->query2( "SELECT id, in_price, out_price, prepaid, in_speed, out_speed, descr, nets, expression
      FROM sharing_trafic_tarifs WHERE interval_id='$attr->{TI_ID}'
      ORDER BY id DESC;"
     );
   }
-  else {
-    $self->query(
-      $db, "SELECT id, in_price, out_price, prepaid, in_speed, out_speed, descr, nets, expression
-     FROM sharing_trafic_tarifs 
+  else{
+    $self->query2( "SELECT id, in_price, out_price, prepaid, in_speed, out_speed, descr, nets, expression
+     FROM sharing_trafic_tarifs
      WHERE tp_id='$attr->{TP_ID}'
      ORDER BY id;"
     );
   }
 
-  if (defined($attr->{form})) {
+  if ( defined( $attr->{form} ) ){
     my $a_ref = $self->{list};
 
-    foreach my $row (@$a_ref) {
-      my ($id, $tarif_in, $tarif_out, $prepaid, $speed_in, $speed_out, $describe, $nets) = @$row;
-      $self->{ 'TT_DESCRIBE_' . $id }  = $describe;
-      $self->{ 'TT_PRICE_IN_' . $id }  = $tarif_in;
+    foreach my $row ( @{$a_ref} ){
+      my ($id, $tarif_in, $tarif_out, $prepaid, $speed_in, $speed_out, $describe, $nets) = @{$row};
+      $self->{ 'TT_DESCRIBE_' . $id } = $describe;
+      $self->{ 'TT_PRICE_IN_' . $id } = $tarif_in;
       $self->{ 'TT_PRICE_OUT_' . $id } = $tarif_out;
-      $self->{ 'TT_NETS_' . $id }      = $nets;
-      $self->{ 'TT_PREPAID_' . $id }   = $prepaid;
-      $self->{ 'TT_SPEED_IN' . $id }   = $speed_in;
-      $self->{ 'TT_SPEED_OUT' . $id }  = $speed_out;
+      $self->{ 'TT_NETS_' . $id } = $nets;
+      $self->{ 'TT_PREPAID_' . $id } = $prepaid;
+      $self->{ 'TT_SPEED_IN' . $id } = $speed_in;
+      $self->{ 'TT_SPEED_OUT' . $id } = $speed_out;
     }
 
     return $self;
@@ -1472,23 +1457,24 @@ sub tt_list {
 #**********************************************************
 # tt_info
 #**********************************************************
-sub tt_info {
+sub tt_info{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query(
-    $db, "SELECT id, interval_id, in_price, out_price, prepaid, in_speed, out_speed, 
-       descr, 
+  $self->query2( "SELECT id, interval_id, in_price, out_price, prepaid, in_speed, out_speed,
+       descr,
        nets,
        expression,
        tp_id
-     FROM sharing_trafic_tarifs 
-     WHERE 
+     FROM sharing_trafic_tarifs
+     WHERE
      tp_id='$attr->{TP_ID}'
      and id='$attr->{TT_ID}';"
   );
 
-  ($self->{TT_ID}, $self->{TI_ID}, $self->{TT_PRICE_IN}, $self->{TT_PRICE_OUT}, $self->{TT_PREPAID}, $self->{TT_SPEED_IN}, $self->{TT_SPEED_OUT}, $self->{TT_DESCRIBE}, $self->{TT_NETS}, $self->{TT_EXPRASSION}, $self->{TP_ID}) = @{ $self->{list}->[0] };
+  ($self->{TT_ID}, $self->{TI_ID}, $self->{TT_PRICE_IN}, $self->{TT_PRICE_OUT}, $self->{TT_PREPAID},
+    $self->{TT_SPEED_IN}, $self->{TT_SPEED_OUT}, $self->{TT_DESCRIBE}, $self->{TT_NETS}, $self->{TT_EXPRASSION},
+    $self->{TP_ID}) = @{ $self->{list}->[0] };
 
   return $self;
 }
@@ -1496,16 +1482,15 @@ sub tt_info {
 #**********************************************************
 # tt_add
 #**********************************************************
-sub tt_add {
+sub tt_add{
   my $self = shift;
   my ($attr) = @_;
 
-  %DATA = $self->get_data($attr, { default => $self->tt_defaults() });
+  my %DATA = $self->get_data( $attr, { default => $self->tt_defaults() } );
 
-  $self->query(
-    $db, "INSERT INTO sharing_trafic_tarifs  
+  $self->query2( "INSERT INTO sharing_trafic_tarifs
     (tp_id, id, descr,  in_price,  out_price,  nets,  prepaid,  in_speed, out_speed, expression)
-    VALUES 
+    VALUES
     ('$DATA{TP_ID}', '$DATA{TT_ID}',   '$DATA{TT_DESCRIBE}', '$DATA{TT_PRICE_IN}',  '$DATA{TT_PRICE_OUT}',
      '$DATA{TT_NETS}', '$DATA{TT_PREPAID}', '$DATA{TT_SPEED_IN}', '$DATA{TT_SPEED_OUT}', '$DATA{TT_EXPRASSION}')", 'do'
   );
@@ -1516,29 +1501,22 @@ sub tt_add {
 #**********************************************************
 # tt_change
 #**********************************************************
-sub tt_change {
+sub tt_change{
   my $self = shift;
   my ($attr) = @_;
 
-  my %DATA = $self->get_data($attr, { default => $self->tt_defaults() });
-
-  $self->query(
-    $db, "UPDATE sharing_trafic_tarifs SET 
-    descr='" . $DATA{TT_DESCRIBE} . "', 
-    in_price='" . $DATA{TT_PRICE_IN} . "',
-    out_price='" . $DATA{TT_PRICE_OUT} . "',
-    nets='" . $DATA{TT_NETS} . "',
-    prepaid='" . $DATA{TT_PREPAID} . "',
-    in_speed='" . $DATA{TT_SPEED_IN} . "',
-    out_speed='" . $DATA{TT_SPEED_OUT} . "',
-    expression = '" . $DATA{TT_EXPRASSION} . "'
-    WHERE 
-    TP_id='$attr->{TP_ID}' and id='$DATA{TT_ID}';", 'do'
+  $self->query2( "UPDATE sharing_trafic_tarifs SET
+    descr='" . $attr->{TT_DESCRIBE} . "',
+    in_price='" . $attr->{TT_PRICE_IN} . "',
+    out_price='" . $attr->{TT_PRICE_OUT} . "',
+    nets='" . $attr->{TT_NETS} . "',
+    prepaid='" . $attr->{TT_PREPAID} . "',
+    in_speed='" . $attr->{TT_SPEED_IN} . "',
+    out_speed='" . $attr->{TT_SPEED_OUT} . "',
+    expression = '" . $attr->{TT_EXPRASSION} . "'
+    WHERE
+    TP_id='$attr->{TP_ID}' and id='$attr->{TT_ID}';", 'do'
   );
-
-  if ($attr->{DV_EXPPP_NETFILES}) {
-    $self->create_nets({ TP_ID => $attr->{TP_ID} });
-  }
 
   return $self;
 }
@@ -1547,14 +1525,11 @@ sub tt_change {
 # Time_intervals
 # ti_add
 #**********************************************************
-sub tt_del {
+sub tt_del{
   my $self = shift;
   my ($attr) = @_;
 
-  my %DATA = $self->get_data($attr, { default => $self->tt_defaults() });
-
-  $self->query(
-    $db, "DELETE FROM sharing_trafic_tarifs 
+  $self->query2( "DELETE FROM sharing_trafic_tarifs
    WHERE  tp_id='$attr->{TI_ID}'  and id='$attr->{TT_ID}' ;", 'do'
   );
 
@@ -1564,99 +1539,48 @@ sub tt_del {
 #**********************************************************
 # tt_info
 #**********************************************************
-sub errors_list {
+sub errors_list{
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  undef @WHERE_RULES;
+  my @WHERE_RULES = ();
 
-  if ($attr->{LOGIN}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{LOGIN}, 'STR', 'username') };
+  if ( $attr->{LOGIN} ){
+    push @WHERE_RULES, @{ $self->search_expr( $attr->{LOGIN}, 'STR', 'username' ) };
   }
 
-  if ($attr->{IP}) {
-    if ($attr->{IP} =~ m/\*/g) {
-      my ($i, $first_ip, $last_ip);
-      my @p = split(/\./, $attr->{IP});
-      for ($i = 0 ; $i < 4 ; $i++) {
-
-        if ($p[$i] eq '*') {
-          $first_ip .= '0';
-          $last_ip  .= '255';
-        }
-        else {
-          $first_ip .= $p[$i];
-          $last_ip  .= $p[$i];
-        }
-        if ($i != 3) {
-          $first_ip .= '.';
-          $last_ip  .= '.';
-        }
-      }
-      push @WHERE_RULES, "(sharing.ip>=INET_ATON('$first_ip') and sharing.ip<=INET_ATON('$last_ip'))";
+  my $WHERE = $self->search_former( $attr, [
+      [ 'LOGIN',    'STR', 'username', 1 ],
+      [ 'IP',       'STR', 'sharing.ip', 1 ],
+      [ 'ID',       'INT', 'id', ],
+    ],
+    { WHERE => 1,
     }
-    else {
-      my $value = $self->search_expr($attr->{IP}, 'IP');
-      push @WHERE_RULES, "sharing.ip$value";
-    }
+  );
 
-    $self->{SEARCH_FIELDS} = 'INET_NTOA(sharing.ip), ';
-    $self->{SEARCH_FIELDS_COUNT}++;
-  }
-
-  #
-  # if ($attr->{CID}) {
-  #    $attr->{CID} =~ s/\*/\%/ig;
-  #    push @WHERE_RULES, "sharing.cid LIKE '$attr->{CID}'";
-  #    $self->{SEARCH_FIELDS} .= 'sharing.cid, ';
-  #    $self->{SEARCH_FIELDS_COUNT}++;
-  #  }
-  #
-  #
-##Activate
-  # if ($attr->{ACTIVATE}) {
-  #   #my $value = $self->search_expr("$attr->{ACTIVATE}", 'INT');
-  #   push @WHERE_RULES, "(u.activate='0000-00-00' or u.activate$attr->{ACTIVATE})";
-  # }
-  #
-##Expire
-  # if ($attr->{EXPIRE}) {
-  #   #my $value = $self->search_expr("$attr->{EXPIRE}", 'INT');
-  #   push @WHERE_RULES, "(u.expire='0000-00-00' or u.expire$attr->{EXPIRE})";
-  # }
-  #
-##DIsable
-  # if (defined($attr->{DISABLE})) {
-  #   push @WHERE_RULES, "u.disable='$attr->{DISABLE}'";
-  # }
-
-  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
-
-  $self->query(
-    $db, "SELECT datetime,
+  $self->query2( "SELECT datetime,
    uid,
    username,
    file_and_path,
    client_name,
    INET_NTOA(ip),
    client_command
-     FROM (sharing_errors)
-     $WHERE 
+     FROM sharing_errors
+     $WHERE
      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;"
   );
 
-  return $self if ($self->{errno});
+  return [ ] if ($self->{errno});
 
   my $list = $self->{list};
 
-  if ($self->{TOTAL} >= 0) {
-    $self->query($db, "SELECT count(*) FROM sharing_errors $WHERE");
-    ($self->{TOTAL}) = @{ $self->{list}->[0] };
+  if ( $self->{TOTAL} >= 0 ){
+    $self->query2( "SELECT count(*) AS total FROM sharing_errors $WHERE", undef, { INFO => 1 } );
   }
 
   return $list;
@@ -1666,14 +1590,11 @@ sub errors_list {
 # Time_intervals
 # ti_add
 #**********************************************************
-sub errors_del {
+sub errors_del{
   my $self = shift;
   my ($attr) = @_;
 
-  my %DATA = $self->get_data($attr, { default => $self->tt_defaults() });
-
-  $self->query(
-    $db, "DELETE FROM sharing_trafic_tarifs 
+  $self->query2( "DELETE FROM sharing_trafic_tarifs
    WHERE  tp_id='$attr->{TI_ID}'  and id='$attr->{TT_ID}' ;", 'do'
   );
 
@@ -1684,15 +1605,14 @@ sub errors_del {
 # User information
 # info()
 #**********************************************************
-sub additions_info {
+sub additions_info{
   my $self = shift;
-  my ($id, $attr) = @_;
+  my ($id) = @_;
 
-  $self->query(
-    $db, "SELECT id, 
-   tp_id, 
-   name, 
-   quantity, 
+  $self->query2( "SELECT id,
+   tp_id,
+   name,
+   quantity,
    price
      FROM sharing_additions
    WHERE id='$id';"
@@ -1700,8 +1620,8 @@ sub additions_info {
 
   $self->{TP_GID} = 0;
 
-  if ($self->{TOTAL} < 1) {
-    $self->{errno}  = 2;
+  if ( $self->{TOTAL} < 1 ){
+    $self->{errno} = 2;
     $self->{errstr} = 'ERROR_NOT_EXIST';
     return $self;
   }
@@ -1714,7 +1634,7 @@ sub additions_info {
 #**********************************************************
 #
 #**********************************************************
-sub additions_defaults {
+sub additions_defaults{
   my $self = shift;
 
   my %DATA = (
@@ -1730,39 +1650,21 @@ sub additions_defaults {
 }
 
 #**********************************************************
-# add()
+# additions_add()
 #**********************************************************
-sub additions_add {
+sub additions_add{
   my $self = shift;
   my ($attr) = @_;
 
-  my %DATA = $self->get_data($attr, { default => additions_defaults() });
+  $self->query_add( 'sharing_additions', $attr );
 
-  $self->query(
-    $db, "INSERT INTO sharing_additions (
-             tp_id, 
-             name,
-             quantity, 
-             price
-              )
-        VALUES (
-        '$DATA{TP_ID}', 
-        '$DATA{NAME}',
-        '$DATA{QUANTITY}',
-        '$DATA{PRICE}'
-         );", 'do'
-  );
-
-  return $self if ($self->{errno});
-
-  #$admin->action_add("$DATA{UID}", "ACTIVE");
   return $self;
 }
 
 #**********************************************************
 # change()
 #**********************************************************
-sub additions_change {
+sub additions_change{
   my $self = shift;
   my ($attr) = @_;
 
@@ -1774,11 +1676,10 @@ sub additions_change {
     PRICE    => 'price'
   );
 
-  my $old_info = $self->additions_info($attr->{ID});
+  my $old_info = $self->additions_info( $attr->{ID} );
 
   $admin->{MODULE} = $MODULE;
-  $self->changes(
-    $admin,
+  $self->changes2(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'sharing_additions',
@@ -1796,11 +1697,11 @@ sub additions_change {
 #
 # del(attr);
 #**********************************************************
-sub additions_del {
+sub additions_del{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query($db, "DELETE from sharing_additions WHERE id='$self->{ID}';", 'do');
+  $self->query_del( 'sharing_additions', $attr );
 
   #$admin->action_add($uid, "DELETE");
   return $self->{result};
@@ -1809,75 +1710,61 @@ sub additions_del {
 #**********************************************************
 # list()
 #**********************************************************
-sub additions_list {
+sub additions_list{
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  $self->{SEARCH_FIELDS}       = '';
+  $self->{SEARCH_FIELDS} = '';
   $self->{SEARCH_FIELDS_COUNT} = 0;
 
-  undef @WHERE_RULES;
-  if ($attr->{TP_ID}) {
-    my $value = $self->search_expr($attr->{TP_ID}, 'INT');
+  my @WHERE_RULES = ();
+  if ( $attr->{TP_ID} ){
+    my $value = $self->search_expr( $attr->{TP_ID}, 'INT' );
     push @WHERE_RULES, "tp_id$value";
   }
 
-  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join( ' and ', @WHERE_RULES ) : '';
 
-  $self->query(
-    $db, "SELECT id, 
+  $self->query2( "SELECT id,
       name,
-      quantity, 
-      price, 
+      quantity,
+      price,
       tp_id
      FROM sharing_additions
-     $WHERE 
+     $WHERE
      GROUP BY id
-     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;"
+     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
   );
 
-  return $self if ($self->{errno});
-
-  my $list = $self->{list};
-
-  if ($self->{TOTAL} >= 0) {
-    $self->query($db, "SELECT count(*) FROM sharing_additions $WHERE");
-    ($self->{TOTAL}) = @{ $self->{list}->[0] };
-  }
-
-  return $list;
+  return $self->{list};
 }
 
 #**********************************************************
 # User information
 # info()
 #**********************************************************
-sub priority_info {
+sub priority_info{
   my $self = shift;
-  my ($id, $attr) = @_;
+  my ($id) = @_;
 
-  $self->query(
-    $db, "SELECT server,
+  $self->query2( "SELECT server,
    file,
    size,
    priority,
    datetime
      FROM sharing_priority
-   WHERE id='$id';"
+   WHERE id= ? ;",
+    undef,
+    { INFO => 1,
+      Bind => [ $id ] }
   );
-
-  if ($self->{TOTAL} < 1) {
-    $self->{errno}  = 2;
-    $self->{errstr} = 'ERROR_NOT_EXIST';
-    return $self;
-  }
-
-  ($self->{SERVER}, $self->{FILE}, $self->{SIZE}, $self->{PRIORITY}, $self->{DATE}) = @{ $self->{list}->[0] };
 
   return $self;
 }
@@ -1885,7 +1772,7 @@ sub priority_info {
 #**********************************************************
 #
 #**********************************************************
-sub priority_defaults {
+sub priority_defaults{
   my $self = shift;
 
   my %DATA = (
@@ -1902,29 +1789,15 @@ sub priority_defaults {
 #**********************************************************
 # add()
 #**********************************************************
-sub priority_add {
+sub priority_add{
   my $self = shift;
   my ($attr) = @_;
 
-  my %DATA = $self->get_data($attr, { default => priority_defaults() });
+  my %DATA = $self->get_data( $attr, { default => priority_defaults() } );
 
-  $self->query(
-    $db, "INSERT INTO sharing_priority (server,
-   file,
-   size,
-   priority,
-   datetime
-              )
-        VALUES (
-        '$DATA{SERVER}', 
-        '$DATA{FILE}',
-        '$DATA{SIZE}',
-        '$DATA{PRIORITY}',
-        '$DATA{DATE}'
-         );", 'do'
-  );
+  $self->query_add( 'sharing_priority', \%DATA );
 
-  return $self if ($self->{errno});
+  return [ ] if ($self->{errno});
 
   #$admin->action_add("$DATA{UID}", "ACTIVE");
   return $self;
@@ -1933,29 +1806,15 @@ sub priority_add {
 #**********************************************************
 # change()
 #**********************************************************
-sub priority_change {
+sub priority_change{
   my $self = shift;
   my ($attr) = @_;
 
-  my %FIELDS = (
-    ID       => 'id',
-    SERVER   => 'server',
-    FILE     => 'file',
-    SIZE     => 'size',
-    PRIORITY => 'priority',
-    DATE     => 'date'
-  );
-
-  my $old_info = $self->priority_info($attr->{ID});
-
   $admin->{MODULE} = $MODULE;
-  $self->changes(
-    $admin,
+  $self->changes2(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'sharing_additions',
-      FIELDS       => \%FIELDS,
-      OLD_INFO     => $old_info,
       DATA         => $attr
     }
   );
@@ -1968,20 +1827,11 @@ sub priority_change {
 #
 # del(attr);
 #**********************************************************
-sub priority_del {
+sub priority_del{
   my $self = shift;
   my ($attr) = @_;
 
-  my $WHERE = '';
-
-  if ($attr->{IDS}) {
-    $WHERE = "id IN ($attr->{IDS})";
-  }
-  else {
-    $WHERE = "id='$attr->{ID}'";
-  }
-
-  $self->query($db, "DELETE from sharing_priority WHERE $WHERE;", 'do');
+  $self->query_del( 'sharing_priority', $attr );
 
   return $self->{result};
 }
@@ -1989,67 +1839,363 @@ sub priority_del {
 #**********************************************************
 # list()
 #**********************************************************
-sub priority_list {
+sub priority_list{
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  $self->{SEARCH_FIELDS}       = '';
+  $self->{SEARCH_FIELDS} = '';
   $self->{SEARCH_FIELDS_COUNT} = 0;
 
-  undef @WHERE_RULES;
-  if ($attr->{SIZE}) {
-    my $value = $self->search_expr($attr->{SIZE}, 'INT');
+  my @WHERE_RULES = ();
+  my $WHERE = '';
+
+  if ( $attr->{SIZE} ){
+    my $value = $self->search_expr( $attr->{SIZE}, 'INT' );
     push @WHERE_RULES, "size$value";
   }
 
-  if ($attr->{PRIORITY}) {
-    my $value = $self->search_expr($attr->{PRIORITY}, 'INT');
+  if ( $attr->{PRIORITY} ){
+    my $value = $self->search_expr( $attr->{PRIORITY}, 'INT' );
     push @WHERE_RULES, "priority$value";
   }
 
-  if ($attr->{FILE}) {
-    if ($attr->{FILE} =~ s/\*/\%/ig) {
+  if ( $attr->{FILE} ){
+    if ( $attr->{FILE} =~ s/\*/\%/ig ){
       push @WHERE_RULES, "file LIKE '$attr->{FILE}'";
     }
-    else {
+    else{
       push @WHERE_RULES, "file='$attr->{FILE}'";
     }
   }
 
-  if ($attr->{SERVER}) {
+  if ( $attr->{SERVER} ){
     $attr->{SERVER} =~ s/\*/\%/ig;
     push @WHERE_RULES, "server='$attr->{SERVER}'";
   }
 
-  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join( ' and ', @WHERE_RULES ) : '';
 
-  $self->query(
-    $db, "SELECT server, 
+  $self->query2( "SELECT server,
       file,
-      size, 
-      priority, 
+      size,
+      priority,
       datetime,
       id
      FROM sharing_priority
-     $WHERE 
+     $WHERE
      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;"
   );
 
-  return $self if ($self->{errno});
+  return [ ] if ($self->{errno});
 
   my $list = $self->{list};
 
-  if ($self->{TOTAL} >= 0) {
-    $self->query($db, "SELECT count(*) FROM sharing_priority $WHERE");
-    ($self->{TOTAL}) = @{ $self->{list}->[0] };
+  if ( $self->{TOTAL} >= 0 ){
+    $self->query2( "SELECT count(*) AS total FROM sharing_priority $WHERE", undef, { INFO => 1 } );
   }
 
   return $list;
 }
+
+#**********************************************************
+=head2 add_file() -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub add_file {
+  my ($attr) = @_;
+
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add( 'sharing_files', $attr );
+
+  return $self;
+
+  return 1;
+}
+
+#*******************************************************************
+
+=head2 function file_list() - get list of all files
+
+  Arguments:
+    $attr
+
+  Returns:
+    @list
+
+  Examples:
+    my @list = $Sharing->file_list({ COLS_NAME => 1});
+
+=cut
+
+#*******************************************************************
+sub file_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my @WHERE_RULES = ();
+  my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC        = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  my $WHERE = $self->search_former($attr,
+    [
+    [ 'ID',        'INT', 'id',        1 ],
+    [ 'NAME',      'STR', 'name',      1 ],
+    [ 'AMOUNT',    'INT', 'amount',      1 ],
+    [ 'COMMENT',   'STR', 'comment',   1 ],
+    [ 'LINK_TIME', 'INT', 'link_time', 1 ],
+    [ 'FILE_TIME', 'INT', 'file_time', 1 ],
+    ],
+    {
+      WHERE => 1,
+      SEARCH_FORMER => 1
+    });
+
+  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+
+  $self->query2(
+    "SELECT $self->{SEARCH_FIELDS} id FROM sharing_files
+    $WHERE
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
+  );
+
+  my $list = $self->{list};
+
+  return $self->{list} if ($self->{TOTAL} < 1);
+
+  $self->query2(
+    "SELECT count(*) AS total
+   FROM sharing_files",
+    undef,
+    { INFO => 1 }
+  );
+
+  return $list;
+}
+
+#*******************************************************************
+
+=head2 function file_delete() - delete cashbox
+
+  Arguments:
+    $attr
+
+  Returns:
+
+  Examples:
+    $Sharing->file_delete( {ID => 1} );
+
+=cut
+
+#*******************************************************************
+sub file_delete {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('sharing_files', $attr);
+
+  return $self;
+}
+
+#*******************************************************************
+
+=head2 function file_info() - get information about file
+
+  Arguments:
+    $attr
+
+  Returns:
+    $self object
+
+  Examples:
+    my $file_info = $Sharing->file_info({ ID => 1 });
+
+=cut
+
+#*******************************************************************
+sub file_info {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query2(
+    "SELECT * FROM sharing_files
+      WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
+  );
+
+  return $self;
+}
+
+#*******************************************************************
+
+=head2 function file_change() - change file's information in datebase
+
+  Arguments:
+    $attr
+
+  Returns:
+    $self object
+
+  Examples:
+    $Sharing->file_change({
+      ID     => 1,
+      NAME   => 'TEST'
+    });
+
+
+=cut
+
+#*******************************************************************
+sub file_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes2(
+    {
+      CHANGE_PARAM => 'ID',
+      TABLE        => 'sharing_files',
+      DATA         => $attr
+    }
+  );
+
+  return $self;
+}
+
+#**********************************************************
+=head2 add_user() -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub add_user {
+  my ($attr) = @_;
+
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add( 'sharing_users', $attr );
+
+  return $self;
+
+  return 1;
+}
+
+
+#**********************************************************
+=head2 info_user() -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub info_user {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query2(
+    "SELECT
+    su.uid,
+    su.file_id,
+    su.date_to
+    FROM sharing_users as su
+    WHERE uid = $attr->{UID} and file_id = $attr->{FILE_ID};", undef, { COLS_NAME => 1 }
+    );
+
+  if($self->{list} && ref $self->{list} eq 'ARRAY' && scalar @{$self->{list}} > 0){
+    return $self->{list}[0];
+  }
+
+  return ;
+}
+
+#*******************************************************************
+=head2 function change_user() - change rule's information in datebase
+
+  Arguments:
+    $attr
+      R_ID   - rule's identifier
+      UID    - user's identifier
+      STATUS - call status
+      DATE   - call date
+
+  Returns:
+    $self object
+
+  Examples:
+    $Ring->change_user({
+      R_ID => 1,
+      UID  => 1,
+      STATUS => 2,
+      DATE   => $DATE
+    });
+
+=cut
+#*******************************************************************
+sub change_user {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes2(
+    {
+      CHANGE_PARAM => 'UID',
+      SECOND_PARAM => 'FILE_ID',
+      TABLE        => 'sharing_users',
+      DATA         => $attr,
+    }
+  );
+
+  return $self;
+}
+
+#*******************************************************************
+
+=head2 function del_user() - delete user's information from datebase
+
+  Arguments:
+    $attr
+      UID - user's UID;
+
+  Returns:
+    $self object
+  Examples:
+    $Sharing->del_user( {UID => 1, TP_ID => 2} );
+
+=cut
+
+#*******************************************************************
+sub del_user {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('sharing_users', $attr, { uid => $attr->{UID}, file_id => $attr->{FILE_ID} });
+
+  return $self;
+}
+
 1
 

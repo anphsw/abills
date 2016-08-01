@@ -1,11 +1,10 @@
-$_ORG_NAME  ='Название Клиентов';
-$_WRONG_SUM ='Маленькая сумма';
+$lang{ORG_NAME}  ='Название Клиентов';
+$lang{WRONG_SUM} ='Маленькая сумма';
 @MONTHES_LIT=('Января', 'Февраля', 'Марта', 'Апреля', 'Мая', 'Июня', 'Июля', 'Августа', 'Сентября', 'Октябрь', 'Ноября', 'Декабря');
 
+$lang{YEAR_SHORT} = 'г.';
 
-$_YEAR_SHORT='г.';
-
-$ERR_NO_ORDERS='Не выбраны заказы';
+$lang{ERR_NO_ORDERS}='Не выбраны заказы';
 
 @units = ('шт.', 'усл.', 'м.');
 
@@ -20,28 +19,34 @@ $ERR_NO_ORDERS='Не выбраны заказы';
 @hundred          = ('', 'сто', 'двести', 'триста', 'четыреста', 'пятьсот', 'шестьсот', 'семьсот', 'восемьсот', 'девятьсот');
 @money_unit_names = ('руб','коп');
 
-$_PAID='Оплаченый';
-$_PARTLY_PAID='Частично оплаченый';
-$_UNPAID='Не оплаченый';
-$_VAT_INCLUDE='С учётом НДС';
-$_AMOUNT_FOR_PAY='Сумма для оплаты';
-$_ACTIVATE_NEXT_PERIOD='Для активации следующего учётного периода нужно оплатить';
-$_CURENT_BILLING_PERIOD='Текущий учётный период';
-$_NEXT_PERIODS='Следующие учётные периоды';
+$lang{PAID}='Оплаченый';
+$lang{PARTLY_PAID}='Частично оплаченый';
+$lang{UNPAID}='Не оплаченый';
+$lang{VAT_INCLUDE}='С учётом НДС';
+$lang{AMOUNT_FOR_PAY}='Сумма для оплаты';
+$lang{ACTIVATE_NEXT_PERIOD}='Для активации следующего учётного периода нужно оплатить';
+$lang{CURENT_BILLING_PERIOD}='Текущий учётный период';
+$lang{NEXT_PERIODS}='Следующие учётные периоды';
 
-$_INCLUDE_CUR_BILLING_PERIOD='Включать не инвойсированные  списания за текущий период (по умолчанию)';
-$_NOT_INCLUDE_CUR_BILLING_PERIOD='Не включать неинвойсированные списания за текущий период';
+$lang{INCLUDE_CUR_BILLING_PERIOD}='Включать не инвойсированные  списания за текущий период (по умолчанию)';
+$lang{NOT_INCLUDE_CUR_BILLING_PERIOD}='Не включать неинвойсированные списания за текущий период';
+$lang{ORDERS}='Заказы';
 
+$lang{INVOICE_AUTO_GEN}='Автоматическая генерерация счёта';
+$lang{INVOICING_PERIOD}='Период выписка счёта';
+$lang{PERSONAL_DELIVERY}='Персональная доставка';
+$lang{ALT}='Альтернативная';
+$lang{CURRENCY}='Валюта';
 
-$_INVOICE_AUTO_GEN='Автоматическая генерерация счёта';
-$_INVOICING_PERIOD='Период выписка счёта';
-$_PERSONAL_DELIVERY='Персональная доставка';
-$_ALT='Альтернативная';
-$_CURRENCY='Валюта';
+$lang{LAST_INVOICE_DATE}='Дата последнего счета';
+$lang{NEXT_INVOICE_DATE}='Дата следующего счета';
+$lang{INCLUDE_DEPOSIT}='Учесть депозит';
+$lang{APPLY_TO_INVOICE}='Автоматически распределить по счетам';
+$lang{PRINT_EXT}='Расширенная печать';
+$lang{PRINT_EXT_LIST}='Печать расширенного шаблона';
+$lang{NEXT_PERIOD_INVOICE}='Счета за период';
+$lang{STATEMENT_OF_ACCOUNT}='Выписка по счету';
+$lang{SKIP_PAY_ADD}='Пропущенно счетов';
 
-$_LAST_INVOICE_DATE='Дата последнего счета';
-$_NEXT_INVOICE_DATE='Дата следующего счета';
-$_INCLUDE_DEPOSIT='Учесть депозит';
-$_APPLY_TO_INVOICE='Автоматически распределить по счетам';
-$_PRINT_EXT='Расширенная печать';
-$_PRINT_EXT_LIST='Печать расширенного шаблона';
+$lang{CONNECT_TO} = 'Подключайтесь к';
+$lang{PAYMENTS_NOT_EQUAL_DOC}='Сума документа отличается от сумы платежа';

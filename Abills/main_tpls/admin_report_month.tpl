@@ -1,12 +1,12 @@
 Monthly Admin Report /%DATE%/
 Hostname: %HOSTNAME%
 
-$_PAYMENTS
+_{PAYMENTS}_
 =========================================================
 %PAYMENTS%
 
 
-$_FEES
+_{FEES}_
 =========================================================
 %FEES%
 
@@ -16,12 +16,12 @@ USERS_WARNING_MESSAGES
 %USERS_WARNINGS%
 
 
-$_CLOSED
+_{CLOSED}_
 =========================================================
 %CLOSED%
 
 
-$_USED
+_{USED}_
 =========================================================
 %MODULES%
 

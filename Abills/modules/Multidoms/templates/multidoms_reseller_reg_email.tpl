@@ -1,4 +1,4 @@
-$_REGISTRATION Complete
+_{REGISTRATION}_ Complete
 
 
 Dear Sir!

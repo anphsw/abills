@@ -89,3 +89,21 @@ CREATE TABLE `sharing_additions` (
   UNIQUE KEY `id` (`id`)
 ) COMMENT='Sharing Additions';
 
+
+
+CREATE TABLE `sharing_files` (
+  `id` smallint(6) NOT NULL auto_increment,
+  `name` varchar(25) NOT NULL default '',
+  `amount` double(10,2) NOT NULL default '0.00'
+  `link_time` smallint(3) NOT NULL default 0,
+  `file_time` smallint(3) NOT NULL default 0,
+  `comment` text NOT NULL default '',
+  PRIMARY KEY (`id`)
+) COMMENT='File for download';
+
+CREATE TABLE `sharing_users` (
+  `uid` smallint(11) NOT NULL default 0,
+  `file_id` smallint(6) NOT NULL default 0,
+  `date_to` date NOT NULL default '0000-00-00',
+  unique               (uid, file_id)
+) COMMENT='Users and their files';

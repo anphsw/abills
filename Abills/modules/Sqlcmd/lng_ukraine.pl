@@ -1,3 +1,3 @@
-$_SAVE='Save';
-$_TABLES='Таблиці';
+$lang{SAVE}='Save';
+$lang{TABLES}='Таблиці';
 

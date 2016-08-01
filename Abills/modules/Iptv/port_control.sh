@@ -76,7 +76,7 @@ while [ $RETRY -gt 0 ]; do
 		# wait for a while
 		sleep 30
 		# exit if lock file is modified by another instance (most recently started)
-		if [ `cat $PATH_CONF/lock/lock_$1_e$2` != $TIMESTAMP ];	then 
+		if [ `cat $PATH_CONF/lock/lock_$1_e$2` != $TIMESTAMP ];	then
 			echo "Another instance already running. Exiting." > $PATH_LOG/$TODAY/$FILE
 			exit 0
 		fi

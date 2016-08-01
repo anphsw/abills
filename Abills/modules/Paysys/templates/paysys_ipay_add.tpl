@@ -1,4 +1,34 @@
-<form id=pay name=pay method='POST' action='https://api.ipay.ua/simple/'>
+<form id=pay name=pay method='POST' action='%IPAY_URL%'>
+
+
+<div class='panel panel-primary'>
+    <div class='panel-heading text-center'>_{BALANCE_RECHARCHE}_</div>
+
+<div class='panel-body'>
+    <div class='form-group'>
+        <label class='col-md-6 control-label text-center'>_{ORDER}_:</label>
+        <label class='col-md-6 control-label'>%ORDER_ID%</label>
+    </div>
+    
+    <div class='form-group'>
+        <label class='col-md-6 control-label text-center'> _{PAY_SYSTEM}_:</label>
+        <label class='col-md-6 control-label'>IPAY</label>
+    </div>
+    
+    <div class='form-group'>
+        <label class='control-label col-md-6 text-center'>_{SUM}_:</label>
+        <label class='control-label col-md-6'> %SUM% </label>
+    </div>
+</div>
+    <div class='panel-footer text-center'>
+        <input class='btn btn-primary' type=submit value='_{PAY}_'>
+    </div>
+</div>  
+
+</form>
+
+<!--
+
 
 
 <input type='hidden' name='good' value='https://$ENV{SERVER_NAME}:$ENV{SERVER_PORT}$ENV{REQUEST_URI}?index=$index&PAYMENT_SYSTEM=$FORM{PAYMENT_SYSTEM}&ipay_transaction=%IPAY_PAYMENT_NO%'>
@@ -18,21 +48,22 @@
 	<td>%IPAY_PAYMENT_NO%</td>
 </tr>
 <tr>
-	<td>$_SUM:</td>
+	<td>_{SUM}_:</td>
 	<td>%amount_with_point%</td>
 </tr>
 <tr>
-	<td>$_DESCRIBE:</td>
+	<td>_{DESCRIBE}_:</td>
 	<td>%desc%</td>
 </tr>
 <tr>
-	<th colspan=2><a href=https://ipay.ua/ua/menu/questions_and_answers/>$_HELP</a>&nbsp;</th>
+	<th colspan=2><a href=https://ipay.ua/ua/menu/questions_and_answers/>_{HELP}_</a>&nbsp;</th>
 </tr>
 <tr>
 	<td>&nbsp;</td>
 	<td>&nbsp;</td>
 </tr>
-<tr><th colspan='2' class='even'><input type='submit' value='$_ADD'></th></tr>
+<tr><th colspan='2' class='even'><input type='submit' value='_{ADD}_'></th></tr>
 </table>
 
 </form>
+-->

@@ -1,29 +1,29 @@
-$_SKIP_RBL_CHECKS='';
-$_RBL_TIMEOUT='';
-$_DNS_AVAILABLE='';
+$lang{SKIP_RBL_CHECKS}='';
+$lang{RBL_TIMEOUT}='';
+$lang{DNS_AVAILABLE}='';
 
 
-$_REQUIRED_SCORE='Filter Sensitivity Level';
-$_REWRITE_HEADER='Insert Text Into Subject Lines';
-$_REPORT_SAFE='Body Modification Type';
-$_USER_IN_WHITELIST='Approved List Scoring';
-$_USER_IN_BLACKLIST='Blocked List Scoring';
-$_OK_LOCALES='Permitted locales';
+$lang{REQUIRED_SCORE}='Filter Sensitivity Level';
+$lang{REWRITE_HEADER}='Insert Text Into Subject Lines';
+$lang{REPORT_SAFE}='Body Modification Type';
+$lang{USER_IN_WHITELIST}='Approved List Scoring';
+$lang{USER_IN_BLACKLIST}='Blocked List Scoring';
+$lang{OK_LOCALES}='Permitted locales';
 
-$_USE_BAYES='Use Bayesian Classifier';
-$_BAYES_AUTO_LEARN='Enable Bayes Auto Learning';
-$_BAYES_AUTO_LEARN_THRESHOLD_SPAM='Bayes Spam Auto Learn';
-$_BAYES_AUTO_LEARN_THRESHOLD_NONSPAM='Bayes Non-Spam Auto Learn';
-$_USE_AUTO_WHITELIST='Auto whitelist';
-$_AUTO_WHITELIST_FACTOR='Auto Whitelist Factor';
+$lang{USE_BAYES}='Use Bayesian Classifier';
+$lang{BAYES_AUTO_LEARN}='Enable Bayes Auto Learning';
+$lang{BAYES_AUTO_LEARN_THRESHOLD_SPAM}='Bayes Spam Auto Learn';
+$lang{BAYES_AUTO_LEARN_THRESHOLD_NONSPAM}='Bayes Non-Spam Auto Learn';
+$lang{USE_AUTO_WHITELIST}='Auto whitelist';
+$lang{AUTO_WHITELIST_FACTOR}='Auto Whitelist Factor';
 
-$_USE_DCC='Use DCC (Distributed Checksum Clearinghouse)';
-$_USE_PYZOR='Use Pyzor collaborative filtering network';
-$_USE_RAZOR2='Use Razor V2';
-$_SCORE='Score';
+$lang{USE_DCC}='Use DCC (Distributed Checksum Clearinghouse)';
+$lang{USE_PYZOR}='Use Pyzor collaborative filtering network';
+$lang{USE_RAZOR2}='Use Razor V2';
+$lang{SCORE}='Score';
 
-$_AUTO_LEARN='Auto Learning';
-$_NETWORK_CHECK='Network Checks';
+$lang{AUTO_LEARN}='Auto Learning';
+$lang{NETWORK_CHECK}='Network Checks';
 
-$_BLACK_LIST ='Black list';
-$_WHITE_LIST ='White list';
+$lang{BLACK_LIST} ='Black list';
+$lang{WHITE_LIST} ='White list';

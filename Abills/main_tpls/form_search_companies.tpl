@@ -1,23 +1,111 @@
-<tr><td colspan='2'><hr/></td></tr>
-<tr><td colspan='2'>
-<table border=0>
-<TR><TD colspan='2'>$_NAME:</TD><TD><textarea name='COMPANY_NAME' rows='2' cols='45'>%COMPANY_NAME%</textarea></TD></TR>
-<tr><td colspan='2'>$_ADDRESS:</TD><TD><input type='text' name='ADDRESS' value='%ADDRESS%' size='60'></TD></TR>
-<tr><td colspan='2'>$_PHONE:</TD><TD><input type='text' name='PHONE' value='%PHONE%' size='60'></TD></TR>
-<tr><td colspan='2'>$_REPRESENTATIVE:</TD><TD><input type='text' name='REPRESENTATIVE' value='%REPRESENTATIVE%' size='60'></TD></TR>
-<tr><td colspan='2'>$_DEPOSIT:</TD><TD><input type='text' name='DEPOSIT' value='%DEPOSIT%' size='10'></TD></TR>
-<tr><td colspan='2'>$_CREDIT:</TD><TD><input type=text name=CREDIT value='%CREDIT%'> $_DATE: %CREDIT_DATE%
 	
+	<div class='form-group'>
+  <label class='control-label col-md-6' for='COMPANY_NAME'>_{NAME}_:</label>
+  <div class='col-md-3'>
+     <textarea cols='40' rows='4' name='COMPANY_NAME'  class='form-control'>%COMPANY_NAME%</textarea>
+  </div>
+</div>
 
-<tr><td colspan='2'>$_VAT (%):</TD><TD><input type=text name=VAT value='%VAT%'></TD></TR>
-<tr><td colspan='2'>$_REGISTRATION:</TD><TD>%REGISTRATION%</TD></TR>
-<TR class='title_color'><TH colspan=3>$_BANK_INFO</th></tr>
-<TR><TD colspan='2'>$_TAX_NUMBER:</TD><TD><input type=text name=TAX_NUMBER value='%TAX_NUMBER%' size=60></TD></TR>
-<TR><TD colspan='2'>$_ACCOUNT:</TD><TD><input type=text name=BANK_ACCOUNT value='%BANK_ACCOUNT%' size=60></TD></TR>
-<TR><TD colspan='2'>$_BANK:</TD><TD><input type=text name=BANK_NAME value='%BANK_NAME%' size=60></TD></TR>
-<TR><TD colspan='2'>$_COR_BANK_ACCOUNT:</TD><TD><input type=text name=COR_BANK_ACCOUNT value='%COR_BANK_ACCOUNT%' size=60></TD></TR>
-<TR><TD colspan='2'>$_BANK_BIC:</TD><TD><input type=text name=BANK_BIC value='%BANK_BIC%' size=60></TD></TR>
-<TR><TD colspan='2'>$_CONTRACT_ID:</TD><TD><input type=text name=CONTRACT_ID value='%CONTRACT_ID%' size=10>
-<tr><td colspan='2'>$_DISABLE:</TD><TD><input type=checkbox name=DISABLE value='1' %DISABLE%></TD></TR>
-%INFO_FIELDS%
-</table>
+<div class='form-group'>
+    <label for='ADDRESS' class='control-label col-sm-6'>_{ADDRESS}_:</label>
+    <div class='col-md-3'>
+      <input class='form-control' id='ADDRESS' placeholder='%ADDRESS%' name='ADDRESS' value='%ADDRESS%'>
+    </div>
+  </div>
+  
+    <div class='form-group'>
+    <label for='PHONE' class='control-label col-sm-6'>_{PHONE}_:</label>
+    <div class='col-md-3'>
+      <input class='form-control' id='PHONE' placeholder='%PHONE%' name='PHONE' value='%PHONE%'>
+    </div>
+  </div>
+  
+    <div class='form-group'>
+    <label for='REPRESENTATIVE' class='control-label col-sm-6'>_{REPRESENTATIVE}_:</label>
+    <div class='col-md-3'>
+      <input class='form-control' id='REPRESENTATIVE' placeholder='%REPRESENTATIVE%' name='REPRESENTATIVE' value='%REPRESENTATIVE%'>
+    </div>
+  </div>
+  
+   <div class='form-group'>
+    <label for='DEPOSIT' class='control-label col-sm-6'>_{DEPOSIT}_:</label>
+    <div class='col-md-3'>
+      <input class='form-control' id='DEPOSIT' placeholder='%DEPOSIT%' name='DEPOSIT' value='%DEPOSIT%'>
+    </div>
+  </div>
+  
+   <div class='form-group'>
+    <label for='CREDIT' class='control-label col-sm-6'>_{CREDIT}_:</label>
+    <div class='col-md-3'>
+      <input class='form-control' id='CREDIT' placeholder='%CREDIT%' name='CREDIT' value='%CREDIT%'>
+    </div>
+  </div>
+  
+  
+<div class='form-group'>
+  <label class='control-label col-md-6' for='CREDIT_DATE'>_{DATE}_:</label>
+  <div class='col-md-2'>
+    %CREDIT_DATE%
+  </div>
+</div>
+	
+	 <div class='form-group'>
+    <label for='VAT' class='control-label col-sm-6'>_{VAT}_ (%):</label>
+    <div class='col-md-3'>
+      <input class='form-control' id='VAT' placeholder='%VAT%' name='VAT' value='%VAT%'>
+    </div>
+  </div>
+  
+  <div class='form-group'>
+  <label class='control-label col-md-6' for='REGISTRATION'>_{REGISTRATION}_:</label>
+  <div class='col-md-2'>
+    %REGISTRATION%
+  </div>
+</div>
+
+<div class='form-group'>
+    <label for='TAX_NUMBER' class='control-label col-sm-6'>_{TAX_NUMBER}_:</label>
+    <div class='col-md-3'>
+      <input class='form-control' id='TAX_NUMBER' placeholder='%TAX_NUMBER%' name='TAX_NUMBER' value='%TAX_NUMBER%'>
+    </div>
+  </div>
+  
+  <div class='form-group'>
+    <label for='BANK_ACCOUNT' class='control-label col-sm-6'>_{ACCOUNT}_:</label>
+    <div class='col-md-3'>
+      <input class='form-control' id='BANK_ACCOUNT' placeholder='%BANK_ACCOUNT%' name='BANK_ACCOUNT' value='%BANK_ACCOUNT%'>
+    </div>
+  </div>
+   <div class='form-group'>
+    <label for='BANK_NAME' class='control-label col-sm-6'>_{BANK}_:</label>
+    <div class='col-md-3'>
+      <input class='form-control' id='BANK_NAME' placeholder='%BANK_NAME%' name='BANK_NAME' value='%BANK_NAME%'>
+    </div>
+  </div>
+  
+   <div class='form-group'>
+    <label for='COR_BANK_ACCOUNT' class='control-label col-sm-6'>_{COR_BANK_ACCOUNT}_:</label>
+    <div class='col-md-3'>
+      <input class='form-control' id='COR_BANK_ACCOUNT' placeholder='%COR_BANK_ACCOUNT%' name='COR_BANK_ACCOUNT' value='%COR_BANK_ACCOUNT%'>
+    </div>
+  </div>
+   <div class='form-group'>
+    <label for='BANK_BIC' class='control-label col-sm-6'>_{BANK_BIC}_:</label>
+    <div class='col-md-3'>
+      <input class='form-control' id='BANK_BIC' placeholder='%BANK_BIC%' name='BANK_BIC' value='%BANK_BIC%'>
+    </div>
+  </div>
+   <div class='form-group'>
+    <label for='CONTRACT_ID' class='control-label col-sm-6'>_{CONTRACT_ID}_:</label>
+    <div class='col-md-3'>
+      <input class='form-control' id='CONTRACT_ID' placeholder='%CONTRACT_ID%' name='CONTRACT_ID' value='%CONTRACT_ID%'>
+    </div>
+  </div>
+	
+	<div class='form-group'>
+  <label class='control-label col-md-6' for='DISABLE'>_{DISABLE}_:</label>
+  <div class='col-md-2'>
+    <input id='DISABLE' name='DISABLE' value='1' %DISABLE%  type='checkbox'>
+  </div>
+   </div>
+	%INFO_FIELDS%

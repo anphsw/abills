@@ -24,10 +24,10 @@
 <link rel="alternate" type="application/rss+xml" title="Текущее пространство имён" href="/wiki/feed.php?mode=list&amp;ns=abills:docs_03:install"/>
 <link rel="alternate" type="text/html" title="Простой HTML" href="/wiki/doku.php/abills:docs_03:install:ru?do=export_xhtml"/>
 <link rel="alternate" type="text/plain" title="вики-разметка" href="/wiki/doku.php/abills:docs_03:install:ru?do=export_raw"/>
-<link rel="stylesheet" type="text/css" href="/wiki/lib/exe/css.php?t=bootstrap3&amp;tseed=7d63f67fe4a81631eea3c59cc3822c92"/>
+<link rel="stylesheet" type="text/css" href="/wiki/lib/exe/css.php?t=bootstrap3&amp;tseed=8835c816e45e75d9d91cfc1ba92f25e6"/>
 <script type="text/javascript">/*<![CDATA[*/var NS='abills:docs_03:install';var JSINFO = {"id":"abills:docs_03:install:ru","namespace":"abills:docs_03:install","showbookcreatorpagetool":false,"DOKU_COOKIE_PARAM":{"path":"\/wiki\/","secure":false}};
 /*!]]>*/</script>
-<script type="text/javascript" charset="utf-8" src="/wiki/lib/exe/js.php?t=bootstrap3&amp;tseed=7d63f67fe4a81631eea3c59cc3822c92"></script>
+<script type="text/javascript" charset="utf-8" src="/wiki/lib/exe/js.php?t=bootstrap3&amp;tseed=8835c816e45e75d9d91cfc1ba92f25e6"></script>
   <script type="text/javascript" src="/wiki/lib/tpl/bootstrap3/assets/bootstrap/js/bootstrap.min.js"></script>
   <script type="text/javascript" src="/wiki/lib/tpl/bootstrap3/assets/bootstrap/js/cookies.js"></script>
 
@@ -62,7 +62,7 @@
         <span class="icon-bar"></span>
       </button>
 
-      <a href="/wiki/doku.php/abills"  accesskey="h" title="[H]" class="navbar-brand"><img src="/wiki/lib/exe/fetch.php/wiki:logo.png" alt="Advanced Billing Solution" class="pull-left" id="dw__logo" width="20" height="20" /> <span id="dw__title" >Advanced Billing Solution</span></a>
+      <a href="/wiki/doku.php/abills"  accesskey="h" title="[H]" class="navbar-brand"><img src="/wiki/lib/exe/fetch.php/wiki:logo.png" alt="Advanced Billing Solution" class="pull-left" id="dw__logo" width="85" height="45" style="margin-top: -13px; padding-top: 0" /> <span id="dw__title" >Advanced Billing Solution</span></a>
     </div>
 
     <div class="collapse navbar-collapse">
@@ -116,7 +116,7 @@
           
                     <li>
             <span class="dw__actions">
-              <a href="/wiki/doku.php/abills:docs_03:install:ru?do=login&amp;sectok=11a8078f7ad72a2f54ff8c3a68e55cdd"  class="action login" rel="nofollow" title="Войти"><i class="fa fa-sign-in"></i> Войти</a>            </span>
+              <a href="/wiki/doku.php/abills:docs_03:install:ru?do=login&amp;sectok=4f46608b536cd78ea63efb3a3ccd6a9a"  class="action login" rel="nofollow" title="Войти"><i class="fa fa-sign-in"></i> Войти</a>            </span>
           </li>
           
         </ul>
@@ -180,6 +180,8 @@
 </li>
 <li class="level4"> <a href="/wiki/doku.php/abills:docs:manual:install:ru" class="wikilink1" title="abills:docs:manual:install:ru">Установка Универсальная</a>
 </li>
+<li class="level4"> <a href="/wiki/doku.php/abills:docs:manual:install:auto" class="wikilink1" title="abills:docs:manual:install:auto">Автоматическая установка</a>
+</li>
 <li class="level4"> <a href="/wiki/doku.php/abills:docs:ipv6:ru" class="wikilink1" title="abills:docs:ipv6:ru">IPv6</a>
 </li>
 <li class="level4"> <a href="/wiki/doku.php/abills:docs:other:migration:ru" class="wikilink1" title="abills:docs:other:migration:ru">Миграция</a>
@@ -224,9 +226,7 @@
 </li>
 <li class="level4"> <a href="/wiki/doku.php/abills:docs:modules:marketing:ru" class="wikilink1" title="abills:docs:modules:marketing:ru">Marketing</a>
 </li>
-<li class="level4"> <a href="/wiki/doku.php/abills:docs:mdelivery:ru" class="wikilink1" title="abills:docs:mdelivery:ru">Mdelivery</a>
-</li>
-<li class="level4"> <a href="/wiki/doku.php/abills:docs:msgs:ru" class="wikilink1" title="abills:docs:msgs:ru">Msgs</a>
+<li class="level4"> <a href="/wiki/doku.php/abills:docs:modules:msgs:ru" class="wikilink1" title="abills:docs:modules:msgs:ru">Msgs</a>
 </li>
 <li class="level4"> <a href="/wiki/doku.php/abills:docs:modules:multidoms:ru:abills" class="wikilink1" title="abills:docs:modules:multidoms:ru:abills">Multidoms</a>
 </li>
@@ -235,6 +235,8 @@
 <li class="level4"> <a href="/wiki/doku.php/abills:docs:modules:portal:ru" class="wikilink1" title="abills:docs:modules:portal:ru">Portal</a>
 </li>
 <li class="level4"> <a href="/wiki/doku.php/abills:docs:modules:reports_wizard:ru" class="wikilink1" title="abills:docs:modules:reports_wizard:ru">Reports_wizard</a>
+</li>
+<li class="level4"> <a href="/wiki/doku.php/abills:docs:modules:ring:ru" class="wikilink1" title="abills:docs:modules:ring:ru">Ring</a>
 </li>
 <li class="level4"> <a href="/wiki/doku.php/abills:docs:netlist:ru" class="wikilink1" title="abills:docs:netlist:ru">Netlist</a>
 </li>
@@ -255,6 +257,8 @@
 <li class="level4"> <a href="/wiki/doku.php/abills:docs:modules:sysinfo:ru" class="wikilink1" title="abills:docs:modules:sysinfo:ru">Sysinfo</a>
 </li>
 <li class="level4"> <a href="/wiki/doku.php/abills:docs:ureports:ru" class="wikilink1" title="abills:docs:ureports:ru">Ureports</a>
+</li>
+<li class="level4"> <a href="/wiki/doku.php/abills:docs:mdelivery:ru" class="wikilink1" title="abills:docs:mdelivery:ru">Mdelivery</a>
 </li>
 </ul>
 </div></div><div class="bs-wrap bs-wrap-panel panel panel-default"><div class="panel-heading"><h4 class="panel-title">Сервера доступа</h4></div><div class="panel-body"><ul class="nav nav-pills nav-stacked">
@@ -370,7 +374,7 @@
 </li>
 <li class="level1"> <a href="http://abills.net.ua/forum/" class="urlextern" title="http://abills.net.ua/forum/"  rel="nofollow">Forum</a>
 </li>
-<li class="level1"> <a href="/wiki/doku.php/abills:members:komanda" class="wikilink2" title="abills:members:komanda" rel="nofollow">Команда</a>
+<li class="level1"> <a href="/wiki/doku.php/abills:members:komanda" class="wikilink1" title="abills:members:komanda">Команда</a>
 </li>
 <li class="level1"> <a href="/wiki/doku.php/abills:customers:customers" class="wikilink1" title="abills:customers:customers">Customers</a>
 </li>
@@ -458,7 +462,7 @@
       
     </div><!-- /site -->
 
-    <div class="no"><img src="/wiki/lib/exe/indexer.php?id=abills%3Adocs_03%3Ainstall%3Aru&amp;1441610938" width="2" height="1" alt="" /></div>
+    <div class="no"><img src="/wiki/lib/exe/indexer.php?id=abills%3Adocs_03%3Ainstall%3Aru&amp;1447159583" width="2" height="1" alt="" /></div>
     <div id="screen__mode" class="no">
       <span class="visible-xs"></span>
       <span class="visible-sm"></span>

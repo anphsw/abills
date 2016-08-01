@@ -1,6 +1,6 @@
-$_DEAR, %FIO%
+_{DEAR}_, %FIO%
 
-$_LOGIN $_DISABLE
+_{LOGIN}_ _{DISABLE}_
 
-$_DEPOSIT:  %DEPOSIT%
-$_CREDIT:   %CREDIT%
+_{DEPOSIT}_:  %DEPOSIT%
+_{CREDIT}_:   %CREDIT%

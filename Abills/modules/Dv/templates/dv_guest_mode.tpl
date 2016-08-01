@@ -4,7 +4,7 @@
 <input type=hidden name=CID value='%DHCP_LEASES_MAC%'>
 
 <table width=600 class=form>
-<tr><th colspan=2 class='titel_color'>$_GUEST_MODE</th></tr>
-<tr><td><b>MAC:</b> %MAC% <b>$_PORT:</b> %PORTS%</td><td><input type=submit name=discovery value='$_REGISTRATION'></td></tr>
+<tr><th colspan=2 class='titel_color'>_{GUEST_MODE}_</th></tr>
+<tr><td><b>MAC:</b> %MAC% <b>_{PORT}_:</b> %PORTS%</td><td><input type=submit name=discovery value='_{REGISTRATION}_'></td></tr>
 </table>
 </form>

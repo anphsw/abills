@@ -1,5 +1,7 @@
-$_TRAFFIC_IN_BONUS_MB='Оплата за исходящий трафик (Mb)';
-$_TRAFFIC_OUT_BONUS_MB='Оплата за входящий трафик (Mb)';
-$_TRAFFIC_SUM_BONUS_MB='Оплата за суммарный трафик (Mb)';
-$_BONUS_PERCENT='Бонусний процент пополнения';
-$_ACCEPT_RULES='С правилами ознакомлен';
+$lang{TRAFFIC_IN_BONUS_MB}='Оплата за исходящий трафик (Mb)';
+$lang{TRAFFIC_OUT_BONUS_MB}='Оплата за входящий трафик (Mb)';
+$lang{TRAFFIC_SUM_BONUS_MB}='Оплата за суммарный трафик (Mb)';
+$lang{BONUS_PERCENT}='Бонусний процент пополнения';
+$lang{ACCEPT_RULES}='С правилами ознакомлен';
+$lang{BONUS_TP_USING}='Акционный тарифный план';
+$lang{SCORES}='Балы';

@@ -1,26 +1,21 @@
 %FUNCTIONS_LIST = (
-                   "1:0:$_EQUIPMENT:equipment_model:"   => 5,
-                   "2:1:$_TYPE:equipment_type:"         => 5,
-                   "3:1:$_VENDOR:equipment_vendor:"     => 5,
-                   "4:0:$_EQUIPMENT:equipment_list:"    => 8,
-                   "5:4:$_EQUIPMENT:equipment_info:NAS_ID" => 8,
-                   );
+  "01:0:$lang{EQUIPMENT}:equipment_model:"                        => 5,
+  "02:1:$lang{TYPE}:equipment_types:"                             => 5,
+  "03:1:$lang{VENDOR}:equipment_vendor:"                          => 5,
+  # "04:1:$lang{BOXES}:equipment_boxes:"          => 5,
+  #	"05:4:$lang{TYPE}:equipment_box_types:"       => 5,
+  "06:0:$lang{EQUIPMENT}:equipment_list:"                         => 8,
+  "07:6:$lang{EQUIPMENT}:equipment_info:NAS_ID"                   => 8,
+  "08:0:$lang{TRAPS}:equipment_traps:"                            => 8,
+  "09:0:Vlan:equipment_vlan:"                                     => 8,
 
+  "10:6:$lang{EQUIPMENT} Backup:equipment_show_snmp_backup_files" => 8,
+  "11:6:Backup:equipment_backup:NAS_ID"                           => 8,
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  "12:6::equipment_snmp_upload:NAS_ID,IN_MODAL"                   => 8,
+  "13:6::equipment_snmp_backup:NAS_ID,IN_MODAL"                   => 8,
+  "14:0:$lang{EQUIPMENT}:equipment_monitor:"                      => 6,
+  "15:0:EQUIPMENT:equipment_panel_new:NAS_ID"                    => 8,
+);
 
 1

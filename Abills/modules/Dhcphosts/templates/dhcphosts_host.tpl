@@ -1,33 +1,163 @@
-<div class=noprint id=dhcphosts_host>
-<FORM action='$SELF_URL' MATHOD='POST' id='form_host'>
-<input type=hidden name=index value=$index>
-<input type=hidden name=UID value=$FORM{UID}>
-<input type=hidden name=ID value=$FORM{chg}>
-<input type=hidden name='step' value='$FORM{step}'>
-<table class=form width=450>
-
-<tr><th class=form_title colspan=2>DHCP</th></tr>			
-<tr><td>$_HOSTS_HOSTNAME:</td><td><input type=text name=HOSTNAME value='%HOSTNAME%'></td></tr>			
-<tr><td>$_HOSTS_NETWORKS:</td><td>%NETWORKS_SEL% %NETWORK_BUTTON%</td></tr>
-<tr><td>IP:</td><td><input type=text name=IP value='%IP%' size=15> $_AUTO: <input type=checkbox name=AUTO_IP value=1></td></tr>			
-<tr><td>$_HOSTS_MAC:<BR>(00:00:00:00:00:00)</td><td><input type=text name=MAC value='%MAC%'></td></tr>
-<tr><td>$_FILE:</td><td><input type=text name=BOOT_FILE value='%BOOT_FILE%'></td></tr>
-<tr><td>NEXT HOST:</td><td><input type=text name=NEXT_SERVER value='%NEXT_SERVER%'></td></tr>
-<tr><td>$_EXPIRE:</td><td><input type=text name=EXPIRE value='%EXPIRE%'></td></tr>
-<tr><td>$_DISABLE:</td><td><input type=checkbox name=DISABLE value='1' %DISABLE%></td></tr>
-<tr><td>$_COMMENTS:</td><td><input type=text name=COMMENTS value='%COMMENTS%'></td></tr>
-
-<tr><th colspan=2><input type=checkbox name=OPTION_82 onClick='samechanged(this)' value='1' %OPTION_82% NAME='same'> Option 82 </th></tr>
-<tr><td>$_SWITCH:</td><td>%NAS_SEL% %SWITCH_STATUS%</td></tr>
-<tr><td>$_PORT (1,2,5):</td><td>%PORTS%</td></tr>
-<tr><td>VLAN ID:</td><td><input type=text name=VID value='%VID%' size=10> Server: <input type=text name=SERVER_VID value='%SERVER_VID%' size=10> </td></tr>
+<style type='text/css'>
+    .grpstyle {
+        margin: 0 0 3px 0;
+    }
+</style>
 
 
-<tr class=even><td>$_ACTIVATE IPN:</td><td><input type=checkbox name=IPN_ACTIVATE value=1 %IPN_ACTIVATE%>%IPN_ACTIVATE_BUTTON%</td></tr>
-<tr><th class=even colspan=2>
-%BACK_BUTTON%
-<input type=submit name=%ACTION% value='%ACTION_LNG%'></th></tr>			
-</table>
+%MENU%
 
-</FORM>
-</div>
+<form action='$SELF_URL' METHOD='POST' id='form_host' class='form-horizontal'>
+    <input type=hidden name=index value=$index>
+    <input type=hidden name=UID value=$FORM{UID}>
+    <input type=hidden name=ID value=$FORM{chg}>
+    <input type=hidden name='step' value='$FORM{step}'>
+
+    <fieldset>
+        <div class='col-md-6'>
+
+    <div class='panel panel-default panel-form'>
+                <div class='panel-heading text-center'><h4>DHCP</h4></div>
+                        <div class='panel-body'>
+
+                <div class='form-group grpstyle'>
+                    <label class='control-label col-md-3' for='NETWORKS_SEL'>_{HOSTS_NETWORKS}_:</label>
+                    <div class='col-md-9'>
+                        %NETWORKS_SEL%
+                    </div>
+                </div>
+
+                <div class='form-group grpstyle'>
+                    <label class='control-label col-md-3' for='IP'>IP:</label>
+                    <div class='col-md-9'>
+                        <input type='text' id='IP' name='IP' value='%IP%' placeholder='%IP%' class='form-control'>
+                    </div>
+                </div>
+
+                <div class='form-group grpstyle'>
+                    <label class='control-label col-md-3' for='MAC'>MAC:<BR>(00:00:00:00:00:00)</label>
+                    <div class='col-md-9'>
+                        <input type='text' id='MAC' name='MAC' value='%MAC%' placeholder='%MAC%' class='form-control'>
+                    </div>
+                </div>
+
+                <div class='form-group grpstyle bg-primary'>
+                    <label class='control-label col-md-3' for='OPTION_82'>Option 82 </label>
+                    <div class='col-md-9'>
+                        <input id='OPTION_82' name='OPTION_82' value='1' %OPTION_82% type='checkbox'>
+                    </div>
+                </div>
+
+                <div class='form-group grpstyle'>
+                    <label class='control-label col-md-3' for='NAS_SEL'>_{SWITCH}_:</label>
+                    <div class='col-md-9'>
+                        %NAS_SEL%
+                    </div>
+                </div>
+
+                <div class='form-group grpstyle'>
+                    <label class='control-label col-md-3' for='PORTS'>_{PORT}_ (1,2,5):</label>
+                    <div class='col-md-6'>
+                        %PORTS%
+                    </div>
+                </div>
+
+                <div class='form-group grpstyle'>
+                    <label class='control-label col-md-3' for='VID'>VLAN ID:</label>
+                    <div class='col-md-3'>
+                        <input type='text' id='VID' name='VID' value='%VID%' placeholder='%VID%' class='form-control'>
+                    </div>
+
+                    <label class='control-label col-md-3' for='SERVER_VID'>Server: :</label>
+                    <div class='col-md-3'>
+                        <input type='text' id='SERVER_VID' name='SERVER_VID' value='%SERVER_VID%'
+                               placeholder='%SERVER_VID%' class='form-control'>
+                    </div>
+                </div>
+
+
+
+               <div class='form-group grpstyle'>
+                    <label class='control-label col-md-3' for='IPN_ACTIVATE'>_{ACTIVATE}_ IPN:</label>
+                    <div class='col-md-3'>
+                        <input id='IPN_ACTIVATE' name='IPN_ACTIVATE' value='1' %IPN_ACTIVATE% type='checkbox'>
+                        %IPN_ACTIVATE_BUTTON%
+                    </div>
+                </div>
+
+                <div class='form-group grpstyle'>
+                    <label class='control-label col-md-3' for='HOSTNAME'>_{HOSTS_HOSTNAME}_:</label>
+                    <div class='col-md-9'>
+                        <input type='text' id='HOSTNAME' name='HOSTNAME' value='%HOSTNAME%' placeholder='%HOSTNAME%'
+                               class='form-control'>
+                    </div>
+                </div>
+                        </div>
+
+        </div>
+                </div>
+                <div class='col-md-6'>
+                        <div class='form-group'>
+        <div class='panel panel-default panel-form'>
+            <div class='panel-heading'>
+                <a data-toggle='collapse' data-parent='#accordion' href='#_other'>_{OTHER}_</a>
+            </div>
+
+
+            <div id='_other' class='panel-collapse collapse out'>
+
+                        <div class='panel-body'>
+                <div class='form-group grpstyle'>
+                    <label class='control-label col-md-3' for='BOOT_FILE'>_{FILE}_:</label>
+                    <div class='col-md-9'>
+                        <input type='text' id='BOOT_FILE' name='BOOT_FILE' value='%BOOT_FILE%' placeholder='%BOOT_FILE%'
+                               class='form-control'>
+                    </div>
+                </div>
+
+                <div class='form-group grpstyle'>
+                    <label class='control-label col-md-3' for='NEXT_SERVER'>NEXT HOST:</label>
+                    <div class='col-md-9'>
+                        <input type='text' id='NEXT_SERVER' name='NEXT_SERVER' value='%NEXT_SERVER%'
+                               placeholder='%NEXT_SERVER%' class='form-control'>
+                    </div>
+                </div>
+
+                <div class='form-group grpstyle'>
+                    <label class='control-label col-md-3' for='EXPIRE'>_{EXPIRE}_:</label>
+                    <div class='col-md-9'>
+                        <input type='text' id='EXPIRE' name='EXPIRE' value='%EXPIRE%' placeholder='%EXPIRE%'
+                               class='form-control'>
+                    </div>
+                </div>
+
+                <div class='form-group grpstyle'>
+                    <label class='control-label col-md-3' for='DISABLE'>_{DISABLE}_:</label>
+                    <div class='col-md-9'>
+                        <input id='DISABLE' name='DISABLE' value='1' %DISABLE% type='checkbox'>
+                    </div>
+                </div>
+
+
+                 <div class='form-group'>
+                    <label class='control-label col-md-3' for='COMMENTS'>_{COMMENTS}_:</label>
+                    <div class='col-md-9'>
+                        <input type='text' id='COMMENTS' name='COMMENTS' value='%COMMENTS%' placeholder='%COMMENTS%'
+                               class='form-control'>
+                    </div>
+                </div>
+
+        </div>
+        </div>
+                </div>
+                </div>
+                </div>
+
+    <div class='form-group'>
+        <div class='col-md-12'>
+                %BACK_BUTTON% <input type='submit' class='btn btn-primary' name='%ACTION%' value='%ACTION_LNG%'>
+      </div>
+          </div>
+
+    </fieldset>
+</form>

@@ -1,1673 +1,944 @@
-=====0.58=====
+Список запланированных изменений [[abills:todo:todo|Todo List]]
 
-07.07.2015 \\
-  * ''Sms'' добавлена система txtlocal, smsc
-  * SMS Транслитерация сообщений $conf{SMS_TRANSLIT}
-  * Добавлена функция при регистрации отправлять смс абоненту с логином и паролем
+====0.74====
 
+===При переходе с 0.7х на 0.74  обязательно пересоздайте шаблоны и проверте неофициальные модули===
 
-06.06.2015 \\
-  * ''Paysys'' добавлены системы Stripe, Ощадбанк и другие
-  * добавлена система [[abills:docs:modules:paysys:e_vostok|E-vostok]] и регистрация абонентов через смс
-  * добавлен префикс при самостоятельной регистрации абонентов
-  * добавлена переменная тарифного плана по умолчанию при самостоятельной регистрации абонентов
 
-05.05.2015 \\
-  * Добавлен CAllcenter
-  * Обновлён модуль карт
+25.07.2016 \\
 
-MySQL \\
-  alter table web_online ADD COLUMN `sip_number`  VARCHAR(15) NOT NULL DEFAULT '';
+  * ''Ureports'' Поддержка модулей расширения отчётов
+  * ''Ureports'' Возможность запретить абонентам управлять отчётами
+  * Проверка занятости квартиры другим абонентов при регистрации
+  * [[abills:docs:manual:user_portal:info_fields|Информационные поля в кабинете пользователя]]
+  * [[abills:docs:manual:social_network:ru|Авторизация через социальные сети]] google, Instagram
+  * ''Netlist'' [[abills:docs:manual:admin:netlist:netlist_network_info|Шахматка IP адресов]]
 
-
-12.03.2015 \\
-
-  * Добавлен автоматический инсталятор install.sh
-  * улучшено отображение предупреждений об оплате за интернет
-  * улучшено отображение документов для печати
-  * переделана работа с PrivatBank Privat 24
-
-=====0.57=====
-
-12.11.2014 \\
-  * Обновлён авторизатор
-  * Добавлена для Mikrotik настраиваемая опция MIKROTIK_BURST
-  * ''Storage'' добавлены шаблоны контракта и акты оказания услуги
-  * ''Docs'' добавлен текущий депозит в информацию по счету
-  
-
-15.09.2014 \\
-
-  * В поле адресов  появилась возможность указывать резервный пул на случай окончания адресов
-  * Добавлен модуль информации о модулях системы и рекламных акциях
-  * ''Voip'' IVR  отчёт  поиск по звонкам и заявкам 
-  * ''Equipment'' информация по портам, активность портов, отключение портов, 9 количество свободных занятых портов
-  * ''Equipment'' информация о длине линии к абоненту 
-  * ''Equipment'' Статистика по трафику коммутатора
-  * ''Equipment'' ARP таблица
-  * ''Paysys'' обновлена логика работы с платёжными системами
-
-MySQL: \\
-
-  ALTER TABLE ippools ADD COLUMN `next_pool_id` smallint(6) unsigned NOT NULL default 0;
-
-09.09.2014 \\
-  * ''Paysys'' Приват банк платежи онлайн добавлена метод Upload, разрешает автоматически сверять поступления с Приватбанком
-  * ''Paysys'' Портмоне добавлена дополнительная проверка платежей
-  * ''Dv''  добавлен альтернативный логин для авторизации
-  * ''Dv''  возможность удаления услуги
-
-MySQL: \\
-
-  ALTER TABLE `dv_main` ADD COLUMN `dv_login` varchar(24) NOT NULL DEFAULT '';
-
-
-03.09.2014 \\
-  * ''Dv'' автоматический сброс сессий с дубликатами IP  адресов
-  * ''Paysys'' Privat 24 обновление получения XML выписок 
-  * MX80  добавлен мониторинг расхождения сессий, улучшен механизм восстановления потерянных сессий
-  * ''Dhcphosts''  добавлено поле Vlan в сети подключения
-
-MySQL: \\
-
-  ALTER TABLE `dhcphosts_networks` ADD COLUMN `vlan` smallint(5) unsigned NOT NULL DEFAULT '0';
-
-
-=====0.56=====
-18.08.2014 \\
-  * Исправлена ошибка аккаунтинга для оборудования Cisco 
-  * ''Docs''  добавлен отдельный шаблон для уже оплаченных счетов
-  * ''Docs''  добавлено учёт задолженности при создании счета из портала абонентов 
-  * ''Bonus'' Новый тип бонусной программы **Накопительный бонус пополнения**
-  * ''Paysys'' Добавлена система Redsys (Испания)
-  * ''Paysys'' Добавлена система Minbank (Россия)
-  * ''Paysys'' Обновлена система Privatbank Merchant
-  * ''Paysys'' Обновлена система Eript
-  * ''Paysys'' Обновлена система Webmoney
-  * ''Paysys'' Приватбанк разные мерчанты для разных груп абонентов  
-  * ''Paysys'' Приватбанк внешняя обработка для не зарегистрированыx абонентов 
-  * ''Dv''  исправлена ошибка в месячном перерасчете при расписании 
-  * ''Dv'' добавлена опция внешней диагностики $conf{DV_EXTERNAL_DIAGNOSTIC}
-  * ''Msgs'' проверка логина при заведении абонента с заявки на подключение
-  * ''Ureports'' добавлен поиск по телефону с отчёта СМС
-  * Программа контроля Vlan  на коммутаторах Cisco 
-  * ''Voip''  обновлён информатор баланса, добавлена мультиязычность
-  * ''SMS'' обновлён отчёт
-  * ''Vlan'' полностью переработан механизм работы 
-  * добавлена испанская локализация
-  * добавлены армянские шрифты для документов
-
-
-22.07.2014\\
-
-   * Добавлен модуль для работы с фильтрами РОСКОМНАДЗОР и автоматическая выгрузка фильтров для серверов доступа
-   * Добавлена быстрая регистрация абонентов с заявок на подключение
-
-MySQL: \\
-  ALTER TABLE `msgs_unreg_requests` ADD COLUMN `login` varchar(24) not null default '';
-
-
-
-16.06.2014\\
-  * ''Dv'' Отдельный пароль для сервиса
-  * ''Dv'' мониторинг дубликаты IP  адресов отмечаются синим
-  * ''Dv'' Дополнительная программа диагностики соединения $conf{DV_EXTERNAL_DIAGNOSTIC}
-  * accel_ppp динамическое изменении скорости через RADIUS CoA
-  * ''Paysys'' добавлен [[abills:docs:modules:paysys:ru#interaktivnyj_rezhim|интерактивные режим пополнения]]
-  * ''Paysys'' добавлена минимальная максимальная сума пополнения
-
-MySQL:\\
-  ALTER TABLE admins ADD COLUMN max_credit double(12,4) NOT NULL default '0.00';
-  ALTER TABLE admins ADD COLUMN credit_days SMALLINT not null default 0;
- 
-12.05.2014\\
-
-  * Voip IVR  добавлена возможность выставление кредита
-  * Voip IVR  запись заявки на технические работы
-  * Voip IVR  Оповещение о рекламных акциях
-  * Voip IVR  информация о всех услугах абонента
-  * ''Paysys'' Обновлён Eript к версии 0.5
-  * ''Paysys'' Обновлён Liqpay
-  * ''Paysys'' Обновлён CoPayCo
-  * ''Paysys'' Webmoney   добавлен максимальный   минимальный лимит пополнения 
-  * ''Docs'' Добавлена переменная счета DOCS_ACCOUNT_EXPIRE_DAY
-  * ''Dv'' Обновлена ротация логов детализации
-  * ''Dv'' Обновлён модуль Mx80  и Redback
-  * ''Voip'' Добавлена поддержка [[abills:docs:nas:eltex:ru:eltex_smg|Eltex SMG]]
-  * ''Msgs'' Добавлена возможность регистрации абонентов через заявки подключения
-  * Добавлена атворизация в личном кабинете по нескольким параметрам
-  * Обновлено Snmputils
-  * Улучшен визард настройки Mikrotik [[http://www.youtube.com/watch?v=M6YU9g9W9VU|Видео демонстрация]]
-
-MySQL:\\
-  ALTER TABLE `dv_log_intervals` CHANGE  `sent` `sent` bigint(14) unsigned NOT NULL default '0';
-  ALTER TABLE `dv_log_intervals` CHANGE  `recv` `recv` bigint(14) unsigned NOT NULL default '0';
-  ALTER TABLE `msgs_unreg_requests` ADD COLUMN `tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
-  ALTER TABLE `equipment_models` ADD COLUMN  manage_web varchar(50) NOT NULL default '';
-  ALTER TABLE `equipment_models` ADD COLUMN  manage_ssh varchar(50) NOT NULL default '';
-  CREATE TABLE voip_ivr_log (
-    id int unsigned not null auto_increment primary key,
-    datetime datetime NOT NULL default '0000-00-00 00:00:00',
-    phone varchar(16) NOT NULL default '',
-    comment  varchar(20) NOT NULL default '',
-    uid int unsigned NOT NULL default 0,
-    KEY uid(uid)
-  ) COMMENT 'Voip ivr log';
-
-24.02.2014\\
-  * ''Docs'' Новые переменнЫе шаблонов счетов
-  * ''Equipment'' добавлен опрос оборудования и отчёты по портам 
-  * ''Dv'' Добавлена возможность запрета перехода на ТП определённым групам абонентов
-  * Обновления в модулях портала, документов,интернет,карт
-  * 'Mx80' добавлены выражения определения DHCP Option 82
-
-MySQL:\\
-
-  ALTER TABLE `groups` ADD COLUMN `disable_chg_tp` tinyint(1) unsigned not null default 0;
-
-12.01.2014\\
-  * Введен новый тип записи в логе подключений GUEST_MODE
-  * Добавлен отчёт оплаты снятия с разрезом по месяцам
-  * ''Abon''  добавлена поддержка мультидомености
-  * ''Paysys'' Privat 24  добавлена возможность введения комиссии провайдера
-  * Ускорена авторизации при больших нагрузках 
-  * Доработан механизм компенсаций за нерабочие дни
-  * MX80 добавлена авторизацию PPPoE Pluse
-  * MX80 добавлена ведение MAC адресов в едином формате xx:xx:xx:xx:xx:xx для совместимости с другими серверами доступа
-  * Добавлено ведение комментариев при удалении оплат и снятий денег
-  * Мелкие правки в Docs,Snmputils,Mdelivery,Msgs
-
-MySQL:\\
-
-  ALTER TABLE abon_tariffs ADD COLUMN `domain_id` smallint(6) unsigned not null default 0;
-
-=====0.55=====
-1.11.2013\\
-
-   * Обновлена функция перерасчёта при изменении тарифного плана
-   * ''Paysys'' Добавлены CashCom, PayU
-   * ''Paysys'' Обновлён Privat Terminal
-   * ''Dv'' Добавлены параметры радиус пар для фильтров
-   * shaper_start.sh  добавлена автонастройка для распределения трафика по нескольким каналам 
-   * Добавлен параметр идентификации времени завершения услуги
-   * ''Sms'' Добавлен более гибкий шаблон восстановления пароля
-   * ''Sms'' добавлен фильтр отчёта
-   * ''Docs'': Добавлен альтернативный шаблон для счетов 
-   * Порядок работы радиус дополнительных радиус параметров изменён на tp -> user -> nas
-   * ''Abon'' добавлена форма поиска
-   * Обновлён алгоритм поиска и сортировки по IP и Адресам
-   * ''Docs'' добавлено формирование документов с фиксированной датой услуги
-   * ''Dhcphosts'' добавлена проверка на не заполненные мак адреса для абонентов с одинаковым портом коммутатора
-   * ''Dhcphosts'' добавлено поле статуса услуги Internet
-   * ''Ureports'' добавлен отчёт изменения услуги интернет
-   * ''Rwizard'' добавлен дополнительный фильтр по адресу
-   * обновлён mikrotik шейпер
-   * ''Ureports'' добавлено во все отчёты, рекомендованная сума оплаты и время завершения услуг
-   * Работаем с реестром запрещенных ресурсов
-
-18.07.2013\\
-  * Добавлен импорт адресов и дополнительные поля для домов
-  * ''Paysys'' добавлена возможность импортировать файлы по маске
-  * ''Paysys'' протокол OSMP добавлен курс обмена при оплате
-  * ''Pasysy'' добавлена система [[abills:docs:modules:paysys:ru#sms_online|SMSOnline]]
-  * multi_docs.pl добавлена дата создания документа и поточный депозит
-
-MySQL:\\
-
-  ALTER TABLE builds ADD COLUMN contract_id varchar(12) not null default '';
-  ALTER TABLE builds ADD COLUMN contract_date date not null default '0000-00-00';
-  ALTER TABLE builds ADD COLUMN contract_price double(15,6) NOT NULL default '0.000000';
-  ALTER TABLE builds ADD COLUMN comments text;
-  
-
-24.06.2013\\
-
-  * Добавлено отдельное поле завершение для каждой услуги
-  * В консольный генератор счетов добавлена опция включения текущего депозита в счёт
-  * Добавлена опция заведения номера дома в адрес адресов из формы персональной информации абонента
-  * Добавлены платёжные системы Okpay, PerfectPay
-  * Обновлён портал в свободной версии
-  * Добавлены кнопки перехода с учётной записи абонента на карту сети с отображением его местоположения
-  * ''Cards'' Добавлен фильтр для печати карточек
-  * Операции изменения кредита, приостановки из личного кабинета выполняются после подтверждения пользователем прочтения правил
-  * ''Ureports'' предупреждение о абон. плате за несколько дней до списания  
-  * ''Ureports''  оповещение о зачислении средств
-  * ''Ureports''  Все отчёты вынесены в отдельные шаблоны
-  * ''Dv'' добавлено поле Online в список абонентов
-
-
-MySQL:\\
-
-  ALTER TABLE dv_main ADD COLUMN `expire` date NOT NULL default '0000-00-00';
-  ALTER TABLE iptv_main ADD COLUMN `expire` date NOT NULL default '0000-00-00';
-  ALTER TABLE voip_main ADD COLUMN `expire` date NOT NULL default '0000-00-00';
-
-15.05.2013\\
- 
-  * Активация учётной записи после подтверждения её супер администратором 
-  * ''Snmputils''  добавлена выборка MAC с зарегистрированных коммутаторов 
-  * ''Snmputils''  поиск дубликатов маков на разных коммутаторах
-  * ''Snmputils''  загрузка списка коммутаторов из файла
-  * ''Snmputils''  поиск мака по списку коммутаторов
-  * Freeradius DHCP выражения распознавания опции 82  стали более гибкими
-  * Более гибкая настройка списков отображения
-  * Разрешение кредита из личного кабинета для определённых групп
-  * Запрет пополнения через терминалы и личный кабинет для определённых групп 
-  * ''Snmputils''  добавлена блокировка портов для коммутаторов 
-  * ''Rwizard'' добавлены поля по умолчанию для формирования отчётов
-
-
-MySQL:\\
-
-  ALTER TABLE groups ADD COLUMN `allow_credit` tinyint(1) unsigned not null default 0;
-  ALTER TABLE groups ADD COLUMN `disable_paysys` tinyint(1) unsigned not null default 0;
-  
-  CREATE TABLE `admin_settings` (
-    `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-    `object` varchar(20) NOT NULL default '',
-    `setting` text not null,
-    PRIMARY KEY  (`aid`, `object`)
-  ) COMMENT="Admins settings";
-
-
-
-03.04.2013\\
-  * Добавлена в основную ветку поддержка IPv6
-
-MySQL:\\
-
-  ALTER TABLE dv_calls ADD COLUMN framed_interface_id VARBINARY(16) not null default '';
-  ALTER TABLE dv_calls ADD COLUMN framed_ipv6_prefix VARBINARY(16) not null default '';
-  ALTER TABLE dv_log ADD COLUMN framed_ipv6_prefix VARBINARY(16) not null default '';  
-  ALTER TABLE ippools  ADD COLUMN ipv6_prefix VARBINARY(16) not null default '';
-  
-
-28.03.2013\\
-
-  * Возврат потерянных сессий в биллинг.
-  * Быстрый переход на карту в учётной записи пользователя и в серверах доступа
-  * Добавлена ssh консоль для быстрой работы с сервером доступа через веб
-  * Быстрый переход на SNMP  управления с сервера доступа
-  * Отображение абонентов определённого коммутатора
-  * Перерасчёт тарифных планов при не плановом изменении
-  * ''Rwizard'' добавлен импорт экспорт отчётов
-  * ''Rwizard'' добавлены мета символы для запросов и панель выборки
-
-MySQL:\\
-  ALTER TABLE dv_log_intervals ADD COLUMN `uid` int(11) unsigned NOT NULL default '0';
-  ALTER TABLE dv_log_intervals ADD KEY `uid` (`uid`);
-  ALTER TABLE dv_log DROP column kb;
-  ALTER TABLE dv_log DROP column minp;
-
-
-05.03.2013 \\
-  * ''Dv'' $conf{DV_PREPAID_PERIOD_CREDIT}  кредит на предоплаченній период
-  * ''Dv'' Снятие абоплаты статически каждого месяца в один и тотже день
-
-MySQL:\\
-  ALTER TABLE tarif_plans ADD COLUMN `fixed_fees_day` tinyint(1) NOT NULL default '0';
-  ALTER TABLE nas change column mng_host_port `mng_host_port` varchar(25) not null default '';
-
-
-
-05.02.2013 \\
-
-  * ''Cards'' Процентное начисление дилеру при пополнении карточкой
-  * ''Dv'' Новый статус  "Заблокирован из за вирусов"
-  * ''Dv'' Добавлено сообщение о суме оплаты для активации заблокированной  услуги в кабинете администратора 
-  * ''Dv'' фильтр гостевой доступ
-  * ''Dv'' добавлена поддержка [[abills:docs:modules:dv:ru?&#pppoe|PPPoE+]]
-  * ''Ipn'' Переинициализация сессий  добавлено фильтр по IP
-  * ''Maps'' Добавлен фильтр активные/неактивные пользователи дома
-  * ''Paysys'' Liqpay  добалена поддержка Multidoms
-  * ''Paysys'' Liqpay  добалена поддержка конвертации при платеже
-  * ''Paysys'' Добавлена система [[abills:docs:modules:paysys:ru?&#express_pay|Express Pay]]
-  * ''Snmputils'' Добавлена проверка радио сигнала для MIkrotik
-  * Coockie авторизация добавлена кнопка выхода с админ интерфейса
-  * Поднятие шейперов для Mikrotik 6 billd checkspeed mikrotik RECONFIGURE=1 NAS_IDS=1 MIKROTIK6=1
-  * Добавлен лог выполняемых на микротике команд 
-  * ''Sms'' Выравнивание неправильно набраных номеров $conf{SMS_NUMBER_EXPR}
-  * ''Dhcphosts'' Freeradius Принудительная атворизация по маку для определённых коммутаторов $conf{DHCPHOSTS_SWITCH_MAC_AUTH}
-  * ''Iptv'' поддержка Stalker API (возможность держать Cталкер на удалённом хосте)
-  * Добавлен для линукса общий скрипт поднятия фаервола и шейпера shaper_start.sh
-
-
-03.10.2012 \\
-  * ''Abon'' галочка снимать абон. плату только в ручном режиме 
-  * ''Abon'' ручная активация услуг. Возможность заказать и дозаказать услугу на дополнительный термин
-  * ''Dv'' настраиваемые шаблоны журнала начислений [[abills:docs:modules:dv:ru#shablon_formirovanija_opisanija_nachislenij|Подробней]]
-
-MySQL:\\
-  ALTER TABLE `abon_user_list` ADD COLUMN `manual_fee` tinyint(1) unsigned NOT NULL DEFAULT 0;
-
-
-17.09.2012 \\
-
-  * ''Ureports'' $conf{UREPORTS_SKIP_ACTIVATE_SMS}=1;  не отправлять SMS при активации и изменении данных услуги
-  * ''Cards'' В интерфейсе дилера добавлена печать отдельных карточек списка 
-  * ''Voip'' Добавлены фильтры оповещения о негативном депозите и маленьком депозите перед разговором, лимит оповещения устанавливается в ТП
-  * ''Dv'' Изменены названия шаблонов памятки абонента  dv_user_info на dv_user_memo
-  * ''Marketing'' Добавлен расширенный отчёт **IP/DHCP**
-  * ''Paysys'' Добавлена опция указывающая суму минимальной оплаты для платежей через портал $conf{PAYSYS_MIN_SUM}=0;
-  * Добавлена детализация выполнены расписаний
-  * ''Ipn'' Добавлены фильтр активации и переинициализации сессий: LOGINS, GIDS, TP_IDS
-  * ''Dv'' Добавлены возможность периодически выводить сообщение о необходимости пополнить депозит для абонентов с негативным депозитом 
-  * ''Abon'' Ручная активация простроченных услуг 
-  * Включение дополнительных услуг в аккаунте абонента
-
-MySQL:\\
-
-   ALTER TABLE `voip_main` ADD COLUMN  `filter_id` varchar(150) NOT NULL default '';
-   ALTER TABLE `abon_tariffs` ADD COLUMN  `manual_activate` tinyint(1) NOT NULL default 0;
-   ALTER TABLE `abon_tariffs` ADD COLUMN  `user_portal` tinyint(1) NOT NULL default 0;
-   CREATE TABLE reports_wizard (
-     id int(11) unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
-     name varchar(100) not null default '',
-     comments text not null,
-     query text not null default '',
-     query_total text not null,
-     fields text not null,
-     date date not null default '0000-00-00',
-     aid smallint(11) unsigned NOT NULL default 0,
-     unique (name)
-   ) COMMENT 'Reports Wizard';
-
-
-
-06.08.2012 \\
-  * Добавлена возможность отключать отображение депозита для администратора 
-  * ''Snmputils'' Добавлена поддержка управления портами HP, Cisco  коммутаторов
-  * Добавлен мульти поиск при введении данные в правом верхнем углу система ищет по Логину, ФИО, Номеру контракта, Адресу, Номеру паспорта, UID, Email, кометарию. Система выделяет цветом найденные соответствия поиска.
-  * ''Dv'' Добавлен отчёт по Тарифным планам
-  * При добавлении абонента можно внести номер дома и если он не существует в системе его будет добавлено
-  * ''Sms'' Добавлены службы рассылки СМС: EpochtaSMS, LittleSMS
-  * ''Maps'' Добавлены колодцы, зоны покрытия 
-
-
-20.07.2012\\
-
-  * ''Dv'' Добавлено разделение груп тарифных планов цветами
-  * ''Dv'' $conf{DV_CURDATE_ACTIVATE}=1; Активировать приостановленный за неуплату сервис текущей датой. по умолчанию сервис 
-активируется следующей учётной датой. 
-  * ''Docs'' Привязка оплат к счетам с возможностью привязывать одну оплату к нескольким счетам или один счет к нескольким оплатам.
-  * ''Dhcphosts'' Добавлен Server Vlan  для авторизации q-in-q
-
-
-
-MySQL: \\
-
-  ALTER TABLE payments ADD COLUMN `reg_date` datetime NOT NULL default '0000-00-00 00:00:00';
-  CREATE TABLE docs_invoice2payments (
-  `invoice_id` int(11) unsigned NOT NULL default 0,
-  `payment_id` int(11) unsigned NOT NULL default 0,
-  `sum` double(10,2) NOT NULL default '0.00',
-  PRIMARY  KEY `invoice2payments` (`invoice_id`, `payment_id`),
-  FOREIGN KEY (payment_id) REFERENCES payments(id),
-  FOREIGN KEY (invoice_id) REFERENCES docs_invoices(id)
-  ) COMMENT='Docs Invoice to payments' ;
-  REPLACE INTO docs_invoice2payments (SELECT i.id, i.payment_id, p.sum FROM docs_invoices i, payments p WHERE i.payment_id=p.id);
-  
-  create table id (id int not null default 0);
-  
-  DELETE FROM id;
-  INSERT INTO id SELECT r.id from docs_receipts r LEFT JOIN payments p ON (p.id=r.payment_id) WHERE p.id IS null;
-  DELETE from docs_receipts  WHERE id in (SELECT id from id);
-  
-  DELETE FROM id;
-  INSERT INTO id SELECT ro.receipt_id from docs_receipt_orders ro LEFT JOIN docs_receipts r ON (r.id=ro.receipt_id) WHERE ro.receipt_id IS null;
-  DELETE from docs_receipt_orders  WHERE receipt_id in (SELECT id from id);
-  
-  ALTER TABLE docs_receipts ADD FOREIGN KEY (payment_id) REFERENCES payments(id);
-  ALTER TABLE docs_receipt_orders ADD FOREIGN KEY (receipt_id) REFERENCES docs_receipts(id);
-  ALTER TABLE docs_invoice_orders ADD FOREIGN KEY (invoice_id) REFERENCES docs_invoices(id);
-   
-  ALTER TABLE `dhcphosts_hosts` ADD COLUMN `server_vid` smallint(6) unsigned NOT NULL default '0';
-
-
-09.06.2012\\
-  * Добавлен экспорт в csv
-  * Создан автоконфигуратор mikrotik
-  * Добавленно создание правил NAT  при инициализации праивл шейпера
-  * Добавлен плагин billd чистки Dhcpleases (dhcp_clean_leases)
-  * ''Ipn'' Поддержка sflow
-  * ''Docs''  добавлена возможность выводить типы услуг в счетах с  типов начислений $conf{DOCS_FEES_METHOD_ORDERS}=1;
-  * ''Abon'' возможность указывать несколько однотипных услуг для абон. платы 
-
-MySQL:\\
-  ALTER TABLE `abon_user_list` ADD COLUMN `service_count` smallint(4) unsigned NOT NULL DEFAULT 1;
-  UPDATE abon_user_list SET service_count=1;
-
-
-=====0.54=====
-
-04.06.2012\\
-  *  fetch_backup  программа закачивает бекап абилса с удалённого сервера и загружает в базу на локальном
-
-MySQL:\\
-  ALTER  TABLE `web_online` ADD COLUMN `sid` varchar(32) NOT NULL default '';
-  ALTER  TABLE `web_online` ADD COLUMN `ext_info` varchar(200) NOT NULL default '';  
-  ALTER  TABLE `web_online` ADD PRIMARY KEY  (`sid`);
-  ALTER  TABLE `web_online` ADD COLUMN `aid` smallint(6) unsigned NOT NULL default '0';
-
-21.05.2012\\
-
-  * ''Dhcphosts'' ДОбавлена возможность задавать регулярное выражение для определения Remote-Id и Circuit-Id
-  * Добавлена работа с сервером доступа Juniper MX80
-  * ''Dv'' Редирект на страницу предупреждения о окончании баланса у абонента (для фильтра негативного депозита)
-  * ''Dv'' $conf{DV_SKIP_QUEUE} Отключение регулировки очереди для DUMMYNET. Поднимает производительность системы
-  * ''Dv'' Разрешать изменять тарифный план для распределённой абоненты только при суме достаточной на 1 месяц работы и больше  $conf{DV_FULL_MONTH}=1; 
-  * ''Dv'' В фильтр негативного депозита добавлена опция предоставлять интернет на минимальной скорости вместо блокировки. Перед предоставлением интернета пользователю открывается сообщение что ему нужно оплатить интернет для полноценной работы
-  * ''Docs'' Добавлена перем пенная разделять счета с большим количеством позиций на несколько счетов. $conf{DOCS_INVOICE_ORDERS}=10;	Количество позиций в счете. По умолчанию 10 
-  * ''Docs''  Ведение счетов в нескольких валютах
-  * ''Paysys'' Payonline, PrivatBank Soap, ePay, СyberPlat
-  * Дробная часть в поле сума журнала начислений увеличина до 4 символов
-
-MySQL:\\
-
-  ALTER TABLE  `fees` CHANGE COLUMN `sum` `sum` double(12,4) NOT NULL default '0.00';
-
-24.03.2012\\
-
-  * ''Dv'' Отчёт должники,  вывод всех клиентов с сумой долга большей месячной абон. платы 
-  * Переодическая установка кредита клиентам на всею суму предоставляемых услуг
-  * ''Dhcphosts''  FreeradiusDHCP добавлена возможность выдавать IP только на определённых портах Assign-Ports=""
-  * ''Cards'' установка статуса использовано для универсальный карт после первого логина ими
-  * ''Redback'' Перенаправление на разные страницы в зависимости от типа ошибки подключения 
-  * ''Dv'' $conf{DV_SKIP_CHG_TPS}  не показывать тарифные планы в меню изменения тарифного плана личного кабинета
-  * ''Dv'' Редирект на страницу информации о завершении учётного периода.
-  * ''Dv'' Механизм фильтрации трафика для определённых тарифных планов при помощи Squid
-  * ''Docs'' $conf{DOCS_PRE_INVOICE_PERIOD}=10; Вынесена в конфигурационный файл переменная задающая за сколько дней до начала учётного периода генерировать счета абонентам 
-  * ''Docs'' Возможность задавать поля для отображения в таблице (Пример $conf{DOCS_INVOICES_LIST}='invoice_num,
-date,customer,total_sum,login, admin_name,created,method, ext_id,group_name';) (скоро будет доступно для всех отчётов системы)
-  * ''Docs'' Галочка учета баланса при формировании счета
-  * ''Docs'' Признак оплаченной и неоплаченной услуги в счете, дополнительные параметры шаблонов
-
-
-20.03.2012\\
-  * ''Iptv'' Отчёт использования каналов пользователями
-  * ''Marketing'' Отчёт по использованию Triplay  услуг провайдера
-  * ''Docs'' усовершенствована программа генерации переодических счетов на оплату
-  * ''Docs'' Признак счета 'удалён'
-  * $conf{PAYMENTS_NOT_CREATE_INVOICE}=1 Отключить создание счетов при внесении оплаты, остаётся только выбор из уже существующих счетов
-  * ''Dv'' $conf{DV_TP_CHG_FREE}='360'; Бесплатная смена тарифного плана для абонента являющегося пользователям больше указанного периода времени. Указывается в днях.
-  * ''Bonus'' установка скидки при оплате на определённый период
-  * ''Iptv'' Добавлена возможность запускать внешние программы при изменении и добавлении сервиса  $conf{IPTV_USER_EXT_CMD} 
-  * ''Iptv'' iptv_access_ctl.pl  программа контроля доступа абонентов 
-  * ''Voip'' Добавлена опция NAT
-  * ''Cards'' Запрет пополнения пользователям прикреплённым к компаниям $conf{CARDS_SKIP_COMPANY}
-  * ''Cards'' Расширенный отчет по дилерам
-  * $oonf{PAYMENTS_NOT_CHECK_INVOICE_SUM}=1  отключить при пополнении проверку на точность сумы оплаты и счета 
-
-
-MySQL:\\
-
-  ALTER TABLE `voip_main` ADD COLUMN `nat` tinyint(1) unsigned NOT NULL default '1';
-  ALTER TABLE `docs_invoices` ADD COLUMN `deleted` tinyint(1) unsigned NOT NULL default '1';
-  ALTER TABLE `dv_main` ADD COLUMN `free_turbo_mode` smallint(6) unsigned NOT NULL default '0';
-
-
-
-
-12.02.2012\\
-  * ''Docs'' Изменена структура базы данных для модуля документов. внимательно при обновлении! таблица docs_invoice переименована в docs_receipts, таблица docs_accounts в docs_invoices, также изменились шаблоны: с invoice на  receipt,  account   на invoice
-  * При оплате в валюте отличающейся от системной сума валюты оплаты и код валюты  вносится в журнал платежей 
-  * ''Docs'' Добавлено поле для регистрации последнего периодического счета
-
-
-MySQL:\\
-
-  ALTER TABLE payments ADD COLUMN currency smallint unsigned not null default 0;
-  ALTER TABLE payments ADD COLUMN amount double(10,2) NOT NULL default '0.00';
-  
-  RENAME TABLE docs_invoice TO docs_receipts;
-  ALTER TABLE docs_receipts CHANGE COLUMN invoice_id receipt_num int(10) unsigned NOT NULL default '0';
-  ALTER TABLE docs_receipts ADD COLUMN  exchange_rate double(12,4) NOT NULL default '0.0000';
-  ALTER TABLE docs_receipts ADD COLUMN  currency smallint(6) unsigned  NOT NULL default 0;
-  
-  RENAME TABLE docs_invoice_orders TO docs_receipt_orders;
-  ALTER TABLE docs_receipt_orders ADD COLUMN `fees_id` int(11) unsigned NOT NULL default 0;
-  ALTER TABLE docs_receipt_orders ADD key fees_id (fees_id);
-  ALTER TABLE docs_receipt_orders CHANGE COLUMN invoice_id receipt_id int(11) unsigned NOT NULL default '0';
-  ALTER TABLE docs_receipt_orders DROP KEY invoice_id;
-  ALTER TABLE docs_receipt_orders ADD KEY receipt_id (receipt_id);
-  
-  RENAME TABLE docs_acct TO docs_invoices;
-  ALTER TABLE docs_invoices CHANGE COLUMN acct_id invoice_num int(10) unsigned NOT NULL default '0';
-  ALTER TABLE docs_invoices ADD COLUMN deposit double(15,6) NOT NULL default '0.000000';
-  ALTER TABLE docs_invoices ADD COLUMN delivery_status tinyint(2) unsigned NOT NULL default '0';
-  ALTER TABLE docs_invoices ADD COLUMN exchange_rate double(12,4) NOT NULL default '0.0000';
-  ALTER TABLE docs_invoices ADD COLUMN currency smallint unsigned  NOT NULL default 0;
-  
-  RENAME TABLE docs_acct_orders TO docs_invoice_orders;
-  ALTER TABLE docs_invoice_orders ADD COLUMN fees_id int(11) unsigned NOT NULL default 0;
-  ALTER TABLE docs_invoice_orders CHANGE COLUMN acct_id invoice_id int(10) unsigned NOT NULL default '0';
-  ALTER TABLE docs_invoice_orders DROP KEY aid;
-  ALTER TABLE docs_invoice_orders ADD KEY invoice_id (invoice_id);
-  
-  ALTER TABLE docs_main ADD COLUMN  invoice_date date NOT NULL default '0000-00-00';
-
- 
-
-6.02.2012\\
-  * ''Docs'' добавлен флаг персональной доставки документов
-  * ''Docs'' добавлен период инвойсирования 
-  * ''Docs'' выписка счетов по начисленным услугам
-  * ''Docs'' Выписка счетов в валюте билинговой системы и в параллельной валюте с учётом курса обмена
-  * ''Docs''  валюта документов $conf{DOCS_CURRENCY}
-  * Возврат при пополнении счета должников в преведущую группу
-  * Возможность задать дату оплаты и все пополнения делать заданным числом. Дата пополнения и внутренние комментарии сохраняется до конца сеанса
-  * ''Dv'' Изменилась детализация начинаний абон. платы
-  * Добавлен новый интерфейсный элемент поиска для серверов доступа
-  * ''Paysys'' новые платёжные системы: Ipay, CyberPlat, Cyberplat VISA, PayNET, Zaplati Summy, Газпромбанк, TellCell
-  * Добавлена опция $conf{SYSTEM_CURRENCY}  задающая валюту системы
-
-
-MySQL:\\
-
-  ALTER TABLE `docs_main` ADD COLUMN  `personal_delivery` tinyint(1) unsigned NOT NULL default '0';
-  ALTER TABLE `docs_main` ADD COLUMN  `invoicing_period` tinyint(3) unsigned NOT NULL default '0';
-  ALTER TABLE `exchange_rate_log` ADD COLUMN `id`  int(10) unsigned NOT NULL auto_increment primary key;
-  ALTER TABLE `dv_calls` ADD COLUMN `guest` tinyint(1) unsigned NOT NULL default '0';
-  ALTER TABLE `dv_calls` CHANGE COLUMN  CONNECT_INFO `CONNECT_INFO` varchar(30) NOT NULL default '';
-
-
-
-
-17.03.2012\\
-  * ''Docs''  добавлен флаг персональной доставки документов
-  * ''Docs''  добавлен период инвойсирования 
-
-MySQL:\\
-
-  ALTER TABLE `docs_main` ADD COLUMN  `personal_delivery` tinyint(1) unsigned NOT NULL default '0';
-  ALTER TABLE `docs_main` ADD COLUMN  `invoicing_period` tinyint(3) unsigned NOT NULL default '0';
-
-
-14.02.2012\\
-  * ''Storage'' Добавлена возможность аренды оборудование
-  * ''Storage'' Добавлена возможность продажи оборудование
-  * ''Storage'' Добавлена возможность прикрепления арендованного оборудования к модулю ведения сети (Dhcphosts)
-  * ''Ipn'' Улучшен механизм ротации логов Ipn
-  * Добавлена возможность PoD сброса для mpd5
-
-MySQL:\\
-
-  ALTER TABLE storage_incoming_articles ADD COLUMN `sell_price` int(10) unsigned NOT NULL default '0';
-  ALTER TABLE storage_incoming_articles ADD COLUMN `rent_price` int(10) unsigned NOT NULL default '0';
-  ALTER TABLE storage_installation ADD COLUMN `mac` varchar(40) NOT NULL;
-  ALTER TABLE storage_installation ADD COLUMN `type` smallint(1) NOT NULL;
-  ALTER TABLE storage_installation ADD COLUMN `grounds` varchar(40) NOT NULL;
-  ALTER TABLE storage_installation ADD COLUMN `date` date NOT NULL default '0000-00-00';
-  CREATE TABLE IF NOT EXISTS `storage_sn` (
-    `id` int(11) NOT NULL auto_increment,
-    `storage_incoming_articles_id` smallint(6) NOT NULL,
-    `storage_installation_id` smallint(6) NOT NULL,
-    `serial` text NOT NULL,
-    PRIMARY KEY  (`id`)
-  ) DEFAULT CHARSET=utf8;
-
-
-23.12.2011\\
-
-  * ''Voip'' Добавлена поддержка Cisco Unified Provision
-  * ''Paysys'' Добавлен функционал наследования, несколько платёжных систем могут использовать один протокол 
-  * ''Dv'' Предупреждение в личном кабинете о следующем списании 
-
-MySQL
-  ALTER TABLE voip_main ADD COLUMN `provision_nas_id` smallint(6) unsigned NOT NULL default '0';
-  ALTER TABLE voip_main ADD COLUMN `provision_port` smallint(6) unsigned NOT NULL default '0';
-
-
-15.12.2011\\
-  * ''Msgs''  добавлено меню ответственный
-  * ''Cards'' Улучшена печать карточек в интерфейсе  дилера
-  * ''Voip'' Добавлен интервал тарификации
-
-MySQL:\\
-  ALTER TABLE `voip_tps` ADD COLUMN `time_division` smallint(6) unsigned NOT NULL default '0';
-
-
-09.12.2011\\
-  * Работа с Unnumbered Vlan
-MySQL:\\
-  
-  ALTER TABLE `vlan_main` ADD COLUMN  `unnumbered_ip` int(10) unsigned NOT NULL default '0';
-
-05.12.2011\\
-  * ''Docs'' добавлена привязка начислений к счетам фактур
-  * ''Docs'' Добавлены дополнительные поля в счета фактуры: статус отправки, депозит на момент выписки счета, сума к оплате
-  * Добавлен вывод всех сервисов пользователя в учётной записи $conf{USER_ALL_SERVICES}=1;
-  * ''Dhcphosts''  активация Ipn c IP (Dhcp) меню
-  * ''Dhcphosts'' Freeradius DHCP  добавлена возможность выдавать независимые гостевые сети на VLAN
-  * ''Docs'' Добавлены дополнительные поля в счета: статус отправки, депозит на момент выписки счета, сума к оплате
-  * ''Docs'' Формирование счетов по всем услугам на следующий учётный период
-  * Предупреждение пользователя о оплате следующего учётного периода
-
-09.11.2011\\
-  * Обновлён шейпер для Mikrotik: улучшена производительность, переработана IPN режим работы **обязательно проверте наличие параметра Mikrotik-Address-List в  radius словаре**. Если версия Mikrotik OS ниже 3.10 нужно указывать в радиус парах сервера доступа !Mikrotik-Address-List=0
-  * Добавлено установки прав на скидку в аккаунте абонента
-  * ''Msgs'' добавлено  заявки с заполненными полем ответственный видит только ответственный и автор при установке прав ''ADD''
-  * ''Msgs'' добавлена возможность выносить кнопки разделов в меню быстрого запуска
-  * ''Ashield'' добавлена реактивация приостановленных  подписок
-  * ''Portal'' Выпущен новый модуль
-  * ''Extfin'' Добавлен сводный отчёт Пополнения счета / снятия
-  * ''Extfin'' Добавлена отчёт баланс абонентов на начало месяца периода 
-  * ''Dv'' добавлена возможность запускать внешние программы во время включения Turbo режима 
-  * ''billd'' добавлен плагин слежения за запущенными процессами 
-  * ''Dv'' Добавлено поле установки типизации начислений по абон. плате
-
-MYSQL:\\
-  ALTER TABLE tarif_plans ADD fees_method tinyint(4) UNSIGNED NOT NULL DEFAULT '0';
-  CREATE TABLE `extfin_balance_reports` (
-    `id` int(11) unsigned NOT NULL auto_increment,
-    `period` varchar(7) NOT NULL default '0000-00',
-    `sum` double(14,2)  NOT NULL default '0.00',
-    `bill_id` int(11) unsigned NOT NULL default '0',
-    `aid` smallint(6) unsigned NOT NULL default '0',
-    `date` date NOT NULL default '0000-00-00',
-    PRIMARY KEY  (`id`),
-    UNIQUE KEY `id` (`id`),
-    UNIQUE KEY `period` (`period`,`bill_id`)
-  ) COMMENT='Extfin  users balanse reports';
-
-
-20.10.2011\\
-  * Добавлен пошаговый визард заведения пользователей
-  * Добавлены шаблоны прав администраторов
-  * Добавлен новый тип сервера доступа cid_auth -  авторизация по RADIUS Calling-Station-Id (сервер доступа NOKIA APN GSM)
-  * Добавлен пул негативного депозита 
-  * Добавлена опция перехода на другой тарифный план по завершению учётного периода
-
-MYSQL:\\
-  ALTER TABLE tarif_plans ADD COLUMN `neg_deposit_ippool` smallint(6) unsigned NOT NULL DEFAULT '0';
-  ALTER TABLE tarif_plans ADD COLUMN `next_tp_id` smallint(6) unsigned NOT NULL DEFAULT '0';
-  
-  CREATE TABLE `reg_wizard` (
-    `param` varchar(40) NOT NULL default '',
-    `value` text NOT NULL,
-    `aid` smallint(6) unsigned NOT NULL default '0',
-    `module` varchar(40) NOT NULL default '',
-    `step` tinyint(2) NOT NULL default '0',
-    `session_id` varchar(30) NOT NULL default ''
-  ) COMMENT "Registration wizard temp table";
-
-15.10.2011\\
-  * В визард Internet заведения пользователей добавлена форма начисления
-  * Добавлен лимит начисления пени
-
-MySQL:\\
-  ALTER TABLE `dhcphosts_hosts` ADD COLUMN `ipn_activate` tinyint(1) NOT NULL default '0';
-
-
-10.10.2011\\
-  * Улучшена типизация начислений, добавлена возможность одноразовых начислений, заведение новых типов начислений через веб. (Система -  Другое - Типы снятия денег)
-  * ''Dhcphosts'' добавлена галочка статический рендж адресов. Если она установлена параметр рендж не устанавливается в сети
-  * Переименована секция DHCP в IP
-  * Улучшен модуль Cisco_ISG и freeradius Dhcp
-  * Автоматическое включение IPN сессий для адресов модуля IP (Бывший модуль DHCP) $conf{IPN_DHCP_ACTIVE}=1;
-  * Автоматическое включение IPN при заведении адресов в IP (Бывший модуль DHCP) модуле при включенной опции $conf{IPN_DHCP_ACTIVE}=1;
-  * Добавлена возможность создавать собственные правила сброса для дополнительных серверов доступа 
-
-MySQL:\\
-
-  CREATE TABLE `fees_types` (
-    `id` smallint(6) unsigned NOT NULL auto_increment,
-    `sum` double(10,2) NOT NULL default '0.00',
-    `name` varchar(16) NOT NULL default '',
-    `default_describe` varchar(80) NOT NULL default '',
-    PRIMARY KEY  (`id`),
-    UNIQUE KEY `name` (`name`)
-  ) COMMENT='Payments types';
-  
-  ALTER TABLE dhcphosts_networks ADD COLUMN `static` tinyint(1) unsigned NOT NULL default '0';
-  INSERT INTO fees_types (id, name) VALUES (1, '$_ABON'), (2, '$_FINE'), (3, '$_ACTIVATE'), (4, '$_MONEY_TRANSFER'), (0, '$_ONE_TIME');
-  UPDATE fees_types SET id=0 where name='$_ONE_TIME';
-
-  
-
-06.10.2011\\
-
-  * ''Paysys'' Обновлен модуль для платёжной системы Regulpay 
-  * ''Paysys'' Добавлена возможность изымать дополнительную комиссию по платежам через модуль Liqpay
-  * ''Dv'' Наложение пени на абонентов у которых недостаточно средств на счету для продолжения работы
-
-MySQL:\\
-
-  ALTER TABLE  paysys_log ADD COLUMN `commission` double(10,2) unsigned NOT NULL default '0.00';
-  ALTER TABLE  tarif_plans ADD COLUMN `fine` double(14,2) unsigned NOT NULL default '0.00';
-
-04.10.2011\\
-  * ''Cards'' Типизация ошибок пользовательского интерфейса
-  * ''Cards'' добавлен в дилерский интерфейс кард сервер разрешающий работать с модулем карт сторонним программам 
-  * ''Msgs'' pdf  шаблон для отчёта нарядов
-  * ''Docs'' добавлены TrueType шрифты для печати  pdf  документов
-  * ''Snmputils''  добавлена поддержка  Dlink DES-1210
-  * ''Voip'' добавлены регулярные выражения обработки номеров звонящих
-
-12.09.2011\\
-
-  * ''Paysys'' Добавлена возможность отменять масовые платежи
-  * ''Paysys'' Добавлен бекап обработаных файлов
-  * Добавлены регулярные выражения в обработку  pdf шаблонов
-  * Добавлены регулярные выражения в обработку  текстовых шаблонов
-  * Для сервера Mikrotik добавленна поддержка RADIUS 'Mikrotik-Total-Limit'
-  * добавлена возможность активации не активированных аккаунтов при первом подключении к интернет
-  * ''Dhcphosts'' Добавлен параметр next-server
-MySQL:\\
-  ALTER TABLE `dhcphosts_hosts` ADD COLUMN `next_server` VARCHAR( 40 ) NOT NULL default '';  
-
-18.08.2011\\
-  * ''Dhcphosts'' добавленны поля DNS2, NTP
-  * в журнал курса валют добавленно поле ISO для синхронизации с банками
-  * ''Cards'' добавлен параметр $conf{CARDS_NUMBER_LENGTH} -  длина номера карты
-  * ''Cards'' Прямой переход с журнала карта на журнал оплат с поиском нужной оплаты
-  * ''Cards'' ДОбавленна возможность пополнять только используя пин $conf{CARDS_PIN_ONLY}=1;
 MySQL:
-  ALTER TABLE dhcphosts_networks ADD COLUMN `dns2` varchar(32) NOT NULL default '';
-  ALTER TABLE dhcphosts_networks ADD COLUMN `ntp` varchar(100) NOT NULL default '';
-  ALTER TABLE `exchange_rate` ADD COLUMN `iso` smallint unsigned  NOT NULL default 0;
-  
-  CREATE TABLE `exchange_rate_log` (
-    `date` datetime NOT NULL default '0000-00-00 00:00:00',
-    `exchange_rate_id` smallint unsigned  NOT NULL default 0,
-    `rate` double(12,4) NOT NULL default '0.0000',
-    KEY `date` (`date`)
-   ) COMMENT='Exchange rate log';
+
+  ALTER TABLE `ureports_tp_reports` ADD COLUMN `comments` text;
+  ALTER TABLE `ureports_tp_reports` ADD COLUMN `module` VARCHAR(32) NOT NULL DEFAULT '';
+  ALTER TABLE `ureports_tp_reports` ADD COLUMN `visual` tinyint(1) UNSIGNED NOT NULL DEFAULT '0';
 
 
+16.07.2016 \\
+  * [[abills:docs:nas:mikrotik:dhcp_leases|Утилита для управления DHCP серверами на микротике]] (без RADIUS)
+  * [[abills:docs:nas:mikrotik:dhcp_leases|контроль ARP на микротик]]
+  * [[abills:docs:manual:admin:conf_control:null|Модуль контроля конфигурационных файлов]]
+  * Добавлена история работы администратора для боле быстрого перехода на преведущие страницы
+  * Универмальный поиск предоставляет варианты возможного поиска
+  * [[abills:docs:manual:social_network:ru|Авторизация через социальные сети]] facebook, VK
+  * При привязке абонента к порту система автоматически показывает оборудования в точке подключения
+  * ''Iptv'' экспорт m3u листа каналов
+  * [[abills:docs:manual:admin:form_nas#hotspot|Mikrotik: hotspot автоконфигуратор]]
+  * Hotspot: авторизация по короткому паролю
+  * ''Callcenter'' [[abills:docs:callcenter:atrey:ru#realizacija_v_brauzere|работа с входными звонками абонентов]]
+  * ''Storage''  занесение информации о установившем оборудование сотруднике
 
-=====0.53=====
+16.06.2016 \\
 
-
-22.07.2011\\
-  * ''Paysys'' Добавлена возможность отменять массовые платежи
-  * ''Paysys'' Добавлен бекап обработаных файлов
-  * ''abm_console'' добавлена возможность производить массовые оплаты и снятия исходя из параметров логина
-  * добавлены отчёты по работе компаний оплаты, снятия, интернет
-  * ''Ashield'' Обновлен к версии протокола 6.0. Все действия с аккаунтом пользователя теперь производятся через веб интерфейс билинга
-  * В список систем миграции добавлено MikBill, Nodeny, Stargezer, Trafpro
-  * ''Voip'' Добавлена возможность ведения цен телефонии в условных единица. Условные единицы конвертируются в реальный цены исходя из поточного курса. 
-  * ''Voip'' Добавлена программа получения курса НБУ и пересчёта цен исходя из курса условной единицы
-  * ''Voip'' Добавлены группы расширенно тарификации. Возможность устанавливать предоплаченое время для определённой группы направлений
+  * Кабинет абонента, портал и форма напоминания пароля совмещены в единое целое с возможность быстрого переключения в любой режим
+  * ''CRM'' - Кассы
+  * Унифицированные контактные данные абонента
+  * ''Paysys'' [[abills:docs:manual:admin:paysys:paysys_external_commands|Внешние команды для оплаты]]
+  * ''Paysys'' [[abills:docs:development:paysys:ru#testirovanie_platezhnyx_modulej|Система авто тестирования]]
+  * ''Dv'' поля онлайн информации в списке абонентов
+  * ''Equipment'' [[abills:docs:manual:admin:equipment:equipment_show_snmp_backup_files | Бекап устройств с контрольной сумой прошивок и конфигураций ]]
+  * ''Equipment'' [[abills:docs:modules:equipment:ru#snmp_traps|Snmp traps]]
+  * ''Equipment'' [[abills:docs:nas:pon:bdcom:ru:bdcom|BDCOMP схема работы по параметру Option 82 ht-type]]
+  * ''Equipment'' [[abills:docs:modules:equipment:ru#monitoring|Мониторинг доступности оборудования]]
+  * Добавлена возможность коррекции депозита
+  * ''Maps'' Yandex карта обновлена
+  * ''Maps'' [[abills:docs:manual:admin:maps:maps_auto_coords|автоматическое раставление координат домов]]
+  * ''Sms'' логирование отправленых сообщений
+  * ''Docs'' [[abills:docs:docs:registration|Форма рекламного шаблона компании для регистрации абонентов]]
+  * [[abills:docs:manual:admin:form_nas#hotspot|Mikrotik: hotspot автоконфигуратор]]
+  * ''Dhcphosts''  заполнение VLAN с параметров сети
+  * ''Storage'' Установка с подотчётности
+  * ''Events'' Проверка бекапа
+  * $conf{CROSS_MODULES_DEBUG} - Возможность отладки межмодульного взаимодействия
+  * [[abills:docs:development:errors_list:ru|Система оповещения об ошибках]]
 
 
 MySQL:
-  CREATE TABLE `docs_main` (
-    `uid` int(11) unsigned NOT NULL default '0' PRIMARY KEY,
-    `send_docs` tinyint(1) unsigned NOT NULL default '0',
-    `periodic_create_docs` tinyint(1) unsigned NOT NULL default '0',
-    `email` varchar(200) NOT NULL default '',
-    `comments` text not null
-   ) COMMENT='Docs users settings';
-  
-  
-  ALTER TABLE abon_user_list ADD COLUMN `create_docs` tinyint(1) unsigned NOT NULL DEFAULT 0;
-  ALTER TABLE abon_user_list ADD COLUMN `send_docs` tinyint(1) unsigned NOT NULL DEFAULT 0;
-  ALTER TABLE ashield_avd_log ADD COLUMN `work_period_begin` DATE NOT NULL;
-  ALTER TABLE voip_route_prices ADD COLUMN `unit_price` double(15,5) unsigned NOT NULL default '0.00000';
-  ALTER TABLE voip_route_prices ADD COLUMN `extra_tarification` smallint(5) unsigned NOT NULL default 0;
-  ALTER TABLE voip_route_prices ADD COLUMN `unit_price` double(15,5) unsigned NOT NULL default '0.00000';
-  ALTER TABLE voip_log ADD COLUMN `route_id` int(11) unsigned NOT NULL default '0';
-  
-  CREATE TABLE `voip_route_extra_tarification` (
-    `id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
-    `name` varchar(32) not null default '',
-    `date` date NOT NULL default '0000-00-00',
-    `prepaid_time` INT UNSIGNED NOT NULL DEFAULT '0',
-    PRIMARY KEY (`id`),
-    UNIQUE (`name`) 
-  ) COMMENT "Voip extra tarification" ;
-  
-  CREATE TABLE `voip_route_groups` (
-   `id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
-   `name` varchar(32) not null default '',
-   PRIMARY KEY (`id`)
-  ) COMMENT "Voip route groups" ;
 
-13.07.2011\\
-  * ''Docs'' добавлена возможность масового выставления счетов на следующий учётный период
-  * ''Docs'' добавлен профайл с возможностью выбора дополнительного емейла для отправки документов и опция генерации месячных документов
-  * ''Abon'' добавлена индивидуальная скидка для каждой услуги
+  CREATE TABLE users_contact_types
+  (
+    id         SMALLINT(6) PRIMARY KEY NOT NULL AUTO_INCREMENT,
+    name       VARCHAR(30)             NOT NULL,
+    is_default TINYINT(1)              NOT NULL DEFAULT 0,
+    hidden     TINYINT(1)              NOT NULL DEFAULT 0
+  )  COMMENT = 'Types of user contacts';
+  
+  REPLACE INTO users_contact_types (id, name, is_default, hidden) VALUES
+  (1, 'CELL_PHONE', 0, 0),
+  (2, 'PHONE', 1, 0),
+  (3, 'Skype', 0, 0),
+  (4, 'ICQ', 0, 0),
+  (5, 'Viber', 0, 0),
+  (6, 'Telegram', 0, 0),
+  (7, 'Facebook', 0, 0),
+  (8, 'VK', 0, 0),
+  (9, 'EMail', 1, 0),
+  (10, 'Google push', 0, 1);
+  
+  CREATE TABLE users_contacts
+  (
+  id       INT(11) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  uid      INT(11) UNSIGNED NOT NULL REFERENCES users (`uid`) ON DELETE CASCADE,
+  type_id  SMALLINT(6) REFERENCES users_contact_types (`id`)  ON DELETE CASCADE,
+  value    VARCHAR(250)     NOT NULL,
+  priority SMALLINT(6) UNSIGNED,
+  CONSTRAINT `_type_value` UNIQUE (`type_id`, `value`),
+  INDEX `_uid_contact` (`uid`)
+  )  COMMENT = 'Main user contacts table';
+  
+  DROP TABLE `paysys_main`;
+  CREATE TABLE `paysys_main` (
+    `uid`         int(11) unsigned NOT NULL default '0',
+    `token`       tinytext,
+    `sum`         double(10,2) NOT NULL default '0.00',
+    `date`        date NOT NULL default '0000-00-00',
+    `paysys_id`   smallint(5) unsigned NOT NULL default '0',
+    `external_last_date` datetime NOT NULL default '0000-00-00 00:00:00',
+    `attempts`    smallint(2) NOT NULL default 0,
+    `closed`      smallint(1) NOT NULL DEFAULT 0,
+    UNIQUE  (`uid`,`paysys_id`)
+  ) COMMENT="Paysys user account";
 
-MySQL\\
-  ALTER TABLE  `abon_user_list` ADD COLUMN `discount`  double(6,2) NOT NULL default '0.00';
+
+====0.73====
+25.04.2016\\
+  * [[abills:docs:manual:config:ru#zapolnenie_personalnoj_informacii_klientami|Заполнение персональной информации клиентами]]
+  * Добавлена возможность загружать остатки по депозитам абонентов
+  * Добавлен механизм [[abills:docs:nas:mikrotik:dhcp_leases| управления DHCP-сервером Mikrotik'a ]] через командный интерфейс
+  * Добавлена корректировка денежного счета
+  * ''Hotspot'' обновлен механизм взаимодействия с Unify  для удобства контроля точек нужно заводить каждую в биллинг 
+  * [[abills:docs:manual:admin:form_templates#kastomnye_menju|Настраиваемое меню]]
+  * Добавлен универсальный импорт данных с JSON
+  * Полностью переделана JSON визуализация форм
+  * Переделана форма регистрации и восстановления пароля
+  * Добавлена общая статистика серверов доступа
+  * ''Iptv'' olltv снятие за полную услугу (подписки, доп екраны) и блокировка при нехватке средств 
+  * ''Iptv'' olltv привязка оборудования со склада
+  * ''Cards'' обновлён интерфейс дилеров
+  * ''Storage'' мелки улучшения в работе
+  * ''Docs''  multidocs.pl  фильтрация по меткам при создании документов
+  * ''Organizer'' клиентский модуль ведения коммунальных услуг
+
+MySQL:
+
+  ALTER TABLE portal_articles ADD `tags`              smallint(4)      NOT NULL DEFAULT 0;
 
 
-04.07.2011\\
-  * ''Abon'' добавлена опция учета скидок
-  * В журнале пользователей добавлен фильтр по кредиторам
+04.04.2016\\
+  * [[https://chrome.google.com/webstore/detail/abills-stats/bndohjbbflmcmjkjfdogiliickdnnhfp?hl=uk|Обновлено клиентское приложение для браузера Chrome "ABillS Stats"]]
+  * ''Docs'' групповое зачисление по счетам
+  * ''Poll'' Новый модуль опросник абонентов
+  * Кнопка повторного ознакомления с ACCEPT_RULES в кабинете абонента
+  * ''Dv'' Персональный тарифный план
+  * ''Dv'' DV поле последняя авторизация
+  * ''Maps'' Произвольные объекты на карте
+  * ''GPS'' предустановленные иконки для карты
+  * ''Mikrotik'' автоконфигуратор hotspot
+  * ''Refferals'' Реферальная система отдельным модулей
+  * ''GPS'' Карта сети интервалы
+  * ''Equipment'' список вланов системы
+  * ''Storage'' отображение истории товара и списка прикреплённых товаров при удалении
+  * ''Iptv'' Olltv снятие денег при наличии средств на все включенные услуги в противном случае блокируется услуга
+
+MySQL:
+
+  ALTER TABLE dv_main ADD personal_tp double(14,2) unsigned NOT NULL DEFAULT '0.00';
+  
+  CREATE TABLE maps_coords (
+    `id`       INT(11) PRIMARY KEY AUTO_INCREMENT,
+    `coordx`   DOUBLE NOT NULL,
+    `coordy`   DOUBLE NOT NULL,
+    `altitude` DOUBLE NOT NULL DEFAULT 0.0
+  )
+  COMMENT 'Location data';
+  
+  CREATE TABLE maps_point_types (
+    `id`       SMALLINT(6) PRIMARY KEY AUTO_INCREMENT,
+    `name`     VARCHAR(60) NOT NULL UNIQUE,
+    `icon`     VARCHAR(30) NOT NULL    DEFAULT 'default',
+    `comments` TEXT
+  )
+  COMMENT 'Types of custom points';
+  
+  INSERT INTO maps_point_types (`name`, `icon`) VALUES
+    ('well', 'well'),
+    ('wifi', 'wifi'),
+    ('build', 'build'),
+    ('route', 'route');
+  
+  CREATE TABLE maps_points (
+    `id`       INT(11) PRIMARY KEY AUTO_INCREMENT,
+    `name`     VARCHAR(30) NOT NULL,
+    `coord_id` INT(11) REFERENCES maps_coords (`id`)           ON DELETE CASCADE,
+    `type_id`  SMALLINT(6) REFERENCES maps_point_types (`id`)  ON DELETE RESTRICT,
+    `comments` TEXT
+  )
+  COMMENT 'Custom points';
+
+
+15.03.2016\\
+
+  * ''Iptv'' учёт депозита при начислениях за все услуги 
+  * ''Ipn'' Отдельный сервер для детализации
+  * ''Abon'' отображение в портале абонента только активных услуг и услуг с ручной активацией
+  * Добавлены номера ошибок для улучшения идентификации
+  * ''Paysys'' Курсы валют быстрое меню
+  * ''Paysys'' добавлена система Idram
+  * ''Notepad'' периодические напоминания
+  * ''Storage'' управление складом с вебинтерфейса
+  * ''Maps'' Слой трафика
+  * ''Msgs'' всплывающее окно сообщений в кабинете абонента
+  * Добавлено ведение 2 названий улиц
+
+MySQL:
+  ALTER TABLE streets ADD second_name VARCHAR(50) NOT NULL DEFAULT '';
+  
+  CREATE TABLE `notepad_reminders` (
+  `id`        INT(11) UNSIGNED NOT NULL REFERENCES `notepad` (`id`) ON DELETE CASCADE,
+  `minute`    SMALLINT(2)      NOT NULL  DEFAULT '0',
+  `hour`      SMALLINT(2)      NOT NULL  DEFAULT '0',
+  `week_day`  SMALLINT(2)      NOT NULL  DEFAULT '0',
+  `month_day` VARCHAR(30)      NOT NULL  DEFAULT '0',
+  `month`     SMALLINT(2)      NOT NULL  DEFAULT '0',
+  `year`      SMALLINT(6)      NOT NULL  DEFAULT '0',
+  `holidays`  TINYINT(1)       NOT NULL  DEFAULT '0'
+  )
+  COMMENT = 'Periodic reminders';
+
+
+=====0.73=====
+01.03.2016 \\
+  * ''Employers'' [[abills:docs:modules:employees|Модуль сотрудники]]
+  * ''Refferal'' [[abills:docs:modules:referral:ru|Модуль для реализации реферальной системы]]
+  * ''Voip'' balance_recharge добавлена информация об негативном депозите и предложение взять кредит 
+  * ''Voip'' balance_recharge добавлена конвертация звуковых файлов на лету в формат asterisk
+  * ''Voip'' balance_recharge оповещение об нерабочем оборудовании
+  * Добавлен режим эмуляции команд для тестирования внешних команд
+  * ''Equipment'' добавлена возможность вносить не стандартные порты для оборудования
+  * ''Equipment'' Eltex добавлена таблица FDB
+  * ''Msgs'' фильтр расписания по статусам
+  * ''Msgs'' [[abills:docs:manual:admin:msgs:msgs_employee_tasks_map|Отчёт маршрутов сотрудников]]
+  * ''Paysys'' добавлены Idram, Mobilnik. Обновлены Webmoney, Privat24 выписки
+  * ''Dv'' [[abills:docs:modules:dv:ru?#vneshnij_informator_uslugi|Внешний информатор услуг]]
+  * ''GPS'' Время работы треккера за определённый день или период 
+  * ''GPS'' Километраж на определённый день или период
+  * ''GPS'' Среднее время и километраж в день за период
+  * ''GPS'' Сравнительный показатель за месяцы по времени и километражу
+  * быстрый отчёт платежей оператора за сегодня с возможностью экспорта
+  * ''Rwizard'' новый фильтр администраторы
+  * Nas Mikrotik улучшена консоль управления
+  * Cisco ISG добавлена консоль управления
+  * [[abills:docs:charts.cgi:ru:abills?s[]=charts|Обновлен модуль графиков трафика]]
+  * Улучшин пользовательский и административный кабинет
 
 MySQL:\\
-  ALTER TABLE `abon_tariffs` ADD COLUMN `discount` tinyint(1) unsigned NOT NULL default '0';
 
-
-04.07.2011\\
-   * Добавлена возможность выбора типа сервера для автоактивации IPN
-   * В лог ошибок VoIP  добавлен адрес назначения звонка
-   * Paysys  добавлена возможность перекодировок импортируемых файлов
-   * Добавлена проверка на дубликат IP в модуле Vlan
-   * Добавлен импорт/экспорт компаний
-   * Добавлен статус только входящие для модуля VOIP. Устанавливается в начале расчётного периода если у абонента недостаточно средст и до этого был статус активно. В следующем учётном периоде статус меняется на блокировано. $conf{VOIP_ONEMONTH_INCOMMING_ALLOW} 
-   * Добавлен новій тип сервера  cisco_voip. 
-   * Добавлена возможность использовать шаблон определения классов для ISC DHCP Option82
-   * Включения фильтра негативного депозита при разных статусах модуля Dv $conf{DV_STATUS_NEG_DEPOSIT}=1;
-   * Добавлена возможность при масовом импорте пользователей 
-   * Добавлена Offline  работа с Eript
-   * Добавлена поддержка  DvCrypt  для модуля Iptv
-
-MySQL:\\ 
-  ALTER TABLE companies ADD COLUMN `contract_sufix` VARCHAR(5) NOT NULL DEFAULT '';
-  ALTER TABLE iptv_main ADD COLUMN `dvcrypt_id` int unsigned NOT NULL DEFAULT 0; 
-
-
-29.05.2011
-  * Добавлена возможность переключения скорости в зависимости от временных интервалом для mpd шейпера с радиус парами.
-  * Добавлены суфиксы контрактов для компаний
-  * В информационные поля добавлен тип file  возможность прикреплять файлы для компании и аккаунтов пользователей 
-  * В модуль карт Maps добавлена поддержка Google Maps
-  * В модуль карт добавлена возможность отображать сервера доступа
-  * Улучшен шейпер для Linux. Добавлена поддержка хешей
-  * Новый модуль складской учёт [[abills:docs:modules:storage:ru|Storage]]
-  * Улучшена производительность авторизации и аккаунтинга модуля Voip
-  * Добавлена поддержка платёжной системы PayPal
-  * Добавлена поддержка FreeRadius DHCP. Раздача динамических IP исходя из параметров опции 82, гостевой аккаунт
-  * Информационные сообщения по работе billd заносятся в лог ошибок
-  * Добавлена типизация для лога ошибок
-  * Добавлен механизм группирования и ротации записей лога ошибок
-  * Улучшена работа с Cisco ISG. Более быстрая работа с CoA  интерфейсом
-  * Добавлена утилита snmp_control.pl.  Управление скоростью на портах коммутаторов D-Link, Edge core, а также управление VLAN.
-  * Добавлены иконки для кнопок пользовательского интерфейса.
-  * Добавлена возможность создавать произвольное меню пользовательского интерфейса
-  * Добавлена возможность установки даты с которой будет производиться снятие денег модулем Abon
-
-
-MySQL:\\ 
-  ALTER TABLE companies ADD COLUMN `contract_sufix` VARCHAR(5) NOT NULL DEFAULT '';
-
-19.05.2011\\
-MySQL:\\
-  ALTER TABLE districts ADD COLUMN `coordx` DOUBLE(20,14) NOT NULL DEFAULT '0';
-  ALTER TABLE districts ADD COLUMN `coordy` DOUBLE(20,14) NOT NULL DEFAULT '0';
-  ALTER TABLE districts ADD COLUMN `zoom` tinyint(2) NOT NULL DEFAULT '0';
-
-
-16.05.2011\\
-MySQL:\\
-  ALTER TABLE s_detail CHANGE COLUMN  `sent1` `sent1` int(10) unsigned NOT NULL default '0';
-  ALTER TABLE s_detail CHANGE COLUMN  `recv1` `recv1` int(10) unsigned NOT NULL default '0';
-  ALTER TABLE s_detail CHANGE COLUMN  `sent2` `sent2` int(10) unsigned NOT NULL default '0';
-  ALTER TABLE s_detail CHANGE COLUMN  `recv2` `recv2` int(10) unsigned NOT NULL default '0';
+  ALTER TABLE admins ADD position SMALLINT UNSIGNED NOT NULL DEFAULT 0 AFTER name;
   
-  ALTER TABLE builds ADD COLUMN `coordx` DOUBLE(20,14) NOT NULL DEFAULT '0';
-  ALTER TABLE builds ADD COLUMN `coordy` DOUBLE(20,14) NOT NULL DEFAULT '0';
-
-
-19.04.2011\\
-  * **После обновления пересоздайте файл config.pl c config.pl.default **
-
-17.04.2011\\
-MySQL:\\
-  ALTER TABLE  cards_users ADD COLUMN `commission` double(10,2) unsigned NOT NULL default '0.00';
-  ALTER TABLE abon_tariffs ADD COLUMN `vat` tinyint(1) unsigned NOT NULL DEFAULT '0';
-
-04.04.2011\\
-  * Добавлено уведомление о продлении услуги для модуля Abon
-  * Добавлен внешний обработчик для модуля Abon. Разрешает запускать внешние программы при активации или блокировании услуги.
-  * Комиссия за использование карточки оплаты
-  * Добавлена плотность подключения в журнал адресов
-  * Добавлен экспорт в XML журналов платежей и снятий 
-  * Список адресов с которых разрешено подключаться администратору $conf{ADMINS_ALLOW_IP};
-  * Создание счёта при активации услуги модулем Abon (периодические платежи)
-  * Периодическое оповещение о завершении услуги и отправка счёта на оплату для модуля Abon
-  * Установка типа снятий для модуля Abon
-MySQL:\\
-  ALTER TABLE abon_tariffs ADD COLUMN `activate_notification` tinyint(1) unsigned NOT NULL DEFAULT '0';
-  ALTER TABLE abon_tariffs ADD COLUMN  `ext_cmd` VARCHAR(240) NOT NULL DEFAULT '';
-  ALTER TABLE abon_tariffs ADD COLUMN `create_account` tinyint(1) unsigned NOT NULL DEFAULT '0';
-  ALTER TABLE abon_tariffs ADD COLUMN `fees_type` tinyint(2) unsigned NOT NULL DEFAULT '0';
-  ALTER TABLE abon_tariffs ADD COLUMN `notification1` tinyint(1) unsigned NOT NULL DEFAULT '0';
-  ALTER TABLE abon_tariffs ADD COLUMN `notification2` tinyint(1) unsigned NOT NULL DEFAULT '0';
-  ALTER TABLE abon_tariffs ADD COLUMN `notification3` tinyint(1) unsigned NOT NULL DEFAULT '0';
-  ALTER TABLE abon_tariffs ADD COLUMN `notification_account` tinyint(1) unsigned NOT NULL DEFAULT '0';
-  ALTER TABLE abon_tariffs ADD COLUMN `alert` tinyint(1) unsigned NOT NULL DEFAULT '0';
-  ALTER TABLE abon_tariffs ADD COLUMN `alert_account` tinyint(1) unsigned NOT NULL DEFAULT '0';
+  CREATE TABLE `equipment_extra_ports` (
+  `model_id` SMALLINT UNSIGNED NOT NULL,
+  `port_number` SMALLINT UNSIGNED NOT NULL,
+  `port_type` SMALLINT UNSIGNED NOT NULL DEFAULT '0',
+  `state` TINYINT UNSIGNED NOT NULL DEFAULT '0',
+  `row` SMALLINT UNSIGNED NOT NULL DEFAULT '0',
+  PRIMARY KEY `model_port` (`model_id`, `port_number`)
+  ) COMMENT = 'Table for extra ports for equipment models';
+  START TRANSACTION;
+  INSERT INTO `equipment_extra_ports` (model_id, port_number, port_type)
+  SELECT `id`, 1, `extra_port1`
+  FROM `equipment_models`;
+  INSERT INTO `equipment_extra_ports` (model_id, port_number, port_type)
+  SELECT
+  `id`, 2, `extra_port2`
+  FROM `equipment_models`;
+  INSERT INTO `equipment_extra_ports` (model_id, port_number, port_type)
+  SELECT
+  `id`, 3, `extra_port3`
+  FROM `equipment_models`;
+  INSERT INTO `equipment_extra_ports` (model_id, port_number, port_type)
+  SELECT
+  `id`, 4, `extra_port4`
+  FROM `equipment_models`;
   
-  ALTER TABLE abon_user_list ADD COLUMN `notification1` date NOT NULL default '0000-00-00';
-  ALTER TABLE abon_user_list ADD COLUMN `notification1_account_id` int(11) unsigned NOT NULL DEFAULT 0;
-  ALTER TABLE abon_user_list ADD COLUMN `notification2` date NOT NULL default '0000-00-00';
+  UPDATE `equipment_extra_ports` SET row=1 WHERE port_number>2;
+  
+  ALTER TABLE `equipment_models` DROP COLUMN `extra_port1`;
+  ALTER TABLE `equipment_models` DROP COLUMN `extra_port2`;
+  ALTER TABLE `equipment_models` DROP COLUMN `extra_port3`;
+  ALTER TABLE `equipment_models` DROP COLUMN `extra_port4`;
+  
+  COMMIT;
 
 
 
+02.02.2016 \\
 
-25.03.2011\\
+  * Новый модуль [[abills:docs:modules:gps_tracker|GPS Tracker]]
+  * Новый модуль [[abills:docs:modules:ring:ru|Ring  обзвон абонентов]]
+  * ''Equipment'' добавлены новые параметры мониторинга для PON ZTE
+  * ''Rwizard'' группировка отчётов
+  * [[abills:docs:manual:admin:form_status|Типизация статусов услуг]]
+  * Добавлена история запросов в RADIUS консоле
+  * ''Iptv'' загрузка каналов с m3u
+  * ''Rwizard'' добавлен POST_FILTER
+  * ''Paysys'' поиск ближайшего терминала с портала абонента
+  * Новый тип графиков "Сравнить период"
+  * Unifi мониторинг устройств
+  * Улучшение визуализации
+  * ''Dv'' [[abills:docs:modules:dv:ru#vneshnij_informator_uslugi|внешний информатор услуги]]
 
-  * Удаление группы только после полного удаление из неё пользователей
-  * В модуль Ureports (Отчёты пользователя) добавлена функция предупреждения о недостаточности средств на следующий учётный период через sms  или E-mail
-  * Интеграция с системой Turbosms
-  * Добавлен новый отчёт дней до завершения тарифного плана
-  * Добавлено оповещение пользователей через смс и массовый рассылки рекламных акций
-  * Востановление пароля через СМС сообщение
-  * Отправка пользователю СМС с паролем с админ формы
+MySQL:\\
 
-=====0.52====
-18.03.2011\\
-  * Добавлена возможность импорта списка цен для Voip  модуля
-  * Добавлена возможность импорта списка направлений для Voip  модуля
-  * Добавлена оплата за приостановку сервиса
-  * Добавлена возможность менять тариф из пользовательского кабинете только раз в месяц независимо от тарифа
-  * $conf{NON_PRIVILEGES_LOCATION_OPERATION} -  журнал адресов ведётся в разделе "Другое"
-  * В журнале улиц показывает количество подключенный абонентов
-  * Добавлено в поиск вывод абонентов с незаполненными полями адреса
-  * Добавлены права на изменения тарифного плана и установку кредита
-
-
-04.03.2011\\
-  * Новая система ведения бонусов [[abills:docs:modules:dv:ru?&#%D0%B1%D0%BE%D0%BD%D1%83%D1%81%D1%8B|бонусов]]
-  * Возможность массовой выписки счетов из WEB  интерфейса
-MySQL\\
-  CREATE TABLE `tp_bonus_rating` (
-    `tp_id` smallint(5) unsigned NOT NULL default '0',
-    `rating_from` int(11) unsigned NOT NULL default '0',
-    `rating_to` int(11) unsigned NOT NULL default '0',
-    `action` smallint(5) unsigned NOT NULL default '0',
-    `change_bonus` double(14,2) unsigned NOT NULL default '0.00',
-    `activate_bonus` double(14,2) unsigned NOT NULL default '0.00',
-    `ext_bill_account` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  CREATE TABLE `radtest_history` (
+    `id` smallint UNSIGNED NOT NULL AUTO_INCREMENT,
+    `datetime` DATETIME NOT NULL DEFAULT '0000-00-00 00:00:00',
+    `rad_query` TEXT NOT NULL,
+    `comments` TEXT NOT NULL,
+    PRIMARY KEY (`id`)
+  ) COMMENT='Radtest history';
+  
+  CREATE TABLE `reports_groups` (
+    `id` smallint unsigned NOT NULL AUTO_INCREMENT,
+    `name` varchar(40) NOT NULL DEFAULT '',
     `comments` text NOT NULL,
-    PRIMARY KEY  (`tp_id`)
-  ) COMMENT='Tarif plans bonus rating';
-
-
-16.02.2011\\
-  * Добавлен модуль [[abills:docs:modules:maps:ru|Maps]] - Карта сети
-
-09.02.2011\\
-  * Добавлен системный пользователь для операций пользователя в веб портале
-  * Добавлена возможность ведения журнала адресов для серверов доступа
-
-MySQL\\
-
-  INSERT INTO admins (id, name, regdate, password, gid, aid, disable, phone, web_options) VALUES ('users_web','System user', '2011-02-01', ENCODE(md5(RAND()), 'test12345678901234567890'), 0, 3, 0,'', '');
-  ALTER TABLE nas ADD COLUMN `location_id` INTEGER(11) UNSIGNED NOT NULL default '0';
-  ALTER TABLE dhcphosts_leases ADD COLUMN `flag` tinyint(2) NOT NULL DEFAULT '0';
-
-
-21.01.2011\\
-  *  Добавлена поддержка accel-pptp
-  *  Добавлена возможность устанавливать права администраторов на изменении тарифных планов и кредита
-  *  Добавлена возможность установки скорости на порту коммутатора
-  *  Snmputils перевод должников в гостевой VLAN
-  *  Snmputils добавлен кабельный тестер показывающий состояние порта длину кабеля для коммутаторов D-Link
-
-17.01.2011\\
-MySQL:\\
-  ALTER TABLE builds ADD COLUMN `map_x2` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
-  ALTER TABLE builds ADD COLUMN `map_y2` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
-  ALTER TABLE builds ADD COLUMN `map_x3` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
-  ALTER TABLE builds ADD COLUMN `map_y3` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
-  ALTER TABLE builds ADD COLUMN `map_x4` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
-  ALTER TABLE builds ADD COLUMN `map_y4` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
-
-18.12.2010\\
-  * Только администрартор может удалять расписания присвоенные пользователю
-  * В DHCPhost  добавленно поле гостевой VLAN и возможность не блокировать долников на порту а перебрасывать в гостевой VLAN (Dlink, AgeCore)
-
-MySQL:\\
-  ALTER TABLE shedule ADD COLUMN `admin_action` tinyint(1) unsigned NOT NULL default '0';
-  ALTER TABLE `dhcphosts_networks` ADD COLUMN `guest_vlan` smallint(5) unsigned NOT NULL DEFAULT '0';
-
-
-14.12.2010\\
-  * Добавлен возможность снимать деньги только за дни когда пользователь пользовался интернетом
-  * Обновлён протокол Dr.Web
-  * Добавлено более информативное логирование удалённых онлайн сессий
-  * Обновлён протокол налогового экспорта
-  * Добавлен шейпер по пулам адресов 
-  * Депозит пользователя в личном кабинете уменьшен до 2 знаков после точки, а так же добавлены кнопки быстрого пополнения счёт или выписки счета на оплату
-MySQL:\\
+    PRIMARY KEY (`id`)
+  ) COMMENT='Reports Groups';
   
-  ALTER TABLE tarif_plans ADD COLUMN `active_day_fee` tinyint(1) unsigned NOT NULL default '0';
+  ALTER TABLE `reports_wizard` ADD COLUMN `gid` smallint unsigned NOT NULL DEFAULT 0;
 
-30.11.2010\\
-  * Добавлена возможность скрывать удалённых пользователей, только администратор с спец правами может их удалять полностью
-  * Добавлена платёжная система [[http://abills.net.ua/wiki/doku.php/abills:docs:modules:paysys:ru#flashcheque|flashcheque]]
+18.01.2016 \\
 
+  * ''Paysys'' Список терминалов оплаты на странице абонентов
+  * ''Msgs'' добавлена визуальная работа с задачами ([[https://www.youtube.com/watch?v=-Rcnjc97vbQ|Доска задач]])
+  * ''Portal'' добавлено отображение новостей в кабинете абонента
+  * [[abills:docs:manual:config:ru#vkljuchenie_opredelenija_mestopolozhenija_klienta_pri_vxode_v_kabinet|Геолокация абонента при входе в кабинет]]
+  * ''multiview'' посещение личного кабинета абонентов
+  * ''Netlist'' Экcпорт сетей с калькулятора в группы
+  * ''Netlist'' Подгруппы сетей
+  * ''Ipn'' ft-queue спул обработки трафика
+  * ''Ipn'' переработаны отчёты по трафику, добавлена группировка по адресом
+  * Добавлена Настройка полей универсального поиска
+  * post-install подсказки по настройке системы
+  * ''Equipment'' добвлено PON Huawai
+  * ''Iptv'' загрузка каналов с m3u файлов
+  * В портал абонента добавлена возможность отображать время суток путям затемнения экрана
 
-MySQL:\\
-   
-  ALTER TABLE users ADD COLUMN  `deleted` tinyint(1) unsigned NOT NULL default '0';
+MySQL: \\
+
+  ALTER TABLE `web_users_sessions` ADD COLUMN `coordx` DOUBLE(20,14) NOT NULL DEFAULT '0';
+  ALTER TABLE `web_users_sessions` ADD COLUMN `coordy` DOUBLE(20,14) NOT NULL DEFAULT '0';
   
- 
-10.11.2010\\
-  * Добавлено $conf{DV_USER_CHG_TP_SHEDULE}. Если с пользователя снимается дневная или месячная распределённая абон. плата то следующим учётным периодом будет следующий день.
-  * Добавлена поддержка коммутаторов [[http://www.celan.com.tw|CeLan]]
-  * Добавлена поддержка [[abills:docs:linux:radcoad:ru|pppd coa]]. (Особая благодарность NiTr0)
-07.11.2010\\
-  * Установка скорости на пул адресов
-
-MySQL:\\
-  ALTER TABLE ippools ADD COLUMN `speed` int(10) unsigned NOT NULL default '0';
-
-  * Снятие абон. платы для приостановленных аккаунтов
-
-
-30.10.2010\\
-  * Добавлена опция выбора нужных вопросов при заполнении администратором
-MySQL:\\
-  ALTER TABLE `msgs_survey_questions` ADD COLUMN `fill_default` tinyint(1) unsigned NOT NULL DEFAULT '0';
-
-
-
-25.10.2010\\
-  * Добавлен отдельный тип контракта для корпоративных клиентов
-13.10.2010\\
-  * Добавлено перенаправление пользователя на страницу провайдера при получении личного сообщения. Опция $conf{MSGS_UNREAD_FORWARD}. [[abills:docs:msgs:ru|Msgs]] 
-  * Добавлена платёжная система Liqpay [[abills:docs:modules:paysys:ru#Liqpay|Liqpay]]
-  * Добавлена функция индивидуальных шаблонов для разных типов оплат [[abills:docs:docs:ru#%D0%BD%D0%B0%D0%B7%D0%B2%D0%B0%D0%BD%D0%B8%D1%8F_%D1%88%D0%B0%D0%B1%D0%BB%D0%BE%D0%BD%D0%BE%D0%B2|Docs]]
-28.09.2010\\
-  * Добавлена возможность выставлять приоритет денежных счетов (главный, дополнительный) при тарификации по трафику
-
-MySQL:\\
-
-  ALTER TABLE tarif_plans ADD COLUMN `bills_priority` tinyint(5) unsigned NOT NULL DEFAULT '0';
-
-27.09.2010\\
-  * Улучшен модуль работы с бонусами.
-  * Добавлена возможность не снимать абон. плату при изменении тарифа в интерфейсе администратора
-MySQL:\\
-
-  CREATE TABLE `bonus_log` (
-    `date` datetime NOT NULL default '0000-00-00 00:00:00',
-    `sum` double(10,2) NOT NULL default '0.00',
-    `dsc` varchar(80) default NULL,
-    `ip` int(11) unsigned NOT NULL default '0',
-    `last_deposit` double(15,6) NOT NULL default '0.000000',
-    `uid` int(11) unsigned NOT NULL default '0',
-    `aid` smallint(6) unsigned NOT NULL default '0',
-    `id` int(11) unsigned NOT NULL auto_increment,
-    `method` tinyint(4) unsigned NOT NULL default '0',
-    `ext_id` varchar(28) NOT NULL default '',
-    `bill_id` int(11) unsigned NOT NULL default '0',
-    `inner_describe` varchar(80) NOT NULL default '',
-    `action_type` tinyint(11) unsigned NOT NULL default '0',
-    `expire` date NOT NULL default '0000-00-00',
-    PRIMARY KEY  (`id`),
-    UNIQUE KEY `id` (`id`),
-    KEY `date` (`date`),
-    KEY `uid` (`uid`)
-  ) COMMENT "Bonus log"  ;
-
-22.09.2010\\
-  * Доработан механизм опроса для сообщений
-MySQL: \\
-  ALTER TABLE `msgs_survey_answers` ADD COLUMN `msg_id` int(11) unsigned NOT NULL DEFAULT '0';
-  ALTER TABLE `msgs_survey_answers` ADD COLUMN  `reply_id` int(11) unsigned NOT NULL DEFAULT '0';
-  ALTER TABLE `msgs_survey_answers` DROP PRIMARY KEY, ADD PRIMARY KEY(`uid`, `msg_id`, `reply_id`, `question_id`);
-
-20.09.2010\\
-MySQL: \\
-  ALTER TABLE dhcphosts_leases ADD COLUMN `port` smallint(6) unsigned NOT NULL DEFAULT '0';
-  ALTER TABLE dhcphosts_leases ADD COLUMN `vlan` smallint(6) unsigned NOT NULL DEFAULT '0';
-  ALTER TABLE dhcphosts_leases ADD COLUMN `switch_mac` varchar(17) NOT NULL DEFAULT '';
-
-14.09.2010\\
-  * Добавлены новые поля  в журнал адресов **квартир в доме**, в журнал администраторов **адрес**, **мобильный телефон**, **день рождения**, **ИНН**, **паспорт**\\
-MySQL: \\
-  ALTER TABLE `builds` ADD COLUMN `flats` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
-  ALTER TABLE `admins` ADD COLUMN `address` VARCHAR(60) NOT NULL DEFAULT '';
-  ALTER TABLE `admins` ADD COLUMN `cell_phone` varchar(20) NOT NULL DEFAULT '';
-  ALTER TABLE `admins` ADD COLUMN `pasport_num` varchar(16) NOT NULL default '';
-  ALTER TABLE `admins` ADD COLUMN `pasport_date` date NOT NULL default '0000-00-00';
-  ALTER TABLE `admins` ADD COLUMN `pasport_grant` varchar(100) NOT NULL default '';
-  ALTER TABLE `admins` ADD COLUMN `inn` varchar(20) NOT NULL default '';
-  ALTER TABLE `admins` ADD COLUMN `birthday` DATE NOT NULL default '0000-00-00';
-
-   
-06.09.2010 \\
-  * Добавлена возможность запускать внешние программы при само регистрации абонентов
-  * Добавлена возможность отключать корпоративным пользователям возможность перевода средств между аккаунтами
-  * Добавлена возможность повторно снимать активационный платёж для аккаунтом с слишком большим периодом не активности абонента
-19.08.2010 \\
-  * В заявку на подключения добавлено поле желаемая дата подключения
-MySQL: \\
-  ALTER TABLE msgs_unreg_requests ADD COLUMN `connection_time` DATETIME NOT NULL;
-
-18.08.2010 \\
-  * Добавлена функция "оплатить до"  в модуль [[abills:docs:modules:dv:ru|Dv]]
-  * Добавлена функция контроля скорости для Linux  серверов доступа
-15.08.2010 \\
-  * Более гибкие тарифные планы для продавцов карточек
-
-MySQL:\\
-  ALTER TABLE `dillers_tps` ADD COLUMN `nas_tp` tinyint(1) unsigned NOT NULL DEFAULT '0';
-  ALTER TABLE `dillers_tps` ADD COLUMN `gid` int(11) unsigned NOT NULL DEFAULT '0';
-  ALTER TABLE `dillers_tps` ADD COLUMN `comments` text NOT NULL;
-  ALTER TABLE `dillers_tps` ADD COLUMN `bonus_cards` int(11) unsigned NOT NULL DEFAULT '0';
-  
-  CREATE TABLE `multidoms_nas_tps` (
-    `nas_id` smallint(6) unsigned NOT NULL,
-    `domain_id` smallint(6) unsigned NOT NULL DEFAULT '0',
-    `tp_id` smallint(6) unsigned NOT NULL,
-    `datetime` datetime NOT NULL,
-    `bonus_cards` int(11) unsigned NOT NULL DEFAULT '0',
-    PRIMARY KEY (`domain_id`,`tp_id`,`nas_id`)
-  ) COMMENT='Multidoms Dillers NAS TPS. For postpaid cards fees';
-
-
-11.08.2010 \\
-  * Добавлена возможность вести опросы пользователей в модуле Тех. Поддержки (Msgs)
-
-MySQL:\\
-  CREATE TABLE `msgs_survey_questions` (
-    `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-    `survey_id` smallint(6) unsigned NOT NULL DEFAULT 0,
-    `num` tinyint(4) unsigned NOT NULL DEFAULT '0',
-    `question` varchar(200) NOT NULL,
-    `params` varchar(250) NOT NULL,
-    `comments` text NOT NULL,
-    `user_comments` tinyint(1) unsigned NOT NULL DEFAULT '0',
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `id` (`id`)
-  )  COMMENT 'Messages Survey questions';
-  
-  CREATE TABLE `msgs_survey_subjects` (
+  CREATE TABLE `billd_plugins` (
     `id` smallint(6) unsigned NOT NULL AUTO_INCREMENT,
-    `name` varchar(20) NOT NULL,
-    `comments` text NOT NULL,
-    `aid` smallint(6) unsigned NOT NULL DEFAULT '0',
-    `created` datetime NOT NULL,
+    `plugin_name` varchar(100) NOT NULL DEFAULT '',
+    `status` tinyint(1) unsigned NOT NULL DEFAULT '0',
+    `threads` tinyint(1) unsigned NOT NULL DEFAULT '0',
+    `make_lock` tinyint(1) unsigned NOT NULL DEFAULT '0',
+    `period` int(10) unsigned NOT NULL DEFAULT '0',
+    `priority` tinyint(1) unsigned NOT NULL DEFAULT '0',
+    `last_execute` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+    `last_status` tinyint(1) unsigned NOT NULL DEFAULT '0',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `id` (`id`),
-    UNIQUE KEY `name` (`name`)
-  ) COMMENT 'Messages Survey Subjects';
+    UNIQUE KEY `plugin_name` (`plugin_name`)
+  ) COMMENT='billd plugin orginizer';
   
-  CREATE TABLE `msgs_survey_answers` (
-    `question_id` int(11) unsigned NOT NULL DEFAULT '0',
-    `uid` int(11) unsigned NOT NULL DEFAULT '0',
-    `answer` tinyint(4) unsigned NOT NULL DEFAULT '0',
-    `comments` text NOT NULL,
-    `date_time` datetime NOT NULL,
-    `survey_id` smallint(6) unsigned NOT NULL DEFAULT '0',
-    PRIMARY KEY (`uid`,`question_id`)
-  )   COMMENT 'Messages Survey Answers';
-
-
-09.08.2010 \\
-  * Добавлено поле описания тарифного плана. Изменён вид выбора тарифного плана для клиентов
-
-MySQL:\\
-  ALTER TABLE tarif_plans ADD COLUMN comments text not null default '';
-  ALTER TABLE msgs_messages ADD COLUMN `survey_id` smallint(6) unsigned NOT NULL DEFAULT 0;
-  ALTER TABLE msgs_reply ADD COLUMN `survey_id` smallint(6) unsigned NOT NULL DEFAULT 0;
-
-
-02.08.2010 \\
-  * Добавлена возможность одновременно использовать минимальную наработку и месячную абонплату
-  * Добавлена возможность выставлять приоритет снятия денег в модуле Abon
-
-MySQL:
-  ALTER TABLE abon_tariffs  ADD COLUMN `priority` tinyint(1) unsigned NOT NULL DEFAULT '0';
-  ALTER TABLE abon_tariffs  ADD COLUMN   `account` tinyint(1) unsigned NOT NULL DEFAULT '0';
-
-
-28.07.2010\\
-
-  * Добавлена работа модуля Paysys c  мультидоменной платформой (Multidoms). **Обязательно обновите все модули Paysys  перед обновлением системы.**
-
-MySQL:
-
-  ALTER TABLE `config` CHANGE COLUMN `param` `param` varchar(30) NOT NULL default '';
-  ALTER TABLE `config` ADD COLUMN `domain_id` smallint(6) unsigned not null default '0';
-  ALTER TABLE `config` DROP KEY `param`;
-  ALTER TABLE `config` ADD UNIQUE KEY `param` (`domain_id`, `param`);
-  ALTER TABLE `paysys_log` ADD COLUMN `domain_id` smallint(6) unsigned not null default '0';
-  ALTER TABLE `paysys_log` ADD COLUMN `status` tinyint(2) unsigned not null default '0';
-  ALTER TABLE `paysys_log` DROP KEY `ps_transaction_id`;
-  ALTER TABLE `paysys_log` ADD UNIQUE KEY `ps_transaction_id` (`domain_id`, `transaction_id`);
-25.07.2010
-  * Добавлена подача клиентами заявок  на подключения через веб интерфейс
-MySQL:
-
-  ALTER TABLE users_pi ADD COLUMN `country_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
-  ALTER TABLE msgs_unreg_requests ADD COLUMN `country_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
-  ALTER TABLE msgs_unreg_requests ADD COLUMN `location_id` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0';
-  ALTER TABLE msgs_unreg_requests ADD COLUMN `company` VARCHAR(60)  NOT NULL DEFAULT '';
-
-20.07.2010
-  * Добавлена раздел активные сообщения куда попадают все не закрытые сообщения
-  * Добавлена автоматическая активизация сервисов с "отключён за неуплату" и "недостаточно средств" сразу после внесение денег на счёт абонента
-  * Добавлена возможность кросмодульная (во всех модуля после определённого действия) обработка сообщений
-  * Добавлена рассылка на E-mail счетов после их создания
-  * Добавлена возможность включения всех активных пользователей (с положительным депозитом) для модуля Ipn.
-25.06.2010
-  * Добавлены платёжные системы Ibox, OSMP QIWI
-  * Добавлен перенос сообщений технической поддержки между разделами
-  * Добавлено создание внутренних сообщений в ответах администраторов для внутренних комментариев
-  * Добавлена рассылка сообщений всем администраторам подписанным на тему, при создании и темы и при работе с ней 
-MySQL:\\
-  ALTER TABLE `msgs_reply` add COLUMN  `inner_msg` tinyint(1) unsigned NOT NULL default '0';
-
-
-16.06.2010
-  * Добавленная возможность создавать сети  и подсети для DHCP
-
-MySQL:\\
-  ALTER TABLE dhcphosts_networks ADD COLUMN `net_parent` smallint(5) unsigned NOT NULL DEFAULT '0';
-
-=====0.51=====
-22.05.2010 \\
-  * Добавлена платёжная система Liberty Reserver
-  * Добавлена возможность получать платёжные выписки через E-mail и FTP.
-  * Добавлена возможность писать скрипты для программы billd (/libexec/billd)
-  * Добавлена возможность устанавливать кредит абоненту в зависимости от последних оплат.
-  * Доработан шейпер с IPFW таблицами
-03.05.2010\\
-  * Добавлен журнал адресов
-MySQL:
-  ALTER TABLE users_pi ADD COLUMN `location_id` INTEGER(11) UNSIGNED NOT NULL default '0';
-  INSERT INTO districts (name) VALUES ('Main District');
-  
-  CREATE TABLE `builds` (
-    `id` INTEGER(11) UNSIGNED NOT NULL AUTO_INCREMENT,
-    `street_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-    `number` VARCHAR(10)  NOT NULL DEFAULT '',
-    `flors` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
-    `entrances` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
-    `added` DATE NOT NULL,
-    `map_x` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-    `map_y` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `id` (`id`),
-    UNIQUE KEY `street_id` (`street_id`, `number`)
-  ) COMMENT='Builds';
-  
-29.04.2010\\
-  * Добавленна возможность перевода средств между аккаунтами абонентов
-  * Добавленна дата изменения класов трафика
-MySQL:\\
-  ALTER TABLE traffic_classes ADD COLUMN `changed` DATETIME NOT NULL DEFAULT '0000-00-00 00:00:00';
-
-
-09.04.2010\\
-  * В тарифных планах дилера появилась возможность снимать деньги после активации карточек.
-  * Обновлён модуль Ashield (Dr.Web)
-
-01.04.2010\\
-MySQL:\\
-  ALTER TABLE users_pi CHANGE phone phone varchar(30) not null default '';
-    CREATE TABLE `districts` (
-      `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
-      `name` VARCHAR(100) NOT NULL DEFAULT '',
-      `country` TINYINT(4) UNSIGNED NOT NULL,
-      `zip` VARCHAR(7) NOT NULL DEFAULT '',
-      `city` VARCHAR(30) NOT NULL DEFAULT '',
-      `comments` TEXT NOT NULL,
-     PRIMARY KEY (`id`),
-     UNIQUE KEY `id` (`id`),
-     UNIQUE KEY `name` (`name`),
-     UNIQUE KEY `name_2` (`name`)
-   ) COMMENT='Locations districts';  
-
-
-31.03.2010\\
-  * Массовая печать документов найденных через поиск
-  * Добавлена возможность контролировать вводимые пользователями символы пароля
-  * Добавлен Армянский словарь
-  * Добавлены платёжные системы 4PAY, EasySoft.
-  * Добавлена возможность перенаправлять пользователей на пользовательский портал после отправки им сообщения администратором.
-
-16.03.2010\\
-  * Расширенно поле Filter-Id учётной записи пользователя. Добавлено возможность вводить в него дополнительные RADIUS пары.\\
-
-MySQL:\\
-  ALTER TABLE dv_main CHANGE COLUMN filter_id filter_id varchar(150) NOT NULL default '';
-
-  * Добавлена  Платёжная система АИС ЕРИП (Беларусия) 
-
-06.03.2010\\
-  * Добавлена дата окончания скидки для клиента\\
-  * Добавлено уведомления что пользователь онлайн в аккаунте пользователя
-MySQL\\
-  ALTER TABLE users ADD COLUMN reduction_date date not null default '0000-00-00';
-
-22.02.2010\\
-  *  Добавленна возможность создавать независимые шаблоны бухгалтерских документов для груп пользователей.\\
-При создании шаблона нужно указать суффиксом номер группы (Docs_docs_account**_GID**.tpl).
-MySQL:
-  ALTER TABLE groups ADD COLUMN `separate_docs` tinyint(1) unsigned not null default 0;
-
-18.02.2010\\
-  * Добавленна возможность при недостаточности средств на счету переводить пользователей автоматически на другой тариф. Действует только для месячной абон. платы.
-  * Добавленна возможность авто. активации блокированных за недостатком средств на счету
-MySQL:
-  ALTER TABLE tarif_plans CHANGE COLUMN `small_deposit_block` `small_deposit_action` smallint(6) NOT NULL default '0';
-
-01.02.2010\\
-  * Лог скидывания пользователя с линии вынесен в журнал изменений
- 
-01.02.2010\\
-  * Добавлено поле комментарии для расписания. 
-  * Улучшена визуализация журнала расписаний. Выделение красным не выполненых расписаний.
-  * Добавлена опция блокирующая аккаунт если недостаточно средств для снятия месячной абонплаты.
-  * Лог ведения неучтённого трафика вынесен в базу (/Reports/ Ipn/ Unknown IPs)
-
-MySQL\\
-
-  ALTER TABLE `shedule` ADD COLUMN `comments` varchar(120) NOT NULL default '';
-  ALTER TABLE `tarif_plans` ADD COLUMN `small_deposit_block` tinyint(1) NOT NULL DEFAULT '0';
-  CREATE TABLE `ipn_unknow_ips` (
-  `src_ip` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
-  `dst_ip` INTEGER(11) UNSIGNED NOT NULL,
-  `size` INTEGER(11) UNSIGNED NOT NULL,
-  `nas_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  `datetime` DATETIME NOT NULL
-  ) COMMENT='Ipn unknow ips';  
-  
-30.01.2010\\
-  * В фетчер сетей добавлена возможность поднимать статические рауты на нужные интерфейсы.
-  * Добавлена программа выявления несанкционированных PPPoE  серверов.
-
-29.01.2010\\
-  * Добавлена возможность выбора группы тарифных планов при регистрации
-  * Обновлён экспорт налоговых до версии OPZ 1.27
-
-26.01.2010\\
-  * Добавлена возможность просмотра лога DHCP сервера из админ интерфейса с привязкой к пользователям\\
-MySQL:
-  CREATE TABLE `dhcphosts_log` (
-   `id` INTEGER(11) UNSIGNED NOT NULL AUTO_INCREMENT,
-   `datetime` DATETIME NOT NULL,
-   `hostname` VARCHAR(20) NOT NULL DEFAULT '',
-   `message_type` TINYINT(2) UNSIGNED NOT NULL DEFAULT '0',
-   `message` VARCHAR(90) NOT NULL DEFAULT '',
-    PRIMARY KEY (`id`),
+  CREATE TABLE `paysys_terminals` (
+    `id`          int(11) unsigned NOT NULL auto_increment,
+    `type`        smallint(2) unsigned NOT NULL DEFAULT 0,
+    `status`      smallint(1) unsigned NOT NULL DEFAULT 0,
+    `location_id` int(11) unsigned NOT NULL DEFAULT 0,
+    `comment`     text,
     UNIQUE KEY `id` (`id`)
-  ) COMMENT='Dhcphosts log'; 
-  CREATE TABLE `streets` (
-    `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
-    `name` VARCHAR(100) NOT NULL DEFAULT '',
-    `district_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `id` (`id`),
-    UNIQUE KEY `name` (`name`),
-    UNIQUE KEY `name_district` (`name`, `district_id`),
-    UNIQUE KEY `name_2` (`name`)
-  ) COMMENT='Locations streets';
-
-
-20.01.2010\\
-  * Добавлена проверка на дублирование комутатора и порта для Option 82.
-  * Для услуги "Приостановка сервиса" была добавлена настройка периода за который можно приостановить услугу. Например не чаще чем раз в 60 дней.
-  * Доработана форма регистрации через веб пользователя через портал. Добавлена капча
-  * Добавлена возможность регистрации для модуля Msgs.
-11.01.2010\\
-  * Изменён вид календаря для дат
-  * Ввод даты в любом формате при поиске (22.11.2008,22/11/2008,22-11-2008, 2008-11-22)
-  * Добавлен экспорт в программу "Податкова Звітність" (Украина) в модуле Docs.
-  * Делегация сообщений к администраторам с высшей компетенцией доступа
-  * Добавлена возможность заносить сообщение при создании в наряд работ и создавать наряды работ
-  * Создавать сообщение при заведении клиента
-  * Добавлена возможность пересчёта сессий в форме детализации сессии 
-  * Доработано компенсация рассчитывается исходя из 31 дня, а из количества дней в месяце
-  * Добавлен новый тип внесения средств на счёт **Компенсация**
-
-MySQL:
-  ALTER TABLE msgs_messages ADD COLUMN `deligation` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0';
-  ALTER TABLE msgs_admins ADD COLUMN `deligation_level` tinyint(4) unsigned NOT NULL default '0';
-  ALTER TABLE s_detail ADD COLUMN `sum` double(14,6) NOT NULL default '0.000000';
-
-
-24.12.2009\\
-
-MySQL:
-  alter table cards_users add column id int unsigned not null auto_increment PRIMARY KEY;
-
-24.12.2009\\
-  * Доработана работа шейпера с учётом выставленной маски. Выделение маски отличной от 255.255.255.255  цветом в веб интерфейсе.
-
-
-=====0.50=====
-
-  * Добавлен Приоритет тарифного плана. Если заполнено это поле и пользователь переходит с тарифного плана с большим приоритетом на ТП с меньшим приоритетом с него снимается сума указанная в поле «Сумма изменения тарифного плана». Если в обратном направлении сумма не снимается.
-  * В меню смены тарифного плана пользователем теперь отображаются только те ТП для перехода на которые у пользователя хватает средств.
-  * Добавлена система терминалов [[http://abills.net.ua/wiki/doku.php/abills:docs:modules:paysys:ru#non_stop|24 Non Stop]]
-  * Добавлена возможность автоматической выписки счёта, кассового чека  при пополнении аккаунта пользователя.
-  * Добавлена возможность формировать несколько типов договоров в зависимости от предоставляемых услуг.
-  * В модуль Cards  добавлена возможность формирования карточек для печати в документ PDF, а также экспорт списков файлов уже сгенерированных карточек в формате CSV.
-  * Добавлен комментарий при отключении пользовательского аккаунта
-  * Возможность контролировать доступ к Vod  серверу. Возрастное ограничение просмотра фильмов и каналов.
-  * VIRUS_ALERT В Ipn  анализатор добавлена опция отслеживания заражённые хосты.
-  * Улучшен анализ трафика программой traffic2sql
-  * Для модуля Iptv создана опция возрастного ценза на контент. Доступ только при знании Pin  кода.
-  * Добавлена возможность выносить оплаты проведённые через Paysys  в отдельные типы.
-MySQL:
-   update paysys_log SET system_id=system_id+40;
-   ALTER TABLE iptv_main ADD COLUMN `pin` BLOB NOT NULL;
-   ALTER TABLE iptv_main ADD COLUMN `vod` tinyint(1) unsigned NOT NULL default '0';
-
-
-  * Доработан модуль [[abills:docs:mdelivery:ru|Mdelivery]]. Добавлены фильтры по Тарифному плану, статусу и адресу абонентов. Создан список абонентов для отправки почты который можно корректировать после создания рассылки.
-  * Добавлена возможность отправки E-mail сообщений с прикреплёнными файлами.
-
-=====RC1=====
-
-**В связи с множеством доработок в версии 0.5 при переходе обязательно нужно обновить все коммерческие модули, цена обновления 50%  от цены модуля**
-
-  * Создан новый модуль [[abills:docs:modules:multidoms:ru:abills|Multidoms]]. Система управления мультидоменами, разрешающая независимо вести в одной биллинговой системе несколько провайдеров.
-  * Добавлен интерфейс реселлера, с возможностью авторегистрации реселлеров.
-  * Улучшен интерфейс дилера в карточном модуле. Доработаны отчёты продаж
-  * Добавлены поля занесения физических адресов расположения серверов доступа  
-  * Вынесены классы трафика в отдельную форму и доработан шейпер с учётом таблиц FreeBSD + ng_car. **При миграции нужно завести классы трафика в таблицу и повторно их выбрать в форме тарификации трафика**
-  * Добавлена возможность учёта классов трафика для MPD5 через RADIUS  атрибуты
-  * Добавлена возможность мониторинга нескольких баз данных, мониторинг состояния кластера
-  * Добавлена возможность вести историю SQL  запросов в Sqlcmd
-  * Добавлена возможность задавать несколько расписаний на изменение тарифных планов.
-  * Добавлены поля максимальное количество трафика и времени для тарифного плана. Позволяет более гибко стоить тарифных планы для Hotspot систем.
-  * Добавлено группирование NAS (серверов доступа).
-  * Задание минимального размер пакета, который будет попадать в детализацию. Данная опция предохраняет от замусоривания базы $conf{IPN_DETAIL_MIN_SIZE}=1024;
-  * Добавлено в компании информационное поле представитель
-  * Добавлена привязка платежей к платёжным документам: счёт, счёт-фактура, кассовый ордер
-  * Добавлена возможность автоконфигурации точек HotSpot с прошивкой на базе WRT
-  * Добавлена возможность добавлять комментарии при назначении периодических платежей пользователям. Комментарии отображаются при снятии денег по периодическим платежам.
-  * Добавлено отображение даты следующего периодического платежа
-  * Добавлены временные интервалы к периодическим платежам: квартал, пол года
-  * Добавлена возможность снимать деньги с дополнительного счёта
-  * Добавлены возможность производить снятия как по фиксированным периодам: начало месяца, начало квартала начало года, так и по произвольным - через месяц после последнего снятия, через квартал, через полгода, через год
-  * Добавлено в отчёты Extfin  возможность выбора статистики отдельно по юридическим или физическим пользователям.
-  * В модуль Cards добавлена опция $conf{CARDS_BRUTE_CLEAN_PERIOD}=2; - количество дней через которое удаляется запись о неправильном вводе пин-кода. (По умолчанию 2 дня).
-  * Доработана возможность изменения кредита с пользовательского интерфейса. Добавлена возможность задавать количество изменений в месяц.
-  * Добавлена возможность задавать минимальное допустимое количество символов при поиске логинов администратором
-  * Добавлена возможность ограничить количество значений отображаемых в списках администратором. Настраивается в веб интерфейсе администратора.
-  * Добавлена возможность удалять Vlan.
-  * Сделана возможность переинициализировать Vlan  на удалённых серверах доступа после их перезагрузки
-  * Добавлена возможность задавать несколько MAC адресов пользователю.
-  * Добавлена возможность авто. выбора следующего свободного статического адреса из пула для модуля Dv. Выбираются адреса только из пулов с флагом STATIC.
-  * Добавлена возможность авто. выбора следующего свободного статического адреса для модуля Dhcphosts.
-  * Создание актов оказания услуг. Автоматическое создание актов оказания услуг за прошедший период.
-  * Разделение выписки счетов отдельно для юридических лиц и для физических.
-  * Добавлена опция $conf{SNMPUTILS_BINDING_DEPOSIT}=0.	Количество средств на счету ниже которого не привязываетя пользователь к портам комутатора. Количество средств - Депозит + Кредит аккаунта пользователя. 
-  * Новая опция $conf{DV_USER_SERVICE_HOLDUP}=1; 	 Приостановка действия сервиса пользователя из личного кабинета кабинета.   
-  * Добавлен параметр $conf{LANGS} разрешающий добавлять собственные словари и работать только с нужными языками.
-
-  ALTER TABLE users ADD column domain_id smallint(6) unsigned not null default 0;
-  ALTER TABLE users DROP index id;
-  ALTER TABLE users ADD UNIQUE KEY `id` (id, domain_id);
+  ) COMMENT="Table for paysys terminals";
   
-  ALTER TABLE groups ADD column `domain_id` smallint(6) unsigned not null default 0;
-  ALTER TABLE groups DROP index name;
-  ALTER TABLE groups ADD UNIQUE KEY `name` (`domain_id`, `name`);
-  
-  
-  ALTER TABLE companies ADD column `domain_id` smallint(6) unsigned not null default 0;
-  ALTER TABLE companies DROP index name;
-  ALTER TABLE companies ADD UNIQUE KEY `name` (`domain_id`, `name`);
-  
-  ALTER TABLE tarif_plans ADD column `domain_id` smallint(6) unsigned not null default 0;
-  ALTER TABLE tarif_plans DROP KEY id;
-  ALTER TABLE tarif_plans ADD UNIQUE  KEY `id` (`id`, `module`, `domain_id`);
-  
-  
-  ALTER TABLE tarif_plans DROP KEY `name`;
-  ALTER TABLE tarif_plans ADD UNIQUE KEY `name` (`name`, `domain_id`);
-  
-  ALTER TABLE admins ADD column `domain_id` smallint(6) unsigned not null default 0;
-  
-  ALTER TABLE nas ADD column `domain_id` smallint(6) unsigned not null default 0;
-  ALTER TABLE nas ADD column `address_street` varchar(100) NOT NULL default '';
-  ALTER TABLE nas ADD column `address_build` varchar(10) NOT NULL default '';
-  ALTER TABLE nas ADD column `address_flat` varchar(10) NOT NULL default '';
-  ALTER TABLE nas ADD column `zip` varchar(7) NOT NULL default '';
-  ALTER TABLE nas ADD column `city` varchar(20) NOT NULL default '';
-  
-  ALTER TABLE cards_users ADD column `domain_id` smallint(6) unsigned not null default 0;
-  ALTER TABLE cards_users DROP index serial;
-  ALTER TABLE cards_users ADD KEY `serial` (`number`,`serial`, `domain_id`);
-  
-  
-  ALTER TABLE cards_users ADD KEY `domain_id` (`domain_id`);
-  ALTER TABLE cards_users ADD column `created` DATETIME NOT NULL;
-  UPDATE cards_users SET created=datetime;
-  
-  ALTER TABLE cards_bruteforce ADD column `domain_id` smallint(6) unsigned not null default 0;
-  
-  CREATE TABLE `domains` (
-    `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
-    `name` VARCHAR(30) NOT NULL DEFAULT '',
-    `comments` TEXT NOT NULL,
-    `created` DATE NOT NULL,
-    `state` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
+  CREATE TABLE `service_status` (
+    `id` tinyint(2) unsigned NOT NULL DEFAULT '0',
+    `name` varchar(20) NOT NULL DEFAULT '',
+    `color` varchar(6) NOT NULL DEFAULT '',
+    `type` tinyint(1) unsigned NOT NULL DEFAULT '0',
     PRIMARY KEY (`id`),
     UNIQUE KEY `name` (`name`)
-  )  COMMENT='Domains List';
+  ) COMMENT='System service status list';
   
-  ALTER TABLE intervals add column new_tp_id smallint unsigned not null default 0;
-  UPDATE intervals, tarif_plans SET intervals.new_tp_id=tarif_plans.tp_id
-  WHERE intervals.tp_id=tarif_plans.id;
-  ALTER TABLE  intervals drop KEY tp_intervals;
-  DELETE from intervals WHERE new_tp_id=0;
-  UPDATE intervals SET intervals.tp_id=new_tp_id;
-  ALTER TABLE intervals add UNIQUE KEY `tp_intervals` (`tp_id`, `begin`, `day`);
-  ALTER TABLE intervals drop column new_tp_id;
-  DELETE FROM tp_nas;  
+  REPLACE INTO service_status (id, name, color, type) VALUES (0, '$_ENABLE', '4CAF50', 0);
+  REPLACE INTO service_status (id, name, color, type) VALUES (1, '$_DISABLE', 'F44336', 0);
+  REPLACE INTO service_status (id, name, color, type) VALUES (2, '$_NOT_ACTIVE', 'FF9800', 0);
+  REPLACE INTO service_status (id, name, color, type) VALUES (3, '$_HOLD_UP', '2196F3', 0);
+  REPLACE INTO service_status (id, name, color, type) VALUES (4, '$_DISABLE:$_NON_PAY', '607D8B', 0);
+  REPLACE INTO service_status (id, name, color, type) VALUES (5, '$ERR_SMALL_DEPOSIT', '009688', 0);
+  REPLACE INTO service_status (id, name, color, type) VALUES (6, '$_VIRUS_ALERT', '9C27B0', 0);
+  REPLACE INTO service_status (id, name, color, type) VALUES (7, '$_REPAIR', '9E9E9E', 0);
   
-  CREATE TABLE `traffic_classes` (
-    `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
-    `name` VARCHAR(25) COLLATE latin1_swedish_ci NOT NULL DEFAULT '',
-    `nets` TEXT COLLATE latin1_swedish_ci,
-    `comments` TEXT COLLATE latin1_swedish_ci NOT NULL,
+  ALTER TABLE portal_articles ADD end_date DATETIME DEFAULT NULL;
+  ALTER TABLE portal_articles ADD archive tinyint(1) NOT NULL DEFAULT 0;
+  ALTER TABLE portal_articles ADD importance tinyint(1) NOT NULL DEFAULT 0;
+  ALTER TABLE portal_articles ADD gid smallint(4) unsigned NOT NULL DEFAULT 0;
+  ALTER TABLE portal_articles ADD district_id smallint(6) unsigned NOT NULL DEFAULT 0;
+  ALTER TABLE portal_articles ADD street_id smallint(6) unsigned NOT NULL DEFAULT 0;
+  
+  ALTER TABLE `iptv_channels` ADD COLUMN `genre_id`  tinyint(1) unsigned NOT NULL DEFAULT '0';
+  ALTER TABLE `iptv_channels` ADD COLUMN `stream` varchar(150) NOT NULL default '';
+  ALTER TABLE `iptv_channels` ADD COLUMN `state`  tinyint(1) unsigned NOT NULL DEFAULT '0';
+  ALTER TABLE `netlist_groups` ADD COLUMN `parent_id` smallint(6) unsigned NOT NULL DEFAULT 0;
+
+=====0.72=====
+
+24.12.2015 \\
+
+  * Equipment Создана [[abills:docs:modules:equipment:models|база даных оборудования и производителей]]
+  * Equipment мониторинг PON оборудования ZTE
+  * Equipment обновлено FDB и ARP
+  * Добавлено отображение фона на странице входв в личный кабинет в зависимости от поры года или праздника
+  * Добавлена утилита проверки системы Post-install
+  * ''Paysys'' [[abills:docs:modules:paysys:privatbank#kurs_valjut|P24 добавлен курсы валют]]
+  * Переделан шейпер для  mikrotik
+
+MYSQL: \\
+
+  ALTER TABLE `equipment_models` ADD COLUMN `extra_port1` SMALLINT UNSIGNED DEFAULT 0;
+  ALTER TABLE `equipment_models` ADD COLUMN `extra_port2` SMALLINT UNSIGNED DEFAULT 0;
+  ALTER TABLE `equipment_models` ADD COLUMN `extra_port3` SMALLINT UNSIGNED DEFAULT 0;
+  ALTER TABLE `equipment_models` ADD COLUMN `extra_port4` SMALLINT UNSIGNED DEFAULT 0;
+  ALTER TABLE `equipment_models` MODIFY COLUMN `rows_count` INT UNSIGNED NOT NULL DEFAULT 1;
+  ALTER TABLE `equipment_models` ADD COLUMN `ports_type` SMALLINT UNSIGNED DEFAULT 1;
+  
+  ALTER TABLE `admins` ADD COLUMN `gps_imei` varchar(15) NOT NULL default '';
+  ALTER TABLE `admins` ADD COLUMN `start_work` DATE NOT NULL default '0000-00-00';
+  ALTER TABLE `holidays` ADD file char(50) NOT NULL default '' AFTER day;
+
+15.12.2015 \\
+
+  * ''Netlist'' добавлена поддержка IPv6
+  * ''Netlist'' IPv6 калькулятор 
+  * ''Netlist'' экспорт вычисленных групп адресов в IP pools
+  * ''Netlist'' добавлено сканирование IP сетей, с возможностью экспорта в список адресов
+  * ''IPTV'' самостоятельная активация услуги абонентом
+  * ''Hotspot'' Unifi обновление управления и авторизации
+  * ''Msgs'' добавлена возможность экспорта. Добавлена поддержка Redmine
+  * обновлено json API
+  * добавлена авторизация по ключу
+  * ''Portal''  полный рефакторинг модуля и внешнего вида портала
+  * ''Abon'' после включения услуги линк на внешний ресурс
+  * ''Equipment'' улучшена визуализация портов
+  * ''Voip'' визуальное формирование меню balance recharge
+
+MySQL:
+
+  ALTER TABLE `netlist_ips` ADD COLUMN `ipv6` varbinary(16) NULL DEFAULT 0;
+  ALTER TABLE `netlist_ips` ADD COLUMN `ipv6_prefix` int(3) NULL;
+  ALTER TABLE `netlist_ips` ADD COLUMN `ip_id` int(11) unsigned NULL;
+  UPDATE `netlist_ips` SET `ip_id`=NULL WHERE `ip_id`=0;
+  SET @a  = 0 ;
+  UPDATE `netlist_ips` SET ip_id = @a:=@a+1 WHERE ip_id IS NULL;
+  ALTER TABLE `netlist_ips` DROP PRIMARY KEY;
+  ALTER TABLE `netlist_ips` DROP KEY `ip`;
+  ALTER TABLE `netlist_ips` ADD CONSTRAINT PRIMARY KEY `ip_id` (`ip_id`);
+  ALTER TABLE `netlist_ips` ADD CONSTRAINT UNIQUE `_key_ip_ipv6` (`ip`, `ipv6`);
+  ALTER TABLE `netlist_ips` MODIFY COLUMN `ip_id` int(11) unsigned NOT NULL AUTO_INCREMENT;
+  ALTER TABLE `netlist_ips` ADD CHECK (ip <> 0 OR ipv6 <> 0);
+  ALTER TABLE `netlist_ips` ADD CHECK (netmask <> 0 OR ipv6_prefix <> 0);
+  
+  CREATE TABLE `voip_ivr_menu` (
+    `id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
+    `main_id` smallint(5) unsigned NOT NULL DEFAULT '0',
+    `number` smallint(5) unsigned NOT NULL DEFAULT '0',
+    `name` varchar(100) NOT NULL DEFAULT '',
+    `comments` text,
+    `disable` tinyint(3) unsigned NOT NULL DEFAULT '0',
+    `function` varchar(100) NOT NULL DEFAULT '',
+    `domain_id` smallint(5) unsigned NOT NULL DEFAULT '0',
+    `audio_file` varchar(200) NOT NULL DEFAULT '',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `id` (`id`),
     UNIQUE KEY `name` (`name`)
-   ) COMMENT='Traffic Classes';
+  ) COMMENT='Voip IVR Menu';
+  ALTER TABLE `equipment_models` ADD COLUMN `rows_count` int(11) UNSIGNED NULL DEFAULT 0;
+  ALTER TABLE `equipment_models` ADD COLUMN `block_size` int(11) UNSIGNED NULL DEFAULT 0;
+  ALTER TABLE `equipment_models` ADD COLUMN `port_numbering` TINYINT(1) UNSIGNED DEFAULT 0 COMMENT 'FALSE is ROWS, TRUE is COLUMNS';
+  ALTER TABLE `equipment_models` ADD COLUMN `first_position` TINYINT(1) UNSIGNED DEFAULT 0 COMMENT 'FALSE is UP, TRUE is DOWN';
+
+26.11.2015 \\
+
+  * Обновлено [[abills:docs:manual:json_api|JSON API]] добавлен ключ авторизации для API
+  * ''Abon'' включение услуги с кабинета абонента
+  * ''Abon'' возможность предоставления услуг по внешнему линку 
+  * ''Paysys'' добавлен иконки для систем в кабинете абонента
+  * ''Paysys'' Добавлено дополнительное информирование абонентов при успешной оплате
+  * ''Netlist''  добавлены новые поля 
+  * Добавлены слайды услуг для улучшения визуализации
+  * ''Megogo'' [[/abills:docs:modules:megogo:ru| модуль в light-версии добавлен  в систему]]
+
+MySQL:
+
+  ALTER TABLE abon_tariffs ADD COLUMN `service_link` VARCHAR(240) NOT NULL DEFAULT '';
+  ALTER TABLE netlist_ips ADD COLUMN `mac` varchar(17) not null default 0;
+  ALTER TABLE netlist_ips ADD COLUMN  `mac_auto_detect` tinyint(1) unsigned NOT NULL default '0';
+  ALTER TABLE admins ADD COLUMN `api_key` varchar(100) NOT NULL default '';
+  ALTER TABLE paysys_log ADD user_info varchar(200) NOT NULL default '';
   
-  INSERT INTO traffic_classes (name, nets) VALUES ('Global', '0.0.0.0/0');
-  
-  ALTER TABLE trafic_tarifs ADD COLUMN `net_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
-  
-  CREATE TABLE `sqlcmd_history` (
-    `id` INTEGER(11) UNSIGNED NOT NULL AUTO_INCREMENT,
-    `datetime` DATETIME NOT NULL,
-    `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-    `sql_query` TEXT NOT NULL,
-    `db_id` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
-    `comments` TEXT NOT NULL,
+  CREATE TABLE `admin_slides` (
+    `slide_name` varchar(30) NOT NULL DEFAULT '',
+    `field_id` varchar(30) NOT NULL DEFAULT '',
+    `field_warning` varchar(130) NOT NULL DEFAULT '',
+    `field_comments` varchar(200) NOT NULL DEFAULT '',
+    `priority` tinyint(2) unsigned NOT NULL DEFAULT '0',
+    `size` tinyint(2) unsigned NOT NULL DEFAULT '0',
+    `aid` smallint(6) unsigned NOT NULL DEFAULT '0',
+    `color` varchar(6) NOT NULL DEFAULT '',
+    UNIQUE KEY `aid` (`aid`,`slide_name`,`field_id`)
+  ) COMMENT='Admin slides';
+
+
+10.11.2015 \\
+
+  * ''Iptv'' Дополнительные экраны для услуг
+  * ''Paysys'' [[abills:docs:modules:paysys:walletone|walletone]]
+  * ''Equipment''  улучшена работа с выбором свободных ONU BDCOM
+
+MySQL: \\
+
+  CREATE TABLE `iptv_screens` (
+    `id` smallint(6) unsigned NOT NULL AUTO_INCREMENT,
+    `tp_id` smallint(6) unsigned NOT NULL DEFAULT '0',
+    `num` tinyint(1) unsigned NOT NULL DEFAULT '0',
+    `filter_id` varchar(60) NOT NULL DEFAULT '',
+    `name` varchar(60) NOT NULL DEFAULT '',
+    `month_fee` double(15,5) unsigned NOT NULL DEFAULT '0.00000',
+    `day_fee` double(15,5) unsigned NOT NULL DEFAULT '0.00000',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `id` (`id`),
+    UNIQUE KEY `tp_id` (`tp_id`,`num`)
+  ) COMMENT='IPTV Extra screens';
+  
+  CREATE TABLE `iptv_users_screens` (
+    `service_id` int(10) unsigned NOT NULL DEFAULT '0',
+    `screen_id` smallint(6) unsigned NOT NULL DEFAULT '0',
+    `date` date NOT NULL DEFAULT '0000-00-00',
+    `cid` varchar(60) NOT NULL DEFAULT '',
+    `serial` varchar(60) NOT NULL DEFAULT '',
+    `hardware_id` int(10) unsigned NOT NULL DEFAULT '0',
+    UNIQUE KEY `service_id` (`service_id`,`screen_id`)
+  ) COMMENT='IPTV Extra screens';
+
+
+03.11.2015 \\
+
+  * ''Paysys'' добавлена возможность периодических платежей
+  * ''Paysys'' [[http://abills.net.ua/wiki/doku.php/abills:docs:modules:paysys:oplata|Oplata]]
+  * ''Equipment'' улучшен выбор PON устройств при регистрации абонента
+  * ''Equipment''  добавлен мониторинг для PON Eltex
+  * ''Maps'' полностью переписан модуль управления картами
+  * ''Maps'' улучшен механизм поиска отдельных домов на карте и добавления их на карту 
+  * ''Sysinfo'' добавлен настраиваемый список процессов для слежения нагрузки
+  * Добавлена веб консоль управления accel-ppp
+  * ''Msgs'' отображение точек работ на карте и навигация в указанную точку с расчетом расстояния и времени от места положения сотрудника
+  * ''Msgs'' добавлено слежение за выполнением задач
+  * ''Dv'' добавлены фильтры ошибок в онлайн журнале, и общий количество гостевых сессий
+  * ''Dv'' полностью переписаны отчёты, добавлена геолокация к отчётам
+  * В отчёты платежей добавлена геолокация
+  * обновлена программа управления шейперо для  linux shapper_start.sh
+  * ''Ipn'' улучшен поиск по детализации сессий 
+  * ''Hotspot'' добавлена поддержка Ubiquiti UniFi
+  * Добавлена LDAP авторизация для портала администраторов
+  * Добавлены QR идентификаторы страниц
+  * ''Iptv'' Stalker command console
+  * Мелкие улучшения Storage
+  
+MySQL: \\
+
+  CREATE TABLE `paysys_main` (
+    `uid` int(11) unsigned NOT NULL default '0',
+    `token` tinytext,
+    `sum` double(10,2) NOT NULL default '0.00',
+    `date` date NOT NULL default '0000-00-00',
+    `paysys_id` smallint(5) unsigned NOT NULL default '0',
+    UNIQUE KEY `uid` (`uid`,`paysys_id`)
+  ) COMMENT="Paysys user account";
+
+
+28.09.2015 \\
+
+  * ''Dv'' Включение детализации трафика для отдельных абонентов
+  * ''Dv'' отчёт по тарифам дополнен ''ARPU'', ''ARPPU''
+  * ''Abon'' быстрая информация о включённых услугах
+  * ''Paysys''  отображение на карте терминалов самообслуживание и прокладка пути к ним
+  * ''Voip'' [[abills:docs:voip:dtfm_test|DTMF test]]
+  * Добавлены новые права администратора:  отчёт система, отчёт события. Информация перенесена в меню отчётов
+  * ''Sysinfo'' установленных Perl модулей, рекомендации по установке
+  * в оплаты добавлены поля ''ARPU'', ''ARPPU''
+  * ''Msgs'' шаги выполнения работ привязываются к карте
+  * ''Paysys'' [[http://abills.net.ua/wiki/doku.php/abills:docs:modules:paysys:kaznachey|Kaznachey]],[[http://abills.net.ua/wiki/doku.php/abills:docs:modules:paysys:platon|Platon]], [[http://abills.net.ua/wiki/doku.php/abills:docs:modules:paysys:robokassa|Robokassa]], [[http://abills.net.ua/wiki/doku.php/abills:docs:modules:paysys:paykeeper|Paykeeper]], [[http://abills.net.ua/wiki/doku.php/abills:docs:modules:paysys:chelyabinvestbank|ЧелябИнвестБанк]]
+
+
+MySQL:
+
+  ALTER TABLE `dv_main` ADD COLUMN  `detail_stats` tinyint(1) unsigned NOT NULL default '0';  
+
+22.09.2015 \\
+
+  * Обновлён портал абонентов, добавлена возможность выбора стилей для портала
+  * ''Paysys'' добавлена Robokasa
+  * ''Dv'' детализация статуса онлайн сессий
+  * Отчёт по свободным адреса в IP пуле 
+  * ''Msgs'' Возможность вкладывать фотографии работ в Help desk и геолокация работ
+  * ''Msgs'' добавлены [[abills:docs:manual:admin:msgs:msgs_chapters#progress_bar|шаги выполнения]]
+  * Обновлён linux shaper_start.sh
+  * Accel-ppp проверка установленной скорости на абонента в реальном времени и изменения скорости по формулах
+
+
+
+MySQL: \\
+  ALTER TABLE `msgs_attachments` ADD COLUMN `coordx` DOUBLE(20,14) NOT NULL DEFAULT '0';
+  ALTER TABLE `msgs_attachments` ADD COLUMN `coordy` DOUBLE(20,14) NOT NULL DEFAULT '0';
+  
+  CREATE TABLE `msgs_proggress_bar` (
+    `id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
+    `chapter_id` smallint(5) unsigned NOT NULL DEFAULT '0',
+    `step_num` tinyint(3) unsigned NOT NULL DEFAULT '0',
+    `step_name` varchar(100) NOT NULL DEFAULT '',
+    `step_tip` text NOT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `chapter_id_name` (`chapter_id`,`step_num`)
+  ) COMMENT='Messages progress bar';
+  
+  CREATE TABLE `msgs_message_pb` (
+    `main_msg` int(11) unsigned NOT NULL DEFAULT 0,
+    `step_num` tinyint(3) unsigned NOT NULL DEFAULT '0',
+    `step_date` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+    `coordx` DOUBLE(20,14) NOT NULL DEFAULT '0',
+    `coordy` DOUBLE(20,14) NOT NULL DEFAULT '0',
+    `aid` smallint unsigned NOT NULL DEFAULT 0,
+    KEY (`main_msg`),
+    UNIQUE KEY `msg_step` (`main_msg`, `step_num`)
+  ) COMMENT='Messages message progress bar';  
+  
+  CREATE TABLE `msgs_watch` (
+    `main_msg` int(11) unsigned NOT NULL DEFAULT 0,
+    `aid` smallint unsigned NOT NULL DEFAULT 0,
+    `add_date` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+    KEY (`main_msg`),
+    UNIQUE KEY `msg_aid` (`aid`, `main_msg`)
+  ) COMMENT="Message watch";
+
+
+16.09.2015 \\
+
+  * В оплаты добавлены отчёты по районам, улицам и домам
+  * ''Maps'' добавлена геолокация для всех объектов имеющих привязку к координатам (оплаты, сообщения, подключения и другое)
+  * NAS Console  добавлены шаблоны команд для Mikrotik (вывод основных таблиц в веб-интерфейс: ''address-list'', ''nat'', ''queue tree'', ''queue type'', ''queue simple'')
+  * ''Paysys'' добавлена система [[abills:docs:modules:paysys:kaznachey|Kaznachey]]
+  * ''Dhcphost'' проверка дубликатов MAC  при заведении
+  * Добавлено информационное поле Фотография с возможностью фотографировать с вебкамеры
+  * ''Msgs'' добавлена карта заявок на подключение
+  * ''Iptv'' в список каналов добавлено поле фильтра
+
+MySQL: \\
+  ALTER TABLE `iptv_channels` ADD COLUMN `filter_id` varchar(100) NOT NULL default '';
+
+04.09.2015 \\
+  * ''Msgs'' добавлены шаблоны сообщений
+  * ''Msgs'' групповая рассылка сообщений с пред просмотром и глубоким фильтром абонентов для рассылки
+  * ''Msgs'' отображение сообщений на карте
+  * Новая тема визуализации Material Design
+  * ''Paysys'' paysyscons автоматическое разнесение оплат/снятий в зависимости от сумы
+  * В информационные поля добавлены социальные сети
+  * Mikrotik добавлено пере инициализацию правил NAT
+  * Mikrotik NAT с  несколькими внешними IP
+  * ''Dv'' учёт параметров: снимать оплату и пересчёт при ведении расписания
+  * billd плагин проверки соответствия портов активным абонентам (спасибо Kodr)
+
+
+MySQL: \\
+
+  ALTER TABLE `iptv_users_channels` ADD COLUMN `id` INTEGER(10) UNSIGNED NOT NULL DEFAULT '0';
+  ALTER TABLE `iptv_users_channels` DROP KEY `uid`;
+  ALTER TABLE `iptv_users_channels` ADD KEY `id` (`id`, `channel_id`, `tp_id`);
+  ALTER TABLE msgs_survey_subjects  ADD COLUMN  `tpl` text NOT NULL;
+  ALTER TABLE msgs_survey_subjects  ADD COLUMN  `filename` varchar(250) NOT NULL DEFAULT '';
+  ALTER TABLE msgs_survey_subjects  ADD COLUMN  `file_size` varchar(30) NOT NULL DEFAULT '';
+  ALTER TABLE msgs_survey_subjects  ADD COLUMN  `file_content_type` varchar(250) NOT NULL DEFAULT '';
+  ALTER TABLE msgs_survey_subjects  ADD COLUMN  `file_contents` longblob NOT NULL;
+  ALTER TABLE msgs_survey_subjects  ADD COLUMN  `msg_type` tinyint(1) NOT NULL DEFAULT 0;
+  ALTER TABLE msgs_survey_subjects  ADD COLUMN  `status` tinyint(1) NOT NULL DEFAULT 0;
+  ALTER TABLE dhcphosts_leases CHANGE COLUMN `port` `port` varchar(11) NOT NULL DEFAULT '';
+  ALTER TABLE `shedule` CHANGE COLUMN `action` `action` text NOT NULL;
+
+
+
+=====0.71=====
+
+24.08.2015 \\
+  * Добавлен контроль управления всплывающими сообщениями
+  * ''Paysys'' выражения для аккаунта абонента $conf{PAYSYS_ACCOUNT_EXPR}
+  * Идентификация производителя по маку
+
+
+12.08.2015 \\
+  * ''Iptv'' Olltv добавлено поле  email для регистрации нескольких подписок на одного абонента
+  * ''Iptv''  добавлена печать контракта для услуги
+  * Добавлена веб утилита [[abills:docs:manual:admin:form_nas#radius_test|RADIUS TEST]]
+  * Добавлен медиа альбом для точек подключения (домов)
+  * ''Hotspot'' добавлены примеры шаблонов для Mikrotik
+  * ''Rwizard'' [[abills:docs:manual:admin:rwizard:rwizard_config|добавлена поддежка графиков и фильтров полей]]
+  * ''Paysys'' Privat 24  при импорте выделение разными цветами типов платежей и учёт уже внесённых платежей
+  * ''Msgs'' Добавлен отчёт заявок по категориям
+  * ''Dhcphosts'' информация о неправильных паролях
+  * ''Accel-IPoE'' управление скоростью по RADIUS CoA
+
+
+MySQL: \\
+  ALTER TABLE docs_invoice_orders ADD KEY `fees_id` (`fees_id`);
+  ALTER TABLE docs_receipt_orders ADD KEY `fees_id` (`fees_id`);
+  ALTER TABLE `iptv_main` ADD COLUMN `email` varchar(100) NOT NULL default '';
+  CREATE TABLE `location_media` (
+    `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+    `location_id` int(11) unsigned NOT NULL DEFAULT '0',
+    `comments` varchar(200) NOT NULL DEFAULT '',
+    `filename` varchar(250) NOT NULL DEFAULT '',
+    `content_size` varchar(30) NOT NULL DEFAULT '',
+    `content_type` varchar(250) NOT NULL DEFAULT '',
+    `content` longblob NOT NULL,
+    `create_time` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+    PRIMARY KEY (`id`)
+  ) COMMENT='Location media';
+
+
+
+20.07.2015 \\
+  * ''IPTV'' дествие при недостаточном депозите
+  * ''IPTV'' тарифный план следующего учётного периода
+  * ''Dv'' команда рестарта шейпера при изменениях с веб интерфейса  [[abills:docs:manual:admin:dv:dv_tp?&#traffic|SHAPER_RESTART_CMD]]
+  * Настраиваемый журнал тарифныйх планов
+  * ''Dv'' Управление  burst  
+  * Mikrotik  дифференцированный барст режим 
+  * ''Tags'' приоритеты тагов
+  * accel-ppp  CoA управление
+
+MySQL: \\
+
+  ALTER TABLE `trafic_tarifs` ADD COLUMN `burst_limit_dl` smallint unsigned not null default 0;
+  ALTER TABLE `trafic_tarifs` ADD COLUMN `burst_limit_ul` smallint unsigned not null default 0;
+  ALTER TABLE `trafic_tarifs` ADD COLUMN `burst_threshold_dl` smallint unsigned not null default 0;
+  ALTER TABLE `trafic_tarifs` ADD COLUMN `burst_threshold_ul` smallint unsigned not null default 0;
+  ALTER TABLE `trafic_tarifs` ADD COLUMN `burst_time_dl` smallint unsigned not null default 0;
+  ALTER TABLE `trafic_tarifs` ADD COLUMN `burst_time_ul` smallint unsigned not null default 0;
+  ALTER TABLE `dv_main` ADD COLUMN  `traf_detail` smallint(1) unsigned NOT NULL default '0';
+  ALTER TABLE `msgs_survey_subjects` CHANGE `name` `name` varchar(60) NOT NULL DEFAULT '';
+  ALTER TABLE `msgs_dispatch` CHANGE `plan_date` `plan_date` DATE NOT NULL DEFAULT '0000-00-00';
+  ALTER TABLE `msgs_dispatch` CHANGE `closed_date` `closed_date` DATE NOT NULL DEFAULT '0000-00-00';
+  ALTER TABLE `msgs_dispatch` CHANGE `resposible` `resposible` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
+  ALTER TABLE `msgs_unreg_requests` CHANGE `closed_date` `closed_date` DATE NOT NULL DEFAULT '0000-00-00';
+  ALTER TABLE `msgs_unreg_requests` CHANGE `connection_time` `connection_time` DATETIME NOT NULL DEFAULT '0000-00-00';
+  ALTER TABLE `tags` ADD COLUMN   `priority` tinyint(4) unsigned NOT NULL default '0';
+
+
+
+14.07.2015 \\
+
+  * ''Equipment''  добавлена работа с [[abills:docs:manual:admin:equipment:equipment_model?&#snmp_opros_shablony|SNMP шаблонами]]
+  * ''Equipment''  [[abills:docs:manual:admin:equipment:equipment_list|поиск мака абонента по коммутаторам]]
+  * ''Equipment''  BDCOM мониторинг PON устройств 
+  * ''Tags'' модуль [[abills:docs:modules:tags:ru|теггирования]] абонентов
+  * ''Dhcphosts'' унифицировано формат MAC адреса 
+  * ''Dv'' в импорте аккаунтов добавлена возможность импортировать в IP/DHCP
+  * Мелкие правки ''Docs'', ''Tpl Editor'', 
+  * ''Iptv'' Olltv добавлена возможность удалять подписки и устройства
+  * ''Paysys''  добавлена система [[abills:docs:modules:paysys:stripe|Stripe]]
+  * ''Sms''  добавлена система [[abills:docs:modules:sms:ru#txtlocal|txtlocal]]
+  * ''Storage'' мелкие исправления
+  * ''Ipn''  улучшена детализация трафика
+  * ''autozh.pl'' добавлен режим засыпания после определённого количества операций
+  * ''Paysys'' пополнение и регистрация через [[abills:docs:modules:paysys:e_vostok|E-Vostok]]
+  * ''Notepad'' визуальное информирование о записях
+
+MySQL: \\
+
+  ALTER TABLE equipment_models ADD COLUMN snmp_tpl varchar(50) NOT NULL default '';
+
+
+02.06.2015\\
+
+  * Добавлен расширенный поиск серверов доступа
+  * [[abills:docs:manual:admin:form_admins_full_log|Полное логирование всех действий администратора]]
+  * Отображение символов валют для платежей
+  * ''Dhcphosts'' удаление лизы абонента после изменения его MAC
+  * ''Docs'' добавлена возможность создавать акты с списком выполненных работ
+  * ''Notepad'' обновлён информатор заданий. Теперь он включён в общую систему оповещения событий
+  * ''Msgs''  заявки на подключения включены в общую систему сообщений
+  * Улучшена система графиков для отчётов
+
+MySQL: \\
+
+  ALTER TABLE admins ADD COLUMN `full_log` tinyint(1) unsigned NOT NULL DEFAULT '0';
+  
+  CREATE TABLE `admins_full_log` (
+    `function_index` smallint(5) unsigned NOT NULL DEFAULT '0',
+    `aid` smallint(6) unsigned NOT NULL DEFAULT '0',
+    `function_name` varchar(32) NOT NULL DEFAULT '',
+    `datetime` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+    `ip` int unsigned not null default 0,
+    `sid` varchar(32) NOT NULL default '',
+    `params` text,
     KEY `aid` (`aid`)
-  ) COMMENT='Sqlcmd history';
-  
-  ALTER TABLE cards_dillers ADD COLUMN `tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
-  
-  CREATE TABLE `dillers_tps` (
-    `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
-    `name` VARCHAR(100) COLLATE latin1_swedish_ci NOT NULL DEFAULT '',
-    `payment_type` TINYINT(2) UNSIGNED NOT NULL DEFAULT '0',
-    `percentage` TINYINT(3) UNSIGNED NOT NULL DEFAULT '0',
-    `operation_payment` DOUBLE(14,2) UNSIGNED NOT NULL DEFAULT '0.00',
-    `activate_price` DOUBLE(14,2) UNSIGNED NOT NULL DEFAULT '0.00',
-    `change_price` DOUBLE(14,2) UNSIGNED NOT NULL DEFAULT '0.00',
-    `credit` DOUBLE(10,2) UNSIGNED NOT NULL DEFAULT '0.00',
-    `min_use` DOUBLE(14,3) UNSIGNED NOT NULL DEFAULT '0.000',
-    `payment_expr` VARCHAR(240) COLLATE latin1_swedish_ci NOT NULL DEFAULT '',
-    `nas_count` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
-    `tp_counts` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `id` (`id`),
-    UNIQUE KEY `name` (`name`)
-   ) COMMENT='Resellers Tarif Plans';
-  
-  ALTER TABLE tarif_plans ADD COLUMN `total_time_limit` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0';
-  ALTER TABLE tarif_plans ADD COLUMN `total_traf_limit` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0';
-  
-  ALTER TABLE nas ADD COLUMN`gid` smallint(6) unsigned NOT NULL default 0;
-  
-  CREATE TABLE `nas_groups` (
-    `id` int(10) unsigned NOT NULL auto_increment,
-    `name` varchar(40) NOT NULL default '',
-    `comments` text not null,
-    `disable` tinyint(6) unsigned NOT NULL default '0',
-    `domain_id` smallint(6) unsigned not null default 0,
-    PRIMARY KEY  (`id`),
-    UNIQUE KEY `domain_id` (`domain_id`,`name`)
-  ) COMMENT='Nas servers groups';
-  
-  ALTER TABLE companies ADD COLUMN `representative` VARCHAR(120) NOT NULL DEFAULT '';
-  
-  ALTER TABLE docs_acct ADD COLUMN `payment_id` int(11) unsigned NOT NULL default 0;
-  ALTER TABLE docs_acct ADD COLUMN `domain_id` smallint(6) unsigned not null default 0;
-  ALTER TABLE docs_acct ADD KEY `payment_id` (`payment_id`);
-  ALTER TABLE docs_acct ADD KEY `domain_id` (`domain_id`);
-  ALTER TABLE docs_invoice ADD COLUMN `payment_id` int(11) unsigned NOT NULL default 0;
-  ALTER TABLE docs_invoice ADD COLUMN `domain_id` smallint(6) unsigned not null default 0;
-  ALTER TABLE docs_invoice ADD KEY `payment_id` (`payment_id`);
-  ALTER TABLE docs_invoice ADD KEY `domain_id` (`domain_id`);
-  CREATE TABLE `docs_tax_invoices` (
-    `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-    `date` date NOT NULL DEFAULT '0000-00-00',
-    `created` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
-    `tax_invoice_id` int(10) unsigned NOT NULL DEFAULT '0',
-    `uid` int(11) unsigned NOT NULL DEFAULT '0',
+  ) COMMENT='Admin full log';
+
+
+18.05.2015 \\
+  * ''Dhcphosts'' визуальный выбор свободных портов
+  * ''Equipment'' добавлен мониторинг PON оборудования 
+  * ''Hotspot'' обновлены шаблоны стартовых страниц
+  * ''Hotspot'' переписан авто конфигуратор точек доступа
+  * ''Sms'' добавлен параметр проверки правильности номера
+  * ''Msgs'' Добавлен информатор прихода новых сообщений
+  * Добавлен обработчик моментальных [[abills:docs:manual:admin:form_events|оповещений]]
+  * ''Dv'' улучшена система детализации трафика
+  * Добавлена возможность добавлять словари с веб формы
+  * Добавлена функция отправки договора абоненту через  E-mail
+
+
+21.04.2015 \\
+  * [[abills:docs:manual:admin:form_admins_access|Добавлено ограничение доступа администраторов по времени и IP]]
+  * ''Iptv'' передача в внешние подписки список каналов
+  * ''Dhcphosts'' Добавлен универсальный поиск коммутаторов для услуг абонентов
+  * Обновлен редактор шаблонов
+  * Обновлен автоконфигуратор [[abills:docs:nas:linux:accel_ipoe:ru|accel-ppp]]
+
+MySQL: \\
+
+  CREATE TABLE `admins_access` (
+    `id` smallint(6) unsigned NOT NULL AUTO_INCREMENT,
     `aid` smallint(6) unsigned NOT NULL DEFAULT '0',
-    `vat` double(5,2) unsigned NOT NULL DEFAULT '0.00',
-    `company_id` int(11) unsigned NOT NULL DEFAULT '0',
-    `domain_id` smallint(6) unsigned not null default 0,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `date` (`date`,`company_id`),
-    KEY `domain_id` (`domain_id`)
-  ) COMMENT='Docs Tax Invoices';  
-    
-  ALTER TABLE nas ADD COLUMN `country` tinyint(6) unsigned NOT NULL default '0';
-  ALTER TABLE nas ADD COLUMN `mac` varchar(17) NOT NULL default '';
-  ALTER TABLE nas ADD COLUMN `changed` datetime NOT NULL default '0000-00-00 00:00:00';
+    `begin` time NOT NULL DEFAULT '00:00:00',
+    `end` time NOT NULL DEFAULT '00:00:00',
+    `day` tinyint(4) unsigned DEFAULT '0',
+    `ip` int(11) unsigned NOT NULL DEFAULT '0',
+    `bit_mask` tinyint(1) unsigned NOT NULL DEFAULT '0',
+    `comments` text NOT NULL,
+    `disable` tinyint(1) unsigned NOT NULL DEFAULT '0',
+    PRIMARY KEY (`id`)
+  ) COMMENT='Admin access';
+
+21.04.2015 \\
+  * ''Paysys'' полностью переработан базовый движок работы с внешними платежами
+  * ''Paysys'' Добавлены унифицированный шаблон успешного пополнения и шаблон ошибки пополнения
+  * ''Paysys'' Добавлена система [eCommerce Connect|abills:docs:modules:paysys:upc]
+  * ''Paysys'' обновлён Easysoft, Ibox
+  * ''Cards'' оптимизирован генератор карточек
+  * ''Dv'' улучшены фильтры Online  выборки
+  * ''Iptv'' добавлены примеры программ для внешних сервисов
+  * При использовании модуля freeradius rlm_sql  больше не надо вносить сервера доступа в clients.conf. После изменения сервера доступа, радиус рестартуется автоматически
+  * ''Mikrotik'' улучшен  burst  режим
+  * Обновлен регистратор. Есть возможность провести проверку E-mail  при  при регистрации, например при регистрации через  SMS 
+  * Переделан механизм аккаунтинга для ACCEL-IPoE
+  * Обновлен install.sh  и autoconf
+
+23.03.2015 \\
+  * ''Iptv'' Добавлена механизм работы с внешними сервисами через механизм подписок
+  * ''Paysys''  в интерактивном режиме добавлена проверка наличия абонента в базе 
+  * Добавлен JSON интерфейс
+  * ''Dv'' унифицирован механизм предупреждения о абон. платах
+  * ''Dv'' добавлена утилита  arp_ping для более удобной идентификации "живых" абонентов
+
+MySQL: \\
+
+  alter table iptv_main ADD COLUMN `subscribe_id` int(11) unsigned NOT NULL default 0;
   
-  ALTER TABLE abon_user_list ADD COLUMN `comments` VARCHAR(240) COLLATE cp1251_general_ci NOT NULL DEFAULT '';
-  ALTER TABLE abon_user_list ADD KEY `uid` (`uid`, `tp_id`);
-  ALTER TABLE abon_tariffs CHANGE COLUMN name `name` varchar(100) NOT NULL default '';
-  ALTER TABLE abon_tariffs ADD COLUMN `ext_bill_account` tinyint(1) unsigned NOT NULL DEFAULT '0';
-  ALTER TABLE abon_tariffs ADD COLUMN `nonfix_period` tinyint(1) unsigned NOT NULL DEFAULT '0';
-  UPDATE tarif_plans SET module='Dv' WHERE module='';
-  ALTER TABLE `admins` ADD COLUMN min_search_chars tinyint(2) unsigned NOT NULL DEFAULT '0';
-  ALTER TABLE `admins` ADD COLUMN max_rows smallint(6) unsigned NOT NULL DEFAULT '0';
-  ALTER TABLE `ippools` ADD COLUMN static tinyint(6) unsigned NOT NULL DEFAULT '0';
-  UPDATE dv_main SET CID='ANY' WHERE CID='0';
-  
-  CREATE TABLE `docs_acts` (
-    `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-    `date` date NOT NULL DEFAULT '0000-00-00',
+  CREATE TABLE `iptv_subscribes` (
+    `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+    `status` tinyint(3) unsigned NOT NULL DEFAULT '0',
     `created` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
-    `act_id` int(10) unsigned NOT NULL DEFAULT '0',
-    `uid` int(11) unsigned NOT NULL DEFAULT '0',
-    `aid` smallint(6) unsigned NOT NULL DEFAULT '0',
-    `vat` double(5,2) unsigned NOT NULL DEFAULT '0.00',
-    `company_id` int(11) unsigned NOT NULL DEFAULT '0',
-    `domain_id` smallint(6) unsigned not null default 0,
-    `sum` double(10,2) unsigned NOT NULL default '0.00',
+    `ext_id` varchar(20) NOT NULL DEFAULT '',
+    `tp_id` smallint(5) unsigned NOT NULL DEFAULT '0',
+    `expire` date NOT NULL DEFAULT '0000-00-00',
+    `password` blob NOT NULL,
     PRIMARY KEY (`id`),
-    UNIQUE KEY `date` (`date`,`company_id`),
-    KEY `domain_id` (`domain_id`)
-  ) COMMENT='Docs Acts';
-  
-  ALTER TABLE nas_groups ADD COLUMN `default` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0';
-  ALTER TABLE nas_groups ADD COLUMN `main_page` VARCHAR(120) NOT NULL DEFAULT '';
-  ALTER TABLE tarif_plans ADD COLUMN `priority` tinyint(1) unsigned NOT NULL  DEFAULT '0';
-  ALTER TABLE users_pi ADD COLUMN `contract_sufix` VARCHAR(5) NOT NULL DEFAULT '';
+    KEY `ext_id` (`ext_id`)
+  )  COMMENT='IPTV Subscribes';
+
+
+03.03.2015 \\
+  * ''Iptv'' Старандартизация ошибок пользовательского интерфейса
+  * ''Iptv'' Добавлена возможность изменения ТП на следующий рабочий день для дневных тарифов
+  * ''Iptv'' Опция дебага внешних команд
+  * ''Iptv'' Добавлена возможность заводить несколько услуг на один аккаунт
+  * ''abm_concole'' добавлено групповое удаление помеченных на удаление аккаунтов
+  * ''abm_concole'' добавлено групповые снятия и пополнения счетов. 
+  * ''Maps'' Добавлен тип кабеля "Витая пара"
+  * ''Sysinfo'' Добавлено в быстрых отчётах слежение за демоном isc-dhcp
+  * ''Msgs'' улучшен поиск по заявкам на подключение
+
+
+MySQL: \\
+
+  ALTER TABLE msgs_unreg_requests CHANGE responsible_admin resposible SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
+  ALTER TABLE `iptv_main` DROP PRIMARY KEY;
+  ALTER TABLE `iptv_main` ADD COLUMN `id` int(11) unsigned NOT NULL auto_increment primary key;
+
+
+=====0.70=====
+23.01.2014 \\
+  * В списки абонентов добавлена возможность отображать поле последней оплаты
+  * Обновлена Google карта
+  * Добавлен [[abills:docs:manual:xml_api#json_interfejs|JSON]]  интерфейс для портала абонента
+  * Установка корпоративного стиля интерфейса по картинке
+  * Обновлен поиск по адресам
+  * ''Msgs''  убрали из списка ответственных отключенных администраторов
+  * ''Dhcphosts'' добавлено выборочное удаление лизов
+  * ''Paysys''  Easysoft индивидуальные реквизиты для групп абонентов
+  * ''Docs'' быстрый отчёт: выписано счетов за этот месяц оплачено считав за этот месяц
+  * ''Maps'' добавлено поддержку Yandex карт. 
+  * [[abills:docs:nas:mikrotik:mikrotik_configure|Автонастройщик mikrotik_configure]] добавлена возможность бекапа конфигурации сервера доступа
+  * ''Dv'' Добавлен статус услуги "Ремонт"
+  * ''Dv'' проверка на дубликат CID/MAC
+  * ''Msgs'' добавлена настройка дефолтного включения опции "внутренние сообщение"
+  * ''Docs'' добавлен бланк "Выписка по счету"
+  * ''Bonus'' добавлен бонус: [[abills:docs:manual:admin:Bonus:bonus_tp_using|Акционный тарифный план]]
+  * Добавлено [[abills:docs:manual:admin:form_admins_time_sheet|Табель работ]]
+  * ''Ipn'' скорость анализатора трафика поднята более чем в 20 раз
+  * Поднята скорость выполнения периодических процессов 
+  * ''Abon'' в портал абонента добавлена информация о дополнительных услугах
+  * [[abills:docs:manual:admin:form_config|Контрольная сумма]] проверка несанкционированной правки файлов
+  * [[abills:docs:manual:shaper_start|shaper_start.sh]]  добавлен тестовый режим для проверки правил шейпера и предотвращению блокировки
+  * Аутозап абонентов после перезагрузки сервера доступа
+  * Добавлена возможность менять цветовые схемы
+  * [[abills:docs:other:migration:ru|2abills.pl]] (програма миграции с других систем)  добавлена возможность импорта данных  с MS SQL, Oracle, Firebird
+  * [[abills:docs:modules:dhcphosts:ru#freeradius_dhcp|Freersdius DHCP]] добавлена опция пролонгации гостевого IP.
+  * ''Dv'' Autorecovery добавлена возможность регистрации абонента без статического IP адреса. Регистрируется только NAS_ID, PORTS, Vlan ([[abills:docs:modules:dv:ru#avtoregistracija_abonentov|Авторегистрация абонентов]])
+  * Добавлен параметр $conf{BILLD_PLUGINS}  список плагинов запускаемых после проверки онлайн сессий
+  * При начислениях задним числом добавлено проверять дату регистрации абонента
+  * Сигнализация должников цветом в админ интерфейсе
+  * Добавлен фильтр выполнены и активных заданий расписания
+  * leases2db оптимизирована скорость загрузки лизов
+  * ''Sysinfo'' быстрые отчёты "загрузка системы", "работающие процессы"
+  * ''Dv'' быстрые отчёты "онлайн загрузка", "Ошибки подключения"  
+  * ''Dv'' Autorecovery улучшен механизм регистрации, если у абонента изменился MAC то старая запись просто обновляется. Убрали сообщение про регистрацию для  pppoe  абонентов.
+  * ''Rwizard'' добавлены печатные формы
+  * Улучшена программа ротейта старых данных биллинга (clear_db.pl)
+  * Установка отдельных прав на отчёты "Оплаты"  и "Снятия"
+  * Размер кредита устаналиваемого из портала абонента устанавливается в тарифном плане
+  * ''Msgs'' унифицировали отправку сообщений сейчас перед отправкой можно выбрать способ доставки (E-mail, SMS, Dt, Отобразить в бравзере при подключении) 
+  * Все настройки вынесены в веб интерфейс
+  * Быстрые отчёты на первой странице 
+  * Переделан SQL движок
+  * Переделан веб интерфейс
+  * Переработан механизм авторизации теперь система работает только в режиме rlm_perl
+
+MySQL:
+
+  UPDATE nas SET ip=INET_ATON(ip) WHERE INET_ATON(ip);
+  ALTER TABLE nas change COLUMN ip ip int unsigned not null default 0;
+  ALTER TABLE tarif_plans ADD COLUMN `user_credit_limit` double(10,2) unsigned NOT NULL DEFAULT '0.00';
+  CREATE TABLE `admins_time_sheet` (
+  `aid` smallint(5) unsigned NOT NULL DEFAULT '0',
+  `date` date NOT NULL DEFAULT '0000-00-00',
+  `work_time` tinyint(2) NOT NULL DEFAULT '0',
+  `overtime` tinyint(2) NOT NULL DEFAULT '0',
+  `extra_fee` tinyint(2) NOT NULL DEFAULT '0',
+  `day_type` tinyint(2) NOT NULL DEFAULT '0',
+  UNIQUE KEY `aid_date` (`aid`,`date`)
+  ) COMMENT='Admins time sheet';

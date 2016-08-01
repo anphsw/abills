@@ -1,5 +1,5 @@
 <div align=center>
-<b>$_REGISTRATION_COMPLETE</b>
+<b>_{REGISTRATION_COMPLETE}_</b>
 <br>
-<a href='$SELF_URL?user=$FORM{LOGIN}&passwd=$FORM{newpassword}'>$_ENTER</a>
+<a href='$SELF_URL?user=$FORM{LOGIN}&passwd=$FORM{newpassword}'>_{ENTER}_</a>
 </div>

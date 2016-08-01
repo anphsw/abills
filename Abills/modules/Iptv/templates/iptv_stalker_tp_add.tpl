@@ -5,21 +5,21 @@
   <table align='center'>
     <tbody>
       <tr>
-        <td width='100'>$_EXTERNAL_ID</td>
+        <td width='100'>_{EXTERNAL_ID}_</td>
         <td><input name='EXTERNAL_ID' value='%EXTERNAL_ID%' type='text'></td>
       </tr>
       <tr>
-        <td>$_NAME</td>
+        <td>_{NAME}_</td>
         <td><input name='NAME' value='%NAME%' type='text'></td>
       </tr>
  <!--    <tr>
         <td>По умолчанию</td>
         <td><input name='user_default' value='1' type='checkbox'></td>
      </tr>
- -->     
+ -->
       <tr>
         <td><input type=submit name='%STALKER_ACTION%' value='%STALKER_LNG_ACTION%'></td>
       </tr>
     </tbody>
   </table>
-</form>                
+</form>

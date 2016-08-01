@@ -1,47 +1,166 @@
-<form action='$SELF_URL' METHOD='POST' name='company' enctype='multipart/form-data'>
+<div class='panel panel-default panel-form'>
+<div class='panel-body'>
+
+<form action='$SELF_URL' METHOD='POST' name='company' class='form-horizontal' enctype='multipart/form-data'>
 <input type=hidden name='index' value='13'>
-<input type=hidden name='COMPANY_ID' value='%COMPANY_ID%'>
-<TABLE class='form'>
-<TR><TH class='form_title' colspan=2>$_COMPANY</th></tr>
-<TR><TD>$_NAME:</TD><TD><textarea name='COMPANY_NAME' rows='2' cols='45'>%COMPANY_NAME%</textarea></TD></TR>
-<TR class='odd'><TD>$_ADDRESS:</TD><TD><input type='text' name='ADDRESS' value='%ADDRESS%' size='60'></TD></TR>
-<TR class='odd'><TD>$_PHONE:</TD><TD><input type='text' name='PHONE' value='%PHONE%' size='60'></TD></TR>
-<TR class='odd'><TD>$_REPRESENTATIVE:</TD><TD><input type='text' name='REPRESENTATIVE' value='%REPRESENTATIVE%' size='60'></TD></TR>
-<TR class='odd'><TD>$_BILL:</TD><TD>%BILL_ID%</TD></TR>
-<TR class='odd'><TD>$_DEPOSIT:</TD><TD>%DEPOSIT%</TD></TR>
+<input type=hidden name='ID' value='%ID%'>
+
+<fieldset>
+  <legend>_{COMPANY}_</legend>
+
+  <div class='form-group'>
+    <label for='COMPANY_NAME' class='control-label col-md-3'>_{NAME}_:</label>
+    <div class='col-md-9'>
+      <input class='form-control' id='NAME' placeholder='%NAME%' name='NAME' value='%NAME%'>
+    </div>
+  </div>
+  
+    <div class='form-group'>
+    <label for='ADDRESS' class='control-label col-md-3'>_{ADDRESS}_:</label>
+    <div class='col-md-9'>
+      <input class='form-control' id='ADDRESS' placeholder='%ADDRESS%' name='ADDRESS' value='%ADDRESS%'>
+    </div>
+  </div>
+  
+  <div class='form-group'>
+    <label for='PHONE' class='control-label col-md-3'>_{PHONE}_:</label>
+    <div class='col-md-9'>
+      <input class='form-control' id='PHONE' placeholder='%PHONE%' name='PHONE' value='%PHONE%'>
+    </div>
+  </div>
+  
+    <div class='form-group'>
+    <label for='REPRESENTATIVE' class='control-label col-md-3'>_{REPRESENTATIVE}_:</label>
+    <div class='col-md-9'>
+      <input class='form-control' id='REPRESENTATIVE' placeholder='%REPRESENTATIVE%' name='REPRESENTATIVE' value='%REPRESENTATIVE%'>
+    </div>
+  </div>
+  
+   <div class='form-group'>
+  <label class='control-label col-md-6' for='ACTIVE_DAY_FEE'>_{ACTIVE_DAY_FEE}_:</label>
+  <div class='col-md-2'>
+    <input id='ACTIVE_DAY_FEE' name='ACTIVE_DAY_FEE' value='1' %ACTIVE_DAY_FEE%  type='checkbox'>
+  </div>
+   </div>
+   
+   <div class='form-group'>
+  <label class='control-label col-md-6' for='BILL_ID'>_{BILL}_:</label>
+  <div class='col-md-2'>
+  	<div class='input-group'>
+      %BILL_ID%
+     </div>
+    </div>
+   </div>
+   
+    <div class='form-group'>
+  <label class='control-label col-md-6' for='DEPOSIT'>_{DEPOSIT}_:</label>
+  <div class='col-md-2'>
+  	<div class='input-group'>
+      %DEPOSIT%
+     </div>
+    </div>
+   </div>
+   
 %EXDATA%
-<TR class='odd'><TD>$_CREDIT:</TD><TD><input type=text name=CREDIT value='%CREDIT%'> $_DATE: <input type=text name=CREDIT_DATE value='%CREDIT_DATE%' ID='CREDIT_DATE' size='10' rel='tcal'> 
-<script language=\"JavaScript\">
-A_TCALCONF = {
-	'cssprefix'  : 'tcal',
-	'months'     : ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
-	'weekdays'   : ['Sun', 'Mon', 'Tue', 'Wen', 'Thu', 'Fri', 'Sat'],
-	'longwdays'  : ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thirsday', 'Friday', 'Saturday'],
-	'yearscroll' : false, // show year scroller
-	'weekstart'  : 1, // first day of week: 0-Su or 1-Mo
-	'prevyear'   : 'Previous Year',
-	'nextyear'   : 'Next Year',
-	'prevmonth'  : 'Previous Month',
-	'nextmonth'  : 'Next Month',
-	'format'     : 'Y-m-d'
-};
-</script>
-</TD></TR>
-<TR class='odd'><TD>$_VAT (%):</TD><TD><input type=text name=VAT value='%VAT%'></TD></TR>
-<TR class='odd'><TD>$_REGISTRATION:</TD><TD>%REGISTRATION%</TD></TR>
-<TR><TH class='title_color' colspan=2>$_BANK_INFO</th></tr>
-<TR class='even'><TD>$_TAX_NUMBER:</TD><TD><input type=text name=TAX_NUMBER value='%TAX_NUMBER%' size=60></TD></TR>
-<TR class='even'><TD>$_ACCOUNT:</TD><TD><input type=text name=BANK_ACCOUNT value='%BANK_ACCOUNT%' size=60></TD></TR>
-<TR class='even'><TD>$_BANK:</TD><TD><input type=text name=BANK_NAME value='%BANK_NAME%' size=60></TD></TR>
-<TR class='even'><TD>$_COR_BANK_ACCOUNT:</TD><TD><input type=text name=COR_BANK_ACCOUNT value='%COR_BANK_ACCOUNT%' size=60></TD></TR>
-<TR class='even'><TD>$_BANK_BIC:</TD><TD><input type=text name=BANK_BIC value='%BANK_BIC%' size=60></TD></TR>
-<TR><TD>$_CONTRACT_ID:</TD><TD><input type=text name=CONTRACT_ID value='%CONTRACT_ID%' size=10>%CONTRACT_SUFIX% $_DATE: 
-%CONTRACT_DATE% <br>%CONTRACT_TYPE% <br> %PRINT_CONTRACT%</TD></TR>
-<TR class='odd'><TD>$_DISABLE:</TD><TD><input type=checkbox name=DISABLE value='1' %DISABLE%></TD></TR>
 
-%INFO_FIELDS%
+<div class='form-group'>
+    <label for='CREDIT' class='control-label col-md-3'>_{CREDIT}_:</label>
+    <div class='col-md-9'>
+      <input class='form-control' id='CREDIT' placeholder='%CREDIT%' name='CREDIT' value='%CREDIT%'>
+    </div>
+  </div>
+  
+  <div class='form-group'>
+    <label for='CREDIT_DATE' class='control-label col-md-3'>_{DATE}_:</label>
+    <div class='col-md-9'>
+      <input class='tcal form-control' id='CREDIT_DATE' placeholder='%CREDIT_DATE%' name='CREDIT_DATE' value='%CREDIT_DATE%'>
+    </div>
+  </div>
+  
+  <div class='form-group'>
+    <label for='VAT' class='control-label col-md-3'>_{VAT}_ (%):</label>
+    <div class='col-md-9'>
+      <input class='form-control' id='VAT' placeholder='%VAT%' name='VAT' value='%VAT%'>
+    </div>
+  </div>
+  
+    <div class='form-group'>
+    <label for='REGISTRATION' class='control-label col-md-3'>_{REGISTRATION}_:</label>
+    <div class='col-md-9'>
+      <input class='form-control' id='REGISTRATION' placeholder='%REGISTRATION%' name='REGISTRATION' value='%REGISTRATION%'>
+    </div>
+  </div>
+  
+  
+  <legend>_{BANK_INFO}_</legend>
+  
+   <div class='form-group'>
+    <label for='TAX_NUMBER' class='control-label col-md-3'>_{TAX_NUMBER}_:</label>
+    <div class='col-md-9'>
+      <input class='form-control' id='TAX_NUMBER' placeholder='%TAX_NUMBER%' name='TAX_NUMBER' value='%TAX_NUMBER%'>
+    </div>
+  </div>
+   <div class='form-group'>
+    <label for='BANK_ACCOUNT' class='control-label col-md-3'>_{ACCOUNT}_:</label>
+    <div class='col-md-9'>
+      <input class='form-control' id='BANK_ACCOUNT' placeholder='%BANK_ACCOUNT%' name='BANK_ACCOUNT' value='%BANK_ACCOUNT%'>
+    </div>
+  </div>
+   <div class='form-group'>
+    <label for='BANK_NAME' class='control-label col-md-3'>_{BANK}_:</label>
+    <div class='col-md-9'>
+      <input class='form-control' id='BANK_NAME' placeholder='%BANK_NAME%' name='BANK_NAME' value='%BANK_NAME%'>
+    </div>
+  </div>
+   <div class='form-group'>
+    <label for='COR_BANK_ACCOUNT' class='control-label col-md-3'>_{COR_BANK_ACCOUNT}_:</label>
+    <div class='col-md-9'>
+      <input class='form-control' id='COR_BANK_ACCOUNT' placeholder='%COR_BANK_ACCOUNT%' name='COR_BANK_ACCOUNT' value='%COR_BANK_ACCOUNT%'>
+    </div>
+  </div>
+   <div class='form-group'>
+    <label for='BANK_BIC' class='control-label col-md-3'>_{BANK_BIC}_:</label>
+    <div class='col-md-9'>
+      <input class='form-control' id='BANK_BIC' placeholder='%BANK_BIC%' name='BANK_BIC' value='%BANK_BIC%'>
+    </div>
+  </div>
 
-<TR><TH class=even colspan=2><input type=submit name='%ACTION%' value='%LNG_ACTION%'></TD></TR>
-</TABLE>
+<div class='form-group'>
+  <label class='control-label col-md-3' for='CONTRACT_ID'>_{CONTRACT_ID}_</label>
+  <div class='col-sm-4'>
+  	<div class='input-group'>
+      <input id='CONTRACT_ID' name='CONTRACT_ID' value='%CONTRACT_ID%' placeholder='%CONTRACT_ID%' class='form-control' type='text'>
 
+      <div class='input-group-btn'>
+        <button type='button' class='btn btn-default dropdown-toggle' data-toggle='dropdown' aria-expanded='false'><span class='caret'></span></button>
+        <ul class='dropdown-menu dropdown-menu-right' role='menu'>
+          <li><span class='input-group-addon'>%PRINT_CONTRACT%</span></li>
+          <!-- <li><span class='input-group-addon'><a href='$SELF_URL?qindex=13&COMPANY_ID=%ID%&PRINT_CONTRACT=%CONTRACT_ID%&SEND_EMAIL=1&pdf=1' class='glyphicon glyphicon-envelope' target=_new></a></span></li> -->
+        </ul>
+      </div>
+    </div>
+    %CONTRACT_SUFIX%
+  </div>
+
+  <label class='control-label col-md-1' for='CONTRACT_DATE'>_{DATE}_</label>
+  <div class='col-md-4'>
+    <input id='CONTRACT_DATE' type='text' name='CONTRACT_DATE' value='%CONTRACT_DATE%' class='tcal form-control'> 
+  </div>
+</div>
+
+%CONTRACT_TYPE%
+
+  <div class='form-group'>
+  <label class='control-label col-md-6' for='DISABLE'>_{DISABLE}_:</label>
+  <div class='col-md-2'>
+    <input id='DISABLE' name='DISABLE' value='1' %DISABLE%  type='checkbox'>
+  </div>
+   </div>
+   
+   %INFO_FIELDS%
+   
+   <div class='col-sm-offset-2 col-sm-8'>
+      <input type='submit' class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
+    </div>
+   </fieldset>
 </form>

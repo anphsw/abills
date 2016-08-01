@@ -1,12 +1,12 @@
 #Report 2
-$_REQUEST_DATE='Дата обращения';
-$_LOCATION='Сегмент';
-$_DISTRICT='Район';
-$_ENTRANCE='Подъезд';
-$_FLOR='Этаж';
-$_LAST_PAYMENT='Последняя оплата';
-$_PAYMENT_TO_DATE='Оплачено до даты';
-$_DEBTS_DAYS='Задолженость дней';
-$_FORUM_ACTIVITY='активночть в форуме';
-$_PRE_TP='Преведущий Тарифный план';
-$_LAST_FEES_DATE='Дата последнего начисления';
+$lang{REQUEST_DATE}='Дата обращения';
+$lang{LOCATION}='Сегмент';
+$lang{DISTRICT}='Район';
+$lang{ENTRANCE}='Подъезд';
+$lang{FLOR}='Этаж';
+$lang{LAST_PAYMENT}='Последняя оплата';
+$lang{PAYMENT_TO_DATE}='Оплачено до даты';
+$lang{DEBTS_DAYS}='Задолженость дней';
+$lang{FORUM_ACTIVITY}='активночть в форуме';
+$lang{PRE_TP}='Преведущий Тарифный план';
+$lang{LAST_FEES_DATE}='Дата последнего начисления';

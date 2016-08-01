@@ -2,13 +2,51 @@
 <input type=hidden name='index' value='$index'>
 <input type=hidden name='UID' value='$FORM{UID}'>
 <input type=hidden name='SUM' value='%SUM%'>
-<table class=form width=450>
-<tr><th colspan=2 class='form_title'>$_PAY_TO</th></tr>
-<tr class='even'><td>$_TARIF_PLAN:</td><th  align='left' valign='middle'>[%TP_ID%] %TP_NAME%</th></tr>
-<tr><td>$_DATE:</td><td>%DATE%</td></tr>
-<tr><td>$_SUM:</td><td>%SUM%</td></tr>
-<tr><td>$_DAYS:</td><td>%DAYS%</td></tr>
-<tr class=''><th colspan=2 class='even'><input type=submit name='pay_to' value='%ACTION_LNG%' class='noprint'></th></tr>
-</table>
 
+<fieldset>
+   <div class='panel panel-default panel-form'>
+     <div class='panel-heading'>
+       <h4>_{PAY_TO}_</h4>
+     </div>
+     <div class='panel-body form form-horizontal'>
+
+      <div class='form-group'>
+        <label class='control-label col-md-3' for='TI_ID'>_{TARIF_PLAN}_:</label>
+        <div class='col-md-9'>
+          <div class='input-group'>
+            <span class='input-group-addon bg-primary'>%TP_ID%</span>
+            <input type=text name='GRP' value='%TP_NAME%' ID='GRP' class='form-control' readonly>
+          </div>
+        </div>
+      </div>
+
+      <div class='form-group'>
+        <label class='control-label col-md-3' for='DATE'>_{DATE}_</label>
+          <div class='col-md-9'>
+            <input id='DATE' name='DATE' value='%DATE%' placeholder='%DATE%' class='form-control tcal' type='text'>
+         </div>
+      </div>
+
+      <div class='form-group'>
+        <label class='control-label col-md-3' for='SUM'>_{SUM}_</label>
+          <div class='col-md-9'>
+            <h4>
+            <span  class='label label-primary  col-md-3' for='SUM'>%SUM%</span>
+            </h4>
+         </div>
+      </div>
+
+      <div class='form-group'>
+        <label class='control-label col-md-3' for='DAYS'>_{DAYS}_</label>
+          <div class='col-md-9'>
+            <h4>
+              <span class='label label-success  col-md-3' for='SUM'>%DAYS%</label>
+            </h4>
+         </div>
+      </div>
+
+<input type=submit name='pay_to' value='%ACTION_LNG%' class='btn btn-primary'>
+
+</panel>
+</panel>
 </form>

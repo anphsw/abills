@@ -1,0 +1,614 @@
+#!perl
+
+=head1 NAME
+
+  Events
+
+=cut
+
+use Events;
+our $Events = Events->new($db, $admin, \%conf);
+
+#**********************************************************
+
+=head2 events_main()
+
+=cut
+
+#**********************************************************
+sub events_main {
+
+  events_uni_page_logic(
+    'events',
+    {
+      SELECTS => {
+        PRIVACY_SELECT  => { func => 'events_privacy_select',  argument => 'PRIVACY_ID' },
+        PRIORITY_SELECT => { func => 'events_priority_select', argument => 'PRIORITY_ID' },
+
+        GROUP_SELECT  => { func => 'events_group_select',  argument => 'GROUP_ID' },
+        STATE_SELECT    => { func => 'events_state_select',    argument => 'STATE_ID' },
+      }
+    }
+  );
+
+  events_uni_result_former(
+    {
+      LIST_FUNC      => "events_list",
+#      DEFAULT_FIELDS => "ID,MODULE,COMMENTS,PRIORITY_NAME,STATE_NAME,PRIVACY_NAME",
+      DEFAULT_FIELDS => "ID,MODULE,COMMENTS,PRIORITY_NAME,STATE_NAME,GROUP_NAME",
+      EXT_TITLES     => {
+        id            => "ID",
+        comments      => $lang{COMMENTS},
+        module        => 'Module',
+        created       => $lang{CREATED},
+        state_name    => $lang{STATE},
+        privacy_name  => $lang{ACCESS},
+        priority_name => $lang{PRIORITY},
+        group_name    => $lang{GROUP}
+      },
+      READABLE_NAME => "$lang{EVENTS}",
+      TABLE_NAME    => "EVENTS_TABLE",
+    }
+  );
+
+  return 1;
+}
+
+#**********************************************************
+
+=head2 events_state_main()
+
+=cut
+
+#**********************************************************
+sub events_state_main {
+
+  events_uni_page_logic('state');
+
+  events_uni_result_former(
+    {
+      LIST_FUNC      => "state_list",
+      DEFAULT_FIELDS => "ID,NAME",
+      EXT_TITLES     => {
+        id   => "ID",
+        name => "$lang{NAME}"
+      },
+      READABLE_NAME => "$lang{STATE}",
+      TABLE_NAME    => "STATE_TABLE",
+    }
+  );
+
+  return 1;
+}
+
+#**********************************************************
+
+=head2 events_priority_main()
+
+=cut
+
+#**********************************************************
+sub events_priority_main {
+
+  events_uni_page_logic('priority');
+
+  events_uni_result_former(
+    {
+      LIST_FUNC      => "priority_list",
+      DEFAULT_FIELDS => "ID,NAME,VALUE",
+      EXT_TITLES     => {
+        id    => "ID",
+        name  => "$lang{NAME}",
+        value => "$lang{VALUE}"
+      },
+      READABLE_NAME => "$lang{PRIORITY}",
+      TABLE_NAME    => "PRIORITY_TABLE",
+    }
+  );
+
+  return 1;
+}
+
+#**********************************************************
+
+=head2 events_privacy_main()
+
+=cut
+
+#**********************************************************
+sub events_privacy_main {
+
+  events_uni_page_logic('privacy');
+
+  events_uni_result_former(
+    {
+      LIST_FUNC      => "privacy_list",
+      DEFAULT_FIELDS => "ID,NAME,VALUE",
+      EXT_TITLES     => {
+        id    => "ID",
+        name  => "$lang{NAME}",
+        value => "$lang{VALUE}"
+      },
+      READABLE_NAME => "$lang{ACCESS}",
+      TABLE_NAME    => "PRIVACY_TABLE",
+    }
+  );
+
+  return 1;
+}
+
+#**********************************************************
+=head2 events_group_main()
+
+=cut
+#**********************************************************
+sub events_group_main {
+
+  our @MODULES;
+  my $modules_checkboxes_html = '';
+
+  # Storing comma separated list of modules in single DB field #TODO: move to Events.pm
+  my %checked_modules = ();
+  if ($FORM{chg}){
+    my $group = $Events->group_info($FORM{chg});
+    _error_show($Events);
+
+    if ($group->{modules}){
+     map { $checked_modules{$_} = 1 } split (',', $group->{modules});
+    }
+  }
+  if ($FORM{add} || $FORM{change}){
+    my @checked = grep { $_ if exists $FORM{$_} } @MODULES;
+    $FORM{MODULES} = join(',', @checked);
+  };
+
+  foreach my $module_name (sort @MODULES){
+
+    next if ($module_name eq 'Events');
+
+    my $checkbox = $html->form_input($module_name, 1, { TYPE => 'checkbox', STATE => $checked_modules{$module_name} });
+    my $label = $html->element('label', $checkbox . $module_name);
+    my $checkbox_group = $html->element('div', $label, { class => 'checkbox col-md-6 text-left' });
+
+    $modules_checkboxes_html .= $checkbox_group;
+  }
+
+  events_uni_page_logic('group', { MODULE_CHECKBOXES => $modules_checkboxes_html} );
+
+
+  my $groups_list = $Events->group_list({SHOW_ALL_COLUMNS => 1});
+  _error_show($Events);
+
+  my $table = $html->table( {
+      width      => '100%',
+      caption    => $lang{GROUP},
+      title      => [ '#', $lang{NAME}, $lang{MODULES} ],
+      cols_align => [ 'left', 'right', 'right', 'right', 'center', 'center' ],
+      pages      => $Events->{TOTAL},
+      qs         => $pages_qs,
+      ID         => 'EVENTS_GROUP_ID',
+      MENU       => "$lang{ADD}:index=$index&show_add_form=1&$pages_qs:add",
+    } );
+
+  foreach my $group ( @{$groups_list} ) {
+
+    my @group_modules = split (',', $group->{modules});
+
+    my $chg_button =  $html->button('', "index=$index&chg=$group->{id}", { class => 'change' });
+    my $del_button =  $html->button('', "index=$index&del=$group->{id}", { MESSAGE => "$lang{DEL} $group->{name}?", class => 'del' });
+
+    $table->addrow(
+      $group->{id},
+      $group->{name},
+      $html->element('abbr', 'Modules', { 'data-tooltip' => join("<br/>", @group_modules) }),
+      $chg_button,
+      $del_button,
+    );
+  }
+
+  print $table->show();
+}
+
+#**********************************************************
+=head2 events_events($attr)
+
+  Arguments:
+    $attr - hash_ref
+      CLIENT_INTERFACE - client interface flaf
+
+  Returns:
+    JSON aray string
+
+=cut
+#**********************************************************
+sub events_events {
+  my ($attr) = @_;
+  my @events_list = ();
+
+  #Check if called from cross_modules via User Portal
+  if ($attr->{CLIENT_INTERFACE}) {
+    return '';
+  }
+
+  my $events_index = get_function_index('events_main');
+  return '' if ($events_index == 0);
+
+  my $events_list = $Events->events_list({ STATE_ID => 1, SHOW_ALL_COLUMNS => 1 });
+
+  my %group_enabled = ();
+  my $group_ids = $admin->{SETTINGS}{GROUP_ID} || '';
+  if ($group_ids) {
+    %group_enabled = map { $_ => 1 } split (', ', $group_ids);
+  }
+
+
+  foreach my $event (@{$events_list}) {
+    next if ($group_ids && !$group_enabled{$event->{group_id}});
+
+    $event->{message} = $event->{comments};
+    $event->{subject} = $event->{module};
+    $event->{extra} ||= "$SELF_URL?index=$events_index&chg=$event->{id}";
+
+    push(@events_list, events_event_to_json($event, $events_index));
+  }
+
+  return join(", ", @events_list);
+}
+
+#**********************************************************
+=head2 events_event_to_json($message)
+
+  Function to format message to JSON structure needed in AMessageChecker
+
+  Arguments:
+    $message - hash_ref of message from DB
+      subject   - Subject of message
+      message   - Text of message
+
+    $msgs_index - index to see message
+
+  Returns:
+    JSON structure for message
+
+=cut
+#**********************************************************
+sub events_event_to_json {
+  my ($event, $events_index) = @_;
+
+  $event->{subject} =~ s/["]/\\"/g;
+  $event->{message} =~ s/["]/\\"/g;
+
+  return qq{
+        {
+          "TYPE"     : "MESSAGE",
+          "TITLE"    : "$event->{subject}",
+          "TEXT"     : "$event->{message}",
+          "EXTRA"    : "$event->{extra}",
+          "MODULE"   : "$event->{module}",
+          "GROUP_ID" : "$event->{group_id}",
+          "ID"       : "$event->{id}"
+        }
+      };
+}
+
+#**********************************************************
+=head2 events_unsubscribe()
+
+=cut
+#**********************************************************
+sub events_unsubscribe {
+  my $group_id = $FORM{GROUP_ID} || return 0;
+  my $current_groups = $admin->{SETTINGS}{GROUP_ID};
+
+  my @groups = split(', ', $current_groups);
+  my %groups = map { $_ => 1 } @groups;
+
+  delete $groups{$group_id};
+
+  my $new_groups_string = join(', ', keys %groups);
+
+  print "Location: $SELF_URL?header=2&json=1&AWEB_OPTIONS=1&GROUP_ID=$new_groups_string;\n\n";
+
+}
+
+#**********************************************************
+=head2 events_state_select($attr)
+
+  Arguments:
+    $attr - attributes for select
+
+  Returns:
+    HTML code for select
+
+=cut
+#**********************************************************
+sub events_state_select {
+  my ($attr) = @_;
+
+  return $html->form_select(
+    'STATE_ID',
+    {
+      SELECTED => $attr->{SELECTED},
+      SEL_LIST => _translate_list($Events->state_list({ COLS_NAME => 1, SHOW_ALL_COLUMNS => 1, MODULE => 'Events' })),
+      NO_ID    => 1
+    }
+  );
+
+  return 1;
+}
+
+#**********************************************************
+=head2 events_privacy_select($attr)
+
+  Arguments:
+    $attr - attributes for select
+
+  Returns:
+    HTML code for select
+
+=cut
+#**********************************************************
+sub events_privacy_select {
+  my ($attr) = @_;
+
+  return $html->form_select(
+    'PRIVACY_ID',
+    {
+      SELECTED => $attr->{SELECTED},
+      SEL_LIST => _translate_list($Events->privacy_list({ COLS_NAME => 1, SHOW_ALL_COLUMNS => 1, MODULE => 'Events' })),
+      NO_ID    => 1
+    }
+  );
+}
+
+#**********************************************************
+=head2 events_priority_select($attr)
+
+  Arguments:
+    $attr - attributes for select
+
+  Returns:
+    HTML code for select
+
+=cut
+#**********************************************************
+sub events_priority_select {
+  my ($attr) = @_;
+
+  return $html->form_select(
+    'PRIORITY_ID',
+    {
+      SELECTED => $attr->{SELECTED},
+      SEL_LIST => _translate_list($Events->priority_list({ COLS_NAME => 1, SHOW_ALL_COLUMNS => 1, MODULE => 'Events' })),
+      NO_ID    => 1
+    }
+  );
+}
+
+#**********************************************************
+=head2 events_group_select($attr)
+
+  Arguments:
+    $attr - attributes for select
+
+  Returns:
+    HTML code for select
+
+=cut
+#**********************************************************
+sub events_group_select {
+  my ($attr) = @_;
+
+  return $html->form_select(
+    'GROUP_ID',
+    {
+      SELECTED => $attr->{SELECTED},
+      SEL_LIST => _translate_list($Events->group_list({ COLS_NAME => 1, SHOW_ALL_COLUMNS => 1, MODULE => 'Events' })),
+      NO_ID    => 1,
+      SEL_OPTIONS=> { '' => $lang{NO} },
+      MAIN_MENU      => get_function_index( 'events_group_main' ),
+      %{ ($attr) ? $attr : {} }
+    }
+  );
+}
+
+#**********************************************************
+=head2 events_uni_result_former($attr) - contains events module result former similar parameters
+
+ Arguments:
+   $attr - hash_ref
+
+ Returns:
+   list
+
+=cut
+#**********************************************************
+sub events_uni_result_former {
+  my ($attr) = @_;
+
+  my $filter_cols = { map { $_, '_translate' } split(",", lc $attr->{DEFAULT_FIELDS}) };
+
+  my ($table, $list) = result_former(
+    {
+      INPUT_DATA      => $Events,
+      FUNCTION        => $attr->{LIST_FUNC},
+      BASE_FIELDS     => 0,
+      DEFAULT_FIELDS  => $attr->{DEFAULT_FIELDS},
+      FUNCTION_FIELDS => 'change,del',
+      SKIP_USER_TITLE => 1,
+      EXT_FIELDS      => 0,
+      EXT_TITLES      => $attr->{EXT_TITLES},
+      FILTER_COLS     => $filter_cols,
+      TABLE           => {
+        width   => '100%',
+        caption => $attr->{READABLE_NAME},
+        ID      => uc $attr->{LIST_FUNC},
+        EXPORT  => 1,
+        MENU    => "$lang{ADD}:index=$index&show_add_form=1:add"
+      },
+
+      MAKE_ROWS     => 1,
+      SEARCH_FORMER => 1,
+      MODULE        => 'Events',
+      %{($attr) ? $attr : {} }
+    }
+  );
+
+  print $table->show();
+
+  return $list;
+}
+
+#**********************************************************
+=head2 events_uni_page_logic($name, $attr)
+
+  Arguments:
+    $name - name for entity to manage
+    $attr - hash_ref
+
+  Returns:
+
+=cut
+#**********************************************************
+sub events_uni_page_logic {
+  my ($name, $attr) = @_;
+
+  $attr = (defined $attr) ? $attr : {};
+
+  my $add_func    = "$name\_add";
+  my $change_func = "$name\_change";
+  my $info_func   = "$name\_info";
+  my $delete_func = "$name\_del";
+
+  if ($FORM{show_add_form}) {
+    events_uni_show_template($name, $attr);
+  }
+  elsif ($FORM{chg}) {
+    my $Events_obj = $Events->$info_func($FORM{chg});
+    _error_show($Events);
+    $Events_obj->{CHANGE_ID} = "ID";
+    events_uni_show_template($name, { %{$Events_obj}, %{$attr} });
+  }
+  elsif ($FORM{add}) {
+    $Events->$add_func(\%FORM);
+    events_print_result($Events, $lang{ADDED});
+  }
+  elsif ($FORM{change}) {
+    $Events->$change_func(\%FORM);
+    events_print_result($Events, $lang{CHANGED});
+  }
+  elsif ($FORM{del}) {
+    $Events->$delete_func({ ID => $FORM{del} });
+    events_print_result($Events, $lang{DELETED});
+  }
+
+  _error_show($Events);
+
+  return 1;
+}
+
+#**********************************************************
+=head2 events_tell_result($object, $result_message) - differ normal and error logic
+
+  Arguments:
+    $object - hash_ref
+    $result_message - string
+
+  Returns:
+    1
+
+=cut
+#**********************************************************
+sub events_print_result {
+  my ($object, $result_message) = @_;
+
+  if ($object->{errno}) {
+    _error_show($object);
+    undef $object->{errno};
+  }
+  else {
+    $html->message('info', $result_message);
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 events_uni_show_template($name, $object) - shows form for ADD or CHANGE operations
+
+  Arguments:
+    $name   - name for entity to manage
+    $object - hash_ref
+      SELECTS - hash_ref to forms selects
+
+  Returns:
+   1
+
+  Examples:
+    events_uni_show_template ( 'events',
+    {
+      SELECTS =>
+      {
+        STATE_SELECT    => { func => 'events_state_select', argument => "STATE_ID" },
+        PRIVACY_SELECT  => { func => 'events_privacy_select', argument => "PRIVACY_ID" },
+        PRIORITY_SELECT => { func => 'events_priority_select', argument => "PRIORITY_ID" },
+      }
+    }
+  );
+
+=cut
+#**********************************************************
+sub events_uni_show_template {
+  my ($name, $object) = @_;
+
+  if ($object->{SELECTS}) {
+    my %select_hash = %{ $object->{SELECTS} };
+    while (my ($select_name, $select) = each %select_hash) {
+
+      # $object->{STATE_SELECT} = "events_state_select"->( { SELECTED => $object->{STATE_ID} } )
+      $object->{$select_name} = $select->{func}->({ SELECTED => $object->{ $select->{argument} } });
+    }
+  }
+
+  $html->tpl_show(
+    _include("events_$name", "Events"),
+    {
+      %{$object},
+      SUBMIT_BTN_NAME   => ($FORM{chg}) ? "$lang{CHANGE}" : "$lang{ADD}",
+      SUBMIT_BTN_ACTION => ($FORM{chg}) ? "change"        : "add"
+    }
+  );
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _translate_list($list, $attr)
+
+  Arguments:
+    $list - list of vars to translate
+    $attr
+      NAME_KEY - key in hash that will be translated (default 'name')
+
+  Returns:
+    translated list
+
+=cut
+#**********************************************************
+sub _translate_list {
+  my ($list, $attr) = @_;
+
+  my $name_key = $attr->{NAME_KEY} || 'name';
+
+  my @translated_list = map {
+
+    $_->{$name_key} = _translate($_->{$name_key}) if ($_->{$name_key});
+
+    $_
+
+  } @{$list};
+
+  return \@translated_list;
+
+}
+1;

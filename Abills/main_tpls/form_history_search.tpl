@@ -1,8 +1,42 @@
-<tr><td colspan=2><hr></td></tr>
-<tr><td>$_ADMIN:</td><td><input type='text' name='ADMIN' value='%ADMIN%'></td></tr>
-<tr><td>$_CHANGE (*)</td><td><input type='text' name='ACTION' value='%ACTION%'></td></tr>
-<tr><td>$_TYPE:</td><td>%TYPE_SEL%</td></tr>
-<tr><td>$_MODULES:</td><td>%MODULES_SEL%</td></tr>
-<tr><td>IP:</td><td><input type='text' name='IP' value='%IP%'></td></tr>
-<tr><td colspan=2><input type=hidden name=subf value='$FORM{subf}'>
-<input type=hidden name=AID value='$FORM{AID}'></td></tr>
+
+<div class='panel panel-default panel-form'>
+<div class='panel-body'>
+
+<fieldset>
+	 <div class='form-group'>
+         <label for='ADMIN' class='control-label col-sm-3'>_{ADMIN}_:</label>
+    <div class='col-md-9'>
+      <input class='form-control' id='ADMIN' placeholder='%ADMIN%' name='ADMIN' value='%ADMIN%'> 
+     </div>
+  </div>
+  
+   <div class='form-group'>
+       <label for='ACTION' class='control-label col-sm-3'>_{CHANGE}_ (*)</label>
+    <div class='col-md-9'>
+      <input class='form-control' id='ACTION' placeholder='%ACTION%' name='ACTION' value='%ACTION%'> 
+     </div>
+  </div>
+	
+	 <div class='form-group'>
+         <label for='TYPE_SEL' class='control-label col-sm-3'>_{TYPE}_:</label>
+    <div class='col-md-9'>
+  %TYPE_SEL%
+     </div>
+  </div>
+  
+   <div class='form-group'>
+       <label for='MODULES_SEL' class='control-label col-sm-3'>_{MODULES}_:</label>
+    <div class='col-md-9'>
+  %MODULES_SEL% 
+     </div>
+  </div>
+   <div class='form-group'>
+    <label for='IP' class='control-label col-sm-3'>IP:</label>
+    <div class='col-md-9'>
+      <input class='form-control' id='IP' placeholder='%IP%' name='IP' value='%IP%'> 
+     </div>
+  </div>
+</fieldset>
+
+</div>
+</div>

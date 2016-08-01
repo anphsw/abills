@@ -1,47 +1,92 @@
 <script type='text/javascript'>
-        function selectLanguage() {
-                sLanguage       = '';
-
-                try {
-                        frm = document.forms[0];
-                        if(frm.language)
-                                sLanguage = frm.language.options[frm.language.selectedIndex].value;
-                        sLocation = '$SELF_URL?DOMAIN_ID=$FORM{DOMAIN_ID}&module=Dv&language='+sLanguage;
-                        location.replace(sLocation);
-                } catch(err) {
-                        alert('Your brownser do not support JS');
-                }
-        }
+    function selectLanguage() {
+        var sLanguage = jQuery('#language').val() || '';
+        var sLocation = '$SELF_URL?DOMAIN_ID=$FORM{DOMAIN_ID}&language=' + sLanguage;
+        location.replace(sLocation);
+    }
+    function set_referrer() {
+        document.getElementById('REFERER').value = location.href;
+    }
 </script>
 
-
-<div class='login_form_border'>
-<div class='kabinet-styled_table-wrap box_shadow border_rad'>
-
-<FORM action='$SELF_URL' METHOD=POST ID='REGISTRATION'>
+<link href='/styles/default_adm/css/client.css' rel='stylesheet'>
+<FORM action='$SELF_URL' METHOD=POST ID='REGISTRATION' class='form-horizontal'>
 <input type=hidden name=index value=$index>
 <input type=hidden name=DOMAIN_ID value=$FORM{DOMAIN_ID}>
 <input type=hidden name=module value=Dv>
 
-<TABLE width=400 class=form>
-<tr><th colspan=2 class=form_title>$_REGISTRATION - Internet</th></tr>
-<tr><td align=right width=50%>$_LANGUAGE:</td><td  width=50%>%SEL_LANGUAGE%</td></tr>
-<tr><td align=right>$_LOGIN:</td><td><input type=text name='LOGIN' value='%LOGIN%'></td></tr>
-<tr><td align=right>$_FIO:</td><td><input type=text name='FIO' value='%FIO%' size=40></td></tr>
-<tr><td align=right>$_PHONE:</td><td><input type=text name='PHONE' value='%PHONE%'></td></tr>
-<tr><td align=right>E-MAIL:</td><td><input type=text name='EMAIL' value='%EMAIL%'></td></tr>
-<tr><td align=right>$_TARIF_PLAN:</td><td>%TP_SEL%</td></tr>
+<div class='panel panel-primary panel-form center-block'>
+
+<div class='panel-heading text-center'><h4>_{REGISTRATION}_ - Internet</h4></div>
+<div class='panel-body'>
+<div class='form-group'>
+  <label class='control-label col-md-3' for='LANGUAGE'>_{LANGUAGE}_</label>
+  <div class='col-md-9'>
+     %SEL_LANGUAGE%
+  </div>
+</div>
+
+<div class='form-group'>
+  <label class='control-label required col-md-3' for='LOGIN'>_{LOGIN}_</label>
+  <div class='col-md-9'>
+    <input id='LOGIN' name='LOGIN' value='%LOGIN%' required placeholder='_{LOGIN}_' class='form-control' type='text'>
+  </div>
+</div>
+
+<div class='form-group'>
+  <label class='control-label required col-md-3' for='FIO'>_{FIO}_</label>
+  <div class='col-md-9'>
+    <input id='FIO' name='FIO' value='%FIO%' required placeholder='_{FIO}_' class='form-control' type='text'>
+  </div>
+</div>
+
+<div class='form-group'>
+  <label class='control-label required col-md-3' for='PHONE'>_{PHONE}_</label>
+  <div class='col-md-9'>
+    <input id='FIO' name='PHONE' value='%PHONE%' required placeholder='_{PHONE}_' class='form-control' type='text'>
+  </div>
+</div>
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='EMAIL'>E-MAIL</label>
+  <div class='col-md-9'>
+    <input id='FIO' name='EMAIL' value='%EMAIL%' placeholder='E-mail' class='form-control' type='text'>
+  </div>
+</div>
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='TP_ID'>_{TARIF_PLAN}_</label>
+  <div class='col-md-9'>
+    %TP_SEL%
+  </div>
+</div>
+
+%ADDRESS_TPL%
+
 %PAYMENTS%
 
-<tr><th colspan=2 class='title_color'>$_RULES</th></tr>
-<tr><th colspan=2><textarea cols=60 rows=8></textarea></th></tr>
-<tr><td align=right>$_ACCEPT:</td><td><input type='checkbox' name='ACCEPT_RULES' value='1'></td></tr>
+<div class='form-group text-center'>
+  <label class='control-element col-md-12 ' for='TP_ID'>_{RULES}_</label>
+  <div class='col-md-12'>
+    <textarea cols=60 rows=8 class='form-control' readonly> %_RULES_% </textarea>
+  </div>
+</div>
+
+<div class='form-group'>
+  <label class='control-elenement col-md-7 required text-right' for='ACCEPT_RULES'>_{ACCEPT}_</label>
+  <div class='col-md-5'>
+    <input type='checkbox' required name='ACCEPT_RULES' value='1'>
+  </div>
+</div>
 
 %CAPTCHA%
+</div>
 
-<tr><td colspan=2 align=center><input type=submit name=reg value='$_REGISTRATION'></td></tr>
-</table>
+<div class='panel-footer text-center'>
+    <input type=submit name=reg value='_{REGISTRATION}_' class='btn btn-primary'>
+</div>
+
+</div>
 </FORM>
 
-</div>
-</div>
+%MAPS%

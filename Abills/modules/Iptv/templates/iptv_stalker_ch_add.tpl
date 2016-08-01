@@ -5,11 +5,11 @@
     <table align='center'>
         <tbody>
         <tr>
-        	<th colspan='2' class=form_title>$_STALKER_MIDDLEWARE_ADD_CHANNEL</th>
+        	<th colspan='2' class=form_title>_{STALKER_MIDDLEWARE_ADD_CHANNEL}_</th>
         </tr>
         <tr>
            <td align='right'>
-            $_NUM:
+            _{NUM}_:
            </td>
            <td>
             <input name='NUMBER' id='NUMBER' value='%NUMBER%' maxlength='3' type='text'>
@@ -17,7 +17,7 @@
         </tr>
         <tr>
            <td align='right'>
-            $_NAME_STALKER_FORM:
+            _{NAME_STALKER_FORM}_:
            </td>
            <td>
             <input name='NAME' id='NAME' value='%NAME%' type='text'>
@@ -26,22 +26,22 @@
             <input id='ACTION' value='' type='hidden'>
            </td>
         </tr>
-        
+
         <tr>
            <td align='right' valign='top'>
-           $_TEMPORARY_HTTP_LINK:
+           _{TEMPORARY_HTTP_LINK}_:
            </td>
            <td>
             <input name='USE_HTTP_TMP_LINK' id='USE_HTTP_TMP_LINK' onchange='this.checked ? document.getElementById('WOWZA_TMP_LINK_TR').style.display = '' : document.getElementById('WOWZA_TMP_LINK_TR').style.display = 'none'' type='checkbox' %USE_HTTP_TMP_LINK%>
             <span id='WOWZA_TMP_LINK_TR' style='display: none'>
-                $_WOWZA_SUPPORT:
+                _{WOWZA_SUPPORT}_:
                 <input name='WOWZA_TMP_LINK' id='WOWZA_TMP_LINK' type='checkbox' %WOWZA_TMP_LINK%>
             </span>
            </td>
         </tr>
         <tr>
            <td align='right' valign='top'>
-           $_AGE_LIMIT:
+           _{AGE_LIMIT}_:
            </td>
            <td>
             <input name='CENSORED' id='CENSORED' type='checkbox' %CENSORED%>
@@ -49,7 +49,7 @@
         </tr>
         <tr>
            <td align='right' valign='top'>
-           HD: 
+           HD:
            </td>
            <td>
             <input name='HD' id='HD' type='checkbox' %HD%>
@@ -57,7 +57,7 @@
         </tr>
         <tr>
            <td align='right' valign='top'>
-           $_BASE_CHANNEL:
+           _{BASE_CHANNEL}_:
            </td>
            <td>
             <input name='BASE_CH' id='BASE_CH' type='checkbox' %BASE_CH%>
@@ -65,7 +65,7 @@
         </tr>
         <tr>
            <td align='right' valign='top'>
-           $_BONUS_CHANNEL:
+           _{BONUS_CHANNEL}_:
            </td>
            <td>
             <input name='BONUS_CH' id='BONUS_CH' type='checkbox' %BONUS_CH%>
@@ -73,7 +73,7 @@
         </tr>
         <tr>
            <td align='right' valign='top'>
-           $_PRICE:
+           _{PRICE}_:
            </td>
            <td>
             <input name='COST' id='COST' value='%COST%' size='5' maxlength='6' type='text'>
@@ -81,7 +81,7 @@
         </tr>
         <tr>
            <td align='right' valign='top'>
-            $_GENRE:
+            _{GENRE}_:
            </td>
            <td>
 			%TV_GENRE_ID%
@@ -96,7 +96,7 @@
             <input id='CMD' name='CMD' size='50' value='%CMD%' type='text'>
            </td>
         </tr>
-        
+
         <tr>
            <td align='right' valign='top'>
            WOWZA load balancing:
@@ -105,10 +105,10 @@
             <input name='ENABLE_WOWZA_LOAD_BALANCING' id='ENABLE_WOWZA_LOAD_BALANCING' value='1' type='checkbox' %ENABLE_WOWZA_LOAD_BALANCING%>
            </td>
         </tr>
-        
+
         <tr>
            <td align='right'>
-            $_ADDRESS_FOR_THE_RECORD_MULTICAST:
+            _{ADDRESS_FOR_THE_RECORD_MULTICAST}_:
            </td>
            <td>
             <input id='MC_CMD' name='MC_CMD' size='50' value='%MC_CMD%' type='text'>
@@ -116,7 +116,7 @@
         </tr>
         <tr>
            <td align='right'>
-            $_TV_NEWS_ARCHIVE:
+            _{TV_NEWS_ARCHIVE}_:
            </td>
            <td>
             <input name='ENABLE_TV_ARCHIVE' id='ENABLE_TV_ARCHIVE' onchange='this.checked ? document.getElementById('WOWZA_DVR_TR').style.display = '' : document.getElementById('WOWZA_DVR_TR').style.display = 'none'' type='checkbox' %ENABLE_TV_ARCHIVE%>
@@ -129,7 +129,7 @@
         </tr>
         <tr>
            <td align='right'>
-            $_NEWS_MONITORING:
+            _{NEWS_MONITORING}_:
            </td>
            <td>
             <input id='ENABLE_MONITORING' name='ENABLE_MONITORING' value='1' onchange='this.checked ? document.getElementById('MONITORING_URL_TR').style.display = '' : document.getElementById('MONITORING_URL_TR').style.display = 'none'' type='checkbox' %ENABLE_MONITORING%>
@@ -137,14 +137,14 @@
         </tr>
         <tr id='MONITORING_URL_TR' style='display:none'>
            <td align='right'>
-            $_URL_CHANNEL_FOR_MONITORING:
+            _{URL_CHANNEL_FOR_MONITORING}_:
            </td>
            <td>
-            <input id='MONITORING_URL' name='MONITORING_URL' size='50' value='%MONITORING_URL%' type='text'> * $_ONLY http </td>
+            <input id='MONITORING_URL' name='MONITORING_URL' size='50' value='%MONITORING_URL%' type='text'> * _{ONLY}_ http </td>
         </tr>
         <tr>
            <td align='right'>
-            XMLTV ID: 
+            XMLTV ID:
            </td>
            <td>
             <input id='XMLTV_ID' name='XMLTV_ID' size='50' value='%XMLTV_ID%' type='text'>
@@ -152,7 +152,7 @@
         </tr>
         <tr>
             <td align='right'>
-                $_CORRECTION_EPG_MIN:
+                _{CORRECTION_EPG_MIN}_:
             </td>
             <td>
                 <input id='CORRECT_TIME' name='CORRECT_TIME' size='50' value='%CORRECT_TIME%' type='text'>
@@ -160,7 +160,7 @@
         </tr>
         <tr>
            <td align='right'>
-            $_SERVICE_CODE:
+            _{SERVICE_CODE}_:
            </td>
            <td>
             <input id='SERVICE_ID' name='SERVICE_ID' size='50' value='%SERVICE_ID%' type='text'>
@@ -168,7 +168,7 @@
         </tr>
         <tr>
            <td align='right'>
-            $_VOLUME_CORRECTION (-20...20):
+            _{VOLUME_CORRECTION}_ (-20...20):
            </td>
            <td>
             <input id='VOLUME_CORRECTION' name='VOLUME_CORRECTION' size='50' value='%VOLUME_CORRECTION%' type='text'>
@@ -176,7 +176,7 @@
         </tr>
         <tr>
            <td align='right'>
-            $_COMMENTS:
+            _{COMMENTS}_:
            </td>
            <td>
             <textarea id='DESCR' name='DESCR' cols='39' rows='5'>%DESCR%</textarea>
@@ -184,7 +184,7 @@
         </tr>
         <tr>
            <td align='right'>
-            $_DISABLE:
+            _{DISABLE}_:
            </td>
            <td>
             <input name='STATUS' id='STATUS' type='checkbox' %STATUS%>

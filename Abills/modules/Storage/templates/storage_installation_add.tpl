@@ -1,269 +1,61 @@
+<form action=$SELF_URL ID=mapForm name=adress class='form-horizontal'>
+    <input type=hidden name=index value=$index>
+    <input type=hidden name=ID value=%ID%>
+    <!--
+        <input type=hidden name=STREET_ID value='%STREET_ID%' ID='STREET_ID'>
+        <input type=hidden name=LOCATION_ID value='%LOCATION_ID%' ID='LOCATION_ID'>
+        <input type=hidden name=DISTRICT_ID value='%DISTRICT_ID%' ID='DISTRICT_ID'>
+        -->
 
-<table clas=form>
-<form action=$SELF_URL ID=mapForm name=adress align=center>
-<input type=hidden name=index value=$index>
-<input type=hidden name=ID value=%ID%>
+    <fieldset>
+        <div class='panel panel-default panel-form' style='margin-left:auto; margin-right: auto;'>
+            <div class='panel-body form'>
 
-<script src=\"/ajax/lib/JsHttpRequest/JsHttpRequest.js\"></script>
-<style>
-div.timeline
-{
-	height: 20px;
-	display: inline-table;
-	vertical-align: middle;
-}
-div.lists
-{
-	position: absolute;
-	display: none;
-	background-color: #ffffff;
-	/*border: 1px solid #000000;*/
-}
-div
-{
-	margin: 1px 1px 1px 1px;
-	font-family: Verdana, Tahoma, Arial;
-	font-size: 12px;
-}
-input.input,div.lists
-{
-	width: 200px;
-}
-div.fix
-{
-	postion: fixed;
-}
-div.spisok
-{
-	padding: 1px 1px 1px 1px;
-	border: 1px dotted #000000;
-}
-div.spisok:hover
-{
-	border: 1px solid #000000;
-}
-</style>
+                <legend>_{INSTALLATION}_</legend>
 
+                <div id='address_form_source'>
+                    %ADDRESS_FORM%
+                </div>
+                <div class='form-group'>
+                    <label class='col-md-3 control-label'>_{COUNT}_:</label>
+                    <div class='col-md-8'><input class='form-control' name='COUNT' value='%COUNT%' type='text'></div>
+                </div>
 
-<script language=\"JavaScript\" type=\"text/javascript\">
+                <div class='form-group'>
+                    <label class='col-md-3 control-label'>_{COMMENTS}_:</label>
+                    <div class='col-md-8'><textarea class='form-control col-xs-12' name='COMMENTS'>%COMMENTS%</textarea>
+                    </div>
+                </div>
 
-window.onload = function () {
-    district('0');
-}
+                <div class='form-group'>
+                    <label class='col-md-3 control-label'>_{NAS}_:</label>
+                    <div class='col-md-8'>%NAS%</div>
+                </div>
 
-function openwindow(params) {
-  window.open(params, \"calendar\", \"width=400,height=500,status=yes\");
- }
+                <div class='form-group'>
+                    <label class='col-md-3 control-label' for='USER_LOGIN'>_{USER}_:</label>
+                    <div class='col-md-9'>
+                        <input type=hidden name=UID id='UID_HIDDEN' value='%UID%'/>
+                        <div class='col-md-10'>
+                            <input type='text' class='form-control' value='%USER_LOGIN%' id='USER_LOGIN'
+                                   readonly='readonly'/>
+                        </div>
+                        <div class='col-md-2'>
+                            %USER_SEARCH%
+                        </div>
+                    </div>
+                </div>
+                <!--
+                <div class='form-group'>
+                    <label class='col-md-3 control-label'>_{USER}_:</label>
+                    <div class='col-md-8'>%USER_SEL%</div>
+                </div>
+-->
+            </div>
+            <div class='panel-footer'>
+                <input type=submit name=install value=_{INSTALL}_ class='btn btn-primary'>
+            </div>
+        </div>
 
-function time_line(state) {
-	if (state == 1) {
-		document.getElementById(\"time\").innerHTML = \"<img src='/img/progbar.gif'>\";
-	}
-	if (state == 4)	{	
-		document.getElementById(\"time\").innerHTML = \"\";
-	}
-}
-
-function insert (id) {
-	var arr = id.value.split(\"|\");
-	var teg = arr[\"0\"];
-	var value = arr[\"1\"];
-	var hide_teg = arr[\"2\"];
-	var key = arr[\"3\"];
-
-	document.getElementById(teg).value = value;
-	document.getElementById(hide_teg).style.display = \"\";
-
-	if (teg == 'p1') {
-		document.getElementById('p2').value = \"\";
-		document.getElementById('p3').value = \"\";
-		document.getElementById('DISTRICT_ID').value = key;
-		street('0');
-	}
-	if (teg == 'p2') {
-		document.getElementById('STREET_ID').value = key;
-		//document.getElementById('LOCATION_ID').value = key;
-		build('0');
-	}
-	if (teg == 'p3') {
-		document.getElementById('LOCATION_ID').value = key;
-		build('0');
-	}
-}
-
-function hide_unhide (teg) {
-	if (document.getElementById(teg).innerHTML != \"\") {
-		if (document.getElementById(teg).style.display == \"\") {
-			document.getElementById(teg).style.display = \"block\";
-		 }
-		else {
-			document.getElementById(teg).style.display = \"\";
-		}
-	}
-}
-
-function district(go) {
-  if (go == 1) {
-	  document.getElementById(\"p1\").value = document.getElementById(\"p2\").value = document.getElementById(\"p3\").value = \"\";
-	 }
-
-	go = go || '1';
-
-	if (document.getElementById(\"p1\").value.length > 0 || go == 0) {
-		JsHttpRequest.query	(
-			\"$SELF_URL\",
-			{
-				\"go\": go,
-				\"qindex\": 30,
-				\"address\": 1,
-			},
-			function(result, errors) {
-				document.getElementById(\"debug\").innerHTML = errors;
-				if (result[\"list\"] != \"\")
-				{
-					document.getElementById(\"l1\").innerHTML = result[\"list\"];
-					if (go == 1)
-					{
-						document.getElementById(\"l1\").style.display = \"block\";
-					}
-				}
-			},
-			true,
-			function (state) 
-			{
-				time_line(state);
-			}
-		);
-	}
-	else {
-		document.getElementById(\"l1\").innerHTML = \"\";
-		document.getElementById(\"l1\").style.display = \"\";
-	}
-}
-
-function street(go) {
-	go = go || '1';
-	if (document.getElementById(\"p2\").value.length > 0 || go == 0)
-	{
-		JsHttpRequest.query
-		(
-			\"$SELF_URL\",
-			{
-				\"go\": go,
-				\"qindex\": 30,
-				\"address\": 1,
-				\"DISTRICT_ID\": document.getElementById(\"DISTRICT_ID\").value,
-			},
-			function(result, errors) 
-			{
-				document.getElementById(\"debug\").innerHTML = errors;
-				if (result[\"list\"] != \"\")
-				{
-					document.getElementById(\"l2\").innerHTML = result[\"list\"];
-					if (go == 1)
-					{
-						document.getElementById(\"l2\").style.display = \"block\";
-					}
-				}
-			},
-			true,
-			function (state) 
-			{
-				time_line(state);
-			}
-		);
-	}
-	else
-	{
-		document.getElementById(\"l2\").innerHTML = \"\";
-		document.getElementById(\"l2\").style.display = \"\";
-	}
-}
-
-function build (go) {
-	go = go || '1';
-	if (document.getElementById(\"p3\").value.length > 0 || go == 0)
-	{
-		JsHttpRequest.query
-		(
-      \"$SELF_URL\",
-			{
-				\"go\": go,
-				\"qindex\": 30,
-				\"address\": 1,
-				\"STREET\": document.getElementById(\"STREET_ID\").value,
-			},			
-	  function(result, errors) {
-				document.getElementById(\"debug\").innerHTML = errors;
-				if (result[\"list\"] != \"\")	{
-					document.getElementById(\"l3\").innerHTML = result[\"list\"];
-					if (go == 1) {
-						document.getElementById(\"l3\").style.display = \"block\";
-					}
-				}
-			},
-			true,
-			function (state) {
-				time_line(state);
-			}
-		);
-	}
-	else
-	{
-		document.getElementById(\"l3\").innerHTML = \"\";
-		document.getElementById(\"l3\").style.display = \"\";
-	}
-}
- 
-</script>
-
-<div class=\"timeline\"><div id=\"time\" class=\"fix\"></div></div>
-<div id=\"debug\"></div>
-
-<input type=hidden name=STREET_ID value='%STREET_ID%' ID='STREET_ID'>
-<input type=hidden name=LOCATION_ID value='%LOCATION_ID%' ID='LOCATION_ID'>
-<input type=hidden name=DISTRICT_ID value='%DISTRICT_ID%' ID='DISTRICT_ID'>
-
-<TR><TH colspan=2 class=form_title>$_ADDRESS</TH></TR>
-<TR bgcolor='$_COLORS[2]'><TD>$_DISTRICTS:</TD><TD>
-<div><input name=\"ADDRESS_DISTRICT\" id=\"p1\" type=\"text\" class=\"input\" value=\"%ADDRESS_DISTRICT%\" onkeyup=\"district()\" onclick=\"hide_unhide('l1')\"> 
-</div>
-<div id=\"l1\" class=\"lists\"></div>
-</TD></TR>
-
-<TR bgcolor='$_COLORS[2]'><TD>$_ADDRESS_STREET:</TD><TD>
-<div><input name=\"ADDRESS_STREET\" id=\"p2\" type=\"text\" class=\"input\" value=\"%ADDRESS_STREET%\" onkeyup=\"street()\" onclick=\"hide_unhide('l2')\"></div>
-<div id=\"l2\" class=\"lists\"></div>
-</TD></TR>
-
-<TR bgcolor='$_COLORS[2]'><TD>$_ADDRESS_BUILD:</TD><TD>
-<div><input name=\"ADDRESS_BUILD\" id=\"p3\" type=\"text\" class=\"input\" value=\"%ADDRESS_BUILD%\" onkeyup=\"build()\" onclick=\"hide_unhide('l3')\"> 
-<!-- <a href=\"javascript:openwindow('$SELF_URL?qindex=68&header=1')\"  class=link_button>$_ADD</a> --> </div> 
-<div id=\"l3\" class=\"lists\"></div>
-</TD></TR> 
-<!--<tr bgcolor='$_COLORS[2]'>
-	<td>$_ADDRESS_FLAT:</td>
-	<td><input type=text name=ADDRESS_FLAT value='%ADDRESS_FLAT%' size=8></td>
-</tr>-->
-<tr bgcolor=\"#eeeeee\">
-	<td>$_COUNT:</td>
-	<td><input name=\"COUNT\" value=\"%COUNT%\" size=\"8\" type=\"text\"></td>
-</tr>
-<tr bgcolor=\"#eeeeee\">
-	<td>$_COMMENTS:</td>
-	<td><textarea name=\"COMMENTS\">%COMMENTS%</textarea></td>
-</tr>
-<tr bgcolor=\"#eeeeee\">
-	<td>$_NAS:</td>
-	<td>%NAS%</td>
-</tr>
-<tr bgcolor='$_COLORS[2]'>
-	<td colspan=2 align=right>%ADD_ADDRESS_LINK%</td>
-</tr>
-<tr>
-	<td></td>
-	<td><input type=submit name=install value=$_INSTALL></td>
-</tr>
-
+    </fieldset>
 </form>
-</table>

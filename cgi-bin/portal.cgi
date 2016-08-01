@@ -1,214 +1,216 @@
-#!/usr/bin/perl 
-# ABillS User Web interface
-#
+#!/usr/bin/perl
 
+=head1 NAME
 
-use vars qw($begin_time %LANG $CHARSET @MODULES $USER_FUNCTION_LIST);
+  User portal
 
-BEGIN 
-{
-	my $libpath = '../';
-	
-	$sql_type='mysql';
-	unshift(@INC, $libpath ."Abills/$sql_type/");
-	unshift(@INC, $libpath ."Abills/");
-	unshift(@INC, $libpath);
-	unshift(@INC, $libpath . 'libexec/');
-	eval { require Time::HiRes; };
-	if (! $@) 
-	{
-	Time::HiRes->import(qw(gettimeofday));
-	$begin_time = gettimeofday();
-	
-	}
-	else 
-	{
-		$begin_time = 0;
-	}
+=cut
+
+BEGIN {
+  our $libpath = '../';
+
+  my $sql_type = 'mysql';
+  unshift(@INC, $libpath . "Abills/$sql_type/");
+  unshift(@INC, $libpath . "Abills/");
+  unshift(@INC, $libpath . "Abills/modules/");
+  unshift(@INC, $libpath);
+  unshift(@INC, $libpath . 'libexec/');
+  unshift(@INC, $libpath . '/lib/');
+  eval { require Time::HiRes; };
+  if (!$@) {
+    Time::HiRes->import(qw(gettimeofday));
+    $begin_time = gettimeofday();
+
+  }
+  else {
+    $begin_time = 0;
+  }
 }
 
+do "../libexec/config.pl";
 
-require "config.pl";
-require "Abills/templates.pl";
+require Abills::Templates;
+use Abills::Defs;
 use Abills::Base;
-use Abills::SQL;
-use Abills::HTML;
-use Portal;
+require Abills::Misc;
+# use Portal;
 
+our $html = Abills::HTML->new(
+  {
+    IMG_PATH => 'img/',
+    NO_PRINT => 1,
+    CONF     => \%conf,
+    CHARSET  => $conf{default_charset},
+  }
+);
 
+$html->{language} = $FORM{language} if (defined( $FORM{language} ) && $FORM{language} =~ /[a-z_]/);
 
-$html = Abills::HTML->new( { IMG_PATH => 'img/',
-	                           NO_PRINT => 1,
-	                           CONF     => \%conf,
-	                           CHARSET  => $conf{default_charset},
-	                       });
+do "../language/$html->{language}.pl";
+do "../Abills/modules/Portal/lng_$html->{language}.pl";
 
 print "Content-Type: text/html\n\n";
 
-my $sql = Abills::SQL->connect($conf{dbtype}, 
-                               $conf{dbhost}, 
-                               $conf{dbname}, 
-                               $conf{dbuser}, 
-                               $conf{dbpasswd},
-                               { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
-my $db = $sql->{db};
-my $Portal = Portal->new($db, $admin, \%conf);
-require "../Abills/modules/Portal/lng_russian.pl";
+our $db    = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
 
-$html->{CHARSET}=$CHARSET if ($CHARSET);
+$html->{CHARSET} = $CHARSET if ($CHARSET);
 
-my %OUTPUT; # Отвечает за генерацию шаблона
+load_module('Portal', $html);
+portal_s_page();
 
-
-	#$Portal->{debug}=1;
-	# Вывод меню для портала
-	$list = $Portal->portal_menu_list({ MENU_SHOW => 1});
-	if($list->[0]->[0])
-	{	
-		foreach my $line ( @$list ) 
-		{
-			# Если поле url пустое, формируем меню
-			if($line->[2] eq '')
-			{
-				$url = 'portal.cgi?menu_category=' . $line->[0];
-			}
-			# Если поле url не пустое формируем внешнюю ссылку 
-			else
-			{
-				
-				# Если строка содержит http:// выводим как есть
-				if ($line->[2] =~ m|http://*|)
-				{
-					$url = $line->[2];					
-				}
-				# Если строка не содержит http://  - добавляем 
-				else
-				{
-					$url = 'http://' . $line->[2];
-				}
-			}
-			
-			# Если нажатое меню не совпадает с активным меню то выводим меню без выделения
-			if($FORM{menu_category} != $line->[0])
-			{   
-				$OUTPUT{MENU} .= $html->tpl_show(_include('portal_menu', 'Portal'), {
-													HREF => $url,  
-													MENU_NAME => $line->[1],},
-													{ OUTPUT2RETURN => 1 });
-			} 
-			else
-			{
-				#  Виделение активного меню 
-				$OUTPUT{MENU} .= $html->tpl_show(_include('portal_menu_hovered', 'Portal'), { 
-													MENU_NAME => $line->[1],},
-													{ OUTPUT2RETURN => 1 });
-			}							
-		}
-	} 
-	else
-	{
-		# Выводит  сообшение "В системе не созданы разделы"
-		$OUTPUT{MENU} = $_NO_MENU;
-	}
-
-	if($FORM{menu_category})
-	{
-		# Если нажата кнопка меню, формируем список статей
-		$list = $Portal->portal_articles_list({ARTICLE_ID=>$FORM{menu_category}});
-		if($list->[0]->[0])
-		{
-			my $total_articles = 0;
-			foreach my $line ( @$list ) 
-			{
-				# Если дата статьи меньше или такая же как текущая дата - выводим статью
-				if ($line->[6] <= time()) 
-				{	 
-					 $OUTPUT{CONTENT} .= $html->tpl_show(_include('portal_content', 'Portal'), {
-															HREF				=> 'portal.cgi?article=' . $line->[0],  
-															TITLE				=> $line->[1],
-															SHORT_DESCRIPTION	=> $line->[2]},
-															{ OUTPUT2RETURN => 1 });
-					$total_articles++;
-					
-				}
-			}
-			# Если в категории кроме скрытых нет больше статтей выводим - "В этой категории пока нет данных"
-			if($total_articles <= 0) 
-			{
-				
-				$OUTPUT{CONTENT} .= $html->tpl_show(_include('portal_article', 'Portal'), {
-														TITLE 	=> '',
-														ARTICLE => $_NO_DATA},
-														{ OUTPUT2RETURN => 1 });
-				
-			}
-			
-
-
-
-		}
-		else 
-		{
-			# Если в данной категории меню нет статтей выводим сообщение - "В этой категории пока нет данных"
-			 $OUTPUT{CONTENT} .= $html->tpl_show(_include('portal_article', 'Portal'), {
-													TITLE 	=> '',
-													ARTICLE => $_NO_DATA},
-													{ OUTPUT2RETURN => 1 });
-		}
-	}
-	else 
-	{
-		# Отображает статьи на главной
-		$list = $Portal->portal_articles_list({MAIN_PAGE=>1});
-		if($list->[0]->[0])
-		{
-			# Если дата статьи меньше или такая же как текущая даты - выводим статью
-			foreach my $line ( @$list ) 
-			{
-				if ($line->[6] <= time()) 
-				{
-				 $OUTPUT{CONTENT} .= $html->tpl_show(_include('portal_content', 'Portal'), {
-														HREF => 'portal.cgi?article=' . $line->[0],  
-														TITLE => $line->[1],
-														SHORT_DESCRIPTION => $line->[2]},
-														{ OUTPUT2RETURN => 1 });	
-				}
-			}
-		}
-		else
-		{
-			 # Выводит сообщение - "В этой категории пока нет данных"
-			 $OUTPUT{CONTENT} .= $html->tpl_show(_include('portal_article', 'Portal'), {		
-													TITLE => '',
-													ARTICLE => $_NO_DATA},
-													{ OUTPUT2RETURN => 1 });		
-		}
-
-	}
-	
-			
-	if($FORM{article}) {
-			# Отображение статьи польностю
-			$list = $Portal->portal_articles_list({ID =>$FORM{article}});
-			if($list->[0]->[0])
-			{
-				$OUTPUT{CONTENT} = $html->tpl_show(_include('portal_article', 'Portal'), {
-														TITLE 	=> $list->[0]->[1],
-														ARTICLE => $list->[0]->[3]},
-														{ OUTPUT2RETURN => 1 });	
-			}
-		
-	}
-
-
-	
-
-
-	
-
-print $html->tpl_show(_include('portal_body', 'Portal'), {%OUTPUT}) ;
-
-
+#my $url = '';
+##$Portal->{debug}=1;
+#
+#my $list = $Portal->portal_menu_list({ MENU_SHOW => 1, COLS_NAME => 1 });
+#if ($list->[0]->{id}) {
+#  foreach my $line (@$list) {
+#
+#    # Р•СЃР»Рё РїРѕР»Рµ url РїСѓСЃС‚РѕРµ, С„РѕСЂРјРёСЂСѓРµРј РјРµРЅСЋ
+#    if ($line->{url} eq '') {
+#      $url = 'portal.cgi?menu_category=' . $line->{id};
+#    }
+#
+#    # Р•СЃР»Рё РїРѕР»Рµ url РЅРµ РїСѓСЃС‚РѕРµ С„РѕСЂРјРёСЂСѓРµРј РІРЅРµС€РЅСЋСЋ СЃСЃС‹Р»РєСѓ
+#    else {
+#
+#      # Р•СЃР»Рё СЃС‚СЂРѕРєР° СЃРѕРґРµСЂР¶РёС‚ http:// РІС‹РІРѕРґРёРј РєР°Рє РµСЃС‚СЊ
+#      if ($line->{url} =~ m|http://*|) {
+#        $url = $line->{url};
+#      }
+#
+#      # Р•СЃР»Рё СЃС‚СЂРѕРєР° РЅРµ СЃРѕРґРµСЂР¶РёС‚ http://  - РґРѕР±Р°РІР»СЏРµРј
+#      else {
+#        $url = 'http://' . $line->{url};
+#      }
+#    }
+#
+#    # Р•СЃР»Рё РЅР°Р¶Р°С‚РѕРµ РјРµРЅСЋ РЅРµ СЃРѕРІРїР°РґР°РµС‚ СЃ Р°РєС‚РёРІРЅС‹Рј РјРµРЅСЋ С‚Рѕ РІС‹РІРѕРґРёРј РјРµРЅСЋ Р±РµР· РІС‹РґРµР»РµРЅРёСЏ
+#    if ($FORM{menu_category} != $line->{id}) {
+#      $OUTPUT{MENU} .= $html->tpl_show(
+#        _include('portal_menu', 'Portal'),
+#        {
+#          HREF      => $url,
+#          MENU_NAME => $line->{name},
+#        },
+#        { OUTPUT2RETURN => 1 }
+#      );
+#    }
+#    else {
+#      #  Р’С‹РґРµР»РµРЅРёРµ Р°РєС‚РёРІРЅРѕРіРѕ РјРµРЅСЋ
+#      $OUTPUT{MENU} .= $html->tpl_show(_include('portal_menu_hovered', 'Portal'), { MENU_NAME => $line->{name}, }, { OUTPUT2RETURN => 1 });
+#    }
+#  }
+#}
+#else {
+#  # Р’С‹РІРѕРґРёС‚  СЃРѕРѕР±С€РµРЅРёРµ "Р’ СЃРёСЃС‚РµРјРµ РЅРµ СЃРѕР·РґР°РЅС‹ СЂР°Р·РґРµР»С‹"
+#  $OUTPUT{MENU} = $lang{NO_MENU};
+#}
+#
+#if ($FORM{menu_category}) {
+#
+#  # РЎРѕР±РёСЂР°РµРј СЃС‚Р°С‚СЊРё РІ РєР°С‚РµРіРѕСЂРёРё РјРµРЅСЋ
+#  $list = $Portal->portal_articles_list({ ARTICLE_ID => $FORM{menu_category}, COLS_NAME => 1 });
+#  if ($list->[0]->{id}) {
+#    my $total_articles = 0;
+#    foreach my $line (@$list) {
+#
+#      # РџСЂРѕРІРµСЂРєР° РІСЂРµРјРµРЅРё РїСѓР±Р»РёРєР°С†РёРё СЃС‚Р°С‚СЊРё
+#      if ($line->{utimestamp} <= time()) {
+#        $OUTPUT{CONTENT} .= $html->tpl_show(
+#          _include('portal_content', 'Portal'),
+#          {
+#            HREF              => 'portal.cgi?article=' . $line->{id},
+#            TITLE             => $line->{title},
+#            SHORT_DESCRIPTION => $line->{short_description}
+#          },
+#          { OUTPUT2RETURN => 1 }
+#        );
+#        $total_articles++;
+#
+#      }
+#    }
+#
+#    # Р•СЃР»Рё РєРѕР»РёС‡РµСЃС‚РІРѕ СЃС‚Р°С‚РµР№ - РЅРѕР»СЊ
+#    if ($total_articles <= 0) {
+#
+#      $OUTPUT{CONTENT} .= $html->tpl_show(
+#        _include('portal_article', 'Portal'),
+#        {
+#          TITLE   => '',
+#          ARTICLE => $lang{NO_DATA}
+#        },
+#        { OUTPUT2RETURN => 1 }
+#      );
+#
+#    }
+#
+#  }
+#  else {
+#    # Р•СЃР»Рё РІ РґР°РЅРЅРѕР№ РєР°С‚РµРіРѕСЂРёРё РјРµРЅСЋ РЅРµС‚ СЃС‚Р°С‚С‚РµР№ РІС‹РІРѕРґРёРј СЃРѕРѕР±С‰РµРЅРёРµ - "Р’ СЌС‚РѕР№ РєР°С‚РµРіРѕСЂРёРё РїРѕРєР° РЅРµС‚ РґР°РЅРЅС‹С…"
+#    $OUTPUT{CONTENT} .= $html->tpl_show(
+#      _include('portal_article', 'Portal'),
+#      {
+#        TITLE   => '',
+#        ARTICLE => $lang{NO_DATA}
+#      },
+#      { OUTPUT2RETURN => 1 }
+#    );
+#  }
+#}
+#else {
+#  # РћС‚РѕР±СЂР°Р¶Р°РµС‚ СЃС‚Р°С‚СЊРё РЅР° РіР»Р°РІРЅРѕР№
+#  $list = $Portal->portal_articles_list({ MAIN_PAGE => 1, COLS_NAME => 1 });
+#  if ($list->[0]->{id}) {
+#
+#    # Р•СЃР»Рё РґР°С‚Р° СЃС‚Р°С‚СЊРё РјРµРЅСЊС€Рµ РёР»Рё С‚Р°РєР°СЏ Р¶Рµ РєР°Рє С‚РµРєСѓС‰Р°СЏ - РІС‹РІРѕРґРёРј СЃС‚Р°С‚СЊСЋ
+#    foreach my $line (@$list) {
+#      if ($line->{utimestamp} <= time()) {
+#        $OUTPUT{CONTENT} .= $html->tpl_show(
+#          _include('portal_content', 'Portal'),
+#          {
+#            HREF              => 'portal.cgi?article=' . $line->{id},
+#            TITLE             => $line->{title},
+#            SHORT_DESCRIPTION => $line->{short_description}
+#          },
+#          { OUTPUT2RETURN => 1 }
+#        );
+#      }
+#    }
+#  }
+#  else {
+#    # Р’С‹РІРѕРґРёС‚ СЃРѕРѕР±С‰РµРЅРёРµ - "Р’ СЌС‚РѕР№ РєР°С‚РµРіРѕСЂРёРё РїРѕРєР° РЅРµС‚ РґР°РЅРЅС‹С…"
+#    $OUTPUT{CONTENT} .= $html->tpl_show(
+#      _include('portal_article', 'Portal'),
+#      {
+#        TITLE   => '',
+#        ARTICLE => $lang{NO_DATA}
+#      },
+#      { OUTPUT2RETURN => 1 }
+#    );
+#  }
+#
+#}
+#
+#if ($FORM{article}) {
+#
+#  # РћС‚РѕР±СЂР°Р¶РµРЅРёРµ СЃС‚Р°С‚СЊРё РїРѕР»СЊРЅРѕСЃС‚СЋ
+#  $list = $Portal->portal_articles_list({ ID => $FORM{article}, COLS_NAME => 1 });
+#  if ($list->[0]->{id}) {
+#    my $text_article = convert($list->[0]->{content}, { text2html => 1 });
+#    $OUTPUT{CONTENT} = $html->tpl_show(
+#      _include('portal_article', 'Portal'),
+#      {
+#        TITLE   => $list->[0]->{title},
+#        ARTICLE => $text_article
+#      },
+#      { OUTPUT2RETURN => 1 }
+#    );
+#  }
+#
+#}
+#
+#print $html->tpl_show( _include( 'portal_body', 'Portal' ), {
+#      %OUTPUT
+#    } );
 
 1
-

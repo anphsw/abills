@@ -1,46 +1,42 @@
 package Customers;
 
-# Accounts manage functions
-#
+=head1 NAME
+
+  Accounts manage functions
+
+=cut
 
 use strict;
-use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
-);
-
-use Exporter;
-$VERSION = 2.00;
-@ISA     = ('Exporter');
-
-@EXPORT = qw(
-);
-
-@EXPORT_OK   = ();
-%EXPORT_TAGS = ();
-
 use Companies;
-my ($admin, $CONF);
 
 #**********************************************************
 # Init
 #**********************************************************
 sub new {
   my $class = shift;
-  my $db    = shift;
-  ($admin, $CONF) = @_;
-  my $self = {};
+  my ($db, $admin, $CONF) = @_;
+
+  my $self = {
+    db    => $db,
+    admin => $admin,
+    conf  => $CONF
+  };
+
   bless($self, $class);
-  
-  $self->{db}=$db;
-  
+
   return $self;
 }
 
 #**********************************************************
-# Account
+=head2  company()
+
+=cut
 #**********************************************************
+#@returns Companies
 sub company {
   my $self = shift;
-  my $Companies = Companies->new($self->{db}, $admin, $CONF);
+
+  my $Companies = Companies->new($self->{db}, $self->{admin}, $self->{conf});
 
   return $Companies;
 }

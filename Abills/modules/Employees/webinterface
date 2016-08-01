@@ -1,0 +1,686 @@
+#!perl
+=head1 NAME
+
+  Employees
+
+=cut
+
+
+use warnings;
+use strict;
+use Abills::Base qw(in_array);
+
+our (
+  $db,
+  $admin,
+  %conf,
+  %lang,
+  $html,
+  @WEEKDAYS,
+  @MONTHES,
+  @status
+);
+
+require Abills::Misc;
+use Employees;
+
+my $Employees = Employees->new($db, $admin, \%conf);
+
+#**************************************************
+=head employees_main() -
+
+=cut
+#**************************************************
+sub employees_main {
+
+  my $admin_form = Admins->new($db, \%conf);
+  $admin_form->{ACTION}     = 'add';
+  $admin_form->{LNG_ACTION} = $lang{ADD};
+
+  if ($FORM{AID}) {
+    $admin_form->info($FORM{AID});
+    if(! $FORM{DOMAIN_ID}) {
+      $FORM{DOMAIN_ID}  = $admin_form->{DOMAIN_ID} if($admin_form->{DOMAIN_ID});
+    }
+
+    $LIST_PARAMS{AID} = $admin_form->{AID};
+    $pages_qs         = "&AID=$admin_form->{AID}&subf=". ($FORM{subf} || '');
+
+    my $A_LOGIN = $html->form_main(
+      {
+        CONTENT => $html->form_select(
+          'AID',
+          {
+            SELECTED  => $FORM{AID},
+            SEL_LIST  => $admin->list({%LIST_PARAMS, COLS_NAME => 1}),
+            SEL_KEY   => 'aid',
+            SEL_VALUE => 'login',
+          }
+        ),
+        HIDDEN => {
+          index => "$index",
+          subf  => $FORM{subf}
+        },
+        SUBMIT => { show => "$lang{SHOW}" },
+        class => 'navbar-form navbar-right'
+      }
+    );
+
+    my @admin_menu = (
+      $lang{INFO}       . "::AID=$admin_form->{AID}:change",
+      $lang{LOG}        . get_function_index('form_changes') . ":AID=$admin_form->{AID}:history",
+      $lang{FEES}       . ":3:AID=$admin_form->{AID}:fees",
+      $lang{PAYMENTS}   . ":2:AID=$admin_form->{AID}:payments",
+      $lang{PERMISSION} . ":52:AID=$admin_form->{AID}:permissions",
+      $lang{PASSWD}     . ":54:AID=$admin_form->{AID}:password",
+      $lang{GROUP}      . ":58:AID=$admin_form->{AID}:users",
+      $lang{ACCESS}     . ":59:AID=$admin_form->{AID}:",
+      'Paranoid:'   => get_function_index('form_admins_full_log') .":AID=$admin_form->{AID}:",
+    );
+
+    if(in_array('Msgs', \@MODULES)) {
+      push @admin_menu, "$lang{MESSAGES}:" . get_function_index('msgs_admin') .":AID=$admin_form->{AID}:msgs";
+    }
+
+    func_menu(
+      {
+        $lang{NAME} => $A_LOGIN
+      },
+      \@admin_menu,
+      { f_args => { ADMIN => $admin_form } }
+    );
+
+    form_passwd({ ADMIN => $admin_form }) if (defined($FORM{newpassword}));
+
+    if ($FORM{subf}) {
+      return 0;
+    }
+    elsif ($FORM{change}) {
+      $admin_form->{MAIN_SESSION_IP} = $admin->{SESSION_IP};
+      $admin_form->change({%FORM});
+      if (!$admin_form->{errno}) {
+        $html->message('info', $lang{CHANGED}, "$lang{CHANGED} ");
+      }
+    }
+    $admin_form->{ACTION}     = 'change';
+    $admin_form->{LNG_ACTION} = $lang{CHANGE};
+  }
+  elsif ($FORM{add}) {
+    $admin_form->{AID} = $admin->{AID};
+    if (!$FORM{A_LOGIN}) {
+      $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA} $lang{ADMIN} $lang{LOGIN}");
+    }
+    else {
+      $admin_form->add({ %FORM, DOMAIN_ID => $FORM{DOMAIN_ID} || $admin->{DOMAIN_ID} });
+      if (!$admin_form->{errno}) {
+        $html->message('info', $lang{INFO}, "$lang{ADDED}");
+      }
+    }
+  }
+  elsif ($FORM{del} && $FORM{COMMENTS}) {
+    if ($FORM{del} == $conf{SYSTEM_ADMIN_ID}) {
+      $html->message('err', $lang{ERROR}, "Can't delete system admin. Check " . '$conf{SYSTEM_ADMIN_ID}=1;');
+    }
+    else {
+      $admin_form->{AID} = $admin->{AID};
+      $admin_form->del($FORM{del});
+      if (!$admin_form->{errno}) {
+        $html->message('info', $lang{DELETE}, "$lang{DELETED}");
+      }
+    }
+  }
+
+  # adding employee geo-data to table
+  if($FORM{STREET_ID} || $FORM{BUILD_ID} || $FORM{DISTRICT_ID} && $FORM{EID} && !$FORM{CLEAR}){
+    my @streets   = split(', ', $FORM{STREET_ID} || '');
+    my @builds    = split(', ', $FORM{BUILD_ID}  || '');
+    my @districts = split(', ', $FORM{DISTRICT_ID}  || '');
+
+    foreach my $st (@streets){
+      $Employees->add_geo({
+                      EMPLOYEE_ID => $FORM{EID},
+                      STREET_ID   => $st,
+      })
+    }
+
+    foreach my $bd (@builds){
+      $Employees->add_geo({
+                      EMPLOYEE_ID => $FORM{EID},
+                      BUILD_ID    => $bd,
+      })
+    }
+
+    foreach my $ds (@districts){
+      $Employees->add_geo({
+                      EMPLOYEE_ID   => $FORM{EID},
+                      DISTRICT_ID   => $ds,
+      })
+    }
+  }
+  # clear all geo-data for employee
+  elsif($FORM{CLEAR}){
+    $Employees->del_geo({EMPLOYEE_ID => $FORM{EID}});
+
+    if (!$Employees->{errno}) {
+      $html->message('info', "$lang{GEO}", "$lang{DELETED}");
+    }
+  }
+
+  _error_show($admin_form);
+
+  $admin_form->{PASPORT_DATE} = $html->date_fld2(
+    'PASPORT_DATE',
+    {
+      FORM_NAME => 'admin_form',
+      WEEK_DAYS => \@WEEKDAYS,
+      MONTHES   => \@MONTHES,
+      #DATE      => $user_pi->{PASPORT_DATE}
+    }
+  );
+
+  if(in_array('Employees', \@MODULES)){
+    $admin_form->{POSITIONS} = $html->form_select(
+      'POSITION',
+      {
+        SELECTED    => $FORM{POSITION},
+        SEL_LIST    => $Employees->position_list({ COLS_NAME => 1 }),
+        SEL_KEY     => 'id',
+        SEL_VALUE   => 'position',
+        NO_ID       => 1,
+        SEL_OPTIONS => { '' => '--' },
+      }
+    );
+  }
+
+  $admin_form->{FULL_LOG}  = ($admin_form->{FULL_LOG}) ? 'checked' : '';
+  $admin_form->{DISABLE}   = ($admin_form->{DISABLE} && $admin_form->{DISABLE} > 0) ? 'checked' : '';
+  $admin_form->{GROUP_SEL} = sel_groups({ GID => $admin_form->{GID}  });
+
+  if ($admin->{DOMAIN_ID}) {
+    $admin_form->{DOMAIN_SEL} = $admin->{DOMAIN_NAME};
+  }
+  elsif (in_array('Multidoms', \@MODULES)) {
+    load_module('Multidoms', $html);
+    $admin_form->{DOMAIN_SEL} = multidoms_domains_sel({ SHOW_ID => 1 });
+  }
+  else {
+    $admin_form->{DOMAIN_SEL} = '';
+  }
+
+  #check if have GPS modules and position. If so, show a link to map
+  if (in_array('Maps', \@MODULES) && $admin_form->{GPS_IMEI}){
+    my $maps_index = get_function_index('maps_show_poins');
+    my $link = "?index=$maps_index&show_gps=$admin_form->{AID}";
+     $admin_form->{GPS_ROUTE_BTN} = $html->button("<span class='glyphicon glyphicon-globe'></span>", undef , {
+         GLOBAL_URL => $link, target=> '_blank',
+         class => 'btn btn-info', NO_LINK_FORMER => 1
+       });
+  }
+
+  $admin_form->{INDEX} = get_function_index('employees_main');
+  $html->tpl_show(templates('form_admin'), $admin_form);
+
+  my $list = $admin_form->admins_groups_list({ ALL => 1, COLS_NAME => 1 });
+  my %admin_groups = ();
+  foreach my $line (@$list) {
+    $admin_groups{ $line->{aid} } .= ", $line->{gid}:$line->{name}";
+  }
+
+  delete $admin_form->{COL_NAMES_ARR};
+  my Abills::HTML $table;
+  my $admins_list;
+  ($table, $admins_list) = result_former({
+     INPUT_DATA      => $admin_form,
+     FUNCTION        => 'list',
+     BASE_FIELDS     => 6,
+     FUNCTION_FIELDS => 'permission,log,passwd,info,del',
+     SKIP_USER_TITLE => 1,
+     EXT_TITLES      => {
+      name           => $lang{FIO},
+      position       => $lang{POSITION},
+      regdate        => $lang{REGISTRATION},
+      disable        => $lang{STATUS},
+      aid            => '#',
+      g_name         => $lang{GROUPS},
+      domain_name    => 'Domain',
+      start_work     => $lang{BEGIN},
+      gps_imei       => 'GPS IMEI',
+      birthday       => $lang{BIRTHDAY},
+      api_key        => 'API_KEY',
+     },
+     SKIP_PAGES => 1,
+     TABLE => {
+       width      => '100%',
+       caption    => "$lang{ADMINS}",
+       qs         => $pages_qs,
+       pages      => 500,
+       ID         => 'ADMINS_LIST',
+       MENU       => "$lang{SEARCH}:search_form=1&index=2:search"
+      }
+    });
+
+  foreach my $line (@$admins_list) {
+    my @fields_array = ();
+    for (my $i = 0; $i < 6+$admin_form->{SEARCH_FIELDS_COUNT}; $i++) {
+      my $field_name = $admin_form->{COL_NAMES_ARR}->[$i] || '';
+
+      if($field_name eq 'disable') {
+        $line->{disable} = $status[ $line->{disable} ];
+      }
+      elsif($field_name eq 'gname') {
+        $line->{gname} .= ($admin_groups{ $line->{aid} }) ? $admin_groups{ $line->{aid} } : '';
+      }
+
+      push @fields_array, $line->{$field_name};
+    }
+
+    my $geo_button;
+    if(in_array('Employees', \@MODULES)){
+      $geo_button = $html->button($lang{GEO},        "index=" . get_function_index('employees_geolocation') ."&eid=$line->{aid}")
+    }
+
+    $table->addrow(@fields_array,
+      $html->button($lang{PERMISSION}, "index=$index&subf=52&AID=$line->{aid}", { class => 'permissions' }),
+      $geo_button,
+      $html->button($lang{LOG},        "index=$index&subf=51&AID=$line->{aid}", { class => 'history' }),
+      $html->button($lang{PASSWD},     "index=$index&subf=54&AID=$line->{aid}", { class => 'password' }),
+      $html->button($lang{INFO},       "index=$index&AID=$line->{aid}",         { class => 'change' }),
+      $html->button($lang{DEL},        "index=$index&del=$line->{aid}", { MESSAGE => "$lang{DEL} $line->{aid}?", class => 'del' }),
+    );
+  }
+
+  print $table->show();
+
+  $table = $html->table(
+    {
+      width      => '100%',
+      cols_align => [ 'right', 'right' ],
+      rows       => [ [ "$lang{TOTAL}:", $html->b($admin_form->{TOTAL}) ] ]
+    }
+  );
+  print $table->show();
+
+  return 1;
+}
+
+#**************************************************
+=head employees_geolocation() - choose geo-data for employee
+
+=cut
+#**************************************************
+sub employees_geolocation{
+
+  my $geolist = $Employees->geo_list({EMPLOYEE_ID => $FORM{eid}, COLS_NAME => 1});
+
+  my @streets;
+  my @builds;
+  my @districts;
+
+  foreach my $data (@$geolist){
+    if($data->{street_id}){
+      push(@streets, $data->{street_id});
+    }
+    elsif($data->{build_id}){
+      push(@builds, $data->{build_id});
+    }
+    elsif($data->{district_id}){
+      push(@districts, $data->{district_id});
+    }
+  }
+
+  #my %address = ( 'street_id' => \@streets, 'build_id' => \@builds, 'district_id' => \@districts );
+
+  $html->tpl_show(_include('employees_geolocation_add', 'Employees'),{
+                  GEOLOCATION_TREE => address_list_tree_menu({ OUTPUT2RETURN => 1}),
+                  BTN_NAME         => $lang{CHANGE},
+                  index            => get_function_index('employees_main'),
+                  EID              => $FORM{eid},
+                  });
+
+  return 1;
+}
+
+#**************************************************
+=head employees_positions() - add, change or delete positions
+
+=cut
+#**************************************************
+sub employees_positions {
+  my $Employeer;
+  my $button_name = "$lang{ADD}";
+  my $action      = 'add';
+
+  # add position
+  if ($FORM{action} && $FORM{action} eq 'add') {
+    $Employees->add_position({%FORM});
+
+    if (!$Employees->{errno}) {
+      $html->message('info', $lang{POSITION}, "$lang{ADDED}");
+    }
+  }
+  # change position info
+  elsif ($FORM{action} && $FORM{action} eq 'change') {
+    $Employees->position_change({ ID => $FORM{id}, %FORM });
+
+    if (!$Employees->{errno}) {
+      $html->message('info', $lang{POSITION}, "$lang{CHANGED}");
+    }
+  }
+  #del position
+  if ($FORM{del}) {
+    $Employees->del_position({ ID => $FORM{del} });
+
+    if (!$Employees->{errno}) {
+      $html->message('err', $lang{POSITION}, "$lang{DELETED}");
+    }
+  }
+
+  # add position info to template
+  if ($FORM{chg}) {
+    $action      = 'change';
+    $button_name = "$lang{CHANGE}";
+    my $pos_info = $Employees->position_info({ ID => $FORM{chg} });
+
+    $Employeer->{POSITION}      = $pos_info->{POSITION};
+    $Employeer->{SUBORDINATION} = $pos_info->{SUBORDINATION};
+    $Employeer->{ID}            = $FORM{chg};
+  }
+
+  # select for subordination
+  my $rule_select = $html->form_select(
+    'SUBORDINATION',
+    {
+      SELECTED    => $FORM{SUBORDINATION} || $Employeer->{SUBORDINATION},
+      SEL_LIST    => $Employees->position_list({ COLS_NAME => 1 }),
+      SEL_KEY     => 'id',
+      SEL_VALUE   => 'position',
+      NO_ID       => 1,
+      SEL_OPTIONS => { '' => '--' },
+    }
+  );
+
+  $html->tpl_show(
+    _include('employees_position_add', 'Employees'),
+    {
+      %$Employeer,
+      BUTTON_NAME   => $button_name,
+      ACTION        => $action,
+      SUBORDINATION => $rule_select,
+    }
+  );
+
+  result_former(
+    {
+      INPUT_DATA      => $Employees,
+      FUNCTION        => 'position_list',
+      BASE_FIELDS     => 3,
+      DEFAULT_FIELDS  => "id, position, subordinated",
+      FUNCTION_FIELDS => 'change, del',
+      EXT_TITLES      => {
+        'id'           => "ID",
+        'position'     => "$lang{POSITION}",
+        'subordinated' => "$lang{SUBORDINATION}",
+      },
+      TABLE => {
+        width   => '100%',
+        caption => "$lang{POSITIONS}",
+        qs      => $pages_qs,
+        ID      => 'POSITIONS',
+        header  => '',
+        EXPORT  => 1,
+      },
+      MAKE_ROWS       => 1,
+      SEARCH_FORMER   => 1,
+      SKIP_USER_TITLE => 1,
+      MODULE          => 'Employees',
+      TOTAL           => 1
+    }
+  );
+
+  return 1;
+}
+
+#**********************************************************
+=head employees_positions_tree() - show positions in tree view
+
+=cut
+#**********************************************************
+sub employees_positions_tree {
+  my $positions_major_list = $Employees->position_list(
+    {
+      COLS_NAME     => 1
+    }
+  );
+
+  my $positions_tree = $html->tree_menu($positions_major_list, "$lang{SUBORDINATION_TREE}", { ID_KEY      => 'id',
+                                                                      PARENT_KEY  => 'subordination',
+                                                                      LABEL_KEY   => 'position',
+                                                                      #CHECKBOX    => 1,
+                                                                      NAME        => 'position_id',
+                                                                      COL_SIZE    => 5});
+
+  $html->tpl_show(_include('employees_position_tree', 'Employees'),{
+                  POSITION_TREE => $positions_tree,
+                  });
+}
+
+
+#**********************************************************
+=head2  form_admins_time_sheet()
+
+=cut
+#**********************************************************
+sub form_admins_time_sheet {
+  if ($FORM{day}) {
+    $Employees->time_sheet_add(\%FORM);
+  }
+
+  #Week days : day hour
+  my ($day_load, $week_load) = (5, 8);
+  if ($conf{TIME_SHEET_WORK_LOAD}) {
+    ($day_load, $week_load) = split(/:/, $conf{TIME_SHEET_WORK_LOAD});
+  }
+
+  my @day_types = (
+    '',
+    'vacations',        #'�������',
+    'hospital',         # ����������
+    'business trip',    # '������������'
+    'day off',          # '��������',
+    'slack',            # '�� �����',
+    'duty',             # '���������'
+  );
+
+  my ($start_y, $start_m, $start_d) = split(/-/, $FORM{DATE} || $DATE);
+  my $days_in_month = ($start_m != 2 ? (($start_m % 2) ^ ($start_m > 7)) + 30 : (!($start_y % 400) || !($start_y % 4) && ($start_y % 25) ? 29 : 28));
+
+  #holiday array for month in table
+  my @HOLLIDAY = holiday_array($start_m);
+
+  #$FORM{day}=$start_d if (! $FORM{day});
+
+  my $mtime = POSIX::mktime(0, 0, 0, 1, ($start_m - 1), ($start_y - 1900));
+  my $day_of_wk = POSIX::strftime("%u", localtime($mtime));
+  my @title_days = ('#', $lang{EMPLOYEES});
+
+  for (my $i = 1 ; $i <= $days_in_month ; $i++) {
+    push @title_days, $WEEKDAYS[$day_of_wk] . $html->br() . $html->button($i, "index=$index&day=$i" . (($FORM{DATE}) ? "&DATE=$FORM{DATE}" : ''));
+    $day_of_wk = ($day_of_wk == 7) ? 1 : $day_of_wk + 1;
+  }
+
+  my $PREV_MONTH = ($start_m == 1)  ? $start_y - 1 . '-12-01' : sprintf('%d-%02d-01', $start_y, ($start_m - 1));
+  my $NEXT_MONTH = ($start_m == 12) ? $start_y + 1 . '-01-01' : sprintf('%d-%02d-01', $start_y, ($start_m + 1));
+  my $JOB_DATE = ($FORM{day}) ? sprintf("%04d-%02d-%02d", $start_y, $start_m, $FORM{day}) : undef;
+
+  push @title_days, $lang{DAYS}, $lang{HOURS};
+
+  my $list = $admin->admins_groups_list({ ALL => 1, COLS_NAME => 1 });
+
+  my %admin_groups = ();
+  foreach my $line (@$list) {
+    $admin_groups{ $line->{aid} } .= ", $line->{gid}:$line->{name}";
+  }
+
+  $list = $Employees->time_sheet_list(
+    {
+      %LIST_PARAMS,
+      AID       => '>0',
+      DOMAIN_ID => $admin->{DOMAIN_ID},
+      COLS_NAME => 1
+    }
+  );
+
+  my %hours_hash     = ();
+  my %day_types_hash = ();
+  foreach my $line (@$list) {
+    $hours_hash{ $line->{aid} }{ $line->{date} }{work_time} = $line->{work_time} if ($line->{work_time});
+    $hours_hash{ $line->{aid} }{ $line->{date} }{overtime}  = $line->{overtime}  if ($line->{overtime});
+    $hours_hash{ $line->{aid} }{ $line->{date} }{extra_fee} = $line->{extra_fee} if ($line->{extra_fee});
+    if ($line->{day_type}) {
+      $hours_hash{ $line->{aid} }{ $line->{date} }{day_type} = $line->{day_type};
+      $day_types_hash{ $line->{day_type} } = 1;
+    }
+  }
+
+  my @day_types_title = keys %day_types_hash;
+  foreach my $id (@day_types_title) {
+    push @title_days, $day_types[$id];
+  }
+
+  push @title_days, '%';
+
+  my $table = $html->table(
+    {
+      width       => '100%',
+      caption     => $lang{TIME_SHEET},
+      title_plain => \@title_days,
+      class       => 'table table-hover table-condensed table-striped table-bordered',
+      ID          => 'ADMINS_WORKS_LIST',
+      header      => $html->button('', "index=$index&DATE=$PREV_MONTH", { class => 'btn btn-xs btn-default glyphicon glyphicon-arrow-left' })
+      . $html->button($MONTHES[ $start_m - 1 ], "index=$index", { class => 'btn btn-xs btn-primary' })
+      . $html->button('', "index=$index&DATE=$NEXT_MONTH", { class => 'btn btn-xs btn-default glyphicon glyphicon-arrow-right' })
+    }
+  );
+
+  $list = $admin->list(
+    {
+      %LIST_PARAMS,
+      DOMAIN_ID => $admin->{DOMAIN_ID},
+      COLS_NAME => 1,
+      POSITION => '!'
+    }
+  );
+
+  foreach my $line (@$list) {
+    my $planing_days = 0;
+    $day_of_wk = POSIX::strftime("%u", localtime($mtime));
+    my ($total_work_days, $total_hours_work_time, $total_hours_overtime, $total_hours_extra_fee) = (0, 0, 0, 0);
+
+    my %type_days_summary = ();
+
+    my @rows = ($table->td($line->{aid}), $table->td($line->{name} . $html->br() . $html->button($line->{login}, "chg=$line->{id}&index=" . get_function_index('employees_main'))));
+
+    for (my $i = 1 ; $i <= $days_in_month ; $i++) {
+      $day_of_wk = ($day_of_wk == 7) ? 1 : $day_of_wk + 1;
+
+      #if holiday same as day of month - mark as holiday
+      my $holiday;
+      foreach my $day (@HOLLIDAY) {
+        if ($day == $i) {
+          $holiday = $i;
+        }
+      }
+
+      my $class = undef;
+      if ("$start_y-$start_m-$start_d" eq $DATE && $start_d == $i) {
+        $class = 'success';
+      }
+      elsif ($day_of_wk == 7 || $day_of_wk == 1 || $holiday) {
+        $class = 'danger';
+      }
+      else {
+        $planing_days++;
+      }
+
+      my $_date = sprintf("%04d-%02d-%02d", $start_y, $start_m, $i);
+
+      if ($FORM{day} == $i) {
+        my $day_selet = $html->form_select(
+          $line->{aid} . '_DAY_TYPE',
+          {
+            SELECTED => $hours_hash{ $line->{aid} }{$_date}{day_type} || '',
+            SEL_ARRAY    => \@day_types,
+            ARRAY_NUM_ID => 1
+          }
+        );
+
+        push @rows,
+        $table->td(
+          $html->form_input('AIDS', $line->{aid}, { TYPE => 'hidden' })
+          . $html->form_input($line->{aid} . '_WORK_TIME', $hours_hash{ $line->{aid} }{$_date}{work_time}, { class => 'form-control input-sm', EX_PARAMS => "placeholder='$lang{WORK_TIME}'" })
+          . $html->br()
+          . $html->form_input($line->{aid} . '_OVERTIME', $hours_hash{ $line->{aid} }{$_date}{overtime}, { class => 'form-control input-sm', EX_PARAMS => "placeholder='$lang{OVERTIME}'" })
+          . $html->br()
+          . $html->form_input($line->{aid} . '_EXTRA_FEE', $hours_hash{ $line->{aid} }{$_date}{extra_fee}, { class => 'form-control input-sm', EX_PARAMS => "placeholder='$lang{EXTRA_FEE}' style='min-width:150px'" })
+          . $html->br()
+          . $day_selet,
+          { class => $class }
+        );
+      }
+      else {
+        push @rows,
+        $table->td(
+          $hours_hash{ $line->{aid} }{$_date}{work_time}
+          . $html->br()
+          . $html->color_mark($hours_hash{ $line->{aid} }{$_date}{overtime}, 'FF0000')
+          . $html->br()
+          . $html->color_mark($hours_hash{ $line->{aid} }{$_date}{extra_fee}, '0000FF')
+          . (($hours_hash{ $line->{aid} }{$_date}{day_type}) ? $html->br() . $day_types[ $hours_hash{ $line->{aid} }{$_date}{day_type} ] : ''),
+          ,
+          { class => $class }
+        );
+      }
+
+      if ( $hours_hash{ $line->{aid} }{$_date}{work_time}
+        || $hours_hash{ $line->{aid} }{$_date}{overtime}
+        || $hours_hash{ $line->{aid} }{$_date}{extra_fee})
+      {
+        $total_work_days++;
+      }
+
+      $total_hours_work_time += $hours_hash{ $line->{aid} }{$_date}{work_time};
+      $total_hours_overtime  += $hours_hash{ $line->{aid} }{$_date}{overtime};
+      $total_hours_extra_fee += $hours_hash{ $line->{aid} }{$_date}{extra_fee};
+
+      $type_days_summary{ $hours_hash{ $line->{aid} }{$_date}{day_type} }++;
+    }
+
+    #Summary
+    push @rows, $table->td($total_work_days, { class => 'success' }),
+
+    $table->td($total_hours_work_time . $html->br() . $html->color_mark($total_hours_overtime, '#FF0000') . $html->br() . $html->color_mark($total_hours_extra_fee, '#0000FF'), { class => 'success' });
+
+    foreach my $id (@day_types_title) {
+      push @rows, $table->td($type_days_summary{$id});
+    }
+
+    push @rows, $table->td(sprintf("%.2f", ($total_hours_work_time + $total_hours_overtime + $total_hours_extra_fee) / ($planing_days * 8) * 100));
+    $table->addtd(@rows);
+  }
+
+  print $html->form_main(
+    {
+      CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
+      HIDDEN  => {
+        DATE  => $JOB_DATE,
+        index => $index,
+        day   => $FORM{day},
+      },
+      SUBMIT => { change => $lang{APPLY} }
+    }
+  );
+
+  return 1;
+}
+
+1

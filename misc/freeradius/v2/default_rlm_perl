@@ -31,7 +31,8 @@ accounting {
        #detail
 }
 
-post-auth { 
+post-auth {
+  perl
   Post-Auth-Type REJECT { 
      perl
   }

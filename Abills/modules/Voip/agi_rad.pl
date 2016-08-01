@@ -1,17 +1,35 @@
 #!/usr/bin/perl
-# Asterisk AGI support for radius Auth and Accounting
 
-use vars qw(%RAD %conf $db %AUTH $DATE $TIME $var_dir);
+=head1 NAME
+
+  Asterisk AGI support for radius Auth and Accounting
+  b2bua client
+
+=cut
 
 use strict;
+our (
+  %conf,
+  $db,
+  %AUTH,
+  $DATE,
+  $TIME,
+  $var_dir);
+
+BEGIN {
+  use FindBin '$Bin';
+  require $Bin . '/../../../libexec/config.pl';
+  unshift(@INC,
+    $Bin . '/../../../',
+    $Bin . '/../../../lib/',
+    $Bin . "/../Abills/$conf{dbtype}");
+}
+
 local $SIG{HUP} = "IGNORE";
 use Sys::Syslog;
-use FindBin '$Bin';
-require $Bin . '/../../../libexec/config.pl';
-unshift(@INC, $Bin . '/../../../', $Bin . "/../Abills/$conf{dbtype}");
-require Abills::Base;
-Abills::Base->import();
-my $begin_time = check_time();
+use Abills::Base qw(check_time sec2date);
+
+#my $begin_time = check_time();
 
 use constant ACCESS_REQUEST      => 1;
 use constant ACCESS_ACCEPT       => 2;
@@ -20,8 +38,7 @@ use constant ACCOUNTING_REQUEST  => 4;
 use constant ACCOUNTING_RESPONSE => 5;
 use constant ACCOUNTING_STATUS   => 6;
 
-require Abills::Radius;
-Abills::Radius->import();
+use Radius;
 
 my $debug = 1;
 my $rad_debug_file = "/usr/abills/var/log/agi_rad.log";
@@ -32,19 +49,31 @@ $conf{'VOIP_DEFAULTDIALTIMEOUT'} = 120 if (!$conf{'VOIP_DEFAULTDIALTIMEOUT'});
 #default 10800 (3hrs)
 $conf{'VOIP_MAX_SESSION_TIME'}   = 10800 if (!$conf{'VOIP_MAX_SESSION_TIME'});
 $conf{'timeshift'}               = 0     if (!exists($conf{'VOIP_TIMESHIFT'}));
-$conf{'VOIP_AGI_DIAL_DELIMITER'} = '|'   if (!$conf{'VOIP_AGI_DIAL_DELIMITER'});
 $conf{'VOIP_ASTERISK_IVR_DIR'}   = '/usr/local/share/asterisk/sounds/' if (! $conf{'VOIP_ASTERISK_IVR_DIR'});
 $conf{'VOIP_ASTERISK_IVR_LANG'}  = 'ru,en';
 
 # Creating new interface to asterisk
 use Asterisk::AGI;
-my $agi  = new Asterisk::AGI;
+my $agi  = Asterisk::AGI->new();
 my %data = ();
 
 # Parsing input data
 my %input = $agi->ReadParse();
 
-$conf{'dictionary'} = $Bin . '/../../dictionary' if (!exists($conf{'dictionary'}));
+if (!$conf{'VOIP_AGI_DIAL_DELIMITER'}) {
+  $conf{'VOIP_AGI_DIAL_DELIMITER'} = '|';
+  $agi->verbose("AGI Environment Dump:");
+  foreach my $i (sort keys %input) {
+    if($i eq 'version'){
+      my $version = substr ($input{$i}, 0,5);
+      if($version > 11.00){
+        $conf{'VOIP_AGI_DIAL_DELIMITER'} = ',';
+      }
+    }
+  }
+};
+
+$conf{'dictionary'} = '/usr/abills/lib/dictionary' if (!$conf{'dictionary'});
 
 # Let's find who calls!
 $input{'callerid'} =~ /(^.+<(\d+)>$)|((^\d+$))/;
@@ -83,7 +112,7 @@ $protocol = 'h323'  if $input{'Channel'} =~ /^h323/i;
 my $context = $input{context};
 
 my %rad_attributes           = ();
-my %rad_authorize_attributes = ();
+#my %rad_authorize_attributes = ();
 my %rad_response             = ();
 
 # Setting NAS default radius attributes
@@ -119,20 +148,19 @@ if (!exists($conf{'NAS_IP_ADDRESS'}) || !exists($conf{'VOIP_NAS_ID'})) {
 my $r;
 my $type = send_radius_request(ACCESS_REQUEST, \%rad_attributes);
 
-
 if ($debug > 0) {
   $agi->verbose("RAD Pairs:");
   my $debug_text = "Response $type\n";
   while (my ($k, $v) = each %rad_response) {
-    $agi->verbose("$k = $v");    
+    $agi->verbose("$k = $v");
     $debug_text .=" $data{'caller'} $k = $v\n" if ($debug > 2);
   }
 
   # Output to file
   if ($debug > 2) {
-  	open(VERB_FILE, ">>$rad_debug_file") or $agi->verbose("Can't open file '$rad_debug_file' for debug info $!");
-  	  print VERB_FILE $debug_text;
-  	close(VERB_FILE);
+  	open(my $fh, '>>', $rad_debug_file) or $agi->verbose("Can't open file '$rad_debug_file' for debug info $!");
+  	  print $fh $debug_text;
+  	close($fh);
   }
 }
 
@@ -175,8 +203,6 @@ if ($rad_response{'Filter-Id'}) {
   }
 }
 
-
-
 #return code
 if (defined($rad_response{'h323-return-code'})) {
   $data{'return_code'} = $rad_response{'h323-return-code'};
@@ -194,7 +220,7 @@ if ($data{return_code} != 0 && $data{return_code} != 13) {
 
 #Make calling string
 my $rewrittennumber = $data{'called'};
-my $protocol        = $conf{VOIP_AGI_PROTOCOL} || 'SIP';
+$protocol           = $conf{VOIP_AGI_PROTOCOL} || 'SIP';
 $protocol           = $rad_response{'session-protocol'} if ($rad_response{'session-protocol'});
 my $dialstring      = '';
 #$conf{VOIP_MULTIPLE_NUMS}="74832595000 = 1;
@@ -310,7 +336,9 @@ $rad_acct_attributes{'h323-disconnect-cause'} = 16;
 send_radius_request(ACCOUNTING_REQUEST, \%rad_acct_attributes);
 
 #**********************************************************
-# Radius section
+=head2 send_radius_request($request_type, $attributes) - Radius section
+
+=cut
 #**********************************************************
 sub send_radius_request {
   my ($request_type, $attributes) = @_;
@@ -331,22 +359,23 @@ sub send_radius_request {
   }
 
 
-  $r = new Radius(
+  $r = Radius->new(
     Host    => "$radius_host:$port",
     Secret  => "$conf{VOIP_RADIUS_SERVER_SECRET}",
     TimeOut => 15,
   );
 
   if (!defined($r)) {
-    syslog('LOG_ERR', "Can't connect $conf{VOIP_RADIUS_SERVER_HOST}$port ERROR: " . $r->get_error());
-    $agi->verbose('RADIUS server ' . $conf{VOIP_RADIUS_SERVER_HOST} . 'ERROR:' . $r->get_error(), 3);
+    syslog('LOG_ERR', "Can't connect $conf{VOIP_RADIUS_SERVER_HOST}$port ERROR: ");
+    $agi->verbose('RADIUS server ' . $conf{VOIP_RADIUS_SERVER_HOST} . 'ERROR:', 3);
     $agi->hangup();
     exit;
   }
 
+  $conf{'dictionary'} = '/usr/abills/lib/dictionary' if (!$conf{'dictionary'});
   $r->load_dictionary($conf{'dictionary'});    # or die("Cannot load dictionary '$conf{dictionary}' !");
 
-  my $type = 0;
+  $type = 0;
 
   $r->clear_attributes();
   while (my ($key, $value) = each(%$attributes)) {
@@ -375,9 +404,9 @@ sub send_radius_request {
   my $get_attr = '';
   undef %rad_response;
 
-  for my $a ($r->get_attributes()) {
-    $rad_response{"$a->{'Name'}"} = $a->{'Value'};
-    $get_attr .= "$a->{'Name'}=$a->{'Value'},\n";
+  for my $pair ($r->get_attributes()) {
+    $rad_response{"$pair->{'Name'}"} = $pair->{'Value'};
+    $get_attr .= "$pair->{'Name'}=$pair->{'Value'},\n";
   }
 
   syslog('LOG_DEBUG', "RAD Response: $type PAIRS: $get_attr");

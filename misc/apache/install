@@ -1,10 +1,10 @@
-:OS=FREEBSD:apache22_enable="YES"  >> [/etc/]/rc.conf
+:OS=FREEBSD:apache24_enable="YES"  >> [/etc/]/rc.conf
 :OS=FREEBSD:exec:chown www /usr/abills/cgi-bin /usr/abills/cgi-bin/admin /usr/abills/Abills/templates
 ::exec:/usr/abills/misc/certs_create.sh apache
 ::exec:mkdir /var/log/httpd
-:OS=FREEBSD:FILE=abills_httpd.conf > [/usr/local/etc/apache22]/Includes/abills_httpd.conf
+:OS=FREEBSD:FILE=abills_httpd.conf > [%APACHE_CONF_DIR%]/abills_httpd.conf
 :OS=FREEBSD:exec: %RESTART_APACHE% restart
-:OS=FREEBSD:FILE=abills_hotspot.conf > [/usr/local/etc/apache22]/Includes/abills_hotspot.conf
+:OS=FREEBSD:FILE=abills_hotspot.conf > [%APACHE_CONF_DIR%]/abills_hotspot.conf
 :OS=LINUX:FILE=abills_httpd.conf > [%APACHE_CONF_DIR%]/abills_httpd.conf
 :OS=LINUX:exec: %RESTART_APACHE% restart
 :OS=LINUX:exec:chown %WEB_SERVER_USER% /usr/abills/cgi-bin /usr/abills/cgi-bin/admin /usr/abills/Abills/templates

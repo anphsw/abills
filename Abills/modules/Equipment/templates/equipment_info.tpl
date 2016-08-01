@@ -1,27 +1,124 @@
-<form action=$SELF_URL METHOD=POST>
-<input type=hidden name=index value=$index>
-<input type=hidden name=NAS_ID value=$FORM{NAS_ID}>
-<input type=hidden name=chg value=$FORM{chg}>
-<table class=form>
-<tr><th colspan=2 class=form_title>$_EQUIPMENT $_INFO</th><tr>
-<tr class=even><td>ID: %NAS_ID%</td><td>$_NAME: %NAS_NAME% (%NAS_IP%) 
-<a title='info' class='change rightAlignText' href='$SELF_URL?get_index=form_nas&amp;NAS_ID=%NAS_ID%&full=1'>info</a>
-</td>
+<script language='JavaScript'>
+  function autoReload() {
+    document.equipment_info.NAS_ID.value = '$FORM{NAS_ID}';
+    document.equipment_info.submit();
+  }
+</script>
 
-<tr><td>$_MODEL</td><td>%MODEL_SEL% (%VENDOR% / %TYPE%) %MANAGE_WEB%</td></tr>
-<tr><td>System info</td><td><input type=text name=SYSTEM_ID value='%SYSTEM_ID%'></td></tr>
-<tr><td>Firmware:</td><td><input type=text name=FIRMWARE value='%FIRMWARE%'></td></tr>
-<tr><td>$_PORTS:</td><td><input type=text name=PORTS value='%PORTS%'></td></tr>
-<tr><td>$_FREE_PORTS:</td><td>%FREE_PORTS%</td></tr>
-<tr><td>$_SERIAL:</td><td><input type=text name=SERIAL value='%SERIAL%'></td></tr>
-<tr><td>$_START_UP_DATE:</td><td><input type=text name=START_UP_DATE value='%START_UP_DATE%' ID='START_UP_DATE' size=12 rel='tcal'></td></tr>
-<tr><td>$_STATUS:</td><td>%STATUS_SEL%</td></tr>
-<tr><td>$_LAST_ACTIVITY:</td><td>%LAST_ACTIVITY%</td></tr>
-<tr><th colspan=2 class=form_title>$_COMMENTS</th></tr>
-<tr><th colspan=2><textarea name=COMMENTS cols=40 rows=4>%COMMENTS%</textarea></th></tr>
-<tr><th colspan=2 class=even><input type=submit name=%ACTION%  value='%ACTION_LNG%'>
-<input type=submit name=get_info  value='SNMP $_GET_INFO'>
-</th><tr>
 
-</table>
+<form action='$SELF_URL' METHOD='post' name='equipment_info' class='form-horizontal'>
+  <input type='hidden' name='index' value='$index'>
+  <input type='hidden' name='NAS_ID' value='$FORM{NAS_ID}'>
+  <input type='hidden' name='chg' value='$FORM{chg}'>
+
+  <fieldset>
+    <div class='panel panel-default panel-form'>
+      <div class='panel-body'>
+
+        <legend>_{EQUIPMENT}_ _{INFO}_</legend>
+
+        <div class='form-group'>
+          <label for='NAS_NAME' class='control-label col-md-3'>ID: %NAS_ID%</label>
+          <div class='col-sm-9'>
+            _{NAME}_: %NAS_NAME% (%NAS_IP%) <a title='info' class='change rightAlignText'
+                                               href='$SELF_URL?get_index=form_nas&amp;NAS_ID=%NAS_ID%&full=1'>info</a>
+          </div>
+        </div>
+
+        <div class='form-group'>
+          <label for='SYSTEM_ID' class='control-label col-md-3'>System info</label>
+          <div class='col-sm-9'>
+            <input type=text class='form-control' id='SYSTEM_ID' placeholder='%SYSTEM_ID%' name='SYSTEM_ID'
+                   value='%SYSTEM_ID%'>
+          </div>
+        </div>
+
+        <div class='form-group'>
+          <label for='TYPE_ID' class='control-label col-md-3'>_{TYPE}_</label>
+          <div class='col-sm-9'>
+            %TYPE_SEL%
+          </div>
+        </div>
+
+        <div class='form-group'>
+          <label for='MODEL_ID' class='control-label col-md-3'>_{MODEL}_</label>
+          <div class='col-sm-9'>
+            %MODEL_SEL% %MANAGE_WEB%
+          </div>
+        </div>
+
+        <div class='form-group'>
+          <label for='REVISION' class='control-label col-md-3'>_{REVISION}_</label>
+          <div class='col-sm-9'>
+            <input type=text class='form-control' id='REVISION' placeholder='%REVISION%' name='REVISION'
+                   value='%REVISION%'>
+          </div>
+        </div>
+
+        <div class='form-group'>
+          <label for='FIRMWARE' class='control-label col-md-3'>FIRMWARE</label>
+          <div class='col-sm-9'>
+            <input type=text class='form-control' id='FIRMWARE' placeholder='%FIRMWARE%' name='FIRMWARE'
+                   value='%FIRMWARE%'>
+          </div>
+        </div>
+
+        <div class='form-group'>
+          <label for='PORTS' class='control-label col-md-3'>_{PORTS}_</label>
+          <div class='col-sm-9'>
+            <input type=text class='form-control' id='PORTS' placeholder='%PORTS%' name='PORTS' value='%PORTS%'>
+          </div>
+        </div>
+
+        <div class='form-group'>
+          <label for='PORTS' class='control-label col-md-3'>_{FREE_PORTS}_</label>
+          <div class='col-sm-9'>
+            %FREE_PORTS%
+          </div>
+        </div>
+
+        <div class='form-group'>
+          <label for='SERIAL' class='control-label col-md-3'>_{SERIAL}_:</label>
+          <div class='col-sm-9'>
+            <input type=text class='form-control' id='SERIAL' placeholder='%SERIAL%' name='SERIAL' value='%SERIAL%'>
+          </div>
+        </div>
+
+        <div class='form-group'>
+          <label for='START_UP_DATE' class='control-label col-md-3'>_{START_UP_DATE}_</label>
+          <div class='col-sm-9'>
+            <input type=text class='form-control' id='START_UP_DATE' placeholder='%START_UP_DATE%' name='START_UP_DATE'
+                   value='%START_UP_DATE%'>
+          </div>
+        </div>
+
+        <div class='form-group'>
+          <label for='STATUS' class='control-label col-md-3'>_{STATUS}_</label>
+          <div class='col-sm-9'>
+            %STATUS_SEL%
+          </div>
+        </div>
+
+        <div class='form-group'>
+          <label for='LAST_ACTIVITY' class='control-label col-md-3'>_{LAST_ACTIVITY}_</label>
+          <div class='col-sm-9'>
+            %LAST_ACTIVITY%
+          </div>
+        </div>
+
+        <div class='form-group'>
+          <label class='control-label col-sm-3' for='COMMENTS'>_{COMMENTS}_</label>
+          <div class='col-md-9'>
+            <textarea class='form-control' id='COMMENTS' name='COMMENTS' rows='3'>%COMMENTS% %DESCRIBE%</textarea>
+          </div>
+        </div>
+
+        <input type=submit name=get_info value='SNMP _{GET_INFO}_' class='btn btn-default'>
+        <input type=submit name=%ACTION% value='%ACTION_LNG%' class='btn btn-primary'>
+
+      </div>
+    </div>
+  </fieldset>
 </form>
+
+%EX_INFO%

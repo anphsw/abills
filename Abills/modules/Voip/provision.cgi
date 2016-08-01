@@ -64,7 +64,7 @@ if ($FORM{test}) {
 require "Abills/templates.pl";
 my $Nas  = Nas->new($db, \%conf);
 my $Voip = Voip->new($db, undef, \%conf);
-# номер модели
+# РЅРѕРјРµСЂ РјРѕРґРµР»Рё
 #PN =>  $FORM{PN},
 # Mac
 #MAC=> $FORM{MAC},

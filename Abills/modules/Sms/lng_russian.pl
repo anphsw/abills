@@ -1,8 +1,8 @@
-$_ERR_PHONE_NOT_DEFINED='Не указан телефон';
-$_ERR_WRONG_PHONE='Не правильный номер (380xxxxxxxxx)';
+$lang{ERR_PHONE_NOT_DEFINED}='Не указан телефон';
+$lang{ERR_WRONG_PHONE}='Неправильный формат номера телефона';
 
-$_MSG_ID='Номер сообщения'; 
-$_SIGN='подпись';
-$_SEND_TIME='Планируемое время отправки';
-$_SENDED='Отправлено';
-$_UPDATED='Обновлено';
+$lang{MSG_ID}='Номер сообщения';
+$lang{SIGN}='подпись';
+$lang{SEND_TIME}='Планируемое время отправки';
+$lang{SENDED}='Отправлено';
+$lang{UPDATED}='Обновлено';

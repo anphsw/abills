@@ -1,36 +1,62 @@
-<div id=form_holdup>
-<form action=$SELF_URL METHOD=GET name=holdup>
-<input type=hidden name=index value=$index>
-<input type=hidden name=sid value=$sid>
-<input type=hidden name=UID value=$FORM{UID}>
+    <button type='button' class='btn btn-primary btn-xs pull-right' data-toggle='modal' data-target='#holdupModal'>
+        _{HOLD_UP}_
+    </button>
 
-<TABLE width=600 class=form>
-<tr><th colspan=4 class=table_title align=right>$_HOLD_UP</th></tr>
-<tr><th colspan=4>&nbsp;</th></tr>
-<tr><td>$_FROM:</td><td>%DATE_FROM%</td>
-<td>$_TO:</td><td>%DATE_TO%</td>
-</tr>
+<div id='form_holdup' class='text-center'>
 
-<tr><th colspan=4>&nbsp;</th></tr>
-<tr><th colspan=4><input type=submit value='$_HOLD_UP' name='hold_up_window' id='hold_up_window'></th></tr>
-</table>
+    <div class='modal fade' id='holdupModal'>
+        <div class='modal-dialog modal-sm'>
+            <div class='modal-content'>
+                <div class='modal-header text-center'>
+                    <button type='button' class='close' data-dismiss='modal' aria-label='Close'>
+                        <span aria-hidden='true'>&times;</span>
+                    </button>
+                    <h4>_{HOLD_UP}_</h4>
+                </div>
 
+                <div class='modal-body form form-horizontal'>
+                    <form action='$SELF_URL' METHOD='GET' id='holdup'>
+                        <fieldset>
+                            <input type='hidden' name='index' value='$index'>
+                            <input type='hidden' name='sid' value='$sid'>
+                            <input type='hidden' name='UID' value='$FORM{UID}'>
 
-<div id='open_popup_block_middle' style='width:400px; height:200px'>
-  <a id='close_popup_window'>x</a>
-  <div id='popup_window_content'><br/>
-    <p>
-    
-    <b>$_HOLD_UP</b><BR>
-    
-    %DAY_FEES%<br>   
-    
-    $_ACCEPT: <input type=checkbox value='1' name='ACCEPT_RULES'> <br>
-    </p>
-    <input type=submit value='$_HOLD_UP' name='add'>
-  </div>
+                            <div class='form-group'>
+                                <label class='col-md-3 control-label'>_{FROM}_:</label>
+
+                                <div class='col-md-9'>
+                                    %DATE_FROM%
+                                </div>
+                            </div>
+                            <div class='form-group'>
+                                <label class='col-md-3 control-label'>_{TO}_:</label>
+
+                                <div class='col-md-9'>
+                                    %DATE_TO%
+                                </div>
+
+                            </div>
+                            <div class='form-group'>
+                                <div>
+                                    %DAY_FEES%
+                                </div>
+                                <label class='control-label col-md-5 ' for='ACCEPT_RULES'>_{ACCEPT}_</label>
+
+                                <div class='col-md-7'>
+                                    <input type='checkbox' class='form-control-sm' value='1' id='ACCEPT_RULES'
+                                           name='ACCEPT_RULES'>
+                                </div>
+                            </div>
+                        </fieldset>
+                    </form>
+                </div>
+                <div class='modal-footer text-center'>
+                    <input type='submit' value='_{HOLD_UP}_' name='add' form='holdup' class='btn btn-primary'>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 
-</form>
 </div>

@@ -1,25 +1,20 @@
 package Vlan;
 
-# Vlan  managment functions
-#
+=head1 NAME
+
+  Vlan  managment functions
+
+=cut
 
 use strict;
-use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION);
-
-use Exporter;
-$VERSION = 2.00;
-@ISA     = ('Exporter');
-
-@EXPORT = qw();
-
-@EXPORT_OK   = ();
-%EXPORT_TAGS = ();
-
-use main;
-@ISA = ("main");
-
-my $uid;
+our $VERSION = 2.00;
+use parent 'main';
 my $MODULE = 'Vlan';
+my ($admin, $CONF);
+my $SORT      = 1;
+my $DESC      = '';
+my $PG        = 0;
+my $PAGE_ROWS = 25;
 
 #**********************************************************
 # Init
@@ -47,7 +42,7 @@ sub info {
   my $self = shift;
   my ($uid, $attr) = @_;
 
-  $WHERE = "WHERE uid='$uid'";
+  my $WHERE = "WHERE uid='$uid'";
 
   if (defined($attr->{IP})) {
     $WHERE = "WHERE ip=INET_ATON('$attr->{IP}')";
@@ -117,7 +112,7 @@ sub add {
         INET_ATON('$DATA{UNNUMBERED_IP}'));", 'do'
   );
 
-  return $self if ($self->{errno});
+  return [ ] if ($self->{errno});
   $admin->action_add("$DATA{UID}", "$DATA{VLAN_ID}", { TYPE => 1 });
   return $self;
 }
@@ -134,8 +129,7 @@ sub change {
   $attr->{DISABLE} = ($attr->{DISABLE}) ? $attr->{DISABLE} : 0;
 
   $admin->{MODULE} = $MODULE;
-  $self->changes(
-    $admin,
+  $self->changes2(
     {
       CHANGE_PARAM => 'UID',
       TABLE        => 'vlan_main',
@@ -153,7 +147,6 @@ sub change {
 #**********************************************************
 sub del {
   my $self = shift;
-  my ($attr) = @_;
 
   $self->query2("DELETE from vlan_main WHERE uid='$self->{UID}';", 'do');
 
@@ -167,7 +160,6 @@ sub del {
 sub list {
   my $self   = shift;
   my ($attr) = @_;
-  my @list   = ();
 
   $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
   $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
@@ -199,7 +191,7 @@ sub list {
                                             'REDUCTION_DATE',
                                             'COMMENTS',
                                             'BILL_ID',
-                                            
+
                                             'ACTIVATE',
                                             'EXPIRE',
                                             'DEPOSIT:skip',
@@ -226,9 +218,9 @@ sub list {
     ],
     { WHERE => 1,
     	WHERE_RULES => \@WHERE_RULES
-    }    
+    }
     );
-  
+
   $self->query2("SELECT u.id AS login, 
       pi.fio, 
       if(u.company_id > 0, cb.deposit, b.deposit) AS deposit, 
@@ -260,7 +252,7 @@ sub list {
      $attr
   );
 
-  return $self if ($self->{errno});
+  return [ ] if ($self->{errno});
 
   my $list = $self->{list};
 
@@ -277,11 +269,10 @@ sub list {
 #**********************************************************
 sub periodic {
   my $self = shift;
-  my ($period) = @_;
-
-  if ($period eq 'daily') {
-    $self->daily_fees();
-  }
+#  my ($period) = @_;
+#  if ($period eq 'daily') {
+#    $self->daily_fees();
+#  }
 
   return $self;
 }

@@ -1,2 +1,2 @@
-$_SAVE='Save';
-$_TABLES='Таблицы';
+$lang{SAVE}='Save';
+$lang{TABLES}='Таблицы';

@@ -1,24 +1,24 @@
 package Msgs;
-# Message system
-#
+
+=head1 NAME
+
+ Message system
+ Help Desk SQL
+
+=cut
 
 use strict;
-use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
-);
-
-use Exporter;
-$VERSION = 2.00;
-@ISA     = ('Exporter');
-
-@EXPORT = qw();
-
-@EXPORT_OK   = ();
-%EXPORT_TAGS = ();
-
-use main;
-@ISA = ("main");
-
+our $VERSION = 2.00;
+use parent 'main';
 my $MODULE = 'Msgs';
+
+#use Defs;
+
+our Admins $admin;
+my $SORT      = 1;
+my $DESC      = '';
+my $PG        = 0;
+my $PAGE_ROWS = 25;
 
 #**********************************************************
 # Init
@@ -26,19 +26,25 @@ my $MODULE = 'Msgs';
 sub new {
   my $class = shift;
   my $db    = shift; 
-  ($admin, $CONF) = @_;
+  $admin    = shift;
+  my $CONF  = shift;
+
   $admin->{MODULE} = $MODULE;
   my $self = {};
 
   bless($self, $class);
-  
-  $self->{db}=$db;
-  
+
+  $self->{db}   = $db;
+  $self->{admin}= $admin;
+  $self->{conf} = $CONF;
+
   return $self;
 }
 
 #**********************************************************
-# messages_new
+=head1 messages_new($attr) - Show new message
+
+=cut
 #**********************************************************
 sub messages_new {
   my $self = shift;
@@ -50,38 +56,45 @@ sub messages_new {
 
   if ($attr->{USER_READ}) {
     push @WHERE_RULES, "m.user_read='$attr->{USER_READ}' AND admin_read>'0000-00-00 00:00:00' AND m.inner_msg='0'";
-    $fields = 'count(*), \'\', \'\', max(m.id), m.chapter, m.id, 1';
+    $fields = 'count(*) AS total, \'\', \'\', max(m.id), m.chapter, m.id, 1';
+  }
+  elsif($attr->{ADMIN_UNREAD}) {
+    $fields = 'count(*) AS total, \'\', \'\', max(m.id), m.chapter, m.id, 1';
   }
   elsif ($attr->{ADMIN_READ}) {
-    $fields = "sum(if(admin_read='0000-00-00 00:00:00', 1, 0)), 
-     sum(if(plan_date=curdate(), 1, 0)),
-     sum(if(state = 0, 1, 0)), 
-    1, 1,1,1
+    $fields = "sum(if(admin_read='0000-00-00 00:00:00', 1, 0)) AS admin_unread_count, 
+     sum(if(plan_date=curdate(), 1, 0)) AS today_plan_count,
+     sum(if(state = 0, 1, 0)) AS open_count, 
+    1,1,1,1
       ";
-
-    #push @WHERE_RULES, "m.state=0";
   }
 
   if ($attr->{UID}) {
     push @WHERE_RULES, "m.uid='$attr->{UID}'";
   }
 
-  if ($attr->{CHAPTERS}) {
-    push @WHERE_RULES, "c.id IN ($attr->{CHAPTERS})";
+  if ($attr->{CHAPTER}) {
+    $attr->{CHAPTER} =~ s/,/;/g;
+    push @WHERE_RULES, @{ $self->search_expr($attr->{CHAPTER}, 'INT', 'c.id') };
   }
 
-  if ($attr->{GIDS}) {
-    push @WHERE_RULES, "u.gid IN ($attr->{GIDS})";
+  if (defined($attr->{STATE}) && $attr->{STATE} ne '') {
+    push @WHERE_RULES, @{ $self->search_expr($attr->{STATE}, 'INT', 'm.state') };
+  }
+
+  if ($attr->{GID}) {
+    push @WHERE_RULES, "u.gid IN ($attr->{GID})";
     $EXT_TABLE = "LEFT JOIN users u  ON (m.uid = u.uid)";
   }
 
-  $WHERE = ($#WHERE_RULES > -1) ? 'WHERE ' . join(' and ', @WHERE_RULES) : '';
+  my $WHERE = ($#WHERE_RULES > -1) ? 'WHERE ' . join(' and ', @WHERE_RULES) : '';
 
   if ($attr->{SHOW_CHAPTERS}) {
-    $self->query2("SELECT c.id, c.name, sum(if(admin_read='0000-00-00 00:00:00', 1, 0)), 
-     sum(if(plan_date=curdate(), 1, 0)),
-     sum(if(state = 0, 1, 0)), 
-          sum(if(resposible = $admin->{AID}, 1, 0)),1,1,1
+    $self->query2("SELECT c.id, c.name, sum(if(admin_read='0000-00-00 00:00:00', 1, 0)) AS admin_unread_count, 
+     sum(if(plan_date=curdate(), 1, 0)) AS today_plan_count,
+     sum(if(state = 0, 1, 0)) AS open_count, 
+     sum(if(resposible = $admin->{AID}, 1, 0)) AS resposible_count, 
+     1, 1, 1
     FROM msgs_chapters c
     LEFT JOIN msgs_messages m ON (m.chapter= c.id AND m.state=0)
     $EXT_TABLE
@@ -90,20 +103,21 @@ sub messages_new {
     undef,
     $attr
     );
+
     return $self->{list};
   }
 
-  if ($attr->{GIDS}) {
+  if ($attr->{GID}) {
     $self->query2("SELECT $fields 
       FROM (msgs_messages m, users u)
-      $WHERE and u.uid=m.uid GROUP BY 7Y;"
+      $WHERE and u.uid=m.uid GROUP BY 7;"
       );
   }
   else {
     $self->query2("SELECT $fields 
-      FROM (msgs_messages m)
+      FROM msgs_messages m
       $WHERE GROUP BY 7;"
-     );
+    );
   }
 
   if ($self->{TOTAL}) {
@@ -114,7 +128,14 @@ sub messages_new {
 }
 
 #**********************************************************
-# messages_list
+=head2 messages_list($attr) -  Show message
+
+  Arguments:
+
+  Returns:
+     array_hash_ref
+
+=cut
 #**********************************************************
 sub messages_list {
   my $self = shift;
@@ -124,10 +145,11 @@ sub messages_list {
   $SORT      = ($attr->{SORT})          ? $attr->{SORT}      : 1;
   $DESC      = (defined($attr->{DESC})) ? $attr->{DESC}      : 'DESC';
   $PG        = (defined($attr->{PG}))   ? $attr->{PG}        : 0;
-  
-  $self->{COL_NAMES_ARR}=undef;
 
-  #$attr->{SKIP_GID} = 1;
+  $self->{COL_NAMES_ARR}=undef;
+  $self->{EXT_TABLES} = '';
+  my @WHERE_RULES = ();
+
   if ($attr->{PLAN_FROM_DATE}) {
     push @WHERE_RULES, "(date_format(m.plan_date, '%Y-%m-%d')>='$attr->{PLAN_FROM_DATE}' and date_format(m.plan_date, '%Y-%m-%d')<='$attr->{PLAN_TO_DATE}')";
   }
@@ -151,9 +173,6 @@ sub messages_list {
     }
     push @WHERE_RULES, "(" . join(" or ", @WHERE_RULES_pre) . ")";
   }
-  elsif ($attr->{CHAPTERS}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{CHAPTERS}, 'INT', 'm.chapter') };
-  }
 
   if (defined($attr->{STATE})) {
     if ($attr->{STATE} == 4) {
@@ -167,26 +186,42 @@ sub messages_list {
       push @WHERE_RULES, @{ $self->search_expr("0;3;6",         'INT', 'm.state') };
       undef $attr->{DELIGATION};
     }
+    elsif ($attr->{STATE} == 12) {
+      use POSIX;
+      my $DATE = POSIX::strftime("%Y-%m-%d", localtime(time));
+      push @WHERE_RULES, @{ $self->search_expr(">0000-00-00;<$DATE", 'INT', 'm.plan_date') };
+      push @WHERE_RULES, @{ $self->search_expr('0',      'INT', 'm.state') };
+    }
     else {
       push @WHERE_RULES, @{ $self->search_expr($attr->{STATE}, 'INT', 'm.state') };
     }
   }
 
-  if ($admin->{GID} || $admin->{GIDS}) {
-    if ($admin->{GID}) {
-      $admin->{GIDS} .= ", $admin->{GID}";
-    }
-    $attr->{SKIP_GID}=1;
-    push @WHERE_RULES, "(u.gid IN ($admin->{GIDS}) or m.gid IN ($admin->{GIDS}))";
+  if ($attr->{GET_NEW}) {
+  	push @WHERE_RULES, " ((m.date > now() - interval $attr->{GET_NEW} second) OR (r.datetime > now() - interval $attr->{GET_NEW} second)) ";
   }
-  
+
+  if ($admin->{GID}) {
+    $attr->{SKIP_GID}=1;
+    push @WHERE_RULES, "(u.gid IN ($admin->{GID}) or m.gid IN ($admin->{GID}))";
+  }
+
   $admin->{permissions}->{0}->{8}=1;
-  
+
   my $WHERE = $self->search_former($attr, [
-      ['MSG_ID',       'INT',  'm.id'             ],
+      ['MSG_ID',       'INT',  'm.id',   ],
+      ['CLIENT_ID',    'STR',  'if(m.uid>0, u.id, mg.name)', 'if(m.uid>0, u.id, mg.name) AS client_id' ],
+      ['SUBJECT',      'STR',  'm.subject',      1 ],
+      ['CHAPTER_NAME', 'STR',  'mc.name', 'mc.name AS chapter_name' ],
+      ['CHAPTER',      'INT',  'm.chapter'         ],
+      ['DATETIME',     'DATE', "m.date AS datetime",  1 ],
+      ['DATE',         'DATE', "date_format(m.date, '%Y-%m-%d')",  "date_format(m.date, '%Y-%m-%d') AS date" ],
+      ['STATE',        'INT',  '',       'm.state' ],
+      ['PRIORITY',     'INT',  'm.priority',    1 ],
+      ['RESPOSIBLE_ADMIN_LOGIN', 'STR', 'ra.id', 'ra.id AS resposible_admin_login' ],
+      ['PLAN_DATE_TIME', 'DATE', "CONCAT(m.plan_date, ' ', m.plan_time)", "CONCAT(m.plan_date, ' ', m.plan_time) AS plan_date_time" ],
       ['DISABLE',      'INT',  'u.disable',     1 ],
       ['INNER_MSG',    'INT',  'm.inner_msg',   1 ], 
-      ['SUBJECT',      'STR',  'm.subject'        ],
       ['MESSAGE',      'STR',  'm.message',     1 ],
       ['REPLY',        'STR',  'm.user_read',   1 ],
       ['PHONE',        'STR',  'm.phone',       1 ],
@@ -195,56 +230,45 @@ sub messages_list {
       ['CLOSED_DATE',  'DATE', 'm.closed_date', 1 ],
       ['RUN_TIME',     'DATE', 'SEC_TO_TIME(sum(r.run_time))',  'SEC_TO_TIME(sum(r.run_time)) AS run_time' ],
       ['DONE_DATE',    'DATE', 'm.done_date',   1 ],
-      ['CHAPTER',      'INT',  'm.chapter',       ],
       ['UID',          'INT',  'm.uid',           ],
       ['DELIGATION',   'INT',  'm.delegation',  1 ],
       ['RESPOSIBLE',   'INT',  'm.resposible',    ],
-      ['PRIORITY',     'INT',  'm.state',         ],
-      ['PLAN_DATE',    'INT',  'm.plan_date',   1 ], 
+      ['PLAN_DATE',    'DATE',  'm.plan_date',   1 ],
       #['PLAN_DATE',    'INT',  "DATE_FORMAT(plan_date, '%w')", "DATE_FORMAT(plan_date, '%w') AS plan_date", 1 ], 
       ['PLAN_TIME',    'INT',  'm.plan_time',   1 ],
       ['DISPATCH_ID',  'INT',  'm.dispatch_id', 1 ],
-      ['IP',           'IP',   'm.ip',  'INET_NTOA(m.ip)', 1 ],
-      ['DATE',         'DATE', "date_format(m.date, '%Y-%m-%d')" ],
+      ['IP',           'IP',   'm.ip',  'INET_NTOA(m.ip) AS ip' ],
       ['FROM_DATE|TO_DATE', 'DATE', "date_format(m.date, '%Y-%m-%d')" ],
-      ['ADMIN_LOGIN',  'INT',  'a.aid',  'a.id AS admin_login',  1 ],
-      ['A_NAME',       'INT',  'a.name', 'a.name AS admin_name', 1 ],
+      ['ADMIN_LOGIN',  'INT',  'a.aid',  'a.id AS admin_login',     1 ],
+      ['A_NAME',       'INT',  'a.name', 'a.name AS admin_name',    1 ],
       ['REPLIES_COUNTS','',    '',       'if(r.id IS NULL, 0, count(r.id)) AS replies_counts' ],
     ],
     { WHERE             => 1,
       WHERE_RULES       => \@WHERE_RULES,
       USERS_FIELDS      => 1,
-      SKIP_USERS_FIELDS => [ 'GID' ]
+      SKIP_USERS_FIELDS => [ 'GID', 'UID' ],
+      USE_USER_PI       => 1
     }
     );
 
-  my $EXT_TABLE = $self->{EXT_TABLES};
+  my $EXT_TABLES = $self->{EXT_TABLES};
 
-  if ($self->{SEARCH_FIELDS} =~ /pi\./ || $EXT_TABLE =~ /pi\./) {
-    $EXT_TABLE = "LEFT JOIN users_pi pi ON (u.uid = pi.uid) $EXT_TABLE";
-  }
-
-  $self->query2("SELECT m.id,
-   if(m.uid>0, u.id, g.name) AS client_id,
-   m.subject,
-   mc.name AS chapter_name,
-   m.date,
-   m.state,
-   m.priority,
-   ra.id AS resposible_admin_login,
-   CONCAT(m.plan_date, ' ', m.plan_time) AS plan_date_time,
-   $self->{SEARCH_FIELDS}
+  $self->query2("SELECT m.id, $self->{SEARCH_FIELDS}
    m.uid,
    a.aid,
    m.chapter AS chapter_id,
    m.deligation,
    m.admin_read,
-   m.inner_msg
+   m.inner_msg,
+   m.plan_time,
+   m.resposible,
+   m.subject,
+   u.id AS user_name
 FROM (msgs_messages m)
 LEFT JOIN users u ON (m.uid=u.uid)
-$EXT_TABLE
+$EXT_TABLES
 LEFT JOIN admins a ON (m.aid=a.aid)
-LEFT JOIN groups g ON (m.gid=g.gid)
+LEFT JOIN groups mg ON (m.gid=mg.gid)
 LEFT JOIN msgs_reply r ON (m.id=r.main_msg)
 LEFT JOIN msgs_chapters mc ON (m.chapter=mc.id)
 LEFT JOIN admins ra ON (m.resposible=ra.aid)
@@ -268,32 +292,30 @@ GROUP BY m.id
     LEFT JOIN users u ON (m.uid=u.uid)
     LEFT JOIN msgs_reply r ON (m.id=r.main_msg)
     LEFT JOIN msgs_chapters mc ON (m.chapter=mc.id)
-    $EXT_TABLE
+    $EXT_TABLES
     $WHERE",
     undef,
     { INFO => 1 }
     );
   }
 
-  $WHERE       = '';
-  @WHERE_RULES = ();
-
   return $list;
 }
 
 #**********************************************************
-# Message
+=head2 message_add($attr)
+
+=cut
 #**********************************************************
 sub message_add {
   my $self = shift;
   my ($attr) = @_;
 
-  %DATA = $self->get_data($attr, { default => \%DATA });
-  $self->query_add('msgs_messages', { %DATA,
-                                           CLOSED_DATE => ($DATA{STATE} == 1 || $DATA{STATE} == 2) ? 'now()' : "0000-00-00 00:00:00",
-                                           AID         => $admin->{AID},
-                                           DATE        => 'now()'
-                                         });
+  $self->query_add('msgs_messages', { %$attr,
+                                      CLOSED_DATE => ($attr->{STATE} == 1 || $attr->{STATE} == 2) ? 'now()' : "0000-00-00 00:00:00",
+                                      AID         => ($attr->{USER_SEND}) ? 0 : $admin->{AID},
+                                      DATE        => 'now()'
+                                    });
 
   $self->{MSG_ID} = $self->{INSERT_ID};
 
@@ -301,44 +323,44 @@ sub message_add {
 }
 
 #**********************************************************
-# Bill
+=head2 message_del($attr)
+
+  Arguments:
+    $attr
+      UID
+      ID 
+
+  Results:
+    $self
+
+=cut
 #**********************************************************
 sub message_del {
   my $self = shift;
   my ($attr) = @_;
 
-  @WHERE_RULES = ();
+  $self->query_del('msgs_messages', $attr, {
+      uid  => $attr->{UID}
+  });
 
-  if ($attr->{ID}) {
-    if ($attr->{ID} =~ /,/) {
-      push @WHERE_RULES, "id IN ($attr->{ID})";
-    }
-    else {
-      push @WHERE_RULES, "id='$attr->{ID}'";
-    }
-  }
+  $self->message_reply_del({ MAIN_MSG => $attr->{ID}, 
+                             UID      => $attr->{UID} });
 
-  if ($attr->{UID}) {
-    push @WHERE_RULES, "uid='$attr->{UID}'";
-  }
-
-  $WHERE = ($#WHERE_RULES > -1) ? join(' and ', @WHERE_RULES) : '';
-  $self->query2("DELETE FROM msgs_messages WHERE $WHERE", 'do');
-
-  $self->message_reply_del({ MAIN_MSG => $attr->{ID}, UID => $attr->{UID} });
-  $self->query2("DELETE FROM msgs_attachments WHERE message_id='$attr->{ID}' and message_type=0", 'do');
+  $self->query2("DELETE FROM msgs_attachments WHERE message_id= ? AND message_type=0", 'do', { Bind => [ $attr->{ID} ] });
 
   return $self;
 }
 
 #**********************************************************
-# Bill
+=head2 message_info()
+
+=cut
 #**********************************************************
 sub message_info {
   my $self = shift;
   my ($id, $attr) = @_;
 
-  $WHERE = ($attr->{UID}) ? "and m.uid='$attr->{UID}'" : '';
+  my $WHERE = ($attr->{UID}) ? "AND m.uid='$attr->{UID}'" : '';
 
   $self->query2("SELECT m.id,
   m.subject,
@@ -371,15 +393,16 @@ sub message_info {
   m.dispatch_id,
   m.deligation,
   m.survey_id
-    FROM (msgs_messages m)
+    FROM msgs_messages m
     LEFT JOIN msgs_chapters mc ON (m.chapter=mc.id)
     LEFT JOIN users u ON (m.uid=u.uid)
     LEFT JOIN admins a ON (m.aid=a.aid)
     LEFT JOIN groups g ON (m.gid=g.gid)
-  WHERE m.id='$id' $WHERE
+  WHERE m.id= ? $WHERE
   GROUP BY m.id;",
   undef,
-  { INFO => 1 }
+  { INFO => 1,
+    Bind => [ $id ] }
   );
 
   $self->attachment_info({ MSG_ID => $self->{ID} });
@@ -388,49 +411,22 @@ sub message_info {
 }
 
 #**********************************************************
-# change()
+=head2 message_change($attr)
+
+=cut
 #**********************************************************
 sub message_change {
   my $self = shift;
   my ($attr) = @_;
 
-  my %FIELDS = (
-    ID          => 'id',
-    PARENT_ID   => 'par',
-    UID         => 'uid',
-    CHAPTER     => 'chapter',
-    MESSAGE     => 'message',
-    REPLY       => 'reply',
-    IP          => 'ip',
-    DATE        => 'date',
-    STATE       => 'state',
-    AID         => 'aid',
-    GID         => 'gid',
-    PRIORITY    => 'priority',
-    LOCK        => 'lock_msg',
-    PLAN_DATE   => 'plan_date',
-    PLAN_TIME   => 'plan_time',
-    CLOSED_DATE => 'closed_date',
-    DONE_DATE   => 'done_date',
-    USER_READ   => 'user_read',
-    ADMIN_READ  => 'admin_read',
-    RESPOSIBLE  => 'resposible',
-    INNER_MSG   => 'inner_msg',
-    PHONE       => 'phone',
-    DISPATCH_ID => 'dispatch_id',
-    DELIGATION  => 'deligation'
-  );
-
+  $attr->{PAR}    = $attr->{PARENT_ID} if ($attr->{PARENT_ID});
   $attr->{STATUS} = ($attr->{STATUS}) ? $attr->{STATUS} : 0;
 
   $admin->{MODULE} = $MODULE;
-  $self->changes(
-    $admin,
+  $self->changes2(
     {
       CHANGE_PARAM    => 'ID',
       TABLE           => 'msgs_messages',
-      FIELDS          => \%FIELDS,
-      OLD_INFO        => $self->message_info($attr->{ID}),
       DATA            => $attr,
       EXT_CHANGE_INFO => "MSG_ID:$attr->{ID}"
     }
@@ -440,7 +436,9 @@ sub message_change {
 }
 
 #**********************************************************
-# chapters_list
+=head2 chapters_list($attr)
+
+=cut
 #**********************************************************
 sub chapters_list {
   my $self = shift;
@@ -449,10 +447,10 @@ sub chapters_list {
   $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
-  $WHERE = $self->search_former($attr, [
+  my $WHERE = $self->search_former($attr, [
       ['INNER_CHAPTER',  'INT',  'mc.inner_chapter' ],
       ['NAME',           'STR',  'mc.name' ],
-      ['CHAPTERS',       'STR',  'mc.id' ]
+      ['CHAPTER',        'STR',  'mc.id' ]
     ],
     { WHERE => 1 });
 
@@ -465,62 +463,66 @@ sub chapters_list {
     $attr
   );
 
-  return $self->{list};
+  if($self->{TOTAL}){
+    return $self->{list};
+  }
+
+  return [];
 }
 
 #**********************************************************
-# chapter_add
+=head2 chapter_add($attr)
+
+=cut
 #**********************************************************
 sub chapter_add {
   my $self = shift;
   my ($attr) = @_;
 
-  %DATA = $self->get_data($attr, { default => \%DATA });
-
-  $self->query_add('msgs_chapters', \%DATA);
+  $self->query_add('msgs_chapters', $attr);
 
   $admin->system_action_add("MGSG_CHAPTER:$self->{INSERT_ID}", { TYPE => 1 });
   return $self;
 }
 
 #**********************************************************
-# chapter_del
+=head2 chapter_del($attr)
+
+=cut
 #**********************************************************
 sub chapter_del {
   my $self = shift;
   my ($attr) = @_;
 
-  @WHERE_RULES = ();
-
-  if ($attr->{ID}) {
-    push @WHERE_RULES, "id='$attr->{ID}'";
-  }
-
-  $WHERE = ($#WHERE_RULES > -1) ? join(' and ', @WHERE_RULES) : '';
-  $self->query2("DELETE FROM msgs_chapters WHERE $WHERE", 'do');
+  $self->query_del('msgs_chapters', $attr);
 
   return $self;
 }
 
 #**********************************************************
-# Bill
+=head2 chapter_info($id, $attr)
+
+=cut
 #**********************************************************
 sub chapter_info {
   my $self = shift;
-  my ($id, $attr) = @_;
+  my ($id) = @_;
 
-  $self->query2("SELECT id,  name, inner_chapter
+  $self->query2("SELECT *
     FROM msgs_chapters 
-  WHERE id='$id'",
+  WHERE id= ? ",
   undef,
-  { INFO => 1 }
+  { INFO => 1,
+    Bind => [ $id ] }
   );
 
   return $self;
 }
 
 #**********************************************************
-# change()
+=head2 chapter_change($attr)
+
+=cut
 #**********************************************************
 sub chapter_change {
   my $self = shift;
@@ -528,22 +530,12 @@ sub chapter_change {
 
   $attr->{INNER_CHAPTER} = ($attr->{INNER_CHAPTER}) ? 1 : 0;
 
-  my %FIELDS = (
-    ID            => 'id',
-    NAME          => 'name',
-    INNER_CHAPTER => 'inner_chapter'
-  );
-
   $admin->{MODULE} = $MODULE;
-  $self->changes(
-    $admin,
+  $self->changes2(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'msgs_chapters',
-      FIELDS       => \%FIELDS,
-      OLD_INFO     => $self->chapter_info($attr->{ID}),
       DATA         => $attr,
-
     }
   );
 
@@ -565,6 +557,7 @@ sub admins_list {
       ['EMAIL_NOTIFY', 'INT',  'ma.email_notify'    ],
       ['EMAIL',        'STR',  'a.email',           ], 
       ['CHAPTER_ID',   'INT',  'ma.chapter_id'      ],
+      ['DISABLE',      'INT',  'a.disable'          ]
     ],
     { WHERE => 1,
     }
@@ -593,34 +586,47 @@ sub admins_list {
 }
 
 #**********************************************************
-# chapter_add
+=head2 admin_change($attr)
+
+=cut
 #**********************************************************
 sub admin_change {
   my $self = shift;
   my ($attr) = @_;
 
-  my %DATA = $self->get_data($attr, { default => \%DATA });
-
   $self->admin_del({ AID => $attr->{AID} });
 
   my @chapters = split(/, /, $attr->{IDS});
+  my @MULTI_QUERY = ();
+
   foreach my $id (@chapters) {
-    $self->query2("insert into msgs_admins (aid, chapter_id, priority, email_notify, deligation_level)
-      values ('$DATA{AID}', '$id','" . $DATA{ 'PRIORITY_' . $id } . "','" . $DATA{ 'EMAIL_NOTIFY_' . $id } . "', '" . $DATA{ 'DELIGATION_LEVEL_' . $id } . "');", 'do'
-    );
+    push @MULTI_QUERY, [ 
+       $attr->{AID}, 
+       $id,
+       $attr->{ 'PRIORITY_' . $id },
+       $attr->{ 'EMAIL_NOTIFY_' . $id } || 0, 
+       $attr->{ 'DELIGATION_LEVEL_' . $id }
+      ];
   }
+
+  $self->query2("INSERT INTO msgs_admins (aid, chapter_id, priority, email_notify, deligation_level)
+        VALUES (?, ?, ?, ?, ?);",
+        undef,
+      { MULTI_QUERY =>  \@MULTI_QUERY });
 
   return $self;
 }
 
 #**********************************************************
-# chapter_del
+=head2 chapter_del($attr)
+
+=cut
 #**********************************************************
 sub admin_del {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("DELETE FROM msgs_admins WHERE aid='$attr->{AID}'", 'do');
+  $self->query_del('msgs_admins', undef, { aid => $attr->{AID} });
 
   return $self;
 }
@@ -630,51 +636,59 @@ sub admin_del {
 #**********************************************************
 sub admin_info {
   my $self = shift;
-  my ($id, $attr) = @_;
+  my ($id) = @_;
 
-  $self->query2("SELECT id, name
-    FROM msgs_chapters 
-  WHERE id='$id'",
-  undef,
-  { INFO => 1 }
-  );
+  $self->query2("SELECT * FROM msgs_chapters WHERE id= ? ",
+    undef,
+    { INFO => 1,
+      Bind => [ $id ] }
+    );
 
   return $self;
 }
 
 #**********************************************************
-# message_reply_del
+=head2 message_reply_del($attr)
+
+=cut
 #**********************************************************
 sub message_reply_del {
   my $self = shift;
   my ($attr) = @_;
 
-  @WHERE_RULES = ();
+  my @WHERE_FIELDS = ();
+  my @WHERE_VALUES = ();
 
   if ($attr->{MAIN_MSG}) {
-    if ($attr->{MAIN_MSG} =~ /,/) {
-      push @WHERE_RULES, "main_msg IN ($attr->{MAIN_MSG})";
-    }
-    else {
-      push @WHERE_RULES, "main_msg='$attr->{MAIN_MSG}'";
-    }
+    my @id_arr = split(/,/, $attr->{MAIN_MSG});
+    push @WHERE_FIELDS, "main_msg IN (". join(',', map { '?' } @id_arr) .')';
+    push @WHERE_VALUES, @id_arr;
   }
   elsif ($attr->{ID}) {
-    push @WHERE_RULES, "id='$attr->{ID}'";
-    $self->query2("DELETE FROM msgs_attachments WHERE message_id='$attr->{ID}' and message_type=1", 'do');
+    push @WHERE_FIELDS, 'id = ?';
+    push @WHERE_VALUES, $attr->{ID};
+
+    $self->query2("DELETE FROM msgs_attachments WHERE message_id= ? and message_type=1", 'do', { Bind => [ $attr->{ID} ]  });
   }
   elsif ($attr->{UID}) {
-    push @WHERE_RULES, "id='$attr->{UID}'";
+    push @WHERE_FIELDS, 'uid = ?';
+    push @WHERE_VALUES, $attr->{UID};
   }
 
-  my $WHERE = ($#WHERE_RULES > -1) ? join(' and ', @WHERE_RULES) : '';
-  $self->query2("DELETE FROM msgs_reply WHERE $WHERE", 'do');
+  if($#WHERE_FIELDS == -1) {
+    return $self; 
+  }
+
+  $self->query2("DELETE FROM msgs_reply WHERE ". join(' AND ', @WHERE_FIELDS), 
+    'do', { Bind => \@WHERE_VALUES });
 
   return $self;
 }
 
 #**********************************************************
-# messages_list
+=head2 messages_list($attr)
+
+=cut
 #**********************************************************
 sub messages_reply_list {
   my $self = shift;
@@ -684,28 +698,31 @@ sub messages_reply_list {
   $SORT      = ($attr->{SORT})          ? $attr->{SORT}      : 1;
   $DESC      = (defined($attr->{DESC})) ? $attr->{DESC}      : 'DESC';
 
-  @WHERE_RULES = ("main_msg='$attr->{MSG_ID}'");
-
   my $WHERE = $self->search_former($attr, [
+      ['MSG_ID',       'INT',  'mr.main_msg'     ],
       ['LOGIN',        'INT',  'u.id'            ],
       ['UID',          'INT',  'm.uid'           ],
       ['INNER_MSG',    'INT',  'mr.inner_msg'    ],
       ['REPLY',        'STR',  'm.reply',        ], 
       ['STATE',        'INT',  'm.state'         ],
-      ['ID',           'INT',  'mr.id',          ], 
+      ['ID',           'INT',  'mr.id',          ],
+      ['FILE_NAME',    'INT',  'ma.filename',       ],
+      ['CONTENT_SIZE', 'INT',  'ma.content_size', 1 ],
+      ['CONTENT_TYPE', 'INT',  'ma.content_type', 1 ],
+      ['ATTACH_COORDX','INT',  'ma.coordx',       1 ],
+      ['ATTACH_COORDY','INT',  'ma.coordy',       1 ],
       ['FROM_DATE|TO_DATE',   'DATE',  "date_format(m.date, '%Y-%m-%d')"      ],
     ],
     { WHERE       => 1,
-      WHERE_RULES => \@WHERE_RULES
     }
-    );  
-
+    );
   $self->query2("SELECT mr.id,
     mr.datetime,
     mr.text,
     if(mr.aid>0, a.id, u.id) AS creator_id,
     mr.status,
     mr.caption,
+    $self->{SEARCH_FIELDS}
     INET_NTOA(mr.ip) AS ip,
     ma.filename,
     ma.content_size,
@@ -715,7 +732,7 @@ sub messages_reply_list {
     mr.aid,
     mr.inner_msg,
     mr.survey_id
-    FROM (msgs_reply mr)
+    FROM msgs_reply mr
     LEFT JOIN users u ON (mr.uid=u.uid)
     LEFT JOIN admins a ON (mr.aid=a.aid)
     LEFT JOIN msgs_attachments ma ON (mr.id=ma.message_id and ma.message_type=1 )
@@ -736,28 +753,16 @@ sub message_reply_add {
   my $self = shift;
   my ($attr) = @_;
 
-  %DATA = $self->get_data($attr, { default => \%DATA });
-  $self->query2("insert into msgs_reply (main_msg,
-   caption,
-   text,
-   datetime,
-   ip,
-   aid,
-   status,
-   uid,
-   run_time,
-   inner_msg,
-   survey_id
-   )
-    values ('$DATA{ID}', '$DATA{REPLY_SUBJECT}', '$DATA{REPLY_TEXT}',  now(),
-        INET_ATON('$DATA{IP}'), 
-        '$DATA{AID}',
-        '$DATA{STATE}',
-        '$DATA{UID}', '$DATA{RUN_TIME}',
-        '$DATA{REPLY_INNER_MSG}',
-        '$DATA{SURVEY_ID}'
-    );", 'do'
-  );
+  $self->query_add('msgs_reply', {
+        %$attr,
+        MAIN_MSG => $attr->{ID},
+        CAPTION  => $attr->{REPLY_SUBJECT},
+        TEXT     => $attr->{REPLY_TEXT},
+        DATETIME => 'NOW()',
+        STATUS   => $attr->{STATE},
+        INNER_MSG=> $attr->{REPLY_INNER_MSG},
+        ID       => 'undef',
+      });
 
   $self->{REPLY_ID} = $self->{INSERT_ID};
 
@@ -765,30 +770,48 @@ sub message_reply_add {
 }
 
 #**********************************************************
-#
+=head2 attachment_add($attr) Add attachments
+
+=cut
 #**********************************************************
-sub attachment_add () {
+sub attachment_add {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2(
-    "INSERT INTO msgs_attachments "
-    . " (message_id, filename, content_type, content_size, content, "
-    . " create_time, create_by, change_time, change_by, message_type) "
-    . " VALUES "
-    . " ('$attr->{MSG_ID}', '$attr->{FILENAME}', '$attr->{CONTENT_TYPE}', '$attr->{FILESIZE}', ?, "
-    . " current_timestamp, '$attr->{UID}', current_timestamp, '0', '$attr->{MESSAGE_TYPE}')",
-    'do',
-    { Bind => [ $attr->{CONTENT} ] }
-  );
+  my @msgs_ids = (ref $attr->{MSG_ID} eq 'ARRAY' ) ? @{ $attr->{MSG_ID} } : ($attr->{MSG_ID});
+
+  foreach my $id ( @msgs_ids ) {
+    $self->query2(
+      "INSERT INTO msgs_attachments 
+      (message_id, filename, content_type, content_size, content, 
+       create_time, create_by, change_time, change_by, message_type,
+       coordx, coordy) 
+       VALUES 
+      (?, ?, ?, ?, ?, current_timestamp, ?, current_timestamp, '0', ?, ?, ?)",
+      'do',
+      { Bind => [ 
+          $id,
+          $attr->{FILENAME},
+          $attr->{CONTENT_TYPE},
+          $attr->{FILESIZE} || 0,
+          $attr->{CONTENT},
+          $attr->{UID} || 0,
+          $attr->{MESSAGE_TYPE} || 0,
+          $attr->{COORDX} || 0,
+          $attr->{COORDY} || 0
+        ] }
+    );
+  }
 
   return $self;
 }
 
 #**********************************************************
-#
+=head2 attachment_info($attr)
+
+=cut
 #**********************************************************
-sub attachment_info () {
+sub attachment_info {
   my $self = shift;
   my ($attr) = @_;
 
@@ -805,7 +828,11 @@ sub attachment_info () {
   }
 
   if ($attr->{UID}) {
-    $WHERE .= " and (create_by='$attr->{UID}' or create_by='0')";
+    $WHERE .= " AND (create_by='$attr->{UID}' or create_by='0')";
+  }
+
+  if (! $WHERE ) {
+    return $self;
   }
 
   $self->query2("SELECT id AS attachment_id, filename, 
@@ -826,62 +853,79 @@ sub attachment_info () {
 }
 
 #**********************************************************
-# fees
+=head2 messages_reports($attr)
+
+=cut
 #**********************************************************
 sub messages_reports {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 100;
+  $SORT      = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC      = ($attr->{DESC}) ? $attr->{DESC} : '';
+  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 100;
+
+  my %EXT_TABLE_JOINS_HASH = ();
 
   $self->{SEARCH_FIELDS}       = '';
   $self->{SEARCH_FIELDS_COUNT} = 0;
 
-  undef @WHERE_RULES;
-
-  # Start letter
-  if ($attr->{LOGIN}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{LOGIN}, 'STR', 'u.id') };
-  }
-
-  if ($attr->{STATUS}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{STATE}, 'INT', 'm.status') };
-  }
-
-  if ($attr->{UID}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{UID}, 'INT', 'm.uid') };
-  }
+  my @WHERE_RULES = ();
 
   my $date      = 'date_format(m.date, \'%Y-%m-%d\')';
-  my $EXT_TABLE = '';
+
   if ($attr->{TYPE}) {
     if ($attr->{TYPE} eq 'ADMINS') {
-      $date = 'a.id';
-      $EXT_TABLE     = 'LEFT JOIN  admins a ON (m.resposible=a.aid)';
+      $date       = 'a.id AS admin_name';
+      $EXT_TABLE_JOINS_HASH{admins}=1;
     }
     elsif ($attr->{TYPE} eq 'USER') {
-      $date = 'u.id';
+      $date      = 'u.id AS login';
+      $EXT_TABLE_JOINS_HASH{users}=1;
     }
     elsif ($attr->{TYPE} eq 'RESPOSIBLE') {
-      $date          = "a.id";
-      $EXT_TABLE     = 'LEFT JOIN  admins a ON (m.resposible=a.aid)';
+      $date      = "a.id AS admin_name";
+      $EXT_TABLE_JOINS_HASH{admins}=1;
     }
-  }
-
-  # Show groups
-  if ($attr->{GIDS}) {
-    push @WHERE_RULES, "u.gid IN ($attr->{GIDS})";
-  }
-  elsif ($attr->{GID}) {
-    push @WHERE_RULES, "u.gid='$attr->{GID}'";
+    elsif ($attr->{TYPE} eq 'HOURS') {
+      $date      = 'date_format(m.date, \'%H\') AS hours';
+    }
+    elsif ($attr->{TYPE} eq 'CHAPTERS') {
+      $date      = "c.name AS chapter_name";
+      $EXT_TABLE_JOINS_HASH{chapters}=1;
+    }
+    elsif ($attr->{TYPE} eq 'DISTRICT') {
+      $date = "districts.name AS district_name";
+      $EXT_TABLE_JOINS_HASH{users}=1;
+      $EXT_TABLE_JOINS_HASH{users_pi}=1;
+      $EXT_TABLE_JOINS_HASH{builds}=1;
+      $EXT_TABLE_JOINS_HASH{streets}=1;
+      $EXT_TABLE_JOINS_HASH{districts}=1;
+    }
+    elsif ($attr->{TYPE} eq 'STREET') {
+      $date = "streets.name AS street_name";
+      $EXT_TABLE_JOINS_HASH{users}=1;
+      $EXT_TABLE_JOINS_HASH{users_pi}=1;
+      $EXT_TABLE_JOINS_HASH{builds}=1;
+      $EXT_TABLE_JOINS_HASH{streets}=1;
+    }
+    elsif ($attr->{TYPE} eq 'BUILD') {
+      $date = "CONCAT(streets.name, '$self->{conf}->{BUILD_DELIMITER}', builds.number) AS build";
+      $EXT_TABLE_JOINS_HASH{users}=1;
+      $EXT_TABLE_JOINS_HASH{users_pi}=1;
+      $EXT_TABLE_JOINS_HASH{builds}=1;
+      $EXT_TABLE_JOINS_HASH{streets}=1;
+    }
+    #else {
+    #  $date = "u.id AS login";
+    #  $EXT_TABLE_JOINS_HASH{users}=1;
+    #}
   }
 
   if ($attr->{DATE}) {
     push @WHERE_RULES, "date_format(m.date, '%Y-%m-%d')='$attr->{DATE}'";
-    $date = "date_format(m.date, '%Y-%m-%d')";
+    $date = "date_format(m.date, '%Y-%m-%d') AS date";
   }
   elsif ($attr->{INTERVAL}) {
     my ($from, $to) = split(/\//, $attr->{INTERVAL}, 2);
@@ -889,25 +933,43 @@ sub messages_reports {
   }
   elsif (defined($attr->{MONTH})) {
     push @WHERE_RULES, "date_format(m.date, '%Y-%m')='$attr->{MONTH}'";
-    $date = "date_format(m.date, '%Y-%m-%d')";
+    $date = "date_format(m.date, '%Y-%m-%d') AS date";
   }
   else {
-    $date = "date_format(m.date, '%Y-%m')";
+    $date = "date_format(m.date, '%Y-%m') AS month";
   }
 
-  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+  my $WHERE = $self->search_former($attr, [
+      [ 'LOGIN',        'STR',  'u.id',   ],
+      [ 'STATUS',       'INT',  'm.state' ],
+      [ 'GID',          'INT',  'm.gid',  ],
+      [ 'UID',          'INT',  'm.uid',  ],
+      [ 'MSG_ID',       'INT',  'm.id',   ],
+    ],
+    { WHERE             => 1,
+      WHERE_RULES       => \@WHERE_RULES,
+    }
+  );
+
+  my $EXT_TABLES = $self->mk_ext_tables({ JOIN_TABLES     => \%EXT_TABLE_JOINS_HASH,
+                                          EXTRA_PRE_JOIN  => [ 'users:LEFT JOIN users u ON (m.uid=u.uid)',
+                                                               'admins:LEFT JOIN admins a ON (m.resposible=a.aid)',
+                                                               'chapters:LEFT JOIN msgs_chapters c ON (m.chapter=c.id)'
+                                                              ]
+                                         });
 
   $self->query2("SELECT $date, 
-   sum(if (m.state=0, 1, 0)) AS open,
-   sum(if (m.state=1, 1, 0)) AS unmaked,
-   sum(if (m.state=2, 1, 0)) AS maked,
-   count(DISTINCT m.id),
-   SEC_TO_TIME(sum(mr.run_time)),
-   m.uid
+   count(DISTINCT if (m.state=0, m.id, NULL)) AS open,
+   count(DISTINCT if (m.state=1, m.id, NULL)) AS unmaked,
+   count(DISTINCT if (m.state=2, m.id, NULL)) AS maked,
+   count(DISTINCT if (m.state>2, m.id, NULL)) AS other,
+   count(DISTINCT m.id) AS total_msgs,
+   SEC_TO_TIME(sum(mr.run_time)) AS run_time,
+   m.uid,
+   m.chapter
    FROM msgs_messages m
-  LEFT JOIN  users u ON (m.uid=u.uid)
   LEFT JOIN  msgs_reply mr ON (m.id=mr.main_msg)
-  $EXT_TABLE
+  $EXT_TABLES
   $WHERE
   GROUP BY 1
   ORDER BY $SORT $DESC ; ",
@@ -920,14 +982,15 @@ sub messages_reports {
 
   if ($self->{TOTAL} > 0 || $PG > 0) {
     $self->query2("SELECT count(DISTINCT m.id) AS total,
-      sum(if (m.state=0, 1, 0)) AS open,
-      sum(if (m.state=1, 1, 0)) AS unmaked,
-      sum(if (m.state=2, 1, 0)) AS maked,
+      SUM(if (m.state=0, 1, 0)) AS open,
+      SUM(if (m.state=1, 1, 0)) AS unmaked,
+      SUM(if (m.state=2, 1, 0)) AS maked,
+      SUM(if (m.state>2, 1, 0)) AS other,
       SEC_TO_TIME(sum(mr.run_time)) AS run_time,
-      sum(if(m.admin_read = '0000-00-00 00:00:00', 1, 0)) AS in_work
+      SUM(if(m.admin_read = '0000-00-00 00:00:00', 1, 0)) AS in_work
      FROM msgs_messages m
      LEFT JOIN  msgs_reply mr ON (m.id=mr.main_msg)
-     $EXT_TABLE
+     $EXT_TABLES
     $WHERE;",
     undef,
     { INFO => 1 }
@@ -938,7 +1001,9 @@ sub messages_reports {
 }
 
 #**********************************************************
-# accounts_list
+=head2 dispatch_list($attr)
+
+=cut
 #**********************************************************
 sub dispatch_list {
   my $self = shift;
@@ -947,11 +1012,11 @@ sub dispatch_list {
   $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
-  @WHERE_RULES = ();
+  my @WHERE_RULES = ();
 
   if (defined($attr->{STATE}) && $attr->{STATE} ne '') {
     if ($attr->{STATE} == 4) {
-      push @WHERE_RULES, @{ $self->search_expr('0000-00-00 00:00:00', 'INT', 'd.admin_read') };
+      push @WHERE_RULES, @{ $self->search_expr('0000-00-00 00:00:00', 'INT', 'm.admin_read') };
     }
     else {
       push @WHERE_RULES, @{ $self->search_expr($attr->{STATE}, 'INT', 'd.state') };
@@ -959,11 +1024,12 @@ sub dispatch_list {
   }
 
   my $WHERE = $self->search_former($attr, [
-      ['NAME',         'STR',  'd.name'          ],
-      ['CHAPTERS',     'INT',  'd.id'           ],
+      ['NAME',     'STR',  'd.name'     ],
+      ['CHAPTER',  'INT',  'd.id'       ],
+      ['PLAN_DATE','DATE',  'd.plan_date']
     ],
     { WHERE => 1,
-      WHERE_RULES => \@WHERE_RULES      
+      WHERE_RULES => \@WHERE_RULES
     }
   );
 
@@ -989,12 +1055,10 @@ sub dispatch_add {
   my $self = shift;
   my ($attr) = @_;
 
-  %DATA = $self->get_data($attr, { default => \%DATA });
-
-  $self->query_add('msgs_dispatch', { %DATA,
-                                      CREATED => 'now()' 
-                                     }); 
-
+  $self->query_add('msgs_dispatch', { %$attr,
+                                      COMMENTS => $attr->{COMMENTS} || '',
+                                      CREATED  => 'now()' 
+                                     });
   $self->{DISPATCH_ID} = $self->{INSERT_ID};
 
   $admin->system_action_add("MGSG_DISPATCH:$self->{INSERT_ID}", { TYPE => 1 });
@@ -1008,14 +1072,7 @@ sub dispatch_del {
   my $self = shift;
   my ($attr) = @_;
 
-  @WHERE_RULES = ();
-
-  if ($attr->{ID}) {
-    push @WHERE_RULES, "id='$attr->{ID}'";
-  }
-
-  $WHERE = ($#WHERE_RULES > -1) ? join(' and ', @WHERE_RULES) : '';
-  $self->query2("DELETE FROM msgs_dispatch WHERE $WHERE", 'do');
+  $self->query_del('msgs_dispatch', $attr);
 
   $admin->system_action_add("MGSG_DISPATCH:$attr->{ID}", { TYPE => 10 });
 
@@ -1027,7 +1084,7 @@ sub dispatch_del {
 #**********************************************************
 sub dispatch_info {
   my $self = shift;
-  my ($id, $attr) = @_;
+  my ($id) = @_;
 
   $self->query2("SELECT md.id, md.comments, md.created, md.plan_date, 
   md.state,
@@ -1039,9 +1096,10 @@ sub dispatch_info {
     FROM msgs_dispatch md
     LEFT JOIN admins a ON (a.aid=md.aid)
     LEFT JOIN admins ra ON (ra.aid=md.resposible)
-  WHERE md.id='$id'",
+  WHERE md.id= ? ",
   undef,
-  { INFO => 1 }
+  { INFO => 1,
+    Bind => [ $id ] }
   );
 
   return $self;
@@ -1057,8 +1115,7 @@ sub dispatch_change {
   $attr->{INNER_CHAPTER} = ($attr->{INNER_CHAPTER}) ? 1 : 0;
 
   $admin->{MODULE} = $MODULE;
-  $self->changes(
-    $admin,
+  $self->changes2(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'msgs_dispatch',
@@ -1076,35 +1133,61 @@ sub dispatch_admins_change {
   my $self = shift;
   my ($attr) = @_;
 
-  my %DATA = $self->get_data($attr, { default => \%DATA });
-
-  $self->query2("DELETE FROM msgs_dispatch_admins WHERE dispatch_id='$attr->{DISPATCH_ID}';", 'do');
-
+  $self->query_del('msgs_dispatch_admins', undef, { dispatch_id=> $attr->{DISPATCH_ID} });
   my @admins = split(/, /, $attr->{AIDS});
+  my @MULTI_QUERY = ();
   foreach my $aid (@admins) {
-    $self->query2("INSERT INTO msgs_dispatch_admins (dispatch_id, aid)
-      VALUES ('$DATA{DISPATCH_ID}', '$aid');", 'do'
-    );
+    push @MULTI_QUERY, [ 
+         $attr->{DISPATCH_ID},
+         $aid
+       ];
   }
+
+  $self->query2("INSERT INTO msgs_dispatch_admins (dispatch_id, aid)
+        VALUES (?, ?);",
+        undef,
+      { MULTI_QUERY =>  \@MULTI_QUERY });
 
   return $self;
 }
 
 #**********************************************************
-# chapter_add
+=head2 dispatch_admins_list($attr)
+=cut
 #**********************************************************
 sub dispatch_admins_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("SELECT dispatch_id, aid FROM msgs_dispatch_admins WHERE dispatch_id='$attr->{DISPATCH_ID}';",
-    undef, $attr);
+  $self->query2("SELECT dispatch_id, aid FROM msgs_dispatch_admins WHERE dispatch_id= ? ;",
+    undef, 
+    { %$attr, Bind => [ $attr->{DISPATCH_ID} ] });
 
   return $self->{list};
 }
 
 #**********************************************************
-# messages_list
+=head2 unreg_requests_count($attr) - Count unreg message
+
+=cut
+#**********************************************************
+sub unreg_requests_count {
+  my $self = shift;
+
+  $self->query2("SELECT count(m.id) AS unreg_count
+   FROM msgs_unreg_requests m
+   WHERE state=0",
+    undef,
+    { INFO => 1 }
+  );
+
+  return $self;
+}
+
+#**********************************************************
+=head2 unreg_requests_list() - Unreg request list
+
+=cut
 #**********************************************************
 sub unreg_requests_list {
   my $self = shift;
@@ -1114,8 +1197,10 @@ sub unreg_requests_list {
   $SORT      = ($attr->{SORT})          ? $attr->{SORT}      : 1;
   $DESC      = (defined($attr->{DESC})) ? $attr->{DESC}      : 'DESC';
 
-  @WHERE_RULES = ();
+  my @WHERE_RULES = ();
   $self->{COL_NAMES_ARR}=undef;
+  $self->{SEARCH_FIELDS}=undef;
+  $self->{SEARCH_FIELDS_COUNT}=0;
 
   if (defined($attr->{STATE})) {
     if ($attr->{STATE} == 7) {
@@ -1130,9 +1215,6 @@ sub unreg_requests_list {
       push @WHERE_RULES, @{ $self->search_expr($attr->{STATE}, 'INT', 'm.state') };
     }
   }
-
-  my $EXT_JOIN = '';
-  my @WHERE_RULES   = ();
 
   if ($attr->{LOCATION_ID}) {
     push @WHERE_RULES, @{ $self->search_expr($attr->{LOCATION_ID}, 'INT', 'm.location_id', { EXT_FIELD => 'streets.name AS address_street, builds.number AS address_build, m.address_flat, builds.id AS build_id' }) };
@@ -1153,7 +1235,7 @@ sub unreg_requests_list {
       LEFT JOIN streets ON (streets.id=builds.street_id)
       LEFT JOIN districts ON (districts.id=streets.district_id) ";
     }
-    elsif ($CONF->{ADDRESS_REGISTER}) {
+    elsif ($self->{conf}->{ADDRESS_REGISTER}) {
       if ($attr->{CITY}) {
         push @WHERE_RULES, @{ $self->search_expr($attr->{CITY}, 'STR', 'city', { EXT_FIELD => 1 }) };
       }
@@ -1165,8 +1247,6 @@ sub unreg_requests_list {
       if ($attr->{ADDRESS_DISTRICT}) {
         push @WHERE_RULES, @{ $self->search_expr($attr->{ADDRESS_DISTRICT}, 'INT', 'streets.district_id', { EXT_FIELD => 'districts.name AS district_name' }) };
       }
-
-
 
       if ($attr->{ADDRESS_STREET}) {
         push @WHERE_RULES, @{ $self->search_expr($attr->{ADDRESS_STREET}, 'STR', 'streets.name AS address_street', { EXT_FIELD => 1 }) };
@@ -1180,19 +1260,12 @@ sub unreg_requests_list {
         $self->{EXT_TABLES} .= "LEFT JOIN builds ON (builds.id=m.location_id)
           LEFT JOIN streets ON (streets.id=builds.street_id)";
       }
-      elsif ($attr->{SHOW_ADDRESS}) {
-        push @{ $self->{SEARCH_FIELDS_ARR} }, 'streets.name AS address_street', 'builds.number AS address_build', 'm.address_flat', 'streets.id AS street_id';
-
-        $self->{EXT_TABLES} .= "LEFT JOIN builds ON (builds.id=m.location_id)
-        LEFT JOIN streets ON (streets.id=builds.street_id)";
-      }
 
       if ($attr->{ADDRESS_BUILD}) {
         push @WHERE_RULES, @{ $self->search_expr($attr->{ADDRESS_BUILD}, 'STR', 'builds.number', { EXT_FIELD => 'builds.number AS address_build' }) };
 
         $self->{EXT_TABLES} .= "LEFT JOIN builds ON (builds.id=m.location_id)" if ($self->{EXT_TABLES} !~ /builds/);
       }
-
     }
     else {
       if ($attr->{ADDRESS_FULL}) {
@@ -1218,31 +1291,33 @@ sub unreg_requests_list {
     push @WHERE_RULES, @{ $self->search_expr($attr->{ADDRESS_FLAT}, 'STR', 'm.address_flat', { EXT_FIELD => 1 }) };
   }
 
-  my $search_fields       = $self->{SEARCH_FIELDS};
-  my $search_fields_count = $self->{SEARCH_FIELDS_COUNT}; 
+  if ($attr->{GET_NEW}) {
+  	push @WHERE_RULES, " (m.datetime > now() - interval $attr->{GET_NEW} second) ";
+  }
 
+  my $search_fields       = $self->{SEARCH_FIELDS};
+  my $search_fields_count = $self->{SEARCH_FIELDS_COUNT};
   my $WHERE = $self->search_former($attr, [
       ['MSG_ID',       'INT',  'm.id'             ],
+      ['ID',           'INT',  'm.id'             ],
       ['DATETIME',     'DATE', 'm.datetime',    1 ],
       ['SUBJECT',      'STR',  'm.subject',     1 ],
       ['FIO',          'STR',  'm.fio',         1 ],
       ['PHONE',        'STR',  'm.phone',       1 ],
       ['EMAIL',        'STR',  'm.email',       1 ],
       ['STATE',        'INT',  'm.state',       1 ],
+      ['CONNECTION_TIME','DATE',  'm.connection_time',   1 ], 
       ['CHAPTER_NAME', 'INT',  'm.chapter', 'mc.name AS chapter_name'],
       ['CLOSED_DATE',  'DATE', 'm.closed_date', 1 ],
       ['ADMIN_LOGIN',  'INT',  'a.id',  'a.id AS admin_login' ],
       ['INNER_MSG',    'INT',  'm.inner_msg',   1 ], 
-      ['MESSAGE',      'STR',  'm.message',     1 ],
-      ['ADMIN_READ',   'INT',  'm.admin_read',  1 ],
-      ['RUN_TIME',     'DATE', 'SEC_TO_TIME(sum(r.run_time))',  'SEC_TO_TIME(sum(r.run_time)) AS run_time' ],
+      ['COMMENTS',     'STR',  'm.comments',    1 ],
       ['DONE_DATE',    'DATE', 'm.done_date',   1 ],
-#      ['UID',          'INT',  'm.uid',           ],
+      ['UID',          'INT',  'm.uid',           ],
       ['DELIGATION',   'INT',  'm.delegation',  1 ],
-      ['RESPOSIBLE',   'INT',  'm.resposible',    ],
+      ['RESPOSIBLE_ADMIN_LOGIN', 'STR', 'ra.id', 'ra.id AS resposible_admin_login'],
+      ['RESPOSIBLE',   'INT',  'm.resposible',   ],
       ['PRIORITY',     'INT',  'm.priority',    1 ],
-      ['PLAN_DATE',    'INT',  'm.plan_date',   1 ], 
-      ['PLAN_TIME',    'INT',  'm.plan_time',   1 ],
 #      ['DISPATCH_ID',  'INT',  'm.dispatch_id', 1 ],
       ['IP',           'IP',   'm.ip',  'INET_NTOA(m.ip) AS ip' ],
       ['DATE',         'DATE',  "date_format(m.datetime, '%Y-%m-%d')" ],
@@ -1252,13 +1327,12 @@ sub unreg_requests_list {
     { WHERE => 1,
       WHERE_RULES => \@WHERE_RULES
     }
-    );
-
+  );
 
   $self->{SEARCH_FIELDS_COUNT} += $search_fields_count;
   my $EXT_TABLES = '';
 
-  if ($CONF->{ADDRESS_REGISTER}) {
+  if ($self->{conf}->{ADDRESS_REGISTER}) {
     $EXT_TABLES = "LEFT JOIN builds ON builds.id=m.location_id
      LEFT JOIN streets ON (streets.id=builds.street_id)
      LEFT JOIN districts ON (districts.id=streets.district_id)";
@@ -1267,11 +1341,12 @@ sub unreg_requests_list {
   $self->query2("SELECT  m.id,
   $self->{SEARCH_FIELDS}
   $search_fields
-  m.responsible_admin,
+  m.resposible,
   m.uid,
   m.chapter AS chapter_id
 FROM msgs_unreg_requests m
 LEFT JOIN admins a ON (m.received_admin=a.aid)
+LEFT JOIN admins ra ON (m.resposible=ra.aid)
 LEFT JOIN msgs_chapters mc ON (m.chapter=mc.id)
 $EXT_TABLES
  $WHERE
@@ -1286,7 +1361,7 @@ GROUP BY m.id
 
   if ($self->{TOTAL} > 0 || $PG > 0) {
     $self->query2("SELECT count(*) AS total
-    FROM (msgs_unreg_requests m)
+    FROM msgs_unreg_requests m
     LEFT JOIN msgs_chapters mc ON (m.chapter=mc.id)
     $EXT_TABLES
     $WHERE",
@@ -1301,67 +1376,28 @@ GROUP BY m.id
 }
 
 #**********************************************************
-# Message
+=head2 unreg_requests_add($attr) - add admin message
+
+=cut
 #**********************************************************
 sub unreg_requests_add {
   my $self = shift;
   my ($attr) = @_;
 
-  %DATA = $self->get_data($attr, { default => \%DATA });
-
-  
-
-  if ($DATA{STREET_ID} && $DATA{ADD_ADDRESS_BUILD} && ! $DATA{LOCATION_ID}) {
-    use Users;
-    my $users = Users->new($self->{db}, $admin, $CONF);
-
-    my $list = $users->build_list({ STREET_ID => $DATA{STREET_ID}, 
-                                    NUMBER    => $attr->{ADD_ADDRESS_BUILD}, 
-                                    COLS_NAME => 1,
-                                    PAGE_ROWS => 1
-                                  });
-
-    if ($users->{TOTAL} > 0) {
-      $DATA{LOCATION_ID}=$list->[0]->{id};
-    }
-    else {
-      $users->build_add({ NUMBER    => $DATA{ADD_ADDRESS_BUILD}, 
-                          STREET_ID => $DATA{STREET_ID},  
-                        });
-      $DATA{LOCATION_ID}=$users->{INSERT_ID};
-    }
+  if ($attr->{STREET_ID} && $attr->{ADD_ADDRESS_BUILD} && ! $attr->{LOCATION_ID}) {
+    use Address;
+    our $Address = Address->new($self->{db}, $self->{admin}, $self->{conf});
+    $Address->build_add($attr);
+    $attr->{LOCATION_ID}=$Address->{LOCATION_ID};
   }
 
-
-  $self->query2("INSERT INTO msgs_unreg_requests (datetime, received_admin, ip, subject, comments, chapter, request, state,
-   priority,
-   fio,
-   phone,
-   email,
-   address_street,
-   address_build,
-   address_flat,
-   country_id,
-   company,
-   CONNECTION_TIME,
-   location_id,
-   login )
-    values (now(), '$admin->{AID}', INET_ATON('$admin->{SESSION_IP}'),  '$DATA{SUBJECT}', '$DATA{COMMENTS}', '$DATA{CHAPTER}', '$DATA{REQUEST}',  '$DATA{STATE}',
-        '$DATA{PRIORITY}',
-        '$DATA{FIO}',
-        '$DATA{PHONE}', 
-        '$DATA{EMAIL}',
-        '$DATA{ADDRESS_STREET}',
-        '$DATA{ADDRESS_BUILD}',
-        '$DATA{ADDRESS_FLAT}',
-        '$DATA{COUNTRY}',
-        '$DATA{COMPANY_NAME}',
-        '$DATA{CONNECTION_TIME}',
-        '$DATA{LOCATION_ID}',
-        '$DATA{LOGIN}'
-        );", 'do'
-  );
-
+  $self->query_add('msgs_unreg_requests', {
+     %$attr,
+     DATETIME        => 'NOW()', 
+     RECEIVED_ADMIN  => $admin->{AID}, 
+     COMMENTS        => $attr->{COMMENTS} || '',
+     IP              => $admin->{SESSION_IP}, 
+    });
   $self->{MSG_ID} = $self->{INSERT_ID};
 
   return $self;
@@ -1374,84 +1410,51 @@ sub unreg_requests_del {
   my $self = shift;
   my ($attr) = @_;
 
-  @WHERE_RULES = ();
-
-  if ($attr->{ID}) {
-    if ($attr->{ID} =~ /,/) {
-      push @WHERE_RULES, "id IN ($attr->{ID})";
-    }
-    else {
-      push @WHERE_RULES, "id='$attr->{ID}'";
-    }
-  }
-
-  $WHERE = ($#WHERE_RULES > -1) ? join(' and ', @WHERE_RULES) : '';
-  $self->query2("DELETE FROM msgs_unreg_requests WHERE $WHERE", 'do');
+  $self->query_del('msgs_unreg_requests', $attr);
 
   return $self;
 }
 
 #**********************************************************
-# Bill
+=head2 unreg_requests_info($id, $attr)
+
+=cut
 #**********************************************************
 sub unreg_requests_info {
   my $self = shift;
   my ($id, $attr) = @_;
 
-  $WHERE = ($attr->{UID}) ? "and m.uid='$attr->{UID}'" : '';
+  my $WHERE = ($attr->{UID}) ? "AND m.uid='$attr->{UID}'" : '';
 
   $self->query2("SELECT 
-    m.id,
-    m.datetime,
+    m.*,
     ra.id AS received_admin,
-    m.state,
-    m.priority,
-    m.subject,
     mc.name AS chapter,
-    m.request,
-    m.comments,
-    m.responsible_admin,
-    m.fio,
-    m.phone,
-    m.email,
-    m.address_street,
-    m.address_build,
-    m.address_flat,
-    m.ip,
-    m.closed_date,
-    m.uid,
-    m.company as company_name,
-    m.country_id as country,
-    m.connection_time,
-    m.location_id,
-    m.login
-    FROM (msgs_unreg_requests m)
+    INET_NTOA(m.ip) AS ip
+    FROM msgs_unreg_requests m
     LEFT JOIN msgs_chapters mc ON (m.chapter=mc.id)
     LEFT JOIN admins ra ON (m.received_admin=ra.aid)
-  WHERE m.id='$id' $WHERE
+  WHERE m.id=? $WHERE
   GROUP BY m.id;",
   undef,
-  { INFO => 1 }
+  { INFO => 1,
+    Bind => [ $id ] }
   );
 
-  if ($self->{TOTAL} < 1) {
-    $self->{errno}  = 2;
-    $self->{errstr} = 'ERROR_NOT_EXIST';
-    return $self;
-  }
-
-  if ($self->{LOCATION_ID} > 0) {
-    $self->query2("select d.id AS district_id, 
+  if ($self->{TOTAL} && $self->{LOCATION_ID} > 0) {
+    $self->query2("SELECT d.id AS district_id, 
       d.city, 
       d.name AS address_district, 
       s.name AS address_street, 
-      b.number AS address_build  
+      b.number AS address_build
      FROM builds b
      LEFT JOIN streets s  ON (s.id=b.street_id)
      LEFT JOIN districts d  ON (d.id=s.district_id)
-     WHERE b.id='$self->{LOCATION_ID}'",
+     WHERE b.id= ? ",
      undef,
-     { INFO => 1 }
+     { INFO => 1,
+       Bind => [ $self->{LOCATION_ID} ] 
+       }
     );
   }
 
@@ -1466,43 +1469,14 @@ sub unreg_requests_change {
   my $self = shift;
   my ($attr) = @_;
 
-  my %FIELDS = (
-    ID                => 'id',
-    DATETIME          => 'datetime',
-    RECIEVED_ADMIN    => 'received_admin',
-    STATE             => 'state',
-    PRIORITY          => 'priority',
-    SUBJECT           => 'subject',
-    CHAPTER           => 'chapter',
-    REQUEST           => 'request',
-    COMMENTS          => 'comments',
-    RESPONSIBLE_ADMIN => 'responsible_admin',
-    FIO               => 'fio',
-    PHONE             => 'phone',
-    EMAIL             => 'email',
-    ADDRESS_STREET    => 'address_street',
-    ADDRESS_BUILD     => 'address_build',
-    ADDRESS_FLAT      => 'address_flat',
-    IP                => 'ip',
-    CLOSED_DATE       => 'closed_date',
-    UID               => 'uid',
-    COMPANY           => 'company',
-    COUNTRY_ID        => 'country_id',
-    CONNECTION_TIME   => 'connection_time',
-    LOCATION_ID       => 'location_id',
-    LOGIN             => 'login'
-  );
   $attr->{STATUS} = ($attr->{STATUS}) ? $attr->{STATUS} : 0;
 
   $admin->{MODULE} = $MODULE;
 
-  $self->changes(
-    $admin,
+  $self->changes2(
     {
       CHANGE_PARAM    => 'ID',
       TABLE           => 'msgs_unreg_requests',
-      FIELDS          => \%FIELDS,
-      OLD_INFO        => $self->unreg_requests_info($attr->{ID}),
       DATA            => $attr,
       EXT_CHANGE_INFO => "MSG_ID:$attr->{ID}"
     }
@@ -1521,16 +1495,23 @@ sub survey_subjects_list {
   $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
+  delete $self->{COL_NAMES_ARR};
+
   my $WHERE = $self->search_former($attr, [
-      ['NAME',         'STR',  'mc.name'          ],
-      ['CHAPTERS',     'INT',  'mc.id',           ],
-      ['INNER_CHAPTER','INT',  'mc.inner_chapter' ], 
+      ['ID',           'INT',  'ms.id',             ],
+      ['NAME',         'STR',  'ms.name'            ],
+      ['COMMENTS',     'STR',  'ms.comments',     1 ],
+      ['TPL',          'STR',  'ms.tpl',          1 ],
+      ['STATUS',       'STR',  'ms.status',       1 ],
+      ['ADMIN_NAME',   'STR',  'ms.aid',   'ms.aid AS admin_name' ],
+      ['CREATED',      'STR',  'ms.created',      1 ],
+      ['FILENAME',     'STR',  'm.filename',      1 ], 
     ],
     { WHERE => 1,
     }
-    );
+  );
 
-  $self->query2("SELECT  ms.id, ms.name, ms.comments, ms.aid, ms.created
+  $self->query2("SELECT ms.id, ms.name, $self->{SEARCH_FIELDS} ms.id AS survey_id
     FROM msgs_survey_subjects ms
     $WHERE
     GROUP BY ms.id 
@@ -1554,36 +1535,38 @@ sub survey_subjects_list {
 }
 
 #**********************************************************
-# survey_subjects_add
+=head2 survey_subjects_add($attr)
+
+=cut
 #**********************************************************
 sub survey_subject_add {
   my $self = shift;
   my ($attr) = @_;
 
-  %DATA = $self->get_data($attr, { default => \%DATA });
+  if(! $attr->{NAME}) {
+    return $self;
+  }
 
-  $self->query_add('msgs_survey_subjects',  { %DATA,
-                                              CREATED => 'now()'
+  $self->query_add('msgs_survey_subjects',  { %$attr,
+                                              CREATED => 'NOW()',
+                                              TPL     => $attr->{TPL} || ' ',
+                                              COMMENTS=> $attr->{COMMENTS} || ' ',
+                                              CONTENTS=> $attr->{CONTENTS} || ' ',
                                             });
 
   return $self;
 }
 
 #**********************************************************
-# chapter_survey_subjects
+=head2 survey_subject_del()
+
+=cut
 #**********************************************************
 sub survey_subject_del {
   my $self = shift;
   my ($attr) = @_;
 
-  @WHERE_RULES = ();
-
-  if ($attr->{ID}) {
-    push @WHERE_RULES, "id='$attr->{ID}'";
-  }
-
-  $WHERE = ($#WHERE_RULES > -1) ? join(' and ', @WHERE_RULES) : '';
-  $self->query2("DELETE FROM msgs_survey_subjects WHERE $WHERE", 'do');
+  $self->query_del('msgs_survey_subjects', $attr);
 
   return $self;
 }
@@ -1593,13 +1576,15 @@ sub survey_subject_del {
 #**********************************************************
 sub survey_subject_info {
   my $self = shift;
-  my ($id, $attr) = @_;
+  my ($id) = @_;
 
-  $self->query2("SELECT id AS survey_id, name, comments, aid, created
+  $self->query2("SELECT *,
+     id AS survey_id
     FROM msgs_survey_subjects 
-  WHERE id='$id'",
+  WHERE id= ? ",
   undef,
-  { INFO => 1 }
+  { INFO => 1,
+    Bind => [ $id ] }
   );
 
   return $self;
@@ -1612,22 +1597,12 @@ sub survey_subject_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $attr->{INNER_CHAPTER} = ($attr->{INNER_CHAPTER}) ? 1 : 0;
-
-  my %FIELDS = (
-    SURVEY_ID => 'id',
-    NAME      => 'name',
-    COMMENTS  => 'comments',
-  );
-
   $admin->{MODULE} = $MODULE;
-  $self->changes(
-    $admin,
+
+  $self->changes2(
     {
-      CHANGE_PARAM => 'SURVEY_ID',
+      CHANGE_PARAM => 'ID',
       TABLE        => 'msgs_survey_subjects',
-      FIELDS       => \%FIELDS,
-      OLD_INFO     => $self->survey_subject_info($attr->{SURVEY_ID}),
       DATA         => $attr,
     }
   );
@@ -1646,11 +1621,11 @@ sub survey_questions_list {
   $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
   my $WHERE = $self->search_former($attr, [
-      ['SURVEY',         'STR',  'mq.survey_id'     ],
+      ['SURVEY_ID',  'STR',  'mq.survey_id'     ],
     ],
     { WHERE => 1,
     }
-    );
+  );
 
   $self->query2("SELECT  mq.num, mq.question, mq.comments, mq.params, mq.user_comments, mq.fill_default, mq.id
     FROM msgs_survey_questions mq
@@ -1681,11 +1656,7 @@ sub survey_question_add {
   my $self = shift;
   my ($attr) = @_;
 
-  %DATA = $self->get_data($attr, { default => \%DATA });
-
-  $self->query2("insert into msgs_survey_questions (num, question, comments, params, user_comments, survey_id, fill_default)
-    values ('$DATA{NUM}', '$DATA{QUESTION}', '$DATA{COMMENTS}', '$DATA{PARAMS}', '$DATA{USER_COMMENTS}', '$DATA{SURVEY}', '$DATA{FILL_DEFAULT}');", 'do'
-  );
+  $self->query_add('msgs_survey_questions', $attr);
 
   return $self;
 }
@@ -1697,14 +1668,7 @@ sub survey_question_del {
   my $self = shift;
   my ($attr) = @_;
 
-  @WHERE_RULES = ();
-
-  if ($attr->{ID}) {
-    push @WHERE_RULES, "id='$attr->{ID}'";
-  }
-
-  $WHERE = ($#WHERE_RULES > -1) ? join(' and ', @WHERE_RULES) : '';
-  $self->query2("DELETE FROM msgs_survey_questions WHERE $WHERE", 'do');
+  $self->query_del('msgs_survey_questions', $attr);
 
   return $self;
 }
@@ -1714,20 +1678,12 @@ sub survey_question_del {
 #**********************************************************
 sub survey_question_info {
   my $self = shift;
-  my ($id, $attr) = @_;
+  my ($id) = @_;
 
-  $self->query2("SELECT id, 
-      num, 
-      question, 
-      comments, 
-      params, 
-      user_comments, 
-      survey_id AS survey, 
-      fill_default
-    FROM msgs_survey_questions 
-  WHERE id='$id'",
+  $self->query2("SELECT * FROM msgs_survey_questions WHERE id= ? ",
   undef,
-  { INFO => 1 }
+  { INFO => 1,
+    Bind => [ $id ] }
   );
 
   return $self;
@@ -1744,25 +1700,11 @@ sub survey_question_change {
   $attr->{USER_COMMENTS} = ($attr->{USER_COMMENTS}) ? 1 : 0;
   $attr->{FILL_DEFAULT}  = ($attr->{FILL_DEFAULT})  ? 1 : 0;
 
-  my %FIELDS = (
-    ID            => 'id',
-    NUM           => 'num',
-    QUESTION      => 'question',
-    COMMENTS      => 'comments',
-    PARAMS        => 'params',
-    USER_COMMENTS => 'user_comments',
-    SURVEY        => 'survey_id',
-    FILL_DEFAULT  => 'fill_default'
-  );
-
   $admin->{MODULE} = $MODULE;
-  $self->changes(
-    $admin,
+  $self->changes2(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'msgs_survey_questions',
-      FIELDS       => \%FIELDS,
-      OLD_INFO     => $self->survey_question_info($attr->{ID}),
       DATA         => $attr,
     }
   );
@@ -1786,10 +1728,11 @@ sub survey_answer_show {
   date_time,
   survey_id 
   FROM msgs_survey_answers 
-  WHERE survey_id='$attr->{SURVEY_ID}' 
-  AND uid='$attr->{UID}' $WHERE;",
+  WHERE survey_id= ?
+  AND uid= ? $WHERE;",
   undef,
-  $attr
+  { Bind => [$attr->{SURVEY_ID}, $attr->{UID} ],
+    %$attr }
   );
 
   return $self->{list};
@@ -1813,31 +1756,28 @@ sub survey_answer_add {
     }
   }
 
+  my @MULTI_QUERY = ();
+
   foreach my $id (@ids) {
     if ($attr->{FILL_DEFAULT} && !$fill_default_hash{$id}) {
       next;
     }
 
-    my $sql = "INSERT INTO msgs_survey_answers (question_id,
-  uid,
-  answer,
-  comments,
-  date_time,
-  survey_id,
-  msg_id,
-  reply_id)
-  values ('$id', 
-  '$attr->{UID}', 
-  '" . $attr->{ 'PARAMS_' . $id } . "', 
-  '" . $attr->{ 'USER_COMMENTS_' . $id } . "', 
-  now(), 
-  '$attr->{SURVEY_ID}',
-  '$attr->{MSG_ID}',
-  '$attr->{REPLY_ID}'
-  );";
-
-    $self->query2($sql, 'do');
+    push @MULTI_QUERY, [ $id,
+       $attr->{UID},
+       $attr->{ 'PARAMS_' . $id } || '', 
+       $attr->{ 'USER_COMMENTS_' . $id } || '', 
+       $attr->{SURVEY_ID},
+       $attr->{MSG_ID},
+       $attr->{REPLY_ID}
+    ];
   }
+
+  $self->query2("INSERT INTO msgs_survey_answers (question_id,
+     uid, answer, comments, date_time, survey_id, msg_id, reply_id)
+        VALUES (?, ?, ?, ?, NOW(), ?, ?, ?);",
+        undef,
+      { MULTI_QUERY =>  \@MULTI_QUERY });
 
   return $self;
 }
@@ -1849,10 +1789,220 @@ sub survey_answer_del {
   my $self = shift;
   my ($attr) = @_;
 
-  my $WHERE = ($attr->{REPLY_ID}) ? "AND reply_id='$attr->{REPLY_ID}'" : "'$attr->{MSG_ID}'";
+  $self->query_del('msgs_survey_answers', $attr,
+     { survey_id => $attr->{SURVEY_ID},
+       uid       => $attr->{UID},
+       reply_id  => ($attr->{REPLY_ID}) ? $attr->{REPLY_ID} : undef,
+       msg_id    => (! $attr->{REPLY_ID}) ? $attr->{MSG_ID} : undef
+      });
 
-  $self->query2("DELETE FROM msgs_survey_answers WHERE survey_id='$attr->{SURVEY_ID}' AND uid='$attr->{UID}' $WHERE;", 'do');
   return $self;
+}
+
+
+#**********************************************************
+# pb_list
+#**********************************************************
+sub pb_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+  delete $self->{COL_NAMES_ARR};
+
+  my $WHERE = $self->search_former($attr, [
+      ['STEP_NUM',     'INT',  'pb.step_num'   ],
+      ['STEP_NAME',    'STR',  'pb.step_name'  ],
+      ['CHAPTER_ID',   'STR',  'pb.chapter_id' ]
+    ],
+    { WHERE => 1 });
+
+  $self->query2("SELECT pb.step_num, pb.step_name, pb.step_tip, pb.id
+    FROM msgs_proggress_bar pb
+    $WHERE
+    GROUP BY pb.id 
+    ORDER BY $SORT $DESC;",
+    undef,
+    $attr
+  );
+
+  return $self->{list};
+}
+
+#**********************************************************
+# pb_add
+#**********************************************************
+sub pb_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('msgs_proggress_bar', $attr);
+
+  $admin->system_action_add("MGSG_PB:$self->{INSERT_ID}", { TYPE => 1 });
+  return $self;
+}
+
+#**********************************************************
+# pb_del
+#**********************************************************
+sub pb_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('msgs_proggress_bar', $attr);
+
+  return $self;
+}
+
+#**********************************************************
+# pb_info
+#**********************************************************
+sub pb_info {
+  my $self = shift;
+  my ($id) = @_;
+
+  $self->query2("SELECT *
+    FROM msgs_proggress_bar 
+  WHERE id= ? ",
+  undef,
+  { INFO => 1,
+    Bind => [ $id ] }
+  );
+
+  return $self;
+}
+
+#**********************************************************
+# pb_change()
+#**********************************************************
+sub pb_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $admin->{MODULE} = $MODULE;
+  $self->changes2(
+    {
+      CHANGE_PARAM => 'ID',
+      TABLE        => 'msgs_proggress_bar',
+      DATA         => $attr,
+    }
+  );
+
+  return $self->{result};
+}
+
+
+#**********************************************************
+# pb_msg_list
+#**********************************************************
+sub pb_msg_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+  my $WHERE = $self->search_former($attr, [
+      ['MSG_ID',       'INT',  'pb_m.msg_id'   ],
+      ['STEP_NUM',     'INT',  'pb.step_num'   ],
+      ['STEP_NAME',    'STR',  'pb.step_name'  ],
+      ['CHAPTER_ID',   'STR',  'pb.chapter_id' ]
+    ],
+    { WHERE => 1 });
+
+  $self->query2("SELECT pb.step_num, pb.step_name, mpb.step_date, pb.step_tip, 
+    mpb.coordx, mpb.coordy, pb.id
+    FROM msgs_proggress_bar pb
+    LEFT JOIN msgs_message_pb mpb ON (mpb.main_msg='$attr->{MAIN_MSG}' AND mpb.step_num=pb.step_num)
+    $WHERE
+    GROUP BY pb.id 
+    ORDER BY pb.step_num;",
+    undef,
+    $attr
+  );
+
+  return $self->{list};
+}
+
+
+#**********************************************************
+# pb_msg_change
+#**********************************************************
+sub pb_msg_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query2("DELETE FROM `msgs_message_pb` WHERE step_num>='$attr->{STEP_NUM}';");
+
+  $self->query_add('msgs_message_pb', { %$attr,
+                                        AID        => ($attr->{USER_SEND}) ? 0 : $admin->{AID},
+                                        MAIN_MSG   => $attr->{ID},
+                                        STEP_DATE  => 'NOW()'
+                                      });
+
+  return $self->{list};
+}
+
+
+#**********************************************************
+# msg_watch
+#**********************************************************
+sub msg_watch {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('msgs_watch', { %$attr,
+                                   AID      => $admin->{AID},
+                                   MAIN_MSG => $attr->{ID},
+                                   ADD_DATE => 'NOW()'
+                                 });
+
+  return $self->{list};
+}
+
+#**********************************************************
+# msg_watch
+#**********************************************************
+sub msg_watch_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('msgs_watch', undef, { aid      => $admin->{AID},
+                                          main_msg => $attr->{ID},
+                                        });
+
+  return $self->{list};
+}
+
+
+#**********************************************************
+# pb_msg_list
+#**********************************************************
+sub msg_watch_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+  my $WHERE = $self->search_former($attr, [
+      ['MAIN_MSG',     'INT',  'MAIN_MSG'     ],
+      ['AID',          'INT',  'aid'        ],
+      ['ADD_DATE',     'INT',  'add_date'   ],
+    ],
+    { WHERE => 1 });
+
+  $self->query2("SELECT main_msg, add_date, aid
+    FROM msgs_watch
+    $WHERE
+    ORDER BY $SORT $DESC;",
+    undef,
+    $attr
+  );
+
+  return $self->{list};
 }
 
 1

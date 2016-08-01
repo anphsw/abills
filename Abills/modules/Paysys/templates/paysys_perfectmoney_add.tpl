@@ -20,9 +20,17 @@
 <tr><th colspan=2><img src='https://perfectmoney.is/img/logo3.png' border=0></th></tr>
 
 <tr><th colspan=2>&nbsp;</th></tr>
-<tr><td>$_TRANSACTION:</td><td>$FORM{OPERATION_ID}</td></tr>
-<tr><td>$_SUM:</td><td>$FORM{SUM}</td></tr>
-<tr><th colspan=2 class=even><input type='submit' name='PAYMENT_METHOD' value='$_PAY'></th></tr>
+    <tr>
+        <td>_{TRANSACTION}_:</td>
+        <td>$FORM{OPERATION_ID}</td>
+    </tr>
+    <tr>
+        <td>_{SUM}_:</td>
+        <td>$FORM{SUM}</td>
+    </tr>
+    <tr>
+        <th colspan=2 class=even><input type='submit' name='PAYMENT_METHOD' value='_{PAY}_'></th>
+    </tr>
 </table>
 
 </form>

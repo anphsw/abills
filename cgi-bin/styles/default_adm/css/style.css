@@ -1,0 +1,547 @@
+/* ABillS Default CSS */
+body {
+    width: 98%;
+    padding-top: 3.2em;
+}
+
+#footer {
+    margin-bottom: 0;
+    width: 100%;
+    text-align: right;
+}
+
+.navbar-fixed-top {
+    position: fixed;
+    z-index: 1030;
+    right: 0;
+    left: 0;
+
+    display: block;
+
+    min-height: 3em !important;
+    max-height: 3em;
+}
+
+.navbar-left {
+    position: relative;
+
+    display: inline-block;
+
+    max-width: inherit;
+    max-height: 2.2em;
+}
+
+.navbar .container-fluid {
+    max-height: 5em;
+}
+
+.navbar-brand {
+    height: 2em;
+    margin: 6px 6px !important;
+    padding: 0 !important;
+}
+
+.navbar-brand h4 {
+    margin: 0;
+}
+
+.navbar-left * {
+    max-height: 2.5em;
+}
+
+.navbar-left.brand {
+    left: 2em;
+}
+
+.navbar-left.brand * {
+    margin: 0;
+    padding: 2px 0 0;
+}
+
+.navbar-left div {
+    display: inline-block;
+
+    margin: auto 10px;
+}
+
+.navbar .navbar-text {
+    margin: 0 auto;
+}
+
+button.navbar-toggle {
+    margin-top: 0;
+}
+
+#status {
+    float: right;
+
+    margin-left: 10px;
+    padding: 4px 0;
+}
+
+#navbar > div:nth-child(1) > div.navbar-right > form {
+    margin-top: 6px;
+    margin-right: 6px;
+}
+
+.navbar .navbar-form .form-control-wrapper .form-control,
+.navbar .navbar-form .form-control {
+    color: ButtonText;
+}
+
+#status p {
+    padding-left: 30px;
+}
+
+#toggler {
+    position: fixed;
+    top: 0;
+    left: 0;
+
+    float: left;
+}
+
+.navbar-collapse.in {
+    padding-left: 40px;
+}
+
+.navbar-right {
+    right: 0;
+
+    float: right;
+
+    padding-left: 2em !important;
+}
+
+#quick_menu_row {
+    margin-top: -15px;
+}
+
+.navbar {
+    min-height: 40px;
+}
+
+.navbar > .navbar-form {
+    margin-top: 3px;
+    margin-bottom: 3px;
+}
+
+.navbar > .navbar-form.navbar-right {
+    padding-right: 19px;
+}
+
+.navbar-nav > li > a {
+    padding: 10px 15px;
+}
+
+.panel-form {
+    max-width: 500px;
+    padding: 0;
+
+    border-spacing: 0;
+}
+
+.pagination {
+    margin: 8px;
+}
+
+._red {
+    background-color: #f00;
+}
+
+._blue {
+    background-color: #8585f3;
+}
+
+._yellow {
+    background-color: #ff0;
+}
+
+._green {
+    background-color: #008000;
+}
+
+/*
+.panel-form .chosen-container.chosen-container-single {
+  width: 190px !important; 
+}*/
+
+.panel-body .chosen-container.chosen-container-single {
+    max-width: 300px;
+    width: 100% !important; /* or any value that fits your needs */
+}
+
+.list-group-item {
+    height: 32px;
+
+    background-color: #f7f7f7;
+}
+
+/*
+  Untested
+*/
+
+.dropdown-submenu {
+    position: relative;
+}
+
+.dropdown-submenu > .dropdown-menu {
+    top: 0;
+    left: 100%;
+
+    margin-top: -6px;
+    margin-left: -1px;
+
+    -webkit-border-radius: 0 6px 6px 6px;
+    -moz-border-radius: 0 6px 6px 6px;
+    border-radius: 0 6px 6px 6px;
+}
+
+.dropdown-submenu:hover > .dropdown-menu {
+    display: block;
+}
+
+.dropdown-submenu > a:after {
+    display: block;
+    float: right;
+
+    width: 0;
+    height: 0;
+    margin-top: 5px;
+    margin-right: -10px;
+
+    content: ' ';
+
+    border: 5px solid transparent;
+    border-right-width: 0;
+    border-left-color: #ccc;
+}
+
+.dropdown-submenu:hover > a:after {
+    border-left-color: #fff;
+}
+
+.dropdown-submenu.pull-left {
+    float: none;
+}
+
+.dropdown-submenu.pull-left > .dropdown-menu {
+    left: -100%;
+
+    margin-left: 10px;
+
+    -webkit-border-radius: 6px 0 6px 6px;
+    -moz-border-radius: 6px 0 6px 6px;
+    border-radius: 6px 0 6px 6px;
+}
+
+.main_body1 {
+    background-color: #f5f5f5;
+}
+
+.main_body2 {
+    background-color: #f0f;
+}
+
+.body1 {
+    background-color: #008000;
+}
+
+.body2 {
+    background-color: #f5f5f5;
+}
+
+.body3 {
+    margin-right: auto;
+    margin-left: auto;
+
+    background-color: #fff;
+}
+
+/*Left menus start*/
+
+#wrapper {
+    padding-left: 0;
+
+    -webkit-transition: all .5s ease;
+    -moz-transition: all .5s ease;
+    -o-transition: all .5s ease;
+    transition: all .5s ease;
+}
+
+#sidebar-wrapper {
+    position: fixed;
+    z-index: 1000;
+
+    overflow-y: auto;
+    left: 0;
+    width: 0;
+    height: 93%;
+
+    -webkit-transition: all .5s ease;
+    -moz-transition: all .5s ease;
+    -o-transition: all .5s ease;
+    transition: all .5s ease;
+}
+
+#wrapper.toggled #sidebar-wrapper {
+    width: 264px;
+}
+
+#page-content-wrapper {
+    width: 100%;
+    padding: 10px;
+    /*Padding for header*/
+    padding-top: 1em !important;
+    /*Padding for footer*/
+    margin-bottom: 2em;
+}
+
+@media (min-width: 992px) {
+    #wrapper {
+        margin-left: 264px;
+    }
+
+    #sidebar-wrapper {
+        width: 264px;
+    }
+
+    #wrapper.toggled {
+        margin-left: 0;
+    }
+
+    #wrapper.toggled #sidebar-wrapper {
+        width: 0;
+    }
+}
+
+.breadcrumb {
+    overflow: hidden;
+}
+
+.breadcrumb {
+    /*margin-bottom: 10px;*/
+    left: 0;
+    /*width: 90%;*/
+    padding: 4px 10px;
+}
+
+.breadcrumb li {
+    float: left;
+}
+
+.breadcrumb li a {
+    padding: 1px;
+}
+
+#breadcrumb-wrapper {
+    margin-bottom: 20px;
+}
+
+#breadcrumb-wrapper > .btn-group {
+    alignment: left;
+    width: 100%;
+}
+
+#breadcrumb-wrapper > .btn-group > button {
+    min-width: 100%;
+    text-align: left;
+    /*background-color: #f5f5f5;*/
+}
+
+body > div.navbar.navbar-inverse.navbar-fixed-top > div > div.navbar-header > a:nth-child(2) > h3 {
+    margin-top: 0;
+    padding-top: 0;
+
+    vertical-align: middle;
+}
+
+.navbar-collapse.in {
+    overflow-y: inherit;
+}
+
+.row {
+    margin-right: 0;
+    margin-left: 0;
+}
+
+.sub-menu li {
+    line-height: 28px;
+
+    margin-left: -28px;
+    padding-left: -28px;
+
+    list-style: none;
+
+    color: #111;
+}
+
+.sub-menu li a {
+    /* color: #232323; */
+}
+
+/*Button xml*/
+.btn-invert {
+    font-weight: bold;
+
+    color: #fff;
+    border-color: #003031;
+    background-color: #003031;
+}
+
+.btn-invert:hover {
+    font-weight: bold;
+
+    color: #ce0000;
+    border-color: #fff;
+    background-color: #fff;
+}
+
+.nav-pills > li.active > a:hover {
+    -webkit-filter: brightness(1.4) !important;;
+}
+
+.statusColor4 {
+    color: white !important;
+    background-color: #808080 !important;
+}
+
+.statusColor5 {
+    color: white !important;
+    background-color: #099 !important;
+}
+
+.statusColor6 {
+    color: white !important;
+    background-color: #87289e !important;
+}
+
+.statusColor4, .statusColor5, .statusColor6 {
+    background-image: none !important;
+    text-shadow: none !important;
+}
+
+.badge.alert-warning {
+    color: darkgrey;
+    font-weight: 600;
+}
+
+@media print {
+    a[href]:after {
+        content: none;
+    }
+}
+
+/*Table row text aligned middle*/
+.table > tbody > tr > td {
+    vertical-align: middle !important;
+}
+
+.control-element {
+    padding-top: 7px;
+}
+
+input[type='checkbox'].control-element {
+    margin-top: 7px !important;
+}
+
+input[type='checkbox'] {
+    cursor: pointer;
+}
+
+#test {
+    padding-left: 300px;
+}
+
+label.required:after {
+    content: ' *';
+    color: red;
+}
+
+/*Clients>Logins>Internet buttons no hover (#S6075)*/
+div.btn-group.btn-group-xs.pull-middle > a.btn-default {
+    text-shadow: none !important;
+}
+
+/* Squared menu buttons */
+#sidebar-wrapper > ul > li > a {
+    border-radius: 0;
+}
+
+#sidebar-wrapper > ul > li > a > .glyphicon {
+    margin-right: 5px;
+    font-size: 1.2em;
+}
+
+textarea {
+    resize: vertical;
+}
+
+textarea.horizontal-resize {
+    resize: both;
+}
+
+table {
+    width: 100%;
+}
+
+/* The input. */
+input.mp_input {
+    outline: none;
+}
+
+/* Ordered list for display results. */
+ol.mp_list {
+    overflow: hidden;
+    position: absolute;
+    padding-left: 0;
+    width: 350px;
+    z-index: 99999;
+    /*border: 1px solid silver;*/
+    border-radius: 4px;
+}
+
+/* Each list item, regardless of success, error, etc. */
+ol.mp_list li:not(.disabled) {
+    cursor: pointer;
+}
+
+ol.mp_list li {
+    border-bottom: 1px solid silver;
+    left: 0;
+    right: 0;
+    width: 350px;
+    padding: 5px 10px;
+    margin-left: -5px;
+    /*margin: auto 10px;*/
+    display: block;
+}
+
+
+ol.mp_list li span.mp_address {
+    margin-right: 5px;
+}
+
+/* When a request is made that returns zero results. */
+ol.mp_list li.mp_no_results {
+  display : none;
+}
+
+/* When a request is made that doesn't meet the 'minChars' length option. */
+ol.mp_list li.mp_min_chars {
+  display : none;
+}
+
+/* When a request is made that fails during the ajax request. */
+ol.mp_list li.mp_error {
+  display : none;
+}
+
+.checkbox-block {
+  margin-left : 30px;
+  text-align: left;
+}
+
+.full-width {
+    width: 100%;
+}

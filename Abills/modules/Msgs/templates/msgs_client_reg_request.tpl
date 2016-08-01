@@ -1,42 +1,102 @@
-<FORM action='$SELF_URL' METHOD='POST'  enctype='multipart/form-data' name=reg_request_form>
-<input type='hidden' name='index' value='$index'/>
-<input type='hidden' name='ID' value='%ID%'/>
-<input type=hidden name=module value=Msgs>
-<input type=hidden name=REGISTRATION_REQUEST value=1>
+<link href='/styles/default_adm/css/client.css' rel='stylesheet'>
 
+<FORM action='$SELF_URL' METHOD='POST' enctype='multipart/form-data' name=reg_request_form class='form-horizontal'>
+    <input type='hidden' name='index' value='$index'/>
+    <input type='hidden' name='ID' value='%ID%'/>
+    <input type=hidden name=module value=Msgs>
+    <input type=hidden name=REGISTRATION_REQUEST value=1>
 
+    <div class='panel panel-primary panel-form center-block'>
+        <div class='panel-heading text-center'><h4>_{REGISTRATION}_</h4></div>
 
-<TABLE class=form>
-<tr><th class=form_title colspan=2>$_REGISTRATION</th></tr>
-<!-- <tr><td>$_DATE:</td><td>%DATE%</td></tr> -->
-%ADDRESS_TPL%
-<tr><td>$_COMPANY:</td><td><input type='text' name='COMPANY_NAME' value='%COMPANY_NAME%' size='45'/></td></tr>
-<tr><td>$_FIO:</td><td><input type='text' name='FIO' value='%FIO%' size='45'/></td></tr>
-<tr><td>$_PHONE:</td><td><input type='text' name='PHONE' value='%PHONE%' size='45'/></td></tr>
-<tr><td>E-mail:</td><td><input type='text' name='EMAIL' value='%EMAIL%' size='45'/></td></tr>
-<tr><td>$_CONNECTION_TIME:</td><td><input type='text' name='CONNECTION_TIME' value='%CONNECTION_TIME%' ID='CONNECTION_TIME'/> 
+        <div class='panel-body'>
 
-<script language=\"JavaScript\">
-	var o_cal = new tcal ({	'formname': 'reg_request_form',	'controlname': 'CONNECTION_TIME'	});
-	
-	// individual template parameters can be modified via the calendar variable
-	o_cal.a_tpl.yearscroll = false;
-	o_cal.a_tpl.weekstart  = 1;
- 	o_cal.a_tpl.months     = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
-	o_cal.a_tpl.weekdays   = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Суб'];
-</script>
-</td></tr>
-<tr><td>$_CHAPTERS:</td><td>%CHAPTER_SEL%</td></tr>
-<tr><td>$_SUBJECT:</td><td><input type='text' name='SUBJECT' value='%SUBJECT%' size='50'/></td></tr>
+            <div class='row'>
+                <div class='col-md-1'></div>
+                <div class='col-md-11'>
+                    %ADDRESS_TPL%
+                </div>
+            </div>
+            <hr/>
 
-<tr><th class='title_color' colspan='2'>$_COMMENTS</th></tr>
-<tr><th colspan='2'><textarea name='COMMENTS' cols='70' rows='9'>%COMMENTS%</textarea></th></tr>
+            <div class='form-group'>
+                <label class='control-label col-md-3' for='COMPANY_NAME'>_{COMPANY}_</label>
+                <div class='col-md-9'>
+                    <input type='text' id='COMPANY_NAME' name='COMPANY_NAME' value='%COMPANY_NAME%'
+                           placeholder='%COMPANY_NAME%'
+                           class='form-control'>
+                </div>
+            </div>
 
+            <div class='form-group'>
+                <label class='control-label required col-md-3' for='FIO'>_{FIO}_</label>
+                <div class='col-md-9'>
+                    <input type='text' id='FIO' name='FIO' value='%FIO%' required placeholder='%FIO%'
+                           class='form-control'>
+                </div>
+            </div>
 
-%CAPTCHA%
+            <div class='form-group'>
+                <label class='control-label required col-md-3' for='PHONE'>_{PHONE}_</label>
+                <div class='col-md-9'>
+                    <input type='text' id='PHONE' name='PHONE' value='%PHONE%' required='required' placeholder='%PHONE%'
+                           class='form-control'>
+                </div>
+            </div>
 
-<tr><th colspan='2'><input type='submit' name='%ACTION%' value='%LNG_ACTION%'/></textarea></th></tr>
-</table>
+            <div class='form-group'>
+                <label class='control-label col-md-3' for='EMAIL'>E-mail</label>
+                <div class='col-md-9'>
+                    <input type='text' id='EMAIL' name='EMAIL' value='%EMAIL%' placeholder='account@mail.com'
+                           class='form-control'>
+                </div>
+            </div>
+
+            <hr />
+
+            <div class='form-group'>
+                <label class='control-label required col-md-3' for='CONNECTION_TIME'>_{CONNECTION_TIME}_</label>
+                <div class='col-md-9'>
+                    <input type='text' id='CONNECTION_TIME' name='CONNECTION_TIME' required value='%CONNECTION_TIME%'
+                           placeholder='%CONNECTION_TIME%' class='form-control tcal with-time'>
+                </div>
+            </div>
+
+            <!--<div class='form-group'>
+                 <label class='control-label col-md-3' for='CHAPTER'>_{CHAPTERS}_</label>
+                 <div class='col-md-9'>
+                       %CHAPTER_SEL%
+                 </div>
+            </div>-->
+
+            <div class='form-group'>
+                <label class='control-label col-md-3' for='SUBJECT'>_{SUBJECT}_</label>
+                <div class='col-md-9'>
+                    <input type='text' id='SUBJECT' name='SUBJECT' value='_{REGISTRATION}_' readonly='readonly'
+                           placeholder='%SUBJECT%'
+                           class='form-control'>
+                </div>
+            </div>
+
+            <div class='form-group'>
+                <label class='control-label col-sm-3' for='COMMENTS'>_{COMMENTS}_</label>
+                <div class='col-md-9'>
+                    <textarea class='form-control' id='COMMENTS' name='COMMENTS' rows='3' class='form-control'>%COMMENTS%</textarea>
+                </div>
+            </div>
+
+            <hr />
+
+            %CAPTCHA%
+
+        </div>
+
+        <div class='panel-footer text-right'>
+            <input type='submit' name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'/>
+        </div>
+
+    </div>
 </FORM>
+
 
 %MAPS%

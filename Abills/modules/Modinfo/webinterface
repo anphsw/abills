@@ -1,17 +1,22 @@
-# Modules info
-# 
+#!perl
 
+=head2
+  
+  Show module information
 
-use Socket;
-use IO::Socket;
-use IO::Select;
-my $debug = 0;
+=cut 
 
+use strict;
+our ($html,
+%lang);
 
 #**********************************************************
-# modinfo_show
+=head modinfo_start_page_show($attr)
+
+=cut
 #**********************************************************
-sub modinfo_show_info {
+sub modinfo_start_page_show {
+  #my ($attr) = @_;
   
   my $output = web_request('http://abills.net.ua/info.txt', { BODY_ONLY => 1 });
   my @modules_list = ();
@@ -23,30 +28,35 @@ sub modinfo_show_info {
     return 0;
   }
 
+  my ($name, undef, $url) = split(/:/, $modules_list[rand($#modules_list + 1)], 3);
 
-  my ($name, $type, $url) = split(/:/, $modules_list[rand($#modules_list + 1)], 3);
-  modinfo_show($name, $url);
+  my $info = modinfo_show($name, $url);
+  
+  print $info if ($index);
+  
+  return $info;
 }
 
 
 #**********************************************************
-# modinfo_show
+=head2 modinfo_show($module_name, $url, $attr)
+
+=cut
 #**********************************************************
 sub modinfo_show {
-  my ($module_name, $url, $attr) = @_;
+  my ($module_name, $url) = @_;
 
   if (! $url) {
     $url = 'http://abills.net.ua/wiki/doku.php?id=abills:docs:modules:'. lc($module_name) .':ru';
   }
-  
 
   #Get module info
-  my $body = web_request($url. '&do=export_raw', BODY_ONLY => 1);
+  my $body = web_request($url. '&do=export_raw',{ BODY_ONLY => 1 }) ;
 
   if (! $body) {
     return '';
   }
-
+  
   my (undef, $describe, $futures) = split(/====.+====\n/, $body);
   $describe =~ s/\\\\/<br>/g;
   
@@ -60,104 +70,27 @@ sub modinfo_show {
   $futures  =~ s/==(.+)==/<b>$1<\/b>/g;
   $futures  =~ s/[[.+|(.+)]]/$1/g;
   
-  print "<table width=600>".
-   "<tr><th class=form_title><h3>$_MODULE $module_name</h3></th></tr>".
-   "<tr><td>$describe</td></tr>".
-   "<tr><th Class=even>$_FUTURES</th></tr>".
-   "<tr><td>$futures</td></tr>".
-   "<tr><th>". $html->button($_DETAIL, "$url", { ex_params => 'target=_new', BUTTON => 1, GLOBAL_URL => $url  }) ."</th></tr>".
-   "</table>";
+  my $result =  "
+<div class='jumbotron'>
+  <div class='container'>
+  <h2>$lang{MODULE} $module_name</h2>
+  <p>$describe</p>
+  <p>$futures</p>
+  <p>". $html->button($lang{DETAIL}, "$url", { ex_params => 'target=_new', BUTTON => 1, GLOBAL_URL => $url  }) ."</p>
+  </div>
+</div>";
 
+  return $result;
 }
 
 
-#**********************************************************
+#***************************************************************
 #
-#**********************************************************
-sub web_request {
- my ($request, $attr)=@_;
- 
- my $res;
- my $host='';
- my $port=80;
+#***************************************************************
+sub modinfo_start_page {
+  my %START_PAGE_F = ('modinfo_start_page_show' => 'Module info' );
 
- if ($request =~ /http:\/\/([a-zA-Z.-]+)\/(.+)/) {
-   $host    = $1; 
-   $request = '/'.$2;
- }
-
- if ($host =~ /:/) {
-   ($host, $port)=split(/:/, $host, 2);
- }	
-
- $request =~ s/ /%20/g;
- $request = "GET $request HTTP/1.0\r\n";
- $request .= ($attr->{'User-Agent'}) ? $attr->{'User-Agent'} : "User-Agent: Mozilla/4.0 (compatible; MSIE 5.5; Windows 98;Win 9x 4.90)\r\n"; 
- $request .= "Accept: text/html, image/png, image/x-xbitmap, image/gif, image/jpeg, */*\r\n";
- $request .= "Accept-Language: ru\r\n";
- $request .= "Host: $host\r\n";
- $request .= "Content-type: application/x-www-form-urlencoded\r\n";
- $request .= "Referer: $attr->{'Referer'}\r\n" if ($attr->{'Referer'});
-# $request .= "Connection: Keep-Alive\r\n";
- $request .= "Cache-Control: no-cache\r\n";
- $request .= "Accept-Encoding: *;q=0\r\n";
- $request .= "\r\n";
- 
- print $request if ($attr->{debug});
- 
- my $timeout = defined($attr->{'TimeOut'}) ? $attr->{'TimeOut'} : 5;
- my	$socket = new IO::Socket::INET(
-				PeerAddr => $host,
-				PeerPort => $port,
-				Proto    => 'tcp',
-				TimeOut  => $timeout
-	); # or log_print('LOG_DEBUG', "ERR: Can't connect to '$host:$port' $!");
-	
-	if (! $socket) {
-		return '';
-	}
-
-
-  $socket->send("$request");
-  while(<$socket>) {
-     $res .= $_;
-   }
- my ($header, $content) = split(/\n\n/, $res); 
- close($socket);
-
-
-#print $header;
- if ($header =~ /HTTP\/1.\d 302/ ) {
-   $header =~ /Location: (.+)\r\n/;
-   
-   my $new_location = $1;
-   if ($new_location !~ /^http:\/\//) {
-      $new_location="http://$host".$new_location;
-    }
-
-   $res = web_request($new_location, { Referer => "$request" });
-  }
-
-
- if ($res =~ /\<meta\s+http-equiv='Refresh'\s+content='\d;\sURL=(.+)'\>/ig) {
-    my $new_location = $1;
-    if ($new_location !~ /^http:\/\//) {
-      $new_location="http://$host".$new_location;
-    }
-
-    $res = web_request($new_location, { Referer => "$new_location" });
-  }
-
-  if ($debug > 2) {
-    print "<br><textarea cols=80 rows=8>$request\n\n$res</textarea><br>\n";  
-  }
-
-  if (!attr->{BODY_ONLY}) {
-   (undef, $res)= split(/\r?\n\r?\n/, $res, 2);
-  }
-
-  return $res;
+  return \%START_PAGE_F;
 }
-
 
 1

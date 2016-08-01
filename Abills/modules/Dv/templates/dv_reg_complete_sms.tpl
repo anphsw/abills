@@ -1,5 +1,5 @@
 Thank you!
-You are register on server %SERVER%.
+You are registered on server %SERVER%.
 
 LOGIN:    %LOGIN%
 PASSWORD: %PASSWORD%

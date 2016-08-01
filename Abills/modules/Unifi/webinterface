@@ -1,0 +1,188 @@
+#!perl
+=head1 NAME
+
+  Ubiquiti Uni-Fi Controller
+
+=cut
+
+use strict;
+use warnings FATAL => 'all';
+use Unifi::Unifi;
+
+our %conf;
+our $html;
+our %lang;
+
+$conf{debug} = 100;
+my $Unifi = Unifi->new( \%conf );
+
+#********************************************************************
+=head1 unifi_main()
+
+  show configuration params related to UniFi
+
+=cut
+#********************************************************************
+sub unifi_main {
+
+  $html->message( 'info', 'UniFi', 'config.pl' );
+  $html->tpl_show( _include( 'unifi_settings', 'Unifi' ), \%conf );
+  return 1;
+}
+
+#********************************************************************
+#
+#********************************************************************
+sub unifi_guests_list {
+  my $guests = $Unifi->users_list();
+
+  if ( !$guests ) {
+    $html->message( 'err', $lang{ERROR}, 'No users at UniFi controller' );
+    return 0;
+  }
+
+  my $table = $html->table( {
+          width   => '100%',
+          caption => "$lang{USERS}",
+          title   =>
+          [
+              "№", "$lang{NAME}", "$lang{AUTH}", "MAC", "RSSI", "$lang{SENT}, kb", "$lang{RECV}, kb",
+              "$lang{SPEED}, $lang{DOWN}", "$lang{SPEED}, $lang{UP}"
+          ],
+          ID      => 'GUESTS_TABLE'
+      } );
+
+
+  my $lld_data = $Unifi->convert_result($guests);
+
+  my $i = 1;
+  foreach my $guest ( @{$lld_data->{data}} ) {
+    $table->addrow(
+        $i++,
+        $guest->{'{OUI}'},
+            ($guest->{'{AUTHORIZED}'}) ? "$lang{YES}" : "$lang{NO}",
+        $guest->{'{MAC}'},
+        $guest->{'{SIGNAL}'},
+        $guest->{'{TRANSMIT}'},
+        $guest->{'{RECEIVED}'},
+        $guest->{'{SPEEDDOWN}'},
+        $guest->{'{SPEEDUP}'},
+            ($guest->{'{AUTHORIZED}'}) ? unifi_get_deauthorize_btn( $guest->{'{MAC}'} ) : ''
+    );
+  }
+
+  print $table->show();
+  return 1;
+}
+
+#********************************************************************
+#
+#********************************************************************
+sub unifi_get_deauthorize_btn {
+  my ($id) = @_;
+  my $link = "?get_index=unifi_deauthorize&header=2&id=$id";
+  return "<button role='button' class='btn btn-xs btn-danger' title='Disable' onclick='loadToModal(\"$link\")'>D</button>"
+}
+
+#********************************************************************
+#
+#********************************************************************
+sub unifi_deauthorize {
+  my ($id) = $FORM{id} || @_;
+
+  unifi_show_result( $Unifi->deauthorize( { MAC => $id } ) );
+  return 1;
+}
+
+#********************************************************************
+#
+#********************************************************************
+sub unifi_ap_list {
+
+  my $devices = $Unifi->devices_list();
+
+  if ( !$devices ) {
+    $html->message( 'err', $lang{ERROR}, 'No devices at UniFi controller' );
+    return 0;
+  }
+
+  my $table = $html->table( {
+          width   => '100%',
+          caption => "$lang{HARDWARE}",
+          title   =>
+          [
+              "№", "$lang{MODEL}", "MAC", "$lang{ENABLE}", "IP", "$lang{RECV}, kb", "$lang{SENT}, kb",
+              "$lang{DURATION}, s",""
+          ],
+          ID      => 'GUESTS_TABLE'
+      } );
+
+
+  my $lld_data = $Unifi->convert_result($devices);
+
+  my $i = 1;
+  foreach my $device ( @{$lld_data->{data}} ) {
+    $table->addrow(
+      $i++,
+      $device->{'{ALIAS}'},
+      $device->{'{MAC}'},
+        ($device->{'{ADOPTED}'}) ? $lang{YES} : $lang{NO},
+      $device->{'{IP}'},
+      $device->{'{RECEIVED}'},
+      $device->{'{TRANSMIT}'},
+      $device->{'{UPTIME}'},
+      unifi_get_restart_ap_button($device->{'{MAC}'})
+    );
+  }
+
+  print $table->show();
+
+  return 1;
+}
+
+#********************************************************************
+#
+#********************************************************************
+sub unifi_get_restart_ap_button {
+  my ($mac) = @_;
+
+  return '' unless ($mac);
+
+  my $link = "?get_index=unifi_restart_ap&header=2&id=$mac";
+  return "<button role='button' class='btn btn-xs btn-success' title='Restart' onclick='loadToModal(\"$link\")'>R</button>";
+}
+
+#********************************************************************
+#
+#********************************************************************
+sub unifi_restart_ap {
+  my ($ap_mac) = $FORM{id} || @_;
+
+  unless ( $ap_mac ) {return 0};
+
+  #  _bp({SHOW => $Unifi, EXIT => 1});
+
+  unifi_show_result( $Unifi->restart_ap( { MAC => $ap_mac } ) );
+
+  return 1;
+}
+
+
+#********************************************************************
+#
+#********************************************************************
+sub unifi_show_result {
+  my ($status) = @_;
+
+  if ( $status ) {
+    $html->message( 'info', "$lang{EXECUTED}" );
+  }
+  else {
+    $html->message( 'warn', $lang{ERROR} );
+  }
+
+  return 1;
+}
+
+
+1;

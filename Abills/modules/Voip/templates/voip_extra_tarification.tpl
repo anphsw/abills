@@ -1,12 +1,32 @@
-<form acrion='$SELF_URL'>
-<input type=hidden name=index value=$index>
-<input type=hidden name=ID value=$FORM{chg}>
-<table>
-<tr><th colspan=2 class=form_title>$_EXTRA_TARIFICATION</th></tr>
-<tr><td>ID</th><td>%ID%</th></tr>
-<tr><td>$_NAME</th><td><input type=text name=NAME value='%NAME%'></th></tr>
-<tr><td>$_PREPAID $_TIME</th><td><input type=text name=PREPAID_TIME value='%PREPAID_TIME%'></th></tr>
-<tr><th colspan=2 class=even><input type=submit name=%ACTION% value='%LNG_ACTION%'></th></tr>
-</table>
+<form action='$SELF_URL' class='form-horizontal'>
+    <input type=hidden name=index value=$index>
+    <input type=hidden name=ID value=$FORM{chg}>
+
+    <div class='panel panel-primary panel-form'>
+        <div class='panel-heading'>_{EXTRA_TARIFICATION}_</div>
+        <div class='panel-body'>
+            <div class='form-group'>
+                <label class='col-md-3 control-label'>ID</label>
+                <div class='col-md-9'>
+                    %ID%
+                </div>
+            </div>
+            <div class='form-group'>
+                <label class='col-md-3 control-label'>_{NAME}_</label>
+                <div class='col-md-9'>
+                    <input class='form-control' type=text name=NAME value='%NAME%'>
+                </div>
+            </div>
+            <div class='form-group'>
+                <label class='col-md-3 control-label'>_{PREPAID}_ _{TIME}_</label>
+                <div class='col-md-9'>
+                    <input class='form-control' input type=text name=PREPAID_TIME value='%PREPAID_TIME%'>
+                </div>
+            </div>
+        </div>
+        <div class='panel-footer'>
+            <input class='btn btn-primary' type=submit name=%ACTION% value='%LNG_ACTION%'>
+        </div>
+    </div>
 
 </form>

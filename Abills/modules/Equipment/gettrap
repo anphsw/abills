@@ -1,0 +1,202 @@
+#!/usr/bin/perl -w 
+#
+
+BEGIN {
+  use FindBin '$Bin';
+  our $libpath = $Bin . '/../';
+  my $sql_type = 'mysql';
+  unshift( @INC,
+    $libpath . "Abills/$sql_type/",
+    $libpath . '/lib/' );
+
+  eval { require Time::HiRes; };
+  our $begin_time = 0;
+  if ( !$@ ){
+    Time::HiRes->import( qw(gettimeofday) );
+    $begin_time = gettimeofday();
+  }
+}
+
+use vars qw(%conf %log_levels $db $DATE $time $var_dir);
+use strict;
+use warnings;
+
+use Net::SNMPTrapd;
+#use threads;
+use SNMP;
+use JSON;
+
+use POSIX qw(strftime mktime ctime);
+use Abills::Base qw(check_time gen_time parse_arguments in_array mk_unique_value
+  int2byte ip2int int2ip tpl_parse date_diff );
+use Abills::Server;
+use Abills::SQL;
+use Ipn_Collector;
+use Log qw(log_add);
+use Events;
+
+our (%conf, $DATE, $TIME, $var_dir);
+
+if ( $#ARGV < 0 ){
+  help();
+  exit;
+}
+
+SNMP::initMib();
+SNMP::addMibDirs($Bin . "/../Abills/MIBs/private", $Bin . "/../Abills/MIBs");
+SNMP::addMibFiles(glob($Bin . "/../Abills/MIBs/private". '/*'));
+
+my $debug   = 0;
+do $Bin . '/config.pl';
+my $Log = Log->new( undef, \%conf );
+my $begin_time = check_time();
+our %L2_MAC_NOTIFICATION_OIDS = (
+   #3550, 3526
+   '1.3.6.1.4.1.171.11.64.2.2.15.1' => 12*2,
+   '1.3.6.1.4.1.171.11.64.1.2.15.1' => 12*2,
+   #3028
+   '1.3.6.1.4.1.171.11.63.6.2.20.2.1' => 10*2,
+   #3010G
+   '1.3.6.1.4.1.171.11.63.1.2.2.100.1.2.1.1' => 10*2,
+   #3200-10
+   '1.3.6.1.4.1.171.11.113.1.1.2.20.2.1.0' => 10*2,
+   #3200-18
+   '1.3.6.1.4.1.171.11.113.1.2.2.20.2.1.0' => 10*2,
+   #32-28
+   '1.3.6.1.4.1.171.11.113.1.3.2.20.2.1.0' => 10*2,
+   #32-28f
+   '1.3.6.1.4.1.171.11.113.1.4.2.20.2.1.0' => 10*2,
+   #3200-26 des3200SeriesProd(113)
+   #        .des3200ProdModel(1).
+   #        .des3200-26(5)
+   #        .swL2MgmtMIB(2)
+   #        .swL2MgmtMIBTraps(20)
+   #        .swl2NotificationBindings(2)
+   #        .swL2macNotifyInfo(1)
+   '1.3.6.1.4.1.171.11.113.1.5.2.20.2.1.0' => 10*2,
+
+   #cisco cmnHistMacChangedMsg
+   '1.3.6.1.4.1.9.9.215.1.1.8.1.2' => 11*2
+);
+
+my $argv     = parse_arguments(\@ARGV);
+
+my $traps_dir = ($argv->{trapdir}) ? $argv->{trapdir} : $var_dir . "log/traps/";
+$Log->{LOG_FILE} = "$traps_dir/trap.log";
+
+if (! $argv->{LOG_FILE} && ! defined($argv->{'-d'})) {
+  $Log->{PRINT} = 1;
+}
+
+if ( defined( $argv->{DEBUG} ) ){
+  print "Debug mode on\n";
+  $debug = $argv->{DEBUG};
+}
+elsif ( defined( $argv->{help} ) ){
+  print "Help:\n";
+}
+
+#Demonize section
+if ( defined( $argv->{'-d'} ) && !defined( $argv->{'-fg'} ) ){
+  print "Start... debug: $debug\n";
+
+  my $pid_file = daemonize( {
+    PROGRAM_NAME => 'gettrap',
+    LOG_DIR      => $traps_dir
+      } );
+
+  $Log->log_print( 'LOG_EMERG', '', "gettrap Daemonize... $pid_file");
+}
+#Stop daemon
+elsif ( defined( $argv->{stop} ) ){
+  stop_server($traps_dir . "/gettrap.pid");
+
+  exit;
+}
+elsif (make_pid($traps_dir . "/gettrap.pid") == 1) {
+  print "Already running PID: !\n";
+  exit;
+}
+
+
+require Abills::SQL;
+my $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd});
+
+require "Equipment.pm";
+Equipment->import();
+my $Equipment = Equipment->new($db, undef, \%conf);
+
+my $Events = Events->new( $db, undef, \%conf );
+
+#use constant THREADS_COUNT => 4;
+my $bindip = $argv->{IP} || $conf{GETTRAP_IP} || '';       
+my $snmptrapd = Net::SNMPTrapd->new(Family=>'ipv4', LocalAddr=>$bindip, LocalPort=>162, timeout=>3)
+    or die "Error creating SNMPTrapd listener: ", Net::SNMPTrapd->error;
+    
+#for my $i (1..(THREADS_COUNT - 1)) { threads->create(\&request_loop, $obj); }
+#request_loop($obj);
+if ( defined( $argv->{'-d'} ) || defined( $argv->{'-fg'} )){
+	request_loop();
+}
+else{
+  help();
+}
+
+sub request_loop {
+  while (1) {
+      my $trap = $snmptrapd->get_trap();
+      my $ctime =  POSIX::strftime("%Y-%m-%d %H:%M:%S", localtime);
+      my %varbinds = ();
+
+      if (!defined($trap)) {
+          printf "$0: %s\n", Net::SNMPTrapd->error;
+          exit 1
+      } elsif ($trap == 0) {
+          next
+      }
+
+      if (!defined($trap->process_trap())) {
+      	printf "$0: %s\n", Net::SNMPTrapd->error
+      } else {
+   			foreach my $element (@{$trap->varbinds}) { 
+   				while ( my ($key, $value) = each(%$element) ) {
+   					if ( $SNMP::MIB{$key}{label} eq 'snmpTrapOID' ){
+   						$varbinds{$SNMP::MIB{$key}{label}} = $SNMP::MIB{$value}{label};
+   					} elsif ( exists($L2_MAC_NOTIFICATION_OIDS{$key}) ){
+   						my $mac = join( ':', unpack("x1H2H2H2H2H2H2",$value));
+   						my $port = unpack("x8H2",$value);
+   						$varbinds{$SNMP::MIB{$key}{label}} = "$mac port $port";
+   					} else {
+   						$varbinds{$SNMP::MIB{$key}{label}} = $value;
+   					}
+       			}
+       		}
+        }
+
+    	if ($debug > 0){
+    		print $trap->dump();
+    	}
+    	
+    	my $json_text = JSON->new->canonical->allow_bignum->encode(\%varbinds);
+   		$Equipment->trap_add({TRAPTIME => $ctime,  IP=> $trap->remoteaddr, VARBINDS => $json_text});
+   		
+   		if ( $SNMP::MIB{$varbinds{snmpTrapOID}}{label} eq 'linkDown'){
+   			$Events->events_add({MODULE=>"Equipment", COMMENTS=> $trap->remoteaddr." Events: Port $varbinds{ifIndex} linkDown"});
+   			}
+   		}
+   	}
+
+sub help{
+
+  print "ABillS snmp traps
+  gettrap [Options]
+ Options:
+   log        - Log file for gettrap
+   IP         - IP address for gettrap binding
+
+   -d         - Deamon mode
+   -fg        - foreground mode
+   \n";
+
+  return 1;
+}

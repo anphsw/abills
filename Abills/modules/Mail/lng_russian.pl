@@ -1,29 +1,29 @@
-$_SKIP_RBL_CHECKS='';
-$_RBL_TIMEOUT='';
-$_DNS_AVAILABLE='';
+$lang{SKIP_RBL_CHECKS}='';
+$lang{RBL_TIMEOUT}='';
+$lang{DNS_AVAILABLE}='';
 
 
-$_REQUIRED_SCORE='Рейтинг срабатывания фильтра';
-$_REWRITE_HEADER='Изменить тему письма';
-$_REPORT_SAFE='Тип отчёта по спаму';
-$_USER_IN_WHITELIST='Рейтинг белого списка';
-$_USER_IN_BLACKLIST='Рейтинг для чёрного списка';
-$_OK_LOCALES='Разрешить локализацию';
+$lang{REQUIRED_SCORE}='Рейтинг срабатывания фильтра';
+$lang{REWRITE_HEADER}='Изменить тему письма';
+$lang{REPORT_SAFE}='Тип отчёта по спаму';
+$lang{USER_IN_WHITELIST}='Рейтинг белого списка';
+$lang{USER_IN_BLACKLIST}='Рейтинг для чёрного списка';
+$lang{OK_LOCALES}='Разрешить локализацию';
 
-$_USE_BAYES='Использовать Bayesian Classifier';
-$_BAYES_AUTO_LEARN='Включить Bayes самообучение';
-$_BAYES_AUTO_LEARN_THRESHOLD_SPAM='Обучение Bayes Spam Auto';
-$_BAYES_AUTO_LEARN_THRESHOLD_NONSPAM='Обучение Bayes Non-Spam Auto';
-$_USE_AUTO_WHITELIST='Автоматический белый список';
-$_AUTO_WHITELIST_FACTOR='Auto Whitelist Factor';
+$lang{USE_BAYES}='Использовать Bayesian Classifier';
+$lang{BAYES_AUTO_LEARN}='Включить Bayes самообучение';
+$lang{BAYES_AUTO_LEARN_THRESHOLD_SPAM}='Обучение Bayes Spam Auto';
+$lang{BAYES_AUTO_LEARN_THRESHOLD_NONSPAM}='Обучение Bayes Non-Spam Auto';
+$lang{USE_AUTO_WHITELIST}='Автоматический белый список';
+$lang{AUTO_WHITELIST_FACTOR}='Auto Whitelist Factor';
 
-$_USE_DCC='Использовать DCC (Distributed Checksum Clearinghouse)';
-$_USE_PYZOR='Использовать Pyzor collaborative filtering network';
-$_USE_RAZOR2='Использовать Razor V2';
-$_SCORE='Рейтинг';
+$lang{USE_DCC}='Использовать DCC (Distributed Checksum Clearinghouse)';
+$lang{USE_PYZOR}='Использовать Pyzor collaborative filtering network';
+$lang{USE_RAZOR2}='Использовать Razor V2';
+$lang{SCORE}='Рейтинг';
 
-$_AUTO_LEARN='Автообучение';
-$_NETWORK_CHECK='Сетевая проверка';
+$lang{AUTO_LEARN}='Автообучение';
+$lang{NETWORK_CHECK}='Сетевая проверка';
 
-$_BLACK_LIST ='Чёрный список';
-$_WHITE_LIST ='Берый список';
+$lang{BLACK_LIST} ='Чёрный список';
+$lang{WHITE_LIST} ='Берый список';

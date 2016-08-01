@@ -1,5 +1,5 @@
-$_DEAR, %FIO%
+_{DEAR}_, %FIO%
 
-$_DAY: $_TRAFFIC_MORE
+_{DAY}_: _{TRAFFIC_MORE}_
 
 %MESSAGE%

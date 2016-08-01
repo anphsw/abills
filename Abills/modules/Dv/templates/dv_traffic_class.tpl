@@ -1,19 +1,37 @@
-<div class='noprint'>
-<form action='$SELF_URL' method='POST'>
-<input type=hidden name='index' value='$index'>
-<input type=hidden name='ID' value='$FORM{chg}'>
-<table class=form>
-<tr><th colspan=3 class='form_title'>$_TRAFFIC_CLASS</th></tr>
+<div class='panel panel-primary panel-form'>
+    <div class='panel-heading text-center'><h4>_{TRAFFIC_CLASS}_</h4></div>
+    <div class='panel-body'>
 
-<tr><td colspan=2>$_NAME:</td><td><input type=text name='NAME' value='%NAME%'></td></tr>
+        <form name='TRAFFIC_CLASS_FORM' id='form_TRAFFIC_CLASS_FORM' action='$SELF_URL' method='post' class='form form-horizontal'>
+            <input type='hidden' name='index' value='$index' />
+            <input type='hidden' name='ID' value='$FORM{chg}'>
 
-<tr><th colspan=3>$_COMMENTS</th></tr>
-<tr><th colspan=3><textarea cols=40 rows=3 name='COMMENTS'>%COMMENTS%</textarea></th></tr>
+            <div class='form-group'>
+                <label class='control-label col-md-3 required' for='NAME_id'>_{NAME}_</label>
+                <div class='col-md-9'>
+                    <input type='text' class='form-control'  required name='NAME'  value='%NAME%'  id='NAME_id'  />
+                </div>
+            </div>
 
+            <div class='form-group'>
+                <label class='control-label col-md-3' for='COMMENTS_id'>_{COMMENTS}_</label>
+                <div class='col-md-9'>
+                    <textarea class='form-control'  rows='3'  name='COMMENTS'  id='COMMENTS_id' >%COMMENTS%</textarea>
+                </div>
+            </div>
 
-<tr><th colspan=3>NETS (192.168.101.0/24;10.0.0.0/28) </th></tr>
-<tr><th colspan=3><textarea cols=40 rows=10 name='NETS'>%NETS%</textarea></th></tr>
-<tr><th colspan=3 class='even'><input type=submit name='%ACTION%' value='%LNG_ACTION%'></th></tr>
-</table>
-</form>
+            <div class='form-group'>
+                <label class='col-md-12 text-left required' for='NETS_id'>NETS (192.168.101.0/24;10.0.0.0/28)</label>
+                <div class='col-md-3'></div>
+                <div class='col-md-9'>
+                    <textarea class='form-control'  rows='5'  name='NETS'  id='NETS_id' required>%NETS%</textarea>
+                </div>
+            </div>
+        </form>
+
+    </div>
+    <div class='panel-footer text-center'>
+        <input type='submit' form='form_TRAFFIC_CLASS_FORM' class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
+    </div>
 </div>
+

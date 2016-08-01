@@ -1,10 +1,51 @@
-<tr><td colspan='2'><hr></td></tr>
-<tr><td>$_CUSTOMER (*):</td><td><input type=text name=CUSTOMER value='%CUSTOMER%'></td></tr>
-<tr><td>$_CUSTOMER $_TYPE:</td><td>%CUSTOMER_TYPE_SEL%</td></tr>
-<tr><td>ID (>,<)</td><td><input type=text name=DOC_ID value='%DOC_ID%'></td></tr>
-<tr><td>$_ADMIN:</td><td><input type=text name=AID value='%AID%'></td></tr>
-<tr><td>$_SUM:</td><td><input type=text name=SUM value='%SUM%'></td></tr>
-<tr><td>$_STATUS:</td><td>%PAID_STATUS_SEL%</td></tr>
-<tr><td>$_PAYMENT_METHOD:</td><td>%PAYMENT_METHOD_SEL%</td></tr>
-<tr><td>$_CONTRACT:</td><td><input type=text name=CONTRACT_ID value='%CONTRACT_ID%'></td></tr>
 <input type=hidden name=COMPANY_ID value='$FORM{COMPANY_ID}'>
+<div class='panel panel-form'>
+	<div class='form-group'>
+		<label class='col-md-3 control-label'>_{CUSTOMER}_ (*):</label>
+		<div class='col-md-9'>
+			<input class='form-control' type=text name=CUSTOMER value='%CUSTOMER%'>
+		</div>
+	</div>
+	<div class='form-group'>
+		<label class='col-md-3 control-label'>_{CUSTOMER}_ _{TYPE}_:</label>
+		<div class='col-md-9'>
+			%CUSTOMER_TYPE_SEL%
+		</div>
+	</div>
+	<div class='form-group'>
+		<label class='col-md-3 control-label'>ID (>,<)</label>
+		<div class='col-md-9'>
+			<input class='form-control' type=text name=DOC_ID value='%DOC_ID%'>
+		</div>
+	</div>
+	<div class='form-group'>
+		<label class='col-md-3 control-label'>_{ADMIN}_:</label>
+		<div class='col-md-9'>
+			<input class='form-control' type=text name=AID value='%AID%'>
+		</div>
+	</div>
+	<div class='form-group'>
+		<label class='col-md-3 control-label'>_{SUM}_:</label>
+		<div class='col-md-9'>
+			<input class='form-control' type=text name=SUM value='%SUM%'>
+		</div>
+	</div>
+	<div class='form-group'>
+		<label class='col-md-3 control-label'>_{STATUS}_:</label>
+		<div class='col-md-9'>
+			%PAID_STATUS_SEL%
+		</div>
+	</div>
+	<div class='form-group'>
+		<label class='col-md-3 control-label'>_{PAYMENT_METHOD}_:</label>
+		<div class='col-md-9'>
+			%PAYMENT_METHOD_SEL%
+		</div>
+	</div>
+	<div class='form-group'>
+		<label class='col-md-3 control-label'>_{CONTRACT}_:</label>
+		<div class='col-md-9'>
+			<input class='form-control' type=text name=CONTRACT_ID value='%CONTRACT_ID%'>
+		</div>
+	</div>
+</div>

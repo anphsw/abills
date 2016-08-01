@@ -10,7 +10,7 @@
 #       $5      the remote IP address
 #       $6      the parameter specified by the 'ipparam' option to pppd
 #
-
+# VERSION 7.1
 
 START=$(date +%s)
 
@@ -24,8 +24,8 @@ NEW_MODEL=
 IFNAME=$1;
 
 if [ -f /var/run/radattr.${IFNAME} ]; then
-   DOWNSPEED=`${AWK}  '/PPPD-Downstream-Speed-Limit/ {print $2}'  /var/run/radattr.${IFNAME}`
-   UPSPEED=`${AWK}  '/PPPD-Upstream-Speed-Limit/ {print $2}'  /var/run/radattr.${IFNAME}`
+   UPSPEED=`${AWK}  '/PPPD-Downstream-Speed-Limit/ {print $2}'  /var/run/radattr.${IFNAME}`
+   DOWNSPEED=`${AWK}  '/PPPD-Upstream-Speed-Limit/ {print $2}'  /var/run/radattr.${IFNAME}`
    FILTERS=`${AWK}  '/Filter-Id/ {print $2}'  /var/run/radattr.${IFNAME}`
    USER_NAME=`${AWK}  '/User-Name/ {print $2}'  /var/run/radattr.${IFNAME}`
 
@@ -36,7 +36,7 @@ if [ -f /var/run/radattr.${IFNAME} ]; then
      echo $FILTERS
    fi;
 
-   if [ x${NEW_MODEL} != x ]; then
+   if [ x"${NEW_MODEL}" != x ]; then
      /usr/abills/libexec/linkupdown pppd up ${IFNAME} ${USER_NAME} $4 LINUX_NEW_MODEL=1
      exit;
    fi;
@@ -46,10 +46,15 @@ if [ -f /var/run/radattr.${IFNAME} ]; then
 
 ##### speed server->client
    if [ "$UPSPEED" != "0" ] ; then
-     ${TC} qdisc add dev ${IFNAME} root handle 1: htb default 20 r2q 1
-     ${TC} class add dev ${IFNAME} parent 1: classid 1:1 htb rate ${UPSPEED}kbit burst 4k
-     ${TC} class add dev ${IFNAME} parent 1:1 classid 1:10 htb rate ${UPSPEED}kbit burst 4k prio 1
-     ${TC} class add dev ${IFNAME} parent 1:1 classid 1:20 htb rate ${UPSPEED}kbit burst 4k prio 2
+
+     #Hight speeds values
+     _r2q=300; # default 1
+     _burst=64; # default 4
+
+     ${TC} qdisc add dev ${IFNAME} root handle 1: htb default 20 r2q ${_r2q}
+     ${TC} class add dev ${IFNAME} parent 1: classid 1:1 htb rate ${UPSPEED}kbit burst ${_burst}k
+     ${TC} class add dev ${IFNAME} parent 1:1 classid 1:10 htb rate ${UPSPEED}kbit burst ${_burst}k prio 1
+     ${TC} class add dev ${IFNAME} parent 1:1 classid 1:20 htb rate ${UPSPEED}kbit burst ${_burst}k prio 2
      ${TC} qdisc add dev ${IFNAME} parent 1:10 handle 10: sfq perturb 10 quantum 1500
      ${TC} qdisc add dev ${IFNAME} parent 1:20 handle 20: sfq perturb 10 quantum 1500
      ${TC} filter add dev ${IFNAME} parent 1:0 protocol ip prio 10 u32 match ip tos 0x10 0xff flowid 1:10

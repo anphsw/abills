@@ -23,8 +23,13 @@
 <table width=400>
 <tr><th class='form_title' colspan=2>LIberty Reserve</th></tr>
 <tr><td>Operation ID:</td><td>$FORM{OPERATION_ID}</td></tr>
-<tr><td>$_SUM:</td><td>$FORM{SUM}</td></tr>
-<tr><th colspan=2><input type='submit' value='$_ADD'/></th></tr>
+    <tr>
+        <td>_{SUM}_:</td>
+        <td>$FORM{SUM}</td>
+    </tr>
+    <tr>
+        <th colspan=2><input type='submit' value='_{ADD}_'/></th>
+    </tr>
 </table>
 
 </form>

@@ -15,14 +15,32 @@
 <input type='hidden' name='index' value='$index'>
 <input type='hidden' name='PAYMENT_SYSTEM' value='$FORM{PAYMENT_SYSTEM}'>
 %TEST_MODE%
-<table width=400 class=form>
-<tr><th colspan='2' class='form_title'>Webmoney</th></tr>
-<tr><td>ID:</td><td>%LMI_PAYMENT_NO%</td></tr>
-<tr><td>$_SUM:</td><td>%LMI_PAYMENT_AMOUNT%<input type='hidden' name='LMI_PAYMENT_AMOUNT' value='%LMI_PAYMENT_AMOUNT%'></td></tr>
-<tr><td>$_DESCRIBE:</td><td>%DESCRIBE%
-<input type='hidden' name='LMI_PAYMENT_DESC' value='%LMI_PAYMENT_DESC%'></td></tr>
-<tr><td>$_ACCOUNT:</td><td>%ACCOUNTS_SEL%</td></tr>
-<tr><th colspan='2' class='even'><input type='submit' value='$_ADD'></th></tr>
-</table>
+
+<div class='panel panel-primary'>
+    <div class='panel-heading text-center'>_{BALANCE_RECHARCHE}_</div>
+
+<div class='panel-body'>
+    <div class='form-group'>
+    	<label class='col-md-6 control-label text-center'>ID:</label>
+    	<label class='col-md-6 control-label'>%LMI_PAYMENT_NO%</label>
+    </div>
+    <div class='form-group'>
+        <label class='col-md-6 control-label text-center'>_{SUM}_:</label>
+    	<label class='col-md-6 control-label'>%LMI_PAYMENT_AMOUNT%</label>
+    </div>
+    <div class='form-group'>
+        <label class='col-md-6 control-label text-center'>_{DESCRIBE}_:</label>
+    	<label class='col-md-6 control-label'>%DESCRIBE%</label>
+    	<input type='hidden' name='LMI_PAYMENT_DESC' value='%LMI_PAYMENT_DESC%'>
+    </div>
+    <div class='form-group'>
+        <label class='col-md-6 control-element text-center'>_{ACCOUNT}_:</label>
+    	<label class='col-md-6 control-label'>%ACCOUNTS_SEL%</label>
+    </div>
+</div> 
+    <div class='panel-footer text-center'>
+        <input type='submit' class='btn btn-primary' value='_{ADD}_'>
+    </div>   
+</div>
 
 </form>

@@ -1,0 +1,176 @@
+#!perl
+
+=head1 NAME
+
+  Cams - RSTP flows management
+
+=cut
+our ($db, $admin, %conf, $html, %lang);
+
+use Abills::Base qw/_bp in_array/;
+
+use Cams;
+my $Cams = Cams->new( $db, $admin, \%conf );
+
+use Abon;
+my $Abon = Abon->new($db, $admin, \%conf);
+
+use Abills::Experimental;
+my Abills::Experimental $misc = Abills::Experimental->new( $html, \%lang );
+
+#**********************************************************
+=head2 cams_main()
+
+=cut
+#**********************************************************
+sub cams_main {
+
+  #Show stats TODO: monitoring
+
+  # Default page logic
+  if ( $FORM{add} ) {
+
+  }
+  elsif ( $FORM{del} ) {
+
+  }
+  elsif ( $FORM{chg} ) {
+
+  }
+
+  # User tables
+
+  # All enabled users
+  result_former( {
+      INPUT_DATA        => $Cams,
+        FUNCTION        => 'users_list',
+        DEFAULT_FIELDS  => 'UID,TP_NAME,CREATED,ABON_NAME',
+        FUNCTION_FIELDS => 'change,del',
+        EXT_TITLES      => {
+        'tp_id' => 'TP_ID',
+      },
+        TABLE           => {
+        width   => '100%',
+        caption => $lang{USERS},
+        border  => 1,
+        qs      => $pages_qs,
+        ID      => 'CAMS_USERS',
+        EXPORT  => 1,
+        MENU    => ($FORM{UID}) ? "$lang{ADD}:index=$index&add_form=1:add" : '',
+      },
+        MAKE_ROWS       => 1,
+        MODULE          => 'Cams',
+        TOTAL           => 1
+    } );
+
+}
+
+#**********************************************************
+=head2 cams_tp_main()
+
+=cut
+#**********************************************************
+sub cams_tp_main {
+
+  my %TEMPLATE_CAMS_TP = ();
+  my $show_add_form = $FORM{add_form} || 0;;
+
+  unless (in_array('Abon', \@MODULES)){
+    $html->message('err', 'Need \'Abon\' module');
+  };
+
+  if ( $FORM{add} ) {
+    $Cams->tp_add( { %FORM } );
+    $show_add_form = !$misc->_show_result( $Cams, $lang{ADDED} );
+  }
+  elsif ( $FORM{change} ) {
+    $Cams->tp_change( { %FORM } );
+    $misc->_show_result( $Cams, $lang{CHANGED} );
+    $show_add_form = 1;
+  }
+  elsif ( $FORM{chg} ) {
+    my $tp_info = $Cams->tp_info( $FORM{chg} );
+    if ( !_error_show($Cams) ) {
+      %TEMPLATE_CAMS_TP = %{$tp_info};
+      $show_add_form = 1;
+    };
+  }
+  elsif ( $FORM{del} ) {
+    $Cams->tp_del( { ID => $FORM{del} } );
+    $misc->_show_result( $Cams, $lang{DELETED} );
+  }
+
+  if ( $show_add_form ) {
+    $html->tpl_show( _include('cams_tp', 'Cams'), {
+        %TEMPLATE_CAMS_TP,
+        ABON_TP_SELECT    => _abon_tp_select(),
+        SUBMIT_BTN_ACTION => ($FORM{chg}) ? 'chg' : 'add',
+        SUBMIT_BTN_NAME   => ($FORM{chg}) ? $lang{CHANGE} : $lang{ADD},
+      } );
+  }
+
+  result_former(
+    {
+      INPUT_DATA        => $Cams,
+        FUNCTION        => 'tp_list',
+#        BASE_FIELDS     => 4,
+        DEFAULT_FIELDS  => "ID,NAME,STREAMS_COUNT,ABON_ID,ABON_NAME",
+        FUNCTION_FIELDS => 'change, del',
+        EXT_TITLES      => {
+        'name'          => $lang{NAME},
+        'id'            => 'ID',
+        'abon_name'            => 'Abon ' . $lang{NAME},
+        'streams_count' => "$lang{STREAMS_COUNT}",
+        'comments'      => $lang{COMMENTS}
+      },
+        TABLE           => {
+        width   => '100%',
+        caption => "Cams $lang{TARIF_PLANS}",
+        qs      => $pages_qs,
+        ID      => 'DISCOUNTS',
+        header  => '',
+        EXPORT  => 1,
+        MENU    => "$lang{ADD}:index=$index&add_form=1" . ':add',
+      },
+        MAKE_ROWS       => 1,
+        SEARCH_FORMER   => 1,
+        MODULE          => 'Cams',
+        TOTAL           => 1
+    }
+  );
+}
+
+#**********************************************************
+=head2 _abon_tp_select($attr)
+
+  Arguments:
+    $attr - additional arguments to form_select()
+
+  Returns:
+    html_string - <select>
+
+=cut
+#**********************************************************
+sub _abon_tp_select {
+  my ($attr) = @_;
+  $attr ||= {};
+
+  my $abon_tp_list;
+  if ($attr->{ABON_TP_LIST}){
+    $abon_tp_list = $attr->{ABON_TP_LIST};
+  }
+  else {
+    $abon_tp_list = $Abon->tariff_list({COLS_NAME => 1, SORT => 'tp_id'});
+  }
+
+  return $html->form_select('ABON_ID', {
+      SELECTED => $FORM{ABON_ID} || q{},
+      SEL_LIST => $abon_tp_list,
+      SEL_NAME => 'name',
+      SEL_KEY  => 'tp_id',
+
+      EX_PARAMS => 'required="required"'
+    });
+}
+
+1;

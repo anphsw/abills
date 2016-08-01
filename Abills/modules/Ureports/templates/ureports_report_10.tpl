@@ -1,8 +1,8 @@
-$_DEAR, %FIO%
+_{DEAR}_, %FIO%
 
-$_SMALL_DEPOSIT_FOR_NEXT_MONTH. 
+_{SMALL_DEPOSIT_FOR_NEXT_MONTH}_.
 
-$_DEPOSIT: $user->{DEPOSIT} 
-$_CREDIT: $user->{CREDIT} 
+_{DEPOSIT}_: $user->{DEPOSIT}
+_{CREDIT}_: $user->{CREDIT}
 
-$_MONTH_FEE: $user->{TP_MONTH_FEE}
+_{MONTH_FEE}_: $user->{TP_MONTH_FEE}

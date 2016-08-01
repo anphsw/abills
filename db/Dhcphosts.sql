@@ -21,8 +21,6 @@ CREATE TABLE `dhcphosts_hosts` (
   `ipn_activate` tinyint(1) NOT NULL default '0',
   changed datetime not null default '0000-00-00 00:00:00',
   PRIMARY KEY  (`id`),
-  UNIQUE KEY `ip` (`ip`),
-  UNIQUE KEY `mac` (`mac`),
   UNIQUE KEY `host` (`hostname`),
   KEY `uid` (`uid`)
 ) COMMENT='Dhcphosts hosts';

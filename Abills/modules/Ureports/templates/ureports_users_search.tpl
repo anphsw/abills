@@ -1,7 +1,31 @@
    <tr><td colspan=2><hr></td></tr>
-   <tr><td>$_GROUP:</td><td>%GROUP_SEL%</td></tr>
-   <tr><td>TYPE:</td><td>%TYPE_SEL%</td></tr>
-   <tr><td>$_DESTINATION:</td><td><input type='text' name='DESTINATION' value='%DESTINATION%'></td></tr>
-   <tr><td>$_TARIF_PLAN (ID):</td><td><input type='text' name='TP_ID' value='%TP_ID%'></td></tr>
-   <tr><td>$_STATUS:</td><td>%STATUS_SEL%</td></tr>
+   
+<div class='panel panel-default panel-form'>
+<div class='panel-body'>
+   <div class='form-group'>
+   	<label class='control-label col-md-3'>_{GROUP}_:</label>
+   	<div class='col-md-9'>%GROUP_SEL%</div>
+   </div>
+   <div class='form-group'>
+   	<label class='control-label col-md-3'>TYPE:</label>
+   	<div class='col-md-9'>%TYPE_SEL%</div>
+   </div>
+   <div class='form-group'>
+   	<label class='control-label col-md-3'>_{DESTINATION}_:</label>
+   	<div class='col-md-9'>
+   		<input type='text' name='DESTINATION' value='%DESTINATION%' class='form-control'>
+   	</div>
+   </div>
+   <div class='form-group'>
+   	<label class='control-label col-md-3'>_{TARIF_PLAN}_ (ID):</label>
+   	<div class='col-md-9'>
+   		<input type='text' name='TP_ID' value='%TP_ID%' class='form-control'>
+   	</div>
+   </div>
+   <div class='form-group'>
+   	<label class='control-label col-md-3'>_{STATUS}_:</label>
+   	<div class='col-md-9'>%STATUS_SEL%</div>
+   </div>
 
+</div>
+</div>

@@ -1,0 +1,21 @@
+$lang{CASHBOX}='Каса';
+$lang{ADD_CASHBOX}='Добавить касу';
+$lang{CASHBOX_ADDED}='Каса добавлена';
+$lang{CASHBOX_NOT_ADDED}='Каса не добавлена';
+$lang{CASHBOX_DELETED}='Каса удалена';
+$lang{CASHBOX_NOT_DELETED}='Каса не удалена';
+$lang{CHANGED}='Изменения внесены';
+$lang{NOT_CHANGED}='Изменения не внесены';
+$lang{NOT_DELETED}='Не удалено';
+$lang{SPENDING}='Расход';
+$lang{COMING}='Приход';
+$lang{SALARY}='Зарплаты';
+$lang{WORK_SCHEDULE}='Рабочий график';
+$lang{BET}='Ставка';
+$lang{BET_PER_HOUR}='Ставка за час';
+$lang{MONTHLY}='Помесячная';
+$lang{HOURLY}='Почасовая';
+$lang{BET_OVERTIME}='Ставка за екстра час';
+$lang{CHECK_DATA_AND_CHOOSE_CASHBOX}='Проверьте правильнось данных, выберите касу и подтвердите форму';
+$lang{PAYED}='Оплачено';
+1

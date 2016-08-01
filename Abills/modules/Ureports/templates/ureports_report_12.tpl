@@ -1,18 +1,18 @@
 Hello, %FIO%
 
-$_PAYMENTS_INFO
-$_PAYMENT_MAKED 
+_{PAYMENTS_INFO}_
+_{PAYMENT_MAKED}_
 
 ---------------------------------------------
-$_SUM: %SUM%
-$_DATE: %DATE%
+_{SUM}_: %SUM%
+_{DATE}_: %DATE%
 
-$_DEPOSIT: %DEPOSIT%
-$_CREDIT: %CREDIT%
-$_SERVICE_ENDED: %EXPIRE_DAYS%
+_{DEPOSIT}_: %DEPOSIT%
+_{CREDIT}_: %CREDIT%
+_{SERVICE_ENDED}_: %EXPIRE_DAYS%
 
 %LOGIN% UID: %UID%
 ---------------------------------------------
 
 
-$_RECOMMENDED_PAYMENT: %RECOMMENDED_PAYMENT%
+_{RECOMMENDED_PAYMENT}_: %RECOMMENDED_PAYMENT%

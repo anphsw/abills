@@ -15,3 +15,7 @@ ureports_report_14.tpl:russian:До завершения услуги остал
 ureports_report_15.tpl:russian:Изменён статус услуги интернет
 ureports_sms_message.tpl:russian:Общий шаблон SMS сообщения
 ureports_email_message.tpl:russian:Общий шаблон E-mail сообщения
+
+ureports_tp.tpl:russian:Настройки/Отчет/+
+ureports_users_search.tpl:Настройки/Отчет/Тарифные планы/Добавить/Пользователи/Поиск
+ureports_user.tpl:russian:Клиенты/Логины/логин_нэйм/Отчет

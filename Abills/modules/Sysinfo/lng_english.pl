@@ -1,0 +1,12 @@
+$lang{MEMORY}='Memory';
+$lang{CPU}='Cpu';
+$lang{DISC}='HDD';
+$lang{NETWORK}='Network';
+$lang{LOAD}='Load';
+$lang{FREE}='Free';
+$lang{PROCCESS_LIST}='Proccess list';
+$lang{RUNNING}='Running';
+$lang{SYSTEM_INFO}='System info';
+$lang{UPTIME}='Uptime';
+$lang{VERSION}='Version';
+$lang{RECOMMENDED_MODULES}='The recommended modules';

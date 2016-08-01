@@ -1,19 +1,3 @@
-<table width=100% class=form>
-<tbody>
-<tr>
-<td><h5>Информация:</h5></td>
-<td><img src='img/visa.jpg'></td>
-</tr>
-<tr>
-<td>Оплата производится с помощью платежного шлюза Московского Индустриального Банка.
-Выбирая этот способ оплаты, Вы будете перенаправлены на платежный шлюз банка.
-Для совершения оплаты Вам необходимо последовательно ввести информацию о Вашей банковской карте и внимательно проверить введенную информацию.
-Эта информация не доступна посторонним лицам. Все данные передаются в зашифрованном виде с применением протокола безопасности SSL.</td>
-<td><img src='img/master.gif'></td>
-</tbody>
-</table>
-<br>
-<form action=$SELF_URL name='pay_form' method=POST>
 <input type=hidden name=index value=$index>
 <input type=hidden name=ID value=%ID%>
 <input type='hidden' name='MerchantId' value='%merchantid%'>
@@ -28,38 +12,25 @@
 <input type='hidden' name='ServerURL' value='%form_url%'>
 <input type='hidden' name='sid' value='%sid%'>
 <input type='hidden' name='minbank_action' value='1'>
+<link rel="stylesheet" type="text/css" href="https://gate.minbank.ru/api-client/template.css" />
 
-<table width=300 class=form>
-<tr><th colspan='2' class='form_title'>Московский Индустриальный Банк</th></tr>
-<tr>
-	<td>ID:</td>
-	<td>%OrderId%</td>
-</tr>
-<tr>
-	<td>$_SUM:</td>
-	<td>%amount%</td>
-</tr>
-<tr>
-	<td>$_DESCRIBE:</td>
-	<td>%desc%</td>
-</tr>
-<tr>
-	<td>&nbsp;</td>
-	<td>&nbsp;</td>
-</tr>
-<tr><th colspan='2' class='even'><input type='submit' value='Пополнить'></th></tr>
-</table>
+<div class='panel panel-primary'>
+    <div class='panel-heading text-center'>Московский Индустриальный Банк</div>
 
-</form>
-<br>
-<table width=100%>
-<tbody>
-<tr>
-<td>
-<h5>Внимание!</h5> На следующем шаге Вы перейдёте на сервер <a href='https://mpi.minbank.ru'>mpi.minbank.ru</a> для заполнения и передачи информации о Вашей платёжной карте.
-Эти данные будут переданы по безопасному протоколу (SSL) непосредственно на авторизационный Сервер Банка и являются недоступными для нашей Компании.<br>
-<h5>Attention!</h5> At the next step you will be moved to the <a href='https://mpi.minbank.ru'>mpi.minbank.ru</a> server to fill out the form and send your credit card information.
-This information will be passed directly to the authorization server by secure protocol (SSL) and will not be accessible for the Company.
-</td>
-</tbody>
-</table>
+<div class='panel-body text-center'>
+<div class='alert alert-info'>Вы собираетесь оплатить лицевой счет %account% на сумму %amount%.
+<strong><br>Введите данные для продолжения оплаты.</strong></div>
+  <div class='mb-gate-template' data-id='%MB_ID%'>
+    <form class="mb-gate-template__form">
+      <input type='hidden' name='account' value='%account%' />
+      <input type='hidden' name='amount' value='%amount%' />
+      <div class='mb-gate-template__gateway'></div>
+      <div class='mb-gate-template__email-n-submit'></div>
+      <div class='mb-gate-template__locker'></div>
+    </form>
+  </div>
+  <script src="https://gate.minbank.ru/api-client/lib.min.js" data-mb-merchant="%MB_MERCHANT%"></script>
+
+</div>
+
+</div>

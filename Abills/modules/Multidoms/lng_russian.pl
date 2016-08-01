@@ -1,6 +1,6 @@
-$_MINUTES='Минут';
+$lang{MINUTES}='Минут';
 %COUNTRY_LIST = ();
-$_WRONG_CAPTCHA='Wrong Captcha';
+$lang{WRONG_CAPTCHA}='Wrong Captcha';
 
 
 1

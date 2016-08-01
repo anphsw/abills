@@ -1,12 +1,15 @@
 
-</div>  <!--  END גסו שמ ן³ה םאגבאנמל  -->
- </div> <!-- END   גסו שמ ן³ה םאגבאנמל  -->
-
 </div>
-</div>
+</div><!-- end of page-content-wrapper -->
 
-
-</div>
 <!-- footer div -->
-</div>
-<div class=version> ABillS %VERSION% </div>
+<script>
+ var waitBlock = jQuery('#html-wait');
+  waitBlock.fadeOut(1000, function (){
+      waitBlock.remove();
+  });
+</script>
+<div class='panel-footer' id='footer'><b><span style='color: red'>A</span>BillS</b> %VERSION%</div>
+</div><!-- container end-->
+</div><!-- container end-->
+

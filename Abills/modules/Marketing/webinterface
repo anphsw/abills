@@ -1,15 +1,31 @@
-# Marketing reports
+#!perl
+=head1 NAME
 
+ Marketing reports
+
+=cut
+
+use strict;
 use Tariffs;
 use Marketing;
+use Address;
+use Abills::Base qw(cfg2hash);
 
+our (
+  $db,
+  %conf,
+  $admin,
+  $html,
+  %lang,
+  @MONTHES
+);
+
+my $Address   = Address->new($db, $admin, \%conf);
 my $Marketing = Marketing->new($db, $admin, \%conf);
 my $tariffs   = Tariffs->new($db, \%conf, $admin);
 my $Nas       = Nas->new($db, $admin, \%conf);
-
-my %FORM_BASE             = ();
-my @service_status        = ("$_ENABLE", "$_DISABLE", "$_NOT_ACTIVE", "$_HOLD_UP", "$_DISABLE: $_NON_PAYMENT", "$ERR_SMALL_DEPOSIT");
-my @service_status_colors = ("$_COLORS[9]", "$_COLORS[6]", '#808080', '#0000FF', '#FF8000');
+my @service_status        = ("$lang{ENABLE}", "$lang{DISABLE}", "$lang{NOT_ACTIVE}", "$lang{HOLD_UP}", "$lang{DISABLE}: $lang{NON_PAYMENT}", "$lang{ERR_SMALL_DEPOSIT}");
+my @service_status_colors = ($_COLORS[9], $_COLORS[6], '#808080', '#0000FF', '#FF8000');
 
 #*******************************************************************
 #
@@ -17,19 +33,11 @@ my @service_status_colors = ("$_COLORS[9]", "$_COLORS[6]", '#808080', '#0000FF',
 #*******************************************************************
 sub marketing_evolution {
 
-  @service_status = ("$_ENABLE", "$_DISABLE", "$_NOT_ACTIVE");
-  $table = $html->table(
-    {
-      width    => '100%',
-      rowcolor => $_COLORS[0],
-      rows     => [
-        [
-          "$_FROM: ",
-          $html->date_fld2('FROM_DATE', { FORM_NAME => 'marketing', MONTHES => \@MONTHES }),
-          "$_TO: ",
-          $html->date_fld2('TO_DATE', { FORM_NAME => 'marketing', MONTHES => \@MONTHES }),
-          "$_MODULES: "
-          . $html->form_select(
+  @service_status = ("$lang{ENABLE}", "$lang{DISABLE}", "$lang{NOT_ACTIVE}");
+  my @params_rows = (
+      "$lang{FROM}: " .    $html->date_fld2('FROM_DATE', { FORM_NAME => 'marketing', MONTHES => \@MONTHES }),
+      "$lang{TO}: ".       $html->date_fld2('TO_DATE', { FORM_NAME => 'marketing', MONTHES => \@MONTHES }),
+      "$lang{MODULES}: " . $html->form_select(
             'MODULE',
             {
               SELECTED      => $FORM{MODULE},
@@ -37,24 +45,18 @@ sub marketing_evolution {
               OUTPUT2RETURN => 1
             }
           ),
-          "$_PERIOD: "
-          . $html->form_select(
+      "$lang{PERIOD}: " . $html->form_select(
             'PERIOD',
             {
               SELECTED      => $FORM{PERIOD},
-              SEL_ARRAY     => [ "$_MONTH", "$_DAY" ],
+              SEL_ARRAY     => [ "$lang{MONTH}", "$lang{DAY}" ],
               ARRAY_NUM_ID  => 1,
               OUTPUT2RETURN => 1
             }
           ),
-
-          "$_GROUPS: ".sel_groups(),
-          "$_ROWS: ",
-          $html->form_input('rows', int($conf{list_max_recs}), { SIZE => 4 }),
-          $html->form_input('show', $_SHOW,                    { TYPE => 'submit' })
-        ]
-      ],
-    }
+      "$lang{GROUPS}: " . sel_groups(),
+      "$lang{ROWS}: " .  $html->form_input('rows', int($conf{list_max_recs}), { SIZE => 4 }),
+      $html->form_input('show', $lang{SHOW}, { TYPE => 'submit' })
   );
 
   my $graph_type = 'month_stats';
@@ -77,36 +79,41 @@ sub marketing_evolution {
   	$pages_qs .= "&GID=$FORM{GID}";
   }	
  
+  my $report_panel = $html->element('div', join(' ', @params_rows), {
+        class => 'navbar navbar-default form-inline'
+      });
+ 
   print $html->form_main(
     {
-      CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
+      CONTENT => $report_panel,
       HIDDEN  => {
-        sid   => "$sid",
-        index => "$index",
-        UID   => "$UID"
+        sid   => $sid,
+        index => $index,
+        #UID   => $uid
       },
       NAME => 'marketing'
     }
   );
 
   if ($FORM{USERS}) {
-    my @caption = ("$_DATE", "$_USER", "$_ADMIN", "$_REGISTRATION");
+    my @caption = ("$lang{DATE}", "$lang{USER}", "$lang{ADMIN}", "$lang{REGISTRATION}");
 
     $LIST_PARAMS{USERS} = 1;
     my %reports_list = (
-      ADDED    => "$_ADDED",
-      DISABLED => "$_DISABLE",
-      ENABLE   => "$_ENABLE",
-      DELETED  => "$_DELETED"
+      ADDED    => "$lang{ADDED}",
+      DISABLED => "$lang{DISABLE}",
+      ENABLE   => "$lang{ENABLE}",
+      DELETED  => "$lang{DELETED}"
     );
 
     foreach my $report_name (keys %reports_list) {
       $LIST_PARAMS{$report_name} = 1;
+
       my $list = $Marketing->evolution_users_report({ %LIST_PARAMS, %FORM });
       my $table = $html->table(
         {
           width   => '100%',
-          caption => "Internet - $_EVOLUTION $_USERS - $reports_list{$report_name}",
+          caption => "Internet - $lang{EVOLUTION} $lang{USERS} - $reports_list{$report_name}",
           title   => [@caption],
           ID      => 'REPORT_EVOLUTION',
           pages   => $Marketing->{TOTAL},
@@ -143,7 +150,7 @@ sub marketing_evolution {
         {
           width      => '100%',
           cols_align => [ 'right', 'right' ],
-          rows       => [ [ "$_TOTAL:", $html->b($Marketing->{TOTAL}) ] ]
+          rows       => [ [ "$lang{TOTAL}:", $html->b($Marketing->{TOTAL}) ] ]
         }
       );
       print $table->show();
@@ -151,7 +158,7 @@ sub marketing_evolution {
 
   }
   else {
-    my @caption = ("$_DATE", "$_REGISTRATION", "$_DISABLE", "$_ENABLE", "$_DELETED", "$_USERS");
+    my @caption = ("$lang{DATE}", "$lang{REGISTRATION}", "$lang{DISABLE}", "$lang{ENABLE}", "$lang{DELETED}", "$lang{USERS}");
 
     if (!$FORM{SORT}) {
       $LIST_PARAMS{SORT} = 1;
@@ -162,7 +169,7 @@ sub marketing_evolution {
     my $table = $html->table(
       {
         width   => '100%',
-        caption => "$_EVOLUTION - Internet",
+        caption => "$lang{EVOLUTION} - Internet",
         title   => [@caption],
         ID      => 'REPORT_EVOLUTION',
         pages   => $Marketing->{TOTAL},
@@ -177,7 +184,7 @@ sub marketing_evolution {
         (($line->[2] < 0) ? 0 : $line->[2]),
         $line->[3], 
         $line->[4], 
-        ($FORM{MONTH}) ? $html->button($_USERS, "index=$index&DATE=$line->[0]&USERS=1$pages_qs") : $html->button($_USERS, "index=$index&MONTH=$line->[0]&USERS=1$pages_qs"),
+        ($FORM{MONTH}) ? $html->button($lang{USERS}, "index=$index&DATE=$line->[0]&USERS=1$pages_qs") : $html->button($lang{USERS}, "index=$index&MONTH=$line->[0]&USERS=1$pages_qs"),
       );
 
       if ($line->[0] =~ /(\d+)-(\d+)-(\d+)/) {
@@ -204,7 +211,7 @@ sub marketing_evolution {
       {
         width      => '100%',
         cols_align => [ 'right', 'right' ],
-        rows       => [ [ "$_TOTAL:", $html->b($Marketing->{TOTAL}) ] ]
+        rows       => [ [ "$lang{TOTAL}:", $html->b($Marketing->{TOTAL}) ] ]
       }
     );
 
@@ -230,25 +237,24 @@ sub marketing_evolution {
 #*******************************************************************
 sub marketing_internet {
 
-  #@service_status = ( "$_ENABLE", "$_DISABLE", "$_NOT_ACTIVE" );
-  my @service_status = ("$_ENABLE", "$_DISABLE", "$_NOT_ACTIVE", "$_HOLD_UP", "$_DISABLE: $_NON_PAYMENT", "$ERR_SMALL_DEPOSIT");
-  my @service_status_colors = ("$_COLORS[9]", "$_COLORS[6]", '#808080', '#0000FF', '#FF8000', '#009999');
+  @service_status = ("$lang{ENABLE}", "$lang{DISABLE}", "$lang{NOT_ACTIVE}", "$lang{HOLD_UP}", "$lang{DISABLE}: $lang{NON_PAYMENT}", "$lang{ERR_SMALL_DEPOSIT}");
+  @service_status_colors = ("$_COLORS[9]", "$_COLORS[6]", '#808080', '#0000FF', '#FF8000', '#009999');
 
-  $table = $html->table(
+  my $table = $html->table(
     {
       width    => '100%',
       rowcolor => $_COLORS[0],
       rows     => [
         [
-          "$_PERIOD: ",
+          "$lang{PERIOD}: ",
           $html->date_fld2('FROM_', { MONTHES => \@MONTHES }),
-          "$_STATUS: "
+          "$lang{STATUS}: "
           . $html->form_select(
             'STATUS',
             {
               SELECTED => $FORM{STATUS},
               SEL_HASH => {
-                '' => "$_ALL",
+                '' => "$lang{ALL}",
                 0  => $service_status[0],
                 1  => $service_status[1],
                 2  => $service_status[2],
@@ -261,7 +267,7 @@ sub marketing_internet {
               NO_ID    => 1
             }
           ),
-          $_TARIF_PLAN => $html->form_select(
+          $lang{TARIF_PLAN} => $html->form_select(
             'TP_ID',
             {
               SELECTED          => $FORM{TP_ID},
@@ -271,9 +277,9 @@ sub marketing_internet {
             }
           ),
 
-          "$_ROWS: ",
+          "$lang{ROWS}: ",
           $html->form_input('rows', $FORM{rows} || int($conf{list_max_recs}), { SIZE => 4 }),
-          $html->form_input('show', $_SHOW,                    { TYPE => 'submit' })
+          $html->form_input('show', $lang{SHOW},                    { TYPE => 'submit' })
         ]
       ],
     }
@@ -285,7 +291,7 @@ sub marketing_internet {
       HIDDEN  => {
         sid   => "$sid",
         index => "$index",
-        UID   => "$UID"
+#        UID   => "$uid"
       }
     }
   );
@@ -298,12 +304,12 @@ sub marketing_internet {
   $pages_qs .= "&TP_ID=$FORM{TP_ID}"   if ($FORM{TP_ID});
   $pages_qs .= "&STATUS=$FORM{STATUS}" if (defined($FORM{STATUS}));
   my $list = $Marketing->internet_fees_monitor({ %LIST_PARAMS, %FORM, COLS_NAME => 1 });
-  #@service_status = ("$_ENABLE", "$_DISABLE", "$_NOT_ACTIVE");
-  my $table = $html->table(
+  #@service_status = ("$lang{ENABLE}", "$lang{DISABLE}", "$lang{NOT_ACTIVE}");
+  $table = $html->table(
     {
       width   => '100%',
-      caption => "Internet _$_FEES",
-      title   => [ "UID", "$_LOGIN", "$_STATUS", "Internet $_STATUS", "$_TARIF_PLAN ID", "$_TARIF_PLAN $_NAME", "$_TARIF_PLAN $_FEES", "$_COUNT", "$_LAST_FEES_DATE" ],
+      caption => "Internet _$lang{FEES}",
+      title   => [ "UID", "$lang{LOGIN}", "$lang{STATUS}", "Internet $lang{STATUS}", "$lang{TARIF_PLAN} ID", "$lang{TARIF_PLAN} $lang{NAME}", "$lang{TARIF_PLAN} $lang{FEES}", "$lang{COUNT}", "$lang{LAST_FEES_DATE}" ],
       ID      => 'REPORT 1',
       pages   => $Marketing->{TOTAL},
       qs      => $pages_qs,
@@ -331,7 +337,7 @@ sub marketing_internet {
     {
       width      => '100%',
       cols_align => [ 'right', 'right' ],
-      rows       => [ [ "$_TOTAL:", $html->b($Marketing->{TOTAL}) ] ]
+      rows       => [ [ "$lang{TOTAL}:", $html->b($Marketing->{TOTAL}) ] ]
     }
   );
   print $table->show();
@@ -343,15 +349,15 @@ sub marketing_internet {
 # marketing_report1()
 #*******************************************************************
 sub marketing_report1 {
-  my ($attr) = @_;
+  #my ($attr) = @_;
 
   my $list = $Marketing->report1({%LIST_PARAMS});
 
   my $table = $html->table(
     {
       width   => '100%',
-      caption => "$_REPORT 1",
-      title   => [ "$_ADDRESS_STREET", "$_ADDRESS_BUILD", "$_COUNT", '%' ],
+      caption => "$lang{REPORT} 1",
+      title   => [ "$lang{ADDRESS_STREET}", "$lang{ADDRESS_BUILD}", "$lang{COUNT}", '%' ],
       ID      => 'REPORT 1',
       pages   => $Marketing->{TOTAL},
     }
@@ -360,7 +366,10 @@ sub marketing_report1 {
   foreach my $line (@$list) {
     my $percent = sprintf("%.10f", 100 / $Marketing->{TOTAL} * $line->[2]);
 
-    $table->addrow($line->[0], $line->[1], $line->[2], $percent);
+    $table->addrow($line->[0], 
+      $line->[1], 
+      $line->[2], 
+      $percent);
   }
 
   print $table->show();
@@ -369,7 +378,7 @@ sub marketing_report1 {
     {
       width      => '100%',
       cols_align => [ 'right', 'right' ],
-      rows       => [ [ "$_TOTAL:", $html->b($Marketing->{TOTAL}) ] ]
+      rows       => [ [ "$lang{TOTAL}:", $html->b($Marketing->{TOTAL}) ] ]
     }
   );
   print $table->show();
@@ -381,26 +390,16 @@ sub marketing_report1 {
 #**********************************************************
 sub marketing_report2 {
 
-  push @PAYMENT_METHODS, @EX_PAYMENT_METHODS if (@EX_PAYMENT_METHODS);
-
-  for (my $i = 0 ; $i <= $#PAYMENT_METHODS ; $i++) {
-    $PAYMENTS_METHODS{"$i"} = "$PAYMENT_METHODS[$i]";
-  }
-
-  my %PAYSYS_PAYMENT_METHODS = %{ cfg2hash($conf{PAYSYS_PAYMENTS_METHODS}) };
-
-  while (my ($k, $v) = each %PAYSYS_PAYMENT_METHODS) {
-    $PAYMENTS_METHODS{$k} = $v;
-  }
+  my $PAYMENTS_METHODS = get_payment_methods();
 
   $Marketing->{LAST_PAYMENT_METHOD_SEL} = $html->form_select(
     'LAST_PAYMENT_METHOD',
     {
       SELECTED => (defined($FORM{METHOD}) && $FORM{METHOD} ne '') ? $FORM{METHOD} : '',
-      SEL_HASH => \%PAYMENTS_METHODS,
+      SEL_HASH => $PAYMENTS_METHODS,
       NO_ID    => 1,
       SORT_KEY => 1,
-      SEL_OPTIONS => { '' => $_ALL }
+      SEL_OPTIONS => { '' => $lang{ALL} }
     }
   );
 
@@ -408,7 +407,7 @@ sub marketing_report2 {
     'DISTRICT_ID',
     {
       SELECTED          => $FORM{DISTRICT_ID},
-      SEL_MULTI_ARRAY   => [ [ '', $_ALL ], @{ $users->district_list({ %LIST_PARAMS, PAGE_ROWS => 1000 }) } ],
+      SEL_MULTI_ARRAY   => [ [ '', $lang{ALL} ], @{ $Address->district_list({ %LIST_PARAMS, PAGE_ROWS => 1000 }) } ],
       MULTI_ARRAY_KEY   => 0,
       MULTI_ARRAY_VALUE => 1,
     }
@@ -418,7 +417,7 @@ sub marketing_report2 {
     'ADDRESS_STREET_ID',
     {
       SELECTED          => $FORM{ADDRESS_STREET_ID},
-      SEL_MULTI_ARRAY   => [ [ '', $_ALL ], @{ $users->street_list({ %LIST_PARAMS, PAGE_ROWS => 1000 }) } ],
+      SEL_MULTI_ARRAY   => [ [ '', $lang{ALL} ], @{ $Address->street_list({ %LIST_PARAMS, PAGE_ROWS => 1000 }) } ],
       MULTI_ARRAY_KEY   => 0,
       MULTI_ARRAY_VALUE => 1,
     }
@@ -429,7 +428,7 @@ sub marketing_report2 {
     {
       SELECTED => $FORM{STATUS},
       SEL_HASH => {
-        '' => "$_ALL",
+        '' => "$lang{ALL}",
         0  => $service_status[0],
         1  => $service_status[1],
       },
@@ -444,7 +443,7 @@ sub marketing_report2 {
     'TP_ID',
     {
       SELECTED          => $FORM{TP_ID},
-      SEL_MULTI_ARRAY   => [ [ '', $_ALL ], @$tp_list ],
+      SEL_MULTI_ARRAY   => [ [ '', $lang{ALL} ], @$tp_list ],
       MULTI_ARRAY_KEY   => 0,
       MULTI_ARRAY_VALUE => 1,
     }
@@ -454,7 +453,7 @@ sub marketing_report2 {
     'PRE_TP_ID',
     {
       SELECTED          => $FORM{PRE_TP_ID},
-      SEL_MULTI_ARRAY   => [ [ '', $_ALL ], @$tp_list ],
+      SEL_MULTI_ARRAY   => [ [ '', $lang{ALL} ], @$tp_list ],
       MULTI_ARRAY_KEY   => 0,
       MULTI_ARRAY_VALUE => 1,
     }
@@ -465,7 +464,7 @@ sub marketing_report2 {
   #form_search();
 
   my %TARIF_PLANS_HASH = ();
-  foreach my $line (@$list) {
+  foreach my $line (@$tp_list) {
     $TARIF_PLANS_HASH{ $line->[0] } = "$line->[0]:$line->[1]";
   }
 
@@ -476,22 +475,22 @@ sub marketing_report2 {
     $FORM{OTHER}    = 1;
   }
 
-  my @caption = ($_LOGIN, $_FIO);
+  my @caption = ($lang{LOGIN}, $lang{FIO});
 
   if ($FORM{ADDRESS}) {
-    push @caption, $_REGISTRATION, $_ADMIN, 'SEGMET', 'DISTRICT', $_ADDRESS_STREET, $_ADDRESS_BUILD, 'ENTRANCE', $_ADDRESS_FLAT, 'FLOR';
+    push @caption, $lang{REGISTRATION}, $lang{ADMIN}, 'SEGMET', 'DISTRICT', $lang{ADDRESS_STREET}, $lang{ADDRESS_BUILD}, 'ENTRANCE', $lang{ADDRESS_FLAT}, 'FLOR';
   }
 
   if ($FORM{INTERNET}) {
-    push @caption, $_TARIF_PLAN, "$_PRE $_TARIF_PLAN", "$_TARIF_PLAN $_CHANGE";
+    push @caption, $lang{TARIF_PLAN}, "$lang{PRE} $lang{TARIF_PLAN}", "$lang{TARIF_PLAN} $lang{CHANGE}";
   }
 
   if ($FORM{PAYMENTS}) {
-    push @caption, "$_DEPOSIT", "$_CREDIT", "$_LAST_PAYMENT $_SUM", "$_LAST_PAYMENT", "$_PAYMENTS $_TYPE", "$_PAYMENTS $_LOG", "$_PAYMENT_TO_DATE", "$_DEBTS_DAYS";
+    push @caption, "$lang{DEPOSIT}", "$lang{CREDIT}", "$lang{LAST_PAYMENT} $lang{SUM}", "$lang{LAST_PAYMENT}", "$lang{PAYMENTS} $lang{TYPE}", "$lang{PAYMENTS} $lang{LOG}", "$lang{PAYMENT_TO_DATE}", "$lang{DEBTS_DAYS}";
   }
 
   if ($FORM{OTHER}) {
-    push @caption, "$_STATUS", "FORUM", "BONUS", "DISCONNECT_DATE", "DISCONNECT_REASON";
+    push @caption, "$lang{STATUS}", "FORUM", "BONUS", "DISCONNECT_DATE", "DISCONNECT_REASON";
   }
 
   if ($FORM{search}) {
@@ -505,29 +504,29 @@ sub marketing_report2 {
     }
   }
 
-  my @TITLE = ($_LOGIN, $_FIO, $_DEPOSIT, $_CREDIT, $_STATUS, '-', '-');
+  my @TITLE = ($lang{LOGIN}, $lang{FIO}, $lang{DEPOSIT}, $lang{CREDIT}, $lang{STATUS}, '-', '-');
 
   my %SEARCH_TITLES = (
-    'if(company.id IS NULL,ext_b.deposit,ext_cb.deposit)' => "$_EXTRA $_DEPOSIT",
-    'max(p.date)'                                         => "$_PAYMENTS $_DATE",
+    'if(company.id IS NULL,ext_b.deposit,ext_cb.deposit)' => "$lang{EXTRA} $lang{DEPOSIT}",
+    'max(p.date)'                                         => "$lang{PAYMENTS} $lang{DATE}",
     'pi.email'                                            => 'E-Mail',
-    'pi.address_street'                                   => $_ADDRESS,
-    'pi.pasport_date'                                     => "$_PASPORT $_DATE",
-    'pi.pasport_num'                                      => "$_PASPORT $_NUM",
-    'pi.pasport_grant'                                    => "$_PASPORT $_GRANT",
-    'pi.address_build'                                    => "$_ADDRESS_BUILD",
-    'pi.address_flat'                                     => "$_ADDRESS_FLAT",
-    'pi.city'                                             => "$_CITY",
-    'pi.zip'                                              => "$_ZIP",
-    'pi.contract_id'                                      => "$_CONTRACT_ID",
-    'u.registration'                                      => "$_REGISTRATION",
-    'pi.phone'                                            => "$_PHONE",
-    'pi.comments'                                         => "$_COMMENTS",
+    'pi.address_street'                                   => $lang{ADDRESS},
+    'pi.pasport_date'                                     => "$lang{PASPORT} $lang{DATE}",
+    'pi.pasport_num'                                      => "$lang{PASPORT} $lang{NUM}",
+    'pi.pasport_grant'                                    => "$lang{PASPORT} $lang{GRANT}",
+    'pi.address_build'                                    => "$lang{ADDRESS_BUILD}",
+    'pi.address_flat'                                     => "$lang{ADDRESS_FLAT}",
+    'pi.city'                                             => "$lang{CITY}",
+    'pi.zip'                                              => "$lang{ZIP}",
+    'pi.contract_id'                                      => "$lang{CONTRACT_ID}",
+    'u.registration'                                      => "$lang{REGISTRATION}",
+    'pi.phone'                                            => "$lang{PHONE}",
+    'pi.comments'                                         => "$lang{COMMENTS}",
     'if(company.id IS NULL,b.id,cb.id)'                   => 'BILL ID',
-    'u.activate'                                          => "$_ACTIVATE",
-    'u.expire'                                            => "$_EXPIRE",
-    'u.credit_date'                                       => "$_CREDIT $_DATE",
-    'u.reduction'                                         => "$_REDUCTION"
+    'u.activate'                                          => "$lang{ACTIVATE}",
+    'u.expire'                                            => "$lang{EXPIRE}",
+    'u.credit_date'                                       => "$lang{CREDIT} $lang{DATE}",
+    'u.reduction'                                         => "$lang{REDUCTION}"
   );
 
   my $list = $Marketing->report_2({ %FORM, %LIST_PARAMS, });
@@ -536,7 +535,7 @@ sub marketing_report2 {
     foreach my $line (@{ $users->{EXTRA_FIELDS} }) {
       if ($line->[0] =~ /ifu(\S+)/) {
         my $field_id = $1;
-        my ($position, $type, $name) = split(/:/, $line->[1]);
+        my (undef, $type, $name) = split(/:/, $line->[1]);
         if ($type == 2) {
           $SEARCH_TITLES{ $field_id . '_list.name' } = $name;
         }
@@ -551,13 +550,13 @@ sub marketing_report2 {
 
   for (my $i = 0 ; $i < $users->{SEARCH_FIELDS_COUNT} ; $i++) {
     push @TITLE, '-';
-    $TITLE[ 5 + $i ] = $SEARCH_TITLES{ $EX_TITLE_ARR[$i] } || "$_SEARCR";
+    $TITLE[ 5 + $i ] = $SEARCH_TITLES{ $EX_TITLE_ARR[$i] } || "$lang{SEARCR}";
   }
 
   my $table = $html->table(
     {
       width   => '100%',
-      caption => "$_REPORT 1",
+      caption => "$lang{REPORT} 1",
       title   => \@caption,
       ID      => 'REPORT 2',
       pages   => $Marketing->{TOTAL},
@@ -576,7 +575,7 @@ sub marketing_report2 {
     }
 
     if ($FORM{PAYMENTS}) {
-      push @rows, $line->[14], $line->[15], $line->[16], $line->[17], $line->[18], $html->button($_PAYMENTS, "index=2&UID=$line->[27]"), $line->[20], $line->[21];
+      push @rows, $line->[14], $line->[15], $line->[16], $line->[17], $line->[18], $html->button($lang{PAYMENTS}, "index=2&UID=$line->[27]"), $line->[20], $line->[21];
     }
     if ($FORM{OTHER}) {
       push @rows, $html->color_mark($service_status[ $line->[22] ], $service_status_colors[ $line->[22] ]), $line->[23], $line->[24], $line->[25], $line->[26];
@@ -593,7 +592,7 @@ sub marketing_report2 {
 #
 #**********************************************************
 sub marketing_triplay_stats {
-  my ($attr) = @_;
+  #my ($attr) = @_;
 
   if (!$conf{ADDRESS_REGISTER}) {
     $html->message('err', "INFO", "Turn on address register");
@@ -601,7 +600,6 @@ sub marketing_triplay_stats {
   }
 
   my $address = $html->tpl_show(templates('form_address_sel'), {%FORM}, { OUTPUT2RETURN => 1 });
-
 
   form_search(
     {
@@ -617,13 +615,13 @@ sub marketing_triplay_stats {
 
   my $list = $Marketing->triplay_stats({ %LIST_PARAMS });
 
-  #адрес, № квратиры, договор, Тариф Интернет, Тариф телевилиния, тариф телефонии, ФИО, телефон
+  #пїЅпїЅпїЅпїЅпїЅ, пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
   my $table = $html->table(
     {
       width      => '100%',
-      caption    => $_CHANNELS,
+      caption    => $lang{CHANNELS},
       border     => 1,
-      title      => [ "$_ADDRESS", $_ADDRESS_FLAT, $_CONTRACT, "Internet $_TARIF_PLAN", "Voip $_TARIF_PLAN", "$_TV $_TARIF_PLAN", $_FIO, $_PHONE ],
+      title      => [ "$lang{ADDRESS}", $lang{ADDRESS_FLAT}, $lang{CONTRACT}, "Internet $lang{TARIF_PLAN}", "Voip $lang{TARIF_PLAN}", "$lang{TV} $lang{TARIF_PLAN}", $lang{FIO}, $lang{PHONE} ],
       cols_align => [ 'right', 'left', 'right', 'right' ],
       qs         => $pages_qs,
       pages      => $Marketing->{TOTAL},
@@ -632,7 +630,13 @@ sub marketing_triplay_stats {
   );
 
   foreach my $line (@$list) {
-    $table->addrow($html->b($line->[0]), $line->[1], $line->[2], $line->[3], $line->[4], $line->[5], $html->button($line->[6], "index=11&UID=$line->[8]"), $line->[7],);
+    $table->addrow($html->b($line->[0]), 
+      $line->[1], 
+      $line->[2], 
+      $line->[3], 
+      $line->[4], 
+      $line->[5], 
+      $html->button($line->[6], "index=11&UID=$line->[8]"), $line->[7],);
   }
   print $table->show();
 
@@ -640,7 +644,7 @@ sub marketing_triplay_stats {
     {
       width      => '100%',
       cols_align => [ 'right', 'right' ],
-      rows       => [ [ "$_TOTAL:", $html->b($Marketing->{TOTAL}) ] ]
+      rows       => [ [ "$lang{TOTAL}:", $html->b($Marketing->{TOTAL}) ] ]
     }
   );
   print $table->show();
@@ -651,7 +655,7 @@ sub marketing_triplay_stats {
 #
 #**********************************************************
 sub marketing_dhcp_full_list {
-  my ($attr) = @_;
+  #my ($attr) = @_;
 
   $Marketing->{GROUP_SEL}=sel_groups();
   $Marketing->{TP_SEL}   = $html->form_select(
@@ -661,7 +665,7 @@ sub marketing_dhcp_full_list {
       SEL_MULTI_ARRAY   => $tariffs->list({ %LIST_PARAMS, MODULE => 'Dv' }),
       MULTI_ARRAY_KEY   => 0,
       MULTI_ARRAY_VALUE => 1,
-      SEL_OPTIONS       => { '' => "$_ALL" },
+      SEL_OPTIONS       => { '' => "$lang{ALL}" },
     }
   );
 
@@ -672,7 +676,7 @@ sub marketing_dhcp_full_list {
             SEL_MULTI_ARRAY   => $Nas->list({%LIST_PARAMS}),
             MULTI_ARRAY_KEY   => 0,
             MULTI_ARRAY_VALUE => 1,
-            SEL_OPTIONS       => { '' => "$_ALL" },
+            SEL_OPTIONS       => { '' => "$lang{ALL}" },
           }
   );
 
@@ -689,14 +693,14 @@ sub marketing_dhcp_full_list {
 
   my $list = $Marketing->dhcp_full_list({ %FORM, %LIST_PARAMS, COLS_NAME => 1 });
 
-  #адрес, № квратиры, договор, Тариф Интернет, Тариф телевилиния, тариф телефонии, ФИО, телефон
+  #пїЅпїЅпїЅпїЅпїЅ, пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
   my $table = $html->table(
     {
       width      => '100%',
-      caption    => $_CHANNELS,
+      caption    => $lang{CHANNELS},
       border     => 1,
-      title      => [ "$_USER", "$_GROUP", "$_REGISTRATION", "$_DEPOSIT",  "$_TARIF_PLAN", 
-        "IP", "$_NAS", "$_PORT", "$_FIO", "$_ADDRESS", "$_PHONE" ],
+      title      => [ "$lang{USER}", "$lang{GROUP}", "$lang{REGISTRATION}", "$lang{DEPOSIT}",  "$lang{TARIF_PLAN}",
+        "IP", "$lang{NAS}", "$lang{PORT}", "$lang{FIO}", "$lang{ADDRESS}", "$lang{PHONE}" ],
       cols_align => [ 'right', 'left', 'right', 'right' ],
       qs         => $pages_qs,
       pages      => $Marketing->{TOTAL_USERS},
@@ -726,7 +730,7 @@ sub marketing_dhcp_full_list {
     {
       width      => '100%',
       cols_align => [ 'right', 'right' ],
-      rows       => [ [ "$_TOTAL:", $html->b($Marketing->{TOTAL_USERS}) ] ]
+      rows       => [ [ "$lang{TOTAL}:", $html->b($Marketing->{TOTAL_USERS}) ] ]
     }
   );
   print $table->show();

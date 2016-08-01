@@ -5,7 +5,7 @@
 #
 #**************************************************************
 
-VERSION=4.79
+VERSION=4.88
 
 TMPOPTIONSFILE="/tmp/abills.tmp"
 CMD_LOG="/tmp/ports_builder_cmd.log"
@@ -15,7 +15,10 @@ COMMERCIAL_MODULES="Cards Paysys Ashield Maps Storage Iptv"
 HOSTNAME=`hostname`
 DEFAULT_HOSTNAME="aserver"
 DIALOG=dialog
-
+TMP_DIR=/tmp
+COM_DISTRO=1;
+export COM_DISTRO=1
+export BASE_INSTALL_DIR=${BASE_PWD}
 
 #Get running user
 ID=`id | sed 's/uid\=\([0-9]*\).*/\1/';`;
@@ -32,6 +35,29 @@ GetVersionFromFile() {
   VERSION=`cat $1 | tr "\n" ' ' | sed s/.*VERSION.*=\ // `
 }
 
+#**********************************************************
+# fetch [output_file] [input_url]
+#**********************************************************
+_fetch () {
+
+if [ "${OS}" = Linux ]; then
+  #check wget 
+  CHECK_WGET=`which wget`;
+
+  if [ "${CHECK_WGET}" = "" ]; then
+    _install wget
+  fi;
+
+  FETCH="wget -q -O"
+  MD5="md5sum"
+else 
+  FETCH="fetch --no-verify-peer -q -o"
+  MD5="md5"
+fi;
+
+${FETCH} $1 $2
+
+}
 
 #**********************************************************
 # uninstall
@@ -40,7 +66,7 @@ _uninstall () {
   echo -n  "Uninstall system? (y/n): "
 
   read UNINSTALL=
-  if [ x${UNINSTALL} != xy ]; then
+  if [ x"${UNINSTALL}" != xy ]; then
     echo "reset";
     exit;
   fi;
@@ -89,6 +115,14 @@ _install () {
       test_program="pkg info"
     else
       test_program="dpkg -s"
+    fi;
+
+    if [ "${BUILD_OPTIONS}" = "" ]; then
+      if [ "${OS_NAME}" = "CentOS" ]; then
+        BUILD_OPTIONS=" yum -y install ";
+      else
+        BUILD_OPTIONS=" apt-get -y install ";
+      fi;
     fi;
 
     ${test_program} ${pkg} > /dev/null 2>&1
@@ -218,6 +252,7 @@ ipn_configure () {
 #
 #*****************************************
 help () {
+
 echo "
  ABillS Ports Builder (ver. ${VERSION})
   -d     Debug mode
@@ -234,11 +269,28 @@ echo "
 }
 
 #**********************************************************
-# Comercial modules
+# get_last_ainstall
 #**********************************************************
-#comercial_modules () {
-#
-#}
+get_last_ainstall () {
+
+  echo ">> Get last AInstall and run it [Y/n]: ";
+
+  read GET_LAST_AINSTALL
+
+  if [ "${GET_LAST_AINSTALL}" != 'n' ]; then
+    echo "Downloading....";
+    rm  -f ${TMP_DIR}/master.tar.gz
+    rm  -rf ${TMP_DIR}/AInstall-master
+    _fetch ${TMP_DIR}/master.tar.gz https://github.com/nabat/AInstall/archive/master.tar.gz
+    cd ${TMP_DIR}/
+    tar xzvf ${TMP_DIR}/master.tar.gz
+    cd ${TMP_DIR}/AInstall-master/
+    ./install.sh
+
+    exit;
+  fi;
+
+}
 
 
 
@@ -438,8 +490,8 @@ FILE2=`cat fileio.sysbench | tail -1`
 echo "Filesystem write: ${FILE1}"
 echo "Filesystem read : ${FILE2}"
 
-fetch https://support.abills.net.ua/sysbench.cgi?CPU_ONE=$CPU1&CPU_MULT=$CPU2&MEM_WR=$MEM1&MEM_RD=$MEM2&FILE_WR=$FILE1&FILE_RD=$FILE2
-${DIALOG} --msgbox "Benchmark\n" 20  52
+fetch "https://support.abills.net.ua/sysbench.cgi?CPU_ONE=$CPU1&CPU_MULT=$CPU2&MEM_WR=$MEM1&MEM_RD=$MEM2&FILE_WR=$FILE1&FILE_RD=$FILE2"
+#${DIALOG} --msgbox "Benchmark\n" 20  52
 
 }
 
@@ -520,20 +572,6 @@ fi;
 if [ ${OS_NAME} = Mandriva -o ${OS_NAME} = Fedora ]; then
   echo "to install pptpd you need to download sources";
 else 
-#      cmd="${BUILD_OPTIONS} git cmake libssl-dev libpcre3-dev libnl2-dev pptp-linux build-essential gawk;";
-#      cmd="${cmd}mkdir /usr/abills/src/;"
-#      cmd="${cmd}cd /usr/abills/src/;"
-#      cmd="${cmd}git clone git://accel-ppp.git.sourceforge.net/gitroot/accel-ppp/accel-ppp;"
-#      cmd="${cmd}cd accel-ppp;"
-#      cmd="${cmd}git tag;"
-#      cmd="${cmd}git checkout -b 1.37 --track origin/1.3;"
-#      cmd="${cmd}mkdir build && cd build/;"
-#      cmd="${cmd}cmake -DBUILD_DRIVER=TRUE -DKDIR=/usr/src/linux  -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local -DRADIUS=TRUE -DSHAPER=TRUE ..;"
-#      cmd="${cmd}make;"
-#      cmd="${cmd}make install;"
-    # http://linuxsoid.ucoz.com/publ/rukovodstvo_po_ubuntu/faq_ubuntu_11_04_programmnoe_obespechenie_i_igry/accel_pptp_v_ubuntu_server_10_04/34-1-0-718
-
-
   PKGS="bzip2 cmake libnl2-dev pptp-linux build-essential gawk"
 
   PPP_LIB_DIR="/usr/lib/pppd/2.4.5/";
@@ -541,10 +579,10 @@ else
   if [ "${OS_NAME}" = "ALTLinux" ]; then
     PKGS="${PKGS} libssl-devel libpcre-devel ppp-devel"
   elif [ "${OS_NAME}" = "CentOS" ]; then
-    wget http://apt.sw.be/redhat/el6/en/i386/rpmforge/RPMS/radiusclient-0.3.2-0.2.el6.rf.i686.rpm
-    rpm -ivh radiusclient-0.3.2-0.2.el6.rf.i686.rpm
+    #wget http://apt.sw.be/redhat/el6/en/i386/rpmforge/RPMS/radiusclient-0.3.2-0.2.el6.rf.i686.rpm
+    #rpm -ivh radiusclient-0.3.2-0.2.el6.rf.i686.rpm
 
-    rpm -Uvh http://pptpclient.sourceforge.net/yum/stable/rhel6/pptp-release-current.noarch.rpm
+    #rpm -Uvh http://pptpclient.sourceforge.net/yum/stable/rhel6/pptp-release-current.noarch.rpm
     PKGS="openssl-devel ppp ppp-devel pcre-devel pptp"
     PPP_LIB_DIR="/usr/lib64/pppd/2.4.5";
   else
@@ -741,7 +779,7 @@ install_ipcad() {
   _install libpcap-dev  
   
   if [ "${OS}" = "Ubuntu" ]; then
-   _install build-essential  linux-libc-dev  rsh-client
+    _install build-essential  linux-libc-dev  rsh-client
   fi;
 
   wget http://lionet.info/soft/ipcad-3.7.3.tar.gz
@@ -778,6 +816,11 @@ install_rstat() {
 # Install Freeradius from source
 #**********************************************************
 install_freeradius() {
+
+  if [ -d /usr/local/freeradius/ ]; then
+    echo "Radius exists: /usr/local/freeradius/";
+    return 0 ;
+  fi;
 
  _install make gcc libmysqlclient-dev libmysqlclient16 libgdbm3 libgdbm-dev libperl-dev
 
@@ -1147,7 +1190,6 @@ if [ x"${LIBTOOL__EXIST}" != x ]; then
 fi;
 
 
-
 for name in ${RESULT}; do
   name=`echo "${name}" | sed s/\"//g;`;
   echo "Program: ${name}";
@@ -1412,7 +1454,7 @@ done;
 if [ w${REBUILD} != w ]; then
   BUILD_OPTIONS="${PKG_ADD} remove"
 else
-  BUILD_OPTIONS="${PKG_ADD} install";
+  BUILD_OPTIONS="${PKG_ADD} install -y ";
 fi;
 
 #Checklibtools
@@ -1554,8 +1596,19 @@ for name in ${RESULT}; do
   if [ "${name}" = "Build_Kernel" ]; then
     freebsd_build_kernel
   fi;
-
 done
+
+
+#Add perl symlink
+if [ ! -f /usr/bin/perl  ]; then
+
+  ln -s  /usr/local/bin/perl  /usr/bin/perl
+  
+  echo "Sym link"
+
+exit;
+
+fi;
 
 }
 
@@ -1718,7 +1771,7 @@ case "${OS_NAME}" in
   CentOS)
     UPDATE_CMD="yum -y update"
 
-    if [ w${REBUILD} != w ]; then
+    if [ "${REBUILD}" != "" ]; then
       BUILD_OPTIONS=" yum -y remove "
     else
       BUILD_OPTIONS=" yum -y install ";
@@ -1906,6 +1959,12 @@ for name in $RESULT; do
       cmd=${cmd}"${BUILD_OPTIONS} mysql; ";
     elif [ "${OS_NAME}" = SUSE ]; then 
       cmd=${cmd}"${BUILD_OPTIONS} mysql; ";
+    elif [ "${OS_NAME}" = "CentOS"  ]; then
+      CUR_VERSION=`echo "${OS_VERSION}" | sed 's/\(^[0-9]\)\.\([0-9]\).*/\1\\2/' `
+      if [ "${CUR_VERSION}" -gt "69" ]; then
+        cmd=${cmd}"${BUILD_OPTIONS} mariadb mariadb-devel mariadb-libs mariadb-server"
+        cmd=${cmd}"systemctl enable mariadb"
+      fi;
     elif [ "${OS_NAME}" = "Ubuntu" ]; then
       cmd=${cmd}"${BUILD_OPTIONS} mysql-server; ";
       cmd=${cmd}"update-rc.d mysql defaults; "
@@ -1998,26 +2057,25 @@ for name in $RESULT; do
   fi;
 
   # PPTP
-  if [ ${name} = "PPTPD" ]; then
-    if [ ${OS_NAME} = Mandriva -o ${OS_NAME} = Fedora ]; then
-      echo "to install pptpd you need to download sources";
-    elif [ ${OS_NAME} = centos ]; then
-      rpm -Uvh http://pptpclient.sourceforge.net/yum/stable/rhel5/pptp-release-current.noarch.rpm;
-      cmd=${cmd}"${BUILD_OPTIONS} pptpd;"
-    else 
-      cmd=${cmd}"${BUILD_OPTIONS} pptpd;";
-    fi;
-  fi;
-  
-  #Accel-PPTP Build
-  if [ ${name} = "ACCEL-PPP" ]; then
-    install_accel_ppp
-  fi;
-
+#  if [ ${name} = "PPTPD" ]; then
+#    if [ ${OS_NAME} = Mandriva -o ${OS_NAME} = Fedora ]; then
+#      echo "to install pptpd you need to download sources";
+#    elif [ ${OS_NAME} = centos ]; then
+#      rpm -Uvh http://pptpclient.sourceforge.net/yum/stable/rhel5/pptp-release-current.noarch.rpm;
+#      cmd=${cmd}"${BUILD_OPTIONS} pptpd;"
+#    else 
+#      cmd=${cmd}"${BUILD_OPTIONS} pptpd;";
+#    fi;
+#  fi;
+ 
   #Accel-PPTP Build
   if [ ${name} = "ACCEL-IPoE" ]; then
     install_accel_ipoe
+  #Accel-PPTP Build
+  elif [ ${name} = "ACCEL-PPP" ]; then
+    install_accel_ppp
   fi;
+
 
   #PPPoE
   if [ ${name} = "PPPoE" ]; then
@@ -2039,6 +2097,14 @@ for name in $RESULT; do
       echo ${cmd} >> ${CMD_LOG}
     fi;
   fi
+  
+  # 
+  if [ "${DEBUG}" != "" ]; then
+     echo "Finished: ${name}";
+     echo "Contibue install. [y/n]";
+     read CONTINUE=
+  fi;
+  
 done
 
 #make program definition
@@ -2077,7 +2143,7 @@ done;
 fetch_free_distro () {
   echo "fetching distro";
 
-  URL="http://downloads.sourceforge.net/project/abills/abills/0.58/abills-0.58_rc1.tgz"
+  URL="http://downloads.sourceforge.net/project/abills/abills/0.58/abills-0.58.tgz"
 
   if [ "${OS}" = "Linux" ]; then
     wget -q "${URL}";
@@ -2085,8 +2151,7 @@ fetch_free_distro () {
     fetch -q "${URL}";
   fi;
   
-  tar zxvf abills-0.58_rc1.tgz -C /usr/
-
+  tar zxvf abills-0.58_rc3.tgz -C /usr/
 }
 
 
@@ -2137,16 +2202,22 @@ if [ x"${UNINSTALL}" != x ]; then
   exit;
 fi;
 
+
 while [ "${OS_NAME}" = "" ]; do
-  get_os
-  mk_resolve
+  get_os ;
+
+  echo "Detected: OS ${OS} \"${OS_NAME}\" version \"${OS_VERSION}\" kernel \"${KERNEL}\""
+
+  get_last_ainstall ;
+
+  mk_resolve ;
   # Set correct date time
   CHECK_NTPDATE=`which ntpdate`
   if [ x"${CHECK_NTPDATE}" != x ]; then
     ntpdate europe.pool.ntp.org
   fi;
 
-  if [ x${OS} = xLinux ]; then
+  if [ "${OS}" = Linux ]; then
     linux_build 
   else 
     if [ "${OS_NUM}" -lt 10 ] ; then
@@ -2192,16 +2263,16 @@ echo "Autoconf programs: ${AUTOCONF_PROGRAMS}";
 
 ./autoconf PROGRAMS=${AUTOCONF_PROGRAMS} ${AUTOCONF_PROGRAMS_FLAGS} 
 
-if [ -x /usr/bin/chcon ]; then
-  chcon -R -t httpd_sys_content_t ${BILLING_DIR}/cgi-bin/index.cgi  
-  chcon -R -t httpd_sys_content_t ${BILLING_DIR}/cgi-bin/admin/index.cgi 
-  chcon -R -t httpd_sys_content_t ${BILLING_DIR}/cgi-bin/graphics.cgi
-fi;
+#if [ -x /usr/bin/chcon ]; then
+#  chcon -R -t httpd_sys_content_t ${BILLING_DIR}/cgi-bin/index.cgi  
+#  chcon -R -t httpd_sys_content_t ${BILLING_DIR}/cgi-bin/admin/index.cgi 
+#  chcon -R -t httpd_sys_content_t ${BILLING_DIR}/cgi-bin/graphics.cgi
+#fi;
 
 if [ x"${BILLING_WEB_IP}" = x ]; then
   BILLING_WEB_IP="your.host"
 fi;
 
 check_ps
-exit;
+
 ${DIALOG} --msgbox "ABillS Install complete\n\nAdmin  Interface\n https://${BILLING_WEB_IP}:9443/admin/\n Login: abills\n Password: abills\n${RESULT}" 20  52

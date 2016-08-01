@@ -1,11 +1,86 @@
-<tr><th colspan='2' align='right'><hr></th></tr>
-<tr><td>$_SERIAL (*):</td><td><input type='text' name='SERIAL' value='%SERIAL%' size=8> $_NUM (<,>): <input type='text' name='NUMBER' value='%NUMBER%'></td></tr>
-<tr><td>$_USED:</td><td>%DATE% $_EXPIRE: %EXPIRE_DATE%</td></tr>
+<div class='panel panel-default form-horizontal'>
+    <div class='panel-body'>
+        <div class='form-group'>
+            <div class='col-md-6'>
+                <label class='col-md-3 cotrol-label'>_{SERIAL}_ (*):</label>
 
-<tr><td>PIN:</td><td><input type='text' name='PIN' value='%PIN%'></td></tr>
-<tr><td>$_DILLERS:</td><td>%DILLERS_SEL%</td></tr>
-<tr><td>$_ADMINS:</td><td>%ADMINS_SEL%</td></tr>
-<tr><td>$_SUM:</td><td><input type='text' name='SUM' value='%SUM%' size=8></td></tr>
-<tr><td>$_STATUS:</td><td>%STATUS_SEL%</td></tr>
-<tr><td>$_DOMAIN:</td><td>%DOMAIN_SEL%</td></tr>
-<tr><td>ID:</td><td><input type='text' name='ID' value='%ID%' size=8></td></tr>
+                <div class='col-md-9'><input class='form-control' type='text' name='SERIAL' value='%SERIAL%' size=8/>
+                </div>
+            </div>
+
+            <div class='col-md-6'>
+                <label class='col-md-4 control-label'> _{NUM}_ (<,>): </label>
+
+                <div class='col-md-8'><input class='form-control' type='text' name='NUMBER' value='%NUMBER%'></div>
+            </div>
+
+        </div>
+        <div class='form-group'>
+            <div class='col-md-6'>
+                <label class='col-md-3 control-label'>PIN:</label>
+
+                <div class='col-md-9'><input class='form-control' type='text' name='PIN' value='%PIN%'></div>
+            </div>
+            <div class='col-md-6'>
+                <label class='col-md-3 cotrol-label'>_{SUM}_:</label>
+
+                <div class='col-md-9'><input class='form-control' type='text' name='SUM' value='%SUM%' size=8></div>
+            </div>
+        </div>
+        <hr/>
+
+        <div class='form-group'>
+            <div class='col-md-6'>
+                <label class='col-md-4 cotrol-label'>_{USED}_:</label>
+
+                <div class='col-md-8'>%DATE%</div>
+            </div>
+            <div class='col-md-6'>
+                <label class='col-md-3 cotrol-label'>_{EXPIRE}_:</label>
+
+                <div class='col-md-9'>%EXPIRE_DATE%</div>
+            </div>
+        </div>
+
+        <div class='form-group'>
+            <div class='col-md-6'>
+                <label class='col-md-3 cotrol-label'>_{DILLERS}_:</label>
+
+                <div class='col-md-9'>%DILLERS_SEL%</div>
+            </div>
+            <div class='col-md-6'>
+                <label class='col-md-5 cotrol-label'>_{ADMINS}_:</label>
+
+                <div class='col-md-7'>%ADMINS_SEL%</div>
+            </div>
+        </div>
+
+        <button class='btn btn-info form-control' type='button' data-toggle='collapse'
+                data-target='#cardsSearchAdvanced'
+                aria-expanded='false' aria-controls='cardsSearchAdvanced'>
+            Advanced
+        </button>
+        <div class='collapse' id='cardsSearchAdvanced'>
+            <div class='well'>
+                <div class='form-group'>
+                    <label class='col-md-3 cotrol-label'>_{STATUS}_:</label>
+
+                    <div class='col-md-9'>%STATUS_SEL%</div>
+                </div>
+
+                <div class='form-group'>
+                    <label class='col-md-3 cotrol-label'>ID:</label>
+
+                    <div class='col-md-9'><input class='form-control' type='text' name='ID' value='%ID%' size=8></div>
+                </div>
+                <div class='form-group'>
+                    <label class='col-md-3 cotrol-label'>_{DOMAIN}_:</label>
+
+                    <div class='col-md-9'>%DOMAIN_SEL%</div>
+                </div>
+            </div>
+        </div>
+
+
+    </div>
+</div>

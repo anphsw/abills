@@ -66,13 +66,18 @@ mailq_path = /usr/local/bin/mailq
 queue_directory = /var/spool/postfix
 mail_owner = postfix
 
+#Spamers limits
+smtpd_error_sleep_time = 1s
+smtpd_soft_error_limit = 10
+smtpd_hard_error_limit = 20
+
 # tls config
 #smtp_use_tls = yes
 #smtpd_tls_security_level = may
 #smtp_tls_note_starttls_offer = yes
-#smtpd_tls_key_file = /usr/abills/Certs/smtpd.pem
-#smtpd_tls_cert_file = /usr/abills/Certs/smtpd.pem
-#smtpd_tls_CAfile = /usr/abills/Certs/smtpd.pem
+#smtpd_tls_key_file = /usr/abills/Certs/smtpd.key
+#smtpd_tls_cert_file = /usr/abills/Certs/smtpd.crt
+#smtpd_tls_CAfile = /usr/abills/Certs/cacert.pem
 #smtpd_tls_loglevel = 1
 #smtpd_tls_received_header = yes
 #smtpd_tls_session_cache_timeout = 3600s

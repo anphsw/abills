@@ -1,12 +1,26 @@
-<FORM action=$SELF_URL METHOD=POST> 
+<FORM action=$SELF_URL METHOD=POST class='form-horizontal'> 
 <input type=hidden name=index value=$index>
 <input type=hidden name=AID value=$FORM{chg}>
-<table width=600>
-<tr><td>$_ADMIN</td><td>%ADMIN%</td></tr>
 
-<tr class='title_color'><th colspan=2>$_CHAPTERS</th></tr>
-<tr><th colspan=2>%CHAPTERS%</th></tr>
+<div class='panel panel-default panel-form'>
+<div class='panel-body'>
 
-</table>
-<input type=submit name=change value=$_CHANGE>
+
+<div class='form-group'>
+    <label class='control-label col-md-3' for='ADMIN'>_{ADMIN}_</label>
+	 <div class='col-md-9'>
+	 	 %ADMIN%
+	 </div>
+</div>
+
+<div class='form-group'>
+    <label class='control-label col-md-3' for='CHAPTER'>_{CHAPTERS}_</label>
+</div>
+
+%CHAPTERS%
+
+    <input type=submit name=change value=_{CHANGE}_ class='btn btn-primary'>
 </FORM>
+
+</div>
+</div>

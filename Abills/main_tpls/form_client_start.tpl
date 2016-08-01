@@ -1,10 +1,17 @@
-<TABLE width='100%' border='0' cellpadding='0' cellspacing='0'>
-<TR class='title_color'  style='height: 80'><TD align='right' valign=bottom><h2><i><font color=red>A</font> B i l l S</i>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</h2><p><i><b>%TITLE_TEXT%</b></i>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p></TD></TR>
-</TABLE>
-<TABLE width='100%'>
-<TR><TD align='center'>
+<body>
+<div class='well' style='display: none'></div>
 
-%BODY%
+<div class='container'>
+    <!-- client_start -->
+    <nav class='navbar navbar-default' style="max-height: 2em">
+        <div class='text-right'>
+            <div class='brand'>
+                <span style="color: red;">A</span>BillS
+            </div>
+        </div>
+    </nav>
 
-</TD></TR></TABLE>
+    %BODY%
 
+</div>
+<!-- client_start End -->

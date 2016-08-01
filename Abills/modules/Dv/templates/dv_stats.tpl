@@ -1,8 +1,11 @@
+<div>
 %ONLINE%
 
 %JOIN_SERVICE_STATS%
 
 %PERIOD_STATS%
+
+%PERIOD_SELECT%
 
 %PREPAID_INFO%
 
@@ -10,8 +13,7 @@
 
 %TOTALS_FULL%
 
-<br/>%DAILY_GRAPH% 
-<br/>%WEEKLY_GRAPH% 
-<br/>%MONTHLY_GRAPH% 
+<br/>%GRAPHS%
 
 %SESSIONS%
+</div>

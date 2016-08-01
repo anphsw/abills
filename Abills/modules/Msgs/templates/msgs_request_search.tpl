@@ -1,12 +1,80 @@
+<div class='panel panel-default panel-form'>
+<div class='panel-body'>
 
-<tr><td>ID:</td><td><input type='text' name='MSG_ID' value='%MSG_ID%'/></td></tr>
-<tr><td>$_CHAPTERS:</td><td>%CHAPTER_SEL%</td></tr>
-<tr><td>$_SUBJECT:</td><td><input type='text' name='SUBJECT' value='%SUBJECT%' size='45'/></td></tr>
+<div class='form-group'>
+    <label class='control-label col-md-3' for='CHAPTERS'>_{CHAPTERS}_</label>
+  <div class='col-md-9'>
+    %CHAPTER_SEL%
+  </div>
+</div>
 
-<tr><td>$_MESSAGE</td><td><input type=text name=MESSAGE value='%MESSAGE%' size=45></td></tr>
-<tr><td>$_STATE:</td><td>%STATE_SEL%</td></tr>
-<tr><td>$_PRIORITY:</td><td>%PRIORITY_SEL%</td></tr>
-<tr><td class=small></td></tr>
-<tr><td>$_FIO (*):</td><td><input type=text name=FIO value='%FIO%' size=45></td></tr>
-<tr><td>$_PHONE:</td><td><input type=text name=PHONE value='%PHONE%' size=45></td></tr>
-<!-- <tr><td>$_PRIORITY:</td><td>%PRIORITY_SEL%</td></tr> -->
+<div class='form-group'>
+    <label class='control-label col-md-3' for='SUBJECT'>_{SUBJECT}_:</label>
+  <div class='col-md-9'>
+    <input id='SUBJECT' name='SUBJECT' value='%SUBJECT%' placeholder='%SUBJECT%' class='form-control' type='text'>
+  </div>
+</div>
+
+
+<div class='form-group'>
+    <label class='control-label col-md-3' for='COMMENTS'>_{COMMENTS}_:</label>
+  <div class='col-md-9'>
+    <input id='COMMENTS' name='COMMENTS' value='%COMMENTS%' placeholder='%COMMENTS%' class='form-control' type='text'>
+  </div>
+</div>
+
+<div class='form-group'>
+    <label class='control-label col-md-3' for='COMPANY_NAME'>_{COMPANY}_:</label>
+  <div class='col-md-9'>
+    <input id='COMPANY_NAME' name='COMPANY_NAME' value='%COMPANY_NAME%' placeholder='%COMPANY_NAME%' class='form-control' type='text'>
+  </div>
+</div>
+
+<div class='form-group'>
+    <label class='control-label col-md-3' for='FIO'>_{FIO}_:</label>
+  <div class='col-md-9'>
+    <input id='FIO' name='FIO' value='%FIO%' placeholder='%FIO%' class='form-control' type='text'>
+  </div>
+</div>
+
+<div class='form-group'>
+    <label class='control-label col-md-3' for='SUBJECT'>_{PHONE}_:</label>
+  <div class='col-md-9'>
+    <input id='PHONE' name='PHONE' value='%PHONE%' placeholder='%PHONE%' class='form-control' type='text'>
+  </div>
+</div>
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='EMAIL'>E-mail:</label>
+  <div class='col-md-9'>
+    <input id='EMAIL' name='EMAIL' value='%EMAIL%' placeholder='%EMAIL%' class='form-control' type='text'>
+  </div>
+</div>
+
+<div class='form-group'>
+    <label class='control-label col-md-3' for='SUBJECT'>_{CONNECTION_TIME}_:</label>
+  <div class='col-md-9'>
+    <input id='CONNECTION_TIME' name='CONNECTION_TIME' value='%CONNECTION_TIME%' placeholder='%CONNECTION_TIME%' class='form-control' type='text'>
+  </div>
+</div>
+
+<div class='form-group'>
+    <label class='control-label col-md-3' for='STATE'>_{STATE}_:</label>
+  <div class='col-md-9'>
+    %STATE_SEL%
+  </div>
+</div>
+
+<div class='form-group'>
+    <label class='control-label col-md-3' for='PRIORITY'>_{PRIORITY}_:</label>
+  <div class='col-md-9'>
+    %PRIORITY_SEL%
+  </div>
+</div>
+
+<div class='form-group'>
+    <label class='control-label col-md-3' for='RESPOSIBLE'>_{RESPOSIBLE}_:</label>
+  <div class='col-md-9'>
+    %RESPOSIBLE_SEL%
+  </div>
+</div>

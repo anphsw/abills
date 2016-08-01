@@ -2,9 +2,17 @@
 <input type='hidden' name='index' value='$index'>
 
 <TABLE width='100%' class=form>
-<TR class='odd'><td>$_LOGIN:</td><td colspan='3'>%LOGIN%</td></tr>
+    <TR class='odd'>
+        <td>_{LOGIN}_:</td>
+        <td colspan='3'>%LOGIN%</td>
+    </tr>
 <tr><th colspan='4' class='form_title'>Station Information and Status</th></tr>
-<TR class='odd'><td>MAC Address</td><td>%MAC%</td><td>$_NAME</td><td>%cDot11ClientName%</td></tr>
+    <TR class='odd'>
+        <td>MAC Address</td>
+        <td>%MAC%</td>
+        <td>_{NAME}_</td>
+        <td>%cDot11ClientName%</td>
+    </tr>
 <TR class='odd'><td>IP Address:</td><td>%cDot11ClientIpAddress%</td><td>Class</td><td>%cDot11ClientIpAddressType%</td></tr>
 <TR class='odd'><td>Device:	</td><td>%cDot11ClientDevType%</td><td>Software Version</td><td>%cDot11ClientSoftwareVersion%</td></tr>
 <TR class='odd'><td>CCX Version<td></td><td></td><td> </td></tr>

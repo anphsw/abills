@@ -1,12 +1,12 @@
 #Report 2
-$_REQUEST_DATE='Request date';
-$_LOCATION='Location';
-$_DISTRICT='District';
-$_ENTRANCE='Entrance';
-$_FLOR='Flor';
-$_LAST_PAYMENT='Last Payment';
-$_PAYMENT_TO_DATE='Payment to date';
-$_DEBTS_DAYS='Debets days';
-$_FORUM_ACTIVITY='Forum Activity';
-$_PRE_TP='Last Parif Plan';
-$_LAST_FEES_DATE='Last fees';
+$lang{REQUEST_DATE}='Request date';
+$lang{LOCATION}='Location';
+$lang{DISTRICT}='District';
+$lang{ENTRANCE}='Entrance';
+$lang{FLOR}='Flor';
+$lang{LAST_PAYMENT}='Last Payment';
+$lang{PAYMENT_TO_DATE}='Payment to date';
+$lang{DEBTS_DAYS}='Debets days';
+$lang{FORUM_ACTIVITY}='Forum Activity';
+$lang{PRE_TP}='Last Parif Plan';
+$lang{LAST_FEES_DATE}='Last fees';

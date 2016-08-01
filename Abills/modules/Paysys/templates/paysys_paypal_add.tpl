@@ -11,11 +11,24 @@
 <table width=400 border=0>
 <tr><th class='form_title' colspan=2>PayPal</th></tr>
 <tr><td colspan=2 align=center><img src='https://www.paypal.com/en_US/i/logo/paypal_logo.gif'></td></tr>
-<tr><td>$_TRANSACTION #:</td><td>$FORM{OPERATION_ID}</td></tr>
-<tr><td>$_SUM:</td><td>$FORM{SUM}</td></tr>
-<tr><td>$_FEES:</td><td>$FORM{COMMISION}</td></tr>
-<tr><td>$_DESCRIBE:</td><td>$FORM{DESCRIBE}</td></tr>
-<tr><th colspan=2><input type='submit' value='$_PAY'>
+    <tr>
+        <td>_{TRANSACTION}_ #:</td>
+        <td>$FORM{OPERATION_ID}</td>
+    </tr>
+    <tr>
+        <td>_{SUM}_:</td>
+        <td>$FORM{SUM}</td>
+    </tr>
+    <tr>
+        <td>_{FEES}_:</td>
+        <td>$FORM{COMMISION}</td>
+    </tr>
+    <tr>
+        <td>_{DESCRIBE}_:</td>
+        <td>$FORM{DESCRIBE}</td>
+    </tr>
+    <tr>
+        <th colspan=2><input type='submit' value='_{PAY}_'>
 
 
 

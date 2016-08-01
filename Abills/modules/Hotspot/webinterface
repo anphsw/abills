@@ -1,0 +1,205 @@
+#!perl
+
+=head1 NAME
+  Hotspot
+=name2 SYNOPSYS
+  Hotspot statistics
+=cut
+
+use strict;
+use warnings FATAL => 'all';
+use Hotspot;
+
+our (
+  $db,
+  $admin,
+  %conf,
+  $html,
+  %lang,
+  @bool_vals
+);
+
+my $Hotspot = Hotspot->new( $db, $admin, \%conf );
+
+my $debug = $FORM{DEBUG} || 0;
+
+$Hotspot->{debug} = $debug > 6;
+
+my $DEBUG_ARGS = { TO_WEB_CONSOLE => 0 };
+
+#**********************************************************
+=head2 hotspot_reports()
+
+=cut
+#**********************************************************
+sub hotspot_reports {
+
+  my %FILTER_OPTIONS = (
+    LOGINS_ONLY => 1,
+    VISITS_ONLY => 2,
+    BOTH        => 3,
+  );
+
+  my %LANG_FILTER_OPTIONS = (
+    $FILTER_OPTIONS{LOGINS_ONLY} => $lang{LOGINS_ONLY},
+    $FILTER_OPTIONS{VISITS_ONLY} => $lang{VISITS_ONLY},
+    $FILTER_OPTIONS{BOTH}        => $lang{BOTH}
+  );
+
+  my @filter_select_list = ();
+  foreach my $filter_name ( keys %FILTER_OPTIONS ) {
+    push(@filter_select_list,
+      { id => $FILTER_OPTIONS{$filter_name}, name => $LANG_FILTER_OPTIONS{$FILTER_OPTIONS{$filter_name}} });
+  }
+
+  my $filter_select = $html->form_select( 'FILTER', {
+      SELECTED => $FORM{FILTER} || $FILTER_OPTIONS{BOTH},
+      SEL_LIST => \@filter_select_list,
+      NO_ID    => 1
+    } );
+
+  $html->tpl_show( _include( 'hotspot_reports_panel', 'Hotspot' ),
+    {
+      FILTER_SELECT => $filter_select,
+      %FORM
+    }
+  );
+
+  my $date_filter = ($FORM{DATE_START} && $FORM{DATE_END})
+    ? "$FORM{DATE_START}" . '/' . "$FORM{DATE_END}"
+    : '_SHOW';
+
+  my $visits_list = $Hotspot->visits_list( { SHOW_ALL_COLUMNS => 1, FIRST_SEEN => $date_filter } );
+  _error_show($Hotspot);
+  my $logins_list = $Hotspot->logins_list( { SHOW_ALL_COLUMNS => 1, LOGIN_TIME => $date_filter } );
+  _error_show($Hotspot);
+
+  # Sort to hash by id
+  my %visits_by_session_id = ();
+  foreach my $visit_row ( @{$visits_list} ) {
+    $visits_by_session_id{$visit_row->{id}} = $visit_row;
+  }
+
+  my $filter = $FORM{FILTER} || $FILTER_OPTIONS{BOTH};
+
+  my @results_list = ();
+  my @table_titles = ();
+
+  if ( $filter == $FILTER_OPTIONS{BOTH} ) {
+    @table_titles = ('#', $lang{USER}, $lang{FIRST_SEEN}, $lang{LOGIN}, $lang{BROWSER} );
+
+    # Delete visits that are present in logins
+    map { delete $visits_by_session_id{$_->{id}} } @{$logins_list};
+
+    # make new list from filtered hash
+    $visits_list = [ values %visits_by_session_id ];
+
+    my $row_number_counter = 1;
+    foreach my $logins_row ( @{$logins_list} ) {
+      push @results_list, [
+          $row_number_counter++,
+          $html->button( $logins_row->{UID}, "index=15&UID=$logins_row->{UID}",
+            { ICON => 'glyphicon glyphicon-user', class => 'btn btn-sm btn-default' }
+          ),
+          $logins_row->{FIRST_SEEN},
+          $logins_row->{LOGIN_TIME},
+          $logins_row->{BROWSER}
+        ];
+    }
+
+    foreach my $visit_row ( @{$visits_list} ) {
+      push @results_list,
+        [ $row_number_counter++, '', $visit_row->{FIRST_SEEN}, '0000-00-00 00:00:00', $visit_row->{BROWSER} ];
+    }
+  }
+  elsif ( $filter == $FILTER_OPTIONS{LOGINS_ONLY} ) {
+    @table_titles = ('#', $lang{LOGIN}, $lang{FIRST_SEEN}, $lang{LOGIN}, $lang{BROWSER} );
+
+    my $row_number_counter = 1;
+    foreach my $logins_row ( @{$logins_list} ) {
+      push @results_list, [
+          $row_number_counter++,
+          $html->button( $logins_row->{UID}, "index=15&UID=$logins_row->{UID}",
+            { ICON => 'glyphicon glyphicon-user', class => 'btn btn-sm btn-default' }
+          ),
+          $logins_row->{FIRST_SEEN},
+          $logins_row->{LOGIN_TIME},
+          $logins_row->{BROWSER}
+        ];
+    }
+  }
+  elsif ( $filter == $FILTER_OPTIONS{VISITS_ONLY} ) {
+    @table_titles = ( '#', '', $lang{FIRST_SEEN}, $lang{BROWSER} );
+
+    # Delete visits that are present in logins
+    map { delete $visits_by_session_id{$_->{id}} } @{$logins_list};
+
+    # make new list from filtered hash
+    $visits_list = [ values %visits_by_session_id ];
+
+    my $row_number_counter = 1;
+    foreach my $visit_row ( @{$visits_list} ) {
+      push @results_list, [ $row_number_counter++, '', $visit_row->{FIRST_SEEN}, $visit_row->{BROWSER} ];
+    }
+
+  }
+
+  # SORT BY 'FIRST_SEEN' DATETIME
+  @results_list = sort {
+    my ($from_date, $from_time) = split(' ', $a->[2]);
+    my ($to_date, $to_time) = split(' ', $b->[2]);
+
+    my ($from_year, $from_month, $from_day) = split(/-/, $from_date, 3);
+    my ($to_year, $to_month, $to_day) = split(/-/, $to_date, 3);
+
+    my ($from_hours, $from_minutes, $from_seconds) = split(':', $from_time);
+    my ($to_hours, $to_minutes, $to_seconds) = split(':', $to_time);
+
+    my $from_seltime = POSIX::mktime($from_hours, $from_minutes, $from_seconds, $from_day, ($from_month - 1),
+      ($from_year - 1900));
+    my $to_seltime = POSIX::mktime($to_hours, $to_minutes, $to_seconds, $to_day, ($to_month - 1), ($to_year - 1900));
+
+    return $from_seltime - $to_seltime;
+  } @results_list;
+
+  my $table = $html->table( {
+      width   => '100%',
+      caption => "Hotspot $lang{USERS} : " . $LANG_FILTER_OPTIONS{$filter},
+      ID      => 'HOTSPOT_VISITS_TABLE',
+      EXPORT  => 1,
+      title   => \@table_titles,
+      pages   => scalar @results_list,
+      #          MENU    => "$lang{ADD}:index=$index&show_add_form=1:add"
+    } );
+
+  foreach my $results_row ( @results_list ) {
+    $table->addrow( @{[ @{$results_row} ]} );
+  }
+  print $table->show();
+
+  my $total_table = $html->table( {
+      width      => '100%',
+      ID         => 'HOTSPOT_REPORTS_TOTAL_TABLE',
+      EXPORT     => 1,
+      title      => [ $lang{TOTAL} ],
+      cols_align => [ 'right' ],
+      rows       => [ [ scalar @results_list ] ]
+    } );
+  print $total_table->show();
+
+  return 1;
+}
+
+
+#**********************************************************
+=head2 hotspot_advertisements()
+
+=cut
+#**********************************************************
+sub hotspot_advertisements {
+
+  print 'helloo';
+
+}
+
+1;

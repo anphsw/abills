@@ -1,0 +1,1164 @@
+#!perl
+
+=head1 NAME
+
+  Crm
+
+=cut
+
+
+my $VERSION = 0.01;
+
+use strict;
+use warnings FATAL => 'all';
+
+require Abills::Defs;
+our (
+  $db,
+  $admin,
+  %conf,
+  %lang,
+  $html,
+  @MONTHES,
+);
+
+use Crm;
+use Abills::Base;
+
+use Admins;
+use Employees;
+
+# use strict;
+use warnings FATAL => 'all';
+
+my $Crm = Crm->new($db, $admin, \%conf);
+my $Admins = Admins->new($db, $admin, \%conf);
+my $Employees = Employees->new($db, $admin, \%conf);
+
+#**********************************************************
+
+=head2 cashbox_main() -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+
+#**********************************************************
+sub crm_cashbox_main {
+  my ($attr) = @_;
+
+  my $action      = 'add';
+  my $action_lang = "$lang{ADD}";
+  my %CASHBOX;
+
+  if ($FORM{add}) {
+    $Crm->add_cashbox({%FORM});
+
+    if (!$Crm->{errno}) {
+      $html->message("success", "$lang{SUCCESS}", "$lang{CASHBOX_ADDED}");
+    }
+    else {
+      $html->message("err", "$lang{ERROR}", "$lang{CASHBOX_NOT_ADDED}");
+    }
+  }
+  elsif ($FORM{change}) {
+    $Crm->change_cashbox({%FORM});
+
+    if (!$Crm->{errno}) {
+      $html->message("success", "$lang{SUCCESS}", "$lang{CHANGED}");
+    }
+    else {
+      $html->message("err", "$lang{ERROR}", "$lang{NOT_CHANGED}");
+    }
+  }
+
+  if ($FORM{del}) {
+    $Crm->delete_cashbox({ ID => $FORM{del} });
+
+    if (!$Crm->{errno}) {
+      $html->message("success", "$lang{SUCCESS}", "$lang{CASHBOX_DELETED}");
+    }
+    else {
+      $html->message("err", "$lang{ERROR}", "$lang{CASHBOX_NOT_DELETED}");
+    }
+  }
+
+  if ($FORM{chg}) {
+    $action      = 'change';
+    $action_lang = "$lang{CHANGE}";
+
+    $html->message("info", "$lang{CHANGE_DATA}");
+
+    my $cashbox_info = $Crm->info_cashbox({ ID => $FORM{chg} });
+    $CASHBOX{ID}       = $FORM{chg};
+    $CASHBOX{NAME}     = $cashbox_info->{NAME};
+    $CASHBOX{COMMENTS} = $cashbox_info->{COMMENTS};
+  }
+
+  $html->tpl_show(
+    _include('cashbox_add', 'Crm'),
+    {
+      %CASHBOX,
+      ACTION      => $action,
+      ACTION_LANG => $action_lang,
+    }
+  );
+
+  my ($cashboxes_table, $cashboxes_list) = result_former(
+    {
+      INPUT_DATA => $Crm,
+      FUNCTION   => 'list_cashbox',
+
+      # BASE_FIELDS     => 0,
+      DEFAULT_FIELDS  => "ID, NAME, COMMENTS",
+      FUNCTION_FIELDS => 'crm_cashbox_balance:$lang{BALANCE}:id, change, del',
+      EXT_TITLES      => {
+        'name'     => "$lang{NAME}",
+        'id'       => "$lang{ID}",
+        'comments' => "$lang{COMMENTS}"
+      },
+      TABLE => {
+        width   => '100%',
+        caption => "$lang{CASHBOX}",
+        qs      => $pages_qs,
+        ID      => 'CASHBOX',
+        header  => '',
+        EXPORT  => 1,
+
+        #MENU    => "$lang{ADD}:index=" . get_function_index('ring_rule_add') . ':add' . ";$lang{SEARCH}:index=$index&search_form=1:search;",
+      },
+
+      #SELECT_VALUE    => {
+      # every_month => { 0 => "$lang{NO}:text-danger",
+      #             1 => "$lang{YES}:text-primary"
+      #           },
+      #},
+      MAKE_ROWS     => 1,
+      SEARCH_FORMER => 1,
+      MODULE        => 'Crm',
+      TOTAL         => 1
+    }
+  );
+
+  return 1;
+}
+
+#**********************************************************
+
+=head2 cashbox_balance() -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+
+#**********************************************************
+sub crm_cashbox_balance {
+  my ($attr) = @_;
+
+  my $action      = 'choose';
+  my $action_lang = "$lang{CHOOSE}";
+  my %CASHBOX;
+
+  my ($from_date, $to_date);
+
+  # get dates
+  if ($FORM{FROM_DATE}) {
+    $from_date = $FORM{FROM_DATE};
+  }
+  else {
+    my ($y, $m, undef) = split('-', $DATE);
+    $from_date = "$y-$m-01";
+  }
+
+  if ($FORM{TO_DATE}) {
+    $to_date = $FORM{TO_DATE};
+  }
+  else {
+    my ($y, $m, undef) = split('-', $DATE);
+    my $days_in_month = days_in_month();
+    $to_date = "$y-$m-$days_in_month";
+  }
+
+  my $actions_table = $html->table(
+    {
+      width   => '100%',
+      caption => $FORM{CASHBOX_ID} ? "$lang{CASHBOX} # $FORM{CASHBOX_ID}" : $lang{ALL},
+      ID      => 'CASHBOX_ACTIONS',
+      title => [ $lang{SUM}, $lang{DATE} ],
+
+      #      EXPORT  => 1,
+    }
+  );
+
+  # get list of comings and spendings
+  my $coming_cashbox_list = $Crm->list_coming(
+    {
+      COLS_NAME  => 1,
+      CASHBOX_ID => $FORM{ID} || $FORM{CASHBOX_ID},
+      FROM_DATE  => $from_date,
+      TO_DATE    => $to_date,
+      SORT       => 5,
+      DESC       => 'desc',
+    }
+  );
+
+  my $spending_cashbox_list = $Crm->list_spending(
+    {
+      COLS_NAME  => 1,
+      CASHBOX_ID => $FORM{ID} || $FORM{CASHBOX_ID},
+      FROM_DATE  => $from_date,
+      TO_DATE    => $to_date,
+      SORT       => 5,
+      DESC       => 'desc',
+    }
+  );
+
+  my $total_coming_amount   = 0.00;
+  my $total_spending_amount = 0.00;
+
+  my %dates_hash;    # hash with dates and spending/comings
+
+  # make dates hash
+  foreach my $coming (@$coming_cashbox_list) {
+    $total_coming_amount += $coming->{amount};
+    push(@{ $dates_hash{ $coming->{date} }{coming} }, $coming->{amount});
+  }
+
+  foreach my $spending (@$spending_cashbox_list) {
+    $total_spending_amount += $spending->{amount};
+    push(@{ $dates_hash{ $spending->{date} }{spending} }, $spending->{amount});
+  }
+
+  my $balance = $total_coming_amount - $total_spending_amount;
+
+  my @dates;                # date array
+  my @coming_per_date;      # incoming sum per date
+  my @spending_per_date;    # spending sum per date
+
+  # make data for graphics
+  foreach my $key (sort keys %dates_hash) {
+    push(@dates, $key);
+    my $spending_sum;
+    my $coming_sum;
+
+    foreach my $each_spend (@{ $dates_hash{$key}{spending} }) {
+      $spending_sum += $each_spend || 0;
+    }
+    foreach my $each_come (@{ $dates_hash{$key}{coming} }) {
+      $coming_sum += $each_come || 0;
+    }
+    push(@coming_per_date,   $coming_sum);
+    push(@spending_per_date, $spending_sum);
+  }
+
+  $CASHBOX{CASHBOX_SELECT} = cashbox_select({ ID => $FORM{ID} });
+
+  # charts for template
+  $CASHBOX{CHART} = $html->make_charts(
+    {
+      TRANSITION    => 1,
+      TYPES         => { "$lang{COMING}" => 'COLUMN', "$lang{SPENDING}" => 'COLUMN' },
+      X_TEXT        => \@dates,
+      DATA          => { "$lang{SPENDING}" => \@spending_per_date, "$lang{COMING}" => \@coming_per_date },
+      OUTPUT2RETURN => 1,
+    }
+  );
+
+  $html->tpl_show(
+    _include('cashbox_balance', 'Crm'),
+    {
+      %CASHBOX,
+      FROM_DATE      => $from_date,
+      TO_DATE        => $to_date,
+      ACTION         => $action,
+      ACTION_LANG    => $action_lang,
+      BALANCE        => $balance,
+      TOTAL_COMING   => $total_coming_amount,
+      TOTAL_SPENDING => $total_spending_amount,
+    }
+  );
+
+  print $actions_table->show();
+
+  return 1;
+}
+
+#**********************************************************
+
+=head2 cashbox_spending_type() -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+
+#**********************************************************
+sub crm_cashbox_spending_type {
+  my ($attr) = @_;
+
+  my $action      = 'add';
+  my $action_lang = "$lang{ADD}";
+  my %CASHBOX;
+
+  if ($FORM{add}) {
+    $Crm->add_type({ %FORM, SPENDING => 1 });
+
+    if (!$Crm->{errno}) {
+      $html->message("success", "$lang{SUCCESS}", "$lang{TYPE} $lang{ADDED}");
+    }
+    else {
+      $html->message("err", "$lang{ERROR}", "$lang{TYPE} $lang{NOT} $lang{ADDED}");
+    }
+  }
+  elsif ($FORM{change}) {
+    $Crm->change_type({ SPENDING => 1, %FORM });
+
+    if (!$Crm->{errno}) {
+      $html->message("success", "$lang{SUCCESS}", "$lang{CHANGED}");
+    }
+    else {
+      $html->message("err", "$lang{ERROR}", "$lang{NOT_CHANGED}");
+    }
+  }
+
+  if ($FORM{del}) {
+    $Crm->delete_type({ SPENDING => 1, ID => $FORM{del} });
+
+    if (!$Crm->{errno}) {
+      $html->message("success", "$lang{SUCCESS}", "$lang{TYPE} $lang{DELETED}");
+    }
+    else {
+      $html->message("err", "$lang{ERROR}", "$lang{NOT} $lang{DELETED}");
+    }
+  }
+
+  if ($FORM{chg}) {
+    $action      = 'change';
+    $action_lang = "$lang{CHANGE}";
+
+    $html->message("info", "$lang{CHANGE_DATA}");
+
+    my $spending_type = $Crm->info_type({ SPENDING => 1, ID => $FORM{chg} });
+    $CASHBOX{ID}       = $FORM{chg};
+    $CASHBOX{NAME}     = $spending_type->{NAME};
+    $CASHBOX{COMMENTS} = $spending_type->{COMMENTS};
+  }
+
+  $html->tpl_show(
+    _include('cashbox_spending_type', 'Crm'),
+    {
+      %CASHBOX,
+      ACTION      => $action,
+      ACTION_LANG => $action_lang,
+    }
+  );
+
+  my ($table, $list) = result_former(
+    {
+      INPUT_DATA => $Crm,
+      FUNCTION   => 'list_spending_type',
+
+      BASE_FIELDS     => 3,
+      DEFAULT_FIELDS  => "id, name, comments",
+      FUNCTION_FIELDS => "change, del",
+      EXT_TITLES      => {
+        'name'     => "$lang{NAME}",
+        'id'       => "$lang{ID}",
+        'comments' => "$lang{COMMENTS}"
+      },
+      TABLE => {
+        width   => '100%',
+        caption => "$lang{SPENDING} $lang{TYPE}",
+        qs      => $pages_qs,
+        ID      => 'CASHBOX',
+        header  => '',
+        EXPORT  => 1,
+
+        #MENU   => "$lang{ADD}:index=" . get_function_index('ring_rule_add') . ':add' . ";$lang{SEARCH}:index=$index&search_form=1:search;",
+      },
+
+      #SELECT_VALUE    => {
+      # every_month    => { 0 => "$lang{NO}:text-danger",
+      #                     1 => "$lang{YES}:text-primary",
+      #},
+      MAKE_ROWS     => 1,
+      SEARCH_FORMER => 1,
+      MODULE        => 'Crm',
+      TOTAL         => 1
+    }
+  );
+
+  return 1;
+}
+
+#**********************************************************
+
+=head2 cashbox_coming_type() -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+
+#**********************************************************
+sub crm_cashbox_coming_type {
+  my ($attr) = @_;
+
+  my $action      = 'add';
+  my $action_lang = "$lang{ADD}";
+  my %CASHBOX;
+
+  if ($FORM{add}) {
+    $Crm->add_type({ %FORM, COMING => 1 });
+
+    if (!$Crm->{errno}) {
+      $html->message("success", "$lang{SUCCESS}", "$lang{TYPE} $lang{ADDED}");
+    }
+    else {
+      $html->message("err", "$lang{ERROR}", "$lang{TYPE} $lang{NOT} $lang{ADDED}");
+    }
+  }
+  elsif ($FORM{change}) {
+    $Crm->change_type({ COMING => 1, %FORM });
+
+    if (!$Crm->{errno}) {
+      $html->message("success", "$lang{SUCCESS}", "$lang{CHANGED}");
+    }
+    else {
+      $html->message("err", "$lang{ERROR}", "$lang{NOT_CHANGED}");
+    }
+  }
+
+  if ($FORM{del}) {
+    $Crm->delete_type({ COMING => 1, ID => $FORM{del} });
+
+    if (!$Crm->{errno}) {
+      $html->message("success", "$lang{SUCCESS}", "$lang{TYPE} $lang{DELETED}");
+    }
+    else {
+      $html->message("err", "$lang{ERROR}", "$lang{TYPE} $lang{NOT_DELETED}");
+    }
+  }
+
+  if ($FORM{chg}) {
+    $action      = 'change';
+    $action_lang = "$lang{CHANGE}";
+
+    $html->message("info", "$lang{CHANGE_DATA}");
+
+    my $coming_type = $Crm->info_type({ COMING => 1, ID => $FORM{chg} });
+    $CASHBOX{ID}       = $FORM{chg};
+    $CASHBOX{NAME}     = $coming_type->{NAME};
+    $CASHBOX{COMMENTS} = $coming_type->{COMMENTS};
+  }
+
+  $html->tpl_show(
+    _include('cashbox_coming_type', 'Crm'),
+    {
+      %CASHBOX,
+      ACTION      => $action,
+      ACTION_LANG => $action_lang,
+    }
+  );
+
+  my ($table, $list) = result_former(
+    {
+      INPUT_DATA => $Crm,
+      FUNCTION   => 'list_coming_type',
+
+      BASE_FIELDS     => 3,
+      DEFAULT_FIELDS  => "id, name, comments",
+      FUNCTION_FIELDS => "change, del",
+      EXT_TITLES      => {
+        'name'     => "$lang{NAME}",
+        'id'       => "$lang{ID}",
+        'comments' => "$lang{COMMENTS}"
+      },
+      TABLE => {
+        width   => '100%',
+        caption => "$lang{COMING} $lang{TYPE}",
+        qs      => $pages_qs,
+        ID      => 'CASHBOX',
+        header  => '',
+        EXPORT  => 1,
+
+        #MENU   => "$lang{ADD}:index=" . get_function_index('ring_rule_add') . ':add' . ";$lang{SEARCH}:index=$index&search_form=1:search;",
+      },
+
+      #SELECT_VALUE    => {
+      # every_month    => { 0 => "$lang{NO}:text-danger",
+      #                     1 => "$lang{YES}:text-primary",
+      #},
+      MAKE_ROWS     => 1,
+      SEARCH_FORMER => 1,
+      MODULE        => 'Crm',
+      TOTAL         => 1
+    }
+  );
+
+  return 1;
+}
+
+#**********************************************************
+
+=head2 cashbox_spending_add() -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+
+#**********************************************************
+sub crm_cashbox_spending_add {
+  my ($attr) = @_;
+
+  my $action      = 'add';
+  my $action_lang = "$lang{ADD}";
+  my %CASHBOX;
+
+  if ($FORM{add}) {
+    $Crm->add_spending({%FORM});
+
+    if (!$Crm->{errno}) {
+      $html->message("success", "$lang{SUCCESS}", "$lang{ADDED}");
+    }
+    else {
+      $html->message("err", "$lang{ERROR}", "$lang{NOT_ADDED}");
+    }
+  }
+  elsif ($FORM{change}) {
+    $Crm->change_spending({%FORM});
+
+    if (!$Crm->{errno}) {
+      $html->message("success", "$lang{SUCCESS}", "$lang{CHANGED}");
+    }
+    else {
+      $html->message("err", "$lang{ERROR}", "$lang{NOT_CHANGED}");
+    }
+  }
+
+  if ($FORM{del}) {
+    $Crm->delete_spending({ ID => $FORM{del} });
+
+    if (!$Crm->{errno}) {
+      $html->message("success", "$lang{SUCCESS}", "$lang{DELETED}");
+    }
+    else {
+      $html->message("err", "$lang{ERROR}", "$lang{NOT_DELETED}");
+    }
+  }
+
+  if ($FORM{chg}) {
+    $html->message("info", "$lang{CHANGE_DATA}");
+
+    my $spending_info = $Crm->info_spending({ COLS_NAME => 1, ID => $FORM{chg} });
+
+    $action                  = 'change';
+    $action_lang             = "$lang{CHANGE}";
+    $CASHBOX{DATE}           = $spending_info->{DATE};
+    $CASHBOX{COMMENTS}       = $spending_info->{COMMENTS};
+    $CASHBOX{AMOUNT}         = $spending_info->{AMOUNT};
+    $CASHBOX{COMING_TYPE_ID} = $spending_info->{COMING_TYPE_ID};
+    $CASHBOX{CASHBOX_ID}     = $spending_info->{CASHBOX_ID};
+    $CASHBOX{ID}             = $FORM{chg};
+  }
+
+  $CASHBOX{SPENDING_TYPE_SELECT} = $html->form_select(
+    'SPENDING_TYPE_ID',
+    {
+      SELECTED => $FORM{SPENDING_TYPE_ID} || $CASHBOX{SPENDING_TYPE_ID},
+      SEL_LIST    => $Crm->list_spending_type({ COLS_NAME => 1 }),
+      SEL_KEY     => 'id',
+      SEL_VALUE   => 'name',
+      NO_ID       => 1,
+      SEL_OPTIONS => { ""                                 => "" },
+    }
+  );
+
+  $CASHBOX{CASHBOX_SELECT} = cashbox_select({ CASHBOX_ID => $CASHBOX{CASHBOX_ID} });
+
+  $html->tpl_show(
+    _include('cashbox_spending_add', 'Crm'),
+    {
+      %CASHBOX,
+      ACTION      => $action,
+      ACTION_LANG => $action_lang,
+    }
+  );
+
+  my ($table, $list) = result_former(
+    {
+      INPUT_DATA      => $Crm,
+      FUNCTION        => 'list_spending',
+      BASE_FIELDS     => 0,
+      DEFAULT_FIELDS  => "ID, AMOUNT, CASHBOX_NAME, SPENDING_TYPE_NAME, DATE, COMMENTS",
+      FUNCTION_FIELDS => 'crm_spending_document:$lang{DOCS}:id,change, del',
+      EXT_TITLES      => {
+        'amount'             => "$lang{SUM}",
+        'cashbox_name'       => "$lang{CASHBOX}",
+        'spending_type_name' => "$lang{SPENDING} $lang{TYPE}",
+        'date'               => "$lang{DATE}",
+        'id'                 => "$lang{ID}",
+        'comments'           => "$lang{COMMENTS}",
+      },
+      TABLE => {
+        width   => '100%',
+        caption => "$lang{SPENDING}",
+        qs      => $pages_qs,
+        ID      => 'CASHBOX',
+        header  => '',
+        EXPORT  => 1,
+
+        #MENU   => "$lang{ADD}:index=" . get_function_index('ring_rule_add') . ':add' . ";$lang{SEARCH}:index=$index&search_form=1:search;",
+      },
+
+      #SELECT_VALUE    => {
+      # every_month    => { 0 => "$lang{NO}:text-danger",
+      #                     1 => "$lang{YES}:text-primary",
+      #},
+      MAKE_ROWS     => 1,
+      SEARCH_FORMER => 1,
+      MODULE        => 'Crm',
+      TOTAL         => 1
+    }
+  );
+
+  return 1;
+}
+
+#**********************************************************
+
+=head2 cashbox_coming_add() -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+
+#**********************************************************
+sub crm_cashbox_coming_add {
+  my ($attr) = @_;
+
+  my $action      = 'add';
+  my $action_lang = "$lang{ADD}";
+  my %CASHBOX;
+
+  if ($FORM{add}) {
+    $Crm->add_coming({%FORM});
+
+    if (!$Crm->{errno}) {
+      $html->message("success", "$lang{SUCCESS}", "$lang{ADDED}");
+    }
+    else {
+      $html->message("err", "$lang{ERROR}", "$lang{NOT_ADDED}");
+    }
+  }
+  elsif ($FORM{change}) {
+    $Crm->change_coming({%FORM});
+
+    if (!$Crm->{errno}) {
+      $html->message("success", "$lang{SUCCESS}", "$lang{CHANGED}");
+    }
+    else {
+      $html->message("err", "$lang{ERROR}", "$lang{NOT_CHANGED}");
+    }
+  }
+
+  if ($FORM{del}) {
+    $Crm->delete_coming({ ID => $FORM{del} });
+
+    if (!$Crm->{errno}) {
+      $html->message("success", "$lang{SUCCESS}", "$lang{DELETED}");
+    }
+    else {
+      $html->message("err", "$lang{ERROR}", "$lang{NOT_DELETED}");
+    }
+  }
+
+  if ($FORM{chg}) {
+    $html->message("info", "$lang{CHANGE_DATA}");
+
+    my $coming_info = $Crm->info_coming({ COLS_NAME => 1, ID => $FORM{chg} });
+
+    $action                  = 'change';
+    $action_lang             = "$lang{CHANGE}";
+    $CASHBOX{DATE}           = $coming_info->{DATE};
+    $CASHBOX{COMMENTS}       = $coming_info->{COMMENTS};
+    $CASHBOX{AMOUNT}         = $coming_info->{AMOUNT};
+    $CASHBOX{COMING_TYPE_ID} = $coming_info->{COMING_TYPE_ID};
+    $CASHBOX{CASHBOX_ID}     = $coming_info->{CASHBOX_ID};
+    $CASHBOX{ID}             = $FORM{chg};
+  }
+
+  $CASHBOX{COMING_TYPE_SELECT} = $html->form_select(
+    'COMING_TYPE_ID',
+    {
+      SELECTED => $FORM{COMING_TYPE_ID} || $CASHBOX{COMING_TYPE_ID},
+      SEL_LIST    => $Crm->list_coming_type({ COLS_NAME => 1 }),
+      SEL_KEY     => 'id',
+      SEL_VALUE   => 'name',
+      NO_ID       => 1,
+      SEL_OPTIONS => { ""                               => "" },
+    }
+  );
+
+  $CASHBOX{CASHBOX_SELECT} = cashbox_select({ CASHBOX_ID => $CASHBOX{CASHBOX_ID} });
+
+  $html->tpl_show(
+    _include('cashbox_coming_add', 'Crm'),
+    {
+      %CASHBOX,
+      ACTION      => $action,
+      ACTION_LANG => $action_lang,
+    }
+  );
+
+  my ($table, $list) = result_former(
+    {
+      INPUT_DATA      => $Crm,
+      FUNCTION        => 'list_coming',
+      BASE_FIELDS     => 0,
+      DEFAULT_FIELDS  => "ID, AMOUNT, CASHBOX_NAME, COMING_TYPE_NAME, DATE, COMMENTS",
+      FUNCTION_FIELDS => 'crm_coming_document:$lang{DOCS}:id,change, del',
+      EXT_TITLES      => {
+        'amount'           => "$lang{SUM}",
+        'cashbox_name'     => "$lang{CASHBOX}",
+        'coming_type_name' => "$lang{COMING} $lang{TYPE}",
+        'date'             => "$lang{DATE}",
+        'id'               => "$lang{ID}",
+        'comments'         => "$lang{COMMENTS}",
+      },
+      TABLE => {
+        width   => '100%',
+        caption => "$lang{COMING}",
+        qs      => $pages_qs,
+        ID      => 'CASHBOX',
+        header  => '',
+        EXPORT  => 1,
+
+        #MENU   => "$lang{ADD}:index=" . get_function_index('ring_rule_add') . ':add' . ";$lang{SEARCH}:index=$index&search_form=1:search;",
+      },
+
+      #SELECT_VALUE    => {
+      # every_month    => { 0 => "$lang{NO}:text-danger",
+      #                     1 => "$lang{YES}:text-primary",
+      #},
+      MAKE_ROWS     => 1,
+      SEARCH_FORMER => 1,
+      MODULE        => 'Crm',
+      TOTAL         => 1
+    }
+  );
+
+  return 1;
+}
+
+#**********************************************************
+
+=head2 cashbox_select() -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+
+#**********************************************************
+sub cashbox_select {
+  my ($attr) = @_;
+
+  my $cashbox_select = $html->form_select(
+    'CASHBOX_ID',
+    {
+      SELECTED => $FORM{CASHBOX_ID} || $attr->{ID},
+      SEL_LIST    => $Crm->list_cashbox({ COLS_NAME => 1 }),
+      SEL_KEY     => 'id',
+      SEL_VALUE   => 'name',
+      NO_ID       => 1,
+      SEL_OPTIONS => { ""                           => "" },
+    }
+  );
+
+  return $cashbox_select;
+}
+
+#**********************************************************
+
+=head2 cashbox_salary() -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+
+#**********************************************************
+sub crm_salary {
+  my ($attr) = @_;
+
+  use Employees;
+  my $Employees = Employees->new($db, $admin, \%conf);
+
+  my ($year, $month, undef) = split('-', $DATE);
+  $month = ($FORM{MONTH} + 1) if defined $FORM{MONTH};
+  
+  my $month_start = "$year-$month-1";
+  my $month_end   = "$year-$month-" . days_in_month();
+
+  if($FORM{pay_salary}){
+    print 'Pay salary and add to salary tables as payed';
+    $Crm->add_payed_salary({AID   => $FORM{aid}, 
+                            BET   => $FORM{bet} + $FORM{extra_amount},
+                            YEAR  => $FORM{year},
+                            MONTH => $FORM{month},
+                          });
+  }
+
+  my @SCHEDULE_TYPES = ("", "$lang{MONTHLY}", "$lang{HOURLY}", "$lang{OTHER}");
+
+  my $month_select = $html->form_select(
+  'MONTH',
+  {
+    SELECTED  => $FORM{MONTH} || $month - 1 ,
+    SEL_ARRAY => \@MONTHES,
+    ARRAY_NUM_ID   => 1,
+  }
+);
+
+  $html->tpl_show(
+    _include('date_choose', 'Crm'),
+    {
+      MONTH => $month_select,
+    }
+  );
+
+  my $time_sheet_listing = $Employees->time_sheet_list(
+    {
+      COLS_NAME  => 1,
+      DATE_START => $FORM{TIME_START} || $month_start,
+      DATE_END   => $FORM{TIME_END} || $month_end
+    }
+  );
+
+  if (!(defined $time_sheet_listing)) {
+    $html->message("info", "$lang{NO_DATA}", "$lang{CHANGE} $lang{DATE}");
+    return 1;
+  }
+
+  my %admins;
+
+  foreach my $admin (@$time_sheet_listing) {
+
+    my %admin_temp;
+
+    my $date  = $admin->{date};
+    my $aid   = $admin->{aid};
+    my $fio = $admin->{name};
+
+    my $dates = {
+      'overtime'  => $admin->{overtime},
+      'work_time' => $admin->{work_time},
+      'extra_fee' => $admin->{extra_fee}
+    };
+
+    $admins{$fio}{aid} = $aid;
+    push(@{ $admins{$fio}{dates} }, $dates);
+  }
+
+  my $salary_table = $html->table(
+    {
+      width   => '100%',
+      caption => "$lang{SALARY}",
+      title   => [ "$lang{FIO}", "$lang{TYPE}", "$lang{BET}", "$lang{BONUS}", "$lang{TOTAL}" ]
+    }
+  );
+
+  foreach my $key (keys %admins) {
+    my $aid              = $admins{$key}{aid};
+    my $fio              = $key;
+    my @all_admins_dates = $admins{$key}{dates};
+    my $extra_amount     = 0;
+    my $bet              = 0;
+
+    my $schedule_info = $Crm->info_aid_schedule({ AID => $aid, COLS_NAME => 1 });
+
+    if (!(defined $schedule_info)) {
+      $salary_table->addrow($fio, '-', '-', '-');
+      next;
+    }
+
+    my $is_payed = $Crm->info_payed_salary({AID => $aid, MONTH => $month});
+
+    # _bp("is_payed", $is_payed, );
+
+    # if( defined $is_payed ){
+    #   next;
+    # }
+      
+
+    foreach my $each_admin_day (@all_admins_dates) {
+      foreach my $admin_day (@$each_admin_day) {
+        $extra_amount += $admin_day->{overtime} * $schedule_info->{bet_overtime};
+        if ($schedule_info->{type} == 1) {
+          $bet = $schedule_info->{bet};
+        }
+        elsif ($schedule_info->{type} == 2) {
+          $bet += $schedule_info->{bet_per_day} * $admin_day->{work_time};
+        }
+      }
+
+    }
+
+    if( defined $is_payed ){
+      $salary_table->{rowcolor} = 'success';
+    }
+    else{
+      $salary_table->{rowcolor} = 'danger'; 
+    }
+
+    $salary_table->addrow($fio,
+                          $SCHEDULE_TYPES[ $schedule_info->{type} ],
+                          $bet,
+                          $extra_amount,
+                          ($bet + $extra_amount),
+                          $html->button("$lang{PAY}",
+                                        "index=" . get_function_index('crm_pay_salary') . "&aid=$aid&bet=$bet&extra_amount=$extra_amount&pay_salary=1&month=$month&year=$year",
+                                        {
+                                          ICON => 'fa fa-money',
+                                        })
+                          )
+  }
+
+  print $salary_table->show();
+
+  return 1;
+}
+
+#**********************************************************
+
+=head2 crm_work_schedule() -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+
+#**********************************************************
+sub crm_work_schedule {
+  my ($attr)      = @_;
+  my $action      = 'chg';
+  my $action_lang = "$lang{CHANGE}";
+  my @SCHEDULE_TYPES = ("", "$lang{MONTHLY}", "$lang{HOURLY}", "$lang{OTHER}");
+
+  my $admins_list = $Admins->list({ FIO => '_SHOW', POSITION => '_SHOW', COLS_NAME => 1 });
+
+  if ($FORM{chg}) {
+    my $aid_schedule = $Crm->info_aid_schedule({ COLS_NAME => 1, AID => $FORM{AID} });
+
+    if ($aid_schedule) {
+      $Crm->del_schedule({ AID => $aid_schedule->{AID} });
+      $Crm->add_schedule({%FORM});
+    }
+    else {
+      $Crm->add_schedule({%FORM});
+    }
+  }
+
+  my $admins_table = $html->table(
+    {
+      width   => '100%',
+      caption => "$lang{WORK_SCHEDULE}",
+      title   => [ "AID", $lang{FIO}, $lang{POSITION}, $lang{TYPE}, $lang{BET}, $lang{BET_PER_HOUR}, $lang{BET_OVERTIME} ]
+    }
+  );
+
+  foreach my $admin_info (@$admins_list) {
+    my $position_info = $Employees->position_info({ ID => $admin_info->{position}, COLS_NAME => 1 });
+    my $aid_schedule = $Crm->info_aid_schedule({ COLS_NAME => 1, AID => $admin_info->{aid} });
+
+    $admins_table->addrow(
+      $admin_info->{aid}, $admin_info->{name},
+      $position_info->{POSITION},
+      $aid_schedule->{type}         ? $SCHEDULE_TYPES[ $aid_schedule->{type} ] : '-',
+      $aid_schedule->{bet}          ? $aid_schedule->{bet}                     : '-',
+      $aid_schedule->{bet_per_day}  ? $aid_schedule->{bet_per_day}             : '-',
+      $aid_schedule->{bet_overtime} ? $aid_schedule->{bet_overtime}            : '-',
+      $html->button('', "index=$index&AID_SCHEDULE=$admin_info->{aid}", { ICON => 'glyphicon glyphicon-time', })
+    );
+  }
+
+  if ($FORM{AID_SCHEDULE}) {
+    $html->message('info', $lang{CHANGE},);
+    my $aid_schedule = $Crm->info_aid_schedule({ COLS_NAME => 1, AID => $FORM{AID_SCHEDULE} });
+
+    if ($aid_schedule) {
+      $html->tpl_show(
+        _include('work_schedule', 'Crm'),
+        {
+          ACTION     => $action,
+          ACTION_LNG => $action_lang,
+          %$aid_schedule
+        }
+      );
+    }
+    else {
+      $html->tpl_show(
+        _include('work_schedule', 'Crm'),
+        {
+          ACTION     => $action,
+          ACTION_LNG => $action_lang,
+
+        }
+      );
+    }
+  }
+
+  print $admins_table->show();
+
+  return 1;
+}
+
+#**********************************************************
+
+=head2 crm_spending_document() -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+
+#**********************************************************
+sub crm_spending_document {
+  my ($attr) = @_;
+
+  return 1;
+}
+
+#**********************************************************
+
+=head2 crm_coming_document() -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+
+#**********************************************************
+sub crm_coming_document {
+  my ($attr) = @_;
+
+  return 1;
+}
+
+#**********************************************************
+=head2 crm_pay_bets() -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub crm_pay_salary {
+  my ($attr) = @_;
+
+  # _bp("form", \%FORM, );
+
+  my $admin_info = $Admins->info($FORM{aid}, {COLS_NAME => 1});
+  # _bp("admin", $admin_info, );
+  
+  if($FORM{confirm}){
+    $Crm->{debug}=1;
+    $Crm->add_payed_salary({AID   => $FORM{AID}, 
+                            BET   => $FORM{SUM},
+                            YEAR  => $FORM{YEAR},
+                            MONTH => $FORM{MONTH},
+                          });
+
+    if(!$Crm->{errno}){
+      print 'Added salary for this month';
+      $Crm->add_spending({AMOUNT => $FORM{SUM},
+                          CASHBOX_ID => $FORM{CASHBOX_ID},
+                          SPENDING_TYPE_ID => $FORM{SPENDING_TYPE_ID},
+                          DATE => $DATE});
+ 
+    }
+    # message about success
+    return 1;
+  }
+
+  my $cashbox_select = cashbox_select();
+
+
+
+  my $spend_types_select = $html->form_select(
+    'SPENDING_TYPE_ID',
+    {
+      SELECTED => $FORM{SPENDING_TYPE_ID} || $attr->{ID},
+      SEL_LIST    => $Crm->list_spending_type({COLS_NAME => 1}),
+      SEL_KEY     => 'id',
+      SEL_VALUE   => 'name',
+      NO_ID       => 1,
+      SEL_OPTIONS => { "" => "" },
+    }
+  );
+
+
+  $html->message('info', $lang{CHECK_DATA_AND_CHOOSE_CASHBOX});
+
+  $html->tpl_show(
+        _include('crm_salary_confirm', 'Crm'),
+        {
+          FIO => $admin_info->{A_FIO} || q{},
+          BET        => $FORM{bet},
+          EXTRA_AMOUNT => $FORM{extra_amount},
+          SUM    => $FORM{bet} + $FORM{extra_amount},
+          TEXT_MONTH  => $MONTHES[$FORM{month} - 1],
+          MONTH => $FORM{month},
+          YEAR   => $FORM{year},
+          CASHBOX => $cashbox_select,
+          SPENDING_TYPE_ID => $spend_types_select, 
+          AID => $FORM{aid},
+        }
+      );
+    
+
+  return 1;
+}
+  
+1

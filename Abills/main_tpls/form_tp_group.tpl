@@ -1,10 +1,36 @@
-<form action='$SELF_URL' METHOD='post'>
-<input type='hidden' name='index' value='$index'/>
-<input type='hidden' name='ID' value='%GID%'/>
-<TABLE>
-<TR><TD>GID:</TD><TD><input type='text' name='GID' value='%GID%'/></TD></TR>
-<TR><TD>$_NAME:</TD><TD><input type='text' name='NAME' value='%NAME%'/></TD></TR>
-<TR><TD>$_USER_CHG_TP:</TD><TD><input type='checkbox' name='USER_CHG_TP' value='1' %USER_CHG_TP%></TD></TR>
-</TABLE>
-<input type='submit' name='%ACTION%' value='%LNG_ACTION%' class='button'/>
+<form action='$SELF_URL' METHOD='post' class='form form-horizontal'>
+    <input type='hidden' name='index' value='$index'/>
+    <input type='hidden' name='ID' value='%GID%'/>
+
+    <div class='panel panel-primary panel-form'>
+        <div class='panel-heading'>
+            _{CHANGE}_
+        </div>
+        <div class='panel-body'>
+            <div class='form-group'>
+                <label class='control-label col-md-3'>GID:</label>
+
+                <div class='col-md-9'>
+                    <input class='form-control' type='text' name='GID' value='%GID%'/>
+                </div>
+            </div>
+            <div class='form-group'>
+                <label class='control-label col-md-3'>_{NAME}_:</label>
+
+                <div class='col-md-9'>
+                    <input class='form-control' type='text' name='NAME' value='%NAME%'/>
+                </div>
+            </div>
+            <div class='form-group'>
+                <label class='control-label col-md-9' for='USER_CHG_TP'>_{USER_CHG_TP}_:</label>
+
+                <div class='col-md-3 text-left'>
+                    <input class='form-checkbox' type='checkbox' name='USER_CHG_TP' id='USER_CHG_TP' value='1' %USER_CHG_TP% >
+                </div>
+            </div>
+        </div>
+        <div class='panel-footer'>
+            <input type='submit' name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'/>
+        </div>
+    </div>
 </form>

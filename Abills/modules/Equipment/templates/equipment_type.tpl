@@ -1,10 +1,9 @@
-<div class='noprint'>
-<FORM action='$SELF_URL' METHOD='POST'>
+<FORM action='$SELF_URL' METHOD='POST' class='form-inline'>
 <input type='hidden' name='index' value='$index'>
 <input type='hidden' name='ID' value='$FORM{chg}'>
-<table width='400' class=form>
-<tr><td>$_TYPE: </td><td><input type='text' name='NAME' value='%NAME%'></td></tr>
-<tr><th colspan='2' class=even><input type='submit' name='%ACTION%' value='%ACTION_LNG%'></th></tr>
-</table>
+
+_{TYPE}_: <input type='text' name='NAME' value='%NAME%' class='form-control'>
+<input type='submit' name='%ACTION%' value='%ACTION_LNG%' class='btn btn-primary'>
+
 </FORM>
-</div>
+

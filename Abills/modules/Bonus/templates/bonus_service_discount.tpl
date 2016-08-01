@@ -1,24 +1,84 @@
-<form action='$SELF_URL'>
-<input type=hidden name=index value=$index>
-<input type=hidden name=ID value=$FORM{chg}>
-<input type=hidden name=TP_ID value=$FORM{TP_ID}>
-<table class=form>
+<form action='$SELF_URL' class='form form-horizontal'>
+    <input type=hidden name=index value=$index>
+    <input type=hidden name=ID value=$FORM{chg}>
+    <input type=hidden name=TP_ID value=$FORM{TP_ID}>
 
+    <div class='panel panel-primary panel-form'>
+        <div class='panel-heading'>
+            _{RULES}_
+        </div>
+        <div class='panel-body'>
+            <div class='form-group'>
+                <label class='control-label col-md-3'>_{SERVICE}_ _{PERIOD}_ (_{MONTH}_):</label>
 
-<tr><th colspan='3' class=title_color>$_RULES</th></tr>
-<tr><td colspan=2>$_SERVICE $_PERIOD ($_MONTH):</td><td><input type=text name='SERVICE_PERIOD' value='%SERVICE_PERIOD%'></td></tr>
-<tr><td colspan=2>$_REGISTRATION ($_DAYS):</td><td><input type=text name='REGISTRATION_DAYS' value='%REGISTRATION_DAYS%'></td></tr>
-<tr><td colspan=2>$_TOTAL $_PAYMENTS ($_SUM):</td><td><input type=text name='TOTAL_PAYMENTS_SUM' value='%TOTAL_PAYMENTS_SUM%'></td></tr>
-<tr><td colspan=2>$_PAYMENTS $_TYPE: </td><td>%PAYMENT_TYPES_SEL%</td></tr>
-<tr><th colspan='3' class=title_color>$_RESULT</th></tr>
-<tr class=even><td rowspan=2>$_REDUCTION </td><td>%:</td><td><input type=text name='DISCOUNT' value='%DISCOUNT%'></td></tr>
-<tr class=even><td> ($_DAYS):</td><td><input type=text name='DISCOUNT_DAYS' value='%DISCOUNT_DAYS%'></td></tr>
-<tr><td colspan=2>$_BONUS $_SUM: </td><td><input type=text name='BONUS_SUM' value='%BONUS_SUM%'></td></tr>
-<tr><td colspan=2>$_BONUS_PERCENT:</td><td><input type=text name='BONUS_PERCENT' value='%BONUS_PERCENT%'></td></tr>
-<tr><td colspan=2>$_EXTRA $_ACCOUNT: </td><td><input type=checkbox name='EXT_ACCOUNT' value='1' %EXT_ACCOUNT%></td></tr>
+                <div class='col-md-9'>
+                    <input type=text name='SERVICE_PERIOD' class='form-control' value='%SERVICE_PERIOD%'>
+                </div>
+            </div>
+            <div class='form-group'>
+                <label class='control-label col-md-3'>_{REGISTRATION}_ (_{DAYS}_):</label>
 
+                <div class='col-md-9'>
+                    <input type=text name='REGISTRATION_DAYS' class='form-control' value='%REGISTRATION_DAYS%'>
+                </div>
+            </div>
+            <div class='form-group'>
+                <label class='control-label col-md-3'>_{TOTAL}_ _{PAYMENTS}_ (_{SUM}_):</label>
 
-<tr><th colspan='3' class=even><input type=submit name=%ACTION% value='%LNG_ACTION%'></th></tr>
-</table>
+                <div class='col-md-9'>
+                    <input type=text name='TOTAL_PAYMENTS_SUM' class='form-control' value='%TOTAL_PAYMENTS_SUM%'>
+                </div>
+            </div>
+            <div class='form-group'>
+                <label class='control-label col-md-3'>_{PAYMENTS}_ _{TYPE}_:</label>
+
+                <div class='col-md-9'>
+                    %PAYMENT_TYPES_SEL%
+                </div>
+            </div>
+
+            <div class='form-group bg-primary'>
+                _{RESULT}_
+            </div>
+
+            <div class='form-group'>
+                <label class='control-label col-md-3'>_{REDUCTION}_ %:</label>
+                <div class='col-md-9'>
+                    <input type=text name='DISCOUNT' class='form-control' value='%DISCOUNT%'>
+                </div>
+            </div>
+            <div class='form-group'>
+                <label class='control-label col-md-3'> (_{DAYS}_):</label>
+
+                <div class='col-md-9'>
+                    <input type=text name='DISCOUNT_DAYS' class='form-control' value='%DISCOUNT_DAYS%'>
+                </div>
+            </div>
+            <div class='form-group'>
+                <label class='control-label col-md-3'>_{BONUS}_ _{SUM}_:</label>
+
+                <div class='col-md-9'>
+                    <input type=text name='BONUS_SUM' class='form-control' value='%BONUS_SUM%'>
+                </div>
+            </div>
+            <div class='form-group'>
+                <label class='control-label col-md-3'>_{BONUS_PERCENT}_:</label>
+
+                <div class='col-md-9'>
+                    <input type=text name='BONUS_PERCENT' class='form-control' value='%BONUS_PERCENT%'>
+                </div>
+            </div>
+            <div class='checkbox'>
+                <label>
+                    <input type=checkbox name='EXT_ACCOUNT' value='1' %EXT_ACCOUNT%><strong>_{EXTRA}_
+                    _{ACCOUNT}_</strong>
+                </label>
+            </div>
+
+        </div>
+        <div class='panel-footer'>
+            <input class='btn btn-primary' type=submit name=%ACTION% class='form-control' value='%LNG_ACTION%'>
+        </div>
+    </div>
 
 </form>

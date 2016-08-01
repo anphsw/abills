@@ -1,25 +1,36 @@
-<script type=\"text/javascript\">
-	function showLoading() {
-		var shadow = document.getElementById('shadow');
-		var loading = document.getElementById('load');
-		shadow.style.display = 'block';
-		loading.style.display = 'block';	
-	}	   
-</script>
-
-<form action='$SELF_URL' METHOD='POST' name='form_card_add'>
-<input type='hidden' name='sid' value='$FORM{sid}'>
-<input type='hidden' name='index' value='$index'>
-<input type='hidden' name='UID' value='$FORM{UID}'>
-<table class=form>
-<tr><th class='form_title' colspan='2'>$_ICARDS</th></tr>
-<tr><td>$_SERIAL:</td><td><input type='text' name='SERIAL' value='%SERIAL%'></td></tr>
-<tr><td>PIN:</td><td><input type='text' name='PIN'></td></tr>
-<tr><th class='even' colspan='2'><input type='submit' name='add' value='$_ADD' ID='submitButton' onClick='showLoading()'></th></tr>
-</table>
+<div class='panel panel-default'>
+    <div class='panel-heading text-center bg-info'>
+        _{ICARDS}_
+    </div>
+    <div class='panel-body form form-horizontal'>
+        <form action='$SELF_URL' METHOD='POST' name='form_card_add' class=''>
+            <input type='hidden' name='sid' value='$FORM{sid}'>
+            <input type='hidden' name='index' value='$index'>
+            <input type='hidden' name='UID' value='$FORM{UID}'>
 
 
-</form>
+            <div class='form-group'>
+                <label class='control-label col-md-3 col-sm-3'>_{SERIAL}_:</label>
+
+                <div class='col-md-9 col-sm-9'>
+                    <input class='form-control' type='text' name='SERIAL' value='%SERIAL%'>
+                </div>
+            </div>
+            <div class='form-group'>
+                <label class='control-label col-md-3 col-sm-3'>PIN:</label>
+
+                <div class='col-md-9 col-sm-9'>
+                    <input class='form-control' type='text' name='PIN'>
+                </div>
+            </div>
+            <div class='form-group text-center'>
+                <input type='submit' class='btn btn-primary' name='add' value='_{ACTIVATE}_' ID='submitButton'
+                       onClick='showLoading()'>
+            </div>
+        </form>
+    </div>
+</div>
 
 <div style='display: none;' id='shadow'></div>
-<div style='display: none;' id='load' class='top_result_baloon'><span id='loading'>$_BALANCE_RECHARCHE ...</span></div>
+<div style='display: none;' id='load' class='top_result_baloon'><span id='loading'>_{BALANCE_RECHARCHE}_ ...</span>
+</div>

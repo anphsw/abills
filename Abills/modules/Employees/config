@@ -1,0 +1,11 @@
+#Iner_ID : Main or Sub or if -1 user menu func list
+
+%FUNCTIONS_LIST = (
+				"01:0:$lang{EMPLOYEES}:employees_main:"                        => 5,
+				"02:1:$lang{GEO}:employees_geolocation:EID"                    => 5,
+				"03:1:$lang{POSITIONS}:employees_positions:"                   => 5,
+				"04:3:$lang{POSITIONS_TREE}:employees_positions_tree:"         => 5,
+				"05:0:$lang{TIME_SHEET}:form_admins_time_sheet:"               => 8,
+);
+
+1

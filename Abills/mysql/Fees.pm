@@ -1,31 +1,17 @@
 package Fees;
 
-# Finance module
-# Fees
+=head1 NAME
+
+  Finance (fees) module DB frontend
+
+=cut
 
 use strict;
-use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
-);
-
-use Exporter;
-$VERSION = 2.00;
-@ISA     = ('Exporter');
-
-@EXPORT = qw(
-);
-
-@EXPORT_OK   = ();
-%EXPORT_TAGS = ();
-
-use main;
+use parent qw(main Finance);
 use Bills;
-@ISA = ("main");
-use Finance;
-@ISA = ("Finance");
 
 my $Bill;
-my $admin;
-my $CONF;
+my ($admin, $CONF);
 
 #**********************************************************
 # Init
@@ -38,6 +24,8 @@ sub new {
   bless($self, $class);
 
   $self->{db}=$db;
+  $self->{admin}=$admin;
+  $self->{conf}=$CONF;
 
   $Bill = Bills->new($db, $admin, $CONF);
 
@@ -45,40 +33,13 @@ sub new {
 }
 
 #**********************************************************
-#
-#**********************************************************
-sub defaults {
-  my $self = shift;
+=head2 take($user, $sum, $attr) - Take sum from bill account
 
-  my %DATA = (
-    UID            => 0,
-    BILL_ID        => 0,
-    SUM            => 0.00,
-    DESCRIBE       => '',
-    SESSION_IP     => 0.0.0.0,
-    DEPOSIT        => 0.00,
-    AID            => 0,
-    COMPANY_VAT    => 0,
-    INNER_DESCRIBE => '',
-    METHOD         => 0
-  );
-
-  $self = \%DATA;
-  return $self;
-}
-
-#**********************************************************
-# Take sum from bill account
-# take()
+=cut
 #**********************************************************
 sub take {
   my $self = shift;
   my ($user, $sum, $attr) = @_;
-
-  %DATA = $self->get_data($attr, { default => defaults() });
-  my $DATE     = ($attr->{DATE})   ? "'$attr->{DATE}'" : 'now()';
-  my $DESCRIBE = ($DATA{DESCRIBE}) ? $DATA{DESCRIBE}   : '';
-  $DATA{INNER_DESCRIBE} = '' if (!$DATA{INNER_DESCRIBE});
 
   if ($sum <= 0) {
     $self->{errno}  = 12;
@@ -91,18 +52,16 @@ sub take {
     return $self;
   }
 
-  my $company_vat = $user->{COMPANY_VAT} || 0;
+  $attr->{UID}     = $user->{UID};
+  $attr->{BILL_ID} = $user->{BILL_ID};
+  $attr->{DATE}    = ($attr->{DATE}) ? $attr->{DATE} : 'NOW()';
+  $attr->{DSC}     = $attr->{DESCRIBE} || '';
+  $attr->{IP}      = $admin->{SESSION_IP};
+  $attr->{AID}     = $admin->{AID};
+  $attr->{VAT}     = $user->{COMPANY_VAT};
 
   $sum = sprintf("%.4f", $sum);
-
-  if($self->{db}->{db}) {
-    $self->{db}->{db}->{AutoCommit} = 0;
-  }
-  else {
-    $self->{db}->{AutoCommit} = 0;
-  }
-
-
+  $self->{db}{db}->{AutoCommit} = 0;
   if ($attr->{BILL_ID}) {
     $user->{BILL_ID} = $attr->{BILL_ID};
   }
@@ -121,13 +80,14 @@ sub take {
             return $self;
           }
 
-
           $self->{SUM} = $self->{EXT_BILL_DEPOSIT};
-          $self->query2("INSERT INTO fees (uid, bill_id, date, sum, dsc, ip, last_deposit, aid, vat, inner_describe, method) 
-             values ('$user->{UID}', '$user->{EXT_BILL_ID}', $DATE, '$self->{SUM}', '$DESCRIBE', 
-              INET_ATON('$admin->{SESSION_IP}'), '$Bill->{DEPOSIT}', '$admin->{AID}',
-              '$company_vat', '$DATA{INNER_DESCRIBE}', '$DATA{METHOD}')", 'do'
-          );
+
+          $self->query_add('fees', {
+            %$attr,
+            SUM          => $self->{SUM},
+            LAST_DEPOSIT => $Bill->{DEPOSIT},
+          });
+
           $sum = $sum - $user->{EXT_BILL_DEPOSIT};
         }
       }
@@ -160,26 +120,22 @@ sub take {
             $self->{errstr} = $Bill->{errstr};
             return $self;
           }
-        
-          $self->query2("INSERT INTO fees (uid, bill_id, date, sum, dsc, ip, last_deposit, aid, vat, inner_describe, method) 
-             values ('$user->{UID}', '$user->{BILL_ID}', $DATE, '$self->{SUM}', '$DESCRIBE', 
-              INET_ATON('$admin->{SESSION_IP}'), '$user->{DEPOSIT}', '$admin->{AID}',
-              '$company_vat', '$DATA{INNER_DESCRIBE}', '$DATA{METHOD}')", 'do'
-          );
+
+          $self->query_add('fees', {
+            %$attr,
+            SUM          => $self->{SUM},
+            LAST_DEPOSIT => $Bill->{DEPOSIT},
+          });
+
           $sum = $sum - $self->{SUM};
         }
         $user->{BILL_ID} = $user->{EXT_BILL_ID};
       }
     }
-    
+
     if ($sum == 0) {
-      if (!$attr->{NO_AUTOCOMMIT}) {
-        if($self->{db}->{db}) {
-          $self->{db}->{db}->{AutoCommit} = 1;
-        }
-        else {
-          $self->{db}->{AutoCommit} = 1;
-        }
+      if (!$attr->{NO_AUTOCOMMIT} && ! $self->{db}->{TRANSACTION}) {
+        $self->{db}{db}->{AutoCommit} = 1;
       }
       return $self;
     }
@@ -194,7 +150,6 @@ sub take {
 #    else {
 #      $user->{COMPANY_VAT} = 0;
 #    }
-
     $Bill->action('take', $user->{BILL_ID}, $sum);
     if ($Bill->{errno}) {
       $self->{errno}  = $Bill->{errno};
@@ -203,28 +158,18 @@ sub take {
     }
 
     $self->{SUM} = $sum;
-    $self->query2("INSERT INTO fees (uid, bill_id, date, sum, dsc, ip, last_deposit, aid, vat, inner_describe, method) 
-           values ('$user->{UID}', '$user->{BILL_ID}', $DATE, '$self->{SUM}', '$DESCRIBE', 
-            INET_ATON('$admin->{SESSION_IP}'), '$Bill->{DEPOSIT}', '$admin->{AID}',
-            '$company_vat', '$DATA{INNER_DESCRIBE}', '$DATA{METHOD}')", 'do'
-    );
+    $self->query_add('fees', {
+      %$attr,
+      SUM          => $self->{SUM},
+      LAST_DEPOSIT => $Bill->{DEPOSIT},
+    });
 
     if ($self->{errno}) {
-      if($self->{db}->{db}) { 
-        $self->{db}->{db}->rollback();
-      }
-      else {
-        $self->{db}->rollback();
-      }
+      $self->{db}{db}->rollback();
       return $self;
     }
     else {
-      if($self->{db}->{db}) { 
-        $self->{db}->{db}->commit();
-      }
-      else {
-        $self->{db}->commit();
-      }
+      $self->{db}{db}->commit() if(! $self->{db}->{TRANSACTION});
     }
   }
   else {
@@ -232,26 +177,23 @@ sub take {
     $self->{errstr} = 'No Bill';
   }
 
-  if (!$attr->{NO_AUTOCOMMIT}) {
-    if($self->{db}->{db}) { 
-      $self->{db}->{db}->{AutoCommit} = 1;
-    }
-    else {
-      $self->{db}->{AutoCommit} = 1 ;
-    }
+  if (! $self->{db}->{TRANSACTION} && !$attr->{NO_AUTOCOMMIT} && !$attr->{TRANSACTION}) {
+    $self->{db}{db}->{AutoCommit} = 1 ;
   }
 
   return $self;
 }
 
 #**********************************************************
-# del $user, $id
+=head2 del($user, $id, $attr)
+
+=cut
 #**********************************************************
 sub del {
   my $self = shift;
   my ($user, $id, $attr) = @_;
 
-  $self->query2("SELECT sum, bill_id from fees WHERE id='$id';");
+  $self->query2("SELECT sum, bill_id from fees WHERE id= ? ;", undef, { Bind => [ $id ] });
 
   if ($self->{TOTAL} < 1) {
     $self->{errno}  = 2;
@@ -266,9 +208,9 @@ sub del {
 
   $Bill->action('add', $bill_id, $sum);
 
-  $self->query2("DELETE FROM fees WHERE id='$id';", 'do');
+  $self->query_del('fees', { ID => $id });
 
- 	my $comments = ($attr->{COMMENTS}) ? $attr->{COMMENTS} : '';
+   my $comments = ($attr->{COMMENTS}) ? $attr->{COMMENTS} : '';
 
   $admin->action_add($user->{UID}, "$id $sum $comments", { TYPE => 17 });
 
@@ -276,20 +218,22 @@ sub del {
 }
 
 #**********************************************************
-# list()
+=head2  list($attr) - Fees list
+
+=cut
 #**********************************************************
 sub list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE =  $self->search_former($attr, [
       ['ID',             'INT', 'f.id',                              ],
-      ['DATETIME',      'DATE','f.date',        'f.date AS datetime' ],
+      ['DATETIME',       'DATE','f.date',        'f.date AS datetime'],
       ['LOGIN',          'STR', 'u.id AS login',                   1 ],
       ['FIO',            'STR', 'pi.fio',                          1 ],
       ['DESCRIBE',       'STR', 'f.dsc',                           1 ],
@@ -305,28 +249,24 @@ sub list {
       ['AID',            'INT', 'f.aid',                             ],
       ['DOMAIN_ID',      'INT', 'u.domain_id',                       ],
       ['UID',            'INT', 'f.uid',                           1 ],
-      ['INNER_DESCRIBE', 'STR', 'f.inner_describe',                1 ],
-      ['DATE',           'DATE', 'date_format(f.date, \'%Y-%m-%d\')' ],
+      ['INNER_DESCRIBE', 'STR', 'f.inner_describe',                 ],
+      ['DATE',           'DATE','date_format(f.date, \'%Y-%m-%d\')'  ],
       ['FROM_DATE|TO_DATE','DATE', 'date_format(f.date, \'%Y-%m-%d\')'  ],
       ['MONTH',          'DATE', "date_format(f.date, '%Y-%m')"   ],
     ],
     { WHERE       => 1,
       USERS_FIELDS=> 1,
-      SKIP_USERS_FIELDS=> [ 'BILL_ID', 'UID' ]
+      SKIP_USERS_FIELDS=> [ 'BILL_ID', 'UID', 'LOGIN' ],
+      USE_USER_PI => 1
     }
     );
 
   my $EXT_TABLES  = $self->{EXT_TABLES};
-  if ($WHERE =~ /pi\./ || $self->{SEARCH_FIELDS} =~ /pi\./) {
-    $EXT_TABLES  .= 'LEFT JOIN users_pi pi ON (u.uid=pi.uid)';
-  }
-  elsif ($EXT_TABLES =~ /builds/ && $EXT_TABLES !~ /users_pi/) {
-    $EXT_TABLES .= 'LEFT JOIN users_pi pi ON (u.uid=pi.uid) '. $EXT_TABLES;
-  }
 
   $self->query2("SELECT f.id,
      $self->{SEARCH_FIELDS}
-   f.uid, f.inner_describe
+   f.inner_describe,
+   f.uid
     FROM fees f
     LEFT JOIN users u ON (u.uid=f.uid)
     LEFT JOIN admins a ON (a.aid=f.aid)
@@ -359,30 +299,30 @@ sub list {
 }
 
 #**********************************************************
-# report
+=head2 report()
+
+=cut
 #**********************************************************
 sub reports {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $PG   = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $date = '';
-  undef @WHERE_RULES;
+  my @WHERE_RULES = ();
 
-  if ($attr->{GIDS}) {
-    push @WHERE_RULES, "u.gid IN ( $attr->{GIDS} )";
-  }
-  elsif ($attr->{GID}) {
-    push @WHERE_RULES, "u.gid='$attr->{GID}'";
+  if ($attr->{GID}) {
+    push @WHERE_RULES, "u.gid IN ( $attr->{GID} )";
   }
 
   if ($attr->{BILL_ID}) {
-    push @WHERE_RULES, "f.BILL_ID IN ( $attr->{BILL_ID} )";
+    push @WHERE_RULES, "f.bill_id IN ( $attr->{BILL_ID} )";
   }
 
   if ($attr->{ADMINS}) {
-  	push @WHERE_RULES, @{ $self->search_expr($attr->{ADMINS}, 'STR', 'a.id') };
+    push @WHERE_RULES, @{ $self->search_expr($attr->{ADMINS}, 'STR', 'a.id') };
   }
 
   if ($attr->{DATE}) {
@@ -476,7 +416,9 @@ sub reports {
 }
 
 #**********************************************************
-# fees_type_list()
+=head2 fees_type_list($attr)
+
+=cut
 #**********************************************************
 sub fees_type_list {
   my $self = shift;
@@ -488,12 +430,10 @@ sub fees_type_list {
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE =  $self->search_former($attr, [
-      ['ID',           'INT', 'd'                              ],
-      ['NAME',         'STR', 'name'                               ],      
+      ['ID',           'INT', 'id'      ],
+      ['NAME',         'STR', 'name'    ],
     ],
-    { WHERE => 1,
-    }    
-    );
+  { WHERE => 1, });
 
   $self->query2("SELECT id, name, default_describe, sum FROM fees_types
   $WHERE 
@@ -513,15 +453,18 @@ sub fees_type_list {
 }
 
 #**********************************************************
-# fees_types_info()
+=head2 fees_types_info($attr)
+
+=cut
 #**********************************************************
 sub fees_type_info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("select id, name, default_describe, sum FROM fees_types WHERE id='$attr->{ID}';",
+  $self->query2("SELECT id, name, default_describe, sum FROM fees_types WHERE id = ? ;",
   undef,
-  { INFO => 1 });
+  { INFO => 1,
+    Bind => [ $attr->{ID} ] });
 
   return $self;
 }
@@ -533,8 +476,7 @@ sub fees_type_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes(
-    $admin,
+  $self->changes2(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'fees_types',
@@ -546,7 +488,9 @@ sub fees_type_change {
 }
 
 #**********************************************************
-# fees_type_add()
+=head2 fees_type_add()
+
+=cut
 #**********************************************************
 sub fees_type_add {
   my $self = shift;
@@ -559,13 +503,15 @@ sub fees_type_add {
 }
 
 #**********************************************************
-# fees_type_del()
+=head2 fees_type_del()
+
+=cut
 #**********************************************************
 sub fees_type_del {
   my $self = shift;
   my ($id) = @_;
 
-  $self->query2("DELETE FROM fees_types WHERE id='$id';", 'do');
+  $self->query_del('fees_types', { ID => $id });
 
   $admin->system_action_add("FEES_TYPES:$id", { TYPE => 10 }) if (!$self->{errno});
   return $self;

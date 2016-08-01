@@ -1,33 +1,31 @@
 package Dunes;
-# 
-#
+
+=head1 NAME
+
+  Dunes DB
+
+=cut
 
 use strict;
-use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION);
+use parent 'main';
 
-use Exporter;
-$VERSION = 2.00;
-@ISA = ('Exporter');
-
-@EXPORT = qw();
-
-@EXPORT_OK = ();
-%EXPORT_TAGS = ();
-
-use main;
-@ISA  = ("main");
-
-my $MODULE='Dunes';
-
+my ($admin, $CONF);
 
 #**********************************************************
 # Init 
 #**********************************************************
-sub new {
+sub new{
   my $class = shift;
-  ($db, $admin, $CONF) = @_;
+  my $db = shift;
+  ($admin, $CONF) = @_;
+
   my $self = { };
-  bless($self, $class);
+  bless( $self, $class );
+
+  $self->{db} = $db;
+  $self->{admin} = $admin;
+  $self->{conf} = $CONF;
+
   return $self;
 }
 
@@ -36,66 +34,49 @@ sub new {
 # User information
 # info()
 #**********************************************************
-sub info {
+sub info{
   my $self = shift;
-  my ($id, $attr) = @_;
+  my ($id) = @_;
 
-  $WHERE =  "WHERE err_id='$id'";
+  $self->query2( "SELECT *
+     FROM dunes WHERE err_id= ?;", undef,
+    { INFO => 1,
+      Bind => [ $id ] } );
 
-  $self->query($db, "SELECT err_id, 
-     win_err_handle, 
-     translate, 
-     error_text, 
-     solution
-     FROM dunes WHERE err_id='$id'
-    ;");
-
-  if ($self->{TOTAL} < 1) {
-     $self->{errno} = 2;
-     $self->{errstr} = 'ERROR_NOT_EXIST';
-     return $self;
-   }
-
-  ($self->{ERR_ID},
-   $self->{WIN_ERR_HANDLE}, 
-   $self->{TRANSLATE}, 
-   $self->{ERROR_TEXT}, 
-   $self->{SOLUTION}
-  )= @{ $self->{list}->[0] };
-  
   return $self;
 }
 
 #**********************************************************
 # list()
 #**********************************************************
-sub list {
- my $self = shift;
- my ($attr) = @_;
- my @list = ();
+sub list{
+  my $self = shift;
+  my ($attr) = @_;
 
- undef @WHERE_RULES;
- if ($attr->{ID}) {
-   push @WHERE_RULES, "err_id='$attr->{ID}'"; 
- }
- $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
- 
- $self->query($db, "SELECT err_id, win_err_handle, translate, error_text, solution  
+  my @WHERE_RULES = ();
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  if ( $attr->{ID} ){
+    push @WHERE_RULES, "err_id='$attr->{ID}'";
+  }
+
+  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join( ' and ', @WHERE_RULES ) : '';
+
+  $self->query2( "SELECT err_id, win_err_handle, translate, error_text, solution
      FROM dunes
      $WHERE
-     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;");
+     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, { COLS_NAME => 1 } );
 
- return $self if($self->{errno});
+  return [ ] if ($self->{errno});
 
+  my $list = $self->{list};
 
-
- my $list = $self->{list};
-
- if ($self->{TOTAL} >= 0) {
-    $self->query($db, "SELECT count(*) FROM dunes $WHERE");
-    my $a_ref = $self->{list}->[0];
-    ($self->{TOTAL}) = @$a_ref;
-   }
+  if ( $self->{TOTAL} >= 0 ){
+    $self->query2( "SELECT count(*) AS total FROM dunes $WHERE", undef, { INFO => 1 } );
+  }
 
   return $list;
 }

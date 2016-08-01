@@ -1,38 +1,21 @@
 package Marketing;
 
-# Marketing  functions
-#
+=head1 NAME
+
+  Marketing  functions
+
+=cut
 
 use strict;
-use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION);
-
-use Exporter;
-$VERSION = 2.00;
-@ISA     = ('Exporter');
-
-@EXPORT = qw();
-
-@EXPORT_OK   = ();
-%EXPORT_TAGS = ();
-
-use main;
-@ISA = ("main");
-
-my $uid;
+use parent 'main';
 
 my $MODULE = 'Marketing';
+my ($admin, $CONF)=@_;
+my $SORT      = 1;
+my $DESC      = '';
+my $PG        = 0;
+my $PAGE_ROWS = 25;
 
-my %SEARCH_PARAMS = (
-  TP_ID          => 0,
-  SIMULTANEONSLY => 0,
-  STATUS         => 0,
-  IP             => '0.0.0.0',
-  NETMASK        => '255.255.255.255',
-  SPEED          => 0,
-  FILTER_ID      => '',
-  CID            => '',
-  REGISTRATION   => ''
-);
 
 #**********************************************************
 # Init
@@ -41,13 +24,16 @@ sub new {
   my $class = shift;
   my $db    = shift;
   ($admin, $CONF) = @_;
+
   $admin->{MODULE} = $MODULE;
-  my $self = {};
+  my $self = {
+    db   => $db,
+    conf => $CONF,
+    admin=> $admin
+  };
 
   bless($self, $class);
-  
-  $self->{db}=$db;
-  
+
   return $self;
 }
 
@@ -57,7 +43,6 @@ sub new {
 sub report1 {
   my $self   = shift;
   my ($attr) = @_;
-  my @list   = ();
 
   $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
   $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
@@ -67,7 +52,7 @@ sub report1 {
   $self->{SEARCH_FIELDS}       = '';
   $self->{SEARCH_FIELDS_COUNT} = 0;
 
-  @WHERE_RULES = ('u.disable=0',
+  my @WHERE_RULES = ('u.disable=0',
    'u.uid=pi.uid');
 
   my $WHERE =  $self->search_former($attr, [
@@ -75,9 +60,11 @@ sub report1 {
     { WHERE       => 1,
     	WHERE_RULES => \@WHERE_RULES,
     	USERS_FIELD => 1
-    }    
+    }
     );
 
+  #alter table users_pi  add column _c_address varchar(100) not null default '';
+  #alter table users_pi add column _c_build varchar(100) not null default '';
 
   $self->query2("SELECT 
       if (pi._c_address <> '', pi._c_address, pi.address_street),
@@ -92,7 +79,7 @@ sub report1 {
      $attr
   );
 
-  return $self if ($self->{errno});
+  return [ ] if ($self->{errno});
 
   my $list = $self->{list};
 
@@ -111,14 +98,13 @@ sub report1 {
 sub internet_fees_monitor {
   my $self   = shift;
   my ($attr) = @_;
-  my @list   = ();
 
   $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
   $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
   $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  @WHERE_RULES = @{ $self->search_expr_users($attr) };
+  my @WHERE_RULES = @{ $self->search_expr_users($attr) };
 
   if ($attr->{TP_ID}) {
     push @WHERE_RULES, @{ $self->search_expr($attr->{TP_ID}, 'INT', 'tp.id') };
@@ -147,13 +133,13 @@ sub internet_fees_monitor {
    dv.tp_id, 
    tp.name AS tp_name, 
    tp.month_fee,
-   sum(if (DATE_FORMAT($date, '%Y-%m-01')=DATE_FORMAT(f.date, '%Y-%m-%d'), 1, 0)) AS fees_count,
-   max(f.date) AS last_fees_date
+   SUM(if (DATE_FORMAT($date, '%Y-%m-01')=DATE_FORMAT(f.date, '%Y-%m-%d'), 1, 0)) AS fees_count,
+   MAX(f.date) AS last_fees_date
 
-  from users u
-  inner join dv_main dv on (dv.uid=u.uid)
-  inner join tarif_plans tp on (dv.tp_id=tp.id)
-  left join fees f on (f.uid=u.uid)
+  FROM users u
+  INNER JOIN dv_main dv on (dv.uid=u.uid)
+  INNER JOIN tarif_plans tp on (dv.tp_id=tp.id)
+  LEFT JOIN fees f on (f.uid=u.uid)
   $WHERE
   GROUP BY u.uid
      ORDER BY $SORT $DESC 
@@ -162,7 +148,7 @@ sub internet_fees_monitor {
   $attr
   );
 
-  return $self if ($self->{errno});
+  return [ ] if ($self->{errno});
 
   my $list = $self->{list};
 
@@ -186,7 +172,6 @@ sub internet_fees_monitor {
 sub evolution_report {
   my $self   = shift;
   my ($attr) = @_;
-  my @list   = ();
 
   $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
   $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
@@ -196,7 +181,7 @@ sub evolution_report {
   $self->{SEARCH_FIELDS}       = '';
   $self->{SEARCH_FIELDS_COUNT} = 0;
 
-  @WHERE_RULES   = ();
+  my @WHERE_RULES   = ();
   my $EXT_TABLES = '';
   my $date = 'DATE_FORMAT(datetime, \'%Y-%m\')';
 
@@ -231,10 +216,10 @@ sub evolution_report {
   my $WHERE = ($#WHERE_RULES > -1) ? 'WHERE ' . join(' and ', @WHERE_RULES) : '';
 
   $self->query2("select $date,
-  sum(if(action_type = 7, 1, 0)),
-  sum(if(action_type = 9, 1, 0))-sum(if(action_type = 8, 1, 0)),
-  sum(if(action_type = 8, 1, 0)),
-  sum(if(action_type = 12, 1, 0))  
+  SUM(if(action_type = 7, 1, 0)),
+  SUM(if(action_type = 9, 1, 0))-SUM(if(action_type = 8, 1, 0)),
+  SUM(if(action_type = 8, 1, 0)),
+  SUM(if(action_type = 12, 1, 0))
   FROM admin_actions aa
   $EXT_TABLES
   $WHERE 
@@ -245,13 +230,12 @@ sub evolution_report {
   $attr
   );
 
-  return $self if ($self->{errno});
+  return [ ] if ($self->{errno});
 
   my $list = $self->{list};
 
   if ($self->{TOTAL} >= 0) {
-    $self->query(
-      $db, "SELECT count(distinct $date) AS total FROM admin_actions aa
+    $self->query2("SELECT count(distinct $date) AS total FROM admin_actions aa
       $EXT_TABLES
       $WHERE;"
     );
@@ -266,7 +250,6 @@ sub evolution_report {
 sub evolution_users_report {
   my $self   = shift;
   my ($attr) = @_;
-  my @list   = ();
 
   $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
   $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
@@ -276,7 +259,7 @@ sub evolution_users_report {
   $self->{SEARCH_FIELDS}       = '';
   $self->{SEARCH_FIELDS_COUNT} = 0;
 
-  @WHERE_RULES = ();
+  my @WHERE_RULES = ();
 
   my $date = 'aa.datetime';
 
@@ -308,8 +291,8 @@ sub evolution_users_report {
   }
   elsif ($attr->{DISABLED}) {
     my $WHERE = ($#WHERE_RULES > -1) ? 'WHERE ' . join(' and ', @WHERE_RULES) : '';
-    $self->query2("select max($date), $user, a.id, u.registration, aa.uid,
-     sum(if(aa.action_type=9, 1, 0)) - sum(if(aa.action_type=8, 1, 0)) As ACTIONS  
+    $self->query2("select MAX($date), $user, a.id, u.registration, aa.uid,
+     SUM(if(aa.action_type=9, 1, 0)) - SUM(if(aa.action_type=8, 1, 0)) As ACTIONS
      FROM admin_actions aa 
      LEFT JOIN users u ON (aa.uid=u.uid) 
      LEFT JOIN admins a ON (a.aid=aa.aid) 
@@ -322,12 +305,12 @@ sub evolution_users_report {
      $attr
     );
 
-    return $self if ($self->{errno});
+    return [ ] if ($self->{errno});
     my $list = $self->{list};
 
     # if ($self->{TOTAL} >= 0) {
-    #    $self->query($db, "SELECT count(*) FROM (select max($date), $user, a.id, u.registration, aa.uid,
-    #   sum(if(aa.action_type=9, 1, 0)) - sum(if(aa.action_type=8, 1, 0)) As ACTIONS
+    #    $self->query($db, "SELECT count(*) FROM (select MAX($date), $user, a.id, u.registration, aa.uid,
+    #   SUM(if(aa.action_type=9, 1, 0)) - SUM(if(aa.action_type=8, 1, 0)) As ACTIONS
     #   FROM admin_actions aa
     #   LEFT JOIN users u ON (aa.uid=u.uid)
     #   LEFT JOIN admins a ON (a.aid=aa.aid)
@@ -362,7 +345,7 @@ sub evolution_users_report {
   $attr
   );
 
-  return $self if ($self->{errno});
+  return [ ] if ($self->{errno});
 
   my $list = $self->{list};
 
@@ -383,7 +366,6 @@ sub evolution_users_report {
 sub report_2 {
   my $self   = shift;
   my ($attr) = @_;
-  my @list   = ();
 
   $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
   $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
@@ -421,9 +403,8 @@ sub report_2 {
      ['DEBTS_DAYS',         'INT', 'prosrochennyh_dney'  ]
     ],
     { WHERE       => 1,
-    }    
+    }
     );
-
 
   $self->query2("
 CREATE TEMPORARY TABLE IF NOT EXISTS marketing_report_2
@@ -431,7 +412,7 @@ CREATE TEMPORARY TABLE IF NOT EXISTS marketing_report_2
 login varchar(40) not null default '',
 fio varchar(40) not null default '',
 registration date,
-aid smallint unsigned not null default 0,  
+aid smallint unsigned not null default 0,
 _segment varchar(40) not null default '',
 _district varchar(40) not null default '',
 address_district_id smallint unsigned not null default 0,
@@ -439,11 +420,10 @@ address_street varchar(40) not null default '',
 address_street_id int unsigned not null default 0,
 address_build varchar(6) not null default '',
 address_flat varchar(6) not null default '',
-_entrance tinyint unsigned not null default 0,  
-_flor tinyint unsigned not null default 0,  
-
-tp_id smallint unsigned not null default 0,  
-last_tp_id smallint unsigned not null default 0,  
+_entrance tinyint unsigned not null default 0,
+_flor tinyint unsigned not null default 0,
+tp_id smallint unsigned not null default 0,
+last_tp_id smallint unsigned not null default 0,
 last_tp_changed date not null default '0000-00-00',
 
 credit double(10,2) unsigned not null default 0,
@@ -451,11 +431,10 @@ deposit double(10,2) unsigned not null default 0,
 
 last_payment_sum double(10,2) unsigned not null default 0,
 last_payment_date datetime not null,
-last_payment_method tinyint unsigned not null default 0,  
+last_payment_method tinyint unsigned not null default 0,
 to_payments_date date not null default '0000-00-00',
-prosrochennyh_dney smallint unsigned not null default 0,  
-
-status tinyint unsigned not null default 0,  
+prosrochennyh_dney smallint unsigned not null default 0,
+status tinyint unsigned not null default 0,
 forum_activity varchar(40) not null default '',
 bonus varchar(40) not null default '',
 disable_date datetime not null,
@@ -527,17 +506,16 @@ GROUP BY u.uid", 'do'
   $self->query2("SELECT login,
 fio,
 registration,
-aid,  
+aid,
 _segment,
 _district,
 address_street,
 address_build,
 address_flat,
-_entrance,  
-_flor,  
-
-tp_id,  
-last_tp_id,  
+_entrance,
+_flor,
+tp_id,
+last_tp_id,
 last_tp_changed,
 
 credit,
@@ -548,22 +526,21 @@ last_payment_date,
 last_payment_method,
 '-',
 to_payments_date,
-prosrochennyh_dney,  
-
-status,  
+prosrochennyh_dney,
+status,
 forum_activity,
 bonus,
 disable_date,
 disable_comments,
 uid 
-from marketing_report_2
+FROM marketing_report_2
 $WHERE 
     ORDER BY $SORT $DESC 
     LIMIT $PG, $PAGE_ROWS;
  ;", undef, $attr
   );
 
-  return $self if ($self->{errno});
+  return [ ] if ($self->{errno});
 
   my $list = $self->{list};
 
@@ -582,7 +559,6 @@ $WHERE
 sub triplay_stats {
   my $self   = shift;
   my ($attr) = @_;
-  my @list   = ();
 
   $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
   $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
@@ -593,11 +569,11 @@ sub triplay_stats {
      ['LOCATION_ID', 'INT', 'pi.location_id' ]
     ],
     { WHERE       => 1,
-    }    
+    }
     );
 
   $self->query2("SELECT CONCAT(s.name, ', ', b.number), pi.address_flat,  u.id,
-   
+
    dv_tp.name,
    voip_tp.name,
    iptv_tp.name,
@@ -615,9 +591,9 @@ sub triplay_stats {
    LEFT JOIN tarif_plans voip_tp ON (voip_tp.tp_id=voip.tp_id)
   LEFT JOIN iptv_main iptv ON (pi.uid=iptv.uid)
    LEFT JOIN tarif_plans iptv_tp ON (iptv_tp.tp_id=iptv.tp_id)
-  
-  LEFT JOIN users u ON (u.uid=pi.uid)  
-$WHERE  
+
+  LEFT JOIN users u ON (u.uid=pi.uid)
+$WHERE
    GROUP BY pi.uid
    ORDER BY $SORT $DESC 
    LIMIT $PG, $PAGE_ROWS;",
@@ -625,7 +601,7 @@ $WHERE
    $attr
   );
 
-  return $self if ($self->{errno});
+  return [ ] if ($self->{errno});
 
   my $list = $self->{list};
 
@@ -649,12 +625,11 @@ $WHERE
 sub dhcp_full_list {
   my $self   = shift;
   my ($attr) = @_;
-  my @list   = ();
 
-  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE =  $self->search_former($attr, [
      ['TP_ID',    'INT', 'dv.tp_id' ],
@@ -662,7 +637,7 @@ sub dhcp_full_list {
     ],
     { WHERE       => 1,
     	USERS_FIELDS=> 1
-    }    
+    }
     );
 
   $self->query2("SELECT u.id AS login, 
@@ -697,11 +672,11 @@ GROUP BY dhcp.id
    $attr
   );
 
-  return $self if ($self->{errno});
+  return [ ] if ($self->{errno});
   my $list = $self->{list};
 
 
-$self->query($db, "SELECT count(*) AS total_users FROM dhcphosts_hosts dhcp
+$self->query2("SELECT count(*) AS total_users FROM dhcphosts_hosts dhcp
 INNER JOIN users u ON (u.uid=dhcp.uid)
   LEFT JOIN bills b ON (u.bill_id = b.id)
   LEFT JOIN companies company ON  (u.company_id=company.id) 
@@ -731,17 +706,16 @@ CREATE TEMPORARY TABLE IF NOT EXISTS marketing_report_2
 login varchar(40) not null default '',
 fio varchar(40) not null default '',
 registration date,
-aid smallint unsigned not null default 0,  
+aid smallint unsigned not null default 0,
 _segment varchar(40) not null default '',
 _district varchar(40) not null default '',
 address_street varchar(40) not null default '',
 address_build varchar(6) not null default '',
 address_flat varchar(6) not null default '',
-_entrance tinyint unsigned not null default 0,  
-_flor tinyint unsigned not null default 0,  
-
-tp_id smallint unsigned not null default 0,  
-last_tp_id smallint unsigned not null default 0,  
+_entrance tinyint unsigned not null default 0,
+_flor tinyint unsigned not null default 0,
+tp_id smallint unsigned not null default 0,
+last_tp_id smallint unsigned not null default 0,
 last_tp_changed date not null default '0000-00-00',
 
 credit double(10,2) unsigned not null default 0,
@@ -749,11 +723,10 @@ deposit double(10,2) unsigned not null default 0,
 
 last_payment_sum double(10,2) unsigned not null default 0,
 last_payment_date datetime not null,
-last_payment_method tinyint unsigned not null default 0,  
+last_payment_method tinyint unsigned not null default 0,
 to_payments_date date not null default '0000-00-00',
-prosrochennyh_dney smallint unsigned not null default 0,  
-
-status tinyint unsigned not null default 0,  
+prosrochennyh_dney smallint unsigned not null default 0,
+status tinyint unsigned not null default 0,
 forum_activity varchar(40) not null default '',
 bonus varchar(40) not null default '',
 disable_date datetime not null,
@@ -766,17 +739,16 @@ insert into marketing_report_2
 login,
 fio,
 registration,
-aid,  
+aid,
 _segment,
 _district,
 address_street,
 address_build,
 address_flat,
-_entrance,  
-_flor,  
-
-tp_id,  
-last_tp_id,  
+_entrance,
+_flor,
+tp_id,
+last_tp_id,
 last_tp_changed,
 
 credit,
@@ -784,11 +756,10 @@ deposit,
 
 last_payment_sum,
 last_payment_date,
-last_payment_method,  
+last_payment_method,
 to_payments_date,
-prosrochennyh_dney,  
-
-status,  
+prosrochennyh_dney,
+status,
 forum_activity,
 bonus,
 disable_date,

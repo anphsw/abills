@@ -1,7 +1,7 @@
-<p><a class=link_button title='$_NEXT_PERIOD $_INVOICE'  href='$SELF_URL?index=$index&amp;ALL_SERVICES=1&amp;UID=$FORM{UID}'>$_NEXT_PERIOD $_INVOICE</a></p>
 
+%MENU%
 
-<form action='$SELF_URL' method='post' name='account_add'>
+<form action='$SELF_URL' method='post' name='invoice_add' id='invoice_add' class='form-horizontal'>
 <input type=hidden name=index value=$index>
 <input type=hidden name='UID' value='$FORM{UID}'>
 <input type=hidden name='DOC_ID' value='%DOC_ID%'>
@@ -10,18 +10,111 @@
 <input type=hidden name='VAT' value='%VAT%'>
 <input type=hidden name='SEND_EMAIL' value='1'>
 <input type=hidden name=INCLUDE_DEPOSIT value=1>
-<Table class=form>
-<tr><th class='form_title' colspan=2>%CAPTION%</th></tr>
-%FORM_INVOICE_ID%
-<tr><td>$_DATE:</td><td>%DATE_FIELD%</td></tr>
-<tr><td>$_CUSTOMER:</td><td><input type=text name=CUSTOMER value='%CUSTOMER%' size=60></td></tr>
-<tr><td>$_PHONE:</td><td><input type=text name=PHONE value=%PHONE%></td></tr>
-%ORDERS%
-<!-- <tr><td>$_VAT:</td><td>%COMPANY_VAT%</td></tr> -->
-<tr><td colspan=2>&nbsp;</td></tr>
-<!-- <tr><td>$_PRE</td><td><input type=checkbox name=PREVIEW value='1'></td></tr> -->
-<tr><th class='even' colspan=2><input type=submit name=create value='$_CREATE'></th></tr>
-</table>
-<!-- <input type=submit name=pre value='$_PRE'>  -->
 
+
+<div class='panel panel-primary' style="max-width:50%">
+<div class='panel-heading'>%CAPTION%</div>
+<div class='panel-body'>
+
+
+%FORM_INVOICE_ID%
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='DATE'>_{DATE}_</label>
+  <div class='col-md-9'>
+    %DATE_FIELD%
+  </div>
+</div>
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='CUSTOMER'>_{CUSTOMER}_</label>
+  <div class='col-md-9'>
+ 	  <input type='text' id='CUSTOMER' name='CUSTOMER' value='%CUSTOMER%' placeholder='%CUSTOMER%' class='form-control' >
+ 	</div>
+</div>
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='PHONE'>_{PHONE}_</label>
+  <div class='col-md-9'>
+ 	  <input type='text' id='PHONE' name='PHONE' value='%PHONE%' placeholder='%PHONE%' class='form-control' >
+ 	</div>
+</div>
+
+<div class='container-fluid'>
+
+    <div class='col-md-12 column'>
+      <table class='table table-bordered table-hover' id='tab_logic'>
+        <thead>
+          <tr >
+            <th class='text-center col-md-1'>
+              #
+            </th>
+            <th class='text-center'>
+              _{NAME}_
+            </th>
+            <th class='text-center col-md-1'>
+              _{COUNT}_
+            </th>
+            <th class='text-center col-md-2'>
+              _{SUM}_
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+
+        <tr id='addr1'>
+            <td>
+            1 <input type=hidden name=IDS value='1'>
+            </td>
+            <td>
+            <input type='text' name='ORDER_1' value='%ORDER_1%' placeholder='%ORDER_1%' class='form-control'/>
+            </td>
+            <td>
+            <input type='text' name='COUNTS_1' value='%COUNTS_1%' placeholder='1' class='form-control'/>
+            </td>
+            <td>
+            <input type='text' name='SUM_1' value='%SUM_1%' placeholder='0.00' class='form-control'/>
+            </td>
+          </tr>
+                    <tr id='addr2'></tr>
+        </tbody>
+      </table>
+
+        <a id='add_row' class='btn btn-xs btn-default pull-left'><span class='glyphicon glyphicon-plus'></span></a>
+        <a id='delete_row' class='pull-right btn-xs btn btn-default'><span class='glyphicon glyphicon-minus'></span></a>
+    </div>
+
+  </div>
+
+</div>
+<div class='panel-footer'><input type=submit name=create value='_{CREATE}_' class='btn btn-primary'></div>
+</div><div class='col-md-3'></div>
+
+
+    <!-- <input type=submit name=pre value='_{PRE}_'>  -->
 </form>
+
+<!-- http://bootsnipp.com/snippets/featured/dynamic-table-row-creation-and-deletion -->
+
+<script>
+  jQuery(document).ready(function () {
+
+    var i = 2;
+    jQuery('#add_row').click(function () {
+
+      jQuery('#addr' + i).html("<td>" + i + " <input type=hidden name=IDS value='" + i + "'>" + "</td><td><input name='ORDER_" + i + "' type='text' placeholder='_{ORDER}_' class='form-control input-md'  /> </td><td><input  name='COUNTS_" + i + "' type='text' placeholder='1'  class='form-control input-md'></td><td><input  name='SUM_" + i + "' type='text' placeholder='0.00'  class='form-control input-md'></td>");
+      jQuery('#tab_logic').append('<tr id="addr' + (i + 1) + '"></tr>');
+      i++;
+    });
+
+    jQuery("#delete_row").click(function () {
+      ;
+
+      if (i > 1) {
+        jQuery("#addr" + (i - 1)).html('');
+        i--;
+      }
+    });
+  });
+
+</script>

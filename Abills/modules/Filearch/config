@@ -4,7 +4,7 @@
                    "2:1:Video:filearch_video:"           => 8,
                    "3:2:_ACTORS:filearch_video_actors:"  => 8,
                    "4:2:_GENRES:filearch_video_genres:"  => 8,
-                   "6:1:$_CHAPTERS:filearch_chapters:"   => 8
+                   "6:1:$lang{CHAPTERS}:filearch_chapters:"   => 8
                    );
 
 

@@ -1,2 +1,13 @@
-$_EXTRA_TRAFIC='Extra Trafic';
-$_BUY='Buy';
+$lang{EXTRA_TRAFIC} = 'Extra Trafic';
+
+$lang{FILES}          = 'Files';
+$lang{TIME_FOR_LINK}  = 'Links time life';
+$lang{TIME_FOR_FILE}  = 'Access time to file';
+$lang{BUY}            = 'Buy';
+$lang{GET_LINK}       = 'Get link';
+$lang{FILE_NOT_ADDED} = 'File not added';
+$lang{FILE_NOT_DELETED} = 'File not deleted';
+$lang{FILE_NOT_CHANGED} = 'File not changed';
+$lang{DAYS}             = 'Days';
+$lang{SUCCESS_BUY}      = 'Successfully paid purchase to ';
+$lang{DATE_TO}          = 'Download available to ';

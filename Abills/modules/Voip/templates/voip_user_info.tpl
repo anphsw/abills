@@ -1,11 +1,41 @@
-<TABLE width='500' class=form>
-<tr><th class='form_title' colspan=2>VoIP $_INFO</th></tr>
-<tr><td>$_NUMBER:</td><td><b>%NUMBER%</b></td></tr>
-<tr><td>$_TARIF_PLAN:</td><td>[%TP_ID%] <b>%TP_NAME%</b></td></tr>
-<tr><td>$_SIMULTANEOUSLY:</td><td>%SIMULTANEONSLY%</td></tr>
-<tr><td>IP:</td><td>%IP%</td></tr>
-<tr><td>CID:</td><td>%CID%</td></tr>
-<tr><td>$_ALLOW_ANSWER:</td><td>%ALLOW_ANSWER%</td></tr>
-<tr><td>$_ALLOW_CALLS:</td><td>%ALLOW_CALLS%</td></tr>
-<tr><td>$_DISABLE:</td><td>%DISABLE%</td></tr>
-</table>
+<div class='panel panel-info center-block' style='max-width: 500px'>
+    <div class='panel-heading text-center'>
+        <h5>VoIP _{INFO}_</h5>
+    </div>
+    <div class='panel-body'>
+        <div class='table table-striped table-hover'>
+            <div class='row'>
+                <div class='col-xs-12 col-sm-3 col-md-7 text-1'>_{NUMBER}_:</div>
+                <div class='col-xs-12 col-sm-9 col-md-5 text-2'><b>%NUMBER%</b></div>
+            </div>
+            <div class='row'>
+                <div class='col-xs-12 col-sm-3 col-md-7 text-1'>_{TARIF_PLAN}_:</div>
+                <div class='col-xs-12 col-sm-9 col-md-5 text-2'>[%TP_ID%] <b>%TP_NAME%</b></div>
+            </div>
+            <div class='row'>
+                <div class='col-xs-12 col-sm-3 col-md-7 text-1'>_{SIMULTANEOUSLY}_:</div>
+                <div class='col-xs-12 col-sm-9 col-md-5 text-2'>%SIMULTANEONSLY%</div>
+            </div>
+            <div class='row'>
+                <div class='col-xs-12 col-sm-3 col-md-7 text-1'>IP:</div>
+                <div class='col-xs-12 col-sm-9 col-md-5 text-2'>%IP%</div>
+            </div>
+            <div class='row'>
+                <div class='col-xs-12 col-sm-3 col-md-7 text-1'>CID:</div>
+                <div class='col-xs-12 col-sm-9 col-md-5 text-2'>%CID%</div>
+            </div>
+            <div class='row'>
+                <div class='col-xs-12 col-sm-3 col-md-7 text-1'>_{ALLOW_ANSWER}_:</div>
+                <div class='col-xs-12 col-sm-9 col-md-5 text-2'>%ALLOW_ANSWER%</div>
+            </div>
+            <div class='row'>
+                <div class='col-xs-12 col-sm-3 col-md-7 text-1'>_{ALLOW_CALLS}_:</div>
+                <div class='col-xs-12 col-sm-9 col-md-5 text-2'>%ALLOW_CALLS%</div>
+            </div>
+            <div class='row'>
+                <div class='col-xs-12 col-sm-3 col-md-7 text-1'>_{DISABLE}_:</div>
+                <div class='col-xs-12 col-sm-9 col-md-5 text-2'>%DISABLE%</div>
+            </div>
+        </div>
+    </div>
+</div>

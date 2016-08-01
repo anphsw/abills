@@ -1,28 +1,86 @@
-<form action='$SELF_URL' method='post'>
-<input type=hidden name='index' value='$index'>
-<input type=hidden name='UID' value='$FORM{UID}'>
+<div class='panel panel-default panel-form'>
+  <div class='panel-body'>
 
-<table cellspacing='0' cellpadding='3'>
-<tr><td>VLAN ID:</td><td><input type=text name=VLAN_ID value='%VLAN_ID%' size=8></td></tr>
-<tr><td>UNNUMBERED IP:</td><td><input type='text' name='UNNUMBERED_IP' value='%UNNUMBERED_IP%'></td></tr>
-<tr><td>$_INTERFACE IP:</td><td><input type=text name=IP value='%IP%'></td></tr>
-<tr><td>Netmask:</td><td><input type=text name=NETMASK value='%NETMASK%'></td></tr>
-<tr><td>IP $_RANGE:</td><td>%IP_RANGE%</td></tr>
-<tr><td>IP $_COUNT:</td><td>%CLIENT_IPS_COUNT%</td></tr>
-<tr><td>$_NAS:</td><td>%NAS_LIST%</td></tr>
-<tr><td>DHCP:</td><td><input type='checkbox' name='DHCP' value='1' %DHCP%></td></tr>
-<tr><td>PPPoE:</td><td><input type='checkbox' name='PPPOE' value='1' %PPPOE%></td></tr>
+    %MENU%
 
-<tr><td>$_DISABLE:</td><td><input type='checkbox' name='DISABLE' value='1' %DISABLE%></td></tr>
+    <form action='$SELF_URL' method='post' class='form form-horizontal' id='vlan_user_form'>
+      <input type=hidden name='index' value='$index'>
+      <input type=hidden name='UID' value='$FORM{UID}'>
 
-<tr class=even><td>$_DEL $_CONFIRM:</td><td><input name='is_js_confirmed' value='1' type=checkbox class='noprint'></td></tr>
+      <div class='form-group'>
+        <label class='control-label col-md-3'>VLAN ID:</label>
+        <div class='col-md-9'>
+          <input class='form-control' type=text name=VLAN_ID value='%VLAN_ID%' size=8>
+        </div>
+      </div>
+      <div class='form-group'>
+        <label class='control-label col-md-3'>UNNUMBERED IP:</label>
+        <div class='col-md-9'>
+          <input class='form-control' type='text' name='UNNUMBERED_IP' value='%UNNUMBERED_IP%'>
+        </div>
+      </div>
+      <div class='form-group'>
+        <label class='control-label col-md-3'>_{INTERFACE}_ IP:</label>
+        <div class='col-md-9'>
+          <input class='form-control' type=text name=IP value='%IP%'>
+        </div>
+      </div>
+      <div class='form-group'>
+        <label class='control-label col-md-3'>Netmask:</label>
+        <div class='col-md-9'>
+          <input class='form-control' type=text name=NETMASK value='%NETMASK%'>
+        </div>
+      </div>
+      <div class='form-group'>
+        <label class='control-label col-md-3'>IP _{RANGE}_:</label>
+        <div class='col-md-9'>
+          %IP_RANGE%
+        </div>
+      </div>
+      <div class='form-group'>
+        <label class='control-label col-md-3'>IP _{COUNT}_:</label>
+        <div class='col-md-9'>
+          %CLIENT_IPS_COUNT%
+        </div>
+      </div>
+      <div class='form-group'>
+        <label class='control-label col-md-3'>_{NAS}_:</label>
+        <div class='col-md-9'>
+          %NAS_LIST%
+        </div>
+      </div>
+      <div class='checkbox'>
+        <label>
+          <input type='checkbox' name='DHCP' value='1' %DHCP%>
+          <strong>DHCP</strong>
+        </label>
+      </div>
+      <div class='checkbox'>
+        <label>
+          <input type='checkbox' name='PPPOE' value='1' %PPPOE%>
+          <strong>PPPoE</strong>
+        </label>
+      </div>
 
-<tr><td align=left class=even>
-<input type=submit name='del' value='$_DEL' class='noprint'>
-</td><td align=right><input type=submit name='%ACTION%' value='%LNG_ACTION%' class='noprint'>
-</td></tr>
-</table>
+      <div class='checkbox'>
+        <label>
+          <input type='checkbox' name='DISABLE' value='1' %DISABLE%>
+          <strong>_{DISABLE}_</strong>
+        </label>
+      </div>
 
+      <div class='checkbox'>
+        <label>
+          <input type=checkbox name='is_js_confirmed' value='1' class='noprint'>
+          <strong>_{DEL}_ _{CONFIRM}_</strong>
+        </label>
+      </div>
 
+    </form>
 
-</form>
+  </div>
+  <div class='panel-footer'>
+    <input type=submit class='btn btn-danger noprint' form='vlan_user_form' name='del' value='_{DEL}_'>
+    <input type=submit class='btn btn-success noprint' form='vlan_user_form' name='%ACTION%' value='%LNG_ACTION%'>
+  </div>
+</div>

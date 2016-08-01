@@ -1,3 +1,3 @@
-$_QUERY='Запит';
-$_FIELDS='Поля';
-$_FIELD='Поле';
+$lang{QUERY}='Запит';
+$lang{FIELDS}='Поля';
+$lang{FIELD}='Поле';

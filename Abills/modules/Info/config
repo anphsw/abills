@@ -1,0 +1,32 @@
+#Iner_ID : Main or Sub or if -1 user menu func list
+%FUNCTIONS_LIST = (
+  "4:1:::info_comments_show:"       => 0,
+  "5:4::info_comment_del:"          => 0,
+  "6:4::info_comment_add:"          => 0,
+  "7:4::info_comments_renew:"       => 0,
+
+  "8:1::info_images_show:"          => 0,
+  "9:8::info_image_add:"            => 0,
+  "10:8::info_image_del:"           => 0,
+#  "11:8::info_images_renew:"       => 0,
+  "12:8::info_image_download:"      => 0,
+
+  "13:1::info_locations_show:"      => 0,
+  "14:13::info_location_add:"       => 0,
+  "15:13::info_location_del:"       => 0,
+  "15:13::info_locations_show_map:" => 0,
+#  "16:13::info_locations_renew:"   => 0,
+
+  "17:1::info_documents_show:"      => 0,
+  "18:17::info_document_add:"       => 0,
+  "19:17::info_document_del:"       => 0,
+  "20:17::info_documents_renew:"    => 0,
+  "21:17::info_document_download:"  => 0,
+
+);
+
+if ($conf{WEB_DEBUG}){
+  $FUNCTIONS_LIST{"1:0:INFO:info_test:"} = 5,
+};
+
+1

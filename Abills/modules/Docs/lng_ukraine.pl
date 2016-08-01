@@ -1,9 +1,9 @@
-$_ORG_NAME  ='Назва організації';
-$_WRONG_SUM ='Мала сума';
+$lang{ORG_NAME}  ='Назва організації';
+$lang{WRONG_SUM} ='Мала сума';
 @MONTHES_LIT=('січня', 'лютого', 'березня', 'квітня', 'травня', 'червня', 'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня');
-$_YEAR_SHORT='p.';
+$lang{YEAR_SHORT}='p.';
 
-$ERR_NO_ORDERS='Не выбрані замовлення';
+$lang{ERR_NO_ORDERS}='Не выбрані замовлення';
 
 @units = ('шт.', 'посл.', 'м.');
 
@@ -20,30 +20,39 @@ $ERR_NO_ORDERS='Не выбрані замовлення';
 @money_unit_names = ('грн','коп');
 
 
-$_PAID='Оплаченний';
-$_PARTLY_PAID='Частично оплачений';
-$_UNPAID='Не оплаченний';
-$_VAT_INCLUDE='З урахуванням податку';
-$_AMOUNT_FOR_PAY='Сума для оплати';
-$_ACTIVATE_NEXT_PERIOD='Для активації наступного облікового періода потрібно сплатити';
-$_CURENT_BILLING_PERIOD='Поточний обрахунковий період';
-$_NEXT_PERIODS='Наступні обрахункові періоди';
+$lang{PAID}='Оплаченний';
+$lang{PARTLY_PAID}='Частично оплачений';
+$lang{UNPAID}='Не оплаченний';
+$lang{VAT_INCLUDE}='З урахуванням податку';
+$lang{AMOUNT_FOR_PAY}='Сума для оплати';
+$lang{ACTIVATE_NEXT_PERIOD}='Для активації наступного облікового періода потрібно сплатити';
+$lang{CURENT_BILLING_PERIOD}='Поточний обрахунковий період';
+$lang{NEXT_PERIODS}='Наступні обрахункові періоди';
 
 
-$_INCLUDE_CUR_BILLING_PERIOD='Включити рахунки за поточний період';
-$_NOT_INCLUDE_CUR_BILLING_PERIOD='Не включати рахунки за поточний період';
+$lang{INCLUDE_CUR_BILLING_PERIOD}='Включити рахунки за поточний період';
+$lang{NOT_INCLUDE_CUR_BILLING_PERIOD}='Не включати рахунки за поточний період';
 
-$_LAST_INVOICE_DATE='Дата останього рахунку';
-$_NEXT_INVOICE_DATE='Дата наступного рахунку';
+$lang{LAST_INVOICE_DATE}='Дата останього рахунку';
+$lang{NEXT_INVOICE_DATE}='Дата наступного рахунку';
 
 
-$_INVOICE_AUTO_GEN='Автоматичне створення рахунку';
-$_INVOICING_PERIOD='Період виписки рахунку';
-$_PERSONAL_DELIVERY='Персональна доставка';
-$_ALT='Альтернативная';
-$_CURRENCY='Валюта';
+$lang{INVOICE_AUTO_GEN}='Автоматичне створення рахунку';
+$lang{INVOICING_PERIOD}='Період виписки рахунку';
+$lang{PERSONAL_DELIVERY}='Персональна доставка';
+$lang{ALT}='Альтернативная';
+$lang{CURRENCY}='Валюта';
 
-$_INCLUDE_DEPOSIT='Врахувати депозит';
-$_APPLY_TO_INVOICE='Автоматично розпреділити по рахункам';
-$_PRINT_EXT='Розширенный друк';
-$_PRINT_EXT_LIST='Друк разширенного шаблону';
+$lang{INCLUDE_DEPOSIT}='Врахувати депозит';
+$lang{APPLY_TO_INVOICE}='Автоматично розпреділити по рахункам';
+$lang{PRINT_EXT}='Розширенный друк';
+$lang{PRINT_EXT_LIST}='Друк разширенного шаблону';
+$lang{NEXT_PERIOD_INVOICE}='Рахунки за період';
+$lang{STATEMENT_OF_ACCOUNT}='Виписка по особовому рахунку';
+
+$lang{ORDERS}='Замовлення';
+$lang{SKIP_PAY_ADD}='Пропещено рахунків';
+
+$lang{CONNECT_TO} = 'Підключіться до';
+
+$lang{PAYMENTS_NOT_EQUAL_DOC}='Сума документа відрізняэться від суми платежу';

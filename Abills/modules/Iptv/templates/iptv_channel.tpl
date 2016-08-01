@@ -1,18 +1,84 @@
-<div class='noprint'>
-<form action='$SELF_URL' method='post'>
+
+<div class='panel panel-default panel-form'>
+<div class='panel-body'>
+
+<form action='$SELF_URL' method='post' class='form-horizontal'>
 <input type=hidden name='index' value='$index'>
 <input type=hidden name=ID value='$FORM{chg}'>
-<table class=form>
-<TR><TH colspan='2' class=form_title>$_CHANNELS</TH></TR>
-<tr><td>$_NUM:</td><td><input type=text name=NUMBER value='%NUMBER%'></td></tr>
-<tr><td>$_NAME:</td><td><input type=text name=NAME value='%NAME%'></td></tr>
-<tr><td>$_PORT:</td><td><input type=text name=PORT value='%PORT%'></td></tr>
-<tr><td>$_DISABLE:</td><td><input type=checkbox name=DISABLE value='1' %DISABLE%></td></tr>
 
-<tr><th BGCOLOR=$_COLORS[0] colspan=2>$_DESCRIBE:</th></tr>
-<tr><th colspan=2><textarea name=DESCRIBE rows=5 cols=50>%DESCRIBE%</textarea></th></tr>
-<tr><th colspan=2 class=even><input type=submit name='%ACTION%' value='%LNG_ACTION%'></th></tr>
-</table>
+<fieldset>
+ <legend>_{CHANNELS}_</legend>
+ <div class='form-group'>
+  <label class='control-label col-md-3' for='NUM'>_{NUM}_:</label>
+  <div class='col-md-9'>
+    <input id='NUM' name='NUM' value='%NUM%' placeholder='%NUM%' class='form-control' type='text'>
+  </div>
+ </div>
+ <div class='form-group'>
+  <label class='control-label col-md-3' for='NAME'>_{NAME}_:</label>
+  <div class='col-md-9'>
+    <input id='NAME' name='NAME' value='%NAME%' placeholder='%NAME%' class='form-control' type='text'>
+  </div>
+ </div>
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='PORT'>_{PORT}_:</label>
+  <div class='col-md-9'>
+    <input id='PORT' name='PORT' value='%PORT%' placeholder='%PORT%' class='form-control' type='text'>
+  </div>
+ </div>
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='FILTER_ID'>FILTER_ID:</label>
+  <div class='col-md-9'>
+    <input id='FILTER_ID' name='FILTER_ID' value='%FILTER_ID%' placeholder='%FILTER_ID%' class='form-control' type='text'>
+  </div>
+</div>
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='DISABLE'>_{DISABLE}_:</label>
+  <div class='col-md-9'>
+    <input id='DISABLE' name='DISABLE' value=1 placeholder='%DISABLE%' type='checkbox' %DISABLE%>
+  </div>
+</div>
+
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='URL'>URL:</label>
+  <div class='col-md-9'>
+    <input id='URL' name='URL' value='%STREAM%' placeholder='%URL%' class='form-control' type='text'>
+  </div>
+</div>
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='GENRE'>_{GENRE}_:</label>
+  <div class='col-md-9'>
+    %GENRE_SEL%
+  </div>
+</div>
+
+<div class='form-group'>
+  <label class='control-label col-md-3' for='STATE'>_{STATE}_:</label>
+  <div class='col-md-9'>
+    %STATE_SEL%
+  </div>
+</div>
+
+<div class='form-group'>
+  <label class='control-label col-md-12' for='COMMENTS'>_{DESCRIBE}_</label>
+</div>
+
+<div class='form-group'>
+  <div class='col-md-12'>
+    <textarea name=COMMENTS rows=5 class='form-control'>%COMMENTS%</textarea>
+  </div>
+</div>
+
+</fieldset>
+
+<input type=submit name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'>
 
 </form>
+
+</div>
 </div>

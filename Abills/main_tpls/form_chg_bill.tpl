@@ -2,13 +2,30 @@
 <input type=hidden name='index' value='$index'/>
 <input type=hidden name='UID' value='%UID%'/>
 <input type=hidden name='COMPANY_ID' value='$FORM{COMPANY_ID}'/>
-<TABLE width=450 class=form>
-<TR><TH colspan='2' class=form_title>$_BILL: %BILL_TYPE%</TH></TR>
-<TR><TD>$_BILL:</TD><TD>%BILL_ID%:%LOGIN%</TD></TR>
-<TR><TD>$_CREATE:</TD><TD><input type='checkbox' name='%CREATE_BILL_TYPE%' value='1' %CREATE_BILL% /></TD></TR>
-<TR><TD>$_TO:</TD><TD>%SEL_BILLS%</TD></TR>
-<TR><TH colspan='2' class=even>%CREATE_BTN%
-<input type='submit' name='change' value='$_CHANGE' class='button'/>
-</TH></TR>
-</TABLE>
+
+<div class='panel panel-form panel-primary form-horizontal'>
+<div class='panel-heading'>_{BILL}_: %BILL_TYPE%</div>
+<div class='panel-body'>
+  <div class='form-group'>
+    <label class='col-md-4 control-label'>_{BILL}_:</label>
+    <label class='col-md-8 control-label'>%BILL_ID%:%LOGIN%</label>
+  </div>
+  <div class='form-group'>
+    <div class='checkbox'>
+      <label>
+      <input type='checkbox' name='%CREATE_BILL_TYPE%' value='1' %CREATE_BILL% />_{CREATE}_:
+      </label>
+    </div>
+  </div>
+  <div class='form-group'>
+    <label class='col-md-4 control-label'>_{TO}_:</label>
+    <div class='col-md-8'>
+      %SEL_BILLS%
+    </div>
+  </div>
+</div>
+<div class='panel-footer'>
+<input type='submit' class='btn btn-primary' name='change' value='_{CHANGE}_' class='button'/>
+</div>
+</div>
 </form>

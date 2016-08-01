@@ -50,6 +50,9 @@ CREATE TABLE `ureports_tp_reports` (
   `tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `msg_price` DOUBLE(14,2) UNSIGNED NOT NULL DEFAULT '0.00',
   `report_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `comments` text,
+  `module` VARCHAR(32) NOT NULL DEFAULT '',
+  `visual` tinyint(1) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   KEY `tp_id` (`tp_id`, `report_id`)
 )

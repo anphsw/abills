@@ -1,19 +1,85 @@
-<form action=$SELF_URL METHOD=post name=FORM_NAS>
-<input type=hidden name='index' value='61'>
-<input type=hidden name='NAS_ID' value='%NAS_ID%'>
-<input type=hidden name='console' value='1'>
-<TABLE class=form>
-<TR><th class=form_title colspan=2>$_NAS Console</th></TR>
-<TR><TD>ID</TD><TD><b>%NAS_ID%</b><i>%CHANGED%</i></TD></TR>
-<TR><TD>$_NAME:</TD><TD>%NAS_NAME%</TD></TR>
-<TR><th colspan=2>:$_MANAGE:</th></TR>
-<TR><TD>IP:PORT:</TD><TD><input type=text name=NAS_MNG_IP_PORT value='%NAS_MNG_IP_PORT%'></TD></TR>
-<TR><TD>$_USER:</TD><TD><input type=text name=NAS_MNG_USER value='%NAS_MNG_USER%'></TD></TR>
-<TR><TD>$_PASSWD:</TD><TD><input type=password name=NAS_MNG_PASSWORD value='%NAS_MNG_PASSWORD%'></TD></TR>
-<TR><TD>$_TYPE:</TD><TD><select name=type><option value=ssh>ssh</option></select></TD></TR>
-<TR><th colspan=2><textarea cols=70 rows=10 name=CMD>%CMD%</textarea></th></TR>
-<TR><td class=line colspan=2></td></TR>
-<TR><TH colspan=2 class=even><input type=submit name=ACTION value='$_SEND'></TH></TR>
-</TABLE>
+%QUICK_CMD%
+
+<form action=$SELF_URL METHOD=post name=FORM_NAS class='form-horizontal'>
+    <input type=hidden name='index' value='$index'>
+    <input type=hidden name='NAS_ID' value='%NAS_ID%'>
+    <input type=hidden name='console' value='1'>
+    <legend>Console</legend>
+    <fieldset>
+
+        <div class='form-group'>
+            <label class='col-sm-offset-2 col-sm-8'>_{MANAGE}_</label>
+
+            <label class='control-label col-md-6' for='NAS_MNG_IP_PORT'>IP:PORT</label>
+            <div class='col-md-2'>
+                <input id='NAS_MNG_IP_PORT' name='NAS_MNG_IP_PORT' value='%NAS_MNG_IP_PORT%'
+                       placeholder='%NAS_MNG_IP_PORT%' class='form-control' type='text'>
+            </div>
+
+            <label class='control-label col-md-6' for='NAS_MNG_USER'>_{USER}_</label>
+            <div class='col-md-2'>
+                <input id='NAS_MNG_USER' name='NAS_MNG_USER' value='%NAS_MNG_USER%' placeholder='%NAS_MNG_USER%'
+                       class='form-control' type='text'>
+            </div>
+
+
+            <label class='control-label col-md-6' for='NAS_MNG_PASSWORD'>_{PASSWD}_</label>
+            <div class='col-md-2'>
+                <input id='NAS_MNG_PASSWORD' name='NAS_MNG_PASSWORD' value='%NAS_MNG_PASSWORD%'
+                       placeholder='%NAS_MNG_PASSWORD%' class='form-control' type='password'>
+            </div>
+        </div>
+
+        <div class='form-group'>
+            <label class='control-label col-md-6' for='type'>_{TYPE}_</label>
+            <div class='col-md-2'>
+              %TYPE_SEL%
+            </div>
+        </div>
+
+        <div class='form-group'>
+            <div class='col-sm-offset-4 col-sm-4'>
+                <textarea class='form-control' id='CMD' name='CMD' rows='3'>%CMD%</textarea>
+            </div>
+
+            <div class='col-sm-offset-2 col-sm-8'>
+                <input type='submit' class='btn btn-primary' name='ACTION' value='_{SEND}_'>
+            </div>
+        </div>
+
+    </fieldset>
 </form>
+
+<script>
+    jQuery(function () {
+        var removeBtns = jQuery('.removeIpBtn');
+
+        function removeAddress(context) {
+            var cont = jQuery(context);
+
+            var command = "ip firewall address-list remove numbers=" + cont.attr('data-address-number');
+
+            var params = {
+                qindex: '$index',
+                console : 1,
+                full : 1,
+                header : 2,
+                ACTION : 1,
+                NAS_ID: '$FORM{NAS_ID}',
+                CMD : command
+            };
+
+            cont.find('.glyphicon').addClass('fa-spin');
+
+            jQuery.get(SELF_URL, params, function () {
+               cont.parent().parent().hide();
+            });
+
+        }
+
+        removeBtns.on('click', function () {
+            removeAddress(this);
+        })
+    })
+</script>
 

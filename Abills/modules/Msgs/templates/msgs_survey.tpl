@@ -1,14 +1,26 @@
-<div class='noprint' align=center height=100%>
-<p align=center>
+<div class='panel panel-primary'>
+  <div class='panel-heading'>
+    <h5 class='panel-title'>%NAME%</h5>
+  </div>
+  <div class='panel-body' style='text-align: left'>
+    %TPL%
+
+
+<div>
 %SURVEY%
-<br>
-<input type='hidden' name='sid' value='$sid'/>
-<input type='hidden' name='SURVEY_ID' value='%SURVEY_ID%'/>
-<input type='hidden' name='REPLY_ID' value='%REPLY_ID%'/>
-<input type='hidden' name='STATE' value='0'/>
-<input type='submit' name='%ACTION%' value='  %LNG_ACTION%  '/>
-%DELETE%
-<br>
-<br>
-</p>
+%SURVEY_ID%
+%REPLY_ID%
+<!--  <input type='text' name='STATE' value='0'/> -->
+%ACTION%
 </div>
+
+</div>
+
+<div class='panel-footer'>
+  %RUN_TIME% %ATTACHMENT%
+  <div class='pull-right'>%QUOTING% %DELETE%</div>
+</div>
+
+</div>
+
+

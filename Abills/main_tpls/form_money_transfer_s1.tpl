@@ -1,11 +1,25 @@
 <form action=$SELF_URL method=post>
 <input type=hidden name=index value=$index>
 <input type=hidden name=sid value=$sid>
-<table width=400 class=form>
-<tr><th colspan=2 class=form_title>$_MONEY_TRANSFER</th></tr>
-<tr><td>$_TO_USER (UID):</td><td><input type=text name=RECIPIENT value='%RECIPIENT%'></td></tr>
-<tr><td>$_SUM:</td><td><input type=text name=SUM value=%SUM%></td></tr>
-<tr><th colspan=2><input type=submit name=s2 value='$_SEND'></th></tr>
-</table>
+
+<div class='panel panel-primary'>
+<div class='panel-heading text-center'>
+	<h4>_{MONEY_TRANSFER}_</h4>
+</div>
+<div class='panel-body form form-horizontal'>
+<div class='form-group'>
+	<label class='col-md-3 control-label'>_{TO_USER}_ (UID):</label>
+	<div class='col-md-9'><input type=text name=RECIPIENT value='%RECIPIENT%' class='form-control'></div>
+</div>
+<div class='form-group'>
+	<label class='col-md-3 control-label'>_{SUM}_:</label>
+	<div class='col-md-9'><input type=text name=SUM value='%SUM%' class='form-control'></div>
+</div>
+</div>
+<div class='panel-footer text-center'>
+<input type=submit name=s2 value='_{SEND}_' class='btn btn-primary'>
+</div>
+</div>
+
 </form>
  

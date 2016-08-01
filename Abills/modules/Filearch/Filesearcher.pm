@@ -19,7 +19,7 @@ $VERSION = 2.00;
 
 @EXPORT = qw(
   &parse_info
-  &web_request 
+  &web_request2 
   &kinopoisk_actors
   &sr_search
   %SEARCH_EXPRESSiONS
@@ -177,11 +177,11 @@ sub sr_search {
    $request = "$attr->{LINK}";
   }
 
- my $res = web_request($request, {'TimeOut' => 60 });
+ my $res = web_request2($request, {'TimeOut' => 60 });
 
  if($res =~ /\/movies\/(\d*)/) {
    print "FIND: $1 (http://www.sharereactor.ru/movies/$1)" if (defined($attr->{debug}) > 0);
-   my $res = web_request("http://www.sharereactor.ru/movies/$1", {'TimeOut' => 60 });      
+   my $res = web_request2("http://www.sharereactor.ru/movies/$1", {'TimeOut' => 60 });      
    return parse_info($res, { EXPRESSIONS => $SEARCH_EXPRESSiONS{sr}{GET_INFO} });
   }
 
@@ -270,7 +270,7 @@ sub parse_info (){
 #**********************************************************
 #
 #**********************************************************
-sub web_request {
+sub web_request2 {
  my ($request, $attr)=@_;
  
  my $res;
@@ -283,9 +283,7 @@ sub web_request {
 
  if ($host =~ /:/) {
  	 ($host, $port)=split(/:/, $host, 2);
-  }	
-
-
+ }	
 
  $request =~ s/ /%20/g;
  
@@ -331,7 +329,7 @@ sub web_request {
       $new_location="http://$host".$new_location;
     }
 
-   $res = web_request($new_location, { Referer => "$request" });
+   $res = web_request2($new_location, { Referer => "$request" });
   }
 
 
@@ -341,7 +339,7 @@ sub web_request {
       $new_location="http://$host".$new_location;
     }
 
-    $res = web_request($new_location, { Referer => "$new_location" });
+    $res = web_request2($new_location, { Referer => "$new_location" });
   }
  
 
@@ -477,7 +475,7 @@ sub kinopoisk_descr {
   if ($descr =~ /<a href="(.+)" class/) {
     my $request = "http://www.kinopoisk.ru".$1;
     
-    $page = web_request($request);
+    $page = web_request2($request);
     $page =~ /class="news">\n\t\t\t(.+)/;
     $descr = $1;
 
@@ -499,7 +497,7 @@ sub kinopoisk_posters {
                 
 
   if ($page =~ /<a style="text-decoration:none" href="(.+)"><b style="font-weight: bold"><font color="#ff6600">п<\/font><font color="#555555">остеры/) {
-     $page = web_request("http://www.kinopoisk.ru".$1);
+     $page = web_request2("http://www.kinopoisk.ru".$1);
      while($page =~ /\/images\/poster\/([a-z\_\.0-9]+)\'/ig) {
        push @posters_arr, $1;
       }
@@ -508,7 +506,7 @@ sub kinopoisk_posters {
   $posters = join(", http://www.kinopoisk.ru/images/poster/", @posters_arr);
   
 
-	return $studios;
+  return $posters;
 }
 
 
@@ -522,7 +520,7 @@ sub kinopoisk_studio {
   my @studios_arr = (); 
   
   if ($page =~ /<a style="text-decoration:none" href="(.+)"><b><font color="#ff6600">с<\/font><font color="#555555">тудии/) {
-     $page = web_request("http://www.kinopoisk.ru".$1);
+     $page = web_request2("http://www.kinopoisk.ru".$1);
      while($page =~ /<a href="\/level\/10\/m_act%5Bstudio%5D\/\d+\/" class="all">(.+)<\/a>/g) {
        push @studios_arr, $1;
       }

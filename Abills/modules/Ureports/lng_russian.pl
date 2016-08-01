@@ -1,18 +1,20 @@
-$_DESTINATION="Адрес получателя (телефон или E-MAIL)";
-$_MSG_PRICE="Цена сообщения";
+$lang{DESTINATION}="Адрес получателя (телефон или E-MAIL)";
+$lang{MSG_PRICE}="Цена сообщения";
 
-$_DEPOSIT_BELOW='Депозит ниже';
-$_PREPAID_TRAFFIC_BELOW='Предоплаченій трафик закончился';
-$_TRAFFIC_BELOW='Месячный трафик';
-$_MONTH_REPORT='Месячный Отчёт';
-$_ACTIVATED_MSG_SENDED='Сообщение об активации отправлено на Ваш адрес';
-$_DEPOSIT_CREDIT_BELOW='Депозит + Кредит меньше';
-$_TRAFFIC_MORE='Количество трафика больше чем';
-$_DAYS_TO_EXPIRE='Дней до конца тарифа';
-$_SMALL_DEPOSIT_FOR_NEXT_MONTH='У Вас недостаточно средств для активации тарифа в следующем месяце'; 
-$_PAYMENTS_INFO='Информировать о платежах';
-$_ALL_SERVICE_EXPIRE='Все услуги завершатся через XX дней';
-$_DEAR='Уважаемый';
-$_DEPOSIT_NOTIFY_BEFORE_ABON='Сообщить за несколько дней до абоп. платы про состояние счета';
+$lang{DEPOSIT_BELOW}='Депозит ниже';
+$lang{PREPAID_TRAFFIC_BELOW}='Предоплаченій трафик закончился';
+$lang{TRAFFIC_BELOW}='Месячный трафик';
+$lang{MONTH_REPORT}='Месячный Отчёт';
+$lang{ACTIVATED_MSG_SENDED}='Сообщение об активации отправлено на Ваш адрес';
+$lang{DEPOSIT_CREDIT_BELOW}='Депозит + Кредит меньше';
+$lang{TRAFFIC_MORE}='Количество трафика больше чем';
+$lang{DAYS_TO_EXPIRE}='Дней до конца тарифа';
+$lang{SMALL_DEPOSIT_FOR_NEXT_MONTH}='У Вас недостаточно средств для активации тарифа в следующем месяце';
+$lang{PAYMENTS_INFO}='Информировать о платежах';
+$lang{ALL_SERVICE_EXPIRE}='Все услуги завершатся через XX дней';
+$lang{DEAR}='Уважаемый';
+$lang{DEPOSIT_NOTIFY_BEFORE_ABON}='Сообщить за несколько дней до абоп. платы про состояние счета';
 
-$_RECOMMENDED_PAYMENT='Рекомендуемая сумма оплаты';
+$lang{RECOMMENDED_PAYMENT}='Рекомендуемая сумма оплаты';
+$lang{NEXT_PERIOD_TP}='Тарифний план следующего периода';
+$lang{VISUAL}='Управление абонентом';

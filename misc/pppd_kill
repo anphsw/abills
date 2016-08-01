@@ -38,7 +38,7 @@ fi
 IP_STRIP=`echo "${IP_ADDR}" | /usr/bin/tr -d '\r'` 
 
 # only one from following two strings must be uncommented 
-INTERFACES=`/sbin/ifconfig | /usr/bin/awk -v RS='\n\n'  "/$IP_STRIP / {print \\$1}"` 
+INTERFACES=`/sbin/ifconfig | /usr/bin/awk -v RS='\n\n'  "/${IP_STRIP} / {print \\$1}"` 
 
 # INTERFACE=`/sbin/ip a | /bin/grep $IP_STRIP/32 | /usr/bin/tr -s ' ' | /bin/cut -f 8 -d ' '` 
 for iface in  ${INTERFACES} ; do
@@ -47,6 +47,8 @@ for iface in  ${INTERFACES} ; do
     kill -1 ${PPP_PID}
   else
     echo "Can't find PID file '/var/run/${iface}.pid'"
+    echo "ifconfig ${iface} down";
+    ifconfig ${iface} down
   fi;
 
   echo "killed PID: ${PPP_PID} INTERFACE: ${iface}  IP: ${IP_STRIP}" 

@@ -1,11 +1,20 @@
 #Iner_ID : Main or Sub or if -1 user menu func list
 %FUNCTIONS_LIST = (
-					"01:0:$_MAP:maps_main:"          	 	=> 8,
-					"02:1:Google Maps:google_maps_show:" 	=> 8,
-	#				"03:1:Google Maps test:google_maps_show_client:" => 8,     # карта для заявок на подключение
-				   	
-				   	"04:0:$_MAP:maps_add:"          	    => 5,
-                   	"05:4:Google map:google_maps_add:"  	=> 5,
-                 );
-                 
+  "01:0:$lang{MAP}:maps_show_poins:"                     => 8, # Main new map
+  #  "02:1:$lang{MAP} (old):maps_main:"                => 8,
+  #  "03:1:Google Maps (old):google_maps_show:"   => 8,
+
+  "04:0:$lang{MAP}:maps_add_2:"                          => 5,
+  "05:4:$lang{ROUTES}:maps_routes_list:"                 => 5,
+  #"07:4:$lang{MAP} (old):maps_add:"                 => 5,
+  #"08:4:Google map (old):google_maps_add:"     => 5,
+  #          "09:4:Yandex (old):yandex_map_add:"=> 5,
+  #"10:4:$lang{ADD} Google (old):maps_google_add:"   => 5,
+  "11:4::maps_show_custom_point_form:"                   => 5,
+  "12:4::maps_get_point_types_select:"                   => 5,
+  "13:4:$lang{POINT} $lang{TYPE}:maps_point_types_main:" => 5,
+  "14:4:$lang{AUTO_COORDS}:maps_auto_coords"             => 5,
+  "15:4::maps_auto_coords_single:AJAX"                   => 5,
+);
+
 1

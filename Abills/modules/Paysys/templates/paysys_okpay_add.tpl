@@ -18,10 +18,15 @@
 </td></tr>
 
 <tr><td>Operation ID:</td><td>$FORM{OPERATION_ID}</td></tr>
-<tr><td>$_BALANCE_RECHARCHE_SUM:</td><td>$FORM{SUM}</td></tr>
-<!-- <tr><td>$_PAY_WAY:</td><td>%PAY_WAY_SEL%</td></tr> -->
+    <tr>
+        <td>_{BALANCE_RECHARCHE_SUM}_:</td>
+        <td>$FORM{SUM}</td>
+    </tr>
+    <!-- <tr><td>_{PAY_WAY}_:</td><td>%PAY_WAY_SEL%</td></tr> -->
 
-<tr><th colspan=2 class=even><input type=submit name=submit value='$_PAY'></th></tr>
+    <tr>
+        <th colspan=2 class=even><input type=submit name=submit value='_{PAY}_'></th>
+    </tr>
 </table>
 </form>
 

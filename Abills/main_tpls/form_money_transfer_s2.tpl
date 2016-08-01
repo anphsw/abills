@@ -1,15 +1,51 @@
+<style>
+    .panel-body div:nth-of-type(2n-1) {
+        background-color: #f0f0f0;
+    }
+</style>
 <form action=$SELF_URL method=post>
-<input type=hidden name=index value=$index>
-<input type=hidden name=RECIPIENT value=%RECIPIENT%>
-<input type=hidden name=SUM value=%SUM%>
-<input type=hidden name=sid value=$sid>
-<table width=400 class=form>
-<tr><th colspan=2 class=form_title>$_MONEY_TRANSFER</th></tr>
-<tr><td>UID:</td><td>%RECIPIENT%</td></tr>
-<tr><td>$_FIO:</td><td>%FIO%</td></tr>
-<tr><td>$_SUM:</td><td>%SUM% %COMMISSION%</td></tr>
-<tr><td>$_ACCEPT:</td><td><input type=checkbox name=ACCEPT value=1></td></tr>
-<tr><th colspan=2><input type=submit name=transfer value='$_SEND'></th></tr>
-</table>
+    <input type='hidden' name='index' value='$index'>
+    <input type='hidden' name='RECIPIENT' value='%RECIPIENT%'>
+    <input type='hidden' name='SUM' value='%SUM%'>
+    <input type='hidden' name='sid' value='$sid'>
+
+    <div class='panel panel-primary center-block' style='max-width: 400px'>
+        <div class='panel-heading'>
+            _{MONEY_TRANSFER}_
+        </div>
+        <div class='panel-body form form-horizontal'>
+            <div class='form-group'>
+                <label class='col-md-6 text-right'>UID:</label>
+                <label class='col-md-6'>
+                    %RECIPIENT%
+                </label>
+            </div>
+            <div class='form-group'>
+                <label class='col-md-6 text-right'>_{FIO}_:</label>
+                <label class='col-md-6'>
+                    %FIO%
+                </label>
+            </div>
+            <div class='form-group'>
+                <label class='col-md-6 text-right'>_{SUM}_:</label>
+                <label class='col-md-6'>
+                    %SUM%
+                </label>
+            </div>
+            <div class='form-group'>
+                <label class='col-md-12 text-center text-danger'>%COMMISSION%</label>
+            </div>
+            <div class='form-group'>
+                <label class='col-md-6 text-right' for='ACCEPT'>_{ACCEPT}_:</label>
+
+                <div class='col-md-6'>
+                    <input class='form-control-sm' type='checkbox' id='ACCEPT' name=ACCEPT value=1>
+                </div>
+            </div>
+        </div>
+        <div class='panel-footer '>
+            <input class='btn btn-primary center-block' type='submit' name='transfer' value='_{SEND}_'/>
+        </div>
+    </div>
 </form>
  

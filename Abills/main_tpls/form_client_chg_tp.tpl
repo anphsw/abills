@@ -1,32 +1,57 @@
-<form action='$SELF_URL' METHOD='POST' name='user'>
-<input type=hidden name=sid value='$sid'>
-<input type=hidden name=UID value='%UID%'>
-<input type=hidden name=m value='%m%'>
-<input type=hidden name='index' value='$index'>
-<TABLE width=550 class=form>
-<tr><th colspan=2 class='title_color' align=right>$_TARIF_PLANS</th></tr>
-<TR><TD>$_FROM:</TD><TD class='even'>$user->{TP_ID} %TP_NAME% </TD></TR>
-<TR><TD>$_TO:</TD><TD>%TARIF_PLAN_TABLE%</TD></TR>
-%PARAMS%
+<form action='$SELF_URL' METHOD='POST' name='user' ID='user'>
+    <input type=hidden name=sid value='$sid'>
+    <input type=hidden name=UID value='%UID%'>
+    <input type=hidden name=m value='%m%'>
+    <input type=hidden name='index' value='$index'>
 
-<tr><td colspan=2>%SHEDULE_LIST%</td></tr>
-<tr><th class='even' colspan=2>%ACTION%</th></tr>
-</TABLE>
+    <div class='panel panel-primary'>
+        <div class='panel-heading text-center'>
+            <h4>_{TARIF_PLANS}_</h4>
+        </div>
+        <div class='panel-body form form-horizontal'>
+            <div class='form-group'>
+                <label class='col-md-2 control-label'>_{CURRENT}_:</label>
+                <label class='cold-md-10 control-label'>$user->{TP_ID} %TP_NAME% </label>
+            </div>
+            <div class='form-group'>
+                <label class='col-md-2 control-label'>_{CHANGE}_ _{ON}_:</label>
 
+                <div class='col-md-10'>%TARIF_PLAN_TABLE%</div>
+            </div>
+            <div class='form-group'>
+                %PARAMS%
+            </div>
+            <div class='form-group'>
+                %SHEDULE_LIST%
+            </div>
+        </div>
+        <div class='panel-footer text-center'>
+            <div name='modalOpen_TP_CHG' class='btn btn-primary' id='modalOpen_TP_CHG'
+                   data-toggle='modal' data-target='#changeTPModal'>%LNG_ACTION%</div>
+        </div>
+    </div>
 
-<div id='open_popup_block_middle' style='width:400px; height:200px'>
-  <a id='close_popup_window'>x</a>
-  <div id='popup_window_content'><br/>
-    <p>
-    
-    $_CHANGE<BR>
-    
-    $_TARIF_PLAN    <br>
-    
-    $_ACCEPT: <input type=checkbox value='$_HOLD_UP' name='ACCEPT_RULES'> <br>
-    </p>
-    <input type=submit value='$_SET' name='set'>
-  </div>
-</div>
+    <div class='modal fade' id='changeTPModal'>
+        <div class='modal-dialog'>
+            <div class='modal-content'>
+                <div class='modal-header text-center'>
+                    <button type='button' class='close' data-dismiss='modal' aria-label='Close'><span
+                            aria-hidden='true'>&times;</span></button>
+                    <h4>_{CHANGE}_ _{TARIF_PLAN}_</h4>
+                </div>
+                <div class='modal-body' style='padding:20px;'>
+                    <div class='form-group text-center'>
+                        <label class='control-label text-center'>_{ACCEPT}_:</label>
+                        %ACTION_FLAG%
+                        <input type=checkbox value='_{HOLD_UP}_' id='ACCEPT_RULES' name='ACCEPT_RULES'>
+                    </div>
+                </div>
+                <div class='modal-footer'>
+                    <input type='submit' value='_{SET}_' name='%ACTION%' class='btn btn-primary' form='user'>
+                </div>
+            </div>
+        </div>
+    </div>
+
 
 </form>

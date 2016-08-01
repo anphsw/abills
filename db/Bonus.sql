@@ -38,7 +38,7 @@ CREATE TABLE `bonus_turbo` (
   `service_period` smallint(4) unsigned NOT NULL default '0',
   `registration_days` smallint(4) unsigned NOT NULL default '0',
   `turbo_count` smallint(4) unsigned NOT NULL default '0',
-  `comments` text not null default '',
+  `comments` text,
   PRIMARY KEY  (`id`)
 ) COMMENT "Bonus turbo"  ;
 
@@ -94,3 +94,15 @@ CREATE TABLE `bonus_rules_accomulation_scores` (
   `changed` date not null default '0000-00-00',
   PRIMARY KEY `uid` (`uid`)
 ) COMMENT "Bonus accomulation scores"  ;
+
+
+CREATE TABLE `bonus_tp_using` (
+  `id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
+  `comments` text,
+  `tp_id_main` smallint(5) unsigned NOT NULL DEFAULT '0',
+  `tp_id_bonus` smallint(5) unsigned NOT NULL DEFAULT '0',
+  `period` smallint(5) unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `tps` (`tp_id_main`,`tp_id_bonus`)
+) COMMENT='Bonus tp using';
+

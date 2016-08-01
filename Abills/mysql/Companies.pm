@@ -1,156 +1,67 @@
 package Companies;
 
-# Companies
-#
+=head1 NAME
+
+  Companies
+
+=cut
 
 use strict;
-use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
-);
-
-use Exporter;
-$VERSION = 3.00;
-@ISA     = ('Exporter');
-
-@EXPORT = qw(
-);
-
-@EXPORT_OK   = ();
-%EXPORT_TAGS = ();
-
+use parent 'main';
 use Users;
-
-use main;
-@ISA = ("main");
+use Conf;
+use Bills;
 
 my $users;
+my $admin;
+my $CONF;
 
 #**********************************************************
 # Init
 #**********************************************************
 sub new {
   my $class = shift;
-  ($db, $admin, $CONF) = @_;
-  my $self = {};
+  my $db    = shift;
+  ($admin, $CONF) = @_;
+
+  my $self = {
+    db    => $db,
+    admin => $admin,
+    conf  => $CONF
+  };
+
   bless($self, $class);
 
-  $self->{db}=$db;
-
   $users = Users->new($db, $admin, $CONF);
-  
+
   return $self;
 }
 
 #**********************************************************
-# defauls user settings
-#**********************************************************
-sub defaults {
-  my $self = shift;
+=head2 add($attr) - Add companies
 
-  %DATA = (
-    COMPANY_ID       => 0,
-    COMPANY_NAME     => '',
-    TAX_NUMBER       => '',
-    BANK_ACCOUNT     => '',
-    BANK_NAME        => '',
-    COR_BANK_ACCOUNT => '',
-    BANK_BIC         => '',
-    DISABLE          => 0,
-    CREDIT           => '',
-    CREDIT_DATE      => '',
-    ADDRESS          => '',
-    PHONE            => '',
-    VAT              => '',
-    CONTRACT_ID      => '',
-    CONTRACT_DATE    => '0000-00-00',
-    BILL_ID          => 0,
-    EXT_BILL_ID      => 0,
-    DOMAIN_ID        => 0,
-    REPRESENTATIVE   => ''
-  );
-
-  $self = \%DATA;
-  return $self;
-}
-
-#**********************************************************
-# Add
+=cut
 #**********************************************************
 sub add {
   my $self = shift;
   my ($attr) = @_;
 
-  my $name = (defined($attr->{COMPANY_NAME})) ? $attr->{COMPANY_NAME} : '';
-
-  if ($name eq '') {
+  if (! $attr->{NAME}) {
     $self->{errno}  = 8;
     $self->{errstr} = 'ERROR_ENTER_NAME';
     return $self;
   }
 
-  #Info fields
-  my $info_fields     = '';
-  my $info_fields_val = '';
-
-  my $list = $users->config_list({ PARAM => 'ifc*' });
-  if ($users->{TOTAL} > 0) {
-    my @info_fields_arr = ();
-    my @info_fields_val = ();
-
-    foreach my $line (@$list) {
-      if ($line->[0] =~ /ifc(\S+)/) {
-        my $value = $1;
-        push @info_fields_arr, $value;
-
-        if (defined($attr->{$value})) {
-
-          #attach
-          if (ref $attr->{$value} eq 'HASH' && $attr->{$value}{filename}) {
-            $self->attachment_add(
-              {
-                TABLE        => $value . '_file',
-                CONTENT      => $attr->{$value}{Contents},
-                FILESIZE     => $attr->{$value}{Size},
-                FILENAME     => $attr->{$value}{filename},
-                CONTENT_TYPE => $attr->{$value}{'Content-Type'}
-              }
-            );
-            $attr->{$value} = $self->{INSERT_ID};
-          }
-          else {
-            $attr->{$value} =~ s/^ +|[ \n]+$//g;
-          }
-        }
-        else {
-          $attr->{$value} = '';
-        }
-
-        push @info_fields_val, "'$attr->{$value}'";
-      }
-
-    }
-    $info_fields     = ', ' . join(', ', @info_fields_arr);
-    $info_fields_val = ', ' . join(', ', @info_fields_val);
-  }
-
-  my $prefix = '';
-  my $sufix  = '';
   if ($attr->{CONTRACT_TYPE}) {
-    ($prefix, $sufix) = split(/\|/, $attr->{CONTRACT_TYPE});
+    my (undef, $sufix) = split(/\|/, $attr->{CONTRACT_TYPE});
+    $attr->{CONTRACT_SUFIX} = $sufix;
   }
 
-  my %DATA = $self->get_data($attr, { default => defaults() });
-  $self->query2("INSERT INTO companies (id, name, tax_number, bank_account, bank_name, cor_bank_account, 
-     bank_bic, disable, credit, credit_date, address, phone, vat, contract_id, contract_date,
-     bill_id, ext_bill_id, registration, domain_id, representative, contract_sufix
-     $info_fields) 
-     VALUES ('$DATA{COMPANY_ID}', '$DATA{COMPANY_NAME}', '$DATA{TAX_NUMBER}', '$DATA{BANK_ACCOUNT}', '$DATA{BANK_NAME}', '$DATA{COR_BANK_ACCOUNT}', 
-      '$DATA{BANK_BIC}', '$DATA{DISABLE}', '$DATA{CREDIT}', '$DATA{CREDIT_DATE}',
-      '$DATA{ADDRESS}', '$DATA{PHONE}',
-      '$DATA{VAT}', '$DATA{CONTRACT_ID}', '$DATA{CONTRACT_DATE}',
-      '$DATA{BILL_ID}', '$DATA{EXT_BILL_ID}', now(), '$admin->{DOMAIN_ID}', '$DATA{REPRESENTATIVE}', '$sufix'
-      $info_fields_val
-      );", 'do'
-  );
+  $attr = $users->info_field_attach_add({ %$attr, COMPANY_PREFIX => 1 });
+
+  $self->query_add('companies', { %$attr,
+           REGISTRATION   => 'NOW()',
+         });
 
   if ($self->{errno}) {
     return $self;
@@ -161,8 +72,8 @@ sub add {
   if ($attr->{CREATE_BILL}) {
     $self->change(
       {
-        DISABLE         => int($DATA{DISABLE}),
-        COMPANY_ID      => $self->{COMPANY_ID},
+        DISABLE         => int($attr->{DISABLE}),
+        ID              => $self->{COMPANY_ID},
         CREATE_BILL     => 1,
         CREATE_EXT_BILL => $attr->{CREATE_EXT_BILL}
       }
@@ -173,32 +84,30 @@ sub add {
 }
 
 #**********************************************************
-# Change
+=head2 change($attr) Change
+
+=cut
 #**********************************************************
 sub change {
   my $self = shift;
   my ($attr) = @_;
-
-  my $old_info = $self->info($attr->{COMPANY_ID});
 
   if (!defined($attr->{DISABLE})) {
     $attr->{DISABLE} = 0;
   }
 
   if ($attr->{CREATE_BILL}) {
-    use Bills;
-    my $Bill = Bills->new($db, $admin, $CONF);
-    $Bill->create({ COMPANY_ID => $self->{COMPANY_ID}, UID => 0 });
+    my $Bill = Bills->new($self->{db}, $admin, $CONF);
+    $Bill->create({ COMPANY_ID => $self->{ID}, UID => 0 });
     if ($Bill->{errno}) {
       $self->{errno}  = $Bill->{errno};
       $self->{errstr} = $Bill->{errstr};
       return $self;
     }
     $attr->{BILL_ID} = $Bill->{BILL_ID};
-    $attr->{DISABLE} = $old_info->{DISABLE};
 
     if ($attr->{CREATE_EXT_BILL}) {
-      $Bill->create({ COMPANY_ID => $self->{COMPANY_ID} });
+      $Bill->create({ COMPANY_ID => $self->{ID} });
       if ($Bill->{errno}) {
         $self->{errno}  = $Bill->{errno};
         $self->{errstr} = $Bill->{errstr};
@@ -208,10 +117,8 @@ sub change {
     }
   }
   elsif ($attr->{CREATE_EXT_BILL}) {
-    use Bills;
-    my $Bill = Bills->new($db, $admin, $CONF);
-    $Bill->create({ COMPANY_ID => $self->{COMPANY_ID} });
-    $attr->{DISABLE} = $old_info->{DISABLE};
+    my $Bill = Bills->new($self->{db}, $admin, $CONF);
+    $Bill->create({ COMPANY_ID => $self->{ID} });
 
     if ($Bill->{errno}) {
       $self->{errno}  = $Bill->{errno};
@@ -221,64 +128,8 @@ sub change {
     $attr->{EXT_BILL_ID} = $Bill->{BILL_ID};
   }
 
-  my %FIELDS = (
-    COMPANY_NAME     => 'name',
-    TAX_NUMBER       => 'tax_number',
-    BANK_ACCOUNT     => 'bank_account',
-    BANK_NAME        => 'bank_name',
-    COR_BANK_ACCOUNT => 'cor_bank_account',
-    BANK_BIC         => 'bank_bic',
-    DISABLE          => 'disable',
-    CREDIT           => 'credit',
-    CREDIT_DATE      => 'credit_date',
-    BILL_ID          => 'bill_id',
-    EXT_BILL_ID      => 'ext_bill_id',
-    COMPANY_ID       => 'id',
-    ADDRESS          => 'address',
-    PHONE            => 'phone',
-    VAT              => 'vat',
-    CONTRACT_ID      => 'contract_id',
-    CONTRACT_DATE    => 'contract_date',
-    CONTRACT_SUFIX   => 'contract_sufix',
-    DOMAIN_ID        => 'domain_id',
-    REPRESENTATIVE   => 'representative'
-  );
-
   $attr->{DOMAIN_ID} = $admin->{DOMAIN_ID};
-
-  my $list = $users->config_list({ PARAM => 'ifc*' });
-  if ($users->{TOTAL} > 0) {
-    foreach my $line (@$list) {
-      if ($line->[0] =~ /ifc(\S+)/) {
-        my $field_name = $1;
-        $FIELDS{$field_name} = "$field_name";
-        my ($position, $type, $name) = split(/:/, $line->[1]);
-
-        if ($type == 13) {
-
-          #attach
-          if (ref $attr->{$field_name} eq 'HASH' && $attr->{$field_name}{filename}) {
-            $self->attachment_add(
-              {
-                TABLE        => $field_name . '_file',
-                CONTENT      => $attr->{$field_name}{Contents},
-                FILESIZE     => $attr->{$field_name}{Size},
-                FILENAME     => $attr->{$field_name}{filename},
-                CONTENT_TYPE => $attr->{$field_name}{'Content-Type'}
-              }
-            );
-            $attr->{$field_name} = $self->{INSERT_ID};
-          }
-          else {
-            delete $attr->{$field_name};
-          }
-        }
-        elsif ($type == 4) {
-          $attr->{$field_name} = 0 if (!$attr->{$field_name});
-        }
-      }
-    }
-  }
+  $attr = $users->info_field_attach_add({ %$attr, COMPANY_PREFIX => 1 });
 
   my ($prefix, $sufix);
   if ($attr->{CONTRACT_TYPE}) {
@@ -286,72 +137,54 @@ sub change {
     $attr->{CONTRACT_SUFIX} = $sufix;
   }
 
-  $self->changes(
-    $admin,
+  $self->changes2(
     {
-      CHANGE_PARAM => 'COMPANY_ID',
+      CHANGE_PARAM => 'ID',
       TABLE        => 'companies',
-      FIELDS       => \%FIELDS,
-      OLD_INFO     => $old_info,
+      #FIELDS       => \%FIELDS,
+      #OLD_INFO     => $old_info,
       DATA         => $attr
     }
   );
 
-  $self->info($attr->{COMPANY_ID});
+  $self->info($attr->{ID});
 
   return $self;
 }
 
 #**********************************************************
-# Del
+=head2 del($company_id)
+
+=cut
 #**********************************************************
 sub del {
   my $self = shift;
   my ($company_id) = @_;
-  $self->query2("DELETE FROM companies WHERE id='$company_id';", 'do');
+
+  $self->query_del('companies', { ID => $company_id });
+
   return $self;
 }
 
 #**********************************************************
-# Info
+=head2 info($company_id) - Info
+
+=cut
 #**********************************************************
 sub info {
   my $self = shift;
   my ($company_id) = @_;
 
-  #Make info fields use
-  my $info_fields     = '';
-  my @info_fields_arr = ();
-
-  my $list = $users->config_list({ PARAM => 'ifc*', SORT => 2 });
-  if ($users->{TOTAL} > 0) {
-    my %info_fields_hash = ();
-
-    foreach my $line (@$list) {
-      if ($line->[0] =~ /ifc(\S+)/) {
-        push @info_fields_arr, $1;
-        $info_fields_hash{$1} = "$line->[1]";
-      }
-    }
-    $info_fields = ', ' . join(', ', @info_fields_arr) if ($#info_fields_arr > -1);
-    $self->{INFO_FIELDS_ARR}  = \@info_fields_arr;
-    $self->{INFO_FIELDS_HASH} = \%info_fields_hash;
-  }
-
-  $self->query2("SELECT c.id, c.name, c.credit, c.credit_date,
-  c.tax_number, c.bank_account, c.bank_name, 
-  c.cor_bank_account, c.bank_bic, c.disable, c.bill_id, b.deposit,
-  c.address, c.phone,
-  c.vat, contract_id, contract_DATE,
-  c.ext_bill_id,
-  c.registration,
-  c.domain_id,
-  c.representative,
-  c.contract_sufix
-  $info_fields
+  $self->query2("SELECT c.*,
+     b.deposit
     FROM companies c
     LEFT JOIN bills b ON (c.bill_id=b.id)
-    WHERE c.id='$company_id';"
+    WHERE c.id= ? ;",
+    undef,
+    { INFO => 1,
+    	Bind => [ 
+    	  $company_id
+    ]}
   );
 
   if ($self->{TOTAL} < 1) {
@@ -360,46 +193,11 @@ sub info {
     return $self;
   }
 
-  my @INFO_ARR = ();  (
-    $self->{COMPANY_ID},
-    $self->{COMPANY_NAME},
-    $self->{CREDIT},
-    $self->{CREDIT_DATE},
-    $self->{TAX_NUMBER},
-    $self->{BANK_ACCOUNT},
-    $self->{BANK_NAME},
-    $self->{COR_BANK_ACCOUNT},
-    $self->{BANK_BIC},
-    $self->{DISABLE},
-    $self->{BILL_ID},
-    $self->{DEPOSIT},
-    $self->{ADDRESS},
-    $self->{PHONE},
-    $self->{VAT},
-    $self->{CONTRACT_ID},
-    $self->{CONTRACT_DATE},
-    $self->{EXT_BILL_ID},
-    $self->{REGISTRATION},
-    $self->{DOMAIN_ID},
-    $self->{REPRESENTATIVE},
-    $self->{CONTRACT_SUFIX},
-    @INFO_ARR
-  ) = @{ $self->{list}->[0] };
-
-  $self->{INFO_FIELDS_VAL} = \@INFO_ARR;
-
-  my $i = 0;
-  foreach my $val (@INFO_ARR) {
-    $self->{ $info_fields_arr[$i] } = $val;
-    $self->{ 'INFO_FIELDS_VAL_' . $i } = $val;
-    $i++;
-  }
-
   if ($CONF->{EXT_BILL_ACCOUNT} && $self->{EXT_BILL_ID} > 0) {
     $self->query2("SELECT b.deposit AS ext_bill_deposit, b.uid AS ext_bill_owner
-     FROM bills b WHERE id='$self->{EXT_BILL_ID}';",
+     FROM bills b WHERE id= ? ;",
      undef,
-     { INFO => 1 }
+     { INFO => 1, Bind => [ $self->{EXT_BILL_ID} ] }
     );
   }
 
@@ -407,66 +205,29 @@ sub info {
 }
 
 #**********************************************************
-# List
+=head2 list($attr) - List
+
+=cut
 #**********************************************************
 sub list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
-  @WHERE_RULES = ();
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  if ($attr->{CONTRACT_ID}) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{CONTRACT_ID}", 'STR', 'c.contract_id') };
-  }
+  my @WHERE_RULES = ();
 
-  if ($admin->{DOMAIN_ID}) {
-    push @WHERE_RULES, @{ $self->search_expr("$admin->{DOMAIN_ID}", 'INT', 'c.domain_id', { EXT_FIELD => 1 }) };
-  }
-  elsif ($attr->{DOMAIN_ID}) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{DOMAIN_ID}", 'INT', 'c.domain_id', { EXT_FIELD => 1 }) };
-  }
+  my $Conf = Conf->new($self->{db}, $admin, $CONF);
+  my $list = $Conf->config_list({ PARAM => 'ifc*', SORT => 2 });
 
-  if ($attr->{COMPANY_NAME}) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{COMPANY_NAME}", 'STR', 'c.name') };
-  }
-
-  if ($attr->{COMPANY_ID}) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{COMPANY_ID}", 'INT', 'c.id') };
-  }
-
-  if ($attr->{CREDIT_DATE}) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{CREDIT_DATE}", 'INT', 'c.credit_date') };
-  }
-
-  if ($attr->{CREDIT}) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{CREDIT}", 'INT', 'c.credit') };
-  }
-
-  if ($attr->{ADDRESS}) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{ADDRESS}", 'INT', 'c.address') };
-  }
-
-  if ($attr->{LOGIN}) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{LOGIN}", 'STR', 'c.name') };
-  }
-
-  if ($attr->{DEPOSIT}) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{DEPOSIT}", 'INT', 'b.deposit') };
-  }
-
-  #Info fields
-  my @fields = ();
-
-  my $list = $self->config_list({ PARAM => 'ifc*', SORT => 2 });
   if ($self->{TOTAL} > 0) {
     foreach my $line (@$list) {
       if ($line->[0] =~ /ifc(\S+)/) {
         my $field_name = $1;
-        my ($position, $type, $name) = split(/:/, $line->[1]);
+        my (undef, $type, undef) = split(/:/, $line->[1]);
 
         if (defined($attr->{$field_name}) && $type == 4) {
           push @WHERE_RULES, 'c.' . $field_name . "='$attr->{$field_name}'";
@@ -500,10 +261,27 @@ sub list {
     $self->{EXTRA_FIELDS} = $list;
   }
 
-  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+  my $WHERE =  $self->search_former($attr, [
+      ['COMPANY_NAME',   'STR', 'c.name',          ],
+      ['DEPOSIT',        'INT', 'b.deposit',     1 ],
+      ['CREDIT',         'INT', 'c.credit',      1 ],
+      ['USERS_COUNT',    'INT', 'count(u.uid) AS users_count', 1 ],
+      ['CREDIT_DATE',    'DATE','c.credit_date', 1 ],
+      ['ADDRESS',        'STR', 'c.address',     1 ],
+      ['REGISTRATION',   'DATE','c.registration',1 ],
+      ['DISABLE',        'INT', 'c.disable AS status',  1 ],
+      ['CONTRACT_ID',    'INT', 'c.contract_id', 1 ],
+      ['COMPANY_ID',     'INT', 'c.id',            ],
+    ],
+    {
+      WHERE_RULES => \@WHERE_RULES,
+      WHERE       => 1,
+    }
+  );
 
-  $self->query2("SELECT c.name, b.deposit, c.credit, c.registration, count(u.uid) AS users_count, c.disable, c.id, 
-   c.disable, c.bill_id, c.credit_date
+  $self->{COL_NAMES_ARR}=undef;
+
+  $self->query2("SELECT c.name, $self->{SEARCH_FIELDS} c.id 
     FROM companies  c
     LEFT JOIN users u ON (u.company_id=c.id)
     LEFT JOIN bills b ON (b.id=c.bill_id)
@@ -516,7 +294,7 @@ sub list {
   $list = $self->{list};
 
   if ($self->{TOTAL} > 0 || $PG > 0) {
-    $self->query($db, "SELECT count(c.id) AS total FROM companies c
+    $self->query2("SELECT count(c.id) AS total FROM companies c
     LEFT JOIN users u ON (u.company_id=c.id)
     LEFT JOIN bills b ON (b.id=c.bill_id)
      $WHERE;",
@@ -534,12 +312,11 @@ sub admins_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
   my @WHERE_RULES = ();
-  my $WHERE       = '';
 
   if ($attr->{UID}) {
     push @WHERE_RULES, "u.uid='$attr->{UID}'";
@@ -553,7 +330,7 @@ sub admins_list {
     push @WHERE_RULES, "c.id='$attr->{COMPANY_ID}'";
   }
 
-  $WHERE = ' AND ' . join(' and ', @WHERE_RULES) if ($#WHERE_RULES > -1);
+  my $WHERE = ' AND ' . join(' and ', @WHERE_RULES) if ($#WHERE_RULES > -1);
 
   $self->query2("SELECT if(ca.uid is null, 0, 1), u.id, pi.fio, pi.email, u.uid
     FROM (companies  c, users u)
@@ -571,7 +348,9 @@ sub admins_list {
 }
 
 #**********************************************************
-# List
+=head2 admins_change($attr)
+
+=cut
 #**********************************************************
 sub admins_change {
   my $self = shift;
@@ -579,7 +358,7 @@ sub admins_change {
 
   my @ADMINS = split(/, /, $attr->{IDS});
 
-  $self->query2("DELETE FROM companie_admins WHERE company_id='$attr->{COMPANY_ID}';", 'do');
+  $self->query_del('companie_admins', undef, $attr);
 
   foreach my $uid (@ADMINS) {
     $self->query_add('companie_admins', { %$attr,

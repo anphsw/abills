@@ -7,9 +7,13 @@
 <table width=400 class=form>
 <tr><th class='form_title' colspan=2>PayU</th></tr>
 <tr><td>Operation ID:</td><td>$FORM{OPERATION_ID}</td></tr>
-<tr><td>$_BALANCE_RECHARCHE_SUM:</td><td>$FORM{SUM}</td></tr>
+    <tr>
+        <td>_{BALANCE_RECHARCHE_SUM}_:</td>
+        <td>$FORM{SUM}</td>
+    </tr>
 
-<tr><th colspan=2 class=even><input type=submit name=add value='$_PAY'>
+    <tr>
+        <th colspan=2 class=even><input type=submit name=add value='_{PAY}_'>
 </table>
 </form>
 

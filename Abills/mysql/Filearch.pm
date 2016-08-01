@@ -1,26 +1,35 @@
 package Filearch;
-#Nas Server configuration and managing
- 
+
+=head1 NAME
+
+  File archive
+
+=cut
+
 use strict;
 use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
 );
 
 
-my $db;
 use main;
 use Socket;
-
-@ISA  = ("main");
+use parent qw(main);
+#@ISA  = ("main");
 my $CONF;
 my $admin;
 my $SECRETKEY = '';
 
 sub new {
   my $class = shift;
-  ($db, $admin, $CONF) = @_;
+  my $db = shift;
+  ($admin, $CONF) = @_;
   my $self = { };
   bless($self, $class);
-#  $self->{debug}=1;
+
+  $self->{db}=$db;
+  $self->{admin}=$admin;
+  $self->{conf}=$CONF;
+
   return $self;
 }
 
@@ -32,11 +41,10 @@ sub genres_list() {
   my $self = shift;
   my ($attr) = @_;
 
- $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
- $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
- 
+ my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+ my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
- $self->query($db, "SELECT  g.name, count(f.genre_id), g.sharereactor, g.imdb, g.id
+ $self->query2("SELECT  g.name, count(f.genre_id), g.sharereactor, g.imdb, g.id
     FROM filearch_video_genres g
     LEFT JOIN filearch_film_genres f ON (g.id=f.genre_id)
     GROUP BY g.id
@@ -53,10 +61,8 @@ sub genres_add {
   my $self = shift;
   my ($attr) = @_;
 
-  
-  %DATA = $self->get_data($attr); 
-
-  $self->query($db, "INSERT INTO filearch_video_genres (name,
+  my %DATA = $self->get_data($attr);
+  $self->query2("INSERT INTO filearch_video_genres (name,
     imdb,
     sharereactor)
     values ('$DATA{NAME}', '$DATA{IMDB_NAME}', '$DATA{SR_NAME}');", 'do');
@@ -72,20 +78,18 @@ sub genres_change {
   my $self = shift;
   my ($attr) = @_;
 
-
-  my %FIELDS = ( ID        => 'id', 
+  my %FIELDS = ( ID        => 'id',
                  NAME      => 'name',
                  IMDB_NAME => 'imdb',
                  SR_NAME   => 'sharereactor'
-                );   
- 
-  $self->changes($admin, { CHANGE_PARAM => 'ID',
-                    TABLE        => 'filearch_video_genres',
-                    FIELDS       => \%FIELDS,
-                    OLD_INFO     => $self->genres_info($attr->{ID}, $attr),
-                    DATA         => $attr
+                );
+  $self->changes2( { CHANGE_PARAM => 'ID',
+                    TABLE         => 'filearch_video_genres',
+                    FIELDS        => \%FIELDS,
+                    OLD_INFO      => $self->genres_info($attr->{ID}, $attr),
+                    DATA          => $attr
                   } );
- 
+
   return $self;
 }
 
@@ -95,9 +99,9 @@ sub genres_change {
 sub genres_del {
   my $self = shift;
   my ($id) = @_;
-    
-  $self->query($db, "DELETE FROM filearch_video_genres WHERE id='$id';", 'do');
-  
+
+  $self->query2("DELETE FROM filearch_video_genres WHERE id='$id';", 'do');
+
  return $self;
 }
 
@@ -107,8 +111,8 @@ sub genres_del {
 sub genres_info {
   my $self = shift;
   my ($id, $attr) = @_;
-  
-  $self->query($db, "SELECT id, 
+
+  $self->query2("SELECT id,
        name,
        imdb,
        sharereactor
@@ -122,8 +126,8 @@ sub genres_info {
    }
 
   my $ar = $self->{list}->[0];
-  
-  ($self->{ID}, 
+
+  ($self->{ID},
    $self->{NAME},
    $self->{IMDB_NAME},
    $self->{SR_NAME}
@@ -139,25 +143,25 @@ sub genres_info {
 sub actors_list() {
   my $self = shift;
   my ($attr) = @_;
-  
+
   my @WHERE_RULES = ();
-  
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG   = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   if ($attr->{NAME}) {
     $attr->{NAME} =~ s/\*/\%/g;
     push @WHERE_RULES, "(a.name LIKE '$attr->{NAME}' or a.origin_name LIKE '$attr->{NAME}')";
    }
-  
+
   if ($attr->{IDS}) {
     push @WHERE_RULES, "(a.origin_name IN ($attr->{IDS}) or a.name IN ($attr->{IDS}))";
    }
 
- $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : ''; 
- 
-
- $self->query($db, "SELECT a.id, a.name, a.origin_name, count(f.actor_id)
+ my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
+ $self->query2("SELECT a.id, a.name, a.origin_name, count(f.actor_id)
     FROM filearch_video_actors a
     LEFT JOIN filearch_film_actors f ON (a.id=f.actor_id)
     $WHERE
@@ -167,7 +171,7 @@ sub actors_list() {
 
  my $list = $self->{list};
 
- $self->query($db, "SELECT count(*)
+ $self->query2("SELECT count(*)
     FROM filearch_video_actors a
     LEFT JOIN filearch_film_actors f ON (a.id=f.actor_id)
     $WHERE;");
@@ -187,12 +191,11 @@ sub actors_add {
   my $self = shift;
   my ($attr) = @_;
 
-  
-  %DATA = $self->get_data($attr, { default => { NAME        => '',
-                                                ORIGIN_NAME => '',
-                                                BIO         => '' } }); 
 
-  $self->query($db, "INSERT INTO filearch_video_actors (name, origin_name, bio)
+  my %DATA = $self->get_data($attr, { default => { NAME        => '',
+                                                ORIGIN_NAME => '',
+                                                BIO         => '' } });
+  $self->query2("INSERT INTO filearch_video_actors (name, origin_name, bio)
     values ('$DATA{NAME}', '$DATA{ORIGIN_NAME}', '$DATA{BIO}');", 'do');
 
   $self->{ACTOR_ID}=$self->{INSERT_ID};
@@ -208,20 +211,19 @@ sub actors_change {
   my $self = shift;
   my ($attr) = @_;
 
-
-  my %FIELDS = ( ID          => 'id', 
+  my %FIELDS = ( ID          => 'id',
                  NAME        => 'name',
                  BIO         => 'bio',
                  ORIGIN_NAME => 'origin_name'
-                );   
- 
-  $self->changes($admin, { CHANGE_PARAM => 'ID',
-                    TABLE        => 'filearch_video_actors',
-                    FIELDS       => \%FIELDS,
-                    OLD_INFO     => $self->actors_info($attr->{ID}, $attr),
-                    DATA         => $attr
+                );
+
+  $self->changes2( { CHANGE_PARAM => 'ID',
+                    TABLE         => 'filearch_video_actors',
+                    FIELDS        => \%FIELDS,
+                    OLD_INFO      => $self->actors_info($attr->{ID}, $attr),
+                    DATA          => $attr
                   } );
- 
+
   return $self;
 }
 
@@ -231,9 +233,9 @@ sub actors_change {
 sub actors_del {
   my $self = shift;
   my ($id) = @_;
-    
-  $self->query($db, "DELETE FROM filearch_video_actors WHERE id='$id';", 'do');
-  
+
+  $self->query2("DELETE FROM filearch_video_actors WHERE id='$id';", 'do');
+
  return $self;
 }
 
@@ -243,10 +245,8 @@ sub actors_del {
 sub actors_info {
   my $self = shift;
   my ($id, $attr) = @_;
-  
-  
 
-  $self->query($db, "SELECT id, 
+  $self->query2("SELECT id,
        name,
        origin_name,
        bio
@@ -260,9 +260,9 @@ sub actors_info {
    }
 
   my $ar = $self->{list}->[0];
-  
-  ($self->{ID}, 
-   $self->{NAME}, 
+
+  ($self->{ID},
+   $self->{NAME},
    $self->{ORIGIN_NAME},
    $self->{BIO}
   ) = @$ar;
@@ -279,16 +279,15 @@ sub video_add {
   my $self = shift;
   my ($attr) = @_;
 
- 
-  %DATA = $self->get_data($attr); 
 
+  my %DATA = $self->get_data($attr);
   if (! $DATA{COUNTRY_ID}) {
     $self->file_country_info({ COUNTRY_NAME => $DATA{COUNTRY}, ADD => 1 }) if ($DATA{COUNTRY});
 
     $DATA{COUNTRY_ID}=$self->{COUNTRY_ID};
    }
 
-  $self->query($db, "INSERT INTO filearch_video 
+  $self->query2("INSERT INTO filearch_video
      (id,
       original_name,
       year,
@@ -327,12 +326,8 @@ sub video_add {
       '$DATA{PIN_ACCESS}'
      );", 'do');
 
-  
-
   $self->film_genres_add({ ID => "$DATA{ID}", GENRE => $DATA{GENRES} }) if ($DATA{GENRES});
-  
   $self->film_actors_add( $attr );
- 
 
   return $self;
 }
@@ -344,13 +339,13 @@ sub video_list() {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG   = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG   = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  @WHERE_RULES = ();
- 
+  my @WHERE_RULES = ();
+
   if (defined($attr->{STATUS})) {
     push @WHERE_RULES, "f.status='$attr->{STATUS}'";
    }
@@ -392,29 +387,27 @@ sub video_list() {
    }
   elsif ($attr->{ACTOR_ID}) {
     push @WHERE_RULES, "fa.actor_id='$attr->{ACTOR_ID}'";
-   }
+  }
 
   if ($attr->{AID}) {
     push @WHERE_RULES, "f.aid='$attr->{AID}'";
-   }
-  
+  }
+
   if (defined($attr->{STATE})) {
     if ($attr->{STATE} == 0) {
       push @WHERE_RULES, "fs.state IS NULL";
-      }
+    }
     else {
       push @WHERE_RULES, "fs.state='$attr->{STATE}'";
-     }
+    }
   }
 
   if ($attr->{WIHOUT_INFO}) {
     push @WHERE_RULES, "v.id IS NULL";
-   }
+  }
 
- $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : ''; 
- 
- 
- $self->query($db, "SELECT    f.id,
+ my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
+ $self->query2("SELECT    f.id,
   if (f.name='', f.filename, f.name),
   v.year,
   '',
@@ -432,11 +425,11 @@ sub video_list() {
   v.extra,
   v.parent
    FROM filearch f
-   LEFT JOIN filearch_video v ON (f.id = v.id) 
-   LEFT JOIN filearch_film_genres fg ON (fg.video_id = v.id) 
-   LEFT JOIN filearch_film_actors fa ON (fa.video_id = v.id) 
-   LEFT JOIN filearch_state fs ON (f.id = fs.file_id) 
-   LEFT JOIN filearch_video_actors va ON (va.id = fa.actor_id) 
+   LEFT JOIN filearch_video v ON (f.id = v.id)
+   LEFT JOIN filearch_film_genres fg ON (fg.video_id = v.id)
+   LEFT JOIN filearch_film_actors fa ON (fa.video_id = v.id)
+   LEFT JOIN filearch_state fs ON (f.id = fs.file_id)
+   LEFT JOIN filearch_video_actors va ON (va.id = fa.actor_id)
     $WHERE
     GROUP BY f.id
     ORDER BY $SORT $DESC
@@ -447,16 +440,16 @@ sub video_list() {
  my $list = $self->{list};
 
  if ($self->{TOTAL} == $PAGE_ROWS || $PG > 0) {
-   $self->query($db, "SELECT count(DISTINCT f.id)
+   $self->query2("SELECT count(DISTINCT f.id)
      FROM filearch f
-     LEFT JOIN filearch_video v ON (f.id = v.id) 
-     LEFT JOIN filearch_film_genres fg ON (fg.video_id = v.id) 
-     LEFT JOIN filearch_film_actors fa ON (fa.video_id = v.id) 
-     LEFT JOIN filearch_video_actors va ON (va.id = fa.actor_id) 
-     LEFT JOIN filearch_state fs ON (f.id = fs.file_id) 
+     LEFT JOIN filearch_video v ON (f.id = v.id)
+     LEFT JOIN filearch_film_genres fg ON (fg.video_id = v.id)
+     LEFT JOIN filearch_film_actors fa ON (fa.video_id = v.id)
+     LEFT JOIN filearch_video_actors va ON (va.id = fa.actor_id)
+     LEFT JOIN filearch_state fs ON (f.id = fs.file_id)
      $WHERE
      ;");
- 
+
    my $a_ref = $self->{list}->[0];
    ($self->{TOTAL}) = @$a_ref;
   }
@@ -471,20 +464,20 @@ sub video_next {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query($db, "SELECT f.id, f.filename 
+  $self->query2("SELECT f.id, f.filename
      FROM filearch f
-     LEFT JOIN filearch_video v ON (f.id = v.id) 
+     LEFT JOIN filearch_video v ON (f.id = v.id)
      WHERE f.name='' and f.id>'$attr->{ID}'
      ORDER BY f.id
      LIMIT 1;");
 
   my $ar = $self->{list}->[0];
-  
+
   ($self->{ID},
    $self->{FILENAME}
    ) = @$ar;
 
-  return $self;    
+  return $self;
 }
 
 #**********************************************************
@@ -513,26 +506,23 @@ sub video_change {
                  COUNTRY       => 'country',
                  PIN_ACCESS    => 'pin_access',
                  UPDATED       => 'updated'
-                );   
-
-
-
+                );
   $attr->{PIN_ACCESS} = (! defined($attr->{PIN_ACCESS})) ?  0 : 1;
-  
+
   my $OLD_INFO = $self->video_info($attr->{ID}, $attr);
-  
+
   if ($OLD_INFO->{EXT_INFO} < 1) {
      $self->video_add($attr);
      return $self;
    }
- 
-  $self->changes($admin, { CHANGE_PARAM => 'ID',
-                           TABLE        => 'filearch_video',
-                           FIELDS       => \%FIELDS,
-                           OLD_INFO     => $OLD_INFO,
-                           DATA         => $attr
+
+  $self->changes2( { CHANGE_PARAM   => 'ID',
+                           TABLE    => 'filearch_video',
+                           FIELDS   => \%FIELDS,
+                           OLD_INFO => $OLD_INFO,
+                           DATA     => $attr
                           } );
- 
+
   $self->film_genres_add({ ID => "$attr->{ID}", GENRE => $attr->{GENRES} }) if ($attr->{GENRES});
   $self->film_actors_add( $attr ) if ($attr->{ACTORS});
 
@@ -545,7 +535,7 @@ sub video_change {
 sub video_del {
   my $self = shift;
   my ($id) = @_;
-  $self->query($db, "DELETE FROM filearch_video WHERE id='$id';", 'do');
+  $self->query2("DELETE FROM filearch_video WHERE id='$id';", 'do');
   return $self;
 }
 
@@ -555,8 +545,8 @@ sub video_del {
 sub video_info {
   my $self = shift;
   my ($id, $attr) = @_;
-  
-  $self->query($db, "SELECT f.id,
+
+  $self->query2("SELECT f.id,
          v.original_name,
          v.year,
          v.producer,
@@ -583,9 +573,9 @@ sub video_info {
          v.pin_access,
          v.updated
   FROM filearch f
-   LEFT JOIN filearch_video v ON (f.id = v.id)  
-   LEFT JOIN filearch_film_actors fa ON (f.id = fa.video_id)  
-   LEFT JOIN filearch_film_genres fg ON (f.id = fg.video_id)  
+   LEFT JOIN filearch_video v ON (f.id = v.id)
+   LEFT JOIN filearch_film_actors fa ON (f.id = fa.video_id)
+   LEFT JOIN filearch_film_genres fg ON (f.id = fg.video_id)
    WHERE f.id='$id'
  GROUP BY f.id;");
 
@@ -596,7 +586,7 @@ sub video_info {
    }
 
   my $ar = $self->{list}->[0];
-  
+
   ($self->{ID},
    $self->{ORIGIN_NAME},
    $self->{YEAR},
@@ -634,13 +624,12 @@ sub video_info {
   if ($self->{ACTORS_COUNT} > 0) {
     $self->{ACTORS_HASH} = $self->film_actors_list($self->{ID});
    }
- 
+
   #Get parents
   $self->video_list({ PARENT => $id });
   if ($self->{TOTAL} > 0) {
      $self->{PARTS} = $self->{list};
    }
-  
 
   return $self;
 }
@@ -653,13 +642,12 @@ sub file_list() {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG   = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG   = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
- my @WHERE_RULES = (); 
-
+ my @WHERE_RULES = ();
   if ($attr->{STATUS}) {
     push @WHERE_RULES, "f.status='$attr->{STATUS}'";
    }
@@ -683,7 +671,7 @@ sub file_list() {
     $attr->{COMMENTS} =~ s/\*/\%/ig;
     push @WHERE_RULES, "f.filename LIKE '$attr->{COMMENTS}'";
    }
-  
+
   if ($attr->{CHECKSUM}) {
     $attr->{CHECKSUM} =~ s/\*/\%/ig;
     push @WHERE_RULES, "f.checksum LIKE '$attr->{CHECKSUM}'";
@@ -700,9 +688,8 @@ sub file_list() {
    }
 
 
- $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : ''; 
-
- $self->query($db, "SELECT  id,
+ my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
+ $self->query2("SELECT  id,
   filename,
   path,
   name,
@@ -711,7 +698,7 @@ sub file_list() {
   checksum,
   comments,
   aid
-  
+
     FROM filearch f
     $WHERE
     ORDER BY $SORT $DESC
@@ -720,7 +707,7 @@ sub file_list() {
 
  my $list = $self->{list};
 
- $self->query($db, "SELECT count(*)
+ $self->query2("SELECT count(*)
     FROM filearch f
     $WHERE;");
 
@@ -739,14 +726,12 @@ sub file_country_add {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query($db, "INSERT INTO filearch_countries (name) VALUES ('$attr->{COUNTRY_NAME}');", 'do');
-  
+  $self->query2("INSERT INTO filearch_countries (name) VALUES ('$attr->{COUNTRY_NAME}');", 'do');
+
   $self->{COUNTRY_ID}=$self->{INSERT_ID};
 
-  return $self;  
-}      
-
-
+  return $self;
+}
 #**********************************************************
 # Add
 #**********************************************************
@@ -754,19 +739,16 @@ sub file_country_info {
   my $self = shift;
   my ($attr) = @_;
 
-
-
-  
   my $WHERE = ($attr->{COUNTRY_NAME}) ? " name='$attr->{COUNTRY_NAME}' " :  "id='$attr->{ID}'" ;
 
-  $self->query($db, "SELECT id, name FROM filearch_countries 
+  $self->query2("SELECT id, name FROM filearch_countries
    WHERE $WHERE;", 'do');
 
   if ($attr->{ADD} && $self->{TOTAL} == 0) {
     $self->file_country_add({ COUNTRY_NAME => $attr->{COUNTRY_NAME} });
    }
 
-  return $self;  
+  return $self;
 }
 
 #**********************************************************
@@ -776,9 +758,9 @@ sub file_country_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query($db, "SELECT id, name FROM filearch_countries");
-  
-  return $self->{list};  
+  $self->query2("SELECT id, name FROM filearch_countries");
+
+  return $self->{list};
 }
 
 
@@ -789,11 +771,11 @@ sub file_add {
   my $self = shift;
   my ($attr) = @_;
 
-  
+
   #$self->film_genres_add('$DATA{GENRES}');
-  
-  %DATA = $self->get_data($attr); 
-  $self->query($db, "INSERT INTO filearch (
+
+  my %DATA = $self->get_data($attr);
+  $self->query2("INSERT INTO filearch (
                        filename,
                        path,
                        name,
@@ -802,7 +784,7 @@ sub file_add {
                        size,
                        aid,
                        comments)
-    values ('$DATA{FILENAME}', '$DATA{PATH}', 
+    values ('$DATA{FILENAME}', '$DATA{PATH}',
       '$DATA{NAME}',
       '$DATA{CHECKSUM}',
       now(),
@@ -823,7 +805,7 @@ sub file_change {
   my ($attr) = @_;
 
 
-  my %FIELDS = ( ID        => 'id', 
+  my %FIELDS = ( ID        => 'id',
                  FILENAME  => 'filename',
                  PATH      => 'path',
                  NAME      => 'name',
@@ -831,18 +813,14 @@ sub file_change {
                  SIZE      => 'size',
                  COMMENTS  => 'comments',
                  STATE     => 'state'
-                );   
-
-  $self->changes($admin, { CHANGE_PARAM => 'ID',
-                           TABLE        => 'filearch',
-                           FIELDS       => \%FIELDS,
-                           OLD_INFO     => $self->file_info($attr->{ID}, $attr),
-                           DATA         => $attr
+                );
+  $self->changes2( { CHANGE_PARAM   => 'ID',
+                           TABLE    => 'filearch',
+                           FIELDS   => \%FIELDS,
+                           OLD_INFO => $self->file_info($attr->{ID}, $attr),
+                           DATA     => $attr
                           } );
- 
-    
 
- 
   return $self;
 }
 
@@ -852,8 +830,8 @@ sub file_change {
 sub file_del {
   my $self = shift;
   my ($id) = @_;
-  $self->query($db, "DELETE FROM filearch WHERE id='$id';", 'do');
-  
+  $self->query2("DELETE FROM filearch WHERE id='$id';", 'do');
+
   $self->video_del($id);
   return $self;
 }
@@ -864,8 +842,8 @@ sub file_del {
 sub file_info {
   my $self = shift;
   my ($id, $attr) = @_;
-  
-  $self->query($db, "SELECT id,
+
+  $self->query2("SELECT id,
    filename,
    path,
    name,
@@ -885,9 +863,9 @@ sub file_info {
    }
 
   my $ar = $self->{list}->[0];
-  
-  ($self->{ID}, 
-   $self->{FILENAME}, 
+
+  ($self->{ID},
+   $self->{FILENAME},
    $self->{PATH},
    $self->{NAME},
    $self->{CHECKSUM},
@@ -910,12 +888,12 @@ sub file_info {
 sub film_genres_list() {
   my $self = shift;
   my ($id) = @_;
- 
+
   my %GENRE_HASH = ();
-  $self->query($db, "SELECT fg.genre_id, g.name
+  $self->query2("SELECT fg.genre_id, g.name
     FROM filearch_film_genres fg, filearch_video_genres g
     WHERE fg.genre_id=g.id and fg.video_id='$id';");
-  
+
   foreach my $line ( @{$self->{list}} ) {
     $GENRE_HASH{$line->[0]}=$line->[1];
    }
@@ -931,14 +909,13 @@ sub film_genres_add {
   my $self = shift;
   my ($attr) = @_;
 
-  %DATA = $self->get_data($attr); 
-  
+  my %DATA = $self->get_data($attr);
   my @genres_arr = split(/, /, $DATA{GENRE});
 
-  $self->query($db, "DELETE FROM filearch_film_genres  WHERE video_id='$DATA{ID}';", 'do');
-  
+  $self->query2("DELETE FROM filearch_film_genres  WHERE video_id='$DATA{ID}';", 'do');
+
   foreach my $GENRE_ID (@genres_arr)  {
-    $self->query($db, "INSERT INTO filearch_film_genres (video_id, genre_id)
+    $self->query2("INSERT INTO filearch_film_genres (video_id, genre_id)
      values ('$DATA{ID}', '$GENRE_ID');", 'do');
    }
 
@@ -954,7 +931,7 @@ sub film_actors_list() {
 
 
  my %ACTORS_HASH = ();
- $self->query($db, "SELECT a.id, a.name, a.origin_name
+ $self->query2("SELECT a.id, a.name, a.origin_name
     FROM filearch_film_actors fa, filearch_video_actors a
     WHERE fa.actor_id=a.id and fa.video_id='$id'
     ORDER BY a.name;");
@@ -974,12 +951,11 @@ sub film_actors_add {
   my $self = shift;
   my ($attr) = @_;
 
-  my %DATA = $self->get_data($attr);   
-
+  my %DATA = $self->get_data($attr);
   if (! $attr->{ACTORS}) {
     return $self;
    }
-  
+
   my @actors_arr = split(/, /, $attr->{ACTORS});
   my %actors_info_hash = ();
 
@@ -999,7 +975,7 @@ sub film_actors_add {
   my %actors_hash = ();
   my $ids = join('", "', keys %actors_info_hash);
   $ids = "\"".$ids."\"";
-  
+
   my $list = $self->actors_list({ IDS => $ids });
 
   foreach my $line (@$list) {
@@ -1007,7 +983,7 @@ sub film_actors_add {
      $actors_hash{"$line->[1]"}=$line->[0];
    }
 
-  $self->query($db, "DELETE FROM filearch_film_actors  WHERE video_id='$DATA{ID}';", 'do');
+  $self->query2("DELETE FROM filearch_film_actors  WHERE video_id='$DATA{ID}';", 'do');
 
   while(my($origin_name, $name)=each(%actors_info_hash)) {
     my $actor_id = 0;
@@ -1022,8 +998,8 @@ sub film_actors_add {
     else {
       $actor_id=$actors_hash{"$origin_name"};
      }
-    
-    $self->query($db, "INSERT INTO filearch_film_actors (video_id, actor_id)
+
+    $self->query2("INSERT INTO filearch_film_actors (video_id, actor_id)
       values ('$DATA{ID}', '$actor_id');", 'do');
 
    }
@@ -1039,19 +1015,18 @@ sub film_actors_add {
 sub video_check {
   my $self = shift;
   my ($attr) = @_;
-   
-  
+
   my @IDS = split(/, /, $attr->{IDS});
-  
+
   my $id_sqlstr = join('\', \'', @IDS);
   $id_sqlstr = "'$id_sqlstr'";
-  
-  $self->query($db, "DELETE from filearch_state WHERE uid='$attr->{UID}' and 
+
+  $self->query2("DELETE from filearch_state WHERE uid='$attr->{UID}' and
        file_id in ($attr->{IDS});", 'do');
 
   if ($attr->{STATE}) {
     foreach my $line (@IDS) {
-      $self->query($db, "INSERT INTO filearch_state (file_id, uid, state)
+      $self->query2("INSERT INTO filearch_state (file_id, uid, state)
         values ('$line', '$attr->{UID}', '$attr->{STATE}');", 'do');
        #print "$attr->{STATE} // STATE $attr->{IDS}";
      }
@@ -1101,8 +1076,8 @@ sub chapter_add {
   my $self = shift;
   my ($attr) = @_;
 
-  %DATA = $self->get_data($attr); 
-  $self->query($db, "INSERT INTO filearch_chapters 
+  my %DATA = $self->get_data($attr);
+  $self->query2("INSERT INTO filearch_chapters
      (
       name,
       type,
@@ -1127,23 +1102,20 @@ sub chapters_list() {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG   = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG   = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  undef @WHERE_RULES;
-  
+  my @WHERE_RULES = ();
+
   if ($attr->{NAME}) {
     $attr->{NAME} =~ s/\*/\%/ig;
     push @WHERE_RULES, "(f.name LIKE '$attr->{NAME}' or f.filename LIKE '$attr->{NAME}')";
-   }
+  }
 
-
- $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : ''; 
- 
- 
- $self->query($db, "SELECT  c.id,
+ my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES)  : '';
+ $self->query2("SELECT  c.id,
   c.name,
   c.type,
   c.dir
@@ -1157,11 +1129,11 @@ sub chapters_list() {
  my $list = $self->{list};
 
  if ($self->{TOTAL} == $PAGE_ROWS || $PG > 0) {
-   $self->query($db, "SELECT count(DISTINCT f.id)
-     FROM filearch_chapters 
+   $self->query2("SELECT count(DISTINCT f.id)
+     FROM filearch_chapters
      $WHERE
    ;");
- 
+
    my $a_ref = $self->{list}->[0];
    ($self->{TOTAL}) = @$a_ref;
   }
@@ -1183,17 +1155,16 @@ sub chapter_change {
                  DIR           => 'dir',
                  SKIP          => 'skip',
                  COMMENTS      => 'comments'
-                );   
-  
+                );
   my $OLD_INFO = $self->chapter_info($attr->{ID}, $attr);
- 
-  $self->changes($admin, { CHANGE_PARAM => 'ID',
-                           TABLE        => 'filearch_chapters',
-                           FIELDS       => \%FIELDS,
-                           OLD_INFO     => $OLD_INFO,
-                           DATA         => $attr
+
+  $self->changes2( { CHANGE_PARAM   => 'ID',
+                           TABLE    => 'filearch_chapters',
+                           FIELDS   => \%FIELDS,
+                           OLD_INFO => $OLD_INFO,
+                           DATA     => $attr
                           } );
- 
+
   return $self;
 }
 
@@ -1203,7 +1174,7 @@ sub chapter_change {
 sub chapter_del {
   my $self = shift;
   my ($id) = @_;
-  $self->query($db, "DELETE FROM filearch_chapters WHERE id='$id';", 'do');
+  $self->query2("DELETE FROM filearch_chapters WHERE id='$id';", 'do');
   return $self;
 }
 
@@ -1214,8 +1185,8 @@ sub chapter_del {
 sub chapter_info {
   my $self = shift;
   my ($id, $attr) = @_;
-  
-  $self->query($db, "SELECT c.id,
+
+  $self->query2("SELECT c.id,
          c.name,
          c.type,
          c.dir,
@@ -1231,7 +1202,7 @@ sub chapter_info {
    }
 
   my $ar = $self->{list}->[0];
-  
+
   ($self->{ID},
    $self->{NAME},
    $self->{TYPE},

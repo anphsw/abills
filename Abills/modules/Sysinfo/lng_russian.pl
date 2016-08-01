@@ -1,0 +1,12 @@
+$lang{MEMORY}='Память';
+$lang{CPU}='Процессор';
+$lang{DISC}='Диск';
+$lang{NETWORK}='Сеть';
+$lang{LOAD}='Нагрузка';
+$lang{FREE}='Свободно';
+$lang{PROCCESS_LIST}='Список процессов';
+$lang{RUNNING}='Работает';
+$lang{SYSTEM_INFO}='Информация о системе';
+$lang{UPTIME}='Время работы';
+$lang{VERSION}='Версия';
+$lang{RECOMMENDED_MODULES}='Предпочтительные модули';

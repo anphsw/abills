@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <!-- Metadata -->
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Connectese a nuestra red publica de wifi gratuito.">
+    <title>On Wifi - OLIVENET</title>
+
+    <!-- Css -->
+    <link rel="stylesheet" href="css/bootstrap.css">
+    <!--<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">-->
+    <link href='css/Oswald.css' rel='stylesheet' type='text/css'>
+    <link href='css/Lato.css' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" href="css/extra.css">
+    <link rel="stylesheet" href="css/common.css">
+    <link rel="stylesheet" href="css/responsive.css">
+    <link rel="stylesheet" href="css/font-awesome.min.css">
+
+    <!-- Favicon -->
+    <link rel="shortcut icon" href="img/favicon.ico">
+
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+    <script src="js/jquery.min.js"></script>
+
+    <!-- specify external server IP -->
+    <script>
+        var ext_url = 'https://wifi.olivenet.es/start.cgi';
+    </script>
+
+    <script src="js/cookies.js"></script>
+    <script src="js/querytools.js"></script>
+    <script src="js/multilang.js"></script>
+
+</head>
+<body>
+$(if chap-id)
+<form name="sendin" action="$(link-login-only)" method="post">
+    <input type="hidden" name="username"/>
+    <input type="hidden" name="password"/>
+    <input type="hidden" name="dst" value="$(link-orig)"/>
+    <input type="hidden" name="popup" value="true"/>
+</form>
+
+<script type="text/javascript" src="/md5.js"></script>
+<script type="text/javascript">
+    <!--
+    function doLogin() {
+        document.sendin.username.value = document.login.username.value;
+        document.sendin.password.value = hexMD5('$(chap-id)' + document.login.password.value + '$(chap-challenge)');
+        document.sendin.submit();
+        return false;
+    }
+    //-->
+</script>
+$(endif)
+<!-- Header -->
+<header class="container">
+
+    <!-- Logo -->
+    <h1 id="logo">
+        <a href="/"><img src="img/logo.png" alt="OLIVENET"></a>
+    </h1>
+
+    <!-- Menu -->
+    <nav id="menu">
+        <ul class="list-unstyled list-inline">
+           <!-- <li><a href="on-wifi.php">On Wifi</a></li> -->
+        </ul>
+    </nav>
+
+    <!-- Social -->
+    <nav id="social">
+        <ul class="list-unstyled list-inline">
+            <li class="facebook">
+                <a href="https://www.facebook.com/OlivenetFibraOptica" title="Facebook"
+                   target="_blank"><span>Facebook</span></a>
+            </li>
+            <li class="twitter">
+                <a href="https://twitter.com/olivenet_es" title="Twitter" target="_blank"><span>Twitter</span></a>
+            </li>
+            <li class="contact">
+                <a href="/contacto.php" title="Contacto"><span>Contacto</span></a>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- Lang -->
+    <div id="lang" class="dropdown">
+        <!-- Default language -->
+        <button class="btn btn-xs dropdown-toggle" type="button" id="dropdownMenu1" data-toggle="dropdown"
+                aria-expanded="false">
+            <script>write(_lang)</script>
+            <span class="caret"></span>
+        </button>
+
+        <!-- Languages -->
+        <ul class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu1">
+            <li role="presentation">
+                <a role="menuitem" tabindex="-1" onclick="docCookies.setItem('lang','en'); location.reload();">EN</a>
+            </li>
+            <li role="presentation">
+                <a role="menuitem" tabindex="-1" onclick="docCookies.setItem('lang','es'); location.reload();">ES</a>
+            </li>
+            <li role="presentation">
+                <a role="menuitem" tabindex="-1" onclick="docCookies.setItem('lang','ru'); location.reload();">RU</a>
+            </li>
+        </ul>
+    </div>
+</header>
+
+<!-- Main -->
+<div class="main container">
+    <div class="row">
+        <div class="col-sm-8">
+
+            <!-- ConГ©ctese -->
+            <div id="conectese">
+                <a id="external"><img id="register" class="transition img-responsive"
+                        alt="Connectese"/> </a>
+            </div>
+        </div>
+        <div class="col-sm-4">
+
+            <!-- Form -->
+            <div id="membership-form">
+                <h2>
+                    <script>write(_start_session)</script>
+                </h2>
+                <form name="login" id="login" action="$(link-login-only)" method="post"
+                      $(if chap-id) onSubmit="return doLogin()" $(endif)>
+                    <input type="hidden" name="dst" value="$(link-orig)"/>
+                    <input type="hidden" name="popup" value="true"/>
+
+                    <div class="form-group">
+                        <label for="username">
+                            <script>write(_login)</script>
+                        </label>
+                        <input type="text" class="form-control" id="username" name="username" value=""
+                               placeholder="Username">
+                    </div>
+                    <div class="form-group">
+                        <label for="password"><script>write(_password)</script></label>
+                        <input type="password" class="form-control" id="password" placeholder="Password">
+                    </div>
+                    <button type="submit" id="submit" class="btn btn-olivenet transition2">
+                        <script>write(_connect)</script>
+                    </button>
+                </form>
+            </div>
+            $(if error)<br/>
+
+            <div style="color: #FF8080">$(error)</div>
+            $(endif)
+        </div>
+    </div>
+</div>
+
+<!-- Footer -->
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-sm-12">
+
+                <!-- Copyright -->
+                <p id="copyright" class="full">
+                    Copyright Olivenet @ 2014 - 2015 
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<!-- Js -->
+
+<script src="js/bootstrap.min.js"></script>
+<script src="js/fastlogin.js"></script>
+<script type="text/javascript">
+    <!--
+    document.login.username.focus();
+    //-->
+</script>
+</body>
+</html>

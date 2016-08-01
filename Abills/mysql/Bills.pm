@@ -1,22 +1,15 @@
 package Bills;
-# Bills accounts manage functions
-#**********************************************************
+
+=head1 NAME
+
+  Bills accounts manage functions
+
+=cut
 
 use strict;
-use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $VERSION
-);
-
-use Exporter;
-$VERSION = 2.00;
-@ISA     = ('Exporter');
-
-@EXPORT = qw();
-
-@EXPORT_OK   = ();
-%EXPORT_TAGS = ();
-
-use main;
-@ISA = ("main");
+our $VERSION = 2.00;
+use parent 'main';
+my ($admin, $CONF);
 
 #**********************************************************
 # Init
@@ -26,39 +19,28 @@ sub new {
   my $db    = shift;
   ($admin, $CONF) = @_;
 
-  my $self = {};
+  my $self = {
+    db => $db,
+    admin => $admin,
+    conf  => $CONF
+  };
+
   bless($self, $class);
-  
-  $self->{db}=$db;
-  
+
   return $self;
 }
 
 #**********************************************************
-#
-#**********************************************************
-sub defaults {
-  my $self = shift;
+=head2 create($attr) - Create bill account
 
-  my %DATA = (
-    DEPOSIT    => 0.00,
-    COMPANY_ID => 0
-  );
-
-  $self = \%DATA;
-  return $self;
-}
-
-#**********************************************************
-# Bill
+=cut
 #**********************************************************
 sub create {
   my $self = shift;
   my ($attr) = @_;
 
-  my %DATA = $self->get_data($attr, { default => defaults() });
-  $self->query_add('bills', { %DATA, 
-  	                          REGISTRATION => 'now()' 
+  $self->query_add('bills', { %$attr, 
+  	                          REGISTRATION => 'NOW()' 
   	                        });
 
   $self->{BILL_ID} = $self->{INSERT_ID} if (!$self->{errno});
@@ -67,14 +49,25 @@ sub create {
 }
 
 #**********************************************************
-# Bill add sum to bill
-# Type:
-#  add
-#  take
+=head2 action($type, $BILL_ID, $SUM, $attr) - Bill account action
+
+  Arguments:
+   $type
+       add
+       take
+   $BILL_ID
+   $SUM
+   $SUM
+   $attr
+
+  Return:
+    $self
+
+=cut
 #**********************************************************
 sub action {
   my $self = shift;
-  my ($type, $BILL_ID, $SUM, $attr) = @_;
+  my ($type, $BILL_ID, $SUM) = @_;
   my $value = '';
 
   if ($SUM == 0) {
@@ -82,23 +75,25 @@ sub action {
     return $self;
   }
   elsif ($type eq 'take') {
-    $value = "-$SUM";
+    $value = '-';
   }
   elsif ($type eq 'add') {
-    $value = "+$SUM";
+    $value = '+';
   }
   else {
     $self->{errstr} = 'Select action';
     return $self;
   }
 
-  $self->query2("UPDATE bills SET deposit=deposit$value WHERE id='$BILL_ID';", 'do');
+  $self->query2("UPDATE bills SET deposit=deposit$value ? WHERE id= ? ;", 'do', { Bind => [ $SUM, $BILL_ID ] });
 
   return $self;
 }
 
 #**********************************************************
-# Bill
+=head2 change($attr) -  Change bill account
+
+=cut
 #**********************************************************
 sub change {
   my $self = shift;
@@ -108,17 +103,18 @@ sub change {
     BILL_ID    => 'id',
     UID        => 'uid',
     COMPANY_ID => 'company_id',
-    SUM        => 'sum'
+    DEPOSIT    => 'deposit'
   );
 
-  $self->changes(
-    $admin,
+  $self->changes2(
     {
       CHANGE_PARAM => 'BILL_ID',
       TABLE        => 'bills',
       FIELDS       => \%FIELDS,
-      OLD_INFO     => $self->bill_info($attr->{BILL_ID}),
-      DATA         => $attr
+      OLD_INFO     => $self->info({ BILL_ID => $attr->{BILL_ID} }),
+      DATA         => $attr,
+      EXT_CHANGE_INFO => "BILL_ID: $attr->{BILL_ID} DEPOSIT: $attr->{DEPOSIT}",
+      ACTION_ID    => 40
     }
   );
 
@@ -126,23 +122,34 @@ sub change {
 }
 
 #**********************************************************
-# Bill
+=head2 list($attr) - list bill accounts
+
+=cut
 #**********************************************************
 sub list {
   my $self = shift;
   my ($attr) = @_;
 
+  my $WHERE = '';
   if (defined($attr->{COMPANY_ONLY})) {
     $WHERE = "WHERE b.company_id>0";
     if (defined($attr->{UID})) {
-      $WHERE .= " or b.uid='$attr->{UID}'";
+      $WHERE .= " OR b.uid='$attr->{UID}'";
     }
   }
 
-  $self->query2("SELECT b.id, b.deposit, u.id,  c.name, b.uid, b.company_id
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+  $self->query2("SELECT b.id,
+     b.deposit,
+     u.id AS login,
+     c.name AS company_id,
+     b.uid,
+     b.company_id
      FROM bills b
      LEFT JOIN users u ON  (b.uid=u.uid) 
-     LEFT JOIN companies c ON  (b.company_id=c.id) 
+     LEFT JOIN companies c ON (b.company_id=c.id) 
      $WHERE 
      GROUP BY 1
      ORDER BY $SORT $DESC;",
@@ -154,21 +161,30 @@ sub list {
 }
 
 #**********************************************************
-# Bill
+=head2 del($attr) - Dell bill account
+
+=cut
 #**********************************************************
 sub del {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("DELETE FROM bills
-    WHERE id='$attr->{BILL_ID}';", 'do'
-  );
+  $self->query2("DELETE FROM bills WHERE id= ? ;", 'do', { Bind => [ $attr->{BILL_ID} ] });
 
   return $self;
 }
 
 #**********************************************************
-# Bill
+=head2 info($attr) - Bill account information
+
+  Arguments:
+    $attr
+      BILL_ID
+
+  Returns:
+    $self
+
+=cut
 #**********************************************************
 sub info {
   my $self = shift;
@@ -176,14 +192,15 @@ sub info {
 
   $self->query2("SELECT b.id AS bill_id, 
      b.deposit AS deposit, 
-     u.id As login, 
+     u.id AS login, 
      b.uid, 
      b.company_id
     FROM bills b
     LEFT JOIN users u ON (u.uid = b.uid)
-    WHERE b.id='$attr->{BILL_ID}';",
+    WHERE b.id= ? ;",
     undef,
-    { INFO => 1 }
+    { INFO => 1,
+    	Bind => [ $attr->{BILL_ID} ] }
   );
 
   return $self;

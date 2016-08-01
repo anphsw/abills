@@ -41,26 +41,26 @@ function make_unique() {
 <input type='hidden' name='OP_SID' value='%OP_SID%' ID=OP_SID>
 <input type='hidden' name='sid' value='$sid'>
 <table width=600>
-<tr bgcolor='$_COLORS[0]'><th colspan=2 align=right>$_ICARDS</th></tr>
-<tr><td>$_COUNT:</td><td><input type='text' name='COUNT' value='%COUNT%'></td></tr>
-<tr><td>$_SUM:</td><td><input type='text' name='SUM' value='%SUM%'></td></tr>
+<tr bgcolor='$_COLORS[0]'><th colspan=2 align=right>_{ICARDS}_</th></tr>
+<tr><td>_{COUNT}_:</td><td><input type='text' name='COUNT' value='%COUNT%'></td></tr>
+<tr><td>_{SUM}_:</td><td><input type='text' name='SUM' value='%SUM%'></td></tr>
 
 <tr><td class=small colspan=2 bgcolor=$_COLORS[9]></td></tr>
 
 
-<tr><td>$_TYPE:</td><td>%TYPE_SEL%</td></tr>
-<tr><td>$_TARIF_PLAN:</td><td>%TP_SEL%</td></tr>
+<tr><td>_{TYPE}_:</td><td>%TYPE_SEL%</td></tr>
+<tr><td>_{TARIF_PLAN}_:</td><td>%TP_SEL%</td></tr>
 
-<tr><td>$_EXPORT:</td><td>
-<input type=radio name=EXPORT value=xml>   XML 
-<input type=radio name=EXPORT value=text>  TEXT 
-<input type=radio name=EXPORT value=print CHECKED> $_PRINT 
-<input type=radio name=EXPORT value=order_print> $_ORDER_PRINT 
+<tr><td>_{EXPORT}_:</td><td>
+<input type=radio name=EXPORT value=xml>   XML
+<input type=radio name=EXPORT value=text>  TEXT
+<input type=radio name=EXPORT value=print CHECKED> _{PRINT}_
+<input type=radio name=EXPORT value=order_print> _{ORDER_PRINT}_
 </td></tr>
-<tr><td>$_IMPORT:</td><td><input type=file name=import></td></tr>
+<tr><td>_{IMPORT}_:</td><td><input type=file name=import></td></tr>
 
 </table>
 
-<input type='submit' name='add' value='$_ADD' onclick=\"make_unique(this.form)\">
+<input type='submit' name='add' value='_{ADD}_' onclick=\"make_unique(this.form)\">
 </form>
 

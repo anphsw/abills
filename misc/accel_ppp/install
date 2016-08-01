@@ -20,4 +20,5 @@ accel-ppp > [/etc]/init.d/accel-ppp
 :exec:update-rc.d accel-ppp defaults
 :exec:/etc/init.d/accel-ppp restart
 
-
+#logrotate
+accel-ppp_logrotate > [/etc]/logrotate.d/accel-ppp

@@ -2,12 +2,12 @@
 <input type=hidden name=index value=$index>
 <input type=hidden name=ID value=%ID%>
 <table border=\"0\" >
-  <tr>
-    <td>$_NAME:</td>
+  <tr><h1>SUPPLIERS_FORM_TPL</h1>
+    <td>_{NAME}_:</td>
     <td><input name=\"NAME\" type=\"text\" value=\"%NAME%\" /></td>
   </tr>
   <tr>
-    <td>$_DATE:</td>
+    <td>_{DATE}_:</td>
     <td><input name=\"DATE\" type=\"text\" value=\"%DATE%\" /></td>
   </tr>
   <tr>

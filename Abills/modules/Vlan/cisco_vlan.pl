@@ -4,7 +4,7 @@
 my $action   = $ARGV[0];
 my $nas_ip   = $ARGV[1];
 my $vlan_id  = $ARGV[2];
-my $version  = '0.03';
+my $version  = '0.04';
 
 
 BEGIN {
@@ -30,6 +30,7 @@ BEGIN {
 }
 
 use FindBin '$Bin';
+use POSIX qw(strftime);
 
 require $Bin . '/../../../libexec/config.pl';
 
@@ -37,6 +38,8 @@ use Sys::Hostname;
 
 require Abills::Base;
 Abills::Base->import();
+require "Misc.pm";
+
 
 my $argv = parse_arguments(\@ARGV);
 
@@ -69,16 +72,16 @@ if ($nas_ip && $nas_ip ne '0.0.0.0') {
 
 if ($action) {
   if ($action eq 'add') {
-	  &create_vlan($nas_ip, $vlan_id, $ip_helper);
+    &create_vlan($nas_ip, $vlan_id, $ip_helper);
   }
   elsif ($action eq 'del') {
-	  &del_vlan($nas_ip, $vlan_id, $ip_helper);
+    &del_vlan($nas_ip, $vlan_id, $ip_helper);
   }
   elsif ($action eq 'info') {
-  	vlan_info();
+    vlan_info();
   }
   elsif ($action eq 'show') {
-  	&show_conf($nas_ip, $vlan_id, $ip_helper);
+    &show_conf($nas_ip, $vlan_id, $ip_helper);
   }
 }
 else {
@@ -100,8 +103,8 @@ if ($action eq 'show'|| $debug > 2) {
 sub make_cmds {
   my ($cmds, $attr)=@_;
 
-  require Net::Telnet::Cisco;
-  Net::Telnet::Cisco->import();
+  load_pmodule('Net::Telnet::Cisco');
+
   my $session = Net::Telnet::Cisco->new(Host      => $nas_ip, 
                                         Input_log => "$cisco_log");
 
@@ -117,7 +120,6 @@ sub make_cmds {
   #$session->cmd("exit");
   $session->close;	
 
-  use POSIX qw(strftime);
   my $DATE = strftime "%Y%m%d", localtime(time);
   my $TIME = strftime "%H%M%S", localtime(time);
 

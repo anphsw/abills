@@ -1,5 +1,5 @@
-$_DEAR, %FIO%
+_{DEAR}_, %FIO%
 
-$_DEPOSIT: %DEPOSIT%
-$_DATE: %DATE%
+_{DEPOSIT}_: %DEPOSIT%
+_{DATE}_: %DATE%
 

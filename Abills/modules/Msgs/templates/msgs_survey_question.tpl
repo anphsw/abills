@@ -1,17 +1,44 @@
 <FORM action='$SELF_URL' METHOD='POST'  >
 <input type='hidden' name='index' value='$index'/>
 <input type='hidden' name='ID' value='%ID%'/>
-<input type='hidden' name='SURVEY' value='$FORM{SURVEY}'/>
+<input type='hidden' name='SURVEY_ID' value='$FORM{SURVEY_ID}'/>
 
-<TABLE>
-<tr><td>$_NUM:</td><td><input type=text name=NUM value='%NUM%'></td></tr>
-<tr><td>$_QUESTION:</td><td><input type=text name=QUESTION value='%QUESTION%' size=40></td></tr>
-<tr><td>$_PARAMS (;):</td><td><textarea name=PARAMS rows=6 cols=45>%PARAMS%</textarea></td></tr>
-<tr><td>$_COMMENTS:</td><td><textarea name=COMMENTS rows=6 cols=45>%COMMENTS%</textarea></td></tr>
-<tr><td>$_USER $_COMMENTS:</td><td><input type=checkbox name=USER_COMMENTS value=1 %USER_COMMENTS%></td></tr>
-<tr><td>$_DEFAULT:</td><td><input type=checkbox name=FILL_DEFAULT value=1 %FILL_DEFAULT%></td></tr>
-</TABLE>
-
-<input type=submit name='%ACTION%' value='%LNG_ACTION%'>
-
+<div class='panel panel-default panel-form'>
+<div class='panel-body form form-horizontal'>
+    <legend>_{QUESTIONS}_</legend>
+	<div class='form-group'>
+        <label class='control-label col-md-3'>_{NUM}_:</label>
+		<div class='col-md-9'>
+			<input type=text name=NUM value='%NUM%' class='form-control'>
+		</div>
+	</div>
+	<div class='form-group'>
+        <label class='control-label col-md-3'>_{QUESTION}_:</label>
+		<div class='col-md-9'>
+			<input type=text name=QUESTION value='%QUESTION%' size=40 class='form-control'>
+		</div>
+	</div>
+	<div class='form-group'>
+        <label class='control-label col-md-3'>_{PARAMS}_ (;):</label>
+		<div class='col-md-9'>
+			<textarea name=PARAMS rows=6 cols=45 class='form-control'>%PARAMS%</textarea>
+		</div>
+	</div>
+	<div class='form-group'>
+        <label class='control-label col-md-3'>_{COMMENTS}_:</label>
+		<div class='col-md-9'>
+			<textarea name=COMMENTS rows=6 cols=45 class='form-control'>%COMMENTS%</textarea>
+		</div>
+	</div>
+	<div class='from-group'>
+        <label class='col-md-6' style='padding:0px;margin:0px;'>_{USER}_ _{COMMENTS}_:</label>
+		<div class='col-md-1'><input type=checkbox name=USER_COMMENTS value=1 %USER_COMMENTS%></div>
+        <label class='col-md-4'>_{DEFAULT}_:</label>
+		<div class='col-md-1'><input type=checkbox name=FILL_DEFAULT value=1 %FILL_DEFAULT%></div>
+	</div>
+</div>
+<div class='panel-footer'>
+	<input type=submit name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'>
+</div>
+</div>
 </form>

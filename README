@@ -1,6 +1,6 @@
 ===========================================================
 ABillS - ~AsmodeuS~ Billing System.
-Version: 0.50
+Version: 0.73
 -----------------------------------------------------------
 Open Source Billing Solution
 ===========================================================
@@ -25,8 +25,10 @@ Billing system with different abilities:
    Payments Systems (Webmoney, Pegas, 24 Non Stop, SMS Proxy and other)
 
 Technology: 
-   FreeBSD, Linux, MySQL, Radius, DHCP, Netwlow, SNMP, SMTP
+   FreeBSD, Linux, MySQL, Radius, DHCP, Netflow, SNMP, SMTP
 
 
 Site: 
    http://abills.net.ua
+Google+
+   https://plus.google.com/+AbillsNetUa

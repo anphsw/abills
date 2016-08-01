@@ -1,9 +1,11 @@
-<script src=\"/js/jquery.spoiler.js\" type='text/javascript'></script>
 
-<div class=\"dropdown-container\"> 
-  <div class=\"dropdown-box\" id=\"%ID%\">
-	  <span class=\"dropdown-image-down\">&nbsp;</span>
-	  <h3>%NAME%</h3>
-  </div>	
-  <div class=\"dropdown-content\">%CONTENT%</div>
+<div class='panel panel-default panel-form'>
+  <div class='panel-heading'>
+    <a data-toggle='collapse' data-parent='#accordion' href='#%ID%'>%NAME%</a>
+  </div>
+  <div id='%ID%' class='panel-collapse collapse out %PARAMS%'>
+  	<div class='panel-body'>
+	    %CONTENT%
+	  </div>
+  </div>
 </div>

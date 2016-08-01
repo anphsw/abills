@@ -1,0 +1,12 @@
+$lang{STYLE} = 'Style';
+$lang{SAVE} = 'Save';
+$lang{DETAIL} = 'More';
+$lang{AUTHOR} = 'Author';
+$lang{GALLERY_ON} = 'Gallery on';
+$lang{POSTS} = 'Posts';
+$lang{PAGES} = 'Pages';
+$lang{GALLERY} = 'Gallery';
+$lang{IMAGE_UPLOAD} = 'Image upload';
+$lang{CHOOSE_IMAGES} = 'Choose image';
+$lang{TITLE}= 'Title';
+1;

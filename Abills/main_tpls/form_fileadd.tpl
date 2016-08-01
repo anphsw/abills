@@ -1,12 +1,19 @@
-
-<div class='noprint' align=center>
-<FORM action='$SELF_URL' METHOD='POST'  enctype='multipart/form-data'>
+<FORM action='$SELF_URL' METHOD='POST' enctype='multipart/form-data' class='form-horizontal'>
 <input type='hidden' name='index' value='$index'>
 <input type='hidden' name='NAS_GID' value='$FORM{NAS_GID}'>
-<table width=600>
-<tr><th colspan=2 align='right' bgcolor=$_COLORS[0]>$_ADD $_FILE</th></tr>
-<tr><td>$_FILE:</td><td><input name='FILE_UPLOAD' type='file' size='40' class='fixed'>
-   <input class='button' type='submit' name='UPLOAD' value='$_ADD'></td></tr>  
-</table>
-</FORM>
+
+<fieldset>
+<legend>_{ADD}_ _{FILE}_</legend>
+
+<div class='form-group'>
+  <label class='col-md-6 control-label' for='FILE_DATA'>_{FILE}_</label>
+  <div class='col-md-2'>
+    <input id='FILE_DATA' name='FILE_UPLOAD' value='%FILE_UPLOAD%' placeholder='%FILE_DATA%' class='input-file' type='file'>
+  </div>
 </div>
+
+<input class='button' type='submit' name='UPLOAD' value='_{ADD}_'>
+
+</fieldset>
+</FORM>
+

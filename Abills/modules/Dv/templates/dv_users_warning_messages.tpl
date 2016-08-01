@@ -12,4 +12,4 @@ From: $conf{ADMIN_MAIL}
 (Кредит %CREDIT% у.о.)
 Ваш доступ тимчасово буде заблоковано.
 
-$_DATE: %DATE%
+_{DATE}_: %DATE%

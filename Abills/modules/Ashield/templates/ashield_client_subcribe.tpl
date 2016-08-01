@@ -10,8 +10,8 @@
 </td></tr>
 
 <!--
-<tr><th colspan=2 class=form_title>$_REGISTRATION - $_ANTIVIRUS Dr.Web</th></tr>	
-<tr><th colspan=2><a href='' target_new>$_INFO</a></th></tr>	
+<tr><th colspan=2 class=form_title>_{REGISTRATION}_ - _{ANTIVIRUS}_ Dr.Web</th></tr>
+<tr><th colspan=2><a href='' target_new>_{INFO}_</a></th></tr>
 <tr><td>E-mail:</td><td>%EMAIL%</td></tr>	
 -->
 <tr><th class=even colspan=2><input type=submit name='%ACTION%' value='%LNG_ACTION%'></th></tr>

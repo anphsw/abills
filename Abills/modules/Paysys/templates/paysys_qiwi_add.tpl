@@ -6,15 +6,29 @@
 <input type='hidden' name='PAYMENT_SYSTEM' value='$FORM{PAYMENT_SYSTEM}' />
 <input type='hidden' name='OPERATION_ID' value='$FORM{OPERATION_ID}' />
 
-<table width=400 border=0>
 
-<tr><th class='form_title' colspan=2>Qiwi</th></tr>
-<tr><td>Operation ID:</td><td>$FORM{OPERATION_ID}</td></tr>
-<tr><td>$_SUM:</td><td>$FORM{SUM} <br><font size=-1>%DESCRIBE%</font></td></tr>
-<tr><td>$_PHONE<br> десятизначный номер абонента <br>(Пример: 9029283847):</td><td><input type='input' name='PHONE' value='%PHONE%' /></td></tr>
-<!-- <tr><td>$_SEND SMS:</td><td><input type=checkbox name='ALARM_SMS' value=1></td></tr> -->
-<tr><th colspan=2><input type=submit value='$_GET_INVOICE' name=send_invoice>
+<div class='panel panel-primary'>
+<div class='panel-heading text-center'>Qiwi</div>
+<div class='panel-body'>
+	<div class='form-group'>
+		<label class='col-md-6 text-center'>Operation ID:</label>
+		<label class='col-md-6 control-label'>$FORM{OPERATION_ID}</label>
+	</div>
 
-</th></tr>
-</table>
+	<div class='form-group'>
+        <label class='col-md-6 text-center'>_{SUM}_:</label>
+		<label class='col-md-6 control-label'>$FORM{SUM}</label>
+	</div>
+
+	<div class='form-group'>
+        <label class='col-md-6 text-center'>_{PHONE}_, десятизначный номер абонента (Пример: 9029283847):</label>
+		<div class='col-md-6'><input class='form-control' type='input' name='PHONE' value='%PHONE%'></div>
+	</div>
+</div>
+<div class='panel-footer text-center'>
+    <input class='btn btn-primary' type=submit value='_{GET_INVOICE}_' name=send_invoice>
+</div>
+
+</div>
+
 </form>

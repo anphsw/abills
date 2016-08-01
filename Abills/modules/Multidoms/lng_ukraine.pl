@@ -1,5 +1,5 @@
-$_MINUTES='Хвилин';
+$lang{MINUTES}='Хвилин';
 %COUNTRY_LIST = ();
-$_WRONG_CAPTCHA='Wrong Captcha';
+$lang{WRONG_CAPTCHA}='Wrong Captcha';
 
 1

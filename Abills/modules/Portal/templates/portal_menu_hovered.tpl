@@ -1,1 +1,1 @@
-<li class=\"home\">%MENU_NAME%</li>
+<li class='active'><a href='%HREF%'>%MENU_NAME%</a></li>

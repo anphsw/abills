@@ -1,49 +1,118 @@
-<form action=$SELF_URL name=\"portal_form\" method=POST>
+<form action=$SELF_URL name='portal_form' method=POST class='form-horizontal'>
 <input type=hidden name=index value=$index>
 <input type=hidden name=ID value=%ID%>
-<table border=\"0\">
-	<tr>
-	<th colspan=2 class=\"table_title\" align=%ALIGN%>%TITLE_NAME%</th>
-	</tr>  
-	 <tr>
-    	<td align=%ALIGN% >$_DATE_PUBLICATE:</td>
-    	<td>
-    		%DATE%
-    	</td>
-  	</tr>
-  	<tr>
-    	<td align=%ALIGN%>$_MENU:</td>
-    	<td>%PORTAL_MENU_ID%</td>
-  	</tr>
-  	
-  	
-  <tr>
-    <td align=%ALIGN%>$_TITLE:</td>
-    <td><input name=\"TITLE\" type=\"text\" value=\"%TITLE%\" size=90 align=%ALIGN% /></td>
-  </tr>
-  <tr>
-    <td align=%ALIGN%>$_SHORT_DESCRIPTION:</td>
-    <td><textarea name=\"SHORT_DESCRIPTION\" cols=90 rows=5>%SHORT_DESCRIPTION%</textarea></td>
-  </tr>  
-  <tr>
-    <td align=%ALIGN%>$_TEXT:</td>
-    <td><textarea name=\"CONTENT\" cols=90 rows=21>%CONTENT%</textarea></td>
-  </tr>
-  <tr>
-    <td align=%ALIGN% >$_SHOW:</td>
-    <td>
-    	<input type=\"radio\" name=\"STATUS\" value=1 %SHOWED%>$_SHOW
-    	<br />
-    	<input type=\"radio\" name=\"STATUS\" value=0 %HIDDEN%>$_HIDE 
-    </td>
-  </tr>
-  <tr>
-    <td align=%ALIGN%>&nbsp;</td>
-    <td>
-    	<input type=\"checkbox\" name=\"ON_MAIN_PAGE\" value=\'1\' %ON_MAIN_PAGE_CHECKED% >$_ON_MAIN_PAGE
-    </td>
-  </tr>
-</table>
-<br />
-<input type=submit name=%ACTION% value=%ACTION_LNG%>
+
+
+<div class='panel panel-primary panel-form'>
+<div class='panel-heading'>%TITLE_NAME%</div>
+<div class='panel-body'>
+  <div class='form-group'>
+      <label class='col-md-3 control-label'>_{DATE_PUBLICATE}_:</label>
+    <div class='col-md-9'>
+      <input class='form-control tcal tcalInput' placeholder='0000-00-00' name='DATE' value='%DATE%'>
+    </div>
+  </div>
+
+  <div class='form-group'>
+      <label class='col-md-3 control-label'>_{DATE_END}_:</label>
+    <div class='col-md-9'>
+      <input class='form-control tcal tcalInput' placeholder='0000-00-00' name='END_DATE' value='%END_DATE%'>
+    </div>
+  </div>
+
+  <div class='form-group'>
+      <label class='col-md-3 control-label'>_{MENU}_:</label>
+    <div class='col-md-9'>%PORTAL_MENU_ID%</div>
+  </div>
+  <div class='form-group'>
+      <label class='col-md-12 label-primary'>_{CONTENT}_</label>
+  </div>
+
+  <div class='form-group'>
+      <label class='col-md-12'>_{TITLE}_:</label>
+    <div class='col-md-12'>
+      <input class='form-control' name='TITLE' type='text' value='%TITLE%' size=90 align=%ALIGN% />
+    </div>
+  </div>
+
+  <div class='form-group'>
+      <label class='col-md-12'>_{SHORT_DESCRIPTION}_:</label>
+    <div class='col-md-12'>
+      <textarea class='form-control' name='SHORT_DESCRIPTION' cols=90 rows=5>%SHORT_DESCRIPTION%</textarea>
+    </div>
+  </div>
+
+  <div class='form-group'>
+      <label class='col-md-12'>_{TEXT}_:</label>
+    <div class='col-md-12'>
+      <textarea class='form-control' name='CONTENT' cols=90 rows=21>%CONTENT%</textarea>
+    </div>
+  </div>
+
+  <div class='form-group'>
+      <label class='col-md-12'>_{SHOW}_:</label>
+    <div class='col-md-12'>
+      <div class='col-md-6'>
+          <input type='radio' name='STATUS' value=1 %SHOWED%>_{SHOW}_
+      </div>
+      <div class='col-md-6'>
+          <input type='checkbox' name='ON_MAIN_PAGE' value=1 %ON_MAIN_PAGE_CHECKED%>_{ON_MAIN_PAGE}_
+      </div>
+      <div class='col-md-6'>
+          <input type='radio' name='STATUS' value=0 %HIDDEN%>_{HIDE}_
+      </div>
+    </div>
+  </div>
+
+  <div class='form-group'>
+      <label class='col-md-12 label-primary'>_{USER_CONF}_</label>
+  </div>
+
+  <div class='form-group'>
+      <label class='col-md-4'>_{USER_PORTAL}_</label>
+
+      <div class='col-md-4'>
+          <input type='radio' name='ARCHIVE' value=1 %SHOWED_ARCHIVE%>_{SHOW}_
+      </div>
+      <div class='col-md-4'>
+          <input type='radio' name='ARCHIVE' value=0 %HIDDEN_ARCHIVE%>_{TO_ARCHIVE}_
+      </div>
+
+  </div>
+
+  <div class='form-group'>
+      <label class='col-md-3 control-label'>_{IMPORTANCE}_:</label>
+    <div class='col-md-9'>
+      %IMPORTANCE_STATUS%
+    </div>
+  </div>
+
+  <div class='form-group'>
+      <label class='col-md-3 control-label'>_{GROUPS}_:</label>
+    <div class='col-md-9'>
+      %GROUPS%
+    </div>
+  </div>
+
+  <div class='form-group'>
+      <label class='col-md-3 control-label'>_{TAGS}_:</label>
+    <div class='col-md-9'>
+      %TAGS%
+    </div>
+  </div>
+
+    %ADRESS_FORM%
+
+  <div class='form-group'>
+      <label class='checkbox-inline'><input type='checkbox' name='RESET' value='1'>_{RESET_ADDRESS}_</label>
+  </div>
+
+  </div>
+</div>
+
+<div class='panel-footer'>
+  <input class='btn btn-primary' type=submit name=%ACTION% value=%ACTION_LNG%>
+</div>
+
+</div>
 </form>
