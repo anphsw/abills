@@ -1,5 +1,5 @@
-<div class='panel panel-default panel-form'>
-  <div class='panel-body'>
+<div class='box box-theme box-form'>
+  <div class='box-body'>
 
 <FORM action='$SELF_URL' METHOD='POST'  name='add_message' class='form-horizontal' >
     <legend>_{EXPORT}_</legend>
@@ -38,7 +38,9 @@
  	  	</div>
 </div>
 
+    <div class='box-footer' >
 <input type=submit name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'>
+  </div>
 
 </fieldset>
 </form>

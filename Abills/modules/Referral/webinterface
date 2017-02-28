@@ -10,11 +10,11 @@
 use strict;
 use warnings FATAL => 'all';
 
-our $db;
-our $admin;
-our %conf;
-our $html;
-our %lang;
+our ($db,
+  $admin,
+  %conf,
+  $html,
+  %lang);
 
 use Referral;
 my $Referral = Referral->new( $db, $admin, \%conf );
@@ -79,9 +79,9 @@ sub referral_user{
   $html->tpl_show( _include( 'referral_user', 'Referral' ),
     {
       SEARCH_BUTTON       => $search_referrer_button,
-      REFFERER_ROW_HIDDEN => ($show_referrer_content ne '') ? '' : 'hidden',
+      REFFERER_ROW_HIDDEN => ($show_referrer_content) ? '' : 'hidden',
       REFERRER            => $show_referrer_content,
-      SHOW_BUTTON_HIDDEN  => ($show_referrals_button ne '') ? '' : 'hidden',
+      SHOW_BUTTON_HIDDEN  => ($show_referrals_button) ? '' : 'hidden',
       SHOW_BUTTON         => $show_referrals_button
     }
   );
@@ -195,7 +195,7 @@ sub referral_show{
     return $tree;
   }
 
-  print $html->element( 'div', $tree, { class => 'panel-body' } ) . "<script>defineTreeMenuLogic()</script>";
+  print $html->element( 'div', $tree, { class => 'box-body' } ) . "<script>defineTreeMenuLogic()</script>";
 
   return 1;
 }
@@ -338,13 +338,11 @@ sub _referral_referrer_show{
     $user_name = $user_info->{id}
   }
   else{
-    return $html->message( 'err', $lang{ERROR}, $lang{USER_NOT_EXIST} );
-    #    return 0;
+    return '';
+#    return $html->message( 'err', $lang{ERROR}, $lang{USER_NOT_EXIST} );
   }
 
-  my $content = user_ext_menu( $referrer, $user_name );
-
-  return $html->element( 'div', $content);
+  return $html->element( 'div', user_ext_menu( $referrer, $user_name ));
 }
 
 
@@ -460,6 +458,7 @@ sub _transform_to_hash{
   my $result = { };
 
   foreach my $element ( @{$list} ){
+    next unless $element->{$name_key};
     $result->{$element->{$name_key}} = $element->{$val_key};
   }
 

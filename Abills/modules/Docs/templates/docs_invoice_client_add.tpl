@@ -12,9 +12,9 @@
     <input type=hidden name='SEND_EMAIL' value='1'>
     <input type=hidden name=INCLUDE_DEPOSIT value=1>
 
-    <div class='panel panel-primary'>
-        <div class='panel-heading text-center'><h4>%CAPTION%</h4></div>
-        <div class='panel-body form form-horizontal'>
+    <div class='box box-primary'>
+        <div class='box-header with-border'><h4 class='box-title'>%CAPTION%</h4></div>
+        <div class='box-body form form-horizontal'>
             %FORM_ACCT_ID%
             <div class='form-group'>
                 <label class='control-label col-md-3'>_{DATE}_:</label>
@@ -41,7 +41,7 @@
             <!-- <tr><td>_{PRE}_</td><td><input type=checkbox name=PREVIEW value='1'></td></tr> -->
 
         </div>
-        <div class='panel-footer text-center'>
+        <div class='box-footer text-center'>
             <input type=submit name=create value='_{CREATE}_' class='btn btn-primary'>
         </div>
     </div>

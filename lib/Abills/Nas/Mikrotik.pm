@@ -3,6 +3,7 @@ use strict;
 use warnings FATAL => 'all';
 
 use Abills::Base qw(_bp cmd);
+require "Abills/Misc.pm";
 
 my %BP_ARGS = ( TO_CONSOLE => 1 );
 #**********************************************************
@@ -17,16 +18,29 @@ sub new($;$) {
   my $self = { };
   bless( $self, $class );
 
-  $self->{backend} = $attr->{backend} || 'ssh';
-  $self->{ip_address} = $host->{NAS_IP};
+  my $nas_ip_mng_port = $host->{nas_mng_ip_port} || $host->{NAS_MNG_IP_PORT} || return 0;
+  my ($nas_ip, $coa_port, $ssh_port) = split( ":", $nas_ip_mng_port );
+  $ssh_port ||= $coa_port || '22';
 
-  $self->{login} = $host->{NAS_MNG_USER};
+  $self->{backend} = $attr->{backend} || (($ssh_port eq '8728') ? 'api' : 'ssh');
+  $self->{ip_address} = $nas_ip || $host->{NAS_IP};
+  $self->{login} = $host->{nas_mng_user} || $host->{NAS_MNG_USER} || '';
 
   if ( $self->{backend} eq 'ssh' ) {
     require Abills::Nas::Mikrotik::SSH;
+    Abills::Nas::Mikrotik::SSH->import();
     $self->{executor} = Abills::Nas::Mikrotik::SSH->new( $host, $CONF, $attr );
-    $self->{nas_type} = $host->{nas_type};
   }
+  elsif ( $self->{backend} eq 'api' ) {
+    require Abills::Nas::Mikrotik::API;
+    Abills::Nas::Mikrotik::API->import();
+    $self->{executor} = Abills::Nas::Mikrotik::API->new( $host, $CONF, $attr );
+  }
+  else {
+    return 0;
+  }
+
+  $self->{nas_type} = $host->{nas_type};
 
   # Allowing to use custom messages
   if ( $attr->{MESSAGE_CALLBACK} && ref $attr->{MESSAGE_CALLBACK} eq 'CODE' ) {
@@ -37,23 +51,37 @@ sub new($;$) {
   }
 
   # Configuring debug options
-  $self->{debug} = $attr->{DEBUG} || 0;
-
-  if ($self->{debug} && $attr->{FROM_WEB}){
-    delete $BP_ARGS{TO_CONSOLE};
-    $BP_ARGS{TO_WEB_CONSOLE} = 1;
+  $self->{debug} = 0;
+  if ($attr->{DEBUG}){
+    $self->{debug} = $attr->{DEBUG};
+    if ($attr->{FROM_WEB}) {
+      delete $BP_ARGS{TO_CONSOLE};
+      $BP_ARGS{TO_WEB_CONSOLE} = 1;
+    }
   }
 
-  #  elsif ($self->{backend} eq 'api'){
-  #    $self->{executor} = Mikrotik::API->new();
-  #  }
 
-
-  if (!ref($self->{executor}) && $self->{executor} == 0){
+  if ( !ref($self->{executor}) && !$self->{executor} ) {
     return 0;
   }
 
   return $self;
+}
+
+#**********************************************************
+=head2 execute($command) -
+
+  Arguments:
+    $command -
+
+  Returns:
+    1 - if success
+
+=cut
+#**********************************************************
+sub execute {
+  my $self = shift;
+  return $self->{executor}->execute(@_);
 }
 
 #**********************************************************
@@ -64,7 +92,74 @@ sub new($;$) {
 sub has_access {
   my $self = shift;
 
-  return $self->{executor}->check_access();
+  my $has_access = $self->{executor}->check_access();
+
+  if ($has_access == -5 && $self->{backend} eq 'ssh'){
+      $self->generate_key($self->{login});
+  }
+
+  return $has_access;
+}
+
+#**********************************************************
+=head2 generate_key($admin_name) - generates SSH key
+
+  Arguments:
+    $admin_name - name for admin ( for key name )
+
+  Returns:
+    1 - if generated
+
+=cut
+#**********************************************************
+sub generate_key {
+  my $self = shift;
+  my ( $admin_name ) =  @_;
+
+  our $base_dir;
+  $base_dir ||= '/usr/abills';
+
+  my $cmd = qq { $base_dir/misc/certs_create.sh ssh $admin_name SKIP_CERT_UPLOAD };
+  system ( $cmd );
+
+  return 1;
+}
+
+#**********************************************************
+=head2 upload_key($attr) - uploads key for remote ssh management
+
+  Arguments:
+    $attr - hash_ref
+      ADMIN_NAME    - admin to upload key for. Will be created if not exists
+      SYSTEM_ADMIN  - current active admin
+      SYSTEM_PASSWD - current password
+
+  Returns:
+    1 - if success
+
+=cut
+#**********************************************************
+sub upload_key {
+  my $self = shift;
+  my ($attr) = @_;
+
+  if ( !$self->{backend} eq 'api' ) {
+    print " !!! Only API supported \n";
+    return 0;
+  }
+
+  return $self->{executor}->upload_key( $attr );
+}
+
+#**********************************************************
+=head2 get_error() - returns inner executor error
+
+=cut
+#**********************************************************
+sub get_api_error {
+  my $self = shift;
+
+  return $Abills::Nas::Mikrotik::errstr;
 }
 
 #**********************************************************
@@ -116,7 +211,29 @@ sub interfaces_list {
 }
 
 #**********************************************************
-=head2 mikrotik_leases_list() - returns leases from mikrotik
+=head2 addresses_list()
+
+=cut
+#**********************************************************
+sub addresses_list {
+  my $self = shift;
+
+  return $self->get_list( 'addresses' );
+}
+
+#**********************************************************
+=head2 adverts_list($attr) - get hotspot adverts for default user profile
+
+=cut
+#**********************************************************
+sub adverts_list {
+  my $self = shift;
+  my $attr = shift;
+  return $self->get_list('adverts', $attr);
+}
+
+#**********************************************************
+=head2 leases_list() - returns leases from mikrotik
 
   Arguments:
     $mikrotik - Mikrotik object
@@ -136,14 +253,14 @@ sub leases_list {
 }
 
 #**********************************************************
-=head2 mikrotik_delete_leases($leases_ids_list, $attr)
+=head2 remove_leases($leases_ids_list, $attr)
 
   Arguments:
-    $mikrotik - Mikrotik object
     $leases_ids_list - array_ref of IDs to delete
-
+    $attr - hash_ref
+    
   Returns:
-   boolean
+    boolean
 
 =cut
 #**********************************************************
@@ -153,10 +270,10 @@ sub remove_leases {
   return 1 if ( scalar ( @{$leases_ids_list} == 0 ) );
 
   my @cmd_arr = ();
-  my $del_cmd_base = '/ip dhcp-server lease remove numbers=';
+  my $del_cmd_chapter = 'ip dhcp-server lease remove';
   foreach my $lease_id ( @{$leases_ids_list} ) {
     print "Removing lease id $lease_id \n" if ($attr->{VERBOSE});
-    push ( @cmd_arr, $del_cmd_base . $lease_id );
+    push ( @cmd_arr, [ $del_cmd_chapter, [ "numbers=$lease_id" ] ]);
   }
 
   return $self->{executor}->execute( \@cmd_arr, { CHAINED => 1, SKIP_ERROR => 1, DEBUG => $attr->{DEBUG} } );
@@ -164,7 +281,7 @@ sub remove_leases {
 
 
 #**********************************************************
-=head2 mikrotik_add_leases($leases_list, $attr)
+=head2 add_leases($leases_list, $attr)
 
   Arguments:
     $leases_list - list of leases in DB format
@@ -301,14 +418,14 @@ sub check_dhcp_servers {
     }
   }
 
-  if ($attr->{USE_ARP} || $attr->{DISABLE_ARP}){
+  if ( $attr->{USE_ARP} || $attr->{DISABLE_ARP} ) {
     my $numbers = '';
 
-    if ($attr->{USE_NETWORK_NAME}){
-      $numbers = join(',', map {$_->{name}} @$networks);
+    if ( $attr->{USE_NETWORK_NAME} ) {
+      $numbers = join(',', map {$_->{name}} @{$networks});
     }
     else {
-      foreach my $network (@$networks){
+      foreach my $network ( @{$networks} ) {
         $numbers .= $servers_by_name{"$DHCP_server_name_prefix$network->{id}"}->{number};
       }
     }
@@ -317,7 +434,7 @@ sub check_dhcp_servers {
 
     my $command = "/ip dhcp-server set add-arp=$set_value numbers=$numbers";
 
-    if (my $result = $self->{executor}->execute($command)){
+    if ( my $result = $self->{executor}->execute( $command ) ) {
       print "  add-arp set to: $set_value \n";
     }
     else {
@@ -387,24 +504,81 @@ sub configure_hotspot {
   my $radius_address = $arguments->{BILLING_IP_ADDRESS};
   my $radius_secret = $arguments->{RADIUS_SECRET};
 
-  $self->{executor}->execute(
+  $self->execute(
     [
       # Configure WAN
-      qq{/ip address add address=$address/$netmask comment=HOTSPOT disabled=no interface=$interface network=$network},
-      qq{/ip route add disabled=no distance=1 dst-address=0.0.0.0/0 gateway=$gateway scope=30 target-scope=10},
+      [
+        '/ip/address/add', {
+          address   => "$address/$netmask",
+          comment   => "HOTSPOT",
+          disabled  => "no",
+          interface => $interface,
+          network   => $network
+        }
+      ],
+
+      [
+        '/ip/route/add', {
+          disabled       => "no",
+          distance       => 1,
+          'dst-address'  => '0.0.0.0/0',
+          gateway        => $gateway,
+          scope          => 30,
+          'target-scope' => 10
+        }
+      ],
+
       # ADD IP pool for hotspot users
-      qq{/ip pool add name=hotspot-pool-1 ranges=$range},
-      # Add GOOGLE DNS for resolving
-      qq{/ip dns set allow-remote-requests=yes cache-max-ttl=1w cache-size=10000KiB max-udp-packet-size=512 servers=$address,$dns_server},
-      qq{/ip dns static add name="$dns_name" address=$address},
+      [
+        '/ip/pool/add',
+        { name => 'hotspot-pool-1', ranges => $range }
+      ],
+
+      # Add DNS for resolving
+      [ '/ip/dns/set', {
+          'allow-remote-requests' => 'yes',
+          'cache-max-ttl'         => "1w",
+          'cache-size'            => '10000KiB',
+          'max-udp-packet-size'   => 512,
+          'servers'               => "$address,$dns_server"
+        }
+      ],
+      [
+        '/ip/dns/static/add', {
+          name    => "$dns_name",
+          address => $address
+        }
+      ],
+
       # Add DHCP Server
-      qq{/ip dhcp-server add address-pool=$pool_name authoritative=after-2sec-delay bootp-support=static disabled=no interface=$interface lease-time=1h name=hotspot_dhcp}
-      ,
-      qq{/ip dhcp-server config set store-leases-disk=5m},
-      qq{/ip dhcp-server network add address=$network/$netmask comment="Hotspot network" gateway=$address},
+      [
+        '/ip/dhcp-server/add', {
+          'address-pool'  => 'hotspot-pool-1',
+          authoritative   => 'after-2sec-delay',
+          'bootp-support' => 'static',
+          'disabled'      => 'no',
+          interface       => $interface,
+          'lease-time'    => '1h',
+          name            => 'hotspot_dhcp'
+        }
+      ],
+
+      [ '/ip/dhcp-server/config/set', { 'store-leases-disk' => '5m' } ],
+
+      [ '/ip/dhcp-server/network/add', {
+          address => "$network/$netmask",
+          comment => "Hotspot network",
+          gateway => $address
+        }
+      ],
       # Prevent blocking ABillS Server
-#      qq{/ip hotspot ip-binding add address=$radius_address type=bypassed},
-      qq{/ip firewall nat add chain=pre-hotspot dst-address=$radius_address action=accept},
+      #      qq{/ip hotspot ip-binding add address=$radius_address type=bypassed},
+      [ '/ip/firewall/nat/add', {
+          chain         => 'pre-hotspot',
+          'dst-address' => $radius_address,
+          action        => 'accept'
+        }
+      ],
     ],
     {
       SHOW_RESULT => 1,
@@ -415,40 +589,95 @@ sub configure_hotspot {
 
   $self->{message_cb}( "\n Configuring Hotspot \n" );
 
-  $self->{executor}->execute(
+  $self->execute(
     [
       # Add HOTSPOT profile
-      qq{/ip hotspot profile add name=hsprof1 dns-name=$dns_name hotspot-address=$address html-directory=hotspot http-cookie-lifetime=1d http-proxy=0.0.0.0:0 login-by=cookie,http-chap rate-limit="" smtp-server=0.0.0.0 split-user-domain=no use-radius=yes}
-      ,
-      qq{/ip hotspot add name=hotspot1 address-pool=$pool_name addresses-per-mac=2 disabled=no idle-timeout=5m interface=$interface keepalive-timeout=none  profile=hsprof1}
-      ,
-      qq{/ip hotspot user profile set default idle-timeout=none keepalive-timeout=2m name=default shared-users=1 status-autorefresh=1m transparent-proxy=no }
-      ,
-      qq{/ip hotspot service-port set ftp disabled=yes ports=21},
-      qq{/ip hotspot walled-garden ip add action=accept disabled=no dst-address=$address},
-      qq{/ip hotspot walled-garden ip add action=accept disabled=no dst-address=$radius_address},
-      qq{/ip hotspot set numbers=hotspot1 address-pool=none},
-      qq{/ip firewall nat add action=masquerade chain=srcnat disabled=no}
+      [ '/ip/hotspot/profile/add',
+        { name                   => 'hsprof1',
+          'dns-name'             => $dns_name,
+          'hotspot-address'      => $address,
+          'html-directory'       => 'hotspot',
+          'http-cookie-lifetime' => '1d',
+          'http-proxy'           => "0.0.0.0:0",
+          'login-by'             => "cookie,http-chap",
+          'rate-limit'           => "",
+          'smtp-server'          => "0.0.0.0",
+          'split-user-domain'    => "no",
+          'use-radius'           => "yes"
+        }
+      ],
+      [ '/ip/hotspot/add',
+        { name                => 'hotspot1',
+          'address-pool'      => $pool_name,
+          'addresses-per-mac' => 2,
+          disabled            => "no",
+          'idle-timeout'      => "5m",
+          interface           => $interface,
+          'keepalive-timeout' => "none",
+          profile             => "hsprof1" }
+      ],
+      [ '/ip/hotspot/user/profile/set',
+        {
+          'idle-timeout'       => 'none',
+          'keepalive-timeout'  => '2m',
+          'shared-users'       => 1,
+          'status-autorefresh' => '1m',
+          'transparent-proxy'  => 'no'
+        },
+        {
+          name                 => 'default',
+        }
+      ],
+      ['/ip/hotspot/service-port/set',
+        {
+          disabled => "yes",
+          ports    => 21
+        },
+        {
+          name => "ftp",
+        }
+      ],
+      [ '/ip hotspot walled-garden ip add', {
+          action        => "accept",
+          disabled      => "no",
+          'dst-address' => $address
+        }
+      ],
+      [ '/ip hotspot walled-garden ip add', {
+          action        => 'accept',
+          disabled      => "no",
+          'dst-address' => $radius_address
+        }
+      ],
+      [ '/ip hotspot set', {
+          numbers        => 'hotspot1',
+          'address-pool' => 'none'
+        }
+      ],
+      [ '/ip firewall nat add', {
+          action   => "masquerade",
+          chain    => "srcnat",
+          disabled => "no"
+        }
+      ]
     ],
     {
       SHOW_RESULT => 1,
       SKIP_ERROR  => 1,
-      CHAINED     => 1
     }
   );
 
   $self->{message_cb}( "\n  Configuring RADIUS\n" );
 
-  $self->{executor}->execute(
+  $self->execute(
     [
-      "/radius add address=$radius_address secret=$radius_secret service=hotspot",
-      "/ip hotspot profile set hsprof1 use-radius=yes",
-      "/radius set timeout=00:00:01 numbers=0"
+      [ "/radius add", { address => $radius_address, secret => $radius_secret, service => "hotspot" } ],
+      [ "/ip hotspot profile set", { 'use-radius' => 'yes' }, {name => 'hsprof1'} ],
+      [ "/radius set", { timeout => '00:00:01', numbers => '0' } ]
     ],
     {
       SHOW_RESULT => 1,
       SKIP_ERROR  => 1,
-      CHAINED     => 1
     }
   );
 
@@ -464,16 +693,15 @@ sub configure_hotspot {
   };
 
   my @walled_garden_commands = ();
-  foreach my $walled_garden_host ( @walled_garden_hosts ) {
-    push( @walled_garden_commands, "/ip hotspot walled-garden add dst-host=$walled_garden_host" );
+  foreach ( @walled_garden_hosts ) {
+    push( @walled_garden_commands, [ '/ip hotspot walled-garden add', { 'dst-host' => $_ } ]);
   }
 
-  $self->{executor}->execute(
+  $self->execute(
     \@walled_garden_commands,
     {
       SHOW_RESULT => 1,
       SKIP_ERROR  => 1,
-      CHAINED     => 1
     }
   );
 
@@ -485,9 +713,9 @@ sub configure_hotspot {
   cmd("mkdir $hotspot_temp_dir");
 
   my $command = "cp $main::base_dir/misc/hotspot/hotspot.tar.gz $hotspot_temp_dir/hotspot.tar.gz";
-  $command.= " && cd $hotspot_temp_dir && tar -xvf hotspot.tar.gz;";
+  $command .= " && cd $hotspot_temp_dir && tar -xvf hotspot.tar.gz;";
 
-  _bp("Unpacking portal files", "$command",\%BP_ARGS) if ($self->{debug} > 1);
+  _bp("Unpacking portal files", "$command", \%BP_ARGS) if ($self->{debug} > 1);
 
   cmd ( $command );
 
@@ -526,7 +754,7 @@ sub configure_hotspot {
   }
 
   my $cert_option = '';
-  if ( $ssh_cert ne '' ){
+  if ( $ssh_cert ne '' ) {
     $cert_option = "-i $ssh_cert -o StrictHostKeyChecking=no";
   }
 
@@ -541,6 +769,67 @@ sub configure_hotspot {
 
   return 1;
 
+}
+
+#**********************************************************
+=head2 radius_add($host, $attr) - adds first radius server
+
+  Arguments:
+    $host - ip address
+    $attr - hash_ref
+      RADIUS_SECRET - use special radius secret, instead of given in host params
+      COA           - port for listening COA requests (3799)
+      REPLACE       - if server exists, delete it and set with given params
+      SERVICES      - services to use with this radius (hotspot, ppp, dhcp)
+    
+  Returns:
+    1 - if success
+    
+=cut
+#**********************************************************
+sub radius_add {
+  my $self = shift;
+  my ($host, $attr) = @_;
+  
+  return 0 if (!$host);
+  
+  # Check if there's no radius servers yet
+  my $existing_servers = $self->get_list('radius');
+  
+  if ( my @existing = grep { $_->{address} && $_->{address} eq $host } @{$existing_servers} ) {
+    
+    # Already exists
+    return 1 if (!$attr->{REPLACE});
+    
+    # Delete all
+    my @delete_radius_commands = map {
+      [ '/radius remove', { numbers => $_->{id} } ]
+    } @existing;
+    
+    $self->execute(
+      \@delete_radius_commands,
+      {
+        SHOW_RESULT => 1
+      }
+    );
+  }
+  
+  my $secret = $attr->{RADIUS_SECRET} || $self->{nas_mng_password} || 'secretpass';
+  my $coa = $attr->{COA} || 3799;
+  my $services = $attr->{SERVICES} || 'hotspot,ppp,dhcp';
+  
+  $self->execute(
+    [
+      [ "/radius add", { address => $host, secret => $secret, service => $services } ],
+      [ "/radius incoming set", { accept => 'yes', port => $coa } ],
+    ],
+    {
+      SHOW_RESULT => 1,
+      SKIP_ERROR  => 1,
+    }
+  );
+  
+  return 1;
 }
 
 ##**********************************************************

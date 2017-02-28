@@ -6,7 +6,7 @@ package Export_redmine;
 
 =head1 VERSION
 
-  VERSION: 1.15
+  VERSION: 1.16
 
   API:
     http://www.redmine.org/projects/redmine/wiki/Rest_api
@@ -15,11 +15,10 @@ package Export_redmine;
 
 use strict;
 use warnings FATAL => 'all';
-#use parent 'main';
-#use Abills::Base qw();
+use Abills::Base qw(load_pmodule2);
+use Abills::Fetcher;
 
-our $VERSION = 1.15;
-do 'Abills/Misc.pm';
+our $VERSION = 1.16;
 
 my $MODULE = 'Export_redmine';
 my ($json);
@@ -41,7 +40,7 @@ sub new {
   };
   bless($self, $class);
 
-  load_pmodule('JSON');
+  load_pmodule2('JSON');
 
   $json = JSON->new->allow_nonref;
 
@@ -133,13 +132,13 @@ sub send_request {
   }
 
   my $result = web_request($request_url, {
-         BIN_DATA       =>  $attr->{BIN_DATA},
-         DEBUG          =>  (defined($attr->{DEBUG})) ? $attr->{DEBUG} : $self->{debug},
-         CURL           =>  1,
-         HEADERS        =>  \@headers,
-         REQUEST_COUNT  =>  $self->{request_count},
-         CURL_OPTIONS   =>  ($attr->{COMMAND}) ? "-X $attr->{COMMAND}" : undef,
-         TPL_DIR        =>  $CONF->{TPL_DIR}
+    BIN_DATA      =>  $attr->{BIN_DATA},
+    DEBUG         =>  3, # (defined($attr->{DEBUG})) ? $attr->{DEBUG} : $self->{debug},
+    CURL          =>  1,
+    HEADERS       =>  \@headers,
+    REQUEST_COUNT =>  $self->{request_count},
+    CURL_OPTIONS  =>  ($attr->{COMMAND}) ? "-X $attr->{COMMAND}" : undef,
+    TPL_DIR       =>  $CONF->{TPL_DIR}
   });
 
   $result = $attr->{_RESULT} if ($attr->{_RESULT}); 

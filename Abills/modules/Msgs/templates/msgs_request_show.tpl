@@ -3,13 +3,16 @@
 	background-color:#fafafa;
 }
 </style>
-<div class='panel panel-default'>
-<div class='panel-body'>
+<div class='box box-theme'>
+<div class='box-body'>
 <FORM action='$SELF_URL' METHOD='POST'  enctype='multipart/form-data' class='form form-horizontal'>
 <input type='hidden' name='qindex' value='$index'/>
 <input type='hidden' name='UID' value='$FORM{UID}'/>
 <input type='hidden' name='ID' value='%ID%'/>
 <input type='hidden' name='PARENT' value='%PARENT%'/>
+<input type='hidden' name='REACTION_TIME' value='%REACTION_TIME%'/>
+<input type='hidden' name='DATETIME' value='%DATETIME%'/>
+<input type='hidden' name='OLD_PLANNED_CONTACT' value='%OLD_PLANNED_CONTACT%'/>
 <input type='hidden' name='header' value='1'/>
 <div class='form-group bg-success'>
 <p></p>>  %SUBJECT% </p>
@@ -117,12 +120,41 @@
 
 <div class='form-group odd' style='margin:0px; padding:0px;'>
 	<div class='col-xs-3'>
-		
+
 	</div>
 	<div class='col-xs-4'>
 		<p> %REQUEST% </p>
 	</div>
 </div> <!--end row-->
+
+<div class='form-group'>
+	<div class='col-md-6'>
+		<div class="row">
+			<div class='col-xs-4'>
+				<label>_{LAST_CONTACT}_:</label>
+			</div>
+			<div class='col-xs-8'>
+				<label>%LAST_CONTACT%</label>
+			</div>
+		</div><!--end row-->
+
+		<div class="row">
+			<div class='col-xs-4'>
+				<label>_{SUBSEQENT_CONTACT}_:</label>
+			</div>
+			<div class='col-xs-8'>
+				<label>%PLANNED_CONTACT%</label>
+			</div>
+		</div><!--end row-->
+
+	</div>
+	<div class='col-md-6'>
+		<label> _{NOTE}_: </label>
+		<div class='col-xs-12'>
+		<textarea cols=60 rows=1 name=CONTACT_NOTE class='form-control'>%CONTACT_NOTE%</textarea>
+		</div>
+	</div>
+</div><!--end row-->
 
 <div class='form-group'>
 	<div class='col-xs-3'>
@@ -136,9 +168,9 @@
     <input type=submit class='btn btn-primary' name=change value='_{CHANGE}_'>
 </div>
 </form>
-</div> <!--panel-body-->
+</div> <!--box-body-->
 
-</div> <!--panel-->
+</div> <!--box-->
 
 
 

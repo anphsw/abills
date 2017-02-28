@@ -1,8 +1,8 @@
-<div class='panel panel-info center-block' style='max-width: 500px'>
-    <div class='panel-heading text-center'>
+<div class='box box-info center-block' style='max-width: 500px'>
+    <div class='box-header with-border text-center'>
         <h5>VoIP _{INFO}_</h5>
     </div>
-    <div class='panel-body'>
+    <div class='box-body'>
         <div class='table table-striped table-hover'>
             <div class='row'>
                 <div class='col-xs-12 col-sm-3 col-md-7 text-1'>_{NUMBER}_:</div>

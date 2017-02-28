@@ -403,39 +403,12 @@ sub marketing_report2 {
     }
   );
 
-  $Marketing->{DISTRICT_SEL} = $html->form_select(
-    'DISTRICT_ID',
-    {
-      SELECTED          => $FORM{DISTRICT_ID},
-      SEL_MULTI_ARRAY   => [ [ '', $lang{ALL} ], @{ $Address->district_list({ %LIST_PARAMS, PAGE_ROWS => 1000 }) } ],
-      MULTI_ARRAY_KEY   => 0,
-      MULTI_ARRAY_VALUE => 1,
-    }
-  );
 
-  $Marketing->{ADDRESS_STREET_SEL} = $html->form_select(
-    'ADDRESS_STREET_ID',
-    {
-      SELECTED          => $FORM{ADDRESS_STREET_ID},
-      SEL_MULTI_ARRAY   => [ [ '', $lang{ALL} ], @{ $Address->street_list({ %LIST_PARAMS, PAGE_ROWS => 1000 }) } ],
-      MULTI_ARRAY_KEY   => 0,
-      MULTI_ARRAY_VALUE => 1,
-    }
-  );
+  require Control::Address_mng;
 
-  $Marketing->{STATUS_SEL} = $html->form_select(
-    'STATUS',
-    {
-      SELECTED => $FORM{STATUS},
-      SEL_HASH => {
-        '' => "$lang{ALL}",
-        0  => $service_status[0],
-        1  => $service_status[1],
-      },
-      STYLE => \@service_status_colors,
-      NO_ID => 1
-    }
-  );
+  $Marketing->{DISTRICT_SEL} = sel_districts();
+  $Marketing->{ADDRESS_STREET_SEL} = sel_streets();
+  $Marketing->{STATUS_SEL} = sel_status();
 
   my $tp_list = $tariffs->list({ MODULE => 'Dv', DOMAIN_ID => $admin->{DOMAIN_ID} });
 

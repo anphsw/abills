@@ -4,10 +4,10 @@
 <input type='hidden' name='ACTION' value='%ACTION%'>
 <input type='hidden' name='ID'   value='%ID%'>
 
-<div class='panel panel-primary panel-form'>
-    <div class='panel-heading text-center'>_{ADD}_ _{TERMINALS}_</div>
+<div class='box box-theme box-form'>
+    <div class='box-header with-border text-center'>_{ADD}_ _{TERMINALS}_</div>
 
-<div class='panel-body'>
+<div class='box-body'>
 
   <div class='form-group'>
       <label class='col-md-3 control-label'>_{TYPE}_</label>
@@ -36,7 +36,7 @@
 
 </div>
 
-<div class='panel-footer'>
+<div class='box-footer'>
   <button class='btn btn-primary' type='submit'>%BTN%</button>
 </div>
 

@@ -2,6 +2,7 @@
  * Created by Anykey on 06.01.2016.
  *
  */
+'use strict';
 
 //Legacy fix
 var ymaps = window['ymaps'];
@@ -85,8 +86,10 @@ function DrawController() {
 
         return true;
         break;
-      case CUSTOM_POINT:
       case POINT:
+      case MARKER:
+      case MARKERS:
+      case CUSTOM_POINT:
         self.geometry = (new MarkerBuilder(map))
           .setIcon("build_green")
           .setPosition([])
@@ -94,6 +97,7 @@ function DrawController() {
 
         break;
       case LINE:
+      case POLYLINE_MARKERS:
         self.geometry = PolylineBuilder.build(
           {
             path : [],
@@ -106,25 +110,19 @@ function DrawController() {
         self.geometry = new ymaps.Polygon();
         break;
       case CIRCLE:
+      case MARKER_CIRCLE:
         // https://tech.yandex.ru/maps/doc/jsapi/2.1/ref/reference/Circle-docpage/#geometry
         (new ATooltip).display("<h3>Not Implemented in Yandex Maps API</h3>", 3000);
-        return false;
 
-        self.geometry = CircleBuilder.build(
-          { // CIRCLE
-            RADIUS : 0.0
-          },
-          { // MARKER
-            geometry : { _coordinates : [] }
-          }
-        );
         break;
+      
       default:
         console.warn('Unsupported drawing mode: ' + string);
     }
 
     if (self.geometry == null) {
       console.warn("Geometry is null");
+      return false;
     }
 
     // Add to map
@@ -153,189 +151,6 @@ function DrawController() {
 
 }
 
-
-function addNewPoint(type) {
-
-  operationMode = 1;
-
-  //Initialize controllers
-  if (!aDrawController) {
-    aDrawController = new DrawController();
-    aDrawController
-      .setControlsEnabled(false)
-      .setCallback(overlayCompleteCallback)
-      .init(map);
-  }
-
-
-  if (ObjectTypeRefs[type]) {
-    if (!aDrawController.setDrawingMode(ObjectTypeRefs[type])) {
-      throw new Error("Draw Controller not loaded");
-    }
-
-    aTooltip.display('<h3>' + _NOW_YOU_CAN_ADD_NEW + _LANG_TYPE_NAME[type] + _TO_MAP + '</h3>', 2000);
-
-    var btn = $('#dropOperationCtrlBtn').find('button');
-    btn.attr('class', 'btn btn-danger');
-
-  }
-  else {
-    throw new Error('Unsupported drawing mode');
-  }
-  var mapObject = MapObjectTypesRefs.getMapObject(type);
-  aDrawController.setMapObject(mapObject);
-
-  _log(LEVEL_INFO, 'aDrawController', type);
-  _log(LEVEL_INFO, 'aDrawController.mapObject', mapObject);
-}
-
-
-function toggleRemoveMarkerMode() {
-
-  operationMode = 2;
-
-  // FIXME: MapLayers should do this
-  for (var key in markers) {
-    //remove default listener
-    google.maps.event.clearInstanceListeners(markers[key], 'click');
-
-    //add custom listener
-    google.maps.event.addListener(markers[key], 'click', function () {
-      console.log(this);
-      showConfirmModal(this.id)
-    });
-  }
-
-  // FIXME : mapControls should do this
-  var btn = $('#dropOperationCtrlBtn').find('button');
-  btn.attr('class', 'btn btn-danger');
-
-  new ATooltip('<h2>' + _NOW_YOU_CAN_REMOVE_MARKER + '</h2>')
-    .setClass('danger')
-    .setTimeout(1000)
-    .show();
-
-  setTimeout(function () {
-    new ATooltip('<h2>' + _CLICK_ON_A_MARKER_YOU_WANT_TO_DELETE + '</h2>')
-      .setClass('info')
-      .setTimeout(1000)
-      .show();
-  }, 2000);
-
-  function showConfirmModal(id) {
-    var confirmModalRemove = aModal.clear();
-
-    confirmModalRemove
-      .setBody('<div id="confirmModalContent">' + _REMOVE + '?</div>')
-      .setFooter(
-        '<button id="confirmModalCancelBtn" class="btn btn-default">Cancel</button>' +
-        '<button id="confirmModalConfirmBtn" class="btn btn-success">Yes</button>')
-      .show(bindBtnEvents);
-
-
-    function bindBtnEvents(modal) {
-      $('#confirmModalCancelBtn').on('click', function (modal) {
-        discardRemovingPoint(modal);
-      });
-
-      $('#confirmModalConfirmBtn').on('click', function () {
-        confirmModalRemove.destroy();
-        removeMarker(id);
-      });
-    }
-
-  }
-
-  function removeMarker(id) {
-    loadToModal(aBillingAddressManager.removeMarkersCoords(id))
-  }
-}
-
-function discardRemovingPoint() {
-  aModal.destroy();
-  location.reload(false);
-}
-
-var confirmModal = new AModal();
-var drawing_last_overlay;
-function overlayCompleteCallback(overlay) {
-
-  //getRegistrator
-  var registrator = aDrawController.getObjectRegistrator();
-
-  //getObject
-  var object = registrator.getMapObject();
-
-  drawing_last_overlay = overlay;
-
-  //Legacy
-  drawing_last_overlay.position = drawing_last_overlay.latLng;
-
-  //Pass overlay to object
-  object.emit(drawing_last_overlay);
-
-  showConfirmModal();
-
-  function showConfirmModal() {
-    if (form_location_id) {
-      confirmModal.clear();
-      confirmModal
-        .setBody('<div id="confirmModalContent">' + _ADD + ' ' + _NEW + ' ' + _LANG_TYPE_NAME[object.getType()] + '?</div>')
-        .setFooter(
-          '<button id="confirmModalCancelBtn" class="btn btn-default">Cancel</button>' +
-          '<button id="confirmModalConfirmBtn" class="btn btn-success">Yes</button>')
-        .show(bindBtnEvents);
-    } else {
-      confirmAddingPoint();
-    }
-
-    function bindBtnEvents() {
-      $('#confirmModalCancelBtn').on('click', function (modal) {
-        discardAddingPoint(modal);
-      });
-
-      $('#confirmModalConfirmBtn').on('click', function () {
-        confirmAddingPoint();
-      });
-    }
-  }
-}
-
-function confirmAddingPoint() {
-  confirmModal.hide();
-  aDrawController.getObjectRegistrator().send();
-}
-
-function discardAddingPoint() {
-  //removing discarded marker
-  if (drawing_last_overlay)
-    drawing_last_overlay.setMap(null);
-
-  aModal.destroy();
-}
-
-function dropOperation() {
-
-  switch (operationMode) {
-    case 0:
-      return;
-      break;
-    case 1:
-      if (aDrawController) aDrawController.clearDrawingMode();
-
-      var btn = $('#dropOperationCtrlBtn').find('button');
-      btn.attr('class', 'btn btn-primary');
-
-      discardAddingPoint(aModal);
-      break;
-    case 2:
-      discardRemovingPoint(aModal);
-      break;
-  }
-
-  operationMode = 0;
-}
-
 function AMap() {
   
   var self = this;
@@ -346,6 +161,12 @@ function AMap() {
   
   this.init = function (mapDiv, mapOptions, callback) {
     var mapOptions_ = mapOptions || {};
+    
+    CONF_MAPVIEW =(isDefined(CONF_MAPVIEW) && CONF_MAPVIEW !== '')
+      ? CONF_MAPVIEW.toLowerCase()
+      : 'yandex#map';
+    
+    mapOptions_.type = CONF_MAPVIEW;
     
     // Set default center
     mapOptions_.center = mapOptions_.center || [48, 25];
@@ -370,7 +191,21 @@ function AMap() {
   };
   
   this.getCenter = function () {
-    return this.map.getCenter();
+    var center = this.map.getCenter();
+    
+    return {
+      lat: function () {
+        return center[0]
+      },
+      lng: function () {
+        return center[1]
+      }
+    };
+    
+  };
+  
+  this.getZoom = function(){
+    return this.map.getZoom();
   };
 
   this.setZoom = function (zoom) {
@@ -384,19 +219,29 @@ function AMap() {
   this.removeObjectFromMap = function (object) {
     self.map.geoObjects.remove(object);
   };
+  
+  this.addListenerToObject = function(object, event_name, listener){
+    //TODO: implement
+    console.warn('addListenerToObject  NOT IMPLEMENTED');
+    return false;
+  };
+  
+  this.removeListenerToObject = function(object, event_name, listener){
+    //TODO: implement
+    console.warn('addListenerToObject  NOT IMPLEMENTED');
+    return false;
+  };
 
   this.animatePolyline = function (polyline) {
     return false;
   };
   
-  this.getNewClusterer = function () {
-    var markerClusterer = new ymaps.Clusterer();
+  this.getNewClusterer = function (map, grid_size) {
+    var markerClusterer = new ymaps.Clusterer({
+      gridSize: grid_size
+    });
 
     map.geoObjects.add(markerClusterer);
-
-    markerClusterer.setGridSize = function (grid_size) {
-      this.options.gridSize = grid_size;
-    };
 
     markerClusterer.addMarker = function (marker) {
       this.add(marker);
@@ -419,6 +264,16 @@ function AMap() {
   
   this.getLength = function (arrayOfPoints) {
     return arrayOfPoints.polyline.geometry.getDistance();
+  };
+  
+  this.getMapType = function(){
+        return self.map.getType();
+  };
+  
+  this.getLengthForPath = function(path){
+    console.log(path);
+    console.log("Not implemented for Yandex");
+    return 0;
   }
 }
 
@@ -586,7 +441,7 @@ function MarkerBuilder(map) {
     var name = fileName;
     //Check if it is not an external URL
     if (fileName.indexOf('://') == -1)
-      name = '/styles/default_adm/img/maps/' + fileName + '.png';
+      name = OPTIONS['ICONS_DIR'] + fileName + '.png';
     
     return name;
   };
@@ -597,8 +452,8 @@ function MarkerBuilder(map) {
 var CircleBuilder = (function () {
 
   function build(Circle, marker) {
-    console.log(marker);
-    var circle = new ymaps.Circle([marker.geometry._coordinates, Circle.RADIUS], {},
+    //TODO: check yandex circle
+    var circle = new ymaps.Circle([Circle['COORDS'], Circle.RADIUS], {},
       {
         geodesic: true
       }
@@ -626,7 +481,7 @@ var PolylineBuilder = (function () {
 
   function build(object) {
     var polyline = new ymaps.Polyline(object.path, {
-      hintContent: object.POLYINFOWINDOW
+      hintContent: object.INFOWINDOW
     }, {
       strokeColor: object.strokeColor || '#ff0000',
       strokeWidth: object.strokeWidth || 2,
@@ -689,7 +544,7 @@ var PolygonBuilder = (function () {
     strokeColor: aColorPalette.getNextColorHex(),
     strokeOpacity: 0.8,
     strokeWidth: 2,
-    fillColor: aColorPalette.getCurrentColorHex(),
+    fillColor: aColorPalette.convertHexToRGB(aColorPalette.getCurrentColorHex()),
     fillOpacity: 0.35
   };
 
@@ -697,13 +552,17 @@ var PolygonBuilder = (function () {
 
     // Legacy
     object.strokeWidth = object.strokeWeight;
-
-    if (object.paths[0].lat) { // Google typed coords
+    if (isDefined(object.paths) && object.paths[0].lat) { // Google typed coords
       $.each(object.paths, function (i, point) {
         point[0] = point.lat;
         point[1] = point.lng;
       });
     }
+    else if( isDefined(object.path) ){ // Rendered
+      object.paths = object.path;
+      object.fillColor = aColorPalette.convertHexToRGBA(object.color == 'silver' ? '#110011' : object.color, object.fillOpacity || defaults.fillOpacity);
+    }
+    console.log(object.fillColor);
 
     var res = $.extend({}, defaults, object);
 
@@ -756,147 +615,6 @@ var PolygonBuilder = (function () {
 //   };
 // }
 
-function MapControls(map) {
-  
-  var self = this;
-
-  this._controlDivs = [];
-  
-  this.btnTemplate =
-    '<div id="{{data.id}}" class="conrolBtn">' +
-    '<div title="{{data.title}}">' +
-    '<div>' +
-    '<div class="btn-group">' +
-    '<button type="button" class="btn btn-{{ data.class_ }}" {% if data.onclick %} onclick="{{ data.onclick }}" {% endif %}>' +
-    '<span class="glyphicon glyphicon-{{data.iconName}}"></span></button>' +
-    '</div>' +
-    '</div>' +
-    '</div>' +
-    '</div>';
-  this.btnLayout = ymaps.templateLayoutFactory.createClass(this.btnTemplate);
-  
-  this.dropdownItemTemplate =
-    '<li>' +
-    '<a role="button" onclick="{{ data.onclick }}" id="{{data.parent_id}}_{{data.index}}">{{data.text}}</a>' +
-    '</li>';
-  this.dropdownItemLayout = ymaps.templateLayoutFactory.createClass(this.dropdownItemTemplate);
-  
-  this.dropdownTemplate =
-    '<div id="{{data.id}}">' +
-    '<div title="{{data.title}}">' +
-    '<div class="btn-group">' +
-    '<button type="button" class="btn btn-{{data.class_}} dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">' +
-    '<span class="glyphicon glyphicon-{{data.iconName}}"></span>&nbsp;<span class="caret"></span>' +
-    '</button>' +
-    '<ul class="dropdown-menu" id="dropdown_menu_{{ data.id }}">' +
-    '</ul>' +
-    '</div>' +
-    '</div>' +
-    '</div>';
-  
-  this.dropdownTemplateLayout = ymaps.templateLayoutFactory.createClass(this.dropdownTemplate,
-    {
-      build: function () {
-        self.dropdownTemplateLayout.superclass.build.call(this);
-        this.childContainerElement = $('#dropdown_menu_' + this._data.data._data.id).get(0);
-        
-        this.events.fire('childcontainerchange', {
-          newChildContainerElement: this.childContainerElement,
-          oldChildContainerElement: null
-        });
-      },
-      
-      getChildContainerElement: function () {
-        return this.childContainerElement;
-      }
-    }
-  );
-
-  this.addBtn = function (icon, onclickString, title, id, class_) {
-
-    var button = new ymaps.control.Button({
-      data: {
-        iconName: icon,
-        onclick: onclickString,
-        title: title,
-        id: id,
-        class_: class_ || 'primary'
-      },
-      options: {
-        layout: this.btnLayout,
-        maxWidth: 40
-      }
-    });
-
-    this._controlDivs.push(button);
-
-    return this;
-  };
-  
-  
-  this.addDropdown = function (icon, arrOptions, title, id, class_) {
-
-    var dropdownItems = [];
-
-    for (var i = 0, len = arrOptions.length; i < len; i++) {
-      var entry = arrOptions[i];
-
-      dropdownItems[i] = new ymaps.control.ListBoxItem({
-        data: {
-          index: i,
-          parent_id: id,
-          text: entry[0],
-          onclick: entry[1]
-        },
-        options: {
-          layout: this.dropdownItemLayout
-        }
-      });
-
-    }
-
-    var dropDown = new ymaps.control.ListBox({
-      data: {
-        id: id || this._controlDivs.length,
-        class_: class_ || 'primary',
-        title: title,
-        iconName: icon
-      },
-
-      items: dropdownItems,
-
-      options: {
-        layout: this.dropdownTemplateLayout
-      }
-    });
-
-    this._controlDivs.push(dropDown);
-
-    return this;
-  };
-  
-  this.hideBtn = function (id) {
-    $('#' + id).hide();
-    var center = map.getCenter();
-    // google.maps.event.trigger(map, "resize");
-    map.setCenter(center);
-  };
-  
-  this.init = function () {
-    // Adding in reverse order
-    for (var i = this._controlDivs.length; i > 0; i--) {
-      map.controls.add(this._controlDivs[i - 1]);
-    }
-    events.emit('controlsready', true);
-  };
-  
-  this.reload = function () {
-    return false;
-    // this.init();
-  };
-  
-}
-
 function Navigation() {
   
   var self = this;
@@ -943,12 +661,12 @@ function Navigation() {
   this.showRoute = function () {
     _log(LEVEL_ERROR, MODULE, "Not implemented");
     return true;
-    if (!hasRealPosition) {
+    if (!HAS_REAL_POSITION) {
       getLocation(function (positionArr) { //success
         var lat = positionArr[0];
         var lng = positionArr[1];
         
-        var latLng = createPosition(lat, lng);
+        var latLng = aMap.createPosition(lat, lng);
         
         self.createNavigationRoute(latLng, map.getCenter());
       }, function () { //error
@@ -962,12 +680,12 @@ function Navigation() {
   this.createExtendedRoute = function (destination) {
     _log(LEVEL_ERROR, MODULE, "Not implemented");
     return true;
-    if (!hasRealPosition) {
+    if (!HAS_REAL_POSITION) {
       getLocation(function (positionArr) { //success
         var lat = positionArr[0];
         var lng = positionArr[1];
         
-        var latLng = createPosition(lat, lng);
+        var latLng = aMap.createPosition(lat, lng);
         
         self.createNavigationRoute(latLng, destination, function (response) {
           var leg = response.routes[0].legs[0];
@@ -1045,7 +763,7 @@ function Search() {
   function callbackDefault(results, status) {
     if (status === google.maps.places.PlacesServiceStatus.OK) {
       for (var i = 0; i < results.length; i++) {
-        createDefaultMarker(results[i], form_icon);
+        createDefaultMarker(results[i], FORM['ICON']);
       }
     }
   }

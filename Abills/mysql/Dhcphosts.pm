@@ -122,6 +122,10 @@ sub network_add {
 
   my %DATA = $self->get_data($attr, { default => network_defaults() });
 
+  if($admin->{DOMAIN_ID}) {
+    $DATA{DOMAIN_ID} = $admin->{DOMAIN_ID};
+  }
+
   $self->query_add('dhcphosts_networks',
      { %$attr,
      	 NETWORK        => "INET_ATON('$DATA{NETWORK}')",
@@ -140,7 +144,9 @@ sub network_add {
 }
 
 #**********************************************************
-# network_delete()
+=head2 network_del($id)
+
+=cut
 #**********************************************************
 sub network_del {
   my $self = shift;
@@ -207,7 +213,9 @@ sub network_info {
 }
 
 #**********************************************************
-# networks_list()
+=head2 networks_list($attr)
+
+=cut
 #**********************************************************
 sub networks_list {
   my $self = shift;
@@ -220,33 +228,46 @@ sub networks_list {
   $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  my $search_columns = [
-    ['ID',             'ID',         'id'                           ,1 ],
-    ['NAME',           'STR',        'name'                         ,1 ],
-    ['NETWORK',        'IP',         'INET_NTOA(network) as network',1 ],
-    ['COORDINATOR',    'STR',        'coordinator'                  ,1 ],
-    ['PHONE',          'STR',        'phone'                        ,1 ],
-    ['PARENT',         'INT',        'net_parent'                   ,1 ],
-    ['STATUS',         'INT',        'disable as status'            ,1 ],
-    ['DISABLE',        'INT',        'disable'                      ,1 ],
-    ['TYPE',           'STR',        'net_parent'                    ,1 ],
-    ['NETMASK',        'IP',         'INET_NTOA(mask) as netmask'   ,1 ],
-    ['NETWORK_INT',    'INT',        'network as network_int'       ,1 ],
-    ['NETMASK_INT',    'IP',         'mask    as netmask_int'       ,1 ],
-    ['GUEST_VLAN',     'STR',        'guest_vlan'                   ,1 ],
-
-
+  my @search_columns = (
+    [ 'ID',                   'ID',  'id',                                              1 ],
+    [ 'NAME',                 'STR', 'name',                                            1 ],
+    [ 'NETWORK',              'IP',  'INET_NTOA(network) AS network',                   1 ],
+    [ 'COORDINATOR',          'STR', 'coordinator',                                     1 ],
+    [ 'PHONE',                'STR', 'phone',                                           1 ],
+    [ 'PARENT',               'INT', 'net_parent',                                      1 ],
+    [ 'STATUS',               'INT', 'disable AS status',                               1 ],
+    [ 'DISABLE',              'INT', 'disable',                                         1 ],
+    [ 'TYPE',                 'STR', 'net_parent',                                      1 ],
+    [ 'NET_PARENT',           'STR', 'net_parent',                                      1 ],
+    [ 'NETMASK',              'IP',  'INET_NTOA(mask) as netmask',                      1 ],
+    [ 'NETWORK_INT',          'INT', 'network', 'network as network_int',                 ],
+    [ 'NETMASK_INT',          'IP',  'mask', 'mask as netmask_int',                       ],
+    [ 'GUEST_VLAN',           'STR', 'guest_vlan',                                      1 ],
+    [ 'NTP',                  'STR', 'ntp',                                             1 ],
+    [ 'SUFFIX',               'STR', 'suffix',                                          1 ],
+    [ 'COMMENTS',             'STR', 'comments',                                        1 ],
+    [ 'DENY_UNKNOWN_CLIENTS', 'INT', 'deny_unknown_clients',                            1 ],
+    [ 'DNS',                  'STR', 'dns',                                             1 ],
+    [ 'IP_RANGE_FIRST',       'IP',  'INET_NTOA(ip_range_first) AS ip_range_first',     1 ],
+    [ 'IP_RANGE_FIRST_INT',   'IP',  'ip_range_last AS ip_range_last_int',              1 ],
+    [ 'IP_RANGE_LAST',        'STR', 'INET_NTOA(ip_range_last) AS ip_range_last',       1 ],
+    [ 'IP_RANGE_LAST_INT',    'STR', 'ip_range_last AS ip_range_last_int',              1 ],
+    [ 'BLOCK_NETWORK_INT',    'IP',  'block_network as block_network_int',              1 ],
+    [ 'BLOCK_NETWORK',        'STR', 'INET_NTOA(block_network) as block_network',       1 ],
+    [ 'DNS2',                 'STR', 'dns2',                                            1 ],
+    [ 'VLAN',                 'INT', 'vlan',                                            1 ],
+    [ 'STATIC',               'INT', 'static',                                          1 ],
+    [ 'AUTHORITATIVE',        'INT', 'authoritative',                                   1 ],
+    [ 'ROUTERS_INT',          'IP',  'routers AS routers_int',                          1 ],
+    [ 'ROUTERS',              'INT', 'INET_NTOA(routers) AS routers',                   1 ],
+    [ 'BLOCK_MASK',           'INT', 'INET_NTOA(block_mask) AS block_mask',             1 ],
+    [ 'DOMAIN_ID',            'INT', 'domain_id',                                       1 ],
     # This hack is needed cause lack of custom params support in FUNCTION_FIELDS
-    ['BUTTON_FIELD1',     'STR',        '1 as button_field1'       ,1 ],
-    ['BUTTON_FIELD2',     'STR',        '2 as button_field2'       ,1 ],
+    [ 'BUTTON_FIELD1', 'STR', '1 as button_field1', 1 ], # Users button
+    [ 'BUTTON_FIELD2', 'STR', '2 as button_field2', 1 ], # Routes button
+  );
 
-  ];
-
-  if ($attr->{SHOW_ALL_COLUMNS}){
-    map { $attr->{$_->[0]} = '_SHOW' unless exists $attr->{$_->[0]} } @$search_columns;
-  }
-
-  my $WHERE =  $self->search_former($attr, $search_columns,
+  my $WHERE =  $self->search_former($attr, \@search_columns,
     {
       WHERE => 1
     }
@@ -266,7 +287,7 @@ sub networks_list {
   my $list = $self->{list};
 
   if ($self->{TOTAL} > 0 || $PG > 0) {
-    $self->query2("SELECT count(*) AS total FROM dhcphosts_networks $WHERE", undef, { INFO => 1 });
+    $self->query2("SELECT COUNT(*) AS total FROM dhcphosts_networks $WHERE", undef, { INFO => 1 });
   }
 
   return $list;
@@ -289,12 +310,11 @@ sub hosts_list{
 
   my $GROUP_BY = '';
   $self->{EXT_TABLES} = '';
-
   my @searcs_params = (
     [ 'ID',           'INT', 'h.id' ],
     [ 'LOGIN',        'INT', 'u.id', 'u.id AS login' ],
-    [ 'IP',           'IP', 'h.ip', 'INET_NTOA(h.ip) AS ip' ],
-    [ 'IP_NUM',       'IP', 'h.ip', 'h.ip AS ip_num' ],
+    [ 'IP',           'IP',  'h.ip', 'INET_NTOA(h.ip) AS ip' ],
+    [ 'IP_NUM',       'INT', 'h.ip', 'h.ip AS ip_num' ],
     [ 'HOSTNAME',     'STR', 'h.hostname', 1 ],
     [ 'NETWORK_NAME', 'STR', 'n.name AS network_name', 1 ],
     [ 'NETWORK',      'INT', 'h.network', 1 ],
@@ -324,6 +344,7 @@ sub hosts_list{
     [ 'TP_ID',            'INT', 'dv.tp_id', 1 ],
     [ 'MONTH_TRAFFIC_IN', 'INT', '', "SUM(l.recv) AS month_traffic_in" ],
     [ 'MONTH_TRAFFIC_OUT','INT', '', "SUM(l.sent) AS month_traffic_out" ],
+    [ 'DOMAIN_ID',    'INT', 'u.domain_id', 1 ],
   );
 
   if ( $self->{conf}->{DHCPHOSTS_USE_DV_STATUS} ){
@@ -331,14 +352,27 @@ sub hosts_list{
   }
 
   my %EXT_TABLE_JOINS_HASH = ();
+  my @WHERE_RULES = ();
 
-  my $WHERE = $self->search_former( $attr, \@searcs_params,
+  $self->search_former( $attr, \@searcs_params,
     { WHERE             => 1,
       USERS_FIELDS      => 1,
+      WHERE_RULES       => \@WHERE_RULES,
       USE_USER_PI       => 1,
       SKIP_USERS_FIELDS => [ 'UID', 'LOGIN' ]
     }
   );
+
+  my $where_delimeter = ' AND ';
+  if ( $attr->{_MULTI_HIT} ) {
+    $where_delimeter = ' OR ';
+  }
+
+  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE (" . join($where_delimeter, @WHERE_RULES) .')' : '';
+
+  if ( ! $admin->{permissions}->{0}->{8} ) {
+    $WHERE .= " AND u.deleted=0";
+  }
 
   if ( $attr->{MONTH_TRAFFIC_IN} || $attr->{MONTH_TRAFFIC_OUT} ){
     $EXT_TABLE_JOINS_HASH{dv_log} = 1;
@@ -372,7 +406,7 @@ sub hosts_list{
         ,
         'dv_main:LEFT JOIN dv_main dv ON  (dv.uid=u.uid)',
         'online:LEFT JOIN dv_calls c ON (c.uid=h.uid)',
-        'tarrif_plans:LEFT JOIN tarif_plans tp ON (tp.id=dv.tp_id) ',
+        'tarrif_plans:LEFT JOIN tarif_plans tp ON (tp.id=dv.tp_id AND u.domain_id=tp.domain_id AND tp.module=\'Dv\') ',
         'nas:LEFT JOIN nas ON  (nas.id=h.nas)',
         'ext_company:LEFT JOIN companies ext_company ON  (u.company_id=ext_company.id)'
       ]
@@ -386,7 +420,7 @@ sub hosts_list{
        h.network AS network_id,
        if ((u.expire <> '0000-00-00' && curdate() > u.expire) || (h.expire <> '0000-00-00' && curdate() > h.expire), 1, 0) AS expire
      FROM dhcphosts_hosts h
-     LEFT JOIN dhcphosts_networks n on h.network=n.id
+     LEFT JOIN dhcphosts_networks n ON (h.network=n.id)
      LEFT JOIN users u on (h.uid=u.uid)
      $EXT_TABLES
      $WHERE
@@ -445,7 +479,7 @@ sub host_defaults {
 }
 
 #**********************************************************
-=head2 host_add()
+=head2 host_add($attr)
 
 =cut
 #**********************************************************
@@ -458,9 +492,16 @@ sub host_add {
 
   $self->query_add('dhcphosts_hosts', $attr);
 
-  my $info = ($attr->{NAS_MAC}) ? "/$attr->{NAS_MAC}" : '';
+  my @info = ('IP', 'MAC', 'NAS_ID', 'PORTS', 'VLAN', 'NAS_MAC', 'NETWORK', 'OPTION_82');
+  my @actions_history = ();
+  foreach my $param (@info) {
+    if(defined($attr->{$param})) {
+      push @actions_history, $param.":".$attr->{$param};
+    }
+  }
 
-  $admin->action_add($attr->{UID}, "$attr->{IP}/$attr->{MAC} NAS: $attr->{NAS_ID}/$attr->{PORTS}/$attr->{VLAN}".$info, {  TYPE => 1 });
+  $admin->{MODULE} = $MODULE;
+  $admin->action_add($attr->{UID}, join(', ', @actions_history), {  TYPE => 1 });
 
   return $self;
 }
@@ -516,7 +557,6 @@ sub host_check {
   my ($attr) = @_;
 
   my $net = $self->network_info($attr->{NETWORK});
-
   if ($self->{TOTAL} == 0){
     $self->{errno} = 17;
     $self->{errstr}= 'Netork not found';
@@ -531,11 +571,39 @@ sub host_check {
     }
   }
 
+  my %params = ();
+
   if($attr->{MAC} && $attr->{MAC} ne '00:00:00:00:00:00') {
-    my $list = $self->hosts_list({ MAC => $attr->{MAC}, COLS_NAME => 1, PAGE_ROWS => 5, LOGIN => '_SHOW' });
+    $params{MAC}=$attr->{MAC};
+  }
+
+  if($attr->{IP} && $attr->{IP} ne '0.0.0.0') {
+    $params{IP}=$attr->{IP};
+  }
+
+  if(scalar %params > 0) {
+    my $list = $self->hosts_list({
+      COLS_NAME => 1,
+      PAGE_ROWS => 5,
+      _MULTI_HIT=> 1,
+      %params,
+      SKIP_DEL_CHECK => 1,
+      SKIP_DOMAIN    => 1,
+      LOGIN          => '_SHOW'
+    });
+
     if ($self->{TOTAL}) {
       if ($self->{TOTAL} == 1 && $list->[0]->{uid} == $attr->{UID}) {
         return $self;
+      }
+      elsif($self->{TOTAL} > 0) {
+        foreach my $line (@$list) {
+          if($line->{uid} != $attr->{UID}) {
+            $self->{LOGIN}=$line->{login};
+            $self->{UID}=$line->{uid};
+            last
+          }
+        }
       }
       $self->{errno} = 23;
     }
@@ -594,6 +662,7 @@ sub host_change {
   $attr->{IPN_ACTIVATE} = ($attr->{IPN_ACTIVATE}) ? 1 : 0;
   $attr->{DISABLE}      = ($attr->{DISABLE})      ? 1 : 0;
 
+  $admin->{MODULE} = $MODULE;
   $self->changes2(
     {
       CHANGE_PARAM => 'ID',
@@ -614,15 +683,14 @@ sub route_add {
   my $self = shift;
   my ($attr) = @_;
 
-  my %DATA = $self->get_data($attr);
   $self->query_add('dhcphosts_routes', {
-  	             NETWORK => $DATA{NET_ID},
-  	             SRC     => "INET_ATON('$DATA{SRC}')",
-  	             MASK    => "INET_ATON('$DATA{MASK}')",
-  	             ROUTER  => "INET_ATON('$DATA{ROUTER}')"
+  	             NETWORK => $attr->{NET_ID},
+  	             SRC     => "INET_ATON('$attr->{SRC}')",
+  	             MASK    => "INET_ATON('$attr->{MASK}')",
+  	             ROUTER  => "INET_ATON('$attr->{ROUTER}')"
   	           });
 
-  $admin->system_action_add("DHCPHOSTS_NET:$DATA{NET_ID} ROUTE:$self->{INSERT_ID}", { TYPE => 1 });
+  $admin->system_action_add("DHCPHOSTS_NET:$attr->{NET_ID} ROUTE:$self->{INSERT_ID}", { TYPE => 1 });
   return $self;
 }
 
@@ -642,7 +710,9 @@ sub route_del {
 }
 
 #**********************************************************
-# route_update()
+=head2 route_change($attr)
+
+=cut
 #**********************************************************
 sub route_change {
   my $self = shift;
@@ -671,7 +741,9 @@ sub route_change {
 }
 
 #**********************************************************
-# route_update()
+=head2 route_info($id)
+
+=cut
 #**********************************************************
 sub route_info {
   my $self = shift;
@@ -709,12 +781,13 @@ sub leases_update {
         $hash->{ENDS},
         $ip || '0.0.0.0',
         $hash->{HARDWARE} || '',
-        $attr->{NAS_ID} || 0
+        $attr->{NAS_ID} || 0,
+        $hash->{STATE} || 0,
       ];
     }
 
-    $self->query2("INSERT INTO dhcphosts_leases ( start, ends, ip, hardware, nas_id)
-       VALUES (?, ?, INET_ATON( ? ), ?, ?)", undef,
+    $self->query2("INSERT INTO dhcphosts_leases ( start, ends, ip, hardware, nas_id, state)
+       VALUES (?, ?, INET_ATON( ? ), ?, ?, ?)", undef,
      { MULTI_QUERY =>  \@MULTI_QUERY })
   }
   else {
@@ -757,11 +830,14 @@ sub leases_list {
     $attr->{SKIP_GID}=1;
   }
 
+  $attr->{SKIP_DEL_CHECK}=1;
+
   my $WHERE = $self->search_former($attr, [
      ['NEXT_STATE',      'INT', 'next_state'   ],
      ['NAS_ID',          'INT', 'nas_id'       ],
-     ['REMOTE_ID',       'STR', 'remote_id'    ],
-     ['CIRCUIT_ID',      'STR', 'circuit_id'   ],
+     ['DHCP_ID',         'INT', 'l.dhcp_id',  1],
+     ['REMOTE_ID',       'STR', 'remote_id',  1],
+     ['CIRCUIT_ID',      'STR', 'circuit_id', 1],
      ['ENDS',            'DATE','ends'         ],
      ['STARTS',          'DATE','starts'       ],
      ['UID',             'INT', 'l.uid'        ],
@@ -770,35 +846,36 @@ sub leases_list {
      ['IP',              'IP',  'l.ip'         ],
      ['USER_DISABLE',    'INT', 'u.disable'    ],
      ['PORTS',           'STR', 'l.port',     1],
+     ['GUEST',           'INT', 'l.flag',      ],
      ['VID',             'INT', 'l.vlan',     1],
     ],
     { WHERE         => 1,
     	WHERE_RULES   => \@WHERE_RULES,
+      SKIP_USERS_FIELDS => ['LOGIN'],
     	USERS_FIELDS  => 1,
     	USE_USER_PI   => 1
-    }
-    );
+  });
 
   my $EXT_TABLES = $self->{EXT_TABLES} || '';
 
   $self->query2("SELECT if (l.uid > 0, u.id, '') AS login,
-  INET_NTOA(l.ip) AS ip,
-  l.start, l.hardware, l.hostname,
+  l.ip,
+  l.start,
+  l.hardware,
+  l.hostname,
   l.ends,
-  if (l.ends < now(), 4, l.state) AS state,
+  if (l.ends < NOW(), 4, l.state) AS state,
   l.port,
   l.vlan,
   l.flag,
   l.nas_id,
-  l.remote_id,
-  l.circuit_id,
   l.next_state,
   $self->{SEARCH_FIELDS}
   l.uid
   FROM dhcphosts_leases  l
   LEFT JOIN users u ON (u.uid=l.uid)
   $EXT_TABLES
-   $WHERE
+  $WHERE
   ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS; ",
   undef,
   $attr
@@ -806,7 +883,7 @@ sub leases_list {
 
   my $list = $self->{list};
 
-  $self->query2("SELECT count(*) AS total FROM dhcphosts_leases l
+  $self->query2("SELECT COUNT(*) AS total FROM dhcphosts_leases l
     LEFT JOIN users u ON (u.uid=l.uid)
   $WHERE;", undef, {INFO => 1 });
 
@@ -834,7 +911,7 @@ sub leases_clear {
 
   my @WHERE_RULES=();
   if ($attr->{ENDED}) {
-    push @WHERE_RULES, "ends < now()";
+    push @WHERE_RULES, "ends < NOW()";
   }
 
   my $WHERE = $self->search_former($attr, [
@@ -846,10 +923,6 @@ sub leases_clear {
     	WHERE_RULES => \@WHERE_RULES
     }
   );
-#  $self->{debug}=1;
-#  if(! $WHERE) {
-#    return $self;
-#  }
 
   $self->query2("DELETE FROM dhcphosts_leases $WHERE;", 'do');
   return $self;
@@ -886,7 +959,7 @@ sub log_del {
   my $WHERE = '';
 
   if ($attr->{DAYS_OLD}) {
-    $WHERE = "datetime < curdate() - INTERVAL $attr->{DAYS_OLD} day";
+    $WHERE = "datetime < CURDATE() - INTERVAL $attr->{DAYS_OLD} day";
   }
   elsif ($attr->{DATE}) {
     $WHERE = "datetime='$attr->{DATETIME}'";
@@ -933,7 +1006,7 @@ sub log_list {
      ['ID',          'INT', 'l.id'        ],
      ['NAS_ID',      'INT', 'nas_id'      ],
      ['MESSAGE_TYPE','INT', 'message_type'],
-     ['FROM_DATE|TO_DATE', 'DATE', "date_format(l.datetime, '%Y-%m-%d')" ],
+     ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(l.datetime, '%Y-%m-%d')" ],
     ],
     { WHERE => 1,
     }

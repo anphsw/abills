@@ -1,6 +1,6 @@
-<div class='panel panel-primary panel-form'>
-    <div class='panel-heading text-center'><h4>UniFi _{SETTINGS}_</h4></div>
-    <div class='panel-body'>
+<div class='box box-theme box-form'>
+    <div class='box-header with-border'><h4 class='box-title'>UniFi _{SETTINGS}_</h4></div>
+    <div class='box-body'>
 
         <form name='UNIFI_SETTINGS' id='form_UNIFI_SETTINGS' method='post' class='form form-horizontal'>
             <input type='hidden' name='index' value='$index' />

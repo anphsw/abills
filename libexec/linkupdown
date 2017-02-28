@@ -315,7 +315,7 @@ if ( $ACTION eq 'up' || $OS eq 'linux' ){
       $speed = $speeds{$traf_type};
     }
 
-    if ( $inum ne '-' ){
+    if ( $inum =~ /^\d+$/ ){
       $fw_num_in = ($START_FW[$traf_type] + $inum * 2) + $user->{UID};
       $fw_num_out = ($START_FW[$traf_type] + $inum * 2 + 1) + $user->{UID};
     }
@@ -348,6 +348,17 @@ if ( $ACTION eq 'up' || $OS eq 'linux' ){
       my $burst = int( $speed_in / 16 );
       my $flowid = ($speed_in > 0) ? sprintf( "%x", $user->{UID} + $prefix * 2 ) : '';
 
+      if ($inum =~ /^\d+$/) {
+        $flowid = ($speed_in > 0) ? sprintf( "%x", $inum + $prefix * 2 ) : '';
+        $fw_num_in = ($START_FW[$traf_type]) + $inum;
+        $fw_num_out = ($START_FW[$traf_type]) + $inum;
+      }
+      #Get base id from uid for small nets only
+      else{
+        $fw_num_in = ($START_FW[$traf_type]) + $user->{UID};
+        $fw_num_out = ($START_FW[$traf_type]) + $user->{UID}; #($START_FW[$traf_type] + $fw_step) + $user->{UID};
+      }
+
       #get id from 2 octets of IP
       if ( $conf{LINKUPDOWN_IPN_IP_ID} ){
         my @ip_arr = split( /\./, $CLIENT_IP, 4 );
@@ -360,11 +371,6 @@ if ( $ACTION eq 'up' || $OS eq 'linux' ){
         $flowid = ($speed_in > 0) ? sprintf( "%x", $inum + $prefix * 2 ) : '';
         $fw_num_in = ($START_FW[$traf_type]) + $inum;
         $fw_num_out = ($START_FW[$traf_type]) + $inum;
-      }
-      #Get base id from uid
-      else{
-        $fw_num_in = ($START_FW[$traf_type]) + $user->{UID};
-        $fw_num_out = ($START_FW[$traf_type]) + $user->{UID}; #($START_FW[$traf_type] + $fw_step) + $user->{UID};
       }
 
       my $drop = ($speed_out > 0) ? "police rate $speed_out" . "Kbit burst $burst" . 'k drop' : '';
@@ -588,9 +594,9 @@ sub ng_car_shape {
   msg %s_%s: setconf { upstream={ cbs=%d ebs=%d cir=%d greenAction=1 yellowAction=1 redAction=2 mode=2 }  downstream={ cbs=%d ebs=%d cir=%d greenAction=1 yellowAction=1 redAction=2 mode=2 } }"
       ,
       $tablearg_in,
-      $tablearg_in, $shape_type, $user,
-      $shape_type, $user, $tablearg_out,
-      $shape_type, $user,
+      $tablearg_in, $shape_type, $user_name,
+      $shape_type, $user_name, $tablearg_out,
+      $shape_type, $user_name,
       int( $cbs_in ), int( $ebs_in ), $speed_in,
       int( $cbs_out ), int( $ebs_out ), $speed_out
     );
@@ -645,7 +651,14 @@ sub mikrotik {
 
   my $result = ssh_cmd( \@commands, { %{$attr}, BASE_DIR => $base_dir } );
 
-  print $result;
+  if(ref $result eq 'ARRAY'  ) {
+    print @$result;
+  }
+  else {
+    print $result;
+  }
+
+  return 1;
 }
 
 #************************************************
@@ -860,8 +873,8 @@ For IPN
 
  For mikrotik (use it as acct external cmd /usr/abills/libexec/acct_ext):
 
-  /usr/abills/libexec/linkupdown mikrotik up INTERFACE USER HISADD NAS_MNG_IP_PORT=192.168.1.1 NAS_ADMIN=admin [SSH_CMD=.., debug]
-  /usr/abills/libexec/linkupdown mikrotik down INTERFACE USER HISADD NAS_MNG_IP_PORT=192.168.1.1 NAS_ADMIN=admin [SSH_CMD=.., debug]
+  /usr/abills/libexec/linkupdown mikrotik up INTERFACE USER HISADD NAS_MNG_IP_PORT=192.168.1.1 NAS_MNG_USER=admin [SSH_CMD=.., debug]
+  /usr/abills/libexec/linkupdown mikrotik down INTERFACE USER HISADD NAS_MNG_IP_PORT=192.168.1.1 NAS_MNG_USER=admin [SSH_CMD=.., debug]
 
 DEBUG: $debug
 };

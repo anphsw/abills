@@ -3,7 +3,6 @@
  */
 var AContacts = (function () {
   "use strict";
-
   // Cache DOM
   var $contacts_controls = $('#contacts_controls');
   var $contacts_wrapper  = $('#contacts_wrapper');
@@ -17,9 +16,13 @@ var AContacts = (function () {
   // Parse input JSON
   var contacts_json_str = $('#contacts_json').text();
   var contacts_json     = JSON.parse(contacts_json_str).json;
-  
   var contacts_raw = contacts_json.contacts || [];
   var options      = contacts_json.options;
+
+  var contact_types = {};
+  $.each(options.types, function(i, e){
+    contact_types[e.id] = e;
+  });
 
   // Parse templates
   var contact_template    = $('#contact_template').html();
@@ -103,7 +106,7 @@ var AContacts = (function () {
     }
     else {
       contact_json.form = 'some_random_input';
-      contact_json.name = options.types[contact_json.type_id - 1].name;
+      contact_json.name = get_contact_type_name(contact_json.type_id);
     }
 
     var rendered = Mustache.render(contact_template, contact_json);
@@ -111,6 +114,10 @@ var AContacts = (function () {
     var $rendered = $(rendered);
 
     return $rendered;
+  }
+
+  function get_contact_type_name(type_id){
+    return contact_types[type_id].name;
   }
 
   function add_new_contact(e) {
@@ -139,12 +146,14 @@ var AContacts = (function () {
 
 
       // Button handlers
-      $('#add_contact_modal_btn_cancel').on('click', add_contact_form.hide);
+      $('#add_contact_modal_btn_cancel')
+        .on('click', add_contact_form.hide);
+
       $('#add_contact_modal_btn_add').on('click', read_and_process_add_contact_modal);
 
       function read_and_process_add_contact_modal(e) {
         e.preventDefault();
-
+        
         var type_id = add_contact_form.$modal.find('select#contacts_type_select').val();
         var value   = add_contact_form.$modal.find('input#contacts_type_value').val();
 
@@ -170,7 +179,7 @@ var AContacts = (function () {
 
     var last_contact = contacts_raw[last_index];
 
-    if (confirm(translate('REMOVE') + ' ' + last_contact.name + ' ?')) {
+    if (confirm(translate('REMOVE') + ' ' + last_contact.name + ' : ' + last_contact.value + ' ?')) {
       contacts_raw.splice(last_index, 1);
       renew_contacts(contacts_raw);
     }
@@ -204,14 +213,26 @@ var AContacts = (function () {
     });
 
     // Forming request
+    if (contacts_json.options.AID) {
+      var request = {
+        'qindex'  : options.callback_index,
+        'header'  : 2,
+        //'json'     : 1,
+        'AID'     : options.AID,
+        'subf'    : options.subf,
+        'CONTACTS': JSON.stringify(contacts_to_send)
+      };
+    }
+    else{
+    // Forming request
     var request = {
       'qindex'  : options.callback_index,
       'header'  : 2,
-      //'json'     : 1,
+      //'json'    : 1,
       'uid'     : options.uid,
       'CONTACTS': JSON.stringify(contacts_to_send)
     };
-
+}
     // Sending contacts to backend
     $.post(SELF_URL, request, function (data) {
 
@@ -237,7 +258,8 @@ var AContacts = (function () {
           $response_span.text('');
         }, 3000);
         set_changed_status(false);
-      } else {
+      }
+      else {
         (new ATooltip()).displayError(object.message);
         return false;
       }

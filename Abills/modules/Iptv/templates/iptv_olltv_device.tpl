@@ -1,7 +1,14 @@
-<div class='panel panel-default'>
-<div class='panel-body '>
+<div class='box box-theme'>
+  <div class='box-header with-border'>
+    <h4 class='box-title'>_{DEVICE}_</h4>
+    <div class='box-tools pull-right'>
+      <button type='button' class='btn btn-box-tool' data-widget='collapse'><i class='fa fa-minus'></i>
+      </button>
+    </div>
+  </div>
 
-<label class='control-label col-md-12' for='DEVICE'>_{DEVICE}_</label>
+
+ <div class='box-body '>
 
 %STORAGE_FORM%
 

@@ -6,7 +6,7 @@
                    #"07:6:$lang{USERS}:abon_user_list:ABON_ID"    => 5
                    );
 
-%USER_FUNCTION_LIST = ("01:0:$lang{EXT_SERIVICE}:abon_client:"  => 0,
+%USER_FUNCTION_LIST = ("01:0:$lang{EXT_SERVICES}:abon_client:"  => 0,
                        );
 
 %PERIODIC = (daily   => [ 'abon_periodic' ]);

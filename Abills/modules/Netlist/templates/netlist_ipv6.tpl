@@ -1,8 +1,8 @@
 <form action='$SELF_URL' method='get' class='form form-horizontal'>
     <input type='hidden' name='index' value='$index'>
 
-    <div class='panel panel-default panel-form'>
-        <div class='panel-body'>
+    <div class='box box-theme box-form'>
+        <div class='box-body'>
             <div class='form-group'>
                 <label id='IPv6' class='control-label col-md-3'>IP v6</label>
 
@@ -12,7 +12,7 @@
 
             </div>
         </div>
-        <div class='panel-footer'>
+        <div class='box-footer'>
             <input type='submit' value='Submit'>
         </div>
     </div>

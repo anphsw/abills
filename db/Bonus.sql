@@ -1,108 +1,110 @@
-CREATE TABLE `bonus_log` (
-  `date` datetime NOT NULL default '0000-00-00 00:00:00',
-  `sum` double(10,2) NOT NULL default '0.00',
-  `dsc` varchar(80) default NULL,
-  `ip` int(11) unsigned NOT NULL default '0',
-  `last_deposit` double(15,6) NOT NULL default '0.000000',
-  `uid` int(11) unsigned NOT NULL default '0',
-  `aid` smallint(6) unsigned NOT NULL default '0',
-  `id` int(11) unsigned NOT NULL auto_increment,
-  `method` tinyint(4) unsigned NOT NULL default '0',
-  `ext_id` varchar(28) NOT NULL default '',
-  `bill_id` int(11) unsigned NOT NULL default '0',
-  `inner_describe` varchar(80) NOT NULL default '',
-  `action_type` tinyint(11) unsigned NOT NULL default '0',
-  `expire` date NOT NULL default '0000-00-00',  
-  PRIMARY KEY  (`id`),
+CREATE TABLE IF NOT EXISTS `bonus_log` (
+  `date` DATETIME NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+  `sum` DOUBLE(10, 2) NOT NULL DEFAULT '0.00',
+  `dsc` VARCHAR(80) DEFAULT NULL,
+  `ip` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `last_deposit` DOUBLE(15, 6) NOT NULL DEFAULT '0.000000',
+  `uid` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `method` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
+  `ext_id` VARCHAR(28) NOT NULL DEFAULT '',
+  `bill_id` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `inner_describe` VARCHAR(80) NOT NULL DEFAULT '',
+  `action_type` TINYINT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `expire` DATE NOT NULL DEFAULT '0000-00-00',
+  PRIMARY KEY (`id`),
   UNIQUE KEY `id` (`id`),
   KEY `date` (`date`),
   KEY `uid` (`uid`)
-) COMMENT "Bonus log"  ;
+) COMMENT = 'Bonus log';
 
-CREATE TABLE `bonus_service_discount` (
-  `id` int(11) unsigned NOT NULL auto_increment,
-  `service_period` smallint(4) unsigned NOT NULL default '0',
-  `registration_days` smallint(4) unsigned NOT NULL default '0',
-  `discount` double(10,2) NOT NULL default '0.00',
-  `discount_days` smallint(4) unsigned NOT NULL default '0',
-  `total_payments_sum` double(10,2) NOT NULL default '0.00',
-  `bonus_sum` double(10,2) NOT NULL default '0.00',
-  `bonus_percent` double(10,2) NOT NULL default '0.00',
-  `ext_account` tinyint(1) unsigned NOT NULL default '0',
-  `pay_method` tinyint(4) NOT NULL default '0',
-  PRIMARY KEY  (`id`)
-) COMMENT "Bonus service discount"  ;
+CREATE TABLE IF NOT EXISTS `bonus_service_discount` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `service_period` SMALLINT(4) UNSIGNED NOT NULL DEFAULT '0',
+  `registration_days` SMALLINT(4) UNSIGNED NOT NULL DEFAULT '0',
+  `discount` DOUBLE(10, 2) NOT NULL DEFAULT '0.00',
+  `discount_days` SMALLINT(4) UNSIGNED NOT NULL DEFAULT '0',
+  `total_payments_sum` DOUBLE(10, 2) NOT NULL DEFAULT '0.00',
+  `bonus_sum` DOUBLE(10, 2) NOT NULL DEFAULT '0.00',
+  `bonus_percent` DOUBLE(10, 2) NOT NULL DEFAULT '0.00',
+  `ext_account` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
+  `pay_method` VARCHAR(100) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`)
+) COMMENT = 'Bonus service discount';
 
-CREATE TABLE `bonus_turbo` (
-  `id` int(11) unsigned NOT NULL auto_increment,
-  `service_period` smallint(4) unsigned NOT NULL default '0',
-  `registration_days` smallint(4) unsigned NOT NULL default '0',
-  `turbo_count` smallint(4) unsigned NOT NULL default '0',
-  `comments` text,
-  PRIMARY KEY  (`id`)
-) COMMENT "Bonus turbo"  ;
+CREATE TABLE IF NOT EXISTS `bonus_turbo` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `service_period` SMALLINT(4) UNSIGNED NOT NULL DEFAULT '0',
+  `registration_days` SMALLINT(4) UNSIGNED NOT NULL DEFAULT '0',
+  `turbo_count` SMALLINT(4) UNSIGNED NOT NULL DEFAULT '0',
+  `comments` TEXT,
+  PRIMARY KEY (`id`)
+) COMMENT = 'Bonus turbo';
 
-CREATE TABLE `bonus_tps` (
-  `id` smallint(6) unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(50) NOT NULL,
-  `state` tinyint(1) unsigned NOT NULL DEFAULT '0',
+CREATE TABLE IF NOT EXISTS `bonus_tps` (
+  `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(50) NOT NULL,
+  `state` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `id` (`id`),
   UNIQUE KEY `name` (`name`)
-) COMMENT "Bonus tarif plans"  ; 
+) COMMENT = 'Bonus tarif plans';
 
-CREATE TABLE `bonus_accoumulation` (
-  `tp_id` smallint(6) unsigned NOT NULL default 0,
-  `dv_tp_id` smallint(6) unsigned NOT NULL default 0,
-  `scores` smallint(6) unsigned NOT NULL default 0
-) COMMENT "Bonus accoumulation"  ;
+CREATE TABLE IF NOT EXISTS `bonus_accoumulation` (
+  `tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  `dv_tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  `scores` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0
+) COMMENT = 'Bonus accoumulation';
 
 
-CREATE TABLE `bonus_rules` (
-  `tp_id` smallint(6) unsigned NOT NULL DEFAULT '0',
-  `period` tinyint(2) unsigned NOT NULL DEFAULT '0',
-  `rules` varchar(20) NOT NULL,
-  `actions` varchar(20) NOT NULL,
-  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-  `rule_value` int(11) unsigned NOT NULL,
+CREATE TABLE IF NOT EXISTS `bonus_rules` (
+  `tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `period` TINYINT(2) UNSIGNED NOT NULL DEFAULT '0',
+  `rules` VARCHAR(20) NOT NULL,
+  `actions` VARCHAR(20) NOT NULL,
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `rule_value` INT(11) UNSIGNED NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `tp_id` (`tp_id`,`period`,`rules`,`rule_value`)
-) COMMENT "Bonus rules"  ; 
+  UNIQUE KEY `tp_id` (`tp_id`, `period`, `rules`, `rule_value`)
+) COMMENT = 'Bonus rules';
 
-CREATE TABLE `bonus_main` (
-  `uid` int(11) unsigned NOT NULL DEFAULT '0',
-  `tp_id` smallint(6) unsigned NOT NULL DEFAULT '0',
-  `accept_rules` tinyint(1) unsigned NOT NULL default '0',
-  `state` tinyint(1) unsigned NOT NULL DEFAULT '0',
+CREATE TABLE IF NOT EXISTS `bonus_main` (
+  `uid` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `accept_rules` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
+  `state` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`uid`),
   UNIQUE KEY `uid` (`uid`)
-)  COMMENT='Bonus users' ;
+)
+  COMMENT = 'Bonus users';
 
 
-CREATE TABLE `bonus_rules_accomulation` (
-  `tp_id` smallint(6) unsigned NOT NULL DEFAULT '0',
-  `dv_tp_id` smallint(6) unsigned NOT NULL DEFAULT '0',
-  `cost` double(15,6) NOT NULL default '0.000000',
-  UNIQUE KEY `tp_id` (`tp_id`,`dv_tp_id`)
-) COMMENT "Bonus accomulation rules"  ;
+CREATE TABLE IF NOT EXISTS `bonus_rules_accomulation` (
+  `tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `dv_tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `cost` DOUBLE(15, 6) NOT NULL DEFAULT '0.000000',
+  UNIQUE KEY `tp_id` (`tp_id`, `dv_tp_id`)
+) COMMENT = 'Bonus accomulation rules';
 
 
-CREATE TABLE `bonus_rules_accomulation_scores` (
-  `uid` int(11) unsigned NOT NULL DEFAULT '0',
-  `dv_tp_id` smallint(6) unsigned NOT NULL DEFAULT '0',
-  `cost` double(15,6) NOT NULL default '0.000000',
-  `changed` date not null default '0000-00-00',
+CREATE TABLE IF NOT EXISTS `bonus_rules_accomulation_scores` (
+  `uid` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `dv_tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `cost` DOUBLE(15, 6) NOT NULL DEFAULT '0.000000',
+  `changed` DATE NOT NULL DEFAULT '0000-00-00',
   PRIMARY KEY `uid` (`uid`)
-) COMMENT "Bonus accomulation scores"  ;
+) COMMENT = 'Bonus accomulation scores';
 
 
-CREATE TABLE `bonus_tp_using` (
-  `id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
-  `comments` text,
-  `tp_id_main` smallint(5) unsigned NOT NULL DEFAULT '0',
-  `tp_id_bonus` smallint(5) unsigned NOT NULL DEFAULT '0',
-  `period` smallint(5) unsigned NOT NULL DEFAULT '0',
+CREATE TABLE IF NOT EXISTS `bonus_tp_using` (
+  `id` SMALLINT(5) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `comments` TEXT,
+  `tp_id_main` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `tp_id_bonus` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `period` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `tps` (`tp_id_main`,`tp_id_bonus`)
-) COMMENT='Bonus tp using';
+  UNIQUE KEY `tps` (`tp_id_main`, `tp_id_bonus`)
+)
+  COMMENT = 'Bonus tp using';
 

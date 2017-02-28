@@ -7,16 +7,19 @@
 =cut
 
 use strict;
+use warnings;
+
 use Inventory;
 
-our $db;
-our $admin;
-our %conf;
-our $html;
-our %lang;
-our @WEEKDAYS;
-our @MONTHES;
-our %permissions;
+our ($db,
+  $admin,
+  %conf,
+  $html,
+  %lang,
+  @WEEKDAYS,
+  @MONTHES,
+  %permissions
+);
 
 my $Inventory = Inventory->new( $db, $admin, \%conf );
 
@@ -126,6 +129,9 @@ sub inventory_main{
       }
     );
   }
+  elsif($FORM{search_form}) {
+    form_search({  });
+  }
 
   my $type_list = $Inventory->inventory_types_list( { COLS_NAME => 1 } );
   my %types = ();
@@ -134,29 +140,30 @@ sub inventory_main{
   }
 
   result_former( {
-      INPUT_DATA        => $Inventory,
-        FUNCTION        => 'inventory_main_list',
-        DEFAULT_FIELDS  => 'LOGIN,HOSTNAME,IP,DATE,BENCHMARK_INFO',
-        FUNCTION_FIELDS => 'change,del',
-        EXT_TITLES      => {
-        'hostname'       => "$lang{HOSTNAME}",
-        'ip'             => 'IP',
-        'benchmark_info' => 'BENCHMARK_INFO',
-        %types
-      },
-        TABLE           => {
-        width   => '100%',
-        caption => $lang{HOSTS},
-        border  => 1,
-        qs      => $pages_qs,
-        ID      => 'DHCPHOSTS_LEASES',
-        EXPORT  => 1,
-        MENU    => ($FORM{UID}) ? "$lang{ADD}:index=$index&UID=$FORM{UID}&add_form=1:add" : '',
-      },
-        MAKE_ROWS       => 1,
-        MODULE          => 'Inventory',
-        TOTAL           => 1
-    } );
+    INPUT_DATA      => $Inventory,
+    FUNCTION        => 'inventory_main_list',
+    DEFAULT_FIELDS  => 'LOGIN,HOSTNAME,IP,DATE,BENCHMARK_INFO',
+    FUNCTION_FIELDS => 'change,del',
+    EXT_TITLES      => {
+      hostname       => $lang{HOSTNAME},
+      ip             => 'IP',
+      benchmark_info => 'BENCHMARK_INFO',
+      date           => $lang{DATE},
+      %types
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => $lang{HOSTS},
+      border  => 1,
+      qs      => $pages_qs,
+      ID      => 'DHCPHOSTS_LEASES',
+      EXPORT  => 1,
+      MENU    => ($FORM{UID}) ? "$lang{ADD}:index=$index&UID=$FORM{UID}&add_form=1:add" : '',
+    },
+    MAKE_ROWS       => 1,
+    MODULE          => 'Inventory',
+    TOTAL           => 1
+  } );
 
   return 1;
 }
@@ -291,6 +298,7 @@ sub inventory_log{
       'sign',     => 'SIGN',
       'agent'     => 'AGENT',
       'sys_id'    => 'SYS_ID',
+      'log_comments' => 'log_comments'
     },
     TABLE           => {
       width   => '100%',
@@ -317,7 +325,10 @@ sub inventory_log{
       'Wrong sign format',
       'Bench sign not defined',
       'Wrong Bench sign format',
-      'update'
+      'update',
+      'get_module',
+      'Wrong module request',
+      'Not allow operation'
     ],
     MAKE_ROWS       => 1,
     MODULE          => 'Inventory',

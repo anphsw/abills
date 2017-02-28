@@ -1,157 +1,161 @@
-
 CREATE TABLE IF NOT EXISTS `storage_accountability` (
-  `id` int(10) unsigned NOT NULL auto_increment,
-  `aid` smallint(5) unsigned NOT NULL default '0',
-  `storage_incoming_articles_id` int(10) unsigned NOT NULL default '0',
-  `count` int(10) unsigned NOT NULL default '0',
-  `date` datetime NOT NULL,
-  `comments` text,
+  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `aid` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `storage_incoming_articles_id` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+  `count` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+  `date` DATETIME NOT NULL,
+  `comments` TEXT,
   KEY `id` (`id`),
   KEY `storage_incoming_articles_id` (`storage_incoming_articles_id`)
-) ;
+);
 
 
 CREATE TABLE IF NOT EXISTS `storage_articles` (
-  `id` int(11) unsigned NOT NULL auto_increment,
-  `name` varchar(255) NOT NULL default '',
-  `article_type` smallint(6) unsigned NOT NULL default '0',
-  `measure` varchar(2) NOT NULL default '0',
-  `comments` text,
-  `add_date` date NOT NULL,
-  PRIMARY KEY  (`id`),
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(255) NOT NULL DEFAULT '',
+  `article_type` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `measure` VARCHAR(2) NOT NULL DEFAULT '0',
+  `comments` TEXT,
+  `add_date` DATE NOT NULL,
+  PRIMARY KEY (`id`),
   KEY `article_type` (`article_type`)
-) ;
+);
 
 CREATE TABLE IF NOT EXISTS `storage_article_types` (
-  `id` int(11) unsigned NOT NULL auto_increment,
-  `name` varchar(255) default NULL,
-  `comments` text,
-  PRIMARY KEY  (`id`)
-) ;
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(255) DEFAULT NULL,
+  `comments` TEXT,
+  PRIMARY KEY (`id`)
+);
 
-CREATE TABLE `storage_discard` (
-  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `storage_incoming_articles_id` int(10) unsigned DEFAULT '0',
-  `count` int(10) unsigned NOT NULL DEFAULT '0',
-  `aid` int(10) unsigned DEFAULT '0',
-  `date` datetime DEFAULT '0000-00-00 00:00:00',
-  `comments` mediumtext,
-  `sum` double(10,2) unsigned NOT NULL default '0.00',
+CREATE TABLE IF NOT EXISTS `storage_discard` (
+  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `storage_incoming_articles_id` INT(10) UNSIGNED DEFAULT '0',
+  `count` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+  `aid` INT(10) UNSIGNED DEFAULT '0',
+  `date` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `comments` MEDIUMTEXT,
+  `sum` DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
   PRIMARY KEY (`id`),
   KEY `storage_incoming_articles_id` (`storage_incoming_articles_id`)
-) COMMENT 'Storage discard items';
+)
+  COMMENT = 'Storage discard items';
 
 CREATE TABLE IF NOT EXISTS `storage_incoming` (
-  `id` smallint(5) unsigned NOT NULL auto_increment,
-  `date` datetime NOT NULL,
-  `aid` smallint(5) unsigned NOT NULL default '0',
-  `ip` int(10) unsigned NOT NULL default '0',
-  `comments` text NOT NULL,
-  `supplier_id` smallint(5) unsigned NOT NULL default '0',
-  `storage_id` tinyint(4) unsigned NOT NULL default '0',
-  PRIMARY KEY  (`id`),
+  `id` SMALLINT(5) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `date` DATETIME NOT NULL,
+  `aid` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `ip` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+  `comments` TEXT NOT NULL,
+  `supplier_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `storage_id` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
   KEY `supplier_id` (`supplier_id`)
 );
 
 
 CREATE TABLE IF NOT EXISTS `storage_incoming_articles` (
-  `id` int(11) unsigned NOT NULL auto_increment,
-  `article_id` smallint(6) unsigned default NULL,
-  `count` int(11) unsigned NOT NULL default '0',
-  `sum` double(10,2) unsigned NOT NULL default '0.00',
-  `sn` int(10) unsigned NOT NULL default '0',
-  `main_article_id` smallint(5) unsigned NOT NULL default '0',
-  `storage_incoming_id` smallint(5) unsigned NOT NULL default '0',
-  `sell_price` double(10,2) unsigned NOT NULL default '0.00',
-  `rent_price` double(10,2) unsigned NOT NULL default '0.00',
-  PRIMARY KEY  (`id`),
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `article_id` SMALLINT(6) UNSIGNED DEFAULT NULL,
+  `count` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `sum` DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
+  `sn` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `main_article_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `storage_incoming_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `sell_price` DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
+  `rent_price` DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
+  PRIMARY KEY (`id`),
   KEY `storage_incoming_id` (`storage_incoming_id`),
   KEY `article_id` (`article_id`)
 );
 
 
 CREATE TABLE IF NOT EXISTS `storage_installation` (
-  `id` int(10) unsigned NOT NULL auto_increment,
-  `storage_incoming_articles_id` int(10) unsigned default '0',
-  `location_id` int(10) unsigned default '0',
-  `count` int(10) unsigned NOT NULL default '0',
-  `aid` smallint(6) unsigned NOT NULL default '0',
-  `installed_aid` smallint(6) unsigned NOT NULL default '0',
-  `uid` int(10) unsigned NOT NULL default '0',
-  `nas_id` smallint(4) unsigned NOT NULL default '0',
-  `comments` text,
-  `sum` double(10,2) unsigned NOT NULL default '0.00',
-  `mac` varchar(40) NOT NULL DEFAULT '',
-  `type` smallint(1) NOT NULL default 0,
-  `grounds` varchar(40) NOT NULL DEFAULT '',
-  `date` date NOT NULL default '0000-00-00',
-  PRIMARY KEY  (`id`),
+  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `storage_incoming_articles_id` INT(10) UNSIGNED DEFAULT '0',
+  `location_id` INT(10) UNSIGNED DEFAULT '0',
+  `count` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+  `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `installed_aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `uid` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+  `nas_id` SMALLINT(4) UNSIGNED NOT NULL DEFAULT '0',
+  `comments` TEXT,
+  `sum` DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
+  `mac` VARCHAR(40) NOT NULL DEFAULT '',
+  `type` SMALLINT(1) NOT NULL DEFAULT 0,
+  `grounds` VARCHAR(40) NOT NULL DEFAULT '',
+  `date` DATE NOT NULL DEFAULT '0000-00-00',
+  PRIMARY KEY (`id`),
   KEY `storage_incoming_articles_id` (`storage_incoming_articles_id`)
-) COMMENT 'Storage user installation';
+)
+  COMMENT = 'Storage user installation';
 
 
-CREATE TABLE `storage_log` (
-  `id` int(11) NOT NULL auto_increment,
-  `date` datetime NOT NULL,
-  `aid` tinyint(4) unsigned NOT NULL default '0',
-  `storage_main_id` int(10) unsigned NOT NULL default '0',
-  `storage_id` tinyint(3) unsigned NOT NULL default '0',
-  `comments` text,
-  `action` tinyint(3) unsigned NOT NULL default '0',
-  `ip` int(10) unsigned NOT NULL default '0',
-  `count` int(10) unsigned NOT NULL default '0',
-  `storage_installation_id` int(10) unsigned NOT NULL default '0',
-  PRIMARY KEY  (`id`)
-) ;
+CREATE TABLE IF NOT EXISTS `storage_log` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `date` DATETIME NOT NULL,
+  `aid` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
+  `storage_main_id` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+  `storage_id` TINYINT(3) UNSIGNED NOT NULL DEFAULT '0',
+  `comments` TEXT,
+  `action` TINYINT(3) UNSIGNED NOT NULL DEFAULT '0',
+  `ip` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+  `count` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+  `uid` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+  `storage_installation_id` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`)
+);
 
 CREATE TABLE IF NOT EXISTS `storage_reserve` (
-  `id` int(10) unsigned NOT NULL auto_increment,
-  `storage_incoming_articles_id` int(10) unsigned default '0',
-  `count` int(10) unsigned default '0',
-  `aid` int(10) unsigned default '0',
-  `date` datetime default NULL,
-  `comments` text,
-  PRIMARY KEY  (`id`),
+  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `storage_incoming_articles_id` INT(10) UNSIGNED DEFAULT '0',
+  `count` INT(10) UNSIGNED DEFAULT '0',
+  `aid` INT(10) UNSIGNED DEFAULT '0',
+  `date` DATETIME DEFAULT NULL,
+  `comments` TEXT,
+  PRIMARY KEY (`id`),
   KEY `storage_incoming_articles_id` (`storage_incoming_articles_id`)
-) ;
+);
 
 CREATE TABLE IF NOT EXISTS `storage_suppliers` (
-  `id` smallint(6) NOT NULL auto_increment,
-  `name` varchar(15) NOT NULL default '',
-  `date` date NOT NULL,
-  `okpo` varchar(12) NOT NULL default '',
-  `inn` varchar(20) NOT NULL default '',
-  `inn_svid` varchar(40) NOT NULL default '',
-  `bank_name` varchar(200) NOT NULL default '',
-  `mfo` varchar(8) NOT NULL default '',
-  `account` varchar(16) NOT NULL default '',
-  `phone` varchar(16) NOT NULL default '',
-  `phone2` varchar(16) NOT NULL default '',
-  `fax` varchar(16) NOT NULL default '',
-  `url` varchar(100) NOT NULL default '',
-  `email` varchar(250) NOT NULL default '',
-  `icq` varchar(12) NOT NULL default '',
-  `accountant` varchar(150) NOT NULL default '',
-  `director` varchar(150) NOT NULL default '',
-  `managment` varchar(150) NOT NULL default '',
-  PRIMARY KEY  (`id`),
+  `id` SMALLINT(6) NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(15) NOT NULL DEFAULT '',
+  `date` DATE NOT NULL,
+  `okpo` VARCHAR(12) NOT NULL DEFAULT '',
+  `inn` VARCHAR(20) NOT NULL DEFAULT '',
+  `inn_svid` VARCHAR(40) NOT NULL DEFAULT '',
+  `bank_name` VARCHAR(200) NOT NULL DEFAULT '',
+  `mfo` VARCHAR(8) NOT NULL DEFAULT '',
+  `account` VARCHAR(16) NOT NULL DEFAULT '',
+  `phone` VARCHAR(16) NOT NULL DEFAULT '',
+  `phone2` VARCHAR(16) NOT NULL DEFAULT '',
+  `fax` VARCHAR(16) NOT NULL DEFAULT '',
+  `url` VARCHAR(100) NOT NULL DEFAULT '',
+  `email` VARCHAR(250) NOT NULL DEFAULT '',
+  `icq` VARCHAR(12) NOT NULL DEFAULT '',
+  `accountant` VARCHAR(150) NOT NULL DEFAULT '',
+  `director` VARCHAR(150) NOT NULL DEFAULT '',
+  `managment` VARCHAR(150) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
-) ;
+);
 
 CREATE TABLE IF NOT EXISTS `storage_sn` (
-  `id` int(11) NOT NULL auto_increment,
-  `storage_incoming_articles_id` smallint(6) NOT NULL,
-  `storage_installation_id` smallint(6) NOT NULL,
-  `serial` text character set utf8 NOT NULL,
-  PRIMARY KEY  (`id`)
-) COMMENT 'Storage serial numbers' ;
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `storage_incoming_articles_id` SMALLINT(6) NOT NULL DEFAULT 0,
+  `storage_installation_id` SMALLINT(6) NOT NULL DEFAULT 0,
+  `serial` TEXT CHARACTER SET utf8 NOT NULL,
+  PRIMARY KEY (`id`)
+)
+  COMMENT = 'Storage serial numbers';
 
-CREATE TABLE `storage_storages`(
+CREATE TABLE IF NOT EXISTS `storage_storages` (
   `id` SMALLINT(6) UNSIGNED AUTO_INCREMENT,
   `name` VARCHAR(30) NOT NULL DEFAULT '',
   `comments` VARCHAR(60) NOT NULL DEFAULT '',
   PRIMARY KEY `storage_id` (`id`)
-) COMMENT 'List of storages';
+)
+  COMMENT = 'List of storages';
 
 
 

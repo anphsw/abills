@@ -6,22 +6,22 @@
         %ADMIN_SELECT%
 
         <label for='DATE_START'>_{DATE}_</label>
-        <input type='text' class='form-control tcal' name='DATE_START' id='DATE_START' value='%DATE_START%'/>
+        <input type='text' class='form-control datepicker' name='DATE_START' id='DATE_START' value='%DATE_START%'/>
 
         <label for='DATE_END'>-</label>
-        <input type='text' class='form-control tcal' name='DATE_END' id='DATE_END' value='%DATE_END%'/>
+        <input type='text' class='form-control datepicker' name='DATE_END' id='DATE_END' value='%DATE_END%'/>
 
         <input type='submit' class='btn btn-primary' value='_{SHOW}_'/>
     </form>
 </div>
 
-<div class='panel panel-primary'>
-    <div class='panel-heading'>
-        <div class='panel-title'>GPS _{REPORTS}_</div>
+<div class='box box-primary'>
+    <div class='box-header with-border'>
+        <div class='box-title'>GPS _{REPORTS}_</div>
     </div>
     %REPORT_TABLE%
 
-    <div class='panel-title bg-info'><h3>_{PERIOD}_<span class='text-lowercase'> _{AVG}_ </span></h3></div>
+    <div class='box-title bg-info'><h3>_{PERIOD}_<span class='text-lowercase'> _{AVG}_ </span></h3></div>
     %REPORT_AVG_TABLE%
 
 </div>

@@ -57,16 +57,16 @@ my $debug = 1;
 my $prog_name = "GPS Tracker Server";
 my $version = 0.1;
 
-my $ARGV = parse_arguments(\@ARGV);
+my $ARGS = parse_arguments(\@ARGV);
 
 # демонизация и ведение лога
-if (defined($ARGV->{'-d'})) {
+if (defined($ARGS->{'-d'})) {
   my $pid_file = daemonize();
   # ведение лога
   $Log->log_print('LOG_EMERG', '', "$prog_name Daemonize... $pid_file");
 }
 #Стоп процесса
-elsif (defined($ARGV->{stop})) {
+elsif (defined($ARGS->{stop})) {
   stop_server();
   exit;
 }
@@ -75,19 +75,19 @@ elsif (make_pid() == 1) {
   exit;
 }
 
-if (defined($ARGV->{DEBUG})) {
+if (defined($ARGS->{DEBUG})) {
   print "Debug mode on\n";
-  $debug = $ARGV->{DEBUG};
+  $debug = $ARGS->{DEBUG};
 
   if ($debug >= 7){ $Gps->{debug} = 1 };
 }
 
 #Читаем порт сервера
-my $port = $ARGV->{PORT} || '8790';
+my $port = $ARGS->{PORT} || '8790';
 
 my $log_file = '/tmp/gps_tracker.log';
-if (defined $ARGV->{LOG_FILE}) {
-  $log_file = $ARGV->{LOG_FILE};
+if (defined $ARGS->{LOG_FILE}) {
+  $log_file = $ARGS->{LOG_FILE};
 }
 $Log->{LOG_FILE} = $log_file;
 

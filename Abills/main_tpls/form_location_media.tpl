@@ -4,8 +4,8 @@
 <input type='hidden' name='BUILDS' value='$FORM{BUILDS}'/>
 <input type='hidden' name='media' value='1'/>
 
-<div class='panel panel-default panel-form'>
-  <div class='panel-body'>
+<div class='box box-theme box-form'>
+  <div class='box-body'>
 
 <fieldset>
 	<legend>_{MEDIA}_</legend>

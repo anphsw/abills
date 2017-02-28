@@ -3,15 +3,16 @@
 <FORM action='$SELF_URL' METHOD='POST' class='form-horizontal' id='EQUIPMENT_MODEL_INFO_FORM'>
     <input type='hidden' name='index' value='$index'>
     <input type='hidden' name='ID' value='$FORM{chg}'>
+    <input type='hidden' name='chg' value='$FORM{chg}'>
     <input type='hidden' name='HAS_EXTRA_PORTS' id='HAS_EXTRA_PORTS'>
 
     <fieldset>
 
-        <div class='panel panel-primary panel-form'>
+        <div class='box box-theme box-form'>
 
-            <div class='panel-heading'><h4>_{EQUIPMENT}_ _{INFO}_</h4></div>
+            <div class='box-header with-border'><h4>_{EQUIPMENT}_ _{INFO}_</h4></div>
 
-            <div class='panel-body'>
+            <div class='box-body'>
 
                 <div class='form-group'>
                     <label class='control-label col-md-3' for='TYPE'>_{TYPE}_</label>
@@ -79,6 +80,14 @@
                     </div>
                 </div>
 
+                <div class='form-group'>
+                    <label class='control-label col-md-3' for='SYS_OID'>SYSTEM_OID: </label>
+
+                    <div class='col-md-9'>
+                        <input class='form-control' type='text' id='SYS_OID' name='SYS_OID' value='%SYS_OID%'>
+                    </div>
+                </div>
+                
                 <div class='form-group'>
                     <label class='control-label col-md-3' for='COMMENTS'>_{COMMENTS}_: </label>
 
@@ -169,14 +178,16 @@
 
             </div>
 
-            <div class='panel-footer'>
+            <div class='box-footer'>
                 <input type='submit' name='%ACTION%' value='%ACTION_LNG%' class='btn btn-primary'>
             </div>
         </div>
     </fieldset>
 
-    <div class='panel panel-default' id='ports_preview'>
-        %PORTS_PREVIEW%
+    <div class='box box-theme' id='ports_preview'>
+        <div class='box-body'>
+           %PORTS_PREVIEW%
+        </div>
     </div>
 
 

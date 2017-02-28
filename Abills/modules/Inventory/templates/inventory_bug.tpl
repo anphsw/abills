@@ -2,11 +2,11 @@
     <input type=hidden name=index value=$index>
     <input type=hidden name=ID value=$FORM{chg}>
 
-    <div class='panel panel-default'>
-        <div class='panel-heading bg-danger'>
+    <div class='box box-theme'>
+        <div class='box-header with-border bg-danger'>
             Bug # %ID%
         </div>
-        <div class='panel-body'>
+        <div class='box-body'>
             <div class='form-group'>
                 <div class='col-md-4 bg-success'>%CUR_VERSION%</div>
                 <div class='col-md-4 bg-success'>%DATETIME%</div>
@@ -44,7 +44,7 @@
             </div>
         </div>
 
-        <div class='panel-footer'>
+        <div class='box-footer'>
             <input type=submit name=change value='_{CHANGE}_' class='btn btn-primary'>
         </div>
     </div>

@@ -2,9 +2,9 @@
     <input type='hidden' name='index' value='$index'/>
     <input type='hidden' name='ID' value='%ID%'/>
 
-    <div class='panel panel-primary' style='max-width: 400px;'>
-        <div class='panel-heading'><h4>Раздел</h4></div>
-        <div class='panel-body'>
+    <div class='box box-primary' style='max-width: 400px;'>
+        <div class='box-header with-border'><h4>Раздел</h4></div>
+        <div class='box-body'>
             <div class='form-group'>
                 <label class='control-label col-md-3'>_{NAME}_:</label>
 
@@ -21,7 +21,7 @@
                 </div>
             </div>
         </div>
-        <div class='panel-footer'>
+        <div class='box-footer'>
             <input class='btn btn-primary' type=submit name='%ACTION%' value='%LNG_ACTION%'>
         </div>
     </div>

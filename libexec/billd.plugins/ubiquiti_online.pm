@@ -8,34 +8,41 @@
 #**********************************************************
 
 use strict;
+use warnings FATAL => 'all';
 our ($debug,
   %conf,
   $Admin,
-  $db);
+  $var_dir,
+  $db
+);
 
 our Dv_Sessions $Sessions;
 our Nas $Nas;
 
-do 'Abills/Misc.pm';
-require Unifi::Unifi;
+use Unifi::Unifi;
+use Acct;
+use Dv;
 
 ubiquiti_online();
 
 #**********************************************************
-#
-#
+=head2 ubiquiti_online()
+
+=cut
 #**********************************************************
 sub ubiquiti_online{
   #my ($attr) = @_;
 
-  require Acct;
-  Acct->import();
-  require Dv;
-  Acct->import();
   my $Acct = Acct->new( $db, \%conf );
-  #my $Billing = Billing->new($db, \%conf);
-  my $Dv = Dv->new( $db, $Admin, \%conf );
+  my $Dv   = Dv->new( $db, $Admin, \%conf );
+  my $Log  = Log->new( $db, $Admin );
 
+  if($debug > 2) {
+    $Log->{PRINT}=1;
+  }
+  else {
+    $Log->{LOG_FILE} = $var_dir.'/log/ubiquiti_online.log';
+  }
 
   if($debug) {
     print "ubiquiti_online\n";
@@ -52,11 +59,11 @@ sub ubiquiti_online{
 
   #Get users mac
   my $list = $Dv->list( {
-      CID       => '!',
-      TP_ID     => '_SHOW',
-      PAGE_ROWS => 100000,
-      COLS_NAME => 1
-    } );
+    CID       => '!',
+    TP_ID     => '_SHOW',
+    PAGE_ROWS => 100000,
+    COLS_NAME => 1
+  } );
 
   my %users_mac = ();
   foreach my $line ( @{$list} ){
@@ -64,36 +71,40 @@ sub ubiquiti_online{
   }
 
   $list = $Nas->list( { %LIST_PARAMS,
-      NAS_TYPE         => 'unifi',
-      DISABLE          => 0,
-      NAS_MNG_IP_PORT  => '_SHOW',
-      NAS_MNG_USER     => '_SHOW',
-      NAS_MNG_PASSWORD => '_SHOW',
-      MAC              => '_SHOW',
-      COLS_UPPER       => 1,
-      COLS_NAME        => 1,
-    } );
+    NAS_TYPE         => 'unifi',
+    DISABLE          => 0,
+    NAS_MNG_IP_PORT  => '_SHOW',
+    NAS_MNG_USER     => '_SHOW',
+    NAS_NAME         => '_SHOW',
+    NAS_MNG_PASSWORD => '_SHOW',
+    MAC              => '_SHOW',
+    NAS_IDENTIFIER   => '_SHOW',
+    COLS_UPPER       => 1,
+    COLS_NAME        => 1,
+  });
 
   foreach my $nas_info ( @{$list} ){
     # check ips
     if ( $debug > 2 ){
-      print "NAS: $nas_info->{nas_id} MNG IP: $nas_info->{nas_mng_ip_port} MNG: $nas_info->{nas_mng_user}/$nas_info->{nas_mng_password}\n";
+      $Log->log_print('LOG_INFO', '',
+        "NAS: $nas_info->{nas_id} MNG IP: $nas_info->{nas_mng_ip_port} SITE: $nas_info->{nas_identifier} MNG: $nas_info->{nas_mng_user}/$nas_info->{nas_mng_password}");
     }
 
+    $conf{UNIFI_SITENAME}=$nas_info->{nas_identifier} || 'default';
     #Get billing online
     my %online_hash = ();
     $Sessions->online( {
-        CLIENT_IP          => '_SHOW',
-        ACCT_INPUT_OCTETS  => '_SHOW',
-        ACCT_OUTPUT_OCTETS => '_SHOW',
-        CID                => '_SHOW',
-        STARTED            => '_SHOW',
-        CONNECT_INFO       => '_SHOW',
-        CALLS_TP_ID        => '_SHOW',
-        NAS_ID             => $nas_info->{NAS_ID},
-        SKIP_DEL_CHECK     => 1,
-        COLS_NAME          => 1,
-      } );
+      CLIENT_IP          => '_SHOW',
+      ACCT_INPUT_OCTETS  => '_SHOW',
+      ACCT_OUTPUT_OCTETS => '_SHOW',
+      CID                => '_SHOW',
+      STARTED            => '_SHOW',
+      CONNECT_INFO       => '_SHOW',
+      CALLS_TP_ID        => '_SHOW',
+      NAS_ID             => $nas_info->{NAS_ID},
+      SKIP_DEL_CHECK     => 1,
+      COLS_NAME          => 1,
+    });
 
     my $online_nas = $Sessions->{nas_sorted};
 
@@ -111,14 +122,22 @@ sub ubiquiti_online{
     }
 
     #configureLWPUserAgent();
-    if ( !$Unifi->login() ){
-      print "Connect error: NAS: $nas_info->{nas_id} URL: $Unifi->{unifi_url}\n";
-      next;
-    }
+#    if ( !$Unifi->login() ){
+#      $Log->log_print('LOG_ERR', '',
+#        "Connect error: NAS: $nas_info->{nas_id} URL: $Unifi->{unifi_url} Error: $Unifi->{errno} $Unifi->{errstr}");
+#      next;
+#    }
 
     my $ap_user_list = $Unifi->users_list();
 
+    if ( $Unifi->{errno} ){
+      $Log->log_print('LOG_ERR', '',
+        "NAS: $nas_info->{nas_id} SITE: $nas_info->{nas_identifier} Error: $Unifi->{errno} $Unifi->{errstr}");
+      next;
+    }
+
     #Get unifi logins
+    my $total_sessions = $#{ $ap_user_list } + 1;
     for ( my $i = 0; $i <= $#{ $ap_user_list }; $i++ ){
       print "========> $i\n" if ($debug > 1);
 
@@ -162,39 +181,38 @@ sub ubiquiti_online{
       if ( $online_hash{$user_info->{_id}} ){
         print "Online update: $user_info->{_id}\n" if ($debug > 1);
         $Sessions->online_update( {
-            %acct_data,
-            STATUS => 3,
-          } );
+          %acct_data,
+          STATUS => 3,
+        } );
+
         delete $online_hash{$user_info->{_id}};
       }
       else{
         print "Online add: $user_info->{_id}\n" if ($debug > 1);
         $Sessions->online_add( {
-            %acct_data,
-            STARTED         => 'NOW()', #$user_info->{first_seen},
-            STATUS          => 1,
-            REPLACE_RECORDS => 1
-          } );
+          %acct_data,
+          STARTED         => 'NOW()', #$user_info->{first_seen},
+          STATUS          => 1,
+          REPLACE_RECORDS => 1
+        });
       }
     }
 
     #stop unknown sessions
-    my $total = 0;
+    my $stop_total = 0;
     foreach my $session_id ( sort keys  %online_hash ){
       if ( $debug > 1 ){
         print "Stop session: $session_id\n";
       }
 
-      my $ACCT_INFO = $Sessions->online_info(
-        {
-          NAS_ID          => $nas_info->{NAS_ID},
-          NAS_PORT        => $online_hash{$session_id}{nas_port_id},
-          ACCT_SESSION_ID => $session_id
-        }
-      );
+      my $ACCT_INFO = $Sessions->online_info({
+        NAS_ID          => $nas_info->{NAS_ID},
+        NAS_PORT        => $online_hash{$session_id}{nas_port_id},
+        ACCT_SESSION_ID => $session_id
+      });
 
       if ( $Sessions->{errno} ){
-        print "[$Sessions->{errno}] $Sessions->{errstr}\n";
+        $Log->log_print('LOG_ERR', '', "[$Sessions->{errno}] $Sessions->{errstr}\n");
         next;
       }
 
@@ -214,15 +232,15 @@ sub ubiquiti_online{
       $ACCT_INFO->{'Connect-Info'}         = $Sessions->{CONNECT_INFO};
       $ACCT_INFO->{'Framed-IP-Address'}    = $Sessions->{CLIENT_IP};
       $ACCT_INFO->{'Calling-Station-Id'}   = $Sessions->{CID};
-      $total++;
+      $stop_total++;
       $Acct->accounting( $ACCT_INFO, $nas_info );
     }
 
     if ( $debug > 1 ){
-      print "Total: $total\n";
+      print "$nas_info->{NAS_NAME} $conf{UNIFI_SITENAME} Total: $total_sessions Stoped: $stop_total\n";
     }
 
-    $Unifi->logout();
+    #$Unifi->logout();
   }
 
   return 1;

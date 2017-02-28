@@ -29,9 +29,9 @@ function make_unique() {
 <input type='hidden' name='sid' value='$sid'>
 <input type='hidden' name='SUM' value='' ID='SUM'>
 
-<div class='panel panel-form form-horizontal panel-primary'>
-<div class='panel-heading'>_{ICARDS}_</div>
-<div class='panel-body'>
+<div class='box box-form form-horizontal box-primary'>
+<div class='box-header with-border'>_{ICARDS}_</div>
+<div class='box-body'>
     <div class='form-group'>
         <label class='col-md-3 control-label'>_{COUNT}_:</label>
         <div class='col-md-9'>
@@ -45,7 +45,7 @@ function make_unique() {
         </div>
     </div>
 </div>
-<div class='panel-footer text-center'>
+<div class='box-footer text-center'>
 <input class='btn btn-primary' type='submit' name='add' value='_{ADD}_' onclick=\"make_unique(this.form)\">
 </div>
 </div>

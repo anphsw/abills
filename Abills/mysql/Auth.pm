@@ -64,6 +64,7 @@ sub new {
   }
 
   $self->{db} = $db;
+  $self->{conf} = $CONF;
 
   $CONF->{MB_SIZE} = $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE};
   $Billing = Billing->new($db, $CONF);
@@ -153,7 +154,7 @@ sub dv_auth {
   tp.active_day_fee,
   tp.neg_deposit_ippool AS neg_deposit_ip_pool,
   dv.expire AS dv_expire
-     FROM (dv_main dv)
+     FROM dv_main dv
      LEFT JOIN tarif_plans tp ON (dv.tp_id=tp.id $DOMAIN_ID)
      LEFT JOIN users_nas un ON (un.uid = dv.uid)
      LEFT JOIN tp_nas ON (tp_nas.tp_id = tp.tp_id)
@@ -184,7 +185,7 @@ sub dv_auth {
     }
     else {
       if ($CONF->{DV_STATUS_NEG_DEPOSIT} && $self->{NEG_DEPOSIT_FILTER_ID}) {
-        return $self->neg_deposit_filter_former($RAD, $NAS, $self->{NEG_DEPOSIT_FILTER_ID});
+        return $self->neg_deposit_filter_former($RAD, $NAS, $self->{NEG_DEPOSIT_FILTER_ID}, { RAD_PAIRS => $RAD_PAIRS  });
       }
       $RAD_PAIRS->{'Reply-Message'} = "Service Disabled $self->{DISABLE}";
       return 1, $RAD_PAIRS;
@@ -391,13 +392,14 @@ sub dv_auth {
 
     #Check deposit
     if ($self->{DEPOSIT} <= 0) {
-      $RAD_PAIRS->{'Reply-Message'} = "Negativ deposit '$self->{DEPOSIT}'. Rejected!";
+      $RAD_PAIRS->{'Reply-Message'} = "Negativ deposit '$self->{DEPOSIT}'";
 
       #Filtering with negative deposit
       if ($self->{NEG_DEPOSIT_FILTER_ID}) {
         return $self->neg_deposit_filter_former($RAD, $NAS, $self->{NEG_DEPOSIT_FILTER_ID}, { RAD_PAIRS => $RAD_PAIRS });
       }
       else {
+        $RAD_PAIRS->{'Reply-Message'} .= " Rejected!";
         return 1, $RAD_PAIRS;
       }
     }
@@ -581,18 +583,19 @@ sub dv_auth {
   if ($self->{IP} ne '0') {
     $RAD_PAIRS->{'Framed-IP-Address'} = "$self->{IP}";
     if (! $self->{REASSIGN}) {
-      $self->online_add({ %$attr, 
-                          NAS_ID            => $NAS->{NAS_ID},
-                          FRAMED_IP_ADDRESS => "INET_ATON('$self->{IP}')",
-                          NAS_IP_ADDRESS    => $RAD->{'NAS-IP-Address'},
-                        });
+      $self->online_add({
+        %$attr,
+        NAS_ID            => $NAS->{NAS_ID},
+        FRAMED_IP_ADDRESS => "INET_ATON('$self->{IP}')",
+        NAS_IP_ADDRESS    => $RAD->{'NAS-IP-Address'},
+      });
     }
     delete $self->{REASSIGN};
   }
   else {
     my $ip = $self->get_ip($NAS->{NAS_ID}, $RAD->{'NAS-IP-Address'}, { TP_IPPOOL => $self->{TP_IPPOOL} });
     if ($ip eq '-1') {
-      $RAD_PAIRS->{'Reply-Message'} = "Rejected! There is no free IPs in address pools (USED: $self->{USED_IPS})";
+      $RAD_PAIRS->{'Reply-Message'} = "Rejected! There is no free IPs in neg address pools (USED: $self->{USED_IPS})";
       return 1, $RAD_PAIRS;
     }
     elsif ($ip eq '0') {
@@ -757,8 +760,14 @@ sub dv_auth {
     elsif (defined($EX_PARAMS->{speed}->{0})) {
       # old way Make speed
       if ($CONF->{MIKROTIK_QUEUES} || $RAD->{'WISPr-Logoff-URL'}) {
-        $RAD_PAIRS->{'Ascend-Xmit-Rate'} = int($EX_PARAMS->{speed}->{0}->{IN}) * $CONF->{KBYTE_SIZE};
-        $RAD_PAIRS->{'Ascend-Data-Rate'} = int($EX_PARAMS->{speed}->{0}->{OUT})* $CONF->{KBYTE_SIZE};
+#        $RAD_PAIRS->{'Ascend-Xmit-Rate'} = int($EX_PARAMS->{speed}->{0}->{IN}) * $CONF->{KBYTE_SIZE};
+#        $RAD_PAIRS->{'Ascend-Data-Rate'} = int($EX_PARAMS->{speed}->{0}->{OUT})* $CONF->{KBYTE_SIZE};
+        # Mikrotik-Rate-Limit = 512K/1024K 1M/2M 256K/512K 32/32 5
+        $RAD_PAIRS->{'Mikrotik-Rate-Limit'} =
+          $EX_PARAMS->{speed}->{0}->{OUT}.'K/'.$EX_PARAMS->{speed}->{0}->{IN}.'K '.
+          $EX_PARAMS->{speed}->{0}->{OUT_BURST}.'K/'.$EX_PARAMS->{speed}->{0}->{IN_BURST}.'K '.
+          $EX_PARAMS->{speed}->{0}->{OUT_BURST_THRESHOLD}.'K/'.$EX_PARAMS->{speed}->{0}->{IN_BURST_THRESHOLD}.'K '.
+          $EX_PARAMS->{speed}->{0}->{OUT_BURST_TIME}.'/'.$EX_PARAMS->{speed}->{0}->{IN_BURST_TIME}.' 5';
       }
       # New way add to address list
       else {
@@ -873,13 +882,14 @@ sub dv_auth {
     }
 
     if(! $self->{IP} && $NAS->{NAS_TYPE} eq 'unifi') {
-      $self->online_add({ %$attr,
-                          CID               => $RAD->{'Calling-Station-Id'},
-                          ACCT_SESSION_ID   => $RAD->{'Acct-Session-Id'} || 'IP',
-                          NAS_ID            => $NAS->{NAS_ID},
-                          FRAMED_IP_ADDRESS => "INET_ATON('". $RAD->{'Framed-IP-Address'} ."')",
-                          NAS_IP_ADDRESS    => $NAS->{NAS_IP}
-                        });
+      $self->online_add({
+        %$attr,
+        CID               => $RAD->{'Calling-Station-Id'},
+        ACCT_SESSION_ID   => $RAD->{'Acct-Session-Id'} || 'IP',
+        NAS_ID            => $NAS->{NAS_ID},
+        FRAMED_IP_ADDRESS => "INET_ATON('". $RAD->{'Framed-IP-Address'} ."')",
+        NAS_IP_ADDRESS    => $NAS->{NAS_IP}
+      });
     }
   }
   #Auto assing MAC in first connect
@@ -1080,7 +1090,7 @@ sub authentication {
       return 1, \%RAD_PAIRS;
     }
 
-    AUTH:
+    #AUTH:
 
     my $WHERE = '';
     if ($NAS->{DOMAIN_ID}) {
@@ -1238,7 +1248,7 @@ sub mac_auth {
   #my $auth_name = $RAD->{'User-Name'};
 
   if ($CONF->{DV_LOGIN}) {
-  	$self->query2("SELECT uid, dv_login AS login FROM dv_main WHERE dv_login= ? ;", undef, { INFO => 1, Bind => [ $RAD->{'User-Name'} ] });
+    $self->query2("SELECT uid, dv_login AS login FROM dv_main WHERE dv_login= ? ;", undef, { INFO => 1, Bind => [ $RAD->{'User-Name'} ] });
   }
   elsif($CONF->{AUTH_DV_CID}) {
     $self->query2("SELECT dv.uid,
@@ -1261,9 +1271,12 @@ sub mac_auth {
       undef, { INFO => 1, Bind => [ $RAD->{'Calling-Station-Id'} ] });
   }
   else{
-    my $user_auth_params = opt82_parse($RAD);
+    my $user_auth_params = $self->opt82_parse($RAD);
     $user_auth_params->{USER_MAC} = $RAD->{'Calling-Station-Id'};
     $self->dhcp_info($user_auth_params, $NAS);
+#    if ($self->{DHCP_STATIC_IP} && $self->{DHCP_STATIC_IP} ne '0.0.0.0') {
+#      $self->{IP}=$self->{DHCP_STATIC_IP};
+#    }
   }
 
   if ($self->{errno}) {
@@ -1276,8 +1289,8 @@ sub mac_auth {
     return 1, \%RAD_PAIRS;
   }
  
-  #$self->{LOGIN}=$self->{USER_NAME} if ($self->{USER_NAME});
-  $RAD->{'User-Name'} = $self->{USER_NAME};
+  $self->{LOGIN}=$self->{USER_NAME} if ($self->{USER_NAME});
+  #$RAD->{'User-Name'} = $self->{USER_NAME};
   #DIsable
   if ($self->{DISABLE}) {
     $RAD_PAIRS{'Reply-Message'} = "Account Disable";
@@ -1385,9 +1398,25 @@ sub check_company_account {
       traf_limit
       deposit
       TT_INTERVAL
+      BILLLING
 
   Require:
     $self->{TT_INTERVAL}
+
+  Returns:
+    \%EX_PARAMS
+       ex_speed
+       traf_limit_lo
+       traf_limit
+       speed->{XX}->{IN}
+       speed->{XX}->{OUT}
+
+       speed->{XX}->{IN_BURST}
+       speed->{XX}->{OUT_BURST}
+       speed->{XX}->{IN_BURST_THRESHOLD}
+       speed->{XX}->{OUT_BURST_THRESHOLD}
+       speed->{XX}->{IN_BURST_TIME}
+       speed->{XX}->{OUT_BURST_TIME}
 
 =cut
 #*******************************************************************
@@ -1400,23 +1429,26 @@ sub ex_traffic_params {
     $self->{TT_INTERVAL}=$attr->{TT_INTERVAL};
   }
 
+  if($attr->{BILLING}) {
+    $Billing = $attr->{BILLING};
+  }
+
   my %EX_PARAMS = ();
   $EX_PARAMS{traf_limit} = (defined($attr->{traf_limit})) ? $attr->{traf_limit} : 0;
   $EX_PARAMS{traf_limit_lo} = 4090;
 
   my %prepaids      = (0 => 0, 1 => 0);
-#  my %speeds        = ();
   my %in_prices     = ();
   my %out_prices    = ();
   my %trafic_limits = ();
   my %expr          = ();
-#  my $nets = 0;
 
   $self->query2("SELECT id, in_price, out_price, prepaid, in_speed, out_speed, net_id, expression
-             FROM trafic_tarifs
-             WHERE interval_id= ?;",
-             undef,
-             { Bind => [ $self->{TT_INTERVAL} ] }
+    ,burst_limit_dl,burst_limit_ul,burst_threshold_dl,burst_threshold_ul,burst_time_dl,burst_time_ul
+     FROM trafic_tarifs
+     WHERE interval_id= ?;",
+    undef,
+    { Bind => [ $self->{TT_INTERVAL} ] }
   );
 
   if ($self->{TOTAL} < 1) {
@@ -1435,6 +1467,12 @@ sub ex_traffic_params {
     $EX_PARAMS{speed}{ $line->[0] }{OUT} = $line->[5];
     $expr{ $line->[0] }                  = $line->[7] if (length($line->[7]) > 5);
     $EX_PARAMS{nets} = 1 if ($line->[6] > 0);
+    $EX_PARAMS{speed}{ $line->[0] }{IN_BURST} = $line->[8];
+    $EX_PARAMS{speed}{ $line->[0] }{OUT_BURST} = $line->[9];
+    $EX_PARAMS{speed}{ $line->[0] }{IN_BURST_THRESHOLD} = $line->[10];
+    $EX_PARAMS{speed}{ $line->[0] }{OUT_BURST_THRESHOLD} = $line->[11];
+    $EX_PARAMS{speed}{ $line->[0] }{IN_BURST_TIME} = $line->[12];
+    $EX_PARAMS{speed}{ $line->[0] }{OUT_BURST_TIME} = $line->[13];
   }
 
   #Get tarfic limit if prepaid > 0 or
@@ -1447,6 +1485,7 @@ sub ex_traffic_params {
     elsif ($self->{ACCOUNT_ACTIVATE} ne '0000-00-00') { 
       $start_period = "DATE_FORMAT(start, '%Y-%m-%d')>='$self->{ACCOUNT_ACTIVATE}'";
     }
+
     my $used_traffic = $Billing->get_traffic(
       {
         UID    => $self->{UID},
@@ -1653,7 +1692,7 @@ sub get_ip {
 
   #Get reserved IP with status 11
   if (! $self->{LOGINS}) {
-  	$self->{USER_NAME} = '' if (! $self->{USER_NAME});
+    $self->{USER_NAME} = '' if (! $self->{USER_NAME});
     $self->query2("SELECT INET_NTOA(framed_ip_address) AS ip FROM dv_calls 
        WHERE user_name='$self->{USER_NAME}' 
          AND status=11 
@@ -1665,8 +1704,12 @@ sub get_ip {
     }
   }
 
+  delete $self->{GATEWAY}, $self->{NETMASK}, $self->{DNS}, $self->{NTP};
+
   if ($attr->{TP_IPPOOL}) {
-    $self->query2("SELECT ippools.ip, ippools.counts, ippools.id, ippools.next_pool_id
+    $self->query2("SELECT ippools.ip, ippools.counts, ippools.id, ippools.next_pool_id,
+      IF(ippools.gateway > 0, INET_NTOA(ippools.gateway), 0),
+      IF(ippools.netmask > 0, INET_NTOA(ippools.netmask), ''), dns, ntp
     FROM ippools
      WHERE ippools.id='$attr->{TP_IPPOOL}'
      ORDER BY ippools.priority;"
@@ -1675,7 +1718,9 @@ sub get_ip {
     delete ($attr->{TP_IPPOOL});
   }
   else {
-    $self->query2("SELECT ippools.ip, ippools.counts, ippools.id, ippools.next_pool_id 
+    $self->query2("SELECT ippools.ip, ippools.counts, ippools.id, ippools.next_pool_id,
+      IF(ippools.gateway > 0, INET_NTOA(ippools.gateway), ''),
+      IF(ippools.netmask > 0, INET_NTOA(ippools.netmask), ''), dns, ntp
     FROM ippools, nas_ippools
      WHERE ippools.id=nas_ippools.pool_id AND nas_ippools.nas_id='$nas_num'
      ORDER BY ippools.priority;"
@@ -1687,16 +1732,22 @@ sub get_ip {
   }
 
   my @pools_arr      = ();
-  my $list           = $self->{list};
+  my $pool_list      = $self->{list};
   my @used_pools_arr = ();
   my $next_pool_id   = 0;
   my %poolss         = ();
+  my %pool_info      = ();
 
-  foreach my $line (@$list) {
+  foreach my $line (@$pool_list) {
     my $sip   = $line->[0];
     my $count = $line->[1];
     my $id    = $line->[2];
     $next_pool_id = $line->[3];
+    $pool_info{$id}{GATEWAY}=$line->[4];
+    $pool_info{$id}{NETMASK}=$line->[5];
+    $pool_info{$id}{DNS}=$line->[6];
+    $pool_info{$id}{NTP}=$line->[7];
+
     push @used_pools_arr, $id;
     my %pools = ();
 
@@ -1710,7 +1761,7 @@ sub get_ip {
     else {
       push @pools_arr, \%pools;
       if($next_pool_id) {
-    	  last;
+        last;
       }
     }
   }
@@ -1733,11 +1784,11 @@ sub get_ip {
     GROUP BY c.framed_ip_address;"
   );
 
-  $list = $self->{list};
+  my $list = $self->{list};
   $self->{USED_IPS} = 0;
 
   my %pool = %{ $pools_arr[0] };
-
+  my $active_pool = 0;
   for (my $i = 0 ; $i <= $#pools_arr ; $i++) {
     %pool = %{ $pools_arr[$i] };
     foreach my $ip (@$list) {
@@ -1746,6 +1797,7 @@ sub get_ip {
         $self->{USED_IPS}++;
       }
     }
+    $active_pool = $used_pools_arr[$i];
     last if (scalar(keys %pool) > 0);
   }
 
@@ -1755,11 +1807,12 @@ sub get_ip {
   if ($assign_ip) {
     # Make reserv ip
     if (! $attr->{SKIP_RESERV}) {
-      $self->online_add({ %$attr, 
-                          NAS_ID            => $nas_num,
-                          FRAMED_IP_ADDRESS => $assign_ip,
-                          NAS_IP_ADDRESS    => $nas_ip
-                        });
+      $self->online_add({
+        %$attr,
+        NAS_ID            => $nas_num,
+        FRAMED_IP_ADDRESS => $assign_ip,
+        NAS_IP_ADDRESS    => $nas_ip
+      });
     }
 
     $db_->do('unlock tables');
@@ -1771,6 +1824,14 @@ sub get_ip {
       my $x=($assign_ip/65536)%256;
       my $y=($assign_ip/256)%256;
       my $z=$assign_ip%256;
+
+      if($pool_info{$active_pool}) {
+        $self->{GATEWAY} = $pool_info{$active_pool}{GATEWAY};
+        $self->{NETMASK} = $pool_info{$active_pool}{NETMASK};
+        $self->{DNS} = $pool_info{$active_pool}{DNS};
+        $self->{NTP} = $pool_info{$active_pool}{NTP};
+      }
+
       return "$w.$x.$y.$z";
     }
   }
@@ -1799,24 +1860,25 @@ sub online_add {
   my ($attr)=@_;
 
   my %insert_hash = (
-       user_name       => $self->{USER_NAME}, 
-       uid             => $self->{UID} || 0, 
-       nas_id          => $attr->{NAS_ID}, 
-       nas_port_id     => $attr->{NAS_PORT_ID},
-       tp_id           => $self->{TP_NUM}, 
-       join_service    => $self->{JOIN_SERVICE}, 
-       guest           => $attr->{GUEST},
-       CID             => $attr->{CID}, 
-       CONNECT_INFO    => $attr->{CONNECT_INFO},
-       #nas_ip_address  => $attr->{NAS_IP_ADDRESS},
-       framed_ip_address => $attr->{FRAMED_IP_ADDRESS}
+    user_name       => $self->{USER_NAME},
+    uid             => $self->{UID} || 0,
+    nas_id          => $attr->{NAS_ID},
+    nas_port_id     => $attr->{NAS_PORT_ID},
+    tp_id           => $self->{TP_NUM},
+    join_service    => $self->{JOIN_SERVICE},
+    guest           => $attr->{GUEST},
+    CID             => $attr->{CID},
+    CONNECT_INFO    => $attr->{CONNECT_INFO},
+    #nas_ip_address  => $attr->{NAS_IP_ADDRESS},
+    framed_ip_address => $attr->{FRAMED_IP_ADDRESS}
+    #acct_session_id
   );
 
   if (! $attr->{NAS_ID}) {
     `echo "$self->{USER_NAME} nas_id: $attr->{NAS_ID} guest:  $attr->{GUEST} " >> /tmp/nas_id`;
   }
 
-  my $sql = "INSERT INTO dv_calls SET started=now(),
+  my $sql = "INSERT INTO dv_calls SET started=NOW(),
        lupdated        = UNIX_TIMESTAMP(),
        status          = '11',
        acct_session_id = 'IP',
@@ -2000,12 +2062,13 @@ sub neg_deposit_filter_former {
       elsif ($ip eq '0') {
         #$RAD_PAIRS->{'Reply-Message'}="$self->{errstr} ($NAS->{NAS_ID})";
         #return 1, $RAD_PAIRS;
-        $self->online_add({ %$attr, 
-                          NAS_ID            => $NAS->{NAS_ID},
-                          FRAMED_IP_ADDRESS => "INET_ATON('$self->{IP}')",
-                          NAS_IP_ADDRESS    => $RAD->{'NAS-IP-Address'},
-                          GUEST             => 1
-                         });
+        $self->online_add({
+          %$attr,
+          NAS_ID            => $NAS->{NAS_ID},
+          FRAMED_IP_ADDRESS => "INET_ATON('$self->{IP}')",
+          NAS_IP_ADDRESS    => $RAD->{'NAS-IP-Address'},
+          GUEST             => 1
+        });
       }
       else {
         $RAD_PAIRS->{'Framed-IP-Address'} = "$ip";
@@ -2013,6 +2076,10 @@ sub neg_deposit_filter_former {
     }
 
     $self->{INFO} = "Neg filter";
+    if($RAD_PAIRS->{'Reply-Message'}) {
+      $RAD_PAIRS->{'Reply-Message'} .= ' GUEST';
+    }
+
     if ($attr->{MESSAGE}) {
       $self->{INFO} .= ' '.$attr->{MESSAGE};
     }
@@ -2026,7 +2093,7 @@ sub neg_deposit_filter_former {
     rad_pairs_former($rad_pairs, $attr);
   }
   else {
-    $RAD_PAIRS->{'Filter-Id'} = "$NEG_DEPOSIT_FILTER_ID";
+    $RAD_PAIRS->{'Filter-Id'} = $NEG_DEPOSIT_FILTER_ID;
   }
 
   $self->{GUEST_MODE}=1 if (! $attr->{USER_FILTER});
@@ -2095,10 +2162,12 @@ sub rad_pairs_former  {
     $RAD_REQUEST
     $attr
       AUTH_EXPR
+        NAS_MAC, PORT (convert from hex), PORT_MULTI (not converted), DEC_PORT (dec port value), VLAN,
+        SERVER_VLAN, AGENT_REMOTE_ID, CIRCUIT_ID, LOGIN
 
   Returns:
     RESULTS - hash_ref
-      NAS_MAC, PORT, VLAN, SERVER_VLAN, AGENT_REMOTE_ID, CIRCUIT_ID
+      NAS_MAC, PORT, VLAN, SERVER_VLAN, AGENT_REMOTE_ID, CIRCUIT_ID, LOGIN
 
   Conf:
     $conf{AUTH_EXPR}='';
@@ -2110,11 +2179,16 @@ sub rad_pairs_former  {
 =cut
 #**********************************************************
 sub opt82_parse {
+  my $self = shift;
   my ($RAD_REQUEST, $attr) = @_;
 
   my %result      =  ();
   my $hex2ansii   = '';
   my @o82_expr_arr = ();
+
+  if($self->{conf}) {
+    $CONF = $self->{conf};
+  }
 
   if($attr->{AUTH_EXPR}) {
     $CONF->{AUTH_EXPR}=$attr->{AUTH_EXPR};
@@ -2146,7 +2220,7 @@ sub opt82_parse {
         if (my @res = ($input_value =~ /$expr_/i)) {
           for (my $i=0; $i <= $#res ; $i++) {
             if ($CONF->{AUTH_EXPR_DEBUG} && $CONF->{AUTH_EXPR_DEBUG} > 3) {
-              $expr_debug .= "$EXPR_IDS[$i] / $res[$i]\n" if ($CONF->{AUTH_EXPR_DEBUG});
+              $expr_debug .= "$EXPR_IDS[$i] / $res[$i]\n";
             }
 
             $result{$EXPR_IDS[$i]}=$res[$i];
@@ -2170,7 +2244,7 @@ sub opt82_parse {
     }
 
     if ($CONF->{AUTH_EXPR_DEBUG} && $CONF->{AUTH_EXPR_DEBUG} > 2) {
-      undef = `echo "$expr_debug" >> /tmp/dhcphosts_expr`;
+      `echo "$expr_debug" >> /tmp/dhcphosts_expr`;
       if ($CONF->{AUTH_EXPR_DEBUG} > 3) {
         print $expr_debug."-- \n";
       }
@@ -2205,7 +2279,8 @@ sub opt82_parse {
   }
 
   $result{VLAN} = $result{VLAN_DEC} || hex($result{VLAN} || 0);
-  $result{PORT} = $result{PORT_DEC} || hex($result{PORT} || 0);
+  $result{PORT} = $result{PORT_MULTI} || $result{PORT_DEC} || hex($result{PORT} || 0);
+
   if (! $result{SERVER_VLAN}) {
     $result{SERVER_VLAN} = '';
   }
@@ -2215,6 +2290,13 @@ sub opt82_parse {
 
 #**********************************************************
 =head2 dhcp_info($attr, $NAS)
+
+  Arguments:
+    $attr
+    $NAS
+
+  Results:
+    $self
 
 =cut
 #**********************************************************
@@ -2250,12 +2332,20 @@ sub dhcp_info {
     push @WHERE_RULES, "n.mac='$attr->{NAS_MAC}' AND dh.ports='$attr->{PORT}'";
     $self->{INFO} = "NAS_MAC: $attr->{NAS_MAC} PORT: $attr->{PORT} VLAN: $attr->{VLAN} MAC: $attr->{USER_MAC}";
   }
+  elsif ($attr->{LOGIN}) {
+    push @WHERE_RULES, "u.id='$attr->{LOGIN}'";
+  }
+  elsif ($CONF->{AUTH_IP}) {
+    push @WHERE_RULES, "dh.ip=INET_ATON('$attr->{IP}')";
+    $self->{INFO} = "AUTH IP '$attr->{IP}'";
+    $self->{IPOE_IP} = $attr->{IP};
+  }
   elsif ($attr->{USER_MAC}) {
     push @WHERE_RULES, "dh.mac='$attr->{USER_MAC}'";
     $self->{INFO} = "USER MAC '$attr->{USER_MAC}'";
   }
 
-  my $WHERE = ($#WHERE_RULES > -1) ? join(' and ', @WHERE_RULES) : '';
+  my $WHERE = ($#WHERE_RULES > -1) ? join(' AND ', @WHERE_RULES) : '';
   $self->query2("SELECT
       u.uid,
       INET_NTOA(dh.ip) AS dhcp_static_ip,
@@ -2322,6 +2412,75 @@ sub dhcp_info {
   return $self;
 }
 
+#**********************************************************
+=head2 leases_add($attr, $NAS) - Add IP to leases
+
+  Arguments:
+    $attr
+      RESERVED_IP
+      GUEST_MODE
+      GUEST_LEASES
+
+      LEASES_TIME
+      USER_MAC
+      UID
+      CIRCUIT_ID
+      AGENT_REMOTE_ID
+      HOSTNAME
+      IP
+      PORT
+      VLAN
+      NAS_MAC
+
+    $NAS
+
+=cut
+#**********************************************************
+sub leases_add {
+  my $self   = shift;
+  my ($attr, $NAS) = @_;
+
+  return $self if ($self->{RESERVED_IP} && $self->{GUEST_MODE} == $self->{GUEST_LEASES});
+
+  # DELETE OLD leases
+  $self->{UID}=0 if (! $self->{UID});
+  $self->query2("DELETE FROM dhcphosts_leases WHERE (ip=INET_ATON( ? ) AND nas_id= ? )
+    OR (uid= ?  AND flag<> ? );", 'do',
+    { Bind => [
+        $self->{IP},
+        $NAS->{NAS_ID},
+        $self->{UID},
+        $self->{GUEST_MODE} || 0
+      ]});
+
+  #add to dhcp table
+  $self->query2("INSERT INTO dhcphosts_leases
+      (start, ends, state, next_state, hardware, uid,
+       circuit_id, remote_id, hostname,
+       nas_id, ip, port, vlan, switch_mac, flag,
+       dhcp_id)
+    VALUES (NOW(),
+      NOW() + INTERVAL ? SECOND, 2, 1,
+      ?, ?, ?, ?, ?, ?, INET_ATON( ? ), ?, ?, ?, ?, ?)", 'do',
+    { Bind => [
+        ($attr->{LEASES_TIME} + 60),
+        $attr->{USER_MAC},
+        $self->{UID},
+        $attr->{CIRCUIT_ID} || q{},
+        $attr->{AGENT_REMOTE_ID} || q{},
+        (($attr->{HOSTNAME}) ? $attr->{HOSTNAME} : '' ),
+        $NAS->{NAS_ID} || 0,
+        $self->{IP},
+        $attr->{PORT} || '',
+        $attr->{VLAN} || 0,
+        $attr->{NAS_MAC} || 0,
+        (($self->{GUEST_MODE}) ? 1 : 0),
+        $CONF->{DHCP_ID} || 0
+      ]}
+  );
+
+  return $self;
+}
 
 1;
 

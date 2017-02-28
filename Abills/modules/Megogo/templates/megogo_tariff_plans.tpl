@@ -4,10 +4,10 @@
 <input type='hidden' name='ID' value=%ID%>
 <input type='hidden' name='action' value=%ACTION%>
 
-<div class='panel panel-primary panel-form'>
-<div class='panel-heading text-primary'>$lang{TP}</div>
+<div class='box box-theme box-form'>
+<div class='box-header with-border text-primary'>$lang{TP}</div>
 
-<div class='panel-body'>
+<div class='box-body'>
 
 	<div class='form-group'>
 		<label class='control-label col-md-3'>$lang{TP}</label>
@@ -36,7 +36,7 @@
 
 </div>
 
-<div class='panel-footer text-center'>
+<div class='box-footer text-center'>
 	<button type='submit' class='btn btn-primary'>%BUTTON%</button>
 </div>
 

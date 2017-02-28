@@ -1,19 +1,17 @@
-<TABLE width='400' border='0' cellpadding='0' cellspacing='0' class='noprint'>
-<tr><TD bgcolor='$_COLORS[9]'>
-<TABLE width='100%' border=0 cellpadding='2' cellspacing='1'>
-<tr><TD bgcolor='$_COLORS[1]'>
-<TABLE width='100%'>
-<tr bgcolor='#FF0000'><th>_{ERROR}_</th></tr>
-<tr><td>
-	  <p>You try to brute password and system block your account.<br>
-	  Please conntact system administrator.
-	  </p>
-
-	  <p>�� �������� ��������� ������ ������������� � ������� ������������� ��� ������<br>
-	  ��� ������� �������� ���������� � ��������������.
-	  </p>
-	  
-	  
-</td></tr></table>
-</TD></TR></TABLE>
-</TD></TR></TABLE>
+<div class='box box-danger'>
+	<div class='box-header with-border'>
+		_{ERROR}_
+	</div>
+	<div class='box-body table'>
+		<div class='row' style='margin: 5px 0'>
+			<div class='text-center'>
+				You try to brute password and system block your account.<br>
+				Please contact system administrator.
+            </div>
+			<div class='text-center'>
+				Вы пробуете подбирать пароли пользователей и система заблокировала Ваш аккаунт<br>
+				Для решения проблемы обратитесь к администратору.
+			</div>
+		</div>
+	</div>
+</div>

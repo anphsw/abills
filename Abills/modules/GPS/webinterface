@@ -1,10 +1,14 @@
 #!perl
 =head1 NAME
+
   GPS web managment
+  
 =cut
 
 use strict;
 use warnings FATAL => 'all';
+
+use Abills::Base qw/sec2time time2sec/;
 
 our $db;
 our $admin;
@@ -313,7 +317,11 @@ sub gps_report{
   my $date_start = $FORM{DATE_START} || $DATE;
   my $date_end = $FORM{DATE_END} || $DATE;
   my $admin_aid = $FORM{ADMIN_ID} || undef;
-
+  
+  # Neccessary to calculate length
+  require Maps;
+  Maps->import();
+    
   my $by_date = { };
   my $stats = { };
 
@@ -414,25 +422,26 @@ sub gps_report{
     foreach my $adm ( @{$admins_list} ){
       my $aid = $adm->{aid};
       my $adm_stats = $stats->{$aid}->{$date};
-      #      print "<hr>stats $adm->{aid} " . Dumper $stats->{$adm->{aid}};
-
       my $name = '';
       if ( !$admin_aid ){
         $name = $adm->{name} || $adm->{login};
-      } else{
+      }
+      else{
         $name = $date;
       }
-
+      $adm_stats->{work_time} = abs $adm_stats->{work_time};
+      
       my $time = sec2time( $adm_stats->{work_time}, { format => 1 } );
+      
       #ground to meters
       my $kilometers = $adm_stats->{kilometers};
 
-      $stats_avg->{$aid}->{work_time} += $time;
+      $stats_avg->{$aid}->{work_time} += $adm_stats->{work_time};
       $stats_avg->{$aid}->{kilometers} += $kilometers;
       $stats_avg->{$aid}->{stats_count}++;
 
       my $route_btn = '';
-      if ( $time > 0 ){
+      if ( $adm_stats->{work_time} > 0 ){
         my $maps_index = get_function_index( 'maps_show_poins' );
         my $link = "?index=$maps_index&show_gps=$aid&DATE=$date";
 
@@ -563,7 +572,7 @@ sub get_route_length{
 
   my $sum = 0;
   for ( my $i = 0, my $len = ((scalar @{$list}) - 1); $i < $len; $i++ ){
-    my $length = gps_distance(
+    my $length = Maps::mercator_to_meters(
       @{$list}[$i]->{coord_x},
       @{$list}[$i]->{coord_y},
       @{$list}[$i + 1]->{coord_x},
@@ -574,55 +583,42 @@ sub get_route_length{
     }
   }
 
-  #ground to meters
+  # ground to meters
   return int( $sum * 1000 ) / 1000;
+}
 
-  #http://www.avislab.com/blog/gps-distance/
-  sub gps_distance{
-    my ($x1, $y1, $x2, $y2) = @_;
-    use constant {
-      EARTH_RADIUS => 6372795,
-      PI           => 3.1415926535
-    };
+#**********************************************************
+=head2 gps_maps_layers()
 
-    my ($lat1, $long1, $lat2, $long2);
-    my ($lat1_cos, $lat2_cos, $lat1_sin, $lat2_sin);
-    my ($sin_delta_long, $cos_delta_long);
-    my ($y, $x);
-
-    $lat1 = gps_convert_to_rad( $x1 );
-    $long1 = gps_convert_to_rad( $y1 );
-
-    $lat2 = gps_convert_to_rad( $x2 ); # Координаты точки
-    $long2 = gps_convert_to_rad( $y2 );
-
-    $lat1_cos = cos( $lat1 );
-    $lat2_cos = cos( $lat2 );
-    $lat1_sin = sin( $lat1 );
-    $lat2_sin = sin( $lat2 );
-
-    $sin_delta_long = sin( $long2 - $long1 );
-    $cos_delta_long = cos( $long2 - $long1 );
-
-    $y = sqrt( ( $lat2_cos * $sin_delta_long) ** 2 + ( $lat1_cos * $lat2_sin - $lat1_sin * $lat2_cos * $cos_delta_long) ** 2 );
-    $x = $lat1_sin * $lat2_sin + $lat1_cos * $lat2_cos * $cos_delta_long;
-
-    return (atan2( $y, $x ) * EARTH_RADIUS) / 1000;
-
-    sub gps_convert_to_rad{
-      my ($data) = @_;
-      my $rad;
-
-      $rad = abs( $data ) * PI / 180;
-
-      if ( $data <= 0 ){
-        return -1 * $rad
-      }
-
-      return $rad;
+=cut
+#**********************************************************
+sub gps_maps_layers {
+  return {
+    LAYERS => [ {
+      id         => 8,
+      name       => 'GPS',
+      lang_name  => 'GPS',
+      module     => 'GPS',
+      structure  => 'MARKER',
+      clustering => 0
+    },
+    {
+      id         => 9,
+      name       => 'GPS_ROUTE',
+      lang_name  => 'GPS ' . $lang{ROUTE},
+      module     => 'GPS',
+      structure  => 'MARKERS_POLYLINE',
+      clustering => 0
+    } ],
+    SCRIPTS     => [ '/styles/default_adm/js/maps/modules/gps.js' ],
+    EXPORT_FUNC => {
+      8  => 'maps_gps_show',
+      9  => 'maps_gps_route_show'
     }
   }
 }
+
+
 
 #**********************************************************
 =head2 extract_date($date_time, $get_time)

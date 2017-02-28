@@ -31,7 +31,6 @@ our ($db,
   %permissions,
   %ADMIN_REPORT,
   $var_dir,
-
 );
 
 require Sys::Hostname;
@@ -72,8 +71,7 @@ sub ipn_detail{
   }
 
   if ( defined( $FORM{search} ) ){
-    #$pages_qs .= "&search=1&FROM_DATE=$FORM{FROM_DATE}&TO_DATE=$FORM{TO_DATE}";
-    $LIST_PARAMS{INTERVAL} = "$FORM{FROM_DATE}/$FORM{TO_DATE}";
+    $LIST_PARAMS{INTERVAL} = "$FORM{FROM_DATE}/$FORM{TO_DATE}" if($FORM{FROM_DATE});
   }
   elsif ( $FORM{UID} ){
     return 0;
@@ -91,10 +89,12 @@ sub ipn_detail{
     if ( $Sessions->{TOTAL} ){
       $LIST_PARAMS{IP} = $session_list->[0]->{ip};
       $LIST_PARAMS{INTERVAL} = "$session_list->[0]->{start}/$session_list->[0]->{end}";
-      $html->message( 'info', $lang{INFO}, "$lang{SESSION_ID}: $session_list->[0]->{acct_session_id}" );
-      foreach my $line ( @{$session_list} ){
-        print $html->button( "$line->{start} - $line->{end}",
-            "index=$index&LOGIN=$FORM{LOGIN}&ACCT_SESSION_ID=$line->{acct_session_id}&search=1", { BUTTON => 1 } )
+      if (! $FORM{qindex}) {
+        $html->message( 'info', $lang{INFO}, "$lang{SESSION_ID}: $session_list->[0]->{acct_session_id}" );
+        foreach my $line (@{$session_list}) {
+          print $html->button( "$line->{start} - $line->{end}",
+              "index=$index&LOGIN=$FORM{LOGIN}&ACCT_SESSION_ID=$line->{acct_session_id}&search=1", { BUTTON => 1 } )
+        }
       }
     }
   }
@@ -104,7 +104,7 @@ sub ipn_detail{
 
   my $list = $Ipn->user_detail( { UID => $user->{UID}, %LIST_PARAMS } );
   _error_show( $Ipn );
-
+  $pages_qs =~ s/\&get_index=ipn_detail//g;
   my $table = $html->table(
     {
       caption    => $lang{DETAIL},
@@ -113,6 +113,7 @@ sub ipn_detail{
       cols_align => [ 'left', 'right', 'right', 'right', 'right', 'right', 'right' ],
       pages      => $Ipn->{TOTAL},
       qs         => $pages_qs,
+      EXPORT     => 1,
       ID         => 'IPN_DETAIL'
     }
   );
@@ -464,10 +465,10 @@ sub ipn_sessions{
     $Ipn->{SEL_NAS} = $html->form_select(
       'NAS_ID',
       {
-        SELECTED          => $FORM{NAS_ID},
-        SEL_MULTI_ARRAY   => $Nas->list( { %LIST_PARAMS, PAGE_ROWS => 1000 } ),
-        MULTI_ARRAY_KEY   => 0,
-        MULTI_ARRAY_VALUE => '1,4,3',
+        SELECTED  => $FORM{NAS_ID},
+        SEL_LIST  => $Nas->list( { %LIST_PARAMS, PAGE_ROWS => 1000, COLS_NAME => 1 } ),
+        SEL_KEY   => 'nas_id',
+        SEL_VALUE => 'nas_name,ip,nas_type',
       }
     );
 
@@ -682,7 +683,7 @@ sub ipn_use{
   my $out        = '';
   my %TRAFFIC_CLASS = ();
   my $table_sessions;
-  my $table;
+  my Abills::HTML $table;
   my $list;
 
   #Day reports
@@ -1108,8 +1109,8 @@ sub ipn_session_detail{
 
   $Sessions->session_detail( { %FORM } );
 
-  $Sessions->{_SENT} = int2byte( $Sessions->{SENT} );
-  $Sessions->{_RECV} = int2byte( $Sessions->{RECV} );
+  $Sessions->{_SENT}  = int2byte( $Sessions->{SENT} );
+  $Sessions->{_RECV}  = int2byte( $Sessions->{RECV} );
   $Sessions->{_SENT2} = int2byte( $Sessions->{SENT2} );
   $Sessions->{_RECV2} = int2byte( $Sessions->{RECV2} );
 
@@ -1149,7 +1150,7 @@ sub ipn_session_detail{
       cols_align => [ 'right', 'right', 'right', 'right', 'right', 'right', 'right' ],
       pages      => $Sessions->{TOTAL},
       qs         => $pages_qs,
-      ID         => 'IPN_DETAIL'
+      ID         => 'IPN_DETAIL',
     }
   );
 
@@ -1199,8 +1200,7 @@ sub ipn_user_activate{
   my $static_ip= $Dv->{IP};
 
   if ( $Dv->{STATUS} && $Dv->{STATUS} > 0 ){
-    my @service_status = ("$lang{ENABLE}", "$lang{DISABLE}", "$lang{NOT_ACTIVE}", "$lang{HOLD_UP}",
-      "$lang{DISABLE}: $lang{NON_PAYMENT}", "$lang{ERR_SMALL_DEPOSIT}");
+    my $service_status = sel_status({ HASH_RESULT => 1 });
 
     load_module( "Dv", $html );
 
@@ -1208,7 +1208,7 @@ sub ipn_user_activate{
       dv_user_info();
     }
     else{
-      $html->message( 'err', $lang{ERROR}, "$service_status[$Dv->{STATUS}]", { ID => 162 } );
+      $html->message( 'err', $lang{ERROR}, "$service_status->{$Dv->{STATUS}}", { ID => 162 } );
     }
 
     return 1 if (!$FORM{activate});
@@ -1729,147 +1729,147 @@ sub ipn_change_status{
 #**********************************************************
 #
 #**********************************************************
-sub ipn_club_monitor{
-  #my %status_colors = (
-  #  10 => '#00FF00',
-  #  11 => undef
-  #);
-  if ( $FORM{ACTIVE} ){
-    ipn_change_status(
-      {
-        STATUS              => 'ONLINE_ENABLE',
-          USER_NAME         => $FORM{ACTIVE},
-          FRAMED_IP_ADDRESS => $FORM{ip},
-          ACCT_SESSION_ID   => $FORM{ACCT_SESSION_ID},
-      }
-    );
-  }
-  elsif ( $FORM{DEACTIVE} ){
-    ipn_change_status(
-      {
-        STATUS              => 'ONLINE_DISABLE',
-          FRAMED_IP_ADDRESS => $FORM{ip},
-          USER_NAME         => $FORM{DEACTIVE},
-          ACCT_SESSION_ID   => $FORM{ACCT_SESSION_ID},
-      }
-    );
-  }
-  elsif ( $FORM{HANGUP} ){
-    ipn_change_status(
-      {
-        STATUS                 => 'HANGUP',
-          FRAMED_IP_ADDRESS    => $FORM{HANGUP},
-          ACCT_TERMINATE_CAUSE => 6
-      }
-    );
-  }
-  elsif ( $FORM{ping} ){
-    host_diagnostic( $FORM{ping} );
-  }
-  elsif ( $FORM{DETAIL} ){
-
-    $LIST_PARAMS{SESSION_ID} = $FORM{DETAIL};
-    ipn_sessions2();
-  }
-
-  $Sessions->online( { %LIST_PARAMS, FIELDS => [ 0, 1, 2, 3, 4, 5, 6, 14, 9, 10, 15 ] } );
-  #my $dub_logins = $Sessions->{dub_logins};
-
-  my $table = $html->table(
-    {
-      width      => '100%',
-      caption    => "Online",
-      title      => [ "$lang{USER}", "$lang{FIO}", "$lang{NUM}", "IP", "$lang{DURATION}", "$lang{RECV}", "$lang{SENT}", "$lang{SUM}", "-", "-", '-', '-' ],
-      cols_align => [ 'left', 'left', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'center' ],
-      ID         => 'Online',
-      qs         => $pages_qs,
-    }
-  );
-
-  my $online = $Sessions->{nas_sorted};
-  my $nas_list = $Nas->list( { TYPE => 'ipcad' } );
-  my %DATA_HASH = ();
-  my %AVG = (
-    MONEY   => 0,
-    TRAFFIC => 0
-  );
-
-  my $num = 0;
-  my @X_TEXT = ();
-
-  foreach my $nas_row ( @{$nas_list} ){
-    next if (!defined( $online->{ $nas_row->[0] } ));
-
-    my $l = $online->{ $nas_row->[0] };
-    my $total = $#{@{$l}} + 1;
-    $table->{rowcolor} = $_COLORS[0];
-    $table->{extra} = "colspan='8' class='small'";
-    $table->addrow( "$nas_row->[0]:" . $html->b( $nas_row->[1] ) . ":$nas_row->[3]:$lang{TOTAL}: $total" );
-
-    foreach my $line ( @{$l} ){
-      undef($table->{rowcolor});
-      undef($table->{extra});
-
-      my $ip = int2ip( $line->[3] );
-      my $status =
-          ($line->[10] == 10 || $line->[10] == 3 || $line->[10] == 1)
-        ? "(" . $html->button( "DEACTIVE", "index=$index&DEACTIVE=$line->[0]&ip=$ip&ACCT_SESSION_ID=$line->[9]",
-          { TITLE => 'Status' } ) . ")"
-        : "(" . $html->button( "$lang{ACTIVATE}", "index=$index&ACTIVE=$line->[0]&ip=$ip&ACCT_SESSION_ID=$line->[9]",
-          { TITLE => 'active users' } ) . ")";
-      my $user_info = "$lang{FIO}: $line->[1]\n$lang{PHONE}: $line->[12]\n$lang{TARIF_PLAN}: $line->[13]\n$lang{DEPOSIT}: $line->[14]\n" . "$lang{CREDIT}: $line->[15]\n$lang{SPEED}: $line->[16]\nSESSION_ID: $line->[9]\nCID: $line->[24]\nCONNECT_INFO: $line->[18]\nUPDATES: $line->[20]";
-
-      $table->addrow(
-        $html->button( $line->[0], "index=11&UID=$line->[13]", { TITLE => "$user_info" } ),
-        $line->[1], $line->[2], $ip, $line->[4],
-        int2byte( $line->[5] ),
-        int2byte( $line->[6] ),
-        $line->[7], "$status",
-        $html->button( "$lang{DETAIL}", "index=$index&DETAIL=$line->[21]", { TITLE => 'Detail', class => 'stats' } ),
-        $html->button( 'P', "index=$index&ping=$ip", { TITLE => 'ping', BUTTON => 1 } ),
-        $html->button( 'H', "index=$index&HANGUP=$ip&SESSION_ID=$line->[9]", { TITLE => 'Hangup', class => 'off' } )
-      );
-
-      $num++;
-      $DATA_HASH{MONEY}[$num] = $line->[7];
-      push @X_TEXT, "$line->[2]:$line->[0]";
-    }
-  }
-
-  print $table->show();
-
-  $table = $html->table(
-    {
-      width       => '100%',
-      title_plain => [ "$lang{REFRESH} (sec): " . $html->form_input( 'REFRESH', int( $FORM{REFRESH} ), { SIZE => 4 } ),
-        $html->form_input( 'SHOW', $lang{SHOW}, { TYPE => 'SUBMIT' } ) ],
-    }
-  );
-
-  print $html->form_main(
-      {
-        CONTENT => $table->show(),
-        HIDDEN  => { index => "$index" },
-        METHOD  => 'GET'
-      }
-    );
-
-  print $html->make_charts(
-      {
-        X_TEXT             => \@X_TEXT,
-        DATA               => \%DATA_HASH,
-        AVG                => \%AVG,
-        TYPE               => [ 'bar' ],
-        AXIS_CATEGORY_skip => 0,
-        TRANSITION         => 1,
-        CHART_RECT_width   => 400,
-        CHART_RECT_height  => $#X_TEXT * 22,
-        CHART_RECT_x       => 70
-      }
-    );
-
-  return 1;
-}
+#sub ipn_club_monitor{
+#  #my %status_colors = (
+#  #  10 => '#00FF00',
+#  #  11 => undef
+#  #);
+#  if ( $FORM{ACTIVE} ){
+#    ipn_change_status(
+#      {
+#        STATUS              => 'ONLINE_ENABLE',
+#          USER_NAME         => $FORM{ACTIVE},
+#          FRAMED_IP_ADDRESS => $FORM{ip},
+#          ACCT_SESSION_ID   => $FORM{ACCT_SESSION_ID},
+#      }
+#    );
+#  }
+#  elsif ( $FORM{DEACTIVE} ){
+#    ipn_change_status(
+#      {
+#        STATUS              => 'ONLINE_DISABLE',
+#          FRAMED_IP_ADDRESS => $FORM{ip},
+#          USER_NAME         => $FORM{DEACTIVE},
+#          ACCT_SESSION_ID   => $FORM{ACCT_SESSION_ID},
+#      }
+#    );
+#  }
+#  elsif ( $FORM{HANGUP} ){
+#    ipn_change_status(
+#      {
+#        STATUS                 => 'HANGUP',
+#          FRAMED_IP_ADDRESS    => $FORM{HANGUP},
+#          ACCT_TERMINATE_CAUSE => 6
+#      }
+#    );
+#  }
+#  elsif ( $FORM{ping} ){
+#    host_diagnostic( $FORM{ping} );
+#  }
+#  elsif ( $FORM{DETAIL} ){
+#
+#    $LIST_PARAMS{SESSION_ID} = $FORM{DETAIL};
+#    ipn_sessions2();
+#  }
+#
+#  $Sessions->online( { %LIST_PARAMS, FIELDS => [ 0, 1, 2, 3, 4, 5, 6, 14, 9, 10, 15 ] } );
+#  #my $dub_logins = $Sessions->{dub_logins};
+#
+#  my $table = $html->table(
+#    {
+#      width      => '100%',
+#      caption    => "Online",
+#      title      => [ "$lang{USER}", "$lang{FIO}", "$lang{NUM}", "IP", "$lang{DURATION}", "$lang{RECV}", "$lang{SENT}", "$lang{SUM}", "-", "-", '-', '-' ],
+#      cols_align => [ 'left', 'left', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'center' ],
+#      ID         => 'Online',
+#      qs         => $pages_qs,
+#    }
+#  );
+#
+#  my $online = $Sessions->{nas_sorted};
+#  my $nas_list = $Nas->list( { TYPE => 'ipcad' } );
+#  my %DATA_HASH = ();
+#  my %AVG = (
+#    MONEY   => 0,
+#    TRAFFIC => 0
+#  );
+#
+#  my $num = 0;
+#  my @X_TEXT = ();
+#
+#  foreach my $nas_row ( @{$nas_list} ){
+#    next if (!defined( $online->{ $nas_row->[0] } ));
+#
+#    my $l = $online->{ $nas_row->[0] };
+#    my $total = $#{@{$l}} + 1;
+#    $table->{rowcolor} = $_COLORS[0];
+#    $table->{extra} = "colspan='8' class='small'";
+#    $table->addrow( "$nas_row->[0]:" . $html->b( $nas_row->[1] ) . ":$nas_row->[3]:$lang{TOTAL}: $total" );
+#
+#    foreach my $line ( @{$l} ){
+#      undef($table->{rowcolor});
+#      undef($table->{extra});
+#
+#      my $ip = int2ip( $line->[3] );
+#      my $status =
+#          ($line->[10] == 10 || $line->[10] == 3 || $line->[10] == 1)
+#        ? "(" . $html->button( "DEACTIVE", "index=$index&DEACTIVE=$line->[0]&ip=$ip&ACCT_SESSION_ID=$line->[9]",
+#          { TITLE => 'Status' } ) . ")"
+#        : "(" . $html->button( "$lang{ACTIVATE}", "index=$index&ACTIVE=$line->[0]&ip=$ip&ACCT_SESSION_ID=$line->[9]",
+#          { TITLE => 'active users' } ) . ")";
+#      my $user_info = "$lang{FIO}: $line->[1]\n$lang{PHONE}: $line->[12]\n$lang{TARIF_PLAN}: $line->[13]\n$lang{DEPOSIT}: $line->[14]\n" . "$lang{CREDIT}: $line->[15]\n$lang{SPEED}: $line->[16]\nSESSION_ID: $line->[9]\nCID: $line->[24]\nCONNECT_INFO: $line->[18]\nUPDATES: $line->[20]";
+#
+#      $table->addrow(
+#        $html->button( $line->[0], "index=11&UID=$line->[13]", { TITLE => "$user_info" } ),
+#        $line->[1], $line->[2], $ip, $line->[4],
+#        int2byte( $line->[5] ),
+#        int2byte( $line->[6] ),
+#        $line->[7], "$status",
+#        $html->button( "$lang{DETAIL}", "index=$index&DETAIL=$line->[21]", { TITLE => 'Detail', class => 'stats' } ),
+#        $html->button( 'P', "index=$index&ping=$ip", { TITLE => 'ping', BUTTON => 1 } ),
+#        $html->button( 'H', "index=$index&HANGUP=$ip&SESSION_ID=$line->[9]", { TITLE => 'Hangup', class => 'off' } )
+#      );
+#
+#      $num++;
+#      $DATA_HASH{MONEY}[$num] = $line->[7];
+#      push @X_TEXT, "$line->[2]:$line->[0]";
+#    }
+#  }
+#
+#  print $table->show();
+#
+#  $table = $html->table(
+#    {
+#      width       => '100%',
+#      title_plain => [ "$lang{REFRESH} (sec): " . $html->form_input( 'REFRESH', int( $FORM{REFRESH} ), { SIZE => 4 } ),
+#        $html->form_input( 'SHOW', $lang{SHOW}, { TYPE => 'SUBMIT' } ) ],
+#    }
+#  );
+#
+#  print $html->form_main(
+#      {
+#        CONTENT => $table->show(),
+#        HIDDEN  => { index => "$index" },
+#        METHOD  => 'GET'
+#      }
+#    );
+#
+#  print $html->make_charts(
+#      {
+#        X_TEXT             => \@X_TEXT,
+#        DATA               => \%DATA_HASH,
+#        AVG                => \%AVG,
+#        TYPE               => [ 'bar' ],
+#        AXIS_CATEGORY_skip => 0,
+#        TRANSITION         => 1,
+#        CHART_RECT_width   => 400,
+#        CHART_RECT_height  => $#X_TEXT * 22,
+#        CHART_RECT_x       => 70
+#      }
+#    );
+#
+#  return 1;
+#}
 
 #**********************************************************
 #
@@ -1925,6 +1925,7 @@ sub ipn_club_monitor{
 #  }
 #  print $table->show();
 #}
+
 
 #**********************************************************
 =head2 ipn_user_add()
@@ -2032,24 +2033,22 @@ sub ipn_user_add{
   $Ipn->{TP_SEL} = $html->form_select(
     'TP_ID',
     {
-      SEL_MULTI_ARRAY   => $tariffs->list(),
-      MULTI_ARRAY_KEY   => 0,
-      MULTI_ARRAY_VALUE => 1,
+      SEL_LIST   => $tariffs->list({ COLS_NAME => 1, NAME => '_SHOW' }),
+      SEL_KEY   => 'id',
+      SEL_VALUE => 'name',
     }
   );
 
-  my $nas_list = $Nas->list( { %LIST_PARAMS } );
   $Ipn->{NAS_SEL} = $html->form_select(
     'NAS_ID',
     {
-      SEL_MULTI_ARRAY   => $nas_list,
-      MULTI_ARRAY_KEY   => 0,
-      MULTI_ARRAY_VALUE => 1,
+      SEL_LIST  => $Nas->list( { %LIST_PARAMS, COLS_NAME => 1 } ),
+      SEL_KEY   => 'nas_id',
+      SEL_VALUE => 'nas_name',
     }
   );
 
   if ( $Ipn->{TOTAL} > 0 ){
-
     my $session_list = $Sessions->online( { %LIST_PARAMS } );
     foreach my $line ( @{$session_list} ){
       if ( defined( $allow_comps{ int2ip( $line->{client_ip} ) } ) ){
@@ -2070,7 +2069,9 @@ sub ipn_user_add{
 }
 
 #**********************************************************
-#
+=head2 ipn_getnet()
+
+=cut
 #**********************************************************
 sub ipn_getnet{
 
@@ -2784,10 +2785,11 @@ sub ipn_start_active{
 
   #Get TPs
   my %TPS = ();
-  my $tp_list = $tariffs->list( { MODULES => 'Dv',
-      COLS_NAME                           => 1,
-      PAYMENT_TYPE                        => '_SHOW'
-    } );
+  my $tp_list = $tariffs->list( {
+    MODULES      => 'Dv',
+    COLS_NAME    => 1,
+    PAYMENT_TYPE => '_SHOW'
+  } );
 
   foreach my $line ( @{$tp_list} ){
     $TPS{ $line->{id} } = $line->{payment_type} if ($line->{payment_type});
@@ -2865,7 +2867,7 @@ sub ipn_start_active{
   foreach my $dv_user ( @{$dv_list} ){
     my $filter_id    = $dv_user->{filter_id} || '';
     my $login        = $dv_user->{login};
-    my $ip           = $dv_user->{ip};
+    my $ip           = $dv_user->{ip} || int2ip($dv_user->{ip_num});
     my $netmask      = $dv_user->{netmask};
     my $connect_info = '';
     my $uid          = $dv_user->{uid};
@@ -2902,7 +2904,7 @@ sub ipn_start_active{
 
     $debug_output .= "LOGIN: $login IP: $ip NAS_ID: $nas_id CONNECT_INFO: $connect_info UID: $uid FILTER_ID: $filter_id\n" if ($debug > 3);
 
-    reset %nas_pools_hash;
+    reset(%nas_pools_hash);
     foreach my $start_ip ( keys %nas_pools_hash ){
       my ($end_ip, $id) = split( /:/, $nas_pools_hash{$start_ip}, 2 );
 

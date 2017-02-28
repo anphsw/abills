@@ -1,5 +1,7 @@
+<div class='col-xs-12 col-md-6'>
 <input type=hidden name=COMPANY_ID value='$FORM{COMPANY_ID}'>
-<div class='panel panel-form'>
+<div class='box box-theme'>
+	<div class='box-body'>
 	<div class='form-group'>
 		<label class='col-md-3 control-label'>_{CUSTOMER}_ (*):</label>
 		<div class='col-md-9'>
@@ -48,4 +50,6 @@
 			<input class='form-control' type=text name=CONTRACT_ID value='%CONTRACT_ID%'>
 		</div>
 	</div>
+</div>
+</div>
 </div>

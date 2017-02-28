@@ -3,9 +3,9 @@
     <input type='hidden' name='signature' value='%SIGN%'/>
     <input type='hidden' name='language' value='ru'/>
     <div class='container-fluid'>
-        <div class='panel panel-primary'>
-            <div class='panel-heading text-center'>LiqPAY</div>
-            <div class='panel-body'>
+        <div class='box box-primary'>
+            <div class='box-header with-border text-center'>LiqPAY</div>
+            <div class='box-body'>
                 <div class='form-group'>
                     <img class='col-xs-8 col-xs-offset-2' src='https://www.liqpay.com/static/img/logo.png' />
                 </div>
@@ -34,7 +34,7 @@
                     <label class='font-weight-bold col-md-6 form-control-label'>$FORM{TOTAL_SUM}</label>
                 </div>
             </div>
-            <div class='panel-footer text-center'>
+            <div class='box-footer text-center'>
                 <input class='btn btn-primary' type='submit' value='_{PAY}_'>
             </div>
         </div>

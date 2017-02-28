@@ -319,7 +319,7 @@ sub stats_info{
 
   my $list = $self->stats_list( { COLS_NAME => 1, ID => $id, SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 } );
 
-  return $list->[0];
+  return $list->[0] || {};
 }
 
 #**********************************************************

@@ -6,36 +6,41 @@
     <input type='hidden' name='CHAPTER' value='%CHAPTER%'/>
     <input type='hidden' name='INNER_MSG' value='%INNER_MSG%'/>
 
-    <div class='table'>
+    <div class='row'>
         <div class='col-md-9' id='reply_wrapper' style='margin-top: 15px;'>
+            <div class='box %MAIN_PANEL_COLOR%'>
+                <div class='box-header with-border'>
+                <div class='row'>
+                <div class='col-md-9'>
+                    <div class='box-title'> %SUBJECT%</div>
+                    </div>
 
-            <div class='panel panel-default %MAIN_PANEL_COLOR%'>
-                <div class='panel-heading'>
-                    <div class='panel-title'> %SUBJECT%</div>
+                    <div class='col-md-3 pull-right'>%RATING_ICONS%</div>
+                    </div>
                 </div>
-                <div class='panel-body'>
+                <div class='box-body text-left'>
                         <div class='row'>
-                            <div class='col-md-3 text-left'><strong>#:</strong></div>
-                            <div class='col-md-3 text-left'><span class='badge %MAIN_PANEL_COLOR%'>%ID%</span></div>
+                            <div class='col-md-3'><strong>#:</strong></div>
+                            <div class='col-md-3'><span class='badge %MAIN_PANEL_COLOR%'>%ID%</span></div>
 
-                            <div class='col-md-3 text-left'><strong>_{CHAPTERS}_:</strong></div>
-                            <div class='col-md-3 text-left'>%CHAPTER_NAME%</div>
+                            <div class='col-md-3'><strong>_{CHAPTERS}_:</strong></div>
+                            <div class='col-md-3'>%CHAPTER_NAME%</div>
                         </div>
 
                         <div class='row'>
-                            <div class='col-md-3 text-left'><strong>_{STATUS}_:</strong></div>
-                            <div class='col-md-3 text-left'>%STATE_NAME%</div>
+                            <div class='col-md-3'><strong>_{STATUS}_:</strong></div>
+                            <div class='col-md-3'>%STATE_NAME%</div>
 
-                            <div class='col-md-3 text-left'><strong>_{PRIORITY}_:</strong></div>
-                            <div class='col-md-3 text-left'>%PRIORITY_TEXT%</div>
+                            <div class='col-md-3'><strong>_{PRIORITY}_:</strong></div>
+                            <div class='col-md-3'>%PRIORITY_TEXT%</div>
                         </div>
 
                         <div class='row'>
-                            <div class='col-md-3 text-left'><strong>_{CREATED}_:</strong></div>
-                            <div class='col-md-3 text-left'>%DATE%</div>
+                            <div class='col-md-3'><strong>_{CREATED}_:</strong></div>
+                            <div class='col-md-3'>%DATE%</div>
 
-                            <div class='col-md-3 text-left'><strong>_{UPDATED}_:</strong></div>
-                            <div class='col-md-3 text-left'>%UPDATED%</div>
+                            <div class='col-md-3'><strong>_{UPDATED}_:</strong></div>
+                            <div class='col-md-3'>%UPDATED%</div>
                         </div>
 
                         <!-- progres start -->
@@ -46,21 +51,21 @@
             </div>
             
 
-            <div class='panel panel-primary'>
-                <div class='panel-heading'>
-                    <h5 class='panel-title'>%LOGIN% _{ADDED}_: %DATE%</h5>
+            <div class='box box-theme'>
+                <div class='box-header with-border'>
+                    <h5 class='box-title'>%LOGIN% _{ADDED}_: %DATE%</h5>
                 </div>
-                <div class='panel-body' style='text-align: left'>
+                <div class='box-body' style='text-align: left'>
                     %MESSAGE%
                     <div class='pull-right'>%QUOTING% %DELETE%</div>
                 </div>
-                <div class='panel-footer'>%RUN_TIME% %ATTACHMENT%</div>
+                <div class='box-footer'>%RUN_TIME% %ATTACHMENT%</div>
             </div>
 
             %REPLY%
-
+            %REPLY_FORM%
         </div>
-        <div class='col-md-3' id='ext_wrapper'>
+        <div class='col-md-3' id='ext_wrapper' style='margin-top: 15px;'>
             %EXT_INFO%
         </div>
 

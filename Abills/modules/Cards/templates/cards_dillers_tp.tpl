@@ -3,9 +3,9 @@
 <input type=hidden name='index' value='$index'>
 <input type=hidden name='ID' value='%ID%'>
 
-<div class='panel panel-form panel-primary form-horizontal'>
-<div class='panel-heading'>_{TARIF_PLANS}_</div>
-<div class='panel-body'>
+<div class='box box-form box-primary form-horizontal'>
+<div class='box-header with-border'>_{TARIF_PLANS}_</div>
+<div class='box-body'>
   <div class='form-group'>
     <label class='col-md-3 control-label'>_{NAME}_:</label>
     <div class='col-md-9'>
@@ -81,7 +81,7 @@ TOTAL_SUM>100=PRICE:20;' name='PAYMENT_EXPR' cols=20 rows=5>%PAYMENT_EXPR%</text
     </div>
   </div>
 </div>
-<div class='panel-footer'>
+<div class='box-footer'>
   <input class='btn btn-primary' type=submit name='%ACTION%' value='%LNG_ACTION%'>
 </div>
 </div>

@@ -6,7 +6,7 @@
 
 =cut
 
-#use strict;
+use strict;
 
 my $domain_path = '';
 our $Bin;
@@ -14,6 +14,7 @@ our %FORM;
 our $admin;
 our $html;
 our %lang;
+our %conf;
 
 use FindBin '$Bin';
 if ($admin->{DOMAIN_ID}) {
@@ -67,7 +68,7 @@ sub _include {
 
   foreach my $result_template (@search_paths) {
     if($attr->{DEBUG}) {
-      print $realfilename . "\n";
+      print $result_template . "\n";
     }
 
     if (-f $result_template) {
@@ -120,20 +121,34 @@ sub tpl_content {
   my ($filename) = @_;
   my $tpl_content = '';
 
-  # $s =~ s/\{(\w+)\}/$lang{$1}/sg;
-
   open(my $fh, '<', $filename) || die "Can't open file '$filename' $!";
     while (<$fh>) {
       if (/\$/) {
         my $res = $_;
-        $res =~ s/\_\{(\w+)\}\_/$lang{$1}/sg;
-        $res =~ s/\{secretkey\}//g;
-        $res =~ s/\{dbpasswd\}//g;
-        $tpl_content .= eval " \"$res\" ";
+        if($res) {
+          $res =~ s/\_\{(\w+)\}\_/$lang{$1}/sg;
+          $res =~ s/\{secretkey\}//g;
+          $res =~ s/\{dbpasswd\}//g;
+          $res = eval " \"$res\" " if($res !~ /\`/);
+          $tpl_content .= $res || q{};
+        }
       }
       else {
+        # Old
         s/\_\{(\w+)\}\_/$lang{$1}/sg;
         $tpl_content .= $_;
+#        # New check speed
+#        my $row = $_;
+#        if ($row =~ /\_\{(\w+)\}\_/sg) {
+#          my $text = $1;
+#          if($lang{$text}) {
+#            $row =~ s/\_\{(\w+)\}\_/$lang{$text}/sg;
+#          }
+#          else {
+#            $row =~ s/\_\{(\w+)\}\_/$text/sg;
+#          }
+#        }
+#        $tpl_content .= $row;
       }
     }
   close($fh);
@@ -155,8 +170,33 @@ sub tpl_content {
 sub templates {
   my ($tpl_name) = @_;
 
+  if(! $conf{base_dir}) {
+    $conf{base_dir} = '/usr/abills/';
+  }
+
+  my @search_paths = (
+    #Lang tpls
+    $Bin . "/../../Abills/templates/" . '_' . "$tpl_name" . '.tpl',
+    $Bin . "/../Abills/templates/_$tpl_name" . "_$html->{language}.tpl",
+    #$Bin . "/../../Abills/main_tpls/$tpl_name" . "_$html->{language}.tpl",
+    #$Bin . "/../Abills/main_tpls/$tpl_name" . "_$html->{language}.tpl",
+    #Main tpl
+    $Bin . "/../Abills/templates/_$tpl_name" . ".tpl",
+    $Bin . "/../../Abills/main_tpls/$tpl_name" . ".tpl",
+    $Bin . "/../Abills/main_tpls/$tpl_name" . ".tpl",
+    $conf{base_dir} . "/Abills/main_tpls/$tpl_name" . ".tpl",
+    $conf{base_dir} . "/Abills/templates/$tpl_name" . ".tpl",
+  );
+
   if ($admin->{DOMAIN_ID}) {
     $domain_path = "$admin->{DOMAIN_ID}/";
+    @search_paths = (
+      $Bin . "/../../Abills/templates/$domain_path" . '_' . "$tpl_name" . "_$html->{language}.tpl",
+      $Bin . "/../Abills/templates/$domain_path" . '_' . "$tpl_name" . "_$html->{language}.tpl",
+      $Bin . "/../../Abills/templates/$domain_path" . '_' . "$tpl_name" . '.tpl',
+      $Bin . "/../Abills/templates/$domain_path" . '_' . "$tpl_name" . ".tpl",
+      @search_paths
+    );
   }
 
   #Nas path
@@ -167,24 +207,6 @@ sub templates {
     return tpl_content($Bin . "/../Abills/templates/$domain_path" . '/' . $FORM{NAS_GID} . '/' . "_$tpl_name" . ".tpl");
   }
   else {
-
-    my @search_paths = (
-      #Lang tpls
-         $Bin . "/../../Abills/templates/$domain_path" . '_' . "$tpl_name" . "_$html->{language}.tpl",
-         $Bin . "/../Abills/templates/$domain_path" . '_' . "$tpl_name" . "_$html->{language}.tpl",
-         $Bin . "/../Abills/templates/_$tpl_name" . "_$html->{language}.tpl",
-         $Bin . "/../../Abills/main_tpls/$tpl_name" . "_$html->{language}.tpl",
-         $Bin . "/../Abills/main_tpls/$tpl_name" . "_$html->{language}.tpl",
-      #Main tpl
-         $Bin . "/../../Abills/templates/$domain_path" . '_' . "$tpl_name" . '.tpl',
-         $Bin . "/../Abills/templates/$domain_path" . '_' . "$tpl_name" . ".tpl",
-         $Bin . "/../Abills/templates/_$tpl_name" . ".tpl",
-         $Bin . "/../../Abills/main_tpls/$tpl_name" . ".tpl",
-      $Bin . "/../Abills/main_tpls/$tpl_name" . ".tpl",
-      $conf{base_dir} . "/Abills/main_tpls/$tpl_name" . ".tpl",
-      $conf{base_dir} . "/Abills/templates/$tpl_name" . ".tpl",
-    );
-
     foreach my $tpl ( @search_paths ) {
       if (-f $tpl) {
         return tpl_content($tpl);

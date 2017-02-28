@@ -3,8 +3,8 @@
     <input type=hidden name=ID value=%ID%>
 
     <fieldset>
-        <div class='panel panel-default panel-form'>
-            <div class='panel-body form form-horizontal'>
+        <div class='box box-theme box-form'>
+            <div class='box-body form form-horizontal'>
                 <legend>_{SEARCH}_</legend>
                 <div class='form-group'>
                     <label class='col-md-3 control-label'>_{ADMIN}_: </label>
@@ -12,7 +12,7 @@
                 </div>
                 %ADDRESS_FORM%
             </div>
-            <div class='panel-footer'>
+            <div class='box-footer'>
                 <input class='btn btn-primary' type=submit name=show_installation value=_{SHOW}_>
             </div>
         </div>

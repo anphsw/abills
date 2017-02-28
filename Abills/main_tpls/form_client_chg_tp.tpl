@@ -4,11 +4,11 @@
     <input type=hidden name=m value='%m%'>
     <input type=hidden name='index' value='$index'>
 
-    <div class='panel panel-primary'>
-        <div class='panel-heading text-center'>
+    <div class='box box-primary'>
+        <div class='box-header with-border text-center'>
             <h4>_{TARIF_PLANS}_</h4>
         </div>
-        <div class='panel-body form form-horizontal'>
+        <div class='box-body form form-horizontal'>
             <div class='form-group'>
                 <label class='col-md-2 control-label'>_{CURRENT}_:</label>
                 <label class='cold-md-10 control-label'>$user->{TP_ID} %TP_NAME% </label>
@@ -25,7 +25,7 @@
                 %SHEDULE_LIST%
             </div>
         </div>
-        <div class='panel-footer text-center'>
+        <div class='box-footer text-center'>
             <div name='modalOpen_TP_CHG' class='btn btn-primary' id='modalOpen_TP_CHG'
                    data-toggle='modal' data-target='#changeTPModal'>%LNG_ACTION%</div>
         </div>

@@ -1,7 +1,7 @@
-<div class='panel panel-primary panel-form'>
+<div class='box box-theme box-form'>
 
-  <div class='panel-heading text-center'><h4>Mikrotik Hotspot</h4></div>
-  <div class='panel-body'>
+  <div class='box-header with-border'><h4 class='box-title'>Mikrotik Hotspot</h4></div>
+  <div class='box-body'>
 
     <form name='MIKROTIK_HOTSPOT' id='form_MIKROTIK_HOTSPOT' method='post' class='form form-horizontal'>
       <input type='hidden' name='index' value='$index'/>
@@ -20,18 +20,20 @@
       <div class='form-group'>
         <label class='control-label col-md-3 required' for='HOTSPOT_DNS_NAME_id'>ABillS IP _{ADDRESS}_</label>
         <div class='col-md-9'>
-          <input type='text' class='form-control ip-input' required name='BILLING_IP_ADDRESS' value='%BILLING_ADDRESS%'/>
+          <input type='text' class='form-control ip-input' required name='BILLING_IP_ADDRESS' value='%BILLING_IP_ADDRESS%'/>
         </div>
       </div>
 
+      <div class='form-group bg-info'>
+        <h4>Hotspot</h4>
+      </div>
+
       <div class='form-group'>
-        <label class='control-label col-md-3 required'>Mikrotik _{INTERFACE}_</label>
+        <label class='control-label col-md-3 required'>Hotspot _{INTERFACE}_</label>
         <div class='col-md-9'>
           %INTERFACE_SELECT%
         </div>
       </div>
-
-      <hr>
 
       <div class='form-group'>
         <label class='control-label col-md-3 required' for='HOTSPOT_ADDRESS_id'>IP _{ADDRESS}_</label>
@@ -98,7 +100,7 @@
     </form>
 
   </div>
-  <div class='panel-footer text-center'>
+  <div class='box-footer text-center'>
     <input type='submit' form='form_MIKROTIK_HOTSPOT' class='btn btn-primary' name='action' value='_{SET}_'>
   </div>
 </div>

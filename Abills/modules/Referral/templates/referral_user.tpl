@@ -1,5 +1,5 @@
-<div class='panel panel-default text-left'>
-    <div class='panel-body'>
+<div class='box box-theme text-left'>
+    <div class='box-body'>
         <div class='row %REFFERER_ROW_HIDDEN%'>
             <span class='col-md-3'>_{REFERRER}_</span>
             <div class='col-md-9'>

@@ -6,32 +6,34 @@
 
 =cut
 
+use strict;
 use FindBin '$Bin';
 
 my $debug   = 0;
-my $version = 0.02;
+my $version = 0.03;
+BEGIN {
+  our %conf;
+  require $Bin.'/../libexec/config.pl';
+  unshift(@INC,
+    $Bin.'/../',
+    $Bin.'/../Abills',
+    $Bin.'/../lib/',
+    $Bin."/../Abills/$conf{dbtype}");
+}
 
-require $Bin . '/../libexec/config.pl';
-unshift(@INC, $Bin . '/../', $Bin . '/../Abills', $Bin . "/../Abills/$conf{dbtype}");
+our(
+  %lang,
+  %conf,
+  $DATE
+);
 
-require Abills::SQL;
-Abills::SQL->import();
-
-require Abills::Base;
-Abills::Base->import();
-
-require Admins;
-Admins->import();
-require Dv_Sessions;
-Dv_Sessions->import();
-require Dv;
-Dv->import();
-
-require Finance;
-Finance->import();
-
-require Users;
-Users->import();
+use Abills::SQL;
+use Abills::Base;
+use Admins;
+use Dv_Sessions;
+use Dv;
+use Finance;
+use Users;
 
 my $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
 
@@ -48,9 +50,9 @@ $admin->info($conf{USERS_WEB_ADMIN_ID} ? $conf{USERS_WEB_ADMIN_ID} : $conf{SYSTE
 
 require "Abills/Misc.pm";
 
-my $ARGV = parse_arguments(\@ARGV);
+my $argv = parse_arguments(\@ARGV);
 
-if ($ARGV->{help}) {
+if ($argv->{help}) {
   exit;
 }
 
@@ -67,13 +69,13 @@ sub show_warning {
 
   if ($debug > 1 ) {
     print "Args: ";
-    print %$ARGV;
+    print %$argv;
     print "\n";
   }
 
   my ($Y, $m, $d)=split(/\-/, $DATE);
 
-  my $user_list = $Users->list({ LOGIN     => $ARGV->{LOGIN}, 
+  my $user_list = $Users->list({ LOGIN     => $argv->{LOGIN}, 
                                  DEPOSIT   => '_SHOW', 
                                  COLS_NAME => 1,
                                  PAGE_ROWS => 1 
@@ -83,7 +85,7 @@ sub show_warning {
   my $month_deposit = 0;
 
   my $list = $Fees->list({ 
-      LOGIN     => $ARGV->{LOGIN} || '-',
+      LOGIN     => $argv->{LOGIN} || '-',
       SUM       => '_SHOW',
       LAST_DEPOSIT => '_SHOW',
       DATE      => "<=$Y-$m-01",

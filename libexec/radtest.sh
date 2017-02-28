@@ -1,9 +1,11 @@
 #!/bin/sh
-# Test radius inputs and outputs
+# Test radius inputs and outputs uing freeradius tools radclient
+#
+#**********************************************************
 
 AUTH_LOG=/usr/abills/var/log/abills.log
 ACCT_LOG=/usr/abills/var/log/acct.log
-VERSION=0.17
+VERSION=0.18
 
 
 USER_NAME=test
@@ -23,7 +25,6 @@ DIRNAME=`dirname $0`
 RAUTH=${DIRNAME}"/rauth.pl";
 RACCT=${DIRNAME}"/racct.pl";
 RADTEST=radtest
-#echo `pwd -P`;
 
 
 #Default Alive packes
@@ -35,47 +36,22 @@ ACCT_OUTPUT_OCTETS=14260000
 ACCT_OUTPUT_GIGAWORDS=0
 ACCT_SESSION_TIME=300
 
-
 #**********************************************************
-#
+# Test coa request
 #**********************************************************
-#test_isg {
+_coa () {
 
-#Test user account
-#User-Name = "123.123.244.194"
-#        User-Password = "ISG"
-#        Framed-IP-Address = 123.123.244.194
-#        Cisco-Account-Info = "S123.123.244.194"
-#        NAS-Port-Type = Virtual
-#        Cisco-NAS-Port = "0/0/1/613"
-#        NAS-Port = 0
-#        NAS-Port-Id = "0/0/1/613"
-#        Service-Type = Dialout-Framed-User
-#        NAS-IP-Address = 172.16.32.117
-#        Acct-Session-Id = "C345F40100004D69"
+  COA_PORT=1700;
+  COA_PASSWORD=isgcontrol;
+  echo "Cisco-AVPair+='subscriber:command=account-logoff',Acct-Session-Id=3568" | ${RADCLIENT} -r 1 -x ${NAS_IP_ADDRESS}:${COA_PORT} coa ${COA_PASSWORD}
 
-# test service activations
-#         User-Name = "TP_100"
-#        User-Password = "cisco"
-#        NAS-Port-Type = Virtual
-#        Cisco-NAS-Port = "0/0/1/40"
-#        NAS-Port = 0
-#        NAS-Port-Id = "0/0/1/40"
-#        Service-Type = Outbound-User
-#        NAS-IP-Address = 62.212.235.187
-#        Acct-Session-Id = "3ED4EBBB0000324C"
-	
-#	 ${RAUTH} 
-	
-	
-#}
-
+}
 
 
 # Proccess command-line options
 #
 for _switch ; do
-        case $_switch in
+        case ${_switch} in
         -debug)
                 DEBUG=1;
                 echo "Debug enable"
@@ -105,6 +81,12 @@ for _switch ; do
         voip)   VOIP=1;
                 shift;
                 ;;        
+        coa)    COA=1;
+                shift;
+                ;;
+        status) RAD_STATUS=1
+                shift;
+                ;;
         -cid)   CALLING_STATION_ID=$2;
                 shift; shift
                 ;;
@@ -141,9 +123,18 @@ done
 #**********************************************************
 #
 #**********************************************************
+rad_status () {
+
+  echo "Message-Authenticator = 0x00, FreeRADIUS-Statistics-Type = 1, Response-Packet-Type = Access-Accept" | ${RADCLIENT} -r 1 -x 127.0.0.1:18121 status adminsecret
+
+}
+
+#**********************************************************
+#
+#**********************************************************
 voip_auth () {
 	
-	#voip
+  #voip
   echo "Voip";
 
   if [ x${ACTION} = xauth ] ; then
@@ -256,7 +247,7 @@ fi
 }
 
 # Get user name
-if [ w${ACTION} != whelp ]; then
+if [ "${ACTION}" != "help" ]; then
   echo -n "USER_NAME (${USER_NAME}): "
   read _input
   if [ w${_input} != w ]; then
@@ -311,7 +302,6 @@ if [ x${RADIUS_ACTION} = x1 ]; then
           echo "Calling-Station-Id = \"${CALLING_STATION_ID}\""
         fi
     ) | ${RADCLIENT} ${OPTIONS} -x  ${RADIUS_IP}:${PORT} auth "${RADIUS_SECRET}"
-
   fi;
 
   echo "Send params to radius: ${RADIUS_IP}:${PORT}"
@@ -320,11 +310,11 @@ fi;
 
 
 
-if [ x${VOIP} = x1 ] ; then 
+if [ "${VOIP}" = 1 ] ; then
   voip_auth;
-#testing program
-# Auth test
-elif [ x${ACTION} = 'xauth' ] ; then
+elif [ "${ACTION}" = "coa" ]; then
+  _coa
+elif [ "${ACTION}" = 'auth' ] ; then
   echo "Auth test Begin"
   ${RAUTH} \
         SERVICE_TYPE=VPN \
@@ -417,15 +407,15 @@ elif [ x${ACTION} = 'xacct' ]; then
    elif [ t${ACCOUNTING_ACTION} = 'tAlive' ] ; then
      echo "ACCT_STATUS_TYPE: Alive/Interim-Update";
       
-     a=0
+     alive=0
      IN=${ACCT_INPUT_OCTETS}
      OUT=${ACCT_OUTPUT_OCTETS}
      TIME=${ACCT_SESSION_TIME};
 
-     while [ "$a" -lt ${ALIVE_COUNT} ]; do
-        ACCT_INPUT_OCTETS=`expr $a \* ${IN} + ${IN}`
-        ACCT_OUTPUT_OCTETS=`expr $a \* ${OUT} + ${OUT}`
-        ACCT_SESSION_TIME=`expr $a \* ${TIME} + ${TIME}`
+     while [ "${alive}" -lt ${ALIVE_COUNT} ]; do
+        ACCT_INPUT_OCTETS=`expr ${alive} \* ${IN} + ${IN}`
+        ACCT_OUTPUT_OCTETS=`expr ${alive} \* ${OUT} + ${OUT}`
+        ACCT_SESSION_TIME=`expr ${alive} \* ${TIME} + ${TIME}`
 
         echo "IN: ${ACCT_INPUT_OCTETS} OUT: ${ACCT_OUTPUT_OCTETS} TIME: ${ACCT_SESSION_TIME}";
 
@@ -451,7 +441,7 @@ elif [ x${ACTION} = 'xacct' ]; then
           ACCT_OUTPUT_GIGAWORDS=${ACCT_OUTPUT_GIGAWORDS} \
           ACCT_OUTPUT_PACKETS=0 \
           ACCT_SESSION_TIME=${ACCT_SESSION_TIME}
-        a=`expr $a + 1`
+        a=`expr ${a} + 1`
         read _input
      done
 
@@ -485,20 +475,20 @@ elif [ x${ACTION} = 'xacct' ]; then
 
    echo "Accounting test end";
 
-elif [ t${ACTION} = 'tacctgt' ]; then
+elif [ "${ACTION}" = 'acctgt' ]; then
 
   echo "Account requirest GT: "
-  cat $ACCT_LOG | grep GT | awk '{ print $11"  "$1" "$2" "$5" "$8" "$9 }' | sort -n
-
-
+  cat ${ACCT_LOG} | grep GT | awk '{ print $11"  "$1" "$2" "$5" "$8" "$9 }' | sort -n
 elif [ t${ACTION} = 'tauthgt' ]; then
-
-  cat $AUTH_LOG | grep GT | awk '{ print $10"  "$1" "$2" "$5" "$8 }' | sort -n
-
-else 
- echo "Arguments (auth | acct | authgt | acctgt)"
- echo "       auth - test authentification
+  cat ${AUTH_LOG} | grep GT | awk '{ print $10"  "$1" "$2" "$5" "$8 }' | sort -n
+elif [ "${RAD_STATUS}" != "" ]; then
+  rad_status;
+else
+  echo "Arguments (auth | acct | authgt | acctgt)"
+  echo "
+       auth - test authentification
        acct (Stop|Start|Alive) - test accounting
+       coa  - CoA test
        authgt - show authentification generation time
        acctgt - show account generation time
 VoIP Functions
@@ -522,11 +512,3 @@ DHCP Function
        -v     - Show version
   "
 fi
-
-#   CHAP_PASSWORD=0x01f45d3646ef51e0b34dfca50f17f0d524 \
-#   CHAP_CHALLENGE=0x36373035393933393135333537313734 \
-
-
-
-
-

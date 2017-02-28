@@ -122,7 +122,9 @@ sub exchange_del{
 
 
 #**********************************************************
-# exchange_change
+=head2 exchange_change($id, $attr)
+
+=cut
 #**********************************************************
 sub exchange_change{
   my $self = shift;
@@ -151,7 +153,9 @@ sub exchange_change{
 
 
 #**********************************************************
-# exchange_info
+=head2 exchange_info($id, $attr)
+
+=cut
 #**********************************************************
 sub exchange_info{
   my $self = shift;

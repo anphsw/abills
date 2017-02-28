@@ -3,12 +3,12 @@ use strict;
 use warnings;
 use Test::More;
 
-our %conf;
+our ($db, $admin, %conf);
 require '../libexec/config.pl'; # assunming we are in /usr/abills/t/
 use lib '../lib';
 use lib '../Abills/mysql';
 
-my $plans_count = 17;
+my $plans_count = 19 -2 ;
 plan tests => $plans_count;
 
 my $test_aid = 1;
@@ -36,9 +36,12 @@ SKIP : {
   require_ok( 'Asterisk::AMI' );
 }
 
-require_ok( 'Abills::Sender::Browser' );
+if (require_ok( 'Abills::Sender::Browser' )){
+  require Abills::Sender::Browser;
+  Abills::Sender::Browser->import();
+};
 
-my $Browser = new_ok( 'Abills::Sender::Browser' => [ \%conf ] );
+my Abills::Sender::Browser $Browser = new_ok( 'Abills::Sender::Browser' => [ $db, $admin, \%conf ] );
 
 can_ok( $Browser, 'is_connected' );
 can_ok( $Browser, 'connected_admins' );
@@ -51,16 +54,25 @@ ok( $Browser->connected_admins(), 'Should have clients connected to run tests' )
 
 SKIP_BROWSER_CLIENT_CHECK : {
   my $test_admin_connected = $Browser->has_connected_admin( $test_aid );
-  skip ( 'No test admin connected', 3 ) unless ($test_admin_connected);
+  skip ( 'No test admin connected', 3 ) if (!$test_admin_connected);
   ok( $test_admin_connected, 'Our test admin ' . $test_aid . ' should be connected' );
   ok( $Browser->send_message( { AID => $test_aid, MESSAGE => $test_notification } ), 'Should be able to send message' );
-  is_deeply( $Browser->call( $test_aid, $ping_request ), { TYPE => 'PONG' }, "Responce for $ping_request should be $ping_responce" );
+#  ok( $Browser->send_message( { AID => $test_aid, MESSAGE => $test_notification, NON_SAFE => 1 } ), 'Just check Instant send message' );
+  
+  my $ping_res = $Browser->call( $test_aid, $ping_request );
+  is_deeply( $ping_res , { TYPE => 'PONG' }, "Responce for $ping_request should be $ping_responce" );
+  
+#  my $message_callback = sub {
+#    ok( 1, 'Should be able to send ASYNC message' );
+#  };
+#  $Browser->send_message( { AID => $test_aid, MESSAGE => $test_notification, ASYNC => $message_callback });
+  
 
   #Extensive ping
-  my $count = 10000;
-  while($count--){
-    ok( $Browser->send_message( { AID => $test_aid, MESSAGE => $test_notification } ), 'Should be able to send message' );
-  };
+#  my $count = 10000;
+#  while($count--){
+#    ok( $Browser->send_message( { AID => $test_aid, MESSAGE => $test_notification } ), 'Should be able to send message' );
+#  };
 }
 
 

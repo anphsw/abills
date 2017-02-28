@@ -5,14 +5,14 @@
     <input type='hidden' name='ADD' value='1'>
 
 
-    <div class='panel panel-default'>
-        <div class='panel-body'>
+    <div class='box box-theme'>
+        <div class='box-body'>
             <div class='row'>
                 %SCAN_TABLE%
             </div>
 
 
-            <div class='col-md-6 col-md-push-3 panel-form'>
+            <div class='col-md-6 col-md-push-3 box-form'>
                 <div class='form-group' id='ipv4_mask_bits'>
                     <label class='col-md-5 control-label'>_{PREFIX}_ _{LENGTH}_:</label>
 
@@ -26,7 +26,7 @@
             </div>
 
         </div>
-        <div class='panel-footer text-center'>
+        <div class='box-footer text-center'>
             <input class='btn btn-primary' type='submit' name='action' value='_{ADD}_'/>
         </div>
     </div>

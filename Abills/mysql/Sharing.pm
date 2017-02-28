@@ -1914,16 +1914,12 @@ sub priority_list{
 =cut
 #**********************************************************
 sub add_file {
-  my ($attr) = @_;
-
   my $self = shift;
   my ($attr) = @_;
 
   $self->query_add( 'sharing_files', $attr );
 
   return $self;
-
-  return 1;
 }
 
 #*******************************************************************
@@ -1954,22 +1950,30 @@ sub file_list {
 
   my $WHERE = $self->search_former($attr,
     [
-    [ 'ID',        'INT', 'id',        1 ],
-    [ 'NAME',      'STR', 'name',      1 ],
-    [ 'AMOUNT',    'INT', 'amount',      1 ],
-    [ 'COMMENT',   'STR', 'comment',   1 ],
-    [ 'LINK_TIME', 'INT', 'link_time', 1 ],
-    [ 'FILE_TIME', 'INT', 'file_time', 1 ],
+    [ 'ID',        'INT', 'sf.id',        1 ],
+    [ 'NAME',      'STR', 'sf.name',      1 ],
+    [ 'AMOUNT',    'INT', 'sf.amount',    1 ],
+    [ 'COMMENT',   'STR', 'sf.comment',   1 ],
+    [ 'VERSION',   'STR', 'sf.version',   1 ],
+    # [ 'GROUP_ID',  'INT', 'sf.group_id',  1 ],
+    [ 'GROUP_NAME',  'STR', 'sg.name as group_name',  1 ],
+    [ 'LINK_TIME', 'INT', 'sf.link_time', 1 ],
+    [ 'FILE_TIME', 'INT', 'sf.file_time', 1 ],
     ],
     {
       WHERE => 1,
       SEARCH_FORMER => 1
     });
 
+  if($attr->{GROUP_ID}){
+    push @WHERE_RULES, "group_id = '$attr->{GROUP_ID}'";
+  }
+
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
   $self->query2(
-    "SELECT $self->{SEARCH_FIELDS} id FROM sharing_files
+    "SELECT $self->{SEARCH_FIELDS} sf.id FROM sharing_files  as sf
+    LEFT JOIN sharing_groups sg ON sg.id = sf.group_id
     $WHERE
     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     undef,
@@ -2089,16 +2093,12 @@ sub file_change {
 =cut
 #**********************************************************
 sub add_user {
-  my ($attr) = @_;
-
   my $self = shift;
   my ($attr) = @_;
 
   $self->query_add( 'sharing_users', $attr );
 
   return $self;
-
-  return 1;
 }
 
 
@@ -2193,6 +2193,274 @@ sub del_user {
   my ($attr) = @_;
 
   $self->query_del('sharing_users', $attr, { uid => $attr->{UID}, file_id => $attr->{FILE_ID} });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 sharing_log_add() -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub sharing_log_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add( 'sharing_download_log', {%$attr, 
+                                             'DATE' => 'NOW()',
+                                             'IP'   => $attr->{IP} || '0.0.0.0',
+  } );
+
+  return $self;
+}
+
+#**********************************************************
+=head2 sharing_log_list() -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub sharing_log_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my @WHERE_RULES = ();
+  my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC        = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  #my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+
+  if($attr->{DATE_START}){
+    
+    push @WHERE_RULES, "sdl.date >= '$attr->{DATE_START} 00:00:01'";
+  }
+
+  if($attr->{DATE_END}){
+    
+    push @WHERE_RULES, "sdl.date <= '$attr->{DATE_END} 23:59:59'";
+  }
+
+
+  my $WHERE = $self->search_former($attr,
+    [
+    [ 'ID',        'INT',  'sdl.id',        1 ],
+    [ 'FILE_ID',   'INT',  'sdl.file_id',   1 ],
+    [ 'DATE',      'DATE', 'sdl.date',      1 ],
+    [ 'UID',       'ID',   'sdl.uid',       1 ],
+    [ 'IP',        'STR',  'INET_NTOA(sdl.ip) as ip',        1 ],
+    [ 'SYSTEM_ID', 'STR',  'sdl.system_id', 1 ],
+    [ 'FILE_NAME', 'STR',  'sf.name as file_name', 1 ],
+    ],
+    {
+      WHERE            => 1,
+      # SEARCH_FORMER    => 1,
+      USE_USER_PI      => 1,
+      USERS_FIELDS_PRE => 1,
+      WHERE_RULES      => \@WHERE_RULES,
+    });
+
+  $self->query2(
+    "SELECT $self->{SEARCH_FIELDS} sdl.id, sdl.uid FROM sharing_download_log as sdl
+    LEFT JOIN sharing_files sf ON sf.id = sdl.file_id
+    LEFT JOIN users u ON u.uid=sdl.uid
+
+    $WHERE
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
+  );
+
+  my $list = $self->{list};
+
+  return $self->{list} if ($self->{TOTAL} < 1);
+
+  $self->query2(
+    "SELECT count(*) AS total
+   FROM sharing_download_log",
+    undef,
+    { INFO => 1 }
+  );
+
+  return $list;
+}
+
+#**********************************************************
+=head2 group_add() -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub group_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add( 'sharing_groups', $attr );
+
+  return $self;
+}
+
+#*******************************************************************
+
+=head2 function group_list() - get list of all files
+
+  Arguments:
+    $attr
+
+  Returns:
+    @list
+
+  Examples:
+    my @list = $Sharing->group_list({ COLS_NAME => 1});
+
+=cut
+
+#*******************************************************************
+sub group_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my @WHERE_RULES = ();
+  my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC        = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  my $WHERE = $self->search_former($attr,
+    [
+    [ 'ID',        'INT', 'id',        1 ],
+    [ 'NAME',      'STR', 'name',      1 ],
+    [ 'COMMENT',   'STR', 'comment',   1 ],
+    ],
+    {
+      WHERE => 1,
+      SEARCH_FORMER => 1
+    });
+
+  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+
+  $self->query2(
+    "SELECT $self->{SEARCH_FIELDS} id FROM sharing_groups
+    $WHERE
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
+  );
+
+  my $list = $self->{list};
+
+  return $self->{list} if ($self->{TOTAL} < 1);
+
+  $self->query2(
+    "SELECT count(*) AS total
+   FROM sharing_groups",
+    undef,
+    { INFO => 1 }
+  );
+
+  return $list;
+}
+
+#*******************************************************************
+
+=head2 function group_delete() - delete cashbox
+
+  Arguments:
+    $attr
+
+  Returns:
+
+  Examples:
+    $Sharing->group_delete( {ID => 1} );
+
+=cut
+
+#*******************************************************************
+sub group_delete {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('sharing_groups', $attr);
+
+  return $self;
+}
+
+#*******************************************************************
+
+=head2 function group_info() - get information about file
+
+  Arguments:
+    $attr
+
+  Returns:
+    $self object
+
+  Examples:
+    my $group_info = $Sharing->group_info({ ID => 1 });
+
+=cut
+
+#*******************************************************************
+sub group_info {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query2(
+    "SELECT * FROM sharing_groups
+      WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
+  );
+
+  return $self;
+}
+
+#*******************************************************************
+
+=head2 function group_change() - change file's information in datebase
+
+  Arguments:
+    $attr
+
+  Returns:
+    $self object
+
+  Examples:
+    $Sharing->group_change({
+      ID     => 1,
+      NAME   => 'TEST'
+    });
+
+
+=cut
+
+#*******************************************************************
+sub group_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes2(
+    {
+      CHANGE_PARAM => 'ID',
+      TABLE        => 'sharing_groups',
+      DATA         => $attr
+    }
+  );
 
   return $self;
 }

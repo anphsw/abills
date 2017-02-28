@@ -15,7 +15,6 @@ $lang{ERR_NOT_REGISTRED}='Еще не зарегистрировано ';
 $lang{MARKING}='Маркировка';
 
 $lang{UNITS}='Единиц';
-$lang{WIDTH}='Ширина';
 $lang{HIEGHT}='Высота';
 $lang{LENGTH}='Длина';
 $lang{DIAMETER}='Толщина';
@@ -32,3 +31,20 @@ $lang{POSITION_DOWN}='Снизу';
 $lang{TRAPS}='SNMP traps';
 
 $lang{REVISION} = 'Ревизия (версия)';
+$lang{SELECT_TYPE} = 'Выберите тип';
+$lang{SELECT_PORT} = 'Выберите порт';
+$lang{REGISTERED} = 'Зарегестрированно';
+$lang{HOURS} = 'часов';
+$lang{CABLE_TEST} = 'Тестирование кабеля';
+$lang{PAIR} = 'Пара';
+
+$lang{REBOOT}='Перезагрузить приставку';
+
+$lang{SYSTEM_ID}='Название системы';
+$lang{UPTIME}='Время работы';
+$lang{ERR_NOT_RESPONSE}='Устройство не отвечает';
+$lang{ONU_STATUS}='Статус приставки';
+$lang{POWER}='Сила сигнала';
+$lang{TEMPERATURE}='Температура';
+$lang{VOLTAGE}='Вольтаж';
+$lang{UNREGISTER}='Незарегистрированые';

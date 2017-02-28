@@ -55,7 +55,7 @@ my $tariffs   = Tariffs->new($db, \%conf, $admin);
 my $payments  = Payments->new($db, $admin, \%conf);
 my $Cards     = Cards->new($db, $admin, \%conf);
 my $Multidoms = Multidoms->new($db, $admin, \%conf);
-my $nas       = Nas->new($db, \%conf);
+my $nas       = Nas->new($db, \%conf, $admin);
 my @status    = ($lang{ENABLE}, $lang{DISABLE}, $lang{USED}, $lang{DELETED}, $lang{RETURNED});
 
 #**********************************************************
@@ -115,12 +115,11 @@ sub multidoms_reseller_nas_groups {
         'ID'   => $nas->{ID},
         $lang{NAME} => $nas->{NAME_SEL}
       },
-      {
-
+      [
         #    	$lang{INFO}          => ":NAS_GID=$nas->{NAS_GID}",
         #      $lang{TEMPLATES}     => ($index+1).":NAS_GID=$nas->{NAS_GID}"
-      },
-      { f_args => {%F_ARGS} }
+      ],
+      { f_args => \%F_ARGS }
     );
 
     if ($FORM{subf}) {
@@ -603,10 +602,8 @@ sub multidoms_reseller_nas {
         CONTENT => $html->form_select(
           'NAS_ID',
           {
-            SELECTED          => $FORM{NAS_ID},
-            SEL_MULTI_ARRAY   => $nas->list({ %LIST_PARAMS, DOMAIN_ID => $admin->{DOMAIN_ID} }),
-            MULTI_ARRAY_KEY   => 0,
-            MULTI_ARRAY_VALUE => 1,
+            SELECTED  => $FORM{NAS_ID},
+            SEL_LIST  => $nas->list({ %LIST_PARAMS, DOMAIN_ID => $admin->{DOMAIN_ID}, COLS_NAME => 1 }),
           }
         ),
         HIDDEN => {
@@ -616,7 +613,6 @@ sub multidoms_reseller_nas {
         },
         SUBMIT        => { show => "$lang{SHOW}" },
         OUTPUT2RETURN => 1
-
       }
     );
 
@@ -625,19 +621,17 @@ sub multidoms_reseller_nas {
         'ID'   => $nas->{NAS_ID},
         $lang{NAME} => $nas->{NAME_SEL}
       },
-      {
-        $lang{INFO}        => ":NAS_ID=$nas->{NAS_ID}",
-        $lang{TARIF_PLANS} => ":NAS_ID=$nas->{NAS_ID}&NAS_TPS=1",
-      },
-      { f_args => {%F_ARGS} }
+      [
+        $lang{INFO}        . ":NAS_ID=$nas->{NAS_ID}",
+        $lang{TARIF_PLANS} . ":NAS_ID=$nas->{NAS_ID}&NAS_TPS=1",
+      ],
+      { f_args => \%F_ARGS }
     );
 
-    $Multidoms->nas_tp_info(
-      {
-        NAS_ID    => $FORM{NAS_ID},
-        DOMAIN_ID => $admin->{DOMAIN_ID}
-      }
-    );
+    $Multidoms->nas_tp_info({
+      NAS_ID    => $FORM{NAS_ID},
+      DOMAIN_ID => $admin->{DOMAIN_ID}
+    });
 
     if ($FORM{TP_ID}) {
       $Cards->dillers_tp_info({ ID => $FORM{TP_ID} });
@@ -1125,12 +1119,11 @@ sub multidoms_reseller_tp {
         CONTENT => $html->form_select(
           'TP_ID',
           {
-            SELECTED          => $FORM{TP_ID},
-            SEL_MULTI_ARRAY   => $tariffs->list({%LIST_PARAMS}),
-            MULTI_ARRAY_KEY   => 18,
-            MULTI_ARRAY_VALUE => '0,1',
-            NO_ID             => 1,
-
+            SELECTED  => $FORM{TP_ID},
+            SEL_NAME  => $tariffs->list({%LIST_PARAMS, COLS_NAME => 1 }),
+            SEL_KEY   => 'tp_id',
+            SEL_VALUE => 'id,name',
+            NO_ID     => 1,
           }
         ),
         HIDDEN        => { index => "$index" },
@@ -1141,14 +1134,14 @@ sub multidoms_reseller_tp {
 
     func_menu(
       {
-        'ID'   => $tariffs->{ID},
+        'ID'        => $tariffs->{ID},
         $lang{NAME} => $tariffs->{NAME_SEL}
       },
-      {
-        $lang{INFO} => ":TP_ID=$tariffs->{TP_ID}",
-        $lang{NAS}  => ($index + 1) . ":TP_ID=$tariffs->{TP_ID}"
-      },
-      { f_args => {%F_ARGS} }
+      [
+        $lang{INFO} . ":TP_ID=$tariffs->{TP_ID}",
+        $lang{NAS}  . ($index + 1) . ":TP_ID=$tariffs->{TP_ID}"
+      ],
+      { f_args => \%F_ARGS }
     );
 
     if ($FORM{subf}) {
@@ -1263,12 +1256,12 @@ sub multidoms_reseller_tp {
   $tarif_info->{GROUPS_SEL} = $html->form_select(
     'TP_GID',
     {
-      SELECTED          => $tarif_info->{TP_GID},
-      SEL_MULTI_ARRAY   => [ [ '', '' ], @{ $tariffs->tp_group_list() } ],
-      MULTI_ARRAY_KEY   => 0,
-      MULTI_ARRAY_VALUE => 1,
+      SELECTED    => $tarif_info->{TP_GID},
+      SEL_LIST    => $tariffs->tp_group_list({ COLS_NAME => 1 }),
+      SEL_OPTIONS => {'' => '--' }
     }
   );
+
   if ($tarif_info->{TOTAL_TIME_LIMIT} > 0) {
     if ($tarif_info->{TOTAL_TIME_LIMIT} < 3600) {
       $tarif_info->{PERIOD_30M} = 'checked';
@@ -1387,27 +1380,34 @@ sub multidoms_reseller_tp_nas {
 #**********************************************************
 =head2 multidoms_domains_sel($attr)
 
+  Arguments:
+    $attrt
+      DOMAIN_ID
+
 =cut
 #**********************************************************
 sub multidoms_domains_sel {
   my ($attr) = @_;
 
-  return $html->form_select(
-    "DOMAIN_ID",
+  my $domain_id = $attr->{DOMAIN_ID} || $FORM{DOMAIN_ID} || $admin->{DOMAIN_ID};
+
+  return $html->form_select("DOMAIN_ID",
     {
-      SELECTED          => $FORM{DOMAIN_ID},
-      SEL_MULTI_ARRAY   => $Multidoms->multidoms_domains_list({ PAGE_ROWS => 100000 }),
-      MULTI_ARRAY_KEY   => 0,
-      MULTI_ARRAY_VALUE => ($attr->{SHOW_ID}) ? '0,1' : 1,
-      SEL_OPTIONS       => { 0 => "$lang{ALL}" },
-      NO_ID             => 1
+      SELECTED    => $domain_id,
+      SEL_LIST    => $Multidoms->multidoms_domains_list({
+        ID        => ($admin->{DOMAIN_ID}) ? $admin->{DOMAIN_ID} : undef,
+        PAGE_ROWS => 100000,
+        COLS_NAME => 1 }),
+      SEL_OPTIONS => { 0 => $lang{ALL} },
+      NO_ID       => 1
     }
   );
-
 }
 
 #**********************************************************
-#
+=head2 multidoms_domains()
+
+=cut
 #**********************************************************
 sub multidoms_domains {
 
@@ -1417,12 +1417,8 @@ sub multidoms_domains {
   if ($FORM{info}) {
     $pages_qs = "&info=$FORM{info}";
     $LIST_PARAMS{DOOMAIN_ID} = $FORM{info};
-
-    #$FORM{SERIA}=0;
-
-    $Multidoms = $Multidoms->multidomas_domain_info({ ID => $FORM{info} });
+    $Multidoms = $Multidoms->multidoms_domain_info({ ID => $FORM{info} });
     $html->tpl_show(_include('multidomas_domain_info', 'Multidoms'), $Multidoms);
-
     #cards_main();
     return 0;
   }
@@ -1491,28 +1487,10 @@ sub multidoms_domains {
   return 1;
 }
 
-##**********************************************************
-##
-##**********************************************************
-#sub cards_dillers_sel {
-#  my $dillers_sel = '';
-#  $dillers_sel = $html->form_select(
-#    'DILLER_ID',
-#    {
-#      SELECTED          => $FORM{DILLER_ID},
-#      SEL_MULTI_ARRAY   => [ [ '', '' ], @{ $Multidoms->multidoms_domains_list({ DISABLE => 0, SORT => 2, PAGE_ROWS => 10000 }) } ],
-#      MULTI_ARRAY_KEY   => 0,
-#      MULTI_ARRAY_VALUE => 2,
-#
-#      #NO_ID             => 1,
-#    }
-#  );
-#
-#  return $dillers_sel;
-#}
-
 #**********************************************************
-#
+=head2 multidoms_cards_dillers()
+
+=cut
 #**********************************************************
 sub multidoms_cards_dillers {
 
@@ -1709,14 +1687,14 @@ sub multidoms_paysys {
   my ($attr) = @_;
 
   if ($FORM{add}) {
-    $user->config_add(
+    $Conf->config_add(
       {
         PARAM     => 'PAYSYS_UKRPAYS_SERVICE_ID',
         VALUE     => $FORM{PAYSYS_UKRPAYS_SERVICE_ID},
         DOMAIN_ID => $admin->{DOMAIN_ID}
       }
     );
-    $user->config_add(
+    $Conf->config_add(
       {
         PARAM     => 'PAYSYS_UKRPAYS_SECRETKEY',
         VALUE     => $FORM{PAYSYS_UKRPAYS_SECRETKEY},
@@ -1729,7 +1707,7 @@ sub multidoms_paysys {
     }
   }
   elsif ($FORM{change}) {
-    $user->config_change(
+    $Conf->config_change(
       {
         PARAM     => 'PAYSYS_UKRPAYS_SERVICE_ID',
         VALUE     => $FORM{PAYSYS_UKRPAYS_SERVICE_ID},
@@ -1737,7 +1715,7 @@ sub multidoms_paysys {
       }
     );
 
-    $user->config_change(
+    $Conf->config_change(
       {
         PARAM     => 'PAYSYS_UKRPAYS_SECRETKEY',
         VALUE     => $FORM{PAYSYS_UKRPAYS_SECRETKEY},
@@ -1750,7 +1728,7 @@ sub multidoms_paysys {
     }
   }
 
-  my $list = $user->config_list(
+  my $list = $Conf->config_list(
     {
       PARAM     => 'PAYSYS_UKRPAYS_SERVICE_ID;PAYSYS_UKRPAYS_SECRETKEY',
       DOMAIN_ID => $admin->{DOMAIN_ID},

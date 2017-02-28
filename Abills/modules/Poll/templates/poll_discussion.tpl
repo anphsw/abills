@@ -5,12 +5,12 @@
 <input type='hidden' name='LOGIN'   value='%LOGIN%'>
 <input type='hidden' name='DISCUSSION' value='1'>
 
-<div class='panel panel-default'>
-	<div class='panel-heading text-primary'><h3>%SUBJECT%</h3></div>
-	<div class='panel-body text-left'>
+<div class='box box-theme'>
+	<div class='box-header with-border text-primary'><h3>%SUBJECT%</h3></div>
+	<div class='box-body text-left'>
 		%MESSAGE%
 	</div>
-	<div class='panel-footer'>
+	<div class='box-footer'>
 	  <div class='form-group'>
 		  <textarea class='form-control' name='MESSAGE' rows='10'></textarea>
 	  </div>

@@ -1,28 +1,28 @@
-<div class='panel panel-default panel-form'>
-    <div class='panel-heading'>_{NETWORKS}_</div>
-    <div class='panel-body'>
+<div class='box box-theme box-form'>
+    <div class='box-header with-border'>_{NETWORKS}_</div>
+    <div class='box-body'>
         <form action='$SELF_URL' method='post' class='form-horizontal'>
             <input type='hidden' name='index' value='$index'/>
             <input type='hidden' name='ID' value='$FORM{chg}'/>
 
 
             <div class='form-group'>
-                <label for='NAME' class='control-label col-md-3'>_{HOSTS_NETWORKS_NAME}_:</label>
-                <div class='col-md-9'>
+                <label for='NAME' class='control-label col-md-4'>_{HOSTS_NETWORKS_NAME}_:</label>
+                <div class='col-md-8'>
                     <input type='text' class='form-control' name='NAME' id='NAME' value='%NAME%'/>
                 </div>
             </div>
 
             <div class='form-group'>
-                <label for='COMMENTS' class='control-label col-md-3'>_{COMMENTS}_:</label>
-                <div class='col-md-9'>
+                <label for='COMMENTS' class='control-label col-md-4'>_{COMMENTS}_:</label>
+                <div class='col-md-8'>
                     <input class='form-control' type='text' name='COMMENTS' id='COMMENTS' value='%COMMENTS%'
                            maxlength='50'/>
                 </div>
             </div>
 
             <div class='form-group'>
-                <div class='row'>
+
                     <label for='NETWORK' class='control-label col-md-2'>_{HOSTS_NETWORKS_NET}_:</label>
                     <div class='col-md-4'>
                         <input type='text' class='form-control' name='NETWORK' id='NETWORK' value='%NETWORK%'
@@ -34,7 +34,7 @@
                         <input type='text' class='form-control' name='MASK' id='MASK' value='%MASK%'
                                maxlength='15'/>
                     </div>
-                </div>
+
             </div>
 
             <div class='form-group'>
@@ -52,34 +52,38 @@
                                maxlength='15'/>
                     </div>
                 </div>
-
-                <div class='row'>
-                    <label for='STATIC' class='control-label col-md-6'>_{STATIC}_:</label>
-                    <div class='col-md-6'>
-                        <input type='checkbox' name='STATIC' id='STATIC' value='1' %STATIC%/>
-                    </div>
                 </div>
-            </div>
+
+                <div class='form-group'>
+                  <div class='checkbox'>
+                   <label for='STATIC'>
+                    <input type='checkbox' name='STATIC' id='STATIC' value='1' %STATIC%/>
+                     <strong>_{STATIC}_</strong>
+                    </label>
+                 </div>
+                </div>
 
             <div class='form-group'>
-                <div class='row'>
-                    <label for='ROUTERS' class='control-label col-md-3'>_{DEFAULT_ROUTER}_:</label>
-                    <div class='col-md-9'>
+
+                    <label for='ROUTERS' class='control-label col-md-2'>_{DEFAULT_ROUTER}_:</label>
+                    <div class='col-md-10'>
                         <input type='text' class='form-control' name='ROUTERS' id='ROUTERS' value='%ROUTERS%'
                                maxlength='15'/>
                     </div>
-                </div>
-                <div class='row'>
-                    <label for='DNS' class='control-label col-md-3'>DNS:</label>
+
+            </div>
+            <div class='form-group'>
+
+                  <label for='DNS' class='control-label col-md-2'>DNS:</label>
                     <div class='col-md-4'>
                         <input type='text' class='form-control' name='DNS' id='DNS' value='%DNS%' maxlength='15'/>
                     </div>
-                    <label for='DNS2' class='control-label col-md-1'>DNS2:</label>
+                  <label for='DNS2' class='control-label col-md-2'>DNS2:</label>
                     <div class='col-md-4'>
                         <input type='text' class='form-control' name='DNS2' id='DNS2' value='%DNS2%'
                                maxlength='15'/>
                     </div>
-                </div>
+
             </div>
 
             <div class='form-group'>
@@ -148,13 +152,14 @@
                 </div>
             </div>
 
-
-            <div class='form-group'>
-                <label for='DISABLE' class='control-label col-md-7'>_{DISABLE}_:</label>
-                <div class='col-md-5'>
+                <div class='form-group'>
+                  <div class='checkbox'>
+                   <label for='STATIC'>
                     <input type='checkbox' name='DISABLE' id='DISABLE' value='1' %DISABLE%/>
+                     <strong>_{DISABLE}_</strong>
+                    </label>
+                 </div>
                 </div>
-            </div>
 
             <div class='form-group'>
                 <label class='control-label col-md-2'>_{TYPE}_:</label>
@@ -176,9 +181,13 @@
                 </div>
             </div>
 
+            %DOMAIN_FORM%
 
-            <input type='submit' name='%ACTION%' value='%ACTION_LNG%' class='btn btn-primary'/>
-
-        </form>
     </div>
+        <div class='box-footer'>
+            <input type='submit' name='%ACTION%' value='%ACTION_LNG%' class='btn btn-primary'/>
+          </div>
+     </form>
+
+
 </div>

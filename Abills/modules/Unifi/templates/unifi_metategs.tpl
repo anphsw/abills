@@ -23,8 +23,6 @@
 
   <script src='/styles/default_adm/js/jquery.cookie.js'></script>
   <script src='/styles/default_adm/js/moment.js'></script>
-  <script src='moment-locales/ru.js'></script>
-  <script src='moment-locales/ua.js'></script>
 
 </head>
 <body>

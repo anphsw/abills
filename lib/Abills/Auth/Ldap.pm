@@ -1,8 +1,4 @@
 package Abills::Auth::Ldap;
-
-use strict;
-use warnings FATAL => 'all';
-
 #**********************************************************
 =head1 NAME
 
@@ -10,8 +6,11 @@ use warnings FATAL => 'all';
 
 =cut
 
-do 'Abills/Misc.pm';
-load_pmodule('Net::LDAP');
+use strict;
+use warnings FATAL => 'all';
+use Abills::Base qw(load_pmodule2);
+
+load_pmodule2('Net::LDAP');
 
 #**********************************************************
 =head2 check_access($attr)

@@ -1,5 +1,4 @@
 #!/usr/bin/perl -w
-
 =head1 NAME
 
   charts.cgi
@@ -17,16 +16,13 @@
 
 =cut
 
-#FIXME: Can't use strict because of ABillS localisation logic
-#use strict;
+use strict;
+use warnings 'FATAL' => 'all';
+
+our ($libpath, %lang, $conf);
 
 BEGIN {
-  our $libpath = '../';
-  my $sql_type = 'mysql';
-  unshift( @INC, $libpath . "Abills/$sql_type/" );
-  unshift( @INC, $libpath . 'lib/' );
-  unshift( @INC, $libpath . 'libexec/' );
-  unshift( @INC, $libpath . 'Abills/' );
+  $libpath = '../';
 
   our $begin_time = 0;
   eval {
@@ -39,26 +35,35 @@ BEGIN {
   }
 }
 
-my $VERSION = 0.22;
 
-eval { require "config.pl" };
+use lib $libpath . 'lib/';
+use lib $libpath . 'libexec/';
+use lib $libpath;
+use lib $libpath . 'Abills/';
+use lib $libpath . "Abills/mysql/";
+
+my $VERSION = 0.23;
+
+eval { require "libexec/config.pl" };
 if ( $@ ){
   print "Content-Type: text/html\n\n";
   print "Can't load config file 'config.pl' <br>";
-  print "Create ABillS config file /usr/abills/libexec/config.pl";
+  print "Check ABillS config file /usr/abills/libexec/config.pl";
   die;
 }
 
 use POSIX qw(strftime);
 use Abills::Defs;
-use Abills::Base qw ( in_array days_in_month convert gen_time );
+use Abills::Base qw ( in_array days_in_month convert gen_time _bp );
 use Abills::SQL;
 use Abills::HTML;
+use Time::Local qw/timelocal/;
+
 use Admins;
 
 require Abills::Misc;
 
-my $db = Abills::SQL->connect( $conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
+my $db = Abills::SQL->connect( @conf{'dbtype', 'dbhost', 'dbname', 'dbuser', 'dbpasswd'},
   { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef } );
 my $admin = Admins->new( $db, \%conf );
 
@@ -70,7 +75,6 @@ my $is_ipn = 0;
 
 my $chartCounter = 0;
 my $chart_number = 0;
-
 my $ipn_module_enabled = 0;
 
 $FORM{session_id} = '';
@@ -114,14 +118,14 @@ my @periods = ();
 
 my %type_names_for = ();
 
-$lang{RECV} = $lang{RECV} || 'Received';
-$lang{SENT} = $lang{SENT} || 'Sent';
+$lang{RECV}  = $lang{RECV} || 'Received';
+$lang{SENT}  = $lang{SENT} || 'Sent';
 $lang{LOCAL} = $lang{LOCAL} || 'Local';
 
 my $RECV_TRAFF_NAME_GLOBAL = $lang{RECV};
 my $SENT_TRAFF_NAME_GLOBAL = $lang{SENT};
-my $RECV_TRAFF_NAME_LOCAL = "$lang{RECV} $lang{LOCAL}";
-my $SENT_TRAFF_NAME_LOCAL = "$lang{SENT} $lang{LOCAL}";
+my $RECV_TRAFF_NAME_LOCAL  = "$lang{RECV} $lang{LOCAL}";
+my $SENT_TRAFF_NAME_LOCAL  = "$lang{SENT} $lang{LOCAL}";
 
 #begin
 print "Content-Type: text/html\n\n";
@@ -130,25 +134,6 @@ load_pmodule( 'JSON' );
 load_pmodule( 'Time::Local' );
 
 if ( scalar ( keys %FORM ) > 0 ){
-
-  if ( $FORM{list} ){
-    if ( $FORM{list} eq 'nas' ){
-      print_list( get_nas_list() );
-    }
-    elsif ( $FORM{list} eq 'tp' ){
-      print_list( get_tp_list() );
-    }
-    elsif ( $FORM{list} eq 'login' ){
-      print_list( get_login_list() );
-    }
-    elsif ( $FORM{list} eq 'gid' ){
-      print_list( get_group_list() );
-    }
-    elsif ( $FORM{list} eq 'tags' ){
-      print_list( get_tags_list() );
-    }
-    exit( 0 );
-  }
 
   #Read debug from $FORM
   $debug = $FORM{DEBUG} || $debug;
@@ -230,13 +215,17 @@ sub build_graphics{
 
   my $period = $explicit_period || $DAILY_PERIOD;
   my $WHERE = '';
+  my $bind_values = [];
   my $GROUP_BY = '';
   my $AS_5MIN = '';
   my $CAPTION = '';
   my $EXT_TABLE = '';
+  
+  $is_ipn = ( (exists $conf{CHARTS_BOTH_SCHEMES} && !$conf{CHARTS_BOTH_SCHEMES}) || is_ipn() );
 
   if ( $attr->{'ACCT_SESSION_ID'} ){
-    $WHERE = "acct_session_id='$attr->{ACCT_SESSION_ID}'";
+    $WHERE = "acct_session_id= ?";
+    push(@{$bind_values}, $attr->{ACCT_SESSION_ID});
     $CAPTION = "ACCT_SESSION_ID";
     %ids = ($attr->{'ACCT_SESSION_ID'} => $attr->{'ACCT_SESSION_ID'});
   }
@@ -251,7 +240,8 @@ sub build_graphics{
 
     $CAPTION = "LOGIN";
     %ids = ($attr->{'LOGIN'} => $logins);
-    $WHERE = "u.id in ('$logins')";
+    $WHERE = "u.id in (?)";
+    push(@{$bind_values}, $logins);
     $EXT_TABLE = "INNER JOIN users u ON (u.id=l.id) ";
 
     if ( $conf{DV_LOGIN} ){
@@ -262,7 +252,8 @@ sub build_graphics{
 
         if ( defined $users_list && scalar @{$users_list} > 0 ){
           $logins = @{$users_list}[0]->[0];
-          $WHERE = " d.user_name in ('$logins')";
+          $WHERE = " d.user_name in (?)";
+          push(@{$bind_values}, $logins);
           $EXT_TABLE = " INNER JOIN dv_calls d ON (d.user_name=l.id) ";
         }
       }
@@ -273,7 +264,7 @@ sub build_graphics{
   ################## UID #########################
   elsif ( $attr->{'UID'} ){
 
-    $type = 'Login';
+    $type = $lang{USER};
     if ( $attr->{'UID'} eq 'all' ){
       $multi_sel = 1;
 
@@ -285,10 +276,11 @@ sub build_graphics{
     else{
       %ids = ($attr->{'UID'} => $attr->{'UID'});
     }
-    $WHERE = "u.uid='$attr->{UID}'";
+    $WHERE = "u.uid=?";
+    push(@{$bind_values}, $attr->{UID});
     $CAPTION = "USER UID";
 
-    $EXT_TABLE = "INNER JOIN users u ON (u.id=l.id) ";
+    $EXT_TABLE = "INNER JOIN users u ON (u.uid=l.uid) ";
   }
 
   ################## NAS_ID #########################
@@ -307,7 +299,8 @@ sub build_graphics{
     else{
       %ids = ($attr->{'NAS_ID'} => $attr->{'NAS_ID'});
     }
-    $WHERE = "l.nas_id='$attr->{NAS_ID}'";
+    $WHERE = "l.nas_id=?";
+    push(@{$bind_values}, $attr->{'NAS_ID'});
     $GROUP_BY = "";
     $AS_5MIN = ", last_update DIV 300 AS 5min";
   }
@@ -328,7 +321,9 @@ sub build_graphics{
       %ids = ($attr->{'TP_ID'} => $attr->{'TP_ID'});
     }
 
-    $WHERE = "dv.tp_id='$attr->{TP_ID}'";
+    $WHERE = "dv.tp_id= ?";
+    push(@{$bind_values}, $attr->{TP_ID});
+  
     $EXT_TABLE = "INNER JOIN users u ON (u.id=l.id)
       INNER JOIN dv_main dv ON (dv.uid=u.uid) ";
   }
@@ -349,7 +344,9 @@ sub build_graphics{
     else{
       %ids = ($attr->{'GID'} => $attr->{'GID'});
     }
-    $WHERE = "u.gid='$attr->{GID}'";
+    $WHERE = "u.gid=?";
+    push(@{$bind_values}, $attr->{GID});
+  
     $EXT_TABLE = "INNER JOIN users u ON (u.id=l.id) ";
   }
 
@@ -361,7 +358,9 @@ sub build_graphics{
 
     %ids = ($attr->{'TAG_ID'} => $attr->{'TAG_ID'});
 
-    $WHERE = "tu.tag_id=$attr->{TAG_ID}";
+    $WHERE = "tu.tag_id= ?";
+    push(@{$bind_values}, $attr->{TAG_ID});
+  
     $EXT_TABLE = "INNER JOIN tags_users tu ON (tu.uid=l.id) ";
   }
   else{
@@ -395,7 +394,7 @@ sub build_graphics{
 
     if ( $period == $explicit_period ){
       my $start = $explicit_date || time();
-      make_chart_for_period( $AS_5MIN, $EXT_TABLE, $WHERE, $period, $GROUP_BY, $CAPTION, $key, $start - $period,
+      make_chart_for_period( $AS_5MIN, $EXT_TABLE, $WHERE, $bind_values, $period, $GROUP_BY, $CAPTION, $key, $start - $period,
         $start );
     }
     elsif ( scalar @periods > 0 ){
@@ -435,11 +434,11 @@ sub build_graphics{
           $period = $MONTHLY_PERIOD;
         }
 
-        $charts_for_period->{$p} = make_chart_for_period( $AS_5MIN, $EXT_TABLE, $WHERE, $period, $GROUP_BY,
+        $charts_for_period->{$p} = make_chart_for_period( $EXT_TABLE, $WHERE, $bind_values, $period,
           "$period_name $type", $key, $bounds[0], $bounds[1], 1 );
       }
 
-      print "<hr><h4>$period_name $type <b>" . get_name_for( $key ) . "</b> ($key) </h4>";
+      print "<br/><h4>$period_name $type <b>" . get_name_for( $key ) . "</b> ($key) </h4>";
       show_tabbed( $charts_for_period );
     }
     else{
@@ -458,13 +457,9 @@ sub build_graphics{
         @month_bounds = get_month_boundary();
       }
 
-      make_chart_for_period( $AS_5MIN, $EXT_TABLE, $WHERE, $DAILY_PERIOD, $GROUP_BY, "$lang{DAY} $type", $key,
-        $day_bounds[0]
-        , $day_bounds[1] );
-      make_chart_for_period( $AS_5MIN, $EXT_TABLE, $WHERE, $WEEKLY_PERIOD, $GROUP_BY, "$lang{WEEK} $type", $key,
-        $week_bounds[0], $week_bounds[1] );
-      make_chart_for_period( $AS_5MIN, $EXT_TABLE, $WHERE, $MONTHLY_PERIOD, $GROUP_BY, "$lang{MONTH} $type", $key,
-        $month_bounds[0], $month_bounds[1] );
+      make_chart_for_period( $EXT_TABLE, $WHERE, $bind_values, $DAILY_PERIOD, "$lang{DAY} $type", $key, $day_bounds[0], $day_bounds[1] );
+      make_chart_for_period( $EXT_TABLE, $WHERE, $bind_values, $WEEKLY_PERIOD, "$lang{WEEK} $type", $key, $week_bounds[0], $week_bounds[1] );
+      make_chart_for_period( $EXT_TABLE, $WHERE, $bind_values, $MONTHLY_PERIOD, "$lang{MONTH} $type", $key, $month_bounds[0], $month_bounds[1] );
     }
   }
 
@@ -484,80 +479,124 @@ sub is_ipn{
 
 
 #**********************************************************
-=head2 get_traffic($AS_5MIN, $EXT_TABLE, $WHERE, $start, $period, $GROUP_BY, $force_ipn)
+=head2 get_traffic($EXT_TABLE, $WHERE, $start, $period)
 
 =cut
 #**********************************************************
 sub get_traffic{
-  my ($AS_5MIN, $EXT_TABLE, $WHERE, $start, $period, $GROUP_BY, $force_ipn) = @_;
-
-  my $multiply_for_bites = '';
-  if ( $FORM{type} ne 'bytes' ){
-    $multiply_for_bites = ' * 8 ';
+  my ($EXT_TABLE, $WHERE, $bind_values, $start, $period ) = @_;
+  
+  my $multiply_for_bytes = ( $FORM{type} ne 'bytes' )
+                             ? ' * 8 '
+                             : '';
+  
+  my $end_time = $start + $period;
+  
+  my $list;
+  if ( exists $conf{CHARTS_BOTH_SCHEMES} && $conf{CHARTS_BOTH_SCHEMES} ) {
+    $list = [
+      @{get_ipn_traffic($multiply_for_bytes, $EXT_TABLE, $WHERE, \@{$bind_values}, $start, $end_time)},
+      @{get_pppoe_traffic($multiply_for_bytes, $EXT_TABLE, $WHERE, \@{$bind_values}, $start, $end_time)},
+    ];
+  }
+  elsif ( $is_ipn ){
+    $list = get_ipn_traffic($multiply_for_bytes, $EXT_TABLE, $WHERE, \@{$bind_values}, $start, $end_time);
+  }
+  else {
+    $list = get_pppoe_traffic($multiply_for_bytes, $EXT_TABLE, $WHERE, \@{$bind_values}, $start, $end_time);
   }
 
-  if ( $force_ipn ){ $is_ipn = 1 };
+#  _bp("Called by", [ caller ], {HEADER => 0, EXIT => 0, TO_CONSOLE => 0});
+#  _bp('', [ 'scalar', scalar @{$list} ]);
+  
+  return $list;
 
-  if ( $ipn_module_enabled && is_ipn() ){
+}
 
-    my $traffic_classes = get_traffic_classes();
+#**********************************************************
+=head2 get_ipn_traffic($multiply_for_bytes, $EXT_TABLE, $WHERE, $bind_values, $start_time, $end_time)
 
-    #form query for each traffic class
-    my $select_query_traffic_classes = '';
-    my @traffic_classes_ids = sort (keys(%{$traffic_classes}));
-    for ( my ($i, $len) = (0, scalar @traffic_classes_ids); $i < $len; $i++ ){
-      $select_query_traffic_classes .= "SUM(IF(traffic_class=$i, l.traffic_in, 0)) $multiply_for_bites, \n";
-      $select_query_traffic_classes .= "SUM(IF(traffic_class=$i, l.traffic_out, 0)) $multiply_for_bites";
-      $select_query_traffic_classes .= ($i != $len - 1) ? ",\n" : '';
+=cut
+#**********************************************************
+sub get_ipn_traffic {
+  my ($multiply_for_bytes, $EXT_TABLE, $WHERE, $bind_values, $start_time, $end_time) = @_;
+  
+  my $traffic_classes = get_traffic_classes();
+  
+  #form query for each traffic class
+  my $select_query_traffic_classes = '';
+  my @traffic_classes_ids = sort (keys(%{$traffic_classes}));
+  for ( my ($i, $len) = (0, scalar @traffic_classes_ids); $i < $len; $i++ ){
+    $select_query_traffic_classes .= "SUM(IF(traffic_class=$i, l.traffic_in, 0)) $multiply_for_bytes, \n";
+    $select_query_traffic_classes .= "SUM(IF(traffic_class=$i, l.traffic_out, 0)) $multiply_for_bytes";
+    $select_query_traffic_classes .= ($i != $len - 1) ? ",\n" : '';
+  }
+  
+  if ( $FORM{'LOGIN'} ){
+    
+    if ($conf{DV_LOGIN}){
+      $admin->query2( "SELECT uid FROM dv_main WHERE dv_login= ? ;", undef, { Bind => [ $FORM{LOGIN} ] } );
     }
-
-    if ( $FORM{'LOGIN'} ){
+    else {
       $admin->query2( "SELECT uid FROM users WHERE id= ? ;", undef, { Bind => [ $FORM{LOGIN} ] } );
-      $WHERE = "l.uid='$admin->{list}->[0][0]'";
-      %ids = ($FORM{'LOGIN'} => $FORM{'LOGIN'});
-      $EXT_TABLE = "INNER JOIN users u ON (u.uid=l.uid) ";
     }
-    elsif ( $FORM{UID} ){
-      $WHERE = "l.uid='$FORM{UID}'";
-      %ids = ($FORM{UID} => $FORM{UID});
-      $EXT_TABLE = '';
-    }
-    else{
-      $EXT_TABLE =~ s/l\.id/l\.uid/g
-    }
-
-    $GROUP_BY = "5min";
-    $admin->query2( "SELECT UNIX_TIMESTAMP(l.start),
+    
+    $WHERE = "l.uid=?";
+    %ids = ($FORM{'LOGIN'} => $FORM{'LOGIN'});
+    $EXT_TABLE = "INNER JOIN users u ON (u.uid=l.uid) ";
+  }
+  
+  elsif ( $FORM{UID} ){
+    $WHERE = "l.uid=?";
+    %ids = ($FORM{UID} => $FORM{UID});
+    $EXT_TABLE = '';
+  }
+  else{
+    $EXT_TABLE =~ s/l\.id/l\.uid/g
+  }
+  
+  $admin->query2( "SELECT UNIX_TIMESTAMP(l.start),
       $select_query_traffic_classes
       FROM ipn_log l
       $EXT_TABLE
-      WHERE $WHERE and UNIX_TIMESTAMP(l.start) > $start and UNIX_TIMESTAMP(l.start) < ($start + $period)
+      WHERE $WHERE and UNIX_TIMESTAMP(l.start) > $start_time and UNIX_TIMESTAMP(l.start) < ($end_time)
       GROUP BY 1
-      ORDER BY l.start;"
-    );
-  }
-  else{
-    $admin->query2( "SELECT l.last_update,
-      SUM(l.recv1) $multiply_for_bites,
-      SUM(l.sent1) $multiply_for_bites,
-      SUM(l.recv2) $multiply_for_bites,
-      SUM(l.sent2) $multiply_for_bites
+      ORDER BY l.start;",
+     undef,
+    { Bind => $bind_values }
+    
+  );
+  
+  _error_show($admin);
+  
+  return $admin->{list} || [];
+}
+
+#**********************************************************
+=head2 get_pppoe_traffic()
+
+=cut
+#**********************************************************
+sub get_pppoe_traffic {
+  my ($multiply_for_bytes, $EXT_TABLE, $WHERE, $bind_values, $start_time, $end_time) = @_;
+  
+  $admin->query2( "SELECT l.last_update,
+      SUM(l.recv1) $multiply_for_bytes,
+      SUM(l.sent1) $multiply_for_bytes,
+      SUM(l.recv2) $multiply_for_bytes,
+      SUM(l.sent2) $multiply_for_bytes
       FROM s_detail l
       $EXT_TABLE
-      WHERE $WHERE and l.last_update > $start and l.last_update < ($start + $period)
+      WHERE $WHERE and l.last_update > $start_time and l.last_update < $end_time
       GROUP BY 1
-      ORDER BY l.last_update;"
-    );
-  }
-
-  if ( $admin->{errno} ){
-    $html->message( 'danger', 'SQL error', $admin->{errstr} );
-    return 0;
-  }
-
-  return $admin->{list};
-
+      ORDER BY l.last_update;", undef
+      , { Bind => $bind_values  }
+  );
+  _error_show($admin);
+  
+  return $admin->{list} || [];
 }
+
 
 #**********************************************************
 =head2 make_chart_for_period - Get traffic for period and make chart
@@ -581,17 +620,12 @@ sub get_traffic{
 =cut
 #**********************************************************
 sub make_chart_for_period{
-  my ($AS_5MIN, $EXT_TABLE, $WHERE, $period, $GROUP_BY, $CAPTION, $key, $start, $end, $OUTPUT2RETURN) = @_;
+  my ($EXT_TABLE, $WHERE, $bind_values, $period, $CAPTION, $key, $start, $end, $OUTPUT2RETURN) = @_;
+  
+  my $traffic_list = get_traffic( $EXT_TABLE, $WHERE, $bind_values, $start, $period);
 
-  my $traffic_list = get_traffic( $AS_5MIN, $EXT_TABLE, $WHERE, $start, $period, $GROUP_BY );
-
-  if ( !(defined ( $traffic_list )) || scalar @{ $traffic_list } <= 0 ){
-    $traffic_list = get_traffic( $AS_5MIN, $EXT_TABLE, $WHERE, $start, $period, $GROUP_BY, 'force_ipn' );
-  }
-
-  my $name = get_name_for( $key ) || '';
-  my $title = "$CAPTION: $name ($key) ";
-
+  my $name  = get_name_for( $key ) || '';
+  my $title = "$CAPTION: '$name' ($key) ";
   my $chart = make_chart( $traffic_list, $title, $start, $end );
 
   unless ( $OUTPUT2RETURN ){
@@ -610,12 +644,11 @@ sub make_chart_for_period{
 #**********************************************************
 sub make_chart{
   my ($list, $title, $start, $end) = @_;
-
-  log_debug( "make chart $title. Start: ", "$start  ;" . localtime( $start ), 3 );
-  log_debug( "make chart $title. End: ", "$end  ;" . localtime( $end ), 3 );
-  log_debug( "make chart DAYS:", ( $end - $start ) / $DAILY_PERIOD, 3 );
-
+  
   if ( $debug >= 1 ){
+    log_debug( "make chart $title. Start: ", "$start  ;" . localtime( $start ), 3 ) if ($debug >= 3);
+    log_debug( "make chart $title. End: ", "$end  ;" . localtime( $end ), 3 )  if ($debug >= 3);
+    log_debug( "make chart DAYS:", ( $end - $start ) / $DAILY_PERIOD, 3 )  if ($debug >= 3);
     print "<hr><b>$title</b>";
   }
 
@@ -648,11 +681,11 @@ sub make_chart{
   my $chart = get_highchart(
     {
       TITLE     => "$named_period $title",
-        Y_TITLE => "$lang{SPEED}, $chart_type",
-        TYPE    => 'area',
-        SERIES  => $series,
-        HEIGHT  => $FORM{height},
-        WIDTH   => $FORM{width},
+      Y_TITLE => "$lang{SPEED}, $chart_type",
+      TYPE    => 'area',
+      SERIES  => $series,
+      HEIGHT  => $FORM{height},
+      WIDTH   => $FORM{width},
     }
   );
 
@@ -660,13 +693,6 @@ sub make_chart{
 
   return $chart;
 }
-
-
-#**********************************************************
-#**********************************************************
-#   Webinterface logic starts here
-#**********************************************************
-#**********************************************************
 
 #**********************************************************
 =head2 get_highchart($attr) - Build chart HTML from chart series
@@ -696,7 +722,7 @@ sub get_highchart{
     }
   }
 
-  log_debug( "Dimensions", $dimensions, 1 );
+  log_debug( "Dimensions", $dimensions, 1 ) if ($debug >= 1);
 
   my $result = qq{
    <div id='$chartDivId' style='margin: 5px auto; border: 1px solid silver $dimensions'></div>
@@ -714,7 +740,7 @@ sub get_highchart{
       jQuery('#$chartDivId').highcharts({
         chart : { type: '$chartType', zoomType: 'x' },
         plotOptions: { series : { softTreshold : true, turboThreshold: 0, allowPointSelect: true } },
-        title : { text: '$chartTitle'},
+        title : { text: "$chartTitle"},
         series: $chartSeries,
         xAxis : { type : 'datetime' },
         yAxis : { title: { text: '$chartYAxisTitle' }},
@@ -750,27 +776,26 @@ sub get_highchart{
 sub form_chart_series{
   my ($attr) = @_;
 
-  unless ( defined $attr->{LIST} && defined $attr->{NAMES} ){
+  unless ( defined $attr->{LIST} && ref $attr->{LIST} eq 'ARRAY' && defined $attr->{LIST}[0] && defined $attr->{NAMES} ){
     return "No data";
   }
   unless ( defined $attr->{PERIOD_START} && defined $attr->{PERIOD_END} ){
     return "Wrong input parameters.\n PERIOD_START and PERIOD_END are mandatory.";
   }
 
-  my @list = @{ $attr->{LIST} };
+  my @traffic_list = @{ $attr->{LIST} };
   my @names = @{ $attr->{NAMES} };
 
   my $start = $attr->{PERIOD_START};
   my $end = $attr->{PERIOD_END};
-
-
+  
   #check input params
-  my $list_length = scalar @{ $list[0] } || 0;
+  my $list_length = scalar @{ $traffic_list[0] } || 0;
   my $names_length = scalar @names || 0;
 
   my $series_count = $list_length - 1;
 
-  unless ( $names_length == $series_count ){
+  if ( $names_length != $series_count && !$conf{CHARTS_BOTH_SCHEMES} ){
 
     unless ( $list_length ){
       return "No data";
@@ -781,29 +806,32 @@ sub form_chart_series{
 
   #init
   my @result_data_array = ();
-  my @before = (0);
+  my @previous_row = (0);
 
   for ( my $i = 1; $i <= $series_count; $i++ ){
-    push ( @before, 0 );
+    push ( @previous_row, 0 );
     # Start data array from timestamp that equal to period_start
     # Multiplying to 1000 because JavaScript timestamp uses milliseconds
-    $result_data_array[$i] = [ { x => int( $start * 1000 ), y => undef } ];
+    $result_data_array[$i] = [ { x => +( $start * 1000 ), y => undef } ];
   }
 
-  log_debug ( "series_count", "$series_count", 1 );
-  log_debug ( "names_length", "$names_length", 1 );
+  log_debug ( "series_count", "$series_count", 1 ) if ($debug);
+  log_debug ( "names_length", "$names_length", 1 ) if ($debug);
 
   my $timestamp = 0;
   my $pause = 1;
 
-  foreach my $line ( @list ){
-    $timestamp = int( $line->[0] );
-    $pause = ( $timestamp - $before[0] ) || 1;
+  foreach my $line ( @traffic_list ){
+    $timestamp = +( $line->[0] );
+    $pause = ( $timestamp - $previous_row[0] ) || 1;
 
-    if ( $before[0] && $pause > 600 ){
+    # Ignore periods with more than 5 min pause
+    if (($previous_row[0] && $pause > 600) && !$conf{CHARTS_LONG_PAUSE}){
       for ( my $i = 1; $i <= $series_count; $i++ ){
-        push @{$result_data_array[$i]}, { x => int ( $before[0] * 1000 + 2 ), y => undef };
-        push @{$result_data_array[$i]}, { x => int ( $timestamp * 1000 - 2 ), y => undef };
+        push (@{$result_data_array[$i]},
+          { x => +( $previous_row[0] * 1000 + 2 ), y => undef },
+          { x => +( $timestamp * 1000 - 2 ), y => undef }
+        );
       }
     }
     else{
@@ -811,33 +839,35 @@ sub form_chart_series{
       for ( my $i = 1; $i <= $series_count; $i++ ){
 
         if ( $line->[$i] ){
-          if ( is_ipn() ){
+          if ( $is_ipn ){
             $traffic_delta = $line->[$i];
           }
-          else{
-            if ( $before[$i] && ( $line->[$i] >= $before[$i]) ){
-              $traffic_delta = int( $line->[$i] - $before[$i] );
-            }
+          # Ignore negative speed values
+          elsif ( $previous_row[$i] && ( $line->[$i] >= $previous_row[$i]) ) {
+            $traffic_delta = +( $line->[$i] - $previous_row[$i] );
           }
         }
 
         $speed = $traffic_delta / $pause;
-
-        push ( @{$result_data_array[$i]}, { x => $timestamp * 1000, y => int( $speed ) } );
+        push ( @{$result_data_array[$i]}, { x => $timestamp * 1000, y => +( $speed ) } );
       }
-
     }
 
-    @before = @{ $line };
+    @previous_row = @{ $line };
   }
 
   my @series = ();
   for ( my $i = 1; $i <= $series_count; $i++ ){
     # Finish data array with timestamp that corresponds to period end
     push @{$result_data_array[$i]}, { x => $end * 1000, y => undef };
+    
+    # Highcharts needs data to be sorted
+    @{$result_data_array[$i]} = sort { $a->{x} <=> $b->{x} } @{$result_data_array[$i]};
+    
     push @series, { name => $names[$i - 1], data => $result_data_array[$i] };
   }
-
+  
+  
   return \@series;
 }
 
@@ -972,8 +1002,8 @@ sub get_month_boundary{
   my $month_end_day_time = timelocal( 0, 0, 0, days_in_month( { DATE => $year + 1900 . '-' . ($mon + 1) . '-' . 1 } ),
     $mon, $year );
 
-  log_debug( 'month_start_day_time', "$month_start_day_time  " . localtime( $month_start_day_time ), 3 );
-  log_debug( 'month_end_day_time', "$month_end_day_time  " . localtime( $month_end_day_time ), 3 );
+  log_debug( 'month_start_day_time', "$month_start_day_time  " . localtime( $month_start_day_time )) if ($debug >= 3);
+  log_debug( 'month_end_day_time', "$month_end_day_time  " . localtime( $month_end_day_time ) ) if ($debug >= 3);
 
   return ($month_start_day_time, $month_end_day_time);
 }
@@ -1001,7 +1031,14 @@ sub get_name_for{
     }
     elsif ( $type eq 'Tag' ){
       $type_names_for{$key} = @{ get_tags_list( $key ) }[0]->[1];
-    } else{
+    }
+    elsif ($type eq $lang{USER}) {
+      $type_names_for{$key} = @{ get_uid_list( $key ) }[0]->[1] || do {
+        print "$lang{USER} $lang{ERR_NOT_EXISTS}";
+        exit 1;
+      };
+    }
+    else{
       $type_names_for{$key} = '';
     }
   }
@@ -1047,12 +1084,15 @@ sub show_tabbed{
 sub get_tp_list{
   my ($id) = @_;
   my $WHERE = '';
+  my @BIND_VALUES = ();
   if ( $id && $id ne '' ){
-    $WHERE = "id=$id";
+    $WHERE = "id=?";
+    push @BIND_VALUES, $id;
   }
 
-  $admin->query2( "SELECT id, name FROM tarif_plans ORDER BY id;" );
-  return $admin->{list};
+  $admin->query2( "SELECT id, name FROM tarif_plans $WHERE ORDER BY id;", undef , { Bind => \@BIND_VALUES }  );
+
+  return $admin->{list} || [[0, 0]];
 }
 
 #**********************************************************
@@ -1061,12 +1101,16 @@ sub get_tp_list{
 sub get_nas_list{
   my ($id) = @_;
   my $WHERE = '';
+  my @BIND_VALUES = ();
+  
   if ( $id && $id ne '' ){
-    $WHERE = "id=$id and";
+    $WHERE = "id= ?  AND";
+    push @BIND_VALUES, $id;
   }
 
-  $admin->query2( "SELECT id, name FROM nas WHERE $WHERE disable=0 ORDER BY id;" );
-  return $admin->{list};
+  $admin->query2( "SELECT id, name FROM nas WHERE $WHERE disable=0 ORDER BY id;", undef , { Bind => \@BIND_VALUES }  );
+
+  return $admin->{list} || [[0, 0]];
 }
 
 #**********************************************************
@@ -1075,12 +1119,16 @@ sub get_nas_list{
 sub get_group_list{
   my ($id) = @_;
   my $WHERE = '';
+  my @BIND_VALUES = ();
+
   if ( $id && $id ne '' ){
-    $WHERE = "WHERE gid=$id";
+    $WHERE = "WHERE gid=?";
+    push @BIND_VALUES, $id;
   }
 
-  $admin->query2( "SELECT gid, name FROM groups $WHERE ORDER BY gid;" );
-  return $admin->{list};
+  $admin->query2( "SELECT gid, name FROM groups $WHERE ORDER BY gid;", undef , { Bind => \@BIND_VALUES }  );
+
+  return $admin->{list} || [[0, 0]];
 }
 
 #**********************************************************
@@ -1089,12 +1137,29 @@ sub get_group_list{
 sub get_login_list{
   my ($id) = @_;
   my $WHERE = '';
+  my @BIND_VALUES = ();
   if ( $id && $id ne '' ){
-    $WHERE = "uid=$id and";
+    $WHERE = "id=? AND";
+    push @BIND_VALUES, $id;
   }
 
-  $admin->query2( "SELECT uid, id FROM users WHERE $WHERE disable=0 and deleted=0 ORDER BY id;" );
-  return $admin->{list};
+  $admin->query2( "SELECT uid, id FROM users WHERE $WHERE disable=0 and deleted=0 ORDER BY id;", undef , { Bind => \@BIND_VALUES } );
+
+  return $admin->{list} || [[0, 0]];
+}
+
+sub get_uid_list{
+  my ($uid) = @_;
+  my $WHERE = '';
+  my @BIND_VALUES = ();
+  if ( $uid && $uid ne '' ){
+    $WHERE = "uid= ? AND";
+    push @BIND_VALUES, $uid;
+  }
+  
+  $admin->query2( "SELECT uid, id FROM users WHERE $WHERE disable=0 and deleted=0 ORDER BY uid;", undef , { Bind => \@BIND_VALUES } );
+
+  return $admin->{list} || [[0, 0]];
 }
 
 #**********************************************************
@@ -1103,35 +1168,21 @@ sub get_login_list{
 sub get_tags_list{
   my ($id) = @_;
   my $WHERE = '';
+  my @BIND_VALUES = ();
   if ( $id && $id ne '' ){
-    $WHERE = "WHERE id=$id";
+    $WHERE = "WHERE id= ?";
+    push @BIND_VALUES, $id;
   }
 
-  $admin->query2( "SELECT id, name FROM tags $WHERE ORDER BY name;" );
-  return $admin->{list};
+  $admin->query2( "SELECT id, name FROM tags $WHERE ORDER BY name;", undef , { Bind => \@BIND_VALUES }  );
+
+  return $admin->{list} || [[0, 0]];
 }
 
 #**********************************************************
-#
-#**********************************************************
-sub print_list{
-  my ($list) = @_;
+=head2 print_head()
 
-  my @options = @{ $list };
-
-  if ( scalar @options > 0 ){
-    print "<option value='all'>--</option>";
-  } else{
-    return 1;
-  }
-
-  foreach my $line ( @options ){
-    print "<option value='$line->[0]'>$line->[1]</option>";
-  }
-}
-
-#**********************************************************
-#
+=cut
 #**********************************************************
 sub print_head{
   print << '[END]';
@@ -1142,7 +1193,6 @@ sub print_head{
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <meta http-equiv="Refresh" content="300" />
     <meta http-equiv="Cache-Control" content="no-cache" />
     <meta http-equiv="Pragma" content="no-cache" />
 
@@ -1150,32 +1200,16 @@ sub print_head{
 
     <!-- CSS -->
     <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/bootstrap.min.css' >
-    <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/tcal.css'>
-    <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/chosen.min.css'>
 
     <!-- Bootstrap -->
     <script src='/styles/default_adm/js/jquery.min.js'></script>
     <script src='/styles/default_adm/js/bootstrap.min.js'></script>
 
     <script src='/styles/default_adm/js/functions.js' type='text/javascript' language='javascript'></script>
-    <script src='/styles/default_adm/js/functions-admin.js' type='text/javascript' language='javascript'></script>
-
-    <!-- Custom calendar -->
-    <script type='text/javascript' src='/styles/default_adm/js/tcal.js'></script>
-    <!-- Custom <select> design -->
-    <script type='text/javascript' src='/styles/default_adm/js/chosen.jquery.min.js'></script>
 
     <script src="/styles/default_adm/js/charts/highcharts.js"></script>
 
     <title>ABillS Users Traffic</title>
-    <script language='JavaScript' type='text/javascript'>
-        // chosen init params //
-        var INIT_PARAMS = {
-            no_results_text: ' Nothing to show ',
-            allow_single_deselect: true,
-            placeholder_text: ' -- '
-        };
-    </script>
 
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
@@ -1190,10 +1224,13 @@ sub print_head{
 <noscript> JavaScript required </noscript>
 [END]
 
+  return 1;
 }
 
 #**********************************************************
-#
+=head2 print_footer()
+
+=cut
 #**********************************************************
 sub print_footer{
 
@@ -1212,7 +1249,7 @@ sub print_footer{
 
     if ( $begin_time > 0 ){
       my $gen_time = gen_time( $begin_time );
-      print "<hr><div class='row' id='footer'>" . "Version: $VERSION (GT: " . sprintf( "%.6f", $gen_time ) . ")</div>";
+      print "<hr><div class='row' id='footer'>" . "Version: $VERSION ( $gen_time )</div>";
     }
   }
 
@@ -1264,58 +1301,75 @@ sub print_footer{
 </body>
 </html>
 [FOOTER]
+
+  return 1;
 }
 
 
 #**********************************************************
-#  Show charts
+=head2 show_page() - Show charts
+
+=cut
 #**********************************************************
 sub show_page{
 
   print_head();
 
-  my $page_header = '';
+  my %page_header = ();
   my $name = $lang{ALL};
+
   if ( $FORM{LOGIN} ){
-    $page_header = "<b>$lang{USER}:</b> <a href='index.cgi?LOGIN_EXPR=$FORM{LOGIN}'>$FORM{LOGIN}</a>";
+    $page_header{HEADER_NAME} = $lang{USER};
+    $page_header{VALUE} = "<a href='index.cgi?LOGIN_EXPR=$FORM{LOGIN}'>$FORM{LOGIN}</a>";
+  }
+  if ( $FORM{UID} ){
+    if ($FORM{UID} ne 'all'){
+      $name = get_name_for($FORM{UID});
+    }
+    $page_header{HEADER_NAME} = $lang{USER};
+    $page_header{HEADER_VALUE} = $name;
   }
   elsif ( $FORM{SESSION_ID} ){
     if ( $FORM{SESSION_ID} ne 'all' ){
       $name = get_name_for( $FORM{SESSION_ID} )
     }
-    $page_header = "<b>Session_id:</b> $name";
+    $page_header{HEADER_NAME}='Session_id';
+    $page_header{HEADER_VALUE}=$name;
   }
   elsif ( $FORM{TP_ID} ){
     if ( $FORM{TP_ID} ne 'all' ){
       $name = get_name_for( $FORM{TP_ID} )
     }
-    $page_header = "<b>$lang{TARIF_PLAN}:</b> $name";
+    $page_header{HEADER_NAME} = $lang{TARIF_PLAN};
+    $page_header{HEADER_VALUE}= $name;
   }
   elsif ( $FORM{NAS_ID} ){
     if ( $FORM{NAS_ID} ne 'all' ){
       $name = get_name_for( $FORM{NAS_ID} )
     }
-    $page_header = "<b>NAS:</b> $name";
+    $page_header{HEADER_NAME} = $lang{NAS};
+    $page_header{HEADER_VALUE} = $name;
 
   }
   elsif ( $FORM{GID} ){
     if ( $FORM{GID} ne 'all' ){
       $name = get_name_for( $FORM{GID} )
     }
-    $page_header = "<b>$lang{GROUP}:</b>$name";
+    $page_header{HEADER_NAME}=$lang{GROUP};
+    $page_header{HEADER_VALUE}=$name;
   }
   elsif ( $FORM{TAG_ID} ){
     if ( $FORM{TAG_ID} ne 'all' ){
       $name = get_name_for( $FORM{TAG_ID} )
     }
-    $page_header = "<b>$lang{TAGS}:</b>$name";
-
+    $page_header{HEADER_NAME}=$lang{TAGS};
+    $page_header{HEADER_VALUE}=$name;
   }
 
-  print "<div class='page-header'><h3>$page_header</h3></div>";
-
   my $date_to_show = $FORM{DATE} || $DATE;
-  print "<h5><b>DATE:</b> $date_to_show </h5><br>";
+
+  print "<div class='page-header'><h3>$page_header{HEADER_NAME}: $page_header{HEADER_VALUE}</h3></div>";
+  print "<h5><b>$lang{DATE}:</b> $date_to_show </h5><br>";
 
   foreach my $chart ( @charts ){
     print $chart;
@@ -1323,138 +1377,7 @@ sub show_page{
 
   print_footer();
 
-}
-
-#**********************************************************
-#
-#**********************************************************
-sub print_select_form{
-  print_head();
-
-  print << "[FORM]";
-  <div class='col-md-6 col-md-push-3'>
-
-  <form method='get' class='form form-horizontal' action='charts.cgi'>
-  <div class='panel panel-primary'>
-    <div class='panel-heading text-center'>$lang{TRAFFIC}</div>
-    <div class='panel-body'>
-
-      <div class='form-group'>
-        <label class='control-label col-md-4' for='DATE'>$lang{DATE}</label>
-        <div class='col-md-8'>
-          <input name='DATE'  class='form-control tcal' id='DATE'>
-        </div>
-      </div>
-
-      <div class='form-group bg-info text-center'><label class='text-muted'>$lang{PERIOD}</label></div>
-
-      <div class='form-group'>
-
-        <div class='col-md-8 col-md-push-2'>
-
-          <label class='radio-inline' for='period_2'>
-            <input type='radio' class='static-control-element' name='period' value='DAILY' id='period_2' /> $lang{DAY}
-          </label>
-
-          <label class='radio-inline' for='period_3'>
-            <input type='radio' class='static-control-element' name='period' value='WEEKLY' id='period_3' /> $lang{WEEK}
-          </label>
-
-          <label class='radio-inline' for='period_4'>
-            <input type='radio' class='static-control-element' name='period' value='MONTHLY' id='period_4' /> $lang{MONTH}
-          </label>
-
-          <label class='radio-inline' for='period_1'>
-            <input type='radio' class='static-control-element' name='period' value='ALL' id='period_1' checked /> $lang{ALL}
-          </label>
-        </div>
-      </div>
-
-      <div class='form-group bg-info text-center'><label class='text-muted'>$lang{PARAM}</label></div>
-
-      <div class='form-group'>
-        <label class='control-label col-md-4' for='TP_LIST'>$lang{TARIF_PLANS}</label>
-        <div class='col-md-8 text-center'>
-          <select name='TP_ID'  class='form-control' id='TP_LIST' disabled></select>
-        </div>
-      </div>
-
-      <div class='form-group'>
-        <label class='control-label col-md-4' for='NAS_LIST'>$lang{NAS}</label>
-        <div class='col-md-8 text-center'>
-          <select name='NAS_ID' class='form-control'  id='NAS_LIST' disabled></select>
-        </div>
-      </div>
-
-      <div class='form-group'>
-        <label class='control-label col-md-4' for='LOGIN_LIST'>$lang{USER}</label>
-        <div class='col-md-8 text-center'>
-          <select name='UID' class='form-control' id='LOGIN_LIST' disabled></select>
-        </div>
-      </div>
-
-      <div class='form-group'>
-        <label class='control-label col-md-4' for='GID_LIST'>$lang{GROUP}</label>
-        <div class='col-md-8 text-center'>
-          <select name='GID_ID' class='form-control'  id='GID_LIST' disabled></select>
-        </div>
-      </div>
-
-      <div class='form-group'>
-        <label class='control-label col-md-4' for='TAGS_LIST'>$lang{TAGS}</label>
-        <div class='col-md-8 text-center'>
-          <select name='TAG_ID' class='form-control'  id='TAGS_LIST' disabled></select>
-        </div>
-      </div>
-
-    </div>
-    <div class='panel-footer text-center'>
-      <input type='reset' id='resetBtn'  value='$lang{RESET}' class='btn btn-default'>
-      <input type='submit' id='submitBtn' value='$lang{SHOW}' class='btn btn-primary' disabled>
-    </div>
-  </div>
-  </form>
-  </div>
-
-  <script>
-    jQuery(function(){
-      var submitBtn = jQuery('#submitBtn');
-      var selects = jQuery('select');
-      selects.on('change', function(){
-        selects.prop('disabled', true);
-        jQuery('#' + this.id).prop('disabled', false);
-        submitBtn.prop('disabled', false);
-
-        updateChosen();
-      });
-
-      jQuery('#resetBtn').on('click', function(){
-        selects.prop('disabled', false);
-        submitBtn.prop('disabled', true);
-      });
-
-      fillList('TP_LIST', 'tp');
-      fillList('NAS_LIST', 'nas');
-      fillList('GID_LIST', 'gid');
-      fillList('TAGS_LIST', 'tags');
-      fillList('LOGIN_LIST', 'login');
-  });
-
-    function fillList(id, type){
-      jQuery.get('?list=' + type, function(data){
-        var select = jQuery('#'+id);
-        select.empty().append(data);
-        select.prop('disabled', false);
-
-        updateChosen();
-      });
-    }
-  </script>
-
-[FORM]
-
-
-  print_footer();
+  return 1;
 }
 
 #**********************************************************
@@ -1465,16 +1388,15 @@ sub print_select_form{
 =cut
 #**********************************************************
 sub log_debug{
-  my ($name, $str, $level) = @_;
 
-  return if ($debug < $level);
+  my ($name, $str) = @_;
 
   if ( ref $str eq 'ARRAY' ){
     $str = join ", ", @{$str};
   }
 
   $log .= "<hr><h4>$name</h4>$str";
-
+  return 1;
 }
 
 1

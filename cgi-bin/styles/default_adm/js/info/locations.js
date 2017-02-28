@@ -28,7 +28,7 @@
       loadLocations(locations_obj_type, locations_obj_id);
     }
 
-    events.on('mapsClick', processMapClick);
+    Events.on('mapsClick', processMapClick);
 
     function processMapClick(context) {
 
@@ -83,7 +83,7 @@
     }
 
     function disableAddMod() {
-      events.off('mapsClick', processMapClick);
+      Events.off('mapsClick', processMapClick);
     }
   }
 

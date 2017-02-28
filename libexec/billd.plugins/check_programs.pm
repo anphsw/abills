@@ -9,13 +9,19 @@
 =cut
 #**********************************************************
 
+
 our (
-$debug,
-%conf,
-$admin,
-$db,
-$OS
+  $debug,
+  %conf,
+  $admin,
+  $db,
+  $OS,
+  $argv
 );
+
+use strict;
+use warnings;
+use Abills::Base qw(startup_files cmd);
 
 check_programs();
 
@@ -46,13 +52,13 @@ sub check_programs {
     my ($name, $start_cmd) = split(/:/, $line, 2);
     if ($debug > 1) {
       print "Program: $name, $start_cmd\n";
-    } 
+    }
 
     my @ps = split m|$/|, qx/ps axc | grep $name/;
     if ($debug > 1) {
-      print join("\n", @ps)."\n";      
+      print join("\n", @ps)."\n";
     }
-     
+
     if ($#ps < 0) {
       if (! $start_cmd && $START_PROGRAM{'RESTART_'.uc($name)}) {
         $start_cmd=$START_PROGRAM{'RESTART_'.uc($name)};
@@ -68,6 +74,7 @@ sub check_programs {
     }
   }
 
+  return 1;
 }
 
 

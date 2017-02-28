@@ -4,27 +4,26 @@ use warnings;
 use utf8;
 
 our (%conf);
-
+our @MODULES;
 BEGIN {
   use FindBin '$Bin';
 
-  my $libpath = '/../'; #assuming we are in /usr/abills/misc/
-  require $Bin . "/$libpath/libexec/config.pl";
-
-  unshift( @INC, $Bin . "$libpath/" );
-  unshift( @INC, $Bin . "$libpath" );
-  unshift( @INC, $Bin . "$libpath/Abills" );
-  unshift( @INC, $Bin . "$libpath/lib" );
-  unshift( @INC, $Bin . "$libpath/Abills/modules" );
-  unshift( @INC, $Bin . "$libpath/Abills/$conf{dbtype}" );
+  my $libpath = $Bin . '/../'; #assuming we are in /usr/abills/misc/
+  require "$libpath/libexec/config.pl";
+  
+  unshift( @INC,
+    "$libpath",
+    "$libpath/Abills",
+    "$libpath/lib",
+    "$libpath/Abills/modules",
+    "$libpath/Abills/$conf{dbtype}"
+  );
 }
 
 use AnyEvent;
 use AnyEvent::Handle;
 use AnyEvent::Socket;
 use AnyEvent::Impl::Perl;
-
-use Asterisk::AMI;
 
 use Protocol::WebSocket::Handshake::Server;
 use Protocol::WebSocket::Frame;
@@ -40,8 +39,6 @@ use Abills::Base qw/_bp/;
 
 use Admins;
 use Users;
-
-use Data::Dumper;
 
 require Abills::SQL;
 my $db = Abills::SQL->connect(
@@ -67,7 +64,9 @@ my $json = JSON->new->utf8;
 my %aid_client_ids = ();
 my %aid_client_id_index = ();
 my %client_id_aid = ();
-my %client = ();
+my %client_handles = ();
+
+my %calls_statuses = ();
 
 # Cache
 my %admin_by_number = ();
@@ -87,15 +86,15 @@ my $guard_timer = undef;
 
 my $log_user = ' WebSocket ';
 my $default_log_file = '/tmp/abills_websocket.log';
-my $ARGV_ = parse_arguments( \@ARGV );
+my $ARGS = parse_arguments( \@ARGV );
 
 # Setting up Log and debug level
-my $debug = $ARGV_->{DEBUG} || 0;
+my $debug = $ARGS->{DEBUG} || 0;
 my $Log = Log->new( $db, \%conf, { DEBUG_LEVEL => $debug } );
-$Log->{LOG_FILE} = $ARGV_->{LOG_FILE} || $default_log_file;
+$Log->{LOG_FILE} = $ARGS->{LOG_FILE} || $default_log_file;
 
 #Starting
-if ( defined( $ARGV_->{'-d'} ) ) {
+if ( defined( $ARGS->{'-d'} ) ) {
   print "Daemonizing \n";
   my $pid_file = daemonize();
   # ведение лога
@@ -103,7 +102,7 @@ if ( defined( $ARGV_->{'-d'} ) ) {
 }
 
 # Stoppping
-elsif ( defined( $ARGV_->{stop} ) ) {
+elsif ( defined( $ARGS->{stop} ) ) {
   print "Stopping \n";
   stop_server();
   exit;
@@ -111,7 +110,6 @@ elsif ( defined( $ARGV_->{stop} ) ) {
 
 # Checking if already started
 elsif ( make_pid() == 1 ) {
-  print "!!! Already running \n";
   exit;
 }
 
@@ -166,9 +164,13 @@ sub new_websocket_client {
       if ( !$handshake->is_done ) {
         do_handshake( $this_client_handle, $chunk, $handshake );
         if ( my $aid = authenticate( $chunk ) ) {
-          drop_client($client_id, 'Unauthorized') if ($aid == -1);
-          save_aid_handle( $this_client_handle, $client_id, $aid );
-          $Log->log_print( 'LOG_INFO', $log_user, "$client_id . Total : " . ( scalar keys %client ) . " admins" );
+          if ($aid == -1) {
+            drop_client($client_id, 'Unauthorized') ;
+          }
+          else {
+            save_aid_handle( $this_client_handle, $client_id, $aid );
+            $Log->log_print( 'LOG_INFO', $log_user, "$client_id . Total : " . ( scalar keys %client_handles ) . " connections" );
+          }
         }
         return;
       }
@@ -227,14 +229,16 @@ sub new_internal_client {
         $this_client_handle->push_write( '{"TYPE":"PONG"}' )
       }
       elsif ( $parsed_chunk->{TYPE} eq 'MESSAGE' ) {
-        $this_client_handle->push_write( process_internal_message( $parsed_chunk ) );
+        $this_client_handle->push_write( process_internal_message( $parsed_chunk ));
       }
       elsif ( $parsed_chunk->{TYPE} eq 'REQUEST_LIST' ) {
-        $this_client_handle->push_write( process_list_request( $parsed_chunk ) );
+        $this_client_handle->push_write( process_list_request( $parsed_chunk ));
       }
       else {
         $this_client_handle->push_write( '{"TYPE":"ERROR", "ERROR":"UNKNOWN MESSAGE TYPE"}' )
       }
+      
+      $this_client_handle->push_write("\n");
     }
   );
 
@@ -270,13 +274,12 @@ sub on_websocket_message {
 
   while (my $message = $frame->next) {
 
-    if ( !exists $client{$client_id} ) {
+    if ( !exists $client_handles{$client_id} ) {
       $Log->log_print( 'LOG_NOTICE', $log_user, "Dropping unregistered client $client_id" );
       my $dropped = drop_client( $client_id, 'Unathorized' );
       $Log->log_print ( 'LOG_ERR', $log_user, "Error dropping $client_id" ) if (!$dropped);
     }
 
-    use Encode;
     print Encode::encode_utf8($message);
     print ' \n';
 
@@ -343,14 +346,12 @@ sub authenticate {
         return $aid;
       }
       else {
-
         my $admin_with_this_sid = $Admins->online_info( { SID => $sid, COLS_NAME => 1 } );
         if ( $Admins->{TOTAL} ) {
           $aid = $admin_with_this_sid->{AID};
           $admin_by_sid{$sid} = $aid;
           return $aid;
         }
-
       }
     }
   }
@@ -405,7 +406,7 @@ sub parse_message {
 sub save_aid_handle {
   my ($handle, $client_id, $aid) = @_;
 
-  $client{$client_id} = $handle;
+  $client_handles{$client_id} = $handle;
   $client_id_aid{$client_id} = $aid;
 
   if (exists $aid_client_ids{$aid}){
@@ -440,13 +441,17 @@ sub save_aid_handle {
 #**********************************************************
 sub get_aid_handles {
   my ($aid) = @_;
-
-
+  
+  if ($aid eq '*'){
+    return get_aids_handles([ sort keys %aid_client_ids ]);
+  }
+  
   my @indexes = sort keys %{$aid_client_ids{$aid}};
+  
   # delete 'last'
   pop @indexes;
 
-  my @handles = map { $client{$aid_client_ids{$aid}{$_}} } @indexes;
+  my @handles = map { $client_handles{$aid_client_ids{$aid}{$_}} } @indexes;
 
   return wantarray ? @handles : \@handles;
 }
@@ -481,7 +486,7 @@ sub get_aids_handles {
 #**********************************************************
 sub drop_client {
   my ($client_id, $reason) = @_;
-  my $handle = $client{$client_id};
+  my $handle = $client_handles{$client_id};
   $reason ||= "unknown";
 
   if ( defined $handle ) {
@@ -490,7 +495,7 @@ sub drop_client {
     $handle->push_shutdown;
   }
 
-  if ( exists ( $client{$client_id} ) ) {
+  if ( exists ( $client_handles{$client_id} ) ) {
     remove_client( $client_id )
   }
 
@@ -517,13 +522,13 @@ sub remove_client {
     delete $client_id_aid{$client_id};
   }
 
-  if ( $client{$client_id} ) {
-    $client{$client_id}->destroy;
-    delete $client{$client_id};
+  if ( $client_handles{$client_id} ) {
+    $client_handles{$client_id}->destroy;
+    delete $client_handles{$client_id};
     return 1;
   }
 
-  undef $client{$client_id};
+  undef $client_handles{$client_id};
   return 0;
 }
 
@@ -559,6 +564,11 @@ sub process_internal_message {
     my $decoded_message = parse_message( $message->{DATA} );
 
     $responce = notify_admin( $message->{ID}, $message->{DATA}, { TYPE => $decoded_message->{TYPE} } );
+    
+    if ($decoded_message->{SILENT}){
+      $Log->log_print('LOG_DEBUG', ' Internal ', 'Silent message');
+      return "\n";
+    }
   }
   elsif ( $message->{TO} eq 'CLIENT' ) {
     #TODO: client connections
@@ -605,6 +615,7 @@ sub process_list_request {
 sub connect_to_asterisk {
   eval { require Asterisk::AMI };
   if ( $@ ) {
+    $Log->log_print( 'LOG_CRIT', $log_user, "Can't load Asterisk::AMI perl module" );
     die "Can't load Asterisk::AMI perl module";
   }
   Asterisk::AMI->import();
@@ -638,7 +649,9 @@ sub connect_to_asterisk {
     Events     => 'on', # Give us something to proxy
     Timeout    => 0, # TODO: non-blocking DBI, to avoid timeouts
     #    UseSSL     => 1,
-    Handlers   => { Newchannel => \&process_asterisk_event }, # Install handler for new calls
+    Handlers   => { Newchannel => \&process_asterisk_event,
+                    Hangup     => \&process_asterisk_softhangup,
+                    Newstate   => \&process_asterisk_newstate }, # Install handler for new calls
     Keepalive  => 3, # Send a keepalive every 3 seconds
     on_connect => sub {
       $Log->log_print( 'LOG_INFO', $log_user, "Connected to Asterisk::AMI " );
@@ -709,11 +722,47 @@ sub process_asterisk_event {
     my $called_number = $event->{Exten};
     my $caller_number = $event->{CallerIDNum};
 
+    # CALLCENTER CODE
+    if(in_array('Callcenter', \@MODULES)){
+      if($event->{CallerIDNum} ne '' && $event->{Exten} ne ''){
+        use Callcenter;
+        my $Callcenter = Callcenter->new($db, $Admins, \%conf);
+          
+        my ($call_id, undef) = split('\.', $event->{Uniqueid});
+        
+        my $user = $Users->list({ UID       => '_SHOW',
+                                  PHONE     => $caller_number,
+                                  COLS_NAME => 1 });
+        my $uid;
+        if ( $user && ref $user eq 'ARRAY' && scalar @{$user} > 0 ) {
+          $uid = $user->[0]->{uid};
+        }
+        
+        $Callcenter->callcenter_add_cals({
+          USER_PHONE     => $caller_number,
+          OPERATOR_PHONE => $called_number,
+          ID             => $call_id,
+          UID            => $uid || 0,
+          STATUS         => 1,
+        });
+        
+        if(!$Callcenter->{errno}){
+          $Log->log_print('LOG_INFO', $log_user, "New call added. ID: $call_id");
+        }
+        else{
+         $Log->log_print('LOG_INFO', $log_user, "Can't add new call"); 
+        }
+      }
+    }
+
     $Log->log_print( 'LOG_INFO', $log_user, "Got Newchannel event. $caller_number calling to $called_number " );
 
     my $aid = get_admin_by_sip_number( $called_number );
 
-    unless ($aid && exists $aid_client_ids{$aid}){
+    if (!$aid){
+      $Log->log_print('LOG_NOTICE', $log_user, "Not admin number");
+    }
+    elsif (!exists $aid_client_ids{$aid}){
       $Log->log_print('LOG_NOTICE', $log_user, "Can't notify $aid, no connection");
       return 1;
     };
@@ -736,6 +785,79 @@ sub process_asterisk_event {
 
   return 1;
 }
+
+#**********************************************************
+=head2 process_asterisk_newstate() -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub process_asterisk_newstate {
+  my ($asterisk, $event) = @_;
+  
+  if($event->{ChannelStateDesc} eq 'Up' && $event->{ConnectedLineNum} ne ''){
+      
+    my ($call_id, undef) = split('\.', $event->{Uniqueid});
+
+    use Callcenter;
+    my $Callcenter = Callcenter->new($db, $Admins, \%conf);
+
+    $Callcenter->callcenter_change_calls({ STATUS  => 2,
+                                           ID      => $call_id });
+    if(!$Callcenter->{errno}){
+      $calls_statuses{$call_id} = 2;
+      $Log->log_print('LOG_INFO', $log_user, "Call in process. ID: $call_id");
+    }
+    else{
+      $Log->log_print('LOG_INFO', $log_user, "Can't change status call"); 
+    }
+  }
+
+  return 1;
+}
+
+
+#**********************************************************
+=head2 process_asterisk_softhangup () -
+
+  Arguments:
+    ATTRIBUTES -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub process_asterisk_softhangup {
+  my ($asterisk, $event) = @_;
+
+  if($event->{ConnectedLineNum} =~ /\d+/){
+    use Callcenter;
+    my $Callcenter = Callcenter->new($db, $Admins, \%conf);
+  
+    my ($call_id, undef) = split('\.', $event->{Uniqueid});
+      
+    if(defined $calls_statuses{$call_id} && $calls_statuses{$call_id} == 2){
+      $Callcenter->callcenter_change_calls({ STATUS => 3,
+                                             ID     => $call_id });
+  
+      delete $calls_statuses{$call_id};
+      $Log->log_print('LOG_INFO', $log_user, "Call processed. ID: $call_id");
+    }
+    else{
+      $Callcenter->callcenter_change_calls({ STATUS => 4,
+                                             ID     => $call_id });
+      $Log->log_print('LOG_INFO', $log_user, "Call not proceessed. ID: $call_id");
+    }
+  }
+  return 1
+}
+
 
 #**********************************************************
 =head2 create_notification($user_info)
@@ -801,15 +923,12 @@ sub notify_admin {
   }
 
   my @responces = ();
-  my %unique_handles = ();
+  my %notified_handlles = ();
   foreach my $handle ( @admin_opened_sockets ) {
-    if (!exists $unique_handles{$handle}){
-      $unique_handles{$handle} = 1;
-    }
-    else {
-      # Skip sending to same handle
-      next;
-    }
+    # Skip sending to same handle
+    next if (exists $notified_handlles{$handle});
+    $notified_handlles{$handle} = 1;
+    
     my $responce = send_notification( $handle, { MESSAGE => $notification } );
     push ( @responces, $responce );
   }
@@ -849,7 +968,7 @@ sub send_notification {
     cb    => sub {
       $Log->log_print( 'LOG_NOTICE', $log_user, "Timeout" );
       $result = undef;
-      my %client_ids = reverse %client;
+      my %client_ids = reverse(%client_handles);
       drop_client($client_ids{$handle}, 'Timeout');
       $operation_end_waiter->send;
     }
@@ -885,7 +1004,7 @@ sub send_notification {
 
 END {
   # Tell all clients we want to poweroff
-  foreach my $client_id ( keys %client ) {
+  foreach my $client_id ( keys %client_handles ) {
     $Log->log_print( 'LOG_EMERG', $log_user, "Sending 'Goodbye' to $client_id " );
     drop_client( $client_id, 'Websocket server crashed or restarts' );
   }

@@ -1,6 +1,6 @@
 <div class='col-md-6 col-sm-12'>
-  <div class='panel panel-default'>
-    <div class='panel-body'>
+  <div class='box box-theme'>
+    <div class='box-body'>
       <div class='form-group'>
         <label class='control-label col-md-3'>_{NAME}_</label>
         <div class='col-md-9'>

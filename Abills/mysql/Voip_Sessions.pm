@@ -76,7 +76,7 @@ sub online{
   }
 
   $self->query2( "SELECT c.user_name,
-                          pi.fio, 
+                          pi.fio,
                           calling_station_id,
                           called_station_id,
                           SEC_TO_TIME(UNIX_TIMESTAMP() - UNIX_TIMESTAMP(c.started)),
@@ -85,12 +85,12 @@ sub online{
                           c.status,
                           c.nas_id,
                           c.uid,
-  c.acct_session_id, 
-  pi.phone, 
-  service.tp_id, 
-  0, 
-  u.credit, 
-  if(date_format(c.started, '%Y-%m-%d')=curdate(), date_format(c.started, '%H:%i:%s'), c.started)
+  c.acct_session_id,
+  pi.phone,
+  service.tp_id,
+  0,
+  u.credit,
+  if(DATE_FORMAT(c.started, '%Y-%m-%d')=curdate(), DATE_FORMAT(c.started, '%H:%i:%s'), c.started)
 
  FROM voip_calls c
  LEFT JOIN users u     ON u.uid=c.uid
@@ -169,8 +169,8 @@ sub online_info{
   my $ACCT_SESSION_ID = (defined( $attr->{ACCT_SESSION_ID} )) ? $attr->{ACCT_SESSION_ID} : '';
 
   $self->query2( "SELECT user_name,
-    UNIX_TIMESTAMP(started) AS session_start, 
-    UNIX_TIMESTAMP() - UNIX_TIMESTAMP(started) AS acct_session_time, 
+    UNIX_TIMESTAMP(started) AS session_start,
+    UNIX_TIMESTAMP() - UNIX_TIMESTAMP(started) AS acct_session_time,
     INET_NTOA(client_ip_address) AS client_ip_address,
     lupdated AS last_update,
     nas_id,
@@ -179,7 +179,7 @@ sub online_info{
     acct_session_id,
     conf_id AS h323_conf_id,
     call_origin AS h323_call_origin
-    FROM voip_calls 
+    FROM voip_calls
     WHERE nas_id='$NAS_ID'
      and acct_session_id='$ACCT_SESSION_ID'",
     undef,
@@ -231,9 +231,9 @@ sub session_detail{
   l.terminate_cause,
   l.sum
  FROM (voip_log l, users u)
- LEFT JOIN tarif_plans tp ON (l.tp_id=tp.tp_id) 
- LEFT JOIN nas n ON (l.nas_id=n.id) 
- WHERE l.uid=u.uid 
+ LEFT JOIN tarif_plans tp ON (l.tp_id=tp.tp_id)
+ LEFT JOIN nas n ON (l.nas_id=n.id)
+ WHERE l.uid=u.uid
  $WHERE
  and acct_session_id='$attr->{SESSION_ID}';",
     undef,
@@ -257,16 +257,16 @@ sub periods_totals{
   }
 
   $self->query2( "SELECT
-   SEC_TO_TIME(sum(if(date_format(start, '%Y-%m-%d')=curdate(), duration, 0))) AS duration_0, 
-   sum(if(date_format(start, '%Y-%m-%d')=curdate(), sum, 0)) AS sum_0,
+   SEC_TO_TIME(sum(if(DATE_FORMAT(start, '%Y-%m-%d')=curdate(), duration, 0))) AS duration_0,
+   sum(if(DATE_FORMAT(start, '%Y-%m-%d')=curdate(), sum, 0)) AS sum_0,
    SEC_TO_TIME(sum(if(TO_DAYS(curdate()) - TO_DAYS(start) = 1, duration, 0))) AS duration_1,
    sum(if(TO_DAYS(curdate()) - TO_DAYS(start) = 1, sum, 0)) AS sum_1,
 
    SEC_TO_TIME(sum(if((YEAR(curdate())=YEAR(start)) and WEEK(curdate()) = WEEK(start), duration, 0))) AS duration_2,
    sum(if((YEAR(curdate())=YEAR(start)) and WEEK(curdate()) = WEEK(start), sum, 0)) AS sum_2,
 
-   SEC_TO_TIME(sum(if(date_format(start, '%Y-%m')=date_format(curdate(), '%Y-%m'), duration, 0))) AS duration_3,
-   sum(if(date_format(start, '%Y-%m')=date_format(curdate(), '%Y-%m'), sum, 0)) AS sum_3,
+   SEC_TO_TIME(sum(if(DATE_FORMAT(start, '%Y-%m')=DATE_FORMAT(curdate(), '%Y-%m'), duration, 0))) AS duration_3,
+   sum(if(DATE_FORMAT(start, '%Y-%m')=DATE_FORMAT(curdate(), '%Y-%m'), sum, 0)) AS sum_3,
 
    SEC_TO_TIME(sum(duration)) AS duration_4,
    sum(sum) AS sum_4
@@ -306,13 +306,13 @@ sub list{
     if ( $period == 4 ){ $WHERE .= ''; }
     else{
       $WHERE .= ($WHERE ne '') ? ' and ' : 'WHERE ';
-      if ( $period == 0 ){ push @WHERE_RULES, "date_format(start, '%Y-%m-%d')=curdate()"; }
+      if ( $period == 0 ){ push @WHERE_RULES, "DATE_FORMAT(start, '%Y-%m-%d')=curdate()"; }
       elsif ( $period == 1 ){ push @WHERE_RULES, "TO_DAYS(curdate()) - TO_DAYS(l.start) = 1 "; }
       elsif ( $period == 2 ){ push @WHERE_RULES,
         "YEAR(curdate()) = YEAR(l.start) and (WEEK(curdate()) = WEEK(start)) "; }
-      elsif ( $period == 3 ){ push @WHERE_RULES, "date_format(start, '%Y-%m')=date_format(curdate(), '%Y-%m') "; }
-      elsif ( $period == 5 ){ push @WHERE_RULES, "date_format(start, '%Y-%m-%d')='$attr->{DATE}' "; }
-      else{ $WHERE .= "date_format(start, '%Y-%m-%d')=curdate() "; }
+      elsif ( $period == 3 ){ push @WHERE_RULES, "DATE_FORMAT(start, '%Y-%m')=DATE_FORMAT(curdate(), '%Y-%m') "; }
+      elsif ( $period == 5 ){ push @WHERE_RULES, "DATE_FORMAT(start, '%Y-%m-%d')='$attr->{DATE}' "; }
+      else{ $WHERE .= "DATE_FORMAT(start, '%Y-%m-%d')=curdate() "; }
     }
   }
 
@@ -331,10 +331,10 @@ sub list{
       [ 'TERMINATE_CAUSE', 'INT', 'l.terminate_cause', 1 ],
       [ 'BILL_ID', 'STR', 'l.bill_id', 1 ],
       [ 'DURATION_SEC', 'INT', 'l.duration AS duration_sec', 1 ],
-      #[ 'DATE',            'DATE', "date_format(start, '%Y-%m-%d')" ], 
+      #[ 'DATE',            'DATE', "DATE_FORMAT(start, '%Y-%m-%d')" ],
       [ 'START_UNIXTIME', 'INT', 'UNIX_TIMESTAMP(l.start) AS asstart_unixtime', 1 ],
-      [ 'FROM_DATE|TO_DATE', 'DATE', "date_format(l.start, '%Y-%m-%d')" ],
-      [ 'MONTH', 'DATE', "date_format(l.start, '%Y-%m')" ],
+      [ 'FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(l.start, '%Y-%m-%d')" ],
+      [ 'MONTH', 'DATE', "DATE_FORMAT(l.start, '%Y-%m')" ],
     ],
     { WHERE        => 1,
       WHERE_RULES  => \@WHERE_RULES,
@@ -388,10 +388,10 @@ sub calculation{
   }
 
   $self->query2( "SELECT SEC_TO_TIME(min(l.duration)) AS min_dur,
-     SEC_TO_TIME(max(l.duration)) AS max_dur, 
+     SEC_TO_TIME(max(l.duration)) AS max_dur,
      SEC_TO_TIME(avg(l.duration)) AS avg_dur,
-     min(l.sum) AS min_sum, 
-     max(l.sum) AS max_sum, 
+     min(l.sum) AS min_sum,
+     max(l.sum) AS max_sum,
      avg(l.sum) AS avg_sum
   FROM voip_log l $WHERE",
     undef,
@@ -402,7 +402,9 @@ sub calculation{
 }
 
 #**********************************************************
-# Use
+=head2 reports($attr)
+
+=cut
 #**********************************************************
 sub reports{
   my ($self) = shift;
@@ -414,13 +416,13 @@ sub reports{
 
   if ( $attr->{INTERVAL} ){
     my ($from, $to) = split( /\//, $attr->{INTERVAL}, 2 );
-    push @WHERE_RULES, "date_format(l.start, '%Y-%m-%d')>='$from' and date_format(l.start, '%Y-%m-%d')<='$to'";
+    push @WHERE_RULES, "DATE_FORMAT(l.start, '%Y-%m-%d')>='$from' and DATE_FORMAT(l.start, '%Y-%m-%d')<='$to'";
     $attr->{TYPE} = '-' if (!$attr->{TYPE});
     if ( $attr->{TYPE} eq 'HOURS' ){
-      $date = "date_format(l.start, '\%H')";
+      $date = "DATE_FORMAT(l.start, '\%H')";
     }
     elsif ( $attr->{TYPE} eq 'DAYS' ){
-      $date = "date_format(l.start, '%Y-%m-%d')";
+      $date = "DATE_FORMAT(l.start, '%Y-%m-%d')";
     }
     elsif ( $attr->{TYPE} eq 'TP' ){
       $date = "l.tp_id";
@@ -440,11 +442,11 @@ sub reports{
     }
   }
   elsif ( defined( $attr->{MONTH} ) ){
-    push @WHERE_RULES, "date_format(l.start, '%Y-%m')='$attr->{MONTH}'";
-    $date = "date_format(l.start, '%Y-%m-%d')";
+    push @WHERE_RULES, "DATE_FORMAT(l.start, '%Y-%m')='$attr->{MONTH}'";
+    $date = "DATE_FORMAT(l.start, '%Y-%m-%d')";
   }
   else{
-    $date = "date_format(l.start, '%Y-%m')";
+    $date = "DATE_FORMAT(l.start, '%Y-%m')";
   }
 
   if ( $attr->{TYPE} ){
@@ -462,33 +464,35 @@ sub reports{
   }
 
   if ( $attr->{DATE} ){
-    push @WHERE_RULES, "date_format(l.start, '%Y-%m-%d')='$attr->{DATE}'";
+    push @WHERE_RULES, "DATE_FORMAT(l.start, '%Y-%m-%d')='$attr->{DATE}'";
   }
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join( ' and ', @WHERE_RULES ) : '';
 
   if ( $attr->{DATE} ){
-    $self->query2( "select $date, if(u.id is NULL, CONCAT('> ', l.uid, ' <'), u.id), count(l.uid),
-     sec_to_time(sum(l.duration)) AS duration_time, 
-     sum(l.sum), 
-     l.uid,
-     sum(l.duration) AS duration
-      FROM voip_log l
-      LEFT JOIN users u ON (u.uid=l.uid)
-      $WHERE 
-      GROUP BY l.uid 
-      ORDER BY $SORT $DESC",
-      undef,
-      $attr
+    $self->query2( "SELECT
+      $date,
+      IF(u.id is NULL, CONCAT('> ', l.uid, ' <'), u.id), COUNT(l.uid),
+      SEC_TO_TIME(SUM(l.duration)) AS duration_time,
+      SUM(l.sum),
+      l.uid,
+      SUM(l.duration) AS duration
+    FROM voip_log l
+    LEFT JOIN users u ON (u.uid=l.uid)
+    $WHERE
+    GROUP BY l.uid
+    ORDER BY $SORT $DESC",
+    undef,
+    $attr
     );
   }
   else{
-    $self->query2( "select $date, count(DISTINCT l.uid),
-      count(l.uid),
-      sec_to_time(sum(l.duration)) AS duration_time, 
-      sum(l.sum) AS sum,
+    $self->query2( "SELECT $date, COUNT(DISTINCT l.uid),
+      COUNT(l.uid),
+      SEC_TO_TIME(SUM(l.duration)) AS duration_time,
+      SUM(l.sum) AS sum,
       u.uid,
-      sum(l.duration) AS duration 
+      SUM(l.duration) AS duration
        FROM voip_log l
        LEFT JOIN users u ON (u.uid=l.uid)
        $WHERE
@@ -508,10 +512,10 @@ sub reports{
 
   return $list if ($self->{TOTAL} < 1);
 
-  $self->query2( "select count(DISTINCT l.uid),
-      count(l.uid),
-      sec_to_time(sum(l.duration)), 
-      sum(l.sum)
+  $self->query2( "select COUNT(DISTINCT l.uid) AS distinct_count,
+      COUNT(l.uid) AS session_count,
+      SUM(l.duration) AS duration,
+      SUM(l.sum) AS sum
        FROM voip_log l
        LEFT JOIN users u ON (u.uid=l.uid)
        $WHERE;"

@@ -1,5 +1,5 @@
-<div class='panel panel-default panel-form'>
-<div class='panel-body'>
+<div class='box box-theme box-form'>
+<div class='box-body'>
 
 <form action=$SELF_URL method=post class='form-horizontal'>
 <input type=hidden name=index value=$index>
@@ -45,9 +45,9 @@
     </div>
 </div>
 
-<div class='col-sm-offset-2 col-sm-8'>
-  <input type='submit' class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
-</div>
+    <div class='box-footer'>
+        <input type='submit' class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
+    </div>
 
 
 </fieldset>

@@ -7,20 +7,19 @@ var socket_state = {
   CLOSED    : 3
 };
 
-var counter                        = 0;
-var try_to_connect_again           = true;
-var is_in_connection_retrieval     = false;
-var unsucsessfull_connection_tries = 0;
+var counter                       = 0;
+var try_to_connect_again          = true;
+var is_in_connection_retrieval    = false;
+var unsuccessful_connection_tries = 0;
 
 var ws = null;
 $(function () {
       var socket_link = document['WEBSOCKET_URL'];
-      console.log(socket_link);
-      if (socket_link) {
+      if (socket_link !== '') {
         ws = connect_to_socket(socket_link);
       }
       else {
-        console.warn('[ WebSocket ] Will not connect to socket without $conf{WEBSOCKET_URL}');
+        console.log('[ WebSocket ] Will not connect to socket without $conf{WEBSOCKET_URL}. It\'s normal if you haven\'t configured WebSockets');
       }
     }
 );
@@ -33,16 +32,21 @@ function request_close_socket() {
 
 function try_to_connect_again_in_(seconds) {
   
+  seconds = Math.min(seconds, 60);
+  
   ws = new WebSocket(document['WEBSOCKET_URL']);
   
   ws.onopen = function () {
-    ws = setup_socket(ws);
+    Events.emit('WebSocket.connected');
+    unsuccessful_connection_tries = 0;
+    is_in_connection_retrieval    = false;
+    ws                            = setup_socket(ws);
   };
   
   ws.onerror = function () {
-    unsucsessfull_connection_tries++;
-    if (unsucsessfull_connection_tries > 10) {
-      console.log('[ WebSocket ] Giving up after %i tries');
+    unsuccessful_connection_tries++;
+    if (unsuccessful_connection_tries > 10) {
+      console.log('[ WebSocket ] Giving up after %i tries', unsuccessful_connection_tries);
       return;
     }
     console.log('Will try again in %i seconds', seconds);
@@ -61,13 +65,13 @@ function try_to_connect_again_in_(seconds) {
 function setup_socket(websocket) {
   
   websocket.onopen = function () {
-    console.log('[ WebSocket ] Connection established');
-    unsucsessfull_connection_tries = 0;
-    is_in_connection_retrieval     = false;
+    Events.emit('WebSocket.connected');
+    unsuccessful_connection_tries = 0;
+    is_in_connection_retrieval    = false;
   };
   
   websocket.onclose = function () {
-    console.log('[ WebSocket ] Connection closed');
+    Events.emit('WebSocket.error');
     if (!is_in_connection_retrieval) {
       is_in_connection_retrieval = true;
       try_to_connect_again_in_(3);
@@ -75,10 +79,15 @@ function setup_socket(websocket) {
   };
   
   websocket.onerror = function () {
-    console.log('[ WebSocket ] Connection failed');
     if (!is_in_connection_retrieval) {
       is_in_connection_retrieval = true;
       try_to_connect_again_in_(3);
+    }
+  };
+  
+  websocket.ping = function () {
+    if (websocket.readyState == socket_state.OPEN){
+      websocket.send('{"TYPE" : "PING"}');
     }
   };
   
@@ -128,6 +137,5 @@ function on_message(event) {
 }
 
 document.onunload = function () {
-  'use strict';
   try_to_connect_again = false;
 };

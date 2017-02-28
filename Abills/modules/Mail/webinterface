@@ -385,7 +385,7 @@ sub mail_spamassassin {
   my %db_hash                = ();
   my %SpamAssasin_params_rev = reverse %SpamAssasin_params;
   foreach my $line (@$list) {
-    my $ID = $SpamAssasin_params_rev{"$line->[1]"};
+    my $ID = ($line->[1] && $SpamAssasin_params_rev{$line->[1]}) ? $SpamAssasin_params_rev{$line->[1]} :  '';
     $db_hash{$ID} = $line->[2];
     #$delete = $html->button($lang{DEL}, "index=$index&del=$line->[5]", { MESSAGE => "$lang{DEL} \"$line->[0]\"?" });
     #$table->addrow("$line->[0]",
@@ -490,7 +490,7 @@ sub mail_spamassassin {
 sub mail_users_list {
 
   if ( ! $FORM{UID} && ! $user->{UID} ) {
-    print $html->letters_list();
+    #print $html->letters_list();
     if ($FORM{letter}) {
       $LIST_PARAMS{LOGIN} = $FORM{letter};
       $pages_qs          .= "&letter=$FORM{letter}";
@@ -648,7 +648,7 @@ sub mail_user_boxes {
       SEL_VALUE      => 'domain',
       NO_ID          => 1,
       MAIN_MENU      => get_function_index('mail_domains'),
-      MAIN_MENU_AGRV => "chg=". ($Mail->{DOMAIN_ID} || q{})
+      MAIN_MENU_ARGV => "chg=". ($Mail->{DOMAIN_ID} || q{})
     }
   );
 
@@ -1253,7 +1253,7 @@ sub mail_wizard {
   foreach my $key (@sorted_templates) {
     my ($n, $descr, undef, undef) = split(/:/, $key, 4);
 
-    $template .= "<tr bgcolor=\"$_COLORS[0]\"><th>$descr</th></tr>\n";
+    #$template .= "<tr bgcolor=\"$_COLORS[0]\"><th>$descr</th></tr>\n";
 
     #$wizard = $pre;
     my $sub_tpl .= $html->tpl_show($tpls{"$key"}, $wizard, { notprint => 1 });
@@ -1263,7 +1263,7 @@ sub mail_wizard {
     $sub_tpl =~ s/name="([A-Z_]+)"/name=$n.$1/gi;
     $sub_tpl =~ s/name='([A-Z_]+)'/name=$n.$1/gi;
 
-    $template .= "<tr><th align=\"center\">" . $sub_tpl . "</th></tr>\n";
+    $template .= $sub_tpl;
   }
 
   $template =~ s/(<form .*?>)//gi;
@@ -1271,13 +1271,14 @@ sub mail_wizard {
   $template =~ s/(<input .*?type=submit.*?>)//gi;
   $template =~ s/<hr>//gi;
 
-  $template = "<table width=\"100%\">$template</table>\n";
+#  $template = "<table width=\"100%\">$template</table>\n";
   if ($attr->{OUTPUT2RETURN}) {
     return $template;
   }
 
   print $html->form_main(
     {
+      class   => 'form-horizontal',
       CONTENT => $template,
       HIDDEN  => { index => "$index" },
       SUBMIT  => { add => "$lang{ADD}" }

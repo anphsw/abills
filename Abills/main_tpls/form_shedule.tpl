@@ -1,9 +1,9 @@
 <form action=$SELF_URL class='form-horizontal' method='post'>
 <input type=hidden name=index value=$index>
 
-<div class='panel panel-primary panel-form'>
-<div class='panel-heading text-center'><h4>_{SHEDULE}_</h4></div>
-<div class='panel-body'>
+<div class='box box-theme box-form'>
+<div class='box-header with-border'><h4 class='box-title'>_{SHEDULE}_</h4></div>
+<div class='box-body'>
 
 
    <div class='form-group'>
@@ -60,7 +60,7 @@
 
 
   </div>
-  <div class='panel-footer'>
+  <div class='box-footer'>
       <input type='submit' class='btn btn-primary' name=add value='_{ADD}_'>
     </div>
 

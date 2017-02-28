@@ -6,13 +6,12 @@
     </div>
 </div>
 
-<div class='panel panel-default panel-form' style='margin-left:auto; margin-right:auto; width:auto; max-width:500px;'>
-    <div class='panel-body form form-horizontal'>
+<div class='box box-theme box-form' style='margin-left:auto; margin-right:auto; width:auto; max-width:500px;'>
+    <div class='box-header with-border text-center'>
+        <h4 class='box-title'>_{CARDS}_ _{INFO}_</h4>
+    </div>
 
-        <div class='panel-heading text-center'>
-            <legend>_{CARDS}_ _{INFO}_</legend>
-        </div>
-
+    <div class='box-body form form-horizontal'>
 
         <div class='form-group'>
             <label class='col-md-6 col-xs-6 control-label'>_{LOGIN}_:</label>
@@ -64,12 +63,12 @@
             <div class='col-md-6 col-xs-6 form-control-static'> %SERIAL%%NUMBER%</div>
         </div>
 
-        <div class='form-group text-center'>
-            %FOOTER_TEXT%
-        </div>
-
-
     </div>
+
+    <div class='box-footer text-center'>
+        %FOOTER_TEXT%
+    </div>
+
 </div>
 
 

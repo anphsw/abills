@@ -3,13 +3,13 @@
     <input type=hidden name=COORDX value=%COORDX%>
     <input type=hidden name=COORDY value=%COORDY%>
 
-    <div class='panel panel-default'>
-        <div class='panel-body'>
+    <div class='box box-theme'>
+        <div class='box-body'>
             <div class='form-group'>
                 %ROUTE_ID%
             </div>
         </div>
-        <div class='panel-footer text-center'>
+        <div class='box-footer text-center'>
             <input type='submit' name=add_route_info value=_{ADD}_ class='btn btn-default'>
         </div>
     </div>

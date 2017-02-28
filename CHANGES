@@ -1,43 +1,472 @@
 Список запланированных изменений [[abills:todo:todo|Todo List]]
 
+====0.75====
+
+15.12.2016 \\
+  * ''Iptv'' разделены права просмотра и управления подписками
+  * ''Employers'' анкета сотрудника
+  * [[abills:docs:manual:admin:logs_list|log analizer: поиск по логу]]
+  * [[abills:docs:manual:user_portal:skin_change|Смена скина кабинета]]
+  * доработа статистика для серверов доступа
+  * Msgs: E-mail ticket tracker
+  * Event: настройка оповещения администратору
+
+MySQL:\\
+
+  ALTER TABLE `iptv_main` ADD COLUMN  `service_id` tinyint(2) unsigned not null default 0;
+  ALTER TABLE `iptv_main` CHANGE COLUMN `subscribe_id` `subscribe_id` VARCHAR(32) NOT NULL DEFAULT '';
+ 
+
+
+05.12.2016 \\
+
+  * ''Iptv'' переписан с учетом модульной архитектуры расширения
+  * ''Iptv'' добавлено TrinitY TV
+  * ''Iptv'' переписан модуль OLLTV
+  * ''Paysys''  предлагать открыть кредит если нет доступа к интернет
+  * [[abills:docs:manual:admin:maps:maps_builds_quick|Форма быстрого поиска домов]]
+  * [[abills:docs:manual:other:other#interaktivnyj_tur_po_interfejsu_sistemy|Wizard по интерфейсу]]
+  * ''Dv'' персональный ТП в личном кабинете
+  * Предупреждение о дефолтном пароле администратора
+  * Более гибкая логика составления отчетов
+  * Добавлен тип снятия для начислений по расписанию
+  * [[abills:docs:manual:admin:crm:crm_reference_works|Справочник работ: добавить единицы измерения]]
+  * ''Msgs'' быстрый переход на заявки по статусам в отчете
+  * Mikrotik: [[abills:docs:nas:mikrotik:shaper#nastrojka_cherez_skript|конфигурация скорости добавлена опция EXPORT_FILE=]]
+  * Ureports: отключено отправление сообщений при отключеных услугах
+  * [[abills:docs:modules:dhcphosts_expr:ru#avtorizacija_po_ip|авторизация по IP для L3 схем]]
+  * ''Tags'' отчет по меткам
+  * ''Callcenter'' [[abills:docs:manual:admin:callcenter:callcenter_calls_handler|мониторинг звонков]]
+  * [[abills:docs:manual:admin:facebook_users_info|Импорт данных с Facebook]]
+
+MySQL \\
+
+  ALTER TABLE `tarif_plans` ADD COLUMN `service_id` tinyint(2) unsigned not null default 0;
+  ALTER TABLE `paysys_main`  ADD COLUMN `external_user_ip` int(11) unsigned NOT NULL DEFAULT 0;
+  ALTER TABLE `equipment_infos` ADD COLUMN revision VARCHAR(10) NOT NULL DEFAULT '';
+  
+
+21.11.2016 \\
+
+  * ''Msgs'' статусы сообщений вынесены в базу
+  * ''Msgs'' в отчетах добавлен бытсрый преход на список сообщений
+  * ''Msgs'' [[abills:docs:manual:admin:msgs:msgs_admin|добавлен журнал работ по текущей заявке (совместно с модулей CRM)]]
+
+MySQL:\\
+
+  DROP TABLE `msgs_status`;
+  CREATE TABLE `msgs_status` (
+    `id` smallint(2) unsigned NOT NULL AUTO_INCREMENT,
+    `name` varchar(60) NOT NULL DEFAULT '',
+    `readiness` tinyint(2) unsigned NOT NULL DEFAULT 0,
+    `task_closed` tinyint(1) NOT NULL DEFAULT 0,
+    `color` varchar(7) NOT NULL DEFAULT '',
+    UNIQUE name (`name`),
+    PRIMARY KEY (`id`)
+  ) COMMENT 'Messages statuses';
+  
+  SET SESSION sql_mode='NO_AUTO_VALUE_ON_ZERO';
+  REPLACE INTO msgs_status (id, name, readiness, task_closed, color) VALUE
+    ('0', '$lang{OPEN}', 0, '0', '#0000FF'),
+    ('1', '$lang{CLOSED_UNSUCCESSFUL}', 100, '1', '#ff0638'),
+    ('2', '$lang{CLOSED_SUCCESSFUL}',  100, '1', '#009D00'),
+    ('3', '$lang{IN_WORK}', 10, '0', '#707070'),
+    ('4', '$lang{NEW_MESSAGE}', 0, '0', '#FF8000'),
+    ('5', '$lang{HOLD_UP}', 0, 0, '0'),
+    ('6', '$lang{ANSWER_WAIT}', 50, '0', ''),
+    ('9', '$lang{NOTIFICATION_MSG}', 0, '0', ''),
+    ('10', '$lang{NOTIFICATION_MSG}  $lang{READED}', 100, '0', ''),
+    ('11', '$lang{POTENTIAL_CLIENT}', 0, '0', '');
+  ALTER TABLE admins ADD COLUMN   `sip_number` varchar(15) NOT NULL default '';
+
+16.11.2016 \\
+
+
+  * ''Msgs'' поле поиска по ID в конверте заявок
+  * ''Msgs'' количество незакрытых сообщений с фильтром по ответственных
+  * ''Msgs'' потенциальный клиент
+  * Фильтр тегов для отчётов оплаты и начисления
+  * Параметр планируемый к подключению дом
+  * ''Events'' [[abills:docs:manual:admin:Events:events_main|Форма просмотра событий и поиска]]
+  * ''Paysys'' Кнопка "Добавить тип" в селекте выбора типа терминала
+  * ''Paysys'' добавили Yandex Kasa
+  * ''Equipment'' equipment_pon добавлен флаг RELOAD=1 (перезагрузка всей информации)
+  * ''Dv'' добавлено предпреждение о завершённом сервисе
+  * ''Dv'' calling station id  для веб теста абонента
+  * ''Cablecat'' Структура учёта соединений
+  * Настраиваемый формат депозита $conf{DEPOSIT_FORMAT}
+  * ''Docs'' акты оказания услуг и счета добавлено маркеры MONTH_LAST_DAY, TOTAL_ORDERS
+  * Выражение для формата номера PHONE_FORMAT
+  * ''Cams'' [[abills:docs:modules:cams:ru|добавлен zoneminder]]
+  * Настройки типов оплат вынесены в веб интерфейс
+  * [[abills:docs:manual:admin:logs_list|Форма просмотра логов]]
+  * ''Callcenter'' запись разговора с оператором
+  * ''Callcenter'' [[abills:docs:manual:admin:callcenter:callcenter_calls_handler|мониторинг звонков]]
+  * ''Crm'' [[abills:docs:modules:crm:ru|журнал почасовой тарификации]]
+
+MySQL: \\
+
+  ALTER TABLE events MODIFY COLUMN `group_id` smallint(6) unsigned NOT NULL DEFAULT 1;
+  ALTER TABLE builds ADD planned_to_connect tinyint(1) unsigned NOT NULL default '0';
+  ALTER TABLE `cams_streams` ADD COLUMN `orientation` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0;
+  CREATE TABLE `payments_type` (
+    `id`      INT(11)     UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+    `name`    varchar(50) NOT NULL DEFAULT '',
+    `color`   varchar(7)  NOT NULL default '',
+   UNIQUE KEY `id` (`id`)
+  ) COMMENT 'Add new payment type';
+  
+  ALTER TABLE cams_streams ADD COLUMN `zoneminder_id` INT(11) UNSIGNED NOT NULL DEFAULT 0;
+  ALTER TABLE cams_streams CHANGE COLUMN `ip` `host` VARCHAR(255) NOT NULL DEFAULT '0.0.0.0';
+  ALTER TABLE cams_streams ADD COLUMN `rtsp_path` TEXT;
+  ALTER TABLE cams_streams ADD COLUMN `rtsp_port` SMALLINT(6) NOT NULL DEFAULT 554;
+  
+  REPLACE INTO maps_point_types (`id`, `name`, `icon`) VALUES (9, '$lang{PILLAR}', 'pillar_green');
+  ALTER TABLE maps_points ADD COLUMN `parent_id` INT(11) REFERENCES maps_points (`id`) ON DELETE RESTRICT;
+  ALTER TABLE maps_points ADD COLUMN `planned` TINYINT(1) NOT NULL DEFAULT 0;
+  ALTER TABLE maps_points ADD COLUMN `location_id` INT(11) UNSIGNED;
+  ALTER TABLE maps_points ADD COLUMN `created` DATETIME NOT NULL  DEFAULT CURRENT_TIMESTAMP;
+  ALTER TABLE maps_points ADD CONSTRAINT point_build FOREIGN KEY location_id(`location_id`) REFERENCES builds(`id`) ON DELETE RESTRICT;
+  CREATE INDEX `_points_location_id` ON maps_points(`location_id`);
+  REPLACE INTO payments_type (id, name, color) VALUES
+  (0, '$lang{CASH}', ''),
+  (1, '$lang{BANK}', ''),
+  (2, '$lang{EXTERNAL_PAYMENTS}', ''),
+  (3, 'Credit Card', ''),
+  (4, '$lang{BONUS}', ''),
+  (5, '$lang{CORRECTION}', ''),
+  (6, '$lang{COMPENSATION}', ''),
+  (7, '$lang{MONEY_TRANSFER}', ''),
+  (8, '$lang{RECALCULATE}', '');
+  
+  ALTER TABLE msgs_unreg_requests ADD last_contact datetime NOT NULL default '0000-00-00 00:00:00';
+  ALTER TABLE msgs_unreg_requests ADD planned_contact datetime NOT NULL default '0000-00-00 00:00:00';
+  ALTER TABLE msgs_unreg_requests ADD contact_note text NOT NULL;
+
+  
+02.11.2016 \\
+
+  * ''Dhcphosts'' [[abills:docs:manual:admin:dhcphosts:dhcphosts_user|информацияпо оборудованию]]
+  * ''Dv'' [[abills:docs:modules:dv:ru|плагин активации абонентов с статусом слишком маленький депозит]]
+  * ''Msgs'' поле время реакции на заявку
+  * ''Msgs'' поле последняя активность в топике
+  * ''Unifi'' Мониторинг, выбор насов
+  * ''Dv'' отключить оповещение о негативном депозите для определённых абонентов
+  * Добавлены права администратора: экспорт абонентов
+  * Mikrotik. Проверять коректность значений Burst mode
+  * Unifi улучшена работа с мультисайтами
+  * ''Paysys'' [[abills:docs:modules:paysys:ru#dobavlenie_terminalov|Добавление терминалов]]
+
+
+17.10.2016\\
+
+  * ''Equipment'' поиск по IP оборудования
+  * ''Equipment'' выбор версии протокола SNMP
+  * ''Equipment'' оптимизирована работа сборщика информации по PON
+  * ''Sysinfo'' service restart log
+  * [[abills:docs:manual:admin:maps:maps_auto_coords|Maps: Выбор района при автоопределении улиц]]
+  * Переделана форма регистрации абонента
+  * Улучшены графики отображения загрузки трафика charts.cgi
+  * ''Msgs'' Отчёт загрузка сотрудников
+  * Добавлена кнопка "Забыли пароль" на форме логина в клиентском кабинете.
+  * Msgs: JSON API
+  * Msgs: оценка работы сотрудников
+  * Event: Проверка бекапа
+  * Отображение журнала событий на верхней панеле
+
+MySQL:
+
+  ALTER TABLE equipment_infos ADD COLUMN  snmp_version tinyint(1) unsigned not null default 1;
+  ALTER TABLE employees_positions ADD COLUMN  vacancy tinyint(2) UNSIGNED NOT NULL DEFAULT '0';
+  ALTER TABLE admins ADD COLUMN  telegram_id varchar(15) NOT NULL DEFAULT '';
+
+
+25.09.2016\\
+
+  * Переработан интерфейс
+  * Добавлен лог для UX  анализа
+  * ''Equipment'' полностью переписанс поддержкой BDCOM, Eltex, Huawei, ZTE
+  * ''Equipment'' Мониторинг параметров устройств (графики уровней сигнала, трафика и другое)
+  * ''Equipment'' Журнал мак адресов клиента с детализацией времени и оборудования
+  * ''Equipment'' Обновлена программа "PING оборудования"
+  * ''Paysys'' Вывод информации из внешней программы платежей
+  * ''Paysys'' Настрока наследования через веб интерфейс
+  * ''Paysys'' Автоматическое отображение суммы рекомендованного платежа
+  * ''Dv'' Поиск абонентов залогинешихся до даты
+  * ''Maps'' Мультислои
+  * ''Maps'' Отображение отдельным слоем "Оборудование"(Equipment)
+  * ''Maps'' Групировка маршрутов и цвета
+  * ''Maps'' Слой для рисования произвольных объектов (обрисовка домов и т д)
+  * ''Maps'' Выбор района при автоопределении координат домов
+  * ''Maps'' Кнопка остановить автоопределение
+  * ''Msgs'' Быстрые отчёты: журнал слежения
+  * ''Msgs'' Быстрый отчёт: наряды работ 
+  * ''Msgs'' Оценка выполненых заданий
+  * ''Msgs'' Отображение тела сообщения при наведении на заголовок темы
+  * [[abills:docs:manual:user_portal:info_fields| Возможность правки информационных полей через кабинет абонента]]
+  * [[abills:docs:manual:admin:form_nas#radius_test|Статиcтика работы RADIUS]]
+  * [[abills:docs:manual:admin:form_nas#radius_test|Добавлено в COA & POD в RADIUS test]]
+  * autozh.pl  Добавлена возможность скидывать абонентов за несколько днея до завершения учетного периода
+  * MX80 обновлён синхронизатор сессий
+  * [[abills:docs:manual:admin:sms:sms_reports|SMS синхронизатор отчётов]]
+  * ''Iptv'' $conf{IPTV_TRANSFER_SERVICE} перенос дополнительных услуг при переключении тарифного плана (Индивидуальные каналы и экраны)
+  * IPTV Stalker мультиакаунты
+  * ''Notepad'' Переделаны одноразовые и переодические оповещения
+  * periodic в режиме отладки. добавлена дата выполнения для более удобного логирования и отладки
+  * Лог попыток авторизации через социальные сети
+
+MySQL:
+
+  ALTER TABLE `msgs_messages` ADD `rating` tinyint(4) unsigned NOT NULL DEFAULT '0';
+  ALTER TABLE `msgs_messages` ADD `rating_comment` text not null;
+  ALTER TABLE `storage_log` ADD COLUMN `uid` int(10) unsigned NOT NULL default '0';
+  ALTER TABLE `s_detail` ADD COLUMN `uid` int(10) unsigned NOT NULL default '0';
+  CREATE TABLE IF NOT EXISTS `equipment_pon_onu` (
+    `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+    `port_id` smallint(6) unsigned NOT NULL DEFAULT '0',
+    `onu_snmp_id` varchar(20) NOT NULL DEFAULT '',
+    `onu_id` int(11) unsigned NOT NULL DEFAULT '0',
+    `onu_mac_serial` varchar(20) NOT NULL DEFAULT '',
+    `onu_desc` varchar(50) NOT NULL DEFAULT '',
+    `olt_rx_power` double(10,2) NOT NULL DEFAULT '0.00',
+    `onu_rx_power` double(10,2) NOT NULL DEFAULT '0.00',
+    `onu_tx_power` double(10,2) NOT NULL DEFAULT '0.00',
+    `onu_status` int(10) unsigned NOT NULL DEFAULT '0',
+    `onu_in_byte` bigint(14) unsigned NOT NULL DEFAULT '0',
+    `onu_out_byte` bigint(14) unsigned NOT NULL DEFAULT '0',
+    `onu_dhcp_port` varchar(20) NOT NULL DEFAULT '',
+    `onu_graph` varchar(50) NOT NULL DEFAULT 'SIGNAL,TEMPERATURE,SPEED',
+    PRIMARY KEY (`id`)
+  ) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COMMENT='Equipment ONU';
+  
+  CREATE TABLE `equipment_pon_ports` (
+    `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+    `snmp_id` int(11) unsigned NOT NULL DEFAULT '0',
+    `nas_id` smallint(6) unsigned NOT NULL DEFAULT '0',
+    `pon_type` varchar(10) NOT NULL DEFAULT '',
+    `branch` varchar(20) NOT NULL DEFAULT '',
+    `branch_desc` varchar(30) NOT NULL DEFAULT '',
+    `vlan_id` smallint(6) unsigned NOT NULL DEFAULT '0',
+    PRIMARY KEY (`id`)
+  ) COMMENT='Equipment PON ports';
+  
+  CREATE TABLE `equipment_snmp_tpl` (
+    `model_id` smallint(6) unsigned NOT NULL DEFAULT '0',
+    `section` varchar(50) NOT NULL DEFAULT '',
+    `parameters` varchar(500) NOT NULL DEFAULT '',
+    PRIMARY KEY (`model_id`,`section`)
+  ) COMMENT='Equipment snmp template';
+  
+  CREATE TABLE `equipment_info` (
+    `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+    `info_time` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+    `nas_id` smallint(6) unsigned NOT NULL DEFAULT '0',
+    `section` varchar(50) NOT NULL DEFAULT '',
+    `result` varchar(500) DEFAULT NULL,
+    PRIMARY KEY (`id`)
+  ) COMMENT='Equipment info';
+  
+  CREATE TABLE maps_layers (
+    `id`        SMALLINT(6) PRIMARY KEY AUTO_INCREMENT,
+    `name`      VARCHAR(30) NOT NULL,
+    `type`      VARCHAR(32) NOT NULL DEFAULT 'build',
+    `structure` VARCHAR(32) NOT NULL    DEFAULT 'MARKER',
+    `module`    VARCHAR(32) NOT NULL DEFAULT 'Maps',
+    `clustering` TINYINT(1) NOT NULL DEFAULT 1,
+    `comments` TEXT
+  ) AUTO_INCREMENT = 100, COMMENT = 'Map layers';
+  
+  REPLACE INTO maps_layers (`id`, `name`, `structure`, `type` ) VALUES (1, '$lang{BUILD}', 'MARKER', 'build');
+  REPLACE INTO maps_layers (`id`, `name`, `structure`, `type` ) VALUES (2, '$lang{WIFI}', 'MARKER_CIRCLE', 'wifi');
+  REPLACE INTO maps_layers (`id`, `name`, `structure`, `type` ) VALUES (3, '$lang{ROUTE}', 'MARKERS_POLYLINE', 'route');
+  REPLACE INTO maps_layers (`id`, `name`, `structure`, `type` ) VALUES (4, '$lang{WELL}', 'MARKER', 'well');
+  REPLACE INTO maps_layers (`id`, `name`, `structure`, `type` ) VALUES (5, '$lang{TRAFFIC}', 'MARKER', 'build');
+  REPLACE INTO maps_layers (`id`, `name`, `structure`, `type` ) VALUES (6, '$lang{CUSTOM_POINT}', 'MULTIPLE', 'custom');
+  
+  CREATE TABLE maps_circles (
+    `id`       INT(11) unsigned PRIMARY KEY,
+    `layer_id` SMALLINT(6) REFERENCES maps_layers (`id`)  ON DELETE CASCADE,
+    `coord_id` INT(11) REFERENCES maps_coords (`id`),
+    `radius`   DOUBLE  NOT NULL, 
+    `name`     VARCHAR(32) NOT NULL,
+    `comments` TEXT
+  ) COMMENT = 'Custom drawed circles';
+   
+  CREATE TABLE maps_polylines (
+    `id`       INT(11) PRIMARY KEY  AUTO_INCREMENT,
+    `layer_id` SMALLINT(6) REFERENCES maps_layers (`id`) ON DELETE CASCADE,
+    `name`     VARCHAR(32) NOT NULL DEFAULT '',
+    `comments` TEXT
+  ) COMMENT = 'Custom drawed polylines';
+    
+  CREATE TABLE maps_polyline_points (
+    `id`          INT(11) PRIMARY KEY AUTO_INCREMENT,
+    `polyline_id` SMALLINT(6) REFERENCES maps_polylines (`id`) ON DELETE CASCADE,
+    `coord_id`    INT(11) REFERENCES maps_coords (`id`)  ON DELETE CASCADE
+  ) COMMENT = 'Custom drawed polyline points';
+  
+  CREATE TABLE maps_polygons (
+    `id`       INT(11) PRIMARY KEY  AUTO_INCREMENT,
+    `layer_id` SMALLINT(6) REFERENCES maps_layers (`id`)  ON DELETE CASCADE,
+    `name`     VARCHAR(32) NOT NULL,
+    `color`    VARCHAR(32) NOT NULL DEFAULT 'silver',
+    `comments` TEXT
+  ) COMMENT = 'Custom drawed polygons';
+   
+  CREATE TABLE maps_polygon_points (
+    `id`         INT(11) PRIMARY KEY AUTO_INCREMENT,
+    `polygon_id` SMALLINT(6) REFERENCES maps_polygons (`id`)  ON DELETE CASCADE,
+    `coord_id`   INT(11) REFERENCES maps_coords (`id`)  ON DELETE CASCADE
+  ) COMMENT = 'Custom drawed polygons points';
+  
+  CREATE TABLE maps_text (
+    `id`       INT(11) PRIMARY KEY AUTO_INCREMENT,
+    `layer_id` SMALLINT(6) REFERENCES maps_layers (`id`) ON DELETE CASCADE,
+    `coord_id` INT(11) REFERENCES maps_coords (`id`) ON DELETE CASCADE,
+    `text`     TEXT
+  ) COMMENT = 'Custom drawed text';
+  
+  CREATE TABLE `maps_route_types` (
+    `id`           SMALLINT(6) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `name`         VARCHAR(50) NOT NULL DEFAULT '',
+    `color`        VARCHAR(7)  NOT NULL DEFAULT '#FFFFFF',
+    `fibers_count` SMALLINT(6) NOT NULL DEFAULT 1,
+    `comments`     TEXT,
+    UNIQUE KEY (`name`)
+  ) COMMENT = 'Route types'; 
+  
+  CREATE TABLE IF NOT EXISTS `maps_route_groups` (
+    `id`   SMALLINT(6) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `name` VARCHAR(50) NOT NULL DEFAULT '',
+    `comments` TEXT,
+    `parent_id` SMALLINT(6) NOT NULL DEFAULT 0 REFERENCES `maps_route_groups` (`id`) ON DELETE RESTRICT
+  ) COMMENT = 'Route groups';
+  REPLACE INTO `maps_route_types` (`id`, `name`, `color`) VALUES (1, '$lang{COAXIAL}',  '#FF0000');
+  REPLACE INTO `maps_route_types` (`id`, `name`, `color`) VALUES (2, '$lang{FIBER_OPTIC}',  '#000000');
+  REPLACE INTO `maps_route_types` (`id`, `name`, `color`) VALUES (3, '$lang{TWISTED_PAIR}',  '#0000FF');
+  
+  ALTER TABLE maps_routes ADD COLUMN `parent_id` INT(10) UNSIGNED NOT NULL DEFAULT 0 REFERENCES `maps_routes` (`id`);
+  ALTER TABLE maps_routes MODIFY COLUMN `type` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0;
+  ALTER TABLE maps_routes ADD COLUMN `group_id`  SMALLINT(6) NOT NULL DEFAULT 0 REFERENCES `maps_route_groups` (`id`) ON DELETE RESTRICT;
+  
+  CREATE TABLE `maps_route_types` (
+    `id`           SMALLINT(6) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `name`         VARCHAR(50) NOT NULL DEFAULT '',
+    `color`        VARCHAR(7)  NOT NULL DEFAULT '#FFFFFF',
+    `fibers_count` SMALLINT(6) NOT NULL DEFAULT 1,
+    `comments`     TEXT,
+    UNIQUE KEY (`name`)
+  ) COMMENT = 'Route types';
+   
+  CREATE TABLE IF NOT EXISTS `maps_route_groups` (
+    `id`   SMALLINT(6) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `name` VARCHAR(50) NOT NULL DEFAULT '',
+    `comments` TEXT,
+    `parent_id` SMALLINT(6) NOT NULL DEFAULT 0 REFERENCES `maps_route_groups` (`id`) ON DELETE RESTRICT
+  ) COMMENT = 'Route groups';
+  
+  REPLACE INTO `maps_route_types` (`id`, `name`, `color`) VALUES (1, '$lang{COAXIAL}',  '#FF0000');
+  REPLACE INTO `maps_route_types` (`id`, `name`, `color`) VALUES (2, '$lang{FIBER_OPTIC}',  '#000000');
+  REPLACE INTO `maps_route_types` (`id`, `name`, `color`) VALUES (3, '$lang{TWISTED_PAIR}',  '#0000FF');
+   
+  ALTER TABLE maps_routes ADD COLUMN `parent_id` INT(10) UNSIGNED NOT NULL DEFAULT 0 REFERENCES `maps_routes` (`id`);
+  ALTER TABLE maps_routes MODIFY COLUMN `type` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0;
+  ALTER TABLE maps_routes ADD COLUMN `group_id`  SMALLINT(6) NOT NULL DEFAULT 0 REFERENCES `maps_route_groups` (`id`) ON DELETE RESTRICT;
+
 ====0.74====
 
 ===При переходе с 0.7х на 0.74  обязательно пересоздайте шаблоны и проверте неофициальные модули===
 
+26.08.2016 \\
+  * Freeradius DHCP авторизация по любому передаваемому параметру
+  * ''Sysinfo'' рестарт програм с вебинтерфейса
+  * Hotspot - Регистрация через социальные сети
+  * ''Dhcphosts'' добавлен журнал VLan-ов
+
+MySQL:
+
+  ALTER TABLE `ippools` ADD COLUMN `netmask` int(11) unsigned NOT NULL default '4294967295';
+  ALTER TABLE `ippools` ADD COLUMN `dns` varchar(32) NOT NULL default '';
+  ALTER TABLE `ippools` ADD COLUMN `ntp` varchar(80) NOT NULL default '';
+  ALTER TABLE `ippools` ADD COLUMN `gateway` int(11) unsigned NOT NULL default '0';
+
+15.08.2016 \\
+
+  * ''Cams'' [[abills:docs:modules:cams:ru| Добавлен модуль видеонаблюдения]]
+  * ''Wordpress'' [[abills:docs:modules:wordpress:ru| Wordpress портал провайдера]]
+  * Оповещение главного администратора о системных действия других администраторов
+  * Обновлён accel-ppp авторизатор
+  * ''Storage'' добавлен импорт товаров из файла
+  * Сохранение информационных полей в файл
+  * ''Msgs'' Быстрый переход на сообщение
+  * Правка абонентами информационных полей
+  * Параметр ${DHCPHOSTS_EXPR}  изменён на $conf{AUTH_EXPR}
+  * [[abills:docs:manual:admin:dv:dv_test|Тест подключения]]
+  * [[abills:docs:modules:maps:public_comments|Публичный комментарий по дому]]
+  * Добавлен номер DHCP сервера открывшего лизу
+  * Добавлены права управления компенсацией
+  * billd: независимая работы плагинов
+  * [[abills:docs:manual:admin:config:config_password_generator| Удобное управление политикой сложности пароля]]
+
+MySQL: \\
+
+  ALTER TABLE `dhcphosts_leases` ADD COLUMN `dhcp_id` tinyint(2) NOT NULL DEFAULT '0';
+  ALTER TABLE builds ADD COLUMN `public_comments` text;
+  SET foreign_key_checks = 0;
+  
+  CREATE TABLE `events_group` (
+    id      SMALLINT(6) UNSIGNED AUTO_INCREMENT,
+    name    VARCHAR(40) NOT NULL,
+    modules TEXT NOT NULL,
+    PRIMARY KEY `event_groups_id` (`id`),
+    UNIQUE `event_group_name` (`name`)
+  ) COMMENT 'Events privacy settings';
+  
+  ALTER TABLE events ADD COLUMN group_id SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0;
+  ALTER TABLE events ADD FOREIGN KEY (`group_id`) REFERENCES events_group(`id`) ON DELETE RESTRICT;
+  SET foreign_key_checks = 1;
 
 25.07.2016 \\
 
   * ''Ureports'' Поддержка модулей расширения отчётов
   * ''Ureports'' Возможность запретить абонентам управлять отчётами
-  * Проверка занятости квартиры другим абонентов при регистрации
+  * Проверка занятости квартиры при регистрации
   * [[abills:docs:manual:user_portal:info_fields|Информационные поля в кабинете пользователя]]
-  * [[abills:docs:manual:social_network:ru|Авторизация через социальные сети]] google, Instagram
-  * ''Netlist'' [[abills:docs:manual:admin:netlist:netlist_network_info|Шахматка IP адресов]]
+  * [[abills:docs:manual:social_network:ru|Авторизация через социальные сети]] Google, Instagram
+  * ''Netlist'' [[abills:docs:manual:admin:netlist:netlist_network_info| Шахматка IP адресов]]
 
 MySQL:
 
   ALTER TABLE `ureports_tp_reports` ADD COLUMN `comments` text;
   ALTER TABLE `ureports_tp_reports` ADD COLUMN `module` VARCHAR(32) NOT NULL DEFAULT '';
   ALTER TABLE `ureports_tp_reports` ADD COLUMN `visual` tinyint(1) UNSIGNED NOT NULL DEFAULT '0';
-
+  ALTER TABLE `service_status` change name `name` varchar(40) NOT NULL DEFAULT '';
+  REPLACE INTO service_status (id, name, color, type) VALUES (0, '$lang{ENABLE}', '4CAF50', 0);
+  REPLACE INTO service_status (id, name, color, type) VALUES (1, '$lang{DISABLE}', 'F44336', 0);
+  REPLACE INTO service_status (id, name, color, type) VALUES (2, '$lang{NOT_ACTIVE}', 'FF9800', 0);
+  REPLACE INTO service_status (id, name, color, type) VALUES (3, '$lang{HOLD_UP}', '2196F3', 0);
+  REPLACE INTO service_status (id, name, color, type) VALUES (4, '$lang{DISABLE} $lang{NON_PAYMENT}', '607D8B', 0);
+  REPLACE INTO service_status (id, name, color, type) VALUES (5, '$lang{ERR_SMALL_DEPOSIT}', '009688', 0);
+  REPLACE INTO service_status (id, name, color, type) VALUES (6, '$lang{VIRUS_ALERT}', '9C27B0', 0);
+  REPLACE INTO service_status (id, name, color, type) VALUES (7, '$lang{REPAIR}', '9E9E9E', 0); 
 
 16.07.2016 \\
   * [[abills:docs:nas:mikrotik:dhcp_leases|Утилита для управления DHCP серверами на микротике]] (без RADIUS)
   * [[abills:docs:nas:mikrotik:dhcp_leases|контроль ARP на микротик]]
-  * [[abills:docs:manual:admin:conf_control:null|Модуль контроля конфигурационных файлов]]
-  * Добавлена история работы администратора для боле быстрого перехода на преведущие страницы
-  * Универмальный поиск предоставляет варианты возможного поиска
+  * [[abills:docs:manual:admin:confcontrol:null|Модуль контроля конфигурационных файлов]]
+  * Breadcrumbs запоминает историю переходов для текущей вкладки.
+  * Универсальный поиск динамически запрашивает результаты.
   * [[abills:docs:manual:social_network:ru|Авторизация через социальные сети]] facebook, VK
   * При привязке абонента к порту система автоматически показывает оборудования в точке подключения
   * ''Iptv'' экспорт m3u листа каналов
   * [[abills:docs:manual:admin:form_nas#hotspot|Mikrotik: hotspot автоконфигуратор]]
   * Hotspot: авторизация по короткому паролю
-  * ''Callcenter'' [[abills:docs:callcenter:atrey:ru#realizacija_v_brauzere|работа с входными звонками абонентов]]
+  * ''Callcenter'' [[abills:docs:callcenter:atrey:ru#realizacija_v_brauzere|Уведомление о входящих звонках в вебинтерфейсе]]
   * ''Storage''  занесение информации о установившем оборудование сотруднике
 
 16.06.2016 \\
 
-  * Кабинет абонента, портал и форма напоминания пароля совмещены в единое целое с возможность быстрого переключения в любой режим
+  * Кабинет абонента, портал и форма напоминания пароля совмещены в одну страницу с возможность быстрого переключения в любой режим
   * ''CRM'' - Кассы
   * Унифицированные контактные данные абонента
   * ''Paysys'' [[abills:docs:manual:admin:paysys:paysys_external_commands|Внешние команды для оплаты]]
@@ -166,12 +595,6 @@ MySQL:
     `comments` TEXT
   )
   COMMENT 'Types of custom points';
-  
-  INSERT INTO maps_point_types (`name`, `icon`) VALUES
-    ('well', 'well'),
-    ('wifi', 'wifi'),
-    ('build', 'build'),
-    ('route', 'route');
   
   CREATE TABLE maps_points (
     `id`       INT(11) PRIMARY KEY AUTO_INCREMENT,

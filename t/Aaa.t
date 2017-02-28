@@ -6,8 +6,23 @@
 
 =cut
 
+BEGIN {
+  use FindBin '$Bin';
+  unshift(@INC, $Bin."/../libexec/");
+
+  do "config.pl";
+
+  unshift(@INC,
+    $Bin."/../lib/",
+    $Bin."/../Abills/$conf{dbtype}");
+}
+
 use warnings;
 use strict;
+use Test::Simple tests => 5;
+use Memoize;
+use Benchmark qw/:all/;
+use threads;
 
 our (
   %conf,
@@ -18,26 +33,10 @@ our (
   $begin_time
 );
 
-use strict;
-use Test::Simple tests => 5;
-use Memoize;
-use Benchmark qw/:all/;
-use threads;
+use Abills::Base qw(check_time parse_arguments mk_unique_value);
+use Abills::SQL;
 
-use FindBin '$Bin';
-unshift(@INC, $Bin. "/../libexec/");
-
-do "config.pl";
-
-unshift(@INC,
-        $Bin . "/../lib/",
-        $Bin . "/../Abills/$conf{dbtype}");
-
-require Abills::Base;
-Abills::Base->import(qw(check_time parse_arguments));
-$begin_time = Abills::Base::check_time();
-
-require Abills::SQL;
+$begin_time = check_time();
 my $db    = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, \%conf);
 my $argv  = parse_arguments(\@ARGV);
 
@@ -48,10 +47,10 @@ if ($argv->{nas}) {
   get_nas_info();
 }
 elsif ($argv->{get_ip}) {
-  get_ip_();
+  #get_ip_();
 }
 elsif ($argv->{online_add}) {
-  online_add();
+  #online_add();
 }
 elsif (defined($argv->{rad_auth})) {
   _rad({ auth => 1 });
@@ -120,6 +119,7 @@ sub show_reply{
       print "  $k -> $v\n";
     }
   }
+  print "\n";
 
   return 1;
 }
@@ -194,7 +194,9 @@ sub unifi {
 }
 
 #**********************************************************
-#
+=head2 _rad($attr) - Base AAA test
+
+=cut
 #**********************************************************
 sub _rad {
   my ($attr)=@_;
@@ -209,18 +211,20 @@ sub _rad {
 
     my $users = Users->new($db, undef, \%conf);
 
-    my $list = $users->list({ LOGIN     => '_SHOW',
-                              PASSWORD  => '_SHOW',
-                              DOMAIN_ID => 0,
-                              PAGE_ROWS => $count,
-                              COLS_NAME => 1
-                            });
+    my $list = $users->list({
+      LOGIN     => '_SHOW',
+      PASSWORD  => '_SHOW',
+      DOMAIN_ID => 0,
+      PAGE_ROWS => $count,
+      COLS_NAME => 1
+    });
 
     foreach my $line (@$list) {
-      push @users_arr, { 'User-Name'      => $line->{login},
-                         'Password'       => $line->{password},
-                         'NAS-IP-Address' => '127.0.0.1'
-                       };
+      push @users_arr, {
+        'User-Name'      => $line->{login},
+        'Password'       => $line->{password},
+        'NAS-IP-Address' => '127.0.0.1'
+      };
     }
   }
   elsif($argv->{rad_file}) {
@@ -234,10 +238,14 @@ sub _rad {
     );
   }
 
+  if($argv->{NAS_IP}) {
+    $RAD_REQUEST{'NAS-IP-Address'}=$argv->{NAS_IP};
+  }
+
   $Bin = $Bin .'/../libexec/';
   require "rlm_perl.pl";
 
-  my $thread_mode = 1;
+  #my $thread_mode = 1;
 
   if ($attr->{acct}) {
     print " acct \n";
@@ -250,10 +258,12 @@ sub _rad {
     timethis($count, sub{
       my @threads = ();
       for my $i (1..$thread_count) {
-        push @threads, threads->create(sub{
-                             %RAD_REQUEST = %{ $users_arr[ rand($#users_arr + 1) ] };
-                             authenticate();
-                           }, $i);
+        push @threads, threads->create(
+          sub{
+            %RAD_REQUEST = %{ $users_arr[ rand($#users_arr + 1) ] };
+            authenticate();
+          },
+          $i);
       }
 
       foreach my $thread (@threads) {
@@ -264,17 +274,28 @@ sub _rad {
   }
   elsif($attr->{dhcp_test}) {
     print "Mac_auth test\n";
+    if($#ARGV < 1) {
+      print "use Aaa.t dhcp_test Mac_auth.rad $#ARGV\n";
+      exit;
+    }
     #post_auth();
     mac_auth();
   }
   elsif($argv->{benchmark}) {
-    print " auth \n";
+    print " benchmark auth count: $count\n";
+
+    my %RAD = %RAD_REQUEST;
+
     timethis($count, sub{
-                          if($#users_arr > -1){
-                            %RAD_REQUEST = %{ $users_arr[ rand( $#users_arr + 1 ) ] };
-                          }
-                          authenticate();
-                        });
+      if(%RAD) {
+          %RAD_REQUEST = %RAD;
+      }
+      elsif($#users_arr > -1){
+        %RAD_REQUEST = %{ $users_arr[ rand( $#users_arr + 1 ) ] };
+      }
+
+      authenticate();
+    });
   }
   else {
     if($debug) {
@@ -284,6 +305,10 @@ sub _rad {
     my $ret = authenticate();
     print "  authenticate: $ret\n";
     ok($ret);
+    if(! $ret) {
+      show_reply(\%RAD_REPLY);
+    }
+
     $ret = authorize();
     print "  authorize: $ret\n";
     ok($ret);
@@ -339,7 +364,10 @@ sub load_rad_pairs {
   my @rows = split(/[\r\n]+/, $content);
 
   foreach my $line (@rows) {
-    my ($key, $val) = split(/\+?=/, $line, 2);
+    my ($key, $val) = split(/\s+\+?=\s+/, $line, 2);
+    if (! $key) {
+      next;
+    }
     $key =~ s/^\s+//;
     $key =~ s/\s+$//;
     $val =~ s/^\s+//;
@@ -360,11 +388,11 @@ sub load_rad_pairs {
 
 
 #**********************************************************
-#
+=head2 get_nas_info() - test nas
+
+=cut
 #**********************************************************
 sub get_nas_info {
-  # my ($attr)=@_;
-
   require Nas;
   Nas->import();
 
@@ -386,7 +414,6 @@ sub get_nas_info {
 #**********************************************************
 sub help  {
 
-
 print << "[END]";
 
 nas      - Nas get
@@ -394,6 +421,7 @@ get_ip   - Get IP
 rad_auth - RAD Auth
   benchmark - Make banchmark
   get_db_users - Use db users for auth
+  NAS_IP  - Nas IP radius param NAS-IP-Address
 rad_acct - RAD Acct
 rad_file - RAD File
 show_result - Show RAD result
@@ -409,3 +437,5 @@ help     - help
 [END]
 
 }
+
+1

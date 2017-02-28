@@ -24,8 +24,7 @@ if ($@){
   $no_xml_rpc = 1;
 }
 
-
-our $VERSION = 0.1;
+our $VERSION = 0.2;
 
 my $xmlrpc;
 
@@ -52,8 +51,11 @@ sub new {
     admin => $admin,
     conf  => $CONF,
   };
-
-  unless ($no_xml_rpc) {
+  
+  if ($no_xml_rpc){
+    return 0;
+  }
+  else {
     $xmlrpc = XML::RPC->new( "$CONF->{WORDPRESS_URL}/xmlrpc.php" );
     $self->{authenticate} = [ $CONF->{WORDPRESS_BLOGID}, $CONF->{WORDPRESS_ADMIN}, $CONF->{WORDPRESS_PASSWORD} ];
   }
@@ -88,7 +90,6 @@ sub posts_list {
 
   return $posts;
 }
-
 
 #**********************************************************
 =head2 users_list($filters)
@@ -164,7 +165,6 @@ sub set_options {
 
   return $xmlrpc->call( 'wp.setOptions', @{$self->{authenticate}}, $attr );
 }
-
 
 #**********************************************************
 =head2 get_themes() - get list of present colors

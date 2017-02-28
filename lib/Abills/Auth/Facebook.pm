@@ -8,13 +8,16 @@ package Abills::Auth::Facebook;
 
 use strict;
 use warnings FATAL => 'all';
-use Abills::Base qw(urlencode mk_unique_value);
-do 'Abills/Misc.pm';
+use Abills::Base qw(urlencode mk_unique_value load_pmodule2 show_hash);
+use Abills::Fetcher;
 
 my $access_token_url = 'https://graph.facebook.com/oauth/access_token';
 #my $get_me_url       = 'https://graph.facebook.com/me';
 my $get_me_url       = 'https://graph.facebook.com/';
-
+# https://developers.facebook.com/docs/facebook-login/permissions#reference-user_likes
+# read_stream
+# user_hometown
+my $facebook_scope   = 'public_profile,email,user_birthday,user_likes,user_friends,user_location,user_posts';
 
 #**********************************************************
 =head2  get_token() - Get token
@@ -27,13 +30,11 @@ sub get_token {
 
   my $client_id    = $self->{conf}->{AUTH_FACEBOOK_ID} || q{};
   my $client_secret= $self->{conf}->{AUTH_FACEBOOK_SECRET} || q{};
-  #my $request = qq($access_token_url?client_id=$client_id&client_secret=$client_secret&redirect_uri=$redirect_uri); #&code=$attr->{code});
-  my $request = qq($access_token_url?client_id=$client_id&client_secret=$client_secret&grant_type=client_credentials);
+  my $request      = qq($access_token_url?client_id=$client_id&client_secret=$client_secret&grant_type=client_credentials);
 
   my $result = web_request($request, {
-      #JSON_RETURN => 1,
-      DEBUG       => ($self->{debug} && $self->{debug} > 2) ? $self->{debug} : 0
-    });
+    DEBUG       => ($self->{debug} && $self->{debug} > 2) ? $self->{debug} : 0
+  });
 
   if($self->{debug}) {
     print $result;
@@ -43,7 +44,7 @@ sub get_token {
     $token = $1;
   }
   else {
-    load_pmodule('JSON');
+    load_pmodule2('JSON');
     my $json = JSON->new->allow_nonref;
 
     my $result_pair;
@@ -71,25 +72,28 @@ sub check_access {
 
   my $client_id    = $self->{conf}->{AUTH_FACEBOOK_ID} || q{};
   my $redirect_uri = $self->{conf}->{AUTH_FACEBOOK_URL} || q{};
-  #my $version      = '5.37';
   my $client_secret= $self->{conf}->{AUTH_FACEBOOK_SECRET} || q{};
   $self->{debug}   = $self->{conf}->{AUTH_FACEBOOK_DEBUG} || 0;
+  $redirect_uri    =~ s/\%SELF_URL\%/$self->{self_url}/g;
+
+  if($self->{domain_id}) {
+    $redirect_uri .= "%26DOMAIN_ID=$self->{domain_id}";
+  }
 
   if($self->{debug}) {
     print "Content-Type: text/html\n\n";
   }
 
   if ($attr->{code}) {
-    my $request = qq($access_token_url?client_id=$client_id&client_secret=$client_secret&redirect_uri=$redirect_uri&code=$attr->{code});
+    my $request = qq($access_token_url?client_id=$client_id&client_secret=$client_secret&code=$attr->{code}&redirect_uri=$redirect_uri);
     my $result = web_request($request, {
-        #JSON_RETURN => 1,
-        DEBUG       => ($self->{debug} && $self->{debug} > 2) ? $self->{debug} : 0
-      });
+      #JSON_RETURN => 1,
+      DEBUG       => ($self->{debug} && $self->{debug} > 2) ? $self->{debug} : 0
+    });
 
     if($self->{debug}) {
       print $result;
     }
-
     if($result =~ /^access_token=(.+)/) {
       my $token = $1;
       if($self->{debug}) {
@@ -98,26 +102,33 @@ sub check_access {
 
       $request = qq($get_me_url/me/?fields=id,name&access_token=$token);
       $result = web_request($request, {
-          JSON_RETURN => 1,
-          DEBUG       => ($self->{debug} && $self->{debug} > 2) ? $self->{debug} : 0
-        });
+        JSON_RETURN => 1,
+        DEBUG       => ($self->{debug} && $self->{debug} > 2) ? $self->{debug} : 0
+      });
 
       if($self->{debug}) {
         print show_hash($result);
       }
-
-      if ($result->{name}) {
+      if ($result->{error}) {
+        $self->{errno}=$result->{error}->{code};
+        $self->{errstr}=$result->{error}->{message};
+      }
+      elsif ($result->{name}) {
         $self->{USER_ID}     = 'facebook, '.$result->{id};
         $self->{USER_NAME}   = $result->{name};
         $self->{CHECK_FIELD} = '_FACEBOOK';
       }
     }
     else {
-      load_pmodule('JSON');
+      load_pmodule2('JSON');
       my $json = JSON->new->allow_nonref;
 
       my $result_pair;
       eval { $result_pair = $json->decode( $result );  };
+      if($result_pair->{error}) {
+        $self->{errstr} = $result_pair->{error}->{message};
+        $self->{errno}  = $result_pair->{error}->{code};
+      }
 
       if($self->{debug}) {
         print "failed";
@@ -137,23 +148,17 @@ sub check_access {
 #    [error_reason] => user_denied
 #    [state] => 7262836fbd03301ee4d3291b15044ca6
 
-    print qq{
-      $attr->{error_code}
-
-      <br>
-      $attr->{error_message}
-
-      <br>
-      $attr->{state}
-    };
-
+    print ' '. ($attr->{error_code} || q{})
+     . '<br>' . ($attr->{error_message} || q{})
+     . '<br>' . ($attr->{state} || q{});
   }
   else {
     my $session_state = mk_unique_value(10);
-    $self->{auth_url} = 'https://www.facebook.com/dialog/oauth' .
-      '?client_id=' . $client_id .
-      '&redirect_uri=' . $redirect_uri .
-      "&state=" . $session_state;
+    $self->{auth_url} = 'https://www.facebook.com/dialog/oauth'
+      . '?client_id=' . $client_id
+      . '&state=' . $session_state
+      . '&scope=' . $facebook_scope
+      . '&redirect_uri=' . $redirect_uri;
   }
 
   return $self;
@@ -174,14 +179,40 @@ sub get_info {
   my $self = shift;
   my ($attr)=@_;
 
+  my %info_fiealds = (
+    ID       => 'id',
+    NAME     => 'name',
+    ABOUT    => 'about',
+    BIRTHDAY => 'birthday',
+    FIRT_NAME=> 'first_name',
+    LAST_NAME=> 'last_name',
+    GENDER   => 'gender',
+    COVER    => 'cover',
+    LOCATION => 'location',
+    LOCALE   => 'locale',
+    EMAIL    => 'email',
+    HOMETOWN => 'hometown',
+    EDUCATION=> 'education',
+    FRIENDS  => 'friends',
+    LIKES    => 'likes',
+    FEED     => 'feed',
+    EGA_RANGE=> 'age_range',
+    PICTURE  => 'picture',
+    #EMPLOYEE_NUMBER => 'employee_number',
+    WORK     => 'work'
+  );
+
   my $client_id = $attr->{CLIENT_ID};
   my $token=$self->get_token();
-  my $request = $get_me_url . $client_id . "?fields=id,name,about,birthday,first_name,last_name,gender,cover,location,email,education&access_token=$token";
+  my $request = $get_me_url .'/v2.8/'
+    . $client_id
+    . '?fields='. join(',', values %info_fiealds)
+    . "&access_token=$token";
 
   my $result = web_request($request, {
-      JSON_RETURN => 1,
-      DEBUG       => ($self->{debug} && $self->{debug} > 2) ? $self->{debug} : 0
-      });
+    JSON_RETURN => 1,
+    DEBUG       => ($self->{debug} && $self->{debug} > 2) ? $self->{debug} : 0
+  });
 
   if($result->{error}) {
     show_hash($result->{error});

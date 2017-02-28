@@ -9,6 +9,8 @@
       "06:5:$lang{ADD} $lang{TYPE}:crm_cashbox_coming_type:"   => 5,
       "09:5:$lang{DOCS}:crm_coming_document:ID"                => 5,
       "10:1:$lang{SALARY}:crm_salary:"                         => 5,
-      "11:10:$lang{WORK_SCHEDULE}:crm_work_schedule:"          => 5,
+      "11:10:$lang{BET}:crm_admins_bet:"                       => 5,
       "12:10:Pay Salary:crm_pay_salary::EXTERNAL"              => 5,
+      "13:1:$lang{REFERENCE_WORKS}:crm_reference_works:"       => 5,
+      "14:0:CRM:crm_report_list:"                              => 4,
 );

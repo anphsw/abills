@@ -2,7 +2,7 @@
 <input type='hidden' name='index' value='%index%'>
 <input type='hidden' name='EID' value='%EID%'>
 
-<div class='panel'>
+<div class='box'>
 
 <div class='row'>
 	%GEOLOCATION_TREE%

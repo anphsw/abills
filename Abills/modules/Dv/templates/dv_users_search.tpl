@@ -1,5 +1,6 @@
-<div class='panel panel-default panel-form'>
-<div class='panel-body'>
+<div class='col-xs-12 col-md-6'>
+<div class='box box-theme'>
+<div class='box-body'>
 
 
 <div class='form-group'>
@@ -60,6 +61,13 @@
   </div>
 </div>
 
+  <div class='form-group'>
+    <label class='col-md-3 control-label' for='PERSONAL_TP'>_{PERSONAL}_ _{TARIF_PLAN}_</label>
+    <div class='col-md-9'>
+      <input id='PERSONAL_TP' name='PERSONAL_TP' value='%PERSONAL_TP%' placeholder='%PERSONAL_TP%' class='form-control' type='text'>
+    </div>
+  </div>
+
 <div class='form-group'>
   <label class='col-md-3 control-label' for='STATUS'>_{STATUS}_</label>
   <div class='col-md-9'>
@@ -77,9 +85,10 @@
 <div class='form-group'>
   <label class='col-md-3 control-label' for='DV_EXPIRE'>_{EXPIRE}_</label>
   <div class='col-md-9'>
-    <input id='DV_EXPIRE' name='DV_EXPIRE' value='%DV_EXPIRE%' placeholder='%DV_EXPIRE%' class='form-control tcal' type='text'>
+    <input id='DV_EXPIRE' name='DV_EXPIRE' value='%DV_EXPIRE%' placeholder='%DV_EXPIRE%' class='form-control datepicker' type='text'>
   </div>
 </div>
 
 </div>
 </div>
+  </div>

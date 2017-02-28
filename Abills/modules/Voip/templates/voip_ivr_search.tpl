@@ -1,5 +1,5 @@
 <hr>
-<div class='panel-form form-horizontal'>
+<div class='box-form form-horizontal'>
     <div class='form-group'>
         <label class='col-md-3 control-label'>IP</label>
         <div class='col-md-6'>

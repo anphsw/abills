@@ -1,6 +1,6 @@
-
-<div class='panel panel-default panel-form'>
-<div class='panel-body'>
+<div class='col-xs-12 col-md-6'>
+<div class='box box-theme box-form'>
+<div class='box-body'>
 
 <div class='form-group'>
   <label class='control-label col-md-3' for='CUSTOMER'>_{CUSTOMER}_</label>
@@ -37,5 +37,6 @@
  	</div>
 </div>
 
+</div>
 </div>
 </div>

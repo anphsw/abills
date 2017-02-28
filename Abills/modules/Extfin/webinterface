@@ -29,13 +29,10 @@ our (
 my $Extfin = Extfin->new($db, $admin, \%conf);
 
 #**********************************************************
-# docs_invoice_add
-# Order array format
-# NAME|UNIT|COUNT|PRICE
+=head2 extfin_export_customers()
+
+=cut
 #**********************************************************
-# Contragents
-# Nachisleniya
-# Snyatiya
 sub extfin_export_customers {
   $Extfin->{ACTION}     = 'get';
   $Extfin->{ACTION_LNG} = $lang{SHOW};
@@ -126,28 +123,33 @@ sub extfin_export_customers {
 
     if ($FORM{PERIOD} && $FORM{PERIOD} =~ /(\d{2})\.(\d{2})\.(\d{4})\-(\d{2})\.(\d{2})\.(\d{4})/) {
       $LIST_PARAMS{FROM_DATE} = "$3-$2-$1";
-      $LIST_PARAMS{TO_DATE}   = "$6-$5-$4";
+      $LIST_PARAMS{TO_DATE} = "$6-$5-$4";
     }
     else {
       $LIST_PARAMS{MONTH} = $FORM{MONTH};
     }
 
     $LIST_PARAMS{INFO_FIELDS} = $FORM{INFO_FIELDS};
-    $LIST_PARAMS{USER_TYPE}   = $FORM{USER_TYPE};
-    $LIST_PARAMS{TOTAL_ONLY}  = $FORM{TOTAL_ONLY};
+    $LIST_PARAMS{USER_TYPE} = $FORM{USER_TYPE};
+    $LIST_PARAMS{TOTAL_ONLY} = $FORM{TOTAL_ONLY};
 
-    $Extfin->payment_deed({ %FORM, %LIST_PARAMS });
+    $Extfin->payment_deed( { %FORM, %LIST_PARAMS } );
 
     my @TITLE = ('ID', $lang{NAME}, $lang{TYPE}, "$lang{SUM}", "$lang{VAT}", "$lang{TOTAL}");
     if ($FORM{INFO_FIELDS} || $FORM{INFO_FIELDS_COMPANIES}) {
-      push @TITLE, split(/, /, $FORM{INFO_FIELDS} . $FORM{INFO_FIELDS_COMPANIES});
+      push @TITLE, split(/, /, $FORM{INFO_FIELDS}.$FORM{INFO_FIELDS_COMPANIES});
       $pages_qs .= "&INFO_FIELDS=$FORM{INFO_FIELDS}&INFO_FIELDS_COMPANIES=$FORM{INFO_FIELDS_COMPANIES}";
+    }
+
+    my $period = '';
+    if ($FORM{FROM_DATE}) {
+      $period = "$FORM{FROM_DATE}/$FORM{TO_DATE}";
     }
 
     my $table = $html->table(
       {
         width   => '100%',
-        caption => "PAYMENT_DEED $lang{DATE}: $FORM{FROM_DATE}/$FORM{TO_DATE}",
+        caption => "PAYMENT_DEED $lang{DATE}: $period",
         title   => \@TITLE,
         ID      => 'PAYMENT_DEED',
         qs      => $pages_qs,
@@ -455,10 +457,8 @@ sub extfin_paids {
   $Extfin->{TYPE_SEL} = $html->form_select(
     'TYPE',
     {
-      SELECTED          => $Extfin->{TYPE},
-      SEL_MULTI_ARRAY   => $Extfin->paid_types_list(),
-      MULTI_ARRAY_KEY   => 0,
-      MULTI_ARRAY_VALUE => 1,
+      SELECTED    => $Extfin->{TYPE},
+      SEL_LIST    => $Extfin->paid_types_list({ COLS_NAME => 1 }),
       SEL_OPTIONS => { 0 => '--' },
     }
   );
@@ -582,10 +582,14 @@ sub extfin_paids {
     }
   );
   print $table->show();
+
+  return 1;
 }
 
 #**********************************************************
-#
+=head2 extfin_paids_types()
+
+=cut
 #**********************************************************
 sub extfin_paids_types {
 
@@ -1403,7 +1407,6 @@ sub extfin_payments_fees {
   my %CHART      = ();
   my $num        = 1;
   my @CHART_TYPE = ('area', 'line', 'column');
-
   my $list       = $Extfin->report_payments_fees({%LIST_PARAMS});
 
   my $table_fees = $html->table(
@@ -1543,10 +1546,9 @@ sub extfin_users_balance {
     print $html->form_main(
       {
         CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
-        HIDDEN  => { qindex                     => "$index" }
+        HIDDEN  => { qindex => "$index" }
       }
     );
-
   }
 
   my $list = $Extfin->extfin_report_balances({%LIST_PARAMS});
@@ -1563,7 +1565,6 @@ sub extfin_users_balance {
     }
   );
 
-  # �������+������-��������|��������| �������
   my $num = 1;
   $Extfin->{TOTAL_SALDO} = 0;
   foreach my $line (@$list) {
@@ -1579,7 +1580,7 @@ sub extfin_users_balance {
       $name = ($line->[4] == 1) ? "$lang{TOTAL}: $lang{COMPANIES}" : "$lang{TOTAL}: $lang{USERS}";
     }
 
-    my $fees = sprintf("%.6f", $line->[4] || 0);
+    my $fees  = sprintf("%.6f", $line->[4] || 0);
     my $saldo = sprintf("%.6f", ($line->[3] - $fees));
     $table->addrow($num, $html->button($line->[1], "index=11&UID=$line->[6]"), $line->[2], $line->[3], $fees, $saldo,);
 
@@ -1591,6 +1592,7 @@ sub extfin_users_balance {
   $table->addrow('-', '', '', $Extfin->{TOTAL_DEBIT}, $Extfin->{TOTAL_CREDIT}, $Extfin->{TOTAL_SALDO});
 
   print $table->show();
+
   return 1;
 }
 

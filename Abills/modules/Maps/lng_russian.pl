@@ -33,7 +33,6 @@ $lang{WIFI_RADIUS} = 'Зона покрытия';
 $lang{METERS_SHORT} = 'м.';
 $lang{FIELDS_FOR_RADIUS_ARE_REQUIRED} = 'Поле \'Добавить зону покрытия\' обязательное для заполнения';
 $lang{ADD_WELL} = 'Добавить колодец';
-$lang{WELL} = 'Узел связи';
 $lang{ONLY_ONLINE} = 'Только онлайн';
 $lang{ONLY_OFFLINE} = 'Только оффлайн';
 $lang{BUILD_NOT_FOUND} = 'Дом не добавлен на карту. ';
@@ -62,15 +61,31 @@ $lang{TO_MAP} = ' на карту';
 $lang{NAVIGATION} = 'Навигация';
 $lang{CUSTOM_POINT} = 'Особенная точка';
 $lang{NAVIGATION_WARNING} = "Вы запретили получение координат вашего устройства или модуль GPS выключен. Вы можете это исправить или передвинуть иконку пользователя на Ваше текущее местоположение для поиска терминалов оплат и точного расчёта маршрутов";
-
 $lang{DISTANCE} = 'Расстояние';
-
 $lang{AUTO_COORDS} = 'Заполнение координат';
 $lang{FAKE} = 'Ненастоящие';
-
 $lang{ERR_NOT_EXACT_RESULT} = 'Нет точного результата';
 $lang{ERR_ZERO_RESULTS} = 'Нет результатов';
 $lang{ERR_NOT_ONLY_RESULT} = 'Получено больше одного результата';
+$lang{FIBERS} = 'Волокна';
+$lang{LINE_WIDTH} = 'Толщина линии';
+$lang{PARENT_ROUTE} = 'Предок маршрута';
+$lang{PARENT_F} = 'Родительская';
+$lang{PARENT_M} = 'Родительский';
+$lang{LAYERS} = 'Слои';
+$lang{STRUCTURE} = 'Структура';
+$lang{OBJECT_TYPES} = 'Типы обьектов';
+$lang{ICONS} = 'Иконки';
+$lang{NO_ICONS} = 'Нет файлов';
+$lang{OBJECTS} = 'Обьекты';
+$lang{OBJECT} = 'Обьект';
+$lang{MUFF} = 'Муфта';
+$lang{SPLITTER} = 'Делитель';
+$lang{CABLE} = 'Кабель';
+$lang{PILLAR} = 'Опора';
 
+$lang{CLOSEST} = 'Ближайшие';
 
+$lang{WELL} = 'Узел связи';
+$lang{WELLS} = 'Узлы связи';
 1;

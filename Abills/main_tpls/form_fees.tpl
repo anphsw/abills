@@ -5,15 +5,15 @@
 
     <fieldset>
 
-        <div class='panel panel-primary panel-form'>
-            <div class='panel-heading text-center'><h4>_{FEES}_</h4></div>
-            <div class='panel-body'>
+        <div class='box box-theme box-form'>
+            <div class='box-header with-border'><h4 class='box-title'>_{FEES}_</h4></div>
+            <div class='box-body'>
 
 
                 <div class='form-group'>
                     <label class='control-label col-md-3' for='SUM'>_{SUM}_:</label>
                     <div class='col-md-9'>
-                        <input id='SUM' name='SUM' value='$FORM{SUM}' placeholder='$FORM{SUM}' class='form-control'
+                        <input autofocus id='SUM' name='SUM' value='$FORM{SUM}' placeholder='$FORM{SUM}' class='form-control'
                                type='text'>
                     </div>
                 </div>
@@ -61,7 +61,7 @@
 
             </div>
 
-            <div class='panel-footer'>
+            <div class='box-footer'>
                 <input type=submit name='take' value='_{TAKE}_' class='btn btn-primary'>
             </div>
 

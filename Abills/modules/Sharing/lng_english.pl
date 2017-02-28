@@ -1,5 +1,5 @@
 $lang{EXTRA_TRAFIC} = 'Extra Trafic';
-
+$lang{AMOUNT}         ='Amount';
 $lang{FILES}          = 'Files';
 $lang{TIME_FOR_LINK}  = 'Links time life';
 $lang{TIME_FOR_FILE}  = 'Access time to file';
@@ -11,3 +11,4 @@ $lang{FILE_NOT_CHANGED} = 'File not changed';
 $lang{DAYS}             = 'Days';
 $lang{SUCCESS_BUY}      = 'Successfully paid purchase to ';
 $lang{DATE_TO}          = 'Download available to ';
+$lang{SECONDS}          = 'Seconds';

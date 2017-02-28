@@ -20,11 +20,10 @@ BILLING_DIR=/usr/abills/
 
 #Get billinnng base dir
 if [ -f "${BASEDIR}/../../libexec/config.pl" ]; then
-  BILLING_DIR=`cat "${BASEDIR}/../../libexec/config.pl" |grep '^$base_dir' |awk -F\' '{print $2}'`;
+  BILLING_DIR=`cat "${BASEDIR}/../../libexec/config.pl" | grep -e '$base_dir =' |awk -F\' '{print $2}'`;
 fi;
 
 CERT_PATH=${BILLING_DIR}/Certs/
-
 
 #**********************************************************
 #

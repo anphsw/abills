@@ -8,8 +8,8 @@
         -->
 
     <fieldset>
-        <div class='panel panel-default panel-form' style='margin-left:auto; margin-right: auto;'>
-            <div class='panel-body form'>
+        <div class='box box-theme box-form' style='margin-left:auto; margin-right: auto;'>
+            <div class='box-body form'>
 
                 <legend>_{INSTALLATION}_</legend>
 
@@ -52,7 +52,7 @@
                 </div>
 -->
             </div>
-            <div class='panel-footer'>
+            <div class='box-footer'>
                 <input type=submit name=install value=_{INSTALL}_ class='btn btn-primary'>
             </div>
         </div>

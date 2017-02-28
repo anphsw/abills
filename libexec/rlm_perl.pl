@@ -7,7 +7,7 @@
 #***********************************************************
 
 use strict;
-our (%RAD_REQUEST, %RAD_REPLY, %RAD_CHECK, %AUTH, %ACCT, %conf);
+our (%RAD_REQUEST, %RAD_REPLY, %RAD_CHECK, %AUTH, $RAD_PAIRS, %ACCT, %conf);
 
 #
 # This the remapping of return values
@@ -58,10 +58,9 @@ require $Bin . "/config.pl";
 unshift(@INC, $Bin . '/../lib/', $Bin . "/../Abills/$conf{dbtype}");
 
 require Abills::Base;
-Abills::Base->import(qw(check_time));
+Abills::Base->import('check_time');
 
 require Abills::SQL;
-
 require Nas;
 Nas->import();
 
@@ -84,8 +83,9 @@ my %NAS_INFO  = ();
 my $debug     = 0;
 
 #**********************************************************
-# SQL connect
-#
+=head2 sql_connect() - SQL connect
+
+=cut
 #**********************************************************
 sub sql_connect {
   my $nas;
@@ -112,8 +112,9 @@ sub sql_connect {
 }
 
 #**********************************************************
-# Function to handle authorize
-#
+=head2 authorize() Function to handle authorize
+
+=cut
 #**********************************************************
 sub authorize {
   $begin_time = Abills::Base::check_time();
@@ -188,7 +189,10 @@ sub authenticate {
   my ($db, $nas) = sql_connect();
   if ($db) {
     #mk_debug_log(\@a);
-    if (auth_($db, \%RAD_REQUEST, $nas) == 0) {
+    if($nas->{errno}) {
+      return RLM_MODULE_FAIL;
+    }
+    elsif (auth_($db, \%RAD_REQUEST, $nas) == 0) {
       return RLM_MODULE_OK;
     }
   }
@@ -230,7 +234,6 @@ sub post_auth {
   }
 
   my ($db, $nas) = sql_connect();
-  #my $r          = 0;
   my $reject_info= '';
 
   if ($debug) {
@@ -244,31 +247,33 @@ sub post_auth {
     if ($RAD_REQUEST{'DHCP-Message-Type'}) {
       $RAD_REQUEST{'User-Name'} = $RAD_REQUEST{'DHCP-Client-Hardware-Address'};
       $nas->{NAS_TYPE} = 'dhcp';
-      if (!defined($auth_mod{"$nas->{NAS_TYPE}"})) {
-        if (! $AUTH{ $nas->{NAS_TYPE} }) {
-          $AUTH{ $nas->{NAS_TYPE} }='Mac_auth';
+      my $nas_type = 'dhcp';
+      if (!defined($auth_mod{$nas_type})) {
+        if (! $AUTH{ $nas_type }) {
+          $AUTH{ $nas_type }='Mac_auth';
         }
 
-        eval { require $AUTH{ $nas->{NAS_TYPE} } . '.pm'; };
+        eval { require $AUTH{ $nas_type } . '.pm'; };
         if ($@) {
-          my $message = "Failed to load: $AUTH{ $nas->{NAS_TYPE} }.pm";
+          my $message = "Failed to load: $AUTH{ $nas_type }.pm";
           print $@;
           print $message . "\n";
           $Log->log_print('LOG_WARNING', $RAD_REQUEST{'User-Name'}, "$message", { NAS => $nas });
           return RLM_MODULE_FAIL;
         }
-        $AUTH{ $nas->{NAS_TYPE} }->import();
+        $AUTH{ $nas_type }->import();
       }
 
-      $auth_mod{"$nas->{NAS_TYPE}"} = $AUTH{ $nas->{NAS_TYPE} }->new($db, \%conf);
-      my ($r, $RAD_PAIRS) = $auth_mod{"$nas->{NAS_TYPE}"}->auth(\%RAD_REQUEST, $nas);
+      $auth_mod{$nas_type} = $AUTH{ $nas_type }->new($db, \%conf);
+      my $r;
+      ($r, $RAD_PAIRS) = $auth_mod{ $nas_type }->auth(\%RAD_REQUEST, $nas);
       my $message = $RAD_PAIRS->{'Reply-Message'} || '';
 
-      if ($auth_mod{"$nas->{NAS_TYPE}"}->{INFO}) {
-        $message .= $auth_mod{"$nas->{NAS_TYPE}"}->{INFO};
+      if ($auth_mod{ $nas_type }->{INFO}) {
+        $message .= $auth_mod{ $nas_type }->{INFO};
       }
 
-      if($auth_mod{"$nas->{NAS_TYPE}"}->{GUEST_MODE}) {
+      if($auth_mod{ $nas_type }->{GUEST_MODE}) {
         $Log->{ACTION} = 'GUEST_MODE';
       }
 
@@ -277,10 +282,9 @@ sub post_auth {
         $r = 0;
       }
       else {
-        $RAD_REPLY{'DHCP-DHCP-Error-Message'} = "$message";
+        $RAD_REPLY{'DHCP-DHCP-Error-Message'} = $message if ($message);
         access_deny($RAD_PAIRS->{'User-Name'}, "$message". (($GT) ? " $GT" : ''), $nas, $db);
         $r = 1 if (!$r);
-
         return $r;
       }
 
@@ -325,6 +329,7 @@ sub post_auth {
         }
         #Allow others
         else {
+          %RAD_REPLY = (%RAD_REPLY, %$RAD_PAIRS);
     	    return RLM_MODULE_OK;
     	  }
       }
@@ -338,10 +343,10 @@ sub post_auth {
         $reject_info = "REJECT Wrong password ($RAD_CHECK{'Post-Auth-Type'})";
         $RAD_REPLY{'Reply-Message'} = $reject_info;
       }
-      $Log->log_print('LOG_WARNING', $RAD_REQUEST{'User-Name'}, "-$reject_info$CID$GT", { NAS => $nas });
+
+      $Log->log_print('LOG_WARNING', $RAD_REQUEST{'User-Name'}, "$reject_info$CID$GT", { NAS => $nas });
     }
   }
-
   return RLM_MODULE_REJECT;
 }
 
@@ -359,16 +364,16 @@ sub get_nas_info {
   $RAD->{'NAS-IP-Address'} = '' if (!$RAD->{'NAS-IP-Address'});
   $RAD->{'User-Name'}      = '' if (!$RAD->{'User-Name'});
 
-  my %NAS_PARAMS = (IP    => $RAD->{'NAS-IP-Address'},
-                    SHORT => 1
-                    );
+  my %NAS_PARAMS = (
+    IP    => $RAD->{'NAS-IP-Address'},
+    SHORT => 1
+  );
 
   if ($RAD->{'NAS-IP-Address'} eq '0.0.0.0' && !$RAD->{'DHCP-Message-Type'}) {
     %NAS_PARAMS = (CALLED_STATION_ID => $RAD->{'Called-Station-Id'});
   }
 
   $NAS_PARAMS{NAS_IDENTIFIER} = $RAD->{'NAS-Identifier'} if ($RAD->{'NAS-Identifier'});
-
   $nas->info( \%NAS_PARAMS );
 
   if ($nas->{errno}) {
@@ -388,20 +393,19 @@ sub get_nas_info {
       ' ' . (($RAD->{'NAS-IP-Address'} eq '0.0.0.0' && !$RAD->{'DHCP-Message-Type'}) ? $RAD->{'Called-Station-Id'} : ''), $nas, $db);
 
       $RAD_REPLY{'Reply-Message'} = "Unknow server '". $RAD->{'NAS-IP-Address'} ."'";
-      $nas->{error}=1;
+      $nas->{errno}=1;
     }
   }
   elsif (!$nas->{NAS_TYPE} eq 'dhcp' && (!defined($RAD->{'User-Name'}) || $RAD->{'User-Name'} eq '')) {
-    $nas->{error}=2;
+    $nas->{errno}=2;
   }
   elsif ($nas->{NAS_DISABLE} > 0) {
     access_deny($RAD->{'User-Name'}, "Disabled NAS server '". $RAD->{'NAS-IP-Address'} ."'", $nas, $db);
-    $nas->{error}=3;
+    $nas->{errno}=3;
   }
 
   return $nas;
 }
-
 
 #*******************************************************************
 =head2 auth_($db, $RAD, $nas);
@@ -410,7 +414,7 @@ sub get_nas_info {
 #*******************************************************************
 sub auth_ {
   my ($db, $RAD, $nas) = @_;
-  my ($r, $RAD_PAIRS);
+  my ($r);
 
   $Log->{ACTION} = 'AUTH';
 
@@ -419,7 +423,7 @@ sub auth_ {
   }
 
   if ($conf{tech_works}) {
-    $RAD_REPLY{'Reply-Message'} = "$conf{tech_works}";
+    $RAD_REPLY{'Reply-Message'} = $conf{tech_works};
     return 1;
   }
 
@@ -445,7 +449,6 @@ sub auth_ {
 
     ($r, $RAD_PAIRS) = $auth_mod{"default"}->dv_auth(\%RAD_REQUEST, $nas, { MAX_SESSION_TRAFFIC => $conf{MAX_SESSION_TRAFFIC} });
     $nas_type='default';
-
     $RAD_REQUEST{'User-Name'} = $auth_mod{"default"}->{LOGIN} if ($auth_mod{"default"}->{LOGIN});
   }
 
@@ -457,9 +460,8 @@ sub auth_ {
 
   #If Access deny
   if ($r == 1) {
-    #my $message = "$RAD_PAIRS->{'Reply-Message'} ";
     if ($RAD_PAIRS->{'Reply-Message'} eq 'SQL error') {
-      undef %auth_mod;
+      %auth_mod = ();
     }
 
     if ($auth_mod{'default'}->{errstr} && $auth_mod{'default'}->{errno} != 2) {
@@ -479,15 +481,16 @@ sub auth_ {
         if ($line =~ /([a-zA-Z0-9\-:]{6,25})\+\=(.{1,200})/) {
           my $left  = $1;
           my $right = $2;
-          push @{ $RAD_REPLY{"$left"} }, $right;
+          push @{ $RAD_REPLY{$left} }, $right;
         }
         else {
           my ($left, $right) = split(/=/, $line, 2);
           if ($left =~ s/^!//) {
-            delete $RAD_REPLY{"$left"};
+            delete $RAD_REPLY{$left};
+            delete $RAD_PAIRS->{$left};
           }
           else {
-            $RAD_REPLY{"$left"} = "$right";
+            $RAD_REPLY{$left} = $right;
           }
         }
       }
@@ -499,13 +502,14 @@ sub auth_ {
   my $CID = ($RAD_REQUEST{'Calling-Station-Id'}) ? " CID: ". $RAD_REQUEST{'Calling-Station-Id'} : '';
 
   if ($begin_time > 0) {
-    Time::HiRes->import(qw(gettimeofday));
-    my $end_time = Time::HiRes::gettimeofday();
-    my $gen_time = $end_time - $begin_time;
+    my $gen_time = Time::HiRes::gettimeofday() - $begin_time;
     $GT = sprintf(" GT: %2.5f", $gen_time);
   }
 
-  $Log->log_print('LOG_INFO', $RAD_REQUEST{'User-Name'}, (($auth_mod{$nas_type}->{INFO}) ? ' ' . $auth_mod{$nas_type}->{INFO} : '') . "$CID$GT", { NAS => $nas });
+  if ($r == 0 || $r == 8) {
+    $Log->log_print( 'LOG_INFO', $RAD_REQUEST{'User-Name'},
+      (($auth_mod{$nas_type}->{INFO}) ? ' '.$auth_mod{$nas_type}->{INFO} : '')."$CID$GT", { NAS => $nas } );
+  }
 
   return $r;
 }
@@ -569,8 +573,8 @@ sub acct_ {
   $RAD->{OUTBYTE2}          = 0;
 
   #if ($conf{octets_direction} && $conf{octets_direction} eq 'user') {
-  $RAD->{INBYTE}  = $RAD->{'Acct-Input-Octets'}  || 0;    # FROM client
-  $RAD->{OUTBYTE} = $RAD->{'Acct-Output-Octets'} || 0;    # TO client
+  $RAD->{INBYTE}  = $RAD->{'Acct-Output-Octets'}  || 0;    # FROM client
+  $RAD->{OUTBYTE} = $RAD->{'Acct-Input-Octets'} || 0;    # TO client
   #}
   # From client
 #  else {
@@ -697,7 +701,7 @@ sub acct_ {
   }
   else {
     if ($nas->{NAS_TYPE} eq 'mpd5' && $RAD->{MPD_INPUT_OCTETS}) {
-      ($RAD->{INBYTE}, $RAD->{OUTBYTE}, $RAD->{'Acct-Input-Octets'}, $RAD->{'Acct-Output-Octets'}) = (0, 0, 0, 0);
+      ($RAD->{OUTBYTE}, $RAD->{INBYTE}, $RAD->{'Acct-Input-Octets'}, $RAD->{'Acct-Output-Octets'}) = (0, 0, 0, 0);
 
       for (my $i = 0 ; $i <= $#{ $RAD->{MPD_INPUT_OCTETS} } ; $i++) {
         my ($class, $byte) = split(/:/, $RAD->{MPD_INPUT_OCTETS}->[$i]);

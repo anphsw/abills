@@ -10,4 +10,5 @@ $lang{IMAGE_UPLOAD} = 'Загрузка картинки';
 $lang{CHOOSE_IMAGES} = 'Выбрать картинки';
 $lang{TITLE}= 'Заголовок';
 $lang{DIR_CREATED}='Папка создана';
+$lang{DESCRIPTION}='Описание';
 1;

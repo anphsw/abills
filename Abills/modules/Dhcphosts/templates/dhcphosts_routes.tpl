@@ -1,11 +1,10 @@
 <!--Begin of DHCP Routes-->
-    <div class='panel panel-default panel-form'>
-      <div class='panel-body'>
+    <div class='box box-theme box-form'>
+      <div class='box-body'>
         <form action='$SELF_URL' method='post'>
         <input type='hidden' name='index' value='$index' />
         <input type='hidden' name='NET_ID' value='$FORM{NET_ID}' />
         <input type='hidden' name='ID' value='$FORM{chg}' />
-        <legend>Route:</legend>
         <div class='form-group'>
           <div class='row'>
             <label for='SRC' class='control-label col-md-4'>_{HOSTS_SRC}_:</label>
@@ -32,11 +31,17 @@
         </div>
         <div class='form-group'>
           <div class='row'>
-            <div class='col-md-4 col-md-offset-6'>
-              <input class='btn btn-primary' type='submit' name='%ACTION%' value='%ACTION_LNG%' />
-            </div>
+
           </div>
-        </div></form>
-      </div>
+        </div>
+           </div>
+         <div class='box-footer'>
+           <div class='row'>
+           <div class='col-md-12'>
+              <input class='btn btn-primary' type='submit' name='%ACTION%' value='%ACTION_LNG%' />
+               </div>
+          </div>
+          </div>
+     </form>
     </div>
 <!--End of DHCP Routes-->

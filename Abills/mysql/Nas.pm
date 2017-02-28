@@ -17,9 +17,9 @@ my $admin;
 #**********************************************************
 sub new {
   my $class = shift;
-  my $db = shift;
-  my $CONF = shift;
-  $admin  = shift;
+  my $db    = shift;
+  my $CONF  = shift;
+  $admin    = shift;
 
   $SECRETKEY = (defined($CONF->{secretkey})) ? $CONF->{secretkey} : '';
 
@@ -147,6 +147,14 @@ sub list {
 #***************************************************************
 =head2 info($attr)
 
+  Arguments:
+    NAS_ID
+    IP
+    CALLED_STATION_ID
+
+  Returns:
+    NAS_INFO
+
 =cut
 #***************************************************************
 sub info {
@@ -158,16 +166,16 @@ sub info {
   if ($attr->{IP}) {
     $WHERE = "ip=INET_ATON('$attr->{IP}')";
     if ($attr->{NAS_IDENTIFIER}) {
-      $WHERE .= " and (nas_identifier='$attr->{NAS_IDENTIFIER}' or nas_identifier='')";
+      $WHERE .= " AND (nas_identifier='$attr->{NAS_IDENTIFIER}' or nas_identifier='')";
     }
     else {
-      $WHERE .= " and nas_identifier=''";
+      $WHERE .= " AND nas_identifier=''";
     }
   }
   elsif ($attr->{CALLED_STATION_ID}) {
     $WHERE = "mac='$attr->{CALLED_STATION_ID}'";
   }
-  else {    #($attr->{NAS_ID}) {
+  else {
     $WHERE = "id='$attr->{NAS_ID}'";
   }
 
@@ -300,22 +308,27 @@ sub add {
   my $self = shift;
   my ($attr) = @_;
 
+  if($admin && $admin->{DOMAIN_ID}) {
+    $attr->{DOMAIN_ID} = $admin->{DOMAIN_ID};
+  }
+
   $self->query_add('nas', {
-      %$attr,
-      NAME           => $attr->{NAS_NAME},
-      DESCR          => $attr->{NAS_DESCRIBE},
-      AUTH_TYPE      => $attr->{NAS_AUTH_TYPE},
-      MNG_HOST_PORT  => $attr->{NAS_MNG_IP_PORT},
-      MNG_USER       => $attr->{NAS_MNG_USER},
-      MNG_PASSWORD   => ($attr->{NAS_MNG_PASSWORD}) ? "ENCODE('$attr->{NAS_MNG_PASSWORD}', '$SECRETKEY')" : undef,
-      RAD_PAIRS      => $attr->{NAS_RAD_PAIRS},
-      ALIVE          => $attr->{NAS_ALIVE},
-      DISABLE        => $attr->{NAS_DISABLE},
-      EXT_ACCT       => $attr->{NAS_EXT_ACCT},
+    %$attr,
+    NAME           => $attr->{NAS_NAME},
+    DESCR          => $attr->{NAS_DESCRIBE},
+    AUTH_TYPE      => $attr->{NAS_AUTH_TYPE},
+    MNG_HOST_PORT  => $attr->{NAS_MNG_IP_PORT},
+    MNG_USER       => $attr->{NAS_MNG_USER},
+    MNG_PASSWORD   => ($attr->{NAS_MNG_PASSWORD}) ? "ENCODE('$attr->{NAS_MNG_PASSWORD}', '$SECRETKEY')" : undef,
+    RAD_PAIRS      => $attr->{NAS_RAD_PAIRS} || '',
+    ALIVE          => $attr->{NAS_ALIVE} || 0,
+    DISABLE        => $attr->{NAS_DISABLE},
+    EXT_ACCT       => $attr->{NAS_EXT_ACCT},
    });
 
   $admin->system_action_add("NAS_ID:$self->{INSERT_ID}", { TYPE => 1 });
-  return 0;
+
+  return $self;
 }
 
 #**********************************************************
@@ -331,7 +344,8 @@ sub del {
   $self->query_del('nas_ippools', undef, { nas_id => $id });
 
   $admin->system_action_add("NAS_ID:$id", { TYPE => 10 });
-  return 0;
+
+  return $self;
 }
 
 #**********************************************************
@@ -411,7 +425,7 @@ sub nas_ip_pools_set {
 }
 
 #**********************************************************
-=head2 ip_pools_info($attr)
+=head2 ip_pools_info($id)
 
 =cut
 #**********************************************************
@@ -434,14 +448,16 @@ sub ip_pools_info {
 }
 
 #**********************************************************
-# NAS IP Pools
-#
+=head2 ip_pools_change($attr) - NAS IP Pools change
+
+=cut
 #**********************************************************
 sub ip_pools_change {
   my $self = shift;
   my ($attr) = @_;
 
   $attr->{STATIC} = ($attr->{STATIC}) ? $attr->{STATIC} : 0;
+  $attr->{GUEST} = ($attr->{GUEST}) ? $attr->{GUEST} : 0;
 
   $self->changes2(
     {
@@ -456,7 +472,7 @@ sub ip_pools_change {
 }
 
 #**********************************************************
-=head2 ip_pools_list()
+=head2 ip_pools_list($attr)
 
 =cut
 #**********************************************************
@@ -583,7 +599,7 @@ sub nas_group_list {
 
   my $WHERE =  $self->search_former($attr, [
       ['DOMAIN_ID',      'INT', 'g.domain_id'             ],
-      ['COUNTS',         'INT', '', 'count(*) AS counts'  ],
+      ['COUNTS',         'INT', '', 'COUNT(*) AS counts'  ],
     ],
     {
     	WHERE => 1
@@ -801,6 +817,177 @@ sub query_info {
   undef,
   { INFO => 1,
     Bind => [ $attr->{ID} ] }
+  );
+
+  return $self;
+}
+
+
+#**********************************************************
+=head2 function add_radtest_query() - add query to datebase
+
+  Arguments:
+    $attr
+
+  Returns:
+    $self object
+
+  Examples:
+    $nas->nas_cmd_add({
+      COMMENTS   => 'test',
+      RAD_QUERY  => 'User-Name=test',
+      DATETIME   => 'NOW()'
+    });
+
+    $nas->nas_cmd_add({
+      %FORM
+    });
+
+=cut
+#**********************************************************
+sub nas_cmd_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('nas_cmd', { %$attr });
+
+  return 0;
+}
+
+#**********************************************************
+=head2 function nas_cmd_del() - del query from datebase
+
+  Arguments:
+    ID   - query identificator
+
+  Returns:
+    $self object
+
+  Examples:
+    $nas->nas_cmd_del({ID => $FORM{del}});
+
+=cut
+#**********************************************************
+sub nas_cmd_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('nas_cmd', $attr);
+
+  return $self;
+}
+
+#***************************************************************
+=head2 function nas_cmd_info() - query info from datebase
+
+  Arguments:
+    ID   - query identificator
+
+  Returns:
+    $self object
+
+  Examples:
+    $nas->nas_cmd_info({ID => $FORM{ID}});
+
+=cut
+#***************************************************************
+sub nas_cmd_info {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query2("SELECT * FROM nas_cmd WHERE id = ?;",
+  undef,
+  { INFO => 1,
+    Bind => [ $attr->{ID} ] }
+  );
+
+  return $self;
+}
+
+#**********************************************************
+=head2 function nas_cmd_list() - queries list
+
+  Arguments:
+    $attr
+
+  Returns:
+    $self object
+
+  Examples:
+    $cmd_list = $Nas->nas_cmd_list({COLS_NAME => 1});
+
+=cut
+#**********************************************************
+sub nas_cmd_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  my @WHERE_RULES = ();
+  # if ($attr->{NAS_ID}) {
+  #   push @WHERE_RULES, "nas_id = $attr->{NAS_ID}";
+  # }
+
+  my $WHERE = $self->search_former($attr, [
+     ['ID',             'INT',  'id',         1 ],
+     ['NAS_ID',         'INT',  'nas_id',     1 ],
+     ['CMD',            'STR',  'cmd',        1 ],
+     ['TYPE',           'STR',  'type',       1 ],
+     ['COMMENTS',       'STR',  'comments',   1 ],
+    ],
+    {   WHERE            => 1,
+        #USE_USER_PI      => 1,
+        #USERS_FIELDS_PRE => 1,
+        WHERE_RULES      => \@WHERE_RULES,
+    }
+  );
+
+  $self->query2(
+    "SELECT 
+    id,
+    nas_id,
+    cmd,
+    type,
+    comments FROM nas_cmd
+    $WHERE
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
+  );
+
+  my $list = $self->{list};
+
+  return $self->{list} if ($self->{TOTAL} < 1);
+
+  $self->query2(
+    "SELECT count(*) AS total
+   FROM nas_cmd",
+    undef,
+    { INFO => 1 }
+  );
+
+  return $list;
+}
+
+#**********************************************************
+=head2 nas_cmd_change($attr)
+
+=cut
+#**********************************************************
+sub nas_cmd_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes2(
+    {
+      CHANGE_PARAM    => 'ID',
+      TABLE           => 'nas_cmd',
+      DATA            => $attr,
+    }
   );
 
   return $self;

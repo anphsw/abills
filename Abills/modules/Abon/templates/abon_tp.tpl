@@ -4,12 +4,12 @@
   <input class='form-control' type='hidden' name='index' value='$index' />
   <input class='form-control' type='hidden' name='ABON_ID' value='$FORM{ABON_ID}' /> %EXT_BILL_ACCOUNT%
 
-  <div class='panel panel-form panel-default'>
-   <div class='panel-heading'>
+  <div class='box box-form box-theme'>
+   <div class='box-header with-border'>
         <legend>%ACTION_LNG% _{ABON}_</legend>
    </div>
 
-	<div class='panel-body'>
+	<div class='box-body'>
 	  <div class='form-group'>
 		<div class='col-md-3'>
 			<label for='%NAME%'>_{NAME}_:</label>
@@ -51,7 +51,7 @@
 			<label for='NONFIX_PERIOD'>_{NONFIX_PERIOD}_:</label>
 		</div>
 		<div class='col-md-5'>
-			<input type='checkbox' name='NONFIX_PERIOD' value='1' %NONFIX_PERIOD% />
+			<input type='checkbox' name='NONFIX_PERIOD' data-return='1' value='1' %NONFIX_PERIOD% />
 		</div>
       </div>
 
@@ -60,7 +60,7 @@
 			<label for='MANUAL_ACTIVATE'>_{MANUAL_ACTIVATE}_:</label>
 		</div>
 		<div class='col-md-5'>
-			<input type='checkbox' name='MANUAL_ACTIVATE' %MANUAL_ACTIVATE% value='1' />
+			<input type='checkbox' name='MANUAL_ACTIVATE' data-return='1' %MANUAL_ACTIVATE% value='1' />
 		</div>
       </div>
 
@@ -69,7 +69,7 @@
 			<label for='USER_PORTAL'>_{USER_PORTAL}_:</label>
 		</div>
 		<div class='col-md-5'>
-			<input type='checkbox' name='USER_PORTAL' %USER_PORTAL% value='1' />
+			<input type='checkbox' name='USER_PORTAL' data-return='1' %USER_PORTAL% value='1' />
 		</div>
       </div>
 
@@ -78,7 +78,7 @@
 			<label for='PERIOD_ALIGNMENT'>_{MONTH_ALIGNMENT}_:</label>
 		</div>
 		<div class='col-md-5'>
-			<input type='checkbox' name='PERIOD_ALIGNMENT' %PERIOD_ALIGNMENT% value='1' />
+			<input type='checkbox' name='PERIOD_ALIGNMENT' data-return='1' %PERIOD_ALIGNMENT% value='1' />
 		</div>
       </div>
 
@@ -87,7 +87,7 @@
 			<label for='DISCOUNT'>_{REDUCTION}_:</label>
 		</div>
 		<div class='col-md-5'>
-			<input type='checkbox' name='DISCOUNT' %DISCOUNT% value='1' />
+			<input type='checkbox' name='DISCOUNT' data-return='1' %DISCOUNT% value='1' />
 		</div>
       </div>
 
@@ -215,7 +215,7 @@
 </div>
 
   </div>
-	<div class='panel-footer'>
+	<div class='box-footer'>
         <th colspan='3' class='even'>
           <input type='submit' class='btn btn-primary' name='%ACTION%' value='%ACTION_LNG%' />
         </th>

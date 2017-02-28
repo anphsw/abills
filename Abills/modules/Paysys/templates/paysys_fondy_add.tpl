@@ -14,10 +14,10 @@
 	<input type=hidden name=merchant_data value=%Merchant_data%>
 	<input type=hidden name=required_rectoken value=%Required_rectoken%>
 	
-<div class='panel panel-primary'>
-    <div class='panel-heading text-center'>_{BALANCE_RECHARCHE}_</div>
+<div class='box box-primary'>
+    <div class='box-header with-border text-center'>_{BALANCE_RECHARCHE}_</div>
 
-<div class='panel-body'>
+<div class='box-body'>
     <div class='form-group'>
         <label class='col-md-6 control-label text-center'>_{ORDER}_:</label>
         <label class='col-md-6 control-label'>%Order_id%</label>
@@ -34,7 +34,7 @@
     </div>
 	%Checkbox%
 </div>
-    <div class='panel-footer text-center'>
+    <div class='box-footer text-center'>
         <input class='btn btn-primary' type=submit value=$FORM{Confirm}>
     </div>
 </div>    

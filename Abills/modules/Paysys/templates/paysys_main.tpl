@@ -1,6 +1,22 @@
 <style>
-#paysys-chooser img{
-  cursor:pointer;
+.paysys-chooser{
+    background-color: white;
+}
+
+input:checked + .paysys-chooser-box  {
+    transform: scale(1.01,1.01);
+    box-shadow: 8px 8px 3px #AAAAAA;
+    z-index: 100;
+}
+
+input:checked + .paysys-chooser-box > .box-footer{
+    background-color: lightblue;
+}
+
+.paysys-chooser:hover{
+    transform: scale(1.05,1.05);
+    box-shadow: 10px 10px 5px #AAAAAA;
+    z-index: 101;
 }
 </style>
 
@@ -10,10 +26,10 @@
 
 <input type='hidden' name='OPERATION_ID' value='%OPERATION_ID%'>
 
-<div class='panel panel-primary'>
+<div class='box box-primary'>
 
-    <div class='panel-heading text-center'>_{BALANCE_RECHARCHE}_</div>
-<div class='panel-body'>
+    <div class='box-header with-border text-center'><h4 class='box-title'>_{BALANCE_RECHARCHE}_</h4></div>
+<div class='box-body'>
 
 <div class='form-group'>
     <label class='col-md-3 control-label'>_{TRANSACTION}_ #:</label>
@@ -22,20 +38,20 @@
 
 <div class='form-group'>
     <label class='col-md-3 control-label required'>_{SUM}_:</label>
-    <div class='col-md-9'><input class='form-control' type='text' name='SUM' value='$FORM{SUM}'></div>
+    <div class='col-md-9'><input class='form-control' type='text' name='SUM' value='$FORM{SUM}' autofocus></div>
 </div>
 
 <div class='form-group'>
     <label class='col-md-3 control-label'>_{DESCRIBE}_:</label>
     <div class='col-md-9'><input class='form-control' type='text' name='DESCRIBE' value='Пополнение счёта'></div>
 </div>
-<div class='form-group'>
-    <label class='col-md-12 bg-primary text-center'>_{CHOOSE}_</label>
+<div class='form-group text-center'>
+    <label class='col-md-12 bg-primary text-center'>_{CHOOSE_SYSTEM}_</label>
     %PAY_SYSTEM_SEL%
 </div>
 </div>
 
-    <div class='panel-footer text-center'><input class='btn btn-primary' type='submit' name=pre value='_{NEXT}_'></div>
+    <div class='box-footer text-center'><input class='btn btn-primary' type='submit' name=pre value='_{NEXT}_'></div>
 </div>
 
 

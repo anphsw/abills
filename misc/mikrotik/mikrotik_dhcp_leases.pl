@@ -16,16 +16,15 @@ BEGIN {
 
   my $libpath = "$Bin/" . "../" x $inner_pos;
 
-  unshift ( @INC, $libpath );
-  unshift ( @INC, $libpath . 'Abills/' );
-  unshift ( @INC, $libpath . 'Abills/mysql/' );
-  unshift ( @INC, $libpath . 'Abills/main/' );
-  unshift ( @INC, $libpath . 'lib/' );
+  unshift ( @INC, $libpath,
+   $libpath . 'Abills/',
+   $libpath . 'Abills/mysql/',
+   $libpath . 'Abills/Control/',
+   $libpath . 'lib/'
+  );
 }
 
-use vars qw(
- %conf
-);
+our (%conf);
 
 require "libexec/config.pl";
 

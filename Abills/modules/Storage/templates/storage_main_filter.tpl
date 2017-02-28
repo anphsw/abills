@@ -14,11 +14,11 @@
             <input type=hidden name='type' value='prihod2'>
             <input type=hidden name='storage_status' value='1'>
 
-            <div class='panel panel-primary panel-form'>
-                <div class='panel-heading'>
+            <div class='box box-theme box-form'>
+                <div class='box-header with-border'>
                     _{SEARCH}_
                 </div>
-                <div class='panel-body'>
+                <div class='box-body'>
                     <div class='form-group'>
                         <label class='control-label col-md-3'>_{TYPE}_:</label>
 
@@ -48,8 +48,8 @@
                         </div>
                     </div>
                 </div>
-                <div class='panel-footer'>
-                    <input class='btn btn-primary' type='submit' name='storage_status' value=_{SHOW}_>
+                <div class='box-footer'>
+                    <input class='btn btn-primary' type='submit' name='show' value='_{SHOW}_'>
                 </div>
             </div>
         </fieldset>

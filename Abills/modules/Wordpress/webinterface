@@ -9,9 +9,9 @@ use strict;
 use warnings FATAL => 'all';
 use Wordpress::Wordpress;
 
-use Encode qw/decode_utf8/;
+use Encode qw/decode_utf8 encode_utf8/;
 
-use Abills::Base qw /_bp mk_unique_value in_array/;
+use Abills::Base qw /_bp mk_unique_value in_array convert/;
 
 our (%conf, $html, %lang, $db, $admin);
 
@@ -38,6 +38,11 @@ my @CUSTOM_OPTIONS = (
 );
 
 my Wordpress::Wordpress $Wordpress = Wordpress::Wordpress->new( $db, $admin, \%conf );
+
+if (!$Wordpress){
+  $html->message('err', 'Wordpress', 'Install XML::RPC');
+  return 0;
+}
 
 
 #**********************************************************
@@ -396,9 +401,12 @@ sub wordpress_gallery_images_choosen {
 
     # my $settings = $json->decode( $wp_options->{abills_gallery_images} );
     my $settings;
-    eval{ $settings = $json->decode( $wp_options->{abills_gallery_images} ) };
+    ###########################
+    eval{ $settings = from_json($wp_options->{abills_gallery_images}, {utf8 => 0}) };
+    #eval{ $settings = $json->decode( $wp_options->{abills_gallery_images} ) };
+      
     if ($@){
-      $html->message('error', "$lang{WRONG} JSON");
+      $html->message('error', "$lang{ERROR} JSON");
     }
 
     foreach my $file (@$settings){
@@ -413,7 +421,6 @@ sub wordpress_gallery_images_choosen {
     my $name = $file_info->{name} || '';
     my $url = $file_info->{url} || q{};
     my $describe = $file_info->{describe} || q{};
-
     my $checked = exists $files_choosen{$name} ? 'checked' : '';
 
     $files_templates .= $html->tpl_show( _include( 'wordpress_file_template', 'Wordpress' ), {

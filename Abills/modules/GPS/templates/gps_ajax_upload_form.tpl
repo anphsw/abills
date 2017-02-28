@@ -28,12 +28,12 @@
 
                 <input type='hidden' name='choosed' value='1'/>
 
-                <div class='panel panel-primary'>
-                    <div class='panel-heading text-center'>
+                <div class='box box-primary'>
+                    <div class='box-header with-border text-center'>
                         _{ADMIN}_ _{ICON}_
                     </div>
 
-                    <div class='panel-body'>
+                    <div class='box-body'>
                         <div class='form-group'>
                             <label for='ICON_SELECT' class='control-label col-md-3'>_{ICON}_</label>
                             <div class='col-md-9'>
@@ -42,7 +42,7 @@
                         </div>
                     </div>
 
-                    <div class='panel-footer text-right'>
+                    <div class='box-footer text-right'>
                         <input class='btn btn-primary' type='submit' id='select_thumbnail_btn' value='_{CHANGE_}_'/>
                     </div>
 
@@ -55,37 +55,7 @@
         </div>
         <div role='tabpanel' class='tab-pane' id='newThumbnail'>
 
-            <div class='panel panel-primary'>
-                <div class='panel-heading text-center'>
-                    _{ADMIN}_ _{ICON}_
-                </div>
 
-                <div class='panel-body' id='ajax_upload_modal_body'>
-
-                    <form class='form form-inline' name='ajax_upload_form' id='ajax_upload_form' method='post'>
-
-                        <input type='hidden' name='AID' value='$FORM{AID}'/>
-                        <input type='hidden' name='get_index' value='%CALLBACK_FUNC%'/>
-                        <input type='hidden' name='header' value='2'/>
-                        <input type='hidden' name='uploaded' value='1'/>
-
-                        <div class='row'>
-                            <label class='control-label col-md-5 required' for='UPLOAD_FILE'>
-                                _{ICON}_ <br/> _{SIZE}_: 30x30px</label>
-                            <div class='col-md-7'>
-                                <input type='file' name='UPLOAD_FILE' id='UPLOAD_FILE' class='control-element'
-                                       required/>
-                            </div>
-                        </div>
-
-                    </form>
-                </div>
-                <div class='panel-footer text-right'>
-                    <button type='submit' class='btn btn-primary' id='ajax_upload_submit' form='ajax_upload_form'>
-                        _{ADD}_
-                    </button>
-                </div>
-            </div>
 
 
         </div>

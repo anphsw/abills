@@ -303,7 +303,9 @@ sub ring_user_filters {
   # переход на поиск пользователей через таблицу правил
   if ($FORM{ID}) {
     # если в таблице нету пользователей с этим правилом
-    if (! $list->{TOTAL}) {
+        
+      my $users_count = $list ? scalar @$list : 0;
+    if ( $users_count <= 0) {
       $html->tpl_show(
         _include('ring_filters', 'Ring'),
         {

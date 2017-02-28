@@ -1,29 +1,12 @@
 /**
  * Created by Anykey on 02.09.2015.
  */
-
-/*Holds ctrl pressed*/
-var ctrl = false;
-
-var CTRL  = 17;
-var ENTER = 13;
-
-/**
- holds ctrl released
- */
-function keyUp(e) {
-  if (e.keyCode == CTRL)
-    ctrl = false;
-}
+var KEYCODE_ENTER = 13;
 
 function keyDown(e) {
   switch (e.keyCode) {
-    case CTRL:
-      ctrl = true;
-      break;
-    
-    case ENTER:
-      if (ctrl) {
+    case KEYCODE_ENTER:
+      if (e.ctrlKey) {
         clickButton('go');
       }
       else {
@@ -35,19 +18,15 @@ function keyDown(e) {
 
 function clickButton(id) {
   var btn = document.getElementById(id);
-  if (btn !== null) btn.click();
+  if (typeof (btn) !== 'undefined' && btn !== null) btn.click();
 }
 
 
+//set keyboard listener
 $(document).ready(function () {
-  //set keyboard listener
-  var $body = $('body');
   
-  $body.on('keydown', function (event) {
+  $('body').on('keydown', function (event) {
     keyDown(event);
   });
   
-  $body.on('keyup', function (event) {
-    keyUp(event)
-  });
 });

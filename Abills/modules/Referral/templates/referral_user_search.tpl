@@ -33,4 +33,6 @@
 
         });
     }
+
+    setup_search_form('USER_ID')
 </script>

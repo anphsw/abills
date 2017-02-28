@@ -3,11 +3,11 @@
     <input type=hidden name=COORDX value=%DCOORDX%>
     <input type=hidden name=COORDY value=%DCOORDY%>
 
-    <div class='panel panel-primary'>
-        <div class='panel-header'>
+    <div class='box box-primary'>
+        <div class='box-header'>
             <h4>_{ADD_WELL}_</h4>
         </div>
-        <div class='panel-body'>
+        <div class='box-body'>
             <div class='form-group'>
                 <label class='control-label col-md-3' for='wellName'>_{NAME}_:</label>
 
@@ -23,7 +23,7 @@
                 </div>
             </div>
         </div>
-        <div class='panel-footer'>
+        <div class='box-footer'>
             <td align='center' colspan=\"2\" bgcolor=\"#eeeeee\"><input type=submit name=add_well value=_{ADD}_></td>
         </div>
     </div>

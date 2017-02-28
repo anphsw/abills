@@ -19,6 +19,7 @@ package Log;
 
 use strict;
 use base qw(Exporter main);
+use POSIX qw(strftime);
 our @EXPORT_OK = qw(log_add log_print);
 
 #our @ISA = ("main");
@@ -38,13 +39,26 @@ our %log_levels = (
 );
 
 #**********************************************************
-# Log new
+=head2 new($db, $CONF, $attr) Log new
+
+  Arguments:
+    $db
+    $CONF
+    $attr
+      DEBUG_LEVEL
+      LOG_FILE
+
+=cut
 #**********************************************************
 sub new {
   my $class = shift;
   my ($db, $CONF, $attr) = @_;
 
-  my $self = {};
+  my $self = {
+    db   => $db,
+    conf => $CONF
+  };
+
   bless($self, $class);
 
   if ($attr->{DEBUG_LEVEL}) {
@@ -54,8 +68,9 @@ sub new {
     }
   }
 
-  $self->{db}=$db;
-  $self->{conf}=$CONF;
+  if ($attr->{LOG_FILE}) {
+    $self->{LOG_FILE} = $attr->{LOG_FILE};
+  }
 
   #if ($CONF->{LOGFILE}) {
   #  $self->{LOG_FILE} = $CONF->{LOGFILE};
@@ -84,14 +99,14 @@ sub log_list {
   }
 
   my $WHERE =  $self->search_former($attr, [
-      ['DATE',              'DATE', "date_format(l.date, '%Y-%m-%d')", 1 ],
+      ['DATE',              'DATE', "DATE_FORMAT(l.date, '%Y-%m-%d')", 1 ],
       ['LOG_TYPE',          'INT',  'l.log_type',                      1 ],
       ['ACTION',            'INT',  'l.action',                        1 ],
       ['LOGIN',             'STR',  'l.user',                          1 ],
       ['USER',              'STR',  'l.user',                          1 ],
       ['MESSAGE',           'STR',  'l.message',                       1 ],
       ['NAS_ID',            'INT',  'l.nas_id',                        1 ],
-      ['FROM_DATE|TO_DATE', 'DATE', "date_format(l.date, '%Y-%m-%d')",   ],
+      ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(l.date, '%Y-%m-%d')",   ],
     ],
     { WHERE       => 1,
     }
@@ -108,7 +123,7 @@ sub log_list {
   my $list = $self->{list};
   $self->{OUTPUT_ROWS} = $self->{TOTAL};
 
-  $self->query2("SELECT l.log_type, count(*) AS count
+  $self->query2("SELECT l.log_type, COUNT(*) AS count
   FROM errors_log l
   $WHERE
   GROUP BY 1
@@ -142,7 +157,7 @@ sub log_list {
     $Log->log_print('LOG_WARNING', $online->{user_name}, "Last Alive: $online->{last_alive}, Session-ID: $online->{acct_session_id}", { ACTION => 'CALCULATION', NAS => $Nas });
 
   File save
-    $Log->log_print('LOG_ERR', '', "Some SQL error", { LOG_FILE => "/tmp/sql_errors" });
+    $Log->log_print('LOG_ERR', '', "Some SQL error", { LOG_FILE => "/usr/abills/var/log/sql_errors" });
 
 =cut
 #**********************************************************
@@ -188,7 +203,6 @@ sub log_print {
       );
     }
     else {
-      use POSIX qw(strftime);
       my $DATE = POSIX::strftime("%Y-%m-%d", localtime(time));
       my $TIME = POSIX::strftime("%H:%M:%S", localtime(time));
 
@@ -201,16 +215,16 @@ sub log_print {
         close($fh);
       }
       else {
+        print "Content-Type: text/html\n\n";
         print "Can't open file '$logfile' $!\n";
       }
     }
 
     if ($self->{PRINT} || $attr->{PRINT}) {
-      use POSIX qw(strftime);
       my $DATE = POSIX::strftime("%Y-%m-%d", localtime(time));
       my $TIME = POSIX::strftime("%H:%M:%S", localtime(time));
       my $nas = (defined($Nas->{NAS_ID})) ? "NAS: $Nas->{NAS_ID} ($Nas->{NAS_IP}) " : '';
-      print "$DATE $TIME $LOG_TYPE: $action [$USER_NAME] $nas$MESSAGE\n";
+      print "$DATE $TIME $LOG_TYPE: $action [". ($USER_NAME || '') . "] $nas$MESSAGE\n";
     }
   }
 
@@ -288,7 +302,7 @@ sub log_reports {
   my ($attr) = @_;
 
   if ($attr->{RETRIES}) {
-    $self->query2("SELECT user, count(*) AS count FROM errors_log WHERE date>curdate() 
+    $self->query2("SELECT user, COUNT(*) AS count FROM errors_log WHERE date>CURDATE()
      GROUP BY user
      ORDER BY 2 DESC
      LIMIT $attr->{RETRIES};", undef, $attr);

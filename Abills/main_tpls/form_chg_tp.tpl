@@ -7,9 +7,12 @@
 
 <fieldset>
 
-<div class='panel panel-default panel-form'>
-<div class='panel-body'>
-<legend>_{TARIF_PLANS}_</legend>
+<div class='box box-theme box-form'>
+  <div class='box-header with-border'>
+    <h4 class='box-title'>_{TARIF_PLANS}_</h4>
+  </div>
+
+  <div class='box-body'>
 
 <div class='form-group'>
   <label class='control-label col-md-3' for='TARIF'>_{FROM}_</label>
@@ -37,18 +40,24 @@
   </div>
 </div>
 
-%PARAMS%
-<br>
-%SHEDULE_LIST%
-<br>&nbsp;
 <div class='form-group'>
-  <div class='col-sm-offset-2 col-sm-8'>
-    <input type=submit name=%ACTION% value='%LNG_ACTION%' class='btn btn-primary'>
-  </div>
+%PARAMS%
+</div>
+
+
+<div class='form-group'>
+  <div class='col-md-12'>
+%SHEDULE_LIST%
+    </div>
 </div>
 
 </div>
 </div>
+
+<div class='box-footer'>
+    <input type=submit name=%ACTION% value='%LNG_ACTION%' class='btn btn-primary'>
+</div>
+
 
 </fieldset>
 </form>

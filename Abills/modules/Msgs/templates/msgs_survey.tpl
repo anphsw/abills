@@ -1,8 +1,8 @@
-<div class='panel panel-primary'>
-  <div class='panel-heading'>
-    <h5 class='panel-title'>%NAME%</h5>
+<div class='box box-primary'>
+  <div class='box-header with-border'>
+    <h5 class='box-title'>%NAME%</h5>
   </div>
-  <div class='panel-body' style='text-align: left'>
+  <div class='box-body' style='text-align: left'>
     %TPL%
 
 
@@ -16,7 +16,7 @@
 
 </div>
 
-<div class='panel-footer'>
+<div class='box-footer'>
   %RUN_TIME% %ATTACHMENT%
   <div class='pull-right'>%QUOTING% %DELETE%</div>
 </div>

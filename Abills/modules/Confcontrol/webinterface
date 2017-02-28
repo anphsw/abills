@@ -10,6 +10,8 @@ use strict;
 use warnings FATAL => 'all';
 use Confcontrol;
 
+use Abills::Experimental;
+
 our (
   $db,
   $admin,
@@ -41,7 +43,7 @@ sub confcontrol_main {
   }
   elsif ( $FORM{del} ) {
     $Confcontrol->controlled_files_del( \%FORM );
-    _show_result( $Confcontrol, $lang{DELETED}, $FORM{NAME} );
+    show_result( $Confcontrol, $lang{DELETED}, $FORM{NAME} );
   }
   elsif ( ($FORM{add} || $FORM{change}) && !$FORM{NAME} && !$FORM{PATH} ) {
     $html->message( 'err', $lang{INFO_CHANGE_MSG} ); # Fill empty fields
@@ -49,7 +51,7 @@ sub confcontrol_main {
   elsif ( $FORM{add} ) {
     $Confcontrol->controlled_files_add( \%FORM );
 
-    if ( _show_result( $Confcontrol, $lang{ADDED}, "$FORM{PATH}$FORM{NAME}" ) ) {
+    if ( show_result( $Confcontrol, $lang{ADDED}, "$FORM{PATH}$FORM{NAME}" ) ) {
       $Confcontrol->stats_add( {
           FILE_ID    => $Confcontrol->{INSERT_ID},
           LAST_MTIME => _stats_for_file( "$FORM{PATH}$FORM{NAME}" )->{mtime},
@@ -63,13 +65,14 @@ sub confcontrol_main {
   }
   elsif ( $FORM{change} ) {
     $Confcontrol->controlled_files_change( \%FORM );
-    _show_result( $Confcontrol, $lang{CHANGED}, "$FORM{PATH}$FORM{NAME}" );
+    show_result( $Confcontrol, $lang{CHANGED}, "$FORM{PATH}$FORM{NAME}" );
   }
 
   if ( $show_template ) {
     $html->tpl_show( _include( 'confcontrol_form_add_file', 'Confcontrol' ),
       {
-        %{$controlled_file_info}, %FORM,
+        %{ ($controlled_file_info) ? $controlled_file_info : {} },
+        %FORM,
         SUBMIT_BTN_NAME   => ($FORM{chg}) ? $lang{CHANGE_} : $lang{ADD},
         SUBMIT_BTN_ACTION => ($FORM{chg}) ? "change" : "add"
       }
@@ -117,33 +120,30 @@ sub confcontrol_main {
 sub confcontrol_stats_main {
 
   my ($table) = result_former( {
-      INPUT_DATA        => $Confcontrol,
-        FUNCTION        => 'stats_last_list',
-        BASE_FIELDS     => 0,
-        DEFAULT_FIELDS  => 'ID, NAME, PATH, MTIME, CRC, COMMENTS',
-        FUNCTION_FIELDS => 'change,del',
-        FUNCTION_FIELDS => 'confcontrol_stat_single:hist:id',
-        SKIP_USER_TITLE => 1,
-        EXT_FIELDS      => 0,
-        EXT_TITLES      =>
-        {
-          id    => 'ID',
-          name  => $lang{FILE},
-          path  => $lang{PATH},
-          mtime => $lang{TIME}
-        },
-        TABLE           =>
-        {
-          width   => '100%',
-          caption => "$lang{FILE} $lang{CHANGED}",
-          ID      => 'CONTROLLED_FILES_TABLE',
-          EXPORT  => 1,
-          #          MENU    => "$lang{ADD}:index=$index&show_add_form=1:add"
-        },
-        MAKE_ROWS       => 1,
-        SEARCH_FORMER   => 1,
-        MODULE          => 'Conf_Control',
-    } );
+    INPUT_DATA        => $Confcontrol,
+    FUNCTION        => 'stats_last_list',
+    BASE_FIELDS     => 0,
+    DEFAULT_FIELDS  => 'ID, NAME, PATH, MTIME, CRC, COMMENTS',
+    FUNCTION_FIELDS => 'change,del',
+    FUNCTION_FIELDS => 'confcontrol_stat_single:hist:id',
+    SKIP_USER_TITLE => 1,
+    EXT_FIELDS      => 0,
+    EXT_TITLES      => {
+      id    => 'ID',
+      name  => $lang{FILE},
+      path  => $lang{PATH},
+      mtime => $lang{TIME}
+    },
+    TABLE => {
+      width   => '100%',
+      caption => "$lang{FILE} $lang{CHANGED}",
+      ID      => 'CONTROLLED_FILES_TABLE',
+      EXPORT  => 1,
+    },
+    MAKE_ROWS       => 1,
+    SEARCH_FORMER   => 1,
+    MODULE          => 'Conf_Control',
+  });
 
   print $table->show();
 
@@ -158,38 +158,38 @@ sub confcontrol_stats_main {
 #**********************************************************
 sub confcontrol_stat_single {
 
-    return 0 unless ($FORM{ID});
+  return 0 unless ($FORM{ID});
 
-#  confcontrol_periodic_check();
-    my $stats_list = $Confcontrol->stats_list({ ID => $FORM{ID}, SHOW_ALL_COLUMNS => 1, COLS_NAME => 1, %FORM});
+  #  confcontrol_periodic_check();
+  my $stats_list = $Confcontrol->stats_list( { ID => $FORM{ID}, SHOW_ALL_COLUMNS => 1, COLS_NAME => 1, %FORM } );
 
-    if (scalar @$stats_list < 1){
-      $html->message('err', $lang{NO_DATA});
-      return 0;
-    }
+  if (scalar @$stats_list < 1) {
+    $html->message( 'err', $lang{NO_DATA} );
+    return 0;
+  }
 
-    my $file_info = $stats_list->[0];
+  my $file_info = $stats_list->[0];
 
-    my $table = $html->table( {
-        width      => '100%',
-        caption    => "$file_info->{path}$file_info->{name}",
-        border     => 1,
-        qs         => '&ID=' . $FORM{ID},
-        title_plain      => [ '#', $lang{CHANGED}, 'CRC' ],
-        cols_align => [ 'left', 'left', 'center' ],
-        ID         => 'CONFCONTROL_STATS_SINGLE'
-      } );
+  my $table = $html->table( {
+      width       => '100%',
+      caption     => "$file_info->{path}$file_info->{name}",
+      border      => 1,
+      qs          => '&ID='.$FORM{ID},
+      title_plain => [ '#', $lang{CHANGED}, 'CRC' ],
+      cols_align  => [ 'left', 'left', 'center' ],
+      ID          => 'CONFCONTROL_STATS_SINGLE'
+  } );
 
-    my $i = 1;
-    foreach my $stat ( @{$stats_list} ) {
-      $table->addrow(
-        $i++,
-        $stat->{mtime},
-        $stat->{crc}
-      );
-    }
+  my $i = 1;
+  foreach my $stat (@{$stats_list}) {
+    $table->addrow(
+      $i++,
+      $stat->{mtime},
+      $stat->{crc}
+    );
+  }
 
-    print $table->show();
+  print $table->show();
 }
 
 #**********************************************************
@@ -204,7 +204,7 @@ sub confcontrol_periodic_check() {
 
   my %last_stats_hash = ();
   foreach my $stat ( @{$last_stats_list} ) {
-    $last_stats_hash{$stat->{id}} = $stat;
+    $last_stats_hash{$stat->{id}} = $stat if($stat->{id});
   }
 
   foreach my $file ( @{$files_list} ) {

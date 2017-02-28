@@ -14,7 +14,7 @@ do 'Abills/Misc.pm';
 my $auth_endpoint_url = 'https://api.instagram.com/oauth/authorize';
 my $access_token_url = 'https://api.instagram.com/oauth/access_token';
 my $get_me_url = 'https://www.googleapis.com/userinfo/v2/me';
-my $get_public_info_url = 'https://www.googleapis.com/plus/v1/people/';
+my $get_public_info_url = 'https://api.instagram.com/v1/users/';
 
 
 #**********************************************************
@@ -28,7 +28,7 @@ sub check_access {
 
   my $client_id = $self->{conf}->{AUTH_INSTAGRAM_ID} || q{};
   my $redirect_uri = $self->{conf}->{AUTH_INSTAGRAM_URL} || q{};
-
+  $redirect_uri    =~ s/\%SELF_URL\%/$self->{self_url}/g;
   $self->{debug} = $self->{conf}->{AUTH_INSTAGRAM_DEBUG} || 0;
 
   if ( $self->{debug} ) {
@@ -79,6 +79,7 @@ sub get_token {
   my $client_secret = $self->{conf}->{AUTH_INSTAGRAM_SECRET} || q{};
   my $redirect_uri = $self->{conf}->{AUTH_INSTAGRAM_URL} || q{};
   $self->{debug} = $self->{conf}->{AUTH_INSTAGRAM_DEBUG} || 0;
+  $redirect_uri    =~ s/\%SELF_URL\%/$self->{self_url}/g;
 
   my $post_params = join('',
     "code=$code",
@@ -129,7 +130,7 @@ sub get_info {
 
   my $token = $attr->{TOKEN};
   my $client_id = $attr->{CLIENT_ID};
-
+  
   unless ( defined $token ) {
     my $result = web_request($get_public_info_url . $client_id, {
         JSON_RETURN => 1,
@@ -140,19 +141,21 @@ sub get_info {
     return $result;
   };
 
-  my $token_type = $token->{token_type};
-  my $access_token = $token->{access_token};
+  #my $token_type = $token->{token_type};
+  #my $access_token = $token->{access_token};
 
-  my $result = web_request($get_me_url, {
+  my $result = web_request($get_public_info_url . "$client_id/", {
       JSON_RETURN => 1,
-      HEADERS     => [ "Authorization: $token_type $access_token" ],
+      REQUEST_PARAMS => {'access_token' => $token},
+      GET => 1,
+      #HEADERS     => [ "Authorization: $token_type $access_token" ],
       DEBUG       => ($self->{debug} && $self->{debug} > 2) ? $self->{debug} : 0
     });
 
   if ( $result->{error} ) {
-    show_hash($result->{error});
-    $self->{errno} = $result->{error}->{code};
-    $self->{errstr} = $result->{error}->{message};
+  show_hash($result->{error});
+  $self->{errno} = $result->{error}->{code};
+  $self->{errstr} = $result->{error}->{message};
   }
 
   $self->{result} = $result;

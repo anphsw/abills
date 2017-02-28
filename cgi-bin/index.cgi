@@ -17,6 +17,7 @@ BEGIN {
     $libpath . "Abills/$sql_type/",
     $libpath . "Abills/modules/",
     $libpath . '/lib/',
+    $libpath . '/Abills/',
     $libpath
   );
 
@@ -29,7 +30,7 @@ BEGIN {
 }
 
 use Abills::Defs;
-use Abills::Base;
+use Abills::Base qw(gen_time in_array mk_unique_value load_pmodule2);
 use Users;
 use Finance;
 use Admins;
@@ -38,7 +39,9 @@ use POSIX qw(mktime strftime);
 our (%LANG,
   %lang,
   @MONTHES,
-  @WEEKDAYS
+  @WEEKDAYS,
+  $base_dir,
+  @REGISTRATION
 );
 
 do "../libexec/config.pl";
@@ -70,10 +73,12 @@ $admin->info($conf{USERS_WEB_ADMIN_ID} ? $conf{USERS_WEB_ADMIN_ID} : $conf{SYSTE
                    IP        => $ENV{REMOTE_ADDR},
                    SHORT     => 1 });
 
+# Load DB %conf;
 our $Conf = Conf->new($db, $admin, \%conf);
 
 $admin->{SESSION_IP} = $ENV{REMOTE_ADDR};
 $conf{WEB_TITLE}     = $admin->{DOMAIN_NAME} if ($admin->{DOMAIN_NAME});
+$conf{TPL_DIR}     //= $base_dir . '/Abills/templates/';
 
 require Abills::Misc;
 require Abills::Templates;
@@ -89,7 +94,7 @@ my %menu_args;
 
 delete($conf{PASSWORDLESS_ACCESS}) if ($FORM{xml});
 
-our $user = Users->new($db, $admin, \%conf);
+our Users $user = Users->new($db, $admin, \%conf);
 
 if ($FORM{SHOW_MESSAGE}) {
   ($uid, $sid, $login) = auth("$login", "$passwd", "$sid", { PASSWORDLESS_ACCESS => 1 });
@@ -112,31 +117,37 @@ if ($FORM{SHOW_MESSAGE}) {
   }
 }
 
-my @service_status = ("$lang{ENABLE}", "$lang{DISABLE}", "$lang{NOT_ACTIVE}", "$lang{HOLD_UP}",
-  "$lang{DISABLE}: $lang{NON_PAYMENT}", "$lang{ERR_SMALL_DEPOSIT}",
-  "$lang{VIRUS_ALERT}" );
+my @service_status = ($lang{ENABLE}, $lang{DISABLE}, $lang{NOT_ACTIVE}, $lang{HOLD_UP},
+  "$lang{DISABLE}: $lang{NON_PAYMENT}", $lang{ERR_SMALL_DEPOSIT},
+  $lang{VIRUS_ALERT} );
 
 ($uid, $sid, $login) = auth("$login", "$passwd", "$sid");
 
 #Cookie section ============================================
-$html->set_cookies('OP_SID', "$FORM{OP_SID}", "", $html->{web_path}) if ($FORM{OP_SID});
+$html->set_cookies('OP_SID', $FORM{OP_SID}, '', $html->{web_path}, { SKIP_SAVE => 1 }) if ($FORM{OP_SID});
 if ($sid) {
-  $html->set_cookies('sid', "$sid", "", '/');
-  $FORM{sid}=$sid;
-  $COOKIES{sid}=$sid;
+  $html->set_cookies('sid', $sid, '', $html->{web_path});
+  $FORM{sid}   = $sid;
+  $COOKIES{sid}= $sid;
+  $html->{SID} = $sid;
 }
 #===========================================================
-
 if(($conf{PORTAL_START_PAGE} && !($uid > 0)) || $FORM{article} || $FORM{menu_category}){
-
-  print "Content-Type: text/html\n\n";
+  print $html->header();
   load_module('Portal', $html);
-  my $wrong_passwd = 0;
+  my $wrong_auth = 0;
 
+  # wrong passwd
   if($FORM{user} && $FORM{passwd}){
-    $wrong_passwd = 1;
+    $wrong_auth = 1;
   }
-  portal_s_page($wrong_passwd);
+  # wrong social acc
+  if($FORM{code} && !$login){
+    $wrong_auth = 2;
+  }
+  portal_s_page($wrong_auth);
+
+  $html->fetch();
   exit;
 }
 
@@ -171,8 +182,7 @@ if ($uid > 0) {
     $menu_items{1000}{0} = $lang{LOGOUT};
   }
 
-  $html->{SID} = $sid;
-  $OUTPUT{FORM_COLORS}=change_color();
+#  $OUTPUT{FORM_COLORS}=change_color();
 
   if ($FORM{get_index}) {
     $index = get_function_index($FORM{get_index});
@@ -184,7 +194,7 @@ if ($uid > 0) {
                                                                                    ID            => 'form_client_custom_menu'  });
   }
   else {
-    (undef, $OUTPUT{MENU}) = $html->menu2(
+    $OUTPUT{MENU} = $html->menu2(
       \%menu_items,
       \%menu_args,
       undef,
@@ -222,7 +232,6 @@ if ($uid > 0) {
   print $html->header(\%FORM) if ($FORM{header});
 
   if ($FORM{qindex}) {
-
     if ($FORM{qindex} eq '100002'){
       form_events();
       exit ( 0 );
@@ -233,7 +242,8 @@ if ($uid > 0) {
       exit( 0 );
     }
     elsif($FORM{qindex} eq '30'){
-      require "Abills/main/Address_mng.pm";
+      require Control::Address_mng;
+      our $users = $user;
       form_address_sel();
     }
     else {
@@ -253,16 +263,15 @@ if ($uid > 0) {
   }
 
   if (defined($functions{$index})) {
-    if ($functions{$default_index} eq 'msgs_admin') {
-      _function($default_index);
-    }
-    else {
-   	  _function($index || 10 );
+    if ($default_index && $functions{$default_index} eq 'msgs_admin') {
+      $index = $default_index;
     }
   }
   else {
-  	_function($default_index);
+  	$index = $default_index;
   }
+
+  _function($index || 10 );
 
   $OUTPUT{BODY} = $html->{OUTPUT};
   $html->{OUTPUT} = '';
@@ -275,10 +284,12 @@ if ($uid > 0) {
   }
 
   $OUTPUT{STATE} = (! $user->{DISABLE} && $user->{SERVICE_STATUS}) ? $service_status[$user->{SERVICE_STATUS}] : $OUTPUT{STATE};
-
+  
+  $OUTPUT{SEL_LANGUAGE} = language_select();
+  
   $OUTPUT{BODY} = $html->tpl_show(templates('form_client_main'), \%OUTPUT, { MAIN  => 1,
                                                                              ID    => 'form_client_main',
-                                                                             SKIP_D=> 1
+                                                                             SKIP_DEBUG_MARKERS => 1
                                                                             });
 }
 else {
@@ -287,13 +298,46 @@ else {
 
 print $html->header();
 $OUTPUT{BODY} = $html->{OUTPUT};
+$OUTPUT{SIDEBAR_HIDDEN} = ($COOKIES{menuHidden} && $COOKIES{menuHidden} eq 'true')
+  ? 'sidebar-collapse'
+  : '';
 
-print $html->tpl_show(templates('form_client_start'), \%OUTPUT, { MAIN => 1,
-                                                                  });
+if ( $conf{HOLIDAY_SHOW_BACKGROUND} ) {
+  $OUTPUT{BACKGROUND_HOLIDAY_IMG} = user_login_background();
+}
+
+if (!$OUTPUT{BACKGROUND_HOLIDAY_IMG}) {
+  if ( $conf{user_background} ) {
+    $OUTPUT{BACKGROUND_COLOR} = $conf{user_background};
+  }
+  elsif ( $conf{user_background_url} ) {
+    $OUTPUT{BACKGROUND_URL} = $conf{user_background_url};
+  }
+}
+
+if (exists $conf{client_theme} && defined  $conf{client_theme}){
+  $OUTPUT{SKIN} = $conf{client_theme};
+}
+else {
+  $OUTPUT{SKIN} = 'skin-blue-light';
+}
+
+print $html->tpl_show(templates('form_client_start'), \%OUTPUT, { MAIN => 1,   SKIP_DEBUG_MARKERS => 1  });
 
 $html->fetch();
+if($conf{USER_FN_LOG}) {
+  require Log;
+  Log->import();
+  my $user_fn_log = $conf{USER_FN_LOG} || '/tmp/fn_speed';
+  my $Log = Log->new( $db, \%conf, { LOG_FILE => $user_fn_log } );
+  if (defined($functions{$index})) {
+    my $time = gen_time($begin_time, { TIME_ONLY => 1 });
+    $Log->log_print('LOG_INFO', '', "$sid : $functions{$index} : $time", { LOG_LEVEL => 6 });
+    #`echo "$sid : $functions{$index} : $time" >> /tmp/fn_speed`;
+  }
+  $html->test() if ($conf{debugmods} =~ /LOG_DEBUG/);
+}
 
-$html->test() if ($conf{debugmods} =~ /LOG_DEBUG/);
 
 #**********************************************************
 =head2 logout()
@@ -305,6 +349,8 @@ sub logout {
  return 1;
 }
 
+
+
 #**********************************************************
 =head2 form_info($attr) User main information
 
@@ -312,33 +358,43 @@ sub logout {
 #**********************************************************
 sub form_info {
   $admin->{SESSION_IP} = $ENV{REMOTE_ADDR};
+
+  if (defined($FORM{PRINT_CONTRACT})) {
+    if($FORM{PRINT_CONTRACT}) {
+      $FORM{UID} = $LIST_PARAMS{UID};
+      load_module('Docs', $html);
+      docs_contract();
+    }
+    else {
+      print $html->header();
+      $html->message('info', $lang{INFO}, $lang{NOT_EXIST});
+    }
+    return 1;
+  }
+
+  if($conf{USER_START_PAGE} && ! $FORM{index} && ! $FORM{json} && ! $FORM{xml}) {
+    form_custom();
+    return 1;
+  }
+
   my $Payments = Finance->payments($db, $admin, \%conf);
 
   my $tp_credit = 0;
 
   my ($sum, $days, $price, $month_changes, $payments_expr) = split(/:/, $conf{user_credit_change} || q{});
-  if (in_array('Dv', \@MODULES) && defined($sum) && $sum =~ /\d+/ && $sum == 0) {
+  if (in_array('Dv', \@MODULES) && (! $sum || $sum =~ /\d+/ && $sum == 0)) {
     load_module('Dv', $html);
     my $Dv = Dv->new($db, $admin, \%conf);
     $Dv->info($user->{UID});
-    $tp_credit = $Dv->{USER_CREDIT_LIMIT};
-  }
-
-  if ($FORM{PRINT_CONTRACT}) {
-    $FORM{UID} = $LIST_PARAMS{UID};
-    load_module('Docs', $html);
-    docs_contract();
-    return 0;
+    if($Dv->{USER_CREDIT_LIMIT} && $Dv->{USER_CREDIT_LIMIT} > 0) {
+      $sum = $Dv->{USER_CREDIT_LIMIT};
+    }
   }
 
   #Credit functions
-  elsif ($conf{user_credit_change}) {
+  if ($conf{user_credit_change}) {
     $month_changes = 0 if (!$month_changes);
     my $credit_date = POSIX::strftime("%Y-%m-%d", localtime(time + int($days) * 86400));
-
-    if (in_array('Dv', \@MODULES) && $sum == 0) {
-      $sum = $tp_credit if ($tp_credit > 0);
-    }
 
     if ($month_changes) {
       my ($y, $m) = split(/\-/, $DATE);
@@ -394,7 +450,6 @@ sub form_info {
     }
 
     $user->group_info($user->{GID});
-
     if ($user->{TOTAL} > 0 && !$user->{ALLOW_CREDIT}) {
       $FORM{change_credit} = 0;
     }
@@ -439,14 +494,13 @@ sub form_info {
       else {
         $user->{CREDIT_CHG_PRICE} = sprintf("%.2f", $price);
         $user->{CREDIT_SUM}       = sprintf("%.2f", $sum);
+        $user->{OPEN_CREDIT_MODAL} = $FORM{OPEN_CREDIT_MODAL} || '';
         $user->{CREDIT_CHG_BUTTON} = $html->button(
           "$lang{SET} $lang{CREDIT}",
           '#',
           {
-            ex_params => "name=hold_up_window",
-
-            #           BUTTON    => 1,
-            class     => 'btn btn-xs btn-success open_credit_window',
+            ex_params => "name='hold_up_window' data-toggle='modal' data-target='#changeCreditModal'",
+            class     => 'btn btn-xs btn-success',
             SKIP_HREF => 1
           }
         );
@@ -463,17 +517,20 @@ sub form_info {
 
   if ($conf{user_chg_pi}) {
     $user->{ADDRESS_SEL} = $html->tpl_show(
-      templates('form_address_search'),
+      templates('form_client_address_search'),
       {
-        ADDRESS_DISTRICT => $user->{ADDRESS_DISTRICT},
-        DISTRICT_ID      => $user->{DISTRICT_ID},
-        STREET_ID        => $user->{STREET_ID},
-        ADDRESS_STREET   => $user->{ADDRESS_STREET},
-        ADDRESS_BUILD    => $user->{LOCATION_ID},
-        LOCATION_ID      => $user->{LOCATION_ID},
-        ADDRESS_FLAT     => $user->{ADDRESS_FLAT}
-      },
-      { OUTPUT2RETURN => 1 }
+        ADDRESS_DISTRICT     => $user->{ADDRESS_DISTRICT},
+        DISTRICT_ID          => $user->{DISTRICT_ID},
+        STREET_ID            => $user->{STREET_ID},
+        ADDRESS_STREET       => $user->{ADDRESS_STREET},
+        ADDRESS_BUILD        => $user->{ADDRESS_BUILD},
+        LOCATION_ID          => $user->{LOCATION_ID},
+        ADDRESS_FLAT         => $user->{ADDRESS_FLAT},
+      },{
+        OUTPUT2RETURN      => 1,
+        SKIP_DEBUG_MARKERS => 1,
+        ID                 => 'form_client_address_search'
+      }
     );
 
     if ($FORM{chg}) {
@@ -481,18 +538,27 @@ sub form_info {
       $user->{ACTION}     = 'change';
       $user->{LNG_ACTION} = $lang{CHANGE};
 
-      require "Abills/main/Users_mng.pm";
-      Users_mng->import();
+      require Control::Users_mng;
 
-      $user->{INFO_FIELDS} = form_info_field_tpl( { VALUES => $user_pi,  CALLED_FROM_CLIENT_UI => 1 } );
-      $html->tpl_show(templates('form_chg_client_info'), $user);
+      if (exists $conf{user_chg_info_fields} && $conf{user_chg_info_fields}) {
+        $user->{INFO_FIELDS} = form_info_field_tpl( {
+          VALUES                => $user_pi,
+          CALLED_FROM_CLIENT_UI => 1,
+          COLS_LEFT             => 'col-md-3',
+          COLS_RIGHT            => 'col-md-9'
+        });
+      }
+      $html->tpl_show(templates('form_chg_client_info'), $user, {SKIP_DEBUG_MARKERS => 1});
       return 1;
     }
     elsif ($FORM{change}) {
       $user->pi_change({ %FORM, UID => $user->{UID} });
-      if (!$user->{errno}) {
-        $html->message('info', $lang{CHANGED}, "$lang{CHANGED}");
+      if(_error_show($user)){
+        return 1;
       }
+
+      $html->message('info', $lang{CHANGED}, "$lang{CHANGED}");
+      $user->pi();
     }
     elsif (!$user->{FIO}
       || !$user->{PHONE}
@@ -501,16 +567,13 @@ sub form_info {
       || !$user->{EMAIL})
     {
       # scripts for address
-      $user->{ADDRESS_SEL} =~ s/<script src.+>.+<\/script>//g;
       $user->{ADDRESS_SEL} =~ s/\r\n||\n//g;
-      my @script = $user->{ADDRESS_SEL} =~ /<script>(.+)<\/script>/;
-      $user->{ADDRESS_SEL} =~ s/<script.+<\/script>//g;
-
+      $user->{MESSAGE_CHG} = $html->message('info', '', "$lang{INFO_CHANGE_MSG}", { OUTPUT2RETURN => 1 });
+  
       if (!$conf{CHECK_CHANGE_PI}) {
         $user->{PINFO}       = 1;
         $user->{ACTION}      = 'change';
         $user->{LNG_ACTION}  = $lang{CHANGE};
-        $user->{MESSAGE_CHG} = $html->message('info', $lang{CHANGE}, "$lang{INFO_CHANGE_MSG}", { OUTPUT2RETURN => 1 });
 
         #mark or disable input
         $user->{FIO}   eq '' ? ($user->{FIO_HAS_ERROR}   = 'has-error') : ($user->{FIO_DISABLE}   = 'disabled');
@@ -525,21 +588,26 @@ sub form_info {
         $user->{PINFO}       = 0;
         $user->{ACTION}      = 'change';
         $user->{LNG_ACTION}  = $lang{CHANGE};
-        $user->{MESSAGE_CHG} = $html->message('info', $lang{CHANGE}, "$lang{INFO_CHANGE_MSG}", { OUTPUT2RETURN => 1 });
 
         foreach my $field (@all_fields) {
-          ($user->{$field} eq '') && in_array($field, \@check_fields) ? ($user->{ $field . "_HAS_ERROR" } = 'has-error' && $user->{PINFO} = 1) : ($user->{ $field . "_DISABLE" } = 'disabled' && $user->{ $field . "_HIDDEN" } = 'hidden');
+          if($field eq 'ADDRESS' && (!(in_array('ADDRESS', \@check_fields)) || $user->{ADDRESS_STREET} && $user->{ADDRESS_BUILD})){
+            $user->{ADDRESS_SEL} = '';
+            next;
+          }
+
+          ($user->{$field} eq '') && in_array($field, \@check_fields)
+            ? ($user->{ $field . "_HAS_ERROR" } = 'has-error' && $user->{PINFO} = 1)
+            : ($user->{ $field . "_DISABLE" } = 'disabled' && $user->{ $field . "_HIDDEN" } = 'hidden');
         }
       }
-
+  
+      # Instead of hiding, just not printing address form
+      if ($user->{ADDRESS_HIDDEN}){
+        delete $user->{ADDRESS_SEL};
+      }
+      
       # template to modal
-      $user->{TEMPLATE_BODY} = $html->tpl_show(templates('form_chg_client_info'), $user, { OUTPUT2RETURN => 1 });
-      $user->{TEMPLATE_BODY} =~ s/\r\n||\n//g;
-
-      # script to modal
-      $user->{ADDRESS_FORM_INIT} = $script[0] || '';
-      $user->{ADDRESS_FORM_INIT} =~ s/'/\"/g;
-      $user->{ADDRESS_FORM_INIT} = '';
+      $user->{TEMPLATE_BODY} = $html->tpl_show(templates('form_chg_client_info'), $user, { OUTPUT2RETURN => 1, SKIP_DEBUG_MARKERS => 1 });
     }
   }
 
@@ -575,20 +643,28 @@ sub form_info {
   $sum = ($FORM{AMOUNT_FOR_PAY}) ? $FORM{AMOUNT_FOR_PAY} : ($user->{DEPOSIT} < 0) ? abs($user->{DEPOSIT} * 2) : 0;
   $pages_qs = "&SUM=$sum&sid=$sid";
 
-  if (in_array('Docs', \@MODULES)) {
+  if (in_array('Docs', \@MODULES) && ! $conf{DOCS_SKIP_USER_MENU}) {
     my $fn_index = get_function_index('docs_invoices_list');
     $user->{DOCS_ACCOUNT} = $html->button("$lang{INVOICE_CREATE}", "index=$fn_index$pages_qs", { BUTTON => 2 });
   }
 
   if (in_array('Paysys', \@MODULES)) {
-    my $fn_index = get_function_index('paysys_payment');
-    $user->{PAYSYS_PAYMENTS} = $html->button("$lang{BALANCE_RECHARCHE}", "index=$fn_index$pages_qs", { BUTTON => 2 });
+    if(defined $user->{GID} && $user->{GID} != 0){
+      my $group_info = $user->group_info($user->{GID});
+      if($group_info->{DISABLE_PAYSYS} == 0){
+        my $fn_index = get_function_index('paysys_payment');
+        $user->{PAYSYS_PAYMENTS} = $html->button("$lang{BALANCE_RECHARCHE}", "index=$fn_index$pages_qs", { BUTTON => 2 });
+      }
+    }
+    else{
+      my $fn_index = get_function_index('paysys_payment');
+      $user->{PAYSYS_PAYMENTS} = $html->button("$lang{BALANCE_RECHARCHE}", "index=$fn_index$pages_qs", { BUTTON => 2 });
+    }
   }
 
   #Show users info field
   my $i = -1;
   foreach my $field_id (@{ $user->{INFO_FIELDS_ARR} }) {
-
     #$position, $type
     my (undef, undef, $name, $user_portal) = split(/:/, $user->{INFO_FIELDS_HASH}->{$field_id});
     $i++;
@@ -626,6 +702,16 @@ sub form_info {
   if ($conf{user_chg_passwd}) {
     $user->{CHANGE_PASSWORD} = $html->button($lang{CHANGE_PASSWORD}, "index=17&sid=$sid", { class => 'btn btn-xs btn-primary' });
   }
+
+  $user->{SOCIAL_AUTH_BUTTONS_BLOCK} = make_social_auth_manage_buttons($user);
+  if ($user->{SOCIAL_AUTH_BUTTONS_BLOCK} eq ''){
+    $user->{INFO_TABLE_CLASS} = 'col-md-12';
+  }
+  else {
+    $user->{INFO_TABLE_CLASS} = 'col-md-10';
+    $user->{HAS_SOCIAL_BUTTONS} = '1';
+  }
+  
   $html->tpl_show(templates('form_client_info'), $user, { ID => 'form_client_info' });
 
   if (in_array('Dv', \@MODULES)) {
@@ -644,43 +730,18 @@ sub form_info {
 sub form_login {
   my %first_page = ();
 
+  $first_page{LOGIN_ERROR_MESSAGE} = $OUTPUT{LOGIN_ERROR_MESSAGE} || '';
+  $first_page{HAS_REGISTRATION_PAGE} = (-f 'registration.cgi');
+  $first_page{FORGOT_PASSWD_LINK} = '/registration.cgi&FORGOT_PASSWD=1';
+  
+  $first_page{REGISTRATION_ENABLED} = scalar @REGISTRATION;
+  
   if ($conf{tech_works}) {
     $html->message( 'info', $lang{INFO}, "$conf{tech_works}" );
     return 0;
   }
-
-  #Make active lang list
-  if ($conf{LANGS}) {
-    $conf{LANGS} =~ s/\n//g;
-    my (@lang_arr) = split(/;/, $conf{LANGS});
-    %LANG = ();
-    foreach my $l (@lang_arr) {
-      my ($lang, $lang_name) = split(/:/, $l);
-      $lang =~ s/^\s+//;
-      $LANG{$lang} = $lang_name;
-    }
-  }
-
-  my %QT_LANG = (
-    byelorussian => 22,
-    bulgarian    => 20,
-    english      => 31,
-    french       => 37,
-    polish       => 90,
-    russian      => 96,
-    ukraine      => 129,
-  );
-
-  $first_page{SEL_LANGUAGE} = $html->form_select(
-    'language',
-    {
-      EX_PARAMS  => 'onChange="selectLanguage()"',
-      SELECTED   => $html->{language},
-      SEL_HASH   => \%LANG,
-      NO_ID      => 1,
-      EXT_PARAMS => { qt_locale => \%QT_LANG }
-    }
-  );
+  
+  $first_page{SEL_LANGUAGE} = language_select();
 
   if (! $FORM{REFERER} && $ENV{HTTP_REFERER} && $ENV{HTTP_REFERER}	=~ /$SELF_URL/) {
     $ENV{HTTP_REFERER} =~ s/sid=[a-z0-9\_]+//g;
@@ -690,40 +751,10 @@ sub form_login {
     $ENV{QUERY_STRING} =~ s/sid=[a-z0-9\_]+//g;
     $FORM{REFERER} = $ENV{QUERY_STRING};
   }
-
+  
   $first_page{TITLE} = $lang{USER_PORTAL};
-  if($conf{HOLIDAY_SHOW_BACKGROUND}){
-    $first_page{BACK_IMG} = user_login_background();
-  }
-
-
-  if ($conf{AUTH_VK_ID}) {
-    $first_page{SOCIAL_AUTH_BLOCK}=$html->element('li',
-      $html->button('', "external_auth=Vk", { class => 'icon-vk', ICON => 'fa fa-vk'} ),
-      { OUTPUT2RETURN => 1 }
-    )
-  }
-
-  if ($conf{AUTH_FACEBOOK_ID}) {
-    $first_page{SOCIAL_AUTH_BLOCK}.=$html->element('li',
-      $html->button('', "external_auth=Facebook", { class => 'icon-facebook', ICON => 'fa fa-facebook'}),
-      { OUTPUT2RETURN => 1 }
-    );
-  }
-
-  if ($conf{AUTH_GOOGLE_ID}) {
-    $first_page{SOCIAL_AUTH_BLOCK}.=$html->element('li',
-      $html->button('', "external_auth=Google", { class => 'icon-google', ICON => 'fa fa-google'}),
-      { OUTPUT2RETURN => 1 }
-    );
-  }
-
-  if ($conf{AUTH_INSTAGRAM_ID}) {
-    $first_page{SOCIAL_AUTH_BLOCK}.=$html->element('li',
-      $html->button('', "external_auth=Instagram", { class => 'icon-instagram', ICON => 'fa fa-instagram'}),
-      { OUTPUT2RETURN => 1 }
-    );
-  }
+  
+  $first_page{SOCIAL_AUTH_BLOCK} = make_social_auth_login_buttons();
 
   $OUTPUT{BODY} = $html->tpl_show(templates('form_client_login'),
    \%first_page,
@@ -750,8 +781,11 @@ sub auth {
   my $Auth;
   if($FORM{external_auth}) {
     $Auth = Abills::Auth::Core->new({
-        CONF      => \%conf,
-        AUTH_TYPE => $FORM{external_auth}});
+      CONF      => \%conf,
+      AUTH_TYPE => $FORM{external_auth},
+      USERNAME  => $user_name,
+      SELF_URL  => $SELF_URL
+    });
 
     $Auth->check_access(\%FORM);
 
@@ -760,10 +794,11 @@ sub auth {
       exit;
     }
     elsif($Auth->{USER_ID}) {
-      $user->list({ $Auth->{CHECK_FIELD} => $Auth->{USER_ID},
-                    LOGIN                => '_SHOW',
-                    COLS_NAME            => 1
-                  });
+      $user->list({
+        $Auth->{CHECK_FIELD} => $Auth->{USER_ID},
+        LOGIN                => '_SHOW',
+        COLS_NAME            => 1
+      });
 
       if($user->{TOTAL}) {
         $uid = $user->{list}->[0]->{uid};
@@ -773,13 +808,13 @@ sub auth {
       }
       else {
         if(! $sid) {
-          $html->message( 'err', $lang{ERROR}, $lang{ERR_UNKNOWN_SN_ACCOUNT});
+          $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message( 'err', $lang{ERROR}, $lang{ERR_UNKNOWN_SN_ACCOUNT}, {OUTPUT2RETURN => 1});
           return 0;
         }
       }
     }
     else {
-      $html->message('err', $lang{ERROR}, $lang{ERR_SN_ERROR});
+      $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message('err', $lang{ERROR}, $lang{ERR_SN_ERROR}, {OUTPUT2RETURN => 1});
       return 0;
     }
   }
@@ -799,9 +834,10 @@ sub auth {
     Dv_Sessions->import();
     my $sessions = Dv_Sessions->new($db, $admin, \%conf);
 
-    my $list = $sessions->online({ USER_NAME         => '_SHOW',
-                                   FRAMED_IP_ADDRESS => "$REMOTE_ADDR",
-                                  });
+    my $list = $sessions->online({
+      USER_NAME         => '_SHOW',
+      FRAMED_IP_ADDRESS => "$REMOTE_ADDR",
+    });
 
     if ($sessions->{TOTAL} == 1) {
       $user_name = $list->[0]->{user_name};
@@ -816,7 +852,7 @@ sub auth {
       require Dv;
       Dv->import();
       my $Dv = Dv->new($db, $admin, \%conf);
-      $Dv->info(0, { IP => "$REMOTE_ADDR" });
+      $Dv->info(0, { IP => $REMOTE_ADDR });
 
       if ($Dv->{TOTAL} == 1) {
         $user_name = $Dv->{LOGIN} || '';
@@ -833,16 +869,16 @@ sub auth {
     $user->web_session_del({ SID => $session_id });
     return 0;
   }
-  elsif ($sid) {
+  elsif ($session_id) {
     $user->web_session_info({ SID => $session_id });
 
     if ($user->{TOTAL} < 1) {
+      delete $FORM{REFERER};
       #$html->message('err', "$lang{ERROR}", "$lang{NOT_LOGINED}");
       #return 0;
     }
     elsif ($user->{errno}) {
-      $html->message( 'err', "$lang{ERROR}", "$lang{ERROR}" );
-      #return 0;
+      $html->message( 'err', $lang{ERROR} );
     }
     elsif ( $conf{web_session_timeout} < $user->{SESSION_TIME} ){
       $html->message( 'info', "$lang{INFO}", 'Session Expire' );
@@ -855,13 +891,14 @@ sub auth {
       return 0;
     }
     else {
-      $user->info($user->{UID});
+      $user->info($user->{UID}, { USERS_AUTH => 1 });
       $admin->{DOMAIN_ID}=$user->{DOMAIN_ID};
       $user->web_session_update({ SID => $session_id });
       #Add social id
       if ($Auth->{USER_ID}) {
-        $user->pi_change( { $Auth->{CHECK_FIELD} => $Auth->{USER_ID},
-                            UID                  => $user->{UID}
+        $user->pi_change( {
+          $Auth->{CHECK_FIELD} => $Auth->{USER_ID},
+          UID                  => $user->{UID}
         } );
       }
 
@@ -892,11 +929,9 @@ sub auth {
         AUTH_TYPE => 'Radius'});
 
       $res = $Auth->check_access({
-          LOGIN    => $user_name,
-          PASSWORD => $password
+        LOGIN    => $user_name,
+        PASSWORD => $password
       });
-
-#      $res = auth_radius($user_name, "$password");
     }
     #check password direct from SQL
     else {
@@ -904,20 +939,22 @@ sub auth {
     }
   }
   elsif ($user_name && !$password) {
-    $html->message( 'err', "$lang{ERROR}", "$lang{ERR_WRONG_PASSWD}" );
+   $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message( 'err', "$lang{ERROR}", "$lang{ERR_WRONG_PASSWD}", {OUTPUT2RETURN => 1} );
   }
 
   #Get user ip
   if (defined($res) && $res > 0) {
-    $user->info($user->{UID} || 0, {  LOGIN     => ($user->{UID}) ? undef : $user_name,
-                                      DOMAIN_ID => $FORM{DOMAIN_ID}
-                                    });
+    $user->info($user->{UID} || 0, {
+      LOGIN     => ($user->{UID}) ? undef : $user_name,
+      DOMAIN_ID => $FORM{DOMAIN_ID}
+    });
 
     if ($user->{TOTAL} > 0) {
       $session_id          = mk_unique_value(16);
       $ret                 = $user->{UID};
       $user->{REMOTE_ADDR} = $REMOTE_ADDR;
       $admin->{DOMAIN_ID}  = $user->{DOMAIN_ID};
+      $login               = $user->{LOGIN};
       $user->web_session_add(
         {
           UID         => $user->{UID},
@@ -931,21 +968,23 @@ sub auth {
       );
     }
     else {
-      $html->message( 'err', "$lang{ERROR}", "$lang{ERR_WRONG_PASSWD}" );
+      $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message( 'err', "$lang{ERROR}", "$lang{ERR_WRONG_PASSWD}", {OUTPUT2RETURN => 1} );
     }
   }
   else {
-    $user->bruteforce_add(
-      {
-        LOGIN       => $login,
-        PASSWORD    => $password,
-        REMOTE_ADDR => $REMOTE_ADDR,
-        AUTH_STATE  => $ret
-      }
-    );
+    if ($login || $password) {
+      $user->bruteforce_add(
+        {
+          LOGIN       => $login,
+          PASSWORD    => $password,
+          REMOTE_ADDR => $REMOTE_ADDR,
+          AUTH_STATE  => $ret
+        }
+      );
 
-    $OUTPUT{MESSAGE} = $html->message( 'err', $lang{ERROR}, $lang{ERR_WRONG_PASSWD},
-      { OUTPUT2RETURN => 1 } ) if ($login || $password);
+      $OUTPUT{MESSAGE} = $html->message( 'err', $lang{ERROR}, $lang{ERR_WRONG_PASSWD},
+        { OUTPUT2RETURN => 1 } );
+    }
     $ret = 0;
   }
 
@@ -964,23 +1003,22 @@ sub auth_sql {
   $conf{WEB_AUTH_KEY}='LOGIN' if(! $conf{WEB_AUTH_KEY});
 
   if ($conf{WEB_AUTH_KEY} eq 'LOGIN') {
-    $user->info(
-      0,
-      {
-        LOGIN    => $user_name,
-        PASSWORD => $password,
-        DOMAIN_ID=> $FORM{DOMAIN_ID}
-      }
-    );
+    $user->info(0, {
+      LOGIN      => $user_name,
+      PASSWORD   => $password,
+      DOMAIN_ID  => $FORM{DOMAIN_ID},
+      USERS_AUTH => 1
+    });
   }
   else {
     my @a_method = split(/,/, $conf{WEB_AUTH_KEY});
     foreach my $auth_param (@a_method) {
-      $user->list({ $auth_param => "$login",
-                  PASSWORD  => "$password",
-                  DOMAIN_ID => $FORM{DOMAIN_ID},
-                  COLS_NAME => 1
-                 });
+      $user->list({
+        $auth_param => "$login",
+        PASSWORD    => "$password",
+        DOMAIN_ID   => $FORM{DOMAIN_ID},
+        COLS_NAME   => 1
+      });
 
       if ($user->{TOTAL}) {
         $user->info($user->{list}->[0]->{uid});
@@ -990,7 +1028,7 @@ sub auth_sql {
   }
 
   if ($user->{TOTAL} < 1) {
-    $html->message( 'err', $lang{ERROR}, "$lang{ERR_WRONG_PASSWD}" );
+    $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message( 'err', "$lang{ERROR}", "$lang{ERR_WRONG_PASSWD}", {OUTPUT2RETURN => 1} ) if (! $conf{PORTAL_START_PAGE});
   }
   elsif (_error_show($user)) {
   }
@@ -1015,16 +1053,10 @@ sub form_passwd {
   $conf{PASSWD_SYMBOLS} = 'abcdefhjmnpqrstuvwxyz23456789ABCDEFGHJKLMNPQRSTUVWYXZ' if (!$conf{PASSWD_SYMBOLS});
   $conf{PASSWD_LENGTH}  = 6 if (! $conf{PASSWD_LENGTH});
 
-  my $user_pi = $user->pi({ UID => $user->{UID} });
+  $user->pi({ UID => $user->{UID} });
 
   if (! $FORM{newpassword}) {
-    if ( $FORM{unreg} ) {
-      my $change_field = '_' . uc $FORM{unreg};
-      if ( defined ($user_pi->{$change_field}) ) {
-        $user->pi_change( { UID => $user->{UID}, $change_field => '' } );
-        undef $user_pi->{$change_field};
-      }
-    }
+    
   }
   elsif (length($FORM{newpassword}) < $conf{PASSWD_LENGTH}) {
     $html->message( 'err', $lang{ERROR}, $lang{ERR_SHORT_PASSWD} );
@@ -1051,116 +1083,11 @@ sub form_passwd {
   }
 
   my %password_form = ();
-  $password_form{PW_CHARS}     = $conf{PASSWD_SYMBOLS} || 'abcdefhjmnpqrstuvwxyz23456789ABCDEFGHJKLMNPQRSTUVWYXZ';
+  $password_form{PW_CHARS}     = $conf{PASSWD_SYMBOLS};
   $password_form{PW_LENGTH}    = $conf{PASSWD_LENGTH}  || 6;
   $password_form{ACTION}       = 'change';
   $password_form{LNG_ACTION}   = $lang{CHANGE};
   $password_form{GEN_PASSWORD} = mk_unique_value(8);
-
-  if ( $conf{AUTH_VK_ID} ) {
-    my $registered_class = '';
-    my $unreg_button = '';
-
-    if ($user_pi->{_VK}){
-      $registered_class = 'icon-registered';
-      $unreg_button = $html->button('', "index=$index&sid=$sid&unreg=Vk", {
-          ICON => 'glyphicon glyphicon-remove',
-          class => 'icon-vk icon-unreg'
-        });
-    }
-    $password_form{SOCIAL_AUTH_BLOCK} = $html->element( 'li',
-      $html->button( '', "external_auth=Vk", {
-          class      => "icon-vk $registered_class",
-          ICON       => 'fa fa-vk',
-
-        } ) . $unreg_button, { OUTPUT2RETURN => 1 }
-    )
-  }
-
-  if ( $conf{AUTH_FACEBOOK_ID} ) {
-    my $registered_class = '';
-    my $unreg_button = '';
-
-    if ($user_pi->{_FACEBOOK}){
-      $registered_class = 'icon-registered';
-      $unreg_button = $html->button('', "index=$index&sid=$sid&unreg=Facebook", {
-          ICON => 'glyphicon glyphicon-remove',
-          class => 'icon-instagram icon-unreg'
-
-        });
-    }
-
-    $password_form{SOCIAL_AUTH_BLOCK} .= $html->element( 'li',
-      $html->button( '', "external_auth=Facebook", {
-          class      => "icon-facebook $registered_class",
-          ICON       => 'fa fa-facebook',
-          GLOBAL_URL => "https://www.facebook.com/dialog/oauth?client_id=$conf{AUTH_FACEBOOK_ID}&response_type=code"
-            . '&redirect_uri=' . $conf{AUTH_FACEBOOK_URL} . '&state=facebook&scope=public_profile,email,user_birthday,user_likes,user_friends'
-        } ) . $unreg_button, { OUTPUT2RETURN => 1 }
-    );
-  }
-
-  if ( $conf{AUTH_GOOGLE_ID} ) {
-    my $registered_class = '';
-    my $unreg_button = '';
-
-    if ($user_pi->{_GOOGLE}){
-      $registered_class = 'icon-registered';
-      $unreg_button = $html->button('', "index=$index&sid=$sid&unreg=Google", {
-          ICON => 'glyphicon glyphicon-remove',
-          class => 'icon-google icon-unreg',
-      });
-    }
-    my $client_id = $conf{AUTH_GOOGLE_ID} || q{};
-    my $redirect_uri = $conf{AUTH_GOOGLE_URL} || q{};
-
-    $password_form{SOCIAL_AUTH_BLOCK} .= $html->element( 'li',
-      $html->button( '', "external_auth=Google", {
-        class => "icon-google $registered_class",
-        ICON  => 'fa fa-google',
-        GLOBAL_URL => join('',
-            "https://accounts.google.com/o/oauth2/v2/auth?",
-            "&response_type=code",
-            "&client_id=$client_id",
-            "&redirect_uri=$redirect_uri",
-            "&scope=profile",
-            "&access_type=offline",
-            "&state=google",
-        )
-      }) . $unreg_button,
-      { OUTPUT2RETURN => 1 }
-    );
-  }
-
-  if ( $conf{AUTH_INSTAGRAM_ID} ) {
-    my $registered_class = '';
-    my $unreg_button = '';
-
-    my $client_id = $conf{AUTH_INSTAGRAM_ID} || q{};
-    my $redirect_uri = $conf{AUTH_INSTAGRAM_URL} || q{};
-
-    if ($user_pi->{_INSTAGRAM}){
-      $registered_class = 'icon-registered';
-      $unreg_button = $html->button('', "index=$index&sid=$sid&unreg=Instagram", {
-          ICON => 'glyphicon glyphicon-remove',
-          class => 'icon-instagram icon-unreg'
-        });
-    }
-
-    $password_form{SOCIAL_AUTH_BLOCK} .= $html->element( 'li',
-      $html->button( '', "external_auth=Instagram", {
-          class => "icon-instagram $registered_class",
-          ICON  => 'fa fa-instagram',
-          GLOBAL_URL => join('',
-            "https://api.instagram.com/oauth/authorize?",
-            "&response_type=code",
-            "&client_id=$client_id",
-            "&redirect_uri=$redirect_uri",
-            "&state=instagram"
-            ),
-        } ) . $unreg_button, { OUTPUT2RETURN => 1 }
-    );
-  }
 
   $html->tpl_show(templates('form_password'), \%password_form);
 
@@ -1470,7 +1397,7 @@ sub form_finance {
   );
 
   foreach my $line (@$list) {
-    $table->addrow($line->{datetime}, $line->{dsc}, $line->{sum}, $line->{last_deposit}, $FEES_METHODS->{ $line->{method} });
+    $table->addrow($line->{datetime}, $line->{dsc}, $line->{sum}, $line->{last_deposit}, $FEES_METHODS->{ $line->{method} || 0 });
   }
 
   print $table->show();
@@ -1479,7 +1406,9 @@ sub form_finance {
 }
 
 #**********************************************************
-# form_fees
+=head2 form_fees()
+
+=cut
 #**********************************************************
 sub form_fees {
 
@@ -1513,7 +1442,7 @@ sub form_fees {
   );
 
   foreach my $line (@$list) {
-    $table->addrow($line->{datetime}, $line->{dsc}, $line->{sum}, $line->{last_deposit}, $FEES_METHODS->{ $line->{method} });
+    $table->addrow($line->{datetime}, $line->{dsc}, $line->{sum}, $line->{last_deposit}, $FEES_METHODS->{ $line->{method} || 0 });
   }
 
   print $table->show();
@@ -1749,24 +1678,27 @@ sub form_money_transfer {
 }
 
 #**********************************************************
-=head1 form_neg_deposit($user, $attr)
+=head1 recomended_pay($user)
 
 =cut
 #**********************************************************
-sub form_neg_deposit {
+sub recomended_pay {
   my ($user_) = @_;
 
   $user_->{TOTAL_DEBET} = 0;
-  my $cross_modules_return = cross_modules_call('_docs', { UID          => $LIST_PARAMS{UID},
-                                                           REDUCTION    => $user_->{REDUCTION},
-                                                           PAYMENT_TYPE => 0 });
+  my $cross_modules_return = cross_modules_call('_docs', {
+    UID          => $user_->{UID},
+    REDUCTION    => $user_->{REDUCTION},
+    PAYMENT_TYPE => 0
+  });
+
   foreach my $module (sort keys %$cross_modules_return) {
     if (ref $cross_modules_return->{$module} eq 'ARRAY') {
       next if ($#{ $cross_modules_return->{$module} } == -1);
       foreach my $line (@{ $cross_modules_return->{$module} }) {
         # $name, $describe
         my (undef, undef, $sum) = split(/\|/, $line);
-        $user_->{TOTAL_DEBET}+=$sum;
+        $user_->{TOTAL_DEBET} += $sum;
 
         if ($user_->{REDUCTION} && $module ne 'Abon') {
           $user_->{TOTAL_DEBET} = sprintf("%.2f", $user_->{TOTAL_DEBET} * (100 - $user_->{REDUCTION}) / 100);
@@ -1775,11 +1707,25 @@ sub form_neg_deposit {
     }
   }
 
-  $user_->{TOTAL_DEBET} = ($user_->{DEPOSIT} < 0) ? $user_->{TOTAL_DEBET} + abs($user_->{DEPOSIT}) :  $user_->{TOTAL_DEBET} - $user_->{DEPOSIT};
+  $user_->{TOTAL_DEBET} = ($user_->{DEPOSIT} < 0) ? $user_->{TOTAL_DEBET} + abs($user_->{DEPOSIT}) : ($user_->{DEPOSIT} > $user_->{TOTAL_DEBET}) ? 0 : $user_->{TOTAL_DEBET} - $user_->{DEPOSIT};
 
   if ($user_->{TOTAL_DEBET} > int($user_->{TOTAL_DEBET})) {
-    $user_->{TOTAL_DEBET} = sprintf("%.2f", int($user_->{TOTAL_DEBET})+1);
+    $user_->{TOTAL_DEBET} = sprintf("%.2f", int($user_->{TOTAL_DEBET}) + 1);
   }
+
+  return $user_->{TOTAL_DEBET};
+}
+
+
+#**********************************************************
+=head1 form_neg_deposit($user, $attr)
+
+=cut
+#**********************************************************
+sub form_neg_deposit {
+  my ($user_) = @_;
+
+  $user_->{TOTAL_DEBET} = recomended_pay($user_);
 
   #use dv warning expr
   if ($conf{PORTAL_EXTRA_WARNING}) {
@@ -1796,7 +1742,7 @@ sub form_neg_deposit {
   $user_->{TOTAL_DEBET} = sprintf("%.2f", $user_->{TOTAL_DEBET});
   $pages_qs = "&SUM=$user_->{TOTAL_DEBET}&sid=$sid";
 
-  if (in_array('Docs', \@MODULES)) {
+  if (in_array('Docs', \@MODULES) && ! $conf{DOCS_SKIP_USER_MENU}) {
     my $fn_index = get_function_index('docs_invoices_list');
     $user_->{DOCS_BUTTON} = $html->button( "$lang{INVOICE_CREATE}", "index=$fn_index$pages_qs", { BUTTON => 2 } );
   }
@@ -1811,53 +1757,13 @@ sub form_neg_deposit {
     $user_->{CARDS_BUTTON} = $html->button( "$lang{ICARDS}", "index=$fn_index$pages_qs", { BUTTON => 2 } );
   }
 
+  if ($conf{DEPOSIT_FORMAT}) {
+    $user_->{DEPOSIT} = sprintf($conf{DEPOSIT_FORMAT}, $user_->{DEPOSIT});
+  }
+
   $html->tpl_show(templates('form_neg_deposit'), $user_, { ID => 'form_neg_deposit' });
 
   return 1;
-}
-
-
-#**********************************************************
-=head2 change_color()
-
-=cut
-#**********************************************************
-sub change_color {
-
-  if (! $html->{HTML_STYLE}) {
-    $html->{HTML_STYLE} = 'default_adm';
-  }
-
-  my $colors_dir  = "styles/$html->{HTML_STYLE}/colors/";
-  my $output      = '';
-  my @contents    = ();
-  my @show_colors = ();
-
-  if (opendir my $fh, "$colors_dir") {
-    @contents = grep !/^\.\.?$/, readdir $fh;
-    closedir $fh;
-    $output = '<ul>';
-    foreach my $key (@contents) {
-      my ($name, undef)=split(/\./, $key);
-      push @show_colors, $name;
-      $output .= "<li data-path='styles/$html->{HTML_STYLE}/colors/$key' onclick='changeTheme(this)'>$name</li>";
-    }
-    $output .= '</ul>';
-  }
-  else {
-    $html->message( 'err', $lang{ERROR}, "Can't open dir '$colors_dir'. $!" );
-    return 0;
-  }
-
-  if ($FORM{COLORS}) {
-    $html->{COLORS} = $FORM{COLORS};
-    $html->set_cookies('COLORS', $FORM{COLORS}, "Fri, 1-Jan-2038 00:00:01", $html->{web_path});
-  }
-  elsif($COOKIES{COLORS}) {
-    $html->{COLORS} = $COOKIES{COLORS};
-  }
-
-  return $output;
 }
 
 #**********************************************************
@@ -1870,35 +1776,44 @@ sub user_login_background {
 
   require Tariffs;
   Tariffs->import();
+  
   my $holidays = Tariffs->new($db, \%conf, $admin);
   my $holiday_path = "/images/holiday/";
   my $list  = $holidays->holidays_list({COLS_NAME => 1});
 
   my (undef,$m,$d) = split('-', $DATE);
-
+  
+  my $simple_date = (int($m) . '-' . int($d));
   foreach my $line (@$list){
-    if($line->{day} eq "$m-$d" and $line->{file} ne ''){
-      my $image = $holiday_path . $line->{file};
-      return $image;
+    if($line->{day} && $line->{day} eq $simple_date && $line->{file}){
+      if (-f $conf{TPL_DIR} . '/holiday/' . $line->{file}){
+        return $holiday_path . $line->{file};
+      }
     }
   }
+  
+  return if ($conf{user_background} || $conf{user_background_url});
 
+  my $holiday_background_image = '';
+  
   if($m == 12 || $m < 3) {
-    my $image = "/images/holiday/winter.jpg";
-    return $image;
+    $holiday_background_image = "/holiday/winter.jpg";
   }
   elsif($m >= 3 && $m < 6) {
-    my $image = "/images/holiday/spring.jpg";
-    return $image;
+    $holiday_background_image = "/holiday/spring.jpg";
   }
   elsif($m >= 6 && $m < 9) {
-    my $image = "/images/holiday/summer.jpg";
-    return $image;
+    $holiday_background_image = "/holiday/summer.jpg";
   }
   else {
-    my $image = "/images/holiday/autumn.jpg";
-    return $image;
+    $holiday_background_image = "/holiday/autumn.jpg";
   }
+  
+  if (-f $conf{TPL_DIR} . $holiday_background_image){
+    return '/images' . $holiday_background_image;
+  }
+  
+  return '';
 }
 
 #**********************************************************
@@ -1907,24 +1822,18 @@ sub user_login_background {
 =cut
 #**********************************************************
 sub form_events {
-  #my ($attr) =@_;
-
   my @result_array = ();
 
-  $FORM{even_show}=1;
+  print "Content-Type: text/html\n\n";
+  my $cross_modules_return = cross_modules_call('_events', {
+      UID              => $user->{UID},
+      CLIENT_INTERFACE => 1
+    });
 
-  if ($FORM{even_show}) {
-    print "Content-Type: text/html\n\n";
-    my $cross_modules_return = cross_modules_call('_events', {
-        UID              => $user->{UID},
-        CLIENT_INTERFACE => 1
-      });
-
-    foreach my $module (sort keys %$cross_modules_return) {
-      my $result = $cross_modules_return->{$module};
-      if ($result && $result ne ''){
-        push (@result_array, $result);
-      }
+  foreach my $module ( sort keys %{$cross_modules_return} ) {
+    my $result = $cross_modules_return->{$module};
+    if ( $result && $result ne '' ) {
+      push (@result_array, $result);
     }
   }
 
@@ -1934,7 +1843,7 @@ sub form_events {
 }
 
 #**********************************************************
-=head2 fl() - Show system events
+=head2 fl() -  Static menu former
 
 =cut
 #**********************************************************
@@ -1946,13 +1855,36 @@ sub fl {
     return 1;
   }
 
-  my @m = ("10:0:$lang{USER_INFO}:form_info:::",);
+  my @m = ();
+
+  #if($conf{USER_START_PAGE}) {
+  #  push @m, "10:0:$lang{USER_INFO}:form_custom:::";
+  #}
+  #else {
+    push @m, "10:0:$lang{USER_INFO}:form_info:::";
+  #}
+
   if ( $conf{user_finance_menu} ){
     push @m, "40:0:$lang{FINANCES}:form_finance:::";
     push @m, "41:40:$lang{PAYMENTS}:form_payments_list:::";
     push @m, "42:40:$lang{FEES}:form_fees:::";
     if ( $conf{MONEY_TRANSFER} ){
       push @m, "43:40:$lang{MONEY_TRANSFER}:form_money_transfer:::";
+    }
+  
+    if ( $user->{COMPANY_ID} ){
+      require Companies;
+      Companies->import();
+      my $Company = Companies->new($db, $admin, \%conf);
+      my $list = $Company->admins_list({
+        UID        => $user->{UID},
+        COLS_NAME  => 1
+      });
+      if ($list && ref $list eq 'ARRAY' 
+        && $list->[0]->{is_company_admin} eq '1'
+      ){
+        push @m, "44:40:$user->{COMPANY_NAME}:form_company_list::";
+      }
     }
   }
 
@@ -1962,5 +1894,350 @@ sub fl {
   mk_menu( \@m, { USER_FUNCTION_LIST => 1 } );
   return 1;
 }
+
+
+#**********************************************************
+=head2 form_custom() -  Form start
+
+=cut
+#**********************************************************
+sub form_custom {
+  my %info = ();
+
+  require Control::Users_slides;
+
+  if (in_array('Portal', \@MODULES)) {
+    load_module('Portal', $html);
+    $info{NEWS} = portal_user_cabinet();
+  }
+
+  $info{RECOMENDED_PAY} = recomended_pay($user);
+
+  my $json_info = user_full_info({ SHOW_ID => 1 });
+  #$conf{WEB_DEBUG}=1;
+  if($conf{WEB_DEBUG} && $conf{WEB_DEBUG} > 3) {
+    $html->{OUTPUT} .= '<pre>';
+    $html->{OUTPUT} .= $json_info;
+    $html->{OUTPUT} .= '</pre>';
+  }
+
+  load_pmodule2('JSON');
+
+  my $json = JSON->new()->utf8(0);
+
+  my $user_info = $json->decode( $json_info );
+
+  foreach my $key ( @{ $user_info } ) {
+    #$html->{OUTPUT} .= "$key->{NAME}<br>";
+    my $main_name = $key->{NAME};
+    if($key->{SLIDES}) {
+      #$html->{OUTPUT} .= "!!!!!!!!!!!!!!!!!!!! $#{ $key->{SLIDES} } <br>" if ($conf{WEB_DEBUG});
+      for(my $i=0; $i <= $#{ $key->{SLIDES} }; $i++) {
+        foreach my $field_id ( keys %{ $key->{SLIDES}->[$i] } ) {
+          my $id = $main_name.'_'.$field_id.'_'.$i;
+          $info{$id} = $key->{SLIDES}->[$i]->{$field_id};
+          $html->{OUTPUT} .= "$i  $id ---------------- $key->{SLIDES}->[$i]->{$field_id}<br>" if ($conf{WEB_DEBUG} && $conf{WEB_DEBUG} > 3);
+        }
+      }
+    }
+    else {
+      foreach my $field_id (keys %{ $key->{CONTENT} }) {
+        $html->{OUTPUT} .= $main_name.'_'.$field_id." - $key->{CONTENT}->{$field_id}<br>" if ($conf{WEB_DEBUG} && $conf{WEB_DEBUG} > 3);
+        $info{$main_name.'_'.$field_id} = $key->{CONTENT}->{$field_id};
+      }
+    }
+
+    if($key->{QUICK_TPL}) {
+      $info{BIG_BOX} .= $html->tpl_show( _include( $key->{QUICK_TPL}, $key->{MODULE} ), \%info, { OUTPUT2RETURN => 1 });
+    }
+  }
+
+  if ($user->{DEPOSIT} < 0) {
+    $info{SMALL_BOX} .= $html->tpl_show(templates( 'form_small_box' ), \%info, { OUTPUT2RETURN => 1 });
+  }
+
+  if ($html->{NEW_MSGS}) {
+    $info{SMALL_BOX} .= qq{<div class="callout callout-success">
+    <h4>Новое сообщение</h4>
+     <a href='$SELF_URL?get_index=msgs_user' class='btn btn-primary'>Читать !</a>
+    </div>};
+  }
+
+  if ($html->{HOLD_UP}) {
+    $info{SMALL_BOX} .= qq{<div class="callout callout-success">
+    <h4>Новое сообщение</h4>
+     <a href='$SELF_URL?get_index=dv_user_info&del=1' class='btn btn-primary'>Читать !</a>
+    </div>};
+  }
+
+  if (defined($user->{_CONFIRM_PI})) {
+    $info{SMALL_BOX} .= qq{<div class="callout callout-success">
+      <h4>Подтвердить персональные данные</h4>
+            <p>%PERSONAL_INFO_FIO%</p>
+        <p>Телефон: %PERSONAL_INFO_PHONE%</p>
+            <label>
+                <input type="checkbox"> Подтвердить
+            </label>
+      <a href='$SELF_URL?get_index=form_info&del=1' class='btn btn-primary'>ДА !</a>
+     </div>
+    };
+  }
+
+  $html->tpl_show(templates('form_client_custom'), \%info);
+
+  return 1;
+}
+
+#**********************************************************
+=head2 make_social_auth_login_buttons()
+
+=cut
+#**********************************************************
+sub make_social_auth_login_buttons {
+  
+  my $result = '';
+  
+  foreach my $social_net_name ('Vk', 'Facebook','Google', 'Instagram', 'Twitter') {
+    my $conf_key_name = 'AUTH_' . uc($social_net_name) . '_ID';
+  
+    if ( exists $conf{$conf_key_name} && $conf{$conf_key_name} ) {
+      my $lc_name = lc($social_net_name);
+      my $button_attr = {
+        class => 'icon-' . $lc_name,
+        ICON  => 'fa fa-' . $lc_name
+      };
+    
+      $result .= $html->element('li',
+        $html->button('', "external_auth=$social_net_name", $button_attr ),
+        { OUTPUT2RETURN => 1 }
+      )
+    }
+  }
+  
+  return $result;
+}
+
+#**********************************************************
+=head2 make_social_auth_manage_buttons()
+
+=cut
+#**********************************************************
+sub make_social_auth_manage_buttons {
+  my $user_pi = shift || $user->pi();
+  
+  # Allow user to remove social network linkage
+  if ( $FORM{unreg} ) {
+    my $change_field = '_' . uc $FORM{unreg};
+    if ( defined ($user_pi->{$change_field}) ) {
+      $user->pi_change( { UID => $user->{UID}, $change_field => '' } );
+      undef $user_pi->{$change_field};
+    }
+  }
+  my $result = '';
+  
+  #**********************************************************
+  # Shorthand for forming social auth button block
+  #**********************************************************
+  my $make_button = sub {
+    my ($name, $link, $attr) = ($_[0], $_[1], $_[2]);
+    my $unreg_button = '';
+    my $uc_name = uc($name);
+    my $lc_name = lc($name);
+    
+    # If already registered, show 'unreg' button
+    if ( exists $user_pi->{'_' . $uc_name}
+      && $user_pi->{'_' . $uc_name}
+      && $user_pi->{'_' . $uc_name} ne ', ' ) {
+      $unreg_button = $html->button('×', "index=$index&sid=$sid&unreg=$name", {
+          class   => "btn btn-danger btn-social-unreg",
+          CONFIRM => "$lang{UNLINK} $name?"
+        });
+    }
+    my $reg_button = $html->button( $name, $link, {
+        class    => "btn btn-block btn-social btn-$lc_name",
+        ADD_ICON => 'fa fa-' . $lc_name,
+        %{ $attr ? $attr : { } }
+      });
+    
+    $html->element('div', $reg_button . $unreg_button, { class => 'btn-group', OUTPUT2RETURN => 1 } );
+  };
+  
+  if ( $conf{AUTH_VK_ID} ) {
+    $result .= $make_button->('Vk', "external_auth=Vk");
+  }
+  
+  if ( $conf{AUTH_FACEBOOK_ID} ) {
+    my $client_id = $conf{AUTH_FACEBOOK_ID} || q{};
+    my $redirect_uri = $conf{AUTH_FACEBOOK_URL} || q{};
+    $redirect_uri =~ s/\%SELF_URL\%/$SELF_URL/g;
+    
+    $result .= $make_button->('Facebook', 'external_auth=Facebook', {
+        GLOBAL_URL => 'https://www.facebook.com/dialog/oauth?'
+          . "client_id=$client_id"
+          . '&response_type=code'
+          . '&redirect_uri=' . $redirect_uri
+          . '&state=facebook'
+          . '&scope=public_profile,email,user_birthday,user_likes,user_friends'
+        
+      });
+  }
+  
+  if ( $conf{AUTH_GOOGLE_ID} ) {
+    my $client_id = $conf{AUTH_GOOGLE_ID} || q{};
+    my $redirect_uri = $conf{AUTH_GOOGLE_URL} || q{};
+    $redirect_uri =~ s/\%SELF_URL\%/$SELF_URL/g;
+    
+    $result .= $make_button->('Google', '', {
+        GLOBAL_URL => "https://accounts.google.com/o/oauth2/v2/auth?"
+          . "&response_type=code"
+          . "&client_id=$client_id"
+          . "&redirect_uri=$redirect_uri"
+          . "&scope=profile"
+          . "&access_type=offline"
+          . "&state=google"
+      });
+  }
+  
+  if ( $conf{AUTH_INSTAGRAM_ID} ) {
+    my $client_id = $conf{AUTH_INSTAGRAM_ID} || q{};
+    my $redirect_uri = $conf{AUTH_INSTAGRAM_URL} || q{};
+    $redirect_uri =~ s/\%SELF_URL\%/$SELF_URL/g;
+    
+    $result .= $make_button->('Instagram', '', {
+        GLOBAL_URL => "https://api.instagram.com/oauth/authorize?"
+          . "&response_type=code"
+          . "&client_id=$client_id"
+          . "&redirect_uri=$redirect_uri"
+          . "&state=instagram"
+      });
+  }
+  
+  if ( $conf{AUTH_TWITTER_ID} ) {
+    my $client_id = $conf{AUTH_TWITTER_ID} || q{};
+    my $redirect_uri = $conf{AUTH_TWITTER_URL} || q{};
+    $redirect_uri =~ s/\%SELF_URL\%/$SELF_URL/g;
+
+    require Abills::Auth::Twitter;
+    Abills::Auth::Twitter->import();
+
+    my $twitter_params = Abills::Auth::Twitter::request_tokens({
+      conf => {
+        AUTH_TWITTER_ID     => $client_id,
+        AUTH_TWITTER_URL    => $redirect_uri,
+        AUTH_TWITTER_SECRET => $conf{AUTH_TWITTER_SECRET}
+      },
+      self_url              => $SELF_URL
+    });
+
+    $result .= $make_button->('Twitter', '', {
+      GLOBAL_URL => $twitter_params->{url}
+    });
+  }
+  
+  return $result;
+}
+
+#**********************************************************
+=head2 language_select()
+
+=cut
+#**********************************************************
+sub language_select {
+  
+  #Make active lang list
+  if ($conf{LANGS}) {
+    $conf{LANGS} =~ s/\n//g;
+    my (@lang_arr) = split(/;/, $conf{LANGS});
+    %LANG = ();
+    foreach my $l (@lang_arr) {
+      my ($lang, $lang_name) = split(/:/, $l);
+      $lang =~ s/^\s+//;
+      $LANG{$lang} = $lang_name;
+    }
+  }
+  
+  my %QT_LANG = (
+    byelorussian => 22,
+    bulgarian    => 20,
+    english      => 31,
+    french       => 37,
+    polish       => 90,
+    russian      => 96,
+    ukraine      => 129,
+  );
+  
+  return $html->form_select(
+    'language',
+    {
+      EX_PARAMS    => 'onChange="selectLanguage()"',
+      SELECTED     => $html->{language},
+      SEL_HASH     => \%LANG,
+      NO_ID        => 1,
+      NORMAL_WIDTH => 1,
+      EXT_PARAMS   => { qt_locale => \%QT_LANG }
+    }
+  );
+  
+}
+
+#**********************************************************
+=head2 form_company_list
+    Show all company users, and all of this users services.
+
+    Arguments:
+      nothing
+
+    Returns:
+      print table.
+=cut
+#**********************************************************
+sub form_company_list {
+
+  my $company = $user->{COMPANY_ID};
+  my $sum_total = 0;
+
+  my $users_list = $user->list({
+    COMPANY_ID => $company,
+    COLS_NAME  => 1,
+    COLS_UPPER => 1,
+    REDUCTION  => '_SHOW'
+  });
+
+  my $table = $html->table({
+    width       => '100%',
+    title_plain => [ $lang{USER}, $lang{SERVICE}, $lang{DESCRIBE}, $lang{SUM} ]
+  });
+
+  foreach my $line (@$users_list) {
+    my $cross_modules_return = cross_modules_call('_docs', {
+      UID          => $line->{UID},
+      REDUCTION    => $line->{REDUCTION},
+      PAYMENT_TYPE => 0
+    });
+
+    foreach my $module (sort keys %$cross_modules_return) {
+      if (ref $cross_modules_return->{$module} eq 'ARRAY') {
+        next if ($#{ $cross_modules_return->{$module} } == -1);
+        foreach my $module_return (@{ $cross_modules_return->{$module} }) {
+          my ($serv_name, $serv_desc, $sum) = split(/\|/, $module_return);
+          $table->addrow($line->{LOGIN}, $serv_name, $serv_desc, $sum);
+          $sum_total += $sum;
+        }
+      }
+    }
+  }
+
+  print $table->show();
+
+  $table = $html->table({
+    width      => '100%',
+    rows       => [ [ "$lang{TOTAL}:", $sum_total ] ],
+  });
+
+  print $table->show();
+
+  return 1;
+}
+
 
 1

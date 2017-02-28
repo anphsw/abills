@@ -38,14 +38,15 @@ if (typeof info_script_loaded === 'undefined') {
       OBJ_TYPE: type,
       OBJ_ID: id,
       get_index: source_func,
-      header: 2
+      header: 2,
+      AJAX : 1
     };
 
     $.get('/admin/index.cgi', params, function (data) {
       $areaToRefresh.html(data);
       $refreshIcon.removeClass('fa-pulse');
 
-      events.emit('info_document_renewed', true);
+      Events.emit('info_document_renewed', true);
 
       if (callback) {
         callback();
@@ -74,7 +75,7 @@ if (typeof info_script_loaded === 'undefined') {
 
     var $commentsBlock = $('#commentsBlock');
 
-    events.on('info_something_changed', function (data) {
+    Events.on('info_something_changed', function (data) {
       console.log(data);
       renewContent($commentsRefreshBtn, bindDelBtns);
       //renewDOM();
@@ -82,14 +83,13 @@ if (typeof info_script_loaded === 'undefined') {
 
     $commentsRefreshBtn.on('click', function () {
       console.log('click');
-      events.emit('info_something_changed', 'comments');
+      Events.emit('info_something_changed', 'comments');
     });
 
     //bind events
     $commentsForm.on('submit', function (e) {
       e.preventDefault();
       submitCommentForm();
-
     });
 
     $commentModal.on('shown.bs.modal', function () {
@@ -163,7 +163,7 @@ if (typeof info_script_loaded === 'undefined') {
           $commentModal.modal('hide');
           $commentsBody.html(tempBody);
 
-          events.emit('info_something_changed', 'comments');
+          Events.emit('info_something_changed', 'comments');
           renewDOM();
         }, 2000);
       })
@@ -227,7 +227,7 @@ if (typeof info_script_loaded === 'undefined') {
         {
           $ajax_body.empty().html(data);
 
-          events.emit('info_something_changed', true);
+          Events.emit('info_something_changed', true);
 
           setTimeout(function () {
             $ajax_modal.modal('hide');
@@ -265,7 +265,7 @@ if (typeof info_script_loaded === 'undefined') {
         renewContent(this);
       });
 
-      events.on('info_something_changed', function () {
+      Events.on('info_something_changed', function () {
         renewContent($documentRefreshBtn);
       });
 

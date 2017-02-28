@@ -246,11 +246,13 @@ sub tags_sel {
 
   my $form =  $html->form_select('TAGS',
               {
-                SELECTED => $FORM{TAGS},
-                SEL_LIST => $Tags->list({ NAME      => '_SHOW',
+                SELECTED => $FORM{TAGS} || '',
+                SEL_LIST => $Tags->list({
+                              NAME      => '_SHOW',
                               PRIORITY  => '_SHOW',
                               COLS_NAME => 1 }),
-                SEL_OPTIONS => { '' => $lang{ALL} },
+
+                #SEL_OPTIONS => { '' => $lang{ALL} },
                 EX_PARAMS   => 'multiple="multiple"'
               }
             );
@@ -258,6 +260,69 @@ sub tags_sel {
   return $form;
 }
 
+#**********************************************************
+
+=head2 analiz_user_tags () -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+
+#**********************************************************
+sub reports_user_tags {
+  my %user_tag_info;
+  my %tag_info;
+  my @priority_colors_tags = ('btn-muted', "btn-info", "btn-success", 'btn-warning', "btn-danger");
+  my $tags = $Tags->tags_list({COLS_NAME => 1});
+
+  foreach my $user_tag (@$tags) {
+   $user_tag_info{ $user_tag->{id} } += defined($user_tag->{uid})?1:0;
+
+    $tag_info{ $user_tag->{id} . 'name' }     = $user_tag->{name};
+    $tag_info{ $user_tag->{id} . 'priority' } = $user_tag->{priority};
+    $tag_info{all_usr_with_tags} += 1;
+    if ($user_tag->{disable} && $user_tag->{disable} == 1) {
+      $tag_info{ $user_tag->{id} . 'disable' } += 1;
+    }
+    elsif(defined($user_tag->{disable}) && $user_tag->{disable} == 0) {
+      $tag_info{ $user_tag->{id} . 'active' } += 1;
+    }
+  }
+
+  my $tags_table = $html->table(
+    {
+      caption    => "Tags",
+      width      => '100%',
+      title      => [ "$lang{NAME}", "$lang{ENABLE}", "$lang{DISABLE}", "$lang{TOTAL}", "$lang{PERCENTAGE}" ],
+      cols_align => [ 'right', 'left', 'center', 'center', 'center' ],
+      ID         => 'USER_TAGS_REPORTS'
+    }
+  );
+
+  foreach my $tags_key (sort keys %user_tag_info) {
+    $tags_table->addrow(
+      $html->button($html->element('span', $tag_info{ $tags_key . 'name' }, { class => "btn btn-xs $priority_colors_tags[$tag_info{$tags_key . 'priority'}]" }), "index=7&search_form=1&TAGS=$tags_key&type=11&search=1", { class => 'button button-default' }),
+      $tag_info{ $tags_key . 'active' }  ? $html->button($tag_info{ $tags_key . 'active' },  "index=7&search_form=1&TAGS=$tags_key&type=11&DISABLE=0&search=1", { class => 'button button-default' }) : 0,
+      $tag_info{ $tags_key . 'disable' } ? $html->button($tag_info{ $tags_key . 'disable' }, "index=7&search_form=1&TAGS=$tags_key&type=11&DISABLE=1&search=1", { class => 'button button-default' }) : 0,
+      $user_tag_info{$tags_key}          ? $html->button($user_tag_info{$tags_key},          "index=7&search_form=1&TAGS=$tags_key&type=11&search=1",           { class => 'button button-default' }) : 0,
+      $html->progress_bar(
+        {
+          TOTAL        => $tag_info{all_usr_with_tags},
+          COMPLETE     => $user_tag_info{$tags_key},
+          PERCENT_TYPE => 1,
+          COLOR        => 'MAX_COLOR',
+        },
+      )
+    );
+  }
+  print $tags_table->show();
+
+  return 1;
+}
 
 1
 

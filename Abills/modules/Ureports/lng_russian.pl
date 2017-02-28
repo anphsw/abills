@@ -2,7 +2,7 @@ $lang{DESTINATION}="Адрес получателя (телефон или E-MAI
 $lang{MSG_PRICE}="Цена сообщения";
 
 $lang{DEPOSIT_BELOW}='Депозит ниже';
-$lang{PREPAID_TRAFFIC_BELOW}='Предоплаченій трафик закончился';
+$lang{PREPAID_TRAFFIC_BELOW}='Предоплаченный трафик закончился';
 $lang{TRAFFIC_BELOW}='Месячный трафик';
 $lang{MONTH_REPORT}='Месячный Отчёт';
 $lang{ACTIVATED_MSG_SENDED}='Сообщение об активации отправлено на Ваш адрес';
@@ -16,5 +16,5 @@ $lang{DEAR}='Уважаемый';
 $lang{DEPOSIT_NOTIFY_BEFORE_ABON}='Сообщить за несколько дней до абоп. платы про состояние счета';
 
 $lang{RECOMMENDED_PAYMENT}='Рекомендуемая сумма оплаты';
-$lang{NEXT_PERIOD_TP}='Тарифний план следующего периода';
+$lang{NEXT_PERIOD_TP}='Тарифный план следующего периода';
 $lang{VISUAL}='Управление абонентом';

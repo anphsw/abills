@@ -2,9 +2,9 @@
     <input type=hidden name='index' value='$index'>
     <input type=hidden name='chg' value='$FORM{chg}'>
 
-    <div class='panel panel-primary panel-form'>
-        <div class='panel-heading'>_{EXCHANGE_RATE}_</div>
-        <div class='panel-body'>
+    <div class='box box-theme box-form'>
+        <div class='box-header with-border'>_{EXCHANGE_RATE}_</div>
+        <div class='box-body'>
             <div class='form-group'>
                 <label class='col-md-3 control-label'>_{EXCHANGE_RATE}_</label>
                 <div class='col-md-9'>
@@ -24,7 +24,7 @@
                 </div>
             </div>
         </div>
-        <div class='panel-footer'>
+        <div class='box-footer'>
             <input class='btn btn-primary' type=submit name='%ACTION%' value='%LNG_ACTION%'>
         </div>
     </div>

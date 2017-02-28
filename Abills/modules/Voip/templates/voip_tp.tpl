@@ -6,11 +6,11 @@
     <div class='row'>
 
         <div class='col-md-6'>
-            <div class='panel panel-default panel-form'>
-                <div class='panel-heading'>
+            <div class='box box-theme box-form'>
+                <div class='box-header with-border'>
                     <a data-toggle='collapse' data-parent='#accordion' href='#_main'>_{MAIN}_</a>
                 </div>
-                <div id='_main' class='panel-body panel-collapse collapse in'>
+                <div id='_main' class='box-body box-collapse collapse in'>
                     <div class='form-group'>
                         <label class='col-md-4 control-label'>#</label>
                         <div class='col-md-8'>
@@ -40,11 +40,11 @@
         </div>
 
         <div class='col-md-6'>
-            <div class='panel panel-default panel-form'>
-                <div class='panel-heading'>
+            <div class='box box-theme box-form'>
+                <div class='box-header with-border'>
                     <a data-toggle='collapse' data-parent='#accordion' href='#_abon'>_{ABON}_</a>
                 </div>
-                <div id='_abon' class='panel-body panel-collapse collapse in'>
+                <div id='_abon' class='box-body box-collapse collapse in'>
                     <div class='form-group'>
                         <label class='col-md-4 control-label'>_{DAY_FEE}_:</label>
                         <div class='col-md-8'>
@@ -80,11 +80,11 @@
 
     <div class='row'>
         <div class='col-md-6'>
-            <div class='panel panel-default panel-form'>
-                <div class='panel-heading'>
+            <div class='box box-theme box-form'>
+                <div class='box-header with-border'>
                     <a data-toggle='collapse' data-parent='#accordion' href='#_t3'>_{LIMIT}_</a>
                 </div>
-                <div id='_t3' class='panel-body panel-collapse collapse out'>
+                <div id='_t3' class='box-body box-collapse collapse out'>
                     <div class='form-group'>
                         <label class='col-md-4 control-label'>_{HOUR_TARIF}_ (1 Hour):</label>
                         <div class='col-md-8'>
@@ -132,11 +132,11 @@
         </div>
 
         <div class='col-md-6'>
-            <div class='panel panel-default panel-form'>
-                <div class='panel-heading'>
+            <div class='box box-theme box-form'>
+                <div class='box-header with-border'>
                     <a data-toggle='collapse' data-parent='#accordion' href='#_other'>_{OTHER}_</a>
                 </div>
-                <div id='_other' class='panel-body panel-collapse collapse out'>
+                <div id='_other' class='box-body box-collapse collapse out'>
                     <div class='form-group'>
                         <label class='col-md-4 control-label'>_{MAX_SESSION_DURATION}_:</label>
                         <div class='col-md-8'>
@@ -176,11 +176,11 @@
 
     <div class='row'>
         <div class='col-md-6'>
-            <div class='panel panel-default panel-form'>
-                <div class='panel-heading'>
+            <div class='box box-theme box-form'>
+                <div class='box-header with-border'>
                     <a data-toggle='collapse' data-parent='#accordion' href='#_t5'>_{TIME}_</a>
                 </div>
-                <div id='_t5' class='panel-body panel-collapse collapse out'>
+                <div id='_t5' class='box-body box-collapse collapse out'>
                     <div class='form-group'>
                         <label class='col-md-4 control-label'>_{FREE_TIME}_:</label>
                         <div class='col-md-8'>
@@ -222,7 +222,8 @@
         </div>
     </div>
 
-    <div class='col-md-12'><input class='btn btn-primary' type=submit name='%ACTION%' value='%LNG_ACTION%'></div>
+    <div class='box-footer'>
+        <input class='btn btn-primary' type=submit name='%ACTION%' value='%LNG_ACTION%'>
     </div>
 
 

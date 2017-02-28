@@ -1,10 +1,12 @@
 #!/bin/sh
-# AbillS CVS update
+#**********************************************************
+# AbillS updater
+# LIcense fetcher
 # Amon update
 #
-#***********************************************
+#**********************************************************
 
-VERSION=1.86;
+VERSION=2.03;
 
 #ABillS Rel Version
 REL_VERSION="rel-0-5";
@@ -276,11 +278,16 @@ echo "Filesystem read : ${FILE2}"
 URL="http://abills.net.ua/misc/update.php?bench=${sys_id}&CPU_ONE=${CPU1}&CPU_MULT=${CPU2}&MEM_WR=${MEM1}&MEM_RD=${MEM2}&FILE_WR=${FILE1}&FILE_RD=${FILE2}";
 ${FETCH} /tmp/bench ${URL}
 
+SYSBENCH_DIR=/tmp
+if [ -f ${BILLING_DIR} ]; then
+  SYSBENCH_DIR=${BILLING_DIR};
+fi;
+
 if [ "${DEBUG}" != "" ] ; then
   rm *.sysbench
 fi;
 
-echo "bench=${sys_id}&CPU_ONE=${CPU1}&CPU_MULT=${CPU2}&MEM_WR=${MEM1}&MEM_RD=${MEM2}&FILE_WR=${FILE1}&FILE_RD=${FILE2}" > ${BILLING_DIR}/.sysbench
+echo "bench=${sys_id}&CPU_ONE=${CPU1}&CPU_MULT=${CPU2}&MEM_WR=${MEM1}&MEM_RD=${MEM2}&FILE_WR=${FILE1}&FILE_RD=${FILE2}" > ${SYSBENCH_DIR}/.sysbench
 
 #${DIALOG} --msgbox "Benchmark\n" 20  52
 
@@ -294,7 +301,7 @@ sys_info  () {
 
 get_os
 
-if [ x${OS} = xFreeBSD ]; then
+if [ "${OS}" = "FreeBSD" ]; then
   CPU=`grep -i CPU: /var/run/dmesg.boot | cut -d \: -f2 | tail -1`
 
   if [ "${CPU}" = "" ]; then
@@ -359,8 +366,8 @@ sys_info="${CPU}${CPU_COUNT}^${RAM}^${VGA}^${hdd_model}^${hdd_serial}^${hdd_size
 CHECKSUM=`echo "${sys_info}" | ${MD5} | awk '{print $1 }'`
 get_sys_id
 
-if [ x"${REGISTRATION}" != x ]; then
-  echo "Please enter login password for server registration"
+if [ "${REGISTRATION}" != "" ]; then
+  echo "Please enter login and password for server registration"
   echo -n "Login: "
   read LOGIN
   echo -n "Password: "
@@ -402,12 +409,13 @@ SYSTEM_INFO="System information
   Distributive - ${OS_NAME}
   CHECKSUM     - ${CHECKSUM}
 "
-if [ "${SYS_INFO}" != "" -o ! -f "${BILLING_DIR}/.sysbench" ] ; then
-  echo "${SYSTEM_INFO}"
-  mk_sysbench ${CHECKSUM};
-fi;
 
-UPDATE_CHECKSUM=${CHECKSUM}
+  if [ "${SYS_INFO}" != "" -o ! -f "${BILLING_DIR}/.sysbench" ] ; then
+    echo "${SYSTEM_INFO}"
+    mk_sysbench ${CHECKSUM};
+  fi;
+
+  UPDATE_CHECKSUM=${CHECKSUM}
 }
 
 
@@ -416,6 +424,11 @@ UPDATE_CHECKSUM=${CHECKSUM}
 #
 #**********************************************
 update_self () {
+
+  if [ "${FREE_UPDATE}" != "" ]; then
+    echo "update.sh check skip";
+    return;
+  fi;
 
   sys_info
   get_sys_id
@@ -430,11 +443,11 @@ update_self () {
     SIGN=${SIGN}"&hn="`hostname`;
   fi;
 
-${FETCH} ${TMP_DIR}/update.sh "${UPDATE_URL}?sign=${SIGN}&getupdate=1&VERSION=${VERSION}&SYS_ID=${SYS_ID}";
+  ${FETCH} ${TMP_DIR}/update.sh "${UPDATE_URL}?sign=${SIGN}&getupdate=1&VERSION=${VERSION}&SYS_ID=${SYS_ID}";
 
-if [ "${DEBUG}" != "" ]; then
-  echo "${UPDATE_URL}?sign=${SIGN}&getupdate=1&VERSION=${VERSION}&SYS_ID=${SYS_ID}";
-fi;
+  if [ "${DEBUG}" != "" ]; then
+    echo "${UPDATE_URL}?sign=${SIGN}&getupdate=1&VERSION=${VERSION}&SYS_ID=${SYS_ID}";
+  fi;
 
 if [ -f "${TMP_DIR}/update.sh" ]; then
   RESULT=`grep "^ERROR:" ${TMP_DIR}/update.sh`;
@@ -523,7 +536,6 @@ else
 fi;
 
 if [ -f ${BILLING_DIR}/libexec/config.pl -a -f ${BILLING_DIR}/VERSION ]; then
-  #UPDATEDATE=`cat ${BILLING_DIR}/VERSION | sed 's/\.//g'`
   UPDATE_DATE=`cat ${BILLING_DIR}/VERSION | awk '{ print $2 }'`
   GIT_UPDATE=1;
   
@@ -628,20 +640,32 @@ sql_innodb_optimize () {
 download_module () {
 
 MODULE=$1;
-echo "Automaticly module update";
+echo "Automatically module update";
 
-URL="http://abills.net.ua/misc/update.php?sys_id=${sys_id}&MODULE=${MODULE}";
-${FETCH} /tmp/module ${URL}
+URL="http://abills.net.ua/misc/update.php?sign=${SIGN}&SYS_ID=${SYS_ID}&module=${MODULE}";
+${FETCH} "${TMP_DIR}/module" "${URL}"
 
-CHECK_MODULE=`grep ${MODULE} /tmp/module`;
+#echo "${FETCH} ${TMP_DIR}/module ${URL}";
+
+CHECK_MODULE=`grep ${MODULE} ${TMP_DIR}/module`;
 
 if [ "${CHECK_MODULE}" != "" ]; then
-  echo "Module ${MODULE} Dovnloading"
-  GET_VERSION=`grep VERSION | grep /tmp/module`
-  echo ${GET_VERSION}
-  cp /tmp/module "/tmp/${MODULE}.pm"
+  echo "Module ${MODULE} Downloading"
+
+  GET_MODULE_VERSION=`grep VERSION /tmp/module`;
+
+  echo "${MODULE} ${GET_MODULE_VERSION}"
+
+  cp "${TMP_DIR}/module" "${TMP_DIR}/${MODULE}.pm"
+
+  if [ -f "${BILLING_DIR}/Abills/mysql/${MODULE}.pm" ]; then
+    cp "${BILLING_DIR}/Abills/mysql/${MODULE}.pm" "${BILLING_DIR}/Abills/mysql/${MODULE}.pm_${DATE}"
+  fi;
+
+  cp "${TMP_DIR}/${MODULE}.pm" "${BILLING_DIR}/Abills/mysql/"
 fi;
 
+  echo "Updated: ${MODULE}";
 }
 
 #**********************************************
@@ -651,6 +675,8 @@ fi;
 # Ashield.pm
 # Storage.pm
 # Maps.pm
+# Cablecat.pm
+# Ureports.pm
 #**********************************************
 check_modules () {
 
@@ -664,7 +690,7 @@ fi;
 
 IS_NEW=""
 
-for module_name in Paysys Ashield Turbo Maps Storage Ureports; do
+for module_name in Paysys Ashield Turbo Maps Storage Ureports Cablecat; do
   if [ -e "${BILLING_DIR}/Abills/mysql/${module_name}.pm" -a -f "${CHECKDIR}/Abills/modules/${module_name}/webinterface" ]; then
     OLD=`cat ${BILLING_DIR}/Abills/mysql/${module_name}.pm |grep ' VERSION' | sed 's/^[^0-9]*//;1d;s/;$//'`;
     #Old style
@@ -689,8 +715,9 @@ for module_name in Paysys Ashield Turbo Maps Storage Ureports; do
       echo "!!! PLEASE UPDATE MODULE ${module_name} (current: ${OLD} required: ${NEW}) "
       echo " New version you can download from support system: https://support.abills.net.ua/"
 
+      DOWNLOAD_COM_MODULES=1;
       if [ "${DOWNLOAD_COM_MODULES}" != "" ]; then
-        download_module ${module_name}
+        download_module "${module_name}"
       else
         IS_NEW=1
       fi;
@@ -704,11 +731,12 @@ if [ "${PRE_CHECK}" = 1 -a "${IS_NEW}" = 1 ]; then
   echo "Require new modules. continue update [Y/n]: ";
   read COUNTINUE
 
-#  echo "Require new modules. Update automaticly [Y/n]: ";
-#  read COUNTINUE
-#  if [ "${COUNTINUE}"  ne 'n' ]; them
-#    download_module;
-#  fi;
+  echo "Require new modules. Update automaticly [Y/n]: ";
+  read COUNTINUE
+
+  if [ "${COUNTINUE}" ne 'n' ]; then
+    download_module "${module_name}";
+  fi;
 
   PRE_CHECK=""
 
@@ -722,7 +750,7 @@ fi;
 
 
 #**********************************************
-#
+# Check files and permisions
 #**********************************************
 check_files () {
 
@@ -747,6 +775,16 @@ if [ -f "${BILLING_DIR}/Abills/HTML.pm" ]; then
   rm -rf ${BILLING_DIR}/Nas
   rm -rf ${BILLING_DIR}/Sender
 fi;
+
+if [ -f "${BILLING_DIR}/cgi-bin/graphics.cgi" ]; then
+  echo "Remove graphics";
+  rm ${BILLING_DIR}/cgi-bin/graphics.cgi
+fi;
+
+
+chmod 777 ${BILLING_DIR}/var/log/
+touch ${BILLING_DIR}/var/log/sql_errors
+chmod 777 ${BILLING_DIR}/var/log/sql_errors
 
 }
 
@@ -820,6 +858,7 @@ usage () {
   -gs               - Update from snapshot system (Alternative way)
   -skip_update      - Skip check new version of update.sh
   -check_modules    - Check new version of modules 
+  -dl               - Update license key
   -skip_check_sql   - Skip check mysql version
   -m [MODULE]       - Update only modules
 "
@@ -828,6 +867,7 @@ usage () {
 
 #**********************************************
 # Convert MyISAM table to InoDB
+#
 #**********************************************
 convert2inodb () {
   echo -n "DB host [localhost]: ";
@@ -876,11 +916,11 @@ convert2inodb () {
     fi;
   
     for IGNORE_TABLE in ${SKIP_TABLES}; do
-      if [ x${table} = x${IGNORE_TABLE} ]; then
+      if [ "${table}" = "${IGNORE_TABLE}" ]; then
         IGNORE=1
       else
         RESULT=`echo ${table} | sed "s/${IGNORE_TABLE}/y/"`;
-        if [ "${RESULT}" = y ]; then
+        if [ "${RESULT}" = "y" ]; then
           IGNORE=1
         fi;
       fi; 
@@ -888,16 +928,17 @@ convert2inodb () {
   
     if [ "${IGNORE}" = "" ]; then
       echo "Start convert: ${table}"
-      query="alter table ${table} type=InnoDB;";
+      query="ALTER TABLE ${table} ENGINE=InnoDB;";
       res=`mysql -h "${db_host}" -u "${db_user}" --password="${db_password}" -D ${db_name} -e "${query};"`
       echo "${table} ${res}"
-      if [ w${DEBUG} != w ]; then
+      if [ "${DEBUG}" != "" ]; then
         echo ${query};
       fi;
     else
       echo "Ignore"
     fi;
-  done;             
+  done;
+
 }
 
 #**********************************************
@@ -1019,7 +1060,6 @@ if [ "${RESULT}" != "" ]; then
 fi;
 
 tar zxvf ${TMP_DIR}/${SNAPHOT_NAME} -C ${TMP_DIR}
-
 }
 
 
@@ -1127,10 +1167,33 @@ git_update () {
       BRANCH=" -b ${BRANCH_NAME} "
     fi;
     #Git repository
-    ${GIT} clone ${BRANCH} git@abills.net.ua:abills.git
+    ${GIT} clone ${BRANCH} ssh://git@abills.net.ua:22/abills.git
   fi;
-  
 }
+
+#**********************************************
+# free_update
+#**********************************************
+free_update () {
+
+  echo
+  echo "**********************************************************"
+  echo "# ABillS Update Free version                             #"
+  echo "**********************************************************"
+
+  cd ${TMP_DIR}
+  SNAPHOT_NAME=abills_.tgz
+  URL=http://downloads.sourceforge.net/project/abills/abills/0.75/abills-0.75.107.tgz
+
+  if [ "${DEBUG}" != "" ]; then
+    echo "${FETCH} ${URL}"
+  fi;
+
+  ${FETCH} ${SNAPHOT_NAME} "${URL}";
+
+  tar zxvf ${TMP_DIR}/${SNAPHOT_NAME} -C ${TMP_DIR}
+}
+
 
 #**********************************************
 # Speedy
@@ -1150,6 +1213,29 @@ rollback () {
   done;
 }
 
+#**********************************************
+# get_license
+#**********************************************
+get_license () {
+
+  if [ "${SYS_ID}" != "" ]; then
+    get_sys_id;
+  fi;
+
+  if [ -d "${TMP_DIR}/abills/libexec/" ]; then
+    if [ -f ${TMP_DIR}/abills/libexec/license.key ]; then
+      rm -f ${TMP_DIR}/abills/libexec/license.key
+    fi;
+    ${FETCH} ${TMP_DIR}/abills/libexec/license.key "${UPDATE_URL}?sign=${SIGN}&getupdate=1&VERSION=${VERSION}&get_key=1&SYS_ID=${SYS_ID}";
+    cp "${TMP_DIR}/abills/libexec/license.key" "${BILLING_DIR}/libexec/license.key"
+  elif [ -f "${BILLING_DIR}/libexec/license.key" ]; then
+     cp "${BILLING_DIR}/libexec/license.key" "${BILLING_DIR}/libexec/license.key.old"
+     rm "${BILLING_DIR}/libexec/license.key"
+     ${FETCH} ${BILLING_DIR}/abills/libexec/license.key "${UPDATE_URL}?sign=${SIGN}&getupdate=1&VERSION=${VERSION}&get_key=1&SYS_ID=${SYS_ID}";
+  fi;
+
+  echo "License downloaded";
+}
 
 #**********************************************
 # Start actions
@@ -1252,6 +1338,9 @@ for _switch; do
         -git) GIT_UPDATE=1
                 shift;
                 ;;
+        -free) FREE_UPDATE=1
+                shift;
+                ;;
         -gs)    GET_SNAPSHOT=1
                 echo "${GET_SNAPSHOT}";
                 shift;
@@ -1265,12 +1354,20 @@ for _switch; do
         -sql_optimize) OPTIMIZE_DB=1
                 shift;
                 ;;
+        -dl)    DOWNLOAD_LICENSE=1
+                shift;
+                ;;
         -reg)   REGISTRATION=1;
                 shift;
         esac
 done
 
 update_self
+
+if [ "${DOWNLOAD_LICENSE}" != "" ]; then
+  get_license;
+  exit;
+fi;
 
 if [ "${SKIP_PERL_CHECK}" = "" ] ; then
   check_perl
@@ -1296,7 +1393,7 @@ if [ "${AMON_FILE}" != "" ] ; then
   #${AMON_FILE};
 fi;
 
-if [ w${INODB} != w ] ; then
+if [ "${INODB}" != "" ] ; then
   convert2inodb;
   exit;
 fi;
@@ -1315,8 +1412,7 @@ fi;
 
 if [ "${ROLLBACK}" != "" ] ; then
   rollback
-   #${ROLLBACK};
-else 
+else
   echo "**********************************************************"
   echo "# ABillS Update                                          #"
   echo "**********************************************************"
@@ -1343,17 +1439,17 @@ else
 
 
   if [ -d ${BILLING_DIR} ]; then
-    if [ w${SKIP_SQL_UPDATE} = w ]; then
+    if [ "${SKIP_SQL_UPDATE}" = "" ]; then
       update_sql
     fi;
 
-    if [ -d ${BILLING_DIR}_${DATE} ]; then
+    if [ -d "${BILLING_DIR}_${DATE}" ]; then
       SKIP_BACKUP=1
       echo "Skiping backup. Today backup exist"
     fi;
 
     #Backup curent version
-    if [ w"${SKIP_BACKUP}" = w ]; then
+    if [ "${SKIP_BACKUP}" = "" ]; then
       if [ -d "${BILLING_DIR}" ]; then
         cp -Rfp ${BILLING_DIR} ${BILLING_DIR}_${DATE}
         echo "Backuped to '${BILLING_DIR}_${DATE}'. Please wait some minutes" 
@@ -1374,7 +1470,7 @@ else
        echo "Skip backup...";
      fi;
 
-    if [ w${FULL} != w ]; then
+    if [ "${FULL}" != "" ]; then
        echo "Make full source update";
        rm -rf ${TMP_DIR}/abills*
     fi;
@@ -1388,22 +1484,16 @@ else
   cd ${TMP_DIR}  
   #Update from snapshots
   # http://abills.net.ua/snapshots/
-  if [ x"${GET_SNAPSHOT}" != x ]; then
+  if [ "${GET_SNAPSHOT}" != "" ]; then
     snapshot_update
-
   #Git update
-  elif [ x"${GIT_UPDATE}" != x -o -f "${BILLING_DIR}/VERSION" ]; then
+  elif [ "${FREE_UPDATE}" != "" ]; then
+    free_update;
+  elif [ "${GIT_UPDATE}" != "" -o -f "${BILLING_DIR}/VERSION" ]; then
     git_update;
-  #Update from CVS
-  else 
-    echo
-    CVS=`which cvs`;
-    if [ "${CVS}" = "" ]; then
-      _install cvs
-    fi;
-   
-    ${CVS} -d:pserver:anonymous:@abills.cvs.sourceforge.net:/cvsroot/abills login > /dev/null 2>&1 
-    ${CVS} -z3 -d:pserver:anonymous@abills.cvs.sourceforge.net:/cvsroot/abills checkout -r ${REL_VERSION} abills
+    #Update from CVS
+  else
+    free_update;
   fi;
   
   cd  ${TMP_DIR}
@@ -1444,10 +1534,7 @@ else
       echo "cp -Rf ${TMP_DIR}/${work_copy}/* ${BILLING_DIR}"
     fi;
 
-    if [ -f ${TMP_DIR}/abills/libexec/license.key ]; then 
-      rm -f ${TMP_DIR}/abills/libexec/license.key
-    fi;
-    ${FETCH} ${TMP_DIR}/abills/libexec/license.key "${UPDATE_URL}?sign=${SIGN}&getupdate=1&VERSION=${VERSION}&get_key=1&SYS_ID=${SYS_ID}";
+    get_license;
 
     cp -Rf ${TMP_DIR}/${work_copy}/* ${BILLING_DIR}
     #Update Version 

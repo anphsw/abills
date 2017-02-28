@@ -3,10 +3,10 @@
         <input type='hidden'  name='month' value='%NUMBER_MONTH%'>
         <input type='hidden'  name='year'  value='%YEAR%'>
 
-<div class='panel panel-primary panel-form'>
+<div class='box box-theme box-form'>
 
-    <div class='panel-heading text-center'><h4>_{HOLIDAYS}_ _{DAY}_</h4></div>
-  <div class='panel-body'>
+    <div class='box-header with-border'><h4 class='box-title'>_{HOLIDAYS}_ _{DAY}_</h4></div>
+  <div class='box-body'>
       
       <div class='form-group'>
           <label class='control-label col-md-3 required' for='DAY_id'>_{DAY}_</label>
@@ -43,7 +43,7 @@
 
   </div>
   
-  <div class='panel-footer text-center'>
+  <div class='box-footer text-center'>
       <button type='submit' form='form_holiday' class='btn btn-primary' name='action' value='%ACTION%'>
         %BTN_NAME%
       </button>

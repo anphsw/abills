@@ -123,7 +123,7 @@ sub filearch_main {
     return 0;
   }
 
-  print $html->letters_list();
+  #print $html->letters_list();
   if ($FORM{letter}) {
     $LIST_PARAMS{FILENAME} = "$FORM{letter}*";
     $pages_qs .= "&letter=$FORM{letter}";
@@ -550,7 +550,7 @@ sub filearch_video {
     $html->tpl_show(_include('filearch_video_search', 'Filearch'), { %$Filearch, %$INFO });
   }
 
-  print $html->letters_list({ EXPR => 'À-ß' });
+  #print $html->letters_list({ EXPR => 'À-ß' });
   if ($FORM{letter}) {
     $LIST_PARAMS{NAME} = "$FORM{letter}*";
     $pages_qs .= "&letter=$FORM{letter}";
@@ -724,7 +724,7 @@ sub filearch_user_video {
     }
   }
 
-  print $html->letters_list({ EXPR => 'À-ß' });
+  #print $html->letters_list({ EXPR => 'À-ß' });
   if ($FORM{letter}) {
     $LIST_PARAMS{NAME} = "$FORM{letter}*";
     $pages_qs .= "&letter=$FORM{letter}";
@@ -834,7 +834,7 @@ sub filearch_video_actors {
 
   $html->tpl_show(_include('filearch_video_actors', 'Filearch'), $Filearch);
 
-  print $html->letters_list();
+  #print $html->letters_list();
   if ($FORM{letter}) {
     $LIST_PARAMS{NAME} = "$FORM{letter}*";
     $pages_qs .= "&letter=$FORM{letter}";

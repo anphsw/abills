@@ -39,3 +39,27 @@ $lang{DELIVERY} = 'Розсилка';
 $lang{PLANNED} = 'Заплановані';
 $lang{TASKS_ROUTE_MAP} = 'Карта завдань';
 $lang{PROGRESS_BAR} = 'Лінійка виконання';
+$lang{READINESS} = 'Готовність';
+$lang{TASK_CLOSED} = 'Завдання закрито';
+$lang{MESSAGE_ADMIN_WATCH} = 'Список відстеження повідомлень';
+$lang{ASSESSMENT} = 'Оцінка';
+$lang{BAD} = 'Погано';
+$lang{UNSATISFACTORILY} = 'Незадовільно';
+$lang{FINE} = 'Посередньо';
+$lang{GOOD} = 'Добре';
+$lang{IDEALLY} = 'Ідеально';
+$lang{POTENTIAL_CLIENT} = 'Потенційний клієнт';
+$lang{OPEN_MSGS}='Відкриті повідомлення';
+$lang{NOTE}='Замітка';
+$lang{LAST_CONTACT}='Послідній контакт с клієнтом';
+$lang{SUBSEQENT_CONTACT}='Подальший контакт з клієнтом';
+$lang{WATCHED} = 'Відслідковуються';
+$lang{ADD_DELIVERY}= 'Добавити розсилку';
+$lang{SEND_TIME}='Час відправлення';
+$lang{WAIT_TO_SEND}='Чекає відправлення';
+
+
+
+
+
+

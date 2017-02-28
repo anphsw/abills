@@ -1,39 +1,60 @@
-CREATE TABLE `paysys_log` (
-  `id` int(11) unsigned NOT NULL auto_increment,
-  `system_id` tinyint(4) unsigned NOT NULL default '0',
-  `datetime` datetime NOT NULL default '0000-00-00 00:00:00',
-  `sum` double(10,2) unsigned NOT NULL default '0.00',
-  `commission` double(10,2) unsigned NOT NULL default '0.00',
-  `uid` int(11) unsigned NOT NULL default '0',
-  `transaction_id` varchar(24) NOT NULL DEFAULT '',
-  `info` text NOT NULL,
-  `ip` int(11) unsigned NOT NULL default '0',
-  `code` blob NOT NULL,
-  `paysys_ip` int(11) unsigned NOT NULL DEFAULT '0',
-  `domain_id` smallint(6) unsigned not null default '0',
-  `status` tinyint(2) unsigned not null default '0',
-  PRIMARY KEY  (`id`),
+CREATE TABLE IF NOT EXISTS `paysys_log` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `system_id` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
+  `datetime` DATETIME NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+  `sum` DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
+  `commission` DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
+  `uid` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `transaction_id` VARCHAR(24) NOT NULL DEFAULT '',
+  `info` TEXT NOT NULL,
+  `ip` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `code` BLOB NOT NULL,
+  `paysys_ip` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `status` TINYINT(2) UNSIGNED NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
   UNIQUE KEY `id` (`id`),
   UNIQUE KEY `ps_transaction_id` (`domain_id`, `transaction_id`)
-) COMMENT='Paysys log';
+)
+  COMMENT = 'Paysys log';
 
-CREATE TABLE `paysys_main` (
-  `uid`         int(11) unsigned NOT NULL default '0',
-  `token`       tinytext,
-  `sum`         double(10,2) NOT NULL default '0.00',
-  `date`        date NOT NULL default '0000-00-00',
-  `paysys_id`   smallint(5) unsigned NOT NULL default '0',
-  `external_last_date` datetime NOT NULL default '0000-00-00 00:00:00',
-  `attempts`    smallint(2) NOT NULL default 0,
-  `closed`      smallint(1) NOT NULL DEFAULT 0,
-  UNIQUE  (`uid`,`paysys_id`)
-) COMMENT="Paysys user account";
+CREATE TABLE IF NOT EXISTS `paysys_main` (
+  `uid` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `token` TINYTEXT,
+  `sum` DOUBLE(10, 2) NOT NULL DEFAULT '0.00',
+  `date` DATE NOT NULL DEFAULT '0000-00-00',
+  `paysys_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `external_last_date` DATETIME NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+  `attempts` SMALLINT(2) NOT NULL DEFAULT 0,
+  `closed` SMALLINT(1) NOT NULL DEFAULT 0,
+  `external_user_ip` INT(11) UNSIGNED NOT NULL DEFAULT 0,
+  UNIQUE (`uid`, `paysys_id`)
+) COMMENT = 'Paysys user account';
 
-CREATE TABLE `paysys_terminals`(
-  `id`          int(11) unsigned NOT NULL auto_increment,
-  `type`        smallint(2) unsigned NOT NULL DEFAULT 0,
-  `status`      smallint(1) unsigned NOT NULL DEFAULT 0,
-  `location_id` int(11) unsigned NOT NULL DEFAULT 0,
-  `comment`     text ,
+CREATE TABLE IF NOT EXISTS `paysys_terminals` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `type` SMALLINT(2) UNSIGNED NOT NULL DEFAULT 0,
+  `status` SMALLINT(1) UNSIGNED NOT NULL DEFAULT 0,
+  `location_id` INT(11) UNSIGNED NOT NULL DEFAULT 0,
+  `comment` TEXT,
   UNIQUE KEY `id` (`id`)
-)COMMENT="Table for paysys terminals";
+) COMMENT = 'Table for paysys terminals';
+
+CREATE TABLE IF NOT EXISTS `paysys_terminals_types` (
+  `id` INT(3) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(40) NOT NULL DEFAULT '',
+  `comment` TEXT,
+  UNIQUE KEY `id` (`id`)
+) COMMENT = 'Table for paysys terminals types';
+
+CREATE TABLE IF NOT EXISTS `paysys_tyme_report` (
+  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `txn_id` BIGINT(20) UNSIGNED NOT NULL DEFAULT '0',
+  `date` DATETIME NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `user` VARCHAR(20) NOT NULL DEFAULT '',
+  `sum` DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
+  `terminal` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+  UNIQUE KEY `id` (`id`),
+  UNIQUE KEY `txn_id` (`txn_id`)
+)
+  COMMENT = 'Table for Tyme report';

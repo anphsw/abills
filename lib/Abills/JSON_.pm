@@ -8,7 +8,6 @@ package Abills::JSON_;
 
 use strict;
 our (
-  #@ISA, @EXPORT_OK, %EXPORT_TAGS,
   %FORM,
   %COOKIES,
   $index,
@@ -21,26 +20,9 @@ our (
   $CONFIG_TPL_SHOW,
 );
 
-#use base 'Exporter';
-#our $VERSION = 3.06;
-#
-#our @EXPORT = qw(
-#  %FORM
-#  %LIST_PARAMS
-#  %COOKIES
-#  $index
-#  $pages_qs
-#  $SORT
-#  $DESC
-#  $PG
-#  $PAGE_ROWS
-#  $SELF_URL
-#);
-
 my $debug;
 my %log_levels;
 my $IMG_PATH='';
-#my $row_number = 0;
 my $CONF;
 my @table_rows = ();
 
@@ -57,15 +39,13 @@ sub new {
   require Abills::HTML;
   Abills::HTML->import();
 
-  my $self = {};
+  my $self = { };
   bless($self, $class);
 
   if ($attr->{NO_PRINT}) {
     $self->{NO_PRINT} = 1;
   }
 
-  #%FORM      = form_parse();
-  #get_cookies();
   $self->{CHARSET} = (defined($attr->{CHARSET})) ? $attr->{CHARSET} : 'utf8';
 
   if ($attr->{language}) {
@@ -77,6 +57,8 @@ sub new {
   else {
     $self->{language} = $CONF->{default_language} || 'english';
   }
+
+  $self->{TYPE} = 'json' if (!$self->{TYPE});
 
   return $self;
 }
@@ -168,7 +150,9 @@ sub form_textarea {
 }
 
 #**********************************************************
-#
+=head2 form_select()
+
+=cut
 #**********************************************************
 sub form_select {
   my $self = shift;
@@ -189,8 +173,10 @@ sub form_select {
   if (defined($attr->{SEL_ARRAY})) {
     my $H = $attr->{SEL_ARRAY};
     my $i = 0;
+
     foreach my $v (@$H) {
       my $id = (defined($attr->{ARRAY_NUM_ID})) ? $i : $v;
+      $v =~ s/\n//g;
       push @sel_arr, "\"$id\" : \"$v\"";
       $i++;
     }
@@ -506,13 +492,16 @@ sub addtd {
   my @formed_rows   = ();
   my $select_present = ($self->{SELECT_ALL}) ? 1 : 0;
 
-  for (my $i=0; $i<=$#row; $i++) {
+  for (my $i=0; $i<=$#row+$select_present+1; $i++) {
     my $val = $row[$i+$select_present];
     if ($self->{FIELDS_IDS}) {
-      my $title_id = ($i+$select_present-1 < 0) ? 0 : $i+$select_present;
-      if ($self->{FIELDS_IDS}->[$i] && $self->{TABLE_TITLE}->[$title_id] && $self->{TABLE_TITLE}->[$title_id] ne '-' ) {
+      my $title_id = ($i+$select_present < 0) ? 0 : $i+$select_present;
+      if ($self->{FIELDS_IDS}->[$i] && $self->{TABLE_TITLE}->[$i] && $self->{TABLE_TITLE}->[$i] ne '-' ) {
         $val =~ s/[\n\r]/ /g;
         push @formed_rows, "\"$self->{FIELDS_IDS}->[$i]\" : \"$val\"";
+      }
+      else {
+
       }
     }
     else {
@@ -520,7 +509,7 @@ sub addtd {
     }
   }
 
-  push @{ $self->{table_rows} }, '{'. join(', ', @formed_rows) ."}";
+  push @{ $self->{table_rows} }, '{'. join(', ', @formed_rows) .'}';
 
   return \@formed_rows;
 }
@@ -779,14 +768,13 @@ sub pages {
 }
 
 #**********************************************************
-# Make data field
-# date_fld($base_name)
+=head2 date_fld2($base_name) - Make data field
+
+=cut
 #**********************************************************
 sub date_fld2 {
   my $self = shift;
   my ($base_name, $attr) = @_;
-
-  #my $MONTHES = $attr->{MONTHES};
 
   my ($sec, $min, $hour, $mday, $mon, $curyear, $wday, $yday, $isdst) = localtime(time);
 
@@ -861,12 +849,9 @@ sub element {
 }
 
 #**********************************************************
-# show tamplate
-# tpl_show
-#
-# template
-# variables_ref
-# atrr [EX_VARIABLES]
+=head2 tpl_show($tpl, $variables_ref, $attr) - show tamplate
+
+=cut
 #**********************************************************
 sub tpl_show {
   my $self = shift;
@@ -906,7 +891,11 @@ sub tpl_show {
     }
     elsif ($variables_ref->{$var}) {
       if ($variables_ref->{$var} !~ m/\{/g) {
-        push @val_arr, "\"$var\" : \"$variables_ref->{$var}\" ";
+        my $value = "\"$var\" : \"$variables_ref->{$var}\"";
+        if(! grep { $_ eq $value } @val_arr) {
+          push @val_arr, $value;
+        }
+        #push @val_arr, "\"-- $var\" : \"$variables_ref->{$var}\" ";
       }
       elsif ($variables_ref->{$var} =~ m/^\"TABLE\"/i) {
         push @val_arr, "\"$var\" : { $variables_ref->{$var} }";
@@ -918,7 +907,8 @@ sub tpl_show {
         push @val_arr, "\"__$var\" : { $variables_ref->{$var} }";
       }
       else {
-        push @val_arr, "\"_$var\" : $variables_ref->{$var}";
+        my $value = "\"_$var\" : $variables_ref->{$var}";
+        push @val_arr, $value;
       }
     }
   }
@@ -959,28 +949,6 @@ sub test {
 }
 
 #**********************************************************
-# letters_list();
-#**********************************************************
-sub letters_list {
-  my ($self, $attr) = @_;
-
-  if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $attr->{ID}) {
-    return "";
-  }
-
-  my $output = '';
-
-  if (defined($self->{NO_PRINT})) {
-    $self->{OUTPUT} .= $output;
-    return '';
-  }
-  else {
-    print $output;
-  }
-
-}
-
-#**********************************************************
 # Mark text
 #**********************************************************
 sub color_mark {
@@ -993,56 +961,11 @@ sub color_mark {
   return $output;
 }
 
-#**********************************************************
-# b();
-#**********************************************************
-sub b {
-  my ($self) = shift;
-  my ($text) = @_;
-
-  return $text;
-}
-
-#**********************************************************
-# b();
-#**********************************************************
-sub p {
-  my ($self) = shift;
-  my ($text) = @_;
-
-  return $text;
-}
-
-#**********************************************************
-# Break line
-#
-#**********************************************************
-sub br {
+sub menu_right {
   my $self = shift;
 
   return '';
 }
-
-#***********************************************************
-#
-#***********************************************************
-sub badge {
-	my $self = shift;
-  my ($text) = @_;
-	
-	return $text;
-}
-
-#**********************************************************
-# list item
-#**********************************************************
-sub li {
-	my $self = shift;
-  my ($item) = @_;
-
-  return $item;
-}
-
 
 #**********************************************************
 =head2 table_header($header, $attr) - Show table column  titles with wort derectives
@@ -1070,17 +993,6 @@ sub table_header {
 #  $header = "\"table_header\" : {\n". join(",\n", @header_arr) ." }\n";
 
   return $header;
-}
-
-#**********************************************************
-=head2 pre()
-
-=cut
-#**********************************************************
-sub pre {
-  my $self = shift;
-
-  return '';
 }
 
 #**********************************************************
@@ -1114,6 +1026,26 @@ sub fetch  {
 #**********************************************************
 sub short_info_panels_row{
   return '';
+}
+
+#**********************************************************
+=head2  AUTOLOAD Autoload secondary funtions
+
+=cut
+#**********************************************************
+sub AUTOLOAD {
+  our $AUTOLOAD;
+
+  return if ($AUTOLOAD =~ /::DESTROY$/);
+  my $function = $AUTOLOAD;
+
+  if($function =~ /table_header|progress_bar|/) {
+    return q{};
+  }
+
+  my ($self, $data) = @_;
+
+  return $data;
 }
 
 1

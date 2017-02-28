@@ -41,3 +41,4 @@ $lang{VERSION} = 'Версія';
 $lang{SELECT} = 'Вибрати';
 $lang{COMMAND}='Команда';
 $lang{ATTEMPTS}='Використань';
+$lang{TERMINAL}='Термінал';

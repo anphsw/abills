@@ -1,4 +1,4 @@
-CREATE TABLE `ashield_main` (
+CREATE TABLE IF NOT EXISTS `ashield_main` (
   `uid` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
   `gid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `status` TINYINT(2) UNSIGNED NOT NULL DEFAULT '0',
@@ -6,9 +6,10 @@ CREATE TABLE `ashield_main` (
   `expire` DATE NOT NULL,
   PRIMARY KEY (`uid`),
   UNIQUE KEY `uid` (`uid`)
-) COMMENT='Ashield users';
+)
+  COMMENT = 'Ashield users';
 
-CREATE TABLE `ashield_avd_log` (
+CREATE TABLE IF NOT EXISTS `ashield_avd_log` (
   `uid` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
   `state` TINYINT(2) UNSIGNED NOT NULL DEFAULT '0',
   `agentuuid` VARCHAR(36) NOT NULL DEFAULT '',
@@ -21,20 +22,22 @@ CREATE TABLE `ashield_avd_log` (
   `id` INTEGER(11) NOT NULL AUTO_INCREMENT,
   UNIQUE KEY `id` (`id`),
   UNIQUE KEY `station_action` (`uid`, `agentuuid`, `state`)
-) COMMENT='Ashield AV Desc Subscribes';
+)
+  COMMENT = 'Ashield AV Desc Subscribes';
 
 
-CREATE TABLE `ashield_tps` (
-  `id` smallint(6) unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(25) NOT NULL,
-  `payment_type` tinyint(1) unsigned NOT NULL DEFAULT '0',
-  `daily_payment` double(14,2) unsigned NOT NULL DEFAULT '0.00',
-  `monthly_payment` double(14,2) unsigned NOT NULL DEFAULT '0.00',
-  `grace_period` smallint(4) unsigned NOT NULL DEFAULT '0',
+CREATE TABLE IF NOT EXISTS `ashield_tps` (
+  `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(25) NOT NULL,
+  `payment_type` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
+  `daily_payment` DOUBLE(14, 2) UNSIGNED NOT NULL DEFAULT '0.00',
+  `monthly_payment` DOUBLE(14, 2) UNSIGNED NOT NULL DEFAULT '0.00',
+  `grace_period` SMALLINT(4) UNSIGNED NOT NULL DEFAULT '0',
   `drweb_id` VARCHAR(36) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
   UNIQUE KEY `id` (`id`),
   UNIQUE KEY `name` (`name`)
-) COMMENT='Ashield tarif plans';
+)
+  COMMENT = 'Ashield tarif plans';
 
 

@@ -3,11 +3,11 @@
         <input type=hidden name=UID value='%UID%'>
         <input type=hidden name=index value='$index'>
         <input type=hidden name=subf value='$FORM{subf}'>
-        <div class='panel panel-primary panel-form'>
-            <div class='panel-heading'>
+        <div class='box box-theme box-form'>
+            <div class='box-header with-border'>
                 _{FEES}_ _{TYPES}_
             </div>
-            <div class='panel-body'>
+            <div class='box-body'>
                 <div class='form-group'>
                     <label class='control-label col-md-3'>ID:</label>
                     <div class='col-md-9'>
@@ -33,7 +33,7 @@
                     </div>
                 </div>
             </div>
-            <div class='panel-footer'>
+            <div class='box-footer'>
                 <input type=submit class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
             </div>
         </div>

@@ -10,24 +10,24 @@ no strict 'vars';
 use warnings FATAL => 'all';
 use Abills::Defs;
 use Abills::Base qw(ip2int date_diff mk_unique_value convert in_array
-  days_in_month startup_files cfg2hash urlencode cmd);
+  days_in_month startup_files cfg2hash urlencode cmd check_time gen_time);
 use Abills::Filters;
+use Abills::Fetcher;
 use POSIX qw(strftime mktime);
-our $db;
 our Abills::HTML $html;
-our $admin;
-our $base_dir;
-our $added;
-our %permissions;
-our %menu_args;
-our %module;
-our %uf_menus;
-our %DATA_HASH;
-our %conf;
-our %lang;
-our %err_strs;
-
-#our $user_pi;
+our ($db,
+  $admin,
+  $base_dir,
+  $added,
+  %permissions,
+  %menu_args,
+  %module,
+  %uf_menus,
+  %DATA_HASH,
+  %conf,
+  %lang,
+  %err_strs
+);
 
 #**********************************************************
 =head2 load_pmodule($modulename, $attr); - Load perl module
@@ -99,6 +99,7 @@ else {
       HEADER      - Add Content-Type header
       SHOW_RETURN - Result to return
       language    - Language (Default: english)
+      RELOAD      - Reload module
 
   Returns:
     TRUE or FALSE
@@ -135,18 +136,22 @@ sub load_module {
     return 1;
   }
 
-  eval{ require "$module/webinterface" };
+  #if($attr->{RELOAD}) {
+  #  delete $INC{"$module/webinterface"};
+  #}
 
+  eval{ require "$module/webinterface" };
   if ($@) {
     print "Content-Type: text/html\n\n";
     print "Error: load module '$module'\n $!\n";
     print $@;
-
+    print "\n";
     print "INC: \n";
     print join(($html) ? $html->br() : "\n", @INC);
     if ($ENV{DEBUG}) {
       exit;
     }
+    #Abills::Base::show_hash(\%INC, { DELIMITER=> "\n"  });
     die;
   }
 
@@ -234,7 +239,12 @@ sub form_purchase_module {
       ERROR_IDS
       ID           - Error number
       SILENT_MODE  - Skip showin sql query for sql request
+      RIZE_ERROR   -
 
+  Returns:
+    TRUE - Error
+    FALSE
+Iptv/Trinity_tv.pm
 =cut
 #**********************************************************
 sub _error_show {
@@ -243,46 +253,56 @@ sub _error_show {
   my $module_name = $attr->{MODULE_NAME} || $module->{MODULE} || '';
   #my $id_prefix   = $attr->{ID_PREFIX}  || '';
   my $message     = ($attr->{MESSAGE}) ?  "$attr->{MESSAGE}\n" :  '';
+  my $errno       = $module->{errno};
 
-  if ($module->{errno}) {
-    if ($attr->{ERROR_IDS}->{$module->{errno}}) {
-      $html->message('err', "$module_name:$lang{ERROR}", $message . $attr->{ERROR_IDS}->{$module->{errno}});
+  if ($errno) {
+    if ($attr->{ERROR_IDS}->{$errno}) {
+      $html->message('err', "$module_name:$lang{ERROR}", $message . $attr->{ERROR_IDS}->{$errno});
     }
-    elsif ($module->{errno} == 15) {
+    elsif ($errno == 15) {
       $html->message('err', "$module_name:$lang{ERROR}", $message . " $lang{ERR_SMALL_DEPOSIT}", $attr);
+      return 1 if($attr->{RIZE_ERROR});
     }
-    elsif ($module->{errno} == 7) {
+    elsif ($errno == 7) {
       $html->message('err', "$module_name:$lang{ERROR}", $message . " $lang{EXIST}", $attr);
       return 1;
     }
-    elsif ($module->{errno} == 10) {
+    elsif ($errno == 10) {
       $html->message('err', "$module_name:$lang{ERROR}", $message . " $lang{ERR_WRONG_NAME}", $attr);
       return 1;
     }
-    elsif ($module->{errno} == 12) {
+    elsif ($errno == 12) {
       $html->message('err', "$module_name:$lang{ERROR}", $message . "$lang{ERR_WRONG_SUM}", $attr);
       return 1;
     }
-    elsif ($module->{errno} == 699) {
+    elsif ($errno == 699) {
       $html->message('err', "License $lang{ERROR}", "Update license ($module->{errstr})", { ID => '699' });
       return 1;
     }
-    elsif ($module->{errno} == 14) {
+    elsif ($errno == 14) {
       $html->message('err', "$module_name:$lang{ERROR}", $message . "$lang{BILLS} $lang{NOT_EXIST}", $attr);
       return 1;
     }
-    elsif ($module->{errno} == 2) {
-      $html->message('err', "$module_name:$lang{ERROR}", $message . "$lang{NOT_EXIST}", $attr);
+    elsif ($errno == 2) {
+      $html->message('err', "$module_name:$lang{ERROR}", $message . $lang{NOT_EXIST}, $attr);
       return 1;
     }
-    elsif ($module->{errno} == 3) {
-      $html->message('err', "$module_name:$lang{ERROR}", $message . "SQL Error: [$module->{errno}]\n",
+    elsif ($errno == 21) {
+      $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_PHONE} . (($conf{PHONE_FORMAT}) ? ' '.human_exp($conf{PHONE_FORMAT}) : q{}), $attr);
+      return 1;
+    }
+    elsif ($errno == 3) {
+      $html->message('err', "$module_name:$lang{ERROR}", $message . "SQL Error: [$errno]\n",
         {
          EXTRA => ($attr->{SILENT_MODE}) ? " [$module->{sql_errno}] " . $module->{sql_errstr} : $html->tpl_show(templates('form_show_hide'),
          {
-           CONTENT => "[$module->{sql_errno}] " . $module->{sql_errstr} . $html->br() . $html->br() . $html->pre($module->{sql_query}, { OUTPUT2RETURN => 1 }),
+           CONTENT => "[" . ($module->{sql_errno} || $errno || '') . "] "
+             . ($module->{sql_errstr} || $module->{errstr} || '')
+             . $html->br() . $html->br()
+             . (($module->{sql_query}) ? $html->pre($module->{sql_query}, { OUTPUT2RETURN => 1 }) : ''),
            NAME    => $lang{EXTRA},
            ID      => 'QUERIES',
+           PARAMS  => 'collapsed-box'
           },
          { OUTPUT2RETURN => 1 })
         }
@@ -290,8 +310,8 @@ sub _error_show {
       return 1;
     }
     else {
-      my $error = ( $err_strs{$module->{errno}}) ?  $err_strs{$module->{errno}} : ($module->{errstr} || q{});
-      $html->message('err', "$module_name:$lang{ERROR}", $message . "[$module->{errno}] $error", { ID => $attr->{ID} });
+      my $error = ( $err_strs{$errno}) ?  $err_strs{$errno} : ($module->{errstr} || q{});
+      $html->message('err', "$module_name:$lang{ERROR}", $message . "[$errno] $error", { ID => $attr->{ID} });
       return 1;
     }
   }
@@ -325,7 +345,7 @@ sub _function {
 
   if ($FORM{qrcode}) {
     #eval { do "main/Qrcode.pm" };
-    do "../../Abills/main/Qrcode.pm";
+    do "../../Abills/Control/Qrcode.pm";
     qr_make( $SELF_URL, { PARAMS => \%FORM } );
     if (! $@){
       qr_make( $SELF_URL, { PARAMS => \%FORM } );
@@ -337,14 +357,16 @@ sub _function {
   }
 
   my $function_name = $functions{ $index } || '';
+
   if (! $function_name) {
-    print "Content/type: text/html\n\n";
+    print "Content-type: text/html\n\n";
     print 'Function index: '. ($index || q{}) .' Function not exist!';
     return 0;
   }
   elsif(! defined( &{ $function_name } )) {
-    print "Content/type: text/html\n\n";
+    print "Content-type: text/html\n\n";
     print "function: '". $function_name ."' defined in config but not exists\n\n";
+    print "Module:". (($module{$index}) ? $module{$index} : '' );
     exit;
   }
 
@@ -459,23 +481,29 @@ sub cross_modules_call {
   }
 
   #Default silent mode (off)
-  our $silent;
+  our $silent=0;
 
   if (defined($attr->{SILENT})) {
     $silent=$attr->{SILENT};
   }
 
+  my $check_time=0;
   if ($attr->{DEBUG}) {
     print "Function:  $function_sufix Timout: $timeout Silent: ". ($silent || 'no') ."<br>\n";
+    $check_time = check_time();
   }
 
   my %full_return  = ();
   my @skip_modules = ();
   my $SAVEOUT;
-  my $output_redirect = ($conf{CROSS_MODULES_DEBUG}) ? $conf{CROSS_MODULES_DEBUG} : '/dev/null';
+  my $output_redirect = '/dev/null';
 
   eval {
     if ($silent) {
+      if ($conf{CROSS_MODULES_DEBUG}) {
+        $output_redirect = $conf{CROSS_MODULES_DEBUG};
+      }
+
       #disable stdout output
       open($SAVEOUT, ">&", \*STDOUT) or die "Save STDOUT: $!";
       #Reset out
@@ -508,6 +536,11 @@ sub cross_modules_call {
       my $return;
       if (defined(&$function)) {
         $return = &{ \&$function }($attr);
+      }
+
+      if($attr->{DEBUG} && $check_time) {
+        print gen_time($check_time) . " <br>\n ";
+        $check_time = check_time();
       }
 
       $full_return{$mod} = $return;
@@ -546,10 +579,9 @@ sub get_function_index {
   my ($function_name, $attr) = @_;
   my $function_index = 0;
 
-  foreach my $k (keys %functions) {
+  foreach my $k (sort keys (%functions)) {
     my $v = $functions{$k};
-
-    if ($v eq "$function_name") {
+    if ($v eq $function_name && $k =~ /^\d+$/) {
       $function_index = $k;
       if ($attr->{ARGS} && defined($menu_args{$k})) {
         if ($attr->{ARGS} eq 'empty' && $menu_args{$k} eq '') {
@@ -558,6 +590,10 @@ sub get_function_index {
           next;
         }
       }
+      elsif(! $attr->{ARGS} && defined($menu_args{$k}) ) {
+        next;
+      }
+
       last;
     }
   }
@@ -622,20 +658,23 @@ sub get_period_dates {
 
   Arguments:
     $attr
-      SERVICE_NAME  - Service name
+      SERVICE_NAME       - Service name
+      TEMPLATE_KEY_NAME  - name for %conf key (DV_FEES_DSC)
 
 =cut
 #**********************************************************
 sub fees_dsc_former {
   my ($attr)=@_;
 
-  $conf{DV_FEES_DSC}='%SERVICE_NAME%: %FEES_PERIOD_MONTH%%FEES_PERIOD_DAY% %TP_NAME% (%TP_ID%)%EXTRA%%PERIOD%' if (! $conf{DV_FEES_DSC});
-
+  my $template_key_name = $attr->{TEMPLATE_KEY_NAME} || 'DV_FEES_DSC';
+    
   if (! $attr->{SERVICE_NAME}) {
     $attr->{SERVICE_NAME}='Internet';
   }
 
-  my $text = $conf{DV_FEES_DSC};
+  my $text = (exists $conf{$template_key_name} && $conf{$template_key_name})
+               ? $conf{$template_key_name}
+               : '%SERVICE_NAME%: %FEES_PERIOD_MONTH%%FEES_PERIOD_DAY% %TP_NAME% (%TP_ID%)%EXTRA%%PERIOD%';
 
   while ($text =~ /\%(\w+)\%/g) {
     my $var       = $1;
@@ -681,11 +720,12 @@ sub service_get_month_fee {
 
   require Finance;
   Finance->import();
-  my $fees     = Finance->fees($Service->{db}, $admin, \%conf);
-  my $payments = Finance->payments($Service->{db}, $admin, \%conf);
-  my $users    = Users->new($Service->{db}, $admin, \%conf);
+  my $Fees     = Finance->fees($Service->{db}, $admin, \%conf);
+  my $Payments = Finance->payments($Service->{db}, $admin, \%conf);
+  my $Users    = Users->new($Service->{db}, $admin, \%conf);
 
   $conf{START_PERIOD_DAY} = 1 if (!$conf{START_PERIOD_DAY});
+  $DATE=$attr->{DATE} if ($attr->{DATE});
 
   my %total_sum = (
     ACTIVATE  => 0,
@@ -693,7 +733,10 @@ sub service_get_month_fee {
   );
   my $service_name = $attr->{SERVICE_NAME} || 'Internet';
 
-  $users = $user if ($user->{UID});
+  $Users = $user if ($user->{UID});
+  if (! $Users->{BILL_ID}) {
+    $user  = $Users->info($Service->{UID});
+  }
 
   #Make bonus
   if ($conf{DV_BONUS} && $service_name eq 'Internet') {
@@ -719,21 +762,21 @@ sub service_get_month_fee {
       }
 
       if ($bonus_sum > 0) {
-        if (!$users->{BILL_ID}) {
-          $users->info($Service->{UID});
+        if (!$Users->{BILL_ID}) {
+          $Users->info($Service->{UID});
         }
-        my $u = $users;
-        $u->{BILL_ID} = ($Bonus_rating->{EXT_BILL_ACCOUNT}) ? $users->{EXT_BILL_ID} : $users->{BILL_ID};
+        my $u = $Users;
+        $u->{BILL_ID} = ($Bonus_rating->{EXT_BILL_ACCOUNT}) ? $Users->{EXT_BILL_ID} : $Users->{BILL_ID};
 
-        $payments->add($u,
+        $Payments->add($u,
           {
             SUM      => $bonus_sum,
             METHOD   => 4,
             DESCRIBE => "$lang{BONUS}: $lang{TARIF_PLAN}: $Service->{TP_ID}",
           }
         );
-        if ($payments->{errno}) {
-          _error_show($payments) if (!$attr->{QUITE});
+        if ($Payments->{errno}) {
+          _error_show($Payments) if (!$attr->{QUITE});
         }
         else {
           $html->message('info', $lang{INFO}, "$lang{BONUS}: $bonus_sum") if (!$attr->{QUITE});
@@ -743,17 +786,14 @@ sub service_get_month_fee {
   }
 
   my %FEES_METHODS = %{ get_fees_types() };
-  if (! $users->{BILL_ID}) {
-    $user  = $users->info($Service->{UID});
-  }
   #Get active price
   if ($Service->{TP_INFO}->{ACTIV_PRICE} && $Service->{TP_INFO}->{ACTIV_PRICE} > 0) {
     my $date  = ($user->{ACTIVATE} ne '0000-00-00') ? $user->{ACTIVATE} : $DATE;
     my $time  = ($user->{ACTIVATE} ne '0000-00-00') ? '00:00:00' : $TIME;
 
     if (!$Service->{OLD_STATUS} || $Service->{OLD_STATUS} == 2) {
-      $fees->take(
-        $users,
+      $Fees->take(
+        $Users,
         $Service->{TP_INFO}->{ACTIV_PRICE},
         {
           DESCRIBE => '$lang{ACTIVATE_TARIF_PLAN}',
@@ -767,23 +807,21 @@ sub service_get_month_fee {
 
   my $message = '';
   #Current Month
-
-  $DATE=$attr->{DATE} if ($attr->{DATE});
-
   my ($y, $m, $d)   = split(/-/, $DATE, 3);
   my $days_in_month = days_in_month({ DATE => $DATE });
 
   my $TIME = "00:00:00";
   my %FEES_PARAMS = (
-              DATE   => "$DATE $TIME",
-              METHOD => ($Service->{TP_INFO}->{FEES_METHOD}) ? $Service->{TP_INFO}->{FEES_METHOD} : 1
-            );
+    DATE   => "$DATE $TIME",
+    METHOD => ($Service->{TP_INFO}->{FEES_METHOD}) ? $Service->{TP_INFO}->{FEES_METHOD} : 1
+  );
 
-  if($Service->{PERSONAL_TP} && $Service->{PERSONAL_TP} > 0) {
-    $Service->{TP_INFO}->{MONTH_FEE}=$Service->{PERSONAL_TP};
-  }
+  if ($attr->{SHEDULER} && $Users->{ACTIVATE} ne '0000-00-00') {
+    if($Service->{PERSONAL_TP} && $Service->{PERSONAL_TP} > 0) {
+      $Service->{TP_INFO}->{MONTH_FEE}=$Service->{PERSONAL_TP};
+      $Service->{TP_INFO_OLD}->{MONTH_FEE}=$Service->{PERSONAL_TP};
+    }
 
-  if ($attr->{SHEDULER} && $users->{ACTIVATE} ne '0000-00-00') {
     undef $user;
     return \%total_sum;
   }
@@ -809,7 +847,7 @@ sub service_get_month_fee {
         return \%total_sum;
       }
 
-      if ($users->{ACTIVATE} eq '0000-00-00') {
+      if ($Users->{ACTIVATE} eq '0000-00-00') {
         if ($d != $conf{START_PERIOD_DAY}) {
           $rest_days     = $days_in_month - $d + 1;
           $rest_day_sum2 = (! $Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION} && $Service->{TP_INFO_OLD}->{MONTH_FEE}) ? $Service->{TP_INFO_OLD}->{MONTH_FEE} /  $days_in_month * $rest_days : 0;
@@ -824,32 +862,36 @@ sub service_get_month_fee {
       }
       else {
         #If
-        if ( $attr->{SHEDULER} && date_diff($users->{ACTIVATE}, $DATE) >= 31 ) {
+        if ( $attr->{SHEDULER} && date_diff($Users->{ACTIVATE}, $DATE) >= 31 ) {
           if ($attr->{SHEDULER}) {
             undef $user;
           }
 
           return \%total_sum;
         }
-        elsif (! $attr->{SHEDULER} && date_diff($users->{ACTIVATE}, $DATE) < 31) {
-          $rest_days     = 30 - date_diff($users->{ACTIVATE}, $DATE);
-          $rest_day_sum2 = (! $Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION}) ? $Service->{TP_INFO_OLD}->{MONTH_FEE} /  30 * $rest_days : 0;
+        elsif (! $attr->{SHEDULER} && date_diff($Users->{ACTIVATE}, $DATE) < 31) {
+          $rest_days     = 30 - date_diff($Users->{ACTIVATE}, $DATE);
+          if($Service->{TP_INFO_OLD}->{MONTH_FEE}) {
+            $rest_day_sum2 = (!$Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION} && $rest_days > 0) ? $Service->{TP_INFO_OLD}->{MONTH_FEE} / 30 * $rest_days : 0;
+          }
+          else {
+            $rest_day_sum2 = 0;
+          }
+
           $sum           = $rest_day_sum2;
         }
       }
 
       #Compensation
       if ($sum > 0) {
-        $payments->add($users,
-            {
-             SUM      => abs($sum),
-             METHOD   => 8,
-             DESCRIBE => "$lang{TARIF_PLAN}: $Service->{TP_INFO_OLD}->{NAME} ($Service->{TP_INFO_OLD}->{ID}) ($lang{DAYS}: $rest_days)",
-            }
-        );
+        $Payments->add($Users, {
+          SUM      => abs($sum),
+          METHOD   => 8,
+          DESCRIBE => "$lang{TARIF_PLAN}: $Service->{TP_INFO_OLD}->{NAME} ($Service->{TP_INFO_OLD}->{ID}) ($lang{DAYS}: $rest_days)",
+        });
 
-        if ($payments->{errno}) {
-          _error_show($payments) if (!$attr->{QUITE});
+        if ($Payments->{errno}) {
+          _error_show($Payments) if (!$attr->{QUITE});
         }
         else {
           $message .= "$lang{RECALCULATE}\n$lang{RETURNED}: ". sprintf("%.2f", abs($sum))."\n" if (!$attr->{QUITE});
@@ -869,15 +911,15 @@ sub service_get_month_fee {
     }
 
     my %FEES_DSC = (
-              SERVICE_NAME    => $service_name,
-              MODULE          => $service_name.':',
-              TP_ID           => $Service->{TP_INFO}->{ID},
-              TP_NAME         => $Service->{TP_INFO}->{NAME} || '',
-              FEES_PERIOD_DAY => $lang{MONTH_FEE_SHORT},
-              FEES_METHOD     => ($Service->{TP_INFO}->{FEES_METHOD} && $FEES_METHODS{$Service->{TP_INFO}->{FEES_METHOD}}) ? $FEES_METHODS{$Service->{TP_INFO}->{FEES_METHOD}} : 0,
-            );
+      SERVICE_NAME    => $service_name,
+      MODULE          => $service_name.':',
+      TP_ID           => $Service->{TP_INFO}->{ID},
+      TP_NAME         => $Service->{TP_INFO}->{NAME} || '',
+      FEES_PERIOD_DAY => $lang{MONTH_FEE_SHORT},
+      FEES_METHOD     => ($Service->{TP_INFO}->{FEES_METHOD} && $FEES_METHODS{$Service->{TP_INFO}->{FEES_METHOD}}) ? $FEES_METHODS{$Service->{TP_INFO}->{FEES_METHOD}} : 0,
+    );
 
-    my ($active_y, $active_m, $active_d) = split(/-/, $Service->{ACCOUNT_ACTIVATE} || $users->{ACTIVATE}, 3);
+    my ($active_y, $active_m, $active_d) = split(/-/, $Service->{ACCOUNT_ACTIVATE} || $Users->{ACTIVATE} || q{}, 3);
 
     if (int("$y$m$d") < int("$active_y$active_m$active_d")) {
       if ($attr->{SHEDULER}) {
@@ -891,7 +933,7 @@ sub service_get_month_fee {
       $FEES_DSC{EXTRA} = " $lang{MONTH_ALIGNMENT},";
 
       if ($Service->{ACCOUNT_ACTIVATE} && $Service->{ACCOUNT_ACTIVATE} ne '0000-00-00') {
-        $days_in_month = ($active_m != 2 ? (($active_m % 2) ^ ($active_m > 7)) + 30 : (!($active_y % 400) || !($active_y % 4) && ($active_y % 25) ? 29 : 28));
+        $days_in_month = days_in_month({ DATE => "$active_y-$active_m" });
         $d = $active_d;
       }
 
@@ -905,6 +947,7 @@ sub service_get_month_fee {
         undef $user;
       }
 
+      $html->message('info', $lang{INFO}, $message) if ($html && !$attr->{QUITE});
       return \%total_sum
     }
 
@@ -923,8 +966,8 @@ sub service_get_month_fee {
     }
 
     #Make reduction
-    if ($users->{REDUCTION} && $users->{REDUCTION} > 0 && $Service->{TP_INFO}->{REDUCTION_FEE}) {
-      $sum = $sum * (100 - $users->{REDUCTION}) / 100;
+    if ($Users->{REDUCTION} && $Users->{REDUCTION} > 0 && $Service->{TP_INFO}->{REDUCTION_FEE}) {
+      $sum = $sum * (100 - $Users->{REDUCTION}) / 100;
     }
 
     if ($Service->{TP_INFO}->{ABON_DISTRIBUTION}) {
@@ -956,79 +999,90 @@ sub service_get_month_fee {
     for (my $i = 0 ; $i <= $periods ; $i++) {
 
       if ($m > 12) {
-        $m        = 1;
+        $m = 1;
         $active_y = $active_y + 1;
       }
 
       $m = sprintf("%.2d", $m);
 
-      $days_in_month = ($m != 2 ? (($m % 2) ^ ($m > 7)) + 30 : (!($active_y % 400) || !($active_y % 4) && ($active_y % 25) ? 29 : 28));
+      $days_in_month = days_in_month({ DATE => "$active_y-$m" });
       if ($i > 0) {
         $FEES_DSC{EXTRA} = '';
-        $message         = '';
-        if ($users->{REDUCTION} > 0 && $Service->{TP_INFO}->{REDUCTION_FEE}) {
-          $sum = $Service->{TP_INFO}->{MONTH_FEE} * (100 - $users->{REDUCTION}) / 100;
+        $message = '';
+        if ($Users->{REDUCTION} > 0 && $Service->{TP_INFO}->{REDUCTION_FEE}) {
+          $sum = $Service->{TP_INFO}->{MONTH_FEE} * (100 - $Users->{REDUCTION}) / 100;
         }
         else {
           $sum = $Service->{TP_INFO}->{MONTH_FEE};
         }
 
         if ($Service->{ACCOUNT_ACTIVATE}) {
-          $DATE          = $Service->{ACCOUNT_ACTIVATE};
-          my $end_period = POSIX::strftime('%Y-%m-%d', localtime((POSIX::mktime(0, 0, 0, $active_d, ($m - 1), ($active_y - 1900), 0, 0, 0) + 30 * 86400)));
+          $DATE = $Service->{ACCOUNT_ACTIVATE};
+          my $end_period = POSIX::strftime('%Y-%m-%d',
+            localtime((POSIX::mktime(0, 0, 0, $active_d, ($m - 1), ($active_y - 1900), 0, 0, 0) + 30 * 86400)));
           $FEES_DSC{PERIOD} = "($active_y-$m-$active_d-$end_period)";
-          $users->change(
+          $Users->change(
             $Service->{UID},
             {
               ACTIVATE => $DATE,
               UID      => $Service->{UID}
             }
           );
-          $Service->{ACCOUNT_ACTIVATE} = POSIX::strftime('%Y-%m-%d', localtime((POSIX::mktime(0, 0, 0, $active_d, ($m - 1), ($active_y - 1900), 0, 0, 0) + 31 * 86400)));
+          $Service->{ACCOUNT_ACTIVATE} = POSIX::strftime('%Y-%m-%d',
+            localtime((POSIX::mktime(0, 0, 0, $active_d, ($m - 1), ($active_y - 1900), 0, 0, 0) + 31 * 86400)));
         }
         else {
-          $DATE             = "$active_y-$m-01";
+          $DATE = "$active_y-$m-01";
           $FEES_DSC{PERIOD} = "($active_y-$m-01-$active_y-$m-$days_in_month)";
         }
       }
       elsif ($Service->{ACCOUNT_ACTIVATE} && $Service->{ACCOUNT_ACTIVATE} ne '0000-00-00') {
-        my $end_period = POSIX::strftime('%Y-%m-%d', localtime((POSIX::mktime(0, 0, 0, $active_d, ($m - 1), ($active_y - 1900), 0, 0, 0) + 30 * 86400)));
-        $Service->{ACCOUNT_ACTIVATE} = ($Service->{TP_INFO}->{PERIOD_ALIGNMENT}) ? undef : POSIX::strftime('%Y-%m-%d', localtime((POSIX::mktime(0, 0, 0, $active_d, ($m - 1), ($active_y - 1900), 0, 0, 0) + 31 * 86400)));
+        my $end_period = POSIX::strftime('%Y-%m-%d',
+          localtime((POSIX::mktime(0, 0, 0, $active_d, ($m - 1), ($active_y - 1900), 0, 0, 0) + 30 * 86400)));
+        $Service->{ACCOUNT_ACTIVATE} = ($Service->{TP_INFO}->{PERIOD_ALIGNMENT}) ? undef : POSIX::strftime('%Y-%m-%d',
+            localtime((POSIX::mktime(0, 0, 0, $active_d, ($m - 1), ($active_y - 1900), 0, 0, 0) + 31 * 86400)));
 
         if ($Service->{TP_INFO}->{PERIOD_ALIGNMENT}) {
-          $users->change(
+          $Users->change(
             $Service->{UID},
             {
               ACTIVATE => '0000-00-00',
               UID      => $Service->{UID}
             }
           );
-          $end_period  = "$y-$m-$days_in_month";
+          $end_period = "$y-$m-$days_in_month";
         }
         # old status "Too small deposit"
         elsif ($Service->{OLD_STATUS} && $Service->{OLD_STATUS} == 5) {
-          $users->change(
+          $Users->change(
             $Service->{UID},
             {
-              ACTIVATE => ($conf{DV_CURDATE_ACTIVATE}) ? $DATE : $Service->{ACCOUNT_ACTIVATE}, #"$active_y-$m-$active_d",
+              ACTIVATE => ($conf{DV_CURDATE_ACTIVATE}) ? $DATE : $Service->{ACCOUNT_ACTIVATE},
+              #"$active_y-$m-$active_d",
               UID      => $Service->{UID}
             }
           );
 
           if ($conf{DV_CURDATE_ACTIVATE}) {
-            ($active_y, $active_m, $active_d)=split(/-/, $DATE);
+            ($active_y, $active_m, $active_d) = split(/-/, $DATE);
+            $end_period = POSIX::strftime('%Y-%m-%d',
+              localtime((POSIX::mktime(0, 0, 0, $active_d, ($active_m - 1), ($active_y - 1900), 0, 0,
+                0) + 30 * 86400)));
+            $m = $active_m;
           }
           else {
-            ($active_y, $active_m, $active_d)=split(/-/, $Service->{ACCOUNT_ACTIVATE});
-            $end_period = POSIX::strftime('%Y-%m-%d', localtime((POSIX::mktime(0, 0, 0, $active_d, ($active_m - 1), ($active_y - 1900), 0, 0, 0) + 30 * 86400)));
+            ($active_y, $active_m, $active_d) = split(/-/, $Service->{ACCOUNT_ACTIVATE});
+            $end_period = POSIX::strftime('%Y-%m-%d',
+              localtime((POSIX::mktime(0, 0, 0, $active_d, ($active_m - 1), ($active_y - 1900), 0, 0,
+                0) + 30 * 86400)));
             $m = $active_m;
           }
         }
         else {
           $DATE = "$active_y-$m-$active_d";
-          if( in_array($Service->{OLD_STATUS}, [1,3]) ) {
+          if (in_array($Service->{OLD_STATUS}, [ 1, 3 ])) {
             $DATE = strftime("%Y-%m-%d", localtime(time));
-            $users->change(
+            $Users->change(
               $Service->{UID},
               {
                 ACTIVATE => $DATE,
@@ -1041,32 +1095,39 @@ sub service_get_month_fee {
         $FEES_DSC{PERIOD} = "($active_y-$m-$active_d-$end_period)";
       }
       else {
-        $days_in_month = ($m != 2 ? (($m % 2) ^ ($m > 7)) + 30 : (!($y % 400) || !($y % 4) && ($y % 25) ? 29 : 28));
+        $days_in_month = days_in_month({ DATE => "$y-$m" });
         my $start_date = ($Service->{TP_INFO}->{PERIOD_ALIGNMENT}) ? (($Service->{ACCOUNT_ACTIVATE} && $Service->{ACCOUNT_ACTIVATE} ne '0000-00-00') ? $Service->{ACCOUNT_ACTIVATE} : $DATE) : "$y-$m-01";
         $FEES_DSC{PERIOD} = ($Service->{TP_INFO}->{ABON_DISTRIBUTION}) ? '' : "($start_date-$y-$m-$days_in_month)";
       }
 
       $FEES_PARAMS{DESCRIBE} = fees_dsc_former(\%FEES_DSC);
-      $FEES_PARAMS{DESCRIBE}.= $attr->{EXT_DESCRIBE} if ($attr->{EXT_DESCRIBE});
-      $message              .= $FEES_PARAMS{DESCRIBE};
+      $FEES_PARAMS{DESCRIBE} .= $attr->{EXT_DESCRIBE} if ($attr->{EXT_DESCRIBE});
+      $message .= $FEES_PARAMS{DESCRIBE};
 
-      if ($conf{EXT_BILL_ACCOUNT}) {
-        if ($user->{EXT_BILL_DEPOSIT} < $sum && $user->{MAIN_BILL_ID}) {
-          $sum = $sum - $user->{EXT_BILL_DEPOSIT};
-          $fees->take($users, $user->{EXT_BILL_DEPOSIT}, \%FEES_PARAMS);
-          $user->{BILL_ID}      = $user->{MAIN_BILL_ID};
-          $user->{MAIN_BILL_ID} = undef;
-        }
+      if ($debug > 1) {
+        print "SUM: $sum DESCRIBE: $FEES_PARAMS{DESCRIBE}\n";
       }
 
-      if ($sum > 0) {
-        $fees->take($users, $sum, \%FEES_PARAMS);
-        $total_sum{MONTH_FEE} += $sum;
-        if ($fees->{errno}) {
-          _error_show($fees) if (!$attr->{QUITE});
+      if ($debug < 6) {
+        if ($conf{EXT_BILL_ACCOUNT}) {
+          if ($user->{EXT_BILL_DEPOSIT} < $sum && $user->{MAIN_BILL_ID}) {
+            $sum = $sum - $user->{EXT_BILL_DEPOSIT};
+            $Fees->take($Users, $user->{EXT_BILL_DEPOSIT}, \%FEES_PARAMS);
+            $user->{BILL_ID} = $user->{MAIN_BILL_ID};
+            $user->{MAIN_BILL_ID} = undef;
+          }
         }
-        else {
-          $html->message('info', $lang{INFO}, $message. "\n $lang{SUM}: ". sprintf("%.2f", $sum)) if ($html && !$attr->{QUITE});
+
+        if ($sum > 0) {
+          $Fees->take($Users, $sum, \%FEES_PARAMS);
+          $total_sum{MONTH_FEE} += $sum;
+          if ($Fees->{errno}) {
+            _error_show($Fees) if (!$attr->{QUITE});
+          }
+          else {
+            $html->message('info', $lang{INFO},
+              $message."\n $lang{SUM}: ".sprintf("%.2f", $sum)) if ($html && !$attr->{QUITE});
+          }
         }
       }
 
@@ -1074,17 +1135,19 @@ sub service_get_month_fee {
     }
   }
 
-  my $external_cmd = '_EXTERNAL_CMD';
-  if ($service_name eq 'Internet') {
-    $external_cmd = 'DV'.$external_cmd;
-  }
-  else {
-    $external_cmd = uc($service_name).$external_cmd;
-  }
+  if($debug < 6) {
+    my $external_cmd = '_EXTERNAL_CMD';
+    if ($service_name eq 'Internet') {
+      $external_cmd = 'DV'.$external_cmd;
+    }
+    else {
+      $external_cmd = uc($service_name).$external_cmd;
+    }
 
-  if ($conf{$external_cmd}) {
-    if (!_external($conf{$external_cmd}, { %FORM, %$users, %$Service, %$attr })) {
-      print "Error: external cmd '$conf{$external_cmd}'\n";
+    if ($conf{$external_cmd}) {
+      if (!_external($conf{$external_cmd}, { %FORM, %$Users, %$Service, %$attr })) {
+        print "Error: external cmd '$conf{$external_cmd}'\n";
+      }
     }
   }
 
@@ -1126,7 +1189,7 @@ sub search_link {
     $ext_link .=  '&'. "$params->[1]=". $val;
   }
 
-  my $result = $html->button( $attr->{LINK_NAME} || $val , "index=". get_function_index($params->[0]) . "&search_form=1&search=1".$ext_link );
+  my $result = $html->button($attr->{LINK_NAME} || $val , "index=". get_function_index($params->[0]) . "&search_form=1&search=1".$ext_link );
 
   return $result;
 }
@@ -1204,12 +1267,13 @@ sub result_row_former {
   Arguments:
     $attr
       DEFAULT_FIELDS  - Default fields
-      INPUT_DATA      - object
-      FUNCTION        - object function name
-      LIST            - get input date from list (array_hash)
-      BASE_FIELDS     - count of default field for list
+      HIDDEN_FIELDS   - Requested but not showed in HTML table ('FIELD1,FIELD2')
+      INPUT_DATA      - DB object
+      FUNCTION        - object list function name
+      LIST            - get input data from list (array_hash)
+      BASE_FIELDS     - count of default field for list ( Show first %BASE_FIELDS% $search_columns fields )
 
-      DATAHASH        - get input date from json parse hash
+      DATAHASH        - get input data from json parsed hash
       BASE_PREFIX     - Base prefix for data hash
 
       FUNCTION_FIELDS - function field forming
@@ -1218,8 +1282,8 @@ sub result_row_former {
          status  - status field
          del     - del field
       STATUS_VALS - Value for status fields (status,disable)
-      EXT_TITLES  - Make extra title names and gum menu (hash)
-        [ object_name => translate ]
+      EXT_TITLES  - Translations for table header ( Necessary for column selection modal window)
+        [ object_name => 'translation' ]
       SKIP_USER_TITLE - don\'t show user titles in gum menu
 
       MAKE_ROWS   - Show result table
@@ -1227,12 +1291,11 @@ sub result_row_former {
       FILTER_COLS - Use function filter for field
         filter_function:params:params:...
       SELECT_VALUE- Select value for field
-      MULTISELECT - multiselect column
+      MULTISELECT - multiselect column ( Will add checkbox for every row string 'id:line_key_for_value_name:form_id' )
         [ id => value ]
 
       SKIP_PAGES  - Not show table pages
       TABLE       - Table information (HASH)
-        width
         caption
         cols_align
         qs
@@ -1240,16 +1303,17 @@ sub result_row_former {
         ID
         EXPORT
         MENU
-      TOTAL         - Show table totals
+      TOTAL         - Show table with totals
+                      Multi total
+                      $val_id:$name;$val_id:$name
       SHOW_MORE_THEN- Show table when rows more then SHOW_MORE_THEN
 
-      MAP         - Make map result
+      MAP         - Make map tab
       MAP_FIELDS  - Map fields
       MAP_ICON    - Icons for map points
 
-      CHARTS      - Make charts. Columns coma delimeting for charts forming
-      CHARTS_XTEXT- Charts x text
-
+      CHARTS      - Make charts. Coma separated column names to make chart from
+      CHARTS_XTEXT- Charts x axis text
       OUTPUT2RETURN - Output to return
 
   Returns:
@@ -1258,46 +1322,63 @@ sub result_row_former {
     $list    - result array list
 
   Examples:
+    http://abills.net.ua/wiki/doku.php/abills:docs:development:modules:ru#result_former
 
 =cut
 #**********************************************************
 sub result_former {
-  my ($attr)=@_;
+  my ($attr) = @_;
 
   my @cols = ();
 
   if ($FORM{MAP}) {
-    if($attr->{MAP_FIELDS}) {
+    if ($attr->{MAP_FIELDS}) {
       $attr->{DEFAULT_FIELDS} = $attr->{MAP_FIELDS};
     }
-    $LIST_PARAMS{'LOCATION_ID'}='_SHOW';
-    $LIST_PARAMS{'PAGE_ROWS'}=1000001;
+    $LIST_PARAMS{'LOCATION_ID'} = '_SHOW';
+    $LIST_PARAMS{'PAGE_ROWS'} = 1000001;
   }
 
-  if($FORM{del_cols}) {
-    $admin->settings_del($attr->{TABLE}->{ID});
-    if ($attr->{DEFAULT_FIELDS}){
-      $attr->{DEFAULT_FIELDS}=~s/[\n ]+//g;
+  if ($FORM{del_cols}) {
+    $admin->settings_del( $attr->{TABLE}->{ID} );
+    if ($attr->{DEFAULT_FIELDS}) {
+      $attr->{DEFAULT_FIELDS} =~ s/[\n ]+//g;
       @cols = split(/,/, $attr->{DEFAULT_FIELDS});
     }
   }
   elsif ($FORM{show_columns}) {
     #print $FORM{del_cols};
     @cols = split(/,\s?/, $FORM{show_columns});
-    $admin->settings_add({
+    if($FORM{show_cols}) {
+      $admin->settings_add({
         SETTING => $FORM{show_columns},
         OBJECT  => $attr->{TABLE}->{ID}
       });
+    }
   }
   else {
-    $admin->settings_info($attr->{TABLE}->{ID});
-    if ($admin->{TOTAL} == 0 && $attr->{DEFAULT_FIELDS}){
-      $attr->{DEFAULT_FIELDS}=~s/[\n ]+//g;
+    $admin->settings_info( $attr->{TABLE}->{ID} );
+    if ($admin->{TOTAL} == 0 && $attr->{DEFAULT_FIELDS}) {
+      $attr->{DEFAULT_FIELDS} =~ s/[\n ]+//g;
       @cols = split(/,/, $attr->{DEFAULT_FIELDS});
     }
     else {
-      if ($admin->{SETTING}){
+      if ($admin->{SETTING}) {
         @cols = split( /, /, $admin->{SETTING} );
+      }
+    }
+  }
+
+  my @hidden_fields = ();
+  if ($attr->{HIDDEN_FIELDS}) {
+    @hidden_fields = split(/,/, $attr->{HIDDEN_FIELDS});
+    for(my $i=0; $i<=$#hidden_fields; $i++) {
+      my $fld = $hidden_fields[$i];
+      if(! in_array($fld, \@cols)) {
+        push @cols, $fld;
+      }
+      else {
+        delete $hidden_fields[$i];
       }
     }
   }
@@ -1305,6 +1386,17 @@ sub result_former {
   foreach my $line (@cols) {
     if (! defined($LIST_PARAMS{$line}) || $LIST_PARAMS{$line} eq '') {
       $LIST_PARAMS{$line}='_SHOW';
+    }
+  }
+
+  if ($attr->{APPEND_FIELDS}){
+    my @arr = split(/,/, $attr->{APPEND_FIELDS});
+    foreach my $line (@arr) {
+      if (!in_array($line, \@cols)) {
+        if (! defined($LIST_PARAMS{$line}) || $LIST_PARAMS{$line} eq '') {
+          $LIST_PARAMS{$line}='_SHOW';
+        }
+      }
     }
   }
   my $data = $attr->{INPUT_DATA};
@@ -1335,6 +1427,20 @@ sub result_former {
     my @header_arr = ("$lang{MAIN}:index=$index".$attr->{TABLE}->{qs},
                       "$lang{MAP}:index=$index&&MAP=1".$attr->{TABLE}->{qs}
                      );
+    my $exec_function;
+    if( $attr->{EXTRA_TABS}) {
+      foreach my $name ( keys %{ $attr->{EXTRA_TABS} } ) {
+        my($title, $function_name)=split(/:/, $name);
+        push @header_arr, "$title:$attr->{EXTRA_TABS}->{$name}";
+
+        my $qs = $ENV{QUERY_STRING};
+        $qs =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/eg;
+        if($ENV{QUERY_STRING} eq $attr->{EXTRA_TABS}->{$name}) {
+          $exec_function = $function_name;
+        }
+      }
+    }
+
     print $html->table_header(\@header_arr, { TABS => 1 });
 
     if($FORM{MAP}) {
@@ -1352,6 +1458,13 @@ sub result_former {
                           LOCATION_TABLE_FIELDS => $attr->{MAP_FIELDS},
                           POINT_TYPE            => $attr->{MAP_ICON},
                         });
+        return -1, -1;
+      }
+    }
+    elsif($exec_function) {
+      if( defined( $exec_function ) ) {
+        &{ \&$exec_function }();
+
         return -1, -1;
       }
     }
@@ -1437,7 +1550,7 @@ sub result_former {
   }
 
   if ($attr->{SKIP_USER_TITLE}) {
-    %SEARCH_TITLES = %{ $attr->{EXT_TITLES} };
+    %SEARCH_TITLES = %{ $attr->{EXT_TITLES} } if ($attr->{EXT_TITLES});
   }
   elsif($attr->{EXT_TITLES}) {
     %SEARCH_TITLES = ( %SEARCH_TITLES, %{ $attr->{EXT_TITLES}} );
@@ -1448,16 +1561,30 @@ sub result_former {
   if ($data->{COL_NAMES_ARR} && ref $data->{COL_NAMES_ARR} eq 'ARRAY'){
     @EX_TITLE_ARR = @{ $data->{COL_NAMES_ARR} };
   }
+
   my @title        = ();
   my $search_fields_count = $data->{SEARCH_FIELDS_COUNT} || 0;
   for (my $i = 0 ; $i < $base_fields+$search_fields_count ; $i++) {
-    $title[$i]     = ($EX_TITLE_ARR[$i] && $SEARCH_TITLES{ $EX_TITLE_ARR[$i] }) || ($cols[$i] && $SEARCH_TITLES{$cols[$i]}) || $EX_TITLE_ARR[$i] || $cols[$i] || "$lang{SEARCH}";
+    if($EX_TITLE_ARR[$i] && ! $FORM{json} && in_array(uc($EX_TITLE_ARR[$i]), \@hidden_fields)) {
+      next;
+    }
+
+    push @title, ($EX_TITLE_ARR[$i] && $SEARCH_TITLES{ $EX_TITLE_ARR[$i] }) || ($cols[$i] && $SEARCH_TITLES{$cols[$i]}) || $EX_TITLE_ARR[$i] || $cols[$i] || "$lang{SEARCH}";
     $ACTIVE_TITLES{($EX_TITLE_ARR[$i] || '')} = ($EX_TITLE_ARR[$i] && $FORM{uc($EX_TITLE_ARR[$i])}) || '_SHOW';
   }
 
   #data hash result former
   if(ref $attr->{DATAHASH} eq 'ARRAY') {
     @title = sort keys %{ $attr->{DATAHASH}->[0] };
+
+    if($#hidden_fields) {
+      my @title_ = grep {
+        my $t = $_;
+        ! grep { $_ eq $t } @hidden_fields;
+      } @title;
+      @title = @title_;
+    }
+
     $data->{COL_NAMES_ARR} = \@title;
     @EX_TITLE_ARR = @title;
   }
@@ -1469,6 +1596,10 @@ sub result_former {
 
     my $i = 0;
     for ($i = 0 ; $i <= $#cols+$base_fields; $i++) {
+      if($cols[$i] && !$FORM{json} && in_array(uc($cols[$i]), \@hidden_fields)) {
+        next;
+      }
+
       if ($cols[$i]){
         $title[$i] = $SEARCH_TITLES{lc( $cols[$i] )} || $attr->{TABLE}->{SHOW_COLS}->{$cols[$i]} || $cols[$i];
         $ACTIVE_TITLES{$cols[$i]} = $cols[$i];
@@ -1493,28 +1624,27 @@ sub result_former {
 
   my @function_fields = split(/,\s?/, $attr->{FUNCTION_FIELDS} || '' );
 
-  for(my $i=1; $i<=$#function_fields; $i++ ) {
-    $title[$#title+$i]='-';
+  if($#function_fields > -1) {
+    $title[$#title+1]='-';
   }
+
   if ($attr->{TABLE} ) {
 
-#    if ($attr->{TABLE}{SHOW_COLS} &&  $attr->{TABLE}{SHOW_COLS} eq 'clean') {
-#      %SEARCH_TITLES = undef;
-#      delete($attr->{TABLE}{SHOW_COLS});
-#    }
     my $table = $html->table(
       {
         #cols_align => [ 'left', 'left', 'right', 'right', 'left', 'center', 'center:noprint', 'center:noprint' ],
         SHOW_COLS  => ($attr->{TABLE}{SHOW_COLS}) ? $attr->{TABLE}{SHOW_COLS} : \%SEARCH_TITLES,
         %{ $attr->{TABLE} },
-        title      => \@title,
-        pages      => (! $attr->{SKIP_PAGES}) ? $data->{TOTAL} : undef,
-        FIELDS_IDS => $data->{COL_NAMES_ARR},
-        ACTIVE_COLS=> \%ACTIVE_TITLES,
+        title               => \@title,
+        pages               => (! $attr->{SKIP_PAGES}) ? $data->{TOTAL} : undef,
+        FIELDS_IDS          => $data->{COL_NAMES_ARR},
+        HAS_FUNCTION_FIELDS => defined $attr->{FUNCTION_FIELDS} && $attr->{FUNCTION_FIELDS} ? 1 : 0,
+        ACTIVE_COLS         => \%ACTIVE_TITLES,
       }
      );
 
     $table->{COL_NAMES_ARR} = $data->{COL_NAMES_ARR};
+    $table->{HIDDEN_FIELD_COUNT}=$#hidden_fields+1;
 
     if ($attr->{MAKE_ROWS} && $data->{list}) {
       my $brake = $html->br();
@@ -1524,38 +1654,32 @@ sub result_former {
         print "<br></hr> ERROR: " . q{ ref $data->{list} ne 'ARRAY' };
         return 0;
       }
-
       foreach my $line (@{ $data->{list} }) {
         my @fields_array = ();
 
         for (my $i = 0 ; $i < $base_fields + $search_fields_count ; $i++) {
           my $val       = '';
-          my $cols_name = $data->{COL_NAMES_ARR}->[$i] || '';
+          my $col_name = $data->{COL_NAMES_ARR}->[$i] || '';
 
-          if ($cols_name eq 'login' && $line->{uid} && defined(&user_ext_menu)) {
+          if(! $FORM{json} && in_array(uc($col_name), \@hidden_fields)) {
+            next;
+          }
+          if ($col_name eq 'login' && $line->{uid} && defined(&user_ext_menu)) {
             if (! $FORM{EXPORT_CONTENT}) {
-              $val = user_ext_menu($line->{uid}, $line->{login}, { EXT_PARAMS => ($attr->{MODULE} ? "MODULE=$attr->{MODULE}": undef) });
+              my $dv_status_color = undef;
+              if (defined($line->{dv_status}) && $attr->{SELECT_VALUE} && $attr->{SELECT_VALUE}->{dv_status}) {
+                (undef, $dv_status_color) = split(/:/, $attr->{SELECT_VALUE}->{dv_status}->{ $line->{dv_status} } || '');
+              }
+              $val = user_ext_menu($line->{uid}, $line->{login}, { EXT_PARAMS => ($attr->{MODULE} ? "MODULE=$attr->{MODULE}": undef), dv_status_color => $dv_status_color });
             }
             else {
               $val = $line->{login};
             }
           }
-          elsif($cols_name =~ /status$/ && (! $attr->{SELECT_VALUE} || ! $attr->{SELECT_VALUE}->{$cols_name})) {
-            $val = ($line->{$cols_name} && $line->{$cols_name} > 0) ? $html->color_mark($service_status[ $line->{$cols_name} ], $service_status_colors[ $line->{$cols_name} ]) :
-                ( defined $line->{$cols_name} ? $service_status[$line->{$cols_name}] : '');
-          }
-          elsif($cols_name =~ /deposit/) {
-            $val = ($permissions{0}{12}) ? '--' : (($line->{deposit} || 0) + ($line->{credit} || 0) < 0) ? $html->color_mark($line->{deposit}, $_COLORS[6]) : $line->{deposit},
-          }
-          elsif($cols_name eq 'deleted') {
-            $val = ($line->{deleted}) ? $html->color_mark($lang{DELETED}, 'text-danger') : '';
-          }
-          elsif($cols_name eq 'online') {
-            $val = ($line->{online}) ? $html->color_mark('Online', '#00FF00') : '';
-          }
           #use filter to cols
-          elsif ($attr->{FILTER_COLS} && $attr->{FILTER_COLS}->{$cols_name}) {
-            my ($filter_fn, @arr)=split(/:/, $attr->{FILTER_COLS}->{$cols_name});
+          elsif ($attr->{FILTER_COLS} && $attr->{FILTER_COLS}->{$col_name}) {
+            # $filter_fn
+            my ($filter_fn, @arr)=split(/:/, $attr->{FILTER_COLS}->{$col_name});
 
             my %p_values = ();
             if ($arr[1] && $arr[1] =~ /,/) {
@@ -1569,41 +1693,66 @@ sub result_former {
               }
             }
 
-            $val = &{ \&$filter_fn }($line->{$cols_name}, { PARAMS => \@arr,
-                                                            VALUES => \%p_values,
-                                                            LINK_NAME => ($attr->{SELECT_VALUE} && $attr->{SELECT_VALUE}->{$cols_name}) ?
-                                                                          $attr->{SELECT_VALUE}->{$cols_name}->{$line->{$cols_name}} : undef
-                                                                        });
+            $val = &{ \&$filter_fn }($line->{$col_name}, { PARAMS => \@arr,
+                VALUES    => \%p_values,
+                LINK_NAME => ($attr->{SELECT_VALUE} && $attr->{SELECT_VALUE}->{$col_name}) ?
+                  $attr->{SELECT_VALUE}->{$col_name}->{$line->{$col_name}} : undef
+            });
           }
-          elsif ($attr->{SELECT_VALUE} && $attr->{SELECT_VALUE}->{$cols_name}) {
-            my($value, $color) = split(/:/, $attr->{SELECT_VALUE}->{$cols_name}->{$line->{$cols_name}} || '');
+          elsif($col_name =~ /status$/ && (! $attr->{SELECT_VALUE} || ! $attr->{SELECT_VALUE}->{$col_name})) {
+            $val = ($line->{$col_name} && $line->{$col_name} > 0) ? $html->color_mark($service_status[ $line->{$col_name} ], $service_status_colors[ $line->{$col_name} ]) :
+                ( defined $line->{$col_name} ? $service_status[$line->{$col_name}] : '');
+          }
+          elsif($col_name =~ /deposit/) {
+            if ($permissions{0}{12}) {
+              $val = '--';
+            }
+            else {
+              my $deposit = $line->{deposit} || 0;
+              if ($conf{DEPOSIT_FORMAT}) {
+                $deposit = sprintf("$conf{DEPOSIT_FORMAT}", $deposit);
+              }
+              $val =  ($deposit + ($line->{credit} || 0) < 0) ? $html->color_mark( $deposit, $_COLORS[6] ) : $deposit,
+            }
+          }
+          elsif($col_name eq 'deleted') {
+            $val = ($line->{deleted}) ? $html->color_mark($lang{DELETED}, 'text-danger') : '';
+          }
+          elsif($col_name eq 'online') {
+            $val = ($line->{online}) ? $html->color_mark('Online', '#00FF00') : '';
+          }
+          elsif($col_name eq 'color'){
+            $val = ($line->{$col_name}) ? $html->color_mark($line->{$col_name}, $line->{$col_name}) : '';
+          }
+          elsif ($attr->{SELECT_VALUE} && $attr->{SELECT_VALUE}->{$col_name}) {
+            my($value, $color) = split(/:/, $attr->{SELECT_VALUE}->{$col_name}->{$line->{$col_name}} || '');
 
             if($value && $color) {
               $value = $html->color_mark($value, $color);
             }
 
-            $val = $value || $line->{$cols_name};
+            $val = $value || $line->{$col_name};
           }
           else {
-            $val = $line->{ $cols_name  } || '';
+            $val = $line->{ $col_name  } || '';
             $val =~ s/\n/$brake/g;
           }
 
           if ($i==0 && $attr->{MULTISELECT}) {
-            my($id, $value) = split(/:/, $attr->{MULTISELECT});
+            my($id, $value, $form) = split(/:/, $attr->{MULTISELECT});
             my @multiselect_arr = ();
             if($FORM{$id}) {
               @multiselect_arr=split(/,\s?|;\s?/, $FORM{$id});
             }
             #$val = $html->form_input($id, $line->{$value}, { TYPE => 'checkbox' }) . ' '. $val;
-            @fields_array = ($html->form_input($id, $line->{$value}, { TYPE => 'checkbox', STATE => in_array($line->{$value}, \@multiselect_arr) }), @fields_array);
+            @fields_array = ($html->form_input($id, $line->{$value}, { TYPE => 'checkbox', FORM_ID => $form ? $form : '', STATE => in_array($line->{$value}, \@multiselect_arr) }), @fields_array);
           }
 
           push @fields_array, $val;
         }
 
         if($#function_fields > -1) {
-          push @fields_array, @{ table_function_fields(\@function_fields, $line, $attr) };
+          push @fields_array, join(' ', @{ table_function_fields(\@function_fields, $line, $attr) });
 
           if ($FORM{chg} && $line->{id} && $FORM{chg} == $line->{id}) {
             $table->{rowcolor}='bg-success';
@@ -1636,7 +1785,7 @@ sub result_former {
           }
 
           foreach my $c_val (@charts) {
-            $DATA_HASH{$c_val}[$chart_num-1]=$line->{$c_val} || 0;
+            $DATA_HASH{$c_val}[$chart_num]=$line->{$c_val} || 0;
             $CHARTS{X_TEXT}[$chart_num-1] = $chart_num if (! $CHARTS{X_TEXT}[$chart_num-1]);
           }
         }
@@ -1652,12 +1801,7 @@ sub result_former {
       my %PRE_SORT_HASH = ();
       my $sort = $FORM{sort} || 1;
       for( my $i=0; $i<=$#{ $attr->{DATAHASH} }; $i++ ) {
-        #if($EX_TITLE_ARR[$sort - 1]){
-          $PRE_SORT_HASH{$i}=$attr->{DATAHASH}->[$i]->{ $EX_TITLE_ARR[$sort - 1] || q{} };
-        #}
-        #else {
-        #  $PRE_SORT_HASH{$i}='';
-        #}
+        $PRE_SORT_HASH{$i}=$attr->{DATAHASH}->[$i]->{ $EX_TITLE_ARR[$sort - 1] || q{} } //= q{};
       }
 
       my @sorted_ids = sort {
@@ -1677,7 +1821,9 @@ sub result_former {
 
         for(my $i=0; $i<=$#EX_TITLE_ARR; $i++) {
           #use filter to cols
+
           my $field_name = $EX_TITLE_ARR[$i];
+
           my $col_data   = $line->{$field_name};
           if ($attr->{FILTER_COLS} && $attr->{FILTER_COLS}->{$field_name}) {
             my ($filter_fn, @arr)=split(/:/, $attr->{FILTER_COLS}->{$field_name});
@@ -1686,11 +1832,11 @@ sub result_former {
           elsif ($attr->{SELECT_VALUE} && $attr->{SELECT_VALUE}->{$field_name}) {
             if($attr->{SELECT_VALUE}->{$field_name}->{$col_data}) {
               my($value, $color) = split(/:/, $attr->{SELECT_VALUE}->{$field_name}->{$col_data});
-              push @row,  ($color) ? $html->color_mark($value, $color) : $value;
+              push @row, ($color) ? $html->color_mark($value, $color) : $value;
             }
             else {
               Encode::_utf8_off($col_data);
-              push @row,  $col_data;
+              push @row, $col_data;
             }
           }
           elsif( ref $col_data eq 'ARRAY' ) {
@@ -1699,9 +1845,10 @@ sub result_former {
             foreach my $v (@$val) {
               if (ref $v eq 'HASH') {
                 while (my ($k, $v2) = each %$v) {
+                  $v2 //= q{};
                   Encode::_utf8_off($k);
                   Encode::_utf8_off($v2);
-                  $col_values .= ' '. $html->b($k) ." - $v2" . $html->br();
+                  $col_values .= ' '. $html->b($k) .' - ' . $v2 . $html->br();
                 }
               }
               else {
@@ -1714,21 +1861,29 @@ sub result_former {
           elsif (ref $col_data eq 'HASH') {
             my $val = '';
             foreach my $key (sort keys %{ $col_data }) {
-              my $val_ = $col_data->{$key} || q{};
-              Encode::_utf8_off($val_);
+              my $val_ = $col_data->{$key} //= q{};
+              #my $is_utf = Encode::is_utf8($val_);
+              #if(! $is_utf) {
+                Encode::_utf8_off($val_);
+              #}
+
               $val .= $html->b($key) .' : '. $val_ . $html->br();
             }
             push @row, $val;
           }
           else {
-            Encode::_utf8_off($col_data);
-            push @row, $col_data || q{};
+            #my $is_utf = Encode::is_utf8($col_data);
+            #if(! $is_utf) {
+              Encode::_utf8_off($col_data);
+            #}
+            push @row, $col_data //= q{};
           }
         }
 
         if($#function_fields > -1) {
           push @row, @{ table_function_fields(\@function_fields, $line, $attr) };
         }
+
         $table->addrow( @row );
         $data->{TOTAL}++;
       }
@@ -1743,7 +1898,7 @@ sub result_former {
           my @total_vals = split(/;/, $attr->{TOTAL});
           foreach my $line (@total_vals) {
             my ($val_id, $name)=split(/:/, $line);
-            push @rows, [ $name, $html->b($data->{$val_id}) ];
+            push @rows, [ $name ? ( $lang{$name} || $name ) : $val_id, $html->b(($val_id) ? $data->{$val_id} : q{}) ];
           }
         }
         else {
@@ -1753,14 +1908,12 @@ sub result_former {
         $table = $html->table(
           {
             width      => '100%',
-            cols_align => [ 'right', 'right' ],
             rows       => \@rows
           }
         );
 
         $result .= $table->show();
       }
-
       if ($attr->{OUTPUT2RETURN}) {
         return $result, $data->{list};
       }
@@ -1770,9 +1923,8 @@ sub result_former {
         }
       }
     }
-    #else {
+
     return ($table, $data->{list});
-    #}
   }
   else {
     return \@title;
@@ -1790,7 +1942,7 @@ sub result_former {
       cpmpany_id
       ex_info
       del
-    $line            - erray_ref of list result
+    $line            - array_ref of list result
     $attr            - Extra attributes
       TABLE          - Table object hash_ref
       MODULE         - Module name
@@ -1804,42 +1956,50 @@ sub table_function_fields {
   my ($function_fields, $line, $attr) = @_;
 
   my @fields_array = ();
+  my $query_string = ($attr->{TABLE} && $attr->{TABLE}{qs}) ? $attr->{TABLE}{qs} : q{};
+
+  if($line->{uid} && $query_string !~ /UID=/) {
+    $query_string .= "&UID=$line->{uid}";
+    $index = $attr->{FUNCTION_INDEX} || 15;
+  }
 
   for (my $i = 0 ; $i <= $#{ $function_fields } ; $i++) {
     if ($function_fields->[$i] eq 'form_payments') {
-      return [] if (!$line->{uid});
+      #  TODO check why it returned []
+      #  return [] if (!$line->{uid});
+      next if (!$line->{uid});
       push @fields_array, ($permissions{1}) ? $html->button($function_fields->[$i], "UID=$line->{uid}&index=2", { class => 'payments' }) : '-';
     }
     elsif ($function_fields->[$i] =~ /stats/) {
       push @fields_array, $html->button($function_fields->[$i],
-        (($line->{uid}) ? "UID=$line->{uid}" : q{} ) ."&index=" . get_function_index($function_fields->[$i]), { class => 'stats' });
+        "&index=" . get_function_index($function_fields->[$i]). $query_string, { class => 'stats' });
     }
     elsif ($function_fields->[$i] eq 'change') {
       push @fields_array, $html->button($lang{CHANGE}, "index=$index&chg=". ($line->{id} || q{})
-          . (($line->{uid} && $attr->{TABLE} && $attr->{TABLE}{qs} && $attr->{TABLE}{qs} !~ /UID=/) ? "&UID=$line->{uid}" : '')
           . (($attr->{MODULE}) ? "&MODULE=$attr->{MODULE}" : '')
-          . (($attr->{TABLE} && $attr->{TABLE}{qs}) ? $attr->{TABLE}{qs} : ''), { class => 'change' });
+          . $query_string, { class => 'change' });
+    }
+    elsif ($function_fields->[$i] eq 'info') {
+      push @fields_array, $html->button($lang{INFO}, "index=$index&info=". ($line->{id} || q{})
+                  . (($attr->{MODULE}) ? "&MODULE=$attr->{MODULE}" : '')
+                  . $query_string, { class => 'info' });
     }
     elsif ($function_fields->[$i] eq 'company_id') {
       push @fields_array,
       $html->button($lang{CHANGE}, "index=$index&COMPANY_ID=$line->{id}"
-          . (($line->{uid} && $attr->{TABLE} && $attr->{TABLE}{qs} !~ /UID=/) ? "&UID=$line->{uid}" : '')
           . ($attr->{MODULE} ? "&MODULE=$attr->{MODULE}" : '')
-          . ($attr->{TABLE} && $attr->{TABLE}{qs} ? $attr->{TABLE}{qs} : ''), { class => 'change' });
+          . $query_string, { class => 'change' });
     }
     elsif (in_array('Info', \@MODULES) && $function_fields->[$i] eq 'ex_info') {
       $html->button($lang{CHANGE}, "index=$index&COMPANY_ID=$line->{id}"
-          . (($line->{uid} && $attr->{TABLE} && $attr->{TABLE}{qs} !~ /UID=/) ? "&UID=$line->{uid}" : undef)
-          . ($attr->{MODULE} ? "&MODULE=$attr->{MODULE}" : undef)
-          . ($attr->{TABLE} && $attr->{TABLE}{qs} ? $attr->{TABLE}{qs} : undef), { class => 'change' });
+          . ($attr->{MODULE} ? "&MODULE=$attr->{MODULE}" : '')
+          . $query_string, { class => 'change' });
     }
     elsif ($function_fields->[$i] eq 'del') {
       push @fields_array,
       $html->button($lang{DEL},  "&index=$index&del=". ((exists $line->{id}) ? $line->{id} : '')
-          . (($line->{uid} && $attr->{TABLE}{qs} !~ /UID=/) ? "&UID=$line->{uid}" : '')
           . ($attr->{MODULE} ? "&MODULE=$attr->{MODULE}" : '')
-          . ((exists $attr->{TABLE} && $attr->{TABLE}{qs}) ? $attr->{TABLE}{qs} : ''),
-        { class => 'del', MESSAGE => "$lang{DEL} ". ($line->{id} || q{-}) ."?" }
+          . $query_string,  { class => 'del', MESSAGE => "$lang{DEL} ". ($line->{name} || $line->{id} || q{-}) ."?" }
       );
     }
     else {
@@ -1882,6 +2042,11 @@ sub table_function_fields {
       if ($param) {
         foreach my $l (split(/;/, $param)) {
           if ( $line->{$l} ) {
+            #my $is_utf = Encode::is_utf8($line->{$l});
+            #if(! $is_utf) {
+            Encode::_utf8_off($line->{$l});
+            #}
+
             $qs .= '&' . uc($l) . "=$line->{$l}";
           }
         }
@@ -1899,7 +2064,9 @@ sub table_function_fields {
 
 
 #**********************************************************
-#
+=head2 dirname($path)
+
+=cut
 #**********************************************************
 sub dirname {
   my ($x) = @_;
@@ -1926,36 +2093,36 @@ sub dirname {
 sub _external {
   my ($file, $attr) = @_;
 
-  my $arguments = '';
+  #my $arguments = '';
   $attr->{LOGIN}      = $users->{LOGIN} || $attr->{LOGIN};
   $attr->{DEPOSIT}    = $users->{DEPOSIT};
   $attr->{CREDIT}     = $users->{CREDIT};
   $attr->{GID}        = $users->{GID};
   $attr->{COMPANY_ID} = $users->{COMPANY_ID};
 
-  while (my ($k, $v) = each %$attr) {
-    if ($k eq 'TABLE_SHOW') {
-
-    }
-    elsif ($k ne '__BUFFER' && $k =~ /[A-Z0-9_]/) {
-      if ($v && $v ne '') {
-        $arguments .= " $k=\"$v\"";
-      }
-      else {
-        $arguments .= " $k=\"\"";
-      }
-    }
-  }
+#  while (my ($k, $v) = each %$attr) {
+#    if ($k eq 'TABLE_SHOW') {
+#
+#    }
+#    elsif ($k ne '__BUFFER' && $k =~ /[A-Z0-9_]/) {
+#      if ($v && $v ne '') {
+#        $arguments .= " $k=\"$v\"";
+#      }
+#      else {
+#        $arguments .= " $k=\"\"";
+#      }
+#    }
+#  }
 
   #if (! -x $file) {
   #  $html->message('info', "_EXTERNAL $file", "$file not executable") if (!$attr->{QUITE});;
   #  return 0;
   #}
 
-  my $result = `$file $arguments`;
+  my $result = cmd("$file", { ARGV => 1, PARAMS => $attr });
   my $error = $!;
   my ($num, $message) = split(/:/, $result, 2);
-  if ($num && $num == 1) {
+  if ($num && $num =~ /^\d+$/ && $num == 1) {
     $html->message('info', "_EXTERNAL $lang{ADDED}", "$message") if (!$attr->{QUITE});;
     return 1;
   }
@@ -2016,18 +2183,32 @@ sub get_fees_types {
 sub get_payment_methods {
   my ($attr) = @_;
 
-  #Base methods
-  my @PAYMENT_METHODS = ("$lang{CASH}", "$lang{BANK}", "$lang{EXTERNAL_PAYMENTS}", 'Credit Card', "$lang{BONUS}",
-    "$lang{CORRECTION}", "$lang{COMPENSATION}",
-    "$lang{MONEY_TRANSFER}", "$lang{RECALCULATE}");
-
   my %PAYMENTS_METHODS = ();
 
-  my @PAYMENT_METHODS_ = @PAYMENT_METHODS;
-  push @PAYMENT_METHODS_, @EX_PAYMENT_METHODS if (@EX_PAYMENT_METHODS);
+  if($conf{PAYMENT_METHOD_NEW}) {
+    use Payments;
+    my $Payments = Payments->new($db, $admin, \%conf);
 
-  for (my $i = 0 ; $i <= $#PAYMENT_METHODS_ ; $i++) {
-    $PAYMENTS_METHODS{$i} = $PAYMENT_METHODS_[$i];
+    my $payment_list = $Payments->payment_type_list({
+      COLS_NAME => 1,
+      SORT      => 'id',
+    });
+
+    foreach my $type (@$payment_list) {
+      $PAYMENTS_METHODS{$type->{id}} = _translate($type->{name});
+    }
+  }
+  else {
+    my @PAYMENT_METHODS = ("$lang{CASH}", "$lang{BANK}", "$lang{EXTERNAL_PAYMENTS}", 'Credit Card', "$lang{BONUS}",
+      "$lang{CORRECTION}", "$lang{COMPENSATION}",
+      "$lang{MONEY_TRANSFER}", "$lang{RECALCULATE}");
+
+    my @PAYMENT_METHODS_ = @PAYMENT_METHODS;
+    push @PAYMENT_METHODS_, @EX_PAYMENT_METHODS if (@EX_PAYMENT_METHODS);
+
+    for (my $i = 0; $i <= $#PAYMENT_METHODS_; $i++) {
+      $PAYMENTS_METHODS{$i} = $PAYMENT_METHODS_[$i];
+    }
   }
 
   my %PAYSYS_PAYMENT_METHODS = ();
@@ -2056,6 +2237,9 @@ sub get_payment_methods {
   Results:
     TRUE or FALSE
 
+  Examples:
+    10.10.1.2,10.20.0.0/20
+
 =cut
 #**********************************************************
 sub check_ip {
@@ -2065,23 +2249,22 @@ sub check_ip {
     return 0;
   }
 
-  $ips =~ s/ //g;
-  my $mask           = 0b0000000000000000000000000000001;
-  my @ip_arr         = split(/,/, $ips);
+  my @ip_arr         = split(/,\s?/, $ips);
   my $require_ip_num = ip2int($require_ip);
 
   foreach my $ip (@ip_arr) {
-    if ($ip =~ /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/) {
-      if ($require_ip eq "$ip") {
-        return 1;
+    if ($ip =~ /^(!?)(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\/?(\d{0,2})/) {
+      my $neg = $1 || 0;
+      $ip = ip2int($2);
+      my $bit_mask = $3;
+      if ($bit_mask eq '') {
+        $bit_mask=32;
       }
-    }
-    elsif ($ip =~ /^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\/(\d+)/) {
-      $ip = $1;
-      my $bit_mask = $2;
-      my $first_ip = ip2int($ip);
-      my $last_ip  = ip2int($ip) + sprintf("%d", $mask << (32 - $bit_mask));
-      if ($require_ip_num >= $first_ip && $require_ip_num <= $last_ip) {
+      my $mask = unpack("N", pack( "B*", ("1" x $bit_mask . "0" x (32 - $bit_mask)) ));
+      if($neg && ($require_ip_num & $mask) == ($ip & $mask)) {
+        return 0;
+      }
+      elsif (($require_ip_num & $mask) == ($ip & $mask)) {
         return 1;
       }
     }
@@ -2102,9 +2285,9 @@ sub check_ip {
 #**********************************************************
 sub _translate {
   my ($text) = @_;
-
+  
   return '' unless $text;
-
+  
   if ( $text =~ /\"/ ){
     return $text;
   }
@@ -2138,298 +2321,30 @@ sub _translate {
 }
 
 #**********************************************************
-=head2 web_request($request, $attr); - make web request
+=head2 _translate_list($list, @name_keys)
 
   Arguments:
-    $request        - request URL
-    $attr           - Attributes
-      REQUEST_PARAMS - Request params hash
-        [Param name] => [ value ]
-      REQUEST_PARAMS_JSON - Request params hash converted to json request string
-        [Param name] => [ value ]
-      POST           - POST string (When not specified REQUEST_PARAMS)
-      GET            - GET request mode
-      JSON_RETURN    - agregate result as JSON, return JSON hash result
-      AGENT          - Agent info
-      CURL_OPTIONS   - curl options
-      HEADERS        - curl -H option (ARRAY_ref)
-      BIN_DATA       - Send data througth file
-      COOKIE         - Use cookies
-      TIMEOUT        - Request timeout (Default: 30 sec)
-      DEBUG          - Debug mode
-      DEBUG2FILE     - Write debug to file
+    $list      - list of vars to translate
+    @name_keys - array of hash keys to translate. default : (name)
 
   Returns:
-      result string
-      or
-      hash on JSON_RETURN mode
+    translated list
 
 =cut
 #**********************************************************
-sub web_request {
-  my ($request, $attr) = @_;
-
-  my $res;
-  my $host = '';
-  my $port = 80;
-  my $debug = $attr->{DEBUG} || 0;
-
-  my @request_params_arr = ();
-  if ($attr->{REQUEST_PARAMS}) {
-    foreach my $k (keys %{ $attr->{REQUEST_PARAMS} }) {
-      next if (!$k || !defined($attr->{REQUEST_PARAMS}->{$k}));
-      if (ref $attr->{REQUEST_PARAMS}->{$k} eq 'ARRAY') {
-        foreach my $val (@{ $attr->{REQUEST_PARAMS}->{$k} }) {
-          $val = urlencode($val);
-          push @request_params_arr, "$k=$val";
-        }
-      }
-      else {
-        $attr->{REQUEST_PARAMS}->{$k} = urlencode($attr->{REQUEST_PARAMS}->{$k});
-        push @request_params_arr, "$k=$attr->{REQUEST_PARAMS}->{$k}";
-      }
+sub translate_list {
+  my ($list, @name_keys) = @_;
+  
+  $name_keys[0] //= 'name';
+  
+  foreach my $line (@$list){
+    foreach ( @name_keys ) {
+      $line->{$_} = _translate($line->{$_}) if ($line->{$_});
     }
   }
-
-  if ($request =~ /^https/ || $attr->{CURL}) {
-    my $CURL = $attr->{FILE_CURL} || $conf{FILE_CURL} || `which curl` || '/usr/local/bin/curl';
-    chomp($CURL);
-    my $result = '';
-    my $request_url = $request;
-    my $request_params = '';
-    my $curl_options = $attr->{CURL_OPTIONS} || '';
-    my $curl_file = $CURL;
-
-    if ($CURL =~ /(\S+)/) {
-      $curl_file = $1;
-    }
-
-    if (!-f $curl_file) {
-      print "'curl' not found. use \$conf{FILE_CURL}\n";
-      return 0;
-    }
-
-    if ($attr->{AGENT}) {
-      $curl_options .= qq{ -A "$attr->{AGENT}" };
-    }
-
-    if ($attr->{HEADERS}) {
-      foreach my $key (@{ $attr->{HEADERS} }) {
-        $curl_options .= qq{ -H "$key" };
-      }
-    }
-
-    if ($attr->{COOKIE}) {
-      my $cookie_file = '/tmp/cookie.';
-      $curl_options .= qq{ --cookie $cookie_file --cookie-jar $cookie_file };
-    }
-
-    if ($attr->{BIN_DATA}) {
-      if ($attr->{TPL_DIR}) {
-        $conf{TPL_DIR} = $attr->{TPL_DIR};
-      }
-
-      my $ret = file_op({ FILENAME => "$conf{TPL_DIR}/tmp_.bin",
-          PATH                     => "$conf{TPL_DIR}",
-          WRITE                    => 1,
-          CONTENT                  => $attr->{BIN_DATA}
-        });
-
-      if (!$ret) {
-        print "Can't open file $conf{TPL_DIR}/tmp_.bin \n";
-      }
-
-      $curl_options .= " --data \"\@$conf{TPL_DIR}/tmp_.bin\"";
-    }
-
-    if ($attr->{REQUEST_PARAMS_JSON}) {
-      foreach my $k (keys %{ $attr->{REQUEST_PARAMS_JSON} }) {
-        next if (!$k || !defined($attr->{REQUEST_PARAMS_JSON}->{$k}));
-        if (ref $attr->{REQUEST_PARAMS_JSON}->{$k} eq 'ARRAY') {
-          foreach my $val (@{ $attr->{REQUEST_PARAMS_JSON}->{$k} }) {
-            $val = urlencode($val);
-            push @request_params_arr, qq{ \\\"$k\\\" : \\\"$val\\\" };
-          }
-        }
-        else {
-          $attr->{REQUEST_PARAMS}->{$k} = urlencode($attr->{REQUEST_PARAMS_JSON}->{$k});
-          push @request_params_arr, qq{ \\\"$k\\\" : \\\"$attr->{REQUEST_PARAMS_JSON}->{$k}\\\" };
-        }
-      }
-
-      $request_params = '-d "{'.join(',', @request_params_arr).'}"';
-
-      @request_params_arr = ();
-    }
-    elsif ($attr->{POST}) {
-      @request_params_arr = ( $attr->{POST} );
-    }
-
-    if ($#request_params_arr > -1) {
-      $request_params = join('&', @request_params_arr);
-      if ($attr->{GET}) {
-        $request_url .= "?".$request_params;
-        $request_params = '';
-      }
-      #POST request string
-      else {
-        $request_params = "-d \"$request_params\" ";
-      }
-    }
-
-    $request_url =~ s/ /%20/g;
-    $request_url =~ s/"/\\"/g;
-    $request_url =~ s/\`/\\\`/g;
-
-    my $request_cmd = qq{$CURL $curl_options -s "$request_url" $request_params };
-
-    #$result = `$request_cmd` if ($debug < 7);
-    $result = cmd($request_cmd, { timeout => defined($attr->{'TIMEOUT'}) ? $attr->{'TIMEOUT'} : 30 }) if ($debug < 7);
-
-    if ($? != 0) {
-      $result = 'Timeout '.$?;
-    }
-
-    if ($debug) {
-      my $request_ = (($attr->{REQUEST_COUNT}) ? $attr->{REQUEST_COUNT} : 0 );
-      if($attr->{DEBUG2FILE}) {
-        if(open(my $fh, '>>', $attr->{DEBUG2FILE})) {
-          print $fh "===============================\n";
-          print $fh "($request_) " . $request_cmd ."\n";
-          print $fh "$result\n";
-          close($fh);
-        }
-      }
-      else {
-        print "<br>DEBUG: $debug COUNT:".$request_."=====REQUEST=====<br>\n";
-        print "<textarea cols=90 rows=10>$request_cmd</textarea><br>\n";
-        print "=====RESPONCE=====<br>\n";
-        print "<textarea cols=90 rows=15>$result</textarea>\n";
-      }
-    }
-
-    if ($attr->{CLEAR_COOKIE}) {
-      unlink "/tmp/cookie.";
-    }
-
-    if ($result eq 'Timeout') {
-      return $result;
-    }
-
-    if ($attr->{JSON_RETURN} && $result) {
-      my $json = $attr->{JSON_RETURN};
-      if ($json == 1) {
-        load_pmodule('JSON');
-        $json = JSON->new->allow_nonref;
-      }
-
-      my $perl_scalar;
-
-      eval { $perl_scalar = $json->decode( $result );  };
-
-      #Syntax oerror
-      if ($@) {
-        $perl_scalar->{errno} = 2;
-        $perl_scalar->{errstr} = $@;
-      }
-      #Else other error
-      elsif (ref $perl_scalar eq 'HASH' && $perl_scalar->{status} && $perl_scalar->{status} eq 'error') {
-        $perl_scalar->{errno} = 1;
-        $perl_scalar->{errstr} = "$perl_scalar->{message}";
-      }
-
-      return $perl_scalar;
-    }
-
-    return $result;
-  }
-
-  require Socket;
-  Socket->import();
-  require IO::Socket;
-  IO::Socket->import();
-  require IO::Select;
-  IO::Select->import();
-
-  $request =~ /http:\/\/([a-zA-Z.-]+)\/(.+)/;
-  $host    = $1;
-  $request = '/'.($2 || '');
-
-  if ($host =~ /:/) {
-    ($host, $port) = split(/:/, $host, 2);
-  }
-
-  if ( $#request_params_arr > -1) {
-    $request .= '?' . join('&', @request_params_arr);
-  }
-
-  $request =~ s/ /%20/g;
-  $request = "GET $request HTTP/1.0\r\n";
-  $request .= ($attr->{'User-Agent'}) ? $attr->{'User-Agent'} : "User-Agent: Mozilla/4.0 (compatible; MSIE 5.5; Windows 98;Win 9x 4.90)\r\n";
-  $request .= "Accept: text/html, image/png, image/x-xbitmap, image/gif, image/jpeg, */*\r\n";
-  $request .= "Accept-Language: ru\r\n";
-  $request .= "Host: $host\r\n";
-  $request .= "Content-type: application/x-www-form-urlencoded\r\n";
-  $request .= "Referer: $attr->{'Referer'}\r\n" if ($attr->{'Referer'});
-  # $request .= "Connection: Keep-Alive\r\n";
-  $request .= "Cache-Control: no-cache\r\n";
-  $request .= "Accept-Encoding: *;q=0\r\n";
-  $request .= "\r\n";
-
-  print $request if ($attr->{debug});
-
-  my $socket = IO::Socket::INET->new(
-    PeerAddr => $host,
-    PeerPort => $port,
-    Proto    => 'tcp',
-    TimeOut  => defined($attr->{'TIMEOUT'}) ? $attr->{'TIMEOUT'} : 5
-  ); # or log_print('LOG_DEBUG', "ERR: Can't connect to '$host:$port' $!");
-
-  if (!$socket) {
-    return '';
-  }
-
-  $socket->send( "$request" );
-  while(<$socket>) {
-    $res .= $_;
-  }
-  close($socket);
-
-  # my ($header, $content)
-  my ($header) = split(/\n\n/, $res);
-
-  #print $header;
-  if ($header =~ /HTTP\/1.\d 302/) {
-    $header =~ /Location: (.+)\r\n/;
-
-    my $new_location = $1;
-    if ($new_location !~ /^http:\/\//) {
-      $new_location = "http://$host".$new_location;
-    }
-
-    $res = web_request($new_location, { Referer => "$request" });
-  }
-
-  if ($res =~ /\<meta\s+http-equiv='Refresh'\s+content='\d;\sURL=(.+)'\>/ig) {
-    my $new_location = $1;
-    if ($new_location !~ /^http:\/\//) {
-      $new_location = "http://$host".$new_location;
-    }
-
-    $res = web_request($new_location, { Referer => "$new_location" });
-  }
-
-  if ($debug > 2) {
-    print "<br>Plain request:<textarea cols=80 rows=8>$request\n\n$res</textarea><br>\n";
-  }
-
-  if ($attr->{BODY_ONLY}) {
-    (undef, $res) = split(/\r?\n\r?\n/, $res, 2);
-  }
-
-  return $res;
+  
+  return $list;
 }
-
 
 #**********************************************************
 =head2 snmp_get($attr); - Set SNMP value
@@ -2440,10 +2355,15 @@ sub web_request {
       OID             - oid
       WALK            - walk mode
       SILENT          - DOn't generate exception
+      TIMEOUT         - Request timeout (Default: 2)
+      SKIP_TIMEOUT    -
+      VERSION         - SNMP version (1 default or v2c)
       DEBUG
+
   Returns:
       result string
       ot result array for WALK mode
+
 =cut
 #**********************************************************
 sub snmp_get {
@@ -2459,8 +2379,13 @@ sub snmp_get {
     $debug = $attr->{DEBUG};
   }
 
-  my ($snmp_community, $port)=split(/:/, $attr->{SNMP_COMMUNITY});
-  $snmp_community.=':'.$port if ($port && ! in_array($port, [ 22, 1700, 3977 ]));
+  my $timeout = $attr->{TIMEOUT} || 2;
+  my $retries = $attr->{RETRIES} || 2;
+  my $version = $attr->{VERSION} || 1;
+
+  my ($snmp_community, $port)=split(/:/, $attr->{SNMP_COMMUNITY} || q{});
+  $port = 161 if (! $port || in_array($port, [ 21, 22, 23, 1700, 3977 ]));
+  $snmp_community.=':'.$port.":$timeout:$retries:1:$version";
 
   if ($debug > 2) {
     print "$attr->{SNMP_COMMUNITY} -> $attr->{OID} <br>";
@@ -2471,14 +2396,17 @@ sub snmp_get {
   }
 
   if ($attr->{WALK}) {
-    my $timeout   = $attr->{TIMEOUT} || 0;
+    if(! $attr->{OID}) {
+      print "Unknown oid\n";
+      return [];
+    }
+
     my @value_arr = ();
 
     eval {
       local $SIG{ALRM} = sub { die "alarm\n" };    # NB: \n required
-
-      if ($timeout) {
-        alarm $timeout;
+      if (! $attr->{SKIP_TIMEOUT} && $timeout) {
+        alarm $timeout * $retries;
       }
 
       @value_arr = SNMP_util::snmpwalk($snmp_community, $attr->{OID});
@@ -2487,7 +2415,7 @@ sub snmp_get {
 
     if ($@) {
       die unless $@ eq "alarm\n";                  # propagate unexpected errors
-      print "timed out ($timeout): $attr->{OID}\n";
+      print "timed out ($timeout): $attr->{OID}\n" if(! $attr->{SILENT});
     }
     else {
       print "NO errors\n" if ($debug>2);
@@ -2499,8 +2427,14 @@ sub snmp_get {
     $value = SNMP_util::snmpget($snmp_community, $attr->{OID});
   }
 
-  if ($SNMP_Session::errmsg) {
-    $html->message('err', $lang{ERROR}, "OID: $attr->{OID}\n\n $SNMP_Session::errmsg\n\n$SNMP_Session::suppress_warnings\n");
+  if ($SNMP_Session::errmsg && ! $attr->{SILENT}) {
+    my $message = "OID: $attr->{OID}\n\n $SNMP_Session::errmsg\n\n$SNMP_Session::suppress_warnings\n";
+    if ($html) {
+      $html->message('err', $lang{ERROR}, $message);
+    }
+    else {
+      print $message;
+    }
   }
 
   return $value;
@@ -2513,6 +2447,7 @@ sub snmp_get {
   Arguments:
     $attr
       SNMP_COMMUNITY  - {community_name}@{ip_address}[:port]
+      TIMEOUT         - Timeout
       OID             - array ( OID, type, value, OID, type, value, ...)
       DEBUG
 
@@ -2524,6 +2459,10 @@ sub snmp_set {
   my $result = 1;
 
   #$SNMP::Util::Max_log_level      = 'none';
+  my $timeout = $attr->{TIMEOUT} || 2;
+  my $retries = $attr->{RETRIES} || 2;
+  my $version = $attr->{VERSION} || 1;
+
   $SNMP_Session::suppress_warnings= 2;
   $SNMP_Session::errmsg = undef;
   my $debug = 0;
@@ -2532,7 +2471,8 @@ sub snmp_set {
   }
 
   my ($snmp_community, $port)=split(/:/, $attr->{SNMP_COMMUNITY});
-  $snmp_community.=':'.$port if ($port && ! in_array($port, [ 22, 1700, 3977 ]));
+  $port = 161 if (! $port || in_array($port, [ 21, 22, 23, 1700, 3977 ]));
+  $snmp_community.=':'.$port.":$timeout:$retries:1:$version";
 
   my $info = '';
   for(my $i=0; $i<= $#{ $attr->{OID} }; $i+=3) {
@@ -2668,8 +2608,9 @@ sub host_diagnostic {
 
 open image file and print content
 
-    print file_op({ FILENAME => "$conf{TPL_DIR}/if_image/image_file.jpg",
-                    PATH     => "$conf{TPL_DIR}/if_image"
+    print file_op({
+      FILENAME => "$conf{TPL_DIR}/if_image/image_file.jpg",
+      PATH     => "$conf{TPL_DIR}/if_image"
     });
 
 =cut
@@ -2722,7 +2663,7 @@ sub file_op {
   else {
     if (! -f $filename) {
       if (! $attr->{SKIP_CHECK}) {
-        $html->message('err', $lang{ERROR}, "$lang{NOT_EXIST} '$filename' \n $!");
+        $html->message('err', $lang{ERROR}, "$lang{NOT_EXIST} '$filename' \n $!") if ($html);
       }
     }
     elsif (open(my $fh, '<', "$filename")) {
@@ -2864,7 +2805,7 @@ sub sel_groups {
         SEL_VALUE   => 'name',
         SEL_OPTIONS => ($admin->{GID}) ? undef : { '' => "$lang{ALL}" },
         MAIN_MENU   => get_function_index('form_groups'),
-        MAIN_MENU_AGRV => $gid ? "GID=$gid" : '',
+        MAIN_MENU_ARGV => $gid ? "GID=$gid" : '',
         EX_PARAMS   => ($attr->{SKIP_MUULTISEL}) ? undef : 'multiple="multiple"'
       }
     );
@@ -2928,8 +2869,9 @@ sub sel_status {
         SORT_KEY_NUM   => 1,
         NO_ID          => 1,
         SEL_OPTIONS    => ($attr->{ALL}) ? { '' => "$lang{ALL}" } : undef,
+        EX_PARAMS      => $attr->{EX_PARAMS},
         #MAIN_MENU      => get_function_index('form_status'),
-        #MAIN_MENU_AGRV => "chg=$status_id"
+        #MAIN_MENU_ARGV => "chg=$status_id"
       }
     );
   }
@@ -2996,6 +2938,58 @@ sub address_list_tree_menu{
   return $menu;
 }
 
+
+#**********************************************************
+=head2 import_show($attr) - Show import date
+
+  Arguments:
+    $attr
+      DATA  - Import data aray_of_hash
+      COLS_NAMES
+
+  Returns:
+    True or False
+
+=cut
+#**********************************************************
+sub import_show {
+  my($attr) = @_;
+
+  my @cols_names = ();
+  my @import_data = @{ $attr->{DATA} };
+
+  if( $#import_data < 0 ) {
+    print "No import date";
+  }
+
+  if($attr->{COLS_NAMES}) {
+    @cols_names = @{$attr->{COLS_NAMES}};
+  }
+  else {
+    @cols_names = keys %{ $import_data[0] };
+  }
+
+  my $table = $html->table({
+    width      => '100%',
+    caption    => $lang{IMPORT},
+    title      => \@cols_names,
+    ID         => 'STORAGE_ID'
+  });
+
+  foreach $line (@import_data) {
+    my @table_cols = ();
+    for(my $i=0; $i<=$#cols_names; $i++) {
+      my $col = $cols_names[$i];
+      push @table_cols, $line->{$col} || '-';
+    }
+    $table->addrow(@table_cols);
+  }
+
+  print $table->show();
+
+  return 1;
+}
+
 #**********************************************************
 =head2 import_former() - Multi address form
 
@@ -3025,7 +3019,6 @@ sub import_former {
     my $json = JSON->new->allow_nonref;
 
     my $perl_scalar;
-
     eval { $perl_scalar = $json->decode( $attr->{UPLOAD_FILE}{Contents} );  };
 
     #Syntax oerror
@@ -3037,7 +3030,6 @@ sub import_former {
     #  $perl_scalar->{errno}=1;
     #  $perl_scalar->{errstr}="$perl_scalar->{message}";
     #}
-
     if($perl_scalar->{DATA_1}) {
       foreach my $info_line (@{ $perl_scalar->{DATA_1} }) {
         foreach my $key ( keys %$info_line ) {
@@ -3051,7 +3043,7 @@ sub import_former {
     return \@import_data;
   }
 
-  my $delimiter   = $attr->{IMPORT_DELIMITER} || "\t";
+  my $delimiter   = $attr->{IMPORT_DELIMITER} || "\t+";
   my @cols_names  = split(/,\s?/, $attr->{IMPORT_FIELDS});
   my @rows        = split(/[\r\n]+/, $attr->{UPLOAD_FILE}{Contents});
 
@@ -3070,9 +3062,17 @@ sub import_former {
       $user_info{ $key }=$cols[$i];
     }
 
-    $user_info{ 'MAIN_ID' }=$cols_names[0];
-
+    $user_info{ 'MAIN_ID' } = $cols_names[0];
     push @import_data, { %user_info };
+  }
+
+
+  if ($attr->{UPLOAD_PRE}) {
+    import_show({
+      DATA       => \@import_data,
+      COLS_NAMES => \@cols_names
+    });
+    @import_data = ();
   }
 
   return \@import_data;
@@ -3098,12 +3098,13 @@ sub mk_menu {
   my $default_index=0;
 
   foreach my $line (@{ $menu }) {
-    my ($ID, $PARENT, $NAME, $FUNTION_NAME, $ARGS) = split(/:/, $line);
+    my ($ID, $PARENT, $NAME, $FUNTION_NAME, $ARGS, $module_name) = split(/:/, $line);
     $menu_items{$ID}{$PARENT || 0} = $NAME;
     $menu_names{$ID} = $NAME;
     $functions{$ID}  = $FUNTION_NAME if ($FUNTION_NAME );
     $menu_args{$ID}  = $ARGS         if (defined($ARGS) && $ARGS ne '');
     $maxnumber       = $ID           if (! defined($maxnumber) || $maxnumber < $ID);
+    $module{$maxnumber} = $module_name if ($module_name);
   }
 
   if($attr->{CUSTOM}) {
@@ -3222,6 +3223,7 @@ sub custom_menu {
 sub get_version {
 
   my $version = '';
+  $base_dir //= '/usr/abills/';
 
   if (-f $base_dir.'/VERSION') {
     if (open(my $fh, '<', $base_dir."/VERSION")) {
@@ -3253,9 +3255,9 @@ sub system_info {
     }
 
     $Conf->config_add({
-        PARAM => 'SYS_ID',
-        VALUE => $conf{SYS_ID} || q{}
-      });
+      PARAM => 'SYS_ID',
+      VALUE => $conf{SYS_ID} || q{}
+    });
   }
 
   my $version     = get_version();
@@ -3269,44 +3271,72 @@ sub system_info {
   }
 
   web_request($request_url, {
-      REQUEST_PARAMS => {
-        sign => $conf{SYS_ID},
-        v    => $version,
-        info => join('_', @info_data)
-      },
-    });
+    REQUEST_PARAMS => {
+      sign => $conf{SYS_ID},
+      v    => $version,
+      info => join('_', @info_data)
+    },
+    TIMEOUT => 2
+  });
 
   return $version;
 }
 
 #**********************************************************
-=head2 get_files_in($directory_path, $filter)
+=head2 _get_files_in($directory_path, $filter)
 
   Arguments:
      $directory_path
-     $filter  - (optional) filters list by regexp
-
+     $attr
+       FILTER - regexp
+       WITH_DIRS
+       FULL_PATH
+       RECURSIVE - get all files in underlying folders too
+   
   Returns:
     array_ref
 
 =cut
 #**********************************************************
 sub _get_files_in{
-  my ($directory_path, $filter) = @_;
+  my ($directory_path, $attr) = @_;
+  
+  my $filter = $attr->{FILTER} || '';
+  my $with_dirs = $attr->{WITH_DIRS} || 0;
+  my $full_path = $attr->{FULL_PATH} || 0;
+  
   # Read files in dir
-
   opendir my $fh, $directory_path or do {
     $html->message( 'err', 'ERROR', "Can't open dir '$directory_path' $!\n" );
     return 0;
   };
-
+  
   my @contents = grep !/^\.\.?$/, readdir $fh;
   closedir $fh;
-
+  
+  # No .name files
+  @contents = grep { ! /^\./ } @contents;
+  if ($attr->{RECURSIVE}){
+    my @dirs = grep { -d $directory_path . '/' . $_ } @contents;
+    foreach my $dir_inside (@dirs){
+      my $files_in_dir = _get_files_in($directory_path . '/' . $dir_inside, {%$attr, FULL_PATH => 0});
+      if ($files_in_dir){
+        push @contents, map {$dir_inside . '/' . $_} @$files_in_dir;
+      }
+    }
+  }
+  
+  # Filter directories if needed
+  @contents = grep { -f $directory_path . '/' . $_ } @contents if (!$with_dirs);
+  
+  # Apply REGEXP filter if needed
   if ( $filter && $filter ne '' ) {
     @contents = grep /$filter/, @contents;
   }
-
+  
+  # Concat directory path if needed
+  @contents = map { $directory_path .'/' . $_ } @contents if ($full_path);
+  
   return \@contents;
 }
 
@@ -3332,28 +3362,6 @@ sub _md5_of{
   };
 
   return $CRC;
-}
-
-#**********************************************************
-=head2 _show_result($Module, $message) - shows error or success message
-
-  Arguments:
-    $Module  - Module DB object
-    $message - message to show if no error
-
-  Returns:
-    boolean - 1 if success
-
-=cut
-#**********************************************************
-sub _show_result {
-  my ($Module, $caption, $message) =  @_;
-
-  return 0 if (_error_show($Module));
-
-  $html->message('info', $caption, $message);
-
-  return 1;
 }
 
 #**********************************************************

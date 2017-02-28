@@ -1,10 +1,10 @@
 #!/bin/sh
 # Negative deposit page
 # /etc/service
-#  neg_deposit 81/tcp
+#   neg_deposit 81/tcp
 #
 # /etc/inetd.conf
-#  neg_deposit  stream  tcp     nowait  root /usr/abills/neg_deposit/neg_deposit neg_deposit
+#   neg_deposit  stream  tcp     nowait  root /usr/abills/neg_deposit/neg_deposit neg_deposit
 #
 
 debug=1

@@ -20,7 +20,7 @@
         var y = mapCenterLatLng.lng();
 
         //fill url
-        var link = SELF_URL + '?get_index=maps_show_poins&header=1&makeNavigationTo=1&nav_x=' + x + '&nav_y=' + y;
+        var link = SELF_URL + '?get_index=maps_show_poins&header=1&MAKE_NAVIGATION_TO=1&nav_x=' + x + '&nav_y=' + y;
 
         //goto
         location.replace(link);
@@ -30,6 +30,7 @@
 <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/modules/maps-yandex.css'>
 
 <script id='maps_general' src='/styles/default_adm/js/maps/general.js'></script>
+<script id='maps_request' src='/styles/default_adm/js/maps/general-request.js'></script>
 
 <!--Yandex maps specific logic-->
 <!--<script id='google_clusterer_script' src='/styles/default_adm/js/maps/google-clusterer.min.js'></script>-->

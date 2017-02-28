@@ -1,10 +1,11 @@
-<div class='panel panel-primary panel-form'>
-    <div class='panel-heading text-center'><h4>_{EVENT}_ _{STATE}_</h4></div>
-    <div class='panel-body'>
+<div class='box box-theme box-form'>
+    <div class='box-header with-border'><h4 class='box-title'>_{EVENT}_ _{STATE}_</h4></div>
+    <div class='box-body'>
 
         <form name='EVENTS_STATE_FORM' id='form_EVENTS_STATE_FORM' method='post' class='form form-horizontal'>
             <input type='hidden' name='index' value='$index'/>
             <input type='hidden' name='%CHANGE_ID%' value='%ID%'/>
+          <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='1'/>
 
             <div class='form-group'>
                 <label class='control-label col-md-3 required' for='STATE_NAME_id'>_{STATE}_</label>
@@ -16,8 +17,8 @@
         </form>
 
     </div>
-    <div class='panel-footer text-center'>
-        <input type='submit' form='form_EVENTS_STATE_FORM' class='btn btn-primary' name='%SUBMIT_BTN_ACTION%'
+    <div class='box-footer text-center'>
+        <input type='submit' form='form_EVENTS_STATE_FORM' class='btn btn-primary' name='submit'
                value='%SUBMIT_BTN_NAME%'>
     </div>
 </div>

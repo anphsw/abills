@@ -2,11 +2,11 @@
 
 <input type='hidden' name='index' value=$index>
 
-<div class='panel panel-form panel-primary form-horizontal'>
+<div class='box box-form box-primary form-horizontal'>
 
-<div class='panel-heading'>_{EXTERNAL_COMMAND}_</div>
+<div class='box-header with-border'>_{EXTERNAL_COMMAND}_</div>
 
-<div class='panel-body'>
+<div class='box-body'>
   <div class='form-group'>
     <label class='col-md-3 control-label'>_{START_COMMAND}_</label>
     <div class='col-md-9'>
@@ -33,7 +33,7 @@
   </div>
 </div>
 
-<div class='panel-footer'>
+<div class='box-footer'>
 <input type='submit' class='btn btn-primary' name='%ACTION%' value='%ACTION_LANG%'>
 </div>
 

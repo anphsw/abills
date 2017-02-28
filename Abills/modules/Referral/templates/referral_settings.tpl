@@ -1,6 +1,6 @@
-<div class='panel panel-primary panel-form'>
-    <div class='panel-heading text-center'><h5>_{REFERRAL_SYSTEM}_</h5></div>
-    <div class='panel-body'>
+<div class='box box-theme box-form'>
+    <div class='box-header with-border text-center'><h5>_{REFERRAL_SYSTEM}_</h5></div>
+    <div class='box-body'>
 
         <form name='REFERRAL_SETTINGS' id='form_REFERRAL_SETTINGS' method='post' class='form form-horizontal'>
             <input type='hidden' name='index' value='$index'/>
@@ -34,7 +34,7 @@
         </form>
 
     </div>
-    <div class='panel-footer text-center'>
+    <div class='box-footer text-center'>
         <input type='submit' form='form_REFERRAL_SETTINGS' class='btn btn-primary' name='action' value='_{CHANGE}_'>
     </div>
 </div>

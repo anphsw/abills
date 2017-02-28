@@ -1,5 +1,4 @@
 <link rel='stylesheet' href='/styles/default_adm/css/msgs.css'>
-<script src='/styles/default_adm/js/moment.js'></script>
 <script src='/styles/default_adm/js/msgs/shedule_table.js'></script>
 <script>
     var tasksInfo = {};
@@ -30,7 +29,7 @@
 </div>
 
 
-<div class='panel-footer'>
+<div class='box-footer'>
     <form id='tasksForm' method='POST' action='$SELF_URL'>
         <div class='row'>
             <input type='hidden' name='index' value='$index'/>

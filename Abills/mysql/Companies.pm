@@ -294,7 +294,7 @@ sub list {
   $list = $self->{list};
 
   if ($self->{TOTAL} > 0 || $PG > 0) {
-    $self->query2("SELECT count(c.id) AS total FROM companies c
+    $self->query2("SELECT COUNT(DISTINCT c.id) AS total FROM companies c
     LEFT JOIN users u ON (u.company_id=c.id)
     LEFT JOIN bills b ON (b.id=c.bill_id)
      $WHERE;",
@@ -306,7 +306,9 @@ sub list {
 }
 
 #**********************************************************
-# List
+=head2 admins_list($attr)
+
+=cut
 #**********************************************************
 sub admins_list {
   my $self = shift;
@@ -332,7 +334,11 @@ sub admins_list {
 
   my $WHERE = ' AND ' . join(' and ', @WHERE_RULES) if ($#WHERE_RULES > -1);
 
-  $self->query2("SELECT if(ca.uid is null, 0, 1), u.id, pi.fio, pi.email, u.uid
+  $self->query2("SELECT IF(ca.uid is null, 0, 1) AS is_company_admin,
+      u.id AS login,
+      pi.fio,
+      pi.email,
+      u.uid
     FROM (companies  c, users u)
     LEFT JOIN companie_admins ca ON (ca.uid=u.uid)
     LEFT JOIN users_pi pi ON (pi.uid=u.uid)
@@ -358,7 +364,7 @@ sub admins_change {
 
   my @ADMINS = split(/, /, $attr->{IDS});
 
-  $self->query_del('companie_admins', undef, $attr);
+  $self->query_del('companie_admins', undef, { company_id => $attr->{COMPANY_ID} });
 
   foreach my $uid (@ADMINS) {
     $self->query_add('companie_admins', { %$attr,

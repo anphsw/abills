@@ -5,12 +5,9 @@
    </div>
 </div>
 
-<div class='form-group'>
   %ADDRESS_FORM%
   %TAGS_FORM%
-  %SEND_DELIVERY_FORM%
-</div>
 
 
-  
+
 

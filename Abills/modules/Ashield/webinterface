@@ -200,7 +200,7 @@ sub ashield_tp {
       SEL_LIST       => $Tariffs->tp_group_list({ COLS_NAME => 1 }),
       SEL_OPTIONS    => { '' => '' },
       MAIN_MENU      => get_function_index('tp_groups'),
-      MAIN_MENU_AGRV => "chg=$tarif_info->{TP_GID}",
+      MAIN_MENU_ARGV => "chg=$tarif_info->{TP_GID}",
     }
   );
 
@@ -1064,7 +1064,7 @@ sub ashield_users_list {
     form_search({ SEARCH_FORM => '' });
   }
 
-  print $html->letters_list({ pages_qs => $pages_qs });
+  #print $html->letters_list({ pages_qs => $pages_qs });
 
   if ($FORM{letter}) {
     $LIST_PARAMS{FIRST_LETTER} = $FORM{letter};

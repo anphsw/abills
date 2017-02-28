@@ -42,7 +42,6 @@ our $db = Abills::SQL->connect( $conf{dbtype}, $conf{dbhost}, $conf{dbname}, $co
 
 require Abills::Misc;
 require Abills::Templates;
-require Paysys::Paysys_Base;
 
 #Operation status
 my $status = '';
@@ -57,34 +56,7 @@ if ( $Paysys::VERSION < 3.2 ){
 
 #Check allow ips
 if ( $conf{PAYSYS_IPS} ){
-  $conf{PAYSYS_IPS} =~ s/ //g;
-  my @ips_arr = split( /,/, $conf{PAYSYS_IPS} );
-
-  #Default DENY FROM all
-  my $allow = 0;
-  foreach my $ip ( @ips_arr ){
-
-    #Deny address
-    if ( $ip =~ /^!/ && $ip =~ /$ENV{REMOTE_ADDR}$/ ){
-      last;
-    }
-
-    #allow address
-    elsif ( $ENV{REMOTE_ADDR} =~ /^$ip/ ){
-      $allow = 1;
-      last;
-    }
-
-    #allow from all networks
-    elsif ( $ip eq '0.0.0.0' ){
-      $allow = 1;
-      last;
-    }
-  }
-
-  #Address not allow
-  #Send info mail to admin
-  if ( !$allow ){
+  if($ENV{REMOTE_ADDR} && ! check_ip($ENV{REMOTE_ADDR}, $conf{PAYSYS_IPS})) {
     print "Content-Type: text/html\n\n";
     my $error = "Error: IP '$ENV{REMOTE_ADDR}' DENY by System";
     sendmail( "$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "ABillS - Paysys", "IP '$ENV{REMOTE_ADDR}' DENY by System",
@@ -118,6 +90,8 @@ if ( $conf{PAYSYS_PASSWD} ){
 our $admin  = Admins->new( $db, \%conf );
 $admin->info( $conf{SYSTEM_ADMIN_ID}, { IP => $ENV{REMOTE_ADDR} } );
 $admin->{DATE} = $DATE;
+
+require Paysys::Paysys_Base;
 our $Paysys   = Paysys->new( $db, $admin, \%conf );
 our $payments = Finance->payments( $db, $admin, \%conf );
 our $users    = Users->new( $db, $admin, \%conf );
@@ -146,9 +120,10 @@ if ( $conf{PAYSYS_SUCCESSIONS} ){
       SYSTEM_ID         => $id
     );
 
-    my @ips_arr = split( /,/, $ips );
-    if ( in_array( $ENV{REMOTE_ADDR}, \@ips_arr ) ){
+    if ( check_ip($ENV{REMOTE_ADDR}, $ips)) {
+      `echo "RIGHT IP" >> /tmp/buffer`;
       if ( $function =~ /(\S+)\.pm/ ){
+        `echo "$1" >> /tmp/buffer`;
         load_pay_module( "$1", { SYS_PARAMS => \%system_params } );
       }
       else{
@@ -164,7 +139,7 @@ if ( $conf{PAYSYS_SUCCESSIONS} ){
 
 #Paysys ips
 my %ip_binded_system = (
-  '185.46.150.122,213.160.154.26,185.46.148.218,213.160.149.0/24,185.46.150.122,213.160.154.26,185.46.148.218'
+  '185.46.150.122,213.160.154.26,185.46.148.218,213.160.149.0/24,185.46.150.122,213.160.149.229,213.160.149.230,185.46.148.219'
   => 'Ibox',
   '91.194.189.69'
   => 'Payu',
@@ -182,13 +157,15 @@ my %ip_binded_system = (
   => 'Redsys',
   '217.77.49.157'
   => 'Rucard',
-  '77.73.26.162,77.73.26.163,77.73.26.164,217.73.198.66'
+  # '77.73.26.162,77.73.26.163,77.73.26.164,217.73.198.66' #old deltapay
+  '217.73.200.56,141.101.175.0/24,144.76.93.104'
   => 'Deltapay',
   '193.110.17.230'
   => 'Zaplati_sumy',
   '91.229.115.11'
   => 'Ipay',
-  '62.149.8.166,82.207.125.57,62.149.15.210'
+  '62.149.8.166,82.207.125.57,62.149.15.210,212.42.94.154,212.42.94.131'#
+  #212.42.93.154 - 24 non stop IP
   => 'Platezhka',
   '213.230.106.112/28,213.230.65.85/28'
   => 'Paynet',
@@ -214,7 +191,7 @@ my %ip_binded_system = (
   => 'Robokassa',
   '192.168.0.0' #add IP f
   => 'Paykeeper',
-  '192.168.0.0' # add ip
+  '193.105.39.6, 195.54.10.47' # add ip
   => 'Chelyabinvestbank',
   '54.76.178.89,54.154.216.60'
   => 'Fondy',
@@ -226,10 +203,14 @@ my %ip_binded_system = (
   => 'Mobilnik',
   '82.207.124.116'
   => 'Oschadbank',
-  '77.72.132.74'
+  '77.72.132.74, 77.72.128.213,​ 77.72.128.214'
   => 'Idram',
   '62.117.79.155,62.117.79.156'
-  => 'Minbank'
+  => 'Minbank',
+  '89.111.54.163,89.111.54.165,185.77.232.26,185.77.233.26,185.77.232.27,185.77.233.27'
+  => 'Mixplat',
+  '77.75.157.168,77.75.157.169,77.75.159.166,77.75.159.170,77.75.157.166,77.75.157.170'
+  => 'Yandex_kassa',
 );
 
 #Test system
@@ -239,6 +220,7 @@ if ( $conf{PAYSYS_TEST_SYSTEM} || $FORM{PAYSYS_TEST_SYSTEM}){
   }
   my ($ips, $pay_system) = split( /:/, $conf{PAYSYS_TEST_SYSTEM} );
   if ( check_ip( $ENV{REMOTE_ADDR}, "$ips" ) ){
+    
     load_pay_module( $pay_system );
     exit;
   }
@@ -702,9 +684,19 @@ sub osmp_payments{
     }
     #Use Extra params
     elsif ( $conf{PAYSYS_OSMP_EXT_PARAMS} ){
-      my @arr = split( /,[\r\n\s]?/, $conf{PAYSYS_OSMP_EXT_PARAMS} );
-      foreach my $param  ( @arr ){
-        $RESULT_HASH{$param} = $FORM{$param} || $list->{$param};
+      if($payment_system_id == 99){
+        my @arr = split( /,[\r\n\s]?/, $conf{PAYSYS_OSMP_EXT_PARAMS} );
+        my $i = 1;
+        foreach my $param  ( @arr ){
+          $RESULT_HASH{'fields'}{"field" . $i . " name='$param'"} = $FORM{$param} || $list->{$param};
+          $i++;
+        }
+      }
+      else{
+        my @arr = split( /,[\r\n\s]?/, $conf{PAYSYS_OSMP_EXT_PARAMS} );
+        foreach my $param  ( @arr ){
+          $RESULT_HASH{$param} = $FORM{$param} || $list->{$param};
+        }
       }
     }
   }
@@ -806,7 +798,17 @@ sub osmp_payments{
   $RESULT_HASH{comment} = $status_hash{ $RESULT_HASH{result} } if ($RESULT_HASH{result} && !$RESULT_HASH{comment});
 
   while (my ($k, $v) = each %RESULT_HASH) {
-    $results .= "<$k>$v</$k>\n";
+    if(ref $v eq "HASH"){
+      $results .= "<$k>\n";
+      while (my ($key, $value) = each %$v){
+        my ($end_key, undef) = split(" ", $key);
+         $results .= "<$key>$value</$end_key>\n";
+      }
+      $results .= "</$k>\n";
+    }
+    else{
+      $results .= "<$k>$v</$k>\n";
+    }
   }
 
   chomp( $results );
@@ -1409,6 +1411,11 @@ sub wm_payments{
       $status_code = 5;
     }
 
+    my $payment_unit = '';
+    if ($FORM{LMI_PAYEE_PURSE} =~ /^(\S)/) {
+      $payment_unit = 'WM' . $1;
+    }
+
     $status_code = paysys_pay( {
         PAYMENT_SYSTEM      => $payment_system,
           PAYMENT_SYSTEM_ID => $payment_system_id,
@@ -1420,6 +1427,7 @@ sub wm_payments{
           DATA              => \%FORM,
           MK_LOG            => 1,
           ERROR             => $status_code,
+          CURRENCY          => $payment_unit,
           DEBUG             => $debug
       } );
   }
@@ -1533,9 +1541,9 @@ sub interact_mode{
 #**********************************************************
 sub load_pay_module{
   my ($name, $attr) = @_;
-
+`echo "4" >> /tmp/buffer`;
   eval { require "Paysys/". $name .".pm" };
-
+`echo "1" >> /tmp/buffer`;
   if ( $@ ){
     print "Content-Type: text/plain\n\n";
     my $res = "Error: load module '" . $name . ".pm' \n $!  \n" .
@@ -1546,14 +1554,14 @@ sub load_pay_module{
 
     return 0;
   }
-
+`echo "2" >> /tmp/buffer`;
   my $function = lc( $name ) . '_check_payment';
-
+`echo "7" >> /tmp/buffer`;
   if ( defined( &{$function} ) ){
     if ( $debug > 3 ){
       print 'Module: ' . $name . '.pm' . " Function: $function\n";
     }
-
+`echo "3" >> /tmp/buffer`;
     &{ \&{$function} }( $attr->{SYS_PARAMS} );
   }
 

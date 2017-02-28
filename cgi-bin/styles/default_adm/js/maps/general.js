@@ -1,369 +1,376 @@
 /**
  * Created by Anykey on 19.05.2016.
+ *
  */
 
-var ROUTE_LAYER = 'ROUTE_LAYER';
-var WIFI_LAYER = 'WIFI_LAYER';
-var WELL_LAYER = 'WELL_LAYER';
-var BUILD_LAYER = 'BUILD_LAYER';
-var GPS_LAYER = 'GPS_LAYER';
-var GPS_ROUTE_LAYER = 'GPS_ROUTE_LAYER';
-var TRAFFIC_LAYER = 'TRAFFIC_LAYER';
-var CUSTOM_POINT_LAYER = 'CUSTOM_POINT_LAYER';
+'use strict';
 
-var MARKERS_POLYLINE = "0";//"markers + polyline",
-var MARKER_CIRCLE = "1"; // "marker + circle",
-var MARKER = "2"; //"marker",
+var OPERATION_NORMAL = 0;
+var OPERATION_ADD    = 1;
+var OPERATION_REMOVE = 2;
 
-var BuildsArray = [];
-var RoutesArray = [];
-var WifiArray = [];
-var WellArray = [];
-var TrafficArray = [];
-var CustomPointsArray = [];
+var OPERATION_MODE = OPERATION_NORMAL;
 
+//var ROUTE_LAYER        = 'ROUTE_LAYER';
+//var WIFI_LAYER         = 'WIFI_LAYER';
+//var WELL_LAYER         = 'WELL_LAYER';
+//var BUILD_LAYER        = 'BUILD_LAYER';
+//var GPS_LAYER          = 'GPS_LAYER';
+//var EQUIPMENT_LAYER    = 'EQUIPMENT_LAYER';
+//var GPS_ROUTE_LAYER    = 'GPS_ROUTE_LAYER';
+//var TRAFFIC_LAYER      = 'TRAFFIC_LAYER';
+//var CUSTOM_POINT_LAYER = 'CUSTOM_POINT_LAYER';
 
-var districtModal = aModal.clear();
-function AObjectRegistrator(locationId) {
-  
-  this.locationId = locationId;
-  this.aMapObject = null;
-  this.callback = this.send;
-  
-  this.setLocationId = function (locationId) {
-    this.locationId = locationId;
-    return this;
-  };
-  
-  this.getLocationId = function () {
-    return this.locationId;
-  };
-  
-  this.setMapObject = function (aMapObject) {
-    this.aMapObject = aMapObject;
-  };
-  
-  this.getMapObject = function () {
-    return this.aMapObject;
-  };
-  
-  this.setCallback = function (callBack) {
-    this.callback = callBack;
-  };
-  
-  this.getCallback = function () {
-    return this.callback;
-  };
-  
-  this.send = function () {
-    this.aMapObject.send();
-  };
-}
+var MARKERS_POLYLINE = "MARKERS_POLYLINE";//"markers + polyline",
+var MARKER_CIRCLE    = "MARKER_CIRCLE"; // "marker + circle",
+var MARKER           = "MARKER"; //"marker",
+var MARKERS          = "MARKERS";
+var POLYLINE         = "POLYLINE";
 
-var aBillingAddressManager = new ABillingLinkManager();
-function ABillingLinkManager() {
-  
-  this.registerBuild = function (locationID, coordx, coordy) {
-    return 'index.cgi?qindex=' + index +
-      '&LOCATION_ID=' + locationID +
-      '&coordy=' + coordx +
-      '&coordx=' + coordy +
-      '&change=1&header=2&MAP_TYPE=' + MAP_TYPE;
-  };
-  
-  this.addBuild = function (streetId, buildNumber, coordx, coordy) {
-    return 'index.cgi?qindex=' + index +
-      '&STREET_ID=' + streetId +
-      '&ADD_ADDRESS_BUILD=' + buildNumber +
-      '&coordy=' + coordx +
-      '&coordx=' + coordy +
-      '&change=1&header=2&MAP_TYPE=' + MAP_TYPE;
-  };
-  
-  this.addressChooseLocation = function () {
-    return 'index.cgi?qindex=' + index +
-      '&SHOW_ADDRESS=1&SHOW_UNREG=1&header=2';
-  };
-  
-  this.removeMarkersCoords = function (LOCATION_ID) {
-    return 'index.cgi?qindex=' + index +
-      // '&LOCATION_ID=' + LOCATION_ID +
-      '&del=' + LOCATION_ID +
-      '&header=2';
-  };
-  
-  this.getMarkersForLayer = function (TYPE) {
-    return 'index.cgi?qindex=' + map_index +
-      '&EXPORT_LIST=' + TYPE;
-  };
-  
-  this.getForm = function (params) {
+window['ObjectsArray'] = [];
 
-    params.MAP_TYPE = MAP_TYPE;
-
-    return 'index.cgi?qindex=' + index + '&' +
-      $.param(params) +
-      '&header=2';
+function addNewPoint(layer_id, object_id) {
+  
+  OPERATION_MODE = OPERATION_ADD;
+  var layer      = MapLayers.getLayer(layer_id);
+  var structure  = layer.structure;
+  //var lang_name  = layer.lang_name;
+  
+  if (!structure) {
+    throw new Error('Unsupported drawing mode', layer, structure);
   }
-}
-
-function ABillingLocation(LocationArray) {
   
-  var self = this;
+  var mapObject      = MapObjectTypesRefs.getMapObject(layer_id);
+  mapObject.stucture = mapObject;
   
-  this.locationArray = null;
-  this.districtId = null;
-  this.streetId = null;
-  this.locationId = null;
-  this.newNumber = null;
+  if (isDefined(object_id)) {
+    mapObject.setId(object_id);
+  }
   
-  if (LocationArray) this.setLocation(LocationArray);
+  //Initialize controllers
+  aDrawController = new DrawController();
   
-  this.setLocation = function (LocationArray) {
-    this.locationArray = LocationArray;
-    this.districtId = LocationArray[0];
-    this.streetId = LocationArray[1];
-    this.locationId = LocationArray[2];
-    this.newNumber = LocationArray[3];
-  };
+  if (isDefined(FORM['ICON'])) {
+    aDrawController.setIcon(aMarkerBuilder.getIconFileName(FORM['ICON']));
+  }
   
-  this.hasLocation = function () {
-    return this.locationArray != null;
-  };
+  aDrawController
+      .setControlsEnabled(structure === MULTIPLE)
+      .setLayerId(layer_id)
+      .setCallback(overlayCompleteCallback)
+      .init(map);
   
-  this.getLocationId = function () {
-    return this.locationId;
-  };
+  aDrawController.setDrawingMode(structure);
+  //aTooltip.display('<h3>' + _NOW_YOU_CAN_ADD_NEW + lang_name + _TO_MAP + '</h3>', 1000);
   
+  $('#dropOperationCtrlBtn').find('button').attr('class', 'btn btn-danger');
   
-  this.askLocation = function (callback) {
-    $.get(aBillingAddressManager.addressChooseLocation(), function (data) {
-      
-      districtModal
-        .setId('ModalLocation')
-        .setHeader('Choose address')
-        .setBody(data)
-        .addButton('Cancel', 'districtModalCancelButton', 'default')
-        .addButton('Add', 'districtModalButton', 'primary')
-        .show(setUpDistrictModalForm);
-      
-      function setUpDistrictModalForm() {
-        
-        // Removing unused form elements
-        $('#flatDiv').remove();
-        $('#addressButtonsDiv').remove();
-        
-        // Make build choose select 100% wide
-        var $changeBuildMenu = $('.changeBuildMenu');
-        var $addBuildMenu = $('.addBuildMenu');
-        
-        $changeBuildMenu.removeClass('col-md-4');
-        $addBuildMenu.removeClass('col-md-4');
-        
-        $changeBuildMenu.addClass('col-md-9');
-        $addBuildMenu.removeClass('col-md-6');
-        
-        //bind handlers
-        $('#districtModalButton').on('click', function () {
-          
-          var dId = $('input#DISTRICT_ID').val();
-          var sId = $('input#STREET_ID').val();
-          var lId = $('input#LOCATION_ID').val();
-          
-          var newNumber = $('.addBuildMenu input').val() || null;
-          
-          self.setLocation([dId, sId, lId, newNumber]);
-          
-          districtModal.hide();
-          
-          if (callback) {
-            console.log('callback');
-            callback(self);
-          }
-        });
-        
-        $('#districtModalCancelButton').on('click', function () {
-          discardAddingPoint(districtModal)
-        })
-      }
-      
-    }, 'text');
-  };
-}
-
-
-var GPSControls = (function () {
-  var layer = GPS_ROUTE_LAYER;
-
-  events.on('layersready', function () {
-    if (!MapLayers.hasLayer(layer)) MapLayers.createLayer(GPS_ROUTE, MARKERS_POLYLINE, false);
-    
-  });
-
-  function showRouteFor(admin_id, color_no) {
-
-    var no_request = form_no_route;
-    
-    if (showRouteFor.caller.name === 'onclick') {
-      form_date = null;
-      no_request = false;
+  if (isDefined(mapObject.init)) {
+    mapObject.init(layer);
+  }
+  
+  if (MapLayers.hasLayer(layer_id)) {
+    if (!MapLayers.isLayerVisible(layer_id)) {
+      MapLayers.enableLayer(layer_id);
     }
     
-    if (!no_request)
-      if (!form_date) {
-
-        function requestRouteLayer(formObject) {
-          requestLayer(layer, admin_id, color_no, formObject.date, formObject.time_from, formObject.time_to);
-          events.off('GPS_ROUTE_DATE_CHOOSED', requestRouteLayer);
-        }
-        
-        events.on('GPS_ROUTE_DATE_CHOOSED', requestRouteLayer);
-        
-        function requestDate() {
-          var dateModal = aModal.clear();
-
-          var dateModalBody =
-            '<div class="modal-body"><div class="row">'
-            + '<label class="control-label col-md-2">Date</label>'
-            + '<div class="col-md-10">'
-            + '<input type="text" id="dateModal_DATE" class="form-control tcal">'
-            + '</div><hr/>'
-
-            + '<div class="row">'
-            + '<label class="control-label col-md-2">Time</label>'
-            + '<div class="col-md-5">'
-            + '<input type="text" id="dateModal_TIME1" value="00:00" class="form-control">'
-            + '</div>'
-
-            + '<div class="col-md-5">'
-            + '<input type="text" id="dateModal_TIME2" value="23:59" class="form-control">'
-            + '</div>'
-
-            + '</div></div>';
-
-          dateModal
-            .setBody(dateModalBody)
-            .addButton('Submit', 'dateModal_SUBMIT', 'btn btn-primary')
-            .setSmall(true)
-            .show(dateModalConfigure);
-
-          function dateModalConfigure() {
-            //init Tcal
-            f_tcalInit();
-
-            //cache DOM
-            var date_input = $('#dateModal_DATE');
-            var time_from_input = $('#dateModal_TIME1');
-            var time_to_input = $('#dateModal_TIME2');
-            var submit_btn = $('#dateModal_SUBMIT');
-
-            // Get current date
-            var date_default = new Date();
-            var year = date_default.getYear() + 1900;
-            var month = date_default.getMonth() + 1;
-            var day = date_default.getDate();
-
-            var date_string = year
-              + '-' + ensureLength(month, 2)
-              + '-' + ensureLength(day, 2);
-
-            date_input.val(date_string);
-
-            submit_btn.on('click', requestRouteForDate);
-
-            function requestRouteForDate(e) {
-              e.preventDefault();
-
-              // Clear all event handlers
-              submit_btn.off();
-              
-              events.emit('GPS_ROUTE_DATE_CHOOSED', {
-                "date": date_input.val(),
-                "time_from": time_from_input.val(),
-                "time_to": time_to_input.val()
-              });
-
-
-              dateModal.hide();
-              dateModal.destroy();
-            }
-          }
-        }
-        
-        requestDate();
-      }
-      else {
-        requestLayer(layer, admin_id, color_no, form_date);
-      }
-  }
-  
-  function requestLayer(layer, admin_id, colorNo, date, time_from, time_to) {
-    $.getJSON(aBillingAddressManager.getMarkersForLayer(
-      'gps_route&AID=' + admin_id +
-      '&colorNo=' + colorNo +
-      '&DATE=' + date +
-      "&TIME_FROM=" + time_from +
-      "&TIME_TO=" + time_to
-    ))
-      .done(function (json) {
-        
-        if (json.length == 1 && json[0].MESSAGE) {
-          new ATooltip()
-            .setText('<h1>' + json[0].MESSAGE + '</h1>')
-            .setClass('danger')
-            .setTimeout(2000)
-            .show();
-          
-          return false;
-        }
-        
-        events.on(layer + '_RENDERED', function () {
-          MapLayers.setLayerVisible(layer, true);
-        });
-        
-        BillingObjectParser.processGPSRoute(json, layer, colorNo);
-      })
+    if (MapLayers.hasCustomSent(layer_id)) {
+      var layer_obj = MapLayers.getLayer(layer_id);
       
-      .fail(function (jqxhr, textStatus, error) {
-        var err = textStatus + ", " + error;
-        new ATooltip("<h4>Request Failed: " + err + "</h4>").setClass('danger').show();
+      mapObject.setCustomParams({
+        add_func: layer_obj['add_func'],
+        module  : layer_obj['module']
       });
+      
+      // Allow returning params to module
+      if (layer_obj.custom_params !== null) {
+        mapObject.addCustomParams(layer_obj.custom_params);
+      }
+    }
   }
   
-  return {
-    showRouteFor: showRouteFor
+  aDrawController.setMapObject(mapObject);
+  
+  Events.emit('add_object_to_layer', layer_id);
+  
+  Events.once('currentmapobjectfinished', function () {
+    // Finished editing
+    if (drawing_last_overlay) aMap.removeObjectFromMap(drawing_last_overlay);
+    
+    dropOperation();
+    aDrawController.clearDrawingMode();
+  });
+}
+
+
+function toggleRemoveMarkerMode() {
+  OPERATION_MODE = OPERATION_REMOVE;
+  
+  var markers = MapLayers.getAllVisibleMarkers();
+  
+  markers.forEach(function(marker){
+    marker['remove_listener'] = aMap.addListenerToObject(marker, 'click', function () {
+      console.log('click');
+      showRemoveConfirmModal(marker);
+    });
+  });
+  
+  console.log('[ Remove ] Listeners set to ', markers.length);
+  
+  $('#dropOperationCtrlBtn').find('button').attr('class', 'btn btn-danger');
+  
+  new ATooltip('<h2>' + _CLICK_ON_A_MARKER_YOU_WANT_TO_DELETE + '</h2>')
+      .setClass('info')
+      .show();
+  
+}
+
+function startEdit(layer_id, object_id) {
+  var object = MapLayers.getObject(layer_id, object_id);
+  closeInfoWindows();
+  
+  if (!object) {
+    aTooltip.displayError('Layer doesn\'t implement editing');
+    return false;
   }
-})();
+  
+  MapLayers.mapGeometry(object, function (geometry, type) {
+    geometry.setDraggable(true);
+    if (geometry.setEditable)
+      geometry.setEditable(true);
+  });
+  
+}
+
+function finishEditing(object) {
+  MapLayers.mapGeometry(object, function (geometry, type) {
+    geometry.setDraggable(false);
+    if (geometry.setEditable)
+      geometry.setEditable(false);
+  });
+  
+  var mapOverlay = MapObjectTypesRefs.getMapObject(object.layer_id);
+  if (mapOverlay.update(object)) mapOverlay.send();
+}
+
+function showRemoveConfirmModal(marker) {
+  console.log(marker);
+  var id       = marker.id;
+  var layer_id = marker.layer_id;
+  
+  if (!(layer_id && id)) {
+    console.warn('No layer id or id', layer_id, id, marker);
+    return false;
+  }
+  
+  aModal.clear()
+      .setBody('<div id="confirmModalContent">' + _REMOVE + '?</div>')
+      .addButton(_NO, "confirmModalCancelBtn", "default")
+      .addButton(_YES, "confirmModalConfirmBtn", "success")
+      .show(bindBtnEvents);
+  
+  
+  function bindBtnEvents(modal) {
+    //modal.onClose(dropOperation);
+    
+    $('#confirmModalCancelBtn').on('click', function () {
+      modal.hide();
+      dropOperation();
+    });
+    
+    $('#confirmModalConfirmBtn').on('click', function () {
+      loadToModal(
+          aBillingAddressManager.removeObject(layer_id, id),
+          function () {
+            closeInfoWindows();
+            Events.emit('point_removed_' + layer_id, id);
+          }
+      );
+    });
+  }
+  
+}
+
+function discardRemovingPoint() {
+  
+  var markers = MapLayers.getAllVisibleMarkers();
+  
+  for (var i = 0; i < markers.length; i++) {
+    if (!markers[i]['remove_listener']) continue;
+    aMap.removeListenerFromObject(markers[i], 'click', markers[i]['remove_listener']);
+    delete markers[i]['remove_listener'];
+  }
+  
+  return true;
+}
 
 
-function DistrictPolygoner() {
-  var self = this;
-  this.districtsArray = [];
-  this.computed = false;
-  this.polygonsArray = [];
+function overlayCompleteCallback(e) {
+  
+  //getRegistrator
+  var registrator = aDrawController.getObjectRegistrator();
+  var layer_id    = aDrawController.getLayerId();
+  var lang_name   = MapLayers.getLayer(layer_id)['lang_name'];
+  
+  //getObject
+  var object           = registrator.getMapObject();
+  drawing_last_overlay = e.overlay;
+  
+  //Pass overlay to object
+  var isNotFinished = object.emit(e.overlay, e.feature);
+  
+  if (FORM['LOCATION_ID']) {
+    // Ask user for confirmation
+    showConfirmModal(lang_name);
+  }
+  else {
+    // Confirm without asking
+    confirmAddingPoint();
+  }
+  
+  return isNotFinished === true;
+}
 
-  this.active = false;
-
-  this.addBuild = function (districtId, latLng) {
-    var arr = this.districtsArray[districtId];
-
-    //If it is first point in district
-    if (typeof (arr) === 'undefined') {
-      //define new array
-      this.districtsArray[districtId] = [latLng];
-    } else {
-      //add point to existing array
-      arr.push(latLng);
+function confirmAddingPoint() {
+  // Hide modal
+  confirmModal.hide();
+  
+  // Tell object he is ready to be sent
+  aDrawController.getObjectRegistrator().send(function (success) {
+    if (success) {
+      delete FORM['OBJECT_ID'];
     }
+  });
+}
 
+function discardAddingPoint() {
+  //removing discarded marker
+  if (drawing_last_overlay) drawing_last_overlay.setMap(null);
+  
+  confirmModal.hide();
+}
+
+function dropOperation() {
+  switch (OPERATION_MODE) {
+    case OPERATION_NORMAL:
+      return;
+      break;
+    case OPERATION_ADD:
+      if (aDrawController) aDrawController.clearDrawingMode();
+      discardAddingPoint();
+      break;
+    case OPERATION_REMOVE:
+      discardRemovingPoint();
+      break;
+  }
+  
+  $('#dropOperationCtrlBtn').find('button').attr('class', 'btn btn-primary');
+  
+  OPERATION_MODE = OPERATION_NORMAL;
+}
+
+function getClosestBuildsToThis(latLng, range_) {
+  var range  = range_ || 100;
+  var builds = MapLayers.getLayerObjects(LAYER_ID_BY_NAME['BUILD']);
+  
+  var closer = [];
+  builds.map(function (build) {
+    if (aMap.getDistanceBeetween(build.marker.latLng, latLng) <= range) {
+      closer[closer.length] = build;
+    }
+  });
+  
+  return closer;
+}
+
+function polyline_zoom_listener(polyline, zoom) {
+  var currentWidth = polyline.strokeWeight;
+  var new_width    = currentWidth;
+  
+  if (zoom > 17) {
+    // Increase zoom until 18
+    if (zoom <= 19) {
+      new_width = +polyline.initWeight + ((zoom - 17) * 2);
+    }
+    // Max zoom
+    else {
+      new_width = +polyline.initWeight + 4;
+    }
+  }
+  // Minimal weight
+  else if (zoom == 17) {
+    new_width = +polyline.initWeight;
+  }
+  else if (zoom < 14) {
+    aMap.removeObjectFromMap(polyline);
+    return true;
+  }
+  
+  if (zoom >= 15 && polyline.map == null) {
+    aMap.addObjectToMap(polyline);
+  }
+  
+  if (new_width != currentWidth) {
+    polyline.setOptions({strokeWeight: new_width});
+  }
+  
+}
+
+var STRUCTURE_REFS = {};
+
+function DistrictPolygoner(layer_id) {
+  var self            = this;
+  this.districtsArray = [];
+  this.computed       = false;
+  this.polygonsArray  = [];
+  this.active         = false;
+  
+  this.addMarker = function (districtId, latLng) {
+    var was_active = self.active;
+    if (was_active) self.disable();
     this.computed = false;
+    
+    if (!isDefined(this.districtsArray[districtId])) {
+      this.districtsArray[districtId] = [latLng];
+    }
+    else {
+      this.districtsArray[districtId][this.districtsArray[districtId].length] = latLng;
+    }
+    
+    if (was_active) self.enable();
+    return this.districtsArray[districtId].length - 1;
   };
-
+  
+  this.removeMarker = function (district_id, marker_id) {
+    var was_active = self.active;
+    if (was_active) self.disable();
+    
+    var index = -1;
+    var array = self.districtsArray[district_id];
+    
+    for (var i = 0, len = array.length; i < len; i++) {
+      if (array[i].id == marker_id) {
+        index = i;
+        break;
+      }
+    }
+    
+    if (index == -1) {
+      console.log('Cant\'t find marker with this id in array');
+    }
+    
+    array.splice(index, 1);
+    
+    self.computed = false;
+    if (was_active) self.enable();
+  };
+  
   this.toggle = function () {
     var btn = $('#polygonToggle').find('button');
-
+    
     if (this.active) {
       this.hidePolygons();
+      this.active = false;
       if (btn) {
         btn.removeClass('btn-primary');
         btn.addClass('btn-danger');
@@ -371,39 +378,49 @@ function DistrictPolygoner() {
     }
     else {
       this.showPolygons();
+      this.active = true;
       if (btn) {
         btn.addClass('btn-primary');
         btn.removeClass('btn-danger');
       }
     }
   };
-
+  
+  this.enable = function () {
+    if (!self.active) {
+      self.toggle();
+    }
+  };
+  
+  this.disable = function () {
+    if (self.active) {
+      self.toggle();
+    }
+  };
+  
   this.hidePolygons = function () {
     $.each(this.polygonsArray, function (i, e) {
       aMap.removeObjectFromMap(e);
     });
-    this.active = false;
   };
-
+  
   this.showPolygons = function () {
     if (!this.computed) this.compute();
-
+    
     $.each(self.polygonsArray, function (i, e) {
       aMap.addObjectToMap(e);
     });
-
-    this.active = true;
   };
-
+  
   this.compute = function () {
-    this.hidePolygons();
     self.polygonsArray = [];
-
+    
     var arr = this.districtsArray;
-
+    aColorPalette.clear();
+    
     for (var pointsArr in arr) {
       if (!arr.hasOwnProperty(pointsArr)) continue;
-
+      
       var points = arr[pointsArr];
       if (points.length > 2) {
         createShell(points);
@@ -411,44 +428,42 @@ function DistrictPolygoner() {
     }
     this.computed = true;
   };
-
+  
   function createShell(points) {
-
-    var hullPoints = []; //output of magic algorithm
-
     //sort
     points.sort(sortPointY);
     points.sort(sortPointX);
-
+    
     //Do some magic
+    var hullPoints      = []; //output of magic algorithm
     var hullPoints_size = chainHull_2D(points, points.length, hullPoints);
-
+    
     var color = aColorPalette.getNextColorHex();
-
+    
     var polygon = PolygonBuilder.build({
-      paths: hullPoints,
-      strokeColor: color,
+      paths        : hullPoints,
+      strokeColor  : color,
       strokeOpacity: 0.8,
-      strokeWeight: 2,
-      fillColor: color,
-      fillOpacity: 0.35
+      strokeWeight : 2,
+      fillColor    : color,
+      fillOpacity  : 0.35
     });
-
+    
     self.polygonsArray.push(polygon); //save reference
   }
-
+  
   function sortPointX(a, b) {
     return a.lng - b.lng
   }
-
+  
   function sortPointY(a, b) {
     return a.lat - b.lat
   }
-
+  
   function isLeft(a, b, c) {
     return (b.lng - a.lng) * (c.lat - a.lat) - (c.lng - a.lng) * (b.lat - a.lat)
   }
-
+  
   function chainHull_2D(a, b, c) {
     var f, h, d = 0, e = -1, g = 0, i = a[0].lng;
     for (f = 1; b > f && a[f].lng == i; f++);
@@ -466,28 +481,53 @@ function DistrictPolygoner() {
     }
     return h != g && (c[++e] = a[g]), e + 1
   }
+  
+  // Bind self to layer state
+  Events.on(layer_id + '_ENABLED', this.enable);
+  Events.on(layer_id + '_DISABLED', this.disable);
+  
+  if (layer_id == 1){
+    MapLayers.onLayerEnabled(4, self.disable )
+  }
+  
+  // Add markers when added to layer
+  Events.on('new_point_rendered_' + layer_id, function (object) {
+    if (!(object.raw['DISTRICT'] && (object.raw['ID'] || object.raw['MARKER']['ID']))) {
+      console.log('Added to layer, but without district or ID', object.raw['DISTRICT'], object.raw['ID'] + ' || ' + object.raw['MARKER']['ID']);
+      return;
+    }
+    
+    var d_id = object.raw['DISTRICT'];
+    var o_id = object.raw['ID'] || object.raw['MARKER']['ID'];
+    
+    var new_obj = {
+      lat: object.marker.latLng.lat(),
+      lng: object.marker.latLng.lng(),
+      id : o_id
+    };
+    
+    self.addMarker(d_id, new_obj);
+  });
+  
+  
+  Events.on('point_removed_' + layer_id, function (object_id) {
+    var object = MapLayers.getObject(layer_id, object_id);
+    
+    if (!(object.raw['DISTRICT'] && (object.raw['ID'] || object.raw['MARKER']['ID']))) {
+      console.log('Removed, but without district or ID', object.raw['DISTRICT'], object.raw['ID'] + ' || ' + object.raw['MARKER']['ID']);
+      return;
+    }
+    var d_id = object.raw['DISTRICT'];
+    var o_id = object.raw['ID'] || object.raw['MARKER']['ID'];
+    
+    self.removeMarker(d_id, o_id);
+  })
+  
 }
-
-/**
- * Created by Anykey on 19.05.2016.
- */
-
 
 var LayerRequest = (function () {
   
-  var TYPElistRefs = {
-    BUILD_LAYER: 'builds',
-    WELL_LAYER: 'wells',
-    WIFI_LAYER: 'wifis',
-    ROUTE_LAYER: 'routes',
-    GPS_LAYER: 'gps',
-    GPS_ROUTE_LAYER: 'gps_route',
-    TRAFFIC_LAYER: 'traffic',
-    CUSTOM_POINT_LAYER: 'custom_point'
-  };
-  
-  function requestAndRender(TYPE) {
-    var list_name = TYPElistRefs[TYPE];
+  function requestAndRender(list_name) {
     
     if (typeof (list_name) === 'undefined') {
       console.warn('[ Maps.ABillingRequest ] List name not defined');
@@ -496,15 +536,12 @@ var LayerRequest = (function () {
     var link = aBillingAddressManager.getMarkersForLayer(list_name);
     
     $.getJSON(link)
-      .done(
-        function (json) {
-          BillingObjectParser.render(json, TYPE);
-        })
-      .fail(
-        function (jqxhr, textStatus, error) {
-          var err = textStatus + ", " + error;
-          new ATooltip("<h3>Request Failed: " + err + "</h3>").setClass('danger').show();
-        });
+        .done(BillingObjectParser.render)
+        .fail(
+            function (jqxhr, textStatus, error) {
+              var err = textStatus + ", " + error;
+              new ATooltip("<h3>Request Failed: " + err + "</h3>").setClass('danger').show();
+            });
   }
   
   return {
@@ -514,190 +551,84 @@ var LayerRequest = (function () {
 
 var BillingObjectParser = (function () {
   
-  function render(data, type_) {
-    var type = MapLayers.toType(type_);
+  function render(data) {
     
-    if (data.length == 1 && data[0].MESSAGE) {
+    if (data.length == 1 && isDefined(data[0].MESSAGE)) {
       new ATooltip()
-        .setText('<h1>' + data[0].MESSAGE + '</h1>')
-        .setClass('danger')
-        .setTimeout(2000)
-        .show();
+          .setText('<h1>' + data[0].MESSAGE + '</h1>')
+          .setClass('danger')
+          .setTimeout(2000)
+          .show();
       
       return false;
     }
     
-    switch (type) {
-      case BUILD:
-        //case CLIENTS_ONLINE:
-        //case CLIENTS_OFFLINE:
-        processBuilds(data);
-        aDistrictPolygoner.showPolygons();
-        break;
-      case ROUTE:
-        processRoutes(data);
-        break;
-      case WIFI:
-        processWifi(data);
-        break;
-      case WELL:
-        processWells(data);
-        break;
-      case GPS:
-        processGPS(data);
-        break;
-      case TRAFFIC:
-        processTraffic(data);
-        break;
-      case CUSTOM_POINT:
-        processCustom(data);
-        break;
-      default:
-        throw new Error('ABillingObjectParser: not defined logic to render a layer');
-    }
+    var rendered_layer_ids = {};
     
-    events.emit(type_ + '_RENDERED', true);
-  }
-  
-  function processBuilds(Builds) {
-    
-    $.each(Builds, function (i, Build) {
-      //create object to save it later
-      var newBuild = {marker: null};
+    $.each(data, function (i, mapObject) {
       
-      newBuild.marker = AMapSimpleDrawer.drawMarker(Build.MARKER);
-      
-      aDistrictPolygoner.addBuild(Build.MARKER.DISTRICT,
-        {
-          lat: Build.MARKER.COORDS[0],
-          lng: Build.MARKER.COORDS[1]
-        }
-      );
-      
-      MapLayers.pushToLayer(BUILD_LAYER, newBuild);
-      
-      markers[Build.MARKER.ID] = newBuild.marker;
-    });
-  }
-  
-  function processRoutes(Routes) {
-    $.each(Routes, function (i, Route) {
-      //create route object to save it later
-      var newRoute = {
-        markers: [],
-        polyline: null
+      var newObject = {
+        layer_id: 0,
+        types   : []
       };
       
-      // Process route markers
-      $.each(Route.MARKERS, function (i, marker) {
-        var routeMarker = AMapSimpleDrawer.drawMarker(marker);
-        newRoute.markers.push(routeMarker);
-      });
-      
-      //Process route polyline
-      newRoute.polyline = AMapSimpleDrawer.drawPolyline(Route.POLYLINE);
-      
-      MapLayers.pushToLayer(ROUTE_LAYER, newRoute);
-    });
-  }
-  
-  function processWifi(WIFIArray) {
-    $.each(WIFIArray, function (i, Wifi) {
-      
-      //Create object to save it later
-      var newWifi = {marker: null, circle: null};
-      
-      newWifi.marker = AMapSimpleDrawer.drawMarker(Wifi.MARKER);
-      newWifi.circle = AMapSimpleDrawer.drawCircle(Wifi.CIRCLE, newWifi.marker);
-      
-      MapLayers.pushToLayer(WIFI_LAYER, newWifi);
-    });
-  }
-  
-  function processWells(WELLArray) {
-    $.each(WELLArray, function (i, Well) {
-      //create object to save it later
-      var newWell = {marker: null};
-      
-      newWell.marker = AMapSimpleDrawer.drawMarker(Well.MARKER);
-      
-      MapLayers.pushToLayer(WELL_LAYER, newWell);
-    });
-  }
-  
-  function processGPS(GPSArray) {
-    $.each(GPSArray, function (i, gps) {
-      //create object to save it later
-      var newGps = {marker: null};
-      
-      newGps.marker = AMapSimpleDrawer.drawMarker(gps.MARKER);
-      
-      MapLayers.pushToLayer(GPS_LAYER, newGps);
-    });
-  }
-  
-  function processGPSRoute(GPSRoute, layer, colorNo) {
-    $.each(GPSRoute, function (i, Route) {
-      
-      //create route object to save it later
-      var newRoute = {
-        markers: [],
-        polyline: null
-      };
-      
-      // Color for route
-      var colorHex = aColorPalette.getColorHex(colorNo);
-      AMapSimpleDrawer.setColor(colorHex);
-      
-      // Process route markers
-      $.each(Route.MARKERS, function (i, marker) {
-        // Set icon parameters
-        marker.TYPE = 'position/' + colorNo;
-        marker.SIZE = [15, 15];
-        
-        // Draw and save markers
-        var routeMarker = AMapSimpleDrawer.drawMarker(marker);
-        newRoute.markers.push(routeMarker);
-      });
-      
-      
-      // Check if animation available 
-      var animationAvailable = aMap.animatePolyline(true, Route.POLYLINE);
-      
-      newRoute.polyline = AMapSimpleDrawer.drawPolyline(Route.POLYLINE);
-      
-      // If animation available set animate handlers
-      if (animationAvailable) {
-        aMap.animatePolyline(false, newRoute.polyline);
+      if (mapObject['LAYER_ID']) {
+        newObject.layer_id                     = mapObject['LAYER_ID'];
+        rendered_layer_ids[newObject.layer_id] = 1;
       }
       
-      MapLayers.pushToLayer(layer, newRoute);
+      // Structure independent rendering
+      for (var key in mapObject) {
+        if (!mapObject.hasOwnProperty(key)) continue;
+        
+        switch (key) {
+          case 'ID':
+          case 'LAYER_ID':
+          case 'DISTRICT':
+          case 'ADDRESS':
+            break;
+          case 'OBJECT_ID':
+            newObject['OBJECT_ID'] = mapObject['OBJECT_ID'];
+            break;
+          case MARKER:
+            newObject.marker                        = AMapSimpleDrawer.drawMarker(mapObject['MARKER']);
+            newObject.marker.layer_id               = newObject.layer_id;
+            newObject.types[newObject.types.length] = 'marker';
+            break;
+          case MARKERS:
+            newObject.markers                       = mapObject['MARKERS'].map(AMapSimpleDrawer.drawMarker);
+            newObject.types[newObject.types.length] = 'markers';
+            break;
+          case CIRCLE:
+            newObject.circle                        = AMapSimpleDrawer.drawCircle(mapObject['CIRCLE']);
+            newObject.types[newObject.types.length] = 'circle';
+            break;
+          case POLYLINE:
+            newObject.polyline                      = AMapSimpleDrawer.drawPolyline(mapObject['POLYLINE']);
+            newObject.types[newObject.types.length] = 'polyline';
+            break;
+          case POLYGON:
+            newObject.polygon                       = AMapSimpleDrawer.drawPolygon(mapObject['POLYGON']);
+            newObject.types[newObject.types.length] = 'polygon';
+            break;
+          default :
+            console.warn('[ BillingObjectParser ]', key, 'not implemented');
+        }
+      }
       
-      events.emit(layer + '_RENDERED', true);
+      //Saving reference to original data
+      newObject.raw = mapObject;
+      
+      // Tell others we have rendered new object
+      Events.emit('new_point_rendered_' + newObject.layer_id, newObject);
     });
-  }
-  
-  function processTraffic(TrafficArray) {
-    $.each(TrafficArray, function (i, Build) {
-      //Create object to save it later
-      var newTraffic = {marker: null, circle: null};
-      
-      newTraffic.marker = AMapSimpleDrawer.drawMarker(Build.MARKER);
-      newTraffic.circle = AMapSimpleDrawer.drawCircle(Build.CIRCLE, newTraffic.marker);
-      
-      console.log(newTraffic);
-      
-      MapLayers.pushToLayer(TRAFFIC_LAYER, newTraffic);
+    
+    // Iterate over hash keys
+    $.each(Object.keys(rendered_layer_ids), function (i, id) {
+      Events.emit(id + '_RENDERED');
     });
-  }
-  
-  function processCustom(CustomPointsArray) {
-    $.each(CustomPointsArray, function (i, CustomPoint) {
-      //create object to save it later
-      var newCS = {marker: null};
-      newCS.marker = AMapSimpleDrawer.drawMarker(CustomPoint.MARKER);
-      MapLayers.pushToLayer(CUSTOM_POINT_LAYER, newCS);
-    });
+    
+    return rendered_layer_ids;
   }
   
   var AMapSimpleDrawer = (function () {
@@ -705,52 +636,87 @@ var BillingObjectParser = (function () {
     var color_ = 'green';
     
     function drawMarker(object) {
-      var x = object.COORDS[0];
-      var y = object.COORDS[1];
-      var infoWindow = object.INFO || '';
-      var type = object.TYPE || 'build';
-      var meta = object.META || null;
-      var sizeArr = object.SIZE || [32, 37];
-      var offsetArr = (object.CENTERED) ? [-sizeArr[0] / 2, -sizeArr[1] / 2] : [-sizeArr[0] / 2, -sizeArr[1]];
+      var x              = object.COORDX;
+      var y              = object.COORDY;
+      var infoWindow     = object.INFO || '';
+      var type           = object.TYPE || 'build';
+      var meta           = object.META || null;
+      var sizeArr        = object.SIZE || [32, 37];
+      var offsetArr      = (object.CENTERED)
+          ? [-sizeArr[0] / 2, -sizeArr[1] / 2]
+          : [-sizeArr[0] / 2, -sizeArr[1]];
+      var makeNavigation = object.NAVIGATION || '';
       
       var count = (object.COUNT) ? '' + object.COUNT : undefined;
-      var id = object.ID;
+      var id    = object.ID;
       
       var mb = new MarkerBuilder(map);
       mb
-        .setPosition(createPosition(x, y))
-        .setType(type)
-        .setIcon(type, sizeArr)
-        .setIconOffset(offsetArr)
-        .setLabel(count)
-        .setId(id);
+          .setPosition(aMap.createPosition(x, y))
+          .setType(type)
+          .setIcon(type, sizeArr)
+          .setIconOffset(offsetArr)
+          .setLabel(count)
+          .setId(id);
       
       if (infoWindow) mb.setInfoWindow(infoWindow);
       if (meta) mb.setMetaInformation(meta);
+      if (makeNavigation) mb.setNavigation(makeNavigation);
       
       var marker = mb.build();
+  
+      if (isDefined(object.NAME)) {
+        marker.tooltip = new Tooltip({
+          'marker'   : marker,
+          'content': object.NAME,
+          'cssClass'  : 'tooltip-hint',
+          'map'    : map
+        });
+      }
       
       aMap.removeObjectFromMap(marker);
+      
+      if (object['OBJECT_ID']) {
+        marker['OBJECT_ID'] = object['OBJECT_ID'];
+        marker['object_id'] = object['OBJECT_ID'];
+      }
       
       return marker;
     }
     
     function drawPolyline(object) {
       
-      object.path = makePath(object.RAWPATH);
-      object.strokeColor = object.strokeColor || color_;
+      object.path         = object.POINTS.map(function (e) {return aMap.createPosition(e[0], e[1])});
+      object.strokeColor  = object.strokeColor || color_;
+      object.strokeWeight = object.strokeWeight || 1;
       
-      var polyline = PolylineBuilder.build(object);
+      var polyline        = PolylineBuilder.build(object);
+      polyline.initWeight = object.strokeWeight;
+      
+      
+      // Increase size on zoom
+      polyline_zoom_listener(polyline, aMap.getZoom());
+      aMap.addListenerToObject(map, 'zoom_changed', function () {
+        polyline_zoom_listener(polyline, aMap.getZoom());
+      });
+  
+      aMap.addListenerToObject(polyline, 'mouseover', function () {
+        polyline.setOptions({strokeWeight : polyline.strokeWeight + 1});
+      });
+      aMap.addListenerToObject(polyline, 'mouseout', function () {
+        polyline.setOptions({strokeWeight : polyline.strokeWeight - 1});
+      });
+      
+      if (isDefined(object.name) && isDefined(window['Tooltip'])) {
+        polyline.tooltip = new Tooltip({
+          'poly'   : polyline,
+          'content': object.name,
+          'cssClass'  : 'tooltip-hint',
+          'map'    : map
+        });
+      }
       
       aMap.removeObjectFromMap(polyline);
-      
-      function makePath(PointsArray) {
-        var result = [];
-        $.each(PointsArray, function (i, e) {
-          result.push(createPosition(e[0], e[1]));
-        });
-        return result;
-      }
       
       return polyline;
     }
@@ -759,455 +725,436 @@ var BillingObjectParser = (function () {
       return CircleBuilder.build(Circle, marker);
     }
     
+    function drawPolygon(Polygon) {
+      Polygon.path = Polygon.POINTS.map(function (e) {return aMap.createPosition(e[0], e[1])});
+      if (Polygon['COLOR'] && typeof Polygon['fillColor'] === 'undefined'){
+        Polygon['fillColor'] = Polygon['COLOR'];
+        Polygon['strokeColor'] = Polygon['COLOR'];
+      }
+      
+      var polygon = PolygonBuilder.build(Polygon);
+  
+      if (isDefined(Polygon.name) && isDefined(window['Tooltip'])) {
+        polygon.tooltip = new Tooltip({
+          'poly'   : polygon,
+          'content': Polygon.name,
+          'cssClass'  : 'tooltip-hint',
+          'map'    : map
+        });
+      }
+      
+      return polygon;
+    }
+    
     function setColor(color) {
       color_ = color;
     }
     
     return {
-      drawMarker: drawMarker,
+      drawMarker  : drawMarker,
       drawPolyline: drawPolyline,
-      drawCircle: drawCircle,
-      setColor: setColor
+      drawPolygon : drawPolygon,
+      drawCircle  : drawCircle,
+      setColor    : setColor
     }
   })();
   
-  function getDrawer(){
+  function getDrawer() {
     return AMapSimpleDrawer;
   }
   
   return {
-    render: render,
-    processBuilds: processBuilds,
-    processRoutes: processRoutes,
-    processWifi: processWifi,
-    processWells: processWells,
-    processGPS: processGPS,
-    processGPSRoute: processGPSRoute,
-    processTraffic: processTraffic,
-    processCustom: processCustom,
-    getDrawer : getDrawer
+    render   : render,
+    getDrawer: getDrawer
   }
 })();
 
 
-/** Shows how Map objects are referencing to overlay type*/
-var ObjectTypeRefs = {
-  BUILD: POINT,
-  WELL: POINT,
-  DISTRICT: POINT,
-  ROUTE: LINE,
-  WIFI: CIRCLE,
-  CUSTOM_POINT: CUSTOM_POINT
-};
-
-/**
- * Presents an object that will be registered.
- * Model
- * */
-var AMapObject = {
-  type: "null",
-  create: function (values) {
-    var instance = Object.create(this);
-    Object.keys(values).forEach(function (key) {
-      instance[key] = values[key];
-    });
-    return instance;
-  },
-  getType: function () {
-    return this.type;
-  },
-  setType: function (type) {
-    this.type = type;
-  }
-};
-
-var AMapPoint = AMapObject.create({
-  latLng: null,
-  emit: function (event) {
-    this.latLng = event.position;
-  }
-});
-
-var AMapBuild = AMapPoint.create({
-  type: BUILD,
-  send: function () {
-    
-    var x = this.latLng.lat();
-    var y = this.latLng.lng();
-    
-    if (form_location_id) {
-      registerBuild(form_location_id, x, y);
-    } else {
-      var location = new ABillingLocation();
-      location.askLocation(function (locationC) {
-        
-        districtModal.hide();
-        
-        if (locationC.newNumber) {
-          var sId = locationC.streetId;
-          var newNumber = locationC.newNumber;
-          addBuild(sId, newNumber, x, y);
-        } else {
-          var location_id = locationC.getLocationId();
-          registerBuild(location_id, x, y);
-        }
-      });
-    }
-    function registerBuild(location_id, x, y) {
-      var link = aBillingAddressManager.registerBuild(location_id, x, y);
-      loadToModal(link);
-    }
-    
-    function addBuild(streetId, buildNumber, x, y) {
-      var link = aBillingAddressManager.addBuild(streetId, buildNumber, x, y);
-      loadToModal(link);
-    }
-  }
-});
-
-var AMapWell = AMapPoint.create({
-  type: WELL,
-  
-  send: function () {
-    var params = {
-      TYPE: this.type,
-      COORDX: this.latLng.lng(),
-      COORDY: this.latLng.lat()
-    };
-    
-    
-    var link = aBillingAddressManager.getForm(params);
-    loadToModal(link);
-  }
-});
-
-var AMapDistrict = AMapPoint.create({
-  type: DISTRICT,
-  
-  send: function () {
-    
-    var params = {
-      TYPE: this.type,
-      COORDX: this.latLng.lng(),
-      COORDY: this.latLng.lat(),
-      ZOOM: map.getZoom()
-    };
-    
-    var link = aBillingAddressManager.getForm(params);
-    loadToModal(link);
-  }
-});
-
-var AMapCustomPoint = AMapPoint.create({
-  type: CUSTOM_POINT,
-  
-  send: function () {
-    
-    var COORDX = this.latLng.lng();
-    var COORDY = this.latLng.lat();
-    
-    var link = '?get_index=maps_show_custom_point_form&header=2&COORDX=' + COORDX + '&COORDY=' + COORDY;
-    //aModal.hide();
-    loadToModal(link);
-  }
-});
-
-var AMapWifi = AMapPoint.create({
-  type: WIFI,
-  radius: 0,
-  emit: function (overlay) {
-    
-    this.latLng = overlay.center;
-    this.radius = Math.round(overlay.radius)
-  },
-  
-  send: function () {
-    
-    var params = {
-      TYPE: this.type,
-      COORDX: this.latLng.lng(),
-      COORDY: this.latLng.lat(),
-      RADIUS: this.radius
-    };
-    
-    var link = aBillingAddressManager.getForm(params);
-    loadToModal(link);
-  }
-  
-});
-
-var AMapRoute = AMapObject.create({
-  type: ROUTE,
-  points: [],
-  length: 0,
-  
-  setPoints: function (newPoints) {
-    this.points = newPoints;
-    this.length = aMap.getLength(newPoints);
-  },
-  getPoints: function () {
-    return this.points;
-  },
-  emit: function (overlay) {
-    console.log(overlay);
-    this.setPoints(overlay.getPath().getArray());
-  },
-  send: function () {
-    
-    var params = {
-      TYPE: this.type,
-      POINTS: transformArray(this.points),
-      ROUTE_LENGTH: this.length
-    };
-    //If got route id, pass it back
-    if (form_route_id) params.ROUTE_ID = form_route_id;
-    
-    var link = aBillingAddressManager.getForm(params);
-    loadToModal(link);
-    
-    function transformArray(arrayOfPoints) {
-      var str = '';
-      
-      $.each(arrayOfPoints, function (i, latLng) {
-        console.log(latLng);
-        str += latLng.lng() + ',' + latLng.lat() + ';';
-      });
-      console.log(str);
-      return str;
-    }
-  }
-});
-
-/** Shows how Map objects are referencing to JavaScript Models of map objects*/
-var MapObjectTypesRefs = (function () {
-  
-  var refs = {
-    BUILD: AMapBuild,
-    WELL: AMapWell,
-    DISTRICT: AMapDistrict,
-    ROUTE: AMapRoute,
-    WIFI: AMapWifi,
-    CUSTOM_POINT: AMapCustomPoint
-  };
-  
-  function getMapObject(TYPE) {
-    var res = refs[TYPE];
-    if (typeof(res) !== 'undefined') {
-      return res;
-    }
-    console.log(refs);
-    throw new Error('undefined type : ' + TYPE);
-  }
-  
-  return {getMapObject: getMapObject};
-})();
+//TODO: reserved for future optimizations
+/*
+ function LayerAbstract(layer_id, layerObj){
+ var self = this;
+ 
+ this.id                = layer_id;
+ this.enabled           = false;
+ this.name              = layerObj['name'];
+ this.lang_name         = layerObj['lang_name'];
+ this.module            = layerObj['module'] || 'Maps';
+ this.structure         = layerObj['structure'] || MARKER;
+ this.objects           = [];
+ this.object_by_id      = {};
+ this.clusterer         = aMap.getNewClusterer(map, clustererGridSize);
+ this.clusteringEnabled = layerObj['clustering'] || 1;
+ this.add_func          = layerObj['add_func'];
+ this.custom_params     = layerObj['custom_params'] || null;
+ 
+ Events.on('new_point_rendered_' + layer_id, function (newObject) {
+ var object_id =
+ newObject['raw']['ID']
+ || (newObject['raw']['MARKER'] && newObject['raw']['MARKER']['ID'])
+ || newObject['raw']['OBJECT_ID'] || false;
+ 
+ // Prevent adding same object twice
+ if (object_id && isDefined(Layers[layer_id].object_by_id[object_id]))
+ return;
+ else {
+ // Save quick reference
+ Layers[layer_id].object_by_id[object_id] = newObject;
+ }
+ 
+ pushToLayer(layer_id, newObject);
+ 
+ if (object_id) {
+ // If layer is already enabled, should add new object on map
+ if (Layers[layer_id].enabled) {
+ setLayerObjectVisibility(layer_id, object_id, true);
+ }
+ }
+ });
+ 
+ Events.on('point_removed_' + layer_id, function(object_id){
+ MapLayers.setLayerObjectVisibility(layer_id, object_id, false);
+ var object = getObject(layer_id, object_id);
+ if (object){
+ var index = Layers[layer_id].objects.indexOf(object);
+ Layers[layer_id].objects.splice(index, 1);
+ delete Layers[layer_id].object_by_id[object_id];
+ }
+ });
+ }
+ */
 
 
 var MapLayers = (function () {
   
   var Layers = {};
-  var layerStructureRefs = {};
   
-  var clustering = false;
+  var clustering        = false;
   var clustererGridSize = 30;
   
-  function setLayerVisible(LAYER, boolean) {
+  function createLayer(layerObj) {
+    var layer_id = layerObj['id'];
     
-    var layer = Layers[(LAYER)];
+    if (Layers[layer_id]) {
+      console.warn('[ MapLayers ]', 'Creating same layer twice', layer_id);
+      console.trace();
+      return false;
+    }
+    
+    Layers[layer_id] = {
+      id               : layer_id,
+      enabled          : false,
+      name             : layerObj['name'],
+      lang_name        : layerObj['lang_name'],
+      module           : layerObj['module'] || 'Maps',
+      structure        : layerObj['structure'] || MARKER,
+      objects          : [],
+      object_by_id     : {},
+      clusterer        : aMap.getNewClusterer(map, clustererGridSize),
+      clusteringEnabled: layerObj['markers_in_cluster'] || 1,
+      add_func         : layerObj['add_func'],
+      custom_params    : layerObj['custom_params'] || null,
+      loading          : false
+    };
+    
+    Events.on('new_point_rendered_' + layer_id, function (newObject) {
+      var object_id =
+              newObject['raw']['ID']
+              || (newObject['raw']['MARKER'] && newObject['raw']['MARKER']['ID'])
+              || false;
+      
+      // Prevent adding same object twice
+      if (object_id && isDefined(Layers[layer_id].object_by_id[object_id]))
+        return;
+      else {
+        // Save quick reference
+        Layers[layer_id].object_by_id[object_id] = newObject;
+      }
+      
+      pushToLayer(layer_id, newObject);
+      
+      if (object_id) {
+        // If layer is already enabled, should add new object on map
+        if (Layers[layer_id].enabled) {
+          setLayerObjectVisibility(layer_id, object_id, true);
+        }
+      }
+    });
+    
+    Events.on('point_removed_' + layer_id, function (object_id) {
+      MapLayers.setLayerObjectVisibility(layer_id, object_id, false);
+      var object = getObject(layer_id, object_id);
+      if (object) {
+        var index = Layers[layer_id].objects.indexOf(object);
+        Layers[layer_id].objects.splice(index, 1);
+        delete Layers[layer_id].object_by_id[object_id];
+      }
+    });
+  }
+  
+  function setLayerVisible(layer_id, boolean) {
+    var layer = Layers[(layer_id)];
+    
+    if (layer.enabled == boolean) return true;
     
     var layerObjects = layer.objects;
-    var clusterer = layer.clusterer;
+    var state        = (boolean) ? map : null;
+    
+    var clusterer          = layer.clusterer;
     var clusteringForLayer = layer.clusteringEnabled;
+    var clusterCleared     = false;
     
-    var state = (boolean) ? map : null;
+    var setCachedObjectVisibility = (clusteringForLayer)
+        ? function (marker) {
+          boolean
+              ? clusterer.addMarker(marker)
+              : clusterCleared ? false : (function () {
+                    clusterer.clearMarkers();
+                    clusterCleared = true
+                  })()
+        }
+        : function (marker) {
+          boolean
+              ? aMap.addObjectToMap(marker)
+              : aMap.removeObjectFromMap(marker)
+        };
     
-    switch (layerStructureRefs[(LAYER)]) {
-      
+    // TODO:  Change to structure independent
+    switch (layer.structure) {
       case MARKER :
-        $.each(layerObjects, function (i, object) {
-          addObjectToMap(object.marker);
-        });
+        (clusteringForLayer)
+            ? boolean
+                ? clusterer.addMarkers(layerObjects.map(function (object) {return object.marker}))
+                : (function () {
+                  clusterer.clearMarkers();
+                  clusterCleared = true
+                })()
+            : $.each(layerObjects, function (i, object) {
+              setCachedObjectVisibility(object.marker);
+            });
         break;
       case MARKER_CIRCLE :
         $.each(layerObjects, function (i, object) {
-          addObjectToMap(object.marker);
+          setCachedObjectVisibility(object.marker);
           object.circle.setMap(state);
         });
         break;
       case MARKERS_POLYLINE :
         $.each(layerObjects, function (i, object) {
           $.each(object.markers, function (i, marker) {
-            addObjectToMap(marker);
+            setCachedObjectVisibility(marker);
           });
           object.polyline.setMap(state);
         });
         break;
+      case POLYLINE :
+      case POLYGON :
+        $.each(layerObjects, function (i, object) {
+          object[layer.structure.toLowerCase()].setMap(state);
+        });
+        break;
+      case MULTIPLE :
+        $.each(layerObjects, function (i, object) {
+          var types = [CIRCLE, POINT, POLYGON, POLYLINE];
+          $.each(types, function (i, type) {
+            if (isDefined(object[type.toLowerCase()])) {
+              (type === POINT)
+                  ? setCachedObjectVisibility(object[type.toLowerCase()], state)
+                  : boolean
+                      ? aMap.addObjectToMap(object[type.toLowerCase()])
+                      : aMap.removeObjectFromMap(object[type.toLowerCase()]);
+            }
+          });
+        });
+        break;
+      default :
+        console.warn('[ MapLayers ] Not defined logic for enabling : ' + layer.structure);
     }
     
-    Layers[LAYER].enabled = boolean;
+    Layers[layer_id].enabled = boolean;
+    Events.emit(layer_id + ((boolean) ? "_ENABLED" : '_DISABLED'), layer_id);
+    Events.emit((boolean) ? 'layer_enabled' : 'layer_disabled', layer_id);
+  }
+  
+  function setLayerMarkerVisibility(layer_id, marker, state) {
+    if (Layers[layer_id].clusteringEnabled) {
+      state ? Layers[layer_id].clusterer.addMarker(marker) : Layers[layer_id].clusterer.removeMarker(marker);
+    }
+    else {
+      state ? aMap.addObjectToMap(marker) : aMap.removeObjectFromMap(marker);
+    }
+  }
+  
+  function setLayerObjectVisibility(layer_id, object_id, state) {
+    var object = getObject(layer_id, object_id);
     
-    events.emit(LAYER + "_ENABLED", true);
-    
-    function addObjectToMap(object) {
-      if (clusteringForLayer) {
-        state ? clusterer.addMarker(object) : clusterer.removeMarker(object);
+    object.types.forEach(function (type) {
+      switch (type) {
+        case ('marker'):
+          setLayerMarkerVisibility(layer_id, object[type], state);
+          break;
+        case ('markers'):
+          object[type].map(function () {setLayerMarkerVisibility(layer_id, object[type], state)});
+          break;
+        case ('circle'):
+        case ('polyline'):
+        case ('polygon'):
+          state ? aMap.addObjectToMap(object[type]) : aMap.removeObjectFromMap(object[type]);
+          break;
+      }
+    });
+  }
+  
+  function addDefaultListeners(geometry) {
+    // Adding default listeners
+    aMap.addListenerToObject(geometry, 'click', function () {
+      Events.emit('object_click', this);
+    });
+    aMap.addListenerToObject(geometry, 'rightclick', function () {
+      if (this.draggable) {
+        finishEditing(MapLayers.getObject(this.layer_id, this.id));
       }
       else {
-        state ? aMap.addObjectToMap(object) : aMap.removeObjectFromMap(object);
+        startEdit(this.layer_id, this.id);
       }
-    }
+    });
   }
   
-  function enableLayer(LAYER) {
+  function mapInnerObjects(mapObject, callback) {
+    mapObject.types.forEach(function (type) {
+      switch (type) {
+        case ('marker'):
+        case ('circle'):
+        case ('polyline'):
+        case ('polygon'):
+          callback(mapObject[type], type);
+          break;
+        case ('markers'):
+          mapObject['markers'].map(function (marker) {callback(marker, type)});
+          break;
+      }
+    });
+  }
+  
+  function enableLayer(layer_id) {
+    var layer = Layers[layer_id];
+    if (!layer) {
+      console.warn('[ MapLayers ] enableLayer Unknown : ' + layer_id);
+      return false;
+    }
     
-    if (Layers[LAYER].objects.length != 0) {
-      setLayerVisible(LAYER, true);
-    } else {
+    if (layer.objects.length) {
+      if (layer.enabled) return true;
+      setLayerVisible(layer_id, true);
+    }
+    else {
       //If has no objects, request them from server
-      requestLayer(LAYER);
+      if (layer.loading) return true;
+      requestLayer(layer_id, layer.module);
     }
+  }
+  
+  function disableLayer(layer_id) {
+    if (!Layers[layer_id].enabled) return true;
     
-    AMapLayersBtns.enableButton(toType(LAYER));
+    setLayerVisible(layer_id, false);
   }
   
-  function disableLayer(LAYER) {
-    setLayerVisible(LAYER, false);
-    AMapLayersBtns.disableButton(toType(LAYER));
-  }
-  
-  function toggleLayer(LAYER) {
-    var currentState = Layers[LAYER].enabled;
+  function toggleLayer(layer_id) {
+    var currentState = Layers[layer_id].enabled;
     switch (currentState) {
       case true:
-        disableLayer(LAYER);
+        disableLayer(layer_id);
         break;
       case false:
-        enableLayer(LAYER);
+        enableLayer(layer_id);
         break;
     }
   }
   
-  function requestLayer(LAYER_TYPE) {
-    events.on(LAYER_TYPE + '_RENDERED', function () {
-      setLayerVisible(LAYER_TYPE, true);
+  function requestLayer(layer_id, layer_module) {
+    if (!Layers[layer_id]) {
+      console.warn('[ MapLayers ] requestLayer', 'Unknown layer', layer_id);
+      return false;
+    }
+    
+    Events.on(layer_id + '_RENDERED', function () {
+      setLayerVisible(layer_id, true);
+      Layers[layer_id].loading = false;
     });
+  
+    Layers[layer_id].loading = true;
     
-    LayerRequest.requestAndRender(LAYER_TYPE);
-  }
-  
-  function pushToLayer(LAYER, data) {
-    Layers[LAYER].objects.push(data);
-  }
-  
-  function getLayerObjects(LAYER) {
-    return Layers[LAYER].objects;
-  }
-  
-  function getClusterer(LAYER) {
-    return Layers[(LAYER)].clusterer;
-  }
-  
-  function toLayer(string) {
-    // TODO : generify 
-    var references = {
-      build: "BUILD_LAYER",
-      wifi: "WIFI_LAYER",
-      nas: "NAS_LAYER",
-      gps: "GPS_LAYER",
-      traffic: "TRAFFIC_LAYER",
-      custom_point: 'CUSTOM_POINT_LAYER'
-    };
+    var export_list_name = LAYER_LIST_REFS[layer_id];
     
-    return references[string] || 'BUILD_LAYER';
-  }
-  
-  function toType(string_LAYER) {
-    var type = string_LAYER.toUpperCase();
-    
-    //IF GIVEN LAYER, REMOVE '_LAYER' PART OF STRING
-    if (type.indexOf('_LAYER') != -1) {
-      var index = type.indexOf('_LAYER');
-      type = type.substring(0, index);
+    if (!isDefined(export_list_name)) {
+      export_list_name = 'LAYER&LAYER_ID=' + layer_id;
+    }
+    // If it is not Maps module, will have to require it
+    else if (isDefined(layer_module)) {
+      export_list_name += '&MODULE=' + layer_module;
     }
     
-    return type;
+    // Allow to show single object
+    if (FORM['SINGLE'] === 1 && FORM['LAYER_ID'] === layer_id && ( isDefined(FORM['POINT_ID']) || isDefined(FORM['OBJECT_ID']) )){
+      export_list_name += (isDefined(FORM['POINT_ID']))
+          ? '&POINT_ID=' + FORM['POINT_ID']
+          : (isDefined(FORM['OBJECT_ID']))
+              ? '&OBJECT_ID=' + FORM['OBJECT_ID']
+              : '';
+      
+      // But only once
+      delete FORM['SINGLE'];
+    }
+    else if (layer_id === LAYER_ID_BY_NAME[BUILD]){
+      // Should add params from upper panel
+      
+    }
+    
+    LayerRequest.requestAndRender(export_list_name);
   }
   
-  function createLayer(layerName, layerRef, clusteringForLayer) {
-    var layer = layerName.toUpperCase() + "_LAYER";
-    
-    Layers[layer] = {
-      enabled: false,
-      objects: [],
-      clusterer: aMap.getNewClusterer('', map),
-      clusteringEnabled: (typeof (clusteringForLayer) !== 'undefined') ? clusteringForLayer : clustering
-    };
-    
-    layerStructureRefs[layer] = layerRef;
-    
-    return layer;
+  function refreshLayer(layer_id) {
+    if (isLayerVisible(layer_id)) disableLayer(layer_id);
+    closeInfoWindows();
+    Layers[layer_id].object_by_id = {};
+    Layers[layer_id].objects      = [];
+    enableLayer(layer_id);
   }
   
-  function hasLayer(layer) {
-    return typeof (Layers[(layer)]) !== 'undefined';
+  function pushToLayer(layer_id, data) {
+    Layers[layer_id].objects[Layers[layer_id].objects.length] = data;
+    
+    mapInnerObjects(data, addDefaultListeners);
   }
   
-  var AMapLayersBtns = (function () {
-    //cache DOM
-    var $controlBlock = null;
-    
-    var typeBtnRefs = {
-      BUILD: null,
-      WIFI: null,
-      ROUTE: null,
-      WELL: null,
-      TRAFFIC: null,
-      CUSTOM_POINT: null,
-      GPS: null
-    };
-    
-    events.on('layersready', cacheDOM);
-    
-    function cacheDOM() {
-      $controlBlock = $('#showLayersControlBlock');
-      typeBtnRefs = {
-        BUILD: $controlBlock.find('#showLayersControlBlock_0'),
-        WIFI: $controlBlock.find('#showLayersControlBlock_1'),
-        ROUTE: $controlBlock.find('#showLayersControlBlock_2'),
-        WELL: $controlBlock.find('#showLayersControlBlock_3'),
-        TRAFFIC: $controlBlock.find('#showLayersControlBlock_4'),
-        CUSTOM_POINT: $controlBlock.find('#showLayersControlBlock_5'),
-        GPS: $controlBlock.find('#showLayersControlBlock_6')
-      };
+  function getLayerObjects(layer_id) {
+    return Layers[layer_id].objects;
+  }
+  
+  function getClusterer(layer_id) {
+    return Layers[(layer_id)].clusterer;
+  }
+  
+  function onLayerEnabled(layer_id, callback) {
+    if (Layers[layer_id] && Layers[layer_id].enabled) {
+      callback(layer_id);
     }
-    
-    function enableButton(TYPE) {
-      cacheDOM();
-      typeBtnRefs[TYPE].attr('class', 'bg bg-success');
+    else {
+      Events.once(layer_id + '_ENABLED', callback);
     }
-    
-    function disableButton(TYPE) {
-      cacheDOM();
-      typeBtnRefs[TYPE].attr('class', '');
-    }
-    
-    function toggleButton(TYPE) {
-      cacheDOM();
-      var disabled = typeBtnRefs[TYPE].attr('class') == '';
-      if (disabled) {
-        enableButton(TYPE);
-      } else {
-        disableButton(TYPE);
-      }
-    }
-    
-    //interface
-    return {
-      enableButton: enableButton,
-      disableButton: disableButton,
-      toggleButton: toggleButton,
-    }
-  })();
+  }
+  
+  function onLayerDisabled(layer_id, callback) {
+    if (Layers[layer_id].disabled) callback(layer_id);
+    else
+      Events.once(layer_id + '_DISABLED', callback);
+  }
+  
+  function hasLayer(layer_id) {
+    //console.warn ('Asked about layer', layer_id);
+    return typeof (Layers[(layer_id)]) !== 'undefined';
+  }
   
   function setClusteringEnabled(cluster_size) {
     clustering = true;
@@ -1216,57 +1163,282 @@ var MapLayers = (function () {
     clustererGridSize = cluster_size || 30;
   }
   
-  return {
-    toLayer: toLayer,
-    toType: toType,
+  function isLayerVisible(layer_id) {
+    return Layers[layer_id].enabled;
+  }
+  
+  function getLayers() {
+    return Layers;
+  }
+  
+  function getLayer(layer_id) {
+    return Layers[layer_id];
+  }
+  
+  function getObject(layer_id, object_id) {
+    if (!Layers[layer_id]) {
+      console.warn('[ MapLayers ] Trying to show unknown layer', layer_id);
+      return false;
+    }
     
-    hasLayer: hasLayer,
+    // If has fast reference, use it
+    if (Layers[layer_id].object_by_id[object_id]) {
+      return Layers[layer_id].object_by_id[object_id];
+    }
+    
+    var layer_objects = getLayerObjects(layer_id);
+    
+    for (var i = 0; i < layer_objects.length; i++) {
+      var object = layer_objects[i];
+      
+      var key = (object.raw.hasOwnProperty('OBJECT_ID'))
+          ? object.raw['OBJECT_ID']
+          : (object.raw.hasOwnProperty('ID'))
+              ? object.raw['ID']
+              : false;
+      
+      if (!key) continue;
+      if (key == object_id) {
+        return object;
+      }
+    }
+    
+    return false;
+  }
+  
+  function showObject(layer_id, object_id) {
+    
+    var object = false;
+    if (isDefined(FORM['BY_POINT_ID'])){
+      object = getObjectByPointId(layer_id, FORM['BY_POINT_ID']);
+    }
+    else {
+      object = getObject(layer_id, object_id);
+    }
+    
+  
+    if (!object) {
+      var message = '[ MapLayers ] showObject. ' + object_id + ' not found';
+      aTooltip.displayError(message);
+      console.warn(message);
+      return false;
+    }
+    
+    if (isDefined(object.polyline)) {
+      var points = object.polyline.POINTS;
+      var middle = Math.floor(points.length / 2);
+      aMap.setCenter(points[middle][0], points[middle][1]);
+    }
+    else if (isDefined(object.marker)) {
+      aMap.setCenter(object.marker.latLng.lat(), object.marker.latLng.lng());
+    }
+    
+    aMap.setZoom(18);
+    
+    return true;
+  }
+  
+  function getAllVisibleObjects() {
+    var objects = [];
+    for (var layer_id in Layers) {
+      if (!Layers[layer_id].enabled) continue;
+      
+      objects.push.apply(objects, Layers[layer_id].objects);
+    }
+    return objects;
+  }
+  
+  function getObjectByPointId(layer_id, point_id) {
+    var layer_objects = getLayerObjects(layer_id);
+    for (var i = 0; i < layer_objects.length; i++) {
+      console.log(layer_objects[i].raw);
+      if (layer_objects[i].raw['OBJECT_ID'] == point_id) {
+        return layer_objects[i];
+      }
+    }
+    console.warn('[ MapLayers ] getObjectByPointId', layer_id, point_id ,'not found');
+  }
+  
+  function getAllVisibleMarkers() {
+    var objects = [];
+    for (var layer_id in Layers) {
+      if (!Layers[layer_id].enabled) continue;
+      
+      var layer         = Layers[layer_id];
+      var layer_objects = layer.objects;
+      
+      switch (layer.structure) {
+        case MARKER :
+          objects.push.apply(objects, layer_objects.map(function (obj) { return obj.marker}));
+          break;
+        case MARKER_CIRCLE :
+          objects.push.apply(objects, layer_objects.map(function (obj) { return obj.marker}));
+          break;
+        case MARKERS_POLYLINE :
+          $.each(layer_objects, function (i, object) {
+            objects.push.apply(objects, object.markers);
+          });
+          break;
+        case MULTIPLE :
+          $.each(layer_objects, function (i, object) { // TODO: Simplify
+            if (isDefined(object['point'])) {
+              objects.push(object['point']);
+            }
+          });
+          break;
+      }
+      
+    }
+    return objects;
+  }
+  
+  function hasCustomSent(layer_id) {
+    return Layers[layer_id] && typeof (Layers[layer_id]['add_func']) !== 'undefined';
+  }
+  
+  Events.on('layer_has_new_points', function (layer_id) {
+    setLayerVisible(layer_id, false);
+    setLayerVisible(layer_id, true);
+  });
+  
+  
+  return {
+    setClusteringEnabled: setClusteringEnabled,
+  
     pushToLayer: pushToLayer,
     toggleLayer: toggleLayer,
-    enableLayer: enableLayer,
-    setLayerVisible: setLayerVisible,
-    
-    setClusteringEnabled: setClusteringEnabled,
-    
-    getLayerObjects: getLayerObjects,
-    getClusterer: getClusterer,
-    createLayer: createLayer,
-    
-    buttons: AMapLayersBtns
+  
+    enableLayer : enableLayer,
+    disableLayer: disableLayer,
+    refreshLayer: refreshLayer,
+  
+    createLayer   : createLayer,
+    hasLayer      : hasLayer,
+    getLayer      : getLayer,
+    getLayers     : getLayers,
+    isLayerVisible: isLayerVisible,
+  
+    getAllVisibleObjects: getAllVisibleObjects,
+    getAllVisibleMarkers: getAllVisibleMarkers,
+    getLayerObjects     : getLayerObjects,
+    getClusterer        : getClusterer,
+  
+    hasCustomSent: hasCustomSent,
+    showObject   : showObject,
+    getObject    : getObject,
+  
+    setLayerMarkerVisibility: setLayerMarkerVisibility,
+    setLayerObjectVisibility: setLayerObjectVisibility,
+  
+    onLayerEnabled : onLayerEnabled,
+    onLayerDisabled: onLayerDisabled,
+  
+    addDefaultListeners: addDefaultListeners,
+    mapGeometry        : mapInnerObjects
   };
 })();
 
-var ClustererControl = function (LAYER, id) {
+var AMapLayersBtns = (function () {
+  //cache DOM
+  var self = this;
+  
+  var $controlBlock = null;
+  var cachedDOM     = false;
+  
+  var id_position_array = [];
+  var typeBtnRefs       = {};
+  
+  function cacheDOM() {
+    $controlBlock = $('#showLayersControlBlock').next('.dropdown-menu');
+    if (!$controlBlock.length) console.warn('[ MapLayersButtons ]', 'Caching DOM too early');
+    
+    $.each(id_position_array, function (i, layer_id) {
+      typeBtnRefs[layer_id] = $controlBlock.find('#showLayersControlBlock_' + (layer_id - 1));
+    });
+    
+    cachedDOM = true;
+    Events.emit('controlblockcached');
+  }
+  
+  function enableButton(layer_id) {
+    MapLayers.onLayerEnabled(layer_id, function () {
+      if (typeBtnRefs[layer_id]) typeBtnRefs[layer_id].addClass('list-group-item-success');
+      else console.warn('[ MapLayerBtns ]', 'unknown layer id', layer_id);
+    });
+  }
+  
+  function disableButton(layer_id) {
+    MapLayers.onLayerDisabled(layer_id, function () {
+      if (typeBtnRefs[layer_id]) typeBtnRefs[layer_id].removeClass('list-group-item-success');
+      else console.warn('[ MapLayerBtns ]', 'unknown layer id', layer_id);
+    });
+  }
+  
+  function isButtonEnabled(layer_id) {
+    return typeBtnRefs[layer_id].hasClass('list-group-item-success');
+  }
+  
+  function toggleButton(layer_id) {
+    if (!typeBtnRefs[layer_id]) return;
+    if (!isButtonEnabled(layer_id)) {
+      enableButton(layer_id);
+    }
+    else {
+      disableButton(layer_id);
+    }
+  }
+  
+  function initButtons(id_position_array_) {
+    
+    id_position_array = id_position_array_;
+    
+    Events.once('controlblockcached', function () {
+      
+      $.each(id_position_array, function (i, layer_id) {
+        // Register listeners for first enable
+        MapLayers.onLayerEnabled(layer_id, enableButton);
+        MapLayers.onLayerDisabled(layer_id, disableButton);
+        
+        // Register listeners for user enable/disable
+        Events.on(layer_id + '_ENABLED', enableButton);
+        Events.on(layer_id + '_DISABLED', disableButton);
+      });
+    });
+    
+  }
+  
+  Events.on('controlblockshowed', cacheDOM);
+  
+  //interface
+  return {
+    enableButton : enableButton,
+    disableButton: disableButton,
+    toggleButton : toggleButton,
+    initButtons  : initButtons
+  }
+})();
+
+var ClustererControl = function (layer_id, id) {
   
   var self = this;
   
-  var DISABLE_MARKERS = 0;
-  var SHOW_IN_CLUSTERS = 1;
+  var DISABLE_MARKERS    = 0;
+  var SHOW_IN_CLUSTERS   = 1;
   var SHOW_NON_CLUSTERED = 2;
   
-  this.state = (CLUSTERING_ENABLED) ? SHOW_IN_CLUSTERS : SHOW_NON_CLUSTERED;
-  this.layer_name = LAYER;
-  this.btnId = id;
+  this.state    = (CLUSTERING_ENABLED && MapLayers.isLayerVisible(layer_id)) ? SHOW_IN_CLUSTERS : SHOW_NON_CLUSTERED;
+  this.layer_id = layer_id;
+  this.btnId    = id;
   
-  this.layerObjects = MapLayers.getLayerObjects(self.layer_name);
+  this.layerObjects = MapLayers.getLayerObjects(self.layer_id);
   this.layerMarkers = [];
   for (var i = 0; i < self.layerObjects.length; i++) {
     if (!self.layerObjects[i].marker) continue;
     self.layerMarkers.push(self.layerObjects[i].marker);
   }
   
-  this.layerClusterer = MapLayers.getClusterer(self.layer_name);
-  this.$btn = $('#' + self.btnId).find('button');
-  
-  if (self.$btn.length <= 0) {
-    // Wait 1 second and try again
-    setInterval(function () {
-      self.$btn = $('#' + self.btnId).find('button');
-      // Warn if not found;
-      if (self.$btn.length <= 0) console.warn('Button not found :  #' + self.btnId);
-    }, 3000);
-    
-  }
+  this.layerClusterer = MapLayers.getClusterer(self.layer_id);
+  this.$btn           = $('#' + self.btnId).find('button');
   
   this.toggle = function () {
     self.state++;
@@ -1292,71 +1464,171 @@ var ClustererControl = function (LAYER, id) {
   
   
   this.addMarkersToCluster = function () {
-    _log(5, 'MapsClusterer', 'addMarkersToCluster');
     self.layerClusterer.addMarkers(self.layerMarkers);
   };
   
   this.addMarkersToMap = function () {
-    _log(5, 'MapsClusterer', 'addMarkersToMap');
     $.each(self.layerMarkers, function (i, marker) {
-      marker.setMap(map);
+      aMap.addObjectToMap(marker);
     });
   };
   
   this.removeMarkersFromCluster = function () {
-    _log(5, 'MapsClusterer', 'removeFromCluster');
     self.layerClusterer.clearMarkers();
     
   };
   
   this.removeMarkersFromMap = function () {
-    _log(5, 'MapsClusterer', 'removeMarkers');
     $.each(self.layerMarkers, function (i, marker) {
+      aMap.removeObjectFromMap(marker);
       marker.setMap(null);
     });
   };
   
   this.enableNonClusteredMarkers = function () {
-    _log(5, 'MapsClusterer', 'enableNonClustered');
     self.removeMarkersFromMap();
     self.removeMarkersFromCluster();
     self.addMarkersToMap();
-  }
+  };
+  
+  Events.on('BUILD_LAYER_DISABLED', function () {
+    // State will be incremented
+    self.state = DISABLE_MARKERS - 1;
+    self.toggle();
+  })
   
 };
 
 
-
-
-
-events.on('layersready', function () {
+function MapControls() {
+  this._controlDivs = [];
   
-  if (BuildsArray.length > 0) {
-    events.on(BUILD_LAYER + "_RENDERED", function () {
-      MapLayers.enableLayer(BUILD_LAYER);
+  this.addBtn = function (icon, onclickString, title, id, class_) {
+    var index = this._controlDivs.length;
+    
+    var $controlBtnDiv = createControlBtn(icon, onclickString, class_);
+    
+    if (!id || typeof (id) === 'undefined') {
+      id = 'ctrlBtn_' + index;
+    }
+    
+    $controlBtnDiv.attr('id', id);
+    $controlBtnDiv.attr('title', title);
+    
+    this._controlDivs[index] = $controlBtnDiv;
+    return this;
+  };
+  
+  this.addDropdown = function (icon, arrOptions, title, id, class_) {
+    var index = this._controlDivs.length;
+    
+    if (typeof (id) === 'undefined' || !id) {
+      id = 'ctrlBtn_' + index;
+    }
+    
+    this._controlDivs[index] = createBtnDropdown(
+        '<span class="glyphicon glyphicon-' + icon + '"></span>',
+        arrOptions,
+        class_,
+        id
+    );
+    
+    return this;
+  };
+  
+  this.hideBtn = function (id) {
+    $('#' + id).hide();
+  };
+  
+  this.init = function () {
+    if (this._controlDivs.length > 0)
+      $('#mapControls').append(this._controlDivs);
+    Events.emit('controlsready', true);
+  };
+  
+  function createBtnDropdown(caption, arrOptions, class_, id) {
+    var btnClass = class_ || 'primary';
+    
+    function createSubMenu(array) {
+      var options = [];
+      $.each(array, function (i, entry) {
+        if (typeof entry === 'undefined') {
+          return '';
+        }
+        else if (entry['submenu']) {
+          options[i] = '<li class="dropdown-submenu">'
+              + '<a href="#">' + entry['name'] + '</a>'
+              + '<ul class="dropdown-menu">'
+              + createSubMenu(entry['submenu'])
+              + '</ul></li>'
+        }
+        else {
+          entry['extra'] = entry['extra'] || '';
+          options[i]     = '<li><a role="button"'
+              + ' onclick="' + entry['onclick']
+              + '" id="' + id + '_' + i + '">'
+              + entry['extra']
+              + entry['name']
+              + '</a></li>';
+        }
+      });
+      
+      return options;
+    }
+    
+    var dropdown_options = createSubMenu(arrOptions);
+    
+    return '<div class="btn-group" role="group"><div class="dropdown">'
+        + '<button id="' + id + '" role="button" data-toggle="dropdown" class="btn btn-' + btnClass + ' dropdown-toggle" data-target="#">'
+        + caption + '&nbsp;<span class="caret"></span>'
+        + '</button>'
+        + '<ul class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu">'
+        + dropdown_options.join('')
+        + '</ul>'
+        + '</div></div>';
+  }
+  
+  function createControlBtn(icon, onclickString, newBtnClass) {
+    return $('<button></button>')
+        .attr('type', 'button')
+        .attr('class', 'btn btn-' + (newBtnClass || 'primary'))
+        .attr('onclick', onclickString)
+        .html('<span class="glyphicon glyphicon-' + icon + '"></span>');
+  }
+}
+
+
+Events.on('layersready', function () {
+  
+  var data_array = window['ObjectsArray'];
+  
+  // Call parse function
+  var layers = BillingObjectParser.render(data_array);
+  
+  var enableDefinedLayers = function () {
+    $.each(Object.keys(layers), function (i, layer_id) {
+      if (!MapLayers.hasLayer(layer_id)) {
+        MapLayers.createLayer({
+          id       : layer_id,
+          name     : '',
+          lang_name: ''
+        })
+      }
+      MapLayers.enableLayer(layer_id);
     });
-    BillingObjectParser.render(BuildsArray, BUILD_LAYER);
+  };
+  
+  if (FORM['SHOW_CONTROLS']) {
+    Events.once('controlblockcached', enableDefinedLayers);
+  }
+  else {
+    enableDefinedLayers();
   }
   
-  if (RoutesArray.length > 0) {
-    BillingObjectParser.processRoutes(RoutesArray);
-    MapLayers.enableLayer(ROUTE_LAYER);
-  }
-  if (WifiArray.length > 0) {
-    BillingObjectParser.processWifi(WifiArray);
-    MapLayers.enableLayer(WIFI_LAYER);
-  }
-  if (WellArray.length > 0) {
-    BillingObjectParser.processWells(WellArray);
-    MapLayers.enableLayer(WELL_LAYER);
-  }
-  if (TrafficArray.length > 0) {
-    BillingObjectParser.processTraffic(TrafficArray);
-    MapLayers.enableLayer(TRAFFIC_LAYER);
-  }
-  if (CustomPointsArray.length > 0) {
-    BillingObjectParser.processCustom(CustomPointsArray);
-    MapLayers.enableLayer(CUSTOM_POINT_LAYER);
-  }
+  
+  Events.emit('billingdefinedlayersshowed');
+  
+  window['ObjectsArray'] = [];
+  
   
 });

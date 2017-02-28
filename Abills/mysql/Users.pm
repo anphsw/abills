@@ -21,7 +21,9 @@ my $PAGE_ROWS = 25;
 my $usernameregexp = "^[a-z0-9_][a-z0-9_-]*\$";    # configurable;
 
 #**********************************************************
-# Init
+=head2 new($db, $admin, $conf)
+
+=cut
 #**********************************************************
 sub new {
   my $class = shift;
@@ -62,6 +64,10 @@ sub new {
 sub info {
   my $self = shift;
   my ($uid, $attr) = @_;
+
+  if (!$attr->{USERS_AUTH} && ! $self->check_params()) {
+    return $self;
+  }
 
   my $WHERE='';
 
@@ -166,10 +172,10 @@ sub pi_add {
   }
 
   $self->info_field_attach_add($attr);
-
+  $attr->{CONTRACT_SUFIX} = $attr->{CONTRACT_TYPE};
   if ($attr->{CONTRACT_TYPE}) {
     my (undef, $sufix) = split(/\|/, $attr->{CONTRACT_TYPE});
-    $attr->{CONTRACT_SUFIX}=$sufix;
+    $attr->{CONTRACT_SUFIX}=$sufix || $attr->{CONTRACT_TYPE};
   }
 
   if ($attr->{STREET_ID} && $attr->{ADD_ADDRESS_BUILD} && ! $attr->{LOCATION_ID}) {
@@ -239,6 +245,31 @@ sub pi {
     $self->{ADDRESS_STREET2}  = $Address->{ADDRESS_STREET2};
     $self->{ADDRESS_BUILD}    = $Address->{ADDRESS_BUILD};
   }
+  
+  if (! $self->{errno} && $self->{conf}{CONTACTS_NEW} ){
+    require Contacts;
+    Contacts->import();
+    my $Contacts = Contacts->new($self->{db}, $admin, $self->{conf});
+        
+    my $phone_type_id = $Contacts->contact_type_id_for_name('PHONE');
+    my $email_type_id = $Contacts->contact_type_id_for_name('EMAIL');
+    my $contacts = $Contacts->contacts_list({
+      UID       => $uid,
+      VALUE     => '_SHOW',
+      TYPE      => $phone_type_id . ';' . $email_type_id,
+      COLS_NAME => 1
+    });
+    
+    if (!$Contacts->{errno} && $contacts && ref $contacts){
+      my @phones = grep { $_->{type_id} == $phone_type_id } @{$contacts};
+      my @emails = grep { $_->{type_id} == $email_type_id } @{$contacts};
+      
+      $self->{PHONE} = join(', ', map {$_->{value} } @phones);
+      $self->{EMAIL} = join(', ', map {$_->{value} } @emails);
+      
+      $self->{CONTACTS_NEW_APPENDED} = 1;
+    }
+  }
 
   $self->{ADDRESS_FULL}="$self->{ADDRESS_STREET} $self->{ADDRESS_BUILD}$self->{conf}->{BUILD_DELIMITER} $self->{ADDRESS_FLAT}";
   $self->{TOTAL}=1;
@@ -263,6 +294,14 @@ sub pi_change {
   my $self = shift;
   my ($attr) = @_;
 
+  if($attr->{PHONE} && $CONF->{PHONE_FORMAT}){
+    if ($attr->{PHONE} !~ /$CONF->{PHONE_FORMAT}/) {
+      $self->{errno}=21;
+      $self->{errstr}='Wrong phone';
+      return $self;
+    }
+  }
+
   if ($attr->{STREET_ID} && $attr->{ADD_ADDRESS_BUILD}) {
     require Address;
     Address->import();
@@ -279,20 +318,23 @@ sub pi_change {
     }
   }
 
+  $attr->{CONTRACT_SUFIX} = $attr->{CONTRACT_TYPE};
   if ($attr->{CONTRACT_TYPE}) {
     my (undef, $sufix) = split(/\|/, $attr->{CONTRACT_TYPE});
     $attr->{CONTRACT_SUFIX} = $sufix;
   }
 
   $admin->{MODULE} = '';
+  
+  if ($self->{conf}{CONTACTS_NEW} && ($attr->{PHONE} || $attr->{EMAIL})){
+    # TODO split and insert to users contacts
+  }
 
-  $self->changes2(
-    {
-      CHANGE_PARAM => 'UID',
-      TABLE        => 'users_pi',
-      DATA         => $attr
-    }
-  );
+  $self->changes2({
+    CHANGE_PARAM => 'UID',
+    TABLE        => 'users_pi',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -331,7 +373,8 @@ sub groups_list {
 
     push @WHERE_RULES, "g.gid IN ($attr->{GIDS})";
   }
-  elsif (defined($attr->{GID}) && $attr->{GID} ne '') {
+  elsif (defined($attr->{GID}) && $attr->{GID} =~ /\d+/) {
+    $attr->{GID} =~ s/,/;/g;
     push @WHERE_RULES,  @{ $self->search_expr($attr->{GID}, 'INT', 'g.gid') };
   }
   elsif ($admin->{GIDS}) {
@@ -340,15 +383,25 @@ sub groups_list {
 
   my $USERS_WHERE = '';
   if ($admin->{DOMAIN_ID}) {
-    push @WHERE_RULES, "g.domain_id='$admin->{DOMAIN_ID}'";
-    $USERS_WHERE = "AND u.domain_id='$admin->{DOMAIN_ID}'";
+    push @WHERE_RULES, @{ $self->search_expr( $admin->{DOMAIN_ID}, 'INT', 'g.domain_id' ) };
+    $USERS_WHERE = "AND ". join('AND', @{ $self->search_expr( $admin->{DOMAIN_ID}, 'INT', 'u.domain_id' ) });
   }
 
-  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+  my $WHERE = $self->search_former($attr, [
+      ['BONUS',     'INT', 'g.bonus',      1 ],
+      ['DOMAIN_ID', 'INT', 'g.domain_id',  1 ]
+    ],
+    { WHERE       => 1,
+      WHERE_RULES => \@WHERE_RULES
+    }
+  );
 
-  $self->query2("SELECT g.gid, g.name, g.descr, count(u.uid) AS users_count, g.allow_credit,
+  #my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+
+  $self->query2("SELECT g.gid, g.name, g.descr, COUNT(u.uid) AS users_count, g.allow_credit,
         g.disable_paysys,
         g.disable_chg_tp,
+        $self->{SEARCH_FIELDS}
         g.domain_id
         FROM groups g
         LEFT JOIN users u ON  (u.gid=g.gid $USERS_WHERE)
@@ -362,7 +415,7 @@ sub groups_list {
   my $list = $self->{list};
 
   if ($self->{TOTAL} > 0) {
-    $self->query2("SELECT count(*) AS total FROM groups g $WHERE", undef, { INFO => 1 });
+    $self->query2("SELECT COUNT(*) AS total FROM groups g $WHERE", undef, { INFO => 1 });
   }
 
   return $list;
@@ -398,6 +451,7 @@ sub group_change {
   $attr->{ALLOW_CREDIT}  = ($attr->{ALLOW_CREDIT}) ? 1 : 0;
   $attr->{DISABLE_PAYSYS}= ($attr->{DISABLE_PAYSYS}) ? 1 : 0;
   $attr->{DISABLE_CHG_TP}= ($attr->{DISABLE_CHG_TP}) ? 1 : 0;
+  $attr->{BONUS}         = ($attr->{BONUS}) ? 1 : 0;
 
   $self->changes2(
     {
@@ -420,7 +474,7 @@ sub group_add {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query_add('groups', { %$attr, DOMAIN_ID => $admin->{DOMAIN_ID} });
+  $self->query_add('groups', { %$attr, DOMAIN_ID => $admin->{DOMAIN_ID} || $attr->{DOMAIN_ID} });
 
   $admin->system_action_add("GID:$attr->{GID}", { TYPE => 1 });
 
@@ -499,13 +553,14 @@ sub list {
     'ACCEPT_RULES',
     'DOMAIN_ID',
     'UID',
+    'PASSWORD'
   );
 
   push @WHERE_RULES, @{ $self->search_expr_users({ %$attr,
-        EXT_FIELDS  => \@ext_fields,
-        USE_USER_PI => 1,
-        SKIP_GID    => ($admin->{GID} && $attr->{_MULTI_HIT}) ? 1 : undef
-      }) };
+    EXT_FIELDS  => \@ext_fields,
+    USE_USER_PI => 1,
+    SKIP_GID    => ($admin->{GID} && $attr->{_MULTI_HIT}) ? 1 : undef
+  }) };
 
   # Show debeters
   if ($attr->{DEBETERS}) {
@@ -530,7 +585,6 @@ sub list {
     $EXT_TABLES .= "LEFT JOIN payments p ON (p.uid=u.uid && p.date > DATE_FORMAT(CURDATE(), '%Y-%m-01 00:00:00'))";
     push @WHERE_RULES, "p.date IS NULL";
   }
-
   #Show last paymenst
   if ($attr->{PAYMENTS} || $attr->{PAYMENT_DAYS}) {
     my @HAVING_RULES = @WHERE_RULES;
@@ -611,9 +665,8 @@ sub list {
   #Show last fees
   if ($attr->{FEES} || $attr->{FEES_DAYS}) {
     my @HAVING_RULES = @WHERE_RULES;
-
-    if ($attr->{PAYMENTS}) {
-      my $value = $self->search_expr($attr->{FEES}, 'INT');
+    if ($attr->{FEES}) {
+      my $value = @{ $self->search_expr($attr->{FEES}, 'INT') }[0];
       push @WHERE_RULES,  "f.date$value";
       push @HAVING_RULES, "MAX(f.date)$value";
       $self->{SEARCH_FIELDS} .= 'MAX(f.date) AS last_fees, ';
@@ -630,7 +683,7 @@ sub list {
       $self->{SEARCH_FIELDS_COUNT}++;
     }
 
-    my $HAVING = ($#WHERE_RULES > -1) ? "HAVING " . join(' AND ', @HAVING_RULES) : '';
+    my $HAVING = ($#HAVING_RULES > -1) ? "HAVING " . join(' AND ', @HAVING_RULES) : '';
 
     $self->query2("SELECT u.id AS login,
        $self->{SEARCH_FIELDS}
@@ -708,7 +761,7 @@ sub list {
   );
 
   return [ ] if ($self->{errno});
-  my $list = $self->{list};
+  my $list = $self->{list} || [];
 
   if ($self->{TOTAL} == $PAGE_ROWS || $PG > 0 || $attr->{FULL_LIST}) {
     $self->query2("SELECT COUNT(u.id) AS total,
@@ -734,6 +787,10 @@ sub list {
 sub add {
   my $self = shift;
   my ($attr) = @_;
+
+  if (! $self->check_params()) {
+    return $self;
+  }
 
   if (! $attr->{LOGIN}) {
     #check autofill trigger
@@ -768,12 +825,12 @@ sub add {
   }
 
   $self->query_add('users', {
-      %$attr,
-      REGISTRATION => $attr->{REGISTRATION} || 'NOW()',
-      DISABLE      => int($attr->{DISABLE} || 0),
-      ID           => $attr->{LOGIN},
-      PASSWORD     => "ENCODE('$attr->{PASSWORD}', '$self->{conf}->{secretkey}')",
-      DOMAIN_ID    => $admin->{DOMAIN_ID}
+    %$attr,
+    REGISTRATION => $attr->{REGISTRATION} || 'NOW()',
+    DISABLE      => int($attr->{DISABLE} || 0),
+    ID           => $attr->{LOGIN},
+    PASSWORD     => "ENCODE('$attr->{PASSWORD}', '$self->{conf}->{secretkey}')",
+    DOMAIN_ID    => $admin->{DOMAIN_ID}
   });
 
   return $self if ($self->{errno});
@@ -888,9 +945,12 @@ sub del {
         $self->query_del('docs_receipts', undef, { uid => $self->{UID} });
       }
 
-      $self->query_del("$table", undef, { uid =>  $self->{UID} });
+      $self->query_del($table, undef, { uid =>  $self->{UID} });
       $self->{info} .= "$table, ";
     }
+
+    my $Attach = Attach->new($self->{db}, $admin, $CONF);
+    $Attach->attachment_del({ UID => $self->{UID}, FULL_DELETE => 1 });
 
     $admin->{MODULE} = '';
     $admin->action_add($self->{UID}, "DELETE $self->{UID}:$self->{LOGIN}", { TYPE => 12 });
@@ -994,7 +1054,8 @@ sub bruteforce_list {
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $GROUP = 'GROUP BY login';
-  my $count = 'count(login) AS count';
+  my $count = 'COUNT(login) AS count';
+  my $DISTINCT = 'DISTINCT';
 
   my $WHERE = $self->search_former($attr, [
       ['LOGIN',             'STR', 'login',         ],
@@ -1021,8 +1082,11 @@ sub bruteforce_list {
     );
     $list = $self->{list};
   }
+  else {
+    $DISTINCT='';
+  }
 
-  $self->query2("SELECT count(DISTINCT login) AS total FROM users_bruteforce $WHERE;", undef, { INFO => 1 });
+  $self->query2("SELECT COUNT($DISTINCT login) AS total FROM users_bruteforce $WHERE;", undef, { INFO => 1 });
 
   return $list;
 }
@@ -1272,13 +1336,29 @@ sub info_field_attach_add {
         if ($type == 13) {
           #attach
           if (ref $attr->{uc($field_name)} eq 'HASH' && $attr->{uc($field_name)}{filename}) {
+            if($CONF->{ATTACH2FILE}) {
+              if($self->{UID}) {
+                $self->pi({ UID => $self->{UID} });
+                if($self->{uc($field_name)}) {
+                  $Attach->attachment_del({
+                    ID         => $self->{uc($field_name)},
+                    TABLE      => $field_name.'_file',
+                    UID        => $self->{UID},
+                    SKIP_ERROR => 1
+                  })
+                }
+              }
+            }
+
             $Attach->attachment_add(
               {
                 TABLE        => $field_name . '_file',
                 CONTENT      => $attr->{uc($field_name)}{Contents},
                 FILESIZE     => $attr->{uc($field_name)}{Size},
                 FILENAME     => $attr->{uc($field_name)}{filename},
-                CONTENT_TYPE => $attr->{uc($field_name)}{'Content-Type'}
+                CONTENT_TYPE => $attr->{uc($field_name)}{'Content-Type'},
+                UID          => $attr->{UID},
+                FIELD_NAME   => $field_name
               }
             );
 
@@ -1299,7 +1379,7 @@ sub info_field_attach_add {
     }
   }
 
-  return $attr;	
+  return $attr;
 }
 
 
@@ -1340,8 +1420,6 @@ sub info_field_add {
   );
 
   $attr->{FIELD_TYPE} = 0 if (!$attr->{FIELD_TYPE});
-  $attr->{CAN_BE_CHANGED_BY_USER} ||= '0';
-  $attr->{USERS_PORTAL} ||= '0';
 
   my $column_type  = $column_types[ $attr->{FIELD_TYPE} ] || " varchar(120) not null default ''";
   my $field_prefix = 'ifu';
@@ -1384,6 +1462,9 @@ sub info_field_add {
     );
   }
 
+
+  $admin->system_action_add("IF:_$attr->{FIELD_ID}:$attr->{NAME}", { TYPE => 1 });
+
   return $self;
 }
 
@@ -1417,6 +1498,7 @@ sub info_field_del {
     my $Conf = Conf->new($self->{db}, $admin, $self->{conf});
 
     $Conf->config_del("$attr->{SECTION}$attr->{FIELD_ID}");
+    $admin->system_action_add("IF:_$attr->{FIELD_ID}", { TYPE => 10 });
   }
 
   return $self;
@@ -1531,11 +1613,11 @@ sub report_users_summary {
   my $WHERE = ($#WHERE_RULES > -1) ? "AND " . join(' AND ', @WHERE_RULES) : '';
 
   $self->query2("SELECT count(*) AS total_users,
-      SUM(if(u.disable>0, 1, 0)) AS disabled_users,
-      SUM(if(u.credit>0, 1, 0)) AS creditors_count,
-      SUM(if(u.credit>0, u.credit, 0)) AS creditors_sum,
-      SUM(if(if(company.id IS NULL, b.deposit, cb.deposit)<0, 1, 0)) AS debetors_count,
-      SUM(if(if(company.id IS NULL, b.deposit, cb.deposit)<0, b.deposit, 0)) AS debetors_sum
+      SUM(IF(u.disable>0, 1, 0)) AS disabled_users,
+      SUM(IF(u.credit>0, 1, 0)) AS creditors_count,
+      SUM(IF(u.credit>0, u.credit, 0)) AS creditors_sum,
+      SUM(IF(IF(company.id IS NULL, b.deposit, cb.deposit)<0, 1, 0)) AS debetors_count,
+      SUM(IF(IF(company.id IS NULL, b.deposit, cb.deposit)<0, b.deposit, 0)) AS debetors_sum
     FROM users u
       LEFT JOIN bills b ON (u.bill_id = b.id)
       LEFT JOIN companies company ON  (u.company_id=company.id)
@@ -1581,282 +1663,83 @@ sub check_params {
   return 1;
 }
 
-
 #**********************************************************
-=head2 contacts_list($attr)
-
-  Arguments:
-    $attr - hash_ref
-      UID
-      VALUE
-      PRIORITY
-      TYPE
-      TYPE_NAME
-
+=head2 contacts_migrate() - migrates contacts from old to new model
+    
   Returns:
-    list
-
+    boolean - success flag
+    
 =cut
 #**********************************************************
-sub contacts_list{
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->{errno} = 0;
-  $self->{errstr} = '';
-
-  return [] if (!$attr->{UID});
-
-  #!!! Important !!! Only first list will work without this
-  delete $self->{COL_NAMES_ARR};
-
-  my $WHERE = '';
-
-  $WHERE = $self->search_former( $attr, [
-      [ 'UID',        'INT', 'uc.uid',      1 ],
-      [ 'VALUE',      'STR', 'uc.value',    1 ],
-      [ 'PRIORITY',   'INT', 'uc.priority', 1 ],
-      [ 'TYPE',       'INT', 'uc.type_id',  1 ],
-      [ 'TYPE_NAME',  'STR', 'uct.name',    1 ],
-      [ 'HIDDEN',     'INT', 'uct.hidden'     ]
-    ],
-    {
-      WHERE => 1
+sub contacts_migrate {
+  my ($self, $attr) = @_;
+  
+  if ($attr->{IGNORE_DUPLICATE}){
+    $self->query2("ALTER TABLE users_contacts DROP KEY `_type_value`;");
+    return 0 if ($self->{errno});
+  };
+  
+  my %old_type_to_new = (
+    EMAIL => 9,
+    PHONE => 2
+  );
+  
+  $self->query2("SELECT u.uid, up.phone, up.email
+   FROM users u
+   LEFT JOIN users_pi up ON (u.uid=up.uid)
+   WHERE up.phone <> '' OR up.email <> ''
+   ORDER BY u.uid", undef, { COLS_NAME => 1 });
+  
+  return 0 if ($self->{errno});
+  return 1 if (!$self->{list} || scalar @{$self->{list}} <= 0);
+  
+  # Accumulating requests
+  my @contacts_to_add = ();
+  
+  foreach my $user_pi ( @{$self->{list}} ) {
+    if ( $user_pi->{phone} ) {
+      my @phones = split(',\s?', $user_pi->{phone});
+      map {
+        push @contacts_to_add, [ $user_pi->{uid}, $old_type_to_new{PHONE}, $_ ];
+      } @phones;
     }
-  );
-
-  if ($attr->{SHOW_ALL_COLUMNS}){
-    $self->{SEARCH_FIELDS} = '*'
-  }
-
-  # Removing unnecessary comma
-  $self->{SEARCH_FIELDS} =~ s/,.?$//;
-
-  $self->query2( "
-    SELECT $self->{SEARCH_FIELDS}
-    FROM users_contacts uc
-    LEFT JOIN users_contact_types uct ON (uc.type_id=uct.id)
-     $WHERE ORDER BY priority;"
-    , undef, {COLS_NAME => 1,  %{ $attr ? $attr : {} }}
-  );
-
-  return $self->{list};
-}
-
-#**********************************************************
-=head2 contacts_info($id)
-
-  Arguments:
-    $id - id for contacts
-
-  Returns:
-    hash_ref
-
-=cut
-#**********************************************************
-sub contacts_info{
-  my $self = shift;
-  my ($id) = @_;
-
-  my $list = $self->contacts_list( { COLS_NAME => 1, ID => $id, SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 } );
-
-  return $list->[0];
-}
-
-#**********************************************************
-=head2 contacts_add($attr)
-
-  Arguments:
-    $attr - hash_ref
-
-  Returns:
-    1
-
-=cut
-#**********************************************************
-sub contacts_add{
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->query_add('users_contacts', $attr, { REPLACE => 1 });
-
-  return 1;
-}
-
-#**********************************************************
-=head2 contacts_del($attr)
-
-  Arguments:
-    $attr - hash_ref
-
-  Returns:
-   1
-
-=cut
-#**********************************************************
-sub contacts_del{
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->query_del('users_contacts', undef, $attr);
-
-  return 1;
-}
-
-#**********************************************************
-=head2 contacts_change($attr)
-
-  Arguments:
-    $attr - hash_ref
-
-  Returns:
-    1
-
-=cut
-#**********************************************************
-sub contacts_change{
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->changes2(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'users_contacts',
-      DATA         => $attr,
-    });
-
-  return 1;
-}
-
-#**********************************************************
-=head2 contact_types_list($attr)
-
-  Arguments:
-    $attr - hash_ref
-
-  Returns:
-    list
-
-=cut
-#**********************************************************
-sub contact_types_list{
-  my $self = shift;
-  my ($attr) = @_;
-
-  my $sort = ($attr->{SORT}) ? $attr->{SORT} : 'id';
-  my $desc = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $pg = ($attr->{PG}) ? $attr->{PG} : 0;
-  my $page_rows = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
-
-  #!!! Important !!! Only first list will work without this
-  delete $self->{COL_NAMES_ARR};
-
-  my $WHERE = '';
-
-  $WHERE = $self->search_former( $attr, [
-      [ 'ID',         'INT', 'id',         1 ],
-      [ 'NAME',       'STR', 'name',       1 ],
-      [ 'IS_DEFAULT', 'INT', 'is_default', 1 ],
-      [ 'HIDDEN',     'INT', 'hidden'        ]
-    ],
-    {
-      WHERE => 1
+    if ( $user_pi->{email} ) {
+      my @emails = split(',\s?', $user_pi->{email});
+      map {
+        push @contacts_to_add, [ $user_pi->{uid}, $old_type_to_new{EMAIL}, $_ ];
+      } @emails;
     }
-  );
-
-  if ($attr->{SHOW_ALL_COLUMNS}){
-    $self->{SEARCH_FIELDS} = '*,'
   }
-
-  $self->query2( "SELECT $self->{SEARCH_FIELDS} id FROM users_contact_types $WHERE ORDER BY $sort $desc LIMIT $pg, $page_rows;", undef, $attr );
-
-  return [] if ($self->{errno});
-
-  return $self->{list};
-}
-
-#**********************************************************
-=head2 contact_types_info($id)
-
-  Arguments:
-    $id - id for contact_types
-
-  Returns:
-    hash_ref
-
-=cut
-#**********************************************************
-sub contact_types_info{
-  my $self = shift;
-  my ($id) = @_;
-
-  my $list = $self->contact_types_list( { COLS_NAME => 1, ID => $id, SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 } );
-
-  return $list->[0];
-}
-
-#**********************************************************
-=head2 contact_types_add($attr)
-
-  Arguments:
-    $attr - hash_ref
-
-  Returns:
-    1
-
-=cut
-#**********************************************************
-sub contact_types_add{
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->query_add('users_contact_types', $attr);
-
-  return 1;
-}
-
-#**********************************************************
-=head2 contact_types_del($attr)
-
-  Arguments:
-    $attr - hash_ref
-
-  Returns:
-   1
-
-=cut
-#**********************************************************
-sub contact_types_del{
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->query_del('users_contact_types', $attr);
-
-  return 1;
-}
-
-#**********************************************************
-=head2 contact_types_change($attr)
-
-  Arguments:
-    $attr - hash_ref
-
-  Returns:
-    1
-
-=cut
-#**********************************************************
-sub contact_types_change{
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->changes2(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'users_contact_types',
-      DATA         => $attr,
-    });
-
+  
+  # Start a transaction
+  my DBI $db_ = $self->{db}->{db};
+  $db_->{AutoCommit} = 0;
+  
+  # Add all contacts
+  $self->query2( "INSERT INTO users_contacts (uid, type_id, value) VALUES (?, ?, ?);",
+    undef,
+    { MULTI_QUERY => \@contacts_to_add }
+  );
+  
+  if ( $self->{errno} ) {
+    # If error was occured, part of contacts could be inserted,
+    # so next time we will get DUPLICATE, need to remove all inserted contacts
+    $db_->rollback();
+    return 0;
+  }
+  
+  if ( $self->{errno} ) {
+    $db_->rollback();
+    return 0;
+  }
+  
+  $db_->commit();
+  $db_->{AutoCommit} = 1;
+  
+  
+  # If insert was successful, can remove old info
+  $self->query2("UPDATE users_pi SET phone='', email='';", { });
+  
   return 1;
 }
 

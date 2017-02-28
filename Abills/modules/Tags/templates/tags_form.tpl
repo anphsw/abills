@@ -1,8 +1,8 @@
-<div class='panel panel-default panel-form'>
-<div class='panel-heading'>Tags</div>
-<div class='panel-body'>
 <form action='$SELF_URL' method='post' class='form-horizontal'>
-  <input type='hidden' name='index' value='$index' /> 
+<div class='box box-theme box-form'>
+<div class='box-header with-border'>Tags</div>
+<div class='box-body'>
+  <input type='hidden' name='index' value='$index' />
   <input type='hidden' name='ID' value='$FORM{chg}' /> 
 <fieldset>
     <div class='form-group'>
@@ -25,9 +25,11 @@
         <textarea rows=4 name=COMMENTS class='form-control'>%COMMENTS%</textarea>
       </div>
     </div>
-<input type='submit' name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary' />
 </fieldset>
-	
+
+</div>
+  <div class='box-footer'>
+  <input type='submit' name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary' />
+  </div>
+</div>
 </form>
-</div>
-</div>

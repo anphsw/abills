@@ -209,10 +209,18 @@ sub district_list {
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
+  if($admin->{DOMAIN_ID}) {
+    $attr->{DOMAIN_ID} = $admin->{DOMAIN_ID};
+  }
+
   my $WHERE = $self->search_former($attr, [
       ['ID',          'INT',  'd.id'       ],
       ['NAME',        'STR',  'd.name'     ],
       ['COMMENTS',    'STR',  'd.comments' ],
+      ['DOMAIN_ID',   'INT',  'd.domain_id'],
+      ['COORDX',      'INT',  'd.coordx', 1],
+      ['COORDY',      'INT',  'd.coordy', 1],
+      ['ZOOM',        'INT',  'd.zoom',   1],
     ],
     { WHERE => 1,
     }
@@ -223,10 +231,8 @@ sub district_list {
        d.country,
        d.city,
        zip,
-       count(s.id) AS street_count,
-       d.coordx,
-       d.coordy,
-       d.zoom
+       $self->{SEARCH_FIELDS}
+       COUNT(s.id) AS street_count
      FROM districts d
      LEFT JOIN streets s ON (d.id=s.district_id)
    $WHERE
@@ -263,7 +269,7 @@ sub district_info {
   FROM districts WHERE id= ? ;",
   undef,
   { INFO => 1,
-  	Bind => [ $attr->{ID} ] }
+    Bind => [ $attr->{ID} ] }
   );
 
   return $self;
@@ -298,7 +304,10 @@ sub district_add {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query_add("districts", $attr);
+  $self->query_add("districts", {
+    %$attr,
+    DOMAIN_ID => $admin->{DOMAIN_ID} || 0
+  });
 
   $admin->system_action_add("DISTRICT:$self->{INSERT_ID}:$attr->{NAME}", { TYPE => 1 }) if (!$self->{errno});
 
@@ -334,13 +343,21 @@ sub street_list {
   my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
+  if($admin->{DOMAIN_ID}) {
+    $attr->{DOMAIN_ID} = $admin->{DOMAIN_ID};
+  }
+
   my $WHERE = $self->search_former($attr, [
-      ['STREET_NAME',   'STR', 's.name',  's.name AS street_name'    ],
-      ['SECOND_NAME',   'STR', 's.second_name',                    1 ],
+      ['STREET_NAME',   'STR', 's.name',  's.name AS street_name'        ],
+      ['SECOND_NAME',   'STR', 's.second_name',                        1 ],
       ['BUILD_COUNT',   'INT', 'COUNT(DISTINCT b.id) AS build_count', 'COUNT(DISTINCT b.id) AS build_count' ],
-      ['USERS_COUNT',    'STR', '',    'COUNT(pi.uid) AS users_count' ],
-      ['DISTRICT_NAME', 'STR', 'd.name',  'd.name AS disctrict_name' ],
-      ['DISTRICT_ID',   'STR', 's.district_id',                    1 ],
+      (! $admin->{MAX_ROWS}) ? ['USERS_COUNT',   'STR', '',    'COUNT(pi.uid) AS users_count' ] : [],
+      ['DISTRICT_NAME', 'STR', 'd.name',  'd.name AS district_name'      ],
+      ['DISTRICT_ID',   'STR', 's.district_id',                        1 ],
+      ['BUILD_NUMBER',  'STR', 'b.number',  'b.number AS build_number',1 ],
+      ['BUILD_FLATS',   'INT', 'b.flats','b.number AS build_flats',    1 ],
+      ['DOMAIN_ID',     'INT', 'd.domain_id',                            ],
+      ['ID',            'INT', 's.id',                                   ]
     ],
     { WHERE => 1,
     }
@@ -353,8 +370,8 @@ sub street_list {
   if ($attr->{USERS_COUNT} && !$admin->{MAX_ROWS}) {
     $EXT_TABLE        = 'LEFT JOIN users_pi pi ON (b.id=pi.location_id)';
     #$self->{SEARCH_FIELDS}  = . $self->{SEARCH_FIELDS};
-    $EXT_TABLE_TOTAL  = 'LEFT JOIN builds b ON (b.street_id=s.id) LEFT JOIN users_pi pi ON (b.id=pi.location_id)';
-    $EXT_FIELDS_TOTAL = ', count(DISTINCT b.id), count(pi.uid), sum(b.flats) / count(pi.uid)';
+    $EXT_TABLE_TOTAL  = ' LEFT JOIN builds b ON (b.street_id=s.id) LEFT JOIN users_pi pi ON (b.id=pi.location_id)';
+    $EXT_FIELDS_TOTAL = ', COUNT(DISTINCT b.id), COUNT(pi.uid), SUM(b.flats) / COUNT(pi.uid)';
   }
 
   my $sql = "SELECT s.id,
@@ -371,13 +388,24 @@ sub street_list {
 
   $self->query2($sql, undef, $attr);
 
-  my $list = $self->{list};
+  return [] if $self->{errno};
+
+  my $list = $self->{list} || [];
 
   if ($self->{TOTAL} > 0) {
-    $sql = "SELECT count(DISTINCT s.id) $EXT_FIELDS_TOTAL FROM streets s
-     $EXT_TABLE_TOTAL  $WHERE";
+    $sql = "SELECT COUNT(DISTINCT s.id) $EXT_FIELDS_TOTAL FROM streets s
+      LEFT JOIN districts d ON (s.district_id=d.id)
+      $EXT_TABLE_TOTAL  $WHERE";
     $self->query2($sql);
-    ($self->{TOTAL}, $self->{TOTAL_BUILDS}, $self->{TOTAL_USERS}, $self->{DENSITY_OF_CONNECTIONS}) = @{ $self->{list}->[0] };
+
+    if($self->{TOTAL} > 0) {
+      ($self->{TOTAL}, $self->{TOTAL_BUILDS}, $self->{TOTAL_USERS},
+        $self->{DENSITY_OF_CONNECTIONS}) = @{ $self->{list}->[0] };
+    }
+    else {
+      ($self->{TOTAL}, $self->{TOTAL_BUILDS}, $self->{TOTAL_USERS},
+        $self->{DENSITY_OF_CONNECTIONS}) = (0,0,0,0);
+    }
   }
 
   return $list;
@@ -395,7 +423,7 @@ sub street_info {
   $self->query2("SELECT * FROM streets WHERE id= ? ;",
     undef,
     { INFO => 1,
-    	Bind => [ $attr->{ID} ]
+      Bind => [ $attr->{ID} ]
     });
 
   return $self;
@@ -483,6 +511,7 @@ sub build_list {
       ['ENTRANCES',         'INT', 'b.entrances',    1 ],
       ['FLATS',             'INT', 'b.flats',        1 ],
       ['DISTRICT_ID',       'INT', 's.district_id',  1 ],
+      ['DISTRICT_NAME',     'INT', 'd.name AS district_name',1 ],
       ['STREET_NAME',       'INT', 's.name', 's.name AS street_name'  ],
       ['USERS_COUNT',       'INT', '', 'COUNT(pi.uid) AS users_count' ],
       ['USERS_CONNECTIONS', 'INT', '', 'ROUND((count(pi.uid) / b.flats * 100), 0) AS users_connections' ],
@@ -497,6 +526,9 @@ sub build_list {
       ['COORDX',            'INT', 'b.coordx',       1 ],
       ['COORDY',            'INT', 'b.coordy',       1 ],
       ['ZOOM',              'INT', 'd.zoom',         1 ],
+      ['ZIP',               'INT', 'b.zip',    'b.zip' ],
+      ['PUBLIC_COMMENTS',   'STR', 'b.public_comments',    1 ],
+      ['PLANNED_TO_CONNECT','STR', 'b.planned_to_connect', 1 ],
     ],
     { WHERE       => 1,
       WHERE_RULES => \@WHERE_RULES
@@ -528,7 +560,7 @@ sub build_list {
   my $list = $self->{list};
 
   if ($self->{TOTAL} > 0) {
-    $self->query2("SELECT count(*) AS total FROM builds b
+    $self->query2("SELECT COUNT(*) AS total FROM builds b
     $EXT_TABLES
     $WHERE",
     undef,
@@ -551,9 +583,9 @@ sub build_info {
   $self->query2("SELECT * FROM builds WHERE id= ? ;",
     undef,
    {
- 	   INFO => 1,
- 	   Bind => [ $attr->{ID} ]
- 	  });
+     INFO => 1,
+     Bind => [ $attr->{ID} ]
+    });
 
   return $self;
 }
@@ -588,11 +620,12 @@ sub build_add {
   my ($attr) = @_;
 
   if ($attr->{ADD_ADDRESS_BUILD}) {
-    my $list = $self->build_list({ STREET_ID => $attr->{STREET_ID},
-                                    NUMBER    => $attr->{ADD_ADDRESS_BUILD},
-                                    COLS_NAME => 1,
-                                    PAGE_ROWS => 1
-                                  });
+    my $list = $self->build_list({
+      STREET_ID => $attr->{STREET_ID},
+      NUMBER    => $attr->{ADD_ADDRESS_BUILD},
+      COLS_NAME => 1,
+      PAGE_ROWS => 1
+    });
 
     if ($self->{TOTAL} > 0) {
       $self->{LOCATION_ID}=$list->[0]->{id};
@@ -642,9 +675,9 @@ sub location_media_list {
   $self->query2("SELECT * FROM location_media WHERE location_id= ? ;",
     undef,
    {
- 	   Bind => [ $attr->{LOCATION_ID} ],
- 	   %$attr
- 	  });
+     Bind => [ $attr->{LOCATION_ID} ],
+     %$attr
+    });
 
   my $list = $self->{list};
 
@@ -664,9 +697,9 @@ sub location_media_info {
   $self->query2("SELECT * FROM location_media WHERE id= ? ;",
     undef,
    {
- 	   INFO => 1,
- 	   Bind => [ $attr->{ID} ]
- 	  });
+     INFO => 1,
+     Bind => [ $attr->{ID} ]
+    });
 
   return $self;
 }

@@ -1,54 +1,50 @@
 #!/usr/bin/perl
-#Switch mac and speed assign
-#
-# snmp_control.pl (ONLINE_ENABLE|ONLINE_DISABLE|HANGUP) %LOGIN %FILTER_ID %PORT
-#
 
+=head1 NAME
+
+  Switch mac and speed assign
+
+  snmp_control.pl (ONLINE_ENABLE|ONLINE_DISABLE|HANGUP) %LOGIN %FILTER_ID %PORT
+
+=cut
+
+use strict;
+use warnings FATAL => 'all';
 use FindBin '$Bin';
 
 my $debug   = 0;
-my $version = 0.67;
+our $VERSION = 0.70;
+BEGIN {
+  our %conf;
+  require $Bin.'/../libexec/config.pl';
+  unshift(@INC,
+    $Bin.'/../',
+    $Bin.'/../lib/',
+    $Bin.'/../Abills/modules/',
+    $Bin."/../Abills/$conf{dbtype}");
+}
 
-require $Bin . '/../libexec/config.pl';
-unshift(@INC, $Bin . '/../', $Bin . '/../Abills', $Bin . "/../Abills/$conf{dbtype}");
-require Abills::SQL;
-Abills::SQL->import();
-require Abills::Base;
-Abills::Base->import();
-
-require Admins;
-Admins->import();
-require Dv_Sessions;
-Dv_Sessions->import();
-require Dv;
-Dv->import();
-require Dhcphosts;
-Dhcphosts->import();
-require Nas;
-Nas->import();
-
+use Abills::SQL;
+use Abills::Base;
+use Admins;
+use Dv_Sessions;
+use Dv;
+use Dhcphosts;
+use Nas;
 use Socket;
+use Snmputils;
+use SNMP_Session;
+use SNMP_util;
+use BER;
+use Billing;
 
-require Snmputils;
-Snmputils->import();
-require SNMP_Session;
-SNMP_Session->import();
-require SNMP_util;
-SNMP_util->import();
-require BER;
-BER->import();
-require Dv;
-Dv->import();
-require Billing;
-Billing->import();
+require Abills::Misc;
 
-require "Abills/Misc.pm";
+my $argv = parse_arguments(\@ARGV);
 
-my $ARGV = parse_arguments(\@ARGV);
-
-if ($ARGV->{help} || $#ARGV == -1) {
+if ($argv->{help} || $#ARGV == -1) {
   print << "[END]";
-Version: $version
+Version: $VERSION
 snmp_control.pl (ONLINE_ENABLE|ONLINE_DISABLE|HANGUP) %LOGIN %FILTER_ID %PORT
   SHOW_VLANS=[NAS_ID] - Show Vlan on switch
   FILTER_ID=...       - Filter syntax VLAN:PORT_SPEED
@@ -78,8 +74,9 @@ snmp_control.pl (ONLINE_ENABLE|ONLINE_DISABLE|HANGUP) %LOGIN %FILTER_ID %PORT
   exit;
 }
 
-my $VLAN        = $ARGV->{MAIN_VLAN}  || 3256;
-my $GUEST_VLAN  = $ARGV->{GUEST_VLAN} || 3257;
+our %conf;
+my $VLAN        = $argv->{MAIN_VLAN}  || 3256;
+my $GUEST_VLAN  = $argv->{GUEST_VLAN} || 3257;
 my $db         = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
 my $admin       = Admins->new($db, \%conf);
 $admin->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });
@@ -87,37 +84,39 @@ my $Nas         = Nas->new($db, \%conf);
 my $Dv_sessions = Dv_Sessions->new($db, $admin, \%conf);
 my $Dv          = Dv->new($db, $admin, \%conf);
 my $Dhcphosts   = Dhcphosts->new($db, $admin, \%conf);
-my $Snmputils   = Snmputils->new($db, $admin, \%conf);
+#my $Snmputils   = Snmputils->new($db, $admin, \%conf);
 my $Billing     = Billing->new($db, \%conf);
 
 my $NAS_ID          = $ENV{NAS_ID}          || 1;
-my $NAS_MNG_IP_PORT = $ENV{NAS_MNG_IP_PORT} || $ARGV->{NAS_MNG_IP_PORT} || '';
-my $NAS_MNG_PASSWD  = $ENV{NAS_MNG_PASSWD}  || $ARGV->{NAS_MNG_PASSWD} || '';
+my $NAS_MNG_IP_PORT = $ENV{NAS_MNG_IP_PORT} || $argv->{NAS_MNG_IP_PORT} || '';
+my $NAS_MNG_PASSWD  = $ENV{NAS_MNG_PASSWD}  || $argv->{NAS_MNG_PASSWD} || '';
 my $NAS_TYPE        = $ENV{NAS_TYPE}        || '';
-my $NAS_MNG_USER    = $ENV{NAS_MNG_USER}    || $ARGV->{NAS_MNG_USER} || '';
+my $NAS_MNG_USER    = $ENV{NAS_MNG_USER}    || $argv->{NAS_MNG_USER} || '';
 my @RESERV_PORTS    = (25, 26, 27, 28);
+my $sw_info;
+my $ports;
 
-my $test_snmp = `echo "NAS_ID: $NAS_ID  IP: $NAS_MNG_IP_PORT PASSWD: $NAS_MNG_PASSWD TYPE: $NAS_TYPE USER: $NAS_MNG_USER " >> /tmp/test_snmp `;
+`echo "NAS_ID: $NAS_ID  IP: $NAS_MNG_IP_PORT PASSWD: $NAS_MNG_PASSWD TYPE: $NAS_TYPE USER: $NAS_MNG_USER " >> /tmp/test_snmp `;
 
 
-if ($ARGV->{DEBUG}) {
-  $debug = $ARGV->{DEBUG};
+if ($argv->{DEBUG}) {
+  $debug = $argv->{DEBUG};
   if ($debug > 6) {
     $Dv_sessions->{debug}=1;
     $Dhcphosts->{debug}=1;
   }
 }
 
-if($ARGV->{DEVICE_INFO}) {
-	devices_info($ARGV->{DEVICE_INFO});
+if($argv->{DEVICE_INFO}) {
+	devices_info($argv->{DEVICE_INFO});
 	exit;
 }
-elsif ($ARGV->{RESERV_PORTS}) {
-  @RESERV_PORTS = split(/,/, $ARGV->{RESERV_PORTS});
+elsif ($argv->{RESERV_PORTS}) {
+  @RESERV_PORTS = split(/,/, $argv->{RESERV_PORTS});
 }
 
-if ($ARGV->{NAS_ID}) {
-  $NAS_ID = $ARGV->{NAS_ID};
+if ($argv->{NAS_ID}) {
+  $NAS_ID = $argv->{NAS_ID};
 }
 
 my $ACTION       = $ARGV[0];
@@ -125,15 +124,16 @@ my $LOGIN        = $ARGV[1];
 my $FILTER_ID    = $ARGV[2];
 my $PORT         = $ARGV[3];
 my $get_tp_speed = 0;
+#my %RESULT       = ();
 
 $FILTER_ID =~ s/Session-Timeout=\d+,//g;
 
 #Get NAS info from dhcphosts
-if ($ARGV->{DHCP_NAS_INFO}) {
-  $Dhcphosts->host_info(0, { IP => $ARGV->{IP} });
+if ($argv->{DHCP_NAS_INFO}) {
+  $Dhcphosts->host_info(0, { IP => $argv->{IP} });
   $PORT = $Dhcphosts->{PORTS};
   if ($Dhcphosts->{TOTAL} < 1) {
-    print "IP '$ARGV->{IP}' not registred in Dhcphosts\n";
+    print "IP '$argv->{IP}' not registred in Dhcphosts\n";
     exit;
   }
   $NAS_ID = $Dhcphosts->{NAS_ID};
@@ -147,7 +147,7 @@ if ($NAS_ID) {
   $NAS_MNG_USER    = $Nas->{NAS_MNG_USER} || $Nas->{NAS_MNG_PASSWORD};
 }
 
-if ($ARGV->{TP_SPEED}) {
+if ($argv->{TP_SPEED}) {
   $get_tp_speed = 1;
   $FILTER_ID = "PORT_SPEED:0" if ($FILTER_ID =~ /PORT_SPEED/);
 }
@@ -176,33 +176,32 @@ my $taged_ports_mib   = '1.3.6.1.2.1.17.7.1.4.3.1.2';
 my $all_ports_mib     = '1.3.6.1.2.1.17.7.1.4.2.1.4';
 my $ports_mib         = $untaged_ports_mib;
 my $type              = '';
-my $sw_info;
 
 if ($NAS_TYPE eq 'ipcad') {
   exit;
 }
 
-my ($nas_ip, $nas_port1, $nas_port2)=split(/:/, $NAS_MNG_IP_PORT);
+my ($nas_ip)=split(/:/, $NAS_MNG_IP_PORT);
 
 my $SNMP_COMMUNITY = "$NAS_MNG_USER\@$nas_ip";
 
-if ($ARGV->{RESET}) {
+if ($argv->{RESET}) {
   dlink_vlan_add();
 }
-elsif ($ARGV->{SHOW_VLANS}) {
+elsif ($argv->{SHOW_VLANS}) {
   show_vlans();
 }
 
 #Set port speed
 elsif ($FILTER_ID =~ /PORT_SPEED:(\S+)/) {
   $SPEED = $1;
-  if ($type = get_version()) {
+  if ($type = nas_version()) {
     set_speed();
   }
 }
 #Port Enable/Disable
 elsif ($FILTER_ID =~ /PORT_STATUS/) {
-  if ($type = get_version()) {
+  if ($type = nas_version()) {
     set_port_status();
   }
 }
@@ -212,7 +211,7 @@ elsif ($FILTER_ID =~ /(\S+):(\S+):(\S+)/) {
   $GUEST_VLAN = $2;
   $SPEED      = $3;
 
-  if ($type = get_version()) {
+  if ($type = nas_version()) {
     set_speed();
     if ($GUEST_VLAN || $VLAN) { set_vlan(); }
   }
@@ -231,7 +230,7 @@ elsif ($FILTER_ID =~ /(\S+):(\S+)/) {
 #
 #***********************************************************
 sub set_port_status {
-  my ($attr) = @_;
+  #my ($attr) = @_;
 
   if (!$PORT) {
     $Dv->info(0, { LOGIN => $LOGIN });
@@ -263,10 +262,10 @@ sub set_port_status {
 #
 #***********************************************************
 sub show_vlans {
-  my ($attr) = @_;
+  #my ($attr) = @_;
 
-  $Nas->info({ NAS_ID => $ARGV->{SHOW_VLANS} });
-  my $RESULT;
+  $Nas->info({ NAS_ID => $argv->{SHOW_VLANS} });
+  #my $RESULT;
   if ($debug < 5) {
     $SNMP_COMMUNITY = "$Nas->{NAS_MNG_USER}\@$Nas->{NAS_MNG_IP_PORT}";
     if ($debug > 1) {
@@ -299,10 +298,10 @@ sub show_vlans {
 
       print "Name: $name\n";
       foreach my $line (@$result) {
-        ($vlan, $ports_bin) = split(/:/, $line, 2);
+        my ($vlan, $ports_bin) = split(/:/, $line, 2);
         my $p = unpack("B64", $ports_bin);
         my $ports = '';
-        for ($i = 0 ; $i < length($p) ; $i++) {
+        for (my $i = 0 ; $i < length($p) ; $i++) {
           my $port_val = substr($p, $i, 1);
           if ($port_val == 1) {
             $ports .= ($i + 1) . ", ";
@@ -316,18 +315,24 @@ sub show_vlans {
     }
   }
 
+  return 1;
 }
 
 #***********************************************************
 #
 #***********************************************************
 sub get_active_ports {
-  my ($attr) = @_;
+  #my ($attr) = @_;
 
   my %LIST_PARAMS = ();
   $LIST_PARAMS{NAS_ID} = $NAS_ID if ($NAS_ID);
 
-  $Dv_sessions->online({ FIELDS_NAMES => [ NAS_PORT_ID, NAS_IP, CLIENT_IP, UID ] });
+  $Dv_sessions->online({
+    NAS_PORT_ID => '_SHOW',
+    NAS_IP      => '_SHOW',
+    CLIENT_IP   => '_SHOW',
+    UID         => '_SHOW'
+  });
 
   my $online_list = $Dv_sessions->{nas_sorted};
   my %ports       = ();
@@ -350,7 +355,7 @@ sub get_active_ports {
 
   foreach my $host (@{$dhcphosts_list}) {
     my $port = $host->{ports};
-    if ($LOGIN eq $line->{login}) {
+    if ($LOGIN eq $host->{login}) {
       $ports{$port} = 0;
       $PORT = $port;
     }
@@ -365,7 +370,7 @@ sub get_active_ports {
   }
 
   if ($ACTION eq 'ONLINE_ENABLE') {
-    $ports{$PORT} = $UID || 1;
+    $ports{$PORT} = 1;
   }
   elsif ($ACTION eq 'HANGUP' || $ACTION eq 'ONLINE_DISABLE') {
     $ports{$PORT} = 0;
@@ -389,9 +394,9 @@ sub dlink_vlan_add {
 
   my $all_ports_str = '';
 
-  if ($ARGV->{RESET}) {
-    $Nas->info({ NAS_ID => $ARGV->{SHOW_VLANS} || $ARGV->{NAS_ID} });
-    my $RESULT;
+  if ($argv->{RESET}) {
+    $Nas->info({ NAS_ID => $argv->{SHOW_VLANS} || $argv->{NAS_ID} });
+
     if ($debug < 5) {
       $SNMP_COMMUNITY = "$Nas->{NAS_MNG_USER}\@$Nas->{NAS_MNG_IP_PORT}";
 
@@ -446,7 +451,7 @@ GUEST: $GUEST_VLAN
     $reserved_ports{$id} = 1;
   }
 
-  for ($i = 0 ; $i < length($PORT_HASH{MAIN}{all_ports_str}) ; $i++) {
+  for (my $i = 0 ; $i < length($PORT_HASH{MAIN}{all_ports_str}) ; $i++) {
     if ($reserved_ports{ $i + 1 }) {
       next;
     }
@@ -475,7 +480,7 @@ GUEST: $GUEST_VLAN
 
   if ($debug > 0) {
     my $p = join(',', @port_array);
-    my $a = `echo " >> $PORT $ports->{$PORT} '$ACTION'//$p" >> /tmp/vlan_test `;
+    `echo " >> $PORT $ports->{$PORT} '$ACTION'//$p" >> /tmp/vlan_test `;
   }
 
   my $bin_ports       = pack("B64", join("", @port_array));
@@ -552,13 +557,14 @@ GUEST: $GUEST_VLAN
       print "$SNMP_COMMUNITY -> $ports_mib.$VLAN s $bin_ports\n";
     }
   }
+
+  return 1;
 }
 
 #**********************************************************
 # http://www.mounblan.com/faq.php?prodid=0&deviceid=0&id=100
 #**********************************************************
 sub edgecore_vlan_get {
-  my ($attr) = @_;
   my %RESULT = ();
 
   #TAGED
@@ -578,8 +584,8 @@ sub edgecore_vlan_get {
 sub edgecore_vlan {
   my ($attr) = @_;
 
-  my $vlan      = $attr->{VLAN};
-  my $ports_bin = $attr->{PORTS_BIN};
+  #my $vlan      = $attr->{VLAN};
+  #my $ports_bin = $attr->{PORTS_BIN};
 
   my $RESULT;
   if ($debug < 7) {
@@ -621,7 +627,7 @@ GUEST: $GUEST_VLAN
     $reserved_ports{$id} = 1;
   }
 
-  for ($i = 0 ; $i < length($PORT_HASH{MAIN}{all_ports_str}) ; $i++) {
+  for (my $i = 0 ; $i < length($PORT_HASH{MAIN}{all_ports_str}) ; $i++) {
     if ($reserved_ports{ $i + 1 }) {
       next;
     }
@@ -650,7 +656,7 @@ GUEST: $GUEST_VLAN
 
   if ($debug > 0) {
     my $p = join(',', @port_array);
-    my $a = `echo " >> $PORT $ports->{$PORT} '$ACTION'//$p" >> /tmp/vlan_test `;
+    `echo " >> $PORT $ports->{$PORT} '$ACTION'//$p" >> /tmp/vlan_test `;
   }
 
   my $bin_ports       = pack("B64", join("", @port_array));
@@ -717,7 +723,7 @@ exit;
 sub snmputils_dlink_pb_version {
   my ($attr) = @_;
 
-  my $SNMP_COMMUNITY = $attr->{SNMP_COMMUNITY} || '';
+  $SNMP_COMMUNITY = $attr->{SNMP_COMMUNITY} || '';
   my %RESULT = ();
 
   $RESULT{version}        = '';
@@ -741,9 +747,9 @@ sub snmputils_dlink_pb_version {
         my @result = snmpwalk($SNMP_COMMUNITY, "$oid");
 
         foreach my $line (@result) {
-          ($vlan, $ports_bin) = split(/:/, $line, 2);
+          my ($vlan, $ports_bin) = split(/:/, $line, 2);
           $vlan =~ /(\d+)$/;
-          $vlan_id = $1;
+          my $vlan_id = $1;
 
           $RESULT{$name}{$vlan_id} = $ports_bin;
           my $p = unpack("B64", $ports_bin);
@@ -773,6 +779,9 @@ sub dlink_port_speed {
     exit;
   }
 
+  my %RESULT = ();
+  my($in_oid, $out_oid);
+
   if ($FILTER_ID !~ /PORT_SPEED:(\S+)/) {
     if ($sw_info->{version} =~ /DES-3028/) {
       $RESULT{oid_prefix} = '1.3.6.1.4.1.171.11.63.6.2.2.2.1.4';
@@ -788,26 +797,26 @@ sub dlink_port_speed {
   elsif ($sw_info->{version} =~ /DES-3028/) {
     # port speed 10 / 100 /1000
     #$RESULT{oid_prefix} = '1.3.6.1.4.1.171.11.63.6.2.2.2.1.4';
-    #dlink 3028 (скорость кратна 1Кбит/с)
+    #dlink 3028 (пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ 1пїЅпїЅпїЅпїЅ/пїЅ)
     #snmpset -c snmppass -v2c 10.133.251.243 1.3.6.1.4.1.171.11.63.6.2.3.1.1.2.24 i 1024
-    #2 - вход
-    #3 - исход
-    #24 - порт
-    #1024 - скорость 1024 Кбит/с
-    #1024000 - скорость no_limit
+    #2 - пїЅпїЅпїЅпїЅ
+    #3 - пїЅпїЅпїЅпїЅпїЅ
+    #24 - пїЅпїЅпїЅпїЅ
+    #1024 - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ 1024 пїЅпїЅпїЅпїЅ/пїЅ
+    #1024000 - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ no_limit
     #
     $in_oid  = '1.3.6.1.4.1.171.11.63.6.2.3.1.1.2.';
     $out_oid = '1.3.6.1.4.1.171.11.63.6.2.3.1.1.3.';
   }
   elsif ($sw_info->{version} =~ /DES-3526/) {
-    #dlink 3526 (скорость кратна 1Мбит/с)
+    #dlink 3526 (пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ 1пїЅпїЅпїЅпїЅ/пїЅ)
     #snmpset -c snmppass -v2c 10.133.200.102 1.3.6.1.4.1.171.11.64.1.2.6.1.1.2.1 i 2
     #snmpset -c snmppass -v2c 10.133.200.102 1.3.6.1.4.1.171.11.64.1.2.6.1.1.3.1 i 2
-    #2 - вход
-    #3 - исход
+    #2 - пїЅпїЅпїЅпїЅ
+    #3 - пїЅпїЅпїЅпїЅпїЅ
     #1 - port
-    #2 - скорость 2 Мбит/с
-    #0 - скорость no_limit
+    #2 - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ 2 пїЅпїЅпїЅпїЅ/пїЅ
+    #0 - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ no_limit
 
     if ($SPEED > 0 && $SPEED <= 1024) {
       $SPEED = 1;
@@ -831,13 +840,13 @@ sub dlink_port_speed {
     $out_oid = '1.3.6.1.4.1.171.11.116.2.2.3.1.1.3.';
   }
   elsif ($sw_info->{version} =~ /DES-3528/) {
-    #dlink 3528 (скорость кратна 1Кбит/с)
+    #dlink 3528 (пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ 1пїЅпїЅпїЅпїЅ/пїЅ)
     #snmpset -c snmppass -v2c 10.133.247.2 1.3.6.1.4.1.171.12.61.3.1.1.2.24 i 1024
-    #2 - вход
-    #3 - исход
+    #2 - пїЅпїЅпїЅпїЅ
+    #3 - пїЅпїЅпїЅпїЅпїЅ
     #24 - port
-    #1024 - скорость в Кбит/с
-    #0 - скорость no_limit
+    #1024 - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅ/пїЅ
+    #0 - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ no_limit
 
     $in_oid  = '1.3.6.1.4.1.171.12.61.3.1.1.2.';
     $out_oid = '1.3.6.1.4.1.171.12.61.3.1.1.3.';
@@ -872,7 +881,7 @@ sub dlink_port_speed {
     $in_oid  = '1.3.6.1.4.1.171.11.113.1.5.2.3.1.1.2.';
     $out_oid = '1.3.6.1.4.1.171.11.113.1.5.2.3.1.1.3.';
   }
-  # DES-3200-26 ревизия C1 3200-52, DES-3200-28/C1 (Last version)
+  # DES-3200-26 пїЅпїЅпїЅпїЅпїЅпїЅпїЅ C1 3200-52, DES-3200-28/C1 (Last version)
   elsif ($sw_info->{version} =~ /DES-3200-26|3200\-52|DES-3200-28\/C1/) {
     $in_oid  = '.1.3.6.1.4.1.171.12.61.3.1.1.2.';
     $out_oid = '.1.3.6.1.4.1.171.12.61.3.1.1.3.';
@@ -883,7 +892,6 @@ sub dlink_port_speed {
     $out_oid = '1.3.6.1.4.1.171.11.113.1.3.2.3.1.1.3.';
   }
   else {
-
     #$RESULT{oid_prefix} = '1.3.6.1.4.1.171.11.63.8.2.2.2.1.4';
     $in_oid  = '1.3.6.1.4.1.171.11.63.6.2.3.1.1.2.';
     $out_oid = '1.3.6.1.4.1.171.11.63.6.2.3.1.1.3.';
@@ -893,19 +901,21 @@ sub dlink_port_speed {
     print "Speed:\n $in_oid" . $PORT . " -> $SPEED \n $out_oid" . $PORT . " -> $SPEED\n";
   }
 
-  if (!defined($ARGV->{IN_ONLY})) {
+  if (!defined($argv->{IN_ONLY})) {
     snmpset($SNMP_COMMUNITY, "$out_oid" . $PORT, "integer", $SPEED);
   }
-  if (!defined($ARGV->{OUT_ONLY})) {
+  if (!defined($argv->{OUT_ONLY})) {
     snmpset($SNMP_COMMUNITY, "$in_oid" . $PORT, "integer", $SPEED);
   }
+
+  return 1;
 }
 
 #**********************************************************
 #
 #**********************************************************
 sub edgecore_port_speed {
-  my ($attr) = @_;
+#  my ($attr) = @_;
 
   if (!$PORT) {
     print "Select port\n";
@@ -920,28 +930,28 @@ sub edgecore_port_speed {
 
   if ($sw_info->{version} =~ /3528/) {
 
-    #edge-core 3528 (скорость  от 64kbps до 100000 kbps кратна 1Кбит/с)
+    #edge-core 3528 (пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ  пїЅпїЅ 64kbps пїЅпїЅ 100000 kbps пїЅпїЅпїЅпїЅпїЅпїЅ 1пїЅпїЅпїЅпїЅ/пїЅ)
     #snmpset -c snmppass -v2c 10.133.200.101 1.3.6.1.4.1.259.6.10.94.1.16.1.2.1.10.1 i 1024
-    #10 - вход
-    #11 - исход
+    #10 - пїЅпїЅпїЅпїЅ
+    #11 - пїЅпїЅпїЅпїЅпїЅ
     #1   - port
-    #1024 - скорость 1024 Кбит/с
+    #1024 - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ 1024 пїЅпїЅпїЅпїЅ/пїЅ
     $in_oid  = '1.3.6.1.4.1.259.6.10.94.1.16.1.2.1.10.';
     $out_oid = '1.3.6.1.4.1.259.6.10.94.1.16.1.2.1.11.';
 
     # ON/Off
     #snmpset -c snmppass -v2c 10.133.200.101 1.3.6.1.4.1.259.6.10.94.1.16.1.2.1.6.1 i 1
-    # 6  - вход
-    # 7 -  исход
+    # 6  - пїЅпїЅпїЅпїЅ
+    # 7 -  пїЅпїЅпїЅпїЅпїЅ
     # 1 -  port
-    # 1 - включить
-    # 2 - выключить
+    # 1 - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+    # 2 - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 
-    push @snmp_oids, "$in_oid" . $PORT . ":integer:$SPEED"  if (!defined($ARGV->{OUT_ONLY}));
-    push @snmp_oids, "$out_oid" . $PORT . ":integer:$SPEED" if (!defined($ARGV->{IN_ONLY}));
+    push @snmp_oids, "$in_oid" . $PORT . ":integer:$SPEED"  if (!defined($argv->{OUT_ONLY}));
+    push @snmp_oids, "$out_oid" . $PORT . ":integer:$SPEED" if (!defined($argv->{IN_ONLY}));
 
-    push @snmp_oids, "1.3.6.1.4.1.259.6.10.94.1.16.1.2.1.6." . $PORT . ":integer:1" if (!defined($ARGV->{OUT_ONLY}));
-    push @snmp_oids, "1.3.6.1.4.1.259.6.10.94.1.16.1.2.1.7." . $PORT . ":integer:1" if (!defined($ARGV->{IN_ONLY}));
+    push @snmp_oids, "1.3.6.1.4.1.259.6.10.94.1.16.1.2.1.6." . $PORT . ":integer:1" if (!defined($argv->{OUT_ONLY}));
+    push @snmp_oids, "1.3.6.1.4.1.259.6.10.94.1.16.1.2.1.7." . $PORT . ":integer:1" if (!defined($argv->{IN_ONLY}));
   }
   elsif ($sw_info->{version} =~ /3526/) {
     my $byte_speed = $SPEED;
@@ -970,19 +980,19 @@ sub edgecore_port_speed {
     $out_oid = '1.3.6.1.4.1.259.8.1.5.1.16.1.2.1.7.';
 
     # Scale
-    push @snmp_oids, "$in_oid" . $PORT . ":integer:1"  if (!defined($ARGV->{OUT_ONLY}));
-    push @snmp_oids, "$out_oid" . $PORT . ":integer:2" if (!defined($ARGV->{IN_ONLY}));
+    push @snmp_oids, "$in_oid" . $PORT . ":integer:1"  if (!defined($argv->{OUT_ONLY}));
+    push @snmp_oids, "$out_oid" . $PORT . ":integer:2" if (!defined($argv->{IN_ONLY}));
 
     $in_oid  = '1.3.6.1.4.1.259.8.1.5.1.16.1.2.1.9.';
     $out_oid = '1.3.6.1.4.1.259.8.1.5.1.16.1.2.1.11.';
-    push @snmp_oids, "$in_oid" . $PORT . ":integer:$scale"  if (!defined($ARGV->{OUT_ONLY}));
-    push @snmp_oids, "$out_oid" . $PORT . ":integer:$scale" if (!defined($ARGV->{IN_ONLY}));
+    push @snmp_oids, "$in_oid" . $PORT . ":integer:$scale"  if (!defined($argv->{OUT_ONLY}));
+    push @snmp_oids, "$out_oid" . $PORT . ":integer:$scale" if (!defined($argv->{IN_ONLY}));
 
     # mnozhnyk
     $in_oid  = '1.3.6.1.4.1.259.8.1.5.1.16.1.2.1.8.';
     $out_oid = '1.3.6.1.4.1.259.8.1.5.1.16.1.2.1.10.';
-    push @snmp_oids, "$in_oid" . $PORT . ":integer:$port_speed"  if (!defined($ARGV->{OUT_ONLY}));
-    push @snmp_oids, "$out_oid" . $PORT . ":integer:$port_speed" if (!defined($ARGV->{IN_ONLY}));
+    push @snmp_oids, "$in_oid" . $PORT . ":integer:$port_speed"  if (!defined($argv->{OUT_ONLY}));
+    push @snmp_oids, "$out_oid" . $PORT . ":integer:$port_speed" if (!defined($argv->{IN_ONLY}));
   }
 
   foreach my $line (@snmp_oids) {
@@ -998,42 +1008,43 @@ sub edgecore_port_speed {
 
   }
 
-  #edge-core 3526 (скорость хрен знает чему кратна)
+  #edge-core 3526 (пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ)
   #snmpset -c snmppass -v2c 10.133.254.221 1.3.6.1.4.1.259.8.1.5.1.16.1.2.1.7.24 i 1
-  #6 - вход
-  #7 - исход
+  #6 - пїЅпїЅпїЅпїЅ
+  #7 - пїЅпїЅпїЅпїЅпїЅ
   #24 - port
-  #1 - включить
-  #2 - выключить
+  #1 - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+  #2 - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
   #
   #snmpset -c snmppass -v2c 10.133.254.221 1.3.6.1.4.1.259.8.1.5.1.16.1.2.1.9.24 i 2
-  #9 - вход
-  #11 - исход
+  #9 - пїЅпїЅпїЅпїЅ
+  #11 - пїЅпїЅпїЅпїЅпїЅ
   #24 - port
-  #2 - scale ( {1, 2, 3, 4}; {8M, 800K, 80K, 8K} соответственно ), то есть скорость в битах задать нельзя, только в байтах - придется как-то вычислять
+  #2 - scale ( {1, 2, 3, 4}; {8M, 800K, 80K, 8K} пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ ), пїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ-пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
   #
   #
   #
   #snmpset -c snmppass -v2c 10.133.254.221 1.3.6.1.4.1.259.8.1.5.1.16.1.2.1.8.24 i 3
-  #8 - вход
-  #10 - исход
+  #8 - пїЅпїЅпїЅпїЅ
+  #10 - пїЅпїЅпїЅпїЅпїЅ
   #24 - port
-  #3 - level (множитель, умножается на scale для вычисления скорости, 1-127)
+  #3 - level (пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ scale пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, 1-127)
 }
 
 #**********************************************************
 #
 #**********************************************************
 sub set_speed {
+
   if ($get_tp_speed) {
-    my $Dv = Dv->new($db, $admin, \%conf);
+    $Dv = Dv->new($db, $admin, \%conf);
     my $user = $Dv->info(0, { LOGIN => $LOGIN });
     if ($Dv->{errno}) {
-      print "Error: User not exist '$USER' IP: $HISADDR ([$Dv->{errno}] $Dv->{errstr})\n";
+      print "Error: User not exist '$LOGIN' ([$Dv->{errno}] $Dv->{errstr})\n";
       exit 1;
     }
     elsif ($Dv->{TOTAL} < 1) {
-      print "$USER - Not exist\n";
+      print "$LOGIN - Not exist\n";
       exit 1;
     }
 
@@ -1046,7 +1057,7 @@ sub set_speed {
       $user->{INTERVAL_TIME_TARIF}, 
       $user->{INTERVAL_TRAF_TARIF}) = $Billing->time_intervals($user->{TP_NUM});
 
-      my ($remaining_time, $ret_attr) = $Billing->remaining_time(
+      my (undef, $ret_attr) = $Billing->remaining_time(
         $user->{DEPOSIT},
         {
           TIME_INTERVALS      => $user->{TIME_INTERVALS},
@@ -1059,7 +1070,6 @@ sub set_speed {
           REDUCTION           => $user->{REDUCTION},
           POSTPAID            => 1,
           GET_INTERVAL        => 1,
-
           #          debug               => ($debug > 0) ? 1 : undef
         }
       );
@@ -1100,7 +1110,7 @@ sub set_speed {
         COLS_NAME => 1
       }
     );
-
+    my %ports = ();
     foreach my $host (@{$dhcphosts_list}) {
       my $port = $host->{port};
       if ($LOGIN eq $host->{login}) {
@@ -1130,7 +1140,7 @@ sub set_speed {
     bdcom_port_speed();
   }
 
-
+  return 1;
 }
 
 #**********************************************************
@@ -1150,30 +1160,32 @@ sub set_vlan {
 #**********************************************************
 # http://sudousers.blogspot.com/
 #**********************************************************
-sub get_soft_version {
-  my ($attr) = @_;
-  
-  my $software_oid = '';
-  #edge core
-  if ($sw_info->{version} =~ /3510/) {
-  	$software_oid = '.1.3.6.1.4.1.259.8.1.5.1.1.5.4.0'; 
-  }
-  else {
-  	#Edge core ES3528M
-  	$software_oid = '.1.3.6.1.4.1.259.6.10.94.1.1.5.4.0';
-  }
-  
-  $RESULT{soft_version} = snmpget($SNMP_COMMUNITY, "$software_oid")
-}
+#sub get_soft_version {
+#  #my ($attr) = @_;
+#
+#  my $software_oid = '';
+#  #edge core
+#  if ($sw_info->{version} =~ /3510/) {
+#  	$software_oid = '.1.3.6.1.4.1.259.8.1.5.1.1.5.4.0';
+#  }
+#  else {
+#  	#Edge core ES3528M
+#  	$software_oid = '.1.3.6.1.4.1.259.6.10.94.1.1.5.4.0';
+#  }
+#
+#  $RESULT{soft_version} = snmpget($SNMP_COMMUNITY, "$software_oid")
+#}
 
 #**********************************************************
-# Get nas info from billing and from switch
+=head2 nas_version() Get nas info from billing and from switch
+
+=cut
 #**********************************************************
-sub get_version {
-  my ($attr) = @_;
+sub nas_version {
+  #my ($attr) = @_;
 
   my %RESULT = ();
-  my $type   = 'Unknown';
+  $type   = 'Unknown';
   
   if (length($SNMP_COMMUNITY) < 4) {
   	print "Error: NAS_ID: $NAS_ID Not specified SNMP community\n";
@@ -1211,15 +1223,17 @@ sub get_version {
 
 
 #**********************************************************
-#
+=head2 devices_info()
+
+=cut
 #**********************************************************
 sub devices_info {
-	my ($device_list, $attr)=@_;
+	my ($device_list)=@_;
 	
-	my $SNMP_COMMUNITY = $ARGV->{SNMP_COMMUNITY} || 'public';
+	$SNMP_COMMUNITY = $argv->{SNMP_COMMUNITY} || 'public';
 	
 	my $content = '';
-	open($fh, "$device_list") or die "Can't open file '$device_list' $!\n";
+	open(my $fh, '<', "$device_list") or die "Can't open file '$device_list' $!\n";
 	  while(<$fh>) {
 	  	$content .= $_;
 	  }
@@ -1227,8 +1241,8 @@ sub devices_info {
 	
 	my @device_arr = split(/[\r\n]+/, $content);
 	my %RESULT = ();
-  my $dublicates = ();
-	my $mac_info   = ();
+  my %dublicates = ();
+	my %mac_info   = ();
 	
 	foreach my $device_ip (@device_arr) {
 		print "$device_ip: ";
@@ -1259,7 +1273,7 @@ sub devices_info {
         		my $mac = join(':', @mach_arr);
             $mac =~ s/[\r]//g;            
 
-            if ($ARGV->{MAC} && $ARGV->{MAC} ne $mac) {
+            if ($argv->{MAC} && $argv->{MAC} ne $mac) {
             	next;
             }
 
@@ -1280,13 +1294,13 @@ sub devices_info {
                 my $mac = '';
                 map { $mac .= sprintf("%02X:", $_) } unpack "CCCCCC", $value;
 
-                if ($ARGV->{MAC} && $ARGV->{MAC} ne $mac) {
+                if ($argv->{MAC} && $argv->{MAC} ne $mac) {
             	    next;
                 }
 
                 print "$id, $port, $ip, $mac\n";
                 $dublicates{$mac}++;
-                push @{ $mac_info{$mac} }, "$device_ip:$port$vlan";
+                push @{ $mac_info{$mac} }, "$device_ip:$port";
               }
             }
           }
@@ -1307,7 +1321,7 @@ sub devices_info {
     length($a) <=> length($b)
      ||
     $a cmp $b
-  } keys %dublicates;       # сортировка по значению
+  } keys %dublicates;       # пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 
   foreach my $mac (@sorted_dub) {
   	if ( $dublicates{$mac} > 1 ) {
@@ -1318,6 +1332,7 @@ sub devices_info {
   	}
   }
 
+  return 1;
 }
 
 
@@ -1325,7 +1340,7 @@ sub devices_info {
 #
 #**********************************************************
 sub bdcom_port_speed {
-  my ($attr) = @_;
+  #my ($attr) = @_;
 
   if (!$PORT) {
     print "Select port\n";
@@ -1338,8 +1353,8 @@ sub bdcom_port_speed {
   # Oid:type:value
   my @snmp_oids = ();
 
-  push @snmp_oids, "$in_oid" . $PORT, 'integer', "$SPEED"  if (!defined($ARGV->{OUT_ONLY}));
-  push @snmp_oids, "$out_oid" . $PORT, 'integer', "$SPEED" if (!defined($ARGV->{IN_ONLY}));
+  push @snmp_oids, "$in_oid" . $PORT, 'integer', "$SPEED"  if (!defined($argv->{OUT_ONLY}));
+  push @snmp_oids, "$out_oid" . $PORT, 'integer', "$SPEED" if (!defined($argv->{IN_ONLY}));
 
   if (! snmp_set({
       SNMP_COMMUNITY => $SNMP_COMMUNITY, 
@@ -1349,6 +1364,7 @@ sub bdcom_port_speed {
     print "Error";
   }
 
+  return 1;
 }
 
 1

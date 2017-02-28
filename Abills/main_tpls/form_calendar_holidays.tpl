@@ -4,9 +4,9 @@
 	}
 </style>
 
-<div class='panel panel-info calend'>
+<div class='box box-info calend'>
 
-<div class='panel-heading '>
+<div class='box-header with-border '>
 
 	<a href='/admin/index.cgi?index=75&year=%LAST_YEAR%&month=%LAST_MONTH%'>
 		<button type='submit' class='btn btn-default btn-xs' align='left'>

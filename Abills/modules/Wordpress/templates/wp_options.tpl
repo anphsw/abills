@@ -1,6 +1,6 @@
-<div class='panel panel-primary panel-form'>
-  <div class='panel-heading text-center'><h4>_{OPTIONS}_</h4></div>
-  <div class='panel-body'>
+<div class='box box-theme box-form'>
+  <div class='box-header with-border'><h4 class='box-title'>_{OPTIONS}_</h4></div>
+  <div class='box-body'>
 
     <form name='WORDPRESS_OPTIONS' id='form_WORDPRESS_OPTIONS' method='post' class='form form-horizontal'>
       <input type='hidden' name='index' value='$index'/>
@@ -46,8 +46,8 @@
         <label>
           <input type='checkbox' class='control-element' %HAS_COA_CHECKED%
                  name='abills_has_coa'
-                 value=1 data-return='1'
-                 input-disables='ABILLS_COA_ADDRESS,ABILLS_COA_WORK_DAYS,ABILLS_COA_WORK_HOURS,ABILLS_COA_HOLIDAY_HOURS,ABILLS_COA_HOLIDAY_DAYS'>
+                 value='1' data-return='1'
+                 data-input-enables='ABILLS_COA_ADDRESS,ABILLS_COA_WORK_DAYS,ABILLS_COA_WORK_HOURS,ABILLS_COA_HOLIDAY_HOURS,ABILLS_COA_HOLIDAY_DAYS'>
           <strong>Есть центр обслуживания абонентов</strong>
         </label>
       </div>
@@ -144,7 +144,7 @@
     </form>
 
   </div>
-  <div class='panel-footer text-center'>
+  <div class='box-footer text-center'>
     <input type='submit' form='form_WORDPRESS_OPTIONS' class='btn btn-primary' name='action' value='_{SAVE}_'>
   </div>
 </div>

@@ -6,39 +6,36 @@
 
 =cut
 
-use vars qw(%conf %log_levels $db $DATE $time $var_dir);
+our (%conf, %log_levels, $DATE, $var_dir);
 use strict;
+use warnings;
 
-my $vesion = 0.5;
+BEGIN {
+  use FindBin '$Bin';
+  require $Bin.'/config.pl';
+  unshift(@INC, $Bin.'/../', $Bin.'/../lib/', $Bin."/../Abills/$conf{dbtype}");
+}
 
-use FindBin '$Bin';
-require $Bin . '/config.pl';
-unshift(@INC, $Bin . '/../', $Bin . "/../Abills/$conf{dbtype}");
-require Abills::Base;
-Abills::Base->import();
+use Abills::Base qw(parse_arguments check_time);
 use POSIX qw(strftime);
+use Abills::SQL;
+use Dhcphosts;
+use Nas;
 
+my $vesion = 0.6;
 my $begin_time = check_time();
-
-require Abills::SQL;
-require Dhcphosts;
-Dhcphosts->import();
-require Nas;
-Nas->import();
-
-my $ARGV = parse_arguments(\@ARGV);
-
+my $argv = parse_arguments(\@ARGV);
 my $log_dir = $var_dir . '/log';
 
-my $LEASES      = $ARGV->{LEASES}      || $conf{DHCPHOSTS_LEASES} || "/var/db/dhcpd/dhcpd.leases";
-my $UPDATE_TIME = $ARGV->{UPDATE_TIME} || 30;                                                        # In Seconds
+my $LEASES      = $argv->{LEASES}      || $conf{DHCPHOSTS_LEASES} || "/var/db/dhcpd/dhcpd.leases";
+my $UPDATE_TIME = $argv->{UPDATE_TIME} || 30;                                                        # In Seconds
 my $AUTO_VERIFY = 0;
-my $debug       = $ARGV->{DEBUG}       || 3;
-my $logfile     = $ARGV->{LOG_FILE}    || $log_dir . '/leases2db.log';
+my $debug       = $argv->{DEBUG}       || 3;
+my $logfile     = $argv->{LOG_FILE}    || $log_dir . '/leases2db.log';
 
 my $oldstat     = 0;
 my $check_count = 0;
-my $NAS_ID      = $ARGV->{NAS_ID} || 0;
+my $NAS_ID      = $argv->{NAS_ID} || 0;
 my %state_hash  = (
   'unknown'   => 0,
   'free'      => 1,
@@ -46,11 +43,11 @@ my %state_hash  = (
   'abandoned' => 3
 );
 
-if (defined($ARGV->{stop})) {
+if (defined($argv->{stop})) {
   stop($log_dir . "/leases2db.pid");
   exit;
 }
-elsif (defined($ARGV->{'help'})) {
+elsif (defined($argv->{'help'})) {
   usage();
   exit;
 }
@@ -78,7 +75,7 @@ sub mk_log {
   }
 
   my $DATETIME = strftime "%Y-%m-%d %H:%M:%S", localtime(time);
-  if ($ARGV->{LOG_FILE} || defined($ARGV->{'-d'})) {
+  if ($argv->{LOG_FILE} || defined($argv->{'-d'})) {
     open(FILE, ">> $logfile") || die "Can't open file '$logfile' $!\n";
       print FILE "$DATETIME $type: $message\n";
     close(FILE);
@@ -89,7 +86,7 @@ sub mk_log {
 }
 
 print "Start... debug: $debug\n";
-if (defined($ARGV->{'-d'})) {
+if (defined($argv->{'-d'})) {
   mk_log('LOG_EMERG', "leases2db.pl Daemonize...");
   daemonize();
 }
@@ -278,7 +275,7 @@ sub leases2db {
     $error = "[$Dhcphosts->{errno}] $Dhcphosts->{errstr}";
   }
 
-#	2	12	Нет	0	1:11:42:43:2d:46:36:2d:38	0:4:0:c:0:2
+#	2	12	пїЅпїЅпїЅ	0	1:11:42:43:2d:46:36:2d:38	0:4:0:c:0:2
   mk_log('LOG_INFO', "$parse_info $error");
 
   my $GT = '';

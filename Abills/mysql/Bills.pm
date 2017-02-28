@@ -144,7 +144,7 @@ sub list {
   $self->query2("SELECT b.id,
      b.deposit,
      u.id AS login,
-     c.name AS company_id,
+     c.name AS company_name,
      b.uid,
      b.company_id
      FROM bills b

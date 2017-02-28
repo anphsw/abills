@@ -4,18 +4,26 @@
 <input type=hidden name=UID value='$FORM{UID}'>
 <input type=hidden name=TP_IDS value='%TP_IDS%'>
 <input type=hidden name='step' value='$FORM{step}'>
+<input type=hidden name='SERVICE_ID' value='%SERVICE_ID%'>
 <fieldset>
 
 <div class='col-md-12'>
 <!-- service start  // col-sm-height-->
 <div class='col-md-6 col-sm-height'>
 
-<div class='panel panel-default'>
-<div class='panel-body col-sm-height'>
+<div class='box box-theme'>
+
+  <div class='box-header with-border'>
+    <h4 class='box-title'>_{SUBSCRIBE}_ OLLTV</h4>
+    <div class='box-tools pull-right'>
+      <button type='button' class='btn btn-box-tool' data-widget='collapse'><i class='fa fa-minus'></i>
+      </button>
+    </div>
+  </div>
+
+<div class='box-body col-sm-height'>
 
 %EXTRA_SCREANS%
-
-<label class='control-label col-md-12' for='DEVICE'>_{SUBSCRIBE}_ OLLTV</label>
 
 <div class='form-group'>
   <label class='control-label col-md-3' for='BUNDLE_TYPE'>_{ACTIVATE}_</label>
@@ -27,20 +35,39 @@
   </div>
 </div>
 
-<div class='form-group'>
-  <label class='control-label col-md-3' for='START_DATE'>_{START}_</label>
-  <div class='col-md-3'>
-    %start_date%
-  </div>
-
-  <label class='control-label col-md-3' for='END_DATE'>_{END}_</label>
-  <div class='col-md-3'>
-    %expiration_date%
-  </div>
-</div>
-
 <!--  -->
 
+  <div class='form-group'>
+    <label class='control-label col-xs-3 pull-left' for='TP'>_{TARIF_PLAN}_</label>
+    <div class='col-xs-9'>
+      %TP_ADD%
+      <div class='input-group' %TP_DISPLAY_NONE%>
+        <span class='hidden-xs input-group-addon bg-primary'>%TP_NUM%</span>
+        <input type=text name='GRP' value='%TP_NAME%' ID='TP' class='form-control hidden-xs'
+               readonly>
+        <input type=text name='GRP1' value='%TP_ID%:%TP_NAME%' ID='TP' class='form-control visible-xs'
+               readonly>
+        <span class='input-group-addon'>%CHANGE_TP_BUTTON%</span>
+        <span class='input-group-addon'><a
+                href='$SELF_URL?index=$index&UID=$FORM{UID}&pay_to=1'
+                class='$conf{CURRENCY_ICON}' title='_{PAY_TO}_'></a></span>
+      </div>
+    </div>
+  </div>
+
+  <div class='form-group'>
+    <label class='control-label col-md-3' for='START_DATE'>_{START}_</label>
+    <div class='col-md-3'>
+      %start_date%
+    </div>
+
+    <label class='control-label col-md-3' for='END_DATE'>_{END}_</label>
+    <div class='col-md-3'>
+      %expiration_date%
+    </div>
+  </div>
+
+  <!--
   <div class='form-group'>
   <label class='control-label col-md-3' for='TP_NUM'>_{TARIF_PLAN}_:</label>
   <div class='col-md-9'>
@@ -49,7 +76,7 @@
       %CHANGE_TP_BUTTON%
     </div>
    </div>
-
+-->
   <div class='form-group'>
   <label class='control-label col-md-3' for='FILTER_ID'>Filter-ID:</label>
   <div class='col-md-9'>
@@ -119,8 +146,8 @@
 <!-- device start -->
 <div class='col-md-6'>
 
-<div class='panel panel-default'>
-<div class='panel-body '>
+<div class='box box-theme'>
+<div class='box-body '>
 
   <div class='form-group'>
   <label class='control-label col-md-3 required' for='EMAIL'>E-mail:</label>
@@ -161,7 +188,7 @@
   <div class='form-group'>
   <label class='control-label col-md-3' for='BIRTH_DATE'>_{BIRTH_DATE}_:</label>
   <div class='col-md-3'>
-      <input id='BIRTH_DATE' name='BIRTH_DATE' value='%BIRTH_DATE%' placeholder='%BIRTH_DATE%' class='form-control tcal' type='text'>
+      <input id='BIRTH_DATE' name='BIRTH_DATE' value='%BIRTH_DATE%' placeholder='%BIRTH_DATE%' class='form-control datepicker' type='text'>
     </div>
 
   <label class='control-label col-md-4' for='SEND_NEWS'>_{SEND_NEWS}_:</label>
@@ -179,9 +206,11 @@
 </div>
 
 
-<div class='col-sm-offset-2 col-sm-8'>
- 	%BACK_BUTTON%
+<div class='col-md-12'>
+  <div class='box-footer'>
+          %BACK_BUTTON%
   <input type='submit' class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
+  </div>
 </div>
 
 </fieldset>

@@ -1,27 +1,23 @@
-=head1
-  Name: equipment ping
+=head1 NAME
+
+   equipment ping
+
+   Arguments:
+
+     TIMEOUT
 
 =cut
 
-use Abills::Filters;
-#do 'Abills/Misc.pm';
 use Equipment;
-use Abills::HTML;
 use Net::Ping;
-our $Admin;
-our $db;
-our %conf;
+our (
+  $Admin,
+  $db,
+  %conf,
+  $argv
+);
 
-$html = Abills::HTML->new(
-       {
-         CONF     => \%conf,
-         NO_PRINT => 0,
-         PATH     => $conf{WEB_IMG_SCRIPT_PATH} || '../',
-         CHARSET  => $conf{default_charset},
-         csv      => 1
-       }
-    );
-my $Equipment = Equipment->new($db, $Admin, \%conf);
+my $Equipment = Equipment->new( $db, $Admin, \%conf );
 
 equipment_ping();
 
@@ -37,44 +33,49 @@ equipment_ping();
 #**********************************************************
 sub equipment_ping {
   my ($attr) = @_;
-  my $timeout = $attr->{TOUT} || '2';
-  $p = Net::Ping->new()  or die "Can't create new ping object: $!\n";
 
-  my $equipment_list = $Equipment->_list({COLS_NAME => 1,
-                                          PAGE_ROWS => 100000,
-                                          NAS_IP    => '_SHOW',
-                                          STATUS    => '0;1',
-                                          NAS_NAME  => '_SHOW'
-                                          });
-  
-  foreach my $equip (@$equipment_list){
-    next if(! $equip->{nas_ip});
-    my $ping_result = '0';
-    $ping_result = '1' if $p->ping($equip->{nas_ip}, $timeout);
+  my $timeout = $attr->{TIMEOUT} || '4';
 
-    if($debug> 2) {
-      print "$equip->{nas_ip}: $ping_result\n";
-    }
+  my $p = Net::Ping->new( 'syn' ) or die "Can't create new ping object: $!\n";
 
-    if($ping_result == 1){
-      if($equip->{status} != 0){
-        $Equipment->_change({NAS_ID => $equip->{nas_id}, STATUS => 0});
-      }
+  my $equipment = $Equipment->_list( {
+      COLS_NAME => 1,
+      PAGE_ROWS => 100000,
+      NAS_IP    => '_SHOW',
+      STATUS    => '0;1',
+      NAS_NAME  => '_SHOW'
+    } );
+
+  my %ips;
+  foreach my $host (@$equipment) {
+    $ips{$host->{nas_ip}} = { NAS_ID => $host->{nas_id}, STATUS => $host->{status} };
+  }
+
+  my %syn;
+  foreach my $key (keys %ips) {
+    my ($ret, undef, $ip) = $p->ping( $key, $timeout );
+    if ($ret) {
+      $syn{$key} = $ip;
     }
     else {
-      if($equip->{status} == 0){
-        $Equipment->_change({NAS_ID => $equip->{nas_id}, STATUS => 1});
-      }
-    }
-
-    if($conf{EQUIPMENT_PING_DEBUG}){
-      open(my $file, '>>', '/tmp/buffer');
-      $ping_result == 1
-      ? print $file "+Destination Host Reachable:\nDate\t\t- $DATE $TIME\nNAS name\t- $equip->{nas_name}\nNAS IP\t\t- $equip->{nas_ip}\n\n\n" 
-      : print $file "-Destination Host Unreachable:\nDate\t\t- $DATE $TIME\nNAS name\t- $equip->{nas_name}\nNAS IP\t\t- $equip->{nas_ip}\n\n\n";
-      close $file;
+      print "$key address not found\n";
     }
   }
+  while (my ($host, undef, undef) = $p->ack) {
+    if ($ips{$host}{STATUS} != 0) {
+      $Equipment->_change( { NAS_ID => $ips{$host}{NAS_ID}, STATUS => 0 } );
+    }
+    print " $host is reachable\n" if ( $debug > 1);
+    delete $syn{$host};
+  }
+
+  foreach my $host (keys %syn) {
+    if ($ips{$host}{STATUS} == 0) {
+      $Equipment->_change( { NAS_ID => $ips{$host}{NAS_ID}, STATUS => 1 } );
+    }
+    print " $host is unreachable\n" if ( $debug > 1);
+  }
+
   $p->close;
 
   return 1;

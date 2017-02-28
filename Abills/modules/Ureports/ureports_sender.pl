@@ -11,6 +11,7 @@ use warnings FATAL => 'all';
 
 BEGIN {
   use FindBin '$Bin';
+  our %conf;
   do $Bin . '/config.pl';
   unshift( @INC,
     $Bin . '/../',
@@ -19,17 +20,16 @@ BEGIN {
     $Bin . '/../Abills/modules' );
 }
 
-my $version = 0.71;
+my $version = 0.72;
 my $debug = 0;
-our $db;
-our %conf;
-our $html;
-our $TIME;
-our @MODULES;
-our %lang;
-our %ADMIN_REPORT;
-our %LIST_PARAMS;
-our $DATE;
+our ($db,
+  %conf,
+  $TIME,
+  @MODULES,
+  %lang,
+  %ADMIN_REPORT,
+  %LIST_PARAMS,
+  $DATE);
 
 use Abills::Defs;
 use Abills::Base qw(int2byte in_array sendmail parse_arguments);
@@ -45,7 +45,7 @@ use Ureports;
 use Tariffs;
 use POSIX qw(strftime);
 
-$html = Abills::HTML->new(
+our $html = Abills::HTML->new(
   {
     IMG_PATH => 'img/',
     NO_PRINT => 1,
@@ -69,7 +69,7 @@ my $tariffs  = Tariffs->new( $db, \%conf, $admin );
 my $Sessions = Dv_Sessions->new( $db, $admin, \%conf );
 my $Shedule  = Shedule->new( $db, $admin, \%conf );
 
-if ($html->{language} ne '$html->{language}') {
+if ($html->{language} ne 'english') {
   do $Bin . "/../language/english.pl";
   do $Bin . "/../Abills/modules/Ureports/lng_english.pl";
 }
@@ -235,7 +235,7 @@ sub ureports_periodic_reports{
       #Skip disabled user
       next if ($user->{DV_STATUS} && ($user->{DV_STATUS} == 1 || $user->{DV_STATUS} == 2 || $user->{DV_STATUS} == 3));
 
-      $debug_output .= "LOGIN: $user->{LOGIN} ($user->{UID}) DEPOSIT: $user->{deposit} CREDIT: $user->{credit} Report id: $user->{REPORT_ID} DV STATUS: $user->{DV_STATUS}\n" if ($debug > 3);
+      $debug_output .= "LOGIN: $user->{LOGIN} ($user->{UID}) DEPOSIT: $user->{deposit} CREDIT: $user->{credit} Report id: $user->{REPORT_ID} DV STATUS: $user->{DV_STATUS} $user->{DESTINATION_ID}\n" if ($debug > 3);
 
       if ( $user->{BILL_ID} && defined( $user->{DEPOSIT} ) ){
         #Skip action for pay opearation
@@ -247,9 +247,11 @@ sub ureports_periodic_reports{
         # Recomended payments
         my $total_daily_fee = 0;
         my $cross_modules_return = cross_modules_call( '_docs', {
-            FEES_INFO     => 1,
-            UID           => $user->{UID},
-            SKIP_MODULES  => 'Ureports,Sqlcmd' } );
+          FEES_INFO     => 1,
+          UID           => $user->{UID},
+          SKIP_DISABLED => 1,
+          SKIP_MODULES  => 'Ureports,Sqlcmd'
+        } );
 
         $user->{RECOMMENDED_PAYMENT} = 0;
         foreach my $module ( sort keys %{$cross_modules_return} ){
@@ -268,6 +270,8 @@ sub ureports_periodic_reports{
             }
           }
         }
+
+        $user->{TOTAL_FEES_SUM} = $user->{RECOMMENDED_PAYMENT};
 
         if ( $user->{DEPOSIT} + $user->{CREDIT} > 0 ){
           $user->{RECOMMENDED_PAYMENT} = sprintf( "%.2f",
@@ -435,7 +439,9 @@ sub ureports_periodic_reports{
 
         #Report 13 All service expired throught
         elsif ( $user->{REPORT_ID} == 13 && !$user->{DV_STATUS} ){
-          if ( $total_daily_fee > 0 ){
+          if ( $total_daily_fee > 0
+            || ($user->{EXPIRE_DAYS} && $user->{EXPIRE_DAYS} <= $user->{VALUE})){
+
             $debug_output .= "(Day fee: $total_daily_fee / $user->{EXPIRE_DAYS} -> $user->{VALUE} \n" if ($debug > 4);
 
             if ( $user->{EXPIRE_DAYS} <= $user->{VALUE} ){
@@ -446,8 +452,8 @@ sub ureports_periodic_reports{
 
               %PARAMS = (
                 DESCRIBE => "$lang{REPORTS} ($user->{REPORT_ID}) ",
-                MESSAGE  => "$message",
-                SUBJECT  => "$lang{ALL_SERVICE_EXPIRE}",
+                MESSAGE  => $message,
+                SUBJECT  => $lang{ALL_SERVICE_EXPIRE},
               );
             }
             else{
@@ -459,9 +465,9 @@ sub ureports_periodic_reports{
         elsif ( $user->{REPORT_ID} == 14 ){
           if ( $user->{EXPIRE_DAYS} <= $user->{VALUE} ){
             %PARAMS = (
-              DESCRIBE => "$lang{REPORTS}",
+              DESCRIBE => $lang{REPORTS},
               MESSAGE  => "",
-              SUBJECT  => "$lang{DEPOSIT}"
+              SUBJECT  => $lang{DEPOSIT}
             );
           }
           else{
@@ -483,10 +489,12 @@ sub ureports_periodic_reports{
         }
         # Reports 16 Next period TP
         elsif ( $user->{REPORT_ID} == 16 ){
-          $Shedule->list( { UID => $user->{UID},
-              Y                 => '',
-              M                 => '',
-              NEXT_MONTH        => 1 } );
+          $Shedule->list( {
+            UID        => $user->{UID},
+            Y          => '',
+            M          => '',
+            NEXT_MONTH => 1
+          } );
 
           my $recomended_payment = $user->{RECOMMENDED_PAYMENT};
 
@@ -526,6 +534,9 @@ sub ureports_periodic_reports{
 
           if($Report->{PARAMS}) {
             %PARAMS = %{ $Report->{PARAMS} };
+          }
+          else {
+            next;
           }
 
           $PARAMS{MESSAGE_TEPLATE} = $Report->{SYS_CONF}{TEMPLATE};
@@ -618,7 +629,7 @@ Ureports sender ($version).
   DEBUG=0..6           - Debug mode
   DATE="YYYY-MM-DD"    - Send date
   REPORT_IDS=[1,2,4..] - reports ids
-  LOGIN=[...,]        - make reports for some logins
+  LOGIN=[...,]         - make reports for some logins
   TP_IDS=[...,]        - make reports for some tarif plans
   help                 - this help
 [END]

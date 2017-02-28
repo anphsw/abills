@@ -139,7 +139,9 @@ sub defaults {
 
 
 #**********************************************************
-# log_add()
+=head2 log_add($attr)
+
+=cut
 #**********************************************************
 sub log_add {
   my $self = shift;
@@ -154,17 +156,21 @@ sub log_add {
 
 
 #**********************************************************
-# log_change()
+=head2 log_change($attr)
+
+=cut
 #**********************************************************
 sub log_change {
   my $self = shift;
   my ($attr) = @_;
 
+  $admin->{MODULE} = $MODULE;
   $self->changes2(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'voip_ivr_log',
-      DATA         => $attr
+      DATA         => $attr,
+      SKIP_LOG     => 1
     }
   );
 
@@ -186,21 +192,26 @@ sub log_list {
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE =  $self->search_former($attr, [
-      ['ID',       'INT',  'id'         ], 
-      ['DATETIME', 'DATE', 'datetime'   ], 
-      ['PHONE',    'STR',  'phone',     ],
-      ['COMMENT',  'STR',  'comment',   ],
-      ['STATUS',   'INT',  'l.status',1 ],
-      ['IP',       'IP',   'l.ip',    "INET_NTOA(ip) AS ip" ],
-      ['UID',      'INT',  'l.uid'      ]
+      ['ID',           'INT',  'l.id'           ],
+      ['DATETIME',     'DATE', 'l.datetime'     ],
+      ['DURATION',     'INT',  'l.duration',  1 ],
+      ['CALL_PHONE',   'STR',  'l.phone',  'l.phone AS call_phone'       ],
+      ['CALL_COMMENT', 'STR',  'l.comment',  'l.comment AS call_comment' ],
+      ['STATUS',       'INT',  'l.status',    1 ],
+      ['IP',           'IP',   'l.ip',    "INET_NTOA(ip) AS ip" ],
+      ['UID',          'INT',  'l.uid'          ]
     ],
-    { WHERE       => 1,
+    { WHERE            => 1,
+      USERS_FIELDS_PRE => 1,
+      USE_USER_PI      => 1
     }
     );
+  my $EXT_TABLES = ($self->{EXT_TABLES}) ? $self->{EXT_TABLES} : '';
 
-  $self->query2("SELECT l.id, l.datetime, l.phone, l.comment, $self->{SEARCH_FIELDS} l.uid
+  $self->query2("SELECT l.id, l.datetime, $self->{SEARCH_FIELDS} l.uid
     FROM voip_ivr_log l
     LEFT JOIN users u ON (u.uid=l.uid)
+    $EXT_TABLES
     $WHERE
     GROUP BY l.id
     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
@@ -219,7 +230,6 @@ sub log_list {
 
   return $list;
 }
-
 
 
 #**********************************************************
@@ -346,6 +356,9 @@ sub user_list {
     push @WHERE_RULES, @{ $self->search_expr($attr->{CID}, 'INT', 'tp.free_time AS tp_free_time', { EXT_FIELD => 1 }) };
     $EXT_TABLES .= "LEFT JOIN voip_tps voip_tp ON (voip_tp.id=tp.tp_id) ";
   }
+  if ($attr->{ONLINE}) {
+  	push @WHERE_RULES, "service.location!=''";
+  }
 
   my $WHERE =  $self->search_former($attr, [
       ['NUMBER',         'INT', 'service.number',                   1 ],
@@ -360,6 +373,8 @@ sub user_list {
       ['VOIP_EXPIRE',    'DATE','service.expire AS voip_expire',    1 ],
       ['PROVISION_PORT', 'INT', 'service.provision_port',           1 ],
       ['PROVISION_NAS_ID','INT','service.provision_nas_id',         1 ],
+      ['LOCATIONS',       'STR','service.location',                 1 ],
+      ['EXPIRES',         'DATE','service.expires',                 1 ],
     ],
     { WHERE            => 1,
     	WHERE_RULES      => \@WHERE_RULES,
@@ -377,7 +392,6 @@ sub user_list {
      LEFT JOIN tarif_plans tp ON (tp.tp_id=service.tp_id) 
      $EXT_TABLES
      $WHERE 
-     GROUP BY u.uid
      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;";
 
   $self->query2($sql,
@@ -963,24 +977,33 @@ sub trunk_list {
   $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  my @WHERE_RULES = ();
-  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+  my $WHERE =  $self->search_former($attr, [
+      ['ID',        'STR', 'id',             1 ],
+      ['NAME',      'STR', 'name',           1 ],
+      ['PROTOCOL',  'STR', 'protocol',       1 ],
+      ['PROVNAME',  'STR', 'provider_name',  1 ],
+      ['FAILTRUNK', 'STR', 'failover_trunk', 1 ],
+      ['STATUS',    'STR', 'status as state',1 ],
+    ],
+    { WHERE => 1,
+    }
+  );
 
-  $self->query2("SELECT id, name, protocol, provider_name, failover_trunk
-      FROM voip_trunks
-     $WHERE 
-     ORDER BY $SORT $DESC 
-     LIMIT $PG, $PAGE_ROWS;",
+  $self->query2("SELECT $self->{SEARCH_FIELDS} id
+  	FROM voip_trunks
+  	$WHERE
+  	ORDER BY $SORT $DESC
+  	LIMIT $PG, $PAGE_ROWS;",
     undef,
     $attr
   );
 
   return [ ] if ($self->{errno});
 
-  my $list = $self->{list};
+  my $list = $self->{list} || [];
 
-  if ($self->{TOTAL} >= 0) {
-    $self->query2("SELECT count(id) AS total FROM voip_trunks $WHERE",
+  if ($self->{TOTAL}) {
+    $self->query2("SELECT COUNT(id) AS total FROM voip_trunks $WHERE",
     undef, { INFO => 1 });
   }
 
@@ -988,8 +1011,9 @@ sub trunk_list {
 }
 
 #**********************************************************
-# Extra tarification
-# extra_tarification_info()
+=head2 extra_tarification_info($attr) - Extra tarification
+
+=cut
 #**********************************************************
 sub extra_tarification_info {
   my $self = shift;
@@ -1049,7 +1073,9 @@ sub extra_tarification_del {
 }
 
 #**********************************************************
-# extra_tarification_list()
+=head2 extra_tarification_list($attr)
+
+=cut
 #**********************************************************
 sub extra_tarification_list {
   my $self   = shift;
@@ -1064,8 +1090,7 @@ sub extra_tarification_list {
       ['ID',   'INT', 'et.id',    1 ],
       ['NAME', 'STR', 'et.name',  1 ],
     ],
-    { WHERE => 1,
-    }
+    { WHERE => 1 }
     );
 
   $self->query2("SELECT id, name, prepaid_time
@@ -1077,10 +1102,10 @@ sub extra_tarification_list {
   );
 
   return [ ] if ($self->{errno});
-  my $list = $self->{list};
+  my $list = $self->{list} || [];
 
-  if ($self->{TOTAL} >= 0) {
-    $self->query2("SELECT count(id) AS total FROM voip_route_extra_tarification $WHERE",
+  if ($self->{TOTAL}) {
+    $self->query2("SELECT COUNT(id) AS total FROM voip_route_extra_tarification $WHERE",
     undef, { INFO => 1 });
   }
 
@@ -1197,6 +1222,63 @@ sub ivr_menu_list {
 
   if ($self->{TOTAL} >= 0) {
     $self->query2("SELECT count(id) AS total FROM voip_ivr_menu
+     $WHERE",
+    undef, { INFO => 1 });
+  }
+
+  return $list;
+}
+
+#**********************************************************
+=head2 voip_yate_cdr($attr) - Yate CDR
+
+=cut
+#**********************************************************
+sub voip_yate_cdr {
+  my $self   = shift;
+  my ($attr) = @_;
+
+  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  my @WHERE_RULES = ();
+  if ($attr->{NOW}) {
+  	push @WHERE_RULES, "ended!=1";
+  }
+  my $WHERE =  $self->search_former($attr, [
+      ['DATETIME',   'DATA', 'datetime',       1 ],
+      ['CALLER',     'STR', 'caller',          1 ],
+      ['CALLED',     'STR', 'called',          1 ],
+      ['BILLTIME',   'STR', 'billtime',        1 ],
+      ['RINGTIME',   'STR', 'ringtime',        1 ],
+      ['DURATION',   'STR', 'duration',        1 ],
+      ['DIRECTION',  'STR', 'direction',       1 ],
+      ['STATUS',     'STR', 'status as state', 1 ],
+      ['REASON',     'STR', 'reason',          1 ],
+      ['ID',         'INT', 'id',                ],
+    ],
+    { 
+    	WHERE            => 1,
+    	WHERE_RULES      => \@WHERE_RULES,
+    }
+  );
+
+  $self->query2("SELECT $self->{SEARCH_FIELDS} id
+     FROM voip_cdr
+     $WHERE 
+     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+     undef,
+     $attr
+  );
+
+  return [ ] if ($self->{errno});
+
+  my $list = $self->{list};
+
+  if ($self->{TOTAL} >= 0) {
+    $self->query2("SELECT count(id) AS total FROM voip_cdr
      $WHERE",
     undef, { INFO => 1 });
   }

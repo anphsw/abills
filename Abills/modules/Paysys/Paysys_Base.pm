@@ -199,7 +199,7 @@ sub paysys_pay {
     #If transaction success
     elsif($list->[0]->{status} == 2) {
       $status = 9;
-      return $status;
+      return $status, $list->[0]->{id}; # added ID for second param return 08.02.2017
     }
     #elsif($list->[0]->{status} != 1) {
     #
@@ -532,6 +532,7 @@ sub paysys_check_user {
                             DISABLE_PAYSYS=>'_SHOW',
                             GROUP_NAME   => '_SHOW',
                             DISABLE      => '_SHOW',
+                            CONTRACT_ID  => '_SHOW',
                             %EXTRA_FIELDS,
                             $CHECK_FIELD => $user_account,
                             COLS_NAME    => 1,
@@ -610,6 +611,13 @@ sub paysys_pay_cancel {
       }
       elsif ($payments->{TOTAL} < 1) {
         $result = 10;
+        # cancel transaction status if no payments
+        $Paysys->change(
+            {
+              ID     => $paysys_list->[0]->{id},
+              STATUS => 3
+            }
+          );
       }
       else {
         my %user = (
@@ -786,7 +794,7 @@ sub mk_log {
   my ($message, $attr) = @_;
 
   my $paysys          = $attr->{PAYSYS_ID} || '';
-  my $paysys_log_file = $attr->{LOG_FILE} || 'paysys_check.log';
+  my $paysys_log_file = $attr->{LOG_FILE} || $base_dir . 'var/log/paysys_check.log';
 
   if (open(my $fh, '>>', "$paysys_log_file")) {
     if ($attr->{SHOW}) {
@@ -807,8 +815,10 @@ sub mk_log {
     print "Can't open log file '$paysys_log_file' $!\n";
     print "Error:\n";
     print "================\n$message================\n";
+    die "Can't open log file '$paysys_log_file' $!\n";
     return 0;
   }
+
 
   return 1;
 }

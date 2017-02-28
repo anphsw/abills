@@ -3,8 +3,8 @@
 <input type=hidden name=ID value=%ID%>
 
 <fieldset>
-<div class='panel panel-default panel-form'>
-<div class='panel-body form form-horizontal'>
+<div class='box box-theme box-form'>
+<div class='box-body form form-horizontal'>
 	
   <div class='form-group'><label class='col-md-12'> _{SUPPLIERS}_</label></div>
 <!-- 
@@ -19,7 +19,7 @@
   </div>
   <div class='form-group'>
     <label class='col-md-3 control-label'>_{DATE}_:</label>
-    <div class='col-md-9'><input class='tcal form-control tcalInput tcalActive' name='DATE' type='text' value='%DATE%' /></div>
+    <div class='col-md-9'><input class='tcal form-control datepickerActive' name='DATE' type='text' value='%DATE%' /></div>
   </div>
   <div class='form-group'>
     <label class='col-md-3'>_{OKPO_EDRPOY}_:</label>
@@ -92,7 +92,7 @@
   </div>
   
 </div>
-<div class='panel-footer'>
+<div class='box-footer'>
 	<th colspan=2 class=even><input type=submit name='%ACTION%' value='%ACTION_LNG%' class='btn btn-primary'></th>
 </div>
 </div>  

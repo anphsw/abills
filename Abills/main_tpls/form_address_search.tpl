@@ -1,49 +1,71 @@
+<div class='form-address'>
+  <input type='hidden' name='DISTRICT_ID' value='%DISTRICT_ID%' class='HIDDEN-DISTRICT'>
+  <input type='hidden' name='STREET_ID' value='%STREET_ID%' class='HIDDEN-STREET'>
+  <input type='hidden' name='LOCATION_ID' value='%LOCATION_ID%' class='HIDDEN-BUILD'>
 
-<input type='hidden' name='DISTRICT_ID' value='%DISTRICT_ID%' ID='DISTRICT_ID'>
-<input type='hidden' name='STREET_ID' value='%STREET_ID%' ID='STREET_ID'>
-<input type='hidden' name='LOCATION_ID' value='%LOCATION_ID%' ID='LOCATION_ID'>
-
-<div class='form-group'>
-  <!-- <label class='col-sm-offset-2 col-sm-8'>_{ADDRESS}_</label> -->
-
-  <label class='control-label col-md-2' for='DISTRICT'>_{DISTRICTS}_</label>
-
-  <div class='col-md-9'>
-    <select data-download-on-click='1' name='ADDRESS_DISTRICT' id='DISTRICT' class='form-control'>
-      <option value='%DISTRICT_ID%' selected>%ADDRESS_DISTRICT%</option>
-    </select>
+  <div class='form-group'>
+    <label class='control-label col-xs-3 col-md-2 LABEL-DISTRICT'>_{DISTRICTS}_</label>
+    <div class='col-xs-9 col-md-10'>
+      <select data-download-on-click='1' name='ADDRESS_DISTRICT' class='form-control SELECT-DISTRICT' data-fieldname='DISTRICT'>
+        <option value='%DISTRICT_ID%' selected>%ADDRESS_DISTRICT%</option>
+      </select>
+    </div>
   </div>
+
+  <div class='form-group'>
+    <label class='control-label col-xs-3 col-md-2 LABEL-STREET'>_{ADDRESS_STREET}_</label>
+    <div class='col-xs-9 col-md-10'>
+      <select data-download-on-click='1' name='ADDRESS_STREET' class='form-control SELECT-STREET' data-fieldname='STREET'>
+        <option value='%STREET_ID%' selected>%ADDRESS_STREET%</option>
+      </select>
+    </div>
+    %ADDRESS_STREET2%
+  </div>
+
+  <div class='form-group'>
+    <label class='control-label col-xs-3 col-md-2'>_{ADDRESS_BUILD}_</label>
+    <div class='col-xs-9 col-md-4 addBuildMenu'>
+
+      <div class='input-group'>
+        <select data-download-on-click='1' name='ADDRESS_BUILD' class='form-control SELECT-BUILD' data-fieldname='BUILD'>
+          <option value='%ADDRESS_BUILD%' selected>%ADDRESS_BUILD%</option>
+        </select>
+
+        <!-- Control for toggle build mode SELECT/ADD -->
+        <span class='input-group-addon'>
+          <a title='_{ADD}_ _{BUILDS}_' class='BUTTON-ENABLE-ADD'>
+            <span class='glyphicon glyphicon-plus'></span>
+          </a>
+        </span>
+
+      </div>
+    </div>
+
+    <div class='col-xs-9 col-md-4 changeBuildMenu' style='display : none'>
+      <div class='input-group'>
+        <input type='text' name='ADD_ADDRESS_BUILD' class='form-control INPUT-ADD-BUILD'/>
+        <span class='input-group-addon'>
+            <a class='BUTTON-ENABLE-SEL'>
+              <span class='glyphicon glyphicon-list'></span>
+            </a>
+           </span>
+      </div>
+    </div>
+
+
+    <label class='control-label col-xs-3 col-md-2'>_{ADDRESS_FLAT}_</label>
+
+    <div class='col-xs-3 col-md-2'>
+      <input type='text' name='ADDRESS_FLAT' value='%ADDRESS_FLAT%' class='form-control INPUT-FLAT'>
+    </div>
+
+  </div>
+
 </div>
-
-<div class='form-group'>
-  <label class='control-label col-md-2' for='STREET'>_{ADDRESS_STREET}_</label>
-  <div class='col-md-9'>
-    <select data-download-on-click='1' name='ADDRESS_STREET' id='STREET' class='form-control'>
-      <option value='%STREET_ID%' selected>%ADDRESS_STREET%</option>
-    </select>
-  </div>
-</div>
-
-
-<div class='form-group'>
-  <label class='control-label col-md-2' for='BUILD'>_{ADDRESS_BUILD}_</label>
-
-  <div class='col-md-4'>
-    <select data-download-on-click='1' name='ADDRESS_BUILD' id='BUILD' class='form-control'>
-      <option value='%ADDRESS_BUILD%' selected>%ADDRESS_BUILD%</option>
-    </select>
-  </div>
-
-  <label class='control-label col-md-2  pull-left ' for='FLAT'>_{ADDRESS_FLAT}_</label>
-
-  <div class='col-md-3' id='flatDiv'>
-    <input type=text name=ADDRESS_FLAT id='FLAT' value='%ADDRESS_FLAT%' class='form-control'>
-  </div>
-</div>
-
-<script src='/styles/default_adm/js/searchLocation.js'></script>
 
 <script>
-  document['FLAT_CHECK_FREE']     = '%FLAT_CHECK_FREE%'     || false;
+  document['FLAT_CHECK_FREE']     = '%FLAT_CHECK_FREE%' || true;
   document['FLAT_CHECK_OCCUPIED'] = '%FLAT_CHECK_OCCUPIED%' || false;
 </script>
+<script src='/styles/default_adm/js/searchLocation.js'></script>
+

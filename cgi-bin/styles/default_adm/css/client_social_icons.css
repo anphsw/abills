@@ -13,7 +13,7 @@ ul.social-network li {
 
 
 /* footer social icons */
-.social-network a.icon-vk:hover a.icon-vk.icon-registered {
+.social-network a.icon-vk:hover, a.icon-vk.icon-registered {
     background-color: #0590B8;
 }
 .social-network a.icon-facebook:hover, a.icon-facebook.icon-registered {
@@ -32,12 +32,12 @@ ul.social-network li {
 .social-network a.icon-linkedin:hover {
     background-color:#007bb7;
 }*/
-.social-network a.icon-vk:hover span,
-.social-network a.icon-facebook:hover span,
-.social-network a.icon-twitter:hover span,
-.social-network a.icon-google:hover span,
-.social-network a.icon-instagram:hover span,
-.social-network a.icon-linkedin:hover span {
+.social-network a.icon-vk:hover i,
+.social-network a.icon-facebook:hover i,
+.social-network a.icon-twitter:hover i,
+.social-network a.icon-google:hover i,
+.social-network a.icon-instagram:hover i,
+.social-network a.icon-linkedin:hover i {
     color:#fff;
 }
 a.socialIcon:hover {
@@ -56,7 +56,7 @@ a.socialIcon:hover {
     height: 50px;
     font-size:20px;
 }
-.social-circle li span {
+.social-circle li i {
     margin:0;
     line-height:50px;
     text-align: center;
@@ -73,8 +73,10 @@ a.socialIcon:hover {
     -ms-transition: all 0.2s;
     transition: all 0.2s;
 }
-.social-circle span {
+.social-circle i, .social-circle span {
     color: #fff;
+    padding: 12px;
+    font-size: 24px;
     -webkit-transition: all 0.8s;
     -moz-transition: all 0.8s;
     -o-transition: all 0.8s;
@@ -83,7 +85,7 @@ a.socialIcon:hover {
 }
 
 .social-network a {
-    background-color: #D3D3D3;
+    background-color: #a7a7a7;
 }
 
 .icon-unreg {
@@ -98,7 +100,7 @@ a.socialIcon:hover {
     background: 0 !important;
 }
 
-.icon-unreg span{
+.icon-unreg i{
     font-size:15px !important;
     /*line-height: 20px !important;*/
     vertical-align: bottom;

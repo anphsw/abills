@@ -74,7 +74,7 @@
 
       <div class="navbar-right">
 
-                  <form action="/wiki/doku.php/abills" accept-charset="utf-8" class="navbar-form navbar-left search" id="dw__search" method="get" role="search"><div class="no"><div class="form-group"><input type="hidden" name="do" value="search" /><input id="qsearch__in" type="search" placeholder="Поиск" accesskey="f" name="id" class="edit form-control" title="[F]" /></div> <button type="submit" class="btn btn-default" title="Поиск"><i class="fa fa-search"></i><span class="hidden-lg hidden-md hidden-sm"> Поиск</span></button><div id="qsearch__out" class="panel panel-default ajax_qsearch JSpopup"></div></div></form>        
+                  <form action="/wiki/doku.php/abills" accept-charset="utf-8" class="navbar-form navbar-left search" id="dw__search" method="get" role="search"><div class="no"><div class="form-group"><input type="hidden" name="do" value="search" /><input id="qsearch__in" type="search" placeholder="Поиск" accesskey="f" name="id" class="edit form-control" title="[F]" /></div> <button type="submit" class="btn btn-default" title="Поиск"><i class="fa fa-search"></i><span class="hidden-lg hidden-md hidden-sm"> Поиск</span></button><div id="qsearch__out" class="box box-theme ajax_qsearch JSpopup"></div></div></form>
         
 <ul class="nav navbar-nav" id="dw__tools">
 
@@ -155,7 +155,7 @@
     <div class="toogle hidden-lg hidden-md hidden-sm" data-toggle="collapse" data-target="#dokuwiki__aside .collapse">
       <i class="fa fa-th-list"></i> Боковая панель    </div>
     <div class="collapse in">
-            <div class="bs-wrap bs-wrap-accordion panel-group" id=""><div class="bs-wrap bs-wrap-panel panel panel-default"><div class="panel-heading"><h4 class="panel-title">Возможности</h4></div><div class="panel-body"><ul class="nav nav-pills nav-stacked">
+            <div class="bs-wrap bs-wrap-accordion panel-group" id=""><div class="bs-wrap bs-wrap-panel box box-theme"><div class="box-header with-border"><h4 class="">Возможности</h4></div><div class="panel-body"><ul class="nav nav-pills nav-stacked">
 <li class="level1 node"> <a href="/wiki/doku.php/abills:index" class="wikilink1" title="abills:index">ABillS - Описание</a>
 <ul class="nav nav-pills nav-stacked">
 <li class="level2"> <a href="/wiki/doku.php/abills:docs:screenshots:screeshots" class="wikilink1" title="abills:docs:screenshots:screeshots">Screeshots</a>
@@ -167,7 +167,7 @@
 </ul>
 </li>
 </ul>
-</div></div><div class="bs-wrap bs-wrap-panel panel panel-default"><div class="panel-heading"><h4 class="panel-title">Установка</h4></div><div class="panel-body"><ul class="nav nav-pills nav-stacked">
+</div></div><div class="bs-wrap bs-wrap-panel box box-theme"><div class="box-header with-border"><h4 class="">Установка</h4></div><div class="panel-body"><ul class="nav nav-pills nav-stacked">
 <li class="level1"> <a href="/wiki/doku.php/abills:docs:manual:requirements:ru" class="wikilink1" title="abills:docs:manual:requirements:ru">Требования</a> 
 </li>
 <li class="level4"> <a href="/wiki/doku.php/abills:docs:manual:install_freebsd:ru" class="wikilink1" title="abills:docs:manual:install_freebsd:ru">FreeBSD</a>
@@ -189,7 +189,7 @@
 <li class="level4"> <a href="/wiki/doku.php/abills:docs:other:ru" class="wikilink1" title="abills:docs:other:ru">Дополнительно</a>
 </li>
 </ul>
-</div></div><div class="bs-wrap bs-wrap-panel panel panel-default"><div class="panel-heading"><h4 class="panel-title">Модули</h4></div><div class="panel-body"><ul class="nav nav-pills nav-stacked">
+</div></div><div class="bs-wrap bs-wrap-panel box box-theme"><div class="box-header with-border"><h4 class="">Модули</h4></div><div class="panel-body"><ul class="nav nav-pills nav-stacked">
 <li class="level1"> <a href="/wiki/doku.php/abills:docs:modules:abon:ru" class="wikilink1" title="abills:docs:modules:abon:ru">Abon</a>
 </li>
 <li class="level4"> <a href="/wiki/doku.php/abills:docs:modules:ashield:ru" class="wikilink1" title="abills:docs:modules:ashield:ru">Ashield</a>
@@ -261,7 +261,7 @@
 <li class="level4"> <a href="/wiki/doku.php/abills:docs:mdelivery:ru" class="wikilink1" title="abills:docs:mdelivery:ru">Mdelivery</a>
 </li>
 </ul>
-</div></div><div class="bs-wrap bs-wrap-panel panel panel-default"><div class="panel-heading"><h4 class="panel-title">Сервера доступа</h4></div><div class="panel-body"><ul class="nav nav-pills nav-stacked">
+</div></div><div class="bs-wrap bs-wrap-panel box box-theme"><div class="box-header with-border"><h4 class="">Сервера доступа</h4></div><div class="panel-body"><ul class="nav nav-pills nav-stacked">
 <li class="level1"> <a href="/wiki/doku.php/abills:docs:asterisk" class="wikilink1" title="abills:docs:asterisk">Asterisk</a>
 </li>
 <li class="level4"> <a href="/wiki/doku.php/abills:docs:nas:exppp:ru" class="wikilink1" title="abills:docs:nas:exppp:ru">Exppp</a>
@@ -315,7 +315,7 @@
 <li class="level4"> <a href="/wiki/doku.php/abills:docs:nas:eltex:ru:eltex_smg" class="wikilink1" title="abills:docs:nas:eltex:ru:eltex_smg">Eltex SMG</a>
 </li>
 </ul>
-</div></div><div class="bs-wrap bs-wrap-panel panel panel-default"><div class="panel-heading"><h4 class="panel-title">Конфигурация</h4></div><div class="panel-body"><ul class="nav nav-pills nav-stacked">
+</div></div><div class="bs-wrap bs-wrap-panel box box-theme"><div class="box-header with-border"><h4 class="">Конфигурация</h4></div><div class="panel-body"><ul class="nav nav-pills nav-stacked">
 <li class="level1"> <a href="/wiki/doku.php/abills:docs:mschap_mppe:ru" class="wikilink1" title="abills:docs:mschap_mppe:ru">MS-CHAP &amp; MPPE</a>
 </li>
 <li class="level4"> <a href="/wiki/doku.php/abills:docs:802.1x:ru" class="wikilink1" title="abills:docs:802.1x:ru">IEEE 802.1x</a>
@@ -325,13 +325,13 @@
 <li class="level4"> <a href="/wiki/doku.php/abills:docs:ipsec:ru" class="wikilink1" title="abills:docs:ipsec:ru">IPSec</a>
 </li>
 </ul>
-</div></div><div class="bs-wrap bs-wrap-panel panel panel-default"><div class="panel-heading"><h4 class="panel-title">Frequently Asked Questions</h4></div><div class="panel-body"><ul class="nav nav-pills nav-stacked">
+</div></div><div class="bs-wrap bs-wrap-panel box box-theme"><div class="box-header with-border"><h4 class="">Frequently Asked Questions</h4></div><div class="panel-body"><ul class="nav nav-pills nav-stacked">
 <li class="level1"> <a href="/wiki/doku.php/abills:docs:faq:ru" class="wikilink1" title="abills:docs:faq:ru">Russian</a>
 </li>
 <li class="level4"> <a href="/wiki/doku.php/russian_2.0" class="wikilink1" title="russian_2.0">Russian 2.0</a>
 </li>
 </ul>
-</div></div><div class="bs-wrap bs-wrap-panel panel panel-default"><div class="panel-heading"><h4 class="panel-title">Другое</h4></div><div class="panel-body"><ul class="nav nav-pills nav-stacked">
+</div></div><div class="bs-wrap bs-wrap-panel box box-theme"><div class="box-header with-border"><h4 class="">Другое</h4></div><div class="panel-body"><ul class="nav nav-pills nav-stacked">
 <li class="level1"> <a href="/wiki/doku.php/abills:docs:abm:ru" class="wikilink1" title="abills:docs:abm:ru">ABM</a>
 </li>
 <li class="level4"> <a href="/wiki/doku.php/abills:docs:amon:ru" class="wikilink1" title="abills:docs:amon:ru">Amon</a>
@@ -345,7 +345,7 @@
 <li class="level4"> <a href="/wiki/doku.php/abills:docs:android:engineer:ru" class="wikilink1" title="abills:docs:android:engineer:ru"> ABillS Engineer </a>
 </li>
 </ul>
-</div></div><div class="bs-wrap bs-wrap-panel panel panel-default"><div class="panel-heading"><h4 class="panel-title">Разработчикам</h4></div><div class="panel-body"><ul class="nav nav-pills nav-stacked">
+</div></div><div class="bs-wrap bs-wrap-panel box box-theme"><div class="box-header with-border"><h4 class="">Разработчикам</h4></div><div class="panel-body"><ul class="nav nav-pills nav-stacked">
 <li class="level1"> <a href="/wiki/doku.php/abills:docs:development:faq:ru" class="wikilink1" title="abills:docs:development:faq:ru">Общие вопросы</a>
 </li>
 <li class="level4"> <a href="/wiki/doku.php/abills:docs:development:modules:ru" class="wikilink1" title="abills:docs:development:modules:ru">Модули</a>
@@ -353,7 +353,7 @@
 <li class="level4"> <a href="/wiki/doku.php/abills:docs:development:nas_integration:ru" class="wikilink1" title="abills:docs:development:nas_integration:ru">Создание NAS</a>
 </li>
 </ul>
-</div></div><div class="bs-wrap bs-wrap-panel panel panel-default"><div class="panel-heading"><h4 class="panel-title">Changelogs</h4></div><div class="panel-body"><ul class="nav nav-pills nav-stacked">
+</div></div><div class="bs-wrap bs-wrap-panel box box-theme"><div class="box-header with-border"><h4 class="">Changelogs</h4></div><div class="panel-body"><ul class="nav nav-pills nav-stacked">
 <li class="level1"> <a href="/wiki/doku.php/abills:todo:todo" class="wikilink1" title="abills:todo:todo">todo</a>
 </li>
 <li class="level3"> <a href="/wiki/doku.php/abills:changelogs:0.7x" class="wikilink1" title="abills:changelogs:0.7x">0.7x</a>
@@ -394,7 +394,7 @@
         <!-- ********** CONTENT ********** -->
         <article id="dokuwiki__content" class="col-sm-9 col-md-10 " >
 
-          <div class="panel panel-default" > 
+          <div class="box box-theme" >
             <div class="page group panel-body">
 
                                           

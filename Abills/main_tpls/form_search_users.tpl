@@ -1,309 +1,237 @@
-<style>
-    /* content styles */
+<div class='col-xs-12 col-md-6' style='min-height: 450px;'>
+    <div class='box box-theme inside-full-height content'>
 
-    .inside-full-height {
-        /*
-        // if you want to give content full height give him height: 100%;
-        // with content full height you can't apply margins to the content
-        // content full height does not work in ie http://stackoverflow.com/questions/27384433/ie-display-table-cell-child-ignores-height-100
-        */
-        height: 100%;
-        margin-top: 0;
-        margin-bottom: 0;
-    }
+        <div class='form-group'>
+            <label class='control-label col-xs-4' for='FIO'>_{FIO}_ (*):</label>
 
-    .content {
-        padding: 15px 30px;
-        margin: 5px
-    }
-
-    /* columns of same height styles */
-
-    .row-height {
-        display: table;
-        table-layout: fixed;
-        height: 100%;
-        width: 100%;
-    }
-
-    .col-height {
-        display: table-cell;
-        float: none;
-        height: 100%;
-    }
-
-    @media (min-width: 480px) {
-        .row-xs-height {
-            display: table;
-            table-layout: fixed;
-            height: 100%;
-            width: 100%;
-        }
-
-        .col-xs-height {
-            display: table-cell;
-            float: none;
-            height: 100%;
-        }
-    }
-
-    @media (min-width: 768px) {
-        .row-sm-height {
-            display: table;
-            table-layout: fixed;
-            height: 100%;
-            width: 100%;
-        }
-
-        .col-sm-height {
-            display: table-cell;
-            float: none;
-            height: 100%;
-        }
-    }
-
-    @media (min-width: 992px) {
-        .row-md-height {
-            display: table;
-            table-layout: fixed;
-            height: 100%;
-            width: 100%;
-        }
-
-        .col-md-height {
-            display: table-cell;
-            float: none;
-            height: 100%;
-        }
-
-    }
-
-</style>
-
-
-<div class='row-height'>
-
-    <div class='col-sm-height col-sm-bottom'>
-        <div class='panel panel-default inside-full-height content'>
-
-            <div class='form-group'>
-                <label class='control-label col-sm-4' for='FIO'>_{FIO}_ (*):</label>
-
-                <div class='col-sm-8'>
-                    <input id='FIO' name='FIO' value='%FIO%' placeholder='%FIO%' class='form-control' type='text'/>
-                </div>
+            <div class='col-xs-8'>
+                <input id='FIO' name='FIO' value='%FIO%' placeholder='%FIO%' class='form-control' type='text'/>
             </div>
-            <div class='form-group'>
-                <label class='control-label col-sm-5' for='CONTRACT_ID'>_{CONTRACT_ID}_ (*):</label>
-
-                <div class='col-sm-7'>
-                    <input id='CONTRACT_ID' name='CONTRACT_ID' value='%CONTRACT_ID%' placeholder='%CONTRACT_ID%'
-                           class='form-control'
-                           type='text'/>
-                </div>
-            </div>
-
-            %CONTRACT_TYPE_FORM%
-
-            <div class='form-group'>
-                <label class='control-label col-sm-4' for='CONTRACT_DATE'>_{CONTRACT}_ _{DATE}_:</label>
-
-                <div class='col-sm-8'>
-                    <input id='CONTRACT_DATE' name='CONTRACT_DATE' value='%CONTRACT_DATE%'
-                           placeholder='%CONTRACT_DATE%'
-                           class='form-control tcal' type='text'/>
-                </div>
-            </div>
-            <div class='form-group'>
-                <label class='control-label col-sm-4' for='PHONE'>_{PHONE}_ (&gt;, &lt;, *):</label>
-
-                <div class='col-sm-8'>
-                    <input id='PHONE' name='PHONE' value='%PHONE%' placeholder='%PHONE%' class='form-control'
-                           type='text'/>
-                </div>
-            </div>
-            <div class='form-group'>
-                <label class='control-label col-sm-4' for='COMMENTS'>_{COMMENTS}_ (*):</label>
-
-                <div class='col-sm-8'>
-                    <input id='COMMENTS' name='COMMENTS' value='%COMMENTS%' placeholder='%COMMENTS%'
-                           class='form-control' type='text'/>
-                </div>
-            </div>
-            <div class='form-group'>
-                <label class='control-label col-sm-4'>_{GROUP}_:</label>
-
-                <div class='col-sm-8'>%GROUPS_SEL%</div>
-            </div>
-            <div class='form-group'>
-                <label class='control-label col-sm-4' for='DEPOSIT'>_{DEPOSIT}_ (&gt;, &lt;):</label>
-
-                <div class='col-sm-8'>
-                    <input id='DEPOSIT' name='DEPOSIT' value='%DEPOSIT%' placeholder='%DEPOSIT%'
-                           class='form-control' type='text'/>
-                </div>
-            </div>
-            <div class='form-group'>
-                <label class='control-label col-sm-4' for='BILL_ID'>_{BILL}_:</label>
-
-                <div class='col-sm-8'>
-                    <input id='BILL_ID' name='BILL_ID' value='%BILL_ID%' placeholder='%BILL_ID%'
-                           class='form-control' type='text'/>
-                </div>
-            </div>
-
-
         </div>
-    </div>
+        <div class='form-group'>
+            <label class='control-label col-xs-4' for='CONTRACT_ID'>_{CONTRACT_ID}_ (*):</label>
 
-    <div class='col-sm-height col-sm-bottom'>
-        <div class='panel panel-default inside-full-height content'>
-
-
-            <div class='form-group'>
-                <label class='control-label col-sm-4' for='UID'>UID:</label>
-
-                <div class='col-sm-8'>
-                    <input id='UID' name='UID' value='%UID%' type='text' class='form-control'/>
-                </div>
+            <div class='col-xs-8'>
+                <input id='CONTRACT_ID' name='CONTRACT_ID' value='%CONTRACT_ID%' placeholder='%CONTRACT_ID%'
+                       class='form-control'
+                       type='text'/>
             </div>
-            <div class='form-group'>
-                <label class='control-label col-sm-4' for='EMAIL'>E-Mail (*):</label>
-
-                <div class='col-sm-8'>
-                    <input id='EMAIL' name='EMAIL' value='%EMAIL%' placeholder='%EMAIL%' class='form-control'
-                           type='text'/>
-                </div>
-            </div>
-            <div class='form-group'>
-                <label class='control-label col-sm-4' for='REGISTRATION'>_{REGISTRATION}_ (&lt;&gt;):</label>
-
-                <div class='col-sm-8'>
-                    <input id='REGISTRATION' name='REGISTRATION' value='%REGISTRATION%' placeholder='%REGISTRATION%'
-                           class='form-control tcal' type='text'/>
-                </div>
-            </div>
-            <div class='form-group'>
-                <label class='control-label col-sm-4' for='ACTIVATE'>_{ACTIVATE}_ (&lt;&gt;):</label>
-
-                <div class='col-sm-8'>
-                    <input id='ACTIVATE' name='ACTIVATE' value='%ACTIVATE%' placeholder='%ACTIVATE%'
-                           class='form-control tcal'
-                           type='text'/>
-                </div>
-            </div>
-            <div class='form-group'>
-                <label class='control-label col-sm-4' for='EXPIRE'>_{EXPIRE}_ (&lt;&gt;):</label>
-
-                <div class='col-sm-8'>
-                    <input id='EXPIRE' name='EXPIRE' value='%EXPIRE%' placeholder='%EXPIRE%'
-                           class='form-control tcal' type='text'/>
-                </div>
-            </div>
-            <div class='form-group'>
-                <label class='control-label col-sm-4' for='REDUCTION'>_{REDUCTION}_ (&lt;&gt;):</label>
-
-                <div class='col-sm-8'>
-                    <input id='REDUCTION' name='REDUCTION' value='%REDUCTION%' placeholder='%REDUCTION%'
-                           class='form-control'
-                           type='text'/>
-                </div>
-            </div>
-            <div class='form-group'>
-                <label class='control-label col-sm-4' for='REDUCTION'>_{REDUCTION}_ _{DATE}_ (&lt;&gt;):</label>
-
-                <div class='col-sm-8'>
-                    <input id='REDUCTIONDATE' name='REDUCTIONDATE' value='%REDUCTION_DATE%'
-                           placeholder='%REDUCTION_DATE%'
-                           class='form-control' type='text'/>
-                </div>
-            </div>
-            <div class='form-group'>
-                <label class='control-label col-sm-4' for='DISABLE'>_{DISABLE}_:</label>
-
-                <div class='col-sm-8'>
-                    <input id='DISABLE' name='DISABLE' value='1' type='checkbox'/>
-                </div>
-            </div>
-
-
         </div>
+
+        %CONTRACT_TYPE_FORM%
+
+        <div class='form-group'>
+            <label class='control-label col-xs-4' for='CONTRACT_DATE'>_{CONTRACT}_ _{DATE}_:</label>
+
+            <div class='col-xs-8'>
+                <input id='CONTRACT_DATE' name='CONTRACT_DATE' value='%CONTRACT_DATE%'
+                       placeholder='%CONTRACT_DATE%'
+                       class='form-control datepicker' type='text'/>
+            </div>
+        </div>
+        <div class='form-group'>
+            <label class='control-label col-xs-4' for='PHONE'>_{PHONE}_ (&gt;, &lt;, *):</label>
+
+            <div class='col-xs-8'>
+                <input id='PHONE' name='PHONE' value='%PHONE%' placeholder='%PHONE%' class='form-control'
+                       type='text'/>
+            </div>
+        </div>
+        <div class='form-group'>
+            <label class='control-label col-xs-4' for='COMMENTS'>_{COMMENTS}_ (*):</label>
+
+            <div class='col-xs-8'>
+                <input id='COMMENTS' name='COMMENTS' value='%COMMENTS%' placeholder='%COMMENTS%'
+                       class='form-control' type='text'/>
+            </div>
+        </div>
+        <div class='form-group'>
+            <label class='control-label col-xs-4'>_{GROUP}_:</label>
+
+            <div class='col-xs-8'>%GROUPS_SEL%</div>
+        </div>
+        <div class='form-group'>
+            <label class='control-label col-xs-4' for='DEPOSIT'>_{DEPOSIT}_ (&gt;, &lt;):</label>
+
+            <div class='col-xs-8'>
+                <input id='DEPOSIT' name='DEPOSIT' value='%DEPOSIT%' placeholder='%DEPOSIT%'
+                       class='form-control' type='text'/>
+            </div>
+        </div>
+        <div class='form-group'>
+            <label class='control-label col-xs-4' for='BILL_ID'>_{BILL}_:</label>
+
+            <div class='col-xs-8'>
+                <input id='BILL_ID' name='BILL_ID' value='%BILL_ID%' placeholder='%BILL_ID%'
+                       class='form-control' type='text'/>
+            </div>
+        </div>
+
+        %DOMAIN_FORM%
+
     </div>
 </div>
 
+<div class='col-xs-12 col-md-6'>
+    <div class='box box-theme inside-full-height content'>
 
-<div class='row-height'>
 
-    <div class='col-sm-height col-sm-bottom'>
-        <div class='panel panel-default inside-full-height content'>
+        <div class='form-group'>
+            <label class='control-label col-xs-4' for='UID'>UID:</label>
+
+            <div class='col-xs-8'>
+                <input id='UID' name='UID' value='%UID%' type='text' class='form-control'/>
+            </div>
+        </div>
+        <div class='form-group'>
+            <label class='control-label col-xs-4' for='EMAIL'>E-Mail (*):</label>
+
+            <div class='col-xs-8'>
+                <input id='EMAIL' name='EMAIL' value='%EMAIL%' placeholder='%EMAIL%' class='form-control'
+                       type='text'/>
+            </div>
+        </div>
+        <div class='form-group'>
+            <label class='control-label col-xs-4' for='REGISTRATION'>_{REGISTRATION}_ (&lt;&gt;):</label>
+
+            <div class='col-xs-8'>
+                <input id='REGISTRATION' name='REGISTRATION' value='%REGISTRATION%' placeholder='%REGISTRATION%'
+                       class='form-control datepicker' type='text'/>
+            </div>
+        </div>
+        <div class='form-group'>
+            <label class='control-label col-xs-4' for='ACTIVATE'>_{ACTIVATE}_ (&lt;&gt;):</label>
+
+            <div class='col-xs-8'>
+                <input id='ACTIVATE' name='ACTIVATE' value='%ACTIVATE%' placeholder='%ACTIVATE%'
+                       class='form-control datepicker'
+                       type='text'/>
+            </div>
+        </div>
+        <div class='form-group'>
+            <label class='control-label col-xs-4' for='EXPIRE'>_{EXPIRE}_ (&lt;&gt;):</label>
+
+            <div class='col-xs-8'>
+                <input id='EXPIRE' name='EXPIRE' value='%EXPIRE%' placeholder='%EXPIRE%'
+                       class='form-control datepicker' type='text'/>
+            </div>
+        </div>
+        <div class='form-group'>
+            <label class='control-label col-xs-4' for='REDUCTION'>_{REDUCTION}_ (&lt;&gt;):</label>
+
+            <div class='col-xs-8'>
+                <input id='REDUCTION' name='REDUCTION' value='%REDUCTION%' placeholder='%REDUCTION%'
+                       class='form-control'
+                       type='text'/>
+            </div>
+        </div>
+        <div class='form-group'>
+            <label class='control-label col-xs-4' for='REDUCTION'>_{REDUCTION}_ _{DATE}_ (&lt;&gt;):</label>
+
+            <div class='col-xs-8'>
+                <input id='REDUCTIONDATE' name='REDUCTIONDATE' value='%REDUCTION_DATE%'
+                       placeholder='%REDUCTION_DATE%'
+                       class='form-control' type='text'/>
+            </div>
+        </div>
+        <div class='form-group'>
+            <label class='control-label col-xs-4' for='DISABLE'>_{DISABLE}_:</label>
+
+            <div class='col-xs-8'>
+                <input id='DISABLE' name='DISABLE' value='1' type='checkbox'/>
+            </div>
+        </div>
+
+
+    </div>
+</div>
+<div class='col-xs-12 col-md-6' style='min-height: 380px;'>
+        <div class='box box-theme inside-full-height content'>
 
 
             <legend>_{CREDIT}_</legend>
             <div class='form-group'>
-                <label class='control-label col-sm-4' for='CREDIT'>_{SUM}_ (&gt;, &lt;):</label>
+                <label class='control-label col-xs-4' for='CREDIT'>_{SUM}_ (&gt;, &lt;):</label>
 
-                <div class='col-sm-8'>
+                <div class='col-xs-8'>
                     <input id='CREDIT' name='CREDIT' value='%CREDIT%' placeholder='%CREDIT%' class='form-control'
                            type='text'/>
                 </div>
             </div>
             <div class='form-group'>
-                <label class='control-label col-sm-4' for='CREDIT_DATE'>_{DATE}_ ((&gt;, &lt;) YYYY-MM-DD):</label>
+                <label class='control-label col-xs-4' for='CREDIT_DATE'>_{DATE}_ ((&gt;, &lt;) YYYY-MM-DD):</label>
 
-                <div class='col-sm-8'>
+                <div class='col-xs-8'>
                     <input id='CREDIT_DATE' name='CREDIT_DATE' value='%CREDIT_DATE%' placeholder='%CREDIT_DATE%'
-                           class='form-control tcal' type='text'/>
+                           class='form-control datepicker' type='text'/>
                 </div>
             </div>
             <legend>_{PAYMENTS}_</legend>
             <div class='form-group'>
-                <label class='control-label col-sm-4' for='PAYMENTS'>_{DATE}_ ((&gt;, &lt;) YYYY-MM-DD):</label>
+                <label class='control-label col-xs-4' for='PAYMENTS'>_{DATE}_ ((&gt;, &lt;) YYYY-MM-DD):</label>
 
-                <div class='col-sm-8'>
+                <div class='col-xs-8'>
                     <input id='PAYMENTS' name='PAYMENTS' value='%PAYMENTS%' placeholder='%PAYMENTS%'
                            class='form-control' type='text'/>
                 </div>
             </div>
             <div class='form-group'>
-                <label class='control-label col-sm-4' for='PAYMENT_DAYS'>_{DAYS}_ (&gt;, &lt;):</label>
+                <label class='control-label col-xs-4' for='PAYMENT_DAYS'>_{DAYS}_ (&gt;, &lt;):</label>
 
-                <div class='col-sm-8'>
+                <div class='col-xs-8'>
                     <input id='PAYMENT_DAYS' name='PAYMENT_DAYS' value='%PAYMENT_DAYS%' placeholder='%PAYMENT_DAYS%'
                            class='form-control'
                            type='text'/>
                 </div>
             </div>
+            <legend>_{FEES}_</legend>
+            <div class='form-group'>
+                <label class='control-label col-xs-4' for='FEES'>_{DATE}_ ((&gt;, &lt;) YYYY-MM-DD):</label>
 
+                <div class='col-xs-8'>
+                    <input id='FEES' name='FEES' value='%FEES%' placeholder='%FEES%'
+                           class='form-control' type='text'/>
+                </div>
+            </div>
+            <div class='form-group'>
+                <label class='control-label col-xs-4' for='FEES_DAYS'>_{DAYS}_ (&gt;, &lt;):</label>
+
+                <div class='col-xs-8'>
+                    <input id='FEES_DAYS' name='FEES_DAYS' value='%FEES_DAYS%' placeholder='%FEES_DAYS%'
+                           class='form-control'
+                           type='text'/>
+                </div>
+            </div>
 
         </div>
     </div>
 
-    <div class='col-sm-height col-sm-bottom'>
-        <div class='panel panel-default inside-full-height content'>
+<div class='col-xs-12 col-md-6'>
+        <div class='box box-theme inside-full-height content'>
 
             <legend>_{PASPORT}_</legend>
 
             <div class='form-group'>
-                <label class='control-label col-sm-4' for='PASPORT_NUM'>_{NUM}_:</label>
+                <label class='control-label col-xs-4' for='PASPORT_NUM'>_{NUM}_:</label>
 
-                <div class='col-sm-8'>
+                <div class='col-xs-8'>
                     <input id='PASPORT_NUM' name='PASPORT_NUM' value='%PASPORT_NUM%' placeholder='%PASPORT_NUM%'
                            class='form-control'
                            type='text'/>
                 </div>
             </div>
             <div class='form-group'>
-                <label class='control-label col-sm-4' for='PASPORT_DATE'>_{DATE}_:</label>
+                <label class='control-label col-xs-4' for='PASPORT_DATE'>_{DATE}_:</label>
 
-                <div class='col-sm-8'>
+                <div class='col-xs-8'>
                     <input id='PASPORT_DATE' name='PASPORT_DATE' value='%PASPORT_DATE%' placeholder='%PASPORT_DATE%'
-                           class='form-control tcal' type='text'/>
+                           class='form-control datepicker' type='text'/>
                 </div>
             </div>
             <div class='form-group'>
-                <label class='control-label col-sm-4' for='PASPORT_GRANT'>_{GRANT}_:</label>
+                <label class='control-label col-xs-4' for='PASPORT_GRANT'>_{GRANT}_:</label>
 
-                <div class='col-sm-8'>
+                <div class='col-xs-8'>
                     <input id='PASPORT_GRANT' name='PASPORT_GRANT' value='%PASPORT_GRANT%'
                            placeholder='%PASPORT_GRANT%'
                            class='form-control' type='text'/>
@@ -312,18 +240,14 @@
 
         </div>
     </div>
-</div>
-
-
-<div class='row-height'>
-    <div class='col-sm-height col-sm-bottom'>
-        <div class='panel panel-default inside-full-height content'>
+<div class='col-xs-12 col-md-6'>
+        <div class='box box-theme inside-full-height content'>
             <legend>_{INFO_FIELDS}_</legend>
             %INFO_FIELDS%
 
         </div>
     </div>
-</div>
+
 
 <!-- USERS -->
 

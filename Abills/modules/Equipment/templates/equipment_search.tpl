@@ -1,6 +1,6 @@
 <fieldset>
-<div class='panel panel-default panel-form'>
-  <div class='panel-body'>
+<div class='box box-theme box-form'>
+  <div class='box-body'>
 
 <legend>_{EQUIPMENT}_ _{SEARCH}_</legend>
 
@@ -63,7 +63,7 @@
 <div class='form-group'>
     <label for='LAST_ACTIVITY' class='control-label col-md-3'>_{LAST_ACTIVITY}_</label>
     <div class='col-sm-9'>
-      <input type=text class='form-control tcal' id='LAST_ACTIVITY' placeholder='%LAST_ACTIVITY%' name='LAST_ACTIVITY' value='%LAST_ACTIVITY%'>
+      <input type=text class='form-control datepicker' id='LAST_ACTIVITY' placeholder='%LAST_ACTIVITY%' name='LAST_ACTIVITY' value='%LAST_ACTIVITY%'>
     </div>
 </div>
 

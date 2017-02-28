@@ -1,8 +1,5 @@
-
- 
-
-<div class='panel panel-default panel-form'>
-<div class='panel-body'>
+<div class='box box-theme box-big-form'>
+<div class='box-body'>
 
 <table class='table table-striped table-hover'>
     <legend>_{INFO}_</legend>

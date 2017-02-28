@@ -10,3 +10,6 @@ $lang{SYSTEM_INFO}='Информация о системе';
 $lang{UPTIME}='Время работы';
 $lang{VERSION}='Версия';
 $lang{RECOMMENDED_MODULES}='Предпочтительные модули';
+$lang{YOU_SHOULD_DEFINE}='Пропишите';
+$lang{EXECUTE} = 'Выполните';
+$lang{TO_GRANT_PERMISSIONS} = 'для открытия доступа';

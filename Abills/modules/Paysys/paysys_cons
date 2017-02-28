@@ -111,6 +111,9 @@ elsif ($argv->{TYPE}) {
 elsif($argv->{MAIL} ne '') {
   bss_users_list();
 }
+elsif($argv->{TYME}){
+  tyme_import();
+}
 
 #**********************************************************
 =head2 paysys_import_form_cons($attr) - Import fees from_file
@@ -374,16 +377,20 @@ sub paysys_import_form_cons {
   ADDED: $total_added_count SUM: $total_added_sum\n" if ($debug > 0);
 
   if($argv->{METHOD} == 113){
-    my $list_of_sums = $Paysys->bss_sum_list({DATE => $bss_date});
+    my $list_of_sums = $Paysys->bss_sum_list({DATE => $bss_date, COLS_NAME => 1,});
 
     if($list_of_sums->[0]){
       $Paysys->bss_sum_change({DATE => $argv->{BSS_DATE} ? $argv->{BSS_DATE} : $bss_date,
-                          LOCAL_STD_SUM => $total_added_sum});
+                           LOCAL_STD_SUM => ($list_of_sums->[0]->{local_std_sum} + $total_added_sum), 
+                           # LOCAL_STD_SUM => $total_added_sum,
+                           STD_COUNT => $total_added_count});
     }
     else{
       $Paysys->bss_sum_add({DATE => $argv->{BSS_DATE} ? $argv->{BSS_DATE} : $bss_date,
-                             LOCAL_STD_SUM => $total_added_sum});
+                             LOCAL_STD_SUM => $total_added_sum, STD_COUNT => $total_added_count});
     }
+
+    sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "BSS Отчет", "TOTAL: $total_count\nSUM: $total_sum\n ADDED: $total_added_count\n SUM: $total_added_sum\n", "$conf{MAIL_CHARSET}", "2 (High)");
   }
 
   if ($error_str) {
@@ -691,8 +698,8 @@ sub paysys_import_ftp {
   }
 
   foreach my $host_params (@hosts) {
-    my ($host, $username, $password, $dir, $files) = split(/:/, $host_params, 5);
-    my $ftp = Net::FTP->new("$host", Debug => 0)
+    my ($host, $username, $password, $dir, $files, $passive_mode) = split(/:/, $host_params, 6);
+    my $ftp = Net::FTP->new("$host", Debug => 0, Passive => $passive_mode || 0)
     or die "Cannot connect to '$username\@$host': $@";
 
     if ($ftp->login("$username", "$password")) {
@@ -1239,6 +1246,95 @@ sub bss_log {
 
   return 1;
 }
+
+#**********************************************************
+=head2 tyme_import() -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub tyme_import {
+  my ($attr) = @_;
+
+  load_pmodule('Net::FTPSSL');
+
+  my $host  = $conf{PAYSYS_TYME_HOST};
+  my $login = $conf{PAYSYS_TYME_LOGIN};
+  my $pass  = $conf{PAYSYS_TYME_PASSWORD};
+
+  my $ftp = Net::FTPSSL->new("$host", SSL => 1, Debug => 0, Port => 21,)
+  or die "Cannot connect to '$host': $@";
+  $ftp->login("$login", "$pass");
+  my $report_date = '';
+
+  if($argv->{DATE}){
+    $report_date = $argv->{DATE};
+    $report_date =~ s/-//g;
+  }
+  else{
+    $report_date = $DATE;
+    my ($y, $m, $d) = split('-', $report_date);
+
+    $d = $d - 1;
+
+    if ($d < 10){
+      $d = '0' . $d;
+    }
+
+    if($d < 1){
+      $m = $m - 1;
+      if($m < 1){
+        $m = 12;
+        $y = $y - 1;
+      }
+      $d = days_in_month({DATE => "$y-$m"});
+    }
+    $report_date = "$y$m$d";
+
+    print $report_date;
+  }
+
+  my @files = $ftp->nlst("$conf{PAYSYS_TYME_FILE}$report_date.csv");
+  my $report_data = "|Транзакция\t|$lang{DATE}\t|$lang{USER}\t|$lang{SUM}\t|Терминал\t|\n";
+  if( scalar @files != 0){
+    foreach my $filename (@files){
+
+      $ftp->get("$filename")
+      or die "Ftp get failed '$filename' ", $ftp->message;
+
+      open(my $fh, "$filename") || die "Can't open file '$filename' $!\n";
+      my @lanes = <$fh>;
+      close($fh);
+
+      foreach my $lane (@lanes){
+        my ($txn_id, $date_time, $user, $sum, $terminal) = $lane =~ /(\d+)\s(\d+\-\d+\-\d+ \d+\:\d+\:\d+)\s(\d+)\s(\d+.\d+)\s(\d+)/;
+        print "|$txn_id, $date_time, $user, $sum, $terminal|\n";
+
+        $Paysys->add_tyme_report({
+          TXN_ID   => $txn_id,
+          DATE     => $date_time,
+          USER     => $user,
+          SUM      => $sum,
+          TERMINAL => $terminal
+        });
+
+        if(!$Paysys->{errno}){
+          $report_data .= "|$txn_id\t| $date_time\t| $user\t| $sum\t| $terminal\t|\n";
+        }
+      }
+    }
+  }
+
+  sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "Tyme Отчет", "$report_data  ", "$conf{MAIL_CHARSET}", "2 (High)");
+
+  return 1;
+}
+
 =comments
 
 

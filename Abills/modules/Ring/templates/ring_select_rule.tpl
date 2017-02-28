@@ -2,9 +2,9 @@
 
 <input type='hidden' name='index' value='$index'>
 
-<div class='panel panel-primary panel-form'>
-<div class='panel-heading text-primary'>_{RULES_LIST}_</div>
-<div class='panel-body'>
+<div class='box box-theme box-form'>
+<div class='box-header with-border text-primary'>_{RULES_LIST}_</div>
+<div class='box-body'>
         <div class='form-group'>
 			<label class='col-md-3 control-label'>_{RULE}_</label>
 			<div class='col-md-9'>
@@ -13,7 +13,7 @@
 		</div>
 </div>
 
-<div class='panel-footer'>
+<div class='box-footer'>
 	<button type='submit' class='btn btn-primary'>_{SELECT}_</button>
 </div>
 

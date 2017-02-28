@@ -40,6 +40,7 @@ sub config_main{
 
   if ( $FORM{MODULE} && $FORM{MODULE} ne 'main' ){
     $LIST_PARAMS{PARAM} = uc( $FORM{MODULE} ) . '_*';
+    $pages_qs .= "&MODULE=$FORM{MODULE}";
   }
 
   if ( $FORM{change} ){
@@ -74,10 +75,11 @@ sub config_main{
     my $debug_out = '';
     foreach my $p ( sort keys %post_conf ){
       $debug_out .= "$p -> $post_conf{$p}\n";
-      $Config->config_add( { PARAM => $p,
-          VALUE                  => $post_conf{$p},
-          REPLACE                => 1
-        } );
+      $Config->config_add({
+        PARAM   => $p,
+        VALUE   => $post_conf{$p},
+        REPLACE => 1
+      });
     }
 
     if ( !_error_show( $Config ) ){
@@ -85,12 +87,12 @@ sub config_main{
     }
   }
 
-  form_search(
-    {
-      SIMPLE => { $lang{PARAM} => 'PARAM',
-        $lang{DESCRIBE}        => 'COMMENTS' },
+  form_search({
+    SIMPLE => {
+      $lang{PARAM}   => 'PARAM',
+      $lang{DESCRIBE}=> 'COMMENTS'
     }
-  );
+  });
 
   my $list = $Config->list( { %LIST_PARAMS, COLS_NAME => 1 } );
 
@@ -114,7 +116,6 @@ sub config_main{
     #bool
     if ( $line->{type} == 1 ){
       #my @arr = split( /, ?/, $line->{value} );
-
       foreach my $v ( 0, 1 ){
         $value .= "$conf{$line->{param}} / $v / " if ($debug);
         $value .= $html->form_input( "$line->{param}", $v, { TYPE => 'radio', STATE =>
@@ -154,7 +155,7 @@ sub config_main{
       }
 
       $value = $html->form_select(
-        "$line->{param}",
+        $line->{param},
         {
           SELECTED => $conf{$line->{param}},
           SEL_HASH => \%select_hash,
@@ -162,19 +163,37 @@ sub config_main{
         }
       );
     }
+    # Multi str
+    elsif( $line->{type} == 5){
+      my $param_value = $conf{$line->{param}};
+
+      $value = $html->form_textarea( $line->{param}, $param_value,
+        { SIZE => 40, EX_PARAMS => " placeholder='$line->{value}'" } );
+    }
     else{
-      $value = $html->form_input( "$line->{param}", $conf{$line->{param}},
+      my $param_value = $conf{$line->{param}};
+
+      if(ref $param_value eq 'ARRAY') {
+        $param_value = join(';',  @$param_value);
+      }
+
+      $value = $html->form_input( "$line->{param}", $param_value,
         { SIZE => 40, EX_PARAMS => " placeholder='$line->{value}'" } );
     }
 
-    my $br = $html->br() || '<br>';
+    my $br = $html->br() || "\n";
     if(defined $line->{comments}){
       $line->{comments} =~ s/\n/$br/g;
     }
+
     my $search_color_mark;
     if ( $FORM{COMMENTS} ){
-      $search_color_mark = $html->color_mark( $FORM{COMMENTS}, $_COLORS[6] );
-      $line->{comments} =~ s/(.*)$FORM{COMMENTS}(.*)/$1$search_color_mark$2/;
+      my $text = $FORM{COMMENTS};
+      $text =~ s/\*//g;
+      $search_color_mark = $html->color_mark($text, $_COLORS[6]);
+      if($line->{comments}) {
+        $line->{comments} =~ s/(.*)$text(.*)/$1$search_color_mark$2/;
+      }
     }
 
     $table->addrow(
@@ -187,14 +206,13 @@ sub config_main{
     );
   }
 
-  print $html->form_main(
-      {
-        CONTENT => $table->show(),
-        HIDDEN  => {
-          index => $index,
-        },
-        SUBMIT  => { change => "$lang{CHANGE}" }
-      } );
+  print $html->form_main({
+    CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
+    HIDDEN  => {
+      index => $index,
+    },
+    SUBMIT  => { change => $lang{CHANGE} }
+  });
 
   return 1;
 }
@@ -208,11 +226,12 @@ sub config_main{
 sub config_manage {
 
   my @types = (
-         'STRING',
-         'BOOL',
-         'INT',
-         'MULTIVAL',
-         'SELECT',
+    'STRING',
+    'BOOL',
+    'INT',
+    'MULTIVAL',
+    'SELECT',
+    'MULTISTR'
   );
 
   #my @types_colors = (
@@ -268,7 +287,7 @@ sub config_manage {
     {
       width      => '100%',
       caption    => "Options",
-      title      => [ $lang{KEY}, "$lang{VALUE}", "-", "-" ],
+      title      => [ $lang{KEY}, $lang{VALUE}, 'Type', "-", "-" ],
       cols_align => [ 'left', 'left',  'center', 'center' ],
       qs         => $pages_qs,
       pages      => $Config->{TOTAL},
@@ -280,6 +299,7 @@ sub config_manage {
     $table->addrow(
       $line->{param},
       $line->{value},
+      $line->{type},
       $html->button($lang{CHANGE}, "index=$index&chg=$line->{param}", { class => 'change' }),
       $html->button($lang{DEL}, "index=$index&del=$line->{param}", { MESSAGE => "$lang{DEL} '$line->{param}' ?", class => 'del' })
     );
@@ -290,5 +310,87 @@ sub config_manage {
   return 1;
 }
 
+#**********************************************************
+=head2 config_password_generator() - configuration for passwords generator
+
+=cut
+#**********************************************************
+sub config_password_generator {
+
+  if ( $FORM{action} ) {
+    $FORM{CASE} = (defined $FORM{CASE}) ? $FORM{CASE} : 0;
+    $FORM{CHARS} = (defined $FORM{CHARS}) ? $FORM{CHARS} : 0;
+
+    my $new_config_string = join(':',
+      ($FORM{SYMBOLS_COUNT} || $conf{PASSWD_LENGTH}),
+      $FORM{CASE},
+      $FORM{CHARS},
+    );
+
+    $Config->config_add( {
+      PARAM   => 'CONFIG_PASSWORD',
+      VALUE   => $new_config_string,
+      REPLACE => 1
+    } );
+
+    if (!_error_show($Config)){
+      $conf{CONFIG_PASSWORD} = $new_config_string;
+    };
+
+  }
+
+  my $config_string = $conf{CONFIG_PASSWORD} || ($conf{PASSWD_LENGTH} . ':0:0');
+  my ($count, $case, $chars) = split(':', $config_string, 3);
+
+  $html->tpl_show( _include('config_password', 'Config'),
+    {
+      MIN_LENGTH               => $conf{PASSWD_LENGTH},
+      MAX_LENGTH              => 32,
+
+      SYMBOLS_COUNT           => $count,
+      "CASE_$case\_CHECKED"   => 'checked="checked"',
+      "CHARS_$chars\_CHECKED" => 'checked="checked"'
+    }
+  );
+}
+
+#**********************************************************
+=head2 config_get_password_constraints($config_string)
+
+=cut
+#**********************************************************
+sub config_get_password_constraints {
+  my ($config_string) = @_;
+  
+  $config_string //= $conf{CONFIG_PASSWORD};
+  my ($length, $case, $special_chars) = split(':', $config_string, 3);
+    
+  my $lang_case = '';
+  if ($case == 0){
+    $lang_case = $lang{UPPERCASE};
+  }
+  elsif ($case == 1){
+    $lang_case = $lang{LOWERCASE};
+  }
+  elsif ($case == 2){
+    $lang_case = $lang{UPPERCASE} . ', ' . $lang{LOWERCASE};
+  }
+  
+  my $lang_chars = '';
+  if ($special_chars == 0){
+    $lang_chars = $lang{NUMBERS};
+  }
+  elsif ($special_chars == 1){
+    $lang_chars = $lang{SPECIAL_CHARS} . '(' . '-_!&%@#:' .  ')';
+  }
+  elsif ($special_chars == 2){
+    $lang_chars = $lang{NUMBERS} . ', ' . $lang{SPECIAL_CHARS}  . '(-_!&%@#:)';
+  }
+  
+  return  $html->br . $lang{LENGTH} . ' : >= ' . ($length || '') . $html->br
+    . $lang{CASE} . ' : ' . $lang_case . $html->br
+    . $lang{NON_ALPHABET_SYMBOLS} . ' ' . lc( $lang{SYMBOLS} ) . ' : ' . $lang_chars . $html->br;
+  
+}
 
 1

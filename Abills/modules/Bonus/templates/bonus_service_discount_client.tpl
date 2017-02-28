@@ -1,8 +1,8 @@
-<div class='panel panel-primary'>
-    <div class='panel-heading'>
-        _{BONUS}_
+<div class='box box-primary'>
+    <div class='box-header with-border'>
+        <h3 class="box-title">_{BONUS}_</h3>
     </div>
-    <div class='panel-body'>
+    <div class='box-body'>
         <div class='row'>
             <label class='control-label col-md-3'>%TOTAL_PAYMENT%</label>
         </div>

@@ -3,10 +3,10 @@
         <input type='hidden' name='index' value='$index'/>
 
         <label for='S_TIME'>_{DATE}_</label>
-        <input type='text' class='form-control tcal' name='S_TIME' id='S_TIME' value='%S_TIME%'/>
+        <input type='text' class='form-control datepicker' name='S_TIME' id='S_TIME' value='%S_TIME%'/>
 
         <label for='F_TIME'>-</label>
-        <input type='text' class='form-control tcal' name='F_TIME' id='F_TIME' value='%F_TIME%'/>
+        <input type='text' class='form-control datepicker' name='F_TIME' id='F_TIME' value='%F_TIME%'/>
 
         <label for='PORTS'>_{PORT}_</label>
         %PORTS_SELECT%

@@ -2,13 +2,13 @@
     <input type='hidden' name='index' value='$index'>
     <input type='hidden' name='ID' value='%ID%'>
 
-        <div class='panel panel-default panel-form'>
-            <div class='panel-heading'>
-                <div class='panel-title'>
+        <div class='box box-theme box-form'>
+            <div class='box-header with-border'>
+                <div class='box-title'>
                     <h4>_{STORAGE}_</h4>
                 </div>
             </div>
-            <div class='panel-body'>
+            <div class='box-body'>
                 <div class='table'>
                     <div class='form-group'>
                         <label class='col-md-3 control-label'>_{NAME}_:</label>
@@ -21,7 +21,7 @@
                     </div>
                 </div>
             </div>
-            <div class='panel-footer'>
+            <div class='box-footer'>
                 <input class='btn btn-primary' type='submit' name=%ACTION% value=%ACTION_LNG%>
             </div>
         </div>

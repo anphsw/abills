@@ -5,3 +5,5 @@ $lang{BONUS_PERCENT}='Bonus percent';
 $lang{ACCEPT_RULES}='Accept Rules';
 $lang{BONUS_TP_USING}='Bonus tarif using';
 $lang{SCORES}='Scores';
+$lang{ERR_SMALL_SUM}='Too small sum';
+$lang{BONUS_DISABLED_FOR_GROUP}='Bonus disable for groups';

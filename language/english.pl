@@ -38,7 +38,7 @@ $lang{SEND} = 'Send';
 $lang{SENDED} = 'Sent';
 $lang{TO_USER} = 'To user';
 $lang{MAIL_BOX} = 'Mail box';
-$lang{WRONG_EMAIL} = 'Wrong E-mail';
+$lang{ERR_WRONG_EMAIL} = 'Wrong E-mail';
 $lang{ERROR_LOG} = 'Error log';
 $lang{FIO} = 'Firstname, Lastname ';
 $lang{ADDRESS} = 'Address';
@@ -111,7 +111,7 @@ $lang{RECV} = 'Received';
 $lang{LAST_PAYMENT} = 'Late payment';
 $lang{LAST_LOGIN} = 'Last session';
 $lang{FIRST_LOGIN} = 'First session';
-$lang{LAST} = 'Last sessions';
+$lang{LAST_ENTRIES} = 'Last sessions';
 $lang{NOT_LOGINED} = 'Not logged in';
 $lang{SHOW} = 'Show';
 $lang{SESSIONS} = 'Sessions';
@@ -353,38 +353,30 @@ $lang{REFRESH} = 'Refresh';
 $lang{ROUTES} = 'Routes';
 $lang{DICTIONARY} = 'Dictionary';
 $lang{ABON} = 'Periodic payments';
-
 $lang{SYMBOLS} = 'Symbols';
 $lang{SERIAL} = 'Serial';
 $lang{BRUTE_ATACK} = 'Brute Attack';
 $lang{CHAPTERS} = 'Chapter';
 $lang{DOWNLOAD} = 'Download';
-
 $lang{DILLERS} = 'Dealers';
-
 $lang{VAT} = 'VAT';
 $lang{BONUS} = 'Bonus';
 $lang{PERCENTAGE} = 'Percentage';
 $lang{MULTIUSER_OP} = 'Multiuser operation';
 $lang{RETURNED} = 'Returned';
 $lang{SOLD} = 'Sold';
-
 $lang{CASH} = 'Cash';
 $lang{RECALCULATE} = 'Recalculate';
 $lang{CONFIG} = 'Configuration';
-
 $lang{PROCESSES} = 'Processes';
 $lang{TRAFFIC_TRANSFER_PERIOD} = 'Traffic transfer period';
 $lang{MONTH_ALIGNMENT} = 'Month alignment';
 $lang{PERIOD_ALIGNMENT} = 'Period Alignment';
 $lang{MIN_USE} = 'Minimal money use';
-
 $lang{ATTACHMENT} = 'Attachment';
 $lang{PRIORITY} = 'Priority';
-
 $lang{PASPORT} = 'Passport';
 $lang{GRANT} = 'Issued by';
-
 $lang{NEG_DEPOSIT_FILTER_ID} = "Negative deposit filter ID";
 $lang{NEG_DEPOSIT_IP_POOL} = "Negative deposit IP Pool";
 $lang{USER_CHG_TP} = 'User change tarif plan';
@@ -393,30 +385,27 @@ $lang{IP_IN_USE} = 'THIS IP IS CURRENTLY IN USE BY OTHER USER';
 $lang{EXPORT} = 'Export';
 $lang{IMPORT} = 'Import';
 $lang{PAYMENT_DEED} = 'Act of payment';
-
 $lang{VERY_LOW} = 'very low';
 $lang{LOW} = 'low';
 $lang{NORMAL} = 'normal';
 $lang{HIGH} = 'high';
 $lang{VERY_HIGH} = 'very high';
-
 $lang{OPEN} = 'open';
 $lang{CLOSED_UNSUCCESSFUL} = 'closed unsuccessfully';
 $lang{CLOSED_SUCCESSFUL} = 'closed successfully';
 $lang{CITY} = 'City';
 $lang{ZIP} = 'Zip';
 $lang{FINANCES} = 'Finances';
-
 $lang{FINE} = 'Fine';
 $lang{ONE_TIME} = 'One time';
 $lang{PASSWORD_RECOVERY} = 'Password recovery';
 $lang{BILL_INFO} = 'Billing server info';
 $lang{PRIMARY} = 'Primary';
 $lang{EXTRA} = 'Extra';
+$lang{EXTRA_ABBR} = 'Extra';
 $lang{DEBETORS} = 'Debitors';
 $lang{DEBT} = 'Debt';
 $lang{NON_PAYMENT} = 'Non Payment';
-
 $lang{INNER} = 'Inner';
 $lang{INFO_FIELDS} = 'Information fields';
 $lang{MISC} = 'Misc';
@@ -424,14 +413,11 @@ $lang{DV} = 'Internet';
 $lang{JOIN_SERVICE} = 'Join Service';
 $lang{MAIN} = 'Main';
 $lang{MAINTAIN} = 'Maintain';
-
 $lang{CHANNELS} = 'Channels';
 $lang{ABON_DISTRIBUTION} = 'Abon. payments distribution';
 $lang{SMALL_DEPOSIT_ACTION} = 'If deposit small then abon. payments';
-$lang{GUEST_MODE} = 'Guest mode. Please registration your address';
-
+$lang{GUEST_MODE} = 'Guest mode. Please register your address';
 $lang{LOGON} = 'Logon';
-
 $lang{CORRECTION} = 'correction';
 $lang{ACCEPT_RULES} = 'Rules Accepted';
 $lang{RULES} = 'Rulles';
@@ -448,26 +434,22 @@ $lang{REPRESENTATIVE} = 'Representative';
 $lang{SETTINGS} = 'Settings';
 $lang{UNLIMITED} = 'Unlimited';
 $lang{UNLIM} = 'Unlim';
-
 $lang{MAX_ROWS} = 'Max seach rows';
 $lang{MIN_SEARCH_CHARS} = 'Minimum chars for searching';
 $lang{ERR_SEARCH_VAL_TOSMALL} = 'Search value to small';
 $lang{ERR_NO_FREE_IP_IN_POOL} = 'No free IPs in pool';
 $lang{GUEST_ACCOUNT} = 'Guest account';
 $lang{REQUESTS} = 'Requests';
-
 $lang{RETURN_TO_START_PAGE} = "Return to start page";
 $lang{LOGIN_IN_TO_HOTSPOT} = "Login to hotspot";
 $lang{ERR_WRONG_CAPTCHA} = 'Wrong Captcha';
 $lang{MONEY_TRANSFER} = 'Money Transfer';
 $lang{COMMISSION} = 'Commission';
-
 $lang{PAY_SYSTEM} = 'Payment system';
 $lang{BUY} = 'Buy';
 $lang{IN_PROGRESS} = 'In progress';
 $lang{SURVEY} = 'Survey';
 $lang{PAY_TO} = 'Pay to date';
-
 $lang{CELL_PHONE} = 'Cell phone';
 $lang{INN} = 'Tax number';
 $lang{BIRTHDAY} = 'Birthday';
@@ -515,14 +497,11 @@ $lang{UNIVERSAL} = 'Universal';
 $lang{YEAR_SHORT} = 'y.';
 $lang{ACTIVATION_PAYMENT} = 'Activation payment';
 $lang{GUEST} = 'Guest';
-
 $lang{ACTIVATE_NEXT_PERIOD} = 'For next activation period';
-
 $lang{EQUIPMENT} = 'Equipment';
 $lang{VENDOR} = 'Vendor';
 $lang{LAST_UPDATE} = 'Last Update';
-
-$lang{EXT_SERIVICE} = 'Extra service';
+$lang{EXT_SERVICES} = 'Extra services';
 $lang{TIME_SHEET} = 'Time Sheet';
 $lang{DAY_TYPE} = 'Day type';
 $lang{EXTRA_FEE} = 'Extra fee';
@@ -532,15 +511,12 @@ $lang{REPAIR} = 'Repair';
 $lang{EVENTS} = 'Events';
 $lang{ACCT_TERMINATE_CAUSE} = 'Terminate Cause';
 $lang{TAGS} = 'Tags';
-
 $lang{ACTIVATE_TARIF_PLAN} = 'Activate tarif plan';
 $lang{SOUND} = 'Sound';
 $lang{ARPU} = 'Average revenue per user';
 $lang{ARPPU} = 'Average Revenue Per Paying User';
-
 $lang{REMEMBER} = 'Remember';
 $lang{ERRORS} = 'Errors';
-
 $lang{MEGOGO} = 'Megogo';
 $lang{ACTIVE_TP} = 'Tarif plan';
 $lang{COMMENTS_PLEASE} = 'Comments are required';
@@ -556,10 +532,8 @@ $lang{WEB_SERVER_USER} = 'Web-server user';
 $lang{RESTART} = 'Restart';
 $lang{CONF_DIR} = ' config directory';
 $lang{THREADS} = 'Threads';
-
 $lang{WRITE_TO_DB} = 'Write to database';
 $lang{COLOR} = 'Color';
-
 $lang{ICON} = 'Thumbnail';
 $lang{GO2PAGE} = 'Page';
 $lang{SECOND_NAME} = 'Alternative name';
@@ -587,7 +561,6 @@ $lang{QUICK} = 'Quick';
 $lang{FIELDS} = 'Fields';
 $lang{INFO_CHANGE_MSG} = 'Input data in empty fields';
 $lang{EXT_BILL_ACCOUNT} = 'Ext bill account';
-
 $lang{HEADER} = 'Header';
 $lang{PREVIEW} = 'Preview';
 $lang{ALT} = 'Alternative';
@@ -599,7 +572,6 @@ $lang{CHANGE_} = 'Apply changes';
 $lang{CONTACTS} = 'Contacts';
 $lang{NUMBER} = 'Number';
 $lang{REQUIRED_ARG} = 'Argument is required';
-
 $lang{NETWORK_NAME}='Network name';
 $lang{NETWORK_NET}='Network address';
 $lang{DEFAULT_GATEWAY}='Default gateway';
@@ -612,3 +584,104 @@ $lang{MENU} = 'Menu';
 $lang{ERR_UNKNOWN_SN_ACCOUNT}='Unknown user. Please register social network througth user portal';
 $lang{ERR_SN_ERROR}='Error social network authentification';
 $lang{CHANGE_PASSWORD} = 'Change password';
+$lang{USER_ACCOUNT} = 'User account';
+$lang{STATMENT_OF_ACCOUNT} = 'Statment of account';
+$lang{PUBLIC_COMMENTS} = 'Public comments';
+$lang{AS} = 'as';
+$lang{TIP} = 'Tip';
+$lang{IN} = 'in';
+$lang{ERR_NOT_SUPPORTED} = 'Not supported';
+$lang{SHOWING} = 'Showing';
+$lang{OF} = 'of';
+$lang{ERR_NOT_EXISTS} = 'Not exists';
+$lang{CONFIGURATION} = 'Configuration';
+$lang{UNDO} = 'Undo';
+$lang{MANAGER} = 'Manager';
+$lang{FORGOT_PASSWORD} = 'Forgot password';
+$lang{ORGANIZATION_INFO} = 'Organization information';
+$lang{FAX} = 'Fax';
+$lang{LAST_ACTIVITY} = 'Last activity';
+$lang{REACTION_TIME} = 'Reaction time';
+$lang{LIST_OF_LOGS} = 'List of logs';
+$lang{USER_STATISTIC} = 'Users statistics';
+$lang{POPULAR_MENU} = 'Most popular menu';
+$lang{POPULAR_TRANSITIONS} = 'Most popular transitions';
+$lang{AVERAGE_TIME} = 'Average time in portal';
+$lang{PERCENTAGE} = 'Percentage';
+$lang{VISITS} = 'Visits';
+$lang{TRANSITION} = 'Transition';
+$lang{LIGHT_SKIN_MENU} = 'Light skin menu';
+$lang{FIXED_LAYOUT} = 'Fixed layout';
+$lang{FIXED_HEADER} = 'Fixed header';
+$lang{ALWAYS_HIDE_RIGHT_MENU} = 'Always hide right menu';
+$lang{MODULE} = 'Module';
+$lang{PLANNED_TO_CONNECT}='Planned to connect';
+$lang{COPY} = 'Copy';
+
+$lang{INSTALLED} = 'Installed';
+$lang{CHECK_ADDRESS} = 'Check Address';
+$lang{CHECK_ADDRESS_PLANNED_TO_CONNECT_MSG} = 'Your address planed to connect';
+$lang{CHECK_ADDRESS_CONNECTED_MSG} = 'Your address connected. Fill in application for registration';
+$lang{CHECK_ADDRESS_MESAGE} = 'If your address is not in the list - it is not connected.';
+$lang{DISCONNECTED} = 'Disconnected';
+
+$lang{REMINDER} = 'Reminder';
+$lang{PLEASE_CHANGE_DEFAULT_PASSWORD} = 'Please change default password';
+$lang{LAST} = 'Last';
+$lang{PREVIOUS} = 'Previous';
+
+$lang{GUIDE_WELCOME} = 'Interface tutorial';
+$lang{GUIDE_WELCOME_TEXT} = 'Welcome to ABillS. This guide will show you main interface features.';
+$lang{GUIDE_MAIN_MENU} = 'Main menu';
+$lang{GUIDE_MAIN_MENU_TEXT} = 'This is main navigation menu. All functions and operations you have access to.';
+$lang{GUIDE_MESSAGES_MENU} = 'Messages quick menu';
+$lang{GUIDE_MESSAGES_MENU_TEXT} = 'Shows last messages.';
+$lang{GUIDE_EVENTS_MENU} = 'Events quick menu';
+$lang{GUIDE_EVENTS_MENU_TEXT} = 'Displays event notifications, so you always know what is happening in your system.';
+$lang{GUIDE_RESPONSIBLE_MENU} = 'Responsible messages';
+$lang{GUIDE_RESPONSIBLE_MENU_TEXT} = 'All messages you are responsible, are duplicated in separate menu.';
+$lang{GUIDE_WIKI_LINK} = 'Documentation link';
+$lang{GUIDE_WIKI_LINK_TEXT} = 'Every page has a linked documentation page, if you need help, at first look there.';
+$lang{GUIDE_RIGHT_MENU} = 'Secondary menu';
+$lang{GUIDE_RIGHT_MENU_TEXT} = 'This is secondary menu button. Click on it to open secondary menu.';
+$lang{GUIDE_QUICK_MENU} = 'Quick menu';
+$lang{GUIDE_QUICK_MENU_TEXT} = 'Here you can configure quick access links for common used operations.';
+$lang{GUIDE_QUICK_SEARCH} = 'Quick search';
+$lang{GUIDE_QUICK_SEARCH_TEXT} = 'Useful to find user by his parameters (Address, initials, login, etc).';
+$lang{GUIDE_INTERFACE_SETTINGS_BTN} = 'Quick interface settings';
+$lang{GUIDE_INTERFACE_SETTINGS_BTN_TEXT} = 'Click to proceed';
+$lang{GUIDE_INTERFACE_SETTINGS_MENU} = 'Interface settings';
+$lang{GUIDE_INTERFACE_SETTINGS_MENU_TEXT} = 'Here you can set skin, and some interface settings.';
+$lang{GUIDE_REPORTS_TEXT} = 'Let\'s configure your start page reports. Choose some reports from table and apply them';
+$lang{GUIDE_FINISH_TEXT} = 'That\'s all. Good luck!';
+
+$lang{SOCIAL_NETWORKS} = 'Social netwroks';
+$lang{GENDER} = 'Gender';
+$lang{SOCIAL} = 'Social';
+$lang{QUERY}='Query';
+$lang{YOUR_FEEDBACK}='Your feedback';
+$lang{NO_DATA} = 'This category is empty';
+$lang{CHOOSE} = 'Choose';
+
+$lang{CONNECTION_TYPE} = 'Connection type';
+$lang{UNLINK} = 'Unlink';
+$lang{AVERAGE_RATING} = 'Average_rating';
+$lang{EVALUATION_OF_PERFORMANCE} = 'Evaluation of performance';
+$lang{USERS_ADDED_TO_DELIVERY} = 'Members added to the mailing list';
+
+$lang{WIDTH}='Width';
+$lang{THERE_ARE_NO_SETTINGS_TO_CHANGE} = 'There are no settings to change';
+
+$lang{ACTIVATED} = 'Activated';
+
+$lang{I_HAVE_LOGIN_AND_PASSWORD} = 'I have login and password';
+$lang{I_WANT_TO_TRY} = 'I want try it for free';
+$lang{I_HAVE_PIN_CARD} = 'I have card with a PIN code';
+$lang{BUY_CARD_ONLINE} = 'Buy card online';
+
+$lang{COMMAND}='Command';
+$lang{CRITICAL_PACKET_LOSS} = 'Critical packet loss in user';
+
+$lang{ERR_PASSWORD_INSECURE} = 'Password is not secure enough';
+$lang{NOTIFICATIONS}='Notifications';
+1

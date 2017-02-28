@@ -7,8 +7,8 @@ package Abills::Auth::Vk;
 
 use strict;
 use warnings FATAL => 'all';
-use Abills::Base qw(urlencode);
-do 'Abills/Misc.pm';
+use Abills::Base qw(urlencode show_hash);
+use Abills::Fetcher;
 
 #**********************************************************
 =head2 check_auth($attr)
@@ -29,14 +29,18 @@ sub check_access {
   my $version      = '5.37';
   my $client_secret= $self->{conf}->{AUTH_VK_SECRET} || q{};
   $self->{debug}   = $self->{conf}->{AUTH_VK_DEBUG} || 0;
+  $redirect_uri    =~ s/\%SELF_URL\%/$self->{self_url}/g;
+
+  my $redirect_encoded = urlencode($redirect_uri);
 
   if ($attr->{code}) {
-    my $request = qq(https://oauth.vk.com/access_token?client_id=$client_id&client_secret=$client_secret&redirect_uri=$redirect_uri&code=$attr->{code});
+    my $request = qq(https://oauth.vk.com/access_token?client_id=$client_id&client_secret=$client_secret&redirect_uri=$redirect_encoded&code=$attr->{code});
     my $result = web_request($request, { JSON_RETURN => 1 });
     if($self->{debug}) {
       print "Content-Type: text/html\n\n";
       print "Ok";
-      print %$result;
+      show_hash($result, DELIMITER => '<br>');
+      print "Redirect: $redirect_uri //";
     }
 
     if($result->{user_id}) {
@@ -50,14 +54,14 @@ sub check_access {
     # {"access_token":"0cbc06819f523fdbbd7e593afbb63509e2b6df75504da82f6a0a6d98e5e69fcff9dc551f481d598df9edd","expires_in":86376,"user_id":22089814}
   }
   else {
-    $self->{auth_url} = qq{ https://oauth.vk.com/authorize?client_id=$client_id&display=page&redirect_uri=$redirect_uri&scope=friends&response_type=code&v=$version };
+    $self->{auth_url} = qq{ https://oauth.vk.com/authorize?client_id=$client_id&display=page&redirect_uri=$redirect_encoded&scope=friends&response_type=code&v=$version };
   }
 
   return $self;
 }
 
 #**********************************************************
-=head2 get_info()
+=head2 get_info($attr)
 
  https://api.vk.com/method/users.get?uids=22089814&fields=uid,first_name,last_name,screen_name,sex,bdate,photo_big
 

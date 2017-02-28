@@ -8,8 +8,8 @@
     }
 </style>
 
-<div class='panel panel-primary'>
-    <div class='panel-body'>
+<div class='box box-primary'>
+    <div class='box-body'>
         <div class='row'>
             <div id='camera_preview'></div>
             <label class='col-md-3' for='snapshot_resolution'>Resolution: </label>
@@ -24,7 +24,7 @@
         </div>
     </div>
 
-    <div class='panel-footer'>
+    <div class='box-footer'>
         <div class='row'>
             <div class='col-md-4 btn btn-default'>
                 <label class='control-label col-md-10' id='includeLocation_lbl'

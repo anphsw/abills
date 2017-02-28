@@ -5,9 +5,9 @@
         <input type='hidden' name='IP_ID' value='%IP_ID%'>
 
 
-        <div class='panel panel-primary panel-form'>
-            <div class='panel-heading'>%ACTION_LNG%</div>
-            <div class='panel-body'>
+        <div class='box box-theme box-form'>
+            <div class='box-header with-border'>%ACTION_LNG%</div>
+            <div class='box-body'>
                 <div class='form-group'>
                     <a class='col-md-6 pull-right' href='index.cgi?index=%IP_SCAN_INDEX%'>_{SCAN}_ <span class='glyphicon glyphicon-search'></span></a>
                 </div>
@@ -97,7 +97,7 @@
                 </div>
             </div>
 
-            <div class='panel-footer'>
+            <div class='box-footer'>
                 <input class='btn btn-primary' type='submit' name='%ACTION%' value='%ACTION_LNG%'>
             </div>
         </div>
@@ -122,7 +122,7 @@
 
         //check for correct mask input
         var netmaskPattern="(255|254|252|248|240|224|192|128|0)[.](255|254|252|248|240|224|192|128|0)[.](255|254|252|248|240|224|192|128|0)[.](255|254|252|248|240|224|192|128|0)";
-        maskInput.attr('check_for_pattern', netmaskPattern);
+        maskInput.attr('data-check-for-pattern', netmaskPattern);
         defineCheckPatternLogic();
 
         //if ip is v6 hide netmask input and show prefix

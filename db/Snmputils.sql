@@ -1,10 +1,11 @@
-CREATE TABLE `snmputils_binding` (
-  `uid` int(11) unsigned NOT NULL default '0',
-  `binding` varchar(30) NOT NULL default '',
-  `comments` varchar(100) NOT NULL default '',
-  `params` varchar(20) NOT NULL default '',
-  `id` int(11) unsigned NOT NULL auto_increment,
+CREATE TABLE IF NOT EXISTS `snmputils_binding` (
+  `uid` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `binding` VARCHAR(30) NOT NULL DEFAULT '',
+  `comments` VARCHAR(100) NOT NULL DEFAULT '',
+  `params` VARCHAR(20) NOT NULL DEFAULT '',
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
   UNIQUE KEY `binding` (`binding`),
   UNIQUE KEY `id` (`id`),
   KEY `uid` (`uid`)
-) COMMENT='Snmputils binding' ;
+)
+  COMMENT = 'Snmputils binding';

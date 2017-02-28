@@ -33,7 +33,6 @@ sub new {
 }
 
 
-
 #**********************************************************
 =head2 report1()
 
@@ -42,7 +41,7 @@ sub new {
 sub report1 {
   my $self = shift;
   my ($user) = @_;
-
+  # $user->{VALUE}
   my %PARAMS = ();
 
   $PARAMS{MESSAGE} = 'Happy birthday';

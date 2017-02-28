@@ -3,11 +3,11 @@
     <input type=hidden name=ID value=$FORM{chg}>
     <input type=hidden name=TP_ID value=$FORM{TP_ID}>
 
-    <div class='panel panel-primary panel-form'>
-        <div class='panel-heading'>
+    <div class='box box-theme box-form'>
+        <div class='box-header with-border'>
             _{RULES}_
         </div>
-        <div class='panel-body'>
+        <div class='box-body'>
             <div class='form-group'>
                 <label class='control-label col-md-3'>_{SERVICE}_ _{PERIOD}_ (_{MONTH}_):</label>
 
@@ -76,7 +76,7 @@
             </div>
 
         </div>
-        <div class='panel-footer'>
+        <div class='box-footer'>
             <input class='btn btn-primary' type=submit name=%ACTION% class='form-control' value='%LNG_ACTION%'>
         </div>
     </div>

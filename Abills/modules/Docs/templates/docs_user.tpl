@@ -7,11 +7,11 @@
 <input type=hidden name='step' value='$FORM{step}'>
 
 
-   <div class='panel panel-default panel-form'>
-     <div class='panel-heading'>
+   <div class='box box-theme box-form'>
+     <div class='box-header with-border'>
        <h4>_{OPTIONS}_  </h4>
      </div>
-     <div class='panel-body form form-horizontal'>
+     <div class='box-body form form-horizontal'>
 
 
 <fieldset>
@@ -55,7 +55,7 @@
 <div class='form-group'>
 <label class='control-label col-md-6' for='INVOICE_DATE'>_{INVOICE}_ _{DATE}_</label>
   <div class='col-md-6'>
-    <input id='INVOICE_DATE' name='INVOICE_DATE' value='%INVOICE_DATE%' placeholder='%INVOICE_DATE%' class='form-control tcal' type='text'>
+    <input id='INVOICE_DATE' name='INVOICE_DATE' value='%INVOICE_DATE%' placeholder='%INVOICE_DATE%' class='form-control datepicker' type='text'>
   </div>
 </div>
 

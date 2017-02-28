@@ -1,8 +1,8 @@
-<div class='panel panel-default'>
-    <div class='panel-heading text-center bg-info'>
+<div class='box box-theme'>
+    <div class='box-header with-border text-center bg-info'>
         _{ICARDS}_
     </div>
-    <div class='panel-body form form-horizontal'>
+    <div class='box-body form form-horizontal'>
         <form action='$SELF_URL' METHOD='POST' name='form_card_add' class=''>
             <input type='hidden' name='sid' value='$FORM{sid}'>
             <input type='hidden' name='index' value='$index'>

@@ -8,9 +8,14 @@
 =cut
 
 use strict;
-use Abills::Base qw( _bp in_array int2byte);
-our %lang;
-our $html;
+use warnings FATAL => 'all';
+use Abills::Base qw( _bp in_array int2byte convert);
+use Abills::Filters qw(bin2mac bin2hex);
+
+our (
+  %lang,
+  $html
+);
 
 my %type_name = (
   1 => 'epon_olt_virtualIfBER',
@@ -19,313 +24,345 @@ my %type_name = (
 );
 
 #**********************************************************
-=head2 _zte_ports($attr) - Show ports
-  Experemental
-
-=cut
-#**********************************************************
-sub _zte_ports  {
-  my ($attr) = @_;
-
-  my $cols       = $attr->{COLS} || [ 'NUM', 'ONU_NAME', 'ONUSTATUS', 'CUR_TX', 'ONU_VLAN', 'ONU_UPTIME' ];
-  my $info_oids  = $attr->{INFO_OIDS};
-  my $snmp       = _zte($attr);
-  my $onu_status = _zte_onu_status($attr);
-
-  foreach my  $oid_name (keys %{ $snmp }) {
-    if ($attr->{snmp}->{$oid_name} eq 'HASH') {
-    	next;
-    }
-    $info_oids->{uc($oid_name)}=$oid_name;
-  }
-
-  #Reg onu count
-  my $reg_arr = snmp_get({ %$attr,
-                           WALK => 1,
-                           OID  => '.1.3.6.1.4.1.3902.1012.3.13.1.1.13',
-                          });
-
-  my %reg_onu_count = ();
-
-  foreach my $line ( @$reg_arr ) {
-    my ($id, $count)=split(/:/, $line, 2);
-    $reg_onu_count{$id}=$count;
-  }
-
-  #get way id
-#  my $ports_descr = snmp_get({ %$attr,
-#                               WALK => 1,
-#                               OID  => '.1.3.6.1.2.1.2.2.1.2',
-#                               });
-
-  my %info = ();
-  foreach my $oid_name ( @$cols ) {
-     _bp({ SHOW => " $oid_name -> $info_oids->{$oid_name} : $snmp->{$info_oids->{$oid_name}} " }) if ($FORM{debug});
-     if (! $snmp->{$info_oids->{$oid_name}}) {
-       next;
-     }
-
-     my $oid = $snmp->{$info_oids->{$oid_name}};
-     my $snmp_arr = snmp_get({
-                            %$attr,
-                            WALK => 1,
-                            OID  => $oid
-                          });
-
-     foreach my $line ( @$snmp_arr ) {
-       my ($id, $value)=split(/:/, $line, 2);
-       if ($oid_name eq 'MAC_ONU') {
-         $value = join(':', unpack("H2H2H2H2H2H2", $value));
-       }
-       elsif ($oid_name eq 'ONUSTATUS') {
-         $info{$id}{ONUSTATUS_ID}=$value;
-         $value = $onu_status->{$value} || 'Unknown';
-       }
-       elsif($oid_name eq 'CUR_TX') {
-         $value = pon_tx_alerts(sprintf("%.2f", $value / 1000));
-       }
-       elsif($oid_name eq 'ONU_VLAN') {
-         if($id =~ /(\d+\.\d+)\.\d+\.(\d+)/) {
-           $id = $1;
-           $value = $2;
-         }
-       }
-
-       $info{$id}{$oid_name}=$value;
-     }
-  }
-
-  my $table = $html->table(
-    {
-      width      => '100%',
-      caption    => "$lang{EQUIPMENT} ZTE",
-      title      => ['', 'NUM', 'ONU_NAME', 'CUR_TX', 'ONU_VLAN', 'ONU_UPTIME' ],
-      ID         => 'EQUIPMENT_MODELS',
-      border     => 1
-    }
-  );
-
-  foreach my $id_ ( @$reg_arr ) {
-    my ($id, $count)=split(/:/, $id_, 2);
-    my @row = ($html->b(decode_onu($id)), "($count)");
-    if (! $count) {
-      next;
-    }
-    my $o82_ = decode_onu($id);
-    $table->{rowcolor}='bg-success';
-    $table->addrow(@row);
-    $table->{rowcolor}=undef;
-    for(my $num=1; $num<=$count; $num++) {
-      my $port_name = sprintf("%s/%03d", $o82_, $num);
-      my $port = "<div value='" . $port_name . "' class='clickSearchResult'><button title='". $info{"$id.$num"}{ONUSTATUS}
-        ."' class='btn " . (($info{"$id.$num"}{ONUSTATUS_ID} == 3) ? 'btn-success' : 'btn-default') . "'>$port_name</button></div>";
-      @row = ($port);
-      foreach my $oid_name (@$cols) {
-        if($oid_name eq 'ONUSTATUS') {
-          next;
-        }
-        push @row, $info{"$id.$num"}{$oid_name} || '-';
-      }
-      $table->addrow(@row);
-    }
-  }
-
-  print $table->show();
-
-  return 1;
-}
-
-
-#**********************************************************
-=head2 _zte_onu_status();
-
-  Arguments:
-    $attr
-      EPON - Show epon status describe
-
-  Returns:
-    Status hash_ref
-
-=cut
-#**********************************************************
-sub _zte_onu_status () {
-  my ($attr) = @_;
-
-  my %status = (
-    0 => 'unknown',
-    1 => 'LOS',
-    2 => 'Synchronization',
-    3 => 'Online',
-    4 => 'Dying gasp',
-    5 => 'Power off',
-    6 => 'Offline',
-  );
-
-  if ($attr->{EPON}) {
-    %status = (1 => 'Power Off',
-               2 => 'Offline',
-               3 => 'Online'
-              );
-  }
-
-  return \%status;
-}
-
-#**********************************************************
-=head2 _zte_get_slots($attr) - Get OLT slots and connect ONU
+=head2 _zte_get_ports($attr) - Get OLT slots and connect ONU
 
 =cut
 #**********************************************************
 sub _zte_get_ports {
   my ($attr) = @_;
 
-  my %reg_onu_count = ();
-  if ($attr->{FULL_INFO}) {
-    #Reg onu count
-    my $reg_arr = snmp_get({ %$attr,
-                             WALK => 1,
-                             OID  => '.1.3.6.1.4.1.3902.1012.3.13.1.1.13',
-                            });
+  my $ports_info = equipment_test({
+    %{$attr},
+    PORT_INFO => 'PORT_NAME,PORT_DESCR,PORT_STATUS,PORT_SPEED,IN,OUT,PORT_TYPE',
+  });
 
-    foreach my $line ( @$reg_arr ) {
-      my ($id, $count)=split(/:/, $line, 2);
-      $reg_onu_count{$id}=$count;
+  my $ports_info_hash = ();
+
+  foreach my $key ( keys %{ $ports_info } ) {
+    if ($ports_info->{$key}{PORT_TYPE} && $ports_info->{$key}{PORT_TYPE} =~ /^300|250$/ && $ports_info->{$key}{PORT_NAME} =~ /(.pon)_(.+)$/) {
+      my $type = $1;
+      my $branch = $2;
+      my ($self, $slot, $olt) = $branch =~ /^(\d+)\/(\d+)\/(\d+)/;
+      $self++ if ($self eq '0');
+      my $port_snmp_id = encode_port(1, $self, $slot, $olt);
+      my $port_descr;
+      $ports_info_hash->{$port_snmp_id} = $ports_info->{$key};
+      $ports_info_hash->{$port_snmp_id}{BRANCH} = $branch;
+      $ports_info_hash->{$port_snmp_id}{PON_TYPE} = $type;
+      $ports_info_hash->{$port_snmp_id}{SNMP_ID} = $port_snmp_id;
+      if ($type eq 'gpon') {
+        $port_descr = snmp_get( { %{$attr},
+                OID => '1.3.6.1.4.1.3902.1012.3.13.1.1.1.' . $port_snmp_id,
+            });
+      }
+      else {
+        $port_descr = snmp_get( { %{$attr},
+                OID => '.1.3.6.1.4.1.3902.1015.1010.1.7.16.1.1.' . $port_snmp_id,
+            });
+      }
+      $ports_info_hash->{$port_snmp_id}{BRANCH_DESC} = $port_descr;
     }
   }
-
-  my %EPON_N = ();
-  my $ports_arr = snmp_get({ %$attr,
-                           WALK => 1,
-                           OID  => '.1.3.6.1.4.1.3902.1012.3.13.1.1.1',
-                         });
-
-  foreach my $line ( @$ports_arr ) {
-    my ($id, $value)=split(/:/, $line, 2);
-    $EPON_N{$id}=$value . (($reg_onu_count{$id}) ? " ($reg_onu_count{$id})": '' );
-  }
-
-  return \%EPON_N;
+  return \%{$ports_info_hash};
 }
 
 #**********************************************************
-=head2 _zte_onu_info($attr) -
+=head2 _zte_onu_list($attr) -
 
 =cut
 #**********************************************************
-sub _zte_onu_info  {
-  my ($attr) = @_;
+sub _zte_onu_list  {
+  my ($port_list, $attr) = @_;
 
-  my $cols      = $attr->{COLS};
-  my $info_oids = $attr->{INFO_OIDS};
+  my @all_rows = ();
+  my %pon_types = ();
+  my %port_ids = ();
 
-  my %total_info = ();
-  my $snmp       = _zte();
-  my $onu_status = _zte_onu_status();
-  my @all_rows   = ();
-
-  my $EPON_N;
-  if (in_array('EPON_N', $cols)) {
-    $EPON_N = _zte_get_ports($attr);
+  foreach my $snmp_id (keys %{ $port_list }) {
+    $pon_types{ $port_list->{$snmp_id}{PON_TYPE} } = 1;
+    $port_ids{$port_list->{$snmp_id}{BRANCH}} = $port_list->{$snmp_id}{ID};
   }
 
-  foreach my $oid_name (@$cols) {
-    _bp({ SHOW => "$oid_name -- $info_oids->{$oid_name} -- $snmp->{$info_oids->{$oid_name}}" }) if ($FORM{debug});
+  foreach my $type (keys %pon_types) {
+    my $snmp = _zte({TYPE => $type});
+    if ($type eq 'epon') {
+      my $onu_status_list = snmp_get( {
+        %$attr,
+        WALK => 1,
+        OID  => $snmp->{ONU_STATUS}->{OIDS},
+      });
 
-    if (! $snmp->{$info_oids->{$oid_name}}) {
-      next;
+      foreach my $line ( @{$onu_status_list} ) {
+        my ($interface_index, $status) = split( /:/, $line, 2 );
+        my $port_id = decode_onu($interface_index, {MODEL_NAME => $attr->{MODEL_NAME}});
+        my $port_dhcp_id = decode_onu($interface_index, {TYPE => 'dhcp', MODEL_NAME => $attr->{MODEL_NAME}});
+        $port_id =~ /^(\d+)\/(\d+)\/(\d+):(\d+)/;
+        my $onu_id = $4;
+        my $olt_port = $1 . '/' . $2 . '/' . $3;
+        my %onu_info = ();
+
+        $onu_info{PORT_ID}       = $port_ids{$olt_port};
+        $onu_info{ONU_ID}        = $onu_id;
+        $onu_info{ONU_SNMP_ID}   = $interface_index;
+        $onu_info{PON_TYPE}      = $type;
+        $onu_info{ONU_DHCP_PORT} = $port_dhcp_id;
+
+        foreach my $oid_name ( keys %{ $snmp } ){
+          if ($oid_name eq 'reset' || $oid_name eq 'main_onu_info' ){
+            next;
+          }
+          elsif ( $oid_name =~ /POWER|TEMPERATURE/ && $status ne '3' ){
+            $onu_info{$oid_name} = '';
+            next;
+          }
+          elsif ( $oid_name eq 'ONU_STATUS' ){
+            $onu_info{$oid_name} = $status;
+            next;
+          }
+
+          if ($attr->{DEBUG} && $attr->{DEBUG} > 1) {
+            print "epon $oid_name -- $snmp->{$oid_name}->{NAME} -- $snmp->{$oid_name}->{OIDS} \n";
+          }
+
+          my $oid_value = '';
+          if ($snmp->{$oid_name}->{OIDS}) {
+            my $oid = $snmp->{$oid_name}->{OIDS}.'.'.$interface_index;
+            $oid_value = snmp_get( { %{$attr}, OID => $oid, SILENT => 1 } );
+          }
+
+          my $function = $snmp->{$oid_name}->{PARSER};
+          if ($function && defined( &{$function} ) ) {
+            ($oid_value) = &{ \&$function }($oid_value);
+          }
+          $onu_info{$oid_name} = $oid_value;
+        }
+        push @all_rows, {%onu_info};
+      }
     }
+    else {
+      foreach my $snmp_id (keys %{ $port_list }) {
+        my %total_info = ();
+        next if ($port_list->{$snmp_id}{PON_TYPE} ne $type);
+        my $cols = [ 'PORT_ID', 'ONU_ID', 'ONU_SNMP_ID', 'PON_TYPE', 'ONU_DHCP_PORT' ];
+        foreach my $oid_name (keys %{ $snmp }) {
+          if ($oid_name eq 'reset' || $oid_name eq 'main_onu_info') {
+            next;
+          }
 
-    my $oid = $snmp->{$info_oids->{$oid_name}};
+          push @{$cols}, $oid_name;
+          my $oid = $snmp->{$oid_name}->{OIDS};
+          if (!$oid) {
+            next;
+          }
 
-    if ($attr->{OLT_PORT}) {
-      $oid .= '.'.$attr->{OLT_PORT};
-    }
+          if ($attr->{DEBUG} && $attr->{DEBUG} > 1) {
+            print "gpon $oid_name -- $snmp->{$oid_name}->{NAME} -- $snmp->{$oid_name}->{OIDS}.$snmp_id \n";
+          }
 
-    my $values = snmp_get({ %$attr,
-                            WALK    => 1,
-                            OID     => $oid,
-                            TIMEOUT => 25
-                          });
+          my $values = snmp_get({ %{$attr},
+            WALK    => 1,
+            OID     => $oid . '.' . $snmp_id,
+            TIMEOUT => 25
+          });
 
-    foreach my $line ( @$values ) {
-      my ($key, $oid_value) = split(/:/, $line, 2);
+          foreach my $line (@{$values}) {
+            next if (!$line || $line !~ /\d+:.+/);
+            my ($onu_id, $oid_value) = split( /:/, $line, 2 );
+            $onu_id =~ s/\.\d+//;
+            if ($attr->{DEBUG} && $attr->{DEBUG} > 3) {
+              print $oid.' -> '."$onu_id, $oid_value \n";
+            }
+            my $function = $snmp->{$oid_name}->{PARSER};
+            if ($function && defined( &{$function} )) {
+              ($oid_value) = &{ \&$function }($oid_value);
+            }
+            $total_info{$oid_name}{$snmp_id.'.'.$onu_id} = $oid_value;
+          }
+        }
 
-      if($oid_name eq 'MAC_ONU') {
-        $oid_value = join(':', unpack("H2H2H2H2H2H2", $oid_value));
-      }
-      elsif($oid_name eq 'ONUSTATUS') {
-        $oid_value = $onu_status->{$oid_value}. "($oid_value)";
-      }
-      elsif($oid_name eq 'BYTE_IN' || $oid_name eq 'BYTE_OUT') {
-        $oid_value = int2byte($oid_value);
-      }
-      elsif($oid_name eq 'CUR_TX') {
-        $oid_value = pon_tx_alerts(sprintf("%.2f", $oid_value / 1000));
-      }
-      elsif($oid_name eq 'ONU_VLAN') {
-        if($key =~ /^([0-9\.]+)\.\d+\.(\d+)/) {
-          $key = $1;
-          $oid_value = $2;
+        foreach my $key (keys %{ $total_info{ONU_STATUS} }) {
+          my %onu_info = ();
+          my ($branch, $onu_id) = split(/\./, $key, 2);
+          my $port_dhcp_id = decode_onu($branch, { TYPE => 'dhcp' });
+          for (my $i = 0; $i <= $#{ $cols }; $i++) {
+            my $value = '';
+            my $oid_name = $cols->[$i];
+            my $num = sprintf("%03d", $onu_id);
+            if ($oid_name eq 'ONU_ID') {
+              $value = $onu_id;
+            }
+            elsif ($oid_name eq 'PORT_ID') {
+              $value = $port_list->{$snmp_id}->{ID};
+            }
+            elsif ($oid_name eq 'PON_TYPE') {
+              $value = $type;
+            }
+            elsif ($oid_name eq 'ONU_DHCP_PORT') {
+              $value = $port_dhcp_id.'/'.$num;
+            }
+            elsif ($oid_name eq 'ONU_SNMP_ID') {
+              $value = $key;
+            }
+            else {
+              $value = $total_info{$cols->[$i]}{$key};
+            }
+            $onu_info{$oid_name}=$value;
+          }
+          push @all_rows, {%onu_info};
         }
       }
-
-      $total_info{$oid_name}{$key}=$oid_value;
     }
   }
 
-  my $used_ports = equipments_get_used_ports( {
-      NAS_ID    => $attr->{NAS_ID},
-      FULL_LIST => 1,
-  } );
+  return \@all_rows;
+}
 
-  my $num = 0;
-  foreach my $key (keys %{ $total_info{ONUSTATUS} } ) {
-    my @row = ();
-    my $port_id = decode_onu($attr->{OLT_PORT} || $key);
-    for(my $i=0; $i<=$#{ $cols }; $i++) {
-      my $value = '';
-      my $oid_name = $cols->[$i];
-      my $num_ = sprintf("%03d", $total_info{NUM}{$key});
-      if ($oid_name eq 'EPON_N') {
-        my ($id, undef) = split(/\./, $key);
-        $value = $EPON_N->{$id} || $attr->{OLT_PORT};
-      }
-      elsif ($oid_name eq 'NUM') {
-        $value = sprintf("%03d", $total_info{$oid_name}{$key});
-      }
-      elsif ($oid_name eq 'BRANCH') {
-        $value = $port_id;
-      }
-      elsif(! $info_oids->{$oid_name} && $used_ports->{$port_id.'/'.$num_}) {
-        foreach my $uinfo ( @{ $used_ports->{$port_id.'/'.$num_} } ){
-          $value .= $html->br() if ($value);
-          if ($oid_name eq 'LOGIN'){
-            $value .= $html->button($uinfo->{lc( $oid_name )}, "index=11&UID=$uinfo->{uid}");
+#**********************************************************
+=head2 _zte_onu_list2($attr) -
+
+=cut
+#**********************************************************
+sub _zte_onu_list2  {
+  my ($port_list, $attr) = @_;
+
+  my @all_rows = ();
+  my %pon_types = ();
+  my %port_ids = ();
+
+  foreach my $snmp_id (keys %{ $port_list }) {
+    $pon_types{ $port_list->{$snmp_id}{PON_TYPE} } = 1;
+    $port_ids{$port_list->{$snmp_id}{BRANCH}} = $port_list->{$snmp_id}{ID};
+  }
+
+  foreach my $type (keys %pon_types) {
+    my $snmp = _zte({TYPE => $type});
+    if ($type eq 'epon') {
+      my $onu_status_list = snmp_get( {
+        %$attr,
+        WALK => 1,
+        OID  => $snmp->{ONU_STATUS}->{OIDS},
+      });
+
+      foreach my $line ( @{$onu_status_list} ) {
+        my ($interface_index, $status) = split( /:/, $line, 2 );
+        my $port_id = decode_onu($interface_index, {MODEL_NAME => $attr->{MODEL_NAME}});
+        my $port_dhcp_id = decode_onu($interface_index, {TYPE => 'dhcp', MODEL_NAME => $attr->{MODEL_NAME}});
+        $port_id =~ /^(\d+)\/(\d+)\/(\d+):(\d+)/;
+        my $onu_id = $4;
+        my $olt_port = $1 . '/' . $2 . '/' . $3;
+        my %onu_info = ();
+
+        $onu_info{PORT_ID}       = $port_ids{$olt_port};
+        $onu_info{ONU_ID}        = $onu_id;
+        $onu_info{ONU_SNMP_ID}   = $interface_index;
+        $onu_info{PON_TYPE}      = $type;
+        $onu_info{ONU_DHCP_PORT} = $port_dhcp_id;
+
+        foreach my $oid_name ( keys %{ $snmp } ){
+          if ($oid_name eq 'reset' || $oid_name eq 'main_onu_info' ){
+            next;
           }
-          elsif ($oid_name eq 'ADDRESS_FULL'){
-            $value .= $html->button($uinfo->{login}, "index=11&UID=$uinfo->{uid}") . $html->br() . $uinfo->{address_full};
+          elsif ( $oid_name =~ /POWER|TEMPERATURE/ && $status ne '3' ){
+            $onu_info{$oid_name} = '';
+            next;
           }
-          else {
-            $value .= $uinfo->{lc( $oid_name )};
+          elsif ( $oid_name eq 'ONU_STATUS' ){
+            $onu_info{$oid_name} = $status;
+            next;
+          }
+
+          if ($attr->{DEBUG} && $attr->{DEBUG} > 1) {
+            print "epon $oid_name -- $snmp->{$oid_name}->{NAME} -- $snmp->{$oid_name}->{OIDS} \n";
+          }
+
+          my $oid_value = '';
+          if ($snmp->{$oid_name}->{OIDS}) {
+            my $oid = $snmp->{$oid_name}->{OIDS}.'.'.$interface_index;
+            $oid_value = snmp_get( { %{$attr}, OID => $oid, SILENT => 1 } );
+          }
+
+          my $function = $snmp->{$oid_name}->{PARSER};
+          if ($function && defined( &{$function} ) ) {
+            ($oid_value) = &{ \&$function }($oid_value);
+          }
+          $onu_info{$oid_name} = $oid_value;
+        }
+        push @all_rows, {%onu_info};
+      }
+    }
+    else {
+      foreach my $snmp_id (keys %{ $port_list }) {
+        my %total_info = ();
+        next if ($port_list->{$snmp_id}{PON_TYPE} ne $type);
+        my $cols = [ 'PORT_ID', 'ONU_ID', 'ONU_SNMP_ID', 'PON_TYPE', 'ONU_DHCP_PORT' ];
+        foreach my $oid_name (keys %{ $snmp }) {
+          if ($oid_name eq 'reset' || $oid_name eq 'main_onu_info') {
+            next;
+          }
+
+          push @{$cols}, $oid_name;
+          my $oid = $snmp->{$oid_name}->{OIDS};
+          if (!$oid) {
+            next;
+          }
+
+          if ($attr->{DEBUG} && $attr->{DEBUG} > 1) {
+            print "gpon $oid_name -- $snmp->{$oid_name}->{NAME} -- $snmp->{$oid_name}->{OIDS}.$snmp_id \n";
+          }
+
+          my $values = snmp_get({ %{$attr},
+            WALK    => 1,
+            OID     => $oid . '.' . $snmp_id,
+            TIMEOUT => 25
+          });
+
+          foreach my $line (@{$values}) {
+            next if (!$line || $line !~ /\d+:.+/);
+            my ($onu_id, $oid_value) = split( /:/, $line, 2 );
+            $onu_id =~ s/\.\d+//;
+            if ($attr->{DEBUG} && $attr->{DEBUG} > 3) {
+              print $oid.'->'."$onu_id, $oid_value \n";
+            }
+            my $function = $snmp->{$oid_name}->{PARSER};
+            if ($function && defined( &{$function} )) {
+              ($oid_value) = &{ \&$function }($oid_value);
+            }
+            $total_info{$oid_name}{$snmp_id.'.'.$onu_id} = $oid_value;
           }
         }
-      }
-      else {
-        $value = $total_info{$cols->[$i]}{$key};
-      }
 
-      push @row, $value;
+        foreach my $key (keys %{ $total_info{ONU_STATUS} }) {
+          my %onu_info = ();
+          my ($branch, $onu_id) = split(/\./, $key, 2);
+          my $port_dhcp_id = decode_onu($branch, { TYPE => 'dhcp' });
+          for (my $i = 0; $i <= $#{ $cols }; $i++) {
+            my $value = '';
+            my $oid_name = $cols->[$i];
+            my $num = sprintf("%03d", $onu_id);
+            if ($oid_name eq 'ONU_ID') {
+              $value = $onu_id;
+            }
+            elsif ($oid_name eq 'PORT_ID') {
+              $value = $port_list->{$snmp_id}->{ID};
+            }
+            elsif ($oid_name eq 'PON_TYPE') {
+              $value = $type;
+            }
+            elsif ($oid_name eq 'ONU_DHCP_PORT') {
+              $value = $port_dhcp_id.'/'.$num;
+            }
+            elsif ($oid_name eq 'ONU_SNMP_ID') {
+              $value = $key;
+            }
+            else {
+              $value = $total_info{$cols->[$i]}{$key};
+            }
+            $onu_info{$oid_name}=$value;
+          }
+          push @all_rows, {%onu_info};
+        }
+      }
     }
-
-    my $onu_id = ($attr->{OLT_PORT}) ? $attr->{OLT_PORT}. '.'. $key : $key;
-
-    push @all_rows, [
-            @row,
-            $html->button('', "index=$index&visual=$FORM{visual}&NAS_ID=$FORM{NAS_ID}&onuReset=$onu_id", { class => 'glyphicon glyphicon-retweet', TITLE => $lang{REBOOT} }),
-            $html->button($lang{ADD}, 'index=15', { class => 'add' }),
-            $html->button($lang{INFO}, "index=$index&visual=$FORM{visual}&NAS_ID=$FORM{NAS_ID}&ONU=$onu_id", { class => 'info' })
-         ];
-    $num++;
   }
 
   return \@all_rows;
@@ -348,99 +385,286 @@ sub _zte {
   my ($attr) = @_;
 
   my %snmp =  (
-                 'reg_onu_count'   => '.1.3.6.1.4.1.3902.1012.3.13.1.1.13', #
-                 'unreg_onu_count' => '.1.3.6.1.4.1.3902.1012.3.13.1.1.14', #
-                 'onu_type'    => '.1.3.6.1.4.1.3902.1012.3.28.1.1.1',
-                 'onu_name'    => '.1.3.6.1.4.1.3902.1012.3.28.1.1.2',
-                 'onu_desr'    => '.1.3.6.1.4.1.3902.1012.3.28.1.1.3',
-                 'onu_vendorid'=> '.3.6.1.4.1.3902.1012.3.50.11.2.1.1',
-                 'mac_onu'     => '.1.3.6.1.4.1.3902.1012.3.50.16.1.1.3', #'.1.3.6.1.4.1.3902.1012.3.28.1.1.5', #'.1.3.6.1.4.1.3902.1015.1010.1.7.4.1.7',
-                 'onu_vlan'    => '1.3.6.1.4.1.3902.1012.3.50.13.3.1.1',
-                 'serial'      => '.1.3.6.1.4.1.3902.1012.3.28.1.1.5', #'.1.3.6.1.4.1.3902.1015.1010.1.7.4.1.7',
-                 'onustatus'   => '.1.3.6.1.4.1.3902.1012.3.28.2.1.4',
-                 'num'         => '.1.3.6.1.4.1.3902.1012.3.28.3.1.8', #lld
-                 'onu_model'   => '.1.3.6.1.4.1.3902.1012.3.50.11.2.1.9',
-                 'cur_tx'      => '.1.3.6.1.4.1.3902.1015.1010.11.2.1.2', # lazerpower
-                 'epon_n'      => '.1.3.6.1.4.1.3902.1012.3.13.1.1.1',
-                 'onu_distance'=> '.1.3.6.1.4.1.3902.1012.3.11.4.1.2',
-                 'onu_Reset'   => '.1.3.6.1.4.1.3320.101.10.1.1.29',
-                 'onu_load'    => '.1.3.6.1.4.1.3902.1012.3.28.2.1.5',
-                 'onu_uptime'  => '.1.3.6.1.4.1.3902.1012.3.50.11.2.1.20',
-                 'onu_firmware'=> '.3.6.1.4.1.3902.1012.3.50.11.2.1.2',
-                 'byte_in'     => '.1.3.6.1.4.1.3902.1012.3.28.6.1.5',
-                 'byte_out'    => '.1.3.6.1.4.1.3902.1012.3.28.6.1.15',
-             gpon => {
-                 'reg_onu_count'   => '.1.3.6.1.4.1.3902.1012.3.13.1.1.13', #
-                 'unreg_onu_count' => '.1.3.6.1.4.1.3902.1012.3.13.1.1.14', #
-                 'onu_type'    => '.1.3.6.1.4.1.3902.1012.3.28.1.1.1',
-                 'onu_name'    => '.1.3.6.1.4.1.3902.1012.3.28.1.1.2',
-                 'onu_desr'    => '.1.3.6.1.4.1.3902.1012.3.28.1.1.3',
-                 'onu_vendorid'=> '.3.6.1.4.1.3902.1012.3.50.11.2.1.1',
-                 'mac_onu'     => '.1.3.6.1.4.1.3902.1012.3.50.16.1.1.3', #'.1.3.6.1.4.1.3902.1012.3.28.1.1.5', #'.1.3.6.1.4.1.3902.1015.1010.1.7.4.1.7',
-                 'onu_vlan'    => '1.3.6.1.4.1.3902.1012.3.50.13.3.1.1',
-                 'serial'      => '.1.3.6.1.4.1.3902.1012.3.28.1.1.5', #'.1.3.6.1.4.1.3902.1015.1010.1.7.4.1.7',
-                 'onustatus'   => '.1.3.6.1.4.1.3902.1012.3.28.2.1.4',
-                 'num'         => '.1.3.6.1.4.1.3902.1012.3.28.3.1.8', #lld
-                 'onu_model'   => '.1.3.6.1.4.1.3902.1012.3.50.11.2.1.9',
-                 'cur_tx'      => '.1.3.6.1.4.1.3902.1015.1010.11.2.1.2', # lazerpower
-                 'epon_n'      => '.1.3.6.1.4.1.3902.1012.3.13.1.1.1',
-                 'onu_distance'=> '.1.3.6.1.4.1.3902.1012.3.11.4.1.2',
-                 'onu_Reset'   => '.1.3.6.1.4.1.3320.101.10.1.1.29',
-                 'onu_load'    => '.1.3.6.1.4.1.3902.1012.3.28.2.1.5',
-                 'onu_uptime'  => '.1.3.6.1.4.1.3902.1012.3.50.11.2.1.20',
-                 'onu_firmware'=> '.3.6.1.4.1.3902.1012.3.50.11.2.1.2',
-                 'byte_in'     => '.1.3.6.1.4.1.3902.1012.3.28.6.1.5',
-                 'byte_out'    => '.1.3.6.1.4.1.3902.1012.3.28.6.1.15',
-             },
-             # Epon
-             epon => {
-                 'reg_onu_count'   => '.1.3.6.1.4.1.3902.1012.3.13.1.1.13', #
-                 'unreg_onu_count' => '.1.3.6.1.4.1.3902.1012.3.13.1.1.14', #
-                 'onu_type'    => '.1.3.6.1.4.1.3902.1015.1010.1.7.4.1.5',
-                 'onu_name'    => '.1.3.6.1.4.1.3902.1012.3.28.1.1.2',
-                 'onu_desr'    => '.1.3.6.1.4.1.3902.1012.3.28.1.1.3',
-                 'onu_vendorid'=> '.1.3.6.1.4.1.3902.1015.1010.1.1.1.1.1.2',
-                 'mac_onu'     => '.1.3.6.1.4.1.3902.1015.1010.1.1.1.1.1.4',
-                 'onu_vlan'    => '.1.3.6.1.4.1.3902.1015.1010.1.1.1.10.2.1.1',
-                 'serial'      => '.1.3.6.1.4.1.3902.1012.3.28.1.1.5', #'.1.3.6.1.4.1.3902.1015.1010.1.7.4.1.7',
-                 'onustatus'   => '.1.3.6.1.4.1.3902.1015.1010.1.7.4.1.17',
-                 'num'         => '.1.3.6.1.4.1.3902.1012.3.28.3.1.8', #lld
-                 'onu_model'   => '.1.3.6.1.4.1.3902.1012.3.50.11.2.1.9',
-                 'cur_tx'      => '.1.3.6.1.4.1.3902.1015.1010.11.2.1.2', # lazerpower
-                 'epon_n'      => '.1.3.6.1.4.1.3902.1012.3.13.1.1.1',
-                 'onu_distance_feet'=> '.1.3.6.1.4.1.3902.1015.1010.1.2.1.1.10',
-                 'onu_Reset'   => '.1.3.6.1.4.1.3320.101.10.1.1.29',
-                 'onu_load'    => '.1.3.6.1.4.1.3902.1015.1010.1.7.4.1.12',
-                 'onu_uptime'  => '.1.3.6.1.4.1.3902.1012.3.50.11.2.1.20',
-                 'onu_firmware'=> '.1.3.6.1.4.1.3902.1015.1010.1.1.1.1.1.6',
-                 'byte_in'     => '.1.3.6.1.4.1.3902.1012.3.28.6.1.5',
-                 'byte_out'    => '.1.3.6.1.4.1.3902.1012.3.28.6.1.15',
-                 'onu_hard_version' => '.1.3.6.1.4.1.3902.1015.1010.1.1.1.1.1.5',
-             },
-             main_onu_info => {
-                 'onu_type'    => '.1.3.6.1.4.1.3902.1012.3.28.1.1.1',
-                 'onu_name'    => '.1.3.6.1.4.1.3902.1012.3.28.1.1.2',
-                 'onu_desr'    => '.1.3.6.1.4.1.3902.1012.3.28.1.1.3',
-                 'mac_onu'     => '.1.3.6.1.4.1.3902.1012.3.28.1.1.5', #'.1.3.6.1.4.1.3902.1015.1010.1.7.4.1.7',
-                 'serial'      => '.1.3.6.1.4.1.3902.1012.3.28.1.1.5', #'.1.3.6.1.4.1.3902.1015.1010.1.7.4.1.7',
-                 'onustatus'   => '.1.3.6.1.4.1.3902.1012.3.28.2.1.4',
-                 'num'         => '.1.3.6.1.4.1.3902.1012.3.28.3.1.8', #lld
-                 'onu_model'   => '.1.3.6.1.4.1.3902.1012.3.50.11.2.1.9',
-                 'cur_tx'      => '.1.3.6.1.4.1.3902.1015.1010.11.2.1.2', # lazerpower
-                 'onudistance' => '.1.3.6.1.4.1.3902.1012.3.11.4.1.2',
-                 'uptime'      => '.1.3.6.1.4.1.3902.1012.3.28.2.1.5',
-                 'byte_in'     => '.1.3.6.1.4.1.3902.1012.3.28.6.1.1',
-                 'byte_out'    => '.1.3.6.1.4.1.3902.1012.3.28.6.1.4',
-             }
+    epon => {
+      'ONU_MAC_SERIAL' => {
+        NAME => 'Mac/Serial',
+        OIDS => '.1.3.6.1.4.1.3902.1015.1010.1.1.1.1.1.4',
+        PARSER => 'bin2mac'
+      },
+      'ONU_STATUS' => {
+        NAME => 'Status',
+        OIDS => '.1.3.6.1.4.1.3902.1015.1010.1.7.4.1.17',
+        PARSER => ''
+      },
+      'ONU_TX_POWER' => {
+        NAME => 'Tx_Power',
+        OIDS => '', #.1.3.6.1.4.1.3902.1015.1010.1.1.1.29.1.4
+        PARSER => '_zte_convert_epon_power'
+      },
+      'ONU_RX_POWER' => {
+        NAME => 'Rx_Power',
+        OIDS => '.1.3.6.1.4.1.3902.1015.1010.1.1.1.29.1.5',
+        PARSER => '_zte_convert_epon_power'
+      },
+      'OLT_RX_POWER' => {
+        NAME => 'Olt_Rx_Power',
+        OIDS => '',
+        PARSER => ''
+      },
+      'ONU_DESC' => {
+        NAME => 'Description',
+        OIDS => '.1.3.6.1.4.1.3902.1015.1010.1.7.4.1.1',
+        PARSER => '_zte_convert_epon_description'
+      },
+      'ONU_IN_BYTE' => {
+        NAME => 'In',
+        OIDS => '',
+        PARSER => ''
+      },
+      'ONU_OUT_BYTE' => {
+        NAME => 'Out',
+        OIDS => '',
+        PARSER => ''
+      },
+      'TEMPERATURE' => {
+        NAME => 'Temperature',
+        OIDS => '', #.1.3.6.1.4.1.3902.1015.1010.1.1.1.29.1.1
+        PARSER => '_zte_convert_epon_temperature'
+      },
+      'reset' => {
+        NAME => '',
+        OIDS => '.1.3.6.1.4.1.3902.1015.1010.1.1.2.1.1.1',
+        PARSER => ''
+      },
+      main_onu_info => {
+        'HARD_VERSION' => {
+          NAME => 'Hhard_Version',
+          OIDS => '.1.3.6.1.4.1.3902.1015.1010.1.1.1.1.1.5',
+          PARSER => ''
+        },
+        'SOFT_VERSION' => {
+          NAME => 'Soft_Version',
+          OIDS => '.1.3.6.1.4.1.3902.1015.1010.1.1.1.1.1.6',
+          PARSER => ''
+        },
+        'VOLTAGE' => {
+          NAME => 'Voltage',
+          OIDS => '.1.3.6.1.4.1.3902.1015.1010.1.1.1.29.1.2',
+          PARSER => '_zte_convert_epon_voltage'
+        },
+        'DISATNCE' => {
+          NAME => 'Distance',
+          OIDS => '.1.3.6.1.4.1.3902.1015.1010.1.2.1.1.10',
+          PARSER => '_zte_convert_distance',
+        },
+        'TEMPERATURE' => {
+          NAME => 'Temperature',
+          OIDS => '.1.3.6.1.4.1.3902.1015.1010.1.1.1.29.1.1',
+          PARSER => '_zte_convert_epon_temperature'
+        },
+        'ONU_TX_POWER' => {
+          NAME => 'Tx_Power',
+          OIDS => '.1.3.6.1.4.1.3902.1015.1010.1.1.1.29.1.4',
+          PARSER => '_zte_convert_epon_power'
+        }
+      }
+    },
+    gpon => {
+      'ONU_MAC_SERIAL' => {
+        NAME => 'Mac/Serial',
+        OIDS => '.1.3.6.1.4.1.3902.1012.3.28.1.1.5',
+        PARSER => 'bin2hex'
+      },
+      'ONU_STATUS' => {
+        NAME => 'Status',
+        OIDS => '.1.3.6.1.4.1.3902.1012.3.28.2.1.4',
+        PARSER => ''
+      },
+      'ONU_TX_POWER' => {
+        NAME => 'Tx_Power',
+        OIDS => '', #.1.3.6.1.4.1.3902.1012.3.50.12.1.1.14
+        PARSER => '_zte_convert_power',
+        ADD_2_OID => '.1'
+      }, # tx_power = tx_power * 0.002 - 30.0;
+      'ONU_RX_POWER' => {
+        NAME => 'Rx_Power',
+        OIDS => '.1.3.6.1.4.1.3902.1012.3.50.12.1.1.10',
+        PARSER => '_zte_convert_power',
+        ADD_2_OID => '.1'
+      }, # rx_power = rx_power * 0.002 - 30.0;
+      'OLT_RX_POWER' => {
+        NAME => 'Olt_Rx_Power',
+        OIDS => '', #.1.3.6.1.4.1.3902.1015.1010.11.2.1.2
+        PARSER => '_zte_convert_olt_power'
+      }, # olt_rx_power = olt_rx_power * 0.001;
+      'ONU_DESC' => {
+        NAME => 'Description',
+        OIDS => '.1.3.6.1.4.1.3902.1012.3.28.1.1.2',
+        PARSER => '_zte_convert_description'
+      },
+      'ONU_IN_BYTE' => {
+        NAME => 'In',
+        OIDS => '',
+        PARSER => ''
+      },
+      'ONU_OUT_BYTE' => {
+        NAME => 'Out',
+        OIDS => '',
+        PARSER => ''
+      },
+      'TEMPERATURE' => {
+        NAME => 'Temperature',
+        OIDS => '', #.1.3.6.1.4.1.3902.1012.3.50.12.1.1.19
+        PARSER => '_zte_convert_temperature',
+        ADD_2_OID => '.1'
+      },
+      'reset' => {
+        NAME => '',
+        OIDS => '.1.3.6.1.4.1.3902.1012.3.50.11.3.1.1',
+        PARSER => ''
+      },
+      main_onu_info => {
+        'VERSION_ID' => {
+          NAME => 'Version_ID',
+          OIDS => '.1.3.6.1.4.1.3902.1012.3.50.11.2.1.2',
+          PARSER => ''
+        },
+        'VENDOR_ID' => {
+          NAME => 'Vendor_ID',
+          OIDS => '.1.3.6.1.4.1.3902.1012.3.50.11.2.1.1',
+          PARSER => ''
+        },
+        'EQUIPMENT_ID' => {
+          NAME => 'Equipment_ID',
+          OIDS => '.1.3.6.1.4.1.3902.1012.3.50.11.2.1.9',
+          PARSER => ''
+        },
+        'VOLTAGE' => {
+          NAME => 'Voltage',
+          OIDS => '.1.3.6.1.4.1.3902.1012.3.50.12.1.1.17',
+          PARSER => '_zte_convert_voltage',
+          ADD_2_OID => '.1'
+        },
+        'DISATNCE' => {
+          NAME => 'Distance',
+          OIDS => '.1.3.6.1.4.1.3902.1012.3.11.4.1.2',
+          PARSER => '_zte_convert_distance'
+        },
+        'TEMPERATURE' => {
+          NAME => 'Temperature',
+          OIDS => '.1.3.6.1.4.1.3902.1012.3.50.12.1.1.19',
+          PARSER => '_zte_convert_temperature',
+          ADD_2_OID => '.1'
+        },
+        'ONU_TX_POWER' => {
+          NAME => 'Tx_Power',
+          OIDS => '.1.3.6.1.4.1.3902.1012.3.50.12.1.1.14',
+          PARSER => '_zte_convert_power',
+          ADD_2_OID => '.1'
+        }
+      }
+    }
+#    'reg_onu_count'   => '.1.3.6.1.4.1.3902.1012.3.13.1.1.13', #
+#    'unreg_onu_count' => '.1.3.6.1.4.1.3902.1012.3.13.1.1.14', #
+#    'onu_type'    => '.1.3.6.1.4.1.3902.1012.3.28.1.1.1',
+#    'onu_name'    => '.1.3.6.1.4.1.3902.1012.3.28.1.1.2',
+#    'onu_desr'    => '.1.3.6.1.4.1.3902.1012.3.28.1.1.3',
+#    'onu_vendorid'=> '.3.6.1.4.1.3902.1012.3.50.11.2.1.1',
+#    'mac_onu'     => '.1.3.6.1.4.1.3902.1012.3.28.1.1.5', #'.1.3.6.1.4.1.3902.1012.3.28.1.1.5', #'.1.3.6.1.4.1.3902.1015.1010.1.7.4.1.7',
+#    'onu_vlan'    => '1.3.6.1.4.1.3902.1012.3.50.13.3.1.1',
+#    'serial'      => '.1.3.6.1.4.1.3902.1012.3.28.1.1.5', #'.1.3.6.1.4.1.3902.1015.1010.1.7.4.1.7',
+#    'onustatus'   => '.1.3.6.1.4.1.3902.1012.3.28.2.1.4',
+#    'num'         => '.1.3.6.1.4.1.3902.1012.3.28.3.1.8', #lld
+#    'onu_model'   => '.1.3.6.1.4.1.3902.1012.3.50.11.2.1.9',
+#    'cur_tx'      => '.1.3.6.1.4.1.3902.1015.1010.11.2.1.2', # lazerpower
+#    'epon_n'      => '.1.3.6.1.4.1.3902.1012.3.13.1.1.1',
+#    'onu_distance'=> '.1.3.6.1.4.1.3902.1012.3.11.4.1.2',
+#    'onu_Reset'   => '.1.3.6.1.4.1.3320.101.10.1.1.29',
+#    'onu_load'    => '.1.3.6.1.4.1.3902.1012.3.28.2.1.5',
+#    'onu_uptime'  => '.1.3.6.1.4.1.3902.1012.3.50.11.2.1.20',
+#    'onu_firmware'=> '.3.6.1.4.1.3902.1012.3.50.11.2.1.2',
+#    'byte_in'     => '.1.3.6.1.4.1.3902.1012.3.28.6.1.5'
+    #.1.3.6.1.4.1.3902.1012.3.13.1.1.1 - gpon port descr
+    #.1.3.6.1.4.1.3902.1015.1010.1.7.16.1.1 - epon port descr
+    #.1.3.6.1.4.1.3902.1015.1010.1.7.4.1.7 - MAC-адреса ОНУ
+    #.1.3.6.1.4.1.3902.1015.1010.1.2.1.1.10 - расстояние до ОНУ
+    #.1.3.6.1.4.1.3902.1015.1010.1.1.1.29.1.5.ID - уровень сигнала (только через snmpget)
+    #.1.3.6.1.4.1.3902.1015.1010.1.7.4.1.5 - модель ОНУ
+    #.1.3.6.1.4.1.3902.1015.1010.1.1.1.1.1.2 - производитель ОНУ
+    #.1.3.6.1.4.1.3902.1015.1010.1.1.1.1.1.6 - версия ПО ОНУ
   );
 
-  if ($attr->{EPON}) {
-    return $snmp{epon};
+  if ($attr->{TYPE}) {
+    return $snmp{$attr->{TYPE}};
   }
 
   return \%snmp;
 }
 
+#**********************************************************
+=head2 _zte_onu_status();
+
+  Arguments:
+    $attr
+      EPON - Show epon status describe
+
+  Returns:
+    Status hash_ref
+
+=cut
+#**********************************************************
+sub _zte_onu_status {
+  my ($pon_type) = @_;
+
+  my %status = (
+      0 => 'unknown:text-orange',
+      1 => 'LOS:text-red',
+      2 => 'Synchronization:text-red',
+      3 => 'Online:text-green',
+      4 => 'Dying_gasp:text-red',
+      5 => 'Power_Off:text-orange',
+      6 => 'Offline:text-red',
+  );
+
+  if ($pon_type eq 'epon') {
+    %status = (
+        1 => 'Power_Off:text-orange',
+        2 => 'Offline:text-red',
+        3 => 'Online:text-green'
+    );
+  }
+
+  return \%status;
+}
+#**********************************************************
+=head2 _zte_set_desc_port($attr) - Set Description to OLT ports
+
+=cut
+#**********************************************************
+sub _zte_set_desc {
+  my ($attr) = @_;
+  my $oid = $attr->{OID} || '' ;
+  if ($attr->{PORT}) {
+    if ($attr->{PORT_TYPE} eq 'gpon') {
+      $oid = '1.3.6.1.4.1.3902.1012.3.13.1.1.1.'.$attr->{PORT};
+    }
+    else {
+      $oid = '.1.3.6.1.4.1.3902.1015.1010.1.7.16.1.1.'.$attr->{PORT};
+    }
+  }
+  #$attr->{DESC} = convert($attr->{DESC}, {utf82win => 1});
+  if ($attr->{PON_TYPE} && $attr->{PON_TYPE} eq 'epon') {
+    $attr->{DESC} = $attr->{ONU_ID}.'$$'.$attr->{DESC}.'$$';
+  }
+  Encode::_utf8_off($attr->{DESC});
+  Encode::from_to($attr->{DESC}, 'utf-8', 'windows-1251');
+  snmp_set(
+      {
+        SNMP_COMMUNITY => $attr->{SNMP_COMMUNITY},
+            OID        => [ $oid, "string", $attr->{DESC} ]
+      }
+  );
+}
 #**********************************************************
 =head2 decode_onu($dec) - Decode onu int
 
@@ -459,24 +683,33 @@ sub decode_onu {
 
   my %result = ();
   my $bin = sprintf( "%032b", $dec );
-
   my ($bin_type) = $bin =~ /^(\d{4})/;
   my $type = oct( "0b$bin_type" );
-
+  my $i = ($attr->{MODEL_NAME} && $attr->{MODEL_NAME} =~ /C220/i ) ? 0 : 1;
   if ( $type == 3 ) {
     @result{'type', 'shelf', 'slot', 'olt',
       'onu'} = map { oct( "0b$_" ) } $bin =~ /^(\d{4})(\d{4})(\d{5})(\d{3})(\d{8})(\d{8})/;
-    return $type .'#'. $type_name{$result{type}}
-      . '_' . $result{shelf}
+    if ($attr->{TYPE} && $attr->{TYPE} eq 'dhcp') {
+      $result{slot} = ($attr->{MODEL_NAME} && $attr->{MODEL_NAME} =~ /C220/i ) ? sprintf("%02d", $result{slot}) : sprintf("%02d", $result{slot});
+      $result{onu}  = ($attr->{MODEL_NAME} && $attr->{MODEL_NAME} =~ /C220/i ) ? sprintf("%02d", $result{onu}) : sprintf("%03d", $result{onu});
+      if ($attr->{MODEL_NAME} && $attr->{MODEL_NAME} =~ /C220/i ) {
+        $result{slot} =~ s/^0/ /g;
+        $result{onu} =~ s/^0/ /g;
+      }
+    }
+    return (($attr->{DEBUG}) ? $type .'#'. $type_name{$result{type}} . '_' : '')
+      . ($result{shelf} + $i)
       . '/' . $result{slot}
       . '/' . ($result{olt} + 1)
-      . ':' . $result{onu};
+      . (($attr->{TYPE} && $attr->{TYPE} eq 'dhcp') ? '/' : ':')
+      . $result{onu};
   }
   elsif ( $type == 1 ) {
     @result{'type', 'shelf', 'slot', 'olt'} = map { oct( "0b$_" ) } $bin =~ /^(\d{4})(\d{4})(\d{8})(\d{8})(\d{8})/;
+    $result{slot} = sprintf("%02d", $result{slot}) if ($attr->{TYPE} && $attr->{TYPE} eq 'dhcp');
     return (($attr->{DEBUG}) ? $type .'#'. $type_name{$result{type}} . '_' : '')
       . $result{shelf}
-      . '/' . sprintf("%02d", $result{slot})
+      . '/' . $result{slot}
       . '/' . $result{olt};
   }
   elsif ( $type == 6 ) {
@@ -492,5 +725,216 @@ sub decode_onu {
   return 0;
 }
 
+#**********************************************************
+=head2 encode_port($type, $self, $slot, $olt) - Decode port
+
+  Arguments:
+    $dec
+
+  Returns:
+    deparsing string
+
+=cut
+#**********************************************************
+sub encode_port {
+  my ($type, $self, $slot, $olt) = @_;
+
+  my $bin = sprintf( "%04b", $type )
+            . sprintf( "%04b", $self-1 )
+            . sprintf( "%08b", $slot )
+            . sprintf( "%08b", $olt )
+            . '00000000';
+
+  return oct( "0b$bin" );
+}
+
+#**********************************************************
+=head2 _zte_convert_power($power) - Convert power
+
+=cut
+#**********************************************************
+sub _zte_convert_epon_power {
+  my ($power) = @_;
+
+  $power //= 0;
+
+  if($power) {
+    if ($power eq 'N/A' || $power =~ /65535/ || $power && $power > 0) {
+      $power = '0';
+    }
+    else {
+      $power = sprintf("%.2f", $power);
+    }
+  }
+
+  return $power;
+}
+
+#**********************************************************
+=head2 _zte_convert_power();
+
+=cut
+#**********************************************************
+sub _zte_convert_power{
+  my ($power) = @_;
+
+  $power //= 0;
+
+  if ($power eq '0' || $power > 60000) {
+    $power = '0';
+  }
+  else {
+    $power = ($power * 0.002 - 30 );
+    $power = sprintf("%.2f", $power);
+  }
+  return $power;
+}
+
+#**********************************************************
+=head2 _zte_convert_olt_power();
+
+=cut
+#**********************************************************
+sub _zte_convert_olt_power{
+  my ($olt_power) = @_;
+
+  $olt_power //= 0;
+
+  if ($olt_power eq '65535000') {
+    $olt_power = '';
+  }
+  else {
+    $olt_power = ($olt_power * 0.001);
+    $olt_power = sprintf("%.2f", $olt_power);
+  }
+
+  return $olt_power;
+}
+
+#**********************************************************
+=head2 _zte_convert_description();
+
+=cut
+#**********************************************************
+sub _zte_convert_description{
+  my ($description) = @_;
+
+  $description = convert($description || q{}, {win2utf8 => 1});
+
+  return $description;
+}
+
+#**********************************************************
+=head2 _zte_convert_epon_description();
+
+=cut
+#**********************************************************
+sub _zte_convert_epon_description{
+  my ($description) = @_;
+
+  if(! defined($description)) {
+    return q{};
+  }
+
+  if ($description =~ /^.*\$\$(.*)\$\$.*$/) {
+    $description = $1;
+  }
+
+  $description = convert($description, {win2utf8 => 1});
+  return $description;
+}
+
+#**********************************************************
+=head2 _zte_convert_temperature();
+
+=cut
+#**********************************************************
+sub _zte_convert_temperature{
+  my ($temperature) = @_;
+
+  $temperature //= 0;
+
+  if (2147483647 == $temperature) {
+    $temperature = '';
+  }
+  else {
+    $temperature = ($temperature * 0.001);
+    $temperature  = sprintf("%.2f", $temperature);
+  }
+
+  return $temperature;
+}
+
+#**********************************************************
+=head2 _zte_convert_epon_temperature();
+
+=cut
+#**********************************************************
+sub _zte_convert_epon_temperature{
+  my ($temperature) = @_;
+
+  $temperature //= 0;
+
+  if ($temperature eq '2147483647') {
+    $temperature = '';
+  }
+  elsif ($temperature) {
+    $temperature  = sprintf("%.2f", $temperature);
+  }
+
+  return $temperature;
+}
+
+#**********************************************************
+=head2 _zte_convert_epon_voltage();
+
+=cut
+#**********************************************************
+sub _zte_convert_epon_voltage{
+  my ($voltage) = @_;
+
+  $voltage //= 0;
+
+  $voltage = sprintf("%.2f V", $voltage);
+
+  return $voltage;
+}
+
+#**********************************************************
+=head2 _zte_convert_voltage();
+
+=cut
+#**********************************************************
+sub _zte_convert_voltage{
+  my ($voltage) = @_;
+
+  $voltage //= 0;
+
+  $voltage = $voltage * 0.02;
+
+  $voltage .= ' V';
+
+  return $voltage;
+}
+
+#**********************************************************
+=head2 _zte_convert_distance();
+
+=cut
+#**********************************************************
+sub _zte_convert_distance{
+  my ($distance) = @_;
+
+  $distance //= 0;
+
+  if ($distance eq '-1') {
+    $distance = '--';
+  }
+  else {
+    $distance = $distance * 0.001;
+    $distance .= ' km';
+  }
+  return $distance;
+}
 
 1

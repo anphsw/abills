@@ -8,7 +8,12 @@
 <input type=hidden name='VAT' value='%VAT%'>
 <input type=hidden name='SEND_EMAIL' value='1'>
 <input type=hidden name='ALL_SERVICES' value='1'>
-<legend>%CAPTION%</legend>
+    <div class='box box-theme'>
+        <div class="box-header with-border">
+            <h3 class="box-title">%CAPTION%</h3>
+        </div>
+        <div class='box-body form form-horizontal'>
+
 
 <table class=form>
 %FORM_ACCT_ID%
@@ -42,4 +47,6 @@
 </th></tr>
 </table>
 <!-- <input type=submit name=pre value='_{PRE}_'>  -->
+        </div>
+    </div>
 </form>

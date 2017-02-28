@@ -1,11 +1,12 @@
-
-<div class='panel panel-default panel-form'>
-  <div class='panel-heading'>
-    <a data-toggle='collapse' data-parent='#accordion' href='#%ID%'>%NAME%</a>
+<div class='box box-theme box-big-form %PARAMS%'>
+  <div class='box-header with-border'>
+    <h4 class='box-title'>%NAME%</h4>
+    <div class='box-tools pull-right'>
+      <button type='button' class='btn btn-default btn-xs' data-widget='collapse'><i class='fa fa-plus'></i>
+      </button>
+    </div>
   </div>
-  <div id='%ID%' class='panel-collapse collapse out %PARAMS%'>
-  	<div class='panel-body'>
-	    %CONTENT%
-	  </div>
+  <div class='box-body' style='color: black'>
+    %CONTENT%
   </div>
 </div>

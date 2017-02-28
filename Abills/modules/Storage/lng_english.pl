@@ -18,7 +18,6 @@ $lang{RETURN_STORAGE} = 'Return to storage';
 $lang{RETURNED_STORAGE} = 'Returned to склад';
 $lang{RETURNED_IN}='Возвращено на ';
 $lang{INSTALL}='Установить';
-$lang{INSTALLED}='Installed';
 $lang{INSTALLATIONS}='Installations';
 $lang{RESERVE}='Reserve';
 $lang{RESERVEDTO}='Reserved to';

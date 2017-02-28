@@ -3,9 +3,9 @@
 <input type='hidden' name='index' value=$index>
 <input type='hidden' name='ID' value='%ID%'>
 
-<div class='panel panel-form panel-primary form-horizontal'>
-<div class='panel-heading'>_{COMING}_</div>
-<div class='panel-body'>
+<div class='box box-form box-primary form-horizontal'>
+<div class='box-header with-border'>_{COMING}_</div>
+<div class='box-body'>
   <div class='form-group'>
     <label class='col-md-3 control-label'>_{SUM}_</label>
     <div class='col-md-9'>
@@ -27,7 +27,7 @@
   <div class='form-group'>
     <label class='col-md-3 control-label'>_{DATE}_</label>
     <div class='col-md-9'>
-      <input type='text' class='form-control tcal' name='DATE' value='%DATE%'>
+      <input type='text' class='form-control datepicker' name='DATE' value='%DATE%'>
     </div>
   </div>
   <div class='form-group'>
@@ -37,7 +37,7 @@
     </div>
   </div>
 </div>
-<div class='panel-footer'>
+<div class='box-footer'>
   <input type='submit' class='btn btn-primary' value='%ACTION_LANG%' name='%ACTION%'>
 </div>
 </div>

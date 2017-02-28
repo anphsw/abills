@@ -24,7 +24,7 @@ our (
 );
 
 my $Netlist = Netlist->new( $db, $admin, \%conf );
-my $Nas = Nas->new( $db, $admin, \%conf );
+my $Nas = Nas->new( $db, \%conf, $admin );
 
 my @status_colors = ('success', 'danger', 'warning', 'info');
 my @ipv6_prefixes = (
@@ -284,25 +284,26 @@ sub netlist_ip_calc {
 sub netlist_list {
   $Netlist->{ACTION} = 'add';
   $Netlist->{ACTION_LNG} = $lang{ADD};
-
-  my @status_colors = ('success', 'danger', 'warning', 'info');
-
+  
   if ( $FORM{ping} ) {
     host_diagnostic($FORM{ping});
   }
   elsif ( $FORM{add} ) {
-    if ( defined $FORM{IP} ) {
-      if ( netlist_validate_v6($FORM{IP}) ) {
-        $FORM{IPV6} = $FORM{IP};
-        undef $FORM{IP};
+    if ( defined $FORM{IP} && netlist_validate_v6($FORM{IP}) ) {
+      $FORM{IPV6} = $FORM{IP};
+      undef $FORM{IP};
+    }
+    
+    if ( !defined $FORM{IP} || !defined $FORM{IPV6} ) {
+      $html->message('err', $lang{ERR_WRONG_DATA});
+    }
+    else {
+      $Netlist->ip_add( { %FORM } );
+      if ( !$Netlist->{errno} ) {
+        $html->message( 'info', $lang{INFO}, "$lang{ADDED}" );
       }
+      %FORM = ();
     }
-
-    $Netlist->ip_add( { %FORM } );
-    if ( !$Netlist->{errno} ) {
-      $html->message( 'info', $lang{INFO}, "$lang{ADDED}" );
-    }
-    undef %FORM;
   }
   elsif ( $FORM{change} ) {
     $FORM{DATE} = $DATE;
@@ -310,7 +311,7 @@ sub netlist_list {
     if ( !$Netlist->{errno} ) {
       $html->message( 'info', $lang{INFO}, "$lang{CHANGED}" );
     }
-    undef %FORM;
+    %FORM = ();
   }
   elsif ( defined($FORM{chg}) ) {
     $Netlist->ip_info( $FORM{chg} );
@@ -327,9 +328,9 @@ sub netlist_list {
       $html->message( 'info', $lang{INFO}, "$lang{DELETED}" );
     }
   }
-
+  
   _error_show($Netlist);
-
+  
   $Netlist->{STATE_SEL} = $html->form_select(
     'STATUS',
     {
@@ -338,7 +339,7 @@ sub netlist_list {
       ARRAY_NUM_ID => 1
     }
   );
-
+  
   $Netlist->{GROUP_SEL} = $html->form_select(
     'GID',
     {
@@ -349,7 +350,7 @@ sub netlist_list {
       SEL_OPTIONS => { '' => '--' },
     }
   );
-
+  
   $Netlist->{STATE_SEL} = $html->form_select(
     'STATUS',
     {
@@ -358,9 +359,9 @@ sub netlist_list {
       ARRAY_NUM_ID => 1
     }
   );
-
+  
   $Netlist->{MAC_AUTO_DETECT} = 'checked' if ($Netlist->{MAC_AUTO_DETECT});
-
+  
   if ( $FORM{search_form} ) {
     $html->tpl_show( _include('netlist_ip_search', 'Netlist'), { %{$Netlist}, %FORM } );
   }
@@ -368,15 +369,15 @@ sub netlist_list {
     $Netlist->{IP_SCAN_INDEX} = get_function_index('netlist_ip_scan');
     $html->tpl_show( _include('netlist_ip', 'Netlist'), $Netlist );
   }
-
+  
   $pages_qs .= "&GID=$FORM{GID}" if ($FORM{GID});
-
+  
   my $list = $Netlist->ip_list( { %LIST_PARAMS, %FORM, COLS_NAME => 1 } );
-
+  
   if ( _error_show($Netlist) ) {
     return 0;
   }
-
+  
   my $table = $html->table(
     {
       width      => '100%',
@@ -396,16 +397,16 @@ sub netlist_list {
       "$lang{ADD}:add_form=1&index=$index:add;$lang{SEARCH}:index=" . get_function_index('netlist_ip_scan') . ":search"
     }
   );
-
+  
   foreach my $line ( @{$list} ) {
     my $delete = $html->button( $lang{DEL}, "index=$index&del=$line->{ip_id}",
       { MESSAGE => "$lang{DEL} $line->{ip}?", class => 'del' } );
     my $change = $html->button( $lang{INFO}, "index=$index&chg=$line->{ip_id}", { class => 'show' } );
-
+    
     $table->addrow(
       $html->form_input( 'IDS', "$line->{ip_id}", { TYPE => 'checkbox', EX_PARAMS => 'class="noprint"' } ),
       $line->{ip_id},
-      ($Netlist->db_version() < 5.6) ? "$line->{ip}" : $line->{ip},
+        ($Netlist->db_version() < 5.6) ? "$line->{ip}" : $line->{ip},
       $line->{netmask},
       $line->{hostname},
       $line->{descr},
@@ -415,11 +416,11 @@ sub netlist_list {
       $change, $delete
     );
   }
-
+  
   if ( $FORM{EXPORT_CONTENT} ) {
     print $table->show();
   }
-
+  
   my $table2 = $html->table(
     {
       width       => '100%',
@@ -429,23 +430,23 @@ sub netlist_list {
         $html->form_input( 'change', $lang{CHANGE}, { TYPE => 'SUBMIT' } ) ]
     }
   );
-
+  
   my @rows = ("$lang{GROUP}: " . $Netlist->{GROUP_SEL}, "$lang{STATUS}: " . $Netlist->{STATE_SEL},
     "RESOLVE: " . $html->form_input( 'RESOLV', '1', { TYPE => 'checkbox' } ),
     $html->form_input( 'change', $lang{CHANGE}, { TYPE => 'SUBMIT' } ));
-
+  
   my $info = '';
   foreach my $val ( @rows ) {
     $info .= $html->element( 'div', $val, { class => 'form-group' } );
   }
-
+  
   print $html->form_main(
-      {
-        CONTENT => $table->show() . $html->element( 'div', $info, { class => 'navbar navbar-default form-inline' } ),
-        HIDDEN  => { index => "$index" },
-      }
-    );
-
+    {
+      CONTENT => $table->show() . $html->element( 'div', $info, { class => 'navbar navbar-default form-inline' } ),
+      HIDDEN  => { index => "$index" },
+    }
+  );
+  
   $table = $html->table(
     {
       width      => '100%',
@@ -453,9 +454,9 @@ sub netlist_list {
       rows       => [ [ "$lang{TOTAL}:", $Netlist->{TOTAL} ] ]
     }
   );
-
+  
   print $table->show();
-
+  
   return 1;
 }
 
@@ -808,6 +809,7 @@ sub netlist_ip_scan {
   if ( $FORM{action} ) {
     if ( $FORM{DO_SCAN} ) {
       my $ip = $attr->{IP} || $FORM{IP};
+      # FIXME: split is obsolete, cause script will throw error later, when checking IP address
       my $prefix = $attr->{MASK_BITS} || $FORM{MASK_BITS} || @{ split('/', $ip) }[1];
 
       #Validate IP;
@@ -828,7 +830,7 @@ sub netlist_ip_scan {
 
       #start long operation
       $html->message( 'info', $lang{SCAN},
-        "$ip/$prefix <div class='row' id='html-wait'><span class='fa fa-spinner fa-pulse fa-2x'></span></div>" );
+        "$ip/$prefix" );
 
       #**
       #* Do scan
@@ -862,7 +864,7 @@ sub netlist_ip_scan {
         $table->addrow(
           $html->form_input( $i++ . "_ADDRESS", $ip_address, { TYPE => 'checkbox', EX_PARAMS => 'class="noprint"' } ),
           $ip_address,
-          $html->element( 'abbr', $host_info->{mac_addr}, { title => $host_info->{mac_vendor} } )
+          $html->element( 'abbr', $host_info->{mac_addr}, { title => $host_info->{mac_vendor} || q{} } )
         );
       }
       undef $i;
@@ -970,13 +972,17 @@ sub netlist_ip_scan_exec {
   }
 
   return 0 unless $scanner;
-
+  
   $scanner->set_timeout( '200' );
   $scanner->set_target( "$ip/$prefix" );
 
   #    $scanner->{debug} = 1;
 
   my $results = $scanner->scan();
+  if ($results->{errno}){
+    _error_show($results, {MESSAGE => $results->{errstr}});
+    return 0;
+  }
 
   return $results;
 }
@@ -987,14 +993,23 @@ sub netlist_ip_scan_exec {
 =cut
 #**********************************************************
 sub netlist_show_networks {
+
   require Dhcphosts;
   Dhcphosts->import();
   my $Dhcphosts = Dhcphosts->new( $db, $admin, \%conf );
 
-  my $dhcp_networks = $Dhcphosts->networks_list( { SHOW_ALL_COLUMNS => 1,COLS_NAME => 1, PAGE_ROWS  => 10000000, } );
+  my $dhcp_networks = $Dhcphosts->networks_list( {
+    NAME             => '_SHOW',
+    NETWORK          => '_SHOW',
+    NETMASK          => '_SHOW',
+    SHOW_ALL_COLUMNS => 1,
+    COLS_NAME        => 1,
+    PAGE_ROWS        => 100000
+  } );
+
   _error_show($Dhcphosts);
 
-  my $ip_pools = $Nas->ip_pools_list( { COLS_NAME => 1, PAGE_ROWS  => 10000000, } );
+  my $ip_pools = $Nas->ip_pools_list( { COLS_NAME => 1, PAGE_ROWS  => 100000, } );
   _error_show($Nas);
 
   my $info_index = get_function_index('netlist_network_info');
@@ -1034,7 +1049,6 @@ sub netlist_show_networks {
     } );
 
   foreach my $pool ( @{$dhcp_networks} ) {
-
     my $info_button = $html->button( '', "index=$info_index&TYPE=Dhcphosts&ID=$pool->{id}", { class => 'info' } );
 
     $dhcphosts_networks_table->addrow(
@@ -1086,23 +1100,23 @@ sub netlist_network_info {
     my $Dv = Dv->new( $db, $admin, \%conf );
 
     my $users_list = $Dv->list( {
-        UID       => '_SHOW',
-        ONLINE    => '_SHOW',
-        DV_LOGIN  => '_SHOW',
-        PAGE_ROWS  => 10000000,
-        IP        => int2ip($first_ip_num) . '*' . int2ip($last_ip_num),
-        COLS_NAME => 1
-      } );
+      UID       => '_SHOW',
+      ONLINE    => '_SHOW',
+      DV_LOGIN  => '_SHOW',
+      PAGE_ROWS => 10000000,
+      IP        => int2ip($first_ip_num) . '*' . int2ip($last_ip_num),
+      COLS_NAME => 1
+    } );
+
     _error_show($Dv);
 
     # Get online info from dv_calls
     foreach my $user ( @{$users_list} ) {
-      $lookup_ip_info_table{$user->{ip}} = $user;
-
-      $lookup_ip_info_table{$user->{ip}}->{login} = $user->{dv_login} if ($user->{dv_login});
+      my $ip = $user->{ip} || int2ip($user->{ip_num});
+      $lookup_ip_info_table{$ip} = $user;
+      $lookup_ip_info_table{$ip}->{login} = $user->{dv_login} if ($user->{dv_login});
       delete $user->{dv_login};
-
-      $lookup_uid_ip_table{$user->{uid}} = $user->{ip};
+      $lookup_uid_ip_table{$user->{uid}} = $ip;
 
       push (@uids, $user->{uid});
     }
@@ -1113,29 +1127,41 @@ sub netlist_network_info {
     Dhcphosts->import();
     my $Dhcphosts = Dhcphosts->new( $db, $admin, \%conf );
 
-    my $networks_list = $Dhcphosts->networks_list( { ID => $FORM{ID}, SHOW_ALL_COLUMNS => 1, COLS_NAME => 1 } );
-    return 0 if (_error_show($Dhcphosts));
+    my $networks_list = $Dhcphosts->networks_list( {
+      ID               => $FORM{ID},
+      NAME             => '_SHOW',
+      NETWORK_INT      => '_SHOW',
+      NETMASK_INT      => '_SHOW',
+      SHOW_ALL_COLUMNS => 1,
+      COLS_NAME        => 1,
+    } );
 
+    return 0 if (_error_show($Dhcphosts));
+    
     %network = %{$networks_list->[0]};
+    
+    $network{network_int} //= 0;
     $first_ip_num = $network{network_int} + 1;
 
     my $netmask = $network{netmask_int};
     my $netmask_binary = sprintf('%032b', $netmask);
     my $bits_count = index ($netmask_binary, '0');
     my $hosts_count = 1 << (32 - $bits_count);
+    
     $last_ip_num = $first_ip_num + $hosts_count - 3;
-
+    
     my $users_list = $Dhcphosts->hosts_list( {
-        UID          => '_SHOW',
-        LOGIN        => '_SHOW',
-        IPN_ACTIVATE => '_SHOW',
-        ONLINE       => '_SHOW',
-        PAGE_ROWS  => 10000000,
-        IP           => int2ip($first_ip_num) . '*' . int2ip($last_ip_num),
-        COLS_NAME    => 1
-      } );
+      UID          => '_SHOW',
+      LOGIN        => '_SHOW',
+      IPN_ACTIVATE => '_SHOW',
+      ONLINE       => '_SHOW',
+      PAGE_ROWS    => 10000000,
+      IP_NUM       => ">$first_ip_num;<$last_ip_num",
+      IP           => '_SHOW',
+      COLS_NAME    => 1
+    } );
     _error_show($Dhcphosts);
-
+    
     foreach my $user ( @{$users_list} ) {
       $lookup_ip_info_table{$user->{ip}} = $user;
       $lookup_uid_ip_table{$user->{uid}} = $user->{ip};
@@ -1146,7 +1172,7 @@ sub netlist_network_info {
   else {
     $html->message( 'err', 'Error', 'Wrong parameter TYPE given' );
   }
-
+  
   for ( my $ip_address_num = $first_ip_num; $ip_address_num <= $last_ip_num; $ip_address_num++ ) {
     my $ip_str = int2ip($ip_address_num);
     my ($last_octet) = $ip_str =~ /\.(\d{1,3})$/;
@@ -1170,10 +1196,12 @@ sub netlist_network_info {
       COLS_NAME  => 1
     } );
   _error_show($users);
-
+  
   foreach my $user ( @{$users_list} ) {
     my $ip_address = $lookup_uid_ip_table{$user->{uid}};
 
+    next unless (defined $ip_address);
+    
     # Preventing redefining dv_login if already exists
     $lookup_ip_info_table{$ip_address}->{login} = $user->{login} if (!exists $lookup_ip_info_table{$ip_address}->{login});
     $lookup_ip_info_table{$ip_address}->{fio} = $user->{fio};
@@ -1190,7 +1218,7 @@ sub netlist_network_info {
   foreach my $custom_watch_ip ( @$netlist_defined_ips ) {
     $lookup_ip_info_table{$custom_watch_ip->{ip}}{netlist_status} = $custom_watch_ip->{status};
   }
-
+  
   print _netlist_make_ip_table(
       \@last_octets,
       sub {
@@ -1250,16 +1278,21 @@ sub _netlist_make_ip_table {
 #**********************************************************
 sub _netlist_make_user_info_popover {
   my ($user_info_hash, $last_octet) = @_;
-
+  
   my $online = $user_info_hash->{online};
   my $class = $online ? 'success' : 'info';
-
-  if (my $status_num = $user_info_hash->{netlist_status}){
+  
+  if ( my $status_num = $user_info_hash->{netlist_status} ) {
     $last_octet = $html->color_mark( $last_octet, 'text-' . $status_colors[ $status_num ] );
     $last_octet =~ s/'/"/g;
   }
-
-
+  
+  if ( !exists $user_info_hash->{uid} ) {
+    return qq{
+    <td class='$class'>$last_octet</td>
+    };
+  }
+  
   my $html_content = <<"INFO_HTML";
   <div class="table">
 <table class="table table-striped table-condensed">
@@ -1281,9 +1314,9 @@ sub _netlist_make_user_info_popover {
   </tr>
 </table>
 INFO_HTML
-
+  
   my $user_link = $html->button($last_octet, 'index=15&UID=' . $user_info_hash->{uid});
-
+  
   return <<"RESULT";
 <td class='$class'>
 <div id='netlist-info-td-$last_octet' data-tooltip='$html_content' data-tooltip-position='auto top'>
@@ -1291,7 +1324,7 @@ INFO_HTML
 </div>
 </td>
 RESULT
-
+  
 }
 
 1

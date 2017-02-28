@@ -4,8 +4,8 @@
 
 <fieldset>
 
-<div class='panel panel-default panel-form'>
-<div class='panel-body'>
+<div class='box box-theme box-form'>
+<div class='box-body'>
 
 <legend>billd</legend>
 <div class='form-group'>

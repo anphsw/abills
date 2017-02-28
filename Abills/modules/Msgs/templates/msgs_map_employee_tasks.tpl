@@ -10,7 +10,7 @@
 
         <label class='control-label' for='DATE_id'>_{DATE}_ _{TYPE}_</label>
         %DATE_TYPE_SELECT%
-        <input type='text' class='form-control tcal' name='DATE' id='DATE_id' placeholder='$DATE' value='$FORM{DATE}'/>
+        <input type='text' class='form-control datepicker' name='DATE' id='DATE_id' placeholder='$DATE' value='$FORM{DATE}'/>
 
         <input type='submit' class='btn btn-primary' name='action' value='_{SHOW}_'/>
 

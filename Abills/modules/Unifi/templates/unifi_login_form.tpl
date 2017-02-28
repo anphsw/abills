@@ -9,8 +9,8 @@
 
 <div class='row'>
   <div class='col-md-6 col-md-offset-3'>
-    <div class='panel panel-login'>
-      <div class='panel-heading'>
+    <div class='box box-login'>
+      <div class='box-header with-border'>
         <div class='row' style='display: %RULES_SHOW_STYLE%;'>
           <div class='col-md-2'>
             <button type='button' id='rules-btn' class='btn btn-success pull-left' data-toggle='modal' data-target='#rulesModal'>
@@ -29,7 +29,7 @@
         </div>
         <hr>
       </div>
-      <div class='panel-body'>
+      <div class='box-body'>
         <div class='row'>
           <div class='col-lg-12'>
             <form id='login-form' method='post' role='form'>
@@ -68,7 +68,7 @@
                 <div class='row'>
                   <div class='col-sm-6'>
                     <a id='buy_card_link' tabindex='5' class='form-control btn btn-info'
-                       href='$conf{BILLING_URL}/start.cgi?login_return_url=%RETURN_URL%'>_{BUY}_
+                       href='$conf{BILLING_URL}/start.cgi?UNIFI_SITENAME=%UNIFI_SITENAME%&login_return_url=%RETURN_URL%'>_{BUY}_
                       _{ACCESS}_ </a>
                   </div>
                   <div class='col-sm-6'>
@@ -87,6 +87,8 @@
               <input type='hidden' name='GUEST_ACCOUNT' value='1'>
               <input type='hidden' name='mac' value='%USER_MAC%'>
               <input type='hidden' name='ap' value='%USER_AP%'>
+              <input type='hidden' name='login_return_url' value='%RETURN_URL%'>
+              <input type='hidden' name='UNIFI_SITENAME' value='%UNIFI_SITENAME%'>
 
               <div class='form-group text-center'>
                 <label>$conf{HOTSPOT_GUEST_MESSAGE}</label>

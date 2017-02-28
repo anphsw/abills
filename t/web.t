@@ -19,6 +19,7 @@ BEGIN {
   unshift(@INC, $libpath);
   unshift(@INC, $libpath . 'lib/');
   unshift(@INC, $libpath . 'libexec/');
+   unshift(@INC, $libpath . 'Abills/');
   unshift(@INC, $libpath . 'Abills/modules/');
   eval { require Time::HiRes; };
   our $global_begin_time = 0;

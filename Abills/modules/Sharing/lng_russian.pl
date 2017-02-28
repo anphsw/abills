@@ -1,5 +1,5 @@
 $lang{EXTRA_TRAFIC} = 'Дополнительный Трафик';
-
+$lang{AMOUNT}         ='Абонплата';
 $lang{FILES}          = 'Файлы';
 $lang{TIME_FOR_LINK}  = 'Время жизни ссылки';
 $lang{TIME_FOR_FILE}  = 'Время доступа к файлу';
@@ -11,3 +11,4 @@ $lang{FILE_NOT_CHANGED} = 'Файд не изменен';
 $lang{DAYS}             = 'Дней';
 $lang{SUCCESS_BUY}      = 'Успешно оплатили покупку файла до ';
 $lang{DATE_TO}          = 'Скачивание доступно до ';
+$lang{SECONDS}          = 'Секунд';

@@ -1,5 +1,5 @@
-<div class='panel panel-default panel-form'>
-<div class='panel-body'>
+<div class='box box-theme box-form'>
+<div class='box-body'>
 
 <FORM action='$SELF_URL' METHOD='POST'  enctype='multipart/form-data' name='add_message' id='add_message' class='form-horizontal'>
     <legend>_{TEMPLATES}_</legend>

@@ -1,4 +1,6 @@
+$lang{EXTRA_TRAFIC}   = 'Додатковий трафік';
 $lang{FILES}          = 'Файли';
+$lang{AMOUNT}         ='Абонплата';
 $lang{TIME_FOR_LINK}  = 'Час життя посилання';
 $lang{TIME_FOR_FILE}  = 'Час доступу до файлу';
 $lang{BUY}            = 'Купити';
@@ -9,3 +11,4 @@ $lang{FILE_NOT_CHANGED} = 'Файл не змінений';
 $lang{DAYS}             = 'Днів';
 $lang{SUCCESS_BUY}      = 'Успішно оплатили покупку файла до ';
 $lang{DATE_TO}          = 'Завантаження доступно до ';
+$lang{SECONDS}          = 'Секунд';

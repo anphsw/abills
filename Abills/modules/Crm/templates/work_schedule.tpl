@@ -3,8 +3,8 @@
 <input type='hidden' name='AID' value='$FORM{AID_SCHEDULE}'>
 <input type='hidden' name='index' value='$index'>
 
-<div class='panel panel-primary panel-form '>
-  <div class='panel-body'>
+<div class='box box-theme box-form '>
+  <div class='box-body'>
     <ul class='nav nav-tabs' role='tablist'>
       <li class='active'>
         <a href='#monthly' role='tab' data-toggle='tab'>_{MONTHLY}_</a>
@@ -12,9 +12,9 @@
       <li>
         <a href='#hourly' role='tab' data-toggle='tab'>_{HOURLY}_</a>
       </li>
-      <li>
+      <!-- <li>
         <a href='#other' role='tab' data-toggle='tab'>Other</a>
-      </li>
+      </li> -->
     </ul>
 
     <div class='tab-content'>
@@ -40,9 +40,9 @@
         <input type='hidden' name='TYPE' value='2'>
         <hr>
         <div class='form-group'>
-          <label class='col-md-3 control-label'>_{BET_PER_DAY}_</label>
+          <label class='col-md-3 control-label'>_{BET_PER_HOUR}_</label>
           <div class='col-md-9'>
-            <input type='text' name='BET_PER_DAY' value='%BET_PER_DAY%' class='form-control'>
+            <input type='text' name='BET_PER_HOUR' value='%BET_PER_HOUR%' class='form-control'>
           </div>
         </div>
         <div class='form-group'>
@@ -59,7 +59,7 @@
       </div>
     </div>
   </div>
-  <div class='panel-footer'>
+  <div class='box-footer'>
     <input class='btn btn-primary' type='submit' name='%ACTION%' value='%ACTION_LNG%'/>
   </div>
 </div>

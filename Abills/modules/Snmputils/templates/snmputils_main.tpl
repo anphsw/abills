@@ -1,22 +1,59 @@
-<FORM action='$SELF_URL'>
+<form action='$SELF_URL'>
 <input type='hidden' name='index' value='$index'>
-<table class=form>
-<tr><td>SNMP Host:</td><td><input type='text' name='SNMP_HOST' value='%SNMP_HOST%'></td></tr>
-<tr><td>SNMP Community:</td><td><input type='text' name='SNMP_COMMUNITY' value='%SNMP_COMMUNITY%'></td></tr>
-    <tr>
-        <td>_{NAS}_:</td>
-        <td>%NAS_SEL%</td>
-    </tr>
-<tr><td>SNMP OID:</td><td><input type='text' name='SNMP_OID' value='%SNMP_OID%'></td></tr>
-    <tr>
-        <td>_{TYPE}_:</td>
-        <td>%TYPE_SEL%</td>
-    </tr>
-<tr><td>MIBS:</td><td>%MIBS%</td></tr>
-<tr><td>DEBUG:</td><td>%DEBUG_SEL%</td></tr>
-    <tr>
-        <th class=even colspan=2><input type='submit' name='SHOW' value='_{SHOW}_'></th>
-    </tr>
-</table>
+<div class='box box-theme box-form form-horizontal'>
+    <div class='box-header'>
+      <h4>SNMP Информация</h4>
+    </div>
+    
+    <div class='box-body'>
+      
+      <div class='form-group'>
+        <label class='control-label col-md-4' for='SNMP_HOST'>SNMP Host</label>
+        <div class='col-md-8'>
+         <input class='form-control' type='text' name='SNMP_HOST' value='%SNMP_HOST%'>
+        </div>
+      </div>
+        
+      <div class='form-group'>
+        <label class='control-label col-md-4' for='SNMP_COMMUNITY'>SNMP Community</label>
+        <div class='col-md-8'>
+     <input class='form-control' type='text' name='SNMP_COMMUNITY' value='%SNMP_COMMUNITY%'>
+        </div>
+       </div>
 
-</FORM>
+
+      <div class='form-group'>
+        <label class='control-label col-md-4'>_{NAS}_</label>
+        <div class='col-md-8'>%NAS_SEL%</div>
+      </div>
+
+      <div class='form-group'>
+        <label class='control-label col-md-4' for='SNMP_OID'>SNMP OID</label>
+        <div class='col-md-8'>
+         <input class='form-control' type='text' name='SNMP_OID' value='%SNMP_OID%'>
+        </div>
+      </div> 
+        
+      <div class='form-group'>
+        <label class='control-label col-md-4'>_{TYPE}_</label>
+        <div class='col-md-8'>%TYPE_SEL%</div>
+      </div>             
+        
+      <div class='form-group'>
+        <label class='control-label col-md-4'>MIBS</label>
+        <div class='col-md-8'>%MIBS%</div>
+      </div>             
+        
+      <div class='form-group'>
+        <label class='control-label col-md-4'>DEBUG</label>
+        <div class='col-md-8'>%DEBUG_SEL%</div>
+      </div>
+        
+    </div>
+                
+    <div class='box-footer'>
+    <input class='btn btn-primary' type='submit' name='SHOW' value='_{SHOW}_'>
+    </div>
+</div>
+</form>
+  

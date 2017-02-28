@@ -1,6 +1,6 @@
 <form method='POST'>
 
-<div class='panel panel-default'>
+<div class='box box-theme'>
 %FILES%
 </div>
 

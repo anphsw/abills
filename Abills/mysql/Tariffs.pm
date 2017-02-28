@@ -102,7 +102,7 @@ sub ti_list {
 
   $self->query2("SELECT i.id, i.day, $begin_end
    i.tarif,
-   count(tt.id) AS traffic_classes,
+   COUNT(tt.id) AS traffic_classes,
    i.id
    FROM intervals i
    LEFT JOIN  trafic_tarifs tt ON (tt.interval_id=i.id)
@@ -117,7 +117,9 @@ sub ti_list {
 }
 
 #**********************************************************
-# Time intervals change
+=head2 ti_change($ti_id, $attr) - Time intervals change
+
+=cut
 #**********************************************************
 sub ti_change {
   my $self = shift;
@@ -152,8 +154,9 @@ sub ti_change {
 }
 
 #**********************************************************
-# Time_intervals  info
-# ti_info();
+=head2 ti_info($ti_id) - Time_intervals  info
+
+=cut
 #**********************************************************
 sub ti_info {
   my $self = shift;
@@ -198,8 +201,9 @@ sub ti_defaults {
 }
 
 #**********************************************************
-# TP GROUP
-#
+=head2 tp_group_del($id)
+
+=cut
 #**********************************************************
 sub tp_group_del {
   my $self = shift;
@@ -228,8 +232,9 @@ sub tp_group_add {
 }
 
 #**********************************************************
-# TP GROUP
-#
+=head2 tp_group_list($attr)
+
+=cut
 #**********************************************************
 sub tp_group_list {
   my $self = shift;
@@ -376,7 +381,9 @@ sub defaults {
 }
 
 #**********************************************************
-# Add
+=head2 add($attr) - Add tp
+
+=cut
 #**********************************************************
 sub add {
   my $self = shift;
@@ -384,8 +391,13 @@ sub add {
 
   if (!$attr->{ID}) {
     $self->query2("SELECT MAX(id) FROM tarif_plans WHERE domain_id= ? ORDER BY 1 DESC LIMIT 1",
-    undef, { Bind => [ $admin->{DOMAIN_ID} ] } );
-    $attr->{ID} = int($self->{list}->[0]->[0]) + 1;
+    undef, { Bind => [ $admin->{DOMAIN_ID} || 0 ] } );
+    if(! $self->{TOTAL}) {
+      $attr->{ID} = 1;
+    }
+    else {
+      $attr->{ID} = int($self->{list}->[0]->[0]) + 1;
+    }
   }
 
   $self->query_add('tarif_plans', {
@@ -405,7 +417,9 @@ sub add {
 }
 
 #**********************************************************
-# change
+=head2 change($tp_id, $attr) - change
+
+=cut
 #**********************************************************
 sub change {
   my $self = shift;
@@ -462,6 +476,7 @@ sub change {
     NEXT_TARIF_PLAN         => 'next_tp_id',
     FEES_METHOD             => 'fees_method',
     USER_CREDIT_LIMIT       => 'user_credit_limit',
+    SERVICE_ID              => 'service_id'
   );
 
   $attr->{REDUCTION_FEE}        = 0 if (!$attr->{REDUCTION_FEE});
@@ -493,7 +508,9 @@ sub change {
 }
 
 #**********************************************************
-# del
+=head2 del($id, $attr) - TP del
+
+=cut
 #**********************************************************
 sub del {
   my $self = shift;
@@ -541,6 +558,13 @@ sub info {
   else {
     push @WHERE_FIELDS, 'tp_id = ?';
     push @WHERE_VALUES, $id;
+  }
+
+  if(defined($admin->{DOMAIN_ID})) {
+    if($attr->{TP_ID} && $admin->{DOMAIN_ID}) {
+      push @WHERE_FIELDS, 'domain_id = ?';
+      push @WHERE_VALUES, $admin->{DOMAIN_ID};
+    }
   }
 
   $self->query2("SELECT *,
@@ -646,6 +670,8 @@ sub list {
         [ 'PREPAID',             'INT', 'tt.prepaid',                  1 ],
         [ 'IN_PRICE',            'INT', 'tt.in_price',                 1 ],
         [ 'OUT_PRICE',           'INT', 'tt.out_price',                1 ],
+        [ 'SERVICE_ID',          'INT', 'tp.service_id',               1 ],
+        [ 'SERVICE_NAME',        'INT', 'tp.service_id', 'tp.service_id AS service_name' ],
         [ 'INTERVALS',           'INT', 'ti.id',   'COUNT(i.id) AS intervals' ],
     ],
     { WHERE => 1,
@@ -656,8 +682,8 @@ sub list {
   my $fields = '';
 
   if (! $attr->{NEW_MODEL_TP} ) {
-    $fields = "if(sum(i.tarif) is NULL or sum(i.tarif)=0, 0, 1) AS time_tarifs, 
-    if(sum(tt.in_price + tt.out_price)> 0, 1, 0) AS traf_tarifs, 
+    $fields = "IF(SUM(i.tarif) is null or sum(i.tarif)=0, 0, 1) AS time_tarifs,
+    IF(SUM(tt.in_price + tt.out_price)> 0, 1, 0) AS traf_tarifs,
     tp.payment_type,
     tp.day_fee, tp.month_fee, 
     tp.logins, 
@@ -699,7 +725,9 @@ sub list {
 }
 
 #**********************************************************
-# list_allow nass
+=head2 nas_list($attr) list_allow nass
+
+=cut
 #**********************************************************
 sub nas_list {
   my $self = shift;
@@ -776,7 +804,9 @@ sub tt_defaults {
 }
 
 #**********************************************************
-# tt_info
+=head2 tt_list($attr)
+
+=cut
 #**********************************************************
 sub tt_list {
   my $self = shift;

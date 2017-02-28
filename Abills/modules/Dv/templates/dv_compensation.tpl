@@ -1,6 +1,6 @@
 <div class='noprint'>
-<div class="panel panel-default panel-form">
-<div class="panel-body">
+<div class="box box-theme box-form">
+<div class="box-body">
 
 <form action='$SELF_URL' method='POST' name='compensation' class='form-horizontal'>
 <input type=hidden name='index' value='$index'>
@@ -11,14 +11,14 @@
   <div class='form-group'>
     <label class='control-label col-md-3' for='FROM'>_{FROM}_</label>
     <div class='col-md-9'>
-      <input id='FROM' name='FROM_DATE' value='%FROM_DATE%' class='form-control tcal' type='text'>
+      <input id='FROM' name='FROM_DATE' value='%FROM_DATE%' class='form-control datepicker' type='text'>
     </div>
   </div>
 
   <div class='form-group'>
     <label class='control-label col-md-3' for='TO'>_{TO}_</label>
     <div class='col-md-9'>
-      <input id='TO' name='TO_DATE' value='%TO_DATE%' class='form-control tcal' type='text'>
+      <input id='TO' name='TO_DATE' value='%TO_DATE%' class='form-control datepicker' type='text'>
     </div>
   </div>
 

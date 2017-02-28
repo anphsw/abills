@@ -236,10 +236,10 @@ o_cal.a_tpl.weekdays   = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Су�
 <TABLE>
 <tr>
   <td>$_REQUEST_DATE:</td><td><input type=text name=REQUEST_DATE value='%REQUEST_DATE%' size=12>
-  <script language='JavaScript'>var o_cal = new tcal ({	'formname': 'marketing_report2',	'controlname': 'REQUEST_DATE'	});</script>
+  <script language='JavaScript'>var o_cal = new datepicker ({	'formname': 'marketing_report2',	'controlname': 'REQUEST_DATE'	});</script>
   </td>
   <td>$_REGISTRATION:</td><td><input type=text name=REGISTRATION value='%REGISTRATION%' size=12>
-  <script language='JavaScript'>var o_cal = new tcal ({	'formname': 'marketing_report2',	'controlname': 'REGISTRATION'	});</script>
+  <script language='JavaScript'>var o_cal = new datepicker ({	'formname': 'marketing_report2',	'controlname': 'REGISTRATION'	});</script>
   </td>
 </tr>
 
@@ -281,13 +281,13 @@ o_cal.a_tpl.weekdays   = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Су�
 <tr><td colspan=2>$_PRE_TP: </td><td colspan=2>%PRE_TP_ID_SEL%</td></tr>
 
 <tr> <td colspan=2 colspan=2>$_TARIF_PLAN $_CHANGED:</td><td colspan=2><input type=text name=TARIF_PLAN_CHANGED value='%TARIF_PLAN_CHANGED%' size=12>
-  <script language='JavaScript'>var o_cal = new tcal ({	'formname': 'marketing_report2',	'controlname': 'TARIF_PLAN_CHANGED'	});</script>
+  <script language='JavaScript'>var o_cal = new datepicker ({	'formname': 'marketing_report2',	'controlname': 'TARIF_PLAN_CHANGED'	});</script>
 </td></tr>
 
 <tr><th colspan=4 class=form_title>$_PAYMENTS <input type=checkbox name=PAYMENTS value=1 checked></th></tr>
 <tr>
   <td>$_LAST_PAYMENT:</td><td><input type=text name=LAST_PAYMENT_DATE value='%LAST_PAYMENT_DATE%' size=12>
-  <script language='JavaScript'>var o_cal = new tcal ({	'formname': 'marketing_report2',	'controlname': 'LAST_PAYMENT_DATE'	});</script>
+  <script language='JavaScript'>var o_cal = new datepicker ({	'formname': 'marketing_report2',	'controlname': 'LAST_PAYMENT_DATE'	});</script>
   </td>
   <td>$_PAYMENTS $_TYPE:</td><td>%LAST_PAYMENT_METHOD_SEL%</td>
 </tr>
@@ -295,7 +295,7 @@ o_cal.a_tpl.weekdays   = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Су�
 <tr>
   <td>$_SUM:</td><td><input type=text name=LAST_PAYMENT_SUM value='%LAST_PAYMENT_SUM%'></td>
   <td>$_PAYMENT_TO_DATE:</td><td><input type=text name=PAYMENT_TO_DATE value='%PAYMENT_TO_DATE%' size=12>
-  <script language='JavaScript'>var o_cal = new tcal ({	'formname': 'marketing_report2',	'controlname': 'PAYMENT_TO_DATE'	});</script>
+  <script language='JavaScript'>var o_cal = new datepicker ({	'formname': 'marketing_report2',	'controlname': 'PAYMENT_TO_DATE'	});</script>
   </td>
 </tr>
 
@@ -326,7 +326,7 @@ o_cal.a_tpl.weekdays   = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Су�
 
 <tr>
   <td>$_DISABLE $_DATE:</td><td><input type=text name=DISABLE_DATE value='%DISABLE_DATE%' size=12>
-  <script language='JavaScript'>var o_cal = new tcal ({	'formname': 'marketing_report2',	'controlname': 'DISABLE_DATE'	});</script>
+  <script language='JavaScript'>var o_cal = new datepicker ({	'formname': 'marketing_report2',	'controlname': 'DISABLE_DATE'	});</script>
   </td>
   <td>$_DISABLE $_COMMENTS:</td><td><input type=text name=DISABLE_REASON value='%DISABLE_REASON%'></td>
 </tr>

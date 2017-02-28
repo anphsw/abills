@@ -1,6 +1,6 @@
 <div class='col-md-6'>
-  <div class='panel panel-default form-horizontal'>
-    <div class='panel-body'>
+  <div class='box box-theme form-horizontal'>
+    <div class='box-body'>
       <div class="media">
         <div class="media-left media-middle">
           <a href="#">
@@ -16,13 +16,13 @@
         </div>
       </div>
       <div class='form-group'>
-        <label class='col-md-3 control-label'>Описание</label>
+        <label class='col-md-3 control-label'>_{DESCRIPTION}_</label>
         <div class='col-md-8'>
         <input type='text' name='%FILE_NAME%_DESCRIBE' value='%FILE_NAME_DESCRIBE%' class='form-control'>
         </div>
       </div>
     </div>
-    <div class='panel-footer'>
+    <div class='box-footer'>
       <div class='checkbox'>
         <label>
           <input type='checkbox' %CHECKED% name=%FILE_NAME%> %FILE_NAME%

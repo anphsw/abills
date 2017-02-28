@@ -3,10 +3,10 @@
 <input type='hidden' name='ID' value='$FORM{chg}'>
 
 
-<div class='panel panel-primary panel-form'>
-<div class='panel-heading'>%ACTION_LNG%</div>
+<div class='box box-theme box-form'>
+<div class='box-header with-border'>%ACTION_LNG%</div>
 
-<div class='panel-body form-horizontal'>
+<div class='box-body form-horizontal'>
 	<div class='form-group'>
 		<label class='col-md-3 control-label'>_{NAME}_:</label>
 		<div class='col-md-9'><input class='form-control' type='text' name='NAME' value='%NAME%' /></div>
@@ -33,7 +33,7 @@
 	</div>
 
 </div>
-<div class='panel-footer'>
+<div class='box-footer'>
 	<input class='btn btn-primary' type='submit' name='%ACTION%' value='%ACTION_LNG%'>
 </div>
 

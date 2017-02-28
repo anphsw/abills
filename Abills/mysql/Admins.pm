@@ -148,7 +148,7 @@ sub set_permissions {
   $self->{AID}         = $self->{MAIN_AID};
   $IP                  = $self->{MAIN_SESSION_IP};
 
-  $self->system_action_add("AID:$self->{CHANGED_AID} PERMISION:", { TYPE => 2 });
+  $self->system_action_add("AID:$self->{CHANGED_AID} PERMISION:", { TYPE => 65 });
   $self->{AID} = $self->{CHANGED_AID};
   return $self->{permissions};
 }
@@ -203,6 +203,14 @@ sub info {
     $WHERE = "WHERE a.domain_id= ? ";
     push @values, $attr->{DOMAIN_ID};
   }
+  elsif($attr->{TELEGRAM_ID}){
+    $WHERE = "WHERE a.telegram_id= ? ";
+    push @values, $attr->{TELEGRAM_ID};
+  }
+  elsif($attr->{SIP_NUMBER}){
+    $WHERE = "WHERE a.sip_number= ? ";
+    push @values, $attr->{SIP_NUMBER};
+  }
   else {
     $WHERE = "WHERE a.aid= ? ";
     push @values, $aid;
@@ -216,6 +224,7 @@ sub info {
      a.name AS a_fio,
      a.regdate,
      a.phone,
+     a.position,
      a.email,
      a.comments,
      d.name AS domain_name,
@@ -228,7 +237,9 @@ sub info {
      a.inn,
      a.birthday,
      a.api_key,
+     a.sip_number,
      a.gps_imei,
+     a.telegram_id,
      ";
   }
 
@@ -239,13 +250,15 @@ sub info {
       a.disable,
       a.web_options,
       a.gid,
+      a.position,
       a.domain_id,
       a.max_credit,
       a.max_rows,
       a.credit_days,
-      count(ag.aid) AS gids_,
-      count(aa.aid) AS admin_access,
-      a.aid
+      COUNT(ag.aid) AS gids_,
+      COUNT(aa.aid) AS admin_access,
+      a.aid,
+      a.name AS a_fio
      FROM
       admins a
      LEFT JOIN admins_groups ag ON (a.aid=ag.aid)
@@ -269,8 +282,12 @@ sub info {
     return $self;
   }
 
-  if ($self->{GIDS_} > 0) {
-    $self->query2("SELECT gid FROM admins_groups WHERE aid='$self->{AID}';");
+  if ($self->{GIDS_}) {
+    $self->query2("SELECT gid FROM admins_groups WHERE aid= ? ;", undef, {
+      INFO => 1,
+      Bind => [ $self->{AID} ]
+    });
+
     my @gid_arr = ();
     if($self->{GID}) {
       push @gid_arr, $self->{GID};
@@ -287,7 +304,7 @@ sub info {
 }
 
 #**********************************************************
-=head1 list() - List admins
+=head1 list($attr) - List admins
 
 =cut
 #**********************************************************
@@ -315,13 +332,21 @@ sub list {
     $EXT_TABLES = 'LEFT JOIN domains d ON (d.id=a.domain_id) ';
   }
 
-  # if ($attr->{POSITION}) {
-  #   push @WHERE_RULES, "a.position != 0";
-  # }
+  if($attr->{WITH_SIP_NUMBER}){
+    push @WHERE_RULES, "a.sip_number!=''";
+  }
+
+  if ($attr->{WITH_POSITION}) {
+    push @WHERE_RULES, "a.position != 0";
+  }
+
+  if ($attr->{POSITION} && $attr->{POSITION} ne '_SHOW') {
+    push @WHERE_RULES, "a.position = '$attr->{POSITION}'";
+  }
 
   my $WHERE = $self->search_former($attr, [
       ['ADMIN_NAME',   'STR',  'a.name',  'a.name AS admin_name' ],
-      ['POSITION',     'INT',  'a.position',      1 ],
+      # ['POSITION',     'STR',  'ep.position',      1 ],
       ['REGDATE',      'DATE', "a.regdate",       1 ],
       ['START_WORK',   'DATE', "a.start_work",    1 ],
       ['GID',          'INT',  'a.gid',           1 ],
@@ -332,7 +357,8 @@ sub list {
       ['DOMAIN_NAME',  'STR',  'a.name', 'd.name AS domain_name' ],
       ['DOMAIN_ID',    'INT',  'a.domain_id',     1 ],
       ['AID',          'INT',  'a.aid'              ],
-      ['SIP_NUMBER',   'INT',  'a.sip_number'       ],
+      ['SIP_NUMBER',   'INT',  'a.sip_number',    1 ],
+      ['TELEGRAM_ID',  'STR',  'a.telegram_id',   1 ],
     ],
     {
       WHERE_RULES => \@WHERE_RULES,
@@ -342,9 +368,9 @@ sub list {
 
   my $EMPLOYEE_JOIN = '';
   my $EMPLOYEE_COLS = '';
-
+  #use Abills::Base;
   #FIXME: CHECK MODULE
-  if (0) {
+  if ($self->{SHOW_EMPLOYEES} == 1) {
     $EMPLOYEE_JOIN = " LEFT JOIN employees_positions ep ON (ep.id=a.position) ";
     $EMPLOYEE_COLS = ' ep.position as position, ';
   }
@@ -371,7 +397,7 @@ sub list {
 
   my $list = $self->{list};
   if ($self->{TOTAL} >= 0 && !$attr->{SKIP_TOTAL}) {
-    $self->query2("SELECT count(*) AS total
+    $self->query2("SELECT COUNT(*) AS total
    FROM admins a
     LEFT JOIN groups g ON (a.gid=g.gid)
     $EXT_TABLES
@@ -454,7 +480,9 @@ sub del {
 }
 
 #**********************************************************
-#  action_add()
+=head2 action_add($uid, $actions, $attr)
+
+=cut
 #**********************************************************
 sub action_add {
   my $self = shift;
@@ -466,19 +494,23 @@ sub action_add {
 
   $IP = $attr->{IP} if ($attr->{IP});
 
-  $self->query_add('admin_actions', { AID         => $self->{AID},
-                                      IP          => "$IP",
-                                      DATETIME    => 'NOW()',
-                                      ACTIONS     => $actions,
-                                      UID         => $uid,
-                                      MODULE      => ($self->{MODULE}) ? $self->{MODULE} : '',
-                                      ACTION_TYPE => ($attr->{TYPE})   ? $attr->{TYPE}   : ''
-                                    });
+  $self->query_add('admin_actions', {
+    AID         => $self->{AID},
+    IP          => $IP || '0.0.0.0',
+    DATETIME    => 'NOW()',
+    ACTIONS     => $actions,
+    UID         => $uid,
+    MODULE      => ($self->{MODULE}) ? $self->{MODULE} : '',
+    ACTION_TYPE => ($attr->{TYPE})   ? $attr->{TYPE}   : ''
+  });
+
   return $self;
 }
 
 #**********************************************************
-#  action_info()
+=head2 action_info($id)
+
+=cut
 #**********************************************************
 sub action_info {
   my $self = shift;
@@ -494,7 +526,9 @@ sub action_info {
 }
 
 #**********************************************************
-#  action_del()
+=head2 action_del($id)
+
+=cut
 #**********************************************************
 sub action_del {
   my $self = shift;
@@ -509,7 +543,9 @@ sub action_del {
 }
 
 #**********************************************************
-#
+=head2 action_summary($attr)
+
+=cut
 #**********************************************************
 sub action_summary {
   my $self = shift;
@@ -517,20 +553,21 @@ sub action_summary {
 
   my $WHERE = $self->search_former($attr, [
       ['TYPE',         'INT',  'aa.action_type',  ],
-      ['DATE',         'DATE', "date_format(aa.datetime, '%Y-%m-%d')"     ],
-      ['FROM_DATE|TO_DATE', 'DATE', "date_format(aa.datetime, '%Y-%m-%d')" ],
-      ['MONTH',        'DATE', "date_format(aa.datetime, '%Y-%m')" ],
+      ['DATE',         'DATE', "DATE_FORMAT(aa.datetime, '%Y-%m-%d')"      ],
+      ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(aa.datetime, '%Y-%m-%d')" ],
+      ['MONTH',        'DATE', "DATE_FORMAT(aa.datetime, '%Y-%m')"         ],
       ['UID',          'INT',  'aa.uid'           ],
       ['AID',          'INT',  'aa.aid'           ],
       ['ADMIN',        'INT',  'a.id', 'a.id'     ],
     ],
     {
+      WHERE => 1
     }
   );
 
-  $self->query2("SELECT action_type, count(*) AS total
+  $self->query2("SELECT action_type, COUNT(*) AS total
     FROM admin_actions aa
-    WHERE date_format(aa.datetime, '%Y-%m')=date_format(curdate(), '%Y-%m') AND  $WHERE
+    $WHERE
     GROUP BY action_type;",
     undef,
     $attr
@@ -539,7 +576,7 @@ sub action_summary {
   return $self->{list};
 }
 #**********************************************************
-=head2 action_list($attr)
+=head2 action_list($attr) - Show admin users actions
 
 =cut
 #**********************************************************
@@ -615,6 +652,7 @@ sub action_list {
   $self->query2("SELECT COUNT(*) AS total FROM admin_actions aa
     LEFT JOIN users u ON (aa.uid=u.uid)
     LEFT JOIN admins a ON (aa.aid=a.aid)
+    $EXT_TABLES
     $WHERE;",
     undef,
     { INFO => 1 }
@@ -634,7 +672,7 @@ sub system_action_add {
 
   $self->query_add('admin_system_actions', { AID         => $self->{AID},
                                              IP          => "$IP",
-                                             DATETIME    => 'now()',
+                                             DATETIME    => 'NOW()',
                                              ACTIONS     => $actions,
                                              MODULE      => ($self->{MODULE}) ? $self->{MODULE} : '',
                                              ACTION_TYPE => ($attr->{TYPE}) ? $attr->{TYPE}   : ''
@@ -654,7 +692,9 @@ sub system_action_del {
 }
 
 #**********************************************************
-#  system_action_list()
+=head2 system_action_list($attr)
+
+=cut
 #**********************************************************
 sub system_action_list {
   my $self = shift;
@@ -671,8 +711,8 @@ sub system_action_list {
       ['TYPE',         'INT',  'aa.action_type',  ],
       ['MODULE',       'STR',  'aa.module',       ],
       ['IP',           'IP',   'aa.ip'            ],
-      ['DATE',         'DATE', "date_format(aa.datetime, '%Y-%m-%d')"     ],
-      ['FROM_DATE|TO_DATE', 'DATE', "date_format(aa.datetime, '%Y-%m-%d')" ],
+      ['DATE',         'DATE', "DATE_FORMAT(aa.datetime, '%Y-%m-%d')"     ],
+      ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(aa.datetime, '%Y-%m-%d')" ],
       ['AID',          'INT',  'aa.aid'           ],
       ['ADMIN',        'STR',  'a.id', 'a.id'     ],
     ],
@@ -681,7 +721,7 @@ sub system_action_list {
     );
 
   $self->query2(
-     "SELECT aa.id, aa.datetime, aa.actions, a.id, INET_NTOA(aa.ip), aa.module,
+     "SELECT aa.id, aa.datetime, aa.actions, a.id, INET_NTOA(aa.ip) AS ip, aa.module,
       aa.action_type,
       aa.aid
    FROM admin_system_actions aa
@@ -693,7 +733,7 @@ sub system_action_list {
 
   my $list = $self->{list};
 
-  $self->query2("SELECT count(*) AS total FROM admin_system_actions aa
+  $self->query2("SELECT COUNT(*) AS total FROM admin_system_actions aa
     LEFT JOIN admins a ON (aa.aid=a.aid)
     $WHERE;",
     undef,
@@ -704,7 +744,9 @@ sub system_action_list {
 }
 
 #**********************************************************
-# password()
+=head2 password($password, $attr)
+
+=cut
 #**********************************************************
 sub password {
   my $self = shift;
@@ -973,10 +1015,9 @@ sub full_log_list {
       ['SID',     'STR', 'a.sid',       1 ],
       ['FUNCTION_INDEX', 'STR', 'a.function_index', 1 ],
       ['AID',     'INT', 'a.aid'          ],
-      ['FROM_DATE|TO_DATE', 'DATE', "date_format(a.datetime, '%Y-%m-%d')" ],
+      ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(a.datetime, '%Y-%m-%d')" ],
     ],
-    { WHERE       => 1,
-    }
+    { WHERE => 1 }
   );
 
  $self->query2("SELECT $self->{SEARCH_FIELDS} a.aid
@@ -985,7 +1026,16 @@ sub full_log_list {
  ORDER BY $SORT $DESC
  LIMIT $PG, $PAGE_ROWS;", undef, $attr);
 
- return $self->{list};
+ my $list = $self->{list} || [];
+
+ $self->query2("SELECT COUNT(*) AS total
+   FROM admins_full_log a
+ $WHERE",
+    undef,
+    { INFO => 1 }
+  );
+
+ return $list;
 }
 
 #**********************************************************
@@ -1062,6 +1112,168 @@ sub full_log_change {
   );
 
   return $self;
+}
+
+#**********************************************************
+=head2 admins_contacts_list($attr)
+
+=cut
+#**********************************************************
+sub admins_contacts_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->{errno} = 0;
+  $self->{errstr} = '';
+
+  return [] if (!$attr->{AID});
+
+  #!!! Important !!! Only first list will work without this
+  delete $self->{COL_NAMES_ARR};
+
+  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $WHERE = '';
+
+   $WHERE = $self->search_former($attr, [
+      ['ID',        'INT',  'ac.id',                              1],
+      ['AID',       'INT',  'ac.aid',                             1],
+      ['TYPE',      'INT',  'ac.type_id',                         1],
+      ['VALUE',     'STR',  'ac.value',                           1],
+      ['PRIORITY',  'INT',  'ac.priority',                        1],
+      ['TYPE_NAME',      'STR',  'act.name',                       1],
+      [ 'HIDDEN',     'INT', 'act.hidden'     ]
+    ],
+    { WHERE       => 1,
+    }
+  );
+
+  if ($attr->{SHOW_ALL_COLUMNS}){
+    $self->{SEARCH_FIELDS} = '*'
+  }
+
+  # Removing unnecessary comma
+  $self->{SEARCH_FIELDS} =~ s/,.?$//;
+
+ $self->query2("SELECT $self->{SEARCH_FIELDS}
+    FROM admins_contacts ac
+   LEFT JOIN admins_contact_types act ON(ac.type_id=act.id)
+ $WHERE ORDER BY priority;"
+ ,undef, {COLS_NAME => 1,  %{ $attr ? $attr : {} }});
+
+ return $self->{list};
+}
+
+ #**********************************************************
+=head2 admins_contacts_list($attr)
+
+  Arguments:
+    $attr - hash_ref
+
+  Returns:
+    list
+
+=cut
+#**********************************************************
+sub admins_contacts_type_list{
+  my $self = shift;
+  my ($attr) = @_;
+
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 'id';
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  $PG   = ($attr->{PG}) ? $attr->{PG} : 0;
+  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  #!!! Important !!! Only first list will work without this
+  delete $self->{COL_NAMES_ARR};
+
+  my $WHERE = '';
+
+  $WHERE = $self->search_former( $attr, [
+      [ 'ID',         'INT', 'id',         1 ],
+      [ 'NAME',       'STR', 'name',       1 ],
+      [ 'IS_DEFAULT', 'INT', 'is_default', 1 ],
+      [ 'HIDDEN',     'INT', 'hidden'        ]
+    ],
+    {
+      WHERE => 1
+    }
+  );
+
+  if ($attr->{SHOW_ALL_COLUMNS}){
+    $self->{SEARCH_FIELDS} = '*,'
+  }
+
+  $self->query2( "SELECT $self->{SEARCH_FIELDS}
+   id
+  FROM admins_contact_types
+  $WHERE
+  ORDER BY $SORT $DESC
+  LIMIT $PG, $PAGE_ROWS;",
+    undef, $attr );
+
+  return [] if ($self->{errno});
+
+  return $self->{list};
+}
+
+#**********************************************************
+=head2 admins_contacts_info($id)
+
+=cut
+#**********************************************************
+sub admins_contacts_info {
+  my $self = shift;
+  my ($aid) = @_;
+
+  $self->query2("SELECT ac.id,
+  ac.aid,
+  ac.type_id,
+  ac.value,
+  ac.priority
+   FROM admins_contacts ac
+   WHERE ac.aid= ?
+   GROUP BY ac.id;",
+    undef,
+    { INFO => 1, Bind => [ $aid ] }
+  );
+
+  return $self;
+}
+
+#**********************************************************
+=head1 admin_contacts_add() - Add contact  to admin
+
+=cut
+# #**********************************************************
+sub admin_contacts_add{
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('admins_contacts', $attr, { REPLACE => 1 });
+
+  return 1;
+}
+#**********************************************************
+=head2 admin_contacts_del($attr)
+
+  Arguments:
+    $attr - hash_ref
+
+  Returns:
+   1
+
+=cut
+#**********************************************************
+sub admin_contacts_del{
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('admins_contacts', undef, $attr);
+
+  return 1;
 }
 
 1

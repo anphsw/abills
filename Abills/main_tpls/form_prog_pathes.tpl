@@ -2,9 +2,9 @@
         <input type='hidden' name='index'  value='$index' />
         <input type='hidden' name='action' value='%ACTION%' />
 
-<div class='panel panel-primary panel-form'>
-  <div class='panel-heading text-center'><h4>%PANEL_HEADING% %FILE_NAME%</h4></div>
-  <div class='panel-body'>
+<div class='box box-theme box-form'>
+  <div class='box-header with-border'><h4 class='box-title'>%PANEL_HEADING% %FILE_NAME%</h4></div>
+  <div class='box-body'>
 
     <div class='form-group'>
       <label class='col-md-6 control-label'>_{WEB_SERVER_USER}_</label>
@@ -120,7 +120,7 @@
     </div>
 
   </div>
-  <div class='panel-footer text-center'>
+  <div class='box-footer text-center'>
       <input type='submit' form='form_PATHES' class='btn btn-primary' name='button' value='%SUBMIT_BTN_NAME%'>
   </div>
 </div>

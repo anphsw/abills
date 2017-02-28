@@ -3,9 +3,9 @@
   <input type='hidden' name='ID' value='%ID%'/>
 
   <fieldset>
-    <div class='panel panel-primary panel-form'>
-      <div class='panel-heading text-center'><h4>_{REQUESTS}_</h4></div>
-      <div class='panel-body'>
+    <div class='box box-theme box-form'>
+      <div class='box-header with-border'><h4 class='box-title'>_{REQUESTS}_</h4></div>
+      <div class='box-body'>
 
         <div class='form-group'>
           <label class='control-label col-md-3' for='DATE'>_{DATE}_</label>
@@ -70,7 +70,7 @@
           <label class='control-label col-md-3' for='SUBJECT'>_{CONNECTION_TIME}_:</label>
           <div class='col-md-9'>
             <input id='CONNECTION_TIME' name='CONNECTION_TIME' value='%CONNECTION_TIME%' placeholder='%CONNECTION_TIME%'
-                   class='form-control tcal' type='text'>
+                   class='form-control datepicker' type='text'>
           </div>
         </div>
 
@@ -90,7 +90,6 @@
           </div>
         </div>
 
-
         <div class='form-group'>
           <label class='control-label col-md-3' for='RESPOSIBLE'>_{RESPOSIBLE}_:</label>
           <div class='col-md-9'>
@@ -98,14 +97,12 @@
           </div>
         </div>
 
-
       </div>
-      <div class='panel-footer text-center'>
+      <div class='box-footer text-center'>
 
         %BACK_BUTTON% <input type=submit name=%ACTION% value='%LNG_ACTION%' ID='submitbutton' class='btn btn-primary'>
       </div>
     </div>
-    </div>
-    </div>
+
   </fieldset>
 </form>

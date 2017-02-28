@@ -1,12 +1,12 @@
-<FORM action=$SELF_URL METHOD=POST class='form form-horizontal'>
+<FORM action=$SELF_URL method='get' class='form form-horizontal'>
     <input type='hidden' name='index' value='$index'>
     <input type='hidden' name='SUBNET_MASK' id='SUBNET_MASK' value='%SUBNET_MASK%'>
     <input type='hidden' name='MASK' id='MASK_INPUT'>
 
-    <div class='panel panel-primary panel-form'>
-        <div class='panel-heading'>IP _{CALCULATOR}_</div>
+    <div class='box box-theme box-form'>
+        <div class='box-header with-border'>IP _{CALCULATOR}_</div>
 
-        <div class='panel-body'>
+        <div class='box-body'>
             <div class='form-group'>
                 <label class='col-md-3 control-label'>IP:</label>
 
@@ -62,7 +62,7 @@
             </div>
         </div>
 
-        <div class='panel-footer'>
+        <div class='box-footer'>
             <input class='btn btn-primary' type='submit' name='SHOW' value='_{SHOW}_'>
         </div>
     </div>

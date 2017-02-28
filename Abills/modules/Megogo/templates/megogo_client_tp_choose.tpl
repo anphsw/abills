@@ -3,11 +3,11 @@
 <input type='hidden' name='index' value=$index>
 
 
-<div class='panel panel-primary'>
+<div class='box box-primary'>
 
-<div class='panel-heading text-center'>_{TPS}_</div>
+<div class='box-header with-border text-center'>_{TPS}_</div>
 
-<div class='panel-body'>
+<div class='box-body'>
   <label class='col-md-12 label-primary text-center'>_{PRIMARY}_</label>
   <div class='col-md-12'>
     %PRIMARY_TP%
@@ -19,7 +19,7 @@
 </div>
 
 
-<div class='panel-footer text-center'>
+<div class='box-footer text-center'>
   %WATCH_LABEL%
   %WATCH_BUTTON%
 </div>

@@ -6,35 +6,42 @@
 
 =head1 VERSION
 
-  VERSION: 0.23
+  VERSION: 0.25
 
 =cut
 #**********************************************************
 
 
-use vars qw(%conf %log_levels $DATE $time $var_dir
-);
 use strict;
+our (
+  %conf,
+  %log_levels,
+  $DATE,
+  $var_dir
+);
 
-our $VERSION = 0.23;
+BEGIN {
+  use FindBin '$Bin';
+  require $Bin . '/config.pl';
+  unshift(@INC,
+    $Bin . '/../Abills/',
+    $Bin . "/../Abills/$conf{dbtype}",
+    $Bin . '/../lib/');
+}
 
-use FindBin '$Bin';
-require $Bin . '/config.pl';
-unshift(@INC, $Bin . '/../', $Bin . "/../Abills/$conf{dbtype}");
-require Abills::Base;
-Abills::Base->import();
-require Abills::Server;
-Abills::Server->import();
+our $VERSION = 0.25;
 
 use POSIX qw(strftime);
+use Abills::Base qw(check_time parse_arguments ip2int cmd);
+use Abills::Server;
+use Abills::SQL;
+use Admins;
+use Dhcphosts;
+use Log qw(log_add);
 
-my $begin_time = check_time();
+#my $begin_time = check_time();
 
-require Abills::SQL;
-require Dhcphosts;
-Dhcphosts->import();
-
-my $ARGV = parse_arguments(\@ARGV);
+my $argv = parse_arguments(\@ARGV);
 
 my $prog_name = $0;
 if ($prog_name =~ /\/?([a-zA-Z\.\_\-]+)$/) {
@@ -46,15 +53,15 @@ $prog_name_short =~ s/\.[a-zA-Z0-9]+$//;
 
 my $log_dir = $var_dir . '/log';
 
-my $UPDATE_TIME = $ARGV->{UPDATE_TIME} || 10;                                        # In Seconds
-my $AUTO_VERIFY = 0;
-my $debug       = $ARGV->{DEBUG} || 3;
-my $logfile     = $ARGV->{LOG_FILE} || $log_dir . '/' . $prog_name_short . '.log';
+my $UPDATE_TIME = $argv->{UPDATE_TIME} || 10;                                        # In Seconds
+#my $AUTO_VERIFY = 0;
+my $debug       = $argv->{DEBUG} || 3;
+my $logfile     = $argv->{LOG_FILE} || $log_dir . '/' . $prog_name_short . '.log';
 
-my $oldstat     = 0;
-my $check_count = 0;
-my $NAS_ID      = $ARGV->{NAS_IDS} || 0;
-my $check_time  = ($ARGV->{RECONFIG_PERIOD}) ? time - $ARGV->{RECONFIG_PERIOD} : 0;
+#my $oldstat     = 0;
+#my $check_count = 0;
+#my $NAS_ID      = $argv->{NAS_IDS} || 0;
+my $check_time  = ($argv->{RECONFIG_PERIOD}) ? time - $argv->{RECONFIG_PERIOD} : 0;
 
 my @START_FW = (5000, 3000, 1000);
 
@@ -66,26 +73,24 @@ my $BIT_MASK='32';
 my $users_table_number = $conf{FW_TABLE_USERS} || 10;
 my $IPFW   = '/sbin/ipfw';
 
-require Log;
-Log->import('log_add');
 my $Log          = Log->new(undef, \%conf);
 $Log->{LOG_FILE} = $logfile;
 
-if (! $ARGV->{LOG_FILE} && ! defined($ARGV->{'-d'})) {
+if (! $argv->{LOG_FILE} && ! defined($argv->{'-d'})) {
   $Log->{PRINT} = 1;
 }
 
 print "Start... debug: $debug\n" if ($debug);
 
-if (defined($ARGV->{'-d'})) {
+if (defined($argv->{'-d'})) {
   my $pid_file = daemonize();
   $Log->log_print('LOG_EMERG', '', "$prog_name Daemonize... $pid_file");
 }
-elsif (defined($ARGV->{stop})) {
+elsif (defined($argv->{stop})) {
   stop_server();
   exit;
 }
-elsif (defined($ARGV->{'help'})) {
+elsif (defined($argv->{'help'})) {
   usage();
   exit;
 }
@@ -103,14 +108,16 @@ my $TP_TRAFFIC_CLASSES = get_tp_classes();
 my $Turbo;
 
 while (1) {
-  check_activity({ ALL => ($ARGV->{RECONFIG_PERIOD}) ? undef : $all });
+  check_activity({ ALL => ($argv->{RECONFIG_PERIOD}) ? undef : $all });
   $all = 0;
   sleep $UPDATE_TIME;
 }
 
 
 #**********************************************************
-#
+=head2 get_tp_classes
+
+=cut
 #**********************************************************
 sub get_tp_classes {
 
@@ -134,15 +141,18 @@ sub get_tp_classes {
 }
 
 #**********************************************************
-#
+=head2 db_connect()
+
+=cut
 #**********************************************************
 sub db_connect {
-
   return Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd});
 }
 
 #**********************************************************
-#
+=head2 check_activity($attr)
+
+=cut
 #**********************************************************
 sub check_activity {
   my ($attr) = @_;
@@ -160,8 +170,8 @@ sub check_activity {
 
   $check_time = time;
   my $WHERE = '';
-  if ($ARGV->{NAS_IDS}) {
-    $WHERE = ' AND ' . join(' or ', @{  $Dhcphosts->search_expr($ARGV->{NAS_IDS}, 'INT', 'c.nas_id') });
+  if ($argv->{NAS_IDS}) {
+    $WHERE = ' AND ' . join(' or ', @{  $Dhcphosts->search_expr($argv->{NAS_IDS}, 'INT', 'c.nas_id') });
   }
   if (!$attr->{ALL}) {
     $WHERE .= " AND UNIX_TIMESTAMP() - UNIX_TIMESTAMP(started) <= $period";
@@ -218,7 +228,7 @@ sub check_activity {
       $line->{netmask} = 32 - length(sprintf("%b", $ips)) + 1;
     }
 
-    if (defined($ARGV->{IPN_SHAPPER})) {
+    if (defined($argv->{IPN_SHAPPER})) {
     	$cmd = $conf{IPN_FW_START_RULE};
       $cmd =~ s/\%IP/$line->{ip}/g;
       $cmd =~ s/\%MASK/$line->{netmask}/g;
@@ -256,7 +266,7 @@ sub check_activity {
     	
    	  if ($conf{DV_TURBO_MODE}) {
         $Turbo = Turbo->new($db, undef, \%conf);
-        my $list = $Turbo->list(
+        $Turbo->list(
         {
          UID    => $line->{UID},
          ACTIVE => 1,
@@ -295,7 +305,7 @@ sub check_activity {
     }
 
     $Log->log_print('LOG_DEBUG', '', "$cmd");
-    my $res = cmd($cmd);
+    cmd($cmd);
   }
 }
 

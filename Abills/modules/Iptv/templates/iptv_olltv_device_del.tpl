@@ -1,7 +1,3 @@
-
-<div class='panel panel-default panel-form'>
-<div class='panel-body'>
-
 <form action=$SELF_URL method=post class='form-horizontal'>
 <input type=hidden name=index value=$index>
 <input type=hidden name=chg value='$FORM{chg}'>
@@ -12,12 +8,12 @@
 <input type=hidden name='MAC' value='%MAC%'>
 <input type=hidden name='SERIAL_NUMBER' value='%SERIAL_NUMBER%'>
 <input type=hidden name='list' value='$FORM{list}'>
+<input type=hidden name='SERVICE_ID' value='$FORM{SERVICE_ID}'>
 
 <fieldset>
-
-<div class='form-group'>
-  <label class='control-label col-md-12' for='DEVICE'>_{DEVICE}_</label>
-</div>
+  <div class='box box-theme box-form'>
+    <div class='box-header with-border'><h4 class='box-title'>_{DEVICE}_</h4></div>
+    <div class='box-body'>
 
 <div class='form-group'>
   <label class='control-label col-md-3' for='ID'>ID</label>
@@ -64,16 +60,17 @@
   </div>
 </div>
 
-
-<div class='col-sm-offset-2 col-sm-8'>
+    </div>
+<div class='box-footer'>
  	%BACK_BUTTON%
   <input type='submit' class='btn btn-primary' name='del_device' value='_{DEL}_'>
 </div>
+
+
+  </div>
 
 
 </fieldset>
 
 </form>
 
-</div>
-</div>

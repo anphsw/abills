@@ -1,9 +1,4 @@
 package GPS;
-
-use strict;
-use POSIX qw( strftime );
-use Admins;
-
 =head1 NAME
 
 GPS - module for DB support `gps_locations` table
@@ -17,7 +12,13 @@ GPS - module for DB support `gps_locations` table
 
 =cut
 
+use strict;
+use POSIX qw( strftime );
+use Admins;
+
 use Time::Local qw ( timelocal );
+use Abills::Base qw/days_in_month date_inc/;
+
 our $VERSION = 1.00;
 use parent qw(main);
 
@@ -46,9 +47,9 @@ sub new {
     $self->{conf} = $CONF;
 
     $instance = $self;
-
-    # FIXME: create system user
+    
     $Admins = Admins->new( $db, $CONF );
+    $Admins->info( $CONF->{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' } );
   }
 
   return $instance;
@@ -509,70 +510,6 @@ sub unregistered_trackers_info{
   $self->query2( "SELECT * FROM gps_unregistered_trackers gut $WHERE ORDER BY gut.gps_time LIMIT 1", undef, $attr );
 
   return $self->{list}->[0];
-}
-
-#**********************************************************
-=head2 date_inc($date)
-
-  Arguments:
-    $date - '2016-01-24'
-
-  Returns:
-   string - date incremented by one day
-
-   0 if incorrect date;
-
-=cut
-#**********************************************************
-sub date_inc{
-  my ($date) = @_;
-
-  my ($year, $month, $day);
-  if ( $date =~ /(\d{4})\-(\d{2})\-(\d{2})/ ){
-    $year = $1;
-    $month = $2;
-    $day = $3;
-  }
-  else{
-    #got garbage
-    return 0;
-  }
-
-  if ( ++$day >= 29 ){
-    my $days_in_month = days_in_month( $year, $month );
-    if ( $day > $days_in_month ){
-      if ( ++$month == 13 ){
-        $year++;
-        $month = '01';
-      }
-      $day = '01';
-    }
-  }
-
-  return "$year-$month-$day";
-}
-
-#**********************************************************
-=head2 days_in_month ($y, $m )
-
-  Arguments:
-    $y - year
-    $m - month
-
-  Returns:
-   number - days in month for given year
-
-=cut
-#**********************************************************
-sub days_in_month{
-  my ( $y, $m ) = @_;
-
-  $m++;
-
-  my $isLeapYear = ( ( $y % 4 == 0 ) and ( $y % 400 == 0 or $y % 100 != 0 ) ) || 0;
-  my $daysInMonth = 31 - (($m == 2) ? (3 - $isLeapYear) : (($m - 1) % 7 % 2));
-
-  return $daysInMonth;
 }
 
 

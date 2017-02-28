@@ -39,3 +39,23 @@ $lang{PLANNED} = 'Planned';
 $lang{TASKS_ROUTE_MAP} = 'Tasks map';
 $lang{PROGRESS_BAR} = 'Progress bar';
 $lang{CHAPTER} = 'Chapter';
+$lang{READINESS} = 'Readiness';
+$lang{TASK_CLOSED} = 'Task closed';
+$lang{MESSAGE_ADMIN_WATCH} = 'List of monitoring posts';
+$lang{ASSESSMENT} = 'Rating';
+$lang{BAD} = 'Poor';
+$lang{UNSATISFACTORILY} = 'Fair';
+$lang{FINE} = 'Average';
+$lang{GOOD} = 'Good';
+$lang{IDEALLY} = 'Excellent';
+$lang{POTENTIAL_CLIENT} = 'Potential client';
+$lang{OPEN_MSGS}='Open messages';
+$lang{NOTE}='Note';
+$lang{LAST_CONTACT}='The last contact with the customer';
+$lang{SUBSEQENT_CONTACT}='Subsequent contact with the client';
+$lang{WATCHED} = 'Watching';
+$lang{ADD_DELIVERY}='Add delivery';
+$lang{SEND_TIME}='Send time';
+$lang{WAIT_TO_SEND}='Wait to send';
+
+

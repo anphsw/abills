@@ -26,30 +26,11 @@ our (
 
 
 our $VERSION = 2.01;
-
-#our @ISA     = ('Exporter');
-#
-#our @EXPORT = qw(
-#@_COLORS
-#%err_strs
-#%FORM
-#%LIST_PARAMS
-#%COOKIES
-#$index
-#$pages_qs
-#$SORT
-#$DESC
-#$PG
-#$PAGE_ROWS
-#$SELF_URL
-#$COLS_SEPARATOR
-#);
-
 my $debug;
 my %log_levels;
 my $row_number = 0;
 my $CONF;
-#my $IMG_PATH='';
+
 
 #**********************************************************
 # Create Object
@@ -68,6 +49,7 @@ sub new {
     $self->{NO_PRINT} = 1;
   }
 
+  $CONF = $attr->{CONF};
   $FORM{_export}='csv';
 
   @_COLORS = (
@@ -95,6 +77,8 @@ sub new {
   else {
     $self->{language} = $CONF->{default_language} || 'english';
   }
+
+  $self->{TYPE}='console' if(! $self->{TYPE});
 
   return $self;
 }
@@ -295,7 +279,7 @@ sub menu {
       label:
       my $mi = $new_hash{$ID};
 
-      while (my ($k, $val) = each %$mi) {
+      while (my ($k, undef) = each %$mi) {
         $menu_text .= "$prefix<MENU NAME=\"$fl->{$k}\" ID=\"$k\" EX_ARGS=\"" . $self->link_former("$EX_ARGS") . "\" DESCRIBE=\"$val\" TYPE=\"SUB\" PARENT=\"$ID\"/>\n ";
 
         if (defined($new_hash{$k})) {
@@ -466,11 +450,11 @@ sub th {
 sub td {
   my $self = shift;
   my ($value, $attr) = @_;
-  my $extra = '';
-
-  while (my ($k, $v) = each %$attr) {
-    #$extra.=" $k=\"$v\"";
-  }
+#  my $extra = '';
+#
+#  while (my ($k, $v) = each %$attr) {
+#    #$extra.=" $k=\"$v\"";
+#  }
 
   my $td = '';
   if ($attr->{TH}) {
@@ -596,8 +580,6 @@ sub button {
   my ($name, $params, $attr) = @_;
 
   return $name;
-
-  my $ex_params = (defined($attr->{ex_params})) ? $attr->{ex_params} : '';
   my $ex_attr = '';
 
   $params = ($attr->{GLOBAL_URL}) ? $attr->{GLOBAL_URL} : "$params";
@@ -658,35 +640,13 @@ sub pages {
 }
 
 #**********************************************************
-# Make data field
-# date_fld($base_name)
-#**********************************************************
-sub date_fld {
-  my $self = shift;
-  my ($base_name, $attr) = @_;
+=head2 date_fld2($base_name) - Make data field
 
-  my $MONTHES = $attr->{MONTHES};
-
-  my ($sec, $min, $hour, $mday, $mon, $curyear, $wday, $yday, $isdst) = localtime(time);
-
-  my $day   = $FORM{ $base_name . 'D' } || 1;
-  my $month = $FORM{ $base_name . 'M' } || $mon;
-  my $year  = $FORM{ $base_name . 'Y' } || $curyear + 1900;
-
-  my $result = "$year-$month-$day";
-
-  return $result;
-}
-
-#**********************************************************
-# Make data field
-# date_fld($base_name)
+=cut
 #**********************************************************
 sub date_fld2 {
   my $self = shift;
   my ($base_name, $attr) = @_;
-
-  my $MONTHES = $attr->{MONTHES};
 
   my ($sec, $min, $hour, $mday, $mon, $curyear, $wday, $yday, $isdst) = localtime(time);
 
@@ -700,11 +660,11 @@ sub date_fld2 {
     $self->{$base_name} = $date;
   }
   elsif (!$attr->{NO_DEFAULT_DATE}) {
-    my ($sec, $min, $hour, $mday, $mon, $curyear, $wday, $yday, $isdst) = localtime(time + (($attr->{NEXT_DAY}) ? 86400 : 0));
+    ($sec, $min, $hour, $mday, $mon, $curyear, $wday, $yday, $isdst) = localtime(time + (($attr->{NEXT_DAY}) ? 86400 : 0));
 
-    my $month = $mon + 1;
-    my $year  = $curyear + 1900;
-    my $day   = $mday;
+    $month = $mon + 1;
+    $year  = $curyear + 1900;
+    $day   = $mday;
 
     if ($base_name =~ /to/i) {
       $day = ($month != 2 ? (($month % 2) ^ ($month > 7)) + 30 : (!($year % 400) || !($year % 4) && ($year % 25) ? 29 : 28));
@@ -825,7 +785,9 @@ sub test {
 }
 
 #**********************************************************
-# b();
+=head2 b($text) - Bold text;
+
+=cut
 #**********************************************************
 sub b {
   my ($self) = shift;
@@ -892,12 +854,12 @@ sub color_mark {
 }
 
 #**********************************************************
-# Break line
-#
+=head2 br() Break line
+
+=cut
 #**********************************************************
 sub br {
   my $self = shift;
-  my ($attr) = @_;
 
   return "\n";
 }
@@ -927,22 +889,11 @@ sub element {
   return $self->{FORM_INPUT};
 }
 
-#***********************************************************
-#
-#***********************************************************
-sub badge {
-	my $self = shift;
-  my ($text) = @_;
-	
-	return "$text";
-}
-
 #**********************************************************
 # list item
 #**********************************************************
 sub li {
 	my $self = shift;
-  #my ($item, $attr) = @_;
 
   return "item";
 }
@@ -957,6 +908,26 @@ sub pre {
   my ($text) = @_;
 
   return "\n====\n$text\n====\n\n";
+}
+
+#**********************************************************
+=head2  AUTOLOAD Autoload secondary funtions
+
+=cut
+#**********************************************************
+sub AUTOLOAD {
+  our $AUTOLOAD;
+
+  return if ($AUTOLOAD =~ /::DESTROY$/);
+  my $function = $AUTOLOAD;
+
+  if($function =~ /table_header|progress_bar|/) {
+    return q{};
+  }
+
+  my ($self, $data) = @_;
+
+  return $data;
 }
 
 

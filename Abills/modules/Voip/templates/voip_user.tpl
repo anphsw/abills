@@ -1,10 +1,13 @@
 <form action=$SELF_URL method=post id='VOIP_USER_FORM' class='form-horizontal'>
   <input type=hidden name=index value=$index>
   <input type=hidden name=UID value='$FORM{UID}'>
-  <div class='panel panel-default panel-form'>
+  <div class='box box-theme box-form'>
 
+    <div class='box-header with-border'>
+      <h4 class='box-title'>_{VOIP}_</h4>
+    </div>
 
-    <div class='panel-body'>
+    <div class='box-body'>
 
       <div class='form-group'>
         <label class='control-label col-md-3' for='NUMBER'>_{NUMBER}_:</label>
@@ -21,8 +24,8 @@
           %TP_ADD%
           <label class='label label-primary'>%TP_NUM%</label>
           <label class='label label-default'>%TP_NAME%</label>
-          %CHANGE_TP_BUTTON% <a href='$SELF?index=$index&UID=$FORM{UID}&pay_to=1'
-                                class='$conf{CURRENCY_ICON}' title='_{PAY_TO}_'></a>
+          %CHANGE_TP_BUTTON%
+          <a href='$SELF?index=$index&UID=$FORM{UID}&pay_to=1' class='$conf{CURRENCY_ICON}' title='_{PAY_TO}_'></a>
         </div>
       </div>
 
@@ -89,9 +92,9 @@
 
 
     </div>
-    <div class='panel-footer text-center'>
-      %DEL_BUTTON%
+    <div class='box-footer'>
       <input type=submit name=%ACTION% value='%LNG_ACTION%' ID='submitbutton' class='btn btn-primary'>
+      %DEL_BUTTON%
     </div>
   </div>
 

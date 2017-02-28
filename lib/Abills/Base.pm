@@ -13,7 +13,7 @@ Abills::Base - Base functions
 =cut
 
 no if $] >= 5.017011, warnings => 'experimental::smartmatch';
-
+use feature 'state';
 use strict;
 our (@EXPORT_OK, %EXPORT_TAGS);
 
@@ -55,6 +55,8 @@ our @EXPORT = qw(
   days_in_month
   next_month
   show_hash
+  load_pmodule2
+  date_inc
 );
 
 @EXPORT_OK = qw(
@@ -90,6 +92,7 @@ our @EXPORT = qw(
   days_in_month
   next_month
   show_hash
+  load_pmodule2
 );
 
 #**********************************************************
@@ -182,6 +185,7 @@ sub in_array {
        text2html - convert text to HTML
        html2text -
        txt2translit - text to translit
+       json      - Convert \n to \n
 
        Transpation
          win2koi
@@ -212,7 +216,8 @@ sub convert {
     $text =~ s/</&lt;/g;
     $text =~ s/>/&gt;/g;
     $text =~ s/\"/&quot;/g;
-    $text =~ s/\n/<br\/>\n/gi;
+    $text =~ s/\n/<br\/>\n/gi if (! $attr->{json});
+    $text =~ s/[\r\n]/\n/gi if ($attr->{json});
     $text =~ s/\%/\&#37/g;
     $text =~ s/\*/&#42;/g;
     #$text =~ s/\+/\%2B/g;
@@ -243,6 +248,11 @@ sub convert {
   elsif ($attr->{dos2win})  { $text = dos2win($text); }
   elsif ($attr->{cp8662utf8}) { $text = cp8662utf8($text); }
   elsif ($attr->{utf82cp866}) { $text = utf82cp866($text); }
+
+  if($attr->{json}) {
+    $text =~ s/\n/\\n/g;
+  }
+
 
   return $text;
 }
@@ -680,7 +690,7 @@ sub show_log {
     }
 
     if ($login ne "") {
-      if ($user =~ /^[ ]{0,1}$login[ ]{0,1}$/i) {
+      if ($user =~ /^[ ]{0,1}$login\s{0,1}$/i) {
         push @err_recs, $_;
         $types{$log_type}++;
       }
@@ -710,7 +720,8 @@ sub show_log {
   Arguments:
     $size  - Size of result string
     $attr
-      SYMBOLS
+      SYMBOLS     -
+      EXTRA_RULES - '$chars:$case' (0 - num, 1 - special, 2 - both):(0 - lower, 1 - upper, 2 - both)
 
   Results:
     $value - Uniques string
@@ -720,6 +731,29 @@ sub show_log {
 sub mk_unique_value {
   my ($size, $attr) = @_;
   my $symbols = (defined($attr->{SYMBOLS})) ? $attr->{SYMBOLS} : "qwertyupasdfghjikzxcvbnmQWERTYUPASDFGHJKLZXCVBNM123456789";
+
+  if ( $attr->{EXTRA_RULES} ){
+    my ($chars, $case) = split(':', $attr->{EXTRA_RULES}, 2);
+
+    my $uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    my $lowercase = "abcdefghijklmnopqrstuvwxyz";
+
+    my $numbers = "0123456789";
+    my $special = "-_!&%@#:";
+
+    $chars ||= 0; # numeric
+    $case ||= 0;  # lowercase
+
+    my $symbols_ = $numbers;
+    if ($chars == 1) { $symbols_ = $special };  # Special
+    if ($chars == 2) { $symbols_ .= $special }; # Both
+
+    my $literals = $lowercase;
+    if ($case == 1) { $literals = $lowercase }; # Lowercase
+    if ($case == 2) { $literals .= $uppercase };# Both
+
+    $symbols = $symbols_ . $literals;
+  }
 
   my $value  = '';
   my $random = '';
@@ -916,8 +950,16 @@ sub int2ml {
   my @tens    = @{ $attr->{TENS} };
   my @hundred = @{ $attr->{HUNDRED} };
 
-  my $money_unit_names = $attr->{MONEY_UNIT_NAMES};
+  my @money_unit_names = ();
 
+  if($attr->{MONEY_UNIT_NAMES}) {
+    if (ref $attr->{MONEY_UNIT_NAMES} ne 'ARRAY') {
+      @money_unit_names = split(/;/, $attr->{MONEY_UNIT_NAMES});
+    }
+    else {
+      @money_unit_names = @{ $attr->{MONEY_UNIT_NAMES} };
+    }
+  }
   $array =~ s/,/\./g;
   $array =~ tr/0-9,.//cd;
   my $tmp = $array;
@@ -929,7 +971,7 @@ sub int2ml {
   }
 
   my $second = "00";
-  my ($first, $i, @first, $j);
+  my ($first, @first, $i);
 
   if (!$count) {
     $first = $array;
@@ -961,7 +1003,7 @@ sub int2ml {
 
   for ($i = $first_length ; $i >= 1 ; $i--) {
     $tmp = 0;
-    for ($j = length($first[$i]) ; $j >= 1 ; $j--) {
+    for (my $j = length($first[$i]) ; $j >= 1 ; $j--) {
       if ($j == 3) {
         $tmp = $first[$i];
         $tmp =~ s/(^\d)(\d)(\d$)/$1/;
@@ -1012,22 +1054,22 @@ sub int2ml {
 
     $ret .= ' ';
     if ($tmp == 1) {
-      $ret .= ($ones[ $i - 1 ]) ? $ones[ $i - 1 ] : $money_unit_names->[0];
+      $ret .= ($ones[ $i - 1 ]) ? $ones[ $i - 1 ] : $money_unit_names[0];
     }
     elsif ($tmp > 1 && $tmp < 5) {
-      $ret .= ($twos[ $i - 1 ]) ? $twos[ $i - 1 ] : $money_unit_names->[0];
+      $ret .= ($twos[ $i - 1 ]) ? $twos[ $i - 1 ] : $money_unit_names[0];
     }
     elsif ($tmp > 4) {
-      $ret .= ($fifth[ $i - 1 ]) ? $fifth[ $i - 1 ] : $money_unit_names->[0];
+      $ret .= ($fifth[ $i - 1 ]) ? $fifth[ $i - 1 ] : $money_unit_names[0];
     }
     else {
-      $ret .= ($fifth[0]) ? $fifth[0] : $money_unit_names->[0];
+      $ret .= ($fifth[$i-1]) ? $fifth[$i-1] : $money_unit_names[0];
     }
     $ret .= ' ';
   }
 
   if ($second ne '') {
-    $ret .= " $second  $money_unit_names->[1]";
+    $ret .= " $second  ". (( $money_unit_names[1] ) ? $money_unit_names[1] : '');
   }
   else {
     $ret .= "";
@@ -1128,6 +1170,8 @@ sub check_time {
 
   Arguments:
     $begin_time  - Start time point
+    $attr
+      TIME_ONLY
 
   Returns:
     generation time
@@ -1135,12 +1179,12 @@ sub check_time {
 =cut
 #**********************************************************
 sub gen_time {
-  my ($begin_time) = @_;
+  my ($begin_time, $attr) = @_;
 
   if ($begin_time > 0) {
     Time::HiRes->import(qw(gettimeofday));
     my $end_time = Time::HiRes::gettimeofday();
-    return sprintf("GT: %2.5f", $end_time - $begin_time);
+    return (($attr->{TIME_ONLY}) ? '' : 'GT: ') . sprintf("%2.5f", $end_time - $begin_time);
   }
 
   return '';
@@ -1209,6 +1253,7 @@ command execute in backgroud mode without output
       SHOW_RESULT     - show output of execution
       timeout         - Time for command execute (Default: 5 sec.)
       RESULT_ARRAY    - Return result as ARRAY_REF
+      ARGV            - Add ARGV for program
       DEBUG           - Debug mode
 
       $ENV{CMD_EMULATE_MODE}
@@ -1220,7 +1265,14 @@ command execute in backgroud mode without output
 
   Examples:
 
-    my $result = cmd("/usr/abills/misc/extended.sh", { PARAMS => { LOGIN => text } });
+    my $result = cmd("/usr/abills/misc/extended.sh %LOGIN% %IP%", { PARAMS => { LOGIN => text } });
+
+    run as:
+
+    /usr/abills/misc/extended.sh test
+
+
+    my $result = cmd("/usr/abills/misc/extended.sh", { ARGV => 1, PARAMS => { LOGIN => text } });
 
     run as:
 
@@ -1254,10 +1306,10 @@ sub cmd {
   }
 
   if ($attr->{ARGV}) {
+    my @skip_keys = ('EXT_TABLES', 'SEARCH_FIELDS', 'SEARCH_FIELDS_ARR', 'SEARCH_FIELDS_COUNT',
+      'COL_NAMES_ARR', 'db', 'list', 'dbo', 'TP_INFO', 'TP_INFO_OLD', 'CHANGES_LOG', '__BUFFER', 'TABLE_SHOW');
     foreach my $key ( sort keys %{ $attr->{PARAMS} } ) {
-      next if (in_array($key, [ 'EXT_TABLES', 'SEARCH_FIELDS', 'SEARCH_FIELDS_ARR', 'SEARCH_FIELDS_COUNT',
-        'COL_NAMES_ARR', 'db', 'list', 'dbo', 'TP_INFO', 'TP_INFO_OLD', 'CHANGES_LOG' ]));
-
+      next if (in_array($key, \@skip_keys));
       $cmd .= " $key=\"$attr->{PARAMS}->{$key}\"";
     }
   }
@@ -1335,6 +1387,7 @@ sub cmd {
       BASE_DIR         - Base dir for certificate BASE_DIR/Certs/id_dsa
       NAS_MNG_USER     - ssh login (Default: abills_admin)
       SSH_CMD          - ssh command (Default: /usr/bin/ssh -p $nas_port -o StrictHostKeyChecking=no -i $base_dir/Certs/id_dsa.$nas_admin)
+      SSH_KEY          - (optional) custom certificate file
       DEBUG            - Debug mode
 
   Returns:
@@ -1375,7 +1428,8 @@ sub ssh_cmd {
 
   my $base_dir  = $attr->{BASE_DIR}    || '/usr/abills/';
   my $nas_admin = $attr->{NAS_MNG_USER}|| 'abills_admin';
-  my $SSH       = $attr->{SSH_CMD}     || "/usr/bin/ssh -p $nas_port -o StrictHostKeyChecking=no -i $base_dir/Certs/id_dsa." . $nas_admin;
+  my $ssh_key   = $attr->{SSH_KEY} || "$base_dir/Certs/id_dsa." . $nas_admin;
+  my $SSH       = $attr->{SSH_CMD}     || "/usr/bin/ssh -p $nas_port -o StrictHostKeyChecking=no -i " . $ssh_key;
   my @cmd_arr = ();
   if (ref $cmd eq 'ARRAY') {
     @cmd_arr = @{ $cmd };
@@ -1460,7 +1514,7 @@ sub date_diff {
 
     result 31.10.2015
 
-    date_format('2015-10-31 08:01:15', "%H-%m-%i");
+    date_format('2015-10-31 08:01:15', "%H-%m-%S");
 
     result 08-01-15
 
@@ -1476,17 +1530,20 @@ sub date_format {
   my $sec    = 0;
 
   if ($date =~ /(\d{4})\-(\d{2})\-(\d{2}) (\d{2}):(\d{2}):(\d{2})/) {
-    $year   = $1;
-    $month  = $2;
+    $year   = $1 - 1900;
+    $month  = $2 - 1;
     $day    = $3;
     $hour   = $4;
     $min    = $5;
     $sec    = $6;
   }
+  elsif ($date =~ /^(\d{4})\-(\d{2})\-(\d{2})$/) {
+    $year   = $1 - 1900;
+    $month  = $2 - 1;
+    $day    = $3;
+  }
   else {
     ($sec, $min, $hour, $day, $month, $year) = (localtime time)[ 0, 1, 2, 3, 4, 5 ];
-    $year -= 100;
-    $month++;
     $year = "0$year"  if ($year < 10);
     $day  = "0$day"   if ($day < 10);
     $month= "0$month" if ($month < 10);
@@ -1496,7 +1553,7 @@ sub date_format {
   }
 
   $date = POSIX::strftime( $format,
-                  localtime(POSIX::mktime($sec, $min, $hour, $day, ($month - 1), ($year - 1900)) ) );
+                  localtime(POSIX::mktime($sec, $min, $hour, $day, $month, $year) ) );
 
   return $date;
 }
@@ -1544,6 +1601,16 @@ sub date_format {
 #**********************************************************
 sub _bp {
   my ($explanation, $value, $attr) = @_;
+
+  # Allow to set args one time for all cals
+  state $STATIC_ARGS;
+  if ($attr && $attr->{SET_ARGS}){
+    $STATIC_ARGS = $attr->{SET_ARGS};
+    return;
+  }
+  if (!$attr && defined $STATIC_ARGS){
+    $attr = $STATIC_ARGS;
+  }
 
   my $result_string = "";
   my ($package, $filename, $line) = caller;
@@ -1593,7 +1660,7 @@ sub _bp {
     $log_string =~ s/\s+/ /g;
     $log_string =~ s/\"/\'/g;
 
-    my $string_for_eval = qq/var log_str = "$log_string" ;eval ('console.warn(log_str)') /;
+    my $string_for_eval = qq/var log_str = "$log_string" ;eval ('console.log(log_str)') /;
     print qq\<script>try{console.group('[ $filename : $line ] $log_explanation'); $string_for_eval; console.groupEnd();} catch (E) {console.log('DEBUG ERROR: ' + E)} </script>\;
   }
   elsif ( $attr->{TO_CONSOLE} ){
@@ -1640,13 +1707,13 @@ sub urlencode {
 
   #$s =~ s/ /+/g;
   #$s =~ s/([^A-Za-z0-9\+-])/sprintf("%%%02X", ord($1))/seg;
-  $text =~ s/([^A-Za-z0-9])/sprintf("%%%2.2X", ord($1))/ge;
+  $text =~ s/([^A-Za-z0-9\_.-])/sprintf("%%%2.2X", ord($1))/ge;
 
   return $text;
 }
 
 #**********************************************************
-=head2 urlencode($text) URL decode function
+=head2 urldecode($text) URL decode function
   Arguments:
     $text   - Text string
 
@@ -1700,6 +1767,7 @@ sub startup_files {
       RESTART_RADIUS     => '/usr/local/etc/rc.d/freeradius',
       RESTART_APACHE     => '/usr/local/etc/rc.d/apache22',
       RESTART_DHCP       => '/usr/local/etc/rc.d/isc-dhcp-server',
+      SUDO               => '/usr/local/bin/sudo',
     );
   }
   else {
@@ -1710,7 +1778,8 @@ sub startup_files {
       RESTART_MYSQL      => '/etc/init.d/mysqld',
       RESTART_RADIUS     => '/etc/init.d/freeradius',
       RESTART_APACHE     => '/etc/init.d/apache2',
-      RESTART_DHCP       => '/etc/init.d/isc-dhcp-server'
+      RESTART_DHCP       => '/etc/init.d/isc-dhcp-server',
+      SUDO               => '/usr/bin/sudo',
     );
   }
 
@@ -1745,6 +1814,12 @@ sub startup_files {
 
   Returns:
     $day_in_month
+
+  Examples:
+
+    days_in_month({ DATE => '2016-11' });
+
+    days_in_month({ DATE => '2016-11-01' });
 
 =cut
 #**********************************************************
@@ -1834,7 +1909,7 @@ sub next_month {
     $hash_ref
     $attr
       DELIMITER
-      OUTPU2RETURN
+      OUTPUT2RETURN
 
   Results:
     True or false
@@ -1850,8 +1925,18 @@ sub show_hash {
   my $result = '';
   foreach my $key (sort keys %$hash) {
     $result .= "$key - ";
-    if ( ref $hash->{$key} eq 'HASH') {
+    if (ref $hash->{$key} eq 'HASH') {
       $result .= show_hash($hash->{$key}, { %$attr, OUTPUT2RETURN => 1 });
+    }
+    elsif(ref $hash->{$key} eq 'ARRAY') {
+      foreach my $key_ (@{ $hash->{$key} }) {
+        if(ref $key_ eq 'HASH') {
+          $result .= show_hash($key_, { %$attr, OUTPUT2RETURN => 1 });
+        }
+        else {
+          $result .= $key_;
+        }
+      }
     }
     else {
       $result .= $hash->{$key};
@@ -1864,9 +1949,101 @@ sub show_hash {
   }
 
   print $result;
+
   return 1;
 }
 
+#**********************************************************
+=head2 load_pmodule($modulename, $attr); - Load perl module
+
+  Arguments:
+    $modulename   - Perl module name
+    $attr
+      IMPORT      - Function for import
+      HEADER      - Add Content-Type header
+      SHOW_RETURN - Result to return
+
+  Returns:
+    TRUE - Not loaded
+    FALSE - Loaded
+
+  Examples:
+
+    load_pmodule('Simple::XML');
+
+=cut
+#**********************************************************
+sub load_pmodule2 {
+  my ($name, $attr) = @_;
+
+  eval " require $name ";
+
+  my $result = '';
+
+  if (!$@) {
+    if ($attr->{IMPORT}) {
+      $name->import( $attr->{IMPORT} );
+    }
+    else {
+      $name->import();
+    }
+  }
+  else {
+    $result = "Content-Type: text/html\n\n" if ($attr->{HEADER});
+    $result .= "Can't load '$name'\n".
+      " Install Perl Module <a href='http://abills.net.ua/wiki/doku.php/abills:docs:manual:soft:$name' target='_install'>$name</a> \n".
+      " Main Page <a href='http://abills.net.ua/wiki/doku.php/abills:docs:other:ru?&#ustanovka_perl_modulej' target='_install'>Perl modules installation</a>\n".
+      " or install from <a href='http://www.cpan.org'>CPAN</a>\n";
+
+    $result .= "$@" if ($attr->{DEBUG});
+
+    #print "Purchase this module http://abills.net.ua";
+    if ($attr->{SHOW_RETURN}) {
+      return $result;
+    }
+    elsif (! $attr->{RETURN} ) {
+      print $result;
+      die;
+    }
+
+    print $result;
+  }
+
+  return 0;
+}
+
+#**********************************************************
+=head2 date_inc($date)
+
+  Arguments:
+    $date - '2016-01-24'
+
+  Returns:
+   string - date incremented by one day
+
+   0 if incorrect date;
+
+=cut
+#**********************************************************
+sub date_inc {
+  my ($date) = @_;
+
+  my ($year, $month, $day) = split ('-', $date, 3);
+  return 0 unless ( $year && $month && $day );
+
+  if ( ++$day >= 29 ){
+    my $days_in_month = days_in_month( {DATE => $date} );
+    if ( $day > $days_in_month ){
+      if ( ++$month == 13 ){
+        $year++;
+        $month = '01';
+      }
+      $day = '01';
+    }
+  }
+
+  return "$year-$month-$day";
+}
 
 =head1 AUTHOR
 

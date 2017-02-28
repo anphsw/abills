@@ -1,14 +1,14 @@
-<div class='noprint'>
+
     <form action='$SELF_URL' method='post'>
         <input type='hidden' name='index' value='$index'>
         <input type='hidden' name='UID' value='$FORM{UID}'>
         <input type='hidden' name='sid' value='$sid'>
 
-        <div class='panel panel-primary'>
-            <div class='panel-heading'>
-                _{BONUS}_
+        <div class='box box-primary'>
+            <div class='box-header'>
+                <h3 class='box-title'>_{BONUS}_</h3>
             </div>
-            <div class='panel-body form form-horizontal'>
+            <div class='box-body form form-horizontal'>
                 <div class='form-group'>
                     <label class='col-md-3 control-label'>%TARIF_SEL_NAME%:</label>
 
@@ -30,11 +30,11 @@
                         %ACCEPT_RULES%
                     </div>
                 </div>
-                <div class='form-group'>
+                <div class='box-footer'>
                     %ACTION%
                 </div>
             </div>
         </div>
 
     </form>
-</div>
+

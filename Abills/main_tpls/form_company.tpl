@@ -1,5 +1,5 @@
-<div class='panel panel-default panel-form'>
-<div class='panel-body'>
+<div class='box box-theme box-form'>
+<div class='box-body'>
 
 <form action='$SELF_URL' METHOD='POST' name='company' class='form-horizontal' enctype='multipart/form-data'>
 <input type=hidden name='index' value='13'>
@@ -35,14 +35,8 @@
       <input class='form-control' id='REPRESENTATIVE' placeholder='%REPRESENTATIVE%' name='REPRESENTATIVE' value='%REPRESENTATIVE%'>
     </div>
   </div>
-  
-   <div class='form-group'>
-  <label class='control-label col-md-6' for='ACTIVE_DAY_FEE'>_{ACTIVE_DAY_FEE}_:</label>
-  <div class='col-md-2'>
-    <input id='ACTIVE_DAY_FEE' name='ACTIVE_DAY_FEE' value='1' %ACTIVE_DAY_FEE%  type='checkbox'>
-  </div>
-   </div>
-   
+
+
    <div class='form-group'>
   <label class='control-label col-md-6' for='BILL_ID'>_{BILL}_:</label>
   <div class='col-md-2'>
@@ -73,7 +67,7 @@
   <div class='form-group'>
     <label for='CREDIT_DATE' class='control-label col-md-3'>_{DATE}_:</label>
     <div class='col-md-9'>
-      <input class='tcal form-control' id='CREDIT_DATE' placeholder='%CREDIT_DATE%' name='CREDIT_DATE' value='%CREDIT_DATE%'>
+      <input class='datepicker form-control' id='CREDIT_DATE' placeholder='%CREDIT_DATE%' name='CREDIT_DATE' value='%CREDIT_DATE%'>
     </div>
   </div>
   
@@ -144,7 +138,7 @@
 
   <label class='control-label col-md-1' for='CONTRACT_DATE'>_{DATE}_</label>
   <div class='col-md-4'>
-    <input id='CONTRACT_DATE' type='text' name='CONTRACT_DATE' value='%CONTRACT_DATE%' class='tcal form-control'> 
+    <input id='CONTRACT_DATE' type='text' name='CONTRACT_DATE' value='%CONTRACT_DATE%' class='datepicker form-control'>
   </div>
 </div>
 
@@ -159,7 +153,7 @@
    
    %INFO_FIELDS%
    
-   <div class='col-sm-offset-2 col-sm-8'>
+   <div class='box-footer'>
       <input type='submit' class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
     </div>
    </fieldset>

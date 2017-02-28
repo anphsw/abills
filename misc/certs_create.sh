@@ -1,8 +1,12 @@
 #!/bin/sh
 # ABILLS Certificat creator
-
+#
+# REVISION 20161103
+#
+***********************************************************
 
 SSL=/usr/local/openssl
+OPENSSL=`which openssl`
 export PATH=/usr/src/crypto/${OPENSSL}/apps/:${SSL}/bin/:${SSL}/ssl/misc:${PATH}
 export LD_LIBRARY_PATH=/openssl/lib
 CA_pl='/usr/src/crypto/openssl/apps/CA.pl';
@@ -10,15 +14,13 @@ CA_pl='/usr/src/crypto/openssl/apps/CA.pl';
 
 hostname=`hostname`;
 password=whatever;
-VERSION=2.05;
+VERSION=2.10;
 DAYS=730;
 DATE=`date`;
 CERT_TYPE=$1;
 CERT_USER="";
-OPENSSL=`which openssl`
 CERT_LENGTH=2048;
 OS=`uname`;
-
 
 if [ w$1 = whelp ]; then
   shift ;
@@ -55,43 +57,44 @@ CERT_PATH=${BILLING_DIR}/Certs/
 
 # Proccess command-line options
 for _switch ; do
-        case $_switch in
-        ssh)    USER=$2; 
-                CERT_TYPE=ssh;
-                shift; shift;
-                ;;
-        -D)
-                CERT_PATH=$2;
-                shift; shift
-                ;;
-        #Cert owner
-        -U)
-                CERT_USER="$3"
-                shift; shift
-                ;;
-        -LENGTH) CERT_LENGTH=$2
-                shift; shift
-                ;;
-        -DAYS) DAYS=$3
-                shift; shift
-                ;;
-        -PASSWORD) password=$2
-                shift; shift
-                ;;
-        -HOSTNAME) HOSTNAME=$2
-                shift; shift
-                ;;
-        -UPLOAD) UPLOAD=y; HOSTNAME=$3
-                shift;
-                ;;
-        -UPLOAD_FTP) UPLOAD_FTP=y; UPLOAD=y; HOSTNAME=$2
-                echo "Upload ftp: ${HOSTNAME}";
-                shift; shift;
-                ;;
-        -SKIP_UPLOAD_CERT) SKIP_UPLOAD_CERT=1
-                shift;
-                ;;
-        esac
+  case ${_switch} in
+  ssh)    USER=$2;
+          CERT_TYPE=ssh;
+          shift; shift;
+          ;;
+  -D)     CERT_PATH=$2;
+          shift; shift
+          ;;
+  #Cert owner
+  -U)     CERT_USER="$3"
+          shift; shift
+          ;;
+  -LENGTH) CERT_LENGTH=$2
+          shift; shift
+          ;;
+  -DAYS) DAYS=$3
+          shift; shift
+          ;;
+  -PASSWORD) password=$2
+          shift; shift
+          ;;
+  -HOSTNAME) _HOSTNAME=$2
+          shift; shift
+          ;;
+  -UPLOAD) UPLOAD=y; _HOSTNAME=$3
+          shift;
+          ;;
+  -UPLOAD_FTP) UPLOAD_FTP=y; UPLOAD=y; _HOSTNAME=$2
+          echo "Upload ftp: ${_HOSTNAME}";
+          shift; shift;
+          ;;
+  -FTP_PASIVE) FTP_PASIVE=1
+          shift;
+          ;;
+  -SKIP_UPLOAD_CERT) SKIP_UPLOAD_CERT=1
+          shift;
+          ;;
+  esac
 done
 
 
@@ -127,16 +130,17 @@ fi;
 # it@easypay.ua
 #**********************************************************
 x509_cert () {
+
+  SYSTEM_NAME=$1;
+  SEND_EMAIL=$2;
+  PUBLIC_KEY=$3;
+
   echo "#******************************************************************************"
   echo "#Creating ${SYSTEM_NAME} certs"
   echo "#"
   echo "#******************************************************************************"
   echo
 
-  SYSTEM_NAME=$1;
-  SEND_EMAIL=$2;
-  PUBLIC_KEY=$3;
-  
 
   if [ x${PUBLIC_KEY} = x  ]; then
     echo "Enter path to ${SYSTEM_NAME} public key: ";
@@ -268,6 +272,8 @@ fi;
 
 #**********************************************************
 # Create SSH certs
+#
+#
 #**********************************************************
 ssh_key () {
 
@@ -300,11 +306,10 @@ ssh_key () {
        read UPLOAD
      fi;
     fi;
-
   fi;
  
   if [ ! -f ${CERT_PATH}${id_dsa_file} ]; then
-    ssh-keygen -t dsa -C "ABillS remote machine manage key (${DATE})" -f "${CERT_PATH}${id_dsa_file}"
+    ssh-keygen -t dsa -C "ABillS remote machine manage key (${DATE})" -f "${CERT_PATH}${id_dsa_file}" -N ""
 
     chown ${APACHE_USER} ${CERT_PATH}${id_dsa_file}
     chmod u=r,go= ${CERT_PATH}/${id_dsa_file}.pub
@@ -316,11 +321,11 @@ ssh_key () {
   fi;
 
   if [ x${UPLOAD} = xy ]; then
-    if [ x${HOSTNAME} = x ]; then
+    if [ x${_HOSTNAME} = x ]; then
       echo -n "Enter host: "
-      read HOSTNAME
-      SSH_PORT=`echo ${HOSTNAME} | awk -F: '{ print $2 }'`
-      HOSTNAME=`echo ${HOSTNAME} | awk -F: '{ print $1 }'`
+      read _HOSTNAME
+      SSH_PORT=`echo ${_HOSTNAME} | awk -F: '{ print $2 }'`
+      _HOSTNAME=`echo ${_HOSTNAME} | awk -F: '{ print $1 }'`
       if [ x${SSH_PORT} = x ]; then
         SSH_PORT=22;
       fi;
@@ -338,39 +343,44 @@ ssh_key () {
         exit;  
       fi;
 
-      if [ ! SKIP_UPLOAD_CERT ]; then
-        echo "Make upload to: ${HOSTNAME}:${FTP_PORT}/${id_dsa_file}.pub ${CERT_PATH}${id_dsa_file}.pub"
+      FTP_PASIVE=1;
+      if [ "${FTP_PASIVE}" != "" ]; then
+        FTP="${FTP} -p"
       fi;
 
-      CHECK_USER=`echo ${HOSTNAME} | grep @`;
+      if [ ! SKIP_UPLOAD_CERT ]; then
+        echo "Make upload to: ${_HOSTNAME}:${FTP_PORT}/${id_dsa_file}.pub ${CERT_PATH}${id_dsa_file}.pub"
+      fi;
+
+      CHECK_USER=`echo ${_HOSTNAME} | grep @`;
       if [ x${CHECK_USER} != x ]; then
-        USER=`echo ${HOSTNAME} | awk -F@ '{ print $1 }'`
-        HOSTNAME=`echo ${HOSTNAME} | awk -F@ '{ print $2 }'`
+        USER=`echo ${_HOSTNAME} | awk -F@ '{ print $1 }'`
+        _HOSTNAME=`echo ${_HOSTNAME} | awk -F@ '{ print $2 }'`
       fi;
 
       echo -n "Enter ftp password: "
       read FTP_PASSWD
 
       if [ x${OS} = xFreeBSD ] ; then
-         ${FTP} -u ftp://${USER}:${FTP_PASSWD}@${HOSTNAME}:${FTP_PORT}/${id_dsa_file}.pub ${CERT_PATH}${id_dsa_file}.pub
+         ${FTP} -u ftp://${USER}:${FTP_PASSWD}@${_HOSTNAME}:${FTP_PORT}/${id_dsa_file}.pub ${CERT_PATH}${id_dsa_file}.pub
       else
-        (echo user ${USER} "${FTP_PASSWD}"; echo "cd /"; echo "ls"; echo "lcd ${CERT_PATH}";  echo "put ${id_dsa_file}.pub"; ) | ${FTP} -ivn ${HOSTNAME}
+        (echo user ${USER} "${FTP_PASSWD}"; echo "cd /"; echo "ls"; echo "lcd ${CERT_PATH}";  echo "put ${id_dsa_file}.pub"; ) | ${FTP} -ivn ${_HOSTNAME}
       fi;
 
 
-      HOSTNAME=`echo ${HOSTNAME} | awk -F@ '{print $2}'`;
+      _HOSTNAME=`echo ${_HOSTNAME} | awk -F@ '{print $2}'`;
       exit;
     else 
-      echo "Making upload to: ${USER}@${HOSTNAME} "
-      ssh -p ${SSH_PORT} ${USER}@${HOSTNAME} "mkdir ~/.ssh"
-      scp -P ${SSH_PORT} ${CERT_PATH}${id_dsa_file}.pub ${USER}@${HOSTNAME}:~/.ssh/authorized_keys
+      echo "Making upload to: ${USER}@${_HOSTNAME} "
+      ssh -p ${SSH_PORT} ${USER}@${_HOSTNAME} "mkdir ~/.ssh"
+      scp -P ${SSH_PORT} ${CERT_PATH}${id_dsa_file}.pub ${USER}@${_HOSTNAME}:~/.ssh/authorized_keys
     fi;
     
     
-    echo -n "Connect to remote host: ${HOSTNAME} [y/n]: "
+    echo -n "Connect to remote host: ${_HOSTNAME} [y/n]: "
     read CONNECT
     if [ w${CONNECT} = wy ]; then
-      ssh -p ${SSH_PORT} -o StrictHostKeyChecking=no -i ${CERT_PATH}${id_dsa_file}  ${USER}@${HOSTNAME}
+      ssh -p ${SSH_PORT} -o StrictHostKeyChecking=no -i ${CERT_PATH}${id_dsa_file}  ${USER}@${_HOSTNAME}
       exit;
     fi;
   else
@@ -425,7 +435,7 @@ express_oplata () {
       BCC_EMAIL="-b ${BCC_EMAIL}"
     fi; 
 
-    ( echo "${COMMENTS}"; uuencode /usr/abills/Certs/express_oplata_public.pem express_oplata_public.pem ) | mail -s "Public Cert" ${BCC_EMAIL} $EO_EMAIL
+    ( echo "${COMMENTS}"; uuencode /usr/abills/Certs/express_oplata_public.pem express_oplata_public.pem ) | mail -s "Public Cert" ${BCC_EMAIL} ${EO_EMAIL}
     
     echo "Cert sended to Expres-Oplata"
   fi;
@@ -651,33 +661,31 @@ check_ssl_conf () {
 
 #Cert functions
 case ${CERT_TYPE} in
-        ssh) 
-              ssh_key $2;
-                ;;
-        apache)
-              apache_cert;
-                ;;
-        wexpress_oplata)
-              wexpress_oplata;
-                ;;
-        info)
-              cert_info $2;
-                ;;
-        postfix_tls)
-              postfix_cert;
-                ;;
-        easysoft)
-              x509_cert "easysoft" "kabanets@easysoft.com.ua,it@easypay.ua" "$2";
-                ;;
-        privatbank)
-              x509_cert "privatbank" "" "$2";
-                ;;
-        eap)
-              eap_cert; 
-                ;;
+  ssh)
+        ssh_key $2;
+        ;;
+  apache)
+        apache_cert;
+        ;;
+  wexpress_oplata)
+        wexpress_oplata;
+        ;;
+  info)
+        cert_info $2;
+        ;;
+  postfix_tls)
+        postfix_cert;
+        ;;
+  easysoft)
+        x509_cert "easysoft" "kabanets@easysoft.com.ua,it@easypay.ua" "$2";
+        ;;
+  privatbank)
+        x509_cert "privatbank" "" "$2";
+        ;;
+  eap)
+        eap_cert;
+        ;;
 esac;
-
-
 
 echo "${CERT_TYPE} Done...";
 

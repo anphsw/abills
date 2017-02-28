@@ -6,19 +6,34 @@
 
 =cut
 
-#use strict;
+use strict;
 use warnings FATAL => 'all';
-
 use Abills::Defs;
 use Nas;
 use Vlan;
-use Abills::Base;
+use Abills::Base qw(ip2int int2ip in_array tpl_parse);
+
+our(
+  $db,
+  $admin,
+  $html,
+  %conf,
+  %lang,
+  %err_strs,
+  @bool_vals,
+  @status,
+  %permissions,
+  $base_dir,
+  $IFCONFIG
+);
+
+
 my $Vlan = Vlan->new( $db, $admin, \%conf );
 my $Nas = Nas->new( $db, \%conf );
 
-my $SUDO = $conf{FILE_SUDO} || 'sudo';
-my $SSH = $conf{FILE_SSH} || '/usr/bin/ssh';
-my $SCP = $conf{FILE_SCP} || '/usr/bin/scp';
+my $SUDO  = $conf{FILE_SUDO} || 'sudo';
+my $SSH   = $conf{FILE_SSH} || '/usr/bin/ssh';
+my $SCP   = $conf{FILE_SCP} || '/usr/bin/scp';
 my $debug = $FORM{VLAN_DEBUG} || 0;
 
 #Templates
@@ -70,7 +85,7 @@ sub vlan_users_list{
     }
   );
 
-  print $html->letters_list( { pages_qs => $pages_qs } );
+  #print $html->letters_list( { pages_qs => $pages_qs } );
 
   if ( $FORM{letter} ){
     $LIST_PARAMS{LOGIN} = "$FORM{letter}*";
@@ -112,20 +127,19 @@ sub vlan_users_list{
   );
 
   foreach my $line ( @{$list} ){
-
-    my @fields_array = ();
+    #my @fields_array = ();
     #for (my $i = 0 ; $i < $Vlan->{SEARCH_FIELDS_COUNT} ; $i++) {
     #  push @fields_array, $line->{unnumbered_ip};
     #}
 
     $table->addrow(
-      $html->button( "$line->{login}", "index=15&UID=$line->{uid}&MODULE=Vlan" ),
-      "$line->{fio}",
-      "$line->{deposit}",
-      "$line->{credit}",
-      "$line->{vlan_id}",
-      "$line->{ip}",
-      "$line->{ip_range}",
+      $html->button($line->{login}, "index=15&UID=$line->{uid}&MODULE=Vlan" ),
+      $line->{fio},
+      $line->{deposit},
+      $line->{credit},
+      $line->{vlan_id},
+      $line->{ip},
+      $line->{ip_range},
       $bool_vals[ $line->{disable} ],
       $bool_vals[ $line->{dhcp} ],
       $status[ $line->{pppoe} ],
@@ -175,7 +189,7 @@ sub vlan_user{
       }
     }
 
-    if ( !$FORM{VLAN_ID} || int( $FORM{VLAN_ID} ) < 1 ){
+    if ( !$FORM{VLAN_ID} ||  $FORM{VLAN_ID} !~ /^\d+$/){
       $html->message( 'err', $lang{ERROR}, "$lang{ERR_WRONG_VLAN_NUMBER}" );
     }
     elsif ( $FORM{DHCP} && ($FORM{NETMASK} eq '255.255.255.255' || $FORM{IP} eq '0.0.0.0') ){
@@ -315,7 +329,7 @@ sub vlan_user{
       SEL_KEY        => 'nas_id',
       SEL_VALUE      => 'nas_name',
       MAIN_MENU      => get_function_index( 'form_nas' ),
-      MAIN_MENU_AGRV => "chg=" . ($Vlan->{NAS_ID} || ''),
+      MAIN_MENU_ARGV => "chg=" . ($Vlan->{NAS_ID} || ''),
     }
   );
 
@@ -370,7 +384,9 @@ sub vlan_user_info{
 }
 
 #**********************************************************
-# Create vlans
+=head2 vlan_create($attr)
+
+=cut
 #**********************************************************
 sub vlan_create{
   my ($attr) = @_;
@@ -713,7 +729,8 @@ sub vlan_info{
     my @ifconfig_arr = split( /[\n\r]/, $ifconfig );
 
     foreach my $if ( @ifconfig_arr ){
-      my ($if_num, $ip, $mask, $parent) = split( /:/, $if );
+      # ($if_num, $ip, $mask, $parent)
+      my ($if_num, $ip) = split( /:/, $if );
       $if_num = 0 if (!$if_num);
       if ( $if_num =~ /^\d+$/ && int( $if_num ) > 0 ){
         $VLANS{$if_num} = $ip || '0.0.0.0';

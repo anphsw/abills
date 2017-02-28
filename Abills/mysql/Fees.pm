@@ -35,6 +35,14 @@ sub new {
 #**********************************************************
 =head2 take($user, $sum, $attr) - Take sum from bill account
 
+  Arguments:
+    $user
+    $sum
+    $attr
+
+  Resturn:
+    $self
+
 =cut
 #**********************************************************
 sub take {
@@ -162,6 +170,7 @@ sub take {
       %$attr,
       SUM          => $self->{SUM},
       LAST_DEPOSIT => $Bill->{DEPOSIT},
+      REG_DATE     => 'NOW()'
     });
 
     if ($self->{errno}) {
@@ -249,10 +258,11 @@ sub list {
       ['AID',            'INT', 'f.aid',                             ],
       ['DOMAIN_ID',      'INT', 'u.domain_id',                       ],
       ['UID',            'INT', 'f.uid',                           1 ],
-      ['INNER_DESCRIBE', 'STR', 'f.inner_describe',                 ],
-      ['DATE',           'DATE','date_format(f.date, \'%Y-%m-%d\')'  ],
-      ['FROM_DATE|TO_DATE','DATE', 'date_format(f.date, \'%Y-%m-%d\')'  ],
-      ['MONTH',          'DATE', "date_format(f.date, '%Y-%m')"   ],
+      ['INNER_DESCRIBE', 'STR', 'f.inner_describe',                  ],
+      ['DATE',           'DATE','DATE_FORMAT(f.date, \'%Y-%m-%d\')'  ],
+      ['FROM_DATE|TO_DATE','DATE', 'DATE_FORMAT(f.date, \'%Y-%m-%d\')'  ],
+      ['MONTH',          'DATE', "DATE_FORMAT(f.date, '%Y-%m')"      ],
+      ['REG_DATE',       'DATE', "f.reg_date", "f.reg_date"          ]
     ],
     { WHERE       => 1,
       USERS_FIELDS=> 1,
@@ -299,7 +309,7 @@ sub list {
 }
 
 #**********************************************************
-=head2 report()
+=head2 report($attr) - Fees reports
 
 =cut
 #**********************************************************
@@ -312,83 +322,86 @@ sub reports {
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $date = '';
   my @WHERE_RULES = ();
-
-  if ($attr->{GID}) {
-    push @WHERE_RULES, "u.gid IN ( $attr->{GID} )";
-  }
-
-  if ($attr->{BILL_ID}) {
-    push @WHERE_RULES, "f.bill_id IN ( $attr->{BILL_ID} )";
-  }
+  my %EXT_TABLE_JOINS_HASH = ();
 
   if ($attr->{ADMINS}) {
     push @WHERE_RULES, @{ $self->search_expr($attr->{ADMINS}, 'STR', 'a.id') };
   }
 
   if ($attr->{DATE}) {
-    push @WHERE_RULES, "date_format(f.date, '%Y-%m-%d')='$attr->{DATE}'";
+    #push @WHERE_RULES, "DATE_FORMAT(f.date, '%Y-%m-%d')='$attr->{DATE}'";
   }
   elsif ($attr->{INTERVAL}) {
-    my ($from, $to) = split(/\//, $attr->{INTERVAL}, 2);
-    push @WHERE_RULES, @{ $self->search_expr(">=$from", 'DATE', 'date_format(f.date, \'%Y-%m-%d\')') }, @{ $self->search_expr("<=$to", 'DATE', 'date_format(f.date, \'%Y-%m-%d\')') };
+    ($attr->{FROM_DATE}, $attr->{TO_DATE}) = split(/\//, $attr->{INTERVAL}, 2);
   }
   elsif (defined($attr->{MONTH})) {
-    push @WHERE_RULES, "date_format(f.date, '%Y-%m')='$attr->{MONTH}'";
-    $date = "date_format(f.date, '%Y-%m-%d') AS date";
+    $date = "DATE_FORMAT(f.date, '%Y-%m-%d') AS date";
   }
   else {
-    $date = "date_format(f.date, '%Y-%m') AS month";
+    $date = "DATE_FORMAT(f.date, '%Y-%m') AS month";
   }
 
   my $GROUP = 1;
   $attr->{TYPE} = '' if (!$attr->{TYPE});
-  my $EXT_TABLES = '';
 
   if ($attr->{TYPE} eq 'HOURS') {
-    $date = "date_format(f.date, '%H') AS hour";
+    $date = "DATE_FORMAT(f.date, '%H') AS hour";
   }
   elsif ($attr->{TYPE} eq 'DAYS') {
-    $date = "date_format(f.date, '%Y-%m-%d') AS date";
+    $date = "DATE_FORMAT(f.date, '%Y-%m-%d') AS date";
   }
   elsif ($attr->{TYPE} eq 'METHOD') {
     $date = "f.method";
   }
   elsif ($attr->{TYPE} eq 'ADMINS') {
     $date = "a.id AS admin_login";
+    $EXT_TABLE_JOINS_HASH{admins} = 1;
   }
   elsif ($attr->{TYPE} eq 'PER_MONTH') {
-    $date = "date_format(f.date, '%Y-%m') AS date";
+    $date = "DATE_FORMAT(f.date, '%Y-%m') AS date";
   }
   elsif ($attr->{TYPE} eq 'FIO') {
-    $EXT_TABLES = 'LEFT JOIN users_pi pi ON (u.uid=pi.uid)';
+    $EXT_TABLE_JOINS_HASH{users_pi} = 1;
     $date       = "pi.fio";
     $GROUP      = 5;
   }
   elsif ($attr->{TYPE} eq 'COMPANIES') {
-    $EXT_TABLES = 'LEFT JOIN companies c ON (u.company_id=c.id)';
+    $EXT_TABLE_JOINS_HASH{companies}=1;
     $date       = "c.name AS company_name";
   }
   elsif ($date eq '') {
     $date = "u.id AS login";
   }
 
-  if (defined($attr->{METHODS}) and $attr->{METHODS} ne '') {
-    push @WHERE_RULES, "f.method IN ($attr->{METHODS}) ";
+  $attr->{SKIP_DEL_CHECK}=1;
+  my $WHERE =  $self->search_former($attr, [
+      ['BILL_ID',           'INT',  'f.bill_id',                     1 ],
+      ['METHOD',            'INT',  'f.method'                         ],
+      ['MONTH',             'DATE', "DATE_FORMAT(f.date, '%Y-%m')"     ],
+      ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(f.date, '%Y-%m-%d')"  ],
+      ['DATE',              'DATE', "DATE_FORMAT(f.date, '%Y-%m-%d')"  ],
+    ],
+    {
+      WHERE             => 1,
+      USERS_FIELDS      => 1,
+      USE_USER_PI       => 1,
+      SKIP_USERS_FIELDS => [ 'UID', 'LOGIN' ],
+    }
+  );
+
+  if ($self->{EXT_TABLES} || $date =~ /u\.|pi\./ || $WHERE =~ /u\.|pi\./) {
+    $EXT_TABLE_JOINS_HASH{users}=1;
   }
 
-  if ($admin->{DOMAIN_ID}) {
-    push @WHERE_RULES, @{ $self->search_expr("$admin->{DOMAIN_ID}", 'INT', 'u.domain_id', { EXT_FIELD => 0 }) };
-    $EXT_TABLES = "INNER JOIN users u ON (u.uid=f.uid) ". $EXT_TABLES;
-  }
-  else {
-    $EXT_TABLES = "LEFT JOIN users u ON (u.uid=f.uid) ". $EXT_TABLES;
-  }
+  my $EXT_TABLES = $self->mk_ext_tables({
+    JOIN_TABLES     => \%EXT_TABLE_JOINS_HASH,
+    EXTRA_PRE_JOIN  => [ 'users:INNER JOIN users u ON (u.uid=f.uid)',
+      'admins:LEFT JOIN admins a ON (a.aid=f.aid)'
+    ]
+  });
 
-  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
-
-  $self->query2("SELECT $date, count(DISTINCT f.uid) AS login_count, count(*) AS count,  sum(f.sum) AS sum, f.uid, u.company_id 
+  $self->query2("SELECT $date, COUNT(DISTINCT f.uid) AS login_count, COUNT(*) AS count,  SUM(f.sum) AS sum, f.uid
       FROM fees f
-      LEFT JOIN admins a ON (f.aid=a.aid)
       $EXT_TABLES
       $WHERE 
       GROUP BY $GROUP
@@ -402,9 +415,8 @@ sub reports {
   $self->{SUM}   = '0.00';
   $self->{USERS} = 0;
   if ($self->{TOTAL} > 0 || $PG > 0) {
-    $self->query2("SELECT count(DISTINCT f.uid) AS users, count(*) AS total, sum(f.sum) AS sum 
+    $self->query2("SELECT COUNT(DISTINCT f.uid) AS users, COUNT(*) AS total, SUM(f.sum) AS sum 
       FROM fees f
-      LEFT JOIN admins a ON (f.aid=a.aid)
       $EXT_TABLES
       $WHERE;",
     undef,

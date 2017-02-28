@@ -1,11 +1,12 @@
-CREATE TABLE turbo_mode (
-   `id` int(11) unsigned NOT NULL auto_increment,
-  `mode_id` smallint(6) unsigned NOT NULL default '0',
-  `start` datetime NOT NULL default '0000-00-00 00:00:00',
-  `speed` int(10) unsigned NOT NULL default '0',
-  `speed_type` tinyint(1) unsigned NOT NULL default '0',
-  `time` int(11) unsigned NOT NULL default '0',
-  `uid` int(11) unsigned NOT NULL default '0',
-   PRIMARY KEY  (`id`),
-  KEY `uid` (`uid`, `start`)  
-) COMMENT='Turbo mode Active Sessions';
+CREATE TABLE IF NOT EXISTS `turbo_mode` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `mode_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `start` DATETIME NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+  `speed` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+  `speed_type` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
+  `time` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `uid` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  KEY `uid` (`uid`, `start`)
+)
+  COMMENT = 'Turbo mode Active Sessions';

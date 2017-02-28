@@ -20,10 +20,11 @@ sub new {
   ($admin, $CONF) = @_;
 
   $admin->{MODULE} = $MODULE;
-  my $self = {};
-  bless($self, $class);
+  my $self = {
+    db => $db
+  };
 
-  $self->{db}=$db;
+  bless($self, $class);
 
   return $self;
 }

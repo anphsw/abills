@@ -1,4 +1,4 @@
-BuildsArray.push({
+ObjectsArray.push({
   "MARKER" : {
     "COORDS"   : [ %MAP_Y%, %MAP_X% ],
     "DISTRICT" : %DISTRICT_ID%,

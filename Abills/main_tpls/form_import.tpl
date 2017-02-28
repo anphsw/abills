@@ -1,9 +1,9 @@
-<div class='panel panel-primary'>  
-<div class='panel-heading text-center'>  
+<div class='box box-primary'>
+<div class='box-header with-border text-center'>
     _{IMPORT}_
 </div>
   
-<div class='panel-body' id='ajax_upload_modal_body'>
+<div class='box-body' id='ajax_upload_modal_body'>
   
     <form class='form form-horizontal' name='ajax_upload_form' id='ajax_upload_form' method='post'>
   
@@ -18,7 +18,7 @@
             <div class='col-md-9'>  
                 <select name='IMPORT_TYPE' class='form-control'>  
                   <option value='csv'>CSV  
-                  <option value='csv'>JSON  
+                  <option value='JSON'>JSON
                   <!--
                   <option value='xml'>XML  
                   -->  
@@ -60,7 +60,7 @@
   
     </form>  
 </div>  
-<div class='panel-footer text-right'>  
+<div class='box-footer text-right'>
     <button type='submit' class='btn btn-primary' id='ajax_upload_submit' form='ajax_upload_form'>_{ADD}_</button>
 </div>
     </div>

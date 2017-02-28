@@ -170,34 +170,34 @@ if (typeof ipv4_form != 'undefined' && ipv4_form) {
 
         //bind events
         $mask_bits_select.on('change', function () {
-            events.emit('netlist_mask_bits_select_change', this.value);
+            Events.emit('netlist_mask_bits_select_change', this.value);
         });
         $subnets_count_select.on('change', function () {
-            events.emit('netlist_subnets_count_select_change', this.value);
+            Events.emit('netlist_subnets_count_select_change', this.value);
         });
         $hosts_count_select.on('change', function () {
-            events.emit('netlist_hosts_count_select_change', this.value);
+            Events.emit('netlist_hosts_count_select_change', this.value);
         });
 
         //mask
-        events.on('netlist_mask_bits_select_change', function (data) {
+        Events.on('netlist_mask_bits_select_change', function (data) {
             //renew network mask
             setMask(bits_mask[data]);
 
             renewSubnetsCount(data);
             renewChosenValue($subnets_count_select, 1);
 
-            events.emit('netlist_subnets_count_select_change', $subnets_count_select.val());
+            Events.emit('netlist_subnets_count_select_change', $subnets_count_select.val());
         });
 
-        events.on('netlist_subnets_count_select_change', function (data) {
+        Events.on('netlist_subnets_count_select_change', function (data) {
             renewHostsCountOptions();
             renewHostsCount(data);
 
             renewSubnetMask();
         });
 
-        events.on('netlist_hosts_count_select_change', function (hosts_count) {
+        Events.on('netlist_hosts_count_select_change', function (hosts_count) {
             var hosts_per_subnet = getHostsCountForBits($mask_bits_select.val());
             hosts_count = Number(hosts_count) + 2;
 
@@ -209,7 +209,7 @@ if (typeof ipv4_form != 'undefined' && ipv4_form) {
 
         //******   init   ******
         $(function () {
-            events.emit('netlist_mask_bits_select_change', $mask_bits_select.val());
+            Events.emit('netlist_mask_bits_select_change', $mask_bits_select.val());
 
             renewChosenValue($subnets_count_select, _FORM['SUBNET_NUMBER']);
             renewChosenValue($hosts_count_select, _FORM['HOSTS_COUNT']);

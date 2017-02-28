@@ -10,6 +10,7 @@
 =cut
 
 use strict;
+use warnings FATAL => 'all';
 
 if ( form_purchase_module( {
     HEADER          => $user->{UID},
@@ -20,7 +21,6 @@ if ( form_purchase_module( {
   exit;
 }
 
-use warnings FATAL => 'all';
 use Dv;
 use Dv_Sessions;
 use Finance;
@@ -28,17 +28,17 @@ use Fees;
 use Tariffs;
 use Abills::Base qw(sendmail in_array);
 
-our $db;
-our $admin;
-our %conf;
-our $html;
-our %lang;
-our %err_strs;
-our %permissions;
-our @bool_vals;
-our @MONTHES;
-our @WEEKDAYS;
-our %ADMIN_REPORT;
+our ($db,
+  $admin,
+  %conf,
+  $html,
+  %lang,
+  %permissions,
+  @bool_vals,
+  @MONTHES,
+  @WEEKDAYS,
+  %ADMIN_REPORT
+);
 
 my $Ureports = Ureports->new( $db, $admin, \%conf );
 my $fees = Fees->new( $db, $admin, \%conf );
@@ -113,7 +113,7 @@ sub ureports_users_list{
         $html->tpl_show( _include( 'ureports_users_search', 'Ureports' ), { %FORM }, { notprint => 1 } ) } );
   }
 
-  print $html->letters_list( { pages_qs => $pages_qs } );
+  #print $html->letters_list( { pages_qs => $pages_qs } );
 
   if ( $FORM{letter} ){
     $LIST_PARAMS{LOGIN} = "$FORM{letter}*";
@@ -122,30 +122,30 @@ sub ureports_users_list{
   my Abills::HTML $table;
   my $user_list;
   ($table, $user_list) = result_former( {
-      DEFAULT_FIELDS    => 'LOGIN,FIO,TP_NAME,STATUS,TYPE,DESTINATION',
-        INPUT_DATA      => $Ureports,
-        FUNCTION        => 'user_list',
-        BASE_FIELDS     => 0,
-        FUNCTION_FIELDS => 'stats',
-        EXT_TITLES      => {
-        speed       => $lang{SPEED},
-        port        => $lang{PORT},
-        cid         => 'CID',
-        filter_id   => 'Filter ID',
-        tp_name     => $lang{TARIF_PLANS},
-        status      => "$lang{STATUS}",
-        type        => $lang{TYPE},
-        destination => $lang{DESTINATION}
-      },
-        TABLE           => {
-        width   => '100%',
-        caption => "$lang{INVOICES}",
-        qs      => $pages_qs,
-        ID      => 'UREPORTS_USERS',
-        EXPORT  => 1,
-        MENU    => "$lang{SEARCH}:index=$index&search_form=1:search;$lang{ADD}:index=$index&add_form=1:add",
-      },
-    } );
+    DEFAULT_FIELDS    => 'LOGIN,FIO,TP_NAME,STATUS,TYPE,DESTINATION',
+      INPUT_DATA      => $Ureports,
+      FUNCTION        => 'user_list',
+      BASE_FIELDS     => 0,
+      FUNCTION_FIELDS => 'stats',
+      EXT_TITLES      => {
+      speed       => $lang{SPEED},
+      port        => $lang{PORT},
+      cid         => 'CID',
+      filter_id   => 'Filter ID',
+      tp_name     => $lang{TARIF_PLANS},
+      status      => "$lang{STATUS}",
+      type        => $lang{TYPE},
+      destination => $lang{DESTINATION}
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => $lang{USERS},
+      qs      => $pages_qs,
+      ID      => 'UREPORTS_USERS',
+      EXPORT  => 1,
+      MENU    => "$lang{SEARCH}:index=$index&search_form=1:search;$lang{ADD}:index=$index&add_form=1:add",
+    },
+  } );
 
   foreach my $line ( @{$user_list} ){
     my @fields_array = ();
@@ -216,7 +216,10 @@ sub ureports_user{
     }
 
     if ( $report_type == 0 && (!$FORM{DESTINATION} || $FORM{DESTINATION} !~ /^(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/) ){
-      $html->message( 'err', $lang{ERROR}, $lang{WRONG_EMAIL} );
+      $html->message( 'err', $lang{ERROR}, $lang{ERR_WRONG_EMAIL} );
+    }
+    elsif($report_type == 1 && $conf{PHONE_FORMAT} && $FORM{DESTINATION} !~ /$conf{PHONE_FORMAT}/) {
+      _error_show({ errno => 21, errstr => 'ERR_WRONG_PHONE' });
     }
     else{
       $Ureports->user_add( { %FORM } );
@@ -238,7 +241,10 @@ sub ureports_user{
     }
 
     if ( $report_type == 0 && (!$FORM{DESTINATION} || $FORM{DESTINATION} !~ /^(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/) ){
-      $html->message( 'err', $lang{ERROR}, "$lang{WRONG_EMAIL}" );
+      $html->message( 'err', $lang{ERROR}, "$lang{ERR_WRONG_EMAIL}" );
+    }
+    elsif($report_type == 1 && $conf{PHONE_FORMAT} && $FORM{DESTINATION} !~ /$conf{PHONE_FORMAT}/) {
+      _error_show({ errno => 21, errstr => 'ERR_WRONG_PHONE' });
     }
     else{
       $Ureports->user_change( { %FORM } );
@@ -354,6 +360,8 @@ sub ureports_user{
     }
   );
 
+  $Ureports->{HISTORY_BTN} = $html->button($lang{LOG}, "UID=$FORM{UID}&index=". ($index+1), { class => 'btn bnt-default btn-success pull-right' });
+
   $html->tpl_show( _include( 'ureports_user', 'Ureports' ), { %{$attr}, %{$Ureports} } );
 
   return 1;
@@ -381,8 +389,7 @@ sub ureports_tp{
   elsif ( $FORM{TP_ID} ){
     $tarif_info = $Ureports->tp_info( $FORM{TP_ID} );
 
-    if ( $Ureports->{errno} ){
-      $html->message( 'err', $lang{ERROR}, "[$tariffs->{errno}] $err_strs{$tariffs->{errno}}" );
+    if (_error_show($Ureports)){
       return 0;
     }
 
@@ -453,7 +460,7 @@ sub ureports_tp{
       SELECTED       => $tarif_info->{TP_GID},
       SEL_LIST       => $tariffs->tp_group_list( { COLS_NAME => 1 } ),
       MAIN_MENU      => get_function_index( 'form_tp_groups' ),
-      MAIN_MENU_AGRV => "chg=" . ($tarif_info->{TP_GID} || q{}),
+      MAIN_MENU_ARGV => "chg=" . ($tarif_info->{TP_GID} || q{}),
       SEL_OPTIONS    => { '' => '' },
     }
   );
@@ -699,8 +706,9 @@ sub ureports_stats{
     }
 
     $table->addrow( $line->[0], $html->button( "$line->[1]", "index=11&UID=$line->[7]" ), $line->[2], $line->[3],
-      $line->[4], $line->[5], $line->[6], $html->button( "D", "index=$index&UID=$line->[7]&MSG_ID=$line->[0]",
-        { TITLE => "$lang{DETAIL}", class => 'show' } ), $delete );
+      $line->[4], $line->[5], $line->[6],
+      $html->button( "D", "index=$index&UID=$line->[7]&MSG_ID=$line->[0]",
+        { TITLE => "$lang{DETAIL}", class => 'show' } ). ' '. $delete );
   }
 
   print $table->show();
@@ -715,16 +723,21 @@ sub ureports_stats{
 #**********************************************************
 sub ureports_user_info{
 
+  my $report_type = $FORM{TYPE} || 0;
+
   if ( $FORM{add} ){
-    if ( $FORM{TYPE} == 0 && $FORM{DESTINATION} !~ /^(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/ ){
-      $html->message( 'err', $lang{ERROR}, "$lang{WRONG_EMAIL}" );
+    if ( $report_type == 0 && $FORM{DESTINATION} !~ /^(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/ ){
+      $html->message( 'err', $lang{ERROR}, "$lang{ERR_WRONG_EMAIL}" );
+    }
+    elsif($report_type == 1 && $conf{PHONE_FORMAT} && $FORM{DESTINATION} !~ /$conf{PHONE_FORMAT}/) {
+      _error_show({ errno => 21, errstr => 'ERR_WRONG_PHONE' });
     }
     else{
       $Ureports->user_add( { %FORM } );
       if ( !$Ureports->{errno} ){
         my $message = "$lang{ACTIVATE}\n";
-        if ( !($FORM{TYPE} == 1 && $conf{UREPORTS_SKIP_ACTIVATE_SMS}) ){
-          if ( ureports_send_reports( $FORM{TYPE}, $FORM{DESTINATION}, " $lang{SERVICE} $lang{REPORTS} $lang{ENABLE}",
+        if ( !($report_type == 1 && $conf{UREPORTS_SKIP_ACTIVATE_SMS}) ){
+          if ( ureports_send_reports( $report_type, $FORM{DESTINATION}, " $lang{SERVICE} $lang{REPORTS} $lang{ENABLE}",
             { UID => $FORM{UID} } ) ){
             $message .= "$lang{ACTIVATED_MSG_SENDED}";
           }
@@ -734,8 +747,11 @@ sub ureports_user_info{
     }
   }
   elsif ( $FORM{set} ){
-    if ( $FORM{TYPE} == 0 && $FORM{DESTINATION} !~ /^(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/ ){
-      $html->message( 'err', $lang{ERROR}, "$lang{WRONG_EMAIL}" );
+    if ( ! $report_type && $FORM{DESTINATION} !~ /^(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/ ){
+      $html->message( 'err', $lang{ERROR}, "$lang{ERR_WRONG_EMAIL}" );
+    }
+    elsif($report_type == 1 && $conf{PHONE_FORMAT} && $FORM{DESTINATION} !~ /$conf{PHONE_FORMAT}/) {
+      _error_show({ errno => 21, errstr => 'ERR_WRONG_PHONE' });
     }
     else{
       $Ureports->user_change( { %FORM, UID => $user->{UID} } );
@@ -744,8 +760,8 @@ sub ureports_user_info{
         $Ureports->tp_user_reports_change( { %FORM, UID => $user->{UID} } );
         if ( !$Ureports->{errno} ){
           my $message = "$lang{CHANGED}\n";
-          if ( !($FORM{TYPE} == 1 && $conf{UREPORTS_SKIP_ACTIVATE_SMS}) ){
-            if ( ureports_send_reports( $FORM{TYPE}, $FORM{DESTINATION}, " $lang{SERVICE} $lang{REPORTS} $lang{CHANGED}"
+          if ( !($report_type == 1 && $conf{UREPORTS_SKIP_ACTIVATE_SMS}) ){
+            if ( ureports_send_reports( $report_type, $FORM{DESTINATION}, " $lang{SERVICE} $lang{REPORTS} $lang{CHANGED}"
               , { UID => $user->{UID} } ) ){
               $message .= "$lang{ACTIVATED_MSG_SENDED}";
             }
@@ -789,12 +805,12 @@ sub ureports_user_info{
     );
 
     my $list = $Ureports->tp_user_reports_list( {
-        %LIST_PARAMS,
-        COMMENTS  => '_SHOW',
-        TP_ID     => $Ureports->{TP_ID},
-        VISUAL    => '_SHOW',
-        COLS_NAME => 1
-      } );
+      %LIST_PARAMS,
+      COMMENTS  => '_SHOW',
+      TP_ID     => $Ureports->{TP_ID},
+      VISUAL    => '_SHOW',
+      COLS_NAME => 1
+    } );
 
     foreach my $line ( @{$list} ){
       next if($line->{visual});
@@ -927,7 +943,7 @@ sub ureports_daily_resets{
   if ( $d == 1 ){
     my $list = $Ureports->tp_user_reports_list(
       {
-        REPORT_ID => 14,
+        REPORT_ID => "13;14",
         DATE      => '>0000-00-00',
         %LIST_PARAMS,
         COLS_NAME => 1,
@@ -1182,7 +1198,7 @@ sub ureports_extra_reports {
   my %reports = ();
   my $mod_path    = '../../Abills/modules/Ureports/';
 
-  my $contents = _get_files_in($mod_path, '\.pm');
+  my $contents = _get_files_in($mod_path, { FILTER => '\.pm' });
   foreach my $report_module (@$contents) {
     require $mod_path . $report_module;
     $report_module =~ s/\.pm//;
@@ -1208,7 +1224,6 @@ sub ureports_tp_reports{
     my $tarif_plan = $attr->{TP};
     $tarif_plan->{ACTION} = 'add';
     $tarif_plan->{LNG_ACTION} = $lang{ADD};
-
     if ( $FORM{change} ){
       $Ureports->tp_reports_change( { %FORM } );
 
@@ -1221,9 +1236,9 @@ sub ureports_tp_reports{
 
     my %TP_REPORTS = ();
     my $list = $Ureports->tp_reports_list( {
-        %LIST_PARAMS,
-        TP_ID     => $FORM{TP_ID},
-        COLS_NAME => 1
+      %LIST_PARAMS,
+      TP_ID     => $FORM{TP_ID},
+      COLS_NAME => 1
     } );
 
     foreach my $line ( @{$list} ){
@@ -1233,16 +1248,13 @@ sub ureports_tp_reports{
       $TP_REPORTS{ $line->{report_id} }{VISUAL}   = $line->{visual} || 0 ;
     }
 
-    my $table = $html->table(
-      {
-        width      => '100%',
-        caption    => $lang{REPORTS},
-        title      => [ '#', $lang{NAME}, $lang{COMMENTS}, $lang{PRICE}, $lang{VISUAL} ], #"$lang{DEFAULT} $lang{VALUE}"],
-        cols_align => [ 'center', 'left', 'center' ],
-        qs         => $pages_qs,
-        ID         => 'TP_REPORTS'
-      }
-    );
+    my $table = $html->table({
+      width      => '100%',
+      caption    => $lang{REPORTS},
+      title      => [ '#', $lang{NAME}, $lang{COMMENTS}, $lang{PRICE}, $lang{VISUAL} ], #"$lang{DEFAULT} $lang{VALUE}"],
+      qs         => $pages_qs,
+      ID         => 'TP_REPORTS'
+    });
 
     #Get extra report
     my $extra_reports = ureports_extra_reports();
@@ -1250,11 +1262,11 @@ sub ureports_tp_reports{
     foreach my $report_id ( sort { $a <=> $b } keys %REPORTS ){
       my $visual = $html->form_select('VISUAL_'.$report_id, {
         SEL_ARRAY => [$lang{YES}, $lang{NO}],
-        SELECTED  => $TP_REPORTS{$report_id}{VISUAL},
+        SELECTED  => ($TP_REPORTS{$report_id} && $TP_REPORTS{$report_id}{VISUAL}) ? $TP_REPORTS{$report_id} : undef,
         ARRAY_NUM_ID => 1
       });
 
-      $table->addrow( $html->form_input( "IDS", "$report_id",
+      $table->addrow($html->form_input( "IDS", $report_id,
           { TYPE => 'checkbox', STATE => ($TP_REPORTS{$report_id}) ? 1 : undef } ) . $report_id,
         $REPORTS{$report_id},
         $html->form_input('COMMENTS_'. $report_id, $TP_REPORTS{$report_id}{COMMENTS}),

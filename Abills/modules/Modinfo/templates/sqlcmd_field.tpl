@@ -3,9 +3,9 @@
 <input type=hidden name=TABLE_INFO value=$FORM{TABLE_INFO}>
 <input type=hidden name=FIELD value=$FORM{FIELD}>
 
-<div class='panel panel-form panel-primary form-horizontal'>
-<div class='panel-heading'>$FORM{TABLE_INFO}.$FORM{FIELD}</div>
-<div class='panel-body'>
+<div class='box box-form box-primary form-horizontal'>
+<div class='box-header with-border'>$FORM{TABLE_INFO}.$FORM{FIELD}</div>
+<div class='box-body'>
 	<div class='form-group'>
 	  <label class='control-label col-md-3'>_{NAME}_:</label>
 	  <div class='col-md-9'>
@@ -67,7 +67,7 @@
 	  </div>
 	</div>
 </div>
-<div class='panel-footer'>
+<div class='box-footer'>
 	<input class='btn btn-primary' type=submit name=change value=_{CHANGE}_ class='btn btn-primary'>
 </div>
 </div>

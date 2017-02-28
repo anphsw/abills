@@ -1,4 +1,9 @@
 #!/usr/bin/perl -w
+=head1 NAME
+
+ Paysys tests
+
+=cut
 
 BEGIN {
   our $libpath = '../../../../';
@@ -19,8 +24,9 @@ BEGIN {
 use Abills::Defs;
 use Abills::Base;
 use Abills::Misc;
-do "../../../../libexec/config.pl";
+use Users;
 
+do "../../../../libexec/config.pl";
 
 our $html = Abills::HTML->new(
   {
@@ -33,14 +39,14 @@ our $html = Abills::HTML->new(
 do "../lng_$html->{language}.pl";
 do "../../../../language/$html->{language}.pl";
 
-my $ARGV = parse_arguments(\@ARGV);
+my $argv = parse_arguments(\@ARGV);
 
-my $host         = $ARGV->{HOST} ? $ARGV->{HOST} : 'https://127.0.0.1:9443/paysys_check.cgi';
-my ($billing_ip) = $host =~ /.+\/(\d+.\d+.\d+.\d+):.+/;
-my $filename     = $ARGV->{FILE} ? $ARGV->{FILE} : '';
+my $host         = $argv->{HOST} ? $argv->{HOST} : 'https://127.0.0.1:9443/paysys_check.cgi';
+my ($billing_ip) = $host =~ /.+\/(\d+.\d+.\d+.\d+):?.+/;
+my $filename     = $argv->{FILE} ? $argv->{FILE} : '';
 my $curl         = `which curl`;
-my $push         = ($ARGV->{XML} && $ARGV->{XML} == 1 ) ? 1 : 0;
-my $debug        = $ARGV->{DEBUG} ? $ARGV->{DEBUG} : 0;
+my $push         = ($argv->{XML} && $argv->{XML} == 1 ) ? 1 : 0;
+my $debug        = $argv->{DEBUG} ? $argv->{DEBUG} : 0;
 
 chomp($curl);
 if( !(-e $curl) ) {
@@ -49,8 +55,8 @@ if( !(-e $curl) ) {
 }
 
 my $user_password = '';
-if ( $ARGV->{USER_PASSWD} ) {
-  $user_password = "-u $ARGV->{USER_PASSWD}";
+if ( $argv->{USER_PASSWD} ) {
+  $user_password = "-u $argv->{USER_PASSWD}";
 }
 
 if ($#ARGV >= 0) {
@@ -67,7 +73,7 @@ sub test {
 
   my $content = '';
   my %requests = ();
-  my %result  = ();
+  #my %result  = ();
 
   # if filename set
   if( $filename ne '' ){
@@ -98,14 +104,19 @@ sub test {
   # interactive mode
   else{
     load_module('Paysys', $html);
-    my @pay_systems = paysys_settings({ONLY_SYSTEMS => 1});
+    my @pay_systems = paysys_settings({ ONLY_SYSTEMS => 1 });
 
     print "\nChoose system from below and enter number:\n";
     print "\n0.Exit\n";
 
+    if($conf{PAYSYS_WEBMONEY_ACCOUNTS}){
+      push @pay_systems, 'Webmoney';
+    }
+
     for (my $i = 0; $i <= $#pay_systems; $i++){
       print $i + 1 . ".$pay_systems[$i]\n";
     }
+
     print "Enter the system number for test:";
     my $selected_system = '';
     $selected_system = <STDIN>;
@@ -137,7 +148,9 @@ sub test {
     %requests = parse_content($content); # parse content from file
     if ($push != 1){
       foreach my $request_type (keys %requests){
-        $requests{$request_type} .= "PAYSYS_TEST_SYSTEM=$billing_ip:$pay_systems[$selected_system - 1]";
+        if($pay_systems[$selected_system - 1] ne 'Webmoney'){
+          $requests{$request_type} .= "PAYSYS_TEST_SYSTEM=$billing_ip:$pay_systems[$selected_system - 1]";
+        }
       }
     }
     make_request(%requests);  # make request and print output
@@ -159,7 +172,7 @@ sub test {
 #**********************************************************
 sub parse_content {
   my ($content) = @_;
-  my ($attr) = @_;
+  #my ($attr) = @_;
 
   my @rows = split(/\r\n/, $content);
   my %requests;
@@ -208,7 +221,8 @@ sub parse_content {
 #**********************************************************
 sub make_request {
   my (%requests) = @_;
-  my ($attr) = @_;
+  #my ($attr) = @_;
+
   my $debuging = '';
   $debuging = '-#' if ($debug == 0);
 
@@ -243,13 +257,13 @@ $res
 =cut
 #**********************************************************
 sub read_file {
-  my ($attr) = @_;
+  #my ($attr) = @_;
   my $file_content;
 
-  open(my $fh, $filename);
-      while(<$fh>) {
-        $file_content .= $_;
-      }
+  open(my $fh, '<', $filename);
+    while(<$fh>) {
+      $file_content .= $_;
+    }
   close($fh);
 
   return $file_content;
@@ -267,7 +281,7 @@ print << "[END]";
 *
 *  Command for test running:
 *
-*        perl paysyys_test.pl HOST=[billing_url] FILE=[filename] XML=[xml] DEBUG=[debug]
+*        perl paysys_test.pl HOST=[billing_url] FILE=[filename] XML=[xml] DEBUG=[debug]
 *
 *  Test parameters:
 *

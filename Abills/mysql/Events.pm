@@ -2,6 +2,25 @@ package Events;
 use strict;
 use warnings FATAL => 'all';
 
+=head2 NAME
+
+ Events
+
+=head2 SYNOPSIS
+
+   $Events->events_add( {
+      # Name for module
+        MODULE      => 'Test',
+      # Text
+        COMMENTS    => 'Generated',
+      # Link to see external info
+        EXTRA       => 'http://abills.net.ua',
+      # 1..5 Bigger is more important
+        PRIORITY_ID => 1,
+      } );
+
+=cut
+
 use Time::Local qw ( timelocal );
 
 our $VERSION = 1.00;
@@ -10,6 +29,78 @@ use parent 'main';
 
 # Singleton reference;
 my $instance;
+
+#**********************************************************
+=head2 AUTOLOAD
+
+  Because all namings are standart, 'add', 'change', 'del', 'info' can be generated automatically.
+  
+=head2 SYNOPSIS
+
+  AUTOLOAD is called when undefined function was called in Package::Foo.
+  global $AUTOLOAD var is filled with full name of called undefined function (Package::Foo::some_function)
+  
+  Because in this module DB tables and columns are named same as template variables, in all logic for custom operations
+  the only thing that changes is table name.
+  
+  We can parse it from called function name and generate 'add', 'change', 'del', 'info' functions on the fly
+   
+=head2 USAGE
+
+  You should use this function as usual, nothing changes in webinterface logic.
+  Info functions are working regarding to 'SHOW_ALL_COLUMNS' in table_list()
+  
+  Just call $Events->group_info($group_id)
+  
+  Arguments:
+    arguments are typical for operations, assuming we are working with ID column as primary key
+    
+  Returns:
+    returns same result as usual operation functions ( Generally nothing )
+
+=cut
+#**********************************************************
+sub AUTOLOAD {
+  our $AUTOLOAD;
+  return if ($AUTOLOAD =~ /::DESTROY$/);
+  
+  my ($entity_name, $operation) = $AUTOLOAD =~ /.*::(.*)_(add|del|change|info)$/;
+  
+  die "Undefined function $AUTOLOAD" unless ($operation && $entity_name);
+   
+  my ($self, $data, $attr) = @_;
+  
+  my $table = lc(__PACKAGE__) . '_' . $entity_name;
+  
+  # Check for not standart table namings
+  my %unusual_names = (
+    'events_events' => 'events'
+  );
+  if (exists $unusual_names{$table}){ $table = $unusual_names{$table} };
+  
+  if ($operation eq 'add'){
+    return $self->query_add( $table, $data, $attr );
+  }
+  if ($operation eq 'del'){
+    return $self->query_del( $table, $data );
+  }
+  if ($operation eq 'change'){
+    return $self->changes2( {
+      CHANGE_PARAM => 'ID',
+      TABLE        =>  $table,
+      DATA         => $data,
+    } );
+  }
+  if ($operation eq 'info'){
+    my $list_func_name = $entity_name . '_list';
+    return undef if (!$self->can($list_func_name));
+    
+    my $list = $self->$list_func_name( { ID => $data, SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1, COLS_NAME => 1, %{ $attr ? $attr : {} } } );
+    
+    return $list->[0] || { };
+  }
+}
+
 
 #**********************************************************
 
@@ -64,7 +155,7 @@ sub events_list {
   my ($attr) = @_;
 
   my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 'e.id';
-  my $DESC      = ($attr->{DESC})      ? 'DESC'             : '';
+  my $DESC      = ($attr->{DESC})      ? ''                 : 'DESC';
   my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
@@ -77,8 +168,9 @@ sub events_list {
     [ 'STATE_ID',      'INT', 'e.state_id',                  1 ],
     [ 'PRIVACY_ID',    'INT', 'e.privacy_id',                1 ],
     [ 'PRIORITY_ID',   'INT', 'e.priority_id',               1 ],
-    [ 'CREATED',       'STR', 'e.created',                   1 ],
+    [ 'CREATED',       'DATE', 'e.created',                  1 ],
     [ 'GROUP_ID',      'INT', 'e.group_id AS group_id',      1 ],
+    [ 'GROUP_NAME',    'INT', 'eg.name AS group_name',       1 ],
     [ 'PRIVACY_NAME',  'STR', 'epriv.name AS privacy_name',  1 ],
     [ 'PRIORITY_NAME', 'STR', 'eprio.name AS priority_name', 1 ],
     [ 'STATE_NAME',    'STR', 'es.name AS state_name',       1 ],
@@ -109,100 +201,6 @@ sub events_list {
   return [] if ($self->{errno});
 
   return $self->{list};
-}
-
-#**********************************************************
-
-=head2 events_info($id)
-
-  Arguments:
-    $id - id for events
-
-  Returns:
-    hash_ref
-
-=cut
-
-#**********************************************************
-sub events_info {
-  my $self = shift;
-  my ($id) = @_;
-
-  my $list = $self->events_list({ COLS_NAME => 1, ID => $id, SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 });
-
-  return $list->[0];
-}
-
-#**********************************************************
-
-=head2 events_add($attr)
-
-  Arguments:
-    $attr - hash_ref
-
-  Returns:
-    1
-
-=cut
-
-#**********************************************************
-sub events_add {
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->query_add('events', $attr);
-
-  return 1;
-}
-
-#**********************************************************
-
-=head2 events_del($attr)
-
-  Arguments:
-    $attr - hash_ref
-
-  Returns:
-   1
-
-=cut
-
-#**********************************************************
-sub events_del {
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->query_del('events', $attr);
-
-  return 1;
-}
-
-#**********************************************************
-
-=head2 events_change($attr)
-
-  Arguments:
-    $attr - hash_ref
-
-  Returns:
-    1
-
-=cut
-
-#**********************************************************
-sub events_change {
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->changes2(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'events',
-      DATA         => $attr,
-    }
-  );
-
-  return 1;
 }
 
 #**********************************************************
@@ -251,100 +249,6 @@ sub state_list {
 
 #**********************************************************
 
-=head2 state_info($id)
-
-  Arguments:
-    $id - id for state
-
-  Returns:
-    hash_ref
-
-=cut
-
-#**********************************************************
-sub state_info {
-  my $self = shift;
-  my ($id) = @_;
-
-  my $list = $self->state_list({ COLS_NAME => 1, ID => $id, SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 });
-
-  return $list->[0];
-}
-
-#**********************************************************
-
-=head2 state_add($attr)
-
-  Arguments:
-    $attr - hash_ref
-
-  Returns:
-    1
-
-=cut
-
-#**********************************************************
-sub state_add {
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->query_add('events_state', $attr);
-
-  return 1;
-}
-
-#**********************************************************
-
-=head2 state_del($attr)
-
-  Arguments:
-    $attr - hash_ref
-
-  Returns:
-   1
-
-=cut
-
-#**********************************************************
-sub state_del {
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->query_del('events_state', $attr);
-
-  return 1;
-}
-
-#**********************************************************
-
-=head2 state_change($attr)
-
-  Arguments:
-    $attr - hash_ref
-
-  Returns:
-    1
-
-=cut
-
-#**********************************************************
-sub state_change {
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->changes2(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'events_state',
-      DATA         => $attr,
-    }
-  );
-
-  return 1;
-}
-
-#**********************************************************
-
 =head2 privacy_list($attr)
 
   Arguments:
@@ -389,100 +293,6 @@ sub privacy_list {
 
 #**********************************************************
 
-=head2 privacy_info($id)
-
-  Arguments:
-    $id - id for privacy
-
-  Returns:
-    hash_ref
-
-=cut
-
-#**********************************************************
-sub privacy_info {
-  my $self = shift;
-  my ($id) = @_;
-
-  my $list = $self->privacy_list({ COLS_NAME => 1, ID => $id, SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 });
-
-  return $list->[0];
-}
-
-#**********************************************************
-
-=head2 privacy_add($attr)
-
-  Arguments:
-    $attr - hash_ref
-
-  Returns:
-    1
-
-=cut
-
-#**********************************************************
-sub privacy_add {
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->query_add('events_privacy', $attr);
-
-  return 1;
-}
-
-#**********************************************************
-
-=head2 privacy_del($attr)
-
-  Arguments:
-    $attr - hash_ref
-
-  Returns:
-   1
-
-=cut
-
-#**********************************************************
-sub privacy_del {
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->query_del('events_privacy', $attr);
-
-  return 1;
-}
-
-#**********************************************************
-
-=head2 privacy_change($attr)
-
-  Arguments:
-    $attr - hash_ref
-
-  Returns:
-    1
-
-=cut
-
-#**********************************************************
-sub privacy_change {
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->changes2(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'events_privacy',
-      DATA         => $attr,
-    }
-  );
-
-  return 1;
-}
-
-#**********************************************************
-
 =head2 priority_list($attr)
 
   Arguments:
@@ -503,7 +313,11 @@ sub priority_list {
   my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  my $search_columns = [ [ 'ID', 'INT', 'id', 1 ], [ 'NAME', 'STR', 'name', 1 ], [ 'VALUE', 'STR', 'value', 1 ], ];
+  my $search_columns = [ 
+    [ 'ID', 'INT', 'id', 1 ],
+    [ 'NAME', 'STR', 'name', 1 ],
+    [ 'VALUE', 'STR', 'value', 1 ]
+  ];
 
   if ($attr->{SHOW_ALL_COLUMNS}) {
     map { $attr->{ $_->[0] } = '_SHOW' unless (exists $attr->{ $_->[0] }) } @{$search_columns};
@@ -526,101 +340,47 @@ sub priority_list {
 }
 
 #**********************************************************
-
-=head2 priority_info($id)
-
-  Arguments:
-    $id - id for priority
-
-  Returns:
-    hash_ref
-
-=cut
-
-#**********************************************************
-sub priority_info {
-  my $self = shift;
-  my ($id) = @_;
-
-  my $list = $self->priority_list({ COLS_NAME => 1, ID => $id, SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 });
-
-  return $list->[0];
-}
-
-#**********************************************************
-
-=head2 priority_add($attr)
+=head2 priority_send_types_list($attr)
 
   Arguments:
     $attr - hash_ref
 
   Returns:
-    1
+    list
 
 =cut
-
 #**********************************************************
-sub priority_add {
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->query_add('events_priority', $attr);
-
-  return 1;
-}
-
-#**********************************************************
-
-=head2 priority_del($attr)
-
-  Arguments:
-    $attr - hash_ref
-
-  Returns:
-   1
-
-=cut
-
-#**********************************************************
-sub priority_del {
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->query_del('events_priority', $attr);
-
-  return 1;
-}
-
-#**********************************************************
-
-=head2 priority_change($attr)
-
-  Arguments:
-    $attr - hash_ref
-
-  Returns:
-    1
-
-=cut
-
-#**********************************************************
-sub priority_change {
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->changes2(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'events_priority',
-      DATA         => $attr,
-    }
+sub priority_send_types_list{
+  my ($self, $attr) = @_;
+  
+  my $SORT = $attr->{SORT} || 'priority_id';
+  my $DESC = ($attr->{DESC}) ? '' : 'DESC';
+  my $PG = $attr->{PG} || '0';
+  my $PAGE_ROWS = $attr->{PAGE_ROWS} || 25;
+  
+  my $search_columns = [
+    ['AID',             'INT',        'aid'                   ,1 ],
+    ['PRIORITY_ID',     'STR',        'priority_id'           ,1 ],
+    ['SEND_TYPES',      'STR',        'send_types'            ,1 ],
+  ];
+  if ($attr->{SHOW_ALL_COLUMNS}){
+    map { $attr->{$_->[0]} = '_SHOW' unless exists $attr->{$_->[0]} } @$search_columns;
+  }
+  my $WHERE =  $self->search_former($attr, $search_columns, { WHERE => 1 });
+  
+  $self->query2( "SELECT $self->{SEARCH_FIELDS} priority_id
+   FROM events_priority_send_types
+   $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
+    COLS_NAME => 1,
+    %{ $attr ? $attr : {}}}
   );
 
-  return 1;
+  return [] if $self->{errno};
+
+  return $self->{list};
 }
 
 #**********************************************************
-
 =head2 group_list($attr)
 
   Arguments:
@@ -630,7 +390,6 @@ sub priority_change {
     list
 
 =cut
-
 #**********************************************************
 sub group_list {
   my $self = shift;
@@ -664,98 +423,6 @@ sub group_list {
   return $self->{list};
 }
 
-#**********************************************************
-
-=head2 group_info($id)
-
-  Arguments:
-    $id - id for group
-
-  Returns:
-    hash_ref
-
-=cut
-
-#**********************************************************
-sub group_info {
-  my $self = shift;
-  my ($id) = @_;
-
-  my $list = $self->group_list({ COLS_NAME => 1, ID => $id, SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 });
-
-  return $list->[0];
-}
-
-#**********************************************************
-
-=head2 group_add($attr)
-
-  Arguments:
-    $attr - hash_ref
-
-  Returns:
-    1
-
-=cut
-
-#**********************************************************
-sub group_add {
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->query_add('events_group', $attr);
-
-  return 1;
-}
-
-#**********************************************************
-
-=head2 group_del($attr)
-
-  Arguments:
-    $attr - hash_ref
-
-  Returns:
-   1
-
-=cut
-
-#**********************************************************
-sub group_del {
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->query_del('events_group', $attr);
-
-  return 1;
-}
-
-#**********************************************************
-
-=head2 group_change($attr)
-
-  Arguments:
-    $attr - hash_ref
-
-  Returns:
-    1
-
-=cut
-
-#**********************************************************
-sub group_change {
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->changes2(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'events_group',
-      DATA         => $attr,
-    }
-  );
-
-  return 1;
-}
+sub DESTROY{};
 
 1;

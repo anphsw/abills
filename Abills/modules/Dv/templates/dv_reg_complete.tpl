@@ -1,8 +1,8 @@
-<div class='panel panel-success'>
-<div class='panel-heading text-center'>
-    <h3 class='panel-title'>Congratulation! Registration Complete</h3>
+<div class='box box-success'>
+<div class='box-header with-border text-center'>
+    <h3 class='box-title'>Congratulation! Registration Complete</h3>
   </div>
-  <div class='panel-body text-center'>
+  <div class='box-body text-center'>
     <div class='form-group'>
       <label class='control-label col-md-6 text-right'>LOGIN:</label>
       <label class='control-label col-md-6 text-left'>%LOGIN%</label>
@@ -20,9 +20,9 @@
       <label class='control-label col-md-6 text-left'>%EMAIL%</label>
     </div>
   </div>
-  <div class='panel-footer text-center'>
+  <div class='box-footer text-center'>
     <div class='alert alert-success' role='alert'>
-      All information was sended to your E-mail
+      All information has been sent to your E-mail
     </div>
   </div>
 </div>
@@ -40,7 +40,7 @@ Congratulation
 <p><b>_{PASSWD}_: %PASSWD%</b></p>
 <br><b>_{FIO}_:</b> %FIO%
 <br><b>EMAIL:</b> %EMAIL%
-<p>All information was sended to your E-mail</p>
+<p>All information has been sent to your E-mail</p>
 </td>
 </tr>
 </table>

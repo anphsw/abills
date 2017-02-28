@@ -1,7 +1,7 @@
 <div class='col-md-6'>
-  <div class='panel panel-warning'>
-    <div class='panel-heading text-center'>%TP_NAME%</div>
-    <div class='panel-body'>
+  <div class='box box-warning'>
+    <div class='box-header with-border text-center'>%TP_NAME%</div>
+    <div class='box-body'>
       <div class='form-group'>
         <label class='col-md-6'>_{AMOUNT}_</label>
         <control class='col-md-6'>%TP_AMOUNT%</control>
@@ -11,7 +11,7 @@
         <control class='col-md-6'>%TP_FREE_PERIOD%</control>
       </div>
     </div>
-    <div class='panel-footer text-center'>
+    <div class='box-footer text-center'>
       <button class='%STYLE%' name='%ACTION%' value='%TP_ID%'> %BUTTON% </button>
     </div>
   </div>

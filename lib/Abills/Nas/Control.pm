@@ -130,7 +130,7 @@ sub hangup{
   elsif ( $nas_type eq 'mikrotik' ){
     my ($ip, $mng_port, $second_port) = split( /:/, $Nas->{NAS_MNG_IP_PORT}, 3 );
     #IPN Hangup if COA port 0
-    if ( $mng_port == 0 && $second_port && $second_port > 0 ){
+    if ( ! $mng_port && $second_port && $second_port > 0 ){
       $Nas->{NAS_MNG_IP_PORT} = "$ip:$second_port";
       hangup_ipcad( $Nas, \%params );
     }
@@ -201,6 +201,7 @@ sub hangup{
     hangup_radius( $Nas, \%params );
   }
   elsif ( $nas_type eq 'mx80' ){
+    $params{RAD_PAIRS}->{'Acct-Session-Id'}=$params{SESSION_ID};
     hangup_radius( $Nas, \%params );
   }
   elsif ( $nas_type eq 'lisg_cst' ){
@@ -597,16 +598,26 @@ sub hangup_snmp{
 #***********************************************************
 =head2 hangup_radius($NAS, $attr) - hangup_radius
 
+  Arguments:
+    $NAS   -
+    $attr  -
+      USER
+      FRAMED_IP_ADDRESS
+      SESSION_ID
+      RAD_PAIRS          - Use custom radius pairs form disconnect
+      COA                - Change request type to CoA
+      DEBUG
+
   Radius-Disconnect messages
     rfc2882
 
 =cut
 #***********************************************************
-sub hangup_radius{
+sub hangup_radius {
   my ($NAS, $attr) = @_;
 
   my $USER = $attr->{USER};
-  if ( !$NAS->{NAS_MNG_IP_PORT} ){
+  if (!$NAS->{NAS_MNG_IP_PORT}) {
     print "Radius Hangup failed. Can't find NAS IP and port. NAS: $NAS->{NAS_ID} USER: $USER\n";
     return 'ERR:';
   }
@@ -615,7 +626,8 @@ sub hangup_radius{
   $mng_port = 1700 if (!$mng_port);
   my $nas_password = $NAS->{NAS_MNG_PASSWORD} || q{};
   $Log->log_print( 'LOG_DEBUG', $USER,
-    "HANGUP: User-Name=$USER Framed-IP-Address=". ($attr->{FRAMED_IP_ADDRESS} || q{}) ." NAS_MNG: $ip:$mng_port '$nas_password'"
+    "HANGUP: User-Name=$USER Framed-IP-Address=".($attr->{FRAMED_IP_ADDRESS} || q{})
+      ." NAS_MNG: $ip:$mng_port '$nas_password'"
     , { ACTION => 'CMD', NAS => $NAS } );
 
   my $type;
@@ -623,31 +635,35 @@ sub hangup_radius{
     Host   => $ip.':'.$mng_port,
     Secret => $nas_password,
     Debug  => $attr->{DEBUG} || 0
-  ) or return "Can't connect '". $ip.':'.$mng_port ."' $!";
+  ) or return "Can't connect '".$ip.':'.$mng_port."' $!";
 
-  $CONF->{'dictionary'} = $base_dir . '/lib/dictionary' if (!$CONF->{'dictionary'});
+  $CONF->{'dictionary'} = $base_dir.'/lib/dictionary' if (!$CONF->{'dictionary'});
 
-  if(! -f $CONF->{'dictionary'}) {
+  if (!-f $CONF->{'dictionary'}) {
     print "Can't find radius dictionary: $CONF->{'dictionary'}";
     return 0;
   }
 
   $r->load_dictionary( $CONF->{'dictionary'} );
 
-  if ( $attr->{SESSION_ID} ){
-    $r->add_attributes( { Name => 'Acct-Session-Id', Value => "$attr->{SESSION_ID}" } ) if ($USER);
+  my %rad_pairs = ();
+
+  if ($attr->{RAD_PAIRS}) {
+    %rad_pairs = %{ $attr->{RAD_PAIRS} };
   }
-  else{
-    $r->add_attributes( { Name => 'User-Name', Value => "$USER" } ) if ($USER);
-    $r->add_attributes( { Name => 'Framed-IP-Address', Value =>
-        "$attr->{FRAMED_IP_ADDRESS}" } ) if ($attr->{FRAMED_IP_ADDRESS});
+  else {
+    if ($attr->{SESSION_ID}) {
+      $rad_pairs{'Acct-Session-Id'} = $attr->{SESSION_ID} if ($USER);
+      $rad_pairs{'User-Name'} = $USER if ($USER);
+    }
+    else {
+      $rad_pairs{'Framed-IP-Address'} = $attr->{FRAMED_IP_ADDRESS} if ($attr->{FRAMED_IP_ADDRESS});
+    }
   }
 
-  if ( $attr->{RAD_PAIRS} ){
-    while(my ($k, $v) = each %{ $attr->{RAD_PAIRS} }) {
-      print " $k Value => $v \n";
-      $r->add_attributes( { Name => "$k", Value => $v } );
-    }
+  while(my ($k, $v) = each %rad_pairs) {
+    print " $k Value => $v \n" if ($attr->{DEBUG});
+    $r->add_attributes( { Name => $k, Value => $v } );
   }
 
   my $request_type = ($attr->{COA}) ? 'COA' : 'POD';
@@ -672,7 +688,7 @@ sub hangup_radius{
   }
 
   if ( $attr->{DEBUG} ){
-    print "Radius Return: $type\n $result";
+    print "Radius Return: $type\n Result: ". ($result || 'Empty');
   }
 
   $r = undef;
@@ -857,7 +873,7 @@ sub hangup_cisco_isg{
       Secret => "$NAS->{NAS_MNG_PASSWORD}"
     ) or return "Can't connect '$NAS->{NAS_MNG_IP_PORT}' $!";
 
-    $CONF->{'dictionary'} = '/usr/abills/Abills/dictionary' if (!$CONF->{'dictionary'});
+    $CONF->{'dictionary'} = '/usr/abills/lib/dictionary' if (!$CONF->{'dictionary'});
     $r->load_dictionary( $CONF->{'dictionary'} );
 
     $r->add_attributes( { Name => 'User-Name', Value => "$attr->{USER}" } );
@@ -1275,7 +1291,7 @@ sub hangup_pppd_coa{
     Secret => "$NAS->{NAS_MNG_PASSWORD}"
   ) or return "Can't connect '$NAS->{NAS_MNG_IP_PORT}' $!";
 
-  $CONF->{'dictionary'} = '/usr/abills/Abills/dictionary' if (!$CONF->{'dictionary'});
+  $CONF->{'dictionary'} = '/usr/abills/lib/dictionary' if (!$CONF->{'dictionary'});
 
   $r->load_dictionary( $CONF->{'dictionary'} );
 
@@ -1318,8 +1334,9 @@ sub setspeed{
 }
 
 #***********************************************************
-# Check CoA support
-# hascoa($NAS_HASH_REF, $attr);
+=head2  hascoa($NAS); - Check CoA support
+
+=cut
 #***********************************************************
 sub hascoa{
   my ($NAS) = @_;
@@ -1329,9 +1346,11 @@ sub hascoa{
   if ( $nas_type eq 'pppd_coa' ){
     return 1;
   }
-  else{
-    return 0;
+  elsif ($CONF->{coa_send} && $nas_type =~ /$CONF->{coa_send}/ ){
+    return 1;
   }
+
+  return 0;
 }
 
 #***********************************************************
@@ -1357,7 +1376,7 @@ sub setspeed_pppd_coa{
     Secret => "$NAS->{NAS_MNG_PASSWORD}"
   ) or return "Can't connect '$ip:$mng_port' $!";
 
-  $CONF->{'dictionary'} = '/usr/abills/Abills/dictionary' if (!$CONF->{'dictionary'});
+  $CONF->{'dictionary'} = '/usr/abills/lib/dictionary' if (!$CONF->{'dictionary'});
 
   $r->load_dictionary( $CONF->{'dictionary'} );
 
@@ -1436,9 +1455,9 @@ sub rsh_cmd{
   $cmd =~ s/\\\"/\"/g;
 
   my $command = "/usr/bin/rsh -o StrictHostKeyChecking=no -l $mng_user $ip \"$cmd\"";
-
-  $Log->log_print( 'LOG_DEBUG', '', "$command", { ACTION => 'CMD' } );
-
+  if ($Log) {
+    $Log->log_print( 'LOG_DEBUG', '', "$command", { ACTION => 'CMD' } );
+  }
   my $result = cmd( $command, { RESULT_ARRAY => 1, %{$attr} } );
   return $result;
 }

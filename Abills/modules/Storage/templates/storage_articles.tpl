@@ -3,8 +3,8 @@
 <input type=hidden name=ID value=%ID%>
 <fieldset>
 	
-<div class='panel panel-default panel-form'>
-<div class='panel-body form form-horizontal'>
+<div class='box box-theme box-form'>
+<div class='box-body form form-horizontal'>
 	<legend>_{ARTICLE}_</legend>
 <div class='table'>
   <div class='form-group'>
@@ -21,7 +21,7 @@
   </div>
   <div class='form-group'>
     <label class='col-md-3 control-label'>_{DATE}_:</label>
-    <div class='col-md-9'><input class='tcal form-control tcalInput tcalActive' name='ADD_DATE' type='text' value='%ADD_DATE%' /></div>
+    <div class='col-md-9'><input class='tcal form-control datepickerActive' name='ADD_DATE' type='text' value='%ADD_DATE%' /></div>
   </div>
   <div class='form-group'>
     <label class='col-md-3 control-label'>_{COMMENTS}_</label>
@@ -29,7 +29,7 @@
   </div>
 </div>
 </div>
-<div class='panel-footer'>
+<div class='box-footer'>
 	<input class='btn btn-primary' type=submit name=%ACTION% value=%ACTION_LNG%>
 </div>
 </div>

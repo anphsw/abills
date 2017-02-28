@@ -1,41 +1,35 @@
 <!-- Google Maps -->
-
-
 <!-- Processing Perl variables to JavaScript -->
+<link rel='stylesheet' href='/styles/default_adm/css/modules/maps/maps.css'>
 
 %JS_VARIABLES%
 
-<div class='panel panel-default'>
-    <div class='panel-body' id='map-wrapper'>
-        <div id='mapHelper' style='display: none; position: fixed; z-index: 9999; top: 10em; left: 35vw'
-             aria-hidden='true' class='alert alert-warning'></div>
-        <div id='map' class='col-md-12' style='height: 90vh'>
-        </div>
+<div class="row">
+  <div class="col-md-12">
+    <div id='mapControls' class='pull-left' role='group'></div>
+  </div>
+  <div class="col-md-12">
+    <div class='box box-theme'>
+      <div class='box-body' id='map-wrapper'>
+        <div id='map' style='height: 90vh'></div>
+      </div>
+      <div class='box-footer'></div>
     </div>
-    <div class='panel-footer'></div>
+    <div class='clearfix'></div>
+  </div>
 </div>
 
 <script id='maps_general' src='/styles/default_adm/js/maps/general.js'></script>
+<script id='maps_request' src='/styles/default_adm/js/maps/general-request.js'></script>
 
 <!--Google maps specific logic-->
 <script id='google_clusterer_script' src='/styles/default_adm/js/maps/google-clusterer.min.js'></script>
 <script id='maps_google_script' src='/styles/default_adm/js/maps/google.js'></script>
+<script id='maps_google_tooltip' src='/styles/default_adm/js/maps/google-tooltip.min.js' defer></script>
 
 <!-- General Maps logic -->
 <script id='maps_script' src='/styles/default_adm/js/maps/maps.js'></script>
 
-<!--Defining markers-->
-<!-- Builds -->
-<script defer> %BUILDS% </script>
-<!-- NAS -->
-<script defer> %NAS% </script>
-<!-- OBJECTS -->
+<!-- OBJECTS we want to show on map -->
 <script defer> %OBJECTS% </script>
-<!-- ROUTES -->
-<script defer> %ROUTES% </script>
-<!-- WIFI -->
-<script defer> %WIFIS% </script>
-<!-- WELL -->
-<script defer> %WELLS% </script>
-<!-- GPS -->
-<script defer> %GPS% </script>
+

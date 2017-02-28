@@ -34,12 +34,13 @@ sub new{
   ($admin, $CONF) = @_;
 
   $admin->{MODULE} = $MODULE;
-  my $self = { };
+  my $self = {
+    db    => $db,
+    admin => $admin,
+    conf  => $CONF
+  };
 
   bless( $self, $class );
-  $self->{db} = $db;
-  $self->{admin} = $admin;
-  $self->{conf} = $CONF;
 
   return $self;
 }
@@ -83,9 +84,11 @@ sub user_info{
    tp.filter_id AS tp_filter_id,
    tp.credit AS tp_credit,
    service.expire AS iptv_expire,
+   tv_services.module AS service_module,
    service.*
      FROM iptv_main service
      LEFT JOIN tarif_plans tp ON (service.tp_id=tp.tp_id)
+     LEFT JOIN iptv_services tv_services ON (tv_services.id=service.service_id)
    WHERE service.id= ? ;",
     undef,
     {
@@ -98,15 +101,21 @@ sub user_info{
 }
 
 #**********************************************************
-=head2 user_add() - Add user
+=head2 user_add($attr) - Add user
 
 =cut
 #**********************************************************
-sub user_add{
+sub user_add {
   my $self = shift;
   my ($attr) = @_;
 
-  if ( $attr->{TP_ID} > 0 && !$attr->{STATUS} ){
+  if (! $attr->{UID}) {
+    $self->{errno}=100;
+    $self->{errstr}='No UID';
+    return $self;
+  }
+
+  if ( $attr->{TP_ID} && $attr->{TP_ID} > 0 && !$attr->{STATUS} ){
     my $tariffs = Tariffs->new( $self->{db}, $CONF, $admin );
     $self->{TP_INFO} = $tariffs->info( $attr->{TP_ID} );
     $self->{TP_NUM} = $tariffs->{ID};
@@ -131,19 +140,20 @@ sub user_add{
     'iptv_main',
     {
       %{$attr},
-      REGISTRATION => 'now()',
+      REGISTRATION => 'NOW()',
       EXPIRE       => $attr->{IPTV_EXPIRE}
     }
   );
 
-  return [ ] if ($self->{errno});
-  $admin->action_add( $attr->{UID}, "", { TYPE => 1 } );
+  return $self if ($self->{errno});
+  $admin->{MODULE}=$MODULE;
+  $admin->action_add($attr->{UID}, "ID: $self->{INSERT_ID}", { TYPE => 1 } );
 
   return $self;
 }
 
 #**********************************************************
-=head2 user_change() - Change users
+=head2 user_change($attr) - Change users
 
 =cut
 #**********************************************************
@@ -231,7 +241,9 @@ sub user_del{
 
   $self->query_del( 'iptv_main', $attr, { uid => $self->{UID} } );
 
-  $admin->action_add( $self->{UID}, "$self->{UID}", { TYPE => 10 } );
+  $admin->{MODULE}=$MODULE;
+  $admin->action_add( $self->{UID}, "UID: $self->{UID} ID: $attr->{ID}", { TYPE => 10 } );
+
   return $self->{result};
 }
 
@@ -255,27 +267,29 @@ sub user_list{
   my $WHERE = $self->search_former(
     $attr,
     [
-      [ 'TP_NUM', 'INT', 'tp.id', 'tp.id AS tp_num' ],
-      [ 'TP_NAME', 'STR', 'tp.name AS tp_name', 1 ],
-
+      [ 'TP_NUM',       'INT', 'tp.id',   'tp.id AS tp_num'        ],
+      [ 'TP_NAME',      'STR', 'tp.name', 'tp.name AS tp_name'     ],
+      [ 'TP_COMMENTS',  'STR', 'tp.comments', 'tp.comments AS tp_comments' ],
       #      ['IPTV_STATUS',    'INT', 'service.disable AS iptv_status',   1 ],
       [ 'SERVICE_STATUS', 'INT', 'service.disable AS service_status', 1 ],
       #[ 'STATUS',         'INT',  'service.disable AS service_status',                                         1 ],
-      [ 'CID', 'STR', 'service.cid', 1 ],
-      [ 'ALL_FILTER_ID', 'STR', 'if(service.filter_id<>\'\', service.filter_id, tp.filter_id) AS filter_id', 1 ],
-      [ 'FILTER_ID', 'STR', 'service.filter_id', 1 ],
-      [ 'DVCRYPT_ID', 'INT', 'service.dvcrypt_id', 1 ],
-      [ 'MONTH_FEE', 'INT', 'tp.month_fee', 1 ],
-      [ 'DAY_FEE', 'INT', 'tp.day_fee', 1 ],
-      [ 'TP_ID', 'INT', 'service.tp_id', 1 ],
-      [ 'TP_CREDIT', 'INT', 'tp.credit:', 'tp_credit' ],
-      [ 'TP_FILTER', 'INT', 'tp.filter_id', 1 ],
-      [ 'PAYMENT_TYPE', 'INT', 'tp.payment_type', 1 ],
-      [ 'MONTH_PRICE', 'INT', 'ti_c.month_price', 1 ],
-      [ 'IPTV_EXPIRE', 'DATE', 'service.expire as iptv_expire', 1 ],
-      [ 'SUBSCRIBE_ID', 'INT', 'service.subscribe_id', 1 ],
-      [ 'ID', 'INT', 'service.id', 1 ],
-      [ 'UID', 'INT', 'service.uid', ],
+      [ 'CID',          'STR', 'service.cid',                    1 ],
+      [ 'ALL_FILTER_ID','STR', 'if(service.filter_id<>\'\', service.filter_id, tp.filter_id) AS filter_id', 1 ],
+      [ 'FILTER_ID',    'STR', 'service.filter_id',              1 ],
+      [ 'DVCRYPT_ID',   'INT', 'service.dvcrypt_id',             1 ],
+      [ 'MONTH_FEE',    'INT', 'tp.month_fee',                   1 ],
+      [ 'DAY_FEE',      'INT', 'tp.day_fee',                     1 ],
+      [ 'TP_ID',        'INT', 'service.tp_id',                  1 ],
+      [ 'TP_CREDIT',    'INT', 'tp.credit:',           'tp_credit' ],
+      [ 'TP_FILTER',    'INT', 'tp.filter_id',                   1 ],
+      [ 'PAYMENT_TYPE', 'INT', 'tp.payment_type',                1 ],
+      [ 'MONTH_PRICE',  'INT', 'ti_c.month_price',               1 ],
+      [ 'IPTV_EXPIRE',  'DATE', 'service.expire as iptv_expire', 1 ],
+      [ 'SUBSCRIBE_ID', 'INT', 'service.subscribe_id',           1 ],
+      [ 'SERVICE_ID',   'INT', 'service.service_id',             1 ],
+      [ 'EMAIL',        'STR', 'service.email',                  1 ],
+      [ 'ID',           'INT', 'service.id',                     1 ],
+      [ 'UID',          'INT', 'service.uid',                      ],
     ],
     {
       WHERE             => 1,
@@ -305,7 +319,8 @@ sub user_list{
         c.num AS channel_num,
         c.name AS channel_name,
         c.filter_id AS channel_filter,
-        ti_c.month_price
+        ti_c.month_price,
+        service.id
    FROM intervals i
      INNER JOIN iptv_ti_channels ti_c ON (i.id=ti_c.interval_id)
      INNER JOIN iptv_users_channels uc ON (ti_c.channel_id=uc.channel_id)
@@ -585,7 +600,8 @@ sub user_channels_list{
   my ($attr) = @_;
 
   $self->query2(
-    "SELECT uid, tp_id, channel_id, changed FROM iptv_users_channels
+    "SELECT uid, tp_id, channel_id, changed
+     FROM iptv_users_channels
      WHERE tp_id= ? AND id = ?;",
     undef,
     { %{$attr}, Bind => [ $attr->{TP_ID}, $attr->{ID} ] }
@@ -596,7 +612,7 @@ sub user_channels_list{
 }
 
 #**********************************************************
-=head2 channel_ti_change()
+=head2 channel_ti_change($attr)
 
 =cut
 #**********************************************************
@@ -630,38 +646,42 @@ sub channel_ti_change{
 }
 
 #**********************************************************
-# list()
+=head2 channel_ti_list()
+
+=cut
 #**********************************************************
 sub channel_ti_list{
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  $SORT      = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC      = ($attr->{DESC}) ? $attr->{DESC} : '';
+  $PG        = ($attr->{PG}) ? $attr->{PG} : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE = $self->search_former(
     $attr,
     [
-      [ 'DISABLE', 'INT', 'disable' ],
-      [ 'PORT', 'INT', 'port' ],
-      [ 'DESCRIBE', 'STR', 'comments' ],
-      [ 'NUMBER', 'INT', 'number' ],
-      [ 'NAME', 'STR', 'name' ],
-      [ 'IDS', 'INT', 'c.id' ],
-      [ 'ID', 'INT', 'c.id' ],
+      [ 'DISABLE',          'INT', 'disable',   ],
+      [ 'PORT',             'INT', 'port'       ],
+      [ 'DESCRIBE',         'STR', 'comments'   ],
+      [ 'NUMBER',           'INT', 'number'     ],
+      [ 'NAME',             'STR', 'name'       ],
+      [ 'FILTER_ID',        'STR', 'c.filter_id', 1 ],
+      [ 'IDS',              'INT', 'c.id'       ],
+      [ 'ID',               'INT', 'c.id'       ],
       [ 'USER_INTERVAL_ID', 'INT', 'ic.interval_id' ],
-      [ 'MANDATORY', 'STR', 'ic.mandatory' ],
+      [ 'MANDATORY',        'STR', 'ic.mandatory' ],
     ],
     { WHERE => 1, }
   );
 
   $self->query2(
-    "SELECT if (ic.channel_id IS NULL, 0, 1) AS interval_channel_id,
+    "SELECT IF(ic.channel_id IS NULL, 0, 1) AS interval_channel_id,
    c.num AS channel_num,
    c.name,
    c.comments,
+   $self->{SEARCH_FIELDS}
    ic.month_price,
    ic.day_price,
    ic.mandatory,
@@ -669,7 +689,7 @@ sub channel_ti_list{
    c.disable,
    c.id AS channel_id
      FROM iptv_channels c
-     LEFT JOIN iptv_ti_channels ic ON (id=ic.channel_id and ic.interval_id='$attr->{INTERVAL_ID}')
+     LEFT JOIN iptv_ti_channels ic ON (id=ic.channel_id AND ic.interval_id='$attr->{INTERVAL_ID}')
      $WHERE
      ORDER BY $SORT $DESC ;",
     undef,
@@ -682,7 +702,7 @@ sub channel_ti_list{
 
   if ( $self->{TOTAL} >= 0 ){
     $self->query2(
-      "SELECT count(*) AS total, sum(if (ic.channel_id IS NULL, 0, 1)) AS active
+      "SELECT COUNT(*) AS total, SUM(IF (ic.channel_id IS NULL, 0, 1)) AS active
      FROM iptv_channels c
      LEFT JOIN iptv_ti_channels ic ON (c.id=ic.channel_id and ic.interval_id='$attr->{INTERVAL_ID}')
      $WHERE
@@ -696,7 +716,9 @@ sub channel_ti_list{
 }
 
 #**********************************************************
-#
+=head2 reports_channels_use($attr)
+
+=cut
 #**********************************************************
 sub reports_channels_use{
   my $self = shift;
@@ -707,7 +729,7 @@ sub reports_channels_use{
   $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  my $sql = "SELECT c.num,  c.name, count(uc.uid) AS users, sum(if(if(company.id IS NULL, b.deposit, cb.deposit)>0, 0, 1)) AS debetors
+  my $sql = "SELECT c.num,  c.name, count(uc.uid) AS users, SUM(IF(IF(company.id IS NULL, b.deposit, cb.deposit)>0, 0, 1)) AS debetors
 FROM iptv_channels c
 LEFT JOIN iptv_users_channels uc ON (c.id=uc.channel_id)
 LEFT JOIN iptv_main service ON (service.id=uc.uid)
@@ -737,7 +759,9 @@ ORDER BY $SORT $DESC ";
 }
 
 #**********************************************************
-# online()
+=head2 online($attr)
+
+=cut
 #**********************************************************
 sub online{
   my $self = shift;
@@ -785,33 +809,32 @@ sub online{
     [
       [ 'LOGIN',         'STR',  'u.id AS login', ],
       [ 'FIO',           'STR',  'pi.fio', 1 ],
-      [ 'STARTED',       'DATE', 'if(date_format(c.started, "%Y-%m-%d")=curdate(), date_format(c.started, "%H:%i:%s"), c.started) AS started',
+      [ 'STARTED',       'DATE', 'IF(DATE_FORMAT(c.started, "%Y-%m-%d")=CURDATE(), DATE_FORMAT(c.started, "%H:%i:%s"), c.started) AS started',
         1 ],
-      [ 'NAS_PORT_ID',   'INT', 'c.nas_port_id', 1 ],
-
-      ['CLIENT_IP_NUM',  'INT', 'c.framed_ip_address',    'c.framed_ip_address AS ip_num' ],
-      [ 'DURATION',      'INT', 'SEC_TO_TIME(UNIX_TIMESTAMP() - UNIX_TIMESTAMP(c.started))',
+      [ 'NAS_PORT_ID',     'INT', 'c.nas_port_id', 1 ],
+      [ 'CLIENT_IP_NUM',   'INT', 'c.framed_ip_address',    'c.framed_ip_address AS ip_num' ],
+      [ 'DURATION',        'INT', 'SEC_TO_TIME(UNIX_TIMESTAMP() - UNIX_TIMESTAMP(c.started))',
         'SEC_TO_TIME(UNIX_TIMESTAMP() - UNIX_TIMESTAMP(c.started)) AS duration' ],
-      [ 'CID',           'STR', 'c.CID', 1 ],
-      [ 'SERVICE_CID',   'STR', 'service.cid', 1 ],
-      [ 'TP_ID',         'INT', 'service.tp_id', 1 ],
-      [ 'CALLS_TP_ID',   'INT', 'c.tp_id AS calls_tp_id', 1 ],
-      [ 'CONNECT_INFO',  'STR', 'c.CONNECT_INFO', 1 ],
-      [ 'SPEED',         'INT', 'service.speed', 1 ],
-      [ 'SUM',           'INT', 'c.sum AS session_sum', 1 ],
-      [ 'STATUS',        'INT', 'c.status', 1 ],
+      [ 'CID',             'STR', 'c.CID', 1 ],
+      [ 'SERVICE_CID',     'STR', 'service.cid', 1 ],
+      [ 'TP_ID',           'INT', 'service.tp_id', 1 ],
+      [ 'CALLS_TP_ID',     'INT', 'c.tp_id AS calls_tp_id', 1 ],
+      [ 'CONNECT_INFO',    'STR', 'c.CONNECT_INFO', 1 ],
+      [ 'SPEED',           'INT', 'service.speed', 1 ],
+      [ 'SUM',             'INT', 'c.sum AS session_sum', 1 ],
+      [ 'STATUS',          'INT', 'c.status', 1 ],
 
       #    ['ADDRESS_FULL',    '' ($CONF->{ADDRESS_REGISTER}) ? 'concat(streets.name,\' \', builds.number, \'/\', pi.address_flat) AS ADDRESS' : 'concat(pi.address_street,\' \', pi.address_build,\'/\', pi.address_flat) AS ADDRESS',
-      [ 'GID',           'INT', 'u.gid', 1 ],
-      [ 'TURBO_MODE',    'INT', 'c.turbo_mode', 1 ],
-      [ 'JOIN_SERVICE',  'INT', 'c.join_service', 1 ],
-      [ 'PHONE',         'STR', 'pi.phone', 1 ],
+      [ 'GID',              'INT', 'u.gid', 1 ],
+      [ 'TURBO_MODE',       'INT', 'c.turbo_mode', 1 ],
+      [ 'JOIN_SERVICE',     'INT', 'c.join_service', 1 ],
+      [ 'PHONE',            'STR', 'pi.phone', 1 ],
 
-      ['CLIENT_IP',         'IP',  'c.framed_ip_address',    'INET_NTOA(c.framed_ip_address) AS client_ip' ],
+      [ 'CLIENT_IP',        'IP',  'c.framed_ip_address',    'INET_NTOA(c.framed_ip_address) AS client_ip' ],
       [ 'UID',              'INT', 'u.uid', 1 ],
       [ 'NAS_IP',           'IP',  'nas_ip', 'INET_NTOA(c.nas_ip_address) AS nas_ip' ],
-      [ 'DEPOSIT',          'INT', 'if(company.name IS NULL, b.deposit, cb.deposit) AS deposit', 1 ],
-      [ 'CREDIT',           'INT', 'if(u.company_id=0, u.credit, if (u.credit=0, company.credit, u.credit)) AS credit', 1 ],
+      [ 'DEPOSIT',          'INT', 'IF(company.name IS NULL, b.deposit, cb.deposit) AS deposit', 1 ],
+      [ 'CREDIT',           'INT', 'IF(u.company_id=0, u.credit, if (u.credit=0, company.credit, u.credit)) AS credit', 1 ],
       [ 'ACCT_SESSION_TIME','INT', 'UNIX_TIMESTAMP() - UNIX_TIMESTAMP(c.started) AS acct_session_time', 1 ],
       [ 'DURATION_SEC',     'INT', 'if(c.lupdated>0, c.lupdated - UNIX_TIMESTAMP(c.started), 0) AS duration_sec', 1 ],
       [ 'FILTER_ID',        'STR', 'if(service.filter_id<>\'\', service.filter_id, tp.filter_id) AS filter_id', 1 ],
@@ -837,7 +860,8 @@ sub online{
       [ 'GUEST',            'INT',  'c.guest', 1 ],
       [ 'ACCT_SESSION_ID',  'STR',  'c.acct_session_id', 1 ],
       [ 'LAST_ALIVE',       'INT',  'UNIX_TIMESTAMP() - c.lupdated AS last_alive', 1 ],
-      [ 'ONLINE_BASE',      '',     '', 'c.CID, c.acct_session_id, UNIX_TIMESTAMP() - c.lupdated AS last_alive, c.uid' ]
+      [ 'ONLINE_BASE',      '',     '', 'c.CID, c.acct_session_id, UNIX_TIMESTAMP() - c.lupdated AS last_alive, c.uid' ],
+      [ 'ID',               'INT',  'service.id', 1 ],
     ],
     {
       WHERE       => 1,
@@ -863,7 +887,7 @@ sub online{
   $self->query2(
     "SELECT u.id AS login, $self->{SEARCH_FIELDS}  c.nas_id
  FROM iptv_calls c
- LEFT JOIN users u     ON (u.uid=c.uid)
+ LEFT JOIN users u ON (u.uid=c.uid)
  LEFT JOIN iptv_main service  ON (service.uid=u.uid)
 
  LEFT JOIN bills b ON (u.bill_id=b.id)
@@ -1260,7 +1284,7 @@ sub screens_list{
 
   if ( $self->{TOTAL} > 0 ){
     $self->query2(
-      "SELECT count(*) AS total
+      "SELECT COUNT(*) AS total
     FROM iptv_screens s
     $WHERE;", undef, { INFO => 1 }
     );
@@ -1400,7 +1424,7 @@ sub users_screens_info{
      FROM iptv_users_screens us
     INNER JOIN iptv_main service  ON (service.id=us.service_id)
     LEFT JOIN iptv_screens s ON  (s.tp_id=service.tp_id AND s.num=us.screen_id)
-    WHERE service_id = ? AND screen_id = ?;",
+    WHERE us.service_id = ? AND us.screen_id = ?;",
     undef,
     {
       INFO => 1,
@@ -1437,20 +1461,20 @@ sub users_screens_list{
   my $WHERE = $self->search_former(
     $attr,
     [
-      [ 'LOGIN', 'STR', 'u.id', 'u.id AS login' ],
-      [ 'NUM', 'INT', 's.num', 1 ],
-      [ 'NAME', 'STR', 's.name', 1 ],
-      [ 'MONTH_FEE', 'INT', 's.month_fee', 1 ],
-      [ 'DAY_FEE', 'INT', 's.day_fee', 1 ],
-      [ 'FILTER_ID', 'STR', 's.filter_id', 1 ],
-      [ 'TP_ID', 'INT', 's.tp_id', 1 ],
-      [ 'SERVICE_TP_ID', 'INT', 'service.tp_id', 1 ],
+      [ 'LOGIN',       'STR',  'u.id', 'u.id AS login' ],
+      [ 'NUM',         'INT',  's.num',              1 ],
+      [ 'NAME',        'STR',  's.name',             1 ],
+      [ 'MONTH_FEE',   'INT',  's.month_fee',        1 ],
+      [ 'DAY_FEE',     'INT',  's.day_fee',          1 ],
+      [ 'FILTER_ID',   'STR',  's.filter_id',        1 ],
+      [ 'TP_ID',       'INT',  's.tp_id',            1 ],
+      [ 'SERVICE_TP_ID','INT', 'service.tp_id',      1 ],
       #[ 'SERVICE_ID', 'INT',  'us.service_id',   1 ],
-      [ 'CID', 'STR', 'us.cid', 1 ],
-      [ 'SERIAL', 'STR', 'us.serial', 1 ],
-      [ 'HARDWARE_ID', 'INT', 'us.hardware_id', 1 ],
-      [ 'DATE', 'DATE', 'us.date', 1 ],
-      [ 'UID', 'DATE', 'service.uid', 1 ],
+      [ 'CID',       'STR', 'us.cid',                1 ],
+      [ 'SERIAL',      'STR',  'us.serial',          1 ],
+      [ 'HARDWARE_ID', 'INT',  'us.hardware_id',     1 ],
+      [ 'DATE',        'DATE', 'us.date',            1 ],
+      [ 'UID',         'DATE', 'service.uid',        1 ],
     ],
     {
       WHERE => 1,
@@ -1502,6 +1526,161 @@ sub users_screens_list{
   return $list;
 }
 
+#**********************************************************
+=head2 services_list($attr) - list of tp services
+
+  Arguments:
+    $attr
+
+=cut
+#**********************************************************
+sub services_list{
+  my $self = shift;
+  my ($attr) = @_;
+
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+  my $WHERE = $self->search_former(
+    $attr,
+    [
+      [ 'NAME',        'STR', 'name',        1 ],
+      [ 'MODULE',      'STR', 'module',      1 ],
+      [ 'STATUS',      'INT', 'status',      1 ],
+      [ 'COMMENT',     'STR', 'comment',     1 ],
+      [ 'USER_PORTAL', 'INT', 'user_portal', 1 ],
+      [ 'LOGIN',       'INT', 'login', 1 ],
+      [ 'PASSWORD',    'INT', '', "DECODE(nas.mng_password, '$CONF->{secretkey}') AS nas_mng_password" ],
+      [ 'ID',          'INT', 'id',            ],
+    ],
+    {
+      WHERE => 1,
+    }
+  );
+
+  $self->query2( "SELECT $self->{SEARCH_FIELDS} s.id
+   FROM iptv_services s
+    $WHERE
+    GROUP BY s.id
+    ORDER BY $SORT $DESC",
+    undef,
+    $attr
+  );
+
+  my $list = $self->{list};
+
+  return $list;
+}
+
+#**********************************************************
+=head2 screen_add($attr)
+
+=cut
+#**********************************************************
+sub services_add{
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add( 'iptv_services', $attr );
+
+  return $self;
+}
+
+#**********************************************************
+=head2 screen_change($attr)
+
+=cut
+#**********************************************************
+sub services_change{
+  my $self = shift;
+  my ($attr) = @_;
+
+  $attr->{USER_PORTAL} //= 0;
+  $attr->{DISABLE} //= 0;
+
+  $self->changes2(
+    {
+      CHANGE_PARAM => 'ID',
+      TABLE        => 'iptv_services',
+      DATA         => $attr
+    }
+  );
+
+  return $self;
+}
+
+#**********************************************************
+=head2 screen_del($id, $attr)
+
+=cut
+#**********************************************************
+sub services_del{
+  my $self = shift;
+  my ($id, $attr) = @_;
+
+  $self->query_del( 'iptv_services', $attr, { ID => $id } );
+
+  return $self;
+}
+
+#**********************************************************
+=head2 screen_info($id, $attr)
+
+=cut
+#**********************************************************
+sub services_info{
+  my $self = shift;
+  my ($id) = @_;
+
+  $self->query2( "SELECT iptv_services.*,
+     DECODE(password, '$CONF->{secretkey}') AS password FROM iptv_services
+    WHERE id= ? ;",
+    undef,
+    {
+      INFO => 1,
+      Bind => [ $id ]
+    }
+  );
+
+  return $self;
+}
+
+#**********************************************************
+=head2 services_reports()
+
+=cut
+#**********************************************************
+sub services_reports{
+  my $self = shift;
+  my($attr)=@_;
+
+  $self->query2( "SELECT service.service_id,
+     s.name,
+     COUNT(DISTINCT service.uid) AS users,
+     SUM(IF(service.disable=0, 1, 0)) AS active,
+     COUNT(service.id) AS total
+  FROM iptv_main service
+  LEFT JOIN iptv_services s ON (service.service_id=s.id)
+  GROUP BY service.service_id;",
+    undef,
+    $attr
+  );
+
+  my $list = $self->{list};
+
+  $self->query2( "SELECT
+     COUNT(s.id) AS subscribes,
+     SUM(IF(service.disable=0, 1, 0)) AS total_active_users,
+     COUNT(DISTINCT service.uid) AS total_users
+  FROM iptv_main service
+  LEFT JOIN iptv_services s ON (service.service_id=s.id)
+  ",
+    undef,
+    { INFO => 1 }
+  );
+
+  return $list;
+}
+
+
 1
-
-

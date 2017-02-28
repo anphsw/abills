@@ -9,4 +9,6 @@ $lang{GALLERY} = 'Галерея';
 $lang{IMAGE_UPLOAD} = 'Загрузка картинки';
 $lang{CHOOSE_IMAGES} = 'Выбрать картинки';
 $lang{TITLE}= 'Заголовок';
+$lang{DIR_CREATED}='Папка створена';
+$lang{DESCRIPTION}='Опис';
 1;

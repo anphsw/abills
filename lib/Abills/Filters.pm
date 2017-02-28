@@ -32,6 +32,11 @@ our @EXPORT = qw(
 _expr
 _utf8_encode
 _mac_former
+human_exp
+bin2mac
+mac2dec
+dec2hex
+bin2hex
 $IPV4
 $IPV4CIDR
 $HD
@@ -48,6 +53,10 @@ our @EXPORT_OK = qw(
 _expr
 _utf8_encode
 _mac_former
+bin2mac
+mac2dec
+dec2hex
+bin2hex
 $IPV4
 $IPV4CIDR
 $HD
@@ -159,7 +168,7 @@ sub _mac_former {
   elsif($mac =~ /\d+\.\d+\.\d+\.\d+\.\d+\.\d+/) {
   	my @mac_arr = ();
     foreach my $val (split(/\./, $mac)) {
-      push @mac_arr, unpack("H2", pack("c", $val));
+      push @mac_arr, unpack("H2", pack('C', $val));
     }
 
     $mac = join(':', @mac_arr);
@@ -190,5 +199,150 @@ sub _mac_former {
 
   return lc($mac);
 }
+
+#**********************************************************
+=head2 bin2mac($bin_mac) - Convert binarry to MAC (xx:xx:xx:xx:xx:xx);
+
+  Arguments:
+    $bin_mac  - Binnary mac
+
+  Results:
+    $mac  (xx:xx:xx:xx:xx:xx)
+
+=cut
+#**********************************************************
+sub bin2mac{
+  my ($mac) = @_;
+
+  $mac //= '';
+
+  $mac = join( ':', unpack( "H2H2H2H2H2H2", $mac ) );
+
+  return $mac;
+}
+
+#**********************************************************
+=head2 _mac2dec($mac); - Convert MAC to dec mac
+
+  xx:xx:xx:xx:xx:xx -> xxx.xxx.xxx.xxx.xxx.xxx
+
+  Arguments:
+    $mac
+
+  Results:
+    $dec_mac (xxx.xxx.xxx.xxx.xxx.xxx)
+
+=cut
+#**********************************************************
+sub mac2dec{
+  my ($mac) = @_;
+  my @mac_arr = ();
+
+  foreach my $val (split(/:/, $mac)) {
+    push @mac_arr, hex($val);
+  }
+
+  return join('.', @mac_arr);
+}
+
+#**********************************************************
+=head2 dec2hex($dec_mac); - Convert DEC MAC to HEX mac
+
+  xxx.xxx.xxx.xxx.xxx.xxx -> xx:xx:xx:xx:xx:xx
+
+  Arguments:
+    $dec_mac  - xxx.xxx.xxx.xxx.xxx.xxx
+
+  Results:
+    $hex_mac  - xx:xx:xx:xx:xx:xx
+
+=cut
+#**********************************************************
+sub dec2hex{
+  my ($dec) = @_;
+  my @hex_arr = ();
+
+  foreach my $val (split(/\./, $dec)) {
+    push @hex_arr, unpack("H2", pack("C", $val));
+  }
+
+  return join(':', @hex_arr);
+}
+
+
+#**********************************************************
+=head2 bin2hex($bin); - Convert bit value to hex
+
+  Arguments:
+    $bin
+
+  Return:
+    Upper Hex string
+
+=cut
+#**********************************************************
+sub bin2hex{
+  my ($bin) = @_;
+
+  return uc( unpack( "H*", $bin) );
+}
+
+#**********************************************************
+=head2 human_exp($exp) - Expration human show
+
+  Arguments:
+    $exp
+
+  Return:
+    human_read_string
+
+=cut
+#**********************************************************
+sub human_exp {
+  my ($exp) = @_;
+
+  my $mask        = '';
+  my $exp_leng    = length($exp);
+  my $mask_symbol = 'X';
+  my $counter     = -1;
+  my $mask_leng   = 0;
+  my $isopen      = 0;
+
+  while ($counter++ < $exp_leng) {
+    if (( substr $exp, $counter, 1 ) eq '\\' and ( substr $exp, $counter + 1 , 1 ) eq 's' ) {
+      $mask = $mask . ' ';
+      $counter += 2;
+      next;
+    }
+	
+	if (( substr $exp, $counter, 1 ) eq '\\' and ( substr $exp, $counter + 1 , 1 ) eq 'd' ) {
+      $isopen = 1;
+      $counter++;
+      next;
+    }
+
+    if (( substr $exp, $counter, 1 ) eq '{' and $isopen == 1) {
+      $isopen = 2;
+      next;
+    }
+
+    if (( substr $exp, $counter, 1 ) eq '}') {
+      $mask = $mask . ($mask_symbol x $mask_leng);
+      $mask_leng = 0;
+      $isopen = 0;
+      next;
+    }
+
+    if ( (( substr $exp, $counter, 1 ) =~ /\d+/)  and $isopen == 2) {
+      $mask_leng = $mask_leng *10 + ( substr $exp, $counter, 1 );
+      next;
+    }
+
+    $mask = $mask . ( substr $exp, $counter, 1 );
+  }
+
+  return $mask;
+}
+
 
 1;

@@ -1,5 +1,5 @@
-<div class='panel panel-default panel-form'>
-  <div class='panel-body'>
+<div class='box box-theme box-form'>
+  <div class='box-body'>
 <TABLE width=600 class='table table-striped'>
 <tr><td>_{SESSION_ID}_:</td><td>%SESSION_ID%</td></tr>
 <tr><td>_{BEGIN}_:</td><td align=right>%START%</td></tr>

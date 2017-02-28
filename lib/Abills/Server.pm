@@ -13,7 +13,6 @@ Abills::Server - Base server functions
 no if $] >= 5.017011, warnings => 'experimental::smartmatch';
 
 use strict;
-our (@ISA, %EXPORT_TAGS);
 our $VERSION = 2.00;
 use POSIX qw(locale_h);
 use parent 'Exporter';
@@ -23,14 +22,14 @@ our @EXPORT = qw(
   verify_pid
   daemonize
   stop_server
-  );
+);
 
 our @EXPORT_OK = qw(
   make_pid
   verify_pid
   daemonize
   stop_server
-  );
+);
 
 
 #**********************************************************

@@ -3,9 +3,9 @@
 <input type='hidden' name='index' value=$index>
 <input type='hidden' name='ID' value='%ID%'>
 
-<div class='panel panel-form panel-primary form-horizontal'>
-<div class='panel-heading'>_{TYPE}_</div>
-<div class='panel-body'>
+<div class='box box-form box-primary form-horizontal'>
+<div class='box-header with-border'>_{TYPE}_</div>
+<div class='box-body'>
   <div class='form-group'>
     <label class='col-md-3 control-label'>_{NAME}_</label>
     <div class='col-md-9'>
@@ -19,7 +19,7 @@
     </div>
   </div>
 </div>
-<div class='panel-footer'>
+<div class='box-footer'>
   <input type='submit' class='btn btn-primary' value='%ACTION_LANG%' name='%ACTION%'>
 </div>
 </div>

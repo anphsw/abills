@@ -352,8 +352,9 @@ sub rule_list {
 }
 
 #**********************************************************
-# User information
-# info()
+=head2 user_info()
+
+=cut
 #**********************************************************
 sub user_info {
   my $self = shift;
@@ -374,7 +375,9 @@ sub user_info {
 }
 
 #**********************************************************
-# tp_add()
+=head2 user_add()
+
+=cut
 #**********************************************************
 sub user_add {
   my $self   = shift;
@@ -395,7 +398,9 @@ sub user_add {
 }
 
 #**********************************************************
-# change()
+=head2 user_change($attr)
+
+=cut
 #**********************************************************
 sub user_change {
   my $self = shift;
@@ -419,9 +424,9 @@ sub user_change {
 }
 
 #**********************************************************
-# Delete user info from all tables
-#
-# del(attr);
+=head2 user_del($attr)
+
+=cut
 #**********************************************************
 sub user_del {
   my $self = shift;
@@ -433,7 +438,9 @@ sub user_del {
 }
 
 #**********************************************************
-# list()
+=head2 user_list($attr)
+
+=cut
 #**********************************************************
 sub user_list {
   my $self = shift;
@@ -450,13 +457,15 @@ sub user_list {
   my $WHERE =  $self->search_former($attr, [
       ['TP_ID',          'INT', 'bu.tp_id',  1 ],
       ['DV_TP_ID',       'INT', 'tp.tp_id',  1 ],
+      ['TP_NAME',        'STR', 'b_tp.name', 'b_tp.name AS tp_name' ],
+      ['STATE',          'INT', 'bu.state',  1 ],
       ['BONUS_ACCOMULATION', '', '', 'ras.cost'],
     ],
-    { WHERE             => 1,
-      WHERE_RULES       => \@WHERE_RULES,
-      USERS_FIELDS      => 1,
-    }
-    );
+  { WHERE             => 1,
+    WHERE_RULES       => \@WHERE_RULES,
+    USERS_FIELDS_PRE  => 1,
+    USE_USER_PI       => 1
+  });
 
   my $EXT_TABLE = $self->{EXT_TABLES} if ($self->{EXT_TABLES});
 
@@ -470,13 +479,8 @@ sub user_list {
     ";
   }
 
-  $self->query2("SELECT u.id AS login, pi.fio, b_tp.name AS tp_name, bu.state, 
-      if(company.id IS NULL, b.deposit, cb.deposit) AS deposit, 
-      if(u.company_id=0, u.credit, 
-          if (u.credit=0, company.credit, u.credit)) AS credit, u.disable, 
-     $self->{SEARCH_FIELDS}
-     bu.uid
-
+  $self->query2("SELECT $self->{SEARCH_FIELDS}
+       bu.uid
      FROM (bonus_main bu, users u)
      LEFT JOIN bonus_tps b_tp ON (b_tp.id=bu.tp_id)
      $EXT_TABLE
@@ -489,7 +493,7 @@ sub user_list {
 
   my $list = $self->{list};
 
-  $self->query2("SELECT count(DISTINCT bu.uid) AS total
+  $self->query2("SELECT COUNT(DISTINCT bu.uid) AS total
      FROM (bonus_main bu, users u)
      LEFT JOIN bonus_tps b_tp ON (b_tp.id=bu.tp_id)
      $EXT_TABLE
@@ -502,22 +506,22 @@ sub user_list {
 }
 
 #**********************************************************
-# add()
+=head2 bonus_operation($user, $attr)
+
+=cut
 #**********************************************************
 sub bonus_operation {
   my $self = shift;
   my ($user, $attr) = @_;
 
-  my %DATA = $self->get_data($attr, { default => defaults() });
-
-  if ($DATA{SUM} <= 0) {
+  if ($attr->{SUM} <= 0) {
     $self->{errno}  = 12;
     $self->{errstr} = 'ERROR_ENTER_SUM';
     return $self;
   }
 
-  if ($DATA{CHECK_EXT_ID}) {
-    $self->query2("SELECT id, date FROM bonus_log WHERE ext_id='$DATA{CHECK_EXT_ID}';");
+  if ($attr->{CHECK_EXT_ID}) {
+    $self->query2("SELECT id, date FROM bonus_log WHERE ext_id='$attr->{CHECK_EXT_ID}';");
     if ($self->{TOTAL} > 0) {
       $self->{errno}  = 7;
       $self->{errstr} = 'ERROR_DUBLICATE';
@@ -530,10 +534,9 @@ sub bonus_operation {
   #$self->{db}->{AutoCommit}=0;
   $user->{EXT_BILL_ID} = $attr->{BILL_ID} if ($attr->{BILL_ID});
 
-
   if ($user->{EXT_BILL_ID} > 0) {
     my $bill_action_type = '';
-    if ($DATA{ACTION_TYPE}) {
+    if ($attr->{ACTION_TYPE}) {
       $bill_action_type = 'take';
     }
     else {
@@ -541,17 +544,30 @@ sub bonus_operation {
     }
 
     $Bill->info({ BILL_ID => $user->{EXT_BILL_ID} });
-    $Bill->action($bill_action_type, $user->{EXT_BILL_ID}, $DATA{SUM});
+    $Bill->action($bill_action_type, $user->{EXT_BILL_ID}, $attr->{SUM});
     if ($Bill->{errno}) {
       return $self;
     }
 
-    my $date = ($DATA{DATE}) ? "'$DATA{DATE}'" : 'now()';
+    my $date = ($attr->{DATE}) ? "'$attr->{DATE}'" : 'now()';
     $self->query2("INSERT INTO bonus_log (uid, bill_id, date, sum, dsc, ip, last_deposit, aid, method, ext_id,
            inner_describe, action_type, expire) 
-           VALUES ('$user->{UID}', '$user->{EXT_BILL_ID}', $date, '$DATA{SUM}', '$DATA{DESCRIBE}', INET_ATON('$admin->{SESSION_IP}'),
-           '$Bill->{DEPOSIT}', '$admin->{AID}', '$DATA{METHOD}', 
-           '$DATA{EXT_ID}', '$DATA{INNER_DESCRIBE}', '$DATA{ACTION_TYPE}', '$DATA{EXPIRE}');", 'do'
+           VALUES (?, ?, ?, ?, ?, INET_ATON(?), ?, ?, ?, ?, ?, ?, ?);", 'do',
+      { Bind => [
+          $user->{UID},
+          $user->{EXT_BILL_ID},
+          $date,
+          $attr->{SUM},
+          $attr->{DESCRIBE},
+          $admin->{SESSION_IP},
+          $Bill->{DEPOSIT},
+          $admin->{AID},
+          $attr->{METHOD} || 0,
+          $attr->{EXT_ID} || '',
+          $attr->{INNER_DESCRIBE} || '',
+          $attr->{ACTION_TYPE},
+          $attr->{EXPIRE} || '0000-00-00'
+        ] }
     );
 
     $self->{BONUS_PAYMENT_ID} = $self->{INSERT_ID};
@@ -568,7 +584,9 @@ sub bonus_operation {
 }
 
 #**********************************************************
-# del $user, $id
+=head2 bonus_operation_del($user, $id)
+
+=cut
 #**********************************************************
 sub bonus_operation_del {
   my $self = shift;
@@ -634,14 +652,14 @@ sub bonus_operation_list {
       ['IP',             'INT', 'INET_NTOA(p.ip)',  'INET_NTOA(p.ip) AS ip'],
       ['EXT_ID',         'STR', 'p.ext_id',                               1],
       ['INVOICE_NUM',    'INT', 'd.invoice_num',                          1],
-      ['DATE',           'DATE','date_format(p.date, \'%Y-%m-%d\')'        ], 
-      ['EXPIRE',         'DATE','date_format(p.expire, \'%Y-%m-%d\')',   'date_format(p.expire, \'%Y-%m-%d\') AS expire' ], 
+      ['DATE',           'DATE','DATE_FORMAT(p.date, \'%Y-%m-%d\')'        ], 
+      ['EXPIRE',         'DATE','DATE_FORMAT(p.expire, \'%Y-%m-%d\')',   'DATE_FORMAT(p.expire, \'%Y-%m-%d\') AS expire' ], 
       ['REG_DATE',       'DATE','p.reg_date',                             1],
-      ['MONTH',          'DATE','date_format(p.date, \'%Y-%m\') AS month'  ],
+      ['MONTH',          'DATE','DATE_FORMAT(p.date, \'%Y-%m\') AS month'  ],
       ['ID',             'INT', 'p.id'                                     ],
       ['AID',            'INT', 'p.aid',                                   ],
       ['FROM_DATE_TIME|TO_DATE_TIME','DATE', "p.date"                      ],
-      ['FROM_DATE|TO_DATE', 'DATE',    'date_format(p.date, \'%Y-%m-%d\')' ],
+      ['FROM_DATE|TO_DATE', 'DATE',    'DATE_FORMAT(p.date, \'%Y-%m-%d\')' ],
       ['UID',            'INT', 'p.uid',                                  1],
     ],
     { WHERE       => 1,
@@ -685,8 +703,9 @@ sub bonus_operation_list {
 }
 
 #**********************************************************
-#
-# service_discount_info()
+=head2 service_discount_info($id)
+
+=cut
 #**********************************************************
 sub service_discount_info {
   my $self = shift;
@@ -703,20 +722,23 @@ sub service_discount_info {
 }
 
 #**********************************************************
-# service_discount_add()
+=head2 service_discount_add($attr)
+
+=cut
 #**********************************************************
 sub service_discount_add {
   my $self   = shift;
   my ($attr) = @_;
-  my %DATA   = $self->get_data($attr);
 
-  $self->query_add('bonus_service_discount', \%DATA);
+  $self->query_add('bonus_service_discount', $attr);
 
   return $self;
 }
 
 #**********************************************************
-# change()
+=head2 service_discount_change($attr)
+
+=cut
 #**********************************************************
 sub service_discount_change {
   my $self = shift;
@@ -738,8 +760,9 @@ sub service_discount_change {
 }
 
 #**********************************************************
-#
-# service_discount_del(attr);
+=head2 service_discount_del(attr);
+
+=cut
 #**********************************************************
 sub service_discount_del {
   my $self = shift;
@@ -751,7 +774,9 @@ sub service_discount_del {
 }
 
 #**********************************************************
-# service_discount_list()
+=head2 service_discount_list()
+
+=cut
 #**********************************************************
 sub service_discount_list {
   my $self = shift;
@@ -761,7 +786,7 @@ sub service_discount_list {
   $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
   $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
-  my @WHERE_RULES = ();
+
   $self->{SEARCH_FIELDS}      = '';
   $self->{SEARCH_FIELDS_COUNT}= 0;
 
@@ -773,7 +798,6 @@ sub service_discount_list {
       ['PAY_METHOD',        'INT', 'pay_method'           ],
     ],
     { WHERE       => 1,
-      WHERE_RULES => \@WHERE_RULES,
     }
     );
 
@@ -819,15 +843,16 @@ sub bonus_turbo_info {
 }
 
 #**********************************************************
-# bonus_turbo_add()
+=head2 bonus_turbo_add($attr)
+
+=cut
 #**********************************************************
 sub bonus_turbo_add {
   my $self   = shift;
   my ($attr) = @_;
-  my %DATA   = $self->get_data($attr);
 
   $self->query2("INSERT INTO bonus_turbo (service_period, registration_days, turbo_count, comments)
-        VALUES ('$DATA{SERVICE_PERIOD}', '$DATA{REGISTRATION_DAYS}', '$DATA{TURBO_COUNT}', '$DATA{DESCRIBE}');", 'do'
+        VALUES ('$attr->{SERVICE_PERIOD}', '$attr>{REGISTRATION_DAYS}', '$attr->{TURBO_COUNT}', '$attr->{DESCRIBE}');", 'do'
   );
 
   return $self;
@@ -909,8 +934,9 @@ sub bonus_turbo_list {
 }
 
 #**********************************************************
-# 
-# accomulation_rule_info()
+=head2 accomulation_rule_info()
+
+=cut
 #**********************************************************
 sub accomulation_rule_info {
   my $self = shift;
@@ -928,33 +954,36 @@ sub accomulation_rule_info {
 }
 
 #**********************************************************
-# accomulation_rule_add()
+=head2 accomulation_rule_add()
+
+=cut
 #**********************************************************
 sub accomulation_rule_change {
   my $self   = shift;
   my ($attr) = @_;
-  my %DATA   = $self->get_data($attr);
 
   my @ids = split(/, /, $attr->{DV_TP_ID});
 
-  my @MULTI_QUERY = ();
+  if ( $#ids > -1 ) {
+    my @MULTI_QUERY = ();
 
-  foreach my $id (@ids) {
-    push @MULTI_QUERY, [ $DATA{TP_ID}, $id, $DATA{'COST_'.$id} ]
+    foreach my $id (@ids) {
+      push @MULTI_QUERY, [ $attr->{TP_ID} || 0, $id || 0, $attr->{'COST_'.$id} || 0 ];
+    }
+
+    $self->query2( "REPLACE INTO bonus_rules_accomulation (tp_id, dv_tp_id, cost)
+        VALUES ( ? , ? , ? );", undef,
+      { MULTI_QUERY => \@MULTI_QUERY }
+    );
   }
-
-  $self->query2("REPLACE INTO bonus_rules_accomulation (tp_id, dv_tp_id, cost)
-        VALUES ( ?, ?, ?);", 'do',
-        { MULTI_QUERY => @MULTI_QUERY }
-  );
 
   return $self;
 }
 
-
-
 #**********************************************************
-# accomulation_rule_list()
+=head2 accomulation_rule_list($attr)
+
+=cut
 #**********************************************************
 sub accomulation_rule_list {
   my $self = shift;
@@ -965,23 +994,23 @@ sub accomulation_rule_list {
 
   my @WHERE_RULES = ("tp.module='Dv'");
  
-  if ($attr->{TP_ID}) {
-    push @WHERE_RULES, "br.tp_id='$attr->{TP_ID}'";
-  }
-
   my $JOIN_WHERE = '';
   if ($attr->{DV_TP_ID}) {
     push @WHERE_RULES, "br.dv_tp_id='$attr->{DV_TP_ID}'";
     $JOIN_WHERE = "AND br.tp_id='$attr->{TP_ID}'";
   }
 
+  if ($attr->{TP_ID}) {
+    #push @WHERE_RULES, "(br.tp_id='$attr->{TP_ID}' OR br.tp_id IS NULL)";
+    $JOIN_WHERE = " AND br.tp_id='$attr->{TP_ID}'";
+  }
+
   if ($attr->{COST}) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{COST}", 'INT', 'cost') };
+    push @WHERE_RULES, @{ $self->search_expr($attr->{COST}, 'INT', 'cost') };
   }
  
-  my $WHERE = ($#WHERE_RULES > -1) ? join(' and ', @WHERE_RULES) : '';
-
-  $self->query2("SELECT br.tp_id, tp.name, tp.tp_id AS dv_tp_id, br.cost
+  my $WHERE = ($#WHERE_RULES > -1) ? join(' AND ', @WHERE_RULES) : '';
+  $self->query2("SELECT tp.tp_id AS dv_tp_id, tp.name, br.cost, br.tp_id
      FROM tarif_plans tp
      LEFT JOIN bonus_rules_accomulation br ON (br.dv_tp_id=tp.tp_id $JOIN_WHERE)
      WHERE $WHERE 
@@ -998,10 +1027,10 @@ sub accomulation_rule_list {
 }
 
 
-
 #**********************************************************
-#
-# accomulation_scores_info()
+=head2 accomulation_scores_info($attr)
+
+=cut
 #**********************************************************
 sub accomulation_scores_info {
   my $self = shift;
@@ -1019,57 +1048,61 @@ sub accomulation_scores_info {
 }
 
 #**********************************************************
-# accomulation_scores_change()
+=head2 accomulation_scores_change($attr)
+
+=cut
 #**********************************************************
 sub accomulation_scores_change {
   my $self   = shift;
   my ($attr) = @_;
-  my %DATA   = $self->get_data($attr);
 
   $self->query2("REPLACE INTO bonus_rules_accomulation_scores (uid, dv_tp_id, cost)
-        VALUES ('$DATA{UID}', '$DATA{DV_TP_ID}', '$DATA{SCORE}');", 'do'
+        VALUES ('$attr->{UID}', '$attr->{DV_TP_ID}', '$attr->{SCORE}');", 'do'
   );
 
   $admin->{MODULE} = $MODULE;
-  $admin->action_add("$DATA{UID}", "SCORE:$DATA{SCORE}", { TYPE => 2 });
+  $admin->action_add("$attr->{UID}", "SCORE:$attr->{SCORE}", { TYPE => 2 });
 
   return $self;
 }
 
 
 #**********************************************************
-# accomulation_scores_add()
+=head2 accomulation_scores_add($attr)
+
+=cut
 #**********************************************************
 sub accomulation_scores_add {
   my $self   = shift;
   my ($attr) = @_;
-  my %DATA   = $self->get_data($attr);
 
-  $DATA{DV_TP_ID}=0 if (! $DATA{DV_TP_ID});
+  my $tp_value = ($attr->{DV_TP_ID}) ? "dv_tp_id='$attr->{DV_TP_ID}'," : q{};
 
   $self->query2("UPDATE bonus_rules_accomulation_scores SET
-        dv_tp_id='$DATA{DV_TP_ID}', 
-        cost=cost + $DATA{SCORE}
-      WHERE uid='$attr->{UID}';", 'do'
+      $tp_value
+      cost=cost + $attr->{SCORE}
+    WHERE uid='$attr->{UID}';", 'do'
   );
 
   if ($self->{AFFECTED} == 0 && $CONF->{BONUS_PAYMENTS_AUTO}){
     $self->accomulation_scores_change({ 
-           UID      => $attr->{UID}, 
-           SCORE    => $attr->{SCORE},
-           DV_TP_ID => 0  });
-
+      UID      => $attr->{UID},
+      SCORE    => $attr->{SCORE},
+      DV_TP_ID => 0
+    });
   }
 
   $admin->{MODULE} = $MODULE;
-  $admin->action_add("$DATA{UID}", "SCORE:$DATA{SCORE}", { TYPE => 1 });
+  $admin->action_add($attr->{UID}, "SCORE:$attr->{SCORE}", { TYPE => 1 });
 
   return $self;
 }
 
 
 #**********************************************************
-# accomulation_scores_list()
+=head2 accomulation_scores_list($attr)
+
+=cut
 #**********************************************************
 sub accomulation_scores_list {
   my $self = shift;
@@ -1090,7 +1123,7 @@ sub accomulation_scores_list {
     push @WHERE_RULES, @{ $self->search_expr("$attr->{PERIODS}", 'INT', 'service_period') };
   }
 
-  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : q{};
+  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' AND ', @WHERE_RULES) : q{};
 
   $self->query2("SELECT service_period, registration_days, turbo_count, id
      FROM bonus_rules_accomulation_scores bs
@@ -1098,7 +1131,8 @@ sub accomulation_scores_list {
      $WHERE 
      ORDER BY $SORT $DESC
      LIMIT $PG, $PAGE_ROWS;",
-     undef, $attr
+    undef,
+    $attr
   );
 
   return [ ] if ($self->{errno});
@@ -1110,7 +1144,9 @@ sub accomulation_scores_list {
 
 
 #**********************************************************
-#
+=head2 accomulation_first_rule()
+
+=cut
 #**********************************************************
 sub accomulation_first_rule {
   my $self   = shift;
@@ -1136,10 +1172,37 @@ SELECT $attr->{UID}, IF((SELECT \@A:=MIN(last_deposit)
   return $self;
 }
 
+#**********************************************************
+=head2 accomulation_reset_list($attr)
+
+  Arguments:
+    $attr
+
+  Results:
+
+=cut
+#**********************************************************
+sub accomulation_reset_list {
+  my $self   = shift;
+  my ($attr) = @_;
+
+  $self->query2( "SELECT b.cost, MAX(l.start) AS last_connect, b.uid FROM bonus_rules_accomulation_scores b
+    LEFT JOIN dv_log l ON (l.uid=b.uid)
+    WHERE b.cost > 0
+    GROUP BY b.uid
+    HAVING last_connect < CURDATE() - INTERVAL $attr->{RESET_PERIOD} DAY",
+    undef,
+    $attr
+  );
+
+  return $self->{list};
+}
+
 
 #**********************************************************
-# 
-# tp_using_info()
+=head2 tp_using_info($id)
+
+=cut
 #**********************************************************
 sub tp_using_info {
   my $self = shift;
@@ -1187,8 +1250,9 @@ sub tp_using_change {
 }
 
 #**********************************************************
-#
-# tp_using_del(attr);
+=head2 tp_using_del(attr);
+
+=cut
 #**********************************************************
 sub tp_using_del {
   my $self = shift;
@@ -1200,7 +1264,9 @@ sub tp_using_del {
 }
 
 #**********************************************************
-# tp_using_list()
+=head2 tp_using_list($attr)
+
+=cut
 #**********************************************************
 sub tp_using_list {
   my $self = shift;
@@ -1212,19 +1278,18 @@ sub tp_using_list {
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE =  $self->search_former($attr, [
-      ['LOGIN',          'STR', 'u.id',               'u.id AS login' ],
-      ['TP_ID',          'INT', 'dv.tp_id',                        1  ],
-      ['AGE',            'INT', 'aa.date', '(SELECT DATEDIFF(curdate(), max(datetime)) FROM admin_actions 
-        WHERE uid=dv.uid AND action_type=3 GROUP BY uid ORDER BY 1) AS age' ],
-      ['MONTH_FEE',      'INT', 'tp.month_fee', 1 ],
-      ['FROM_DATE|TO_DATE','INT', "date_format(aa.datetime, '%Y-%m-%d')"  ],
-      ['UID',            'INT', 'dv.uid', 1                           ],
-    ],
-    { WHERE        => 1,
-      USERS_FIELDS => 1,
-      #SKIP_USERS_FIELDS=> [ ],
-      USE_USER_PI  => 1
-    }
+    ['LOGIN',          'STR', 'u.id',               'u.id AS login'    ],
+    ['TP_ID',          'INT', 'dv.tp_id',                        1     ],
+    ['AGE',            'INT', 'aa.date', '(SELECT DATEDIFF(curdate(), max(datetime)) FROM admin_actions
+      WHERE uid=dv.uid AND action_type=3 GROUP BY uid ORDER BY 1) AS age' ],
+    ['MONTH_FEE',      'INT', 'tp.month_fee',                    1     ],
+    ['FROM_DATE|TO_DATE','INT', "DATE_FORMAT(aa.datetime, '%Y-%m-%d')" ],
+    ['UID',            'INT', 'dv.uid',                          1     ],
+  ],
+  { WHERE        => 1,
+    USERS_FIELDS => 1,
+    USE_USER_PI  => 1
+  }
   );
 
   my $EXT_TABLES = '';
@@ -1263,6 +1328,9 @@ sub tp_using_list {
 
   return $list;
 }
+
+
+
 
 1
 

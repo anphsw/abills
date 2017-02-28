@@ -226,6 +226,7 @@ sub add{
     } );
 
   if ( !$self->{errno} ){
+    $admin->{MODULE} = $attr->{MODULE};
     if ( $attr->{UID} ){
       $admin->action_add( $attr->{UID},
         "SHEDULE:$self->{INSERT_ID} $attr->{TYPE}:$attr->{ACTION}:$attr->{MODULE}:$attr->{COMMENTS}", { TYPE => 27 } );
@@ -254,9 +255,16 @@ sub del{
   my $self = shift;
   my ($attr) = @_;
 
-  my $result = $attr->{RESULT} || 0;
+  my $result = $attr->{result} || 0;
+  delete $attr->{result};
+
   if ( $attr->{IDS} ){
-    $self->query2( "DELETE FROM shedule WHERE id IN ( $attr->{IDS} );", 'do' );
+    my $WHERE = '';
+    if($attr->{UID}) {
+      $WHERE = " AND uid='$attr->{UID}'";
+    }
+
+    $self->query2( "DELETE FROM shedule WHERE id IN ( $attr->{IDS} ) $WHERE;", 'do' );
     if ( $attr->{UID} ){
       $admin->action_add( $attr->{UID}, "SHEDULE:$attr->{IDS} RESULT:$result" . $attr->{EXT_INFO},
         { TYPE => ($attr->{EXECUTE}) ? 29 : 28 } );
@@ -270,7 +278,9 @@ sub del{
   $self->info( { ID => $attr->{ID} } );
 
   if ( $self->{TOTAL} > 0 ){
-    $self->query_del( 'shedule', $attr );
+    $self->query_del( 'shedule', $attr, {
+        uid => $attr->{UID} || $attr->{UID}
+      });
     if ( $self->{UID} ){
       $admin->action_add( $self->{UID}, "SHEDULE:$attr->{ID} RESULT:$result" . $attr->{EXT_INFO},
         { TYPE => ($attr->{EXECUTE}) ? 29 : 28 } );

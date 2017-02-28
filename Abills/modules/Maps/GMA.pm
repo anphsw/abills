@@ -16,16 +16,13 @@ my %CONF = ();
 use lib "mysql";
 use parent "main";
 
-use Abills::mysql::Address;
-
 use Abills::Base qw(_bp);
-do "Abills/Misc.pm";
-
+use Abills::Fetcher qw/web_request/;
 use JSON;
-
+use Address;
 my $Address = { };
 
-my $api_link = 'http://maps.googleapis.com/maps/api/geocode/json';
+my $api_link = 'https://maps.googleapis.com/maps/api/geocode/json';
 
 #**********************************************************
 =head2 new($db, $admin, \%conf) - constructor for Google Maps Api
@@ -73,30 +70,43 @@ sub get_unfilled_addresses {
   my $build_list = $Address->build_list( {
       COORDX          => '0',
       COORDY          => '0',
+      STREET_ID       => $attr->{STREET_ID} || '_SHOW',
+      DISTRICT_ID     => $attr->{DISTRICT_ID} || '_SHOW',
       STREET_NAME     => '_SHOW',
-      DISTRICT_ID     => '_SHOW',
       SHOW_GOOGLE_MAP => 1,
       COLS_NAME       => 1,
       PAGE_ROWS       => 10000
     } );
 
   my %districts_by_id = ();
-  my $districts_list = $Address->district_list( { COLS_NAME => 1 } );
+  my $districts_list = $Address->district_list( {
+      COLS_NAME => 1,
+      PAGE_ROWS => 10000,
+      %{ $attr->{DISTRICT_ID} ? { DISTRICT_ID => $attr->{DISTRICT_ID} } : {} }
+    } );
 
-  my @districts_list = ();
-  @districts_list = @{ $districts_list } if (defined $districts_list);
-  foreach my $district ( @districts_list ) {
+  foreach my $district ( @{ $districts_list } ) {
     $districts_by_id{$district->{id}} = $district;
   }
 
-  my %streets_by_id = ();
-  my $streets_list = $Address->street_list( { COLS_NAME => 1 } );
+#  _bp('Districts', \%districts_by_id,
+#    {TO_WEB_CONSOLE => ($attr->{WEB_DEBUG}) ? 1 : 0, TO_CONSOLE => ($attr->{CONS_DEBUG} ? 1 : 0)}
+#  ) if ($attr->{DEBUG});
 
-  my @streets_list = ();
-  @streets_list = @{ $streets_list } if (defined $streets_list);
-  foreach my $street ( @streets_list ) {
+  my %streets_by_id = ();
+  my $streets_list = $Address->street_list( {
+      COLS_NAME => 1,
+      PAGE_ROWS => 10000,
+      %{ $attr->{DISTRICT_ID} ? { DISTRICT_ID => $attr->{DISTRICT_ID} } : {} },
+      %{ $attr->{STREET_ID} ? { STREET_ID => $attr->{STREET_ID} } : {} }
+    } );
+
+  foreach my $street ( @{ $streets_list } ) {
     $streets_by_id{$street->{id}} = $street;
   }
+#  _bp('Streets', \%streets_by_id,
+#    {TO_WEB_CONSOLE => ($attr->{WEB_DEBUG}) ? 1 : 0, TO_CONSOLE => ($attr->{CONS_DEBUG} ? 1 : 0)}
+#  ) if ($attr->{DEBUG});
 
   my @builds_without_coords = ();
 
@@ -105,10 +115,20 @@ sub get_unfilled_addresses {
 
     # Dealing with broken DB
     # Check if street for build exists
-    next if (!exists $streets_by_id{$build->{street_id}});
+    if (!exists $streets_by_id{$build->{street_id}}){
+#      _bp('BROKEN street_id ', $build->{street_id},
+#        {TO_WEB_CONSOLE => ($attr->{WEB_DEBUG}) ? 1 : 0, TO_CONSOLE => ($attr->{CONS_DEBUG} ? 1 : 0)}
+#      ) if ($attr->{DEBUG});
+      next;
+    };
 
     # Check if district for this build exists
-    next if (!exists $districts_by_id{$build->{district_id}});
+    if (!exists $districts_by_id{$build->{district_id}}){
+#      _bp('BROKEN district_id ', $build->{district_id},
+#        {TO_WEB_CONSOLE => ($attr->{WEB_DEBUG}) ? 1 : 0, TO_CONSOLE => ($attr->{CONS_DEBUG} ? 1 : 0)}
+#      ) if ($attr->{DEBUG});
+      next;
+    };
 
     my $district = $districts_by_id{ $build->{district_id} };
 
@@ -170,7 +190,9 @@ sub get_coords_for {
       REQUEST_PARAMS =>
       {
         address => $requested_addr,
-        key     => $self->{key}
+        key     => $self->{key},
+        location_type => 'ROOFTOP',
+        
       },
       GET            => 1,
     } );
@@ -251,5 +273,45 @@ sub get_coords_for {
     requested_address => $requested_addr
   }
 };
+
+#**********************************************************
+=head2 get_address_for($latlng, $attr) - Returns address for coordinates (if it's ROOFTOP)
+
+  Arguments:
+    $latlng - hash_ref
+      COORDX
+      COORDY
+     $attr -
+    
+  Returns:
+    hash_ref -
+     ADDRESS
+    
+=cut
+#**********************************************************
+sub get_address_for {
+  my ($self, $latlng, $attr) =  @_;
+  my $result = {};
+  
+  # For free usage, Geocoding API receives one request in 1.5 seconds;
+  unless ($CONF{MAPS_NO_THROTTLE}) {
+    sleep 2;
+  }
+  
+  my $responce = web_request( $api_link, {
+      REQUEST_PARAMS =>
+      {
+        key           => $self->{key},
+        latlng        => $latlng->{COORDX} . ',' . $latlng->{COORDY},
+        location_type => 'ROOFTOP',
+        language => 'RU_ru'
+      },
+      GET            => 1,
+    } );
+  
+  
+#  return $result;
+  return $responce;
+}
 
 1;

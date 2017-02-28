@@ -3,8 +3,8 @@
 <input type=hidden name=ID value=%ID%>
 <fieldset>
 	
-<div class='panel panel-default panel-form'>
-<div class='panel-body form form-horizontal'>
+<div class='box box-theme box-form'>
+<div class='box-body form form-horizontal'>
 	<legend>
 		_{TYPE}_
 	</legend>
@@ -22,7 +22,7 @@
   </div>
 
 </div>
-<div class='panel-footer'>
+<div class='box-footer'>
 	<input class='btn btn-primary' type=submit name=%ACTION% value=%ACTION_LNG%>
 </div>
 </div>

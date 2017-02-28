@@ -7,12 +7,11 @@
 =cut
 #**********************************************************
 
-use vars qw(
-$debug
-$NAS
-%conf
-$admin
-$db
+our (
+$debug,
+%conf,
+$admin,
+$db,
 );
 
 check_dublicates();
@@ -40,13 +39,13 @@ sub check_dublicates {
    mng_user,
    mng_password,
    c.CID
-                  FROM dv_calls c, dv_main dv, tarif_plans tp, nas
-                  WHERE c.uid=dv.uid 
-                  AND c.status<11
-                  AND dv.tp_id=tp.id AND tp.domain_id=0
-                  AND c.nas_id=nas.id
-                  ORDER BY c.user_name, c.CID
-                  ;"
+   FROM dv_calls c, dv_main dv, tarif_plans tp, nas
+   WHERE c.uid=dv.uid
+     AND c.status<11
+     AND dv.tp_id=tp.id AND tp.domain_id=0
+     AND c.nas_id=nas.id
+     ORDER BY c.user_name, c.CID
+   ;"
   );
 
   my %logins = ();
@@ -77,7 +76,7 @@ sub check_dublicates {
     #if ($logins{$line->[0]} > $line->[3] || $CIDS{$line->[0]}{$line->[12]} > $conf{DV_SIM_CID}) {
     if (int($logins{ $line->[0] }{UNIQUE_CID}) > $UNIQUE_CIDS || int($CIDS{ $line->[0] }{ $line->[12] }) > $SAME_CIDS) {
       print "Hangap dublicate '$line->[0]'\n";
-      my $ret = hangup(
+      hangup(
         \%NAS,
         "$line->[2]",
         "$line->[0]",

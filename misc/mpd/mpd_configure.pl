@@ -1,19 +1,18 @@
 #!/usr/bin/perl -w
 # Auto configure service for mpd5
 
-
-use vars  qw(%conf 
-  $DATE $TIME
-  $begin_time
- );
-
-
 use strict;
 use FindBin '$Bin';
 
-my $VERSION     = 2.0;
-my $config_file = $Bin . '/../../libexec/config.pl';
-my $debug       = 0;
+our (%conf
+$DATE,
+  $TIME,
+  $begin_time
+  );
+
+my $VERSION = 2.1;
+my $config_file = $Bin.'/../../libexec/config.pl';
+my $debug = 0;
 my $mpd_main_tpl = qq{
 #ABillS Vlan MPD config
 startup:
@@ -62,7 +61,7 @@ server_common:
 
 
 radius:
-     #IP, пароль и порты RADIUS-сервера
+     #IP, пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ RADIUS-пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
      set radius server %RADIUS_AUTH_SERVER% %RADIUS_SECRET% 1812 1813
      #set radius config /etc/radius.conf
      set radius retries 3
@@ -86,51 +85,47 @@ my $mpd_pppoe_tpl = qq{ #%PPPOE_INTERFACE% %DESCRIBE%
       set link enable incoming
 };
 
-
-require $Bin . '/../../Abills/Base.pm';
+require $Bin.'/../../Abills/Base.pm';
 Abills::Base->import();
 
+my $argv = parse_arguments(\@ARGV);
 
-my $ARGV = parse_arguments(\@ARGV);
+my $mpd_conf = $argv->{OUTPUT_FILE} || '/usr/local/etc/mpd5/mpd.conf';
 
-my $mpd_conf = $ARGV->{OUTPUT_FILE} || '/usr/local/etc/mpd5/mpd.conf';
-
-if ($ARGV->{debug}) {
-  $debug=int($ARGV->{debug});
+if ($argv->{debug}) {
+  $debug = int($argv->{debug});
   print "Debug mode: $debug\n";
 }
 
-if(defined($ARGV->{help})) {
-	help();
-	exit;
+if (defined($argv->{help})) {
+  help();
+  exit;
 }
 
+if ($argv->{INTERFACES}) {
+  while(my ($key, $val) = each %$argv) {
+    $conf{$key} = $val;
+  }
 
-
-if ($ARGV->{INTERFACES}) {
-  while(my($key, $val)=each %$ARGV) {
-  	$conf{$key}=$val;
-   }
-
-	my $pppoe_tpl = '';
-	my @ifaces_arr = split(/,/, $ARGV->{INTERFACES});
+  my $pppoe_tpl = '';
+  my @ifaces_arr = split(/,/, $argv->{INTERFACES});
   foreach my $if (@ifaces_arr) {
     my $tmp_tpl = $mpd_pppoe_tpl;
 
-    $tmp_tpl = tpl_parse($tmp_tpl, { %conf, %$ARGV, PPPOE_INTERFACE => $if });
+    $tmp_tpl = tpl_parse($tmp_tpl, { %conf, %$argv, PPPOE_INTERFACE => $if });
     $pppoe_tpl .= $tmp_tpl;
-   }	
+  }
 
-  $mpd_main_tpl = tpl_parse($mpd_main_tpl, { %$ARGV, PPPOE_LINKS => $pppoe_tpl });
+  $mpd_main_tpl = tpl_parse($mpd_main_tpl, { %$argv, PPPOE_LINKS => $pppoe_tpl });
 
   if ($debug > 1) {
     print $mpd_main_tpl;
-   }
-  else{
-  	open(FILE, ">$mpd_conf") or die "Can't open file '$mpd_conf' $!\n";
-  	  print FILE $mpd_main_tpl;
-  	close(FILE);
-   }
+  }
+  else {
+    open(FILE, ">$mpd_conf") or die "Can't open file '$mpd_conf' $!\n";
+    print FILE $mpd_main_tpl;
+    close(FILE);
+  }
 }
 
 
@@ -139,8 +134,8 @@ if ($ARGV->{INTERFACES}) {
 #
 #**********************************************************
 sub help {
-	
-print << "[END]";
+
+  print << "[END]";
   MPD_MAIN_TPL   - main mpd.tpl
   MPD_PPPOE_TPL  - pppoe section
   OUTPUT_FILE    - MPD Output config
@@ -149,8 +144,6 @@ print << "[END]";
 
 [END]
 
-	
-	
 }
 
 

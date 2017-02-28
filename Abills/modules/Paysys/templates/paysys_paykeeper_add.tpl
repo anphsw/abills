@@ -1,13 +1,13 @@
 <form action=%ACTIONFORM% method=POST>
     
-    <input type=hidden name=clientid value=%CLIENTID%>
-    <input type=hidden name=sum value=%SUMMA%>
-    <input type=hidden name=orderid value=%OID%>
-    <input type=hidden name=phone value=%PHONE%>
+    <input type=hidden name='clientid' value='%CLIENTID%''>
+    <input type=hidden name='sum' value='%SUMMA%'>
+    <input type=hidden name='orderid' value='%OID%''>
+    <input type=hidden name='client_phone' value='%UID%'>
     
-<div class='panel panel-primary'>
-    <div class='panel-heading text-center'>_{BALANCE_RECHARCHE}_</div>
-<div class='panel-body'>
+<div class='box box-primary'>
+    <div class='box-header with-border text-center'>_{BALANCE_RECHARCHE}_</div>
+<div class='box-body'>
     
     <div class='form-group'>
         <label class='col-md-6 control-label text-center'>_{ORDER}_:</label>
@@ -25,7 +25,7 @@
     </div>
 </div>
 
-<div class='panel-footer text-center'>
+<div class='box-footer text-center'>
     <input class='btn btn-primary' type=submit value=_{PAY}_>
 </div>
 

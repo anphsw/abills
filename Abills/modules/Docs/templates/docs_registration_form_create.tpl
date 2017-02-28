@@ -58,9 +58,9 @@
     });
 </script>
 
-<div class='panel panel-primary panel-form'>
-    <div class='panel-heading text-center'><h4>_{REGISTRATION}_ _{TEMPLATE}_</h4></div>
-    <div class='panel-body'>
+<div class='box box-theme box-form'>
+    <div class='box-header with-border'><h4 class='box-title'>_{REGISTRATION}_ _{TEMPLATE}_</h4></div>
+    <div class='box-body'>
 
         <form name='DOCS_REGISTRATION' id='form_DOCS_REGISTRATION' method='post' class='form form-horizontal'>
             <input type='hidden' name='index' id='INDEX' value='$index'/>
@@ -103,7 +103,7 @@
         </form>
 
     </div>
-    <div class='panel-footer text-center'>
+    <div class='box-footer text-center'>
         <input type='submit' class='btn btn-default' form='form_DOCS_REGISTRATION' name='generate' value='_{PREVIEW}_'>
         <button class='btn btn-primary' id='EXPORT_BTN'><span class='glyphicon glyphicon-print'></span> _{PRINT}_</button>
     </div>

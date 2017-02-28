@@ -1,7 +1,7 @@
    <tr><td colspan=2><hr></td></tr>
    
-<div class='panel panel-default panel-form'>
-<div class='panel-body'>
+<div class='box box-theme box-form'>
+<div class='box-body'>
    <div class='form-group'>
    	<label class='control-label col-md-3'>_{GROUP}_:</label>
    	<div class='col-md-9'>%GROUP_SEL%</div>

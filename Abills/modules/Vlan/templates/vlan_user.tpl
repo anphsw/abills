@@ -1,5 +1,5 @@
-<div class='panel panel-default panel-form'>
-  <div class='panel-body'>
+<div class='box box-theme box-form'>
+  <div class='box-body'>
 
     %MENU%
 
@@ -79,7 +79,7 @@
     </form>
 
   </div>
-  <div class='panel-footer'>
+  <div class='box-footer'>
     <input type=submit class='btn btn-danger noprint' form='vlan_user_form' name='del' value='_{DEL}_'>
     <input type=submit class='btn btn-success noprint' form='vlan_user_form' name='%ACTION%' value='%LNG_ACTION%'>
   </div>

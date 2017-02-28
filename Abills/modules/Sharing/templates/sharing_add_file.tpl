@@ -3,11 +3,11 @@
 <input type='hidden' name='index' value='$index'>
 <input type='hidden' name='ID' value='%ID%'>
 
-<div class='panel panel-primary panel-form form-horizontal'>
+<div class='box box-theme box-form form-horizontal'>
 
-<div class='panel-heading'>_{ADD}_ _{FILE}_</div>
+<div class='box-header with-border'>_{ADD}_ _{FILE}_</div>
 
-<div class='panel-body'>
+<div class='box-body'>
 
   <div class='form-group'>
   <label class='col-md-3 control-label'>_{NAME}_</label>
@@ -20,6 +20,20 @@
   <label class='col-md-3 control-label'>_{AMOUNT}_</label>
     <div class='col-md-9'>
       <input type='text' name='AMOUNT' value='%AMOUNT%' class='form-control'>
+    </div>
+  </div>
+
+  <div class='form-group'>
+  <label class='col-md-3 control-label'>_{VERSION}_</label>
+    <div class='col-md-9'>
+      <input type='text' name='VERSION' value='%VERSION%' class='form-control'>
+    </div>
+  </div>
+
+  <div class='form-group'>
+  <label class='col-md-3 control-label'>_{GROUP}_</label>
+    <div class='col-md-9'>
+      %GROUP%
     </div>
   </div>
 
@@ -53,7 +67,7 @@
 
 </div>
 
-<div class='panel-footer'>
+<div class='box-footer'>
   <input type='submit' name='%BTN_NAME%' value='%BTN_VALUE%' class='btn btn-primary'>
 </div>
 

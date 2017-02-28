@@ -1,6 +1,6 @@
-<div class='panel panel-info panel-form form-horizontal'>
-<div class='panel-heading text-center'>_{INFO}_</div>
-<div class='panel-body'>
+<div class='box box-info box-form form-horizontal'>
+<div class='box-header with-border text-center'>_{INFO}_</div>
+<div class='box-body'>
   <div class='form-group'>
     <label class='col-md-3 control-label text-center'>_{DEPOSIT}_</label>
     <div class='col-md-9'>

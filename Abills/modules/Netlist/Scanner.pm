@@ -3,7 +3,7 @@ use strict;
 use warnings FATAL => 'all';
 
 use Nmap::Parser;
-use Abills::Base qw/cmd _bp/;
+use Abills::Base qw/cmd _bp startup_files/;
 
 #**********************************************************
 =head2 new($db, $admin, $CONF)
@@ -43,8 +43,16 @@ sub new {
         last;
       }
     }
-
-    return { errno => 404, errstr => "Nmap not found" };
+    
+    if (!$self->{nmap}){
+      my $which = `which nmap`;
+      if ($which){
+        chomp $which;
+        $self->{nmap} = $which;
+      }
+    }
+    
+    return { errno => 404, errstr => "Nmap not found" } if (!$self->{nmap});
   }
 
   bless( $self, $class );
@@ -131,8 +139,18 @@ sub scan {
   my $command = "$ping_only_option $timeout_option";
 
   my $parser = Nmap::Parser->new;
-
-  $parser->parsescan( "sudo $self->{nmap}", $command, $self->{target} );
+  
+  my $start_programs = startup_files();
+  
+  if (!$start_programs->{SUDO} || !-e $start_programs->{SUDO}){
+    return {
+      errno => 1,
+      errstr => 'No sudo in Abills/programs'
+    }
+  }
+  
+  my $sudo_name = $start_programs->{SUDO};
+  $parser->parsescan( "$sudo_name $self->{nmap}", $command, $self->{target} );
 
   # Saving reference to save scan results
   $self->{parser} = $parser;

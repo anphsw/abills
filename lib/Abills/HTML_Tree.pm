@@ -324,8 +324,10 @@ sub build_parentness_tree {
   my ($array, $attr_) = @_;
   my $parent_key = $attr_->{PARENT_KEY} || 'PARENT_ID';
   my $id_key_ = $attr_->{ID_KEY} || 'ID';
-  my $root_value = ($attr_->{ROOT_VALUE}) ? $attr_->{ROOT_VALUE} : '';
-
+  my $root_value = ($attr_->{ROOT_VALUE}) 
+    ? $attr_->{ROOT_VALUE}
+    : '0';
+    
   #builds one level hash of direct parents and children relations.
   my $parents = {};
   foreach my $hash (@{ $array }) {

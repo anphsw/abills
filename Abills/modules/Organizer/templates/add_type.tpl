@@ -1,8 +1,8 @@
 <form ction=$SELF_URL METHOD=POST>
 <input type='hidden' name='index' value='$index'>
-  <div class='panel panel-primary panel-form form-horizontal'>
-  <div class='panel-heading text-center'><h4>_{TYPE}_</h4></div>
-  <div class='panel-body'>
+  <div class='box box-theme box-form form-horizontal'>
+  <div class='box-header with-border'><h4 class='box-title'>_{TYPE}_</h4></div>
+  <div class='box-body'>
     <div class='form-group'>
       <label class='col-md-3 control-label'>_{NAME}_</label>
       <div class='col-md-9'>
@@ -18,7 +18,7 @@
     </label>
   </div>
   </div>
-  <div class='panel-footer text-center'>
+  <div class='box-footer text-center'>
     <input  type='submit' class='btn btn-primary' value='%BTN_NAME%'>
   </div>
   </div>

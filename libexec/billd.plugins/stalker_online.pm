@@ -6,13 +6,30 @@
 =cut
 #**********************************************************
 
+
+use warnings FATAL => 'all';
+use strict;
 use Abills::Base qw(mk_unique_value);
+use POSIX;
+use Iptv;
+use Tariffs;
+use Users;
+use Shedule;
+
 our(
+  $argv,
   $db,
   $Admin,
+  $Dv,
   %conf,
-  $var_dir
+  $var_dir,
+  $debug,
+  $nas,
+  %lang
 );
+
+our $Iptv    = Iptv->new($db, $Admin, \%conf);
+require Iptv::Services;
 
 stalker_online();
 
@@ -22,37 +39,49 @@ stalker_online();
 =cut
 #**********************************************************
 sub stalker_online {
-  #my ($attr)=@_;
 
-  use POSIX;
-  use Iptv;
-  use Tariffs;
-  use Users;
-  use Shedule;
+  my $service_list = $Iptv->services_list({
+    NAME      => '_SHOW',
+    LOGIN     => '_SHOW',
+    PASSOWRD  => '_SHOW',
+    MODULE    => 'Stalker_api',
+    COLS_NAME => 1
+  });
 
-  #my $users   = Users->new($db, $admin, \%conf);
-  my $Iptv    = Iptv->new($db, $Admin, \%conf);
+  foreach my $service (@$service_list) {
+    if($debug > 3) {
+      print "Service ID: $service->{id} NAME: $service->{name}\n";
+    }
+
+    my $Stalker_api = tv_load_service('', { SERVICE_ID => $service->{id} });
+    stalker_online_check($Stalker_api);
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 stalker_online_check($attr)
+
+=cut
+#**********************************************************
+sub stalker_online_check {
+  my Iptv::Stalker_api $Stalker_api = shift;
+
   my $Tariffs = Tariffs->new($db, \%conf, $Admin);
   my $Shedule = Shedule->new($db, $Admin);
   my $Log     = Log->new($db, $Admin);
-  $Log->{LOG_FILE} = $var_dir . '/log/stalker_online.log';
+
+  if($debug > 2) {
+    $Log->{PRINT}=1;
+  }
+  else {
+    $Log->{LOG_FILE} = $var_dir.'/log/stalker_online.log';
+  }
+
   my %hangup_desr = ();
   print "Stalker STB online\n" if ($debug > 1);
 
-  #eval { require Iptv::Stalker_api; };
-  use Iptv::Stalker_api;
-
-#  if (!$@) {
-#    Stalker_api->import();
-#    $Stalker_api = Stalker_api->new($db, $Admin, \%conf);
-#  }
-#  else {
-#    print $@;
-#    $html->message( 'err', $lang{ERROR}, "Can't load 'Stalker_api'. Purchase this module http://abills.net.ua" );
-#    exit;
-#  }
-
-  my $Stalker_api = Iptv::Stalker_api->new($db, $Admin, \%conf);
   if ($debug > 7) {
     $nas->{debug}= 1 ;
     $Dv->{debug} = 1 ;
@@ -62,37 +91,39 @@ sub stalker_online {
   $Admin->{MODULE}='Iptv';
   #Get tp
   my %TP_INFO = ();
-  my $list = $Tariffs->list({ AGE             => '_SHOW',
-                              NEXT_TARIF_PLAN => '_SHOW',
-                              COLS_NAME  => 1,
-                              COLS_UPPER => 1,
-                            });
+  my $list = $Tariffs->list({
+    AGE             => '_SHOW',
+    NEXT_TARIF_PLAN => '_SHOW',
+    COLS_NAME       => 1,
+    COLS_UPPER      => 1
+  });
 
   foreach my $line (@$list) {
     $TP_INFO{$line->{TP_ID}}=$line;
   }
 
-  $LIST_PARAMS{LOGIN}     = $argv->{LOGINS} if ($argv->{LOGINS});
+  $LIST_PARAMS{LOGIN} = $argv->{LOGINS} if ($argv->{LOGINS});
 
   # Get accounts
   my %USERS_LIST = ();
   $Iptv->{debug}=1 if ($debug > 6);
   $list = $Iptv->user_list({
-                             COLS_NAME      => 1,
-                             LOGIN          => '_SHOW',
-                             CID            => '_SHOW',
-                             ACTIVATE       => '_SHOW',
-                             EXPIRE         => '_SHOW',
-                             LOGIN_STATUS   => '_SHOW',
-                             SERVICE_STATUS => '_SHOW',
-                             NEXT_TARIF_PLAN=> '_SHOW',
-                             IPTV_EXPIRE    => '_SHOW',
-                             TP_ID          => '_SHOW',
-                             CREDIT         => '_SHOW',
-                             DEPOSIT        => '_SHOW',
-                             %LIST_PARAMS,
-                             PAGE_ROWS      => 1000000,
-                           });
+    COLS_NAME      => 1,
+    LOGIN          => '_SHOW',
+    CID            => '_SHOW',
+    ACTIVATE       => '_SHOW',
+    EXPIRE         => '_SHOW',
+    LOGIN_STATUS   => '_SHOW',
+    SERVICE_STATUS => '_SHOW',
+    NEXT_TARIF_PLAN=> '_SHOW',
+    IPTV_EXPIRE    => '_SHOW',
+    TP_ID          => '_SHOW',
+    CREDIT         => '_SHOW',
+    DEPOSIT        => '_SHOW',
+    ID             => '_SHOW',
+    %LIST_PARAMS,
+    PAGE_ROWS      => 1000000,
+  });
 
   foreach my $line (@$list) {
     $line->{cid} =~ s/[\n\r ]//g;
@@ -104,16 +135,22 @@ sub stalker_online {
   my %USERS_ONLINE_LIST = ();
   $Iptv->{debug}=1 if ($debug > 6);
   $list = $Iptv->online({
-                          COLS_NAME       => 1,
-                          CID             => '_SHOW',
-                          UID             => '_SHOW',
-                          ACCT_SESSION_ID => '_SHOW',
-                          FIO             => '_SHOW'
-                          });
+    COLS_NAME       => 1,
+    CID             => '_SHOW',
+    UID             => '_SHOW',
+    ACCT_SESSION_ID => '_SHOW',
+    FIO             => '_SHOW',
+    ID              => '_SHOW',
+  });
 
   foreach my $line (@$list) {
+    if(! $line->{id}) {
+      print "ID no defined for UID: $line->{uid} CID: $line->{CID}\n";
+      $line->{id} //= 0;
+    }
+
     if ($debug > 2) {
-      print "$line->{CID} -> $line->{uid}:$line->{acct_session_id}\n";
+      print "$line->{CID} -> $line->{uid}:$line->{id}:$line->{acct_session_id}\n";
     }
 
     if(! $line->{uid}) {
@@ -123,13 +160,14 @@ sub stalker_online {
       #next;
     }
 
-    $USERS_ONLINE_LIST{$line->{CID}}="$line->{uid}:$line->{acct_session_id}";
+    $USERS_ONLINE_LIST{$line->{CID}}=($line->{uid} || 0).":". ($line->{id} || '0') .":$line->{acct_session_id}\n";
   }
 
   #Get stalker info
-  $Stalker_api->_send_request({ ACTION => "STB",
-                               DEBUG  => ($debug > 6) ? $debug : undef
-                             });
+  $Stalker_api->_send_request({
+    ACTION => "STB",
+    DEBUG  => ($debug > 6) ? $debug : undef
+  });
 
   if ($Stalker_api->{error}) {
     $Log->log_print('LOG_ERR', '', "Stalker error: $Stalker_api->{error}/$Stalker_api->{errstr}");
@@ -146,11 +184,11 @@ sub stalker_online {
         foreach my $v (@$val) {
           if (ref $v eq 'HASH') {
             while(my($k, $v2) = each %$v) {
-              $col_values .= " $k - $v2". $html->br();
+              $col_values .= " $k - $v2\n";
             }
           }
           else {
-            $col_values .= $v . $html->br();
+            $col_values .= $v . "\n";
           }
         }
 
@@ -159,20 +197,20 @@ sub stalker_online {
       elsif ( ref $val eq 'HASH') {
         my $col_values = '';
         while(my($k, $v) = each %$val) {
-          $col_values .= " $k - $v". $html->br();
+          $col_values .= " $k - $v\n";
         }
         push @row, $col_values;
       }
       else {
-        push @row, "$val";
+        push @row, $val;
       }
     }
 
-    $Log->log_print('LOG_DEBUG', '', "Stalker ls: $account_hash->{ls} IP: $account_hash->{ip} MAC: $account_hash->{mac} Online: $account_hash->{online}");
+    $Log->log_print('LOG_DEBUG', '', "Stalker ls: $account_hash->{ls} IP: $account_hash->{ip} MAC: $account_hash->{mac} Online: $account_hash->{online} Status: $account_hash->{status}");
 
     if (! $account_hash->{online}) {
       my $user            = $USERS_LIST{$account_hash->{mac}};
-      $hangup_desr{$user->{uid}}='User log off' if ($user->{uid});
+      $hangup_desr{$user->{id}}='User log off' if ($user->{id});
       next;
     }
 
@@ -230,31 +268,47 @@ sub stalker_online {
           delete($USERS_ONLINE_LIST{$account_hash->{mac}});
           next;
         }
-        $Admin->action_add("$user->{uid}", "$account_hash->{mac}", { TYPE => 15 });
+        $Admin->action_add($user->{uid}, $account_hash->{mac}, { TYPE => 15 });
 
         print "Disable STB LOGIN: $user->{login} MAC: $account_hash->{mac} Expire: $expire_unixdate DEPOSIT: $user->{deposit}+$credit STATUS: $user->{login_status}/$user->{service_status}\n";
-        $Stalker_api->user_action({ UID    => $user->{uid},
-                                    FIO    => $user->{fio},
-                                    LOGIN  => $user->{login},
-                                    STATUS => 1,
-                                    change => 1 });
+        if($user->{login} && $user->{id}) {
+          $user->{login} = $user->{id}.'_'.$user->{id};
+        }
+
+        $Stalker_api->user_action({
+          ID     => $user->{id},
+          FIO    => $user->{fio},
+          LOGIN  => $user->{login},
+          STATUS => 1,
+          change => 1
+        });
       }
       else {
-        my ($uid, $acct_session_id)=split(/:/, $USERS_ONLINE_LIST{$account_hash->{mac}});
+        my ($uid, $id, $acct_session_id)=split(/:/, $USERS_ONLINE_LIST{$account_hash->{mac}});
+
         $Iptv->online_update({
-           ACCT_SESSION_ID => $acct_session_id,
-           UID             => $uid,
-           CID             => $account_hash->{mac},
-           GUEST           => ($account_hash->{status} == 0) ? 1 : 0
+          ACCT_SESSION_ID => $acct_session_id,
+          UID             => $uid,
+          ID              => $id,
+          CID             => $account_hash->{mac},
+          GUEST           => ($account_hash->{status} == 0) ? 1 : 0
         });
 
+        if($user->{login} && $user->{id}) {
+          $user->{login} = $user->{id}.'_'.$user->{id};
+        }
+
         if ($account_hash->{status} == 0) {
-          $Stalker_api->user_action({ UID    => $user->{uid},
-                                      FIO    => $user->{fio},
-                                      LOGIN  => $user->{login},
-                                      STATUS => 0,
-                                      change => 1 
-                                    });
+          $Stalker_api->{debug}=1;
+          $Stalker_api->user_action({
+            ID     => $user->{id},
+            FIO    => $user->{fio},
+            #LOGIN  => $user->{login},
+            STATUS => 0,
+            change => 1
+          });
+
+          print "Enable STB LOGIN: $user->{login} MAC: $account_hash->{mac} Expire: $expire_unixdate DEPOSIT: $user->{deposit}+$credit STATUS: $user->{login_status}/$user->{service_status}\n";
         }
 
         delete $USERS_ONLINE_LIST{$account_hash->{mac}};
@@ -269,14 +323,15 @@ sub stalker_online {
       }
       else {
         $Iptv->online_add({
-             UID    => $user->{uid},
-             IP     => $account_hash->{ip} || '0.0.0.0',
-             NAS_ID => 0,
-             STATUS => 1,
-             TP_ID  => $user->{tp_id},
-             CID    => $account_hash->{mac},
-             ACCT_SESSION_ID=> mk_unique_value(12),
-             GUEST  => ($account_hash->{status} == 0) ? 1 : 0
+          UID    => $user->{uid},
+          ID     => $user->{id},
+          IP     => $account_hash->{ip} || '0.0.0.0',
+          NAS_ID => 0,
+          STATUS => 1,
+          TP_ID  => $user->{tp_id},
+          CID    => $account_hash->{mac},
+          ACCT_SESSION_ID=> mk_unique_value(12),
+          GUEST  => ($account_hash->{status} == 0) ? 1 : 0
         });
 
         $Log->log_print('LOG_NOTICE', $user->{login}, "ADD online: MAC: $account_hash->{mac} Online: $account_hash->{online}");
@@ -289,24 +344,24 @@ sub stalker_online {
           if ($TP_INFO{$user->{tp_id}}->{NEXT_TP_ID}) {
             my ($year, $month, $day)=split(/\-/, $expire_date, 3);
 
-            $Shedule->add(
-               {
-                UID          => $user->{uid},
-                TYPE         => 'tp',
-                ACTION       => $user->{tp_id},
-                D            => $day,
-                M            => $month,
-                Y            => $year,
-                COMMENTS    => "$lang{FROM}: $user->{tp_id}:$user->{TP_NAME}",
-                ADMIN_ACTION => 1,
-                MODULE       => 'Iptv'
-              }
-            );
-           }
+            $Shedule->add({
+              UID          => $user->{uid},
+              TYPE         => 'tp',
+              ACTION       => "$user->{tp_id}:$user->{id}",
+              D            => $day,
+              M            => $month,
+              Y            => $year,
+              COMMENTS     => "$lang{FROM}: $user->{tp_id}:$user->{TP_NAME}",
+              ADMIN_ACTION => 1,
+              MODULE       => 'Iptv'
+            });
+          }
           else {
-            $Iptv->user_change({ UID    => $user->{id},
-                                 EXPIRE => $expire_date,
-                                });
+            $Iptv->user_change({
+              ID     => $user->{id},
+#              UID    => $user->{uid},
+              EXPIRE => $expire_date,
+            });
           }
         }
       }
@@ -322,11 +377,12 @@ sub stalker_online {
     $Log->log_print('LOG_DEBUG', undef, "Delete: $del_list");
 
     foreach my $mac ( keys %USERS_ONLINE_LIST ) {
-      my ($uid, $acct_session_id)=split(/:/, $USERS_ONLINE_LIST{$mac});
+      my ($uid, $id, $acct_session_id)=split(/:/, $USERS_ONLINE_LIST{$mac});
       #Hangup stb box
-      $Stalker_api->_send_request({ ACTION  => "send_event/".$uid,
-                                    event   => 'cut_off',
-                                  });
+      $Stalker_api->_send_request({
+        ACTION  => "send_event/".$id,
+        event   => 'cut_off',
+      });
 
       #Disable account
       #$Stalker_api->user_action({ UID    => $uid,
@@ -336,10 +392,10 @@ sub stalker_online {
       #                            change => 1 });
 
       if ($Stalker_api->{errno}) {
-        $Log->log_print('LOG_ERR', $uid, "Hangup Error: UID: $uid MAC: $mac [$Stalker_api->{errno}] $Stalker_api->{errstr}");
+        $Log->log_print('LOG_ERR', $uid, "Hangup Error: UID: $uid ID: $id MAC: $mac [$Stalker_api->{errno}] $Stalker_api->{errstr}");
       }
       else {
-     	  $Log->log_print('LOG_INFO', $uid, "Hangup: $mac ($hangup_desr{$uid}) Session: $acct_session_id");
+     	  $Log->log_print('LOG_INFO', $uid, "Hangup: $mac ($hangup_desr{$uid}) Session: $acct_session_id ID: $id");
       }
     }
   }

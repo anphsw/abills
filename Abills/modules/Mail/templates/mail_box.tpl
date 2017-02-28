@@ -6,8 +6,8 @@
 <input type=hidden name='UID' value='$FORM{UID}'>
 <input type=hidden name='MBOX_ID' value='%MBOX_ID%'>
 
-<div class='panel panel-default panel-form'>
-<div class='panel-body form form-horizontal'>
+<div class='box box-theme box-form'>
+<div class='box-body form form-horizontal'>
 
 <fieldset>
 
@@ -84,7 +84,7 @@
     	<label for='EXPIRE' class='control-label'>_{EXPIRE}_</label>
     </div>
     <div class='col-md-9'>
-    	<input class='form-control tcal' id='EXPIRE' placeholder='%EXPIRE%' name='EXPIRE' value='%EXPIRE%'>
+    	<input class='form-control datepicker' id='EXPIRE' placeholder='%EXPIRE%' name='EXPIRE' value='%EXPIRE%'>
     </div>
   </div>
 
@@ -116,7 +116,7 @@
 </fieldset>
 </div>
 
-<div class='panel-footer'>
+<div class='box-footer'>
 	<input type=submit class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
 </div>
 

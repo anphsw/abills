@@ -2,11 +2,11 @@
     <input type='hidden' name='index' value='$index'/>
     <input type='hidden' name='ID' value='%GID%'/>
 
-    <div class='panel panel-primary panel-form'>
-        <div class='panel-heading'>
+    <div class='box box-theme box-form'>
+        <div class='box-header with-border'>
             _{CHANGE}_
         </div>
-        <div class='panel-body'>
+        <div class='box-body'>
             <div class='form-group'>
                 <label class='control-label col-md-3'>GID:</label>
 
@@ -29,7 +29,7 @@
                 </div>
             </div>
         </div>
-        <div class='panel-footer'>
+        <div class='box-footer'>
             <input type='submit' name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'/>
         </div>
     </div>

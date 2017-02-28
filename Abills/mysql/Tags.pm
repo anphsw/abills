@@ -147,6 +147,8 @@ sub tags_user{
       [ 'TAG_ID', 'INT', 't.id', ],
       [ 'LAST_ABON', 'INT', 'tu.date', ],
       #['UID',        'INT', 'tu.uid',            ],
+     ['USERS_SUM',     'INT', 'SUM(tu.uid) AS tu.users_sum',     ],
+
     ],
     { WHERE => 1,
 
@@ -158,7 +160,7 @@ sub tags_user{
 
   $self->query2( "SELECT t.name,
        tu.date,
-       t.comments, 
+       t.comments,
        t.priority,
        t.id
      FROM tags t
@@ -233,6 +235,59 @@ sub user_del{
   $self->{admin}->action_add( $attr->{UID}, "", { TYPE => 10 } );
 
   return $self;
+}
+
+#**********************************************************
+=head2 tags_list($attr)
+
+=cut
+#**********************************************************
+sub tags_list{
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  # my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  # my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  $self->{EXT_TABLES} = '';
+
+  my $WHERE = $self->search_former( $attr, [
+      ['FIO',        'STR',    'up.fio',  ],
+      ['TAG_ID',     'INT',    't.id',    ],
+      ['LAST_ABON',  'INT',    'tu.date', ],
+      ['UID',        'INT',    'tu.uid',  ],
+    ],
+    {
+      WHERE => 1,
+    }
+  );
+
+  my $EXT_TABLE = '';
+  $EXT_TABLE = $self->{EXT_TABLES} if ($self->{EXT_TABLES});
+
+  $self->query2( "SELECT t.name,
+       tu.date,
+       t.comments,
+       t.priority,
+       t.id,
+       u.disable,
+       u.uid,
+       u.id as login
+     FROM tags_users tu
+     RIGHT JOIN tags t ON (t.id=tu.tag_id)
+     LEFT JOIN users u ON (u.uid=tu.uid)
+     $EXT_TABLE
+     $WHERE
+     ORDER BY $SORT $DESC;",
+    undef,
+    $attr
+  );
+
+  my $list = $self->{list};
+
+  return $list;
 }
 
 1

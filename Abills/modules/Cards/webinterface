@@ -55,6 +55,7 @@ $conf{CARDS_PIN_SYMBOLS} = '0123456789' if (!$conf{CARDS_PIN_SYMBOLS});
     $attr
       PIN
       INFO_ONLY
+      UID        - Skip card seach show only user
 
   Returns:
 
@@ -63,21 +64,28 @@ $conf{CARDS_PIN_SYMBOLS} = '0123456789' if (!$conf{CARDS_PIN_SYMBOLS});
 sub cards_card_info {
   my ($attr) = @_;
 
-  $Cards->cards_info($attr);
-
-  if ($Cards->{TOTAL} < 1) {
-    $html->message('err', $lang{ERROR}, "PIN: $attr->{PIN} $lang{NOT_EXIST}", { ID => 610 });
-    return 0;
+  if($attr->{UID}) {
+    $Cards->{UID}=$attr->{UID};
   }
+  else {
+    $Cards->cards_info( $attr );
 
+    if ($Cards->{TOTAL} < 1) {
+      $html->message( 'err', $lang{ERROR}, "PIN: $attr->{PIN} $lang{NOT_EXIST}", { ID => 610 } );
+      return 0;
+    }
+  }
   if ($Cards->{UID} > 0) {
     $Cards->cards_service_info({ UID => $Cards->{UID} });
+    if ($Cards->{errno}) {
+      return 0;
+    }
+
     $Cards->{AGE}        = $lang{UNLIMITED} if (!$Cards->{AGE});
     $Cards->{TIME_LIMIT} = $lang{UNLIMITED} if (!$Cards->{TIME_LIMIT});
     $Cards->{TRAF_LIMIT} = $lang{UNLIMITED} if (!$Cards->{TRAF_LIMIT});
     $Cards->{SPEED}      = $lang{UNLIMITED} if (!$Cards->{SPEED});
   }
-
   $FORM{LOGIN}    = $Cards->{LOGIN};
   $FORM{PASSWORD} = $Cards->{PASSWORD};
 
@@ -172,7 +180,7 @@ sub cards_main {
       }
     );
     if (!$Cards->{errno}) {
-      $html->message('info', $lang{DELETED}, "$lang{SERIAL}: $FORM{SERIAL} ID: $FORM{ID} ");
+      $html->message('info', $lang{DELETED}, "$lang{SERIAL}: ". ($FORM{SERIAL} || q{}) . (($FORM{ID}) ? " ID: ". $FORM{ID} : q{} ) );
     }
   }
 
@@ -301,18 +309,18 @@ sub cards_main {
         qs         => $pages_qs,
         pages      => $Cards->{TOTAL},
         ID         => $form_name,
-        SELECT_ALL => (! defined($FORM{SERIAL})) ? '' : ($permissions{0}{7}) ? "cards_list:IDS:$lang{SELECT_ALL}" : undef,
+        SELECT_ALL => (! defined($FORM{SERIAL})) ? '' : ($permissions{4}) ? "cards_list:IDS:$lang{SELECT_ALL}" : undef,
         header     => (! defined($FORM{SERIAL})) ? '' : $html->button("$lang{PRINT} PDF", "qindex=$index&PAGE_ROWS=100000&pdf=1&print_cards=1&$pages_qs" . (($FORM{SERIAL} && $pages_qs !~ /SERIAL/) ? "&SERIA=$FORM{SERIAL}" : ''), { BUTTON => 2, ex_params => 'target=_new' }),
         EXPORT     => (! defined($FORM{SERIAL})) ? '' : 1,
         MENU       => "$lang{ADD}:index=". get_function_index('cards_add') ."&$pages_qs:add;$lang{SEARCH}:index=$index&search_form=1:search",
       }
   });
   foreach my $line (@$cards_list) {
-    my $delete = ($permissions{2}{2}) ? $html->button($lang{DEL}, "index=$index&del=1&". ((defined($FORM{SERIAL})) ? "ID=$line->{id}&" : "" ) ."SERIAL=$line->{serial}", { MESSAGE => "$lang{DEL} ID: $line->{id}?", class => 'del' }) : '';
+    my $delete = ($permissions{4}{2}) ? $html->button($lang{DEL}, "index=$index&del=1&". ((defined($FORM{SERIAL})) ? "ID=$line->{id}&" : "" ) ."SERIAL=$line->{serial}", { MESSAGE => "$lang{DEL} ID: $line->{id}?", class => 'del' }) : '';
 
     my @fields_array = ();
 
-    if (! $FORM{EXPORT_CONTENT} && defined($FORM{SERIAL}) && $permissions{0}{7} )  {
+    if (! $FORM{EXPORT_CONTENT} && defined($FORM{SERIAL}) && $permissions{4} )  {
       push @fields_array, $html->form_input("IDS", $line->{id}, { TYPE => 'checkbox', FORM_ID => 'cards_list' });
     }
 
@@ -354,18 +362,21 @@ sub cards_main {
       push @fields_array, $val;
     }
 
+    my @funct_fields = ();
     if (! defined($FORM{SERIAL})) {
       if (! $line->{serial}) {
         $line->{serial} = 'empty';
       }
 
-      push @fields_array, $html->button($lang{SHOW}, "index=$index$pages_qs&SERIAL=$line->{serial}", { class => 'show' });
+      push @funct_fields, $html->button($lang{SHOW}, "index=$index$pages_qs&SERIAL=$line->{serial}", { class => 'show' });
       $total_cards += ($line->{cards_count} || 0);
-      $total_sum   += ($line->{cards_count}) ? $line->{cards_count} * $line->{cards_sum} : 0;
+      $total_sum   += ($line->{cards_count} && $line->{cards_sum}) ? $line->{cards_count} * $line->{cards_sum} : 0;
     }
 
+    push @funct_fields, $delete;
+
     $table->addrow(@fields_array,
-      $delete);
+      join(' ', @funct_fields));
   }
 
   my $op_sid = mk_unique_value(8);
@@ -646,14 +657,14 @@ sub cards_users_add {
         my %USER_HASH = ();
         my @params    = split(/\t/, $line);
         $USER_HASH{LOGIN}     = $params[0];
-        $USER_HASH{DILLER_ID} = int($FORM{DILLER_ID});
+        $USER_HASH{DILLER_ID} = $FORM{DILLER_ID} || 0;
         $USER_HASH{SERIAL}    = $SERIAL;
         $USER_HASH{NUMBER}    = $begin;
-        $USER_HASH{PIN}       = ($FORM{PAYMENT_OPERATION}) ? "$params[1]" : '';
+        $USER_HASH{PIN}       = ($FORM{PAYMENT_OPERATION}) ? $params[1] : '';
 
-        next if ($USER_HASH{LOGIN} eq '');
+        next if (!$USER_HASH{LOGIN});
 
-        if ($params[1] eq '-') {
+        if ($params[1] && $params[1] eq '-') {
           $USER_HASH{PASSWORD} = mk_unique_value($FORM{PASSWD_LENGTH}, { SYMBOLS => $FORM{PASSWD_SYMBOLS} || $conf{PASSWD_SYMBOLS} || undef });
         }
         else {
@@ -678,14 +689,11 @@ sub cards_users_add {
         $begin++;
       }
 
-      my $table = $html->table(
-        {
-          width => '100%',
-          rows  => [ [ $lang{NAME}, $FORM{FILE_DATA}{filename} ], [ $lang{TOTAL}, $#DATA_ARRAY + 1 ], [ "$lang{SIZE}", $FORM{FILE_DATA}{Size} ] ]
-        }
-      );
+      my $message = "$lang{NAME}: $FORM{FILE_DATA}{filename}\n"
+                    . "$lang{TOTAL}: ". ($#DATA_ARRAY + 1) ."\n"
+                    . "$lang{SIZE}: $FORM{FILE_DATA}{Size}";
 
-      $html->message('info', $lang{INFO}, $table->show());
+      $html->message('info', $lang{INFO}, $message);
     }
 
     #Get last number if begin not set
@@ -710,9 +718,9 @@ sub cards_users_add {
     #Create numeric or random logins
     for (my $i = $begin ; $i < $begin + $count ; $i++) {
       my $LOGIN_LENGTH = (length(($FORM{LOGIN_PREFIX} || q{}). $LOGIN_NUMBER) < $FORM{LOGIN_LENGTH}) ? $FORM{LOGIN_LENGTH} - length($FORM{LOGIN_PREFIX} || q{}) : $FORM{LOGIN_LENGTH};
-      my $password = mk_unique_value($FORM{PASSWD_LENGTH}, { SYMBOLS => $FORM{PASSWD_SYMBOLS} || $conf{PASSWD_SYMBOLS} });
+      my $password = mk_unique_value($FORM{PASSWD_LENGTH}, { SYMBOLS => $FORM{PASSWD_SYMBOLS} || $conf{PASSWD_SYMBOLS} || $conf{CARDS_PIN_SYMBOLS}});
       my $serial   = sprintf("%s%." . $cards_number_length . "d", $FORM{SERIAL},       $i);
-      my $login    = sprintf("%s%." . $LOGIN_LENGTH . "d",        ($FORM{LOGIN_PREFIX} || q{}), $LOGIN_NUMBER);
+      my $login    = sprintf("%s%." . $LOGIN_LENGTH . "d", ($FORM{LOGIN_PREFIX} || q{}), $LOGIN_NUMBER);
 
       if ($conf{CARDS_LOGIN_PASSWD_SAME}) {
         $login = $password;
@@ -728,9 +736,9 @@ sub cards_users_add {
       $generated++;
       push @DATA_ARRAY,
       {
-        LOGIN     => "$login",
-        PASSWORD  => "$password",
-        SERIAL    => "$FORM{SERIAL}",
+        LOGIN     => $login,
+        PASSWORD  => $password,
+        SERIAL    => $FORM{SERIAL},
         NUMBER    => $i,
         DILLER_ID => $FORM{DILLER_ID},
         PIN       => ($FORM{PAYMENT_OPERATION}) ? "$password" : $password,
@@ -787,7 +795,9 @@ sub cards_users_add {
 }
 
 #*******************************************************************
-#
+=head2 cards_users_gen_confim($attr)
+
+=cut
 #*******************************************************************
 sub cards_users_gen_confim {
   my ($attr) = @_;
@@ -819,26 +829,26 @@ sub cards_user_payment  {
   my $rand = rand();
   my DBI $_db = $db->{db};
   if (($FORM{PIN} && $FORM{SERIAL}) || ($FORM{PIN} && $conf{CARDS_PIN_ONLY})) {
-    $db->{AutoCommit} = 0;
+    $_db->{AutoCommit} = 0;
 
     my $BRUTE_LIMIT = ($conf{CARDS_BRUTE_LIMIT}) ? $conf{CARDS_BRUTE_LIMIT} : 5;
     $Cards->bruteforce_list({ UID => $LIST_PARAMS{UID} });
+    if ($Cards->{BRUTE_COUNT} && $Cards->{BRUTE_COUNT} >= $BRUTE_LIMIT) {
+      $html->message('err', $lang{ERROR}, "$lang{BRUTE_ATACK} $Cards->{BRUTE_COUNT}) >= $BRUTE_LIMIT", { ID => 601 });
+      return 0;
+    }
 
     $Cards->cards_info({ %FORM, UID => $LIST_PARAMS{UID}, PAYMENTS => 1 });
 
     if ($Cards->{errno}) {
       if ($Cards->{errno} == 2) {
-        $html->message('err', "$lang{CARD_SERVICE}:$lang{ERROR}", "$lang{NOT_EXIST}", { ID => 603 });
+        $html->message('err', "$lang{CARD_SERVICE}:$lang{ERROR}", "$lang{NOT_EXIST}/ $Cards->{BRUTE_COUNT} /", { ID => 603 });
         $Cards->bruteforce_add({ UID => $LIST_PARAMS{UID}, PIN => $FORM{PIN} });
         $_db->commit();
       }
       else {
         $html->message('err', $lang{ERROR}, "$lang{ERR_SUPPORT} / $lang{ERR_SUPPORT} ($Cards->{errstr})", { ID => 600 });
       }
-      return 0;
-    }
-    elsif (int($Cards->{BRUTE_COUNT}) >= $BRUTE_LIMIT) {
-      $html->message('err', $lang{ERROR}, "$lang{BRUTE_ATACK} $Cards->{BRUTE_COUNT}) >= $BRUTE_LIMIT", { ID => 601 });
       return 0;
     }
     elsif ($Cards->{EXPIRE_STATUS} == 1) {
@@ -1002,12 +1012,16 @@ sub cards_user_payment  {
           `echo "$DATE $TIME $user->{LOGIN} R: $rand $Cards->{SERIAL}$Cards->{NUMBER} A:$ENV{HTTP_USER_AGENT} QS:$ENV{QUERY_STRING} RA:$ENV{REMOTE_ADDR} ADDED ($gt)"   >> /tmp/cards_debug`;
         }
 
-        cross_modules_call('_payments_maked', { USER_INFO    => $user,
-                                                SUM          => $Cards->{SUM},
-                                                SKIP_MODULES => 'Cards,Sqlcmd',
-                                                QUITE        => 1,
-                                                SILENT       => 1
-                                               });
+        $_db->{AutoCommit} = 1;
+        cross_modules_call('_payments_maked', {
+          USER_INFO    => $user,
+          SUM          => $Cards->{SUM},
+          SKIP_MODULES => 'Cards,Sqlcmd',
+          QUITE        => 1,
+          SILENT       => 1,
+          METHOD       => 2
+        });
+
         return 0;
       }
       elsif ($payments->{errno}) {
@@ -1127,7 +1141,7 @@ sub cards_dillers {
   my $table = $html->table(
     {
       width      => '100%',
-      caption    => "$lang{DILLERS}",
+      caption    => $lang{DILLERS},
       title      => [ 'ID', "$lang{NAME}", "$lang{ADDRESS}", "E-Mail", "$lang{REGISTRATION}", "$lang{PERCENTAGE}", "$lang{STATE}", "$lang{COUNT}", "$lang{ENABLE}", '-', '-', '-' ],
       cols_align => [ 'right', 'left', 'left', 'left', 'right', 'right', 'right', 'right', 'center:noprint', 'center:noprint', 'center:noprint' ],
       qs         => $pages_qs,
@@ -1552,7 +1566,7 @@ sub cards_diller {
       SEL_LIST       => $Cards->dillers_tp_list({ COLS_NAME => 1 }),
       NO_ID          => 1,
       MAIN_MENU      => get_function_index('cards_dillers_tp'),
-      MAIN_MENU_AGRV => $Cards->{TP_ID}
+      MAIN_MENU_ARGV => $Cards->{TP_ID} ? "chg=$Cards->{TP_ID}" : ''
     }
   );
 
@@ -2094,7 +2108,7 @@ sub cards_dillers_tp {
     }
 
     if ($FORM{chg} && $FORM{chg} eq $line->{id}) {
-      $table->{rowcolor} = $_COLORS[0];
+      $table->{rowcolor} = 'bg-success';
     }
     else {
       delete($table->{rowcolor});
@@ -2259,7 +2273,7 @@ sub cards_diller_stats {
   }
 
   #Group by TP
-  if ($FORM{TYPE} eq 'TP') {
+  if ($FORM{TYPE} && $FORM{TYPE} eq 'TP') {
     $pages_qs .= "&TYPE=TP&PAGE_ROWS=$PAGE_ROWS";
 
     if ($FORM{CREATED_DATE}) {
@@ -2358,7 +2372,7 @@ sub cards_diller_stats {
     );
     print $table->show();
   }
-  elsif ($FORM{TYPE} eq 'CARDS') {
+  elsif ($FORM{TYPE} && $FORM{TYPE} eq 'CARDS') {
     if (!$FORM{sort}) {
       $LIST_PARAMS{SORT} = 1;
       $LIST_PARAMS{DESC} = 'DESC';
@@ -2422,7 +2436,7 @@ sub cards_diller_stats {
     my @p = split(/&/, $pages_qs);
     foreach my $l (@p) {
       my ($k, $v) = split(/=/, $l, 2);
-      $hidden_params{$k}=$v;
+      $hidden_params{$k}=$v if($k);
     }
 
     print $html->form_main(
@@ -2496,6 +2510,7 @@ sub cards_diller_stats {
 sub cards_print {
 
   if ($FORM{csv}) {
+    $FORM{CREATE_DATE} //= $DATE;
     print "Content-Type: text/plain; filename=\"cards_$FORM{CREATE_DATE}.csv\"\n" . "Content-Disposition: attachment; filename=\"cards_$FORM{CREATE_DATE}.csv\"; size=" . "\n\n";
 
     print "SERIAL\tLOGIN\tPASSWORD/PIN\tTARIF_PLAN\tSUM\tEXPIRE\tAGE\tTIME_LIMIT\n";

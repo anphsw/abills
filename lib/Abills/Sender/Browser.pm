@@ -13,7 +13,7 @@ use JSON qw//;
 my $PING_REQUEST = '{"TYPE":"PING"}';
 my $PING_RESPONCE = '{"TYPE":"PONG"}';
 
-my $json = JSON->new->utf8;
+my JSON $json = JSON->new->utf8;
 
 #**********************************************************
 =head2 new($db, $admin, $CONF)
@@ -22,6 +22,7 @@ my $json = JSON->new->utf8;
     $db    - ref to DB
     $admin - current Web session admin
     $CONF  - ref to %conf
+    $attr
 
   Returns:
     object
@@ -31,7 +32,7 @@ my $json = JSON->new->utf8;
 sub new {
   my $class = shift;
 
-  my ($CONF) = @_;
+  my ($db, $admin, $CONF, $attr) = @_;
 
   my $connection_host = $CONF->{WEBSOCKET_HOST} || '127.0.0.1:19444';
 
@@ -77,8 +78,12 @@ sub is_connected {
 
   Arguments:
     $attr -
-      UID|AID - receiver ( TODO: '*' to send to all of this type)
-      MESSAGE - text of message
+      UID|AID  - string, receiver ( TODO: '*' to send to all of this type)
+      MESSAGE  - string, text of message
+      
+      NON_SAFE - boolean, will use instant request (without confirmation)
+     
+      ASYNC    - coderef, asynchronous callback
 
   Returns:
     1 if sended;
@@ -95,6 +100,10 @@ sub send_message {
   return undef unless ($receiver_id);
 
   if (ref $attr->{MESSAGE} eq 'HASH'){
+    if ($attr->{NON_SAFE}){
+      $attr->{MESSAGE}{SILENT} = 1;
+    }
+    
     $attr->{MESSAGE} = $json->encode($attr->{MESSAGE});
   }
 
@@ -105,11 +114,7 @@ sub send_message {
     DATA => $attr->{MESSAGE}
   );
 
-  my $sended = $self->_synchronous_request( {
-      MESSAGE => $json->encode( \%payload )
-    } );
-
-  return defined $sended;
+  return $self->_request($attr, \%payload);
 }
 
 #**********************************************************
@@ -171,20 +176,16 @@ sub has_connected_admin {
 #**********************************************************
 sub call {
   my $self = shift;
-  my ($aid, $message) = @_;
+  my ($aid, $message, $attr) = @_;
 
-  my %payload = (
+  $attr->{MESSAGE} = {
     TYPE => 'MESSAGE',
     TO   => 'ADMIN',
     ID   => $aid,
     DATA => $message,
-  );
+  };
 
-  my $result = $self->json_request( {
-      MESSAGE => $json->encode( \%payload )
-    } );
-
-  return $result;
+  return $self->json_request( $attr );
 }
 
 #**********************************************************
@@ -203,17 +204,118 @@ sub call {
 sub json_request {
   my $self = shift;
   my ($attr) = @_;
+  
+  if (ref $attr->{MESSAGE} eq 'HASH' && $attr->{NON_SAFE}) {
+      $attr->{MESSAGE}->{SILENT} = 1;
+  }
+  
+  if ($attr->{ASYNC}){
+    my $cb = $attr->{ASYNC};
+    
+    # Override function to make it receive perl structure
+    $attr->{ASYNC} = sub {
+      my $res = shift;
+      $cb->($res ? safe_json_decode($res) : $res);
+    };
+  }
+  
+  $attr->{RETURN_RESULT} = 1;
+  my $responce = $self->_request( $attr, $attr->{MESSAGE} );
+  
+  return $responce ? safe_json_decode( $responce ) : 0;
+}
 
-  my $responce = $self->_synchronous_request( $attr );
 
-  return $json->decode( $responce );
+#**********************************************************
+=head2 _request($attr) - Request types wrapper
+
+  Arguments:
+    $attr -
+      NON_SAFE
+      ASYNC
+      RETURN_RESULT
+      
+  Returns:
+    
+    
+=cut
+#**********************************************************
+sub _request {
+  my ($self, $attr, $payload) = @_;
+  
+  $payload = $json->encode( $payload ) if (ref $payload);
+  
+  if ( $attr->{NON_SAFE} ) {
+    return $self->_instant_request({
+      MESSAGE => $payload
+    });
+  }
+  elsif ( $attr->{ASYNC} && ref $attr->{ASYNC} ) {
+    $self->_asynchronous_request({
+      MESSAGE  => $payload,
+      CALLBACK => $attr->{ASYNC},
+    });
+    return;
+  }
+  
+  my $sended = $self->_synchronous_request( {
+    MESSAGE => $payload
+  } );
+  
+  return ($attr->{RETURN_RESULT}) ? $sended : defined $sended;
+  
+  return;
 }
 
 #**********************************************************
-=head2 _synchronous_request()
+=head2 _asynchronous_request($attr) - will write to socket and run callback, when receive result
 
   Arguments:
-    MESSAGE - text will be send to backend server
+    $attr - hash_ref
+      MESSAGE  - text will be send to backend server
+      CALLBACK - function($result)
+        $result will be
+          string - if server responded with message
+          ''     - if server accepted message, but not responded nothing
+          undef  - if timeout
+
+  Returns:
+    undef
+    
+
+=cut
+#**********************************************************
+sub _asynchronous_request {
+  my ($self, $attr) = @_;
+  
+  my $callback_func = $attr->{CALLBACK};
+  my $message = $attr->{MESSAGE};
+  
+  my AnyEvent::Handle $handle = $self->{fh};
+  
+  # Setup recieve callback
+  $handle->on_read(
+    sub {
+      my ($responce_handle) = shift;
+      
+      my $readed = $responce_handle->{rbuf};
+      $responce_handle->{rbuf} = undef;
+      
+      $callback_func->( $readed );
+    }
+  );
+  
+  $handle->push_write( $message );
+  
+  return 1;
+}
+
+#**********************************************************
+=head2 _synchronous_request($attr)
+
+  Arguments:
+    $attr - hash_ref
+      MESSAGE - text will be send to backend server
 
   Returns:
     string - if server responded with message
@@ -224,24 +326,12 @@ sub json_request {
 #**********************************************************
 sub _synchronous_request {
   my ($self, $attr) = @_;
-
-  my $result = '';
-
-  my $operation_end_waiter = AnyEvent->condvar;
-
-  # Set timeout to 5 seconds
-  my $timeout_waiter = AnyEvent->timer(
-    after => 5,
-    cb    => sub {
-      _bp("Abills::Sender::Browser", "$self->{host} Timeout" , { TO_WEB_CONSOLE => 1});
-      $operation_end_waiter->send(undef);
-    }
-  );
-
-  my $handle = $self->{fh};
-  my $message = $attr->{MESSAGE};
-
+  
+  my $message = $attr->{MESSAGE} || return;
+  my AnyEvent::Handle $handle = $self->{fh};
+  
   # Setup recieve callback
+  my $operation_end_waiter = AnyEvent->condvar;
   $handle->on_read(
     sub {
       my ($responce_handle) = shift;
@@ -252,11 +342,57 @@ sub _synchronous_request {
       $operation_end_waiter->send( $readed );
     }
   );
-
+  
+  # Set timeout to 2 seconds
+  my $timeout_waiter = AnyEvent->timer(
+    after => 2,
+    cb    => sub {
+      _bp("Abills::Sender::Browser", "$self->{host} Timeout" , { TO_CONSOLE => 1}) if ($self->{debug});
+      $operation_end_waiter->send(undef);
+    }
+  );
+  
   $handle->push_write( $message );
 
-  $result = $operation_end_waiter->recv;
-  return $result;
+  # Result will come here when other end responses or on timeout
+  return $operation_end_waiter->recv;
 };
+
+#**********************************************************
+=head2 _instant_request($attr) - will not wait for timeout, but no warranties for receive
+
+  Arguments:
+    $attr - hash_ref
+      MESSAGE - text will be send to backend server
+
+  Returns:
+    1
+    
+=cut
+#**********************************************************
+sub _instant_request {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->{fh}->on_read(
+    sub {
+      shift->{rbuf} = undef;
+    }
+  );
+  
+  $self->{fh}->push_write($attr->{MESSAGE});
+  
+  return 1;
+}
+
+#**********************************************************
+=head2 safe_json_decode($json_string)
+
+=cut
+#**********************************************************
+sub safe_json_decode {
+  my $str = shift;
+  return eval{ $json->decode($str) } || return "Error parsing JSON: $@. \n Got: " . ($str // '');
+}
 
 1;

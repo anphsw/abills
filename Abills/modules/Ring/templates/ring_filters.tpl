@@ -4,15 +4,15 @@
 <input type='hidden' name='action' value='filter'>
 <input type='hidden' name='rule'   value='$FORM{ID}'>
 
-<div class='panel panel-primary'>
-<div class='panel-heading text-primary'>_{SEARCH}_ _{USERS}_</div>
+<div class='box box-primary'>
+<div class='box-header with-border text-primary'>_{SEARCH}_ _{USERS}_</div>
 
-<div class='panel-body'>
+<div class='box-body'>
 	<div class='col-md-6'>
-		<div class='panel panel-default'>
-		<div class='panel-heading text-default'>_{USER}_</div>
+		<div class='box box-theme'>
+		<div class='box-header with-border text-default'>_{USER}_</div>
 
-		<div class='panel-body'>
+		<div class='box-body'>
 
 			<div class='form-group'>
 				<label class='col-md-3 control-label'>_{LOGIN}_:</label>
@@ -22,13 +22,13 @@
 			<div class='form-group'>
 				<label class='control-label col-md-3'>_{PERIOD}_:</label>
 				<div class='col-md-4'>
-					<input class='form-control tcal tcalInput' placeholder='0000-00-00' name='FROM_DATE' value='%DATE%'>
+					<input class='form-control datepicker' placeholder='0000-00-00' name='FROM_DATE' value='%DATE%'>
 				</div>
 				<div class='col-md-1'>
 				-
 				</div>
 				<div class='col-md-4'>
-					<input class='form-control tcal tcalInput' placeholder='0000-00-00' name='FROM_DATE' value='%DATE%'>
+					<input class='form-control datepicker' placeholder='0000-00-00' name='FROM_DATE' value='%DATE%'>
 				</div>
 			</div>
 
@@ -53,18 +53,18 @@
 	</div>
 
     <div class='col-md-6'>
-		<div class='panel panel-default'>
-		<div class='panel-heading text-default'>_{TAGS}_</div>
-			<div class='panel-body'>
+		<div class='box box-theme'>
+		<div class='box-header with-border text-default'>_{TAGS}_</div>
+			<div class='box-body'>
 				%TAGS%
 			</div>
 		</div>
 	</div>
 
 	<div class='col-md-6'>
-	<div class='panel panel-default'>
-		<div class='panel-heading text-default'>_{ADDRESS}_</div>
-		<div class='panel-body'>
+	<div class='box box-theme'>
+		<div class='box-header with-border text-default'>_{ADDRESS}_</div>
+		<div class='box-body'>
 		%ADDRESS_FORM%
 		</div>
 	</div>
@@ -72,7 +72,7 @@
 
 </div>
 
-<div class='panel-footer'>
+<div class='box-footer'>
 	<button type='submit' class='btn btn-primary'>_{SEARCH}_</button>
 </div>
 

@@ -59,6 +59,8 @@ use constant ACCOUNTING_REQUEST           => 4;
 use constant ACCOUNTING_RESPONSE          => 5;
 use constant ACCOUNTING_STATUS            => 6;
 use constant ACCESS_CHALLENGE             => 11;
+use constant STATUS_SERVER                => 12;
+use constant STATUS_CLIENT                => 13;
 use constant DISCONNECT_REQUEST           => 40;
 use constant DISCONNECT_ACCEPT            => 41;
 use constant DISCONNECT_REJECT            => 42;
@@ -71,6 +73,9 @@ use constant COA_NAK                      => 45;
 #Old version
 use constant POD_REQUEST                  => 40;
 
+my $HMAC_MD5_BLCKSZ = 64;
+my $RFC3579_MSG_AUTH_ATTR_ID = 80;
+my $RFC3579_MSG_AUTH_ATTR_LEN = 18;
 
 sub new {
   my $class = shift;
@@ -94,6 +99,7 @@ sub new {
     my %services = (
       radius        => 1812,
       radacct       => 1646,
+      status        => 18121,
       'radius-acct' => 1813
     );
     if (exists($services{$service})) {
@@ -106,6 +112,7 @@ sub new {
 
   $self->{'timeout'} = $h{'TimeOut'} ? $h{'TimeOut'} : 5;
   $self->{'secret'} = $h{'Secret'};
+  $self->{'message_auth'}  = $h{'Rfc3579MessageAuth'};
   print STDERR "Using Radius server $host:$port\n" if $debug;
   $self->{'sock'} = new IO::Socket::INET(
     PeerAddr => $host,
@@ -122,7 +129,6 @@ sub send_packet {
   my ($self, $type) = @_;
   my ($data);
   my $length = 20 + length($self->{'attributes'});
-
   $self->set_error;
   if (($type == ACCOUNTING_REQUEST) || ($type == POD_REQUEST) || ($type == COA_REQUEST)) {
     $self->{'authenticator'} = "\0" x 16;
@@ -131,7 +137,32 @@ sub send_packet {
   else {
     $self->gen_authenticator unless defined $self->{'authenticator'};
   }
-  $data = pack('C C n', $type, $request_id, $length) . $self->{'authenticator'} . $self->{'attributes'};
+
+  if ($self->{'message_auth'} && ($type == ACCESS_REQUEST || $type == STATUS_SERVER)) {
+    $length += $RFC3579_MSG_AUTH_ATTR_LEN;
+    $data = pack('C C n', $type, $request_id, $length)
+      . $self->{'authenticator'}
+      . $self->{'attributes'}
+      . pack('C C', $RFC3579_MSG_AUTH_ATTR_ID, $RFC3579_MSG_AUTH_ATTR_LEN)
+      . "\0" x ($RFC3579_MSG_AUTH_ATTR_LEN - 2);
+
+    my $msg_authenticator = $self->hmac_md5($data, $self->{'secret'});
+    $data = pack('C C n', $type, $request_id, $length)
+      . $self->{'authenticator'}
+      . $self->{'attributes'}
+      . pack('C C', $RFC3579_MSG_AUTH_ATTR_ID, $RFC3579_MSG_AUTH_ATTR_LEN)
+      . $msg_authenticator;
+    if ($debug) {
+      print STDERR "RFC3579 Message-Authenticator: "._ascii_to_hex($msg_authenticator).
+          " was added to request.\n";
+    }
+  }
+  else {
+    $data = pack('C C n', $type, $request_id, $length)
+      . $self->{'authenticator'} . $self->{'attributes'};
+  }
+
+  #$data = pack('C C n', $type, $request_id, $length) . $self->{'authenticator'} . $self->{'attributes'};
   $request_id = ($request_id + 1) & 0xff;
 
   #  if ($debug) {
@@ -261,6 +292,11 @@ sub add_attributes {
   $self->set_error;
 
   for $a (@a) {
+    if ($a->{'Name'} eq 'Message-Authenticator') {
+      $self->{'message_auth'} = 1;
+      next;
+    }
+
     $id = defined $dict_name{ $a->{'Name'} }{'id'} ? $dict_name{ $a->{'Name'} }{'id'} : int($a->{'Name'});
     $type = defined $a->{'Type'} ? $a->{'Type'} : $dict_name{ $a->{'Name'} }{'type'};
     $vendor = defined $a->{'Vendor'} ? (defined $dict_vendor_name{ $a->{'Vendor'} }{'id'} ? $dict_vendor_name{ $a->{'Vendor'} }{'id'} : int($a->{'Vendor'})) : (defined $dict_name{ $a->{'Name'} }{'vendor'} ? $dict_vendor_name{ $dict_name{ $a->{'Name'} }{'vendor'} }{'id'} : 'not defined');
@@ -476,6 +512,38 @@ sub strerror {
 
   return $errors{$radius_error} unless ref($self);
   $errors{ defined $error ? $error : $self->{'error'} };
+}
+
+sub get_active_node {
+  my ($self) = @_;
+  return $self->{'node_addr_a'};
+}
+
+sub hmac_md5 {
+  my ($self, $data, $key) = @_;
+  my $ct = Digest::MD5->new;
+
+  if (length($key) > $HMAC_MD5_BLCKSZ) {
+    $ct->add($key);
+    $key = $ct->digest();
+  }
+  my $ipad = $key ^ ("\x36" x $HMAC_MD5_BLCKSZ);
+  my $opad = $key ^ ("\x5c" x $HMAC_MD5_BLCKSZ);
+  $ct->reset();
+  $ct->add($ipad, $data);
+  my $digest1 = $ct->digest();
+  $ct->reset();
+  $ct->add($opad, $digest1);
+  return $ct->digest();
+}
+
+sub _ascii_to_hex {
+  my  ($string) = @_;
+  my $hex_res = '';
+  foreach my $cur_chr (unpack('C*',$string)) {
+    $hex_res .= sprintf("%02X ", $cur_chr);
+  }
+  return $hex_res;
 }
 
 1;

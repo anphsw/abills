@@ -4,9 +4,9 @@
 <input type='hidden' name='PROGRES_BAR' value='$FORM{PROGRES_BAR}'/>
 
 
-<div class='panel panel-default panel-form'>
+<div class='box box-theme box-form'>
     <legend> _{PROGRES_BAR}_</legend>
-<div class='panel-body form form-horizontal'>
+<div class='box-body form form-horizontal'>
 
 <div class='form-group'>
     <label class='control-label col-md-3'>_{STEP}_ _{NUM}_:</label>
@@ -27,7 +27,7 @@
 </div>
 
 </div>
-<div class='panel-footer'>
+<div class='box-footer'>
 <input type=submit name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'>
 </div>
 </div>

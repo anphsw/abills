@@ -1,10 +1,10 @@
-<div class='panel panel-danger'>
-    <div class='panel-heading text-center'>
+<div class='box box-danger'>
+    <div class='box-header with-border text-center'>
             _{NEGATIVE_DEPOSIT}_
             <br>
             _{ACTIVATE_NEXT_PERIOD}_:<strong> %TOTAL_DEBET%</strong>
     </div>
-    <div class='panel-body table'>
+    <div class='box-body table'>
         <div class='row' style='margin: 5px 0'>
             <div class='text-center'>%PAYMENT_BUTTON% %DOCS_BUTTON% %CARDS_BUTTON% %CREDIT_CHG_BUTTON%</div>
         </div>

@@ -3,11 +3,11 @@
 	<input type='hidden' name=action value='%ACTION%'>
 	<input type='hidden' name=id value='%ID%'>
 
-	<div class='panel panel-primary panel-form'>
+	<div class='box box-theme box-form'>
 		<!-- head -->
-	  <div class='panel-heading'>_{EMPLOYEES}_</div>
+	  <div class='box-header with-border'>_{EMPLOYEES}_</div>
 	  <!-- body -->
-	  <div class='panel-body'>
+	  <div class='box-body'>
 
 	  	<div class='form-group'>
 	  	  <label class='col-md-3 control-element'>_{LOGIN}_</label>
@@ -39,7 +39,7 @@
 
 	  </div>
 	  <!-- footer -->
-	  <div class='panel-footer'>
+	  <div class='box-footer'>
 	  	<input type='submit' class='btn btn-primary' name='BUTTON' value='%BUTTON_NAME%'>
 	  </div>
 

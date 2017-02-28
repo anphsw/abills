@@ -226,7 +226,7 @@ sub info{
 
   my $list = $self->list( { UID => $uid, COLS_NAME => 1 } )->{list};
 
-  return $list->[0];
+  return $list->[0] || {};
 }
 
 #**********************************************************
@@ -313,7 +313,7 @@ sub get_user_info{
   my $list = $self->{list};
 
   if ( ref $list eq 'ARRAY' && scalar @{$list} > 0 ){
-    return $list->[0];
+    return $list->[0] || {};
   }
 
   return undef;

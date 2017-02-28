@@ -1,15 +1,16 @@
-CREATE TABLE `vlan_main` (
-  `uid` int(11) unsigned NOT NULL DEFAULT '0',
-  `vlan_id` int(10) unsigned NOT NULL DEFAULT '0',
-  `ip` int(10) unsigned NOT NULL DEFAULT '0',
-  `netmask` int(10) unsigned NOT NULL DEFAULT '4294967294',
-  `disable` tinyint(1) unsigned NOT NULL DEFAULT '0',
-  `dhcp` tinyint(1) unsigned NOT NULL DEFAULT '0',
-  `nas_id` smallint(6) unsigned NOT NULL DEFAULT '0',
-  `pppoe` tinyint(1) unsigned NOT NULL DEFAULT '0',
-  `unnumbered` tinyint(10) unsigned NOT NULL DEFAULT '0',
-  `unnumbered_ip` int(10) unsigned NOT NULL DEFAULT '0',
+CREATE TABLE IF NOT EXISTS `vlan_main` (
+  `uid` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `vlan_id` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+  `ip` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+  `netmask` INT(10) UNSIGNED NOT NULL DEFAULT '4294967294',
+  `disable` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
+  `dhcp` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
+  `nas_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `pppoe` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
+  `unnumbered` TINYINT(10) UNSIGNED NOT NULL DEFAULT '0',
+  `unnumbered_ip` INT(10) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`uid`),
-  UNIQUE KEY `nas_id` (`nas_id`,`vlan_id`)
-) COMMENT='Vlan user account'; 
+  UNIQUE KEY `nas_id` (`nas_id`, `vlan_id`)
+)
+  COMMENT = 'Vlan user account';
 

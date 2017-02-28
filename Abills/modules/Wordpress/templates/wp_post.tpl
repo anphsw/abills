@@ -1,13 +1,13 @@
 <form method='POST'>
 
-<div class='panel panel-primary panel-form'>
-<div class='panel-heading'>POST</div>
+<div class='box box-theme box-form'>
+<div class='box-header with-border'>POST</div>
 
-<div class='panel-body'>
+<div class='box-body'>
 
 </div>
 
-<div class='panel-footer'>
+<div class='box-footer'>
   <input type='submit' name='add' value='%BTN_LANG%'>
 </div>
 </div>

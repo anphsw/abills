@@ -3,9 +3,9 @@
 <input type=hidden name='TP_ID' value='%TP_ID%'>
 <input type=hidden name='TI_ID' value='%TI_ID%'>
 
-<div class='panel panel-primary panel-form'>
+<div class='box box-theme box-form'>
 
-<div class='panel-body'>
+<div class='box-body'>
 
 <div class='form-group'>
   <label class='col-md-3 control-label' for='DAYS'>_{DAY}_</label>
@@ -36,7 +36,7 @@
   </div>
 </div>
 </div>
-<div class='panel-footer text-center'>
+<div class='box-footer text-center'>
 <input type=submit class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
 </div>
 </div>

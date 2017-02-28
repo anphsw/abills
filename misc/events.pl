@@ -35,25 +35,29 @@ my $USAGE = << "USAGE";
       ./events.pl ADD=state NAME="Cool state"
 
     Add new event:
-      .events.pl ADD=events MODULE="Dv" COMMENTS="Something happened"
+      ./events.pl ADD=events MODULE="Dv" COMMENTS="Something happened"
 USAGE
 
 use strict;
 use warnings FATAL => 'all';
 
-use vars qw( %conf $DATE $TIME );
+our( %conf, $DATE, $TIME );
 
+my $libpath = '';
 BEGIN {
   use FindBin '$Bin';
 
-  my $libpath = '/../'; #assuming we are in /usr/abills/misc/
-  require $Bin . "/$libpath/libexec/config.pl";
+  $libpath = $Bin . '/../'; #assuming we are in /usr/abills/misc/
+  require "/$libpath/libexec/config.pl";
+  $conf{dbtype} = 'mysql' if (!$conf{dbtype});
 
-  unshift( @INC, $Bin . "$libpath/" );
-  unshift( @INC, $Bin . "$libpath" );
-  unshift( @INC, $Bin . "$libpath/Abills" );
-  unshift( @INC, $Bin . "$libpath/Abills/$conf{dbtype}" );
 }
+
+use lib $libpath;
+use lib "$libpath/lib";
+use lib "$libpath/Abills";
+use lib "$libpath/Abills/$conf{dbtype}";
+
 
 use Abills::Base;
 use Abills::Misc;
@@ -179,14 +183,14 @@ sub init_output_former{
     my $loaded_json_result = load_pmodule( "JSON", { RETURN => 1 } );
     if ( $loaded_json_result ){
       print $loaded_json_result;
-      finish_execution( 1 );
+      finish_execution( 0 );
     }
   }
   elsif ( $output_type eq 'XML' ){
     my $loaded_xml_result = load_pmodule( "XML::Simple", { RETURN => 1, IMPORT => ':strict' } );
     if ( $loaded_xml_result ){
       print $loaded_xml_result;
-      finish_execution( 1 );
+      finish_execution( 0 );
     }
     $xml_simple = XML::Simple->new( ForceArray => 1, NoAttr => 1 );
   }

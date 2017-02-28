@@ -534,7 +534,7 @@ sub get_zone{
         if ( $ip_full =~ /([!]{0,1})(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(\/{0,1})(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|\d{1,2})(:{0,1})(\S{0,100})/ ){
           my $NEG = $1 || '';
           my $IP = unpack( "N", pack( "C4", split( /\./, $2 ) ) );
-          my $NETMASK = (length( $4 ) < 3) ? unpack "N", pack( "B*", ("1" x $4 . "0" x (32 - $4)) ) : unpack( "N",
+          my $NETMASK = (length( $4 ) < 3) ? unpack("N", pack( "B*", ("1" x $4 . "0" x (32 - $4)) )) : unpack( "N",
               pack( "C4", split( /\./, "$4" ) ) );
 
           print "REG $i ID: $zoneid NEGATIVE: $NEG IP: " . int2ip( $IP ) . " MASK: " . int2ip( $NETMASK ) . " Ports: $6\n" if ($self->{debug});
@@ -594,7 +594,7 @@ sub ip_in_zone($$$$){
     my $adr_hash = \%{ $zone_data->{$zoneid}[$i] };
     # compare zone with ip
     if ( (($adr_hash->{'IP'} & $adr_hash->{'Mask'}) == ($ip_num & $adr_hash->{'Mask'}))
-      && ($#{$$adr_hash{'Ports'}} == -1 || in_array( $port, $adr_hash->{'Ports'} ) )
+      && ($#{$$adr_hash{'Ports'}} == -1 || $port ~~ @{ $adr_hash->{'Ports'} } )
     ){
       if ( $adr_hash->{'Neg'} ){
         $res = 0;
@@ -1004,7 +1004,7 @@ sub acct_stop{
   my @insert_params = (
     $self->{UID},
     $self->{START},
-    $self->{TP_ID},
+    $self->{TP_ID} || 0,
     $self->{ACCT_SESSION_TIME},
     $self->{OUTPUT_OCTETS} || 0,
     $self->{INPUT_OCTETS} || 0,

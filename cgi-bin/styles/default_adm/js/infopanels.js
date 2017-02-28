@@ -68,7 +68,7 @@ var AInfoPanels = (function () {
     };
 
     //bindEvents
-    events.on('infoPanels_renewed', renew);
+    Events.on('infoPanels_renewed', renew);
 
 
     function parse() {

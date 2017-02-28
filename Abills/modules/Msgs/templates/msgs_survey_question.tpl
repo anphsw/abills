@@ -3,8 +3,8 @@
 <input type='hidden' name='ID' value='%ID%'/>
 <input type='hidden' name='SURVEY_ID' value='$FORM{SURVEY_ID}'/>
 
-<div class='panel panel-default panel-form'>
-<div class='panel-body form form-horizontal'>
+<div class='box box-theme box-form'>
+<div class='box-body form form-horizontal'>
     <legend>_{QUESTIONS}_</legend>
 	<div class='form-group'>
         <label class='control-label col-md-3'>_{NUM}_:</label>
@@ -37,7 +37,7 @@
 		<div class='col-md-1'><input type=checkbox name=FILL_DEFAULT value=1 %FILL_DEFAULT%></div>
 	</div>
 </div>
-<div class='panel-footer'>
+<div class='box-footer'>
 	<input type=submit name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'>
 </div>
 </div>

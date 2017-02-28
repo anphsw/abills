@@ -32,7 +32,38 @@
             dispatch_list.style.display = 'block';
         }
     }
+    function add_delivery() {
 
+        var DELIVERY_CREATE = document.getElementById('DELIVERY_CREATE');
+
+        if (DELIVERY_CREATE.checked) {
+            DELIVERY_CREATE.checked = false;
+            comments = prompt('_{SUBJECT}_', '');
+
+            var new_delivery = document.getElementById('new_delivery');
+            var delivery_list = document.getElementById('delivery_list');
+            var DELIVERY_COMMENTS = document.getElementById('DELIVERY_COMMENTS');
+
+            if (comments == '' || comments == null) {
+                alert('Enter comments');
+                DELIVERY_CREATE.checked = false;
+                new_delivery.style.display = 'none';
+                delivery_list.style.display = 'block';
+            }
+            else {
+                DELIVERY_CREATE.checked = true;
+                DELIVERY_COMMENTS.value = comments;
+                new_delivery.style.display = 'block';
+                delivery_list.style.display = 'none';
+            }
+        }
+        else {
+            DELIVERY_CREATE.checked = false;
+            DELIVERY_COMMENTS.value = '';
+            new_delivery.style.display = 'none';
+            delivery_list.style.display = 'block';
+        }
+    }
     -->
 </SCRIPT>
 
@@ -40,15 +71,15 @@
       class='form-horizontal'>
     <!-- <legend>_{MESSAGES}_</legend> -->
     <fieldset>
-    
+
 <div>
  %PREVIEW_FORM%
 </div>
 
 
-        <div class='panel panel-primary panel-form'>
-        <div class='panel-heading'>_{MESSAGES}_</div>
-            <div class='panel-body'>
+        <div class='box box-theme box-big-form'>
+        <div class='box-header with-border'><h4 class='box-title'>_{MESSAGES}_</h4></div>
+            <div class='box-body'>
 
                 <input type='hidden' name='index' value='$index'/>
                 <input type='hidden' name='add_form' value='1'/>
@@ -81,34 +112,36 @@
                         <textarea class='form-control' id='MESSAGE' name='MESSAGE' rows='3' class='form-control'>%MESSAGE%</textarea>
                     </div>
                 </div>
-                %SEND_EXTRA_FORM%
-                %SEND_TYPES_FORM%
-            
         </div>
 
+  %SEND_TYPES_FORM%
+  %SEND_EXTRA_FORM%
+  %SEND_DELIVERY_FORM%
 
-        <div class='panel panel-default panel-form'>
-            <div class='panel-heading'>
-                <h1 class='panel-title'><a data-toggle='collapse' data-parent='#accordion' href='#nas_misc'>_{MISC}_</a>
-                </h1>
+<div class="box box-theme box-big-form collapsed-box">
+  <div class="box-header with-border">
+    <h4 class="box-title">_{ADDITIONALLY}_</h4>
+                <div class='box-tools pull-right'>
+                    <button type='button' class='btn btn-default btn-xs' data-widget='collapse'><i class='fa fa-plus'></i>
+                    </button>
+                </div>
             </div>
 
-            <div id='nas_misc' class='panel-body panel-collapse collapse out'>
-
-                <div class='form-group'>
-                    <label class='control-label col-md-3' for='DATE'>_{DATE}_</label>
-
-                    <div class='col-md-6'>
-                        %DATE%
-                        <!--  <input type='text' name='DATE' value='%DATE%' placeholder='%DATE%' class='form-control tcal' > -->
-                    </div>
-                </div>
+            <div id='nas_misc' class='box-body'>
 
                 <div class='form-group'>
                     <label class='control-label col-md-3' for='INNER_MSG'>_{PRIVATE}_</label>
 
                     <div class='col-md-6'>
                         <input type='checkbox' name='INNER_MSG' value='1' %INNER_MSG%>
+                    </div>
+                </div>
+
+                <div class='form-group'>
+                    <label class='control-label col-md-3' for='DATE'>_{DATE}_</label>
+
+                    <div class='col-md-6'>
+                        <input id='DATE' type='text' name='DATE' value='%DATE%' class='datepicker form-control'>
                     </div>
                 </div>
 
@@ -156,16 +189,16 @@
 
 
                 <div class='form-group'>
-                    <label class='control-label col-md-3' for='PLAN_DATE'>_{EXECUTION}_ _{DATE}_</label>
-
-                    <div class='col-md-4'>
-                        %PLAN_DATE%
+                    <label class='control-label col-md-3' for='PLAN_DATE'>_{EXECUTION}_ </label>
+                    <label class='control-label col-md-1' for='PLAN_DATE'>_{DATE}_ </label>
+                    <div class='col-md-3'>
+                        <input id='PLAN_DATE' type='text' name='PLAN_DATE' value='%PLAN_DATE%' class='datepicker form-control'>
                     </div>
 
                     <label class='control-label col-md-2' for='PLAN_TIME'>_{TIME}_</label>
 
                     <div class='col-md-3'>
-                        <input type=text value='%PLAN_TIME%' name='PLAN_TIME' ID='PLAN_TIME' class='form-control'>
+                        <input type=text value='%PLAN_TIME%' name='PLAN_TIME' ID='PLAN_TIME' class='bootstrap-timepicker form-control'>
                     </div>
                 </div>
 
@@ -173,19 +206,28 @@
                     <label class='control-label col-md-3' for='DISPATCH'>_{DISPATCH}_</label>
 
                     <div class='col-md-9' id=dispatch_list>
-                        %DISPATCH_SEL% <input type=checkbox id=DISPATCH_CREATE name=DISPATCH_CREATE value=1
-                                              onClick='add_comments();'> _{CREATE}_ _{DISPATCH}_
+
+                        <div class='input-group'>
+                        <span class='input-group-addon'>
+                          _{ADD}_ <input type='checkbox' id=DISPATCH_CREATE name=DISPATCH_CREATE value=1 onClick='add_comments();' title='_{CREATE}_ _{DISPATCH}_'>
+                        </span>
+                            %DISPATCH_SEL%
+                        </div>
                     </div>
 
                     <div id=new_dispatch style='display: none'>
-                        <input type=text id=DISPATCH_COMMENTS name=DISPATCH_COMMENTS value='%DISPATCH_COMMENTS%'
-                               size=30> _{DATE}_: %DISPATCH_PLAN_DATE%
+                        <div class='col-md-5'>
+                           <input type=text id=DISPATCH_COMMENTS name=DISPATCH_COMMENTS value='%DISPATCH_COMMENTS%' class='form-control'>
+                        </div>
+                        <label class='control-label col-md-2' for='DISPATCH_PLAN_DATE'>_{DATE}_:</label>
+                        <div class='col-md-2'>
+                            <input id='DISPATCH_PLAN_DATE' type='text' name='DISPATCH_PLAN_DATE' value='%DISPATCH_PLAN_DATE%' class='datepicker form-control'>
+                        </div>
                     </div>
 
-                    <div id=new_dispatch style='display: none'>
-                        <input type=text id=DISPATCH_COMMENTS name=DISPATCH_COMMENTS value='%DISPATCH_COMMENTS%'
-                               size=30> _{DATE}_: %DISPATCH_PLAN_DATE%
-                    </div>
+                </div>
+
+                <div class='form-group'>
                 </div>
 
                 <div class='form-group'>
@@ -195,13 +237,28 @@
                         %SURVEY_SEL%
                     </div>
                 </div>
+
+                <div class='form-group'>
+                  <label class='control-label col-md-3' for=''>_{PHONE}_</label>
+
+                    <div class='col-md-9'>
+                     <div class='input-group'>
+                      <div class='input-group-addon'>
+                        <i class='fa fa-phone'></i>
+                      </div>
+                      <input class='form-control' name='CALL_PHONE' value='%CALL_PHONE%' placeholder='%CALL_PHONE%' data-inputmask='{"mask" : "(999) 999-9999", "removeMaskOnSubmit" : true}' type="text"></input>
+                     </div>
+                    </div>
+
+                </div>
+
             </div>
         </div>
-        
-        <div class='panel-footer'>
+
+        <div class='box-footer'>
         %BACK_BUTTON% <input type=submit name='%ACTION%' class='btn btn-primary' value='%LNG_ACTION%' id='go' title='Ctrl+C'/>
 
-        
+
         </div>
         </div>
     </fieldset>

@@ -5,11 +5,11 @@
     <input type='hidden' name='sid' value='$sid'>
     <input type='hidden' name='ACCT_INTERIUM_INTERVAL' value='%ACCT_INTERIUM_INTERVAL%'>
 
-    <div class='panel panel-primary panel-form center-block'>
-        <div class='panel-heading'>
+    <div class='box box-theme box-form center-block'>
+        <div class='box-header with-border'>
             <h4>_{LOGON}_ Internet</h4>
         </div>
-        <div class='panel-body'>
+        <div class='box-body'>
 
             %MENU%
 
@@ -31,7 +31,7 @@
                 </div>
             </div>
         </div>
-        <div class='panel-footer text-center'>
+        <div class='box-footer text-center'>
             <input type='submit' name='%ACTION%' value='%ACTION_LNG% Internet' class='btn btn-primary'>
         </div>
 

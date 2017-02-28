@@ -1,4 +1,5 @@
 package Abills::XML;
+package Abills::XML;
 
 =head2 NAME
 
@@ -77,6 +78,7 @@ sub new {
 
   $FORM{_export}='xml';
   $self->{CHARSET} = (defined($attr->{CHARSET})) ? $attr->{CHARSET} : 'utf8';
+  $self->{TYPE}='xml' if(! $self->{TYPE});
 
   return $self;
 }
@@ -163,13 +165,15 @@ sub form_textarea {
 
 
 #**********************************************************
-#
+=head2 form_select($name, $attr)
+
+=cut
 #**********************************************************
 sub form_select {
   my $self = shift;
   my ($name, $attr) = @_;
 
-  my $ex_params = (defined($attr->{EX_PARAMS})) ? $attr->{EX_PARAMS} : '';
+  my $ex_params = ''; #(defined($attr->{EX_PARAMS})) ? $attr->{EX_PARAMS} : '';
 
   $self->{SELECT} = "<select name=\"$name\" $ex_params>\n";
 
@@ -291,7 +295,7 @@ sub menu {
       label:
       my $mi = $new_hash{$ID};
 
-      while (my ($k, $val) = each %$mi) {
+      while (my ($k, undef) = each %$mi) {
         $menu_text .= "$prefix<MENU NAME=\"$fl->{$k}\" ID=\"$k\" EX_ARGS=\"" . $self->link_former("$EX_ARGS") . "\" DESCRIBE=\"$val\" TYPE=\"SUB\" PARENT=\"$ID\"/>\n ";
 
         if (defined($new_hash{$k})) {
@@ -850,33 +854,9 @@ sub test {
 # letters_list();
 #**********************************************************
 sub letters_list {
-  my ($self, $attr) = @_;
+  my ($self) = @_;
 
-  if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $attr->{ID}) {
-    return "";    #"<a> $FORM{EXPORT_CONTENT} </a>";
-  }
-
-  my $pages_qs_ = $attr->{pages_qs} if (defined($attr->{pages_qs}));
-
-  my $output = '<LETTERS>' . $self->button('All ', "index=$index");
-  for (my $i = 97 ; $i < 123 ; $i++) {
-    my $l = chr($i);
-    if ($FORM{letter} && $FORM{letter} eq $l) {
-      $output .= "<b>$l </b>";
-    }
-    else {
-      $output .= $self->button("$l", "index=$index&letter=$l$pages_qs_") . "\n";
-    }
-  }
-  $output .= '</LETTERS>';
-
-  if (defined($self->{NO_PRINT})) {
-    $self->{OUTPUT} .= $output;
-    return '';
-  }
-  else {
-    print $output;
-  }
+  return "";
 }
 
 #**********************************************************
@@ -891,57 +871,6 @@ sub color_mark {
   my $output = "<color_mark color=\"$color\">$message</color_mark>";
   return $output;
 }
-
-#**********************************************************
-# b();
-#**********************************************************
-sub b {
-  my ($self) = shift;
-  my ($text) = @_;
-
-  return $text;
-}
-
-#**********************************************************
-# b();
-#**********************************************************
-sub p {
-  my ($self) = shift;
-  my ($text) = @_;
-
-  return $text;
-}
-
-#**********************************************************
-# Break line#
-#**********************************************************
-sub br () {
-  my $self = shift;
-  my ($attr) = @_;
-
-  return '';
-}
-
-#***********************************************************
-#
-#***********************************************************
-sub badge () {
-	my $self = shift;
-  my ($text, $attr) = @_;
-	
-	return "$text";
-}
-
-#**********************************************************
-# list item
-#**********************************************************
-sub li () {
-	my $self = shift;
-  my ($item) = @_;
-
-  return $item;
-}
-
 
 #**********************************************************
 =head2 table_header($header) - Show table column  titles with wort derectives
@@ -972,26 +901,23 @@ sub table_header {
 }
 
 #**********************************************************
-=head2 progress_bar($attr)
+=head2  AUTOLOAD Autoload secondary funtions
 
 =cut
 #**********************************************************
-sub progress_bar {
-  my $self = shift;
+sub AUTOLOAD {
+  our $AUTOLOAD;
 
-  return $self;
+  return if ($AUTOLOAD =~ /::DESTROY$/);
+  my $function = $AUTOLOAD;
+
+  if($function =~ /table_header|progress_bar|/) {
+    return q{};
+  }
+
+  my ($self, $data) = @_;
+
+  return $data;
 }
-
-#**********************************************************
-=head2 fetch() - Fetch cache data
-
-=cut
-#**********************************************************
-sub fetch  {
-  my $self = shift;
-
-  return $self;
-}
-
 
 1

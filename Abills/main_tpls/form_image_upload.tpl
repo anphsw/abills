@@ -4,8 +4,8 @@
 <input type=hidden name=PHOTO value='%UID%'>
 <input type='hidden' name='EXTERNAL_ID' value='%EXTERNAL_ID%'>
 
-<div class='panel panel-default panel-form'>
-<div class='panel-body'>
+<div class='box box-theme box-form'>
+<div class='box-body'>
 
 <fieldset>
 <legend>_{IMAGES}_</legend>

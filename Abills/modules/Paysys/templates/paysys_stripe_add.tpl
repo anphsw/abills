@@ -1,16 +1,17 @@
-<center>
-<div class='panel panel-default'>
-<div class='panel-body'>
 
-<form action='$SEL_URL' method='POST'>
+<div class='box box-theme'>
+<div class='box-body'>
+
+<form action='$SELF_URL' method='POST' id='payment-form'>
 <input type=hidden name=OPERATION_ID value='$FORM{OPERATION_ID}'>
 <input type=hidden name=PAYMENT_SYSTEM value='$FORM{PAYMENT_SYSTEM}'>
 <input type=hidden name=TP_ID value='$FORM{TP_ID}'>
 <input type=hidden name=PHONE value='$FORM{PHONE}'>
+<input type=hidden name=DOMAIN_ID value='$FORM{DOMAIN_ID}'>
 <input type=hidden name=index value='$index'>
 
 <table style='min-width:350px;' width=auto class=form>
-<tr><th colspan=2 bgcolor=#EEEEEE class=form_title>Stripe</th></tr>
+<tr><th colspan=2 class=form_title>Stripe</th></tr>
     <tr>
         <td>_{ORDER}_:</td>
         <td>$FORM{OPERATION_ID}</td>
@@ -37,4 +38,4 @@
 
 </div>
 </div>
-</center>
+

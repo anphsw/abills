@@ -2,7 +2,7 @@
  * Created by Anykey on 30.07.2015.
  *
  */
-
+'use strict';
 //Defaults
 var chart = {
   title: {
@@ -15,28 +15,17 @@ var chart = {
  */
 function initChart() {
   //This block tests if chartCategories are defined
-  if (typeof chartCategories === 'undefined') {
-    chartCategories = [];
-    console.log('You have not defined ChartCategories');
-  }
-
-  if (typeof chartLines === 'undefined') {
+  var chartCategories = window['chartCategories'] || [];
+  var chartLines      = window['chartLines'];
+  
+  if (typeof chartLines === 'undefined' || chartLines.length <= 0) {
     console.log('You have not defined chartLines');
     showErrorToolTip('Nothing to show. Empty Chart Data array');
     return false;
-
-  } else {
-    if (chartLines.length < 0) {
-      showErrorToolTip('Nothing to show. Empty Chart Data array');
-      return false;
-
-    }
   }
-
+  
   var finalChart = makeChart(chartLines, chartCategories);
-
-  //console.log(chart);
-
+  
   $('#highcharts').highcharts(finalChart);
 }
 
@@ -47,11 +36,11 @@ function showErrorToolTip(text) {
 function makeChart(chartLines, chartCategories) {
   chart.yAxis = [];
   //chart.zoomType = 'x';
-
-
+  
   var params = [];
-  if (typeof window['singleValueCompare'] != 'undefined' && window['singleValueCompare'] == 1) {
-
+  var singleCompareMode = Number(window['singleValueCompare']) || false;
+  
+  if (singleCompareMode) {
     chart.chart = {};
     chart.chart.type = 'column';
 
@@ -64,8 +53,8 @@ function makeChart(chartLines, chartCategories) {
     chart.data.columns = chartCategories;
 
     return chart;
-  } else {
-
+  }
+  else {
     try {
       chart.xAxis = {};
       chart.xAxis.categories = chartCategories;
@@ -86,7 +75,7 @@ function makeChart(chartLines, chartCategories) {
         chart.xAxis.categories = formNamedCategories('week');
         break;
       case 'month_stats': //31 days
-        chart.xAxis.categories = formNumberArray(1, 31);
+        chart.xAxis.categories = formNumberArray(1, window['daysInMonth'] || 31);
         break;
       case 'year_stats': //12 monthes
         chart.xAxis.categories = formNamedCategories('year');
@@ -160,7 +149,7 @@ function getSeries(chartDataArr, type, axNum, name) {
 
   //array of xData for storing converted value
   var dataArr = [];
-
+  
   switch (type) {
     case 'line':
       objLineWidth = 4;
@@ -225,7 +214,8 @@ function getSeries(chartDataArr, type, axNum, name) {
         };
         dataArr = parseDateTime(chartDataArr);
         //console.log(dataArr);
-      } else {
+      }
+      else {
         chart.xAxis = {type: 'linear'};
         dataArr = filterForZeroValues(forceNumeric(chartDataArr));
       }
@@ -280,7 +270,7 @@ function getSeries(chartDataArr, type, axNum, name) {
         dataArr = forceLength(dataArr, 7);
         break;
       case 'month_stats': //31 days
-        dataArr = forceLength(dataArr, 31);
+        dataArr = forceLength(dataArr, window['daysInMonth'] || 31);
         break;
       case 'year_stats': //12 monthes
         dataArr = forceLength(dataArr, 12);
@@ -323,8 +313,8 @@ function forceString(array) {
 
 
 function getMilliseconds(hours, minutes, seconds) {
-  const secondsInMinute = 60;
-  const minutesInHour = 60;
+  var secondsInMinute = 60;
+  var minutesInHour = 60;
 
   var result = seconds;
   result += minutes * secondsInMinute;
@@ -455,10 +445,10 @@ function formNumberArray(lowest, highest) {
 function formNamedCategories(type) {
   switch (type) {
     case 'week':
-      return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      return moment.weekdaysMin();
       break;
     case 'year':
-      return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return moment.monthsShort();
       break;
     case 'day':
       var result = [];
@@ -531,9 +521,8 @@ function toPrettyFormat(integer) {
 }
 
 function forceLength(array, desiredLength) {
-  var length = array.length;
-  if (length < desiredLength) {
-    for (var i = length; i <= desiredLength; i++) {
+  if (array.length < desiredLength) {
+    for (var i = array.length; i < desiredLength; i++) {
       array[i] = 0;
     }
   }

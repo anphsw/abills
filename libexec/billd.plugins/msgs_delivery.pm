@@ -2,14 +2,116 @@
 
   Msgs delivery
 
+
+  CUSTOM_DELIVERY=message_file
+  ADDRESS_LIST=address_list
+  SLEEP= Sleep after message send
+
+  Examples:
+
+    billd msgs_delivery CUSTOM_DELIVERY=message_file ADDRESS_LIST=address_list
+
+
 =cut
 
-our ($debug, %conf, $admin, $db);
+our (
+  $debug,
+  %conf,
+  $Admin,
+  $var_dir,
+  $db,
+  $argv
+);
 
+use strict;
+use warnings;
 use Abills::Base qw(sendmail);
-require Abills::Misc;
+use Abills::Sender::Core;
 
-msgs_delivery();
+my $Sender = Abills::Sender::Core->new({
+  CONF => \%conf,
+  SENDER_TYPE => 'Mail'
+});
+my $Log     = Log->new($db, $Admin);
+
+if($debug > 2) {
+  $Log->{PRINT}=1;
+}
+else {
+  $Log->{LOG_FILE} = $var_dir.'/log/msgs_delivery.log';
+}
+
+if($argv->{CUSTOM_DELIVERY}) {
+  custom_delivery();
+}
+else {
+  msgs_delivery();
+}
+
+#**********************************************************
+=head2 msgs_delivery($attr) - Msgs delivery function
+
+=cut
+#**********************************************************
+sub custom_delivery {
+
+  my $text = get_content($argv->{CUSTOM_DELIVERY});
+
+  my $addresses = '';
+  if($argv->{ADDRESS_LIST}) {
+    $addresses = get_content($argv->{ADDRESS_LIST});
+  }
+  else {
+    print "No address list ADDRESS_LIST=address_list\n";
+    exit;
+  }
+
+  my $subject   = '';
+
+  if($text =~ s/Subject: (.+)//) {
+    $subject = $1;
+  }
+
+  my @address_list = split(/\n\r?/, $addresses);
+
+  foreach my $to_address (@address_list) {
+    print "$to_address // $subject \n\n $text \n" if($debug > 3);
+
+    $Sender->send_message({
+      TO_ADDRESS => $to_address,
+      MESSAGE    => $text,
+      SUBJECT    => $subject,
+      SENDER_TYPE=> 'Mail',
+      #UID       => 1
+    });
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 msgs_delivery($attr) - Msgs delivery function
+
+=cut
+#**********************************************************
+sub get_content {
+  my($filename) = shift;
+
+  my $content = '';
+
+  if(open(my $fh, '<', $filename)) {
+    while(<$fh>) {
+      $content .= $_;
+    }
+    close($fh);
+  }
+  else {
+    print "Error: '$filename' $!\n";
+  }
+
+  return $content;
+}
+
 
 #**********************************************************
 =head2 msgs_delivery($attr) - Msgs delivery function
@@ -17,36 +119,42 @@ msgs_delivery();
 =cut
 #**********************************************************
 sub msgs_delivery {
-  my ($attr) = @_;
+  #my ($attr) = @_;
 
-  $debug = $attr->{DEBUG} || 0;
   my $debug_output = '';
   $debug_output .= "Mdelivery\n" if ($debug > 1);
 
-  use Mdelivery;
-  my $Mdelivery = Mdelivery->new($db, $admin, \%conf);
-  $ADMIN_REPORT{DATE} = $DATE          if (!$ADMIN_REPORT{DATE});
-  $LIST_PARAMS{LOGIN} = $attr->{LOGIN} if ($attr->{LOGIN});
-  $LIST_PARAMS{STATUS} = 0;
-  $LIST_PARAMS{DATE}   = "<=$ADMIN_REPORT{DATE}";
+  my @send_methods = (
+    'Push',
+    'Mail',
+    'Sms',
+    'Web_redirect'
+  );
 
-  my $list = $Mdelivery->list({%LIST_PARAMS, COLS_NAME => 1});
-  my @ids;
-  foreach my $line (@$list) {
-    push @ids, $line->{id};
+  use Msgs;
+  my $Msgs_delivery = Msgs->new($db, $Admin, \%conf);
+  my $SEND_DATE           = $argv->{DATE} || $DATE;
+  $LIST_PARAMS{STATUS}    = 0;
+  $LIST_PARAMS{SEND_DATE} = "<=$SEND_DATE";
+
+  if($debug>6) {
+    $Msgs_delivery->{debug}=1;
   }
 
-  foreach my $mdelivery_id (@ids) {
-    $Mdelivery->info($mdelivery_id);
-    $LIST_PARAMS{PAGE_ROWS}    = 1000000;
-    $LIST_PARAMS{MDELIVERY_ID} = $mdelivery_id;
+  my $delivery_list = $Msgs_delivery->msgs_delivery_list({%LIST_PARAMS, COLS_NAME => 1});
 
-    $Mdelivery->attachment_info({ MSG_ID => $mdelivery_id, COLS_NAME => 1 });
+  foreach my $mdelivery (@$delivery_list) {
+    $Msgs_delivery->msgs_delivery_info($mdelivery->{id});
+    $Log->log_print('LOG_INFO', '', "Delivery: $mdelivery->{id} Send method: $send_methods[$Msgs_delivery->{SEND_METHOD}] ($Msgs_delivery->{SEND_METHOD}) ");
+    $LIST_PARAMS{PAGE_ROWS}    = 1000000;
+    $LIST_PARAMS{MDELIVERY_ID} = $mdelivery->{id};
+
+    $Msgs_delivery->attachment_info({ MSG_ID => $mdelivery->{id}, COLS_NAME => 1 });
 
     my @ATTACHMENTS = ();
 
-    if ($Mdelivery->{TOTAL} > 0) {
-      foreach my $line (@{ $Mdelivery->{list} }) {
+    if ($Msgs_delivery->{TOTAL} > 0) {
+      foreach my $line (@{ $Msgs_delivery->{list} }) {
         push @ATTACHMENTS,
         {
           ATTACHMENT_ID => $line->{attachment_id},
@@ -58,32 +166,58 @@ sub msgs_delivery {
       }
     }
 
-    my $user_list = $Mdelivery->user_list({ %LIST_PARAMS, 
-                                            STATUS    => 0,
-                                            COLS_NAME => 1 });
+    my $user_list = $Msgs_delivery->delivery_user_list({
+      %LIST_PARAMS,
+      STATUS    => 0,
+      COLS_NAME => 1
+    });
+
     my @users_ids = ();
 
     foreach my $u (@$user_list) {
-      my $email = ($u->{email} && $u->{email} ne '') ? $u->{email} : ($conf{USERS_MAIL_DOMAIN}) ? $u->{login} . '@' . $conf{USERS_MAIL_DOMAIN} : '';
-      if (!$email || $email eq '') {
+      my $email = ($u->{email}) ? $u->{email} : ($conf{USERS_MAIL_DOMAIN}) ? $u->{login} . '@' . $conf{USERS_MAIL_DOMAIN} : '';
+      if (!$email) {
         print "Login: $u->{login} Don't have mail address. Skip...\n";
         next;
       }
 
-      $Mdelivery->{SENDER} = ($Mdelivery->{SENDER} ne '') ? $Mdelivery->{SENDER} : $conf{ADMIN_MAIL};
-      $debug_output .= "LOGIN: $u->{login} E-mail: $email $Mdelivery->{SUBJECT}\n" if ($debug > 0);
-      push @users_ids, $u->{uid};
+      $Msgs_delivery->{SENDER} = ($Msgs_delivery->{SENDER}) ? $Msgs_delivery->{SENDER} : $conf{ADMIN_MAIL};
 
-      sendmail("$Mdelivery->{SENDER}", "$email", "$Mdelivery->{SUBJECT}", "$Mdelivery->{TEXT}", "$conf{MAIL_CHARSET}", "$Mdelivery->{PRIORITY} ($MAIL_PRIORITY{$Mdelivery->{PRIORITY}})", { ATTACHMENTS => ($#ATTACHMENTS > -1) ? \@ATTACHMENTS : undef });
+      $Log->log_print('LOG_DEBUG', $u->{login}, "E-mail: $email $Msgs_delivery->{SUBJECT}");
+
+      push @users_ids, $u->{uid};
+      if($debug < 6) {
+        $Sender->send_message({
+          SENDER      => $Msgs_delivery->{SENDER},
+          TO_ADDRESS  => $email,
+          MESSAGE     => $Msgs_delivery->{TEXT},
+          SUBJECT     => $Msgs_delivery->{SUBJECT},
+          SENDER_TYPE => $send_methods[$Msgs_delivery->{SEND_METHOD} || 1],
+          ATTACHMENTS => ($#ATTACHMENTS > -1) ? \@ATTACHMENTS : undef,
+          #UID       => 1
+        });
+
+        if($argv->{SLEEP}) {
+          sleep int($argv->{SLEEP});
+        }
+      }
     }
 
     if (!$LIST_PARAMS{LOGIN}) {
-      $Mdelivery->user_list_change({ MDELIVERY_ID => $mdelivery_id, UID => join(';', @users_ids) });
-      $Mdelivery->change({ ID => $mdelivery_id });
+      $Msgs_delivery->delivery_user_list_change({
+        MDELIVERY_ID => $mdelivery->{id}  || '-',
+        UID          => join(';', @users_ids)
+      });
+      $Msgs_delivery->msgs_delivery_change({
+        ID          => $mdelivery->{id} || '-',
+        SENDED_DATE => "$DATE $TIME",
+        STATUS      => 2
+      });
     }
   }
 
   $DEBUG .= $debug_output;
+
   return $debug_output;
 }
 

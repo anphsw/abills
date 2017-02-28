@@ -1,5 +1,5 @@
 $lang{CLOSE_PERIOD}='Закрыть период';
-$lang{NOT_ALLOW_GROUP}='Пользователи даной группы не могут использовтаь этот сервис. Свяжитесь с администратором';
+$lang{NOT_ALLOW_GROUP}='Пользователи данной группы не могут использовать этот сервис. Свяжитесь с администратором';
 $lang{CHANNEL}='Канал';
 $lang{MANDATORY}='Обязательный';
 $lang{STALKER_MIDDLEWARE_ADD_CHANNEL}='Добавление канала - Stalker Middleware';
@@ -34,7 +34,7 @@ $lang{EXPORT_TARIFFS} = 'Экспорт тарифных планов';
 $lang{EXTERNAL_ID} ='Внешний ID';
 $lang{NEED_CONFIRM}='Включить подтверждение получения';
 $lang{REBOOT}='Перезагрузить приставку';
-$lang{NEXT_PERIOD_TP}='Следующий тарифный планый';
+$lang{NEXT_PERIOD_TP}='Следующий тарифный план';
 
 $lang{BLOCKED}='Блокирована';
 $lang{STOLEN}='Украдена';

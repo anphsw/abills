@@ -1,13 +1,11 @@
-
-<div class='panel panel-default panel-form'>
-<div class='panel-body'>
+<div class='box box-theme box-form'>
+<div class='box-body'>
 
 <form action='$SELF_URL' method='post' class='form-horizontal'>
 <input type=hidden name='index' value='$index'>
 <input type=hidden name=ID value='$FORM{chg}'>
 
 <fieldset>
- <legend>_{CHANNELS}_</legend>
  <div class='form-group'>
   <label class='control-label col-md-3' for='NUM'>_{NUM}_:</label>
   <div class='col-md-9'>
@@ -64,21 +62,25 @@
   </div>
 </div>
 
-<div class='form-group'>
-  <label class='control-label col-md-12' for='COMMENTS'>_{DESCRIBE}_</label>
-</div>
+
 
 <div class='form-group'>
-  <div class='col-md-12'>
+  <label class='control-label col-md-3' for='COMMENTS'>_{DESCRIBE}_</label>
+  <div class='col-md-9'>
     <textarea name=COMMENTS rows=5 class='form-control'>%COMMENTS%</textarea>
   </div>
 </div>
 
-</fieldset>
-
-<input type=submit name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'>
-
-</form>
-
 </div>
+  
+  <div class='panel-footer'>
+   <input type=submit name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'>
+  </div>  
+  
+
+  
+  </fieldset>
+
+ </form>
 </div>
+

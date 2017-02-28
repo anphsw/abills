@@ -6,11 +6,13 @@
 
 =cut
 
-
-my $VERSION = 0.01;
-
 use strict;
 use warnings FATAL => 'all';
+use Crm;
+use Abills::Base qw(days_in_month );
+use Admins;
+use Employees;
+
 
 require Abills::Defs;
 our (
@@ -21,15 +23,6 @@ our (
   $html,
   @MONTHES,
 );
-
-use Crm;
-use Abills::Base;
-
-use Admins;
-use Employees;
-
-# use strict;
-use warnings FATAL => 'all';
 
 my $Crm = Crm->new($db, $admin, \%conf);
 my $Admins = Admins->new($db, $admin, \%conf);
@@ -49,7 +42,7 @@ my $Employees = Employees->new($db, $admin, \%conf);
 
 #**********************************************************
 sub crm_cashbox_main {
-  my ($attr) = @_;
+  #my ($attr) = @_;
 
   my $action      = 'add';
   my $action_lang = "$lang{ADD}";
@@ -108,17 +101,15 @@ sub crm_cashbox_main {
     }
   );
 
-  my ($cashboxes_table, $cashboxes_list) = result_former(
+  result_former(
     {
       INPUT_DATA => $Crm,
       FUNCTION   => 'list_cashbox',
-
-      # BASE_FIELDS     => 0,
       DEFAULT_FIELDS  => "ID, NAME, COMMENTS",
       FUNCTION_FIELDS => 'crm_cashbox_balance:$lang{BALANCE}:id, change, del',
       EXT_TITLES      => {
         'name'     => "$lang{NAME}",
-        'id'       => "$lang{ID}",
+        'id'       => "ID",
         'comments' => "$lang{COMMENTS}"
       },
       TABLE => {
@@ -161,7 +152,7 @@ sub crm_cashbox_main {
 
 #**********************************************************
 sub crm_cashbox_balance {
-  my ($attr) = @_;
+  #my ($attr) = @_;
 
   my $action      = 'choose';
   my $action_lang = "$lang{CHOOSE}";
@@ -305,7 +296,7 @@ sub crm_cashbox_balance {
 
 #**********************************************************
 sub crm_cashbox_spending_type {
-  my ($attr) = @_;
+  #my ($attr) = @_;
 
   my $action      = 'add';
   my $action_lang = "$lang{ADD}";
@@ -364,7 +355,7 @@ sub crm_cashbox_spending_type {
     }
   );
 
-  my ($table, $list) = result_former(
+  result_former(
     {
       INPUT_DATA => $Crm,
       FUNCTION   => 'list_spending_type',
@@ -374,7 +365,7 @@ sub crm_cashbox_spending_type {
       FUNCTION_FIELDS => "change, del",
       EXT_TITLES      => {
         'name'     => "$lang{NAME}",
-        'id'       => "$lang{ID}",
+        'id'       => "#",
         'comments' => "$lang{COMMENTS}"
       },
       TABLE => {
@@ -416,7 +407,7 @@ sub crm_cashbox_spending_type {
 
 #**********************************************************
 sub crm_cashbox_coming_type {
-  my ($attr) = @_;
+  #my ($attr) = @_;
 
   my $action      = 'add';
   my $action_lang = "$lang{ADD}";
@@ -475,7 +466,7 @@ sub crm_cashbox_coming_type {
     }
   );
 
-  my ($table, $list) = result_former(
+  result_former(
     {
       INPUT_DATA => $Crm,
       FUNCTION   => 'list_coming_type',
@@ -485,7 +476,7 @@ sub crm_cashbox_coming_type {
       FUNCTION_FIELDS => "change, del",
       EXT_TITLES      => {
         'name'     => "$lang{NAME}",
-        'id'       => "$lang{ID}",
+        'id'       => "#",
         'comments' => "$lang{COMMENTS}"
       },
       TABLE => {
@@ -495,10 +486,7 @@ sub crm_cashbox_coming_type {
         ID      => 'CASHBOX',
         header  => '',
         EXPORT  => 1,
-
-        #MENU   => "$lang{ADD}:index=" . get_function_index('ring_rule_add') . ':add' . ";$lang{SEARCH}:index=$index&search_form=1:search;",
       },
-
       #SELECT_VALUE    => {
       # every_month    => { 0 => "$lang{NO}:text-danger",
       #                     1 => "$lang{YES}:text-primary",
@@ -514,7 +502,6 @@ sub crm_cashbox_coming_type {
 }
 
 #**********************************************************
-
 =head2 cashbox_spending_add() -
 
   Arguments:
@@ -524,13 +511,12 @@ sub crm_cashbox_coming_type {
   Examples:
 
 =cut
-
 #**********************************************************
 sub crm_cashbox_spending_add {
-  my ($attr) = @_;
+  #my ($attr) = @_;
 
   my $action      = 'add';
-  my $action_lang = "$lang{ADD}";
+  my $action_lang = $lang{ADD};
   my %CASHBOX;
 
   if ($FORM{add}) {
@@ -575,7 +561,7 @@ sub crm_cashbox_spending_add {
     $CASHBOX{DATE}           = $spending_info->{DATE};
     $CASHBOX{COMMENTS}       = $spending_info->{COMMENTS};
     $CASHBOX{AMOUNT}         = $spending_info->{AMOUNT};
-    $CASHBOX{COMING_TYPE_ID} = $spending_info->{COMING_TYPE_ID};
+    $CASHBOX{SPENDING_TYPE_ID} = $spending_info->{SPENDING_TYPE_ID};
     $CASHBOX{CASHBOX_ID}     = $spending_info->{CASHBOX_ID};
     $CASHBOX{ID}             = $FORM{chg};
   }
@@ -592,7 +578,7 @@ sub crm_cashbox_spending_add {
     }
   );
 
-  $CASHBOX{CASHBOX_SELECT} = cashbox_select({ CASHBOX_ID => $CASHBOX{CASHBOX_ID} });
+  $CASHBOX{CASHBOX_SELECT} = cashbox_select({ ID => $CASHBOX{CASHBOX_ID} });
 
   $html->tpl_show(
     _include('cashbox_spending_add', 'Crm'),
@@ -603,7 +589,7 @@ sub crm_cashbox_spending_add {
     }
   );
 
-  my ($table, $list) = result_former(
+  result_former(
     {
       INPUT_DATA      => $Crm,
       FUNCTION        => 'list_spending',
@@ -615,7 +601,7 @@ sub crm_cashbox_spending_add {
         'cashbox_name'       => "$lang{CASHBOX}",
         'spending_type_name' => "$lang{SPENDING} $lang{TYPE}",
         'date'               => "$lang{DATE}",
-        'id'                 => "$lang{ID}",
+        'id'                 => "ID",
         'comments'           => "$lang{COMMENTS}",
       },
       TABLE => {
@@ -625,10 +611,7 @@ sub crm_cashbox_spending_add {
         ID      => 'CASHBOX',
         header  => '',
         EXPORT  => 1,
-
-        #MENU   => "$lang{ADD}:index=" . get_function_index('ring_rule_add') . ':add' . ";$lang{SEARCH}:index=$index&search_form=1:search;",
       },
-
       #SELECT_VALUE    => {
       # every_month    => { 0 => "$lang{NO}:text-danger",
       #                     1 => "$lang{YES}:text-primary",
@@ -657,7 +640,7 @@ sub crm_cashbox_spending_add {
 
 #**********************************************************
 sub crm_cashbox_coming_add {
-  my ($attr) = @_;
+  #my ($attr) = @_;
 
   my $action      = 'add';
   my $action_lang = "$lang{ADD}";
@@ -722,7 +705,7 @@ sub crm_cashbox_coming_add {
     }
   );
 
-  $CASHBOX{CASHBOX_SELECT} = cashbox_select({ CASHBOX_ID => $CASHBOX{CASHBOX_ID} });
+  $CASHBOX{CASHBOX_SELECT} = cashbox_select({ ID => $CASHBOX{CASHBOX_ID} });
 
   $html->tpl_show(
     _include('cashbox_coming_add', 'Crm'),
@@ -733,7 +716,7 @@ sub crm_cashbox_coming_add {
     }
   );
 
-  my ($table, $list) = result_former(
+  result_former(
     {
       INPUT_DATA      => $Crm,
       FUNCTION        => 'list_coming',
@@ -745,7 +728,7 @@ sub crm_cashbox_coming_add {
         'cashbox_name'     => "$lang{CASHBOX}",
         'coming_type_name' => "$lang{COMING} $lang{TYPE}",
         'date'             => "$lang{DATE}",
-        'id'               => "$lang{ID}",
+        'id'               => "#",
         'comments'         => "$lang{COMMENTS}",
       },
       TABLE => {
@@ -818,20 +801,21 @@ sub cashbox_select {
 
 #**********************************************************
 sub crm_salary {
-  my ($attr) = @_;
+  #my ($attr) = @_;
 
   use Employees;
-  my $Employees = Employees->new($db, $admin, \%conf);
+  $Employees = Employees->new($db, $admin, \%conf);
 
   my ($year, $month, undef) = split('-', $DATE);
-  $month = ($FORM{MONTH} + 1) if defined $FORM{MONTH};
-  
+  $month = ($FORM{MONTH} + 1) if (defined $FORM{MONTH} && $FORM{MONTH} =~ /^\d+$/);
+  $year  = ($FORM{YEAR}) if (defined $FORM{YEAR});
+
   my $month_start = "$year-$month-1";
   my $month_end   = "$year-$month-" . days_in_month();
 
   if($FORM{pay_salary}){
-    print 'Pay salary and add to salary tables as payed';
-    $Crm->add_payed_salary({AID   => $FORM{aid}, 
+    print 'OK OK OK ';
+    $Crm->add_payed_salary({AID   => $FORM{aid},
                             BET   => $FORM{bet} + $FORM{extra_amount},
                             YEAR  => $FORM{year},
                             MONTH => $FORM{month},
@@ -848,11 +832,21 @@ sub crm_salary {
     ARRAY_NUM_ID   => 1,
   }
 );
+  my @YEARS = ('', '2016', '2017', '2018', '2019', '2020');
+  my $year_select = $html->form_select(
+  'YEAR',
+  {
+    SELECTED  => $FORM{YEAR} || $year ,
+    SEL_ARRAY => \@YEARS,
+    # ARRAY_NUM_ID   => 1,
+  }
+);
 
   $html->tpl_show(
     _include('date_choose', 'Crm'),
     {
       MONTH => $month_select,
+      YEAR  => $year_select,
     }
   );
 
@@ -871,18 +865,16 @@ sub crm_salary {
 
   my %admins;
 
-  foreach my $admin (@$time_sheet_listing) {
-
-    my %admin_temp;
-
-    my $date  = $admin->{date};
-    my $aid   = $admin->{aid};
-    my $fio = $admin->{name};
+  foreach my $admin_ (@$time_sheet_listing) {
+    #my %admin_temp;
+    #my $date  = $admin->{date};
+    my $aid   = $admin_->{aid};
+    my $fio = $admin_->{name};
 
     my $dates = {
-      'overtime'  => $admin->{overtime},
-      'work_time' => $admin->{work_time},
-      'extra_fee' => $admin->{extra_fee}
+      'overtime'  => $admin_->{overtime},
+      'work_time' => $admin_->{work_time},
+      'extra_fee' => $admin_->{extra_fee}
     };
 
     $admins{$fio}{aid} = $aid;
@@ -904,21 +896,21 @@ sub crm_salary {
     my $extra_amount     = 0;
     my $bet              = 0;
 
-    my $schedule_info = $Crm->info_aid_schedule({ AID => $aid, COLS_NAME => 1 });
+    my $schedule_info = $Crm->info_bet({ AID => $aid, COLS_NAME => 1 });
 
     if (!(defined $schedule_info)) {
-      $salary_table->addrow($fio, '-', '-', '-');
+      #$salary_table->addrow($fio, '-', '-', '-');
       next;
     }
 
-    my $is_payed = $Crm->info_payed_salary({AID => $aid, MONTH => $month});
+    my $is_payed = $Crm->info_payed_salary({AID => $aid, MONTH => $month, YEAR => $year});
 
     # _bp("is_payed", $is_payed, );
 
     # if( defined $is_payed ){
     #   next;
     # }
-      
+
 
     foreach my $each_admin_day (@all_admins_dates) {
       foreach my $admin_day (@$each_admin_day) {
@@ -927,7 +919,7 @@ sub crm_salary {
           $bet = $schedule_info->{bet};
         }
         elsif ($schedule_info->{type} == 2) {
-          $bet += $schedule_info->{bet_per_day} * $admin_day->{work_time};
+          $bet += $schedule_info->{bet_per_hour} * $admin_day->{work_time};
         }
       }
 
@@ -937,7 +929,7 @@ sub crm_salary {
       $salary_table->{rowcolor} = 'success';
     }
     else{
-      $salary_table->{rowcolor} = 'danger'; 
+      $salary_table->{rowcolor} = 'danger';
     }
 
     $salary_table->addrow($fio,
@@ -960,7 +952,7 @@ sub crm_salary {
 
 #**********************************************************
 
-=head2 crm_work_schedule() -
+=head2 crm_admins_bet() -
 
   Arguments:
     $attr -
@@ -971,8 +963,9 @@ sub crm_salary {
 =cut
 
 #**********************************************************
-sub crm_work_schedule {
-  my ($attr)      = @_;
+sub crm_admins_bet {
+  #my ($attr)      = @_;
+
   my $action      = 'chg';
   my $action_lang = "$lang{CHANGE}";
   my @SCHEDULE_TYPES = ("", "$lang{MONTHLY}", "$lang{HOURLY}", "$lang{OTHER}");
@@ -980,35 +973,35 @@ sub crm_work_schedule {
   my $admins_list = $Admins->list({ FIO => '_SHOW', POSITION => '_SHOW', COLS_NAME => 1 });
 
   if ($FORM{chg}) {
-    my $aid_schedule = $Crm->info_aid_schedule({ COLS_NAME => 1, AID => $FORM{AID} });
+    my $aid_schedule = $Crm->info_bet({ COLS_NAME => 1, AID => $FORM{AID} });
 
     if ($aid_schedule) {
-      $Crm->del_schedule({ AID => $aid_schedule->{AID} });
-      $Crm->add_schedule({%FORM});
+      $Crm->del_bet({ AID => $aid_schedule->{AID} });
+      $Crm->add_bet({%FORM});
     }
     else {
-      $Crm->add_schedule({%FORM});
+      $Crm->add_bet({%FORM});
     }
   }
 
   my $admins_table = $html->table(
     {
       width   => '100%',
-      caption => "$lang{WORK_SCHEDULE}",
+      caption => "$lang{BET}",
       title   => [ "AID", $lang{FIO}, $lang{POSITION}, $lang{TYPE}, $lang{BET}, $lang{BET_PER_HOUR}, $lang{BET_OVERTIME} ]
     }
   );
 
   foreach my $admin_info (@$admins_list) {
     my $position_info = $Employees->position_info({ ID => $admin_info->{position}, COLS_NAME => 1 });
-    my $aid_schedule = $Crm->info_aid_schedule({ COLS_NAME => 1, AID => $admin_info->{aid} });
+    my $aid_schedule = $Crm->info_bet({ COLS_NAME => 1, AID => $admin_info->{aid} });
 
     $admins_table->addrow(
       $admin_info->{aid}, $admin_info->{name},
       $position_info->{POSITION},
       $aid_schedule->{type}         ? $SCHEDULE_TYPES[ $aid_schedule->{type} ] : '-',
       $aid_schedule->{bet}          ? $aid_schedule->{bet}                     : '-',
-      $aid_schedule->{bet_per_day}  ? $aid_schedule->{bet_per_day}             : '-',
+      $aid_schedule->{bet_per_hour}  ? $aid_schedule->{bet_per_hour}             : '-',
       $aid_schedule->{bet_overtime} ? $aid_schedule->{bet_overtime}            : '-',
       $html->button('', "index=$index&AID_SCHEDULE=$admin_info->{aid}", { ICON => 'glyphicon glyphicon-time', })
     );
@@ -1016,7 +1009,7 @@ sub crm_work_schedule {
 
   if ($FORM{AID_SCHEDULE}) {
     $html->message('info', $lang{CHANGE},);
-    my $aid_schedule = $Crm->info_aid_schedule({ COLS_NAME => 1, AID => $FORM{AID_SCHEDULE} });
+    my $aid_schedule = $Crm->info_bet({ COLS_NAME => 1, AID => $FORM{AID_SCHEDULE} });
 
     if ($aid_schedule) {
       $html->tpl_show(
@@ -1059,7 +1052,7 @@ sub crm_work_schedule {
 
 #**********************************************************
 sub crm_spending_document {
-  my ($attr) = @_;
+  #my ($attr) = @_;
 
   return 1;
 }
@@ -1078,7 +1071,7 @@ sub crm_spending_document {
 
 #**********************************************************
 sub crm_coming_document {
-  my ($attr) = @_;
+  #my ($attr) = @_;
 
   return 1;
 }
@@ -1097,34 +1090,32 @@ sub crm_coming_document {
 sub crm_pay_salary {
   my ($attr) = @_;
 
-  # _bp("form", \%FORM, );
-
   my $admin_info = $Admins->info($FORM{aid}, {COLS_NAME => 1});
-  # _bp("admin", $admin_info, );
-  
+
   if($FORM{confirm}){
-    $Crm->{debug}=1;
-    $Crm->add_payed_salary({AID   => $FORM{AID}, 
+    $Crm->add_payed_salary({AID   => $FORM{AID},
                             BET   => $FORM{SUM},
                             YEAR  => $FORM{YEAR},
                             MONTH => $FORM{MONTH},
                           });
 
     if(!$Crm->{errno}){
-      print 'Added salary for this month';
-      $Crm->add_spending({AMOUNT => $FORM{SUM},
-                          CASHBOX_ID => $FORM{CASHBOX_ID},
-                          SPENDING_TYPE_ID => $FORM{SPENDING_TYPE_ID},
-                          DATE => $DATE});
- 
+      $Crm->add_spending({
+        AMOUNT           => $FORM{SUM},
+        CASHBOX_ID       => $FORM{CASHBOX_ID},
+        SPENDING_TYPE_ID => $FORM{SPENDING_TYPE_ID},
+        DATE             => $DATE});
+
+      $html->message("success", "$lang{ADDED}");
+    }
+    else{
+      $html->message("err", "$lang{ERROR}", "$lang{EXIST}");
     }
     # message about success
     return 1;
   }
 
   my $cashbox_select = cashbox_select();
-
-
 
   my $spend_types_select = $html->form_select(
     'SPENDING_TYPE_ID',
@@ -1138,27 +1129,416 @@ sub crm_pay_salary {
     }
   );
 
-
   $html->message('info', $lang{CHECK_DATA_AND_CHOOSE_CASHBOX});
+  my $month         = $FORM{month} || 1;
+  my $bet           = $FORM{bet}  || 0;
+  my $extra_amount  = $FORM{extra_amount} || 0;
 
-  $html->tpl_show(
-        _include('crm_salary_confirm', 'Crm'),
-        {
-          FIO => $admin_info->{A_FIO} || q{},
-          BET        => $FORM{bet},
-          EXTRA_AMOUNT => $FORM{extra_amount},
-          SUM    => $FORM{bet} + $FORM{extra_amount},
-          TEXT_MONTH  => $MONTHES[$FORM{month} - 1],
-          MONTH => $FORM{month},
-          YEAR   => $FORM{year},
-          CASHBOX => $cashbox_select,
-          SPENDING_TYPE_ID => $spend_types_select, 
-          AID => $FORM{aid},
-        }
-      );
-    
+  $html->tpl_show(_include('crm_salary_confirm', 'Crm'),
+    {
+      FIO              => $admin_info->{A_FIO} || q{},
+      BET              => $FORM{bet},
+      EXTRA_AMOUNT     => $FORM{extra_amount},
+      SUM              => $bet + $extra_amount,
+      TEXT_MONTH       => $MONTHES[$month - 1],
+      MONTH            => $month,
+      YEAR             => $FORM{year},
+      CASHBOX          => $cashbox_select,
+      SPENDING_TYPE_ID => $spend_types_select,
+      AID              => $FORM{aid},
+    }
+  );
 
   return 1;
 }
-  
+
+#**********************************************************
+=head2 crm_reference_works() -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub crm_reference_works {
+  my $action      = 'add';
+  my $action_lang = "$lang{ADD}";
+  my %INFO;
+
+  if($FORM{add}){
+    $Crm->add_reference_works({%FORM});
+
+    if(!$Crm->{errno}){
+      $html->message('success',  "$lang{SUCCESS}", "$lang{ADDED}");
+    }
+  }
+  elsif($FORM{change}){
+    $Crm->change_reference_works({%FORM});
+
+    if(!$Crm->{errno}){
+      $html->message('success',  "$lang{SUCCESS}", "$lang{CHANGED}");
+    }
+  }
+  elsif($FORM{chg}){
+    my $info_work = $Crm->info_reference_works({ID => $FORM{chg}});
+
+    $INFO{NAME}  = $info_work->{NAME};
+    $INFO{SUM}   = $info_work->{SUM};
+    $INFO{TIME}  = $info_work->{TIME};
+    $INFO{UNITS} = $info_work->{UNITS};
+    $INFO{DISABLED} = $info_work->{DISABLED};
+    $INFO{ID}    = $info_work->{ID};
+    $INFO{COMMENTS} = $info_work->{COMMENTS};
+    $action     = 'change';
+    $action_lang = "$lang{CHANGE}";
+  }
+  elsif($FORM{del} && $FORM{COMMENTS}){
+    $Crm->delete_reference_works({ID => $FORM{del}});
+
+    if(!$Crm->{errno}){
+      $html->message('success',  "$lang{SUCCESS}", "$lang{DELETED}");
+    }
+  }
+
+  _error_show($Crm);
+
+  $html->tpl_show(_include('reference_works', 'Crm'),{
+    ACTION => $action,
+    ACTION_LANG => $action_lang,
+    %INFO
+    });
+
+  result_former(
+    {
+      INPUT_DATA      => $Crm,
+      FUNCTION        => 'list_reference_works',
+      BASE_FIELDS     => 0,
+      DEFAULT_FIELDS  => "ID, NAME, SUM, TIME, UNITS, DISABLED, COMMENTS",
+      FUNCTION_FIELDS => 'change, del',
+      SELECT_VALUE    => {
+       disabled => { 0 => "$lang{ENABLE}:text-primary",
+                     1 => "$lang{DISABLED}:text-danger"
+                 },},
+      EXT_TITLES      => {
+        'id'    => "ID",
+        'name'  => "$lang{NAME}",
+        'sum'   => "$lang{SUM}",
+        'TIME'  => "$lang{TIME} ($lang{HOURS})",
+        'disabled' => "$lang{DISABLED}",
+        'units' => "$lang{UNITS}",
+        'comments' => "$lang{COMMENTS}",
+      },
+      TABLE => {
+        width   => '100%',
+        caption => "$lang{REFERENCE_WORKS}",
+        qs      => $pages_qs,
+        ID      => 'REFERENCE_WORKS',
+        header  => '',
+        EXPORT  => 1,
+
+        #MENU   => "$lang{ADD}:index=" . get_function_index('ring_rule_add') . ':add' . ";$lang{SEARCH}:index=$index&search_form=1:search;",
+      },
+
+      #SELECT_VALUE    => {
+      # every_month    => { 0 => "$lang{NO}:text-danger",
+      #                     1 => "$lang{YES}:text-primary",
+      #},
+      MAKE_ROWS     => 1,
+      SEARCH_FORMER => 1,
+      MODULE        => 'Crm',
+      TOTAL         => 1
+    }
+  );
+
+  return 1;
+}
+
+#**********************************************************
+=head2 crm_works() -
+
+  Arguments:
+    $attr -
+
+
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub crm_works {
+  my($attr) = @_;
+
+  $Crm->{ACTION}='add';
+  $Crm->{ACTION_LNG}=$lang{ADD};
+
+  if($FORM{add}) {
+    $Crm->works_add(\%FORM);
+    if(! $Crm->{errno}) {
+      $html->message('info', $lang{ERROR}, "$lang{WORK} $lang{ADDED} ");
+      return 1;
+    }
+  }
+  elsif($FORM{change}) {
+    $Crm->works_change(\%FORM);
+    if(! $Crm->{errno}) {
+      $html->message('info', $lang{ERROR}, "$lang{WORK} $lang{CHANGING} ");
+      return 1;
+    }
+  }
+  elsif($FORM{chg}) {
+    $Crm->works_info($FORM{chg});
+    if(! $Crm->{errno}) {
+      $html->message('info', $lang{ERROR}, "$lang{WORK} $lang{CHANGED} ");
+      $Crm->{ACTION}='change';
+      $Crm->{ACTION_LNG}=$lang{CHANGE};
+    }
+  }
+  elsif($FORM{del} && $FORM{COMMENTS}) {
+    $Crm->works_del($FORM{del});
+    if(! $Crm->{errno}) {
+      $html->message('info', $lang{ERROR}, "$lang{WORK} $lang{DELETED} ");
+      return 1;
+    }
+  }
+
+  _error_show($Crm);
+
+  if($attr->{EXT_ID}) {
+    $Crm->{EXT_ID}=$attr->{EXT_ID};
+    $Crm->{UID}=$attr->{UID};
+    $Crm->{WORK}=$attr->{EXT_ID};
+  }
+
+  $Crm->{ADMIN_SEL} = sel_admins({ SELECTED => $Crm->{EMPLOYEE_ID}, NAME => 'EMPLOYEE_ID', REQUIRED => 1 });
+  $Crm->{WORK_SEL}  = $html->form_select('WORK_ID',
+    {
+      SELECTED       => $Crm->{WORK_ID} ||  $FORM{WORK_ID},
+      SEL_LIST       => $Crm->list_reference_works( { COLS_NAME => 1, PAGE_ROWS => 10000 } ),
+      SEL_KEY        => 'id',
+      SEL_VALUE      => 'name,sum',
+      NO_ID          => 1,
+      #SEL_OPTIONS => { '' => '--' },
+      MAIN_MENU      => get_function_index('crm_reference_works'),
+      MAIN_MENU_ARGV => ($Crm->{WORK_ID}) ? "chg=$Crm->{WORK_ID}" : '',
+      EX_PARAMS      => ' required'
+  } );
+
+  $Crm->{RATIO} ||= 1;
+  $html->tpl_show(_include('crm_work_add', 'Crm'), $Crm);
+
+  crm_works_list($attr);
+
+  return 0;
+}
+
+#**********************************************************
+=head2 crm_works_list() -
+
+  Arguments:
+    $attr -
+
+
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub crm_works_list {
+  my ($attr) = @_;
+
+  $LIST_PARAMS{EXT_ID}=$attr->{EXT_ID};
+  $LIST_PARAMS{WORK_ID}=$attr->{WORK_ID};
+
+  $pages_qs .= "&WORK=$attr->{EXT_ID}";
+
+  result_former({
+    INPUT_DATA      => $Crm,
+    FUNCTION        => 'works_list',
+    BASE_FIELDS     => 0,
+    DEFAULT_FIELDS  => "DATE,EMPLOYEE,WORK,RATIO,EXTRA_SUM,SUM,COMMENTS,PAID",
+    FUNCTION_FIELDS => 'change, del',
+    SKIP_USER_TITLE => 1,
+    EXT_TITLES      => {
+      'id'        => "ID",
+      'employee'  => $lang{EMPLOYEES},
+      'admin_name'=> $lang{ADMIN},
+      'work_id'   => "ID $lang{WORK} ",
+      'work'      => $lang{WORK},
+      'ratio'     => $lang{RATIO},
+      'extra_sum' => "$lang{EXTRA} $lang{SUM}",
+      'comments'  => $lang{COMMENTS},
+      'paid'      => $lang{PAID},
+      'sum'       => $lang{SUM},
+      'date'      => $lang{DATE}
+    },
+    TABLE => {
+      width   => '100%',
+      caption => $lang{WORK},
+      qs      => $pages_qs,
+      ID      => 'CRM_WORKS',
+      MENU    => "$lang{ADD}:index=$index$pages_qs:add",
+      #EXPORT  => 1,
+    },
+    SELECT_VALUE    => {
+      paid  => {
+        0 => "$lang{NO}:text-danger",
+        1 => "$lang{YES}:text-primary",
+      }
+    },
+    MAKE_ROWS       => 1,
+    SEARCH_FORMER   => 1,
+    MODULE          => 'Crm',
+    TOTAL           => "TOTAL:$lang{TOTAL};TOTAL_SUM:$lang{SUM}",
+  });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 crm_report_list() -
+
+  Arguments:
+    $attr -
+
+
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub crm_report_list {
+
+ if($FORM{wtch}){
+  crm_works_list({
+    WORK_ID=>$FORM{wtch},
+    EXT_ID=>'',
+  });
+  return 1;
+ }
+
+  my %srm_table_info;
+  my %srm_table_info_id;
+  my %info;
+
+ $info{DATE}=$html->form_daterangepicker({NAME=>'FROM_DATE/TO_DATE'});
+  my $reference_works = $Crm->list_reference_works(
+    {
+      DISABLED  => $FORM{disable}?'0,1':'!1',
+      NAME      => '_SHOW',
+      SUM       => '_SHOW',
+      COLS_NAME => 1,
+    }
+  );
+  my @ids;
+  my $ref_work=0;
+  foreach my $ref_id (@$reference_works){
+    $ref_work=push @ids,$ref_id->{id};
+  }
+  my $id_work_string = join(';', @ids);
+  my $workers = $Crm->works_list(
+    {
+      WORK_ID   => $id_work_string,
+      WORK      => '_SHOW',
+      NAME      => '_SHOW',
+      SUM       => '_SHOW',
+      DATE =>$FORM{FROM_DATE_TO_DATE},
+      COLS_NAME => 1,
+    }
+  );
+  $srm_table_info{'max_sum'} = 0;
+  foreach my $srm_work_info (@$workers) {
+    $srm_table_info_id{ $srm_work_info->{work_id} } = $srm_work_info->{work};
+
+    $srm_table_info{ $srm_work_info->{work_id} . '_SUM' }      += $srm_work_info->{sum};
+    $srm_table_info{ $srm_work_info->{work_id} . '_WORK_SUM' } += 1;
+    $srm_table_info{'total_sum'}                               += $srm_work_info->{sum};
+    $srm_table_info{'total_sum_work'}                          += 1;
+    if ($srm_table_info{ $srm_work_info->{work_id} . '_SUM' } > $srm_table_info{'max_sum'}) {
+      $srm_table_info{'max_sum'} = $srm_table_info{ $srm_work_info->{work_id} . '_SUM' };
+    }
+  }
+  my $crm_works_table = $html->table(
+    {
+      width   => '100%',
+      caption => "$lang{WORK}",
+      title   => [ "ID", $lang{NAME}, $lang{SUM}, $lang{PERCENTAGE} .' '. $lang{SUM}, $lang{EXECUTED}, $lang{PERCENTAGE} .' '. $lang{EXECUTED} ]
+    }
+  );
+   my $bage;
+  foreach my $srm_referens (@$reference_works) {
+    if($srm_referens->{disabled}==0){
+      $bage ='';
+    }
+    else{
+    $bage = $html->element('i', '', { class => "fa fa-fw fa-close" });
+    }
+
+    if (defined($srm_table_info_id{ $srm_referens->{'id'} })) {
+      $crm_works_table->addrow(
+        $srm_referens->{'id'},
+        $bage.$html->button($srm_table_info_id{ $srm_referens->{'id'}},"index=" . get_function_index('crm_reference_works')."&chg=$srm_referens->{'id'}&MODULE=Crm"),
+        $srm_table_info{ $srm_referens->{'id'} . '_SUM' },
+        $html->progress_bar(
+          {
+            TOTAL        => $srm_table_info{'total_sum'},
+            COMPLETE     => $srm_table_info{ $srm_referens->{'id'} . '_SUM' },
+            PERCENT_TYPE => 1,
+            COLOR        => 'ADAPTIVE',
+            MAX          => $srm_table_info{'max_sum'},
+          },
+        ),
+
+        $html->button($srm_table_info{ $srm_referens->{'id'} . '_WORK_SUM' },"index=$index&wtch=$srm_referens->{'id'}"),
+        $html->progress_bar(
+          {
+            TOTAL        => $srm_table_info{'total_sum_work'},
+            COMPLETE     => $srm_table_info{ $srm_referens->{'id'} . '_WORK_SUM' },
+            PERCENT_TYPE => 1,
+            COLOR        => 'MAX_COLOR',
+          },
+        ),
+      );
+    }
+    else {
+      $crm_works_table->addrow(
+        $srm_referens->{'id'},
+        $bage . $html->button($srm_referens->{'name'}),
+        '0',
+        $html->progress_bar(
+          {
+            TOTAL        => $srm_table_info{'total_sum'},
+            COMPLETE     => '0',
+            PERCENT_TYPE => 1,
+            COLOR        => 'ADAPTIVE',
+            MAX          => $srm_table_info{'max_sum'},
+          },
+        ),
+         $html->button('0',"index=$index&wtch=$srm_referens->{'id'}"),
+        $html->progress_bar(
+          {
+            TOTAL        => $srm_table_info{'total_sum_work'},
+            COMPLETE     => '0',
+            PERCENT_TYPE => 1,
+            COLOR        => 'ADAPTIVE',
+          },
+        )
+      );
+    }
+  }
+
+  $crm_works_table->addrow('Всего ', '', $srm_table_info{'total_sum'}, '', $srm_table_info{'total_sum_work'}, '');
+  $html->tpl_show(_include('crm_report_list', 'Crm'), \%info);
+
+  print $crm_works_table->show();
+
+  return 1;
+
+}
+
 1

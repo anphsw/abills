@@ -16,11 +16,11 @@ Supports
 
 =head1 VERSION
 
-Version 1.2
+  VERSION = 1.3
 
 =cut
 
-my $Version = 1.10;
+our $VERSION = 1.3;
 #**********************************************************
 =head1 SYNOPSIS
   By simply calling info_show_comments('table_name', object_id),
@@ -33,13 +33,11 @@ my $Version = 1.10;
 =cut
 #**********************************************************
 
-our $VERSION = 1.00;
 use parent 'main';
-my ($admin, $CONF);
-my ($SORT, $DESC, $PG, $PAGE_ROWS);
+my ($SORT, $DESC, $PG, $PAGE_ROWS) = (1, 'DESC', '1', 10000);
 
 # Singleton reference;
-my $instance;
+my main $instance;
 
 use constant {
   COMMENT_TABLE  => {
@@ -81,14 +79,15 @@ sub new {
 
   unless (defined $instance) {
     my $class = shift;
-    my $db = shift;
-    ($admin, $CONF) = @_;
-    my $self = { };
+    my ($db, $admin, $CONF) = @_;
+    
+    my $self = {
+      db    => $db,
+      admin => $admin,
+      conf  => $CONF,
+    };
+    
     bless($self, $class);
-
-    $self->{db} = $db;
-    $self->{admin}=$admin;
-    $self->{conf}=$CONF;
 
     $instance = $self;
   }
@@ -220,6 +219,11 @@ sub get_images {
   return _get_info_list($obj_type, $id, IMAGE_TABLE, $attr);
 }
 
+#**********************************************************
+=head2 get_image_info($image_id, $attr)
+
+=cut
+#**********************************************************
 sub get_image_info {
   my $self = shift;
   my ($image_id, $attr) = @_;
@@ -307,6 +311,9 @@ sub get_locations {
 }
 
 #**********************************************************
+=head2 add_location($obj_type, $obj_id, $attr)
+
+=cut
 #**********************************************************
 sub add_location {
   my $self = shift;
@@ -385,6 +392,9 @@ sub get_documents {
 }
 
 #**********************************************************
+=head2 get_document_info($document_id, $attr)
+
+=cut
 #**********************************************************
 sub get_document_info {
   my $self = shift;
@@ -394,6 +404,9 @@ sub get_document_info {
 }
 
 #**********************************************************
+=head2 add_document($obj_type, $obj_id, $attr)
+
+=cut
 #**********************************************************
 sub add_document {
   my $self = shift;
@@ -454,28 +467,32 @@ sub _del_info {
 }
 
 #**********************************************************
+=head2 _get_info_info($table, $type_id, $attr) - generalization for DB Select
+
+=cut
 #**********************************************************
 sub _get_info_info {
   my ($table, $type_id, $attr) = @_;
 
-  if (!(defined $type_id)) {
+  if (!defined $type_id) {
     return 0;
   }
 
   my $COLUMNS = join(', ', @{$table->{COLUMNS}});
-  my $ALIAS = $table->{ALIAS};
+  
   my $type = $table->{TYPE};
   my $table_name = $table->{NAME};
+  my $table_al = $table->{ALIAS};
 
   $instance->query2(
     "SELECT
       $COLUMNS
       FROM
-      info_info i
-      LEFT JOIN $table_name $ALIAS ON ($ALIAS.id = i.$type\_id)
+      $table_name $table_al
+      LEFT JOIN info_info i ON ($table_al.id = i.$type\_id)
       LEFT JOIN admins a ON (i.admin_id = a.aid)
-      WHERE i.$type\_id <> 0 AND $ALIAS.id = ?
-      LIMIT $PG, $PAGE_ROWS",
+      WHERE i.$type\_id <> 0 AND $table_al.id = ?
+      LIMIT 1",
     undef,
     {
     %{$attr},
@@ -491,6 +508,9 @@ sub _get_info_info {
 }
 
 #**********************************************************
+=head2 _get_info_list($obj_type, $id, $table, $attr)
+
+=cut
 #**********************************************************
 sub _get_info_list {
   my ($obj_type, $id, $table, $attr) = @_;
@@ -548,6 +568,9 @@ sub _get_info_list {
 }
 
 #**********************************************************
+=head2 _add_info($obj_type, $obj_id, $table, $attr)
+
+=cut
 #**********************************************************
 sub _add_info {
   my ($obj_type, $obj_id, $table, $attr) = @_;
@@ -577,9 +600,9 @@ sub _add_info {
     {
       OBJ_TYPE => $obj_type,
       OBJ_ID   => $obj_id,
-      "$key"   => $instance->{INSERT_ID},
+      $key     => $instance->{INSERT_ID},
       DATE     => 'NOW()',
-      ADMIN_ID => $admin->{AID}
+      ADMIN_ID => $instance->{admin}{AID}
     }
   );
 
@@ -587,6 +610,9 @@ sub _add_info {
 }
 
 #**********************************************************
+=head2 get_error($errno, $errstr)
+
+=cut
 #**********************************************************
 sub get_error {
   my ($errno, $errstr) = @_;

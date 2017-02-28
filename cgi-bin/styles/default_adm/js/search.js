@@ -6,7 +6,8 @@
  *
  */
 'use strict';
-$.getScript('/styles/default_adm/js/dynamicForms.js');
+if (typeof(window['getMultiSimpleRow']) === 'undefined')
+  $.getScript('/styles/default_adm/js/dynamicForms.js');
 
 /*Global section*/
 $('#clear_results').click(function (event) {
@@ -63,12 +64,12 @@ function fill_one_row_array_based(params) {
  * fill Array based multi-row search popup window
  */
 function fill_array_based(params) {
-  var modalData = get_in_search_form(get_multi_simple_row(params));
+  var modalData = get_in_search_form(getMultiSimpleRow(params));
   loadDataToModal(modalData);
 }
 
 function fill_array_based_search(params, stringCSV_URL) {
-  var modalData = get_in_search_form(get_multi_simple_row(params), stringCSV_URL);
+  var modalData = get_in_search_form(getMultiSimpleRow(params), stringCSV_URL);
   loadDataToModal(modalData);
 }
 
@@ -82,6 +83,28 @@ function get_input_val(strInputName) {
   return $("input[name|=" + strInputName + "]").val();
 }
 
+function setup_search_form(popup_name) {
+  // Set up inner window logic
+  var $search_button = $('button#search');
+  var have_results   = $('.clickSearchResult').length > 0;
+  
+  if ($search_button.length) {
+    $search_button.on('click', function () {
+      getDataURL(formURL, function () {
+        make_choosable_tr(popup_name);
+      });
+    });
+  }
+  
+  if (have_results) {
+    make_choosable_tr(popup_name);
+  }
+  
+  if (typeof (should_open_results_tab) !== 'undefined' && should_open_results_tab === '1') {
+    enableResult_Pill();
+  }
+  console.log('setuop');
+}
 
 function fill_template_based(template_params) {
   var formURL           = template_params[0];
@@ -90,8 +113,9 @@ function fill_template_based(template_params) {
   var searchString      = template_params[3];
   var window_type       = template_params[4];
   
-  if (parent_input_name != '')
+  if (parent_input_name != '') {
     searchString += "&" + parent_input_name + "=" + get_input_val(parent_input_name);
+  }
   
   console.log('search_string : \'' + searchString + "\'");
   
@@ -101,35 +125,15 @@ function fill_template_based(template_params) {
           make_choosable_td(popup_name);
           bind_click_search_result(popup_name);
         });
+    
+    setup_search_form(popup_name);
   }
   
-  
-  function setup_search_form() {
-    // Set up inner window logic
-    var $search_button = $('button#search');
-    var have_results   = $('.clickSearchResult').length > 0;
-    
-    if ($search_button.length) {
-      $search_button.on('click', function () {
-        getDataURL(formURL, function () {
-          make_choosable_tr(popup_name);
-        });
-      });
-    }
-    
-    if (have_results) {
-      make_choosable_tr(popup_name);
-    }
-    
-    if (typeof (should_open_results_tab) !== 'undefined' && should_open_results_tab === '1') {
-      enableResult_Pill();
-    }
-  }
   
   if (window_type == 'search') {
-    
-    
-    loadRawToModal(formURL + '?' + searchString, setup_search_form);
+    loadRawToModal(formURL + '?' + searchString, function(){
+      setup_search_form(popup_name)
+    });
   }
 }
 
@@ -143,9 +147,23 @@ function make_choosable_td(popup_name) {
 }
 
 function make_choosable_tr(popup_name) {
+  
+  if (!popup_name){
+    console.warn('Wrong popup_name', popup_name);
+    return false;
+  }
+  
   $('tr').on('click', function () {
-    $("input[name|='" + popup_name + "']").val($(this).find('.clickSearchResult').parent().prev().text());
-    $("input[name|='" + popup_name + "1']").val($(this).find('.clickSearchResult').text());
+    var $clickSearchResult =  $(this).find('.clickSearchResult');
+    
+    // Looking for id in first column of row
+    var id = $(this).find('td').first().text();
+    
+    //Looking for name in attribute or inner text
+    var name = $clickSearchResult.attr('name') || $clickSearchResult.text() || id;
+    
+    $("input[name|='" + popup_name + "']").val(id);
+    $("input[name|='" + popup_name + "1']").val(name);
     aModal.hide();
   });
 }
@@ -156,12 +174,14 @@ function bind_click_search_result(popup_name) {
     fill_search_results(popup_name, $(this).attr('value'));
     aModal.hide();
   });
+  console.log('clickSearch');
 }
 
 function fill_search_results(popup_name, value) {
+  console.log(popup_name);
   $("input[name|='" + popup_name + "']").val(value);
   $("input[name|='" + popup_name + "1']").val(value);
-  $('#PopupModal').modal('hide');
+  aModal.hide();
   $('#modalContent').html('');
 }
 

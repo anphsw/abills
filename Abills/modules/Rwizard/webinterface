@@ -6,7 +6,23 @@
 
 =cut
 
+use strict;
+use warnings FATAL => 'all';
+
 use Reports;
+
+our (
+  $db,
+  $html,
+  $admin,
+  %conf,
+  %lang,
+  %permissions,
+  @MONTHES,
+  @WEEKDAYS,
+  %DATA_HASH
+);
+
 my $Reports = Reports->new($db, $admin, \%conf);
 
 #**********************************************************
@@ -151,7 +167,6 @@ $Reports->{FIELDS}
 =cut
 #**********************************************************
 sub rwizard {
-  my ($attr) = @_;
 
   if ($FORM{qindex} && ! $FORM{print} && ! $FORM{_export}) {
     $FORM{print} = $FORM{REPORT};
@@ -171,7 +186,7 @@ sub rwizard {
       EX_PARAMS      => "onchange='autoReload()'",
       SEL_OPTIONS    => { '' => '--' },
       #MAIN_MENU      => get_function_index('rwizard_config'),
-      #MAIN_MENU_AGRV => "chg=$FORM{GID}"
+      #MAIN_MENU_ARGV => "chg=$FORM{GID}"
     }
   );
 
@@ -183,7 +198,7 @@ sub rwizard {
       SEL_LIST       => $list,
       NO_ID          => 1,
       MAIN_MENU      => get_function_index('rwizard_config'),
-      MAIN_MENU_AGRV => "chg=$FORM{REPORT}"
+      MAIN_MENU_ARGV => ($FORM{REPORT}) ? "chg=$FORM{REPORT}" : q{}
     }
   );
 
@@ -232,8 +247,8 @@ sub rwizard {
 
     if ($Reports->{QUERY} =~ /%GID%/g) {
       push @rows, "$lang{GROUP}: " . sel_groups();
-      $pages_qs .= "&GID=$FORM{GID}";
-      if ($FORM{GID} eq '') {
+      $pages_qs .= "&GID=$FORM{GID}" if(defined($FORM{GID}));
+      if (! defined($FORM{GID}) || $FORM{GID} eq '') {
         $Reports->{QUERY}       =~ s/and [a-z0-9\.\_]+\=\'%GID%\'//ig;
         $Reports->{QUERY_TOTAL} =~ s/and [a-z0-9\.\_]+\=\'%GID%\'//ig;
       }
@@ -255,7 +270,7 @@ sub rwizard {
         push @rows, "$_params: " . $html->form_input($_params, "$default_parameters_value", { INPUT2RETURN => 1 });
         $pages_qs .= '&'."$_params=$default_parameters_value";
 
-        if ($FORM{$_params} eq '') {
+        if (! defined($FORM{$_params}) || $FORM{$_params} eq '') {
           $Reports->{QUERY}       =~ s/[and]{0,3} [a-z0-9\.\_]+\=\'?$params_expr\'?//ig;
           $Reports->{QUERY_TOTAL} =~ s/[and]{0,3} [a-z0-9\.\_]+\=\'?$params_expr\'?//ig;
 
@@ -264,8 +279,8 @@ sub rwizard {
         }
         else {
           my $prefix  = '=';
-          my $deposit = $FORM{$_params};
-          if ($FORM{$_params}=~s/([<=>]+)//g) {
+          #my $deposit = $FORM{$_params};
+          if ($FORM{$_params} && $FORM{$_params}=~s/([<=>]+)//g) {
             $prefix=$1;
           }
 
@@ -287,7 +302,7 @@ sub rwizard {
            CONTENT => $html->tpl_show(templates('form_address_sel'), \%FORM, { OUTPUT2RETURN => 1, ID => 'form_address_sel' }),
            NAME    => $lang{ADDRESS},
            ID      => 'ADDRESS_FORM',
-           PARAMS  => 'in'
+           PARAMS  => ''
           },
          { OUTPUT2RETURN => 1 });
 
@@ -381,7 +396,7 @@ sub rwizard {
       $Reports->{debug}=1;
     }
 
-    my $list = $Reports->mk(
+    $list = $Reports->mk(
       {
         QUERY       => $Reports->{QUERY},
         QUERY_TOTAL => $Reports->{QUERY_TOTAL},
@@ -391,11 +406,14 @@ sub rwizard {
     );
 
     if ($#titles == -1) {
-      @titles    = @{ $Reports->{REPORT_COLS_NAME} };
+      if($Reports->{REPORT_COLS_NAME}) {
+        @titles = @{ $Reports->{REPORT_COLS_NAME} };
+      }
       @col_names = @titles;
     }
 
     _error_show($Reports);
+    my %CHART = ();
 
     if ($FORM{print}) {
       $Reports->{TIME}        = $TIME;
@@ -409,7 +427,7 @@ sub rwizard {
       while($active_page <= $total_records) {
         $LIST_PARAMS{PG}=$active_page;
 
-        my $list = $Reports->mk(
+        $list = $Reports->mk(
         {
           QUERY       => $Reports->{QUERY},
           QUERY_TOTAL => $Reports->{QUERY_TOTAL},
@@ -419,7 +437,7 @@ sub rwizard {
 
         if (_include('rwizard_print_rows_' . $FORM{print}, 'Rwizard', { CHECK_ONLY => 1  })) {
           foreach my $line ( @$list ) {
-            if (defined($line-{payment_method})) {
+            if (defined($line->{payment_method})) {
               $line->{payment_method}=$payment_methods->{$line->{payment_method}};
             }
 
@@ -451,7 +469,7 @@ sub rwizard {
               if ($cols_params{$c}{FILTER}) {
                 my $fn_name = $cols_params{$c}{FILTER};
                 if (defined( &$fn_name )) {
-                  $val = $fn_name->($line->{$c});
+                  $val = &{ \&$fn_name }($line->{$c});
                 }
               }
 
@@ -476,7 +494,7 @@ sub rwizard {
       }
     }
     else {
-      $table = $html->table(
+      my $table = $html->table(
         {
           width   => '100%',
           caption => "$Reports->{NAME}",
@@ -510,7 +528,7 @@ sub rwizard {
           if ($cols_params{$c}{FILTER}) {
             my $fn_name = $cols_params{$c}{FILTER};
             if (defined( &$fn_name )) {
-              $val = $fn_name->($line->{$c});
+              $val = &{ \&$fn_name }($line->{$c});
             }
           }
 
@@ -528,7 +546,7 @@ sub rwizard {
           if ($cols_params{$c}{POST_FILTER}) {
             my $fn_name = $cols_params{$c}{POST_FILTER};
             if (defined( &$fn_name )) {
-              $val = $fn_name->($line->{$c});
+              $val = &{ \&$fn_name }($line->{$c});
             }
           }
 
@@ -561,7 +579,7 @@ sub rwizard {
       #Show charts
       $html->make_charts(
         {
-          PERIOD        => $graph_type,
+          #PERIOD        => $graph_type,
           DATA          => \%DATA_HASH,
           #OUTPUT2RETURN => 1,
           %CHART
@@ -579,49 +597,42 @@ sub rwizard {
 }
 
 #**********************************************************
-#
+=head2 rwizard_groups()
+
+=cut
 #**********************************************************
 sub rwizard_groups {
-  my $button = $lang{ADD};
-  my $action = 'add';
-  my $group_info;
+  $Reports->{ACTION_LNG} = $lang{ADD};
+  $Reports->{ACTION} = 'add';
 
-  if($FORM{action} eq 'add'){
+  if($FORM{add}){
     $Reports->add_group({%FORM});
     if (!$Reports->{errno}) {
       $html->message('info', $lang{GROUPS}, "$lang{ADDED}");
     }
   }
+ elsif($FORM{change}){
+    $Reports->change_group(\%FORM);
 
-  if($FORM{action} eq 'change'){
-    $Reports->change_group({ ID        => $FORM{id},
-                              NAME     => $FORM{NAME},
-                              COMMENTS => $FORM{COMMENTS}});
     if (!$Reports->{errno}) {
       $html->message('info', $lang{GROUPS}, "$lang{CHANGED}");
     }
   }
-
-  if($FORM{del}){
+  elsif($FORM{del} && $FORM{COMMENTS}){
     $Reports->del_group({ID => $FORM{del}});
     if (!$Reports->{errno}) {
       $html->message('err', $lang{GROUPS}, "$lang{DELETED}");
     }
   }
-
-  if($FORM{chg}){
-    $group_info = $Reports->info_group({ID => $FORM{chg}});
-    $action = 'change';
-    $button = "$lang{CHANGE}";
+  elsif($FORM{chg}){
+    $Reports->info_group({ID => $FORM{chg}});
+    $Reports->{ACTION_LNG} = $lang{CHANGE};
+    $Reports->{ACTION} = 'change';
   }
 
+  _error_show($Reports);
 
-  $html->tpl_show(_include('rwizard_groups_add', 'Rwizard'), { BUTTON   => $button,
-                                                               ACTION   => $action,
-                                                               NAME     => $group_info->{NAME},
-                                                               COMMENTS => $group_info->{COMMENTS},
-                                                               ID       => $FORM{chg}
-                                                               });
+  $html->tpl_show(_include('rwizard_groups_add', 'Rwizard'), $Reports);
 
   my $table = $html->table(
     {
@@ -633,7 +644,7 @@ sub rwizard_groups {
   );
 
   my $group_list = $Reports->list_groups({COLS_NAME => 1});
-  foreach $group (@$group_list){
+  foreach my $group (@$group_list){
     $table->addrow($group->{id}, $group->{name}, $group->{comments},
       $html->button($lang{INFO}, "index=" . get_function_index('rwizard_groups') . "&chg=$group->{id}", { class => 'change' }),
       $html->button($lang{DEL},  "index=" . get_function_index('rwizard_groups') . "&del=$group->{id}", { MESSAGE => "$lang{DEL} $group->{id}?", class => 'del' })
@@ -641,18 +652,99 @@ sub rwizard_groups {
   }
 
   print $table->show();
+
   return 1;
 }
 
 
 #**********************************************************
-#
+=head2 rwizard_start_page()
+
+=cut
 #**********************************************************
-sub rwizard_print {
-  my ($attr) = @_;
+sub rwizard_start_page {
+  #my ($attr) = @_;
 
+  my %START_PAGE_F = (
+    'rwizard_sp' => $lang{DEPOSIT_CHECK},
+  );
 
+  return \%START_PAGE_F;
 
+  return 1;
 }
+
+#**********************************************************
+=head2 rwizard_sp()
+
+=cut
+#**********************************************************
+sub rwizard_sp {
+
+  my $users_list = $users->list({
+    DEPOSIT   => '_SHOW',
+    BILL_ID   => '_SHOW',
+    #REGISTRATION => '>2015-01-01',
+    COLS_NAME => 1,
+    PAGE_ROWS => 1000000
+  });
+
+  $conf{DEPOST_CHECK_LIMIT}=1 if (! defined($conf{DEPOST_CHECK_LIMIT}));
+
+  my %users_deposit = ();
+  my %users_login = ();
+  foreach my $u (@$users_list) {
+    if($u->{bill_id}) {
+      $users_deposit{$u->{bill_id}} = $u->{deposit};
+      $users_login{$u->{bill_id}} = "$u->{uid}:$u->{login}:$u->{deposit}";
+    }
+  }
+
+  #Fees
+  $users->query2("SELECT bill_id, SUM(sum) AS sum FROM fees GROUP BY bill_id;", undef, { COLS_NAME => 1 });
+
+  foreach my $u (@{ $users->{list} }) {
+    $users_deposit{$u->{bill_id}}+=$u->{sum};
+  }
+
+  #Payments
+  $users->query2("SELECT bill_id, SUM(sum) AS sum FROM payments GROUP BY bill_id;", undef, { COLS_NAME => 1 });
+
+  foreach my $u (@{ $users->{list} }) {
+    $users_deposit{$u->{bill_id}}-=$u->{sum};
+  }
+
+  my @rows = ();
+  foreach my $bill_id ( sort keys %users_deposit ) {
+    my $sum = sprintf("%.2f", $users_deposit{$bill_id});
+    if(abs($sum) < $conf{DEPOST_CHECK_LIMIT}) {
+      next;
+    }
+    elsif(! $users_login{$bill_id}) {
+      next;
+    }
+
+    my($uid, $login, $deposit)=split(/:/, $users_login{$bill_id});
+    push @rows, [
+      $html->button($login, "index=15&UID=$uid"),
+      $sum,
+      $deposit
+    ];
+  }
+
+  my $table = $html->table({
+    width      => '100%',
+    caption    => $lang{DEPOSIT_CHECK}.' '.($#rows+1),
+    title_plain=> [ $lang{USER}, $lang{DIFFERENCE}, $lang{DEPOSIT} ],
+    ID         => 'RWIZARD_DEPOSIT_CHECK',
+    rows       => \@rows,
+  });
+
+  my $reports = $table->show();
+
+  return $reports;
+}
+
+
 
 1

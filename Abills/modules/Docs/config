@@ -1,5 +1,5 @@
 #Iner_ID : Main or Sub or if -1 user menu func list
-%FUNCTIONS_LIST = (
+our %FUNCTIONS_LIST = (
   "01:-1:$lang{DOCS}:docs_invoices_list:UID"                 => 20,
   "02:1:$lang{INVOICES}:docs_invoices_list:UID"              => 20,
   "03:1:$lang{NEXT_PERIOD_INVOICE}:docs_invoice_company:UID" => 20,
@@ -33,6 +33,8 @@
 
 );
 
-%USER_FUNCTION_LIST = ("01:0:$lang{DOCS}:docs_invoices_list:" => 0);
+if (! $conf{DOCS_SKIP_USER_MENU}) {
+  our %USER_FUNCTION_LIST = ("01:0:$lang{DOCS}:docs_invoices_list:" => 0);
+}
 
 1

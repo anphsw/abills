@@ -10,24 +10,26 @@
 use strict;
 use warnings FATAL => 'all';
 use Dhcphosts;
-use Abills::Base;
+use Abills::Base qw(ip2int int2ip in_array tpl_parse);
 use Abills::Filters;
 use Socket;
 use Nas;
 
-our $db;
-our %conf;
-our $admin,
-our $html;
-our %AUTH;
-our %lang;
-our $var_dir;
-our @bool_vals;
-our @status;
-our %permissions;
+our(
+  $db,
+  %conf,
+  $admin,
+  $html,
+  %AUTH,
+  %lang,
+  $var_dir,
+  @bool_vals,
+  @status,
+  %permissions,
+);
 
 my $Dhcphosts = Dhcphosts->new( $db, $admin, \%conf );
-my $Nas = Nas->new( $db, \%conf );
+my $Nas       = Nas->new( $db, \%conf, $admin );
 
 #*******************************************************************
 =head2 dhcphosts_user_del() Delete user from module
@@ -55,14 +57,12 @@ sub dhcphosts_periodic{
   my $debug_output = '';
   $debug_output .= "Dhcphosts: Dhcp reconfigure\n" if ($debug > 1);
 
-  dhcphosts_config(
-    {
-      NETWORKS   => '-',
-        reconfig => 1,
-        QUITE    => 1,
-        DEBUG    => $attr->{DEBUG}
-    }
-  );
+  dhcphosts_config({
+    NETWORKS   => '-',
+    reconfig => 1,
+    QUITE    => 1,
+    DEBUG    => $attr->{DEBUG}
+  });
 
   $DEBUG .= $debug_output;
   return $debug_output;
@@ -113,22 +113,20 @@ sub dhcphosts_mac_block_show{
     $PARAMS{EXT_DEPOSIT} = '_SHOW';
   }
 
-  my $list = $Dhcphosts->hosts_list(
-    {
-      IP          => '_SHOW',
-      MAC         => '_SHOW',
-      LOGIN       => '_SHOW',
-      EXPIRE      => '_SHOW',
-      STATUS      => '_SHOW',
-      CREDIT      => '_SHOW',
-      DEPOSIT     => '_SHOW',
-      EXT_DEPOSIT => '_SHOW',
-      DELETED     => 0,
-      PAGE_ROWS   => 1000000,
-      %PARAMS,
-      COLS_NAME   => 1
-    }
-  );
+  my $list = $Dhcphosts->hosts_list({
+    IP          => '_SHOW',
+    MAC         => '_SHOW',
+    LOGIN       => '_SHOW',
+    EXPIRE      => '_SHOW',
+    STATUS      => '_SHOW',
+    CREDIT      => '_SHOW',
+    DEPOSIT     => '_SHOW',
+    EXT_DEPOSIT => '_SHOW',
+    DELETED     => 0,
+    PAGE_ROWS   => 1000000,
+    %PARAMS,
+    COLS_NAME   => 1
+  });
 
   #Get Templates default for IP Guard
   my $DENY_TEMPLATE = ($conf{DHCPHOSTS_IPGUARD_DENY_TPL}) ? $conf{DHCPHOSTS_IPGUARD_DENY_TPL} : '';
@@ -248,7 +246,10 @@ sub dhcphosts_mac_block_make{
 #*******************************************************************
 sub dhcphosts_mac_block{
   if ( $FORM{MAKE} ){
-    my $ret = dhcphosts_mac_block_make( $FORM{ETHER_CONTENT} );
+    my $ret;
+    if ( -e "/usr/local/etc/rc.d/ipguard.sh" || -e "$var_dir/ipguard" ) {
+      $ret = dhcphosts_mac_block_make( $FORM{ETHER_CONTENT} );
+    }
     if ( $ret eq '1' ){
       print $html->message( 'info', $lang{INFO}, "$lang{CHANGED} '$var_dir/ipguard'" );
     }
@@ -300,66 +301,68 @@ sub dhcphosts_monitor{
   #Get info from DB
   if ( $conf{DHCPHOSTS_LEASES} eq 'db' ){
     my %state_hash = (
-      'unknown'   => 0,
-      'free'      => 1,
+      'unknown'        => 0,
+      'free'           => 1,
       "$lang{ACTIV}"   => 2,
-      'abandoned' => 3,
+      'abandoned'      => 3,
       "$lang{EXPIRED}" => 4
     );
 
     my %state_hash_rev = reverse %state_hash;
 
-    form_search(
-      {
-        SIMPLE => {
-          "$lang{LOGIN}"          => 'LOGIN',
-          "$lang{HOSTS_HOSTNAME}" => 'HOSTNAME',
-          'IP'                    => 'IP',
-          "$lang{NAS}"            => 'NAS_ID',
-          'MAC'                   => 'HARDWARE',
-          "$lang{EXPIRE}"         => 'ENDS',
-          'CIRCUIT_ID'            => 'CIRCUIT_ID',
-          'REMOTE_ID'             => 'REMOTE_ID',
-          'STATE'                 => { '' => $lang{ALL}, %state_hash_rev }
-        },
-      }
-    );
+    form_search({
+      SIMPLE => {
+        "$lang{LOGIN}"          => 'LOGIN',
+        "$lang{HOSTS_HOSTNAME}" => 'HOSTNAME',
+        'IP'                    => 'IP',
+        "$lang{NAS}"            => 'NAS_ID',
+        'MAC'                   => 'HARDWARE',
+        'VLAN'                  => 'VID',
+        "$lang{EXPIRE}"         => 'ENDS',
+        'CIRCUIT_ID'            => 'CIRCUIT_ID',
+        'REMOTE_ID'             => 'REMOTE_ID',
+        'GUEST',                => 'GUEST',
+        'STATE'                 => { '' => $lang{ALL}, %state_hash_rev }
+      },
+    });
 
     my Abills::HTML $table;
     my $dhcp_list;
-    ($table, $dhcp_list) = result_former(
-      {
-        INPUT_DATA        => $Dhcphosts,
-          FUNCTION        => 'leases_list',
-          BASE_FIELDS     => 14,
-          DEFAULT_FIELDS  => 'LOGIN,IP,START,HARDWARE,HOSTNAME,END,STATE,PORT,VLAN,FLAG,NAS_ID,DEMOTE_ID',
-          FUNCTION_FIELDS => 'ping,del',
-          EXT_TITLES      => {
-          'start'      => $lang{START},
-          'hardware'   => 'MAC',
-          'hostname'   => $lang{HOSTNAME},
-          'ends'       => $lang{END},
-          'port'       => $lang{PORTS},
-          'vlan'       => 'Vlan',
-          'nas_id'     => 'NAS',
-          'remote_id'  => 'REMOTE ID',
-          'ip'         => 'IP',
-          'admin_name' => $lang{ADMIN},
-        },
-          TABLE           => {
-          width   => '100%',
-          caption => "DHCP Leases ($conf{DHCPHOSTS_LEASES})",
-          qs      => $pages_qs,
-          pages   => $Dhcphosts->{TOTAL},
-          header  => $html->button( "$lang{DEL} $lang{ALL}", "index=$index&del=1",
-            { MESSAGE => "$lang{DEL} $lang{ALL}?", class => 'btn btn-default' } ) . ' ' . $html->button( "$lang{DEL} $lang{EXPIRED}",
-            "index=$index&del=1&ENDED=1", { MESSAGE => "$lang{DEL} $lang{EXPIRED}?", class => 'btn btn-default' } ),
-          ID      => 'DHCPHOSTS_LEASES',
-          EXPORT  => 1,
-          #MENU       => "$lang{SEARCH}:search_form=1:search",
-        }
+
+    ($table, $dhcp_list) = result_former({
+      INPUT_DATA      => $Dhcphosts,
+      FUNCTION        => 'leases_list',
+      BASE_FIELDS     => 12,
+      DEFAULT_FIELDS  => 'LOGIN,IP,START,HARDWARE,HOSTNAME,END,STATE,PORT,VLAN,FLAG,NAS_ID',
+      HIDDEN_FIELDS   => 'REMOTE_ID,CIRCUIT_ID',
+      FUNCTION_FIELDS => 'ping,del',
+      EXT_TITLES      => {
+        'start'      => $lang{START},
+        'hardware'   => 'MAC',
+        'hostname'   => $lang{HOSTNAME},
+        'ends'       => $lang{END},
+        'port'       => $lang{PORTS},
+        'vlan'       => 'Vlan',
+        'nas_id'     => 'NAS',
+        'remote_id'  => 'REMOTE ID',
+        'circuit_id' => 'CIRCUIT ID',
+        'ip'         => 'IP',
+        'admin_name' => $lang{ADMIN},
+        'dhcp_id'    => 'DHCP ID',
+        'flag'       => $lang{GUEST}
+      },
+      TABLE           => {
+        width   => '100%',
+        caption => "DHCP Leases ($conf{DHCPHOSTS_LEASES})",
+        qs      => $pages_qs,
+        pages   => $Dhcphosts->{TOTAL},
+        header  => $html->button( "$lang{DEL} $lang{ALL}", "index=$index&del=1",
+          { MESSAGE => "$lang{DEL} $lang{ALL}?", class => 'btn btn-default' } ) . ' ' . $html->button( "$lang{DEL} $lang{EXPIRED}",
+          "index=$index&del=1&ENDED=1", { MESSAGE => "$lang{DEL} $lang{EXPIRED}?", class => 'btn btn-default' } ),
+        ID      => 'DHCPHOSTS_LEASES',
+        EXPORT  => 1,
       }
-    );
+    });
 
     $table->{SKIP_FORMER} = 1;
     foreach my $line ( @{$dhcp_list} ){
@@ -374,7 +377,7 @@ sub dhcphosts_monitor{
       my $delete = $html->button( 'del', "index=$index&del=1&MAC=$line->{hardware}",
         { TITLE => $lang{DEL}, MESSAGE => "$lang{DEL} [$line->{hardware}] ?", class => 'del' } );
 
-      for ( my $i = 0; $i < 14 + $Dhcphosts->{SEARCH_FIELDS_COUNT}; $i++ ){
+      for ( my $i = 0; $i < 12 + $Dhcphosts->{SEARCH_FIELDS_COUNT} - $table->{HIDDEN_FIELD_COUNT}; $i++ ){
         my $field_name = $Dhcphosts->{COL_NAMES_ARR}->[$i];
         if ( $field_name eq 'login' && $line->{uid} ){
           $line->{login} = $html->button( $line->{login}, "index=15&UID=$line->{uid}" );
@@ -395,6 +398,9 @@ sub dhcphosts_monitor{
           $line->{$field_name} = ($line->{$field_name} < 0) ? $html->color_mark( $line->{$field_name},
               $_COLORS[6] )                                 : $line->{$field_name};
         }
+        elsif($field_name eq 'ip') {
+          $line->{ip} = int2ip($line->{ip});
+        }
 
         push @fields_array, $line->{$field_name};
       }
@@ -406,14 +412,12 @@ sub dhcphosts_monitor{
     print $table->show();
 
     if ( !$admin->{MAX_ROWS} ){
-      $table = $html->table(
-        {
-          width      => '100%',
-          cols_align => [ 'right', 'right', 'right', 'right', 'right', 'right' ],
-          rows       => [ [ "$lang{TOTAL}:", $html->b( $Dhcphosts->{TOTAL} ) ] ],
-          rowcolor   => 'even'
-        }
-      );
+      $table = $html->table({
+        width      => '100%',
+        cols_align => [ 'right', 'right', 'right', 'right', 'right', 'right' ],
+        rows       => [ [ "$lang{TOTAL}:", $html->b( $Dhcphosts->{TOTAL} ) ] ],
+        rowcolor   => 'even'
+      });
       print $table->show();
     }
 
@@ -429,29 +433,25 @@ sub dhcphosts_monitor{
   $LIST_PARAMS{PAGE_ROWS} = 100000;
   $LIST_PARAMS{IPS} = join( ", ", keys %{$dhcp_hash} );
 
-  my $hosts_list = $Dhcphosts->hosts_list(
-    {
-      IP        => '_SHOW',
-      MAC       => '_SHOW',
-      LOGIN     => '_SHOW',
-      EXPIRE    => '_SHOW',
-      HOSTNAME  => '_SHOW',
-      %LIST_PARAMS,
-      COLS_NAME => 1
-    }
-  );
+  my $hosts_list = $Dhcphosts->hosts_list({
+    IP        => '_SHOW',
+    MAC       => '_SHOW',
+    LOGIN     => '_SHOW',
+    EXPIRE    => '_SHOW',
+    HOSTNAME  => '_SHOW',
+    %LIST_PARAMS,
+    COLS_NAME => 1
+  });
 
-  my $table = $html->table(
-    {
-      width      => '100%',
-      caption    => "$lang{HOSTS}",
-      title      =>
+  my $table = $html->table({
+    width      => '100%',
+    caption    => "$lang{HOSTS}",
+    title      =>
       [ "$lang{USER}", 'IP', "$lang{START}", "MAC", "$lang{HOSTS}", "abandoned", "$lang{STATE}", "remote-id", "circuit_id", "-" ],
-      cols_align => [ 'left', 'right', 'right', 'right', 'left', 'center:noprint', 'center:noprint', 'center:noprint',
-        'center:noprint' ],
-      ID         => 'MONITOR_DHCP'
-    }
-  );
+    cols_align => [ 'left', 'right', 'right', 'right', 'left', 'center:noprint', 'center:noprint', 'center:noprint',
+       'center:noprint' ],
+    ID         => 'MONITOR_DHCP'
+  });
 
   $table->{rowcolor} = $_COLORS[0];
   $table->{extra} = "colspan='9'";
@@ -643,34 +643,75 @@ sub dhcphosts_networks{
     'NET_PARENT',
     {
       SELECTED    => $Dhcphosts->{NET_PARENT},
-      SEL_LIST    => $Dhcphosts->networks_list( { PARENT => 0, COLS_NAME => 1, SHOW_ALL_COLUMNS => 1, PAGE_ROWS => 100000 } ),
+      SEL_LIST    => $Dhcphosts->networks_list( { PARENT => 0, COLS_NAME => 1, NAME => '_SHOW', PAGE_ROWS => 100000 } ),
       SEL_OPTIONS => { '' => '' },
     }
   );
 
   if ( $FORM{add_form} ){
+    if(in_array('Multidoms', \@MODULES) && $permissions{10}) {
+      load_module('Multidoms', $html);
+
+      $net_defaults->{DOMAIN_FORM}=$html->tpl_show(templates('form_row'), {
+          ID    => 'DOMAIN_ID',
+          NAME  => "Domains:",
+          VALUE => multidoms_domains_sel({ DOMAIN_ID => $Dhcphosts->{DOMAIN_ID} }),
+        }, { OUTPUT2RETURN => 1 });
+    }
+
     $html->tpl_show( _include( 'dhcphosts_network', 'Dhcphosts' ), { %{$net_defaults}, %{$Dhcphosts} } );
   }
 
-  my ($table) = result_former( {
+  my @function_fields = ();
+  if($permissions{4}) {
+    if ($permissions{4}{2}) {
+      push @function_fields, 'change',
+    }
+    if ($permissions{4}{3}) {
+      push @function_fields, 'del',
+    }
+  }
+
+  my %ext_titles = (
+    id                   => 'ID',
+    name                 => $lang{NAME},
+    status               => $lang{STATUS},
+    network              => $lang{NETWORK},
+    coordinator          => $lang{HOSTS_NETWORKS_COORDINATOR},
+    phone                => $lang{PHONE},
+    guest_vlan           => 'Guest VLAN',
+    net_parent           => $lang{TYPE},
+    button_field1        => $lang{USERS},
+    button_field2        => $lang{ROUTES},
+    ntp                  => 'NTP',
+    suffix               => 'Suffix',
+    comments             => $lang{COMMENTS},
+    deny_unknown_clients => $lang{DENY_UNKNOWN_CLIENTS},
+    dns                  => 'DNS',
+    ip_range_first       => $lang{FIRST} . ' IP',
+    ip_range_last        => $lang{LAST} . ' IP',
+    block_network        => $lang{NETWORK},
+    dns2                 => 'DNS2',
+    vlan                 => 'VLAN',
+    static               => $lang{STATIC},
+    authoritative        => $lang{AUTHORITATIVE},
+    routers              => $lang{DEFAULT_ROUTER},
+    block_mask           => $lang{SUBNET},
+  );
+
+  if(in_array('Multidoms', \@MODULES) && $permissions{10}) {
+    $ext_titles{domain_id}='Domain ID';
+  }
+
+  my Abills::HTML $table;
+  ($table) = result_former( {
       INPUT_DATA      => $Dhcphosts,
       FUNCTION        => 'networks_list',
       BASE_FIELDS     => 0,
       DEFAULT_FIELDS  => 'ID,NAME,NETWORK,COORDINATOR,PHONE,STATUS,PARENT,GUEST_VLAN,SPECIAL_FIELD1,BUTTON_FIELD1,BUTTON_FIELD2',
-      FUNCTION_FIELDS => defined($permissions{0}{5}) ? 'change,del' : '',
-#      SELECT_VALUE    => { installed_aid => $admins_list },
-      STATUS_VALS     => \@status,
-        EXT_TITLES    => {
-        name        => $lang{NAME},
-        status     => $lang{STATUS},
-        network     => $lang{NETWORK},
-        coordinator => $lang{HOSTS_NETWORKS_COORDINATOR},
-        phone       => $lang{PHONE},
-        guest_vlan  => 'Guest VLAN',
-        parent      => $lang{TYPE},
-        button_field1 => $lang{USERS},
-        button_field2 => $lang{ROUTES},
-      },
+      FUNCTION_FIELDS => join(',', @function_fields),
+      STATUS_VALS   => \@status,
+      EXT_TITLES    => \%ext_titles,
       FILTER_COLS => {
         net_parent => "_dhcphosts_network_type_filter",
         button_field1 => "_dhcphosts_network_function_fields_former::id,network",
@@ -681,7 +722,7 @@ sub dhcphosts_networks{
         width      => '100%',
         qs         => $pages_qs,
         ID         => 'HOSTS_NETWORKS_TABLE_ID',
-        SELECT_ALL => "dhcp_list:IDS:$lang{SELECT_ALL}",
+        #SELECT_ALL => "dhcp_list:IDS:$lang{SELECT_ALL}",
         MENU       => "$lang{ADD}:index=$index&add_form=1" . ':add',
         EXPORT    => 1,
       },
@@ -692,25 +733,21 @@ sub dhcphosts_networks{
     }
   );
 
-  print $html->form_main(
-      {
-        CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
-        HIDDEN  => { index => $index,
-          web_reconfig     => 1
-        },
-        SUBMIT  => { config => "$lang{SHOW} " . ' dhcpd.conf, ' . $lang{RECONFIGURE} },
-        NAME    => 'dhcp_list',
-        ID      => 'dhcp_list',
-      }
-    );
+  print $html->form_main({
+    CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
+    HIDDEN  => { index        => $index,
+                 web_reconfig => 1
+    },
+    SUBMIT  => { config => "$lang{SHOW} " . ' dhcpd.conf, ' . $lang{RECONFIGURE} },
+    NAME    => 'dhcp_list',
+    ID      => 'dhcp_list',
+  });
 
-  my $dhcphosts_networks_total_table = $html->table(
-    {
-      width      => '100%',
-      cols_align => [ 'right', 'right' ],
-      rows       => [ [ "$lang{TOTAL}:", $html->b( $Dhcphosts->{TOTAL} ) ] ]
-    }
-  );
+  my $dhcphosts_networks_total_table = $html->table({
+    width      => '100%',
+    cols_align => [ 'right', 'right' ],
+    rows       => [ [ "$lang{TOTAL}:", $html->b( $Dhcphosts->{TOTAL} ) ] ]
+  });
 
   print $dhcphosts_networks_total_table->show();
 
@@ -750,7 +787,8 @@ sub _dhcphosts_network_function_fields_former {
       { class => 'routes' }
     )
   }
-return '';
+
+  return '';
 }
 
 #*******************************************************************
@@ -769,13 +807,13 @@ sub dhcphosts_hosts{
 
   if ( !$LIST_PARAMS{UID} && $FORM{search_form} ){
     my $nas_list = $Nas->list( {
-        DOMAIN_ID => $users->{DOMAIN_ID},
-        NAS_NAME  => '_SHOW',
-        PAGE_ROWS => 10000,
-        SHORT     => 1,
-        SORT      => 'id',
-        COLS_NAME => 1,
-      } );
+      DOMAIN_ID => $users->{DOMAIN_ID},
+      NAS_NAME  => '_SHOW',
+      PAGE_ROWS => 10000,
+      SHORT     => 1,
+      SORT      => 'id',
+      COLS_NAME => 1,
+    });
 
     $Dhcphosts->{STATUS_SEL} = $html->form_select(
       'STATUS',
@@ -814,57 +852,58 @@ sub dhcphosts_hosts{
   }
 
   result_former( {
-      INPUT_DATA        => $Dhcphosts,
-        FUNCTION        => 'hosts_list',
-        DEFAULT_FIELDS  =>
-          ($FORM{UID}) ? 'ID,IP_NUM,HOSTNAME,NETWORK_NAME,MAC,STATUS' : 'ID,LOGIN,IP_NUM,HOSTNAME,NETWORK_NAME,MAC,STATUS'
-        ,
-        BASE_FIELDS     => 1,
-        FUNCTION_FIELDS => 'change,del',
-        FILTER_COLS     => {
-        ip_num => 'int2ip',
-      },
-        EXT_TITLES      => {
-        'id'                => '#',
-        'hostname'          => 'Hostname',
-        'mac'               => 'MAC',
-        'ipn_activate'      => "IPN Activate",
-        'network_name'      => $lang{NETWORK},
-        'status'            => "DHCP $lang{STATUS}",
-        'option_82'         => 'Option 82',
-        'ports'             => $lang{PORT},
-        'vid'               => "$lang{USER} VLAN",
-        'server_vid'        => "Server VLAN",
-        'nas_name'          => "$lang{NAS}",
-        'nas_id'            => 'NAS ID',
-        'nas_ip'            => 'NAS IP',
-        'boot_file'         => 'Boot file',
-        'next_server'       => 'Next Server',
-        'dv_status'         => "Internet $lang{STATUS}",
-        'dv_status_id'      => "Internet $lang{STATUS} ID",
-        'online'            => 'Online',
-        'tp_id'             => "$lang{TARIF_PLAN} ID",
-        #'ip'          => 'IP',
-        'ip_num'            => 'IP',
-        'month_traffic_in'  => "$lang{MONTH} $lang{RECV}",
-        'month_traffic_out' => "$lang{MONTH} $lang{SENT}",
-        'tp_name'           => "$lang{TARIF_PLAN}",
-      },
-        TABLE           => {
-        width      => '100%',
-        caption    => "$lang{HOSTS_USER}",
-        cols_align => [ 'left', 'left', 'left', 'left', 'left', 'left', 'center:noprint', 'center:noprint' ],
-        qs         => $pages_qs,
-        ID         => 'DHCP_HOSTS',
-        EXPORT     => 1,
-        MENU       =>
-        (($LIST_PARAMS{UID}) ? "$lang{ADD}:UID=$LIST_PARAMS{UID}&index=$index&add_form=1:add;" : '' ) . "$lang{SEARCH}:index=$index&search_form=1:search"
-        ,
-      },
-        MAKE_ROWS       => 1,
-        MODULE          => 'Dhcphosts',
-        TOTAL           => 1
-    } );
+    INPUT_DATA      => $Dhcphosts,
+    FUNCTION        => 'hosts_list',
+    DEFAULT_FIELDS  =>
+        ($FORM{UID}) ? 'ID,IP_NUM,HOSTNAME,NETWORK_NAME,MAC,STATUS' : 'ID,LOGIN,IP_NUM,HOSTNAME,NETWORK_NAME,MAC,STATUS'
+      ,
+    BASE_FIELDS     => 1,
+    FUNCTION_FIELDS => 'change,del',
+    FUNCTION_INDEX  => get_function_index('dhcphosts_user'),
+    FILTER_COLS     => {
+      ip_num => 'int2ip',
+    },
+    EXT_TITLES      => {
+      'id'                => '#',
+      'hostname'          => 'Hostname',
+      'mac'               => 'MAC',
+      'ipn_activate'      => "IPN Activate",
+      'network_name'      => $lang{NETWORK},
+      'status'            => "DHCP $lang{STATUS}",
+      'option_82'         => 'Option 82',
+      'ports'             => $lang{PORT},
+      'vid'               => "$lang{USER} VLAN",
+      'server_vid'        => "Server VLAN",
+      'nas_name'          => "$lang{NAS}",
+      'nas_id'            => 'NAS ID',
+      'nas_ip'            => 'NAS IP',
+      'boot_file'         => 'Boot file',
+      'next_server'       => 'Next Server',
+      'dv_status'         => "Internet $lang{STATUS}",
+      'dv_status_id'      => "Internet $lang{STATUS} ID",
+      'online'            => 'Online',
+      'tp_id'             => "$lang{TARIF_PLAN} ID",
+      #'ip'          => 'IP',
+      'ip_num'            => 'IP',
+      'month_traffic_in'  => "$lang{MONTH} $lang{RECV}",
+      'month_traffic_out' => "$lang{MONTH} $lang{SENT}",
+      'tp_name'           => "$lang{TARIF_PLAN}",
+    },
+    TABLE           => {
+      width      => '100%',
+      caption    => "$lang{HOSTS_USER}",
+      cols_align => [ 'left', 'left', 'left', 'left', 'left', 'left', 'center:noprint', 'center:noprint' ],
+      qs         => $pages_qs,
+      ID         => 'DHCP_HOSTS',
+      EXPORT     => 1,
+      MENU       =>
+      (($LIST_PARAMS{UID}) ? "$lang{ADD}:UID=$LIST_PARAMS{UID}&index=$index&add_form=1:add;" : '' ) . "$lang{SEARCH}:index=$index&search_form=1:search"
+      ,
+    },
+    MAKE_ROWS       => 1,
+    MODULE          => 'Dhcphosts',
+    TOTAL           => 1
+  });
 
   $FORM{search_form} = 0;
 
@@ -960,6 +999,62 @@ sub dhcphosts_routes{
 }
 
 #**********************************************************
+=head2 dhcphosts_check_params()
+
+=cut
+#**********************************************************
+sub dhcphosts_check_params {
+
+  if ( !$FORM{NETWORK} ){
+    $FORM{NETWORK} = auto_net_sign( $FORM{IP} );
+  }
+
+  $FORM{MAC} = _mac_former( $FORM{MAC} || '' );
+  $Dhcphosts->host_check( { %FORM } );
+
+  if ( !$Dhcphosts->{errno} && $FORM{OPTION_82} && $FORM{PORTS} && $FORM{NAS_ID} && ! $conf{DHCPHOSTS_SKIP_SINGLE_HOST} ){
+    my %params = ();
+
+    if ( $conf{DHCPHOSTS_O82_USE_MAC} ){
+      $params{MAC} = '00:00:00:00:00:00';
+    }
+
+    if ( $FORM{VID} && $FORM{SERVER_VID} ){
+      $params{VID} = $FORM{VID};
+      $params{SERVER_VID} = $FORM{SERVER_VID};
+    }
+    else{
+      if($FORM{NAS_ID} && $FORM{VLAN} && $FORM{PORT}) {
+        delete $FORM{VLAN};
+      }
+      else {
+        $params{VID} = $FORM{VID};
+      }
+    }
+
+
+    my $list = $Dhcphosts->hosts_list(
+      {
+        LOGIN     => '_SHOW',
+        NAS_ID    => $FORM{NAS_ID},
+        PORTS     => $FORM{PORTS},
+        %params,
+        COLS_NAME => 1
+      }
+    );
+
+    if ( $Dhcphosts->{TOTAL} > 0 && (! $FORM{ID} || $FORM{ID} != $list->[0]->{id})){
+      $Dhcphosts->{errno} = 8;
+      $Dhcphosts->{LOGIN} = $list->[0]->{login};
+      $Dhcphosts->{UID} = $list->[0]->{uid};
+    }
+  }
+
+  return 1;
+}
+
+
+#**********************************************************
 =head2 dhcphosts_user($attr) - dhcphosts users add
 
 =cut
@@ -976,14 +1071,15 @@ sub dhcphosts_user{
     $Dhcphosts->{ACTION_LNG} = $lang{ADD};
   }
 
-  $FORM{add_form} = 1;
   use Dv;
-  my $dv = Dv->new($db, $admin, \%conf);
-  $dv->account_check();
-  if(_error_show($dv)) {
-    return 1;
-  }
+my $dv = Dv->new($db, $admin, \%conf);
+$dv->account_check();
+if(_error_show($dv)) {
+  return 1;
+}
 
+
+  #$FORM{add_form} = 1;
   if ( ($FORM{add} || $FORM{change}) && !defined( $FORM{NETWORK} ) ){
     $html->message( 'err', $lang{ERROR}, "$lang{ERR_WRONG_DATA}: Select network", { ID => 139 } );
     return 1 if ($attr->{REGISTRATION});
@@ -992,8 +1088,16 @@ sub dhcphosts_user{
     my $static_ip = dhcphosts_get_static_ip( $FORM{NETWORK} );
     $FORM{IP} = $static_ip if ($static_ip);
   }
+  elsif ( $FORM{UID} ) {
+    $Dhcphosts->hosts_list( { UID => $FORM{UID}, COLS_NAME => 1 } );
+    if ($Dhcphosts->{TOTAL}) {
+      $FORM{HOST_COUNT}=$Dhcphosts->{TOTAL};
+      if (!$FORM{add_form} && ! $FORM{chg} && ! $FORM{add} && ! $FORM{change} && ! $FORM{del}) {
+        $FORM{chg} = $Dhcphosts->{list}->[0]->{id};
+      }
+    }
+  }
 
-  $FORM{MAC} = _mac_former( $FORM{MAC} );
   if ( !$FORM{HOSTNAME} ){
     if ( $conf{DHCPHOSTS_LOGIN_AS_HOSTNAME} ){
       $FORM{HOSTNAME} = $users->{LOGIN};
@@ -1008,7 +1112,7 @@ sub dhcphosts_user{
       $html->message( 'err', $lang{ERROR}, "$lang{ERR_WRONG_DATA}: IP '0.0.0.0' ", { ID => 140 } );
       return 0 if ($attr->{REGISTRATION});
     }
-    elsif ( $FORM{MAC} !~ /[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}/i ){
+    elsif ( $FORM{MAC} !~ /$MAC/i ){
       $html->message( 'err', $lang{ERROR}, "$lang{ERR_WRONG_DATA}: MAC '$FORM{MAC}'", { ID => 141 });
       return 0 if ($attr->{REGISTRATION});
     }
@@ -1017,41 +1121,9 @@ sub dhcphosts_user{
       return 0 if ($attr->{REGISTRATION});
     }
     else{
-      if ( !$FORM{NETWORK} ){
-        $FORM{NETWORK} = auto_net_sign( $FORM{IP} );
-      }
-      $Dhcphosts->host_check( { %FORM } );
-
-      if ( !$Dhcphosts->{errno} && $FORM{OPTION_82} && $FORM{PORTS} && $FORM{NAS_ID} ){
-        my %params = ();
-        if ( $conf{DHCPHOSTS_O82_USE_MAC} ){
-          $params{MAC} = '00:00:00:00:00:00';
-        }
-
-        if ( $FORM{VID} && $FORM{SERVER_VID} ){
-          $params{VID} = $FORM{VID};
-          $params{SERVER_VID} = $FORM{SERVER_VID};
-        }
-        else{
-          $params{VID} = $FORM{VID};
-        }
-
-        my $list = $Dhcphosts->hosts_list( {
-            NAS_ID     => $FORM{NAS_ID},
-            LOGIN      => '_SHOW',
-            PORTS      => $FORM{PORTS},
-            %params,
-            COLS_NAME  => 1
-          } );
-        if ( $Dhcphosts->{TOTAL} > 0 ){
-          $Dhcphosts->{errno} = 8;
-          $Dhcphosts->{LOGIN} = $list->[0]{login};
-          $Dhcphosts->{UID} = $list->[0]{uid};
-        }
-      }
+      dhcphosts_check_params();
 
       if ( !$Dhcphosts->{errno} ){
-        $FORM{MAC} = uc( $FORM{MAC} );
         $Dhcphosts->host_add({ %FORM,
                                VID => (defined($FORM{VID}) && $FORM{VID} =~ /\d+/) ? $FORM{VID} : $Dhcphosts->{VLAN}
                              });
@@ -1083,50 +1155,35 @@ sub dhcphosts_user{
       }
     }
   }
+  elsif($FORM{info}) {
+    $html->message('info', $lang{INFO}, "User Info");
+    $Dhcphosts->host_info( $FORM{info} );
+
+  }
   elsif ( $FORM{change} ){
+    dhcphosts_check_params();
     if ( $FORM{MAC} !~ /$MAC/i ){
       $html->message( 'err', $lang{ERROR}, "WRONG MAC ", { ID => 145 } );
     }
     else{
-      if ( !$FORM{NETWORK} ){
-        $FORM{NETWORK} = auto_net_sign( $FORM{IP} );
-      }
-
-      $Dhcphosts->host_check( { %FORM } );
-      if ( !$Dhcphosts->{errno} && $FORM{OPTION_82} && $FORM{PORTS} && $FORM{NAS_ID} ){
-        my %params = ();
-        if ( $conf{DHCPHOSTS_O82_USE_MAC} ){
-          $params{MAC} = '00:00:00:00:00:00';
-        }
-
-        my $list = $Dhcphosts->hosts_list(
-          {
-            LOGIN     => '_SHOW',
-            NAS_ID    => $FORM{NAS_ID},
-            PORTS     => $FORM{PORTS},
-            %params,
-            COLS_NAME => 1
-          }
-        );
-        if ( $Dhcphosts->{TOTAL} > 0 && $FORM{ID} != $list->[0]->{id} ){
-          $Dhcphosts->{errno} = 8;
-          $Dhcphosts->{LOGIN} = $list->[0]->{login};
-          $Dhcphosts->{UID} = $list->[0]->{uid};
-        }
-      }
-
       if ( !$Dhcphosts->{errno} ){
-        $Dhcphosts->host_change( { %FORM,
-            VID => (defined($FORM{VID}) && $FORM{VID} =~ /\d+/) ? $FORM{VID} : $Dhcphosts->{VLAN}
-          } );
+        if(defined($FORM{NAS_ID1}) && $FORM{NAS_ID1} =~ /^\d+$/) {
+          $FORM{NAS_ID}=$FORM{NAS_ID1};
+        }
+
+        $Dhcphosts->host_change({
+          %FORM,
+          VID => (defined($FORM{VID}) && $FORM{VID} =~ /\d+/) ? $FORM{VID} : $Dhcphosts->{VLAN}
+        });
 
         if ( !$Dhcphosts->{errno} ){
-          $html->message( 'info', $lang{CHANGED}, "$lang{CHANGED} [$FORM{ID}]" );
+          $html->message( 'info', $lang{CHANGED}, "$lang{CHANGED} [". ($FORM{ID} || q{}) ."]" );
           dhcphosts_config( { NETWORKS => $FORM{NETWORK}, reconfig => 1 } );
           #Del leases
-          $Dhcphosts->leases_clear( { MAC => ($FORM{MAC} && $FORM{MAC} ne '00:00:00:00:00:00') ? $FORM{MAC} : undef,
-                                      UID => (!$FORM{MAC} || $FORM{MAC} eq '00:00:00:00:00:00') ? $FORM{UID} : undef,
-            } );
+          $Dhcphosts->leases_clear({
+             MAC => ($FORM{MAC} && $FORM{MAC} ne '00:00:00:00:00:00') ? $FORM{MAC} : undef,
+             UID => (!$FORM{MAC} || $FORM{MAC} eq '00:00:00:00:00:00') ? $FORM{UID} : undef,
+          });
 
           # If install Snmputils make make assign
           if ( in_array( 'Snmputils', \@MODULES ) && $FORM{NAS_ID} ){
@@ -1147,7 +1204,7 @@ sub dhcphosts_user{
     $FORM{add_form} = 1;
 
     if ( !$Dhcphosts->{errstr} ){
-      $html->message( 'info', $lang{CHANGE}, "$lang{CHANGE} [$FORM{chg}] " );
+      #$html->message( 'info', $lang{CHANGE}, "$lang{CHANGE} [$FORM{chg}] " );
     }
   }
   elsif ( $FORM{del} && $FORM{COMMENTS} ){
@@ -1164,8 +1221,8 @@ sub dhcphosts_user{
       $FORM{NETWORK} = auto_net_sign( $FORM{IP} );
       dhcphosts_config(
         {
-          NETWORKS   => $FORM{NETWORK},
-            reconfig => 1
+          NETWORKS => $FORM{NETWORK},
+          reconfig => 1
         }
       );
 
@@ -1179,23 +1236,23 @@ sub dhcphosts_user{
     }
 
     $Dhcphosts->leases_clear( {
-        MAC => ($FORM{MAC} && $FORM{MAC} ne '00:00:00:00:00:00') ? $FORM{MAC} : undef,
-        UID => (!$FORM{MAC} || $FORM{MAC} eq '00:00:00:00:00:00') ? $FORM{UID} : undef,
-      } );
+      MAC => ($FORM{MAC} && $FORM{MAC} ne '00:00:00:00:00:00') ? $FORM{MAC} : undef,
+      UID => (!$FORM{MAC} || $FORM{MAC} eq '00:00:00:00:00:00') ? $FORM{UID} : undef,
+    });
 
     delete( $FORM{del} );
   }
 
   if ( $Dhcphosts->{errno} ){
     if ( $Dhcphosts->{errno} == 18 ){
-      $html->message( 'err', $lang{ERROR}, "$lang{NETWORK} # $FORM{NETWORK} $lang{NOT_EXIST}\n IP: $FORM{IP}", { ID => 117 } );
+      $html->message( 'err', $lang{ERROR}, "$lang{NETWORK} # $FORM{NETWORK} $lang{NOT_EXIST}\n IP: ". ($FORM{IP} || q{}), { ID => 117 } );
     }
     elsif ( $Dhcphosts->{errno} == 17 ){
-      $html->message( 'err', $lang{ERROR}, "# $FORM{NETWORK} $lang{ERR_WRONG_NETWORK}\n IP: $FORM{IP}", { ID => 122 } );
+      $html->message( 'err', $lang{ERROR}, "# $FORM{NETWORK} $lang{ERR_WRONG_NETWORK}\n IP: ". ($FORM{IP} || q{}), { ID => 122 } );
     }
     elsif ( $Dhcphosts->{errno} == 23 ){
-      $html->message( 'err', $lang{ERROR}, "MAC: $FORM{MAC} $lang{EXIST}\n" . $html->button( $Dhcphosts->{list}->[0]->{login},
-          "index=15&UID=" . $Dhcphosts->{list}->[0]->{uid} . "&MODULE=Dhcphosts", { BUTTON => 1 } ), { ID => 123 } );
+      $html->message( 'err', $lang{ERROR}, "MAC: $FORM{MAC} IP: $FORM{IP} $lang{EXIST}\n" . $html->button( $Dhcphosts->{LOGIN},
+          "index=15&UID=" . ($Dhcphosts->{UID} || q{}) . "&MODULE=Dhcphosts", { BUTTON => 1 } ), { ID => 123 } );
     }
     elsif ( $Dhcphosts->{errno} == 7 ){
       my %SEARCH_PARAMS = ();
@@ -1207,9 +1264,11 @@ sub dhcphosts_user{
         $SEARCH_PARAMS{IP} = $FORM{IP};
       }
 
-      my $list = $Dhcphosts->hosts_list( { %SEARCH_PARAMS,
-          LOGIN     => '_SHOW',
-          COLS_NAME => 1 } );
+      my $list = $Dhcphosts->hosts_list( {
+        %SEARCH_PARAMS,
+        LOGIN     => '_SHOW',
+        COLS_NAME => 1
+      } );
 
       my $login = '';
       if ( $Dhcphosts->{TOTAL} > 0 ){
@@ -1230,18 +1289,6 @@ sub dhcphosts_user{
   }
 
   $Dhcphosts->{NETWORKS_SEL} = dhcphosts_network_sel( { AUTOSIGN => 1 } );
-  $Dhcphosts->{STATUS_SEL} = $html->form_select(
-    'STATUS',
-    {
-      SELECTED => $FORM{STATUS},
-      SEL_HASH => {
-        0  => "Not Set",
-        -1 => $lang{DISABLE},
-        1  => "$lang{ENABLE}"
-      }
-    }
-  );
-
   $Dhcphosts->{DISABLE} = ' checked' if ($Dhcphosts->{DISABLE});
   if ( !in_array( 'Ipn', \@MODULES ) ){
     $Dhcphosts->{IPN_ACTIVATE_BUTTON} = "Ipn module not install";
@@ -1264,15 +1311,14 @@ sub dhcphosts_user{
       }
       else{
         $Dhcphosts->{IPN_ACTIVATE_BUTTON} = $html->button( $lang{ACTIVATE},
-          "UID=$FORM{UID}&ACTIVE=1&REMOTE_ADDR=$Dhcphosts->{IP}&NAS_ID=$Dhcphosts->{NAS_ID}&index=" . get_function_index( 'ipn_user_activate' )
+          "UID=". ($FORM{UID} || q{}) ."&ACTIVE=1&REMOTE_ADDR=$Dhcphosts->{IP}&NAS_ID=$Dhcphosts->{NAS_ID}&index=" . get_function_index( 'ipn_user_activate' )
           , { BUTTON => 1 } );
       }
     }
   }
 
   if ( !$Dhcphosts->{OPTION_82} ){
-    #$Dhcphosts->{INPUT_STATE}=" DISABLED STYLE='background-color: $_COLORS[3]'";
-    $Dhcphosts->{OPTION_82} = '';
+    $Dhcphosts->{OPTION_82} = ($FORM{OPTION_82}) ? ' checked' : q{};
   }
   else{
     $Dhcphosts->{OPTION_82} = ' checked';
@@ -1295,7 +1341,7 @@ sub dhcphosts_user{
       SEL_VALUE         => 'nas_name',
       SEL_OPTIONS       => { '' => '' },
       MAIN_MENU         => get_function_index( 'form_nas' ),
-      MAIN_MENU_AGRV    => ($Dhcphosts->{NAS_ID}) ? "NAS_ID=$Dhcphosts->{NAS_ID}" : '',
+      MAIN_MENU_ARGV    => ($Dhcphosts->{NAS_ID}) ? "NAS_ID=$Dhcphosts->{NAS_ID}" : '',
       EXT_BUTTON        => $Dhcphosts->{SWITCH_STATUS},
       # Popup window
       POPUP_WINDOW      => 'form_search_nas',
@@ -1306,19 +1352,40 @@ sub dhcphosts_user{
   );
 
   if ( in_array( 'Equipment', \@MODULES ) ){
+    $Dhcphosts->{PORT}=$Dhcphosts->{PORTS} if ($Dhcphosts->{PORTS});
     $Dhcphosts->{PORTS} = $html->form_select(
       'PORTS',
       {
         POPUP_WINDOW      => 'form_search_port',
         POPUP_WINDOW_TYPE => 'choose',
         SEARCH_STRING     => 'get_index=equipment_info&visual=0&header=2&PORT_SHOW=1',
-        VALUE             => $Dhcphosts->{PORTS},
-        SELECTED          => $Dhcphosts->{PORTS},
+        VALUE             => $Dhcphosts->{PORTS} || $FORM{PORTS},
+        SELECTED          => $Dhcphosts->{PORTS} || $FORM{PORTS},
         PARENT_INPUT      => 'NAS_ID'
       }
     );
+
+    load_module('Equipment', $html);
+    require Equipment;
+    Equipment->import();
+    my $Equipment = Equipment->new($db, $admin, \%conf);
+    $Dhcphosts->{VLAN_SEL} = $html->form_select(
+      'SERVER_VID',
+      {
+        SELECTED          => $Dhcphosts->{SERVER_VID},
+        SEL_LIST          => $Equipment->vlan_list({ PAGE_ROWS => 1000, COLS_NAME => 1 }),
+        SEL_KEY           => 'number',
+        SEL_VALUE         => 'name',
+        SEL_OPTIONS       => { '' => '--' },
+        MAIN_MENU         => get_function_index( 'equipment_vlan' ),
+        MAIN_MENU_ARGV    => ($Dhcphosts->{SERVER_VID}) ? "ID=$Dhcphosts->{SERVER_VID}" : '',
+      }
+    );
+
+    $Dhcphosts->{EQUIPMENT_INFO} = equipment_user_info($Dhcphosts);
   }
   else{
+    $Dhcphosts->{VLAN_SEL} = $html->form_input( 'SERVER_VID', ($Dhcphosts->{SERVER_VID} || q{}), { SIZE => 10 } );
     $Dhcphosts->{PORTS} = $html->form_input( 'PORTS', ($Dhcphosts->{PORTS} || q{}), { SIZE => 10 } );
   }
 
@@ -1329,17 +1396,30 @@ sub dhcphosts_user{
   }
 
   if ( $FORM{UID} ){
-    $Dhcphosts->hosts_list( { UID => $FORM{UID} } );
-    $html->tpl_show(
-      _include( 'dhcphosts_host', 'Dhcphosts' ),
+    if($FORM{MODULE} && $FORM{MODULE} eq 'Dhcphosts'){
+      $html->tpl_show(
+      _include( 'dhcphosts_host_form_user_version', 'Dhcphosts' ),
       {
         %{ $Dhcphosts->host_defaults() },
-        HOSTNAME => ($users->{LOGIN} ? $users->{LOGIN} : q{}) . (($Dhcphosts->{TOTAL}) ? '_' . ($Dhcphosts->{TOTAL} + 2) : ''),
         %FORM,
+        HOSTNAME => ($users->{LOGIN} ? $users->{LOGIN} : q{}) . (($FORM{HOST_COUNT} && $FORM{HOST_COUNT} > 1) ? '_' . $FORM{HOST_COUNT} : ''),
         %{$attr},
         %{$Dhcphosts},
       }
     );
+    }
+    else{
+      $html->tpl_show(
+      _include( 'dhcphosts_host', 'Dhcphosts' ),
+      {
+        %{ $Dhcphosts->host_defaults() },
+        %FORM,
+        HOSTNAME => ($users->{LOGIN} ? $users->{LOGIN} : q{}) . (($FORM{HOST_COUNT} && $FORM{HOST_COUNT} > 1) ? '_' . $FORM{HOST_COUNT} : ''),
+        %{$attr},
+        %{$Dhcphosts},
+      }
+    );
+  }
   }
 
   #delete $FORM{UID};
@@ -1360,6 +1440,14 @@ sub dhcphosts_get_static_ip{
   my $ip = '0.0.0.0';
 
   $Dhcphosts->network_info( $network_id );
+
+  use Dv;
+my $dv = Dv->new($db, $admin, \%conf);
+$dv->account_check();
+if(_error_show($dv)) {
+  return 1;
+}
+
 
   if ( $Dhcphosts->{TOTAL} < 1 ){
     $html->message( 'err', $lang{ACTIVATE}, "$lang{ERROR} Can't find your network '$network_id' ", { ID => 117 } );
@@ -1414,14 +1502,18 @@ sub dhcphosts_network_sel{
   my ($attr) = @_;
 
   my $networks_list = $Dhcphosts->networks_list( {
-      PAGE_ROWS        => 10000,
-      SORT             => 'network', # Sort by network
-      SHOW_ALL_COLUMNS => 1,
-      COLS_NAME        => 1
+    NETWORK_INT      => '_SHOW',
+    STATIC           => '_SHOW',
+    NAME             => '_SHOW',
+    NETWORK          => '_SHOW',
+    NETMASK          => '_SHOW',
+    PAGE_ROWS        => 10000,
+    SORT             => 'network', # Sort by network
+    COLS_NAME        => 1
   });
 
   if ( _error_show( $Dhcphosts ) || !$networks_list || ref $networks_list ne 'ARRAY' ){
-    return 0;
+    return $html->button("$lang{ADD} $lang{NETWORKS}", "&add_form=1&index=". get_function_index('dhcphosts_networks'), { class => 'btn btn-danger' });
   }
 
   # Sorting by network
@@ -1445,7 +1537,7 @@ sub dhcphosts_network_sel{
       SELECTED       => $FORM{NETWORK} || 0 || '',
       SEL_LIST       => $networks_list,
       MAIN_MENU      => get_function_index( 'dhcphosts_networks' ),
-      MAIN_MENU_AGRV => "UID=" . ($FORM{UID} ? $FORM{UID} : '') . (( $FORM{NETWORK} ) ? "&chg=$FORM{NETWORK}" : '')
+      MAIN_MENU_ARGV => "UID=" . ($FORM{UID} ? $FORM{UID} : '') . (( $FORM{NETWORK} ) ? "&chg=$FORM{NETWORK}" : '')
     }
   );
 
@@ -1477,36 +1569,33 @@ sub dhcphosts_config{
   }
 
   # Nas CSI
-  my $nas_list = $Nas->list( { COLS_NAME => 1,
-      SHORT                              => 1,
-      MAC                                => '_SHOW',
-      NAS_RAD_PAIRS                      => '_SHOW',
-      NAS_NAME                           => '_SHOW'
-    } );
+  my $nas_list = $Nas->list( {
+    COLS_NAME     => 1,
+    SHORT         => 1,
+    MAC           => '_SHOW',
+    NAS_RAD_PAIRS => '_SHOW',
+    NAS_NAME      => '_SHOW',
+    PAGE_ROWS     => 60000,
+  });
 
   foreach my $line ( @{$nas_list} ){
     if ( $line->{mac} ){
-      $NAS_MACS{ $line->{id} } = "$line->{nas_name},$line->{mac}";
-    }
-    elsif ( $line->{nas_rad_pairs} =~ /Called-Station-Id=[\"\'](.+)[\'\"]/i ){
-      $NAS_MACS{ $line->{id} } = "$line->{nas_name},$1";
+      $NAS_MACS{ $line->{id} } = ($line->{nas_name} || q{}) .','. ($line->{mac} || q{});
     }
   }
 
-  my $list = $Dhcphosts->networks_list(
-    {
-      DISABLE   => 0,
-      SHOW_ALL_COLUMNS => 1,
-      PAGE_ROWS => 10000,
-      SORT      => 2
-    }
-  );
+  my $list = $Dhcphosts->networks_list({
+    DISABLE   => 0,
+    NET_PARENT=> '_SHOW',
+    PAGE_ROWS => 10000,
+    COLS_NAME => 1,
+    SORT      => 2
+  });
 
   my %SUBNETS = ();
 
-  foreach my $line ( @{$list} ){
-    my $NET_ID = $line->[0];
-    #my %curnet = ();
+  foreach my $net ( @{$list} ){
+    my $NET_ID = $net->{id};
     $INFO{OPTION82_POOLS} = '';
     $Dhcphosts->network_info( $NET_ID );
 
@@ -1585,28 +1674,26 @@ sub dhcphosts_config{
       $PARAMS{EXT_DEPOSIT} = '_SHOW';
     }
 
-    $list = $Dhcphosts->hosts_list(
-      {
-        NETWORK      => $NET_ID,
-        STATUS       => 0,
-        CREDIT       => '_SHOW',
-        USER_DISABLE => 0,
-        LOGIN        => '_SHOW',
-        HOSTNAME     => '_SHOW',
-        MAC          => '_SHOW',
-        IP           => '_SHOW',
-        PORTS        => '_SHOW',
-        NAS_ID       => '_SHOW',
-        OPTION_82    => '_SHOW',
-        VID          => '_SHOW',
-        BOOT_FILE    => '_SHOW',
-        DELETED      => 0,
-        NEXT_SERVER  => '_SHOW',
-        COLS_NAME    => 1,
-        %PARAMS,
-        PAGE_ROWS    => 100000,
-      }
-    );
+    $list = $Dhcphosts->hosts_list({
+      NETWORK      => $NET_ID,
+      STATUS       => 0,
+      CREDIT       => '_SHOW',
+      USER_DISABLE => 0,
+      LOGIN        => '_SHOW',
+      HOSTNAME     => '_SHOW',
+      MAC          => '_SHOW',
+      IP           => '_SHOW',
+      PORTS        => '_SHOW',
+      NAS_ID       => '_SHOW',
+      OPTION_82    => '_SHOW',
+      VID          => '_SHOW',
+      BOOT_FILE    => '_SHOW',
+      DELETED      => 0,
+      NEXT_SERVER  => '_SHOW',
+      COLS_NAME    => 1,
+      %PARAMS,
+      PAGE_ROWS    => 100000,
+    });
 
     foreach my $host ( @{$list} ){
       my $deposit = ($host->{deposit} && $host->{deposit} =~ /^\d+$/) ? $host->{deposit} : 0;
@@ -1648,7 +1735,7 @@ sub dhcphosts_config{
         else{
           if (!$attr->{QUITE} && $host->{nas_id}){
             if(! $AUTH{dhcp} && ! $AUTH{mikrotik_dhcp}){
-              print "Can't find NAS '$host->{nas_id}' MAC: $INFO{CLIENT_MAC} LOGIN: $INFO{LOGIN}\n";
+              print "Can't find NAS MAC NAS: '$host->{nas_id}' MAC: $INFO{CLIENT_MAC} LOGIN: $INFO{LOGIN}\n";
             }
           }
           $INFO{OPTION82_NAS_NAME} = '';
@@ -1668,22 +1755,22 @@ sub dhcphosts_config{
           "binary-to-ascii (10, 16, \"\", substring( option agent.circuit-id, 2, 2)) = \"$INFO{CLIENT_VLAN}\" " if ($INFO{CLIENT_VLAN} > 0);
 
         my $matches = join( ' and ', @OPTION82_MATCHES );
-        $INFO{DHCPHOSTS_O82_class_NAME} = "$INFO{OPTION82_NAS_NAME}-$INFO{OPTION82_NAS_MAC}-port-$INFO{OPTION82_NAS_PORT}";
+        $INFO{DHCPHOSTS_O82_CLASS_NAME} = "$INFO{OPTION82_NAS_NAME}-$INFO{OPTION82_NAS_MAC}-port-$INFO{OPTION82_NAS_PORT}";
 
         if ( $conf{DHCPHOSTS_O82_USE_MAC} ){
-          $INFO{OPTION82_class_NAME} .= "-$INFO{CLIENT_MAC}";
+          $INFO{OPTION82_CLASS_NAME} .= "-$INFO{CLIENT_MAC}";
         }
 
         # make custom option 82 tpl
-        if ( $conf{DHCPHOSTS_O82_class_TPL} ){
-          $INFO{OPTION82_class} .= $html->tpl_show( _include( 'dhcphosts_dhcp_conf_o82_class', 'Dhcphosts' ), \%INFO,
+        if ( $conf{DHCPHOSTS_O82_CLASS_TPL} ){
+          $INFO{OPTION82_CLASS} .= $html->tpl_show( _include( 'dhcphosts_dhcp_conf_o82_class', 'Dhcphosts' ), \%INFO,
             { OUTPUT2RETURN => 1, CONFIG_TPL => 1 } );
         }
         else{
-          $INFO{OPTION82_class} .= "# LOGIN: $host->{login}\nclass \"$INFO{DHCPHOSTS_O82_class_NAME}\" { match if $matches ;  \n }\n\n";
+          $INFO{OPTION82_CLASS} .= "# LOGIN: $host->{login}\nclass \"$INFO{DHCPHOSTS_O82_CLASS_NAME}\" { match if $matches ;  \n }\n\n";
         }
 
-        $INFO{OPTION82_POOLS} .= "pool { range $host->{ip}; allow members of \"$INFO{DHCPHOSTS_O82_class_NAME}\"; }\n";
+        $INFO{OPTION82_POOLS} .= "pool { range $host->{ip}; allow members of \"$INFO{DHCPHOSTS_O82_CLASS_NAME}\"; }\n";
       }
       else{
         #Static hosts
@@ -1709,7 +1796,7 @@ sub dhcphosts_config{
       }
     }
 
-    $SUBNETS{ $line->[7] }{ $line->[0] } .= $html->tpl_show( _include( 'dhcphosts_dhcp_conf_subnet', 'Dhcphosts' ),
+    $SUBNETS{ $net->{net_parent} }{ $net->{id} } .= $html->tpl_show( _include( 'dhcphosts_dhcp_conf_subnet', 'Dhcphosts' ),
       \%INFO,
       { OUTPUT2RETURN => 1,
         CONFIG_TPL    => 1
@@ -1841,7 +1928,9 @@ sub convert_ip {
 }
 
 #**********************************************************
-# Get bit count from net mask
+=head2 mask2bitlen($netmask) - Get bit count from net mask
+
+=cut
 #**********************************************************
 sub mask2bitlen{
   my ($netmask) = @_;
@@ -1853,6 +1942,7 @@ sub mask2bitlen{
     $bits =~ s/0//g;
     $bitlen += length( $bits );
   }
+
   return $bitlen;
 }
 
@@ -1904,13 +1994,19 @@ sub auto_net_sign{
   my ($ip) = @_;
 
   my %network_hash = ();
-  my $list = $Dhcphosts->networks_list( { SHOW_ALL_COLUMNS => 1, PAGE_ROWS => 10000 } );
+
+  my $list = $Dhcphosts->networks_list( {
+    IP_RANGE_FIRST => 1,
+    COLS_NAME      => 1,
+    PAGE_ROWS      => 10000
+  } );
+
   $ip = ip2int( $ip );
 
   foreach my $line ( @{$list} ){
-    my $first_ip = ip2int( $line->[2] );
-    my $last_ip = $first_ip + (4294967295 - ip2int( $line->[3] ));
-    $network_hash{$first_ip} = "$last_ip:$line->[0]";
+    my $first_ip = ip2int( $line->{ip_range_first} );
+    my $last_ip = $first_ip + (4294967295 - ip2int( $line->{ip_range_last} ));
+    $network_hash{$first_ip} = "$last_ip:$line->{id}";
   }
 
   while (my ($first, $v) = each %network_hash) {
@@ -2055,10 +2151,11 @@ sub dhcphosts_payments_maked{
   my %NAS_IDS = ();
 
   my $list = $Dhcphosts->hosts_list( {
-      UID       => $attr->{USER_INFO}->{UID},
-      STATUS    => 0,
-      NAS_ID    => '>0',
-      COLS_NAME => 1 } );
+    UID       => $attr->{USER_INFO}->{UID},
+    STATUS    => 0,
+    NAS_ID    => '>0',
+    COLS_NAME => 1
+  } );
 
   foreach my $line ( @{$list} ){
     $NETWORKS{ $line->{network_id} } = 1;
@@ -2090,7 +2187,9 @@ sub dhcphosts_payments_maked{
 }
 
 #**********************************************************
-#
+=head2 dhcphosts_o82_info()
+
+=cut
 #**********************************************************
 sub dhcphosts_o82_info{
   my ($attr) = @_;
@@ -2104,10 +2203,11 @@ sub dhcphosts_o82_info{
   if ( $attr->{REMOTE_ID} =~ /0:6:([0-9a-f]{1,2}:[0-9a-f]{1,2}:[0-9a-f]{1,2}:[0-9a-f]{1,2}:[0-9a-f]{1,2}:[0-9a-f]{1,2})/i ){
     $nas_mac = $1;
     if ( $nas_mac ){
-      my $list = $Nas->list( { MAC => $nas_mac,
-          SHORT                    => 1,
-          COLS_NAME                => 1
-        } );
+      my $list = $Nas->list( {
+        MAC       => $nas_mac,
+        SHORT     => 1,
+        COLS_NAME => 1
+      });
 
       if ( $Nas->{TOTAL} > 0 ){
         $nas_id = $list->[0]->{id};

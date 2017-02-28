@@ -23,6 +23,8 @@
 #   abills_dhcp_shaper=""  (bool) :  Set to "NO" by default.
 #                                    Enable ipoe_shaper
 #
+#   abills_dhcp_shaper_log="" - Enable IPoE shepper logging
+#
 #   abills_dhcp_shaper_nas_ids="" : Set nas ids for shapper, Default: all nas servers
 #
 #   abills_mikrotik_shaper=""  :  NAS IDS
@@ -50,11 +52,11 @@
 
 
 CLASSES_NUMS='2 3'
-VERSION=7.10
+VERSION=7.11
 
 name="abills_shaper"
 
-if [ x${abills_shaper_enable} = x ]; then
+if [ "${abills_shaper_enable}" = "" ]; then
   name="abills_nat"
   abills_nat_enable=YES;
 fi;
@@ -70,6 +72,7 @@ rcvar=`set_rcvar`
 : ${abills_multi_gateway=""}
 
 : ${abills_dhcp_shaper="NO"}
+: ${abills_dhcp_shaper_log=""}
 : ${abills_dhcp_shaper_nas_ids=""}
 : ${abills_neg_deposit="NO"}
 : ${abills_neg_deposit_speed=""}
@@ -77,6 +80,7 @@ rcvar=`set_rcvar`
 : ${abills_portal_ip="me"}
 : ${abills_mikrotik_shaper=""}
 : ${abills_squid_redirect="NO"}
+: ${firewall_type=""}
 
 : ${abills_ipn_nas_id=""}
 : ${abills_ipn_if=""}
@@ -281,8 +285,13 @@ abills_dhcp_shaper() {
     if [ "${abills_dhcp_shaper_nas_ids}" != "" ]; then
       NAS_IDS="NAS_IDS=${abills_dhcp_shaper_nas_ids}"
     fi;
+
+    if [ "${abills_dhcp_shaper_log}" != "" ]; then
+      IPOE_SHAPPER_LOG="LOG_FILE=${abills_dhcp_shaper_log}"
+    fi;
+
     if [ "${ACTION}" = start ]; then
-      ${BILLING_DIR}/libexec/ipoe_shapper.pl -d ${NAS_IDS}
+      ${BILLING_DIR}/libexec/ipoe_shapper.pl -d ${NAS_IDS} ${IPOE_SHAPPER_LOG}
     elif [ "${ACTION}" = stop ]; then
       kill `cat ${BILLING_DIR}/var/log/ipoe_shapper.pid`
     fi;
@@ -363,7 +372,7 @@ external_fw_rules() {
       RULEADD=`echo ${line} | awk '{print \$1}'`;      
       NUMBERIPFW=`echo ${line} | awk '{print \$2}'`;
   
-      if [ "${RULEADD}" = wadd ]; then
+      if [ "${RULEADD}" = add ]; then
         NOEX=`${IPFW} show  ${NUMBERIPFW} 2>/dev/null | wc -l`;
 
         if [ ${NOEX} -eq 0 ]; then
@@ -558,11 +567,11 @@ fi;
 squid_redirect() {
 
 #FWD Section
-if [ ${abills_squid_redirect} = NO ]; then
+if [ "${abills_squid_redirect}" = NO ]; then
   return 0;
 fi;
 
-  if [ x${SQUID_SERVER_IP} = w ]; then
+  if [ "${SQUID_SERVER_IP}" = "" ]; then
     SQUID_SERVER_IP=127.0.0.1;
   fi;
   

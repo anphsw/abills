@@ -15,6 +15,7 @@ our $base_dir;
 our $var_dir;
 our $index        = 0;
 our @state_colors = ('success', 'danger', 'warning');
+our @state_icon_colors = ('1', 'text-red', 'text-yellow');
 our @status       = ('ENABLE', 'DISABLE');
 our $SELF_URL;
 #our Admins $admin;
@@ -49,7 +50,6 @@ use vars qw(
 #@PAYMENT_METHODS
 #$CONF
 
-
 our %LANG = ('english' => 'English',
     'russian' => 'Русский',
     'ukraine' => 'Українська',
@@ -83,14 +83,14 @@ our %err_strs = (
 );
 
 #Global files
-our $SNMPWALK  = '/usr/local/bin/snmpwalk';
+#our $SNMPWALK  = '/usr/local/bin/snmpwalk';
 #our $SNMPSET   = '/usr/local/bin/snmpset';
 our $GZIP      = '/usr/bin/gzip';
 our $TAR       = '/usr/bin/tar';
 our $MYSQLDUMP = '/usr/local/bin/mysqldump';
 our $IFCONFIG  = '/sbin/ifconfig';
 our $IPFW      = '/sbin/ipfw';
-our $PING      = '/sbin/ping';
+#our $PING      = '/sbin/ping';
 our $SUDO      = '/usr/local/sbin/sudo';
 
 1

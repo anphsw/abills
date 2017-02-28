@@ -18,7 +18,6 @@ $lang{CURED}='Виліковано';
 $lang{RENAMED}='Переназвано';
 $lang{INNCURABLE}='Не виліковно';
 $lang{SCAN}='Сканування';
-$lang{INSTALLED}='Установлено';
 $lang{INFECTIONS}='Зараження';
 $lang{STATUS_1} = 'создание новой подписки';
 $lang{STATUS_2} = 'смена тарифного пакета';

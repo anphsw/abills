@@ -30,41 +30,41 @@ BEGIN {
 
  $sql_type='mysql';
  unshift(@INC, $libpath ."Abills/$sql_type/");
- unshift(@INC, $libpath ."Abills/");
+ #unshift(@INC, $libpath ."Abills/");
+ unshift(@INC, $libpath ."lib/");
  unshift(@INC, $libpath);
  unshift(@INC, $libpath . 'libexec/');
-
-
 
  eval { require Time::HiRes; };
  if (! $@) {
     Time::HiRes->import(qw(gettimeofday));
-    $begin_time = gettimeofday();
+    $begin_time = Time::HiRes::gettimeofday();
    }
  else {
     $begin_time = 0;
   }
 }
 
+use strict;
+use Digest::MD5  qw(md5 md5_hex md5_base64);
 use Abills::HTML;
+our(
+  %conf,
+  %lang
+);
 
 require "../language/russian.pl";
 require "../libexec/config.pl";
 
-my %COOKIES = getCookies();
-
-#$conf{WEB_TITLE}='SkyNET';
-
+my %COOKIES = get_cookies();
 my $uamsecret = "secrete";
 
 # Uncomment the following line if you want to use ordinary user-password
 # for radius authentication. Must be used together with $uamsecret.
-my $userpassword=1;
+#my $userpassword=1;
 
 # Our own path
 my $loginpath = $ENV{'SCRIPT_URL'};
-
-use Digest::MD5  qw(md5 md5_hex md5_base64);
 
 # Make sure that the form parameters are clean
 my $OK_CHARS='-a-zA-Z0-9_.@&=%!';
@@ -78,15 +78,34 @@ my $input = $_;
 
 # Make sure that the get query parameters are clean
 $OK_CHARS='-a-zA-Z0-9_.@&=%!';
-$_ = $query=$ENV{QUERY_STRING};
+my $query;
+$_ = $query = $ENV{QUERY_STRING};
 s/[^$OK_CHARS]/_/go;
-my $query = $_;
+$query = $_;
+
+my (
+  $username,
+  $password,
+  $challenge,
+  $button,
+  $logout,
+  $prelogin,
+  $res,
+  $uamip,
+  $uamport,
+  $userurl,
+  $timeleft,
+  $redirurl,
+  $getpass,
+  $reply,
+  $clientstate
+);
 
 
 #Read form parameters which we care about
 my @array = split('&',$input);
-foreach $var ( @array ) {
-  @array2 = split('=',$var);
+foreach my $var ( @array ) {
+  my @array2 = split('=',$var);
   if ($array2[0] =~ /^UserName$/)  { $username = $array2[1]; }
   if ($array2[0] =~ /^Password$/)  { $password = $array2[1]; }
   if ($array2[0] =~ /^challenge$/) { $challenge= $array2[1]; }
@@ -105,8 +124,8 @@ foreach $var ( @array ) {
 
 #Read query parameters which we care about
 @array = split('&',$query);
-foreach $var ( @array ) {
-  @array2 = split('=',$var);
+foreach my $var ( @array ) {
+  my @array2 = split('=',$var);
   if ($array2[0] =~ /^res$/)       { $res       = $array2[1]; }
   if ($array2[0] =~ /^challenge$/) { $challenge = $array2[1]; }
   if ($array2[0] =~ /^uamip$/)     { $uamip     = $array2[1]; }
@@ -121,14 +140,15 @@ foreach $var ( @array ) {
 $reply =~ s/\+/ /g;
 $reply =~s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/seg;
 
-$userurldecode = $userurl;
+my $userurldecode = $userurl;
 $userurldecode =~ s/\+/ /g;
 $userurldecode =~s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/seg;
 
-$redirurldecode = $redirurl;
+my $redirurldecode = $redirurl;
 $redirurldecode =~ s/\+/ /g;
 $redirurldecode =~s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/seg;
-my $pass = $password;
+
+#my $pass = $password;
 $password =~ s/\+/ /g;
 $password =~s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/seg;
 
@@ -144,11 +164,11 @@ if (defined $getpass) {
 
 
 # Default: It was not a form request
-$result = 0;
+my $result = 0;
 
 # If login successful
 if ($res =~ /^.+$/) {
-    $result = 1;
+  $result = 1;
 }
 
 # Otherwise it was not a form request
@@ -174,40 +194,40 @@ if ($result == 0 && !defined $clientstate) {
 }
 
 #Generate the output
-print "Content-type: text/html\n\n
+print qq{Content-type: text/html\n\n
 <!DOCTYPE html>
 <html>
 <head>
   <title>$conf{WEB_TITLE} - Login</title>
-    <meta charset=\"utf-8\">
-    <meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">
-    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- Bootstrap core CSS -->
-    <link href=\"/wifi/css/bootstrap.min.css\" rel=\"stylesheet\">
-    <link href=\"/wifi/css/login.css\" rel=\"stylesheet\">
+    <link href="/wifi/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/wifi/css/login.css" rel="stylesheet">
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
-    <script src=\"/wifi/js/html5shiv.min.js\"></script>
-    <script src=\"/wifi/js/respond.min.js\"></script>
+    <script src="/wifi/js/html5shiv.min.js"></script>
+    <script src="/wifi/js/respond.min.js"></script>
     <![endif]-->
-    <script src=\"/wifi/js/jquery.min.js\"></script>
-    <script src=\"/wifi/js/bootstrap.min.js\"></script>
-    <script src=\"/wifi/js/moment.js\"></script>
-    <script type=\"text/javascript\">
+    <script src="/wifi/js/jquery.min.js"></script>
+    <script src="/wifi/js/bootstrap.min.js"></script>
+    <script src="/wifi/js/moment.js"></script>
+    <script type="text/javascript">
 
-    \$(function() {
-      \$('#login-form-link').click(function(e) {
-        \$(\"#login-form\").delay(100).fadeIn(100);
-        \$(\"#guest-form\").fadeOut(100);
-        \$('#guest-form-link').removeClass('active');
-        \$(this).addClass('active');
+    jQuery(function() {
+      jQuery('#login-form-link').click(function(e) {
+        jQuery("#login-form").delay(100).fadeIn(100);
+        jQuery("#guest-form").fadeOut(100);
+        jQuery('#guest-form-link').removeClass('active');
+        jQuery(this).addClass('active');
           e.preventDefault();
        });
-      \$('#guest-form-link').click(function(e) {
-        \$(\"#guest-form\").delay(100).fadeIn(100);
-        \$(\"#login-form\").fadeOut(100);
-        \$('#login-form-link').removeClass('active');
-        \$(this).addClass('active');
+      jQuery('#guest-form-link').click(function(e) {
+        jQuery("#guest-form").delay(100).fadeIn(100);
+        jQuery("#login-form").fadeOut(100);
+        jQuery('#login-form-link').removeClass('active');
+        jQuery(this).addClass('active');
           e.preventDefault();
        });
      });
@@ -217,21 +237,21 @@ print "Content-type: text/html\n\n
       }
      }
      function hide_modal() {
-       \$('#loading').modal('hide');
+       jQuery('#loading').modal('hide');
      }
      function logon(username, pass) {
      alert('logining');
-        \$.ajax({
+        jQuery.ajax({
            type: 'POST',
            url: 'hotspotlogin.cgi',
            data: {Password : pass, challenge : challenge, get_pass : '1' },
            success: function(pappass){
-             \$.getJSON('http://$uamip:$uamport/json/logon?username='+ username +'&chapchallenge='+ challenge +'&chappassword='+ pappass +'&lang=EN&callback=?', function(data) {
+             jQuery.getJSON('http://$uamip:$uamport/json/logon?username='+ username +'&chapchallenge='+ challenge +'&chappassword='+ pappass +'&lang=EN&callback=?', function(data) {
              console.log(data);
              }).success(
                function(data) {
                  console.log(data);
-                 \$(\"#status\").html(data.message);
+                 jQuery("#status").html(data.message);
                  setTimeout( hide_modal, 2000);
                  challenge=data.challenge;
                  if (clientState != data.clientState) {
@@ -250,16 +270,16 @@ print "Content-type: text/html\n\n
          });
      }
      function get_status() {
-       var interval=setInterval(\"status()\",10000);
+       var interval=setInterval("status()",10000);
        status();
      }
      function get_content() {
-       \$.post( \"hotspotlogin.cgi?clientState=\"+ clientState +\"&uamip=$uamip&uamport=$uamport\", function( data ) {
-         \$( \"#content\" ).html( data );
+       jQuery.post( "hotspotlogin.cgi?clientState="+ clientState +"&uamip=$uamip&uamport=$uamport", function( data ) {
+         jQuery( "#content" ).html( data );
         });
      }
      function client_state() {
-      \$.getJSON('http://$uamip:$uamport/json/status?callback=?', function(data) {
+      jQuery.getJSON('http://$uamip:$uamport/json/status?callback=?', function(data) {
           console.log(data);
           clientState = data.clientState;
           challenge = data.challenge;
@@ -267,7 +287,7 @@ print "Content-type: text/html\n\n
         });
      }
      function status() {
-      \$.getJSON('http://$uamip:$uamport/json/status?callback=?', function(data) {
+      jQuery.getJSON('http://$uamip:$uamport/json/status?callback=?', function(data) {
           console.log(data);
           clientState = data.clientState;
           if (clientState == 0) {
@@ -315,49 +335,48 @@ print "Content-type: text/html\n\n
 	    var h = sec/3600 ^ 0 ;
             var m = (sec-h*3600)/60 ^ 0 ;
             var s = sec-h*3600-m*60 ;
-            \$('.logged-user').html('<h3 class=\"panel-title text-center\">Welcome '+ data.session.userName +'</h3>');
-            \$(\"#mac\").parent().remove();
-            \$(\"#speed\").parent().remove();
-            \$(\"#connect\").parent().remove();
-            var i = \$(\"#last_row\").before('<tr><td id=mac>MAC ADDRESS</td><td>'+ data.redir.macAddress +'</td></tr>').prev();
-            i = \$(\"#last_row\").before('<tr><td id=speed>UP/DOWN</td><td>'+ input + '' + in_type +'/'+ output +''+ out_type +' </td></tr>').prev();
-            var i = \$(\"#last_row\").before('<tr><td id=connect>CONNECTED</td><td>'+ (h<10?\"0\"+h:h) +':'+ (m<10?\"0\"+m:m) +':'+ (s<10?\"0\"+s:s) +'</td></tr>').prev();
+            jQuery('.logged-user').html('<h3 class="panel-title text-center">Welcome '+ data.session.userName +'</h3>');
+            jQuery("#mac").parent().remove();
+            jQuery("#speed").parent().remove();
+            jQuery("#connect").parent().remove();
+            var i = jQuery("#last_row").before('<tr><td id=mac>MAC ADDRESS</td><td>'+ data.redir.macAddress +'</td></tr>').prev();
+            i = jQuery("#last_row").before('<tr><td id=speed>UP/DOWN</td><td>'+ input + '' + in_type +'/'+ output +''+ out_type +' </td></tr>').prev();
+            var i = jQuery("#last_row").before('<tr><td id=connect>CONNECTED</td><td>'+ (h<10?"0"+h:h) +':'+ (m<10?"0"+m:m) +':'+ (s<10?"0"+s:s) +'</td></tr>').prev();
           }
         });
      }
     </script>
-    <meta http-equiv=\"Cache-control\" content=\"no-cache\">
-    <meta http-equiv=\"Pragma\" content=\"no-cache\">
+    <meta http-equiv="Cache-control" content="no-cache">
+    <meta http-equiv="Pragma" content="no-cache">
 </head>
 <body>
-";
+};
 if ($result != 0) {
-print "
-<div class=\"container\">
-  <div class=\"jumbotron jumbotron-sm\">
-    <div class=\"container\">
-      <div class=\"row\">
-        <div class=\"col-xs-12\">
-          <h2 class=\"h2 text-center\">
-            <label><span style='color: red;'></span>$CONF{WEB_TITLE} HotSpot</label>
+print qq{
+<div class="container">
+  <div class="jumbotron jumbotron-sm">
+    <div class="container">
+      <div class="row">
+        <div class="col-xs-12">
+          <h2 class="h2 text-center">
+            <label><span style='color: red;'></span>$conf{WEB_TITLE} HotSpot</label>
           </h2>
         </div>
       </div>
     </div>
   </div>
-  <div id=\"content\">
+  <div id="content">
   </div>
 </div>
-  <script type=\"text/javascript\">
+  <script type="text/javascript">
     var challenge = '$challenge';
     var clientState;
     var URL;
     client_state();
-//});      
   </script>
 </body>
 </html>
-";
+};
 }
 
 
@@ -375,7 +394,7 @@ if (defined $clientstate && $clientstate == 0) {
     <div class=\"row\">
       <div class=\"col-md-6 col-md-offset-3\">
         <div class=\"panel panel-login\">
-          <div class=\"panel-heading\">
+          <div class=\"box-header with-border\">
             <div class=\"row\">
               <div class=\"col-xs-6\">
                 <a href=\"#\" class=\"active\" id=\"login-form-link\">$lang{AUTH}</a>
@@ -487,7 +506,7 @@ print "
   <div class=\"row\">
     <div class=\"col-md-4 col-md-offset-4\">
       <div class=\"panel panel-success\">
-        <div class=\"panel-heading logged-user\">
+        <div class=\"box-header with-border logged-user\">
         </div>
         <div class=\"table-logged-user\">
         </div>
@@ -514,28 +533,29 @@ print "
 
 }
 
-#********************************************************************
-# get cookie values and return hash of it
+##********************************************************************
+## get cookie values and return hash of it
+##
+## getCookies()
+##********************************************************************
+#sub getCookies {
+#  shift;
+#	# cookies are seperated by a semicolon and a space, this will split
+#	# them and return a hash of cookies
+#	my(%cookies);
 #
-# getCookies()
-#********************************************************************
-sub getCookies {
-  my $self = shift;
-	# cookies are seperated by a semicolon and a space, this will split
-	# them and return a hash of cookies
-	my(%cookies);
-
-  if (defined($ENV{'HTTP_COOKIE'})) {
- 	  my(@rawCookies) = split (/; /, $ENV{'HTTP_COOKIE'});
-	  foreach(@rawCookies){
-	     my ($key, $val) = split (/=/,$_);
-	     $cookies{$key} = $val;
-	  }
-   }
-
-	return %cookies;
-}
+#  if (defined($ENV{'HTTP_COOKIE'})) {
+# 	  my(@rawCookies) = split (/; /, $ENV{'HTTP_COOKIE'});
+#	  foreach(@rawCookies){
+#	     my ($key, $val) = split (/=/,$_);
+#	     $cookies{$key} = $val;
+#	  }
+#   }
+#
+#	return %cookies;
+#}
 
 exit(0);
 
+1
 

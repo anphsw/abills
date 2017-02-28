@@ -2,6 +2,8 @@
  * Created by Anykey on 02.06.2016.
  */
 
+"use strict";
+
 var build = {
   city         : "Коломия",
   coordx       : "0.00000000000000",
@@ -27,17 +29,31 @@ var result = {
 
 
 $(function () {
-  "use strict";
   
   var single_coord_index = window['single_coord_index'];
-  var builds_to_process  = window['builds_for_auto_coords'];
-  var builds_count       = builds_to_process.length;
   
-  var build_with_id = {};
-  $.each(builds_to_process, function (i, build) {
-    build_with_id[build.id] = build;
-  });
+  var builds_to_process = [];
+  var builds_count      = 0;
+  var build_with_id     = {};
   
+  var aProgressBar = null;
+  
+  function updateBuilds(new_builds) {
+    builds_to_process = new_builds;
+    builds_count      = new_builds.length;
+    
+    build_with_id = {};
+    $.each(builds_to_process, function (i, build) {
+      build_with_id[build.id] = build;
+    });
+    
+    console.log('update');
+    
+    if (aProgressBar !== null) aProgressBar.destroy();
+    aProgressBar = new AProgressBar('progress_status', builds_count);
+  }
+  
+  updateBuilds(window['builds_for_auto_coords']);
   
   var ATableModifier = (function () {
     
@@ -52,32 +68,45 @@ $(function () {
     
     var table_row_for_id = {};
     
-    function updateIndex() {
-      table_row_for_id = {};
+    function updateIndex(callback) {
       
       $table.find('tr').map(function (index, entry) {
-        var $entry = $(entry);
-        var id     = $entry.find('td').first().text();
-        
+        var $entry           = $(entry);
+        var id               = $entry.find('td').first().text();
         table_row_for_id[id] = $entry;
       });
       
-      ABuildProcessor.setInputsLocked(false);
-    }
-    
-    function reloadTable(districts_are_not_real) {
-      ABuildProcessor.setInputsLocked(true);
+      var params = {
+        qindex                : INDEX,
+        header                : 2,
+        GET_UNFILLED_ADDRESSES: 1
+      };
       
-      var params = $.param({
-        index                 : INDEX,
-        DISTRICTS_ARE_NOT_REAL: districts_are_not_real ? 1 : 0
+      $.extend(params, ABuildProcessor.getFormParams());
+      
+      $.getJSON('?' + $.param(params), function (data) {
+        if (callback) callback(data);
       });
       
-      $table.load(SELF_URL + ' #GMA_TABLE_ID_', params, updateIndex);
     }
     
-    function setClass(id, new_class) {
+    function reloadTable() {
+      ABuildProcessor.setInputsLocked(true);
       
+      var form_params = ABuildProcessor.getFormParams();
+      
+      $.extend(form_params, {
+        index: INDEX
+      });
+      
+      var params = $.param(form_params);
+      
+      $table.load(SELF_URL + ' #GMA_TABLE_ID_', params, function () {
+        updateIndex(function (new_builds) {
+          updateBuilds(new_builds);
+          ABuildProcessor.setInputsLocked(false);
+        });
+      });
     }
     
     function handleStatus(status, result) {
@@ -88,13 +117,11 @@ $(function () {
       
       var $status_td = $(table_row_for_id[id].children('td')[position_of.STATUS]);
       $status_td.text(result.message);
-      
     }
     
     return {
       reloadTable : reloadTable,
       updateIndex : updateIndex,
-      setClass    : setClass,
       handleStatus: handleStatus
     }
     
@@ -104,42 +131,91 @@ $(function () {
   var ABuildProcessor = (function () {
     
     var $exec_btn         = $('#GMA_EXECUTE_BTN');
+    var $stop_btn         = $('#GMA_STOP_BTN');
     var $country_code_inp = $('#COUNTRY_CODE_id');
     var $districts_chb    = $('#DISTRICTS_ARE_NO_REAL');
-    var country           = '';
+    var $districts_select = $('select#DISTRICT_ID');
+    var $streets_select   = $('select#STREET_ID');
+  
+    var current_request = null;
+    var stopped = false;
     
     $districts_chb.on('change', function () {
-      ATableModifier.reloadTable($districts_chb.prop('checked'));
+      ATableModifier.reloadTable();
+    });
+    
+    $districts_select.on('change', function () {
+      ATableModifier.reloadTable();
+      $streets_select.load('?qindex=30&address=1&DISTRICT_ID=' + this.value);
+    });
+    
+    $streets_select.on('change', function () {
+      ATableModifier.reloadTable();
     });
     
     $exec_btn.on('click', function () {
       setInputsLocked(true);
-      var country = $country_code_inp.val();
       startExecution();
     });
     
+    $stop_btn.on('click', function(){
+      stopExecution();
+      setInputsLocked(false);
+    });
+    
     function startExecution() {
-      AProgressBar.set(0);
+      aProgressBar.set(0);
+      stopped = false;
       requestCoordsFor(0);
+      $exec_btn.css({ display : 'none' });
+      $stop_btn.css({ display : 'inline-block' });
+    }
+    
+    function stopExecution(){
+      stopped = true;
+      if (current_request !== null){
+        current_request.abort();
+      }
+      
+      $exec_btn.css({ display : 'inline-block' });
+      $stop_btn.css({ display : 'none' });
+    }
+    
+    function getFormParams() {
+      
+      var params = {
+        COUNTRY_CODE          : $country_code_inp.val(),
+        DISTRICTS_ARE_NOT_REAL: $districts_chb.prop('checked') ? 1 : 0
+      };
+      
+      var districts_val =  $districts_select.val();
+      if (districts_val){
+        params['DISTRICT_ID'] = districts_val;
+      }
+      
+      var street_val = $streets_select.val();
+      if (street_val){
+        params['STREET_ID'] = street_val;
+      }
+      
+      return params;
     }
     
     function requestCoordsFor(index_of_build) {
       
       var build = builds_to_process[index_of_build];
       
-      console.log(build);
-      
-      if (index_of_build >= builds_to_process.length) {
+      // Exit from recursion
+      if (stopped || index_of_build >= builds_to_process.length) {
+        stopExecution();
+        current_request = null;
         setInputsLocked(false);
         return true;
       }
       
-      
       var districts_are_not_real = $districts_chb.prop('checked');
-      
-      var district_name = (districts_are_not_real) ? '' : ( build.district_name + ", ");
-      
-      var requested_addr = build.city + ', '
+      var district_name          = (districts_are_not_real) ? '' : ( build.district_name + ", ");
+      var requested_addr         = build.city + ', '
           + district_name
           + build.street_name + ', '
           + build.number;
@@ -152,82 +228,74 @@ $(function () {
         BUILD_ID       : build.id
       });
       
-      $.getJSON(SELF_URL, params, function (responce) {
-        AProgressBar.update(1, responce.status);
+      current_request = $.getJSON(SELF_URL, params, function (responce) {
+        aProgressBar.update(1, responce.status);
         
         ATableModifier.handleStatus(responce.status, responce);
         
         if (responce.status < 500) {
-          requestCoordsFor(index_of_build + 1);
+          // Recursive async requests
+          debounce(function(){requestCoordsFor(index_of_build + 1)}, 1000)();
         }
         else {
-          AProgressBar.setMax();
-          AProgressBar.setClass('progress-bar-danger');
+          aProgressBar.setMax();
+          aProgressBar.setClass('progress-bar-danger');
         }
         
       })
     }
     
     function setInputsLocked(boolean) {
-      if (boolean) {
-        $exec_btn.addClass('disabled');
-        $districts_chb.attr('disabled', true);
-      }
-      else {
-        $exec_btn.removeClass('disabled');
-        $districts_chb.attr('disabled', false);
-      }
+      (boolean) ? $exec_btn.addClass('disabled') : $exec_btn.removeClass('disabled');
+      $districts_chb.prop('disabled', boolean);
+      $districts_select.prop('disabled', boolean);
+      $streets_select.prop('disabled', boolean);
+      updateChosen();
     }
     
-    
     return {
-      setInputsLocked: setInputsLocked
+      setInputsLocked: setInputsLocked,
+      getFormParams  : getFormParams
     }
   })();
   
   ATableModifier.updateIndex();
   
-  var AProgressBar = (function () {
+  function AProgressBar(id, max_count) {
+    this.max_value     = max_count;
+    this.$progress_bar = $('#' + id);
+    this.progress      = 0;
+    this.current_class = 'progress-bar-success';
     
-    var max_value     = builds_count;
-    var $progress_bar = $('#progress_status');
-    var progress      = 0;
-    var current_class = 'progress-bar-success';
-    
-    function update(value, status) {
+    this.update = function (value) {
       // Overall progress
-      progress += value;
-      setWidth(progress);
-    }
+      this.progress += value;
+      this.setWidth(this.progress);
+    };
     
-    function set(value) {
-      progress = value;
-      setWidth(progress);
-    }
+    this.set = function (value) {
+      this.progress = value;
+      this.setWidth(this.progress);
+    };
     
-    function setClass(new_class) {
-      $progress_bar.removeClass(current_class);
-      $progress_bar.addClass(new_class);
-    }
+    this.setClass = function (new_class) {
+      this.$progress_bar.removeClass(this.current_class);
+      this.$progress_bar.addClass(new_class);
+    };
     
-    function setMax() {
-      set(max_value);
-    }
+    this.setMax = function () {
+      this.set(this.max_value);
+    };
     
-    function setWidth(progress) {
-      var new_width     = progress / max_value * 100;
+    this.setWidth = function (progress) {
+      var new_width     = progress / this.max_value * 100;
       var new_width_int = Math.round(new_width);
-      $progress_bar.attr('style', 'width : ' + new_width_int + '%');
-    }
+      this.$progress_bar.attr('style', 'width : ' + new_width_int + '%');
+    };
     
-    return {
-      setClass: setClass,
-      setMax  : setMax,
-      update  : update,
-      set     : set
+    this.destroy = function () {
+      this.set(0);
+      this.setClass('progress-bar-success');
     }
-    
-  })();
-  
-  
+  }
 });

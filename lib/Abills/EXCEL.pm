@@ -24,24 +24,6 @@ our (
 use Encode qw(decode);
 
 our $VERSION = 2.01;
-#our @ISA     = ('Exporter');
-#our @EXPORT = qw(
-#  @_COLORS
-#  %FORM
-#  %LIST_PARAMS
-#  %COOKIES
-#  $index
-#  $pages_qs
-#  $SORT
-#  $DESC
-#  $PG
-#  $PAGE_ROWS
-#  $SELF_URL
-#);
-
-#our @EXPORT_OK   = ();
-#our %EXPORT_TAGS = ();
-
 my $CONF;
 my $workbook;
 my $IMG_PATH = '';
@@ -53,7 +35,6 @@ my %text_colors = (
   'text-danger' => 'red',
   '#FF0000'     => 'red',
 );
-
 
 #**********************************************************
 # Create Object
@@ -88,11 +69,15 @@ sub new {
     $self->{language} = $CONF->{default_language} || 'english';
   }
 
+  $self->{TYPE}='excel' if(! $self->{TYPE});
+
   return $self;
 }
 
 #**********************************************************
-# form_input
+=head2 form_input($name, $value, $attr)
+
+=cut
 #**********************************************************
 sub form_input {
   my $self = shift;
@@ -114,17 +99,17 @@ sub form_input {
 }
 
 #**********************************************************
-# HTML Input form
+=head2 form_main($attr) HTML Input form
+
+=cut
 #**********************************************************
 sub form_main {
+  my $self = shift;
   my ($attr) = @_;
 
   if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $attr->{ID}) {
     return '';
   }
-
-  my $self = shift;
-  my ($attr) = @_;
 
   if ($attr->{CONTENT}) {
     $self->{FORM} .= $attr->{CONTENT};
@@ -139,7 +124,9 @@ sub form_main {
 }
 
 #**********************************************************
-#
+=head2 form_select($name, $attr)
+
+=cut
 #**********************************************************
 sub form_select {
   my $self = shift;
@@ -204,7 +191,9 @@ sub form_select {
 }
 
 #**********************************************************
-# Functions list
+=head2 menu2($menu_items, $menu_args, $permissions, $attr)
+
+=cut
 #**********************************************************
 sub menu2 {
   my $self = shift;
@@ -212,6 +201,11 @@ sub menu2 {
   $self->menu($menu_items, $menu_args, $permissions, $attr);
 }
 
+#**********************************************************
+=head2 menu($menu_items, $menu_args, $permissions, $attr)
+
+=cut
+#**********************************************************
 sub menu {
   my $self = shift;
   my ($menu_items, $menu_args, $permissions, $attr) = @_;
@@ -462,29 +456,29 @@ sub addtd {
   return $self;
 }
 
-#**********************************************************
-=head2 th()
-
-=cut
-#**********************************************************
-sub th {
-  my $self = shift;
-  my ($value) = @_;
-
-  return $value;
-}
-
-#**********************************************************
-=head2 td()
-
-=cut
-#**********************************************************
-sub td {
-  my $self = shift;
-  my ($value) = @_;
-
-  return $value;
-}
+##**********************************************************
+#=head2 th()
+#
+#=cut
+##**********************************************************
+#sub th {
+#  my $self = shift;
+#  my ($value) = @_;
+#
+#  return $value;
+#}
+#
+##**********************************************************
+#=head2 td()
+#
+#=cut
+##**********************************************************
+#sub td {
+#  my $self = shift;
+#  my ($value) = @_;
+#
+#  return $value;
+#}
 
 #**********************************************************
 =head2 table_title($sort, $desc, $pg, $caption, $qs)
@@ -548,16 +542,6 @@ sub show {
 }
 
 #**********************************************************
-#
-#**********************************************************
-sub link_former {
-  my ($self) = shift;
-  my ($params) = @_;
-
-  return $params;
-}
-
-#**********************************************************
 =head2 button($name, $params, $attr)
 =cut
 #**********************************************************
@@ -588,8 +572,9 @@ sub message {
 }
 
 #**********************************************************
-# Make pages and count total records
-# pages($count, $argument)
+=head2 pages($count, $argument, $attr) - Make pages and count total records
+
+=cut
 #**********************************************************
 sub pages {
   my $self = shift;
@@ -614,14 +599,13 @@ sub pages {
 }
 
 #**********************************************************
-# Make data field
-# date_fld($base_name)
+=head2 date_fld2($base_name, $attr)
+
+=cut
 #**********************************************************
 sub date_fld2 {
   my $self = shift;
   my ($base_name, $attr) = @_;
-
-  #my $MONTHES = $attr->{MONTHES};
 
   my ($mday, $mon, $curyear) = (localtime(time))[3..5];
 
@@ -656,12 +640,9 @@ sub date_fld2 {
 }
 
 #**********************************************************
-# show tamplate
-# tpl_show
-#
-# template
-# variables_ref
-# atrr [EX_VARIABLES]
+=head2 tpl_show($tpl, $variables_ref, $attr);
+
+=cut
 #**********************************************************
 sub tpl_show {
   my $self = shift;
@@ -715,52 +696,12 @@ sub tpl_show {
     return $tpl;
   }
   elsif ($attr->{notprint} || $self->{NO_PRINT}) {
-    $self->{OUTPUT} .= "$tpl";
+    $self->{OUTPUT} .= $tpl;
     return $tpl;
   }
   else {
-    print "$tpl";
+    print $tpl;
   }
-}
-
-#**********************************************************
-# test function
-#  %FORM     - Form
-#  %COOKIES  - Cookies
-#  %ENV      - Enviropment
-#
-#**********************************************************
-sub test {
-  my $output = '';
-
-  while (my ($k, $v) = each %FORM) {
-    $output .= "$k | $v\n" if ($k ne '__BUFFER');
-  }
-
-  $output .= "\n";
-  while (my ($k, $v) = each %COOKIES) {
-    $output .= "$k | $v\n";
-  }
-}
-
-#**********************************************************
-# b();
-#**********************************************************
-sub b {
-  my ($self) = shift;
-  my ($text) = @_;
-
-  return $text;
-}
-
-#**********************************************************
-# b();
-#**********************************************************
-sub p {
-  my ($self) = shift;
-  my ($text) = @_;
-
-  return $text;
 }
 
 #**********************************************************
@@ -813,8 +754,9 @@ sub color_mark {
 }
 
 #**********************************************************
-# Break line
-#
+=head2 br() - Break line
+
+=cut
 #**********************************************************
 sub br {
   my $self = shift;
@@ -823,7 +765,9 @@ sub br {
 }
 
 #**********************************************************
-# HTML element
+=head2 element($name, $value, $attr)
+
+=cut
 #**********************************************************
 sub element {
   my $self = shift;
@@ -838,55 +782,6 @@ sub element {
   return $self->{FORM_INPUT};
 }
 
-#***********************************************************
-#
-#***********************************************************
-sub badge {
-	my $self = shift;
-  my ($text) = @_;
-	
-	return "$text";
-}
-
-#**********************************************************
-=head2 li($item, $attr) - list item
-
-=cut
-#**********************************************************
-sub li {
-	my $self = shift;
-  #my ($item, $attr) = @_;
-
-  return "item";
-}
-
-#**********************************************************
-=head2 progress_bar($attr)
-
-=cut
-#**********************************************************
-sub progress_bar {
-  my $self = shift;
-  #my ($attr) = @_;
-
-  return $self;
-}
-
-#**********************************************************
-=head2 table_header($header, $attr) - Show table column  titles with wort derectives
-
-  Arguments:
-   $header_arr - array of elements
-
-=cut
-#**********************************************************
-sub table_header {
-  my $self = shift;
-  #my ($header_arr, $attr) = @_;
-
-  return '';
-}
-
 #**********************************************************
 =head2 fetch() - Fetch cache data
 
@@ -896,6 +791,26 @@ sub fetch  {
   my $self = shift;
 
   return $self;
+}
+
+#**********************************************************
+=head2  AUTOLOAD Autoload secondary funtions
+
+=cut
+#**********************************************************
+sub AUTOLOAD {
+  our $AUTOLOAD;
+
+  return if ($AUTOLOAD =~ /::DESTROY$/);
+  my $function = $AUTOLOAD;
+
+  if($function =~ /table_header|progress_bar|/) {
+    return q{};
+  }
+
+  my ($self, $data) = @_;
+
+  return $data;
 }
 
 1

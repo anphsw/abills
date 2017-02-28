@@ -12,7 +12,7 @@ use POSIX qw(strftime);
 BEGIN {
   my $libpath = '../../../';
   $sql_type = 'mysql';
-  unshift(@INC, '/usr/abills/');
+  unshift(@INC, '/usr/abills/lib/');
   unshift(@INC, '/usr/abills/Abills/');
   unshift(@INC, "/usr/abills/Abills/$sql_type/");
 

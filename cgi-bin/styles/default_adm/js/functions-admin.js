@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * This array is used to remember mark status of rows in browse mode
  */
@@ -222,99 +224,83 @@ function defineHighlightRow() {
   });
 }
 
-
 function defineMainSearchLiveLogic() {
-  'use strict';
-  var $universal_search = $('.UNIVERSAL_SEARCH');
-  if ($universal_search.length == 0){
-    return true;
-  }
+  var $universal_search_forms = $('.UNIVERSAL_SEARCH_FORM');
   
-  var $universal_search_form = $('#UNIVERSAL_SEARCH_FORM');
-  var $type_select = $universal_search_form.find('#type');
+  if (!$universal_search_forms.length) return true;
   
-  $.getScript('/styles/default_adm/js/mustache.min.js', function () {
-    $.getScript('/styles/default_adm/js/jquery.marcopolo.min.js', function () {
-      var login_uid_row_template = '<div class="row">'
-          + '<span class="pull-left">{{fio}}</span>'
-          + '<span class="pull-right"><strong>{{login}} ( {{uid}} )</strong></span>'
-          + '</div>';
-      var address_phone_row_template = '<div class="row">'
-          + '<span class="mp_address pull-left"><strong>{{address_full}}</strong>&nbsp;</span>'
-          + '<span class="mp_phone pull-right"><i class="text-muted">{{phone}}</i></span>'
-          + '</div>';
+  var login_uid_row_template = ''
+      + '<span>&nbsp;{{fio}}</span>'
+      + '<span class="pull-right"><strong>&nbsp;{{login}} ( {{uid}} )</strong></span>'
+      + '';
+  var address_phone_row_template = ''
+      + '<br/><span>&nbsp;{{address_full}}&nbsp;</span>'
+      + '<span class="pull-right"><i class="text-muted">{{phone}}</i></span>'
+      + '';
   
-      Mustache.parse(login_uid_row_template);
-      Mustache.parse(address_phone_row_template);
+  Mustache.parse(login_uid_row_template);
+  Mustache.parse(address_phone_row_template);
   
-      try {
+  $.each($universal_search_forms, function(i, form){
+    var $form = $(form);
+    var $type_select = $form.find('.search-type-select');
+    var $input = $form.parent().find('input.UNIVERSAL_SEARCH');
     
-        $universal_search.marcoPolo({
-      
-          data: function () {
-            return {
-              qindex        : 7,
-              header        : 1,
-              search        : 1,
-              type          : $type_select.val() || 10,
-              json          : 1,
-              SKIP_FULL_INFO: 1,
-              EXPORT_CONTENT: "USERS_LIST"
-            }
-          },
-      
-          formatData: function (data) {
-            return data.DATA_1;
-          },
-      
-          submitOnEnter: true,
-          highlight    : false,
+    try {
+      $input.marcoPolo({
+        url : $form.attr('action'),
+        data: function () {
+          return {
+            qindex        : 7,
+            header        : 1,
+            search        : 1,
+            type          : $type_select.val() || 10,
+            json          : 1,
+            SKIP_FULL_INFO: 1,
+            EXPORT_CONTENT: "USERS_LIST"
+          }
+        },
   
-          selectable : ':not(.disabled)',
-          
-          formatItem: function (data, $item) {
-            
-            // Disable selecting if not universal search type;
-            if ($type_select.val() !== '10' ){
-              $item.addClass('disabled');
-              $item.addClass('bg-warning');
-            }
-            else {
-              $item.addClass('bg-info');
-            }
-            
-            var result = Mustache.render(login_uid_row_template, data);
-            if (data.address_full && data.phone){
-              result += Mustache.render(address_phone_row_template, data);
-            }
-            return result;
-          },
-      
-          minChars: 3,
-      
-          onSelect: function (data, $item) {
-            location.replace('?index=15&UID=' + data.uid);
-          },
-      
-          param: 'LOGIN',
-      
-          required: false
-        });
-      }
-      catch (Error){
-        console.log(Error.message);
-      }
-    });
+        formatData: function (data) {
+          return data['DATA_1'];
+        },
+  
+        submitOnEnter: true,
+        highlight    : false,
+  
+        selectable : ':not(.disabled)',
+  
+        formatItem: function (data, $item) {
+          // Disable selecting if not universal search type;
+          var result = Mustache.render(login_uid_row_template, data);
+          if (data['address_full'] && data['phone']){
+            result += Mustache.render(address_phone_row_template, data);
+          }
+          return result;
+        },
+  
+        minChars: 3,
+  
+        onSelect: function (data) {
+          location.replace('?index=15&UID=' + data.uid);
+        },
+        param: 'LOGIN',
+  
+        required: false
+      });
+    }
+    catch (Error){
+      console.log(Error.message);
+    }
   });
-  
  
   //Higlighted style
   var highlighted_style_block = ''
       + '<style> ol.mp_list li.mp_highlighted {' +
       ' background-color:' + $('.bg-success').css('background-color')
       +'}</style>';
-  
-  $('head').append(highlighted_style_block);
+
+  //$('head').append(highlighted_style_block);
 }
 
 
@@ -325,6 +311,29 @@ $(document).ready(function () {
   
   //Live universal search
   defineMainSearchLiveLogic();
+  
+});
+
+// Init header menus
+$(function () {
+  
+  var HMessages    = new MessagesMenu('messages-menu', {});
+  var HResponsible = new MessagesMenu('responsible-menu', {
+    filter: function (message) {return (message['state_id'] === '0')}
+  });
+  var HEvents      = new EventsMenu('events-menu', {});
+  
+  (function () {
+    if (HMessages.init()) window['HMessages'] = HMessages;
+  })();
+  
+  (function () {
+    if (HResponsible.init()) window['HResponsible'] = HResponsible;
+  })();
+  
+  (function () {
+    if (HEvents.init()) window['HEvents'] = HEvents;
+  })();
   
 });
 
@@ -344,6 +353,6 @@ var colorArray = [
 ];
 
 function nextColor(opacity) {
-  if (currColor == colorArray.length - 2) currColor = 0;
-  return colorArray[currColor++] + ',' + opacity + ')';
+  currColor = ++currColor % colorArray.length;
+  return colorArray[currColor] + ',' + opacity + ')';
 }

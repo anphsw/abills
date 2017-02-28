@@ -3,10 +3,10 @@
 <input type='hidden' name='ID' value='$FORM{chg}'>
 <fieldset>
 
-<div class='panel panel-default panel-form'>
+<div class='box box-theme box-form'>
 <legend>_{BOXES}_</legend>
 
-<div class='panel-body'>
+<div class='box-body'>
 
 <div class='form-group'>
   <label class='control-label col-md-3' for='SERIAL'>_{SERIAL}_</label>
@@ -24,7 +24,7 @@
 
 </div>
 
-<div class='panel-footer'>
+<div class='box-footer'>
 	<input type='submit' name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'>
 </div>
 

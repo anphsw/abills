@@ -1,84 +1,89 @@
-CREATE TABLE `sharing_main` (
-  `uid` int(11) unsigned NOT NULL default '0',
-  `type` tinyint(2) unsigned NOT NULL default '0',
-  `tp_id` smallint(5) unsigned NOT NULL default '0',
-  `cid` varchar(15) NOT NULL default '',
-  `disable` tinyint(1) unsigned NOT NULL default '0',
-  `speed` int(10) unsigned NOT NULL default '0',
-  `filter_id` varchar(15) NOT NULL default '',
-  `logins` tinyint(3) unsigned NOT NULL default '0',
-  `extra_byte` double(15,2) unsigned NOT NULL default '0.00',
+CREATE TABLE IF NOT EXISTS `sharing_main` (
+  `uid` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `type` TINYINT(2) UNSIGNED NOT NULL DEFAULT '0',
+  `tp_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `cid` VARCHAR(15) NOT NULL DEFAULT '',
+  `disable` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
+  `speed` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+  `filter_id` VARCHAR(15) NOT NULL DEFAULT '',
+  `logins` TINYINT(3) UNSIGNED NOT NULL DEFAULT '0',
+  `extra_byte` DOUBLE(15, 2) UNSIGNED NOT NULL DEFAULT '0.00',
   KEY `uid` (`uid`)
-) COMMENT='Sharing main info';
+)
+  COMMENT = 'Sharing main info';
 
-CREATE TABLE `sharing_log` (
-  `virtualhost` text,
-  `remoteip` int(10) unsigned default '0',
-  `remoteport` smallint(6) unsigned NOT NULL default '0',
-  `serverid` text,
-  `connectionstatus` char(3) default NULL,
-  `username` varchar(20) default NULL,
-  `identuser` varchar(40) default NULL,
-  `start` datetime NOT NULL default '0000-00-00 00:00:00',
-  `requestmethod` text,
-  `url` text,
-  `protocol` text,
-  `statusbeforeredir` int(10) unsigned default NULL,
-  `statusafterredir` int(10) unsigned default NULL,
-  `processid` int(10) unsigned default NULL,
-  `threadid` int(10) unsigned default NULL,
-  `duration` int(10) unsigned NOT NULL default '0',
-  `microseconds` int(10) unsigned default NULL,
-  `recv` int(10) unsigned NOT NULL default '0',
-  `sent` int(10) unsigned NOT NULL default '0',
-  `bytescontent` int(10) unsigned default NULL,
-  `useragent` text,
-  `referer` text,
-  `uniqueid` text,
-  `nas_id` int(10) unsigned NOT NULL default '0',
+CREATE TABLE IF NOT EXISTS `sharing_log` (
+  `virtualhost` TEXT,
+  `remoteip` INT(10) UNSIGNED DEFAULT '0',
+  `remoteport` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `serverid` TEXT,
+  `connectionstatus` CHAR(3) DEFAULT NULL,
+  `username` VARCHAR(20) DEFAULT NULL,
+  `identuser` VARCHAR(40) DEFAULT NULL,
+  `start` DATETIME NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+  `requestmethod` TEXT,
+  `url` TEXT,
+  `protocol` TEXT,
+  `statusbeforeredir` INT(10) UNSIGNED DEFAULT NULL,
+  `statusafterredir` INT(10) UNSIGNED DEFAULT NULL,
+  `processid` INT(10) UNSIGNED DEFAULT NULL,
+  `threadid` INT(10) UNSIGNED DEFAULT NULL,
+  `duration` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+  `microseconds` INT(10) UNSIGNED DEFAULT NULL,
+  `recv` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+  `sent` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+  `bytescontent` INT(10) UNSIGNED DEFAULT NULL,
+  `useragent` TEXT,
+  `referer` TEXT,
+  `uniqueid` TEXT,
+  `nas_id` INT(10) UNSIGNED NOT NULL DEFAULT '0',
   KEY `username` (`username`)
-) COMMENT='Sharing log file';
+)
+  COMMENT = 'Sharing log file';
 
-CREATE TABLE `sharing_trafic_tarifs` (
- `id` tinyint(4) NOT NULL default '0',
- `descr` varchar(30) default NULL,
- `nets` text,
- `tp_id` smallint(5) unsigned NOT NULL default '0',
- `prepaid` int(11) unsigned default '0',
- `in_price` double(13,5) unsigned NOT NULL default '0.00000',
- `out_price` double(13,5) unsigned NOT NULL default '0.00000',
- `in_speed` int(10) unsigned NOT NULL default '0',
- `interval_id` smallint(6) unsigned NOT NULL default '0',
- `rad_pairs` text NOT NULL,
- `out_speed` int(10) unsigned NOT NULL default '0',
- `expression` varchar(255) NOT NULL default '',
-  UNIQUE KEY `id` (`id`,`tp_id`)
-) COMMENT='Sharing Traffic Class';
+CREATE TABLE IF NOT EXISTS `sharing_trafic_tarifs` (
+  `id` TINYINT(4) NOT NULL DEFAULT '0',
+  `descr` VARCHAR(30) DEFAULT NULL,
+  `nets` TEXT,
+  `tp_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `prepaid` INT(11) UNSIGNED DEFAULT '0',
+  `in_price` DOUBLE(13, 5) UNSIGNED NOT NULL DEFAULT '0.00000',
+  `out_price` DOUBLE(13, 5) UNSIGNED NOT NULL DEFAULT '0.00000',
+  `in_speed` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+  `interval_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `rad_pairs` TEXT NOT NULL,
+  `out_speed` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+  `expression` VARCHAR(255) NOT NULL DEFAULT '',
+  UNIQUE KEY `id` (`id`, `tp_id`)
+)
+  COMMENT = 'Sharing Traffic Class';
 
-CREATE TABLE `sharing_errors` (
-  `datetime` datetime NOT NULL default '0000-00-00 00:00:00',
-  `uid` int(10) unsigned NOT NULL default '0',
-  `username` varchar(20) NOT NULL default '',
-  `file_and_path` varchar(200) NOT NULL default '',
-  `client_name` varchar(127) NOT NULL default '',
-  `ip` int(10) unsigned NOT NULL default '0',
-  `client_command` varchar(250) NOT NULL default ''
-) COMMENT='Sharing errors';
+CREATE TABLE IF NOT EXISTS `sharing_errors` (
+  `datetime` DATETIME NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+  `uid` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+  `username` VARCHAR(20) NOT NULL DEFAULT '',
+  `file_and_path` VARCHAR(200) NOT NULL DEFAULT '',
+  `client_name` VARCHAR(127) NOT NULL DEFAULT '',
+  `ip` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+  `client_command` VARCHAR(250) NOT NULL DEFAULT ''
+)
+  COMMENT = 'Sharing errors';
 
 
-CREATE TABLE `sharing_priority` (
-  `server` varchar(60) default NULL,
-  `file` varchar(250) NOT NULL default '',
-  `size` int(10) unsigned NOT NULL default '0',
-  `priority` tinyint(3) unsigned NOT NULL default '0',
-  `datetime` datetime NOT NULL default '0000-00-00 00:00:00',
-  `id` int(11) unsigned NOT NULL auto_increment,
-  PRIMARY KEY  (`id`),
+CREATE TABLE IF NOT EXISTS `sharing_priority` (
+  `server` VARCHAR(60) DEFAULT NULL,
+  `file` VARCHAR(250) NOT NULL DEFAULT '',
+  `size` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+  `priority` TINYINT(3) UNSIGNED NOT NULL DEFAULT '0',
+  `datetime` DATETIME NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`id`),
   UNIQUE KEY `id` (`id`),
   KEY `file` (`file`)
-) COMMENT='Sharing file priority';
+)
+  COMMENT = 'Sharing file priority';
 
-
+# NEW TABLES
 CREATE TABLE `sharing_additions` (
   `id` smallint(6) NOT NULL auto_increment,
   `name` varchar(25) NOT NULL default '',
@@ -87,23 +92,45 @@ CREATE TABLE `sharing_additions` (
   `tp_id` smallint(6) unsigned NOT NULL default '0',
   PRIMARY KEY  (`id`),
   UNIQUE KEY `id` (`id`)
-) COMMENT='Sharing Additions';
+)
+  COMMENT = 'Sharing Additions';
 
 
 
 CREATE TABLE `sharing_files` (
   `id` smallint(6) NOT NULL auto_increment,
   `name` varchar(25) NOT NULL default '',
-  `amount` double(10,2) NOT NULL default '0.00'
+  `amount` double(10,2) NOT NULL default '0.00',
   `link_time` smallint(3) NOT NULL default 0,
   `file_time` smallint(3) NOT NULL default 0,
-  `comment` text NOT NULL default '',
+  `group_id` int(2) NOT NULL DEFAULT 0,
+  `version` VARCHAR(32) NOT NULL DEFAULT '',
+  `comment` text NOT NULL,
   PRIMARY KEY (`id`)
-) COMMENT='File for download';
+)
+  COMMENT = 'File for download';
 
-CREATE TABLE `sharing_users` (
+CREATE TABLE IF NOT EXISTS `sharing_users` (
+  `uid` SMALLINT(11) NOT NULL DEFAULT 0,
+  `file_id` SMALLINT(6) NOT NULL DEFAULT 0,
+  `date_to` DATE NOT NULL DEFAULT '0000-00-00',
+  UNIQUE (`uid`, `file_id`)
+)
+  COMMENT = 'Users and their files';
+
+CREATE TABLE `sharing_download_log` (
+  `id` smallint(6) NOT NULL auto_increment,
+  `file_id` smallint(6) NOT NULL DEFAULT 0,
+  `date` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
   `uid` smallint(11) NOT NULL default 0,
-  `file_id` smallint(6) NOT NULL default 0,
-  `date_to` date NOT NULL default '0000-00-00',
-  unique               (uid, file_id)
-) COMMENT='Users and their files';
+  `ip` int(11) unsigned NOT NULL default '0',
+  `system_id` varchar(25) NOT NULL default '',
+  PRIMARY KEY (`id`)
+) COMMENT='Sharing download log';
+
+CREATE TABLE `sharing_groups` (
+  `id` smallint(6) NOT NULL auto_increment,
+  `name` varchar(25) NOT NULL default '',
+  `comment` text NOT NULL,
+  PRIMARY KEY (`id`)
+) COMMENT='Sharing groups for files';

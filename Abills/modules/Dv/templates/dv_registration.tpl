@@ -10,15 +10,17 @@
 </script>
 
 <link href='/styles/default_adm/css/client.css' rel='stylesheet'>
+
 <FORM action='$SELF_URL' METHOD=POST ID='REGISTRATION' class='form-horizontal'>
 <input type=hidden name=index value=$index>
 <input type=hidden name=DOMAIN_ID value=$FORM{DOMAIN_ID}>
 <input type=hidden name=module value=Dv>
 
-<div class='panel panel-primary panel-form center-block'>
+<div class='box box-theme box-form center-block'>
 
-<div class='panel-heading text-center'><h4>_{REGISTRATION}_ - Internet</h4></div>
-<div class='panel-body'>
+<div class='box-header with-border'><h4 class='box-title'>_{REGISTRATION}_</h4></div>
+<div class='box-body'>
+%CHECKED_ADDRESS_MESSAGE%
 <div class='form-group'>
   <label class='control-label col-md-3' for='LANGUAGE'>_{LANGUAGE}_</label>
   <div class='col-md-9'>
@@ -82,11 +84,13 @@
 %CAPTCHA%
 </div>
 
-<div class='panel-footer text-center'>
+<div class='box-footer text-right'>
     <input type=submit name=reg value='_{REGISTRATION}_' class='btn btn-primary'>
 </div>
 
 </div>
 </FORM>
 
+
 %MAPS%
+

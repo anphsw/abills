@@ -8,13 +8,14 @@ Abills::mysql::main - DB manipulation functions
 
 use strict;
 use DBI;
-use Abills::Base qw(ip2int int2ip in_array);
+use Abills::Base qw(int2ip in_array);
 
-our $VERSION = 7.08;
+our $VERSION = 7.10;
 
 #my $admin;
 my $CONF;
 my $SORT = 1;
+my $sql_errors = '/usr/abills/var/log/sql_errors';
 
 
 #**********************************************************
@@ -58,7 +59,10 @@ sub connect{
     $self->{sql_errno} = 0 if (!$self->{sql_errno});
     $self->{sql_errstr} = '' if (!$self->{sql_errstr});
 
-    Log::log_print( undef, 'LOG_ERR', '', "Connection Error: $DBI::errstr", { NAS => 0, LOG_FILE => "/tmp/sql_errors" } );
+    Log::log_print( undef, 'LOG_ERR', '', "Connection Error: $DBI::errstr", {
+      NAS      => 0,
+      LOG_FILE => ( -w $sql_errors) ? $sql_errors : '/tmp/sql_errors'
+    });
   }
 
   return $self;
@@ -78,7 +82,10 @@ sub disconnect{
 }
 
 #**********************************************************
-=head2 db_version($attr) - Get DB version
+=head2 db_version() - Get DB version
+
+  Returns:
+    $version
 
 =cut
 #**********************************************************
@@ -86,6 +93,7 @@ sub db_version{
   my $self = shift;
 
   my $version = $self->{db}->{db}->get_info( 18 );
+  $self->{FULL_VERSION} = $version;
 
   if ( $version =~ /^(\d+\.\d+)/ ){
     $version = $1;
@@ -196,7 +204,7 @@ sub query2{
       elsif ( $self->{db}->{db_debug} > 2 ){
         require Log;
         Log->import( 'log_print' );
-        Log::log_print( undef, 'LOG_ERR', '', "\n-----$self->{queries_count}------\n$query\n",
+        Log::log_print( undef, 'LOG_ERR', '', "\n-----". ($self->{queries_count} || q{}) ."------\n$query\n",
           { NAS => 0, LOG_FILE => "/tmp/sql_debug" } );
       }
       #sequence
@@ -234,7 +242,7 @@ sub query2{
 
     Log::log_print( undef, 'LOG_ERR', '',
       "Query:\n$query\n Error:$self->{sql_errno}\n Error str:$self->{sql_errstr}\nundefined \$db",
-      { NAS => 0, LOG_FILE => "/tmp/sql_errors" } );
+      { NAS => 0, LOG_FILE => ( -w $sql_errors) ? $sql_errors : '/tmp/sql_errors' } );
     return $self;
   }
 
@@ -290,7 +298,7 @@ sub query2{
       Log->import( 'log_print' );
       Log::log_print( undef, 'LOG_ERR', '',
         "index:$attr->{index}\n$query\n --$self->{sql_errno}\n --$self->{sql_errstr}\n --AutoCommit: $db->{AutoCommit}\n"
-        , { NAS => 0, LOG_FILE => "/tmp/sql_errors" } );
+        , { NAS => 0, LOG_FILE => ( -w $sql_errors) ? $sql_errors : '/tmp/sql_errors' } );
     }
     return $self;
   }
@@ -503,307 +511,12 @@ sub query_del{
 }
 
 #**********************************************************
-=head2 changes($admin, $attr) - Change values in table and make change log
-
-  !!! Deprecated !!! use changes2()
-
-  Arguments:
-    $admin - Admin obj
-    $attr  - Parmeters
-      CHANGE_PARAM - chenging param (required)
-      SECOND_PARAM - Aditional parameter for change
-      TABLE        - changing table (required)
-      DATA         - Input data (hash_ref)
-      EXT_CHANGE_INFO - Extra change information (Extra describe)
-      FIELDS       - fields of table (hash_ref) old
-      OLD_INFO     - OLD infomation for compare
-      ACTION_ID    - Action ID
-
-  Returns:
-    $self Object
-
-  Examples:
-
-    $self->changes($admin,
-      {
-        CHANGE_PARAM => 'ID',
-        TABLE        => 'ring_rules',
-        DATA         => $attr
-      }
-    );
-
-=cut
-#**********************************************************
-#@deprecated
-sub changes{
-  my $self = shift;
-  my ($admin, $attr) = @_;
-
-  if ( !$CONF ){
-    print "Changes !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Undefined \$CONF\n" . join (', ', caller);
-    exit;
-  }
-
-  my $TABLE = $attr->{TABLE};
-  my $CHANGE_PARAM = $attr->{CHANGE_PARAM};
-  my $FIELDS = $attr->{FIELDS};
-  my %DATA = %{ $attr->{DATA} };
-  my DBI $db = ($self->{db}{db}) ? $self->{db}{db} : $self->{db};
-  my @bind_values = ();
-  my @change_fields = ();
-  my @change_log = ();
-
-  if ( !$DATA{UNCHANGE_DISABLE} ){
-    $DATA{DISABLE} = (defined( $DATA{'DISABLE'} ) && $DATA{DISABLE} ne '') ? $DATA{DISABLE} : undef;
-  }
-
-  if ( defined( $DATA{EMAIL} ) && $DATA{EMAIL} ne '' ){
-    if ( $DATA{EMAIL} !~ /(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))/ ){
-      $self->{errno} = 11;
-      $self->{errstr} = 'ERROR_WRONG_EMAIL';
-      return $self;
-    }
-  }
-
-  my $OLD_DATA = $attr->{OLD_INFO};
-  if ( $OLD_DATA->{errno} ){
-    print  "Old date errors: $OLD_DATA->{errno} '$TABLE' $attr->{CHANGE_PARAM}=$DATA{$CHANGE_PARAM}\n";
-    print %DATA;
-    print "\nError: $OLD_DATA->{errstr}\n";
-    $self->{errno} = $OLD_DATA->{errno};
-    $self->{errstr} = $OLD_DATA->{errstr};
-    return $self;
-  }
-
-  if ( !$attr->{OLD_INFO} && !$FIELDS ){
-    my $second_param = ($attr->{SECOND_PARAM}) ? ' AND ' . lc( $attr->{SECOND_PARAM} ) . "='" . $DATA{$attr->{SECOND_PARAM}} . "'" : '';
-
-    $attr->{EXTENDED} = $second_param if ($second_param);
-
-    my $sql = "SELECT * FROM `$TABLE` WHERE " . lc( $attr->{CHANGE_PARAM} ) . "='" . $DATA{$attr->{CHANGE_PARAM}} . "'$second_param;";
-    if ( $self->{debug} ){
-      print $sql;
-    }
-
-    my $q = $db->prepare( $sql );
-    $q->execute();
-
-    #Skip function if get value return error
-    if ( $db->err ){
-      $self->{errno} = '3';
-      $self->{errstr} = "Can't get old data for change";
-      return $self->{result};
-    }
-
-    #my @inserts_arr = ();
-
-    while (defined( my $row = $q->fetchrow_hashref() )) {
-      while(my ($k, $v) = each %{$row} ) {
-        my $field_name = uc( $k );
-        if ( $field_name eq 'IP' || $field_name eq 'PAYSYS_IP' ){
-          $v = int2ip( $v );
-        }
-        elsif ( $field_name eq 'NETMASK' ){
-          $v = int2ip( $v );
-        }
-        elsif ( $field_name eq 'DISABLE' ){
-          $self->{DISABLE} = $v;
-        }
-
-        $OLD_DATA->{ $field_name } = $v;
-        $FIELDS->{ $field_name } = $k;
-      }
-    }
-  }
-
-  while (my ($k, $v) = each( %DATA )) {
-    #print "$k / $v -> $FIELDS->{$k} && $DATA{$k} && $OLD_DATA->{$k} ne $DATA{$k}<br>\n";
-    $OLD_DATA->{$k} = '' if (!defined( $OLD_DATA->{$k} ));
-
-    if ( $FIELDS->{$k} && defined( $DATA{$k} ) && $OLD_DATA->{$k} ne $v ){
-      if ( $k eq 'PASSWORD' || $k eq 'NAS_MNG_PASSWORD' ){
-        if ( $DATA{$k} ){
-          if ( $DATA{$k} eq '__RESET__' ){
-            push @change_log, "$k *->reset";
-            push @change_fields, "$FIELDS->{$k}=''";
-          }
-          else{
-            push @change_log, "$k *->*";
-            push @change_fields, "$FIELDS->{$k}=ENCODE(?, '$CONF->{secretkey}')";
-            push @bind_values, $DATA{$k};
-          }
-        }
-      }
-      elsif ( $k eq 'IP' || $k eq 'NETMASK' ){
-        if ( $DATA{$k} !~ /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/ ){
-          $DATA{$k} = '0.0.0.0';
-        }
-
-        push @change_log, "$k $OLD_DATA->{$k}->$DATA{$k}";
-        push @change_fields, "$FIELDS->{$k}=INET_ATON( ? )";
-        push @bind_values, $DATA{$k};
-      }
-      elsif ( $k eq 'IPV6_PREFIX' || $k eq 'IPV6' ){
-        push @change_log, "$k $OLD_DATA->{$k}->$DATA{$k}";
-        push @change_fields, "$FIELDS->{$k}=INET6_ATON( ? )";
-        push @bind_values, $DATA{$k};
-      }
-      elsif ( $k eq 'CHANGED' ){
-        push @change_fields, "$FIELDS->{$k}=now()";
-      }
-      else{
-        if ( !$OLD_DATA->{$k} && ($DATA{$k} eq '0' || $DATA{$k} eq '') ){
-          next;
-        }
-
-        if ( $k eq 'STATUS' ){
-          $self->{CHG_STATUS} = $OLD_DATA->{$k} . '->' . $DATA{$k} . (($attr->{EXT_CHANGE_INFO}) ? ' ' . $attr->{EXT_CHANGE_INFO} : '');
-          $self->{'STATUS'} = $DATA{$k};
-        }
-        elsif ( $k eq 'DISABLE' ){
-          if ( defined( $DATA{$k} ) && $DATA{$k} == 0 || !defined( $DATA{$k} ) ){
-            if ( $self->{DISABLE} != 0 ){
-              $self->{ENABLE} = 1;
-              $self->{DISABLE} = undef;
-            }
-          }
-          elsif ( $DATA{$k} > 1 ){
-            $self->{'STATUS'} = $DATA{$k};
-          }
-          else{
-            $self->{DISABLE_ACTION} = 1;
-          }
-
-          $self->{CHG_STATUS} = $OLD_DATA->{$k} . '->' . $DATA{$k} . (($attr->{EXT_CHANGE_INFO}) ? ' ' . $attr->{EXT_CHANGE_INFO} : '');
-        }
-        elsif ( $k eq 'DOMAIN_ID' && $OLD_DATA->{$k} == 0 && !$DATA{$k} ){
-        }
-        elsif ( $k eq 'TP_ID' ){
-          #$self->{CHG_TP} = $OLD_DATA->{$k} . '->' . $DATA{$k};
-          $self->{CHG_TP} = $OLD_DATA->{$k} . '->' . $DATA{$k} . (($attr->{EXT_CHANGE_INFO}) ? ' ' . $attr->{EXT_CHANGE_INFO} : '');
-        }
-        elsif ( $k eq 'GID' ){
-          $self->{CHG_GID} = $OLD_DATA->{$k} . '->' . $DATA{$k};
-        }
-        elsif ( $k eq 'CREDIT' ){
-          $self->{CHG_CREDIT} = $OLD_DATA->{$k} . '->' . $DATA{$k};
-        }
-        else{
-          push @change_log, "$k $OLD_DATA->{$k}->$DATA{$k}";
-        }
-
-        if ( $DATA{$k} eq 'NULL' ){
-          push @change_fields, "$FIELDS->{$k}=NULL";
-        }
-        elsif ( $DATA{$k} eq 'NOW()' || $DATA{$k} eq 'now()' ){
-          push @change_fields, "$FIELDS->{$k}=$DATA{$k}";
-        }
-        else{
-          if ( $k !~ /ATTA|FILE/ ){
-            $DATA{$k} =~ s/\\\'/\'/g;
-            $DATA{$k} =~ s/\\\"/\"/g;
-            $DATA{$k} =~ s/\%2B/\+/g;
-          }
-
-          push @change_fields, "$FIELDS->{$k}= ? ";
-          push @bind_values, $DATA{$k};
-        }
-      }
-    }
-  }
-
-  if ( $#change_fields < 0 ){
-    return $self->{result};
-  }
-  else{
-    $self->{CHANGES_LOG} = join( ';', @change_log );
-  }
-
-  my $extended = ($attr->{EXTENDED}) ? $attr->{EXTENDED} : '';
-  my $CHANGES_QUERY = join( ', ', @change_fields );
-
-  $self->query2( "UPDATE $TABLE SET $CHANGES_QUERY WHERE $FIELDS->{$CHANGE_PARAM}='$DATA{$CHANGE_PARAM}'$extended",
-    'do',
-    { Bind => \@bind_values } );
-
-  $self->{AFFECTED} = sprintf( "%d", (defined ( $self->{AFFECTED} ) ? $self->{AFFECTED} : 0) );
-
-  if ( $self->{AFFECTED} == 0 ){
-    return $self;
-  }
-  elsif ( $self->{errno} ){
-    return $self;
-  }
-
-  if ( $attr->{EXT_CHANGE_INFO} ){
-    $self->{CHANGES_LOG} = $attr->{EXT_CHANGE_INFO} . ' ' . $self->{CHANGES_LOG};
-  }
-  else{
-    $attr->{EXT_CHANGE_INFO} = '';
-  }
-
-  if ( defined( $DATA{UID} ) && $DATA{UID} > 0 && defined( $admin ) ){
-    if ( $attr->{'ACTION_ID'} ){
-      $admin->action_add( $DATA{UID}, $attr->{EXT_CHANGE_INFO}, { TYPE => $attr->{'ACTION_ID'} } );
-      return $self->{result};
-    }
-
-    if ( $self->{'DISABLE_ACTION'} ){
-      $admin->action_add( $DATA{UID}, "$self->{CHG_STATUS}", { TYPE => 9, ACTION_COMMENTS => $DATA{ACTION_COMMENTS} } );
-      return $self->{result};
-    }
-
-    if ( $self->{'ENABLE'} ){
-      $admin->action_add( $DATA{UID}, "$self->{CHG_STATUS}", { TYPE => 8 } );
-      return $self->{result};
-    }
-
-    if ( $self->{CHANGES_LOG} ne '' && ($self->{CHANGES_LOG} ne $attr->{EXT_CHANGE_INFO} . ' ') ){
-      $admin->action_add( $DATA{UID}, $self->{CHANGES_LOG}, { TYPE => 2 } );
-    }
-
-    if ( $self->{'CHG_TP'} ){
-      $admin->action_add( $DATA{UID}, "$self->{'CHG_TP'}", { TYPE => 3 } );
-    }
-
-    if ( $self->{CHG_GID} ){
-      $admin->action_add( $DATA{UID}, "$self->{CHG_GID}", { TYPE => 26 } );
-    }
-
-    if ( $self->{CHG_STATUS} ){
-      #if (! $admin) {
-      #  print " $DATA{UID}, (($self->{CHG_STATUS}) ? $self->{CHG_STATUS} : $self->{'STATUS'}), { TYPE => ($self->{'STATUS'} == 3) ? 14 : 4 }); ";
-      #}
-      $admin->action_add( $DATA{UID}, (($self->{CHG_STATUS}) ? $self->{CHG_STATUS} : $self->{'STATUS'}),
-        { TYPE => ($self->{'STATUS'} == 3) ? 14 : 4 } );
-    }
-
-    if ( $self->{CHG_CREDIT} ){
-      $admin->action_add( $DATA{UID}, "$self->{'CHG_CREDIT'}", { TYPE => 5 } );
-    }
-  }
-  elsif ( defined( $admin ) ){
-    if ( $self->{'DISABLE'} ){
-      $admin->system_action_add( $self->{CHANGES_LOG}, { TYPE => 9 } );
-    }
-    elsif ( $self->{'ENABLE'} ){
-      $admin->system_action_add( $self->{CHANGES_LOG}, { TYPE => 8 } );
-    }
-    else{
-      $admin->system_action_add( $self->{CHANGES_LOG}, { TYPE => 2 } );
-    }
-  }
-
-  return $self->{result};
-}
-
-#**********************************************************
 =head2 get_data($params, $attr) - Input date into hash
 
 =cut
 #**********************************************************
 sub get_data{
-  my $self = shift;
+  shift;
   my ($params, $attr) = @_;
 
   my %DATA = ();
@@ -827,6 +540,8 @@ sub get_data{
   Arguments:
     $data          - Input data hash ref
     $search_params - search params array
+       [field_id, where_filed_name, field_show_name, show_field (1 or 0) ],
+
     $attr          - extra atributes
       USERS_FIELDS      - Use main users params
       USERS_FIELDS_PRE  - Use main users params before main result
@@ -882,11 +597,11 @@ sub search_former{
 
   if ( $attr->{USERS_FIELDS_PRE} ){
     push @WHERE_RULES, @{ $self->search_expr_users( { %{$data},
-          EXT_FIELDS        => \@user_fields,
-          SKIP_USERS_FIELDS => $attr->{SKIP_USERS_FIELDS},
-          USE_USER_PI       => $attr->{USE_USER_PI},
-          SUPPLEMENT        => 1
-        } ) };
+      EXT_FIELDS        => \@user_fields,
+      SKIP_USERS_FIELDS => $attr->{SKIP_USERS_FIELDS},
+      USE_USER_PI       => $attr->{USE_USER_PI},
+      SUPPLEMENT        => 1
+    } ) };
   }
 
   foreach my $search_param ( @{$search_params} ){
@@ -908,22 +623,24 @@ sub search_former{
       }
       else{
         push @WHERE_RULES,
-          @{ $self->search_expr( $data->{$param}, "$field_type", "$sql_field", { EXT_FIELD => $show } ) };
+          @{ $self->search_expr( $data->{$param}, $field_type, $sql_field, { EXT_FIELD => $show } ) };
       }
     }
   }
 
   if ( $attr->{USERS_FIELDS} ){
-    push @WHERE_RULES, @{ $self->search_expr_users( { %{$data},
-          EXT_FIELDS        => \@user_fields,
-          SKIP_USERS_FIELDS => $attr->{SKIP_USERS_FIELDS},
-          USE_USER_PI       => $attr->{USE_USER_PI},
-          SUPPLEMENT        => 1
-        } ) };
+    push @WHERE_RULES, @{ $self->search_expr_users( {
+      %{$data},
+      EXT_FIELDS        => \@user_fields,
+      SKIP_USERS_FIELDS => $attr->{SKIP_USERS_FIELDS},
+      USE_USER_PI       => $attr->{USE_USER_PI},
+      SUPPLEMENT        => 1
+    } ) };
   }
 
   if ( $attr->{WHERE_RULES} ){
     push @WHERE_RULES, @{ $attr->{WHERE_RULES} };
+    @{ $attr->{WHERE_RULES} } = @WHERE_RULES;
   }
 
   my $WHERE = ($#WHERE_RULES > -1) ? (($attr->{WHERE}) ? 'WHERE ' : '') . join( ' AND ', @WHERE_RULES ) : '';
@@ -972,7 +689,7 @@ sub search_expr{
       }
     }
     else{
-      push @{ $self->{SEARCH_FIELDS_ARR} }, "$field";
+      push @{ $self->{SEARCH_FIELDS_ARR} }, $field;
     }
   }
 
@@ -1048,6 +765,7 @@ sub search_expr{
 
     if ( $type eq 'IP' ){
       if ( $value =~ m/\*/g ){
+        $value =~ s/[<>]+//;
         my ($i, $first_ip, $last_ip);
         my @p = split( /\./, $value );
         for ( $i = 0; $i < 4; $i++ ){
@@ -1056,8 +774,8 @@ sub search_expr{
             $last_ip .= '255';
           }
           else{
-            $first_ip .= $p[$i];
-            $last_ip .= $p[$i];
+            $first_ip .= $p[$i] || 0;
+            $last_ip .= $p[$i] || 255;
           }
           if ( $i != 3 ){
             $first_ip .= '.';
@@ -1099,12 +817,14 @@ sub search_expr{
 =head2 search_expr_users($attr) - Formed WHERE rules
 
   Arguments:
+
     $attr
-      EXT_FIELDS
+      EXT_FIELDS     -
       SUPPLEMENT
       SKIP_GID
       USE_USER_PI
       CONTRACT_SUFIX
+      SKIP_USERS_FIELDS   - SKip user field search
 
 =cut
 #**********************************************************
@@ -1213,7 +933,7 @@ sub search_expr_users{
       #      	next;
       #      }
 
-      push @fields, @{ $self->search_expr( $attr->{$key}, $type, "$field",
+      push @fields, @{ $self->search_expr( $attr->{$key}, $type, $field,
           { EXT_FIELD => in_array( $key, $attr->{EXT_FIELDS} ) } ) };
       $filled{$key} = 1;
     }
@@ -1316,8 +1036,8 @@ sub search_expr_users{
     }
   }
 
-  if ( !$attr->{DOMAIN_ID} && $admin->{DOMAIN_ID} ){
-    push @fields, @{ $self->search_expr( "$admin->{DOMAIN_ID}", 'INT', 'u.domain_id' ) };
+  if ( !$attr->{DOMAIN_ID} && $admin->{DOMAIN_ID} && ! $attr->{SKIP_DOMAIN} ){
+    push @fields, @{ $self->search_expr( $admin->{DOMAIN_ID}, 'INT', 'u.domain_id' ) };
   }
 
   if ( $attr->{NOT_FILLED} ){
@@ -1525,7 +1245,7 @@ sub search_expr_users{
 
   $self->{EXT_TABLES} = $self->mk_ext_tables( { JOIN_TABLES => \%EXT_TABLE_JOINS_HASH } );
 
-  if ( $attr->{SORT} ){
+  if ( $attr->{SORT} && $attr->{SORT} =~ /\d+/){
     my $sort_position = ($attr->{SORT} - 1 < 1) ? 1 : $attr->{SORT} - 2;
 
     if ( $self->{SEARCH_FIELDS_ARR}->[$sort_position] ){
@@ -1619,6 +1339,7 @@ sub mk_ext_tables{
       EXT_CHANGE_INFO - Extra change information (Extra describe)
       FIELDS       - fields of table (hash_ref) old
       OLD_INFO     - OLD infomation for compare
+      SKIP_LOG     - Skip Admin log
       ACTION_ID    - Action ID
 
   Returns:
@@ -1711,6 +1432,11 @@ sub changes2{
       $self->{errno} = '3';
       $self->{errstr} = "Can't get old data for change";
       return $self->{result};
+    }
+    elsif($q->rows < 0) {
+      $self->{errno} = '4';
+      $self->{errstr} = "Can't get old data for change";
+      return $self;
     }
 
     while (defined( my $row = $q->fetchrow_hashref() )) {
@@ -1848,6 +1574,10 @@ sub changes2{
     return $self;
   }
   elsif ( $self->{errno} ){
+    return $self;
+  }
+
+  if($attr->{SKIP_LOG}) {
     return $self;
   }
 

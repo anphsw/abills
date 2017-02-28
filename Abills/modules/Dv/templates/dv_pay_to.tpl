@@ -4,11 +4,11 @@
 <input type=hidden name='SUM' value='%SUM%'>
 
 <fieldset>
-   <div class='panel panel-default panel-form'>
-     <div class='panel-heading'>
+   <div class='box box-theme box-form'>
+     <div class='box-header with-border'>
        <h4>_{PAY_TO}_</h4>
      </div>
-     <div class='panel-body form form-horizontal'>
+     <div class='box-body form form-horizontal'>
 
       <div class='form-group'>
         <label class='control-label col-md-3' for='TI_ID'>_{TARIF_PLAN}_:</label>
@@ -23,7 +23,7 @@
       <div class='form-group'>
         <label class='control-label col-md-3' for='DATE'>_{DATE}_</label>
           <div class='col-md-9'>
-            <input id='DATE' name='DATE' value='%DATE%' placeholder='%DATE%' class='form-control tcal' type='text'>
+            <input id='DATE' name='DATE' value='%DATE%' placeholder='%DATE%' class='form-control datepicker' type='text'>
          </div>
       </div>
 

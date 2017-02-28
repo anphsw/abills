@@ -8,7 +8,7 @@
 guess_pac_man;
 get_os;
 
-SQL_ERRORS_LOG_FILE='/tmp/sql_errors';
+SQL_ERRORS_LOG_FILE='/usr/abills/var/log/sql_errors';
 
 # Programs that should be installed
 PROGRAMS="
@@ -45,6 +45,13 @@ FILES_OWNED_BY_APACHE="
  /usr/abills/backup/
 ";
 
+# Files and directories that should have 777 rights
+FILES_WITH_FULL_RIGHTS="
+ ${SQL_ERRORS_LOG_FILE}
+ /usr/abills/var/
+ /usr/abills/var/log/
+";
+
 #Files and directories that should exist
 FILES_SHOULD_EXIST="
  /usr/abills/backup/
@@ -54,9 +61,12 @@ FILES_SHOULD_EXIST="
  /etc/crontab
 ";
 
+APACHE_USER=`ps aux | egrep '(www|apache|www-data)' | grep -v root | cut -d\  -f1 | sort | uniq`;
+
 TIP_CMD='';
 
 NOT_INSTALLED='';
+
 check_perl_modules(){
   perl ./perldeps.pl test || echo "
   TIP : To install missing modules, run perl ./perldeps.pl  ${PACKAGE_MANAGER}
@@ -72,6 +82,34 @@ check_if_user_exists(){
     echo "    Tip: check if it's right name for $2 or create user $1" ;
   fi;
 
+}
+
+check_owned_by_apache(){
+  if [ -d ${1} ];then
+    DIR_NAME=`echo "${1}" | egrep -o '[a-zA-Z0-9_-]*/{1}$' | sed 's/\///g'`;
+    IS_OWNER=`ls -l ${1}/.. | grep ${DIR_NAME} | grep ${APACHE_USER}`;
+    if [ x"${IS_OWNER}" = x"" ]; then
+      echo "  !!! ${1} is not owned by ${APACHE_USER}; TIP: chown -R ${APACHE_USER} ${1}";
+    fi;
+  else
+    IS_OWNER=`ls -l ${1} | grep ${APACHE_USER}`;
+    if [ x"${IS_OWNER}" = x""} ]; then
+      echo "  !!! ${1} is not owned by ${APACHE_USER}; TIP: chown ${APACHE_USER} ${1}";
+    fi;
+  fi;
+}
+
+check_full_rights(){
+  echo " Checking ${1}";
+  if [ -d ${1} ];then
+    IS_WRITABLE_BY_OTHERS=`ls -ld ${1} | cut -c9`;
+  else
+    IS_WRITABLE_BY_OTHERS=`ls -l ${1} | cut -c9`;
+  fi;
+  
+  if [ x"${IS_WRITABLE_BY_OTHERS}" != x"w" ]; then
+    echo "  !!! ${1} cannot be writable by others; TIP:  chmod 777 ${1}"
+  fi;
 }
 
 
@@ -150,13 +188,13 @@ fi;
 echo "Checking services"
 NOT_INSTALLED='';
 for program in ${SERVICES}; do
-  service ${program} restart > /dev/null 2>&1 || NOT_INSTALLED="${NOT_INSTALLED} ${program}";
+  [ -e ${program} ] || NOT_INSTALLED="${NOT_INSTALLED} ${program}";
 done;
 
 if [ ! x"${NOT_INSTALLED}" = x'' ]; then
   echo "  !!! You have non-installed services:";
   for program in ${NOT_INSTALLED}; do
-    echo "  You should install: ${program} ";
+    echo "  You should install if it is required in your scheme: ${program} ";
     echo " TIP: Please visit http://abills.net.ua/wiki/doku.php/abills:docs:manual:install_${OS_NAME}:ru for instructions";
   done
 fi;
@@ -165,37 +203,21 @@ echo "Checking file and folder permissions"
 
 # check permissions for apache in cgi-bin
 echo " Checking /usr/abills/cgi-bin";
-# get apache user
-APACHE_USER=`ps aux | egrep '(www|apache|www-data)' | grep -v root | cut -d\  -f1 | sort | uniq`;
-
 for file in ${FILES_SHOULD_EXIST};do
   if [ ! -e ${file} ]; then
-		    echo "  !!! ${file}. File doesn't exist"
-		  fi;
+	  echo "  !!! ${file}. File doesn't exist"
+	fi;
 done;
 
 for file in ${FILES_OWNED_BY_APACHE};do
-  IS_DIR=`echo ${file} | egrep '/$'`;
-  if [ ${IS_DIR} ];then
-    DIR_NAME=`echo "${file}" | egrep -o '[a-zA-Z0-9_-]*/{1}$' | sed 's/\///g'`;
-    IS_OWNER=`ls -l ${file}/.. | grep ${DIR_NAME} | grep ${APACHE_USER}`;
-    if [ x"${IS_OWNER}" = x"" ]; then
-      echo "  !!! ${file} is not owned by ${APACHE_USER}; TIP: chown -R ${APACHE_USER} ${file}";
-    fi;
-  else
-    IS_OWNER=`ls -l ${file} | grep ${APACHE_USER}`;
-    if [ x"${IS_OWNER}" = x""} ]; then
-      echo "  !!! ${file} is not owned by ${APACHE_USER}; TIP: chown ${APACHE_USER} ${file}";
-    fi;
-  fi;
+  check_owned_by_apache ${file};
 done;
 
+
+for file in ${FILES_WITH_FULL_RIGHTS};do
+  check_full_rights ${file};
+done;
 # check permissions for ${SQL_ERRORS_LOG_FILE}/
-echo "Checking ${SQL_ERRORS_LOG_FILE}";
-IS_WRITABLE_BY_OTHERS=`ls -l ${SQL_ERRORS_LOG_FILE} | cut -c9`;
-if [ ! ${IS_WRITABLE_BY_OTHERS} = 'w' ]; then
-  echo "  !!! ${SQL_ERRORS_LOG_FILE} cannot be writable by others; TIP:  chmod 777 ${SQL_ERRORS_LOG_FILE}"
-fi;
 
 #check MySQL connection
 

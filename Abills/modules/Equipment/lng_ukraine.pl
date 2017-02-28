@@ -16,7 +16,6 @@ $lang{ERR_NOT_REGISTRED}='Ще не зареестровано';
 
 $lang{MARKING}='Маркування';
 $lang{UNITS}='Одиниць';
-$lang{WIDTH}='Ширина';
 $lang{HIEGHT}='Висота';
 $lang{LENGTH}='Довжина';
 $lang{DIAMETER}='Товщина';
@@ -32,3 +31,17 @@ $lang{POSITION_DOWN}='Знизу';
 $lang{TRAPS}='SNMP traps';
 
 $lang{REVISION} = 'Ревізія (версія)';
+$lang{SELECT_TYPE} = 'Виберіть тип';
+$lang{SELECT_PORT} = 'Виберіть порт';
+$lang{REGISTERED} = 'Зареєстровано';
+$lang{HOURS} = 'годин';
+
+$lang{REBOOT}='Перезагрузити приставку';
+$lang{SYSTEM_ID}='Назва системи';
+$lang{UPTIME}='Час роботи';
+$lang{ERR_NOT_RESPONSE}='Пристрій не відповідає';
+$lang{ONU_STATUS} = 'Статус приставки';
+$lang{POWER}='Сила сигнала';
+$lang{TEMPERATURE}='Температура';
+$lang{VOLTAGE}='Вольтаж';
+$lang{UNREGISTER}='Незареестровані';

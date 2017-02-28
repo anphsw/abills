@@ -1,8 +1,8 @@
-<div class='panel panel-info'>
-    <div class='panel-heading'>
+<div class='box box-info'>
+    <div class='box-header with-border'>
         _{MESSAGE}_
     </div>
-    <div class='panel-body form form-horizontal'>
+    <div class='box-body form form-horizontal'>
         <div class='form-group'>
             %SUBJECT%
         </div>
@@ -10,7 +10,7 @@
             <%MESSAGE%
         </div>
     </div>
-    <div class='panel-footer'>
+    <div class='box-footer'>
         <th><a class='btn btn-default' href='$SELF_URL'>Close</a>
             <a class='btn btn-primary' href='$SELF_URL'>User Portal</a>
         </th>

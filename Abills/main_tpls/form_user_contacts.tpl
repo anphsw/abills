@@ -9,26 +9,40 @@
 <div id='contacts_json' aria-hidden='true' style='display: none'>{ %JSON% }</div>
 <!-- FOR REG WIZARD -->
 
-<div id='contacts_wrapper'></div>
+<div class="form-group">
+  <div class="box box-default box-big-form">
+    <div class="box-header with-border">
+      <h3 class="box-title">_{CONTACTS}_</h3>
+      <div class="box-tools pull-right">
+        <button type="button" class="btn btn-default btn-xs" data-widget="collapse"><i class="fa fa-minus"></i>
+        </button>
+      </div>
+    </div>
+    <div class="box-body" style="display: block;">
+      <div id='contacts_wrapper'></div>
+      <div id='contacts_controls'>
+        <div class='col-xs-8'>
+          <span class='text-success' id='contacts_response'></span>
+        </div>
+        <div class='col-xs-4 text-right'>
+          <button role='button' id='contact_remove' class='btn btn-xs btn-danger'>
+            <span class='glyphicon glyphicon-remove'></span>
+          </button>
 
-<div class='row' id='contacts_controls'>
-  <div class='col-md-7'>
-    <span class='text-success' id='contacts_response'></span>
-  </div>
-  <div class='col-md-5 text-right'>
-    <button role='button' id='contact_remove' class='btn btn-xs btn-danger'>
-      <span class='glyphicon glyphicon-remove'></span>
-    </button>
+          <button role='button' id='contact_add' class='btn btn-xs btn-success'>
+            <span class='glyphicon glyphicon-plus'></span>
+          </button>
 
-    <button role='button' id='contact_add' class='btn btn-xs btn-success'>
-      <span class='glyphicon glyphicon-plus'></span>
-    </button>
+          <button role='button' id='contact_submit' class='btn btn-xs btn-primary disabled'>
+            <span class='glyphicon glyphicon-ok'></span>
+          </button>
+        </div>
+      </div>
 
-    <button role='button' id='contact_submit' class='btn btn-xs btn-primary disabled'>
-      <span class='glyphicon glyphicon-ok'></span>
-    </button>
+    </div>
   </div>
 </div>
+
 
 <!-- Mustache.min.js template -->
 <script id='contacts_modal_body' type='x-tmpl-mustache'>
@@ -40,20 +54,24 @@
          {{ /types }}
        </select>
      </div>
+     <span class="visible-xs visible-sm col-xs-12" style="padding-top: 10px"> </span>
      <div class='col-md-6'>
       <input type='text' class='form-control' id='contacts_type_value' name='value' />
      </div>
    </div>
 
+
 </script>
 
 <script id='contact_template' type='x-tmpl-mustache'>
+
  <div class='form-group contact'>
-   <label class='control-label col-md-3'>{{name}}</label>
-   <div class='col-md-9'>
+   <label class='control-label col-xs-4'>{{name}}</label>
+   <div class='col-xs-8'>
      <input class='form-control' type='text' {{#form}}form='{{form}}'{{/form}} name='{{type_id}}' {{#value}}value='{{value}}'{{/value}}/>
    </div>
  </div>
+
 
 </script>
 

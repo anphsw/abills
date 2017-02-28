@@ -40,3 +40,26 @@ $lang{PLANNED} = 'Запланированные';
 $lang{TASKS_ROUTE_MAP} = 'Карта задач';
 $lang{PROGRESS_BAR} = 'Шкала выполнения';
 $lang{INNER} = 'Внутренее сообщение';
+$lang{READINESS} = 'Готовность';
+$lang{TASK_CLOSED} = 'Задача закрыта';
+$lang{MESSAGE_ADMIN_WATCH} = 'Список сообщений слежения';
+$lang{WATCHED} = 'Отслеживаемые';
+$lang{ADDITIONALLY} = 'Дополнительно';
+$lang{ASSESSMENT} = 'Оценка';
+$lang{BAD} = 'Плохо';
+$lang{UNSATISFACTORILY} = 'Неудовлетворительно';
+$lang{FINE} = 'Нормально';
+$lang{GOOD} = 'Хорошо';
+$lang{IDEALLY} = 'Идеально';
+$lang{POTENTIAL_CLIENT} = 'Потенциальный клиент';
+$lang{OPEN_MSGS} = 'Открытые темы';
+$lang{NOTE} = 'Заметка';
+$lang{LAST_CONTACT} = 'Последний контакт с клиентом';
+$lang{SUBSEQENT_CONTACT} = 'Последующий контакт с клиентом';
+$lang{ADD_DELIVERY} = 'Добавит рассылку';
+$lang{SEND_TIME} = 'Время отправки';
+$lang{SEND_DATE} = 'Дата отправки';
+$lang{WAIT_TO_SEND}='Ждет отправки';
+
+
+

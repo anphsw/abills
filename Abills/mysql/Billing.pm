@@ -496,7 +496,7 @@ sub session_sum {
     return -1, 0, 0, 0, 0, 0;
   }
 
-  $self->{HANGUP} = undef;
+  delete($self->{HANGUP});
 
   if ($attr->{UID}) {
     $self->query2("SELECT
@@ -704,7 +704,7 @@ sub session_sum {
 
   if ($self->{TOTAL_TIME_LIMIT} && $self->{CHECK_SESSION}) {
     if ($SESSION_DURATION >= $self->{TOTAL_TIME_LIMIT}) {
-      $self->{HANGUP} = 1;
+      $self->{HANGUP} = "$SESSION_DURATION >= $self->{TOTAL_TIME_LIMIT}";
       return $self->{UID}, 0, $self->{BILL_ID}, $self->{TP_NUM}, 0, 0;
     }
   }
@@ -738,14 +738,14 @@ sub session_sum {
       }
 
       if ($counters->{TRAFFIC_SUM} >= $self->{TOTAL_TRAF_LIMIT}) {
-        $self->{HANGUP} = 1;
+        $self->{HANGUP} = "$counters->{TRAFFIC_SUM} >= $self->{TOTAL_TRAF_LIMIT}";
         return $self->{UID}, 0, $self->{BILL_ID}, $self->{TP_NUM}, 0, 0;
       }
     }
     elsif ($self->{MONTH_TRAF_LIMIT}) {
       my $counters = $self->get_traffic({ UID => $self->{UID} });
       if ($counters->{TRAFFIC_IN} + $counters->{TRAFFIC_OUT} >= $self->{MONTH_TRAF_LIMIT}) {
-        $self->{HANGUP} = 1;
+        $self->{HANGUP} = "$counters->{TRAFFIC_IN} + $counters->{TRAFFIC_OUT} >= $self->{MONTH_TRAF_LIMIT}";
         return $self->{UID}, 0, $self->{BILL_ID}, $self->{TP_NUM}, 0, 0;
       }
     }

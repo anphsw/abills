@@ -23,9 +23,7 @@
     </div>
     <div class='modal-footer'>
       <button type='button' class='btn btn-primary' value='SEARCH' id='search'>
-        <span class='glyphicon glyphicon-search'></span>
-        _{SEARCH}_
-      </button>
+        <span class='glyphicon glyphicon-search'></span>_{SEARCH}_</button>
     </div>
   </div>
 </div>

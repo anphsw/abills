@@ -19,11 +19,11 @@ function postthread(param) {
         <input type=hidden name=UID value=$FORM{UID}>
         <input type=hidden name=BILL_ID value=%BILL_ID%>
 
-        <div class='panel panel-primary'>
-            <div class='panel-heading'>
+        <div class='box box-primary'>
+            <div class='box-header with-border'>
                 _{PAYMENTS}_ / _{FEES}_
             </div>
-            <div class='panel-body'>
+            <div class='box-body'>
 
                 <div class='form-group'>
                     <label class='control-label col-md-3'>_{SUM}_:</label>

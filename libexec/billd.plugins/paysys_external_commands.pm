@@ -43,8 +43,20 @@ sub run_end_command {
     my $now_time = timelocal(int($seconds), int($minutes), int($hours), int($day), int($month - 1), int($year));
 
     if($command_end_time <= $now_time){
+      # FIXME выборка ип с оплаты
+      my $payments_list = $Paysys->list({ DESC => 'desc', 
+                                          PAGE_ROWS => 1, SORT => 'datetime', 
+                                          UID => $user->{uid}, 
+                                          IP => '_SHOW', 
+                                          COLS_NAME => 1});
 
-      my $result = `$end_command`;
+      # _bp("list", $user, {TO_CONSOLE => 1});
+      # _bp("list", $payments_list[0], {TO_CONSOLE => 1});
+
+      cmd($end_command, {
+        PARAMS => { IP => $user->{external_user_ip}, UID => $user->{uid} }
+      });
+
       $Paysys->paysys_user_change({UID => $user->{uid}, PAYSYS_ID => $user->{paysys_id}, CLOSED => 1});
     }
   }

@@ -1,5 +1,6 @@
-<div class='panel panel-default panel-form'>
-<div class='panel-body'>
+<div class="col-xs-12 col-md-6">
+<div class='box box-theme box-form'>
+<div class='box-body'>
 
 <div class='form-group'>
     <label class='control-label col-md-3' for='CHAPTERS'>_{CHAPTERS}_</label>
@@ -77,4 +78,5 @@
   <div class='col-md-9'>
     %RESPOSIBLE_SEL%
   </div>
+</div>
 </div>

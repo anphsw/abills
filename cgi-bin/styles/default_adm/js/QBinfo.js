@@ -32,7 +32,7 @@ function getOptimaBottomQBinfo(margin, firstDiv, height) {
 }
 
 
-function QBinfo(title, msg, group_id, event_id) {
+function QBinfo(title, msg, group_id, event_id, seen_url) {
   
   var time        = 15000;
   var align       = 'bottom-left';
@@ -55,8 +55,6 @@ function QBinfo(title, msg, group_id, event_id) {
   var QBtop  = getOptimaBottomQBinfo(margin, firstDiv, height);
   var QBleft = margin + 'px';
   
-  console.log(QBtop, QBleft);
-  
   /*
    * Initializations new QBinfo div
    */
@@ -77,16 +75,16 @@ function QBinfo(title, msg, group_id, event_id) {
       + '<td valign="middle" align="center" width="10%"><img src="' + icon + '" border="0" width="16" class="imgQBinfo" /></td>'
       + '<td valign="middle" align="left" class="titleQBinfo" width="80%">' + title + '</td>';
   
-  if (group_id) {
+  if (group_id && group_id !== '1') {
     codeInput +=
         '<td valign="middle" align="right" class="qb_title_btn qb_unsubscribe_btn" width="10%">'
         + '  <a onclick="AMessageChecker.unsubscribe(' + id + ', ' + group_id + ')" ><span class="glyphicon glyphicon-eye-close"></span></a>'
         + '</td>';
   }
-  if (event_id) {
+  if (seen_url) {
     codeInput +=
         '<td valign="middle" align="right" class="qb_title_btn qb_seen_btn" width="10%">'
-        + ' <a onclick="AMessageChecker.seenMessage(' + id + ', ' + event_id + ')" ><span class="glyphicon glyphicon-ok"></span></a>'
+        + ' <a onclick="AMessageChecker.seenMessage(' + id + ', \'' + seen_url + '\')" ><span class="glyphicon glyphicon-ok"></span></a>'
         + '</td>';
   }
   
@@ -98,11 +96,7 @@ function QBinfo(title, msg, group_id, event_id) {
       + '</tr></table><div class="msgQBinfo">' + msg + '</div>';
   
   if (!soundsDisabled)
-    codeInput +=
-        '<object type="application/x-shockwave-flash" data="/styles/default_adm/mp3.swf?file=/styles/default_adm/bb2_new.mp3&startplay=true" width="1" height="1" id="c0dbcde1_notifier_track" style="visibility: visible;">'
-        + '<param name="allowScriptAccess" value="sameDomain">'
-        + '<param name="quality" value="high"><param name="wmode" value="transparent">'
-        + '</object>';
+    codeInput += '<audio src="/styles/default_adm/bb2_new.mp3" type="audio/mpeg" preload="auto" autoplay></audio>';
   
   $('#QBinfo_' + id).html(codeInput);
   

@@ -107,7 +107,6 @@ $conf{ADDRESS_REGISTER}= 1;
 
 # Debug mod 
 $conf{debug}=10;
-$conf{foreground}=0;
 $conf{debugmods}='LOG_ALERT LOG_WARNING LOG_ERR LOG_INFO';
 
 #show auth and accounting time need Time::HiRes module (available from CPAN)
@@ -130,10 +129,10 @@ $conf{LOG_DEBUG} = $base_dir . 'var/log/abills.debug';
 $conf{LOGFILE}   = $base_dir . 'var/log/abills.log';
 
 use POSIX qw(strftime);
-$DATE    = strftime "%Y-%m-%d", localtime(time);
-$TIME    = strftime "%H:%M:%S", localtime(time);
-$curtime = strftime("%F %H.%M.%S", localtime(time));
-$year    = strftime("%Y", localtime(time));
+our $DATE    = strftime "%Y-%m-%d", localtime(time);
+our $TIME    = strftime "%H:%M:%S", localtime(time);
+our $curtime = strftime("%F %H.%M.%S", localtime(time));
+our $year    = strftime("%Y", localtime(time));
 
 
 1

@@ -3,9 +3,9 @@
     <input type='hidden' name='index' value='$index' />
 
 
-<div class='panel panel-primary panel-form'>
-<div class='panel-heading text-center'> <h4>%PANEL_HEADING% m3u</h4> </div>
-<div class='panel-body'>
+<div class='box box-theme box-form'>
+<div class='box-header with-border text-center'> <h4>%PANEL_HEADING% m3u</h4> </div>
+<div class='box-body'>
 
   <div class='form-group'>
     <label class='col-md-3 control-label'> _{OPTIONS}_ </label>
@@ -19,7 +19,7 @@
 
 
 </div>
-<div class='panel-footer text-center'>
+<div class='box-footer text-center'>
   <button type='submit' class='btn btn-primary'>%SUBMIT_BTN_NAME%</button>
 </div>
 </div>

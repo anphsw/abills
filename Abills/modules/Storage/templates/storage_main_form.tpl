@@ -14,8 +14,8 @@
 <input type=hidden name=add_article value=1>
 <fieldset>
 
-<div class='panel panel-default panel-form'>
-<div class='panel-body'>
+<div class='box box-theme box-form'>
+<div class='box-body'>
 <legend>_{ARTICLE}_</legend>
   <div class='form-group'>
     <label class='col-md-3 control-label'>_{TYPE}_:</label>
@@ -38,7 +38,7 @@
   </div>
   <div class='form-group'>
     <label class='col-md-3 control-label'>_{DATE}_:</label>
-    <div class='col-md-9'><input class='tcal form-control tcalInput tcalActive' name='DATE' type='text' value='%DATE%' /></div>
+    <div class='col-md-9'><input class='tcal form-control datepickerActive' name='DATE' type='text' value='%DATE%' /></div>
   </div>
    <div class='form-group'>
     <label class='col-md-3'>_{QUANTITY_OF_GOODS}_: </label>
@@ -63,7 +63,9 @@
   </div>
   <div class='form-group'>
     <label class='col-md-3 control-label'>SN: </label>
-    <div class='col-md-9'><input class='form-control' name='SN' type='%INPUT_TYPE%' value='%SN%' /> %DIVIDE_BTN% </div>
+    <div class='col-md-9'>
+      <input class='form-control' name='SN' type='hidden' value='%SN%' />
+      <input class='form-control' name='SERIAL' type='%INPUT_TYPE%' value='%SERIAL%' /> %DIVIDE_BTN% </div>
   </div>
   <div class='form-group'>
     <label class='col-md-3 control-label'>_{COMMENTS}_</label>
@@ -73,7 +75,7 @@
  	
 </div>
 
-	<div class='panel-footer'>
+	<div class='box-footer'>
     <input type=submit name=%ACTION% value='%ACTION_LNG%' class='btn btn-primary'>
   </div>
 

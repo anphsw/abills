@@ -764,7 +764,7 @@ sub megogo_monthly_pay {
   foreach my $user (@$all_users){
     my ($year, $month, $day) = split('-', $user->{expiry_date});
     my $expiry_time = timelocal( 1, 1, 0, $day, $month - 1, $year );
-    print "exp time - $expiry_time\n";
+    #print "exp time - $expiry_time\n";
     my $user_information = $users->info($user->{uid});
 
     if($now_time >= $expiry_time){
@@ -803,7 +803,7 @@ sub megogo_monthly_pay {
               });
 
               if (!$Megogo->{errno}) {
-                $html->message('success', "$lang{SUCCESS}", "$lang{FREE_PERIOD} $lang{USED}", {});
+                #$html->message('success', "$lang{SUCCESS}", "$lang{FREE_PERIOD} $lang{USED}", {});
                 # CHECK CHANGES
                 # print "\nChange number 1\n";
                 # $Megogo->{debug} = 1;
@@ -880,12 +880,12 @@ sub megogo_monthly_pay {
                 );
 
                 if (!$Megogo->{errno}) {
-                  $html->message('success', "$lang{SUCCESS}", "$lang{CHANGED}", {});
+                  #$html->message('success', "$lang{SUCCESS}", "$lang{CHANGED}", {});
                   $fees->take(\%subscriber, $pay_amount, { DESCRIBE => "Megogo $tp_info->{NAME}" });
                   print "C абонента $user->{uid} снято $pay_amount денег\n";
                 }
                 else {
-                  $html->message('err', "$lang{ERROR}", "lang{NOT} $lang{CHANGED}", { ID => 1402});
+                  #$html->message('err', "$lang{ERROR}", "lang{NOT} $lang{CHANGED}", { ID => 1402});
                 }
               }
             }
@@ -937,12 +937,12 @@ sub megogo_monthly_pay {
                 );
 
                 if (!$Megogo->{errno}) {
-                  $html->message('success', "$lang{SUCCESS}", "$lang{CHANGED}", {});
+                  #$html->message('success', "$lang{SUCCESS}", "$lang{CHANGED}", {});
                   $fees->take(\%subscriber, $pay_amount, { DESCRIBE => "Megogo $tp_info->{NAME}" });
                   print "С пользователя $user->{uid} снято денег за тот же тариф\n";
                 }
                 else {
-                  $html->message('err', "$lang{ERROR}", "lang{NOT} $lang{CHANGED}", { ID => 1402});
+                  #$html->message('err', "$lang{ERROR}", "lang{NOT} $lang{CHANGED}", { ID => 1402});
                 }
           }
           else{
@@ -955,7 +955,10 @@ sub megogo_monthly_pay {
           }
         }
       }
-    }else { print "UID = $user->{uid}\nПодписка ещё не истекла\n\n" if ($debug == 1)}
+    }
+    else {
+      print "UID = $user->{uid}\nПодписка ещё не истекла\n\n" if ($debug == 1)
+    }
   }
 
   return 1;

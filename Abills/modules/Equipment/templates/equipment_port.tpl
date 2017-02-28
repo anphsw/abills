@@ -3,11 +3,11 @@
     <input type='hidden' name='ID' value='$FORM{chg}'>
     <input type='hidden' name='NAS_ID' value='$FORM{NAS_ID}'>
 
-    <div class='panel panel-primary panel-form center-block'>
-        <div class='panel-heading'>
+    <div class='box box-theme box-form center-block'>
+        <div class='box-header with-border'>
             <h4> _{PORT}_</h4>
         </div>
-        <div class='panel-body'>
+        <div class='box-body'>
 
             <div class='form-group'>
                 <label class='control-label col-md-5' for='PORT'>_{PORT}_:</label>
@@ -47,7 +47,7 @@
                 </div>
             </div>
         </div>
-        <div class='panel-footer'>
+        <div class='box-footer'>
             <input type='submit' name='%ACTION%' value='%ACTION_LNG%' class='btn btn-primary'>
         </div>
 

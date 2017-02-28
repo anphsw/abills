@@ -9,4 +9,6 @@ $lang{GALLERY} = 'Gallery';
 $lang{IMAGE_UPLOAD} = 'Image upload';
 $lang{CHOOSE_IMAGES} = 'Choose image';
 $lang{TITLE}= 'Title';
+$lang{DIR_CREATED}='Directory created';
+$lang{DESCRIPTION}='Description';
 1;

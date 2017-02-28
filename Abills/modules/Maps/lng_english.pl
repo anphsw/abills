@@ -20,7 +20,7 @@ $lang{ADD_DISTRICT} = 'Add district';
 $lang{ADD_ROUTE} = 'Add route';
 $lang{CREATE_EDIT_ROUTE} = 'Create/Edit route';
 $lang{COAXIAL} = 'Coaxial';
-$lang{FIBER_OPTIC} = 'Fiber_optic';
+$lang{FIBER_OPTIC} = 'Fiber optic';
 $lang{HIDE_DISTRICTS} = 'Hide menu districts';
 $lang{SHOW_DISTRICTS} = 'Show menu districts';
 $lang{IN_NEW_WINDOW} = 'In new window';
@@ -38,9 +38,7 @@ $lang{BUILD_NOT_FOUND} = 'Build is not added to the map';
 $lang{TWISTED_PAIR} = 'Twisted Pair';
 $lang{BOXES} = 'Boxes';
 $lang{EDIT} = 'Edit';
-$lang{WELL} = 'Comunication';
 $lang{WIFI} = "Wi-Fi";
-$lang{WELLS} = 'Wells';
 $lang{POINT} = 'Point';
 $lang{BY_QUERY} = 'By query';
 $lang{BY_TYPE} = 'By type';
@@ -66,3 +64,30 @@ $lang{FAKE} = 'Fake';
 $lang{ERR_NOT_EXACT_RESULT} = 'Not exact result';
 $lang{ERR_ZERO_RESULTS} = 'No results';
 $lang{ERR_NOT_ONLY_RESULT} = 'Got more than 1 result';
+
+$lang{FIBERS} = 'Fibers';
+$lang{LINE_WIDTH} = 'Line width';
+$lang{PARENT_ROUTE} = 'Parent route';
+$lang{PARENT_F} = 'Parent';
+$lang{PARENT_M} = 'Parent';
+
+$lang{LAYERS} = 'Layers';
+$lang{STRUCTURE} = 'Structure';
+
+$lang{OBJECT_TYPES} = 'Object types';
+$lang{ICONS} = 'Icons';
+$lang{NO_ICONS} = 'No icons';
+
+$lang{OBJECTS} = 'Objects';
+$lang{OBJECT} = 'Object';
+
+$lang{MUFF} = 'Muff';
+$lang{SPLITTER} = 'Splitter';
+$lang{CABLE} = 'Cable';
+$lang{PILLAR} = 'Pillar';
+
+$lang{CLOSEST} = 'Closest';
+
+$lang{WELL} = 'Well';
+$lang{WELLS} = 'Wells';
+1;

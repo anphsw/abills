@@ -7,80 +7,62 @@
 =cut
 
 use strict;
-
+use warnings;
 BEGIN {
-  our $libpath = '../';
+  our $libpath  = '../';
   our $sql_type = 'mysql';
-  unshift( @INC,
-    $libpath . "Abills/$sql_type/",
-    $libpath . 'lib/',
-    $libpath . 'Abills/modules/',
-    $libpath
-  );
+  unshift(@INC, $libpath . "Abills/$sql_type/", $libpath . 'lib/', $libpath . 'Abills/modules/', $libpath . 'Abills/',);
 
   eval { require Time::HiRes; };
   our $begin_time = 0;
-  if ( !$@ ){
-    Time::HiRes->import( qw(gettimeofday) );
+  if (!$@) {
+    Time::HiRes->import(qw(gettimeofday));
     $begin_time = Time::HiRes::gettimeofday();
   }
 }
 
-use warnings;
+
 use Abills::Defs;
-
+our (%OUTPUT, @REGISTRATION, %lang, %LANG, $base_dir);
 do "../libexec/config.pl";
-require Abills::Templates;
-require Abills::Misc;
 
-use Abills::Base;
+use Abills::Base qw(sendmail in_array);
 use Users;
-
-#use Paysys;
 use Finance;
 use Admins;
 use Tariffs;
 use Sharing;
 
-our %OUTPUT;
-our @REGISTRATION;
-our $sid = '';
-our %lang;
-our %LANG;
-our $base_dir;
+our $sid  = '';
+our $html = Abills::HTML->new({ CONF => \%conf, NO_PRINT => 1, });
+our $db   = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
 
-our $html = Abills::HTML->new( { CONF => \%conf, NO_PRINT => 1, } );
-our $db = Abills::SQL->connect( $conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
-  { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef } );
-
-if ( $conf{LANGS} ){
+if ($conf{LANGS}) {
   $conf{LANGS} =~ s/\n//g;
-  my (@lang_arr) = split( /;/, $conf{LANGS} );
+  my (@lang_arr) = split(/;/, $conf{LANGS});
   %LANG = ();
-  foreach my $l ( @lang_arr ){
-    my ($lang, $lang_name) = split( /:/, $l );
+  foreach my $l (@lang_arr) {
+    my ($lang, $lang_name) = split(/:/, $l);
     $lang =~ s/^\s+//;
     $LANG{$lang} = $lang_name;
   }
 }
 
 my $CAPTCHA_DIR = $base_dir . 'cgi-bin/captcha/';
-my %INFO_HASH = ();
+my %INFO_HASH   = ();
 
-our $admin = Admins->new( $db, \%conf );
-$admin->info( $conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' } );
+our $admin = Admins->new($db, \%conf);
+$admin->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });
+
 #my $payments = Finance->payments($db, $admin, \%conf);
-our $users = Users->new( $db, $admin, \%conf );
-
-if ( !@REGISTRATION ){
-  print "Content-Type: text/html\n\n";
-  print "Can't find modules services for registration";
-  exit;
-}
+our $users = Users->new($db, $admin, \%conf);
 
 $html->{language} = $FORM{language} if ($FORM{language});
 
 do "../language/$html->{language}.pl";
+
+require Abills::Templates;
+require Abills::Misc;
 
 $INFO_HASH{SEL_LANGUAGE} = $html->form_select(
   'language',
@@ -92,45 +74,61 @@ $INFO_HASH{SEL_LANGUAGE} = $html->form_select(
   }
 );
 
-if ( $FORM{FORGOT_PASSWD} ){
+if($FORM{check_address}) {
+  $INFO_HASH{CHECKED_ADDRESS_MESSAGE} = get_address_connected_message();
+}
+
+if ($FORM{FORGOT_PASSWD}) {
   password_recovery();
 }
-elsif ( $FORM{qindex} && $FORM{qindex} == 30 ){
-  require "Abills/main/Address_mng.pm";
+elsif ($FORM{qindex} && $FORM{qindex} == 30) {
+  require Control::Address_mng;
   form_address_sel();
 }
-elsif ( $#REGISTRATION > -1 ){
+elsif (!@REGISTRATION){
+  print "Content-Type: text/html\n\n";
+  print "Can't find modules services for registration";
+  exit;
+}
+elsif ($#REGISTRATION > -1) {
   my $m = $REGISTRATION[0];
-  if ( $FORM{module} ){
+  if ($FORM{module} && $FORM{module} =~ /^[a-z\_0-9]+$/i) {
     $m = $FORM{module};
   }
-  else{
-    if ( $#REGISTRATION > 0 && !$FORM{registration} ){
-      foreach my $registration_module ( @REGISTRATION ){
-        $html->{OUTPUT} .= $html->button( $registration_module, "module=$registration_module", { BUTTON => 1 } ) . ' ';
+  else {
+    my $choose_module_buttons = '';
+    if ($#REGISTRATION > 0 && !$FORM{registration}) {
+      foreach my $registration_module (@REGISTRATION) {
+        $choose_module_buttons .= $html->button($registration_module, "module=$registration_module", { class => 'btn btn-lg btn-default' }) . ' ';
       }
     }
+    # check address button
+    $choose_module_buttons .= "<button type='button' class='btn btn-lg btn-success' data-toggle='modal' data-target='#checkAddress'>" . $lang{CHECK_ADDRESS} . "</button>";
+    $html->{HEADER_ROW} = $html->element('div', $choose_module_buttons, { class => 'row'});
   }
 
-  $INFO_HASH{CAPTCHA} = show_captcha();
+  $INFO_HASH{CAPTCHA} = get_captcha();
 
-  $INFO_HASH{RULES} = $html->tpl_show( templates( 'form_accept_rules' ), { }, { OUTPUT2RETURN => 1 } );
+  $INFO_HASH{RULES} = $html->tpl_show(templates('form_accept_rules'), {}, { OUTPUT2RETURN => 1 });
   $INFO_HASH{language} = $html->{language};
 
-  if ( !$FORM{DOMAIN_ID} ){
-    $FORM{DOMAIN_ID} = 0;
+  if (!$FORM{DOMAIN_ID}) {
+    $FORM{DOMAIN_ID}      = 0;
     $INFO_HASH{DOMAIN_ID} = 0;
   }
 
-  load_module( $m, $html );
+  load_module($m, $html);
 
-  $m = lc( $m );
+  $m = lc($m);
+
   my $function = $m . '_registration';
-  my $return = &{ \&{$function} }( \%INFO_HASH );
 
-  # Send E-mail to admin after registration
-  if ( $return && $return > 1 ){
-    my $message = qq{
+  if(defined(&$function)) {
+    my $return = &{ \&{$function} }(\%INFO_HASH);
+
+    # Send E-mail to admin after registration
+    if ($return && $return > 1) {
+      my $message = qq{
 New Registrations
 =========================================
 Username: $FORM{LOGIN}
@@ -143,55 +141,64 @@ E-Mail:   $FORM{EMAIL}
 
 };
 
-    if ( $conf{REGISTRATION_EXTERNAL} ){
-      if ( !_external( $conf{REGISTRATION_EXTERNAL}, { %FORM } ) ){
-        #return 0;
+      if ($conf{REGISTRATION_EXTERNAL}) {
+        if (!_external($conf{REGISTRATION_EXTERNAL}, { %FORM })) {
+
+          #return 0;
+        }
+      }
+
+      sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "New registration request", "$message", "$conf{MAIL_CHARSET}",
+        "");
+    }
+    else {
+      if ($conf{REGISTRATION_REDIRECT}) {
+        $html->redirect($conf{REGISTRATION_REDIRECT}, { MESSAGE => $lang{SENDED} });
       }
     }
-
-    sendmail( "$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "New registrations", "$message", "$conf{MAIL_CHARSET}", "" );
   }
 }
-else{
 
-}
+$admin->{SETTINGS}->{SKIN}         = 'skin-blue';
+$admin->{SETTINGS}->{FIXED_LAYOUT} = '';
+$admin->{MENU_HIDDEN}              = '';
+$admin->{RIGHT_MENU_OPEN}          = '';
 
-if ( !($FORM{header} && $FORM{header} == 2) ){
-  $html->{METATAGS} = templates( 'metatags' );
+if (!($FORM{header} && $FORM{header} == 2)) {
   print $html->header();
 
-  $OUTPUT{BODY} = $html->{OUTPUT};
-  $OUTPUT{BODY} .= "<link href='/styles/default_adm/css/client.css' rel='stylesheet' />";
+  $OUTPUT{HTML_STYLE} = 'default_adm';
+  $OUTPUT{BODY}       = $html->{OUTPUT};
+  # check address form
+  $OUTPUT{ADDRESS}    = $html->tpl_show(templates('form_address_build_sel'), { }, {OUTPUT2RETURN => 1});
 
-  print $html->tpl_show( templates( 'form_client_start' ), { %OUTPUT, TITLE_TEXT => $lang{REGISTRATION} } );
+  print $html->tpl_show(templates('registration'), { %OUTPUT, TITLE_TEXT => $lang{REGISTRATION} });
 }
-else{
+else {
   print "Content-Type: text/html\n\n";
   print $html->{OUTPUT};
 }
-
-
 
 #**********************************************************
 =head2 password_recovery() - Password recovery
 
 =cut
 #**********************************************************
-sub password_recovery{
-  if ( $FORM{SEND} && check_captcha( $FORM{CCODE}, $FORM{C} ) ){
+sub password_recovery {
+  if ($FORM{SEND} && (!$conf{REGISTRATION_CAPTCHA} || check_captcha($FORM{CCODE}, $FORM{C}))) {
     password_recovery_process();
   }
 
   my %info = ();
-  if ( in_array( 'Sms', \@MODULES ) ){
-    $info{EXTRA_PARAMS} = $html->tpl_show( _include( 'sms_check_form', 'Sms' ), undef, { OUTPUT2RETURN => 1 } );
+  if (in_array('Sms', \@MODULES)) {
+    $info{EXTRA_PARAMS} = $html->tpl_show(_include('sms_check_form', 'Sms'), undef, { OUTPUT2RETURN => 1 });
   }
 
-  $info{CAPTCHA} = show_captcha();
+  $info{CAPTCHA} = get_captcha();
 
-  $html->tpl_show( templates( 'form_forgot_passwd' ), { %FORM, %info } );
+  $html->tpl_show(templates('form_forgot_passwd'), { %FORM, %info });
 
-  return 1
+  return 1;
 }
 
 #**********************************************************
@@ -199,58 +206,49 @@ sub password_recovery{
 
 =cut
 #**********************************************************
-sub password_recovery_process{
+sub password_recovery_process {
 
   # Possible pairs are
   #   login + mail
   #   login + phone
   #   uid + mail
   #   uid + phone
-  unless (
-    (
-      ($FORM{LOGIN} && $FORM{LOGIN} ne '' && $FORM{LOGIN} ne '*' )
-        ||
-        ($FORM{UID} && $FORM{UID} ne '' && $FORM{UID} ne '*' )
-    ) && (
-      ($FORM{EMAIL} && $FORM{EMAIL} ne '' && $FORM{EMAIL} ne '*' )
-        ||
-        ($FORM{PHONE} && $FORM{PHONE} ne '' && $FORM{PHONE} ne '*' )
-    )
-  )
-  {
-    $html->message( 'err', $lang{ERROR}, "$lang{ERR_WRONG_DATA}" );
+  unless ( ($FORM{LOGIN} || $FORM{UID}) && ($FORM{EMAIL} || $FORM{PHONE}) ) {
+    $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA}");
     return 0;
   }
 
   # Do not send empty parameters to list (we checked them below)
   my @args_can_be_empty = qw( PHONE UID LOGIN EMAIL );
-  foreach my $arg ( @args_can_be_empty ){
-    delete $FORM{$arg} if (defined $FORM{$arg} && $FORM{$arg} eq '' );
-  };
+  foreach my $arg (@args_can_be_empty) {
+    delete $FORM{$arg} if (exists $FORM{$arg} && ($FORM{$arg} eq '' || $FORM{$arg} eq '*'));
+  }
 
-  my $users_list = $users->list( {
-      PHONE     => '_SHOW',
-      EMAIL     => '_SHOW',
-      %FORM,
-      COLS_NAME => 1 }
-  );
+  my $users_list = $users->list({
+    PHONE => '_SHOW',
+    EMAIL => '_SHOW',
+    %FORM,
+    COLS_NAME => 1
+  });
 
-  if ( !defined $users_list || ref $users_list ne 'ARRAY' ){
+  if (!$users->{TOTAL} || $users->{TOTAL} < 1) {
     my $search_param = ($FORM{PHONE} && $FORM{PHONE} ne '') ? $lang{CELL_PHONE} : 'E-mail';
-    $html->message( 'err', $lang{ERROR}, "$lang{USER} $lang{NOT_EXIST} $lang{OR} $search_param $lang{NOT_EXIST}" );
+    $html->message('err', $lang{ERROR}, "$lang{USER} $lang{NOT_EXIST} $lang{OR} $search_param $lang{NOT_EXIST}");
     return 0;
-  };
+  }
 
   my $user = $users_list->[0];
 
   my $email = $user->{email};
   my $phone = $user->{phone};
-  my $uid = $user->{uid};
+  my $uid   = $user->{uid};
 
-  my $pi = $users->pi( { UID => $uid } );
-  my $user_info = $users->info( $uid, { SHOW_PASSWORD => 1 } );
+  my $pi = $users->pi({ UID => $uid });
+  my $user_info = $users->info($uid, { SHOW_PASSWORD => 1 });
 
-  my $message = $html->tpl_show( templates( 'msg_passwd_recovery' ), {
+  my $message = $html->tpl_show(
+    templates('msg_passwd_recovery'),
+    {
       MESSAGE => "$lang{LOGIN}:  $users->{LOGIN}\n" . "$lang{PASSWD}: $users->{PASSWORD}\n\n",
       %{$user_info},
       %{$pi}
@@ -258,26 +256,24 @@ sub password_recovery_process{
     { OUTPUT2RETURN => 1 }
   );
 
-  if ( $email && $email ne '' ){
-    sendmail( "$conf{ADMIN_MAIL}", "$email", "$PROGRAM Password Repair", "$message", "$conf{MAIL_CHARSET}", "" );
-    $html->message( 'info', $lang{INFO}, "$lang{SENDED}" );
+  if ($email && $email ne '') {
+    sendmail("$conf{ADMIN_MAIL}", "$email", "$PROGRAM Password Repair", "$message", "$conf{MAIL_CHARSET}", "");
+    $html->message('info', $lang{INFO}, "$lang{SENDED}");
   }
-  else{
-    $html->message( 'info', $lang{INFO}, "E-Mail $lang{NOT_EXIST}" );
+  else {
+    $html->message('info', $lang{INFO}, "E-Mail $lang{NOT_EXIST}");
   }
 
-  if ( $FORM{SEND_SMS} && in_array( 'Sms', \@MODULES ) ){
-    load_module( 'Sms', $html );
-    if (
-      sms_send(
-        {
-          NUMBER    => $phone,
-            MESSAGE => $message,
-            UID     => $uid
-        }
-      )
-    ){
-      $html->message( 'info', "$lang{INFO}", "SMS $lang{SENDED}" );
+  if ($FORM{SEND_SMS} && in_array('Sms', \@MODULES)) {
+    load_module('Sms', $html);
+    my $sms_sent = sms_send({
+      NUMBER  => $phone,
+      MESSAGE => $message,
+      UID     => $uid
+    });
+
+    if ($sms_sent){
+      $html->message('info', "$lang{INFO}", "SMS $lang{SENDED}");
     }
   }
 
@@ -285,50 +281,63 @@ sub password_recovery_process{
 }
 
 #**********************************************************
-=head2 show_captcha()
+=head2 get_address_connected_message()
 
 =cut
 #**********************************************************
-sub show_captcha{
-  #  my ($attr) = @_;
+sub get_address_connected_message {
+  require Control::Address_mng;
+  require Address;
+  my $Address = Address->new($db, $admin, \%conf);
+  
+  my $info = $Address->build_info({ID => $FORM{LOCATION_ID}});
+  
+  return ($info->{PLANNED_TO_CONNECT} == 1)
+    ? "<div class='callout callout-info'>$lang{CHECK_ADDRESS_PLANNED_TO_CONNECT_MSG}</div>"
+    : "<div class='callout callout-info'>$lang{CHECK_ADDRESS_CONNECTED_MSG}</div>";
+}
 
-  $conf{REGISTRATION_CAPTCHA} = 1 if (!defined( $conf{REGISTRATION_CAPTCHA} ));
+#**********************************************************
+=head2 get_captcha()
 
-  if ( $conf{REGISTRATION_CAPTCHA} ){
-    load_pmodule( 'Authen::Captcha', { HEADER => 1 } );
-
-    my $Captcha = Authen::Captcha->new(
-      data_folder   => $CAPTCHA_DIR,
-      output_folder => $CAPTCHA_DIR,
-    );
-
-    $INFO_HASH{CAPTCHA_OBJ} = $Captcha;
-
-    if ( !-d $CAPTCHA_DIR ){
-      if ( !mkdir( $CAPTCHA_DIR ) ){
-        $html->message( 'err', $lang{ERROR}, "$lang{ERR_CANT_CREATE_FILE} '$CAPTCHA_DIR' $lang{ERROR}: $!\n" );
-        $html->message( 'info', $lang{INFO}, "$lang{NOT_EXIST} '$CAPTCHA_DIR'" );
-      }
-    }
-    else{
-
-      my $number_of_characters = 5;
-      my $md5sum = eval { return $Captcha->generate_code( $number_of_characters ) };
-
-      if ( !$md5sum ){
-        print "Content-Type: text/html\n\n";
-        print "Can't make captcha\n";
-        print $@;
-        exit;
-      }
-
-      $INFO_HASH{CAPTCHA} = $html->tpl_show( templates( 'form_captcha' ), { MD5SUM => $md5sum },
-        { OUTPUT2RETURN => 1 } );
-
-    }
+=cut
+#**********************************************************
+sub get_captcha {
+  
+  return if (!$conf{REGISTRATION_CAPTCHA});
+  my $captcha_module_load_error = load_pmodule( 'Authen::Captcha', { RETURN => 1 } );
+  
+  if ($captcha_module_load_error){
+    print "Content-Type : text/html;\n\n";
+    print $captcha_module_load_error;
+  };
+  
+  my $Captcha = Authen::Captcha->new(
+    data_folder   => $CAPTCHA_DIR,
+    output_folder => $CAPTCHA_DIR,
+  );
+  
+  $INFO_HASH{CAPTCHA_OBJ} = $Captcha;
+  
+  if (!(-d $CAPTCHA_DIR || mkdir($CAPTCHA_DIR))) {
+    $html->message( 'err', $lang{ERROR}, "$lang{ERR_CANT_CREATE_FILE} '$CAPTCHA_DIR' $lang{ERROR}: $!\n" );
+    $html->message( 'info', $lang{INFO}, "$lang{NOT_EXIST} '$CAPTCHA_DIR'" );
   }
-
-  return $INFO_HASH{CAPTCHA};
+  else {
+    my $number_of_characters = 5;
+    my $md5sum = eval { return $Captcha->generate_code( $number_of_characters ) };
+    
+    if (!$md5sum) {
+      print "Content-Type: text/html\n\n";
+      print "Can't make captcha\n";
+      print $@;
+      exit;
+    }
+    
+    $INFO_HASH{CAPTCHA} = $html->tpl_show( templates('form_captcha'), { MD5SUM => $md5sum }, { OUTPUT2RETURN => 1 } );
+  }
+  
+  return ($Captcha, $INFO_HASH{CAPTCHA});
 }
 
 #**********************************************************
@@ -343,42 +352,42 @@ sub show_captcha{
 
 =cut
 #**********************************************************
-sub check_captcha{
+sub check_captcha {
   my ($user_input, $md5hash) = @_;
 
-  $conf{REGISTRATION_CAPTCHA} = 1 if (!defined( $conf{REGISTRATION_CAPTCHA} ));
+  $conf{REGISTRATION_CAPTCHA} = 1 if (!defined($conf{REGISTRATION_CAPTCHA}));
 
-  if ( $conf{REGISTRATION_CAPTCHA} ){
-    load_pmodule( 'Authen::Captcha', { HEADER => 1 } );
+  if ($conf{REGISTRATION_CAPTCHA}) {
+    load_pmodule('Authen::Captcha', { HEADER => 1 });
 
     my $Captcha = Authen::Captcha->new(
       data_folder   => $CAPTCHA_DIR,
       output_folder => $CAPTCHA_DIR,
+      debug         => 0
     );
 
-    $Captcha->debug( 2 );
-    my $result = $Captcha->check_code( $user_input, $md5hash );
+    my $result = $Captcha->check_code($user_input, $md5hash);
 
-    if ( $result == 0 ){
-      $html->message( 'err', "Captcha: $lang{ERROR}" );
+    if ($result == 0) {
+      $html->message('err', "Captcha: $lang{ERROR}");
       #file error
     }
-    elsif ( $result == -1 ){
-      $html->message( 'err', "Captcha: has been expired" );
+    elsif ($result == -1) {
+      $html->message('err', "Captcha: has been expired");
       #code expired
     }
-    elsif ( $result == -2 ){
-      $html->message( 'err', "Captcha: invalid (-2)" );
+    elsif ($result == -2) {
+      $html->message('err', "Captcha: invalid (-2)");
       #code invalid
     }
-    elsif ( $result == -3 ){
+    elsif ($result == -3) {
       #code does not match crypt
-      $html->message( 'err', "Captcha: invalid (-3)" );
+      $html->message('err', "Captcha: invalid (-3)");
     }
 
     return $result == 1;
   }
-  else{
+  else {
     return 1;
   }
 }

@@ -1,8 +1,8 @@
 <form class='form-horizontal' action='$SELF_URL' METHOD='POST' ENCTYPE='multipart/form-data'>
 <input type='hidden' name='index' value='$index'>
 
-<div class='panel panel-default panel-form'>
-<div class='panel-body'>
+<div class='box box-theme box-form'>
+<div class='box-body'>
 
 
 <fieldset>

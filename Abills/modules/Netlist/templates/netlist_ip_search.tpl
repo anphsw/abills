@@ -3,10 +3,10 @@
 <input type='hidden' name='index' value='$index'>
 
 
-<div class='panel panel-primary panel-form'>
-<div class='panel-heading text-center'>_{SEARCH}_</div>
+<div class='box box-theme box-form'>
+<div class='box-header with-border text-center'>_{SEARCH}_</div>
 
-<div class='panel-body form-horizontal'>
+<div class='box-body form-horizontal'>
 	<div class='form-group'>
 		<label class='col-md-3 control-label'>IP:</label>
 		<div class='col-md-9'><input class='form-control' type='text' name='IP' value='%IP%'></div>
@@ -49,7 +49,7 @@
 	</div>
 </div>
 
-<div class='panel-footer'>
+<div class='box-footer'>
 	<input class='btn btn-primary' type='submit' name='search' value='_{SEARCH}_'>
 </div>
 

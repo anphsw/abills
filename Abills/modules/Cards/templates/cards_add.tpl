@@ -3,8 +3,8 @@
 <input type='hidden' name='index' value='$index'>
 
 
-<div class='panel panel-default panel-form'>
-  <div class='panel-body'>
+<div class='box box-theme box-form'>
+  <div class='box-body'>
 
 <legend>_{ICARDS}_ : %TYPE_CAPTION%</legend>
 
@@ -33,7 +33,7 @@
 %CARDS_TYPE%
 
 <div class='form-group'>
-  <label class='control-label col-md-12'>_{PASSWD}_ / PIN</label>
+  <label class='control-label col-md-12'><p class='text-center'>_{PASSWD}_ / PIN</p></label>
 </div>
 
 <div class='form-group'>
@@ -62,13 +62,13 @@
 </div>
 
 
-<div class='panel panel-default panel-form'>
-  <div class='panel-body'>
+<div class='box box-theme box-form'>
+  <div class='box-body'>
 
 <div class='form-group'>
   <label class='control-label col-md-3' for='EXPIRE'>_{EXPIRE}_</label>
   <div class='col-md-9'>
-    <input id='EXPIRE' name='EXPIRE' value='%EXPIRE%' placeholder='%EXPIRE%' class='form-control tcal' type='text'>
+    <input id='EXPIRE' name='EXPIRE' value='%EXPIRE%' placeholder='%EXPIRE%' class='form-control datepicker' type='text'>
   </div>
 </div>
 
@@ -88,7 +88,11 @@
   </div>
 </div>
 
-<input type='submit' name='create' value='_{CREATE}_' class='btn btn-primary'>
+</div>
+
+<div class='box-footer'>
+
+  <input type='submit' name='create' value='_{CREATE}_' class='btn btn-primary'>
 
 </div>
 </div>

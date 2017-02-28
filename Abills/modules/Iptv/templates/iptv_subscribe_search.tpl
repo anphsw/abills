@@ -1,5 +1,5 @@
-<div class='panel panel-default panel-form'>
-  <div class='panel-body'>
+<div class='box box-theme box-form'>
+  <div class='box-body'>
 
 <fieldset>
 
@@ -41,7 +41,7 @@
 <div class='form-group'>
   <label class='control-label col-md-3' for='EXPIRE'>_{EXPIRE}_</label>
   <div class='col-md-9 %EXPIRE_COLOR%'>
-    <input id='EXPIRE' name='EXPIRE' value='%EXPIRE%' placeholder='%EXPIRE%' class='form-control tcal' rel='tcal' type='text'>
+    <input id='EXPIRE' name='EXPIRE' value='%EXPIRE%' placeholder='%EXPIRE%' class='form-control datepicker' rel='tcal' type='text'>
   </div>
 </div>
 

@@ -22,21 +22,24 @@ $VERSION = 2.00;
 use main;
 @ISA = ("main");
 
-my $uid;
+my ($admin, $CONF);
+my ($SORT, $DESC, $PG, $PAGE_ROWS);
 
 #**********************************************************
 # Init
 #**********************************************************
-sub new {
+sub new{
   my $class = shift;
-  my $db    = shift; 
-  ($admin, $CONF) = @_;
+  my $db = shift;
+  ($self->{admin}, $CONF) = @_;
 
-  $admin->{MODULE} = 'Mdelivery';
-  my $self = {};
-  bless($self, $class);
+  $self->{admin}->{MODULE} = 'Mdelivery';
+  my $self = { };
 
-  $self->{db}=$db;
+  bless( $self, $class );
+  $self->{db} = $db;
+  $self->{admin} = $admin;
+  $self->{conf} = $CONF;
 
   return $self;
 }
@@ -72,13 +75,13 @@ sub info {
 
   my $WHERE;
 
-  $self->query2("SELECT 
+  $self->query2("SELECT
      md.id,
-     md.date, 
-     md.subject, 
-     md.sender, 
-     a.id AS admin, 
-     md.added, 
+     md.date,
+     md.subject,
+     md.sender,
+     a.id AS admin,
+     md.added,
      md.text,
      md.priority,
      u.id AS login,
@@ -120,7 +123,7 @@ sub del {
   $self->query2("DELETE from mdelivery_list WHERE id='$id';", 'do');
   $self->user_list_del({ MDELIVERY_ID => $id });
 
-  $admin->system_action_add("$id", { TYPE => 10 });
+  $self->{admin}->system_action_add("$id", { TYPE => 10 });
 
   return $self->{result};
 }
@@ -137,10 +140,10 @@ sub add {
 
   $self->query2("INSERT INTO mdelivery_list (date, added, subject, sender, aid, text, uid, gid,
      priority)
-     values ('$DATA{DATE}', now(), '$DATA{SUBJECT}', 
-     '$DATA{FROM}', 
-     '$admin->{AID}', 
-     '$DATA{TEXT}', 
+     values ('$DATA{DATE}', now(), '$DATA{SUBJECT}',
+     '$DATA{FROM}',
+     '$self->{admin}->{AID}',
+     '$DATA{TEXT}',
      '$DATA{UID}',
      '$DATA{GID}',
      '$DATA{PRIORITY}');", 'do'
@@ -150,7 +153,7 @@ sub add {
 
   $self->user_list_add({ %$attr, MDELIVERY_ID => $self->{MDELIVERY_ID} });
 
-  $admin->system_action_add("$self->{MDELIVERY_ID}", { TYPE => 1 });
+  $self->{admin}->system_action_add("$self->{MDELIVERY_ID}", { TYPE => 1 });
 
   return $self;
 }
@@ -247,7 +250,7 @@ sub user_list_change {
         [ 'UID',        'INT', 'uid' ],
         [ 'ID',         'INT', 'id' ],
     ],
-    { 
+    {
     	WHERE_RULES => \@WHERE_RULES
     }
     );
@@ -298,13 +301,13 @@ sub user_list {
         [ 'LOGIN',        'STR', 'u.id'         ],
         [ 'MDELIVERY_ID', 'INT', 'mdelivery_id' ],
     ],
-    { 
+    {
     	WHERE       => 1,
     	WHERE_RULES => \@WHERE_RULES
     }
     );
 
-  $self->query2("SELECT u.id AS login, pi.fio, mdl.status, mdl.uid, pi.email 
+  $self->query2("SELECT u.id AS login, pi.fio, mdl.status, mdl.uid, pi.email
      FROM (mdelivery_users mdl, users u)
      LEFT JOIN users_pi pi ON (mdl.uid=pi.uid)
      $WHERE
@@ -343,12 +346,12 @@ sub list {
         [ 'DATE',         'DATE', 'md.date'  ],
         [ 'ID',           'INT',  'md.id'    ],
     ],
-    { 
+    {
     	WHERE       => 1,
     }
     );
 
-  $self->query2("SELECT 
+  $self->query2("SELECT
     md.id,  md.date, md.subject, md.sender, a.id AS admin_login, md.added, length(md.text) AS message_text, md.status
      FROM mdelivery_list md
      LEFT JOIN admins a ON (md.aid=a.aid)
@@ -407,11 +410,11 @@ sub attachment_info () {
     $WHERE = "id='$attr->{ID}'";
   }
 
-  $self->query2("SELECT id AS attachment_id, filename, 
-    content_type, 
+  $self->query2("SELECT id AS attachment_id, filename,
+    content_type,
     content_size AS filesize,
     content
-   FROM  mdelivery_attachments 
+   FROM  mdelivery_attachments
    WHERE $WHERE",
    undef,
    $attr

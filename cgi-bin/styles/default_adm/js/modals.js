@@ -35,26 +35,55 @@ function openModal(buttonNumber, type_) {
 /*  loads content of url in modal and shows it*/
 function loadToModal(url, callback) {
   url += "&IN_MODAL=1";
-  
-  // $('navbar-right').prepend(spinner);
-  
+
   aModal.clear()
       .setSmall(false)
       .setId('CurrentOpenedModal')
       .setBody(spinner)
       .show(function () {
 
-        $.get(url, function (data) {
-
-          $('#CurrentOpenedModal').find('.modal-body').html(data);
-
-        }, 'html')
+        $.get(url,
+            function(data){
+          var modalBody = $('#CurrentOpenedModal').find('.modal-body');
+              modalBody.html(data);
+              pageInit(modalBody);
+              Events.emit('modal_loaded', modalBody);
+            }, 'html')
             .fail(function (error) {
               alert('Fail' + JSON.stringify(error));
+              
+              Events.emit('modal_loaded', false);
             });
 
         if (callback) callback();
       });
+
+
+}
+
+/*  loads content of url in modal and shows it*/
+function postAndLoadToModal(url, params, callback, close_callback) {
+  params['IN_MODAL'] = 1;
+
+  aModal.clear()
+      .setSmall(false)
+      .setId('CurrentOpenedModal')
+      .setBody(spinner);
+
+      if (close_callback)
+        aModal.onClose(close_callback);
+
+      aModal.show(function () {
+        $.post(url, $.param(params), function(data){
+          var modalBody = $('#CurrentOpenedModal').find('.modal-body');
+          modalBody.html(data);
+          pageInit(modalBody)
+        } , 'html')
+            .fail(function (error) {
+              alert('Fail' + JSON.stringify(error));
+            })
+            .done(callback);
+      })
 
 
 }
@@ -66,7 +95,9 @@ function loadToModalSmall(url, callback) {
     aModal.clear()
         .setSmall(true)
         .setBody(data)
-        .show();
+        .show(function(){
+          pageInit(data);
+        });
 
     if (callback) callback();
 
@@ -81,18 +112,16 @@ function loadRawToModal(url, callback) {
       .setBody(spinner)
       .setId('CurrentOpenedModal')
       .show(function () {
-        
+
         $.get(url, function (data) {
-          
-          $('#CurrentOpenedModal').find('.modal-content').html(data);
-          
+          var modalBody = $('#CurrentOpenedModal').find('.modal-content');
+          modalBody.html(data);
+          pageInit(modalBody);
           if (callback) callback();
         }, 'html')
             .fail(function (error) {
               alert('Fail' + JSON.stringify(error));
             });
-        
-        
       });
 }
 
@@ -103,6 +132,8 @@ function showImgInModal(url) {
 /**
  * get modal body and load it to modal
  * @param data DOM elements to show in modal
+ * @param decorated
+ * @param withoutButton
  */
 function loadDataToModal(data, decorated, withoutButton) {
   if (decorated) {
@@ -197,14 +228,26 @@ function AModal() {
     return this;
   };
 
+  this.updateBody = function (content) {
+    if (this.$modal){
+      this.$modal.find('.modal-body').html(content);
+      this.$modal.modal('handleUpdate')
+    }
+  };
+
+  this.onClose = function(callback){
+    if (callback) this.onClose = callback;
+  };
+
   this.addButton = function (text, btnId, class_) {
     this.footer += '<button id="' + btnId + '" class="btn btn-' + class_ + '">' + text + '</button>';
     return this;
   };
 
   this.show = function (callback) {
-    if (this.mainModal == null)
-      this.mainModal = this.build();
+    if (this.mainModal == null) this.mainModal = this.build();
+
+    // Creating jQuery object from HTML
     var $modal = $(this.mainModal);
 
     if (callback)
@@ -212,10 +255,14 @@ function AModal() {
         callback(self);
       });
 
+    // Adding HTML to page
     $('body').prepend($modal);
+
+    // Open modal
     $modal.modal('show');
 
     $modal.on('hidden.bs.modal', function(){
+      if (self.onClose) self.onClose();
       $(this).remove();
     });
 
@@ -226,6 +273,7 @@ function AModal() {
     // If modal is still presnt in body
     if (self.$modal) {
       self.$modal.modal('hide');
+      $('#' + this.id).remove();
     }
     // Remove body
     else {
@@ -234,6 +282,9 @@ function AModal() {
 
     // Remove fade if any
     $('.modal-backdrop').remove();
+    $('body')
+      .removeClass('modal-open')
+      .css('padding-right','0px');
 
     return this;
   };
@@ -289,6 +340,10 @@ function AModal() {
   this.clear = function () {
     this.id = 'PopupModal' + ++counter;
 
+    if (this.mainModal !== null){
+      this.hide();
+    }
+
     this.header  = '';
     this.footer  = '';
     this.body    = '<h1>Empty</h1>';
@@ -303,8 +358,20 @@ function AModal() {
    * @deprecated because of undesired effects
    */
   this.destroy = function () {
-    self.hide();
-    $('#' + this.id).remove();
+    // If modal is still presnt in body
+    if (self.$modal) {
+      self.$modal.modal('hide');
+      $('#' + this.id).remove();
+    }
+    // Remove body
+    else {
+      $('#' + this.id).remove();
+    }
+
+    // Remove fade if any
+    $('.modal-backdrop').remove();
+
+    return this;
   }
 
 }
@@ -361,7 +428,7 @@ function ATooltip(text) {
       }, this._timeout)
 
   };
-  
+
   this.display = function (text, duration) {
     this.setText(text);
     this.setTimeout(duration || 2000);

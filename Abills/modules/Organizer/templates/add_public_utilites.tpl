@@ -3,13 +3,13 @@
 <input type='hidden' name='action' value='%ACTION%'>
 <input type='hidden' name='ID' value='%ID%'>
     <input type='hidden' name='sid' value='$sid'>
-  <div class='panel panel-primary form-horizontal'>
-  <div class='panel-heading text-center'><h4>_{PUBLIC_UTILITIES}_</h4></div>
-  <div class='panel-body'>
+  <div class='box box-primary form-horizontal'>
+  <div class='box-header with-border'><h4 class='box-title'>_{PUBLIC_UTILITIES}_</h4></div>
+  <div class='box-body'>
     <div class='form-group'>
       <label class='col-md-3 control-label required'>_{DATE}_</label>
       <div class='col-md-9'>
-        <input type='text' name='DATE' VALUE='%DATE%' class='form-control tcal tcalInput' required='required'>
+        <input type='text' name='DATE' VALUE='%DATE%' class='form-control datepicker' required='required'>
       </div>
     </div>
     <hr>
@@ -52,7 +52,7 @@
       </div>
     </div>
   </div>
-  <div class='panel-footer text-center'>
+  <div class='box-footer text-center'>
     <input  type='submit' class='btn btn-primary' value='%BTN_NAME%'>
   </div>
   </div>

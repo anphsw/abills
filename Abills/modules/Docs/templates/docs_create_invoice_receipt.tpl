@@ -1,11 +1,11 @@
 
-<div class='panel panel-default panel-form'>
-  <div class='panel-heading'>
+<div class='box box-theme box-big-form'>
+  <div class='box-header with-border'>
       <a data-toggle='collapse' data-parent='#accordion' href='#docs_'>_{DOCS}_</a>
   </div>
-<div id='docs_' class='panel-collapse collapse out'>
+<div id='docs_' class='box-collapse collapse out'>
 
-<div class='panel-body'>
+<div class='box-body'>
 
 <div class='form-group'>
   <label class='control-label col-md-4' for='APPLY_TO_INVOICE'>_{APPLY_TO_INVOICE}_</label>
@@ -27,10 +27,10 @@
 <div class='form-group'>
   <label class='control-label col-md-4' for='CREATE_RECEIPT'>_{RECEIPT}_</label>
   <div class='col-md-3'>
-    <input type=checkbox name=CREATE_RECEIPT   value='1' checked id='CREATE_RECEIPT'>
+    <input type=checkbox name=CREATE_RECEIPT   value='1' %CREATE_RECEIPT_CHECKED% id='CREATE_RECEIPT'>
   </div>
 </div>
-<input type=hidden name=SEND_EMAIL value='0'>
+<input type=hidden name=SEND_EMAIL value='%SEND_MAIL%'>
 
 </div>
 </div>

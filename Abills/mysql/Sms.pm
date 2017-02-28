@@ -123,6 +123,10 @@ sub list {
   $self->{SEARCH_FIELDS}  = '';
   $self->{SEARCH_FIELDS_COUNT}=0;
 
+  if ($attr->{INTERVAL}) {
+    ($attr->{FROM_DATE}, $attr->{TO_DATE}) = split(/\//, $attr->{INTERVAL}, 2);
+  }
+
   my $WHERE =  $self->search_former($attr, [
       ['DATETIME',       'DATE','sms.datetime',               1 ],
       ['STATUS',         'INT', 'sms.status',                 1 ],
@@ -131,7 +135,8 @@ sub list {
       ['EXT_ID',         'STR', 'sms.ext_id',                 1 ],
       ['EXT_STATUS',     'STR', 'sms.ext_status',             1 ],
       ['STATUS_DATE',    'DATE','sms.status_date',            1 ],
-      ['ID',             'INT',  'sms.id'                       ],
+      ['FROM_DATE|TO_DATE','DATE',"DATE_FORMAT(sms.datetime, '%Y-%m-%d')"],
+      ['ID',             'INT', 'sms.id'                       ],
     ],
     { WHERE            => 1,
       USERS_FIELDS_PRE => 1,

@@ -15,11 +15,11 @@
     <input type=hidden name=module value=Msgs>
 
 
-    <div class='panel panel-default panel-form center-block'>
-        <div class='panel-heading '>
+    <div class='box box-theme box-form center-block'>
+        <div class='box-header with-border '>
             <h4>_{REGISTRATION}_</h4>
         </div>
-        <div class='panel-body'>
+        <div class='box-body'>
 
 
             <div class='form-group'>
@@ -122,7 +122,7 @@
             %CAPTCHA%
 
         </div>
-        <div class='panel-footer'>
+        <div class='box-footer'>
             <div class='col-md-12 text-center'>
                 <input type='submit' name='reg' value='_{SEND}_' class='btn btn-lg btn-primary'>
             </div>

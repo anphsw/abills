@@ -13,7 +13,7 @@ use warnings FATAL => 'all';
 our ($db, $admin, $html, %lang, %err_strs, $PAGE_ROWS);
 
 use Sqlcmd;
-use Abills::Base qw(int2byte in_array sec2time);
+use Abills::Base qw(int2byte in_array sec2time urlencode urldecode);
 my $Sqlcmd      = Sqlcmd->new($db, $admin, \%conf);
 my $Sqlcmd_main = Sqlcmd->new($db, $admin, \%conf);
 
@@ -144,7 +144,7 @@ sub sqlcmd {
         'ON',     'AND',  'EXPLAIN', 'ALTER', 'TABLE', 'ADD', 'COLUMN', 'UNSIGNED', 'NOT',    'NULL',   'DEFAULT', 'INTERVAL', 'COUNT',    'DESC',     'ASC',   @func
       );
 
-      my @types    = ('INT',  'VARCHAR', 'SMALLINT',  'CHAR',     'TINYINT',  'DOUBLE');
+      #my @types    = ('INT',  'VARCHAR', 'SMALLINT',  'CHAR',     'TINYINT',  'DOUBLE');
       my @division = ('FROM', 'WHERE',   'LEFT JOIN', 'GROUP BY', 'ORDER BY', 'LIMIT');
 
       foreach my $query (@{ $Sqlcmd->{EXECUTED_QUERY} }) {
@@ -204,7 +204,7 @@ sub sqlcmd {
       return 0;
     }
 
-    $pages_qs .= "&QUERY=$FORM{QUERY}";
+    $pages_qs .= "&QUERY=" . urlencode($FORM{QUERY});
 
     my @CAPTION = ();
 
@@ -398,11 +398,13 @@ sub sqlcmd {
     print $table->show();
   }
 
-  return 0;
+  return 1;
 }
 
 #**********************************************************
-#
+=head2 sqlcmd_triggers()
+
+=cut
 #**********************************************************
 sub sqlcmd_triggers {
   sqlcmd_cluster_info();
@@ -903,6 +905,11 @@ sub sqlcmd_info {
   print $table->show();
 }
 
+#**********************************************************
+=head2 get_Com_values()
+
+=cut
+#**********************************************************
 sub get_Com_values {
 
   # Make copy of just the Com_ values
@@ -925,6 +932,11 @@ sub get_Com_values {
   delete $Com_vals{'delete_multi'} if exists $Com_vals{'delete_multi'};
 }
 
+#**********************************************************
+=head2 make_short($number, $kb)
+
+=cut
+#**********************************************************
 sub make_short {
   my ($number, $kb) = @_;
   my $n = 0;
@@ -942,8 +954,11 @@ sub make_short {
   return $short;
 }
 
-# Percentage
+#**********************************************************
+=head2 perc($is, $of)
 
+=cut
+#**********************************************************
 sub perc {
   my ($is, $of) = @_;
   return sprintf "%.2f", ($is * 100) / ($of ||= 1);
@@ -1253,12 +1268,10 @@ sub sqlcmd_collation {
     push @{ $COLLATION_HASH{ $line->[1] } }, $line->[0];
   }
 
-  return $html->form_select('COLLATION',
-  {
+  return $html->form_select('COLLATION', {
     SELECTED => $FORM{COLLATION} || '',
     SEL_HASH => \%COLLATION_HASH
-  }
-  );
+  });
 }
 
 #**********************************************************
@@ -1267,7 +1280,6 @@ sub sqlcmd_collation {
 =cut
 #**********************************************************
 sub sqlcmd_collation_change {
-
 
   if(! $FORM{TABLES}) {
     $html->message('err', $lang{ERROR}, "Select table");
@@ -1301,7 +1313,7 @@ sub sqlcmd_collation_change {
         $table_fields++;
         if($FORM{COLLATION} && $FORM{COLLATION} ne $field->{Collation} ){
           my $null = ($field->{Null} eq 'NO') ? 'NOT NULL' : '';
-          my $query = "ALTER TABLE `$db_table` CHANGE COLUMN `$field->{Field}` `$field->{Field}` $field->{Type} COLLATE $FORM{COLLATION} $null DEFAULT '$field->{Default}'";
+          my $query = "ALTER TABLE `$db_table` CHANGE COLUMN `$field->{Field}` `$field->{Field}` $field->{Type} COLLATE $FORM{COLLATION} $null DEFAULT '$field->{Default}';";
           print "$field->{Collation}: ". $query . $html->br();
           $Sqlcmd->list({ QUERY => $query });
           if($Sqlcmd->{errno}) {
@@ -1321,12 +1333,12 @@ sub sqlcmd_collation_change {
 
   print $html->form_main({
       CONTENT => $table->show() . sqlcmd_collation(),
-      HIDDEN  => { index  => "$index",
+      HIDDEN  => { index  => $index,
                    ACTION => $FORM{ACTION},
                    TABLES => $FORM{TABLES}
                   },
       METHOD  => 'POST',
-      SUBMIT  => { 'change' => "$lang{CHANGE}" },
+      SUBMIT  => { 'change' => $lang{CHANGE} },
     }
   );
 

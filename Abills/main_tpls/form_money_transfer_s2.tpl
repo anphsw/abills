@@ -1,5 +1,5 @@
 <style>
-    .panel-body div:nth-of-type(2n-1) {
+    .box-body div:nth-of-type(2n-1) {
         background-color: #f0f0f0;
     }
 </style>
@@ -9,11 +9,11 @@
     <input type='hidden' name='SUM' value='%SUM%'>
     <input type='hidden' name='sid' value='$sid'>
 
-    <div class='panel panel-primary center-block' style='max-width: 400px'>
-        <div class='panel-heading'>
+    <div class='box box-primary center-block' style='max-width: 400px'>
+        <div class='box-header with-border'>
             _{MONEY_TRANSFER}_
         </div>
-        <div class='panel-body form form-horizontal'>
+        <div class='box-body form form-horizontal'>
             <div class='form-group'>
                 <label class='col-md-6 text-right'>UID:</label>
                 <label class='col-md-6'>
@@ -43,7 +43,7 @@
                 </div>
             </div>
         </div>
-        <div class='panel-footer '>
+        <div class='box-footer '>
             <input class='btn btn-primary center-block' type='submit' name='transfer' value='_{SEND}_'/>
         </div>
     </div>

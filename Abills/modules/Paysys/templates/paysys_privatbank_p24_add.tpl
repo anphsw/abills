@@ -1,30 +1,30 @@
 <form method='POST' action='https://api.privatbank.ua:9083/p24api/ishop' class='form form-horizontal'>
 
-<div class='panel panel-primary'>
-    <div class='panel-heading text-center'>_{BALANCE_RECHARCHE}_</div>
+<div class='box box-primary'>
+    <div class='box-header with-border text-center'><h4 class='box-title'>_{BALANCE_RECHARCHE}_</h4></div>
 
-<div class='panel-body'>
+<div class='box-body'>
     <div class='form-group'>
-        <label class='col-md-6 col-sm-6 text-center'>_{ORDER}_:</label>
+        <label class='col-md-6 col-sm-6 text-right'>_{ORDER}_:</label>
         <label class='col-md-6 col-sm-6'>$FORM{OPERATION_ID}</label>
     </div>
     
     <div class='form-group'>
-        <label class='col-md-6 col-sm-6 text-center'> _{PAY_SYSTEM}_:</label>
+        <label class='col-md-6 col-sm-6 text-right'> _{PAY_SYSTEM}_:</label>
         <label class='col-md-6 col-sm-6 '>Privat Bank - Privat 24</label>
     </div>
     
     <div class='form-group'>
-        <label class='col-md-6 col-sm-6 text-center'>_{BALANCE_RECHARCHE_SUM}_:</label>
+        <label class='col-md-6 col-sm-6 text-right'>_{BALANCE_RECHARCHE_SUM}_:</label>
         <label class='col-md-6 col-sm-6 '> $FORM{SUM} </label>
     </div>
 	 <div class='form-group'>
-         <label class='col-md-6 col-sm-6 text-center'>_{COMMISSION}_:</label>
+         <label class='col-md-6 col-sm-6 text-right'>_{COMMISSION}_:</label>
         <label class='col-md-6 col-sm-6 '> %COMMISSION_SUM% </label>
     </div>
 
     <div class='form-group'>
-        <label class='col-md-6 col-sm-6 text-center'>_{TOTAL}_ _{SUM}_:</label>
+        <label class='col-md-6 col-sm-6 text-right'>_{TOTAL}_ _{SUM}_:</label>
         <label class='col-md-6 col-sm-6 '> $FORM{TOTAL_SUM} </label>
     </div>
 
@@ -45,7 +45,7 @@
 <input type='hidden' name='server_url' value='$ENV{PROT}://$ENV{SERVER_NAME}:$ENV{SERVER_PORT}/paysys_check.cgi' />
 
 </div>
-    <div class='panel-footer text-center'>
+    <div class='box-footer text-center'>
         <input class='btn btn-primary' type=submit value='_{PAY}_'>
     </div>
 </div>   

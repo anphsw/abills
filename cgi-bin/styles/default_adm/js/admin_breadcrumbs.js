@@ -90,8 +90,6 @@ $(function () {
     
     var obsolete_elements_count = new_history.length - HISTORY_LIMIT;
     
-    console.log(obsolete_elements_count);
-    
     if (obsolete_elements_count > 0) {
       while (obsolete_elements_count--) {
         

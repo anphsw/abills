@@ -1,4 +1,4 @@
-CREATE TABLE `ureports_log` (
+CREATE TABLE IF NOT EXISTS `ureports_log` (
   `id` INTEGER(11) UNSIGNED NOT NULL AUTO_INCREMENT,
   `uid` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
   `execute` DATETIME NOT NULL,
@@ -10,9 +10,10 @@ CREATE TABLE `ureports_log` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `id` (`id`),
   KEY `uid` (`uid`)
-) COMMENT='Ureports log';
+)
+  COMMENT = 'Ureports log';
 
-CREATE TABLE `ureports_main` (
+CREATE TABLE IF NOT EXISTS `ureports_main` (
   `uid` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
   `tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `registration` DATE NOT NULL,
@@ -21,10 +22,11 @@ CREATE TABLE `ureports_main` (
   `destination` VARCHAR(40) NOT NULL DEFAULT '',
   PRIMARY KEY (`uid`),
   KEY `tp_id` (`tp_id`)
-) COMMENT='Ureports user account';
+)
+  COMMENT = 'Ureports user account';
 
 
-CREATE TABLE `ureports_spool` (
+CREATE TABLE IF NOT EXISTS `ureports_spool` (
   `id` INTEGER(11) UNSIGNED NOT NULL AUTO_INCREMENT,
   `uid` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
   `added` DATETIME NOT NULL,
@@ -35,34 +37,34 @@ CREATE TABLE `ureports_spool` (
   UNIQUE KEY `id` (`id`),
   KEY `uid` (`uid`)
 )
-COMMENT='Ureports spool';
+  COMMENT = 'Ureports spool';
 
 
-CREATE TABLE `ureports_tp` (
-  `msg_price` DOUBLE(14,2) UNSIGNED NOT NULL DEFAULT '0.00',
+CREATE TABLE IF NOT EXISTS `ureports_tp` (
+  `msg_price` DOUBLE(14, 2) UNSIGNED NOT NULL DEFAULT '0.00',
   `tp_id` SMALLINT(5) UNSIGNED DEFAULT '0'
 )
-COMMENT='Ureports tariff plans';
+  COMMENT = 'Ureports tariff plans';
 
 
-CREATE TABLE `ureports_tp_reports` (
+CREATE TABLE IF NOT EXISTS `ureports_tp_reports` (
   `id` INTEGER(11) UNSIGNED NOT NULL AUTO_INCREMENT,
   `tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  `msg_price` DOUBLE(14,2) UNSIGNED NOT NULL DEFAULT '0.00',
+  `msg_price` DOUBLE(14, 2) UNSIGNED NOT NULL DEFAULT '0.00',
   `report_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  `comments` text,
+  `comments` TEXT,
   `module` VARCHAR(32) NOT NULL DEFAULT '',
-  `visual` tinyint(1) UNSIGNED NOT NULL DEFAULT '0',
+  `visual` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   KEY `tp_id` (`tp_id`, `report_id`)
 )
-COMMENT='Ureports users Tarif plans';
+  COMMENT = 'Ureports users Tarif plans';
 
 
-CREATE TABLE `ureports_users_reports` (
+CREATE TABLE IF NOT EXISTS `ureports_users_reports` (
   `uid` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
   `report_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  `date` DATE NOT NULL DEFAULT '0000-00-00',
+  `date` DATE NOT NULL,
   `value` VARCHAR(10) NOT NULL DEFAULT ''
 )
-COMMENT='Ureports users reports';
+  COMMENT = 'Ureports users reports';

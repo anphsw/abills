@@ -14,7 +14,6 @@ $lang{CANT_DELETE_ERROR} = 'Неможливо видалити, меню міс
 $lang{SHORT_DESCRIPTION} = 'Короткий опис';
 $lang{DETAILS} = 'Детальніше';
 $lang{ON_MAIN_PAGE} = 'Нa головну';
-$lang{NO_DATA} = 'В цій категорії немає даних';
 $lang{NO_MENU} = 'В системі не створені розділи';
 $lang{DATE_PUBLICATE} = 'Дата публікації';
 $lang{CONTENT} = 'Контент статті';
@@ -25,4 +24,4 @@ $lang{TO_ARCHIVE} = 'В архів';
 $lang{USER_CONF} = 'Налаштування для кабінету користувача';
 $lang{CRITICAL} = 'Важливий';
 $lang{RESET_ADDRESS} = 'Скинути адресу';
-$lang{FORGOT_PASSWORD} = 'Забули пароль';
+

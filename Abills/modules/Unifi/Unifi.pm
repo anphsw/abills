@@ -4,34 +4,42 @@ package Unifi;
 
   UNIFI API v4
 
+  VERSION: 0.16
+  REVISION: 2016-10-25
+
+
+  Useful links
+  https://github.com/malle-pietje/UniFi-API-browser/blob/master/phpapi/class.unifi.php
+
 =cut
 
 use strict;
 use warnings FATAL => 'all';
 
 BEGIN{
-  #use lib ; # Assuming we are in /usr/abills/Abills/modules/Unifi/
   unshift ( @INC, "../../../lib/" );
 }
-use Abills::Base qw( _bp );
-use Abills::Defs;
-do "Abills/Misc.pm";
 
+use Abills::Base qw( _bp load_pmodule2);
+use Abills::Fetcher;
 
 my $debug = 0;
-our $VERSION = 0.14;
+our $VERSION = 0.16;
 
 #Pathes inside API
 my %OBJPATH = (
-  WLAN  => 'list/wlanconf',
-  AP    => 'stat/device',
-  USERS => 'stat/sta',
-  STATS => 'stat/alluser'
+  WLAN    => 'list/wlanconf',
+  AP      => 'stat/device',
+  USERS   => 'stat/sta',
+  STATS   => 'stat/alluser',
+  SESSION => 'stat/session',
+  SYSINFO => 'stat/sysinfo',
+  ALARM   => 'list/alarm',
+  DAILY_SITE => 'stat/report/daily.site'
 );
 
-load_pmodule('JSON');
+load_pmodule2('JSON');
 my $unifi_version;
-my $unifi_sitename;
 
 #***************************************************************
 #
@@ -44,12 +52,12 @@ sub new {
   bless( $self, $class );
 
   $self->{unifi_url} = $CONF->{UNIFI_URL};
-  $self->{login} = $CONF->{UNIFI_USER};
-  $self->{password} = $CONF->{UNIFI_PASS};
-  $unifi_version = $CONF->{UNIFI_VERSION} || 4;
-  $unifi_sitename = $CONF->{UNIFI_SITENAME} || 'default';
+  $self->{login}     = $CONF->{UNIFI_USER};
+  $self->{password}  = $CONF->{UNIFI_PASS};
+  $unifi_version     = $CONF->{UNIFI_VERSION} || 4;
+  $self->{unifi_sitename} = $CONF->{UNIFI_SITENAME} || 'default';
   $self->{FILE_CURL} = $CONF->{FILE_CURL};
-  $self->{api_path} = "$self->{unifi_url}/api/s/$unifi_sitename";
+  $self->{api_path}  = "$self->{unifi_url}/api/s/$self->{unifi_sitename}";
   $debug = $CONF->{unifi_debug} || 0;
   if ($debug && $debug > 2) {
     $self->{debug} = $debug;
@@ -70,7 +78,11 @@ sub get_api_list {
 
   $self->login();
 
-  my $path = $self->{unifi_url} . "/api/s/$unifi_sitename/" . $api_path;
+  if($self->{errno}) {
+    return []
+  }
+
+  my $path = $self->{unifi_url} . "/api/s/$self->{unifi_sitename}/" . $api_path;
   $self->mk_request( $path, $params );
 
   $self->logout();
@@ -292,11 +304,10 @@ sub disconnect{
 
   $self->login();
 
-  my %login_data =
-    (
-      'cmd' => 'kick-sta',
-      'mac' => $usermac
-    );
+  my %login_data = (
+    'cmd' => 'kick-sta',
+    'mac' => $usermac
+  );
 
   my $response = $self->mk_request( "$self->{api_path}/cmd/stamgr", \%login_data );
 
@@ -335,29 +346,38 @@ sub restart_ap{
   return $response;
 }
 
-#********************************************************************
-#
-# getJSON()
-#********************************************************************
-#sub getJSON{
-#  my $self = shift;
-#  my ($list_name) = @_;
-#
-#  my $path = $OBJPATH{$list_name} || '';
-#
-#  $self->login();
-#
-#  my $response = $self->mk_request( "$self->{api_path}/$path" );
-#
-#  $self->logout();
-#
-#  if ( $response == 1 && $self->{list} && ref $self->{list} eq 'HASH' ){
-#    return $self->convert_result( $response );
-#  }
-#
-#  return { };
-#}
-#
+#***************************************************************
+=head2 sys_info() - Sysinfo
+
+=cut
+#***************************************************************
+sub sys_info {
+  my $self = shift;
+
+  return $self->get_api_list($OBJPATH{SYSINFO});
+}
+
+#***************************************************************
+=head2 alarms() - Sysinfo
+
+=cut
+#***************************************************************
+sub alarms {
+  my $self = shift;
+
+  return $self->get_api_list($OBJPATH{ALARM});
+}
+
+#***************************************************************
+=head2 daily_site() - Sysinfo
+
+=cut
+#***************************************************************
+sub daily_site {
+  my $self = shift;
+
+  return $self->get_api_list($OBJPATH{DAILY_SITE});
+}
 
 #********************************************************************
 =head2 convert_result($data_hash)
@@ -367,38 +387,31 @@ sub restart_ap{
 sub convert_result{
   my $self = shift;
   my ($data_hash) = @_;
-  my ($lldData);
+  my ($lld_data);
 
-  my $lldItem = 0;
+  my $lld_item = 0;
 
-  foreach my $hashRef ( @{ $data_hash } ){
-    $lldData->{'data'}->[$lldItem]->{'{ALIAS}'} = $hashRef->{'model'};
-    $lldData->{'data'}->[$lldItem]->{'{NAME}'} = $hashRef->{'_name'};
-    $lldData->{'data'}->[$lldItem]->{'{IP}'} = $hashRef->{'ip'};
-    $lldData->{'data'}->[$lldItem]->{'{ID}'} = $hashRef->{'_id'};
-    $lldData->{'data'}->[$lldItem]->{'{MAC}'} = $hashRef->{'mac'};
-    $lldData->{'data'}->[$lldItem]->{'{OUI}'} = $hashRef->{'oui'};
-    $lldData->{'data'}->[$lldItem]->{'{SIGNAL}'} = $hashRef->{'signal'};
-    $lldData->{'data'}->[$lldItem]->{'{AUTHORIZED}'} = $hashRef->{'authorized'};
-    $lldData->{'data'}->[$lldItem]->{'{RECEIVED}'} = $hashRef->{'rx_bytes'};
-    $lldData->{'data'}->[$lldItem]->{'{TRANSMIT}'} = $hashRef->{'tx_bytes'};
-    $lldData->{'data'}->[$lldItem]->{'{SPEEDDOWN}'} = $hashRef->{'rx_rate'};
-    $lldData->{'data'}->[$lldItem]->{'{SPEEDUP}'} = $hashRef->{'tx_rate'};
-    $lldData->{'data'}->[$lldItem]->{'{ADOPTED}'} = $hashRef->{'adopted'};
-    $lldData->{'data'}->[$lldItem]->{'{HOSTNAME}'} = $hashRef->{'hostname'};
-    $lldData->{'data'}->[$lldItem]->{'{UPTIME}'} = $hashRef->{'_uptime'};
+  foreach my $hash_ref ( @{ $data_hash } ){
+    $lld_data->{'data'}->[$lld_item]->{'{ALIAS}'} = $hash_ref->{'model'};
+    $lld_data->{'data'}->[$lld_item]->{'{NAME}'} = $hash_ref->{'_name'} || $hash_ref->{'name'};
+    $lld_data->{'data'}->[$lld_item]->{'{IP}'} = $hash_ref->{'ip'};
+    $lld_data->{'data'}->[$lld_item]->{'{ID}'} = $hash_ref->{'_id'};
+    $lld_data->{'data'}->[$lld_item]->{'{MAC}'} = $hash_ref->{'mac'};
+    $lld_data->{'data'}->[$lld_item]->{'{OUI}'} = $hash_ref->{'oui'};
+    $lld_data->{'data'}->[$lld_item]->{'{SIGNAL}'} = $hash_ref->{'signal'};
+    $lld_data->{'data'}->[$lld_item]->{'{AUTHORIZED}'} = $hash_ref->{'authorized'};
+    $lld_data->{'data'}->[$lld_item]->{'{RECEIVED}'} = $hash_ref->{'rx_bytes'};
+    $lld_data->{'data'}->[$lld_item]->{'{TRANSMIT}'} = $hash_ref->{'tx_bytes'};
+    $lld_data->{'data'}->[$lld_item]->{'{SPEEDDOWN}'} = $hash_ref->{'rx_rate'};
+    $lld_data->{'data'}->[$lld_item]->{'{SPEEDUP}'} = $hash_ref->{'tx_rate'};
+    $lld_data->{'data'}->[$lld_item]->{'{ADOPTED}'} = $hash_ref->{'adopted'};
+    $lld_data->{'data'}->[$lld_item]->{'{HOSTNAME}'} = $hash_ref->{'hostname'};
+    $lld_data->{'data'}->[$lld_item]->{'{UPTIME}'} = $hash_ref->{'_uptime'} || $hash_ref->{uptime};
 
-    $lldItem++;
+    $lld_item++;
   }
 
-  return $lldData;
-
-  if ( $lldData ){
-    return to_json( $lldData, { utf8 => 1, pretty => 1, allow_nonref => 1 } );
-  }
-  else{
-    return 0;
-  }
+  return $lld_data;
 }
 
 

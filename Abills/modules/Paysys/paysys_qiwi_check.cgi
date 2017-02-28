@@ -12,7 +12,10 @@ $CHARSET
 @MODULES);
 
 BEGIN {
-  my $libpath = '../../../';
+
+  use FindBin '$Bin';
+
+  my $libpath = $Bin . '/../../../';
   $sql_type = 'mysql';
   unshift(@INC, './');
   unshift(@INC, $libpath . "Abills/$sql_type/");
@@ -20,6 +23,7 @@ BEGIN {
   unshift(@INC, "/usr/abills/");
   unshift(@INC, $libpath);
   unshift(@INC, $libpath . 'libexec/');
+  unshift(@INC, $libpath . 'lib/');
 
   eval { require Time::HiRes; };
   if (!$@) {
@@ -30,8 +34,6 @@ BEGIN {
     $begin_time = 0;
   }
 }
-
-use FindBin '$Bin';
 
 require $Bin . '/../../../libexec/config.pl';
 
@@ -202,7 +204,8 @@ sub qiwi_check {
           ID        => $line->{id},
           PAYSYS_IP => $ENV{'REMOTE_ADDR'},
           INFO      =>
-          "$lang{DATE}: $DATE $TIME $res_hash{$line->{transaction_id}} - $status_hash{$res_hash{$line->{transaction_id}}}"
+          # instead of Дата - $lang{DATE}
+          "Дата: $DATE $TIME $res_hash{$line->{transaction_id}} - $status_hash{$res_hash{$line->{transaction_id}}}"
           ,
           STATUS    => 2
         }

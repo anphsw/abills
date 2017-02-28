@@ -1,63 +1,67 @@
-CREATE TABLE `extfin_paids` (
-  `id` int(11) unsigned NOT NULL auto_increment,
-  `date` date NOT NULL default '0000-00-00',
-  `sum` double(14,2) unsigned NOT NULL default '0.00',
-  `comments` varchar(100) NOT NULL default '',
-  `uid` int(11) unsigned NOT NULL default '0',
-  `aid` smallint(6) unsigned NOT NULL default '0',
-  `status` tinyint(2) unsigned NOT NULL default '0',
-  `type_id` smallint(6) unsigned NOT NULL default '0',
-  `maccount_id` tinyint(4) unsigned NOT NULL default '0', 
-  `status_date` date NOT NULL default '0000-00-00',
-  `ext_id` varchar(24) NOT NULL default '',
-  PRIMARY KEY  (`id`),
+CREATE TABLE IF NOT EXISTS `extfin_paids` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `date` DATE NOT NULL DEFAULT '0000-00-00',
+  `sum` DOUBLE(14, 2) UNSIGNED NOT NULL DEFAULT '0.00',
+  `comments` VARCHAR(100) NOT NULL DEFAULT '',
+  `uid` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `status` TINYINT(2) UNSIGNED NOT NULL DEFAULT '0',
+  `type_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `maccount_id` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
+  `status_date` DATE NOT NULL DEFAULT '0000-00-00',
+  `ext_id` VARCHAR(24) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`),
   UNIQUE KEY `id` (`id`)
-)  COMMENT='Extfin paids list';
+)
+  COMMENT = 'Extfin paids list';
 
 
-
-CREATE TABLE `extfin_paids_periodic` (
-  `id` int(11) unsigned NOT NULL auto_increment,
-  `uid` int(11) unsigned NOT NULL default '0',
-  `type_id` smallint(6) unsigned NOT NULL default '0',
-  `sum` double(14,2) unsigned NOT NULL default '0.00',
-  `date` date NOT NULL default '0000-00-00',
-  `aid` smallint(6) unsigned NOT NULL default '0',
-  `comments` varchar(100) NOT NULL default '',
-  `maccount_id` tinyint(4) unsigned NOT NULL default '0',
-  PRIMARY KEY  (`id`)
-)  COMMENT='Extfin periodic paids';
-
-
-CREATE TABLE `extfin_paids_types` (
-  `id` smallint(6) unsigned NOT NULL auto_increment,
-  `name` varchar(120) NOT NULL default '',
-  `periodic` tinyint(1) unsigned NOT NULL default '0',
-  PRIMARY KEY  (`id`)
-) COMMENT='Extfin payments types';
+CREATE TABLE IF NOT EXISTS `extfin_paids_periodic` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `uid` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `type_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `sum` DOUBLE(14, 2) UNSIGNED NOT NULL DEFAULT '0.00',
+  `date` DATE NOT NULL DEFAULT '0000-00-00',
+  `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `comments` VARCHAR(100) NOT NULL DEFAULT '',
+  `maccount_id` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`)
+)
+  COMMENT = 'Extfin periodic paids';
 
 
-CREATE TABLE `extfin_reports` (
-  `id` int(11) unsigned NOT NULL auto_increment,
-  `period` varchar(7) NOT NULL default '0000-00',
-  `sum` double(14,2) unsigned NOT NULL default '0.00',
-  `bill_id` int(11) unsigned NOT NULL default '0',
-  `aid` smallint(6) unsigned NOT NULL default '0',
-  `date` date NOT NULL default '0000-00-00',
-  PRIMARY KEY  (`id`),
+CREATE TABLE IF NOT EXISTS `extfin_paids_types` (
+  `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(120) NOT NULL DEFAULT '',
+  `periodic` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`)
+)
+  COMMENT = 'Extfin payments types';
+
+
+CREATE TABLE IF NOT EXISTS `extfin_reports` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `period` VARCHAR(7) NOT NULL DEFAULT '0000-00',
+  `sum` DOUBLE(14, 2) UNSIGNED NOT NULL DEFAULT '0.00',
+  `bill_id` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `date` DATE NOT NULL DEFAULT '0000-00-00',
+  PRIMARY KEY (`id`),
   UNIQUE KEY `id` (`id`),
-  UNIQUE KEY `period` (`period`,`bill_id`)
-) COMMENT='Extfin reports';
+  UNIQUE KEY `period` (`period`, `bill_id`)
+)
+  COMMENT = 'Extfin reports';
 
 
-CREATE TABLE `extfin_balance_reports` (
-  `id` int(11) unsigned NOT NULL auto_increment,
-  `period` varchar(7) NOT NULL default '0000-00',
-  `sum` double(14,2)  NOT NULL default '0.00',
-  `bill_id` int(11) unsigned NOT NULL default '0',
-  `aid` smallint(6) unsigned NOT NULL default '0',
-  `date` date NOT NULL default '0000-00-00',
-  PRIMARY KEY  (`id`),
+CREATE TABLE IF NOT EXISTS `extfin_balance_reports` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `period` VARCHAR(7) NOT NULL DEFAULT '0000-00',
+  `sum` DOUBLE(14, 2) NOT NULL DEFAULT '0.00',
+  `bill_id` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `date` DATE NOT NULL DEFAULT '0000-00-00',
+  PRIMARY KEY (`id`),
   UNIQUE KEY `id` (`id`),
-  UNIQUE KEY `period` (`period`,`bill_id`)
-) COMMENT='Extfin  users balanse reports';
+  UNIQUE KEY `period` (`period`, `bill_id`)
+)
+  COMMENT = 'Extfin  users balanse reports';

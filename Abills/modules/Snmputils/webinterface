@@ -12,15 +12,12 @@ use strict;
 use Nas;
 use Snmputils;
 use Socket;
-
 use SNMP_Session;
 use SNMP_util;
 use BER;
-
 use Carp;
-
-use Abills::Base qw(in_array);
-
+use Abills::Base qw(in_array int2ip sec2time);
+use Abills::Filters qw(mac2dec);
 require Abills::Nas::Control;
 
 #$SNMP::Util::Max_log_level      = 'none';
@@ -33,7 +30,7 @@ our(
   %lang,
   $html,
   @status,
-  $page_qs
+  $pages_qs
 );
 
 my $threads = 0;
@@ -417,20 +414,11 @@ sub snmputils_monitor {
   return 1;
 }
 
-##**********************************************************
-##
-##**********************************************************
-#sub hex2bin {
-#  my ($digit) = shift;
-#
-#  print $no_revb
-#  ? unpack("B4", pack("H", $digit))
-#  : substr(unpack("b8", pack("H", $digit)), -4);
-#  print "$char";
-#}
-
 #**********************************************************
 =head2 snmputils_periodic($attr)
+
+  Arguments:
+    $attr
 
 =cut
 #**********************************************************
@@ -445,7 +433,14 @@ sub snmputils_periodic {
   if ($conf{SNMPUTILS_CHANGE_VLAN}) {
     use Dhcphosts;
     my $Dhcphosts = Dhcphosts->new($db, $admin, \%conf);
-    my $list = $Dhcphosts->networks_list({ PAGE_ROWS => 10000, SORT => 2, SHOW_ALL_COLUMNS => 1, COLS_NAME => 1 });
+    my $list = $Dhcphosts->networks_list({
+      GUEST_VLAN=> '_SHOW',
+      PAGE_ROWS => 10000,
+      SORT      => 2,
+      SHOW_ALL_COLUMNS => 1,
+      COLS_NAME => 1
+    });
+
     foreach my $line (@$list) {
       $GUEST_VLAN{ $line->{id} } = $line->{guest_vlan};
     }
@@ -474,7 +469,7 @@ sub snmputils_periodic {
       next;
     }
 
-    my ($ip, $ports) = split(/:/, $line->{nas_mng_ip_port});
+    my ($ip, undef) = split(/:/, $line->{nas_mng_ip_port});
 
     my %CONF_HASH = (
       NAS_ID       => $line->{nas_id},
@@ -982,11 +977,15 @@ sub snmputils_edgecore_save_conf {
 }
 
 #**********************************************************
-# HOST,
-# COMMUNITY:
-# IP/MAC
-#
-#
+=head2 snmputils_dlink_pb($attr)
+
+  Arguments:
+    $attr
+      HOST,
+      COMMUNITY:
+      IP/MAC
+
+=cut
 #**********************************************************
 sub snmputils_dlink_pb {
   my ($attr) = @_;
@@ -1011,11 +1010,11 @@ sub snmputils_dlink_pb {
     }
   );
 
-  if ($Snmputils->{TOTAL} > 0) {
+  if ($Snmputils->{TOTAL} && $Snmputils->{TOTAL} > 0) {
     $RAD_PAIRS =~ /Assign-Ports=\"(.+)\"/;
     my $allow_ports     = $1 || '';
     my @allow_ports_arr = split(/,/, $allow_ports);
-    my $SWITCH_INFO      = snmputils_dlink_pb_version({ SNMP_COMMUNITY => $SNMP_COMMUNITY });
+    my $SWITCH_INFO     = snmputils_dlink_pb_version({ SNMP_COMMUNITY => $SNMP_COMMUNITY });
 
     if (!$SWITCH_INFO->{version}) {
       $debug_output .= "Unknow version\n" if ($debug > 1);
@@ -1116,8 +1115,9 @@ sub snmputils_dlink_pb {
     my @ports_arr = split(/,/, $allow_ports);
     $debug_output .= "Active port: " if ($debug > 1);
     foreach my $port (@ports_arr) {
+      my $message = '';
       if ($debug < 3) {
-        my $message = snmputils_dlink_pb_state(
+        $message = snmputils_dlink_pb_state(
           {
             SNMP_COMMUNITY => $SNMP_COMMUNITY,
             STATE          => 2,
@@ -1133,7 +1133,8 @@ sub snmputils_dlink_pb {
     $debug_output .= "\n";
 
     #Unblock ports
-    while (my ($mac, $val) = each %$BLOCK_MAC) {
+    # $mac, $val
+    while (my ($mac, undef) = each %$BLOCK_MAC) {
       $mac = uc($mac);
       my $message = snmputils_dlink_pb_del(
         {
@@ -1310,7 +1311,7 @@ sub snmputils_dlink_pb_version {
   }
   else {
     print "$SNMP_Session::suppress_warnings / $SNMP_Session::errmsg";
-    return 0;
+    return \%RESULT;
   }
 
   #Get ports state
@@ -1324,7 +1325,9 @@ sub snmputils_dlink_pb_version {
 }
 
 #**********************************************************
-# Save dlink config
+=head2 snmputils_dlink_save_conf($attr) - Save dlink config
+
+=cut
 #**********************************************************
 sub snmputils_dlink_save_conf {
   my ($attr) = @_;
@@ -1355,7 +1358,9 @@ sub snmputils_dlink_save_conf {
 }
 
 #**********************************************************
-#
+=head2 snmputils_dlink_pb_add($attr)
+
+=cut
 #**********************************************************
 sub snmputils_dlink_pb_add {
   my ($attr) = @_;
@@ -1424,6 +1429,7 @@ sub snmputils_dlink_pb_add {
     push @snmp_values, $oid, "integer", "4";
   }
 
+  #FIXME remove dot
   #��� 3. ������ MAC-����� (AA-BB-CC-DD-EE-FF) ������:
   my @mac_arr = split(/:|-/, $mac);
   $mac = '';
@@ -1608,22 +1614,9 @@ sub snmputils_dlink_pb_del {
 }
 
 #**********************************************************
-#
-#**********************************************************
-sub mac2dec {
-  my ($mac) = @_;
+=head2 snmputils_dlink_pb_list($attr)
 
-  my @mac_val_arr = split(':', $mac);
-  my @mac_dec_arr = ();
-  foreach my $val (@mac_val_arr) {
-    push @mac_dec_arr, hex($val);
-  }
-  my $mac_dec = join('.', @mac_dec_arr);
-  return $mac_dec;
-}
-
-#**********************************************************
-#
+=cut
 #**********************************************************
 sub snmputils_dlink_pb_list {
   my ($attr) = @_;
@@ -1633,7 +1626,7 @@ sub snmputils_dlink_pb_list {
   }
 
   my $SNMP_COMMUNITY = $attr->{SNMP_COMMUNITY} || '';
-  my $SWITCH_INFO = $attr->{SWITCH_INFO} || snmputils_dlink_pb_version({ SNMP_COMMUNITY => $SNMP_COMMUNITY });
+  my $SWITCH_INFO    = $attr->{SWITCH_INFO} || snmputils_dlink_pb_version({ SNMP_COMMUNITY => $SNMP_COMMUNITY });
 
   my %PREFIX = (
     1 => 'IP',
@@ -1649,21 +1642,21 @@ sub snmputils_dlink_pb_list {
     print "No swich info '$attr->{SNMP_COMMUNITY}'\n";
     return 0;
   }
-
-  $SWITCH_INFO->{oid_prefix} =~ s/\.$//;
+  my $oid_prefix = $SWITCH_INFO->{oid_prefix};
+  $oid_prefix =~ s/\.$//;
 
   #Full list
   $SNMP_Session::errmsg = undef;
   if ($debug > 4) {
-    print "COMUNITY: $SNMP_COMMUNITY OID: '$SWITCH_INFO->{oid_prefix}'\n";
+    print "COMUNITY: $SNMP_COMMUNITY OID: '$oid_prefix'\n";
   }
-  my @result = &snmpwalk("$SNMP_COMMUNITY", $SWITCH_INFO->{oid_prefix});
+  my @result = &snmpwalk("$SNMP_COMMUNITY", $oid_prefix);
   if ($SNMP_Session::errmsg) {
-    print "OID: '$SWITCH_INFO->{oid_prefix}'" . $html->br() . "$SNMP_Session::suppress_warnings / $SNMP_Session::errmsg\n";
+    print "OID: '$oid_prefix'" . $html->br() . "$SNMP_Session::suppress_warnings / $SNMP_Session::errmsg\n";
     return 0;
   }
 
-  print "OID Prefix: $SWITCH_INFO->{oid_prefix} / $SWITCH_INFO->{oid_sufix}{STATE}\n" if ($debug > 0);
+  print "OID Prefix: $oid_prefix / $SWITCH_INFO->{oid_sufix}{STATE}\n" if ($debug > 0);
 
   my $expr_val = chr(0) . "-" . chr(255);
   my $unpack_  = "H2H2H2H2";
@@ -1769,8 +1762,14 @@ sub snmputils_dlink_pb_list {
 }
 
 #**********************************************************
-# http://www.dlink.ru/technical/faq_hub_switch_100.php
-# ������� ��������� ������� IP-MAC-Port Binding �� SNMP ��� ����� DES-38XX � DES-35XX
+=head2 snmputils_dlink_ip_mac_port($attr)
+
+  http://www.dlink.ru/technical/faq_hub_switch_100.php
+  IP-MAC-Port Binding
+    DES-38XX
+    DES-35XX
+
+=cut
 #**********************************************************
 sub snmputils_dlink_ip_mac_port {
   my ($attr) = @_;
@@ -2054,7 +2053,7 @@ sub snmputils_dlink_ip_mac_port {
     }
   );
 
-  while (my ($key, $val) = each %$BLOCK_MAC) {
+  while (my ($key, undef) = each %$BLOCK_MAC) {
     my $mac = join(':', unpack("H2H2H2H2H2H2", $BLOCK_MAC->{$key}{2}));
     my @arr_ = ('-', $BLOCK_MAC->{$key}{1}, $BLOCK_MAC->{$key}{4}, $mac, $BLOCK_MAC->{$key}{3}, $BLOCK_MAC->{$key}{5},
       $html->button( $lang{DEL}, "index=$index&del=block&MAC=$key&NAS_ID=$FORM{NAS_ID}&TYPE=$FORM{TYPE}&SHOW=1",
@@ -2140,7 +2139,8 @@ sub snmputils_dlink_pb_monitor {
     my $SNMP_COMMUNITY = "$line->{nas_mng_password}\@$line->{mng_host_port}";
     my $SWITCH_INFO = snmputils_dlink_pb_version({ SNMP_COMMUNITY => $SNMP_COMMUNITY });
 
-    my ($ACTIVE_MAC, $BLOCK_MAC) = snmputils_dlink_pb_list(
+    # $ACTIVE_MAC, $BLOCK_MAC
+    my (undef, $BLOCK_MAC) = snmputils_dlink_pb_list(
       {
         SNMP_COMMUNITY => $SNMP_COMMUNITY,
         SWITCH_INFO    => $SWITCH_INFO,
@@ -2149,13 +2149,13 @@ sub snmputils_dlink_pb_monitor {
 
     my $binding;
     if ($FORM{GET_USERS}) {
-      my $IDS = '';
+      my @macs = ();
       while (my ($mac_dec, undef) = each %$BLOCK_MAC) {
         my $mac = join(':', unpack("H2H2H2H2H2H2", $BLOCK_MAC->{$mac_dec}{2}));
-        $IDS .= "'$mac',";
+        push @macs, $mac;
       }
-      chop($IDS);
-      $binding = snmputils_get_users({ IDS => "$IDS" });
+      my $IDS = ($#macs) ? "'". join("', '", @macs) ."'" : q{};
+      $binding = snmputils_get_users({ IDS => $IDS });
     }
 
     while (my ($key, undef) = each %$BLOCK_MAC) {
@@ -2213,7 +2213,9 @@ sub snmputils_zyxel_smf_version {
 }
 
 #*******************************************************************
-#
+=head2 snmputils_smf_list($attr)
+
+=cut
 #*******************************************************************
 sub snmputils_smf_list {
   my ($attr) = @_;
@@ -2225,13 +2227,13 @@ sub snmputils_smf_list {
 
   #my $SWITCH_INFO = $attr->{SWITCH_INFO} || snmputils_zyxel_smf_version({ SNMP_COMMUNITY => $SNMP_COMMUNITY });
 
-  my %PREFIX = (
-    1 => 'IP',
-    2 => 'MAC',
-    4 => 'PORT',
-    5 => 'ACTIVE',
-    6 => 'MODE'
-  );
+#  my %PREFIX = (
+#    1 => 'IP',
+#    2 => 'MAC',
+#    4 => 'PORT',
+#    5 => 'ACTIVE',
+#    6 => 'MODE'
+#  );
 
   my %info       = ();
   my %BLOCK_HASH = ();
@@ -2277,7 +2279,7 @@ sub snmputils_smf_list {
     elsif ($line =~ /^4\.(\d{1,3})\.(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\.0:(.+)/g) {
       my $vlan  = $1;
       my $mac   = $2;
-      my $state = $3;
+      #my $state = $3;
       $info{ACTIVE}{ $vlan . '-' . $mac } = $3;
     }
   }
@@ -2308,7 +2310,7 @@ sub snmputils_zyxel_smf_add {
   my $vlan      = $attr->{VLAN}    || 0;
   my $active    = $attr->{STATE}   || 0;
 
-  my $sws = SNMPv2c_Session->() || die "Opening SNMP_Session\n";
+  SNMPv2c_Session->() || die "Opening SNMP_Session\n";
 
   # VLAN . MAC . 0
   my @mac_hex_arr = split(/:|-/, $mac);
@@ -2503,8 +2505,8 @@ sub snmputils_zyxel_smf {
 
   #my @ports = ();
   #my %MODES = (0 => 'ARP', 1 => 'ACL');
-
-  my ($ACTIVE_MAC, $BLOCK_MAC) = snmputils_smf_list(
+  # $ACTIVE_MAC, $BLOCK_MAC
+  my ($ACTIVE_MAC, undef) = snmputils_smf_list(
     {
       SNMP_COMMUNITY => $SNMP_COMMUNITY,
       SWITCH_INFO    => $SWITCH_INFO,
@@ -2531,7 +2533,8 @@ sub snmputils_zyxel_smf {
   );
 
   my $page_arguments = '';
-  while (my ($vlan_mac, $mac) = each %{ $ACTIVE_MAC->{MAC} }) {
+  # $vlan_mac, $mac
+  while (my ($vlan_mac, undef) = each %{ $ACTIVE_MAC->{MAC} }) {
     my ($VLAN, undef) = split(/-/, $vlan_mac, 2);
     my $state = $ACTIVE_MAC->{ACTIVE}{$vlan_mac};
 
@@ -2905,7 +2908,9 @@ sub snmputils_ciscoair {
 }
 
 #***********************************************************
-#
+=head2 data_convert($name, $data, $attr)
+
+=cut
 #**********************************************************
 sub data_convert {
   my ($name, $data, $attr) = @_;
@@ -3103,7 +3108,7 @@ sub snmputils_mikrotik_info {
   );
 
   my @caption = ('uptime', 'total-hdd-space', 'used-hdd-space', 'total-memory', 'used-memory', 'cpu-load');
-  my $table = $html->table(
+  $html->table(
     {
       width      => '100%',
       title      => \@caption,
@@ -3240,7 +3245,7 @@ sub snmputils_multioid_view {
     $table->{rowcolor} = $_COLORS[0];
     $table->{extra} = "colspan='" . ($#default_fields + 2) . "' class='small'";
     $table->addrow("$line->[0]:" . $html->b($line->[1]) . ":$line->[3] ");
-    $page_qs .= "&NAS_ID=$line->[0]";
+    $pages_qs .= "&NAS_ID=$line->[0]";
     #$total_sessions += $#MAC_ARR + 1;
 
     undef($table->{rowcolor});
@@ -3252,7 +3257,7 @@ sub snmputils_multioid_view {
       my @arr = ();
       foreach my $ft (@default_fields) {
         $result{$ft}{$k} = data_convert($ft, $result{$ft}{$k}, { OIDS_EXINFO => $OIDS_EXINFO });
-        push @arr, ($OIDS_EXINFO->{$ft}{ACCESS} eq 'read-write') ? $html->button($result{$ft}{$k}, "index=$index&change=y&SNMP_INDEX=$inst&SNMP_OID=$OIDS_HASH{$ft}$page_qs") : $result{$ft}{$k};
+        push @arr, ($OIDS_EXINFO->{$ft}{ACCESS} eq 'read-write') ? $html->button($result{$ft}{$k}, "index=$index&change=y&SNMP_INDEX=$inst&SNMP_OID=$OIDS_HASH{$ft}$pages_qs") : $result{$ft}{$k};
       }
 
       $table->addrow(@arr, $html->button('H', "index=$index&hangup=$k", { TITLE => 'Hangup', BUTTON => 1 }));
@@ -3299,7 +3304,7 @@ sub snmp_form_footer {
   my $table = $html->table(
     {
       width       => '100%',
-      title_plain => [ "$lang{REFRESH} (sec): " . $html->form_input( 'REFRESH', int( $FORM{REFRESH} ), { SIZE => 4 } ),
+      title_plain => [ "REFRESH (sec): " . $html->form_input( 'REFRESH', int( $FORM{REFRESH} ), { SIZE => 4 } ),
         $html->form_input( 'SHOW', $lang{SHOW}, { TYPE => 'SUBMIT' } ) ],
       cols_align  => [ 'center:noprint', 'center:noprint' ],
     }
@@ -3325,7 +3330,7 @@ sub snmp_form_footer {
 #
 #**********************************************************
 sub snmputils_load_mibs {
-  my ($mib_array, $attr) = @_;
+  my ($mib_array) = @_;
 
   my %OIDS_EXINFO = ();
 
@@ -3345,7 +3350,7 @@ sub snmputils_load_mibs {
   my $message = '';
   foreach my $line (@$mib_array) {
     next if (!-f "../../Abills/MIBs/$line");
-    my ($ret, $oid_hash, $oid_ex) = snmpMIB_to_OID_extended("../../Abills/MIBs/$line");
+    my (undef, $oid_hash, $oid_ex) = snmpMIB_to_OID_extended("../../Abills/MIBs/$line");
     $message .= "MIBS: $line Loaded\n" if ($debug == 1);
 
     while (my ($k, $v) = each %$oid_hash) {
@@ -3387,7 +3392,7 @@ sub snmputils_ports_state {
 
   if ($SNMP_Session::errmsg) {
     print $html->message( 'err', $lang{ERROR},
-        "$FORM{TYPE}" . $html->br() . "$SNMP_Session::suppress_warnings / $SNMP_Session::errmsg" );
+        $FORM{TYPE} . $html->br() . "$SNMP_Session::suppress_warnings / $SNMP_Session::errmsg" );
   }
 
   if ($#RES_ARR > 0 && $FORM{TYPE} ne 'system') {
@@ -3401,7 +3406,7 @@ sub snmputils_ports_state {
     foreach my $k (@RES_ARR) {
       my @arr = ($k);
       foreach my $ft (@CAPTION) {
-        push @arr, ($OIDS_EXINFO->{$ft}{ACCESS} eq 'read-write') ? $html->button("$result{$ft}{$k}", "index=$index&change=1&SNMP_INDEX=$k&SNMP_OID=$OIDS_HASH{$ft}$page_qs") : $result{$ft}{$k};
+        push @arr, ($OIDS_EXINFO->{$ft}{ACCESS} eq 'read-write') ? $html->button("$result{$ft}{$k}", "index=$index&change=1&SNMP_INDEX=$k&SNMP_OID=$OIDS_HASH{$ft}$pages_qs") : $result{$ft}{$k};
       }
       $table->addrow(@arr);
       $rows_count++;
@@ -3504,12 +3509,12 @@ sub snmp_info_form {
       SEL_VALUE      => 'nas_name',
       SEL_OPTIONS    => { '' => '--' },
       MAIN_MENU      => get_function_index('form_nas'),
-      MAIN_MENU_AGRV => "NAS_ID=". ($FORM{NAS_ID} || q{})
+      MAIN_MENU_ARGV => "NAS_ID=". ($FORM{NAS_ID} || q{})
     }
   );
 
   if ($FORM{change}) {
-    my $SNMP_COMMUNITY = "$SNMP_COMMUNITY\@". ($FORM{SNMP_HOST} || q{});
+    $SNMP_COMMUNITY = "$SNMP_COMMUNITY\@". ($FORM{SNMP_HOST} || q{});
 
     if ($FORM{NAS_ID}) {
       $Nas->info({ NAS_ID => $FORM{NAS_ID} });
@@ -3638,7 +3643,6 @@ sub snmp_info_form {
           width      => '100%',
           caption    => "$lang{RESULT}: $SNMP_COMMUNITY",
           title      => [ 'index', @CAPTION ],
-          cols_align => [ 'left', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'center' ],
           ID         => 'SNMP_INFO'
         }
       );
@@ -3646,7 +3650,7 @@ sub snmp_info_form {
       foreach my $k (@RES_ARR) {
         my @arr = ($k);
         foreach my $ft (@CAPTION) {
-          push @arr, ($OIDS_EXINFO{$ft}{ACCESS} eq 'read-write') ? $html->button("$result{$ft}{$k}", "index=$index&change=1&SNMP_INDEX=$k&SNMP_OID=$OIDS_HASH{$ft}$page_qs") : $result{$ft}{$k};
+          push @arr, ($OIDS_EXINFO{$ft}{ACCESS} && $OIDS_EXINFO{$ft}{ACCESS} eq 'read-write') ? $html->button($result{$ft}{$k}, "index=$index&change=1&SNMP_INDEX=$k&SNMP_OID=$OIDS_HASH{$ft}$pages_qs") : $result{$ft}{$k};
         }
         $table->addrow(@arr);
         $rows_count++;
@@ -3668,9 +3672,8 @@ sub snmp_info_form {
           $table->addrow(
             "$OIDS_EXINFO{$oid}{MIB}", "$oid", "$inst",
             $result{$oid}{$inst},
-              ($OIDS_EXINFO{$oid}{ACCESS} eq 'read-write')                                                    ? $html->button(
-                $lang{CHANGE}, "index=$index&change=y&SNMP_INDEX=$inst&SNMP_OID=$OIDS_HASH{$oid}$page_qs", { BUTTON =>
-                  1 } )                                                                                       : $OIDS_EXINFO{$oid}{ACCESS}
+              ($OIDS_EXINFO{$oid}{ACCESS} eq 'read-write') ? $html->button($lang{CHANGE}, "index=$index&change=y&SNMP_INDEX=$inst&SNMP_OID=$OIDS_HASH{$oid}$pages_qs",
+                { BUTTON => 1 } )  : $OIDS_EXINFO{$oid}{ACCESS}
             ,
             $OIDS_EXINFO{$oid}{DESCRIBE}
           );
@@ -3684,8 +3687,6 @@ sub snmp_info_form {
     $table = $html->table(
       {
         width      => '100%',
-        cols_align => [ 'right', 'right' ],
-        rowcolor   => $_COLORS[0],
         rows       => [ [ "$lang{TOTAL}:", $html->b( $rows_count ) ] ]
       }
     );
@@ -3805,8 +3806,10 @@ sub snmpMIB_to_OID_extended ($) {
         $need2pass = 0;
         $pass      = 0;
         $pos       = tell(MIB);
-        undef %Link;
-        undef %prev;
+
+        #undef %Link;
+        #undef %prev;
+
         %Link = (
           'org'          => 'iso',
           'dod'          => 'org',
@@ -3960,7 +3963,9 @@ sub snmpMIB_to_OID_extended ($) {
 }
 
 #**********************************************************
-# binding ID binding
+=head2 snmputils_binding() - binding ID binding
+
+=cut
 #**********************************************************
 sub snmputils_binding {
   #my $binding;
@@ -4037,15 +4042,24 @@ sub snmputils_binding_list {
 }
 
 #**********************************************************
-# binding users
+=head2 snmputils_get_users($attr) - binding users
+
+=cut
 #**********************************************************
 sub snmputils_get_users {
   my ($attr) = @_;
 
   my %user_hash = ();
-  my $list = $Snmputils->snmputils_binding_list({ IDS => $attr->{IDS}, PAGE_ROWS => 100000 });
+  my $list = $Snmputils->snmputils_binding_list({
+    IDS => $attr->{IDS},
+    PAGE_ROWS => 100000
+  });
+
   foreach my $line (@$list) {
-    $user_hash{"$line->[1]"} = "$line->[0]:$line->[5]:$line->[6]:$line->[7]";
+    $user_hash{$line->[1]} = ($line->[0] || '')
+      .':'. ($line->[5] || '')
+      .':'. ($line->[6] || '')
+      .':'. ($line->[7] || '');
   }
 
   return \%user_hash;
@@ -4214,8 +4228,9 @@ sub snmputils_celan_add {
 }
 
 #*******************************************************************
-# http://zyxel.ru/content/support/knowledgebase/KB-1466
-#
+=head2 snmputils_celan_state($attr)
+
+=cut
 #*******************************************************************
 sub snmputils_celan_state {
   my ($attr) = @_;
@@ -4227,7 +4242,7 @@ sub snmputils_celan_state {
   #my $ip             = $attr->{IP}             || '0.0.0.0';
   my $mac            = $attr->{MAC}            || 0;
   my $vlan           = $attr->{VLAN}           || 0;
-  my $state          = $attr->{STATE}          || 0;
+  #my $state          = $attr->{STATE}          || 0;
   my $port_list      = $attr->{PORT_ID}        || 0;
   my $SNMP_COMMUNITY = $attr->{SNMP_COMMUNITY} || '';
   my $oid            = '.1.3.6.1.4.1.655.5.15.1.4.2.8.1.2.' . $vlan;
@@ -4356,12 +4371,7 @@ sub snmputils_celan {
   #my multiports  section
   my $binding;
   if ($FORM{GET_USERS}) {
-    my $IDS = '';
-    while (my ($ip, $mac) = each %{ $ACTIVE_MAC->{MAC} }) {
-      $IDS .= "'$mac',";
-    }
-
-    chop($IDS);
+    my $IDS = join(',', values %{ $ACTIVE_MAC->{MAC} });
     $binding = snmputils_get_users({ IDS => "$IDS" });
   }
 
@@ -4371,7 +4381,8 @@ sub snmputils_celan {
   );
 
   my $page_arguments = '';
-  while (my ($vlan_mac, $mac) = each %{ $ACTIVE_MAC->{MAC} }) {
+  # $vlan_mac, $ma
+  while (my ($vlan_mac, undef) = each %{ $ACTIVE_MAC->{MAC} }) {
     my ($VLAN, $m) = split(/-/, $vlan_mac, 2);
     my $state = $ACTIVE_MAC->{ACTIVE}{$vlan_mac};
 
@@ -4485,7 +4496,8 @@ sub snmputils_celan_macs {
   my $SWITCH_INFO    = $attr->{SWITCH_INFO};
 
   my $debug_output = '';
-  my ($ACTIVE_MAC, $BLOCK_MAC) = snmputils_celan_list(
+  # $ACTIVE_MAC, $BLOCK_MAC
+  my ($ACTIVE_MAC, undef) = snmputils_celan_list(
     {
       SNMP_COMMUNITY => $SNMP_COMMUNITY,
       SWITCH_INFO    => $SWITCH_INFO,
@@ -4512,7 +4524,7 @@ sub snmputils_celan_macs {
 
   foreach my $line (@$list) {
     my $user_ports = 0;
-    my $login      = $line->[9];
+    #my $login      = $line->[9];
     if ($line->[7]) {
       $user_ports = $line->[7];
     }
@@ -4529,7 +4541,7 @@ sub snmputils_celan_macs {
   }
 
   while (my ($vid_mac, $mac) = each %SERVER_MAC) {
-    my ($vid, $m) = split(/-/, $vid_mac, 2);
+    my ($vid, undef) = split(/-/, $vid_mac, 2);
     next if ($mac eq '00:00:00:00:00:00');
     $debug_output .= "Server NUMBER: '$vid' MAC: $mac" if ($debug > 0);
     if ($MUST_ACTIVATE{ '0-' . $mac }) {
@@ -4539,7 +4551,7 @@ sub snmputils_celan_macs {
     }
     else {
       if ($debug < 3) {
-        my $message = snmputils_celan_state(
+        snmputils_celan_state(
           {
             SNMP_COMMUNITY => $SNMP_COMMUNITY,
             STATE          => 2,
@@ -4873,7 +4885,9 @@ sub snmputils_ports_list {
 
 
 #***************************************************************
-#
+=head2 snmputils_dlink_cpu_load()
+
+=cut
 #***************************************************************
 sub snmputils_dlink_cpu_load {
   my ($attr)=@_;
@@ -4883,7 +4897,7 @@ sub snmputils_dlink_cpu_load {
                    '300' => '1.3.6.1.4.1.171.12.1.1.6.3.0',
                    );
 
-  if ($attr->{version} =~ /DGS/) {
+  if ($attr->{version} && $attr->{version} =~ /DGS/) {
     %CPU_LOAD = ( '5' => '1.3.6.1.4.1.171.11.55.2.2.1.4.1.0',
                   '60' => '1.3.6.1.4.1.171.11.55.2.2.1.4.2.0',
                   '300' => '1.3.6.1.4.1.171.11.55.2.2.1.4.3.0'
@@ -4925,6 +4939,7 @@ sub snmputils_cpu_load {
   }
 
   print $table->show();
+  return 1;
 }
 
 

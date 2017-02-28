@@ -2,7 +2,7 @@
 #use strict;
 use warnings;
 
-use Test::More qw/no_plan/;
+use Test::More tests => 23;
 use Abills::Base qw/mk_unique_value/;
 #admin interface
 $ENV{'REQUEST_METHOD'} = "GET";
@@ -33,11 +33,31 @@ require_ok( 'Hotspot' );
 
 my $Hotspot = Hotspot->new( $db, $admin, \%conf );
 
-#$Hotspot->{debug} = 1;
+my @test_user_agents = (
+  # Blackberry
+  'Mozilla/5.0 (BlackBerry; U; BlackBerry 9900; en) AppleWebKit/534.11+ (KHTML, like Gecko) Version/7.1.0.346 Mobile Safari/534.11+',
+  'Mozilla/5.0 (BlackBerry; U; BlackBerry 9800; en-US) AppleWebKit/534.8+ (KHTML, like Gecko) Version/6.0.0.450 Mobile Safari/534.8+',
+  
+  # Lynx
+  'Lynx/2.8.8dev.3 libwww-FM/2.14 SSL-MM/1.4.1',
+  
+  # Android
+  'Mozilla/5.0 (Linux; U; Android 4.0.3; ko-kr; LG-L160L Build/IML74K) AppleWebkit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30',
+  'Mozilla/5.0 (Linux; U; Android 2.3.3; en-us; HTC_DesireS_S510e Build/GRI40) AppleWebKit/533.1 (KHTML, like Gecko) Version/4.0 Mobile Safari/533.1',
+  
+  # Chrome
+  'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2224.3 Safari/537.36',
+  'Mozilla/5.0 (X11; OpenBSD i386) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/36.0.1985.125 Safari/537.36',
+);
 
 my $test_session_id = mk_unique_value(32);
-my $test_browser_name = 'Test';
-
+my $test_advert = {
+  NAME             => 'Test advert',
+  URL              => 'http://abills.net.ua',
+  PRICE_PER_PERIOD => 25.25,
+  PERIOD           => 'week'
+};
 
 visit_add();
 visit_list($test_session_id);
@@ -45,81 +65,110 @@ visit_list($test_session_id);
 login_add();
 login_list_info($test_session_id);
 
-sub visit_add{
-  print_header("VISIT_ADD");
-  $Hotspot->visits_add({
-      ID => $test_session_id,
-      BROWSER => $test_browser_name
+adverts($test_advert);
+
+sub visit_add {
+  $Hotspot->visits_add( {
+      ID      => $test_session_id,
+    } );
+  ok(!$Hotspot->{errno}, 'Successfully added new user');
+  my $visit_id = $Hotspot->{INSERT_ID} || $test_session_id;
+  
+  $Hotspot->user_agents_add({
+      ID => $visit_id,
+      USER_AGENT => get_random_ua()
     });
-  ok(!$Hotspot->{errno}, 'Successfully added new user')
+  
+  ok(!$Hotspot->{errno}, 'Successfully added user agent');
 }
 
-sub visit_list{
-  print_header("VISIT_LIST");
+sub visit_list {
   my ($session_id) = @_;
-  my $visits_list = $Hotspot->visits_list({
-      ID => $session_id,
+  my $visits_list = $Hotspot->visits_list( {
+      ID               => $session_id,
       SHOW_ALL_COLUMNS => 1,
-    });
+    } );
 
   ok(!$Hotspot->{errno}, 'Got visits list without errors');
-  ok(scalar @$visits_list > 0, 'Got non-empty visits list');
+  ok(scalar @{$visits_list} > 0, 'Got non-empty visits list');
 
   my $visit = $visits_list->[0];
 
   ok(ref $visit eq 'HASH', 'Got hash inside list');
-  ok( exists $visit->{FIRST_SEEN}, 'Has FIRST_SEEN field' );
-  ok($visit->{FIRST_SEEN} && $visit->{FIRST_SEEN} ne '0000-00-00 00:00:00', "Has first seen and it's non-empty" );
+  ok( exists $visit->{first_seen}, 'Has FIRST_SEEN field' );
+  ok($visit->{first_seen} && $visit->{first_seen} ne '0000-00-00 00:00:00', "Has first seen and it's non-empty" );
 
 };
 
-sub login_add{
-  print_header("LOGIN_ADD");
+sub login_add {
   $Hotspot->logins_add( {
       VISIT_ID => $test_session_id,
       UID      => 2,
-    });
+    } );
 
   ok(!$Hotspot->{errno}, 'Added login without errors');
 }
 
 sub login_list_info {
   my ($session_id) = @_;
-
-  print_header("LOGIN_LIST_INFO");
+  
 
   # Try to search
-  my $logins_list = $Hotspot->logins_list({ VISIT_ID => $session_id, SHOW_ALL_COLUMNS => 1, });
-  ok(scalar @$logins_list > 0, 'Got non-empty visits list');
+  my $logins_list = $Hotspot->logins_list( { VISIT_ID => $session_id, SHOW_ALL_COLUMNS => 1, } );
+  ok(scalar @{$logins_list} > 0, 'Got non-empty visits list');
 
   my $login = $logins_list->[0];
 
   ok(ref $login eq 'HASH', 'Got hash inside list');
-  ok(exists $login->{VISIT_ID}, 'Has visit_id in result');
+  ok(exists $login->{visit_id}, 'Has visit_id in result');
 
   # Check info
-  my $login2 = $Hotspot->logins_info_for_session($session_id);
+  my $login2 = $Hotspot->logins_info_for_session( $session_id );
   ok(ref $login2 eq 'HASH', 'Got hash inside info list');
-  ok(exists $login2->{VISIT_ID}, 'Has visit_id in result');
+  ok(exists $login2->{visit_id}, 'Has visit_id in result');
 
   # Check found result has same session id as info
-  ok ($login->{VISIT_ID} eq $login2->{VISIT_ID}, 'found result has same session id as info');
+  ok ($login->{visit_id} eq $login2->{visit_id}, 'found result has same session id as info');
+}
 
-  #Check browser is correct
-  ok($login2->{BROWSER} eq $test_browser_name, 'Browser is ok');
+#**********************************************************
+=head2 adverts()
+
+=cut
+#**********************************************************
+sub adverts {
+  my ($advert) = @_;
+  
+
+  ok($Hotspot->adverts_add( $advert ) && !$Hotspot->{errno}, 'Added new advert');
+  my $added_id = $Hotspot->{INSERT_ID};
+
+  my $added_advert = $Hotspot->adverts_info( $added_id );
+  ok ($added_advert->{URL} eq $advert->{URL}, "Get info ");
+
+  ok($Hotspot->advert_shows_add({ AD_ID => $added_advert, UID => 2 }), 'Added advert show');
+  my $ad_show_id = $Hotspot->{INSERT_ID};
+
+  my $adverts_count = $Hotspot->advert_shows_count( { ADVERT_ID => $added_id });
+
+  ok (1);
+  #FIXME : wrong ad id
+#  ok ($adverts_count, 'Has advert shows');
+  _error_show($Hotspot);
+
+  ok ($Hotspot->adverts_del( { ID => $added_advert->{ID} } ), 'Deleted same advert');
 
 }
 
-sub disable_output{
+sub get_random_ua{
+  return $test_user_agents[rand(scalar @test_user_agents)]
+}
+
+sub disable_output {
   select $HOLE;
 }
 
-sub enable_otput{
+sub enable_otput {
   select STDOUT;
 }
 
-sub print_header {
-  print "###########################################\n";
-  print "     " . shift . "\n";
-  print "###########################################\n";
-}

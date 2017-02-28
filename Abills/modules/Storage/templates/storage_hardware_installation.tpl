@@ -15,8 +15,8 @@
   <input type=hidden name=COUNT1 value=%COUNT1%>
   <input type=hidden name=ARTICLE_ID1 value=%ARTICLE_ID1%>
   <fieldset>
-    <div class='panel panel-default panel-form'>
-      <div class='panel-body form'>
+    <div class='box box-theme box-form'>
+      <div class='box-body form'>
 
         <legend>_{STORAGE}_</legend>
         <div class='form-group'>
@@ -45,11 +45,12 @@
           <label class='col-md-3 control-label'>_{INSTALLED}_:</label>
           <div class='col-md-9'>%INSTALLED_AID_SEL%</div>
         </div>
-
+<!--
         <div class='form-group'>
           <label class='col-md-3 control-label'>Grounds:</label>
           <div class='col-md-9'><input class='form-control' name='GROUNDS' type='text' value='%GROUNDS%'/></div>
         </div>
+-->
         <div class='form-group'>
           <label class='col-md-3 control-label'>_{COMMENTS}_:</label>
           <div class='col-md-9'><input name='COMMENTS' class='form-control' type='text' value='%COMMENTS%'/></div>
@@ -58,7 +59,7 @@
         %DHCP_ADD_FORM%
 
       </div>
-      <div class='panel-footer'>
+      <div class='box-footer'>
         <input type=submit name=%ACTION% value='%ACTION_LNG%' class='btn btn-primary'>
       </div>
     </div>

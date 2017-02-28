@@ -2,8 +2,8 @@
 <input type=hidden name=index value=$index>
 <input type=hidden name=AID value=$FORM{chg}>
 
-<div class='panel panel-default panel-form'>
-<div class='panel-body'>
+<div class='box box-theme box-form'>
+<div class='box-body'>
 
 
 <div class='form-group'>

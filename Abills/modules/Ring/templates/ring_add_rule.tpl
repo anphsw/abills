@@ -4,10 +4,10 @@
 <input type='hidden' name='ACTION_TYPE' value=%ACTION_TYPE%>
 <input type='hidden' name='ID' value=%ID%>
 
-<div class='panel panel-primary panel-form'>
-<div class='panel-heading text-primary'>_{RULE}_</div>
+<div class='box box-theme box-form'>
+<div class='box-header with-border text-primary'>_{RULE}_</div>
 
-<div class='panel-body'>
+<div class='box-body'>
 
 	<div class='form-group'>
 		<label class='control-label col-md-3 required'>_{NAME}_</label>
@@ -19,14 +19,14 @@
 	<div class='form-group'>
 		<label class='control-label col-md-3 required'>_{TIME}_ _{BEGIN}_</label>
 		<div class='col-md-9'>
-	 	  <input type='text' name='TIME_START' required value='%TIME_START%' placeholder='%TIME_START%' class='form-control tcal with-time' >
+	 	  <input type='text' name='TIME_START' required value='%TIME_START%' placeholder='%TIME_START%' class='form-control datepicker with-time' >
 	 </div>
 	</div>
 
 	<div class='form-group'>
 		<label class='control-label col-md-3 required'>_{TIME}_ _{END}_</label>
 		<div class='col-md-9'>
-	 	  <input type='text' name='TIME_END' required value='%TIME_END%' placeholder='%TIME_END%' class='form-control tcal with-time' >
+	 	  <input type='text' name='TIME_END' required value='%TIME_END%' placeholder='%TIME_END%' class='form-control datepicker with-time' >
 	 </div>
 	</div>
 
@@ -65,7 +65,7 @@
 
 </div>
 
-<div class='panel-footer text-center'>
+<div class='box-footer text-center'>
 	<button type='submit' class='btn btn-primary'>%BUTTON%</button>
 </div>
 

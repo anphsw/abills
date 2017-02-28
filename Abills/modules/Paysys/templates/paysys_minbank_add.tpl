@@ -14,10 +14,10 @@
 <input type='hidden' name='minbank_action' value='1'>
 <link rel="stylesheet" type="text/css" href="https://gate.minbank.ru/api-client/template.css" />
 
-<div class='panel panel-primary'>
-    <div class='panel-heading text-center'>Московский Индустриальный Банк</div>
+<div class='box box-primary'>
+    <div class='box-header with-border text-center'>Московский Индустриальный Банк</div>
 
-<div class='panel-body text-center'>
+<div class='box-body text-center'>
 <div class='alert alert-info'>Вы собираетесь оплатить лицевой счет %account% на сумму %amount%.
 <strong><br>Введите данные для продолжения оплаты.</strong></div>
   <div class='mb-gate-template' data-id='%MB_ID%'>

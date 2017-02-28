@@ -1,10 +1,10 @@
-<div class='panel panel-primary'>
+<div class='box box-primary'>
 
-    <div class='panel-heading text-center'>
+    <div class='box-header with-border text-center'>
         _{ADMIN}_ _{ICON}_
     </div>
 
-    <div class='panel-body text-center' id='DELETE_THUMBNAIL_PANEL_BODY'>
+    <div class='box-body text-center' id='DELETE_THUMBNAIL_PANEL_BODY'>
         <img src='%IMG_PATH%' alt='admin_thumbnail'/>
         <button id='thumbnail_delete_button' class='btn btn-xs btn-danger' data-aid='%AID%' data-index='%DEL_INDEX%'>
             <span class='glyphicon glyphicon-remove'></span>
@@ -28,7 +28,7 @@
             var aid = _context.attr('data-aid');
             var del_index = _context.attr('data-index');
 
-            jQuery.post('/admin/index.cgi', 'qindex=' + del_index + '&header=2&AID=' + aid, function (data) {
+            jQuery.post('/admin/index.cgi', 'qindex=' + del_index + '&header=2&IN_MODAL=1&AID=' + aid, function (data) {
 
                 jQuery('#DELETE_THUMBNAIL_PANEL_BODY')
                         .empty()

@@ -14,6 +14,7 @@ use Conf;
 
 my $admin;
 my $CONF;
+
 #my $SORT = 1;
 #my $DESC = '';
 #my $PG   = 1;
@@ -47,13 +48,34 @@ sub new {
 #**********************************************************
 =head2 file2disc($attr) - Add to disck
 
+  Arguments:
+    $attr
+      FILENAME
+      UID
+
+  Returns:
+    $self
+
 =cut
 #**********************************************************
 sub file2disc {
   my $self = shift;
   my ($attr) = @_;
 
-  my $filename = $self->{ATTACH2FILE}.'/'. $attr->{FILENAME};
+  my $filename = $self->{ATTACH2FILE} .'/'. $attr->{FILENAME};
+  $self->{NEW_FILENAME} = $filename;
+
+  if($attr->{UID}) {
+    if(! -d $self->{ATTACH2FILE} . '/' . $attr->{UID}) {
+      mkdir($self->{ATTACH2FILE} . '/' . $attr->{UID});
+    }
+
+    #YYYYMMDD-HHMMSS-RAND-FieldName-OriginalName
+    my $file_date =  POSIX::strftime('%y%m%d%H%M%S', localtime(POSIX::mktime(localtime) ) );
+    my $field_name = ($attr->{FIELD_NAME}) ? "_$attr->{FIELD_NAME}" : '';
+    $self->{NEW_FILENAME} = $file_date . $field_name .'_'. $attr->{FILENAME};
+    $filename = $self->{ATTACH2FILE} . '/' . $attr->{UID} .'/'. $self->{NEW_FILENAME};
+  }
 
   if (! -d $self->{ATTACH2FILE}) {
     $self->{errno} = 110;
@@ -65,18 +87,62 @@ sub file2disc {
     $self->{errstr} = "File exist '$self->{ATTACH2FILE}'";
   }
   elsif (open( my $fh, '>', $filename)) {
-    print $filename;
     binmode $fh;
       print $fh $attr->{CONTENT};
     close($fh);
+    $admin->action_add($attr->{UID}, "FILE:$filename", { TYPE => 1 });
   }
   else {
     $self->{errno} = 112;
-    $self->{errstr} = "Can't create file '$attr->{FILENAME}' $!";
+    $self->{errstr} = "Can't create file '$self->{NEW_FILENAME}' $!";
   }
 
   return $self;
 }
+
+#**********************************************************
+=head2 attachment_file_del($attr) - Add to disck
+
+  Arguments:
+    $attr
+      FILENAME
+      UID
+
+  Returns:
+    $self
+
+=cut
+#**********************************************************
+sub attachment_file_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $filename = $attr->{FILENAME};
+  $self->{NEW_FILENAME} = $filename;
+
+  if($attr->{UID}) {
+    $filename = $self->{ATTACH2FILE} . '/' . $attr->{UID} .'/'. $self->{NEW_FILENAME};
+  }
+  else {
+    $filename = $self->{ATTACH2FILE} .'/'. $attr->{FILENAME};
+  }
+
+  if(! -f $filename && ! $attr->{SKIP_ERROR}) {
+    $self->{errno} = 113;
+    $self->{errstr} = "File not exist '$filename'";
+  }
+  elsif (unlink $filename) {
+    $self->{FILENAME}=$filename;
+    $admin->action_add($attr->{UID}, "FILE:$filename", { TYPE => 10 });
+  }
+  else {
+    $self->{errno} = 114;
+    $self->{errstr} = "Can't remove file '$self->{NEW_FILENAME}' $!";
+  }
+
+  return $self;
+}
+
 
 #**********************************************************
 =head2 attachment_add($attr) - Add attachment
@@ -98,13 +164,20 @@ sub attachment_add{
   my $self = shift;
   my ($attr) = @_;
 
+  if($attr->{FILENAME}) {
+    $attr->{FILENAME} =~ s/ /_/g;
+    $attr->{FILENAME} =~ s/\%20/_/g;
+  }
+
   if($self->{ATTACH2FILE}) {
     $self->file2disc($attr);
     if($self->{errno}) {
       return $self;
     }
     else {
-      $attr->{CONTENT} = "FILENAME: $attr->{FILENAME}";
+      my $disc_file = $attr->{FILENAME};
+      $disc_file = $self->{NEW_FILENAME} if ($self->{NEW_FILENAME});
+      $attr->{CONTENT} = "FILENAME: $disc_file";
     }
   }
 
@@ -139,7 +212,20 @@ sub attachment_del {
   my $self = shift;
   my ($attr) = @_;
 
+  $self->attachment_info($attr);
   $self->query_del($attr->{TABLE}, $attr);
+
+  if($self->{ATTACH2FILE} && $self->{FILENAME}) {
+    if($self->{CONTENT} =~ /FILENAME: (.+)/) {
+      $attr->{FILENAME} = $1;
+      $self->attachment_file_del($attr);
+    }
+  }
+  elsif($attr->{FULL_DELETE}) {
+    if($attr->{UID} && -d "$self->{ATTACH2FILE}/$attr->{UID}") {
+      `rm -R $self->{ATTACH2FILE}/$attr->{UID}`;
+    }
+  }
 
   return $self;
 }

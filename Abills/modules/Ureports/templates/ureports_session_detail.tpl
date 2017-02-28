@@ -1,6 +1,6 @@
-<div class='panel panel-primary panel-form form-horizontal'>
-<div class='panel-heading'>_{DETAIL}_ ureports_session_details</div>
-<div class='panel-body'>
+<div class='box box-theme box-form form-horizontal'>
+<div class='box-header with-border'>_{DETAIL}_ ureports_session_details</div>
+<div class='box-body'>
   <div class='form-group'>
     <label class='col-md-3'>#</label>
     <div class='col-md-9'>

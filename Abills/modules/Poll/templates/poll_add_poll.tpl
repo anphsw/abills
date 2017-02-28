@@ -6,10 +6,10 @@
 <input type='hidden' name='id' value='%ID%'>
 %JSON%
 
-<div class='panel panel-primary panel-form'>
-    <div class='panel-heading text-primary'>_{POLL}_</div>
+<div class='box box-theme box-form'>
+    <div class='box-header with-border text-primary'>_{POLL}_</div>
 
-<div class='panel-body'>
+<div class='box-body'>
   <div class='form-group'>
       <label class='col-md-3 control-label required'>_{SUBJECT}_</label>
   	<div class='col-md-9'>
@@ -64,7 +64,7 @@
   </div>
 </div>
 
-<div class='panel-footer'>
+<div class='box-footer'>
   <button  form='POLL_ANSWER_FORM' type='submit' class='btn btn-primary'>%BUTTON%</button>
 </div>
 

@@ -21,26 +21,10 @@ our (
   $SELF_URL,
 );
 
-
-
 our $VERSION = 2.00;
-
-#use base 'Exporter';
-#our @EXPORT = qw(
-#  @_COLORS
-#  %FORM
-#  $index
-#  $pages_qs
-#  $SORT
-#  $DESC
-#  $PG
-#  $PAGE_ROWS
-#  $SELF_URL
-#  );
 
 my $debug;
 my $IMG_PATH='';
-my %log_levels;
 my $CONF;
 
 #my $row_number = 0;
@@ -104,6 +88,8 @@ sub new{
   else{
     $self->{pdf_output} = 1;
   }
+
+  $self->{TYPE}='pdf' if(! $self->{TYPE});
 
   return $self;
 }
@@ -384,7 +370,7 @@ sub menu {
 #**********************************************************
 sub menu2{
   my $self = shift;
-  my ($type, $mp_name, $ex_params, $menu, $sub_menu, $attr) = @_;
+  my ($type, $mp_name, $ex_params, $menu) = @_;
   my @menu_captions = sort keys %{$menu};
 
   $self->{menu} = "<TABLE width=\"100%\">\n";
@@ -392,8 +378,8 @@ sub menu2{
   if ( $type == 1 ){
 
     foreach my $line ( @menu_captions ){
-      my ($n, $file, $k) = split( /:/, $line );
-      my $link = ($file eq '') ? "$SELF_URL" : "$file";
+      my (undef, $file, $k) = split( /:/, $line );
+      my $link = ($file eq '') ? $SELF_URL : $file;
       $link .= '?';
       $link .= "$mp_name=$k&" if ($k ne '');
 
@@ -413,7 +399,7 @@ sub menu2{
     $self->{menu} .= "<tr bgcolor=\"$_COLORS[0]\">\n";
 
     foreach my $line ( @menu_captions ){
-      my ($n, $file, $k) = split( /:/, $line );
+      my (undef, $file, $k) = split( /:/, $line );
       my $link = ($file eq '') ? "$SELF_URL" : "$file";
       $link .= '?';
       $link .= "$mp_name=$k&" if ($k ne '');
@@ -485,7 +471,7 @@ sub pdf_header{
 #**********************************************************
 sub header{
   my $self = shift;
-  my ($attr) = @_;
+  #my ($attr) = @_;
 
   $self->{header} = '';
 
@@ -518,7 +504,7 @@ sub table{
   $self->{rows} = '';
 
   my $width = (defined( $attr->{width} )) ? "width=\"$attr->{width}\"" : '';
-  my $border = (defined( $attr->{border} )) ? "border=\"$attr->{border}\"" : '';
+  #my $border = (defined( $attr->{border} )) ? "border=\"$attr->{border}\"" : '';
   my $table_class = (defined( $attr->{class} )) ? "class=\"$attr->{class}\"" : '';
 
   if ( defined( $attr->{rowcolor} ) ){
@@ -592,7 +578,7 @@ sub table{
 #**********************************************************
 sub addrow{
   my $self = shift;
-  my (@row) = @_;
+  #my (@row) = @_;
 
   #foreach my $val ( @row ){
   #}
@@ -624,7 +610,7 @@ sub addtd{
 # th()
 #**********************************************************
 sub th{
-  my $self = shift;
+  #my $self = shift;
   #my ($value, $attr) = @_;
 
   return '';
@@ -635,7 +621,7 @@ sub th{
 # td()
 #**********************************************************
 sub td{
-  my $self = shift;
+  #my $self = shift;
   #my ($value, $attr) = @_;
 
   return '';
@@ -647,7 +633,7 @@ sub td{
 =cut
 #**********************************************************
 sub table_title_plain{
-  my $self = shift;
+  #my $self = shift;
   #my ($caption) = @_;
 
   return '';
@@ -737,7 +723,7 @@ sub show{
 #**********************************************************
 sub link_former{
   my ($self) = shift;
-  my ($params, $attr) = @_;
+  my ($params) = @_;
 
   return $params;
 }
@@ -776,7 +762,7 @@ sub button{
 =cut
 #**********************************************************
 sub message{
-  my $self = shift;
+  #my $self = shift;
   #my ($type, $caption, $message, $head, $attr) = @_;
 
   return '';
@@ -789,9 +775,7 @@ sub pre{
   my $self = shift;
   my ($message) = @_;
 
-  my $output = $message;
-
-  return $output;
+  return $message;
 }
 
 #**********************************************************
@@ -801,17 +785,15 @@ sub b{
   my $self = shift;
   my ($message) = @_;
 
-  my $output = "$message";
-
-  return $output;
+  return $message;
 }
 
 #**********************************************************
 # Mark text
 #**********************************************************
 sub color_mark{
-  my $self = shift;
-  my ($message, $color) = @_;
+  #my $self = shift;
+  my ($message) = @_;
 
   my $output = $message;
 
@@ -845,70 +827,14 @@ sub pages{
 }
 
 #**********************************************************
-# Make data field
-# date_fld($base_name)
+=head2 2($base_name)
+
+=cut
 #**********************************************************
 sub date_fld2{
   my $self = shift;
-  my ($base_name, $attr) = @_;
 
-  my $MONTHES = $attr->{MONTHES};
-
-  my ($mday, $mon, $curyear) = (localtime( time ))[3..5];
-
-  if ( $attr->{DATE} ){
-    my ($y, $m, $d) = split( /-/, $attr->{DATE} );
-    $mday = $d;
-  }
-  else{
-    $mday = 1;
-  }
-
-  my $day = $FORM{ $base_name . 'D' } || $mday;
-  my $month = $FORM{ $base_name . 'M' } || $mon;
-  my $year = $FORM{ $base_name . 'Y' } || $curyear + 1900;
-
-  my $result = "<SELECT name=" . $base_name . "D>";
-  for ( my $i = 1; $i <= 31; $i++ ){
-    $result .= sprintf( "<option value=%.2d", $i );
-    $result .= ' selected' if ($day == $i);
-    $result .= ">$i\n";
-  }
-  $result .= '</select>';
-
-  $result .= "<SELECT name=" . $base_name . "M>";
-
-  my $i = 0;
-  foreach my $line ( @{$MONTHES} ){
-    $result .= sprintf( "<option value=%.2d", $i );
-    $result .= ' selected' if ($month == $i);
-
-    $result .= ">$line\n";
-    $i++;
-  }
-  $result .= '</select>';
-
-  $result .= "<SELECT name=" . $base_name . "Y>";
-  for ( $i = 2002; $i <= $curyear + 1900 + 2; $i++ ){
-    $result .= "<option value=$i";
-    $result .= ' selected' if ($year eq $i);
-    $result .= ">$i\n";
-  }
-  $result .= '</select>' . "\n";
-
-  return $result;
-}
-
-#**********************************************************
-# log_print()
-#**********************************************************
-sub log_print{
-  my $self = shift;
-  my ($level, $text) = @_;
-
-  if ( $debug < $log_levels{$level} ){
-    return 0;
-  }
+  return q{};
 }
 
 #**********************************************************
@@ -959,7 +885,7 @@ sub tpl_show{
     return 0;
   }
 
-  my $pdf = PDF::API2->open( "$filename" );
+  my PDF::API2 $pdf = PDF::API2->open( "$filename" );
   my $tpl;
 
   print "Tpl File: $filename\n" if ($self->{debug});
@@ -1112,9 +1038,10 @@ sub tpl_show{
           }
           close( $fh );
 
-          my $string_height = 15;
+          my $string_height = ($pattern =~ /string_height=([0-9a-zA-Z_\.]+)/) ? $1 : 15;
           $txt->lead( $string_height );
-          my ($idt, $y2) = $txt->paragraph(
+          #my ($idt, $y2) =
+          $txt->paragraph(
             $content, $text_width, $text_height,
             -align     => $align || 'justified',
             -spillover => 2
@@ -1136,7 +1063,10 @@ sub tpl_show{
         if ( $align ){
           my $text_height = ($pattern =~ /text_height=([0-9a-zA-Z_\.]+)/) ? $1 : 100;
           my $text_width = ($pattern =~ /text_width=([0-9a-zA-Z_\.]+)/) ? $1 : 100;
-          my ($idt, $y2) = $txt->paragraph(
+          my $string_height = ($pattern =~ /string_height=([0-9a-zA-Z_\.]+)/) ? $1 : 15;
+          $txt->lead($string_height);
+          #my ($idt, $y2) =
+          $txt->paragraph(
             $text, $text_width, $text_height,
             -align     => $align,
             -spillover => 2
@@ -1251,57 +1181,6 @@ sub test{
 }
 
 #**********************************************************
-# letters_list();
-#**********************************************************
-sub letters_list{
-  my ($self, $attr) = @_;
-
-  #my $pages_qs = $attr->{pages_qs} if (defined( $attr->{pages_qs} ));
-  my @alphabet = ('a-z');
-
-  #'97-123'
-  if ( $attr->{EXPR} ){
-    push @alphabet, $attr->{EXPR};
-  }
-
-  my $letters = $self->button( 'All ', "index=$index" ) . '::';
-
-  foreach my $line ( @alphabet ){
-    $line =~ /(\S)-(\S)/;
-    my $first = ord( $1 );
-    my $last = ord( $2 );
-
-    for ( my $i = $first; $i <= $last; $i++ ){
-      my $l = chr( $i );
-      if ( $FORM{letter} && $FORM{letter} eq $l ){
-        $letters .= "<b>$l </b>\n";
-      }
-      else{
-        $letters .= $self->button( "$l", "index=$index&letter=$l$pages_qs" ) . " \n";
-      }
-    }
-
-    $letters .= "<br>\n";
-  }
-  if ( defined( $self->{NO_PRINT} ) ){
-    $self->{OUTPUT} .= $letters;
-    return '';
-  }
-  else{
-    return $letters;
-  }
-}
-
-#**********************************************************
-# Using some flash from http://www.maani.us
-#
-#**********************************************************
-sub make_charts{
-  my $self = shift;
-
-}
-
-#**********************************************************
 =head2 tpl_describe($tpl_name, $attr)
 
    Get template describe. Variables and other
@@ -1352,27 +1231,6 @@ sub tpl_describe{
 }
 
 #**********************************************************
-# Break line
-#
-#**********************************************************
-sub br{
-  my $self = shift;
-  #my ($attr) = @_;
-
-  return '';
-}
-
-#**********************************************************
-# element
-#**********************************************************
-sub element{
-  my $self = shift;
-  #my ($name, $value, $attr) = @_;
-
-  return '';
-}
-
-#**********************************************************
 # list item
 #**********************************************************
 sub li{
@@ -1387,9 +1245,9 @@ sub li{
 #***********************************************************
 sub badge{
   my $self = shift;
-  my ($text, $attr) = @_;
+  my ($text) = @_;
 
-  return "$text";
+  return $text;
 }
 
 #**********************************************************
@@ -1406,23 +1264,6 @@ sub tree_menu{
 }
 
 #**********************************************************
-=head2 img($img, $name, $attr) - show image
-
-  Arguments:
-
-  Returns:
-    Image object
-
-=cut
-#**********************************************************
-sub img{
-  my $self = shift;
-  #my ($img, $name, $attr) = @_;
-
-  return "";
-}
-
-#**********************************************************
 =head2 fetch() - Fetch cache data
 
 =cut
@@ -1432,5 +1273,26 @@ sub fetch{
 
   return $self;
 }
+
+#**********************************************************
+=head2  AUTOLOAD Autoload secondary funtions
+
+=cut
+#**********************************************************
+sub AUTOLOAD {
+  our $AUTOLOAD;
+
+  return if ($AUTOLOAD =~ /::DESTROY$/);
+  my $function = $AUTOLOAD;
+
+  if($function =~ /table_header|progress_bar|/) {
+    return q{};
+  }
+
+  my ($self, $data) = @_;
+
+  return $data;
+}
+
 
 1

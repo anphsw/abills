@@ -3,29 +3,12 @@ package Abills::Sender::Push;
 use strict;
 use warnings;
 
-our (
-  $db,
-  $admin,
-  $CONF,
-    %conf,
-    %lang,
-  $VERSION,
-  @ISA,
-  @EXPORT,
-  @EXPORT_OK,
-  %EXPORT_TAGS
-);
+my $admin;
+my $CONF;
 
-$VERSION = 1.00;
-@ISA = ('Exporter');
-
-@EXPORT = qw( send_message );
-
-@EXPORT_OK = ();
-%EXPORT_TAGS = ();
-
-use main;
-@ISA = ("main");
+our $VERSION = 1.00;
+our @EXPORT = qw( send_message );
+use parent qw(main Exporter);
 
 BEGIN {
   unshift @INC, "../../";
@@ -34,12 +17,11 @@ BEGIN {
 my $gcm_server_url = 'https://gcm-http.googleapis.com/gcm/send';
 my $auth_key = '';
 
-use Users;
-my Users $users;
+use Contacts;
+use Abills::Base qw(load_pmodule2);
+use Abills::Fetcher;
 
-use Abills::Base;
-do "Abills/Misc.pm";
-use Abills::Defs;
+my Contacts $Contacts;
 
 my $GCM_TYPE_ID = 10;
 
@@ -56,16 +38,16 @@ my $GCM_TYPE_ID = 10;
 #**********************************************************
 sub new {
   my $class = shift;
-
-  ($db, $admin, $CONF) = @_;
+  my $db    = shift;
+  ($admin, $CONF) = @_;
 
   my $self = {
-      db    => $db,
-      admin => $admin,
-      conf  => $CONF,
+    db    => $db,
+    admin => $admin,
+    conf  => $CONF,
   };
 
-  $users = Users->new(@_);
+  $Contacts = Users->new($db, $admin, $CONF);
 
   $auth_key = $CONF->{GOOGLE_API_KEY} || 'UNDEFINED $conf{GOOGLE_API_KEY}';
 
@@ -93,14 +75,14 @@ sub send_message {
   my ($uid, $message) = ($attr->{UID}, $attr->{MESSAGE});
   return 0 unless ($uid && $message);
 
-  my $loaded_json_result = load_pmodule( "JSON", { RETURN => 1 } );
+  my $loaded_json_result = load_pmodule2( "JSON", { RETURN => 1 } );
   if ( $loaded_json_result ) {
     print $loaded_json_result;
     return 0;
   }
   my $json = JSON->new->utf8( 0 );
 
-  my $user_contacts = $users->contacts_info( {UID => $uid, TYPE_ID => $GCM_TYPE_ID} );
+  my $user_contacts = $Contacts->contacts_info( {UID => $uid, TYPE_ID => $GCM_TYPE_ID} );
 
   my $registration_id = $user_contacts->{VALUE};
   # Return if client is not registered

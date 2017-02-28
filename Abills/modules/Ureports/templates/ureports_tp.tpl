@@ -3,9 +3,9 @@
 <input type=hidden name='index' value='$index'>
 <input type=hidden name='TP_ID' value='%TP_ID%'>
 
-<div class='panel panel-default panel-form'>
+<div class='box box-theme box-form'>
 	<legend>_{TARIF_PLAN}_ #%ID%</legend>
-<div class='panel-body form form-horizontal'>
+<div class='box-body form form-horizontal'>
  
   <div class='form-group'>
   	<label class='control-label col-md-3'>_{NAME}_:</label>
@@ -87,7 +87,7 @@
   </div>
   
 </div>
-<div class='panel-footer'>
+<div class='box-footer'>
 	<input type=submit name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'>
 </div>
 </div>

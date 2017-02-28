@@ -13,8 +13,8 @@ function samechanged(what) {
 samechanged('RESPOSIBLE');
 
 </SCRIPT>
-<div class='panel panel-default panel-form'>
-  <div class='panel-body'>
+<div class='box box-theme box-form'>
+  <div class='box-body'>
 
 <FORM action='$SELF_URL' METHOD='POST'  name='add_message' class='form-horizontal' >
     <legend>_{DISPATCH}_</legend>
@@ -26,7 +26,7 @@ samechanged('RESPOSIBLE');
 <div class='form-group'>
     <label class='control-label col-md-3' for='PLAN_DATE'>_{EXECUTION}_</label>
 	 	  <div class='col-md-9'>
-	 	  	  <input type='text' name='PLAN_DATE' value='%PLAN_DATE%' placeholder='%PLAN_DATE%' class='form-control tcal' >
+	 	  	  <input type='text' name='PLAN_DATE' value='%PLAN_DATE%' placeholder='%PLAN_DATE%' class='form-control datepicker' >
  	  	</div>
 </div>
 
@@ -51,10 +51,10 @@ samechanged('RESPOSIBLE');
  	  	</div>
 </div>
 
+</div>
+<div class='box-footer text-center'>
 <input type=submit name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'>
-
+</div>
 </fieldset>
 </form>
-
-</div>
 </div>

@@ -6,7 +6,8 @@ package Cards;
 
 =head1 VERSION
 
-  VERSION = 7.34;
+  VERSION: 7.35;
+  REVISION: 20160811
 
 =cut
 
@@ -16,7 +17,7 @@ use Tariffs;
 use Users;
 use Fees;
 
-our $VERSION = 7.34;
+our $VERSION = 7.35;
 my $uid;
 my $MODULE        = 'Cards';
 my ($admin, $CONF);
@@ -53,8 +54,9 @@ sub new {
 }
 
 #**********************************************************
-# Cards service information
-# info()
+=head2 cards_service_info($attr) - Cards service information
+
+=cut
 #**********************************************************
 sub cards_service_info {
   my $self = shift;
@@ -75,7 +77,7 @@ sub cards_service_info {
     INNER JOIN dv_main dv ON (dv.uid=u.uid)
     INNER JOIN tarif_plans tp ON (dv.tp_id=tp.id $WHERE)
     WHERE
-      u.uid= ? ",
+      u.deleted=0 AND u.uid= ? ",
     undef,
     { INFO => 1,
       Bind => [ $attr->{UID} || 0 ]
@@ -114,15 +116,15 @@ sub cards_info {
       if($self->{CARDS_NUMBER_LENGTH}>0, MID(c.number, 11-$self->{CARDS_NUMBER_LENGTH}+1, $self->{CARDS_NUMBER_LENGTH}), c.number) AS number,
       c.sum,
 
-      if(c.status = 1 or c.status = 2 or c.status = 4  or c.status = 5, c.status,
-              if(c.uid > 0 && u.activate <> '0000-00-00', 2,
-                if(c.uid > 0 && u.activate IS NULL, 3, 0)
+      IF(c.status = 1 or c.status = 2 or c.status = 4  or c.status = 5, c.status,
+              IF(c.uid > 0 && u.activate <> '0000-00-00', 2,
+                IF(c.uid > 0 && u.activate IS NULL, 3, 0)
                  )
         ) AS status,
       c.datetime,
       c.expire,
       c.pin,
-      if (c.expire<curdate() && c.expire != '0000-00-00', 1, 0) AS expire_status,
+      if (c.expire<CURDATE() && c.expire != '0000-00-00', 1, 0) AS expire_status,
       c.uid,
       c.diller_id,
       c.id,
@@ -169,7 +171,9 @@ sub defaults {
 }
 
 #**********************************************************
-# cards_add()
+=head2 cards_add($attr)
+
+=cut
 #**********************************************************
 sub cards_add {
   my $self = shift;
@@ -411,7 +415,7 @@ sub cards_del {
   }
 
   if ($#WHERE_RULES > -1) {
-    $WHERE = join(' and ', @WHERE_RULES);
+    $WHERE = join(' AND ', @WHERE_RULES);
     $self->query2("DELETE from cards_users WHERE $WHERE;", 'do');
   }
 
@@ -461,40 +465,41 @@ sub cards_list {
   }
 
   my $WHERE = $self->search_former($attr, [
-      #['SERIAL',           'STR',  'cu.serial',    1],
-      ['NUMBER',           'INT',  'cu.number',    "IF($self->{CARDS_NUMBER_LENGTH}>0, MID(cu.number, 11-$self->{CARDS_NUMBER_LENGTH}+1, $self->{CARDS_NUMBER_LENGTH}), cu.number) AS number"],
-      ['CARDS_COUNT',      '',     '', 'COUNT(*) AS cards_count' ],
-      ['CARDS_SUM',        '',     '', 'SUM(sum) AS cards_sum'  ],
-      ['CARDS_ACTIVE',     '',     '', "SUM(IF(cu.status=0 && cu.uid=0, 1,
-                                  IF (cu.uid>0 && u.activate='0000-00-00', 1, 0))) AS cards_active" ],
-      ['CARDS_DILLERS',    '',     '', 'SUM(IF (cu.diller_id>0, 1, 0)) AS cards_dillers' ],
-      ['SUM',              'INT',  'cu.sum',         1],
-      ['LOGIN',            'STR',  'u.id AS login',  1],
-      ['EXPIRE',           'DATE', 'cu.expire',      1],
-      ['CREATED',          'DATE', "DATE_FORMAT(cu.created, '%Y-%m-%d')",  "DATE_FORMAT(cu.created, '%Y-%m-%d') AS created" ],
-      ['LAST_CREATED',     'DATE', "DATE_FORMAT(MAX(cu.created), '%Y-%m-%d')",  "DATE_FORMAT(MAX(cu.created), '%Y-%m-%d') AS created" ],
-      ['DILLER_NAME',      'STR',  "if(cd_users.fio<>'', cd_users.fio, cd.uid) AS diller_name", 1 ],
-      ['DILLER_DATE',      'DATE', 'cu.diller_date', 1],
-      ['DILLER_SOLD_DATE', 'DATE', "IF(cu.diller_sold_date='0000-00-00', '', cu.diller_sold_date) AS diller_sold_date", 1],
-      ['DILLER_ID',        'INT',  'cu.diller_id',    ],
-      ['AID',              'INT',  'cu.aid',         1],
-      ['TP_ID',            'INT',  'tp.id',          1],
-      ['ID',               'INT',  'cu.id'            ],
-      ['IDS',              'INT',  'cu.id'            ],
-      ['MONTH',            'INT',  'cu.datetime',    1],
-      ['STATUS',           'INT',  'cu.status',      1],
-      ['PIN',              'STR',  "DECODE(cu.pin, '$CONF->{secretkey}') AS pin",  1],
+    #['SERIAL',           'STR',  'cu.serial',    1],
+    ['NUMBER',           'INT',  'cu.number',    "IF($self->{CARDS_NUMBER_LENGTH}>0, MID(cu.number, 11-$self->{CARDS_NUMBER_LENGTH}+1, $self->{CARDS_NUMBER_LENGTH}), cu.number) AS number"],
+    ['CARDS_COUNT',      '',     '', 'COUNT(*) AS cards_count' ],
+    ['CARDS_SUM',        '',     '', 'SUM(sum) AS cards_sum'  ],
+    ['CARDS_ACTIVE',     '',     '', "SUM(IF(cu.status=0 && cu.uid=0, 1,
+                                IF (cu.uid>0 && u.activate='0000-00-00', 1, 0))) AS cards_active" ],
+    ['CARDS_DILLERS',    '',     '', 'SUM(IF (cu.diller_id>0, 1, 0)) AS cards_dillers' ],
+    ['SUM',              'INT',  'cu.sum',         1],
+    ['LOGIN',            'STR',  'u.id AS login',  1],
+    ['EXPIRE',           'DATE', 'cu.expire',      1],
+    #['CREATED',          'DATE', "DATE_FORMAT(cu.created, '%Y-%m-%d')",  "DATE_FORMAT(cu.created, '%Y-%m-%d') AS created" ],
+    ['CREATED',          'DATE', "DATE_FORMAT(cu.created, '%Y-%m-%d')",  "DATE_FORMAT(cu.created, '%Y-%m-%d %H:%i:%s') AS created" ],
+    ['LAST_CREATED',     'DATE', "DATE_FORMAT(MAX(cu.created), '%Y-%m-%d')",  "DATE_FORMAT(MAX(cu.created), '%Y-%m-%d') AS created" ],
+    ['DILLER_NAME',      'STR',  "if(cd_users.fio<>'', cd_users.fio, cd.uid) AS diller_name", 1 ],
+    ['DILLER_DATE',      'DATE', 'cu.diller_date', 1],
+    ['DILLER_SOLD_DATE', 'DATE', "IF(cu.diller_sold_date='0000-00-00', '', cu.diller_sold_date) AS diller_sold_date", 1],
+    ['DILLER_ID',        'INT',  'cu.diller_id',    ],
+    ['AID',              'INT',  'cu.aid',         1],
+    ['TP_ID',            'INT',  'tp.id',          1],
+    ['ID',               'INT',  'cu.id'            ],
+    ['IDS',              'INT',  'cu.id'            ],
+    ['MONTH',            'INT',  'cu.datetime',    1],
+    ['STATUS',           'INT',  'cu.status',      1],
+    ['PIN',              'STR',  "DECODE(cu.pin, '$CONF->{secretkey}') AS pin",  1],
 
-      ['DATE',             'DATE', "DATE_FORMAT(cu.datetime, '%Y-%m-%d')"  ],
-      ['CREATED_MONTH',    'DATE', "DATE_FORMAT(cu.created, '%Y-%m')"      ],
-      ['FROM_DATE|TO_DATE','DATE', "DATE_FORMAT(cu.created, '%Y-%m-%d')",  ],
-      ['CREATED_FROM_DATE|CREATED_TO_DATE',  'DATE',  "DATE_FORMAT(cu.created, '%Y-%m-%d')",  ],
-      ['USED_DATE',             'DATE', "", "IF (cu.status=2, cu.datetime, '') AS used_date"  ],
-    ],
-    { WHERE => 1,
-      WHERE_RULES => \@WHERE_RULES
-    }
-    );
+    ['DATE',             'DATE', "DATE_FORMAT(cu.datetime, '%Y-%m-%d')"  ],
+    ['CREATED_MONTH',    'DATE', "DATE_FORMAT(cu.created, '%Y-%m')"      ],
+    ['FROM_DATE|TO_DATE','DATE', "DATE_FORMAT(cu.created, '%Y-%m-%d')",  ],
+    ['CREATED_FROM_DATE|CREATED_TO_DATE',  'DATE',  "DATE_FORMAT(cu.created, '%Y-%m-%d')",  ],
+    ['USED_DATE',             'DATE', "", "IF (cu.status=2, cu.datetime, '') AS used_date"  ],
+  ],
+  {
+    WHERE => 1,
+    WHERE_RULES => \@WHERE_RULES
+  });
 
   my $list;
 
@@ -642,7 +647,7 @@ sub cards_report_dillers {
   my @WHERE_RULES      = ();
 
   if (defined($attr->{DATE})) {
-    push @WHERE_RULES, " (c.diller_sold_date='$attr->{DATE}' or date_format(c.datetime, '%Y-%m-%d')='$attr->{DATE}' or  date_format(c.diller_date, '%Y-%m-%d')='$attr->{DATE}')";
+    push @WHERE_RULES, " (c.diller_sold_date='$attr->{DATE}' or DATE_FORMAT(c.datetime, '%Y-%m-%d')='$attr->{DATE}' or  DATE_FORMAT(c.diller_date, '%Y-%m-%d')='$attr->{DATE}')";
 
     $active_date = "u.activate = '$attr->{DATE}'";
 
@@ -651,16 +656,16 @@ sub cards_report_dillers {
   }
   elsif ($attr->{INTERVAL}) {
     my ($from, $to) = split(/\//, $attr->{INTERVAL}, 2);
-    push @WHERE_RULES, "((date_format(c.datetime, '%Y-%m-%d')>='$from' and date_format(c.datetime, '%Y-%m-%d')<='$to') or
-    (date_format(c.diller_date, '%Y-%m-%d')>='$from' and date_format(c.diller_date, '%Y-%m-%d')<='$to'))";
+    push @WHERE_RULES, "((DATE_FORMAT(c.datetime, '%Y-%m-%d')>='$from' and DATE_FORMAT(c.datetime, '%Y-%m-%d')<='$to') or
+    (DATE_FORMAT(c.diller_date, '%Y-%m-%d')>='$from' and DATE_FORMAT(c.diller_date, '%Y-%m-%d')<='$to'))";
 
-    $active_date = "(date_format(u.activate, '%Y-%m-%d')>='$from' and date_format(u.activate, '%Y-%m-%d')<='$to')";
-    $diller_date = "(date_format(c.diller_date, '%Y-%m-%d')>='$from' and date_format(c.diller_date, '%Y-%m-%d')<='$to')";
+    $active_date = "(DATE_FORMAT(u.activate, '%Y-%m-%d')>='$from' and DATE_FORMAT(u.activate, '%Y-%m-%d')<='$to')";
+    $diller_date = "(DATE_FORMAT(c.diller_date, '%Y-%m-%d')>='$from' and DATE_FORMAT(c.diller_date, '%Y-%m-%d')<='$to')";
   }
   elsif ($attr->{MONTH}) {
-    push @WHERE_RULES, "(date_format(c.datetime, '%Y-%m')='$attr->{MONTH}' or date_format(diller_date, '%Y-%m')='$attr->{MONTH}')";
-    $active_date = 'date_format(u.activate, \'%Y-%m\') <> ' . "'$attr->{MONTH}\'";
-    $diller_date = 'date_format(c.diller_date, \'%Y-%m\') <> ' . "'$attr->{MONTH}\'";
+    push @WHERE_RULES, "(DATE_FORMAT(c.datetime, '%Y-%m')='$attr->{MONTH}' or DATE_FORMAT(diller_date, '%Y-%m')='$attr->{MONTH}')";
+    $active_date = 'DATE_FORMAT(u.activate, \'%Y-%m\') <> ' . "'$attr->{MONTH}\'";
+    $diller_date = 'DATE_FORMAT(c.diller_date, \'%Y-%m\') <> ' . "'$attr->{MONTH}\'";
   }
 
   if (defined($attr->{SERIA})) {
@@ -834,13 +839,13 @@ sub cards_report_days {
     }
 
     if ($attr->{CREATED_DATE}) {
-      push @WHERE_RULES, "date_format(c.created, '%Y-%m-%d')='$attr->{CREATED_DATE}'";
+      push @WHERE_RULES, "DATE_FORMAT(c.created, '%Y-%m-%d')='$attr->{CREATED_DATE}'";
     }
     elsif ($attr->{CREATED_MONTH}) {
-      push @WHERE_RULES, "date_format(c.created, '%Y-%m')='$attr->{CREATED_MONTH}'";
+      push @WHERE_RULES, "DATE_FORMAT(c.created, '%Y-%m')='$attr->{CREATED_MONTH}'";
     }
     elsif ($attr->{CREATED_FROM_DATE}) {
-      push @WHERE_RULES, "(date_format(c.created, '%Y-%m-%d')>='$attr->{CREATED_FROM_DATE}' and date_format(c.created, '%Y-%m-%d')<='$attr->{CREATED_TO_DATE}')";
+      push @WHERE_RULES, "(DATE_FORMAT(c.created, '%Y-%m-%d')>='$attr->{CREATED_FROM_DATE}' and DATE_FORMAT(c.created, '%Y-%m-%d')<='$attr->{CREATED_TO_DATE}')";
     }
 
     my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
@@ -865,29 +870,29 @@ sub cards_report_days {
   }
 
   if (defined($attr->{DATE})) {
-    push @WHERE_RULES,             " date_format(c.datetime, '%Y-%m-%d')='$attr->{DATE}'";
-    push @WHERE_RULES_DILLERS,     "date_format(c.diller_date, '%Y-%m-%d')='$attr->{DATE}'";
-    push @WHERE_RULES_USERS,       "date_format(u.activate, '%Y-%m-%d')='$attr->{DATE}'";
+    push @WHERE_RULES,             " DATE_FORMAT(c.datetime, '%Y-%m-%d')='$attr->{DATE}'";
+    push @WHERE_RULES_DILLERS,     "DATE_FORMAT(c.diller_date, '%Y-%m-%d')='$attr->{DATE}'";
+    push @WHERE_RULES_USERS,       "DATE_FORMAT(u.activate, '%Y-%m-%d')='$attr->{DATE}'";
     push @WHERE_RULES_DILLER_SOLD, "c.diller_sold_date='$attr->{DATE}'";
   }
   elsif ($attr->{INTERVAL}) {
     my ($from, $to) = split(/\//, $attr->{INTERVAL}, 2);
-    push @WHERE_RULES,             "date_format(c.datetime, '%Y-%m-%d')>='$from' and date_format(c.datetime, '%Y-%m-%d')<='$to'";
-    push @WHERE_RULES_DILLERS,     "date_format(c.diller_date, '%Y-%m-%d')>='$from' and date_format(c.diller_date, '%Y-%m-%d')<='$to'";
-    push @WHERE_RULES_USERS,       "date_format(u.activate, '%Y-%m-%d')>='$from' and date_format(u.activate, '%Y-%m-%d')<='$to'";
+    push @WHERE_RULES,             "DATE_FORMAT(c.datetime, '%Y-%m-%d')>='$from' and DATE_FORMAT(c.datetime, '%Y-%m-%d')<='$to'";
+    push @WHERE_RULES_DILLERS,     "DATE_FORMAT(c.diller_date, '%Y-%m-%d')>='$from' and DATE_FORMAT(c.diller_date, '%Y-%m-%d')<='$to'";
+    push @WHERE_RULES_USERS,       "DATE_FORMAT(u.activate, '%Y-%m-%d')>='$from' and DATE_FORMAT(u.activate, '%Y-%m-%d')<='$to'";
     push @WHERE_RULES_DILLER_SOLD, "c.diller_sold_date>='$from' and c.diller_sold_date<='$to'";
   }
   elsif (defined($attr->{MONTH})) {
-    push @WHERE_RULES,             "date_format(c.datetime, '%Y-%m')='$attr->{MONTH}'";
-    push @WHERE_RULES_DILLERS,     "date_format(c.diller_date, '%Y-%m')='$attr->{MONTH}'";
-    push @WHERE_RULES_USERS,       "date_format(u.activate, '%Y-%m')='$attr->{MONTH}'";
-    push @WHERE_RULES_DILLER_SOLD, "date_format(c.diller_sold_date, '%Y-%m')='$attr->{MONTH}'";
+    push @WHERE_RULES,             "DATE_FORMAT(c.datetime, '%Y-%m')='$attr->{MONTH}'";
+    push @WHERE_RULES_DILLERS,     "DATE_FORMAT(c.diller_date, '%Y-%m')='$attr->{MONTH}'";
+    push @WHERE_RULES_USERS,       "DATE_FORMAT(u.activate, '%Y-%m')='$attr->{MONTH}'";
+    push @WHERE_RULES_DILLER_SOLD, "DATE_FORMAT(c.diller_sold_date, '%Y-%m')='$attr->{MONTH}'";
   }
   else {
-    push @WHERE_RULES,             "date_format(c.datetime, '%Y-%m')=date_format(curdate(), '%Y-%m')";
-    push @WHERE_RULES_DILLERS,     "date_format(c.diller_date, '%Y-%m')=date_format(curdate(), '%Y-%m')";
-    push @WHERE_RULES_USERS,       "date_format(u.activate, '%Y-%m')=date_format(curdate(), '%Y-%m')";
-    push @WHERE_RULES_DILLER_SOLD, "date_format(c.diller_sold_date, '%Y-%m')=date_format(curdate(), '%Y-%m')";
+    push @WHERE_RULES,             "DATE_FORMAT(c.datetime, '%Y-%m')=DATE_FORMAT(curdate(), '%Y-%m')";
+    push @WHERE_RULES_DILLERS,     "DATE_FORMAT(c.diller_date, '%Y-%m')=DATE_FORMAT(curdate(), '%Y-%m')";
+    push @WHERE_RULES_USERS,       "DATE_FORMAT(u.activate, '%Y-%m')=DATE_FORMAT(curdate(), '%Y-%m')";
+    push @WHERE_RULES_DILLER_SOLD, "DATE_FORMAT(c.diller_sold_date, '%Y-%m')=DATE_FORMAT(curdate(), '%Y-%m')";
   }
 
   my $WHERE              = ($#WHERE_RULES > -1)             ? "WHERE " . join(' and ', @WHERE_RULES)             : '';
@@ -1036,13 +1041,13 @@ sub cards_report_payments {
   my @WHERE_RULES = ();
 
   if ($attr->{FROM_DATE} && $attr->{TO_DATE}) {
-    push @WHERE_RULES, "(date_format(p.date, '%Y-%m-%d')>='$attr->{FROM_DATE}' and date_format(p.date, '%Y-%m-%d')<='$attr->{TO_DATE}')";
+    push @WHERE_RULES, "(DATE_FORMAT(p.date, '%Y-%m-%d')>='$attr->{FROM_DATE}' and DATE_FORMAT(p.date, '%Y-%m-%d')<='$attr->{TO_DATE}')";
   }
   elsif (defined($attr->{MONTH})) {
-    push @WHERE_RULES, "date_format(p.date, '%Y-%m')='$attr->{MONTH}'";
+    push @WHERE_RULES, "DATE_FORMAT(p.date, '%Y-%m')='$attr->{MONTH}'";
   }
   else {
-    push @WHERE_RULES, "date_format(p.date, '%Y-%m')=date_format(curdate(), '%Y-%m')";
+    push @WHERE_RULES, "DATE_FORMAT(p.date, '%Y-%m')=DATE_FORMAT(curdate(), '%Y-%m')";
   }
 
   my $WHERE .= ($#WHERE_RULES > -1) ? join(' AND ', @WHERE_RULES) : '';
@@ -1087,27 +1092,27 @@ sub cards_report_seria {
   my @WHERE_RULES = ();
 
   if (defined($attr->{DATE})) {
-    push @WHERE_RULES, " (date_format(c.datetime, '%Y-%m-%d')='$attr->{DATE}' or  date_format(c.diller_date, '%Y-%m-%d')='$attr->{DATE}')";
+    push @WHERE_RULES, " (DATE_FORMAT(c.datetime, '%Y-%m-%d')='$attr->{DATE}' or  DATE_FORMAT(c.diller_date, '%Y-%m-%d')='$attr->{DATE}')";
     $active_date = "u.activate = '$attr->{DATE}'";
     $diller_date = "c.diller_date = '$attr->{DATE}'";
   }
   elsif ($attr->{INTERVAL}) {
     my ($from, $to) = split(/\//, $attr->{INTERVAL}, 2);
-    push @WHERE_RULES, "((date_format(c.datetime, '%Y-%m-%d')>='$from' and date_format(c.datetime, '%Y-%m-%d')<='$to') or
-    (date_format(c.diller_date, '%Y-%m-%d')>='$from' and date_format(c.diller_date, '%Y-%m-%d')<='$to'))";
+    push @WHERE_RULES, "((DATE_FORMAT(c.datetime, '%Y-%m-%d')>='$from' and DATE_FORMAT(c.datetime, '%Y-%m-%d')<='$to') or
+    (DATE_FORMAT(c.diller_date, '%Y-%m-%d')>='$from' and DATE_FORMAT(c.diller_date, '%Y-%m-%d')<='$to'))";
 
-    $active_date = "(date_format(u.activate, '%Y-%m-%d')>='$from' and date_format(u.activate, '%Y-%m-%d')<='$to')";
-    $diller_date = "(date_format(c.diller_date, '%Y-%m-%d')>='$from' and date_format(c.diller_date, '%Y-%m-%d')<='$to')";
+    $active_date = "(DATE_FORMAT(u.activate, '%Y-%m-%d')>='$from' and DATE_FORMAT(u.activate, '%Y-%m-%d')<='$to')";
+    $diller_date = "(DATE_FORMAT(c.diller_date, '%Y-%m-%d')>='$from' and DATE_FORMAT(c.diller_date, '%Y-%m-%d')<='$to')";
   }
   elsif (defined($attr->{MONTH})) {
-    push @WHERE_RULES, "(date_format(c.datetime, '%Y-%m')='$attr->{MONTH}' or date_format(diller_date, '%Y-%m')='$attr->{MONTH}')";
-    $active_date = 'date_format(u.activate, \'%Y-%m\') <> ' . "'$attr->{MONTH}\'";
-    $diller_date = 'date_format(c.diller_date, \'%Y-%m\') <> ' . "'$attr->{MONTH}\'";
+    push @WHERE_RULES, "(DATE_FORMAT(c.datetime, '%Y-%m')='$attr->{MONTH}' or DATE_FORMAT(diller_date, '%Y-%m')='$attr->{MONTH}')";
+    $active_date = 'DATE_FORMAT(u.activate, \'%Y-%m\') <> ' . "'$attr->{MONTH}\'";
+    $diller_date = 'DATE_FORMAT(c.diller_date, \'%Y-%m\') <> ' . "'$attr->{MONTH}\'";
   }
   else {
-    push @WHERE_RULES, "(date_format(c.datetime, '%Y-%m')=date_format(curdate(), '%Y-%m') or date_format(diller_date, '%Y-%m')=date_format(curdate(), '%Y-%m') )";
-    $active_date = 'date_format(u.activate, \'%Y-%m\') <> ' . "'$attr->{MONTH}\'";
-    $diller_date = 'date_format(c.diller_date, \'%Y-%m\') <> ' . "'$attr->{MONTH}\'";
+    push @WHERE_RULES, "(DATE_FORMAT(c.datetime, '%Y-%m')=DATE_FORMAT(curdate(), '%Y-%m') or DATE_FORMAT(diller_date, '%Y-%m')=DATE_FORMAT(curdate(), '%Y-%m') )";
+    $active_date = 'DATE_FORMAT(u.activate, \'%Y-%m\') <> ' . "'$attr->{MONTH}\'";
+    $diller_date = 'DATE_FORMAT(c.diller_date, \'%Y-%m\') <> ' . "'$attr->{MONTH}\'";
   }
 
   if (defined($attr->{SERIA})) {
@@ -1189,9 +1194,9 @@ sub bruteforce_list {
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $fields = "u.id,
-               sum(if(date_format(cb.datetime, '%Y-%m-%d')=curdate(), 1, 0)),
-               count(*),
-               max(datetime),
+               SUM(IF(DATE_FORMAT(cb.datetime, '%Y-%m-%d')=CURDATE(), 1, 0)),
+               COUNT(*),
+               MAX(datetime),
                cb.uid
                ";
   my $GROUP = "GROUP BY cb.uid";
@@ -1212,7 +1217,7 @@ sub bruteforce_list {
   }
 
   if ($attr->{DATE}) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{DATE}", 'DATE', "date_format(cb.datetime, '%Y-%m-%d')") };
+    push @WHERE_RULES, @{ $self->search_expr("$attr->{DATE}", 'DATE', "DATE_FORMAT(cb.datetime, '%Y-%m-%d')") };
   }
 
   if ($admin->{DOMAIN_ID}) {
@@ -1220,12 +1225,12 @@ sub bruteforce_list {
   }
 
   if ($attr->{MONTH}) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{MONTH}", 'DATE', "date_format(cb.datetime, '%Y-%m')") };
+    push @WHERE_RULES, @{ $self->search_expr("$attr->{MONTH}", 'DATE', "DATE_FORMAT(cb.datetime, '%Y-%m')") };
   }
 
   # Date intervals
   elsif ($attr->{FROM_DATE}) {
-    push @WHERE_RULES, "(date_format(cb.datetime, '%Y-%m-%d')>='$attr->{FROM_DATE}' and date_format(cb.datetime, '%Y-%m-%d')<='$attr->{TO_DATE}')";
+    push @WHERE_RULES, "(DATE_FORMAT(cb.datetime, '%Y-%m-%d')>='$attr->{FROM_DATE}' and DATE_FORMAT(cb.datetime, '%Y-%m-%d')<='$attr->{TO_DATE}')";
   }
 
   if (defined($attr->{SERIA})) {
@@ -1234,7 +1239,7 @@ sub bruteforce_list {
 
     $fields = "
     cp.serial,
-              if($self->{CARDS_NUMBER_LENGTH}>0, MID(cp.number, 11-$self->{CARDS_NUMBER_LENGTH}+1, $self->{CARDS_NUMBER_LENGTH}), cp.number),
+              IF($self->{CARDS_NUMBER_LENGTH}>0, MID(cp.number, 11-$self->{CARDS_NUMBER_LENGTH}+1, $self->{CARDS_NUMBER_LENGTH}), cp.number),
               cp.sum,
               cp.status,
               cp.datetime,
@@ -1255,9 +1260,9 @@ sub bruteforce_list {
 
   return [] if ($self->{errno});
   my $list = $self->{list};
-  $self->{BRUTE_COUNT} = $self->{TOTAL};
+  $self->{BRUTE_COUNT} = $self->{TOTAL} || 0;
 
-  $self->query2("SELECT count(*) AS total FROM cards_bruteforce cb
+  $self->query2("SELECT COUNT(*) AS total FROM cards_bruteforce cb
       LEFT JOIN users u ON (cb.uid = u.uid)
       $WHERE",
     undef, { INFO => 1 }
@@ -1275,13 +1280,18 @@ sub bruteforce_add {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query_add('cards_bruteforce', $attr);
+  $self->query_add('cards_bruteforce', {
+    %$attr,
+    DATETIME => 'NOW()'
+  });
 
   return $self;
 }
 
 #**********************************************************
-# bruteforce_del
+=head2 bruteforce_del($attr)
+
+=cut
 #**********************************************************
 sub bruteforce_del {
   my $self = shift;
@@ -1450,7 +1460,7 @@ sub cards_dillers_list {
    $attr
   );
 
-  return $self if ($self->{errno});
+  return [] if ($self->{errno});
   my $list = $self->{list};
 
   if ($self->{TOTAL} > 0) {

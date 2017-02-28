@@ -6,12 +6,13 @@
     <input type='hidden' name='CHAPTER' value='%CHAPTER%'/>
     <input type='hidden' name='INNER_MSG' value='%INNER_MSG%'/>
 
+
     <div>
-        <div class='panel panel-default %MAIN_PANEL_COLOR%'>
-            <div class='panel-heading'>
-                <div class='panel-title'>%SUBJECT% </div>
+        <div class='box box-theme %MAIN_PANEL_COLOR%'>
+            <div class='box-header with-border'>
+                <div class='box-title'>%SUBJECT% </div>
             </div>
-            <div class='panel-body'>
+            <div class='box-body'>
                 <div class='table'>
                 <div class='row'>
                     <div class='col-md-3 text-left'><strong>#:</strong></div>
@@ -43,15 +44,15 @@
             </div>
         </div>
 
-        <div class='panel panel-primary'>
-            <div class='panel-heading'>
-                <h5 class='panel-title'>%LOGIN% _{ADDED}_: %DATE%</h5>
+        <div class='box box-primary'>
+            <div class='box-header with-border'>
+                <h5 class='box-title'>%LOGIN% _{ADDED}_: %DATE%</h5>
             </div>
-            <div class='panel-body' style='text-align: left'>
+            <div class='box-body' style='text-align: left'>
                 %MESSAGE%
                 <div class='pull-right'>%QUOTING% %DELETE%</div>
             </div>
-            <div class='panel-footer'>%RUN_TIME% %ATTACHMENT%</div>
+            <div class='box-footer'>%RUN_TIME% %ATTACHMENT%</div>
         </div>
 
         %REPLY%

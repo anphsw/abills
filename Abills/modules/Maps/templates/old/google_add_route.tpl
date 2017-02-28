@@ -3,11 +3,11 @@
     <input type='hidden' name='ID' value='$FORM{chg}'>
     <input type='hidden' name='route' value='1'>
 
-    <div class='panel panel-primary'>
-        <div class='panel-heading'>
+    <div class='box box-primary'>
+        <div class='box-header with-border'>
             <h4>_{ADD}_ _{ROUTE}_</h4>
         </div>
-        <div class='panel-body'>
+        <div class='box-body'>
             <div class='form-group'>
                 <label class='control-label col-md-3'>_{NAME}_:</label>
 
@@ -73,7 +73,7 @@
                 </div>
             </div>
         </div>
-        <div class='panel-footer text-center'>
+        <div class='box-footer text-center'>
             <input type='submit' class='btn btn-primary' name=%ACTION%' value='%ACTION_LNG%'>
         </div>
 

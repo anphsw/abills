@@ -1,7 +1,15 @@
 <html>
 <head>
     <title>Доступ запрещен</title>
+  <meta name='viewport' content='width=device-width, initial-scale=1'>
+  <meta http-equiv='X-UA-Compatible' content='IE=edge'>
 
+  <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
+  <meta HTTP-EQUIV='Cache-Control' content='no-cache,no-cache,no-store,must-revalidate,private, max-age=5'/>
+  <meta HTTP-EQUIV='Expires' CONTENT='-1'/>
+  <meta HTTP-EQUIV='Pragma' CONTENT='no-cache'/>
+  <meta HTTP-EQUIV='Content-Type' CONTENT='text/html; charset=utf-8'/>
+  <meta HTTP-EQUIV='Content-Language' content='ru'/>
     <style>
         body {
             background-color: #232020;

@@ -1,11 +1,11 @@
-<div class='panel panel-primary'>
-    <div class='panel-heading text-center'><h4>_{EXPORT}_</h4></div>
+<div class='box box-primary'>
+    <div class='box-header with-border'><h4 class='box-title'>_{EXPORT}_</h4></div>
     <form name='NETLIST_CALC_EXPORT' id='form_NETLIST_CALC_EXPORT' method='post' class='form form-horizontal'>
         <input type='hidden' name='index' value='$index'/>
         <input type='hidden' name='COUNTS' value='$FORM{HOSTS_NUMBER}'/>
         <input type='hidden' name='SUBNET_NETMASK' value='$FORM{SUBNET_MASK}'/>
 
-        <div class='panel-body'>
+        <div class='box-body'>
             %EXPORT_TABLE%
             <div class='col-md-8 col-md-push-2'>
                 <div class='form-group'>
@@ -21,7 +21,7 @@
         </div>
     </form>
 
-    <div class='panel-footer text-center'>
+    <div class='box-footer text-center'>
         <input type='submit' form='form_NETLIST_CALC_EXPORT' class='btn btn-primary' name='export_pools'
                value='_{EXPORT}_ IP Pools'>
         <input type='submit' form='form_NETLIST_CALC_EXPORT' class='btn btn-primary'  name='export_groups'

@@ -1,7 +1,7 @@
 #!/bin/sh
 # ABillS Auto Programs Building
 #
-# Created By ~AsmodeuS~ 2010-2015
+# Created By ~AsmodeuS~ 2010-2016
 #
 #**************************************************************
 
@@ -12,7 +12,7 @@ CMD_LOG="/tmp/ports_builder_cmd.log"
 BILLING_DIR='/usr/abills';
 BASE_PWD=`pwd`;
 COMMERCIAL_MODULES="Cards Paysys Ashield Maps Storage Iptv"
-HOSTNAME=`hostname`
+_HOSTNAME=`hostname`
 DEFAULT_HOSTNAME="aserver"
 DIALOG=dialog
 TMP_DIR=/tmp
@@ -186,9 +186,9 @@ elif [ "${OS}" = "Linux" ] ; then
     OS_NAME='Mandrake'
     PSUEDONAME=`cat /etc/mandrake-release | sed s/.*\(// | sed s/\)//`
     OS_VERSION=`cat /etc/mandrake-release | sed s/.*release\ // | sed s/\ .*//`
-#  elif [ -f /etc/debian_version ] ; then
-#    OS_NAME="Debian `cat /etc/debian_version`"
-#    OS_VERSION=`cat /etc/issue | head -1 |awk '{ print $3 }'`
+  elif [ -f /etc/debian_version ] ; then
+    OS_NAME="Debian `cat /etc/debian_version`"
+    OS_VERSION=`cat /etc/issue | head -1 |awk '{ print $3 }'`
   elif [ -f /etc/slackware-version ]; then 
     OS_NAME=`cat /etc/slackware-version | awk '{ print $1 }'`
     OS_VERSION=`cat /etc/slackware-version | awk '{ print $2 }'`   
@@ -293,8 +293,6 @@ get_last_ainstall () {
 }
 
 
-
-
 #**********************************************************
 # Build freebsd kernel
 #**********************************************************
@@ -333,7 +331,7 @@ fi;
 echo -n "Build kernel (y/n)?: "
 read KERNEL=
 
-if [ x"${KERNEL}" = xy ]; then
+if [ "${KERNEL}" = "" ]; then
 
 #Kernel config
 KERNEL_OPTIONS="
@@ -363,7 +361,7 @@ if [ -f ${KERNEL_FILE} ]; then
 
   echo -n "Install kernel ${KERNEL_FILE}? (y/n): "
   read INSTALL_KERNEL=
-  if [ x${INSTALL_KERNEL} = xy ]; then
+  if [ "${INSTALL_KERNEL}" = "y" ]; then
     make installkernel KERNCONF=${KERNEL_FILE}
   fi;
 else 
@@ -390,18 +388,18 @@ fi;
 
 #Add hosts
 if [ "${OS}" = "FreeBSD" ]; then
-  if [ x"${HOSTNAME}" = x ]; then 
+  if [ x"${_HOSTNAME}" = x ]; then
     echo "${DEFAULT_HOSTNAME}." >> /etc/rc.conf
-    HOSTNAME=${DEFAULT_HOSTNAME}
+    _HOSTNAME=${DEFAULT_HOSTNAME}
     hostname ${DEFAULT_HOSTNAME}
   fi;
   
-  CHECK_HOSTS=`grep ${HOSTNAME} /etc/hosts`
+  CHECK_HOSTS=`grep ${_HOSTNAME} /etc/hosts`
 
   IP=`ifconfig \`route -n get default | grep interface | tail -1 | awk '{ print $2 }'\` | grep "inet " | awk '{ print $2 }'`
   
-  if [ x"${CHECK_HOSTS}" = x ]; then
-    echo "${IP}  ${HOSTNAME}" >> /etc/hosts
+  if [ "${CHECK_HOSTS}" = "" ]; then
+    echo "${IP}  ${_HOSTNAME}" >> /etc/hosts
   fi;
   
   BILLING_WEB_IP=${IP}
@@ -1809,8 +1807,8 @@ case "${OS_NAME}" in
   ;;
   ARCH)
     pacman -Q dialog > /dev/null 2>&1
-    a=`echo $?`;
-    if [ $a = 1 ];  then
+    res=`echo $?`;
+    if [ "${res}" = 1 ];  then
       pacman -S --noconfirm dialog
     fi;
     pacman -Q cvs > /dev/null 2>&1
@@ -2276,3 +2274,4 @@ fi;
 check_ps
 
 ${DIALOG} --msgbox "ABillS Install complete\n\nAdmin  Interface\n https://${BILLING_WEB_IP}:9443/admin/\n Login: abills\n Password: abills\n${RESULT}" 20  52
+

@@ -1,11 +1,10 @@
 <form action='$SELF_URL' class='form-horizontal'>
 <input type='hidden' name='index' value=$index>
-<input type='hidden' name='action' value=%ACTION%>
-<input type='hidden' name='id' value=%ID%>
+<input type='hidden' name='ID' value=%ID%>
 
-  <div class='panel panel-form panel-primary'>
-    <div class='panel-heading'>_{GROUPS}_</div>
-    <div class='panel-body'>
+  <div class='box box-form box-primary'>
+    <div class='box-header with-border'>_{GROUPS}_</div>
+    <div class='box-body'>
       <div class='form-group'>
         <label class='control-element col-md-3'>_{GROUP}_</label>
         <div class='col-md-9'>
@@ -19,8 +18,8 @@
         </div>
       </div>
     </div>
-    <div class='panel-footer'>
-      <button type='submit' class='btn btn-primary'>%BUTTON%</button>
+    <div class='box-footer'>
+      <button type='submit' name='ACTION' class='btn btn-primary'>%ACTION_LNG%</button>
     </div>
   </div>
 

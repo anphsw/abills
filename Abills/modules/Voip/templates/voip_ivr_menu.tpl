@@ -1,12 +1,14 @@
-<div class='panel panel-default panel-form'>
-    <div class='panel-body'>
+<div class='box box-theme box-form'>
+  <div class='box-header'>
+    <h4>IVR _{MENU}_</h4>
+  </div>
+  <div class='box-body'>
 
         <form action=$SELF_URL method=post class='form-horizontal'>
             <input type=hidden name=index value=$index>
             <input type=hidden name=ID value='%ID%'>
 
             <fieldset>
-                <legend>IVR _{MENU}_</legend>
                 <div class='form-group'>
                     <label class='control-label col-md-3' for='MAIN_ID'>_{MAIN}_:</label>
                     <div class='col-md-9'>
@@ -62,13 +64,11 @@
                     </div>
                 </div>
 
+   </div>
+   <div class='box-footer'>
+    <input type='submit' class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
+   </div>
 
-                <input type='submit' class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
-
-
-            </fieldset>
-        </form>
-
-    </div>
+  </fieldset>
+ </form>
 </div>
-

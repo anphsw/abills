@@ -7,12 +7,9 @@ package Conf;
 =cut
 
 use strict;
-use main;
-our (@EXPORT_OK, %EXPORT_TAGS);
-use Exporter;
-our @ISA = ('main', 'Exporter');
+use parent qw(main Exporter);
 
-our $VERSION = 2.00;
+our $VERSION = 7.00;
 
 our @EXPORT = qw(
   config_list
@@ -30,12 +27,13 @@ sub new {
   ($admin, $CONF) = @_;
 
   $admin->{MODULE} = 'Config';
-  my $self = {};
+  my $self = {
+    db    => $db,
+    admin => $admin,
+    conf  => $CONF
+  };
 
   bless($self, $class);
-  $self->{db}=$db;
-  $self->{admin}=$admin;
-  $self->{conf}=$CONF;
 
   $self->query2("SELECT param, value FROM config WHERE domain_id = ?",
     undef,
@@ -81,6 +79,9 @@ sub config_list {
   if ($attr->{VALUE}) {
     push @WHERE_RULES, @{ $self->search_expr($attr->{VALUE}, 'STR', 'value') };
   }
+  if($attr->{CUSTOM}){
+    push @WHERE_RULES, "param LIKE 'ORGANIZATION_%'";
+  }
 
   push @WHERE_RULES, 'domain_id=\'' . ($admin->{DOMAIN_ID} || $attr->{DOMAIN_ID} || 0) . '\'';
 
@@ -90,7 +91,7 @@ sub config_list {
   my $list = $self->{list};
 
   if (!$attr->{CONF_ONLY} || $self->{TOTAL} > 0) {
-    $self->query2("SELECT count(*) AS total FROM config $WHERE", undef, { INFO => 1 });
+    $self->query2("SELECT COUNT(*) AS total FROM config $WHERE", undef, { INFO => 1 });
   }
 
   return $list;
@@ -126,29 +127,35 @@ sub config_info {
 #**********************************************************
 =head2 config_change($param, $attr)
 
+  Arguments:
+    $attr
+       WITHOUT_PARAM_CHANGE - Change without param
+
 =cut
 #**********************************************************
 sub config_change {
   my $self = shift;
   my ($param, $attr) = @_;
 
-  #my %FIELDS = (
-  #  PARAM     => 'param',
-  #  value      => 'value',
-  #  DOMAIN_ID => 'domain_id'
-  #);
-
-  $self->changes2(
-    {
+  if ($attr->{WITHOUT_PARAM_CHANGE}) {
+    $self->changes2({
       CHANGE_PARAM => 'PARAM',
       TABLE        => 'config',
-#      FIELDS       => \%FIELDS,
-      OLD_INFO     => $self->config_info({ PARAMS => $param, DOMAIN_ID => $attr->{DOMAIN_ID} }),
-      DATA         => $attr,
-      %$attr
+      DATA         => $attr
     }
-  );
-
+    )
+  }
+  else {
+    $self->changes2(
+      {
+        CHANGE_PARAM => 'PARAM',
+        TABLE        => 'config',
+        OLD_INFO     => $self->config_info({ PARAM => $param, DOMAIN_ID => $attr->{DOMAIN_ID} }),
+        DATA         => $attr,
+        %$attr
+      }
+    );
+  }
   return $self;
 }
 
@@ -169,8 +176,12 @@ sub config_change {
 sub config_add {
   my $self = shift;
   my ($attr) = @_;
-
-  $self->query_add('config', $attr, { REPLACE => ($attr->{REPLACE}) ? 1 : undef });
+  
+  $self->query_add('config',
+    { %$attr,
+      DOMAIN_ID => $admin->{DOMAIN_ID}
+    },
+    { REPLACE => ($attr->{REPLACE}) ? 1 : undef });
 
   return $self;
 }
@@ -297,12 +308,58 @@ sub list {
   my $list = $self->{list};
 
   if ($self->{TOTAL} >= $attr->{PAGE_ROWS} || $PG > 0) {
-    $self->query2("SELECT count(*) AS total FROM config_variables $WHERE",
+    $self->query2("SELECT COUNT(*) AS total FROM config_variables $WHERE",
       undef, { INFO => 1 });
   }
 
   return $list;
 }
+
+#**********************************************************
+=head2 check_password($password) - checks for password security
+
+  Arguments:
+    $password - string to check
+    $config_string - (optional) encoded password constraints
+    
+  Returns:
+    boolean
+    
+=cut
+#**********************************************************
+sub check_password {
+  my ($password, $config_string) = @_;
+  
+  $config_string //= $CONF->{CONFIG_PASSWORD};
+  
+  my ($length, $case, $special_chars) = split(':', $config_string, 3);
+  
+  return 0 if (length $password < $length);
+  
+  # Construct regexp
+  my $case_part = 'a-zA-Z';
+  if ($case == 0){
+    $case_part = 'A-Z'
+  }
+  elsif ($case == 1){
+    $case_part = 'a-z'
+  }
+     
+  my $special_chars_part = '-_!&%@#:0-9';
+  if ($special_chars == 0) {
+    $special_chars_part = '0-9'
+  }
+  elsif ($special_chars == 1) {
+    $special_chars_part = '-_!&%@#:';
+  }
+  
+  if ($password =~ /[$case_part]+/ && $password =~ /[$special_chars_part]+/ ){
+    return 1;
+  }
+  
+  return 0;
+}
+
 
 
 1

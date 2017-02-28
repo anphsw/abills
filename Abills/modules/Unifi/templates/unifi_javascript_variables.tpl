@@ -22,7 +22,6 @@
     jQuery.cookie('hotspot_user_id', mac, cookieOpts);
   }
 
-
   var lang = {
     "WAIT_FOR_AUTH"  : '_{WAIT_FOR_AUTH}_' || 'Подождите, пока проходит авторизация',
     "UNLIM"          : '_{UNLIM}_' || 'Неограничено',

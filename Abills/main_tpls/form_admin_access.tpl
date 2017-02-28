@@ -1,5 +1,5 @@
-<div class='panel panel-default panel-form'>
-    <div class='panel-body'>
+<div class='box box-theme box-form'>
+    <div class='box-body'>
 
         <form class='form-horizontal' action='$SELF_URL' method='post' role='form'>
             <input type=hidden name='index' value='$index'>

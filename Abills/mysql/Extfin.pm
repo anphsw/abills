@@ -347,7 +347,9 @@ sub balances_add{
 }
 
 #**********************************************************
-# Show full reports
+=head2 extfin_report_balances()  Show full reports
+
+=cut
 #**********************************************************
 sub extfin_report_balances{
   my $self = shift;
@@ -390,9 +392,9 @@ sub extfin_report_balances{
 
   $self->query2( "SELECT report.id,
    u.id,
-   IF(company.name is not null, company.name, IF(pi.fio<>'', pi.fio, u.id)),
-   \@a := if ((SELECT SUM(p.sum) FROM payments p WHERE (u.uid = p.uid) $PAYMENTS_WHERE) is not null, $report_sum + (SELECT SUM(p.sum) FROM payments p WHERE (u.uid = p.uid) $PAYMENTS_WHERE), $report_sum),
-   \@b := (SELECT SUM(f.sum) FROM fees f WHERE (u.uid = f.uid) $FEES_WHERE),
+   IF(company.name is not null, company.name, IF(pi.fio<>'', pi.fio, u.id)) AS user_name,
+   \@a := if ((SELECT SUM(p.sum) FROM payments p WHERE (u.uid = p.uid) $PAYMENTS_WHERE) is not null, $report_sum + (SELECT SUM(p.sum) FROM payments p WHERE (u.uid = p.uid) $PAYMENTS_WHERE), $report_sum) AS payment_sum,
+   \@b := (SELECT SUM(f.sum) FROM fees f WHERE (u.uid = f.uid) $FEES_WHERE) AS fees_sum,
    \@a,
    u.uid
   FROM extfin_balance_reports report
@@ -408,7 +410,7 @@ sub extfin_report_balances{
     $attr
   );
 
-  my $list = $self->{list};
+  my $list = $self->{list} || [];
 
   $self->query2( "SELECT
     \@a := SUM(if ((SELECT SUM(p.sum) FROM payments p WHERE (u.uid = p.uid) $PAYMENTS_WHERE) is not null, $report_sum + (SELECT SUM(p.sum) FROM payments p WHERE (u.uid = p.uid) $PAYMENTS_WHERE), $report_sum)) AS total_debit,
@@ -886,7 +888,9 @@ sub paid_type_info{
 }
 
 #**********************************************************
-# fees
+=head2 paid_types_list($attr)
+
+=cut
 #**********************************************************
 sub paid_types_list{
   my $self = shift;
@@ -907,7 +911,9 @@ sub paid_types_list{
 }
 
 #**********************************************************
-#
+=head2 extfin_debetors()
+
+=cut
 #**********************************************************
 sub extfin_debetors{
   my $self = shift;

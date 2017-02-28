@@ -6,8 +6,8 @@
 
 <fieldset>
 
-<div class='panel panel-default panel-form'>
-  <div class='panel-body'>
+<div class='box box-theme box-form'>
+  <div class='box-body'>
 
 <div class='form-group'>
   <label class='control-label col-md-3' for='TP_ID'>_{TARIF_PLAN}_</label>
@@ -52,24 +52,16 @@
 
 </div>
 
-    <div class='panel-footer'>
+    <div class='box-footer'>
         <input type=submit class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
+        %HISTORY_BTN%
     </div>
 
 
 </div>
 
-
-
-
-
 <div>%REPORTS_LIST%</div>
 
-<!--
-<div class='col-sm-offset-2 col-sm-8'>
-  <input type=submit name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'>
-</div>
--->
 
 </fieldset>
 </form>
