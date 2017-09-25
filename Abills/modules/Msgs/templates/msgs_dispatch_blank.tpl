@@ -1,4 +1,4 @@
-<head> 
+<head>
  <META HTTP-EQUIV='Content-Type' CONTENT='text/html; charset=utf-8'>
 
 </head>
@@ -28,9 +28,9 @@ table.naryad td {
 <tr><td>_{MAIL_BOX}_: %ORGANIZATION_MAIL%</td><td>_{FAX}_: %ORGANIZATION_FAX%</td></tr>
 <tr><td>_{ADDRESS}_: %ORGANIZATION_ADDRESS%</td><td>г. xxxxx</td></tr>
 
-<tr><th colspan=2>Наряд-путевка на производство работ монтажной бригадой</th></tr>
+<tr><th colspan=2>_{DISPATCH_PASS}_</th></tr>
     <tr>
-        <td>в составе:</td>
+        <td>_{IN_DISPATCH}_:</td>
         <td>_{DATE}_: %PLAN_DATE%</td>
     </tr>
 
@@ -38,12 +38,12 @@ table.naryad td {
 <table width=600 border=1 class='naryad'>
     <tr>
         <th>#</th>
-        <th>Логин</th>
-        <th>Место работ(_{FIO}_, _{ADDRESS}_)</th>
+        <th>_{LOGIN}_</th>
+        <th>_{WORCK_PLACE}_(_{FIO}_, _{ADDRESS}_)</th>
          <th> _{PHONE}_</th>
          <th> _{SUBJECT}_</th>
-        <th>Состав работ</th>
-        <th>Отметка о выполнении</th>
+        <th>_{WORCK_FORM}_</th>
+        <th>_{DONE_WORCK_MARK}_</th>
     </tr>
 <tr><td>&nbsp; %ORDER_NUM_1%</td><td>%ORDER_PERSONAL_INFO_LOGIN_1%</td><td>%ORDER_PERSONAL_INFO_1%</td><td>%ORDER_PERSONAL_INFO_PHONE_1%</td><td>%ORDER_SUBJECT_1%</td><td>%ORDER_JOB_1% %ORDER_JOB_DATE_1%</td><td> </td></tr>
 <tr><td>&nbsp; %ORDER_NUM_2%</td><td>%ORDER_PERSONAL_INFO_LOGIN_2%</td><td>%ORDER_PERSONAL_INFO_2%</td><td>%ORDER_PERSONAL_INFO_PHONE_2%</td><td>%ORDER_SUBJECT_2%</td><td>%ORDER_JOB_2% %ORDER_JOB_DATE_2%</td><td> </td></tr>
@@ -68,8 +68,8 @@ table.naryad td {
 </table>
 </td></tr>
 <tr><td>
-<tr><td>Наряд составил:</td><td>%ADMIN_FIO%</td></tr>
-<tr><td>Наряд получил:</td><td>%RESPOSIBLE_FIO%</td></tr>
+<tr><td>_{DISPATCH_CREATE}_:</td><td>%ADMIN_FIO%</td></tr>
+<tr><td>_{DISPATCH_TAKE}_:</td><td>%RESPOSIBLE_FIO%</td></tr>
 
 
 </table>
@@ -77,6 +77,7 @@ table.naryad td {
 <p>
     <a href='javascript:window.print();' class=linkm1><b>_{PRINT}_</b></a> ::
 <a href='$SELF_URL?qindex=$FORM{qindex}&print=$FORM{print}&pdf=1' target=_pdf class=linkm1><b>PDF</b></a> ::
-    <a href='javascript:window.close();' class=linkm1><b>_{CLOSE}_</b></a>
+    <a href='javascript:window.close();' class=linkm1><b>_{CLOSE}_</b></a>::
+    <a href='$SELF_URL?qindex=$FORM{qindex}&print=$FORM{print}&NO_CLOSE_MSG=1' class=linkm1><b>_{SHOW_ONLE_OPEN_DISPATCH}_</b></a>
 </p>
 </div>

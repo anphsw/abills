@@ -6,6 +6,7 @@
         <form name='CABLECAT_CONNECTERS' id='form_CABLECAT_CONNECTERS' method='post' class='form form-horizontal'>
           <input type='hidden' name='index' value='$index'/>
           <input type='hidden' name='ID' value='%ID%'/>
+          <input type='hidden' name='TYPE_ID' value='2'/>
           <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='1'/>
 
           <div class='form-group'>
@@ -19,7 +20,7 @@
           <div class='form-group'>
             <label class='control-label col-md-3 required' for='TYPE_ID'>_{CONNECTER_TYPE}_</label>
             <div class='col-md-9'>
-              %TYPE_ID_SELECT%
+              %CONNECTER_TYPE_ID_SELECT%
             </div>
           </div>
 
@@ -72,8 +73,7 @@
     var table          = jQuery('' + table_selector);
     Events.on('AJAX_SUBMIT.CABLECAT_CREATE_COMMUTATION_FORM', function () {
       table.load(window.location.href + ' ' + table_selector, function () {
-        // For "del" button functionality
-        defineCommentModalLogic(table);
+        jQuery('input[name="CABLE_IDS"]').prop('checked', false);
       });
     });
   })

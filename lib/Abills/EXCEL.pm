@@ -402,8 +402,14 @@ sub addrow {
       $worksheet->write( $self->{row_number}, $col_num, decode( 'utf8', $text ), $format || undef );
     }
     else {
-      $worksheet->write( $self->{row_number}, $col_num, decode( 'utf8', $val ), $self->{format} || undef );
+      if($val =~ /^0/) {
+        $worksheet->write_string( $self->{row_number}, $col_num, decode( 'utf8', $val ), $self->{format} || undef );
+      }
+      else {
+        $worksheet->write( $self->{row_number}, $col_num, decode( 'utf8', $val ), $self->{format} || undef );
+      }
     }
+
     print "addrow: $self->{row_number} col: $col_num = $val\n" if ($FORM{DEBUG});
   }
 
@@ -422,7 +428,8 @@ sub addtd {
   my $select_present = ($self->{SELECT_ALL}) ? 1 : 0;
 
   for (my $i=0; $i<=$#row; $i++) {
-    my $val = $row[$i+$select_present];
+    my $val = $row[($i+$select_present)];
+
     if(!$self->{title}->[$self->{col_num}] || ($self->{title}->[$self->{col_num}] && $self->{title}->[$self->{col_num}] eq '-')) {
       next;
     }
@@ -435,9 +442,9 @@ sub addtd {
       my $text   = $2;
 
       my $format = $workbook->add_format(
-          color   => ($color =~ /^#(\d+)/) ? $1 :$text_colors{$color},
-          size    => 10,
-          #bold    => 1,
+        color   => ($color =~ /^#(\d+)/) ? $1 :$text_colors{$color},
+        size    => 10,
+        #bold    => 1,
           #bg_color=> 'silver',
       );
 
@@ -455,30 +462,6 @@ sub addtd {
 
   return $self;
 }
-
-##**********************************************************
-#=head2 th()
-#
-#=cut
-##**********************************************************
-#sub th {
-#  my $self = shift;
-#  my ($value) = @_;
-#
-#  return $value;
-#}
-#
-##**********************************************************
-#=head2 td()
-#
-#=cut
-##**********************************************************
-#sub td {
-#  my $self = shift;
-#  my ($value) = @_;
-#
-#  return $value;
-#}
 
 #**********************************************************
 =head2 table_title($sort, $desc, $pg, $caption, $qs)
@@ -521,7 +504,9 @@ sub img {
 }
 
 #**********************************************************
-# show
+=head2 show($attr)
+
+=cut
 #**********************************************************
 sub show {
   my $self = shift;
@@ -804,7 +789,7 @@ sub AUTOLOAD {
   return if ($AUTOLOAD =~ /::DESTROY$/);
   my $function = $AUTOLOAD;
 
-  if($function =~ /table_header|progress_bar|/) {
+  if($function =~ /table_header|progress_bar/) {
     return q{};
   }
 

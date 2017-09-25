@@ -23,6 +23,7 @@
   var _USERS      = '_{USERS}_';
   var _STREET     = '_{STREET}_';
   var _BUILD      = '_{BUILD}_';
+  var _BUILD2      = '_{BUILD}_ POLYGON';  
   var _ROUTE      = '_{ROUTE}_' || 'Route';
   var _ROUTES     = '_{ROUTES}_' || 'Routes';
   var _WIFI       = '_{WIFI}_' || 'Wi-Fi';
@@ -78,6 +79,7 @@
 
   //Constants
   var BUILD        = "BUILD";
+  var BUILD2       = "BUILD2";
   var ROUTE        = "ROUTE";
   var DISTRICT     = "DISTRICT";
   var WIFI         = "WIFI";

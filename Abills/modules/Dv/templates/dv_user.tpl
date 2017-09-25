@@ -151,23 +151,25 @@
 
           <div class='form-group'>
             <label class='control-label col-md-3' for='PORT'>_{PORT}_</label>
-            <div class='col-md-3'>
+            <div class='col-md-9'>
               <input id='PORT' name='PORT' value='%PORT%' placeholder='%PORT%'
                      class='form-control' type='text'>
             </div>
-
-
-            <label class='control-label col-md-3' for='CALLBACK'>Callback</label>
-            <div class='col-md-2'>
-              <input id='CALLBACK' type='checkbox' name='LOGINS' value='1' %CALLBACK%>
-            </div>
           </div>
 
-          <div class='form-group'>
-            <label class='control-label col-md-3' for='DETAIL_STATS'>_{DETAIL}_</label>
-            <div class='col-md-9'>
-              <input id='DETAIL_STATS' name='DETAIL_STATS' value='1' %DETAIL_STATS%
-                     type='checkbox'>
+          <div class='row'>
+            <div class='checkbox col-md-6'>
+              <label>
+                <input id='CALLBACK' type='checkbox' name='CALLBACK' data-return='1' value='1' %CALLBACK%>
+                <strong>Callback</strong>
+              </label>
+            </div>
+
+            <div class='checkbox col-md-6'>
+              <label>
+                <input type='checkbox' id='DETAIL_STATS' name='DETAIL_STATS' data-return='1' value='1' %DETAIL_STATS%/>
+                <strong>_{DETAIL}_</strong>
+              </label>
             </div>
           </div>
 

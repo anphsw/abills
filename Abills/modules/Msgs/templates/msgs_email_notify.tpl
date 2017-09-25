@@ -14,5 +14,6 @@ _{HELLO}_, %FIO%
 %ATTACHMENT%
 ---------------------------------------
 _{SITE}_:   %SITE%
+_{SUBJECT_URL}_:   %SUBJECT_URL%
 =======================================
 _{DATE}_: %DATE% %TIME%

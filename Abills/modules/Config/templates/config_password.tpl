@@ -25,10 +25,10 @@
         <div class='col-md-7 text-left'>
 
           <div class='radio'>
-            <label><input type='radio' name='CASE' id='CASEUPPER' %CASE_0_CHECKED% value='0'>_{UPPERCASE}_ (ABC)</label>
+            <label><input type='radio' name='CASE' id='CASEUPPER' %CASE_0_CHECKED% value='0'>_{LOWERCASE}_ (abc)</label>
           </div>
           <div class='radio'>
-            <label><input type='radio' name='CASE' id='CASELOWER' %CASE_1_CHECKED% value='1'>_{LOWERCASE}_ (abc)</label>
+            <label><input type='radio' name='CASE' id='CASELOWER' %CASE_1_CHECKED% value='1'>_{UPPERCASE}_ (ABC)</label>
           </div>
           <div class='radio'>
             <label><input type='radio' name='CASE' id='CASEBOTH' %CASE_2_CHECKED% value='2'>_{BOTH}_ (aBc)</label>
@@ -51,6 +51,9 @@
           </div>
           <div class='radio'>
             <label><input type='radio' name='CHARS' id='CHARSBOTH' %CHARS_2_CHECKED% value='2'>_{BOTH}_</label>
+          </div>
+          <div class='radio'>
+            <label><input type='radio' name='CHARS' id='CHARSNONE' %CHARS_3_CHECKED% value='3'>_{NO}_</label>
           </div>
         </div>
       </div>
@@ -92,10 +95,10 @@
       length = Math.min(length, max_length);
       length = Math.max(length, min_length);
 
-      var _case  = get_radio_value('CASE');
-      var _chars = get_radio_value('CHARS');
+      var _case  = getRadioValue('CASE');
+      var _chars = getRadioValue('CHARS');
 
-      var generated_password = generate_password({LENGTH : length, CASE : _case, CHARS : _chars});
+      var generated_password = generatePassword({LENGTH: length, CASE: _case, CHARS: _chars});
 
       _preview_input.val(generated_password);
     });

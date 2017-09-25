@@ -44,7 +44,10 @@ $lang{SYSTEM_ID}='Название системы';
 $lang{UPTIME}='Время работы';
 $lang{ERR_NOT_RESPONSE}='Устройство не отвечает';
 $lang{ONU_STATUS}='Статус приставки';
-$lang{POWER}='Сила сигнала';
+$lang{POWER}='Уровень сигнала';
 $lang{TEMPERATURE}='Температура';
 $lang{VOLTAGE}='Вольтаж';
 $lang{UNREGISTER}='Незарегистрированые';
+$lang{DEVICE}='Устройство';
+
+$lang{BRANCH}='Ветка';

@@ -93,7 +93,7 @@ function ABillingLinkManager() {
   };
   
   this.removeObject = function (layer_id, object_id, emulate) {
-    return 'index.cgi?get_index=maps_add_2&header=2'
+    return 'index.cgi?get_index=maps_edit&header=2'
         + '&LAYER_ID=' + layer_id
         + '&OBJECT_ID=' + object_id
         + '&del=' + 1
@@ -385,7 +385,6 @@ var MapObjectTypesRefs = (function () {
       type: WELL
     });
     
-    
     var AMapCustomPoint = AMapPoint.create({
       type: CUSTOM_POINT,
       send: function () {
@@ -425,20 +424,115 @@ var MapObjectTypesRefs = (function () {
     var AMapWifi = AMapPoint.create({
       type   : WIFI,
       encoded: null,
-      
+
       emit: function (overlay) {
-        this.encoded = GeoJsonExporter.encodeCircle(overlay);
+
+        this.object = {overlay: overlay, type: 'polygon'};
         this.ready   = true;
       },
-      
+
       send: function () {
-        var params = {TYPE: this.type};
-        $.extend(params, this.encoded);
         
-        var link = aBillingAddressManager.getForm(params);
-        loadToModal(link);
-      }
+       loadToModal('index.cgi?get_index=maps_edit&header=2&LAYER_ID=2&TYPE=WIFI');
+       
+       var self = this;
+        Events.once('AJAX_SUBMIT.WIFI_ADD_FORM', function(data){
+          aModal.hide();
+          
+          var wifi_id = data.MESSAGE.ID;
+          submit_geometry(wifi_id)
+        });
+       
       
+        var submit_geometry = function(wifi_id){
+          var geoJSON        = GeoJsonExporter.toGeoJSON([self.object]);
+          var geoJSONEncoded = JSON.stringify(geoJSON);
+        
+          var params = {
+            TYPE        : WIFI,
+            LAYER_ID    : 2,
+            OBJECT_ID   : wifi_id,
+            JSON        : geoJSONEncoded,
+            add         : 1
+          };
+        
+          if (self.customParams !== null) {
+            $.extend(params, this.customParams);
+          }
+        
+          $.extend(params, aBillingAddressManager.getFormParams());
+        
+          loadToModal('index.cgi', params);
+        }
+      }
+    });
+    
+    var AMapBuild2 = AMapPoint.create({
+      type   : BUILD2,
+      encoded: null,
+
+      emit: function (overlay) {
+
+        this.object = {overlay: overlay, type: 'polygon'};
+        this.ready  = false;
+        if (FORM['LOCATION_ID']) {
+          this.location_id = FORM['LOCATION_ID'];
+          this.ready = true;
+        }
+      },
+      
+      proceed : function (callback)  {
+        var self = this;
+        var location = new ABillingLocation();
+        location.askLocation(function (locationC) {
+          if (locationC.newNumber) {
+            self.sId       = locationC.streetId;
+            self.newNumber = locationC.newNumber;
+          }
+          else {
+            self.location_id = locationC.getLocationId();
+          }
+          if ( self.location_id || self.newNumber) {
+            self.ready = true;
+            confirmAddingPoint();
+          }
+        });
+      },
+      
+      send: function (callback) {
+        var self = this;
+        aModal.hide();
+        console.log(self);
+        var geoJSON        = GeoJsonExporter.toGeoJSON([self.object]);
+        var geoJSONEncoded = JSON.stringify(geoJSON);
+          
+        var params = {
+          TYPE        : BUILD2,
+          LAYER_ID    : 12,
+          JSON        : geoJSONEncoded,
+          add         : 1
+        };
+        if (self.location_id) {
+          params.LOCATION_ID = self.location_id;
+        }
+        if (FORM['OBJECT_ID']) {
+          params.OBJECT_ID = FORM['OBJECT_ID'];
+        }
+        if (self.sId) {
+          params.STREET_ID = self.sId;
+          params.NUMBER = self.newNumber;
+          params.ADD_ADDRESS_BUILD = 1;
+        }
+          
+        if (self.customParams !== null) {
+          $.extend(params, this.customParams);
+        }
+          
+        $.extend(params, aBillingAddressManager.getFormParams());
+        console.log(params);
+        postAndLoadToModal('index.cgi', params);
+
+      }
     });
     
     var AMapRoute = AMapObject.create({
@@ -509,7 +603,7 @@ var MapObjectTypesRefs = (function () {
           yes: function () {}
         });
       },
-      send        : function () {
+      send        : function (callback) {
         var geoJSON        = GeoJsonExporter.toGeoJSON(this.objects);
         var geoJSONEncoded = JSON.stringify(geoJSON);
         
@@ -525,7 +619,7 @@ var MapObjectTypesRefs = (function () {
         
         $.extend(params, aBillingAddressManager.getFormParams());
         
-        postAndLoadToModal('index.cgi', params);
+        postAndLoadToModal('index.cgi', params, callback);
       }
     });
   
@@ -535,7 +629,7 @@ var MapObjectTypesRefs = (function () {
         this.ready = true;
         confirmAddingPoint();
       },
-      send   : function () {
+      send   : function (callback) {
         // Get object external form
         var self = this;
       
@@ -552,6 +646,16 @@ var MapObjectTypesRefs = (function () {
           // Maybe should split such params later
           delete params['add_func'];
           $.extend(params, this.customParams);
+          
+          // Alow cable to find his closest wells
+          if (this.customParams['CALCULATE_PARAMS_JS_FUNCTION']
+              && isDefined(window[this.customParams['CALCULATE_PARAMS_JS_FUNCTION']])
+          ){
+            var calculated_params = window[this.customParams['CALCULATE_PARAMS_JS_FUNCTION']](self.objects);
+            if (calculated_params){
+              params = $.extend(params, calculated_params);
+            }
+          }
         }
       
         Events.once('maps.external_object.form_loaded', function () {
@@ -586,8 +690,10 @@ var MapObjectTypesRefs = (function () {
               add_hidden('COORDY', geometry[0].OBJECT.COORDX);
               
               Events.once('AJAX_SUBMIT.' + form_id, function(){
+                if (callback) callback();
+                
                 MapLayers.refreshLayer(self.layer_id);
-                aModal.hide()
+                aModal.hide();
               });
               
             }
@@ -669,10 +775,12 @@ var MapObjectTypesRefs = (function () {
       3: AMapRoute,
       4: AMapExternalObject,
       //3: AMapDistrict,
-      6: AMapCustomPoint
+      6: AMapCustomPoint,
+      12: AMapBuild2
     };
     
     var res = refs[layer_id];
+    
     if (typeof(res) !== 'undefined') {
       return res;
     }

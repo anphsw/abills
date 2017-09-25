@@ -18,23 +18,23 @@ use vars qw(
   $users
   $db
   $admin
- );
+  );
 
 my $counter = 10;
 plan tests => ($counter + 4);
 
-require_ok( "../libexec/config.pl" );
+require_ok("../libexec/config.pl");
 
-open ( my $HOLE, '>>', '/dev/null' );
+open (my $HOLE, '>>', '/dev/null');
 disable_output();
-require_ok( "../cgi-bin/admin/index.cgi" );
-require_ok( "../Abills/modules/Events/webinterface" );
+require_ok("../cgi-bin/admin/index.cgi");
+require_ok("../Abills/modules/Events/webinterface");
 enable_otput();
 
 #Initialization
-require_ok( 'Events' );
+require_ok('Events');
 
-my $Events = Events->new( $db, $admin, \%conf );
+my $Events = Events->new($db, $admin, \%conf);
 
 #$Hotspot->{debug} = 1;
 
@@ -53,12 +53,12 @@ event_add();
 
 sub event_add {
   for my $group_id ( 1 .. $counter ) {
-    $Events->events_add( {
-        %{$test_event},
-        GROUP_ID    => 1,
-        PRIORITY_ID => ($group_id % 3),
-        STATE_ID    => 1,
-      } );
+    $Events->events_add({
+      %{$test_event},
+      GROUP_ID    => 1,
+      PRIORITY_ID => ($group_id % 3),
+      STATE_ID    => 1,
+    });
     ok(!$Events->{errno}, 'Added');
   }
 }

@@ -8,3 +8,9 @@ $lang{MASK} = 'Mask';
 $lang{EXTENDED} = 'Extended';
 $lang{SCAN} = 'Scan';
 $lang{DO_SCAN} = 'Scan';
+$lang{IP_ADDRESS} = 'IP address';
+
+$lang{SPLIT_TO} = 'Split to';
+
+
+1;

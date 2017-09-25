@@ -57,10 +57,18 @@ function initModalLogic() {
   
   $name.on('input', function () {
     var text = this.value;
-    
+    var type = $type_select.val();
     var text_upper = text.toUpperCase();
     
     $name.val(text_upper);
+    
+    // If select, there's propably '_ID' part we don't want in label
+    if (type === 'select' && text_upper.length > 4){
+      if (text_upper.substr(text_upper.length - 3, text_upper.length) === '_ID'){
+        text_upper = text_upper.substr(0, text_upper.length - 3);
+      }
+    }
+    
     $label.val('_{' + text_upper + '}_');
     
   });

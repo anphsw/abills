@@ -7,41 +7,43 @@ package Eltex_smg;
   Auth
   http://tools.ietf.org/html/draft-smith-sipping-auth-examples-01
 
+=head2 VERSION
+
+  VERSION: 1.10
+
 =cut
 #**********************************************************
 
+use parent qw(main Auth);
 use strict;
-# User name expration
-use main;
 use Billing;
-use Auth;
 
-our @ISA = ("main");
 my ($conf, $Billing);
 
-my %RAD_PAIRS  = ();
-my %ACCT_TYPES = ('Start' =>          1, 
-                  'Stop'  =>          2, 
-                  'Alive' =>          3, 
-                  'Interim-Update'=>  3,
-                  'Accounting-On' =>  7, 
-                  'Accounting-Off'=>  8
-                 );
+my %RAD_PAIRS = ();
+my %ACCT_TYPES = (
+  'Start'            => 1,
+  'Stop'             => 2,
+  'Alive'            => 3,
+  'Interim-Update'   => 3,
+  'Accounting-On'    => 7,
+  'Accounting-Off'   => 8
+);
 
 #**********************************************************
 # Init
 #**********************************************************
 sub new {
   my $class = shift;
-  my $db    = shift;
-  ($conf)   = @_;
+  my $db = shift;
+  ($conf) = @_;
 
-  my $self = {};
+  my $self = { };
   bless($self, $class);
 
-  $self->{db}=$db;
+  $self->{db} = $db;
 
-  my $Auth = Auth->new($self->{db}, $conf);
+  #my $Auth = Auth->new($self->{db}, $conf);
   $Billing = Billing->new($self->{db}, $conf);
 
   return $self;
@@ -51,14 +53,16 @@ sub new {
 # Pre_auth
 #**********************************************************
 sub pre_auth {
-  my ($self, $RAD, $attr) = @_;
+  my ($self) = @_;
 
   $self->{'RAD_CHECK'}{'Auth-Type'} = "Accept";
   return 0;
 }
 
 #**********************************************************
-# Preproces
+=head2 preproces($RAD) Preproces
+
+=cut
 #**********************************************************
 sub preproces {
   my ($RAD) = @_;
@@ -69,42 +73,49 @@ sub preproces {
     proxy     => 2
   );
 
-  (undef, $RAD->{H323_CONF_ID}) = split(/=/, $RAD->{H323_CONF_ID}, 2) if ($RAD->{H323_CONF_ID} =~ /=/);
-  $RAD->{H323_CONF_ID} =~ s/ //g;
+  (undef, $RAD->{'h323-conf-id'}) = split(/=/, $RAD->{'h323-conf-id'}, 2) if ($RAD->{'h323-conf-id'} =~ /=/);
+  $RAD->{'h323-conf-id'} =~ s/ //g;
 
-  if ($RAD->{H323_CALL_ORIGIN}) {
-    (undef, $RAD->{H323_CALL_ORIGIN}) = split(/=/, $RAD->{H323_CALL_ORIGIN}, 2) if ($RAD->{H323_CALL_ORIGIN} =~ /=/);
-    $RAD->{H323_CALL_ORIGIN} = $CALLS_ORIGIN{ $RAD->{H323_CALL_ORIGIN} } if ($RAD->{H323_CALL_ORIGIN} ne 1);
+  if ($RAD->{'h323-call-origin'}) {
+    (undef, $RAD->{'h323-call-origin'}) = split(/=/, $RAD->{'h323-call-origin'}, 2) if ($RAD->{'h323-call-origin'} =~ /=/);
+    $RAD->{'h323-call-origin'} = $CALLS_ORIGIN{ $RAD->{'h323-call-origin'} } if ($RAD->{'h323-call-origin'} ne 1);
   }
 
-  (undef, $RAD->{H323_DISCONNECT_CAUSE}) = split(/=/, $RAD->{H323_DISCONNECT_CAUSE}, 2) if (defined($RAD->{H323_DISCONNECT_CAUSE}));
+  (undef, $RAD->{'h323-disconnect-cause'}) = split(/=/, $RAD->{'h323-disconnect-cause'},
+    2) if (defined($RAD->{'h323-disconnect-cause'}));
 
-  $RAD->{CLIENT_IP_ADDRESS} = $RAD->{FRAMED_IP_ADDRESS} if ($RAD->{FRAMED_IP_ADDRESS});
+  $RAD->{'Client-IP-Address'} = $RAD->{'Framed-IP-Address'} if ($RAD->{'Framed-IP-Address'});
 }
 
 #**********************************************************
-# user_info
+=head2 user_info($RAD, $NAS)
+
+=cut
 #**********************************************************
 sub user_info {
   my $self = shift;
-  my ($RAD, $NAS) = @_;
+  my ($RAD) = @_;
 
   my $WHERE = '';
-  if (defined($RAD->{H323_CALL_ORIGIN}) && $RAD->{H323_CALL_ORIGIN} == 0) {
-    $WHERE = "number='$RAD->{CALLED_STATION_ID}'";
-    $RAD->{USER_NAME} = $RAD->{CALLED_STATION_ID};
+  if (defined($RAD->{'h323-call-origin'}) && $RAD->{'h323-call-origin'} == 0) {
+    $WHERE = "number='$RAD->{'Called-Station-Id'}'";
+    $RAD->{'User-Name'} = $RAD->{'Called-Station-Id'};
+  }
+  elsif($RAD->{'User-Name'}) {
+    $RAD->{'User-Name'} =~ s/\@.+//g;
+    $WHERE = "number='$RAD->{'User-Name'}'";
   }
   else {
-    $WHERE = "number='$RAD->{USER_NAME}'";
+    $WHERE = "number='$RAD->{'User-Name'}'";
   }
 
-  $self->query2("SELECT 
+  $self->query2("SELECT
    voip.uid, 
    voip.number,
    voip.tp_id, 
    INET_NTOA(voip.ip) AS ip,
    DECODE(password, '$conf->{secretkey}') AS password,
-   if (voip.logins=0, if(voip.logins is null, 0, tp.logins), voip.logins) AS logins,
+   IF (voip.logins=0, IF(voip.logins is null, 0, tp.logins), voip.logins) AS logins,
    voip.allow_answer,
    voip.allow_calls,
    voip.disable AS voip_disable,
@@ -127,13 +138,13 @@ sub user_info {
    LEFT JOIN tarif_plans tp ON (tp.tp_id=voip.tp_id)
    WHERE
    $WHERE
-   AND (voip.expire='0000-00-00' or voip.expire > CURDATE());",
-  undef,
-  { INFO => 1 }
+   AND (voip.expire='0000-00-00' OR voip.expire > CURDATE());",
+    undef,
+    { INFO => 1 }
   );
 
-  if($self->{errno}) {
-    if($self->{errno} == 2) {
+  if ($self->{errno}) {
+    if ($self->{errno} == 2) {
     }
     return $self;
   }
@@ -151,17 +162,20 @@ sub user_info {
 }
 
 #**********************************************************
-#
+=head2 number_expr($RAD)
+
+=cut
 #**********************************************************
 sub number_expr {
   my ($RAD) = @_;
+
   my @num_expr = split(/;/, $conf->{VOIP_NUMBER_EXPR});
 
-  my $number = $RAD->{CALLED_STATION_ID};
-  for (my $i = 0 ; $i <= $#num_expr ; $i++) {
+  #my $number = $RAD->{'Called-Station-Id'};
+  for (my $i = 0; $i <= $#num_expr; $i++) {
     my ($left, $right) = split(/\//, $num_expr[$i]);
     my $r = eval "\"$right\"";
-    if ($RAD->{CALLED_STATION_ID} =~ s/$left/$r/) {
+    if ($RAD->{'Called-Station-Id'} =~ s/$left/$r/) {
       last;
     }
   }
@@ -170,22 +184,24 @@ sub number_expr {
 }
 
 #**********************************************************
-# Accounting Work_
+=head2 auth($RAD, $NAS)
+
+=cut
 #**********************************************************
 sub auth {
   my $self = shift;
   my ($RAD, $NAS) = @_;
 
-  if (defined($RAD->{H323_CONF_ID})) {
+  if (defined($RAD->{'h323-conf-id'})) {
     preproces($RAD);
   }
 
-  $self->{INFO}='';
-  my $cnu    = $RAD->{CALLED_STATION_ID} || '';
+  $self->{INFO} = '';
+  #my $cnu = $RAD->{'Called-Station-Id'} || '';
 
   # For Cisco
-  if ($RAD->{USER_NAME} =~ /(\S+):(\d+)/) {
-    $RAD->{USER_NAME} = $2;
+  if ($RAD->{'User-Name'} =~ /(\S+):(\d+)/) {
+    $RAD->{'User-Name'} = $2;
   }
 
   if ($conf->{VOIP_NUMBER_EXPR}) {
@@ -196,77 +212,75 @@ sub auth {
   $self->user_info($RAD, $NAS);
 
   if ($self->{errno}) {
-  	my $message = '';
-  	if ($self->{errno} == 2) {
-  		$message = "User not exist '$RAD->{USER_NAME}'";
-  	}
-  	else {
-  		$message = "[$self->{errno}] $self->{errstr}";
-  	}
+    my $message = '';
+    if ($self->{errno} == 2) {
+      $message = "User not exist '$RAD->{'User-Name'}'";
+    }
+    else {
+      $message = "[$self->{errno}] $self->{errstr}";
+    }
 
     $RAD_PAIRS{'Reply-Message'} = $message;
     return 1, \%RAD_PAIRS;
   }
   elsif ($self->{TOTAL} < 1) {
-    $self->{errno}  = 2;
+    $self->{errno} = 2;
     $self->{errstr} = 'ERROR_NOT_EXIST';
-    if (!$RAD->{H323_CALL_ORIGIN}) {
-      $RAD_PAIRS{'Reply-Message'} = "Answer Number Not Exist '$RAD->{USER_NAME}'";
-      $RAD_PAIRS{'Filter-Id'}='answer_not_exist';
+    if (!$RAD->{'h323-call-origin'}) {
+      $RAD_PAIRS{'Reply-Message'} = "Answer Number Not Exist '$RAD->{'User-Name'}'";
+      $RAD_PAIRS{'Filter-Id'} = 'answer_not_exist';
     }
     else {
-      $RAD_PAIRS{'Reply-Message'} = "Caller Number Not Exist '$RAD->{USER_NAME}'";
-      $RAD_PAIRS{'Filter-Id'}='call_not_exist';
+      $RAD_PAIRS{'Reply-Message'} = "Caller Number Not Exist '$RAD->{'User-Name'}'";
+      $RAD_PAIRS{'Filter-Id'} = 'call_not_exist';
     }
     return 1, \%RAD_PAIRS;
   }
 
-  if ($RAD->{'DIGEST_USERNAME'}) {
-    if ($RAD->{DIGEST_METHOD}) {
-    	$self->{INFO}.= "$RAD->{DIGEST_METHOD}/". (($RAD->{H323_CONF_ID}) ? $RAD->{H323_CONF_ID} : '');
+  my $method = q{};
+  if ($RAD->{'Digest-User-Name'}) {
+    if ($RAD->{'Digest-Method'}) {
+      $self->{INFO} .= $RAD->{'Digest-Method'}.'/'.(($RAD->{'h323-conf-id'}) ? $RAD->{'h323-conf-id'} : '');
     }
 
-    my $method = 'REGISTER';
-    my $uri    = 'sip:'. scalar $RAD->{DIGEST_REALM};
+    $method = 'REGISTER';
+    my $uri = 'sip:'.scalar $RAD->{'Digest-Realm'};
 
     # If outgoing call
     my $outgoing = 0;
-    if ($RAD->{H323_GW_ID}) {
+    if ($RAD->{'h323-gw-id'}) {
       $method = 'INVITE';
-      $uri    = $RAD->{DIGEST_URI}; #$cnu . '@' . $RAD->{H323_GW_ID};
+      $uri = $RAD->{'Digest-URI'}; #$cnu . '@' . $RAD->{H323_GW_ID};
       $outgoing = 1;
     }
 
-  	my $res = generate_DigestResponce($RAD->{'DIGEST_USERNAME'}, 
-                        $RAD->{'DIGEST_REALM'},
-                        $RAD->{'DIGEST_NONCE'},
-                        $uri,
-                        $RAD->{'DIGEST_METHOD'},
-                        $self->{PASSWORD}
-                        );
+    my $res = generate_digest_responce($RAD, {
+      URI      => $uri,
+      PASSWORD => $self->{PASSWORD}
+    });
 
-    if ($RAD->{DIGEST_RESPONSE} ne "$res") {
-      $RAD_PAIRS{'Reply-Message'} = "Wrong Digest auth $RAD->{DIGEST_RESPONSE} -> $res";
+    if ($RAD->{'Digest-Response'} ne $res) {
+      $RAD_PAIRS{'Reply-Message'} = "Wrong Digest auth ". $RAD->{'Digest-Response'} ." -> $res";
       return 1, \%RAD_PAIRS;
     }
   }
-  elsif (defined($RAD->{CHAP_PASSWORD}) && defined($RAD->{CHAP_CHALLENGE})) {
-    if (check_chap("$RAD->{CHAP_PASSWORD}", "$self->{PASSWORD}", "$RAD->{CHAP_CHALLENGE}", 0) == 0) {
+  elsif (defined($RAD->{'CHAP-Password'}) && defined($RAD->{'CHAP-Challenge'})) {
+    if (check_chap("$RAD->{'CHAP-Password'}", "$self->{PASSWORD}", "$RAD->{'CHAP-Challenge'}", 0) == 0) {
       $RAD_PAIRS{'Reply-Message'} = "Wrong CHAP password '$self->{PASSWORD}'";
       return 1, \%RAD_PAIRS;
     }
   }
   else {
-    if ($self->{IP} ne '0.0.0.0' && $self->{IP} ne $RAD->{FRAMED_IP_ADDRESS}) {
-      $RAD_PAIRS{'Reply-Message'} = "Not allow IP '$RAD->{FRAMED_IP_ADDRESS}' / $self->{IP} ";
-      $RAD_PAIRS{'Filter-Id'}='not_allow_ip';
+    if ($self->{IP} ne '0.0.0.0' && $self->{IP} ne $RAD->{'Framed-IP-Address'}) {
+      $RAD_PAIRS{'Reply-Message'} = "Not allow IP '$RAD->{'Framed-IP-Address'}' / $self->{IP} ";
+      $RAD_PAIRS{'Filter-Id'} = 'not_allow_ip';
       return 1, \%RAD_PAIRS;
     }
   }
 
   #DIsable
   if ($self->{VOIP_DISABLE}) {
-    if ($self->{VOIP_DISABLE} == 2 && $RAD->{H323_CALL_ORIGIN} == 1) {
+    if ($self->{VOIP_DISABLE} == 2 && $RAD->{'h323-call-origin'} == 1) {
       $RAD_PAIRS{'Reply-Message'} = "Incoming only";
       $RAD_PAIRS{'Filter-Id'} = 'incoming_only';
       return 1, \%RAD_PAIRS;
@@ -279,14 +293,14 @@ sub auth {
   }
   elsif ($self->{USER_DISABLE}) {
     $RAD_PAIRS{'Reply-Message'} = "Account Disable";
-     $RAD_PAIRS{'Filter-Id'} = 'user_disable';
+    $RAD_PAIRS{'Filter-Id'} = 'user_disable';
     return 1, \%RAD_PAIRS;
   }
 
   # 
   if ($self->{LOGINS} > 0) {
-    $self->query2("SELECT count(*) FROM voip_calls 
-       WHERE (calling_station_id='$RAD->{CALLING_STATION_ID}' OR called_station_id='$RAD->{CALLING_STATION_ID}')
+    $self->query2("SELECT COUNT(*) FROM voip_calls 
+       WHERE (calling_station_id='$RAD->{'Calling-Station-Id'}' OR called_station_id='$RAD->{'Calling-Station-Id'}')
        AND status<>2;");
 
     if ($self->{TOTAL} && $self->{list}->[0]->[0] >= $self->{LOGINS}) {
@@ -301,68 +315,68 @@ sub auth {
 
   #$self->{PAYMENT_TYPE} = 0;
   if ($self->{PAYMENT_TYPE} == 0) {
-    $self->{DEPOSIT}           = $self->{DEPOSIT} + $self->{CREDIT};    #-$self->{CREDIT_TRESSHOLD};
-    $RAD->{H323_CREDIT_AMOUNT} = $self->{DEPOSIT};
+    $self->{DEPOSIT} = $self->{DEPOSIT} + $self->{CREDIT};    #-$self->{CREDIT_TRESSHOLD};
+    $RAD->{'h323-credit-amount'} = $self->{DEPOSIT};
 
     #One month freeperiod
-    if ($conf->{VOIP_ONEMONTH_INCOMMING_ALLOW} && ! $self->{VOIP_DISABLE}) {
+    if ($conf->{VOIP_ONEMONTH_INCOMMING_ALLOW} && !$self->{VOIP_DISABLE}) {
 
     }
     #Check deposit
     elsif ($self->{DEPOSIT} <= 0) {
       $RAD_PAIRS{'Reply-Message'} = "Negativ deposit '$self->{DEPOSIT}'. Rejected!";
-      $RAD_PAIRS{'Filter-Id'}='neg_deposit';
+      $RAD_PAIRS{'Filter-Id'} = 'neg_deposit';
       return 1, \%RAD_PAIRS;
     }
 
     if ($self->{DEPOSIT} < $self->{UPLIMIT}) {
       $RAD_PAIRS{'Reply-Message'} = "Too small deposit please recharge balace ($self->{DEPOSIT})";
-      $RAD_PAIRS{'Filter-Id'}='deposit_alert';
+      $RAD_PAIRS{'Filter-Id'} = 'deposit_alert';
     }
   }
-  else {
-    $self->{DEPOSIT} = 0;
-  }
+#  else {
+#    $self->{DEPOSIT} = 0;
+#  }
 
   # if call
-  if ($RAD->{H323_CONF_ID}) {
-    if ($self->{ALLOW_ANSWER} < 1 && $RAD->{H323_CALL_ORIGIN} == 0) {
+  if ($RAD->{'h323-conf-id'}) {
+    if ($self->{ALLOW_ANSWER} < 1 && $RAD->{'h323-call-origin'} == 0) {
       $RAD_PAIRS{'Reply-Message'} = "Not allow answer";
-      $RAD_PAIRS{'Filter-Id'} ='not_allow_answer';
+      $RAD_PAIRS{'Filter-Id'} = 'not_allow_answer';
       return 1, \%RAD_PAIRS;
     }
-    elsif ($self->{ALLOW_CALLS} < 1 && $RAD->{H323_CALL_ORIGIN} == 1) {
+    elsif ($self->{ALLOW_CALLS} < 1 && $RAD->{'h323-call-origin'} == 1) {
       $RAD_PAIRS{'Reply-Message'} = "Not allow calls";
-      $RAD_PAIRS{'Filter-Id'}='not_allow_call';
+      $RAD_PAIRS{'Filter-Id'} = 'not_allow_call';
       return 1, \%RAD_PAIRS;
     }
 
     $self->get_route_prefix($RAD);
     if ($self->{TOTAL} < 1) {
-      $RAD_PAIRS{'Reply-Message'} = "No route '" . $RAD->{'CALLED_STATION_ID'} . "'";
-      $RAD_PAIRS{'Filter-Id'}='no_route';
+      $RAD_PAIRS{'Reply-Message'} = "No route '".$RAD->{'Called-Station-Id'}."'";
+      $RAD_PAIRS{'Filter-Id'} = 'no_route';
       return 1, \%RAD_PAIRS;
     }
     elsif ($self->{ROUTE_DISABLE} == 1) {
-      $RAD_PAIRS{'Reply-Message'} = "Route disabled '" . $RAD->{'CALLED_STATION_ID'} . "'";
-      $RAD_PAIRS{'Filter-Id'}='route_disable';
+      $RAD_PAIRS{'Reply-Message'} = "Route disabled '".$RAD->{'Called-Station-Id'}."'";
+      $RAD_PAIRS{'Filter-Id'} = 'route_disable';
       return 1, \%RAD_PAIRS;
     }
 
     #Get intervals and prices
     #originate
-    if (($RAD->{H323_CALL_ORIGIN} && $RAD->{H323_CALL_ORIGIN} == 1) ||
-       ($RAD->{DIGEST_METHOD} && $RAD->{DIGEST_METHOD} eq "INVITE") ) {
-      $self->{INFO} .= " $RAD->{'CALLED_STATION_ID'}";
+    if (($RAD->{'h323-call-origin'} && $RAD->{'h323-call-origin'} == 1) ||
+      ($RAD->{'Digest-Method'} && $RAD->{'Digest-Method'} eq "INVITE")) {
+      $self->{INFO} .= " $RAD->{'Called-Station-Id'}";
       $self->get_intervals();
 
       if ($self->{TOTAL} < 1) {
-        $RAD_PAIRS{'Reply-Message'} = "No price for route prefix '$self->{PREFIX}' number '" . $RAD->{'CALLED_STATION_ID'} . "'";
-        $RAD_PAIRS{'Filter-Id'}='no_price_for_route';
+        $RAD_PAIRS{'Reply-Message'} = "No price for route prefix '$self->{PREFIX}' number '".$RAD->{'Called-Station-Id'}."'";
+        $RAD_PAIRS{'Filter-Id'} = 'no_price_for_route';
         return 1, \%RAD_PAIRS;
       }
 
-      my ($session_timeout, $ATTR) = $Billing->remaining_time(
+      my ($session_timeout) = $Billing->remaining_time(
         $self->{DEPOSIT},
         {
           TIME_INTERVALS      => $self->{TIME_PERIODS},
@@ -373,22 +387,25 @@ sub auth {
           DAY_OF_YEAR         => $self->{DAY_OF_YEAR},
           REDUCTION           => $self->{REDUCTION},
           POSTPAID            => $self->{PAYMENT_TYPE},
-          PRICE_UNIT          => 'Min'
+          PRICE_UNIT          => 'Min',
+          #DEBUG               => 1
         }
       );
 
+      $self->{INFO} .= " ROUTE: $self->{ROUTE_ID}" if($self->{ROUTE_ID});
+
       if ($session_timeout > 0) {
         $RAD_PAIRS{'Session-Timeout'} = $session_timeout;
-        $RAD_PAIRS{'h323-credit-time'}= $session_timeout;
+        $RAD_PAIRS{'h323-credit-time'} = $session_timeout;
       }
-#      elsif ($session_timeout == -2) {
-#        $RAD_PAIRS{'Reply-Message'} = "Not allow period prefix: $self->{PREFIX}";
-#        $RAD_PAIRS{'Filter-Id'}='not_allow_period';
-#        return 1, \%RAD_PAIRS;
-#      }
+      #      elsif ($session_timeout == -2) {
+      #        $RAD_PAIRS{'Reply-Message'} = "Not allow period prefix: $self->{PREFIX}";
+      #        $RAD_PAIRS{'Filter-Id'}='not_allow_period';
+      #        return 1, \%RAD_PAIRS;
+      #      }
       elsif ($self->{PAYMENT_TYPE} == 0 && $session_timeout <= 0) {
-        $RAD_PAIRS{'Reply-Message'} = "Too small deposit for call (". sprintf("%.2f", $self->{DEPOSIT}). ")";
-        $RAD_PAIRS{'Filter-Id'}='too_small_deposit';
+        $RAD_PAIRS{'Reply-Message'} = "Too small deposit for call (".sprintf("%.2f", $self->{DEPOSIT}).")";
+        $RAD_PAIRS{'Filter-Id'} = 'too_small_deposit';
         return 1, \%RAD_PAIRS;
       }
 
@@ -396,35 +413,35 @@ sub auth {
       if ($NAS->{NAS_TYPE} eq 'asterisk' and $self->{TRUNK_PROTOCOL}) {
         $self->{prepend} = '';
 
-        my $number = $RAD->{'CALLED_STATION_ID'};
+        my $number = $RAD->{'Called-Station-Id'};
         if (defined($self->{REMOVE_PREFIX})) {
           $number =~ s/^$self->{REMOVE_PREFIX}//;
         }
 
         if (defined($self->{ADDPREFIX})) {
-          $number = $self->{ADDPREFIX} . $number;
+          $number = $self->{ADDPREFIX}.$number;
         }
 
         if ($self->{TRUNK_PROTOCOL} eq "Local") {
-          $RAD_PAIRS{'next-hop-ip'} = "Local/" . $self->{prepend} . $number . "\@" . $self->{TRUNK_PROVIDER} . "/n";
+          $RAD_PAIRS{'next-hop-ip'} = "Local/".$self->{prepend}.$number."\@".$self->{TRUNK_PROVIDER}."/n";
         }
         elsif ($self->{TRUNK_PROTOCOL} eq "IAX2") {
-          $RAD_PAIRS{'next-hop-ip'} = "IAX2/" . $self->{TRUNK_PROVIDER} . "/" . $self->{prepend} . $number;
+          $RAD_PAIRS{'next-hop-ip'} = "IAX2/".$self->{TRUNK_PROVIDER}."/".$self->{prepend}.$number;
         }
         elsif ($self->{TRUNK_PROTOCOL} eq "Zap") {
-          $RAD_PAIRS{'next-hop-ip'} = "Zap/" . $self->{TRUNK_PROVIDER} . "/" . $self->{prepend} . $number;
+          $RAD_PAIRS{'next-hop-ip'} = "Zap/".$self->{TRUNK_PROVIDER}."/".$self->{prepend}.$number;
         }
         elsif ($self->{TRUNK_PROTOCOL} eq "SIP") {
-          $RAD_PAIRS{'next-hop-ip'} = "SIP/" . $self->{prepend} . $number . "\@" . $self->{TRUNK_PROVIDER};
+          $RAD_PAIRS{'next-hop-ip'} = "SIP/".$self->{prepend}.$number."\@".$self->{TRUNK_PROVIDER};
         }
         elsif ($self->{TRUNK_PROTOCOL} eq "OH323") {
-          $RAD_PAIRS{'next-hop-ip'} = "OH323/" . $self->{TRUNK_PROVIDER} . "/" . $self->{prepend} . $number;
+          $RAD_PAIRS{'next-hop-ip'} = "OH323/".$self->{TRUNK_PROVIDER}."/".$self->{prepend}.$number;
         }
         elsif ($self->{TRUNK_PROTOCOL} eq "OOH323C") {
-          $RAD_PAIRS{'next-hop-ip'} = "OOH323C/" . $self->{prepend} . $number . "\@" . $self->{TRUNK_PROVIDER};
+          $RAD_PAIRS{'next-hop-ip'} = "OOH323C/".$self->{prepend}.$number."\@".$self->{TRUNK_PROVIDER};
         }
         elsif ($self->{TRUNK_PROTOCOL} eq "H323") {
-          $RAD_PAIRS{'next-hop-ip'} = "H323/" . $self->{prepend} . $number . "\@" . $self->{TRUNK_PROVIDER};
+          $RAD_PAIRS{'next-hop-ip'} = "H323/".$self->{prepend}.$number."\@".$self->{TRUNK_PROVIDER};
         }
 
         $RAD_PAIRS{'session-protocol'} = $self->{TRUNK_PROTOCOL};
@@ -432,11 +449,11 @@ sub auth {
       }
     }
     else {
-      $RAD->{USER_NAME} = "$RAD->{CALLED_STATION_ID}";
+      $RAD->{'User-Name'} = $RAD->{'Called-Station-Id'};
     }
 
     #Make start record in voip_calls
-    my $SESSION_START = 'now()';
+    my $SESSION_START = 'NOW()';
     $self->query2("INSERT INTO voip_calls 
    (  status,
       user_name,
@@ -452,18 +469,30 @@ sub auth {
       bill_id,
       tp_id,
       route_id,
-      reduction
+      reduction,
+      acct_session_id
    )
-   values ('0', '$RAD->{USER_NAME}', $SESSION_START, UNIX_TIMESTAMP(), 
-      '$RAD->{CALLING_STATION_ID}', '$RAD->{CALLED_STATION_ID}', '$NAS->{NAS_ID}',
-      INET_ATON('". ($RAD->{CLIENT_IP_ADDRESS} || '0.0.0.0') ."'),
-      '$RAD->{H323_CONF_ID}',
-      '". ($RAD->{H323_CALL_ORIGIN} || 0)."',
-      '$self->{UID}',
-      '$self->{BILL_ID}',
-      '$self->{TP_ID}',
-      '$self->{ROUTE_ID}',
-      '$self->{REDUCTION}');", 'do'
+   VALUES ('0', ?, ?, UNIX_TIMESTAMP(),
+      ?, ?, ?, INET_ATON(?), ?, ?, ?, ?, ?, ?, ?, ?);",
+      'do',
+      {
+        Bind => [
+          $RAD->{'User-Name'},
+          $SESSION_START,
+          $RAD->{'Calling-Station-Id'},
+          $RAD->{'Called-Station-Id'},
+          $NAS->{NAS_ID},
+          $RAD->{'Client-IP-Address'} || '0.0.0.0',
+          $RAD->{'h323-conf-id'} || $RAD->{'Acct-Session-Id'},
+          $RAD->{'h323-call-origin'} || 0,
+          $self->{UID},
+          $self->{BILL_ID},
+          $self->{TP_ID},
+          $self->{ROUTE_ID},
+          $self->{REDUCTION},
+          $RAD->{'Acct-Session-Id'} || q{}
+        ]
+      }
     );
 
     #   }
@@ -474,11 +503,17 @@ sub auth {
      WHERE uid='$self->{UID}';", 'do');
   }
 
+  if($RAD->{'Digest-Method'} && $RAD->{'Digest-Method'} eq 'REGISTER') {
+    $RAD_PAIRS{'Reply-Message'} = 'REGISTER';
+  }
+
   return 0, \%RAD_PAIRS;
 }
 
 #**********************************************************
-#
+=head2 get_route_prefix($RAD)
+
+=cut
 #**********************************************************
 sub get_route_prefix {
   my $self = shift;
@@ -487,11 +522,14 @@ sub get_route_prefix {
   # Get route
   my $query_params = '';
 
-  for (my $i = 1 ; $i <= length($RAD->{'CALLED_STATION_ID'}) ; $i++) {
-    $query_params .= '\'' . substr($RAD->{'CALLED_STATION_ID'}, 0, $i) . '\',';
+  for (my $i = 1; $i <= length($RAD->{'Called-Station-Id'}); $i++) {
+    $query_params .= '\''.substr($RAD->{'Called-Station-Id'}, 0, $i).'\',';
+  }
+
+  if(! $query_params) {
+    return $self;
   }
   chop($query_params);
-
   $self->query2("SELECT r.id AS route_id,
       r.prefix AS prefix,
       r.gateway_id AS gateway_id,
@@ -499,8 +537,8 @@ sub get_route_prefix {
      FROM voip_routes r
       WHERE r.prefix in ($query_params)
       ORDER BY 2 DESC LIMIT 1;",
-      undef,
-      {INFO => 1}
+    undef,
+    { INFO => 1 }
   );
 
   #if ($self->{TOTAL} < 1) {
@@ -512,33 +550,35 @@ sub get_route_prefix {
 }
 
 #**********************************************************
-#
+=head2 get_intervals($attr);
+
+=cut
 #**********************************************************
- sub get_intervals {
+sub get_intervals {
   my $self = shift;
-  my ($attr) = @_;
+  #my ($attr) = @_;
 
   $self->query2("SELECT i.day, TIME_TO_SEC(i.begin), TIME_TO_SEC(i.end), 
     rp.price, i.id, rp.route_id,
-    if (t.protocol IS NULL, '', t.protocol),
-    if (t.protocol IS NULL, '', t.provider_ip),
-    if (t.protocol IS NULL, '', t.addparameter),
-    if (t.protocol IS NULL, '', t.removeprefix),
-    if (t.protocol IS NULL, '', t.addprefix),
-    if (t.protocol IS NULL, '', t.failover_trunk),
+    IF (t.protocol IS NULL, '', t.protocol),
+    IF (t.protocol IS NULL, '', t.provider_ip),
+    IF (t.protocol IS NULL, '', t.addparameter),
+    IF (t.protocol IS NULL, '', t.removeprefix),
+    IF (t.protocol IS NULL, '', t.addprefix),
+    IF (t.protocol IS NULL, '', t.failover_trunk),
     rp.extra_tarification
-      from intervals i, voip_route_prices rp
+      FROM intervals i, voip_route_prices rp
       LEFT JOIN voip_trunks t ON (rp.trunk=t.id)
-      where
-         i.id=rp.interval_id 
-         and i.tp_id  = '$self->{TP_ID}'
-         and rp.route_id = '$self->{ROUTE_ID}';"
+      WHERE
+        i.id=rp.interval_id
+        AND i.tp_id  = '$self->{TP_ID}'
+        AND rp.route_id = '$self->{ROUTE_ID}';"
   );
 
-  my $list                = $self->{list};
-  my %time_periods        = ();
-  my %periods_time_tarif  = ();
-  $self->{TRUNK_PATH}     = '';
+  my $list = $self->{list};
+  my %time_periods = ();
+  my %periods_time_tarif = ();
+  $self->{TRUNK_PATH} = '';
   $self->{TRUNK_PROVIDER} = '';
 
   foreach my $line (@$list) {
@@ -547,37 +587,41 @@ sub get_route_prefix {
 
     #$periods_time_tarif{INTERVAL_ID} = "INTERVAL_PRICE";
     $periods_time_tarif{ $line->[4] } = $line->[3];
-    $self->{TRUNK_PROTOCOL}           = $line->[6];
-    $self->{TRUNK_PROVIDER}           = $line->[7];
-    $self->{ADDPARAMETER}             = $line->[8];
-    $self->{REMOVE_PREFIX}            = $line->[9];
-    $self->{ADDPREFIX}                = $line->[10];
-    $self->{FAILOVER_TRUNK}           = $line->[11];
-    $self->{EXTRA_TARIFICATION}       = $line->[12];
+    $self->{TRUNK_PROTOCOL}     = $line->[6];
+    $self->{TRUNK_PROVIDER}     = $line->[7];
+    $self->{ADDPARAMETER}       = $line->[8];
+    $self->{REMOVE_PREFIX}      = $line->[9];
+    $self->{ADDPREFIX}          = $line->[10];
+    $self->{FAILOVER_TRUNK}     = $line->[11];
+    $self->{EXTRA_TARIFICATION} = $line->[12];
   }
-  $self->{TIME_PERIODS}       = \%time_periods;
+  $self->{TIME_PERIODS} = \%time_periods;
   $self->{PERIODS_TIME_TARIF} = \%periods_time_tarif;
 
   return $self;
 }
 
 #**********************************************************
-# Accounting Work_
+=head2 accounting($RAD, $NAS)
+
+=cut
 #**********************************************************
 sub accounting {
   my $self = shift;
   my ($RAD, $NAS) = @_;
 
-  my $acct_status_type = $ACCT_TYPES{ $RAD->{ACCT_STATUS_TYPE} };
-  my $SESSION_START    = (defined($RAD->{SESSION_START}) && $RAD->{SESSION_START} > 0) ? "FROM_UNIXTIME($RAD->{SESSION_START})" : 'now()';
-  my $sesssion_sum     = 0;
-  $RAD->{CLIENT_IP_ADDRESS} = '0.0.0.0' if (!$RAD->{CLIENT_IP_ADDRESS});
+  my $acct_status_type = $ACCT_TYPES{ $RAD->{'Acct-Status-Type'} };
+  my $sesssion_sum = 0;
+  $RAD->{'Client-IP-Address'} = '0.0.0.0' if (!$RAD->{'Client-IP-Address'});
+  if (length($RAD->{'Acct-Session-Id'}) > 32) {
+    $RAD->{'Acct-Session-Id'} = substr($RAD->{'Acct-Session-Id'}, 0, 32);
+  }
 
   preproces($RAD);
 
   if ($NAS->{NAS_TYPE} eq 'cisco_voip') {
-    if ($RAD->{USER_NAME} =~ /(\S+):(\d+)/) {
-      $RAD->{USER_NAME} = $2;
+    if ($RAD->{'User-Name'} =~ /(\S+):(\d+)/) {
+      $RAD->{'User-Name'} = $2;
     }
   }
 
@@ -585,13 +629,8 @@ sub accounting {
     number_expr($RAD);
   }
 
-#while(my ($k, $v)=each %{ $RAD } ) {
-#	print "$k, $v\n";
-#}
-
   #Start
   if ($acct_status_type == 1) {
-
     if ($NAS->{NAS_TYPE} eq 'eltex_smg') {
       # For Cisco
       $self->user_info($RAD, $NAS);
@@ -610,36 +649,48 @@ sub accounting {
        bill_id,
        tp_id,
        reduction,
-       acct_session_id,
-       route_id
+       acct_session_id
       )
-     values ($acct_status_type, '$RAD->{USER_NAME}', $SESSION_START, UNIX_TIMESTAMP(), 
-       '$RAD->{CALLING_STATION_ID}', '$RAD->{CALLED_STATION_ID}', '$NAS->{NAS_ID}',
-       '$RAD->{H323_CONF_ID}',
-       '$RAD->{H323_CALL_ORIGIN}',
-       '$self->{UID}',
-       '$self->{BILL_ID}',
-       '$self->{TP_ID}',
-       '$self->{REDUCTION}',
-       '$RAD->{ACCT_SESSION_ID}',
-       ''
-       );";
+     VALUES (?, ?, UNIX_TIMESTAMP(), UNIX_TIMESTAMP(),
+       ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
 
-      $self->query2($sql, 'do');
+      $self->query2($sql, 'do', {
+        Bind => [
+          $acct_status_type,
+          $RAD->{'User-Name'},
+          $RAD->{'Calling-Station-Id'},
+          $RAD->{'Called-Station-Id'},
+          $NAS->{NAS_ID},
+          $RAD->{'h323-conf-id'},
+          $RAD->{'h323-call-origin'},
+          $self->{UID},
+          $self->{BILL_ID},
+          $self->{TP_ID},
+          $self->{REDUCTION},
+          $RAD->{'Acct-Session-Id'}
+          ]
+      });
     }
     else {
       $self->query2("UPDATE voip_calls SET
-      status='$acct_status_type',
-      acct_session_id='$RAD->{ACCT_SESSION_ID}'
-      WHERE conf_id='$RAD->{H323_CONF_ID}';", 'do'
+      status= ?,
+      acct_session_id= ?
+      WHERE conf_id= ? ;",
+        'do',
+        { Bind => [
+            $acct_status_type,
+            $RAD->{'Acct-Session-Id'},
+            $RAD->{'h323-conf-id'}
+          ]
+        }
       );
     }
   }
 
   # Stop status
   elsif ($acct_status_type == 2) {
-    if ($RAD->{ACCT_SESSION_TIME} > 0) {
-      $self->query2("SELECT 
+    if ($RAD->{'Acct-Session-Time'} > 0) {
+      $self->query2("SELECT
       UNIX_TIMESTAMP(started) AS session_start,
       lupdated AS last_update,
       acct_session_id,
@@ -659,42 +710,48 @@ sub accounting {
       UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME(UNIX_TIMESTAMP()), '%Y-%m-%d')) AS day_begin,
       DAYOFWEEK(FROM_UNIXTIME(UNIX_TIMESTAMP())) AS day_of_week,
       DAYOFYEAR(FROM_UNIXTIME(UNIX_TIMESTAMP())) AS day_of_year
-    FROM voip_calls c, voip_tps tp
-      WHERE  c.tp_id=tp.id
-      and conf_id='$RAD->{H323_CONF_ID}'
-      and call_origin='$RAD->{H323_CALL_ORIGIN}';",
-      undef,
-      { INFO => 1 }
+    FROM voip_calls c
+    INNER JOIN voip_tps tp ON (c.tp_id=tp.id)
+    WHERE
+      conf_id= ?
+      ;",
+        undef,
+        { INFO => 1,
+          Bind => [
+            $RAD->{'h323-conf-id'} || $RAD->{'Acct-Session-Id'},
+#            $RAD->{'h323-call-origin'}
+          ]
+        }
       );
 
-
+      my $call_origin = $self->{CALL_ORIGIN} || $RAD->{'h323-call-origin'} || 0;
       if ($self->{errno}) {
         if ($self->{TOTAL} < 1) {
-          $self->{errno}  = 1;
-          $self->{errstr} = "Call not exists $RAD->{H323_CONF_ID}/$RAD->{H323_CALL_ORIGIN}";
+          $self->{errno} = 1;
+          $self->{errstr} = "Call not exists $RAD->{'h323-conf-id'}/$call_origin";
           return $self;
         }
         else {
-          $self->{errno}  = 1;
+          $self->{errno} = 1;
           $self->{errstr} = "SQL error";
           return $self;
         }
       }
 
       if ($self->{UID} == 0) {
-        $self->{errno}  = 110;
-        $self->{errstr} = "Number not found '" . $RAD->{'USER_NAME'} . "'";
+        $self->{errno} = 110;
+        $self->{errstr} = "Number not found '".$RAD->{'User-Name'}."'";
         return $self;
       }
-      elsif ($RAD->{H323_CALL_ORIGIN} == 1) {
+      elsif ($call_origin == 1) {
         if (!$self->{ROUTE_ID}) {
           $self->get_route_prefix($RAD);
         }
 
         $self->get_intervals();
         if ($self->{TOTAL} < 1) {
-          $self->{errno}  = 111;
-          $self->{errstr} = "No price for route prefix '$self->{PREFIX}' number '" . $RAD->{'CALLED_STATION_ID'} . "'";
+          $self->{errno} = 111;
+          $self->{errstr} = "No price for route prefix '$self->{PREFIX}' number '".$RAD->{'Called-Station-Id'}."'";
           return $self;
         }
 
@@ -704,25 +761,25 @@ sub accounting {
           $self->{PREPAID_TIME} = $self->{list}->[0]->[0];
           if ($self->{PREPAID_TIME} > 0) {
             $self->{LOG_DURATION} = 0;
-            my $sql = "SELECT sum(duration) FROM voip_log l, voip_route_prices rp WHERE l.route_id=rp.route_id
+            my $sql = "SELECT SUM(duration) FROM voip_log l, voip_route_prices rp WHERE l.route_id=rp.route_id
                AND uid='$self->{UID}' AND rp.extra_tarification='$self->{EXTRA_TARIFICATION}'";
             $self->query2("$sql");
             $self->{LOG_DURATION} = 0;
             if ($self->{TOTAL} > 0) {
               $self->{LOG_DURATION} = $self->{list}->[0]->[0];
             }
-            if ($RAD->{ACCT_SESSION_TIME} + $self->{LOG_DURATION} < $self->{PREPAID_TIME}) {
+            if ($RAD->{'Acct-Session-Time'} + $self->{LOG_DURATION} < $self->{PREPAID_TIME}) {
               $self->{PERIODS_TIME_TARIF} = undef;
             }
-            elsif ($self->{LOG_DURATION} < $self->{PREPAID_TIME} && $RAD->{ACCT_SESSION_TIME} + $self->{LOG_DURATION} > $self->{PREPAID_TIME}) {
-              $self->{PAID_SESSION_TIME} = $RAD->{ACCT_SESSION_TIME};
+            elsif ($self->{LOG_DURATION} < $self->{PREPAID_TIME} && $RAD->{'Acct-Session-Time'} + $self->{LOG_DURATION} > $self->{PREPAID_TIME}) {
+              $self->{PAID_SESSION_TIME} = $RAD->{'Acct-Session-Time'};
             }
           }
         }
 
         #Id defined time tarif
         if ($self->{PERIODS_TIME_TARIF}) {
-          my $duration = $self->{PAID_SESSION_TIME} || $RAD->{ACCT_SESSION_TIME};
+          my $duration = $self->{PAID_SESSION_TIME} || $RAD->{'Acct-Session-Time'};
 
           if ($self->{TIME_DIVISION}) {
             my $periods = $duration / $self->{TIME_DIVISION};
@@ -736,7 +793,7 @@ sub accounting {
               REDUCTION          => $self->{REDUCTION},
               TIME_INTERVALS     => $self->{TIME_PERIODS},
               PERIODS_TIME_TARIF => $self->{PERIODS_TIME_TARIF},
-              SESSION_START      => $self->{SESSION_STOP} - $RAD->{ACCT_SESSION_TIME},
+              SESSION_START      => $self->{SESSION_STOP} - $RAD->{'Acct-Session-Time'},
               ACCT_SESSION_TIME  => $duration,
               DAY_BEGIN          => $self->{DAY_BEGIN},
               DAY_OF_WEEK        => $self->{DAY_OF_WEEK},
@@ -747,7 +804,7 @@ sub accounting {
 
           $sesssion_sum = $Billing->{SUM};
           if ($Billing->{errno}) {
-            $self->{errno}  = $Billing->{errno};
+            $self->{errno} = $Billing->{errno};
             $self->{errstr} = $Billing->{errstr};
             return $self;
           }
@@ -757,18 +814,31 @@ sub accounting {
       my $filename;
       $self->query2("INSERT INTO voip_log (uid, start, duration, calling_station_id, called_station_id,
               nas_id, client_ip_address, acct_session_id, 
-              tp_id, bill_id, sum,
-              terminate_cause, route_id) 
-        VALUES ('$self->{UID}', FROM_UNIXTIME($RAD->{SESSION_START}),  '$RAD->{ACCT_SESSION_TIME}', 
-        '$RAD->{CALLING_STATION_ID}', '$RAD->{CALLED_STATION_ID}', 
-        '$NAS->{NAS_ID}', INET_ATON('$RAD->{CLIENT_IP_ADDRESS}'), '$RAD->{ACCT_SESSION_ID}', 
-        '$self->{TP_ID}', '$self->{BILL_ID}', '$sesssion_sum',
-        '$RAD->{ACCT_TERMINATE_CAUSE}', '$self->{ROUTE_ID}');", 'do'
+              tp_id, bill_id, sum, terminate_cause, route_id)
+        VALUES (?, NOW() - INTERVAL ? SECOND, ?, ?, ?, ?, INET_ATON(?), ?, ?, ?, ?, ?, ?);",
+        'do',
+        {
+          Bind => [
+            $self->{UID},
+            $RAD->{'Acct-Session-Time'} || 0,
+            $RAD->{'Acct-Session-Time'} || 0,
+            $RAD->{'Calling-Station-Id'},
+            $RAD->{'Called-Station-Id'},
+            $NAS->{NAS_ID},
+            $RAD->{'Client-IP-Address'},
+            $RAD->{'Acct-Session-Id'},
+            $self->{TP_ID},
+            $self->{BILL_ID},
+            $sesssion_sum,
+            $RAD->{'Acct-Terminate-Cause'} || 0,
+            $self->{ROUTE_ID}
+          ]
+        }
       );
 
       if ($self->{errno}) {
-        $filename = "$RAD->{USER_NAME}.$RAD->{ACCT_SESSION_ID}";
-        $self->{LOG_WARNING} = "ACCT [$RAD->{USER_NAME}] Making accounting file '$filename'";
+        $filename = $RAD->{'User-Name'}.'.'.$RAD->{'Acct-Session-Id'};
+        $self->{LOG_WARNING} = "ACCT [". $RAD->{'User-Name'}. "] Making accounting file '$filename'";
         $Billing->mk_session_log($RAD);
       }
 
@@ -785,31 +855,49 @@ sub accounting {
 
     # Delete from session wtmp
     $self->query2("DELETE FROM voip_calls 
-     WHERE acct_session_id='$RAD->{ACCT_SESSION_ID}' 
-     and nas_id='$NAS->{NAS_ID}'
-     and conf_id='$RAD->{H323_CONF_ID}';", 'do'
+     WHERE acct_session_id= ?
+     AND nas_id= ?
+     AND conf_id= ? ;",
+      'do',
+      {
+        Bind => [
+          $RAD->{'Acct-Session-Id'} || q{},
+          $NAS->{NAS_ID},
+          $RAD->{'h323-conf-id'} || $RAD->{'Acct-Session-Id'}
+        ]
+      }
     );
   }
 
   #Alive status 3
   elsif ($acct_status_type eq 3) {
     $self->query2("UPDATE voip_calls SET
-    status='$acct_status_type',
-    client_ip_address=INET_ATON('". ($RAD->{FRAMED_IP_ADDRESS}|| '0.0.0.0') ."'),
+    status= ? ,
+    client_ip_address=INET_ATON(?),
     lupdated=UNIX_TIMESTAMP()
    WHERE
-    acct_session_id='$RAD->{ACCT_SESSION_ID}' and 
-    user_name='$RAD->{USER_NAME}';", 'do'
+    acct_session_id= ?
+    AND  user_name= ?;",
+      'do',
+      {
+        Bind => [
+          $acct_status_type,
+          $RAD->{'Framed-IP-Address'} || '0.0.0.0',
+          $RAD->{'Acct-Session-Id'},
+          $RAD->{'User-Name'}
+        ]
+      }
     );
   }
   else {
-    $self->{errno}  = 1;
-    $self->{errstr} = "ACCT [$RAD->{USER_NAME}] Unknown accounting status: $RAD->{ACCT_STATUS_TYPE} ($RAD->{ACCT_SESSION_ID})";
+    $self->{errno} = 1;
+    $self->{errstr} = "ACCT [". $RAD->{'User-Name'} ."] Unknown accounting status: ". $RAD->{'Acct-Status-Type'}
+      ."(". $RAD->{'Acct-Session-Id'} .")";
   }
 
   if ($self->{errno}) {
-    $self->{errno}  = 1;
-    $self->{errstr} = "ACCT $RAD->{ACCT_STATUS_TYPE} SQL Error: $self->{errstr}";
+    $self->{errno} = 1;
+    $self->{errstr} = "ACCT $RAD->{'Acct-Status-Type'} SQL Error: $self->{errstr}";
   }
 
   return $self;
@@ -817,24 +905,29 @@ sub accounting {
 
 
 #**********************************************************
-# generate_DigestResponce(
-#          $digest{'Digest-User-Name'},
-#          $digest{'Digest-Realm'},
-#          $digest{'Digest-Nonce'},
-#          $digest{'Digest-URI'},
-#          $RAD->{'Digest-Algorithm'},
-#          $dbdata{'eppassword'}) ne $digest{'Digest-Response'}) { push(@errors,'1'); }
+=head2 generate_digest_responce($RAD, $attr);
+
+=cut
 #**********************************************************
-sub generate_DigestResponce {
-  my ($username, $realm, $nonce, $uri, $method, $password) = @_;
+sub generate_digest_responce {
+  my ($RAD, $attr) = @_;
+
+  my ($username, $realm, $nonce, $method, $uri, $password) = (
+    $RAD->{'Digest-User-Name'},
+    $RAD->{'Digest-Realm'},
+    $RAD->{'Digest-Nonce'},
+    $RAD->{'Digest-Method'},
+    $RAD->{'Digest-URI'}, # $attr->{URI},
+    $attr->{PASSWORD}
+  );
 
   use Digest::MD5;
-  my $md5 = new Digest::MD5; 
-  my $a1 = new Digest::MD5; 
-  my $a2 = new Digest::MD5;
+  my $md5 = Digest::MD5->new();
+  my $a1  = Digest::MD5->new();
+  my $a2  = Digest::MD5->new();
 
-  $md5->reset; 
-  $a1->reset; 
+  $md5->reset;
+  $a1->reset;
   $a2->reset;
 
   $a1->add("$username:$realm:$password");
@@ -843,13 +936,33 @@ sub generate_DigestResponce {
   my $s1 = $a1->hexdigest();
   my $s2 = $a2->hexdigest();
 
-  $md5->add($s1.":$nonce:".$s2);
+  #RFC2617
+  #if($RAD->{'Digest-Qop'}) {
+  if($RAD->{'Digest-Qop'}) {
+#    print $s1.":$nonce:"
+#      . $RAD->{'Digest-Nonce-Count'}
+#      .':'. $RAD->{'Digest-CNonce'}
+#      .':'. $RAD->{'Digest-Qop'}
+#      .":".$s2 ."\n\n";
 
-  return $md5 -> hexdigest();
+    $md5->add($s1.":$nonce:"
+      . $RAD->{'Digest-Nonce-Count'}
+      .':'. $RAD->{'Digest-CNonce'}
+      .':'. $RAD->{'Digest-Qop'}
+      .":".$s2);
+  }
+  #RFC2069
+  else {
+    $md5->add($s1.":$nonce:".$s2);
+  }
+
+  my $result =  $md5->hexdigest();
+
+  return $result;
 }
 
 
-1
+1;
 
 
 __END__

@@ -143,3 +143,7 @@ nav.navbar a.header-btn-link {
 .wrapper {
     overflow: visible;
 }
+
+div.input-group > span.input-group-addon.glyphicon {
+    top : 0;
+}

@@ -104,7 +104,7 @@ REPLACE INTO `maps_point_types` (`id`, `name`, `icon`) VALUES (4, '$lang{DISTRIC
 REPLACE INTO `maps_point_types` (`id`, `name`, `icon`) VALUES (5, '$lang{MUFF}', 'muff_green');
 REPLACE INTO `maps_point_types` (`id`, `name`, `icon`) VALUES (6, '$lang{SPLITTER}', 'splitter_green');
 REPLACE INTO `maps_point_types` (`id`, `name`, `icon`) VALUES (7, '$lang{CABLE}', 'cable_green');
-REPLACE INTO `maps_point_types` (`id`, `name`, `icon`) VALUES (8, '$lang{EQUIPMENT}', 'equipment_green');
+REPLACE INTO `maps_point_types` (`id`, `name`, `icon`) VALUES (8, '$lang{EQUIPMENT}', 'nas_green');
 REPLACE INTO `maps_point_types` (`id`, `name`, `icon`) VALUES (9, '$lang{PILLAR}', 'route_green');
 
 
@@ -148,8 +148,9 @@ CREATE TABLE IF NOT EXISTS `maps_layers` (
   COMMENT = 'Map layers';
 
 REPLACE INTO `maps_layers` (`id`, `name`, `structure`, `type`) VALUES (1, '$lang{BUILD}', 'MARKER', 'build');
-REPLACE INTO `maps_layers` (`id`, `name`, `structure`, `type`) VALUES (2, '$lang{WIFI}', 'MARKER_CIRCLE', 'wifi');
-REPLACE INTO `maps_layers` (`id`, `name`, `structure`, `type`) VALUES (3, '$lang{ROUTE}', 'MARKERS_POLYLINE', 'route');
+REPLACE INTO `maps_layers` (`id`, `name`, `structure`, `type`) VALUES (2, '$lang{WIFI}', 'POLYGON', 'wifi');
+# REPLACE INTO `maps_layers` (`id`, `name`, `structure`, `type`) VALUES (3, '$lang{ROUTE}', 'MARKERS_POLYLINE', 'route');
+DELETE FROM `maps_layers` WHERE `id`='3';
 REPLACE INTO `maps_layers` (`id`, `name`, `structure`, `type`) VALUES (4, '$lang{DISTRICT}', 'POLYGON', 'district');
 REPLACE INTO `maps_layers` (`id`, `name`, `structure`, `type`) VALUES (5, '$lang{TRAFFIC}', 'MARKER', 'build');
 REPLACE INTO `maps_layers` (`id`, `name`, `structure`, `type`) VALUES (6, '$lang{OBJECTS}', 'MARKER', 'custom');
@@ -158,6 +159,7 @@ REPLACE INTO `maps_layers` (`id`, `name`, `structure`, `type`) VALUES (6, '$lang
 # ID 9 is reserved for GPS_ROUTE
 # ID 10 is reserved for cablecat CABLES
 # ID 11 is reserved for cablecat WELLS
+REPLACE INTO `maps_layers` (`id`, `name`, `structure`, `type`) VALUES (12, '$lang{BUILD}2', 'POLYGON', 'build');
 
 CREATE TABLE IF NOT EXISTS `maps_circles` (
   `id` INT(11) UNSIGNED PRIMARY KEY  AUTO_INCREMENT,

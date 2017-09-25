@@ -13,32 +13,29 @@ var chart = {
 /**
  * Main function
  */
-function initChart() {
-  //This block tests if chartCategories are defined
-  var chartCategories = window['chartCategories'] || [];
-  var chartLines      = window['chartLines'];
+window['initChart'] = function(chartCategories, chartLines, chartOptions) {
   
-  if (typeof chartLines === 'undefined' || chartLines.length <= 0) {
+  if (typeof chartLines === 'undefined' || chartLines.length === 0) {
     console.log('You have not defined chartLines');
     showErrorToolTip('Nothing to show. Empty Chart Data array');
     return false;
   }
   
-  var finalChart = makeChart(chartLines, chartCategories);
+  var finalChart = makeChart(chartLines, chartCategories, chartOptions);
   
-  $('#highcharts').highcharts(finalChart);
-}
+  $('#' + chartOptions['chart_id']).highcharts(finalChart);
+};
 
 function showErrorToolTip(text) {
   new ATooltip('<h1>' + text + '</h1>').setClass('danger').show();
 }
 
-function makeChart(chartLines, chartCategories) {
+function makeChart(chartLines, chartCategories, chartOptions) {
   chart.yAxis = [];
   //chart.zoomType = 'x';
   
   var params = [];
-  var singleCompareMode = Number(window['singleValueCompare']) || false;
+  var singleCompareMode = Number(chartOptions['compare_single']) || false;
   
   if (singleCompareMode) {
     chart.chart = {};
@@ -62,20 +59,20 @@ function makeChart(chartLines, chartCategories) {
       //do nothing
     }
 
-    params = processLines(chartLines);
+    params = processLines(chartLines, chartOptions);
     chart.series = params;
   }
 
   chart.plotOptions = getPlotOptons();
 
-  if (typeof (chartPeriod) != 'undefined') {
+  if (typeof (chartOptions['chart_period']) !== 'undefined') {
 
-    switch (chartPeriod) {
+    switch (chartOptions['chart_period']) {
       case 'week_stats': //7 days
         chart.xAxis.categories = formNamedCategories('week');
         break;
       case 'month_stats': //31 days
-        chart.xAxis.categories = formNumberArray(1, window['daysInMonth'] || 31);
+        chart.xAxis.categories = formNumberArray(1, chartOptions['days_in_month'] || 31);
         break;
       case 'year_stats': //12 monthes
         chart.xAxis.categories = formNamedCategories('year');
@@ -92,15 +89,16 @@ function makeChart(chartLines, chartCategories) {
 /**
  * parses each line of chartLines array
  * @param chartLines - 2-dimensional array containing series
+ * @param chartOptions
  * @returns {*[]}
  */
-function processLines(chartLines) {
+function processLines(chartLines, chartOptions) {
 
   var seriesArr = [];
 
   chartLines.forEach(function (entry) {
     var ArrLength = chart.yAxis.length;
-    var axisWidth = (ArrLength == 0) ? 0 : 1;
+    var axisWidth = (ArrLength === 0) ? 0 : 1;
 
     chart.yAxis[ArrLength] = getAxis(axisWidth);
 
@@ -108,7 +106,8 @@ function processLines(chartLines) {
       entry[2], //Data Array
       entry[1], //Type
       ArrLength,//Which yAxis to put
-      entry[0] //Name of series
+      entry[0], //Name of series
+      chartOptions
     );
   });
 
@@ -131,23 +130,24 @@ var columnAxis = -1;
 var scatterTimeAxis = -1;
 var lastPiePosition = 0;
 
-function getSeries(chartDataArr, type, axNum, name) {
+function getSeries(chartDataArr, type, axNum, name, chartOptions) {
   var result = {};
 
-  // by default don't show any lines and markers
+  // By default don't show any lines and markers
   var objLineWidth = 0;
   var objMarker = {};
-  //default opacity to 'solid'
+  
+  // Default opacity to 'solid'
   var opacity = 1;
 
-  //show label for first category
-  chart.yAxis[axNum].labels.enabled = chart.yAxis.length == 1;
+  // Show label for first category
+  chart.yAxis[axNum].labels.enabled = (chart.yAxis.length === 1);
 
-  //check for additional parameters
+  // Check for additional parameters
   var extraData = getExtraData(type);
   if (extraData) type = type.split(",")[0].trim();
 
-  //array of xData for storing converted value
+  // Array of xData for storing converted value
   var dataArr = [];
   
   switch (type) {
@@ -162,9 +162,9 @@ function getSeries(chartDataArr, type, axNum, name) {
       opacity = 0.7;
       chart.yAxis[0].startOnTick = true;
 
-      if (extraData == 'time') {
+      if (extraData === 'time') {
 
-        if (scatterTimeAxis == -1) {
+        if (scatterTimeAxis === -1) {
           scatterTimeAxis = axNum;
         }
         axNum = scatterTimeAxis;
@@ -221,7 +221,7 @@ function getSeries(chartDataArr, type, axNum, name) {
       }
       break;
     case 'column':
-      if (columnAxis == -1) {
+      if (columnAxis === -1) {
         columnAxis = axNum;
       }
       axNum = columnAxis;
@@ -264,13 +264,13 @@ function getSeries(chartDataArr, type, axNum, name) {
     result.turboThreshold = 0;
   }
 
-  if (typeof (chartPeriod) != 'undefined') {
+  if (typeof (chartPeriod) !== 'undefined') {
     switch (chartPeriod) {
       case 'week_stats': //7 days
         dataArr = forceLength(dataArr, 7);
         break;
       case 'month_stats': //31 days
-        dataArr = forceLength(dataArr, window['daysInMonth'] || 31);
+        dataArr = forceLength(dataArr, chartOptions['days_in_month'] || 31);
         break;
       case 'year_stats': //12 monthes
         dataArr = forceLength(dataArr, 12);
@@ -295,7 +295,7 @@ function getSeries(chartDataArr, type, axNum, name) {
 
 function forceNumeric(array) {
   var arrResult = [];
-  if (typeof (array[0]) != Number)
+  if (typeof (array[0]) !== Number)
     array.forEach(function (entry) {
       arrResult[arrResult.length] = parseFloat(entry);
     });
@@ -304,7 +304,7 @@ function forceNumeric(array) {
 
 function forceString(array) {
   var arrResult = [];
-  if (typeof (array[0]) != Number)
+  if (typeof (array[0]) !== Number)
     array.forEach(function (entry) {
       arrResult[arrResult.length] = String(entry);
     });
@@ -341,7 +341,7 @@ function forceDate(array, time) {
     case true:
       array.forEach(function (entry) {
         var arrDateTime = entry.split(":");
-        if (arrDateTime.length == 1) return ['404', '404', '404', '404', '404', '404', '404', '404'];
+        if (arrDateTime.length === 1) return ['404', '404', '404', '404', '404', '404', '404', '404'];
         arrResult[arrResult.length] = getMilliseconds(parseInt(arrDateTime[0]), parseInt(arrDateTime[1]), parseInt(arrDateTime[2]));
       });
       break;
@@ -358,14 +358,10 @@ function forceDate(array, time) {
 function filterForZeroValues(array) {
   var arrResult = [];
   array.forEach(function (entry) {
-    if (entry != 0 || entry != '0') arrResult[arrResult.length] = entry;
+    if (entry !== 0 || entry !== '0') arrResult[arrResult.length] = entry;
   });
   return arrResult;
 }
-
-$(document).ready(function () {
-  initChart();
-});
 
 function getPlotOptons() {
   return {

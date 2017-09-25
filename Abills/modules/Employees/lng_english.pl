@@ -23,4 +23,6 @@ $lang{BUSINESS_TRIP}='Business trip';
 $lang{DAY_OFF}='Day off';
 $lang{SLACK}='Slack';
 $lang{DUTY}='On duty';
+
+$lang{DAILY_NOTES}='Daily Notes';
 1

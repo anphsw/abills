@@ -1946,19 +1946,19 @@ sub file_list {
   my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC        = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
-  my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 999;
 
   my $WHERE = $self->search_former($attr,
     [
-    [ 'ID',        'INT', 'sf.id',        1 ],
-    [ 'NAME',      'STR', 'sf.name',      1 ],
-    [ 'AMOUNT',    'INT', 'sf.amount',    1 ],
-    [ 'COMMENT',   'STR', 'sf.comment',   1 ],
-    [ 'VERSION',   'STR', 'sf.version',   1 ],
-    # [ 'GROUP_ID',  'INT', 'sf.group_id',  1 ],
-    [ 'GROUP_NAME',  'STR', 'sg.name as group_name',  1 ],
-    [ 'LINK_TIME', 'INT', 'sf.link_time', 1 ],
-    [ 'FILE_TIME', 'INT', 'sf.file_time', 1 ],
+      [ 'ID',        'INT', 'sf.id',        1 ],
+      [ 'NAME',      'STR', 'sf.name',      1 ],
+      [ 'AMOUNT',    'INT', 'sf.amount',    1 ],
+      [ 'COMMENT',   'STR', 'sf.comment',   1 ],
+      [ 'VERSION',   'STR', 'sf.version',   1 ],
+      # [ 'GROUP_ID',  'INT', 'sf.group_id',  1 ],
+      [ 'GROUP_NAME',  'STR', 'sg.name as group_name',  1 ],
+      [ 'LINK_TIME', 'INT', 'sf.link_time', 1 ],
+      [ 'FILE_TIME', 'INT', 'sf.file_time', 1 ],
     ],
     {
       WHERE => 1,
@@ -2124,7 +2124,7 @@ sub info_user {
     su.date_to
     FROM sharing_users as su
     WHERE uid = $attr->{UID} and file_id = $attr->{FILE_ID};", undef, { COLS_NAME => 1 }
-    );
+  );
 
   if($self->{list} && ref $self->{list} eq 'ARRAY' && scalar @{$self->{list}} > 0){
     return $self->{list}[0];
@@ -2138,7 +2138,7 @@ sub info_user {
 
   Arguments:
     $attr
-      R_ID   - rule's identifier
+      UID   - rule's identifier
       UID    - user's identifier
       STATUS - call status
       DATE   - call date
@@ -2147,9 +2147,9 @@ sub info_user {
     $self object
 
   Examples:
-    $Ring->change_user({
-      R_ID => 1,
-      UID  => 1,
+    $Sharing->change_user({
+      UID => 1,
+      FILE_ID  => 1,
       STATUS => 2,
       DATE   => $DATE
     });
@@ -2159,7 +2159,7 @@ sub info_user {
 sub change_user {
   my $self = shift;
   my ($attr) = @_;
-
+  
   $self->changes2(
     {
       CHANGE_PARAM => 'UID',
@@ -2212,10 +2212,10 @@ sub sharing_log_add {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query_add( 'sharing_download_log', {%$attr, 
-                                             'DATE' => 'NOW()',
-                                             'IP'   => $attr->{IP} || '0.0.0.0',
-  } );
+  $self->query_add( 'sharing_download_log', {%$attr,
+      'DATE' => 'NOW()',
+      'IP'   => $attr->{IP} || '0.0.0.0',
+    } );
 
   return $self;
 }
@@ -2236,6 +2236,7 @@ sub sharing_log_list {
   my ($attr) = @_;
 
   my @WHERE_RULES = ();
+    
   my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC        = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
@@ -2244,25 +2245,25 @@ sub sharing_log_list {
   #my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
   if($attr->{DATE_START}){
-    
+
     push @WHERE_RULES, "sdl.date >= '$attr->{DATE_START} 00:00:01'";
   }
 
   if($attr->{DATE_END}){
-    
+
     push @WHERE_RULES, "sdl.date <= '$attr->{DATE_END} 23:59:59'";
   }
 
 
   my $WHERE = $self->search_former($attr,
     [
-    [ 'ID',        'INT',  'sdl.id',        1 ],
-    [ 'FILE_ID',   'INT',  'sdl.file_id',   1 ],
-    [ 'DATE',      'DATE', 'sdl.date',      1 ],
-    [ 'UID',       'ID',   'sdl.uid',       1 ],
-    [ 'IP',        'STR',  'INET_NTOA(sdl.ip) as ip',        1 ],
-    [ 'SYSTEM_ID', 'STR',  'sdl.system_id', 1 ],
-    [ 'FILE_NAME', 'STR',  'sf.name as file_name', 1 ],
+      [ 'ID',        'INT',  'sdl.id',        1 ],
+      [ 'FILE_ID',   'INT',  'sdl.file_id',   1 ],
+      [ 'DATE',      'DATE', 'sdl.date',      1 ],
+      [ 'UID',       'ID',   'sdl.uid',       1 ],
+      [ 'IP',        'STR',  'INET_NTOA(sdl.ip) as ip',        1 ],
+      [ 'SYSTEM_ID', 'STR',  'sdl.system_id', 1 ],
+      [ 'FILE_NAME', 'STR',  'sf.name as file_name', 1 ],
     ],
     {
       WHERE            => 1,
@@ -2272,11 +2273,14 @@ sub sharing_log_list {
       WHERE_RULES      => \@WHERE_RULES,
     });
 
+  my $EXT_TABLES = $self->{EXT_TABLES};
+
   $self->query2(
-    "SELECT $self->{SEARCH_FIELDS} sdl.id, sdl.uid FROM sharing_download_log as sdl
+    "SELECT $self->{SEARCH_FIELDS} sdl.id, sdl.uid
+    FROM sharing_download_log as sdl
     LEFT JOIN sharing_files sf ON sf.id = sdl.file_id
     LEFT JOIN users u ON u.uid=sdl.uid
-
+    $EXT_TABLES
     $WHERE
     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     undef,
@@ -2288,8 +2292,12 @@ sub sharing_log_list {
   return $self->{list} if ($self->{TOTAL} < 1);
 
   $self->query2(
-    "SELECT count(*) AS total
-   FROM sharing_download_log",
+    "SELECT COUNT(*) AS total
+   FROM sharing_download_log as sdl
+   LEFT JOIN sharing_files sf ON sf.id = sdl.file_id
+    LEFT JOIN users u ON u.uid=sdl.uid
+    $EXT_TABLES
+   $WHERE",
     undef,
     { INFO => 1 }
   );
@@ -2345,9 +2353,9 @@ sub group_list {
 
   my $WHERE = $self->search_former($attr,
     [
-    [ 'ID',        'INT', 'id',        1 ],
-    [ 'NAME',      'STR', 'name',      1 ],
-    [ 'COMMENT',   'STR', 'comment',   1 ],
+      [ 'ID',        'INT', 'id',        1 ],
+      [ 'NAME',      'STR', 'name',      1 ],
+      [ 'COMMENT',   'STR', 'comment',   1 ],
     ],
     {
       WHERE => 1,

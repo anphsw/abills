@@ -8,6 +8,7 @@
     <input type=hidden name='DOC_ID' value='%DOC_ID%'>
     <input type=hidden name='sid' value='$FORM{sid}'>
     <input type=hidden name='OP_SID' value='%OP_SID%'>
+    <input type=hidden name=step value='$FORM{step}'>
     <input type=hidden name='VAT' value='%VAT%'>
     <input type=hidden name='SEND_EMAIL' value='1'>
     <input type=hidden name=INCLUDE_DEPOSIT value=1>

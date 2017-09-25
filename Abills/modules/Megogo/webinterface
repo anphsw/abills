@@ -243,7 +243,7 @@ sub megogo_user_interface {
     my $token = $md5->hexdigest();
     $watch_url    = "http://megogo.net/auth/by_partners/dialog?isdn=$prefix" .$user->{LOGIN} ."&partner_key=$partnerid&token=$token";
     $watch_label = "<label class='col-md-12 text-center' style='color: red'>
-    $lang{WARNING}</label>";
+    $lang{MEGOGO_WARNING}</label>";
     $watch_button = "<a href=$watch_url class='btn btn-success btn-lg'>$lang{GO_TO_MEGOGO}</a>";
   }
 

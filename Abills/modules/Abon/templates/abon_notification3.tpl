@@ -2,7 +2,7 @@ Service activation notification
 
 
 LOGIN: %LOGIN%
-PRERIOD: %PERIOD%
+PERIOD: %PERIOD%
 %SUM%
 UID: %UID%
 TP_ID: %TP_ID%

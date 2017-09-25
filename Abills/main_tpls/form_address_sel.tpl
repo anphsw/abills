@@ -53,24 +53,26 @@
     </div>
 
 
-    <label class='control-label col-xs-3 col-md-2'>_{ADDRESS_FLAT}_</label>
+    <label class='control-label col-xs-3 col-md-3'>_{ADDRESS_FLAT}_</label>
 
-    <div class='col-xs-3 col-md-2'>
+    <div class='col-xs-3 col-md-3'>
       <input type='text' name='ADDRESS_FLAT' value='%ADDRESS_FLAT%' class='form-control INPUT-FLAT'>
     </div>
 
-    <div class='col-xs-6 col-md-2' align='right' style='padding-left: 0; '>
+  </div>
+  <div class="form-group">
+    <div class='col-xs-12' align='right' style='padding-left: 0; '>
       <a href='$SELF_URL?get_index=form_districts&full=1&header=1' class='btn btn-default btn-sm'
-         data-tooltip-position='top' data-tooltip='_{ADD}_ _{ADDRESS}_'><i class='fa fa-plus'></i></a>
+      data-tooltip-position='top' data-tooltip='_{ADD}_ _{ADDRESS}_'><i class='fa fa-plus'></i></a>
       %MAP_BTN%
+      %DOM_BTN%
     </div>
   </div>
-
 </div>
 
 <script>
-  document['FLAT_CHECK_FREE']     = '%FLAT_CHECK_FREE%' || true;
-  document['FLAT_CHECK_OCCUPIED'] = '%FLAT_CHECK_OCCUPIED%' || false;
+  document['FLAT_CHECK_FREE']     = '%FLAT_CHECK_FREE%' || "1";
+  document['FLAT_CHECK_OCCUPIED'] = '%FLAT_CHECK_OCCUPIED%' || "0";
 </script>
 <script src='/styles/default_adm/js/searchLocation.js'></script>
 

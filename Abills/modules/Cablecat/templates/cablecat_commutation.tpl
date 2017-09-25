@@ -8,8 +8,6 @@
 <div class='row'>
   <div class='col-md-12'>
 
-
-
     <div class='row text-left'>
       <div id='scheme_controls' class='well well-sm'>
         <div class='btn-group' role='toolbar'>
@@ -25,9 +23,9 @@
           </div>
 
           <!-- INFO BUTTON -->
-<!--          <button type='button' id='info-btn' role='button' class='btn btn-info' title='_{INFO}_'>
-            <span>_{INFO}_</span>
-          </button>-->
+          <!--          <button type='button' id='info-btn' role='button' class='btn btn-info' title='_{INFO}_'>
+                      <span>_{INFO}_</span>
+                    </button>-->
 
           <!-- SPECIAL OPERATIONS BUTTON -->
           <div class='btn-group'>
@@ -52,7 +50,7 @@
     </div>
   </div>
 </div>
-</div>
+
 
 <script>
 
@@ -61,23 +59,34 @@
     document['CONNECTER_ID']   = '%CONNECTER_ID%';
     document['WELL_ID']        = '%WELL_ID%';
 
-    document['CABLES'] = JSON.parse('%CABLES%');
-    document['LINKS']  = JSON.parse('%LINKS%');
+    document['CABLES']            = JSON.parse('%CABLES%');
+    document['LINKS']             = JSON.parse('%LINKS%');
+    document['COMMUTATION_LINKS'] = JSON.parse('%COMMUTATION_LINKS%');
+    document['SPLITTERS']         = JSON.parse('%SPLITTERS%');
+    document['EQUIPMENT']         = JSON.parse('%EQUIPMENT%');
 
     document['LANG'] = {
-      CABLE              : '_{CABLE}_',
-      CONNECTER          : '_{CONNECTER}_',
-      LINK               : '_{LINK}_',
-      CONNECT            : '_{CONNECT}_',
-      'CLEAR'            : '_{CLEAR}_',
-      'CONNECT BY NUMBER': '_{CONNECT_BY_NUMBER}_',
-      'DELETE LINK'      : '_{DELETE_LINK}_',
-      'ATTENUATION'      : '_{ATTENUATION}_',
-      'COMMENTS'         : '_{COMMENTS}_',
-      'REMOVE CABLE FROM SCHEME' : '_{REMOVE_CABLE_FROM_SCHEME}_',
-      'GO TO COMMUTATION' : '_{GO_TO_COMMUTATION}_',
-      'MAP' : '_{MAP}_',
-      'CHANGE' : '_{CHANGE}_'
+      CABLE                  : '_{CABLE}_',
+      CONNECTER              : '_{CONNECTER}_',
+      LINK                   : '_{LINK}_',
+      CONNECT                : '_{CONNECT}_',
+      'CLEAR'                : '_{CLEAR}_',
+      'CONNECT BY NUMBER'    : '_{CONNECT_BY_NUMBER}_',
+      'DELETE LINK'          : '_{DELETE_LINK}_',
+      'ATTENUATION'          : '_{ATTENUATION}_',
+      'COMMENTS'             : '_{COMMENTS}_',
+      'REMOVE %S FROM SCHEME': '_{REMOVE_FS_FROM_SCHEME}_',
+      'GO TO COMMUTATION'    : '_{GO_TO_COMMUTATION}_',
+      'MAP'                  : '_{MAP}_',
+      'CHANGE'               : '_{CHANGE}_',
+      'SET'                  : '_{SET}_',
+      'SPLITTER'             : '_{SPLITTER}_',
+      'EQUIPMENT'            : '_{EQUIPMENT}_',
+      'NAME'                 : '_{NAME}_',
+      'IP'                   : 'IP',
+      'LENGTH'               : '_{LENGTH}_',
+      'NO OTHER COMMUTATIONS': '_{NO_OTHER_COMMUTATIONS}_',
+      'OTHER COMMUTATIONS'   : '_{OTHER_COMMUTATIONS}_'
     }
   }
   catch (Error) {
@@ -86,10 +95,21 @@
 
 </script>
 
+<!-- Drawing -->
 <script src='/styles/default_adm/js/raphael.min.js'></script>
+
+<!-- Draggable -->
 <script src='/styles/default_adm/js/modules/cablecat/raphael.extensions.js'></script>
+
+<!-- Context Menu -->
 <script src='/styles/default_adm/js/modules/cablecat/jquery.ui.position.min.js'></script>
 <script src='/styles/default_adm/js/modules/cablecat/jquery.contextMenu.min.js'></script>
+
+<!-- Touch responsive -->
 <script src='/styles/default_adm/js/modules/cablecat/hammer.min.js'></script>
+
+<!-- Zoom -->
 <script src='/styles/default_adm/js/modules/cablecat/raphael.pan-zoom.js'></script>
+
+<script src='/styles/default_adm/js/dynamicForms.js'></script>
 <script src='/styles/default_adm/js/modules/cablecat/commutation.js'></script>

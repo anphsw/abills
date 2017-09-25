@@ -22,7 +22,7 @@
 <tr><td>_{TRAF_TARIF}_:</td><td>%TRAF_TARIFF%</td></tr>
 <tr><td>_{SUM}_:</td><td>%SUM%</td></tr>
 <tr><td>_{BILL}_:</td><td>%BILL_ID%</td></tr>
-<tr><td>ACCT_TERMINATE_CAUSE</td><td>%ACCT_TERMINATE_CAUSE%</td></tr>
+<tr><td>_{ACCT_TERMINATE_CAUSE}_:</td><td>%ACCT_TERMINATE_CAUSE%</td></tr>
 <tr><td align=center colspan=2>
 <a href='$SELF_URL?get_index=ipn_detail&UID=$FORM{UID}&FROM_DATE=%START%&TO_DATE=%STOP%&full=1&IP=%IP%&search=1' class='btn btn-primary btn-xs'>IP _{DETAIL}_</a>
 

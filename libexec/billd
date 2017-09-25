@@ -47,8 +47,6 @@ use Abills::Server;
 use Users;
 use Admins;
 use Tariffs;
-use Dv_Sessions;
-use Dv;
 use Nas;
 use Billing;
 use Log qw(log_add);
@@ -115,8 +113,27 @@ $conf{MINIMUM_SESSION_TRAF} = 0;
 our %LIST_PARAMS = ();
 Conf->new( $db, $Admin, \%conf );
 my $Tariffs   = Tariffs->new( $db, \%conf, $Admin );
-our $Sessions = Dv_Sessions->new( $db, $Admin, \%conf );
-our $Dv       = Dv->new( $db, $Admin, \%conf );
+our ($Sessions, $Dv);
+
+if(in_array('Internet', \@MODULES)) {
+  require Internet::Sessions;
+  Internet::Sessions->import();
+  require Internet;
+  Internet->import();
+
+  $Sessions = Internet::Sessions->new( $db, $Admin, \%conf );
+  $Dv = Internet->new( $db, $Admin, \%conf );
+}
+else {
+  require Dv_Sessions;
+  Dv_Sessions->import();
+  require Dv;
+  Dv->import();
+
+  $Sessions = Dv_Sessions->new( $db, $Admin, \%conf );
+  $Dv = Dv->new( $db, $Admin, \%conf );
+}
+
 our $Nas      = Nas->new( $db, \%conf );
 our $Log      = Log->new( $db, \%conf );
 $Log->{PRINT} = 1;
@@ -131,10 +148,10 @@ if ( $argv->{NAS_IDS} ){
 }
 
 $LIST_PARAMS{TYPE}      = $argv->{NAS_TYPES} if ($argv->{NAS_TYPES});
-$LIST_PARAMS{USER_NAME} = $argv->{LOGINS} if ($argv->{LOGINS});
-$LIST_PARAMS{LOGIN}     = $argv->{LOGIN} if ($argv->{LOGIN});
-$LIST_PARAMS{TP_ID}     = $argv->{TP_IDS} if ($argv->{TP_IDS});
-$LIST_PARAMS{GID}       = $argv->{GIDS} if ($argv->{GIDS});
+$LIST_PARAMS{USER_NAME} = $argv->{LOGINS}    if ($argv->{LOGINS});
+$LIST_PARAMS{LOGIN}     = $argv->{LOGIN}     if ($argv->{LOGIN});
+$LIST_PARAMS{TP_ID}     = $argv->{TP_IDS}    if ($argv->{TP_IDS});
+$LIST_PARAMS{GID}       = $argv->{GIDS}      if ($argv->{GIDS});
 $LIST_PARAMS{PAGE_ROWS} = $argv->{PAGE_ROWS} || 1000000;
 $LIST_PARAMS{DISABLE}   = 0;
 
@@ -168,7 +185,9 @@ if ( $debug > 1 ){
 make_pid( $log_dir . '/'. $pid_name .'.pid', 'clean' );
 
 #***********************************************************
-# Deamon Mode
+=head2 deamon() - Deamon Mode
+
+=cut
 #***********************************************************
 sub deamon{
 
@@ -192,8 +211,10 @@ sub run_plugins{
 sub check_lines{
   $Sessions->{debug} = 1 if ($debug > 4);
 
-  $Sessions->online_del( { SESSIONS_LIST => [ 'IP' ],
-      QUICK                              => 1 } );
+  $Sessions->online_del( {
+    SESSIONS_LIST => [ 'IP' ],
+    QUICK         => 1
+  } );
 
   if ( $argv->{TRANSACTION} ){
     $db->{db}->{AutoCommit} = 0;
@@ -204,6 +225,7 @@ sub check_lines{
   $Sessions->online(
     {
       'USER_NAME'           => '_SHOW',
+      'LOGIN'               => '_SHOW',
       'NAS_PORT_ID'         => '_SHOW',
       'CLIENT_IP'           => '_SHOW',
       'DURATION'            => '_SHOW',
@@ -219,6 +241,7 @@ sub check_lines{
       'DEPOSIT'             => '_SHOW',
       'CREDIT'              => '_SHOW',
       'TP_ID'               => '_SHOW',
+      'TP_NUM'              => '_SHOW',
       'LOGIN_STATUS'        => '_SHOW',
       'SERVICE_STATUS'      => '_SHOW',
       'SESSION_SUM'         => '_SHOW',
@@ -235,6 +258,7 @@ sub check_lines{
       'DV_EXPIRE'           => '_SHOW',
       'NETMASK'             => '_SHOW',
       'TP_CREDIT_TRESSHOLD' => '_SHOW',
+      'ONLINE_TP_ID'        => '_SHOW',
       'SKIP_DEL_CHECK'      => 1,
       %LIST_PARAMS,
     }
@@ -243,16 +267,27 @@ sub check_lines{
   print "==> check_lines\n" if ($debug > 1);
   my $online_session = $Sessions->{nas_sorted};
   my $nas_list = $Nas->list( { %LIST_PARAMS, COLS_NAME => 1, COLS_UPPER => 1, PAGE_ROWS => 50000 } );
-  my $dub_ips = $Sessions->{dub_ips};
+  my $dub_ips  = $Sessions->{dub_ips};
 
-  require Acct;
-  Acct->import();
-  my $Acct = Acct->new( $db, \%conf );
+  my $Acct;
+
+  if(in_array('Internet', \@MODULES)) {
+    require Acct2;
+    Acct2->import();
+    $Acct = Acct2->new( $db, \%conf );
+  }
+  else {
+    require Acct;
+    Acct->import();
+    $Acct = Acct->new( $db, \%conf );
+  }
+
   my $Billing = Billing->new( $db, \%conf );
 
   my %JOIN_SERVICE_STATS = ();
   my @time = localtime();
   my $now = $time[0] + $time[1] * 60 + $time[2] * 3600;
+  my $lost_alive_count = 0;
 
   foreach my $nas ( @{$nas_list} ){
     #if don't have online users skip it
@@ -265,48 +300,61 @@ sub check_lines{
 
     foreach my $online ( @{$l} ){
       my $uid = $online->{uid};
+      my $credit = (defined( $online->{credit} ) && $online->{credit} == 0 && $online->{tp_credit}) ? $online->{tp_credit} : ($online->{credit} || 0);
+      my $deposit = $online->{deposit} || 0;
       $online->{tp_num} = $online->{tp_id};
-      $online->{deposit} = 0 if (!defined( $online->{deposit} ));
+      $online->{credit_tresshold} //= 0;
 
       my $state = int( ($online->{service_status} || 0) + ($online->{login_status} || 0) );
-      $online->{credit} = (defined( $online->{credit} ) && $online->{credit} == 0 && $online->{tp_credit}) ? $online->{tp_credit} : ($online->{credit} || 0);
+
       if ( $debug > 1 ){
         printf( "%-14s|%16s|%8s|%10s|%10s|%12s|\n", $online->{user_name}, $online->{client_ip},
           $online->{acct_session_time},
-          $online->{acct_input_octets}, $online->{acct_output_octets}, ($online->{deposit} || 'unknown') );
+          $online->{acct_input_octets}, $online->{acct_output_octets}, ($deposit || 'unknown') );
       }
 
-      if(! $uid || ! $online->{tp_num}) {
+      my $skip = 0;
+      if(! $skip && (! $uid || ! $online->{tp_num})) {
         if (! $online->{guest}) {
           session_hangup( $nas, $online,
-            "Unknown UID ip: $online->{client_ip} DEPOSIT: $online->{deposit} CREDIT: $online->{credit} SESSION_SUM: $online->{session_sum} STATUS: $state SESSION_ID: $online->{acct_session_id} GUEST: $online->{guest}");
+            "UNKNOWN_UID ip: $online->{client_ip} DEPOSIT: $deposit CREDIT: $credit "
+           ." UID: ". ($uid || 'n/d') . " TP: ". ($online->{tp_num} || 'n/d')
+           ." SESSION_SUM: $online->{session_sum} STATUS: $state SESSION_ID: $online->{acct_session_id} GUEST: $online->{guest}");
         }
       }
+      elsif (($uid && ($online->{online_tp_id} && $online->{online_tp_id} ne $online->{tp_id}))
+        && $online->{status} != 2
+      ){
+        session_hangup( $nas, $online,
+          "CHANGE_TP $online->{online_tp_id} -> $online->{tp_id} DEPOSIT: $deposit CREDIT: $credit SESSION_SUM: $online->{session_sum} STATUS: $state SESSION_ID: $online->{acct_session_id} GUEST: $online->{guest}" );
+        next if ($nas->{NAS_ALIVE} > 0 && ($online->{last_alive} < $nas->{NAS_ALIVE} * $error_alive_count));
+      }
+      # Old function for DV
       elsif (($uid && ($online->{calls_tp_id} && $online->{calls_tp_id} ne $online->{tp_num}))
         && $online->{status} != 2
       ){
         session_hangup( $nas, $online,
-          "Change TP $online->{calls_tp_id} -> $online->{tp_num} DEPOSIT: $online->{deposit} CREDIT: $online->{credit} SESSION_SUM: $online->{session_sum} STATUS: $state SESSION_ID: $online->{acct_session_id} GUEST: $online->{guest}" );
+          "CHANGE_TP $online->{calls_tp_id} -> $online->{tp_num} DEPOSIT: $deposit CREDIT: $credit SESSION_SUM: $online->{session_sum} STATUS: $state SESSION_ID: $online->{acct_session_id} GUEST: $online->{guest}" );
         next if ($nas->{NAS_ALIVE} > 0 && ($online->{last_alive} < $nas->{NAS_ALIVE} * $error_alive_count));
       }
       elsif ( $state && ! $online->{guest}){
         session_hangup( $nas, $online,
-          "Change State $online->{calls_tp_id} -> $online->{tp_num} DEPOSIT: $online->{deposit} CREDIT: $online->{credit} SESSION_SUM: $online->{session_sum} STATUS: $state SESSION_ID: $online->{acct_session_id} GUEST: $online->{guest}" );
+          "CHANGE_STATE DEPOSIT: $deposit CREDIT: $credit SESSION_SUM: $online->{session_sum} STATUS: $state SESSION_ID: $online->{acct_session_id} GUEST: $online->{guest}" );
         #next;
       }
       elsif ( $online->{status} == 9 && $online->{last_alive} > $nas->{NAS_ALIVE} * $error_alive_count * 2 ){
         session_hangup( $nas, $online,
-          "Lost session ($online->{status}) DEPOSIT: $online->{deposit} CREDIT: $online->{credit} SESSION_SUM: $online->{session_sum} STATUS: $state SESSION_ID: $online->{acct_session_id} GUEST: $online->{guest}" );
+          "LOST_SESSION ($online->{status}) DEPOSIT: $online->{deposit} CREDIT: $credit SESSION_SUM: $online->{session_sum} STATUS: $state SESSION_ID: $online->{acct_session_id} GUEST: $online->{guest}" );
         next;
       }
       elsif ( $online->{expired} || $online->{dv_expired} ){
         session_hangup( $nas, $online,
-          "Expired $online->{expire}/$online->{dv_expire} DEPOSIT: $online->{deposit} CREDIT: $online->{credit} SESSION_SUM: $online->{session_sum} STATUS: $state SESSION_ID: $online->{acct_session_id} GUEST: $online->{guest}" );
+          "EXPIRED $online->{expire}/$online->{dv_expire} DEPOSIT: $deposit CREDIT: $credit SESSION_SUM: $online->{session_sum} STATUS: $state SESSION_ID: $online->{acct_session_id} GUEST: $online->{guest}" );
         next;
       }
       elsif ( $dub_ips->{$nas->{NAS_ID}}{$online->{client_ip}} && $dub_ips->{$nas->{NAS_ID}}{$online->{client_ip}} > 1 ){
         session_hangup( $nas, $online,
-          "Dublicate ip: $online->{client_ip} DEPOSIT: $online->{deposit} CREDIT: $online->{credit} SESSION_SUM: $online->{session_sum} STATUS: $state SESSION_ID: $online->{acct_session_id} GUEST: $online->{guest}"
+          "DUBLICATE_IP: $online->{client_ip} DEPOSIT: $deposit CREDIT: $credit SESSION_SUM: $online->{session_sum} STATUS: $state SESSION_ID: $online->{acct_session_id} GUEST: $online->{guest}"
           , { ACTION => 'DUB_IP' } );
       }
 
@@ -348,7 +396,7 @@ sub check_lines{
           $Acct->accounting( $ACCT_INFO, $nas );
           my $info = '';
 
-          if ( $debug > 0 ){
+          if ( $debug > 1 ){
             foreach my $k ( sort keys %{$ACCT_INFO} ){
               $info .= sprintf( "%-28s | %-30s |\n", $k, (defined( $ACCT_INFO->{$k} )) ? $ACCT_INFO->{$k} : '' );
             }
@@ -365,19 +413,20 @@ sub check_lines{
           }
 
           $Log->log_print( 'LOG_WARNING', $online->{user_name},
-            "Last Alive: $online->{last_alive}, Session-ID: $online->{acct_session_id}\n$info",
+            "Last Alive: $online->{last_alive}, SESSION_ID: $online->{acct_session_id} DURATION: $online->{duration}\n$info",
             { ACTION => 'CALCULATION', NAS => $nas } );
           next;
         }
         else{
           $Log->log_print( 'LOG_WARNING', $online->{user_name},
-            "Last Alive: $online->{last_alive}, Session-ID: $online->{acct_session_id}",
+            "LAST_ALIVE: $online->{last_alive} SESSION_ID: $online->{acct_session_id} DURATION: $online->{duration}",
             { ACTION => 'LOST_ALIVE', NAS => $nas } );
           $Sessions->zap( $nas->{NAS_ID}, $online->{nas_port_id}, $online->{acct_session_id} );
+          $lost_alive_count++;
         }
       }
       elsif ( ref $external_stats eq 'HASH' && defined( $external_stats->{error} ) ){
-        print "Error:  Login: $online->{user_name}, NAS-IP: $nas->{NAS_IP}, Port: $online->{nas_port_id}, Session-ID: $online->{acct_session_id}\n" if ($debug == 1);
+        print "Error:  Login: $online->{user_name}, NAS-IP: $nas->{NAS_IP}, Port: $online->{nas_port_id}, SESSION_ID: $online->{acct_session_id}\n" if ($debug == 1);
         $Sessions->online_update(
           {
             USER_NAME       => $online->{user_name},
@@ -492,18 +541,19 @@ sub check_lines{
       #Check active sessions
       $Billing->{CHECK_SESSION} = 1;
       ($Billing->{UID},
-        $Billing->{SUM},
-        $Billing->{BILL_ID},
-        $Billing->{TARIF_PLAN},
-        $Billing->{TIME_TARIF},
-        $Billing->{TRAF_TARIF}) = $Billing->session_sum(
-        "$RAD{USER_NAME}",
-        $RAD{SESSION_START},
-        $RAD{ACCT_SESSION_TIME} || 1,
-        \%RAD,
+       $Billing->{SUM},
+       $Billing->{BILL_ID},
+       $Billing->{TARIF_PLAN},
+       $Billing->{TIME_TARIF},
+       $Billing->{TRAF_TARIF}) = $Billing->session_sum(
+       $RAD{USER_NAME},
+       $RAD{SESSION_START},
+       $RAD{ACCT_SESSION_TIME} || 1,
+       \%RAD,
         {
           UID    => $uid,
-          TP_NUM => $online->{tp_num}
+          TP_NUM => $online->{tp_num},
+          TP_ID  => (in_array('Internet', \@MODULES)) ? $online->{tp_id} : undef,
         }
       );
 
@@ -524,22 +574,22 @@ sub check_lines{
       }
 
       if ( (defined( $Billing->{PAYMENT_TYPE} ) && $Billing->{PAYMENT_TYPE} == 0)
-        && ($online->{deposit} + $online->{credit} <= $Billing->{SUM} + $online->{credit_tresshold})
+        && ($deposit + $credit <= $Billing->{SUM} + $online->{credit_tresshold})
         || $Billing->{HANGUP} )
       {
         #Neg deposit filter
-        if ( $online->{guest} && $online->{deposit} + $online->{credit} <= $online->{credit_tresshold} ){
+        if ( $online->{guest} && $deposit + $credit <= $online->{credit_tresshold} ){
           print "Skip with neg deposit filter '". ($Billing->{NEG_DEPOSIT_FILTER} || ''). "'\n" if ($debug > 1);
         }
         else{
           session_hangup( $nas, $online,
-            "DEPOSIT: $online->{deposit} CREDIT: $online->{credit} SESSION_SUM: $Billing->{SUM} SESSION_ID: $online->{acct_session_id} GUEST: $online->{guest}" );
+            "DEPOSIT: $deposit CREDIT: $credit SESSION_SUM: $Billing->{SUM} SESSION_ID: $online->{acct_session_id} GUEST: $online->{guest}" );
         }
       }
-      elsif ( $online->{guest} && $online->{deposit} + $online->{credit} > 0 && $state == 0 ){
+      elsif ( $online->{guest} && $deposit + $credit > 0 && $state == 0 ){
         if ( $online->{guest} != 2 ){
           session_hangup( $nas, $online,
-            "RECHANGE DEPOSIT: $online->{deposit} CREDIT: $online->{credit} SESSION_SUM: $Billing->{SUM} SESSION_ID: $online->{acct_session_id} STATE: $state GUEST: $online->{guest}" );
+            "RECHANGE DEPOSIT: $deposit CREDIT: $credit SESSION_SUM: $Billing->{SUM} SESSION_ID: $online->{acct_session_id} STATE: $state GUEST: $online->{guest}" );
         }
       }
     }
@@ -553,6 +603,10 @@ sub check_lines{
     my DBI $db_ = $db->{db};
     $db_->commit();
     $db_->{AutoCommit} = 1;
+  }
+
+  if($debug > 0) {
+    print "\nLOST_ALIVE: $lost_alive_count\n";
   }
 
   return 1;
@@ -570,8 +624,11 @@ sub billd_plugins{
   foreach my $action ( @plugins_arr ){
     #my ($plugin, $args) = split( /:/, $action, 2 );
 
-    eval { require "$Bin/billd.plugins/$action" . '.pm'; };
+#    eval {
+      do "$Bin/billd.plugins/$action" . '.pm';
+#    };
 
+    print $!;
     if ( $@ ){
       print "Plugin error '$action'\n";
       print $@;
@@ -590,32 +647,37 @@ sub billd_plugins{
 sub  session_hangup{
   my ($nas_info, $online, $message, $attr) = @_;
 
-  my $ret = $Nas_cmd->hangup(
-    $nas_info,
-    $online->{nas_port_id},
-    $online->{user_name},
-    {
-      %{$nas_info},
-      ACCT_SESSION_ID      => $online->{acct_session_id},
-      CALLING_STATION_ID   => $online->{CID},
-      FRAMED_IP_ADDRESS    => $online->{client_ip},
-      NETMASK              => $online->{netmask},
-      UID                  => $online->{uid},
-      debug                => $debug,
-      FILTER_ID            => $online->{filter_id},
-      OLD_TP_ID            => $online->{tp_id},
-      ACCT_TERMINATE_CAUSE => 15,
-    }
-  );
+  my $ret = q{};
 
+  if(! $argv->{SKIP_HANGUP}) {
+    $ret = $Nas_cmd->hangup(
+      $nas_info,
+      $online->{nas_port_id},
+      $online->{user_name},
+      {
+        %{$nas_info},
+        ACCT_SESSION_ID      => $online->{acct_session_id},
+        CALLING_STATION_ID   => $online->{CID},
+        FRAMED_IP_ADDRESS    => $online->{client_ip},
+        NETMASK              => $online->{netmask},
+        UID                  => $online->{uid},
+        debug                => $debug,
+        FILTER_ID            => $online->{filter_id},
+        OLD_TP_ID            => $online->{tp_id},
+        ACCT_TERMINATE_CAUSE => 15,
+      }
+    );
+  }
   if ( $message ){
     my $hangup_status = 0;
     if ( $ret !~ /^Err/i ){
       $hangup_status = 1;
     }
     $message .= " Hangup: $hangup_status DURATION: $online->{duration} Alive: $online->{last_alive}";
-    $Log->log_print( 'LOG_WARNING', $online->{user_name}, $message, { ACTION => $attr->{ACTION} || 'HANGUP',
-        NAS                                                                  => $nas_info } );
+    $Log->log_print( 'LOG_WARNING', $online->{user_name} || $online->{login} || '--', $message, {
+      ACTION => $attr->{ACTION} || 'HANGUP',
+      NAS    => $nas_info
+    } );
   }
 
   return $ret;
@@ -814,7 +876,7 @@ sub check_speed_linux{
   my $time_info    = $Billing->get_timeinfo();
   my %speeds  = ();
   my %TP_HASH = ();
-  my $tp_list = $Tariffs->list( { MODULE => 'Dv', COLS_NAME => 1, NEW_MODEL_TP => 1 } );
+  my $tp_list = $Tariffs->list( { MODULE => 'Dv;Internet', COLS_NAME => 1, NEW_MODEL_TP => 1 } );
 
   #GET TP speed
   my %tp_exprasions = ();
@@ -1112,7 +1174,7 @@ sub check_speed_mpd{
   }
   close( $ph );
 
-  # ������ ��� ������� �� �� 4 ����� =)
+  # ?????????????????? ????????? ????????????????????? ?????? ?????? 4 ??????????????? =)
   #ng1028:inet.1-0-mi
   #ng1028:inet.0-0-mi
   #ng1028:inet.0-0-m
@@ -1160,10 +1222,23 @@ sub check_speed_mpd{
 }
 
 #**********************************************************
-=head2 check_speed()
+=head2 check_speed() -
+
+  ARGV:
+    SHOW_SPEED
+    RECONFIGURE
+
+    accel_ppp
+    mikrotik
+    NEW   - For linux new shaper
+    LINUX_IPN
+    MPD_FILTER  - Check FreeBSD mpd filter
+    FW_DIRECTION_OUT / FW_DIRECTION_IN
+    CHECK_GUEST
 
 
   Default ipfw dummy speed settings
+
 
 =cut
 #**********************************************************
@@ -1174,26 +1249,26 @@ sub check_speed{
 
   if ( defined( $argv->{mikrotik} ) ){
     billd_plugins( 'mikrotik_check_speed' );
-    exit;
+    return 1;
   }
   elsif ( defined( $argv->{accel_ppp} ) ){
     check_speed_accel();
-    exit;
+    return 1;
   }
   elsif ( $argv->{NEW} ){
     check_speed_linux_new();
-    exit;
+    return 1;
   }
   elsif ( !$LIST_PARAMS{NAS_IDS} ){
     print "NAS not specify. Example:\n";
     print "# billd checkspeed NAS_IDS=8,1,5...\n";
-    exit;
+    return 0;
   }
   # Check linux shapper
   elsif ( $OS eq 'linux' || $argv->{LINUX_IPN} ){
     print "> Linux nas\n" if ($debug > 1);
     check_speed_linux();
-    exit;
+    return 1;
   }
 
   if ( $conf{FW_START_RULES} ){
@@ -1359,7 +1434,7 @@ sub check_speed{
 
   if ( $Sessions->{errno} ){
     print "$Sessions->{error} $Sessions->{err_str}";
-    exit;
+    return 0;
   }
 
   # Check turbo mode
@@ -1454,7 +1529,7 @@ sub check_speed{
   my $time_info = $Billing->get_timeinfo();
 
   my %speeds = ();
-  my $tp_list = $Tariffs->list( { MODULE => 'Dv', COLS_NAME => 1, NEW_MODEL_TP => 1 } );
+  my $tp_list = $Tariffs->list( { MODULE => 'Dv;Internet', COLS_NAME => 1, NEW_MODEL_TP => 1 } );
 
   #GET TP speed
   my %tp_exprasions = ();
@@ -2129,14 +2204,14 @@ sub check_pptpd{
     #LINUX
     if ( /^(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\d+)\s+(\S+)\s+(.+)/ ){
       $procs_hash{$2}{$1} = "$10";
-      print "$2 - $3 / $10his  \n";
+      print "$2 - $3 / $10 his  \n" if($debug);
     }
 
     #FreeBSD
     #USER   PID  PPID  PGID   SID JOBC STAT  TT       TIME COMMAND
     elsif ( /^(\S+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(.+)$/ ){
       $procs_hash{$2}{$3} = "$10";
-      print "$2 - $3 / $10his  \n";
+      print "$2 - $3 / $10 his  \n" if($debug);
     }
 
   }
@@ -2180,7 +2255,7 @@ sub check_ifaces{
     foreach my $_info ( @{$list} ){
       $debug_output .= "NAS ID: $_info->{NAS_ID} MNG_INFO: $_info->{NAS_MNG_USER}\@$_info->{NAS_MNG_IP_PORT} $_info->{NAS_RAD_PAIRS}\n" if ($debug > 2);
       $nas_info = $_info;
-      if ( $_info->{NAS_MNG_USER} eq '' ){
+      if (! $_info->{NAS_MNG_USER} ){
         $debug_output .= "Skiped Not defined control user NAS_ID: $_info->{NAS_ID}\n" if ($debug > 1);
         next;
       }
@@ -2202,7 +2277,7 @@ sub check_ifaces{
         }
         else{
           if ( $debug < 5 ){
-            hangup(
+            $Nas_cmd->hangup(
               $nas_info,
               "0",
               "",
@@ -2238,15 +2313,19 @@ sub check_ifaces{
 }
 
 #**********************************************************
-#Get ipaddreses of active sessions
+=head2 get_db_info($ip_pid_hash) - Get ipaddreses of active sessions
+
+=cut
 #**********************************************************
 sub get_db_info{
   my ($ip_pid_hash) = @_;
 
   $Sessions->{debug} = 1 if ($debug > 4);
-  my $list = $Sessions->online( { CLIENT_IP => '_SHOW',
-      PORT                                  => '_SHOW',
-      NAS_ID                                => $LIST_PARAMS{NAS_IDS} } );
+  my $list = $Sessions->online( {
+    CLIENT_IP => '_SHOW',
+    PORT      => '_SHOW',
+    NAS_ID    => $LIST_PARAMS{NAS_IDS}
+  } );
 
   foreach my $line ( @{$list} ){
     my $ip = $line->{client_ip};
@@ -2392,7 +2471,7 @@ sub check_mikro{
 
     $debug_output .= "NAS ID: $nas_info->{NAS_ID} MNG_INFO: $nas_info->{NAS_MNG_USER}\@$nas_info->{NAS_MNG_IP_PORT} $nas_info->{NAS_ALIVE}\n" if ($debug > 2);
 
-    if ( $nas_info->{NAS_MNG_USER} eq '' ){
+    if ( ! $nas_info->{NAS_MNG_USER} ){
       $debug_output .= "Skiped Not defined control user NAS_ID: $nas_info->{NAS_ID}\n" if ($debug > 1);
       next;
     }
@@ -2424,7 +2503,7 @@ sub check_mikro{
       my ($user, $uptime) = split( /:/, $user_uptime );
       print "$ip, $user\n" if ($debug > 1);
 
-      hangup(
+      $Nas_cmd->hangup(
         $nas_info,
         "0",
         $user,
@@ -2434,7 +2513,7 @@ sub check_mikro{
         }
       );
 
-      print "Hangup '$user' IP: $ip Uptime: $uptime Session-ID: NAS: $nas_info->{NAS_ID}/$nas_info->{NAS_IP}\n";
+      print "Hangup '$user' IP: $ip Uptime: $uptime SESSION_ID: NAS: $nas_info->{NAS_ID}/$nas_info->{NAS_IP}\n";
     }
   }
   print $debug_output;
@@ -2455,14 +2534,21 @@ sub check_mpd{
     $LIST_PARAMS{TYPE} = 'mpd5';
   }
 
-  my $list = $Nas->list( { %LIST_PARAMS, COLS_NAME => 1, COLS_UPPER => 1, PAGE_ROWS => 50000 } );
+  my $list = $Nas->list( {
+    %LIST_PARAMS,
+    COLS_NAME => 1,
+    COLS_UPPER => 1,
+    PAGE_ROWS => 50000
+  } );
 
   foreach my $nas_info ( @{$list} ){
     my %info_hash = ();
 
-    $debug_output .= "NAS ID: $nas_info->{NAS_ID} MNG_INFO: $nas_info->{NAS_MNG_USER}\@$nas_info->{NAS_MNG_IP_PORT} $nas_info->{NAS__ALIVE}\n" if ($debug > 2);
+    $nas_info->{NAS_MNG_USER} //= '';
+    $nas_info->{NAS_MNG_IP_PORT} //= '';
+    $debug_output .= "NAS ID: $nas_info->{NAS_ID} MNG_INFO: $nas_info->{NAS_MNG_USER}\@$nas_info->{NAS_MNG_IP_PORT} $nas_info->{NAS_ALIVE}\n" if ($debug > 2);
 
-    if ( $nas_info->{NAS_MNG_USER} eq '' ){
+    if (!  $nas_info->{NAS_MNG_USER} ){
       $debug_output .= "Skiped Not defined control user NAS_ID: $nas_info->{NAS_ID}\n" if ($debug > 1);
       next;
     }
@@ -2508,7 +2594,7 @@ sub check_mpd{
       print "$ip, $user\n" if ($debug > 1);
 
       if ( !$argv->{SHOW} ){
-        hangup(
+        $Nas_cmd->hangup(
           $nas_info,
           "0",
           "$user",
@@ -2520,7 +2606,7 @@ sub check_mpd{
         );
       }
 
-      print "Hangup '$user' IP: $ip MAC: $mac Session-ID: $session_id NAS: $nas_info->{NAS_ID}/$nas_info->{NAS_IP}\n";
+      print "Hangup '$user' IP: $ip MAC: $mac SESSION_ID: $session_id NAS: $nas_info->{NAS_ID}/$nas_info->{NAS_IP}\n";
     }
   }
   print $debug_output;
@@ -3024,7 +3110,6 @@ sub check_speed_linux_new{
   my ($attr) = @_;
 
   my $result = '';
-  # ($TARIF_SPEEDS, $class2nets) =
   my ($TARIF_SPEEDS) = get_tp_cure_speed( $attr );
   my $interface = $argv->{INTERFACE} || 'eth0';
   my $tc = 'tc';
@@ -3035,7 +3120,7 @@ sub check_speed_linux_new{
 
   #Get current speed
   if ( $argv->{SHOW_SPEED} ){
-    next;
+    return 0;
   }
 
   #my $count;
@@ -3184,7 +3269,7 @@ sub help{
   my $plugins = '';
   #get plugins
   opendir my $dh, "$Bin/billd.plugins/" or die "Can't open dir '$Bin/billd.plugins/' $!\n";
-  my @contents = grep /\.pm$/, readdir $dh;
+    my @contents = grep /\.pm$/, readdir $dh;
   closedir $dh;
 
   foreach my $p ( @contents ){
@@ -3207,6 +3292,7 @@ CHECK speed
     SHOW_SPEED=1   - Only show current speed
     RECONFIGURE=1  - Reconfigure speed settings
   speed_expr       - Speed Expration
+  SKIP_HANGUP      - Skip hangup only info
   SHOW_CUR_SPEED   - Show current users speed
   OS               - Local OS (linux|freebsd). Optional params
   mikrotik         - check speed on mikrotik
@@ -3223,11 +3309,10 @@ $plugins
   NAS_TYPES=...,- Make actions for NAS Types
   LOGINS=...,   - Make actions for logins
   TP_IDS=....   - Tariff plans
-  SSH_CMD=      - (Default: /usr/bin/ssh -p \$nas_port -o StrictHostKeyChecking=no -i $base_dir/Certs/id_dsa.\$nas_mng_user)
+  SSH_CMD=      - (Default: /usr/bin/ssh -p \$nas_port -o StrictHostKeyChecking=no -i $base_dir/Certs/id_rsa.\$nas_mng_user)
   SSH_PORT=22   - (Default: 22)
 \n";
 }
 
 __END__
-
-
+1

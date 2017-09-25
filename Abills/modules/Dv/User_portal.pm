@@ -7,7 +7,8 @@
 use warnings;
 use strict;
 
-use Abills::Base qw(sec2time in_array convert int2byte ip2int date_diff);
+use Abills::Base qw(sec2time in_array convert int2byte ip2int int2ip date_diff show_hash);
+use Abills::Filters qw(_mac_former);
 
 our (
   $db,
@@ -26,6 +27,9 @@ my $Fees     = Fees->new($db, $admin, \%conf);
 my $Tariffs  = Tariffs->new($db, \%conf, $admin);
 my $Sessions = Dv_Sessions->new($db, $admin, \%conf);
 my $Nas      = Nas->new($db, \%conf, $admin);
+my $Shedule  = Shedule->new($db, $admin, \%conf);
+my $Log      = Log->new($db, \%conf);
+
 
 #**********************************************************
 =head2 dv_user_info()
@@ -33,7 +37,6 @@ my $Nas      = Nas->new($db, \%conf, $admin);
 =cut
 #**********************************************************
 sub dv_user_info {
-  my $DHCP_INFO = undef;
 
   my $service_status = sel_status({ HASH_RESULT => 1 });
   our $Isg;
@@ -98,77 +101,20 @@ sub dv_user_info {
     }
   }
   # Users autoregistrations
-  elsif ($conf{DV_IP_DISCOVERY}) {
-    my $session_list = $Sessions->online(
-      {
-        CLIENT_IP => $user->{REMOTE_ADDR},
-        #USER_NAME => $user->{LOGIN},
-        ACCT_SESSION_ID => '_SHOW',
-        NAS_ID    => '_SHOW',
-        GUEST     => '_SHOW'
-      }
-    );
-
-    if ($Sessions->{TOTAL} < 1 || $session_list->[0]->{guest} ) {
-      $DHCP_INFO = dv_dhcp_get_mac($user->{REMOTE_ADDR}, { CHECK_STATIC => 1 });
-      if (!$DHCP_INFO->{MAC}) {
-        $html->message('err', $lang{ERROR}, "DHCP $lang{ERROR}\n MAC: $lang{NOT_EXIST}\n IP: '$user->{REMOTE_ADDR}'", { ID => 112 });
-        return 0;
-      }
-      elsif ($DHCP_INFO->{STATIC}) {
-        if ($DHCP_INFO->{IP} ne $user->{REMOTE_ADDR}) {
-          $html->message('err', $lang{ERROR}, "$lang{ERR_IP_ADDRESS_CONFLICT}\n MAC: $lang{NOT_EXIST}\n IP: '$user->{REMOTE_ADDR}' ", { ID => 114 });
-        }
-      }
-      else {
-        if($FORM{discovery}) {
-          if (dv_dhcp_get_mac_add($user->{REMOTE_ADDR}, $DHCP_INFO)) {
-            $html->message('info', $lang{INFO}, "$lang{ACTIVATE}\n\n IP: $Dv->{NEW_IP}\n CID: $DHCP_INFO->{MAC}");
-            if ($session_list->[0]->{acct_session_id}) {
-              $Nas->info({ NAS_ID => $session_list->[0]->{nas_id} });
-              $Sessions->online_info( { ACCT_SESSION_ID  => $session_list->[0]->{acct_session_id}, NAS_ID => $session_list->[0]->{nas_id} });
-
-              #              END {
-              require Abills::Nas::Control;
-              Abills::Nas::Control->import();
-
-              my $Nas_cmd = Abills::Nas::Control->new($db, \%conf);
-              sleep 1;
-              $Nas_cmd->hangup($Nas, 0, '',
-                {
-                  #DEBUG  => $FORM{DEBUG} || undef,
-                  %$Sessions
-                }
-              );
-              `echo "hangup" >> /tmp/hagup`;
-              #              }
-              #              if ($ret == 0) {
-              #                $message = "$lang{NAS} ID:  $nas_id\n $lang{NAS} IP: $Nas->{NAS_IP}\n $lang{PORT}: $nas_port_id\n SESSION_ID: $acct_session_id\n\n  $ret";
-              #                sleep 3;
-              #                $admin->action_add($FORM{UID}, "$user_name", { MODULE => 'Dv', TYPE => 15 });
-              #              }
-            }
-          }
-        }
-
-        if (! $Dv->{NEW_IP}) {
-          $html->tpl_show(_include('dv_guest_mode', 'Dv'), {
-              %$Dv,
-              %$DHCP_INFO,
-              IP => $user->{REMOTE_ADDR},
-              ID => 'dv_guest_mode'
-            });
-        }
-      }
+  elsif ($conf{DV_IP_DISCOVERY} && ! $Dv->{STATUS}) {
+    if(! dv_discovery($user->{REMOTE_ADDR})) {
+      return 0;
     }
   }
+  $Dv->info($LIST_PARAMS{UID}, { DOMAIN_ID => $user->{DOMAIN_ID} });
 
   if ($FORM{activate}) {
+    my $old_status = $Dv->{STATUS};
     $Dv->change(
       {
         UID    => $LIST_PARAMS{UID},
         STATUS => 0,
-        CID    => ($Isg->{ISG_CID_CUR}) ? $Isg->{ISG_CID_CUR} : undef
+        CID    => ($Isg->{ISG_CID_CUR}) ? $Isg->{ISG_CID_CUR} : undef,
       }
     );
 
@@ -176,17 +122,23 @@ sub dv_user_info {
       $Dv->{ACCOUNT_ACTIVATE}=$user->{ACTIVATE};
       $html->message('info', $lang{INFO}, "$lang{ACTIVATE} CID: $Isg->{ISG_CID_CUR}") if ($Isg->{ISG_CID_CUR});
       service_get_month_fee($Dv) if (!$Dv->{STATUS});
+      if($conf{DV_USER_ACTIVATE_DATE} && $old_status == 2) {
+        $user->change($LIST_PARAMS{UID}, { ACTIVATE => $DATE, UID => $LIST_PARAMS{UID} });
+        $html->message('info', $lang{INFO}, "$lang{ACTIVATE} $DATE");
+      }
     }
     else {
       $html->message('err', $lang{ACTIVATE}, "$lang{ERROR} CID: $Isg->{ISG_CID_CUR}", { ID => 102 });
     }
 
     #Log on
-    if (!cisco_isg_cmd($user->{REMOTE_ADDR}, "account-logoff",
-      { USER_NAME => $user->{LOGIN},
-        #'User-Password' => '123456'
-      })) {
-      return 0;
+    if($conf{DV_ISG}) {
+      if (!cisco_isg_cmd($user->{REMOTE_ADDR}, "account-logoff",
+        { USER_NAME => $user->{LOGIN},
+          #'User-Password' => '123456'
+        })) {
+        return 0;
+      }
     }
   }
   elsif ($FORM{logon}) {
@@ -222,7 +174,6 @@ sub dv_user_info {
     );
   }
 
-  $Dv->info($LIST_PARAMS{UID}, { DOMAIN_ID => $user->{DOMAIN_ID} });
   $user->{DV_STATUS} = $Dv->{STATUS};
 
   if ($Dv->{TOTAL} < 1) {
@@ -237,20 +188,51 @@ sub dv_user_info {
   if ($Dv->{NEXT_FEES_WARNING}) {
     $Dv->{NEXT_FEES_WARNING}=$html->message("$Dv->{NEXT_FEES_MESSAGE_TYPE}", "", $Dv->{NEXT_FEES_WARNING}, { OUTPUT2RETURN => 1 }) ;
   }
+  
+  # Check for sheduled tp change
+  my $sheduled_tp_actions_list = $Shedule->list(
+    {
+      UID       => $user->{UID},
+      TYPE      => 'tp',
+      MODULE    => 'Dv',
+      COLS_NAME => 1
+    }
+  );
+  
+  if ($sheduled_tp_actions_list && ref $sheduled_tp_actions_list eq 'ARRAY' && scalar @$sheduled_tp_actions_list){
+    my $next_tp_action = $sheduled_tp_actions_list->[0];
+    my $next_tp_id = $next_tp_action->{action};
+    my $next_tp_date = "$next_tp_action->{y}-$next_tp_action->{m}-$next_tp_action->{d}";
+    
+    # Get info about next TP
+    my $tp_list = $Tariffs->list({
+      TP_ID     => $next_tp_id,
+      NAME      => '_SHOW',
+      COLS_NAME => 1
+    });
+    
+    if ($tp_list && ref $tp_list eq 'ARRAY' && scalar @$tp_list){
+      my $next_tp_name = $tp_list->[0]{name};
+      $Dv->{TP_CHANGE_WARNING} = $html->reminder($lang{TP_CHANGE_SHEDULED}, "$next_tp_name ($next_tp_date)", {
+          OUTPUT2RETURN => 1,
+          class         => 'info'
+        });
+    }
+  }
 
   my ($status, $color) = split(/:/, $service_status->{ $Dv->{STATUS} });
   $user->{SERVICE_STATUS} = $Dv->{STATUS};
 
   if ($Dv->{STATUS} == 2) {
-    $Dv->{STATUS} = $html->color_mark($status, $color) . ' ';
-    $Dv->{STATUS} .= ($user->{DISABLE} > 0) ? $html->b("($lang{ACCOUNT} $lang{DISABLE})")
-                                            : $html->button($lang{ACTIVATE}, "&index=$index&sid=$sid&activate=1", { ex_params => ' ID="ACTIVATE"', BUTTON => 1 });
+    $Dv->{STATUS_VALUE} = $html->color_mark($status, $color) . ' ';
+    $Dv->{STATUS_VALUE} .= ($user->{DISABLE} > 0) ? $html->b("($lang{ACCOUNT} $lang{DISABLE})")
+                                            : $html->button($lang{ACTIVATE}, "&index=$index&sid=$sid&activate=1", { ID => 'ACTIVATE', class => 'btn btn-success pull-right' });
   }
   elsif ($Dv->{STATUS} == 5) {
-    $Dv->{STATUS} = $html->color_mark($status, $color) . ' ';
+    $Dv->{STATUS_VALUE} = $html->color_mark($status, $color) . ' ';
 
     if ($Dv->{MONTH_ABON} && $user->{DEPOSIT} && $Dv->{MONTH_ABON} <= $user->{DEPOSIT}) {
-      $Dv->{STATUS} .= ($user->{DISABLE} > 0) ? $html->b("($lang{ACCOUNT} $lang{DISABLE})")
+      $Dv->{STATUS_VALUE} .= ($user->{DISABLE} > 0) ? $html->b("($lang{ACCOUNT} $lang{DISABLE})")
                                               : $html->button($lang{ACTIVATE}, "&index=$index&sid=$sid&activate=1", { ex_params => ' ID="ACTIVATE"', BUTTON => 1 });
     }
     else {
@@ -259,9 +241,9 @@ sub dv_user_info {
       }
     }
   }
-
-  $Dv->{STATUS_VALUE} = $html->color_mark($status, $color);
-
+  else {
+    $Dv->{STATUS_VALUE} = $html->color_mark($status, $color);
+  }
   
   $index = get_function_index('dv_user_info');
   if ($index && $index =~ /sub(\d+)/){
@@ -326,108 +308,8 @@ sub dv_user_info {
   }
 
   #Turbo mode Enable function
-  if ($conf{DV_TURBO_MODE} && !$Dv->{TURBO_MODE}) {
-    my (@turbo_mods) = split(/;/, $conf{DV_TURBO_MODE});
-    my @turbo_mods_full = ();
-
-    my $i = 1;
-    my ($speed, $time, $price, $name, $bonus);
-    foreach my $line (@turbo_mods) {
-      ($speed, $time, $price, $name, $bonus) = split(/:/, $line, 5);
-
-      if ($bonus && ! $Dv->{FREE_TURBO_MODE} ) {
-        next;
-      }
-
-      push @turbo_mods_full, sprintf("$name\n $lang{SPEED}: $speed\n $lang{TIME}: %s\n $lang{PRICE}: %.2f %s", sec2time($time, { format => 1 }), $price, (($bonus) ? "($lang{BONUS})" : ''));
-      if ($FORM{SPEED} && $FORM{SPEED} == $i) {
-        $FORM{MODE_ID} = $i - 1;
-        $FORM{SPEED}   = $speed;
-        $FORM{TIME}    = $time;
-        last;
-      }
-      $i++;
-    }
-
-    if (form_purchase_module({
-      HEADER           => $user->{UID},
-      MODULE           => 'Turbo',
-      REQUIRE_VERSION  => 2.20
-    })) {
-      return 0;
-    }
-
-    my $Turbo = Turbo->new($db, $admin, \%conf);
-    my $list = $Turbo->list(
-      {
-        UID    => $LIST_PARAMS{UID},
-        ACTIVE => 1,
-      }
-    );
-
-    if ($Turbo->{TOTAL} > 0 || $Dv->{TURBO_MODE_RUN}) {
-      my $last = $list->[0]->[2] || $Dv->{TURBO_MODE_RUN};
-      $html->message('info', $lang{INFO}, $html->b("$turbo_mods_full[$list->[0]->[1]]") . "\n$lang{REMAIN} $lang{TIME}: $last sec.");
-    }
-    elsif ($FORM{change} && $FORM{SPEED}) {
-      if ($user->{DEPOSIT} + $user->{CREDIT} > $price) {
-        $Turbo->add(
-          {
-            UID        => $LIST_PARAMS{UID},
-            MODE_ID    => $FORM{MODE_ID},
-            SPEED      => int($FORM{SPEED}),
-            SPEED_TYPE => 0,
-            TIME       => $FORM{TIME},
-          }
-        );
-
-        if (_error_show($Turbo, { SILENT_MODE => 1 })) {
-          return 0;
-        }
-
-        if ($price > 0) {
-          $Fees->take($user, $price, { DESCRIBE => "Turbo mode: $Turbo->{INSERT_ID}" });
-        }
-
-        if ($bonus) {
-          if ($Dv->{FREE_TURBO_MODE} < 1) {
-            $html->message('err', "$lang{ERROR}", "$lang{BONUS} Turbo $lang{EXPIRE}");
-            return 0;
-          }
-          else {
-            $Dv->change({
-              UID             => $user->{UID},
-              FREE_TURBO_MODE => ($Dv->{FREE_TURBO_MODE}-1)
-            });
-          }
-        }
-
-        if ($conf{DV_TURBO_CMD}) {
-          cmd($conf{DV_TURBO_CMD}, {
-              PARAMS => { %$user,
-                DEBUG  => $conf{DV_TURBO_CMD_DEBUG},
-                IP     => $ENV{REMOTE_ADDR}
-              } });
-        }
-
-        $html->message('info', $lang{INFO}, $html->b("$turbo_mods_full[$FORM{MODE_ID}]") . "\n$lang{REMAIN} $lang{TIME}: $FORM{TIME} sec.");
-      }
-      else {
-        $html->message('err', "$lang{ERROR}:Turbo", "$lang{ERR_SMALL_DEPOSIT}");
-      }
-    }
-    else {
-      $Dv->{SPEED_SEL} = $html->form_select(
-        'SPEED',
-        {
-          SELECTED     => $FORM{SPEED},
-          SEL_ARRAY    => [ '', @turbo_mods_full ],
-          ARRAY_NUM_ID => 1
-        }
-      );
-
-      $html->tpl_show(_include('dv_user_speed', 'Dv'), $Dv);
-    }
+  if ($conf{DV_TURBO_MODE}) {
+    dv_turbo_control($Dv);
   }
 
   if ($Dv->{IP} eq '0.0.0.0') {
@@ -449,6 +331,37 @@ sub dv_user_info {
     }
   }
 
+  my $money_name = '';
+  if (exists $conf{MONEY_UNIT_NAMES} && defined $conf{MONEY_UNIT_NAMES} && ref $conf{MONEY_UNIT_NAMES} eq 'ARRAY'){
+    $money_name = $conf{MONEY_UNIT_NAMES}->[0] || '';
+  }
+  
+  #Extra fields
+  $Dv->{EXTRA_FIELDS} = '';
+  my @check_fields = (
+    "MONTH_ABON:0.00:\$_MONTH_FEE:$money_name",
+    "DAY_ABON:0.00:\$_DAY_FEE:$money_name",
+    "TP_ACTIVATE_PRICE:0.00:\$_ACTIVATE_TARIF_PLAN:$money_name",
+    "DV_EXPIRE:0000-00-00:\$_EXPIRE",
+    "TP_AGE:0:\$_AGE",
+    #'ACTIVATE_CHANGE_PRICE:0.00:\$_ACTIVE',
+    "IP:0.0.0.0:\$_STATIC IP",
+    "CID::MAC",
+  );
+
+  foreach my $param ( @check_fields ) {
+    my($id, $default_value, $lang_, $value_prefix )=split(/:/, $param);
+    if(! defined($Dv->{$id}) || $Dv->{$id} eq $default_value) {
+      next;
+    }
+
+    $Dv->{EXTRA_FIELDS} .= $html->tpl_show(templates('form_row_client'), {
+      ID    => '$id',
+      NAME  => _translate($lang_),
+      VALUE => $Dv->{$id} . ( $value_prefix ? (' ' . $value_prefix) : '' ),
+    }, { OUTPUT2RETURN => 1 });
+  }
+
   $html->tpl_show(_include('dv_user_info', 'Dv'), $Dv,
     {  ID => 'dv_user_info' });
 
@@ -462,6 +375,114 @@ sub dv_user_info {
   return 1;
 }
 
+
+#**********************************************************
+=head2 dv_discovery($attr)
+
+=cut
+#**********************************************************
+sub dv_discovery {
+  my ($user_ip)=@_;
+
+  $conf{DV_IP_DISCOVERY}=~s/[\r\n ]//g;
+  my @dhcp_nets         = split(/;/, $conf{DV_IP_DISCOVERY});
+
+  my $discovery_ip = 0;
+  foreach my $nets (@dhcp_nets) {
+    my (undef, $net_ips, undef) = split(/:/, $nets);
+    if(check_ip($user_ip, $net_ips) ) {
+      $discovery_ip = 1;
+      last;
+    }
+  }
+
+  if(! $discovery_ip) {
+    return 1;
+  }
+
+  my $session_list = $Sessions->online(
+    {
+      CLIENT_IP => $user_ip,
+      #USER_NAME => $user->{LOGIN},
+      ACCT_SESSION_ID => '_SHOW',
+      NAS_ID    => '_SHOW',
+      GUEST     => '_SHOW'
+    }
+  );
+
+  if ($Sessions->{TOTAL} < 1 || $session_list->[0]->{guest} ) {
+    my $DHCP_INFO = dv_dhcp_get_mac($user_ip, { CHECK_STATIC => 1 });
+    if (!$DHCP_INFO->{MAC}) {
+      my $log_type = 'LOG_WARNING';
+      my $error_id = 112;
+
+      $html->message('err', $lang{ERROR}, "DHCP $lang{ERROR}\n MAC: $lang{NOT_EXIST}\n IP: '$user_ip'", { ID => 112 });
+      $Log->log_print($log_type, $user->{LOGIN},
+        show_hash($DHCP_INFO, { OUTPUT2RETURN => 1 }). (($error_id) ? "Error: $error_id" : ''),
+        { ACTION => 'REG', NAS => { NAS_ID => $session_list->[0]->{nas_id} } });
+
+      return 0;
+    }
+    elsif ($DHCP_INFO->{STATIC}) {
+      if ($DHCP_INFO->{IP} ne $user_ip) {
+        my $log_type = 'LOG_WARNING';
+        my $error_id = 114;
+
+        $html->message('err', $lang{ERROR}, "$lang{ERR_IP_ADDRESS_CONFLICT}\n MAC: $lang{NOT_EXIST}\n IP: '$user_ip' ", { ID => 114 });
+
+        $Log->log_print($log_type, $user->{LOGIN},
+          show_hash($DHCP_INFO, { OUTPUT2RETURN => 1 }). (($error_id) ? "Error: $error_id" : ''),
+          { ACTION => 'REG', NAS => { NAS_ID => $session_list->[0]->{nas_id} } });
+      }
+    }
+    else {
+      if($FORM{discovery}) {
+        if (dv_dhcp_get_mac_add($user_ip, $DHCP_INFO, { NAS_ID => $session_list->[0]->{nas_id} })) {
+          $html->message('info', $lang{INFO}, "$lang{ACTIVATE}\n\n "
+           . (($Dv->{NEW_IP} && $Dv->{NEW_IP} ne '0.0.0.0') ? "IP: $Dv->{NEW_IP}\n" : q{})
+           .  "CID: $DHCP_INFO->{MAC}");
+
+          if ($session_list->[0]->{acct_session_id}) {
+            $Nas->info({ NAS_ID => $session_list->[0]->{nas_id} });
+            $Sessions->online_info( { ACCT_SESSION_ID  => $session_list->[0]->{acct_session_id}, NAS_ID => $session_list->[0]->{nas_id} });
+
+            #              END {
+            require Abills::Nas::Control;
+            Abills::Nas::Control->import();
+
+            my $Nas_cmd = Abills::Nas::Control->new($db, \%conf);
+            sleep 1;
+            $Nas_cmd->hangup($Nas, 0, '',
+              {
+                #DEBUG  => $FORM{DEBUG} || undef,
+                %$Sessions
+              }
+            );
+            #`echo "hangup" >> /tmp/hagup`;
+            #              }
+            #              if ($ret == 0) {
+            #                $message = "$lang{NAS} ID:  $nas_id\n $lang{NAS} IP: $Nas->{NAS_IP}\n $lang{PORT}: $nas_port_id\n SESSION_ID: $acct_session_id\n\n  $ret";
+            #                sleep 3;
+            #                $admin->action_add($FORM{UID}, "$user_name", { MODULE => 'Dv', TYPE => 15 });
+            #              }
+          }
+        }
+      }
+
+      if (! $Dv->{NEW_IP}) {
+        $html->tpl_show(_include('dv_guest_mode', 'Dv'), {
+          %$Dv,
+          %$DHCP_INFO,
+          IP => $user_ip,
+          ID => 'dv_guest_mode'
+        });
+      }
+    }
+  }
+
+  return 1;
+}
+
 #**********************************************************
 =head2 dv_user_chg_tp($attr)
 
@@ -470,7 +491,6 @@ sub dv_user_info {
 sub dv_user_chg_tp {
   my ($attr) = @_;
 
-  my $Shedule = Shedule->new($db, $admin, \%conf);
   my $period = $FORM{period} || 0;
 
   if (!$conf{DV_USER_CHG_TP}) {
@@ -684,7 +704,7 @@ sub dv_user_chg_tp {
       $FORM{UID} = $LIST_PARAMS{UID};
 
       $Dv->{ABON_DATE} = undef;
-      if ($Dv->{MONTH_ABON} > 0 && !$Dv->{STATUS} && !$users->{DISABLE}) {
+      if ($Dv->{MONTH_ABON} > 0 && !$Dv->{STATUS} && !$user->{DISABLE}) {
         if ($user->{ACTIVATE} ne '0000-00-00') {
           my ($Y, $M, $D) = split(/-/, $user->{ACTIVATE}, 3);
           $M--;
@@ -788,14 +808,12 @@ sub dv_user_chg_tp {
   if ($Shedule->{TOTAL} > 0) {
     $Tariffs->info(0, { ID => $Shedule->{ACTION}, MODULE => 'Dv' });
 
-    $table = $html->table(
-      {
-        width      => '100%',
-        caption    => "$lang{SHEDULE}",
-        cols_align => [ 'left', 'left' ],
-        rows       => [ [ "$lang{TARIF_PLAN}:", "$Shedule->{ACTION} : $Tariffs->{NAME}" ], [ "$lang{DATE}:", "$Shedule->{Y}-$Shedule->{M}-$Shedule->{D}" ], [ "$lang{ADDED}:", "$Shedule->{DATE}" ], [ "ID:", "$Shedule->{SHEDULE_ID}" ] ]
-      }
-    );
+    $table = $html->table({
+      width      => '100%',
+      caption    => $lang{SHEDULE},
+      rows       => [ [ "$lang{TARIF_PLAN}:", "$Shedule->{ACTION} : $Tariffs->{NAME}" ], [ "$lang{DATE}:", "$Shedule->{Y}-$Shedule->{M}-$Shedule->{D}" ], [ "$lang{ADDED}:", "$Shedule->{DATE}" ], [ "ID:", "$Shedule->{SHEDULE_ID}" ] ]
+    });
+
     $Tariffs->{TARIF_PLAN_SEL} = $table->show({ OUTPUT2RETURN => 1 }) . $html->form_input('SHEDULE_ID', "$Shedule->{SHEDULE_ID}", { TYPE => 'HIDDEN', OUTPUT2RETURN => 1 });
     $Tariffs->{TARIF_PLAN_TABLE} = $Tariffs->{TARIF_PLAN_SEL};
     if (!$Shedule->{ADMIN_ACTION}) {
@@ -826,7 +844,6 @@ sub dv_user_chg_tp {
       {
         width      => '100%',
         caption    => $lang{TARIF_PLANS},
-        cols_align => [ 'left', 'left' ],
       }
     );
 
@@ -839,7 +856,8 @@ sub dv_user_chg_tp {
         DAY_FEE      => '_SHOW',
         CREDIT       => '_SHOW',
         COMMENTS     => '_SHOW',
-        TP_CHG_PRIORITY     => $Dv->{TP_PRIORITY},
+        TP_CHG_PRIORITY => $Dv->{TP_PRIORITY},
+        REDUCTION_FEE=> '_SHOW',
         NEW_MODEL_TP => 1,
         COLS_NAME    => 1,
         DOMAIN_ID    => $user->{DOMAIN_ID}
@@ -850,15 +868,22 @@ sub dv_user_chg_tp {
     if ($conf{DV_SKIP_CHG_TPS}) {
       @skip_tp_changes = split(/,\s?/, $conf{DV_SKIP_CHG_TPS});
     }
+
     foreach my $tp (@$tp_list) {
       next if (in_array($tp->{id}, \@skip_tp_changes));
       next if ($tp->{id} == $Dv->{TP_ID} && $user->{EXPIRE} eq '0000-00-00');
-      $table->{rowcolor} = ($table->{rowcolor} && $table->{rowcolor} eq $_COLORS[1]) ? $_COLORS[2] : $_COLORS[1];
+      #   $table->{rowcolor} = ($table->{rowcolor} && $table->{rowcolor} eq $_COLORS[1]) ? $_COLORS[2] : $_COLORS[1];
       my $radio_but = '';
+
+      my $tp_fee = $tp->{day_fee} + $tp->{month_fee};
+
+      if($tp->{reduction_fee} && $user->{REDUCTION} && $user->{REDUCTION} > 0) {
+        $tp_fee = $tp_fee - (($tp_fee / 100) *  $user->{REDUCTION});
+      }
 
       $user->{CREDIT}=($user->{CREDIT}>0)? $user->{CREDIT}  : (($tp->{credit} > 0) ? $tp->{credit} : 0);
 
-      if ($tp->{day_fee} + $tp->{month_fee} < $user->{DEPOSIT} + $user->{CREDIT} || $tp->{abon_distribution}) {
+      if ($tp_fee < $user->{DEPOSIT} + $user->{CREDIT} || $tp->{abon_distribution}) {
         $radio_but = $html->form_input('TP_ID', "$tp->{id}", { TYPE => 'radio', OUTPUT2RETURN => 1 });
       }
       else {
@@ -870,7 +895,7 @@ sub dv_user_chg_tp {
     $Tariffs->{TARIF_PLAN_TABLE} = $table->show({ OUTPUT2RETURN => 1 });
 
     if ($Tariffs->{TOTAL} == 0) {
-      $html->message('info', $lang{INFO}, "$lang{ERR_SMALL_DEPOSIT}", { ID => 142 });
+      $html->message('info', $lang{INFO}, $lang{ERR_SMALL_DEPOSIT}, { ID => 142 });
       return 0;
     }
 
@@ -1017,8 +1042,8 @@ sub dv_user_stats {
       $table->addrow($line->{client_ip},
         $line->{CID},
         sec2time_str($line->{duration_sec2}),
-        int2byte($line->{acct_output_octets}),
-        int2byte($line->{acct_input_octets})
+        int2byte($line->{acct_input_octets}),
+        int2byte($line->{acct_output_octets})
       );
     }
     $Sessions->{ONLINE} = $table->show({ OUTPUT2RETURN => 1 });
@@ -1047,12 +1072,10 @@ sub dv_user_stats {
 
   #Show rest of prepaid traffic
   if (
-    $Sessions->prepaid_rest(
-      {
-        UID  => ($Dv->{JOIN_SERVICE} && $Dv->{JOIN_SERVICE} > 1) ? $Dv->{JOIN_SERVICE} : $LIST_PARAMS{UID},
-        UIDS => $LIST_PARAMS{UIDS}
-      }
-    )
+    $Sessions->prepaid_rest({
+      UID  => ($Dv->{JOIN_SERVICE} && $Dv->{JOIN_SERVICE} > 1) ? $Dv->{JOIN_SERVICE} : $LIST_PARAMS{UID},
+      UIDS => $LIST_PARAMS{UIDS}
+    })
   )
   {
     $list  = $Sessions->{INFO_LIST};
@@ -1061,7 +1084,6 @@ sub dv_user_stats {
         caption     => "$lang{PREPAID}",
         width       => '100%',
         title_plain => [ "$lang{TRAFFIC} $lang{TYPE}", $lang{BEGIN}, $lang{END}, $lang{START}, "$lang{TOTAL} (MB)", "$lang{REST} (MB)", "$lang{OVERQUOTA} (MB)" ],
-        cols_align  => [ 'left', 'right', 'right', 'right', 'right', 'right', 'right' ],
         ID          => 'DV_STATS_PREPAID'
       }
     );
@@ -1102,8 +1124,8 @@ sub dv_user_stats {
       caption     => $lang{SUM},
       width       => '100%',
       title_plain => [
-        "$lang{SESSIONS}",
-        "$lang{DURATION}",
+        $lang{SESSIONS},
+        $lang{DURATION},
         (($TRAFFIC_NAMES{0}) ? $TRAFFIC_NAMES{0} : $lang{TRAFFIC}) . " $lang{RECV}",
         (($TRAFFIC_NAMES{0}) ? $TRAFFIC_NAMES{0} : $lang{TRAFFIC}) . " $lang{SENT}",
 
@@ -1115,8 +1137,6 @@ sub dv_user_stats {
         (($TRAFFIC_NAMES{1}) ? $TRAFFIC_NAMES{1} : $lang{TRAFFIC}) . " $lang{SUM}",
         "$lang{SUM}"
       ],
-
-      cols_align => [ 'right', 'right', 'right', 'right' ],
       rows       => [
         [
           $Sessions->{TOTAL},
@@ -1137,11 +1157,9 @@ sub dv_user_stats {
   );
 
   $Sessions->{TOTALS_FULL} = $table->show({ OUTPUT2RETURN => 1 });
-
-  if (-f '../charts.cgi' || -f 'charts.cgi') {
-    if($users->{UID}) {
-      $Sessions->{GRAPHS} = dv_get_chart_iframe("UID=$users->{UID}", '1,2');
-    }
+  
+  if ( $LIST_PARAMS{UID} && (-f '../charts.cgi' || -f 'charts.cgi') ) {
+    $Sessions->{GRAPHS} = dv_get_chart_iframe("UID=$LIST_PARAMS{UID}", '1,2');
   }
 
   $Sessions->{SESSIONS} = dv_sessions($list, $Sessions, { OUTPUT2RETURN => 1 }) if ($Sessions->{TOTAL} > 0);
@@ -1159,12 +1177,14 @@ sub dv_user_stats {
     $DHCP_INFO
     $attr
 
+    $conf{DV_IP_DISCOVERY}
+
   Returns:
 
 =cut
 #**********************************************************
 sub dv_dhcp_get_mac_add {
-  my ($ip, $DHCP_INFO) = @_;
+  my ($ip, $DHCP_INFO, $attr) = @_;
 
   require Dhcphosts;
   Dhcphosts->import();
@@ -1173,7 +1193,7 @@ sub dv_dhcp_get_mac_add {
   $conf{DV_IP_DISCOVERY}=~s/[\r\n ]//g;
   my @dhcp_nets         = split(/;/, $conf{DV_IP_DISCOVERY});
   my $default_params    = "IP,MAC";
-  load_module('Dhcphosts');
+  load_module('Dhcphosts', $html);
 
   foreach my $nets (@dhcp_nets) {
     my %PARAMS_HASH = ();
@@ -1212,50 +1232,56 @@ sub dv_dhcp_get_mac_add {
         COLS_NAME => 1,
         PAGE_ROWS => 1
       });
-
       if ($Dhcphosts->{TOTAL} > 0) {
         $Dhcphosts->host_change(
           {
+            %PARAMS_HASH,
             ID     => $list->[0]->{id},
-            MAC    => $PARAMS_HASH{MAC}
+            NETWORK=> $net_id,
+            #MAC    => $PARAMS_HASH{MAC}
           }
         );
       }
       else {
-        $Dhcphosts->host_add(
-          {
-            NETWORK     => $net_id,
-            HOSTNAME    => "$user->{LOGIN}_$net_id",
-            UID         => $user->{UID},
-            #IPN_ACTIVATE=> 1,
-            %PARAMS_HASH
-          }
-        );
+        $Dhcphosts->host_add({
+          NETWORK     => $net_id,
+          HOSTNAME    => "$user->{LOGIN}_$net_id",
+          UID         => $user->{UID},
+          %PARAMS_HASH
+        });
       }
 
+      my $log_type = 'LOG_INFO';
+      my $error_id = 0;
       if ($Dhcphosts->{errno}) {
+        $log_type = 'LOG_WARNING';
         if ($Dhcphosts->{errno} == 7) {
-          $html->message('err', $lang{ERROR} . ' ' . $lang{ACTIVATE}, $html->b("$lang{ERR_HOST_REGISTRED}") . "\n $lang{RENEW_IP}\n\n MAC: '$DHCP_INFO->{MAC}'\n IP: '$DHCP_INFO->{IP}'\n HOST: '$user->{LOGIN}_$net_id'", { ID => 118 });
+          $html->message('err', $lang{ERROR} . ' ' . $lang{ACTIVATE},
+            $html->b($lang{ERR_HOST_REGISTRED})
+            . "\n $lang{RENEW_IP}\n\n MAC: '$DHCP_INFO->{MAC}'\n IP: '$DHCP_INFO->{IP}'\n HOST: '$user->{LOGIN}_$net_id'",
+            { ID => 118 });
+          $error_id = 118;
         }
         else {
           $html->message('err', $lang{ACTIVATE}, "$lang{ERROR}: DHCP add hosts error", { ID => 119 });
+          $error_id = 119;
         }
       }
       else {
-        dhcphosts_config(
-          {
-            NETWORKS => $net_id,
-            reconfig => 1,
-            QUITE    => 1,
-            %PARAMS_HASH
-          }
-        );
+        dhcphosts_config({
+          NETWORKS => $net_id,
+          reconfig => 1,
+          QUITE    => 1,
+          %PARAMS_HASH
+        });
         $Dv->{NEW_IP} = $PARAMS_HASH{IP};
-
-        return 1;
       }
 
-      return 0;
+      $Log->log_print($log_type, $user->{LOGIN},
+        show_hash(\%PARAMS_HASH, { OUTPUT2RETURN => 1 }). (($error_id) ? "Error: $error_id" : ''),
+        { ACTION => 'REG', NAS => { NAS_ID => $attr->{NAS_ID} } });
+
+      return ($log_type eq 'LOG_INFO') ? 1 : 0;
     }
   }
 
@@ -1301,7 +1327,9 @@ sub dv_dhcp_get_mac {
       MAC    => $Dhcphosts->{MAC},
       NAS_ID => $Dhcphosts->{NAS_ID},
       PORTS  => $Dhcphosts->{PORTS},
-      VID    => $Dhcphosts->{VID}
+      VID    => $Dhcphosts->{VID},
+      UID    => $Dhcphosts->{UID},
+      SERVER_VID => $Dhcphosts->{SERVER_VID}
     );
 
     if ($attr->{CHECK_STATIC}) {
@@ -1315,21 +1343,27 @@ sub dv_dhcp_get_mac {
   #Get mac from DB
   if ($conf{DHCPHOSTS_LEASES} && $conf{DHCPHOSTS_LEASES} eq 'db') {
     my $list = $Dhcphosts->leases_list({
-      IP        => $ip,
-      STATE     => 2,
-      COLS_NAME => 1,
-      COLS_UPPER=> 1
+      IP          => $ip,
+      VLAN        => '_SHOW',
+      SERVER_VLAN => '_SHOW',
+      UID         => '_SHOW',
+      STATE       => 2,
+      COLS_NAME   => 1,
+      COLS_UPPER  => 1
     });
 
     if ($Dhcphosts->{TOTAL} > 0) {
       %PARAMS        = %{ $list->[0] };
-      $PARAMS{MAC}   = $list->[0]->{HARDWARE};
+      $PARAMS{MAC}   = _mac_former($list->[0]->{HARDWARE});
       $PARAMS{PORTS} = $list->[0]->{PORT};
       $PARAMS{VID}   = $list->[0]->{VLAN};
+      $PARAMS{UID}   = $list->[0]->{UID};
+      $PARAMS{IP}    = int2ip($list->[0]->{IP});
+      $PARAMS{SERVER_VID} = $list->[0]->{SERVER_VLAN};
     }
 
     load_module('Dhcphosts', $html);
-
+    $PARAMS{CUR_IP}=$ip;
     if (defined($PARAMS{NAS_ID}) && $PARAMS{NAS_ID} == 0 && $PARAMS{CIRCUIT_ID} ) {
       ($PARAMS{NAS_ID}, $PARAMS{PORTS}, $PARAMS{VLAN}, $PARAMS{NAS_MAC})=dhcphosts_o82_info({ %PARAMS });
     }
@@ -1373,6 +1407,7 @@ sub dv_dhcp_get_mac {
     $PARAMS{MAC} = ($list{$ip} && $list{$ip}{hardware}) ? $list{$ip}{hardware} : '';
   }
 
+  $PARAMS{CUR_IP}=$ip;
   return \%PARAMS;
 }
 
@@ -1384,7 +1419,8 @@ sub dv_dhcp_get_mac {
 sub dv_holdup_service {
   #my ($attr) = @_;
 
-  my ($hold_up_min_period, $hold_up_max_period, $hold_up_period, $holdup_fees, undef, undef, $holdup_skip_gids) = split(/:/, $conf{DV_USER_SERVICE_HOLDUP});
+  my ($hold_up_min_period, $hold_up_max_period, $hold_up_period, $hold_up_day_fee,
+    undef, $active_fees, $holdup_skip_gids) = split(/:/, $conf{DV_USER_SERVICE_HOLDUP});
 
   if ($holdup_skip_gids) {
     my @holdup_skip_gids_arr = split(/,\s?/, $holdup_skip_gids);
@@ -1393,11 +1429,9 @@ sub dv_holdup_service {
     }
   }
 
-  if ($holdup_fees && $holdup_fees > 0) {
-    $Dv->{DAY_FEES}="$lang{DAY_FEE}: ". sprintf("%.2f", $holdup_fees);
+  if ($hold_up_day_fee && $hold_up_day_fee > 0) {
+    $Dv->{DAY_FEES}="$lang{DAY_FEE}: ". sprintf("%.2f", $hold_up_day_fee);
   }
-
-  my $Shedule = Shedule->new($db, $admin, \%conf);
 
   if ($FORM{del}) {
     $Shedule->del(
@@ -1409,8 +1443,6 @@ sub dv_holdup_service {
 
     $Dv->{STATUS_DAYS}=1;
 
-    service_get_month_fee($Dv, { QUITE => 1 });
-
     if ( $user->{DV_STATUS} == 3) {
       $Dv->change(
         {
@@ -1419,8 +1451,13 @@ sub dv_holdup_service {
         }
       );
 
+      service_get_month_fee($Dv, { QUITE => 1 });
       $html->message('info', $lang{SERVICE}, "$lang{ACTIVATE}");
       return '';
+    }
+    elsif($conf{DV_HOLDUP_COMPENSATE}) {
+      $Dv->{TP_INFO} = $Tariffs->info(0, { ID => $Dv->{TP_ID} });
+      service_get_month_fee($Dv, { QUITE => 1 });
     }
 
     $html->message('info', $lang{HOLD_UP}, "$lang{DELETED}");
@@ -1446,7 +1483,7 @@ sub dv_holdup_service {
   my $del_ids = join(', ', @del_arr);
 
   if ($Shedule->{TOTAL}) {
-    $html->message('info', $lang{INFO}, "$lang{HOLD_UP} ". ($Shedule_val{3} || '-') ."$lang{TO} ". ($Shedule_val{0} || '-') .
+    $html->message('info', $lang{INFO}, "$lang{HOLD_UP} ". ($Shedule_val{3} || '-') ." $lang{TO} ". ($Shedule_val{0} || '-') .
         (($Shedule->{TOTAL} > 1) ? $html->br() . $html->button($lang{DEL}, "index=$index&del=$del_ids". (($sid) ? "&sid=$sid" : q{}), { class => 'btn btn-primary', MESSAGE => "$lang{DEL} $lang{HOLD_UP}?" }) : ''));
     return '';
   }
@@ -1499,6 +1536,10 @@ sub dv_holdup_service {
           dv_compensation({ QUITE => 1, HOLD_UP => 1 });
         }
 
+        if($active_fees) {
+          $Fees->take($user, $active_fees, { DESCRIBE => $lang{HOLD_UP} });
+        }
+
         $html->message('info', $lang{INFO}, "$lang{HOLD_UP}\n $lang{DATE}: $FORM{FROM_DATE} -> $FORM{TO_DATE}\n  $lang{DAYS}: " . sprintf("%d", $block_days));
         return '';
       }
@@ -1544,8 +1585,152 @@ sub dv_holdup_service {
     }
   );
 
-  return $html->tpl_show(_include('dv_hold_up', 'Dv'), $Dv, { OUTPUT2RETURN => 1 });
+  return (! $user->{DV_STATUS}) ? $html->tpl_show(_include('dv_hold_up', 'Dv'), $Dv, { OUTPUT2RETURN => 1 }) : q{};
 }
 
+
+#**********************************************************
+=head2 dv_turbo_control($attr)
+
+=cut
+#**********************************************************
+sub dv_turbo_control {
+  my Dv $Dv_ = shift;
+
+  if($Dv_->{TURBO_MODE}) {
+    return 1;
+  }
+
+  my (@turbo_mods) = split(/;/, $conf{DV_TURBO_MODE});
+  my @turbo_mods_full = ();
+
+  my $i = 1;
+  my ($speed, $time, $price, $name, $bonus);
+
+  foreach my $line (@turbo_mods) {
+    ($speed, $time, $price, $name, $bonus) = split(/:/, $line, 5);
+
+    if ($bonus && ! $Dv->{FREE_TURBO_MODE} ) {
+      next;
+    }
+
+    push @turbo_mods_full, sprintf("$name\n $lang{SPEED}: $speed\n $lang{TIME}: %s\n $lang{PRICE}: %.2f %s", sec2time($time, { format => 1 }), $price, (($bonus) ? "($lang{BONUS})" : ''));
+    if ($FORM{SPEED} && $FORM{SPEED} == $i) {
+      $FORM{MODE_ID} = $i - 1;
+      $FORM{SPEED}   = $speed;
+      $FORM{TIME}    = $time;
+      last;
+    }
+    $i++;
+  }
+
+  if (form_purchase_module({
+    HEADER           => $user->{UID},
+    MODULE           => 'Turbo',
+    REQUIRE_VERSION  => 2.20
+  })) {
+    return 0;
+  }
+
+  my $Turbo = Turbo->new($db, $admin, \%conf);
+  my $list = $Turbo->list(
+    {
+      UID    => $LIST_PARAMS{UID},
+      ACTIVE => 1,
+    }
+  );
+
+  if ($Turbo->{TOTAL} > 0 || $Dv_->{TURBO_MODE_RUN}) {
+    my $last = $list->[0]->[2] || $Dv_->{TURBO_MODE_RUN};
+    $html->message('info', $lang{INFO}, $html->b("$turbo_mods_full[$list->[0]->[1]]") . "\n$lang{REMAIN} $lang{TIME}: $last sec.");
+  }
+  elsif ($FORM{change} && $FORM{SPEED}) {
+    if ($user->{DEPOSIT} + $user->{CREDIT} > $price) {
+      $Turbo->add(
+        {
+          UID        => $LIST_PARAMS{UID},
+          MODE_ID    => $FORM{MODE_ID},
+          SPEED      => int($FORM{SPEED}),
+          SPEED_TYPE => 0,
+          TIME       => $FORM{TIME},
+        }
+      );
+
+      if (_error_show($Turbo, { SILENT_MODE => 1 })) {
+        return 0;
+      }
+
+      if ($price > 0) {
+        $Fees->take($user, $price, { DESCRIBE => "Turbo mode: $Turbo->{INSERT_ID}" });
+      }
+
+      if ($bonus) {
+        if ($Dv_->{FREE_TURBO_MODE} < 1) {
+          $html->message('err', "$lang{ERROR}", "$lang{BONUS} Turbo $lang{EXPIRE}");
+          return 0;
+        }
+        else {
+          $Dv_->change({
+            UID             => $user->{UID},
+            FREE_TURBO_MODE => ($Dv_->{FREE_TURBO_MODE}-1)
+          });
+        }
+      }
+
+      my $ip = $ENV{REMOTE_ADDR};
+
+      if($conf{DV_TURBO_STATIC_IP}) {
+        if(in_array('Dhcphosts', \@MODULES)) {
+          require Dhcphosts;
+          Dhcphosts->import();
+          my $Dhcphosts = Dhcphosts->new($db, $admin, \%conf);
+
+          my $dhcp_list = $Dhcphosts->hosts_list({
+            UID       => $Dv_->{UID},
+            IP        => '_SHOW',
+            PAGE_ROWS => 1,
+            COLS_NAME => 1
+          });
+
+          if($Dhcphosts->{TOTAL}) {
+            $ip = $dhcp_list->[0]->{ip};
+          }
+        }
+
+        if ($Dv_->{IP} && $Dv_->{IP} ne '0.0.0.0') {
+          $ip = $Dv_->{IP};
+        }
+      }
+
+      if ($conf{DV_TURBO_CMD}) {
+        cmd($conf{DV_TURBO_CMD}, {
+            PARAMS => { %$user,
+              DEBUG  => $conf{DV_TURBO_CMD_DEBUG},
+              IP     => $ip
+            } });
+      }
+
+      $html->message('info', $lang{INFO}, $html->b("$turbo_mods_full[$FORM{MODE_ID}]") . "\n$lang{REMAIN} $lang{TIME}: $FORM{TIME} sec.");
+    }
+    else {
+      $html->message('err', "$lang{ERROR}:Turbo", "$lang{ERR_SMALL_DEPOSIT}");
+    }
+  }
+  else {
+    $Dv_->{SPEED_SEL} = $html->form_select(
+      'SPEED',
+      {
+        SELECTED     => $FORM{SPEED},
+        SEL_ARRAY    => \@turbo_mods_full,
+        SEL_OPTIONS  => { '' => '--' },
+        ARRAY_NUM_ID => 1
+      }
+    );
+
+    $html->tpl_show(_include('dv_user_speed', 'Dv'), $Dv);
+  }
+
+  return 1;
+}
 
 1;

@@ -1,6 +1,8 @@
 #Iner_ID : Main or Sub or if -1 user menu func list
 
-%FUNCTIONS_LIST = ("01:0:Domains:multidoms_domains:"             => 5,
+%FUNCTIONS_LIST = ("01:0:Domains:multidoms_domains:"                    => 5,
+                   "02:0:Domains:multidoms_report:"                     => 4,
+                   "03:1:$lang{MODULES}:multidoms_domains_modules:chg"  => 5,
                    );
 
 %RESELLER_FUNCTION_LIST = (

@@ -38,7 +38,7 @@
               </div>
             </div>
 
-            <div class='form-group' align='left'>
+            <div class='form-group' align='left' %HIDE_DATE%>
               <label class='control-label col-md-2' for='FROM_DATE'>_{PERIOD}_</label>
 
               <div class=' col-md-4'>
@@ -53,9 +53,21 @@
             </div>
 
             <div class='form-group'>
+              <label class='control-label col-xs-2'>_{GROUP}_:</label>
+
+              <div class='col-xs-10'>%GROUPS_SEL%</div>
+            </div>
+
+            <div class='form-group'>
               <label class='control-label col-xs-2' for='TAGS'>_{TAGS}_</label>
-              <div class='col-xs-8'>
-                %TAGS_SEL%
+              <div class='col-xs-10'>
+                <div class='input-group'>
+                  %TAGS_SEL%
+                  <span class="input-group-addon" data-tooltip="_{EMPTY_FIELD}_">
+                    <i class='fa fa-exclamation'></i>
+                    <input type="checkbox" name='TAGS' data-input-disables=TAGS value='!'>
+                  </span>
+                </div>
               </div>
             </div>
           </div>

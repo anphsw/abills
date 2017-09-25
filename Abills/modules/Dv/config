@@ -1,5 +1,5 @@
 #Iner_ID : Main or Sub or if -1 user menu func list
-%FUNCTIONS_LIST = ("01:0:$lang{DV}:dv_users_list:" => 11,
+our %FUNCTIONS_LIST = ("01:0:$lang{DV}:dv_users_list:" => 11,
   "02:0:$lang{DV}:dv_user:UID"                     => 20,
   "03:2:$lang{TARIF_PLANS}:dv_chg_tp:UID"          => 11,
   "04:2:$lang{STATS}:dv_stats:UID"                 => 11,
@@ -21,6 +21,7 @@
   "25:24:$lang{MONTH}:dv_use_allmonthes:"          => 4,
   "26:19:$lang{DEBETORS}:dv_report_debetors:"      => 4,
   "27:19:$lang{TARIF_PLANS}:dv_report_tp:"         => 4,
+  "28:19:IP Pools:dv_pools_report:"         => 4,
 
   "36:0:$lang{DV}:dv_online:"                      => 6,
   "38:0:$lang{DV} $lang{STATS}:dv_use:COMPANY_ID"  => 13
@@ -43,7 +44,7 @@ if ($permissions{0}) {
   }
 }
 
-%USER_FUNCTION_LIST = ("01:0:$lang{DV}:dv_user_info:" => 0,
+our %USER_FUNCTION_LIST = ("01:0:$lang{DV}:dv_user_info:" => 0,
   "03:1:$lang{STATS}:dv_user_stats:"                  => 0
 );
 
@@ -62,16 +63,16 @@ if ($conf{RADIUS_TEST_IP}) {
 
 $USER_FUNCTION_LIST{"04:1:$lang{TARIF_PLAN}:dv_user_chg_tp:"} = 0 if ($conf{DV_USER_CHG_TP});
 
-%PERIODIC = (daily => [ 'dv_daily_fees', 'dv_users_warning_messages', 'dv_holdup_fees' ],
-  monthly          => [ 'dv_monthly_fees', 'dv_periodic_logrotate' ],
-  report           => [ 'dv_report' ]);
+our %PERIODIC = (
+  daily   => [ 'dv_monthly_next_tp', 'dv_daily_fees', 'dv_users_warning_messages', 'dv_holdup_fees' ],
+  monthly => [ 'dv_monthly_next_tp', 'dv_monthly_fees', 'dv_periodic_logrotate' ],
+  report  => [ 'dv_report' ]
+);
 
 if ($conf{DV_BONUS}) {
   $FUNCTIONS_LIST{"16:11:$lang{BONUS}:dv_rating_tp:TP_ID"} = 5;
   $FUNCTIONS_LIST{"8:2:$lang{BONUS}:dv_rating_user:UID"} = 11;
-
   $USER_FUNCTION_LIST{"05:1:Bonus:dv_rating_user:"} = 0;
-
   $PERIODIC{daily} = [ @{ $PERIODIC{daily} }, 'dv_rating_periodic' ];
 }
 

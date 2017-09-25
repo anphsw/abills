@@ -250,7 +250,7 @@ sub show_all_vars {
   print "\nGlobal Vars ";
 
   eval { require Devel::Size; };
-  my $top = $ARGV[0] && $ARGV[0] ne 'ui' ? $ARGV[0] : 0;
+  my $top = $ARGV[0] && ($ARGV[0] ne 'ui' || $ARGV[0] ne 'brutal') ? $ARGV[0] : 0;
 
   if ($@){
     print "Install perl module Devel::Size \n";

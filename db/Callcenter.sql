@@ -9,6 +9,37 @@ CREATE TABLE IF NOT EXISTS `callcenter_calls_handler` (
 )
   COMMENT = 'Callcenter calls handler';
 
+CREATE TABLE IF NOT EXISTS `callcenter_ivr_log` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  `datetime` DATETIME NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+  `phone` VARCHAR(16) NOT NULL DEFAULT '',
+  `comment` VARCHAR(50) NOT NULL DEFAULT '',
+  `ip` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `status` TINYINT(2) UNSIGNED NOT NULL DEFAULT '0',
+  `uid` INT UNSIGNED NOT NULL DEFAULT 0,
+  `duration` INT(11) UNSIGNED NOT NULL DEFAULT 0,
+  `unique_id` VARCHAR(20) NOT NULL DEFAULT '',
+  KEY `uid`(`uid`)
+)
+  COMMENT = 'Voip ivr log';
+
+
+CREATE TABLE IF NOT EXISTS `callcenter_ivr_menu` (
+  `id` SMALLINT(5) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `main_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `number` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `name` VARCHAR(100) NOT NULL DEFAULT '',
+  `comments` TEXT,
+  `disable` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
+  `function` VARCHAR(100) NOT NULL DEFAULT '',
+  `domain_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `audio_file` VARCHAR(200) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `name` (`main_id`, `name`)
+)
+  COMMENT = 'Voip IVR Menu';
+
+
 -- CREATE TABLE IF NOT EXISTS `call_center_ast_config` (
 --   `id` int(11) NOT NULL AUTO_INCREMENT,
 --   `cat_metric` int(11) NOT NULL DEFAULT '0',

@@ -24,3 +24,7 @@ $lang{TO_ARCHIVE} = 'To archive';
 $lang{USER_CONF} = 'Settings for user portal';
 $lang{CRITICAL} = 'Major';
 $lang{RESET_ADDRESS} = 'Reset address';
+$lang{BOLD} = 'Bold';
+$lang{ITALICS} = 'Italics';
+$lang{UNDERLINED} = 'Underlined';
+$lang{LINK} = 'Link';

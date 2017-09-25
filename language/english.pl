@@ -3,7 +3,8 @@ our $CHARSET = 'utf-8';
 our $CONTENT_LANGUAGE = 'EN';
 
 our @PERIODS = ('Today', 'Yesterday', 'Week', 'Month', 'All sessions', 'From activation');
-our @MONTHES = ('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December');
+our @MONTHES = ('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October',
+  'November', 'December');
 our @WEEKDAYS = ('Holidays', 'Mon', 'Tue', 'Wen', 'Thu', 'Fri', 'Sat', 'Sun');
 
 $lang{ADD} = 'Add';
@@ -297,7 +298,7 @@ $lang{MAILBOXES} = 'Mailboxes';
 $lang{ALIASES} = 'Aliases';
 $lang{DOMAINS} = 'Domains';
 $lang{DOMAIN} = 'Domain';
-$lang{RELAYS} = 'Relay',
+  $lang{RELAYS} = 'Relay',
   $lang{ACCESS} = 'Access';
 $lang{TRANSPORT} = 'Transport';
 $lang{ANTIVIRUS} = 'Antivirus';
@@ -315,7 +316,9 @@ $lang{GENERED_PARRWORD} = 'Generate password';
 $lang{DISABLE} = 'Disable';
 $lang{DISABLED} = 'Disabled';
 $lang{HOLD_UP} = 'Hold Up';
-$lang{ENABLE} = 'Enable';
+$lang{ENABLE}='Active';
+$lang{ENABLED} = 'Active';
+$lang{DO_ENABLE} = 'Activate';
 $lang{COMPANY} = 'Company';
 $lang{ADD_USER} = 'Add user';
 $lang{CREDIT_TRESSHOLD} = 'Credit Threshold';
@@ -380,6 +383,7 @@ $lang{GRANT} = 'Issued by';
 $lang{NEG_DEPOSIT_FILTER_ID} = "Negative deposit filter ID";
 $lang{NEG_DEPOSIT_IP_POOL} = "Negative deposit IP Pool";
 $lang{USER_CHG_TP} = 'User change tarif plan';
+$lang{TP_CHANGE_SHEDULED} = 'Tariff plan change has been sheduled';
 $lang{NOT_ALLOW} = 'Not allowed operation';
 $lang{IP_IN_USE} = 'THIS IP IS CURRENTLY IN USE BY OTHER USER';
 $lang{EXPORT} = 'Export';
@@ -572,17 +576,17 @@ $lang{CHANGE_} = 'Apply changes';
 $lang{CONTACTS} = 'Contacts';
 $lang{NUMBER} = 'Number';
 $lang{REQUIRED_ARG} = 'Argument is required';
-$lang{NETWORK_NAME}='Network name';
-$lang{NETWORK_NET}='Network address';
-$lang{DEFAULT_GATEWAY}='Default gateway';
-$lang{NETWORK}='Network';
+$lang{NETWORK_NAME} = 'Network name';
+$lang{NETWORK_NET} = 'Network address';
+$lang{DEFAULT_GATEWAY} = 'Default gateway';
+$lang{NETWORK} = 'Network';
 $lang{INTERFACE} = 'Interface';
 $lang{RANGE} = 'Range';
 $lang{DIAGNOSTIC} = 'Diagnostic';
-$lang{PATH}='Path';
+$lang{PATH} = 'Path';
 $lang{MENU} = 'Menu';
-$lang{ERR_UNKNOWN_SN_ACCOUNT}='Unknown user. Please register social network througth user portal';
-$lang{ERR_SN_ERROR}='Error social network authentification';
+$lang{ERR_UNKNOWN_SN_ACCOUNT} = 'Unknown user. Please register social network througth user portal';
+$lang{ERR_SN_ERROR} = 'Error social network authentification';
 $lang{CHANGE_PASSWORD} = 'Change password';
 $lang{USER_ACCOUNT} = 'User account';
 $lang{STATMENT_OF_ACCOUNT} = 'Statment of account';
@@ -615,7 +619,7 @@ $lang{FIXED_LAYOUT} = 'Fixed layout';
 $lang{FIXED_HEADER} = 'Fixed header';
 $lang{ALWAYS_HIDE_RIGHT_MENU} = 'Always hide right menu';
 $lang{MODULE} = 'Module';
-$lang{PLANNED_TO_CONNECT}='Planned to connect';
+$lang{PLANNED_TO_CONNECT} = 'Planned to connect';
 $lang{COPY} = 'Copy';
 
 $lang{INSTALLED} = 'Installed';
@@ -658,8 +662,8 @@ $lang{GUIDE_FINISH_TEXT} = 'That\'s all. Good luck!';
 $lang{SOCIAL_NETWORKS} = 'Social netwroks';
 $lang{GENDER} = 'Gender';
 $lang{SOCIAL} = 'Social';
-$lang{QUERY}='Query';
-$lang{YOUR_FEEDBACK}='Your feedback';
+$lang{QUERY} = 'Query';
+$lang{YOUR_FEEDBACK} = 'Your feedback';
 $lang{NO_DATA} = 'This category is empty';
 $lang{CHOOSE} = 'Choose';
 
@@ -669,7 +673,7 @@ $lang{AVERAGE_RATING} = 'Average_rating';
 $lang{EVALUATION_OF_PERFORMANCE} = 'Evaluation of performance';
 $lang{USERS_ADDED_TO_DELIVERY} = 'Members added to the mailing list';
 
-$lang{WIDTH}='Width';
+$lang{WIDTH} = 'Width';
 $lang{THERE_ARE_NO_SETTINGS_TO_CHANGE} = 'There are no settings to change';
 
 $lang{ACTIVATED} = 'Activated';
@@ -679,9 +683,48 @@ $lang{I_WANT_TO_TRY} = 'I want try it for free';
 $lang{I_HAVE_PIN_CARD} = 'I have card with a PIN code';
 $lang{BUY_CARD_ONLINE} = 'Buy card online';
 
-$lang{COMMAND}='Command';
+$lang{COMMAND} = 'Command';
 $lang{CRITICAL_PACKET_LOSS} = 'Critical packet loss in user';
 
 $lang{ERR_PASSWORD_INSECURE} = 'Password is not secure enough';
-$lang{NOTIFICATIONS}='Notifications';
+$lang{NOTIFICATIONS} = 'Notifications';
+$lang{GET_FEES} = 'Get fees';
+$lang{NOT} = 'Not';
+$lang{OLD} = 'Old';
+$lang{EMPTY_FIELD} = 'Empty field';
+
+$lang{ERR_NO_DEFAULT_GATEWAY} = 'No default gateway';
+$lang{REMOVE_SAVED_CONFIGURATION} = 'Remove saved configuration';
+$lang{CONFIGURATION_APPLIED_SUCCESSFULLY} = 'Configuration applied successfully';
+$lang{CONFIGURATION_APPLIED_WITH_ERRORS} = 'Configuration applied with errors';
+
+$lang{YESTERDAY_BACKUP_DOES_NOT_EXISTS} = 'Yesterday backup does not exists';
+$lang{BACKUP_CHECK_FAILS_FOR} = 'Backup check fails for';
+$lang{ERR_CHECK_ALL_COLUMNS} = 'All columns have to be chosen';
+
+$lang{HOUSING} = 'Housing';
+$lang{EDIT} = 'Edit';
+$lang{REMOVE} = 'Remove';
+
+$lang{SYSTEM_NOTIFICATION} = 'System notification';
+$lang{FOR_} = 'For';
+$lang{SAVE} = 'Save';
+$lang{ORGANIZER} = 'Organizer';
+
+$lang{ENABLE_PUSH} = 'Receive Push';
+$lang{DISABLE_PUSH} = 'Cancel Push';
+$lang{PUSH_IS_NOT_SUPPORTED} = 'Push not supported';
+$lang{PUSH_IS_DISABLED} = 'Push disabled';
+$lang{LIVE_SEARCH} = 'Live search';
+
+$lang{SUBSCRIBE_TO} = 'Subscribe to';
+$lang{UNSUBSCRIBE_FROM} = 'Unsubscribe from ';
+
+$lang{SHOW_ADMINS_ONLINE} = 'Show admins online';
+$lang{TYPE_YOUR_RESPONSE} = 'Now you can type your response';
+$lang{TEXT_NOT_FOUND} = 'Text not found';
+$lang{TRY_AGAIN} = 'Try again';
+$lang{UNAVAILABLE} = 'Unavailable';
+
+$lang{CHECK_ACCESS} = 'Check access';
 1

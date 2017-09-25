@@ -3,7 +3,7 @@
 <input type=hidden name=UID value='%UID%'>
 <input type=hidden name=PHOTO value='%UID%'>
 <input type='hidden' name='EXTERNAL_ID' value='%EXTERNAL_ID%'>
-
+<br>
 <div class='box box-theme box-form'>
 <div class='box-body'>
 
@@ -13,7 +13,7 @@
 <div class='form-group'>
   <label class='col-md-3 control-label' for='IMAGE'>_{FILE}_</label>
   <div class='col-md-9'>
-    <input id='IMAGE' name='IMAGE' value='%IMAGE%' placeholder='%IMAGE%' class='form-control' type='file'>
+    <input id='IMAGE' name='IMAGE' value='%IMAGE%' placeholder='%IMAGE%' type='file'>
   </div>
 </div>
 

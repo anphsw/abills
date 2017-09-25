@@ -281,14 +281,19 @@ sub menu {
   my @menu_sorted = sort { $b cmp $a } keys %$h;
 
   for (my $parent = 0 ; $parent < $#menu_sorted + 1 ; $parent++) {
-    my $val = $h->{ $menu_sorted[$parent] };
+    my $val = $h->{ $menu_sorted[$parent] } || q{};
+
+    if($val =~ /<span>(.+)<\/span>/) {
+      $val = $1;
+    }
 
     my $level  = 0;
     my $prefix = '';
     my $ID     = $menu_sorted[$parent];
 
     next if ((!defined($attr->{ALL_PERMISSIONS})) && (!$permissions->{ $parent - 1 }) && $parent == 0);
-    $menu_text .= "<MENU NAME=\"$fl->{$ID}\" ID=\"$ID\" EX_ARGS=\"" . $self->link_former($EX_ARGS) . "\" DESCRIBE=\"$val\" TYPE=\"MAIN\"/>\n ";
+    my $ext_args = ($self->link_former("$EX_ARGS")) ? "EX_ARGS=\"" . $self->link_former($EX_ARGS) . "\"" : q{};
+    $menu_text .= "<MENU NAME=\"$fl->{$ID}\" ID=\"$ID\" $ext_args DESCRIBE=\"$val\" TYPE=\"MAIN\"/>\n ";
     if (defined($new_hash{$ID})) {
       $level++;
       $prefix .= "   ";
@@ -296,7 +301,8 @@ sub menu {
       my $mi = $new_hash{$ID};
 
       while (my ($k, undef) = each %$mi) {
-        $menu_text .= "$prefix<MENU NAME=\"$fl->{$k}\" ID=\"$k\" EX_ARGS=\"" . $self->link_former("$EX_ARGS") . "\" DESCRIBE=\"$val\" TYPE=\"SUB\" PARENT=\"$ID\"/>\n ";
+        $ext_args = ($self->link_former("$EX_ARGS")) ? "EX_ARGS=\"" . $self->link_former($EX_ARGS) . "\"" : q{};
+        $menu_text .= "$prefix<MENU NAME=\"$fl->{$k}\" ID=\"$k\" $ext_args DESCRIBE=\"$val\" TYPE=\"SUB\" PARENT=\"$ID\"/>\n ";
 
         if (defined($new_hash{$k})) {
           $mi = $new_hash{$k};

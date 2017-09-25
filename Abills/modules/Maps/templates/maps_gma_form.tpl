@@ -15,6 +15,7 @@
       </div>
 
       <div class='form-group'>
+        <input type='hidden' value='%ZIP_CODE%' id='ZIP_CODE_ID' />
         <label class='control-label col-md-3' for='DISCTRICT_ID'>_{DISTRICT}_</label>
         <div class='col-md-9'>
           %DISTRICT_SELECT%
@@ -48,7 +49,5 @@
   <div class='progress-bar progress-bar-success progress-bar-striped' aria-valuenow='0' id='progress_status'
        style='width: 0'></div>
 </div>
-
-<script id='GMA_JSON'>%GMA_JSON%</script>
 
 <script src='/styles/default_adm/js/maps/gma.js'></script>

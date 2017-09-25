@@ -3,7 +3,7 @@
     <input type=hidden name='chg' value='$FORM{chg}'>
 
     <div class='box box-theme box-form'>
-        <div class='box-header with-border'>_{EXCHANGE_RATE}_</div>
+        <div class='box-header with-border'><h4>_{EXCHANGE_RATE}_</h4></div>
         <div class='box-body'>
             <div class='form-group'>
                 <label class='col-md-3 control-label'>_{EXCHANGE_RATE}_</label>

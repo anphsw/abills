@@ -2,8 +2,9 @@
 <html>
 <head>
   %REFRESH%
-  <meta charset='utf-8'>
+  <meta charset='utf-8' />
   <!-- Tell the browser to be responsive to screen width -->
+
   <meta content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' name='viewport'>
   <meta http-equiv='X-UA-Compatible' content='IE=edge'>
   <meta http-equiv='Cache-Control' content='no-cache,no-cache,no-store,must-revalidate,private, max-age=5'/>
@@ -11,33 +12,35 @@
   <meta http-equiv='Pragma' CONTENT='no-cache'/>
   <meta http-equiv='Content-Type' CONTENT='text/html; charset=%CHARSET%'/>
   <meta http-equiv='Content-Language' content='%CONTENT_LANGUAGE%'/>
+  <link rel='manifest' href='/manifest.json'>
   <meta name='Author' content='~AsmodeuS~'/>
 
   <title>%TITLE% %BREADCRUMB%</title>
   <link rel="shortcut icon" type="image/png" href="/favicon.ico">
   <!-- CSS -->
   <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/bootstrap.min.css'>
-  <link rel='stylesheet' href='/styles/lte_adm/dist/css/AdminLTE.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/lte_adm/dist/css/AdminLTE.css'>
 
   <!-- Theme style -->
-  <link rel='stylesheet' href='/styles/lte_adm/dist/css/skins/_all-skins.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/lte_adm/dist/css/skins/_all-skins.css'>
 
   <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/currencies.css'>
 
-  <link rel='stylesheet' href='/styles/lte_adm/plugins/pace/pace.min.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/lte_adm/plugins/pace/pace.min.css'>
   <link rel='stylesheet' type='text/css' href='/styles/lte_adm/plugins/datepicker/datepicker3.css'>
   <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/chosen.min.css'>
   <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/QBInfo.css'>
 
   <!-- Ionicons -->
   <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/font-awesome.min.css'>
-  <link rel='stylesheet' href='/styles/default_adm/css/ionicons.min.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/ionicons.min.css'>
   <!-- Pace style -->
 
   <!-- DataTables -->
   <link rel='stylesheet' type='text/css' href='/styles/lte_adm/plugins/datatables/dataTables.bootstrap.css'>
   <link rel='stylesheet' type='text/css' href='/styles/lte_adm/plugins/timepicker/bootstrap-timepicker.min.css'>
   <link rel='stylesheet' type='text/css' href='/styles/lte_adm/plugins/daterangepicker/daterangepicker.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/lte_adm/plugins/datetimepicker/datetimepicker.min.css'>
   <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/style.css'>
 
   <!-- Bootstrap -->
@@ -52,14 +55,14 @@
   <script src='/styles/default_adm/js/permanent_data.js'></script>
 
   <!-- temp -->
-  <script src='/styles/default_adm/js/functions.js'></script>
-  <script src='/styles/default_adm/js/functions-admin.js'></script>
+  <script src='/styles/default_adm/js/functions.js?v=76.1.9'></script>
+  <script src='/styles/default_adm/js/functions-admin.js?v=76.1.9'></script>
 
   <!--Keyboard-->
   <script src='/styles/default_adm/js/keys.js'></script>
 
   <!-- Navigation bar saving show/hide state -->
-  <script src='/styles/default_adm/js/navBarCollapse.js'></script>
+  <script  src='/styles/default_adm/js/navBarCollapse.js'></script>
 
   <!-- Custom <select> design -->
   <script src='/styles/default_adm/js/chosen.jquery.min.js'></script>
@@ -67,18 +70,18 @@
   <!--Javascript template engine-->
   <script src='/styles/default_adm/js/mustache.min.js'></script>
 
-  <script src='/styles/default_adm/js/QBinfo.js'></script>
+  <script  src='/styles/default_adm/js/QBinfo.js'></script>
 
   <!--Event PubSub-->
   <script src='/styles/default_adm/js/events.js'></script>
 
   <!-- Modal popup windows management -->
-  <script src='/styles/default_adm/js/modals.js'></script>
+  <script src='/styles/default_adm/js/modals.js?v=76.1.9'></script>
 
   <!-- AJAX Search scripts -->
-  <script src='/styles/default_adm/js/search.js'></script>
+  <script src='/styles/default_adm/js/search.js?v=0.76.34'></script>
 
-  <script src='/styles/default_adm/js/messageChecker.js'></script>
+  <script src='/styles/default_adm/js/messageChecker.js?v=0.76.34'></script>
 
   <script src='/styles/default_adm/js/msgs/jquery-ui.min.js'></script>
 
@@ -90,14 +93,20 @@
   <script src='/styles/lte_adm/plugins/datatables/dataTables.bootstrap.min.js'></script>
   <script src='/styles/lte_adm/plugins/timepicker/bootstrap-timepicker.min.js'></script>
   <script src='/styles/lte_adm/plugins/daterangepicker/daterangepicker.js'></script>
+  <script src='/styles/lte_adm/plugins/datetimepicker/datetimepicker.min.js'></script>
   <!--<script src='/styles/lte_adm/plugins/slimScroll/jquery.slimscroll.min.js'></script>-->
   <!--<script src='/styles/lte_adm/plugins/input-mask/jquery.inputmask.js'></script>-->
-  <!--<script src='/styles/lte_adm/plugins/input-mask/jquery.inputmask.date.extensions.js'></script>-->
+  <!--<script src='/styles/lte_adm/plugins/input-mask/jquery.inputmask.date.ex ensions.js'></script>-->
   <!--<script src='/styles/lte_adm/plugins/input-mask/jquery.inputmask.extensions.js'></script>-->
 
   <script src='/styles/lte_adm/dist/js/app.js'></script>
 
   <script>
+    window['IS_ADMIN_INTERFACE'] = true;
+    window['IS_CLIENT_INTERFACE'] = false;
+
+    window['IS_PUSH_ENABLED'] = '$admin->{SETTINGS}{PUSH_ENABLED}';
+
     var SELF_URL              = '$SELF_URL';
     var INDEX                 = '$index';
     var _COMMENTS_PLEASE      = '_{COMMENTS_PLEASE}_' || 'Comments please';
@@ -158,9 +167,8 @@
   </script>
 
 
-  <!-- Needs WEBSOKET_URL defined above -->
-  <script src='/styles/default_adm/js/websocket_client.js'></script>
-
+  <!-- Needs WEBSOCKET_URL defined above -->
+  <script src='/styles/default_adm/js/websocket_client.js?v=0.76.28'></script>
 
 </head>
 <body class='hold-transition

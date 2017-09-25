@@ -94,22 +94,22 @@ sub location_info{
   my $DESC = ($attr->{DESC}) ? 'DESC' : '';
 
   my $WHERE = $self->search_former( $attr, [
-      [ 'ID', 'INT', 'gtl.id' ],
-      [ 'AID', 'INT', 'gtl.aid', ],
-      [ 'GPS_TIME', 'DATE', 'gtl.gps_time', ],
-      [ 'COORD_X', 'INT', 'gtl.coord_x', ],
-      [ 'COORD_Y', 'INT', 'gtl.coord_y', ],
-      [ 'SPEED', 'INT', 'gtl.speed' ],
-      [ 'ALTITUDE', 'INT', "gtl.altitude" ],
-      [ 'BEARING', 'INT', "gtl.bearing" ],
-      [ 'BATT', 'INT', "gtl.batt" ],
+      [ 'ID', 'INT', 'gtl.id', 1 ],
+      [ 'AID', 'INT', 'gtl.aid', 1 ],
+      [ 'GPS_TIME', 'DATE', 'gtl.gps_time', 1 ],
+      [ 'COORD_X', 'INT', 'gtl.coord_x', 1 ],
+      [ 'COORD_Y', 'INT', 'gtl.coord_y', 1 ],
+      [ 'SPEED', 'INT', 'gtl.speed', 1 ],
+      [ 'ALTITUDE', 'INT', "gtl.altitude", 1 ],
+      [ 'BEARING', 'INT', "gtl.bearing", 1 ],
+      [ 'BATTERY', 'INT', "gtl.batt AS battery", 1 ],
     ],
     {
       WHERE => 1
     }
   );
 
-  $self->query2( "SELECT *
+  $self->query2( "SELECT $self->{SEARCH_FIELDS} gtl.id
       FROM gps_tracker_locations gtl
       $WHERE ORDER BY gtl.gps_time DESC LIMIT 1;",
     undef,
@@ -150,17 +150,23 @@ sub locations_list{
     AND TIMESTAMP('$date $to_time:59') ";
   }
 
-  $WHERE = $self->search_former( $attr, [
-      [ 'ID', 'INT', 'gtl.id' ],
-      [ 'AID', 'INT', 'gtl.aid', ],
-      [ 'GPS_TIME', 'DATE', 'gtl.gps_time', ],
-      [ 'COORD_X', 'INT', 'gtl.coord_x', ],
-      [ 'COORD_Y', 'INT', 'gtl.coord_y', ],
-      [ 'SPEED', 'INT', 'gtl.speed' ],
-      [ 'ALTITUDE', 'INT', "gtl.altitude" ],
-      [ 'BEARING', 'INT', "gtl.bearing" ],
-      [ 'BATT', 'INT', "gtl.batt" ],
-    ],
+  my $search_columns = [
+    [ 'ID', 'INT', 'gtl.id', 1 ],
+    [ 'AID', 'INT', 'gtl.aid', 1 ],
+    [ 'GPS_TIME', 'DATE', 'gtl.gps_time', 1 ],
+    [ 'COORD_X', 'INT', 'gtl.coord_x', 1 ],
+    [ 'COORD_Y', 'INT', 'gtl.coord_y', 1 ],
+    [ 'SPEED', 'INT', 'gtl.speed', 1 ],
+    [ 'ALTITUDE', 'INT', "gtl.altitude", 1 ],
+    [ 'BEARING', 'INT', "gtl.bearing", 1 ],
+    [ 'BATTERY', 'INT', "gtl.batt AS battery", 1 ],
+  ];
+  
+  if ($attr->{SHOW_ALL_COLUMNS}){
+    map { $attr->{$_->[0]} = '_SHOW' unless exists $attr->{$_->[0]} } @$search_columns;
+  }
+  
+  $WHERE = $self->search_former( $attr, $search_columns,
     {
       WHERE => 1
     }
@@ -175,7 +181,7 @@ sub locations_list{
       ? "WHERE"
       : '' );
 
-  $self->query2( "SELECT *
+  $self->query2( "SELECT $self->{SEARCH_FIELDS} gtl.id
       FROM gps_tracker_locations gtl
       $WHERE $WHERE_CONCAT $WHERE_TIME ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     undef,
@@ -239,20 +245,28 @@ sub tracked_admins_list{
 
 =cut
 #**********************************************************
-sub tracked_admin_info{
+sub tracked_admin_info {
   my $self = shift;
   my ($admin_id) = @_;
-
-  my $location = $self->location_info( { AID => $admin_id, COLS_NAME => 1, DESC => 1 } );
-
-  if ( ref $location eq 'ARRAY' ){
+  
+  my $location = $self->location_info({
+    AID       => $admin_id,
+    BATTERY   => '_SHOW',
+    GPS_TIME  => '_SHOW',
+    COORD_X   => '_SHOW',
+    COORD_Y   => '_SHOW',
+    COLS_NAME => 1,
+    DESC      => 1
+  });
+  
+  if ( ref $location eq 'ARRAY' ) {
     my $result = $location->[0];
-    my $admin_info = $Admins->info( $admin_id, { COLS_NAME => 1 } );
-
+    my $admin_info = $Admins->info($admin_id, { COLS_NAME => 1 });
+    
     $result = { %{$result}, %{$admin_info} };
     return $result;
   }
-
+  
   return 0;
 };
 
@@ -278,36 +292,44 @@ sub tracked_admin_info{
 
 =cut
 #**********************************************************
-sub tracked_admin_route_info{
+sub tracked_admin_route_info {
   my ($self, $aid, $date, $attr) = @_;
-
-  unless ( $aid ){return 0};
-
+  
+  unless ( $aid ) {return 0};
+  
   my $gps_time_expr = "*";
-
-  if ( $date && !($attr->{DATE_START} && $attr->{DATE_END}) ){
-    if ( $attr->{FROM_TIME} && $attr->{TO_TIME} ){
+  
+  if ( $date && !($attr->{DATE_START} && $attr->{DATE_END}) ) {
+    if ( $attr->{FROM_TIME} && $attr->{TO_TIME} && $attr->{FROM_TIME} ne 'undefined' && $attr->{TO_TIME} ne 'undefined' ) {
       $gps_time_expr = { DATE => $date, FROM_TIME => $attr->{FROM_TIME}, TO_TIME => $attr->{TO_TIME} };
     }
-    else{
-      $gps_time_expr = "$date/" . date_inc( $date );
+    else {
+      $gps_time_expr = "$date/" . date_inc($date);
     }
   }
-  elsif ( $attr->{DATE_START} && $attr->{DATE_END} ){
+  elsif ( $attr->{DATE_START} && $attr->{DATE_END} ) {
     $gps_time_expr = "$attr->{DATE_START}/$attr->{DATE_END}";
   }
-
-  $self->locations_list( { ( AID => $aid, COLS_NAME => 1, GPS_TIME => $gps_time_expr ), %{$attr} } );
-
+  
+  $self->locations_list({ (
+      AID       => $aid,
+      COLS_NAME => 1,
+      BATTERY   => '_SHOW',
+      GPS_TIME  => $gps_time_expr,
+      SHOW_ALL_COLUMNS => 1,
+      PAGE_ROWS => 86400,
+      %{$attr}
+    ),  });
+  
   my $route_list = $self->{list};
-
-  if ( ref $route_list eq 'ARRAY' ){
+  
+  if ( ref $route_list eq 'ARRAY' ) {
     return {
       list  => $route_list,
-      admin => $Admins->info( $aid, { COLS_NAME => 1 } )
+      admin => $Admins->info($aid, { COLS_NAME => 1 })
     };
   }
-
+  
   return 0;
 }
 

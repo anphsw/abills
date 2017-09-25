@@ -1,8 +1,8 @@
-<FORM action=$SELF_URL METHOD=POST class='form-horizontal'> 
+<FORM action=$SELF_URL METHOD=POST class='form-horizontal'>
 <input type=hidden name=index value=$index>
 <input type=hidden name=AID value=$FORM{chg}>
 
-<div class='box box-theme box-form'>
+<div class='box box-theme'>
 <div class='box-body'>
 
 

@@ -9,6 +9,11 @@ use strict;
 use warnings;
 
 BEGIN {
+  die "
+    Deprecated. use websocket_backend.pl
+    http://abills.net.ua/wiki/doku.php/abills:docs:manual:websocket_backend
+  ";
+  
   use FindBin '$Bin';
 
   our $libpath =  $Bin . '/../../';
@@ -44,7 +49,7 @@ use Abills::Sender::Telegram;
 use Admins;
 use Log;
 
-my $Telegram = Abills::Sender::Telegram->new({ CONF => \%conf });
+my $Telegram = Abills::Sender::Telegram->new(\%conf);
 my $Admin    = Admins->new($db, \%conf);
 my $Log      = Log->new(undef, \%conf, {LOG_FILE => "/usr/abills/var/log/telegram.log", DEBUG_LEVEL => 1});
 
@@ -98,7 +103,7 @@ while (1) {
     my $admin_info = $Admin->info(undef, {TELEGRAM_ID => $user_chatid}); # check if chat id linked to admin
     
     # parse commands and send message to 
-    if( $result->[$i]{message}{entities}[0]{type} eq 'bot_command'){
+    if($result->[$i]{message}{entities}[0]{type} &&  $result->[$i]{message}{entities}[0]{type} eq 'bot_command'){
       my $command = $result->[$i]{message}{text};
 
       # print "Admin  \n$admin_info->{A_FIO} - $command\n";
@@ -120,10 +125,10 @@ while (1) {
     }
 
     # send message to chat id
-    my $answer = $Telegram->send_message({ UID        => $user_chatid, 
+    my $answer = $Telegram->send_message({ TO_ADDRESS => $user_chatid, 
                                            MESSAGE    => $message, 
-                                           PARSE_MODE => 'markdown'});
-    #
+                                           PARSE_MODE => 'markdown',});
+    print "answer - $answer";
     $updateid = $result->[$i]->{update_id};
   }
 

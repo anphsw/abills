@@ -16,15 +16,16 @@ use Ping;
 use POSIX qw( strftime mktime );
 use Dv_Sessions;
 use Events;
+use threads;
 
 our ($db, $debug, $Admin, %permissions, $argv);
 
 our $new_line = "\n";
 
-our $Ping = Ping->new($db, $Admin, \%conf);
+our $Ping     = Ping->new($db, $Admin, \%conf);
 our $Sessions = Dv_Sessions->new($db, $Admin, \%conf);
-our $Conf = Conf->new($db, $Admin, \%conf);
-my  $Event = Events->new($db, $Admin, \%conf);
+our $Conf     = Conf->new($db, $Admin, \%conf);
+my  $Event    = Events->new($db, $Admin, \%conf);
 
 ping_user();
 
@@ -42,41 +43,72 @@ sub ping_user {
     $conf_param{ $conf_var->{param} } = $conf_var->{value};
   }
 
-  my $i = 0;
-
   if ($debug > 3) {
     print $LIST_PARAMS{LOGIN} if($LIST_PARAMS{LOGIN});
   }
+
+  $LIST_PARAMS{LOGIN}     =  $argv->{LOGIN}if($argv->{LOGIN});
   $LIST_PARAMS{USER_NAME} = $LIST_PARAMS{LOGIN} if($LIST_PARAMS{LOGIN});
-  $LIST_PARAMS{LOGIN}     =  defined;
-  $LIST_PARAMS{CLIENT_IP} = $LIST_PARAMS{IP} if($LIST_PARAMS{IP});
+  $LIST_PARAMS{CLIENT_IP} = $argv->{IP} if($argv->{IP});
+
   my $online_users_list = $Sessions->online(
     {
       UID       => '_SHOW',
       CLIENT_IP => '_SHOW',
-      USER_NAME => $LIST_PARAMS{LOGIN},
+      USER_NAME => $LIST_PARAMS{USER_NAME},
       %LIST_PARAMS,
     }
   );
 
+  my $threads_num = 0;
+
+  if( $conf_param{THREADS} && $Sessions->{TOTAL} < $conf_param{THREADS}){
+    $threads_num    = $Sessions->{TOTAL};
+    $conf_param{THREADS}  = $Sessions->{TOTAL};
+    printf "Total = $Sessions->{TOTAL} Threads = $conf_param{THREADS}";
+  }
+  elsif($conf_param{THREADS}){
+    $threads_num =   ($Sessions->{TOTAL} % $conf_param{THREADS}) == 0 ? $conf_param{THREADS}:$Sessions->{TOTAL} % $conf_param{THREADS};
+  }
+  else{
+    $conf_param{THREADS} = 1;
+    $threads_num   = 1;
+  }
+    printf "Total = $Sessions->{TOTAL} Threads = $conf_param{THREADS}";
+
+  my $i = 0;
+  my %user_who_be_ping;
+
   foreach my $user (@{$online_users_list}) {
     my $user_online_check;
+
     if($argv->{NO_CHECK} || ping_access_check($user->{uid})){
-      $user_online_check = $Sessions->online(
-        {
-          UID       =>  $user->{uid},
-        }
-      );
+
+      $user_online_check = $Sessions->online({UID => $user->{uid}});
+
       if($argv->{NO_CHECK} || $user_online_check){
-        ping_comand_builder(
-          \%conf_param,
-          {
-            IP  => $user->{client_ip},
-            UID => $user->{uid},
+        ++$i;
+        $user_who_be_ping{$user->{uid}} = $user->{client_ip};
+
+        if($threads_num == $i){
+           my @threads;
+
+          foreach my $user_uid (keys %user_who_be_ping){
+            push @threads, threads->create(\&ping_comand_builder, \%conf_param, { UID => $user_uid, IP => $user_who_be_ping{$user_uid} });
+            delete $user_who_be_ping{$user_uid};
           }
-        );
-        print '$user->{client_ip_num}' . $user->{client_ip} . "\n";
-        sleep($conf_param{PING_PERIODIC} ? $conf_param{PING_PERIODIC} : 60);
+
+          foreach my $thread (@threads) {
+            my (%ping_result_add, %ping_result_event_add) = $thread->join();
+
+            $Ping->add( {%ping_result_add} );
+            $Event->events_add( {%ping_result_event_add, EXTRA => "/admin/index.cgi?get_index=ping_reports&full=1&ID=$Ping->{ID}",} );
+          }
+
+          $threads_num = $conf_param{THREADS};
+          $i=0;
+          sleep($conf_param{PING_PERIODIC} ? $conf_param{PING_PERIODIC} : 60);
+        }
       }
     }
   }
@@ -105,6 +137,7 @@ sub ping_user {
 #**********************************************************
 sub ping_comand_builder {
   my ($conf_param, $attr) = @_;
+
   my %PARAMS;
   my $ping_directory = startup_files();
   my $comand_string  = "$ping_directory->{PING} -q -v";
@@ -127,7 +160,7 @@ sub ping_comand_builder {
   );
 
   #-w timeout for ping if stack
-  my $timeout = $PARAMS{-i} * $PARAMS{-c} + 10 +($conf_param->{TIMEOUT} ? $conf_param->{TIMEOUT} : 30);
+  my $timeout = $PARAMS{-i} * $PARAMS{-c} + 10 + ($conf_param->{TIMEOUT} ? $conf_param->{TIMEOUT} : 30);
 
   if ($debug > 3) {
     print "timeout = $timeout" . $new_line;
@@ -155,70 +188,64 @@ sub ping_comand_builder {
   }
 
   $result =~ s/\n/ /g;
-
+  my %ping_result_add;
+  my %ping_result_event_add;
   my ($transmitted, $racaived, $rate_loss, $avg_time) = $result =~ /.*[---]\s(\d+).*[,]\s(\d+).*[,]\s(\d+).*\%.+\/(\d+).+\/.+\/.+/;
+
   if (!(defined($transmitted) && defined($racaived) && defined($rate_loss) && defined($avg_time))) {
     ($transmitted, $racaived, $rate_loss) = $result =~ /.*[---]\s(\d+).*[,]\s(\d+).*[,].*\s(\d+)\%/;
     $avg_time = 0;
   }
-    if ($debug > 8) {
-      print "Loss rate = " . ($rate_loss || 0) . $new_line . "Time =" . ($avg_time || 0) . $new_line;
-      print "Transmitted = " . ($transmitted || 0) . $new_line . "Racaived =" .  ($racaived || 0) . $new_line;
-    }
+
+  if ($debug > 8) {
+    print "Loss rate = " .   ($rate_loss   || 0) . $new_line . "Time =" .     ($avg_time || 0) . $new_line;
+    print "Transmitted = " . ($transmitted || 0) . $new_line . "Racaived =" . ($racaived || 0) . $new_line;
+  }
+
   if (defined($transmitted) && defined($racaived) && defined($rate_loss)) {
-    $Ping->add(
-      {
-        UID         => $attr->{UID},
-        LOSS_RATE   => $rate_loss,
-        TRANSMITTED => $transmitted,
-        RACAIVED    => $racaived,
-        AVG_TIME    => $avg_time,
-      }
+
+    %ping_result_add = (
+      UID         => $attr->{UID},
+      LOSS_RATE   => $rate_loss,
+      TRANSMITTED => $transmitted,
+      RACAIVED    => $racaived,
+      AVG_TIME    => $avg_time
     );
 
     if ($rate_loss > ($conf_param->{CRITICAL_RATE_LOSSES} ? $conf_param->{CRITICAL_RATE_LOSSES} : 90) || $transmitted != $racaived) {
       if ($transmitted != $racaived) {
-        $Event->events_add(
-          {
-            MODULE      => "Ping",
-            COMMENTS    => "No racaived on ping: $attr->{UID}",
-            PRIORITY_ID => 3,
-            EXTRA       => "/admin/index.cgi?get_index=ping_reports&full=1&ID=$Ping->{ID}",
-          }
+        %ping_result_event_add = (
+          MODULE      => "Ping",
+          COMMENTS    => "No racaived on ping: $attr->{UID}",
+          PRIORITY_ID => 3,
         );
+
       }
       if ($rate_loss > "$conf_param->{CRITICAL_RATE_LOSSES}") {
-        $Event->events_add(
-          {
-            MODULE      => "Ping",
-            COMMENTS    => "Critical packet loss in user: $attr->{UID}",
-            PRIORITY_ID => 3,
-            EXTRA       => "/admin/index.cgi?get_index=ping_reports&full=1&ID=$Ping->{ID}",
-          }
+        %ping_result_event_add = (
+          MODULE      => "Ping",
+          COMMENTS    => "Critical packet loss in user: $attr->{UID}",
+          PRIORITY_ID => 3,
         );
       }
     }
   }
   else {
-    $Ping->add(
-      {
-        UID         => $attr->{UID},
-        LOSS_RATE   => 0,
-        TRANSMITTED => 0,
-        RACAIVED    => 0,
-        AVG_TIME    => 0,
-      }
+    %ping_result_add = (
+      UID         => $attr->{UID},
+      LOSS_RATE   => 0,
+      TRANSMITTED => 0,
+      RACAIVED    => 0,
+      AVG_TIME    => 0,
     );
-
-    $Event->events_add(
-      {
-        MODULE      => "Ping",
-        COMMENTS    => "Cant transmitted packets: $attr->{UID}",
-        PRIORITY_ID => 3,
-        EXTRA       => "/admin/index.cgi?get_index=ping_reports&full=1&ID=$Ping->{ID}",
-      }
+    %ping_result_event_add = (
+      MODULE      => "Ping",
+      COMMENTS    => "Cant transmitted packets: $attr->{UID}",
+      PRIORITY_ID => 3,
     );
   }
+
+  return (%ping_result_add, %ping_result_event_add);
 }
 
 #**********************************************************

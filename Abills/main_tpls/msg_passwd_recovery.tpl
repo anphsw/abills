@@ -1,8 +1,4 @@
-Password Recovery:
-===========================================================
-  %MESSAGE%
-
-
-DATE: $DATE
-===========================================================
-$PROGRAM
+_{PASSWORD_RECOVERY}_
+_{LOGIN}_: %LOGIN%
+_{PASSWD}_: %PASSWORD%
+UID: %UID%

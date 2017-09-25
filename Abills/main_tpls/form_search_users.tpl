@@ -5,16 +5,26 @@
             <label class='control-label col-xs-4' for='FIO'>_{FIO}_ (*):</label>
 
             <div class='col-xs-8'>
-                <input id='FIO' name='FIO' value='%FIO%' placeholder='%FIO%' class='form-control' type='text'/>
+              <div class="input-group">
+                <input id='FIO' name='FIO' value='%FIO%' class='form-control' type='text'/>
+                <span class="input-group-addon" data-tooltip="_{EMPTY_FIELD}_">
+                  <i class='fa fa-exclamation'></i>
+                  <input type="checkbox" name='FIO' data-input-disables=FIO value='!'>
+                </span>
+              </div>
             </div>
         </div>
         <div class='form-group'>
             <label class='control-label col-xs-4' for='CONTRACT_ID'>_{CONTRACT_ID}_ (*):</label>
 
             <div class='col-xs-8'>
-                <input id='CONTRACT_ID' name='CONTRACT_ID' value='%CONTRACT_ID%' placeholder='%CONTRACT_ID%'
-                       class='form-control'
-                       type='text'/>
+              <div class="input-group">
+                <input id='CONTRACT_ID' name='CONTRACT_ID' value='%CONTRACT_ID%' class='form-control' type='text'/>
+                <span class="input-group-addon" data-tooltip="_{EMPTY_FIELD}_">
+                  <i class='fa fa-exclamation'></i>
+                  <input type="checkbox" name='CONTRACT_ID' data-input-disables=CONTRACT_ID value='!'>
+                </span>
+              </div>
             </div>
         </div>
 
@@ -33,8 +43,13 @@
             <label class='control-label col-xs-4' for='PHONE'>_{PHONE}_ (&gt;, &lt;, *):</label>
 
             <div class='col-xs-8'>
-                <input id='PHONE' name='PHONE' value='%PHONE%' placeholder='%PHONE%' class='form-control'
-                       type='text'/>
+              <div class="input-group">
+                <input id='PHONE' name='PHONE' value='%PHONE%' placeholder='%PHONE%' class='form-control' type='text'/>
+                <span class="input-group-addon" data-tooltip="_{EMPTY_FIELD}_">
+                  <i class='fa fa-exclamation'></i>
+                  <input type="checkbox" name='PHONE' data-input-disables=PHONE value='!'>
+                </span>
+              </div>
             </div>
         </div>
         <div class='form-group'>

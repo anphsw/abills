@@ -53,12 +53,45 @@ $lang{DELETE_LINK} = 'Удалить соединение';
 $lang{CONNECT} = 'Соединить';
 $lang{CONNECT_BY_NUMBER} = 'Соединить по номерам';
 $lang{ATTENUATION} = 'Затухание';
-$lang{REMOVE_CABLE_FROM_SCHEME} = 'Убрать кабель с схемы';
-$lang{GO_TO_COMMUTATION} = 'Перейти к комутации';
+$lang{REMOVE_FS_FROM_SCHEME} = 'Убрать %s с схемы';
+$lang{GO_TO} = 'Перейти к ';
+$lang{TO_COMMUTATION} = 'комутации';
 $lang{FIBER} = 'Волокно';
 $lang{ENTER} = 'Вход';
 $lang{OUTER} = 'Выход';
 $lang{DIRECTION} = 'Направление';
+
+$lang{CREATE_COMMUTATION} = 'Создать коммутацию';
+
+$lang{CROSS} = 'Кросс';
+$lang{CROSSES} = 'Кроссы';
+$lang{RACK_MOUNTABLE} = 'Стоечный';
+$lang{RETRACTABLE} = 'Выдвижной';
+$lang{SOLID_PANEL} = 'Сплошная панель';
+$lang{CHANGEABLE_PLANKS} = 'Сменные планки';
+$lang{CROSS_TYPE} = 'Тип кросса';
+$lang{CROSS_TYPES} = 'Типы кросса';
+$lang{PANEL_TYPE} = 'Тип панели';
+$lang{RACK_HEIGHT} = 'Высота';
+$lang{PORTS_TYPE} = 'Типы портов';
+$lang{POLISH_TYPE} = 'Тип полировки';
+$lang{FIBER_TYPE} = 'Тип волокон';
+$lang{PORTS_COUNT} = 'Количество портов';
+
+$lang{RACK} = 'Стойка';
+$lang{SERVER_ROOM} = 'Серверная';
+
+$lang{INSIDE} = 'Внутри';
+$lang{CONTAINS} = 'Содержит';
+
+$lang{PLANNED} = 'Планируемый';
+$lang{NO_PORTS_COUNT} = 'Не указано количество портов';
+
+$lang{ALREADY_ON_ANOTHER_COMMUTATION} = 'Уже указан на другой коммутации';
+$lang{NO_FREE_EQUIPMENT} = 'Нет доступного оборудования для добавления';
+
+$lang{NO_OTHER_COMMUTATIONS} = 'Нет других коммутаций';
+$lang{OTHER_COMMUTATIONS} = 'Другие коммутации';
 
   #$lang{MANAGEMENT} = 'Управление';
 #$lang{LINK_MANAGEMENT} = 'Управление соединениями';
@@ -72,5 +105,6 @@ $lang{DIRECTION} = 'Направление';
 #$lang{SPLITTERS} = 'Сплиттеры';
 #$lang{CROSS} = 'Кросс';
 #$lang{CROSSES} = 'Кроссы';
+
 
 1;

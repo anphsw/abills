@@ -2,6 +2,9 @@
     <input type=hidden name='GUEST_ACCOUNT' value='1'>
     <input type=hidden name='DOMAIN_ID' value='%DOMAIN_ID%'>
     <input type=hidden name='LOGIN' value='%LOGIN%'>
+    <input type=hidden name='UID' value='%UID%'>
+    <input type=hidden name='PHONE' value='%PHONE%'>
+    <input type=hidden name='mac' value='%mac%'>
 
     <fieldset>
         <div class='box box-theme'>
@@ -13,11 +16,13 @@
                                 class='form-control' type='text'>
                     </div>
                     <div class='col-md-2'>
-                        <input type='submit' class='btn btn-primary' name='SEND' value='_{GO}_'>
+                        <input type='submit' class='btn btn-primary' name='SEND' value='_{ENTER}_'>
                     </div>
                 </div>
+                <br>
             </div>
         </div>
 
     </fieldset>
+    %BUTTON%
 </form>

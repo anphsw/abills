@@ -1186,11 +1186,13 @@ sub accomulation_reset_list {
   my $self   = shift;
   my ($attr) = @_;
 
-  $self->query2( "SELECT b.cost, MAX(l.start) AS last_connect, b.uid FROM bonus_rules_accomulation_scores b
+  $self->query2( "SELECT b.cost, MAX(l.start) AS last_connect, b.uid, COUNT(c.uid) AS online
+    FROM bonus_rules_accomulation_scores b
     LEFT JOIN dv_log l ON (l.uid=b.uid)
+    LEFT JOIN dv_calls c ON (c.uid=b.uid)
     WHERE b.cost > 0
     GROUP BY b.uid
-    HAVING last_connect < CURDATE() - INTERVAL $attr->{RESET_PERIOD} DAY",
+    HAVING last_connect < CURDATE() - INTERVAL $attr->{RESET_PERIOD} DAY AND online < 1;",
     undef,
     $attr
   );

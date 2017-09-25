@@ -4,6 +4,7 @@
                    "02:0:Tags:tags_user:UID"                 => 20,
                    "06:0:Tags:tags_list:"                    => 5,
                    "04:0:Tags:reports_user_tags:"            => 4,
+                   "07:0:Tags:tags_multiuser_form:MULTIUSER" => 5,
                    );
 
 1

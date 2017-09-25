@@ -28,7 +28,7 @@
     var passw_field2 = jQuery('#SECOND_PASSWORD_INPUT');
 
     gen_btn.on('click', function () {
-      var password = generate_password(password_config_params);
+      var password = generatePassword(password_config_params);
       gen_psw.val(password);
     });
 

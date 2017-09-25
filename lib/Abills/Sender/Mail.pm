@@ -1,7 +1,11 @@
 package Abills::Sender::Mail;
 use strict;
 use warnings FATAL => 'all';
-use Abills::Base qw(sendmail);
+
+use Abills::Sender::Plugin;
+use parent 'Abills::Sender::Plugin';
+
+use Abills::Base qw(sendmail _bp);
 
 =head1 NAME
 
@@ -9,26 +13,6 @@ use Abills::Base qw(sendmail);
 
 =cut
 
-##**********************************************************
-#=head2 send_message($attr)
-#
-#  Arguments:
-#    $attr - hash_ref
-#      UID     - user ID
-#      MESSAGE - string. CANNOT CONTAIN DOUBLE QUOTES \"
-#
-#  Returns:
-#    1 if success, 0 otherwise
-#
-#=cut
-##**********************************************************
-#sub send_message {
-#  my $self = shift;
-#  #my ($attr) = @_;
-#
-#
-#  return $self;
-#}
 
 #**********************************************************
 =head2 send_message($attr)
@@ -38,6 +22,7 @@ use Abills::Base qw(sendmail);
     SUBJECT
     PRIORITY_ID
     TO_ADDRESS   - Email addess
+    MAIL_TPL
 
   Returns:
     result_hash_ref
@@ -50,18 +35,31 @@ sub send_message {
 
   my $sender = $attr->{SENDER} || $self->{conf}->{ADMIN_MAIL} || 'abills_admin';
 
-  sendmail(
+  if($attr->{MAIL_TPL}) {
+    $attr->{MESSAGE}=$attr->{MAIL_TPL};
+  }
+
+  my $sent = sendmail(
     $sender,
     $attr->{TO_ADDRESS},
     $attr->{SUBJECT},
     $attr->{MESSAGE},
-    '',
+    $self->{conf}->{MAIL_CHARSET} || 'utf-8',
     undef
   );
 
   print "Sending E-mail\n Subject: $attr->{SUBJECT}\n $attr->{MESSAGE}\n" if($self->{debug});
 
-  return $self;
+  return $sent;
+}
+
+#**********************************************************
+=head2 support_batch() - tells Sender, we can accept more than one recepient per call
+
+=cut
+#**********************************************************
+sub support_batch {
+  return 1;
 }
 
 1;

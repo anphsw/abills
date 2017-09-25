@@ -34,6 +34,7 @@ my $Extfin = Extfin->new($db, $admin, \%conf);
 =cut
 #**********************************************************
 sub extfin_export_customers {
+  print "EXTFIN EXPORT CUSTOMERS";
   $Extfin->{ACTION}     = 'get';
   $Extfin->{ACTION_LNG} = $lang{SHOW};
 
@@ -52,7 +53,7 @@ sub extfin_export_customers {
       my $table = $html->table(
         {
           width   => '100%',
-          caption => "$lang{USERS}",
+          caption => $lang{USERS},
           title   => [ 'ID', $lang{NAME}, $lang{FIO}, "$lang{GROUP} ID", "$lang{GROUP}", $lang{TYPE}, $lang{ADDRESS}, $lang{PHONE},
            $lang{CONTRACT_ID}, "$lang{CONTRACT} $lang{DATE}", 'BILL ID', "BANK ACCOUNT", 'BANK NAME', 'COR ACCT' ],
           ID      => 'EXTFIN_CUSTOMERS',
@@ -120,7 +121,6 @@ sub extfin_export_customers {
     return 0;
   }
   elsif ($type eq 'PAYMENT_DEED') {
-
     if ($FORM{PERIOD} && $FORM{PERIOD} =~ /(\d{2})\.(\d{2})\.(\d{4})\-(\d{2})\.(\d{2})\.(\d{4})/) {
       $LIST_PARAMS{FROM_DATE} = "$3-$2-$1";
       $LIST_PARAMS{TO_DATE} = "$6-$5-$4";
@@ -153,7 +153,7 @@ sub extfin_export_customers {
         title   => \@TITLE,
         ID      => 'PAYMENT_DEED',
         qs      => $pages_qs,
-        EXPORT  => ' XML:&xml=1'
+        EXPORT  => 1
       }
     );
 
@@ -283,72 +283,15 @@ sub extfin_export_customers {
   }
 
   $html->tpl_show(_include('extfin_export_customers', 'Extfin'), $Extfin);
+
   return 1;
 }
 
 #**********************************************************
-# Monthly summary
-#**********************************************************
-sub extfin_monthly_summary {
-  my ($attr) = @_;
-
-  my $debug = $attr->{DEBUG} || 0;
-  my $debug_output = "Extfin summary\n";
-
-  $ADMIN_REPORT{DATE} = $DATE if (!$ADMIN_REPORT{DATE});
-  my ($y, $m, $d) = split(/-/, $ADMIN_REPORT{DATE}, 3);
-
-  $conf{START_PERIOD_DAY} = 1 if (!$conf{START_PERIOD_DAY});
-  $Extfin->{debug}=1 if ($debug > 6);
+=head2 extfin_periodic_paids($attr)
 
 
-  if ($d != $conf{START_PERIOD_DAY}) {
-    $DEBUG .= $debug_output;
-    return $debug_output;
-  }
-
-  if ($m == 1) {
-    $m = 12;
-    $y--;
-  }
-  else {
-    $m--;
-  }
-
-  my $period = sprintf("%d-%.2d", $y, $m);
-  $debug_output .= "Extfin make summary. Period: $period\n" if ($debug > 1);
-  $Extfin->payment_deed({ MONTH => "$period" });
-
-  foreach my $id (keys %{ $Extfin->{PAYMENT_DEED} }) {
-    my (undef, undef, $vat) = split(/\|/, $Extfin->{NAMES}{$id});
-    $vat = 0 if (!$vat);
-    #my $total = $Extfin->{PAYMENT_DEED}{$id} + $Extfin->{PAYMENT_DEED}{$id} * ($vat / 100);
-
-    $debug_output .= "PERIOD: $period BILL_ID: $id SUM: $Extfin->{PAYMENT_DEED}{$id} DATE: $DATE\n" if ($debug > 2);
-    if ($debug < 5) {
-      $Extfin->summary_add(
-        {
-          PERIOD  => $period,
-          BILL_ID => $id,
-          SUM     => $Extfin->{PAYMENT_DEED}{$id},
-          DATE    => "$DATE",
-          AID     => $admin->{AID}
-        }
-      );
-    }
-  }
-
-  ($y, $m, $d) = split(/-/, $ADMIN_REPORT{DATE}, 3);
-  $period = sprintf("%d-%.2d", $y, $m);
-
-  $Extfin->balances_add({ PERIOD => "$period" });
-
-  $DEBUG .= $debug_output;
-  return $debug_output;
-}
-
-#**********************************************************
-#
+=cut
 #**********************************************************
 sub extfin_periodic_paids {
   my ($attr) = @_;
@@ -383,7 +326,7 @@ sub extfin_periodic_paids {
     );
 
     if ($Extfin->{errno}) {
-      print "$Extfin->{errno}\n";
+      print "Error: $Extfin->{errno}\n";
     }
   }
 
@@ -392,7 +335,9 @@ sub extfin_periodic_paids {
 }
 
 #**********************************************************
-#
+=head2 extfin_paids()
+
+=cut
 #**********************************************************
 sub extfin_paids {
   $Extfin->{ACTION}     = 'add';
@@ -548,7 +493,6 @@ sub extfin_paids {
       caption    => "$lang{FEES}",
       border     => 1,
       title      => [ '#', $lang{DATE}, $lang{USER}, $lang{SUM}, $lang{TYPE}, $lang{DESCRIBE}, $lang{ACCOUNT}, $lang{ADMIN}, $lang{STATUS}, "$lang{CLOSED} $lang{DATE}", 'EXT ID', '-', '-' ],
-      cols_align => [ 'right', 'left', 'left', 'right', 'left', 'left', 'left', 'center', 'right', 'left', 'center:noprint', 'center:noprint' ],
       pages      => $Extfin->{TOTAL},
       qs         => $pages_qs,
       ID         => 'EXTFIN_FEES'
@@ -558,17 +502,24 @@ sub extfin_paids {
   my ($delete, $change);
   foreach my $line (@$list) {
     if ($permissions{4}{1}) {
-      $delete = $html->button($lang{DEL}, "index=$index&del=$line->[0]", { MESSAGE => "$lang{DEL} $line->[0]?", BUTTON => 1 });
-      $change = $html->button($lang{CHANGE}, "index=$index&chg=$line->[0]&UID=$line->[11]", { BUTTON => 1 });
+      $delete = $html->button($lang{DEL}, "index=$index&del=$line->[0]", { MESSAGE => "$lang{DEL} $line->[0]?", class => 'del' });
+      $change = $html->button($lang{CHANGE}, "index=$index&chg=$line->[0]&UID=$line->[11]", { class=>'change' });
     }
 
     $table->addrow(
       $html->b($line->[0]),
       $html->button($line->[1], "index=$index&chg=$line->[0]"),
       $html->button($line->[2], "index=15&UID=$line->[11]&MODULE=Extfin"),
-      $line->[3], $line->[4], $line->[5], $PAYMENT_METHODS->{ $line->[6] },
-      $line->[7], ($line->[8]) ? "$lang{CLOSED}" : '',
-      $line->[9], $line->[10], $change, $delete
+      $line->[3],
+      $line->[4],
+      $line->[5],
+      $PAYMENT_METHODS->{ $line->[6] },
+      $line->[7],
+      ($line->[8]) ? "$lang{CLOSED}" : '',
+      $line->[9],
+      $line->[10],
+      $change
+        . $delete
     );
   }
 
@@ -577,7 +528,6 @@ sub extfin_paids {
   $table = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right' ],
       rows       => [ [ "$lang{TOTAL}:", $html->b($Extfin->{TOTAL}), "$lang{SUM}: ", $html->b($Extfin->{SUM}) ] ]
     }
   );
@@ -654,7 +604,6 @@ sub extfin_paids_types {
       caption    => "$lang{TYPE}",
       border     => 1,
       title      => [ '#', $lang{NAME}, $lang{PERIOD}, '-', '-' ],
-      cols_align => [ 'right', 'left', 'center', 'center:noprint', 'center:noprint' ],
       ID         => 'ID'
     }
   );
@@ -760,7 +709,7 @@ sub extfin_report_deeds {
     print $html->form_main(
       {
         CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
-        HIDDEN  => { qindex                     => "$index" }
+        HIDDEN  => { qindex => "$index" }
       }
     );
 
@@ -777,8 +726,7 @@ sub extfin_report_deeds {
       width      => '100%',
       caption    => "PAYMENT_DEED $lang{DATE}: ". ($period || ''),
       border     => 1,
-      title      => [ '#', $lang{PERIOD}, 'BILL ID', $lang{NAME}, $lang{TYPE}, "$lang{SUM}", "$lang{VAT}" ],
-      cols_align => [ 'right', 'right', 'right', 'left', 'left', 'right', 'right', 'center', 'center', 'center:noprint', 'center:noprint' ],
+      title      => [ '#', $lang{PERIOD}, 'BILL ID', $lang{NAME}, $lang{TYPE}, $lang{SUM}, $lang{VAT} ],
       ID         => 'EXTFIN_PAYMENT_DEED',
     }
   );
@@ -804,7 +752,9 @@ sub extfin_report_deeds {
 }
 
 #**********************************************************
-#
+=head2 extfin_report_paids()
+
+=cut
 #**********************************************************
 sub extfin_report_paids {
 
@@ -819,6 +769,7 @@ sub extfin_report_paids {
   #                     '7:SUM'             => $lang{SUM});
 
   my %CAPTIONS_HASH = ();
+  my $report_type = $FORM{TYPE} || q{};
 
   my $list = $Extfin->paid_types_list({%LIST_PARAMS});
   foreach my $line (@$list) {
@@ -876,7 +827,6 @@ sub extfin_report_paids {
         caption    => "$lang{FEES}",
         border     => 1,
         title      => [ '#', $lang{DATE}, $lang{USER}, $lang{SUM}, $lang{TYPE}, $lang{DESCRIBE}, "$lang{PAYMENT_METHOD}", $lang{ADMIN}, $lang{STATUS}, "$lang{CLOSED} $lang{DATE}", 'EXT ID', '-', '-' ],
-        cols_align => [ 'right', 'left', 'right', 'left', 'right', 'left', 'center', 'right', 'center:noprint', 'center:noprint' ],
         ID         => 'EXTFIN_FEES'
       }
     );
@@ -900,17 +850,16 @@ sub extfin_report_paids {
 
   }
   else {
-    my @caption     = ("$lang{DATE}", "$lang{CLOSED}", "$lang{CLOSED} $lang{SUM}", "$lang{COUNT}", "$lang{SUM}");
-    my $type = $FORM{TYPE} || q{};
-    if ($type) {
-      if ($type eq 'PAYMENT_METHOD') {
+    my @caption     = ($lang{DATE}, $lang{CLOSED}, "$lang{CLOSED} $lang{SUM}", $lang{COUNT}, $lang{SUM});
+    if ($report_type) {
+      if ($report_type eq 'PAYMENT_METHOD') {
         $caption[0] = $lang{PAYMENT_METHOD};
         push @caption, "$lang{PAYMENTS} $lang{COUNT}", "$lang{PAYMENTS} $lang{SUM}", "$lang{RESULT}";
       }
-      elsif ($type eq 'PAYMENT_TYPE') {
+      elsif ($report_type eq 'PAYMENT_TYPE') {
         $caption[0] = $lang{TYPE};
       }
-      elsif ($type eq 'USER') {
+      elsif ($report_type eq 'USER') {
         $caption[0] = $lang{USERS};
       }
     }
@@ -918,9 +867,8 @@ sub extfin_report_paids {
     $table_sessions = $html->table(
       {
         width      => '100%',
-        caption    => "$lang{FEES}",
+        caption    => $lang{FEES},
         title      => \@caption,
-        cols_align => [ 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right' ],
         qs         => $pages_qs
       }
     );
@@ -932,20 +880,20 @@ sub extfin_report_paids {
     my %PAIDS_HASH = ();
 
     foreach my $line (@$list) {
-      my $firth_field = $html->button($line->[0], "index=$index&$type=$line->[0]$pages_qs");
+      my $firth_field = $html->button($line->[0], "index=$index&$report_type=$line->[0]$pages_qs");
 
-      if ($FORM{TYPE}) {
-        if ($FORM{TYPE} eq 'USER') {
+      if ($report_type) {
+        if ($report_type eq 'USER') {
           $firth_field = $html->button($line->[0], "index=15&UID=$line->[5]");
         }
-        elsif ($FORM{TYPE} eq 'PAYMENT_METHOD') {
+        elsif ($report_type eq 'PAYMENT_METHOD') {
           $firth_field = $html->button($PAYMENT_METHODS->{ $line->[0] }, "index=$index&PAYMENT_METHOD=$line->[0]$pages_qs");
           $PAIDS_HASH{ $line->[0] } = [ $line->[1], $line->[2], $line->[3], $line->[4] ];
         }
-        elsif ($FORM{TYPE} eq 'PAYMENT_TYPE') {
+        elsif ($report_type eq 'PAYMENT_TYPE') {
           $firth_field = $html->button($CAPTIONS_HASH{"$line->[0]:$line->[0]"}, "index=$index&PAYMENT_TYPE=$line->[0]");
         }
-        elsif ($FORM{TYPE} eq 'ADMINS') {
+        elsif ($report_type eq 'ADMINS') {
           $firth_field = $line->[0];
         }
 
@@ -967,14 +915,15 @@ sub extfin_report_paids {
       $DATA_HASH2{SUM}[$num]        = $line->[3];
       $DATA_HASH2{CLOSED_SUM}[$num] = $line->[5];
       my @rows = ();
-      if ($FORM{TYPE} ne 'PAYMENT_METHOD') {
+
+      if ($report_type && $report_type ne 'PAYMENT_METHOD') {
         @rows = ($firth_field, $line->[1], $line->[2], $line->[3], $line->[4]);
       }
 
       $table_sessions->addrow(@rows);
     }
 
-    if ( $FORM{TYPE} && $FORM{TYPE} eq 'PAYMENT_METHOD' ){
+    if ( $report_type && $report_type eq 'PAYMENT_METHOD' ){
       #Get paymets data
       use Finance;
       my $payments      = Finance->payments($db, $admin, \%conf);
@@ -1014,7 +963,6 @@ sub extfin_report_paids {
         {
           width      => '100%',
           caption    => $lang{RESULT},
-          cols_align => [ 'right', 'right', 'right', 'right' ],
           rows       => [ [ "$lang{PAYMENTS}: " . $html->b(sprintf("%.2f", $payments_total)), "$lang{FEES}: " . $html->b(sprintf("%.2f", $paids_total)), "$lang{RESULT}: " . $html->b(sprintf("%.2f", $result_total)) ] ],
           rowcolor   => $_COLORS[2]
         }
@@ -1041,7 +989,6 @@ sub extfin_report_paids {
   my $table = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right', 'right', 'right' ],
       rows => [ [ "$lang{COUNT}: " . $html->b($Extfin->{TOTAL}), "$lang{SUM}: " . $html->b($Extfin->{SUM}), ] ],
       rowcolor => $_COLORS[2]
     }
@@ -1049,10 +996,13 @@ sub extfin_report_paids {
 
   print $table_sessions->show() . $table->show() . $output;
 
+  return 1;
 }
 
 #**********************************************************
-#
+=head2 extfin_sum()
+
+=cut
 #**********************************************************
 sub extfin_sum {
 
@@ -1128,7 +1078,6 @@ sub extfin_sum {
         caption => "$lang{FEES}",
         border  => 1,
         title   => [ '#', $lang{DATE}, $lang{USER}, $lang{SUM}, $lang{TYPE}, $lang{DESCRIBE}, $lang{ADMIN}, $lang{STATUS}, "$lang{CLOSED} $lang{DATE}", 'EXT ID', '-', '-' ],
-        cols_align => [ 'right', 'left', 'right', 'left', 'right', 'left', 'center', 'right', 'center:noprint', 'center:noprint' ],
       }
     );
 
@@ -1164,7 +1113,6 @@ sub extfin_sum {
         width      => '100%',
         caption    => "$lang{FEES}",
         title      => \@caption,
-        cols_align => [ 'right', 'right', 'right', 'right', 'right', 'right', 'right' ],
         qs         => $pages_qs
       }
     );
@@ -1227,9 +1175,7 @@ sub extfin_sum {
   my $table = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right', ],
       rows       => [ [ "$lang{COUNT}: " . $html->b($Extfin->{TOTAL}), "$lang{SUM}: " . $html->b($Extfin->{SUM}), ] ],
-      rowcolor   => $_COLORS[2]
     }
   );
 
@@ -1239,7 +1185,9 @@ sub extfin_sum {
 }
 
 #**********************************************************
-#
+=head2 extfin_debetors()
+
+=cut
 #**********************************************************
 sub extfin_debetors {
 
@@ -1299,7 +1247,6 @@ sub extfin_debetors {
       caption    => "$lang{DEBETORS}",
       border     => 1,
       title      => [ '#', $lang{LOGIN}, $lang{CONTRACT_ID}, $lang{FIO}, $lang{REGISTRATION}, "$lang{STATUS}", "$lang{TARIF_PLAN}", $lang{DEPOSIT}, "< 32 days", "33 - 64 days", "65 - 96 days", "97 - 183 days", "184 - 365 days", "> 365 days" ],
-      cols_align => [ 'right', 'left', 'left', 'left', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right' ],
       ID         => 'DEBETORS'
     }
   );
@@ -1415,7 +1362,6 @@ sub extfin_payments_fees {
       caption    => "$lang{PAYMENTS} /  $lang{FEES}",
       border     => 1,
       title      => [ '#', $lang{LOGIN}, $lang{FIO}, $lang{PAYMENTS}, $lang{FEES}, '-' ],
-      cols_align => [ 'right', 'left', 'right', 'right', 'left', 'left', 'right', 'right', 'left', 'center:noprint' ],
       qs         => $pages_qs,
       pages      => $Extfin->{TOTAL},
       ID         => 'REPORTS_PAYMENTS_FEES',
@@ -1433,7 +1379,6 @@ sub extfin_payments_fees {
   my $table = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right', 'right' ],
       rows       => [ [ "$lang{TOTAL} $lang{USERS}: " . $html->b($Extfin->{USERS_TOTAL}), "$lang{TOTAL} $lang{PAYMENTS}: " . $html->b($Extfin->{PAYMENTS_TOTAL}), "$lang{TOTAL} $lang{FEES}: " . $html->b($Extfin->{FEES_SUM}) ] ],
       rowcolor   => 'even'
     }
@@ -1560,7 +1505,6 @@ sub extfin_users_balance {
       caption    => "$lang{DEPOSIT} $lang{DATE}: ". ($period || ''),
       border     => 1,
       title      => [ '#', $lang{LOGIN}, "$lang{FIO}/$lang{NAME}", "DEBIT", "CREDIT", "SALDO" ],
-      cols_align => [ 'right', 'right', 'right', 'left', 'left', 'right', 'right', 'center', 'center', 'center:noprint', 'center:noprint' ],
       ID         => 'EXTFIN_PAYMENT_DEED',
     }
   );
@@ -1598,19 +1542,284 @@ sub extfin_users_balance {
 
 
 #**********************************************************
-#� ����� ����������� ������������ ��������� ����� ������ � ������������� ����������:
-#       � ����� ������ �� �������� � ���� ����������� ��������� ���������� �� ����������� �����
-#          - ����� ��������
-#          - ��� ��������
-#          - ����� (������������)
-#          - ����� (���������)
-#          - �������������� ������ (������������)
-#          - �������������� ������ (���������)
-#          - ����� ���������� ������
-#          - ���������� ���������� ������
-#          - ����� �������� �������
+=head2 company_reports()
+
+=cut
 #**********************************************************
 sub company_reports  {
+
+  return 1;
+}
+
+
+#**********************************************************
+=head2 extfin_monthly_summary () -
+
+  Arguments:
+    ATTRIBUTES -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub extfin_monthly_summary {
+  my ($attr) = @_;
+
+  my $debug = $attr->{DEBUG} || 0;
+  my $debug_output = "Extfin summary\n";
+
+  $ADMIN_REPORT{DATE} = $DATE if (!$ADMIN_REPORT{DATE});
+  my ($y, $m, $d) = split(/-/, $ADMIN_REPORT{DATE}, 3);
+
+  $conf{START_PERIOD_DAY} = 1 if (!$conf{START_PERIOD_DAY});
+  $Extfin->{debug}=1 if ($debug > 6);
+
+
+  if ($d != $conf{START_PERIOD_DAY}) {
+    $DEBUG .= $debug_output;
+    return $debug_output;
+  }
+
+  if ($m == 1) {
+    $m = 12;
+    $y--;
+  }
+  else {
+    $m--;
+  }
+
+  my $period = sprintf("%d-%.2d", $y, $m);
+  $debug_output .= "Extfin make summary. Period: $period\n" if ($debug > 1);
+  $Extfin->payment_deed({ MONTH => "$period" });
+
+  foreach my $id (keys %{ $Extfin->{PAYMENT_DEED} }) {
+    my (undef, undef, $vat) = split(/\|/, $Extfin->{NAMES}{$id});
+    $vat = 0 if (!$vat);
+    #my $total = $Extfin->{PAYMENT_DEED}{$id} + $Extfin->{PAYMENT_DEED}{$id} * ($vat / 100);
+
+    $debug_output .= "PERIOD: $period BILL_ID: $id SUM: $Extfin->{PAYMENT_DEED}{$id} DATE: $DATE\n" if ($debug > 2);
+    if ($debug < 5) {
+      $Extfin->summary_add(
+        {
+          PERIOD  => $period,
+          BILL_ID => $id,
+          SUM     => $Extfin->{PAYMENT_DEED}{$id},
+          DATE    => "$DATE",
+          AID     => $admin->{AID}
+        }
+      );
+    }
+  }
+
+  ($y, $m, $d) = split(/-/, $ADMIN_REPORT{DATE}, 3);
+  $period = sprintf("%d-%.2d", $y, $m);
+
+  $Extfin->balances_add({ PERIOD => "$period" });
+
+  $DEBUG .= $debug_output;
+  return $debug_output;
+}
+
+#**********************************************************
+=head2 extfin_calculated_balance () -
+
+  Arguments:
+
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub extfin_calculated_balance {
+
+  use Finance;
+  use Bills;
+  use Users;
+  my $Payments = Finance->payments($db, $admin, \%conf);
+  my $Fees = Finance->fees($db, $admin, \%conf);
+  my $Bills = Bills->new($db, $admin, \%conf);
+  my $User  = Users->new($db, $admin, \%conf);
+
+  my @YEARS = ('2017', '2018', '2019', '2020', '2021', '2022', '2023');
+
+  my ($year, $month, undef) = split('-', $DATE);
+
+  $month        = $FORM{MONTH} if $FORM{MONTH};
+  $year         = $FORM{YEAR}  if $FORM{YEAR};
+  $FORM{sort} //= 1;
+  $FORM{desc} //= '';
+
+  my $qs = "&MONTH=$month&YEAR=$year";
+
+  $Extfin->{MONTH_SELECT} = $html->form_select(
+    'MONTH',
+    {
+      SELECTED => $FORM{MONTH} ? int($FORM{MONTH}) : int($month),
+      SEL_ARRAY    => [ '', @MONTHES ],
+      ARRAY_NUM_ID => 1,
+    }
+  );
+
+  $Extfin->{YEAR_SELECT} = $html->form_select(
+    'YEAR',
+    {
+      SELECTED => $FORM{YEAR} || $year,
+      SEL_ARRAY => [ '', @YEARS ],
+    }
+  );
+
+  my $table = $html->table(
+    {
+      width      => '100%',
+      caption    => "$lang{SALDO} $lang{FOR_} " . ($MONTHES[ int($month - 1) ] . " $year"),
+      border     => 1,
+      title      => [ $lang{FIO}, $lang{CONTRACT}, "$lang{SALDO_BEGIN_PERIOD}", "$lang{FEES}", "$lang{PAYMENTS}", "$lang{SALDO_END_PERIOD}" ],
+      ID         => 'EXTFIN_CALCULATED_BALANCE',
+      EXPORT     => 1,
+      qs         => $qs,
+      MENU       => "$lang{PRINT}:qindex=$index&header=2&print_form=1&sort=$FORM{sort}&desc=$FORM{desc}$qs:print"
+    }
+  );
+
+  my $bills_list = $Bills->list({ COLS_NAME => 1 });
+
+  foreach my $bill_id (@$bills_list){
+    my $user_pi = $User->pi({ UID => $bill_id->{uid}, FIO => '_SHOW', CONTRACT_ID => '_SHOW' });
+
+    $bill_id->{FIO} = $user_pi->{FIO};
+    $bill_id->{CONTRACT_ID} = $user_pi->{CONTRACT_ID};
+  }
+
+  if($FORM{sort} && $FORM{sort} == 1){
+    @$bills_list = sort {$a->{FIO} cmp $b->{FIO}} @$bills_list;
+  }
+
+  if($FORM{sort} && $FORM{sort} == 2){
+    @$bills_list = sort {$a->{CONTRACT_ID} cmp $b->{CONTRACT_ID}} @$bills_list;
+  }
+
+  if($FORM{desc} && $FORM{desc} eq 'DESC'){
+    @$bills_list = reverse @$bills_list;
+  }
+
+
+
+
+  my $period = sprintf("%s-%#.2d", $year, $month);
+
+  my $total_old_saldo = 0.00;
+  my $total_fees      = 0.00;
+  my $total_payments  = 0.00;
+  my $total_new_saldo = 0.00;
+
+  my $users_print_table = '';
+
+  foreach my $bill_id (@$bills_list) {
+    # my $user_pi = $User->pi({ UID => $bill_id->{uid}, FIO => '_SHOW', CONTRACT_ID => '_SHOW' });
+
+    my $balance_report_info = $Extfin->extfin_report_balance_info({ PERIOD => $period, BILL_ID => $bill_id->{id}, COLS_NAME => 1 });
+
+    my $saldo_for_start = sprintf('%.2f', ($balance_report_info->{SUM} || 0.00));
+
+   $Payments->list(
+     {
+       MONTH     => $period,
+       BILL_ID   => $bill_id->{id},
+       COLS_NAME => 1,
+     }
+   );
+
+   $Fees->list(
+     {
+       MONTH     => $period,
+       BILL_ID   => $bill_id->{id},
+       COLS_NAME => 1,
+     }
+   );
+
+    my $saldo = (($balance_report_info->{SUM} || 0.00)) - $Fees->{SUM} + $Payments->{SUM};
+
+    my $user_button = $html->button($bill_id->{FIO} || "-----", "index=15&UID=$bill_id->{uid}", {});
+
+    $table->addrow( $user_button,
+                    $bill_id->{CONTRACT_ID} || '',
+                    ($saldo_for_start < 0) ? $html->b($saldo_for_start) : $saldo_for_start,
+                    sprintf('%.2f', $Fees->{SUM}),
+                    sprintf('%.2f', $Payments->{SUM}),
+                    sprintf('%.2f', $saldo));
+
+    $users_print_table .=
+      "<tr><td>"
+    . ($bill_id->{FIO} || '---------')
+    . "</td><td align='right'>"
+    . ($bill_id->{CONTRACT_ID} || '')
+    . "</td><td align='right'>"
+    . ($saldo_for_start < 0 ? $html->b($saldo_for_start) : $saldo_for_start)
+    . "</td><td align='right'>"
+    . sprintf('%.2f', $Fees->{SUM})
+    . "</td><td align='right'>"
+    . sprintf('%.2f', $Payments->{SUM})
+    . "</td><td align='right'>"
+    . sprintf('%.2f', $saldo)
+    . "</td></tr>";
+
+    # total count
+    $total_old_saldo += $balance_report_info->{SUM} || 0.00;
+    $total_fees      += $Fees->{SUM};
+    $total_payments  += $Payments->{SUM};
+    $total_new_saldo += $saldo;
+  }
+
+
+  $table->addrow('-', '-', '-', '-', '-');
+  $table->addrow("$lang{TOTAL}",'', sprintf('%.2f', $total_old_saldo), sprintf('%.2f', $total_fees), sprintf('%.2f', $total_payments), sprintf('%.2f', $total_new_saldo));
+
+  $users_print_table .=
+    "<tr><td>$lang{TOTAL}</td><td></td><td align='right'>"
+  . sprintf('%.2f', $total_old_saldo)
+  . "</td><td align='right'>"
+  . sprintf('%.2f', $total_fees)
+  . "</td><td align='right'>"
+  . sprintf('%.2f', $total_payments)
+  . "</td><td align='right'>"
+  . sprintf('%.2f', $total_new_saldo)
+  . "</td></tr>";
+
+  my $print_table = qq{
+    <table width="100%" cellspacing="0" border="1">
+  <thead>
+    <tr>
+      <td align='center'>$lang{FIO}</td>
+      <td align='center'>$lang{CONTRACT}</td>
+      <td align='center'>$lang{SALDO_BEGIN_PERIOD}</td>
+      <td align='center'>$lang{FEES}</td>
+      <td align='center'>$lang{PAYMENTS}</td>
+      <td align='center'>$lang{SALDO_END_PERIOD}</td>
+    </tr>
+  <thead>
+  <tbody>
+  $users_print_table
+  </tbody>
+  </table>
+  };
+
+  if ($FORM{print_form}) {
+    $html->tpl_show(
+      _include('extfin_balance_reports_print', 'Extfin'),
+      {
+        TABLE  => $print_table,
+        PERIOD => ($MONTHES[ int($month - 1) ] . " $year"),
+      }
+    );
+
+    return 1;
+  }
+
+  $html->tpl_show(_include('extfin_balance_reports', 'Extfin'), $Extfin);
+
+  print $table->show();
 
   return 1;
 }

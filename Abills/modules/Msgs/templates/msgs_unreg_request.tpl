@@ -76,6 +76,10 @@
 
         %ADDRESS_TPL%
 
+        <!--- Extra info -->
+        %UNREG_EXTRA_INFO%
+
+
         <div class='form-group'>
           <label class='control-label col-md-3' for='STATE'>_{STATE}_:</label>
           <div class='col-md-9'>
@@ -96,6 +100,7 @@
             %RESPOSIBLE_SEL%
           </div>
         </div>
+
 
       </div>
       <div class='box-footer text-center'>

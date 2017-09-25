@@ -108,12 +108,15 @@ function toggleRemoveMarkerMode() {
   
   var markers = MapLayers.getAllVisibleMarkers();
   
-  markers.forEach(function(marker){
-    marker['remove_listener'] = aMap.addListenerToObject(marker, 'click', function () {
-      console.log('click');
-      showRemoveConfirmModal(marker);
-    });
-  });
+  Events.on('object_click', showRemoveConfirmModal);
+  
+  //markers.forEach(function(marker){
+  //  marker['remove_listener'] = aMap.addListenerToObject(marker, 'click', function () {
+  //    console.log('click');
+  //    console.log(marker);
+  //    showRemoveConfirmModal(marker);
+  //  });
+  //});
   
   console.log('[ Remove ] Listeners set to ', markers.length);
   
@@ -134,7 +137,7 @@ function startEdit(layer_id, object_id) {
     return false;
   }
   
-  MapLayers.mapGeometry(object, function (geometry, type) {
+  MapLayers.mapGeometry(object, function (geometry) {
     geometry.setDraggable(true);
     if (geometry.setEditable)
       geometry.setEditable(true);
@@ -143,7 +146,7 @@ function startEdit(layer_id, object_id) {
 }
 
 function finishEditing(object) {
-  MapLayers.mapGeometry(object, function (geometry, type) {
+  MapLayers.mapGeometry(object, function (geometry) {
     geometry.setDraggable(false);
     if (geometry.setEditable)
       geometry.setEditable(false);
@@ -155,8 +158,8 @@ function finishEditing(object) {
 
 function showRemoveConfirmModal(marker) {
   console.log(marker);
-  var id       = marker.id;
-  var layer_id = marker.layer_id;
+  var id       = marker.id || marker.ID;
+  var layer_id = marker.layer_id || marker.LAYER_ID;
   
   if (!(layer_id && id)) {
     console.warn('No layer id or id', layer_id, id, marker);
@@ -196,7 +199,7 @@ function discardRemovingPoint() {
   var markers = MapLayers.getAllVisibleMarkers();
   
   for (var i = 0; i < markers.length; i++) {
-    if (!markers[i]['remove_listener']) continue;
+    if (!markers[i] || !markers[i]['remove_listener']) continue;
     aMap.removeListenerFromObject(markers[i], 'click', markers[i]['remove_listener']);
     delete markers[i]['remove_listener'];
   }
@@ -239,6 +242,7 @@ function confirmAddingPoint() {
   aDrawController.getObjectRegistrator().send(function (success) {
     if (success) {
       delete FORM['OBJECT_ID'];
+      delete FORM['LOCATION_ID'];
     }
   });
 }
@@ -269,18 +273,41 @@ function dropOperation() {
   OPERATION_MODE = OPERATION_NORMAL;
 }
 
-function getClosestBuildsToThis(latLng, range_) {
+/**
+ * Compares distance between given LatLng and all objects in given layer
+ * @param latLng   - coords to use
+ * @param range_   - (optional) ignore point if is located more than ${range} from given latLng (default : 100)
+ * @param layer_id - layer, which objects will be compared
+ * @returns {Array.<*>} sorted by distance
+ */
+function getPointsInRange(latLng, range_, layer_id) {
   var range  = range_ || 100;
-  var builds = MapLayers.getLayerObjects(LAYER_ID_BY_NAME['BUILD']);
+  var points = MapLayers.getLayerObjects(layer_id);
   
   var closer = [];
-  builds.map(function (build) {
-    if (aMap.getDistanceBeetween(build.marker.latLng, latLng) <= range) {
-      closer[closer.length] = build;
+  points.map(function (point) {
+    var distance = aMap.getDistanceBeetween(point.marker.latLng, latLng);
+    
+    if (distance <= range) {
+      closer[closer.length] = {distance: distance, point: point};
     }
   });
   
-  return closer;
+  return closer.sort(function (a, b) {
+    return (a.distance - b.distance);
+  });
+}
+
+/**
+ * Shortcut for getPointsInRange for Builds layer
+ * @param latLng
+ * @param range_
+ */
+function getClosestBuildsToThis(latLng, range_) {
+  var range               = range_ || 100;
+  var closest_by_distance = getPointsInRange(latLng, range, LAYER_ID_BY_NAME['BUILD']);
+  
+  return closest_by_distance.map(function (b) { return b.point });
 }
 
 function polyline_zoom_listener(polyline, zoom) {
@@ -298,7 +325,7 @@ function polyline_zoom_listener(polyline, zoom) {
     }
   }
   // Minimal weight
-  else if (zoom == 17) {
+  else if (zoom === 17) {
     new_width = +polyline.initWeight;
   }
   else if (zoom < 14) {
@@ -306,11 +333,11 @@ function polyline_zoom_listener(polyline, zoom) {
     return true;
   }
   
-  if (zoom >= 15 && polyline.map == null) {
+  if (zoom >= 15 && polyline.map === null) {
     aMap.addObjectToMap(polyline);
   }
   
-  if (new_width != currentWidth) {
+  if (new_width !== currentWidth) {
     polyline.setOptions({strokeWeight: new_width});
   }
   
@@ -349,13 +376,13 @@ function DistrictPolygoner(layer_id) {
     var array = self.districtsArray[district_id];
     
     for (var i = 0, len = array.length; i < len; i++) {
-      if (array[i].id == marker_id) {
+      if (array[i].id === marker_id) {
         index = i;
         break;
       }
     }
     
-    if (index == -1) {
+    if (index === -1) {
       console.log('Cant\'t find marker with this id in array');
     }
     
@@ -466,34 +493,35 @@ function DistrictPolygoner(layer_id) {
   
   function chainHull_2D(a, b, c) {
     var f, h, d = 0, e = -1, g = 0, i = a[0].lng;
-    for (f = 1; b > f && a[f].lng == i; f++);
-    if (h = f - 1, h == b - 1)return c[++e] = a[g], a[h].lat != a[g].lat && (c[++e] = a[h]), c[++e] = a[g], e + 1;
+    for (f = 1; b > f && a[f].lng === i; f++) ;
+    if (h = f - 1, h === b - 1) return c[++e] = a[g], a[h].lat !== a[g].lat && (c[++e] = a[h]), c[++e] = a[g], e + 1;
     var j, k = b - 1, l = a[b - 1].lng;
-    for (f = b - 2; f >= 0 && a[f].lng == l; f--);
-    for (j = f + 1, c[++e] = a[g], f = h; ++f <= j;)if (!(isLeft(a[g], a[j], a[f]) >= 0 && j > f)) {
-      for (; e > 0 && !(isLeft(c[e - 1], c[e], a[f]) > 0);)e--;
+    for (f = b - 2; f >= 0 && a[f].lng === l; f--) ;
+    for (j = f + 1, c[++e] = a[g], f = h; ++f <= j;) if (!(isLeft(a[g], a[j], a[f]) >= 0 && j > f)) {
+      for (; e > 0 && !(isLeft(c[e - 1], c[e], a[f]) > 0);) e--;
       c[++e] = a[f]
     }
-    for (k != j && (c[++e] = a[k]), d = e, f = j; --f >= h;)if (!(isLeft(a[k], a[h], a[f]) >= 0 && f > h)) {
-      for (; e > d && !(isLeft(c[e - 1], c[e], a[f]) > 0);)e--;
-      if (a[f].lng == c[0].lng && a[f].lat == c[0].lat)return e + 1;
+    for (k !== j && (c[++e] = a[k]), d = e, f = j; --f >= h;) if (!(isLeft(a[k], a[h], a[f]) >= 0 && f > h)) {
+      for (; e > d && !(isLeft(c[e - 1], c[e], a[f]) > 0);) e--;
+      if (a[f].lng === c[0].lng && a[f].lat === c[0].lat) return e + 1;
       c[++e] = a[f]
     }
-    return h != g && (c[++e] = a[g]), e + 1
+    return h !== g && (c[++e] = a[g]), e + 1
   }
   
   // Bind self to layer state
   Events.on(layer_id + '_ENABLED', this.enable);
   Events.on(layer_id + '_DISABLED', this.disable);
   
-  if (layer_id == 1){
-    MapLayers.onLayerEnabled(4, self.disable )
+  if (layer_id === 1) {
+    MapLayers.onLayerEnabled(4, self.disable)
   }
   
   // Add markers when added to layer
+  
   Events.on('new_point_rendered_' + layer_id, function (object) {
     if (!(object.raw['DISTRICT'] && (object.raw['ID'] || object.raw['MARKER']['ID']))) {
-      console.log('Added to layer, but without district or ID', object.raw['DISTRICT'], object.raw['ID'] + ' || ' + object.raw['MARKER']['ID']);
+      //  console.log('Added to layer, but without district or ID', object.raw['DISTRICT'], object.raw['ID'] + ' || ' + object.raw['MARKER']['ID']);
       return;
     }
     
@@ -527,7 +555,7 @@ function DistrictPolygoner(layer_id) {
 
 var LayerRequest = (function () {
   
-  function requestAndRender(list_name) {
+  function requestAndRender(list_name, layer_id) {
     
     if (typeof (list_name) === 'undefined') {
       console.warn('[ Maps.ABillingRequest ] List name not defined');
@@ -536,7 +564,10 @@ var LayerRequest = (function () {
     var link = aBillingAddressManager.getMarkersForLayer(list_name);
     
     $.getJSON(link)
-        .done(BillingObjectParser.render)
+        .done(function (data) {
+          Events.emit(layer_id + '_LOADED', true);
+          BillingObjectParser.render(data);
+        })
         .fail(
             function (jqxhr, textStatus, error) {
               var err = textStatus + ", " + error;
@@ -553,7 +584,7 @@ var BillingObjectParser = (function () {
   
   function render(data) {
     
-    if (data.length == 1 && isDefined(data[0].MESSAGE)) {
+    if (data.length === 1 && isDefined(data[0].MESSAGE)) {
       new ATooltip()
           .setText('<h1>' + data[0].MESSAGE + '</h1>')
           .setClass('danger')
@@ -664,13 +695,13 @@ var BillingObjectParser = (function () {
       if (makeNavigation) mb.setNavigation(makeNavigation);
       
       var marker = mb.build();
-  
+      
       if (isDefined(object.NAME)) {
         marker.tooltip = new Tooltip({
-          'marker'   : marker,
-          'content': object.NAME,
-          'cssClass'  : 'tooltip-hint',
-          'map'    : map
+          'marker'  : marker,
+          'content' : object.NAME,
+          'cssClass': 'tooltip-hint',
+          'map'     : map
         });
       }
       
@@ -699,20 +730,20 @@ var BillingObjectParser = (function () {
       aMap.addListenerToObject(map, 'zoom_changed', function () {
         polyline_zoom_listener(polyline, aMap.getZoom());
       });
-  
+      
       aMap.addListenerToObject(polyline, 'mouseover', function () {
-        polyline.setOptions({strokeWeight : polyline.strokeWeight + 1});
+        polyline.setOptions({strokeWeight: polyline.strokeWeight + 1});
       });
       aMap.addListenerToObject(polyline, 'mouseout', function () {
-        polyline.setOptions({strokeWeight : polyline.strokeWeight - 1});
+        polyline.setOptions({strokeWeight: polyline.strokeWeight - 1});
       });
       
       if (isDefined(object.name) && isDefined(window['Tooltip'])) {
         polyline.tooltip = new Tooltip({
-          'poly'   : polyline,
-          'content': object.name,
-          'cssClass'  : 'tooltip-hint',
-          'map'    : map
+          'poly'    : polyline,
+          'content' : object.name,
+          'cssClass': 'tooltip-hint',
+          'map'     : map
         });
       }
       
@@ -722,24 +753,29 @@ var BillingObjectParser = (function () {
     }
     
     function drawCircle(Circle, marker) {
-      return CircleBuilder.build(Circle, marker);
+      var circle = CircleBuilder.build(Circle, marker);
+      
+      circle.id       = Circle.ID;
+      circle.layer_id = Circle.LAYER_ID;
+      
+      return circle;
     }
     
     function drawPolygon(Polygon) {
       Polygon.path = Polygon.POINTS.map(function (e) {return aMap.createPosition(e[0], e[1])});
-      if (Polygon['COLOR'] && typeof Polygon['fillColor'] === 'undefined'){
-        Polygon['fillColor'] = Polygon['COLOR'];
+      if (Polygon['COLOR'] && typeof Polygon['fillColor'] === 'undefined') {
+        Polygon['fillColor']   = Polygon['COLOR'];
         Polygon['strokeColor'] = Polygon['COLOR'];
       }
       
       var polygon = PolygonBuilder.build(Polygon);
-  
-      if (isDefined(Polygon.name) && isDefined(window['Tooltip'])) {
+      
+      if (isDefined(Polygon.NAME) && Polygon.NAME && isDefined(window['Tooltip'])) {
         polygon.tooltip = new Tooltip({
-          'poly'   : polygon,
-          'content': Polygon.name,
-          'cssClass'  : 'tooltip-hint',
-          'map'    : map
+          'poly'    : polygon,
+          'content' : Polygon.NAME,
+          'cssClass': 'tooltip-hint',
+          'map'     : map
         });
       }
       
@@ -841,6 +877,12 @@ var MapLayers = (function () {
       return false;
     }
     
+    var clustering_enabled = (isDefined(layerObj['markers_in_cluster']))
+        ? layerObj['markers_in_cluster']
+        : (isDefined(layerObj['clustering']))
+            ? layerObj['clustering']
+            : '1';
+    
     Layers[layer_id] = {
       id               : layer_id,
       enabled          : false,
@@ -851,7 +893,7 @@ var MapLayers = (function () {
       objects          : [],
       object_by_id     : {},
       clusterer        : aMap.getNewClusterer(map, clustererGridSize),
-      clusteringEnabled: layerObj['markers_in_cluster'] || 1,
+      clusteringEnabled: (clustering_enabled === '1'),
       add_func         : layerObj['add_func'],
       custom_params    : layerObj['custom_params'] || null,
       loading          : false
@@ -895,7 +937,7 @@ var MapLayers = (function () {
   function setLayerVisible(layer_id, boolean) {
     var layer = Layers[(layer_id)];
     
-    if (layer.enabled == boolean) return true;
+    if (layer.enabled === boolean) return true;
     
     var layerObjects = layer.objects;
     var state        = (boolean) ? map : null;
@@ -909,9 +951,9 @@ var MapLayers = (function () {
           boolean
               ? clusterer.addMarker(marker)
               : clusterCleared ? false : (function () {
-                    clusterer.clearMarkers();
-                    clusterCleared = true
-                  })()
+                clusterer.clearMarkers();
+                clusterCleared = true
+              })()
         }
         : function (marker) {
           boolean
@@ -924,11 +966,11 @@ var MapLayers = (function () {
       case MARKER :
         (clusteringForLayer)
             ? boolean
-                ? clusterer.addMarkers(layerObjects.map(function (object) {return object.marker}))
-                : (function () {
-                  clusterer.clearMarkers();
-                  clusterCleared = true
-                })()
+            ? clusterer.addMarkers(layerObjects.map(function (object) {return object.marker}))
+            : (function () {
+              clusterer.clearMarkers();
+              clusterCleared = true
+            })()
             : $.each(layerObjects, function (i, object) {
               setCachedObjectVisibility(object.marker);
             });
@@ -955,14 +997,14 @@ var MapLayers = (function () {
         break;
       case MULTIPLE :
         $.each(layerObjects, function (i, object) {
-          var types = [CIRCLE, POINT, POLYGON, POLYLINE];
+          var types = [MARKER, CIRCLE, POINT, POLYGON, POLYLINE];
           $.each(types, function (i, type) {
             if (isDefined(object[type.toLowerCase()])) {
               (type === POINT)
                   ? setCachedObjectVisibility(object[type.toLowerCase()], state)
                   : boolean
-                      ? aMap.addObjectToMap(object[type.toLowerCase()])
-                      : aMap.removeObjectFromMap(object[type.toLowerCase()]);
+                  ? aMap.addObjectToMap(object[type.toLowerCase()])
+                  : aMap.removeObjectFromMap(object[type.toLowerCase()]);
             }
           });
         });
@@ -987,6 +1029,11 @@ var MapLayers = (function () {
   
   function setLayerObjectVisibility(layer_id, object_id, state) {
     var object = getObject(layer_id, object_id);
+    
+    if (!object.types) {
+      console.log(object);
+      return false;
+    }
     
     object.types.forEach(function (type) {
       switch (type) {
@@ -1042,7 +1089,6 @@ var MapLayers = (function () {
       console.warn('[ MapLayers ] enableLayer Unknown : ' + layer_id);
       return false;
     }
-    
     if (layer.objects.length) {
       if (layer.enabled) return true;
       setLayerVisible(layer_id, true);
@@ -1082,8 +1128,9 @@ var MapLayers = (function () {
       setLayerVisible(layer_id, true);
       Layers[layer_id].loading = false;
     });
-  
+    
     Layers[layer_id].loading = true;
+    Events.emit(layer_id + '_LOADING', true);
     
     var export_list_name = LAYER_LIST_REFS[layer_id];
     
@@ -1096,7 +1143,9 @@ var MapLayers = (function () {
     }
     
     // Allow to show single object
-    if (FORM['SINGLE'] === 1 && FORM['LAYER_ID'] === layer_id && ( isDefined(FORM['POINT_ID']) || isDefined(FORM['OBJECT_ID']) )){
+    if (FORM['SINGLE'] === 1 && FORM['LAYER_ID'] === layer_id
+        && ( isDefined(FORM['POINT_ID']) || isDefined(FORM['OBJECT_ID']) )
+    ) {
       export_list_name += (isDefined(FORM['POINT_ID']))
           ? '&POINT_ID=' + FORM['POINT_ID']
           : (isDefined(FORM['OBJECT_ID']))
@@ -1106,19 +1155,22 @@ var MapLayers = (function () {
       // But only once
       delete FORM['SINGLE'];
     }
-    else if (layer_id === LAYER_ID_BY_NAME[BUILD]){
+    else if (layer_id === LAYER_ID_BY_NAME[BUILD]) {
       // Should add params from upper panel
       
     }
     
-    LayerRequest.requestAndRender(export_list_name);
+    LayerRequest.requestAndRender(export_list_name, layer_id);
   }
   
   function refreshLayer(layer_id) {
     if (isLayerVisible(layer_id)) disableLayer(layer_id);
     closeInfoWindows();
+    
+    // Clear cache
     Layers[layer_id].object_by_id = {};
     Layers[layer_id].objects      = [];
+    
     enableLayer(layer_id);
   }
   
@@ -1146,7 +1198,7 @@ var MapLayers = (function () {
   }
   
   function onLayerDisabled(layer_id, callback) {
-    if (Layers[layer_id].disabled) callback(layer_id);
+    if (!Layers[layer_id].enabled) callback(layer_id);
     else
       Events.once(layer_id + '_DISABLED', callback);
   }
@@ -1198,7 +1250,7 @@ var MapLayers = (function () {
               : false;
       
       if (!key) continue;
-      if (key == object_id) {
+      if (key === object_id) {
         return object;
       }
     }
@@ -1209,14 +1261,14 @@ var MapLayers = (function () {
   function showObject(layer_id, object_id) {
     
     var object = false;
-    if (isDefined(FORM['BY_POINT_ID'])){
+    if (isDefined(FORM['BY_POINT_ID'])) {
       object = getObjectByPointId(layer_id, FORM['BY_POINT_ID']);
     }
     else {
       object = getObject(layer_id, object_id);
     }
     
-  
+    
     if (!object) {
       var message = '[ MapLayers ] showObject. ' + object_id + ' not found';
       aTooltip.displayError(message);
@@ -1228,6 +1280,20 @@ var MapLayers = (function () {
       var points = object.polyline.POINTS;
       var middle = Math.floor(points.length / 2);
       aMap.setCenter(points[middle][0], points[middle][1]);
+    }
+    else if (isDefined(object.polygon)) {
+      var points = object.polygon.POINTS;
+      var max_x  = 0;
+      var min_x  = 90;
+      var max_y  = 0;
+      var min_y  = 90;
+      points.forEach(function (item) {
+        if (item[0] > max_x) max_x = +item[0];
+        if (item[0] < min_x) min_x = +item[0];
+        if (item[1] > max_y) max_y = +item[1];
+        if (item[1] < min_y) min_y = +item[1];
+      });
+      aMap.setCenter((max_x + min_x) / 2, (max_y + min_y) / 2);
     }
     else if (isDefined(object.marker)) {
       aMap.setCenter(object.marker.latLng.lat(), object.marker.latLng.lng());
@@ -1251,12 +1317,11 @@ var MapLayers = (function () {
   function getObjectByPointId(layer_id, point_id) {
     var layer_objects = getLayerObjects(layer_id);
     for (var i = 0; i < layer_objects.length; i++) {
-      console.log(layer_objects[i].raw);
-      if (layer_objects[i].raw['OBJECT_ID'] == point_id) {
+      if (layer_objects[i].raw['OBJECT_ID'] === point_id) {
         return layer_objects[i];
       }
     }
-    console.warn('[ MapLayers ] getObjectByPointId', layer_id, point_id ,'not found');
+    console.warn('[ MapLayers ] getObjectByPointId', layer_id, point_id, 'not found');
   }
   
   function getAllVisibleMarkers() {
@@ -1304,35 +1369,35 @@ var MapLayers = (function () {
   
   return {
     setClusteringEnabled: setClusteringEnabled,
-  
+    
     pushToLayer: pushToLayer,
     toggleLayer: toggleLayer,
-  
+    
     enableLayer : enableLayer,
     disableLayer: disableLayer,
     refreshLayer: refreshLayer,
-  
+    
     createLayer   : createLayer,
     hasLayer      : hasLayer,
     getLayer      : getLayer,
     getLayers     : getLayers,
     isLayerVisible: isLayerVisible,
-  
+    
     getAllVisibleObjects: getAllVisibleObjects,
     getAllVisibleMarkers: getAllVisibleMarkers,
     getLayerObjects     : getLayerObjects,
     getClusterer        : getClusterer,
-  
+    
     hasCustomSent: hasCustomSent,
     showObject   : showObject,
     getObject    : getObject,
-  
+    
     setLayerMarkerVisibility: setLayerMarkerVisibility,
     setLayerObjectVisibility: setLayerObjectVisibility,
-  
+    
     onLayerEnabled : onLayerEnabled,
     onLayerDisabled: onLayerDisabled,
-  
+    
     addDefaultListeners: addDefaultListeners,
     mapGeometry        : mapInnerObjects
   };
@@ -1340,46 +1405,59 @@ var MapLayers = (function () {
 
 var AMapLayersBtns = (function () {
   //cache DOM
-  var self = this;
+  //var self = this;
   
   var $controlBlock = null;
-  var cachedDOM     = false;
   
   var id_position_array = [];
-  var typeBtnRefs       = {};
+  var button_for_layer  = {};
+  
+  var ENABLED_BTN_CLASS  = 'btn-primary';
+  var DISABLED_BTN_CLASS = 'btn-default';
+  
   
   function cacheDOM() {
-    $controlBlock = $('#showLayersControlBlock').next('.dropdown-menu');
+    $controlBlock = $('#map_layer_controls');
+    
     if (!$controlBlock.length) console.warn('[ MapLayersButtons ]', 'Caching DOM too early');
     
     $.each(id_position_array, function (i, layer_id) {
-      typeBtnRefs[layer_id] = $controlBlock.find('#showLayersControlBlock_' + (layer_id - 1));
+      button_for_layer[layer_id] = $controlBlock.find('a#toggleLayer_' + layer_id);
     });
     
-    cachedDOM = true;
     Events.emit('controlblockcached');
   }
   
   function enableButton(layer_id) {
     MapLayers.onLayerEnabled(layer_id, function () {
-      if (typeBtnRefs[layer_id]) typeBtnRefs[layer_id].addClass('list-group-item-success');
-      else console.warn('[ MapLayerBtns ]', 'unknown layer id', layer_id);
+      if (!button_for_layer[layer_id]) {
+        console.warn('[ AMapLayersBtns ]', 'unknown layer id', layer_id);
+        return;
+      }
+      
+      button_for_layer[layer_id].removeClass(DISABLED_BTN_CLASS).addClass(ENABLED_BTN_CLASS);
     });
   }
   
   function disableButton(layer_id) {
     MapLayers.onLayerDisabled(layer_id, function () {
-      if (typeBtnRefs[layer_id]) typeBtnRefs[layer_id].removeClass('list-group-item-success');
-      else console.warn('[ MapLayerBtns ]', 'unknown layer id', layer_id);
+      if (!button_for_layer[layer_id]) {
+        console.warn('[ AMapLayersBtns ]', 'unknown layer id', layer_id);
+        return;
+      }
+      
+      button_for_layer[layer_id].removeClass(ENABLED_BTN_CLASS).addClass(DISABLED_BTN_CLASS);
     });
   }
   
   function isButtonEnabled(layer_id) {
-    return typeBtnRefs[layer_id].hasClass('list-group-item-success');
+    return button_for_layer[layer_id].hasClass(ENABLED_BTN_CLASS);
   }
   
   function toggleButton(layer_id) {
-    if (!typeBtnRefs[layer_id]) return;
+    console.log('toggleButton', layer_id);
+    
+    if (!button_for_layer[layer_id]) return;
     if (!isButtonEnabled(layer_id)) {
       enableButton(layer_id);
     }
@@ -1395,19 +1473,32 @@ var AMapLayersBtns = (function () {
     Events.once('controlblockcached', function () {
       
       $.each(id_position_array, function (i, layer_id) {
+        
         // Register listeners for first enable
         MapLayers.onLayerEnabled(layer_id, enableButton);
         MapLayers.onLayerDisabled(layer_id, disableButton);
         
         // Register listeners for user enable/disable
-        Events.on(layer_id + '_ENABLED', enableButton);
-        Events.on(layer_id + '_DISABLED', disableButton);
+        Events.on(layer_id + '_ENABLED', function () {
+          enableButton(layer_id)
+        });
+        Events.on(layer_id + '_DISABLED', function () {
+          disableButton(layer_id)
+        });
+        
+        Events.on(layer_id + '_LOADING', function () {
+          button_for_layer[layer_id].find('i.fa-refresh').addClass('fa-pulse');
+          Events.on(layer_id + '_LOADED', function () {
+            button_for_layer[layer_id].find('i.fa-refresh').removeClass('fa-pulse');
+          })
+        });
+        
       });
     });
     
   }
   
-  Events.on('controlblockshowed', cacheDOM);
+  Events.on('layersready', cacheDOM);
   
   //interface
   return {
@@ -1432,6 +1523,7 @@ var ClustererControl = function (layer_id, id) {
   
   this.layerObjects = MapLayers.getLayerObjects(self.layer_id);
   this.layerMarkers = [];
+  
   for (var i = 0; i < self.layerObjects.length; i++) {
     if (!self.layerObjects[i].marker) continue;
     self.layerMarkers.push(self.layerObjects[i].marker);
@@ -1447,17 +1539,25 @@ var ClustererControl = function (layer_id, id) {
     }
     switch (self.state) {
       case DISABLE_MARKERS:
+        MapLayers.disableLayer(this.layer_id);
         self.removeMarkersFromCluster();
         self.removeMarkersFromMap();
         self.$btn.attr('class', 'btn btn-danger');
         break;
       case SHOW_IN_CLUSTERS:
-        self.addMarkersToCluster();
-        self.$btn.attr('class', 'btn btn-success');
+        MapLayers.onLayerEnabled(this.layer_id, function () {
+          self.addMarkersToCluster();
+          self.$btn.attr('class', 'btn btn-success');
+        });
+        MapLayers.enableLayer(this.layer_id);
         break;
       case SHOW_NON_CLUSTERED:
-        self.enableNonClusteredMarkers();
-        self.$btn.attr('class', 'btn btn-warning');
+        MapLayers.onLayerEnabled(this.layer_id, function () {
+          self.removeMarkersFromCluster();
+          self.addMarkersToMap();
+          self.$btn.attr('class', 'btn btn-warning');
+        });
+        MapLayers.enableLayer(this.layer_id);
         break;
     }
   };
@@ -1469,13 +1569,13 @@ var ClustererControl = function (layer_id, id) {
   
   this.addMarkersToMap = function () {
     $.each(self.layerMarkers, function (i, marker) {
+      console.log(marker);
       aMap.addObjectToMap(marker);
     });
   };
   
   this.removeMarkersFromCluster = function () {
     self.layerClusterer.clearMarkers();
-    
   };
   
   this.removeMarkersFromMap = function () {
@@ -1483,12 +1583,6 @@ var ClustererControl = function (layer_id, id) {
       aMap.removeObjectFromMap(marker);
       marker.setMap(null);
     });
-  };
-  
-  this.enableNonClusteredMarkers = function () {
-    self.removeMarkersFromMap();
-    self.removeMarkersFromCluster();
-    self.addMarkersToMap();
   };
   
   Events.on('BUILD_LAYER_DISABLED', function () {
@@ -1501,55 +1595,55 @@ var ClustererControl = function (layer_id, id) {
 
 
 function MapControls() {
-  this._controlDivs = [];
   
-  this.addBtn = function (icon, onclickString, title, id, class_) {
-    var index = this._controlDivs.length;
-    
-    var $controlBtnDiv = createControlBtn(icon, onclickString, class_);
-    
-    if (!id || typeof (id) === 'undefined') {
-      id = 'ctrlBtn_' + index;
-    }
-    
-    $controlBtnDiv.attr('id', id);
-    $controlBtnDiv.attr('title', title);
-    
-    this._controlDivs[index] = $controlBtnDiv;
-    return this;
+  this.ROW_EDIT   = 0;
+  this.ROW_VIEW   = 1;
+  this.ROW_LAYERS = 2;
+  
+  this.rows = {
+    0: {block: 'map_edit_controls', buttons: []},
+    1: {block: 'map_view_controls', buttons: []},
+    2: {block: 'map_layer_controls', buttons: []}
   };
   
-  this.addDropdown = function (icon, arrOptions, title, id, class_) {
-    var index = this._controlDivs.length;
+  this._makeButton = function (icon, onclickString, title, id, class_) {
     
-    if (typeof (id) === 'undefined' || !id) {
-      id = 'ctrlBtn_' + index;
+    return $('<button></button>')
+        .attr('type', 'button')
+        .attr('id', id)
+        .attr('title', title)
+        .attr('class', 'btn btn-' + (class_ || 'primary'))
+        .attr('onclick', onclickString)
+        .html('<span class="glyphicon glyphicon-' + icon + '"></span>');
+  };
+  
+  this.addBtn = function (row, btn_params) {
+    if (!isDefined(this.rows[row])) {
+      alert('[ MapControls ] Wrong row passed');
+      return false;
     }
     
-    this._controlDivs[index] = createBtnDropdown(
-        '<span class="glyphicon glyphicon-' + icon + '"></span>',
-        arrOptions,
-        class_,
-        id
+    var pos_index = this.rows[row]['buttons'].length;
+    
+    if (!btn_params.id || typeof (btn_params.id) === 'undefined') {
+      btn_params.id = this.rows[row].block + pos_index;
+    }
+    
+    var $button = this._makeButton(
+        btn_params.icon,
+        btn_params.onclick,
+        btn_params.title,
+        btn_params.id,
+        btn_params.class
     );
     
-    return this;
+    this.rows[row]['buttons'][pos_index] = $button[0].outerHTML;
   };
   
-  this.hideBtn = function (id) {
-    $('#' + id).hide();
-  };
-  
-  this.init = function () {
-    if (this._controlDivs.length > 0)
-      $('#mapControls').append(this._controlDivs);
-    Events.emit('controlsready', true);
-  };
-  
-  function createBtnDropdown(caption, arrOptions, class_, id) {
+  this.createBtnDropdown = function (caption, arrOptions, class_, id) {
     var btnClass = class_ || 'primary';
     
-    function createSubMenu(array) {
+    var createSubMenu = function (array) {
       var options = [];
       $.each(array, function (i, entry) {
         if (typeof entry === 'undefined') {
@@ -1564,8 +1658,7 @@ function MapControls() {
         }
         else {
           entry['extra'] = entry['extra'] || '';
-          options[i]     = '<li><a role="button"'
-              + ' onclick="' + entry['onclick']
+          options[i]     = '<li><a onclick="' + entry['onclick']
               + '" id="' + id + '_' + i + '">'
               + entry['extra']
               + entry['name']
@@ -1574,27 +1667,76 @@ function MapControls() {
       });
       
       return options;
-    }
+    };
     
     var dropdown_options = createSubMenu(arrOptions);
     
     return '<div class="btn-group" role="group"><div class="dropdown">'
-        + '<button id="' + id + '" role="button" data-toggle="dropdown" class="btn btn-' + btnClass + ' dropdown-toggle" data-target="#">'
+        + '<button id="' + id + '" data-toggle="dropdown" class="btn btn-' + btnClass + ' dropdown-toggle" data-target="#">'
         + caption + '&nbsp;<span class="caret"></span>'
         + '</button>'
         + '<ul class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu">'
         + dropdown_options.join('')
         + '</ul>'
         + '</div></div>';
-  }
+  };
   
-  function createControlBtn(icon, onclickString, newBtnClass) {
-    return $('<button></button>')
-        .attr('type', 'button')
-        .attr('class', 'btn btn-' + (newBtnClass || 'primary'))
-        .attr('onclick', onclickString)
-        .html('<span class="glyphicon glyphicon-' + icon + '"></span>');
-  }
+  this.addDropdown = function (row_id, dropdown_options) {
+    //icon, arrOptions, title, id, class_
+    
+    var index = this.rows[row_id]['buttons'].length;
+    
+    if (typeof (dropdown_options.id) === 'undefined' || !dropdown_options.id) {
+      dropdown_options.id = 'ctrlBtn_' + index;
+    }
+    
+    this.rows[row_id]['buttons'][index] = this.createBtnDropdown(
+        '<span class="glyphicon glyphicon-' + dropdown_options.icon + '"></span>',
+        dropdown_options.options,
+        dropdown_options.class,
+        dropdown_options.id
+    );
+    
+    return this;
+  };
+  
+  /*this.createBtnGroup = function (row_id, caption, id) {
+    var new_index = this.rows[row_id]['buttons'].length;
+    
+    this.rows[row_id]['buttons'][new_index] = $('<div></div>', {
+      'class': 'btn-group btn-group-justified',
+      id     : id,
+      title  : caption
+    });
+    
+    return new_group_index;
+  };
+  
+  this.addBtnToGroup = function (row_id, group_id, button) {
+    this.rows[row_id]['buttons'][group_id].push(button[0].outerHTML);
+  };*/
+  
+  this.addRawBtn = function (row_id, button) {
+    this.rows[row_id]['buttons'].push(button[0].outerHTML);
+  };
+  
+  this.hideBtn = function (id) {
+    $('#' + id).hide();
+  };
+  
+  this.init = function () {
+    
+    for (var row in this.rows) {
+      if (!this.rows.hasOwnProperty(row) || !this.rows[row]['buttons'].length) continue;
+      var id = this.rows[row]['block'];
+      
+      $('#' + id).append(this.rows[row]['buttons'].join(''));
+    }
+    
+    Events.emit('controlsready', true);
+  };
+  
+  
 }
 
 

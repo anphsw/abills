@@ -472,6 +472,7 @@ sub dv_monthly_next_tp {
     CREDIT          => '_SHOW',
     AGE             => '_SHOW',
     NEXT_TP_ID      => '_SHOW',
+    CHANGE_PRICE    => '_SHOW',
     NEW_MODEL_TP    => 1,
     MODULE          => 'Dv',
     COLS_NAME       => 1
@@ -505,6 +506,7 @@ sub dv_monthly_next_tp {
       CREDIT       => '_SHOW',
       COMPANY_ID   => '_SHOW',
       DV_EXPIRE    => '_SHOW',
+      BILL_ID      => '_SHOW',
       COLS_NAME    => 1,
       %USERS_LIST_PARAMS
     });
@@ -513,6 +515,7 @@ sub dv_monthly_next_tp {
       my %user = (
         LOGIN      => $u->{login},
         UID        => $u->{uid},
+        BILL_ID    => $u->{bill_id},
         REDUCTION  => $u->{reduction},
         ACTIVATE   => $u->{activate},
         DEPOSIT    => $u->{deposit},
@@ -528,7 +531,6 @@ sub dv_monthly_next_tp {
         && ((!$tp_info->{age} && ($d == $START_PERIOD_DAY) || $user{ACTIVATE} ne '0000-00-00')
            || ($tp_info->{age} && $user{EXPIRE} eq $ADMIN_REPORT{DATE}) )) {
 
-
         if($user{EXPIRE} ne '0000-00-00') {
           if($user{EXPIRE} eq $ADMIN_REPORT{DATE}) {
             if (!$tp_ages{$tp_info->{id}}) {
@@ -537,7 +539,9 @@ sub dv_monthly_next_tp {
             else {
               my $next_age = $tp_ages{$tp_info->{id}};
               $expire = POSIX::strftime("%Y-%m-%d",
-                localtime(POSIX::mktime(0, 0, 0, $d, $m, ($y - 1900), 0, 0, 0) + $next_age * 86400));
+                localtime(POSIX::mktime(0, 0, 0, $d, ($m-1), ($y - 1900), 0, 0, 0) + $next_age * 86400));
+print " // $expire //\n ";
+              #change
             }
           }
           else {
@@ -554,14 +558,29 @@ sub dv_monthly_next_tp {
 
         $debug_output .= " Login: $user{LOGIN} ($user{UID}) ACTIVATE $user{ACTIVATE} TP_ID: $tp_info->{id} -> $tp_info->{next_tp_id}\n";
         $CHANGED_TPS{ $user{UID} } = 1;
-        $Dv->change(
-          {
-            UID    => $user{UID},
-            STATUS => 0,
-            TP_ID  => $tp_info->{next_tp_id},
-            EXPIRE => $expire
+
+        my $status = 0;
+        if($conf{DV_CUSTOM_PERIOD} && $u->{deposit} < $tp_info->{change_price}) {
+          $status = 5;
+          $expire = $ADMIN_REPORT{DATE};
+        }
+
+        $Dv->change({
+          UID       => $user{UID},
+          STATUS    => $status,
+          TP_ID     => $tp_info->{next_tp_id},
+          DV_EXPIRE => $expire
+        });
+
+        if($tp_info->{change_price}
+          && $tp_info->{change_price} > 0
+          && $tp_info->{next_tp_id} == $tp_info->{id}
+          && ! $status) {
+          $Fees->take(\%user, $tp_info->{change_price}, { DESCRIBE => $lang{ACTIVATE_TARIF_PLAN} });
+          if($Fees->{errno}) {
+            print "Error: $Fees->{errno} $Fees->{errstr}\n";
           }
-        );
+        }
       }
     }
   }
@@ -594,7 +613,7 @@ sub dv_monthly_fees {
   my $START_PERIOD_DAY = ($conf{START_PERIOD_DAY}) ? $conf{START_PERIOD_DAY} : 1;
 
   #Change TP to next TP
-  $debug_output .= dv_monthly_next_tp($attr);
+  #$debug_output .= dv_monthly_next_tp($attr);
   $DEBUG .= $debug_output;
 
   my %FEES_METHODS = %{ get_fees_types({ SHORT => 1 }) };
@@ -637,7 +656,9 @@ sub dv_monthly_fees {
 
     #Monthfee & min use
     if ($month_fee > 0 || $TP_INFO->{MIN_USE} > 0) {
-      $debug_output .= "TP ID: $TP_INFO->{ID} MF: $TP_INFO->{MONTH_FEE} POSTPAID: $TP_INFO->{POSTPAID_MONTHLY_FEE} REDUCTION: $TP_INFO->{REDUCTION_FEE} EXT_BILL_ID: $TP_INFO->{EXT_BILL_ACCOUNT} CREDIT: $TP_INFO->{CREDIT} MIN_USE: $TP_INFO->{MIN_USE} ABON_DISTR: $TP_INFO->{ABON_DISTRIBUTION}\n" if ($debug > 1);
+      $debug_output .= "TP ID: $TP_INFO->{ID} MF: $TP_INFO->{MONTH_FEE} POSTPAID: $TP_INFO->{POSTPAID_MONTHLY_FEE} "
+       . "REDUCTION: $TP_INFO->{REDUCTION_FEE} EXT_BILL_ID: $TP_INFO->{EXT_BILL_ACCOUNT} CREDIT: $TP_INFO->{CREDIT} "
+       . "MIN_USE: $TP_INFO->{MIN_USE} ABON_DISTR: $TP_INFO->{ABON_DISTRIBUTION}\n" if ($debug > 1);
 
       #get used  traffic for min use functions
       my %processed_users = ();
@@ -861,7 +882,9 @@ sub dv_monthly_fees {
             }
             elsif ($sum > $user{EXT_DEPOSIT} && $user{EXT_DEPOSIT} > 0) {
               # Take some sum from ext deposit other from main
-              if ((($user{ACTIVATE} eq '0000-00-00' and $d == $START_PERIOD_DAY) || $TP_INFO->{ABON_DISTRIBUTION}) || $user{ACTIVATE} ne '0000-00-00') {
+              if ((($user{ACTIVATE} eq '0000-00-00' and $d == $START_PERIOD_DAY) || $TP_INFO->{ABON_DISTRIBUTION})
+                || $user{ACTIVATE} ne '0000-00-00') {
+
                 if ($date_unixtime - $active_unixtime < 30 * 86400) {
                 }
                 else {
@@ -1436,8 +1459,12 @@ sub dv_sheduler {
         }
       }
     }
-    elsif ($action == 3) {
-      service_get_month_fee($Dv, { QUITE => 1, SHEDULER => 1, DATE => $attr->{DATE} });
+    elsif ($action == 0) {
+      service_get_month_fee($Dv, {
+        QUITE    => 1,
+        SHEDULER => 1, #($attr->{SHEDULEE_ONLY}) ? undef,
+        DATE     => $attr->{DATE}
+      });
     }
 
     if ($Dv->{errno} && $Dv->{errno} == 15) {

@@ -10,6 +10,7 @@ use warnings FATAL => 'all';
 use Abills::Base qw(in_array);
 our ($html,
   $admin,
+  $db,
   %lang,
   %LANG,
   %permissions,
@@ -21,6 +22,8 @@ our ($html,
 =cut
 #**********************************************************
 sub admin_profile {
+
+  admin_info_change();
 
   require Control::Quick_reports;
   my $quick_reports = form_quick_reports();
@@ -43,25 +46,39 @@ sub admin_profile {
   my $events_groups_select = '';
   my $events_groups_show = 'hidden';
   if (in_array('Events', \@MODULES)){
-    load_module('Events', $html);
-
+    require Events;
+    Events->import();
+    
+    my $Events = Events->new($db, $admin, \%conf);
+    my $this_admin_groups = $Events->groups_for_admin($admin->{AID}) || '';
+    _error_show($Events);
+    
+    my $group_link = '';
+    if (my $group_index = get_function_index('events_group')){
+      $group_link = "?index=$group_index";
+    };
+    
     $events_groups_select = _events_group_select({
-        SELECTED    => $admin->{SETTINGS}->{GROUP_ID} || '',
-        SEL_VALUE => 'name',
-        SEL_KEY   => 'id',
-        EX_PARAMS => 'multiple="multiple"',
-        MAIN_MENU => '',
+        SELECTED  => $this_admin_groups || '',
+        MULTIPLE => 1,
+        MAIN_MENU => $group_link,
       });
     $events_groups_show = '';
   }
-
+  
+  my $subscribe_mng_block = profile_get_admin_sender_subscribe_block($admin->{AID}, 6);
+  
   $html->tpl_show(templates('form_admin_profile'), {
-      QUICK_REPORTS => $quick_reports,
-      SEL_LANGUAGE  => $SEL_LANGUAGE,
-      NO_EVENT      => ($admin->{SETTINGS}{NO_EVENT}) ? 'checked' : '',
-      NO_EVENT_SOUND=> ($admin->{SETTINGS}{NO_EVENT_SOUND}) ? 'checked' : '',
-
-      EVENT_GROUPS_SELECT => $events_groups_select,
+      QUICK_REPORTS        => $quick_reports,
+      SEL_LANGUAGE         => $SEL_LANGUAGE,
+      NO_EVENT             => $admin->{SETTINGS}->{NO_EVENT},
+      NO_EVENT_SOUND       => $admin->{SETTINGS}->{NO_EVENT_SOUND},
+      CONF_PUSH_ENABLED    => $conf{PUSH_ENABLED},
+      PUSH_ENABLED         => $admin->{SETTINGS}->{PUSH_ENABLED},
+    
+      SUBSCRIBE_BLOCK => $subscribe_mng_block,
+      
+      EVENT_GROUPS_SELECT  => $events_groups_select,
       EVENTS_GROUPS_HIDDEN => $events_groups_show,
     });
 
@@ -97,6 +114,7 @@ sub form_profile_search {
 
   my %search_fields = (
     UID         => 'UID',
+    BILL_ID     => $lang{BILL},
     LOGIN       => $lang{LOGIN},
     FIO         => $lang{FIO},
     CONTRACT_ID => $lang{CONTRACT},
@@ -337,5 +355,182 @@ sub form_slides_create {
   return 1;
 }
 
+#**********************************************************
+=head2 profile_get_admin_sender_subscribe_block()
+
+=cut
+#**********************************************************
+sub profile_get_admin_sender_subscribe_block {
+  my ($aid, $col_size) = @_;
+  return '' unless ( $aid );
+  
+  $col_size //= 6;
+  
+  my %allowed_subscribes = (
+    #    PUSH     => $conf{PUSH_ENABLED},
+    TELEGRAM   => $conf{TELEGRAM_TOKEN},
+    CELL_PHONE => in_array('Sms', \@MODULES)
+  );
+  
+  require Contacts;
+  
+  my @types_to_search = grep {$allowed_subscribes{$_}} keys %allowed_subscribes;
+  return '' unless ( @types_to_search );
+  
+  if ( $FORM{REMOVE_SUBSCRIBE} ) {
+    if ( defined $Contacts::TYPES{uc($FORM{REMOVE_SUBSCRIBE})} ) {
+      $admin->admin_contacts_del({
+        AID     => $aid,
+        TYPE_ID => $Contacts::TYPES{uc($FORM{REMOVE_SUBSCRIBE})}
+      });
+      _error_show($admin)
+        and print $html->message('info', "$lang{UNSUBSCRIBE_FROM} $FORM{REMOVE_SUBSCRIBE}", $lang{SUCCESS});
+    }
+    else {
+      $html->message('err', $lang{ERROR}, "Can't do it now");
+    }
+  }
+  
+  my $contacts_list = $admin->admins_contacts_list({
+    AID   => $admin->{AID},
+    TYPE  => join(';', map {$Contacts::TYPES{$_}} @types_to_search),
+    VALUE => '_SHOW'
+  });
+  _error_show($admin);
+  
+  my @buttons_html = ();
+  
+  my $make_subscribe_btn = sub {
+    my ($name, $icon_classes, $lang_vars, $attr) = @_;
+    
+    my $button_text = (!$attr->{UNSUBSCRIBE}) ? "$lang{SUBSCRIBE_TO} $name" : "$lang{UNSUBSCRIBE_FROM} $name";
+    
+    my $icon_html = $html->element('span', '', { class => $icon_classes, OUTPUT2RETURN => 1 });
+    my $text = $html->element('strong', $button_text, { class => $attr->{TEXT_CLASS}, OUTPUT2RETURN => 1 });
+    
+    my $button = '';
+    if ( $attr->{HREF} ) {
+      $button = $html->element('a', $icon_html . $text, {
+          href       => $attr->{HREF},
+          class      => 'btn form-control ' . ($attr->{BUTTON_CLASSES} || ' btn-info '),
+          target     => '_blank',
+          OUTPUT2RETURN => 1
+        });
+    }
+    else {
+      $button = $html->element('button', $icon_html . $text, {
+          class => 'btn form-control ' . ($attr->{BUTTON_CLASSES} || ' btn-info '),
+          OUTPUT2RETURN => 1
+        });
+    }
+    
+    my $lang_text = '';
+    if ( $lang_vars && ref $lang_vars eq 'HASH' ) {
+      $lang_text = join "; \n", map {
+          qq{window['$_'] = '$lang_vars->{$_}'};
+        } keys %{$lang_vars};
+    }
+    
+    my $lang_script = ($lang_text) ? $html->element('script', $lang_text) : '';
+    
+    $button . $lang_script;
+  };
+  
+  if ( $conf{PUSH_ENABLED} ) {
+    push @buttons_html, $make_subscribe_btn->(
+      'Push',
+      'js-push-icon fa fa-bell',
+      {
+        ENABLE_PUSH           => $lang{ENABLE_PUSH},
+        DISABLE_PUSH          => $lang{DISABLE_PUSH},
+        PUSH_IS_NOT_SUPPORTED => $lang{PUSH_IS_NOT_SUPPORTED},
+        PUSH_IS_DISABLED      => $lang{PUSH_IS_DISABLED},
+      },
+      {
+        BUTTON_CLASSES => 'js-push-button btn-info',
+        TEXT_CLASS     => 'js-push-text'
+      }
+    );
+    # Unsubscribe is made via Javascript
+  }
+  
+  if ( $conf{TELEGRAM_TOKEN} ) {
+    my $telegram_cont = grep {$_->{type_id} == $Contacts::TYPES{TELEGRAM}} @{$contacts_list};
+  
+    if (!$telegram_cont) {
+      # To build a subscribe link, should get bot name
+      if ( !$conf{TELEGRAM_BOT_NAME} ) {
+        require Abills::Sender::Telegram;
+        Abills::Sender::Telegram->import();
+        my $Telegram = Abills::Sender::Telegram->new(\%conf);
+        $conf{TELEGRAM_BOT_NAME} = $Telegram->get_bot_name(\%conf, $db);
+      }
+    
+      if ( $conf{TELEGRAM_BOT_NAME} ) {
+        my $link_url = 'https://telegram.me/' . $conf{TELEGRAM_BOT_NAME} . '/?start=a_' . ($admin->{SID} || $sid || $admin->{sid});
+        push @buttons_html, $make_subscribe_btn->(
+          'Telegram',
+          'fa fa-telegram',
+          undef,
+          {
+            HREF => $link_url
+          }
+        );
+      }
+    }
+    else {
+      push @buttons_html, $make_subscribe_btn->(
+        'Telegram',
+        'fa fa-bell-slash',
+        undef,
+        {
+          HREF        => $SELF_URL . '/admin/index.cgi?index=9&REMOVE_SUBSCRIBE=Telegram',
+          UNSUBSCRIBE => 1,
+          BUTTON_CLASSES => 'btn-success'
+        }
+      );
+    }
+  }
+  
+  my $subscribe_block = join('', map {
+      $col_size
+        ? "<div class='col-md-$col_size'>$_</div>"
+        : $_
+    } @buttons_html
+  );
+  
+  return $subscribe_block;
+}
+
+#**********************************************************
+=head2 admin_info_change() - Admin profile change
+
+=cut
+#**********************************************************
+sub admin_info_change {
+  $admin->info($admin->{AID});
+  if ($FORM{chg_pswd} || $FORM{newpassword}) {
+    form_passwd();
+    if ($FORM{PASSWORD}) {
+      $admin->change({
+      AID      => $admin->{AID},
+      PASSWORD => $FORM{PASSWORD},
+    });
+    }
+  }
+  if ($FORM{aedit}) {
+    $admin->change({
+      AID   => $admin->{AID},
+      EMAIL => $FORM{email},
+      A_FIO => $FORM{name},
+    });
+  }
+
+  my $passwd_btn = $html->button($lang{CHANGE_PASSWORD}, "index=$index&chg_pswd=1", { class => 'btn btn-xs btn-primary' });
+
+  $html->tpl_show(templates('form_admin_info_change'), {%$admin, CHG_PSW => $passwd_btn});
+
+  return 1;
+}
 
 1;

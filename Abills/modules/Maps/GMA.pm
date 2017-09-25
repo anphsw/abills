@@ -13,10 +13,13 @@ use warnings FATAL => 'all';
 my $admin;
 my %CONF = ();
 
-use lib "mysql";
+use lib 'mysql';
 use parent "main";
 
 use Abills::Base qw(_bp);
+_bp(undef, undef, { SET_ARGS => { TO_CONSOLE => 1, IN_JSON => 1 } });
+
+
 use Abills::Fetcher qw/web_request/;
 use JSON;
 use Address;
@@ -154,8 +157,10 @@ sub get_unfilled_addresses {
   See Returns for details
 
   Arguments:
-    $build - build hash
-      full_address - address name
+    $requeste_addr - full_address
+    $build_id      - build hash
+    $attr          - hash_ref
+      ZIP_CODE     - if given, will filter rezults by postal code
 
   Returns:
     HASH
@@ -180,54 +185,65 @@ sub get_unfilled_addresses {
 sub get_coords_for {
   my $self = shift;
   my ($requested_addr, $build_id, $attr) = @_;
-
+  $attr //= { };
+  
   # For free usage, Geocoding API receives one request in 1.5 seconds;
-  unless ($CONF{MAPS_NO_THROTTLE}) {
+  unless ( $CONF{MAPS_NO_THROTTLE} ) {
     sleep 2;
   }
-
+  
   my $responce = web_request( $api_link, {
       REQUEST_PARAMS =>
       {
-        address => $requested_addr,
-        key     => $self->{key},
+        address       => $requested_addr,
+        key           => $self->{key},
         location_type => 'ROOFTOP',
-        
+          ($attr->{ZIP_CODE})
+          ? (components => 'postal_code:' . $attr->{ZIP_CODE})
+          : ()
       },
-      GET            => 1,
+      GET   => 1,
+#      DEBUG => 3,
     } );
-
+  
+  
   my $result = '';
   eval { $result = JSON->new->utf8->decode( $responce )};
   if ( $@ ) {
     my ($error_str) = $@ =~ /\(before \"\(.*\)\"\)/;
-
-    unless ($error_str){
+    
+    unless ( $error_str ) {
       $error_str = $@;
     }
-
-    if ($error_str =~ /Timeout/){
+    
+    if ( $error_str =~ /Timeout/ ) {
       $error_str = 'Timeout';
     }
-
+    
     return {
       STATUS => 500,
       ERROR  => $error_str
     };
   }
-
-
+  
+#  _bp('', $result);
+  
+  
   # Return status 2 on fail
   unless ( defined $result->{status} && $result->{status} eq "OK" ) {
-    return { STATUS => 2, BUILD_ID => $build_id, requested_address => $requested_addr };
+    return {
+      STATUS            => 2,
+      BUILD_ID          => $build_id,
+      requested_address => $requested_addr
+    };
   }
-
+  
   my @results_shortcut = @{$result->{results}};
-
+  
   # Handle multiple results
   unless ( scalar @results_shortcut == 1 ) {
     my @non_unique_results = ();
-
+    
     # Clear all non ROOFTOP results
     my $rooftop_counter = 0;
     for ( my $i = 0; $i < scalar @results_shortcut; $i++ ) {
@@ -238,17 +254,17 @@ sub get_coords_for {
         splice( @results_shortcut, $i--, 1 );
       }
     };
-
+    
     if ( scalar @results_shortcut > 0 && $rooftop_counter > 1 ) {
       foreach my $coord ( @results_shortcut ) {
         my %res = ();
         $res{COORDX} = $coord->{geometry}->{location}->{lng};
         $res{COORDY} = $coord->{geometry}->{location}->{lat};
         $res{formatted_address} = $coord->{formatted_address};
-
+        
         push ( @non_unique_results, \%res );
       }
-
+      
       return {
         STATUS            => 3,
         BUILD_ID          => $build_id,
@@ -257,13 +273,17 @@ sub get_coords_for {
       };
     }
   }
-
+  
   unless ( defined $results_shortcut[0]->{geometry}->{location_type} && $results_shortcut[0]->{geometry}->{location_type} eq 'ROOFTOP' ) {
-    return { STATUS => 4, BUILD_ID => $build_id, requested_address => $requested_addr };
+    return {
+      STATUS            => 4,
+      BUILD_ID          => $build_id,
+      requested_address => $requested_addr
+    };
   }
-
+  
   my $coords = $results_shortcut[0]->{geometry}->{location};
-
+  
   return {
     STATUS            => 1,
     BUILD_ID          => $build_id,
@@ -291,7 +311,6 @@ sub get_coords_for {
 #**********************************************************
 sub get_address_for {
   my ($self, $latlng, $attr) =  @_;
-  my $result = {};
   
   # For free usage, Geocoding API receives one request in 1.5 seconds;
   unless ($CONF{MAPS_NO_THROTTLE}) {
@@ -309,8 +328,6 @@ sub get_address_for {
       GET            => 1,
     } );
   
-  
-#  return $result;
   return $responce;
 }
 

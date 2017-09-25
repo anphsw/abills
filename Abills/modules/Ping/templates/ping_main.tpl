@@ -63,6 +63,13 @@
         </div>
     </div>
 
+    <div class='form-group'>
+        <label class='control-label col-md-3' for='THREADS'>_{THREADS}_</label>
+        <div class='col-md-9'>
+            <input type='number' min='0' class='form-control' value='%THREADS%'  name='THREADS'  id='THREADS'   />
+        </div>
+    </div>
+
     <input name="ACCEPT" value="_{ACCEPT}_"  class="btn btn-primary" type="submit">
 
 

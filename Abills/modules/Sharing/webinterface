@@ -2525,14 +2525,14 @@ sub sharing_user_main {
                                       });
 
   if($FORM{DOWNLOAD}){
-    `echo "Start add to log" >> /tmp/buffer`;
+    
     $Sharing->sharing_log_add({ 
                                 UID       => $user->{UID},
                                 FILE_ID   => $FORM{DOWNLOAD},
                                 IP        => $ENV{REMOTE_ADDR},
                                 # SYSTEM_ID => ,
                               });
-    `echo "Start download" >> /tmp/buffer`;
+
     file_download($FORM{DOWNLOAD}, $FORM{hash}, $FORM{TIMESTAMP}, $FORM{link_time});
   }
 
@@ -2568,7 +2568,7 @@ sub sharing_user_main {
     my $time_stamp = time();
     load_pmodule('Digest::MD5');
     my $md5 = Digest::MD5->new();
-    $md5->add($user->{UID} . $FORM{GET_LINK} . $time_stamp);
+    $md5->add($user->{UID} . $FORM{GET_LINK} . $time_stamp . $FORM{link_time});
     my $hash     = $md5->hexdigest();
 
     #my $button = $html->button("$lang{DOWNLOAD}", "$link", {ex_params => "class = 'btn btn-primary full-width'"});
@@ -2591,6 +2591,8 @@ sub sharing_user_main {
   }
 
   my $FILES = '';
+  my $OWN_FILES     = '';
+  my $NOT_OWN_FILES = '';
 
   foreach my $file (@$files_list){
     my $button_name = "$lang{BUY}";
@@ -2612,7 +2614,7 @@ sub sharing_user_main {
     #    });
 
     my $user_sharing_info = $Sharing->info_user({UID => $user->{UID}, FILE_ID => $file->{id}});
-    # _bp("UINFO", $user_sharing_info->{list}[0]->{date_to}, {HEADER=>1});
+    
 
     if($user_sharing_info && $user_sharing_info->{date_to} ge $DATE){
       $button_name = "$lang{GET_LINK}";
@@ -2629,10 +2631,8 @@ sub sharing_user_main {
           title          => $button_name,
           ex_params      => qq/onclick=loadToModal('$get_link')/
         });
-    }
-    
-      
-    $FILES .= $html->tpl_show(
+
+      $OWN_FILES .= $html->tpl_show(
       _include('sharing_file_body', 'Sharing'),
       {
         FILE_NAME  => $file->{name},
@@ -2646,7 +2646,27 @@ sub sharing_user_main {
       },
       {OUTPUT2RETURN => 1}
     );
+    }
+    else{
+      $NOT_OWN_FILES .= $html->tpl_show(
+      _include('sharing_file_body', 'Sharing'),
+      {
+        FILE_NAME  => $file->{name},
+        COMMENT    => $file->{comment},
+        AMOUNT     => $file->{amount},
+        VERSION    => $file->{version},
+        DATE_TO    => $user_sharing_info ? "$lang{DATE_TO} $user_sharing_info->{date_to}" : '',
+        FILE_TIME  => $file->{file_time} . " $lang{DAYS}",
+        PANEL_TYPE => $panel_type,
+        BUTTON     => $button,
+      },
+      {OUTPUT2RETURN => 1}
+    );
+    }
+    
   }
+
+  $FILES = $OWN_FILES . $NOT_OWN_FILES;
 
   my $group_select = $html->form_select(
   'GROUP_ID',
@@ -2691,7 +2711,7 @@ sub file_download {
 
   load_pmodule('Digest::MD5');
   my $md5 = Digest::MD5->new();
-  $md5->add($user->{UID} . $file_id . $time_stamp);
+  $md5->add($user->{UID} . $file_id . $time_stamp . $link_time);
 
   if(($time_stamp + $link_time) < time()){
     print "Content-Type: text/html;\n\n";
@@ -2770,9 +2790,13 @@ sub sharing_user_service {
       $html->message('success', "$lang{SUCCESS}", "$lang{SUCCESS_BUY} $date_to");
     }
     else{
-      $Sharing->change_user({UID => $user->{UID}, FILE_ID => $FORM{BUY}, DATE_TO =>$date_to});
+      $Sharing->change_user({UID => $FORM{UID}, FILE_ID => $FORM{BUY_FILE}, DATE_TO =>$date_to});
       if(!$Sharing->{errno}){
         $html->message('success', "$lang{SUCCESS}", "$lang{SUCCESS_BUY} $date_to");
+      }
+      else{
+        # _bp("sharing", $Sharing, );
+          
       }
     }
 
@@ -2792,19 +2816,20 @@ sub sharing_user_service {
     _error_show($Sharing);
   }
 
-  my $files_table = $html->table(
-    {
-      width      => '100%',
-      caption    => "$lang{FILES}",
-      border     => 1,
-      title      =>
-      [ $lang{NAME}, $lang{COMMENTS} ,$lang{DAYS}, $lang{DATE_TO}, '-' ],
-      cols_align =>
-      [ 'right', 'left', 'center', 'center'],
-      SELECT_ALL => "files_list:ID:ID"
-    }
-  );
-
+  # my $files_table = $html->table(
+  #   {
+  #     width      => '100%',
+  #     caption    => "$lang{FILES}",
+  #     border     => 1,
+  #     title      =>
+  #     [ $lang{NAME}, $lang{COMMENTS} ,$lang{DAYS}, $lang{DATE_TO}, '-' ],
+  #     ID         => 'SHARING_USER_FILES_',
+  #     SELECT_ALL => "files_list:ID:ID"
+  #   }
+  # );
+  my @own_files;
+  my @not_own_files;
+  
   foreach my $file (@$files_list){
     my $user_sharing_info = $Sharing->info_user({UID => $FORM{UID}, FILE_ID => $file->{id}});
     my $button = q{};
@@ -2813,35 +2838,67 @@ sub sharing_user_service {
 
     if(!$user_sharing_info || $DATE gt $user_sharing_info->{date_to}){
       $button = $html->button($lang{BUY}, "BUY_FILE=$file->{id}&index=$index&UID=$FORM{UID}", {ex_params => "class = 'btn btn-primary'"});
-      #$files_table->addrow($file->{name}, $file->{comment}, $file->{file_time}, $html->button("$lang{BUY}", "BUY_FILE=$file->{id}&index=$index&UID=$FORM{UID}", {ex_params => "class = 'btn btn-primary'"}));
+      
+      push @not_own_files, [$checkbox,$file->{name}, $file->{comment}, $file->{file_time}, $date, $button];
     }
     else{
       $date = "$lang{TO} $user_sharing_info->{date_to}";
       $button = $html->button("$lang{DEL}", "DEL_FILE=$file->{id}&index=$index&UID=$FORM{UID}", {ex_params => "class = 'btn btn-danger'"});
-      $checkbox = $html->form_input("ID",$file->{id}, {TYPE => 'checkbox', FORM_ID=> "SHARING_CONTINUE"});
+      $checkbox = $html->form_input("ID",$file->{id}, {TYPE => 'checkbox', FORM_ID => "SHARING_CONTINUE"});
+
+      push @own_files, [$checkbox,$file->{name}, $file->{comment}, $file->{file_time}, $date, $button];
     }
 
-    $files_table->addrow($checkbox,$file->{name}, $file->{comment}, $file->{file_time}, $date, $button);
+    # $files_table->addrow($checkbox,$file->{name}, $file->{comment}, $file->{file_time}, $date, $button);
 
   }
+    
 
-
-  my $continue_template = $html->tpl_show(
-    _include('sharing_user_continue', 'Sharing'),
-    {},{OUTPUT2RETURN => 1}
+  my $files_table = $html->table(
+    {
+      width      => '100%',
+      caption    => "$lang{FILES}",
+      border     => 1,
+      title      =>
+      [ $lang{NAME}, $lang{COMMENTS} ,$lang{DAYS}, $lang{DATE_TO}, '-' ],
+      ID         => 'SHARING_USER_FILES_',
+      SELECT_ALL => "files_list:ID:ID",
+      MENU       => "$lang{ADD}:index=" . get_function_index('sharing_add_file') . ':add',
+      rows => [@own_files, @not_own_files]
+    }
   );
-
-  $files_table->addrow($continue_template
-  );
-    # print $html->form_main({
-    #   CONTENT => $files_table->show(),
-    #   HIDDEN => {index => $index, UID => $FORM{UID}},
-    #   SUBMIT => {CONTINUE => "CONTINUE"},
-    #   NAME => 'SHARING_CONTINUE'
-    #   });
+  
   print $files_table->show();
+  
+  $html->tpl_show( _include('sharing_user_continue', 'Sharing'), {});
 
-
+   print '<script>$(function () {
+  var $table = $(\'#SHARING_USER_FILES__\');
+  var correct = ($table.find(\'tbody\').find(\'tr\').first().find(\'td\').length - $table.find(\'thead th\').length );
+  for (var i = 0; i < correct; i++) {
+    $table.find(\'thead th:last-child\').after(\'<th></th>\');
+  }
+    var dataTable = $("#SHARING_USER_FILES__")
+      .DataTable({
+        "language": {
+          paginate: {
+              first:    "«",
+              previous: "‹",
+              next:     "›",
+              last:     "»",
+          },
+          "zeroRecords":    "' . $lang{NOT_EXIST} . '",
+          "lengthMenu":     "' . $lang{SHOW} . ' _MENU_",
+          "search":         "' . $lang{SEARCH} . ':",
+          "info":           "' . $lang{SHOWING} . ' _START_ - _END_ ' . $lang{OF} . ' _TOTAL_ ",
+          "infoEmpty":      "' . $lang{SHOWING} . ' 0",
+          "infoFiltered":   "(' . $lang{TOTAL} . ' _MAX_)",
+        },
+        "ordering": false,
+        "lengthMenu": [[25, 50, -1], [25, 50, "' . $lang{ALL} . '"]]
+      });
+    });</script>';
+  
   return 1;
 }
 
@@ -2859,13 +2916,16 @@ sub sharing_user_service {
 sub sharing_download_log {
   my ($attr) = @_;
 
-  my $download_list = $Sharing->sharing_log_list({
-                    FILE_ID   => '_SHOW',
-                    DATE      => '_SHOW',
-                    UID       => '_SHOW',
-                    IP        => '_SHOW',
-                    COLS_NAME => 1
-  });
+  # my $download_list = $Sharing->sharing_log_list({
+  #                   FILE_ID   => '_SHOW',
+  #                   DATE      => '_SHOW',
+  #                   UID       => '_SHOW',
+  #                   IP        => '_SHOW',
+  #                   COLS_NAME => 1
+  # });
+
+  # _bp("total", $download_list, );
+    
 
   $html->tpl_show(_include('sharing_download_filters', 'Sharing'), 
                             { 
@@ -2874,9 +2934,9 @@ sub sharing_download_log {
                             },);
 
   $LIST_PARAMS{DATE_START} = $FORM{DATE_START} ? $FORM{DATE_START} : $DATE;
-  $LIST_PARAMS{DATE_END} = $FORM{DATE_END} ? $FORM{DATE_END} : $DATE;
-  
-  
+  $LIST_PARAMS{DATE_END}   = $FORM{DATE_END} ? $FORM{DATE_END} : $DATE;
+  $pages_qs = $pages_qs . "&DATE_END=$LIST_PARAMS{DATE_END}&DATE_START=$LIST_PARAMS{DATE_START}";
+
   result_former(
     {
       INPUT_DATA      => $Sharing,

@@ -495,6 +495,7 @@ sub cards_list {
     ['FROM_DATE|TO_DATE','DATE', "DATE_FORMAT(cu.created, '%Y-%m-%d')",  ],
     ['CREATED_FROM_DATE|CREATED_TO_DATE',  'DATE',  "DATE_FORMAT(cu.created, '%Y-%m-%d')",  ],
     ['USED_DATE',             'DATE', "", "IF (cu.status=2, cu.datetime, '') AS used_date"  ],
+    ['DILLER_UID',        'INT',  'cd.uid',    1],
   ],
   {
     WHERE => 1,
@@ -505,11 +506,12 @@ sub cards_list {
 
   if ($attr->{TYPE} && $attr->{TYPE} eq 'TP') {
     if ($attr->{TP_ID} && $attr->{TP_ID} ne '_SHOW' ) {
-      $self->query2("SELECT CONCAT(cu.serial,if($self->{CARDS_NUMBER_LENGTH}>0, MID(cu.number, 11-$self->{CARDS_NUMBER_LENGTH}+1, $self->{CARDS_NUMBER_LENGTH}), cu.number)) AS sn,
+      $self->query2("SELECT
+        CONCAT(cu.serial,if($self->{CARDS_NUMBER_LENGTH}>0, MID(cu.number, 11-$self->{CARDS_NUMBER_LENGTH}+1, $self->{CARDS_NUMBER_LENGTH}), cu.number)) AS sn,
         u.id AS login,
         DECODE(cu.pin, '$CONF->{secretkey}') AS pin,
         tp.name AS tp_name,
-        if(u.activate <> '0000-00-00', u.activate, '-') AS activate,
+        IF(u.activate <> '0000-00-00', u.activate, '-') AS activate,
         cu.sum,
         tp.age,
         tp.total_time_limit
@@ -572,8 +574,9 @@ sub cards_list {
         LEFT JOIN tarif_plans tp ON (tp.domain_id='$admin->{DOMAIN_ID}' and dv.tp_id = tp.id)";
     }
 
-    $self->query2("SELECT cu.serial, $self->{SEARCH_FIELDS} cu.id, cu.uid, cu.diller_id, cd.uid AS diller_uid
-         FROM cards_users cu
+    $self->query2("SELECT cu.serial, $self->{SEARCH_FIELDS}
+        cu.id, cu.uid, cu.diller_id, cd.uid AS diller_uid
+     FROM cards_users cu
      LEFT JOIN admins a ON (cu.aid = a.aid)
      LEFT JOIN groups g ON (cu.gid = g.gid)
      LEFT JOIN cards_dillers cd ON (cu.diller_id = cd.id)
@@ -595,29 +598,30 @@ sub cards_list {
     }
 
     $self->query2("SELECT
-       count(*) AS total_cards,
-       sum(if(cu.status=0, 1, 0)) AS enabled,
-       sum(if(cu.status=1, 1, 0)) AS disabled,
-       sum(if(u.activate <> '0000-00-00' or cu.status=2, 1, 0)) AS used,
-       sum(if(u.activate IS NULL, 1, 0)) AS deleted,
-       sum(if(cu.status=4, 1, 0)) AS returned,
-       sum(if(cu.diller_sold_date<>'0000-00-00', 1, 0)) AS diller_sold,
+       COUNT(*) AS total_cards,
+       SUM(IF(cu.status=0, 1, 0)) AS enabled,
+       SUM(IF(cu.status=1, 1, 0)) AS disabled,
+       SUM(IF(u.activate <> '0000-00-00' or cu.status=2, 1, 0)) AS used,
+       SUM(IF(u.activate IS NULL, 1, 0)) AS deleted,
+       SUM(IF(cu.status=4, 1, 0)) AS returned,
+       SUM(IF(cu.diller_sold_date<>'0000-00-00', 1, 0)) AS diller_sold,
 
-       sum(cu.sum) AS total_sum,
-       sum(if(cu.status=0, cu.sum, 0)) AS enabled_sum,
-       sum(if(cu.status=1, cu.sum, 0)) AS disabled_sum,
-       sum(if(u.activate <> '0000-00-00'  or cu.status=2 , cu.sum, 0)) AS used_sum,
-       sum(if(u.activate IS NULL, cu.sum, 0)) AS deleted_sum,
-       sum(if(cu.status=4, cu.sum, 0)) AS returned_sum,
-       sum(if(cu.diller_sold_date<>'0000-00-00', cu.sum, 0)) AS diller_sold_sum,
+       SUM(cu.sum) AS total_sum,
+       SUM(IF(cu.status=0, cu.sum, 0)) AS enabled_sum,
+       SUM(IF(cu.status=1, cu.sum, 0)) AS disabled_sum,
+       SUM(IF(u.activate <> '0000-00-00'  or cu.status=2 , cu.sum, 0)) AS used_sum,
+       SUM(IF(u.activate IS NULL, cu.sum, 0)) AS deleted_sum,
+       SUM(IF(cu.status=4, cu.sum, 0)) AS returned_sum,
+       SUM(IF(cu.diller_sold_date<>'0000-00-00', cu.sum, 0)) AS diller_sold_sum,
 
-       count(DISTINCT serial) AS serial
+       COUNT(DISTINCT serial) AS serial
 
      FROM cards_users cu
      LEFT JOIN admins a ON (cu.aid = a.aid)
      LEFT JOIN groups g ON (cu.gid = g.gid)
      LEFT JOIN cards_dillers cd ON (cu.diller_id = cd.id)
      LEFT JOIN users u ON (cu.uid = u.uid)
+     $EXT_TABLES
      $WHERE;",
      undef,
      { INFO => 1 }
@@ -635,7 +639,9 @@ sub cards_list {
 }
 
 #**********************************************************
-#
+=head2 cards_report_dillers($attr)
+
+=cut
 #**********************************************************
 sub cards_report_dillers {
   my $self = shift;
@@ -1363,21 +1369,21 @@ sub cards_diller_info {
   }
 
   $self->query2("SELECT
-             cd.id,
-             cd.disable,
-             cd.registration,
-             cd.comments,
-             cd.percentage,
-             cd.tp_id,
-             tp.name as tp_name,
-             cd.uid,
-             pi.fio,
-   CONCAT(pi.address_street, ', ', pi.address_build, '/', pi.address_flat) as address,
+    cd.id,
+    cd.disable,
+    cd.registration,
+    cd.comments,
+    cd.percentage,
+    cd.tp_id,
+    tp.name as tp_name,
+    cd.uid,
+    pi.fio,
+    CONCAT(pi.address_street, ', ', pi.address_build, '/', pi.address_flat) AS address_full,
     pi.phone,
     tp.payment_type,
     tp.operation_payment,
-    if (cd.percentage>0,  cd.percentage, tp.percentage) AS diller_percentage
-
+    IF (cd.percentage>0,  cd.percentage, tp.percentage) AS diller_percentage,
+    pi.location_id
     FROM cards_dillers cd
     LEFT JOIN users_pi pi ON (cd.uid=pi.uid)
     LEFT JOIN dillers_tps tp ON (tp.id=cd.tp_id)
@@ -1385,6 +1391,28 @@ sub cards_diller_info {
     undef,
     { INFO => 1 }
   );
+
+
+  if (! $self->{errno} && $self->{LOCATION_ID}) {
+    require Address;
+    Address->import();
+    my $Address = Address->new($self->{db}, $admin, $self->{conf});
+
+    $Address->address_info($self->{LOCATION_ID});
+
+    $self->{DISTRICT_ID}      = $Address->{DISTRICT_ID};
+    $self->{CITY}             = $Address->{CITY};
+    $self->{ADDRESS_DISTRICT} = $Address->{ADDRESS_DISTRICT};
+    $self->{STREET_ID}        = $Address->{STREET_ID};
+    $self->{ZIP}              = $Address->{ZIP};
+    $self->{COORDX}           = $Address->{COORDX};
+
+    $self->{ADDRESS_STREET}   = $Address->{ADDRESS_STREET};
+    $self->{ADDRESS_STREET2}  = $Address->{ADDRESS_STREET2};
+    $self->{ADDRESS_BUILD}    = $Address->{ADDRESS_BUILD};
+    $self->{ADDRESS_FULL}="$self->{ADDRESS_STREET} $self->{ADDRESS_BUILD}$self->{conf}->{BUILD_DELIMITER} $self->{ADDRESS_FLAT}";
+  }
+
 
   return $self;
 }
@@ -1441,14 +1469,18 @@ sub cards_dillers_list {
     }
     );
 
-  $self->query2("SELECT cd.id, u.id AS login, pi.fio,
-      CONCAT(pi.address_street, ', ', pi.address_build, '/', pi.address_flat) AS address,
-      pi.email, cd.registration,
+  $self->query2("SELECT cd.id,
+      u.id AS login,
+      pi.fio,
+      CONCAT(pi.address_street, ', ', pi.address_build, '/', pi.address_flat) AS address_full,
+      pi.email,
+      cd.registration,
       cd.percentage,
       cd.disable,
-      count(cu.serial),
-      sum(if(cu.status=0, 1, 0)),
-      cd.uid
+      COUNT(cu.serial),
+      SUM(IF(cu.status=0, 1, 0)),
+      cd.uid,
+      pi.location_id
     FROM cards_dillers cd
     INNER JOIN users u ON (cd.uid = u.uid)
     LEFT JOIN users_pi pi ON (pi.uid = u.uid)
@@ -1464,7 +1496,7 @@ sub cards_dillers_list {
   my $list = $self->{list};
 
   if ($self->{TOTAL} > 0) {
-    $self->query2("SELECT count(DISTINCT cd.id) AS total FROM cards_dillers cd
+    $self->query2("SELECT COUNT(DISTINCT cd.id) AS total FROM cards_dillers cd
        INNER JOIN users u ON (cd.uid = u.uid)
        LEFT JOIN cards_users cu ON (cd.id = cu.diller_id)
       $WHERE ",
@@ -1580,28 +1612,29 @@ sub dillers_tp_list {
 }
 
 #**********************************************************
-# User information
-# info()
+=head2 dillers_tp_info($attr)
+
+=cut
 #**********************************************************
 sub dillers_tp_info {
   my $self = shift;
   my ($attr) = @_;
 
   $self->query2("SELECT
-             id,
-             name,
-             payment_type,
-             percentage,
-             operation_payment,
-             payment_expr,
-             activate_price,
-             change_price,
-             credit,
-             min_use,
-             nas_tp,
-             gid,
-             comments,
-             bonus_cards
+      id,
+      name,
+      payment_type,
+      percentage,
+      operation_payment,
+      payment_expr,
+      activate_price,
+      change_price,
+      credit,
+      min_use,
+      nas_tp,
+      gid,
+      comments,
+      bonus_cards
     FROM dillers_tps
     WHERE id= ? ;",
     undef,
@@ -1613,7 +1646,9 @@ sub dillers_tp_info {
 }
 
 #**********************************************************
-# diller_permissions_set()
+=head2 diller_permissions_set()
+
+=cut
 #**********************************************************
 sub diller_permissions_set {
   my $self = shift;

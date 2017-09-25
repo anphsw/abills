@@ -1,9 +1,17 @@
+=head1 NAME
+
+  Events checks
+
+=cut
+
 use strict;
 use warnings FATAL => 'all';
 
-use vars qw(
-  %conf
-  $DATE
+our (
+  %conf,
+  $DATE,
+  $argv,
+  $base_dir
 );
 
 BEGIN{
@@ -19,21 +27,27 @@ require "libexec/config.pl";
 
 my $backup_dir = $conf{BACKUP_DIR} || "/usr/abills/backup/";
 $backup_dir =~ s/\/\//\//g;
-main();
+
+events_check();
 
 #**********************************************************
-=head2 main() - entry point
+=head2 events_check() - entry point
 
 =cut
 #**********************************************************
-sub main{
+sub events_check{
+
   check_backups();
+
   return 1;
 }
 
+#**********************************************************
+=head2 check_backups() - entry point
 
+=cut
+#**********************************************************
 sub check_backups{
-  # FIXME: using special (not Abills::Misc version)
   my $backup_files = _get_files_in( $backup_dir, {FILTER => '\.gz'});
 
   # Check if yesterday backup exists
@@ -41,12 +55,12 @@ sub check_backups{
 
 
   unless ( in_array( "stats-$yesterday_date.sql.gz", $backup_files ) ){
-    generate_new_event( "SYSTEM", "Yesterday backup does not exists!" );
+    generate_new_event( "SYSTEM", '_{YESTERDAY_BACKUP_DOES_NOT_EXISTS}_!' );
   };
 
   foreach my $backup_file_name ( @{$backup_files} ){
     unless ( check_backup( $backup_file_name ) ){
-      generate_new_event( 'SYSTEM', 'Backup check fails for ' . $backup_file_name );
+      generate_new_event( 'SYSTEM', '_{BACKUP_CHECK_FAILS_FOR}_ ' . $backup_file_name );
     };
   }
 
@@ -71,7 +85,8 @@ sub check_backup{
 
   # 20 is minimum Gzip packed file size;
   return 0 if (!$stats->{size} || $stats->{size} <= 20);
-
+  return 0 if (!`zcat $backup_dir/$filename | tail -1 | grep 'Dump completed'`);
+  
   return 1;
 }
 
@@ -90,11 +105,15 @@ sub generate_new_event{
   my ($name, $comments) = @_;
 
   #  print "EVENT: $name, $comments \n";
-  print $comments . "\n";
-  my $add_result = `/usr/abills/misc/events.pl ADD=events MODULE="$name" COMMENTS="$comments" STATE_ID=1 OUTPUT=JSON`;
+  print $comments . "\n" if ($argv->{DEBUG});
+  
+  my $cmd = ($base_dir || '/usr/abills') . '/misc/events.pl ADD=events'
+  ." MODULE='$name' COMMENTS='$comments' STATE_ID=1 PRIORITY_ID=5 OUTPUT=JSON TITLE='_{SYSTEM_NOTIFICATION}_'";
+  
+  my $add_result = `$cmd`;
 
-  if ( $add_result !~ /"status":0/m ){
-    print "Error adding";
+  if ( !$add_result || $add_result !~ /"status":0/m ){
+    print "Error adding event";
     print $add_result
   }
 
@@ -130,6 +149,7 @@ sub date_dec{
       $day = days_in_month( {DATE => "$year-$month-01"} );
     }
   }
+
   return "$year" . "-" . (length $month < 2 ? '0' : '' ) . $month . "-" . (length $day < 2 ? '0' : '' ) . $day ;
 }
 

@@ -26,6 +26,7 @@
 <form method='POST' action='$SELF_URL'>
   <input type='hidden' name='index' value='$index'>
   <input type='hidden' name='sid' value='$FORM{sid}'>
+  <input type='hidden' name='recharge' value='$FORM{recharge}'>
   <input type='hidden' name='OPERATION_ID' value='%OPERATION_ID%'>
   <input type='hidden' name='SUM' value='%SUM%'>
   <input type='hidden' name='DESCRIBE' value='Hotspot $FORM{TP_ID}'>
@@ -76,7 +77,7 @@
                 <label style='margin-top:5px;'>_{PHONE}_:</label>
               </div>
               <div class='col-md-6 col-sm-6 col-xs-8'>
-                <input type=text name='PHONE' value='%PHONE%' class='form-control' placeholder='+380xxxxxxxxx'>
+                <input type=text name='PHONE' value='%PHONE%' class='form-control'>
               </div>
 
             </div>

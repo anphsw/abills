@@ -6,6 +6,10 @@
 
 =cut
 
+use strict;
+use warnings;
+no warnings qw(numeric);
+
 BEGIN {
   use FindBin '$Bin';
   our $libpath = $Bin . '/../';
@@ -13,18 +17,18 @@ BEGIN {
   unshift(@INC, $libpath . "Abills/$sql_type/", $libpath . '/lib/');
 }
 
-use strict;
-use warnings;
-no warnings qw(numeric);
-use Abills::Base qw(parse_arguments int2byte ip2int int2ip load_pmodule2);
+use Abills::Base qw(parse_arguments int2byte ip2int int2ip load_pmodule2 sec2time);
 
 #use threads;
 use Data::Dumper;
 use Abills::Server;
+use Abills::Misc;
+use Abills::Filters qw(bin2hex _mac_former);
+use Abills::Sender::Core;
 use Log qw(log_add);
 use Events;
 use Admins;
-use Abills::Filters qw(bin2hex _mac_former);
+use Equipment;
 
 our (%conf, $DATE, $TIME, $var_dir);
 
@@ -36,10 +40,10 @@ if ($#ARGV < 0) {
   help();
   exit;
 }
-
+SNMP::addMibDirs( grep { -d } glob "$Bin/../Abills/MIBs/private/*" );
+SNMP::addMibDirs($Bin . "/../Abills/MIBs");
+SNMP::addMibFiles(glob($Bin . "/../Abills/MIBs/private" . '/*/*'));
 SNMP::initMib();
-SNMP::addMibDirs($Bin . "/../Abills/MIBs/private", $Bin . "/../Abills/MIBs");
-SNMP::addMibFiles(glob($Bin . "/../Abills/MIBs/private" . '/*'));
 
 my $debug = 0;
 do $Bin . '/config.pl';
@@ -102,42 +106,20 @@ my $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf
 my $Admin = Admins->new($db, \%conf);
 $Admin->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });
 
-require "Equipment.pm";
-Equipment->import();
-
 my $Equipment = Equipment->new($db, $Admin, \%conf);
 my $Events = Events->new($db, $Admin, \%conf);
-
-my $json_mac_n = $Equipment->snmp_tpl_list({ COLS_NAME => 1, SECTION => 'MAC_NOTIF', PARAMETERS => '_SHOW' });
-my $params = $Equipment->trap_type_list( {
-  COLS_NAME    => 1,
-  NAME         => '_SHOW',
-  TYPE         => '_SHOW',
-  EVENT        => '_SHOW',
-  COLOR        => '_SHOW',
-  VARBIND      => '_SHOW',
-} );
-my %events;
-my %conv;
-foreach my $var (@$params){
-	$events{$var->{name}} = $var->{color} if ( $var->{event} == 1 );
-	$conv{$var->{varbind}} = 'hex' if ( $var->{varbind} );
-}
-
-my %mac_notif;
-foreach my $key (@$json_mac_n) {
-  if ($key->{parameters}) {
-    my @var = JSON->new->decode($key->{parameters});
-    foreach my $vr (@{ $var[0] }) {
-      $mac_notif{ $vr->[0] } = [ $vr->[1], $vr->[2], $vr->[3] ];
-    }
-  }
-}
+my $Sender = Abills::Sender::Core->new($db, $Admin, \%conf);
 
 #use constant THREADS_COUNT => 4;
 my $bindip = $argv->{IP} || $conf{GETTRAP_IP} || '';
 my $snmptrapd = Net::SNMPTrapd->new(Family => 'ipv4', LocalAddr => $bindip, LocalPort => 162, timeout => 3)
 or die "Error creating SNMPTrapd listener: ", Net::SNMPTrapd->error;
+my $names = $Equipment->obj_list({
+     PAGE_ROWS => 1000,
+  	 IP        => '_SHOW',
+     NAS_NAME  => '_SHOW',
+	 LIST2HASH => 'ip,name'
+} );
 
 #for my $i (1..(THREADS_COUNT - 1)) { threads->create(\&request_loop, $obj); }
 #request_loop($obj);
@@ -153,7 +135,31 @@ sub request_loop {
     my $trap     = $snmptrapd->get_trap();
     my %varbinds = ();
     my %varb     = ();
-    my $trapoid;
+    my $trapoid = ();
+	my %conv = ();
+	my %events = ();
+	my %macn = ();
+#	my $id_num->{INSERT_ID} = 0;
+	
+	my $params = $Equipment->trap_type_list( {
+	  COLS_NAME => 1,
+	  NAME      => '_SHOW',
+	  OBJECT_ID => '_SHOW',
+	  TYPE      => '_SHOW',
+	  EVENT     => '_SHOW',
+	  COLOR     => '_SHOW',
+	  VARBIND   => '_SHOW',
+	  SKIP      => '_SHOW',
+	} );
+
+	foreach my $k (@$params) {
+		$events{$k->{name}} = [ $k->{type}, $k->{event}, $k->{color}, $k->{skip}, $k->{varbind} ];
+		if ( $k->{type} == 5 ){
+			$macn{$k->{object_id}} = $k->{varbind}
+		} else {
+			$conv{$k->{object_id}} = $k->{varbind};
+		}
+	}
 
     if (!defined($trap)) {
       printf "$0: %s\n", Net::SNMPTrapd->error;
@@ -175,52 +181,62 @@ sub request_loop {
         my $k = each %$element;
         $varb{$k} = $element->{$k};
       }
-      my $mcn_val;
-      if (exists $mac_notif{ $varb{'1.3.6.1.6.3.1.1.4.1.0'} }) {
-        my $oid = $mac_notif{ $varb{'1.3.6.1.6.3.1.1.4.1.0'} };
-        while (my ($vr, $val) = each(%varb)) {
-          if ($vr =~ /$oid->[0]/) {
-            $mcn_val = mac_notif(
-              {
-                NAS_IP  => $trap->remoteaddr,
-                VALUE   => $val,
-                REGULAR => $oid->[2],
-                TYPE    => $oid->[1],
-              }
-            );
-          }
-        }
-      }
-      else {
-        while (my ($key, $value) = each(%varb)) {
-          if ($SNMP::MIB{$key}{label} eq 'snmpTrapOID') {
+
+      while (my ($key, $value) = each(%varb)) {
+      	$value =~ s/"/'/g;
+		if ( exists $macn{$key} ) {
+        	$varbinds{ $SNMP::MIB{$key}{label} } = mac_notif(
+            	{
+                  NAS_IP  => $trap->remoteaddr,
+                  VALUE   => $value,
+                  TYPE    => $macn{$key},
+                }
+             );
+        } elsif ($SNMP::MIB{$key}{label} eq 'snmpTrapOID') {
             $varbinds{ $SNMP::MIB{$key}{label} } = $SNMP::MIB{$value}{label};
             $trapoid = $value;
-          } elsif ( exists $conv{$SNMP::MIB{$key}{label}} ) {
-            $varbinds{ $SNMP::MIB{$key}{label} } = _mac_former(bin2hex($value));
-          } else {
-            $varbinds{ $SNMP::MIB{$key}{label} } = ($mcn_val) ? $mcn_val : $value;
-          }
-        }
-        my $json_text = JSON->new->utf8->canonical->allow_bignum->encode(\%varbinds);
-        $Equipment->trap_add(
-          {
-            IP        => $trap->remoteaddr,
-            EVENTNAME => $varbinds{snmpTrapOID},
-            TRAPOID   => $trapoid,
-            VARBINDS  => $json_text
-          }
-        );
-
-        if ( exists ($events{$varbinds{snmpTrapOID}}) &&  $events{$varbinds{snmpTrapOID}} eq 'danger') {
-          $Events->events_add(
-            {
-              MODULE   => "Equipment",
-              COMMENTS => $trap->remoteaddr . " Events: $varbinds{snmpTrapOID}"
-            }
-          );
+	        if ( exists ($events{$value}) &&  $events{$value}[1] == 1) {
+			  #my $link = "index=" . get_function_index( 'equipment_traps' ) . "&TRAP_ID=" . $id_num->{INSERT_ID}+1;
+			  $Events->events_add(
+	            {
+	              MODULE   => "Equipment",
+	              COMMENTS => $trap->remoteaddr . " Events: $varbinds{$SNMP::MIB{$key}{label}}",
+				  #EXTRA    => $link
+	            }
+	          );
+			  $Data::Dumper::Terse = 1;
+			  $Data::Dumper::Sortkeys = 1;
+			  $Data::Dumper::Pair = ': ';
+			  $Data::Dumper::Quotekeys = 0;
+			  $Sender->send_message(
+			  	{
+					UID => 1,
+					TO_ADDRESS => $conf{GETTRAP_ALERT_ADDR},
+					JID        => $conf{XMPP_ALERT_JID},
+					PASS       => $conf{XMPP_ALERT_JID_PASS},
+					SENDER_TYPE => 'XMPP',
+					MESSAGE     => $names->{$trap->remoteaddr} . "\nIP " . $trap->remoteaddr . ":\nEvent: " . Dumper \%varbinds
+				}
+			  );
+	        }
+        } elsif ( exists $conv{$SNMP::MIB{$key}{label}} ) {
+			$value = ($conv{$SNMP::MIB{$key}{label}} eq 'bin2hex')? _mac_former(bin2hex($value)) : sec2time(($value/100),{ str => 1 });
+        	$varbinds{ $SNMP::MIB{$key}{label} } = $value;
+        } else {
+            $varbinds{ $SNMP::MIB{$key}{label} } = $value;
         }
       }
+
+	  redo if ( exists $events{$trapoid} && $events{$trapoid}[3] == 1 ) ;
+	  	my $json_text = JSON->new->utf8->canonical->allow_bignum->encode(\%varbinds);
+		my $id_num = $Equipment->trap_add(
+    	{
+        	IP        => $trap->remoteaddr,
+         	EVENTNAME => $varbinds{snmpTrapOID},
+            TRAPOID   => $trapoid,
+            VARBINDS  => $json_text
+         }
+     	);
     }
   }
 
@@ -230,6 +246,10 @@ sub request_loop {
 sub mac_notif {
  my ($attr) = @_;
  my %data;
+ 
+ if ($debug >= 5) {
+   print "VALUE:" . $attr->{VALUE} . "\n";
+ }
 
  my $equip = $Equipment->_list({ COLS_NAME => 1, NAS_ID => '_SHOW', NAS_IP => $attr->{NAS_IP} });
  if ($equip->[0]->{nas_id}){
@@ -258,9 +278,11 @@ sub mac_notif {
   elsif ($attr->{TYPE} eq 'string') {
 
     #D-LINK DES-1210* Smart
-    $attr->{VALUE} =~ /$attr->{REGULAR}/gi;
-    ($actions, $port, $mac) = ($1, $2, $3);
-    $mac =~ s/\./:/g;
+    my @apm = split('\.', $attr->{VALUE});
+    $actions = int($apm[0]);
+	$port = int($apm[1]);
+	$mac = "@apm[2,3,4,5,6,7]";
+    $mac =~ s/ /:/g;
     $pvid = 0;
     %data = (
       NAS_ID => $equip->[0]->{nas_id},
@@ -304,6 +326,7 @@ sub mac_notif {
  } else {
  	$Log->log_print('LOG_INFO', $attr->{NAS_IP}, "Unknown NAS. Trap: $attr->{VALUE}");
  }
+ return 1
 
 }
 

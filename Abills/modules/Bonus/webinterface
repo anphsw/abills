@@ -11,11 +11,13 @@
 use strict;
 use warnings FATAL => 'all';
 
+use Abills::Auth::Core;
 use Abills::Defs;
 use Bonus;
 use Finance;
 use Tariffs;
-use Abills::Base qw(in_array cfg2hash mk_unique_value);
+use Users;
+use Abills::Base qw(_bp in_array cfg2hash mk_unique_value);
 our ($db,
   $admin,
   %conf,
@@ -625,7 +627,9 @@ sub bonus_user{
           $tp_priority{$line->{id}}=$line->{priority};
         }
 
-        if($tp_priority{$Bonus->{DV_TP_ID}} > $tp_priority{$Dv->{TP_ID}}) {
+        if(defined($Bonus->{DV_TP_ID})
+          && defined($tp_priority{$Bonus->{DV_TP_ID}})
+          && $tp_priority{$Bonus->{DV_TP_ID}} > $tp_priority{$Dv->{TP_ID}}) {
           $Bonus->{COST} = 0;
         }
       }
@@ -731,10 +735,12 @@ sub bonus_periodic_daily{
     });
 
     foreach my $u (@$reset_list) {
-      $Bonus->accomulation_scores_change({
-        UID   => $u->{uid},
-        SCORE => 0
-      });
+      if($u->{uid}) {
+        $Bonus->accomulation_scores_change({
+          UID   => $u->{uid},
+          SCORE => 0
+        });
+      }
     }
   }
 
@@ -1795,6 +1801,29 @@ sub bonus_tp_using{
 
   return 1;
 }
+#**********************************************************
+=head2 bonus_likes
 
+=cut
+#**********************************************************
+sub bonus_likes{
+  
+  my $Users = Users->new($db, $admin, \%conf);
+  my $Auth = Abills::Auth::Core->new({
+    CONF      => \%conf,
+    AUTH_TYPE => ucfirst('Facebook') 
+  });
+    
+  $html->tpl_show( _include( 'bonus_likes', 'Bonus' ), $Bonus );
+  
+  if ($FORM{post_url}) {
+    my $likers = $Auth->who_liked_it("$conf{FB_ADMIN_ID}_$FORM{post_url}");
+    _bp ('', $likers);
+  
+  }
+  
+    
+  return 1;
+}
 1
 

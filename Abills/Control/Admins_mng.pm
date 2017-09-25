@@ -8,16 +8,20 @@
 
 use strict;
 use warnings FATAL => 'all';
-use Abills::Base qw(in_array);
+use Abills::Base qw(_bp in_array load_pmodule2);
 use Abills::Defs;
+use JSON;
+use Contacts;
 
-our $db;
-our $admin;
-our $html;
-our %lang;
-our @WEEKDAYS;
-our @MONTHES;
-our @status;
+our ($db,
+ $admin,
+ $html,
+ %lang,
+ %permissions,
+ @WEEKDAYS,
+ @MONTHES,
+ @status
+);
 
 #**********************************************************
 =head2 form_admins() - Admins mange form
@@ -36,6 +40,23 @@ sub form_admins {
   $admin_form->{ACTION}     = 'add';
   $admin_form->{LNG_ACTION} = $lang{ADD};
 
+  if ($FORM{add}) {
+    $admin_form->{AID} = $admin->{AID};
+    if (!$FORM{A_LOGIN}) {
+      $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA} $lang{ADMIN} $lang{LOGIN}");
+    }
+    else {
+      $admin_form->add({ %FORM, DOMAIN_ID => $FORM{DOMAIN_ID} || $admin->{DOMAIN_ID} });
+      if (!$admin_form->{errno}) {
+        $html->message('info', $lang{INFO}, "$lang{ADDED}: $FORM{A_LOGIN}");
+        $FORM{AID}=$admin_form->{AID};
+      }
+    }
+
+    delete $admin_form->{AID};
+  }
+
+
   if ($FORM{AID}) {
     $admin_form->info($FORM{AID});
     _error_show($admin_form);
@@ -44,24 +65,15 @@ sub form_admins {
       $FORM{DOMAIN_ID}  = $admin_form->{DOMAIN_ID} if($admin_form->{DOMAIN_ID});
     }
 
-    $pages_qs         = "&AID=$admin_form->{AID}". (($FORM{subf}) ? "&subf=$FORM{subf}" : '');
-
+    $pages_qs        = "&AID=$admin_form->{AID}". (($FORM{subf}) ? "&subf=$FORM{subf}" : '');
     my $A_LOGIN = $html->form_main({
-        CONTENT => $html->form_select(
-          'AID',
-          {
-            SELECTED  => $FORM{AID},
-            SEL_LIST  => $admin->list({%LIST_PARAMS, COLS_NAME => 1}),
-            SEL_KEY   => 'aid',
-            SEL_VALUE => 'login,name',
-          }
-        ),
-        HIDDEN => {
-          index => $index,
-          subf  => $FORM{subf}
-        },
-        SUBMIT => { show => $lang{SHOW} },
-        class  => 'navbar-form navbar-right',
+      CONTENT => sel_admins(),
+      HIDDEN => {
+        index => $index,
+        subf  => $FORM{subf}
+      },
+      SUBMIT => { show => $lang{SHOW} },
+      class  => 'navbar-form navbar-right',
     });
 
     $LIST_PARAMS{AID} = $admin_form->{AID};
@@ -71,13 +83,14 @@ sub form_admins {
       $lang{FEES}       . ":3:AID=$admin_form->{AID}:fees",
       $lang{PAYMENTS}   . ":2:AID=$admin_form->{AID}:payments",
       $lang{PERMISSION} . ":52:AID=$admin_form->{AID}:permissions",
-      $lang{PASSWD}     . ":54:AID=$admin_form->{AID}:password",
-      $lang{GROUP}      . ":58:AID=$admin_form->{AID}:users",
-      $lang{ACCESS}     . ":59:AID=$admin_form->{AID}:",
-      'Paranoid'   . ':'. get_function_index('form_admins_full_log') .":AID=$admin_form->{AID}:",
-      $lang{CONTACTS}   . ":61:AID=$admin_form->{AID}:contacts",
-      $lang{DOMAINS}    . ":113:AID=$admin_form->{AID}:contacts",
+      $lang{PASSWD}     . ":54:AID=$admin_form->{AID}:password"
     );
+
+    push @admin_menu, $lang{GROUP} . ":58:AID=$admin_form->{AID}:users" if (! $admin->{GID});
+    push @admin_menu, $lang{ACCESS} . ":59:AID=$admin_form->{AID}:",
+    'Paranoid'   . ':'. get_function_index('form_admins_full_log_analyze') .":AID=$admin_form->{AID}:",
+    $lang{CONTACTS}   . ":61:AID=$admin_form->{AID}:contacts",
+    $lang{DOMAINS}    . ":113:AID=$admin_form->{AID}:domains";
 
     if(in_array('Msgs', \@MODULES)) {
       push @admin_menu, "$lang{MESSAGES}:".get_function_index('msgs_admin') .":AID=$admin_form->{AID}:msgs";
@@ -91,7 +104,11 @@ sub form_admins {
       { f_args => { ADMIN => $admin_form } }
     );
 
-    form_passwd({ ADMIN => $admin_form }) if (defined($FORM{newpassword}));
+    if (defined $FORM{newpassword}) {
+      if(form_passwd({ ADMIN => $admin_form })) {
+        delete $FORM{change};
+      }
+    }
 
     if ($FORM{subf}) {
       return 0;
@@ -113,18 +130,6 @@ sub form_admins {
     }
     $admin_form->{ACTION}     = 'change';
     $admin_form->{LNG_ACTION} = $lang{CHANGE};
-  }
-  elsif ($FORM{add}) {
-    $admin_form->{AID} = $admin->{AID};
-    if (!$FORM{A_LOGIN}) {
-      $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA} $lang{ADMIN} $lang{LOGIN}");
-    }
-    else {
-      $admin_form->add({ %FORM, DOMAIN_ID => $FORM{DOMAIN_ID} || $admin->{DOMAIN_ID} });
-      if (!$admin_form->{errno}) {
-        $html->message('info', $lang{INFO}, "$lang{ADDED}");
-      }
-    }
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
     if ($FORM{del} == $conf{SYSTEM_ADMIN_ID}) {
@@ -152,7 +157,7 @@ sub form_admins {
       FORM_NAME => 'admin_form',
       WEEK_DAYS => \@WEEKDAYS,
       MONTHES   => \@MONTHES,
-      #DATE      => $user_pi->{PASPORT_DATE}
+      DATE      => $admin->{PASPORT_DATE}
     }
   );
 
@@ -166,16 +171,25 @@ sub form_admins {
         SEL_VALUE   => 'position',
         NO_ID       => 1,
         SEL_OPTIONS => { '' => '--' },
+        MAIN_MENU   => get_function_index('employees_positions'),
+
       }
     );
+
+    $admin_form->{POSITION_ADD_LINK} = $html->button('', 'index=' . get_function_index('employees_positions'), {
+      ICON           => 'glyphicon glyphicon-plus',
+      NO_LINK_FORMER => 1,
+      target         => '_blank',
+    });
   }
 
   $admin_form->{FULL_LOG}  = ($admin_form->{FULL_LOG}) ? 'checked' : '';
   $admin_form->{DISABLE}   = ( defined($admin_form->{DISABLE}) && $admin_form->{DISABLE} > 0) ? 'checked' : '';
   $admin_form->{GROUP_SEL} = sel_groups({ GID => $admin_form->{GID}, SKIP_MUULTISEL => 1 });
 
-  if ($admin->{DOMAIN_ID}) {
-    $admin_form->{DOMAIN_SEL} = $admin->{DOMAIN_NAME};
+  if ($admin_form->{DOMAIN_ID}) {
+    $admin_form->{DOMAIN_SEL} = $html->button($admin_form->{DOMAIN_NAME},
+      'index='.get_function_index('multidoms_domains'). "&chg=$admin_form->{DOMAIN_ID}", { BUTTON => 1 });
   }
   elsif (in_array('Multidoms', \@MODULES)) {
     load_module('Multidoms', $html);
@@ -187,24 +201,27 @@ sub form_admins {
 
   #check if have GPS modules and position. If so, show a link to map
   if (in_array('Maps', \@MODULES) && $admin_form->{GPS_IMEI} && $admin_form->{GPS_IMEI} ne ''){
-    my $maps_index = get_function_index('maps_show_poins');
+    my $maps_index = get_function_index('maps_show_map');
     my $link = "?index=$maps_index&show_gps=$admin_form->{AID}";
-    $admin_form->{GPS_ROUTE_BTN} = $html->button($html->element('span', '', { class=> 'glyphicon glyphicon-globe' }), undef , {
-         GLOBAL_URL => $link,
-         target     => '_blank',
-         class      => 'btn btn-info',
-         NO_LINK_FORMER => 1
+    $admin_form->{GPS_ROUTE_BTN} = $html->button('', '', {
+      GLOBAL_URL => $link,
+      target     => '_blank',
+      class      => 'btn btn-info',
+      INCON      => 'glyphicon glyphicon-globe',
+      NO_LINK_FORMER => 1
     });
 
-    $admin_form->{GPS_ICON_BTN} = $html->button($html->element('span', '', { class => 'glyphicon glyphicon-picture' }), undef , {
-         GLOBAL_URL     => $link,
-         class          => 'btn btn-default',
-         NO_LINK_FORMER => 1,
-         JAVASCRIPT     => '#',
-         ex_params      => qq/onclick='loadToModal("?get_index=gps_add_thumbnail&header=2&AID=$FORM{AID}")'/,
-         SKIP_HREF      => 1
+    $admin_form->{GPS_ICON_BTN} = $html->button('', '', {
+       GLOBAL_URL     => $link,
+       class          => 'btn btn-default',
+       ICON           => 'glyphicon glyphicon-picture',
+       NO_LINK_FORMER => 1,
+       JAVASCRIPT     => '#',
+       ex_params      => qq/onclick='loadToModal("?get_index=gps_add_thumbnail&header=2&AID=$FORM{AID}")'/,
+       SKIP_HREF      => 1
     });
   }
+
   $admin_form->{INDEX} = 50;
   $html->tpl_show(templates('form_admin'), $admin_form);
 
@@ -248,7 +265,8 @@ sub form_admins {
       caption    => $lang{ADMINS},
       qs         => $pages_qs,
       ID         => 'ADMINS_LIST',
-      MENU       => "$lang{SEARCH}:search_form=1&index=$index:search"
+      SHOW_FULL_LIST => 1,
+      MENU       => "$lang{ADD}:index=$index&show_add_form=1:add;$lang{SEARCH}:search_form=1&index=$index:search"
     }
   });
 
@@ -269,11 +287,11 @@ sub form_admins {
 
     my $geo_button = '';
     if(in_array('Employees', \@MODULES)){
-      $geo_button = $html->button($lang{GEO}, "index=" . get_function_index('employees_geolocation') ."&eid=$line->{aid}")
+      $geo_button = $html->button($lang{GEO}, "index=" . get_function_index('employees_geolocation') ."&eid=$line->{aid}",{ICON => 'glyphicon glyphicon-map-marker'})
     }
 
     $table->addrow(@fields_array,
-      $html->button($lang{PERMISSION}, "index=$index&subf=52&AID=$line->{aid}", { class => 'permissions' })
+      $html->button($lang{PERMISSION}, "index=$index&subf=52&AID=$line->{aid}", { class => 'permissions', ICON => 'glyphicon glyphicon-check' })
       . $geo_button
       . $html->button($lang{LOG},        "index=$index&subf=51&AID=$line->{aid}", { class => 'history' })
       . $html->button($lang{PASSWD},     "index=$index&subf=54&AID=$line->{aid}", { class => 'password' })
@@ -287,7 +305,6 @@ sub form_admins {
   $table = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right' ],
       rows       => [ [ "$lang{TOTAL}:", $html->b($admin_form->{TOTAL}) ] ]
     }
   );
@@ -326,7 +343,6 @@ sub form_admins_groups {
       width      => '100%',
       caption    => $lang{GROUP},
       title      => [ 'ID', $lang{NAME} ],
-      cols_align => [ 'left', 'left', 'center' ],
     }
   );
 
@@ -442,6 +458,94 @@ sub form_admins_full_log {
 }
 
 #**********************************************************
+=head2 form_admins_full_log_analyze($attr)
+
+=cut
+#**********************************************************
+sub form_admins_full_log_analyze {
+
+  if (! $permissions{4}{4}) {
+    $html->message( 'err', $lang{ERROR} , $lang{ERR_ACCESS_DENY} );
+    return 1;
+  };
+
+  my $admin_ = Admins->new($db, \%conf);
+  _error_show($admin_);
+
+  my $date_picker = $html->form_daterangepicker({
+    NAME      => 'FROM_DATE/TO_DATE'
+  });
+
+  my $A_LOGIN = $html->form_main({
+    CONTENT => $date_picker.sel_admins(),
+    HIDDEN  => { index => $index },
+    SUBMIT  => { show => $lang{SHOW} },
+    class   => 'navbar-form navbar-right',
+  });
+  delete $FORM{subf};
+  func_menu({ $lang{NAME} => $A_LOGIN }, { }, { } );
+
+  if (! $FORM{AID}) {
+    return 1;
+  }
+
+  $LIST_PARAMS{AID} = $FORM{AID};
+  $LIST_PARAMS{FROM_DATE} = $FORM{FROM_DATE};
+  $LIST_PARAMS{TO_DATE} = $FORM{TO_DATE};
+
+  if($FORM{details}) {
+    $LIST_PARAMS{FUNCTION_NAME} = $FORM{details};
+  }
+  else {
+   $LIST_PARAMS{FUNCTION_NAME} = "!msgs_admin";
+  }
+
+  my (undef, $list) = result_former({
+    INPUT_DATA      => $admin_,
+    FUNCTION        => 'full_log_analyze',
+    DEFAULT_FIELDS  => 'DATETIME,FUNCTION_NAME,PARAMS,COUNT',
+    SKIP_PAGES      => 1,
+    FILTER_COLS => {
+      function_name    => '_paranoid_log_function_filter',
+      params           => '_paranoid_log_params_filter'
+    },
+    TABLE => {
+      width    => '100%',
+      caption  => "Paranoid log",
+      ID       => 'ADMIN_PARANOID_LOG',
+ #     qs       => "&AID=$FORM{AID}",
+    },
+    MAKE_ROWS       => 1,
+    SKIP_TOTAL      => 1,
+    TOTAL           => 1
+  });
+
+  my %chartdata = ();
+  my @xtext = ();
+  foreach (@$list) {
+    push @{$chartdata{count}}, $_->{count};
+    if ($FORM{details}) {
+      $_->{params} =~s/\n/&/g;
+      push @xtext, $_->{params};
+    }
+    else {
+      push @xtext, $_->{function_name};
+    }
+  };
+
+  $html->make_charts_simple(
+    {
+      DATA         => \%chartdata,
+      X_TEXT       => \@xtext,
+      TYPES        => { count => 'bar'},
+      SKIP_COMPARE => 1,
+      }
+    );
+
+  return 1;
+}
+
+#**********************************************************
 =head2 form_admins_access($attr);
 
 =cut
@@ -449,79 +553,79 @@ sub form_admins_full_log {
 sub form_admins_access {
   my ($attr) = @_;
 
-if(! defined($attr->{ADMIN})) {
-  $FORM{subf}=59;
-  form_admins();
-  return 1;
-}
-
-my Admins $admin_ = $attr->{ADMIN};
-$admin->{ACTION}='add';
-$admin->{LNG_ACTION}=$lang{ADD};
-
-if ($FORM{add}) {
-  $admin_->access_add({ %FORM });
-  if (! $admin_->{errno}) {
-    $html->message('info', $lang{ADDED}, "$lang{ADDED} $FORM{IP}");
+  if (!defined($attr->{ADMIN})) {
+    $FORM{subf} = 59;
+    form_admins();
+    return 1;
   }
-}
-elsif ($FORM{change}) {
-  $admin_->access_change({ %FORM });
-  if (! $admin_->{errno}) {
-    $html->message('info', $lang{ADDED}, "$lang{CHANGED} $FORM{IP}");
+
+  my Admins $admin_ = $attr->{ADMIN};
+  $admin->{ACTION} = 'add';
+  $admin->{LNG_ACTION} = $lang{ADD};
+
+  if ($FORM{add}) {
+    $admin_->access_add({ %FORM });
+    if (!$admin_->{errno}) {
+      $html->message('info', $lang{ADDED}, "$lang{ADDED} $FORM{IP}");
+    }
   }
-}
-elsif ($FORM{chg}) {
-  $admin_->access_info($FORM{chg}, { %FORM });
-  if (! $admin_->{errno}) {
-    $html->message('info', $lang{ADDED}, "$lang{INFO} $FORM{IP}");
-    $admin_->{ACTION}='change';
-    $admin_->{LNG_ACTION}=$lang{CHANGE};
+  elsif ($FORM{change}) {
+    $admin_->access_change({ %FORM });
+    if (!$admin_->{errno}) {
+      $html->message('info', $lang{ADDED}, "$lang{CHANGED} $FORM{IP}");
+    }
   }
-}
-elsif ($FORM{del} && $FORM{COMMENTS}) {
-  $admin_->access_del({ ID => $FORM{del} });
-  if (! $admin_->{errno}) {
-    $html->message('info', $lang{INFO}, "$lang{DELETED} [$FORM{del}]");
+  elsif ($FORM{chg}) {
+    $admin_->access_info($FORM{chg}, { %FORM });
+    if (!$admin_->{errno}) {
+      $html->message('info', $lang{ADDED}, "$lang{INFO}");
+      $admin_->{ACTION} = 'change';
+      $admin_->{LNG_ACTION} = $lang{CHANGE};
+    }
   }
-}
-else {
-  $admin_->{BEGIN} = '00:00:00';
-  $admin_->{END}   = '24:00:00';
-  $admin_->{IP}    = '0.0.0.0';
-}
+  elsif ($FORM{del} && $FORM{COMMENTS}) {
+    $admin_->access_del({ ID => $FORM{del} });
+    if (!$admin_->{errno}) {
+      $html->message('info', $lang{INFO}, "$lang{DELETED} [$FORM{del}]");
+    }
+  }
+  else {
+    $admin_->{BEGIN} = '00:00:00';
+    $admin_->{END} = '24:00:00';
+    $admin_->{IP} = '0.0.0.0';
+  }
 
-_error_show($admin_);
+  _error_show($admin_);
 
-my %DAY_NAMES = (
-  0 => "$lang{ALL}",
-  1 => "$WEEKDAYS[7]",
-  2 => "$WEEKDAYS[1]",
-  3 => "$WEEKDAYS[2]",
-  4 => "$WEEKDAYS[3]",
-  5 => "$WEEKDAYS[4]",
-  6 => "$WEEKDAYS[5]",
-  7 => "$WEEKDAYS[6]",
-  8 => "$lang{HOLIDAYS}");
+  my %DAY_NAMES = (
+    0 => "$lang{ALL}",
+    1 => "$WEEKDAYS[7]",
+    2 => "$WEEKDAYS[1]",
+    3 => "$WEEKDAYS[2]",
+    4 => "$WEEKDAYS[3]",
+    5 => "$WEEKDAYS[4]",
+    6 => "$WEEKDAYS[5]",
+    7 => "$WEEKDAYS[6]",
+    8 => "$lang{HOLIDAYS}");
 
-$admin_->{SEL_DAYS} = $html->form_select(
-      'DAY',
-      {
-        SELECTED     => $admin_->{DAY} || $FORM{DAY} || 0,
-        SEL_HASH     => \%DAY_NAMES,
-        ARRAY_NUM_ID => 1
-      }
-    );
-
-$admin_->{BIT_MASK_SEL} = $html->form_select(
-    'BIT_MASK',
+  $admin_->{SEL_DAYS} = $html->form_select(
+    'DAY',
     {
-      SELECTED  => $admin_->{BIT_MASK} || $FORM{BIT_MASK} || 0,
-      SEL_ARRAY => [0..32],
+      SELECTED     => $admin_->{DAY} || $FORM{DAY} || 0,
+      SEL_HASH     => \%DAY_NAMES,
+      ARRAY_NUM_ID => 1
     }
   );
 
-  $admin_->{DISABLE}=($admin_->{DISABLE}) ? 'checked' : '';
+  $admin_->{BIT_MASK_SEL} = $html->form_select(
+    'BIT_MASK',
+    {
+      SELECTED  => $admin_->{BIT_MASK} || $FORM{BIT_MASK} || 0,
+      SEL_ARRAY => [ 0 .. 32 ],
+    }
+  );
+
+  $admin_->{DISABLE} = ($admin_->{DISABLE}) ? 'checked' : '';
 
   $html->tpl_show(templates('form_admin_access'), $admin_);
 
@@ -530,13 +634,14 @@ $admin_->{BIT_MASK_SEL} = $html->form_select(
     FUNCTION        => 'access_list',
     BASE_FIELDS     => 6,
     FUNCTION_FIELDS => 'change,del',
-    SELECT_VALUE    => { day     => \%DAY_NAMES,
-                         disable => { 0 => $lang{ENABLE}, 1 => $lang{DISABLE} }  },
-    TABLE => {
-      width    => '100%',
-      caption  => "$lang{ADMIN} $lang{ACCESS}",
-      ID       => 'ADMIN_ACCESS',
-      qs       => "&AID=$FORM{AID}&subf=$FORM{subf}"
+    SELECT_VALUE    => {
+      day     => \%DAY_NAMES,
+      disable => { 0 => $lang{ENABLE}, 1 => $lang{DISABLE} } },
+    TABLE           => {
+      width   => '100%',
+      caption => "$lang{ADMIN} $lang{ACCESS}",
+      ID      => 'ADMIN_ACCESS',
+      qs      => "&AID=$FORM{AID}&subf=$FORM{subf}"
     },
     MAKE_ROWS       => 1,
     TOTAL           => 1
@@ -564,22 +669,23 @@ sub form_admin_permissions {
      "$lang{CHANGE} $lang{BILL}",
      $lang{COMPENSATION},
      $lang{EXPORT},
-     $lang{STATUS}, #18
-     "$lang{ACTIVATE} $lang{DATE}",
-     "$lang{EXPIRE} $lang{DATE}",
+     $lang{STATUS}, # 18
+     "$lang{ACTIVATE} $lang{DATE}", # 19
+     "$lang{EXPIRE} $lang{DATE}", # 20
      $lang{BONUS},
      "PORT CONTROL", # 22
      "DEVICE REBOOT",
+     "QUICK INFO", # 24 user quick form
     ],    # Users
-    [ $lang{LIST}, $lang{ADD}, $lang{DEL}, $lang{ALL}, $lang{DATE} ],   # Payments
+    [ $lang{LIST}, $lang{ADD}, $lang{DEL}, $lang{ALL}, $lang{DATE}, $lang{IMPORT} ],   # Payments
     [ $lang{LIST}, $lang{GET}, $lang{DEL}, $lang{ALL} ],           # Fees
     [ $lang{LIST}, $lang{DEL}, $lang{PAYMENTS}, $lang{FEES}, $lang{EVENTS}, $lang{SYSTEM}, ],     # reports view
     [ $lang{LIST}, $lang{ADD}, $lang{CHANGE}, $lang{DEL}, $lang{ADMINS},
    "$lang{SYSTEM} $lang{LOG}", $lang{DOMAINS}, "$lang{TEMPLATES} $lang{CHANGE}", 'REBOOT SERVICE' ],            # system magment
-    [ $lang{MONITORING}, $lang{HANGUP} ],
+    [ $lang{MONITORING}, 'ZAP', $lang{HANGUP} ],
     [ $lang{SEARCH} ],                                # Search
-    [ $lang{ALL} ],                                   # Modules managments
-    [ $lang{PROFILE} ],
+    [ $lang{ALL}, "$lang{EDIT} $lang{MESSAGE}", "$lang{ADD} CRM $lang{STEP}" ],                                   # Modules managments
+    [ $lang{PROFILE}, "$lang{SHOW_ADMINS_ONLINE}" ],
     [ $lang{LIST}, $lang{ADD}, $lang{CHANGE}, $lang{DEL} ],
   );
 
@@ -677,7 +783,8 @@ sub form_admin_permissions {
       },
       5 => {
         0 => 1,
-        1 => 1
+        1 => 1,
+        2 => 1
       },
       6 => { 0 => 1 },
       7 => { 0 => 1 },
@@ -786,10 +893,22 @@ sub form_admin_permissions {
       width       => '90%',
       caption     => "$lang{PERMISSION}",
       title_plain => [ 'ID', $lang{NAME}, $lang{DESCRIBE}, '-' ],
-      cols_align  => [ 'right', 'left', 'center' ],
       ID          => 'ADMIN_PERMISSIONS',
     }
   );
+
+  my %describe = ();
+  my $content = file_op({
+    FILENAME  => 'permissions.info',
+    PATH      => $conf{base_dir} . "/Abills/main_tpls/",
+    ROWS      => 1
+  });
+  foreach(@$content) {
+    chomp;
+    if ((my ($perm1, $perm2, $desc) = split(/:/)) == 3) {;
+      $describe{$perm1}{$perm2} = $desc;
+    }
+  };
 
   foreach my $k (sort keys %menu_items) {
 
@@ -806,10 +925,11 @@ sub form_admin_permissions {
       my $action_index = 0;
       $table->{rowcolor} = undef;
       foreach my $action (@$actions_list) {
+        my $action_describe = $describe{$k}{$action_index} || '';
         $table->addrow(
           "$action_index",
           "$action",
-          '',
+          "$action_describe",
           $html->form_input(
             $k . "_$action_index",
             1,
@@ -857,7 +977,6 @@ sub form_admin_permissions {
       width       => '500',
       caption     => "$lang{MODULES}",
       title_plain => [ $lang{NAME}, $lang{VERSION}, '' ],
-      cols_align  => [ 'left', 'left', 'center' ],
       ID          => 'ADMIN_MODULES'
     }
   );
@@ -891,7 +1010,7 @@ sub form_admin_permissions {
         AID   => $FORM{AID},
         subf  => $FORM{subf}
       },
-      SUBMIT => { set => "$lang{SET}" }
+      SUBMIT => { set => "$lang{SAVE}" }
     }
   );
 
@@ -899,17 +1018,16 @@ sub form_admin_permissions {
 }
 
 #**********************************************************
-
 =head2 form_admins_contacts($attr);
 
 =cut
-
 #**********************************************************
 sub form_admins_contacts {
-  my ($attr) = @_;
 
-  my @priority = ($lang{VERY_LOW}, $lang{LOW}, $lang{NORMAL}, $lang{HIGH}, $lang{VERY_HIGH});
-  my @priority_colors = ('#8A8A8A', '#3d3938', '#1456a8', '#E06161', 'red');
+  my $contacts = Contacts->new($db, $admin, \%conf);
+
+  #my @priority = ($lang{VERY_LOW}, $lang{LOW}, $lang{NORMAL}, $lang{HIGH}, $lang{VERY_HIGH});
+  #my @priority_colors = ('#8A8A8A', '#3d3938', '#1456a8', '#E06161', 'red');
 
   if (!defined($FORM{AID})) {
     $FORM{subf} = 61;
@@ -917,19 +1035,9 @@ sub form_admins_contacts {
     return 1;
   }
 
-  if ( $FORM{CONTACTS} ){
-    return admin_contacts_renew();
-  }
-
-  my $table = $html->table(
-    {
-      width       => '100',
-      caption     => "$lang{CONTACTS}",
-      title_plain => [ $lang{NAME}, $lang{PRIORITY}, $lang{VALUE} ],
-      cols_align  => [ 'left', 'left', 'center' ],
-      ID          => 'ADMIN_CONTACTS'
-    }
-  );
+#  if ( $FORM{CONTACTS} ){
+#    return admin_contacts_renew();
+#  }
 
   my $list = $admin->admins_contacts_list(
     {
@@ -941,7 +1049,7 @@ sub form_admins_contacts {
     }
   );
 
-  my $contacts_type_list = $admin->admins_contacts_type_list(
+  my $contacts_type_list = $contacts->contact_types_list(
     {
       SHOW_ALL_COLUMNS => 1,
       COLS_NAME        => 1,
@@ -949,10 +1057,9 @@ sub form_admins_contacts {
     }
   );
 
-    map {$_->{name} = $lang{$_->{name}} || $_->{name} }@{$contacts_type_list};
+  map {$_->{name} = $lang{$_->{name}} || $_->{name} }@{$contacts_type_list};
 
-    $admin->{CONTACTS} = _build_admin_contacts_form( $list, $contacts_type_list );
-
+  $admin->{CONTACTS} = _build_admin_contacts_form( $list, $contacts_type_list );
 
   return 1;
 }
@@ -1031,35 +1138,21 @@ sub form_admins_contacts_save {
 #**********************************************************
 sub _build_admin_contacts_form{
   my ($admin_contacts_list, $admin_contacts_types_list) = @_;
-  my $json;
-  my $json_load_error = load_pmodule( "JSON", { RETURN => 1 } );
+  my $json = JSON->new()->utf8(0);
 
-  if ( $json_load_error ){
-    print $json_load_error;
-    return 0;
-  }
-  else{
-    $json = JSON->new()->utf8(0);
-  }
-  my $contacts_json = $json->encode( {
-          contacts => $admin_contacts_list,
-          options  => {
-              callback_index => get_function_index('form_admins_contacts_save'),
-              types          => $admin_contacts_types_list,
-              AID            => $FORM{AID},
-          }
-      }
-  );
+  $html->tpl_show( templates( 'form_contacts' ), {
+    JSON => $json->encode( {
+        contacts => $admin_contacts_list,
+        options  => {
+          callback_index => get_function_index('form_admins_contacts_save'),
+          types          => $admin_contacts_types_list,
+          AID            => $FORM{AID},
+        }
+      }),
+    SIZE_CLASS => 'col-md-6 col-md-push-3'
+  });
 
-  my $admin_contacts_template = $html->tpl_show(
-      templates( 'form_admin_contacts' ),
-      {
-          JSON          => qq{ "json" : $contacts_json }
-      },
-      { OUTPUT2RETURN => 1 }
-  );
-
-  print $admin_contacts_template;
+  return 1;
 }
 
 
@@ -1082,9 +1175,9 @@ sub form_admins_domains {
   my $Domains = Multidoms->new($db, $admin, \%conf);
 
   if ($FORM{change}) {
-    $Domains->admin_change({%FORM});
+    $Domains->admin_change({%FORM, DOMAIN_ID => $FORM{NEW_DOMAIN} });
     if (_error_show($Domains)) {
-      $html->message('info', $lang{CHANGED}, "$lang{CHANGED} GID: [$FORM{GID}]");
+      $html->message('info', $lang{CHANGED}, "$lang{CHANGED}");
     }
   }
 
@@ -1093,7 +1186,6 @@ sub form_admins_domains {
       width      => '100%',
       caption    => $lang{GROUP},
       title      => [ 'ID', $lang{NAME} ],
-      cols_align => [ 'left', 'left', 'center' ],
     }
   );
 
@@ -1106,7 +1198,7 @@ sub form_admins_domains {
 
   $list = $Domains->multidoms_domains_list({ COLS_NAME => 1 });
   foreach my $line (@$list) {
-    $table->addrow($html->form_input('DOMAIN_ID', $line->{id}, { TYPE => 'checkbox', STATE => (defined($admins_domain_hash{ $line->{id} })) ? 'checked' : undef }) . $line->{id},
+    $table->addrow($html->form_input('NEW_DOMAIN', $line->{id}, { TYPE => 'checkbox', STATE => (defined($admins_domain_hash{ $line->{id} })) ? 'checked' : undef }) . $line->{id},
       $line->{name});
   }
 
@@ -1123,6 +1215,39 @@ sub form_admins_domains {
   );
 
   return 1;
+}
+
+#**********************************************************
+=head2 _paranoid_log_function_filter;
+
+=cut
+#**********************************************************
+sub _paranoid_log_function_filter {
+  my ($function_name) = @_;
+
+  return 'undef' if !($function_name);
+
+  my $params = "index=60&AID=$FORM{AID}&details=$function_name";
+  if ($FORM{FROM_DATE}) {
+    $params = $params . "&FROM_DATE=$FORM{FROM_DATE}&TO_DATE=$FORM{TO_DATE}";
+  }
+
+  return $html->button($function_name, $params);
+}
+
+#**********************************************************
+=head2 _paranoid_log_params_filter;
+
+=cut
+#**********************************************************
+sub _paranoid_log_params_filter {
+  my ($params) = @_;
+
+  if ($params) {
+    $params =~ s/\n/&/g;
+  }
+
+  return $params;
 }
 
 1

@@ -3,6 +3,13 @@
 <div class='box-body'>
 
 <div class='form-group'>
+    <label class='control-label col-md-3' for='NUMBER'>_{NUMBER}_</label>
+  <div class='col-md-9'>
+      <input id='NUMBER' name='ID' value='%REQUESTS_ID_FORM%' placeholder='%REQUESTS_ID_FORM%' class='form-control' type='text'>
+  </div>
+</div>
+
+<div class='form-group'>
     <label class='control-label col-md-3' for='CHAPTERS'>_{CHAPTERS}_</label>
   <div class='col-md-9'>
     %CHAPTER_SEL%

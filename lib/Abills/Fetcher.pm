@@ -88,6 +88,7 @@ sub json_return {
       DEBUG          - Debug mode
       DEBUG2FILE     - Write debug to file (Result is not writed unless DEBUG > 1)
       PAGE_HEADER    - Page header for debug message
+      FILE_CURL      - Curl full path
 
   Returns:
       result string
@@ -187,7 +188,7 @@ sub web_request {
         next if (!$k || !defined($attr->{REQUEST_PARAMS_JSON}->{$k}));
         if (ref $attr->{REQUEST_PARAMS_JSON}->{$k} eq 'ARRAY') {
           if($attr->{JSON_ARRAY_VARS}) {
-            push @request_params_arr, qq{ \\\"$k\\\" : [}
+            push @request_params_arr, " \\\"" . ($k || q{}) . "\\\" : ["
             . '\\"'. join('", "', @{ $attr->{REQUEST_PARAMS_JSON}->{$k} }) . '\\"'
             . q{] };
           }
@@ -202,7 +203,23 @@ sub web_request {
           my @params = ();
           foreach my $key (keys %{ $attr->{REQUEST_PARAMS_JSON}->{$k} }) {
             #$val = urlencode($val);
-            push @params, qq{ \\\"$key\\\" : \\\"$attr->{REQUEST_PARAMS_JSON}->{$k}->{$key}\\\" };
+
+            my $val = $attr->{REQUEST_PARAMS_JSON}->{$k}->{$key};
+
+            if($val) {
+              if(ref $val eq 'ARRAY') {
+                $val = '[\"'. join('\", \"', @$val).'\"]';
+              }
+              else {
+                $val = qq{\\\"$val\\\"};
+              }
+            }
+            else {
+              $val = qq{\\\"$val\\\"};
+            }
+
+
+            push @params, qq{ \\\"$key\\\" : $val };
           }
 
           my $val = join(', ', @params);
@@ -211,7 +228,13 @@ sub web_request {
         }
         else {
           $attr->{REQUEST_PARAMS}->{$k} = urlencode($attr->{REQUEST_PARAMS_JSON}->{$k});
-          push @request_params_arr, qq{ \\\"$k\\\" : \\\"$attr->{REQUEST_PARAMS_JSON}->{$k}\\\" };
+
+          if($attr->{REQUEST_PARAMS}->{$k} =~ /true|false/) {
+            push @request_params_arr, qq{ \\\"$k\\\" : $attr->{REQUEST_PARAMS}->{$k} };
+          }
+          else {
+            push @request_params_arr, qq{ \\\"$k\\\" : \\\"$attr->{REQUEST_PARAMS_JSON}->{$k}\\\" };
+          }
         }
       }
 
@@ -240,8 +263,6 @@ sub web_request {
     $request_url =~ s/\`/\\\`/g;
 
     my $request_cmd = qq{$CURL $curl_options -s "$request_url" $request_params };
-
-    #$result = `$request_cmd` if ($debug < 7);
     $result = cmd($request_cmd, { timeout => defined($attr->{'TIMEOUT'}) ? $attr->{'TIMEOUT'} : 30 }) if ($debug < 7);
 
     if ($? != 0) {
@@ -259,6 +280,9 @@ sub web_request {
           print $fh " $DATE : $TIME ($request_) " . $request_cmd ."\n";
           print $fh "$result\n" if ($debug > 1);
           close($fh);
+        }
+        else {
+          print "$attr->{DEBUG2FILE} $!\n";
         }
       }
       else {

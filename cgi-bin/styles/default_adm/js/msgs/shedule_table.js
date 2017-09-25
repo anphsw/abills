@@ -36,7 +36,7 @@ $(function () {
   isDayTable = $('div#hour-grid').length > 0;
   isMonthTable = $('table.work-table-month').length > 0;
 
-  console.assert(isDayTable != isMonthTable, "Something goes wrong");
+  console.assert(isDayTable !== isMonthTable, "Something goes wrong");
 
 });
 
@@ -231,7 +231,16 @@ var AWorkTable = (function () {
   }
 
   function getTimeRow(startTime, hours, fraction, timeUnit) {
-    if (timeUnit == 0) {
+    var formatTime = function(minutes){
+      var mins = minutes % 60;
+      var hours = (minutes - mins) /60;
+      
+      return  ((hours < 10) ? '0' + hours : hours)
+      +  ':'
+      + ((mins < 10) ? '0' + mins : mins);
+    };
+    
+    if (timeUnit === 0) {
       var quant = fraction;      //in minutes
       var start = startTime * 60; //in minutes from 00:00
       var end = start + (hours * 60); //in minutes from 00:00
@@ -242,8 +251,7 @@ var AWorkTable = (function () {
 
       for (var j = start; j < end; j += quant) {
         var $td = $('<td></td>');
-
-        $td.text(moment({}).minutes(j).format('HH:mm'));
+        $td.text(formatTime(j));
         $td.addClass('timeTd');
         $tr.append($td);
       }

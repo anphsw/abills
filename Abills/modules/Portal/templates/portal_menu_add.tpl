@@ -4,7 +4,7 @@
 
 
 <div class='box box-theme box-form'>
-<div class='box-header with-border'>%TITLE_NAME%</div>
+<div class='box-header with-border'><h4>%TITLE_NAME%</h4></div>
 <div class='box-body'>
   <div class='form-group'>
       <label class='col-md-3 control-label'>_{NAME}_:</label>
@@ -21,12 +21,12 @@
   </div>
 
   <div class='form-group'>
-      <label class='col-md-3 control-label'>_{MENU}_:</label>
-    <div class='col-md-9'>
-        <input type='radio' name='STATUS' value=1 %SHOWED%>_{SHOW}_
-      <br />
-        <input type='radio' name='STATUS' value=0 %HIDDEN%>_{HIDE}_
-    </div>
+  <div class='radio'>
+    <label><input type='radio' name='STATUS' value=1 %SHOWED%>_{SHOW}_ _{MENU}_</label>
+  </div>
+  <div class='radio'>
+    <label><input type='radio' name='STATUS' value=0 %HIDDEN%>_{HIDE}_ _{MENU}_</label>
+  </div>
   </div>
 </div>
 <div class='box-footer'>

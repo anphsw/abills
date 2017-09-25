@@ -6,10 +6,23 @@
         <div class='box-header with-border'><h4>Раздел</h4></div>
         <div class='box-body'>
             <div class='form-group'>
-                <label class='control-label col-md-3'>_{NAME}_:</label>
+                <label class='control-label col-md-4'>_{NAME}_:</label>
 
-                <div class='col-md-9'>
-                    <input class='form-control' type=text name=NAME value='%NAME%' maxlength="21">
+                <div class='col-md-8'>
+                    <input class='form-control' type=text name=NAME value='%NAME%' maxlength="20">
+                </div>
+            </div>
+            <div class='form-group'>
+                <label class='control-label col-md-4'>_{RESPOSIBLE}_:</label>
+                <div class='col-md-8'>
+                  %RESPONSIBLE_SEL%
+                </div>
+            </div>
+            <div class='form-group'>
+                <label class='control-label col-md-4'>_{AUTO_CLOSE}_:</label>
+
+                <div class='col-md-8'>
+                    <input class='form-control' type=text name=AUTOCLOSE value='%AUTOCLOSE%' maxlength="20">
                 </div>
             </div>
             <div class='form-group'>

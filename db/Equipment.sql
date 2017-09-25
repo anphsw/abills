@@ -1,3 +1,5 @@
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION,NO_AUTO_VALUE_ON_ZERO';
+
 CREATE TABLE IF NOT EXISTS `equipment_vendors` (
   `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(50) NOT NULL DEFAULT '',
@@ -91,6 +93,7 @@ CREATE TABLE IF NOT EXISTS `equipment_infos` (
   `serial` VARCHAR(100) NOT NULL DEFAULT '',
   `revision` VARCHAR(10) NOT NULL DEFAULT '',
   `snmp_version` TINYINT(1) UNSIGNED NOT NULL DEFAULT 1,
+  `server_vlan` smallint(6) unsigned NOT NULL DEFAULT 0,
   UNIQUE (`nas_id`)
 )
   COMMENT = 'Equipment info';
@@ -102,11 +105,12 @@ CREATE TABLE IF NOT EXISTS `equipment_ports` (
   `status` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
   `uplink` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `comments` VARCHAR(250) NOT NULL DEFAULT '',
+  `vlan` smallint(2) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   UNIQUE KEY `nas_port` (`nas_id`, `port`)
 )
   COMMENT = 'Equipment ports';
-
+  
 CREATE TABLE IF NOT EXISTS `pon_onus` (
   `uid` INT(11) UNSIGNED NOT NULL DEFAULT 0,
   `mac` VARCHAR(16) NOT NULL DEFAULT '',
@@ -219,7 +223,7 @@ CREATE TABLE IF NOT EXISTS `equipment_mac_log` (
 
 CREATE TABLE IF NOT EXISTS `equipment_pon_onu` (
   `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `port_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `port_id` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   `onu_snmp_id` VARCHAR(30) NOT NULL DEFAULT '',
   `onu_id` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   `onu_mac_serial` VARCHAR(20) NOT NULL DEFAULT '',
@@ -251,37 +255,25 @@ CREATE TABLE IF NOT EXISTS `equipment_pon_ports` (
 )
   COMMENT = 'Equipment PON ports';
 
-
-CREATE TABLE IF NOT EXISTS `equipment_snmp_tpl` (
-  `model_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  `section` VARCHAR(50) NOT NULL DEFAULT '',
-  `parameters` VARCHAR(500) NOT NULL DEFAULT '',
-  PRIMARY KEY (`model_id`, `section`)
-)
-  COMMENT = 'Equipment snmp template';
-
-CREATE TABLE IF NOT EXISTS `equipment_info` (
-  `info_time` DATETIME NOT NULL  DEFAULT CURRENT_TIMESTAMP,
-  `nas_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  `section` VARCHAR(50) NOT NULL DEFAULT '',
-  `result` VARCHAR(500) DEFAULT NULL,
-  UNIQUE KEY `nas_sect` (`nas_id`, `section`)
-)
-  COMMENT = 'Equipment info';
-
 CREATE TABLE `equipment_trap_types` (
   `id` smallint(2) unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(100) NOT NULL DEFAULT '',
+  `object_id` varchar(100) NOT NULL DEFAULT '',
   `type` tinyint(2) unsigned NOT NULL DEFAULT '0',
   `event` tinyint(1) NOT NULL DEFAULT '0',
   `color` varchar(7) NOT NULL DEFAULT '',
+  `skip` tinyint(1) NOT NULL DEFAULT '0',
   `varbind` varchar(50) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
 ) 
   COMMENT='Equipment trap types';
 
-#ALTER TABLE  `equipment_graphs` CHANGE  `mesure_type`  `measure_type` VARCHAR( 10 ) NOT NULL DEFAULT  '';
-#ALTER TABLE  `equipment_pon_onu` CHANGE  `onu_in_byte`  `onu_in_byte` BIGINT( 14 ) UNSIGNED NOT NULL DEFAULT  '0';
-#ALTER TABLE  `equipment_pon_onu` CHANGE  `onu_out_byte`  `onu_out_byte` BIGINT( 14 ) UNSIGNED NOT NULL DEFAULT  '0';
-#ALTER TABLE  `equipment_pon_onu` CHANGE  `onu_snmp_id`  `onu_snmp_id` VARCHAR( 30 ) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT  '';
+CREATE TABLE `equipment_snmp_params` (
+  `id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(32) NOT NULL DEFAULT '',
+  `type` varchar(12) NOT NULL DEFAULT '',
+  `acccess` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `name` (`name`)
+) COMMENT='Equipment snmp params list';

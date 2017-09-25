@@ -11,11 +11,13 @@
   "08:7:$lang{TYPES}:cablecat_connecter_types:"        => 5,
   "09:1:$lang{SPLITTERS} :cablecat_splitters:"         => 5,
   "10:9:$lang{TYPES}:cablecat_splitter_types:"         => 5,
+  "11:1:$lang{CROSSES}:cablecat_crosses:"              => 5,
+  "12:11:$lang{CROSS_TYPES}:cablecat_cross_types:"     => 5,
   
-  "11:1:$lang{COMMUTATIONS}:cablecat_commutations"     => 5,
-  "12:11:$lang{COMMUTATION}:cablecat_commutation::ID"  => 5,
-  "13:11::cablecat_maps_ajax:AJAX"                     => 5,
-  "14:2::cablecat_link_info:AJAX"                      => 5,
+  "13:1:$lang{COMMUTATIONS}:cablecat_commutations"     => 5,
+  "14:13:$lang{COMMUTATION}:cablecat_commutation::ID"  => 5,
+  "15:13::cablecat_maps_ajax:AJAX"                     => 5,
+  "16:13::cablecat_link_info:AJAX"                     => 5,
   
   
   "40:0:Cablecat:null"                                 => 4,

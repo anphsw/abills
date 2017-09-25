@@ -246,7 +246,7 @@ sub _bdcom{
         PARSER => 'bin2mac'
       },
       'ONU_STATUS' => {
-        NAME   => 'Status',
+        NAME   => 'STATUS',
         OIDS   => '.1.3.6.1.4.1.3320.101.10.1.1.26',
         PARSER => ''
       },
@@ -294,7 +294,7 @@ sub _bdcom{
       },
       main_onu_info => {
         'HARD_VERSION' => {
-          NAME => 'Hard_Version',
+          NAME => 'VERSION',
           OIDS => '.1.3.6.1.4.1.3320.101.10.1.1.4',
           PARSER => ''
         },

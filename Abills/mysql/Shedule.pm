@@ -245,6 +245,7 @@ sub add{
 
   Arguments:
     $attr
+      EXECUTE - Execute flag
 
   Result:
     Object

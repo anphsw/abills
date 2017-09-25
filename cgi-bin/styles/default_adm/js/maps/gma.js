@@ -136,6 +136,7 @@ $(function () {
     var $districts_chb    = $('#DISTRICTS_ARE_NO_REAL');
     var $districts_select = $('select#DISTRICT_ID');
     var $streets_select   = $('select#STREET_ID');
+    var $zip_code_inp     = $('input#ZIP_CODE_ID');
   
     var current_request = null;
     var stopped = false;
@@ -146,6 +147,15 @@ $(function () {
     
     $districts_select.on('change', function () {
       ATableModifier.reloadTable();
+      $.getJSON('?qindex=70&header=2&json=1&chg=' + jQuery(this).val(), function(district_info){
+        try {
+          $zip_code_inp.val(district_info['_INFO']['ZIP']);
+        }
+        catch (Error){
+          console.log("Can't load ZIP_CODE : " + Error);
+        }
+      });
+      
       $streets_select.load('?qindex=30&address=1&DISTRICT_ID=' + this.value);
     });
     
@@ -213,22 +223,28 @@ $(function () {
         return true;
       }
       
+      var zip_code               = $zip_code_inp.val();
+      var country_code           = $country_code_inp.val();
       var districts_are_not_real = $districts_chb.prop('checked');
       var district_name          = (districts_are_not_real) ? '' : ( build.district_name + ", ");
-      var requested_addr         = build.city + ', '
+      var requested_addr         = country_code + ' '
+          + build.city + ', '
           + district_name
           + build.street_name + ', '
           + build.number;
       
-      var params = $.param({
+      var params = {
         qindex         : single_coord_index,
         header         : 2,
         //json : 1,
         REQUEST_ADDRESS: requested_addr,
         BUILD_ID       : build.id
-      });
+      };
+      if (zip_code){
+        params['ZIP_CODE'] = zip_code;
+      }
       
-      current_request = $.getJSON(SELF_URL, params, function (responce) {
+      current_request = $.getJSON(SELF_URL, $.param(params), function (responce) {
         aProgressBar.update(1, responce.status);
         
         ATableModifier.handleStatus(responce.status, responce);

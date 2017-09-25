@@ -19,7 +19,7 @@
       </div>
     </div>
     <div class='box-footer'>
-      <button type='submit' name='ACTION' class='btn btn-primary'>%ACTION_LNG%</button>
+      <input type='submit' name='%ACTION%' value='%ACTION_LNG%' class='btn btn-primary'>
     </div>
   </div>
 

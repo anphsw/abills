@@ -1,6 +1,9 @@
 <style type="text/css">
 
-  
+  .important {
+    background: #f78345;
+  }
+
   .article-header{
     color:black;
     font-size: 16pt;
@@ -16,7 +19,7 @@
   }
 </style>
 
-<div class='%ACTIVE% item'>
+<div class='%ACTIVE% item %IMPORTANT%'>
     
     <div class='carousel-caption'>
       <h3 class='article-header'>%TITLE%</h3>

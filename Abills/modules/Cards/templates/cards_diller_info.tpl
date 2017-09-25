@@ -1,5 +1,5 @@
 <div class='box box-info box-form form-horizontal'>
-<div class='box-header with-border text-center'>_{INFO}_</div>
+<div class='box-header with-border'><h4>_{INFO}_</h4></div>
 <div class='box-body'>
   <div class='form-group'>
     <label class='col-md-3 control-label text-center'>_{DEPOSIT}_</label>
@@ -28,7 +28,7 @@
   <div class='form-group'>
     <label class='col-md-3 control-label text-center'>_{ADDRESS}_</label>
     <div class='col-md-9'>
-    <input type='text' class='form-control' value='%ADDRESS%' disabled>
+    <input type='text' class='form-control' value='%ADDRESS_FULL%' disabled>
     </div>
   </div>
   <div class='form-group'>

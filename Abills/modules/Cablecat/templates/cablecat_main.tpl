@@ -3,12 +3,14 @@
   <div class='box-body text-left'>
 
     <ul class='list-group'>
+      %GO_TO_MAP_BTN%
       %COLOR_SCHEMES_BTN%
       %CABLES_BTN%
       %WELLS_BTN%
       %SPLITTERS_BTN%
       %CONNECTERS_BTN%
       %COMMUTATIONS_BTN%
+      %CROSSES_BTN%
     </ul>
 
     <div class='box-footer text-center'></div>

@@ -16,7 +16,7 @@
   <!-- Header Navbar -->
   <nav class='navbar navbar-static-top %HEADER_FIXED_CLASS% ' role='navigation'>
     <!-- Sidebar toggle button-->
-    <a href='#' class='sidebar-toggle' data-toggle='offcanvas' role='button'>
+    <a href='#' class='sidebar-toggle' data-toggle='offcanvas' role='button' title='_{PRIMARY}_ _{MENU}_'>
       <span class='sr-only'>Toggle navigation</span>
     </a>
     <a href='$SELF_URL' class='header-btn-link visible-xs' role='button'>
@@ -28,7 +28,7 @@
         <!-- Messages: style can be found in dropdown.less-->
         <li class='dropdown messages-menu hidden' id='messages-menu' data-meta='{%ADMIN_MSGS%}'>
           <!-- Menu toggle button -->
-          <a href='#' class='dropdown-toggle' data-toggle='dropdown'>
+          <a href='#' class='dropdown-toggle' data-toggle='dropdown' title='_{MESSAGES}_ _{ALL}_'>
             <i class='fa fa-envelope-o'></i>
             <span id='badge_messages-menu' class='icon-label label label-danger hidden'></span>
             <span id='badge2_messages-menu' class='icon-label label2 label-warning hidden'></span>
@@ -61,7 +61,7 @@
                 <input type='hidden' name='full' value='1'>
                 <div class='input-group input-group-sm' style='padding: 2px 10px'>
                 <input class='form-control' id='search_input' name='chg' type='text'>
-                <span id='search_addon' type='submit' class='input-group-btn'>
+                <span id='search_addon' class='input-group-btn'>
                   <button  name='search'  class='btn btn-default' type='submit'>
                     <i class='fa fa-search'></i>
                   </button>
@@ -85,7 +85,7 @@
         <!-- Messages: style can be found in dropdown.less-->
         <li class='dropdown messages-menu hidden' id='responsible-menu' data-meta='{%ADMIN_RESPONSIBLE%}'>
           <!-- Menu toggle button -->
-          <a href='#' class='dropdown-toggle' data-toggle='dropdown'>
+          <a href='#' class='dropdown-toggle' data-toggle='dropdown' title='_{MESSAGES}_ _{RESPOSIBLE}_'>
             <i class='fa fa-flag-o'></i>
             <span id='badge_responsible-menu' class='icon-label label label-danger hidden'></span>
             <span id='badge2_responsible-menu' class='icon-label label2 label-warning hidden'></span>
@@ -119,8 +119,8 @@
           "UPDATE" : "?get_index=events_main&sort=4&desc=DESC&EXPORT_CONTENT=EVENTS_LIST&header=1&json=1&PAGE_ROWS=20",
           "AFTER" : 30,"REFRESH" : 30, "ENABLED" : "%EVENTS_ENABLED%"
           }'>
-          <!-- Menu toggle button -->
-          <a href='#' class='dropdown-toggle' data-toggle='dropdown'>
+          <!-- Events menu toggle button -->
+          <a href='#' class='dropdown-toggle' data-toggle='dropdown' title='_{EVENTS}_'>
             <i class='fa fa-bell-o'></i>
             <span id='badge_events-menu' class='icon-label label label-danger hidden'></span>
             <span id='badge2_events-menu' class='icon-label label2 label-warning hidden'></span>
@@ -148,6 +148,7 @@
           </ul>
         </li>
         <!--/.events-menu-->
+
 
         <!--Tasks Menu-->
         <li class='dropdown search-menu'>
@@ -185,11 +186,10 @@
             <div class='search_selector'>%SEL_TYPE%</div>
             <div class='search_input'>
               <div class='input-group margin search'>
-                <input name='LOGIN' type='text'
-                       class='form-control input-sm UNIVERSAL_SEARCH' placeholder='_{SEARCH}_...'
-                       required='required'>
+                <input name='LOGIN' type='text' placeholder='_{SEARCH}_...' required='required'
+                       class='form-control input-sm UNIVERSAL_SEARCH' />
                 <span class='input-group-btn'>
-                  <button type='submit' id='search-btn' class='btn btn-flat  input-sm'>
+                  <button type='submit' id='search-btn' class='btn btn-sm btn-flat'>
                     <i class='fa fa-search'></i>
                   </button>
                 </span>
@@ -197,21 +197,25 @@
             </div>
           </form>
         </li>
-        <li id='wiki-link'>
-          <a href='http://abills.net.ua/wiki/doku.php/abills:docs:manual:admin:%FUNCTION_NAME%'
-             target='_blank'><i class='fa fa-question'></i>
 
+        <!-- Wiki link -->
+        <li id='wiki-link' class='hidden-xs'>
+          <a href='http://abills.net.ua/wiki/doku.php/abills:docs:manual:admin:%FUNCTION_NAME%'
+             target='_blank' title='ABillS Wiki'>
+            <i class='fa fa-question'></i>
           </a>
         </li>
-        <li>
-          <a href='#'
+
+        <li class='hidden-xs'>
+          <a href='#' title='QRCode'
              onclick='showImgInModal(\"$SELF_URL?$ENV{QUERY_STRING}&amp;qrcode=1&amp;qindex=100000&amp;name=qr_code\")'>
             <i class='fa fa-qrcode'></i>
           </a>
         </li>
+
         <!-- Control Sidebar Toggle Button -->
         <li id='control-sidebar-open-btn'>
-          <a href='#' data-toggle='control-sidebar'><i class='fa fa-gears'></i></a>
+          <a href='#' data-toggle='control-sidebar' title='_{EXTRA}_ _{MENU}_'><i class='fa fa-gears'></i></a>
         </li>
 
       </ul>
@@ -266,8 +270,7 @@
       <div class='pull-left info'>
         <p>$admin->{A_FIO}</p>
         <!-- Status -->
-        <a href='#' data-tooltip='%ONLINE_USERS%'> Online <span class='label label-success'> %ONLINE_COUNT%</span>
-        </a>
+        <a href='#' id='admin-status' data-tooltip='%ONLINE_USERS%'>Online&nbsp;<span class='label label-success'>%ONLINE_COUNT%</span></a>
       </div>
     </div>
     <!-- Sidebar Menu -->
@@ -278,7 +281,7 @@
 </aside>
 
 <!-- Content Wrapper. Contains page content -->
-<div class='content-wrapper' id='content-wrapper' style='overflow: auto;'>
+<div class='content-wrapper' id='content-wrapper'>
   <script>
     if (jQuery('nav.navbar.navbar-static-top.navbar-fixed-top').length) {
       jQuery('div.content-wrapper').css({'padding-top': '50px'});

@@ -53,12 +53,46 @@ $lang{DELETE_LINK} = 'Delete link';
 $lang{CONNECT} = 'Connect';
 $lang{CONNECT_BY_NUMBER} = 'Connect by number';
 $lang{ATTENUATION} = 'Attenuation';
-$lang{REMOVE_CABLE_FROM_SCHEME} = 'Remove cable from scheme';
+$lang{REMOVE_FS_FROM_SCHEME} = 'Remove %s from scheme';
 $lang{GO_TO_COMMUTATION} = 'Go to commutation';
         
 $lang{FIBER} = 'Fiber';
 $lang{ENTER} = 'In';
 $lang{OUTER} = 'Out';
 $lang{DIRECTION} = 'Direction';
+
+$lang{CREATE_COMMUTATION} = 'Create commutation';
+
+$lang{CROSS} = 'Cross';
+$lang{CROSSES} = 'Crosses';
+$lang{RACK_MOUNTABLE} = 'Rack-mountable';
+$lang{RETRACTABLE} = 'Retractable';
+$lang{SOLID_PANEL} = 'Solid panel';
+$lang{CHANGEABLE_PLANKS} = 'Changeable planks';
+$lang{CROSS_TYPE} = 'Cross type';
+$lang{CROSS_TYPES} = 'Cross types';
+$lang{PANEL_TYPE} = 'Panel type';
+$lang{RACK_HEIGHT} = 'Rack height';
+$lang{PORTS_TYPE} = 'Ports type';
+$lang{POLISH_TYPE} = 'Polish type';
+$lang{FIBER_TYPE} = 'Fiber type';
+$lang{PORTS_COUNT} = 'Ports count';
+
+$lang{RACK} = 'Rack';
+$lang{SERVER_ROOM} = 'Server room';
+
+$lang{INSIDE} = 'Inside';
+$lang{CONTAINS} = 'Contains';
+
+$lang{PLANNED} = 'Planned';
+
+$lang{NO_PORTS_COUNT} = 'No ports count specified';
+$lang{ALREADY_ON_ANOTHER_COMMUTATION} = 'Already exists on another commutation';
+$lang{NO_FREE_EQUIPMENT} = 'No free equipment';
+
+$lang{NO_OTHER_COMMUTATIONS} = 'No other commutations';
+$lang{OTHER_COMMUTATIONS} = 'Other commutations';
+
+$lang{CONNECTION_PARAMS} = 'Connection params';
 
 1;

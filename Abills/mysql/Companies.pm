@@ -98,7 +98,10 @@ sub change {
 
   if ($attr->{CREATE_BILL}) {
     my $Bill = Bills->new($self->{db}, $admin, $CONF);
-    $Bill->create({ COMPANY_ID => $self->{ID}, UID => 0 });
+    $Bill->create({
+      COMPANY_ID => $self->{ID} || $attr->{ID},
+      UID        => 0
+    });
     if ($Bill->{errno}) {
       $self->{errno}  = $Bill->{errno};
       $self->{errstr} = $Bill->{errstr};
@@ -107,7 +110,7 @@ sub change {
     $attr->{BILL_ID} = $Bill->{BILL_ID};
 
     if ($attr->{CREATE_EXT_BILL}) {
-      $Bill->create({ COMPANY_ID => $self->{ID} });
+      $Bill->create({ COMPANY_ID => $self->{ID} || $attr->{ID} });
       if ($Bill->{errno}) {
         $self->{errno}  = $Bill->{errno};
         $self->{errstr} = $Bill->{errstr};
@@ -262,29 +265,64 @@ sub list {
   }
 
   my $WHERE =  $self->search_former($attr, [
-      ['COMPANY_NAME',   'STR', 'c.name',          ],
-      ['DEPOSIT',        'INT', 'b.deposit',     1 ],
-      ['CREDIT',         'INT', 'c.credit',      1 ],
-      ['USERS_COUNT',    'INT', 'count(u.uid) AS users_count', 1 ],
-      ['CREDIT_DATE',    'DATE','c.credit_date', 1 ],
-      ['ADDRESS',        'STR', 'c.address',     1 ],
-      ['REGISTRATION',   'DATE','c.registration',1 ],
-      ['DISABLE',        'INT', 'c.disable AS status',  1 ],
-      ['CONTRACT_ID',    'INT', 'c.contract_id', 1 ],
-      ['COMPANY_ID',     'INT', 'c.id',            ],
+      ['COMPANY_NAME',   'STR',  'c.name',            ],
+      ['DEPOSIT',        'INT',  'b.deposit',       1 ],
+      ['CREDIT',         'INT',  'c.credit',        1 ],
+      ['USERS_COUNT',    'INT',  'COUNT(u.uid) AS users_count', 1 ],
+      ['CREDIT_DATE',    'DATE', 'c.credit_date',   1 ],
+      ['ADDRESS',        'STR',  'c.address',       1 ],
+      ['REGISTRATION',   'DATE', 'c.registration',  1 ],
+      ['DISABLE',        'INT',  'c.disable AS status',  1 ],
+      ['CONTRACT_ID',    'INT',  'c.contract_id',   1 ],
+      ['CONTRACT_DATE',  'DATE', 'c.contract_date',1 ],
+      ['CONTRACT_SUFIX', 'STR',  'c.contract_sufix',1 ],
+      ['ID',             'INT',  'c.id'               ],
+      ['BILL_ID',        'INT',  'c.bill_id',       1 ],
+      ['TAX_NUMBER',     'STR',  'c.tax_number',    1 ],
+      ['BANK_ACCOUNT',   'STR',  'c.bank_account',  1 ],
+      ['BANK_NAME',      'STR'.  'c.bank_name',     1 ],
+      ['COR_BANK_ACCOUNT','STR', 'c.cor_bank_account', 1],
+      ['BANK_BIC',       'STR',  'c.bank_bic',      1 ],
+      ['PHONE',          'STR',  'c.phone',         1 ],
+      ['VAT',            'INT',  'c.vat',           1 ],
+      ['EXT_BILL_ID',    'INT',  'c.ext_bill_id',   1 ],
+      ['DOMAIN_ID',      'INT',  'c.domain_id',     1 ],
+      ['REPRESENTATIVE', 'STR',  'c.representative',1 ],
+      ['LOCATION_ID',    'INT',  'c.location_id',   1 ],
+      ['ADDRESS_FLAT',   'STR',  'c.address_flat',  1 ],
+      ['COMPANY_ADMIN',  'INT',  'u.uid',           1 ],
+      ['COMPANY_ID',     'INT',  'c.id',              ],
     ],
     {
-      WHERE_RULES => \@WHERE_RULES,
-      WHERE       => 1,
+      WHERE_RULES      => \@WHERE_RULES,
+      USERS_FIELDS_PRE => 1,
+      USE_USER_PI      => 1,
+      SKIP_USERS_FIELDS=> [ 'DEPOSIT', 'CREDIT', 'BILL_ID' ],
+      WHERE            => 1,
     }
   );
 
-  $self->{COL_NAMES_ARR}=undef;
+  my $EXT_TABLE = q{};
+  if($attr->{COMPANY_ADMIN}) {
+    $EXT_TABLE .= "LEFT JOIN companie_admins ca ON (ca.uid = u.uid)";
+  }
 
+  if($self->{SEARCH_FIELDS} =~ /pi\./) {
+    $EXT_TABLE .= "LEFT JOIN users_pi pi ON (u.uid = pi.uid)";
+  }
+  
+  if ($self->{SEARCH_FIELDS} =~ /streets\.|builds\./){
+    $EXT_TABLE .= qq{ LEFT JOIN builds ON (builds.id = c.location_id)
+                     LEFT JOIN streets ON (streets.id = builds.street_id)
+                     LEFT JOIN districts ON (districts.id = streets.district_id)
+    };
+  }
+  
   $self->query2("SELECT c.name, $self->{SEARCH_FIELDS} c.id 
     FROM companies  c
     LEFT JOIN users u ON (u.company_id=c.id)
     LEFT JOIN bills b ON (b.id=c.bill_id)
+    $EXT_TABLE
     $WHERE
     GROUP BY c.id
     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
@@ -294,7 +332,8 @@ sub list {
   $list = $self->{list};
 
   if ($self->{TOTAL} > 0 || $PG > 0) {
-    $self->query2("SELECT COUNT(DISTINCT c.id) AS total FROM companies c
+    $self->query2("SELECT COUNT(DISTINCT c.id) AS total
+    FROM companies c
     LEFT JOIN users u ON (u.company_id=c.id)
     LEFT JOIN bills b ON (b.id=c.bill_id)
      $WHERE;",
@@ -332,18 +371,20 @@ sub admins_list {
     push @WHERE_RULES, "c.id='$attr->{COMPANY_ID}'";
   }
 
-  my $WHERE = ' AND ' . join(' and ', @WHERE_RULES) if ($#WHERE_RULES > -1);
+  my $WHERE = ($#WHERE_RULES > -1) ? 'WHERE '. join(' AND ', @WHERE_RULES) : q{};
 
-  $self->query2("SELECT IF(ca.uid is null, 0, 1) AS is_company_admin,
+  $self->query2("SELECT IF(ca.uid IS null, 0, 1) AS is_company_admin,
       u.id AS login,
       pi.fio,
       pi.email,
       u.uid
-    FROM (companies  c, users u)
+    FROM companies  c
+    INNER JOIN users u ON (u.company_id=c.id)
     LEFT JOIN companie_admins ca ON (ca.uid=u.uid)
     LEFT JOIN users_pi pi ON (pi.uid=u.uid)
-    WHERE u.company_id=c.id $WHERE
-    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+    $WHERE
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
     undef,
     $attr
   );

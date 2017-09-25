@@ -51,7 +51,7 @@ sub ping_main {
         REPLACE => 1,
         VALUE   => $FORM{PACKET_NUM} ? $FORM{PACKET_NUM} : '',
       }
-    ),
+    );
 
     $Conf->config_add(
       {
@@ -59,7 +59,7 @@ sub ping_main {
         REPLACE => 1,
         VALUE   => $FORM{PACKET_SIZE} ? $FORM{PACKET_SIZE} : '',
       }
-    ),
+    );
 
     $Conf->config_add(
       {
@@ -67,7 +67,7 @@ sub ping_main {
         REPLACE => 1,
         VALUE   => $FORM{PERIODIC} ? $FORM{PERIODIC} : '',
       }
-    ),
+    );
 
     $Conf->config_add(
       {
@@ -75,7 +75,7 @@ sub ping_main {
         REPLACE => 1,
         VALUE   => $FORM{PING_PERIODIC} ? $FORM{PING_PERIODIC} : '',
       }
-    ),
+    );
 
     $Conf->config_add(
       {
@@ -83,13 +83,21 @@ sub ping_main {
         REPLACE => 1,
         VALUE   => $FORM{ACCEPTABLE_LOSS_RATE} ? $FORM{ACCEPTABLE_LOSS_RATE} : '',
       }
-    ),
+    );
 
     $Conf->config_add(
       {
         PARAM   => 'CRITICAL_RATE_LOSSES',
         REPLACE => 1,
         VALUE   => $FORM{CRITICAL_RATE_LOSSES} ? $FORM{CRITICAL_RATE_LOSSES} : '',
+      }
+    );
+
+    $Conf->config_add(
+      {
+        PARAM   => 'THREADS',
+        REPLACE => 1,
+        VALUE   => $FORM{THREADS} ? $FORM{THREADS} : '',
       }
     );
 
@@ -119,10 +127,8 @@ sub ping_main {
 =cut
 #**********************************************************
 sub ping_menu {
-  my (%inputs) = @_;
   my @ping_menu = ($lang{SETTINGS} . '::::' . get_function_index('ping_main'), $lang{REPORTS} . '::::' . get_function_index('ping_reports'), $lang{LIST} . '::::' . get_function_index('ping_users_reports_table'),);
-  func_menu({ $lang{NAME} => '' }, \@ping_menu, { f_args => %inputs ? %inputs : '' });
-
+  func_menu({ $lang{NAME} => '' }, \@ping_menu);
   return 1;
 }
 
@@ -174,6 +180,7 @@ sub ping_reports {
 
   delete $FORM{FROM_DATE};
   delete $FORM{TO_DATE};
+
   my $user_ping_list_witout_loss = $Ping->list(
     {
       %sql_params,

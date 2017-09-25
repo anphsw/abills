@@ -5,7 +5,7 @@
 
     <fieldset>
 
-        <div class='box box-theme box-form'>
+        <div class='box box-theme box-big-form'>
             <div class='box-header with-border'><h4 class='box-title'>_{FEES}_</h4></div>
             <div class='box-body'>
 

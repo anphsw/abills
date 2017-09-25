@@ -63,7 +63,6 @@ sub form_quick_reports{
       width      => '640',
       caption    => "$lang{QUICK} $lang{REPORTS}",
       title      => [ ' ', "$lang{NAME}", '-', "$lang{SHOW}" ],
-      cols_align => [ 'left', 'right', 'right', 'right' ],
       ID         => 'QR_LIST'
     }
   );
@@ -99,7 +98,6 @@ sub start_page_add_users{
       width       => '100%',
       caption     => "$lang{REGISTRATION}",
       title_plain => [ "$lang{LOGIN}", "$lang{REGISTRATION}", "$lang{ADDRESS}", "$lang{DEPOSIT}" ],
-      cols_align  => [ 'left', 'right', 'right', 'right', 'right', 'right', 'right' ],
       ID          => 'QR_REGISTRATION'
     }
   );
@@ -141,7 +139,6 @@ sub start_page_last_payments{
       width       => '100%',
       caption     => "$lang{LAST_PAYMENT}",
       title_plain => [ "$lang{LOGIN}", "$lang{DATE}", "$lang{SUM}", "$lang{ADMIN}" ],
-      cols_align  => [ 'left', 'right', 'right', 'right' ],
       ID          => 'LAST_PAYMENTS'
     }
   );
@@ -188,7 +185,6 @@ sub start_page_fin_summary{
       width       => '100%',
       caption     => $lang{PAYMENTS},
       title_plain => [ "$lang{PERIOD}", "$lang{COUNT}", "$lang{SUM}" ],
-      cols_align  => [ 'left', 'right', 'right', 'right' ],
       ID          => 'FIN_SUMMARY',
       rows        => [
         [ $html->button( $lang{DAY}, "index=2&DATE=$DATE&search=1" ),
@@ -225,7 +221,6 @@ sub start_page_payments_types{
       width       => '100%',
       caption     => "$lang{PAYMENT_TYPE} $DATE",
       title_plain => [ "$lang{TYPE}", "$lang{COUNT}", "$lang{SUM}" ],
-      cols_align  => [ 'left', 'right', 'right', 'right' ],
       ID          => 'PAYMENTS_TYPES',
     }
   );
@@ -257,7 +252,6 @@ sub start_page_users_summary{
     {
       width      => '100%',
       caption    => "$lang{USERS}",
-      cols_align => [ 'left', 'right', 'right', 'right' ],
       ID         => 'USERS_SUMMARY',
       rows       => [
         [ $html->button( $lang{TOTAL}, "index=11" ),
@@ -299,7 +293,6 @@ sub start_page_payments_self{
     {
       width      => '100%',
       caption    => "$lang{PAYMENTS} $lang{ADDED}",
-      cols_align => [ 'left', 'right' ],
       ID         => 'TODAY_PAYMENTS',
       EXPORT     => 1,
       rows       => [

@@ -13,6 +13,21 @@
         </div>
       </div>
 
+      <div class="radio">
+        <label>
+          <input type="radio" name="TYPE_NAME" id="SPLITTER_TYPE_FBT_id" value="FBT">
+          FBT
+        </label>
+      </div>
+      <div class="radio">
+        <!--TODO: checked-->
+        <label>
+          <input type="radio" name="TYPE_NAME" id="SPLITTER_TYPE_PLC_id" value="PLC">
+          PLC
+        </label>
+      </div>
+
+
       <div class='form-group'>
         <label class='control-label col-md-3 required' for='IN_ID'>_{FIBERS_IN}_</label>
         <div class='col-md-9'>

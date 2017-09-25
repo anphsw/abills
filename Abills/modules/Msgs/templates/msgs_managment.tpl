@@ -39,6 +39,8 @@
            class='btn btn-default glyphicon glyphicon-hand-up' TITLE='_{COMPETENCE}_ _{UP}_ (%DELIGATED%)'></a>
         %INNER_MSG_TEXT%
         %WORK_BTN%
+        %MSG_PRINT_BTN%
+        %ADD_TAGS_BTN%
       </div>
     </div>
 
@@ -144,6 +146,14 @@
 
       <div class='col-md-12'>
         %ADMIN_READ%
+      </div>
+    </div>
+
+    <div class='form-group'>
+      <label class='col-md-12'>_{TIME_IN_WORK}_:</label>
+
+      <div class='col-md-12'>
+        %TICKET_RUN_TIME%
       </div>
     </div>
 

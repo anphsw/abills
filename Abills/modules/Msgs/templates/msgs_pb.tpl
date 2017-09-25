@@ -26,6 +26,33 @@
 	</div>
 </div>
 
+ <div class='form-group'>
+    <div class='checkbox'>
+      <label class='col-md-3'></label>
+    <label>
+      <input type='checkbox' name='USER_NOTICE' %USER_NOTICE% >_{USER_NOTICE}_
+    </label>
+  </div>
+  </div>
+
+   <div class='form-group'>
+    <div class='checkbox'>
+      <label class='col-md-3'></label>
+    <label>
+      <input type='checkbox' name='RESPONSIBLE_NOTICE' %RESPONSIBLE_NOTICE% >_{RESPONSIBLE_NOTICE}_
+    </label>
+  </div>
+  </div>
+
+   <div class='form-group'>
+    <div class='checkbox'>
+      <label class='col-md-3'></label>
+    <label >
+      <input type='checkbox' name='FOLLOWER_NOTICE' %FOLLOWER_NOTICE%>_{FOLLOWER_NOTICE}_
+    </label>
+  </div>
+  </div>
+
 </div>
 <div class='box-footer'>
 <input type=submit name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'>

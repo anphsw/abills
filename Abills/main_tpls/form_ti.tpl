@@ -5,6 +5,10 @@
 
 <div class='box box-theme box-form'>
 
+<div class='box-header with-border'>
+  <h4 class='box-title'>_{INTERVALS}_</h4>
+</div>
+
 <div class='box-body'>
 
 <div class='form-group'>
@@ -36,7 +40,7 @@
   </div>
 </div>
 </div>
-<div class='box-footer text-center'>
+<div class='box-footer'>
 <input type=submit class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
 </div>
 </div>

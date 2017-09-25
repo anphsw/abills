@@ -20,7 +20,14 @@
       href="http://browsehappy.com/">upgrade your browser</a> or <a
       href="http://www.google.com/chromeframe/?redirect=true">activate Google Chrome Frame</a> to use the site.</p>
   <![endif]-->
-  <script src='/styles/%HTML_STYLE%/js/bootstrap.min.js'></script>
+
+  <!-- TRY TO WITHOUT IT -->
+  <!-- <script src='/styles/%HTML_STYLE%/js/bootstrap.min.js'></script> -->
+  <script src='/styles/%HTML_STYLE%/js/chosen.jquery.min.js'></script>
+  <!-- <script src='/styles/default_adm/js/navBarCollapse.js' language='javascript'></script> -->
+  <script src='/styles/lte_adm/plugins/datepicker/bootstrap-datepicker.js'></script>
+  <script src='/styles/lte_adm/plugins/timepicker/bootstrap-timepicker.min.js'></script>
+
   <script type='text/javascript'>
     function selectLanguage() {
       var sLanguage = jQuery('#language').val() || '';
@@ -45,6 +52,14 @@
 
 
   <style>
+  #form_login span.glyphicon {
+    top : 0;
+  }
+
+  #form_login #input_wrapper{
+    padding: 20px 30px 20px
+  }
+
     .brand-logo {
       padding: 2px;
       margin-right: 4em;
@@ -52,6 +67,14 @@
 
     .login-button {
       margin: 5px 5px;
+    }
+
+    .btn-group {
+      padding-right:28px;
+    }
+
+    .timeline {
+      margin-top: 15px;
     }
 
     .modal-header-primary {
@@ -62,15 +85,23 @@
       border-top-left-radius: 5px;
       border-top-right-radius: 5px;
     }
+
+    .main-header .navbar {
+      margin-left:0;
+    }
+
+    body {
+      background-color: #ecf0f5;
+    }
   </style>
 
 </head>
-<body>
+<body class='skin-blue-light sidebar-collapse layout-boxed '>
 <div id='login_form' class='modal fade' role='dialog'>
   <form method='post' class='form form-horizontal' id='form_login'
         action='$ENV{PROT}://$ENV{SERVER_NAME}:$ENV{SERVER_PORT}/index.cgi'>
 
-    <div class='modal-dialog'>
+    <div class='modal-dialog modal-sm'>
       <div class='modal-content'>
 
         <div class='modal-header modal-header-primary text-center'>
@@ -79,34 +110,42 @@
           </button>
           <label class='control-label'><h3>_{SIGN_IN}_</h3></label>
         </div>
-        <div class='row'>
-          <div class='modal-body'>
+        <div class='modal-body'>
+          <div class='row' id='input_wrapper'>
             <div class='col-md-12 text-center'>%WRONG_PASSWD%</div>
-            <div class='col-md-12 '>
+            <div class='form-group has-feedback'>
+            <div class='input-group'>
+              <span class='input-group-addon glyphicon glyphicon-globe'></span>
+              %SEL_LANGUAGE%
+            </div>
+          </div>
 
-              <div class='form-group'>
-                <label class='control-label col-md-3' for='user'>_{LANGUAGE}_</label>
+          <div class='form-group'>
+            <div class='input-group'>
+              <span class='input-group-addon glyphicon glyphicon-user'></span>
+              <input type='text' id='user' name='user' value='%user%' class='form-control' placeholder='_{LOGIN}_'>
+            </div>
+          </div>
 
-                <div class='col-md-9'>
-                  %SEL_LANGUAGE%
-                </div>
-              </div>
-              <div class='form-group'>
-                <label class='col-md-3 control-label' for='user'>_{LOGIN}_</label>
-                <div class='col-md-9'>
-                  <input class='form-control' id='user' name='user'
-                         onfocus='this.value=\"\"' type='text'/>
-                </div>
-              </div>
+          <div class='form-group'>
+            <div class='input-group'>
+              <span class='input-group-addon glyphicon glyphicon-lock'></span>
+              <input type='password' id='passwd' name='passwd' value='%password%' class='form-control'
+                     placeholder='_{PASSWD}_'>
+            </div>
+          </div>
 
-              <div class='form-group'>
-                <label class='col-md-3 control-label' for='passwd'>_{PASSWD}_</label>
-                <div class='col-md-9'>
-                  <input class='form-control' id='passwd' name='passwd'
-                         onfocus='this.value=\"\"' type='password'/>
-                </div>
+          <div class='row'>
+            <!-- /.col -->
 
-              </div>
+            <button type='submit' name='logined' class='btn btn-success btn-block btn-flat form-control'
+                    onclick='set_referrer()'>_{ENTER}_
+            </button>
+
+            <!-- /.col -->
+          </div>
+
+        </div>
             </div>
             <div class='form-group text-center'>
               <link rel='stylesheet' href='/styles/default_adm/css/client_social_icons.css'>
@@ -114,11 +153,9 @@
                 %SOCIAL_AUTH_BLOCK%
               </ul>
             </div>
-          </div>
-        </div>
         <div class='modal-footer'>
           <a href='registration.cgi?FORGOT_PASSWD=1' target='_blank'>_{FORGOT_PASSWORD}_?</a>
-          <input type='submit' class='btn btn-primary' value='_{ENTER}_'/>
+          
         </div>
 
       </div>
@@ -128,39 +165,52 @@
 </div>
 
 <div class='container'>
-  <div id='topPan'>
 
-    <nav class='navbar navbar-default'>
+<header class='main-header'>
+  <nav class='navbar navbar-static-top'>
+    <div class='container-fluid'>
       <div class='navbar-header'>
-        <div id='ImgPan'>
-          <a href='$SELF_URL'>
-            <!-- #TODO: custom logo image-->
-            <img src='/styles/default_adm/img/portal/abills_logo_tp.png'
-                 class='brand-logo navbar-brand' title='_{ON_MAIN_PAGE}_'
-                 alt='_{ON_MAIN_PAGE}_'
-                 width='79' height='46'
-            />
-          </a>
-        </div>
+        <a href='index.cgi' class='navbar-brand'>
+        <!-- mini logo for sidebar mini 50x50 pixels -->
+        <span class='logo-mini'>
+          <b><span style="color: red;">A</span></b>BillS
+        </span>
+        </a>
 
-      </div>
-      <ul class='nav navbar-nav'>
-        %MENU%
-      </ul>
-
-      <div class='pull-right'>
-        <!-- <a class='btn btn-primary btn-lg' href='registration.cgi?' target='_blank'>_{REGISTRATION}_</a> -->
-        %REGISTRATION%
-        <button class='btn btn-info btn-lg login-button' data-toggle='modal' data-target='#login_form'>
-          _{USER_PORTAL}_
+        <button type='button' class='navbar-toggle collapsed' data-toggle='collapse' data-target='#navbar-collapse'>
+          <i class='fa fa-bars'></i>
         </button>
-      </div>
-    </nav>
+       </div>
 
-  </div>
 
-  <div id='bodyPan'>
+
+  
+      <!-- Collect the nav links, forms, and other content for toggling -->
+      <div class='collapse navbar-collapse' id='navbar-collapse'>
+        <ul class='nav navbar-nav'>
+          %MENU%
+        </ul>
+  
+        <ul class='nav navbar-nav navbar-right'>
+          <li>
+          %REGISTRATION%
+          </li>
+          <li>
+          <a href='#' class='' title='_{USER_PORTAL}_' data-toggle='modal' data-target='#login_form'>
+            _{USER_PORTAL}_
+          </a>
+          </li>
+        </ul>
+      </div><!-- /.navbar-collapse -->
+    </div><!-- /.container-fluid -->
+  </nav>`
+</header>
+
+<div id='bodyPan'>
+  
+  <ul class="timeline">
     %CONTENT%
+  </ul>
   </div>
 
   <div id='bodyMiddlePan'>

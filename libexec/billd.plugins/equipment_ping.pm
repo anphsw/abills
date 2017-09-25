@@ -10,14 +10,17 @@
 
 use Equipment;
 use Net::Ping;
+use Events::API;
 our (
   $Admin,
   $db,
   %conf,
-  $argv
+  $argv,
+  $base_dir,
 );
 
 my $Equipment = Equipment->new( $db, $Admin, \%conf );
+my $Events = Events::API->new( $db, $Admin, \%conf );
 
 equipment_ping();
 
@@ -48,7 +51,7 @@ sub equipment_ping {
 
   my %ips;
   foreach my $host (@$equipment) {
-    $ips{$host->{nas_ip}} = { NAS_ID => $host->{nas_id}, STATUS => $host->{status} };
+    $ips{$host->{nas_ip}} = { NAS_ID => $host->{nas_id}, STATUS => $host->{status}, NAS_NAME => $host->{nas_name} };
   }
 
   my %syn;
@@ -68,15 +71,47 @@ sub equipment_ping {
     print " $host is reachable\n" if ( $debug > 1);
     delete $syn{$host};
   }
-
+  my $message = '';
   foreach my $host (keys %syn) {
     if ($ips{$host}{STATUS} == 0) {
       $Equipment->_change( { NAS_ID => $ips{$host}{NAS_ID}, STATUS => 1 } );
+      $message .= "$ips{$host}{NAS_NAME}($host) is unreachable\n";
     }
     print " $host is unreachable\n" if ( $debug > 1);
   }
 
   $p->close;
+  if ($message) {
+    $message = localtime() . "\n$message";
+    generate_new_event( "$message" );
+  }
 
+  return 1;
+}
+
+#**********************************************************
+=head2 generate_new_event($comments)
+
+  Arguments:
+    $comments - text of message to show
+
+  Returns:
+
+=cut
+#**********************************************************
+sub generate_new_event{
+  my ($comments) = @_;
+
+  #  print "EVENT: $name, $comments \n";
+  print $comments . "\n" if ($argv->{DEBUG});
+
+  $Events->add_event({
+    MODULE      => "Equipment",
+    PRIORITY_ID => 5,
+    STATE_ID    => 1,
+    TITLE       => '_{WARNING}_',
+    COMMENTS    => $comments,
+  });
+  
   return 1;
 }

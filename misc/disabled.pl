@@ -49,7 +49,7 @@ my @row_ary = $dbh->selectrow_array($query);
 if (@row_ary) {
   if ($row_ary[0] > 0 || $row_ary[1] <= 0 ) {
     #print $uid. ":Доступ в Интернет ограничен. Воспользуйтесь <a href='/index.cgi?index=10'>кредитом </a>\n";
-    $print "1:Доступ в Интернет ограничен. Воспользуйтесь кредитом";
+    print "1:Доступ в Интернет ограничен. Воспользуйтесь кредитом";
   }
 
   #elsif ($row_ary[0] eq 0) {

@@ -32,15 +32,15 @@ select STDOUT;
 use Nas;
 my $Nas = Nas->new($db, \%conf, $admin);
 
-my $debug = 1;
+my $debug = 0;
 my $test_comment = "ABills test. you can remove this";
 
 use_ok( 'Abills::Base' );
 use_ok( 'Abills::Nas::Mikrotik' );
 
-my $test_nas_id = 4;
+my $TEST_NAS_ID = 2;
 
-my $test_host = $Nas->info({NAS_ID => $test_nas_id});
+my $test_host = $Nas->info({NAS_ID => $TEST_NAS_ID});
 
 my $mt = Abills::Nas::Mikrotik->new( $test_host,
   undef,

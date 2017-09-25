@@ -6,7 +6,7 @@
 
   /*Removing black backround*/
   div.wrapper {
-    box-shadow : none !important;
+    box-shadow: none !important;
     background-color: transparent !important;
   }
 
@@ -16,11 +16,24 @@
 
   @media (min-device-height: 400px) {
     .login-wrapper {
-      margin-top: 3em;
+      margin-top: 2em;
     }
   }
 
+  div.input-group > span.input-group-addon.glyphicon {
+    top : 0;
+  }
+
+  #social_network_block {
+    margin-top: 20px;
+  }
+
+  #form_login #input_wrapper{
+    padding: 20px 30px 20px
+  }
+
 </style>
+
 
 <nav class='navbar navbar-static-top' role='navigation'>
   <ul class='nav navbar-nav navbar-right'>
@@ -34,77 +47,94 @@
 </nav>
 
 </header>
-<div class="login-wrapper">
-  <div class='col-md-6 col-md-offset-3 text-center'>
-    %LOGIN_ERROR_MESSAGE%
+<div class='login-wrapper'>
+  <div class='row'>
+    <div class='col-md-6 col-md-offset-3 text-center'>
+      %LOGIN_ERROR_MESSAGE%
+    </div>
   </div>
-  <form action='$SELF_URL' METHOD='post' name='form_login' id='form_login' class='form form-horizontal'>
-    <input type='hidden' name='DOMAIN_ID' value='$FORM{DOMAIN_ID}'>
-    <input type='hidden' ID='REFERER' name='REFERER' value='$FORM{REFERER}'>
-    <input type='hidden' id='location_x' name='coord_x'>
-    <input type='hidden' id='location_y' name='coord_y'>
 
-    <div class='col-md-push-4 col-lg-push-4 col-xs-12 col-sm-12 col-md-4 col-lg-4'>
-      <div class='box box-info center-block' id='login_panel'>
-        <div class='box-header with-border text-center'>
-          <h4> %TITLE% </h4>
-        </div>
-        <div class='box-body'>
-          <div class='form-group'>
-            <label class='control-label col-md-4'>_{LANGUAGE}_:</label>
+  <div class='row'>
+    <div class='col-md-6 col-md-offset-3'>
+      <div class='info-box bg-yellow' style='display: none;' id='tech_works_block'>
+        <span class='info-box-icon'><i class='fa fa-wrench'></i></span>
+        <!--line height to center text vertical-->
+        <div class='info-box-content' style='line-height: 80px'>
+          <!--<span class='info-box-text'>_{TECH_WORKS_ARE_RUNNING_NOW}_</span>-->
+          <span class='info-box-number text-center'>%TECH_WORKS_MESSAGE%</span>
+        </div><!-- /.info-box-content -->
+      </div><!-- /.info-box -->
+    </div>
+  </div>
 
-            <div class='col-md-8'>
+  <div class='row'>
+
+    <form action='$SELF_URL' METHOD='post' name='form_login' id='form_login' class='form form-horizontal'>
+      <input type='hidden' name='DOMAIN_ID' value='$FORM{DOMAIN_ID}'>
+      <input type='hidden' ID='REFERER' name='REFERER' value='$FORM{REFERER}'>
+      <input type='hidden' id='location_x' name='coord_x'>
+      <input type='hidden' id='location_y' name='coord_y'>
+
+      <div class='col-xs-12 col-md-4 col-md-offset-4 col-lg-4 col-lg-offset-4'>
+
+        <div class='box box-body' id='input_wrapper'>
+
+          <div class='form-group has-feedback'>
+            <div class='input-group'>
+              <span class='input-group-addon glyphicon glyphicon-globe'></span>
               %SEL_LANGUAGE%
             </div>
           </div>
 
           <div class='form-group'>
-            <label class='control-label col-md-4' for='user'>_{USER}_:</label>
-
-            <div class='col-md-8'>
-              <div class='input-group'>
-                <span class='input-group-addon'><span class='glyphicon glyphicon-user'></span></span>
-                <input id='user' name='user' value='%user%' placeholder='_{USER}_' class='form-control'
-                       type='text' required='required'>
-              </div>
+            <div class='input-group'>
+              <span class='input-group-addon glyphicon glyphicon-user'></span>
+              <input type='text' id='user' name='user' value='%user%' class='form-control' placeholder='_{LOGIN}_'>
             </div>
           </div>
 
           <div class='form-group'>
-            <label class='control-label col-md-4' for='passwd'>_{PASSWD}_:</label>
-
-            <div class='col-md-8'>
-              <div class='input-group'>
-                <span class='input-group-addon'><span class='glyphicon glyphicon-lock'></span></span>
-                <input id='passwd' name='passwd' value='%password%' placeholder='_{PASSWD}_'
-                       class='form-control' type='password'>
-              </div>
+            <div class='input-group'>
+              <span class='input-group-addon glyphicon glyphicon-lock'></span>
+              <input type='password' id='passwd' name='passwd' value='%password%' class='form-control'
+                     placeholder='_{PASSWD}_'>
             </div>
           </div>
+
+          <div class='row'>
+            <!-- /.col -->
+
+            <button type='submit' name='logined' class='btn btn-success btn-block btn-flat form-control'
+                    onclick='set_referrer()'>_{ENTER}_
+            </button>
+
+            <!-- /.col -->
+          </div>
+
         </div>
 
-        <div class='box-footer text-center'>
-          <input class='btn btn-lg btn-success' id='login_btn' type='submit' name='logined' value='_{ENTER}_'
-                 onclick='set_referrer()'>
-        </div>
 
       </div>
-      <!--Block for social networks buttons-->
-      <div class='form-group text-center' id='social_network_block'>
-        <link rel='stylesheet' href='/styles/default_adm/css/client_social_icons.css'>
-        <ul class='social-network social-circle'>
-          %SOCIAL_AUTH_BLOCK%
-        </ul>
-      </div>
+    </form>
+
+  </div>
+  <div class='row'>
+    <!--Block for social networks buttons-->
+    <div class='col-md-6 col-md-offset-3 text-center' id='social_network_block'>
+      <link rel='stylesheet' href='/styles/default_adm/css/client_social_icons.css'>
+      <ul class='social-network social-circle'>
+        %SOCIAL_AUTH_BLOCK%
+      </ul>
     </div>
-
-
-  </form>
+  </div>
 </div>
+
 <script>
 
   /* Geolocation */
   jQuery(function () {
+    jQuery('#language').on('change', selectLanguage);
+
     if ('$conf{CLIENT_LOGIN_GEOLOCATION}') {
       var loginBtn = jQuery('#login_btn');
 
@@ -138,6 +168,11 @@
         console.log('Night mode is enabled, but it\'s not evening ( Hour < 18)');
       }
     }
+
+    if ('%TECH_WORKS_BLOCK_VISIBLE%' === '1') {
+      jQuery('#tech_works_block').css('display', 'block');
+    }
+
   });
 
 </script>

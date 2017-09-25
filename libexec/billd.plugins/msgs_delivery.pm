@@ -33,6 +33,7 @@ my $Sender = Abills::Sender::Core->new({
   SENDER_TYPE => 'Mail'
 });
 my $Log     = Log->new($db, $Admin);
+our $html = Abills::HTML->new( { CONF => \%conf } );
 
 if($debug > 2) {
   $Log->{PRINT}=1;
@@ -143,6 +144,18 @@ sub msgs_delivery {
 
   my $delivery_list = $Msgs_delivery->msgs_delivery_list({%LIST_PARAMS, COLS_NAME => 1});
 
+  # #630. TEMPLATES VARIABLES IN MESSAGES
+  use Users;
+  my $users = Users->new($db, $Admin, \%conf);
+
+  my $dv_info = ();
+  my $Dv;
+  if (in_array('Dv', \@MODULES)) {
+    require Dv;
+    $Dv = Dv->new($db, $Admin, \%conf);
+  }
+  # #630.
+
   foreach my $mdelivery (@$delivery_list) {
     $Msgs_delivery->msgs_delivery_info($mdelivery->{id});
     $Log->log_print('LOG_INFO', '', "Delivery: $mdelivery->{id} Send method: $send_methods[$Msgs_delivery->{SEND_METHOD}] ($Msgs_delivery->{SEND_METHOD}) ");
@@ -186,11 +199,25 @@ sub msgs_delivery {
       $Log->log_print('LOG_DEBUG', $u->{login}, "E-mail: $email $Msgs_delivery->{SUBJECT}");
 
       push @users_ids, $u->{uid};
+
+      # 630. Templates variables in message
+      my $user_pi = $users->pi({ UID => $u->{uid}, COLS_NAME => 1, COLS_UPPER => 1 });
+      my $dv_info = ();
+      if (in_array('Dv', \@MODULES)) {
+        $dv_info = $Dv->info($u->{uid}, {COLS_NAME => 1, COLS_UPPER => 1});
+      }
+
+      my $message = $html->tpl_show($Msgs_delivery->{TEXT}, {%$user_pi, %$dv_info}, {
+        OUTPUT2RETURN      => 1, 
+        SKIP_DEBUG_MARKERS => 1
+      });
+      # #630.
+
       if($debug < 6) {
         $Sender->send_message({
           SENDER      => $Msgs_delivery->{SENDER},
           TO_ADDRESS  => $email,
-          MESSAGE     => $Msgs_delivery->{TEXT},
+          MESSAGE     => $message, # $Msgs_delivery->{TEXT},
           SUBJECT     => $Msgs_delivery->{SUBJECT},
           SENDER_TYPE => $send_methods[$Msgs_delivery->{SEND_METHOD} || 1],
           ATTACHMENTS => ($#ATTACHMENTS > -1) ? \@ATTACHMENTS : undef,

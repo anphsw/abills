@@ -284,7 +284,6 @@ sub info {
 
   if ($self->{GIDS_}) {
     $self->query2("SELECT gid FROM admins_groups WHERE aid= ? ;", undef, {
-      INFO => 1,
       Bind => [ $self->{AID} ]
     });
 
@@ -319,12 +318,10 @@ sub list {
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
   $SORT      = ($attr->{SORT}) ? $attr->{SORT} : 1;
   $DESC      = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $GROUP_BY = '';
 
   if ($attr->{GIDS}) {
     push @WHERE_RULES, "a.gid IN ($attr->{GIDS})";
-  }
-  elsif ($attr->{GID}) {
-    push @WHERE_RULES, "a.gid='$attr->{GID}'";
   }
 
   if ($self->{DOMAIN_ID} || $attr->{DOMAIN_NAME}) {
@@ -344,12 +341,20 @@ sub list {
     push @WHERE_RULES, "a.position = '$attr->{POSITION}'";
   }
 
+  if ($attr->{GID}) {
+    $EXT_TABLES = 'LEFT JOIN admins_groups ag ON (a.aid=ag.aid) ';
+    $GROUP_BY = 'GROUP BY a.aid';
+    push @WHERE_RULES, "(a.gid IN ($attr->{GID}) OR ag.gid IN ($attr->{GID}))";
+  }
+
+
   my $WHERE = $self->search_former($attr, [
       ['ADMIN_NAME',   'STR',  'a.name',  'a.name AS admin_name' ],
       # ['POSITION',     'STR',  'ep.position',      1 ],
       ['REGDATE',      'DATE', "a.regdate",       1 ],
       ['START_WORK',   'DATE', "a.start_work",    1 ],
-      ['GID',          'INT',  'a.gid',           1 ],
+      #['GID',          'INT',  'ag.gid',          1 ],
+      #['GID',          'INT',  'a.gid',           1 ],
       ['GPS_IMEI',     'STR',  'a.gps_imei',      1 ],
       ['DISABLE',      'INT',  "a.disable",       1 ],
       ['BIRTHDAY',     'DATE', 'a.birthday',      1 ],
@@ -359,6 +364,7 @@ sub list {
       ['AID',          'INT',  'a.aid'              ],
       ['SIP_NUMBER',   'INT',  'a.sip_number',    1 ],
       ['TELEGRAM_ID',  'STR',  'a.telegram_id',   1 ],
+      ['EMAIL',        'STR',  'a.email',         1 ],
     ],
     {
       WHERE_RULES => \@WHERE_RULES,
@@ -370,7 +376,7 @@ sub list {
   my $EMPLOYEE_COLS = '';
   #use Abills::Base;
   #FIXME: CHECK MODULE
-  if ($self->{SHOW_EMPLOYEES} == 1) {
+  if ($self->{SHOW_EMPLOYEES} && $self->{SHOW_EMPLOYEES} == 1) {
     $EMPLOYEE_JOIN = " LEFT JOIN employees_positions ep ON (ep.id=a.position) ";
     $EMPLOYEE_COLS = ' ep.position as position, ';
   }
@@ -380,13 +386,15 @@ sub list {
     $EMPLOYEE_COLS
     $self->{SEARCH_FIELDS}
     g.name AS g_name
- FROM admins a
-  LEFT JOIN groups g ON (a.gid=g.gid)
-  $EMPLOYEE_JOIN
-  $EXT_TABLES
- $WHERE
- ORDER BY $SORT $DESC
- LIMIT $PG, $PAGE_ROWS;",
+    FROM admins a
+    LEFT JOIN groups g ON (a.gid=g.gid)
+    $EMPLOYEE_JOIN
+    $EXT_TABLES
+    $WHERE
+    $GROUP_BY
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
+
   undef,
   $attr
   );
@@ -397,11 +405,11 @@ sub list {
 
   my $list = $self->{list};
   if ($self->{TOTAL} >= 0 && !$attr->{SKIP_TOTAL}) {
-    $self->query2("SELECT COUNT(*) AS total
-   FROM admins a
-    LEFT JOIN groups g ON (a.gid=g.gid)
-    $EXT_TABLES
-    $WHERE",
+    $self->query2("SELECT COUNT(DISTINCT a.aid) AS total
+      FROM admins a
+      LEFT JOIN groups g ON (a.gid=g.gid)
+      $EXT_TABLES
+      $WHERE",
       undef,
       { INFO => 1 }
     );
@@ -451,11 +459,16 @@ sub add {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query_add('admins', { ID       => $attr->{A_LOGIN},
-                               NAME     => $attr->{A_FIO},
-                               REGDATE  => 'NOW()',
-                               %$attr
-                              });
+  $self->query_add('admins', {
+    ID       => $attr->{A_LOGIN},
+    NAME     => $attr->{A_FIO},
+    REGDATE  => 'NOW()',
+    %$attr
+  });
+
+  if($self->{errno}) {
+    return $self;
+  }
 
   $self->{AID} = $self->{INSERT_ID};
 
@@ -482,6 +495,18 @@ sub del {
 #**********************************************************
 =head2 action_add($uid, $actions, $attr)
 
+  Arguments:
+    $uid,
+    $actions,
+    $attr
+      ID
+      INFO     - info fields. Show if assign
+      REQUEST  - request params
+      ACTION_COMMENTS
+      IP
+
+  Returns:
+
 =cut
 #**********************************************************
 sub action_add {
@@ -490,6 +515,18 @@ sub action_add {
 
   if ($attr->{ACTION_COMMENTS}) {
     $actions .= ":$attr->{ACTION_COMMENTS}";
+  }
+
+  if($attr->{INFO} && $attr->{REQUEST}) {
+    my @actions_history = ();
+    my $request = $attr->{REQUEST};
+    foreach my $param (@{ $attr->{INFO} }) {
+          if(defined($request->{$param})) {
+        push @actions_history, $param.":".$request->{$param};
+      }
+    }
+
+    $actions .= join(', ', @actions_history);
   }
 
   $IP = $attr->{IP} if ($attr->{IP});
@@ -834,9 +871,39 @@ sub online_info {
   return $self;
 }
 
+#**********************************************************
+=head2 online_list($attr) - list of online admin sessions
+
+  Arguments:
+    $attr - hash_ref - query2 params
+    
+  Returns:
+    array_ref - hashes for admin sessions
+  
+=cut
+#**********************************************************
+sub online_list {
+  my ($self, $attr) = @_;
+  
+  $self->query2("SELECT aid, admin, ip, UNIX_TIMESTAMP() - logtime AS loggeed_time, sid  FROM web_online;", undef, {
+      COLS_NAME => 1,
+      %{ $attr // { } }
+    });
+  return ($self->{errno} || !$self->{list}) ? [ ] : $self->{list};
+}
+
 
 #**********************************************************
-# Online Administrators
+=head2 online_del($attr) - Delete session with sid
+
+  Arguments:
+    $attr - hash_ref
+      SID
+ 
+  Returns:
+    $self
+    
+=cut
 #**********************************************************
 sub online_del {
   my $self         = shift;
@@ -847,9 +914,33 @@ sub online_del {
   return $self;
 }
 
+#**********************************************************
+=head2 online_find($sid) - find session by $sid
+
+  Arguments:
+    $sid -
+    
+  Returns:
+    aid
+    
+=cut
+#**********************************************************
+sub online_find {
+  my ($self, $sid) = @_;
+  
+  return 0 unless ( $sid );
+  
+  $self->query2("SELECT aid FROM web_online WHERE sid= ?;", undef, {
+      Bind      => [ $sid ]
+    });
+  
+  return ($self->{list} && $self->{list}->[0]) ? $self->{list}->[0][0] : 0;
+}
 
 #**********************************************************
-# settings_info()
+=head2 settings_info($id)
+
+=cut
 #**********************************************************
 sub settings_info {
   my $self = shift;
@@ -1095,6 +1186,54 @@ sub full_log_info {
 }
 
 #**********************************************************
+=head2 full_log_analyze($aid, $datefrom, $dateto)
+
+=cut
+#**********************************************************
+sub full_log_analyze {
+  my $self = shift;
+  my ($attr) = @_;
+
+  delete($self->{COL_NAMES_ARR});
+
+  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  my $GROUP = 'GROUP BY a.function_name';
+  my @fields = [
+      ['FUNCTION_NAME', 'STR', 'a.function_name', 1],
+      ['COUNT',         'INT', 'COUNT(*) as count', 1],
+      ['AID',           'INT', 'a.aid'],
+	  ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(a.datetime, '%Y-%m-%d')" ],
+  ];
+  
+  if ($attr->{FUNCTION_NAME} ne "!msgs_admin") {
+    push @{ $fields[0] }, ['PARAMS', 'STR', 'a.params', 1];
+    $GROUP = 'GROUP BY a.params';
+  };
+  
+  my $WHERE = $self->search_former($attr, @fields, { WHERE => 1 });
+ 
+  $self->query2("SELECT $self->{SEARCH_FIELDS} a.aid
+   FROM admins_full_log a
+  $WHERE
+  $GROUP
+  ORDER BY count DESC
+  LIMIT $PG, $PAGE_ROWS;",
+    undef, $attr);
+
+  my $list = $self->{list} || [];
+
+#  $self->query2("SELECT COUNT(*) AS total
+#    FROM admins_full_log a
+#    $WHERE",
+#    undef,
+#    { INFO => 1 }
+#  );
+
+ return $list;
+}
+#**********************************************************
 =head2 full_log_change($attr)
 
 =cut
@@ -1127,10 +1266,7 @@ sub admins_contacts_list {
   $self->{errstr} = '';
 
   return [] if (!$attr->{AID});
-
-  #!!! Important !!! Only first list will work without this
-  delete $self->{COL_NAMES_ARR};
-
+  
   $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
   $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
   $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
@@ -1138,85 +1274,29 @@ sub admins_contacts_list {
   my $WHERE = '';
 
    $WHERE = $self->search_former($attr, [
-      ['ID',        'INT',  'ac.id',                              1],
-      ['AID',       'INT',  'ac.aid',                             1],
-      ['TYPE',      'INT',  'ac.type_id',                         1],
-      ['VALUE',     'STR',  'ac.value',                           1],
-      ['PRIORITY',  'INT',  'ac.priority',                        1],
-      ['TYPE_NAME',      'STR',  'act.name',                       1],
-      [ 'HIDDEN',     'INT', 'act.hidden'     ]
+      ['ID',        'INT',  'ac.id',          1],
+      ['AID',       'INT',  'ac.aid',         1],
+      ['TYPE',      'INT',  'ac.type_id',     1],
+      ['VALUE',     'STR',  'ac.value',       1],
+      ['PRIORITY',  'INT',  'ac.priority',    1],
+      ['DEFAULT',   'INT',  'uct.is_default', 1],
+      ['TYPE_NAME', 'STR',  'uct.name',       1],
+      ['HIDDEN',    'INT',  'uct.hidden'       ]
     ],
-    { WHERE       => 1,
-    }
+    { WHERE       => 1 }
   );
 
   if ($attr->{SHOW_ALL_COLUMNS}){
-    $self->{SEARCH_FIELDS} = '*'
+    $self->{SEARCH_FIELDS} = '* , '
   }
 
-  # Removing unnecessary comma
-  $self->{SEARCH_FIELDS} =~ s/,.?$//;
-
- $self->query2("SELECT $self->{SEARCH_FIELDS}
+ $self->query2("SELECT $self->{SEARCH_FIELDS} ac.id
     FROM admins_contacts ac
-   LEFT JOIN admins_contact_types act ON(ac.type_id=act.id)
- $WHERE ORDER BY priority;"
- ,undef, {COLS_NAME => 1,  %{ $attr ? $attr : {} }});
+   LEFT JOIN users_contact_types uct ON(ac.type_id=uct.id)
+ $WHERE ORDER BY ac.priority;"
+ ,undef, {COLS_NAME => 1,  %{ $attr // {} }});
 
  return $self->{list};
-}
-
- #**********************************************************
-=head2 admins_contacts_list($attr)
-
-  Arguments:
-    $attr - hash_ref
-
-  Returns:
-    list
-
-=cut
-#**********************************************************
-sub admins_contacts_type_list{
-  my $self = shift;
-  my ($attr) = @_;
-
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 'id';
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG   = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
-
-  #!!! Important !!! Only first list will work without this
-  delete $self->{COL_NAMES_ARR};
-
-  my $WHERE = '';
-
-  $WHERE = $self->search_former( $attr, [
-      [ 'ID',         'INT', 'id',         1 ],
-      [ 'NAME',       'STR', 'name',       1 ],
-      [ 'IS_DEFAULT', 'INT', 'is_default', 1 ],
-      [ 'HIDDEN',     'INT', 'hidden'        ]
-    ],
-    {
-      WHERE => 1
-    }
-  );
-
-  if ($attr->{SHOW_ALL_COLUMNS}){
-    $self->{SEARCH_FIELDS} = '*,'
-  }
-
-  $self->query2( "SELECT $self->{SEARCH_FIELDS}
-   id
-  FROM admins_contact_types
-  $WHERE
-  ORDER BY $SORT $DESC
-  LIMIT $PG, $PAGE_ROWS;",
-    undef, $attr );
-
-  return [] if ($self->{errno});
-
-  return $self->{list};
 }
 
 #**********************************************************

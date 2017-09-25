@@ -104,7 +104,7 @@ sub voip_tp{
     elsif ( $FORM{change} ){
       $Voip->tp_change( $FORM{TP_ID}, { %FORM } );
       if ( !$Voip->{errno} ){
-        $html->message( 'info', $lang{CHANGED}, "$lang{CHANGED} $Voip->{TP_ID}" );
+        $html->message( 'info', $lang{CHANGED}, "$lang{CHANGED} ". ($Voip->{TP_ID} || $FORM{TP_ID} || q{}) );
       }
     }
 
@@ -146,9 +146,6 @@ sub voip_tp{
       title      =>
       [ '#', $lang{NAME}, $lang{HOUR_TARIF}, $lang{PAYMENT_TYPE}, $lang{DAY_FEE}, $lang{MONTH_FEE},
         $lang{SIMULTANEOUSLY}, $lang{AGE}, '-', '-', '-' ],
-      cols_align =>
-      [ 'right', 'left', 'center', 'center', 'right', 'right', 'right', 'right', 'right', 'right', 'center', 'center',
-        'center' ],
       ID         => 'VOIP_TP',
       MENU       => "$lang{ADD}:index=$index&add_form=1:add",
     }
@@ -190,7 +187,6 @@ sub voip_tp{
   $table = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right' ],
       rows       => [ [ "$lang{TOTAL}:", $html->b( $Voip->{TOTAL} ) ] ]
     }
   );
@@ -278,7 +274,6 @@ sub voip_trunks{
       width      => '100%',
       caption    => "Trunks",
       title      => [ 'ID', $lang{NAME}, $lang{PROTOCOL}, "VOIP $lang{PROVIDER}", "$lang{FAILOVER_TRUNK}", '-', '-' ],
-      cols_align => [ 'left', 'left', 'left', 'left', 'left', 'center', 'center' ],
       qs         => $pages_qs,
       pages      => $Voip->{TOTAL},
       ID         => 'VOIP_TRUNKS',
@@ -301,7 +296,6 @@ sub voip_trunks{
   $table = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right' ],
       rows       => [ [ "$lang{TOTAL}:", $html->b( $Voip->{TOTAL} ) ] ]
     }
   );
@@ -453,7 +447,6 @@ sub voip_routes{
       width      => '100%',
       caption    => "$lang{ROUTES}",
       title      => [ $lang{PREFIX}, $lang{NAME}, $lang{STATUS}, $lang{DATE}, '-', '-' ],
-      cols_align => [ 'left', 'left', 'center', 'right', 'center', 'center' ],
       qs         => $pages_qs,
       pages      => $Voip->{TOTAL},
       ID         => 'VOIP_ROUTES',
@@ -467,17 +460,20 @@ sub voip_routes{
   foreach my $line ( @{$list} ){
     if ( $permissions{4}{1} ){
       $delete = $html->button( $lang{DEL}, "index=$index&del=$line->{id}",
-        { MESSAGE => "$lang{DEL} '$line->{prefix}' ?", class => 'del' } );
+        { MESSAGE => "$lang{DEL} $line->{prefix} ?", class => 'del' } );
       $change = $html->button( $lang{CHANGE}, "index=$index&ROUTE_ID=$line->{id}", { class => 'change' } );
     }
 
-    $table->addrow( $line->{prefix}, $line->{name}, $status[ $line->{disable} ], $line->{date}, $change, $delete );
+    $table->addrow( $line->{prefix},
+      $line->{name},
+      $status[ $line->{disable} ],
+      $line->{date},
+      $change .' '. $delete );
   }
 
   my $table2 = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right' ],
       rows       =>
       [ [ "$lang{IMPORT} $lang{FILE}: " . $html->form_input( 'ROUTE_FILE', "ROUTE_FILE",
         { TYPE => 'FILE' } ) . $html->form_input(
@@ -501,7 +497,6 @@ sub voip_routes{
   $table = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right' ],
       rows       => [ [ "$lang{TOTAL}:", $html->b( $Voip->{TOTAL} ) ] ]
     }
   );
@@ -521,7 +516,6 @@ sub voip_tp_routes{
 
   my $Voip_tp;
   my @caption       = ($lang{PREFIX}, $lang{ROUTES}, "$lang{STATUS}", "$lang{EXTRA_TARIFICATION}", 'TRUNK');
-  my @aligns        = ('left', 'left', 'center');
   my @interval_ids  = ();
   my $intervals     = 0;
   my $exchange_rate = 1;
@@ -539,7 +533,6 @@ sub voip_tp_routes{
     my $list = $Voip_tp->ti_list( { %LIST_PARAMS } );
     foreach my $line ( @{$list} ){
       push @caption, "$lang{SUM} (Min): " . $DAY_NAMES[ $line->[1] ] . "/ $line->[2]-$line->[3]";
-      push @aligns, 'center';
       push @interval_ids, $line->[0];
     }
     $intervals = $Voip_tp->{TOTAL};
@@ -568,7 +561,7 @@ sub voip_tp_routes{
           $FORM2{ 't_' . $prefix_id{$prefix} . '_' . $interval_ids[$i] } = $trunk;
           $FORM2{ 'et_' . $prefix_id{$prefix} . '_' . $interval_ids[$i] } = $et;
           if ( $conf{VOIP_UNIT_TARIFICATION} ){
-            $FORM2{ 'up_' . $prefix_id{$prefix} . '_' . $interval_ids[$i] } = $prices[$i];
+            $FORM2{ 'up_' . $prefix_id{$prefix} . '_' . $interval_ids[$i] } = $prices[$i] || 0;
             $FORM2{ 'p_' . $prefix_id{$prefix} . '_' . $interval_ids[$i] } = $prices[$i] * $exchange_rate;
           }
           else{
@@ -649,7 +642,6 @@ sub voip_tp_routes{
       width      => '100%',
       caption    => $lang{ROUTES},
       title      => \@caption,
-      cols_align => \@aligns,
       qs         => $pages_qs . "&TP_ID=$FORM{TP_ID}",
       pages      => $Voip->{TOTAL},
       ID         => 'VOIP_ROUTES_PRICES',
@@ -731,7 +723,6 @@ sub voip_tp_routes{
   my $table2 = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right' ],
       rows       => [ [ $html->form_input( 'change', $lang{CHANGE}, { TYPE => 'submit' } ),
         "$lang{FILE}: " . $html->form_input( 'ROUTE_FILE', "ROUTE_FILE", { TYPE => 'FILE' } ) . $html->form_input(
           'import',
@@ -756,7 +747,6 @@ sub voip_tp_routes{
   $table = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right' ],
       rows       => [ [ "$lang{TOTAL}:", $html->b( $Voip->{TOTAL} ) ] ]
     }
   );
@@ -771,6 +761,7 @@ sub voip_tp_routes{
 =cut
 #**********************************************************
 sub voip_exchange_rate{
+
   my %info = (
     ACTION     => 'add',
     LNG_ACTION => $lang{ADD}
@@ -785,7 +776,7 @@ sub voip_exchange_rate{
       $Conf->config_add(
         {
           PARAM => $k,
-          VALUE => "$v"
+          VALUE => $v || q{}
         }
       );
     }
@@ -805,24 +796,26 @@ sub voip_exchange_rate{
         $k,
         {
           PARAM => $k,
-          NAME  => "$v"
+          VALUE => $v || q{}
         }
       );
     }
 
     if ( !$users->{errno} ){
-      $html->message( 'info', $lang{INFO}, "$lang{CHANGED}" );
+      $html->message( 'info', $lang{INFO}, $lang{CHANGED} );
       $admin->{MODULE} = 'Voip';
       $admin->system_action_add( $FORM{VOIP_ER}, { TYPE => 41 } );
       $Voip->rp_change_exhange_rate( { EXCHANGE_RATE => $FORM{VOIP_ER} } );
     }
   }
+  _error_show($Voip);
 
   my $list = $Conf->config_list( { PARAM => 'VOIP_*', SORT => 2 } );
 
   foreach my $line ( @{$list} ){
     $info{ $line->[0] } = $line->[1];
   }
+
   if ( $info{VOIP_ER} ){
     $info{ACTION} = 'change';
     $info{LNG_ACTION} = $lang{CHANGE};
@@ -891,7 +884,6 @@ sub voip_intervals{
         width      => '100%',
         caption    => $lang{INTERVALS},
         title      => [ '#', $lang{DAYS}, $lang{BEGIN}, $lang{END}, $lang{HOUR_TARIF}, '-', '-', '-', '-' ],
-        cols_align => [ 'left', 'left', 'right', 'right', 'right', 'right', 'center', 'center', 'center', 'center' ],
         qs         => $pages_qs,
         ID         => 'VOIP_INTERVALS',
       }
@@ -1042,7 +1034,10 @@ sub voip_extra_tarification{
 
   $html->tpl_show( _include( 'voip_extra_tarification', 'Voip' ), $Voip );
 
-  my $list = $Voip->extra_tarification_list( { %LIST_PARAMS } );
+  my $list = $Voip->extra_tarification_list( {
+    %LIST_PARAMS,
+    COLS_NAME => 1
+  } );
 
   if ( _error_show( $Voip ) ){
     return 0;
@@ -1052,23 +1047,22 @@ sub voip_extra_tarification{
     {
       width      => '100%',
       title      => [ 'id', "$lang{NAME}", "$lang{PREPAID} $lang{TIME}", '-', '-' ],
-      cols_align => [ 'left', 'left', 'right', 'right', 'left', 'center', 'left', 'center', 'center', 'center' ],
       qs         => $pages_qs,
       pages      => $Voip->{TOTAL}
     }
   );
 
   foreach my $line ( @{$list} ){
-    my $delete = $html->button( $lang{DEL}, "index=$index&del=$line->[0]",
-      { MESSAGE => "$lang{DEL} [$line->[0]] ?", class => 'del' } );
-    my $change = $html->button( $lang{DEL}, "index=$index&chg=$line->[0]", { class => 'change' } );
+    my $delete = $html->button( $lang{DEL}, "index=$index&del=$line->{id}",
+      { MESSAGE => "$lang{DEL} [$line->{id}] ?", class => 'del' } );
+    my $change = $html->button( $lang{DEL}, "index=$index&chg=$line->{id}", { class => 'change' } );
 
-    $table->{rowcolor} = ($FORM{chg} && $FORM{chg} == $line->[0]) ? $_COLORS[0] : undef;
+    $table->{rowcolor} = ($FORM{chg} && $FORM{chg} == $line->{id}) ? $_COLORS[0] : undef;
 
     $table->addrow(
-      $line->[0],
-      "$line->[1]",
-      "$line->[2]",
+      $line->{id},
+      $line->{name},
+      $line->{prepaid_time},
       $change,
       $delete,
 
@@ -1079,7 +1073,6 @@ sub voip_extra_tarification{
   $table = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right' ],
       rows       => [ [ "$lang{TOTAL}:", $html->b( $Voip->{TOTAL} ) ] ]
     }
   );

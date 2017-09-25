@@ -10,24 +10,16 @@ if (typeof(window['getMultiSimpleRow']) === 'undefined')
   $.getScript('/styles/default_adm/js/dynamicForms.js');
 
 /*Global section*/
-$('#clear_results').click(function (event) {
-  $(this).parents('.input-group').find('input').attr('value', '');
+$('.clear_results').click(function (event) {
+  cancelEvent(event);
+  $(this).parents('.input-group').find('input').val('').change();
 });
-
-
-function fill_template_popup(buttonNumber) {
-  fill_template_based(modalsArray[buttonNumber]);
-}
-
-function fill_array_popup(buttonNumber) {
-  fill_one_row_array_based(modalsSearchArray[buttonNumber]);
-}
 
 /**
  * Makes one row form for going to specified index with a GET parameter;
  * @param params
  */
-function fill_one_row_array_based(params) {
+function fillOneRowArrayBasedSearchForm(params) {
   var label         = params[0];
   var name          = params[1];
   var index         = params[2];
@@ -45,7 +37,7 @@ function fill_one_row_array_based(params) {
           getSimpleRow(name, id, label) +
           "</div>" +
           "<div class='modal-footer'>" +
-          "<a id='btn_popup_" + name + "' class='btn btn-primary' href='';>" + "Go</a>" +
+          "<a id='btn_popup_" + name + "' class='btn btn-primary' href=''>" + "Go</a>" +
           "</div>" +
           "</div>";
   
@@ -63,15 +55,15 @@ function fill_one_row_array_based(params) {
 /**
  * fill Array based multi-row search popup window
  */
-function fill_array_based(params) {
-  var modalData = get_in_search_form(getMultiSimpleRow(params));
+function fillArrayBased(params) {
+  var modalData = openAsSearchForm(getMultiSimpleRow(params));
   loadDataToModal(modalData);
 }
 
-function fill_array_based_search(params, stringCSV_URL) {
-  var modalData = get_in_search_form(getMultiSimpleRow(params), stringCSV_URL);
-  loadDataToModal(modalData);
-}
+//function fillArrayBasedSearch(params, stringCSV_URL) {
+//  var modalData = openAsSearchForm(getMultiSimpleRow(params), stringCSV_URL);
+//  loadDataToModal(modalData);
+//}
 
 /**
  * get some variables values from DOM input with specified name
@@ -79,11 +71,11 @@ function fill_array_based_search(params, stringCSV_URL) {
  * $("input[name|=SELECTOR]").val();
  * @param strInputName
  */
-function get_input_val(strInputName) {
+function getInputVal(strInputName) {
   return $("input[name|=" + strInputName + "]").val();
 }
 
-function setup_search_form(popup_name) {
+function setupSearchForm(popup_name, formURL) {
   // Set up inner window logic
   var $search_button = $('button#search');
   var have_results   = $('.clickSearchResult').length > 0;
@@ -91,101 +83,120 @@ function setup_search_form(popup_name) {
   if ($search_button.length) {
     $search_button.on('click', function () {
       getDataURL(formURL, function () {
-        make_choosable_tr(popup_name);
+        makeChoosableTr(popup_name);
       });
     });
   }
   
   if (have_results) {
-    make_choosable_tr(popup_name);
+    makeChoosableTr(popup_name);
   }
   
   if (typeof (should_open_results_tab) !== 'undefined' && should_open_results_tab === '1') {
-    enableResult_Pill();
+    enableResultPill();
   }
   console.log('setuop');
 }
 
-function fill_template_based(template_params) {
+function fillTemplateBasedSearchForm(template_params, size) {
   var formURL           = template_params[0];
   var popup_name        = template_params[1];
   var parent_input_name = template_params[2];
   var searchString      = template_params[3];
   var window_type       = template_params[4];
   
-  if (parent_input_name != '') {
-    searchString += "&" + parent_input_name + "=" + get_input_val(parent_input_name);
+  if (parent_input_name !== '') {
+    searchString += "&" + parent_input_name + "=" + getInputVal(parent_input_name);
   }
   
   console.log('search_string : \'' + searchString + "\'");
   
-  if (window_type == 'choose') {
-    loadRawToModal(formURL + '?' + searchString,
-        function () {
-          make_choosable_td(popup_name);
-          bind_click_search_result(popup_name);
-        });
+  if (window_type === 'choose') {
     
-    setup_search_form(popup_name);
+    loadRawToModal(
+        //Origin
+        formURL + '?' + searchString,
+        
+        // Callback
+        function () {
+          makeChoosableTd(popup_name);
+          bindClickSearchResult(popup_name);
+        },
+        
+        //Size
+        size
+    );
+    
+    setupSearchForm(popup_name, formURL);
   }
   
-  
-  if (window_type == 'search') {
-    loadRawToModal(formURL + '?' + searchString, function(){
-      setup_search_form(popup_name)
+  if (window_type === 'search') {
+    loadRawToModal(formURL + '?' + searchString, function () {
+      setupSearchForm(popup_name, formURL)
     });
   }
 }
 
-function make_choosable_td(popup_name) {
+function makeChoosableTd(popup_name) {
   $('td').on('click', function () {
-    console.log('td_click');
-    $("input[name|='" + popup_name + "']").val($(this).text());
-    $("input[name|='" + popup_name + "1']").val($(this).text());
-    aModal.hide();
+    fillSearchResults(popup_name, $(this).text());
   });
 }
 
-function make_choosable_tr(popup_name) {
+function makeChoosableTr(popup_name) {
   
-  if (!popup_name){
+  if (!popup_name) {
     console.warn('Wrong popup_name', popup_name);
     return false;
   }
   
   $('tr').on('click', function () {
-    var $clickSearchResult =  $(this).find('.clickSearchResult');
-    
-    // Looking for id in first column of row
-    var id = $(this).find('td').first().text();
-    
-    //Looking for name in attribute or inner text
-    var name = $clickSearchResult.attr('name') || $clickSearchResult.text() || id;
-    
-    $("input[name|='" + popup_name + "']").val(id);
-    $("input[name|='" + popup_name + "1']").val(name);
-    aModal.hide();
+    var $clickSearchResult = $(this).find('.clickSearchResult');
+    fillSearchResults(popup_name, $clickSearchResult.attr('data-value'));
   });
+  
 }
 
-function bind_click_search_result(popup_name) {
+function bindClickSearchResult(popup_name) {
   $('.clickSearchResult').on('click', function (event) {
     event.stopPropagation();
-    fill_search_results(popup_name, $(this).attr('value'));
+    fillSearchResults(popup_name, $(this).attr('value'));
     aModal.hide();
   });
   console.log('clickSearch');
 }
 
-function fill_search_results(popup_name, value) {
-  console.log(popup_name);
-  $("input[name|='" + popup_name + "']").val(value);
-  $("input[name|='" + popup_name + "1']").val(value);
+function fillSearchResults(popup_name, data_value) {
+  
+  if (data_value.match('#@#')) {
+    var key_value_arr = data_value.split('#@#');
+    for (var i = 0; i < key_value_arr.length; i++) {
+      var current_name_value = key_value_arr[i].split(':');
+      var input_name         = current_name_value[0];
+      var input_value        = current_name_value[1];
+      
+      //$("input[name|='" + input_name + "1']").val(input_value);
+      var $select = $("select[name|='" + input_name + "']");
+      if ($select.length) {
+        renewChosenValue($select, input_value)
+      }
+      else {
+        $("input[name|='" + input_name + "']").val(input_value).change();
+        Events.emit('search_form.value_selected.' + input_name, data_value);
+      }
+    }
+  }
+  else {
+    $("input[name|='" + popup_name + "']").val(data_value).change();
+    $("input[name|='" + popup_name + "1']").val(data_value);
+    Events.emit('search_form.value_selected.' + popup_name, data_value);
+  }
+  
   aModal.hide();
   $('#modalContent').html('');
 }
 
-function get_in_search_form(formContent, formSearchURL) {
+function openAsSearchForm(formContent, formSearchURL) {
   var str_func_close = '$("#PopupModal").hide();';
   
   var ddata = '';
@@ -195,8 +206,8 @@ function get_in_search_form(formContent, formSearchURL) {
   ddata += "      <div class='hidden-xs col-sm-4 col-md-4 col-lg-4'></div>";
   ddata += "      <div class='hidden-xs col-md-4'>";
   ddata += "        <div class='text-centered'>";
-  ddata += "          <input type='button' class='btn' data-toggle='dropdown' onclick='enableSearch_Pill();' value='Search' />";
-  ddata += "          <input type='button' class='btn' data-toggle='dropdown' onclick='enableResult_Pill();' value='Result' />";
+  ddata += "          <input type='button' class='btn' data-toggle='dropdown' onclick='enableSearchPill();' value='Search' />";
+  ddata += "          <input type='button' class='btn' data-toggle='dropdown' onclick='enableResultPill();' value='Result' />";
   ddata += "        </div>";
   ddata += "      </div>";
   ddata += "      <div class='hidden-xs col-sm-3 col-md-3 col-lg-3'></div>";
@@ -235,7 +246,7 @@ function getDataURL(formURL, callback) {
   $.get(
       formURL, request_string,
       function (data) {
-        enableResult_Pill();
+        enableResultPill();
         $('#result_pill').empty().append(data);
         
         if (callback) callback();
@@ -254,7 +265,7 @@ function hrefIndex(url, index) {
 }
 
 function hrefValue(url, index, name, value) {
-  return hrefIndex(url, index) + "&" + name + "=" + get_input_val(name);
+  return hrefIndex(url, index) + "&" + name + "=" + (value || getInputVal(name));
 }
 
 function replace(url) {
@@ -267,7 +278,7 @@ function getGetDataURLBtn() {
 
 
 //buttons
-function enableSearch_Pill() {
+function enableSearchPill() {
   if ($('#search_pill').hasClass('hidden')) {
     $('#search_pill').removeClass('hidden');
     $('#result_pill').addClass('hidden');
@@ -275,7 +286,7 @@ function enableSearch_Pill() {
   }
 }
 
-function enableResult_Pill() {
+function enableResultPill() {
   if ($('#result_pill').hasClass('hidden')) {
     $('#search_pill').addClass('hidden');
     $('#result_pill').removeClass('hidden');

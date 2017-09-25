@@ -80,7 +80,7 @@ $conf{USERS_WEB_ADMIN_ID}=3;
 #System Langs
 $conf{LANGS}="english:English;
  russian:Русский;
- ukraine:Українська;
+ ukrainian:Українська;
  bulgarian:Болгарська;
  french:French;
  armenian:Armenian;

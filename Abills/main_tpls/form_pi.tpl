@@ -72,8 +72,8 @@
         %ADDRESS_TPL%
         <!-- comment panel -->
         <div class='form-group'>
-          <label class='control-label col-sm-2' for='COMMENTS'>_{COMMENTS}_</label>
-          <div class='col-sm-10'>
+          <label class='control-label col-sm-2 col-md-3' for='COMMENTS'>_{COMMENTS}_</label>
+          <div class='col-sm-10 col-md-9'>
              <textarea class='form-control' id='COMMENTS' name='COMMENTS' rows='3'>%COMMENTS%</textarea>
           </div>
         </div>

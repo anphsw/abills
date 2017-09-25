@@ -11,11 +11,23 @@ use POSIX qw(strftime);
 use Dv;
 require Abills::Misc;
 
+load_pmodule2('SNMP');
+$ENV{'MIBDIRS'} = "../../Abills/MIBs";
+#SNMP::initMib();
+SNMP::addMibDirs("../../Abills/MIBs/private");
+SNMP::initMib();
+my %snmpparms;
+$snmpparms{Version} = 2;
+$snmpparms{UseEnums} = 1;
+$snmpparms{Retries} = 1;
+
 our ($html,
   %lang,
   $admin,
   %conf,
-  $db
+  $db,
+  @MONTHES,
+  @WEEKDAYS,  
 );
 
 our Equipment $Equipment;
@@ -511,7 +523,7 @@ sub equipment_panel_new {
         TYPE_NAME    => '_SHOW',
         MODEL_NAME   => '_SHOW',
         ADDRESS_FULL => '_SHOW',
-        %LIST_PARAMS
+       # %LIST_PARAMS
       }
     );
 
@@ -587,7 +599,10 @@ sub equipment_panel_new {
 
       my $buttons;
       foreach my $key (@$tmpl) {
-        $buttons .= $html->li($html->button($key->{section}, "index=$index&visual=$key->{section}$pages_qs"), { class => (defined($FORM{visual}) && $FORM{visual} eq $key->{section}) ? 'active' : '' });
+        $buttons .= $html->li($html->button($key->{section},
+											"index=$index&visual=$key->{section}$pages_qs"),
+											{ class => (defined($FORM{visual}) && $FORM{visual} eq $key->{section}) ? 'active' : '' }
+											);
       }
 
       if ($buttons) {
@@ -909,45 +924,48 @@ sub equipment_fdb_data {
 #**********************************************************
 sub equipment_snmp_stats {
   my ($attr) = @_;
-
-  my $params = $Equipment->graph_list(
+#  $Equipment->{debug}=1;
+ 
+  my %ind;
+  my $stats = $Equipment->get_stats(
     {
-      COLS_NAME    => 1,
-      NAS_ID       => $attr->{NAS_ID} || $FORM{NAS_ID},
-      PORT         => $attr->{PORT} || $FORM{FILTER_PORT} || '_SHOW',
-      PARAM        => '_SHOW',
-      MEASURE_TYPE => '_SHOW'
-    }
+		TABLE     => "equipment_counter64_stats",
+		COLS_NAME => 1,
+        NAS_ID    => $attr->{NAS_ID} || $FORM{NAS_ID},
+        IN_ID     => $attr->{PORT} || $FORM{PORT} || '_SHOW',
+        NAME      => '_SHOW',
+		VALUE     => '_SHOW',
+		DATETIME  => '_SHOW',
+		TIME      => '_SHOW',
+		SORT      => ($FORM{PORT})?'name':'',
+		FROM_DATE => $FORM{FROM_DATE} || strftime("%Y-%m-%d %T", localtime(time-21600)),
+		TO_DATE   => $FORM{TO_DATE} || strftime("%Y-%m-%d %T", localtime(time))
+       }
   );
-
-  my $PERIODS_SEL = $html->form_select(
-    'PERIODS_FIELD',
-    {
-      SELECTED  => $FORM{PERIODS_FIELD},
-      SEL_LIST  => [ { name => 'Hourly', val => 1 }, { name => '6 Hourly', val => 6 }, { name => '12 Hourly', val => 12 }, { name => 'Daily', val => 24 }, { name => 'Week', val => 168 }, ],
-      SEL_KEY   => 'val',
-      SEL_VALUE => 'name',
-      NO_ID     => 1
-    }
-  );
-
-  my %ports;
-  foreach my $vr (@$params) {
-    push(@{ $ports{ $vr->{port} } }, $vr->{param});
+  return 1 if !$stats;
+  foreach my $st ( 1..@$stats-1 ) {
+		if ( $stats->[$st]->{id} == $stats->[$st-1]->{id} && $stats->[$st]->{in_id} == $stats->[$st-1]->{in_id}){
+			my $period = $stats->[$st]->{time} - $stats->[$st-1]->{time};
+			my $diff = $stats->[$st]->{value} - $stats->[$st-1]->{value};
+			$ind{$stats->[$st]->{in_id}}{$stats->[$st]->{name}}{$stats->[$st]->{datetime}} = sprintf("%.2f", $diff / $period / 1048576 * 8);
+		}
   }
 
-  my $FIELDS_SEL = $html->form_select(
-    'FILTER_PORT',
+  my $PERIODS_SEL = $html->form_daterangepicker({ NAME =>'FROM/TO', FORM_NAME => 'TIMERANGE', WITH_TIME => 1 });
+  my $PORT_SEL = $html->form_select(
+    'PORT',
     {
-      SELECTED  => $FORM{FILTER_PORT},
-      SEL_ARRAY => \@{ [ sort { $a <=> $b } keys %ports ] },
+      SELECTED  => $FORM{PORT},
+      SEL_ARRAY => \@{ [ sort { $a <=> $b } keys %ind ] },
       NO_ID     => 1
     }
   );
 
   print $html->form_main(
     {
-      CONTENT => "$lang{PERIOD}: " . $PERIODS_SEL . " $lang{PORT}: " . $FIELDS_SEL . $html->form_input('SHOW', $lang{SHOW}, { TYPE => 'SUBMIT' }),
+      CONTENT => "$lang{PERIOD}: $lang{FROM} &nbsp" . $html->form_datetimepicker2('FROM_DATE') .
+	  "&nbsp $lang{TO} &nbsp" . $html->form_datetimepicker2('TO_DATE') .
+	   "&nbsp $lang{PORT}: " . $PORT_SEL . $html->form_input('SHOW', $lang{SHOW}, { TYPE => 'SUBMIT' }),
       METHOD  => 'GET',
       class   => 'form-inline',
       HIDDEN  => {
@@ -958,48 +976,15 @@ sub equipment_snmp_stats {
     }
   );
 
-  require Equipment::Graph;
-  my $stt = ($FORM{PERIODS_FIELD}) ? time() - $FORM{PERIODS_FIELD} * 3600 : '';
-  foreach my $port (sort { $a <=> $b } keys %ports) {
-    my $graph_hash = get_graph_data(
-      {
-        NAS_ID     => $FORM{NAS_ID},
-        PORT       => $port,
-        DS_NAMES   => $ports{$port},
-        START_TIME => $stt,
-        TYPE       => 'counter'
-      }
-    );
-
-    my @data    = ();
-    my @data1   = ();
-    my @timearr = ();
-    foreach my $val (@{ $graph_hash->{data} }) {
-      push @timearr, strftime("%b %d %H:%M", localtime($val->[0]));
-      $val->[1] = sprintf("%.2f", $val->[1] / (1024 * 1024) * 8) if ($val->[1]);
-      push @data, $val->[1];
-      $val->[2] = sprintf("%.2f", $val->[2] / (1024 * 1024) * 8) if ($val->[2]);
-      push @data1, $val->[2];
-    }
-
-    my %graph = ();
-
-    $graph{ $graph_hash->{meta}->{legend}->[0] } = \@data;
-    $graph{ $graph_hash->{meta}->{legend}->[1] } = \@data1 if ($graph_hash->{meta}->{legend}->[1]);
-
-    print $html->make_charts2(
-      {
-        TITLE         => "GRAPH FOR PORT " . $port,
-        DIMENSION     => 'Mb/s',
-        Y_TITLE       => "$lang{PORT} $port",
-        GRAPH_ID      => $port,
-        TRANSITION    => 1,
-        X_TEXT        => \@timearr,
-        DATA          => \%graph,
-        OUTPUT2RETURN => 1
-      }
-    );
-    _error_show($Equipment);
+  foreach my $in (sort { $a <=> $b } keys %ind) {
+	my @data;
+	foreach my $vr ( keys %{$ind{$in}}){
+		foreach my $val ( sort keys %{$ind{$in}{$vr}}){
+			push @data, ({ y => $val, $vr => $ind{$in}{$vr}{$val} });
+		}
+  	}
+  	my @larr = sort keys %{$ind{$in}};
+  	print $html->make_charts3({DATA => \@data, XKEYS => \@larr, LABELS => \@larr, GRAPH_ID => $in, UNITS => 'Mb/s', HEADER => "$lang{PORT} $in" });
   }
 
   return 1;
@@ -1054,29 +1039,677 @@ sub equipment_snmp_json_data {
   return 1;
 }
 
+#**********************************************************
+
+=head2 equipment_obj()
+
+=cut
 
 #**********************************************************
-=head2 label_w_text($attr); - return formated text with label
+sub equipment_obj {
 
-  Arguments:
-    NAME - text of label
-    TEXT 
-    CTRL - for form with input control
-    COLOR - color of label
-    LCOL
-    RCOL
+  my ($attr) = @_;
+  #my @newarr;
+  SNMP::addMibFiles(glob("../../Abills/MIBs/private" . '/*'));
+ # $Equipment->{debug}=1;
+   $pages_qs .= ($FORM{ID}) ? "&ID=$FORM{ID}" : q{};
+ 
+ if (!$FORM{ID}){
+ 
+  my %ohash;
+  foreach my $oid (keys(%SNMP::MIB)) {
+	if ( $SNMP::MIB{$oid}{'objectID'} =~ /.1.3.6.1.4.1./ ) {
+		$ohash{$SNMP::MIB{$oid}{'objectID'}} = $SNMP::MIB{$oid}{'label'};
+		foreach my $toid (@{$SNMP::MIB{$oid}{'children'}}) {
+			if ( $toid->{'type'} ) {
+			#	print $toid->{'label'};
+			}
+		}
+	}
+  }
+  #print Dumper $SNMP::MIB{'1.3.6.1.2.1.2.1'}{'enums'};
+
+  my $info = $Equipment->obj_values_list({
+								         COLS_NAME => 1,
+								         PAGE_ROWS => 10000,
+								   	  	 OID_ID     => '1',
+								         VALUE     => '_SHOW',
+									 });
+  
+  my $oids = $Equipment->oids_list({
+								         #COLS_NAME => 1,
+								         PAGE_ROWS => 10000,
+								   	  	 SECTION   => 'system',
+										 LABEL     => '_SHOW',
+										 OBJECTID  => '_SHOW',
+								         IID       => '_SHOW',
+									 });
+									 
+  my $li = $html->element('li', "<a href='index=$index&visual=ALL$pages_qs'>All</a>");
+  $li .= dropdown('Switch', { DMENU => \@$info, IND => 'obj_id', VAL => 'value' });
+  my $ul = $html->element('ul', $li, { class => 'nav navbar-nav' });
+  my $container = $html->element('div', $ul, { class => 'container-fluid' });
+  print $html->element('nav', $container, { class => 'navbar navbar-default' });
+
+
+  $LIST_PARAMS{VALUES} = $oids;
+
+   result_former({
+     INPUT_DATA      => $Equipment,
+     FUNCTION        => 'obj_list',
+     DEFAULT_FIELDS  => 'IP, NAS_NAME, SYS_NAME, SYS_LOCATION, SYS_UPTIME',
+     #FUNCTION_FIELDS => 'equipment_traps:change:trap_id;&pg='.($FORM{pg}||''),
+ 	 HIDDEN_FIELDS   => 'NAS_ID,ID,SYS_DESCR',
+     EXT_TITLES      => {
+       ip       => 'IP',
+       name     => "$lang{NAME} NAS",
+	   sysDescr => $lang{DESCRIBE},
+      },
+     SKIP_USER_TITLE => 1,
+     FILTER_COLS  => {
+       ip   => "search_link:equipment_obj:,ID",
+       name => "search_link:form_nas:,NAS_ID"
+     },
+     #SELECT_VALUE    => { sysObjectID => \%ohash
+     #				   },
+	 TABLE => {
+	   caption => " ",
+	   qs      => $pages_qs,
+       ID      => 'OBJ_LIST',
+     },
+     MAKE_ROWS => 1,
+     TOTAL     => 1
+   });
+
+ 
+ } else {  
+   my $buttons = $html->li($html->button('INFO',
+										"index=$index&visual=INFO$pages_qs"),
+										{ class => (defined($FORM{visual}) && $FORM{visual} eq 'INFO') ? 'active' : '' }
+										);
+	$buttons .= $html->li($html->button('HOST',
+									 		"index=$index&visual=HOST$pages_qs"),
+									 		{ class => (defined($FORM{visual}) && $FORM{visual} eq 'HOST') ? 'active' : '' }
+									 	);
+	$buttons .= $html->li($html->button('BRIDGE',
+										"index=$index&visual=BRIDGE$pages_qs"),
+										{ class => (defined($FORM{visual}) && $FORM{visual} eq 'BRIDGE') ? 'active' : '' }
+										);
+=com
+   foreach my $key (@$tmpl) {
+     $buttons .= $html->li($html->button($key->{section},
+										"index=$index&visual=$key->{section}$pages_qs"),
+										{ class => (defined($FORM{visual}) && $FORM{visual} eq $key->{section}) ? 'active' : '' }
+										);
+   }
+=cut
+   
+   if ($buttons) {
+     my $obj_select = $html->form_select(
+       'ID',
+       {
+         SELECTED => $attr->{ID} || $FORM{ID},
+         SEL_LIST => $Equipment->obj_list(
+           {
+             IP  => '_SHOW',
+             COLS_NAME => 1,
+             PAGE_ROWS => 10000
+           }
+         ),
+         SEL_KEY        => 'id',
+         SEL_VALUE      => 'ip',
+         NO_ID          => 1,
+         MAIN_MENU      => get_function_index('equipment_obj'),
+         MAIN_MENU_ARGV => "ID=" . ($FORM{ID} || '')
+       }
+     );
+
+     my $obj_select_form = $html->form_main(
+       {
+         CONTENT => $obj_select . $html->form_input('SHOW', $lang{SHOW}, { TYPE => 'submit' }),
+         HIDDEN  => {
+           'index'  => $index,
+           'visual' => $FORM{visual} || 0,
+         },
+         NAME  => 'equipment_obj_panel',
+         ID    => 'equipment_obj_panel',
+         class => 'navbar-form navbar-right',
+       }
+     );
+
+     my $buttons_list = $html->element('ul', $buttons, { class => 'nav navbar-nav' });
+
+     print $html->element('div', $buttons_list . $obj_select_form, { class => 'navbar navbar-default' });
+   }
+   my $visual = $FORM{visual} || 'INFO';
+   if ($visual eq 'INFO') {
+   	equipment_obj_data($FORM{ID});
+   } else {
+   	oid_table({ ID => $FORM{ID}, SECT => lc($visual)});
+   }
+}
+
+  return 1;
+}
+
+#**********************************************************
+
+=head2 equipment_obj_data()
+
+=cut
+
+#**********************************************************
+sub equipment_obj_data {
+
+  my ($attr) = @_;
+  #my @newarr;
+
+  my $info = $Equipment->obj_values_list(
+    {
+      COLS_NAME => 1,
+      OBJ_ID    => $FORM{ID}||$attr->{ID},
+      OBJ_IND   => '_SHOW',
+      OID_ID    => '_SHOW',
+      VALUE     => '_SHOW'
+    }
+  );
+  my $oids = $Equipment->oids_list(
+    {
+      LABEL     => '_SHOW',
+	  LIST2HASH => 'id,label'
+    }
+  );
+
+    my $table = $html->table(
+      {
+        #caption     => "$lang{LAST_UPDATE}: $info->[0]->{info_time}",
+        width       => '100%',
+        title_plain => [ $lang{PARAMS}, $lang{VALUE} ],
+        cols_align  => [ 'left', 'left' ],
+        ID          => 'EQUIPMENT_TEST',
+      }
+    );
+
+    my $edit = $html->button($lang{EDIT}, "index=$index&edit=1", { ICON => 'fa fa-pencil-square-o', });
+
+    foreach my $key (@$info) {
+       $edit = $html->button( $lang{CHANGE}, "index=$index$pages_qs&OID=$oids->{$key->{oid_id}}",
+            { MESSAGE => "$lang{CHANGE} $oids->{$key->{oid_id}}",
+              TEXT    => $lang{CHANGE},
+              class   => 'change'
+            });
+	  $table->addrow($html->b($oids->{$key->{oid_id}}), $key->{value}, ($SNMP::MIB{$oids->{$key->{oid_id}}}{'access'} eq 'ReadWrite')? $edit :'');
+    }
+    print $table->show();
+
+
+  return 1;
+}
+
+#**********************************************************
+
+=head2 oid_table()
+
+=cut
+
+#**********************************************************
+sub oid_table {
+
+  my ($attr) = @_;
+  SNMP::loadModules('BRIDGE-MIB', 'Q-BRIDGE-MIB');
+
+  #$Equipment->{debug}=1;
+
+  my $info = $Equipment->obj_list(
+    {
+      COLS_NAME => 1,
+      ID    => $FORM{ID}||$attr->{ID},
+      IP   => '_SHOW',
+    }
+  );
+
+  my $tbl = $Equipment->oids_list(
+    {
+      COLS_NAME => 1,
+	  SECTION   => $FORM{SECT}||$attr->{SECT},
+      TYPE      => 'table',
+      LABEL     => '_SHOW',
+    }
+  );
+ 
+  my $sess = new SNMP::Session(DestHost => $info->[0]->{ip},%snmpparms);
+
+  my @li;
+  my @panel;
+
+  foreach my $t (@$tbl) {
+	  my $rows = $Equipment->oids_rows_list({ OID_ID => $t->{id} });
+	  my @vars;
+	  foreach my $row (@$rows) {
+		  push @vars, $row->[1]
+	  }
+
+	  my $results = $sess->gettable( $t->{label}, columns => [ @vars ]);
+	#my @columns = @{$bridge{$key}};
+	#for (@columns) {
+	#   s/dot1q|dot1d//g;
+    #} 
+	my $table = $html->table(
+      {
+        title_plain => [ @vars ],
+        ID          => "_".$t->{label},
+      }
+    );
+
+    foreach my $var (sort { $a <=> $b } keys %$results) {
+		my @row = ();
+		foreach my $ind (@vars){
+			if ( $SNMP::MIB{$ind}{'syntax'} eq 'PortList'){
+				my $index = unpack( "B64", $results->{$var}->{$ind});
+		        $results->{$var}->{$ind} = '';
+				my $offset = 0;
+		        my $result = index($index, 1, $offset);
+		        while ($result != - 1) {
+		          $result = index($index, 1, $offset);
+		          $offset = $result + 1;
+		          $results->{$var}->{$ind} .= "$offset " if ( $offset > 0 );
+		        }
+			}
+			push @row,  $results->{$var}->{$ind};
+		}
+		$table->addrow(@row);
+    }
+	my $active = ( @panel < 1 )?'in active':'';
+	push @li, $html->element('li', "<a data-toggle='tab' href='#" . $t->{label} . "'>" . $t->{label} . "</a>", { class => ( @li < 1 )?'active':'' });
+	push @panel, $html->element('div', nms_snmp_table({ OID => $t->{label}, columns => [ @vars ], IP => $info->[0]->{ip} }),
+									{ id => $t->{label}, class => "tab-pane fade" . (( @panel < 1 )?'in active':'') });
+  
+  }
+
+  	my $edit = $html->button($lang{EDIT}, "index=$index&edit=1", { ICON => 'fa fa-pencil-square-o', });
+
+	my $ul = $html->element('ul', "@li", { class => 'nav nav-tabs' });
+	my $tab = $html->element('div', "@panel", { class => 'tab-content' });
+	
+    print $ul . $tab;
+
+
+  return 1;
+}
+
+#**********************************************************
+=head2 dropdown($attr); - return formated text with label
       
   Returns:
     String with element
 
 =cut
 #**********************************************************
-sub label_w_text {
-	my ($attr) = @_;
-	my @lable;
-	push @lable, 'control-label' if (!$attr->{CTRL}) ;
-	push @lable, "label-$attr->{COLOR}" if ($attr->{COLOR}) ;
+sub dropdown {
+	my ($name, $attr) = @_;
+	my $IND = uc($attr->{IND});
+	my @LI;
+    foreach my $line ( @{$attr->{DMENU}} ) {
+		my $link = qq(<a href='?index=$index&$IND=$line->{$attr->{IND}}'>$line->{$attr->{VAL}}</a>);
+       	push @LI, $html->li($link);
+     }
+
+	my $ul = $html->element('ul', "@LI", { class => 'dropdown-menu' });
+	my $a = qq(<a class="dropdown-toggle" data-toggle="dropdown" href="#">$name <span class="caret"></span></a>);
+	my $drop_li = $html->element('li', $a.$ul, { class => 'dropdown' });
 	
-	return "<div class='form-group'><label class='@lable col-sm-" . ($attr->{LCOL}||'2') . "'>".
-				($attr->{NAME}||'') . "</label><div class='col-sm-" . ($attr->{RCOL}||'2') . "'>" . ($attr->{TEXT} || '') . "</div></div>";
+	return $drop_li;
+
 }
+
+#**********************************************************
+
+=head2 oid_table_edit()
+
+=cut
+
+#**********************************************************
+sub oid_table_edit {
+
+  my ($attr) = @_;
+  SNMP::loadModules('HOST-RESOURCES-MIB');
+  if ( $FORM{del} ) {
+  	$Equipment->oid_del($FORM{del});
+  }
+  if ( $FORM{GET} ) {
+  	return nms_snmp_get({ IP => $FORM{GET}, OID => $FORM{OID}});
+  } 
+  if ( $FORM{add} ) {
+	  mibs_browser();
+
+  } elsif ( $FORM{ID} ) {
+	  print "ADD";
+  } else {
+	  result_former({
+	    INPUT_DATA      => $Equipment,
+	    FUNCTION        => 'oids_list',
+	    DEFAULT_FIELDS  => 'SECTION,LABEL,IID,TYPE,ACCESS',
+	    FUNCTION_FIELDS => 'oid_table_edit:change:id;type,del',
+		HIDDEN_FIELDS   => 'ID',
+	    EXT_TITLES      => {
+	      ip       => 'IP',
+	      name     => "$lang{NAME} NAS",
+	     },
+	    SKIP_USER_TITLE => 1,
+	    FILTER_COLS  => {
+	   #   ip   => "search_link:equipment_obj:,ID",
+	   #   name => "search_link:form_nas:,NAS_ID"
+	    },
+	    #SELECT_VALUE    => { sysObjectID => \%ohash
+	    #				   },
+	 	TABLE           => {
+	   		qs   => $pages_qs,
+	    	ID   => 'OID_LIST',
+			MENU => "$lang{ADD}:index=$index$pages_qs&add=1:add",
+	    },
+	    MAKE_ROWS => 1,
+	    TOTAL     => 1
+	  });
+  }
+  
+  return 1;
+}
+
+#**********************************************************
+
+=head2 nms_snmp_get()
+
+=cut
+
+#**********************************************************
+sub nms_snmp_get {
+
+  my ($attr) = @_;
+  $snmpparms{UseSprintValue} = 1;
+  $snmpparms{Community} = $attr->{COMMUNITY} || $conf{EQUIPMENT_SNMP_COMMUNITY_RO};
+  my $ip = $FORM{IP} || $attr->{IP};
+  my $oid = $FORM{OID} || $attr->{OID};
+  my $iid = $FORM{IID} || $attr->{IID} || 0;
+  my $sess = new SNMP::Session(DestHost => $ip, %snmpparms);
+  my $result = $sess->get([ $oid, $iid ]);
+  if ( $sess->{ErrorNum} ) {
+    return $html->message('err', $lang{ERROR}, $sess->{ErrStr});
+  }
+  my $result_tbl = $html->table({});
+  my $set_button = '';
+  if ( $SNMP::MIB{$oid}{access} eq 'ReadWrite'){
+	  $set_button = $html->element( 'span', undef,
+      							{
+									ex_params  => qq/onclick=renewLeftBox($oid,'SET',$iid)/,
+    								class  => 'glyphicon glyphicon-pencil text-info',
+      							}
+      						);
+  }
+  
+  $result_tbl->addrow($html->b($lang{RESULT}), $result, $set_button);
+ 
+  return $result_tbl->show();
+}
+
+#**********************************************************
+
+=head2 nms_snmp_walk()
+
+=cut
+
+#**********************************************************
+sub nms_snmp_walk {
+
+  my ($attr) = @_;
+  $snmpparms{UseSprintValue} = 1;
+  $snmpparms{Community} = $attr->{COMMUNITY} || $conf{EQUIPMENT_SNMP_COMMUNITY_RO};
+  my $sess = new SNMP::Session(DestHost => $FORM{IP} || $attr->{IP}, %snmpparms);
+  my @result = $sess->bulkwalk(0, 1,[ $FORM{OID} || $attr->{OID} ]);
+  if ( $sess->{ErrorNum} ) {
+    return $html->message('err', $lang{ERROR}, $sess->{ErrStr});
+  }
+  my $result_tbl = $html->table({});
+  foreach my $val (@{$result[0]}) {
+	  $result_tbl->addrow(@$val)
+  }
+ 
+  return $result_tbl->show();
+}
+
+#**********************************************************
+
+=head2 nms_snmp_set()
+
+=cut
+
+#**********************************************************
+sub nms_snmp_set {
+
+  my ($attr) = @_;
+  $snmpparms{UseSprintValue} = 1;
+  $snmpparms{Community} = $attr->{COMMUNITY} || $conf{EQUIPMENT_SNMP_COMMUNITY_RW};
+  my $sess = new SNMP::Session(DestHost => $FORM{IP} || $attr->{IP}, %snmpparms);
+  my $result = $sess->set([ $FORM{OID} || $attr->{OID}, $FORM{IID} || $attr->{IID} || 0 ]);
+  if ( $sess->{ErrorNum} ) {
+    return $html->message('err', $lang{ERROR}, $sess->{ErrStr});
+  }
+  my $result_tbl = $html->table({});
+  $result_tbl->addrow($html->b($lang{RESULT}), $result);
+  #print $result_tbl->show();
+  print $attr->{OID};
+ 
+  return 1;
+}
+
+#**********************************************************
+
+=head2 nms_snmp_table()
+
+=cut
+
+#**********************************************************
+sub nms_snmp_table {
+
+  my ($attr) = @_;
+  
+  $snmpparms{Community} = $attr->{COMMUNITY} || $conf{EQUIPMENT_SNMP_COMMUNITY_RO};
+  my $sess = new SNMP::Session(DestHost => $attr->{IP},%snmpparms);
+  SNMP::loadModules('BRIDGE-MIB', 'Q-BRIDGE-MIB');
+
+  if (!$attr->{columns}){
+	    foreach my $c (sort { $b cmp $a } @{$SNMP::MIB{$attr->{OID}}{'children'}[0]{'children'}}) {
+			push @{$attr->{columns}}, $c->{'label'};
+	    }
+  }
+
+  my $results = $sess->gettable( $attr->{OID}, , columns => [@{$attr->{columns}}] );
+  if ( $sess->{ErrorNum} ) {
+	return $html->message('err', $lang{ERROR}, $sess->{ErrStr});
+  }
+ 
+  my $table = $html->table(
+      {
+        title_plain => [ @{$attr->{columns}} ],
+      }
+    );
+
+    foreach my $var (sort { $a <=> $b } keys %$results) {
+		my @row = ();
+		foreach my $ind (@{$attr->{columns}}){
+			if ( $SNMP::MIB{$ind}{'syntax'} eq 'PortList'){
+				my $index = unpack( "B64", $results->{$var}->{$ind});
+		        $results->{$var}->{$ind} = '';
+				my $offset = 0;
+		        my $result = index($index, 1, $offset);
+		        while ($result != - 1) {
+		          $result = index($index, 1, $offset);
+		          $offset = $result + 1;
+		          $results->{$var}->{$ind} .= "$offset " if ( $offset > 0 );
+		        }
+			}
+			push @row,  $results->{$var}->{$ind};
+		}
+		$table->addrow(@row);
+    }
+
+
+  return $table->show();
+}
+
+#**********************************************************
+
+=head2 mibs_browser()
+
+=cut
+
+#**********************************************************
+sub mibs_browser {
+
+  my ($attr) = @_;
+#$Equipment->{debug}=1;
+  $pages_qs = ($attr->{KEY}) ? "&$attr->{KEY}=1" : q{};
+  SNMP::initMib();
+  SNMP::addMibDirs("../../Abills/MIBs/private");
+ # SNMP::addMibFiles(glob("../../Abills/MIBs/private" . '/*'));
+  if ($FORM{OID}){
+	  my $table = $html->table({});
+	  $table->addrow($html->b($lang{NAME}), $SNMP::MIB{$FORM{OID}}{label});
+	  $table->addrow($html->b('objectID'), $SNMP::MIB{$FORM{OID}}{objectID});
+	  $table->addrow($html->b($lang{TYPE}), $SNMP::MIB{$FORM{OID}}{type}) if $SNMP::MIB{$FORM{OID}}{type};
+	  $table->addrow($html->b('Module'), $SNMP::MIB{$FORM{OID}}{moduleID});
+	  $table->addrow($html->b($lang{ACCESS}), $SNMP::MIB{$FORM{OID}}{access});
+	  $table->addrow($html->b('Syntax'), $SNMP::MIB{$FORM{OID}}{syntax}) if $SNMP::MIB{$FORM{OID}}{syntax};
+  	  $table->addrow($html->b($lang{RANGE}), "$SNMP::MIB{$FORM{OID}}{ranges}[0]{low} .. $SNMP::MIB{$FORM{OID}}{ranges}[0]{high}") 
+  	  	if $SNMP::MIB{$FORM{OID}}{ranges}[0];
+	  $table->addrow($html->b($lang{DESCRIBE}), $SNMP::MIB{$FORM{OID}}{TCDescription}) if $SNMP::MIB{$FORM{OID}}{TCDescription};
+	  $table->addrow($html->b('Reference'), $SNMP::MIB{$FORM{OID}}{reference}) if $SNMP::MIB{$FORM{OID}}{reference};
+	  print $table->show();
+	  if ($FORM{GET}){
+	  	print nms_snmp_get({ IP => $FORM{GET}, OID => $FORM{OID}});
+	  } elsif ($FORM{WALK}){
+	  	print nms_snmp_walk({ IP => $FORM{WALK}, OID => $FORM{OID}});
+	  } elsif ($FORM{TABLE}){
+	  	print nms_snmp_table({ IP => $FORM{TABLE}, OID => $FORM{OID}});
+	  } elsif ($FORM{SET}){
+	  	nms_snmp_set({ IP => $FORM{SET}, OID => $FORM{OID}});
+	  }
+	  return 1
+  }
+  if (!$FORM{IP}){
+	  my $obj_select = $html->form_select(
+	    'IP',
+	    {
+	      SELECTED => $FORM{IP},
+	      SEL_LIST => $Equipment->obj_list(
+	        {
+	          IP  => '_SHOW',
+			  SYS_LOCATION => '_SHOW',
+	          COLS_NAME => 1,
+			  SORT      => 1,
+	          PAGE_ROWS => 10000,
+			  VALUES    =>  [[ 'sysLocation', '.1.3.6.1.2.1.1.6', '0', '4' ]],
+	        }
+	      ),
+	      SEL_KEY        => 'ip',
+		  SEL_VALUE      => 'ip,sysLocation',
+	      NO_ID          => 1,
+	      MAIN_MENU_ARGV => "IP=" . ($FORM{IP} || '')
+	     }
+	  );
+
+	  print $html->element('div', $obj_select, { class => 'navbar navbar-default' });
+  }
+  my @tree_arr;
+  foreach my $oid (keys(%SNMP::MIB)) {
+	if ( $SNMP::MIB{$oid}{objectID} =~ /.1.3.6.1./ ) {
+		my $prev_id = ( split(/\./,$SNMP::MIB{$oid}{objectID}) == 7 )? '0' : $SNMP::MIB{$oid}{parent}{objectID};
+		my $name = $SNMP::MIB{$oid}{label};
+		if ( $SNMP::MIB{$oid}{children}[0]{indexes}[0] || $SNMP::MIB{$oid}{indexes}[0]){
+			$name = "<p oid='$SNMP::MIB{$oid}{objectID}' class='tree-item-table'>$SNMP::MIB{$oid}{label}</p>";
+		} elsif ( $SNMP::MIB{$oid}{parent}{indexes}[0]){
+			$name = "<p oid='$SNMP::MIB{$oid}{objectID}' class='tree-item-row'>$SNMP::MIB{$oid}{label}</p>";
+		} elsif ( $SNMP::MIB{$oid}{syntax}){
+			$name = "<p oid='$SNMP::MIB{$oid}{objectID}' class='tree-item-item'>$SNMP::MIB{$oid}{label}</p>";
+		}
+		push @tree_arr, ({ ID => $SNMP::MIB{$oid}{objectID},
+		                   #NAME => $SNMP::MIB{$oid}{label},
+						   NAME => $name,
+						   VALUE => $SNMP::MIB{$oid}{objectID},
+						   PARENT_ID => $prev_id
+					   });
+	}
+  }
+
+  my $IP = ($FORM{IP})? $FORM{IP} : 0 ;
+  my $scr = qq(
+  			<link rel='stylesheet' href='/styles/default_adm/css/modules/cablecat/jquery.contextMenu.min.css'>
+  			<script src='/styles/default_adm/js/modules/cablecat/jquery.contextMenu.min.js'></script>
+			<script>
+				\$(function(){
+					\$.contextMenu({
+					        selector: '.tree-item-row', 
+					        autoHide: true,
+							build: function(\$trigger, e) {
+  							  var oid = \$trigger.attr('oid');
+								return {
+					                callback: function(key, options) {
+					                    //var m = "clicked: " + oid + key;
+										renewLeftBox(oid,key);
+					                },
+					                items: {
+					                    WALK: {name: "Walk", icon: "fa-list"}
+					                }
+					            };
+					        }
+					    });
+					\$.contextMenu({
+					        selector: '.tree-item-table', 
+					        autoHide: true,
+							build: function(\$trigger, e) {
+  							  var oid = \$trigger.attr('oid');
+								return {
+					                callback: function(key, options) {
+					                    //var m = "clicked: " + oid + key;
+										renewLeftBox(oid,key);
+					                },
+					                items: {
+					                    WALK: {name: "Walk", icon: "fa-list"},
+					                    TABLE: {name: "Table View", icon: "fa-th-list"},
+					                }
+					            };
+					        }
+					    });
+				});
+			    function renewLeftBox(itemName,Action,iid){
+					var ip = '$IP';
+					iid = iid ? iid : 0 ;
+					if ( ip == 0 ){
+						ip = \$('.chosen-single').text();
+						ip = ip.substring(0, ip.indexOf(' :'));
+					}
+					var url = 'index.cgi?qindex=$index&header=2&' + Action + '=' + ip + '&OID=' + itemName + '&IID=' + iid;
+			  		\$('#RESULT').load(url);
+			    };
+				\$('.tree-menu').find('.tree-item-item').on('click', function(){ renewLeftBox(this.innerText,'GET') })
+				\$('.tree-menu').find('.tree-item-row').on('click', function(){ renewLeftBox(this.innerText) })
+				\$('.tree-menu').find('.tree-toggler').on('click', function(){ renewLeftBox(this.innerText) })
+			</script>); 
+
+  my $tree = $html->element('div', $html->tree_menu( \@tree_arr, 'OIDS',{OUTPUT2RETURN=>1}),
+  							{ 
+								class => 'col-md-4 text-right',
+								style => 'overflow-y: scroll;height:75vh;outline: 1px solid silver'
+							});
+  my $res = $html->element('div', '',
+  							{ 
+								id => 'RESULT',
+								class => 'col-md-8 text-left',
+								style => 'overflow-y: scroll;height:75vh;outline: 1px solid silver'
+							});
+  my $brows = $html->element('div', $tree.$res );
+
+  print $brows.$scr;
+  return 1;
+}
+
+1;

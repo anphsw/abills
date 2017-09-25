@@ -191,7 +191,7 @@ sub test_cablecat_cables_to_struct {
   my $cables = $Cablecat->cables_list({ROWS => 1, MODULES_COUNT => '!'});
   my $cable = $cables->[0];
   
-  my $struct = _cablecat_commutation_cable_to_hash_ref($cable->{id});
+  my $struct = _cablecat_commutation_cables_prepare_json($cable->{id});
     
   ok($struct->{id} && $struct->{id} eq $cable->{id}, 'Converted cable can be read and has same id');
 }

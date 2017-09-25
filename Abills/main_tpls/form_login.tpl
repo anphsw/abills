@@ -1,73 +1,104 @@
 <script type='text/javascript'>
-    function selectLanguage() {
-        var sLanguage = jQuery('#language').val() || '';
-        var sLocation = '$SELF_URL?DOMAIN_ID=$FORM{DOMAIN_ID}&language=' + sLanguage;
-        document.location.replace(sLocation);
+  function selectLanguage() {
+    var sLanguage = jQuery('#language').val() || '';
+    var sLocation = '$SELF_URL?DOMAIN_ID=$FORM{DOMAIN_ID}&language=' + sLanguage;
+    document.location.replace(sLocation);
+  }
+  function set_referrer() {
+    document.getElementById('REFERER').value = location.href;
+  }
+
+  jQuery(function () {
+    if ('%TECH_WORKS_BLOCK_VISIBLE%' === '1') {
+      jQuery('#tech_works_block').css('display', 'block');
     }
-    function set_referrer() {
-        document.getElementById('REFERER').value = location.href;
-    }
+
+    jQuery('#language').on('change', selectLanguage);
+  })
 </script>
+<style>
+  .wrapper {
+    overflow: visible;
+  }
+</style>
 
 <nav class='navbar navbar-default' role='navigation'>
-    <div class='container-fluid navbar-right'>
-        <h1><span style='color: red;'>A</span>BillS
-            <small>%TITLE%</small>
-            &nbsp;</h1>
-    </div>
+  <div class='container-fluid navbar-right'>
+    <h1 style='font-weight: 600;'>
+      <span style='color: red;'>A</span>BillS
+      <small>%TITLE%</small>
+      &nbsp;
+    </h1>
+  </div>
 </nav>
 
-%ERROR_MSG%
+<div class='container-fluid'>
 
-<div class='container'>
+  <div class='row'>
+    <div class='col-md-6 col-md-offset-3'>
+      %ERROR_MSG%
+    </div>
+  </div>
+
+  <div class='row'>
+    <div class='col-md-6 col-md-offset-3'>
+      <div class='info-box bg-yellow' style='display: none;' id='tech_works_block'>
+        <span class='info-box-icon'><i class='fa fa-wrench'></i></span>
+        <!--line height to center text vertical-->
+        <div class='info-box-content' style='line-height: 80px'>
+          <!--<span class='info-box-text'>_{TECH_WORKS_ARE_RUNNING_NOW}_</span>-->
+          <span class='info-box-number text-center'>%TECH_WORKS_MESSAGE%</span>
+        </div><!-- /.info-box-content -->
+      </div><!-- /.info-box -->
+    </div>
+  </div>
+
+  <div class='row'>
     <form action='$SELF_URL' METHOD='post' name='frm' id='form_login' class='form-horizontal'>
 
-        <input type=hidden name=DOMAIN_ID value='$FORM{DOMAIN_ID}'>
-        <input type=hidden ID=REFERER name=REFERER value='$FORM{REFERER}'>
-        <input type='hidden' name='LOGIN' value='1' />
-        <fieldset>
+      <input type=hidden name=DOMAIN_ID value='$FORM{DOMAIN_ID}'>
+      <input type=hidden ID=REFERER name=REFERER value='$FORM{REFERER}'>
+      <input type='hidden' name='LOGIN' value='1'/>
+      <fieldset>
 
-            <div class='form-group'>
-                <label class='control-label col-md-6' for='user'>_{LANGUAGE}_</label>
-
-                <div class='col-md-2'>
-                    %SEL_LANGUAGE%
-                </div>
+        <div class='col-xs-12 col-md-4 col-md-offset-4 col-lg-2 col-lg-offset-5'>
+          <div class='form-group has-feedback'>
+            <div class='input-group'>
+              <span class='input-group-addon glyphicon glyphicon-globe'></span>
+              %SEL_LANGUAGE%
             </div>
+          </div>
 
-
-            <div class='form-group'>
-                <label class='control-label col-md-6' for='user'>_{USER}_</label>
-
-                <div class='col-md-2'>
-                    <div class='input-group'>
-                        <span class='input-group-addon'><span class='glyphicon glyphicon-user'></span></span>
-                        <input id='user' name='user' value='%user%' placeholder='_{USER}_' class='form-control'
-                               type='text'>
-                    </div>
-                </div>
+          <div class='form-group'>
+            <div class="input-group">
+             <span class="input-group-addon glyphicon glyphicon-user"></span>
+             <input type='text' id='user' name='user' value='%user%' class='form-control' placeholder='_{LOGIN}_'>
             </div>
+          </div>
 
-            <div class='form-group'>
-                <label class='control-label col-md-6' for='passwd'>_{PASSWD}_</label>
-
-                <div class='col-md-2'>
-                    <div class='input-group'>
-                        <span class='input-group-addon'><span class='glyphicon glyphicon-lock'></span></span>
-                        <input id='passwd' name='passwd' value='%password%' placeholder='_{PASSWD}_' class='form-control'
-                               type='password'>
-                    </div>
-                </div>
+          <div class='form-group'>
+            <div class="input-group">
+              <span class="input-group-addon glyphicon glyphicon-lock"></span>
+            <input type='password' id='passwd' name='passwd' value='%password%' class='form-control'
+                   placeholder='_{PASSWD}_'>
             </div>
+          </div>
 
-            <div class='form-group'>
-                <div class='col-sm-offset-6 col-md-6'>
-                    <input type='submit' class='btn btn-default' name='logined' value='_{ENTER}_'
-                           onclick='set_referrer()'>
-                </div>
-            </div>
+          <div class='row'>
+            <!-- /.col -->
 
-        </fieldset>
+              <button type='submit' name='logined' class='btn btn-success btn-block btn-flat form-control'
+                      onclick='set_referrer()'>_{ENTER}_
+              </button>
+
+            <!-- /.col -->
+          </div>
+          <div class='row'>
+            %PSWD_BTN%
+          </div>
+        </div>
+      </fieldset>
     </form>
+  </div>
 </div>
 

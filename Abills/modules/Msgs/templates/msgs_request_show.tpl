@@ -82,6 +82,10 @@
 	</div>
 </div> <!--end row-->
 
+<div class='form-group'>
+	%UNREG_EXTRA_INFO%
+</div>
+
 <div class='form-group odd'>
 	<div class='col-xs-3'>
         <label>_{COMPANY}_:</label>
@@ -148,22 +152,26 @@
 		</div><!--end row-->
 
 	</div>
-	<div class='col-md-6'>
-		<label> _{NOTE}_: </label>
-		<div class='col-xs-12'>
-		<textarea cols=60 rows=1 name=CONTACT_NOTE class='form-control'>%CONTACT_NOTE%</textarea>
-		</div>
+
+	<div class='col-md-12'>
+	<label> _{NOTE}_: </label>
 	</div>
+	<div class='col-md-12'>
+	<textarea cols=60 rows=2 name=CONTACT_NOTE class='form-control'>%CONTACT_NOTE%</textarea>
+	</div>
+</div>
+
 </div><!--end row-->
 
 <div class='form-group'>
-	<div class='col-xs-3'>
+	<div class='col-md-12'>
         <label> _{COMMENTS}_: </label>
 	</div>
-	<div class='col-xs-9'>
+	<div class='col-md-12'>
 		<textarea cols=60 rows=4 name=COMMENTS class='form-control'>%COMMENTS%</textarea>
 	</div>
 </div> <!--end row-->
+
 <div class='row text-center'>
     <input type=submit class='btn btn-primary' name=change value='_{CHANGE}_'>
 </div>

@@ -221,20 +221,6 @@ sub ip_change {
 
   $attr->{MAC_AUTO_DETECT} = (defined($attr->{MAC_AUTO_DETECT})) ? 1 : 0;
 
-  my %FIELDS = (
-    IP_ID    => 'ip_id',
-    IP_NUM   => 'ip',
-    NETMASK  => 'netmask',
-    HOSTNAME => 'hostname',
-    GID      => 'gid',
-    STATUS   => 'status',
-    COMMENTS => 'comments',
-    IP       => 'ip',
-    DESCR    => 'descr',
-    MAC      => 'mac',
-    MAC_AUTO_DETECT => 'mac_auto_detect'
-  );
-
   if ($attr->{IDS}) {
     my @ids_array = split(/, /, $attr->{IDS});
     foreach my $id (@ids_array) {
@@ -245,8 +231,6 @@ sub ip_change {
         {
           CHANGE_PARAM => 'IP_ID',
           TABLE        => 'netlist_ips',
-          FIELDS       => \%FIELDS,
-          OLD_INFO     => $self->ip_info($attr->{IP_NUM}, $attr),
           DATA         => $attr
         }
       );
@@ -260,8 +244,6 @@ sub ip_change {
     {
       CHANGE_PARAM => 'IP_ID',
       TABLE        => 'netlist_ips',
-      FIELDS       => \%FIELDS,
-      OLD_INFO     => $self->ip_info($attr->{IP_ID}, $attr),
       DATA         => $attr
     }
   );

@@ -66,7 +66,7 @@ sub stalker_online {
 =cut
 #**********************************************************
 sub stalker_online_check {
-  my Iptv::Stalker_api $Stalker_api = shift;
+  my $Stalker_api = shift;
 
   my $Tariffs = Tariffs->new($db, \%conf, $Admin);
   my $Shedule = Shedule->new($db, $Admin);
@@ -229,13 +229,15 @@ sub stalker_online_check {
         my $u_list = $Iptv->user_list({ LOGIN => "$account_hash->{login}", COLS_NAME => 1 });
 
         if ($Iptv->{TOTAL}) {
-          $Iptv->user_change({ ID => $u_list->[0]->{id},
-                               CID => $account_hash->{mac}
-                            });
+          $Iptv->user_change({
+            ID  => $u_list->[0]->{id},
+            CID => $account_hash->{mac}
+          });
+
           print " added" if ($debug > 1);
         }
         else {
-          print " Not exist" if ($debug > 1);
+          print "LOGIN: $account_hash->{login} MAC: $account_hash->{mac} Not exist in billing" if ($debug > 1);
         }
       }
       print "\n" if ($debug > 0);
@@ -395,7 +397,10 @@ sub stalker_online_check {
         $Log->log_print('LOG_ERR', $uid, "Hangup Error: UID: $uid ID: $id MAC: $mac [$Stalker_api->{errno}] $Stalker_api->{errstr}");
       }
       else {
-     	  $Log->log_print('LOG_INFO', $uid, "Hangup: $mac ($hangup_desr{$uid}) Session: $acct_session_id ID: $id");
+     	  $Log->log_print('LOG_INFO', $uid, "Hangup: $mac ("
+          . (($uid && $hangup_desr{$uid}) ? $hangup_desr{$uid} : $uid || q{--})
+          . ") Session: ". ($acct_session_id || 'No session ID')
+          . "ID: $id");
       }
     }
   }

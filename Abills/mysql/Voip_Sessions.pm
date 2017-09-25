@@ -58,7 +58,9 @@ sub del{
 }
 
 #**********************************************************
-# online()
+=head2 online($attr)
+
+=cut
 #**********************************************************
 sub online{
   my $self = shift;
@@ -90,7 +92,7 @@ sub online{
   service.tp_id,
   0,
   u.credit,
-  if(DATE_FORMAT(c.started, '%Y-%m-%d')=curdate(), DATE_FORMAT(c.started, '%H:%i:%s'), c.started)
+  if(DATE_FORMAT(c.started, '%Y-%m-%d')=CURDATE(), DATE_FORMAT(c.started, '%H:%i:%s'), c.started)
 
  FROM voip_calls c
  LEFT JOIN users u     ON u.uid=c.uid
@@ -281,7 +283,9 @@ sub periods_totals{
 }
 
 #**********************************************************
-# List
+=head2 list($attr)
+
+=cut
 #**********************************************************
 sub list{
   my $self = shift;
@@ -305,36 +309,36 @@ sub list{
     my $period = $attr->{PERIOD};
     if ( $period == 4 ){ $WHERE .= ''; }
     else{
-      $WHERE .= ($WHERE ne '') ? ' and ' : 'WHERE ';
-      if ( $period == 0 ){ push @WHERE_RULES, "DATE_FORMAT(start, '%Y-%m-%d')=curdate()"; }
-      elsif ( $period == 1 ){ push @WHERE_RULES, "TO_DAYS(curdate()) - TO_DAYS(l.start) = 1 "; }
+      $WHERE .= ($WHERE ne '') ? ' AND ' : 'WHERE ';
+      if ( $period == 0 ){ push @WHERE_RULES, "DATE_FORMAT(start, '%Y-%m-%d')=CURDATE()"; }
+      elsif ( $period == 1 ){ push @WHERE_RULES, "TO_DAYS(CURDATE()) - TO_DAYS(l.start) = 1 "; }
       elsif ( $period == 2 ){ push @WHERE_RULES,
-        "YEAR(curdate()) = YEAR(l.start) and (WEEK(curdate()) = WEEK(start)) "; }
-      elsif ( $period == 3 ){ push @WHERE_RULES, "DATE_FORMAT(start, '%Y-%m')=DATE_FORMAT(curdate(), '%Y-%m') "; }
+        "YEAR(CURDATE()) = YEAR(l.start) and (WEEK(CURDATE()) = WEEK(start)) "; }
+      elsif ( $period == 3 ){ push @WHERE_RULES, "DATE_FORMAT(start, '%Y-%m')=DATE_FORMAT(CURDATE(), '%Y-%m') "; }
       elsif ( $period == 5 ){ push @WHERE_RULES, "DATE_FORMAT(start, '%Y-%m-%d')='$attr->{DATE}' "; }
-      else{ $WHERE .= "DATE_FORMAT(start, '%Y-%m-%d')=curdate() "; }
+      else{ $WHERE .= "DATE_FORMAT(start, '%Y-%m-%d')=CURDATE() "; }
     }
   }
 
   $WHERE = $self->search_former( $attr, [
-      [ 'LOGIN', 'STR', 'u.id AS login', 1 ],
-      [ 'DATE', 'DATE', 'l.start', 1 ],
-      [ 'DURATION', 'DATE', 'SEC_TO_TIME(l.duration) AS duration', 1 ],
-      [ 'IP', 'IP', 'l.ip', 'INET_NTOA(l.client_ip_address) AS ip' ],
-      [ 'CALLING_STATION_ID', 'STR', 'l.calling_station_id', 1 ],
-      [ 'CALLED_STATION_ID', 'STR', 'l.called_station_id', 1 ],
-      [ 'TP_ID', 'INT', 'l.tp_id', 1 ],
-      [ 'SUM', 'INT', 'l.sum', 1 ],
-      [ 'NAS_ID', 'INT', 'l.nas_id', 1 ],
-      [ 'NAS_PORT', 'INT', 'l.port_id', 1 ],
-      [ 'ACCT_SESSION_ID', 'STR', 'l.acct_session_id', ],
-      [ 'TERMINATE_CAUSE', 'INT', 'l.terminate_cause', 1 ],
-      [ 'BILL_ID', 'STR', 'l.bill_id', 1 ],
-      [ 'DURATION_SEC', 'INT', 'l.duration AS duration_sec', 1 ],
+      [ 'LOGIN',        'STR',   'u.id AS login',                        1 ],
+      [ 'DATE',         'DATE',  'l.start',                              1 ],
+      [ 'DURATION',     'DATE',  'SEC_TO_TIME(l.duration) AS duration',  1 ],
+      [ 'IP',           'IP',    'l.ip',  'INET_NTOA(l.client_ip_address) AS ip' ],
+      [ 'CALLING_STATION_ID', 'STR', 'l.calling_station_id',             1 ],
+      [ 'CALLED_STATION_ID',  'STR', 'l.called_station_id',              1 ],
+      [ 'TP_ID',        'INT',   'l.tp_id',                              1 ],
+      [ 'SUM',          'INT',   'l.sum',                                1 ],
+      [ 'NAS_ID',       'INT',   'l.nas_id',                             1 ],
+      [ 'NAS_PORT',     'INT',   'l.port_id',                            1 ],
+      [ 'ACCT_SESSION_ID', 'STR','l.acct_session_id',                      ],
+      [ 'TERMINATE_CAUSE', 'INT','l.terminate_cause',                    1 ],
+      [ 'BILL_ID',      'STR',   'l.bill_id',                            1 ],
+      [ 'DURATION_SEC', 'INT',   'l.duration AS duration_sec',           1 ],
       #[ 'DATE',            'DATE', "DATE_FORMAT(start, '%Y-%m-%d')" ],
       [ 'START_UNIXTIME', 'INT', 'UNIX_TIMESTAMP(l.start) AS asstart_unixtime', 1 ],
-      [ 'FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(l.start, '%Y-%m-%d')" ],
-      [ 'MONTH', 'DATE', "DATE_FORMAT(l.start, '%Y-%m')" ],
+      [ 'FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(l.start, '%Y-%m-%d')"    ],
+      [ 'MONTH',        'DATE', "DATE_FORMAT(l.start, '%Y-%m')"            ],
     ],
     { WHERE        => 1,
       WHERE_RULES  => \@WHERE_RULES,
@@ -361,7 +365,7 @@ sub list{
   my $list = $self->{list};
 
   if ( $self->{TOTAL} > 0 ){
-    $self->query2( "SELECT count(*) AS total, SEC_TO_TIME(sum(l.duration)) AS duration, sum(sum) AS sum
+    $self->query2( "SELECT COUNT(*) AS total, SEC_TO_TIME(SUM(l.duration)) AS duration, SUM(sum) AS sum
       FROM (voip_log l, users u)
      $WHERE;",
       undef,

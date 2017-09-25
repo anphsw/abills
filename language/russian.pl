@@ -1,5 +1,4 @@
-our @MONTHES = ('Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь',
-  'Декабрь');
+our @MONTHES = ('Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь');
 our @PERIODS = ('Сегодня', 'Вчера', 'Неделя', 'Месяц', 'Все сеансы', 'Вид активации');
 our @WEEKDAYS = ('Праздничные', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс');
 our $CHARSET = 'utf-8';
@@ -255,6 +254,7 @@ $lang{NOW} = 'Немедленно';
 $lang{OCTETS_DIRECTION} = 'Направление трафика';
 $lang{ERR_SMALL_DEPOSIT} = 'Cлишком маленький депозит';
 $lang{USER_CHG_TP} = 'Смена тарифного плана пользователем';
+$lang{TP_CHANGE_SHEDULED} = 'Запланирована смена тарифного плана';
 $lang{CITY} = 'Город';
 $lang{UNLIM} = 'Анлим';
 $lang{TEXT} = 'Текст';
@@ -290,7 +290,7 @@ $lang{BILL} = 'Денежный счёт';
 $lang{VALUE} = 'Значение';
 $lang{RECEIPT} = 'Квитанция';
 $lang{ACTIVE_DAY_FEE} = 'Только за активные дни';
-$lang{TO} = 'К';
+$lang{TO} = 'До';
 $lang{DISABLE} = 'Отключено';
 $lang{TRAFFIC_CLASS} = 'Классы трафика';
 $lang{ADDRESS_FLAT} = 'Квартира';
@@ -304,7 +304,7 @@ $lang{PERIOD} = 'Период';
 $lang{CUSTOMERS} = 'Клиенты';
 $lang{COUNTRY} = 'Страна';
 $lang{GEN_PASSWD} = 'Сгенерированный пароль';
-$lang{ICARDS} = 'Интернет карточки';
+$lang{ICARDS} = 'Карточки пополнения';
 $lang{ERR_SEARCH_VAL_TOSMALL} = 'Слишком короткая строка поиска';
 $lang{PRINT} = 'Печать';
 $lang{OTHER} = 'Другое';
@@ -478,6 +478,8 @@ $lang{NAS} = 'Сервер доступа';
 $lang{DISCARDS} = 'Списания';
 $lang{EXIST} = 'Запись уже существует';
 $lang{ENABLE} = 'Активно';
+$lang{ENABLED} = 'Активно';
+$lang{DO_ENABLE} = 'Активировать';
 $lang{PAY_SYSTEM} = 'Платёжная система';
 $lang{ERR_NO_FREE_IP_IN_POOL} = 'Нет свободных IP  адресов';
 $lang{COMMENTS_PLEASE} = ' Комментарии обязательны';
@@ -649,4 +651,45 @@ $lang{NOTIFICATIONS}='Оповещения';
 $lang{COMMAND}='Команда';
 $lang{CRITICAL_PACKET_LOSS} = 'Критическая потеря пакетов у пользователя';
 $lang{ERR_PASSWORD_INSECURE} = 'Пароль не соответствует установленной политике сложности';
+$lang{GET_FEES}='Снимать абонплату';
+$lang{NOT}='Не';
+$lang{OLD}='Старое';
+$lang{EMPTY_FIELD}='Пустое поле';
+
+$lang{ERR_NO_DEFAULT_GATEWAY} = 'Маршрут по умолчанию не настроен';
+$lang{REMOVE_SAVED_CONFIGURATION} = 'Удалить сохранённую конфигурацию';
+$lang{CONFIGURATION_APPLIED_SUCCESSFULLY} = 'Конфигурация применена успешно';
+$lang{CONFIGURATION_APPLIED_WITH_ERRORS} = 'Возникли ошибки во время конфигурации устройства';
+
+$lang{YESTERDAY_BACKUP_DOES_NOT_EXISTS} = 'Не создан архив базы данных за вчера';
+$lang{BACKUP_CHECK_FAILS_FOR} = 'Архив базы не прошел проверку на целостность';
+
+$lang{ERR_CHECK_ALL_COLUMNS} = 'Все колонки должны быть выбраны';
+$lang{HOUSING}='Жильцы';
+$lang{EDIT} = 'Редактировать';
+$lang{REMOVE} = 'Удалить';
+
+$lang{SYSTEM_NOTIFICATION} = 'Системное уведомление';
+$lang{FOR_}='За';
+$lang{SAVE} = 'Сохранить';
+$lang{ORGANIZER}='Органайзер';
+
+$lang{ENABLE_PUSH} = 'Получать Push';
+$lang{DISABLE_PUSH} = 'Отписаться от Push';
+$lang{PUSH_IS_NOT_SUPPORTED} = 'Push не поддерживается';
+$lang{PUSH_IS_DISABLED} = 'Push отключено';
+
+$lang{LIVE_SEARCH} = 'Живой поиск';
+
+$lang{UNSUBSCRIBE_FROM} = 'Отписаться от ';
+$lang{SUBSCRIBE_TO} = 'Подписаться на ';
+
+$lang{SHOW_ADMINS_ONLINE} = 'Просмотр онлайн администраторов';
+$lang{TYPE_YOUR_RESPONSE} = 'Введите текст ответа';
+$lang{TEXT_NOT_FOUND} = 'Текст не найден';
+$lang{TRY_AGAIN} = 'Попробуйте снова';
+$lang{UNAVAILABLE} = 'Недоступен';
+
+$lang{CHECK_ACCESS} = 'Проверить доступ';
+
 1

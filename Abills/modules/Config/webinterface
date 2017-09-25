@@ -56,7 +56,7 @@ sub config_main{
 
     foreach my $p ( sort keys %FORM ){
       if ( defined( $pre_conf{$p} ) ){
-        if ( $FORM{$p} eq 'subparams' ){
+        if ( defined($FORM{$p}) && $FORM{$p} eq 'subparams' ){
           my @params_val = ();
           my $i = 0;
           while(defined( $FORM{$p . '_' . $i} )) {
@@ -74,7 +74,7 @@ sub config_main{
 
     my $debug_out = '';
     foreach my $p ( sort keys %post_conf ){
-      $debug_out .= "$p -> $post_conf{$p}\n";
+      $debug_out .= "$p -> ". ($post_conf{$p} || q{}) ."\n";
       $Config->config_add({
         PARAM   => $p,
         VALUE   => $post_conf{$p},
@@ -102,8 +102,7 @@ sub config_main{
     {
       width      => '100%',
       caption    => "Options",
-      title      => [ $lang{PARAM}, "$lang{VALUE}", ],
-      cols_align => [ 'left', 'left', 'center', 'center' ],
+      title      => [ $lang{PARAM}, $lang{VALUE} ],
       qs         => $pages_qs,
       pages      => $Config->{TOTAL},
       ID         => 'CONFIG'
@@ -288,7 +287,6 @@ sub config_manage {
       width      => '100%',
       caption    => "Options",
       title      => [ $lang{KEY}, $lang{VALUE}, 'Type', "-", "-" ],
-      cols_align => [ 'left', 'left',  'center', 'center' ],
       qs         => $pages_qs,
       pages      => $Config->{TOTAL},
       ID         => 'SPAM_AWL'
@@ -322,7 +320,6 @@ sub config_password_generator {
     $FORM{CHARS} = (defined $FORM{CHARS}) ? $FORM{CHARS} : 0;
 
     my $new_config_string = join(':',
-      ($FORM{SYMBOLS_COUNT} || $conf{PASSWD_LENGTH}),
       $FORM{CASE},
       $FORM{CHARS},
     );
@@ -332,19 +329,36 @@ sub config_password_generator {
       VALUE   => $new_config_string,
       REPLACE => 1
     } );
-
+  
+    $Config->config_add( {
+      PARAM   => 'PASSWD_LENGTH',
+      VALUE   => ($FORM{SYMBOLS_COUNT} || $conf{PASSWD_LENGTH}),
+      REPLACE => 1
+    } );
+  
+  
     if (!_error_show($Config)){
       $conf{CONFIG_PASSWORD} = $new_config_string;
+      $conf{PASSWD_LENGTH} = $FORM{SYMBOLS_COUNT};
     };
 
   }
 
-  my $config_string = $conf{CONFIG_PASSWORD} || ($conf{PASSWD_LENGTH} . ':0:0');
-  my ($count, $case, $chars) = split(':', $config_string, 3);
+  my $config_string = $conf{CONFIG_PASSWORD} || '0:0';
+  my $count = $conf{PASSWD_LENGTH};
+  my ($case, $chars) = split(':', $config_string);
 
+  if ($case > 2){
+    $case = 0;
+  }
+  if ($chars > 3){
+    $chars = 0;
+  }
+  
+  
   $html->tpl_show( _include('config_password', 'Config'),
     {
-      MIN_LENGTH               => $conf{PASSWD_LENGTH},
+      MIN_LENGTH              => 6,
       MAX_LENGTH              => 32,
 
       SYMBOLS_COUNT           => $count,
@@ -362,9 +376,16 @@ sub config_password_generator {
 sub config_get_password_constraints {
   my ($config_string) = @_;
   
-  $config_string //= $conf{CONFIG_PASSWORD};
-  my ($length, $case, $special_chars) = split(':', $config_string, 3);
-    
+  my $length = $conf{PASSWD_LENGTH};
+  my ($case, $special_chars) = split(':', $config_string);
+  
+  if ($case > 2){
+    $case = 1;
+  }
+  
+  if ($special_chars > 3){
+    $special_chars = 3;
+  }
   my $lang_case = '';
   if ($case == 0){
     $lang_case = $lang{UPPERCASE};
@@ -385,6 +406,9 @@ sub config_get_password_constraints {
   }
   elsif ($special_chars == 2){
     $lang_chars = $lang{NUMBERS} . ', ' . $lang{SPECIAL_CHARS}  . '(-_!&%@#:)';
+  }
+  elsif ($special_chars == 3){
+    $lang_chars = $lang{NO};
   }
   
   return  $html->br . $lang{LENGTH} . ' : >= ' . ($length || '') . $html->br

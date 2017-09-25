@@ -46,46 +46,58 @@
       <div class='box-body'>
         <div class='form-group'>
           <label class='col-md-3 control-label'>_{ATTACHMENT}_:</label>
-          <div class='input-group'>
-            <input name='FILE_UPLOAD' type='file' class='form-control'/>
-            <span class='input-group-addon'><a
+          <div class='col-md-9'>
+            <div class='input-group'>
+              <input name='FILE_UPLOAD' type='file' class='form-control'/>
+              <span class='input-group-addon'><a
                 href='$SELF_URL?UID=$FORM{UID}&index=$index&PHOTO=$FORM{chg}&webcam=1'
                 class='glyphicon glyphicon-camera'></a></span>
+              </div>
+            </div>
           </div>
-        </div>
-        <div class='form-group'>
-          <label class='col-md-3'>_{TEMPLATES}_ (_{SURVEY}_):</label>
+          <div class='form-group'>
+            <label class='col-md-3'>_{TEMPLATES}_ (_{SURVEY}_):</label>
 
-          <div class='col-md-9'>
-            %SURVEY_SEL%
+            <div class='col-md-9'>
+              %SURVEY_SEL%
+            </div>
           </div>
-        </div>
-        <div class='form-group'>
-          <label class='col-md-3 control-label'>_{CHANGE}_ _{CHAPTERS}_:</label>
+          <div class='form-group'>
+            <label class='col-md-3 control-label'>_{CHANGE}_ _{CHAPTERS}_:</label>
 
-          <div class='col-md-9'>
-            %CHAPTERS_SEL%
+            <div class='col-md-9'>
+              %CHAPTERS_SEL%
+            </div>
           </div>
-        </div>
-        <div class='form-group'>
-          <label class='col-md-3 control-label text-left'>_{RUN_TIME}_:</label>
+          <div class='form-group'>
+            <label class='col-md-3 control-label text-left'>_{RUN_TIME}_:</label>
 
-          <div class='col-md-9'>
-            <input class='form-control' type='text' name='RUN_TIME' value='%RUN_TIME%' %RUN_TIME_STATUS%>
+            <div class='col-md-9'>
+
+              <div class='input-group'>
+                <span class='input-group-addon'><a class='glyphicon glyphicon-time'></a></span>
+
+                <input  class='form-control' id='RUN_TIME' type='text' name='RUN_TIME'' %RUN_TIME_STATUS%>
+
+                <span id='func_btn' run_status='1' class='input-group-addon'><a id='func_icon'  class='glyphicon glyphicon-play'></a></span>
+                <span id='func_rst' class='input-group-addon'><a class='glyphicon glyphicon-refresh'></a></span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
 
 
-  <div class='box-footer'>
-    <input type='hidden' name='sid' value='$sid'/>
-    <input type='submit' class='btn btn-primary' name='%ACTION%' value='  %LNG_ACTION%  ' id='go' title='Ctrl+C'/>
+    <div class='box-footer'>
+      <input type='hidden' name='sid' value='$sid'/>
+      <input type='submit' class='btn btn-primary' name='%ACTION%' value='  %LNG_ACTION%  ' id='go' title='Ctrl+C'/>
+    </div>
   </div>
-</div>
-<script>
-  jQuery(function () {
+
+  <script src="/styles/default_adm/js/msgs_reply_timer.js"></script>
+  <script>
+    jQuery(function () {
     var status_select = jQuery('select#STATE');
     var wrapper       = jQuery('div.content-wrapper');
 

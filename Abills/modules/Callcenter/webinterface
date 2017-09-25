@@ -19,12 +19,23 @@ use warnings;
 use Callcenter;
 use Users;
 use Admins;
+use Abills::Base qw(in_array);
 
 our ($db, $admin, $html, %lang, %conf, %OUTPUT, %LIST_PARAMS);
 
+if (form_purchase_module({
+  HEADER          => $user->{UID},
+  MODULE          => 'Callcenter',
+  REQUIRE_VERSION => 7.01
+  })) {
+  exit;
+}
+
+
 my $Callcenter = Callcenter->new($db, $admin, \%conf);
-my $Users = Users->new($db, $admin, \%conf);
-my $Admins = Admins->new($db, $admin, \%conf);
+my $Users      = Users->new($db, $admin, \%conf);
+my $Admins     = Admins->new($db, $admin, \%conf);
+
 
 #**********************************************************
 =head2 callcenter_calls_handler() - all the calls show here
@@ -38,8 +49,6 @@ my $Admins = Admins->new($db, $admin, \%conf);
 =cut
 #**********************************************************
 sub callcenter_calls_handler {
-  my ($attr) = @_;
-
   my @STATUSES = ('', $lang{RINGING}, $lang{IN_PROCESSING}, $lang{PROCESSED}, $lang{NOT_PROCESSED});
 
   my $STATUS_SELECT = $html->form_select(
@@ -65,12 +74,13 @@ sub callcenter_calls_handler {
   );
 
   if($FORM{call_status} && $FORM{call_status} == 1){
-
-    $Callcenter->callcenter_add_cals({ USER_PHONE     => $FORM{user_phone},
-                                       OPERATOR_PHONE => $FORM{operator_phone},
-                                       STATUS         => $FORM{call_status},
-                                       UID            => $FORM{uid} || 0,
-                                       ID             => $FORM{call_id} });
+    $Callcenter->callcenter_add_cals({
+      USER_PHONE     => $FORM{user_phone},
+      OPERATOR_PHONE => $FORM{operator_phone},
+      STATUS         => $FORM{call_status},
+      UID            => $FORM{uid} || 0,
+      ID             => $FORM{call_id}
+    });
 
     if(!$Callcenter->{errno}){
       print "Call successfuly added";
@@ -186,7 +196,7 @@ sub callcenter_calls_handler {
                                             UID => $u_info->{uid} });
     }
     if($not_found_users > 0){
-      $html->mesasge('success', "$lang{NOT_FOUND} $not_found_users $lang{USERS}");
+      $html->message('success', "$lang{NOT_FOUND} $not_found_users $lang{USERS}");
     }
   }
 
@@ -196,6 +206,14 @@ sub callcenter_calls_handler {
 
   if(defined $FORM{ADMIN_SELECT}){
     $LIST_PARAMS{OPERATOR_PHONE} = $FORM{ADMIN_SELECT};
+  }
+
+  if(defined $FORM{DATE_START}){
+    $LIST_PARAMS{DATE_START} = $FORM{DATE_START};
+  }
+
+  if(defined $FORM{DATE_END}){
+    $LIST_PARAMS{DATE_END} = $FORM{DATE_END};
   }
 
   $html->tpl_show(_include('callcenter_calls_filter', 'Callcenter'), 
@@ -262,7 +280,6 @@ sub callcenter_calls_handler {
 =cut
 #**********************************************************
 sub callcenter_admins_report {
-  my ($attr) = @_;
 
   my $ADMINS_SELECT = $html->form_select(
     'ADMIN_SELECT',
@@ -350,7 +367,234 @@ sub callcenter_admins_report {
 
   return 1;
 }
-  
+
+#**********************************************************
+=head2 voip_ivr_log()
+
+=cut
+#**********************************************************
+sub voip_ivr_log{
+  #my ($attr) = @_;
+
+  if ( !$FORM{sort} ){
+    $LIST_PARAMS{SORT} = 1;
+    $LIST_PARAMS{DESC} = 'DESC';
+  }
+
+  if ( $FORM{change} ){
+
+  }
+
+  my %ivr_status = (
+    0 => 'Unauth',
+    1 => 'Auth',
+    2 => 'Error',
+    3 => 'Tech message',
+    4 => 'Complete'
+  );
+
+  $Callcenter->{STATUS_SEL} = sel_status();
+
+  if ( $FORM{search_form} ){
+    form_search( { SEARCH_FORM =>
+      $html->tpl_show( _include( 'voip_ivr_search', 'Voip' ), { %{$Callcenter}, %FORM }, { OUTPUT2RETURN => 1 } ) } );
+  }
+
+  my @status_vals = ();
+  foreach my $id (sort keys(%ivr_status)) {
+    push @status_vals, $ivr_status{$id};
+  }
+
+  result_former({
+    INPUT_DATA      => $Callcenter,
+    FUNCTION        => 'log_list',
+    BASE_FIELDS     => 2,
+    DEFAULT_FIELDS  => 'ID,DATETIME,CALL_PHONE,CALL_COMMENT,STATUS,UID',
+    FUNCTION_FIELDS => 'change,del',
+    EXT_TITLES      => {
+      call_phone    => $lang{PHONE},
+      call_comment  => $lang{COMMENTS},
+      datetime => "$lang{DATE} $lang{TIME}",
+      ip       => 'IP',
+      duration => $lang{DURATION},
+      status   => $lang{STATUS},
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => "IVR",
+      qs      => $pages_qs,
+      #header  => $status_bar,
+      ID      => 'VOIP_USERS_LIST',
+      #SHOW_COLS   => \%SEARCH_TITLES,
+      #ACTIVE_COLS => \%ACTIVE_TITLES,
+      EXPORT  => 1,
+      MENU    => "$lang{SEARCH}:index=$index&search_form=1:search",
+    },
+    STATUS_VALS     => \@status_vals,
+    MAKE_ROWS       => 1,
+    MODULE          => 'Voip',
+    TOTAL           => 1
+  });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 voip_ivr_menu() - Voip IVR menu
+
+=cut
+#**********************************************************
+sub voip_ivr_menu{
+
+  $Callcenter->{ACTION} = 'add';
+  $Callcenter->{LNG_ACTION} = $lang{ADD};
+
+  if ( $FORM{import} ){
+    if ( $FORM{add} ){
+      my $import_info = import_former( \%FORM );
+      my $total = $#{ $import_info } + 1;
+      foreach my $_info ( @{$import_info} ){
+        $Callcenter->ivr_menu_add( $_info );
+        if ( _error_show( $Callcenter ) ){
+          return 0;
+        }
+      }
+
+      $html->message( 'info', $lang{INFO},
+        "$lang{ADDED}\n $lang{FILE}: $FORM{UPLOAD_FILE}{filename}\n Size: $FORM{UPLOAD_FILE}{Size}\n Count: $total" );
+      return 1
+    }
+
+    my $import_fields = $html->form_select( 'IMPORT_FIELDS', {
+        SELECTED  => $FORM{IMPORT_FIELDS},
+        SEL_ARRAY => [
+
+        ],
+        EX_PARAMS => 'multiple="multiple"'
+      });
+
+    my $encode = $html->form_select(
+      'ENCODE',
+      {
+        SELECTED  => $FORM{ENCODE},
+        SEL_ARRAY => [ '', 'win2utf8', 'utf82win', 'win2koi', 'koi2win', 'win2iso', 'iso2win', 'win2dos', 'dos2win' ],
+      }
+    );
+
+    my $extra_row = $html->tpl_show( templates( 'form_row' ), {
+        ID    => 'ENCODE',
+        NAME  => $lang{ENCODE},
+        VALUE => $encode
+      },
+      { OUTPUT2RETURN => 1 } );
+
+    $html->tpl_show( templates( 'form_import' ), {
+        #IMPORT_FIELDS     => 'LOGIN,CONTRACT_ID,FIO,PHONE,ADDRESS_STREET,ADDRESS_BUILD,ADDRESS_FLAT,PASPORT_NUM,PASPORT_GRANT',
+        CALLBACK_FUNC     => 'voip_ivr_menu',
+        IMPORT_FIELDS_SEL => $import_fields,
+        EXTRA_ROWS        => $extra_row
+      });
+
+    return 1;
+  }
+  elsif ( $FORM{add} ){
+    $Callcenter->ivr_menu_add( { %FORM } );
+    if ( !$Callcenter->{errno} ){
+      $html->message( 'info', $lang{INFO}, "$lang{ADDED}" );
+    }
+  }
+  elsif ( $FORM{change} ){
+    $Callcenter->ivr_menu_change( { %FORM } );
+    if ( !$Callcenter->{errno} ){
+      $html->message( 'info', $lang{INFO}, "$lang{CHANGED}" );
+    }
+  }
+  elsif ( $FORM{chg} ){
+    $Callcenter->ivr_menu_info( { %FORM, ID => $FORM{chg} } );
+    if ( !$Callcenter->{errno} ){
+      $html->message( 'info', $lang{INFO}, "$lang{CHANGING}" );
+    }
+    $Callcenter->{ACTION} = 'change';
+    $Callcenter->{LNG_ACTION} = $lang{CHANGE};
+  }
+  elsif ( $FORM{del} && $FORM{COMMENTS} ){
+    $Callcenter->ivr_menu_del( { ID => $FORM{del} } );
+    if ( !$Callcenter->{errno} ){
+      $html->message( 'info', $lang{INFO}, "$lang{DELETED}" );
+    }
+  }
+
+  _error_show( $Callcenter );
+
+  my $list = $Callcenter->ivr_menu_list( { MAIN_ID => 0, NUMBER => '_SHOW', NAME => '_SHOW', COLS_NAME => 1 } );
+  my %menu_hash = ();
+  foreach my $line ( @{$list} ){
+    if ( $line->{number} ){
+      $menu_hash{$line->{number}} = $line->{name};
+    }
+  }
+
+  $Callcenter->{MAIN_ID_SEL} = $html->form_select(
+    'MAIN_ID',
+    {
+      SELECTED    => $Callcenter->{MAIN_ID},
+      SEL_LIST    => $list,
+      SEL_KEY     => 'number',
+      SEL_VALUE   => 'id,number,name',
+      NO_ID       => 1,
+      SEL_OPTIONS => { '' => $lang{MAIN_MENU} },
+    }
+  );
+
+  $Callcenter->{DISABLE} = 'checked' if ($Callcenter->{DISABLE});
+  $html->tpl_show( _include( 'voip_ivr_menu', 'Voip' ), $Callcenter );
+
+  delete( $Callcenter->{COL_NAMES_ARR} );
+  my $table;
+  ($table, $list) = result_former(
+    {
+      INPUT_DATA        => $Callcenter,
+      FUNCTION        => 'ivr_menu_list',
+      BASE_FIELDS     => 1,
+      DEFAULT_FIELDS  => 'MAIN_ID,NUMBER,NAME,DISABLE,COMMENTS',
+      FUNCTION_FIELDS => 'change,del',
+      SKIP_USER_TITLE => 1,
+      EXT_TITLES      => {
+        id         => '#',
+        main_id    => $lang{MAIN},
+        number     => $lang{NUM},
+        name       => $lang{NAME},
+        disable    => $lang{DISABLE},
+        function   => $lang{FUNCTION},
+        comments   => $lang{COMMENTS},
+        audio_file => $lang{AUDIO_FILE},
+        unique_id  => 'unique_id'
+      },
+      TABLE           => {
+        width   => '100%',
+        caption => "IVR $lang{MENU}",
+        qs      => $pages_qs,
+        #header  => $status_bar,
+        ID      => 'VOIP_IVR_MENU',
+        EXPORT  => 1,
+        IMPORT  => "$SELF_URL?get_index=voip_ivr_menu&import=1&header=2",
+      },
+      SELECT_VALUE    => {
+        disable => {
+          0 => "$lang{ENABLE}",
+          1 => "$lang{DISABLE}"
+        },
+        main_id => \%menu_hash
+      },
+      MAKE_ROWS       => 1,
+      TOTAL           => 1
+    }
+  );
+
+  return 1;
+}
+
+
 1
 
 ##############################################################

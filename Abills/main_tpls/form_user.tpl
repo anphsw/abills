@@ -1,4 +1,4 @@
-<SCRIPT TYPE='text/javascript'>
+<script TYPE='text/javascript'>
   <!--
   function add_comments() {
 
@@ -9,23 +9,28 @@
 
       if (comments == '' || comments == null) {
         alert('Enter comments');
-        document.user_form.DISABLE.checked                  = false;
-        document.user_form.ACTION_COMMENTS.style.visibility = 'hidden';
+        document.user_form.DISABLE.checked               = false;
+        document.user_form.ACTION_COMMENTS.style.display = 'none';
       }
       else {
-        document.user_form.DISABLE.checked                  = true;
-        document.user_form.ACTION_COMMENTS.value            = comments;
-        document.user_form.ACTION_COMMENTS.style.visibility = 'visible';
+        document.user_form.DISABLE.checked               = true;
+        document.user_form.ACTION_COMMENTS.value         = comments;
+        document.user_form.ACTION_COMMENTS.style.display = 'block';
       }
     }
     else {
-      document.user_form.DISABLE.checked                  = false;
-      document.user_form.ACTION_COMMENTS.style.visibility = 'hidden';
-      document.user_form.ACTION_COMMENTS.value            = '';
+      document.user_form.DISABLE.checked               = false;
+      document.user_form.ACTION_COMMENTS.style.display = 'block';
+      document.user_form.ACTION_COMMENTS.value         = '';
     }
   }
+
+  jQuery(function(){
+    jQuery('input#DISABLE').on('click', add_comments );
+    if ('%PASSWORD_HIDDEN%' === '1') jQuery('div#PASSWORD_WRAPPER').hide();
+  });
   -->
-</SCRIPT>
+</script>
 <form class='form-horizontal' action='$SELF_URL' method='post' id='user_form' name='user_form' role='form'>
   <input type=hidden name=index value='$index'>
   <input type=hidden name=COMPANY_ID value='%COMPANY_ID%'>
@@ -41,69 +46,81 @@
         </button>
       </div>
     </div>
-    <div class='box-body' style='padding: 0'>
-      <div style='padding: 10px'>
-        %EXDATA%
 
-        <line class='visible-xs visible-sm dashed'></line>
+    <div class='box-body'>
+      <!--<div style='padding: 10px'>-->
 
-        <!-- CREDIT / DATE  -->
-        <div class='form-group'>
-          <label class='control-label col-xs-4 col-md-2' for='CREDIT'>_{CREDIT}_</label>
-          <div class='col-xs-8 col-md-4'>
-            <input id='CREDIT' name='CREDIT' value='%CREDIT%' placeholder='%CREDIT%' class='form-control'
-                   type='text' %CREDIT_READONLY%>
-          </div>
-          <span class='visible-xs visible-sm col-xs-12' style='padding-top: 5px'> </span>
-          <label class='control-label col-xs-4 col-md-2' for='CREDIT_DATE'>_{DATE}_</label>
-          <div class='col-xs-8 col-md-4'>
-            <input id='CREDIT_DATE' type='text' name='CREDIT_DATE' value='%CREDIT_DATE%'
-                   class='datepicker form-control' %CREDIT_DATE_READONLY%>
-          </div>
-        </div>
-        <line class='visible-xs visible-sm dashed'></line>
+      %EXDATA%
 
-        <!-- DISCOUNT / DATE  -->
-        <div class='form-group'>
-          <label class='control-label col-xs-4 col-md-2' for='REDUCTION'>_{REDUCTION}_(%)</label>
-          <div class='col-xs-8 col-md-4'>
-            <input type='number 'id='REDUCTION' name='REDUCTION' value='%REDUCTION%' placeholder='%REDUCTION%'
-                   min='0' max='100'
-                   class='form-control' %REDUCTION_READONLY%>
-          </div>
-          <span class='visible-xs visible-sm col-xs-12' style='padding-top: 5px'> </span>
-          <label class='control-label col-xs-4 col-md-2' for='REDUCTION_DATE'>_{DATE}_</label>
-          <div class='col-xs-8 col-md-4'>
-            <input id='REDUCTION_DATE' type='text' name='REDUCTION_DATE' value='%REDUCTION_DATE%'
-                   class='datepicker form-control' %REDUCTION_DATE_READONLY%>
-          </div>
+      <line class='visible-xs visible-sm dashed'></line>
+
+      <!-- CREDIT / DATE  -->
+      <div class='form-group'>
+        <label class='control-label col-xs-4 col-md-2' for='CREDIT'>_{CREDIT}_</label>
+        <div class='col-xs-8 col-md-3'>
+          <input id='CREDIT' name='CREDIT' value='%CREDIT%' placeholder='%CREDIT%' class='form-control'
+                 type='text' %CREDIT_READONLY%>
         </div>
 
-        <line class='visible-xs visible-sm dashed'></line>
-        <!-- DISABLE -->
-        <div class='form-group'>
-          <label class='control-label col-xs-4 col-md-2' for='DISABLE'>_{DISABLE}_</label>
-          <div class='col-xs-1 col-md-1'>
-            <input id='DISABLE' name='DISABLE' value='1' %DISABLE% type='checkbox'
-                   onClick='add_comments();'>
-            %DISABLE_MARK%
-          </div>
-          <div class='col-xs-6 col-md-3 panel %DISABLE_COLOR%'>
-            %DISABLE_COMMENTS%
-            <input class='form-control' type=text name=ACTION_COMMENTS value='%DISABLE_COMMENTS%' size=30
-                   style='visibility: hidden;'>%ACTION_COMMENTS%
-          </div>
-          <label class='control-label col-xs-4 col-md-2' for='PASSWD'>_{PASSWD}_</label>
-          <div class='col-xs-8 col-md-4' align='left'>%PASSWORD%</div>
+        <span class='visible-xs visible-sm col-xs-12' style='padding-top: 5px'> </span>
+
+        <label class='control-label col-xs-4 col-md-2' for='CREDIT_DATE'>_{TO}_</label>
+        <div class='col-xs-8 col-md-5'>
+          <input id='CREDIT_DATE' type='text' name='CREDIT_DATE' value='%CREDIT_DATE%'
+                 class='datepicker form-control' %CREDIT_DATE_READONLY%>
         </div>
-        <span class='visible-xs visible-sm col-xs-12' style='padding-top: 10px'> </span>
 
-        %DEL_FORM%
+      </div>
 
-        <div class='col-sm-offset-2 col-sm-8'>
+      <line class='visible-xs visible-sm dashed'></line>
 
+      <!-- DISCOUNT / DATE  -->
+      <div class='form-group'>
+        <label class='control-label col-xs-4 col-md-2' for='REDUCTION'>_{REDUCTION}_(%)</label>
+        <div class='col-xs-8 col-md-3'>
+          <input type='number' id='REDUCTION' name='REDUCTION' value='%REDUCTION%' placeholder='%REDUCTION%'
+                 min='0' max='100' step='0.01' lang=en
+                 class='form-control' %REDUCTION_READONLY%>
+        </div>
+
+        <span class='visible-xs visible-sm col-xs-12' style='padding-top: 5px'> </span>
+
+        <label class='control-label col-xs-4 col-md-2' for='REDUCTION_DATE'>_{TO}_</label>
+        <div class='col-xs-8 col-md-5'>
+          <input id='REDUCTION_DATE' type='text' name='REDUCTION_DATE' value='%REDUCTION_DATE%'
+                 class='datepicker form-control' %REDUCTION_DATE_READONLY%>
         </div>
       </div>
+      <!-- DISCOUNT / DATE  -->
+
+      <div class='row'>
+        <!-- DISABLE -->
+        <div class='col-md-6'>
+          <div class='checkbox text-center %DISABLE_COLOR%'>
+            <label>
+              <input type='checkbox' name='DISABLE' id='DISABLE' value='1' data-checked='%DISABLE%' /> %DISABLE%
+              <strong>_{DISABLE}_</strong>
+              <!--%DISABLE_MARK%-->
+            </label>
+              <br>
+            %DISABLE_COMMENTS%
+            <input class='form-control' type='text' name='ACTION_COMMENTS' value='%DISABLE_COMMENTS%' size='30'
+                   style='display : none;' />%ACTION_COMMENTS%
+          </div>
+        </div>
+
+        <div class='col-md-6' id='PASSWORD_WRAPPER'>
+          <label class='control-label col-md-4'>_{PASSWD}_</label>
+          <div class='col-md-8' align='left'>%PASSWORD%</div>
+        </div>
+      </div>
+      <!--<span class='visible-xs visible-sm col-xs-12' style='padding-top: 10px'></span>-->
+
+      %DEL_FORM%
+      <div class='col-sm-offset-2 col-sm-8'></div>
+      <!--</div>-->
+
+
       <div class='box box-default box-big-form collapsed-box'>
         <div class='box-header with-border'>
           <h3 class='box-title'>_{EXTRA}_</h3>
@@ -121,7 +138,7 @@
                        readonly>
                 <span class='input-group-addon'><a href='$SELF_URL?index=13&amp;COMPANY_ID=%COMPANY_ID%'
                                                    class='glyphicon glyphicon-circle-arrow-left'></a></span>
-                <span class='input-group-addon'><a href='$SELF_URL?index=21&UID=$FORM{UID}'
+                <span class='input-group-addon'><a href='$SELF_URL?index=21&amp;UID=$FORM{UID}'
                                                    class='glyphicon glyphicon-pencil'></a></span>
               </div>
             </div>
@@ -151,7 +168,7 @@
             <label class='control-label col-xs-4 col-md-2' for='ACTIVATE'>_{ACTIVATE}_</label>
             <div class='col-xs-8 col-md-4'>
               <input id='ACTIVATE' name='ACTIVATE' value='%ACTIVATE%' placeholder='%ACTIVATE%'
-                     class='form-control datepicker' type='text'>
+                     class='form-control datepicker' %ACTIVATE_READONLY% type='text'>
             </div>
             <span class='visible-xs visible-sm col-xs-12' style='padding-top: 5px'> </span>
             <label class='control-label col-xs-4 col-md-2' for='EXPIRE'>_{EXPIRE}_</label>

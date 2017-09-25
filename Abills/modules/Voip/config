@@ -13,13 +13,11 @@
   "14:6:$lang{EXTRA_TARIFICATION}:voip_extra_tarification:" => 5,
   "15:6:$lang{EXCHANGE_RATE}:voip_exchange_rate:"           => 5,
   "16:6:Trunks:voip_trunks:"                                => 5,
-  "17:6:IVR $lang{MENU}:voip_ivr_menu:"                     => 5,
   "20:0:VoIP:null:"                                         => 4,
   "21:20:$lang{ERROR}:voip_error:"                          => 4,
   "22:20:$lang{LAST_ENTRIES}:voip_sessions:"                        => 4,
   "23:20:$lang{USED}:voip_use:"                             => 4,
   "24:22:$lang{MONTH}:voip_use_allmonthes:"                 => 4,
-  "25:20:IVR:voip_ivr_log:"                                 => 4,
   "31:30:Gatekeeper:voip_gk_console:"                       => 6,
 
 );

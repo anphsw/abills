@@ -7,12 +7,11 @@ $admin->{EVENTS_ENABLED} = 1;
   "2:1:$lang{STATE}:events_state_main:"                      => 5,
   "3:1:$lang{PRIORITY}:events_priority_main:"                => 5,
   "4:1:$lang{ACCESS}:events_privacy_main:"                   => 5,
-  "4:1:$lang{GROUP}:events_group_main:"                      => 5,
+  "5:1:$lang{GROUP}:events_group_main:"                      => 5,
   
-  "5:1::events_unsubscribe:AJAX"                             => 5,
-  
-  
-  "6:1:$lang{NOTIFICATION_TYPE}:events_priority_send_types:" => 5,
+  "6:0:$lang{NOTIFICATIONS}:events_profile_configure"        => 9,
+  "7:6::events_unsubscribe:AJAX"                             => 9,
+  "8:6::events_seen_message:AJAX"                            => 9,
 
 );
 

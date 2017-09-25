@@ -126,11 +126,18 @@ sub equipment_check {
   } );
 
   foreach my $equip (@$equipment_list) {
+    if(! $equip->{NAS_IP}) {
+      if($debug > 0) {
+        print "Equipment not found: $equip->{NAS_ID}\n";
+      }
+      next;
+    }
+
     if(! $argv->{SNMP_COMMUNITY} ) {
       $SNMP_COMMUNITY = ($equip->{NAS_MNG_PASSWORD} || '').'@'.(($equip->{NAS_MNG_IP_PORT}) ? $equip->{NAS_MNG_IP_PORT} : $equip->{NAS_IP});
     }
 
-    $Log->log_print('LOG_INFO', '', "NAS_ID: $equip->{NAS_ID} NAS_NAME: $equip->{NAS_NAME}");
+    $Log->log_print('LOG_INFO', '', "NAS_ID: $equip->{NAS_ID} NAS_NAME: ". ($equip->{NAS_NAME} || q{}));
 
     my $fdb_list = get_fdb({
       %$equip,

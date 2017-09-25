@@ -1,5 +1,8 @@
+use Abills::Base qw(in_array);
+
 #Iner_ID : Main or Sub or if -1 user menu func list
-%FUNCTIONS_LIST = ("01:-1:$lang{MESSAGES}:msgs_admin:UID"            => 15,
+our %FUNCTIONS_LIST = (
+  "01:-1:$lang{MESSAGES}:msgs_admin:UID"                             => 15,
   #"02:0:$lang{MESSAGES}:msgs_admin:"                                => 5,
   "02:0:$lang{MESSAGES}:msgs_chapters:"                              => 5,
   "04:2:$lang{ADMINS}:msgs_admins:"                                  => 5,
@@ -9,22 +12,27 @@
   "08:0:$lang{MESSAGES}:msgs_reports:"                               => 4,
   "09:8:$lang{EVALUATION_OF_PERFORMANCE}:msgs_reports_tasks_rating:" => 4,
   "11:8:$lang{REQUESTS}:msgs_reports_requests:"                      => 4,
+  "12:2:$lang{DISPACTH_CATEGORY}:msgs_dispatch_category:"            => 5,
+  "13:2:$lang{QUICK_REPLYS_TYPES}:msgs_quick_replys_types:"          => 5,
+  "14:2:$lang{QUICK_REPLYS}:msgs_quick_replys:"                      => 5,
+  "15:8:$lang{REPLYS}:msgs_reports_replys:"                          => 4,
+  "16:8:$lang{MSGS_TAGS}:msgs_report_tags:"                          => 4,
+  "17:8:$lang{TIME_IN_WORK}:msgs_admin_time_spend_report:"           => 4,
 );
 
-load_module( "Msgs", $html );
+load_module("Msgs", $html);
 
-if ( defined( $user->{UID} ) ){
-  my $count = msgs_new( { UID => $user->{UID} } );
-  if ( $count ne '' ){
+if ( defined($user->{UID}) ) {
+  my $count = msgs_new({ UID => $user->{UID} });
+  if ( $count ne '' ) {
     $USER_FUNCTION_LIST{"01:0:$lang{MESSAGES} $count:msgs_user:defaultindex"} = 0;
   }
-  else{
+  else {
     $USER_FUNCTION_LIST{"01:0:$lang{MESSAGES}:msgs_user:"} = 0;
   }
 }
-
-elsif ( defined( $admin->{AID} ) ){
-  my ($count, $unreg_count) = msgs_new( { AID => $admin->{AID} } );
+elsif ( defined($admin->{AID}) ) {
+  my ($count, $unreg_count) = msgs_new({ AID => $admin->{AID} });
   $FUNCTIONS_LIST{"10:0:$lang{MESSAGES} $count:msgs_admin:"} = 8;
   #  $FUNCTIONS_LIST{"32:10:$lang{ADD}:msgs_admin_add:"}          = 8;
   $FUNCTIONS_LIST{"32:10:$lang{SHEDULE}:msgs_shedule:"} = 8;
@@ -35,13 +43,21 @@ elsif ( defined( $admin->{AID} ) ){
   $FUNCTIONS_LIST{"33:0:$lang{REQUESTS} $unreg_count:msgs_unreg_requests_list:"} = 8;
   $FUNCTIONS_LIST{"34:33:$lang{ADD}:msgs_unreg_requests:"} = 8;
   $FUNCTIONS_LIST{"39:10:$lang{DELIVERY}:msgs_delivery_main:"} = 8;
-
+  $FUNCTIONS_LIST{"40:01::msgs_admin_quick_message:IN_MODAL"} = 8;
+  
+  my $tags_root_index = ($conf{MSGS_TAGS_NON_PRIVILEGED}) ? 8 : 5;
+  
+  $FUNCTIONS_LIST{"41:10:$lang{TAGS}:msgs_quick_replys_tags:MSGS_TAGS_ID:IN_MODAL"}
+    = $tags_root_index;
 }
 
-use Abills::Base qw(in_array);
-if ( in_array( "Maps", \@MODULES ) ){
+if ( in_array("Maps", \@MODULES) ) {
   $FUNCTIONS_LIST{"38:10:$lang{TASKS_ROUTE_MAP}:msgs_employee_tasks_map:"} = 8;
 }
 
+%PERIODIC = (daily => []);
 
+if ( $conf{PUSH_ENABLED} ) {
+  push (@{$PERIODIC{daily}}, 'msgs_clear_push_messages');
+}
 1

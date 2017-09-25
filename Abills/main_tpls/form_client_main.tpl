@@ -33,7 +33,7 @@
       </li>
       <li>
         <a href="#" style='padding-top: 6px; padding-bottom: 6px'>
-          <span>%SEL_LANGUAGE%</span>
+          <span>%SELECT_LANGUAGE%</span>
         </a>
       </li>
     </ul>
@@ -79,4 +79,5 @@
 
 <!-- AdminLTE App -->
 <script src="/styles/lte_adm/dist/js/app.js"></script>
+%PUSH_SCRIPT%
 </body>

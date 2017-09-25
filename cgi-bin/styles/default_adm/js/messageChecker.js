@@ -34,8 +34,21 @@ var AMessageChecker = (function () {
     }],
     DEFAULT: function (event_data) {
       console.log("[ AMessageChecker ] Got unknown event type : " + event_data.TYPE);
-    }
+    },
+    ERROR  : [
+      function (event_data) {
+        var message = event_data['errstr'] || '';
+        console.log("Got error while requesting updates. Stopping now. Error : " + message);
+        AMessageChecker.stop();
+      }
+    ]
   };
+  
+  function checkNow() {
+    if (self.loader) {
+      self.loader.checkUpdates(true);
+    }
+  }
   
   function start(parameters) {
     // accept parameters
@@ -58,14 +71,17 @@ var AMessageChecker = (function () {
   }
   
   function stop() {
-    if (self.intervalHandler !== null) {
-      clearInterval(self.intervalHandler);
+    if (self.loader !== null) {
+      self.loader = self.loader.stop();
     }
   }
   
+  
   function handleData(events) {
-    if (events.length > 0) {
-      
+    if (!$.isArray(events)) {
+      processData(events, 1);
+    }
+    else if (events.length > 0) {
       $.each(events, function (i, event) {
         processData(event, events.length);
       });
@@ -73,14 +89,19 @@ var AMessageChecker = (function () {
   }
   
   function processData(event_data, events_length) {
-    if (typeof (self.extensions[event_data.TYPE]) !== 'undefined') {
-      $.each(self.extensions[event_data.TYPE], function (i, processor) {
-        processor(event_data, events_length);
-      });
+    
+    var type_uc = 'DEFAULT';
+    if (typeof(event_data.TYPE) !== 'undefined') {
+      type_uc = event_data.TYPE.toUpperCase();
     }
-    else {
+    
+    if (typeof (self.extensions[type_uc]) === 'undefined') {
       self.extensions['DEFAULT'](event_data, events_length);
     }
+    
+    $.each(self.extensions[type_uc], function (i, processor) {
+      processor(event_data, events_length);
+    });
     
     self.last_id++;
   }
@@ -95,7 +116,7 @@ var AMessageChecker = (function () {
     }
     
     if (typeof (self.extensions[type]) !== 'undefined') {
-      if (self.extensions[type].indexOf(cb) != -1) {
+      if (self.extensions[type].indexOf(cb) !== -1) {
         console.warn('[ AMessageChecker ] Extension has been already registered : ' + type);
         return false;
       }
@@ -108,23 +129,23 @@ var AMessageChecker = (function () {
     console.log('[ AMessageChecker ] Successfully registered ' + type);
   }
   
-/*  function updateBadge(count) {
-    if (typeof CLIENT_INTERFACE !== 'undefined') {
-      var $badgeHolder = $('#msgs_user').find('span');
-      if ($badgeHolder.length > 0) {
-        var text = $badgeHolder.text();
-
-        var hasNumber = text.match("[(]([0-9]{1,})[)]");
-
-        if (hasNumber != null) {
-          text = text.substr(0, hasNumber.index);
-        }
-
-        $badgeHolder.text(text + ' (' + count + ')');
-
-      }
-    }
-  }*/
+  /*  function updateBadge(count) {
+   if (typeof CLIENT_INTERFACE !== 'undefined') {
+   var $badgeHolder = $('#msgs_user').find('span');
+   if ($badgeHolder.length > 0) {
+   var text = $badgeHolder.text();
+   
+   var hasNumber = text.match("[(]([0-9]{1,})[)]");
+   
+   if (hasNumber != null) {
+   text = text.substr(0, hasNumber.index);
+   }
+   
+   $badgeHolder.text(text + ' (' + count + ')');
+   
+   }
+   }
+   }*/
   
   function parseMessage(data) {
     var message = {};
@@ -146,7 +167,7 @@ var AMessageChecker = (function () {
     message.group_id = data['GROUP_ID'] || 0;
     
     if (message.text.length > 60) {
-      message.text = message.text.substr(0, 60) + "...";
+      message.text = message.text.substr(0, 140) + "...";
     }
     return message;
   }
@@ -156,7 +177,7 @@ var AMessageChecker = (function () {
     //var messageText = "<b>" + message.num + "</b> " + message.text;
     var messageText = message.text;
     
-    if (message.extra != '') {
+    if (message.extra !== '') {
       message.caption = "<a href='" + message.extra + "'>" + message.caption + '</a>';
     }
     
@@ -184,14 +205,24 @@ var AMessageChecker = (function () {
   }
   
   function seenMessage(qb_id, seen_url) {
-    hideQBinfo(qb_id);
+    if (qb_id) hideQBinfo(qb_id);
     $.get(seen_url, Events.emitAsCallback('MessageChecker.seenMessage'));
   }
+  
+  Events.on('MessageChecker.seenMessage', function (data) {
+    self.loader.checkUpdates(true);
+    
+    if (data && typeof data['MESSAGE'] !== 'undefined') {
+      aTooltip.displayMessage(data['MESSAGE'], 1000);
+    }
+    
+  });
   
   return {
     start      : start,
     stop       : stop,
     extend     : extend,
+    checkNow   : checkNow,
     processData: processData,
     unsubscribe: unsubscribe,
     seenMessage: seenMessage,
@@ -203,25 +234,24 @@ function JSONLoaderCached(options) {
   
   var self = this;
   
-  self.id      = options.id;
-  self.url     = options.url;
-  self.refresh = options.refresh;
+  this.id      = options.id;
+  this.url     = options.url;
+  this.refresh = options.refresh;
   
-  self.callback        = options.callback;
-  self.format_callback = options.format;
-  self.fail            = options.fail || function () {console.log(self.id, 'Got bad JSON')};
+  this.callback        = options.callback;
+  this.format_callback = options.format;
+  this.fail            = options.fail || function () {console.log(self.id, 'Got bad JSON')};
   
-  self.after       = options.after || 0;
-  self.ignoreCache = options.ignoreCache || false;
+  this.after       = options.after || 0;
+  this.ignoreCache = options.ignoreCache || false;
   
-  
-  self.intervalHandler = null;
-  self.once            = options.once || false;
+  this.intervalHandler = null;
+  this.once            = options.once || false;
   
   
   this.checkUpdates = function (force, callback) {
     var currentTimestamp = (new Date()).getTime();
-    var lastUpdate       = aStorage.getValue(self.id + '_last_update', currentTimestamp);
+    var lastUpdate       = aStorage.getValue(this.id + '_last_update', currentTimestamp);
     var timeleft         = (parseInt(lastUpdate) + parseInt(self.refresh)) - parseInt(currentTimestamp);
     
     if (timeleft <= 0 || force) {
@@ -240,46 +270,45 @@ function JSONLoaderCached(options) {
         if (callback) callback();
       }).fail(self.fail);
     }
-    else if (self.ignoreCache) return;
+    else if (this.ignoreCache){ return }
     else {
-      var data   = aStorage.getValue(self.id + '_cache', '[]');
+      var data   = aStorage.getValue(this.id + '_cache', '[]');
       var parsed = [];
       try {
         parsed = JSON.parse(data);
       }
       catch (parseError) {
-        console.warn(self.id, parseError);
+        console.warn(this.id, parseError);
       }
       self.callback(parsed);
     }
     
-    return self.timeleft;
+    return timeleft;
   };
   
   this.stop = function () {
-    if (self.intervalHandler) {
-      clearInterval(self.intervalHandler);
+    if (this.intervalHandler) {
+      clearInterval(this.intervalHandler);
+      return null;
+    }
+    else {
+      console.log('[ JSONLoaderCached ]', 'failed to stop, no intervalHandler');
+      return this;
     }
   };
   
-  self.timeleft = self.checkUpdates();
+  this.timeleft = this.checkUpdates();
   
-  if (!self.once) {
-    // Is updating now
-    if (self.timeleft <= 0) {
-      setTimeout(function () {
-        self.intervalHandler = setInterval(self.checkUpdates, self.refresh);
-      }, self.after);
-    }
-    // Need to be updated later
-    else {
-      setTimeout(function () {
-        self.intervalHandler = setInterval(self.checkUpdates, self.refresh);
-      }, self.timeleft + self.after);
-    }
+  if (!this.once) {
+    var delay = (this.timeleft <= 0) ? this.after : this.timeleft + this.after;
+    
+    setTimeout(function () {
+      self.intervalHandler = setInterval(self.checkUpdates, self.refresh);
+    }, delay);
+    
   }
   
-  aStorage.subscribeToChanges(self.id + '_cache', function () {
+  aStorage.subscribeToChanges(this.id + '_cache', function () {
     self.checkUpdates(false);
   });
 }
@@ -311,36 +340,36 @@ function NavbarDropdownMenu(id, options) {
   
   this.$lines = this.$list.children();
   
-  this.setHeader = function (headerText) {this.$header_text.html(headerText)};
-  this.setFooter = function (footerText) {this.$footer.html(footerText)};
-  this.setIconColor = function(colorClass){
-    if (this.prevColorClass !== null){
+  this.setHeader    = function (headerText) {this.$header_text.html(headerText)};
+  this.setFooter    = function (footerText) {this.$footer.html(footerText)};
+  this.setIconColor = function (colorClass) {
+    if (this.prevColorClass !== null) {
       this.$icon.removeClass(this.prevColorClass);
     }
     this.prevColorClass = colorClass;
     this.$icon.addClass(colorClass);
   };
-  this.setBadge  = function (badgeText) {
+  this.setBadge     = function (badgeText) {
     if (badgeText === 0) {this.$badge.addClass('hidden')}
     else {
       this.$badge.removeClass('hidden')
     }
     this.$badge.text(badgeText);
   };
-  this.setBadge2 = function (badgeText) {
+  this.setBadge2    = function (badgeText) {
     if (badgeText === 0) {this.$badge2.addClass('hidden')}
     else {
       this.$badge2.removeClass('hidden')
     }
     this.$badge2.text(badgeText);
   };
-  this.getBadge  = function () {
+  this.getBadge     = function () {
     return this.$badge.text();
   };
-  this.getBadge2 = function () {
+  this.getBadge2    = function () {
     return this.$badge2.text();
   };
-  this.getMeta   = function () {return this.meta};
+  this.getMeta      = function () {return this.meta};
   
   this.clear = function () {
     this.$list.html('');
@@ -356,8 +385,8 @@ function NavbarDropdownMenu(id, options) {
     var position = (typeof position_ === 'undefined')
         ? 0 // At start
         : (position_ > this.$lines.length)
-        ? this.$lines.length - 1 // After last line
-        : position_;
+            ? this.$lines.length - 1 // After last line
+            : position_;
     
     // Append new content
     (this.$lines.length > 0)
@@ -418,7 +447,7 @@ var MessagesMenu = function (id, options) {
   
   this.filter = options.filter || function () {return true};
   
-  this.messages = {};
+  this.messages       = {};
   this.unread_counter = 0;
   
   this.init = function () {
@@ -453,7 +482,7 @@ var MessagesMenu = function (id, options) {
                   result.push(self.parseMessage(message));
               });
             }
-            return result;
+            return result.reverse();
           }
         });
         $('#' + id).removeClass('hidden');
@@ -473,7 +502,7 @@ var MessagesMenu = function (id, options) {
         message['SUBJECT'] = message['TEXT'];
         message['ID']      = message['MSGS_ID'];
         
-        if (self.aid && (!message['RESPONSIBLE'] || self.aid != message['RESPONSIBLE'])) {
+        if (self.aid && (!message['RESPONSIBLE'] || self.aid !== message['RESPONSIBLE'])) {
           return false;
         }
         
@@ -490,11 +519,12 @@ var MessagesMenu = function (id, options) {
   };
   
   this.parseMessage = function (message) {
+    var uid = message['uid'] || '';
     return {
       TYPE      : "MESSAGE",
       MODULE    : "Msgs",
       SENDER    : {UID: message['uid'], LOGIN: message['client_id']},
-      EXTRA     : '/admin/index.cgi?get_index=msgs_admin&full=1&UID=' + message['uid'] + '&chg=' + message['id'],
+      EXTRA     : '/admin/index.cgi?get_index=msgs_admin&full=1&UID=' + uid + '&chg=' + message['id'],
       ID        : message['id'],
       MSGS_ID   : message['id'],
       SUBJECT   : message['subject'],
@@ -505,7 +535,7 @@ var MessagesMenu = function (id, options) {
   };
   
   this.forceUpdate = function (callback) {
-    if (self.loader != null) {
+    if (self.loader !== null) {
       self.clear();
       self.loader.checkUpdates(true, callback);
     }
@@ -573,7 +603,7 @@ var MessagesMenu = function (id, options) {
       Events.emit('favicon.set', self.unread_counter);
       new_li.addClass('bg-gray');
     }
-  
+    
     self.$menu.addLine(new_li);
   };
   
@@ -649,7 +679,7 @@ var EventsMenu = function (id, options) {
       
       // Link to messageChecker
       Events.on('messageChecker.gotEvent', function (event_data) {
-        event_data['SUBJECT'] = event_data['MODULE'];
+        event_data['SUBJECT'] = event_data['TITLE'] || event_data['MODULE'];
         //event_data['NOTICED_URL'] = event_data[]]
         
         //This is really fresh message
@@ -657,13 +687,10 @@ var EventsMenu = function (id, options) {
         
         self.addEvent(event_data);
       });
-      Events.on('MessageChecker.seenMessage', function (){
-        self.loader.checkUpdates(true);
-      });
-      Events.on('WebSocket.connected', function(){
+      Events.on('WebSocket.connected', function () {
         self.$menu.setIconColor('text-aqua');
       });
-      Events.on('WebSocket.error', function(){
+      Events.on('WebSocket.error', function () {
         self.$menu.setIconColor('text-danger');
       });
       return true;
@@ -674,25 +701,24 @@ var EventsMenu = function (id, options) {
   };
   
   this.parseMessage = function (event) {
-    
     return {
       TYPE       : "EVENT",
       MODULE     : event['module'],
-      EXTRA      : '?get_index=events_main&full=1&chg=' + event['id'],
+      EXTRA      : event['extra'] || '?get_index=events_main&full=1&chg=' + event['id'],
       ID         : event['id'],
-      SUBJECT    : event['module'],
+      SUBJECT    : event['title'] || event['module'] || '',
       TEXT       : event['comments'],
       CREATED    : event['created'],
       ADMIN_READ : (event['state_id'] && event['state_id'] !== '1' ) ? 1 : 0,
       PRIORITY   : event['priority_id'] || 0,
       STATE      : event['state_id'],
       GROUP_ID   : event['group_id'],
-      NOTICED_URL: "get_index=events_main&json=1&MESSAGE_ONLY=1&AJAX=1&header=2&STATE_ID=2&change=1&ID=" + event['id']
+      NOTICED_URL: "get_index=events_seen_message&json=1&MESSAGE_ONLY=1&AJAX=1&header=2&ID=" + event['id']
     }
   };
   
   this.forceUpdate = function (callback) {
-    if (self.loader != null) {
+    if (self.loader !== null) {
       self.clear();
       self.loader.checkUpdates(true, callback);
     }
@@ -722,10 +748,15 @@ var EventsMenu = function (id, options) {
   this.formEventHTML = function (event) {
     var priority_class = this.getPriorityClass(event['PRIORITY']);
     
+    var title = event['SUBJECT'];
+    if (title.length > 13) {
+      title = title.substr(0, 13) + '...';
+    }
+    
     var time    = '<small><i class="fa fa-clock-o"></i>&nbsp'
         + moment(event['CREATED'], 'YYYY-MM-DD hh:mm:ss').fromNow()
         + '</small>';
-    var header  = '<h4>' + event['MODULE'] + time + '</h4>';
+    var header  = '<h4>' + title + time + '</h4>';
     var subject = '<p class="' + priority_class + '">' + event['TEXT'] + '</p>';
     
     var icon_class = 'fa fa-2x fa-bell-o ' + self.getPriorityClass(event['PRIORITY']);
@@ -749,9 +780,9 @@ var EventsMenu = function (id, options) {
           AMessageChecker.showMessage({
             text    : event['TEXT'],
             extra   : event['EXTRA'],
-            caption : event['MODULE'],
+            caption : event['ID'] + ' : ' + (event['TITLE'] || event['SUBJECT'] || event['MODULE'] || ''),
             id      : event['ID'],
-            seen_url: '?get_index=events_main&json=1&MESSAGE_ONLY=1&AJAX=1&header=2&STATE_ID=2&change=1&ID=' + event['ID'],
+            seen_url: '?get_index=events_seen_message&json=1&MESSAGE_ONLY=1&AJAX=1&header=2&ID=' + event['ID'],
             group_id: event['GROUP_ID']
           });
           self.showed_in_session[event['ID']] = true;

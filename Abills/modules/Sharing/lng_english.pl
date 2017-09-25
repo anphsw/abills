@@ -12,3 +12,4 @@ $lang{DAYS}             = 'Days';
 $lang{SUCCESS_BUY}      = 'Successfully paid purchase to ';
 $lang{DATE_TO}          = 'Download available to ';
 $lang{SECONDS}          = 'Seconds';
+$lang{NOT_ENOUGH_MONEY} = 'Not enough money';

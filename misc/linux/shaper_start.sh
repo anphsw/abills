@@ -88,23 +88,73 @@
 
 set -e
 
-. /lib/lsb/init-functions
+if [ -f /lib/lsb/init-functions ]; then
+  . /lib/lsb/init-functions
+fi;
 
 PROG="shaper_start"
 DESCR="shaper_start"
+VERSION=1.14
 
-VERSION=1.12
+: ${abills_shaper_enable="NO"}
+: ${abills_shaper_if=""}
+: ${abills_nas_id=""}
+: ${abills_ip_sessions=""}
+
+: ${abills_nat=""}
+: ${abills_multi_gateway=""}
+
+: ${abills_dhcp_shaper="NO"}
+: ${abills_dhcp_shaper_log=""}
+: ${abills_dhcp_shaper_nas_ids=""}
+: ${abills_neg_deposit="NO"}
+: ${abills_neg_deposit_speed=""}
+: ${abills_neg_deposit_fwd_ip="127.0.0.1"}
+: ${abills_portal_ip="me"}
+: ${abills_mikrotik_shaper=""}
+: ${abills_squid_redirect="NO"}
+: ${firewall_type=""}
+
+: ${abills_ipn_nas_id=""}
+: ${abills_ipn_if=""}
+: ${abills_ipn_allow_ip=""}
+
+: ${abills_netblock="NO"}
+: ${abills_netblock_redirect_ip=""}
+: ${abills_netblock_type=""}
+
+#Extra functions
+: ${abills_mysql_server_status="NO"}
+: ${abills_mysql_server=""}
+: ${abills_unnumbered="NO"}
+: ${abills_unnumbered_net=""}
+: ${abills_unnumbered_iface=""}
+: ${abills_unnumbered_gw=""}
+: ${abills_irq2smp="NO"}
+: ${abills_redirect_clients_pool=""}
+: ${abills_iptables_custom=""}
+: ${abills_shaper2_enable="NO"}
+: ${abills_shaper3_enable="NO"}
+: ${abills_allow_dhcp_port_67=""}
+: ${abills_firewall=""}
+
+if [ ! -f /etc/rc.conf ]; then
+  echo "Please make configuration file: /etc/rc.conf";
+  exit;
+fi;
+
 . /etc/rc.conf
 
 name="abills_shaper" 
 
-if [ x${abills_shaper_enable} = x ]; then
+if [ "${abills_shaper_enable}" = "" ]; then
   name="abills_nat"
   abills_nat_enable=YES; 
 fi;
 
 TC="/sbin/tc"
-IPT=/sbin/iptables 
+IPT=/sbin/iptables
+IPSET=`which ipset`;
 IPT_RESTORE=/sbin/iptables-restore
 SED=/bin/sed 
 BILLING_DIR=/usr/abills
@@ -113,7 +163,7 @@ BILLING_DIR=/usr/abills
 FWD_WEB_SERVER_IP=127.0.0.1;
 #Your user portal IP 
 USER_PORTAL_IP=${abills_portal_ip} 
-EXTERNAL_INTERFACE=`/sbin/ip r | awk '/default/{print $5}'`
+EXTERNAL_INTERFACE=`/sbin/ip r | head -1 | awk '/default/{print $5}'`
 
 
 
@@ -123,7 +173,7 @@ EXTERNAL_INTERFACE=`/sbin/ip r | awk '/default/{print $5}'`
 all_rulles(){
   ACTION=$1
 
-if [ x${abills_ipn_if} != x ]; then
+if [ "${abills_ipn_if}" != "" ]; then
 IPN_INTERFACES="";
 ifaces=`echo ${abills_ipn_if} | sed 'N;s/\n/ /' |sed 's/,/ /g'`
   for i in $ifaces; do
@@ -201,50 +251,48 @@ fi;
 
 echo "ABillS Iptables ${ACTION}"
 
-if [ x${ACTION} = xstart ];then
-$IPT -P INPUT DROP
-$IPT -P OUTPUT ACCEPT
-$IPT -P FORWARD ACCEPT
-$IPT -t nat -I PREROUTING -j ACCEPT
-# Включить на сервере интернет
-$IPT -A INPUT -i lo -j ACCEPT
-# Пропускать все уже инициированные соединения, а также дочерние от них
-$IPT -A INPUT -p all -m state --state ESTABLISHED,RELATED -j ACCEPT
-# Разрешить SSH запросы к серверу
-$IPT -A INPUT -p TCP -s 0/0  --dport 7022 -j ACCEPT
-# Разрешить TELNET запросы к серверу
-$IPT -A INPUT -p TCP -s 0/0  --dport 23 -j ACCEPT
-# Разрешить ping к серверу доступа
-$IPT -A INPUT -p icmp -m icmp --icmp-type any -j ACCEPT
-# Разрешить DNS запросы к серверу
-$IPT -A INPUT -p UDP -s 0/0  --sport 53 -j ACCEPT
-$IPT -A INPUT -p UDP -s 0/0  --dport 53 -j ACCEPT
-# Разрешить DHCP запросы к серверу
-$IPT -A INPUT -p UDP -s 0/0  --sport 68 -j ACCEPT
-$IPT -A INPUT -p UDP -s 0/0  --dport 68 -j ACCEPT
-#Запретить исходящий 25 порт
-$IPT -I OUTPUT -p tcp -m tcp --sport 25 -j DROP
-$IPT -I OUTPUT -p tcp -m tcp --dport 25 -j DROP
-# Доступ к странице авторизации
-$IPT -A INPUT -p TCP -s 0/0  --sport 80 -j ACCEPT
-$IPT -A INPUT -p TCP -s 0/0  --dport 80 -j ACCEPT
-$IPT -A INPUT -p TCP -s 0/0  --sport 81 -j ACCEPT
-$IPT -A INPUT -p TCP -s 0/0  --dport 81 -j ACCEPT
-$IPT -A INPUT -p TCP -s 0/0  --sport 443 -j ACCEPT
-$IPT -A INPUT -p TCP -s 0/0  --dport 443 -j ACCEPT
-$IPT -A INPUT -p TCP -s 0/0  --sport 9443 -j ACCEPT
-$IPT -A INPUT -p TCP -s 0/0  --dport 9443 -j ACCEPT
-$IPT -I INPUT -p udp -m udp --dport 161 -j ACCEPT
-$IPT -I INPUT -p udp -m udp --dport 162 -j ACCEPT
-# MYSQL
-$IPT -A INPUT -p TCP -s 0/0  --sport 3306 -j ACCEPT
-$IPT -A INPUT -p TCP -s 0/0  --dport 3306 -j ACCEPT
+if [ "${ACTION}" = "start" ];then
+  $IPT -P INPUT DROP
+  $IPT -P OUTPUT ACCEPT
+  $IPT -P FORWARD ACCEPT
+  $IPT -t nat -I PREROUTING -j ACCEPT
+  # Включить на сервере интернет
+  $IPT -A INPUT -i lo -j ACCEPT
+  # Пропускать все уже инициированные соединения, а также дочерние от них
+  $IPT -A INPUT -p all -m state --state ESTABLISHED,RELATED -j ACCEPT
+  # Разрешить SSH запросы к серверу
+  $IPT -A INPUT -p TCP -s 0/0  --dport 7022 -j ACCEPT
+  # Разрешить TELNET запросы к серверу
+  $IPT -A INPUT -p TCP -s 0/0  --dport 23 -j ACCEPT
+  # Разрешить ping к серверу доступа
+  $IPT -A INPUT -p icmp -m icmp --icmp-type any -j ACCEPT
+  # Разрешить DNS запросы к серверу
+  $IPT -A INPUT -p UDP -s 0/0  --sport 53 -j ACCEPT
+  $IPT -A INPUT -p UDP -s 0/0  --dport 53 -j ACCEPT
+  # Разрешить DHCP запросы к серверу
+  $IPT -A INPUT -p UDP -s 0/0  --sport 68 -j ACCEPT
+  $IPT -A INPUT -p UDP -s 0/0  --dport 68 -j ACCEPT
+  #Запретить исходящий 25 порт
+  $IPT -I OUTPUT -p tcp -m tcp --sport 25 -j DROP
+  $IPT -I OUTPUT -p tcp -m tcp --dport 25 -j DROP
+  # Доступ к странице авторизации
+  $IPT -A INPUT -p TCP -s 0/0  --sport 80 -j ACCEPT
+  $IPT -A INPUT -p TCP -s 0/0  --dport 80 -j ACCEPT
+  $IPT -A INPUT -p TCP -s 0/0  --sport 81 -j ACCEPT
+  $IPT -A INPUT -p TCP -s 0/0  --dport 81 -j ACCEPT
+  $IPT -A INPUT -p TCP -s 0/0  --sport 443 -j ACCEPT
+  $IPT -A INPUT -p TCP -s 0/0  --dport 443 -j ACCEPT
+  $IPT -A INPUT -p TCP -s 0/0  --sport 9443 -j ACCEPT
+  $IPT -A INPUT -p TCP -s 0/0  --dport 9443 -j ACCEPT
+  $IPT -I INPUT -p udp -m udp --dport 161 -j ACCEPT
+  $IPT -I INPUT -p udp -m udp --dport 162 -j ACCEPT
+  # MYSQL
+  $IPT -A INPUT -p TCP -s 0/0  --sport 3306 -j ACCEPT
+  $IPT -A INPUT -p TCP -s 0/0  --dport 3306 -j ACCEPT
 
-$IPT -A FORWARD -p tcp -m tcp -s 0/0 --dport 80 -j ACCEPT
-$IPT -A FORWARD -p tcp -m tcp -s 0/0 --dport 443 -j ACCEPT
-$IPT -A FORWARD -p tcp -m tcp -s 0/0 --dport 9443 -j ACCEPT
-
-  IPSET=`which ipset`;
+  $IPT -A FORWARD -p tcp -m tcp -s 0/0 --dport 80 -j ACCEPT
+  $IPT -A FORWARD -p tcp -m tcp -s 0/0 --dport 443 -j ACCEPT
+  $IPT -A FORWARD -p tcp -m tcp -s 0/0 --dport 9443 -j ACCEPT
 
   if [ "$IPSET" = "" ]; then
     echo "Error: ipset not install";
@@ -252,64 +300,64 @@ $IPT -A FORWARD -p tcp -m tcp -s 0/0 --dport 9443 -j ACCEPT
   fi;
 
   # UNKNOWN CLIENT
-  unknown_clients=`ipset -L |grep unknown_clients|sed 's/ //'|awk -F: '{ print $2 }'`
+  unknown_clients=`${IPSET} -L |grep unknown_clients|sed 's/ //'|awk -F: '{ print $2 }'`
   if [ x"${unknown_clients}" = x ]; then
     echo "ADD unknown_clients"
-    ipset -N unknown_clients iphash
+    ${IPSET} -N unknown_clients iphash
   fi;
 
   # SET
-  allownet=`ipset -L |grep allownet|sed 's/ //'|awk -F: '{ print $2 }'`
+  allownet=`${IPSET} -L |grep allownet|sed 's/ //'|awk -F: '{ print $2 }'`
   if [ x"${allownet}" = x ]; then
     echo "ADD allownet"
-    ipset -N allownet nethash
+    ${IPSET} -N allownet nethash
   fi;
 
 # USERS
-  allowip=`ipset -L |grep allowip|sed 's/ //'|awk -F: '{ print $2 }'`
+  allowip=`${IPSET} -L |grep allowip|sed 's/ //'|awk -F: '{ print $2 }'`
   if [ x"${allowip}" = x ]; then
     echo "ADD allowip"
-    ipset -N allowip iphash
+    ${IPSET} -N allowip iphash
   fi;
 
-$IPT -t nat -A PREROUTING -m set --match-set unknown_clients src -p tcp --dport 80 -j REDIRECT --to-ports 81
-$IPT -t nat -A PREROUTING -m set --match-set unknown_clients src -p tcp --dport 443 -j REDIRECT --to-ports 81
-$IPT -t nat -A PREROUTING -m set --match-set unknown_clients src -p tcp --dport 9443 -j REDIRECT --to-ports 81
+  $IPT -t nat -A PREROUTING -m set --match-set unknown_clients src -p tcp --dport 80 -j REDIRECT --to-ports 81
+  $IPT -t nat -A PREROUTING -m set --match-set unknown_clients src -p tcp --dport 443 -j REDIRECT --to-ports 81
+  $IPT -t nat -A PREROUTING -m set --match-set unknown_clients src -p tcp --dport 9443 -j REDIRECT --to-ports 81
 
-$IPT -A FORWARD -m set --match-set allownet src -j ACCEPT
-$IPT -A FORWARD -m set --match-set allownet dst -j ACCEPT
-$IPT -t nat -A PREROUTING -m set --match-set allownet src -j ACCEPT
+  $IPT -A FORWARD -m set --match-set allownet src -j ACCEPT
+  $IPT -A FORWARD -m set --match-set allownet dst -j ACCEPT
+  $IPT -t nat -A PREROUTING -m set --match-set allownet src -j ACCEPT
 
-$IPT -A FORWARD -m set --match-set allowip src -j ACCEPT
-$IPT -A FORWARD -m set --match-set allowip dst -j ACCEPT
-$IPT -t nat -A PREROUTING -m set --match-set allowip src -j ACCEPT
+  $IPT -A FORWARD -m set --match-set allowip src -j ACCEPT
+  $IPT -A FORWARD -m set --match-set allowip dst -j ACCEPT
+  $IPT -t nat -A PREROUTING -m set --match-set allowip src -j ACCEPT
 
-if [ x"${abills_allow_dhcp_port_67}" != x ]; then
-  # Перенаправление IPN клиентов
-  ALLOW_DHCP=`echo ${abills_allow_dhcp_port_67}  |sed 'N;s/\n/ /' |sed 's/;/ /g'`;
-  echo "${ALLOW_DHCP}"
-  for DHCP_POOL in ${ALLOW_DHCP}; do
-    $IPT -I INPUT -p UDP -s ${DHCP_POOL}  --sport 67 -j ACCEPT
-    $IPT -I INPUT -p UDP -s ${DHCP_POOL}  --dport 67 -j ACCEPT
-    echo "Allow ${DHCP_POOL} to port 67"
-  done
-else
-  echo "unknown DHCP pool"
-fi;
+  if [ x"${abills_allow_dhcp_port_67}" != x ]; then
+    # Перенаправление IPN клиентов
+    ALLOW_DHCP=`echo ${abills_allow_dhcp_port_67}  |sed 'N;s/\n/ /' |sed 's/;/ /g'`;
+    echo "${ALLOW_DHCP}"
+    for DHCP_POOL in ${ALLOW_DHCP}; do
+      $IPT -I INPUT -p UDP -s ${DHCP_POOL}  --sport 67 -j ACCEPT
+      $IPT -I INPUT -p UDP -s ${DHCP_POOL}  --dport 67 -j ACCEPT
+      echo "Allow ${DHCP_POOL} to port 67"
+    done
+  else
+    echo "unknown DHCP pool"
+  fi;
 
-if [ x"${abills_redirect_clients_pool}" != x ]; then
-  # Перенаправление IPN клиентов
-  REDIRECT_POOL=`echo ${abills_redirect_clients_pool}  |sed 'N;s/\n/ /' |sed 's/;/ /g'`;
-  echo "${REDIRECT_POOL}"
-  for REDIRECT_IPN_POOL in ${REDIRECT_POOL}; do
+  if [ x"${abills_redirect_clients_pool}" != x ]; then
+    # Перенаправление IPN клиентов
+    REDIRECT_POOL=`echo ${abills_redirect_clients_pool}  |sed 'N;s/\n/ /' |sed 's/;/ /g'`;
+    echo "${REDIRECT_POOL}"
+    for REDIRECT_IPN_POOL in ${REDIRECT_POOL}; do
       $IPT -t nat -A PREROUTING -s ${REDIRECT_IPN_POOL} -p tcp --dport 80 -j REDIRECT --to-ports 80
       $IPT -t nat -A PREROUTING -s ${REDIRECT_IPN_POOL} -p tcp --dport 443 -j REDIRECT --to-ports 80
       $IPT -t nat -A PREROUTING -s ${REDIRECT_IPN_POOL} -p tcp --dport 9443 -j REDIRECT --to-ports 80
       echo "Redirect UP ${REDIRECT_IPN_POOL}"
-  done
-else
-  echo "unknown ABillS IPN IFACES"
-fi;
+    done
+  else
+    echo "unknown ABillS IPN IFACES"
+  fi;
 
   if [ x"${abills_ipn_allow_ip}" != x ]; then
     ABILLS_ALLOW_IP=`echo ${abills_ipn_allow_ip}  |sed 'N;s/\n/ /' |sed 's/;/ /g'`;
@@ -323,12 +371,10 @@ fi;
       ${IPT} -t nat -I PREROUTING -s ${IP} -j ACCEPT;
 #        fi;
     done;
-else
-  echo "unknown ABillS IPN ALLOW IP"
-fi;
-
-
-elif [ x${ACTION} = xstop ]; then
+  else
+    echo "unknown ABillS IPN ALLOW IP"
+  fi;
+elif [ "${ACTION}" = stop ]; then
   echo "${ACTION}";
   # Разрешаем всё и всем
   $IPT -P INPUT ACCEPT
@@ -343,28 +389,26 @@ elif [ x${ACTION} = xstop ]; then
   $IPT -X -t nat
   $IPT -X -t mangle
 
-  unknown_clients=`ipset -L |grep unknown_clients|sed 's/ //'|awk -F: '{ print $2 }'`
+  unknown_clients=`${IPSET} -L |grep unknown_clients|sed 's/ //'|awk -F: '{ print $2 }'`
     if [ x"${unknown_clients}" != x ]; then
       echo "DELETE unknown_clients"
-      ipset destroy unknown_clients
+      ${IPSET} destroy unknown_clients
     fi;
-  allowip=`ipset -L |grep allowip|sed 's/ //'|awk -F: '{ print $2 }'`
+  allowip=`${IPSET} -L |grep allowip|sed 's/ //'|awk -F: '{ print $2 }'`
     if [ x"${allowip}" != x ]; then
       echo "DELETE allowip"
-      ipset destroy allowip
+      ${IPSET} destroy allowip
     fi;
-  allownet=`ipset -L |grep allownet|sed 's/ //'|awk -F: '{ print $2 }'`
+  allownet=`${IPSET} -L |grep allownet|sed 's/ //'|awk -F: '{ print $2 }'`
     if [ x"${allownet}" != x ]; then
       echo "DELETE allownet"
-      ipset destroy allownet
+      ${IPSET} destroy allownet
     fi;
 
-elif [ x${ACTION} = xstatus ]; then
+elif [ "${ACTION}" = "status" ]; then
   $IPT -S
 fi;
-
 }
-
 
 
 #**********************************************************
@@ -382,39 +426,38 @@ abills_shaper() {
 
   echo "ABillS Shapper ${ACTION}"
 
-if [ x${ACTION} = xstart ]; then
-  for INTERFACE in ${IPN_INTERFACES}; do
-    TCQA="${TC} qdisc add dev ${INTERFACE}"
-    TCQD="${TC} qdisc del dev ${INTERFACE}"
+  if [ x${ACTION} = xstart ]; then
+    for INTERFACE in ${IPN_INTERFACES}; do
+      TCQA="${TC} qdisc add dev ${INTERFACE}"
+      TCQD="${TC} qdisc del dev ${INTERFACE}"
 
-    $TCQD root &>/dev/null
-    $TCQD ingress &>/dev/null
+      $TCQD root &>/dev/null
+      $TCQD ingress &>/dev/null
 
-    $TCQA root handle 1: htb
-    $TCQA handle ffff: ingress
+      $TCQA root handle 1: htb
+      $TCQA handle ffff: ingress
 
-    echo "Shaper UP ${INTERFACE}"
+      echo "Shaper UP ${INTERFACE}"
     
-    ${IPT} -A FORWARD -j DROP -i ${INTERFACE}
-  done
-elif [ x${ACTION} = xstop ]; then
-  for INTERFACE in ${IPN_INTERFACES}; do
-    TCQA="${TC} qdisc add dev ${INTERFACE}"
-    TCQD="${TC} qdisc del dev ${INTERFACE}"
+      ${IPT} -A FORWARD -j DROP -i ${INTERFACE}
+    done
+  elif [ x${ACTION} = xstop ]; then
+    for INTERFACE in ${IPN_INTERFACES}; do
+      TCQA="${TC} qdisc add dev ${INTERFACE}"
+      TCQD="${TC} qdisc del dev ${INTERFACE}"
 
-    $TCQD root &>/dev/null
-    $TCQD ingress &>/dev/null
+      $TCQD root &>/dev/null
+      $TCQD ingress &>/dev/null
 
-    echo "Shaper DOWN ${INTERFACE}"
-  done
-elif [ x${ACTION} = xstatus ]; then
-  for INTERFACE in ${IPN_INTERFACES}; do
-    echo "Internal: ${INTERFACE}"
-    ${TC} class show dev ${INTERFACE}
-    ${TC} qdisc show dev ${INTERFACE}
-  done
-fi;
-
+      echo "Shaper DOWN ${INTERFACE}"
+    done
+  elif [ x${ACTION} = xstatus ]; then
+    for INTERFACE in ${IPN_INTERFACES}; do
+      echo "Internal: ${INTERFACE}"
+      ${TC} class show dev ${INTERFACE}
+      ${TC} qdisc show dev ${INTERFACE}
+    done
+  fi;
 
 }
 
@@ -424,51 +467,51 @@ fi;
 #**********************************************************
 abills_shaper2() { 
 
-  if [ x${abills_shaper2_enable} = xNO ]; then
-    return 0;
-  elif [ x${abills_shaper2_enable} = x ]; then
+  if [ "${abills_shaper2_enable}" = NO ]; then
     return 0;
   fi;
 
-echo "ABillS Shapper 2 ${ACTION}"
+  echo "ABillS Shapper 2 ${ACTION}"
 
-SPEEDUP=1000mbit
-SPEEDDOWN=1000mbit
+  SPEEDUP=1000mbit
+  SPEEDDOWN=1000mbit
 
-if [ x${ACTION} = xstart ]; then
-  ${IPT} -t mangle --flush
-  ${TC} qdisc add dev ${EXTERNAL_INTERFACE} root handle 1: htb
-  ${TC} class add dev ${EXTERNAL_INTERFACE} parent 1: classid 1:1 htb rate $SPEEDDOWN ceil $SPEEDDOWN
+  if [ "${ACTION}" = "start" ]; then
+    ${IPT} -t mangle --flush
+    ${TC} qdisc add dev ${EXTERNAL_INTERFACE} root handle 1: htb
+    ${TC} class add dev ${EXTERNAL_INTERFACE} parent 1: classid 1:1 htb rate $SPEEDDOWN ceil $SPEEDDOWN
 
-  for INTERFACE in ${IPN_INTERFACES}; do
-    ${TC} qdisc add dev ${INTERFACE} root handle 1: htb
-    ${TC} class add dev ${INTERFACE} parent 1: classid 1:1 htb rate $SPEEDUP ceil $SPEEDUP
+    for INTERFACE in ${IPN_INTERFACES}; do
+      ${TC} qdisc add dev ${INTERFACE} root handle 1: htb
+      ${TC} class add dev ${INTERFACE} parent 1: classid 1:1 htb rate $SPEEDUP ceil $SPEEDUP
 
 #    ${IPT} -A FORWARD -j DROP -i ${INTERFACE}
-    echo "Shaper UP ${INTERFACE}"
-  done
-elif [ x${ACTION} = xstop ]; then
-  ${IPT} -t mangle --flush
-  EI=`tc qdisc show dev ${EXTERNAL_INTERFACE} |grep htb | sed 's/ //g'`
-  if [ x$EI != x ]; then
-    ${TC} qdisc del dev ${EXTERNAL_INTERFACE} root handle 1: htb 
+      echo "Shaper UP ${INTERFACE}"
+    done
+  elif [ "${ACTION}" = "stop" ]; then
+    ${IPT} -t mangle --flush
+    EI=`tc qdisc show dev ${EXTERNAL_INTERFACE} |grep htb | sed 's/ //g'`
+    if [ x$EI != x ]; then
+      ${TC} qdisc del dev ${EXTERNAL_INTERFACE} root handle 1: htb
+    fi;
+    for INTERFACE in ${IPN_INTERFACES}; do
+      II=`tc qdisc show dev ${INTERFACE} |grep htb | sed 's/ //g'`
+      if [ x$II != x ]; then
+        ${TC} qdisc del dev ${INTERFACE} root handle 1: htb
+        echo "Shaper DOWN ${INTERFACE}"
+      fi;
+    done
+  elif [ "${ACTION}" = "status" ]; then
+    echo "External: ${EXTERNAL_INTERFACE}";
+    ${TC} class show dev ${EXTERNAL_INTERFACE}
+    for INTERFACE in ${IPN_INTERFACES}; do
+      echo "Internal: ${INTERFACE}"
+      ${TC} class show dev ${INTERFACE}
+    done
   fi;
-  for INTERFACE in ${IPN_INTERFACES}; do
-    II=`tc qdisc show dev ${INTERFACE} |grep htb | sed 's/ //g'`
-  if [ x$II != x ]; then
-    ${TC} qdisc del dev ${INTERFACE} root handle 1: htb 
-    echo "Shaper DOWN ${INTERFACE}"
-  fi;
-  done
-elif [ x${ACTION} = xstatus ]; then
-  echo "External: ${EXTERNAL_INTERFACE}";  
-  ${TC} class show dev ${EXTERNAL_INTERFACE}
-  for INTERFACE in ${IPN_INTERFACES}; do
-    echo "Internal: ${INTERFACE}"
-    ${TC} class show dev ${INTERFACE}
-  done
-fi;
+
 }
+
 #**********************************************************
 # Abills Shapper
 # With IPMARK support
@@ -522,16 +565,16 @@ fi;
 #**********************************************************
 abills_ipn() {
 
-if [ x${abills_ipn_nas_id} = x ]; then
-  return 0;
-fi;
+  if [ x${abills_ipn_nas_id} = x ]; then
+    return 0;
+  fi;
 
-if [ x${ACTION} = xstart ]; then
-  echo "Enable users IPN"
-  $IPT -P FORWARD DROP
-  ${BILLING_DIR}/libexec/periodic monthly MODULES=Ipn SRESTART=1 NO_ADM_REPORT=1 NO_RULE NAS_IDS="${abills_ipn_nas_id}"
+  if [ x${ACTION} = xstart ]; then
+    echo "Enable users IPN"
+    $IPT -P FORWARD DROP
+    ${BILLING_DIR}/libexec/periodic monthly MODULES=Ipn SRESTART=1 NO_ADM_REPORT=1 NO_RULE NAS_IDS="${abills_ipn_nas_id}"
+  fi;
 
-fi;
 }
 
 #**********************************************************
@@ -590,7 +633,7 @@ abills_nat() {
 #**********************************************************
 neg_deposit() {
   
-  if [ x"${abills_neg_deposit}" = x ]; then
+  if [ "${abills_neg_deposit}" = "" ]; then
     return 0;
   fi;
 
@@ -656,18 +699,18 @@ check_server(){
     return 0;
   fi;
 
-if [ w${ACTION} = wstart ]; then
-  while : ; do
-    if ping -c5 -l5 -W2 ${abills_mysql_server} 2>&1 | grep "64 bytes from" > /dev/null ; then 
-      echo "Abills Mysql server is UP!!!" ;
-      sleep 5;
-      return 0;
-    else 
-      echo "Abills Mysql server is DOWN!!!" ;
-    fi;
-    sleep 5
-  done
-fi;
+  if [ "${ACTION}" = "start" ]; then
+    while : ; do
+      if ping -c5 -l5 -W2 ${abills_mysql_server} 2>&1 | grep "64 bytes from" > /dev/null ; then
+        echo "Abills Mysql server is UP!!!" ;
+        sleep 5;
+        return 0;
+      else
+        echo "Abills Mysql server is DOWN!!!" ;
+      fi;
+      sleep 5
+    done
+  fi;
 
 }
 

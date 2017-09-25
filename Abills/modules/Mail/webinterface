@@ -510,23 +510,22 @@ sub mail_users_list {
     #return 0;
   }
 
-  my $table = $html->table(
-    {
-      width      => '100%',
-      title      => [ "$lang{LOGIN}", "$lang{DOMAIN}", "$lang{USER}", "$lang{COMMENTS}",
-            "$lang{LIMIT} $lang{COUNT}", "$lang{LIMIT} $lang{SIZE}", "$lang{ANTIVIRUS}", "$lang{ANTISPAM}", "$lang{STATUS}", '-', '-' ],
-      cols_align => [ 'left', 'left', 'left', 'right', 'right', 'right', 'center', 'center', 'center', 'center', 'center', 'center' ],
-      qs         => $pages_qs,
-      pages      => $Mail->{TOTAL}
-    }
-  );
+  my $table = $html->table({
+    width      => '100%',
+    caption    => 'E-mail',
+    title      => [ $lang{LOGIN}, $lang{DOMAIN}, $lang{USER}, $lang{COMMENTS},
+          "$lang{LIMIT} $lang{COUNT}", "$lang{LIMIT} $lang{SIZE}", $lang{ANTIVIRUS}, $lang{ANTISPAM}, $lang{STATUS}, '-' ],
+    qs         => $pages_qs,
+    pages      => $Mail->{TOTAL},
+    ID         => 'MAIL_BOXES'
+  });
 
   my $delete = '';
 
   foreach my $line (@$list) {
     if ($conf{MAIL_USER_FULL_CONTROL} || ! $user->{UID}) {
       $delete = $html->button($lang{DEL}, "index=$index&del=$line->{id}&UID=". ($line->{uid} || q{}),
-          { MESSAGE => "$lang{DEL} '$line->{username}\@". ($line->{domain} || q{}) ."'?", class => 'del' });
+          { MESSAGE => "$lang{DEL} $line->{username}\@". ($line->{domain} || q{}) ."?", class => 'del' });
     }
 
     $table->addrow(
@@ -539,18 +538,18 @@ sub mail_users_list {
       $status[$line->{antivirus}],
       $status[$line->{antispam}],
       $status[$line->{antispam}],
-      $html->button($lang{CHANGE}, "index=$index&MBOX_ID=$line->{id}&UID=$line->{uid}", { class => 'change' }), $delete
+      $html->button($lang{CHANGE}, "index=$index&MBOX_ID=$line->{id}&UID=$line->{uid}", { class => 'change' })
+      .' '. $delete
     );
   }
+
   print $table->show();
 
-  $table = $html->table(
-    {
-      width      => '100%',
-      cols_align => [ 'right', 'right' ],
-      rows       => [ [ "$lang{TOTAL}:", $html->b($Mail->{TOTAL}) ] ]
-    }
-  );
+  $table = $html->table({
+    width      => '100%',
+    rows       => [ [ "$lang{TOTAL}:", $html->b($Mail->{TOTAL}) ] ]
+  });
+
   print $table->show();
 
   return 1;
@@ -583,9 +582,10 @@ sub mail_user_boxes {
 
       $users->pi({ UID => $FORM{UID} });
       if ($users->{EMAIL} eq '') {
-        $users->pi_change({ UID   => $users->{UID},
-                            EMAIL => $Mail->{USER_EMAIL}
-                          });
+        $users->pi_change({
+          UID   => $users->{UID},
+          EMAIL => $Mail->{USER_EMAIL}
+        });
       }
 
       $html->message('info', $lang{INFO}, "$lang{ADDED}");

@@ -64,8 +64,8 @@
 </div>
 
 <script>
-  document['FLAT_CHECK_FREE']     = '%FLAT_CHECK_FREE%' || true;
-  document['FLAT_CHECK_OCCUPIED'] = '%FLAT_CHECK_OCCUPIED%' || false;
+  document['FLAT_CHECK_FREE']     = '%FLAT_CHECK_FREE%' || "1";
+  document['FLAT_CHECK_OCCUPIED'] = '%FLAT_CHECK_OCCUPIED%' || "0";
 </script>
 <script src='/styles/default_adm/js/searchLocation.js'></script>
 

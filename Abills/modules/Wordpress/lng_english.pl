@@ -1,5 +1,4 @@
 $lang{STYLE} = 'Style';
-$lang{SAVE} = 'Save';
 $lang{DETAIL} = 'More';
 $lang{AUTHOR} = 'Author';
 $lang{GALLERY_ON} = 'Gallery on';

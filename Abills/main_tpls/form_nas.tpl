@@ -29,7 +29,7 @@
     <div class='row'>
 
         <div class='col-md-6'>
-        <div class='box box-theme box-form'>
+        <div class='box box-theme box-form-big'>
 <div class='box-header with-border'><h4 class='box-title'>_{NAS}_</h4></div>
 <div class='box-body'>
 
@@ -80,24 +80,64 @@
                         </div>
                         <div class='form-group'>
                             <label class='col-md-12 bg-primary'>_{MANAGE}_</label>
+                        </div>
 
-                            <label class='control-label col-md-3' for='NAS_MNG_IP_PORT'>IP:PORT</label>
+                        <div class='form-group'>
 
-                            <div class='col-md-9'>
-                                <input id='NAS_MNG_IP_PORT' name='NAS_MNG_IP_PORT' value='%NAS_MNG_IP_PORT%'
-                                       placeholder='%NAS_MNG_IP_PORT%' class='form-control' type='text'>
+                            <label class='control-label col-md-3' for='NAS_MNG_IP'>IP</label>
+
+                            <div class='col-md-4'>
+                                <input id='NAS_MNG_IP' name='NAS_MNG_IP' value='%NAS_MNG_IP%'
+                                       placeholder='IP' class='form-control' type='text'>
+                            </div>
+                            <label class='control-label col-md-2' for='COA_PORT'>POD/COA</label>
+
+                            <div class='col-md-3'>
+                                <input id='COA_PORT' name='COA_PORT' value='%COA_PORT%'
+                                       placeholder='PORT' class='form-control' type='text'>
                             </div>
                         </div>
+                        <div class='form-group'>
+
+                            <label class='control-label col-md-3' for='SSH_PORT'>SSH</label>
+
+                            <div class='col-md-4'>
+                                <input id='SSH_PORT' name='SSH_PORT' value='%SSH_PORT%'
+                                       placeholder='PORT' class='form-control' type='text'>
+                            </div>
+                            <label class='control-label col-md-2' for='SNMP_PORT'>SNMP</label>
+
+                            <div class='col-md-3'>
+                                <input id='SNMP_PORT' name='SNMP_PORT' value='%SNMP_PORT%'
+                                       placeholder='PORT' class='form-control' type='text'>
+                            </div>
+                        </div>
+
                         <div class='form-group'>
                             <label class='control-label col-md-3' for='NAS_MNG_USER'>_{USER}_</label>
 
                             <div class='col-md-9'>
-                                <input id='NAS_MNG_USER' name='NAS_MNG_USER' value='%NAS_MNG_USER%' placeholder='%NAS_MNG_USER%'
-                                       class='form-control' type='text'>
+
+
+
+                                <div class='input-group'>
+                                    <input id='NAS_MNG_USER' name='NAS_MNG_USER' value='%NAS_MNG_USER%' placeholder='%NAS_MNG_USER%'
+                                           class='form-control' type='text'>
+                                    <span class='input-group-addon'>
+                    <a href='$SELF_URL?qindex=$index&NAS_ID=%NAS_ID%&create=1&ssh_key=1'
+                       class='fa fa-key' target='_new' title='_{DOWNLOAD}_ SSH public key'></a>
+                                    </span>
+                                    <span class='input-group-addon'>
+                    <a href='$SELF_URL?qindex=$index&NAS_ID=%NAS_ID%&download=1&ssh_key=1'
+                       class='fa fa-download' target='_new' title='_{DOWNLOAD}_ SSH public key'></a>
+                    </span>
+                                </div>
+
+
                             </div>
                         </div>
                         <div class='form-group'>
-                            <label class='control-label col-md-3' for='NAS_MNG_PASSWORD'>_{PASSWD}_</label>
+                            <label class='control-label col-md-3' for='NAS_MNG_PASSWORD'>_{PASSWD}_ (PoD,RADIUS Secret,SNMP)</label>
 
                     <div class='col-md-9'>
                         <input id='NAS_MNG_PASSWORD' name='NAS_MNG_PASSWORD' class='form-control' type='password'>
@@ -114,7 +154,7 @@
         </div>
         <div class='col-md-6'>
             <div class='form-group'>
-        <div class='box box-theme box-form'>
+        <div class='box box-theme box-form-big'>
             <div class='box-header with-border'>
                 <a data-toggle='collapse' data-parent='#accordion' href='#nas_misc'>_{EXTRA}_</a>
             </div>

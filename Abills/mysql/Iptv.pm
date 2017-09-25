@@ -50,7 +50,7 @@ sub new{
 
 =cut
 #**********************************************************
-sub user_info{
+sub user_info {
   my $self = shift;
   my ($id, $attr) = @_;
 
@@ -64,7 +64,6 @@ sub user_info{
       return $self;
     }
 
-    #$uid                      = $users->{UID};
     $self->{DEPOSIT} = $users->{DEPOSIT};
     $self->{ACCOUNT_ACTIVATE} = $users->{ACTIVATE};
   }
@@ -83,6 +82,7 @@ sub user_info{
    tp.id AS tp_num,
    tp.filter_id AS tp_filter_id,
    tp.credit AS tp_credit,
+   tp.period_alignment AS tp_period_alignment,
    service.expire AS iptv_expire,
    tv_services.module AS service_module,
    service.*
@@ -147,7 +147,16 @@ sub user_add {
 
   return $self if ($self->{errno});
   $admin->{MODULE}=$MODULE;
-  $admin->action_add($attr->{UID}, "ID: $self->{INSERT_ID}", { TYPE => 1 } );
+
+  my @info = ('SERVICE_ID', 'TP_ID', 'STATUS', 'EXPIRE', 'CID');
+  my @actions_history = ();
+  foreach my $param (@info) {
+    if(defined($attr->{$param})) {
+      push @actions_history, $param.":".$attr->{$param};
+    }
+  }
+
+  $admin->action_add($attr->{UID}, "ID: $self->{INSERT_ID} ".  join(', ', @actions_history), { TYPE => 1 } );
 
   return $self;
 }
@@ -732,7 +741,7 @@ sub reports_channels_use{
   my $sql = "SELECT c.num,  c.name, count(uc.uid) AS users, SUM(IF(IF(company.id IS NULL, b.deposit, cb.deposit)>0, 0, 1)) AS debetors
 FROM iptv_channels c
 LEFT JOIN iptv_users_channels uc ON (c.id=uc.channel_id)
-LEFT JOIN iptv_main service ON (service.id=uc.uid)
+LEFT JOIN iptv_main service ON (service.id=uc.id)
 LEFT JOIN users u ON (service.uid=u.uid)
 LEFT JOIN bills b ON (u.bill_id = b.id)
 LEFT JOIN companies company ON  (u.company_id=company.id)
@@ -756,6 +765,50 @@ ORDER BY $SORT $DESC ";
   my $list = $self->{list};
 
   return $list;
+}
+
+#**********************************************************
+=head2 reports_channels_use($attr)
+
+=cut
+#**********************************************************
+sub reports_channels_use2{
+  my $self = shift;
+  my ($attr) = @_;
+
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+  my $sql = "SELECT c.num,  c.name, u.uid, ipm.disable, u.id AS user, IF(company.id IS NULL, b.deposit, cb.deposit) as deposit
+              FROM  iptv_channels c
+              INNER JOIN iptv_users_channels uc ON (c.id=uc.channel_id)
+              INNER JOIN iptv_main ipm ON (ipm.id=uc.id)
+              LEFT JOIN users u ON (u.uid=ipm.uid)
+              LEFT JOIN bills b ON (u.bill_id = b.id)
+              LEFT JOIN companies company ON  (u.company_id=company.id)
+              LEFT JOIN bills cb ON  (company.bill_id=cb.id)
+            UNION
+            SELECT c.num,  c.name, us.uid, im.disable, us.id AS user, IF(company.id IS NULL, b.deposit, cb.deposit) as deposit
+              FROM  iptv_channels c
+              INNER JOIN iptv_ti_channels ti ON (c.id=ti.channel_id AND ti.mandatory = 1)
+              LEFT JOIN intervals i ON (ti.interval_id=i.id)
+              LEFT JOIN tarif_plans tp ON (tp.tp_id=i.tp_id)
+              LEFT JOIN iptv_main im ON (tp.tp_id=im.tp_id)
+              LEFT JOIN users us ON (us.uid=im.uid)
+              LEFT JOIN bills b ON (us.bill_id = b.id)
+              LEFT JOIN companies company ON  (us.company_id=company.id)
+              LEFT JOIN bills cb ON  (company.bill_id=cb.id)
+
+              ORDER BY $SORT $DESC";
+  
+  $self->query2( $sql, undef, $attr );
+
+  return [ ] if ($self->{errno});
+
+  my $list = $self->{list};
+
+  return $list;
+
 }
 
 #**********************************************************
@@ -954,7 +1007,9 @@ sub online_add{
 }
 
 #**********************************************************
-# online()
+=head2 online_count($attr)
+
+=cut
 #**********************************************************
 sub online_count{
   my $self = shift;
@@ -969,10 +1024,10 @@ sub online_count{
 
   $self->query2(
     "SELECT n.id, n.name, n.ip, n.nas_type,
-   sum(if (c.status=1 or c.status>=3, 1, 0)),
-   count(distinct c.uid),
-   sum(if (status=2, 1, 0)),
-   sum(if (status>3, 1, 0))
+   SUM(IF (c.status=1 or c.status>=3, 1, 0)),
+   COUNT(distinct c.uid),
+   SUM(IF (status=2, 1, 0)),
+   SUM(IF (status>3, 1, 0))
   FROM iptv_calls c
   INNER JOIN nas n ON (c.nas_id=n.id)
   $EXT_TABLE
@@ -986,8 +1041,8 @@ sub online_count{
   if ( $self->{TOTAL} > 0 ){
     $self->query2(
       "SELECT 1, count(c.uid) AS total_users,
-      sum(if (c.status=1 or c.status>=3, 1, 0)) AS online,
-      sum(if (c.status=2, 1, 0)) AS zaped
+      SUM(IF (c.status=1 or c.status>=3, 1, 0)) AS online,
+      SUM(IF (c.status=2, 1, 0)) AS zaped
    FROM iptv_calls c
    $EXT_TABLE
    WHERE c.status<11 $WHERE
@@ -1379,7 +1434,17 @@ sub users_screens_add{
       REPLACE => 1
     } );
 
-  $admin->action_add( $attr->{UID}, "SERVICE_ID: $attr->{SERVICE_ID} SCREEN_ID: $attr->{SCREEN_ID}", { TYPE => 1 } );
+  my @info = ('CID', 'PIN', 'SERIAL');
+  my @actions_history = ();
+  foreach my $param (@info) {
+    if(defined($attr->{$param})) {
+      push @actions_history, $param.":".$attr->{$param};
+    }
+  }
+
+
+  $admin->action_add( $attr->{UID}, "SERVICE_ID: $attr->{SERVICE_ID} SCREEN_ID: $attr->{SCREEN_ID}"
+    .  join(', ', @actions_history), { TYPE => 1 } );
 
   return $self;
 }
@@ -1393,10 +1458,10 @@ sub users_screens_del{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query_del( 'iptv_users_screens', $attr, {
-      service_id => $attr->{SERVICE_ID},
-      screen_id  => $attr->{SCREEN_ID}
-    } );
+  $self->query_del( 'iptv_users_screens', undef, {
+    service_id => $attr->{SERVICE_ID},
+    screen_id  => $attr->{SCREEN_ID}
+  } );
 
   $admin->action_add( $attr->{UID}, "SERVICE_ID: $attr->{SERVICE_ID} SCREEN_ID: $attr->{SCREEN_ID}", { TYPE => 10 } );
 
@@ -1470,7 +1535,7 @@ sub users_screens_list{
       [ 'TP_ID',       'INT',  's.tp_id',            1 ],
       [ 'SERVICE_TP_ID','INT', 'service.tp_id',      1 ],
       #[ 'SERVICE_ID', 'INT',  'us.service_id',   1 ],
-      [ 'CID',       'STR', 'us.cid',                1 ],
+      [ 'CID',         'STR', 'us.cid',                1 ],
       [ 'SERIAL',      'STR',  'us.serial',          1 ],
       [ 'HARDWARE_ID', 'INT',  'us.hardware_id',     1 ],
       [ 'DATE',        'DATE', 'us.date',            1 ],
@@ -1517,7 +1582,7 @@ sub users_screens_list{
 
   if ( $self->{TOTAL} > 0 && !$attr->{SHOW_ASSIGN} ){
     $self->query2(
-      "SELECT count(*) AS total
+      "SELECT COUNT(*) AS total
     FROM iptv_screens s
     $WHERE;", undef, { INFO => 1 }
     );
@@ -1548,6 +1613,7 @@ sub services_list{
       [ 'MODULE',      'STR', 'module',      1 ],
       [ 'STATUS',      'INT', 'status',      1 ],
       [ 'COMMENT',     'STR', 'comment',     1 ],
+      [ 'PROVIDER_PORTAL_URL',     'STR', 'provider_portal_url',     1 ],
       [ 'USER_PORTAL', 'INT', 'user_portal', 1 ],
       [ 'LOGIN',       'INT', 'login', 1 ],
       [ 'PASSWORD',    'INT', '', "DECODE(nas.mng_password, '$CONF->{secretkey}') AS nas_mng_password" ],
@@ -1580,6 +1646,10 @@ sub services_list{
 sub services_add{
   my $self = shift;
   my ($attr) = @_;
+
+  if($attr->{PASSWORD}) {
+    $attr->{PASSWORD} = "ENCODE('$attr->{PASSWORD}', '$self->{conf}->{secretkey}')",
+  }
 
   $self->query_add( 'iptv_services', $attr );
 
@@ -1633,7 +1703,8 @@ sub services_info{
   my ($id) = @_;
 
   $self->query2( "SELECT iptv_services.*,
-     DECODE(password, '$CONF->{secretkey}') AS password FROM iptv_services
+     DECODE(password, '$CONF->{secretkey}') AS password
+    FROM iptv_services
     WHERE id= ? ;",
     undef,
     {

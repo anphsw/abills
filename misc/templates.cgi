@@ -322,7 +322,7 @@ sub parse_element_row {
   elsif ( $type eq 'collapse' ) {
     $result = start_collapse_panel(@element);
   }
-  elsif ( $type eq 'collapse_end' ) {
+  elsif ( $type eq 'collapse_' ) {
     $result = close_collapse_panel();
   }
   else {

@@ -130,10 +130,15 @@ $(function () {
     };
     
     var loadStreetsWithoutDistricts = function () {
-      var value = getValue('DISTRICT');
-      
-      if (value === '' || getSelect('DISTRICT').find('option').length <= 2 || !getSelect('STREET').data('loaded')) {
-        loadList('STREET', 'DISTRICT_ID', '*');
+      var district_id = getValue('DISTRICT');
+      if (
+          /// District is not chosen or there's no necessary to choose ( single option )
+          district_id === '' || getSelect('DISTRICT').find('option').length <= 2
+          ||
+          // Streets where not loaded before
+          !getSelect('STREET').data('loaded')
+      ) {
+        loadList('STREET', 'DISTRICT_ID', district_id === '' ? '*' : district_id);
       }
       else {
         console.log('skip');
@@ -142,8 +147,8 @@ $(function () {
     };
     
     var initFlatForBuildCheckLogic = function () {
-      var CHECK_FREE     = document['FLAT_CHECK_FREE'] || false;
-      var CHECK_OCCUPIED = document['FLAT_CHECK_OCCUPIED'] || false;
+      var CHECK_FREE     = document['FLAT_CHECK_FREE'] !== "0";
+      var CHECK_OCCUPIED = document['FLAT_CHECK_OCCUPIED'] !== "0";
       
       if (!(CHECK_FREE || CHECK_OCCUPIED)) return true;
       
@@ -266,7 +271,8 @@ $(function () {
       if (!initialized) {
         $flat_input.popover({
           'content': content,
-          'html'   : true
+          'html'   : true,
+          'placement' : 'top auto'
         });
         initialized = true;
       }

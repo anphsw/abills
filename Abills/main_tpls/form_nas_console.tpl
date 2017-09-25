@@ -66,35 +66,35 @@
 </form>
 
 <script>
-    jQuery(function () {
-        var removeBtns = jQuery('.removeIpBtn');
+  jQuery(function () {
+    var removeBtns = jQuery('.removeIpBtn');
 
-        function removeAddress(context) {
-            var cont = jQuery(context);
+    function removeAddress(context) {
+      var cont = jQuery(context);
 
-            var command = "ip firewall address-list remove numbers=" + cont.attr('data-address-number');
+      var command = "/ip firewall address-list remove numbers=" + cont.attr('data-address-number');
 
-            var params = {
-                qindex: '$index',
-                console : 1,
-                full : 1,
-                header : 2,
-                ACTION : 1,
-                NAS_ID: '$FORM{NAS_ID}',
-                CMD : command
-            };
+      var params = {
+        qindex : '$index',
+        console: 1,
+        full   : 1,
+        header : 2,
+        ACTION : 1,
+        NAS_ID : '$FORM{NAS_ID}',
+        CMD    : command
+      };
 
-            cont.find('.glyphicon').addClass('fa-spin');
+      cont.find('.glyphicon').addClass('fa-spin');
 
-            jQuery.get(SELF_URL, params, function () {
-               cont.parent().parent().hide();
-            });
+      jQuery.get(SELF_URL, params, function () {
+        cont.parent().parent().hide();
+      });
 
-        }
+    }
 
-        removeBtns.on('click', function () {
-            removeAddress(this);
-        })
+    removeBtns.on('click', function () {
+      removeAddress(this);
     })
+  })
 </script>
 

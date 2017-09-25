@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS `cashbox_spending` (
   `spending_type_id` SMALLINT NOT NULL DEFAULT 0,
   `cashbox_id` SMALLINT NOT NULL DEFAULT 0,
   `date` DATE NOT NULL DEFAULT '0000-00-00',
+  `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `comments` TEXT,
   PRIMARY KEY (`id`)
 ) COMMENT = 'Spending';
@@ -28,6 +29,7 @@ CREATE TABLE IF NOT EXISTS `cashbox_coming` (
   `coming_type_id` SMALLINT NOT NULL DEFAULT 0,
   `cashbox_id` SMALLINT NOT NULL DEFAULT 0,
   `date` DATE NOT NULL DEFAULT '0000-00-00',
+  `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `comments` TEXT,
   PRIMARY KEY (`id`)
 ) COMMENT = 'Coming';
@@ -55,7 +57,7 @@ CREATE TABLE IF NOT EXISTS `crm_salaries_payed` (
   `month` SMALLINT(2) UNSIGNED NOT NULL DEFAULT 0,
   `date` DATE NOT NULL DEFAULT '0000-00-00',
   `bet` DOUBLE(10, 2) NOT NULL DEFAULT 0.00,
-  PRIMARY KEY (`aid`, `month`)
+  PRIMARY KEY (`aid`, `year`, `month`)
 )
   COMMENT = 'Work schedule for admins';
 
@@ -87,3 +89,46 @@ CREATE TABLE IF NOT EXISTS `crm_works` (
   UNIQUE `employee_ext_id` (`employee_id`, `ext_id`, `work_id`)
 )
   COMMENT = 'Employes works';
+
+CREATE TABLE IF NOT EXISTS `crm_leads` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `fio` VARCHAR(120) NOT NULL DEFAULT '',
+  `phone` VARCHAR(120) NOT NULL DEFAULT '',
+  `company` VARCHAR(120) NOT NULL DEFAULT '',
+  `email` VARCHAR(250) NOT NULL DEFAULT '',
+  `city` VARCHAR(80) NOT NULL DEFAULT '',
+  `address` VARCHAR(100) NOT NULL DEFAULT '',
+  `source` int(1) NOT NULL DEFAULT 0,
+  `responsible` SMALLINT(4) NOT NULL DEFAULT 0,
+  `date` date NOT NULL DEFAULT '0000-00-00',
+  `current_step` int NOT NULL DEFAULT 0,
+  `priority` SMALLINT(1) NOT NULL DEFAULT 0,
+  `comments` TEXT,
+  PRIMARY KEY (`id`)
+) COMMENT = 'Crm leads';
+
+CREATE TABLE IF NOT EXISTS `crm_progressbar_steps` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `step_number` INT UNSIGNED NOT NULL DEFAULT 0,
+  `name` CHAR(40) NOT NULL DEFAULT '',
+  `color` VARCHAR(7) NOT NULL DEFAULT '',
+  `description` TEXT NOT NULL,
+  PRIMARY KEY (`id`)
+) COMMENT = 'Crm progressbar steps';
+
+CREATE TABLE IF NOT EXISTS `crm_leads_sources` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name` CHAR(40) NOT NULL DEFAULT '',
+  `comments` TEXT NOT NULL,
+  PRIMARY KEY (`id`)
+) COMMENT = 'Crm leads source';
+
+CREATE TABLE IF NOT EXISTS `crm_progressbar_step_comments` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `step_id` INT UNSIGNED NOT NULL DEFAULT 0,
+  `lead_id` INT UNSIGNED NOT NULL DEFAULT 0,
+  `message` TEXT NOT NULL,
+  `date` DATETIME  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE (`lead_id`, `date`)
+) COMMENT = 'Comments for each step in progressbar';

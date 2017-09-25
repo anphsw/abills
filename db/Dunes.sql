@@ -2,9 +2,9 @@ DROP TABLE IF EXISTS `dunes`;
 
 CREATE TABLE IF NOT EXISTS `dunes` (
   `err_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
-  `win_err_handle` VARCHAR(30) NOT NULL DEFAULT '',
-  `translate` VARCHAR(200) NOT NULL DEFAULT '',
-  `error_text` VARCHAR(200) NOT NULL DEFAULT '',
+  `win_err_handle` VARCHAR(40) NOT NULL DEFAULT '',
+  `translate` TEXT,
+  `error_text` TEXT,
   `solution` TEXT
 )
   COMMENT = 'Dunes';

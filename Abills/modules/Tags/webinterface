@@ -324,5 +324,54 @@ sub reports_user_tags {
   return 1;
 }
 
+#**********************************************************
+=head2 tags_multiuser_sel($attr) Multiuser form add tags
+
+=cut
+#**********************************************************
+sub tags_multiuser_form {
+  my $list  = $Tags->tags_user({ COLS_NAME => 1 });
+
+  my $table = $html->table(
+    {
+      width      => '100%',
+      title      => [ '-', "$lang{NAME}", $lang{DATE}, $lang{COMMENTS} ],
+      FIELDS_IDS => $Tags->{COL_NAMES_ARR},
+      cols_align => [ 'left', 'left', 'left', 'left' ],
+      qs         => $pages_qs,
+      ID         => 'TAG_USER',
+    }
+  );
+
+  foreach my $line (@$list) {
+    $table->addrow(
+      #$line->{id}.
+      $html->form_input(
+        'TAGS_IDS',
+        $line->{id},
+        {
+          TYPE  => 'CHECKBOX',
+          FORM_ID => $FORM{FORM_ID},
+        }
+      ),
+      $line->{name},
+      $line->{date},
+      $line->{comments}
+    );
+  }
+
+  my $action = '';
+
+  $action = $html->form_input('MULTIUSER', "$lang{CHANGE}", {
+   TYPE    => 'submit',
+   FORM_ID => $FORM{FORM_ID} });
+
+  $table->addrow($action);
+
+  print $table->show();
+
+  return 1;
+}
+
 1
 

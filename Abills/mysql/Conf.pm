@@ -128,7 +128,10 @@ sub config_info {
 =head2 config_change($param, $attr)
 
   Arguments:
+    $param
     $attr
+       PARAM
+       VALUE
        WITHOUT_PARAM_CHANGE - Change without param
 
 =cut
@@ -142,15 +145,16 @@ sub config_change {
       CHANGE_PARAM => 'PARAM',
       TABLE        => 'config',
       DATA         => $attr
-    }
-    )
+    });
   }
   else {
+    #print "// PARAM => $param, DOMAIN_ID => $attr->{DOMAIN_ID} //<br>";
+    $attr->{NAME}=$attr->{$param};
     $self->changes2(
       {
-        CHANGE_PARAM => 'PARAM',
+        CHANGE_PARAM => 'PARAM,DOMAIN_ID',
         TABLE        => 'config',
-        OLD_INFO     => $self->config_info({ PARAM => $param, DOMAIN_ID => $attr->{DOMAIN_ID} }),
+        #OLD_INFO     => $self->config_info({ PARAM => $param, DOMAIN_ID => $attr->{DOMAIN_ID} }),
         DATA         => $attr,
         %$attr
       }
@@ -332,16 +336,24 @@ sub check_password {
   
   $config_string //= $CONF->{CONFIG_PASSWORD};
   
-  my ($length, $case, $special_chars) = split(':', $config_string, 3);
+  my $length = $CONF->{PASSWD_LENGTH};
+  my ($case, $special_chars) = split(':', $config_string);
+  
+  if ($case > 2){
+    $case = 1;
+  }
+  if ($special_chars > 3){
+    $special_chars = 3;
+  }
   
   return 0 if (length $password < $length);
   
   # Construct regexp
   my $case_part = 'a-zA-Z';
-  if ($case == 0){
+  if ($case == 1){
     $case_part = 'A-Z'
   }
-  elsif ($case == 1){
+  elsif ($case == 2){
     $case_part = 'a-z'
   }
      
@@ -352,8 +364,11 @@ sub check_password {
   elsif ($special_chars == 1) {
     $special_chars_part = '-_!&%@#:';
   }
+  elsif ($special_chars == 3) {
+    $special_chars_part = '';
+  }
   
-  if ($password =~ /[$case_part]+/ && $password =~ /[$special_chars_part]+/ ){
+  if ($password =~ /[$case_part]+/ && ( !$special_chars_part || $password =~ /[$special_chars_part]+/ ) ){
     return 1;
   }
   

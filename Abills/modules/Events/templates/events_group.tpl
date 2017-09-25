@@ -14,7 +14,7 @@
         </div>
       </div>
 
-    <div class='row'>%MODULE_CHECKBOXES%</div>
+      <div class='row'>%MODULE_CHECKBOXES%</div>
 
     </form>
   </div>

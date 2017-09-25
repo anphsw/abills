@@ -221,7 +221,7 @@ sub attachment_del {
       $self->attachment_file_del($attr);
     }
   }
-  elsif($attr->{FULL_DELETE}) {
+  elsif($attr->{FULL_DELETE} && $self->{ATTACH2FILE}) {
     if($attr->{UID} && -d "$self->{ATTACH2FILE}/$attr->{UID}") {
       `rm -R $self->{ATTACH2FILE}/$attr->{UID}`;
     }

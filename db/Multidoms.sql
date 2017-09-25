@@ -15,6 +15,13 @@ CREATE TABLE `domains_admins` (
 ) 
   COMMENT='Domain admin list';
 
+CREATE TABLE `domains_modules` (
+  `id` smallint(6) unsigned NOT NULL DEFAULT '0',
+  `module` varchar(12) NOT NULL DEFAULT '',
+  UNIQUE KEY `id_module` (`id`,`module`),
+  KEY `id` (`id`)
+) COMMENT='Domains module permissions';
+
 
 DELIMITER //
 CREATE TRIGGER `domain_add`

@@ -88,14 +88,13 @@ sub form_districts{
     }
     $html->message( 'info', $lang{IMPORT}, "$lang{ADDED}: $counts" );
   }
-
-  if ( $FORM{add} ){
+  elsif ( $FORM{add} ){
     $Address->district_add( { %FORM } );
 
     if ( !$Address->{errno} ){
       if ( $FORM{FILE_UPLOAD} ){
         my $name = '';
-        if ( $FORM{FILE_UPLOAD}{filename} =~ /\.(\S+)$/i ){
+        if ( $FORM{FILE_UPLOAD}{filename} && $FORM{FILE_UPLOAD}{filename} =~ /\.(\S+)$/i ){
           $name = $Address->{INSERT_ID} . '.' . lc( $1 );
         }
         upload_file( $FORM{FILE_UPLOAD}, { PREFIX => 'maps', FILE_NAME => $name, REWRITE => 1 } );
@@ -111,7 +110,7 @@ sub form_districts{
       $html->message( 'info', $lang{DISTRICTS}, "$lang{CHANGED}" );
       if ( $FORM{FILE_UPLOAD} ){
         my $name = '';
-        if ( $FORM{FILE_UPLOAD}{filename} =~ /\.([a-z0-9]+)$/i ){
+        if ( $FORM{FILE_UPLOAD}{filename} && $FORM{FILE_UPLOAD}{filename} =~ /\.([a-z0-9]+)$/i ){
           $name = $FORM{ID} . '.' . lc( $1 );
         }
 
@@ -153,7 +152,6 @@ sub form_districts{
       caption    => $lang{DISTRICTS},
       title      =>
       [ "#", $lang{NAME}, $lang{COUNTRY}, $lang{CITY}, $lang{ZIP}, $lang{STREETS}, $lang{MAP}, '-' ],
-      cols_align => [ 'right', 'left', 'left', 'left', 'left', 'right', 'right', 'center', 'center' ],
       ID         => 'DISTRICTS_LIST',
       FIELDS_IDS => $Address->{COL_NAMES_ARR},
       EXPORT     => 1,
@@ -165,14 +163,14 @@ sub form_districts{
     my $map = $bool_vals[0];
 
     if ( in_array( 'Maps', \@MODULES ) ){
-      $map = $html->button( '', "DISTRICT_ID=$line->{id}&ZOOM=16&index=" . get_function_index( 'maps_add_2' ),
+      $map = $html->button( '', "DISTRICT_ID=$line->{id}&ZOOM=16&index=" . get_function_index( 'maps_edit' ),
         { ICON => 'glyphicon glyphicon-globe' } );
     }
 
     $table->addrow(
       $line->{id},
       $line->{name},
-      $countries_hash->{ $line->{country} },
+      ($line->{country} && $countries_hash->{ $line->{country} })  ? $countries_hash->{ $line->{country} } : q{},
       $line->{city},
       $line->{zip},
       $html->button( $line->{street_count},
@@ -289,7 +287,6 @@ sub form_streets{
   print $table->show();
   $table = $html->table(
     {
-      cols_align => [ 'right', 'right' ],
       rows       => [ [
         "$lang{STREETS}: " . $html->b( $Address->{TOTAL} ),
         "$lang{BUILDS}: " . $html->b( $Address->{TOTAL_BUILDS} || 0 ),
@@ -316,7 +313,7 @@ sub form_builds{
 
   my $maps_enabled = in_array( 'Maps', \@MODULES );
 
-  if ( !$FORM{qindex} && !$FORM{xml} ){
+  if ( !$FORM{qindex} && !$FORM{xml} && $FORM{BUILDS} ){
     my @header_arr = (
       "$lang{INFO}:index=$index&BUILDS=$FORM{BUILDS}" . (($FORM{chg}) ? '&chg=$FORM{chg}' : ''),
       "Media:index=$index&media=1&BUILDS=$FORM{BUILDS}" . (($FORM{chg}) ? '&chg=$FORM{chg}' : '')
@@ -374,12 +371,12 @@ sub form_builds{
 
       if ( $Address->{COORDX} && $Address->{COORDX} != 0) {
         $Address->{MAP_BTN} = $html->button( '',
-          "get_index=maps_show_poins&show=BUILD&OBJECT_ID=$Address->{ID}&header=1",
+          "get_index=maps_show_map&show=BUILD&OBJECT_ID=$Address->{ID}&header=1",
           { class => 'glyphicon glyphicon-globe', target => '_blank' } );
       }
       else {
         $Address->{MAP_BTN} = $html->button( '',
-          "get_index=maps_add_2&add=BUILD&OBJECT_ID=$Address->{ID}&LOCATION_ID=$Address->{ID}&header=1",
+          "get_index=maps_edit&add=BUILD&OBJECT_ID=$Address->{ID}&LOCATION_ID=$Address->{ID}&header=1",
           { class => 'add', target => '_blank' } );
       }
 
@@ -468,7 +465,7 @@ sub form_builds{
 sub form_show_construct{
   my ($id,$attr) = @_;
 
-  return $html->button( $id, "index=". get_function_index('dom_info') ."&BUILD_CONSTRUCT=$attr->{VALUES}->{ID}" );
+  return $html->button( $id, "index=". get_function_index('dom_info') ."&LOCATION_ID=$attr->{VALUES}->{ID}" );
 }
 
 #**********************************************************
@@ -554,28 +551,34 @@ sub form_location_media{
 sub form_add_map{
   my ($coordx, $attr) = @_;
 
+
+  if ($attr->{VALUES}->{ID} && in_array('Maps', \@MODULES)) {
+    load_module('Maps');
+    return _maps_btn_for_location($attr->{VALUES}->{ID});
+  }
+
   if ( $attr->{VALUES}->{POINTS} ){
     return $html->button( '',
-      "get_index=maps_show_poins&show=ROUTE&OBJECT_ID=$attr->{VALUES}->{ID}&header=1",
+      "get_index=maps_show_map&show=ROUTE&OBJECT_ID=$attr->{VALUES}->{ID}&header=1",
       { class => 'glyphicon glyphicon-globe', target => '_maps' } );
   }
   elsif ( $coordx == 0 ){
     if ( defined( $attr->{VALUES}->{POINTS} ) && $attr->{VALUES}->{POINTS} == 0 ){
       return $html->button( 'add',
-        'index=' . get_function_index( 'maps_add_2' ) . "&add=ROUTE&OBJECT_ID=$attr->{VALUES}->{ID}",
+        'index=' . get_function_index( 'maps_edit' ) . "&add=ROUTE&OBJECT_ID=$attr->{VALUES}->{ID}",
         { class => 'add', target => '_blank' } );
     }
     else{
       # TODO: send address to show in add modal window
       # TODO: check permissions
       return $html->button( 'add',
-        'index=' . get_function_index( 'maps_add_2' ) . "&add=BUILD&OBJECT_ID=$attr->{VALUES}->{ID}&LOCATION_ID=$attr->{VALUES}->{ID}",
+        'index=' . get_function_index( 'maps_edit' ) . "&add=BUILD2&LOCATION_ID=$attr->{VALUES}->{ID}",
         { class => 'add', target => '_blank' } );
     }
   }
   else{
     # google_maps_show
-    return $html->button( '', "get_index=maps_show_poins&show=BUILD&OBJECT_ID=$attr->{VALUES}->{ID}&header=1",
+    return $html->button( '', "get_index=maps_show_map&show=BUILD&OBJECT_ID=$attr->{VALUES}->{ID}&header=1",
       { class => 'glyphicon glyphicon-globe', target => '_blank' } );
   }
 
@@ -634,15 +637,22 @@ sub form_address_sel {
       COLS_NAME    => 1
     });
 
-    my $js_hash = '{';
-    if ($list && scalar @$list > 0) {
-      $js_hash .= join(', ', map {
-          qq{"$_->{address_flat}" : { "uid" : "$_->{uid}", "user_name" : "$_->{login}" } }
-        } @$list );
+    my $json_load_error = load_pmodule("JSON", { RETURN => 1 });
+    if ($json_load_error) {
+      print $json_load_error;
+      return 0;
     }
-    $js_hash .= '}';
-
-    print $js_hash;
+  
+    my $json = JSON->new->utf8(0);
+    print $json->encode({
+      map {
+          $_->{address_flat} =>
+            {
+              uid       => $_->{uid},
+              user_name => $_->{login}
+            }
+      } @{$list}
+    });
   }
   else {
     my $list = $Address->district_list({ %LIST_PARAMS, PAGE_ROWS => 1000, COLS_NAME => 1 });

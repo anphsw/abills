@@ -192,9 +192,8 @@ sub portal_articles {
     use Tags;
     $Tags = Tags->new($db, $admin, \%conf);
     $tags_list = $Tags->list({COLS_NAME => 1, NAME => '_SHOW'});
-  }
 
-  $Portal->{TAGS} = $html->form_select('TAGS',
+    $Portal->{TAGS} = $html->form_select('TAGS',
     {
       SELECTED     => $Portal->{TAGS},
       SEL_LIST     => $tags_list,
@@ -203,6 +202,32 @@ sub portal_articles {
       NO_ID        => 1,
       SEL_OPTIONS  => {"" => ""}
     });
+  }
+  else{
+    $Portal->{TAGS} = "Tags $lang{DISABLED}";
+  }
+
+  my $domains_list;
+  my $Multidoms;
+  if(in_array('Multidoms', \@MODULES)){
+    load_module('Multidoms');
+    $Multidoms = Multidoms->new($db, $admin, \%conf);
+    $domains_list = $Multidoms->multidoms_domains_list({COLS_NAME => 1, NAME => '_SHOW'});
+
+    $Portal->{DOMAIN_ID} = $html->form_select('DOMAIN_ID',
+    {
+      SELECTED     => $Portal->{DOMAIN_ID},
+      SEL_LIST     => $domains_list,
+      SEL_KEY      => 'id',
+      SEL_VALUE    => 'name',
+      NO_ID        => 1,
+      SEL_OPTIONS  => {"" => ""}
+    });
+  }
+  else{
+    $Portal->{DOMAIN_ID} = "Multidoms $lang{DISABLED}";
+  }
+
 
   my $group_select = sel_groups();
 
@@ -365,6 +390,17 @@ sub portal_articles {
         SEL_OPTIONS    => {"" => ""}
       });
 
+    $Portal->{DOMAIN_ID} = $html->form_select(
+      'DOMAIN_ID',
+      {
+        SELECTED       => $Portal->{DOMAIN_ID},
+        SEL_LIST       => $domains_list,
+        SEL_KEY        => 'id',
+        SEL_VALUE      => 'name',
+        NO_ID          => 1,
+        SEL_OPTIONS    => {"" => ""}
+      });
+
     $Portal->{GROUPS} = sel_groups({ GID => $Portal->{GID}});
     my %info = ();
     if($Portal->{DISTRICT_ID}){
@@ -397,21 +433,22 @@ sub portal_articles {
   my $table = $html->table(
     {
       width      => '100%',
-      caption    => $lang{MENU},
+      caption    => $lang{ARTICLES},
       title      => [ $lang{MENU},
                       $lang{TITLE},
                       $lang{DATE_PUBLICATE},
-                      $lang{DATE_END},
+                      $lang{DATE_END_PUBLICATE},
                       $lang{STATUS},
                       $lang{ON_MAIN_PAGE},
                       $lang{USER_PORTAL},
                       $lang{IMPORTANCE},
                       $lang{GROUPS},
                       $lang{TAGS},
-                      $lang{DISTRICT},
-                      $lang{STREET},
+                      $lang{DOMAINS},
+                      $lang{DISTRICTS},
+                      $lang{ADDRESS_STREET},
                       '-', '-' ],
-      cols_align => [ 'left', 'left', 'left', 'left', 'right','right', 'center', 'center' ],
+      cols_align => [ 'left', 'left', 'left', 'left', 'right','right', 'center', 'center', 'center' ],
       ID         => 'PORTAL_TYPES',
     }
   );
@@ -426,6 +463,7 @@ sub portal_articles {
   my $list = $Portal->portal_articles_list({ COLS_NAME => 1 });
 
   foreach my $line (@$list) {
+      
     my $tag_name;
     if(in_array('Tags', \@MODULES)){
       my $tag_info = $Tags->info($line->{tags});
@@ -434,21 +472,30 @@ sub portal_articles {
       }
     }
 
+    my $domain_name;
+    if(in_array('Multidoms', \@MODULES)){
+      my $domain_info = $Multidoms->multidoms_domain_info({ID => $line->{domain_id}});
+      if($Multidoms->{TOTAL}){
+        $domain_name   = $domain_info->{NAME};
+      }
+    }
+  
     $table->addrow(
       $line->{name},
       $line->{title},    # (length($line->[1]) > 30 ) ? substr ($line->[1], 0, 21) . '...' : $line->[1],
       $line->{date},
       $line->{end_date},
-      @STATUS[ $line->{status} ],
-      ($line->{on_main_page} == 1) ? $lang{YES} : $lang{NO},
-      @ARCHIVE[ $line->{archive} ],
-      @IMPORTANCE[ $line->{importance} ],
+      ($line->{status} && $STATUS[ $line->{status} ]) ? $STATUS[ $line->{status} ] : $line->{status},
+      ($line->{on_main_page} && $line->{on_main_page} == 1) ? $lang{YES} : $lang{NO},
+      ($line->{archive} && $ARCHIVE[ $line->{archive} ]) ? $ARCHIVE[ $line->{archive} ] : $line->{archive},
+      ($line->{importance} && $IMPORTANCE[ $line->{importance} ]) ? $IMPORTANCE[ $line->{importance} ] : $line->{importance},
       $line->{gp_name},
       $tag_name,
+      $domain_name,
       $line->{dis_name},
       $line->{st_name},
       $html->button($lang{INFO}, "index=$index&chg=$line->{id}", { class => 'change' }),
-      (defined($permissions{0}{5})) ? $html->button($lang{DEL}, "index=$index&del=$line->{id}", { MESSAGE => "$lang{DEL} $line->{title}?", class => 'del' }) : ''
+      (defined($permissions{0}{5})) ? $html->button($lang{DEL}, "index=$index&del=$line->{id}", { MESSAGE => "$lang{DEL} ". ($line->{title}|| q{}) . "?", class => 'del' }) : ''
     );
   }
 
@@ -493,6 +540,7 @@ sub portal_user_cabinet {
       # если група подходит или не обьявлена в новости
 
       if (!$item->{gid} || $item->{gid} == $user->{GID}) {
+        if(!$item->{domain_id} || ($FORM{DOMAIN_ID} && $item->{domain_id} == $FORM{DOMAIN_ID}) || ($LIST_PARAMS{DOMAIN_ID} && $item->{domain_id} == $LIST_PARAMS{DOMAIN_ID}) || ( $user->{DOMAIN_ID} && $item->{domain_id} == $user->{DOMAIN_ID})){
         # проверка на адресс
         if ((!$item->{dis_name} || $item->{dis_name} eq $user->{ADDRESS_DISTRICT})
           && (!$item->{st_name} || $item->{st_name} eq $user->{ADDRESS_STREET})
@@ -505,7 +553,7 @@ sub portal_user_cabinet {
           if (defined($tag_check->[0]->{date}) || !$item->{tags}) {
             # если новость срочная
             if ($item->{importance} == 1) {
-              my $short_description = $item->{short_description};
+              my $short_description = $item->{short_description} || '';
               if ((length $short_description) > 600) {
                 $short_description = substr($short_description, 0, 600);
               }
@@ -516,7 +564,8 @@ sub portal_user_cabinet {
                   SHORT_DESCRIPTION => $short_description,
                   COLOR             => "#FFFFCC",
                   ACTIVE            => ($active == 0) ? 'active' : '',
-                  HREF              => "$SELF_URL?article=".$item->{id}
+                  HREF              => "$SELF_URL?article=".$item->{id},
+                  IMPORTANT => 'important',
                 },
                 { OUTPUT2RETURN => 1,
                   ID            => 'ARTICLE_'. $item->{id}
@@ -527,7 +576,7 @@ sub portal_user_cabinet {
               $active++;
             }
             else {
-              my $short_description = $item->{short_description};
+              my $short_description = $item->{short_description} || '';
               if ((length $short_description) > 600) {
                 $short_description = substr($short_description, 0, 600);
               }
@@ -548,6 +597,7 @@ sub portal_user_cabinet {
             }
           } else { $not_show++};
         } else { $not_show++};
+        } else{ $not_show++};
       } else { $not_show++};
     } else { $not_show++};
   }
@@ -678,16 +728,19 @@ sub portal_s_page {
 
         # Проверка времени публикации статьи
         if ($line->{utimestamp} && $line->{utimestamp} <= time()) {
+          if( !$line->{domain_id} || ($FORM{DOMAIN_ID} && $line->{domain_id}==$FORM{DOMAIN_ID}) ){
           push @CONTENTS, $html->tpl_show(
             _include('portal_content', 'Portal'),
             {
               HREF              => "$SELF_URL?article=" . $line->{id},
               TITLE             => $line->{title},
+              DATE              => $line->{date},
               SHORT_DESCRIPTION => $line->{short_description}
             },
             { OUTPUT2RETURN => 1 }
           );
           $total_articles++;
+        }
         }
       }
 
@@ -715,6 +768,67 @@ sub portal_s_page {
       );
     }
   }
+  elsif ($FORM{article}) {
+    # Отображение статьи польностю
+    $list = $Portal->portal_articles_list({ ID => $FORM{article}, COLS_NAME => 1 });
+    if ($list->[0]->{id}) {
+      my $text_article = convert($list->[0]->{content}, { text2html => 1 });
+      my (@links) = $text_article =~ /\[link\](.+)\[\/link\]/gm;
+      my (@b_elements) = $text_article =~ /\[b\](.+?)\[\/b\]/gm;
+      my (@i_elements) = $text_article =~ /\[i\](.+?)\[\/i\]/gm;
+      my (@u_elements) = $text_article =~ /\[u\](.+?)\[\/u\]/gm;
+      
+      # do <b> elements
+      my @reworked_b_elements;
+      my $b_num = 0;
+      foreach my $b_element (@b_elements){
+        $reworked_b_elements[$b_num] = $html->element('b', $b_element, {OUTPUT2RETURN=>1});
+        #"<b>" . $b_element . "</b>";
+        $text_article =~ s/\[b\].+\[\/b\]/ $reworked_b_elements[$b_num]/;
+        $b_num++;
+      }
+
+      # do <i> elements
+      my @reworked_i_elements;
+      my $i_num = 0;
+      foreach my $i_element (@i_elements){
+        $reworked_i_elements[$i_num] = $html->element('i', $i_element, {OUTPUT2RETURN=>1});
+        #"<i>" . $i_element . "</i>";
+        $text_article =~ s/\[i\].+\[\/i\]/ $reworked_i_elements[$i_num]/;
+        $i_num++;
+      }
+
+      # do <u> elements
+      my @reworked_u_elements;
+      my $u_num = 0;
+      foreach my $u_element (@u_elements){
+        $reworked_u_elements[$u_num] = $html->element('ins', $u_element, {OUTPUT2RETURN=>1});
+        #"<ins>" . $u_element . "</ins>";
+        $text_article =~ s/\[u\].+\[\/u\]/ $reworked_u_elements[$u_num]/;
+        $u_num++;
+      }
+
+      # do links
+      my @reworked_links;
+      my $link_num = 0;
+      foreach my $link (@links){
+        my ($site, $text) = $link =~ /(.+)\|(.+)/i;
+        $reworked_links[$link_num] = $html->button("$text", undef, { GLOBAL_URL => $site, NO_LINK_FORMER => 1} );
+        # "<a href=" . $site . ">" . $text . "</a>";
+        $text_article =~ s/\[link\]$site\|$text\[\/link\]/ $reworked_links[$link_num]/;
+        $link_num++;
+      }
+
+      push @CONTENTS, $html->tpl_show(
+        _include('portal_article', 'Portal'),
+        {
+          TITLE   => $list->[0]->{title},
+          ARTICLE => $text_article
+        },
+        { OUTPUT2RETURN => 1 }
+      );
+    }
+  }
   else {
     # Отображает статьи на главной
     $list = $Portal->portal_articles_list({ MAIN_PAGE => 1, COLS_NAME => 1 });
@@ -723,16 +837,19 @@ sub portal_s_page {
       # Если дата статьи меньше или такая же как текущая - выводим статью
       foreach my $line (@$list) {
         if ($line->{utimestamp} && $line->{utimestamp} <= time()) {
+          if( !$line->{domain_id} || ($FORM{DOMAIN_ID} && $line->{domain_id}==$FORM{DOMAIN_ID}) ){
           push @CONTENTS, $html->tpl_show(
             _include('portal_content', 'Portal'),
             {
               HREF              => "$SELF_URL?article=" . $line->{id},
               TITLE             => $line->{title},
+              DATE              => $line->{date},
               SHORT_DESCRIPTION => $line->{short_description}
             },
             { OUTPUT2RETURN => 1 }
           );
         }
+      }
       }
     }
     else {
@@ -748,35 +865,8 @@ sub portal_s_page {
     }
   }
 
-  if ($FORM{article}) {
-    # Отображение статьи польностю
-    $list = $Portal->portal_articles_list({ ID => $FORM{article}, COLS_NAME => 1 });
-    if ($list->[0]->{id}) {
-      my $text_article = convert($list->[0]->{content}, { text2html => 1 });
-      my (@links) = $text_article =~ /\[(.+?)]/gm;
-
-      my @reworked_links;
-      my $link_num = 0;
-      foreach my $link (@links){
-        my ($site, $text) = $link =~ /(.+)\|(.+)/i;
-        $reworked_links[$link_num] = "<a href=" . $site . ">" . $text . "</a>";
-        $text_article =~ s/\[$site\|$text]/ $reworked_links[$link_num]/;
-        $link_num++;
-      }
-
-      push @CONTENTS, $html->tpl_show(
-        _include('portal_article', 'Portal'),
-        {
-          TITLE   => $list->[0]->{title},
-          ARTICLE => $text_article
-        },
-        { OUTPUT2RETURN => 1 }
-      );
-    }
-  }
-
   if(@REGISTRATION){
-    $OUTPUT{REGISTRATION} = "<a class='btn btn-primary btn-lg' href='registration.cgi?module=$REGISTRATION[0]' target='_blank'>$lang{REGISTRATION}</a>";
+    $OUTPUT{REGISTRATION} = "<a class='' href='registration.cgi?module=$REGISTRATION[0]' title='$lang{REGISTRATION}' target='_blank'>$lang{REGISTRATION}</a>";
   }
 
   #wrong passwd
@@ -790,39 +880,13 @@ sub portal_s_page {
     $OUTPUT{WRONG_PASSWD_CHECK} = 2;
   }
 
-  my @social_auth = ();
-  if ($conf{AUTH_VK_ID}) {
-    push @social_auth, $html->element('li',
-      $html->button('', "external_auth=Vk", { class => 'icon-vk', ICON => 'fa fa-vk'} ),
-      { OUTPUT2RETURN => 1 }
-    )
-  }
-
-  if ($conf{AUTH_FACEBOOK_ID}) {
-    push @social_auth, $html->element('li',
-      $html->button('', "external_auth=Facebook", { class => 'icon-facebook', ICON => 'fa fa-facebook'}),
-      { OUTPUT2RETURN => 1 }
-    );
-  }
-
-  if ($conf{AUTH_GOOGLE_ID}) {
-    push @social_auth, $html->element('li',
-      $html->button('', "external_auth=Google", { class => 'icon-google', ICON => 'fa fa-google'}),
-      { OUTPUT2RETURN => 1 }
-    );
-  }
-
-  if ($conf{AUTH_INSTAGRAM_ID}) {
-    push @social_auth, $html->element('li',
-      $html->button('', "external_auth=Instagram", { class => 'icon-instagram', ICON => 'fa fa-instagram'}),
-      { OUTPUT2RETURN => 1 }
-    );
-  }
-
-  $OUTPUT{SOCIAL_AUTH_BLOCK} = join('', @social_auth);
+  $OUTPUT{SOCIAL_AUTH_BLOCK} = make_social_auth_login_buttons();
   $OUTPUT{CONTENT}           = join(($FORM{json} ? ',' : ''), @CONTENTS);
 
   print $html->tpl_show(_include('portal_body', 'Portal'), { %OUTPUT });
 
   return 1;
 }
+
+
+1;

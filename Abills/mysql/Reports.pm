@@ -77,12 +77,16 @@ sub list {
   my $WHERE;
   my $list;
 
-   if (defined($attr->{GID})) {
+  if (defined($attr->{GID})) {
     push @WHERE_RULES, "rw.gid='$attr->{GID}'";
   }
+  if (defined($attr->{QUICK_REPORT})) {
+    push @WHERE_RULES, "rw.quick_report='1'";
+  }
+
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query2("SELECT rw.id, rw.name, rw.comments,
+  $self->query2("SELECT rw.id, rw.name, rw.comments, rw.quick_report,
     rg.name as  group_name
     FROM reports_wizard rw
     LEFT JOIN reports_groups rg ON (rg.id=rw.gid)

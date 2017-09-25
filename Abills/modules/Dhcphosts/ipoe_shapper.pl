@@ -6,7 +6,7 @@
 
 =head1 VERSION
 
-  VERSION: 0.25
+  VERSION: 0.26
 
 =cut
 #**********************************************************
@@ -29,7 +29,7 @@ BEGIN {
     $Bin . '/../lib/');
 }
 
-our $VERSION = 0.25;
+our $VERSION = 0.26;
 
 use POSIX qw(strftime);
 use Abills::Base qw(check_time parse_arguments ip2int cmd);
@@ -40,6 +40,7 @@ use Dhcphosts;
 use Log qw(log_add);
 
 #my $begin_time = check_time();
+my $fw_guest_table = 32;
 
 my $argv = parse_arguments(\@ARGV);
 
@@ -177,7 +178,8 @@ sub check_activity {
     $WHERE .= " AND UNIX_TIMESTAMP() - UNIX_TIMESTAMP(started) <= $period";
   }
 
-  my $sql = "SELECT user_name, UNIX_TIMESTAMP() - UNIX_TIMESTAMP(started) AS duration,
+  my $sql = "SELECT user_name,
+    UNIX_TIMESTAMP() - UNIX_TIMESTAMP(started) AS duration,
     tp.tp_id,
     INET_NTOA(c.framed_ip_address) AS ip,
     '255.255.255.255',
@@ -189,14 +191,15 @@ sub check_activity {
     n.nas_type,
     n.mng_host_port,
     n.mng_user,
-    DECODE(n.mng_password, '$conf{secretkey}') as mng_password,
-    if (dv.filter_id<>'', dv.filter_id, tp.filter_id) AS filter_id,
-    INET_NTOA(dv.netmask) AS netmask
+    DECODE(n.mng_password, '$conf{secretkey}') AS mng_password,
+    IF(dv.filter_id<>'', dv.filter_id, tp.filter_id) AS filter_id,
+    INET_NTOA(dv.netmask) AS netmask,
+    c.guest
     FROM dv_calls c
     INNER JOIN nas n ON (n.id=c.nas_id)
     LEFT JOIN dv_main dv  ON (dv.uid=c.uid)
     LEFT JOIN tarif_plans tp  ON (tp.id=dv.tp_id AND tp.module='Dv')
-    WHERE (status=1 or status=3 or status=10) $WHERE; ";
+    WHERE (status=1 OR status=3 OR status=10) $WHERE; ";
 
   if ($debug > 7) {
   	$Log->log_print('LOG_SQL', '', "$sql");
@@ -220,7 +223,7 @@ sub check_activity {
 
     my $TRAFFIC_CLASSES = $TP_TRAFFIC_CLASSES->{$tp_id} || 1;
 
-    $Log->log_print('LOG_INFO', $line->{user_name}, "Duration: $line->{duration} TP: $tp_id IP: $ip Status: $line->{status} TC: $TRAFFIC_CLASSES");
+    $Log->log_print('LOG_INFO', $line->{user_name}, "Duration: $line->{duration} TP: $tp_id IP: $ip Status: $line->{status} TC: $TRAFFIC_CLASSES Guest: ". $line->{guest});
     my $cmd = '';
 
     if ($line->{netmask} ne '32') {
@@ -293,18 +296,27 @@ sub check_activity {
       }
     	else {
         for (my $traf_type = 0;$traf_type < $TRAFFIC_CLASSES; $traf_type++) {
-          my $pipe_rule_in  = int($START_FW[$traf_type] + $tp_id);
-          my $pipe_rule_out = int($START_FW[$traf_type] + $fw_step + $tp_id);
+          if($line->{guest}) {
+            $cmd = "$IPFW -q table ".(10 + $traf_type * 2)." delete $ip; ";
+            $cmd .= "$IPFW -q table ".(11 + $traf_type * 2)." delete $ip; ";
+            $cmd .= "$IPFW -q table $fw_guest_table add $ip;";
+          }
+          else {
+            my $pipe_rule_in = int($START_FW[$traf_type] + $tp_id);
+            my $pipe_rule_out = int($START_FW[$traf_type] + $fw_step + $tp_id);
 
-          $cmd = "$IPFW -q table ". (10+$traf_type*2)." delete $ip; ".
-           " $IPFW table ". (10+$traf_type*2) ." add $ip $pipe_rule_in;".
-           " $IPFW -q table ". (11+$traf_type*2) ." delete $ip; ".
-           " $IPFW table ". (11+$traf_type*2) ." add $ip $pipe_rule_out";
+            $cmd = " $IPFW -q table $fw_guest_table delete $ip; "
+              . " $IPFW -q table ".(10 + $traf_type * 2)." delete $ip; "
+              . " $IPFW table ".(10 + $traf_type * 2)." add $ip $pipe_rule_in;"
+              . " $IPFW -q table ".(11 + $traf_type * 2)." delete $ip; "
+              . " $IPFW table ".(11 + $traf_type * 2)." add $ip $pipe_rule_out";
+          }
         }
       }
     }
 
-    $Log->log_print('LOG_DEBUG', '', "$cmd");
+    $Log->log_print('LOG_DEBUG', '', $cmd);
+
     cmd($cmd);
   }
 }

@@ -13,8 +13,6 @@ our @EXPORT  = qw(
   check_chap
   check_company_account
   check_bill_account
-  get_ip
-  online_add
   rad_pairs_former
   ex_traffic_params
 );
@@ -23,8 +21,6 @@ our @EXPORT_OK = qw(
   check_chap
   check_company_account
   check_bill_account
-  get_ip
-  online_add
   rad_pairs_former
   ex_traffic_params
 );
@@ -595,7 +591,7 @@ sub dv_auth {
   else {
     my $ip = $self->get_ip($NAS->{NAS_ID}, $RAD->{'NAS-IP-Address'}, { TP_IPPOOL => $self->{TP_IPPOOL} });
     if ($ip eq '-1') {
-      $RAD_PAIRS->{'Reply-Message'} = "Rejected! There is no free IPs in neg address pools (USED: $self->{USED_IPS})";
+      $RAD_PAIRS->{'Reply-Message'} = "Rejected! There is no free IPs in address pools (USED: $self->{USED_IPS})";
       return 1, $RAD_PAIRS;
     }
     elsif ($ip eq '0') {
@@ -2075,7 +2071,7 @@ sub neg_deposit_filter_former {
       }
     }
 
-    $self->{INFO} = "Neg filter";
+    $self->{INFO} .= "NEG_FILTER";
     if($RAD_PAIRS->{'Reply-Message'}) {
       $RAD_PAIRS->{'Reply-Message'} .= ' GUEST';
     }
@@ -2457,11 +2453,11 @@ sub leases_add {
   $self->query2("INSERT INTO dhcphosts_leases
       (start, ends, state, next_state, hardware, uid,
        circuit_id, remote_id, hostname,
-       nas_id, ip, port, vlan, switch_mac, flag,
+       nas_id, ip, port, vlan, server_vlan, switch_mac, flag,
        dhcp_id)
     VALUES (NOW(),
       NOW() + INTERVAL ? SECOND, 2, 1,
-      ?, ?, ?, ?, ?, ?, INET_ATON( ? ), ?, ?, ?, ?, ?)", 'do',
+      ?, ?, ?, ?, ?, ?, INET_ATON( ? ), ?, ?, ?, ?, ?, ?)", 'do',
     { Bind => [
         ($attr->{LEASES_TIME} + 60),
         $attr->{USER_MAC},
@@ -2473,6 +2469,7 @@ sub leases_add {
         $self->{IP},
         $attr->{PORT} || '',
         $attr->{VLAN} || 0,
+        $attr->{SERVER_VLAN} || 0,
         $attr->{NAS_MAC} || 0,
         (($self->{GUEST_MODE}) ? 1 : 0),
         $CONF->{DHCP_ID} || 0

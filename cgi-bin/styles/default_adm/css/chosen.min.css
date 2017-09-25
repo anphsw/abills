@@ -184,7 +184,7 @@ select.form-control + .chosen-container-multi .chosen-results li.result-selected
 
 select.select-chosen, select.select-chosen.form-control {
     position: absolute;
-    z-index : 3;
+    z-index : 2;
     visibility: hidden;
     display : block;
     margin-top: 4px;
@@ -192,5 +192,31 @@ select.select-chosen, select.select-chosen.form-control {
     width: 190px;
     height: 20px;
 }
+
+.chosen-container-single .chosen-single span {
+    margin-right:22px;
+}
+
+select.select-chosen.chosen-up ~ .chosen-container .chosen-drop {
+    border-bottom: 1px solid #aaa;
+    top: auto;
+    bottom: 40px;
+}
+select.select-chosen.chosen-up ~ .chosen-container.chosen-with-drop .chosen-single {
+    border-top-left-radius: 0px;
+    border-top-right-radius: 0px;
+    border-bottom-left-radius: 5px;
+    border-bottom-right-radius: 5px;
+    background-image: none;
+}
+select.select-chosen.chosen-up ~ .chosen-container.chosen-with-drop .chosen-drop {
+    border-bottom-left-radius: 0px;
+    border-bottom-right-radius: 0px;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    box-shadow: none;
+    margin-bottom: -16px;
+}
+
 
 /* End */

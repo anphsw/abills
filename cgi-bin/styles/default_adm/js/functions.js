@@ -54,6 +54,15 @@ function clickButton(id) {
     btn.click();
 }
 
+function randomString(length) {
+  var text     = "";
+  var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  for (var i = 0; i < length; i++) {
+    text += possible.charAt(Math.floor(Math.random() * possible.length));
+  }
+  return text;
+}
+
 function displayJSONTooltip(result) {
   try {
     if (isDefined(result) && isDefined(result['MESSAGE'])) {
@@ -141,6 +150,8 @@ function renameAndDisable(id, text) {
     $obj.val(text);
   }
   
+  $obj.on('click', cancelEvent);
+  
   return true;
 }
 
@@ -165,29 +176,42 @@ function showCommentsModal(title, link_to_confirm, attr) {
   // Set up modal
   $mTitle.html(title);
   
-  var type        = attr.type || 'comment';
-  var ajax_submit = attr.ajax;
+  var type         = attr.type || 'comment';
+  var ajax_submit  = attr.ajax;
+  var event_submit = attr.event;
+  
+  var submit_types = {
+    'default': function (link) {
+      window.location.replace(link);
+    },
+    'ajax'   : function (link) {
+      // Save original state of modal
+      var clear_comments_modal = $modal.html();
+      
+      link += '&json=1&header=2&MESSAGE_ONLY=1';
+      
+      $.getJSON(link, function (data) {
+        displayJSONTooltip(data);
+        Events.emit('AJAX_SUBMIT.' + ajax_submit, data);
+      });
+      
+      // Revert HTML changes for modal, so next time it's clear
+      $modal.on('hidden.bs.modal', function () {
+        $modal.html(clear_comments_modal);
+      });
+    },
+    'event'  : function(){
+      Events.emit(attr.event || '');
+    }
+  };
   
   var submitForm = ajax_submit
-      ? function (link) {
-        // Save original state of modal
-        var clear_comments_modal = $modal.html();
-        
-        link += '&json=1&header=2&MESSAGE_ONLY=1';
-        
-        $.getJSON(link, function (data) {
-          displayJSONTooltip(data);
-          Events.emit('AJAX_SUBMIT.' + ajax_submit, data);
-        });
-        
-        // Revert HTML changes for modal, so next time it's clear
-        $modal.on('hidden.bs.modal', function () {
-          $modal.html(clear_comments_modal);
-        });
-      }
-      : function (link) {
-        window.location.replace(link);
-      };
+      ? submit_types['ajax']
+      : event_submit
+          ? submit_types['event']
+          : submit_types['default'];
+  
+  $mForm.off('submit');
   
   if (type === 'confirm') {
     $modal.find('.modal-body').remove();
@@ -209,7 +233,7 @@ function showCommentsModal(title, link_to_confirm, attr) {
       var comments = $mInput.val();
       
       // Check if comments are present and ask if no
-      if (comments == '' || comments == null) {
+      if (comments === '' || comments === null) {
         
         $mHeader.removeClass('alert-info');
         $mHeader.addClass('alert-danger');
@@ -235,7 +259,7 @@ function defineCommentModalLogic(context) {
   
   $modal_open_buttons.click(function () {
     var $this = $(this);
-  
+    
     showCommentsModal($this.data('title'), $this.data('confirmed_link'), {
       ajax: $this.data('ajax-submit'),
       type: $this.data('type')
@@ -387,6 +411,40 @@ function defineResetInputLogic(context) {
 }
 
 /**
+ * Activates on click toggle for blocks
+ *
+ * @param first_block_id - DOM element id
+ * @param second_block_id - DOM element id
+ * @constructor
+ */
+function BlockToggler(first_block_id, second_block_id) {
+  this.first_visible = true;
+  
+  this.first_block  = jQuery('#' + first_block_id);
+  this.second_block = jQuery('#' + second_block_id);
+  
+  this.first_block.find('a[data-toggle="block"]').on('click', this.toggle.bind(this));
+  this.second_block.find('a[data-toggle="block"]').on('click', this.toggle.bind(this));
+}
+BlockToggler.prototype.toggle     = function () {
+  this.first_visible
+      ? this.showSecond()
+      : this.showFirst();
+};
+BlockToggler.prototype.showFirst  = function () {
+  this.first_block.show();
+  this.second_block.hide();
+  
+  this.first_visible = true;
+};
+BlockToggler.prototype.showSecond = function () {
+  this.second_block.show();
+  this.first_block.hide();
+  
+  this.first_visible = false;
+};
+
+/**
  * Returns string that is desired length long.
  * placeholder is appended to a start of string
  *
@@ -512,7 +570,7 @@ function defineLinkedInputsLogic(context) {
   function disableAllLinked(e, enable) {
     var $this     = $(e);
     var value     = $this.val();
-    var linked_id = $this.attr('data-input-disables');
+    var linked_id = $this.data('input' + ((enable) ? '-enables' : '-disables'));
     var $linked   = [];
     
     // Saving reference to all linked inputs
@@ -524,16 +582,16 @@ function defineLinkedInputsLogic(context) {
         ? ($this.prop('checked'))
         : ( value !== '' );
     
-    if (enable !== 'true') {
+    if (enable !== true) {
       $.each($linked, has_value
-          ? disableSingleLinked
-          : enableSingleLinked
+                        ? disableSingleLinked
+                        : enableSingleLinked
       )
     }
     else {
       $.each($linked, has_value
-          ? enableSingleLinked
-          : disableSingleLinked
+                        ? enableSingleLinked
+                        : disableSingleLinked
       )
     }
   }
@@ -788,28 +846,6 @@ function throttle(callback, limit) {
 //  });
 //}
 
-function defineTreeMenuLogic(context) {
-  
-  var $trees = $('.tree li:has(ul)', context);
-  
-  if ($trees.length == 0) return true;
-  
-  $trees.addClass('parent_li').find(' > span').attr('title', 'Collapse this branch');
-  
-  //expand first level
-  $('.nav.nav-list.main').find('ul.tree').first().toggle();
-  
-  //expand next level on click
-  $('label.tree-toggler').on('click', function () {
-    toggleBranch(this)
-  });
-  
-  function toggleBranch(context) {
-    $(context).parent().children('ul.tree').toggle(300);
-  }
-  
-}
-
 function defineNavbarFormLogic(context) {
   'use strict';
   var $navbarForms = $('form.navbar-form:not(.no-live-select)', context);
@@ -882,9 +918,76 @@ function defineFileInputLogic(context) {
 }
 
 function initUpButton() {
-  var $btn = $('<a/>', {id: 'up-btn', role: 'button', href: '#', style: 'display : none'});
+  
+  var $btn = $('<a/>', {id: 'up-btn', role: 'button', style: 'display : none'});
   $btn.html($('<span/>', {'class': 'glyphicon glyphicon-chevron-up up-btn-icon'}));
-  $(window).scroll(function () { ($(this).scrollTop() > 300) ? $btn.fadeIn() : $btn.fadeOut()});
+  
+  var lastPosition             = false;
+  var onClickShouldScrollToTop = true;
+  var buttonVisible            = false;
+  
+  var setToTop = function () {
+    console.log('setToTop');
+    // Clear last position
+    lastPosition = false;
+    
+    // Set flag indicating action
+    onClickShouldScrollToTop = true;
+    
+    // Change icon
+    $btn.find('span')
+        .removeClass('glyphicon-chevron-down text-yellow')
+        .addClass('glyphicon-chevron-up');
+  };
+  
+  var setToLast = function () {
+    console.log('setToLast');
+    
+    lastPosition = window.pageYOffset || document.documentElement.scrollTop;
+    
+    // Clear flag indicating action
+    onClickShouldScrollToTop = false;
+    
+    
+    // Change icon
+    $btn.find('span')
+        .removeClass('glyphicon-chevron-up')
+        .addClass('glyphicon-chevron-down text-yellow');
+  };
+  
+  $btn.on('click', function (e) {
+    cancelEvent(e);
+    
+    if (onClickShouldScrollToTop) {
+      setToLast();
+      window.scrollTo(0, 0);
+    }
+    else if (lastPosition) {
+      window.scrollTo(0, lastPosition || 0);
+      setToTop();
+    }
+  });
+  
+  $(window).scroll(function () {
+    
+    var currentScroll = window.pageYOffset || document.documentElement.scrollTop;
+    
+    // Show button only if under first 300px, or was returned from top and can return
+    if (currentScroll > 300) {
+      if (!onClickShouldScrollToTop && lastPosition) setToTop();
+      
+      if (!buttonVisible) {
+        buttonVisible = true;
+        $btn.fadeIn();
+      }
+    }
+    else {
+      if (onClickShouldScrollToTop && buttonVisible) {
+        buttonVisible = false;
+        $btn.fadeOut();
+      }
+    }
+  });
   
   $('body').prepend($btn);
 }
@@ -945,12 +1048,12 @@ function initDatepickers(context) {
   if (typeof($(document).datepicker) === 'undefined') {
     return false;
   }
-
+  
   var $datetimepickers  = $('div.datetimepicker', context);
   var $daterangepickers = $('input.date_range_picker', context);
   
   //Date picker
-  $('.datepicker').datepicker({
+  $('input.datepicker', context).datepicker({
     autoclose     : true,
     format        : 'yyyy-mm-dd',
     startDate     : '-100y',
@@ -958,9 +1061,11 @@ function initDatepickers(context) {
     clearBtn      : true,
     forceParse    : false,
     weekStart     : 1
-  });
+  })
+      .on('show', cancelEvent)
+      .on('hide', cancelEvent);
   
-  $('.timepicker').timepicker({
+  $('input.timepicker', context).timepicker({
     showMeridian: false,
     defaultTime : false,
     explicitMode: false,
@@ -1028,8 +1133,36 @@ function initDatepickers(context) {
 }
 
 function initChosen(context) {
-  if (isDefined(CHOSEN_PARAMS))
-    jQuery('select:not(#type)', context).chosen(CHOSEN_PARAMS);
+  if (typeof(CHOSEN_PARAMS) === 'undefined') {
+    return false
+  }
+  var $selects = $('select:not(#type)', context);
+  
+  $selects.chosen(CHOSEN_PARAMS);
+  
+  // Make selects that would be opened outside body open to up
+  $selects.on('chosen:showing_dropdown', function (event) {
+    setTimeout(function(){
+      var $select = $(event.target);
+      var $chosen_container = $select.next();
+  
+      var top = $chosen_container.offset().top,
+          sctop = $(this).scrollTop(),
+          winh = $(this).height(),
+          y = top - sctop - winh + 100;
+      
+      if (y > 0 || -y > winh) {
+        $select.addClass('chosen-up');
+      }
+      
+    }, 100);
+    
+  });
+  
+  $selects.on('chosen:hiding_dropdown', function(event){
+    $(event.target).removeClass('chosen-up');
+  })
+  
 }
 
 function openModals(context) {
@@ -1045,10 +1178,9 @@ function defineAjaxSubmitForms(context) {
   
   // Make function global
   window['ajaxFormSubmit'] = function (e) {
-    e.preventDefault();
+    cancelEvent(e);
     var $form    = $(this);
     var formData = new FormData(this);
-    console.log(formData);
     formData.append('AJAX', 1);
     formData.append('json', 1);
     formData.append('MESSAGE_ONLY', 1);
@@ -1065,7 +1197,8 @@ function defineAjaxSubmitForms(context) {
         formData.set('index', '');
       }
     }
-    
+    console.log(formData);
+  
     //var $submitters = $form.find('button,input[type="submit"]');
     //$submitters.addClass('disabled');
     
@@ -1126,9 +1259,7 @@ function pageInit(context) {
   context = context || document;
   
   // init chosen
-  if (typeof(CHOSEN_PARAMS) !== 'undefined') {
-    $('select:not(#type)', context).chosen(CHOSEN_PARAMS);
-  }
+  initChosen(context);
   
   // Allow auto opening of modals
   openModals(context);
@@ -1156,9 +1287,6 @@ function pageInit(context) {
   // Sticky panels that are fixed on top
   //defineStickyNavsLogic();
   
-  // Recursive HTML trees
-  defineTreeMenuLogic(context);
-  
   // Auto sending navbar form
   defineNavbarFormLogic(context);
   
@@ -1177,7 +1305,10 @@ function pageInit(context) {
   // Concatenate date and time parts
   initDatepickers(context);
   
-  initUpButton(context);
+  // Called on document
+  if (context == document) {
+    initUpButton(document);
+  }
   
   // Find and initialize all tooltips
   defineTooltipLogic(context);
@@ -1191,7 +1322,7 @@ function pageInit(context) {
   defineLinkedInputsLogic(context);
   
   if (typeof window['moment'] !== 'undefined') {
-    jQuery('.moment-insert').each(function (i, span_) {
+    jQuery('span.moment-insert').each(function (i, span_) {
       var span = jQuery(span_);
       var time = span.data('value');
       if (!time) return;
@@ -1199,15 +1330,73 @@ function pageInit(context) {
       span.text(' ' + moment(time, 'YYYY-MM-DD hh:mm:ss').fromNow() + ' ');
       span.attr('title', time);
       span.css({
-        'text-decoration' : 'underline',
-        'text-decoration-style' : 'dashed'
+        'text-decoration'      : 'underline',
+        'text-decoration-style': 'dashed'
       })
+    });
+  
+    jQuery('span.moment-range').each(function (i, span_) {
+      var span = jQuery(span_);
+      var time = span.data('value');
+      if (!time) return;
+    
+      span.text(' ' + moment.duration(time, 'seconds').humanize() + ' ');
+      span.attr('title', time + ' s');
     })
   }
 }
 
+function copyToBuffer(value){
+  
+  // Create textarea
+  var $textarea = $('<textarea></textarea>')
+      .text(value);
+  
+  // Place on page
+  $('footer.main-footer').after($textarea);
+  
+  // Select text inside
+  $textarea.select();
+  
+  try {
+    document.execCommand('copy');
+    document.getSelection().removeAllRanges();
+  }
+  catch (err) {
+    alert('Oops, unable to copy');
+  }
+  finally {
+    $textarea.remove();
+  }
+  
+}
+
+/**
+ * Used to generate unique identifiers
+ * @returns {string}
+ */
+function generate_guid(){
+  return generate_s4() + generate_s4() + '-' + generate_s4() + '-' + generate_s4() + '-' +
+      generate_s4() + '-' + generate_s4() + generate_s4() + generate_s4();
+}
+function generate_s4 (){
+  return Math.floor((1 + Math.random()) * 0x10000)
+      .toString(16)
+      .substring(1);
+}
+
+
 $(function () {
   pageInit(document);
+  
+  $('a#admin-status').on('click', function(){
+    
+    $.get('?get_index=msgs_admin_quick_message&header=2', function(data){
+      if (! data.match(/not exist/)){
+        loadDataToModal(data, false, true);
+      }
+    });
+  });
 });
 
 

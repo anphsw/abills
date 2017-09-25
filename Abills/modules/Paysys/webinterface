@@ -13,6 +13,7 @@ use warnings;
 use Abills::Filters;
 use Abills::Base qw(in_array cfg2hash convert ip2int
   mk_unique_value decode_base64 sendmail encode_base64 cmd);
+use Abills::Fetcher qw(web_request);
 use Finance;
 
 if (form_purchase_module({
@@ -38,7 +39,9 @@ our ($db,
   $PAYSYSTEM_NAME,
   $PAYSYSTEM_IP,
   $PAYSYSTEM_VERSION,
-  %PAYSYSTEM_CONF);
+  %PAYSYSTEM_CONF,
+  %FEES_METHODS
+);
 
 my $Payments = Finance->payments($db, $admin, \%conf);
 my $Fees     = Finance->fees($db, $admin, \%conf);
@@ -73,6 +76,7 @@ my %PAY_SYSTEMS = (
   66 => 'Paypal',
   67 => 'Sberbank',
   68 => 'Gigs',
+  69 => 'Autopay Visa MasterCards',
   70 => 'CyberPlat',
   71 => 'Telcell',
   72 => 'Ipay',
@@ -119,9 +123,13 @@ my %PAY_SYSTEMS = (
   114=> 'Oschadbank',
   115=> 'Goldenpay',
   116=> 'Mixplat',
-  117=> 'Яндекс Касса',
+  117=> 'Yandex Kassa',
   118=> 'Deltapay',
   119=> 'Unipay',
+  120=> 'Tinkoff',
+  121=> 'Cloudpayments',
+  122=> 'PaymasterRu',
+  123=> 'Rncb',
 );
 
 my %CONF_OPTIONS = (
@@ -153,7 +161,7 @@ my %CONF_OPTIONS = (
   PAYSYS_PAYPAL_RECIEVER_EMAIL => 66,
   PAYSYS_SBERBANK_PASSWORD     => 67,
   PAYSYS_GIGS_IPS              => 68,
-
+  PAYSYS_AUTOPAY_PROVIDER      => 69,
   PAYSYS_CYBERPLAT_ACCOUNT_KEY    => 70,
   PAYSYS_TELLCELL_ACCOUNT_KEY     => 71,
   PAYSYS_IPAY_MERCHANT_ID         => 72,
@@ -197,6 +205,9 @@ my %CONF_OPTIONS = (
   PAYSYS_OSCHADBANK_SECRET_KEY              => 114,
   PAYSYS_MIXPLAT_SECRET_KEY                 => 116,
   PAYSYS_YANDEX_KASSA_SCID                  => 117,
+  PAYSYS_TINKOFF_TERMINAL_KEY               => 120,
+  PAYSYS_CLOUDPAYMENTS_ID                   => 121,
+  PAYSYS_PAYMASTERRU_MERCHANT_ID            => 122,
 );
 
 my @status = ("$lang{UNKNOWN}", #0
@@ -239,7 +250,7 @@ my @status_color = ('',
   '#0a0068',
   '#004a58');
 
-my @TERMINAL_TYPES = ('EasyPay',  'Privatbank');
+#my @TERMINAL_TYPES = ('EasyPay',  'Privatbank');
 my @TERMINAL_STATUS = ("$lang{ENABLE}", "$lang{DISABLE}");
 
 paysys_load('Paysys_Base');
@@ -516,7 +527,9 @@ sub paysys_import_form {
 
         if ($uid) {
           my $user_   = $users->info($uid);
-
+          # ddelete param for cross modules 
+          delete $user_->{PAYMENTS_ADDED};
+          
           $Payments->add(
             $user_,
             {
@@ -928,6 +941,8 @@ sub paysys_payment {
     my @params  = split(/,[\r\n\s]?/, $conf{PAYSYS_INTERACT_PARAMS});
     my $message = '';
     my $u_pi = $users->pi( {UID => $FORM{UID}} );
+    $attr->{FIO} = $u_pi->{FIO};
+    $attr->{UID} = $u_pi->{UID};
     foreach my $param (@params){
       if($param eq 'FIO'){
         $message .= "<h4><b>$lang{FIO}:</b>$u_pi->{FIO}</h4>";
@@ -947,6 +962,17 @@ sub paysys_payment {
   elsif ($conf{PAYSYS_MAX_SUM} && $FORM{SUM}>0 && $conf{PAYSYS_MAX_SUM} < $FORM{SUM}  ) {
     $html->message( 'err', $lang{ERROR}, "ERR_BIG_SUM: $conf{PAYSYS_MAX_SUM}" );
     goto PRE_LABEL;
+  }
+  # new fast pay form
+  elsif($conf{PAYSYS_IPAY_FAST_PAY} && ($FORM{ipay_pay} || $FORM{ipay_register_purchase} || $FORM{ipay_purchase})){
+#    $user->pi({UID => $user->{UID}});
+
+    require Paysys::systems::Ipay;
+    Paysys::systems::Ipay->import();
+    my $Ipay = Paysys::systems::Ipay->new(\%conf, \%FORM, \%lang, $index, $user, {HTML => $html, SELF_URL => $SELF_URL, DATETIME => "$DATE $TIME"});
+    my $IPAY_HTML = $Ipay->paysys_ipay();
+    $info{PAY_SYSTEM_SEL} .= $IPAY_HTML;
+
   }
   elsif ($FORM{PAYMENT_SYSTEM} == 41 || $FORM{PAYMENT_SYSTEM} == 85
   #|| $FORM{LMI_PAYMENT_NO}
@@ -974,6 +1000,9 @@ sub paysys_payment {
   elsif ($FORM{PAYMENT_SYSTEM} == 54) {
     return paysys_privatbank_p24($attr);
   }
+  elsif ($FORM{PAYMENT_SYSTEM} == 57) {
+    paysys_easypay_fastpay();
+  }
   elsif ($FORM{PAYMENT_SYSTEM} == 58) {
     paysys_lr();
   }
@@ -982,6 +1011,9 @@ sub paysys_payment {
   }
   elsif ($FORM{PAYMENT_SYSTEM} == 67) {
     paysys_sberbank();
+  }
+  elsif ($FORM{PAYMENT_SYSTEM} == 69) {
+    paysys_autopay();
   }
   elsif ($FORM{PAYMENT_SYSTEM} == 65) {
     paysys_privat_fastpay();
@@ -1071,7 +1103,16 @@ sub paysys_payment {
     paysys_mixplat();
   }
   elsif($FORM{PAYMENT_SYSTEM} == 117) {
-    paysys_yandex_kassa();
+    paysys_yandex_kassa($attr);
+  }
+  elsif($FORM{PAYMENT_SYSTEM} == 120) {
+    paysys_tinkoff();
+  }
+  elsif($FORM{PAYMENT_SYSTEM} == 121) {
+    paysys_cloudpayments();
+  }
+  elsif($FORM{PAYMENT_SYSTEM} == 122) {
+    paysys_paymaster_ru();
   }
   else {
     PRE_LABEL:
@@ -1079,7 +1120,17 @@ sub paysys_payment {
     $info{OPERATION_ID} = mk_unique_value(8, { SYMBOLS => '0123456789' });
 
     #show interact
-    $info{PAY_SYSTEM_SEL} = paysys_system_sel();
+    # new fast pay form
+    if($conf{PAYSYS_IPAY_FAST_PAY}){
+#      $users->pi({UID => $user->{UID}});
+      require Paysys::systems::Ipay;
+      my $Ipay = Paysys::systems::Ipay->new(\%conf, \%FORM, \%lang, $index, $user, {HTML => $html, SELF_URL => $SELF_URL, DATETIME => "$DATE $TIME"});
+      my $IPAY_HTML = $Ipay->paysys_ipay();
+      $info{PAY_SYSTEM_SEL} .= $IPAY_HTML;
+      
+  }
+
+    $info{PAY_SYSTEM_SEL} .= paysys_system_sel();
   
     if (in_array('Maps', \@MODULES)) {
       $info{MAP} = paysys_maps();
@@ -1111,12 +1162,13 @@ my %PAY_SYSTEM_ACCOUNTS = (
    48 => 'PAYSYS_PB_MERID',
    50 => 'PAYSYS_COMEPAY',
    54 => 'PAYSYS_P24_MERCHANT_ID',
-#   57 => 'PAYSYS_EASYPAY_SERVICE_ID',
+   57 => 'PAYSYS_EASYPAY_FASTPAY',
    58 => 'PAYSYS_LR_ACCOUNT_NUMBER',
    59 => 'PAYSYS_QIWI_TERMINAL_ID',
    62 => 'PAYSYS_LIQPAY_MERCHANT_ID',
    66 => 'PAYSYS_PAYPAL_RECIEVER_EMAIL',
    67 => 'PAYSYS_SBERBANK_ACCOUNT_KEY',
+   69 => 'PAYSYS_AUTOPAY_PROVIDER',
    72 => 'PAYSYS_IPAY_MERCHANT_ID',
    73 => 'PAYSYS_YANDEX_ID',
    77 => 'PAYSYS_CP_VISA',
@@ -1147,6 +1199,9 @@ my %PAY_SYSTEM_ACCOUNTS = (
    65 => 'PAYSYS_PRIVAT_TERMINAL_FAST_PAY',
    116=> 'PAYSYS_MIXPLAT_SECRET_KEY',
    117=> 'PAYSYS_YANDEX_KASSA_SCID',
+   120=> 'PAYSYS_TINKOFF_TERMINAL_KEY',
+   121=> 'PAYSYS_CLOUDPAYMENTS_ID',
+   122=> 'PAYSYS_PAYMASTERRU_MERCHANT_ID',
 );
 
 while (my ($k, undef) = each %PAY_SYSTEMS) {
@@ -1156,6 +1211,10 @@ while (my ($k, undef) = each %PAY_SYSTEMS) {
     next;
   }
   delete $PAY_SYSTEMS{$k} if (!$conf{ $PAY_SYSTEM_ACCOUNTS{$k} });
+
+  if($k == 54){
+    delete $PAY_SYSTEMS{$k} if ($conf{PAYSYS_P24_SKIP_PORTAL});
+  }
 }
 
 if($attr->{ONLY_SYSTEMS} && $attr->{ONLY_SYSTEMS} == 1){
@@ -1185,6 +1244,7 @@ foreach my $id (sort keys %PAY_SYSTEMS){
   # ";
   my $paysys_name = $PAY_SYSTEMS{$id};
   $paysys_name =~ s/ /_/g;
+  $paysys_name = lc($paysys_name);
 
   if(-e "$paysys_logo_path" . lc($paysys_name) . "-logo.png"){
     $file_path = "/styles/default_adm/img/paysys_logo/" . lc($paysys_name) . "-logo.png";
@@ -1371,8 +1431,10 @@ sub paysys_log {
                     ]
     }
   );
-
-  print $table->show();
+  if(!$admin->{MAX_ROWS}){
+   print $table->show(); 
+  }
+  # print $table->show();
 
   return 1;
 }
@@ -1649,18 +1711,20 @@ sub paysys_ukrpays {
       return 0;
     }
 
-    %info = (UID => "$FORM{OPERATION_ID}:$admin->{DOMAIN_ID}",
-             FIO => $user->{FIO}
-            );
+    %info = (
+      UID => "$FORM{OPERATION_ID}:$admin->{DOMAIN_ID}",
+      FIO => $user->{FIO}
+    );
   }
   else {
     if (! $user->{FIO}) {
-      #FIXME: if not UID ERRNO
-      $user->pi({ UID => $LIST_PARAMS{UID} });
+      $user->pi({ UID => $LIST_PARAMS{UID} || $user->{UID} });
     }
 
-    %info = (UID => $LIST_PARAMS{UID},
-             FIO => $user->{FIO} );
+    %info = (
+      UID => $LIST_PARAMS{UID},
+      FIO => $user->{FIO}
+    );
   }
 
   conf_gid_split({ GID    => $user->{GID},
@@ -1856,7 +1920,7 @@ sub paysys_portmone {
   if ($html->{language} eq 'english') {
     $info{LANG} = 'en';
   }
-  elsif ($html->{language} eq 'ukraine') {
+  elsif ($html->{language} eq 'ukrainian') {
     $info{LANG} = 'uk';
   }
   else {
@@ -2013,9 +2077,21 @@ sub paysys_rbkmoney {
 #**********************************************************
 sub paysys_sberbank {
 
-  $html->tpl_show(_include('paysys_sberbank_online', 'Paysys'));
-#$html->message( 'info', $lang{INFO}, "<a href='https://online.sberbank.ru'>Оплатить через Сбербанк-Онлайн</a>");
+  my $div = $html->element('h3', "Вы будете перенаправлены на сервис Сбербанк-онлайн", { class => 'alert alert-info'} );
+  $html->{HEADERS_SENT} = 1;
+  $html->redirect('https://online.sberbank.ru/', { WAIT => 4, MESSAGE_HTML => $div });
+}
 
+#**********************************************************
+#
+#**********************************************************
+sub paysys_autopay {
+
+  my $SUM = $FORM{SUM} * 100;
+  my $div = $html->element('h3', "Вы будете перенаправлены на сервис Центральная касса", { class => 'alert alert-info'} );
+  $html->{HEADERS_SENT} = 1;
+  $html->redirect("https://autopays.ru/payment/?provider=$conf{PAYSYS_AUTOPAY_PROVIDER}&Л/СЧЕТ=$LIST_PARAMS{UID}&amount=$SUM&force_create=true",
+  	 				{ WAIT => 4, MESSAGE_HTML => $div });
 }
 
 #**********************************************************
@@ -2600,14 +2676,15 @@ sub paysys_p24_get_payments {
     {
       width      => '100%',
       caption    => "$lang{TOTAL}",
-      cols_align => [ 'right', 'right', 'right', 'right' ],
       rows       =>
       [ [ "$lang{PAYMENTS}:", $html->b( $total_in ), "$lang{SUM}", $html->b( sprintf( "%.2f", $total_sum_in ) ) ],
         [ "$lang{FEES}:", $html->b( $total_out ), "$lang{SUM}", $html->b( sprintf( "%.2f", $total_sum_out ) ) ] ]
     }
   );
-
-  print $table->show();
+  if(!$admin->{MAX_ROWS}){
+    print $table->show();
+  }
+  #print $table->show();
 
   return 1;
 }
@@ -2625,19 +2702,21 @@ sub get_binding_ids {
     return \%binding_assigns;
   }
 
-  my $ids = join(',', values %$BINDING_IDS);
-  my $list = $users->list(
-     {
-       FIO            => '_SHOW',
-       $BINDING_FIELD => $ids,
-       PAGE_ROWS      => 1000000,
-       $BINDING_FIELD => '_SHOW',
-       COLS_NAME      => 1
-     }
-  );
+  if($BINDING_IDS) {
+    my $ids = join(',', values %$BINDING_IDS);
+    my $list = $users->list(
+      {
+        FIO            => '_SHOW',
+        $BINDING_FIELD => $ids,
+        PAGE_ROWS      => 1000000,
+        $BINDING_FIELD => '_SHOW',
+        COLS_NAME      => 1
+      }
+    );
 
-  foreach my $line (@$list) {
-    $binding_assigns{ $line->{lc($BINDING_FIELD)} } = $line->{login}.':'.($line->{fio} ||'').':'.$line->{uid};
+    foreach my $line (@$list) {
+      $binding_assigns{ $line->{lc($BINDING_FIELD)} } = $line->{login}.':'.($line->{fio} || '').':'.$line->{uid};
+    }
   }
 
   return \%binding_assigns;
@@ -2879,7 +2958,7 @@ sub paysys_privatbank_p24 {
         UID            => $LIST_PARAMS{UID},
         IP             => $ENV{'REMOTE_ADDR'},
         TRANSACTION_ID => "$payment_system:$FORM{OPERATION_ID}",
-        INFO           => ($ENV{REQUEST_URI} =~ /start.cgi/) ? "start.cgi\nTP_ID,$FORM{TP_ID}" : '',
+        INFO           => ($ENV{REQUEST_URI} =~ /start.cgi/) ? "start.cgi\nTP_ID,$FORM{TP_ID}" : $SELF_URL,
         PAYSYS_IP      => $ENV{'REMOTE_ADDR'},
         #USER_INFO      => ($ENV{REQUEST_URI} =~ /start.cgi/) ? 'start.cgi' : '',
         STATUS         => 1
@@ -2902,7 +2981,18 @@ sub paysys_privatbank_p24 {
   $conf{PAYSYS_P24_MERCHANT_CURRENCY}='USD' if(! $conf{PAYSYS_P24_MERCHANT_CURRENCY});
   $info{UID} = $FORM{UID};
 
-  conf_gid_split({ GID    => $user->{GID},
+  # check if not user GID
+  if(!$user->{GID}){
+    use Users;
+    my $User_obj = Users->new($db, $admin, \%conf);
+    my $user_info = $User_obj->info($info{UID}, {GID => '_SHOW', COLS_NAME => 1});
+    # if everything ok - add gid to %info
+    if(!$User_obj->{errno}){
+      $info{GID} = $user_info->{GID};
+    }
+  }
+
+  conf_gid_split({ GID    => $user->{GID} || $info{GID},
                    PARAMS => [
                      'PAYSYS_P24_COMMISSION',
                      'PAYSYS_P24_MERCHANT_ID',
@@ -3000,6 +3090,7 @@ sub paysys_liqpay {
   else {
     ($info{SIGN}, $info{BODY}) =  liqpay_make_request3({ DOMAIN_ID => $user->{DOMAIN_ID},
                                                        GID       => $user->{GID},
+      DESCRIPTION => "\nFIO: " . ($user->{FIO} || $attr->{FIO}) . ";\n UID: " . ($user->{UID} || $attr->{UID}) . ";",
                                                        %FORM });
   }
 
@@ -3125,7 +3216,6 @@ sub paysys_qiwi_list {
       title      =>
       [ 'ID', "$lang{LOGIN}", "$lang{DATE}", "$lang{SUM}", "$lang{PAY_SYSTEM}", "$lang{TRANSACTION}", "IP",
         "$lang{STATUS}", '-' ],
-      cols_align => [ 'left', 'left', 'right', 'right', 'left', 'right', 'right', 'center:noprint', 'center:noprint' ],
       qs         => $pages_qs,
       pages      => $Paysys->{TOTAL},
       ID         => 'PAYSYS_QIWI_LIST',
@@ -3186,7 +3276,6 @@ sub paysys_qiwi_list {
   $table = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right', 'right', 'right' ],
       rows       => [ [ "$lang{TOTAL}:", $html->b( $Paysys->{TOTAL} ), "$lang{SUM}", $html->b( $Paysys->{SUM} ) ] ]
     }
   );
@@ -3816,7 +3905,9 @@ sub paysys_yandex {
 }
 
 #**********************************************************
-#
+=head2 paysys_perfectmoney()
+
+=cut
 #**********************************************************
 sub paysys_perfectmoney {
 
@@ -3859,7 +3950,9 @@ sub paysys_okpay {
 }
 
 #**********************************************************
-# Smsm Online
+=head2 paysys_smsonline() Smsm Online
+
+=cut
 #**********************************************************
 sub paysys_smsonline {
   #my ($attr)=@_;
@@ -3872,7 +3965,6 @@ sub paysys_smsonline {
     width      => '100%',
     caption    => 'Оплата через смс',
     title      => ['Sms на номер', 'Текст смс', 'Баланс будет пополнен на', 'Cтоимость смс'],
-    cols_align => ['left', 'right', 'right', 'right', 'center', 'center'],
     ID         => 'SMSONLINE_ID'
   });
 
@@ -4783,7 +4875,7 @@ sub paysys_maps {
 
   load_module('Maps', $html);
 
-  return maps_show_poins(
+  return maps_show_map(
     {
       QUICK             => 1,
       GET_LOCATION      => 1,
@@ -4969,7 +5061,9 @@ sub paysys_fondy {
 }
 
 #**********************************************************
-# Месячный регулярный платеж
+=head paysys_monthly($attr) - Month periodic payments
+
+=cut
 #**********************************************************
 sub paysys_monthly {
   my ($attr) = @_;
@@ -5024,6 +5118,9 @@ sub paysys_monthly {
 
 
 #**********************************************************
+=head2 paysys_walletone()
+
+=cut
 #**********************************************************
 sub paysys_walletone {
   paysys_load('Walletone');
@@ -5918,7 +6015,11 @@ sub paysys_bss {
     }
   );
 
-  print $report_sums->show();
+  if(!$admin->{MAX_ROWS}){
+    print $report_sums->show();
+  }
+
+  # print $report_sums->show();
 
   return 1;
 }
@@ -5981,7 +6082,11 @@ sub paysys_external_commands {
 sub paysys_privat_fastpay {
   my ($attr) = @_;
   
-  my $link = $conf{PAYSYS_PRIVAT_TERMINAL_FAST_PAY} . "&acc=$user->{$conf{PAYSYS_PRIVAT_TERMINAL_ACCOUNT_KEY}}";
+  if($conf{PAYSYS_PRIVAT_TERMINAL_ACCOUNT_KEY} eq 'CONTRACT_ID' && !$user->{CONTRACT_ID}){
+    $user->pi();
+  }
+  
+  my $link = $conf{PAYSYS_PRIVAT_TERMINAL_FAST_PAY} . "&acc=" . ($user->{$conf{PAYSYS_PRIVAT_TERMINAL_ACCOUNT_KEY}} || $FORM{$conf{PAYSYS_PRIVAT_TERMINAL_ACCOUNT_KEY}});
   
   $html->tpl_show(_include('paysys_privat_terminal_fastpay', 'Paysys'), {LINK => $link});
 
@@ -6038,7 +6143,7 @@ sub paysys_mixplat {
 =cut
 #**********************************************************
 sub paysys_yandex_kassa{
-  my $attr = @_;
+  my ($attr) = @_;
   my %info;
 
   my $payment_system    = 'YK';
@@ -6053,32 +6158,40 @@ sub paysys_yandex_kassa{
     $html->message( 'err', $lang{ERROR}, "$lang{ERROR} $lang{TRANSACTION}" );
     return 0;
   }
-  
+
+  if($FORM{TRUE}){
+    my $transaction_result = paysys_show_result({ %FORM, TRANSACTION_ID => $payment_system.':'.$FORM{OPERATION_ID} });
+    return $transaction_result;
+  }
+
   my $account_key = $conf{PAYSYS_YANDEX_KASSA_ACCOUNT_KEY};
   $info{SCID}     = $conf{PAYSYS_YANDEX_KASSA_SCID};
   $info{SHOP_ID}  = $conf{PAYSYS_YANDEX_KASSA_SHOP_ID};
-  $info{CUSTOMER} = $user->{$account_key};
+  $info{CUSTOMER} = $user->{$account_key} || $FORM{$account_key};
   $info{YANDEX_ACTION} = $conf{PAYSYS_YANDEX_KASSA_TEST} ? 'https://demomoney.yandex.ru/eshop.xml' : 'https://money.yandex.ru/eshop.xml';
+  $info{REGISTRATION_ONLY} = $attr->{REGISTRATION_ONLY} || 0;
 
   # use Abills::Base qw(_bp);
   # _bp("User", { %$user{'UID', 'LOGIN', 'CONTRACT_ID'}  }, {TO_WEB_CONSOLE => 1, HEADER=> 1});
     
   # $info{CUSTOMER} = '';
 
-  $Paysys->add(
-      {
-        SYSTEM_ID      => $payment_system_id,
-        SUM            => $FORM{SUM},
-        UID            => $user->{UID},
-        IP             => "$ENV{'REMOTE_ADDR'}",
-        TRANSACTION_ID => "$payment_system:$FORM{OPERATION_ID}",
-        STATUS         => 1,
-        DOMAIN_ID      => $user->{DOMAIN_ID}
-      }
-    );
+  $Paysys->add({
+    SYSTEM_ID      => $payment_system_id,
+    SUM            => $FORM{SUM},
+    UID            => $user->{UID} || $FORM{UID},
+    IP             => "$ENV{'REMOTE_ADDR'}",
+    TRANSACTION_ID => "$payment_system:$FORM{OPERATION_ID}",
+    STATUS         => 1,
+    DOMAIN_ID      => $user->{DOMAIN_ID}
+  });
 
-  $html->tpl_show(_include('paysys_yandex_kassa_add', 'Paysys'), {%info});
+  if ($Paysys->{errno}) {
+    $html->message( 'err', "$lang{ERROR}", "$lang{ERROR} Paysys ID: '$FORM{OPERATION_ID}'" );
+    return 0;
+  }
 
+  return $html->tpl_show(_include('paysys_yandex_kassa_add', 'Paysys'), {%info}, { OUTPUT2RETURN => $attr->{OUTPUT2RETURN} });
 }
 
 #**********************************************************
@@ -6093,7 +6206,7 @@ sub paysys_yandex_kassa{
 =cut
 #**********************************************************
 sub paysys_tyme_reports {
-  my ($attr) = @_;
+  #my ($attr) = @_;
 
   my %info;
 
@@ -6181,7 +6294,7 @@ sub paysys_tyme_reports {
         width   => '100%',
         caption => "Tyme Report",
         # qs      => $pages_qs,
-        pages   => $Paysys->{TOTAL},
+        #pages   => $Paysys->{TOTAL},
         ID      => 'TYME_REPORT',
         #MENU    => "$lang{ADD}:add_form=1&index=" . $index . ':add' . ";",
         EXPORT  => 1
@@ -6210,12 +6323,277 @@ sub paysys_tyme_reports {
             rows       => \@rows
           }
         );
+  if(!$admin->{MAX_ROWS}){
+    print $table->show();
+  }
+  return 1;
+}
 
-  print $table->show();
+#**********************************************************
+=head2 paysys_easysoft_fastpay() -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub paysys_easypay_fastpay {
+  #my ($attr) = @_;
+
+  my $link = $conf{PAYSYS_EASYPAY_FASTPAY} . "?account=$user->{$conf{PAYSYS_EASYPAY_ACCOUNT_KEY}}&amount=$FORM{SUM}";
+  
+  $html->tpl_show(_include('paysys_easypay_fastpay', 'Paysys'), {LINK => $link});
 
   return 1;
 }
 
+#**********************************************************
+=head2 paysys_tinkoff() -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub paysys_tinkoff {
+  #my ($attr) = @_;
+
+  if ($FORM{Init}) {
+    my $payment_system_id = 120;
+    my $payment_system    = 'Tinkoff';
+
+    $Paysys->add(
+      {
+        SYSTEM_ID      => $payment_system_id,
+        SUM            => $FORM{SUM},
+        UID            => $user->{UID} || $FORM{UID},
+        IP             => "$ENV{'REMOTE_ADDR'}",
+        TRANSACTION_ID => "$payment_system:$FORM{OPERATION_ID}",
+        STATUS         => 1,
+        DOMAIN_ID      => $user->{DOMAIN_ID}
+      }
+    );
+
+    if ($Paysys->{errno}) {
+      $html->message( 'err', "$lang{ERROR}", "$lang{ERROR} Paysys ID: '$FORM{OPERATION_ID}'" );
+      return 0;
+    }
+
+    load_pmodule('Digest::SHA');
+
+    my $data = "Email=" . urlencode($conf{ADMIN_MAIL});
+
+    # `echo "$data" >> /tmp/buffer`;
+
+    my %token_hash = (
+      'TerminalKey' => $conf{PAYSYS_TINKOFF_TERMINAL_KEY},
+      'Amount'      => ($FORM{SUM} * 100),
+      'OrderId'     => $FORM{OPERATION_ID},
+      'DATA'        => $data,
+      'CustomerKey' => $user->{UID},
+      'Password'    => $conf{PAYSYS_TINKOFF_SECRET_KEY},
+    );
+
+    my $token             = '';
+    my $sort_token_string = '';
+    for my $key (sort keys %token_hash) {
+      $sort_token_string .= "$token_hash{$key}";
+    }
+
+    $token = Digest::SHA::sha256_hex($sort_token_string);
+
+    # `echo "$sort_token_string" >> /tmp/buffer`;
+    # `echo "$token" >> /tmp/buffer`;
+
+    my $init_url = 'https://securepay.tinkoff.ru/rest/Init?';
+    $init_url .= 'TerminalKey=' . $conf{PAYSYS_TINKOFF_TERMINAL_KEY};
+    $init_url .= '&Amount=' . ($FORM{SUM} * 100);
+    $init_url .= '&OrderId=' . $FORM{OPERATION_ID};
+    $init_url .= '&Token=' . $token;
+    $init_url .= '&DATA= ' . $data;
+
+    my $tinkoff_init_result = web_request(
+      "$init_url",
+      {
+        CURL => 1,
+
+        # POST        => 1,
+        JSON_RETURN => 1
+      }
+    );
+  
+    # use Abills::Base;
+    # _bp("init_url", $tinkoff_init_result, {HEADER=>1});
+
+    if($tinkoff_init_result->{ErrorCode} == 0){
+      my $redirect_url = $tinkoff_init_result->{PaymentURL};
+      $html->redirect($redirect_url);
+    }
+  }
+
+  $html->tpl_show(_include('paysys_tinkoff_add', 'Paysys'), {});
+
+  return 1;
+}
+
+#**********************************************************
+=head2 paysys_cloudpayments() -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub paysys_cloudpayments {
+
+  if($FORM{TRUE}){
+    paysys_show_result({  %FORM, TRANSACTION_ID => $FORM{OPERATION_ID} });
+    return 1;
+  }
+
+  $html->tpl_show(_include('paysys_cloudpayments_add', 'Paysys'), {  
+    SUM         => $FORM{SUM}, 
+    USER_ID     => $user->{UID}, 
+    FIO         => $user->{FIO},
+    TRANSACTION => $FORM{OPERATION_ID},
+    SUCCESS_URL => "$ENV{PROT}://$ENV{SERVER_NAME}:$ENV{SERVER_PORT}/index.cgi?TRUE=1&index=$index&OPERATION_ID=Cloudpayments:$FORM{OPERATION_ID}&PAYMENT_SYSTEM=$FORM{PAYMENT_SYSTEM}",
+  });
+
+  print "HELP - ";
+
+  return 1;
+}
+
+#**********************************************************
+=head2 paysys_paymaster_ru() -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub paysys_paymaster_ru {
+
+  if ($FORM{FALSE}) {
+    paysys_show_result({ TRANSACTION_ID => "$FORM{LMI_PAYMENT_NO}", FALSE => 1 });
+    return 1;
+  }
+  elsif ($FORM{TRUE}) {
+    paysys_show_result({ TRANSACTION_ID =>  "PM_RU:$FORM{LMI_PAYMENT_NO}" });
+    return 0;
+  }
+
+  my %INFO;
+  $INFO{ORDER_ID} = $FORM{OPERATION_ID};
+  $INFO{SUM}      = $FORM{SUM};
+
+  $INFO{LMI_MERCHANT_ID} = $conf{PAYSYS_PAYMASTERRU_MERCHANT_ID};
+  $INFO{CURRENCY}        = $conf{PAYSYS_PAYMASTERRU_CURRENCY} || 'RUB';
+  $INFO{USER}            = $user->{$conf{PAYSYS_PAYMASTERRU_ACCOUNT_KEY}};
+  $INFO{NOTIFICATION_URL} = $ENV{PROT}.'://'. $ENV{SERVER_NAME}.':'. $ENV{SERVER_PORT} . '/paysys_check.cgi';
+  $INFO{FAILURE_URL} = $ENV{PROT}.'://'. $ENV{SERVER_NAME}.':'. $ENV{SERVER_PORT} . '/paysys_check.cgi?FALSE=1';
+  $INFO{SUCCESS_URL} = $ENV{PROT}.'://'. $ENV{SERVER_NAME}.':'. $ENV{SERVER_PORT} . '/index.cgi?TRUE=1';
+  $INFO{SIM_MODE}    = $conf{PAYSYS_PAYMASTERRU_SIM_MODE};
+
+  $html->tpl_show(_include('paysys_paymasterru_add', 'Paysys'), {%INFO});
+
+  return 1;
+}
+
+
+#**********************************************************
+=head2 paysys_osmp_test() -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub paysys_osmp_test {
+  my ($attr) = @_;
+
+  my $txn_id   = mk_unique_value(8, { SYMBOLS => '0123456789' });
+  my $sum      = 1.00;
+  my $txn_date = "$DATE $TIME";
+  $txn_date    =~ s/[\-|\:| ]//g;
+  my $account  = $FORM{USER} || 1;
+  my $check_command  = 'check';
+  my $pay_command    = 'pay';
+  my $payment_describe = 'Тестирование оплаты через WEB';
+
+  my $url      = $SELF_URL;
+  $url         =~ s/admin\/index.cgi/paysys_check.cgi/g;
+
+  my %RESULT;
+  $RESULT{CHECK_HIDDEN} = 'hidden';
+  $RESULT{PAY_HIDDEN}   = 'hidden';
+
+  if($FORM{test}){
+    my $check_result = web_request(
+    "$url?txn_id=$txn_id&txn_date=$txn_date&command=$check_command&account=$account&sum=$sum",
+    {
+      CURL         => 1,
+      # DEBUG        => 1,
+      CURL_OPTIONS => '-k',
+      # POST         => 1,
+    }
+    );
+
+    my $pay_result = web_request(
+    "$url?txn_id=$txn_id&txn_date=$txn_date&command=$pay_command&account=$account&sum=$sum&payment_describe=$payment_describe",
+    {
+      CURL         => 1,
+      # DEBUG        => 2,
+      CURL_OPTIONS => '-k',
+      # POST         => 1,
+    }
+  );
+
+    load_pmodule('XML::Simple');
+    my $xs = XML::Simple->new();
+
+    my $check_hash_result = $xs->XMLin($check_result);
+
+    if($check_hash_result->{result} == 0){
+      $RESULT{CHECK_MESSAGE} = $html->message('info', "Запрос на наличие пользователя прошел успешно", "", {OUTPUT2RETURN => 1});
+    }
+    else{
+      $RESULT{CHECK_MESSAGE} = $html->message('err', "Запрос на наличие пользователя прошел с ошибкой", "", {OUTPUT2RETURN=>1}); 
+    }
+
+    my $pay_hash_result   = $xs->XMLin($pay_result);
+
+    if($pay_hash_result->{result} == 0){
+      $RESULT{PAY_MESSAGE} = $html->message('info', "Запрос на оплату прошел успешно", "", {OUTPUT2RETURN=>1});
+    }
+    else{
+      $RESULT{PAY_MESSAGE} = $html->message('err', "Запрос на оплату прошел c ошибкой", "", {OUTPUT2RETURN=>1}); 
+    }
+
+    $RESULT{CHECK_RESULT} = $check_result;
+    $RESULT{CHECK_HIDDEN} = '';
+    $RESULT{PAY_RESULT}   = $pay_result;
+    $RESULT{PAY_HIDDEN} = '';
+  }
+  
+  $html->tpl_show(_include('paysys_osmp_test', 'Paysys'), {%FORM, %RESULT});
+  return 1;
+}
 
 1
 

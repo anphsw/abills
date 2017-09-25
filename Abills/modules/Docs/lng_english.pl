@@ -54,3 +54,5 @@ $lang{SKIP_PAY_ADD}='Skip invoices';
 
 $lang{CONNECT_TO} = 'Connect to';
 $lang{PAYMENTS_NOT_EQUAL_DOC}='Payments sum not equal invoice sum';
+$lang{PRINT_TERMO_PRINTER} = 'Termo-printer check';
+

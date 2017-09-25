@@ -96,6 +96,9 @@ Raphael.el.draggable = function (options)
   
   var start = function () {
         this.o().toFront(); // store original pos, and zIndex to top
+        if (options.startCb) options.startCb();
+        this.isDragging = true;
+        this.moved = false;
       },
       move = function (dx, dy, mx, my, ev) {
         var b = this.getABox(); // Raphael's getBBox() on steroids
@@ -116,9 +119,21 @@ Raphael.el.draggable = function (options)
         // work-smart, applies to circles and non-circles
         var pos = { x: x, y: y, cx: x, cy: y };
         this.attr(pos);
+        if (options.moveCb) options.moveCb(x,y);
+        this.moved = true;
       },
       end = function () {
-        // not cool
+        
+        if (this.isDragging && !this.moved){
+          $(this.node).click();
+          if (options.startCb) options.startCb(true);
+          if (options.endCb) options.endCb(true);
+          return
+        }
+        
+        if (options.endCb) options.endCb();
+        this.isDragging = false;
+        
       };
   
   this.drag(move, start, end);
@@ -136,6 +151,72 @@ Raphael.el.draggable = function (options)
 Raphael.st.draggable = function (options) {
   for (var i in this.items) this.items[i].draggable(options);
   return this; // chaining
+};
+
+Raphael.el.expandOnHover = function(options){
+  options = options || {};
+  
+  $.extend(true, this, {
+    margin: 0               // I might expand this in the future
+  },options || {});
+  
+  this.normal_stroke_width = this.attr('stroke-width');
+  
+  this.changeWidth = function(){
+    this.animate({'stroke-width': this.new_stroke_width});
+  };
+  
+  this.expand = function(){
+    this.new_stroke_width = this.normal_stroke_width * 2;
+    this.changeWidth();
+    this.toFront();
+  };
+  
+  this.shrink = function(){
+    this.new_stroke_width = this.normal_stroke_width;
+    this.changeWidth();
+    this.toFront();
+    if (options && options.callback) options.callback();
+  };
+  
+  this.mouseover(this.expand.bind(this));
+  this.mouseout(this.shrink.bind(this));
+  
+  return this;
+};
+
+Raphael.st.expandOnHover = function (options) {
+  this.normal_stroke_width = this.items[0].attr('stroke-width');
+  
+  this.changeWidth = function(){
+    for (var i=0; i < this.items.length; i++){
+      this.items[i].animate({'stroke-width': this.new_stroke_width});
+    }
+  };
+  
+  this.expand = function(){
+    this.new_stroke_width = this.normal_stroke_width * 2;
+    this.changeWidth();
+  };
+  
+  this.shrink = function(){
+    this.new_stroke_width = this.normal_stroke_width;
+    this.changeWidth();
+    this.circlesToFront();
+    if (options && options.callback) options.callback();
+  };
+  
+  this.mouseover(this.expand.bind(this));
+  this.mouseout(this.shrink.bind(this));
+  
+  return this; // chaining
+};
+
+Raphael.st.circlesToFront = function(){
+  for (var i in this.items){
+    if (!this.items.hasOwnProperty(i)) continue;
+    if (this.items[i].is('circle')) this.items[i].toFront();
+  }
 };
 
 //
@@ -330,6 +411,8 @@ Raphael.st.draggable = function (options) {
         
       });
 })(jQuery);
+
+
 
 
 /***

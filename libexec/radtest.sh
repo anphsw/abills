@@ -270,13 +270,14 @@ if [ x${RADIUS_ACTION} = x1 ]; then
 
   echo "RAD FILE: ${RAD_FILE}";
 
-  if [ x${RAD_DICT} != x ]; then  
+  if [ "${RAD_DICT}" != "" ]; then
     OPTIONS="-d ${RAD_DICT}";
   fi;
-  
-  if [ x${RAD_FILE} != x ]; then
-    if [ x${ACTION} = xacct ]; then
-      if [ x${PORT} = x ]; then      
+
+  PORT=1812;
+  if [ "${RAD_FILE}" != "" ]; then
+    if [ "${ACTION}" = acct ]; then
+      if [ "${PORT}" = "" ]; then
         PORT=1813;
       fi;
     fi;

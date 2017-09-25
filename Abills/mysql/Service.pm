@@ -80,13 +80,14 @@ sub status_list{
       [ 'NAME', 'STR', 'name', 1 ],
       [ 'COLOR', 'STR', 'color', 1 ],
       [ 'TYPE', 'INT', 'type', 1 ],
+      [ 'GET_FEES', 'INT', 'get_fees', 1 ],
     ],
     { WHERE => 1, }
   );
 
   $self->query2( "SELECT $self->{SEARCH_FIELDS} id
      FROM service_status
-     $WHERE 
+     $WHERE
      GROUP BY 1
      ORDER BY $SORT $DESC;",
     undef,

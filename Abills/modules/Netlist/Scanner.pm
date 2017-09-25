@@ -52,7 +52,7 @@ sub new {
       }
     }
     
-    return { errno => 404, errstr => "Nmap not found" } if (!$self->{nmap});
+    return { errno => 404, errstr => "Nmap not found. Set \$conf{NMAP_LOCATION}" } if (!$self->{nmap});
   }
 
   bless( $self, $class );

@@ -19,14 +19,14 @@ function storageAvailable(type) {
   }
 }
 
-var AStorage = function(type){
+function AStorage(type){
   this.storageAvailable = storageAvailable(type);
-  
-  this.setValue = function(name, value){
+}
+AStorage.prototype = {
+  setValue          : function (name, value) {
     localStorage.setItem(name, value);
-  };
-  
-  this.getValue = function(name, defaultValue){
+  },
+  getValue          : function (name, defaultValue) {
     var result = localStorage.getItem(name);
     if (result) {
       return result;
@@ -35,9 +35,8 @@ var AStorage = function(type){
       this.setValue(name, defaultValue);
       return defaultValue;
     }
-  };
-  
-  this.subscribeToChanges = function(name, callback){
+  },
+  subscribeToChanges: function (name, callback) {
     if (window.addEventListener) {
       window.addEventListener('storage', function (e) {
         if (e.key === name) {

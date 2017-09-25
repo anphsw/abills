@@ -44,7 +44,7 @@ function getSelect(name, id, options, selected) {
         {
           value: option.value
         })
-        .prop('selected', (option.value == selected))
+        .prop('selected', (option.value === selected))
         .text(option.label || option.name)
     );
   }
@@ -73,7 +73,7 @@ function getWrappedElement(tag, classes, elements_arr) {
     elements_arr.forEach(function (el) { $res.append(el) });
   }
   else {
-    $res.append(elements_arr)
+    $res.html(elements_arr)
   }
   
   return $res;
@@ -257,7 +257,7 @@ window['ModalSelectChooser'] = function (selector, options) {
       var selected_value = $select.val();
       // Find option for this value;
       var option_found   = select.options.find(function (opt) {
-        return opt.value == selected_value
+        return opt.value === selected_value
       });
       
       console.log('change', selected_value, option_found, select);

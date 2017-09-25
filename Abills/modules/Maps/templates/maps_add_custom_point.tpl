@@ -5,7 +5,7 @@
       <input type='hidden' name='COORDY' value='%COORDY%'/>
       <input type='hidden' name='LAYER_ID' value='6'/>
 
-      <input type='hidden' name='get_index' value='maps_add_2'/>
+      <input type='hidden' name='get_index' value='maps_edit'/>
       <input type='hidden' name='header' value='2'/>
       <input type='hidden' name='add' value='1'/>
       <input type='hidden' name='AJAX' value='1'/>

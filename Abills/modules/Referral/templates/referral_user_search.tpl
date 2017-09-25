@@ -34,5 +34,5 @@
         });
     }
 
-    setup_search_form('USER_ID')
+    setupSearchForm('USER_ID')
 </script>

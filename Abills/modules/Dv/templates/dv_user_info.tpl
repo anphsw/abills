@@ -8,7 +8,9 @@
       %PAYMENT_MESSAGE%
     <div class='box-body'>
       <h4 class='box-title text-center'>%NEXT_FEES_WARNING%</h4>
+      <h4 class='box-title text-center'>%TP_CHANGE_WARNING%</h4>
     </div>
+
       %SERVICE_EXPIRE_DATE%
 
     <div class='panel-body'>
@@ -19,31 +21,12 @@
           </div>
         </div>
 
-        <div class='row'>
-          <div class='col-md-3 text-1'>_{MONTH_FEE}_:</div>
-          <div class='col-md-9 text-2'><b><span style='color : red'>%MONTH_ABON%</span></b>
-          </div>
-        </div>
-        <div class='row'>
-          <div class='col-md-3 text-1'>_{DAY_FEE}_:</div>
-          <div class='col-md-9 text-2'><b><span style='color : red'>%DAY_ABON%</span></b>
-          </div>
-        </div>
+        %EXTRA_FIELDS%
 
-        <div class='row'>
-          <div class='col-md-3 text-1'>_{STATIC}_ IP</div>
-          <div class='col-md-9 text-2'>%IP%</div>
-        </div>
-
-        <div class='row'>
-          <div class='col-md-3 text-1'>MAC _{ADDRESS}_</div>
-          <div class='col-md-9 text-2'>%CID%</div>
-        </div>
         <div class='row'>
           <div class='col-md-3 text-1'>_{STATUS}_</div>
           <div class='col-md-9 text-2'>%STATUS_VALUE% %HOLDUP_BTN%</div>
         </div>
-
       </div>
     </div>
   </div>

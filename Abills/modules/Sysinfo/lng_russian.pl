@@ -13,3 +13,11 @@ $lang{RECOMMENDED_MODULES}='Предпочтительные модули';
 $lang{YOU_SHOULD_DEFINE}='Пропишите';
 $lang{EXECUTE} = 'Выполните';
 $lang{TO_GRANT_PERMISSIONS} = 'для открытия доступа';
+
+$lang{REMOTE_SERVERS} = 'Сервера';
+$lang{MANAGEMENT} = 'Управление';
+$lang{PRIVATE_KEY} = 'Приватный ключ';
+$lang{COPY_FROM_NAS_SERVER} = 'Скопировать параметры с сервера доступа';
+$lang{CHECK_STATUS_COMMAND} = 'Команда для проверки статуса';
+$lang{SERVER_SERVICE} = 'Служба';
+$lang{SERVER_SERVICES} = 'Службы';

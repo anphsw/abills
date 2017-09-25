@@ -110,7 +110,6 @@ sub ipn_detail{
       caption    => $lang{DETAIL},
       width      => '100%',
       title      => [ "$lang{BEGIN}", "$lang{END}", "SRC_ADDR", "SRC_PORT", "DST_ADDR", "DST_PORT", "PROTOCOL", "$lang{SIZE}", 'NAS' ],
-      cols_align => [ 'left', 'right', 'right', 'right', 'right', 'right', 'right' ],
       pages      => $Ipn->{TOTAL},
       qs         => $pages_qs,
       EXPORT     => 1,
@@ -146,7 +145,6 @@ sub ipn_detail{
   $table = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right' ],
       rows       => [ [ "$lang{TOTAL}:", $html->b( $Ipn->{TOTAL} ) ] ]
     }
   );
@@ -256,7 +254,6 @@ sub ipn_sessions2{
           width       => '100%',
           title_plain =>
           [ "$lang{TRAFFIC} $lang{TYPE}", "$lang{BEGIN}", "$lang{END}", "$lang{START}", "$lang{TOTAL} (MB)", "$lang{REST} (MB)", "$lang{OVERQUOTA} (MB)" ],
-          cols_align  => [ 'left', 'right', 'right', 'right', 'right', 'right', 'right' ],
           ID          => 'IPN_PREPAID',
         }
       );
@@ -298,13 +295,13 @@ sub ipn_sessions2{
   $table_sessions = $html->table(
     {
       width      => '100%',
-      caption    => "$lang{SESSIONS}",
-      title      => [ "$lang{DATE}", "$lang{TRAFFIC_CLASS}", "$lang{NAME}", "$lang{RECV}", "$lang{SENT}", "$lang{TOTAL}", "$lang{SUM}" ],
-      cols_align => [ 'right', 'left', 'right', 'right', 'right', 'right', 'right' ],
+      caption    => $lang{SESSIONS},
+      title      => [ $lang{DATE}, $lang{TRAFFIC_CLASS}, $lang{NAME}, $lang{RECV}, $lang{SENT}, $lang{TOTAL}, $lang{SUM} ],
       qs         => $pages_qs,
       ID         => 'IPN_SESSIONS'
     }
   );
+
   my %report = ();
   foreach my $line ( @{$list} ){
     push @{ $report{ $line->{start} || $line->{hours} || '' } }, $line;
@@ -388,10 +385,10 @@ sub ipn_sessions2{
       $AVG{TRAFFIC_IN} = $user_total_in if ($AVG{TRAFFIC_IN} && $AVG{TRAFFIC_IN} < $user_total_in);
       $AVG{TRAFFIC_OUT} = $user_total_out if ($AVG{TRAFFIC_IN} && $AVG{TRAFFIC_OUT} < $user_total_out);
 
-      if ( $stats_array->[0]->{start} =~ /(\d+)-(\d+)-(\d+)/ ){
+      if ( $stats_array->[0]->{start} && $stats_array->[0]->{start} =~ /(\d+)-(\d+)-(\d+)/ ){
         $num = $3;
       }
-      elsif ( $stats_array->[0]->{start} =~ /(\d+)-(\d+)/ ){
+      elsif ( $stats_array->[0]->{start} && $stats_array->[0]->{start} =~ /(\d+)-(\d+)/ ){
         $CHART{X_LINE}[$num] = $stats_array->[0][0];
         $num++;
       }
@@ -406,10 +403,9 @@ sub ipn_sessions2{
 
   my $table = $html->table(
     {
-      width      => '100%',
-      caption    => "$lang{TOTAL}",
-      title      => [ "$lang{TRAFFIC_CLASS}", "$lang{RECV}", "$lang{SENT}", "$lang{TOTAL}", "$lang{SUM}" ],
-      cols_align => [ 'right', 'right', 'right', 'right', 'right' ],
+      width   => '100%',
+      caption => $lang{TOTAL},
+      title   => [ "$lang{TRAFFIC_CLASS}", "$lang{RECV}", "$lang{SENT}", "$lang{TOTAL}", "$lang{SUM}" ],
     }
   );
 
@@ -557,8 +553,7 @@ $INTERVAL_TYPE_SEL
   $table = $html->table(
     {
       width        => '100%',
-      title        => [ "$lang{TIME}", "$lang{SIZE}", "SRC_IP", "SRC_PORT", "DST_IP", "DST_PORT", "$lang{PROTOCOL}", "-" ],
-      cols_align   => [ 'right', 'right', 'RIGHT', 'right', 'right', 'right', 'center' ],
+      title        => [ $lang{TIME}, $lang{SIZE}, "SRC_IP", "SRC_PORT", "DST_IP", "DST_PORT", $lang{PROTOCOL}, "-" ],
       qs           => $pages_qs,
       pages        => $Sessions_->{TOTAL},
       recs_on_page => $LIST_PARAMS{PAGE_ROWS},
@@ -591,7 +586,6 @@ $INTERVAL_TYPE_SEL
       width       => '100%',
       rowcolor    => $_COLORS[1],
       title_plain => [ "$lang{SESSIONS}", "$lang{TRAFFIC}" ],
-      cols_align  => [ 'right', 'right', 'right', 'right' ],
       rows        => [ [ $Ipn->{COUNT}, int2byte( $Ipn->{SUM} ) ] ],
     }
   );
@@ -713,9 +707,8 @@ sub ipn_use{
     $table_sessions = $html->table(
       {
         width      => '100%',
-        caption    => "$lang{SESSIONS}",
-        title      => [ "$lang{DATE}", "$lang{USERS}", "$lang{TRAFFIC_CLASS}", "$lang{NAME}", "$lang{RECV}", "$lang{SENT}", "$lang{TOTAL}", "$lang{SUM}" ],
-        cols_align => [ 'right', 'left', 'right', 'right', 'right', 'right', 'right' ],
+        caption    => $lang{SESSIONS},
+        title      => [ $lang{DATE}, $lang{USERS}, $lang{TRAFFIC_CLASS}, $lang{NAME}, $lang{RECV}, $lang{SENT}, $lang{TOTAL}, $lang{SUM} ],
         qs         => $pages_qs,
         ID         => 'IPN_USERS_STATS',
         EXPORT     => 1,
@@ -914,13 +907,12 @@ sub ipn_use{
       #Traffic Class summary
       my $table_classes_sum = $html->table(
         {
-          width      => '100%',
-          caption    => "$lang{TRAFFIC_CLASS}",
-          title      => [ "$lang{TRAFFIC_CLASS}", "$lang{RECV}", "$lang{SENT}", "$lang{SUM}" ],
-          cols_align => [ 'right', 'right', 'right', 'right' ],
-          qs         => $pages_qs,
-          ID         => 'IPN_TRAFFIC_CLASS_SUM',
-          EXPORT     => "$lang{EXPORT} XML:&xml=1",
+          width   => '100%',
+          caption => $lang{TRAFFIC_CLASS},
+          title   => [ $lang{TRAFFIC_CLASS}, $lang{RECV}, $lang{SENT}, $lang{SUM} ],
+          qs      => $pages_qs,
+          ID      => 'IPN_TRAFFIC_CLASS_SUM',
+          EXPORT  => 1,
         }
       );
 
@@ -1068,7 +1060,6 @@ sub ipn_use{
   $table = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right', 'right', 'right', 'right' ],
       rows       => [
         [
           "$lang{USERS}: " . $html->b( $Ipn->{USERS_COUNT} ),
@@ -1147,7 +1138,6 @@ sub ipn_session_detail{
     {
       width      => '100%',
       title      => [ "LAST_UPDATE", "$lang{SESSION_ID}", "NAS_ID", "SENT", "RECV", "SENT2", "RECV2" ],
-      cols_align => [ 'right', 'right', 'right', 'right', 'right', 'right', 'right' ],
       pages      => $Sessions->{TOTAL},
       qs         => $pages_qs,
       ID         => 'IPN_DETAIL',
@@ -1162,7 +1152,6 @@ sub ipn_session_detail{
   $table = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right' ],
       rows       => [ [ "$lang{TOTAL}:", $html->b( $Sessions->{TOTAL} ) ] ]
     }
   );
@@ -1274,6 +1263,11 @@ sub ipn_user_activate{
       );
     }
     else{
+
+      if(defined(&form_info)) {
+        form_info();
+      }
+
       return 1;
     }
   }
@@ -1490,7 +1484,6 @@ sub ipn_user_activate{
         width       => '100%',
         caption     => "Online",
         title_plain => [ "$lang{USER}", "IP", "$lang{DURATION}", "$lang{RECV}", "$lang{SENT}", '-' ],
-        cols_align  => [ 'left', 'right', 'right', 'right', 'right' ],
         qs          => $pages_qs,
         ID          => 'IPN_ONLINE'
       }
@@ -1524,7 +1517,7 @@ sub ipn_user_activate{
           "index=$index&UID=$LIST_PARAMS{UID}&LOGOUT=1&SESSION_ID=$online->{acct_session_id}&REMOTE_ADDR=$online->{client_ip}"
           . (($html->{SID}) ? "&sid=$html->{SID}" : '')
           , { class => 'off' } ) )
-        if ($online->{uid} && $LIST_PARAMS{UID} && $online->{uid} == $LIST_PARAMS{UID});
+        if ($online->{uid} && $LIST_PARAMS{UID} && $online->{uid} eq $LIST_PARAMS{UID});
     }
 
     $online_session = $table->show( { OUTPUT2RETURN => 1 } );
@@ -1640,7 +1633,7 @@ sub ipn_change_status{
         LOG_TYPE  => $Log::log_levels{'LOG_INFO'},
         ACTION    => 'AUTH',
         USER_NAME => $USER_NAME || '-',
-        MESSAGE   => "IP: $ip",
+        MESSAGE   => "ACTIVATE_IP: $ip",
         NAS_ID    => $attr->{NAS_ID}
       }
     );
@@ -1780,7 +1773,6 @@ sub ipn_change_status{
 #      width      => '100%',
 #      caption    => "Online",
 #      title      => [ "$lang{USER}", "$lang{FIO}", "$lang{NUM}", "IP", "$lang{DURATION}", "$lang{RECV}", "$lang{SENT}", "$lang{SUM}", "-", "-", '-', '-' ],
-#      cols_align => [ 'left', 'left', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'center' ],
 #      ID         => 'Online',
 #      qs         => $pages_qs,
 #    }
@@ -1912,7 +1904,6 @@ sub ipn_change_status{
 #      width      => '100%',
 #      caption    => "Computers",
 #      title      => [ "$lang{NUM}", "$lang{NAME}", "IP", "MAC", '-', '-' ],
-#      cols_align => [ 'right', 'left', 'right', 'right', 'center', 'center' ],
 #      qs         => $pages_qs,
 #    }
 #  );
@@ -2165,7 +2156,6 @@ sub ipn_getnet{
       width       => '100%',
       caption     => "$lang{TRAFIC_TARIFS}",
       title_plain => [ 'ID', $lang{TYPE}, 'IP', $lang{PORT}, $lang{PREPAID}, $lang{RECV}, $lang{SENT}, '-' ],
-      cols_align  => [ 'left', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'center' ],
       qs          => $pages_qs,
       ID          => 'IPN_TRAFFIC_TARIFFS'
     }
@@ -2244,7 +2234,6 @@ sub ipn_recalculate{
           caption    => "$lang{RECALCULATE}",
           width      => '100%',
           title      => \@CAPTION,
-          cols_align => [ 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right' ],
           ID         => 'IPN_RECALCULATE'
         }
       );
@@ -2612,7 +2601,7 @@ sub ipn_periodic_session_restart{
     my $nas_id = $online->{nas_id};
     my $nas_id_switch = 0;
     #Connect info with switch id
-    if ( $online->{CONNECT_INFO} =~ /^\d+$/ ){
+    if ( $online->{CONNECT_INFO} && $online->{CONNECT_INFO} =~ /^\d+$/ ){
       $nas_id_switch = $nas_id;
       $nas_id = $online->{CONNECT_INFO};
     }
@@ -2649,6 +2638,8 @@ sub ipn_periodic_session_restart{
       next;
     }
     elsif ( int( $nas_id ) < 1 ){
+      #Fixme
+      `echo "IP: $online->{client_ip} (CONNECT_INFO: $online->{CONNECT_INFO}) Unknown NAS // $online->{nas_id}" >> /tmp/ipn_`;
       $debug_output .= "IP: $online->{client_ip} (CONNECT_INFO: $online->{CONNECT_INFO}) Unknown NAS\n";
     }
     else{
@@ -2689,7 +2680,7 @@ sub ipn_periodic_session_restart{
       my ($r, $RAD_PAIRS) = $Auth->dv_auth( \%DATA, $nas_info{$nas_id}, { SECRETKEY => $conf{secretkey} } );
 
       if ( $r == 1 ){
-        $debug_output .= "Hangup: LOGIN: $online->{user_name} $RAD_PAIRS->{'Reply-Message'}\n";
+        $debug_output .= "ACTIVE_IP: LOGIN: $online->{user_name} $RAD_PAIRS->{'Reply-Message'}\n";
       }
       else{
         $Ipn->user_status( { %DATA } );
@@ -2940,13 +2931,13 @@ sub ipn_start_active{
         NAS_ID_SWITCH      => $nas_id_switch,
         NAS_ID             => $nas_id,
         NAS_TYPE           => $nas_info{$nas_id}{NAS_TYPE},
-        NAS_IP_ADDRESS     => $nas_info{$nas_id}{NAS_IP},
+        NAS_IP_ADDRESS     => int2ip($nas_info{$nas_id}{NAS_IP}),
         NAS_MNG_USER       => $nas_info{$nas_id}{NAS_MNG_USER},
         NAS_MNG_IP_PORT    => $nas_info{$nas_id}{NAS_MNG_IP_PORT},
         NAS_MNG_PASSWORD   => $nas_info{$nas_id}{NAS_MNG_PASSWORD},
         TP_ID              => $tp_id,
         CALLING_STATION_ID => $ip,
-        CONNECT_INFO       => $connect_info,
+        CONNECT_INFO       => 'IPN:'.$connect_info,
         UID                => $uid,
         QUICK              => 1,
         NAS_PORT           => $port,
@@ -3001,7 +2992,6 @@ sub ipn_unknow_ips{
       caption    => "$lang{UNKNOWN} IP",
       width      => '100%',
       title      => [ "$lang{DATE}", "$lang{FROM}", "$lang{TO}", "$lang{SIZE}", 'NAS' ],
-      cols_align => [ 'left', 'right', 'right', 'right', 'right', 'right', 'right' ],
       pages      => $Ipn->{TOTAL},
       qs         => $pages_qs,
       header     => $html->button( "$lang{DEL} $lang{ALL}", "index=$index&del_all=1",
@@ -3027,7 +3017,6 @@ sub ipn_unknow_ips{
   $table = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right' ],
       rows       =>
       [ [ "$lang{TOTAL}: " . $html->b( $Ipn->{TOTAL} ), "$lang{TRAFFIC}: " . $html->b( int2byte( $Ipn->{TOTAL_TRAFFIC} ) ) ] ]
     }
@@ -3061,7 +3050,6 @@ sub ipn_ft_queue{
       width       => '600',
       caption     => "Flow-tools queue",
       title_plain => [ "$lang{NAME}", $lang{DATE}, $lang{SIZE}, '-' ],
-      cols_align  => [ 'left', 'right', 'right', 'center' ],
       ID          => 'IPN_FT_QUEUE',
     }
   );

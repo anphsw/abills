@@ -30,7 +30,29 @@ my $Referral = Referral->new( $db, $admin, \%conf );
 =cut
 #**********************************************************
 sub referral_settings{
-
+  
+  use Abills::Sender::Core;
+  if ($conf{PUSH_ENABLED}) {
+    my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
+  
+    $Sender->send_message({
+      UID         => 2,
+      TITLE       => 'Hello',
+      MESSAGE     => 'User ' . $TIME,
+      SENDER_TYPE => 'Push',
+      DEBUG       => 0
+    });
+  
+    $Sender->send_message({
+      AID         => 1,
+      TITLE       => 'Hello',
+      MESSAGE     => 'Admin ' . $TIME,
+      SENDER_TYPE => 'Push',
+      DEBUG       => 0
+    });
+    
+  }
+  
   if ( $FORM{action} && $FORM{action} ne '' ){
     $Referral->settings_set( \%FORM );
 
@@ -109,7 +131,7 @@ sub referral_report{
   }
 
   my $users_who_have_referrals = $Referral->get_referrers_list();
-
+  
   _error_show( $Referral );
 
   my $select = $html->form_select( 'USER_ID', {
@@ -124,6 +146,10 @@ sub referral_report{
 
     } );
 
+  foreach my $root_user ( @$users_who_have_referrals ){
+    $root_user->{referrer} = 0 if( !$root_user->{referrer} );
+  }
+  
   my $tree = referral_show( undef, [ @{$users_list}, @{ $users_who_have_referrals } ], $users_hash, $uid,
     { OUTPUT2RETURN => 1 }
   );
@@ -155,17 +181,14 @@ sub referral_show{
 
   my ($users_list, $users_hash, $uid_, $attr) = @_;
 
-  my $uid = $uid_;
-  unless ( $uid ){
-    $uid = (defined $FORM{USER_ID} && $FORM{USER_ID} ne '') ? $FORM{USER_ID} : 0;
-  }
-
-
+  my $uid = $uid_ || $FORM{USER_ID} || 0;
+  
   unless ( $users_list && $users_hash ){
     ($users_list, $users_hash) = _get_users_list();
   }
 
   my $caption = $lang{REFERRALS_LIST};
+  
   if ( $uid ){
     my $user_info = $Referral->get_user_info( $uid );
     my $user_name = $user_info->{id};
@@ -174,6 +197,7 @@ sub referral_show{
 
     # Check if has referals
     my $inverse_hash = _transform_to_hash( $users_list, { NAME_KEY => 'referrer', VALUE_KEY => 'uid' } );
+    
     if ( !defined $inverse_hash->{$uid} ){
       $html->message( 'err', $lang{NO_RECORD} );
       return 1;
@@ -195,8 +219,6 @@ sub referral_show{
     return $tree;
   }
 
-  print $html->element( 'div', $tree, { class => 'box-body' } ) . "<script>defineTreeMenuLogic()</script>";
-
   return 1;
 }
 
@@ -212,7 +234,7 @@ sub referral_show{
 
 =cut
 #**********************************************************
-sub referral_search{
+sub referral_form_search{
   my $uid = $FORM{USER_ID};
 
   if ( !$FORM{action} ){
@@ -225,7 +247,7 @@ sub referral_search{
 
     $html->tpl_show(
       templates( 'form_popup_window' ),
-      { SUB_TEMPLATE => $search, CALLBACK_FN_NAME => 'referral_search' }
+      { SUB_TEMPLATE => $search, CALLBACK_FN_NAME => 'referral_form_search' }
     );
   }
   else{
@@ -369,7 +391,7 @@ sub referral_get_search_button{
       JAVASCRIPT     => '',
       SKIP_HREF      => 1,
       NO_LINK_FORMER => 1,
-      ex_params      => qq/onclick=loadRawToModal('?get_index=referral_search&header=2&USER_ID=$referral_id')/,
+      ex_params      => qq/onclick=loadRawToModal('?get_index=referral_form_search&header=2&USER_ID=$referral_id')/,
       ICON           => 'glyphicon glyphicon-search'
     } );
 }

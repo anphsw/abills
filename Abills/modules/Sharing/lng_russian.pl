@@ -12,3 +12,4 @@ $lang{DAYS}             = 'Дней';
 $lang{SUCCESS_BUY}      = 'Успешно оплатили покупку файла до ';
 $lang{DATE_TO}          = 'Скачивание доступно до ';
 $lang{SECONDS}          = 'Секунд';
+$lang{NOT_ENOUGH_MONEY} = 'Недостаточно средств';

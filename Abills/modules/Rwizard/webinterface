@@ -58,6 +58,7 @@ sub rwizard_config {
     }
   }
   elsif ($FORM{change}) {
+    $FORM{QUICK_REPORT} = 0 unless ($FORM{QUICK_REPORT});
     $Reports->change({%FORM});
 
     if (!$Reports->{errno}) {
@@ -66,6 +67,7 @@ sub rwizard_config {
       $FORM{chg}  =  $FORM{ID};
       $Reports->{ACTION}     = 'change';
       $Reports->{LNG_ACTION} = "$lang{CHANGE}";
+      $Reports->{QUICK_CHECKED} = 'checked' if ($Reports->{QUICK_REPORT});
     }
   }
   elsif ($FORM{export}) {
@@ -92,6 +94,7 @@ $Reports->{FIELDS}
     if (!$Reports->{errno}) {
       $Reports->{ACTION}     = 'change';
       $Reports->{LNG_ACTION} = "$lang{CHANGE}";
+      $Reports->{QUICK_CHECKED} = 'checked' if ($Reports->{QUICK_REPORT});
       $html->message('info', $lang{REPORTS}, "$lang{CHANGING}");
     }
   }
@@ -123,12 +126,12 @@ $Reports->{FIELDS}
     {
       width      => '100%',
       caption    => "$lang{REPORTS}",
-      title      => [ "ID", "$lang{NAME}","$lang{GROUP}", "$lang{COMMENTS}", '-', '-', '-', '-' ],
-      cols_align => [ 'center', 'left', 'left', 'right', 'left', 'center:noprint', 'center:noprint', 'center:noprint' ],
+      title      => [ "ID", "$lang{NAME}","$lang{GROUP}", "$lang{COMMENTS}" ],
       ID         => 'REPORTS_LIST',
       EXPORT     => 1,
       MENU       => "$lang{ADD}:index=" . get_function_index('rwizard_config') . ':add',
-      pages      => $Reports->{TOTAL}
+      pages      => $Reports->{TOTAL},
+      HAS_FUNCTION_FIELDS => 1,
     }
   );
 
@@ -140,10 +143,10 @@ $Reports->{FIELDS}
      $line->{name},
      $line->{group_name},
      $line->{comments},
-     $html->button("$lang{EXPORT}", "qindex=$index&export=$line->{id}", { class => 'download', TEXT => $lang{DOWNLOAD} }),
-     $html->button("$lang{SHOW}", "index=". get_function_index('rwizard') ."&REPORT=$line->{id}", { class => 'show', TEXT => $lang{SHOW} }),
-     $html->button("$lang{PRINT}", "qindex=". get_function_index('rwizard') ."&print=$line->{id}", { class => 'print', TEXT => $lang{PRINT}, TARGET=>'_print' }),
-     $html->button("$lang{CHANGE}", "index=$index&chg=$line->{id}", { class => 'change', TEXT => $lang{CHANGE} }),
+     $html->button("", "qindex=$index&export=$line->{id}", { class => 'glyphicon glyphicon-export', TEXT => $lang{DOWNLOAD} }) .
+     $html->button("$lang{SHOW}", "index=". get_function_index('rwizard') ."&REPORT=$line->{id}", { class => 'show', TEXT => $lang{SHOW} }) .
+     $html->button("$lang{PRINT}", "qindex=". get_function_index('rwizard') ."&print=$line->{id}", { class => 'print', TEXT => $lang{PRINT}, TARGET=>'_print' }) .
+     $html->button("$lang{CHANGE}", "index=$index&chg=$line->{id}", { class => 'change', TEXT => $lang{CHANGE} }) .
      $delete);
   }
   print $table->show();
@@ -151,7 +154,6 @@ $Reports->{FIELDS}
   $table = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right' ],
       rows       => [ [ "$lang{TOTAL}:", $html->b($Reports->{TOTAL}) ] ]
     }
   );
@@ -373,7 +375,7 @@ sub rwizard {
       }
 
       my $report_panel = $html->element('div', $Reports->{ROWS}, {
-        class => 'navbar navbar-default form-inline'
+        class => 'well well-sm'
       });
 
       if (! $FORM{print} ) {
@@ -385,7 +387,8 @@ sub rwizard {
             'index' => "$index",
           },
           ID   => 'form_reports_panel',
-          NAME => 'form_reports_panel'
+          NAME => 'form_reports_panel',
+          class=> 'form form-inline',
         }
         );
       }
@@ -499,7 +502,6 @@ sub rwizard {
           width   => '100%',
           caption => "$Reports->{NAME}",
           title   => \@titles,
-          #cols_align => [ 'center', 'left', 'left', 'right', 'left', 'left', 'center', 'left', 'center:noprint', 'center:noprint', 'center:noprint' ],
           ID      => "REPORTS_$Reports->{ID}",
           EXPORT  => 1,
           pages   => $Reports->{TOTAL},
@@ -567,7 +569,6 @@ sub rwizard {
         $table = $html->table(
           {
             width      => '100%',
-            cols_align => [ 'right', 'right' ],
             rows       => [ [ "$lang{TOTAL}: ". $html->b($Reports->{TOTAL}), @total_ext ] ]
           }
         );
@@ -745,6 +746,80 @@ sub rwizard_sp {
   return $reports;
 }
 
+#**********************************************************
+=head2 quick_report($report_id)
 
+=cut
+#**********************************************************
+sub quick_report {
+  my ($id) = @_;
+  
+  $Reports->info({ ID => $id, %LIST_PARAMS });
+
+  my @cols        = split(/[\r\n]+/, $Reports->{FIELDS});
+  my @titles      = ();
+  my @col_names   = ();
+  my %cols_params = ();
+  foreach my $col (@cols) {
+    next if (! $col);
+    my ($col_name, $col_title,$chart_type, $filter, $post_filter) = split(/:/, $col);
+    if (! $col_title) {
+      $col_title=$col_name
+    }
+    elsif ($col_title =~ /^\$_/) {
+      $col_title = _translate($col_title);
+    }
+
+    $cols_params{$col_name}{TITLE}  = _translate($col_title);
+    $cols_params{$col_name}{CHART}  = $chart_type;
+    $cols_params{$col_name}{FILTER} = $filter;
+    $cols_params{$col_name}{POST_FILTER} = $post_filter;
+
+    push @col_names, $col_name;
+    push @titles, $col_title;
+  }
+  
+  my $list = $Reports->mk(
+    {
+      QUERY       => $Reports->{QUERY},
+      QUERY_TOTAL => $Reports->{QUERY_TOTAL},
+      %LIST_PARAMS,
+      COLS_NAME   => 1
+    }
+  );
+
+  if ($#titles == -1) {
+    if($Reports->{REPORT_COLS_NAME}) {
+      @titles = @{ $Reports->{REPORT_COLS_NAME} };
+    }
+    @col_names = @titles;
+  }
+
+
+  my $table = $html->table(
+    {
+      width   => '100%',
+      caption => "$Reports->{NAME}",
+      title   => \@titles,
+      ID      => "REPORTS_$Reports->{ID}",
+      EXPORT  => 1,
+      pages   => $Reports->{TOTAL},
+      qs      => $pages_qs,
+    }
+  );
+
+  
+  # cols number
+  
+  foreach my $line (@$list) {
+    my @tr_arr = ();
+    foreach (@col_names) {
+      push @tr_arr, $line->{$_};
+    }
+    $table->addrow(@tr_arr);
+  }
+
+  return $table->show();
+}
 
 1

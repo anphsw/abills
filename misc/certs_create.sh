@@ -3,7 +3,7 @@
 #
 # REVISION 20161103
 #
-***********************************************************
+#***********************************************************
 
 SSL=/usr/local/openssl
 OPENSSL=`which openssl`
@@ -14,7 +14,7 @@ CA_pl='/usr/src/crypto/openssl/apps/CA.pl';
 
 hostname=`hostname`;
 password=whatever;
-VERSION=2.10;
+VERSION=2.11;
 DAYS=730;
 DATE=`date`;
 CERT_TYPE=$1;
@@ -22,12 +22,12 @@ CERT_USER="";
 CERT_LENGTH=2048;
 OS=`uname`;
 
-if [ w$1 = whelp ]; then
+if [ "$1" = "help" ]; then
   shift ;
 fi;
 
 
-if [ w$1 = w ] ; then
+if [ "$1" = "" ] ; then
   echo "Create SSL Certs and SSH keys. Version: ${VERSION} ";
   echo "certs_create.sh [apache|eap|postfix_tls|ssh|express_oplata] -D";
   echo " apache         - Create apache SSL cert"
@@ -39,8 +39,10 @@ if [ w$1 = w ] ; then
   echo " info [file]    - Get info from SSL cert"
   echo " ssh [USER]     - Create SSH DSA Keys"
   echo "                USER - SSH remote user"
+  echo " SSH_KEY_TYPE=dsa  (Defauls: rsa)"
   echo " -D [PATH]      - Path for ssl certs"
   echo " -U [username]  - Cert owner (Default: apache=www, postfix=vmail)"
+  echo " -silent        - Silent mode"
   echo " -LENGTH        - Cert length (Default: ${CERT_LENGTH})"
   echo " -DAYS          - Cert period in days (Default: ${DAYS})"
   echo " -PASSSWORD     - Password for Certs (Default: whatever)"
@@ -94,6 +96,10 @@ for _switch ; do
   -SKIP_UPLOAD_CERT) SKIP_UPLOAD_CERT=1
           shift;
           ;;
+  -silent) SILENT_MODE=1
+          shift;
+          ;;
+
   esac
 done
 
@@ -277,42 +283,48 @@ fi;
 #**********************************************************
 ssh_key () {
 
+  if [ "${SSH_KEY_TYPE}" = "" ]; then
+    SSH_KEY_TYPE=rsa
+  fi;
+
   if [ "${USER}" = "" ]; then
     USER=abills_admin
   fi;
 
   if [ "${CERT_TYPE}" = "" ]; then
-    id_dsa_file=id_dsa;
+    id_cert_file=id_${SSH_KEY_TYPE};
   else
-    id_dsa_file=id_dsa.${USER};
+    id_cert_file=id_${SSH_KEY_TYPE}.${USER};
   fi;
-  
-  echo "**************************************************************************"
-  echo "Creating SSH authentication Key"
-  echo " Make ssh-keygen with empty password."
-  echo "**************************************************************************"
-  echo 
-  echo "Create cert for User: ${USER}"
-  echo "  ${CERT_PATH}${id_dsa_file}"
+
+  if [ "${SILENT_MODE}" = "" ]; then
+    echo "**************************************************************************"
+    echo "Creating SSH authentication Key"
+    echo " Make ssh-keygen with empty password."
+    echo "**************************************************************************"
+    echo
+    echo "Create cert for User: ${USER}"
+    echo "  ${CERT_PATH}${id_cert_file}"
+  fi;
 
   SSH_PORT=22
 
   # If exist only upload  
-  if [ -f ${CERT_PATH}${id_dsa_file} ]; then
-     echo "Cert exists: ${CERT_PATH}${id_dsa_file}";
+  if [ -f ${CERT_PATH}${id_cert_file} ]; then
+     echo "Cert exists: ${CERT_PATH}${id_cert_file}";
     if [ ! SKIP_UPLOAD_CERT ]; then
-     if [ x${UPLOAD} = x ]; then
+     if [ "${UPLOAD}" = "" ]; then
        echo -n "Upload to remote host via ssh [Y/n]: "
        read UPLOAD
      fi;
     fi;
   fi;
  
-  if [ ! -f ${CERT_PATH}${id_dsa_file} ]; then
-    ssh-keygen -t dsa -C "ABillS remote machine manage key (${DATE})" -f "${CERT_PATH}${id_dsa_file}" -N ""
+  if [ ! -f ${CERT_PATH}${id_cert_file} ]; then
+    ssh-keygen -t ${SSH_KEY_TYPE} -C "ABillS remote machine manage key (${DATE})" -f "${CERT_PATH}${id_cert_file}" -N ""
 
-    chown ${APACHE_USER} ${CERT_PATH}${id_dsa_file}
-    chmod u=r,go= ${CERT_PATH}/${id_dsa_file}.pub
+    chown ${APACHE_USER} ${CERT_PATH}${id_cert_file}
+    chmod u=r,go= ${CERT_PATH}/${id_cert_file}.pub
     if [ ! SKIP_UPLOAD_CERT ]; then
       echo "Set Cert user: ${CERT_USER}";
       echo -n "Upload file to remote host via ssh [Y/n]: "
@@ -326,12 +338,10 @@ ssh_key () {
       read _HOSTNAME
       SSH_PORT=`echo ${_HOSTNAME} | awk -F: '{ print $2 }'`
       _HOSTNAME=`echo ${_HOSTNAME} | awk -F: '{ print $1 }'`
-      if [ x${SSH_PORT} = x ]; then
+      if [ "${SSH_PORT}" = "" ]; then
         SSH_PORT=22;
       fi;
     fi;
-    
-    
 
     if [ x${UPLOAD_FTP} = xy ]; then
       FTP_PORT=21
@@ -349,7 +359,7 @@ ssh_key () {
       fi;
 
       if [ ! SKIP_UPLOAD_CERT ]; then
-        echo "Make upload to: ${_HOSTNAME}:${FTP_PORT}/${id_dsa_file}.pub ${CERT_PATH}${id_dsa_file}.pub"
+        echo "Make upload to: ${_HOSTNAME}:${FTP_PORT}/${id_cert_file}.pub ${CERT_PATH}${id_cert_file}.pub"
       fi;
 
       CHECK_USER=`echo ${_HOSTNAME} | grep @`;
@@ -362,9 +372,9 @@ ssh_key () {
       read FTP_PASSWD
 
       if [ x${OS} = xFreeBSD ] ; then
-         ${FTP} -u ftp://${USER}:${FTP_PASSWD}@${_HOSTNAME}:${FTP_PORT}/${id_dsa_file}.pub ${CERT_PATH}${id_dsa_file}.pub
+         ${FTP} -u ftp://${USER}:${FTP_PASSWD}@${_HOSTNAME}:${FTP_PORT}/${id_cert_file}.pub ${CERT_PATH}${id_cert_file}.pub
       else
-        (echo user ${USER} "${FTP_PASSWD}"; echo "cd /"; echo "ls"; echo "lcd ${CERT_PATH}";  echo "put ${id_dsa_file}.pub"; ) | ${FTP} -ivn ${_HOSTNAME}
+        (echo user ${USER} "${FTP_PASSWD}"; echo "cd /"; echo "ls"; echo "lcd ${CERT_PATH}";  echo "put ${id_cert_file}.pub"; ) | ${FTP} -ivn ${_HOSTNAME}
       fi;
 
 
@@ -373,25 +383,27 @@ ssh_key () {
     else 
       echo "Making upload to: ${USER}@${_HOSTNAME} "
       ssh -p ${SSH_PORT} ${USER}@${_HOSTNAME} "mkdir ~/.ssh"
-      scp -P ${SSH_PORT} ${CERT_PATH}${id_dsa_file}.pub ${USER}@${_HOSTNAME}:~/.ssh/authorized_keys
+      scp -P ${SSH_PORT} ${CERT_PATH}${id_cert_file}.pub ${USER}@${_HOSTNAME}:~/.ssh/authorized_keys
     fi;
     
     
     echo -n "Connect to remote host: ${_HOSTNAME} [y/n]: "
     read CONNECT
     if [ w${CONNECT} = wy ]; then
-      ssh -p ${SSH_PORT} -o StrictHostKeyChecking=no -i ${CERT_PATH}${id_dsa_file}  ${USER}@${_HOSTNAME}
+      ssh -p ${SSH_PORT} -o StrictHostKeyChecking=no -i ${CERT_PATH}${id_cert_file}  ${USER}@${_HOSTNAME}
       exit;
     fi;
   else
     if [ ! SKIP_UPLOAD_CERT ]; then
-      echo
-      echo "Copy certs manual: "
-      echo "${CERT_PATH}${id_dsa_file}.pub to REMOTE_HOST User home dir (/home/${USER}/.ssh/authorized_keys) "
-      echo
+      if [ "${SILENT_MODE}" = "" ]; then
+        echo
+        echo "Copy certs manual: "
+        echo "${CERT_PATH}${id_cert_file}.pub to REMOTE_HOST User home dir (/home/${USER}/.ssh/authorized_keys) "
+        echo
+      fi;
     fi
   fi;
- }
+}
 
 #**********************************************************
 # create Express Oplata Certs
@@ -687,5 +699,6 @@ case ${CERT_TYPE} in
         ;;
 esac;
 
-echo "${CERT_TYPE} Done...";
-
+if [ "${SILENT_MODE}" = "" ]; then
+  echo "${CERT_TYPE} Done...";
+fi;

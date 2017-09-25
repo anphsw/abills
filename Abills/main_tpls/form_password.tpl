@@ -2,8 +2,7 @@
 
 <script>
   jQuery(function () {
-    window['CONFIG_PASSWORD']       = '$conf{CONFIG_PASSWORD}';
-    var password_configuration_string = window['CONFIG_PASSWORD'];
+    var password_configuration_string = '$conf{CONFIG_PASSWORD}';
 
     var password_config_params = {
       LENGTH : '$conf{PASSWD_LENGTH}',
@@ -13,11 +12,17 @@
     if (password_configuration_string !== ''){
       var password_params_arr           = password_configuration_string.split(':') || [];
 
-      password_config_params.LENGTH = password_params_arr[0] || '$conf{PASSWD_LENGTH}';
+      if (password_params_arr.length === 3){
+        password_config_params.CASE = password_params_arr[1] || 0;
+        password_config_params.CHARS = password_params_arr[2] || 0;
+      }
+      else {
+        password_config_params.CASE = password_params_arr[0] || 0;
+        password_config_params.CHARS = password_params_arr[1] || 0;
+      }
 
+      password_config_params.LENGTH = '$conf{PASSWD_LENGTH}';
       delete password_config_params['SYMBOLS'];
-      password_config_params.CASE = password_params_arr[1] || 0;
-      password_config_params.CHARS = password_params_arr[2] || 0;
     }
 
     var gen_btn = jQuery('#GENERATE_BTN');
@@ -28,7 +33,7 @@
     var passw_field2 = jQuery('#SECOND_PASSWORD_INPUT');
 
     gen_btn.on('click', function () {
-      var password = generate_password(password_config_params);
+      var password = generatePassword(password_config_params);
       gen_psw.val(password);
     });
 
@@ -45,11 +50,13 @@
   <input type='hidden' name='index' value='$index'>
   %HIDDDEN_INPUT%
   <div class='box box-theme box-big-form'>
-    <div class='box-header with-border'><h4 class='box-title'>_{PASSWD}_</h4></div>
+    <div class='box-header with-border'><h4 class='box-title'>_{PASSWD}_: %ID%</h4></div>
     <div class='box-body'>
 
+      %EXTRA_ROW%
+
       <div class='form-group'>
-        <label class='control-label col-md-4' for='FIRST_PASSWORD_INPUT'>_{PASSWD}_</label>
+        <label class='control-label col-md-4' for='FIRST_PASSWORD_INPUT'>_{NEW}_ _{PASSWD}_</label>
 
         <div class='col-md-8'>
           <input type='password' class='form-control' id='FIRST_PASSWORD_INPUT' name='newpassword' title='_{PASSWD}_'/>
@@ -84,7 +91,7 @@
         </div>
       </div>
     </div>
-    <div class='box-footer text-center'>
+    <div class='box-footer'>
       <input type=submit name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'>
     </div>
   </div>

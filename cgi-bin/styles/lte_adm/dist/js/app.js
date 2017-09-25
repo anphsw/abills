@@ -289,10 +289,11 @@ function _init() {
       //Enable slimscroll for fixed layout
       if ($.AdminLTE.options.sidebarSlimScroll) {
         if (typeof $.fn.slimScroll != 'undefined') {
+          var $sidebar = $(".sidebar");
           //Destroy if it exists
-          $(".sidebar").slimScroll({destroy: true}).height("auto");
+          $sidebar.slimScroll({destroy: true}).height("auto");
           //Add slimscroll
-          $(".sidebar").slimscroll({
+          $sidebar.slimscroll({
             height: ($(window).height() - $(".main-header").height()) + "px",
             color: "rgba(0,0,0,0.2)",
             size: "3px"
@@ -312,62 +313,75 @@ function _init() {
   $.AdminLTE.pushMenu = {
     activate: function (toggleBtn) {
       //Get the screen sizes
+      var $body = $('body');
+      
       var screenSizes = $.AdminLTE.options.screenSizes;
       var menuHidden = (Cookies.get('menuHidden') === 'true');
+  
       if (menuHidden) {
-        $("body").addClass('sidebar-collapse').trigger('collapsed.pushMenu');
+        $body.addClass('sidebar-collapse').trigger('collapsed.pushMenu');
       }
       //Enable sidebar toggle
       $(document).on('click', toggleBtn, function (e) {
         e.preventDefault();
-
+  
         var $body = $('body');
+        
         //Enable sidebar push menu
         if ($(window).width() > (screenSizes.sm - 1)) {
+          
           if ($body.hasClass('sidebar-collapse')) {
             $body.removeClass('sidebar-collapse').trigger('expanded.pushMenu');
-          } else {
+          }
+          else {
             $body.addClass('sidebar-collapse').trigger('collapsed.pushMenu');
           }
+          
           Cookies.set('menuHidden', !menuHidden);
+          
         }
         //Handle sidebar push menu for small screens
         else {
+          
           if ($body.hasClass('sidebar-open')) {
             $body.removeClass('sidebar-open').removeClass('sidebar-collapse').trigger('collapsed.pushMenu');
-          } else {
+          }
+          else {
             $body.addClass('sidebar-open').trigger('expanded.pushMenu');
           }
+          
         }
       });
 
       $(".content-wrapper").click(function () {
+        var $body = $('body');
         //Enable hide menu when clicking on the content-wrapper on small screens
-        if ($(window).width() <= (screenSizes.sm - 1) && $("body").hasClass("sidebar-open")) {
-          $("body").removeClass('sidebar-open');
+        if ($(window).width() <= (screenSizes.sm - 1) && $body.hasClass("sidebar-open")) {
+          $body.removeClass('sidebar-open');
         }
       });
 
       //Enable expand on hover for sidebar mini
       if ($.AdminLTE.options.sidebarExpandOnHover
-        || ($('body').hasClass('fixed')
-        && $('body').hasClass('sidebar-mini1'))) {
+        || ($body.hasClass('fixed')
+        && $body.hasClass('sidebar-mini1'))) {
         this.expandOnHover();
       }
     },
     expandOnHover: function () {
       var _this = this;
       var screenWidth = $.AdminLTE.options.screenSizes.sm - 1;
+      var $body = $('body');
       //Expand sidebar on hover
       $('.main-sidebar').hover(function () {
-        if ($('body').hasClass('sidebar-mini')
-          && $("body").hasClass('sidebar-collapse')
+        if ($body.hasClass('sidebar-mini')
+          && $body.hasClass('sidebar-collapse')
           && $(window).width() > screenWidth) {
           _this.expand();
         }
       }, function () {
-        if ($('body').hasClass('sidebar-mini')
-          && $('body').hasClass('sidebar-expanded-on-hover')
+        if ($body.hasClass('sidebar-mini')
+          && $body.hasClass('sidebar-expanded-on-hover')
           && $(window).width() > screenWidth) {
           _this.collapse();
         }
@@ -456,9 +470,9 @@ function _init() {
       var sidebar = $(o.selector);
       //The toggle button
       var btn = $(o.toggleBtnSelector);
-      if ($('body').attr('data-right-menu') === 'open') {
-        if ($(window).width() > 991) {
-          _this.open(sidebar, o.slide);
+      if ($('body').hasClass('control-sidebar-open')) {
+        if ($(window).width() < 991) {
+          _this.close(sidebar, o.slide);
         }
       }
       //Listen to the click event

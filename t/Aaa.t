@@ -88,7 +88,13 @@ sub mac_auth{
 
   %RAD_REQUEST = %{ $rad_pairs };
   $Bin = $Bin .'/../libexec/';
-  require "Mac_auth.pm";
+  if($argv->{mac_auth2}) {
+    print "Mac_auth2\n";
+    require "Mac_auth2.pm";
+  }
+  else {
+    require "Mac_auth.pm";
+  }
   require "rlm_perl.pl";
 
   post_auth();
@@ -146,18 +152,18 @@ sub unifi {
   $debug = 0;
 
   my %RAD = (
-        'Acct-Status-Type'   => 1,
-        'User-Name'          => $username,
-        'Password'           => $password,
-        'Acct-Session-Id'    => '_id' || mk_unique_value(10),
-        'Framed-IP-Address'  => $userip || '',
-        'Calling-Station-Id' => $usermac || '',
-        'Called-Station-Id'  => 'ap_mac',
-        'NAS-IP-Address'     => $conf{'UNIFI_IP'},
-        #'NAS-Port'          => $Dv->{PORT},
+    'Acct-Status-Type'   => 1,
+    'User-Name'          => $username,
+    'Password'           => $password,
+    'Acct-Session-Id'    => '_id' || mk_unique_value(10),
+    'Framed-IP-Address'  => $userip || '',
+    'Calling-Station-Id' => $usermac || '',
+    'Called-Station-Id'  => 'ap_mac',
+    'NAS-IP-Address'     => $conf{'UNIFI_IP'},
+    #'NAS-Port'          => $Dv->{PORT},
         #'Filter-Id'         => $Dv->{FILTER_ID} || $Dv->{TP_FILTER_ID},
-        'Connect-Info'       => '_id',
-    );
+    'Connect-Info'       => '_id',
+  );
 
   require Abills::SQL;
   Abills::SQL->import();
@@ -205,6 +211,8 @@ sub _rad {
     print "Test radius\n";
   }
 
+  my $rad_file = $argv->{rad_file} || q{};
+
   my @users_arr = ();
   if ( $argv->{get_db_users} ) {
     require "Users.pm";
@@ -227,8 +235,10 @@ sub _rad {
       };
     }
   }
-  elsif($argv->{rad_file}) {
-    %RAD_REQUEST = %{ load_rad_pairs($argv->{rad_file}) };
+  elsif($rad_file) {
+    my $load_file = (-f $rad_file . '.auth') ? $rad_file . '.auth' : $rad_file;
+
+    %RAD_REQUEST = %{ load_rad_pairs($load_file) };
   }
   else {
     %RAD_REQUEST = (
@@ -309,22 +319,46 @@ sub _rad {
       show_reply(\%RAD_REPLY);
     }
 
+    if($attr->{auth}) {
+      return 1;
+    }
+
     $ret = authorize();
     print "  authorize: $ret\n";
     ok($ret);
 
-    $RAD_REQUEST{'Acct-Status-Type'}='Start';
-    $RAD_REQUEST{'Acct-Session-Id'}='testsesion_1';
+    if($argv->{rad_file} && -f $argv->{rad_file}.'.acct_start') {
+      %RAD_REQUEST = %{ load_rad_pairs($argv->{rad_file}.'.acct_start') };
+    }
+    else {
+      $RAD_REQUEST{'Acct-Status-Type'} = 'Start';
+      $RAD_REQUEST{'Acct-Session-Id'} = 'testsesion_1';
+    }
+
     $ret = accounting();
     print "  accounting 'Start': $ret\n";
     ok($ret);
+
+    if($argv->{rad_file} && -f $argv->{rad_file}.'.acct_alive') {
+      %RAD_REQUEST = %{ load_rad_pairs($argv->{rad_file}.'.acct_alive') };
+    }
 
     $RAD_REQUEST{'Acct-Status-Type'}='Interim-Update';
     $ret = accounting();
     print "  accounting 'Interim-Update': $ret\n";
     ok($ret);
 
+    if($argv->{rad_file} && -f $rad_file.'.acct_stop') {
+      %RAD_REQUEST = %{ load_rad_pairs($rad_file.'.acct_stop') };
+    }
+    else {
+      $RAD_REQUEST{'Acct-Session-Time'}  = 300;
+      $RAD_REQUEST{'Acct-Output-Octets'} = 111111;
+      $RAD_REQUEST{'Acct-Input-Octets'}  = 222222;
+    }
+
     $RAD_REQUEST{'Acct-Status-Type'}='Stop';
+
     $ret = accounting();
     print "  accounting 'Stop': $ret\n";
     ok($ret);
@@ -374,6 +408,8 @@ sub load_rad_pairs {
     $val =~ s/\s+$//;
     $val =~ s/\"$//;
     $val =~ s/^\"//;
+    $val =~ s/\'$//;
+    $val =~ s/^\'//;
     $rad_pairs{$key}=$val;
   }
 

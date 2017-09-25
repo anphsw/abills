@@ -51,6 +51,7 @@ $lang{BIRTH_DATE}='BIrth date';
 $lang{SEND_NEWS}='Send news';
 $lang{ERR_NOT_REGISTERED}='Not registred';
 $lang{SCREENS}='Screens';
+$lang{SCREEN}='Screen';
 
 $lang{UPLOAD_CHANNELS}='Import channels';
 $lang{NO_CHANGES}='Without changes';
@@ -62,3 +63,7 @@ $lang{NO_FILE}='Choose file';
 $lang{PARENT_CONTROL}='Parent Control';
 $lang{UNSUBSCRIBE}='Unsubscribe';
 $lang{SUBSCRIBES}='Subscribes';
+
+$lang{DISABLE_SERVICE}='Disable service';
+$lang{DISABLED_WILL}='Service will disable';
+$lang{PROVIDER_PORTAL_URL}='Provider portal url';

@@ -59,7 +59,6 @@ sub traffic_calculations {
 
   my $traffic_period = ($self->{ACTIVATE} ne '0000-00-00') ? "DATE_FORMAT(start, '%Y-%m-%d')>='$self->{ACTIVATE}'" : "DATE_FORMAT(start, '%Y-%m')=DATE_FORMAT(FROM_UNIXTIME($RAD->{SESSION_START}), '%Y-%m')";
 
-  ####################################################################
   # Prepaid local and global traffic separately
   my %traf_price = ();
   my %prepaid    = (
@@ -80,8 +79,8 @@ sub traffic_calculations {
 
   my $used_traffic;
   if ($CONF->{rt_billing}) {
-    $recv  = $RAD->{INTERIUM_OUTBYTE}  || 0;    #from server
-    $sent  = $RAD->{INTERIUM_INBYTE}   || 0;    #to server
+    $recv  = $RAD->{INTERIUM_INBYTE}  || 0;    #from server
+    $sent  = $RAD->{INTERIUM_OUTBYTE}  || 0;    #to server
     $recv2 = $RAD->{INTERIUM_OUTBYTE1} || 0;
     $sent2 = $RAD->{INTERIUM_INBYTE1}  || 0;
   }
@@ -106,22 +105,19 @@ sub traffic_calculations {
       }
 
       #Get using traffic
-      $self->query2("SELECT sum(recv  / $CONF->{MB_SIZE} + 4096 * acct_input_gigawords) AS global_traffic_in,
-      SUM(sent / $CONF->{MB_SIZE} + 4096 * acct_output_gigawords) AS global_traffic_out,
-     SUM(recv2) / $CONF->{MB_SIZE} AS peer_traffic_in,
-     SUM(sent2) / $CONF->{MB_SIZE} AS peer_traffic_out,
-     DATE_FORMAT(start, '%Y-%m')
-   FROM dv_log
-   WHERE $uid  AND tp_id='$tp' and
-    (  $WHERE
-      )
-   GROUP BY 5
-   ;"
+      $self->query2("SELECT
+        SUM(recv  / $CONF->{MB_SIZE} + 4096 * acct_input_gigawords) AS global_traffic_in,
+        SUM(sent / $CONF->{MB_SIZE} + 4096 * acct_output_gigawords) AS global_traffic_out,
+        SUM(recv2) / $CONF->{MB_SIZE} AS peer_traffic_in,
+        SUM(sent2) / $CONF->{MB_SIZE} AS peer_traffic_out,
+        DATE_FORMAT(start, '%Y-%m')
+      FROM dv_log
+      WHERE $uid  AND tp_id='$tp'
+        AND (  $WHERE  )
+      GROUP BY 5;"
       );
 
       if ($self->{TOTAL} > 0) {
-        #my ($class1, $class2) = (0, 0);
-        #my $monthes  = 0;
         my $prepaid1 = $prepaid{0};
         my $prepaid2 = $prepaid{1};
         $prepaid{0} = 0;
@@ -150,14 +146,12 @@ sub traffic_calculations {
     }
     else {
       #Get traffic from begin of month
-      $used_traffic = $self->get_traffic(
-        {
-          UID        => $self->{UID},
-          UIDS       => $self->{UIDS},
-          PERIOD     => $traffic_period,
-          STATS_ONLY => 1
-        }
-      );
+      $used_traffic = $self->get_traffic({
+        UID        => $self->{UID},
+        UIDS       => $self->{UIDS},
+        PERIOD     => $traffic_period,
+        STATS_ONLY => 1
+      });
     }
 
     if ($CONF->{rt_billing}) {
@@ -211,8 +205,8 @@ sub traffic_calculations {
       && $used_traffic->{TRAFFIC_SUM} < $prepaid{0})
     {
       my $not_prepaid = ($used_traffic->{TRAFFIC_SUM} + $used_traffic->{ONLINE} / $CONF->{MB_SIZE} - $prepaid{0}) * $CONF->{MB_SIZE};
-      $sent = ($self->{OCTETS_DIRECTION} == 2) ? $not_prepaid : ($self->{OCTETS_DIRECTION} == 1) ? $sent : $not_prepaid / 2;
-      $recv = ($self->{OCTETS_DIRECTION} == 1) ? $not_prepaid : ($self->{OCTETS_DIRECTION} == 2) ? $recv : $not_prepaid / 2;
+      $recv = ($self->{OCTETS_DIRECTION} == 1) ? $not_prepaid : ($self->{OCTETS_DIRECTION} == 1) ? $recv : $not_prepaid / 2;
+      $sent = ($self->{OCTETS_DIRECTION} == 2) ? $not_prepaid : ($self->{OCTETS_DIRECTION} == 2) ? $sent : $not_prepaid / 2;
     }
 
     # If left local prepaid traffic set traf price to 0
@@ -224,8 +218,8 @@ sub traffic_calculations {
       && ($used_traffic->{TRAFFIC_SUM_2} < $prepaid{1}))
     {
       my $not_prepaid = ($used_traffic->{TRAFFIC_SUM_2} + $used_traffic->{ONLINE2} / $CONF->{MB_SIZE} - $prepaid{1}) * $CONF->{MB_SIZE};
-      $sent2 = ($self->{OCTETS_DIRECTION} == 2) ? $not_prepaid : $not_prepaid / 2;
       $recv2 = ($self->{OCTETS_DIRECTION} == 1) ? $not_prepaid : $not_prepaid / 2;
+      $sent2 = ($self->{OCTETS_DIRECTION} == 2) ? $not_prepaid : $not_prepaid / 2;
     }
   }
 
@@ -243,7 +237,6 @@ sub traffic_calculations {
           SESSION_TRAFFIC_OUT_2 => $sent  || 0,
           SESSION_TRAFFIC_IN_2  => $recv2 || 0
         }
-
       }
     );
 
@@ -256,7 +249,6 @@ sub traffic_calculations {
     $traf_price{out}{0} = $RESULT->{PRICE_OUT} if (defined($RESULT->{PRICE_OUT}));
   }
 
-#####################################################################
   # TRafic payments
   my $traf_sum = 0;
 
@@ -265,9 +257,9 @@ sub traffic_calculations {
   my $lo_in  = (defined($traf_price{in}{1}))  ? $recv2 / $CONF->{MB_SIZE} * $traf_price{in}{1}  : 0;
   my $lo_out = (defined($traf_price{out}{1})) ? $sent2 / $CONF->{MB_SIZE} * $traf_price{out}{1} : 0;
 
-  # print " my $gl_in  = ($traf_price{in}{0}) ? $recv / $CONF->{MB_SIZE} * $traf_price{in}{0} : 0;
-  # my $gl_out = ($traf_price{out}{0}) ? $sent / $CONF->{MB_SIZE} * $traf_price{out}{0} : 0;
-  #";
+#  `echo "REcv:  $used_traffic->{TRAFFIC_IN} \n $gl_in  = ($traf_price{in}{0}) ? $recv / $CONF->{MB_SIZE} * $traf_price{in}{0} : 0;
+#    \nSend: $used_traffic->{TRAFFIC_OUT} \n $gl_out = ($traf_price{out}{0}) ? $sent / $CONF->{MB_SIZE} * $traf_price{out}{0} : 0;
+#   $lo_in + $lo_out + $gl_in + $gl_out " >> /tmp/traf`;
 
   $traf_sum = $lo_in + $lo_out + $gl_in + $gl_out;
 
@@ -302,7 +294,7 @@ sub get_traffic {
     TRAFFIC_IN_2  => 0
   );
 
-  my $period = "DATE_FORMAT(start, '%Y-%m')=DATE_FORMAT(curdate(), '%Y-%m')";
+  my $period = "DATE_FORMAT(start, '%Y-%m')=DATE_FORMAT(CURDATE(), '%Y-%m')";
   if ($attr->{PERIOD}) {
     $period = $attr->{PERIOD};
   }
@@ -322,15 +314,18 @@ sub get_traffic {
   if ($CONF->{DV_INTERVAL_PREPAID}) {
     my $period2 =$period;
     $period2 =~ s/start/li\.added/g;
-    my $sql = "SELECT li.traffic_type, SUM(li.sent) / $CONF->{MB_SIZE}, SUM(li.recv) / $CONF->{MB_SIZE} FROM dv_log_intervals li
-           WHERE li.uid $WHERE
-           AND li.interval_id='$self->{TI_ID}'
-           AND ($period2)";
+    my $sql = "SELECT li.traffic_type,
+      SUM(li.sent) / $CONF->{MB_SIZE},
+      SUM(li.recv) / $CONF->{MB_SIZE}
+      FROM dv_log_intervals li
+      WHERE li.uid $WHERE
+        AND li.interval_id='$self->{TI_ID}'
+        AND ($period2)";
     $self->query2($sql);
 
     if ($self->{TOTAL} > 0) {
       foreach my $line (@{ $self->{list} }) {
-        my $sufix = ($line->[0] == 0) ? '' : "_".($line->[0]+1);
+        my $sufix = (! $line->[0]) ? '' : "_".($line->[0]+1);
         $result{'TRAFFIC_OUT'.$sufix} = ($result{'TRAFFIC_OUT'.$sufix}) ? $result{'TRAFFIC_OUT'.$sufix} + $line->[1] : $line->[1];
         $result{'TRAFFIC_IN'.$sufix}  = ($result{'TRAFFIC_IN'.$sufix}) ? $result{'TRAFFIC_IN'.$sufix} + $line->[2] : $line->[2];
       }
@@ -340,14 +335,15 @@ sub get_traffic {
     return \%result;
   }
 
-  $self->query2("SELECT SUM(sent)  / $CONF->{MB_SIZE} + SUM(acct_output_gigawords) * 4096,
-                            SUM(recv)  / $CONF->{MB_SIZE} + SUM(acct_input_gigawords) * 4096,
-                            SUM(sent2) / $CONF->{MB_SIZE},
-                            SUM(recv2) / $CONF->{MB_SIZE},
-                            1
-       FROM dv_log
-       WHERE uid $WHERE and ($period)
-       GROUP BY 5;"
+  $self->query2("SELECT
+      SUM(sent)  / $CONF->{MB_SIZE} + SUM(acct_output_gigawords) * 4096,
+      SUM(recv)  / $CONF->{MB_SIZE} + SUM(acct_input_gigawords) * 4096,
+      SUM(sent2) / $CONF->{MB_SIZE},
+      SUM(recv2) / $CONF->{MB_SIZE},
+      1
+    FROM dv_log
+    WHERE uid $WHERE AND ($period)
+    GROUP BY 5;"
   );
 
   if ($self->{TOTAL} > 0) {
@@ -362,14 +358,15 @@ sub get_traffic {
     return \%result;
   }
 
-  $self->query2("SELECT SUM(acct_output_octets)  / $CONF->{MB_SIZE} + SUM(acct_output_gigawords) * 4096,
-                            SUM(acct_input_octets)  / $CONF->{MB_SIZE} + SUM(acct_input_gigawords) * 4096,
-                            SUM(acct_output_octets) / $CONF->{MB_SIZE},
-                            SUM(ex_input_octets) / $CONF->{MB_SIZE},
-                            1
-       FROM dv_calls
-       WHERE uid $WHERE
-       GROUP BY 5;"
+  $self->query2("SELECT
+      SUM(acct_output_octets)  / $CONF->{MB_SIZE} + SUM(acct_output_gigawords) * 4096,
+      SUM(acct_input_octets)  / $CONF->{MB_SIZE} + SUM(acct_input_gigawords) * 4096,
+      SUM(acct_output_octets) / $CONF->{MB_SIZE},
+      SUM(ex_input_octets) / $CONF->{MB_SIZE},
+      1
+    FROM dv_calls
+    WHERE uid $WHERE
+    GROUP BY 5;"
   );
 
   if ($self->{TOTAL} > 0) {
@@ -406,7 +403,7 @@ sub get_traffic_ipn {
     TRAFFIC_IN_2  => 0
   );
 
-  my $period = "DATE_FORMAT(start, '%Y-%m')=DATE_FORMAT(curdate(), '%Y-%m')";
+  my $period = "DATE_FORMAT(start, '%Y-%m')=DATE_FORMAT(CURDATE(), '%Y-%m')";
   if ($attr->{PERIOD}) {
     $period = $attr->{PERIOD};
   }
@@ -429,11 +426,11 @@ sub get_traffic_ipn {
   }
 
   $self->query2("SELECT traffic_class,
-                            SUM(traffic_out) / $CONF->{MB_SIZE},
-                            SUM(traffic_in) / $CONF->{MB_SIZE}
-       FROM ipn_log
-       WHERE uid $WHERE and ($period)
-       GROUP BY 1;"
+      SUM(traffic_out) / $CONF->{MB_SIZE},
+      SUM(traffic_in) / $CONF->{MB_SIZE}
+    FROM ipn_log
+    WHERE uid $WHERE and ($period)
+    GROUP BY 1;"
   );
 
   foreach my $line (@{ $self->{list} }) {
@@ -458,6 +455,7 @@ sub get_traffic_ipn {
      $SESSION_DURATION
      $RAD
      $attr
+       TP_NUM
 
   Returns:
     >= 0 - session sum
@@ -527,7 +525,31 @@ sub session_sum {
 
     $self->{UID} = $attr->{UID};
 
-    $self->query2("SELECT
+    if($attr->{TP_ID}) {
+      $self->query2("SELECT
+    tp.min_session_cost,
+    tp.payment_type,
+    tp.octets_direction,
+    tp.traffic_transfer_period,
+    tp.total_time_limit,
+    tp.total_traf_limit,
+    tp.month_traf_limit,
+    tp.id AS TP_NUM,
+    tp.neg_deposit_filter_id,
+    tp.bills_priority,
+    tp.credit AS tp_credit
+   FROM tarif_plans tp
+   WHERE tp.tp_id= ? ;",
+        undef,
+        { INFO => 1,
+          Bind => [
+            $attr->{TP_ID}
+          ] }
+      );
+      $self->{TP_ID}=$attr->{TP_ID};
+    }
+    else {
+      $self->query2("SELECT
     tp.min_session_cost,
     tp.payment_type,
     tp.octets_direction,
@@ -541,13 +563,14 @@ sub session_sum {
     tp.credit AS tp_credit
    FROM tarif_plans tp
    WHERE tp.id= ? AND tp.domain_id= ? ;",
-   undef,
-   { INFO => 1,
-     Bind => [
-       $attr->{TP_NUM},
-       $self->{DOMAIN_ID} || 0
-     ]}
-    );
+        undef,
+        { INFO => 1,
+          Bind => [
+            $attr->{TP_NUM},
+            $self->{DOMAIN_ID} || 0
+          ] }
+      );
+    }
 
     if ($self->{errno}) {
       #TP not found
@@ -692,7 +715,7 @@ sub session_sum {
       $self->{UIDS} = "$self->{JOIN_SERVICE}";
     }
     else {
-      $self->{UIDS}         = "$self->{UID}";
+      $self->{UIDS}         = $self->{UID};
       $self->{JOIN_SERVICE} = $self->{UID};
     }
 
@@ -776,13 +799,11 @@ sub session_sum {
       }
 # Traffic
       if ($i == 0 && defined($periods_traf_tarif->{$k}) && $periods_traf_tarif->{$k} > 0) {
-        $sum += $self->traffic_calculations(
-          {
-            %$RAD,
-            SESSION_START => $SESSION_START,
-            UIDS          => $self->{UIDS}
-          }
-        );
+        $sum += $self->traffic_calculations({
+          %$RAD,
+          SESSION_START => $SESSION_START,
+          UIDS          => $self->{UIDS}
+        });
         last;
       }
     }
@@ -812,8 +833,6 @@ sub session_sum {
     if ($self->{EXT_DEPOSIT} > $sum || $self->{BILLS_PRIORITY} == 2) {
       $self->{BILL_ID} = $self->{EXT_BILL_ID};
     }
-
-    #my $aaa = `echo "$self->{BILL_ID} / $self->{EXT_BILL_ID} / D: $self->{EXT_DEPOSIT} /  SUM: $sum ! $self->{BILLS_PRIORITY}" >> /tmp/test_bonus`;
   }
 
   return $self->{UID}, sprintf("%.6f", $sum), $self->{BILL_ID}, $self->{TP_NUM}, 0, 0;
@@ -1112,6 +1131,7 @@ sub get_timeinfo {
       DAY_OF_WEEK
       DAY_OF_YEAR
       REDUCTION
+      PRICE_UNIT
       POSTPAID
       DEBUG
 
@@ -1183,7 +1203,7 @@ sub remaining_time {
   $session_start = $session_start - $day_begin;
 
   #If use post paid service
-  while (($deposit > 0 || (defined($attr->{POSTPAID}) && $attr->{POSTPAID} > 0)) && $count < 50) {
+  while (($deposit > 0 || $attr->{POSTPAID}) && $count < 50) {
     if ($time_limit != 0 && $time_limit < $remaining_time) {
       $remaining_time = $time_limit;
       last;
@@ -1281,7 +1301,6 @@ sub remaining_time {
           if ($periods_traf_tarif->{$int_id} > 0) {
             print "This tarif with traffic counts\n" if ($debug == 1);
             if ($int_end - $int_begin < 86400) {
-
               return int($int_duration), \%ATTR;
             }
 
@@ -1306,8 +1325,11 @@ sub remaining_time {
         }
         elsif ($price > 0) {
           $int_prepaid = int($deposit / $price * $PRICE_UNIT);
-          if ($int_prepaid == 0) {
-          	return -3, \%ATTR;
+          if($#intervals == 0 && $int_prepaid > 0) {
+            return $int_prepaid, \%ATTR;
+          }
+          elsif ($int_prepaid == 0) {
+            return -3, \%ATTR;
           }
         }
         else {

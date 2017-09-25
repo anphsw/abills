@@ -108,21 +108,14 @@ sub cards_card_info {
 #**********************************************************
 sub cards_main {
 
-  if (form_purchase_module({
-    HEADER          => $user->{UID},
-    MODULE          => 'Cards',
-    REQUIRE_VERSION => 7.10,
-    })) {
-    return 0;
-  }
-
   if ($FORM{change}) {
     my $list;
     my $FROM = '';
 
     $Cards->cards_change({ %FORM });
     if (!$Cards->{errno}) {
-      $html->message('info', $lang{CHANGED} . ':' . $status[ ($FORM{STATUS} - 1) ], "$lang{CHANGED}: $FORM{IDS} ");
+      my $status_text = ($FORM{STATUS} && $status[ ($FORM{STATUS}  - 1) ]) ? $status[ ($FORM{STATUS}  - 1) ] : q{};
+      $html->message('info', $lang{CHANGED} . ':' . $status_text, "$lang{CHANGED}: $FORM{IDS} ");
     }
 
     #Add receipt for diller
@@ -131,24 +124,27 @@ sub cards_main {
 
       if (in_array('Docs', \@MODULES) && $FORM{INVOICE}) {
         load_module('Docs', $html);
-
-        $list = $Cards->cards_list({ IDS    => $FORM{IDS},
-                                     SERIAL => '_SHOW',
-                                     NUMBER => '_SHOW',
-                                     SUM    => '_SHOW',
-                                     ROWS   => 1000000,
-                                     COLS_NAME => 1 });
+        my $ids = $FORM{IDS} || q{};
+        $ids =~ s/,\s+/;/g;
+        $list = $Cards->cards_list({
+          IDS    => $ids,
+          SERIAL => '*', #'_SHOW',
+          NUMBER => '_SHOW',
+          SUM    => '_SHOW',
+          PAGE_ROWS => 1000000,
+          COLS_NAME => 1
+        });
 
         my %CARDS_GROUPS = ();
         foreach my $line (@$list) {
-          $CARDS_GROUPS{"$line->{serial}:$line->{sum}"} += $line->{number};
+          $CARDS_GROUPS{"$line->{serial}:$line->{sum}"}++;
         }
 
         my $i   = 1;
         my @ids = ();
         while (my ($k, $v) = each(%CARDS_GROUPS)) {
           my ($seria, $price) = split(/:/, $k, 2);
-          $price = ($v > 0) ? $price / $v : $price;
+          #$price = ($v > 0) ? $price / $v : $price;
           $FORM{'SUM_'. $i}    = $price;
           $FORM{'COUNTS_'. $i} = $v;
           $FORM{'UNIT_'. $i}   = 1;
@@ -206,7 +202,7 @@ sub cards_main {
     'AID',
     {
       SELECTED   => $FORM{AID},
-      SEL_LIST   => $admin->list({%LIST_PARAMS, COLS_NAME => 1 }),
+      SEL_LIST   => $admin->list({%LIST_PARAMS, COLS_NAME => 1, PAGE_ROWD => 50000 }),
       SEL_KEY    => 'aid',
       SEL_VALUE  => 'login',
       SEL_OPTIONS=> { '' => '' },
@@ -218,7 +214,7 @@ sub cards_main {
     $Cards->{DILLERS_SEL} = '';
   }
   else {
-    $Cards->{DILLERS_SEL} = cards_dillers_sel({ FORM_ID => 'cards_list'  });
+    $Cards->{DILLERS_SEL} = cards_dillers_sel({  });
   }
 
   if (!$FORM{pdf} && $FORM{search_form}) {
@@ -238,7 +234,7 @@ sub cards_main {
       STYLE        => \@status_colors,
       SEL_OPTIONS  => { '' => $lang{ALL} },
       ARRAY_NUM_ID => 1,
-      FORM_ID      => 'form_search'
+      #FORM_ID      => 'form_search'
     }
     );
 
@@ -298,8 +294,9 @@ sub cards_main {
       'status'       => "$lang{STATUS}",
       'created'      => "$lang{CREATED}",
       'used_date'    => "$lang{USED} $lang{DATE}",
-      'dillers'      => "$lang{DILLERS}",
-      'dillers_date' => "$lang{DILLERS} $lang{DATE}",
+      'diller_name'  => "$lang{DILLERS}",
+      'diller_date'  => "$lang{DILLERS} $lang{DATE}",
+      'diller_sold_date' => "$lang{DILLERS} $lang{SOLD}",
       'sold'         => "$lang{SOLD}",
       'pin'          => 'PIN'
      },
@@ -343,7 +340,7 @@ sub cards_main {
         $val = ($line->{$field_name} < 0) ? $html->color_mark($line->{$field_name}, $_COLORS[6]) : $line->{$field_name};
       }
       elsif($field_name eq 'diller_name') {
-        $val = ($line->{diller_id}) ? $html->button($line->{diller_name}, "index=11&UID=$line->{diller_uid}") : '';
+        $val = ($line->{diller_uid}) ? $html->button($line->{diller_name}, "index=11&UID=$line->{diller_uid}") : $line->{diller_name};
       }
       elsif($field_name eq 'login_status') {
         my ($status, $color) = split( /:/, $service_status->{ $line->{login_statu} } );
@@ -383,8 +380,8 @@ sub cards_main {
 
   if (defined($FORM{SERIAL}) && ! $FORM{EXPORT_CONTENT}) {
     my $managment = $html->tpl_show(_include('cards_managment', 'Cards'), {
-        DILLERS_SEL     => $Cards->{DILLERS_SEL},
-        STATUS_SEL      => $Cards->{STATUS_SEL}
+        DILLERS_SEL => cards_dillers_sel({ FORM_ID => 'cards_list' }),
+        STATUS_SEL  => $Cards->{STATUS_SEL}
         },
         { OUTPUT2RETURN => 1 });
 
@@ -412,8 +409,7 @@ sub cards_main {
     {
       width       => '100%',
       caption     => $lang{TOTAL},
-      title_plain => [ $lang{STATUS}, "$lang{COUNT}", "$lang{SUM}" ],
-      cols_align  => [ 'right', 'right', 'right' ],
+      title_plain => [ $lang{STATUS}, $lang{COUNT}, $lang{SUM} ],
       rows        => [
         ($#total_arr>-1) ? \@total_arr : undef,
         [ $html->b("$lang{TOTAL}:"), $html->b($Cards->{TOTAL_CARDS}), $html->b($Cards->{TOTAL_SUM}) ],
@@ -563,8 +559,7 @@ sub cards_bruteforce {
     my $table = $html->table(
       {
         width      => '100%',
-        title      => [ "$lang{USER}", "PIN", "$lang{DATE}" ],
-        cols_align => [ 'left', 'left', 'right' ],
+        title      => [ $lang{USER}, "PIN", $lang{DATE} ],
         qs         => $pages_qs,
         pages      => $Cards->{TOTAL}
       }
@@ -578,7 +573,6 @@ sub cards_bruteforce {
     $table = $html->table(
       {
         width      => '100%',
-        cols_align => [ 'right', 'right' ],
         rows       => [ [ "$lang{TOTAL}:", $html->b($Cards->{TOTAL}) ] ]
       }
     );
@@ -592,7 +586,6 @@ sub cards_bruteforce {
     {
       width      => '100%',
       title      => [ "$lang{USER}", "$PERIODS[0]", "$lang{TOTAL}", "$lang{DATE}", '-', '-' ],
-      cols_align => [ 'left', 'right', 'right', 'right', 'center', 'center' ],
       qs         => $pages_qs,
       pages      => $Cards->{TOTAL},
       ID         => 'CARDS_BRUTEFORCE_LIST'
@@ -615,7 +608,6 @@ sub cards_bruteforce {
   $table = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right' ],
       rows       => [ [ "$lang{TOTAL}:", $html->b($Cards->{TOTAL}) ] ]
     }
   );
@@ -656,6 +648,7 @@ sub cards_users_add {
         my $other     = '';
         my %USER_HASH = ();
         my @params    = split(/\t/, $line);
+        #$params[0] =~ s/^//g;
         $USER_HASH{LOGIN}     = $params[0];
         $USER_HASH{DILLER_ID} = $FORM{DILLER_ID} || 0;
         $USER_HASH{SERIAL}    = $SERIAL;
@@ -683,6 +676,7 @@ sub cards_users_add {
           }
         }
 
+        $USER_HASH{PASSWORD} //= q{};
         $export .= (defined($FORM{EXPORT}) && $FORM{EXPORT} eq 'XML') ? "<LOGIN>$USER_HASH{LOGIN}</LOGIN><PASSWORD>$USER_HASH{PASSWORD}</PASSWORD><ID>$USER_HASH{SERIAL}</ID><EXPIRE>$FORM{EXPIRE}</EXPIRE>\n" : "$USER_HASH{LOGIN}\t$USER_HASH{PASSWORD}\t$USER_HASH{SERIAL}\t$FORM{EXPIRE}$other\n";
         push @DATA_ARRAY, {%USER_HASH};
         $generated++;
@@ -1061,7 +1055,6 @@ sub cards_dillers_sel {
   my ($attr) = @_;
 
   my $dillers_sel = '';
-
   $dillers_sel = $html->form_select(
     'DILLER_ID',
     {
@@ -1142,8 +1135,8 @@ sub cards_dillers {
     {
       width      => '100%',
       caption    => $lang{DILLERS},
-      title      => [ 'ID', "$lang{NAME}", "$lang{ADDRESS}", "E-Mail", "$lang{REGISTRATION}", "$lang{PERCENTAGE}", "$lang{STATE}", "$lang{COUNT}", "$lang{ENABLE}", '-', '-', '-' ],
-      cols_align => [ 'right', 'left', 'left', 'left', 'right', 'right', 'right', 'right', 'center:noprint', 'center:noprint', 'center:noprint' ],
+      title      => [ 'ID', $lang{NAME}, $lang{ADDRESS}, "E-Mail", $lang{REGISTRATION}, $lang{PERCENTAGE}, $lang{STATE},
+        $lang{COUNT}, $lang{ENABLE}, '-' ],
       qs         => $pages_qs,
       pages      => $Cards->{TOTAL},
       ID         => 'DILLER_LIST'
@@ -1161,9 +1154,9 @@ sub cards_dillers {
       $status[ $line->[6] ],
       $line->[7],
       $line->[8],
-      $html->button($lang{INFO},   "index=$index$pages_qs&info=$line->[0]", { class => 'show' }),
-      $html->button($lang{CHANGE}, "index=$index$pages_qs&chg=$line->[0]",  { class => 'change' }),
-      $html->button($lang{DEL}, "index=$index$pages_qs&del=$line->[0]", { MESSAGE => "$lang{DEL} [$line->[0]] ?", class => 'del' })
+      $html->button($lang{INFO},   "index=$index$pages_qs&info=$line->[0]", { class => 'show' })
+      .$html->button($lang{CHANGE}, "index=$index$pages_qs&chg=$line->[0]",  { class => 'change' })
+      .$html->button($lang{DEL}, "index=$index$pages_qs&del=$line->[0]", { MESSAGE => "$lang{DEL} [$line->[0]] ?", class => 'del' })
     );
   }
 
@@ -1172,7 +1165,6 @@ sub cards_dillers {
   $table = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right' ],
       rows       => [ [ "$lang{TOTAL}:", $html->b($Cards->{TOTAL}) ] ]
     }
   );
@@ -1222,7 +1214,6 @@ sub cards_report {
       {
         width      => '100%',
         caption    => "$lang{SERIAL} : " . ($FORM{SERIAL} || q{}),
-        cols_align => [ 'left', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right' ],
         qs         => $pages_qs
       }
     );
@@ -1345,7 +1336,6 @@ sub cards_report_dillers {
     {
       width      => '100%',
       caption    => $attr->{CAPTION} || $lang{DILLERS},
-      cols_align => [ 'left', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right' ],
       qs         => $pages_qs,
       pages      => $Cards->{TOTAL},
       ID         => 'CARDS_REPORT_DILLERS'
@@ -1481,7 +1471,7 @@ sub cards_diller_face {
   if (! $Cards->{ID}) {
     $html->set_cookies('sid', "", "Fri, 1-Jan-2038 00:00:01");
     $html->header() if ($FORM{qindex});
-    $html->message('info', $lang{INFO}, "- $lang{ACCOUNT} $lang{NOT_EXIST}", { ID => 671 });
+    $html->message('info', $lang{DILLERS}, "$lang{ACCOUNT} $lang{NOT_EXIST}", { ID => 671 });
     return 0;
   }
 
@@ -1592,7 +1582,6 @@ sub cards_diller {
         width      => '400',
         caption    => $lang{PERMISSION},
         title      => [ $lang{ACTION}, $lang{COMMENTS}, '-' ],
-        cols_align => [ 'left', 'left', 'center' ],
       }
     );
 
@@ -1995,7 +1984,6 @@ sub cards_dillers_list {
       width   => '100%',
       caption => "$lang{DILLERS}",
       title   => [ 'ID', "$lang{LOGIN}", "$lang{NAME}", "$lang{ADDRESS}", "E-Mail", "$lang{REGISTRATION}", "$lang{PERCENTAGE}", "$lang{STATE}", "$lang{COUNT}", "$lang{ENABLE}" ],
-      cols_align => [ 'right', 'left', 'left', 'left', 'right', 'right', 'right', 'right', ],
       qs         => $pages_qs,
       pages      => $Cards->{TOTAL},
       ID         => 'CARDS_DILLERS'
@@ -2021,7 +2009,6 @@ sub cards_dillers_list {
   $table = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right' ],
       rows       => [ [ "$lang{TOTAL}:", $html->b($Cards->{TOTAL}) ] ]
     }
   );
@@ -2057,7 +2044,7 @@ sub cards_dillers_tp {
   elsif ($FORM{chg}) {
     $Cards->dillers_tp_info({ ID => $FORM{chg} });
     if (!$Cards->{errno}) {
-      $html->message('info', $lang{INFO}, "$lang{CHANGING}");
+      $html->message('info', $lang{INFO}, $lang{CHANGING});
     }
 
     $FORM{add_form}      = 1;
@@ -2093,8 +2080,7 @@ sub cards_dillers_tp {
       width      => '100%',
       caption    => "$lang{TARIF_PLANS}",
       border     => 1,
-      title      => [ $lang{NAME}, $lang{PERCENTAGE}, $lang{OPERATION_PAYMENT}, $lang{PAYMENT_TYPE}, '-', '-' ],
-      cols_align => [ 'left', 'right', 'left', 'center', 'center', 'center', 'center:noprint', 'center:noprint' ],
+      title      => [ $lang{NAME}, $lang{PERCENTAGE}, $lang{OPERATION_PAYMENT}, $lang{PAYMENT_TYPE}, '-' ],
       ID         => 'DILLERS_TARIF_PLANS',
       MENU       => "$lang{ADD}:index=$index&add_form=1:add;"
     }
@@ -2118,8 +2104,8 @@ sub cards_dillers_tp {
        $line->{percentage},
        $line->{operation_payment},
        $Payment_Types[ $line->{payment_type} ],
-       $change,
-       $delete);
+       $change
+       . $delete);
   }
 
   print $table->show();
@@ -2127,7 +2113,6 @@ sub cards_dillers_tp {
   $table = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right' ],
       rows       => [ [ "$lang{TOTAL}:", $html->b($tariffs->{TOTAL}) ] ]
     }
   );
@@ -2332,7 +2317,6 @@ sub cards_diller_stats {
         width      => '100%',
         caption    => "$lang{LOG}",
         title      => \@caption,
-        cols_align => [ 'right', 'left', 'right', 'right' ],
         qs         => $pages_qs,
         pages      => $Cards->{TOTAL},
         ID         => 'CARDS_LIST',
@@ -2366,7 +2350,6 @@ sub cards_diller_stats {
     $table = $html->table(
       {
         width      => '100%',
-        cols_align => [ 'right', 'right' ],
         rows       => [ [ "$lang{TOTAL}:", $html->b($Cards->{TOTAL}), "$lang{SUM}:", $html->b($Cards->{TOTAL_SUM}) ] ]
       }
     );
@@ -2411,7 +2394,6 @@ sub cards_diller_stats {
         width      => '100%',
         caption    => "$lang{LOG}",
         title      => [ "$lang{SERIAL}", "$lang{NUM}", "$lang{LOGIN}", "$lang{SUM}", "$lang{STATUS}", "$lang{EXPIRE}", "$lang{ADDED}", ],
-        cols_align => [ 'right', 'right', 'right', 'right', 'center', 'right', 'right', 'left', ],
         qs         => $pages_qs,
         pages      => $Cards->{TOTAL},
         ID         => 'CARDS_LIST',
@@ -2456,7 +2438,6 @@ sub cards_diller_stats {
     $table = $html->table(
       {
         width      => '100%',
-        cols_align => [ 'right', 'right' ],
         rows       => [ [ "$lang{TOTAL}:", $html->b($Cards->{TOTAL}), "$lang{SUM}:", $html->b($Cards->{TOTAL_SUM}) ] ]
       }
     );
@@ -2467,18 +2448,18 @@ sub cards_diller_stats {
       {
         width       => '100%',
         caption     => "$lang{LOG}",
-        title       => [ "$lang{DATE}", "$lang{COUNT}", "$lang{SUM}", '-' ],
-        cols_align  => [ 'right', 'right', 'right', 'center:noprint' ],
+        title       => [ $lang{DATE}, $lang{COUNT}, $lang{SUM}, '-' ],
         qs          => $pages_qs,
         pages       => $Cards->{TOTAL},
         ID          => 'CARDS_REPORTS_DAYS'
       }
     );
 
-    my $list = $Cards->cards_report_days({ %LIST_PARAMS,
-                                           SERIA       => '',
-                                           COLS_NAME   => 1
-                                           });
+    my $list = $Cards->cards_report_days({
+      %LIST_PARAMS,
+      SERIA       => '',
+      COLS_NAME   => 1
+    });
 
     foreach my $line (@$list) {
       $table->addrow(
@@ -2499,6 +2480,7 @@ sub cards_diller_stats {
 
     print $table->show();
   }
+
   return 1;
 }
 
@@ -2521,18 +2503,19 @@ sub cards_print {
 
   $LIST_PARAMS{PAGE_ROWS} = $FORM{PAGE_ROWS} if ($FORM{PAGE_ROWS});
 
-  my $list = $Cards->cards_list({ NUMBER    => $FORM{NUMBER} || '_SHOW',
-                                  SERIAL    => $FORM{SERIAL} || '_SHOW',
-                                  LOGIN     => '_SHOW',
-                                  PIN       => '_SHOW',
-                                  TP        => '_SHOW',
-                                  SUM       => '_SHOW',
-                                  EXPIRE    => '_SHOW',
-                                  AGE       => '_SHOW',
-                                  TIME_LIMIT=> '_SHOW',
-                                  %LIST_PARAMS,
-                                  COLS_NAME => 1,
-                               });
+  my $list = $Cards->cards_list({
+    NUMBER    => $FORM{NUMBER} || '_SHOW',
+    SERIAL    => $FORM{SERIAL} || '_SHOW',
+    LOGIN     => '_SHOW',
+    PIN       => '_SHOW',
+    TP        => '_SHOW',
+    SUM       => '_SHOW',
+    EXPIRE    => '_SHOW',
+    AGE       => '_SHOW',
+    TIME_LIMIT=> '_SHOW',
+    %LIST_PARAMS,
+    COLS_NAME => 1,
+  });
 
   my $i               = 0;
   my %page_print_hash = ();
@@ -2589,6 +2572,7 @@ sub cards_print {
   );
 
   print $single_tpl;
+
   return 1;
 }
 

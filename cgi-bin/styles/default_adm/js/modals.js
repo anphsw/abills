@@ -23,12 +23,12 @@ if (modalsSearchArray === undefined) {
 /** Old-fashioned way to load modal windows
  *
  */
-function openModal(buttonNumber, type_) {
-  if (type_ == 'TemplateBased') {
-    fill_template_popup(buttonNumber);
+function openModal(buttonNumber, type_, size) {
+  if (type_ === 'TemplateBased') {
+    fillTemplateBasedSearchForm(modalsArray[buttonNumber], size);
   }
-  if (type_ == 'ArrayBased') {
-    fill_array_popup(buttonNumber);
+  if (type_ === 'ArrayBased') {
+    fillOneRowArrayBasedSearchForm(modalsSearchArray[buttonNumber], size);
   }
 }
 
@@ -41,20 +41,31 @@ function loadToModal(url, callback) {
       .setId('CurrentOpenedModal')
       .setBody(spinner)
       .show(function () {
-
+  
         $.get(url,
-            function(data){
-          var modalBody = $('#CurrentOpenedModal').find('.modal-body');
+            function (data) {
+              var modalBody = $('#CurrentOpenedModal').find('.modal-body');
               modalBody.html(data);
+              
+              if (modalBody.find('.box-header').length === 1){
+                var header_inside = modalBody.find('.box-header');
+                var header_outside = $('#CurrentOpenedModal_header');
+                
+                if (header_outside){
+                    header_outside.append(header_inside);
+                }
+              }
+              
               pageInit(modalBody);
               Events.emit('modal_loaded', modalBody);
+              
             }, 'html')
             .fail(function (error) {
               alert('Fail' + JSON.stringify(error));
-              
+        
               Events.emit('modal_loaded', false);
             });
-
+  
         if (callback) callback();
       });
 
@@ -105,24 +116,33 @@ function loadToModalSmall(url, callback) {
 }
 
 /*  loads content of url in modal and shows it*/
-function loadRawToModal(url, callback) {
+function loadRawToModal(url, callback, size) {
   url += "&IN_MODAL=1";
-  aModal.clear()
+  var modal = aModal.clear()
       .setRawMode(true)
       .setBody(spinner)
-      .setId('CurrentOpenedModal')
-      .show(function () {
+      .setId('CurrentOpenedModal');
+  
+  if (typeof size !== 'undefined') {
 
-        $.get(url, function (data) {
-          var modalBody = $('#CurrentOpenedModal').find('.modal-content');
-          modalBody.html(data);
-          pageInit(modalBody);
-          if (callback) callback();
-        }, 'html')
-            .fail(function (error) {
-              alert('Fail' + JSON.stringify(error));
-            });
-      });
+    if (size === 'lg') modal.setLarge(true);
+    if (size === 'sm') modal.setSmall(true);
+  }
+  
+  modal.show(function () {
+    
+    $.get(url, function (data) {
+      var modalBody = $('#CurrentOpenedModal').find('.modal-content');
+      modalBody.html(data);
+      pageInit(modalBody);
+      if (callback) callback();
+    }, 'html')
+    
+        .fail(function (error) {
+          alert('Fail' + JSON.stringify(error));
+        });
+    
+  });
 }
 
 function showImgInModal(url) {
@@ -219,10 +239,13 @@ function AModal() {
   };
 
   this.setSmall = function (boolean) {
-    this.isSmall = boolean;
+    this.size = boolean ? 'sm' : false;
     return this;
   };
-
+  this.setLarge = function (boolean) {
+    this.size = boolean ? 'lg' : false;
+    return this;
+  };
   this.setFooter = function (data) {
     this.footer = data;
     return this;
@@ -234,9 +257,23 @@ function AModal() {
       this.$modal.modal('handleUpdate')
     }
   };
-
+  this.loadUrl = function (url, callback) {
+    this.onShow = function () {
+      $.get(url, function (data) {
+        var modalBody = $('#' + self.id).find('.modal-content');
+        modalBody.html(data);
+        pageInit(modalBody);
+        if (callback) callback();
+      }, 'html')
+          .fail(function (error) {
+            alert('Fail' + JSON.stringify(error));
+          });
+    };
+    return this;
+  };
   this.onClose = function(callback){
     if (callback) this.onClose = callback;
+    return this;
   };
 
   this.addButton = function (text, btnId, class_) {
@@ -245,14 +282,15 @@ function AModal() {
   };
 
   this.show = function (callback) {
-    if (this.mainModal == null) this.mainModal = this.build();
+    if (this.mainModal === null) this.mainModal = this.build();
 
     // Creating jQuery object from HTML
     var $modal = $(this.mainModal);
 
-    if (callback)
+    var show_callback = this.onShow || callback;
+    if (show_callback)
       $modal.on('show.bs.modal', function () {
-        callback(self);
+        show_callback(self);
       });
 
     // Adding HTML to page
@@ -290,14 +328,14 @@ function AModal() {
   };
 
   this.build = function () {
-    var modalClass = (this.isSmall) ? 'modal-sm' : '';
+    var modalClass = (this.size) ? 'modal-' + this.size : '';
 
     var str_func_close = '$("#' + this.id + '").modal("hide");';
     if (!this.rawMode) {
       var result = "<div class='modal fade' tabindex='-1' id='" + this.id + "' role='dialog' aria-hidden='true'>" +
           '<div class="modal-dialog ' + modalClass + '" style="z-index : 10000">' +
           '<div class="modal-content">' +
-          '<div class="modal-header">' +
+          '<div class="modal-header" id="'+ this.id +'_header">' +
           this.header +
           '<button type="button" class="close" onclick=' + str_func_close + '>' +
           '<span aria-hidden="true">&times;</span>' +
@@ -328,7 +366,7 @@ function AModal() {
     }
     else {
       return "<div class='modal' tabindex='-1' id='" + this.id + "' role='dialog' aria-hidden='true'>" +
-          "<div class='modal-dialog'>" +
+          '<div class="modal-dialog ' + modalClass + '" style="z-index : 10000">' +
           '<div class="modal-content">' +
           this.body +
           '</div>' +//modal-content
@@ -415,6 +453,8 @@ function ATooltip(text) {
   };
 
   this.show = function () {
+    this.hide();
+    
     if (!this.ready) {
       this.build();
     }
@@ -435,10 +475,29 @@ function ATooltip(text) {
     this.show();
   };
 
-  this.displayError = function (Error) {
+  this.displayError = function (Error, duration) {
     this.setText('<h3>' + Error + '</h3>');
-    this.setTimeout(5000);
+    this.setTimeout(duration || 5000);
     this.setClass('danger');
+    this.show();
+  };
+  this.displayMessage = function (message, duration) {
+    this.setText('<h3>'
+        + (message.caption || '')
+        + (message.messaga ? ' : ' + message.messaga : '')
+        + '</h3>');
+    this.setTimeout(duration || 3000);
+    this.setClass(
+        message.type
+          ? (message.type === 'info')
+            ? 'info'
+            : (message.type === 'warn')
+              ? 'warning'
+              : (message.type === 'err')
+                ? 'danger'
+                : 'info'
+          : 'success'
+    );
     this.show();
   };
 

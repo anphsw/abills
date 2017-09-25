@@ -22,7 +22,7 @@
         var y = mapCenterLatLng.lng();
 
         //fill url
-        var link = SELF_URL + '?get_index=maps_show_poins&header=1&MAKE_NAVIGATION_TO=1&nav_x=' + x + '&nav_y=' + y;
+        var link = SELF_URL + '?get_index=maps_show_map&header=1&MAKE_NAVIGATION_TO=1&nav_x=' + x + '&nav_y=' + y;
 
         //goto
         location.replace(link);

@@ -2,17 +2,25 @@
 <tr>
 
 <th>
-  <h5>%NAME%</h5>
-  </th>
-<th>
- <h5>
+  <h4><strong>%NAME%</strong></h4>
+   <h5>
+   <br>
    %COMMENTS%
  </h5>
- </th>
+</th>
+
  <th>
-   <div class='checkbox'>
-   <p align='left'><label><input  type='checkbox'  %CHECK% name='%ID%'><strong>%PRICE%<span class='glyphicon glyphicon-usd'></span></strong></label></p>
+ 		<h4>
+		<p><strong>%PRICE%</strong><span class='glyphicon glyphicon-usd'></span></p>
+		</h4>
+</th>
+	
+<th>
+
+	<div class='checkbox' id="qwe">
+   <p><label><input  type='checkbox'  %CHECK% name='%ID%'></label></p>
    </div>
+
 </th>
 
 </tr>

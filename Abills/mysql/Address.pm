@@ -27,6 +27,12 @@ sub new {
   $admin->{MODULE} = '';
   $CONF->{BUILD_DELIMITER} = ',' if (! defined($CONF->{BUILD_DELIMITER})) ;
 
+  if(ref $admin eq 'HASH') {
+    print ref $admin;
+    print "Address ADMIN NOT FOUND//// $admin ///";
+    exit;
+  }
+
   $self->{db}    = $db;
   $self->{admin} = $admin;
   $self->{conf}  = $CONF;
@@ -306,7 +312,7 @@ sub district_add {
 
   $self->query_add("districts", {
     %$attr,
-    DOMAIN_ID => $admin->{DOMAIN_ID} || 0
+    DOMAIN_ID => $attr->{DOMAIN_ID} || $admin->{DOMAIN_ID} || 0
   });
 
   $admin->system_action_add("DISTRICT:$self->{INSERT_ID}:$attr->{NAME}", { TYPE => 1 }) if (!$self->{errno});
@@ -487,6 +493,10 @@ sub street_del {
 sub build_list {
   my $self = shift;
   my ($attr) = @_;
+  
+  if($admin->{DOMAIN_ID}) {
+    $attr->{DOMAIN_ID} = $admin->{DOMAIN_ID};
+  }
 
   my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
   my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
@@ -517,7 +527,6 @@ sub build_list {
       ['USERS_CONNECTIONS', 'INT', '', 'ROUND((count(pi.uid) / b.flats * 100), 0) AS users_connections' ],
       ['ADDED',             'DATE','b.added',        1 ],
       ['STREET_ID',         'INT', 'b.street_id',    1 ],
-      ['SHOW_MAPS',         '',    '', 'b.map_x, b.map_y, b.map_x2, b.map_y2, b.map_x3, b.map_y3, b.map_x4, b.map_y4' ],
       ['YANDEX_0',          'INT', 'yandex_0',       1 ],
       ['YANDEX_1',          'INT', 'yandex_1',       1 ],
       ['GOOGLE_X',          'INT', 'coordx',         1 ],
@@ -529,6 +538,8 @@ sub build_list {
       ['ZIP',               'INT', 'b.zip',    'b.zip' ],
       ['PUBLIC_COMMENTS',   'STR', 'b.public_comments',    1 ],
       ['PLANNED_TO_CONNECT','STR', 'b.planned_to_connect', 1 ],
+      ['DOMAIN_ID',         'INT', 'd.domain_id',          1 ],
+      ['CITY',              'INT', 'd.city',         1 ],
     ],
     { WHERE       => 1,
       WHERE_RULES => \@WHERE_RULES
@@ -642,7 +653,8 @@ sub build_add {
 
   if (!$self->{errno}) {
     $self->{LOCATION_ID} = $self->{INSERT_ID};
-    $admin->system_action_add("BUILD:$self->{INSERT_ID}:$attr->{NAME}", { TYPE => 1 });
+    $admin->system_action_add("BUILD:$self->{INSERT_ID}:" . ($attr->{NAME} || $attr->{ADD_ADDRESS_BUILD} || '')
+      , { TYPE => 1 });
   }
 
   return $self;

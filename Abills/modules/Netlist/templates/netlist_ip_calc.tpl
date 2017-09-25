@@ -44,13 +44,13 @@
             </div>
             <div class='form-group'>
                 <label class='col-md-5 control-label'>_{SUBNET_MASK}_:</label>
-                <label class='col-md-7 text-muted text-center' id='ipv4_mask'></label>
+              <p class="col-md-7 form-control-static"  id='ipv4_mask'></p>
             </div>
 
             <hr>
 
             <div class='form-group' id='subnet_count'>
-                <label class='col-md-5 control-label'>_{NUMBER_OF_SUBNETS}_:</label>
+                <label class='col-md-5 control-label'>_{SPLIT_TO}_:</label>
 
                 <div class='col-md-7'>%SUBNET_NUMBER_SEL%</div>
             </div>
@@ -74,10 +74,8 @@
         SUBNET_NUMBER : '$FORM{SUBNET_NUMBER}',
         HOSTS_COUNT : '$FORM{HOSTS_NUMBER}'
     };
-
-    var ipv4_form = true;
 </script>
 
 
-<script src='/styles/default_adm/js/modules/netlist.js'></script>
+<script src='/styles/default_adm/js/modules/netlist/ipv4.js'></script>
 

@@ -1,6 +1,10 @@
 #!/usr/bin/perl
-#
-# Install perl dependencies we need for normal ABillS work
+
+=head1 NAME
+
+ Install perl dependencies we need for normal ABillS work
+
+=cut
 
 use strict;
 use warnings FATAL => 'all';
@@ -104,6 +108,9 @@ my @modules = (
     rpm => "perl-JSON"
   },
   {
+    cpan => "JSON::XS",
+  },
+  {
     cpan => "LWP::UserAgent",
     port => "/usr/ports/www/p5-LWP-UserAgent-WithCache",
     pkg => "p5-LWP-UserAgent-WithCache",
@@ -166,6 +173,12 @@ my @modules = (
   },
   {
     cpan => "IO::Socket::SSL"
+  },
+  {
+    cpan => 'Text::CSV'
+  },
+  {
+    cpan => 'AnyEvent'
   }
 );
 
@@ -271,7 +284,7 @@ sub get_name {
 =head2 get_apt_name
 
   Contains OS specific processing of Perl module name
-  Apt:  the package name usually starts with lib and ends with -perl like: libsomething-perl.
+  Apt:  the package name usually starts with lib and ends with -perl like: libsome-module-perl for Some::Module.
     For e.g. libarray-compare-perl, libarchive-zip-perl, libnet-pcap-perl or libnet-dns-perl.
 =cut
 sub get_apt_name {
@@ -282,12 +295,15 @@ sub get_apt_name {
 
   return "lib$cpan_name-perl";
 }
+
+#********************************************************
 =head2 get_pkg_name
 
   Contains OS specific processing of Perl module name
     Every Perl port in FreeBSD is prefixed with p5-
 
 =cut
+#********************************************************
 sub get_pkg_name {
   my ($cpan_name) = @_;
 
@@ -295,12 +311,15 @@ sub get_pkg_name {
   return "p5-$cpan_name";
 
 }
+
+#********************************************************
 =head2 get_rpm_name
 
   Contains OS specific processing of Perl module name
     These are typically prefixed with perl-
     RedHat, Fedora, Centos RPMs
 =cut
+#********************************************************
 sub get_rpm_name {
   my ($cpan_name) = @_;
   $cpan_name =~ s/::/-/g;
@@ -377,7 +396,7 @@ sub install_modules {
         print "\n\nWe need to install EPEL repository\n";
         sleep 2;
         my $command = "yum install epel-release";
-        cmd($command);
+        _cmd($command);
       }
     }
 
@@ -387,7 +406,7 @@ sub install_modules {
       $names .= " $name";
     }
     my $command = "$program " .  $names;
-    cmd($command);
+    _cmd($command);
   }
 }
 
@@ -396,15 +415,17 @@ sub install_via_port {
 
   my $command = "cd $port_path ; make && make install";
 
-  cmd($command);
+  _cmd($command);
 }
 
+#********************************************************
 =head2 cmd - run system command
 
   Run system command
 
 =cut
-sub cmd {
+#********************************************************
+sub _cmd {
   my $str = shift;
   if (system($str) != 0) {
     die "There was a problem running $str\n";
@@ -413,9 +434,10 @@ sub cmd {
 
 sub update_sources {
   if ($update) {
-    cmd($update);
+    _cmd($update);
     return 1;
-  } else {
+  }
+  else {
     return 0;
   }
 }
@@ -436,4 +458,7 @@ sub dev {
     }
   };
 
+  return 1;
 }
+
+1

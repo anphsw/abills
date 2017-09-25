@@ -53,20 +53,6 @@ sub list {
   delete($self->{COL_NAMES_ARR});
 
   my $EXT_TABLES = '';
-  if ($attr->{SHOW_MAPS_GOOGLE}) {
-    $EXT_TABLES = "INNER JOIN builds b ON (b.id=nas.location_id)";
-    if ($attr->{DISTRICT_ID}) {
-      $EXT_TABLES .= "LEFT JOIN streets ON (streets.id=b.street_id)
-      LEFT JOIN districts ON (districts.id=streets.district_id) ";
-    }
-  }
-  elsif ($attr->{SHOW_MAPS}) {
-    $EXT_TABLES = "INNER JOIN builds b ON (b.id=nas.location_id)";
-    if ($attr->{DISTRICT_ID}) {
-      $EXT_TABLES .= "LEFT JOIN streets ON (streets.id=b.street_id)
-      LEFT JOIN districts ON (districts.id=streets.district_id) ";
-    }
-  }
 
   my $WHERE =  $self->search_former($attr, [
       ['NAS_ID',           'INT', 'nas.id',      'nas.id AS nas_id'      ],
@@ -87,13 +73,28 @@ sub list {
       ['MNG_USER',         'STR', 'nas.mng_user', 'nas.mng_user as nas_mng_user', ],
       ['NAS_MNG_PASSWORD', 'STR', '',    "DECODE(nas.mng_password, '$SECRETKEY') AS nas_mng_password"],
       ['NAS_RAD_PAIRS',    'STR', 'nas.rad_pairs', 'nas.rad_pairs AS nas_rad_pairs' ],
-      ['SHOW_MAPS',        '',    'b.map_x, b.map_y, b.map_x2, b.map_y2, b.map_x3, b.map_y3, b.map_x4, b.map_y4' ],
       ['SHOW_MAPS_GOOGLE', 'SHOW_MAPS_GOOGLE', 'b.coordx, b.coordy' ],
       ['NAS_IDS',          'INT', 'nas.id'              ],
     ],
     { WHERE => 1,
     }
   );
+
+
+  if ($attr->{SHOW_MAPS_GOOGLE}) {
+    $EXT_TABLES = "INNER JOIN builds b ON (b.id=nas.location_id)";
+    if ($attr->{DISTRICT_ID}) {
+      $EXT_TABLES .= "LEFT JOIN streets ON (streets.id=b.street_id)
+      LEFT JOIN districts ON (districts.id=streets.district_id) ";
+    }
+  }
+  elsif ($attr->{DISTRICT_ID}) {
+    $EXT_TABLES = "INNER JOIN builds b ON (b.id=nas.location_id)";
+    if ($attr->{DISTRICT_ID}) {
+      $EXT_TABLES .= "LEFT JOIN streets ON (streets.id=b.street_id)
+      LEFT JOIN districts ON (districts.id=streets.district_id) ";
+    }
+  }
 
   my $ext_fields = '';
 
@@ -131,7 +132,7 @@ sub list {
 
   my $list = $self->{list};
   if ($self->{TOTAL} >= 0 && !$attr->{SKIP_TOTAL}) {
-    $self->query2("SELECT count(*) AS total
+    $self->query2("SELECT COUNT(*) AS total
     FROM nas
     LEFT JOIN nas_groups ng ON (ng.id=nas.gid)
     $EXT_TABLES
@@ -324,9 +325,11 @@ sub add {
     ALIVE          => $attr->{NAS_ALIVE} || 0,
     DISABLE        => $attr->{NAS_DISABLE},
     EXT_ACCT       => $attr->{NAS_EXT_ACCT},
-   });
+  });
 
-  $admin->system_action_add("NAS_ID:$self->{INSERT_ID}", { TYPE => 1 });
+  $self->{NAS_ID}=$self->{INSERT_ID};
+
+  $admin->system_action_add("NAS_ID:$self->{NAS_ID}", { TYPE => 1 });
 
   return $self;
 }
@@ -346,6 +349,42 @@ sub del {
   $admin->system_action_add("NAS_ID:$id", { TYPE => 10 });
 
   return $self;
+}
+
+#**********************************************************
+=head2 users_list($nas_id, $attr) - retrieves users bound to this $nas_id
+
+  Arguments:
+     - $nas_id
+     - $attr
+    
+  Returns:
+    list
+    
+=cut
+#**********************************************************
+sub users_list {
+  my ( $self, $nas_id, $attr ) = @_;
+  
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  
+  my $WHERE =  $self->search_former($attr, [
+      ['NAS_ID',   'INT',     'np.nas_id'   ],
+    ],{
+      WHERE => 1
+    }
+  );
+  
+  $self->query2("SELECT uid, nas_id
+    FROM users_nas
+    $WHERE
+    ORDER BY $SORT $DESC",
+    undef,
+    $attr
+  );
+  
+  return $self->{list} || [];
 }
 
 #**********************************************************
@@ -371,16 +410,16 @@ sub nas_ip_pools_list {
     }
     );
 
-  $self->query2("SELECT if (np.nas_id IS NULL, 0, np.nas_id) AS active_nas_id,
+  $self->query2("SELECT IF(np.nas_id IS NULL, 0, np.nas_id) AS active_nas_id,
     n.name AS nas_name,
     pool.name AS pool_name,
     pool.ip,
     pool.ip + pool.counts AS last_ip_num,
     pool.counts AS ip_count,
-    pool.counts - (SELECT count(*) FROM dv_main dv WHERE dv.ip > pool.ip AND dv.ip <= pool.ip + pool.counts ) AS ip_free,
+    pool.counts - (SELECT COUNT(*) FROM dv_main dv WHERE dv.ip > pool.ip AND dv.ip <= pool.ip + pool.counts ) AS ip_free,
     pool.priority,
     pool.speed,
-    INET_NTOA(pool.ip) as first_ip,
+    INET_NTOA(pool.ip) AS first_ip,
     INET_NTOA(pool.ip + pool.counts) AS last_ip,
     pool.id,
     np.nas_id,

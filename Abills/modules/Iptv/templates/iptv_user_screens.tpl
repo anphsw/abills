@@ -45,11 +45,11 @@
 
                 %DEVICE_BINDING_CODE_FORM%
 
-                %DELETE%
             </div>
 
             <div class='box-footer'>
                 <input type='submit' class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
+                %DELETE%
             </div>
 
 

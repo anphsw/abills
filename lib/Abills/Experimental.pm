@@ -19,6 +19,7 @@ our (
   %lang,
   $VERSION,
   %FORM,
+  $admin,
 #  $html,
   $index,
   @ISA,
@@ -200,8 +201,6 @@ sub compare_hashes_deep {
   
   my @differences = ();
   
-  use Abills::Base qw/_bp/;
-  
   my @keys1 = sort keys (%{$hash1});
   my @keys2 = sort keys (%{$hash2});
   
@@ -225,6 +224,220 @@ sub compare_hashes_deep {
   }
   
   return \@differences;
+}
+#**********************************************************
+=head2 make_select_from_db_table()
+
+=cut
+#**********************************************************
+sub make_select_from_db_table {
+  my ($module_obj, $module_name, $entity_name, $select_name, $attr_) = @_;
+  
+  return sub {
+    my $attr  = { %{$attr_ || {} }, %{ shift || {} } };
+    my $selected = $attr->{SELECTED} || $FORM{$select_name} || '';
+    
+    my $object_list_function = $entity_name . "_list";
+    
+    my $list = $module_obj->$object_list_function({
+      ID        => '_SHOW',
+      NAME      => '_SHOW',
+      %{ $attr_->{FILTERS} // {} },
+      PAGE_ROWS => 10000
+    });
+    _error_show($module_obj);
+    
+    if ($attr->{FORMAT_LIST} && ref $attr->{FORMAT_LIST} eq 'CODE'){
+      $list = $attr->{FORMAT_LIST}->($list);
+    }
+    
+    if ($attr->{_TRANSLATE}){
+      $list = translate_list($list);
+    }
+    
+    if (!$attr->{NO_EMPTY_FIRST}){
+      $attr->{SEL_OPTIONS} = {'' => ''};
+    }
+    
+    return $html->form_select(
+      ($select_name || $attr_->{NAME} ||$attr->{NAME} || 'INVALID_SELECT_NAME'),
+      {
+        SELECTED       => $selected,
+        SEL_LIST       => $list,
+        NO_ID          => 1,
+        MAIN_MENU      => !$attr->{NO_EXT_MENU} ? get_function_index(lc($module_name) . '_' . $entity_name) : '',
+        MAIN_MENU_ARGV => !$attr->{NO_EXT_MENU} ? ($selected ? 'chg=' . $selected : '') : '',
+        %{ $attr // {} }
+      }
+    );
+    
+  }
+}
+
+#**********************************************************
+=head2 make_select_from_hash($name, $hash_ref, $attr) - a shortcut to form_select builded from hash with def attrs
+
+  Arguments:
+    $name     - FORM input name
+    $hash_ref - options
+    $attr     - usual form_select_options
+    
+  Returns:
+    html
+  
+=cut
+#**********************************************************
+sub make_select_from_hash {
+  my ( $name, $hash_ref, $attr ) = @_;
+  
+  $html->form_select($name, {
+      SELECTED => $FORM{$name} || '',
+      SEL_HASH => $hash_ref,
+      SORT_KEY => 1,
+      NO_ID       => 1,
+      %{ $attr // {} }
+    });
+}
+
+#**********************************************************
+=head2 make_select_from_list($name, $arr_ref, $attr) - a shortcut to form_select builded from hash with def attrs
+
+  Arguments:
+    $name     - FORM input name
+    $arr_ref - options
+    $attr     - usual form_select_options
+    
+  Returns:
+    html
+  
+=cut
+#**********************************************************
+sub make_select_from_list {
+  my ( $name, $arr_ref, $attr ) = @_;
+  
+  $html->form_select($name, {
+      SELECTED => $FORM{$name} || '',
+      SEL_LIST => $arr_ref,
+      NO_ID       => 1,
+      %{ $attr // {} }
+    });
+}
+
+#**********************************************************
+=head2 make_select_from_arr_ref($name, $arr_ref, $attr) - a shortcut to form_select builded from array_ref
+
+  Arguments:
+    $name     - FORM input name
+    $arr_ref - options
+    $attr     - usual form_select_options
+    
+  Returns:
+    html
+  
+=cut
+#**********************************************************
+sub make_select_from_arr_ref {
+  my ( $name, $arr_ref, $attr ) = @_;
+  
+  $html->form_select($name, {
+      SELECTED  => $FORM{$name} || '',
+      SEL_ARRAY => $arr_ref,
+      NO_ID       => 1,
+      %{ $attr // {} }
+    });
+}
+
+#**********************************************************
+=head2 link_to_function($text, $fn_name, $chg_id, $attr) - makes link to function
+
+=cut
+#**********************************************************
+sub function_button {
+  my ($text, $fn_name, $chg_id, $attr) = @_;
+  
+  my $fn_index = get_function_index($fn_name);
+  if (!$fn_index){
+    return "$lang{ERROR} : $lang{ERR} $lang{ERR_NOT_EXISTS}";
+  }
+  
+  my $link_params = '';
+  if ( $chg_id ) {
+    $link_params = '&chg=' . $chg_id;
+  }
+  
+  return $html->button($text, "index=$fn_index$link_params", $attr);
+}
+
+
+#**********************************************************
+=head2 run_in_backround() - runs a command via Backend Server, and shows notification to admin
+
+  Command will be runned via Abills::Base::cmd, so $command, and $args are described there
+
+  Arguments:
+    $command - program name
+    $args    - Abills::Base::cmd $attr
+    $attr    - hash_ref
+      SUCCESS  - Text for notification or hash_ref with Sender::Message
+      ERROR    - Text for notification or hash_ref with Sender::Message
+      SILENT   - do not show callout
+      
+      ID       - id for this task (will be returned with notification)
+
+  Returns:
+    1
+
+=cut
+#**********************************************************
+sub run_in_background {
+  my ($command, $args, $attr) = @_;
+  
+  require Abills::Sender::Browser;
+  Abills::Sender::Browser->import();
+  
+  my Abills::Sender::Browser $Browser = Abills::Sender::Browser->new(\%conf);
+  
+  my $sended = $Browser->json_request( {
+    MESSAGE => {
+      TYPE    => 'COMMAND',
+      AID     => $admin->{AID},
+      PROGRAM => $command,
+      ARGS    => $args,
+      %{ $attr || {} }
+    }
+  });
+  
+  if ($sended && !$attr->{SILENT}){
+    $html->reminder($lang{SENT}, $command);
+  }
+  
+  return 1;
+}
+
+#**********************************************************
+=head2 show_checkboxes_form($list, $checked_hash, $form_main_attr)
+
+=cut
+#**********************************************************
+sub show_checkboxes_form {
+  my ($checkbox_name, $list, $checked_hash, $form_main_attr) = @_;
+  
+  my $checkboxes_html = join('',
+    map {
+      $html->element('div',
+        $html->element('label',
+          $html->form_input($checkbox_name, $_->{id}, { TYPE => 'checkbox', STATE => $checked_hash->{$_->{id}} })
+            . $html->element('strong', $_->{name})
+        ),
+        { class => 'checkbox' }
+      )
+    } @{$list}
+  );
+  
+  print $html->form_main({
+    CONTENT => $checkboxes_html,
+    %$form_main_attr
+  });
 }
 
 1;

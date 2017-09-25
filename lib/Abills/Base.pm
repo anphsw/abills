@@ -95,6 +95,9 @@ our @EXPORT = qw(
   load_pmodule2
 );
 
+# As said in perldoc, should be called once on a program
+srand();
+
 #**********************************************************
 =head2 null() Null function
 
@@ -185,7 +188,7 @@ sub in_array {
        text2html - convert text to HTML
        html2text -
        txt2translit - text to translit
-       json      - Convert \n to \n
+       json      - Convert \n to \\n
 
        Transpation
          win2koi
@@ -252,7 +255,6 @@ sub convert {
   if($attr->{json}) {
     $text =~ s/\n/\\n/g;
   }
-
 
   return $text;
 }
@@ -387,7 +389,7 @@ sub utf82win {
 
   require Encode;
   Encode->import();
-  my $win1251 = Encode::encode('cp1251', Encode::encode('utf8', $text));
+  my $win1251 = Encode::encode('cp1251', Encode::decode('utf8', $text));
 
   return $win1251;
 }
@@ -433,7 +435,7 @@ sub utf82cp866 {
 }
 
 #**********************************************************
-=head2 parse_arguments(\@ARGV) - Parse comand line arguments
+=head2 parse_arguments(\@ARGV, $attr) - Parse comand line arguments
 
   Arguments:
 
@@ -450,7 +452,7 @@ sub utf82cp866 {
 =cut
 #**********************************************************
 sub parse_arguments {
-  my ($argv) = @_;
+  my ($argv, $attr) = @_;
 
   my %args = ();
 
@@ -463,6 +465,16 @@ sub parse_arguments {
       $args{"$line"} = 1;
     }
   }
+
+  if($attr) {
+    foreach my $param ( keys %$attr ) {
+      if($args{$param}) {
+        my $fn = $attr->{$param};
+        &{ \&$fn }();
+      }
+    }
+  }
+
   return \%args;
 }
 
@@ -505,6 +517,8 @@ sub sendmail {
     return 2;
   }
   my $SENDMAIL = (defined($attr->{SENDMAIL_PATH})) ? $attr->{SENDMAIL_PATH} : '/usr/sbin/sendmail';
+
+  $charset //= 'utf-8';
 
   if (!-f $SENDMAIL) {
     print "Mail delivery agent not exists";
@@ -732,6 +746,7 @@ sub mk_unique_value {
   my ($size, $attr) = @_;
   my $symbols = (defined($attr->{SYMBOLS})) ? $attr->{SYMBOLS} : "qwertyupasdfghjikzxcvbnmQWERTYUPASDFGHJKLZXCVBNM123456789";
 
+  my @check_rules = ();
   if ( $attr->{EXTRA_RULES} ){
     my ($chars, $case) = split(':', $attr->{EXTRA_RULES}, 2);
 
@@ -741,16 +756,37 @@ sub mk_unique_value {
     my $numbers = "0123456789";
     my $special = "-_!&%@#:";
 
-    $chars ||= 0; # numeric
-    $case ||= 0;  # lowercase
+    $chars //= 0; # numeric
+    $case //= 0;  # lowercase
 
     my $symbols_ = $numbers;
-    if ($chars == 1) { $symbols_ = $special };  # Special
-    if ($chars == 2) { $symbols_ .= $special }; # Both
-
+    if ($chars == 1) {        # Special
+      $symbols_ = $special;
+      push (@check_rules, $symbols_);
+    }
+    elsif ($chars == 2) {     # Both
+      $symbols_ .= $special;
+      push (@check_rules, $numbers, $special);
+    }
+    elsif ($chars == 3) {     # None of special
+      $symbols_ = '';
+    }
+    else {                    # Numbers only
+      push (@check_rules, $numbers);
+    }
+    
     my $literals = $lowercase;
-    if ($case == 1) { $literals = $lowercase }; # Lowercase
-    if ($case == 2) { $literals .= $uppercase };# Both
+    if ($case == 1) {         # Uppercase
+      $literals = $uppercase;
+      push (@check_rules, $uppercase)
+    }
+    elsif ($case == 2) {         # Both
+      $literals .= $uppercase;
+      push (@check_rules, $lowercase, $uppercase)
+    }
+    else {                    # Lowercase only
+      push (@check_rules, $lowercase);
+    }
 
     $symbols = $symbols_ . $literals;
   }
@@ -759,10 +795,15 @@ sub mk_unique_value {
   my $random = '';
   $size = 6 if (int($size) < 1);
   my $rand_values = length($symbols);
-  srand();
   for (my $i = 0 ; $i < $size ; $i++) {
     $random = int(rand($rand_values));
     $value .= substr($symbols, $random, 1);
+  }
+  
+  foreach my $rule (@check_rules){
+    if ($rule && $value !~ /[$rule]+/ ) {
+      $value = &mk_unique_value;
+    }
   }
 
   return $value;
@@ -834,6 +875,9 @@ sub time2sec {
   Returns:
     array - ($seconds, $minutes, $hours, $days)
     if $attr see 'Arguments'
+
+  Examples:
+    
 
 =cut
 #**********************************************************
@@ -1354,6 +1398,9 @@ sub cmd {
     die unless $@ eq "alarm\n";                  # propagate unexpected errors
     print "timed out\n" if ($debug>2);
   }
+  elsif($!) {
+    $result = $cmd . " : " . $!
+  }
   else {
     print "NO errors\n" if ($debug>2);
   }
@@ -1383,11 +1430,12 @@ sub cmd {
     $cmd     - command for execute
       extra cmd "sleep 10"
     $attr    - Extra params
-      NAS_MNG_IP_PORT  - Server IP:PORT
-      BASE_DIR         - Base dir for certificate BASE_DIR/Certs/id_dsa
+      NAS_MNG_IP_PORT  - Server IP:PORT:SSH_PORT
+      BASE_DIR         - Base dir for certificate BASE_DIR/Certs/id_rsa
       NAS_MNG_USER     - ssh login (Default: abills_admin)
-      SSH_CMD          - ssh command (Default: /usr/bin/ssh -p $nas_port -o StrictHostKeyChecking=no -i $base_dir/Certs/id_dsa.$nas_admin)
+      SSH_CMD          - ssh command (Default: /usr/bin/ssh -p $nas_port -o StrictHostKeyChecking=no -i $base_dir/Certs/id_rsa.$nas_admin)
       SSH_KEY          - (optional) custom certificate file
+      SSH_PORT         - Custom ssh port
       DEBUG            - Debug mode
 
   Returns:
@@ -1400,7 +1448,7 @@ sub cmd {
 
     make
 
-    /usr/bin/ssh -p 22 -o StrictHostKeyChecking=no -i /usr/abills/Certs/id_dsa.abills_admin abills_admin@192.168.0.12 '$cmd'
+    /usr/bin/ssh -p 22 -o StrictHostKeyChecking=no -i /usr/abills/Certs/id_rsa.abills_admin abills_admin@192.168.0.12 '$cmd'
 
 =cut
 #**********************************************************
@@ -1415,21 +1463,32 @@ sub ssh_cmd {
     return \@value;
   }
 
+  # IP : POD/COA : SSH/TELNET : SNMP port
   my @mng_array = split(/:/, $attr->{NAS_MNG_IP_PORT});
   my $nas_host  = $mng_array[0];
   my $nas_port  = 22;
 
-  if ($#mng_array < 1) {
-    $nas_port=22;
+  if($attr->{SSH_PORT}) {
+    $nas_port=$attr->{SSH_PORT};
   }
-  else {
-    $nas_port=$mng_array[$#mng_array];
+  elsif ($#mng_array > 1) {
+    $nas_port=$mng_array[2];
   }
 
-  my $base_dir  = $attr->{BASE_DIR}    || '/usr/abills/';
+  $nas_port //= 22;
+
+  my $base_dir = $attr->{BASE_DIR} || '/usr/abills/';
+  
+  # Check for KnownHosts file
+  my $known_hosts_file = "$base_dir/Certs/known_hosts";
+  my $known_hosts_option = " -o UserKnownHostsFile=$known_hosts_file"
+   ." -o CheckHostIP=no";
+  
   my $nas_admin = $attr->{NAS_MNG_USER}|| 'abills_admin';
-  my $ssh_key   = $attr->{SSH_KEY} || "$base_dir/Certs/id_dsa." . $nas_admin;
-  my $SSH       = $attr->{SSH_CMD}     || "/usr/bin/ssh -p $nas_port -o StrictHostKeyChecking=no -i " . $ssh_key;
+  my $ssh_key   = $attr->{SSH_KEY}     || "$base_dir/Certs/id_rsa." . $nas_admin;
+  my $SSH       = $attr->{SSH_CMD}     || "/usr/bin/ssh -q -p $nas_port $known_hosts_option"
+                                            . " -o StrictHostKeyChecking=no -i " . $ssh_key;
+  
   my @cmd_arr = ();
   if (ref $cmd eq 'ARRAY') {
     @cmd_arr = @{ $cmd };
@@ -1576,6 +1635,8 @@ sub date_format {
       BREAK_LINE     - Break line symbols
       TO_WEB_CONSOLE - print to browser debug console via JavaScript
       TO_CONSOLE     - print without HTML formatting
+      IN_JSON        - surround with JSON comment tags ( used only with IN_CONSOLE )
+      
       SORT           - Sort hash keys
 
   Returns:
@@ -1669,6 +1730,11 @@ sub _bp {
     if ( $attr->{BREAK_LINE} ){
       $console_log_string =~ s/[\n]/$attr->{BREAK_LINE}/g;
     }
+    
+    if ($attr->{IN_JSON}){
+      $console_log_string = " /* \n $console_log_string \n */ ";
+    }
+    
     print $console_log_string . "\n";
   }
   else{
@@ -1677,7 +1743,7 @@ sub _bp {
     $result_string =~ s/\s/\&nbsp\;/g;
 
     my $html_log_string = "<hr/><div class='text-left'><b>[ $filename : $line ]</b>$break_line" . uc ( $explanation ) . " : " . $result_string . "</div>";
-    print $html_log_string . "\n";
+    print $html_log_string . $break_line;
   }
 
   if ( $attr->{EXIT} ){
@@ -1749,8 +1815,10 @@ sub startup_files {
 	my ($attr) = @_;
 
   my %startup_files = ();
-
-	my $startup_conf = '/usr/abills/Abills/programs';
+  our $base_dir;
+  $base_dir //= '/usr/abills/';
+  
+	my $startup_conf = $base_dir . '/Abills/programs';
 	if ( $attr->{TPL_DIR} ) {
 	  if (-e "$attr->{TPL_DIR}/programs.tpl") {
 	    $startup_conf = "$attr->{TPL_DIR}/programs.tpl";
@@ -1850,9 +1918,10 @@ sub days_in_month {
       DATE      - Curdate
       END       - End off month
       PERIOD    - Month period
+      DAY
 
   Return:
-    $next_month
+    $next_month (YYYY-MM-DD)
 
   Examples:
     next_month({ DATE => '2016-03-12' });
@@ -1893,7 +1962,10 @@ sub next_month {
   }
 
   $D = '01';
-  if($attr->{END}) {
+  if($attr->{DAY}) {
+    $D = $attr->{DAY};
+  }
+  elsif($attr->{END}) {
     $D = ($M != 2 ? (($M % 2) ^ ($M > 7)) + 30 : (!($Y % 400) || !($Y % 4) && ($Y % 25) ? 29 : 28));
   }
 
@@ -1903,7 +1975,7 @@ sub next_month {
 }
 
 #**********************************************************
-=head2 show_hash($hash)
+=head2 show_hash($hash, $attr) - show hash
 
   Arguments:
     $hash_ref
@@ -1922,16 +1994,17 @@ sub show_hash {
   if(ref $hash ne 'HASH') {
     return 0;
   }
+
   my $result = '';
   foreach my $key (sort keys %$hash) {
     $result .= "$key - ";
     if (ref $hash->{$key} eq 'HASH') {
-      $result .= show_hash($hash->{$key}, { %$attr, OUTPUT2RETURN => 1 });
+      $result .= show_hash($hash->{$key}, { %{ ($attr) ? $attr : {}}, OUTPUT2RETURN => 1 });
     }
     elsif(ref $hash->{$key} eq 'ARRAY') {
       foreach my $key_ (@{ $hash->{$key} }) {
         if(ref $key_ eq 'HASH') {
-          $result .= show_hash($key_, { %$attr, OUTPUT2RETURN => 1 });
+          $result .= show_hash($key_, { %{ ($attr) ? $attr : {}}, OUTPUT2RETURN => 1 });
         }
         else {
           $result .= $key_;
@@ -1939,7 +2012,7 @@ sub show_hash {
       }
     }
     else {
-      $result .= $hash->{$key};
+      $result .= (defined($hash->{$key})) ? $hash->{$key} : q{};
     }
     $result .= ($attr->{DELIMITER} || ',');
   }

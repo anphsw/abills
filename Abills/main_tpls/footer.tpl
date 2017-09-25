@@ -21,3 +21,5 @@
 <!-- Control Sidebar -->
 %RIGHT_MENU%
 <script src="/styles/lte_adm/dist/js/control-sidebar.js"></script>
+%PUSH_SCRIPT%
+

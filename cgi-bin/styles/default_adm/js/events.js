@@ -53,6 +53,7 @@ function EventsAbstract() {
  */
 EventsAbstract.prototype.on = function (topic, listener) {
   if (this.debug > 1) console.log('[ Events ] listen to :', topic);
+  if (this.debug > 3) console.trace();
   this.topics[topic] = this.topics[topic] || [];
   
   return new EventGuard(this, topic, this.topics[topic].push(listener) - 1);
@@ -102,7 +103,7 @@ EventsAbstract.prototype.once = function once(topic, listener) {
  * @param data
  */
 EventsAbstract.prototype.emit = function emit(topic, data) {
-  if (this.debug != 0) {
+  if (this.debug !== 0) {
     console.log('[ Events ] emmitted :', topic);
     if (this.debug > 2) console.trace();
   }

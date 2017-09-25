@@ -1,28 +1,41 @@
 #!/usr/bin/perl -w
-# Log grabber
+=head1
 
+ DHCP Log grabber
 
-use vars  qw(%conf $db $DATE $TIME);
+=cut
+
+our(%conf, $DATE, $TIME);
 use strict;
+BEGIN {
+  use FindBin '$Bin';
+  our $libpath = $Bin . '/../';
+  my $sql_type = 'mysql';
+  unshift( @INC,
+    $libpath,
+    $libpath . "Abills/$sql_type/",
+    $libpath . 'Abills/modules/',
+    $libpath . 'lib/' );
 
-my $version = 0.04;
-my $debug = 1;
+  eval { require Time::HiRes; };
+  our $begin_time = 0;
+  if ( !$@ ){
+    Time::HiRes->import( qw(gettimeofday) );
+    $begin_time = Time::HiRes::gettimeofday();
+  }
+}
+
+use warnings FATAL => 'all';
 
 use FindBin '$Bin';
 require $Bin . '/config.pl';
-unshift(@INC, $Bin . '/../', $Bin . "/../Abills/$conf{dbtype}");
-require Abills::Base;
-Abills::Base->import();
+use Abills::Base qw(check_time);
 use POSIX qw(strftime);
+use Admins;
+use Abills::SQL;
+use Dhcphosts;
 
-my $begin_time = check_time();
-
-require Abills::SQL;
-require Dhcphosts;
-Dhcphosts->import();
-
-my $sql = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd});
-my $db  = $sql->{db};
+my $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd});
 my $Dhcphosts = Dhcphosts->new($db, undef, \%conf);
 
 my %DHCP_MESSAGE_TYPES = (

@@ -5,7 +5,7 @@
         %HIDDEN_FIELDS%
         <div class='col-xs-12 '>
             <div class='box box-theme box-form'>
-                <div class='box-header with-border'>_{SEARCH}_</div>
+                <div class='box-header with-border'><h4 class='box-title'>_{SEARCH}_</h4></div>
 
                 <div class='box-body'>
 

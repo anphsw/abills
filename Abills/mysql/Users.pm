@@ -70,32 +70,39 @@ sub info {
   }
 
   my $WHERE='';
+  my @values   = ();
 
   if (defined($attr->{LOGIN}) && defined($attr->{PASSWORD})) {
-    $WHERE = "WHERE u.id='$attr->{LOGIN}' and DECODE(u.password, '$self->{conf}->{secretkey}')='$attr->{PASSWORD}'";
-    if (defined($attr->{ACTIVATE})) {
+    $WHERE = "WHERE u.id=? and DECODE(u.password, '$self->{conf}->{secretkey}')= ? ";
+    @values= ($attr->{LOGIN}, $attr->{PASSWORD});
+
+    if ($attr->{ACTIVATE}) {
       my $value = $self->search_expr("$attr->{ACTIVATE}", 'INT');
-      $WHERE .= " and u.activate$value";
+      $WHERE .= " AND u.activate$value";
     }
 
-    if (defined($attr->{EXPIRE})) {
+    if ($attr->{EXPIRE}) {
       my $value = $self->search_expr("$attr->{EXPIRE}", 'INT');
-      $WHERE .= " and u.expire$value";
+      $WHERE .= " AND u.expire$value";
     }
 
     if (defined($attr->{DISABLE})) {
-      $WHERE .= " and u.disable='$attr->{DISABLE}'";
+      $WHERE .= " AND u.disable= ? ";
+      push @values, $attr->{DISABLE};
     }
   }
   elsif ($attr->{LOGIN}) {
-    $WHERE = "WHERE u.id='$attr->{LOGIN}'";
+    $WHERE = "WHERE u.id= ? ";
+    push @values, $attr->{LOGIN};
   }
   else {
-    $WHERE = "WHERE u.uid='$uid'";
+    $WHERE = "WHERE u.uid= ? ";
+    push @values, $uid;
   }
 
   if ($attr->{DOMAIN_ID}) {
-    $WHERE .= "AND u.domain_id='$attr->{DOMAIN_ID}'";
+    $WHERE .= "AND u.domain_id= ? ";
+    push @values, $attr->{DOMAIN_ID};
   }
 
   my $password = "''";
@@ -113,16 +120,16 @@ sub info {
    u.reduction,
    u.registration,
    u.disable,
-   if(u.company_id > 0, cb.id, b.id) AS bill_id,
-   if(c.name IS NULL, b.deposit, cb.deposit) AS deposit,
+   IF(u.company_id > 0, cb.id, b.id) AS bill_id,
+   IF(c.name IS NULL, b.deposit, cb.deposit) AS deposit,
    u.company_id,
-   if(c.name IS NULL, '', c.name) AS company_name,
-   if(c.name IS NULL, 0, c.vat) AS company_vat,
-   if(c.name IS NULL, b.uid, cb.uid) AS bill_owner,
-   if(u.company_id > 0, c.ext_bill_id, u.ext_bill_id) AS ext_bill_id,
+   IF(c.name IS NULL, '', c.name) AS company_name,
+   IF(c.name IS NULL, 0, c.vat) AS company_vat,
+   IF(c.name IS NULL, b.uid, cb.uid) AS bill_owner,
+   IF(u.company_id > 0, c.ext_bill_id, u.ext_bill_id) AS ext_bill_id,
    u.credit_date,
    u.reduction_date,
-   if(c.name IS NULL, 0, c.credit) AS company_credit,
+   IF(c.name IS NULL, 0, c.credit) AS company_credit,
    u.domain_id,
    u.deleted,
    $password
@@ -133,7 +140,9 @@ sub info {
      LEFT JOIN bills cb ON (c.bill_id=cb.id)
      $WHERE;",
    undef,
-   { INFO => 1 }
+   { INFO => 1,
+     Bind => \@values
+   }
   );
 
   if ((!$admin->{permissions}->{0} || !$admin->{permissions}->{0}->{8}) && ($self->{DELETED})) {
@@ -191,6 +200,7 @@ sub pi_add {
 
   return [ ] if ($self->{errno});
 
+  $admin->{MODULE}=q{};
   $admin->action_add("$attr->{UID}", "PI", { TYPE => 1 });
   return $self;
 }
@@ -250,22 +260,41 @@ sub pi {
     require Contacts;
     Contacts->import();
     my $Contacts = Contacts->new($self->{db}, $admin, $self->{conf});
-        
-    my $phone_type_id = $Contacts->contact_type_id_for_name('PHONE');
-    my $email_type_id = $Contacts->contact_type_id_for_name('EMAIL');
+
+    my $contact_types = $Contacts->contact_types_list({
+      ID   => '_SHOW',
+      NAME => '_SHOW',
+      COLS_NAME => 1,
+      PAGE_ROWS => 10000
+    });
+
     my $contacts = $Contacts->contacts_list({
       UID       => $uid,
       VALUE     => '_SHOW',
-      TYPE      => $phone_type_id . ';' . $email_type_id,
-      COLS_NAME => 1
-    });
+      TYPE      => '_SHOW',
+      COLS_NAME => 1,
+      PAGE_ROWS => 10000,
+      SORT      => 'priority'
+    }) if ( !$Contacts->{errno} && $contact_types && ref $contact_types);
     
     if (!$Contacts->{errno} && $contacts && ref $contacts){
-      my @phones = grep { $_->{type_id} == $phone_type_id } @{$contacts};
-      my @emails = grep { $_->{type_id} == $email_type_id } @{$contacts};
       
-      $self->{PHONE} = join(', ', map {$_->{value} } @phones);
-      $self->{EMAIL} = join(', ', map {$_->{value} } @emails);
+      foreach my $cont_type (@$contact_types){
+        my $uc_contact_type_name = uc ($cont_type->{name});
+        my @contacts_for_type = grep { $_->{type_id} == $cont_type->{id} } @$contacts;
+        
+        $self->{$uc_contact_type_name . '_ALL'} = join(', ', map {$_->{value} || ''} @contacts_for_type);
+        if (@contacts_for_type) {
+          
+          for ( my $i = 0; $i <= $#contacts_for_type; $i++ ) {
+            $self->{ $uc_contact_type_name . ($i > 0 ? '_' . $i : '' )} = $contacts_for_type[$i]->{value};
+          }
+        }
+        else {
+          $self->{ $uc_contact_type_name } = '';
+        }
+      }
+      $self->{PHONE} ||= $self->{CELL_PHONE};
       
       $self->{CONTACTS_NEW_APPENDED} = 1;
     }
@@ -326,10 +355,34 @@ sub pi_change {
 
   $admin->{MODULE} = '';
   
-  if ($self->{conf}{CONTACTS_NEW} && ($attr->{PHONE} || $attr->{EMAIL})){
-    # TODO split and insert to users contacts
+  if ( $self->{conf}->{CONTACTS_NEW} ) {
+    my $phone_changed = defined $self->{PHONE} && $attr->{PHONE} && $self->{PHONE} ne $attr->{PHONE};
+    my $mail_changed = defined $self->{EMAIL} && $attr->{EMAIL} && $self->{EMAIL} ne $attr->{EMAIL};
+    
+    if ( $phone_changed || $mail_changed ) {
+      
+      require Contacts;
+      Contacts->import();
+      my $Contacts = Contacts->new($self->{db}, $self->{admin}, $self->{conf});
+      
+      if ( $phone_changed ) {
+        # MAYBE check it is really a cell phone via regexp
+        $Contacts->contacts_change_all_of_type($Contacts::TYPES{CELL_PHONE}, {
+            UID   => $self->{UID},
+            VALUE => $attr->{PHONE}
+          });
+        delete $attr->{PHONE};
+      }
+      if ( $mail_changed ) {
+        $Contacts->contacts_change_all_of_type($Contacts::TYPE{EMAIL}, {
+            UID   => $self->{UID},
+            VALUE => $attr->{EMAIL}
+          });
+        delete $attr->{EMAIL};
+      }
+    }
   }
-
+  
   $self->changes2({
     CHANGE_PARAM => 'UID',
     TABLE        => 'users_pi',
@@ -353,11 +406,11 @@ sub groups_list {
   my @WHERE_RULES = ();
 
   # Show groups
-  if ($attr->{GIDS}) {
+  if ($attr->{GIDS} || $admin->{GIDS}) {
     if ($admin->{GIDS}) {
       my @result_gids = ();
       my @admin_gids  = split(/, /, $admin->{GIDS});
-      my @attr_gids   = split(/, /, $attr->{GIDS});
+      my @attr_gids   = split(/, /, $attr->{GIDS} || q{});
 
       foreach my $attr_gid ( @attr_gids ) {
         foreach my $admin_gid (@admin_gids)  {
@@ -395,8 +448,6 @@ sub groups_list {
       WHERE_RULES => \@WHERE_RULES
     }
   );
-
-  #my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
   $self->query2("SELECT g.gid, g.name, g.descr, COUNT(u.uid) AS users_count, g.allow_credit,
         g.disable_paysys,
@@ -521,6 +572,11 @@ sub list {
     $attr->{SKIP_DEL_CHECK}=1;
   }
 
+  if ($attr->{TAGS} && $attr->{TAGS} eq '!') {
+    push @WHERE_RULES, "u.uid NOT IN (SELECT uid FROM tags_users)";
+    delete ($attr->{TAGS});
+  }
+
   my @ext_fields = (
     'FIO',
     'DEPOSIT',
@@ -564,15 +620,15 @@ sub list {
 
   # Show debeters
   if ($attr->{DEBETERS}) {
-    push @WHERE_RULES, "b.deposit<0";
+    #push @WHERE_RULES, "b.deposit<0";
+    push @WHERE_RULES, "IF(company.id IS NULL, b.deposit, cb.deposit)<0";
   }
 
   if (defined($attr->{DISABLE}) && $attr->{DISABLE} ne '') {
     push @WHERE_RULES, @{ $self->search_expr($attr->{DISABLE}, 'INT', 'u.disable') };
   }
-
   if ($attr->{ACTIVE}) {
-    push @WHERE_RULES, "(u.expire = '0000-00-00' OR u.expire>CURDATE()) AND u.credit + if(company.id IS NULL, b.deposit, cb.deposit) > 0 AND u.disable=0 ";
+    push @WHERE_RULES, "(u.expire = '0000-00-00' OR u.expire>CURDATE()) AND u.credit + IF(company.id IS NULL, b.deposit, cb.deposit) > 0 AND u.disable=0 ";
   }
 
   my $EXT_TABLES = $self->{EXT_TABLES};
@@ -585,10 +641,10 @@ sub list {
     $EXT_TABLES .= "LEFT JOIN payments p ON (p.uid=u.uid && p.date > DATE_FORMAT(CURDATE(), '%Y-%m-01 00:00:00'))";
     push @WHERE_RULES, "p.date IS NULL";
   }
+
   #Show last paymenst
   if ($attr->{PAYMENTS} || $attr->{PAYMENT_DAYS}) {
     my @HAVING_RULES = @WHERE_RULES;
-
     if ($attr->{PAYMENTS}) {
       my $value = @{ $self->search_expr($attr->{PAYMENTS}, 'INT') }[0];
       push @WHERE_RULES,  "p.date$value";
@@ -612,16 +668,16 @@ sub list {
        $self->{SEARCH_FIELDS}
        u.uid,
        u.company_id,
-       pi.email,
        u.activate,
        u.expire,
        u.gid,
        b.deposit,
        u.domain_id,
+       company.id,
+       cb.deposit,
        u.deleted
      FROM users u
      LEFT JOIN payments p ON (u.uid = p.uid)
-
      $EXT_TABLES
      GROUP BY u.uid
      $HAVING
@@ -629,6 +685,7 @@ sub list {
      undef,
      $attr
     );
+
     return [ ] if ($self->{errno});
 
     my $list = $self->{list};
@@ -647,11 +704,10 @@ sub list {
 
       my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-      $self->query2("SELECT count(DISTINCT u.uid) AS total FROM users u
-       LEFT JOIN users_pi pi ON (u.uid = pi.uid)
-       LEFT JOIN bills b ON (u.bill_id = b.id)
+      $self->query2("SELECT COUNT(DISTINCT u.uid) AS total FROM users u
+       $EXT_TABLES
        LEFT JOIN (
-          SELECT max(date) AS date, uid FROM payments GROUP BY uid
+          SELECT MAX(date) AS date, uid FROM payments GROUP BY uid
         ) AS p  ON u.uid=p.uid
        $WHERE;",
       undef,
@@ -689,7 +745,6 @@ sub list {
        $self->{SEARCH_FIELDS}
        u.uid,
        u.company_id,
-       pi.email,
        u.activate,
        u.expire,
        u.gid,
@@ -724,9 +779,8 @@ sub list {
 
       $self->query2("SELECT count(DISTINCT u.uid) AS total FROM users u
        LEFT JOIN fees f ON (u.uid = f.uid)
-       LEFT JOIN users_pi pi ON (u.uid = pi.uid)
-       LEFT JOIN bills b ON (u.bill_id = b.id)
-      $WHERE;",
+       $EXT_TABLES
+       $WHERE;",
       undef,
       { INFO => 1 }
       );
@@ -742,7 +796,7 @@ sub list {
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE (" . join($where_delimeter, @WHERE_RULES) .')' : '';
 
-  if ($admin->{GID}) {
+  if (! $attr->{GID} && $admin->{GID}) {
     $WHERE .= (($WHERE) ? 'AND' : '') ." u.gid IN ($admin->{GID})";
   }
 
@@ -750,14 +804,20 @@ sub list {
     $WHERE .= " AND u.deleted=0";
   }
 
+  if($self->{SORT_BY}) {
+    $SORT=$self->{SORT_BY};
+  }
+
   $self->query2("SELECT u.id AS login,
       $self->{SEARCH_FIELDS}
       u.uid
-     FROM users u
-     $EXT_TABLES
-     $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-     undef,
-     $attr
+    FROM users u
+    $EXT_TABLES
+    $WHERE
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
   );
 
   return [ ] if ($self->{errno});
@@ -792,7 +852,10 @@ sub add {
     return $self;
   }
 
-  if (! $attr->{LOGIN}) {
+  if($CONF->{USERNAME_CREATE_FN}) {
+
+  }
+  elsif (! $attr->{LOGIN}) {
     #check autofill trigger
     $self->query2("SHOW TRIGGERS WHERE `Trigger` = 'login_id';");
     if (! $self->{TOTAL}) {
@@ -836,10 +899,28 @@ sub add {
   return $self if ($self->{errno});
 
   $self->{UID}   = $self->{INSERT_ID};
-  $self->{LOGIN} = $attr->{LOGIN} || $self->{UID};
+
+  if($CONF->{USERNAME_CREATE_FN}) {
+    my $fn = $CONF->{USERNAME_CREATE_FN};
+    my $login = &{ \&$fn  }($self);
+
+    $self->change(
+      $self->{UID},
+      {
+        DISABLE => int($attr->{DISABLE} || 0),
+        ID      => $login,
+        UID     => $self->{UID},
+      }
+    );
+    $self->{LOGIN} = $login;
+  }
+  else {
+    $self->{LOGIN} = $attr->{LOGIN} || $self->{UID};
+  }
 
   $admin->{MODULE} = '';
-  $admin->action_add($self->{UID}, "LOGIN:$self->{LOGIN}", { TYPE => 7 });
+
+  $admin->action_add($self->{UID}, "LOGIN: $self->{LOGIN}", { TYPE => 7 });
 
   if ($attr->{CREATE_BILL}) {
     $self->change(
@@ -854,6 +935,28 @@ sub add {
   }
 
   return $self;
+}
+
+#**********************************************************
+=head2 login_create($self)
+
+=cut
+#**********************************************************
+sub login_create {
+  my($self)=@_;
+
+  my $result = '';
+
+  my $control_num1 = '2 4 10 2 5';
+  my @control_arr = split(/ /, $control_num1);
+  my @main_arr = split(//, $self->{UID});
+  my $sum = 0;
+  for(my $i=0; $i<=$#main_arr; $i++) {
+    $sum += $main_arr[$i] * $control_arr[$i];
+  }
+  ($result) = split(//, $sum - int($sum/11)*11);
+
+  return $self->{UID}.$result;
 }
 
 #**********************************************************
@@ -919,6 +1022,7 @@ sub change {
       TABLE        => 'users',
       DATA         => $attr,
       ACTION_ID    => $attr->{ACTION_ID},
+      ACTION_COMMENTS => $attr->{ACTION_COMMENTS}
     }
   );
 
@@ -928,12 +1032,20 @@ sub change {
 #**********************************************************
 =head2 del(attr) - Delete user info from all tables
 
+  Arguments:
+     $attr
+       COMMENTS
+       FULL_DELETE
+
+  Results
+
 =cut
 #**********************************************************
 sub del {
   my $self = shift;
   my ($attr) = @_;
 
+  my $comments = ($attr->{COMMENTS}) ? ' '.$attr->{COMMENTS}: q{};
   if ($attr->{FULL_DELETE}) {
     my @clear_db = ('admin_actions', 'fees', 'payments', 'users_nas', 'users', 'users_pi', 'shedule', 'msgs_messages');
 
@@ -953,10 +1065,15 @@ sub del {
     $Attach->attachment_del({ UID => $self->{UID}, FULL_DELETE => 1 });
 
     $admin->{MODULE} = '';
-    $admin->action_add($self->{UID}, "DELETE $self->{UID}:$self->{LOGIN}", { TYPE => 12 });
+    $admin->action_add($self->{UID}, "DELETE $self->{UID}:$self->{LOGIN}$comments", { TYPE => 12 });
   }
   else {
-    $self->change($self->{UID}, { DELETED => 1, ACTION_ID => 12, UID => $self->{UID} });
+    $self->change($self->{UID}, {
+      DELETED   => 1,
+      ACTION_ID => 12,
+      ACTION_COMMENTS => $comments,
+      UID       => $self->{UID}
+    });
   }
 
   return $self->{result};
@@ -984,7 +1101,9 @@ sub nas_list {
 }
 
 #**********************************************************
-# list_allow nass
+=head2 nas_add(\@nas)
+
+=cut
 #**********************************************************
 sub nas_add {
   my $self = shift;
@@ -1009,7 +1128,9 @@ sub nas_add {
 }
 
 #**********************************************************
-# nas_del
+=head2 nas_del()
+
+=cut
 #**********************************************************
 sub nas_del {
   my $self = shift;
@@ -1059,7 +1180,7 @@ sub bruteforce_list {
 
   my $WHERE = $self->search_former($attr, [
       ['LOGIN',             'STR', 'login',         ],
-      ['AUTH_STATE',        'INT', 'auth_state',       ],
+      ['AUTH_STATE',        'INT', 'auth_state',    ],
     ],
     { WHERE       => 1,
     }
@@ -1076,7 +1197,8 @@ sub bruteforce_list {
     $self->query2("SELECT login, password, datetime, $count, INET_NTOA(ip) AS ip FROM users_bruteforce
       $WHERE
       $GROUP
-      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+      ORDER BY $SORT $DESC
+      LIMIT $PG, $PAGE_ROWS;",
       undef,
       $attr
     );
@@ -1092,7 +1214,7 @@ sub bruteforce_list {
 }
 
 #**********************************************************
-=head2 bruteforce_del() - clear bruterforce listing
+=head2 bruteforce_del($attr) - clear bruterforce listing
 
 =cut
 #**********************************************************
@@ -1103,7 +1225,7 @@ sub bruteforce_del {
   my $WHERE = "";
 
   if ($attr->{DATE}) {
-    $WHERE = "datetime <= '$attr->{DATE} 24:00:00'";
+    $WHERE = "datetime <= '$attr->{DATE} 23:59:59'";
   }
   elsif($attr->{LOGIN}){
     $WHERE = "login='$attr->{LOGIN}'";
@@ -1305,6 +1427,30 @@ sub web_session_del {
 
   return $self;
 }
+
+#**********************************************************
+=head2 web_session_find($sid) - Returns session_info by sid
+
+  Arguments:
+    $sid -
+    
+  Returns:
+    hash_ref - info
+    
+=cut
+#**********************************************************
+sub web_session_find {
+  my ($self, $sid) = @_;
+  
+  return 0 unless ( $sid );
+  
+  $self->query2("SELECT uid FROM web_users_sessions WHERE sid= ?", undef, {
+      Bind      => [ $sid ]
+    });
+  
+  return ($self->{list} && $self->{list}->[0]) ? $self->{list}->[0][0] : 0;
+}
+
 
 #**********************************************************
 =head2 info_field_attach_add($attr) - Info fields attach add
@@ -1612,7 +1758,7 @@ sub report_users_summary {
 
   my $WHERE = ($#WHERE_RULES > -1) ? "AND " . join(' AND ', @WHERE_RULES) : '';
 
-  $self->query2("SELECT count(*) AS total_users,
+  $self->query2("SELECT COUNT(*) AS total_users,
       SUM(IF(u.disable>0, 1, 0)) AS disabled_users,
       SUM(IF(u.credit>0, 1, 0)) AS creditors_count,
       SUM(IF(u.credit>0, u.credit, 0)) AS creditors_sum,

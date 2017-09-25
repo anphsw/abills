@@ -7,7 +7,7 @@
 %JSON%
 
 <div class='box box-theme box-form'>
-    <div class='box-header with-border text-primary'>_{POLL}_</div>
+    <div class='box-header with-border text-primary'><h3>_{POLL}_</h3></div>
 
 <div class='box-body'>
   <div class='form-group'>

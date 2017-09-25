@@ -193,7 +193,7 @@ sub price_main {
       DEFAULT_FIELDS  => 'NAME,PRICE,COMMENTS',
       FUNCTION_FIELDS => 'del, change',
       EXT_TITLES      => {
-        'id'       => "$lang{ID}",
+        'id'       => "ID",
         'name'     => "$lang{NAME}",
         'price'    => "$lang{PRICE}",
         'comments' => "$lang{COMMENTS}"

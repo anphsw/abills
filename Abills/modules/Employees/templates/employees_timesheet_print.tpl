@@ -4,7 +4,7 @@
 
 <h2 align="center">ТАБЕЛЬ</h2>
 <br>
-<h4 align="center">_{TIME_TRACKING_EMPLOYEE}_ ___________________________ _{FOR}_ %MONTH% _{MONTH}_ ____  р.</h4>
+<h4 align="center">_{TIME_TRACKING_EMPLOYEE}_ ___________________________ _{FOR}_ %MONTH% _{MONTH}_ %YEAR%  р.</h4>
 <br>
 
 

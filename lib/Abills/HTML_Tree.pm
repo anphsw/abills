@@ -1,5 +1,8 @@
 package Abills::HTML_Tree;
 use strict;
+
+use v5.16;
+
 #**********************************************************
 =head2 new() - constructor for HTML_Tree
 
@@ -58,6 +61,8 @@ my $items;
       LEVELS   - number of levels to display. Default is to count it automatically
       CHECKBOX - boolean, will build a checkbox at last level
       NAME     - string, name for a checkbox
+      
+      LAST_LEVEL_CLICKABLE - changes style of last level (cursor : pointer)
 
       COL_SIZE - width of menu. Default is 3 if LEVELS <= 6, and 6 otherwise
 
@@ -99,16 +104,29 @@ sub tree_menu {
 
   my $parentness_hash = ($attr->{PARENTNESS_HASH}) ? $attr->{PARENTNESS_HASH} : $self->build_parentness_tree( $list,
       $attr );
-
-  #get number of levels
+  
+  # Get number of levels
   $levels = $attr->{LEVELS} || count_levels( $parentness_hash );
 
   my $col_size = ($attr->{COL_SIZE}) ? $attr->{COL_SIZE} : ($levels && $levels > 6) ? 6 : 3;
 
+  # Will only put script for first tree
+  state $scripts_showed = 0;
+  my $tree_script = '';
+  if (!$scripts_showed){
+    $tree_script = "
+        <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/tree.css'>
+        <script src='/styles/default_adm/js/tree_menu.js'></script>
+    ";
+    $scripts_showed = 1;
+  }
+  
+  my $clickable = ($attr->{LAST_LEVEL_CLICKABLE}) ? 'clickable' : '';
+  
   return "
     <div class='col-md-$col_size text-left'>
-    <ul class='nav main well'>\n".render_tree( $list, $parentness_hash ).'</ul>'."
-    <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/tree.css'>
+    <ul class='nav main well tree-menu $clickable'>\n" . render_tree( $list, $parentness_hash ) . '</ul>'."
+      $tree_script
     </div>";
 }
 
@@ -222,7 +240,7 @@ sub render_branch {
     }
     else {
 
-      $result .= "<li>$checkbox<span>$current_item_name</span></li>\n";
+      $result .= "<li>$checkbox<span class='tree-item'>$current_item_name</span>\n";
     }
     $result .= "</li>\n";
   }
@@ -320,29 +338,27 @@ sub step_to_level {
 #**********************************************************
 sub build_parentness_tree {
   my $self = shift;
-
   my ($array, $attr_) = @_;
+  
   my $parent_key = $attr_->{PARENT_KEY} || 'PARENT_ID';
-  my $id_key_ = $attr_->{ID_KEY} || 'ID';
-  my $root_value = ($attr_->{ROOT_VALUE}) 
-    ? $attr_->{ROOT_VALUE}
-    : '0';
-    
-  #builds one level hash of direct parents and children relations.
-  my $parents = {};
+  my $id_key_    = $attr_->{ID_KEY}     || 'ID';
+  my $root_value = $attr_->{ROOT_VALUE} || '0';
+        
+  # Builds one level hash of direct parents and children relations.
+  my %parents = ();
   foreach my $hash (@{ $array }) {
-    if ($parents->{ $hash->{ $parent_key } }) {
-      push @{ $parents->{ $hash->{ $parent_key } } }, $hash->{ $id_key_ };
+    if ($parents{ $hash->{ $parent_key } }) {
+      push @{ $parents{ $hash->{ $parent_key } } }, $hash->{ $id_key_ };
     }
     else {
-      $parents->{ $hash->{ $parent_key } } = [ $hash->{ $id_key_ } ];
+      $parents{ $hash->{ $parent_key } } = [ $hash->{ $id_key_ } ];
     }
   }
-
+  
   my %result_tree = ();
 
-  foreach my $first_level_id (@{ $parents->{$root_value} }) {
-    build_next_level( $first_level_id, \%result_tree , $parents );
+  foreach my $first_level_id (@{ $parents{$root_value} }) {
+    build_next_level( $first_level_id, \%result_tree , \%parents );
   }
 
   return \%result_tree;

@@ -65,7 +65,9 @@ sub dv_get_fee {
       print "LOGIN: $u->{login} DEPOSIT: $u->{deposit} CREDIT: $u->{credit} STATUS: $u->{dv_status} MONTH_FEE: $u->{month_fee}\n";
     }
 
-    if($u->{deposit} + $u->{credit} > $u->{month_fee}) {
+    my $credit = ($u->{tp_credit} > 0 ) ? $u->{tp_credit} : $u->{credit};
+
+    if($u->{deposit} + $credit > $u->{month_fee}) {
       $Dv->change(
         {
           UID    => $uid,

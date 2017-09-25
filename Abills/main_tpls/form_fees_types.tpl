@@ -5,7 +5,7 @@
         <input type=hidden name=subf value='$FORM{subf}'>
         <div class='box box-theme box-form'>
             <div class='box-header with-border'>
-                _{FEES}_ _{TYPES}_
+                <h4>_{FEES}_ _{TYPES}_</h4>
             </div>
             <div class='box-body'>
                 <div class='form-group'>

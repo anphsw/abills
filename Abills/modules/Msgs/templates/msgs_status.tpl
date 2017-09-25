@@ -33,6 +33,13 @@
    </div>
 
   <div class='form-group'>
+      <label class='col-md-3 control-label'>_{ICON}_</label>
+      <div class='col-md-9'>
+          <input type='text' class='form-control' name='ICON' value='%ICON%'>
+      </div>
+   </div>
+
+  <div class='form-group'>
     <div class='checkbox'>
       <label class='col-md-3'></label>
     <label>

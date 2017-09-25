@@ -6,7 +6,6 @@
 
 =cut
 
-
 use strict;
 use warnings;
 
@@ -63,12 +62,15 @@ if($html->{language} ne 'english') {
   do $libpath . "/language/english.pl";
 }
 
-do $libpath . "/language/$html->{language}.pl";
+if(-f $libpath . "/language/$html->{language}.pl") {
+  do $libpath."/language/$html->{language}.pl";
+}
+
 our $sid = $FORM{sid} || $COOKIES{sid} || '';    # Session ID
 $html->{CHARSET} = $CHARSET if ($CHARSET);
 
 our $admin = Admins->new($db, \%conf);
-$admin->info($conf{USERS_WEB_ADMIN_ID} ? $conf{USERS_WEB_ADMIN_ID} : $conf{SYSTEM_ADMIN_ID},
+$admin->info($conf{USERS_WEB_ADMIN_ID} ? $conf{USERS_WEB_ADMIN_ID} : 3,
                  { DOMAIN_ID => $FORM{DOMAIN_ID},
                    IP        => $ENV{REMOTE_ADDR},
                    SHORT     => 1 });
@@ -107,8 +109,9 @@ if ($FORM{SHOW_MESSAGE}) {
 
     print $html->header();
     $OUTPUT{BODY} = "$html->{OUTPUT}";
-    print $html->tpl_show(templates('form_client_start'), \%OUTPUT, { MAIN => 1,
-                                                                      ID   => 'form_client_start' });
+    print $html->tpl_show(templates('form_client_start'), \%OUTPUT, {
+      MAIN => 1,
+      ID   => 'form_client_start' });
 
     exit;
   }
@@ -132,7 +135,17 @@ if ($sid) {
   $html->{SID} = $sid;
 }
 #===========================================================
-if(($conf{PORTAL_START_PAGE} && !($uid > 0)) || $FORM{article} || $FORM{menu_category}){
+elsif ($FORM{AJAX} || $FORM{json}){
+  print qq{Content-Type:application/json\n\n{"TYPE":"error","errstr":"Access Deny"}};
+  exit 0;
+}
+elsif( $FORM{xml}){
+  print qq{Content-Type:application/xml\n\n<?xml version="1.0" encoding="UTF-8"?>
+        <error><TYPE>error</TYPE><errstr>Access Deny</errstr></error>};
+  exit 0;
+}
+
+if(($conf{PORTAL_START_PAGE} && !$uid) || $FORM{article} || $FORM{menu_category}){
   print $html->header();
   load_module('Portal', $html);
   my $wrong_auth = 0;
@@ -177,11 +190,15 @@ if ($uid > 0) {
   fl();
 
   if (!$conf{PASSWORDLESS_ACCESS}) {
-    $menu_names{1000}    = "$lang{LOGOUT}";
+    $menu_names{1000}    = $lang{LOGOUT};
     $functions{1000}     = 'logout';
     $menu_items{1000}{0} = $lang{LOGOUT};
   }
-
+  
+  if (exists $conf{MONEY_UNIT_NAMES} && defined $conf{MONEY_UNIT_NAMES} && ref $conf{MONEY_UNIT_NAMES} eq 'ARRAY'){
+    $user->{MONEY_UNIT_NAMES} = $conf{MONEY_UNIT_NAMES}->[0] || '';
+  }
+  
 #  $OUTPUT{FORM_COLORS}=change_color();
 
   if ($FORM{get_index}) {
@@ -219,7 +236,8 @@ if ($uid > 0) {
   $pages_qs      = "&UID=$user->{UID}&sid=$sid";
   $OUTPUT{STATE} = ($user->{DISABLE}) ? $html->color_mark( $lang{DISABLE}, $_COLORS[6] ) : $lang{ENABLE};
   $OUTPUT{STATE_CODE}=$user->{DISABLE};
-
+  $OUTPUT{SID} = $sid || '';
+  
   if ($COOKIES{lastindex}) {
     $index = int($COOKIES{lastindex});
     $html->set_cookies('lastindex', '', "Fri, 1-Jan-2038 00:00:01", $html->{web_path});
@@ -237,9 +255,30 @@ if ($uid > 0) {
       exit ( 0 );
     }
     elsif ($FORM{qindex} eq '100001'){
-      load_module("Msgs", $html);
-      msgs_register_push_client({ UID => $user->{UID} });
-      exit( 0 );
+      print "Content-Type:text/json;\n\n";
+      if (!$conf{PUSH_ENABLED} || !$conf{GOOGLE_API_KEY}){
+        print qq{{"ERROR":"PUSH_DISABLED"}};
+        exit 0;
+      }
+      
+      require Abills::Sender::Push;
+      my Abills::Sender::Push $Push = Abills::Sender::Push->new(\%conf);
+      
+      $Push->register_client({ UID => $user->{UID} }, \%FORM) if ($Push);
+      exit 0;
+    }
+    elsif ($FORM{qindex} eq '100003'){
+      print "Content-Type:text/json;\n\n";
+      if (!$conf{PUSH_ENABLED} || !$conf{GOOGLE_API_KEY}){
+        print qq{{"ERROR":"PUSH_DISABLED"}};
+        exit 0;
+      }
+      
+      require Abills::Sender::Push;
+      my Abills::Sender::Push $Push = Abills::Sender::Push->new(\%conf);
+  
+      $Push->message_request($FORM{contact_id}) if ($Push);
+      exit 0;
     }
     elsif($FORM{qindex} eq '30'){
       require Control::Address_mng;
@@ -258,10 +297,6 @@ if ($uid > 0) {
     exit;
   }
 
-  if (defined($module{$index})) {
-    load_module($module{$index}, $html);
-  }
-
   if (defined($functions{$index})) {
     if ($default_index && $functions{$default_index} eq 'msgs_admin') {
       $index = $default_index;
@@ -269,6 +304,10 @@ if ($uid > 0) {
   }
   else {
   	$index = $default_index;
+  }
+  
+  if (defined($module{$index})) {
+    load_module($module{$index}, $html);
   }
 
   _function($index || 10 );
@@ -284,13 +323,20 @@ if ($uid > 0) {
   }
 
   $OUTPUT{STATE} = (! $user->{DISABLE} && $user->{SERVICE_STATUS}) ? $service_status[$user->{SERVICE_STATUS}] : $OUTPUT{STATE};
+
+  $OUTPUT{SELECT_LANGUAGE} = language_select();
   
-  $OUTPUT{SEL_LANGUAGE} = language_select();
+  $OUTPUT{PUSH_SCRIPT}  = ($conf{PUSH_ENABLED}
+      ? "<script>window['GOOGLE_API_KEY']='" . ($conf{GOOGLE_API_KEY} // ''). "'</script>"
+        . "<script src='/styles/default_adm/js/push_subscribe.js'></script>"
+      : '<!-- PUSH DISABLED -->'
+    );
   
-  $OUTPUT{BODY} = $html->tpl_show(templates('form_client_main'), \%OUTPUT, { MAIN  => 1,
-                                                                             ID    => 'form_client_main',
-                                                                             SKIP_DEBUG_MARKERS => 1
-                                                                            });
+  $OUTPUT{BODY} = $html->tpl_show(templates('form_client_main'), \%OUTPUT, {
+      MAIN               => 1,
+      ID                 => 'form_client_main',
+      SKIP_DEBUG_MARKERS => 1,
+    });
 }
 else {
   form_login();
@@ -321,6 +367,7 @@ if (exists $conf{client_theme} && defined  $conf{client_theme}){
 else {
   $OUTPUT{SKIN} = 'skin-blue-light';
 }
+
 
 print $html->tpl_show(templates('form_client_start'), \%OUTPUT, { MAIN => 1,   SKIP_DEBUG_MARKERS => 1  });
 
@@ -372,6 +419,7 @@ sub form_info {
     return 1;
   }
 
+  #Activate dashboard
   if($conf{USER_START_PAGE} && ! $FORM{index} && ! $FORM{json} && ! $FORM{xml}) {
     form_custom();
     return 1;
@@ -388,6 +436,14 @@ sub form_info {
     $Dv->info($user->{UID});
     if($Dv->{USER_CREDIT_LIMIT} && $Dv->{USER_CREDIT_LIMIT} > 0) {
       $sum = $Dv->{USER_CREDIT_LIMIT};
+    }
+  }
+  elsif(in_array('Internet', \@MODULES) && (! $sum || $sum =~ /\d+/ && $sum == 0)) {
+    load_module('Internet', $html);
+    my $Internet = Internet->new($db, $admin, \%conf);
+    $Internet->info($user->{UID});
+    if($Internet->{USER_CREDIT_LIMIT} && $Internet->{USER_CREDIT_LIMIT} > 0) {
+      $sum = $Internet->{USER_CREDIT_LIMIT};
     }
   }
 
@@ -538,9 +594,9 @@ sub form_info {
       $user->{ACTION}     = 'change';
       $user->{LNG_ACTION} = $lang{CHANGE};
 
-      require Control::Users_mng;
 
       if (exists $conf{user_chg_info_fields} && $conf{user_chg_info_fields}) {
+        require Control::Users_mng;
         $user->{INFO_FIELDS} = form_info_field_tpl( {
           VALUES                => $user_pi,
           CALLED_FROM_CLIENT_UI => 1,
@@ -548,10 +604,34 @@ sub form_info {
           COLS_RIGHT            => 'col-md-9'
         });
       }
-      $html->tpl_show(templates('form_chg_client_info'), $user, {SKIP_DEBUG_MARKERS => 1});
+      
+      my %contacts = ();
+      if ($conf{CONTACTS_NEW}){
+        # Show all contacts of this type in one field
+        $contacts{PHONE} =
+          ($user_pi->{PHONE_ALL} ? ($user_pi->{PHONE_ALL} . ', ') : '')
+          . ($user_pi->{CELL_PHONE_ALL} || '');
+        $contacts{EMAIL} = $user_pi->{EMAIL_ALL};
+      }
+      
+      $html->tpl_show(templates('form_chg_client_info'), {%$user_pi, %contacts}, {SKIP_DEBUG_MARKERS => 1});
       return 1;
     }
     elsif ($FORM{change}) {
+      if ($FORM{REMOVE_SUBSCRIBE}){
+        require Contacts;
+        Contacts->import();
+        
+        my $Contacts = Contacts->new($db, $admin, \%conf);
+        $Contacts->contacts_del({
+          UID => $user->{UID},
+          TYPE_ID => $Contacts::TYPES{uc($FORM{REMOVE_SUBSCRIBE})}
+        });
+        
+        $html->redirect('/index.cgi');
+        return 1;
+      }
+      
       $user->pi_change({ %FORM, UID => $user->{UID} });
       if(_error_show($user)){
         return 1;
@@ -569,7 +649,7 @@ sub form_info {
       # scripts for address
       $user->{ADDRESS_SEL} =~ s/\r\n||\n//g;
       $user->{MESSAGE_CHG} = $html->message('info', '', "$lang{INFO_CHANGE_MSG}", { OUTPUT2RETURN => 1 });
-  
+
       if (!$conf{CHECK_CHANGE_PI}) {
         $user->{PINFO}       = 1;
         $user->{ACTION}      = 'change';
@@ -600,12 +680,12 @@ sub form_info {
             : ($user->{ $field . "_DISABLE" } = 'disabled' && $user->{ $field . "_HIDDEN" } = 'hidden');
         }
       }
-  
+
       # Instead of hiding, just not printing address form
       if ($user->{ADDRESS_HIDDEN}){
         delete $user->{ADDRESS_SEL};
       }
-      
+
       # template to modal
       $user->{TEMPLATE_BODY} = $html->tpl_show(templates('form_chg_client_info'), $user, { OUTPUT2RETURN => 1, SKIP_DEBUG_MARKERS => 1 });
     }
@@ -712,11 +792,39 @@ sub form_info {
     $user->{HAS_SOCIAL_BUTTONS} = '1';
   }
   
-  $html->tpl_show(templates('form_client_info'), $user, { ID => 'form_client_info' });
+  $user->{SENDER_SUBSCRIBE_BLOCK} = make_sender_subscribe_buttons_block();
+  $user->{SHOW_SUBSCRIBE_BLOCK} = ($user->{SENDER_SUBSCRIBE_BLOCK}) ? 1 : 0;
+  
+
+  $user->{SHOW_REDUCTION} = ($user->{REDUCTION} && int($user->{REDUCTION}) > 0
+      && !(exists $conf{user_hide_reduction} && $conf{user_hide_reduction}));
+
+  if(!$user->{CONTRACT_ID}){
+    $user->{NO_CONTRACT_MSG} = "$lang{NO_DATA}";
+    $user->{NO_DISPLAY} = "style='display : none'";
+  }
+  
+  $user->{SHOW_ACCEPT_RULES} = (exists $conf{ACCEPT_RULES} && $conf{ACCEPT_RULES});
+  
+  my %contacts = ();
+  if ($conf{CONTACTS_NEW}){
+    # Show all contacts of this type in one field
+    $contacts{PHONE} =
+      ($user->{PHONE_ALL} ? ($user->{PHONE_ALL} . ', ') : '')
+        . ($user->{CELL_PHONE_ALL} || '');
+    $contacts{EMAIL} = $user->{EMAIL_ALL};
+  }
+  
+  $html->tpl_show(templates('form_client_info'), {%$user, %contacts}, { ID => 'form_client_info' });
 
   if (in_array('Dv', \@MODULES)) {
     load_module('Dv', $html);
     dv_user_info();
+  }
+
+  if (in_array('Internet', \@MODULES)) {
+    load_module('Internet', $html);
+    internet_user_info();
   }
 
   return 1;
@@ -733,14 +841,14 @@ sub form_login {
   $first_page{LOGIN_ERROR_MESSAGE} = $OUTPUT{LOGIN_ERROR_MESSAGE} || '';
   $first_page{HAS_REGISTRATION_PAGE} = (-f 'registration.cgi');
   $first_page{FORGOT_PASSWD_LINK} = '/registration.cgi&FORGOT_PASSWD=1';
-  
+
   $first_page{REGISTRATION_ENABLED} = scalar @REGISTRATION;
-  
+
   if ($conf{tech_works}) {
     $html->message( 'info', $lang{INFO}, "$conf{tech_works}" );
     return 0;
   }
-  
+
   $first_page{SEL_LANGUAGE} = language_select();
 
   if (! $FORM{REFERER} && $ENV{HTTP_REFERER} && $ENV{HTTP_REFERER}	=~ /$SELF_URL/) {
@@ -751,11 +859,16 @@ sub form_login {
     $ENV{QUERY_STRING} =~ s/sid=[a-z0-9\_]+//g;
     $FORM{REFERER} = $ENV{QUERY_STRING};
   }
-  
-  $first_page{TITLE} = $lang{USER_PORTAL};
-  
-  $first_page{SOCIAL_AUTH_BLOCK} = make_social_auth_login_buttons();
 
+  $first_page{TITLE} = $lang{USER_PORTAL};
+
+  $first_page{SOCIAL_AUTH_BLOCK} = make_social_auth_login_buttons();
+  
+  if ($conf{TECH_WORKS}){
+    $first_page{TECH_WORKS_BLOCK_VISIBLE} = 1;
+    $first_page{TECH_WORKS_MESSAGE} = $conf{TECH_WORKS};
+  }
+  
   $OUTPUT{BODY} = $html->tpl_show(templates('form_client_login'),
    \%first_page,
    { MAIN => 1,
@@ -830,9 +943,19 @@ sub auth {
 
   #Passwordless Access
   if ($conf{PASSWORDLESS_ACCESS}) {
-    require Dv_Sessions;
-    Dv_Sessions->import();
-    my $sessions = Dv_Sessions->new($db, $admin, \%conf);
+    
+    my $sessions;
+
+    if (in_array('Internet', \@MODULES)) {
+      require Internet::Sessions;
+      Internet::Sessions->import();
+      $sessions = Internet::Sessions->new($db, $admin, \%conf);
+    }
+    else {
+      require Dv_Sessions;
+      Dv_Sessions->import();
+      $sessions = Dv_Sessions->new($db, $admin, \%conf);
+    }
 
     my $list = $sessions->online({
       USER_NAME         => '_SHOW',
@@ -1006,7 +1129,7 @@ sub auth_sql {
     $user->info(0, {
       LOGIN      => $user_name,
       PASSWORD   => $password,
-      DOMAIN_ID  => $FORM{DOMAIN_ID},
+      DOMAIN_ID  => $FORM{DOMAIN_ID} || 0,
       USERS_AUTH => 1
     });
   }
@@ -1016,7 +1139,7 @@ sub auth_sql {
       $user->list({
         $auth_param => "$login",
         PASSWORD    => "$password",
-        DOMAIN_ID   => $FORM{DOMAIN_ID},
+        DOMAIN_ID   => $FORM{DOMAIN_ID} || 0,
         COLS_NAME   => 1
       });
 
@@ -1042,7 +1165,7 @@ sub auth_sql {
 }
 
 #**********************************************************
-=head2 form_passwd($attr) - User password form
+=head2 form_passwd() - User password form
 
 =cut
 #**********************************************************
@@ -1050,21 +1173,33 @@ sub form_passwd {
   #my ($attr) = @_;
   #my $hidden_inputs;
 
-  $conf{PASSWD_SYMBOLS} = 'abcdefhjmnpqrstuvwxyz23456789ABCDEFGHJKLMNPQRSTUVWYXZ' if (!$conf{PASSWD_SYMBOLS});
+  $conf{PASSWD_SYMBOLS} = 'abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWYXZ' if (!$conf{PASSWD_SYMBOLS});
   $conf{PASSWD_LENGTH}  = 6 if (! $conf{PASSWD_LENGTH});
 
   $user->pi({ UID => $user->{UID} });
-
+  
+  my $password_check_ok = 0;
   if (! $FORM{newpassword}) {
-    
+  
   }
   elsif (length($FORM{newpassword}) < $conf{PASSWD_LENGTH}) {
     $html->message( 'err', $lang{ERROR}, $lang{ERR_SHORT_PASSWD} );
+    
   }
-  elsif ($FORM{newpassword} !~ /^[$conf{PASSWD_SYMBOLS}]*$/) {
-    $html->message( 'err', $lang{ERROR}, $lang{ERR_SYMBOLS_PASSWD} );
+  elsif ($conf{PASSWD_POLICY_USERS} && $conf{CONFIG_PASSWORD}
+    &&  defined $user->{UID}
+    && !Conf::check_password($FORM{newpassword}, $conf{CONFIG_PASSWORD})
+  ){
+    load_module('Config', $html);
+    my $explain_string = config_get_password_constraints($conf{CONFIG_PASSWORD});
+  
+    $html->message( 'err', $lang{ERROR}, "$lang{ERR_PASSWORD_INSECURE} $explain_string");
   }
-  elsif ($FORM{newpassword} eq $FORM{confirm}) {
+  else {
+    $password_check_ok = 1;
+  }
+  
+  if ($password_check_ok && $FORM{newpassword} eq $FORM{confirm}) {
     my %INFO = (
       PASSWORD => $FORM{newpassword},
       UID      => $user->{UID},
@@ -1078,7 +1213,7 @@ sub form_passwd {
     }
     return 0;
   }
-  elsif ($FORM{newpassword} ne $FORM{confirm}) {
+  elsif ($FORM{newpassword} &&  $FORM{confirm} && $FORM{newpassword} ne $FORM{confirm}) {
     $html->message( 'err', $lang{ERROR}, $lang{ERR_WRONG_CONFIRM} );
   }
 
@@ -1247,13 +1382,15 @@ sub reports {
         CONTENT => $table->show({ OUTPUT2RETURN => 1 }) . $FIELDS,
         NAME    => 'form_reports',
         HIDDEN  => {
-          'index' => "$index",
+          'index' => $index,
           ($attr->{HIDDEN}) ? %{ $attr->{HIDDEN} } : undef
         }
       }
     );
 
     if (defined($FORM{show})) {
+      $FORM{FROM_DATE} //= q{};
+      $FORM{TO_DATE}  //= q{};
       $pages_qs .= "&show=1&FROM_DATE=$FORM{FROM_DATE}&TO_DATE=$FORM{TO_DATE}";
       $LIST_PARAMS{TYPE}     = $FORM{TYPE};
       $LIST_PARAMS{INTERVAL} = "$FORM{FROM_DATE}/$FORM{TO_DATE}";
@@ -1330,10 +1467,6 @@ sub reports {
 #**********************************************************
 sub form_finance {
 
-  my @PAYMENT_METHODS = ("$lang{CASH}", "$lang{BANK}", "$lang{EXTERNAL_PAYMENTS}", 'Credit Card', "$lang{BONUS}",
-    "$lang{CORRECTION}", "$lang{COMPENSATION}", "$lang{MONEY_TRANSFER}");
-  push @PAYMENT_METHODS, @EX_PAYMENT_METHODS if (@EX_PAYMENT_METHODS);
-
   my $Payments = Finance->payments($db, $admin, \%conf);
 
   if (!$FORM{sort}) {
@@ -1341,23 +1474,21 @@ sub form_finance {
     $LIST_PARAMS{DESC} = 'DESC';
   }
 
-  my $list  = $Payments->list({ %LIST_PARAMS,
-                                DATETIME  => '_SHOW',
-                                PAGE_ROWS => 10,
-                                COLS_NAME => 1
-                              });
+  my $list  = $Payments->list({
+    %LIST_PARAMS,
+    DATETIME  => '_SHOW',
+    PAGE_ROWS => 10,
+    COLS_NAME => 1
+  });
 
-  my $table = $html->table(
-    {
-      width       => '100%',
-      caption     => "$lang{PAYMENTS}",
-      title_plain => [ $lang{DATE}, $lang{DESCRIBE}, $lang{SUM}, $lang{DEPOSIT} ],
-      cols_align  => [ 'right', 'left', 'left', 'right', 'right', 'left', 'right', 'right', 'left', 'left' ],
-      qs          => $pages_qs,
-      #pages       => $Payments->{TOTAL},
-      ID          => 'PAYMENTS'
-    }
-  );
+  my $table = $html->table({
+    width       => '100%',
+    caption     => $lang{PAYMENTS},
+    title_plain => [ $lang{DATE}, $lang{DESCRIBE}, $lang{SUM}, $lang{DEPOSIT} ],
+    qs          => $pages_qs,
+    #pages       => $Payments->{TOTAL},
+    ID          => 'PAYMENTS'
+  });
 
   foreach my $line (@$list) {
     $table->addrow(
@@ -1373,28 +1504,26 @@ sub form_finance {
   my $FEES_METHODS = get_fees_types();
 
   my $Fees  = Finance->fees($db, $admin, \%conf);
-  $list  = $Fees->list({%LIST_PARAMS,
-                        DSC       => '_SHOW',
-                        DATETIME  => '_SHOW',
-                        SUM       => '_SHOW',
-                        DEPOSIT   => '_SHOW',
-                        METHOD    => '_SHOW',
-                        LAST_DEPOSIT => '_SHOW',
-                        PAGE_ROWS => 10,
-                        COLS_NAME => 1
-                      });
+  $list  = $Fees->list({
+    %LIST_PARAMS,
+    DSC       => '_SHOW',
+    DATETIME  => '_SHOW',
+    SUM       => '_SHOW',
+    DEPOSIT   => '_SHOW',
+    METHOD    => '_SHOW',
+    LAST_DEPOSIT => '_SHOW',
+    PAGE_ROWS => 10,
+    COLS_NAME => 1
+  });
 
-  $table = $html->table(
-    {
-      width       => '100%',
-      caption     => "$lang{FEES}",
-      title_plain => [ $lang{DATE}, $lang{DESCRIBE}, $lang{SUM}, $lang{DEPOSIT}, $lang{TYPE} ],
-      cols_align  => [ 'right', 'left', 'right', 'right', 'left', 'left', 'left', 'right', 'right' ],
-      qs          => $pages_qs,
-      #pages       => $Fees->{TOTAL},
-      ID          => 'FEES'
-    }
-  );
+  $table = $html->table({
+    width       => '100%',
+    caption     => "$lang{FEES}",
+    title_plain => [ $lang{DATE}, $lang{DESCRIBE}, $lang{SUM}, $lang{DEPOSIT}, $lang{TYPE} ],
+    qs          => $pages_qs,
+    #pages       => $Fees->{TOTAL},
+    ID          => 'FEES'
+  });
 
   foreach my $line (@$list) {
     $table->addrow($line->{datetime}, $line->{dsc}, $line->{sum}, $line->{last_deposit}, $FEES_METHODS->{ $line->{method} || 0 });
@@ -1420,26 +1549,25 @@ sub form_fees {
   my $FEES_METHODS = get_fees_types();
 
   my $Fees  = Finance->fees($db, $admin, \%conf);
-  my $list  = $Fees->list({%LIST_PARAMS,
-                           DSC       => '_SHOW',
-                           DATETIME  => '_SHOW',
-                           SUM       => '_SHOW',
-                           DEPOSIT   => '_SHOW',
-                           METHOD    => '_SHOW',
-                           LAST_DEPOSIT => '_SHOW',
-                           COLS_NAME => 1 });
+  my $list  = $Fees->list({
+    %LIST_PARAMS,
+    DSC       => '_SHOW',
+    DATETIME  => '_SHOW',
+    SUM       => '_SHOW',
+    DEPOSIT   => '_SHOW',
+    METHOD    => '_SHOW',
+    LAST_DEPOSIT => '_SHOW',
+    COLS_NAME => 1
+  });
 
-  my $table = $html->table(
-    {
-      width       => '100%',
-      caption     => "$lang{FEES}",
-      title_plain => [ $lang{DATE}, $lang{DESCRIBE}, $lang{SUM}, $lang{DEPOSIT}, $lang{TYPE} ],
-      cols_align  => [ 'right', 'left', 'right', 'right', 'left', 'left', 'left', 'right', 'right' ],
-      qs          => $pages_qs,
-      pages       => $Fees->{TOTAL},
-      ID          => 'FEES'
-    }
-  );
+  my $table = $html->table({
+    width       => '100%',
+    caption     => $lang{FEES},
+    title_plain => [ $lang{DATE}, $lang{DESCRIBE}, $lang{SUM}, $lang{DEPOSIT}, $lang{TYPE} ],
+    qs          => $pages_qs,
+    pages       => $Fees->{TOTAL},
+    ID          => 'FEES'
+  });
 
   foreach my $line (@$list) {
     $table->addrow($line->{datetime}, $line->{dsc}, $line->{sum}, $line->{last_deposit}, $FEES_METHODS->{ $line->{method} || 0 });
@@ -1447,14 +1575,12 @@ sub form_fees {
 
   print $table->show();
 
-  $table = $html->table(
-    {
-      width      => '100%',
-      cols_align => [ 'right', 'right', 'right', 'right' ],
-      rows       => [ [ "$lang{TOTAL}:", $html->b( $Fees->{TOTAL} ), "$lang{SUM}:", $html->b( $Fees->{SUM} ) ] ],
-      rowcolor   => $_COLORS[2]
-    }
-  );
+  $table = $html->table({
+    width      => '100%',
+    rows       => [ [ "$lang{TOTAL}:", $html->b( $Fees->{TOTAL} ), "$lang{SUM}:", $html->b( $Fees->{SUM} ) ] ],
+    rowcolor   => $_COLORS[2]
+  });
+
   print $table->show();
 
   return 1;
@@ -1466,9 +1592,6 @@ sub form_fees {
 =cut
 #**********************************************************
 sub form_payments_list {
-  my @PAYMENT_METHODS = ("$lang{CASH}", "$lang{BANK}", "$lang{EXTERNAL_PAYMENTS}", 'Credit Card', "$lang{BONUS}",
-    "$lang{CORRECTION}", "$lang{COMPENSATION}", "$lang{MONEY_TRANSFER}");
-  push @PAYMENT_METHODS, @EX_PAYMENT_METHODS if (@EX_PAYMENT_METHODS);
 
   my $Payments = Finance->payments($db, $admin, \%conf);
 
@@ -1477,21 +1600,20 @@ sub form_payments_list {
     $LIST_PARAMS{DESC} = 'DESC';
   }
 
-  my $list  = $Payments->list({%LIST_PARAMS,
-                               DATETIME  => '_SHOW',
-                               COLS_NAME => 1});
+  my $list  = $Payments->list({
+    %LIST_PARAMS,
+    DATETIME  => '_SHOW',
+    COLS_NAME => 1
+  });
 
-  my $table = $html->table(
-    {
-      width       => '100%',
-      caption     => "$lang{PAYMENTS}",
-      title_plain => [ $lang{DATE}, $lang{DESCRIBE}, $lang{SUM}, $lang{DEPOSIT} ],
-      cols_align  => [ 'right', 'left', 'left', 'right', 'right', 'left', 'right', 'right', 'left', 'left' ],
-      qs          => $pages_qs,
-      pages       => $Payments->{TOTAL},
-      ID          => 'PAYMENTS'
-    }
-  );
+  my $table = $html->table({
+    width       => '100%',
+    caption     => $lang{PAYMENTS},
+    title_plain => [ $lang{DATE}, $lang{DESCRIBE}, $lang{SUM}, $lang{DEPOSIT} ],
+    qs          => $pages_qs,
+    pages       => $Payments->{TOTAL},
+    ID          => 'PAYMENTS'
+  });
 
   foreach my $line (@$list) {
     $table->addrow(
@@ -1504,15 +1626,10 @@ sub form_payments_list {
 
   print $table->show();
 
-  $table = $html->table(
-    {
-      width      => '100%',
-      cols_align => [ 'right', 'right', 'right', 'right' ],
-      rows       => [ [ "$lang{TOTAL}:", $html->b( $Payments->{TOTAL} ), "$lang{SUM}:", $html->b( $Payments->{SUM} ) ] ]
-      ,
-      rowcolor   => $_COLORS[2]
-    }
-  );
+  $table = $html->table({
+    width      => '100%',
+    rows       => [ [ "$lang{TOTAL}:", $html->b( $Payments->{TOTAL} ), "$lang{SUM}:", $html->b( $Payments->{SUM} ) ] ],
+  });
 
   print $table->show();
 
@@ -1678,46 +1795,6 @@ sub form_money_transfer {
 }
 
 #**********************************************************
-=head1 recomended_pay($user)
-
-=cut
-#**********************************************************
-sub recomended_pay {
-  my ($user_) = @_;
-
-  $user_->{TOTAL_DEBET} = 0;
-  my $cross_modules_return = cross_modules_call('_docs', {
-    UID          => $user_->{UID},
-    REDUCTION    => $user_->{REDUCTION},
-    PAYMENT_TYPE => 0
-  });
-
-  foreach my $module (sort keys %$cross_modules_return) {
-    if (ref $cross_modules_return->{$module} eq 'ARRAY') {
-      next if ($#{ $cross_modules_return->{$module} } == -1);
-      foreach my $line (@{ $cross_modules_return->{$module} }) {
-        # $name, $describe
-        my (undef, undef, $sum) = split(/\|/, $line);
-        $user_->{TOTAL_DEBET} += $sum;
-
-        if ($user_->{REDUCTION} && $module ne 'Abon') {
-          $user_->{TOTAL_DEBET} = sprintf("%.2f", $user_->{TOTAL_DEBET} * (100 - $user_->{REDUCTION}) / 100);
-        }
-      }
-    }
-  }
-
-  $user_->{TOTAL_DEBET} = ($user_->{DEPOSIT} < 0) ? $user_->{TOTAL_DEBET} + abs($user_->{DEPOSIT}) : ($user_->{DEPOSIT} > $user_->{TOTAL_DEBET}) ? 0 : $user_->{TOTAL_DEBET} - $user_->{DEPOSIT};
-
-  if ($user_->{TOTAL_DEBET} > int($user_->{TOTAL_DEBET})) {
-    $user_->{TOTAL_DEBET} = sprintf("%.2f", int($user_->{TOTAL_DEBET}) + 1);
-  }
-
-  return $user_->{TOTAL_DEBET};
-}
-
-
-#**********************************************************
 =head1 form_neg_deposit($user, $attr)
 
 =cut
@@ -1776,13 +1853,13 @@ sub user_login_background {
 
   require Tariffs;
   Tariffs->import();
-  
+
   my $holidays = Tariffs->new($db, \%conf, $admin);
   my $holiday_path = "/images/holiday/";
   my $list  = $holidays->holidays_list({COLS_NAME => 1});
 
   my (undef,$m,$d) = split('-', $DATE);
-  
+
   my $simple_date = (int($m) . '-' . int($d));
   foreach my $line (@$list){
     if($line->{day} && $line->{day} eq $simple_date && $line->{file}){
@@ -1791,11 +1868,11 @@ sub user_login_background {
       }
     }
   }
-  
+
   return if ($conf{user_background} || $conf{user_background_url});
 
   my $holiday_background_image = '';
-  
+
   if($m == 12 || $m < 3) {
     $holiday_background_image = "/holiday/winter.jpg";
   }
@@ -1808,11 +1885,11 @@ sub user_login_background {
   else {
     $holiday_background_image = "/holiday/autumn.jpg";
   }
-  
+
   if (-f $conf{TPL_DIR} . $holiday_background_image){
     return '/images' . $holiday_background_image;
   }
-  
+
   return '';
 }
 
@@ -1848,6 +1925,17 @@ sub form_events {
 =cut
 #**********************************************************
 sub fl {
+  if($user->{UID} && $conf{REVISOR_UID} && $user->{UID} == $conf{REVISOR_UID}) {
+    if (!$conf{REVISOR_ALLOW_IP} || check_ip($ENV{REMOTE_ADDR}, $conf{REVISOR_ALLOW_IP})) {
+      my $revisor_menu = custom_menu({ TPL_NAME => 'revisor_menu' });
+      mk_menu($revisor_menu, { CUSTOM => 1 });
+    }
+    else {
+      $html->message( 'err', $lang{ERROR}, "$lang{ERR_UNKNOWN_IP}" );
+    }
+  return 1;
+  }
+
   my $custom_menu = custom_menu({ TPL_NAME => 'client_menu' });
 
   if($#{ $custom_menu } > -1) {
@@ -1871,7 +1959,7 @@ sub fl {
     if ( $conf{MONEY_TRANSFER} ){
       push @m, "43:40:$lang{MONEY_TRANSFER}:form_money_transfer:::";
     }
-  
+
     if ( $user->{COMPANY_ID} ){
       require Companies;
       Companies->import();
@@ -1880,7 +1968,7 @@ sub fl {
         UID        => $user->{UID},
         COLS_NAME  => 1
       });
-      if ($list && ref $list eq 'ARRAY' 
+      if ($list && ref $list eq 'ARRAY'
         && $list->[0]->{is_company_admin} eq '1'
       ){
         push @m, "44:40:$user->{COMPANY_NAME}:form_company_list::";
@@ -1897,7 +1985,7 @@ sub fl {
 
 
 #**********************************************************
-=head2 form_custom() -  Form start
+=head2 form_custom() - Form start dashboard
 
 =cut
 #**********************************************************
@@ -1994,26 +2082,26 @@ sub form_custom {
 =cut
 #**********************************************************
 sub make_social_auth_login_buttons {
-  
+
   my $result = '';
-  
+
   foreach my $social_net_name ('Vk', 'Facebook','Google', 'Instagram', 'Twitter') {
     my $conf_key_name = 'AUTH_' . uc($social_net_name) . '_ID';
-  
+
     if ( exists $conf{$conf_key_name} && $conf{$conf_key_name} ) {
       my $lc_name = lc($social_net_name);
       my $button_attr = {
         class => 'icon-' . $lc_name,
         ICON  => 'fa fa-' . $lc_name
       };
-    
+
       $result .= $html->element('li',
         $html->button('', "external_auth=$social_net_name", $button_attr ),
         { OUTPUT2RETURN => 1 }
       )
     }
   }
-  
+
   return $result;
 }
 
@@ -2024,7 +2112,7 @@ sub make_social_auth_login_buttons {
 #**********************************************************
 sub make_social_auth_manage_buttons {
   my $user_pi = shift || $user->pi();
-  
+
   # Allow user to remove social network linkage
   if ( $FORM{unreg} ) {
     my $change_field = '_' . uc $FORM{unreg};
@@ -2034,7 +2122,7 @@ sub make_social_auth_manage_buttons {
     }
   }
   my $result = '';
-  
+
   #**********************************************************
   # Shorthand for forming social auth button block
   #**********************************************************
@@ -2043,7 +2131,7 @@ sub make_social_auth_manage_buttons {
     my $unreg_button = '';
     my $uc_name = uc($name);
     my $lc_name = lc($name);
-    
+
     # If already registered, show 'unreg' button
     if ( exists $user_pi->{'_' . $uc_name}
       && $user_pi->{'_' . $uc_name}
@@ -2058,19 +2146,19 @@ sub make_social_auth_manage_buttons {
         ADD_ICON => 'fa fa-' . $lc_name,
         %{ $attr ? $attr : { } }
       });
-    
+
     $html->element('div', $reg_button . $unreg_button, { class => 'btn-group', OUTPUT2RETURN => 1 } );
   };
-  
+
   if ( $conf{AUTH_VK_ID} ) {
     $result .= $make_button->('Vk', "external_auth=Vk");
   }
-  
+
   if ( $conf{AUTH_FACEBOOK_ID} ) {
     my $client_id = $conf{AUTH_FACEBOOK_ID} || q{};
     my $redirect_uri = $conf{AUTH_FACEBOOK_URL} || q{};
     $redirect_uri =~ s/\%SELF_URL\%/$SELF_URL/g;
-    
+
     $result .= $make_button->('Facebook', 'external_auth=Facebook', {
         GLOBAL_URL => 'https://www.facebook.com/dialog/oauth?'
           . "client_id=$client_id"
@@ -2078,15 +2166,15 @@ sub make_social_auth_manage_buttons {
           . '&redirect_uri=' . $redirect_uri
           . '&state=facebook'
           . '&scope=public_profile,email,user_birthday,user_likes,user_friends'
-        
+
       });
   }
-  
+
   if ( $conf{AUTH_GOOGLE_ID} ) {
     my $client_id = $conf{AUTH_GOOGLE_ID} || q{};
     my $redirect_uri = $conf{AUTH_GOOGLE_URL} || q{};
     $redirect_uri =~ s/\%SELF_URL\%/$SELF_URL/g;
-    
+
     $result .= $make_button->('Google', '', {
         GLOBAL_URL => "https://accounts.google.com/o/oauth2/v2/auth?"
           . "&response_type=code"
@@ -2097,12 +2185,12 @@ sub make_social_auth_manage_buttons {
           . "&state=google"
       });
   }
-  
+
   if ( $conf{AUTH_INSTAGRAM_ID} ) {
     my $client_id = $conf{AUTH_INSTAGRAM_ID} || q{};
     my $redirect_uri = $conf{AUTH_INSTAGRAM_URL} || q{};
     $redirect_uri =~ s/\%SELF_URL\%/$SELF_URL/g;
-    
+
     $result .= $make_button->('Instagram', '', {
         GLOBAL_URL => "https://api.instagram.com/oauth/authorize?"
           . "&response_type=code"
@@ -2111,7 +2199,7 @@ sub make_social_auth_manage_buttons {
           . "&state=instagram"
       });
   }
-  
+
   if ( $conf{AUTH_TWITTER_ID} ) {
     my $client_id = $conf{AUTH_TWITTER_ID} || q{};
     my $redirect_uri = $conf{AUTH_TWITTER_URL} || q{};
@@ -2133,8 +2221,113 @@ sub make_social_auth_manage_buttons {
       GLOBAL_URL => $twitter_params->{url}
     });
   }
-  
+
   return $result;
+}
+
+#**********************************************************
+=head2 make_sender_subscribe_buttons_block()
+
+=cut
+#**********************************************************
+sub make_sender_subscribe_buttons_block {
+  my $buttons_block = '';
+  
+  my $make_subscribe_btn = sub {
+    my ($name, $icon_classes, $lang_vars, $attr) = @_;
+  
+    my $button_text = (!$attr->{UNSUBSCRIBE}) ? "$lang{SUBSCRIBE_TO} $name" : "$lang{UNSUBSCRIBE_FROM} $name";
+  
+    my $icon_html = $html->element('span', '', { class => $icon_classes, OUTPUT2RETURN => 1 });
+    my $text = $html->element('strong', $button_text, { class => $attr->{TEXT_CLASS}, OUTPUT2RETURN => 1 });
+  
+    my $button = '';
+    if ( $attr->{HREF} ) {
+      $button = $html->element('a', $icon_html . $text, {
+          href       => $attr->{HREF},
+          class      => 'btn form-control ' . ($attr->{BUTTON_CLASSES} || ' btn-info '),
+          target     => '_blank',
+          OUTPUT2RETURN => 1
+        });
+    }
+    else {
+      $button = $html->element('button', $icon_html . $text, {
+          class => 'btn form-control ' . ($attr->{BUTTON_CLASSES} || ' btn-info '),
+          OUTPUT2RETURN => 1
+        });
+    }
+  
+    my $button_wrapper = $html->element('div', $button, { class => 'col-md-3' });
+    my $lang_text = '';
+    if ( $lang_vars && ref $lang_vars eq 'HASH' ) {
+      $lang_text = join "; \n", map {
+        qq{window['$_'] = '$lang_vars->{$_}'};
+      } keys %{$lang_vars};
+    }
+  
+    my $lang_script = ($lang_text) ? $html->element('script', $lang_text) : '';
+  
+    $button_wrapper . $lang_script;
+  };
+  
+  
+  if ($conf{PUSH_ENABLED}) {
+    $buttons_block .= $make_subscribe_btn->(
+      'Push',
+      'js-push-icon fa fa-bell',
+      {
+        ENABLE_PUSH           => $lang{ENABLE_PUSH},
+        DISABLE_PUSH          => $lang{DISABLE_PUSH},
+        PUSH_IS_NOT_SUPPORTED => $lang{PUSH_IS_NOT_SUPPORTED},
+        PUSH_IS_DISABLED      => $lang{PUSH_IS_DISABLED},
+      },
+      {
+        BUTTON_CLASSES => 'js-push-button btn-info',
+        TEXT_CLASS     => 'js-push-text'
+      }
+    );
+    # Unsubscribe is made via Javascript
+  }
+  if ($conf{TELEGRAM_TOKEN}){
+    # Check if subscribed
+    my $subscribed = (defined $user->{TELEGRAM} && $user->{TELEGRAM});
+    
+    if (!$subscribed) {
+      # To build a subscribe link, should get bot name
+      if ( !$conf{TELEGRAM_BOT_NAME} ) {
+        require Abills::Sender::Telegram;
+        Abills::Sender::Telegram->import();
+        my $Telegram = Abills::Sender::Telegram->new(\%conf);
+        $conf{TELEGRAM_BOT_NAME} = $Telegram->get_bot_name(\%conf, $db);
+      }
+  
+      if ( $conf{TELEGRAM_BOT_NAME} ) {
+        my $link_url = 'https://telegram.me/' . $conf{TELEGRAM_BOT_NAME} . '/?start=u_' . ($user->{SID} || $sid);
+        $buttons_block .= $make_subscribe_btn->(
+          'Telegram',
+          'fa fa-telegram',
+          undef,
+          {
+            HREF => $link_url
+          }
+        );
+      }
+    }
+    else {
+      $buttons_block .= $make_subscribe_btn->(
+        'Telegram',
+        'fa fa-bell-slash',
+        undef,
+        {
+          HREF        => '/?change=1&REMOVE_SUBSCRIBE=Telegram',
+          UNSUBSCRIBE => 1,
+          BUTTON_CLASSES => 'btn-success'
+        }
+      );
+    }
+  }
+  
+  return $buttons_block;
 }
 
 #**********************************************************
@@ -2143,7 +2336,7 @@ sub make_social_auth_manage_buttons {
 =cut
 #**********************************************************
 sub language_select {
-  
+
   #Make active lang list
   if ($conf{LANGS}) {
     $conf{LANGS} =~ s/\n//g;
@@ -2155,7 +2348,7 @@ sub language_select {
       $LANG{$lang} = $lang_name;
     }
   }
-  
+
   my %QT_LANG = (
     byelorussian => 22,
     bulgarian    => 20,
@@ -2163,13 +2356,13 @@ sub language_select {
     french       => 37,
     polish       => 90,
     russian      => 96,
-    ukraine      => 129,
+    ukrainian      => 129,
   );
-  
+
   return $html->form_select(
     'language',
     {
-      EX_PARAMS    => 'onChange="selectLanguage()"',
+      EX_PARAMS    => 'style="width:99%"',
       SELECTED     => $html->{language},
       SEL_HASH     => \%LANG,
       NO_ID        => 1,
@@ -2177,7 +2370,7 @@ sub language_select {
       EXT_PARAMS   => { qt_locale => \%QT_LANG }
     }
   );
-  
+
 }
 
 #**********************************************************
@@ -2238,6 +2431,5 @@ sub form_company_list {
 
   return 1;
 }
-
 
 1

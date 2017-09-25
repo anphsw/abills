@@ -109,7 +109,9 @@ sub mx80_checklines {
       next;
     }
 
-    my ($nas_ip, undef) = split(/:/, $nas_info->{nas_mng_ip_port});
+    my ($nas_ip, undef, undef, $snmp_port) = split(/:/, $nas_info->{nas_mng_ip_port});
+
+    $snmp_port //= 161;
 
     $SNMP_COMMUNITY = $conf{MX80_SNMP_COMMUNITY} || $nas_info->{nas_mng_password} || 'public';
 
@@ -186,6 +188,11 @@ sub mx80_checklines {
 
       #my $client_type      = &snmpget("$SNMP_COMMUNITY".'@'."$nas_ip", "1.3.6.1.4.1.2636.3.64.1.1.1.3.1.4.".$id);
       my $acct_session_id  = &snmpget("$SNMP_COMMUNITY".'@'."$nas_ip", "1.3.6.1.4.1.2636.3.64.1.1.1.3.1.14.".$id);
+      if(! $acct_session_id) {
+        print "Error: cna;t get session id from MX80 ID: $id\n";
+        next;
+      }
+
       my $login_time       = eval { return &snmpget("$SNMP_COMMUNITY".'@'."$nas_ip",
         "1.3.6.1.4.1.2636.3.64.1.1.1.3.1.13.".$id) };
       my $state            = eval { return &snmpget("$SNMP_COMMUNITY".'@'."$nas_ip", "1.3.6.1.4.1.2636.3.64.1.1.1.3.1.12.".$id) };
@@ -196,7 +203,7 @@ sub mx80_checklines {
       if ($debug > 1 || defined($argv->{SHOW}) || defined($argv->{HANGUP})) {
         print "User: $user_name\n".
             " Connect: $connectin_types{$connect_type} Type:  STATE: $state_staus[$state]\n".
-            " ACCT_SESSION_ID: $acct_session_id\n".
+            " ACCT_SESSION_ID: ". ($acct_session_id || q{}) ."\n".
             #" MAC: ". sprintf("%x", $mac) ."\n".
             " Login time: $login_time\n";
 

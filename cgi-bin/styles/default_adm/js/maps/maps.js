@@ -22,16 +22,16 @@ var HAS_REAL_POSITION = false;
 var realPosition      = null;
 
 
-Events.setDebug(1);
+Events.setDebug(0);
 
-//function fullScreenDistrict() {
-//  var height    = window.innerHeight;
-//  var width     = window.innerWidth;
-//  var newWindow = window.open("/admin/index.cgi?qindex=" + index + "&header=1&MAP=1",
-//      "new",
-//      'width=' + width + ', height=' + height);
-//  newWindow.focus();
-//}
+function fullScreenDistrict() {
+  var height    = window.innerHeight;
+  var width     = window.innerWidth;
+  var newWindow = window.open("/admin/index.cgi?qindex=" + index + "&header=1&MAP=1",
+      "new",
+      'width=' + width + ', height=' + height);
+  newWindow.focus();
+}
 
 /*Marker Builder*/
 var aMarkerBuilder;
@@ -99,7 +99,7 @@ function initialize() {
           if (MapLayers.hasLayer(layer_id)) {
             MapLayers.onLayerEnabled(layer_id, function () {
               if (isDefined(FORM['OBJECT_ID'])) {
-                  MapLayers.showObject(layer_id, FORM['OBJECT_ID']);
+                MapLayers.showObject(layer_id, FORM['OBJECT_ID']);
               }
             });
             MapLayers.enableLayer(layer_id);
@@ -186,7 +186,7 @@ function getMapCenter() {
   //  setMapCenter([form_x, form_y]);
   //}
   //else
-  if (mapCenter == '') {
+  if (mapCenter === '') {
     if (FORM['show_gps']) {
       console.log('START: Coordinates skipped. Showing GPS route');
       return true;
@@ -209,7 +209,7 @@ function getMapCenter() {
         }
     );
   }
-  else if (mapCenter != '') {
+  else if (mapCenter !== '') {
     console.log('START: ' + 'Coordinates set by mapCenter');
     console.log('MapCenter: ' + mapCenter);
     var mapCenterSplitted = mapCenter.split(', ');
@@ -241,26 +241,20 @@ function configureMap() {
     MapLayers.setClusteringEnabled(CLUSTERER_GRID_SIZE);
   }
   
-  if (FORM['SHOW_CONTROLS']) {
-    addControls();
-  }
-  else {
-    Events.on('mapsconfigured', Events.emitAsCallback('controlblockcached'));
-  }
-  
-  function addControls() {
+  var addControls = function () {
     aControls = new MapControls(map);
     
     // Buttons are defined in order they will appear in Map Controls
     
-    if (OPTIONS['SHOW_ADD_BTN'] && (typeof DrawController != 'undefined')) {
+    if (OPTIONS['SHOW_ADD_BTN'] && (typeof DrawController !== 'undefined')) {
       
       var add_layer_object_buttons = [
         {name: _BUILD, onclick: 'addNewPoint(' + LAYER_ID_BY_NAME[BUILD] + ')'},
         {name: _ROUTE, onclick: 'addNewPoint(' + LAYER_ID_BY_NAME[ROUTE] + ')'},
         //{name: _DISTRICT, onclick: 'addNewPoint(' + LAYER_ID_BY_NAME[DISTRICT] + ')'},
         {name: _WIFI, onclick: 'addNewPoint(' + LAYER_ID_BY_NAME[WIFI] + ')'},
-        {name: _OBJECT, onclick: 'addNewPoint(' + LAYER_ID_BY_NAME[CUSTOM_POINT] + ')'}
+        {name: _OBJECT, onclick: 'addNewPoint(' + LAYER_ID_BY_NAME[CUSTOM_POINT] + ')'},
+        {name: _BUILD2, onclick: 'addNewPoint(' + LAYER_ID_BY_NAME[BUILD2] + ')'}
       ];
       
       for (var j = 0; j < LAYERS.length; j++) {
@@ -273,56 +267,82 @@ function configureMap() {
         };
       }
       
-      aControls.addDropdown('plus', add_layer_object_buttons, _ADD + ' ' + _POINT, 'addOperationCtrlBtn', 'success');
-      aControls.addBtn('minus', 'toggleRemoveMarkerMode()', _REMOVE + ' ' + _MARKER + ' ' + _LOCATION, 'removeLocation', 'danger');
-      aControls.addBtn('remove-sign', 'dropOperation()', _DROP, 'dropOperationCtrlBtn');
+      aControls.addDropdown(aControls.ROW_EDIT, {
+        icon   : 'plus',
+        options: add_layer_object_buttons,
+        title  : _ADD + ' ' + _POINT,
+        id     : 'addOperationCtrlBtn',
+        'class': 'success'
+      });
+      
+      
+      aControls.addBtn(aControls.ROW_EDIT,
+          {
+            icon   : 'minus',
+            onclick: 'toggleRemoveMarkerMode()',
+            title  : _REMOVE + ' ' + _MARKER + ' ' + _LOCATION,
+            id     : 'removeLocation',
+            'class': 'danger'
+          }
+      );
+      aControls.addBtn(aControls.ROW_EDIT,
+          {
+            icon   : 'remove-sign',
+            onclick: 'dropOperation()',
+            title  : _DROP,
+            id     : 'dropOperationCtrlBtn',
+            'class': 'default'
+          }
+      );
     }
     
     if (layersCtrlEnabled) {
-      var dropdown_layers     = [];
       var layer_name_id_array = [];
+      //var btn_group_id        = aControls.createBtnGroup(aControls.ROW_LAYERS, _TOGGLE + ' ' + _MAP_OBJECT_LAYERS, 'showLayersControlBlock');
+      
       for (var i = 0; i < LAYERS.length; i++) {
-        var layer                                       = LAYERS[i];
+        var layer = LAYERS[i];
         
         // Refresh button
-        var $extra = $('<button></button>',
+        var $refresh_button = $('<button></button>',
             {
-              onclick : 'MapLayers.refreshLayer(' + layer['id'] + ');cancelEvent()',
-              'class' : 'btn btn-xs btn-success btn-inline'
+              onclick: 'MapLayers.refreshLayer(' + layer['id'] + ');cancelEvent()',
+              'class': 'btn btn-xs btn-flat btn-default pull-left'
             })
-        .html($('<i></i>', {'class' : 'fa fa-refresh'}));
+            .html($('<i></i>', {'class': 'fa fa-refresh'}));
         
-        var dropdown_list_option = {
-          name   : layer['lang_name'],
-          extra  : $extra[0].outerHTML,
-          onclick: 'MapLayers.toggleLayer(' + layer['id'] + ')'
-        };
+        var layer_btn = $('<a></a>', {
+          onclick: 'MapLayers.toggleLayer(' + layer['id'] + ')',
+          'class': 'btn btn-xs btn-default text-left',
+          id     : 'toggleLayer_' + layer.id
+        })
+            .html($refresh_button[0].outerHTML + layer['lang_name']);
         
-        // Next two should be synchronized
-        dropdown_layers[dropdown_layers.length]         = dropdown_list_option;
+        aControls.addRawBtn(aControls.ROW_LAYERS, layer_btn);
+        
         layer_name_id_array[layer_name_id_array.length] = layer['id'];
       }
-      aControls.addDropdown('eye-open',
-          dropdown_layers,
-          _TOGGLE + ' ' + _MAP_OBJECT_LAYERS, 'showLayersControlBlock', 'primary dropdown-with-extra'
-      );
       
       AMapLayersBtns.initButtons(layer_name_id_array);
     }
     
     if (searchCtrlEnabled && aSearch.isAvailable) {
-      aControls.addDropdown('search',
-          [
-            {
-              name : _BY_QUERY,
-              onclick : 'showModalQuerySearch()'
-            },
-            {
-              name:_BY_TYPE,
-              onclick:'showModalTypeSearch()'
-            }
-          ],
-          _SEARCH
+      aControls.addDropdown(aControls.ROW_VIEW, {
+            icon   : 'search',
+            options: [
+              {
+                name   : _BY_QUERY,
+                onclick: 'showModalQuerySearch()'
+              },
+              {
+                name   : _BY_TYPE,
+                onclick: 'showModalTypeSearch()'
+              }
+            ],
+            'class': '',
+            title  : _SEARCH,
+            id     : 'map_api_search'
+          }
       );
     }
     
@@ -330,35 +350,40 @@ function configureMap() {
     //  aControls.addBtn('road', 'aNavigation.showRoute()', _NAVIGATION, 'makeNavigationCtrl', 'primary');
     
     if (DISTRICT_POLYGONS_ENABLED) {
-      aControls.addBtn('bookmark', 'aDistrictPolygoner.toggle()', _TOGGLE + ' ' + _POLYGONS, 'polygonToggle');
+      aControls.addBtn(aControls.ROW_VIEW, {
+        icon   : 'bookmark',
+        onclick: 'aDistrictPolygoner.toggle()',
+        title  : _TOGGLE + ' ' + _POLYGONS,
+        id     : 'polygonToggle'
+      });
     }
     
-    if (CLUSTERING_ENABLED) {
-      Events.on('controlblockshowed', function () {
-        window['BuildClustererControl'] = new ClustererControl(LAYER_ID_BY_NAME[BUILD], 'clusterToggle');
-      });
-      aControls.addBtn('map-marker', 'BuildClustererControl.toggle()', _TOGGLE + ' ' + _MARKER + ' ' + _CLUSTERS, 'clusterToggle', 'success');
-    }
+    Events.on('1_ENABLED', function () {
+      window['BuildClustererControl'] = new ClustererControl(LAYER_ID_BY_NAME[BUILD], 'clusterToggle');
+    });
+    
+    aControls.addBtn(aControls.ROW_VIEW, {
+          icon   : 'map-marker',
+          onclick: 'BuildClustererControl.toggle()',
+          title  : _TOGGLE + ' ' + _MARKER + ' ' + _CLUSTERS,
+          id     : 'clusterToggle',
+          class  : 'success'
+        }
+    );
     
     aControls.init();
-    
-    function wait_for_controls_showed() {
-      setTimeout(function () {
-        if ($('#showLayersControlBlock').length) {
-          Events.emit('controlblockshowed', true)
-        }
-        else {
-          wait_for_controls_showed();
-        }
-      }, 500);
-    }
-    
-    wait_for_controls_showed();
-  }
+  };
   
-  //Events.on('new_point_rendered_' + LAYER_ID_BY_NAME[BUILD], function (newPoint) {
-  //  markers[newPoint['marker'].id] = newPoint['marker'];
-  //});
+  if (FORM['SHOW_CONTROLS']) {
+    addControls();
+  }
+  else {
+    Events.on('mapsconfigured', Events.emitAsCallback('controlblockcached'));
+  }
+
+//Events.on('new_point_rendered_' + LAYER_ID_BY_NAME[BUILD], function (newPoint) {
+//  markers[newPoint['marker'].id] = newPoint['marker'];
+//});
   
   Events.emit('mapsconfigured');
 }
@@ -398,7 +423,7 @@ function getDefinedMapCenter() {
   if (mapCenterLatLng) {
     return mapCenterLatLng;
   }
-  if (mapCenter != '') {
+  if (mapCenter !== '') {
     var $center = mapCenter.split(', ');
     var latLng  = aMap.createPosition($center[0], $center[1]);
     var zoom    = parseInt($center[2]);
@@ -586,6 +611,11 @@ var SettingsSaver = (function () {
   }
   
   function restoreLayers() {
+    if (FORM && FORM['HIDE_ALL_LAYERS']) {
+      console.log('[ SettingsSaver ]', 'restoreLayers', 'Skipped because of $attr->{HIDE_ALL_LAYERS}');
+      return true;
+    }
+    
     console.log('[ SettingsSaver ]', 'restoreLayers', config.layers);
     if (!config.layers) {
       config.layers = {};
@@ -595,7 +625,7 @@ var SettingsSaver = (function () {
         if (!config.layers.hasOwnProperty(layer_id)) continue;
         
         // If module was disabled, and layer is absent now, should delete it from config
-        if (!MapLayers.hasLayer(layer_id)){
+        if (!MapLayers.hasLayer(layer_id)) {
           delete config['layers'][layer_id];
           continue;
         }
@@ -687,7 +717,7 @@ var SettingsSaver = (function () {
 Events.emit('onbeforemapcreate');
 var aMap = new AMap();
 
-$(function(){
+$(function () {
   var $filterForm = $('form#mapUserShow');
   
   var selects = [
@@ -697,7 +727,7 @@ $(function(){
   ];
   
   selects.forEach(function (select) {
-    select.on('change', function(){
+    select.on('change', function () {
       MapLayers.refreshLayer(LAYER_ID_BY_NAME[BUILD]);
     })
   })

@@ -151,7 +151,9 @@ CREATE TABLE IF NOT EXISTS `iptv_services` (
   `url` VARCHAR(120) NOT NULL DEFAULT '',
   `user_portal` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   `debug` TINYINT(2) UNSIGNED NOT NULL DEFAULT 0,
+  `debug_file` VARCHAR(120) NOT NULL DEFAULT '',
   `subscribe_count` TINYINT(2) UNSIGNED NOT NULL DEFAULT 1,
+  `provider_portal_url` VARCHAR(200) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
 )

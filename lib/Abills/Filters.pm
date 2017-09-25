@@ -303,12 +303,14 @@ sub human_exp {
 
   my $mask        = '';
   my $exp_leng    = length($exp);
-  my $mask_symbol = 'X';
+  my $mask_symbol = '12345678901234567890';
   my $counter     = -1;
   my $mask_leng   = 0;
   my $isopen      = 0;
 
   while ($counter++ < $exp_leng) {
+    next if (( substr $exp, $counter, 1 ) eq '$');
+  
     if (( substr $exp, $counter, 1 ) eq '\\' and ( substr $exp, $counter + 1 , 1 ) eq 's' ) {
       $mask = $mask . ' ';
       $counter += 2;
@@ -327,7 +329,7 @@ sub human_exp {
     }
 
     if (( substr $exp, $counter, 1 ) eq '}') {
-      $mask = $mask . ($mask_symbol x $mask_leng);
+      $mask = $mask . (substr $mask_symbol, 0, $mask_leng);
       $mask_leng = 0;
       $isopen = 0;
       next;
@@ -342,6 +344,52 @@ sub human_exp {
   }
 
   return $mask;
+}
+
+#**********************************************************
+=head2 inn_check($inn) - Check inn rf
+
+  Arguments:
+    $inn
+
+  Result:
+    TRUE OR FALSE
+
+=cut
+#**********************************************************
+sub inn_check {
+  my $inn = shift;
+
+  my $control_num1 = '7 2 4 10 3 5 9 4 6 8';
+  my @inn_arr = split(//, $inn);
+  my @control_arr = split(/ /, $control_num1);
+
+  if($#inn_arr < 9) {
+    return 0
+  }
+
+  my $sum = 0;
+
+  for(my $i=0; $i<$#inn_arr-1; $i++) {
+    $sum += $inn_arr[$i] * $control_arr[$i];
+  }
+
+  if( $sum != 11*13 + $inn_arr[$#inn_arr-1]) {
+    return 0;
+  }
+
+  @control_arr = split(/ /, '3 7 2 4 10 3 5 9 4 6 8');
+
+  $sum = 0;
+  for(my $i=0; $i<$#inn_arr; $i++) {
+    $sum += $inn_arr[$i] * $control_arr[$i];
+  }
+
+  if( $sum != 11*12 + $inn_arr[$#inn_arr]) {
+    return 0;
+  }
+
+  return 1;
 }
 
 

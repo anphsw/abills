@@ -27,24 +27,39 @@ my $Nas      = Nas->new($db, \%conf, $admin);
 #**********************************************************
 sub dv_tp {
 
-  my $tarif_info;
-  my @Octets_Direction = ("$lang{RECV} + $lang{SEND}", $lang{RECV}, $lang{SEND});
 
   use Dv;
-  my $dv = Dv->new($db, $admin, \%conf);
-  $dv->account_check();
-  if(_error_show($dv)) {
-    return 1;
-  }
+    my $dv = Dv->new($db, $admin, \%conf);
+      $dv->account_check();
+        if(_error_show($dv)) {
+            return 1;
+              }
+              
 
-  my %payment_types = ( 0 => $lang{PREPAID},
+  my $tarif_info;
+  my %octets_direction = (
+    0 => "$lang{RECV} + $lang{SEND}",
+    1 => $lang{RECV},
+    2 => $lang{SEND}
+  );
+
+  my %payment_types = (
+    0 => $lang{PREPAID},
     1 => $lang{POSTPAID},
     2 => $lang{GUEST}
   );
 
-  my %bool_hash     = (0 => $lang{NO},
+  my %bool_hash = (
+    0 => $lang{NO},
     1 => $lang{YES}
   );
+
+  my %tp_groups = ();
+
+  my $tp_groups_list = $Tariffs->tp_group_list({ COLS_NAME => 1 });
+  foreach my $line (@$tp_groups_list) {
+    $tp_groups{$line->{id}}=$line->{name};
+  }
 
   $tarif_info               = $Tariffs->defaults();
   $tarif_info->{LNG_ACTION} = $lang{ADD};
@@ -146,8 +161,8 @@ sub dv_tp {
       'OCTETS_DIRECTION',
       {
         SELECTED     => $tarif_info->{OCTETS_DIRECTION},
-        SEL_ARRAY    => \@Octets_Direction,
-        ARRAY_NUM_ID => 1
+        SEL_HASH     => \%octets_direction,
+        NO_ID        => 1
       }
     );
 
@@ -156,7 +171,6 @@ sub dv_tp {
       {
         SELECTED   => $tarif_info->{PAYMENT_TYPE},
         SEL_HASH   => \%payment_types,
-        #ARRAY_NUM_ID => 1
       }
     );
 
@@ -164,7 +178,7 @@ sub dv_tp {
       'TP_GID',
       {
         SELECTED       => $tarif_info->{TP_GID},
-        SEL_LIST       => $Tariffs->tp_group_list({ COLS_NAME => 1 }),
+        SEL_LIST       => $tp_groups_list,
         MAIN_MENU      => get_function_index('form_tp_groups'),
         MAIN_MENU_ARGV => "chg=". ($tarif_info->{TP_GID} || q{}),
         SEL_OPTIONS    => { '' => '' },
@@ -221,7 +235,8 @@ sub dv_tp {
       }
     );
 
-    my $tp_list = $Tariffs->list({ MODULE       => 'Dv',
+    my $tp_list = $Tariffs->list({
+      MODULE       => 'Dv',
       DOMAIN_ID    => $admin->{DOMAIN_ID},
       NEW_MODEL_TP => 1,
       COLS_NAME    => 1
@@ -347,6 +362,7 @@ sub dv_tp {
 
   my Abills::HTML $table;
   my $list;
+
   ($table, $list) = result_former({
     INPUT_DATA      => $Tariffs,
     FUNCTION        => 'list',
@@ -359,6 +375,7 @@ sub dv_tp {
       time_tarifs  => \%bool_hash,
       traf_tarifs  => \%bool_hash,
       payment_type => \%payment_types,
+      octets_direction => \%octets_direction
     },
     TABLE           => {
       width      => '100%',
@@ -368,10 +385,10 @@ sub dv_tp {
       ID         => 'DV_TARIF_PLANS',
       MENU       => "$lang{ADD}:index=$index&add_form=1:add",
       EXPORT     => 1,
+      recs_on_page => 60000
     },
     MODULE       => 'Dv',
   });
-
 
   foreach my $line (@$list) {
     my @function_fileds = (
@@ -380,7 +397,6 @@ sub dv_tp {
     if ($permissions{4}{1}) {
       push @function_fileds, $html->button($lang{CHANGE}, "index=$index&TP_ID=$line->{tp_id}", { class => 'change' });
       push @function_fileds, $html->button($lang{DEL}, "index=$index&del=$line->{tp_id}", { MESSAGE => "$lang{DEL} $line->{id} $line->{name}?", class => 'del' });
-
     }
 
     if ($FORM{TP_ID} && $FORM{TP_ID} eq $line->{tp_id}) {
@@ -392,20 +408,28 @@ sub dv_tp {
 
     my @fields_array = ();
     for (my $i = 0; $i < 2+$Tariffs->{SEARCH_FIELDS_COUNT}; $i++) {
-      if ($Tariffs->{COL_NAMES_ARR}->[$i] =~ /time_tarifs|traf_tarifs|abon_distribution|period_alignment|fixed_fees_day/) {
-        $line->{$Tariffs->{COL_NAMES_ARR}->[$i]} = $bool_hash{$line->{$Tariffs->{COL_NAMES_ARR}->[$i]}};
+      my $col_name =  $Tariffs->{COL_NAMES_ARR}->[$i];
+      if ($col_name =~ /time_tarifs|traf_tarifs|abon_distribution|period_alignment|fixed_fees_day/) {
+        $line->{$col_name} = $bool_hash{$line->{$col_name}};
       }
-      elsif ($Tariffs->{COL_NAMES_ARR}->[$i] =~ /small_deposit_action/) {
-        $line->{$Tariffs->{COL_NAMES_ARR}->[$i]} = ($line->{$Tariffs->{COL_NAMES_ARR}->[$i]} == -1) ? $lang{HOLD_UP} : $payment_types{$line->{$Tariffs->{COL_NAMES_ARR}->[$i]}};
+      elsif ($col_name =~ /small_deposit_action/) {
+        $line->{$col_name} = ($line->{$col_name} == -1) ? $lang{HOLD_UP} : $payment_types{$line->{$col_name}};
       }
-      elsif($Tariffs->{COL_NAMES_ARR}->[$i] =~ /name/) {
+      elsif($col_name =~ /name/) {
         $line->{name} = $html->button($line->{name}, "index=$index&TP_ID=$line->{tp_id}");
       }
-      elsif ($Tariffs->{COL_NAMES_ARR}->[$i] =~ /payment_type/) {
-        $line->{$Tariffs->{COL_NAMES_ARR}->[$i]} = $payment_types{$line->{$Tariffs->{COL_NAMES_ARR}->[$i]}};
+      elsif ($col_name =~ /payment_type/) {
+        $line->{$col_name} = $payment_types{$line->{$col_name}};
+      }
+      elsif ($col_name eq 'octets_direction') {
+        $line->{$col_name} = $octets_direction{$line->{$col_name}};
+      }
+      elsif ($col_name eq 'tp_gid') {
+        $line->{$col_name} = $line->{$col_name} . ' : '
+          . (($tp_groups{$line->{$col_name}}) ? $tp_groups{$line->{$col_name}} : q{});
       }
 
-      push @fields_array, $line->{$Tariffs->{COL_NAMES_ARR}->[$i]};
+      push @fields_array, $line->{$col_name};
     }
     $table->addrow(
       @fields_array,

@@ -49,22 +49,23 @@ sub msgs_sp_show_overdue {
 sub msgs_sp_show_new {
   my ($attr) = @_;
 
-  my $table = $html->table(
-    {
-      width   => '100%',
-      caption => $html->button($MESSAGE_ICON . (($attr->{STATE}) ? $lang{OVERDUE} : $lang{MESSAGES}), "index=" . get_function_index('msgs_admin') . (($attr->{STATE}) ? '&STATE=12' : '')),
-      title_plain => [ '#',    "$lang{LOGIN}", "$lang{DATE}", "$lang{SUBJECT}" ],
-      cols_align  => [ 'left', 'right',        'right',       'right' ],
-      ID => "MSGS_NEW_" . ($attr->{STATE} || q{_}),
-      class => 'table'
-    }
-  );
+#  my $table = $html->table(
+#    {
+#      width   => '100%',
+#      caption => $html->button($MESSAGE_ICON . (($attr->{STATE}) ? $lang{OVERDUE} : $lang{MESSAGES}), "index=" . get_function_index('msgs_admin') . (($attr->{STATE}) ? '&STATE=12' : '')),
+#      title_plain => [ '#',    "$lang{LOGIN}", "$lang{DATE}", "$lang{SUBJECT}", "$lang{CHAPTER}" ],
+#      ID      => "MSGS_NEW_" . ($attr->{STATE} || q{_}),
+#      class   => 'table'
+#    }
+#  );
 
   my $list = $Msgs->messages_list(
     {
       CLIENT_ID      => '_SHOW',
       DATETIME       => '_SHOW',
       SUBJECT        => '_SHOW',
+      CHAPTER        => '_SHOW',
+      CHAPTER_NAME   => '_SHOW',
       PRIORITY       => '_SHOW',
       PLAN_DATE_TIME => '_SHOW',
       SORT           => 'id',
@@ -80,30 +81,6 @@ sub msgs_sp_show_new {
     DATE_KEY     => ($attr->{STATE}) ? 'plan_date_time' : 'datetime',
     DATA_CAPTION => ($lang{DATE})
   });
-
-  foreach my $line (@$list) {
-    if ($line->{priority} == 4) {
-      $table->{rowcolor} = 'bg-danger';
-    }
-    elsif ($line->{priority} == 3) {
-      $table->{rowcolor} = 'bg-warning';
-    }
-    elsif ($line->{priority} <= 1) {
-      $table->{rowcolor} = 'bg-info';
-    }
-    else {
-      $table->{rowcolor} = undef;
-    }
-
-    $table->addrow(
-      $line->{id},
-      $html->button($line->{client_id}, "index=15&UID=$line->{uid}"),
-      ($attr->{STATE}) ? $line->{plan_date_time} : $line->{datetime},
-      $html->button($line->{subject} || $lang{NO_SUBJECT}, "index=" . (get_function_index('msgs_admin') . "&UID=$line->{uid}&chg=" . $line->{id}))
-    );
-  }
-
-  return $table->show();
 }
 
 #**********************************************************
@@ -145,17 +122,18 @@ sub msgs_user_watch {
 =cut
 #**********************************************************
 sub msgs_dispatch_quick_report {
-
+  
   my $table = $html->table(
     {
       width       => '100%',
-      caption     => $html->button($MESSAGE_ICON . $lang{DISPATCH}, "index=" . get_function_index('msgs_dispatch') . "&ALL_MSGS=1"),
-      title_plain => [ "$lang{NAME}", "$lang{CREATED}", "$lang{EXECUTED}", "$lang{TOTAL}"],
+      caption     =>
+      $html->button($MESSAGE_ICON . $lang{DISPATCH}, "index=" . get_function_index('msgs_dispatch') . "&ALL_MSGS=1"),
+      title_plain => [ $lang{NAME}, $lang{CREATED}, $lang{EXECUTED}, $lang{TOTAL} ],
       class       => 'table',
       ID          => 'DISPATCH_QUIK_REPORT_LIST'
     }
   );
-
+  
   my $list = $Msgs->dispatch_list(
     {
       COLS_NAME => 1,
@@ -165,20 +143,27 @@ sub msgs_dispatch_quick_report {
       DESC      => 'DESC'
     }
   );
-
-  foreach my $message (@$list) {
-      $table->addrow(
-            $html->button($message->{comments}?$message->{comments}:$lang{NO_SUBJECT}, "index=" . get_function_index('msgs_dispatch') . "&chg=" . $message->{id}),
-            $html->button($message->{created}, "index=" . get_function_index('msgs_dispatch') . "&chg=" . $message->{id}),
-            $html->progress_bar({
-              TEXT     => ($message->{message_count}) ? int(($message->{msgs_done}*100)/$message->{message_count}).'%' : 0 . '%',
-              TOTAL    =>  $message->{msgs_done},
-              COMPLETE => $message->{message_count}
-            }),
-            $html->button($message->{message_count}, "index=" . get_function_index('msgs_dispatch') . "&chg=" . $message->{id}),
-      );
+  
+  my $dispatch_index = get_function_index('msgs_dispatch');
+  
+  foreach my $message ( @{$list} ) {
+    my $dispatch_comments = $message->{comments} || $lang{NO_SUBJECT};
+    my $done_count = $message->{message_count}
+      ? (int(($message->{msgs_done} * 100) / $message->{message_count}))
+      : 0;
+    my $dispatch_link = "index=$dispatch_index&chg=$message->{id}&ALL_MSGS=1";
+  
+    $table->addrow($html->button($dispatch_comments, $dispatch_link),
+      $html->button($message->{created}, $dispatch_link),
+      $html->progress_bar({
+        TEXT     => $done_count . "%",
+        TOTAL    => $message->{msgs_done},
+        COMPLETE => $message->{message_count}
+      }),
+      $html->button($message->{message_count}, $dispatch_link),
+    );
   }
-
+  
   return $table->show();
 }
 
@@ -192,8 +177,8 @@ sub msgs_open_msgs {
   my $table = $html->table(
     {
       width       => '100%',
-      caption     => $html->button($MESSAGE_ICON . $lang{OPEN}, "index=" . get_function_index('msgs_admin') . "&STATE=0"),
-      title_plain => [ "$lang{RESPOSIBLE}", "$lang{COUNT}" ],
+      caption     => $html->button($MESSAGE_ICON . $lang{RESPOSIBLE}, "index=" . get_function_index('msgs_admin') . "&STATE=0"),
+      title_plain => [ $lang{RESPOSIBLE}, $lang{COUNT} ],
       class       => 'table',
       ID          => 'DISPATCH_QUIK_REPORT_LIST'
     }
@@ -206,21 +191,35 @@ sub msgs_open_msgs {
       RESPOSIBLE             => '_SHOW',
       RESPOSIBLE_ADMIN_LOGIN => '_SHOW',
       STATE                  => 0,
+      PAGE_ROWS              => 10000
     }
   );
 
   my %admins;
   my %resposble_admin;
+  my $withot_admin = 0;
   foreach my $msg_info (@$list) {
-    $msg_info->{resposible_admin_login} = $msg_info->{resposible_admin_login} ? $msg_info->{resposible_admin_login} : $lang{ALL};
-    $msg_info->{resposible}             = $msg_info->{resposible}             ? $msg_info->{resposible}             : 0;
-    $admins{ $msg_info->{resposible_admin_login} } += 1;
-    $resposble_admin{ $msg_info->{resposible_admin_login} . 'resposible' } = $msg_info->{resposible};
+    if($msg_info->{resposible_admin_login}) {
+      $admins{ $msg_info->{resposible_admin_login} } += 1;
+      $resposble_admin{ $msg_info->{resposible_admin_login}.'resposible' } = $msg_info->{resposible};
+    }
+    else {
+      $withot_admin++;
+    }
   }
 
-  foreach my $admin_info (keys %admins) {
-    $table->addrow($admin_info, $html->button($admins{$admin_info}, "index=" . get_function_index('msgs_admin') . "&RESPOSIBLE=$resposble_admin{$admin_info.'resposible'}" . "&STATE=0"));
+  $table->{rowcolor}='bg-info';
+  $table->addrow($lang{NOT_DEFINED}, $html->button($withot_admin, "index=" . get_function_index('msgs_admin')
+        . "&RESPOSIBLE=<1" . "&STATE=0"));
+
+  delete $table->{rowcolor};
+
+  foreach my $admin_info (sort { $admins{$b} <=> $admins{$a} } keys %admins) {
+    $table->addrow($admin_info, $html->button($admins{$admin_info}, "index=" . get_function_index('msgs_admin')
+          . "&RESPOSIBLE=$resposble_admin{$admin_info.'resposible'}" . "&STATE=0"));
   }
+
+
   return $table->show();
 }
 
@@ -236,22 +235,14 @@ sub msgs_sp_table {
     $messages_list = [];
   }
 
-  my @icon = (
-    'fa fa-envelope-open text-aqua', # OPEN
-    'fa fa-warning text-red',        # UNDONE AND CLOSED
-    'fa fa-check text-green',        # DONE AND CLOSED
-    'fa fa-wrench',                  # IN WORK
-    'fa fa-reply text-blue',         # NEW MESSAGE
-    'fa fa-clock-o',                 # SUSPEND
-    'fa fa-envelope-open-o'          # WAIT REPLY FROM USER
-  );
-
   my $statuses_list = $Msgs->status_list({
     NAME      => '_SHOW',
     COLOR     => '_SHOW',
+    ICON      => '_SHOW',
     SORT      => 'id',
     COLS_NAME => 1,
   });
+
   _error_show($Msgs);
 
   my %statuses_by_id = ();
@@ -271,20 +262,26 @@ sub msgs_sp_table {
   my $table = $html->table(
     {
       width       => '100%',
-      caption     => $html->button($MESSAGE_ICON . ($attr->{CAPTION} || '') . "&nbsp&nbsp" . $badge,
+      caption     => $html->button($MESSAGE_ICON . ($attr->{CAPTION} || '') . "&nbsp;&nbsp;" . $badge,
         "index=$msgs_admin_index&ALL_MSGS=1"),
-      title_plain => [ '', ($attr->{DATA_CAPTION} || $lang{DATE}), $lang{LOGIN}, $lang{SUBJECT}, ],
+      title_plain => [ '', ($attr->{DATA_CAPTION} || $lang{DATE}), $lang{LOGIN}, $lang{SUBJECT}, $lang{CHAPTER} ],
       class       => 'table',
-      cols_align  => [ 'center', 'center', 'center', 'right' ],
       ID          => 'USER_WATCH_LIST'
     }
   );
+
   foreach my $msg_info ( @{$messages_list} ) {
     my $status_id = $msg_info->{state};
-    my $state_icon = $icon[$status_id] || '';
+    my $state_icon = $statuses_by_id{$status_id}->{icon} || '';
     my $status_name = _translate($statuses_by_id{$status_id}->{name}) || $statuses_by_id{$status_id}->{name};
 
     $table->{rowcolor} = $priority_colors_list[$msg_info->{priority}] || '';
+
+    my $chapter = ($msg_info->{chapter_name})
+      ? ( length($msg_info->{chapter_name}) > 30)
+        ? $html->element('span', substr($msg_info->{chapter_name}, 0, 30) . '...', { title => $msg_info->{chapter_name} })
+        : $msg_info->{chapter_name}
+      : $lang{NO_CHAPTER};
 
     my $subject = ($msg_info->{subject})
       ? ( length($msg_info->{subject}) > 30)
@@ -314,8 +311,12 @@ sub msgs_sp_table {
 
       # Subject stripped to 30 symbols
       $html->button( $subject,
-        "index=" . $msgs_admin_index . "&UID=" . $msg_info->{uid} . "&chg=" . $msg_info->{id})
-    );
+        "index=" . $msgs_admin_index . "&UID=" . $msg_info->{uid} . "&chg=" . $msg_info->{id}),
+
+      # Chapter stripped to 30 symbols
+      $html->button( $chapter,
+        'index='. get_function_index('msgs_chapters') . "&chg=" . $msg_info->{chapter_id})
+   );
   }
 
   return $table->show();

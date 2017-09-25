@@ -22,7 +22,7 @@ our Conf $Conf;
 my $Tariffs = Tariffs->new( $db, \%conf, $admin );
 
 #**********************************************************
-=head2 form_tp() - Tarif plans
+=head2 iptv_tp() - Tarif plans
 
 =cut
 #**********************************************************
@@ -165,7 +165,7 @@ sub iptv_tp{
       {
         SELECTED    => $tarif_info->{NEXT_TARIF_PLAN},
         SEL_LIST    => $tp_list,
-        SEL_OPTIONS => { '' => '' },
+        SEL_OPTIONS => { '' => '--' },
       }
     );
 
@@ -229,7 +229,7 @@ sub iptv_tp{
     SKIP_USER_TITLE => 1,
     TABLE           => {
       width   => '100%',
-      caption => "$lang{TARIF_PLAN}",
+      caption => $lang{TARIF_PLAN},
       qs      => $pages_qs,
       ID      => 'IPTV_TARIF_PLANS',
       MENU    => "$lang{ADD}:index=$index&add_form=1:add",
@@ -278,7 +278,6 @@ sub iptv_tp{
 
   $table = $html->table({
     width      => '100%',
-    cols_align => [ 'right', 'right' ],
     rows       => [ [ "$lang{TOTAL}:", $html->b( $Tariffs->{TOTAL} ) ] ]
   });
 

@@ -10,10 +10,21 @@
 
 =cut
 
+use strict;
 use Abills::Filters;
 use Abills::Base qw(sendmail convert);
 use Finance;
-our ($admin, $db, %conf);
+
+our (
+  $admin,
+  $db,
+  %conf,
+  %PAYSYS_PAYMENTS_METHODS,
+  %lang,
+  $html,
+  $base_dir
+);
+
 my $payments = Finance->payments($db, $admin, \%conf);
 #my $fees     = Finance->fees($db, $admin, \%conf);
 my $Paysys   = Paysys->new($db, $admin, \%conf);
@@ -29,13 +40,13 @@ my @status = ("$lang{UNKNOWN}", #0
   "$lang{USER_ERROR}", #8
   "$lang{USER_NOT_EXIST}", #9
   "$lang{SMALL_PAYMENT_SUM}", #10
-'SQL_ERROR',                #11
-'TEST',                     #12
-'WAIT',                     #13
-'REJECT',                   #14
-'UNPAID',                   #15
-'WRONG_SUM',                #16
-'PAYMENT_SQL_ERROR',        #17
+  'SQL_ERROR',                #11
+  'TEST',                     #12
+  'WAIT',                     #13
+  'REJECT',                   #14
+  'UNPAID',                   #15
+  'WRONG_SUM',                #16
+  'PAYMENT_SQL_ERROR',        #17
 );
 
 #**********************************************************
@@ -129,6 +140,7 @@ sub paysys_pay {
   my $payment_system_id = $attr->{PAYMENT_SYSTEM_ID};
   my $amount         = $attr->{SUM};
   my $order_id       = $attr->{ORDER_ID};
+  $users = $attr->{USER_INFO} if $attr->{USER_INFO};
 
   my $status         = 0;
   my $payments_id    = 0;
@@ -235,8 +247,13 @@ sub paysys_pay {
     }
   }
   else {
+    if($conf{PAYSYS_ACCOUNT_KEY}){
+      $CHECK_FIELD = _account_expression($user_account);
+    }
+
     my $list = $users->list({ $CHECK_FIELD   => $user_account || '---',
                               DISABLE_PAYSYS => '_SHOW',
+                              GROUP_NAME     => '_SHOW',
                               COLS_NAME      => 1  });
     if ($users->{errno} || $users->{TOTAL} < 1) {
       $status = 1;
@@ -316,8 +333,12 @@ sub paysys_pay {
     SILENT      => 1,
     SUM         => $PAYMENT_SUM || $amount,
     EXT_ID      => "$payment_system:$ext_id",
-    METHOD       => ($conf{PAYSYS_PAYMENTS_METHODS} && $PAYSYS_PAYMENTS_METHODS{$payment_system_id}) ? $payment_system_id : '2',
+    METHOD      => ($conf{PAYSYS_PAYMENTS_METHODS} && $PAYSYS_PAYMENTS_METHODS{$payment_system_id}) ? $payment_system_id : '2',
+    timeout     => $conf{PAYSYS_CROSSMODULES_TIMEOUT} || 4,
+    #DEBUG => 5,
+    #SILENT => 0
   });
+
 
   $payments->add(
     $user,
@@ -337,7 +358,6 @@ sub paysys_pay {
   #Exists
   # payments Dublicate
   if ($payments->{errno} && $payments->{errno} == 7) {
-
     my $list = $Paysys->list({ TRANSACTION_ID => "$payment_system:$ext_id", STATUS => '_SHOW', COLS_NAME => 1 });
     $payments_id = $payments->{ID};
     # paysys list not exist
@@ -360,11 +380,13 @@ sub paysys_pay {
 
       if (! $Paysys->{errno}) {
         cross_modules_call('_payments_maked', {
-             USER_INFO  => $user,
-             PAYMENT_ID => $payments_id,
-             SUM        => $amount,
-             SILENT     => 1,
-             QUITE      => 1 });
+          USER_INFO  => $user,
+          PAYMENT_ID => $payments_id,
+          SUM        => $amount,
+          SILENT     => 1,
+          QUITE      => 1,
+          timeout    => $conf{PAYSYS_CROSSMODULES_TIMEOUT} || 4,
+        });
       }
 
       $status = 3;
@@ -434,10 +456,13 @@ sub paysys_pay {
 
     if (!$Paysys->{errno}) {
       cross_modules_call('_payments_maked', {
-              USER_INFO   => $user,
-              PAYMENT_ID  => $payments->{PAYMENT_ID},
-              SUM         => $amount,
-              QUITE       => 1 });
+        USER_INFO   => $user,
+        PAYMENT_ID  => $payments->{PAYMENT_ID},
+        SUM         => $amount,
+        SILENT      => 1,
+        QUITE       => 1,
+        timeout     => $conf{PAYSYS_CROSSMODULES_TIMEOUT} || 4,
+      });
     }
     #Transactions registration error
     else {
@@ -505,6 +530,10 @@ sub paysys_check_user {
   my $CHECK_FIELD  = $attr->{CHECK_FIELD};
   my $user_account = $attr->{USER_ID};
 
+  if($conf{PAYSYS_ACCOUNT_KEY}){
+    $CHECK_FIELD = _account_expression($user_account);
+  }
+
   $user_account = _expr($user_account, $conf{PAYSYS_ACCOUNT_EXPR});
 
   if (! $user_account) {
@@ -533,9 +562,12 @@ sub paysys_check_user {
                             GROUP_NAME   => '_SHOW',
                             DISABLE      => '_SHOW',
                             CONTRACT_ID  => '_SHOW',
+                            ACTIVATE     => '_SHOW',
+                            REDUCTION    => '_SHOW',
                             %EXTRA_FIELDS,
                             $CHECK_FIELD => $user_account,
                             COLS_NAME    => 1,
+                            COLS_UPPER => 1,
                             PAGE_ROWS    => 2,
                             });
 
@@ -548,7 +580,12 @@ sub paysys_check_user {
   elsif ($list->[0]->{disable_paysys}) {
     return 11;
   }
-
+  
+  if( $conf{PAYSYS_OSMP_EXTRA_INFO} ){
+    use Abills::Misc;
+    my $recomended_pay = recomended_pay($list->[0]);
+    $list->[0]->{fee} = $recomended_pay;
+  }
   return $result, $list->[0];
 }
 
@@ -682,7 +719,7 @@ sub paysys_pay_check {
                         });
 
   if ( $Paysys->{TOTAL} ) {
-    return  $paysys_list->[0]->{id};
+    return  $paysys_list->[0]->{id}, $paysys_list->[0]->{status};
   }
 
   return $result;
@@ -845,6 +882,7 @@ sub mk_log {
 sub paysys_show_result {
   my ($attr) = @_;
 
+  my $transaction_true = 1;
   if ($attr->{TRANSACTION_ID}) {
     my $list = $Paysys->list(
       {
@@ -866,11 +904,13 @@ sub paysys_show_result {
 
       if ($list->[0]->{status} != 2) {
         $attr->{MESSAGE} = $status[$list->[0]->{status}];
+        $transaction_true = 0;
       }
     }
     else {
       $attr->{MESSAGE} = $lang{ERR_NO_TRANSACTION};
       $attr->{FALSE}   = 1;
+      $transaction_true = 0;
     }
 
     if ($list->[0]->{info} && $list->[0]->{info} =~ /TP_ID,(\d+)/) {
@@ -895,6 +935,7 @@ sub paysys_show_result {
     }
 
     $html->tpl_show(_include('paysys_false', 'Paysys'), { %$attr });
+    $transaction_true = 0;
   }
   else {
     if ($attr->{SHOW_TRUE_PARAMS}) {
@@ -909,7 +950,7 @@ sub paysys_show_result {
 
   $html->set_cookies('lastindex', "", "Fri, 1-Jan-2038 00:00:01") if (! $FORM{INTERACT});
 
-  return 0;
+  return $transaction_true;
 }
 
 #**********************************************************
@@ -995,4 +1036,31 @@ sub paysys_import_parse {
   return \@DATA_ARR, \@BINDING_IDS;
 }
 
+#**********************************************************
+=head2 _account_expression() -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub _account_expression {
+  my ($user_account) = @_;
+
+  my @key_expressions = split(';', $conf{PAYSYS_ACCOUNT_KEY});
+  my $CHECK_FIELD = q{};
+
+  foreach my $each_key_expression (@key_expressions) {
+    my ($reg_exp, $user_check_field) = split(":", $each_key_expression);
+    if ($user_account =~ /$reg_exp/) {
+      $CHECK_FIELD = $user_check_field;
+    }
+  }
+
+  return $CHECK_FIELD;
+}
+  
 1

@@ -15,7 +15,7 @@ use warnings FATAL => 'all';
 if ( form_purchase_module( {
     HEADER          => $user->{UID},
     MODULE          => 'Ureports',
-    REQUIRE_VERSION => 7.08,
+    REQUIRE_VERSION => 7.12,
   } ) ){
 
   exit;
@@ -26,7 +26,7 @@ use Dv_Sessions;
 use Finance;
 use Fees;
 use Tariffs;
-use Abills::Base qw(sendmail in_array);
+use Abills::Base qw(sendmail in_array cmd);
 
 our ($db,
   $admin,
@@ -143,7 +143,8 @@ sub ureports_users_list{
       qs      => $pages_qs,
       ID      => 'UREPORTS_USERS',
       EXPORT  => 1,
-      MENU    => "$lang{SEARCH}:index=$index&search_form=1:search;$lang{ADD}:index=$index&add_form=1:add",
+      MENU    => "$lang{SEARCH}:index=$index&search_form=1:search;"
+      #$lang{ADD}:index=$index&add_form=1:add",
     },
   } );
 
@@ -183,7 +184,6 @@ sub ureports_users_list{
   $table = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right' ],
       rows       => [ [ "$lang{TOTAL}: ", $html->b( $Ureports->{TOTAL} ) ] ]
     }
   );
@@ -291,22 +291,20 @@ sub ureports_user{
     $Ureports->{ACTION} = 'set';
     $Ureports->{LNG_ACTION} = $lang{CHANGE};
 
-    my $table = $html->table(
-      {
-        width      => '100%',
-        caption    => "$lang{REPORTS}",
-        title      => [ '#', $lang{NAME}, $lang{VALUE}, $lang{PRICE}, $lang{SENDED} ],
-        cols_align => [ 'center', 'left', 'center', 'right', 'right' ],
-        qs         => $pages_qs,
-        ID         => 'REPORTS_TP'
-      }
-    );
+    my $table = $html->table({
+      width      => '100%',
+      caption    => $lang{REPORTS},
+      title      => [ '#', $lang{NAME}, $lang{VALUE}, $lang{PRICE}, $lang{SENDED} ],
+      qs         => $pages_qs,
+      ID         => 'REPORTS_TP'
+    });
 
     my $list = $Ureports->tp_user_reports_list( {
-        %LIST_PARAMS,
-        COMMENTS  => '_SHOW',
-        TP_ID     => $Ureports->{TP_ID},
-        COLS_NAME => 1 } );
+      %LIST_PARAMS,
+      COMMENTS  => '_SHOW',
+      TP_ID     => $Ureports->{TP_ID},
+      COLS_NAME => 1
+    } );
 
     foreach my $line ( @{$list} ){
       $table->addrow(
@@ -360,7 +358,8 @@ sub ureports_user{
     }
   );
 
-  $Ureports->{HISTORY_BTN} = $html->button($lang{LOG}, "UID=$FORM{UID}&index=". ($index+1), { class => 'btn bnt-default btn-success pull-right' });
+  $Ureports->{HISTORY_BTN} = $html->button($lang{LOG}, "UID=$Ureports->{UID}&index=". ($index+1),
+    { class => 'btn bnt-default btn-success pull-right' });
 
   $html->tpl_show( _include( 'ureports_user', 'Ureports' ), { %{$attr}, %{$Ureports} } );
 
@@ -490,44 +489,40 @@ sub ureports_tp{
   my Abills::HTML $table;
   my $list;
   ($table, $list) = result_former( {
-      INPUT_DATA        => $tariffs,
-        FUNCTION        => 'list',
-        BASE_FIELDS     => $base_fields,
-        DEFAULT_FIELDS  => 'ID,NAME,PAYMENT_TYPE,MONTH_FEE,TP_GROUP_NAME',
-        FUNCTION_FIELDS => '-, -, -',
-        EXT_TITLES      => {
-        id                   => 'id',
-        port                 => $lang{PORT},
-        filter_id            => 'Filter ID',
-        tp_name              => "$lang{TARIF_PLAN}",
-        num                  => $lang{NUM},
-        name                 => $lang{NAME},
-        payment_type         => $lang{PAYMENT_TYPE},
-        month_fee            => $lang{MONTH_FEE},
-        age                  => $lang{AGE},
-        tp_group_name        => $lang{GROUP},
-        reduction_fee        => $lang{REDUCTION},
-        postpaid_daily_fee   => "$lang{DAY_FEE} $lang{POSTPAID}",
-        postpaid_monthly_fee => "$lang{MONTH_FEE} $lang{POSTPAID}",
-        ext_bill_account     => "$lang{EXT_BILL_ACCOUNT}",
-        credit               => $lang{CREDIT},
-        abon_distribution    => $lang{ABON_DISTRIBUTION},
-        tp_id                => 'TP ID',
-        next_tp_id           => "$lang{TARIF_PLAN} $lang{NEXT_PERIOD}",
-        fees_method          => "$lang{FEES} $lang{TYPE}",
-      },
-        TABLE           => {
-        width      => '100%',
-        caption    => "$lang{REPORTS} - $lang{TARIF_PLANS}",
-        title      =>
-        [ '#', $lang{NAME}, $lang{PAYMENT_TYPE}, $lang{DAY_FEE}, $lang{MONTH_FEE}, $lang{GROUP}, '-', '-', '-' ],
-        cols_align =>
-        [ 'right', 'left', 'center', 'center', 'center', 'right', 'right', 'right', 'right', 'center:noprint',
-          'center:noprint', 'center:noprint' ],
-        ID         => 'UREPORTS_TARIF_PLANS',
-        MENU       => "$lang{ADD}:index=$index&add_form=1:add",
-      },
-    } );
+    INPUT_DATA        => $tariffs,
+    FUNCTION        => 'list',
+    BASE_FIELDS     => $base_fields,
+    DEFAULT_FIELDS  => 'ID,NAME,PAYMENT_TYPE,MONTH_FEE,TP_GROUP_NAME',
+    FUNCTION_FIELDS => '-, -, -',
+    EXT_TITLES      => {
+      id                   => 'id',
+      port                 => $lang{PORT},
+      filter_id            => 'Filter ID',
+      tp_name              => "$lang{TARIF_PLAN}",
+      num                  => $lang{NUM},
+      name                 => $lang{NAME},
+      payment_type         => $lang{PAYMENT_TYPE},
+      month_fee            => $lang{MONTH_FEE},
+      age                  => $lang{AGE},
+      tp_group_name        => $lang{GROUP},
+      reduction_fee        => $lang{REDUCTION},
+      postpaid_daily_fee   => "$lang{DAY_FEE} $lang{POSTPAID}",
+      postpaid_monthly_fee => "$lang{MONTH_FEE} $lang{POSTPAID}",
+      ext_bill_account     => "$lang{EXT_BILL_ACCOUNT}",
+      credit               => $lang{CREDIT},
+      abon_distribution    => $lang{ABON_DISTRIBUTION},
+      tp_id                => 'TP ID',
+      next_tp_id           => "$lang{TARIF_PLAN} $lang{NEXT_PERIOD}",
+      fees_method          => "$lang{FEES} $lang{TYPE}",
+    },
+    TABLE => {
+      width   => '100%',
+      caption => "$lang{REPORTS} - $lang{TARIF_PLANS}",
+      title   => [ '#', $lang{NAME}, $lang{PAYMENT_TYPE}, $lang{DAY_FEE}, $lang{MONTH_FEE}, $lang{GROUP}, '-' ],
+      ID      => 'UREPORTS_TARIF_PLANS',
+      MENU    => "$lang{ADD}:index=$index&add_form=1:add",
+    },
+  });
 
   foreach my $line ( @{$list} ){
     my @fields_array = ();
@@ -565,9 +560,9 @@ sub ureports_tp{
     $table->addrow( @fields_array,
       $html->button( $lang{REPORTS},
         "index=" . get_function_index( 'ureports_tp' ) . "&subf=" . get_function_index( 'ureports_tp_reports' ) . "&TP_ID=$line->{tp_id}"
-        , { BUTTON => 1 } ),
-      $change,
-      $delete
+        , { BUTTON => 1 } )
+      . $change
+      . $delete
     );
   }
 
@@ -576,7 +571,6 @@ sub ureports_tp{
   $table = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right' ],
       rows       => [ [ "$lang{TOTAL}:", $html->b( $tariffs->{TOTAL} ) ] ]
     }
   );
@@ -685,11 +679,8 @@ sub ureports_stats{
   my $table = $html->table(
     {
       width        => '100%',
-      caption      => "$lang{STATS}",
-      title        =>
-      [ "#", "$lang{USER}", "$lang{DATE}", "$lang{DESTINATION}", "$lang{TARIF_PLAN}", "$lang{REPORTS}", "$lang{STATUS}",
-        "-", "-" ],
-      cols_align   => [ 'right', 'left', 'right', 'left', 'left', 'center:noprint', 'center:noprint' ],
+      caption      => $lang{STATS},
+      title        => [ "#", $lang{USER}, $lang{DATE}, $lang{DESTINATION}, $lang{TARIF_PLAN}, $lang{REPORTS}, $lang{STATUS}, '-' ],
       qs           => $pages_qs,
       pages        => $Ureports->{TOTAL},
       recs_on_page => $LIST_PARAMS{PAGE_ROWS},
@@ -708,7 +699,8 @@ sub ureports_stats{
     $table->addrow( $line->[0], $html->button( "$line->[1]", "index=11&UID=$line->[7]" ), $line->[2], $line->[3],
       $line->[4], $line->[5], $line->[6],
       $html->button( "D", "index=$index&UID=$line->[7]&MSG_ID=$line->[0]",
-        { TITLE => "$lang{DETAIL}", class => 'show' } ). ' '. $delete );
+        { TITLE => $lang{DETAIL}, class => 'show' } )
+      . ' '. $delete );
   }
 
   print $table->show();
@@ -797,8 +789,7 @@ sub ureports_user_info{
       {
         width      => '100%',
         caption    => $lang{REPORTS},
-        title      => [ "$lang{ENABLE}", "$lang{NAME}", "$lang{VALUE}", "$lang{PRICE}", "$lang{SENDED}" ],
-        cols_align => [ 'center', 'left', 'right', 'center', 'right' ],
+        title      => [ $lang{ENABLE}, $lang{NAME}, $lang{VALUE}, $lang{PRICE}, $lang{SENDED} ],
         qs         => $pages_qs,
         ID         => 'TP_REPORTS'
       }
@@ -1362,12 +1353,13 @@ sub ureports_payments_maked{
   return '' if (!$attr->{SUM} || int( $attr->{SUM} ) == 0);
 
   $Ureports->tp_user_reports_list( {
-      UID              => $user->{UID} || '-',
-      REPORT_ID        => 12,
-      DESTINATION_TYPE => '_SHOW',
-      DESTINATION_ID   => '_SHOW',
-      COLS_NAME        => 1
-    } );
+    UID              => $user->{UID} || '-',
+    REPORT_ID        => 12,
+    DESTINATION_TYPE => '_SHOW',
+    DESTINATION_ID   => '_SHOW',
+    STATUS           => 0,
+    COLS_NAME        => 1
+  } );
 
   if ( $Ureports->{TOTAL} > 0 ){
     my %info = ();
@@ -1436,5 +1428,67 @@ sub ureports_payments_maked{
 
   return 1;
 }
+
+#**********************************************************
+=head2 ureports_multiuser_sel($attr) - show select ureports modal
+
+  Attributes:
+    $attr
+      SELECTED_TP
+      SELECTED_TYPE
+      SELECTED_STATUS
+
+  Returns:
+      %hash
+
+=cut
+#**********************************************************
+sub ureports_multiuser_sel {
+  my ($attr) = @_;
+  my %info   = ();
+
+  $attr->{FORM_ID} = $FORM{FORM_ID}?$FORM{FORM_ID}:$attr->{FORM_ID};
+
+  $info{UREPORTS_TP} = $html->form_select(
+    'UREPORTS_TP',
+    {
+      SELECTED     => $attr->{SELECTED_TP}?$attr->{SELECTED_TP}:' ',
+      SEL_LIST     => $tariffs->list( { MODULE => 'Ureports', COLS_NAME => 1 } ),
+      SEL_KEY      => 'tp_id',
+      SEL_VALUE    => 'name',
+      SORT_KEY_NUM => 1,
+      FORM_ID      => $attr->{FORM_ID}?$attr->{FORM_ID}:' ',
+      NO_ID        => 1,
+      SEL_OPTIONS  => { '' => '--' },
+    }
+  );
+
+   $info{UREPORTS_TYPE} = $html->form_select(
+    'UREPORTS_TYPE',
+    {
+      SELECTED     => $attr->{SELECTED_TYPE}?$attr->{SELECTED_TYPE}:' ',
+      SEL_ARRAY    => \@service_type,
+      ARRAY_NUM_ID => 1,
+      FORM_ID      => $attr->{FORM_ID}?$attr->{FORM_ID}:' ',
+      SEL_OPTIONS  => { '' => '--' },
+    }
+  );
+
+  $info{UREPORTS_STATUS} = $html->form_select(
+    'UREPORTS_STATUS',
+    {
+      SELECTED     => $attr->{SELECTED_STATUS}?$attr->{SELECTED_STATUS}:' ',
+      FORM_ID      => $attr->{FORM_ID}?$attr->{FORM_ID}:' ',
+      SEL_ARRAY    => \@service_status,
+      ARRAY_NUM_ID => 1,
+      SEL_OPTIONS  => { '' => '--' },
+    }
+  );
+
+  $html->tpl_show( _include( 'ureports_multiuser_modal_window', 'Ureports' ), \%info ),
+
+  return 1;
+}
+
 1
 

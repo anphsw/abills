@@ -465,7 +465,25 @@ var PolygonBuilder = (function () {
   
   function build(object) {
     var res = $.extend({}, defaults, object);
-    return new google.maps.Polygon(res);
+    
+    var polygon = new google.maps.Polygon(res);
+    
+    if (isDefined(object['INFO']) && object['INFO']) {
+      
+      google.maps.event.addListener(polygon, 'click', function (event) {
+        closeInfoWindows();
+        
+        var infowindow = new InfoWindowBuilder(object)
+            .setPosition(event.latLng)
+            .setContent(this['INFO'])
+            // Build returns maps.google.InfoWindow
+            .build();
+        
+        openedInfoWindows.push(infowindow);
+        infowindow.open(map);
+      });
+    }
+    return polygon;
   }
   
   return {

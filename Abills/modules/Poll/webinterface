@@ -176,6 +176,24 @@ sub poll_main {
 }
 
 #**********************************************************
+=head2 poll_settings() -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub poll_settings {
+
+
+  return 1;
+}
+
+
+#**********************************************************
 
 =head2 poll_answers_add($attr)
 
@@ -464,17 +482,19 @@ sub poll_user {
     }
   }
 
-  if ($FORM{RESULT}) {
+  if ($FORM{RESULT}) {    
     my $poll_info = $Poll->info_poll({ COLS_NAME => 1, ID => $FORM{poll} });
     my $answer_info = $Poll->info_answer({ COLS_NAME => 1, POLL_ID => $FORM{poll} });
-    my $vote_list = $Poll->list_vote({ COLS_NAME => 1, POLL_ID => $FORM{poll} });
 
+    my $vote_list = $Poll->list_vote({ COLS_NAME => 1, POLL_ID => $FORM{poll} });
+    
     my $max_votes = scalar @$vote_list;    # get number of all votes on this poll
 
     my $buttons = '';
 
     my $check = $Poll->list_vote({ COLS_NAME => 1, VOTER => $user->{UID}, POLL_ID => $FORM{poll} });
-    $check_voter = scalar @$check;
+      
+    $check_voter = scalar @{$check};
 
     if ($poll_info->{status} == 0 && !$check_voter) {
       $buttons = $html->tpl_show(_include('poll_buttons', 'Poll'), { PANEL_COLOR => $panel_colors[ $poll_info->{status} ] }, { OUTPUT2RETURN => 1 });
@@ -632,4 +652,122 @@ sub poll_result_form {
   return $result;
 }
 
+
+#**********************************************************
+=head2 poll_user_add_poll() -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub poll_user_add_poll {
+  my $button  = $lang{ADD};
+  my $action  = 'add';
+  my $disable = '';
+  my $poll_info;      # information about poll
+  my $answer_info;    # information about answer
+
+  my @STATUSES = ("$lang{OPEN}", "$lang{REJECTED}", "$lang{IN_WORK}", "$lang{CLOSE_DONE}");
+
+  #add new poll
+  if ($FORM{action} && $FORM{action} eq 'add') {
+    $Poll->add_poll({%FORM});
+
+    if (!$Poll->{errno}) {
+      $html->message('success', "$lang{POLL} $lang{ADDED}", "");
+
+      # add answers with poll_id link
+      poll_answers_add(
+        $Poll->{INSERT_ID},
+        {
+          ANSWER       => $FORM{ANSWER},
+          EXTRA_ANSWER => $FORM{EXTRA_ANSWER}
+        }
+      );
+    }
+    else {
+      $html->message('err', $lang{ERROR}, "");
+    }
+  }
+
+  # change poll
+  elsif ($FORM{action} && $FORM{action} eq 'change') {
+    $Poll->change_poll({ ID => $FORM{id}, %FORM });
+
+    if (!$Poll->{errno}) {
+      $html->message('success', "$lang{SUCCESS}", "$lang{POLL} $lang{CHANGED}",);
+    }
+    else {
+      $html->message('err', "$lang{ERROR}", "",);
+    }
+  }
+
+  # delete poll
+  if ($FORM{del}) {
+    $Poll->del_poll({ ID => $FORM{del} });
+
+    if (!$Poll->{errno}) {
+      $html->message('success', "$lang{SUCCESS}", "$lang{POLL} $lang{DELETED}",);
+    }
+    else {
+      $html->message('err', "$lang{ERROR}", "",);
+    }
+  }
+
+  if ($FORM{chg}) {
+    $action  = 'change';
+    $button  = "$lang{CHANGE}";
+    $disable = 'disabled';
+
+    $poll_info = $Poll->info_poll({ COLS_NAME => 1, ID => $FORM{chg} });
+    $answer_info = $Poll->info_answer({ COLS_NAME => 1, POLL_ID => $FORM{chg} });
+    my $i = 1;
+    foreach my $answer (@$answer_info) {
+      if ($i < 3) {
+        $Poll->{"ANSWER_$i"} = $answer->{answer};
+      }
+      else {
+        $Poll->{"EXTRA_ANSWER"}[$i] = $answer->{answer};
+      }
+      $i++;
+    }
+
+    $Poll->{JSON} = json_answer({ EXTRA_ANSWER => $Poll->{EXTRA_ANSWER} });
+  }
+
+  # status select for template
+  my $status = $html->form_select(
+    'STATUS',
+    {
+      SELECTED => $FORM{STATUS} || $poll_info->{status},
+      SEL_ARRAY    => \@STATUSES,
+      ARRAY_NUM_ID => 1
+    }
+  );
+
+  $html->tpl_show(
+    _include('poll_add_poll', 'Poll'),
+    {
+      STATUS      => $status,
+      BUTTON      => $button,
+      INDEX       => $index,
+      ACTION      => $action,
+      ID          => $FORM{chg},
+      SUBJECT     => $poll_info->{subject},
+      DESCRIPTION => $poll_info->{description},
+      ANSWER_1    => $Poll->{ANSWER_1},
+      ANSWER_2    => $Poll->{ANSWER_2},
+      DISABLE     => $disable,
+      JSON        => $Poll->{JSON},
+      HIDDEN      => $disable ? 'hidden' : '',
+    }
+  );
+
+  return 1;
+}
+  
 1

@@ -1,6 +1,6 @@
 <div class='box box-theme'>
-    <div class='box-header with-border text-center bg-info'>
-        _{ICARDS}_
+   <div class='box-header with-border'><h4 class='box-title'>
+        _{ICARDS}_ </h4>
     </div>
     <div class='box-body form form-horizontal'>
         <form action='$SELF_URL' METHOD='POST' name='form_card_add' class=''>
@@ -15,7 +15,7 @@
                 <div class='col-md-9 col-sm-9'>
                     <input class='form-control' type='text' name='SERIAL' value='%SERIAL%'>
                 </div>
-            </div>
+            </div> 
             <div class='form-group'>
                 <label class='control-label col-md-3 col-sm-3'>PIN:</label>
 
@@ -23,7 +23,7 @@
                     <input class='form-control' type='text' name='PIN'>
                 </div>
             </div>
-            <div class='form-group text-center'>
+            <div class='box-footer'>
                 <input type='submit' class='btn btn-primary' name='add' value='_{ACTIVATE}_' ID='submitButton'
                        onClick='showLoading()'>
             </div>

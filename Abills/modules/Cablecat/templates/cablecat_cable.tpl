@@ -14,7 +14,7 @@
       </div>
 
       <div class='form-group'>
-        <label class='control-label col-md-3' for='TYPE_ID'>_{CABLE_TYPE}_</label>
+        <label class='control-label col-md-3 required' for='TYPE_ID'>_{CABLE_TYPE}_</label>
         <div class='col-md-9'>
           %CABLE_TYPE_SELECT%
         </div>
@@ -38,11 +38,14 @@
 
       <div class='form-group'>
         <label class='control-label col-md-3' for='LENGTH_F_id'>_{LENGTH}_, _{METERS_SHORT}_</label>
-        <div class='col-md-7'>
+        <div class='col-md-6'>
           <input type='text' class='form-control' name='LENGTH' value='%LENGTH%' id='LENGTH_F_id'/>
         </div>
-        <div class='col-md-2' data-tooltip='_{CALCULATED}_'>
-          <p class='form-control-static' >%LENGTH_CALCULATED%</p>
+        <div class='col-md-3' data-tooltip='_{CALCULATED}_'>
+          <button type='button' class='btn btn-default' id='COPY_LENGTH_CALCULATED'>
+            <span class='glyphicon glyphicon-arrow-left'></span>
+            %LENGTH_CALCULATED%
+          </button>
         </div>
       </div>
 
@@ -62,4 +65,12 @@
            value='%SUBMIT_BTN_NAME%'>
   </div>
 </div>
+
+<script>
+  jQuery(function () {
+    jQuery('button#COPY_LENGTH_CALCULATED').on('click', function () {
+      jQuery('input#LENGTH_F_id').val('%LENGTH_CALCULATED%');
+    });
+  });
+</script>
 

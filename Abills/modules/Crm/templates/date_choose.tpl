@@ -19,7 +19,7 @@
 
     </div>
     <div class='box-footer'>
-      <input type='submit' name='DATE' value='_{CHANGE}_' class='btn btn-primary'>
+      <input type='submit' name='FILTER' value='_{SHOW}_' class='btn btn-primary'>
     </div>
   </div>
 </form>

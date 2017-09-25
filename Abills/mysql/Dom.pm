@@ -82,7 +82,7 @@ sub list {
     [ 'DISABLE',        'INT', 'u.disable',        1],
     [ 'ADDRESS_FLAT',   'STR', 'pi.address_flat',  1],
     [ 'CREDITOR',       'INT', 'creditor', "IF(u.credit>0, 1, 0) AS creditor ",  1],
-    [ 'DEBETOR',        'INT', 'debetor', "IF(IF(company.id IS NULL, b.deposit, cb.deposit)<0, 1, 0) AS debetor", 1],
+    [ 'DEBETOR',        'INT', 'debetor', "IF(IF(company.id IS NULL, b.deposit, b.deposit)<0, 1, 0) AS debetor", 1],
     [ 'ADDRESS_STREET', 'STR', 'pi.address_street',  1],
     ],
   {
@@ -94,7 +94,6 @@ sub list {
       LEFT JOIN users u ON (pi.uid=u.uid)
       LEFT JOIN bills b ON (u.bill_id = b.id)
       LEFT JOIN companies company ON  (u.company_id=company.id)
-      LEFT JOIN bills cb ON (company.bill_id=cb.id)
     $WHERE
       GROUP BY pi.uid
       ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",

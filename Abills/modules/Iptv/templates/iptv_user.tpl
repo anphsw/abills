@@ -21,12 +21,9 @@
 
 <fieldset>
 
-<div class='box box-theme box-form'>
-    <div class='box-header with-border'>
-       <h4 class='box-title'>_{TV}_</h4>
-    </div>
-
- <div class='box-body'>
+<div class='box box-theme box-form box-big-form'>
+<div class='box-header with-border'><h4 class='box-title'>_{TV}_</h4></div>
+<div class='box-body'>
   %SUBSCRIBE_FORM%
   %SERVICE_FORM%
   <div class='form-group'>
@@ -136,7 +133,6 @@
 
 
 </div>
-
 
 <div class='box-footer'>
   %BACK_BUTTON%

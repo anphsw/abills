@@ -17,7 +17,6 @@ our(
 
 );
 
-my $Dv       = Dv->new($db, $admin, \%conf);
 my $Sessions = Dv_Sessions->new($db, $admin, \%conf);
 
 #**********************************************************
@@ -82,7 +81,6 @@ sub dv_turbo_mode {
       width        => '100%',
       caption      => "TURBO $lang{SESSIONS}",
       title        => [ @caption, "-" ],
-      cols_align   => [ 'left', 'right', 'right', 'RIGHT', 'right', 'right', 'right', 'right', 'right', 'right', 'center:noprint', 'center:noprint' ],
       qs           => $pages_qs,
       pages        => $Turbo->{TOTAL},
       recs_on_page => $LIST_PARAMS{PAGE_ROWS},

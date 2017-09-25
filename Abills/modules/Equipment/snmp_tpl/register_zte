@@ -1,0 +1,257 @@
+#!/usr/bin/perl -w
+=head1 NAME
+
+ ZTE Configuration utility
+
+=head2 EXAMLES
+
+conf t
+interface gpon-olt_1/1/2
+
+show gpon onu uncfg gpon-olt_1/1/2
+
+interface gpon-olt_1/1/2
+  onu 2 type ZTE-F601 sn ZTExxxxxxxxx
+  onu 2 profile  line ABILLS_PROFILE remote VLAN_1001
+
+exit
+interface gpon-onu_1/1/2:1
+  switchport mode hybrid vport 1
+  service-port 1 vport 1 user-vlan 1001 vlan 1001 queue-no 0
+  port-location format ti vport 1
+  port-location format ti sport 1
+  dhcp-option82 enable vport 1
+  dhcp-option82 enable sport 1
+  ip dhcp snooping enable vport 1
+  ip-service ip-source-guard enable sport 1
+
+exit
+exit
+
+
+=cut
+
+
+use strict;
+BEGIN {
+  use FindBin '$Bin';
+  our $libpath = $Bin . '/../';
+  unshift( @INC,
+    $libpath . 'lib/',
+    '/usr/abills/lib'
+  );
+}
+
+use Abills::Base qw(parse_arguments load_pmodule2);
+
+my $debug = 1;
+my $argv = parse_arguments(\@ARGV);
+
+if($argv->{DEBUG}) {
+  $debug = $argv->{DEBUG};
+}
+
+if($debug) {
+  print "ZTE Registration\n";
+}
+
+if($debug > 5) {
+  print @ARGV;
+  `echo "@ARGV" >> /tmp/register`;
+}
+
+load_pmodule2('Net::Telnet');
+
+register_zte();
+
+#**********************************************************
+=head2 register_zte($attr) - List of cards
+
+
+=cut
+#**********************************************************
+sub register_zte {
+
+  my $branch    = $argv->{BRANCH} || '1/1/1';
+  my $profile   = $argv->{PROFILE} || 'ABILLS_PROFILE';
+  my $vlan      = $argv->{VLAN} || '1001';
+  my $onu_type  = $argv->{ONU_TYPE} || 'ZTE-F601';
+  my $host      = $argv->{MNG_HOST_PORT} || '';
+  my $user_name = $argv->{MNG_USER} || 'zte';
+  my $password  = $argv->{NAS_MNG_PASSWORD} || 'zte';
+  my $mac       = $argv->{MAC} || q{};
+  my $sn        = $argv->{SN} || q{};
+
+  my ($ip, undef, $mng_port, undef) = split(/:/, $host, 4);
+  my $port      = $mng_port || 23;
+
+  my $Telnet = Net::Telnet->new(
+    Timeout  => 15,
+    Errmode  => 'return'
+  );
+
+  $Telnet->open(
+    Host  => $ip,
+    Port  => $port
+  );
+
+  if ($Telnet->errmsg) {
+    print "Problem connecting to $ip, port: $port\n";
+    return 0;
+  }
+
+  my @date = $Telnet->waitfor('/Username:/i');
+
+  if ($Telnet->errmsg) {
+    print ">Problem connecting to $ip, port: $port\n";
+    return 0;
+  }
+
+  if($debug > 2) {
+    print @date;
+  }
+
+  $Telnet->print($user_name);
+  @date = $Telnet->waitfor('/password:/i');
+  if($debug > 2) {
+    print @date;
+  }
+
+  $Telnet->print($password);
+  if ($Telnet->errmsg) {
+    print "Telnet login or password incorrect\n";
+    return 0;
+  }
+
+  @date = $Telnet->waitfor('/#/i');
+  print @date if($debug > 3);
+
+  my $cmd = "show gpon onu state\n";
+  if($debug > 3) {
+    print "\n=============================================\n";
+    print "CMD: $cmd\n";
+  }
+
+  $Telnet->print($cmd) or print "ERROR CMD 'cmd'";
+  $Telnet->print(' ');
+  @date = $Telnet->waitfor('/#/i');
+
+  my $content = join("\n", @date);
+
+  if($debug > 3) {
+    print "Result: $content\n";
+  }
+
+  my @arr = split(/\n/, $content);
+  my $max_onu_id = 0;
+  my $i=0;
+  foreach my $line (@arr) {
+    my($OnuIndex, $Admin_State, $OMCC_State, $O7_State, $Phase_State) = split(/\s+/,  $line, 5);
+
+    if($OnuIndex =~ /$branch/gi) {
+      print "$i>>> $OnuIndex\n" if($debug > 2);
+      if($OnuIndex =~ /gpon\-onu\_\d+\/\d+\/\d+:(\d+)/) {
+        $max_onu_id = $1;
+      }
+      $i++;
+    }
+  }
+
+  $max_onu_id++;
+  print "Max onu: $max_onu_id\n" if($debug > 2);
+
+  $cmd = "show gpon onu uncfg gpon-olt_$branch\n";
+  if($debug > 3) {
+    print "\n=============================================\n";
+    print "CMD: $cmd\n";
+  }
+
+  $Telnet->print($cmd) or print "ERROR CMD";
+  $Telnet->print(' ') or print "ERROR CMD";
+  @date = $Telnet->waitfor('/#/i');
+
+  $Telnet->print($cmd) or print "ERROR CMD";
+  $Telnet->print(' ') or print "ERROR CMD";
+  @date = $Telnet->waitfor('/#/i');
+
+  $content = join("\n", @date);
+
+  if($debug > 3) {
+    print "Result: $content\n";
+  }
+  @arr = split(/\n/, $content);
+
+  my($OnuIndex, $Sn, $State);
+  my $reg_iface = q{};
+  foreach my $line (@arr) {
+    ($OnuIndex, $Sn, $State) = split(/\s+/, $line, 3);
+    if($OnuIndex && $OnuIndex =~ /(gpon\-onu\_\d+\/\d+\/\d+):(\d+)/) {
+      $reg_iface = $1;
+      print "num: $2 Serial: $Sn \n";
+      if($sn eq $Sn) {
+        last;
+      }
+    }
+  }
+
+  if($sn ne $Sn) {
+    if($debug) {
+      print "Error: serial number not exists: '$sn' \n";
+    }
+    return 0;
+  }
+  elsif(! $reg_iface) {
+    return 0 ;
+  }
+
+#  $Telnet->print("config t") or print "ERROR USER OR PASS";
+#  @date = $Telnet->waitfor('/ig\)#/i');
+#  if($debug > 2) {
+#    print @date;
+#  }
+
+  @arr = (
+    "config t",
+    "interface gpon-olt_$branch",
+    "  onu $max_onu_id type $onu_type sn $Sn",
+    "  onu $max_onu_id profile  line $profile remote VLAN_$vlan",
+    '  exit'
+  );
+
+  foreach my $cmd (@arr) {
+    print "$cmd\n";
+    $Telnet->print("$cmd") or print "ERROR USER OR PASS";
+    @date = $Telnet->waitfor('/#/i');
+    if($debug > 2) {
+      print @date;
+    }
+  }
+
+  @arr = (
+   "interface $reg_iface:$max_onu_id",
+   "  switchport mode hybrid vport 1",
+   "  service-port 1 vport 1 user-vlan $vlan vlan $vlan queue-no 0",
+   "  port-location format ti vport 1",
+   "  port-location format ti sport 1",
+   "  dhcp-option82 enable vport 1",
+   "  dhcp-option82 enable sport 1",
+   "  ip dhcp snooping enable vport 1",
+   "  ip-service ip-source-guard enable sport 1",
+   "  exit",
+   "write",
+   "exit"
+  );
+
+ foreach my $cmd (@arr) {
+   print "$cmd\n";
+   $Telnet->print("$cmd") or print "ERROR USER OR PASS";
+   @date = $Telnet->waitfor('/#/i');
+   if($debug > 2) {
+     print @date;
+   }
+ }
+
+  return 1;
+}
+
+1

@@ -100,6 +100,7 @@ sub info {
    tp.tp_id AS tp_num,
    tp.priority AS tp_priority,
    tp.activate_price AS tp_activate_price,
+   tp.change_price AS tp_change_price,
    tp.age AS tp_age,
    tp.filter_id AS tp_filter_id,
    tp.period_alignment AS tp_period_alignment,
@@ -109,7 +110,9 @@ sub info {
    tp.user_credit_limit,
    DECODE(dv.password, '$self->{conf}->{secretkey}') AS password
      FROM dv_main dv
-     LEFT JOIN tarif_plans tp ON ((tp.module='Dv' OR tp.module='') AND dv.tp_id=tp.id AND tp.domain_id='$domain_id')
+     LEFT JOIN tarif_plans tp ON ((tp.module='Dv' OR tp.module='')
+        AND dv.tp_id=tp.id
+        AND tp.domain_id IN (SELECT users.domain_id FROM users WHERE users.uid='$uid'))
    $WHERE;",
    undef,
    { INFO => 1 }
@@ -194,16 +197,12 @@ sub add {
 
   return [ ] if ($self->{errno});
 
-  my @info = ('TP_ID', 'DV_LOGIN', 'STATUS', 'EXPIRE', 'IP', 'CID');
-  my @actions_history = ();
-  foreach my $param (@info) {
-    if(defined($attr->{$param})) {
-      push @actions_history, $param.":".$attr->{$param};
-    }
-  }
-
   $admin->{MODULE} = $MODULE;
-  $admin->action_add($attr->{UID}, join(', ', @actions_history), { TYPE => 1 });
+  $admin->action_add($attr->{UID}, '', {
+    TYPE    => 1,
+    INFO    => ['TP_ID', 'DV_LOGIN', 'STATUS', 'DV_EXPIRE', 'IP', 'CID'],
+    REQUEST => $attr
+  });
 
   return $self;
 }
@@ -267,8 +266,8 @@ sub change {
         return $self;
       }
 
-      my $fees = Fees->new($self->{db}, $admin, $self->{conf});
-      $fees->take($user, $tariffs->{ACTIV_PRICE}, { DESCRIBE => '$lang{ACTIVATE_TARIF_PLAN}' });
+      my $Fees = Fees->new($self->{db}, $admin, $self->{conf});
+      $Fees->take($user, $tariffs->{ACTIV_PRICE}, { DESCRIBE => '$lang{ACTIVATE_TARIF_PLAN}' });
 
       $tariffs->{ACTIV_PRICE} = 0;
     }
@@ -285,8 +284,8 @@ sub change {
         return $self;
       }
 
-      my $fees = Fees->new($self->{db}, $admin, $self->{conf});
-      $fees->take($user, $tariffs->{CHANGE_PRICE}, { DESCRIBE => "CHANGE TP" });
+      my $Fees = Fees->new($self->{db}, $admin, $self->{conf});
+      $Fees->take($user, $tariffs->{CHANGE_PRICE}, { DESCRIBE => "CHANGE TP" });
     }
 
     if ($tariffs->{AGE} > 0) {
@@ -543,7 +542,7 @@ sub list {
   my $list = $self->{list};
 
   if ($self->{TOTAL} >= 0 && !$attr->{SKIP_TOTAL}) {
-    $self->query2("SELECT count( DISTINCT u.id) AS total FROM users u
+    $self->query2("SELECT COUNT( DISTINCT u.id) AS total FROM users u
     INNER JOIN dv_main dv ON (u.uid=dv.uid)
     LEFT JOIN tarif_plans tp ON (tp.id=dv.tp_id AND tp.module='Dv')
     $EXT_TABLE
@@ -650,7 +649,7 @@ sub report_tp {
     }
   );
 
-  $self->query2("SELECT tp.id, tp.name, count(DISTINCT dv.uid) AS counts,
+  $self->query2("SELECT dv.tp_id AS id, tp.name, count(DISTINCT dv.uid) AS counts,
       SUM(IF(dv.disable=0 AND u.disable=0, 1, 0)) AS active,
       SUM(IF(dv.disable=1 OR u.disable=1, 1, 0)) AS disabled,
       SUM(IF(IF(u.company_id > 0, cb.deposit, b.deposit) < 0, 1, 0)) AS debetors,
@@ -664,7 +663,7 @@ sub report_tp {
     LEFT JOIN companies company ON  (u.company_id=company.id)
     LEFT JOIN bills cb ON  (company.bill_id=cb.id)
     LEFT JOIN payments p ON (p.uid=dv.uid
-       AND (p.date >= CONCAT(CURDATE(), ' 00:00:00') AND p.date <= CONCAT(CURDATE(), ' 24:00:00')) )
+       AND (p.date >= DATE_FORMAT(CURDATE(), '%Y-%m-01 00:00:00') AND p.date <= CONCAT(CURDATE(), ' 24:00:00')) )
     $WHERE
      GROUP BY tp.id
      ORDER BY $SORT $DESC;",

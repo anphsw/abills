@@ -30,22 +30,28 @@
         <legend>_{EVENTS}_</legend>
       </div>
 
-      <div class='form-group'>
-        <div class='col-md-6'>
-          <label class='control-label col-md-9'>_{DISABLE}_:</label>
-
-          <div class='col-md-3'>
-            <input type='checkbox' data-return='1' name='NO_EVENT' value='1' %NO_EVENT%/>
-          </div>
-        </div>
-        <div class='col-md-6'>
-          <label class='control-label col-md-9'>_{DISABLE}_ _{SOUND}_:</label>
-
-          <div class='col-md-3'>
-            <input type='checkbox' data-return='1' name='NO_EVENT_SOUND' value='1' %NO_EVENT_SOUND%/>
-          </div>
-        </div>
+      <div class='row'>
+        %SUBSCRIBE_BLOCK%
       </div>
+
+      <div class="row">
+
+        <div class='checkbox col-md-6'>
+          <label>
+            <input type='checkbox' data-return='1' name='NO_EVENT' value='1' data-checked='%NO_EVENT%'/>
+            <strong>_{DISABLE}_</strong>
+          </label>
+        </div>
+        <div class='checkbox col-md-6'>
+          <label>
+            <input type='checkbox' data-return='1' name='NO_EVENT_SOUND' value='1' data-checked='%NO_EVENT_SOUND%'/>
+            <strong>_{DISABLE}_ _{SOUND}_</strong>
+          </label>
+        </div>
+
+      </div>
+
+      <hr>
 
       <div class='form-group'>
         <label class='control-label col-md-3 %EVENTS_GROUPS_HIDDEN%' for='GROUP'>_{GROUP}_</label>
@@ -272,3 +278,10 @@
   }
 
 </style>
+
+<script>
+  window['ENABLE_PUSH'] = '_{ENABLE_PUSH}_';
+  window['DISABLE_PUSH'] = '_{DISABLE_PUSH}_';
+  window['PUSH_IS_NOT_SUPPORTED'] = '_{PUSH_IS_NOT_SUPPORTED}_';
+  window['PUSH_IS_DISABLED'] = '_{PUSH_IS_DISABLED}_';
+</script>

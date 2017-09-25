@@ -4,29 +4,28 @@ use warnings FATAL => 'all';
 
 BEGIN {
   use FindBin '$Bin';
-
+  
   my $inner_pos = 0;
-
   my @folders = split ('/', $Bin);
-
-  foreach my $folder (@folders){
-    last if ($folder eq 'abills');
+  
+  foreach my $folder ( reverse @folders ) {
+    last if ( $folder eq 'abills' );
     $inner_pos += 1;
   }
-
+  
   my $libpath = "$Bin/" . "../" x $inner_pos;
-
+  
   unshift ( @INC, $libpath,
-   $libpath . 'Abills/',
-   $libpath . 'Abills/mysql/',
-   $libpath . 'Abills/Control/',
-   $libpath . 'lib/'
+    $libpath . 'Abills/',
+    $libpath . 'Abills/mysql/',
+    $libpath . 'Abills/Control/',
+    $libpath . 'lib/'
   );
 }
 
 our (%conf);
 
-require "libexec/config.pl";
+do "libexec/config.pl";
 
 use Admins;
 use Abills::SQL;
@@ -93,11 +92,11 @@ sub main{
     my $operation_type = 'Syncing';
     if ( $ARGS{CLEAN} ){
       $operation_type = "Removing all generated";
-      $result = ( $mikrotik->remove_all_generated_leases() );
+      $result = ( $mikrotik->leases_remove_all_generated() );
     }
     elsif ( $ARGS{RECONFIGURE} ){
       $operation_type = "Reconfiguring all generated";
-      $result = ( $mikrotik->remove_all_generated_leases() && sync_leases( $mikrotik, $nas ) );
+      $result = ( $mikrotik->leases_remove_all_generated() && sync_leases( $mikrotik, $nas ) );
     }
     else{
       $result = sync_leases( $mikrotik, $nas, \%ARGS );
@@ -153,10 +152,11 @@ sub prepare{
 =cut
 #**********************************************************
 sub sync_leases{
-  my ($mikrotik, $nas, $attr) = @_;
+  my Abills::Nas::Mikrotik $mikrotik = shift;
+  my ($nas, $attr) = @_;
 
   my $nas_id = $nas->{nas_id};
-  $networks_list = $mikrotik->check_dhcp_servers( $networks_list, $attr );
+  $networks_list = $mikrotik->dhcp_servers_check( $networks_list, $attr );
 
   my $db_leases = db_leases_list( $nas_id );
   return 0 if ( scalar @{$db_leases} <= 0 );
@@ -207,10 +207,10 @@ sub sync_leases{
   my $number_to_add = scalar @mikrotik_to_add_leases;
 
   print "Removing $number_to_remove leases \n" if ($ARGS{VERBOSE});
-  my $remove_result = $mikrotik->remove_leases( \@mikrotik_to_delete_leases_ids, \%ARGS );
+  my $remove_result = $mikrotik->leases_remove( \@mikrotik_to_delete_leases_ids, \%ARGS );
 
   print "Adding $number_to_add new leases \n" if ($ARGS{VERBOSE});
-  my $add_result = $mikrotik->add_leases( \@mikrotik_to_add_leases, \%ARGS );
+  my $add_result = $mikrotik->leases_add( \@mikrotik_to_add_leases, \%ARGS );
 
   return ($remove_result && $add_result);
 }
@@ -232,8 +232,7 @@ sub db_leases_list{
 
   # Get leases from DB
   my @db_leases = ();
-  foreach my $network ( @{$networks_list} ){
-    #        $Dhcphosts->{debug} = 1;
+  foreach ( @{$networks_list} ){
     my $network_hosts_list = $Dhcphosts->hosts_list(
       {
         NETWORK      => '_SHOW',
@@ -275,35 +274,35 @@ sub db_leases_list{
   return \@db_leases;
 }
 
-#**********************************************************
-=head2 add_single_lease($ip, $mac)
-
-  Arguments:
-    $ip, $mac -
-
-  Returns:
-
-=cut
-#**********************************************************
-sub add_single_lease{
-  my ($ip, $mac) = @_;
-
-}
-
-#**********************************************************
-=head2 disable_single_lease($mac)
-
-  Arguments:
-    $mac -
-
-  Returns:
-
-=cut
-#**********************************************************
-sub disable_single_lease{
-  my ($mac) = @_;
-
-}
+##**********************************************************
+#=head2 add_single_lease($ip, $mac)
+#
+#  Arguments:
+#    $ip, $mac -
+#
+#  Returns:
+#
+#=cut
+##**********************************************************
+#sub add_single_lease{
+#  my ($ip, $mac) = @_;
+#
+#}
+#
+##**********************************************************
+#=head2 disable_single_lease($mac)
+#
+#  Arguments:
+#    $mac -
+#
+#  Returns:
+#
+#=cut
+##**********************************************************
+#sub disable_single_lease{
+#  my ($mac) = @_;
+#
+#}
 
 
 1;

@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS `reports_wizard` (
   `date` DATE NOT NULL DEFAULT '0000-00-00',
   `aid` SMALLINT(11) UNSIGNED NOT NULL DEFAULT '0',
   `query_total` TEXT NOT NULL,
+  `quick_report` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
 )

@@ -67,30 +67,30 @@
           <div class='box-body'>
 
             <div class='form-group'>
-              <label for='DAY_FEE' class='control-label col-md-3'>_{DAY_FEE}_:</label>
-              <div class='col-md-9'>
+              <label for='DAY_FEE' class='control-label col-md-8'>_{DAY_FEE}_:</label>
+              <div class='col-md-4'>
                 <input class='form-control' id='DAY_FEE' placeholder='%DAY_FEE%' name='DAY_FEE' value='%DAY_FEE%'>
               </div>
             </div>
 
             <div class='form-group'>
-              <label class='control-label col-md-3' for='ACTIVE_DAY_FEE'>_{ACTIVE_DAY_FEE}_:</label>
-              <div class='col-md-9'>
-                <input id='ACTIVE_DAY_FEE' name='ACTIVE_DAY_FEE' value='1' %ACTIVE_DAY_FEE% type='checkbox'>
+              <label class='control-label col-md-8' for='ACTIVE_DAY_FEE'>_{ACTIVE_DAY_FEE}_:</label>
+              <div class='checkbox pull-left'>
+                <input style='margin-left:15px;' id='ACTIVE_DAY_FEE' name='ACTIVE_DAY_FEE' value='1' %ACTIVE_DAY_FEE% type='checkbox'>
               </div>
             </div>
 
             <div class='form-group'>
-              <label class='control-label col-md-3' for='POSTPAID_DAY_FEE'>_{DAY_FEE}_ _{POSTPAID}_:</label>
-              <div class='col-md-9'>
-                <input id='POSTPAID_DAY_FEE' name='POSTPAID_DAY_FEE' value=1 %POSTPAID_DAY_FEE% type='checkbox'>
+              <label class='control-label col-md-8' for='POSTPAID_DAY_FEE'>_{DAY_FEE}_ _{POSTPAID}_:</label>
+              <div class='checkbox pull-left'>
+                <input style='margin-left:15px;' id='POSTPAID_DAY_FEE' name='POSTPAID_DAY_FEE' value=1 %POSTPAID_DAY_FEE% type='checkbox'>
               </div>
             </div>
 
 
             <div class='form-group'>
-              <label for='MONTH_FEE' class='control-label col-md-3'>_{MONTH_FEE}_:</label>
-              <div class='col-md-9'>
+              <label for='MONTH_FEE' class='control-label col-md-8'>_{MONTH_FEE}_:</label>
+              <div class='col-md-4'>
                 <input class='form-control' id='MONTH_FEE' placeholder='%MONTH_FEE%' name='MONTH_FEE'
                        value='%MONTH_FEE%'>
               </div>
@@ -98,53 +98,52 @@
 
 
             <div class='form-group'>
-              <label class='control-label col-md-3' for='POSTPAID_MONTH_FEE'>_{MONTH_FEE}_ _{POSTPAID}_:</label>
-              <div class='col-md-9'>
-                <input id='POSTPAID_MONTH_FEE' name='POSTPAID_MONTH_FEE' value='1' %POSTPAID_MONTH_FEE%
+              <label class='control-label col-md-8' for='POSTPAID_MONTH_FEE'>_{MONTH_FEE}_ _{POSTPAID}_:</label>
+              <div class='checkbox pull-left'>
+                <input style='margin-left:15px;' id='POSTPAID_MONTH_FEE' name='POSTPAID_MONTH_FEE' value='1' %POSTPAID_MONTH_FEE% type='checkbox'>
+              </div>
+            </div>
+
+            <div class='form-group'>
+              <label class='control-label col-md-8' for='PERIOD_ALIGNMENT'>_{MONTH_ALIGNMENT}_:</label>
+              <div class='checkbox pull-left'>
+                <input style='margin-left:15px;' id='PERIOD_ALIGNMENT' name='PERIOD_ALIGNMENT' value=1 %PERIOD_ALIGNMENT% type='checkbox'>
+              </div>
+            </div>
+
+            <div class='form-group'>
+              <label class='control-label col-md-8' for='ABON_DISTRIBUTION'>_{ABON_DISTRIBUTION}_:</label>
+              <div class='checkbox pull-left'>
+                <input style='margin-left:15px;' id='ABON_DISTRIBUTION' name='ABON_DISTRIBUTION' value='1' %ABON_DISTRIBUTION%
                        type='checkbox'>
               </div>
             </div>
 
             <div class='form-group'>
-              <label class='control-label col-md-3' for='PERIOD_ALIGNMENT'>_{MONTH_ALIGNMENT}_:</label>
-              <div class='col-md-9'>
-                <input id='PERIOD_ALIGNMENT' name='PERIOD_ALIGNMENT' value=1 %PERIOD_ALIGNMENT% type='checkbox'>
-              </div>
-            </div>
-
-            <div class='form-group'>
-              <label class='control-label col-md-3' for='ABON_DISTRIBUTION'>_{ABON_DISTRIBUTION}_:</label>
-              <div class='col-md-9'>
-                <input id='ABON_DISTRIBUTION' name='ABON_DISTRIBUTION' value='1' %ABON_DISTRIBUTION%
-                       type='checkbox'>
-              </div>
-            </div>
-
-            <div class='form-group'>
-              <label class='control-label col-md-3' for='FIXED_FEES_DAY'>_{FIXED_FEES_DAY}_:</label>
-              <div class='col-md-9'>
-                <input id='FIXED_FEES_DAY' name='FIXED_FEES_DAY' value=1 %FIXED_FEES_DAY% type='checkbox'>
+              <label class='control-label col-md-8' for='FIXED_FEES_DAY'>_{FIXED_FEES_DAY}_:</label>
+              <div class='checkbox pull-left'>
+                <input style='margin-left:15px;' id='FIXED_FEES_DAY' name='FIXED_FEES_DAY' value=1 %FIXED_FEES_DAY% type='checkbox'>
               </div>
             </div>
 
 
             <div class='form-group'>
-              <label for='SMALL_DEPOSIT_ACTION' class='control-label col-md-3'>_{SMALL_DEPOSIT_ACTION}_:</label>
-              <div class='col-md-9'>
+              <label for='SMALL_DEPOSIT_ACTION' class='control-label col-md-8'>_{SMALL_DEPOSIT_ACTION}_:</label>
+              <div class='col-md-4'>
                 %SMALL_DEPOSIT_ACTION_SEL%
               </div>
             </div>
 
             <div class='form-group'>
-              <label class='control-label col-md-3' for='REDUCTION_FEE'>_{REDUCTION}_:</label>
-              <div class='col-md-9'>
-                <input id='REDUCTION_FEE' name='REDUCTION_FEE' value='1' %REDUCTION_FEE% type='checkbox'>
+              <label class='control-label col-md-8' for='REDUCTION_FEE'>_{REDUCTION}_:</label>
+              <div class='checkbox pull-left'>
+                <input style='margin-left:15px;' id='REDUCTION_FEE' name='REDUCTION_FEE' value='1' %REDUCTION_FEE% type='checkbox'>
               </div>
             </div>
 
             <div class='form-group'>
-              <label for='METHOD' class='control-label col-sm-3'>_{FEES}_ _{TYPE}_:</label>
-              <div class='col-md-9'>
+              <label for='METHOD' class='control-label col-sm-4'>_{FEES}_ _{TYPE}_:</label>
+              <div class='col-md-8'>
                 %SEL_METHOD%
               </div>
             </div>
@@ -166,7 +165,7 @@
           <div class='box-body'>
 
             <div class='form-group'>
-              <label for='DAY_TIME_LIMIT' class='control-label col-sm-3'>_{DAY}_:</label>
+              <label for='DAY_TIME_LIMIT' class='control-label col-md-3'>_{DAY}_:</label>
               <div class='col-md-9'>
                 <input class='form-control' id='DAY_TIME_LIMIT' placeholder='%DAY_TIME_LIMIT%' name='DAY_TIME_LIMIT'
                        value='%DAY_TIME_LIMIT%'>
@@ -174,7 +173,7 @@
             </div>
 
             <div class='form-group'>
-              <label for='WEEK_TIME_LIMIT' class='control-label col-sm-3'>_{WEEK}_:</label>
+              <label for='WEEK_TIME_LIMIT' class='control-label col-md-3'>_{WEEK}_:</label>
               <div class='col-md-9'>
                 <input class='form-control' id='WEEK_TIME_LIMIT' placeholder='%WEEK_TIME_LIMIT%'
                        name='WEEK_TIME_LIMIT' value='%WEEK_TIME_LIMIT%'>
@@ -182,7 +181,7 @@
             </div>
 
             <div class='form-group'>
-              <label for='MONTH_TIME_LIMIT' class='control-label col-sm-3'>_{MONTH}_:</label>
+              <label for='MONTH_TIME_LIMIT' class='control-label col-md-3'>_{MONTH}_:</label>
               <div class='col-md-9'>
                 <input class='form-control' id='MONTH_TIME_LIMIT' placeholder='%MONTH_TIME_LIMIT%'
                        name='MONTH_TIME_LIMIT' value='%MONTH_TIME_LIMIT%'>
@@ -190,7 +189,7 @@
             </div>
 
             <div class='form-group'>
-              <label for='TOTAL_TIME_LIMIT' class='control-label col-sm-3'>_{TOTAL}_:</label>
+              <label for='TOTAL_TIME_LIMIT' class='control-label col-md-3'>_{TOTAL}_:</label>
               <div class='col-md-9'>
                 <input class='form-control' id='TOTAL_TIME_LIMIT' placeholder='%TOTAL_TIME_LIMIT%'
                        name='TOTAL_TIME_LIMIT' value='%TOTAL_TIME_LIMIT%'>

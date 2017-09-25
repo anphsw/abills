@@ -46,6 +46,9 @@ sub tv_services {
       $FORM{add_form} = 1;
       $Iptv->{ACTION} = 'change';
       $Iptv->{LNG_ACTION} = $lang{CHANGE};
+      if ($Iptv->{PROVIDER_PORTAL_URL}) {
+        $Iptv->{PROVIDER_PORTAL_BUTTON} = _service_portal_filter($Iptv->{PROVIDER_PORTAL_URL});
+      }
       $html->message( 'info', $lang{SCREENS}, $lang{CHANGING} );
 
       if ($Iptv->{MODULE}) {
@@ -143,7 +146,7 @@ sub tv_services {
               $html->message('info', $lang{INFO}, "$lang{TEST}\n$result");
             }
             else {
-              _error_show($Tv_service);
+              _error_show($Tv_service, {  MESSAGE => 'Test:' });
             }
           }
           else {
@@ -171,7 +174,7 @@ sub tv_services {
   $Iptv->{USER_PORTAL_SEL} = $html->form_select(
     'USER_PORTAL',
     {
-      SELECTED    => $Iptv->{USER_PORTAL} || 0,
+      SELECTED    => $Iptv->{USER_PORTAL}  ||  $FORM{USER_PORTAL} || 0,
       SEL_HASH    => {
         0 => '--',
         1 => $lang{INFO},
@@ -184,14 +187,14 @@ sub tv_services {
   $Iptv->{DEBUG_SEL} = $html->form_select(
     'DEBUG',
     {
-      SELECTED     => $Iptv->{DEBUG} || 0,
+      SELECTED     => $Iptv->{DEBUG} || $FORM{DEBUG} || 0,
       SEL_ARRAY    => [0,1,2,3,4,5,6,7],
     }
   );
 
   $Iptv->{USER_PORTAL} = ($Iptv->{USER_PORTAL}) ? 'checked' : '';
   $Iptv->{STATUS} = ($Iptv->{STATUS}) ? 'checked' : '';
-  $html->tpl_show( _include( 'iptv_services_add', 'Iptv' ), $Iptv );
+  $html->tpl_show( _include( 'iptv_services_add', 'Iptv' ), { %FORM, %$Iptv });
   #}
 
   _error_show( $Iptv );
@@ -202,10 +205,10 @@ sub tv_services {
     DEFAULT_FIELDS  => 'NAME,MODULE,STATUS,COMMENT',
     FUNCTION_FIELDS => 'change,del',
     EXT_TITLES      => {
-      name    => $lang{NAME},
-      module  => $lang{MODULE},
-      status  => $lang{STATUS},
-      comment => $lang{COMMENTS},
+      name                => $lang{NAME},
+      module              => $lang{MODULE},
+      status              => $lang{STATUS},
+      comment             => $lang{COMMENTS},
     },
     SKIP_USERS_FIELDS => 1,
     TABLE           => {
@@ -355,5 +358,19 @@ sub tv_load_service{
   return $api_object;
 }
 
+#**********************************************************
+=head2 _service_portal_filter(url) - 
+
+=cut
+#**********************************************************
+sub _service_portal_filter{
+  my ($attr) = @_;
+  
+  if( $attr !~ /^http/ ) {
+    $attr = "http://$attr";
+  }
+  
+  return $html->button("$lang{GO}", '', { GLOBAL_URL => "$attr"});
+}
 
 1;

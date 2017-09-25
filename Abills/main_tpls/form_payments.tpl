@@ -38,12 +38,13 @@
             %SEL_METHOD%
           </div>
         </div>
-        <!-- <div class='form-group'>
-            <label class='control-label col-md-3' for='CASHBOX'>_{CASHBOX}_:</label>
-            <div class='col-md-9'>
-                %CASHBOX_SELECT%
-             </div>
-        </div> -->
+
+        <div class='form-group' %CASHBOX_HIDDEN%>
+          <label class='control-label col-md-3' for='CASHBOX'>_{CASHBOX}_:</label>
+          <div class='col-md-9'>
+            %CASHBOX_SELECT%
+          </div>
+        </div>
 
         %ER_FORM%
 
@@ -57,10 +58,10 @@
         %DATE_FORM%
 
         %EXT_DATA_FORM%
+		
       </div>
-      <div class='form-group'>
-        %DOCS_INVOICE_RECEIPT_ELEMENT%
-      </div>
+      
+	  %DOCS_INVOICE_RECEIPT_ELEMENT%
 
       <div class='box-footer'>
         %BACK_BUTTON% <input type=submit name=%ACTION% value='%LNG_ACTION%' ID='submitbutton' class='btn btn-primary'>
@@ -70,6 +71,7 @@
 
   </fieldset>
 </form>
+
 <script>
   jQuery('#user_form').on('submit', function(){
     renameAndDisable('submitbutton', '_{IN_PROGRESS}_...' );

@@ -4,6 +4,7 @@
     <form name='CABLECAT_SPLITTER' id='form_CABLECAT_SPLITTER' method='post' class='form form-horizontal'>
       <input type='hidden' name='index' value='$index'/>
       <input type='hidden' name='ID' value='%ID%'/>
+
       <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='1'/>
 
       <div class='form-group'>
@@ -19,6 +20,14 @@
           %WELL_ID_SELECT%
         </div>
       </div>
+
+      <div class='form-group'>
+        <label class='control-label col-md-3' for='COMMUTATION_ID'>_{COMMUTATION}_</label>
+        <div class='col-md-9'>
+          %COMMUTATION_ID_SELECT%
+        </div>
+      </div>
+
 
       %OBJECT_INFO%
 

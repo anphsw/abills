@@ -63,7 +63,7 @@ my $row_number = 0;
 my %ISO_LANGUAGE_CODE = (
   english     => 'en',
   russian     => 'ru',
-  ukraine     => 'uk',
+  ukrainian   => 'uk',
   bulgarian   => 'bg',
   french      => 'fr',
   armenian    => 'hy',
@@ -136,6 +136,10 @@ sub new {
   $ENV{PROT}= $prot;
   $SELF_URL = (defined($ENV{HTTP_HOST})) ? "$prot://$ENV{HTTP_HOST}$ENV{SCRIPT_NAME}" : '';
 
+  if($attr->{EXPORT_LIST}) {
+    $self->{EXPORT_LIST}=1;
+  }
+
   $self->{SESSION_IP} = $ENV{REMOTE_ADDR} || '0.0.0.0';
   $self->{domain}=$ENV{SERVER_NAME};
   $self->{secure}='';
@@ -180,6 +184,7 @@ sub new {
   }
   elsif ($COOKIES{language} && $COOKIES{language} =~ /^[a-z\_]+$/) {
     $self->{language} = $COOKIES{language};
+    $FORM{language}=$self->{language};
   }
   else {
     $self->{language} = $CONF->{default_language} || 'english';
@@ -527,7 +532,7 @@ sub form_textarea {
 }
 
 #**********************************************************
-=head2 form_main($name, $value, $attr) - Create input form container
+=head2 form_main($attr) - Create input form container
 
   Arguments:
 
@@ -637,6 +642,7 @@ sub form_main {
       MAIN_MENU      - Main menu link for main function
       MAIN_MENU_ARGV - Arguments for main menu
       EXT_BUTTON     - Allow second button next to MAIN_MENU
+      WRITE_TO_DATA  - Writes to HTML5 attr 'data-' named values from list
       STYLE          - Array of element style
       SEL_OPTIONS    - Extra sel options HASH_REF { key => value, ... }
       EXPORT_CONTENT - Export content
@@ -645,6 +651,8 @@ sub form_main {
       NORMAL_WIDTH   - By default, all selects in .form-horizontal .form-group will have .form-group width,
                        this options sets width to 100% (.form-control styles)
       AUTOSUBMIT     - Submit form when selected ( $URL or 'form' )
+      REQUIRED       - Make select required ( do not allow to send form when empty ) label should have class .required
+      MULTIPLE       - Allow to choose few values from one select
       OUTPUT2RETURN
 
   Results:
@@ -676,9 +684,17 @@ sub form_select {
   elsif($self->{FORM_ID}) {
     $form = " form='$self->{FORM_ID}'";
   }
-  
+
   if ($attr->{AUTOSUBMIT}){
     $ex_params .= 'data-auto-submit="' . $attr->{AUTOSUBMIT} . '"';
+  }
+
+  if ($attr->{REQUIRED}){
+    $ex_params .= ' required="required"';
+  }
+
+  if ($attr->{MULTIPLE}){
+    $ex_params .= ' multiple="multiple"';
   }
 
   my $element_id = ($attr->{ID}) ? $attr->{ID} : $name;
@@ -694,8 +710,8 @@ sub form_select {
   }
 
   my @multiselect = ();
-  if($attr->{SELECTED} && $attr->{SELECTED} =~ /,\s/) {
-    @multiselect = split(/,\s/, $attr->{SELECTED});
+  if($attr->{SELECTED} && $attr->{SELECTED} =~ /,\s?/) {
+    @multiselect = split(',\s?', $attr->{SELECTED});
   }
 
   if (defined($attr->{SEL_ARRAY})) {
@@ -713,8 +729,14 @@ sub form_select {
           $self->{SELECT} .= " class='$attr->{STYLE}->[$i]'";
         }
       }
-
-      $self->{SELECT} .= ' selected' if (defined($attr->{SELECTED}) && (($attr->{ARRAY_NUM_ID} && $i eq $attr->{SELECTED}) || ($v eq $attr->{SELECTED})));
+      if (
+        defined($attr->{SELECTED})
+          && (($attr->{ARRAY_NUM_ID} && $i eq $attr->{SELECTED})
+          || ( $attr->{ARRAY_NUM_ID} && grep { $_ eq $i } @multiselect )
+          || ($v eq $attr->{SELECTED}))
+      ) {
+        $self->{SELECT} .= ' selected' ;
+      }
       $self->{SELECT} .= '>'. (defined($v) ? $v : '') ."\n";
       $i++;
     }
@@ -754,6 +776,7 @@ sub form_select {
 #    }
 #  }
   elsif ($attr->{SEL_LIST}) {
+    my $has_selected     = defined($attr->{SELECTED});
     my $key              = $attr->{SEL_KEY} || 'id';
     my $value            = $attr->{SEL_VALUE} || 'name';
     my $H                = $attr->{SEL_LIST};
@@ -766,7 +789,8 @@ sub form_select {
     foreach my $v (@$H) {
       $self->{SELECT} .= "<option value='". ((ref $v eq 'HASH' && $v->{$key}) ? $v->{$key} : '') ."'";
       $self->{SELECT} .= "style='COLOR:#$v->{color};'" if (ref $v eq 'HASH' && $v->{color});
-      if (defined($attr->{SELECTED})) {
+
+      if ($has_selected) {
         if(ref $v eq 'HASH' && defined($v->{$key})) {
           if ($v->{$key} eq $attr->{SELECTED}) {
             $self->{SELECT} .= ' selected ';
@@ -775,6 +799,10 @@ sub form_select {
             $self->{SELECT} .= ' selected ';
           }
         }
+      }
+
+      if ($attr->{WRITE_TO_DATA}){
+        $self->{SELECT} .= ' data-' . $attr->{WRITE_TO_DATA} . '="' . ($v->{$attr->{WRITE_TO_DATA}} || q{}) . '"';
       }
 
       $self->{SELECT} .= '>';
@@ -901,15 +929,23 @@ sub form_select {
   }
 
   $self->{SELECT} .= "</select>\n";
-
+  
   if ($attr->{MAIN_MENU}) {
     $self->{SELECT} = "
       <div class='input-group'>
       $self->{SELECT}
       <span class='input-group-addon'>"
        . $self->button('info', "index=$attr->{MAIN_MENU}" . (($attr->{MAIN_MENU_ARGV}) ? "&$attr->{MAIN_MENU_ARGV}" : ''), { class => 'show' })
-       . ($attr->{EXT_BUTTON} || '')
+       . ( $attr->{EXT_BUTTON} || '')
        . "</span></div>\n";
+  }
+  elsif ($attr->{EXT_BUTTON}){
+    $self->{SELECT} = "
+      <div class='input-group'>
+      $self->{SELECT}
+      <span class='input-group-addon'>"
+      . ( $attr->{EXT_BUTTON} || '')
+      . "</span></div>\n";
   }
 
   return $self->{SELECT};
@@ -943,15 +979,18 @@ sub form_window {
   my $main_menu      = $attr->{MAIN_MENU} || '';
   #my $main_menu_argv = $attr->{MAIN_MENU_ARGV} || '';
 
+  # Counter for storing params in array
   $self->{button_num}++;
-  my $buttonNum=$self->{button_num}-1;
+  my $buttonNum = $self->{button_num} - 1;
 
   $self->{WINDOW} = "
    <div class='input-group'> ";
 
+  my $tooltip = $attr->{TOOLTIP} ? " data-tooltip='$attr->{TOOLTIP}' data-tooltip-position='left auto'" : '';
+
   if ($attr->{HAS_NAME}) {
-    $self->{WINDOW} .= "<input type='hidden' value='%" . $name . "%' name='$name'/>
-      <input type='text' value='" . (($attr->{VALUE}) ? $attr->{VALUE} : '%' . $name . '%') . "' name='" . $name . "1' class='form-control'/>";
+    $self->{WINDOW} .= "<input type='hidden' value='%" . $name . "%' name='$name' id='$name'/>
+      <input type='text' $tooltip value='" . (($attr->{VALUE}) ? $attr->{VALUE} : '%' . $name . '%') . "' name='" . $name . "1' id='$name\_1' class='form-control'/>";
   }
   else {
     $self->{WINDOW} .= "<input type='text' value='" . ($attr->{VALUE} || '') . "' name='$name' class='form-control'/>";
@@ -960,6 +999,7 @@ sub form_window {
   $self->{WINDOW} .= "<span class='input-group-addon'> ";
 
   if ($attr->{MAIN_MENU}) {
+    # FIXME : NAS_ID?
     $self->{WINDOW} .= " <div style='display:inline; cursor:pointer;'>
           <a onclick='replace(hrefValue( \"" . $SELF_URL . "\", \"" . $main_menu . "\", \"NAS_ID\"))'>
             <span class='glyphicon glyphicon-list-alt'></span>
@@ -967,12 +1007,14 @@ sub form_window {
       </div>\n";
   }
 
-  $self->{WINDOW} .=" <a id='btnPopupOpen' type='button' onclick=\'openModal($buttonNum, \"TemplateBased\");\'>
-          <span class='glyphicon glyphicon-search'></span>
-        </a>
-       <div id='clear_results' style='display:inline; cursor:pointer;'>
-         <span class='glyphicon glyphicon-remove'></span>
-       </div>\n";
+  my $modal_size = $attr->{POPUP_SIZE} || '';
+  $self->{WINDOW} .="
+    <a id='btnPopupOpen' type='button' onclick=\'openModal($buttonNum, \"TemplateBased\", \"$modal_size\");\'>
+       <span class='glyphicon glyphicon-search'></span>
+    </a>
+    <div class='clear_results' style='display:inline; cursor:pointer;'>
+      <span class='glyphicon glyphicon-remove'></span>
+    </div>\n";
 
   $self->{WINDOW} .= "
     </span>
@@ -1011,7 +1053,7 @@ sub set_cookies {
   my $self = shift;
   my ($name, $value, $expiration, $path, $attr) = @_;
 
-  $expiration = gmtime(time() + (($CONF->{web_session_timeout}) ? $CONF->{web_session_timeout} : 86000 )) . " GMT" if (! $expiration);
+  $expiration = gmtime(time() + (($CONF->{web_session_timeout}) ? $CONF->{web_session_timeout} : 86400 )) . " GMT" if (! $expiration);
   $value='' if (! $value);
 
   my $cookie = "Set-Cookie: $name=$value; expires=\"$expiration\"; ";
@@ -1408,9 +1450,9 @@ sub header {
   $self->{header}  = "Content-Type: text/html\n";
   $self->{header} .= "Access-Control-Allow-Origin: *"
                      . "\n\n";
-  
+
   $self->{HEADERS_SENT} = 1;
-  
+
   if (($attr->{header} && $attr->{header} == 2) || !$self->{METATAGS}) {
     return $self->{header};
   }
@@ -1433,7 +1475,7 @@ sub header {
   $info{CHARSET} = $self->{CHARSET};
   $info{CONTENT_LANGUAGE} = $attr->{CONTENT_LANGUAGE} || $self->{content_language} || 'ru';
   $info{CALLCENTER_MENU}  = $self->{CALLCENTER_MENU};
-  $info{WEBSOCKET_URL}  = $CONF->{WEBSOCKET_URL} || '';
+  $info{WEBSOCKET_URL} = ($CONF->{WEBSOCKET_URL} || $CONF->{WEBSOCKET_ENABLED} ) ? ($ENV{HTTP_HOST} || '') . "/admin/wss/" : '';
 
   $info{SIDEBAR_HIDDEN} = (exists $COOKIES{menuHidden})
     ? ($COOKIES{menuHidden} eq 'true') ? 'sidebar-collapse' : ''
@@ -1446,7 +1488,7 @@ sub header {
     ID                 => $FORM{EXPORT_CONTENT},
     SKIP_DEBUG_MARKERS => 1
   });
-  
+
   return $self->{header};
 }
 
@@ -1466,6 +1508,7 @@ sub header {
       ID          - table ID
       MENU        - ???
       EXPORT      - show button for exporting table
+      DATA_TABLE  - create table with data table plugin
       IMPORT      - Show import form
       NOT_RESPONSIVE
       SHOW_COLS_HIDDEN - Hidden columns for gum fields
@@ -1518,7 +1561,8 @@ sub header {
       ID         => 'NOTEPAD_ID',
       MENU       => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add",
       EXPORT     => 1
-      SELECT_ALL => 'users_list:UID:$lang{SELECT_ALL}'
+      SELECT_ALL => 'users_list:UID:$lang{SELECT_ALL}',
+      DATA_TABLE => 1,
     }
   );
 
@@ -1604,11 +1648,11 @@ sub table {
       </div>
       <div class='modal-body text-left' id='nestedform'>";
 
-      $show_cols .= "<FORM action='$SELF_URL' METHOD='post' name='show_cols' id='show_cols'>\n" if (!$attr->{SKIP_FORM});
+      $show_cols .= "<FORM action='$SELF_URL' METHOD='post' name='form_show_cols' id='form_show_cols'>\n" if (!$attr->{SKIP_FORM});
 
       foreach my $param_name ('index', 'sort', 'desc', 'pg', 'PAGE_ROWS', 'search', 'USERS_STATUS', 'STATUS', 'STATE') {
         if ($FORM{$param_name}) {
-          $show_cols .= "<input type=hidden form='show_cols' name=$param_name value='$FORM{$param_name}'>\n";
+          $show_cols .= "<input type=hidden form='form_show_cols' name=$param_name value='$FORM{$param_name}'>\n";
         }
       }
 
@@ -1660,12 +1704,12 @@ sub table {
   </div>
 </div>\n";
 
-      $show_cols_button = "<button class='btn btn-default btn-xs' data-toggle='modal' data-target='#" . $attr->{ID} . "_cols_modal'><span class='glyphicon glyphicon-option-horizontal'></span></button>";
+      $show_cols_button = "<button title='Extra fields' class='btn btn-default btn-xs' data-toggle='modal' data-target='#" . $attr->{ID} . "_cols_modal'><span class='glyphicon glyphicon-option-horizontal'></span></button>";
     }
 
     my $collapse_icon = ($attr->{HIDE_TABLE}) ? 'fa-plus' : 'fa-minus';
     $self->{table_caption} .= ""
-    . (($attr->{ID}) ? "<button type='button' class='btn btn-default btn-xs ' data-widget='collapse'><i class='fa $collapse_icon'></i></button>" : '')
+    . (($attr->{ID}) ? "<button type='button' title='Show/Hide' class='btn btn-default btn-xs ' data-widget='collapse'><i class='fa $collapse_icon'></i></button>" : '')
     . $show_cols_button;
   }
 
@@ -1695,7 +1739,7 @@ sub table {
   }
 
   #Export object
-  if ($attr->{EXPORT} && !$FORM{EXPORT_CONTENT}) {
+  if ($attr->{EXPORT} && $parent->{EXPORT_LIST} && !$FORM{EXPORT_CONTENT}) {
     my @export_formats = ('xml', 'csv', 'json');
     my $export_obj = '';
 
@@ -1740,7 +1784,7 @@ sub table {
   push @header_obj, $self->{EXPORT_OBJ} if ($self->{EXPORT_OBJ});
 
   if($attr->{IMPORT}) {
-    $self->{table_caption} = qq{<a role='button' class='btn btn-default btn-xs' onclick='loadToModal("$attr->{IMPORT}")'>
+    $self->{table_caption} = qq{<a role='button' title='Import' class='btn btn-default btn-xs' onclick='loadToModal("$attr->{IMPORT}")'>
       <span class='glyphicon glyphicon-import'></span>
     </a>
     } . $self->{table_caption};
@@ -1762,7 +1806,19 @@ sub table {
   $attr->{caption}='' if (! $attr->{caption});
   my $collapse = ($attr->{HIDE_TABLE}) ? 'collapsed-box' : '';
 
-  $self->{table} = $show_cols . '<div class="box box-theme ' . $collapse . '"\>';
+  if ($attr->{DATA_TABLE}){
+    $show_cols = '<script>
+                        $(document).ready(function() {
+                        $("#' . $self->{ID} . '_").DataTable({
+                          "language": {
+                            "url": "/styles/lte_adm/plugins/datatables/lang/' . $self->{prototype}{content_language} . '.json" 
+                          }
+                          });
+                         });
+                      </script>' . $show_cols;
+  }
+
+  $self->{table} = $show_cols . '<div class="box box-theme FK' . $collapse . '"\>';
 
 
   $self->{table_status_bar} ||= $attr->{caption1} || '';
@@ -2364,6 +2420,7 @@ sub img {
       JAVASCRIPT     -
       GLOBAL_URL     - Global link
       ex_params      -
+      LOAD_TO_MODAL  - loads $params link to modal instead of going to page
       MESSAGE        - Opens '#comments_add' modal to enter COMMENTS before submit
       CONFIRM        - Opens '#comments_add' modal without COMMENTS
       AJAX           - allow AJAX submit form. Will load result page as JSON, and if 'MESSAGE' found in result will show it.
@@ -2375,6 +2432,7 @@ sub img {
       SKIP_HREF      -
       ICON           - Img class <i class=".."></i>
       ADD_ICON       - Img class <i class=".."></i>. Instead of replacing button text will add icon to it
+      COPY           - onclick button will copy text to clipboard
 
 
   Returns:
@@ -2418,14 +2476,27 @@ sub button {
     my $alt = ($attr->{IMG_ALT}) ? $attr->{IMG_ALT} : 'image';
     $name = "<img alt='$alt' src='$img_path$attr->{IMG}'> $name";
   }
-
-  my $message = '';
   
+  if ($attr->{COPY}){
+    
+    $attr->{COPY} =~ s/'/\\\'/g;
+    $attr->{COPY} =~ s/"/\\\'/g;
+    $attr->{COPY} =~ s/\n/ /g;
+    
+    $ex_attr .= qq/ onclick="copyToBuffer('$attr->{COPY}', true)" /;;
+    $attr->{SKIP_HREF} = 1;
+  }
+  
+  my $message = '';
   if ($attr->{MESSAGE} || $attr->{CONFIRM}) {
     my $text_message = $attr->{MESSAGE} || $attr->{CONFIRM};
     my $comments_type = $attr->{CONFIRM} ? 'confirm' : '';
     my $ajax_params = $attr->{AJAX} || '';
-    
+
+    $text_message =~ s/'/\\\'/g;
+    $text_message =~ s/"/\\\'/g;
+    $text_message =~ s/\n/<br>/g;
+
     # title, link, attr_json;
     my $onclick_str = q/onClick="cancelEvent(event);/
     . qq/showCommentsModal('$text_message', '$params',/
@@ -2459,7 +2530,8 @@ sub button {
       stats    => 'glyphicon glyphicon-stats text-success',
       print    => 'glyphicon glyphicon-print',
       user     => 'glyphicon glyphicon-user',
-      history  => 'glyphicon glyphicon-book'
+      history  => 'glyphicon glyphicon-book',
+      show     => 'glyphicon glyphicon-list-alt',
     );
 
     if ($classes{$css_class}) {
@@ -2527,7 +2599,8 @@ sub button {
   $name //= '';
 
   if ($attr->{LOAD_TO_MODAL}) {
-    return qq{<a $css_class onclick="cancelEvent(event);loadToModal('$params')" $ex_attr $id_val>$name</a>};
+    my $load_func = ($attr->{LOAD_TO_MODAL} eq 'raw') ? 'loadRawToModal' : 'loadToModal';
+    return qq{<a $css_class onclick="cancelEvent(event);$load_func('$params')" $ex_attr $id_val>$name</a>};
   }
 
   return "<a$title$css_class $href $ex_attr$message$id_val>$name</a>";
@@ -2723,7 +2796,7 @@ sub pages {
             <div class="modal-body text-left">
             <div class='row'>
               <div class='col-md-9'>
-                <input class='form-control' id='pagevalue' type='text'  size='5' maxlength=4/>
+                <input class='form-control' id='pagevalue' type='text'  size='9' maxlength=4/>
               </div>
               <div class='col-md-3'>
                 <button type="button"  class="btn btn-primary pull-right" data-dismiss="modal" onclick="checkval('index.cgi?$argument&pg=')">OK</button>
@@ -2886,15 +2959,20 @@ sub tpl_show {
       #     }
       #    els
 
-      if ($variables_ref->{$var}) {
+      if (defined($variables_ref->{$var})) {
         $variables_ref->{$var} =~ s/\%$var\%//g;
+      }
+      else {
+        $variables_ref->{$var} = q{};
       }
 
       if ($attr->{SKIP_VARS} && $attr->{SKIP_VARS} =~ /$var/) {
       }
       elsif ($default && $default =~ /expr:(.*)/) {
         my @expr_arr = split(/\//, $1, 2);
-        $variables_ref->{$var} =~ s/$expr_arr[0]/$expr_arr[1]/g;
+        if($#expr_arr > 0) {
+          $variables_ref->{$var} =~ s/$expr_arr[0]/$expr_arr[1]/g;
+        }
         $default               =~ s/\//\\\//g;
         $default               =~ s/\[/\\\[/g;
         $default               =~ s/\]/\\\]/g;
@@ -2928,8 +3006,8 @@ sub tpl_show {
     return $tpl;
   }
   else {
-    if ($self->{CHANGE_TPLS}) {
-      $tpl .= "<div class='bg-warning'>[<a href='$SELF_URL?index=91&create=:admin_report_day.tpl'>change templates</a>]</div>\n";
+    if ($self->{CHANGE_TPLS} && $attr->{ID}) {
+      $tpl .= "<div class='bg-warning'>[<a href='$SELF_URL?index=91&ID=$attr->{ID}&create=:$attr->{ID}'>change templates</a>]</div>\n";
     }
 
     print $tpl;
@@ -3083,16 +3161,16 @@ sub make_charts {
 
   my $result = '';
 
-  my $DATA           = $attr->{DATA};
-  my @result_arr     = ();
-  my $compare_enable = 0;
-  my $debug          = $attr->{DEBUG} || 0;
+  my %CHART_OPTIONS = ();
+  my $DATA = $attr->{DATA};
+  my @result_arr = ();
+  my $debug = $attr->{DEBUG} || 0;
 
   my $single_compare_key = $attr->{SINGLE_COMPARE} || $FORM{SINGLE_COMPARE} || 0;
 
   my @series_names = keys (%{ $DATA } );
 
-  if ($single_compare_key){
+  if ( $single_compare_key ) {
     $DATA = { $single_compare_key => $DATA->{$single_compare_key} };
   }
 
@@ -3101,96 +3179,87 @@ sub make_charts {
   my $categories = $attr->{X_TEXT};
   my $chart_types = $attr->{TYPES};
 
-  if ($debug) {
-    $result.= "<hr>Series count: $series_count";
-  }
+  my $chart_categories = undef;
 
-  if ($attr->{PERIOD}) {
-    my $days_in_month_option = '';
+  $result .= "<hr>Series count: $series_count" if ($debug);
+
+  if ( $attr->{PERIOD} ) {
+    $CHART_OPTIONS{chart_period} = $attr->{PERIOD};
 
     # Pass days in month to display month chart correctly
-    if ($attr->{PERIOD} eq 'month_stats'){
-      my $days_in_month = $attr->{DAYS} || 31;
-      $days_in_month_option = qq{ window['daysInMonth'] = "$days_in_month"; };
+    if ( $attr->{PERIOD} eq 'month_stats' ) {
+      $CHART_OPTIONS{days_in_month} = $attr->{DAYS} || 31;
     }
-
-    # Remove first array value (to start it from 1 not 0 index)
-    foreach (values %{$DATA}){
-      shift (@$_);
-    }
-    $result .= qq {
-        <script>
-            window['chartPeriod'] = "$attr->{PERIOD}";
-            $days_in_month_option;
-        </script>
-        }
   }
 
   my %compare = ();
-
-  while (my ($series_name, $series_values) = each %$DATA) {
+  while (my ($series_name, $series_values) = each %{$DATA}) {
     %compare = ();
 
-    for (my $i = 0; $i <= $#{ $series_values }; $i++) {
+    # Remove first array value (to start it from 1 not 0 index)
+    shift (@{$series_values});
+
+    for ( my $i = 0; $i <= $#{ $series_values }; $i++ ) {
       $series_values->[$i] ||= '0';
 
       # if text YYYY-MM make compare hash
-      if (!$attr->{SKIP_COMPARE} && $categories && $categories->[$i] && $categories->[$i] =~ /^(\d{4})\-(\d{2})$/) {
+      if ( !$attr->{SKIP_COMPARE} && $categories && $categories->[$i] && $categories->[$i] =~ /^(\d{4})\-(\d{2})$/ ) {
         my $year = $1;
         my $month = $2;
-        $compare{$month}{$year} = $series_values->[$i];
+        $compare{$month}->{$year} = $series_values->[$i];
       }
     }
     # Compare hash action
-    if ( scalar %compare > 1) {
+    if ( scalar %compare > 1 ) {
       my @val_new = ();
-      $compare_enable = 1;
-      foreach my $month (sort keys ( %compare )) {
-        foreach my $year (sort keys ( %{ $compare{$month} } )) {
+      $CHART_OPTIONS{compare_enable} = 1;
+      foreach my $month ( sort keys ( %compare ) ) {
+        foreach my $year ( sort keys ( %{ $compare{$month} } ) ) {
           push @val_new, $compare{$month}->{$year};
         }
         $series_values = \@val_new;
       }
     }
 
-    my $values_text = join('", "', @$series_values);
+    my $values_text = join('", "', @{$series_values});
     my $chart_type = ($chart_types->{$series_name}) ? lc $chart_types->{$series_name} : 'line';
     push @result_arr, qq{["$series_name", "$chart_type", ["$values_text"] ]};
   }
 
   my $compare_x_text = '';
   #my @compare_data_columns = ();
-  if ($compare_enable)  {
-    if ($series_count != 1){
+  if ( $CHART_OPTIONS{compare_enable} ) {
+    if ( $series_count != 1 ) {
       my @compare_x_text_arr = ();
       foreach my $month ( sort keys ( %compare ) ) {
         push @compare_x_text_arr, qq/
           { name: "$month",
             categories: ["/ . join('", "', sort keys ( %{ $compare{$month} } ))
-          . qq/" ]\n } /;
+            . qq/" ]\n } /;
       }
 
       $compare_x_text = join(',', @compare_x_text_arr);
     }
     else {
-      my %year_hash = ( 'undef' => [ undef, "'01'", "'02'", "'03'", "'04'", "'05'", "'06'", "'07'", "'08'", "'09'", "'10'", "'11'", "'12'" ]);
+      my %year_hash = ( 'undef' =>
+        [ undef, "'01'", "'02'", "'03'", "'04'", "'05'", "'06'", "'07'", "'08'", "'09'", "'10'", "'11'", "'12'" ]);
       my @years_arr = keys %{ $compare{'01'} };
 
       foreach my $month ( sort keys ( %compare ) ) {
         foreach my $year ( @years_arr ) {
-          $year_hash{$year}[int($month)]=$compare{$month}{$year} || 'null';
+          $year_hash{$year}->[int($month)] = $compare{$month}->{$year} || 'null';
         }
       }
 
       my @result_rows = ();
-      push @result_rows, "[null, ". join(', ', @{ $year_hash{undef} }[1..12] ) .']';
+      push @result_rows, "[null, " . join(', ', @{ $year_hash{undef} }[1. . 12] ) . ']';
 
       foreach my $year ( sort keys %year_hash ) {
-        if ($year eq 'undef') {
+        if ( $year eq 'undef' ) {
           next;
         }
 
-        push @result_rows, "['". $year . "',". join(', ', @{ $year_hash{$year} }[1..12] ) .']';
+        push @result_rows, "['" . $year . "'," . join(', ', @{ $year_hash{$year} }[1. . 12] ) . ']';
       }
 
       my $compare_js_params = join(', ', @result_rows);
@@ -3199,72 +3268,70 @@ sub make_charts {
     }
   }
 
-  $result.= "<hr>Compare categories: " . ($compare_x_text || q{}) if ($debug);
+  $result .= "<hr>Compare categories: " . ($compare_x_text || q{}) if ($debug);
 
-#************************************************************************************
-  #Compare {main} -> {sum}
-  if ($categories) {
+  if ( $categories ) {
+    $CHART_OPTIONS{compare_single} = ($CHART_OPTIONS{compare_enable} && ($series_count == 1));
 
-    my $line_types = '';
-    my $single_compare = $compare_enable && ($series_count == 1);
-
-    if (! $compare_x_text) {
-      for(my $i=0; $i<=$#{ $categories }; $i++) {
-        if (! defined($categories->[$i])) {
-          $categories->[$i]='';
-        }
-      }
-
-      $line_types = "'" . (( $#{ $categories } > -1 ) ? join("','", @$categories) : '') . "'";
+    if ( $compare_x_text ) {
+      $chart_categories = $compare_x_text;
     }
     else {
-      $line_types = $compare_x_text;
+      for ( my $i = 0; $i <= $#{ $categories }; $i++ ) {
+        if ( !defined($categories->[$i]) ) {
+          $categories->[$i] = '';
+        }
+      }
+      $chart_categories = "'" . (( $#{ $categories } > - 1 ) ? join("','", @{$categories}) : '') . "'";
     }
-
-    $result.= qq {
-    <script>
-      window['chartCategories'] = [ $line_types ];
-      window['singleValueCompare'] = '$single_compare';
-    </script>
-    };
   }
+
+  if (!$self->{CHARTS_HIGHCHARTS_LOADED}){
+    $result .= "<script type='text/javascript' src='/styles/default_adm/js/charts/highcharts.js'></script>";
+    $self->{CHARTS_HIGHCHARTS_LOADED} = 1;
+  }
+
+  if ( $CHART_OPTIONS{compare_enable}) {
+    if ($CHART_OPTIONS{compare_single}){
+      my $compare_key_select = $self->form_select(
+        'SINGLE_COMPARE',
+        {
+          SEL_ARRAY     => \@series_names,
+          SELECTED      => $single_compare_key,
+          FORM_ID       => 'report_panel',
+          EX_PARAMS     => ' onchange="document.report_panel.submit()" ',
+          OUTPUT2RETURN => 1
+        }
+      );
+
+      $result .= $self->element('div', $compare_key_select, { class => 'col-md-6 pull-right' });
+    }
+    $result .= "<script src='/styles/default_adm/js/charts/highcharts-grouped.js'></script>";
+  }
+
+  if (!$self->{CHARTS_LOADED}){
+    $result .= qq{
+      <script type='text/javascript' src='/styles/default_adm/js/charts/charts.js'></script>
+    };
+    $self->{CHARTS_LOADED} = 1;
+  }
+
+  my @chars_arr = ( 'a' ... 'z' );
+  $CHART_OPTIONS{chart_id} = 'chart_' . join('', map { $chars_arr[int(rand($#chars_arr))] } (0 ... 10));
+  $result .= qq{
+    <div id='$CHART_OPTIONS{chart_id}' style='width: 100%; height: 100%; margin-bottom: 10px'></div>
+  };
 
   my $chart_vars = join(",\n", @result_arr );
 
-  if ($compare_enable){
-    my $compare_key_select =  $self->form_select(
-      'SINGLE_COMPARE',
-      {
-        SEL_ARRAY => \@series_names,
-        SELECTED  => $single_compare_key,
-        FORM_ID   => 'report_panel',
-        EX_PARAMS => ' onchange="document.report_panel.submit()" ',
-        OUTPUT2RETURN => 1
-      }
-    );
-
-    $result.= $self->element('div', $compare_key_select, {class => 'col-md-6 pull-right'});
+  my @chart_options_arr = ();
+  foreach my $option_name ( keys %CHART_OPTIONS ){
+    push (@chart_options_arr, qq{ "$option_name" : "$CHART_OPTIONS{$option_name}" }) if ($CHART_OPTIONS{$option_name});
   }
+  my $chart_options_str = join (',', @chart_options_arr);
 
-  $result.= qq{
-    <script type='text/javascript' src='/styles/default_adm/js/charts/highcharts.js'></script>
-    <div id='highcharts' style='width: 100%; height: 100%; margin-bottom: 10px'></div>
-  };
-
-  $result.= qq{
-    <script>
-        window['chartLines'] =
-             [
-                  $chart_vars
-             ];
-    </script>
-  };
-
-  if ($compare_enable && $series_count != 1)  {
-    $result.= "<script src='/styles/default_adm/js/charts/highcharts-grouped.js'></script>";
-  }
-
-  $result.= qq{<script type='text/javascript' src='/styles/default_adm/js/charts/charts.js'></script>};
+  $chart_categories //='';
+  $result .= qq{<script> initChart([ $chart_categories ], [ $chart_vars ], { $chart_options_str });</script>};
 
   unless ($attr->{OUTPUT2RETURN}){
     print $result;
@@ -3273,7 +3340,7 @@ sub make_charts {
   return $result;
 }
 #**********************************************************
-=head2 make_charts2($attr) - Make different charts
+=head2 make_charts_simple($attr) - Make different charts
 
    If given only one series and X_TEXT as YYYY-MM, will build columned compare chart
 
@@ -3292,39 +3359,49 @@ sub make_charts {
 
 =cut
 #**********************************************************
-sub make_charts2 {
+sub make_charts_simple {
   my $self = shift;
   my ($attr) = @_;
   my $result = '';
 
-  my $DATA  = $attr->{DATA};
+  my $DATA = $attr->{DATA};
   my $categories = $attr->{X_TEXT} || '';
   my $title_y = $attr->{Y_TITLE} || '';
   my $graph_title = $attr->{TITLE} || '';
   my $chart_types = $attr->{TYPES};
   my $dimension = $attr->{DIMENSION} || '';
-  my $graph_id = $attr->{GRAPH_ID} || 'highcharts';
+
+  my $graph_id = $attr->{GRAPH_ID} || do {
+    my @chars_arr = ( 'a' ... 'z' );
+    'chart_' . join('', map { $chars_arr[int(rand($#chars_arr))] } (0 ... 10));
+  };
+
   $title_y = "$title_y ($dimension)" if ($dimension);
-  my $categories_vars = join('", "', @$categories);
+  my $categories_vars = join('", "', @{$categories});
+
   my @series_arr = ();
-  foreach my $series_name (sort keys %$DATA ) {
+  foreach my $series_name ( sort keys %{$DATA} ) {
     my $series_values = $DATA->{$series_name};
-    for (my $i=0; $i <= $#{ $series_values }; $i++) {
-      if (!$series_values->[$i]) {
+    for ( my $i = 0; $i <= $#{ $series_values }; $i++ ) {
+      if ( !$series_values->[$i] ) {
         $series_values->[$i] = 'null';
       }
     }
-    my $values_text = join(', ', @$series_values);
+    my $values_text = join(', ', @{$series_values});
     my $chart_type = ($chart_types->{$series_name}) ? lc $chart_types->{$series_name} : 'line';
     push @series_arr, "{ name: \"$series_name\", type: \"$chart_type\", data: [$values_text] }";
   }
   my $series_vars = join(",\n", @series_arr);
-  $result.= qq{
-    <script type='text/javascript' src='/styles/default_adm/js/charts/highcharts.js'></script>
+  $result .= qq{
     <div id='$graph_id' style='width: 100%; height: 100%; margin-bottom: 10px'></div>
   };
 
-  $result.= qq{
+  if (!$self->{CHARTS_HIGHCHARTS_LOADED}){
+    $result .= "<script type='text/javascript' src='/styles/default_adm/js/charts/highcharts.js'></script>";
+    $self->{CHARTS_HIGHCHARTS_LOADED} = 1;
+  }
+
+  $result .= qq{
     <script>
       \$(function () {
         Highcharts.theme = { colors: ["#f45b5b", "#8085e9", "#8d4654", "#7798BF", "#aaeeee", "#ff0066", "#eeaaee", "#55BF3B", "#DF5353", "#7798BF", "#aaeeee"]};
@@ -3353,9 +3430,65 @@ sub make_charts2 {
     </script>
   };
 
-  unless ($attr->{OUTPUT2RETURN}){
+  unless ( $attr->{OUTPUT2RETURN} ) {
     print $result;
   }
+
+  return $result;
+}
+#**********************************************************
+=head2 make_charts3($attr) - Make different charts
+
+   If given only one series and X_TEXT as YYYY-MM, will build columned compare chart
+
+   Arguments:
+     $attr
+       DATA    - Data array of hashes
+         [:value]
+            value - Array_ref of values
+       TYPES    - Object type: Line, Area, Bar, Donut
+       XKEYS   - Keys for X
+       LABELS  - Name of data sourse
+       GRAPH_ID - <div> id
+       TITLE    - Graph Title
+       UNITS   - Name of units (Mb/s etc)
+       HEADER - header of charts
+   Result:
+     TRUE or FALSE
+
+=cut
+#**********************************************************
+sub make_charts3 {
+  my $self = shift;
+  my ($attr) = @_;
+  my $result = '';
+
+  my $GRAPH_ID = "graph_".$attr->{GRAPH_ID} || 'test_graph';
+  my $DATA  = JSON->new->encode($attr->{DATA});
+  my $XKEYS = JSON->new->encode($attr->{XKEYS});
+  my $LABELS = JSON->new->encode($attr->{LABELS});
+  my $TYPE = $attr->{TYPE} || 'Line';
+  my $UNITS = $attr->{UNITS};
+  my $HEADER = $attr->{HEADER};
+
+  $result.= qq{
+    <script type='text/javascript' src='/styles/default_adm/js/raphael.min.js'></script>
+	<script type='text/javascript' src='/styles/lte_adm/plugins/morris/morris.min.js'></script>
+  	<div class='row'><h2 class='text-center'><small>$HEADER</small></h2></div>
+	<div id=$GRAPH_ID style='width: 100%; height: 100%; margin-bottom: 10px'></div>
+
+  };
+  $result.= qq(
+    <script>
+	  Morris.$TYPE({
+	    element: $GRAPH_ID,
+	    data: $DATA,
+	    xkey: 'y',
+	    ykeys: $XKEYS,
+	    labels: $LABELS,
+		postUnits: '$UNITS'
+	  });
+	  </script> );
 
   return $result;
 }
@@ -3486,7 +3619,7 @@ sub element {
     }
   }
 
-  $self->{FORM_INPUT} = "<$name $params>". ($value || q{}) ."</$name>";
+  $self->{FORM_INPUT} = "<$name $params>". ($value // q{}) ."</$name>";
 
   if (defined($self->{NO_PRINT}) && (!defined($attr->{OUTPUT2RETURN}))) {
     $self->{OUTPUT} .= $self->{FORM_INPUT};
@@ -4047,17 +4180,27 @@ sub form_daterangepicker {
   our $DATE;
   $DATE //= POSIX::strftime("%Y-%m-%d", localtime(time));
 
+  my $date = $DATE;
+  if ($attr->{THIS_MONTH}){
+    my ($year, $month) = split('-', $DATE);
+    require Abills::Base;
+    Abills::Base->import('days_in_month');
+    my $last_day = days_in_month({ DATE => $DATE });
+    $date = "$year-$month-01/$year-$month-$last_day";
+    $value = $date;
+  }
+  
   if ( scalar @names == 2 ) {
     my @values = split('/', $value, 2);
 
     $hidden_inputs =
-        $self->form_input( $names[0], $FORM{$names[0]} || $values[0] || $DATE,
+        $self->form_input( $names[0], $FORM{$names[0]} || $values[0] || $date,
           { TYPE => 'hidden', FORM_NAME => $attr->{FORM_NAME} } )
-      . $self->form_input( $names[1], $FORM{$names[1]} || $values[1] || $DATE,
+      . $self->form_input( $names[1], $FORM{$names[1]} || $values[1] || $date,
           { TYPE => 'hidden', FORM_NAME => $attr->{FORM_NAME} } );
 
     $name = $names[0] . '_' . $names[1];
-    $value = $FORM{$name} || "$DATE/$DATE";
+    $value = $value || "$date/$date";
     $has_hidden = 1;
   }
 
@@ -4065,7 +4208,10 @@ sub form_daterangepicker {
   my $input = $self->form_input( $name, $value, {
       class     => "form-control date_range_picker $time_options",
       FORM_NAME => $attr->{FORM_NAME},
-      EX_PARAMS => ($has_hidden) ? " data-name1='$names[0]' data-name2='$names[1]' data-has-hidden='1' " : ''
+      EX_PARAMS => (($has_hidden)
+                      ? " data-name1='$names[0]' data-name2='$names[1]' data-has-hidden='1' "
+                      : ''
+                    ) . ($attr->{EX_PARAMS} ? ' ' . $attr->{EX_PARAMS} . ' ' : '')
     } );
 
   my $addon = $self->element( 'div', '<i class="fa fa-calendar"></i>', { class => 'input-group-addon' } );
@@ -4092,10 +4238,57 @@ sub form_timepicker {
   my $self = shift;
   my ( $name, $value, $attr ) = @_;
 
-  my $input = $self->form_input( $name, $value, { class => 'form-control timepicker' } );
+  my $input = $self->form_input( $name, $value, { class => 'form-control timepicker', %{ $attr // {} } } );
   my $addon = $self->element( 'div', '<i class="fa fa-clock-o"></i>', { class => 'input-group-addon' } );
 
-  return $self->element( 'div', $input . $addon, {class => 'input-group bootstrap-timepicker', %{ $attr ? $attr : {} } } );
+  return $self->element( 'div', $input . $addon, { class => 'input-group bootstrap-timepicker', %{ $attr ? $attr : {} } } );
+}
+
+#**********************************************************
+=head2 form_datetimepicker2($name, $attr)
+
+  Arguments:
+    $name
+      $attr
+         EX_PARAMS - Hash of parameters (See docs http://eonasdan.github.io/bootstrap-datetimepicker/Options/ )
+  Returns:
+    html
+
+=cut
+#**********************************************************
+
+sub form_datetimepicker2 {
+  my $self = shift;
+  my ( $name, $attr ) = @_;
+  my $result;
+
+  $attr->{EX_PARAMS}->{locale} = $self->{content_language};
+  $attr->{EX_PARAMS}->{maxDate} = localtime(time);
+  $attr->{EX_PARAMS}->{format} = 'YYYY-MM-DD HH:mm' if !$attr->{EX_PARAMS}->{format};
+
+  my $ATTR = JSON->new->encode($attr->{EX_PARAMS});
+
+  if ($attr->{ICON}){
+  	$result= qq(
+                  <div class='input-group date' id='$name'>
+                      <input type='text' class='form-control' name='$name' />
+                      <span class='input-group-addon'>
+                          <span class='glyphicon glyphicon-calendar'></span>
+                      </span>
+                  </div>
+  				);
+  } else {
+  	$result = $self->form_input( $name, $name );
+  }
+  $result.= qq(
+          <script type="text/javascript">
+              \$(function () {
+                  \$('#$name').datetimepicker($ATTR);
+              });
+          </script>
+  );
+
+  return $result;
 }
 
 #**********************************************************
@@ -4118,13 +4311,13 @@ sub form_timepicker {
 #**********************************************************
 sub form_datetimepicker {
   my $self = shift;
-  my ( $name, $value) = @_;
+  my ( $name, $value, $attr ) = @_;
 
   my $hidden_input = $self->form_input($name, $value, { TYPE => 'hidden', EX_PARAMS => 'class="datetimepicker-hidden"' });
 
   my ($date, $time) = split(' ', $value, 2) if ($value);
-  my $date_input = $self->element('div', $self->form_datepicker($name . '_DATE', $date ), {class => 'col-md-6'});
-  my $time_input = $self->element('div', $self->form_timepicker($name . '_TIME', $time ), {class => 'col-md-6'});
+  my $date_input = $self->element('div', $self->form_datepicker($name . '_DATE', $date ), {class => 'col-md-6', %{ $attr // {} } });
+  my $time_input = $self->element('div', $self->form_timepicker($name . '_TIME', $time ), {class => 'col-md-6', %{ $attr // {} } });
 
   return $self->element('div', $hidden_input . $date_input . $time_input, { class => 'datetimepicker' });
 }
@@ -4179,41 +4372,42 @@ sub reminder{
       MESSAGE      - string, will be icluded in message
       MESSAGE_HTML - your custom html to show to user, MESSAGE is ignored
       WAIT         - time given to user to read message (3 if not given, and MESSAGE|MESSAGE_HTML is present)
-  
+
   Returns :
     1, but you should normally avoid doing any operations after calling redirect()
- 
+
 =cut
 #**********************************************************
 sub redirect {
   my ($self, $url, $attr) = @_;
-  
+
   my $wait = $attr->{WAIT} || 0;
   my $message = '';
   if ($attr->{MESSAGE} || $attr->{MESSAGE_HTML}) {
-    
+
     $message = $attr->{MESSAGE_HTML} || $self->message('info', '',
       $attr->{MESSAGE} . $self->button(' Redirect ', '', {GLOBAL_URL => $url}),
       { OUTPUT2RETURN => 1 }
     );
     $wait ||= 3;
   }
-  
+
   if ( !$self->{HEADERS_SENT} ) {
-    
+
     # Instant redirect via Location
     if ( !$wait && !$message) {
-      print "Location: $url\n\n";
+      print "Refresh: 0;url=$url\n\n";
+#      print "Location: $url\n\n";
       return 1;
     }
-    
+
     # If have to wait or show message first, use Refresh
     print "Refresh: " . ($wait || '0') . ";url=$url\n";
     print "Content-Type: text/html\n\n";
-    
+
     # Load bootstrap
     print "<link rel='stylesheet' type='text/css' href='/styles/default_adm/css/bootstrap.min.css'>\n";
-    
+
     # Show message
     print "<body>
     <div class='container'>
@@ -4222,22 +4416,234 @@ sub redirect {
       </div>
     </div>
     </body>";
-    
+
     return 1;
   }
-  
+
   print "
     $message
-    
+
     <!-- Emulate header -->
     <meta http-equiv='refresh' content='$wait;URL=$url'/>
-    
+
     <!-- JavaScript fallback -->
-    <script>location.replace('$url')</script>
+    <script>setTimeout($wait, function(){ location.replace('$url') })</script>
   ";
-  
+
   return 1;
 }
+
+#**********************************************************
+=head2 form_blocks_togglable($first_block, $second_block) - wraps two given blocks in HTML for toggle
+
+  Arguments:
+    $first_block  - string, HTML
+    $second_block - string, HTML
+    $attr         - hash_ref
+
+      ICON1       - icon for
+      ICON2       -
+
+  Returns:
+    string - HTML
+
+=cut
+#**********************************************************
+sub form_blocks_togglable {
+  my ($self, $first_block, $second_block, $attr) = @_;
+
+  my $icon1 = $attr->{ICON1} // 'glyphicon glyphicon-plus';
+  my $icon2 = $attr->{ICON2} // 'glyphicon glyphicon-th-list';
+
+  my $rnd_str = sub { join '', @_[ map{ rand @_ } 1 .. shift ] };
+
+  my $id1 = $rnd_str->(8, 'a' .. 'z');
+  my $id2 = $rnd_str->(8, 'a' .. 'z');
+
+  return qq{
+    <div id='$id1'>
+      <div class='input-group'>
+        $first_block
+        <div class='input-group-addon'>
+          <a data-toggle='block'>
+            <span class='$icon1'></span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div id='$id2' style='display: none'>
+      <div class='input-group'>
+        $second_block
+        <div class='input-group-addon'>
+          <a data-toggle='block'>
+            <span class='$icon2'></span>
+          </a>
+        </div>
+      </div>
+    </div>
+    <script>
+      jQuery(function(){
+        new BlockToggler('$id1', '$id2');
+      })
+    </script>
+  };
+
+}
+
+#**********************************************************
+=head2 charts_js() -
+
+  Arguments:
+    $attr:
+      TYPE          - chart type(bar, line, pie), STRING
+      X_LABELS      - labels for X axis, ARRAY
+      DATA          - chart data, HASH
+      TITLE         - title for chart
+      BACKGROUND_COLORS - colors for each key in DATA, HASH
+      OUTPUT2RETURN - return result, BOOL
+      FILL          - turn off filling under line(only for LINE chart), BOOL
+      HIDE_LEGEND   - do not show chart legend
+
+  Returns:
+    $result - chart with data
+  Examples:
+    BAR:
+    my $chart = $html->chart({ 
+        TYPE        => 'bar',
+        X_LABELS    => ['June', 'July', 'Augst', "September", 'October', 'November'],
+        DATA        => { 
+          'WATER' => [10, 12, 8,14,20,3], 
+          'GAS'   => [12,15,4,11,12,21], 
+          'LIGHT' => [10,15,55,22,11,4]
+        },
+        BACKGROUND_COLORS => { 
+          'WATER' => 'rgba(2, 99, 2, 0.5)', 
+          'GAS'   => 'rgba(255, 99, 255, 0.5)', 
+          'LIGHT' => 'rgba(5, 99, 132, 0.5)'
+        },
+        OUTPUT2RETURN => 1,
+    });
+
+    LINE:
+    my $chart3 = $html->chart({ 
+        TYPE        => 'line',
+        X_LABELS    => ['June', 'July', 'Augst', "September", 'October', 'November'],
+        DATA        => { 
+          'WATER' => [10, 12, 8,14,20,3], 
+          'GAS'   => [12,15,4,11,12,21], 
+          'LIGHT' => [10,15,55,22,11,4]
+        },
+        BACKGROUND_COLORS => { 
+          'WATER' => '#12f123',
+          GAS => '#999999',
+          'LIGHT' => '#ff11ff'
+        },
+        FILL => 'false',
+        OUTPUT2RETURN => 1,
+    });
+
+    PIE:
+    my $chart2 = $html->chart({ 
+        TYPE        => 'pie',
+        X_LABELS    => ['June', 'July', 'Augst', "September", 'October'],
+        DATA        => { 
+          'MONEY' => [10, 12, 8,14,20,3],
+        },
+        BACKGROUND_COLORS => { 
+          'MONEY' => ['purple', '#ab2312', '#ff6384', 'white', '#11a113'], 
+        },
+        OUTPUT2RETURN => 1,
+    });
+=cut
+#**********************************************************
+sub chart {
+  my $self = shift;
+  my ($attr) = @_;
+  
+  # result for return
+  my $result    = "";
+  
+  # prefix for canvas id
+  my $canvas_id = "canvas";
+  
+  my $chart_type   = $attr->{TYPE}     || 'bar'; # chart type
+  my $chart_data   = $attr->{DATA}     || [];    # data for chart
+  my $chart_labels = $attr->{X_LABELS} || [];    # label for X line
+  my $background_colors = $attr->{BACKGROUND_COLORS} || []; # color for items
+  my $fill_for_line     = $attr->{FILL} || ''; # for type line - off sfilling under the line
+  my $chart_title       = $attr->{TITLE}|| ''; # title for chart on top of it
+  
+  # loading chart plugin and autincrement id for more then one chart
+  if(!$self->{CHART_LOADED}){
+    $result .= q{<script src="/styles/lte_adm/plugins/chartjs/Chart.min.js"></script>};
+    $self->{CHART_LOADED} = 1;
+    $canvas_id .= $self->{CHART_LOADED}
+  }
+  else{
+    $self->{CHART_LOADED}++;
+    $canvas_id .= $self->{CHART_LOADED};
+  }
+  # hash which will be encode to json
+  my %data = ();
+  
+  $data{labels} = $chart_labels;
+  my $i = 0;
+  
+  # crreate datasets
+  foreach my $dataset (keys %$chart_data){
+    $data{datasets}[$i]{label}           = $dataset;
+    $data{datasets}[$i]{data}            = $chart_data->{$dataset};
+    $data{datasets}[$i]{borderColor}     = $background_colors->{$dataset};
+    $data{datasets}[$i]{backgroundColor} = $background_colors->{$dataset};
+    
+    if($attr->{FILL}){
+      $data{datasets}[$i]{fill} = $fill_for_line;
+    }
+    
+    $i++;
+  }
+  
+  my $json_data = JSON->new->encode(\%data);
+  
+  my $hide_legend_option = ($attr->{HIDE_LEGEND}) ? 'legend : { display : false },' : '';
+
+  my $scales = $attr->{Y_BEGIN_ZERO} ? 'scales: { yAxes: [{ ticks: {beginAtZero: true,} }] },' : '';
+  
+  # create canvas
+  $result .= qq{
+    <canvas id="$canvas_id" class="chartjs" style="display: block; min-height: 250px"></canvas>
+    <script>
+  
+       var c = document.getElementById("$canvas_id");
+  
+       var ctx = c.getContext("2d");
+  
+       var myChart = new Chart(ctx, {
+         type: '$chart_type',
+         data: $json_data,
+         maintainAspectRatio : true,
+         options: {
+           $scales
+           responsive : true,
+           $hide_legend_option
+           title: {
+                   display: true,
+                   text: '$chart_title',
+                   fontSize: 16,
+           },
+         }
+      });
+    </script>
+  };
+  
+  unless ($attr->{OUTPUT2RETURN}) {
+    print $result;
+  }
+  
+  return $result;
+}
+
 
 #**********************************************************
 =head1 AUTHOR

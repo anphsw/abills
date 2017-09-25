@@ -1,9 +1,12 @@
+<script src='/styles/default_adm/js/modules/portal.js'></script>
+
 <form action=$SELF_URL name='portal_form' method=POST class='form-horizontal'>
 <input type=hidden name=index value=$index>
 <input type=hidden name=ID value=%ID%>
 
-
-<div class='box box-theme box-form'>
+<div class='row'>
+<div class='col-md-6'>
+<div class='box box-theme  '>
 <div class='box-header with-border'>%TITLE_NAME%</div>
 <div class='box-body'>
   <div class='form-group'>
@@ -14,7 +17,7 @@
   </div>
 
   <div class='form-group'>
-      <label class='col-md-3 control-label'>_{DATE_END}_:</label>
+      <label class='col-md-3 control-label'>_{DATE_END_PUBLICATE}_:</label>
     <div class='col-md-9'>
       <input class='form-control datepicker' placeholder='0000-00-00' name='END_DATE' value='%END_DATE%'>
     </div>
@@ -43,9 +46,19 @@
   </div>
 
   <div class='form-group'>
-      <label class='col-md-12'>_{TEXT}_:</label>
+    <label class='col-md-12'>_{TEXT}_:</label>
     <div class='col-md-12'>
-      <textarea class='form-control' name='CONTENT' cols=90 rows=21>%CONTENT%</textarea>
+      <textarea class='form-control' name='CONTENT' cols=90 rows=21 id='news-text'>%CONTENT%</textarea>
+    </div>
+    <div class='col-md-12' id='editor-controls'>
+      <button type='button' class='btn btn-xs btn-primary' title='Жирный'  data-tag='b')">_{BOLD}_</button>
+
+      <button type='button' class='btn btn-xs btn-primary' title='Курсив' data-tag='i')">_{ITALICS}_</button>
+
+      <button type='button' class='btn btn-xs btn-primary' title='Подчеркнутый' data-tag='u'>_{UNDERLINED}_</button>
+
+      <button type='button' class='btn btn-xs btn-primary' title='Жирный' data-tag='link'>_{LINK}_</button>
+
     </div>
   </div>
 
@@ -63,11 +76,15 @@
       </div>
     </div>
   </div>
+</div>
+</div>
+</div>
 
-  <div class='form-group'>
-      <label class='col-md-12 label-primary'>_{USER_CONF}_</label>
-  </div>
 
+<div class='col-md-6'>
+<div class='box box-theme  '>
+  <div class='box-header with-border'>_{USER_CONF}_</div>
+<div class='box-body'>
   <div class='form-group'>
       <label class='col-md-4'>_{USER_PORTAL}_</label>
 
@@ -101,6 +118,13 @@
     </div>
   </div>
 
+  <div class='form-group'>
+  <label class='col-md-3 control-label'>_{DOMAINS}_:</label>
+  <div class='col-md-9'>
+  %DOMAIN_ID%
+  </div>
+  </div>
+
     %ADRESS_FORM%
 
   <div class='form-group'>
@@ -110,9 +134,12 @@
   </div>
 
 
+
 <div class='box-footer'>
   <input class='btn btn-primary' type=submit name=%ACTION% value=%ACTION_LNG%>
 </div>
 
+</div>
+</div>
 </div>
 </form>

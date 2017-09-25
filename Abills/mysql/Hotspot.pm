@@ -1067,6 +1067,157 @@ sub request_random_ad {
 }
 
 
+#**********************************************************
+=head2 log_list($attr) - Hotspot log list
 
+=cut
+#**********************************************************
+sub log_list {
+  my $self   = shift;
+  my ($attr) = @_;
 
-1;
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 'date';
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : 'DESC';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  $self->{EXT_TABLES}     = '';
+  $self->{SEARCH_FIELDS}  = '';
+  $self->{SEARCH_FIELDS_COUNT} = 0;
+
+  if ($attr->{INTERVAL}) {
+    ($attr->{FROM_DATE}, $attr->{TO_DATE}) = split(/\//, $attr->{INTERVAL}, 2);
+  }
+
+  my $WHERE =  $self->search_former($attr, [
+      ['DATE',           'DATE',        'date',                1 ],
+      ['CID',            'STR',         'CID',                 1 ],
+      ['PHONE',          'STR',         'phone',               1 ],
+      ['ACTION',         'STR',         'action',              1 ],
+      ['HOTSPOT',        'STR',         'hotspot',             1 ],
+      ['COMMENTS',       'STR',         'comments',            1 ],
+      ['FROM_DATE|TO_DATE','DATE',"DATE_FORMAT(date, '%Y-%m-%d')"],
+      ['ID',             'INT',         'id'                     ],
+    ],
+    { WHERE => 1 }
+  );
+
+  $self->query2("SELECT 
+      $self->{SEARCH_FIELDS}
+      date,
+      id
+      FROM hotspot_log
+      $WHERE
+      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
+  );
+
+  return [] if ($self->{errno});
+
+  my $list = $self->{list};
+
+  if ($self->{TOTAL} >= 0 && !$attr->{SKIP_TOTAL}) {
+    $self->query2("SELECT count( DISTINCT id) AS total FROM hotspot_log
+    $WHERE",
+      undef,
+      { INFO => 1 }
+    );
+  }
+
+  return $list;
+}
+
+#**********************************************************
+=head2 log_add($attr)
+
+=cut
+#**********************************************************
+sub log_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add( 'hotspot_log', $attr );
+
+  return 1;
+}
+
+#**********************************************************
+=head2 advert_pages_list($attr) - Hotspot advert pages
+
+=cut
+#**********************************************************
+sub advert_pages_list {
+  my $self   = shift;
+  my ($attr) = @_;
+
+  my $WHERE =  $self->search_former($attr, [
+      ['HOSTNAME',       'STR',         'hostname',            1 ],
+      ['PAGE',           'STR',         'page',                1 ],
+      ['ACTION',         'INT',         'action',              1 ],
+      ['ID',             'INT',         'id'                     ],
+    ],
+    { WHERE => 1 }
+  );
+
+  $self->query2("SELECT 
+      $self->{SEARCH_FIELDS}
+      id
+      FROM hotspot_advert_pages
+      $WHERE;",
+    undef,
+    $attr
+  );
+
+  return [] if ($self->{errno});
+
+  return $self->{list};
+}
+
+#**********************************************************
+=head2 advert_pages_add($attr)
+
+=cut
+#**********************************************************
+sub advert_pages_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add( 'hotspot_advert_pages', $attr );
+
+  return 1;
+}
+
+#**********************************************************
+=head2 advert_pages_change($attr)
+
+=cut
+#**********************************************************
+sub advert_pages_change{
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes2({
+      CHANGE_PARAM => 'ID',
+      TABLE        => 'hotspot_advert_pages',
+      DATA         => $attr,
+    });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 advert_pages_del($attr)
+
+=cut
+#**********************************************************
+sub advert_pages_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del( 'hotspot_advert_pages', $attr );
+
+  return 1;
+}
+
+1

@@ -25,9 +25,10 @@ our ($db,
 sub add_company {
 
   my $Company;
-  $Company->{ACTION}     = 'add';
-  $Company->{LNG_ACTION} = $lang{ADD};
-  $Company->{BILL_ID} = $html->form_input( 'CREATE_BILL', 1, { TYPE => 'checkbox', STATE => 1 } ) . ' ' . $lang{CREATE};
+  $Company->{ACTION}         = 'add';
+  $Company->{LNG_ACTION}     = $lang{ADD};
+  $Company->{BILL_ID}        = $html->form_input( 'CREATE_BILL', 1, { TYPE => 'checkbox', STATE => 1 } ) . ' ' . $lang{CREATE};
+  $Company->{ADDRESS_SELECT} = _form_company_address();
 
   $Company->{INFO_FIELDS} = form_info_field_tpl({ COMPANY => 1 });
 
@@ -86,11 +87,18 @@ sub form_companies {
       return 0;
     }
 
+    if($FORM{LOCATION_ID}){
+      #require Address;
+      #Address->import();
+      require Control::Address_mng;
+      $FORM{ADDRESS} = full_address_name($FORM{LOCATION_ID}). ($FORM{ADDRESS_FLAT} ? ', '. $FORM{ADDRESS_FLAT} : '');
+    }
+
     $Company->add({%FORM});
 
     if (!$Company->{errno}) {
       $html->message( 'info', $lang{ADDED},
-        "$lang{ADDED} " . $html->button( "$FORM{NAME}", 'index=13&COMPANY_ID=' . $Company->{COMPANY_ID} ) );
+        "$lang{ADDED} " . $html->button( "$FORM{NAME}", 'index=13&COMPANY_ID=' . $Company->{COMPANY_ID}, { BUTTON => 1 } ) );
     }
   }
   elsif ($FORM{import}) {
@@ -141,6 +149,13 @@ sub form_companies {
       return 0;
     }
 
+    if($FORM{LOCATION_ID}){
+      #require Address;
+      #Address->import();
+      require Control::Address_mng;
+      $FORM{ADDRESS} = full_address_name($FORM{LOCATION_ID}). ($FORM{ADDRESS_FLAT} ? ', '. $FORM{ADDRESS_FLAT} : '');
+    }
+
     if(! $FORM{ID} && $FORM{COMPANY_ID}) {
       $FORM{ID} = $FORM{COMPANY_ID};
     }
@@ -161,7 +176,8 @@ sub form_companies {
     if(_error_show($Company)) {
       return 1;
     }
-    $Company->{COMPANY_NAME}=$Company->{NAME};
+
+    $Company->{COMPANY_NAME}   = $Company->{NAME};
 
     if ($FORM{PRINT_CONTRACT}) {
       load_module('Docs', $html);
@@ -172,11 +188,13 @@ sub form_companies {
       return 0;
     }
 
+    $Company->{ADDRESS_SELECT}= _form_company_address($Company);
     $LIST_PARAMS{COMPANY_ID} = $Company->{ID};
     $FORM{COMPANY_ID}        = $Company->{ID};
     $LIST_PARAMS{BILL_ID}    = $Company->{BILL_ID};
     $pages_qs .= "&COMPANY_ID=$LIST_PARAMS{COMPANY_ID}" if ($LIST_PARAMS{COMPANY_ID});
     $pages_qs .= "&subf=$FORM{subf}" if ($FORM{subf});
+
     if (in_array('Docs', \@MODULES)) {
       $Company->{PRINT_CONTRACT} = $html->button( "$lang{PRINT}",
         "qindex=$index$pages_qs&PRINT_CONTRACT=$Company->{ID}" . (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : '')
@@ -276,7 +294,6 @@ sub form_companies {
       $pages_qs .= "&letter=$FORM{letter}";
     }
 
-    #print $html->letters_list({ pages_qs => $pages_qs });
     result_former({
       INPUT_DATA      => $Company,
       FUNCTION        => 'list',
@@ -348,7 +365,6 @@ sub form_companie_admins {
       width      => '100%',
       caption    => "$lang{ADMINS}",
       title      => [ "$lang{ALLOW}", "$lang{LOGIN}", "$lang{FIO}", 'E-mail' ],
-      cols_align => [ 'right', 'left', 'left', 'left' ],
       qs         => $pages_qs,
       ID         => 'COMPANY_ADMINS'
     }
@@ -404,8 +420,33 @@ sub form_companie_admins {
   return 1;
 }
 
+#**********************************************************
+=head2 _form_company_address($attr) get address form for companys
 
+=cut
+#**********************************************************
+sub _form_company_address {
+  my ($attr) = @_;
 
+  require Address;
 
+  my %info = ();
+  Address->import();
+  my $Address = Address->new($db, $admin, \%conf);
+
+  if($attr->{LOCATION_ID}){
+    $Address->address_info($attr->{LOCATION_ID});
+  }
+  elsif($attr->{ADDRESS}){
+    my $address_input    = $html->form_input('ADDRESS', $attr->{ADDRESS});
+    $info{ADDRESS_FORM} .= $html->element('label', $lang{ADDRESS}, { for => 'ADDRESS', class => 'control-label col-md-3'});
+    $info{ADDRESS_FORM} .= $html->element('div',  $address_input, { class => 'col-md-9'});
+    $info{ADDRESS_FORM}  = $html->element('div', $info{ADDRESS_FORM}, {class => 'form-group'});
+  }
+
+  $info{ADDRESS_FORM} .= $html->tpl_show(templates('form_address_sel'), {%$Address, %$attr}, { OUTPUT2RETURN => 1, ID => 'form_address_sel' });
+
+  return $info{ADDRESS_FORM};
+}
 
 1;

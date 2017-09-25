@@ -158,80 +158,78 @@ sub equipment_vendor{
 =cut
 #********************************************************
 sub equipment_model{
-
+  
   $Equipment->{ACTION} = 'add';
   $Equipment->{ACTION_LNG} = $lang{ADD};
-
-  if ( $FORM{add} ){
-    $Equipment->model_add( { %FORM } );
-
-    if ( !$Equipment->{errno} ){
-      $html->message( 'info', $lang{INFO}, "$lang{ADDED}" );
-    }
-  }
-  elsif ( $FORM{change} ){
+  
+  my $parse_extra_ports = sub {
     my %extra_ports_types = ();
     my %extra_ports_rows = ();
-
-    if ( $FORM{HAS_EXTRA_PORTS} && $FORM{HAS_EXTRA_PORTS} > 0 ){
-
+    
+    if ( $FORM{HAS_EXTRA_PORTS} && $FORM{HAS_EXTRA_PORTS} > 0 ) {
       my $extra_ports_count = $FORM{HAS_EXTRA_PORTS};
-
-      for ( my $i = 1; $i <= $extra_ports_count; $i++ ){
-        if ( exists $FORM{"EXTRA_PORT_$i"} && $FORM{"EXTRA_PORT_$i"} ){
+      for ( my $i = 1; $i <= $extra_ports_count; $i++ ) {
+        if ( exists $FORM{"EXTRA_PORT_$i"} && $FORM{"EXTRA_PORT_$i"} ) {
           my $port_type = $FORM{"EXTRA_PORT_$i"};
           $extra_ports_types{$i} = $port_type;
           $extra_ports_rows{$i} = $FORM{"EXTRA_PORT_ROW_$i"} - 1;
         }
       }
-
-      # Refactored without iterating over whole %FORM
-      #      while ( my ($key, $value) = each %FORM){
-      #        if ( $key =~ /EXTRA_PORT_(\d+)/ ){
-      #          $extra_ports->{$1} = $value;
-      #          $extra_ports_rows->{$1} = ($FORM{"EXTRA_PORT_ROW_" . $1} - 1)
-      #        }
-      #      }
-      #
-      #      $FORM{EXTRA_PORTS} = \%extra_ports_types;
-      #      $FORM{EXTRA_PORT_ROWS} = \%extra_ports_rows;
     }
-    $Equipment->model_change( {
-      %FORM,
+    
+    {
       EXTRA_PORTS     => \%extra_ports_types,
       EXTRA_PORT_ROWS => \%extra_ports_rows
+    };
+  };
+  
+  if ( $FORM{add} ) {
+    
+    my $EXTRA_PORTS_PARAMS = $parse_extra_ports->(\%FORM);
+    $Equipment->model_add( { %FORM, %{ $EXTRA_PORTS_PARAMS || { } } } );
+    
+    if ( !$Equipment->{errno} ) {
+      $html->message( 'info', $lang{INFO}, "$lang{ADDED}" );
     }
-    );
-
-    if ( !$Equipment->{errno} ){
+  }
+  elsif ( $FORM{change} ) {
+    
+    my $EXTRA_PORTS_PARAMS = $parse_extra_ports->(\%FORM);
+    
+    $Equipment->model_change( {
+      %FORM,
+      %{ $EXTRA_PORTS_PARAMS || { } }
+    });
+    
+    if ( !$Equipment->{errno} ) {
       $html->message( 'info', $lang{INFO}, "$lang{CHANGED}" );
       $Equipment->{ACTION} = 'change';
       $Equipment->{ACTION_LNG} = $lang{CHANGE};
     }
-
+    
     $Equipment->model_info( $FORM{ID} );
     $Equipment->{PORTS_PREVIEW} = equipment_port_panel( $Equipment );
   }
-  elsif ( defined( $FORM{chg} ) ){
+  elsif ( defined( $FORM{chg} ) ) {
     $Equipment->model_info( $FORM{chg} );
-
-    if ( !$Equipment->{errno} ){
+    
+    if ( !$Equipment->{errno} ) {
       #      $html->message('info', $lang{INFO}, "$lang{CHANGING}");
       $Equipment->{ACTION} = 'change';
       $Equipment->{ACTION_LNG} = $lang{CHANGE};
     }
-
+    
     $Equipment->{PORTS_PREVIEW} = equipment_port_panel( $Equipment );
   }
-  elsif ( defined( $FORM{del} ) && defined( $FORM{COMMENTS} ) ){
+  elsif ( defined( $FORM{del} ) && defined( $FORM{COMMENTS} ) ) {
     $Equipment->model_del( $FORM{del} );
-    if ( !$Equipment->{errno} ){
+    if ( !$Equipment->{errno} ) {
       $html->message( 'info', $lang{INFO}, "$lang{DELETED}" );
     }
   }
-
+  
   _error_show( $Equipment );
-
+  
   $Equipment->{TYPE_SEL} = $html->form_select(
     'TYPE_ID',
     {
@@ -242,7 +240,7 @@ sub equipment_model{
       MAIN_MENU_ARGV => "chg=" . ($Equipment->{TYPE_ID} || '')
     }
   );
-
+  
   $Equipment->{VENDOR_SEL} = $html->form_select(
     'VENDOR_ID',
     {
@@ -253,9 +251,9 @@ sub equipment_model{
       MAIN_MENU_ARGV => "chg=" . ($Equipment->{VENDOR_ID} || '')
     }
   );
-
+  
   my @port_numbering_options = ($lang{BY_ROW}, $lang{BY_COLUMN});
-
+  
   $Equipment->{PORT_NUMBERING_SELECT} = $html->form_select(
     'PORT_NUMBERING',
     {
@@ -264,7 +262,7 @@ sub equipment_model{
       ARRAY_NUM_ID => 1
     }
   );
-
+  
   $Equipment->{PORTS_TYPE_SELECT} = $html->form_select(
     'PORTS_TYPE',
     {
@@ -273,9 +271,9 @@ sub equipment_model{
       ARRAY_NUM_ID => 1
     }
   );
-
+  
   my @first_port_position_options = ($lang{POSITION_UP}, $lang{POSITION_DOWN});
-
+  
   $Equipment->{FIRST_POSITION_SELECT} = $html->form_select(
     'FIRST_POSITION',
     {
@@ -284,7 +282,7 @@ sub equipment_model{
       ARRAY_NUM_ID => 1
     }
   );
-
+  
   $Equipment->{EXTRA_PORT1_SELECT} = $html->form_select(
     'EXTRA_PORT1',
     {
@@ -292,18 +290,18 @@ sub equipment_model{
       ARRAY_NUM_ID => 1
     }
   );
-
+  
   my @contents = ();
-
-  if ( opendir( my $fh, "$SNMP_TPL_DIR" ) ){
+  
+  if ( opendir( my $fh, "$SNMP_TPL_DIR" ) ) {
     @contents = grep !/^\.\.?$/, readdir $fh;
     closedir $fh;
   }
-  else{
+  else {
     $html->message( 'err', $lang{ERROR}, "Can't open dir '$SNMP_TPL_DIR' $!" );
     return 0;
   }
-
+  
   $Equipment->{SNMP_TPL_SEL} = $html->form_select(
     'SNMP_TPL',
     {
@@ -312,17 +310,17 @@ sub equipment_model{
       SEL_OPTIONS => { '' => '--' },
     }
   );
-
+  
   $Equipment->{ADD_BUTTON_INDEX} = get_function_index( 'equipment_model' );
   $html->tpl_show( _include( 'equipment_model', 'Equipment' ), { %{$Equipment}, %FORM } );
   $LIST_PARAMS{PAGE_ROWS} = '100000';
   result_former({
-    INPUT_DATA        => $Equipment,
+    INPUT_DATA      => $Equipment,
     FUNCTION        => 'model_list',
     BASE_FIELDS     => 2,
     SKIP_PAGES      => 1,
     DEFAULT_FIELDS  => 'VENDOR_NAME,MODEL_NAME,TYPE_NAME,PORTS',
-    FUNCTION_FIELDS => 'change,del,equipment_tmpl_edit:snmp_tpl:id,',
+    FUNCTION_FIELDS => 'change,del',
     EXT_TITLES      => {
       vendor_name => $lang{VENDOR},
       model_name  => $lang{NAME},
@@ -335,25 +333,25 @@ sub equipment_model{
       comments    => $lang{COMMENTS},
     },
     SKIP_USER_TITLE => 1,
-    TABLE => {
+    TABLE           => {
       width   => '100%',
       caption => "$lang{EQUIPMENT}",
       qs      => $pages_qs,
-      ID      => 'EQUIPMENT_MODELS',
+      ID      => 'EQUIPMENT_MODELS_',
       EXPORT  => 1,
       #MENU    => "$lang{ADD}:add_form=1&index=$index:add" . ";$lang{SEARCH}:index=$index&search_form=1:search",
     },
     MAKE_ROWS       => 1,
     TOTAL           => 1
   });
-
+  
   print '<script>$(function () {
-  var $table = $(\'#EQUIPMENT_MODELS_\');
+  var $table = $(\'#EQUIPMENT_MODELS__\');
   var correct = ($table.find(\'tbody\').find(\'tr\').first().find(\'td\').length - $table.find(\'thead th\').length );
   for (var i = 0; i < correct; i++) {
     $table.find(\'thead th:last-child\').after(\'<th></th>\');
   }
-    var dataTable = $("#EQUIPMENT_MODELS_")
+    var dataTable = $("#EQUIPMENT_MODELS__")
       .DataTable({
         "language": {
           paginate: {
@@ -362,15 +360,15 @@ sub equipment_model{
               next:     "›",
               last:     "»",
           },
-          "zeroRecords":    "'.$lang{NOT_EXIST}.'",
-          "lengthMenu":     "'.$lang{SHOW}.' _MENU_",
-          "search":         "'.$lang{SEARCH}.':",
-          "info":           "'.$lang{SHOWING}.' _START_ - _END_ '.$lang{OF}.' _TOTAL_ ",
-          "infoEmpty":      "'.$lang{SHOWING}.' 0",
-          "infoFiltered":   "('.$lang{TOTAL}.' _MAX_)",
+          "zeroRecords":    "' . $lang{NOT_EXIST} . '",
+          "lengthMenu":     "' . $lang{SHOW} . ' _MENU_",
+          "search":         "' . $lang{SEARCH} . ':",
+          "info":           "' . $lang{SHOWING} . ' _START_ - _END_ ' . $lang{OF} . ' _TOTAL_ ",
+          "infoEmpty":      "' . $lang{SHOWING} . ' 0",
+          "infoFiltered":   "(' . $lang{TOTAL} . ' _MAX_)",
         },
         "ordering": false,
-        "lengthMenu": [[25, 50, -1], [25, 50, "'.$lang{ALL}.'"]]
+        "lengthMenu": [[25, 50, -1], [25, 50, "' . $lang{ALL} . '"]]
       });
     });</script>';
   return 1;

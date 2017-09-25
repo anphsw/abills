@@ -1,7 +1,4 @@
 /* ABillS Default CSS */
-body {
-
-}
 
 ._red {
     background-color: #f00;
@@ -47,7 +44,7 @@ body {
     text-shadow: none !important;
 }
 
-.badge.alert-warning {
+span.badge.alert-warning {
     color: darkgrey;
     font-weight: 600;
 }
@@ -115,52 +112,52 @@ ol.mp_list li {
     display: block;
 }
 
-
 ol.mp_list li span.mp_address {
     margin-right: 5px;
 }
 
 /* When a request is made that returns zero results. */
 ol.mp_list li.mp_no_results {
-  display : none;
+    display: none;
 }
 
 /* When a request is made that doesn't meet the 'minChars' length option. */
 ol.mp_list li.mp_min_chars {
-  display : none;
+    display: none;
 }
 
 /* When a request is made that fails during the ajax request. */
 ol.mp_list li.mp_error {
-  display : none;
+    display: none;
 }
 
-.checkbox-block {
-  margin-left : 30px;
-  text-align: left;
+div.checkbox-block {
+    margin-left: 30px;
+    text-align: left;
 }
 
-.full-width {
+button.full-width {
     width: 100%;
 }
 
 .file-input .file-visible {
-    cursor : pointer;
+    cursor: pointer;
 }
 
 .navbar-form div.input-group > div.chosen-container {
     min-width: 300px !important;
 }
 
-.box-body ul.pagination.pagination-sm {
+div.box-body ul.pagination.pagination-sm {
     margin: 0 !important;
 
-}.box-body ul.pagination.pagination-sm>li>a {
+}
+
+div.box-body ul.pagination.pagination-sm > li > a {
     padding: 2px 5px;
 }
 
-
-.box-body .chosen-container.chosen-container-single {
+div.box-body .chosen-container.chosen-container-single {
     width: 100% !important; /* or any value that fits your needs */
 }
 
@@ -174,19 +171,13 @@ nav.navbar a.header-btn-link {
 table.table.with-function-fields > tbody > tr > td:last-child {
     text-align: right;
 }
+
 table.table.table-striped.table-hover.table-condensed > tbody > tr > td:last-child > a {
     margin: 0 10px;
 }
 
 a {
     cursor: pointer;
-}
-
-
-@media (max-width: 768px){
-    .nav>li>a {
-        padding: 10px 13px;
-    }
 }
 
 #up-btn {
@@ -216,11 +207,7 @@ a {
     font-size: 1.5em;
 }
 
-div.wrapper {
-    overflow: visible;
-}
-
-.form-horizontal .checkbox{
+.form-horizontal .checkbox {
     margin-bottom: 10px;
 }
 
@@ -233,12 +220,12 @@ div.box-body > div.button-block > .btn {
     padding: 0 3px;
 }
 
-div.box-heading, div.box-header, .box-title  {
+div.box-heading, div.box-header, .box-title {
     text-align: left;
 }
 
 h4.table-caption > a > span.fa {
-    margin-right : 5px;
+    margin-right: 5px;
 }
 
 .bg-red a, .bg-danger a {
@@ -248,4 +235,28 @@ h4.table-caption > a > span.fa {
 
 .bg-red a:hover, .bg-danger a:hover {
     text-decoration: underline;;
+}
+
+div.modal-content > div.box {
+    margin-bottom: 0;
+}
+
+div.input-group > span.input-group-addon.glyphicon {
+    top: 0;
+}
+
+div.info-tip {
+    position: fixed;
+    color: white;
+    border: 1px solid gray;
+    border-bottom: none;
+    background-color: #7AB932;
+    padding: 3px;
+    z-index: 1000;
+    /* set this to create word wrap */
+    max-width: 200px;
+}
+
+.table-striped>tbody>tr.row-active {
+    background-color: #dbffdb !important;
 }

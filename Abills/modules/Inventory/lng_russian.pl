@@ -4,3 +4,4 @@ $lang{HOSTNAME} = 'Имя Сервера';
 $lang{INTEGRATION_DATE} = 'Дата Интеграции';
 $lang{ADMIN_MAIL} = 'Email администратора';
 $lang{CANT_DELETE_THIS_INPUT} = 'Невозможно удалить это поле ввода';
+$lang{RESPONSIBLE}='Ответсвенный';

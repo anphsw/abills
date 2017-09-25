@@ -107,7 +107,7 @@ sub db_action {
     my $fn = $log.'_rotate';
 
     my $sql_arr = &{ \&$fn }( { %$argv,
-      DATE => "<$argv->{DATE}"
+      DATE => ($argv->{DATE} !~ m/[<>]/) ? "<$argv->{DATE}" : "$argv->{DATE}"
     });
 
     if (defined($argv->{'ROTATE'})) {

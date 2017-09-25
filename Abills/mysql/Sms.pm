@@ -129,8 +129,8 @@ sub list {
 
   my $WHERE =  $self->search_former($attr, [
       ['DATETIME',       'DATE','sms.datetime',               1 ],
-      ['STATUS',         'INT', 'sms.status',                 1 ],
-      ['PHONE',          'STR', 'sms.phone',                  1 ],
+      ['SMS_STATUS',         'INT', 'sms.status',             1 ],
+      ['SMS_PHONE',          'STR', 'sms.phone',              1 ],
       ['MESSAGE',        'STR', 'sms.message',                1 ],
       ['EXT_ID',         'STR', 'sms.ext_id',                 1 ],
       ['EXT_STATUS',     'STR', 'sms.ext_status',             1 ],

@@ -179,7 +179,9 @@ sub customers_list{
 }
 
 #**********************************************************
-#
+=head2 payment_deed($attr)
+
+=cut
 #**********************************************************
 sub payment_deed{
   my $self = shift;
@@ -240,19 +242,19 @@ sub payment_deed{
 
   #Get fees
   $self->query2( "SELECT
-  if(u.company_id > 0, company.bill_id, u.bill_id) AS bill_id,
-  sum(f.sum) AS sum,
-  if(u.company_id > 0, company.name, if(pi.fio<>'', pi.fio, u.id)) AS fio,
-  if(u.company_id > 0, 1, 0) AS is_company,
-  if(u.company_id > 0, company.vat, 0) AS vat,
+  IF(u.company_id > 0, company.bill_id, u.bill_id) AS bill_id,
+  SUM(f.sum) AS sum,
+  IF(u.company_id > 0, company.name, if(pi.fio<>'', pi.fio, u.id)) AS fio,
+  IF(u.company_id > 0, 1, 0) AS is_company,
+  IF(u.company_id > 0, company.vat, 0) AS vat,
   u.uid,
-  max(f.date) AS max_date
+  MAX(f.date) AS max_date
   $info_fields
-     FROM (users u, fees f)
+     FROM users u
+     INNER JOIN fees f ON (u.uid=f.uid)
      LEFT JOIN users_pi pi ON (u.uid = pi.uid)
      LEFT JOIN companies company ON  (u.company_id=company.id)
-
-     WHERE u.uid=f.uid and $WHERE
+     WHERE $WHERE
      GROUP BY u.uid
      ORDER BY $SORT $DESC
      $LIMIT;",
@@ -276,17 +278,18 @@ sub payment_deed{
 
   #Get Dv use
   $self->query2( "SELECT
- if(u.company_id > 0, company.bill_id, u.bill_id) AS bill_id,
- sum(dv.sum) AS sum,
- if(u.company_id > 0, company.name, if(pi.fio<>'', pi.fio, u.id)) AS fio,
-  if(u.company_id > 0, 1, 0) AS is_company,
-  if(u.company_id > 0, company.vat, 0) AS vat,
+   IF(u.company_id > 0, company.bill_id, u.bill_id) AS bill_id,
+   SUM(dv.sum) AS sum,
+   IF(u.company_id > 0, company.name, IF(pi.fio<>'', pi.fio, u.id)) AS fio,
+   IF(u.company_id > 0, 1, 0) AS is_company,
+   IF(u.company_id > 0, company.vat, 0) AS vat,
   u.uid 
   $info_fields
-     FROM (users u, dv_log dv)
+     FROM users u
+     INNER JOIN dv_log dv ON (u.uid=dv.uid)
      LEFT JOIN users_pi pi ON (u.uid = pi.uid)
      LEFT JOIN companies company ON  (u.company_id=company.id)
-     WHERE u.uid=dv.uid and $WHERE_DV
+     WHERE $WHERE_DV
      GROUP BY 1
      ORDER BY 2 DESC
   $LIMIT;",
@@ -319,7 +322,9 @@ sub payment_deed{
 }
 
 #**********************************************************
-# make
+=head2 summary_add($attr)
+
+=cut
 #**********************************************************
 sub summary_add{
   my $self = shift;
@@ -333,7 +338,9 @@ sub summary_add{
 }
 
 #**********************************************************
-# make
+=head2 balances_add($attr)
+
+=cut
 #**********************************************************
 sub balances_add{
   my $self = shift;
@@ -495,54 +502,48 @@ sub extfin_report_deeds{
     $attr
   );
 
-  return $self->{list};
+  return $self->{list} || [];
 }
 
 #**********************************************************
-# fees
+=head2 paid_add($attr)
+
+=cut
 #**********************************************************
 sub paid_add{
   my $self = shift;
   my ($attr) = @_;
 
-  my %DATA = $self->get_data(
-    $attr,
-    {
-      default => {
-        DESCRIBE => '',
-        STATUS   => 0
-      }
-    }
-  );
+  my $status_date = ($attr->{STATUS} && $attr->{STATUS} > 0) ? 'NOW()' : '0000-00-00';
 
-  my $status_date = ($DATA{STATUS} && $DATA{STATUS} > 0) ? 'now()' : '0000-00-00';
   $self->query2( "INSERT INTO extfin_paids
    (date, sum, comments, uid, aid, status, type_id, ext_id, status_date, maccount_id)
-  VALUES ('$DATA{DATE}', '$DATA{SUM}', '$DATA{DESCRIBE}', '$DATA{UID}', '$admin->{AID}', 
-  '$DATA{STATUS}', '$DATA{TYPE}', '$DATA{EXT_ID}', $status_date,
-  '$DATA{MACCOUNT_ID}');", 'do'
+  VALUES ('$attr->{DATE}', '$attr->{SUM}', '$attr->{DESCRIBE}', '$attr->{UID}', '$admin->{AID}',
+  '$attr->{STATUS}', '$attr->{TYPE}', '$attr->{EXT_ID}', $status_date,
+  '$attr->{MACCOUNT_ID}');", 'do'
   );
 
   return $self;
 }
 
 #**********************************************************
-# fees
+=head2 paid_periodic_add($attr)
+
+=cut
 #**********************************************************
 sub paid_periodic_add{
   my $self = shift;
   my ($attr) = @_;
 
-  my %DATA = $self->get_data( $attr );
-  my @ids_arr = split( /, /, $DATA{IDS} );
+  my @ids_arr = split( /, /, $attr->{IDS} );
 
-  $self->paid_periodic_del( { UID => $DATA{UID} } );
+  $self->paid_periodic_del( { UID => $attr->{UID} } );
 
   foreach my $id ( @ids_arr ){
     $self->query2( "INSERT INTO extfin_paids_periodic
       (uid, type_id, comments, sum, date, aid, maccount_id)
-    VALUES ('$DATA{UID}', '$id',  '" . $DATA{ 'COMMENTS_' . $id } . "', '" . $DATA{ 'SUM_' . $id } . "', 
-     now(), '$admin->{AID}', '" . $DATA{ 'MACCOUNT_ID_' . $id } . "');", 'do'
+    VALUES ('$attr->{UID}', '$id',  '" . $attr->{ 'COMMENTS_' . $id } . "', '" . $attr->{ 'SUM_' . $id } . "',
+     now(), '$admin->{AID}', '" . $attr->{ 'MACCOUNT_ID_' . $id } . "');", 'do'
     );
   }
 
@@ -550,7 +551,9 @@ sub paid_periodic_add{
 }
 
 #**********************************************************
-# fees
+=head2 paid_periodic_del($attr)
+
+=cut
 #**********************************************************
 sub paid_periodic_del{
   my $self = shift;
@@ -650,16 +653,18 @@ sub paid_del{
 }
 
 #**********************************************************
-# fees
+=head2 paid_info($attr)
+
+=cut
 #**********************************************************
 sub paid_info{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2( "SELECT date, sum, comments AS describe, uid, aid,
+  $self->query2( "SELECT date, sum, `comments` AS `describe`, uid, aid,
   status, status_date, type_id AS type, ext_id, maccount_id
    FROM extfin_paids
-  WHERE id= ? ;",
+   WHERE id= ? ;",
     undef,
     { INFO => 1,
       Bind => [ $attr->{ID} ] }
@@ -669,7 +674,9 @@ sub paid_info{
 }
 
 #**********************************************************
-# fees
+=head2 paids_list($attr)
+
+=cut
 #**********************************************************
 sub paids_list{
   my $self = shift;
@@ -839,7 +846,9 @@ sub paid_type_add{
 }
 
 #**********************************************************
-# fees
+=head2 paid_type_change($attr)
+
+=cut
 #**********************************************************
 sub paid_type_change{
   my $self = shift;
@@ -859,7 +868,9 @@ sub paid_type_change{
 }
 
 #**********************************************************
-# fees
+=head2 paid_type_del($attr)
+
+=cut
 #**********************************************************
 sub paid_type_del{
   my $self = shift;
@@ -911,7 +922,7 @@ sub paid_types_list{
 }
 
 #**********************************************************
-=head2 extfin_debetors()
+=head2 extfin_debetors($attr)
 
 =cut
 #**********************************************************
@@ -919,7 +930,7 @@ sub extfin_debetors{
   my $self = shift;
   my ($attr) = @_;
 
-  my @WHERE_RULES = ("u.uid=f.uid");
+  my @WHERE_RULES = ();
 
   my $ext_field = '';
   my %deposits = ();
@@ -928,7 +939,7 @@ sub extfin_debetors{
     push @WHERE_RULES, "DATE_FORMAT(f.date, '%Y-%m-%d')<='$attr->{DATE}'";
     push @WHERE_RULES, "(f.last_deposit-f.sum<0) ";
     $attr->{DATE} = "'$attr->{DATE}'";
-    $ext_field = "\@A:=(select f.last_deposit-f.sum FROM fees f WHERE f.uid=\@uid and f.date<'2009-03-31' ORDER BY f.id DESC limit 1) AS debet,";
+    $ext_field = "\@A:=(SELECT f.last_deposit-f.sum FROM fees f WHERE f.uid=\@uid and f.date<'2009-03-31' ORDER BY f.id DESC limit 1) AS debet,";
     $self->{DEPOSITS} = \%deposits;
   }
   else{
@@ -948,19 +959,20 @@ sub extfin_debetors{
 
   $self->query2( "SELECT \@uid:=u.uid, u.id, pi.contract_id,
    pi.fio,
-   if (pi.contract_date = '0000-00-00', u.registration, pi.contract_date),
+   IF(pi.contract_date = '0000-00-00', u.registration, pi.contract_date) AS start_date,
    u.disable,
    dv.tp_id,
    $ext_field
-   if(DATEDIFF($attr->{DATE}, f.date) < 32, \@A, ''),
-   if(DATEDIFF($attr->{DATE}, f.date) > 33 and DATEDIFF($attr->{DATE}, f.date) < 54 , \@A, ''),
-   if(DATEDIFF($attr->{DATE}, f.date) > 65 and DATEDIFF($attr->{DATE}, f.date) < 96 , \@A, ''),
-   if(DATEDIFF($attr->{DATE}, f.date) > 97 and DATEDIFF($attr->{DATE}, f.date) < 183 , \@A, ''),
-   if(DATEDIFF($attr->{DATE}, f.date) > 184 and DATEDIFF($attr->{DATE}, f.date) < 365 , \@A, ''),
-   if(DATEDIFF($attr->{DATE}, f.date) > 365 , \@A, ''),
+   IF(DATEDIFF($attr->{DATE}, f.date) < 32, \@A, ''),
+   IF(DATEDIFF($attr->{DATE}, f.date) > 33 AND DATEDIFF($attr->{DATE}, f.date) < 54 , \@A, ''),
+   IF(DATEDIFF($attr->{DATE}, f.date) > 65 AND DATEDIFF($attr->{DATE}, f.date) < 96 , \@A, ''),
+   IF(DATEDIFF($attr->{DATE}, f.date) > 97 AND DATEDIFF($attr->{DATE}, f.date) < 183 , \@A, ''),
+   IF(DATEDIFF($attr->{DATE}, f.date) > 184 AND DATEDIFF($attr->{DATE}, f.date) < 365 , \@A, ''),
+   IF(DATEDIFF($attr->{DATE}, f.date) > 365 , \@A, ''),
 
    u.uid
-  FROM (users u, fees f)
+  FROM users u
+     INNER JOIN fees f ON (u.uid = f.uid)
      LEFT JOIN users_pi pi ON (u.uid = pi.uid)
      LEFT JOIN bills b ON (u.bill_id = b.id)
      LEFT JOIN companies company ON  (u.company_id=company.id)
@@ -1091,8 +1103,8 @@ sub report_payments_fees{
     $FEES_WHERE = $PAYMENTS_WHERE;
     $FEES_WHERE =~ s/p\./f\./g;
     $self->query2( "SELECT count(DISTINCT u.uid) AS users_total,
-      (select SUM(p.sum) FROM payments p WHERE $PAYMENTS_WHERE) AS payments_total,
-      (select SUM(f.sum) FROM fees f WHERE $FEES_WHERE) AS fees_sum
+      (SELECT SUM(p.sum) FROM payments p WHERE $PAYMENTS_WHERE) AS payments_total,
+      (SELECT SUM(f.sum) FROM fees f WHERE $FEES_WHERE) AS fees_sum
       FROM users u
       WHERE u.deleted=0 $WHERE;",
       undef,
@@ -1239,5 +1251,150 @@ sub company_reports{
 #    INNER JOIN users u ON (u.company_id=c.id)
 #    ";
 }
+
+
+
+
+
+#**********************************************************
+=head2 extfin_report_balance_info() -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub extfin_report_balance_info {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query2( "SELECT *
+   FROM extfin_balance_reports
+  WHERE bill_id = ?  and period = ? ;",
+    undef,
+    { INFO => 1,
+      Bind => [ $attr->{BILL_ID}, $attr->{PERIOD} ] }
+  );
+
+  return $self;
+}
+
+#**********************************************************
+=head2 extfin_report_balance_list() -
+
+  Arguments:
+    ATTRIBUTES -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub extfin_report_balance_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC        = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  my @WHERE_RULES = ();
+  my $WHERE = $self->search_former(
+    $attr,
+    [
+      [ 'ID',      'INT',  'id',      1 ],
+      [ 'PERIOD',  'STR',  'period',  1 ],
+      [ 'SUM',     'STR',  'sum',     1 ],
+      [ 'BILL_ID', 'STR',  'bill_id', 1 ],
+      [ 'AID',     'STR',  'aid',     1 ],
+      [ 'DATE',    'STR',  'date',    1 ],
+    ],
+    { WHERE => 1, }
+  );
+
+  if($attr->{PERIOD}){
+    push @WHERE_RULES, "period = '$attr->{PERIOD}'";
+  }
+
+  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+
+  $self->query2(
+    "SELECT
+    id,
+    period,
+    sum,
+    bill_id,
+    aid,
+    date
+    FROM extfin_balance_reports 
+    $WHERE
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
+  );
+
+  my $list = $self->{list};
+
+  return $self->{list} if ($self->{TOTAL} < 1);
+
+  $self->query2(
+    "SELECT COUNT(*) AS total, SUM(sum) AS total_sum
+   FROM extfin_balance_reports
+   $WHERE",
+    undef,
+    { INFO => 1 }
+  );
+
+  return $list;
+}
+
+#*******************************************************************
+
+=head2 function extfin_report_balance_del() - delete cashbox
+
+  Arguments:
+    $attr
+
+  Returns:
+
+  Examples:
+    $Crm->extfin_report_balance_del( {PERIOD => 1} );
+
+=cut
+
+#*******************************************************************
+sub extfin_report_balance_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('extfin_balance_reports', $attr, { PERIOD => $attr->{PERIOD} });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 extfin_report_balance_add() - add new balance
+
+  Arguments:
+    $attr  -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub extfin_report_balance_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('extfin_balance_reports', {%$attr, DATE => $attr->{DATE} || 'NOW()'});
+
+  return $self;
+}
+
 
 1

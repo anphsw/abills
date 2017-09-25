@@ -4,7 +4,12 @@
 <input type='hidden' name=NAS_ID value=$FORM{NAS_ID}>
 <input type='hidden' name='radtest' value='1'>
 
-<div class='form-group'>
+  <div class='box box-theme box-big-form'>
+    <div class='box-header with-border'><h4 class='box-title'>RADIUS _{REQUEST}_</h4></div>
+    <div class='box-body'>
+
+
+    <div class='form-group'>
   <label class='col-md-3'>RAD_PAIRS</label>
   <div class='col-md-9'>
     <textarea class='form-control' name='RAD_REQUEST' cols='45' rows='10'>%RAD_PAIRS%</textarea>
@@ -29,9 +34,10 @@
       %QUERY_TYPE%
     </div>
 </div>
-
-<div class='form-group'>
+    </div>
+<div class='box-footer'>
 <input type='submit' class='btn btn-primary' name='runtest' value='_{SHOW}_'>
 </div>
+  </div>
 
 </form>

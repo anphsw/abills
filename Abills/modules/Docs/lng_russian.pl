@@ -50,3 +50,4 @@ $lang{SKIP_PAY_ADD}='Пропущенно счетов';
 
 $lang{CONNECT_TO} = 'Подключайтесь к';
 $lang{PAYMENTS_NOT_EQUAL_DOC}='Сума документа отличается от сумы платежа';
+$lang{PRINT_TERMO_PRINTER} = 'Чек для термо-принтера';

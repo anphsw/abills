@@ -23,4 +23,10 @@ $lang{BUSINESS_TRIP}='Командировка';
 $lang{DAY_OFF}='Отпросился';
 $lang{SLACK}='Бездействие';
 $lang{DUTY}='Дежурный';
+$lang{TIME_TRACKING_EMPLOYEE}='учета рабочего времени работника ';
+$lang{WORKED_HOURS_BY_MONTH}='Отработанных человеко-часов (по дням месяца)';
+$lang{TOTAL_WORKED_HOURS_BY_MONTH}='Всего отработанных чел. дни';
+$lang{EMPLOYEE_HEAD}='Руководитель';
+$lang{RESPONSIBLE_FOR_MAINTAINING_TIMESHEET}='Ответственный за ведение табеля';
+$lang{DAILY_NOTES}='Заметки';
 1

@@ -67,6 +67,7 @@ sub sms_service_connect {
     { SMS_LITTLESMS_USER     => 'Littlesms'  },
     { SMS_EPOCHTASMS_OPENKEY => 'Epochtasms' },
     { SMS_TURBOSMS_PASSWD    => 'Turbosms'   },
+    { SMS_JASMIN_USER        => 'Jasmin'     },
   );
 
   foreach my $sms_system ( @sms_systems ) {
@@ -126,19 +127,7 @@ sub sms_send {
   if($Sms_service->{errno}) {
     return 0
   }
-
-  $conf{SMS_NUMBER}= "[0-9]{12}" if (! $conf{SMS_NUMBER});
-
-  if (! $attr->{NUMBER} && ! $attr->{NUMBERS}) {
-    $html->message('err', $lang{ERROR}, "$lang{ERR_PHONE_NOT_DEFINED}", { ID => 1601 });
-  }
-  elsif (! $attr->{NUMBERS} && $attr->{NUMBER} !~ /$conf{SMS_NUMBER}/) {
-    $html->message('warn', $lang{ERROR}, "$lang{ERR_WRONG_PHONE} '$attr->{NUMBER}' ". ((! $user->{UID}) ? "\n $lang{OPTIONS} \$conf{SMS_NUMBER}" : ''), { ID => 1602 });
-    if($attr->{RIZE_ERROR}) {
-      return 0;
-    }
-  }
-
+  
   my $numbers = $attr->{NUMBERS};
   if ($conf{SMS_NUMBER_EXPR}) {
     if($attr->{NUMBER}) {
@@ -152,6 +141,18 @@ sub sms_send {
       }
 
       $numbers = \%new_numbers;
+    }
+  }
+  
+  $conf{SMS_NUMBER}= "[0-9]{12}" if (! $conf{SMS_NUMBER});
+
+  if (! $attr->{NUMBER} && ! $attr->{NUMBERS}) {
+    $html->message('err', $lang{ERROR}, "$lang{ERR_PHONE_NOT_DEFINED}", { ID => 1601 });
+  }
+  elsif (! $attr->{NUMBERS} && $conf{SMS_NUMBER} && $attr->{NUMBER} !~ /$conf{SMS_NUMBER}/) {
+    $html->message('warn', $lang{ERROR}, "$lang{ERR_WRONG_PHONE} '$attr->{NUMBER}' ". ((! $user->{UID}) ? "\n $lang{OPTIONS} \$conf{SMS_NUMBER}" : ''), { ID => 1602 });
+    if($attr->{RIZE_ERROR}) {
+      return 0;
     }
   }
 
@@ -396,9 +397,8 @@ sub sms_reports {
     print $table->show();
 
     $table = $html->table({
-      width      => '100%',
-      cols_align => [ 'right', 'right' ],
-      rows       => [ [ "$lang{TOTAL}:", $html->b( $Sms_service->{TOTAL} ) ] ]
+      width => '100%',
+      rows  => [ [ "$lang{TOTAL}:", $html->b( $Sms_service->{TOTAL} ) ] ]
     });
 
     print $table->show();

@@ -10,9 +10,9 @@
       </button>
       <div class='row text-center'>
 
-          <input type='button' class='btn' data-toggle='dropdown' onclick='enableSearch_Pill();'
+          <input type='button' class='btn' data-toggle='dropdown' onclick='enableSearchPill();'
                  value='_{SEARCH}_'/>
-          <input type='button' class='btn' data-toggle='dropdown' onclick='enableResult_Pill();'
+          <input type='button' class='btn' data-toggle='dropdown' onclick='enableResultPill();'
                  value='_{RESULT}_'/>
 
       </div>

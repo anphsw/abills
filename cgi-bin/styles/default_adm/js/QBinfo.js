@@ -17,7 +17,7 @@ function getOptimaBottomQBinfo(margin, firstDiv, height) {
   if (last_QBInfo_number > 1) {
     var $Qdiv = $('#QBinfo_' + (last_QBInfo_number - 1));
     
-    if ($Qdiv.css('top') == undefined || $Qdiv.css("height") == undefined) {
+    if ($Qdiv.css('top') === undefined || $Qdiv.css("height") === undefined) {
       return parseInt($(window).height()) - height - firstDiv + 'px';  // MARGIN FROM window browser
     }
     else {

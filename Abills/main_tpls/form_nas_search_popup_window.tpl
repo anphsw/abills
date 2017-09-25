@@ -6,9 +6,9 @@
             </button>
             <div class='row'>
                 <div class='text-center'>
-                    <input type='button' class='btn' data-toggle='dropdown' onclick='enableSearch_Pill();'
+                    <input type='button' class='btn' data-toggle='dropdown' onclick='enableSearchPill();'
                            value='Search'/>
-                    <input type='button' class='btn' data-toggle='dropdown' onclick='enableResult_Pill();'
+                    <input type='button' class='btn' data-toggle='dropdown' onclick='enableResultPill();'
                            value='Result'/>
                 </div>
             </div>

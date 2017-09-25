@@ -2,7 +2,7 @@
   <div class='box-header with-border'><h4 class='box-title'>_{OBJECT}_</h4></div>
   <div class='box-body'>
 
-    <form name='MAPS_OBJECT' id='form_MAPS_OBJECT' method='post' action='$SELF_URL' class='form form-horizontal'>
+    <form name='MAPS_OBJECT' id='form_MAPS_OBJECT' method='post' action='$SELF_URL' class='form form-horizontal %FORM_SUBMIT%'>
       <input type='hidden' name='index' value='$index'/>
       <input type='hidden' name='ID' value='%ID%'/>
       <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='1'/>

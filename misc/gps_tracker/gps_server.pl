@@ -132,8 +132,10 @@ while(1)
 
     my $response = write_to_db($unified_data, $client_address);
 
+    my $status = $response && $response eq 'OK' ? 200 : 406;
+    
     # write response data to the connected client
-    $client_socket->send("HTTP/1.1 200 OK \n\n");
+    $client_socket->send("HTTP/1.1 $status $response\nContent-Length:0\n\n");
   }
 
   # notify client that response has been sent
@@ -167,14 +169,14 @@ sub write_to_db {
   unless ($admin_id){
     log_debug("WRONG GPS ID","Administrator with such ID not found. ID is $attr->{GPS_IMEI}", 1);
     write_unregistered({ %$attr, ( IP => $ip_address ) });
-    return " Unregistered ";
+    return "Unregistered IMEI";
   }
 
   $attr->{AID} = $admin_id;
 
   $Gps->location_add($attr);
 
-  return " OK ";
+  return "OK";
 }
 
 =head2 - write_unregistered
@@ -246,7 +248,7 @@ sub get_traccar_mappings {
 
   return {
     'GPS_IMEI'  => 'id',
-    'GPS_TIME' => 'timestamp',
+    'GPS_TIME'  => 'timestamp',
     'COORD_X'   => 'lat',
     'COORD_Y'   => 'lon',
     'SPEED'     => 'speed',

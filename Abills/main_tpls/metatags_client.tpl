@@ -61,7 +61,11 @@
   <script src="/styles/lte_adm/plugins/datepicker/bootstrap-datepicker.js"></script>
   <script src="/styles/lte_adm/plugins/timepicker/bootstrap-timepicker.min.js"></script>
   <script>
+    window['IS_ADMIN_INTERFACE'] = false;
+    window['IS_CLIENT_INTERFACE'] = true;
+
     var SELF_URL  = '$SELF_URL';
+    var SID = '$sid';
     var NO_DESIGN = '$FORM{NO_DESIGN}';
 
     var _COMMENTS_PLEASE = '_{COMMENTS_PLEASE}_' || 'Comment please';
@@ -81,15 +85,6 @@
     jQuery(function () {
       jQuery('select:not(#type)').chosen(CHOSEN_PARAMS);
 
-      //Date picker
-      jQuery('.datepicker').datepicker({
-        autoclose     : true,
-        format        : 'yyyy-mm-dd',
-        startDate     : '-100y',
-        todayHighlight: true,
-        clearBtn      : true
-      });
-
     });
 
   </script>
@@ -100,6 +95,7 @@
   <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
   <![endif]-->
   <!--[if (lt IE 8) & (!IEMobile)]>
-  <p class="chromeframe">Sorry, our site supports Internet Explorer starting from version 9. You need to <a href="http://browsehappy.com/">upgrade your browser</a> or <a href="http://www.google.com/chromeframe/?redirect=true">activate Google Chrome Frame</a> to use the site.</p>
+  <p class="chromeframe">Sorry, our site supports Internet Explorer starting from version 9. You need to <a href="http://browsehappy.com/">upgrade your browser</a> or <a target='_blank' href='https://www.google.ru/chrome/browser/desktop/index.html'>install Google Chrome</a> to use the site.</p>
   <![endif]-->
+  <link rel='manifest' href='/manifest.json'>
 </head>

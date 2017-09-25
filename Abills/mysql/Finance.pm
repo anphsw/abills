@@ -83,7 +83,9 @@ sub exchange_list{
 
 
 #**********************************************************
-# exchange_add
+=head2 exchange_add($attr)
+
+=cut
 #**********************************************************
 sub exchange_add{
   my $self = shift;

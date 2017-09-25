@@ -476,4 +476,123 @@ sub hotspot_ad_config_mikrotik {
   return 1;
 }
 
+#**********************************************************
+=head2 hotspot_advert_pages()
+
+=cut
+#**********************************************************
+sub hotspot_advert_pages {
+    
+  if ($FORM{DELETE}) {
+    $Hotspot->advert_pages_del({ ID => $FORM{DELETE} });
+    $html->message('info', $lang{SUCCESS}) if (_error_show($Hotspot));
+  }
+  elsif ($FORM{chg}) {
+    $Hotspot->advert_pages_change({ %FORM, ID => $FORM{chg} });
+    $html->message('info', $lang{SUCCESS}) if (_error_show($Hotspot));
+  }
+  elsif ($FORM{CHANGE}) {
+    my $pages_list = $Hotspot->advert_pages_list({
+      HOSTNAME   => '_SHOW',
+      ACTION     => '_SHOW',
+      PAGE       => '_SHOW',
+      ID         => $FORM{CHANGE},
+        
+      COLS_NAME  => 1,
+      COLS_UPPER => 1,
+    });
+
+    $html->tpl_show(_include('hotspot_advert_page', 'Hotspot'), {
+      %{$pages_list->[0]},
+      SUBMIT_BTN_ACTION => 'chg',
+      SUBMIT_BTN_VALUE  => $FORM{CHANGE},
+      SUBMIT_BTN_NAME   => $lang{CHANGE},
+    });
+  }
+  elsif ($FORM{adding}) {
+    $Hotspot->advert_pages_add( \%FORM );
+    $html->message('info', $lang{SUCCESS}) if (_error_show($Hotspot));
+  }
+  elsif ($FORM{ADD}) {
+    $html->tpl_show(_include('hotspot_advert_page', 'Hotspot'), {
+      SUBMIT_BTN_ACTION => 'adding',
+      SUBMIT_BTN_VALUE  => '1',
+      SUBMIT_BTN_NAME   => $lang{ADD},
+    });
+  }
+  
+  my $pages_list = $Hotspot->advert_pages_list({
+    HOSTNAME  => '_SHOW',
+    ACTION    => '_SHOW',
+    PAGE      => '_SHOW',
+      
+    COLS_NAME => 1, 
+  });
+  
+  my $table = $html->table( {
+      width               => '100%',
+      caption             => "Hotspot $lang{PAGES} : ",
+      ID                  => 'HOTSPOT_PAGES',
+      title               => ["Hotspot", "action", "link"],
+      HAS_FUNCTION_FIELDS => 1,
+      
+      MENU                => "$lang{ADD}:index=$index&ADD=1:add"
+  });
+  
+  foreach (@$pages_list) {
+    my $edit_button = $html->button($lang{CHANGE}, "index=$index&CHANGE=$_->{id}", { class => 'change' });;
+    my $del_button = $html->button($lang{DELETE}, "index=$index&DELETE=$_->{id}", { class => 'del' });
+    $table->addrow($_->{hostname}, $_->{action}, $_->{page}, $edit_button . $del_button );
+  } 
+  print $table->show();
+  
+  return 1;
+}
+
+#**********************************************************
+=head2 hotspot_log($uid)
+
+=cut
+#**********************************************************
+sub hotspot_log {
+  my ($attr) = @_;
+
+  my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime();
+    
+  $FORM{FROM_DATE} //= sprintf("%04d-%02d-%02d", 1900+$year, $mon+1, 1);
+  $FORM{TO_DATE} //= sprintf("%04d-%02d-%02d", 1900+$year, $mon+1, $mday);
+
+  $html->tpl_show(_include('hotspot_log', 'Hotspot'), {%FORM, %$Hotspot});
+
+
+  my $log_list = $Hotspot->log_list({
+    INTERVAL  => "$FORM{FROM_DATE}/$FORM{TO_DATE}",
+    CID       => '_SHOW',
+    PHONE     => '_SHOW',
+    COMMENTS  => '_SHOW',
+    HOTSPOT   => ($FORM{HOSTNAME} || ''),
+    
+    COLS_NAME => 1,
+    PAGE_ROWS => 9999,
+  });
+
+  my $table = $html->table({
+    width         => '100%',
+    caption       => "Лог подключений",
+    border        => 1,
+    title_plain   => [ "Дата", "Телефон", "MAC-адрес", "Комментарий"],
+    ID            => 'log',
+  });
+
+
+  foreach (@$log_list) {
+    $table->addrow($_->{date}, $_->{phone}, $_->{CID}, $_->{comments});
+  }
+
+  print $table->show();
+
+  return  1;
+}
+
+
 1;

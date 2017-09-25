@@ -1,36 +1,30 @@
-<div class='box box-theme box-form'>
-<div class='box-body'>
-
-
 <form action='$SELF_URL' METHOD='POST' class='form-horizontal'>
-    <fieldset>
-    <div class='panel panel-primary panel-form'>
-        <div class='panel-heading text-center'><h4>_{DOMAINS}_</h4></div>
-        <div class='panel-body'>
-            <input type='hidden' name='index' value='$index'>
-            <input type='hidden' name='chg' value='$FORM{chg}'>
-
-                <div class='form-group'>
-                    <label class='control-label col-md-2' for='NAME'>_{NAME}_</label>
-                    <div class='col-md-10'>
-                        <input id='NAME' name='NAME' value='%LOGIN%' placeholder='%NAME%' class='form-control'
+  <input type='hidden' name='index' value='$index'>
+  <input type='hidden' name='chg' value='$FORM{chg}'>
+   
+    <div class='box box-theme box-big-form'>
+      <div class='box-header with-border'><h3 class='box-title'>_{DOMAINS}_</h3></div>
+      <div class='box-body'>
+        <div class='form-group'>
+                    <label class='control-label col-md-3' for='NAME'>_{NAME}_</label>
+                    <div class='col-md-9'>
+                        <input id='NAME' name='NAME' value='%NAME%' placeholder='%NAME%' class='form-control'
                                type='text'>
                     </div>
                 </div>
 
                 <div class='form-group'>
-                    <label class='control-label col-md-2' for='NAME'>_{DISABLE}_</label>
-                    <div class='col-md-5'>
-                        <input type='checkbox' name='STATE' value=1 %STATE%>
-                    </div>
-                </div>
-
-                <div class='form-group'>
-                    <label class='control-label col-md-2' for='NAME'>_{CREATED}_</label>
-                    <div class='col-md-5'>
-                        %CREATED%
-                    </div>
-                </div>
+                  <label class='control-label col-md-3' for='DATE'>_{CREATED}_</label>
+                  <div class='col-md-5'>
+                    <input type='date' class='form-control' readonly name='DATE' value=%CREATED%>
+                  </div>
+                
+				  <div class='col-md-4'>
+		            <label class='control-label'>_{DISABLE}_</label>
+		            <input name='STATE' value='1' %STATE% type='checkbox'>
+		
+			      </div>
+				</div>
 
                 <div class='form-group'>
                     <div class='col-md-12'>
@@ -40,7 +34,7 @@
 
                 <div class='form-group'>
                     <div class='col-md-12'>
-                        <textarea cols=60 rows=6 name=comments class='form-control'>%RULES%</textarea>
+                        <textarea cols=60 rows=6 name='COMMENTS' class='form-control'>%COMMENTS%</textarea>
                     </div>
                 </div>
 
@@ -49,6 +43,4 @@
             <input type='submit' name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'>
         </div>
     </div>
-
-    </fieldset>
 </form>

@@ -3,7 +3,7 @@
 <input type='hidden' name='index' value='$index'>
 
 
-<div class='box box-theme box-form'>
+<div class='box box-theme box-big-form'>
   <div class='box-body'>
 
 <legend>_{ICARDS}_ : %TYPE_CAPTION%</legend>
@@ -62,7 +62,7 @@
 </div>
 
 
-<div class='box box-theme box-form'>
+<div class='box box-theme box-big-form'>
   <div class='box-body'>
 
 <div class='form-group'>

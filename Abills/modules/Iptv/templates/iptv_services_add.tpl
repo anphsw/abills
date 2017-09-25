@@ -42,6 +42,16 @@
                         <input id='STATUS' name='STATUS' value='1' %STATUS% type='CHECKBOX'>
                     </div>
                 </div>
+                
+                <div class='form-group'>
+                  <label class='control-label col-md-3' for='PROVIDER_PORTAL_URL'>_{PROVIDER_PORTAL_URL}_:</label>
+                  <div class='col-md-9'>
+                    <div class="input-group">
+                      <input id='PROVIDER_PORTAL_URL' name='PROVIDER_PORTAL_URL' value='%PROVIDER_PORTAL_URL%' class='form-control' type='text'>
+                      <span class="input-group-addon" id="basic-addon2">%PROVIDER_PORTAL_BUTTON%</span>
+                    </div>
+                  </div>
+                </div>
 
                 <div class='form-group'>
                 <div class='box box-default collapsed-box'>
@@ -84,16 +94,23 @@
                         </div>
 
                         <div class='form-group'>
+                            <label class='control-label col-md-3' for='DEBUG_FILE'>DEBUG _{FILE}_:</label>
+                            <div class='col-md-9'>
+                                <input id='DEBUG_FILE' name='DEBUG_FILE' value='%DEBUG_FILE%' class='form-control' type='text'>
+                            </div>
+                        </div>
+
+                        <div class='form-group'>
                             <label class='control-label col-md-3' for='SUBSCRIBE_COUNT'>_{COUNT}_:</label>
                             <div class='col-md-9'>
                                 <input id='SUBSCRIBE_COUNT' name='SUBSCRIBE_COUNT' value='%SUBSCRIBE_COUNT%' class='form-control' type='text'>
                             </div>
                         </div>
-
                     </div>
                 </div>
 </div>
 
+                %EXTRA_PARAMS%
 
                 <div class='form-group'>
                     <label class='control-label col-md-3' for='COMMENT'>_{COMMENTS}_:</label>
@@ -108,6 +125,7 @@
 
                 <div class='box-footer'>
                    <input type='submit' class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
+                   <!-- <input type='submit' class='btn btn-info pull-right' name='TEST' value='_{TEST}_'> -->
                 </div>
             </fieldset>
 

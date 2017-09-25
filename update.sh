@@ -6,7 +6,7 @@
 #
 #**********************************************************
 
-VERSION=2.03;
+VERSION=2.15;
 
 #ABillS Rel Version
 REL_VERSION="rel-0-5";
@@ -29,6 +29,12 @@ UPDATE_URL="http://abills.net.ua/misc/update.php"
 CUR_FILE=$0;
 ROLLBACK=""
 AMON_FILE=""
+
+SYSBENCH_DIR=/tmp
+if [ -f ${BILLING_DIR} ]; then
+  SYSBENCH_DIR=${BILLING_DIR};
+fi;
+
 
 
 #**********************************************************
@@ -76,7 +82,7 @@ OS_NAME=""
 
 if [ "${OS}" = "SunOS" ] ; then
   OS=Solaris
-  ARCH=`uname -p`  
+  ARCH=`uname -p`
   OSSTR="${OS} ${OS_VERSION}(${ARCH} `uname -v`)"
 elif [ "${OS}" = "AIX" ] ; then
   OSSTR="${OS} `oslevel` (`oslevel -r`)"
@@ -86,7 +92,7 @@ elif [ "${OS}" = "FreeBSD" ] ; then
 elif [ "${OS}" = "Linux" ] ; then
   #GetVersionFromFile
   KERNEL=`uname -r`
-  if [ -f /etc/altlinux-release ]; then     
+  if [ -f /etc/altlinux-release ]; then
     OS_NAME=`cat /etc/altlinux-release | awk '{ print $1 $2 }'`
     OS_VERSION=`cat /etc/altlinux-release | awk '{ print $3 }'`
   #RedHat CentOS
@@ -106,14 +112,14 @@ elif [ "${OS}" = "Linux" ] ; then
 #  elif [ -f /etc/debian_version ] ; then
 #    OS_NAME="Debian `cat /etc/debian_version`"
 #    OS_VERSION=`cat /etc/issue | head -1 |awk '{ print $3 }'`
-  elif [ -f /etc/slackware-version ]; then 
+  elif [ -f /etc/slackware-version ]; then
     OS_NAME=`cat /etc/slackware-version | awk '{ print $1 }'`
-    OS_VERSION=`cat /etc/slackware-version | awk '{ print $2 }'`   
+    OS_VERSION=`cat /etc/slackware-version | awk '{ print $2 }'`
   elif [ -f /etc/gentoo-release ]; then
     OS_NAME=`cat /etc/os-release | grep "^NAME=" | awk -F= '{ print $2 }'`
-    OS_VERSION=`cat /etc/gentoo-release`   
+    OS_VERSION=`cat /etc/gentoo-release`
   else
-    #Debian 
+    #Debian
     OS_NAME=`cat /etc/issue| head -1 |awk '{ print $1 }'`
     OS_VERSION=`cat /etc/issue | head -1 |awk '{ print $3 }'`
   fi
@@ -167,10 +173,10 @@ _install () {
       if [ "${res}" = 0 ]; then
         #echo " Installed";
         echo ""
-      else 
+      else
         echo " ${res}"
       fi;
-    fi; 
+    fi;
     
   done;
 }
@@ -184,7 +190,7 @@ _fetch () {
 if [ "${OS}" = Linux ]; then
   FETCH="wget -q -O"
   MD5="md5sum"
-else 
+else
   FETCH="fetch -q -o"
   MD5="md5"
 fi;
@@ -236,8 +242,8 @@ if [ x"${is_sysbench}" = x ]; then
       yum install http://www.percona.com/downloads/percona-release/percona-release-0.0-1.x86_64.rpm
     else
       _install sysbench
-    fi; 
-  else 
+    fi;
+  else
     cd /usr/ports/benchmarks/sysbench && make && make install clean
   fi;
 fi;
@@ -254,7 +260,7 @@ sysbench --test=memory --memory-total-size=1G --memory-access-mode=rnd --memory-
 sysbench --test=memory --memory-total-size=1G --memory-access-mode=rnd --memory-oper=read run | egrep 'total time:' | sed 's/[ ^t]* total time: [ ^t]*//' >> memory.sysbench
 #HDD test
 sysbench --test=fileio --file-total-size=${test_file_size} prepare
-sysbench --test=fileio --file-total-size=${test_file_size} --file-test-mode=seqwr --max-time=0 run | egrep 'total time:' | sed 's/[ ^t]* total time: [ ^t]*//' > fileio.sysbench 
+sysbench --test=fileio --file-total-size=${test_file_size} --file-test-mode=seqwr --max-time=0 run | egrep 'total time:' | sed 's/[ ^t]* total time: [ ^t]*//' > fileio.sysbench
 sysbench --test=fileio --file-total-size=${test_file_size} --file-test-mode=seqrd --max-time=0 run | egrep 'total time:' | sed 's/[ ^t]* total time: [ ^t]*//' >> fileio.sysbench
 sysbench --test=fileio --file-total-size=${test_file_size} cleanup
 
@@ -277,11 +283,6 @@ echo "Filesystem read : ${FILE2}"
 
 URL="http://abills.net.ua/misc/update.php?bench=${sys_id}&CPU_ONE=${CPU1}&CPU_MULT=${CPU2}&MEM_WR=${MEM1}&MEM_RD=${MEM2}&FILE_WR=${FILE1}&FILE_RD=${FILE2}";
 ${FETCH} /tmp/bench ${URL}
-
-SYSBENCH_DIR=/tmp
-if [ -f ${BILLING_DIR} ]; then
-  SYSBENCH_DIR=${BILLING_DIR};
-fi;
 
 if [ "${DEBUG}" != "" ] ; then
   rm *.sysbench
@@ -334,7 +335,7 @@ if [ "${OS}" = "FreeBSD" ]; then
   #  for eth in $(grep -i Network /var/run/dmesg.boot |cut -d \: -f1 |paste -s -); do
   #    eth1=`grep -i Network /var/run/dmesg.boot |grep $eth |awk -F "<" '{print $2}'|awk -F ">" '{print $1}'`
   #    eth2=`pciconf -lv |grep -A 2 $eth |grep -v $eth |awk -F "\'" \'{print $2}\' |paste -s -`
-  # 
+  #
   #    INTERFACES="$eth on $eth1
   #                      $eth2"
   #  done;
@@ -373,7 +374,8 @@ if [ "${REGISTRATION}" != "" ]; then
   echo -n "Password: "
   read PASSWORD
   MYHOSTNAME=`hostname`
-  ${FETCH} ${TMP_DIR}/update.sh "${UPDATE_URL}?""sys_info=${sys_info}&SIGN=${CHECKSUM}&L=${LOGIN}&P=${PASSWORD}&H=${MYHOSTNAME}&SYS_ID=${SYS_ID}";
+  sys_info=`echo ${sys_info} | sed 's/\"//g'`;
+  ${FETCH} ${TMP_DIR}/update.sh "${UPDATE_URL}?""SIGN=${CHECKSUM}&L=${LOGIN}&P=${PASSWORD}&H=${MYHOSTNAME}&SYS_ID=${SYS_ID}&sys_info=${sys_info}";
   VAR=`cat ${TMP_DIR}/update.sh;`
 
   echo ${VAR};
@@ -383,7 +385,9 @@ if [ "${REGISTRATION}" != "" ]; then
   if [ x"${RESULT}" != x ]; then
     REGISTRATION=""
     echo ${CHECKSUM} > ~/.updater
-    echo ${CHECKSUM} > ${BILLING_DIR}/libexec/.updater
+    if [ -d "${BILLING_DIR}/libexec/" ]; then
+      echo ${CHECKSUM} > ${BILLING_DIR}/libexec/.updater
+    fi;
   else
     echo "Registration failed"
     exit;
@@ -400,8 +404,8 @@ SYSTEM_INFO="System information
               manufacture: ${VGA_vendor}
               model: ${VGA_device}
 
-  HDD    -    Model:  ${hdd_model} 
-              Serial: ${hdd_serial} 
+  HDD    -    Model:  ${hdd_model}
+              Serial: ${hdd_serial}
               Size:   ${hdd_size}
   INTERFACES   - ${INTERFACES}
   OS           - ${OS}
@@ -410,7 +414,7 @@ SYSTEM_INFO="System information
   CHECKSUM     - ${CHECKSUM}
 "
 
-  if [ "${SYS_INFO}" != "" -o ! -f "${BILLING_DIR}/.sysbench" ] ; then
+  if [ "${SYS_INFO}" != "" -o ! -f "${SYSBENCH_DIR}/.sysbench" ] ; then
     echo "${SYSTEM_INFO}"
     mk_sysbench ${CHECKSUM};
   fi;
@@ -455,7 +459,7 @@ if [ -f "${TMP_DIR}/update.sh" ]; then
   if [ "${RESULT}" != "" ] ; then
     echo "Please Registration:"
     REGISTRATION=1;
-    sys_info;    
+    sys_info;
   else
     NEW=`cat ${TMP_DIR}/update.sh |grep "^VERSION=" | sed  "s/VERSION=\(.*\);/\1/"`;
     VERSION_NEW=0
@@ -477,7 +481,7 @@ if [ -f "${TMP_DIR}/update.sh" ]; then
         cp ${TMP_DIR}/update.sh ${CUR_FILE}
         echo "update.sh updated. Please restart program";
         exit;
-      fi;   
+      fi;
     fi;
 
   fi;
@@ -485,6 +489,118 @@ fi;
 
 }
 
+#**********************************************
+# Check current installed MySQL version
+#
+#**********************************************
+check_mysql_version () {
+  sql_get_conf
+  
+  if [ "${DB_NAME}" = "" ]; then
+    return 0;
+  fi;
+  
+  EXIST_MYSQL=`which ${MYSQL}`;
+  
+  if [ "${EXIST_MYSQL}" = "" ]; then
+    echo "Mysql client '${MYSQL}' not exist";
+    return 0;
+  fi;
+  
+  if [ "${SKIP_CHECK_SQL}" != 1 ]; then
+    #Check MySQL Version
+    MYSQL_VERSION=`${MYSQL} -N -u ${DB_USER} -p"${DB_PASSWD}" -h ${DB_HOST} -D ${DB_NAME} -e "SELECT version()"`
+    echo "MySQL: Version: ${MYSQL_VERSION}"
+    
+    MYSQL_VERSION=`echo ${MYSQL_VERSION} | sed 's/\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\).*/\1\2/'`;
+  
+    if [ "${MYSQL_VERSION}" = "" ]; then
+      MYSQL_VERSION=0;
+    fi;
+  
+    if [ "${MYSQL_VERSION}" -lt 56 ]; then
+      echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+      echo "! Please Update Mysql Server to version 5.6 or higher                        !"
+      echo "! More information http://abills.net.ua/forum/viewtopic.php?f=1&t=6951       !"
+      echo "! use -skip_check_sql                                                        !"
+      echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+      exit;
+    fi;
+  fi;
+}
+
+#**********************************************
+# Retrieve current billing version
+#
+#**********************************************
+get_current_version () {
+
+  if [ -f ${BILLING_DIR}/libexec/config.pl ]; then
+    UPDATE_DATE=`cat ${BILLING_DIR}/libexec/config.pl |grep version |cut -f2 -d "/" |cut -f1 -d "'"`
+    if [ "${UPDATE_DATE}" = "" ]; then
+      UPDATE_DATE=0;
+    fi;
+  else
+    UPDATE_DATE=0;
+  fi;
+  
+  if [ -f ${BILLING_DIR}/libexec/config.pl -a -f ${BILLING_DIR}/VERSION ]; then
+    UPDATE_DATE=`cat ${BILLING_DIR}/VERSION | awk '{ print $2 }'`
+    GIT_UPDATE=1;
+    
+    CHANGELOG_URL="http://abills.net.ua/wiki/doku.php?id=abills:changelogs:0.7x&do=export_raw"
+  else
+    if [ "${UPDATE_DATE}" = '$conf{version}='  ]; then
+      UPDATE_DATE=99999999
+    fi;
+  
+    CHANGELOG_URL="http://abills.net.ua/wiki/doku.php?id=abills:changelogs:0.5x&do=export_raw"
+  fi;
+  
+  if [ "${UPDATE_DATE}" = "" ]; then
+    UPDATE_DATE=0;
+  fi;
+
+  echo "${UPDATE_DATE}"
+
+}
+
+#**********************************************
+# Downloads and parses changelog from ${CHANGELOG_URL}
+#
+#**********************************************
+download_and_parse_sql_updates () {
+
+  echo "Downloading MySQL changelog file"
+
+  ${FETCH} "${TMP_DIR}/changes" "${CHANGELOG_URL}";
+
+  cat ${TMP_DIR}/changes |sed -n '/^[0-9]/p' |sed 's/\\\\//' |sed 's/\([0-9]*\).\([0-9]*\).\([0-9]*\)/\3\2\1/' > ${TMP_DIR}/dates;
+
+  # Clear previous changes
+  rm -f ${TMP_DIR}/changes.sql
+
+  END_RE="<\/code><\/panel><\/accordion>";
+  for data in $(cat ${TMP_DIR}/dates); do
+    if [ ${UPDATE_DATE} -le ${data} ]; then
+      
+      START_RE="<accordion title=\"$data\"><panel title=\"MySQL\"><code mysql>";
+      UPDATE_SQL=`sed -n "/${START_RE}/,/${END_RE}/p" ${TMP_DIR}/changes | grep -v '^<'`;
+    
+      if [ "${UPDATE_SQL}" ]; then
+        if [ ${OS_NAME} = "FreeBSD" ]; then
+            echo ${UPDATE_SQL} | sed $'s/;/;\\\n/g' >> ${TMP_DIR}/changes.sql
+        else
+            echo ${UPDATE_SQL} | sed 's/;/;\n/g' >> ${TMP_DIR}/changes.sql
+        fi
+      fi
+      
+    fi;
+  done
+
+  rm -f ${TMP_DIR}/dates ${TMP_DIR}/changes;
+
+}
 
 #**********************************************
 # Update SQL Section
@@ -492,108 +608,37 @@ fi;
 #**********************************************
 update_sql () {
 
-sql_get_conf
-
-if [ "${DB_NAME}" = "" ]; then
-  return 0;
-fi;
-
-EXIST_MYSQL=`which ${MYSQL}`;
-
-if [ "${EXIST_MYSQL}" = "" ]; then
-  echo "Mysql client '${MYSQL}' not exist";
-  return 0;
-fi;
-
-if [ "${SKIP_CHECK_SQL}" != 1 ]; then
-  #Check MySQL Version
-  MYSQL_VERSION=`${MYSQL} -N -u ${DB_USER} -p"${DB_PASSWD}" -h ${DB_HOST} -D ${DB_NAME} -e "SELECT version()"`
-  echo "MySQL: Version: ${MYSQL_VERSION}"
+  check_mysql_version
+  get_current_version
   
-  MYSQL_VERSION=`echo ${MYSQL_VERSION} | sed 's/\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\).*/\1\2/'`;
+  echo "Last update date : ${UPDATE_DATE}"
 
-  if [ "${MYSQL_VERSION}" = "" ]; then
-    MYSQL_VERSION=0;
+  if [ "${UPDATE_DATE}" -lt 99999999 ]; then
+    echo "Updating SQL"
+
+    download_and_parse_sql_updates
+
+    if [ -f "${TMP_DIR}/changes.sql" ]; then
+
+      if [ x"${DB_CHARSET}" != x ]; then
+        DB_CHARSET="--default-character-set=${DB_CHARSET}"
+      fi;
+
+      while IFS=';' read line ; do
+        ${MYSQL} -u "${DB_USER}" -p"${DB_PASSWD}" -h ${DB_HOST} ${DB_CHARSET} -D ${DB_NAME} -Bse "$line"
+      done < ${TMP_DIR}/changes.sql
+
+      echo "SQL Updated"
+      echo " "
+    else
+      echo " "
+      echo "Your DB is up to date"
+      echo " "
+    fi
+
   fi;
 
-  if [ "${MYSQL_VERSION}" -lt 56 ]; then
-    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-    echo "! Please Update Mysql Server to version 5.6 or higher                        !"
-    echo "! More information http://abills.net.ua/forum/viewtopic.php?f=1&t=6951       !"
-    echo "! use -skip_check_sql                                                        !"
-    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-    exit;
-  fi;
-fi;
-
-if [ -f ${BILLING_DIR}/libexec/config.pl ]; then
-  UPDATE_DATE=`cat ${BILLING_DIR}/libexec/config.pl |grep version |cut -f2 -d "/" |cut -f1 -d "'"`
-  if [ "${UPDATE_DATE}" = "" ]; then
-    UPDATE_DATE=0;
-  fi;
-else
-  UPDATE_DATE=0;
-fi;
-
-if [ -f ${BILLING_DIR}/libexec/config.pl -a -f ${BILLING_DIR}/VERSION ]; then
-  UPDATE_DATE=`cat ${BILLING_DIR}/VERSION | awk '{ print $2 }'`
-  GIT_UPDATE=1;
-  
-  echo "Last update date: ${UPDATE_DATE}"
-
-  CHANGELOG_URL="http://abills.net.ua/wiki/doku.php?id=abills:changelogs:0.7x&do=export_raw"
-else
-  if  [ "${UPDATE_DATE}" = '$conf{version}='  ]; then
-    UPDATE_DATE=99999999
-  fi;
-
-  CHANGELOG_URL="http://abills.net.ua/wiki/doku.php?id=abills:changelogs:0.5x&do=export_raw"
-fi;
-
-if [ "${UPDATE_DATE}" = "" ]; then
-  UPDATE_DATE=0;
-fi;
-
-if [ "${UPDATE_DATE}" -lt 99999999 ]; then
-  echo "Updating SQL"
-
-  ${FETCH} "${TMP_DIR}/changes" "${CHANGELOG_URL}";
-
-  cat ${TMP_DIR}/changes |sed -n '/^[0-9]/p' |sed 's/\\\\//' |sed 's/\([0-9]*\).\([0-9]*\).\([0-9]*\)/\3\2\1/' >${TMP_DIR}/dates;
-
-  for data in $(cat ${TMP_DIR}/dates); do
-    if [ ${UPDATE_DATE} -le ${data} ]; then
-      #echo There is chenges for $data
-      sed -e 's/\\\\//;s/\([0-9]*\).\([0-9]*\).\([0-9]*\)/\3\2\1/;/^*/d;/^SQL/d;/^$/d' ${TMP_DIR}/changes > ${TMP_DIR}/che
-      echo `sed -n '/'"$data"'/,/^[0-9]/p' ${TMP_DIR}/che |sed -e '$d;1d;/^=/d'` >> ${TMP_DIR}/changes.sql
-      cat ${TMP_DIR}/changes.sql |tr ';' '\n' | sed -e '/^$/d;s/$/;/;s/^ //;s/`/\\`/g' > ${TMP_DIR}/che;
-    fi;
-  done
-
-  if [ x"${DB_CHARSET}" != x ]; then
-    DB_CHARSET="--default-character-set=${DB_CHARSET}"
-  fi;
-
-  if [ -f "${TMP_DIR}/che" ]; then
-    while IFS=';' read line ; do
-      ${MYSQL} -u "${DB_USER}" -p"${DB_PASSWD}" -h ${DB_HOST} ${DB_CHARSET} -D ${DB_NAME} -Bse "$line"
-    done < ${TMP_DIR}/che
-  fi;
-
-  if [ -s /tmp/che ]; then
-    echo "SQL Updated"
-  else
-    echo " "
-    echo "Nothing to add"
-    echo " "
-  fi;
-else
-  echo "You have the last release of ABillS DB"
-fi;
-
-rm -rf ${TMP_DIR}/dates ${TMP_DIR}/changes.sql ${TMP_DIR}/changes ${TMP_DIR}/che
-
-#Add sysid
+  #Add sysid
 }
 
 
@@ -626,10 +671,10 @@ sql_innodb_optimize () {
 
   echo "Optimize innodb: ${DB_NAME}"
 
-  TABLES=`${MYSQL} -N -h "${DB_HOST}" -u "${DB_USER}" --password="${DB_PASSWD}" -D "${DB_NAME}" -e "SHOW TABLES;"` 
+  TABLES=`${MYSQL} -N -h "${DB_HOST}" -u "${DB_USER}" --password="${DB_PASSWD}" -D "${DB_NAME}" -e "SHOW TABLES;"`
   
   for table in ${TABLES} ; do
-    TYPE=`${MYSQL} -h "${DB_HOST}" -u "${DB_USER}" --password="${DB_PASSWD}" -D ${DB_NAME} -e "OPTIMIZE TABLE ${table};"` 
+    TYPE=`${MYSQL} -h "${DB_HOST}" -u "${DB_USER}" --password="${DB_PASSWD}" -D ${DB_NAME} -e "OPTIMIZE TABLE ${table};"`
     echo "${table} optimized"
   done;
 }
@@ -670,7 +715,7 @@ fi;
 
 #**********************************************
 # Check modules version for update
-# 
+#
 # Paysys.pm
 # Ashield.pm
 # Storage.pm
@@ -690,7 +735,7 @@ fi;
 
 IS_NEW=""
 
-for module_name in Paysys Ashield Turbo Maps Storage Ureports Cablecat; do
+for module_name in Paysys Ashield Turbo Maps Storage Ureports Cablecat Callcenter; do
   if [ -e "${BILLING_DIR}/Abills/mysql/${module_name}.pm" -a -f "${CHECKDIR}/Abills/modules/${module_name}/webinterface" ]; then
     OLD=`cat ${BILLING_DIR}/Abills/mysql/${module_name}.pm |grep ' VERSION' | sed 's/^[^0-9]*//;1d;s/;$//'`;
     #Old style
@@ -790,7 +835,7 @@ chmod 777 ${BILLING_DIR}/var/log/sql_errors
 
 #**********************************************
 # Check free space
-# 
+#
 #**********************************************
 check_free_space () {
 
@@ -802,17 +847,17 @@ fi;
 
 ext_free_space=`expr ${abills_size} + 100000`
 
-if [ x${OS} = xLinux ]; then 
+if [ x${OS} = xLinux ]; then
   free_size=`df /usr | awk '{print $3}' |tail -1`
-else 
+else
   free_size=`df /usr | awk '{print $4}' |tail -1`
 fi;
 
-if [ "${free_size}" -le "${ext_free_space}" ]; then 
-     echo " "
-     echo !!! YOU HAVE NOT ENOUGH FREE SPACE ON /usr \( you have `df -h /usr | awk '{print $4}' |tail -1`, abills is `du -hs ${BILLING_DIR}` \)
-     echo " "
-     exit;
+if [ "${free_size}" -le "${ext_free_space}" ]; then
+  echo " "
+  echo !!! YOU HAVE NOT ENOUGH FREE SPACE ON /usr \( you have `df -h /usr | awk '{print $4}' |tail -1`, abills is `du -hs ${BILLING_DIR}` \)
+  echo " "
+  exit;
 fi
 
 }
@@ -836,7 +881,7 @@ usage () {
   echo "ABillS Updater Help";
   echo " Version ${VERSION}";
   
-  echo " 
+  echo "
   -rollback [DATE]  - Rollback
   -win2utf          - Convert to UTF
   -amon             - Make AMon Checksum
@@ -857,7 +902,7 @@ usage () {
   -skip_perl_check  - SKip check perl
   -gs               - Update from snapshot system (Alternative way)
   -skip_update      - Skip check new version of update.sh
-  -check_modules    - Check new version of modules 
+  -check_modules    - Check new version of modules
   -dl               - Update license key
   -skip_check_sql   - Skip check mysql version
   -m [MODULE]       - Update only modules
@@ -901,13 +946,13 @@ convert2inodb () {
     echo "db_name: ${db_name}";
   fi;
   
-  TABLES=`${MYSQL} -N -h "${db_host}" -u "${db_user}" --password="${db_password}" -D ${db_name} -e "SHOW TABLES;"` 
+  TABLES=`${MYSQL} -N -h "${db_host}" -u "${db_user}" --password="${db_password}" -D ${db_name} -e "SHOW TABLES;"`
   SKIP_TABLES=`echo ${SKIP_TABLES} | sed 's/\%/\.\*/g'`
   
   echo "SKIP_TABLES: ${SKIP_TABLES}"
   
   for table in ${TABLES} ; do
-    TYPE=`${MYSQL} -N -h "${db_host}" -u "${db_user}" --password="${db_password}" -D ${db_name} -e "SHOW TABLE STATUS LIKE '${table}';" | tail -1 | awk '{ print \$2 }'` 
+    TYPE=`${MYSQL} -N -h "${db_host}" -u "${db_user}" --password="${db_password}" -D ${db_name} -e "SHOW TABLE STATUS LIKE '${table}';" | tail -1 | awk '{ print \$2 }'`
     IGNORE=""
     
     if [ "${TYPE}" = "InnoDB" ]; then
@@ -923,7 +968,7 @@ convert2inodb () {
         if [ "${RESULT}" = "y" ]; then
           IGNORE=1
         fi;
-      fi; 
+      fi;
     done
   
     if [ "${IGNORE}" = "" ]; then
@@ -965,7 +1010,7 @@ convert2utf () {
   for file in `ls ${BILLING_DIR}/language/*.pl` ${BILLING_DIR}/libexec/config.pl; do
     if [ w${OS} = wLinux ]; then
       ${ICONV}  -f ${BASE_CHARSET} -t ${OUTPUT_CHARSET} ${file} -o ${file}.bak
-    else 
+    else
       cat ${file} | ${ICONV}  -f ${BASE_CHARSET} -t ${OUTPUT_CHARSET} > ${file}.bak
     fi;
 
@@ -987,20 +1032,20 @@ convert2utf () {
 
   if [ w${action} = wupdate ]; then
     echo "Converted to UTF8";
-  else 
+  else
     echo "Dictionary convertation finishing...";
     echo "Add to ${BILLING_DIR}/libexec/config.pl"
     echo ""
-    echo "\$conf{dbcharset}='utf8';" 
-    echo "\$conf{MAIL_CHARSET}='utf-8';" 
-    echo "\$conf{default_language}='russian';" 
-    echo "\$conf{default_charset}='utf-8';" 
+    echo "\$conf{dbcharset}='utf8';"
+    echo "\$conf{MAIL_CHARSET}='utf-8';"
+    echo "\$conf{default_language}='russian';"
+    echo "\$conf{default_charset}='utf-8';"
   fi;
 }
 
 
 #**********************************************
-# amon 
+# amon
 #**********************************************
 amon () {
   echo "**********************************************************"
@@ -1096,6 +1141,11 @@ git_update () {
   fi;
 
   SEARCH_KEY=`ls ${start_dir}/id_dsa.* | head -1;`
+
+  if [ "${SEARCH_KEY}" = "" ]; then
+    SEARCH_KEY=`ls ${start_dir}/id_rsa.* | head -1;`
+  fi;
+
   BASEDIR=$(dirname $0)
   echo "Found key: ${SEARCH_KEY} (${BASEDIR} ${KEY_DIR})";
 
@@ -1124,7 +1174,7 @@ git_update () {
         AUTH_USER=${DEFAULT_AUTH_USER};
       fi;
       
-      if [ -f "${AUTH_KEY}" ]; then 
+      if [ -f "${AUTH_KEY}" ]; then
         echo "${AUTH_KEY} ~/.ssh/id_dsa.${AUTH_USER}"
         cp "${AUTH_KEY}" ~/.ssh/id_dsa.${AUTH_USER}
         chmod 400 ~/.ssh/id_dsa.${AUTH_USER}
@@ -1136,7 +1186,7 @@ git_update () {
         echo "Wrong key '${AUTH_KEY}' ";
         exit;
       fi;
-    fi;  
+    fi;
     
   else
     CHECK_KEY=`grep abills.net.ua ~/.ssh/config`;
@@ -1162,7 +1212,7 @@ git_update () {
     cd ${TMP_DIR}/abills
     ${GIT} pull ${BRANCH}
     cd ..
-  else 
+  else
     if [ "${BRANCH_NAME}" != "" ]; then
       BRANCH=" -b ${BRANCH_NAME} "
     fi;
@@ -1183,7 +1233,7 @@ free_update () {
 
   cd ${TMP_DIR}
   SNAPHOT_NAME=abills_.tgz
-  URL=http://downloads.sourceforge.net/project/abills/abills/0.75/abills-0.75.107.tgz
+  URL=https://netix.dl.sourceforge.net/project/abills/abills/0.75/abills-0.75.110.tgz
 
   if [ "${DEBUG}" != "" ]; then
     echo "${FETCH} ${URL}"
@@ -1248,7 +1298,7 @@ echo "OS: ${OS} (${OS_NAME} ${OS_VERSION})"
 if [ "${OS}" = Linux ]; then
   FETCH="wget -q -O"
   MD5="md5sum"
-else 
+else
   FETCH="fetch -q -o"
   MD5="md5"
 fi;
@@ -1268,13 +1318,13 @@ for _switch; do
         -debug)
                 DEBUG=1;
                 echo "Debug enable"
-                shift; 
+                shift;
                 ;;
         -v)
                 echo "Version: ${VERSION}";
                 exit;
                 ;;
-        -amon)  
+        -amon)
                 AMON_FILE=$1;
                 shift; shift
                 ;;
@@ -1286,7 +1336,7 @@ for _switch; do
                 ;;
         -speedy) SPEEDY=1;
                 shift; shift
-                ;;           
+                ;;
         -h)     HELP=1;
                 ;;
         -help)  HELP=1;
@@ -1309,13 +1359,13 @@ for _switch; do
                 shift; shift
                 ;;
         -myisam2inodb) INODB=1;
-                shift; 
+                shift;
                 ;;
         -skip_tables) SKIP_TABLES=$2;
                 shift; shift;
                 ;;
         -info)  SYS_INFO=1;
-                shift; 
+                shift;
                 ;;
         -cm)    DOWNLOAD_COM_MODULES=1;
                 shift;
@@ -1359,10 +1409,17 @@ for _switch; do
                 ;;
         -reg)   REGISTRATION=1;
                 shift;
+                ;;
+        -lib)   SHOULD_EXIT=1;
+                shift;
         esac
 done
 
 update_self
+
+if [ "${SHOULD_EXIT}" != "" ]; then
+  exit 1;
+fi;
 
 if [ "${DOWNLOAD_LICENSE}" != "" ]; then
   get_license;
@@ -1432,7 +1489,7 @@ else
     if [ x"${CURE_CHARSET}" = xcp1251 ]; then
       echo "First convert to UTF8";
       echo "see manual: "
-      echo " http://abills.net.ua/forum/viewtopic.php?f=1&t=5795"      
+      echo " http://abills.net.ua/forum/viewtopic.php?f=1&t=5795"
       exit;
     fi;
   fi;
@@ -1452,7 +1509,7 @@ else
     if [ "${SKIP_BACKUP}" = "" ]; then
       if [ -d "${BILLING_DIR}" ]; then
         cp -Rfp ${BILLING_DIR} ${BILLING_DIR}_${DATE}
-        echo "Backuped to '${BILLING_DIR}_${DATE}'. Please wait some minutes" 
+        echo "Backuped to '${BILLING_DIR}_${DATE}'. Please wait some minutes"
       else
         echo " '${BILLING_DIR}' Not exist. Created ${BILLING_DIR}  "
         mkdir ${BILLING_DIR}
@@ -1466,7 +1523,7 @@ else
       fi;
 
       cp -Rfp ${BILLING_DIR} ${BILLING_DIR}_${DATE}
-     else 
+     else
        echo "Skip backup...";
      fi;
 
@@ -1481,7 +1538,7 @@ else
   beep;
   echo ""
 
-  cd ${TMP_DIR}  
+  cd ${TMP_DIR}
   #Update from snapshots
   # http://abills.net.ua/snapshots/
   if [ "${GET_SNAPSHOT}" != "" ]; then
@@ -1510,7 +1567,7 @@ else
   cp -Rf abills/* ${work_copy}/
 
   find ${work_copy} | grep CVS | xargs rm -Rf
-  find ${work_copy} | grep .git | xargs rm -Rf  
+  find ${work_copy} | grep .git | xargs rm -Rf
 
   for dir in "${work_copy}/var" "${work_copy}/var/log" "${work_copy}/var/q" "${work_copy}/var/log/ipn"; do
     if [ ! -d ${dir} ]; then
@@ -1537,7 +1594,7 @@ else
     get_license;
 
     cp -Rf ${TMP_DIR}/${work_copy}/* ${BILLING_DIR}
-    #Update Version 
+    #Update Version
     if [ -f  ${BILLING_DIR}/libexec/config.pl ]; then
 #      OLD_VERSION=`cat ${BILLING_DIR}/libexec/config.pl | grep versi | ${SED} "s/\\$conf{version}='\([0-9]*\)\.\([0-9]*\).*'.*/\1\2/"`
 
@@ -1559,7 +1616,7 @@ else
 
       #convert to utf-8
 #      if [ w != w`grep "$conf{dbcharset}='utf8'" ${BILLING_DIR}/libexec/config.pl` ]; then
-#        convert2utf update 
+#        convert2utf update
 #      fi;
       restart_servers;
     fi;

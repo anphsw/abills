@@ -24,9 +24,9 @@ my $Tariffs = Tariffs->new( $db, \%conf, $admin );
 my $Fees = Fees->new( $db, $admin, \%conf );
 
 #**********************************************************
-=head2 iptv_daily_screen_fees($attr)
-
-=cut
+#=head2 iptv_daily_screen_fees($attr)
+#
+#=cut
 #**********************************************************
 #sub iptv_daily_screen_fees{
 #  my ($attr) = @_;
@@ -345,6 +345,7 @@ sub iptv_monthly_fees{
     EXT_BILL_ACCOUNT   => '_SHOW',
     FILTER_ID          => '_SHOW',
     ABON_DISTRIBUTION  => '_SHOW',
+    SMALL_DEPOSIT_ACTION=>'_SHOW',
     CREDIT             => '_SHOW',
     COLS_NAME          => 1,
     NEW_MODEL_TP       => 1
@@ -414,6 +415,7 @@ sub iptv_monthly_fees{
       EXPIRE         => "0000-00-00,>$ADMIN_REPORT{DATE}",
       SERVICE_STATUS => "0;5",
       LOGIN_STATUS   => 0,
+      SUBSCRIBE_ID   => '_SHOW',
       SERVICE_STATUS => '_SHOW',
       DEPOSIT        => '_SHOW',
       CREDIT         => '_SHOW',
@@ -438,6 +440,7 @@ sub iptv_monthly_fees{
         DEPOSIT     => $u->{deposit},
         CREDIT      => ($u->{credit} > 0) ? $u->{credit} : $tp->{credit},
         IPTV_STATUS => $u->{service_status},
+        SUBSCRIBE_ID=> $u->{subscribe_id},
       );
 
       my $total_sum = 0;
@@ -496,14 +499,15 @@ sub iptv_monthly_fees{
         }
         #Block negative
         elsif ( !$tp->{small_deposit_action} ){
-          $debug_output .= "Block negative  Login: $u->{login} // $user{DEPOSIT} + $user{CREDIT} > 0\n";
+          $debug_output .= "Block negative Login: $u->{login} ($user{ID}) // $user{DEPOSIT} + $user{CREDIT} > 0\n";
           iptv_account_action(
             {
-              NEGDEPOSIT => 1,
-              FILTER_ID  => $tp->{filter_id},
-              ID         => $user{ID},
-              UID        => $user{UID},
-              LOGIN      => $user{LOGIN},
+              NEGDEPOSIT   => 1,
+              FILTER_ID    => $tp->{filter_id},
+              ID           => $user{ID},
+              UID          => $user{UID},
+              LOGIN        => $user{LOGIN},
+              SUBSCRIBE_ID => $user{SUBSCRIBE_ID}
             }
           );
           next;
@@ -519,11 +523,12 @@ sub iptv_monthly_fees{
         )
         {
           iptv_account_action({
-            NEGDEPOSIT  => 1,
-            FILTER_ID => $tp->{filter_id},
-            ID        => $user{ID},
-            UID       => $user{UID},
-            LOGIN     => $user{LOGIN},
+            NEGDEPOSIT   => 1,
+            FILTER_ID    => $tp->{filter_id},
+            ID           => $user{ID},
+            UID          => $user{UID},
+            LOGIN        => $user{LOGIN},
+            SUBSCRIBE_ID => $user{SUBSCRIBE_ID}
           });
 
           $debug_output .= " SMALL_DEPOSIT_BLOCK." if ($debug > 3);

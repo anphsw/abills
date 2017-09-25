@@ -4,15 +4,20 @@
 	}
 </style>
 
-	<div class='article well'>
+<li>
 
-  <h3>
-    <a href="%HREF%"> %TITLE% </a>
-  </h3>
-  <p>%SHORT_DESCRIPTION%</p>
+        <div class="timeline-item">
+            <span class="time"><i class="fa fa-calendar-o"></i> %DATE%</span>
 
-  <div class='text-right'><p>
-      <a class='btn btn-primary' href=%HREF% role='button' %NEW_WINDOW%>_{DETAILS}_</a>
-  </p></div>
+            <h3 class="timeline-header"><a href="%HREF%">%TITLE%</a> ...</h3>
 
-  </div>
+            <div class="timeline-body">
+                ...
+                %SHORT_DESCRIPTION%
+            </div>
+
+            <div class="timeline-footer">
+                <a class="btn btn-primary btn-xs" href='%HREF%' role='button' %NEW_WINDOW%>_{DETAILS}_</a>
+            </div>
+        </div>
+</li>

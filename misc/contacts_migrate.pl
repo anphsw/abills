@@ -32,6 +32,8 @@ my $db = Abills::SQL->connect(@conf{'dbtype', 'dbhost', 'dbname', 'dbuser', 'dbp
 my $admin = Admins->new( $db, \%conf );
 $admin->info( $conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' } );
 
+our $html = Abills::HTML->new({ CONF => \%conf, NO_PRINT => 1, });
+
 my %ARGS = %{ parse_arguments(\@ARGV) };
 my $debug = 0;
 if ( $ARGS{DEBUG} ) {

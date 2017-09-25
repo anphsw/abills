@@ -33,6 +33,7 @@
     </div>
   </div>
 </div>
+
 <div class="row">
   <div class="col-md-12">
     <div class='box box-theme'>
@@ -63,13 +64,16 @@
           </div>
         </div>
 
-        <button class='btn btn-info form-control' type='button' data-toggle='collapse'
-                data-target='#cardsSearchAdvanced'
-                aria-expanded='false' aria-controls='cardsSearchAdvanced'>
-          Advanced
-        </button>
-        <div class='collapse' id='cardsSearchAdvanced'>
-          <div class='well'>
+        <div class='box box-default collapsed-box'>
+          <div class='box-header with-border'>
+            <h3 class='box-title'>_{EXTRA}_</h3>
+            <div class='box-tools pull-right'>
+              <button type='button' class='btn btn-box-tool' data-widget='collapse'><i class='fa fa-plus'></i>
+              </button>
+            </div>
+          </div>
+          <div class='box-body'>
+
             <div class='form-group'>
               <label class='col-md-3 control-label'>_{STATUS}_:</label>
 
@@ -87,8 +91,11 @@
 
               <div class='col-md-9'>%DOMAIN_SEL%</div>
             </div>
+
           </div>
         </div>
+
+
       </div>
     </div>
   </div>

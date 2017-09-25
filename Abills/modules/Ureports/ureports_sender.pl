@@ -20,25 +20,29 @@ BEGIN {
     $Bin . '/../Abills/modules' );
 }
 
-my $version = 0.72;
+my $version = 0.73;
 my $debug = 0;
-our ($db,
+our (
+  $db,
   %conf,
   $TIME,
   @MODULES,
   %lang,
   %ADMIN_REPORT,
   %LIST_PARAMS,
-  $DATE);
+  $DATE
+);
 
 use Abills::Defs;
-use Abills::Base qw(int2byte in_array sendmail parse_arguments);
+use Abills::Base qw(int2byte in_array sendmail parse_arguments cmd);
 use Abills::Templates;
 use Abills::Misc;
 use Admins;
 use Shedule;
-use Dv;
+#use Dv;
 use Dv_Sessions;
+#use Internet;
+use Internet::Sessions;
 use Finance;
 use Fees;
 use Ureports;
@@ -60,15 +64,22 @@ our $html = Abills::HTML->new(
 $db = Abills::SQL->connect( $conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
   { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef } );
 
-my $admin = Admins->new( $db, \%conf );
+#Always our for crossmodules
+our $admin = Admins->new( $db, \%conf );
 $admin->info( $conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' } );
 
 my $Ureports = Ureports->new( $db, $admin, \%conf );
-my $fees     = Fees->new( $db, $admin, \%conf );
-my $tariffs  = Tariffs->new( $db, \%conf, $admin );
-my $Sessions = Dv_Sessions->new( $db, $admin, \%conf );
+my $Fees     = Fees->new( $db, $admin, \%conf );
+my $Tariffs  = Tariffs->new( $db, \%conf, $admin );
 my $Shedule  = Shedule->new( $db, $admin, \%conf );
 
+my $Sessions;
+if(in_array('Internet', \@MODULES)) {
+  $Sessions = Internet::Sessions->new($db, $admin, \%conf);
+}
+else {
+  $Sessions = Dv_Sessions->new($db, $admin, \%conf);
+}
 if ($html->{language} ne 'english') {
   do $Bin . "/../language/english.pl";
   do $Bin . "/../Abills/modules/Ureports/lng_english.pl";
@@ -104,7 +115,7 @@ if ( $argv->{DEBUG} ){
 
 $DATE = $argv->{DATE} if ($argv->{DATE});
 
-my $debug_output = ureports_periodic_reports( { %{$argv} } );
+my $debug_output = ureports_periodic_reports($argv);
 
 print $debug_output;
 
@@ -168,6 +179,9 @@ sub ureports_send_reports {
 #**********************************************************
 =head2 ureports_periodic_reports($attr)
 
+  Arguments:
+    $attr
+
 =cut
 #**********************************************************
 sub ureports_periodic_reports{
@@ -187,16 +201,17 @@ sub ureports_periodic_reports{
 
   $SERVICE_LIST_PARAMS{LOGIN} = $argv->{LOGIN} if ($argv->{LOGIN});
 
-  $tariffs->{debug} = 1 if ($debug > 6);
-  my $list = $tariffs->list( {
-      REDUCTION_FEE    => '_SHOW',
-      DAY_FEE          => '_SHOW',
-      MONTH_FEE        => '_SHOW',
-      PAYMENT_TYPE     => '_SHOW',
-      EXT_BILL_ACCOUNT => '_SHOW',
-      CREDIT           => '_SHOW',
-      %LIST_PARAMS,
-      COLS_NAME        => 1 } );
+  $Tariffs->{debug} = 1 if ($debug > 6);
+  my $list = $Tariffs->list( {
+    REDUCTION_FEE    => '_SHOW',
+    DAY_FEE          => '_SHOW',
+    MONTH_FEE        => '_SHOW',
+    PAYMENT_TYPE     => '_SHOW',
+    EXT_BILL_ACCOUNT => '_SHOW',
+    CREDIT           => '_SHOW',
+    %LIST_PARAMS,
+    COLS_NAME        => 1
+  } );
 
   $ADMIN_REPORT{DATE} = $DATE if (!$ADMIN_REPORT{DATE});
   $SERVICE_LIST_PARAMS{CUR_DATE} = $ADMIN_REPORT{DATE};
@@ -209,33 +224,40 @@ sub ureports_periodic_reports{
     #Get users
     $Ureports->{debug} = 1 if ($debug > 5);
 
-    my $ulist = $Ureports->tp_user_reports_list(
-      {
-        DATE           => '0000-00-00',
-        TP_ID          => $tp->{tp_id},
-        SORT           => 1,
-        PAGE_ROWS      => 1000000,
-        DV_TP          => 1,
-        ACCOUNT_STATUS => 0,
-        DV_STATUS      => '_SHOW',
-        STATUS         => 0,
-        ACTIVATE       => '_SHOW',
-        %SERVICE_LIST_PARAMS,
-        MODULE         => '_SHOW',
-        COLS_NAME      => 1,
-        COLS_UPPER     => 1,
-      }
+    my %users_params = (
+      DATE           => '0000-00-00',
+      TP_ID          => $tp->{tp_id},
+      SORT           => 1,
+      PAGE_ROWS      => 1000000,
+      ACCOUNT_STATUS => 0,
+      STATUS         => 0,
+      ACTIVATE       => '_SHOW',
+      %SERVICE_LIST_PARAMS,
+      MODULE         => '_SHOW',
+      COLS_NAME      => 1,
+      COLS_UPPER     => 1,
     );
+
+    if(in_array('Internet', \@MODULES)) {
+      $users_params{INTERNET_TP} = 1;
+      $users_params{INTERNET_STATUS} = '_SHOW';
+    }
+    else {
+      $users_params{DV_TP} = 1;
+      $users_params{DV_STATUS} = '_SHOW';
+    }
+
+    my $ulist = $Ureports->tp_user_reports_list( \%users_params  );
 
     foreach my $user ( @{$ulist} ){
       #Check bill id and deposit
       my %PARAMS = ();
       $user->{TP_ID} = $tp->{tp_id};
-
+      my $internet_status = $user->{DV_STATUS} || $user->{INTERNET_STATUS} || 0;
       #Skip disabled user
-      next if ($user->{DV_STATUS} && ($user->{DV_STATUS} == 1 || $user->{DV_STATUS} == 2 || $user->{DV_STATUS} == 3));
+      next if ($internet_status == 1 || $internet_status == 2 || $internet_status == 3);
 
-      $debug_output .= "LOGIN: $user->{LOGIN} ($user->{UID}) DEPOSIT: $user->{deposit} CREDIT: $user->{credit} Report id: $user->{REPORT_ID} DV STATUS: $user->{DV_STATUS} $user->{DESTINATION_ID}\n" if ($debug > 3);
+      $debug_output .= "LOGIN: $user->{LOGIN} ($user->{UID}) DEPOSIT: $user->{deposit} CREDIT: $user->{credit} Report id: $user->{REPORT_ID} INTERNET STATUS: $internet_status $user->{DESTINATION_ID}\n" if ($debug > 3);
 
       if ( $user->{BILL_ID} && defined( $user->{DEPOSIT} ) ){
         #Skip action for pay opearation
@@ -250,7 +272,7 @@ sub ureports_periodic_reports{
           FEES_INFO     => 1,
           UID           => $user->{UID},
           SKIP_DISABLED => 1,
-          SKIP_MODULES  => 'Ureports,Sqlcmd'
+          SKIP_MODULES  => 'Ureports,Sqlcmd',
         } );
 
         $user->{RECOMMENDED_PAYMENT} = 0;
@@ -294,7 +316,7 @@ sub ureports_periodic_reports{
 
         #Report 1 Deposit belove and dv status active
         if ( $user->{REPORT_ID} == 1 ){
-          if ( $user->{VALUE} > $user->{DEPOSIT} && !$user->{DV_STATUS} ){
+          if ( $user->{VALUE} > $user->{DEPOSIT} && !$internet_status ){
             %PARAMS = (
               DESCRIBE => "$lang{REPORTS} ($user->{REPORT_ID}) ",
               MESSAGE  => "$lang{DEPOSIT}: $user->{DEPOSIT}",
@@ -438,7 +460,7 @@ sub ureports_periodic_reports{
         }
 
         #Report 13 All service expired throught
-        elsif ( $user->{REPORT_ID} == 13 && !$user->{DV_STATUS} ){
+        elsif ( $user->{REPORT_ID} == 13 && !$internet_status ){
           if ( $total_daily_fee > 0
             || ($user->{EXPIRE_DAYS} && $user->{EXPIRE_DAYS} <= $user->{VALUE})){
 
@@ -476,14 +498,14 @@ sub ureports_periodic_reports{
         }
         #Report 15 15 Dv change status
         elsif ( $user->{REPORT_ID} == 15 ){
-          if ( $user->{DV_STATUS} && $user->{DV_STATUS} != 3 ){
+          if ( $internet_status && $internet_status != 3 ){
             my @service_status = ("$lang{ENABLE}", "$lang{DISABLE}", "$lang{NOT_ACTIVE}", "$lang{HOLD_UP}",
               "$lang{DISABLE}: $lang{NON_PAYMENT}", "$lang{ERR_SMALL_DEPOSIT}",
               "$lang{VIRUS_ALERT}" );
             %PARAMS = (
               DESCRIBE => "$lang{REPORTS}",
-              MESSAGE  => "Internet: $service_status[$user->{DV_STATUS}]",
-              SUBJECT  => "Internet: $service_status[$user->{DV_STATUS}]"
+              MESSAGE  => "Internet: $service_status[$internet_status]",
+              SUBJECT  => "Internet: $service_status[$internet_status]"
             );
           }
         }
@@ -581,10 +603,10 @@ sub ureports_periodic_reports{
             $debug_output .= " UID: $user->{UID} SUM: $sum REDUCTION: $user->{REDUCTION}\n";
           }
           else{
-            $fees->take( $user, $sum, { %PARAMS } );
-            if ( $fees->{errno} ){
-              print "Error: [$fees->{errno}] $fees->{errstr} ";
-              if ( $fees->{errno} == 14 ){
+            $Fees->take( $user, $sum, { %PARAMS } );
+            if ( $Fees->{errno} ){
+              print "Error: [$Fees->{errno}] $Fees->{errstr} ";
+              if ( $Fees->{errno} == 14 ){
                 print "[ $user->{UID} ] $user->{LOGIN} - Don't have money account";
               }
               print "\n";

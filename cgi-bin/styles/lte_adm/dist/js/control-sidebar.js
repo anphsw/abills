@@ -30,7 +30,7 @@
   /**
    * Toggles layout classes
    *
-   * @param String cls the layout class to toggle
+   * @param cls the layout class to toggle
    * @returns void
    */
   function change_layout(cls) {
@@ -39,7 +39,7 @@
 
   /**
    * Replaces the old skin with the new skin
-   * @param String cls the new skin class
+   * @param cls the new skin class
    * @returns Boolean false to prevent link's default action
    */
   function change_skin(cls) {

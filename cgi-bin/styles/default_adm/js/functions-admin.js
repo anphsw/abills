@@ -124,57 +124,19 @@ function PMA_markRowsInit() {
 }
 window.onload = PMA_markRowsInit;
 
-
-//hide tables onclick test
-$(document).ready(function () {
-  $('.tableHideShowImg').click(function () {
-    //console.log($(this).parents().eq(1).next());
-    $(this).parents().eq(1).next().slideToggle(0);
-    $(this).parents().eq(1).next().next().slideToggle(0);
-
-    console.log($(this).attr('src'));
-    if ($(this).attr('src').match(/.*dropup\.png$/)) {
-      $(this).attr('src', '/img/dropdown.png');
-    } else {
-      $(this).attr('src', '/img/dropup.png');
-    }
-
-  });
-  $('.js_cols_name').click(function () {
-
-    var prevPopupWindow = $(this).parents().eq(1).prev().children().children('div#open_popup_block_middle');
-    //console.log();
-    prevPopupWindow.css({
-      'overflow-y': 'scroll',
-      'margin-top': -((prevPopupWindow.height()) / 2),
-      'margin-left': -((prevPopupWindow.width()) / 2)
-    }).slideToggle(0);
-
-
-    $('#close_popup_window').click(function () {
-
-      $(this).parent().hide();
-    });
-  });
-
+$(function(){
   $('#hold_up_window, input[name=\"hold_up_window\"]').click(function (e) {
     e.preventDefault();
     var prevPopupWindow = $(this).closest('table').next('div#open_popup_block_middle');
     var close = prevPopupWindow.children('a#close_popup_window');
-
-    console.log(close);
     prevPopupWindow.css({
       'margin-top': -((prevPopupWindow.height()) / 2),
       'margin-left': -((prevPopupWindow.width()) / 2)
     }).slideToggle(0);
-
     close.click(function () {
       $(this).parent().hide();
     });
-
   });
-
-
 });
 
 
@@ -199,10 +161,10 @@ function defineHighlightRow() {
       var $color = $('.bg-success').css('background-color');
 
       //We need to know if it's been already colored
-      var trigger = ($this.css('background-color') == $color);
+      var trigger = ($this.css('background-color') === $color);
 
       //operate only on second click
-      var second_click = $this.prop('highlighted') == true;
+      var second_click = $this.prop('highlighted') === true;
       switch (second_click) {
         case true:
           switch (trigger) {
@@ -317,24 +279,55 @@ $(document).ready(function () {
 // Init header menus
 $(function () {
   
-  var HMessages    = new MessagesMenu('messages-menu', {});
-  var HResponsible = new MessagesMenu('responsible-menu', {
-    filter: function (message) {return (message['state_id'] === '0')}
+  var Proto_Events      = new EventsMenu('events-menu', {});
+  var Proto_Messages    = new MessagesMenu('messages-menu', {});
+  var Proto_Responsible = new MessagesMenu('responsible-menu', {
+    filter: function (message) {return (!message['state_id'] || message['state_id'] === '0')}
   });
-  var HEvents      = new EventsMenu('events-menu', {});
   
-  (function () {
-    if (HMessages.init()) window['HMessages'] = HMessages;
-  })();
+  var try_to_init_menu = function(name, menu_proto){
+    try {
+      if (menu_proto.init()) window[name] = menu_proto;
+    }
+    catch (E){
+      console.log("[ Header Menu ] Can't init %s : %s", name, E.toString());
+    }
+  };
   
-  (function () {
-    if (HResponsible.init()) window['HResponsible'] = HResponsible;
-  })();
+  try_to_init_menu('HEvents', Proto_Events);
+  try_to_init_menu('HMessages', Proto_Messages);
+  try_to_init_menu('HResponsible', Proto_Responsible);
+
+  var NOTEPAD_LIST_EXTENSION; NOTEPAD_LIST_EXTENSION = {
+    TYPE : 'TODOLIST',
+    SHOWED : {},
+    /**
+     * @return {boolean}
+     */
+    CALLBACK : function (notification) {
+      var id = notification.ID;
+    
+      //if (typeof this['SHOWED'] === 'undefined'){ this.SHOWED = {} }
+    
+      if (typeof NOTEPAD_LIST_EXTENSION.SHOWED[id] === 'undefined'){
+        new AModal()
+            .setRawMode(true)
+            .setId('TODOLIST_MODAL')
+            .onClose(function (){
+              AMessageChecker.seenMessage(false, notification['NOTICED_URL'])
+            })
+            .loadUrl('?get_index=notepad_checklist_modal&header=2&chg=1&NOTE_ID=' + id)
+            .show();
   
-  (function () {
-    if (HEvents.init()) window['HEvents'] = HEvents;
-  })();
+        NOTEPAD_LIST_EXTENSION.SHOWED[id] = true;
+      }
+      else {
+        return true;
+      }
+    }
+  };
   
+  AMessageChecker.extend(NOTEPAD_LIST_EXTENSION);
 });
 
 

@@ -305,6 +305,7 @@ sub online {
   }
 
   $attr->{SKIP_DEL_CHECK}=1;
+  $attr->{SORT_SHIFT}=1;
   $WHERE = $self->search_former($attr, [
       ['LOGIN',             'STR', 'IF(c.uid>0, u.id, c.user_name) AS login',      1 ],
       ['USER_NAME',         'STR', 'c.user_name',                                  1 ],
@@ -350,7 +351,7 @@ sub online {
       ['DV_EXPIRED',        'DATE',"IF(service.expire>'0000-00-00' AND service.expire <= CURDATE(), 1, 0) AS dv_expired", 1 ],
       ['DV_EXPIRE',         'DATE','service.expire AS dv_expire',                  1 ],
       ['IP',                'IP',  'service.ip',          'INET_NTOA(service.ip) AS ip' ],
-      ['NETMASK',           'IP',  'service.netmask',     'INET_NTOA(service.netmask) AS netmask' ],
+      # Duplicate ['NETMASK',           'IP',  'service.netmask',     'INET_NTOA(service.netmask) AS netmask' ],
       ['SIMULTANEONSLY',    'INT', 'service.logins',                              1 ],
       ['PORT',              'INT', 'service.port',                                1 ],
       #['SERVICE_FILTER_ID', 'STR', 'service.filter_id',                           1 ],
@@ -387,15 +388,15 @@ sub online {
 
   delete $self->{COL_NAMES_ARR};
 
-#	my $sort_position = ($SORT-1 < 1) ? 1 : $SORT-1;
-#  if($self->{SEARCH_FIELDS_ARR}->[$sort_position] =~ /ip/) {
-#  	$SORT = " c.framed_ip_address+0";
-#  }
   my $LIMIT = '';
 
   if ($attr->{LIMIT} && $attr->{PAGE_ROWS}) {
     $PG = ($attr->{PG}) ? $attr->{PG} : 0;
     $LIMIT = " LIMIT $PG, $attr->{PAGE_ROWS} ";
+  }
+
+  if($self->{SORT_BY}) {
+    $SORT = $self->{SORT_BY};
   }
 
   $self->query2("SELECT $self->{SEARCH_FIELDS}
@@ -429,7 +430,10 @@ sub online {
     push @{ $nas_sorted{$line->{nas_id}} }, $line ;
     $dub_logins{ $line->{user_name} }++ if ($line->{user_name});
     $dub_ports{ $line->{nas_id} }{ $line->{nas_port_id} }++ if ($line->{nas_port_id});
-    if ($line->{client_ip} && ($line->{status} && ($line->{status}==1 || ($line->{status}>=3 && $line->{status}<11))) ) {
+    if ($line->{client_ip}
+      && ($line->{status}
+          && ($line->{status}==1 || ($line->{status}>=3 && $line->{status}<11))
+          && $line->{status}!=6) ) {
       $dub_ips{ $line->{nas_id} }{ $line->{client_ip} }++
     }
   }
@@ -1490,8 +1494,8 @@ sub reports2 {
       ['DURATION_SEC',    'INT', 'SUM(l.duration)', 'SUM(l.duration) AS duration_sec' ],
       ['SUM',             'INT', 'SUM(l.sum)',  'SUM(l.sum) AS sum'                   ],
       ['LOCATION_ID',     'INT', 'builds.id', 'builds.id AS location_id',             ],
-      ['COORDX',          'INT', 'builds.coordx',                                        1 ],
-      ['COORDY',          'INT', 'builds.coordy',                                        1 ],
+      ['COORDX',          'INT', 'builds.coordx',                                   1 ],
+      ['COORDY',          'INT', 'builds.coordy',                                   1 ],
       ['FROM_DATE|TO_DATE','DATE',"DATE_FORMAT(l.start, '%Y-%m-%d')"                  ],
     ],
     {
@@ -1577,7 +1581,7 @@ sub reports2 {
     $EXT_TABLE_JOINS_HASH{users} = 1;
   }
 
-  if ( $attr->{USERS} ){
+  if ( $attr->{USERS} || $attr->{DEPOSIT} || $attr->{GID} || $admin->{GID}){
     $EXT_TABLE_JOINS_HASH{users} = 1;
   }
 

@@ -1,10 +1,9 @@
-<div class='noprint'>
-<form action='$SELF_URL' METHOD='POST'>
+<form action='$SELF_URL' METHOD='POST' class='form-horizontal'>
 <input type=hidden name='index' value='$index'>
 <input type=hidden name='ID' value='%ID%'>
 
-<div class='box box-form box-primary form-horizontal'>
-<div class='box-header with-border'>_{TARIF_PLANS}_</div>
+<div class='box box-big-form box-primary '>
+<div class='box-header with-border'><h4>_{TARIF_PLANS}_</h4></div>
 <div class='box-body'>
   <div class='form-group'>
     <label class='col-md-3 control-label'>_{NAME}_:</label>
@@ -21,7 +20,7 @@
   <div class='form-group'>
     <label class='col-md-3 control-label'>_{OPERATION_PAYMENT}_:</label>
     <div class='col-md-9'>
-      <input class='form-control' type=text name=PERCENTAGE value='%PERCENTAGE%'>
+      <input class='form-control' type=text name=OPERATION_PAYMENT value='%OPERATION_PAYMENT%'>
     </div>
   </div>
   <div class='form-group'>
@@ -62,11 +61,13 @@ TOTAL_SUM>100=PRICE:20;' name='PAYMENT_EXPR' cols=20 rows=5>%PAYMENT_EXPR%</text
     </div>
   </div>
   <div class='form-group'>
+<!--
   <div class='checkbox'>
     <label>
       <input type='checkbox' name=NAS_TP value='1' %NAS_TP%><strong>_{NAS}_</strong>
     </label>
   </div>
+-->
   </div>
   <div class='form-group'>
     <label class='col-md-3 control-label'>_{BONUS}_ _{CARDS}_:</label>
@@ -87,4 +88,3 @@ TOTAL_SUM>100=PRICE:20;' name='PAYMENT_EXPR' cols=20 rows=5>%PAYMENT_EXPR%</text
 </div>
 
 </form>
-</div>

@@ -277,7 +277,7 @@ sub list {
     { WHERE       => 1,
     	WHERE_RULES => \@WHERE_RULES,
     	USERS_FIELDS=> 1,
-    	SKIP_USERS_FIELDS=> [ 'BILL_ID', 'UID', 'LOGIN' ],
+    	SKIP_USERS_FIELDS=> [ 'BILL_ID', 'UID', ],
     	USE_USER_PI => 1
     }
     );
@@ -320,7 +320,7 @@ sub list {
     $list = $self->{list};
   }
 
-  $self->query2("SELECT count(p.id) AS total, SUM(p.sum) AS sum, count(DISTINCT p.uid) AS total_users
+  $self->query2("SELECT COUNT(p.id) AS total, SUM(p.sum) AS sum, COUNT(DISTINCT p.uid) AS total_users
     FROM payments p
   LEFT JOIN users u ON (u.uid=p.uid)
   LEFT JOIN admins a ON (a.aid=p.aid)

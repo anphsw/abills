@@ -11,10 +11,19 @@
 
           <div class='form-group'>
             <label class='control-label col-md-3 required' for='NAME_ID'>_{NAME}_</label>
+
             <div class='col-md-9'>
               <input type='text' class='form-control' value='%NAME%' required name='NAME' id='NAME_ID'/>
             </div>
           </div>
+
+          <div class='form-group'>
+            <label class='control-label col-md-3 required' for='TYPE_ID_SELECT'>_{TYPE}_</label>
+            <div class='col-md-9'>
+              %TYPE_ID_SELECT%
+            </div>
+          </div>
+
 
           <div class='form-group'>
             <label class='control-label col-md-3' for='INSTALLED_ID'>_{INSTALLED}_</label>
@@ -28,13 +37,6 @@
             <label class='control-label col-md-3' for='POINT_ID'>_{OBJECT}_</label>
             <div class='col-md-9'>
               %POINT_ID_SELECT%
-            </div>
-          </div>
-
-          <div class='form-group'>
-            <label class='control-label col-md-3' for='TYPE_ID_SELECT'>_{TYPE}_</label>
-            <div class='col-md-9'>
-              %TYPE_ID_SELECT%
             </div>
           </div>
 
@@ -52,7 +54,7 @@
           <hr/>
 
           <div class='form-group'>
-            <label class='control-label col-md-3' for='PARENT_ID'>_{PARENT_M}_ _{WELL}_</label>
+            <label class='control-label col-md-3' for='PARENT_ID'>_{INSIDE}_</label>
             <div class='col-md-9'>
               %PARENT_ID_SELECT%
             </div>
@@ -137,6 +139,20 @@
       // Refresh block with connecters
       jQuery('#WELL_CONNECTERS_LIST').load(' #WELL_CONNECTERS_LIST');
     });
+
+    // Auto max_prev_type name
+    {
+      // Select id
+      var select_id = 'TYPE_ID';
+      var count_of_type = JSON.parse('%COUNT_FOR_TYPE%');
+
+      var name_input = jQuery('input#NAME_ID');
+      var type_select = jQuery('select#' + select_id);
+      type_select.on('change', function(){
+        var name = type_select.find('option[value="' + this.value + '"]').text();
+        name_input.val(name + '_' + (+count_of_type[this.value] + 1));
+      });
+    }
   });
 
 </script>

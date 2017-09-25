@@ -1,73 +1,23 @@
-#!/bin/bash
-#
-# radiusd       This shell script takes care of starting and stopping
-#               freeradius.
-#
-# chkconfig: - 58 74
-# description: radiusd is service access provider Daemon. \
+[Unit]
+Description=FreeRADIUS Server
+After=network.target
+After=mysql.service
+Requires=mysql.service
 
-### BEGIN INIT INFO
-# Provides: radiusd
-# Should-Start: radiusd
-# Should-Stop: radiusd
-# Short-Description: start and stop radiusd
-# Description: radiusd is access provider service Daemon.
-### END INIT INFO
+[Service]
+Type=forking
 
-# Source function library.
-. /etc/init.d/functions
+PIDFile=/var/run/radiusd/radiusd.pid
+ExecStartPre=/usr/bin/touch /usr/local/freeradius/var/log/radius.log
+ExecStartPre=/usr/bin/chown freerad:freerad /usr/local/freeradius/var/log/radius.log
+ExecStartPre=/usr/bin/mkdir -p /var/run/radiusd
+ExecStartPre=/usr/bin/chown -R freerad:freerad /var/run/radiusd
+ExecStartPre=/usr/local/freeradius/sbin/radiusd -C
 
-prog=/usr/local/freeradius/sbin/radiusd
-lockfile=/var/lock/subsys/$prog
+ExecStart=/usr/local/freeradius/sbin/radiusd -d /usr/local/freeradius/etc/raddb
 
-start() {
-        # Start daemons.
-        echo -n $"Starting $prog: "
-        daemon $prog $OPTIONS
-        RETVAL=$?
-        echo
-        [ $RETVAL -eq 0 ] && touch $lockfile
-        return $RETVAL
-}
+ExecReload=/usr/local/freeradius/sbin/radiusd -C
+ExecReload=/bin/kill -HUP $MAINPID
 
-
-
-stop() {
-        [ "$EUID" != "0" ] && exit 4
-        echo -n $"Shutting down $prog: "
-        killproc $prog
-        RETVAL=$?
-        echo
-        [ $RETVAL -eq 0 ] && rm -f $lockfile
-        return $RETVAL
-}
-
-# See how we were called.
-case "$1" in
-  start)
-        start
-        ;;
-  stop)
-        stop
-        ;;
-  status)
-        status $prog
-        ;;
-  restart|force-reload)
-        stop
-        start
-        ;;
-  try-restart|condrestart)
-        if status $prog > /dev/null; then
-            stop
-            start
-        fi
-        ;;
-  reload)
-        exit 3
-        ;;
-  *)
-        echo $"Usage: $0 {start|stop|status|restart|try-restart|force-reload}"
-        exit 2
-esac
-
+[Install]
+WantedBy=multi-user.target

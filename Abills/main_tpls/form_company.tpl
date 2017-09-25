@@ -1,4 +1,4 @@
-<div class='box box-theme box-form'>
+<div class='box box-theme box-big-form'>
 <div class='box-body'>
 
 <form action='$SELF_URL' METHOD='POST' name='company' class='form-horizontal' enctype='multipart/form-data'>
@@ -14,21 +14,18 @@
       <input class='form-control' id='NAME' placeholder='%NAME%' name='NAME' value='%NAME%'>
     </div>
   </div>
-  
-    <div class='form-group'>
-    <label for='ADDRESS' class='control-label col-md-3'>_{ADDRESS}_:</label>
-    <div class='col-md-9'>
-      <input class='form-control' id='ADDRESS' placeholder='%ADDRESS%' name='ADDRESS' value='%ADDRESS%'>
-    </div>
-  </div>
-  
+
+
+  %ADDRESS_SELECT%
+
+
   <div class='form-group'>
     <label for='PHONE' class='control-label col-md-3'>_{PHONE}_:</label>
     <div class='col-md-9'>
       <input class='form-control' id='PHONE' placeholder='%PHONE%' name='PHONE' value='%PHONE%'>
     </div>
   </div>
-  
+
     <div class='form-group'>
     <label for='REPRESENTATIVE' class='control-label col-md-3'>_{REPRESENTATIVE}_:</label>
     <div class='col-md-9'>
@@ -45,7 +42,7 @@
      </div>
     </div>
    </div>
-   
+
     <div class='form-group'>
   <label class='control-label col-md-6' for='DEPOSIT'>_{DEPOSIT}_:</label>
   <div class='col-md-2'>
@@ -54,7 +51,7 @@
      </div>
     </div>
    </div>
-   
+
 %EXDATA%
 
 <div class='form-group'>
@@ -63,31 +60,31 @@
       <input class='form-control' id='CREDIT' placeholder='%CREDIT%' name='CREDIT' value='%CREDIT%'>
     </div>
   </div>
-  
+
   <div class='form-group'>
     <label for='CREDIT_DATE' class='control-label col-md-3'>_{DATE}_:</label>
     <div class='col-md-9'>
       <input class='datepicker form-control' id='CREDIT_DATE' placeholder='%CREDIT_DATE%' name='CREDIT_DATE' value='%CREDIT_DATE%'>
     </div>
   </div>
-  
+
   <div class='form-group'>
     <label for='VAT' class='control-label col-md-3'>_{VAT}_ (%):</label>
     <div class='col-md-9'>
       <input class='form-control' id='VAT' placeholder='%VAT%' name='VAT' value='%VAT%'>
     </div>
   </div>
-  
+
     <div class='form-group'>
     <label for='REGISTRATION' class='control-label col-md-3'>_{REGISTRATION}_:</label>
     <div class='col-md-9'>
       <input class='form-control' id='REGISTRATION' placeholder='%REGISTRATION%' name='REGISTRATION' value='%REGISTRATION%'>
     </div>
   </div>
-  
-  
+
+
   <legend>_{BANK_INFO}_</legend>
-  
+
    <div class='form-group'>
     <label for='TAX_NUMBER' class='control-label col-md-3'>_{TAX_NUMBER}_:</label>
     <div class='col-md-9'>
@@ -150,11 +147,13 @@
     <input id='DISABLE' name='DISABLE' value='1' %DISABLE%  type='checkbox'>
   </div>
    </div>
-   
+
    %INFO_FIELDS%
-   
+
    <div class='box-footer'>
       <input type='submit' class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
     </div>
    </fieldset>
 </form>
+
+</div></div>

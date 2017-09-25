@@ -25,8 +25,8 @@ if ( $conf{IPN_DETAIL} ){
 
 if ( $conf{IPN_USERMENU} ){
   my $main_index = 0; #get_get_function_index('dv_user_info');
-  #$USER_FUNCTION_LIST{"01:0:IP Net:ipn_user_activate:defaultindex"} = $main_index;
-  $USER_FUNCTION_LIST{"01:0:IP Net:ipn_user_activate:"} = $main_index;
+  $USER_FUNCTION_LIST{"01:0:IP Net:ipn_user_activate:defaultindex"} = $main_index;
+  #$USER_FUNCTION_LIST{"01:0:IP Net:ipn_user_activate:"} = $main_index;
   $USER_FUNCTION_LIST{"02:1:$lang{STATS}:ipn_sessions2:"} = $main_index;
   $USER_FUNCTION_LIST{"03:1:$lang{TRAFIC_TARIFS}:ipn_getnet:"} = $main_index;
 }

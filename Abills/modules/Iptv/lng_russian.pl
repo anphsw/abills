@@ -50,6 +50,7 @@ $lang{BIRTH_DATE}='Дата рождения';
 $lang{SEND_NEWS}='Отправлять новости';
 $lang{ERR_NOT_REGISTERED}='Не зарегистрировано';
 $lang{SCREENS}='Экраны';
+$lang{SCREEN}='Экран';
 
 $lang{UPLOAD_CHANNELS}='Импорт каналов';
 $lang{NO_CHANGES}='Без изменений';
@@ -61,3 +62,7 @@ $lang{NO_FILE}='Не добавлен файл';
 $lang{SUBSRIBES}='Подписки';
 $lang{PARENT_CONTROL}='Родительский контроль';
 $lang{UNSUBSCRIBE}='Отписаться';
+
+$lang{DISABLE_SERVICE}='Отключить услугу';
+$lang{DISABLED_WILL}='Услуга будет завершена';
+$lang{PROVIDER_PORTAL_URL}='Портал продавца услуги';

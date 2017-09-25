@@ -54,6 +54,11 @@ else {
   $conf{OS}   = $argv->{OS};
 }
 
+my $default_mysql_root_passwd = '';
+if ( $argv->{MYSQL_ROOT_PASSWD} ){
+  $default_mysql_root_passwd = $argv->{MYSQL_ROOT_PASSWD};
+}
+
 print "OS: $conf{OS}\n";
 
 my $startup_files = startup_files();
@@ -124,7 +129,7 @@ if (!-f $config_file) {
 
   print "Config file maked...\n";
 
-  if (!confirm_yn("Make ABillS mysql user account: ", "n")) {
+  if (confirm_yn("Make ABillS mysql user account: ", "y")) {
     #Check mysql running
     my $proc_list = `ps ax`;
     print $proc_list if ($debug > 5);
@@ -164,7 +169,7 @@ if (!-f $config_file) {
     print "MySQL path [$mysql]: ";
 
     my $mysql_root_user = 'root';
-    my $mysql_root_passwd = '';
+    my $mysql_root_passwd = $default_mysql_root_passwd || '';
     print "MySQL root user [$mysql_root_user]: ";
     chop($read = <STDIN>);
     $mysql_root_user = $read if ($read ne '');
@@ -206,6 +211,7 @@ if (!-f $config_file) {
         foreach my $module (@MODULES) {
           my $db_file = $Bin . "/../db/$module.sql";
           if (-f $db_file) {
+            print "Loading MySQL dump for $module \n";
             $res = `$mysql --default-character-set=$mk_config{dbcharset} -u $mysql_root_user --password='$mysql_root_passwd' -D $mk_config{dbname} < $db_file`;
           }
         }
@@ -643,7 +649,9 @@ sub get_file {
 }
 
 #********************************************************************
-# confirm_yn($message, $confirm)
+=head2 confirm_yn($message, $confirm)
+
+=cut
 #********************************************************************
 sub confirm_yn {
   my ($message, $confirm) = @_;

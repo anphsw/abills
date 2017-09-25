@@ -15,5 +15,6 @@ $lang{VIEWS} = 'views';
 
 $lang{BACK_TO} = 'Back to';
 $lang{SKIP} = 'Skip';
+$lang{PAGES} = 'Pages';
 
 1;

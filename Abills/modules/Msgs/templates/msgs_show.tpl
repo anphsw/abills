@@ -43,13 +43,18 @@
                             <div class='col-md-3'>%UPDATED%</div>
                         </div>
 
+                        <div class='row' style="display: %MSG_TAGS_DISPLAY_STATUS%">
+                            <div class='col-md-3'><strong>_{TAGS}_:</strong></div>
+                            <div class='col-md-9'>%MSG_TAGS%</div>
+                        </div>
+
                         <!-- progres start -->
                     %PROGRESSBAR%
                         <!-- progres -->
                     </div>
 
             </div>
-            
+
 
             <div class='box box-theme'>
                 <div class='box-header with-border'>

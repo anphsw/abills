@@ -9,7 +9,8 @@
     padding: 10px;
 
     float: left;
-
+    text-align: center;
+    line-height: 15px;
     /*margin: -1px;*/
 }
 

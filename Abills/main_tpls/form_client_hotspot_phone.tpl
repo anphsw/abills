@@ -1,5 +1,6 @@
-<form action='$SELF_URL' METHOD='POST' class='form-inline' name=admin_form>
+<form action='$SELF_URL' METHOD='POST' class='form-inline'>
     <input type=hidden name='GUEST_ACCOUNT' value='1'>
+    <input type=hidden name='mac' value='%mac%'>
     <input type=hidden name='DOMAIN_ID' value='%DOMAIN_ID%'>
 
     <fieldset>

@@ -65,5 +65,5 @@ form_client_main.tpl:russian:Main user portal template
 
 form_start_page.tpl:english:Admin interface start page
 form_start_page.tpl:russian:Стартовая страница административного интерфейса
-form_start_page.tpl:ukraine:Стартова сторінка адмін інтерфейсу
+form_start_page.tpl:ukrainian:Стартова сторінка адмін інтерфейсу
 

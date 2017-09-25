@@ -36,6 +36,14 @@
           </div>
         </div>
 
+        <div class='form-group'>
+          <div class='col-sm-offset-2 col-sm-10'>
+          <div class='checkbox'>
+            <label><input type='checkbox' name='GET_FEES' value='1' %GET_ABON_CHECKED%>_{GET_FEES}_</label>
+          </div>
+          </div>
+        </div>
+
         <input type=submit class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
 
       </fieldset>

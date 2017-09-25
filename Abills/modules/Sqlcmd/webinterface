@@ -328,6 +328,7 @@ sub sqlcmd {
     }
 
     $list = $Sqlcmd->list({ QUERY => "SHOW FULL COLUMNS FROM " . ($conf{dbname} ? $conf{dbname} : q{}) .".$FORM{TABLE_INFO}" });
+
     my @CAPTION = ();
     @CAPTION = @{ $Sqlcmd->{MYSQL_FIELDS_NAMES} } if ($Sqlcmd->{MYSQL_FIELDS_NAMES});
 
@@ -335,8 +336,6 @@ sub sqlcmd {
       {
         width   => '100%',
         caption => $FORM{TABLE_INFO},
-
-        #title_plain  => [$lang{NAME}, $lang{TYPE}, "$lang{MAX} $lang{LENGTH}", "NO NULL", 'INDEX', 'PRIMARY_INDEX'],
         title_plain => [ @CAPTION, '-' ]
       }
     );

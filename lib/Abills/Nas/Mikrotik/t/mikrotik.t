@@ -3,13 +3,29 @@ use strict;
 use warnings;
 use Test::More tests => 10;
 
+my $libpath = '';
 BEGIN{
-  unshift ( @INC, "../../" );
-  unshift ( @INC, "../../misc/mikrotik" );
+  use FindBin '$Bin';
+  $libpath = $Bin . '/../../../../../'; # Assuming we are in /usr/abills/lib/Abills/Nas/Mikrotik/t
 }
 
+use lib $libpath . '/';
+use lib $libpath . '/lib';
+use lib $libpath . '/lib/Abills';
+use lib $libpath . '/lib/Abills/Nas';
+use lib $libpath . '/Abills';
+use lib $libpath . '/Abills/mysql';
+
+use Abills::Base;
+
 my $debug = 0;
-my $test_host = '192.168.0.11';
+
+my $test_host = {
+  nas_ip => '192.168.2.1',
+  nas_mng_ip_port => "192.168.2.1:0:22022",
+  nas_type        => 'mikrotik',
+  nas_mng_user    => 'abills_admin',
+};
 
 my $test_comment = "ABills test. you can remove this";
 my $test_mac = '12:34:56:78:90:CC';
@@ -18,15 +34,16 @@ my %test_lease = (ip => '192.168.2.9', mac => $test_mac, tp_tp_id => '2', networ
 require_ok( 'Abills::Base' );
 require_ok( 'Abills::Nas::Mikrotik' );
 
-my $mikrotik = Abills::Nas::Mikrotik->new( { nas_mng_ip_port => "$test_host:0:22", }, undef, { DEBUG => $debug } );
+my $mikrotik = Abills::Nas::Mikrotik->new( $test_host, undef, { DEBUG => $debug } );
 
 ok( ref $mikrotik eq 'Abills::Nas::Mikrotik', "Constructor returned Abills::Nas::Mikrotik object" );
-if ( !ok( $mikrotik->check_access(), "Has access to $test_host" ) ){
+if ( !ok( $mikrotik->has_access(), "Has access to $test_host->{nas_ip} $mikrotik->{executor}->{port}" ) ){
+  _bp('', $mikrotik, {TO_CONSOLE => 1});
   die ( "Host is not accesible\n" );
 }
 
 # Add lease
-ok ( $mikrotik->add_leases( [ \%test_lease ], { SKIP_DHCP_NAME => 1, VERBOSE => $debug, SHOW_RESULT => 1 } ),
+ok ( $mikrotik->leases_add( [ \%test_lease ], { SKIP_DHCP_NAME => 1, VERBOSE => $debug, SHOW_RESULT => 1 } ),
   "Successfully added new lease" );
 
 # Check lease is really present
@@ -36,7 +53,7 @@ my $lease_id = get_id( $leases_list, 'mac-address', $test_mac );
 
 if ( ok( $lease_id != -1, "Added lease has been found on mikrotik" ) ){
   # Remove it
-  ok( $mikrotik->remove_leases( [ $lease_id ] ), "Removed lease with id $lease_id" );
+  ok( $mikrotik->leases_remove( [ $lease_id ] ), "Removed lease with id $lease_id" );
 };
 
 # get list of ip addresses
@@ -46,7 +63,7 @@ my $ip_addresses_list = $mikrotik->get_list( 'ip_a' );
 ok( is_correct_list( $leases_list ), "Returned correct list for ip addresses" );
 
 # check it contains host ip address
-ok ( get_id( $ip_addresses_list, 'address', $test_host, { REGEXP => 1 } ) != -1,
+ok ( get_id( $ip_addresses_list, 'address', $test_host->{nas_ip}, { REGEXP => 1 } ) != -1,
   "Found address we are communicating with" );
 
 sub get_id{

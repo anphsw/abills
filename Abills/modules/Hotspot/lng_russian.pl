@@ -15,5 +15,6 @@ $lang{VIEWS} = 'Показы';
 
 $lang{BACK_TO} = 'Перейти к';
 $lang{SKIP} = 'Пропустить';
+$lang{PAGES} = 'Страницы';
 
 1;

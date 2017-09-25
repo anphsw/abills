@@ -8,5 +8,8 @@ $lang{MASK} = 'Маска';
 $lang{EXTENDED} = 'Расширенный';
 $lang{SCAN} = 'Сканирование';
 $lang{DO_SCAN} = 'Сканировать';
+$lang{IP_ADDRESS} = 'IP адрес';
+
+$lang{SPLIT_TO} = 'Разбить на ';
 
 1

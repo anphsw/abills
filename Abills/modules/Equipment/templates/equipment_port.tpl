@@ -1,6 +1,6 @@
 <FORM action='$SELF_URL' METHOD='POST'>
     <input type='hidden' name='index' value='$index'>
-    <input type='hidden' name='ID' value='$FORM{chg}'>
+    <input type='hidden' name='ID' value='%ID%'>
     <input type='hidden' name='NAS_ID' value='$FORM{NAS_ID}'>
 
     <div class='box box-theme box-form center-block'>
@@ -35,6 +35,14 @@
 
                 <div class='col-md-7 control-element'>
                     %UPLINK_SEL%
+                </div>
+            </div>
+            
+            <div class='form-group'>
+                <label class='control-label col-md-5' for='VLAN'>VLAN:</label>
+
+                <div class='col-md-7 control-element'>
+                    <input type='text' name='VLAN' value='%VLAN%' class='form-control' ID='VLAN'/>
                 </div>
             </div>
 

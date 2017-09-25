@@ -6,9 +6,11 @@
 
 =cut
 
-our (%conf, %log_levels, $DATE, $var_dir);
+
 use strict;
 use warnings;
+
+our (%conf, %log_levels, $DATE, $var_dir);
 
 BEGIN {
   use FindBin '$Bin';
@@ -19,6 +21,7 @@ BEGIN {
 use Abills::Base qw(parse_arguments check_time);
 use POSIX qw(strftime);
 use Abills::SQL;
+use Admins;
 use Dhcphosts;
 use Nas;
 
@@ -76,9 +79,9 @@ sub mk_log {
 
   my $DATETIME = strftime "%Y-%m-%d %H:%M:%S", localtime(time);
   if ($argv->{LOG_FILE} || defined($argv->{'-d'})) {
-    open(FILE, ">> $logfile") || die "Can't open file '$logfile' $!\n";
-      print FILE "$DATETIME $type: $message\n";
-    close(FILE);
+    open(my $fh, ">> $logfile") || die "Can't open file '$logfile' $!\n";
+      print $fh "$DATETIME $type: $message\n";
+    close($fh);
   }
   else {
     print "$DATETIME $message\n";

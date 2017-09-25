@@ -36,8 +36,6 @@ our $Equipment = Equipment->new($db, $Admin, \%conf);
 my $Events = Events->new($db, $Admin, \%conf);
 
 do 'Abills/Misc.pm';
-#unshift( @INC, '/usr/abills/Abills/modules/' );
-#load_module('Equipment');
 
 require Equipment::Grabbers;
 require Equipment::Pon_mng;
@@ -137,6 +135,12 @@ sub _equipment_pon_load  {
     $nas_info->{nas_mng_password} = 'public';
     #next;
   }
+  elsif(! $nas_info->{nas_ip}) {
+    print "NAS_ID: $nas_info->{nas_id} deleted\n";
+    next;
+  }
+
+  $nas_info->{nas_mng_password} //= 'public';
   my $SNMP_COMMUNITY = "$nas_info->{nas_mng_password}\@" . (($nas_info->{nas_mng_ip_port}) ? $nas_info->{nas_mng_ip_port} : $nas_info->{nas_ip});
 
 #  if($SNMP_COMMUNITY =~ /(.+):(.+)/) {

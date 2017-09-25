@@ -340,7 +340,9 @@ sub header {
 }
 
 #**********************************************************
-# table
+=head2 table()
+
+=cut
 #**********************************************************
 sub table {
   my $proto  = shift;
@@ -359,6 +361,10 @@ sub table {
 
   if (defined($attr->{rowcolor})) {
     $self->{rowcolor} = $attr->{rowcolor};
+  }
+
+  if ($attr->{SELECT_ALL}) {
+    $self->{SELECT_ALL}=$attr->{SELECT_ALL};
   }
 
   if (defined($attr->{rows})) {
@@ -393,13 +399,15 @@ sub table {
 }
 
 #**********************************************************
-# addrows()
+=head2 addrows(@rows)
+
+=cut
 #**********************************************************
 sub addrow {
   my $self = shift;
   my (@row) = @_;
 
-  my $extra = (defined($self->{extra})) ? " $self->{extra}" : '';
+  #my $extra = (defined($self->{extra})) ? " $self->{extra}" : '';
   $row_number++;
   my $col_num=0;
 
@@ -417,27 +425,34 @@ sub addrow {
 }
 
 #**********************************************************
-# addrows()
+=head2 addrows(@row)
+
+=cut
 #**********************************************************
 sub addtd {
   my $self  = shift;
   my (@row) = @_;
-  my $extra = (defined($self->{extra})) ? $self->{extra} : '';
+  #my $extra = (defined($self->{extra})) ? $self->{extra} : '';
 
-  foreach my $val (@row) {
+  my $select_present = ($self->{SELECT_ALL}) ? 1 : 0;
+
+  for (my $i=0; $i<=$#row; $i++) {
+    my $val = $row[($i + $select_present)];
     $self->{rows} .= "$val$COLS_SEPARATOR";
   }
+
   $self->{rows} .= "\n";
   return $self->{rows};
 }
 
 #**********************************************************
-# Extendet add rows
-# th()
+=head2 th() Extendet add rows
+
+=cut
 #**********************************************************
 sub th {
   my $self = shift;
-  my ($value, $attr) = @_;
+  my ($value) = @_;
 
   return $self->td($value, { TH => 1 });
 }
@@ -450,11 +465,6 @@ sub th {
 sub td {
   my $self = shift;
   my ($value, $attr) = @_;
-#  my $extra = '';
-#
-#  while (my ($k, $v) = each %$attr) {
-#    #$extra.=" $k=\"$v\"";
-#  }
 
   my $td = '';
   if ($attr->{TH}) {
@@ -469,8 +479,12 @@ sub td {
 }
 
 #**********************************************************
-# title_plain($caption)
-# $caption - ref to caption array
+=head2 title_plain($caption)
+
+  Arguments:
+    $caption - ref to caption array
+
+=cut
 #**********************************************************
 sub table_title_plain {
   my $self = shift;
@@ -478,25 +492,26 @@ sub table_title_plain {
 
   $self->{table_title} = '';
 
-  my $i = 0;
   foreach my $line (@$caption) {
-    $self->{table_title} .= " $line $COLS_SEPARATOR;";
-    $i++;
+    $self->{table_title} .= "$line$COLS_SEPARATOR";
   }
 
-  $self->{table_title}="\n";
+  $self->{table_title}.="\n";
 
   return $self->{table_title};
 }
 
 #**********************************************************
-# Show table column  titles with wort derectives
-# Arguments
-# table_title($sort, $desc, $pg, $caption, $qs);
-# $sort - sort column
-# $desc - DESC / ASC
-# $pg - page id
-# $caption - array off caption
+=head2 table_title($sort, $desc, $pg, $caption, $qs) - Show table column  titles with wort derectives
+
+  Arguments
+    table_title($sort, $desc, $pg, $caption, $qs);
+    $sort - sort column
+    $desc - DESC / ASC
+    $pg - page id
+    $caption - array off caption
+
+=cut
 #**********************************************************
 sub table_title {
   my $self = shift;
@@ -841,11 +856,17 @@ sub letters_list {
 }
 
 #**********************************************************
-# Mark text
+=head2 color_mark($message, $color, $attr)
+
+=cut
 #**********************************************************
 sub color_mark {
   my $self = shift;
   my ($message, $color, $attr) = @_;
+
+  if(! $self->{COLOR_MARKS}) {
+    return $message;
+  }
 
   return $message if ($attr->{SKIP_XML});
 
@@ -887,15 +908,6 @@ sub element {
   }
 
   return $self->{FORM_INPUT};
-}
-
-#**********************************************************
-# list item
-#**********************************************************
-sub li {
-	my $self = shift;
-
-  return "item";
 }
 
 #**********************************************************

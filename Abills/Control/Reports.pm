@@ -6,7 +6,7 @@
 
 use strict;
 use warnings FATAL => 'all';
-use Abills::Base qw(in_array cfg2hash int2byte sec2time days_in_month);
+use Abills::Base qw(in_array cfg2hash int2byte sec2time days_in_month _bp);
 
 our(
   $html,
@@ -23,19 +23,23 @@ our(
 #**********************************************************
 =head2 reports($attr) - Reports panel
 
+  If $FORM{DATE} defined, will show additional table for day choose
+
   Arguments:
     $attr
-      FIELDS      - Show extra fields
-      NO_TAGS     - Skip tag panel. Default if module tags showing is enable
-      PERIOD_FORM - Show period form Drom date to date
-      DATE_RANGE  - Data renge form
-      PERIODS     - SHow periods select
-      TIME_FORM   - Show Time form from hour to hour
-      NO_GROUP    - Hide group select
-      EX_INPUTS   - Extra inputs
-      HIDDEN      - Add hidden fields
-      EXT_TYPE    - Extra reports type hash_ref
-      EX_PARAMS   - Extra params
+      FIELDS           - Show extra fields
+      NO_TAGS          - Skip tag panel. Default if module tags showing is enable
+      PERIOD_FORM      - Show period form Drom date to date
+      DATE_RANGE       - Data renge form
+      PERIODS          - SHow periods select
+      TIME_FORM        - Show Time form from hour to hour
+      NO_GROUP         - Hide group select
+      EX_INPUTS        - Extra inputs
+      EXT_SELECT       - Additional select
+      EXT_SELECT_NAME  - Additional select label
+      HIDDEN           - Add hidden fields
+      EXT_TYPE         - Extra reports type hash_ref
+      EX_PARAMS        - Extra params ( only for $FORM{DATE} handling)
 
   Results:
 
@@ -140,8 +144,9 @@ sub reports{
       @rows = (
         $html->element( 'label', "$lang{DATE}: ")
         . $html->form_daterangepicker({
-            NAME => 'FROM_DATE/TO_DATE',
+            NAME      => 'FROM_DATE/TO_DATE',
             FORM_NAME => 'report_panel',
+            VALUE     => $attr->{DATE} || $FORM{'FROM_DATE_TO_DATE'},
             WITH_TIME => $attr->{TIME_FORM} || 0
           })
       );
@@ -194,7 +199,7 @@ sub reports{
 
     #Show extra select form
     if($attr->{EXT_SELECT}){
-      push @rows, "$attr->{EXT_SELECT_NAME}: ";
+      push @rows, "$attr->{EXT_SELECT_NAME}: " if ($attr->{EXT_SELECT_NAME});
       push @rows,$attr->{EXT_SELECT};
     }
 
@@ -238,7 +243,7 @@ sub reports{
       class   => 'form form-inline',
     });
 
-    if ( $FORM{show} ){
+    if ( $FORM{show} && $FORM{FROM_DATE} ){
       $pages_qs .= "&show=1&FROM_DATE=$FORM{FROM_DATE}&TO_DATE=$FORM{TO_DATE}";
       $LIST_PARAMS{TYPE} = $FORM{TYPE};
       $LIST_PARAMS{INTERVAL} = "$FORM{FROM_DATE}/$FORM{TO_DATE}";
@@ -307,7 +312,6 @@ sub reports{
     my $table = $html->table(
       {
         width      => '100%',
-        cols_align => [ 'right', 'left' ],
         rows       => \@rows
       }
     );
@@ -318,10 +322,13 @@ sub reports{
 }
 
 #**********************************************************
-#
+=head2 report_fees_month()
+
+=cut
 #**********************************************************
 sub report_fees_month{
   $FORM{allmonthes} = 1;
+  $FORM{TYPE} //= 'PER_MONTH';
   report_fees();
 }
 
@@ -402,6 +409,7 @@ sub report_fees{
     }
     elsif ( $type eq 'PER_MONTH' ){
       $x_text = 'month';
+      undef $graph_type;
     }
     elsif ( $type eq 'DISTRICT' ){
       $x_text = 'district_name';
@@ -412,7 +420,10 @@ sub report_fees{
     elsif ( $type eq 'HOURS' ){
       $graph_type = 'hour_stats';
     }
-
+    elsif ($type eq 'DAYS'){
+      $x_text = 'month';
+    }
+    
     $CHARTS{TYPES} = {
       login_count => 'column',
       count       => 'column',
@@ -420,6 +431,7 @@ sub report_fees{
       arppu       => 'line',
       arpu        => 'line',
     };
+    $CHARTS{SKIP_COMPARE} = 1;
 
     ($table_fees, $list) = result_former( {
       INPUT_DATA      => $Fees,
@@ -470,25 +482,23 @@ sub report_fees{
     });
   }
 
-  if ( $graph_type ne '' ){
-    print $html->make_charts(
-        {
-          PERIOD        => $graph_type,
-          DATA          => \%DATA_HASH,
-          TITLE         => $lang{PAYMENTS},
-          TRANSITION    => 1,
-          OUTPUT2RETURN => 1,
-          %CHARTS
-        }
-      );
-  }
+  
+  print $html->make_charts(
+      {
+        PERIOD        => $graph_type || '',
+        DATA          => \%DATA_HASH,
+        TRANSITION    => 1,
+        OUTPUT2RETURN => 1,
+        %CHARTS
+      }
+    );
+  
 
   print $table_fees->show();
 
   my $table = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right', 'right', 'right', 'right', 'right' ],
       rows       => [ [ "$lang{USERS}: " . $html->b( $Fees->{USERS} ), "$lang{TOTAL}: " . $html->b( $Fees->{TOTAL} ),
         "$lang{SUM}: " . $html->b( $Fees->{SUM} ) ] ],
       rowcolor   => 'even'
@@ -500,11 +510,17 @@ sub report_fees{
 }
 
 #**********************************************************
-#
+=head2 report_payments_month()
+
+=cut
 #**********************************************************
 sub report_payments_month{
   $FORM{allmonthes} = 1;
+  $FORM{TYPE} //= 'PER_MONTH';
+
   report_payments();
+
+  return 1;
 }
 
 
@@ -539,7 +555,7 @@ sub report_payments{
 
   reports(
     {
-      DATE        => $FORM{DATE},
+      DATE        => $FORM{FROM_DATE_TO_DATE} || $FORM{DATE},
       REPORT      => '',
       PERIOD_FORM => 1,
       DATE_RANGE  => 1,
@@ -558,7 +574,7 @@ sub report_payments{
   );
 
   $LIST_PARAMS{PAGE_ROWS} = 1000000;
-  my $payments = Finance->payments( $db, $admin, \%conf );
+  my $Payments = Finance->payments( $db, $admin, \%conf );
 
   my $graph_type = '';
   my Abills::HTML $table;
@@ -585,7 +601,7 @@ sub report_payments{
       $graph_type = 'month_stats';
     }
     my $x_text = 'date';
-
+    
     if ( $type eq 'PAYMENT_METHOD' ){
       $x_text = 'method';
     }
@@ -597,6 +613,7 @@ sub report_payments{
     }
     elsif ( $type eq 'PER_MONTH' ){
       $x_text = 'month';
+      undef $graph_type;
     }
     elsif ( $type eq 'DISTRICT' ){
       $x_text = 'district_name';
@@ -607,7 +624,10 @@ sub report_payments{
     elsif ( $type eq 'HOURS' ){
       $graph_type = 'hour_stats';
     }
-
+    elsif ($type eq 'DAYS'){
+      $x_text = 'month';
+    }
+    
     %CHARTS = (
       TYPES => {
         login_count => 'column',
@@ -615,11 +635,12 @@ sub report_payments{
         sum         => 'line',
         arppu       => 'line',
         arpu        => 'line',
-      }
+      },
+      SKIP_COMPARE => 1
     );
 
     ($table, $list) = result_former( {
-      INPUT_DATA      => $payments,
+      INPUT_DATA      => $Payments,
       FUNCTION        => 'reports',
       BASE_FIELDS     => ($type =~ /MONTH/) ? 6 : 4,
       #DEFAULT_FIELDS  => 'ARPU',
@@ -652,6 +673,7 @@ sub report_payments{
         method        => "search_link:report_payments:METHOD,TYPE=USER,$pages_qs",
         login         => "search_link:from_users:UID,$type=1,$pages_qs",
         date          => "search_link:report_payments:DATE,DATE",
+        month         => "search_link:report_payments:MONTH,$pages_qs",
         build         => "search_link:report_payments:LOCATION_ID,LOCATION_ID,TYPE=USER,$pages_qs",
         district_name => "search_link:report_payments:DISTRICT_ID,DISTRICT_ID,TYPE=USER,$pages_qs",
         street_name   => "search_link:report_payments:STREET_ID,STREET_ID,TYPE=USER,$pages_qs",
@@ -671,8 +693,6 @@ sub report_payments{
   print $html->make_charts({
     PERIOD        => $graph_type,
     DATA          => \%DATA_HASH,
-    TITLE         => $lang{PAYMENTS},
-    TRANSITION    => 1,
     OUTPUT2RETURN => 1,
     %CHARTS
   });
@@ -682,10 +702,9 @@ sub report_payments{
   $table = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right', 'right', 'right' ],
-      rows       => [ [ "$lang{USERS}: " . $html->b( $payments->{TOTAL_USERS} ),
-        "$lang{TOTAL}: " . $html->b( $payments->{TOTAL_OPERATION} ),
-        "$lang{SUM}: " . $html->b( $payments->{TOTAL_SUM} ) ] ],
+      rows       => [ [ "$lang{USERS}: " . $html->b( $Payments->{TOTAL_USERS} ),
+        "$lang{TOTAL}: " . $html->b( $Payments->{TOTAL_OPERATION} ),
+        "$lang{SUM}: " . $html->b( $Payments->{TOTAL_SUM} ) ] ],
     }
   );
 
@@ -806,8 +825,7 @@ sub form_system_changes{
   my $table = $html->table(
     {
       width      => '100%',
-      title      => [ '#', $lang{DATE}, $lang{CHANGED}, $lang{ADMIN}, 'IP', "$lang{MODULES}", "$lang{TYPE}", '-' ],
-      cols_align => [ 'right', 'left', 'right', 'left', 'left', 'right', 'left', 'left', 'center:noprint' ],
+      title      => [ '#', $lang{DATE}, $lang{CHANGED}, $lang{ADMIN}, 'IP', $lang{MODULES}, $lang{TYPE}, '-' ],
       qs         => $pages_qs,
       pages      => $admin->{TOTAL},
       ID         => 'ADMIN_SYSTEM_ACTIONS',
@@ -844,7 +862,6 @@ sub form_system_changes{
   $table = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right' ],
       rows       => [ [ "$lang{TOTAL}:", $html->b( $admin->{TOTAL} ) ] ]
     }
   );
@@ -861,13 +878,17 @@ sub form_system_changes{
 #**********************************************************
 sub report_webserver{
   my $web_error_log = $conf{WEB_SERVER_ERROR_LOG} || "/var/log/httpd/abills-error.log";
-
+  
+  if ($web_error_log !~ /^([\w\-\.\/]*)$/) {
+    $html->message('err', $lang{ERROR}, "Forbidden symbol in '$web_error_log'.\n");
+    return 0;
+  }
+  
   my $table = $html->table(
     {
       caption     => 'WEB server info',
       width       => '600',
-      title_plain => [ "$lang{NAME}", "$lang{VALUE}", "-" ],
-      cols_align  => [ 'left', 'left', 'center' ],
+      title_plain => [ $lang{NAME}, $lang{VALUE}, "-" ],
       ID          => 'WEBSERVER_INFO'
     }
   );
@@ -879,27 +900,24 @@ sub report_webserver{
 
   $table = $html->table(
     {
-      caption     => $web_error_log || '/var/log/httpd/abills-error.log',
+      caption     => $web_error_log,
       width       => '100%',
-      title_plain => [ "$lang{DATE}", "$lang{ERROR}", "CLIENT", "LOG" ],
-      cols_align  => [ 'left', 'left', 'left', 'left' ],
+      title_plain => [ $lang{DATE}, $lang{ERROR} ],
       ID          => 'WEBSERVER_LOG'
     }
   );
 
+  #my $br = $html->br();
   if ( -f $web_error_log ){
-    open( my $fh, '|-', "/usr/bin/tail -100 $web_error_log" ) or print $html->message( 'err', $lang{ERROR},
-        "Can't open file $!" );
-    while (<$fh>) {
-      if ( /\[(.+)\] \[(\S+)\] \[client (.+)\] (.+)/ ){
-        $table->addrow( $1, $2, $3, $4 );
-      }
-      else{
-        $table->addrow( '', '', '', $_ );
+    my $file_content = `tail -100 "$web_error_log"`;
+    print $file_content;
+    my @file_lines = reverse(split(/\r?\n/, $file_content));
+    
+    foreach my $log_line (@file_lines) {
+      if ($log_line =~ m/\[(.+)\]\s+(.+)/) {
+        $table->addrow($1, $2 );
       }
     }
-    close( $fh );
-
     print $table->show();
   }
 
@@ -976,7 +994,6 @@ sub report_ui_last_sessions{
   my $table2 = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right' ],
       rows       => [ [ $html->button( "$lang{ACTIV}", "index=$index&&ACTIVE=300" ) . ':', $users->{TOTAL} ] ],
     }
   );
@@ -1376,6 +1393,7 @@ sub reports_facebook_users_info {
                           3 => 'Google+',
                           4 => 'Instagram');
   $LIST_PARAMS{SOCIAL_NETWORK_ID}=1;
+  $LIST_PARAMS{PAGE_ROWS}=5000;
 
   result_former(
     {

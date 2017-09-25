@@ -720,6 +720,8 @@ sub message {
                       $id
                      }/;
 
+  $json_body =~ s/\n/ /gm;
+  
   if (! $attr->{OUTPUT2RETURN}) {
     push @{ $self->{JSON_OUTPUT} }, {
         $tpl_id => $json_body

@@ -10,7 +10,7 @@ no strict 'vars';
 use warnings FATAL => 'all';
 use Abills::Defs;
 use Abills::Base qw(ip2int date_diff mk_unique_value convert in_array
-  days_in_month startup_files cfg2hash urlencode cmd check_time gen_time);
+  days_in_month startup_files cfg2hash urlencode cmd check_time gen_time next_month);
 use Abills::Filters;
 use Abills::Fetcher;
 use POSIX qw(strftime mktime);
@@ -18,7 +18,7 @@ our Abills::HTML $html;
 our ($db,
   $admin,
   $base_dir,
-  $added,
+#  $added,
   %permissions,
   %menu_args,
   %module,
@@ -56,34 +56,41 @@ sub load_pmodule {
 
   my $result = '';
 
-if (!$@) {
-  if ($attr->{IMPORT}) {
-    $name->import( $attr->{IMPORT} );
+  if (!$@) {
+    if ($attr->{IMPORT}) {
+      $name->import( $attr->{IMPORT} );
+    }
+    else {
+      $name->import();
+    }
   }
   else {
-    $name->import();
-  }
-}
-else {
-  $result = "Content-Type: text/html\n\n" if ($user->{UID} || $attr->{HEADER});
-  $result .= "Can't load '$name'\n".
-        " Install Perl Module <a href='http://abills.net.ua/wiki/doku.php/abills:docs:manual:soft:$name' target='_install'>$name</a> \n".
-        " Main Page <a href='http://abills.net.ua/wiki/doku.php/abills:docs:other:ru?&#ustanovka_perl_modulej' target='_install'>Perl modules installation</a>\n".
-        " or install from <a href='http://www.cpan.org'>CPAN</a>\n";
+    $result = "Content-Type: text/html\n\n" if ($user->{UID} || $attr->{HEADER});
+    $result .= "Can't load '$name'\n\n"
+      ." ============================================================================== \n"
+      ." Install Perl Module <a href='http://abills.net.ua/wiki/doku.php/abills:docs:manual:soft:$name' target='_install'>$name</a> \n"
+      ." ============================================================================== \n"
+      ." Main Page <a href='http://abills.net.ua/wiki/doku.php/abills:docs:other:ru?&#ustanovka_perl_modulej' target='_install'>Perl modules installation</a>\n"
+      ." or install from <a href='http://www.cpan.org'>CPAN</a>\n"
+      ." ============================================================================== \n";
 
-  $result .= "$@" if ($attr->{DEBUG});
+    if ($attr->{DEBUG}) {
+      $result .= " DEBUG:   ===================================================================== \n";
+      $result .= "$@";
+      $result .= " ============================================================================== \n";
+    }
 
-  #print "Purchase this module http://abills.net.ua";
-  if ($attr->{SHOW_RETURN}) {
-    return $result;
-  }
-  elsif (! $attr->{RETURN} ) {
+    #print "Purchase this module http://abills.net.ua";
+    if ($attr->{SHOW_RETURN}) {
+      return $result;
+    }
+    elsif (!$attr->{RETURN}) {
+      print $result;
+      die;
+    }
+
     print $result;
-    die;
   }
-
-  print $result;
-}
 
   return 0;
 }
@@ -139,7 +146,6 @@ sub load_module {
   #if($attr->{RELOAD}) {
   #  delete $INC{"$module/webinterface"};
   #}
-
   eval{ require "$module/webinterface" };
   if ($@) {
     print "Content-Type: text/html\n\n";
@@ -399,8 +405,14 @@ sub _function {
 
     $attr->{ALL}=1;
     if ($attr->{ALL}) {
-      $inputs = "\n========================\n";
+      $inputs = "\nFORM ========================\n";
       foreach my $key (sort keys %FORM) {
+        next if ($key eq '__BUFFER');
+        $inputs .= "$key -> ". ($FORM{$key} || '') ."\n";
+      }
+
+      $inputs = "\nCOOKIES ========================\n";
+      foreach my $key (sort keys %COOKIES) {
         next if ($key eq '__BUFFER');
         $inputs .= "$key -> ". ($FORM{$key} || '') ."\n";
       }
@@ -469,15 +481,17 @@ $inputs
 #**********************************************************
 sub cross_modules_call {
   my ($function_sufix, $attr) = @_;
-  my $timeout = $attr->{timeout} || 3;
+  my $timeout = $attr->{timeout} || 4;
 
   if ($attr->{HTML}) {
     $html = $attr->{HTML};
   }
-
-  if ($attr->{SUM} && ! $added) {
+  # $added changed to $attr->{USER_INFO}->{PAYMENTS_ADDED}
+  #if ($attr->{SUM} && ! $added)
+  if ($attr->{SUM} && ! $attr->{USER_INFO}->{PAYMENTS_ADDED}) {
     $attr->{USER_INFO}->{DEPOSIT} += $attr->{SUM};
-    $added=1;
+    $attr->{USER_INFO}->{PAYMENTS_ADDED}=1;
+    # $added = 1;
   }
 
   #Default silent mode (off)
@@ -542,12 +556,11 @@ sub cross_modules_call {
         print gen_time($check_time) . " <br>\n ";
         $check_time = check_time();
       }
-
       $full_return{$mod} = $return;
     }
   };
 
-  if ($silent) {
+  if ($silent && $SAVEOUT) {
     # off disable stdout output
     open(STDOUT, ">&", $SAVEOUT);
   }
@@ -581,7 +594,7 @@ sub get_function_index {
 
   foreach my $k (sort keys (%functions)) {
     my $v = $functions{$k};
-    if ($v eq $function_name && $k =~ /^\d+$/) {
+    if ($v && $v eq $function_name && $k =~ /^\d+$/) {
       $function_index = $k;
       if ($attr->{ARGS} && defined($menu_args{$k})) {
         if ($attr->{ARGS} eq 'empty' && $menu_args{$k} eq '') {
@@ -667,8 +680,8 @@ sub fees_dsc_former {
   my ($attr)=@_;
 
   my $template_key_name = $attr->{TEMPLATE_KEY_NAME} || 'DV_FEES_DSC';
-    
-  if (! $attr->{SERVICE_NAME}) {
+
+  if (! defined($attr->{SERVICE_NAME})) {
     $attr->{SERVICE_NAME}='Internet';
   }
 
@@ -731,12 +744,15 @@ sub service_get_month_fee {
     ACTIVATE  => 0,
     MONTH_FEE => 0
   );
-  my $service_name = $attr->{SERVICE_NAME} || 'Internet';
 
-  $Users = $user if ($user->{UID});
+  my $service_name = $attr->{SERVICE_NAME} || 'Internet';
+  my $tp = $Service->{TP_INFO};
+  $Users = $user if ($user && $user->{UID});
   if (! $Users->{BILL_ID}) {
     $user  = $Users->info($Service->{UID});
   }
+
+  my $service_activate = $Service->{ACTIVATE} || $Users->{ACTIVATE};
 
   #Make bonus
   if ($conf{DV_BONUS} && $service_name eq 'Internet') {
@@ -750,9 +766,9 @@ sub service_get_month_fee {
     }
 
     my $Bonus_rating = Bonus_rating->new($Service->{db}, $admin, \%conf);
-    $Bonus_rating->info($Service->{TP_INFO}->{TP_ID});
+    $Bonus_rating->info($tp->{TP_ID});
 
-    if ($Bonus_rating->{TOTAL} > 0) {
+    if ($Bonus_rating->{TOTAL} && $Bonus_rating->{TOTAL} > 0) {
       my $bonus_sum = 0;
       if ($FORM{add} && $Bonus_rating->{ACTIVE_BONUS} > 0) {
         $bonus_sum = $Bonus_rating->{ACTIVE_BONUS};
@@ -787,20 +803,20 @@ sub service_get_month_fee {
 
   my %FEES_METHODS = %{ get_fees_types() };
   #Get active price
-  if ($Service->{TP_INFO}->{ACTIV_PRICE} && $Service->{TP_INFO}->{ACTIV_PRICE} > 0) {
+  if ($tp->{ACTIV_PRICE} && $tp->{ACTIV_PRICE} > 0) {
     my $date  = ($user->{ACTIVATE} ne '0000-00-00') ? $user->{ACTIVATE} : $DATE;
     my $time  = ($user->{ACTIVATE} ne '0000-00-00') ? '00:00:00' : $TIME;
 
     if (!$Service->{OLD_STATUS} || $Service->{OLD_STATUS} == 2) {
       $Fees->take(
         $Users,
-        $Service->{TP_INFO}->{ACTIV_PRICE},
+        $tp->{ACTIV_PRICE},
         {
           DESCRIBE => '$lang{ACTIVATE_TARIF_PLAN}',
           DATE     => "$date $time"
         }
       );
-      $total_sum{ACTIVATE} = $Service->{TP_INFO}->{ACTIV_PRICE};
+      $total_sum{ACTIVATE} = $tp->{ACTIV_PRICE};
       $html->message('info', $lang{INFO}, "$lang{ACTIVATE_TARIF_PLAN}") if ($html && ! $attr->{QUITE});
     }
   }
@@ -813,21 +829,24 @@ sub service_get_month_fee {
   my $TIME = "00:00:00";
   my %FEES_PARAMS = (
     DATE   => "$DATE $TIME",
-    METHOD => ($Service->{TP_INFO}->{FEES_METHOD}) ? $Service->{TP_INFO}->{FEES_METHOD} : 1
+    METHOD => ($tp->{FEES_METHOD}) ? $tp->{FEES_METHOD} : 1
   );
 
-  if ($attr->{SHEDULER} && $Users->{ACTIVATE} ne '0000-00-00') {
-    if($Service->{PERSONAL_TP} && $Service->{PERSONAL_TP} > 0) {
-      $Service->{TP_INFO}->{MONTH_FEE}=$Service->{PERSONAL_TP};
-      $Service->{TP_INFO_OLD}->{MONTH_FEE}=$Service->{PERSONAL_TP};
-    }
+  if($Service->{PERSONAL_TP} && $Service->{PERSONAL_TP} > 0) {
+    $tp->{MONTH_FEE}=$Service->{PERSONAL_TP};
+    $Service->{TP_INFO_OLD}->{MONTH_FEE}=$Service->{PERSONAL_TP};
+  }
 
+  if ($attr->{SHEDULER} && ($service_activate ne '0000-00-00' || $tp->{ABON_DISTRIBUTION})) {
     undef $user;
     return \%total_sum;
   }
 
+#  if($tp->{MONTH_FEE}) {
+#    print "1111111111// Ctive price// $tp->{ACTIV_PRICE} !! $service_activate  // $tp->{MONTH_FEE} ";
+#  }
   #Get back month fee
-  if (($Service->{TP_INFO}->{MONTH_FEE} && $Service->{TP_INFO}->{MONTH_FEE} > 0) ||
+  if (($tp->{MONTH_FEE} && $tp->{MONTH_FEE} > 0) ||
       ($Service->{TP_INFO_OLD}->{MONTH_FEE} && $Service->{TP_INFO_OLD}->{MONTH_FEE} > 0)
       ) {
     if ( $FORM{RECALCULATE} ) {
@@ -836,24 +855,24 @@ sub service_get_month_fee {
       my $sum           = 0;
 
       if ($debug) {
-        print "$Service->{TP_INFO_OLD}->{MONTH_FEE} ($Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION}) => $Service->{TP_INFO}->{MONTH_FEE} SHEDULE: $attr->{SHEDULER}\n";
+        print "$Service->{TP_INFO_OLD}->{MONTH_FEE} ($Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION}) => $tp->{MONTH_FEE} SHEDULE: $attr->{SHEDULER}\n";
       }
 
       if (($attr->{SHEDULER} && $conf{START_PERIOD_DAY} == $d)
-        || ($Service->{TP_INFO_OLD}->{MONTH_FEE} && $Service->{TP_INFO_OLD}->{MONTH_FEE} == $Service->{TP_INFO}->{MONTH_FEE})) {
+        || ($Service->{TP_INFO_OLD}->{MONTH_FEE} && $Service->{TP_INFO_OLD}->{MONTH_FEE} == $tp->{MONTH_FEE})) {
         if ($attr->{SHEDULER}) {
           undef $user;
         }
         return \%total_sum;
       }
 
-      if ($Users->{ACTIVATE} eq '0000-00-00') {
+      if ($service_activate eq '0000-00-00') {
         if ($d != $conf{START_PERIOD_DAY}) {
           $rest_days     = $days_in_month - $d + 1;
           $rest_day_sum2 = (! $Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION} && $Service->{TP_INFO_OLD}->{MONTH_FEE}) ? $Service->{TP_INFO_OLD}->{MONTH_FEE} /  $days_in_month * $rest_days : 0;
           $sum           = $rest_day_sum2;
           #PERIOD_ALIGNMENT
-          $Service->{TP_INFO}->{PERIOD_ALIGNMENT}=1;
+          $tp->{PERIOD_ALIGNMENT}=1;
         }
         # Get back full month abon in 1 day of month
         elsif (! $Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION}) {
@@ -862,15 +881,15 @@ sub service_get_month_fee {
       }
       else {
         #If
-        if ( $attr->{SHEDULER} && date_diff($Users->{ACTIVATE}, $DATE) >= 31 ) {
+        if ( $attr->{SHEDULER} && date_diff($service_activate, $DATE) >= 31 ) {
           if ($attr->{SHEDULER}) {
             undef $user;
           }
 
           return \%total_sum;
         }
-        elsif (! $attr->{SHEDULER} && date_diff($Users->{ACTIVATE}, $DATE) < 31) {
-          $rest_days     = 30 - date_diff($Users->{ACTIVATE}, $DATE);
+        elsif (! $attr->{SHEDULER} && date_diff($service_activate, $DATE) < 31) {
+          $rest_days     = 30 - date_diff($service_activate, $DATE);
           if($Service->{TP_INFO_OLD}->{MONTH_FEE}) {
             $rest_day_sum2 = (!$Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION} && $rest_days > 0) ? $Service->{TP_INFO_OLD}->{MONTH_FEE} / 30 * $rest_days : 0;
           }
@@ -883,7 +902,7 @@ sub service_get_month_fee {
       }
 
       #Compensation
-      if ($sum > 0) {
+      if (defined($sum) && $sum > 0) {
         $Payments->add($Users, {
           SUM      => abs($sum),
           METHOD   => 8,
@@ -899,9 +918,9 @@ sub service_get_month_fee {
       }
     }
 
-    my $sum   = $Service->{TP_INFO}->{MONTH_FEE} || 0;
+    my $sum   = $tp->{MONTH_FEE} || 0;
 
-    if ($Service->{TP_INFO}->{EXT_BILL_ACCOUNT}) {
+    if ($tp->{EXT_BILL_ACCOUNT}) {
       if ($user->{EXT_BILL_ID}) {
         if (!$conf{BONUS_EXT_FUNCTIONS} || ($conf{BONUS_EXT_FUNCTIONS} && $user->{EXT_BILL_DEPOSIT} > 0)) {
           $user->{MAIN_BILL_ID} = $user->{BILL_ID};
@@ -913,13 +932,14 @@ sub service_get_month_fee {
     my %FEES_DSC = (
       SERVICE_NAME    => $service_name,
       MODULE          => $service_name.':',
-      TP_ID           => $Service->{TP_INFO}->{ID},
-      TP_NAME         => $Service->{TP_INFO}->{NAME} || '',
+      TP_ID           => $tp->{ID},
+      TP_NAME         => $tp->{NAME} || '',
       FEES_PERIOD_DAY => $lang{MONTH_FEE_SHORT},
-      FEES_METHOD     => ($Service->{TP_INFO}->{FEES_METHOD} && $FEES_METHODS{$Service->{TP_INFO}->{FEES_METHOD}}) ? $FEES_METHODS{$Service->{TP_INFO}->{FEES_METHOD}} : 0,
+      FEES_METHOD     => ($tp->{FEES_METHOD} && $FEES_METHODS{$tp->{FEES_METHOD}}) ? $FEES_METHODS{$tp->{FEES_METHOD}} : 0,
     );
 
-    my ($active_y, $active_m, $active_d) = split(/-/, $Service->{ACCOUNT_ACTIVATE} || $Users->{ACTIVATE} || q{}, 3);
+    my $account_activate = $Service->{ACCOUNT_ACTIVATE} || $service_activate || '0000-00-00';
+    my ($active_y, $active_m, $active_d) = split(/-/, $account_activate, 3);
 
     if (int("$y$m$d") < int("$active_y$active_m$active_d")) {
       if ($attr->{SHEDULER}) {
@@ -929,16 +949,15 @@ sub service_get_month_fee {
       return \%total_sum if (! $attr->{REGISTRATION} );
     }
 
-    if ($Service->{TP_INFO}->{PERIOD_ALIGNMENT} && !$Service->{TP_INFO}->{ABON_DISTRIBUTION}) {
+    if ($tp->{PERIOD_ALIGNMENT} && !$tp->{ABON_DISTRIBUTION}) {
       $FEES_DSC{EXTRA} = " $lang{MONTH_ALIGNMENT},";
 
-      if ($Service->{ACCOUNT_ACTIVATE} && $Service->{ACCOUNT_ACTIVATE} ne '0000-00-00') {
+      if ($account_activate ne '0000-00-00') {
         $days_in_month = days_in_month({ DATE => "$active_y-$active_m" });
         $d = $active_d;
       }
 
       my $calculation_days = ($d < $conf{START_PERIOD_DAY}) ? $conf{START_PERIOD_DAY} - $d : $days_in_month - $d + $conf{START_PERIOD_DAY};
-
       $sum = sprintf("%.2f", ($sum / $days_in_month) * $calculation_days);
     }
 
@@ -966,16 +985,16 @@ sub service_get_month_fee {
     }
 
     #Make reduction
-    if ($Users->{REDUCTION} && $Users->{REDUCTION} > 0 && $Service->{TP_INFO}->{REDUCTION_FEE}) {
+    if ($Users->{REDUCTION} && $Users->{REDUCTION} > 0 && $tp->{REDUCTION_FEE}) {
       $sum = $sum * (100 - $Users->{REDUCTION}) / 100;
     }
 
-    if ($Service->{TP_INFO}->{ABON_DISTRIBUTION}) {
+    if ($tp->{ABON_DISTRIBUTION}) {
       $sum = $sum / (($m != 2 ? (($m % 2) ^ ($m > 7)) + 30 : (!($y % 400) || !($y % 4) && ($y % 25) ? 29 : 28)));
       $FEES_DSC{EXTRA} = " - $lang{ABON_DISTRIBUTION}";
     }
 
-    if ($Service->{ACCOUNT_ACTIVATE} && $Service->{ACCOUNT_ACTIVATE} ne '0000-00-00') {
+    if ($account_activate ne '0000-00-00') {
       if ($Service->{OLD_STATUS} && $Service->{OLD_STATUS} == 5) {
         if ( $conf{DV_CURDATE_ACTIVATE} ){
           $periods = 0;
@@ -1009,26 +1028,37 @@ sub service_get_month_fee {
       if ($i > 0) {
         $FEES_DSC{EXTRA} = '';
         $message = '';
-        if ($Users->{REDUCTION} > 0 && $Service->{TP_INFO}->{REDUCTION_FEE}) {
-          $sum = $Service->{TP_INFO}->{MONTH_FEE} * (100 - $Users->{REDUCTION}) / 100;
+        if ($Users->{REDUCTION} > 0 && $tp->{REDUCTION_FEE}) {
+          $sum = $tp->{MONTH_FEE} * (100 - $Users->{REDUCTION}) / 100;
         }
         else {
-          $sum = $Service->{TP_INFO}->{MONTH_FEE};
+          $sum = $tp->{MONTH_FEE};
         }
 
-        if ($Service->{ACCOUNT_ACTIVATE}) {
-          $DATE = $Service->{ACCOUNT_ACTIVATE};
+        if ($account_activate) {
+          $DATE = $account_activate;
           my $end_period = POSIX::strftime('%Y-%m-%d',
             localtime((POSIX::mktime(0, 0, 0, $active_d, ($m - 1), ($active_y - 1900), 0, 0, 0) + 30 * 86400)));
           $FEES_DSC{PERIOD} = "($active_y-$m-$active_d-$end_period)";
-          $Users->change(
-            $Service->{UID},
-            {
+
+          if(in_array('Internet', \@MODULES)) {
+            $Service->change({
               ACTIVATE => $DATE,
-              UID      => $Service->{UID}
-            }
-          );
-          $Service->{ACCOUNT_ACTIVATE} = POSIX::strftime('%Y-%m-%d',
+              UID      => $Service->{UID},
+              ID       => $Service->{ID}
+            });
+          }
+          else {
+            $Users->change(
+              $Service->{UID},
+              {
+                ACTIVATE => $DATE,
+                UID      => $Service->{UID}
+              }
+            );
+          }
+
+          $account_activate = POSIX::strftime('%Y-%m-%d',
             localtime((POSIX::mktime(0, 0, 0, $active_d, ($m - 1), ($active_y - 1900), 0, 0, 0) + 31 * 86400)));
         }
         else {
@@ -1036,32 +1066,55 @@ sub service_get_month_fee {
           $FEES_DSC{PERIOD} = "($active_y-$m-01-$active_y-$m-$days_in_month)";
         }
       }
-      elsif ($Service->{ACCOUNT_ACTIVATE} && $Service->{ACCOUNT_ACTIVATE} ne '0000-00-00') {
+      elsif ($account_activate ne '0000-00-00') {
         my $end_period = POSIX::strftime('%Y-%m-%d',
           localtime((POSIX::mktime(0, 0, 0, $active_d, ($m - 1), ($active_y - 1900), 0, 0, 0) + 30 * 86400)));
-        $Service->{ACCOUNT_ACTIVATE} = ($Service->{TP_INFO}->{PERIOD_ALIGNMENT}) ? undef : POSIX::strftime('%Y-%m-%d',
-            localtime((POSIX::mktime(0, 0, 0, $active_d, ($m - 1), ($active_y - 1900), 0, 0, 0) + 31 * 86400)));
 
-        if ($Service->{TP_INFO}->{PERIOD_ALIGNMENT}) {
-          $Users->change(
-            $Service->{UID},
-            {
-              ACTIVATE => '0000-00-00',
-              UID      => $Service->{UID}
-            }
-          );
+        if($tp->{FIXED_FEES_DAY}) {
+          $account_activate = next_month({ DATE => "$active_y-$m-$active_d", DAY => $active_d });
+        }
+        else {
+          $account_activate = ($tp->{PERIOD_ALIGNMENT}) ? undef : POSIX::strftime('%Y-%m-%d',
+              localtime((POSIX::mktime(0, 0, 0, $active_d, ($m - 1), ($active_y - 1900), 0, 0, 0) + 31 * 86400)));
+        }
+
+        if ($tp->{PERIOD_ALIGNMENT}) {
+          if(in_array('Internet', \@MODULES)) {
+            $Service->change({
+              ACTIVATE => $DATE,
+              UID      => $Service->{UID},
+              ID       => $Service->{ID}
+            });
+          }
+          else {
+            $Users->change(
+              $Service->{UID},
+              {
+                ACTIVATE => '0000-00-00',
+                UID      => $Service->{UID}
+              }
+            );
+          }
           $end_period = "$y-$m-$days_in_month";
         }
         # old status "Too small deposit"
         elsif ($Service->{OLD_STATUS} && $Service->{OLD_STATUS} == 5) {
-          $Users->change(
-            $Service->{UID},
-            {
-              ACTIVATE => ($conf{DV_CURDATE_ACTIVATE}) ? $DATE : $Service->{ACCOUNT_ACTIVATE},
-              #"$active_y-$m-$active_d",
-              UID      => $Service->{UID}
-            }
-          );
+          if(in_array('Internet', \@MODULES)) {
+            $Service->change({
+              ACTIVATE => $DATE,
+              UID      => $Service->{UID},
+              ID       => $Service->{ID}
+            });
+          }
+          else {
+            $Users->change(
+              $Service->{UID},
+              {
+                ACTIVATE => ($conf{DV_CURDATE_ACTIVATE}) ? $DATE : $account_activate,
+                UID      => $Service->{UID}
+              }
+            );
+          }
 
           if ($conf{DV_CURDATE_ACTIVATE}) {
             ($active_y, $active_m, $active_d) = split(/-/, $DATE);
@@ -1071,7 +1124,7 @@ sub service_get_month_fee {
             $m = $active_m;
           }
           else {
-            ($active_y, $active_m, $active_d) = split(/-/, $Service->{ACCOUNT_ACTIVATE});
+            ($active_y, $active_m, $active_d) = split(/-/, $account_activate);
             $end_period = POSIX::strftime('%Y-%m-%d',
               localtime((POSIX::mktime(0, 0, 0, $active_d, ($active_m - 1), ($active_y - 1900), 0, 0,
                 0) + 30 * 86400)));
@@ -1082,13 +1135,22 @@ sub service_get_month_fee {
           $DATE = "$active_y-$m-$active_d";
           if (in_array($Service->{OLD_STATUS}, [ 1, 3 ])) {
             $DATE = strftime("%Y-%m-%d", localtime(time));
-            $Users->change(
-              $Service->{UID},
-              {
+            if(in_array('Internet', \@MODULES)) {
+              $Service->change({
                 ACTIVATE => $DATE,
-                UID      => $Service->{UID}
-              }
-            );
+                UID      => $Service->{UID},
+                ID       => $Service->{ID}
+              });
+            }
+            else {
+              $Users->change(
+                $Service->{UID},
+                {
+                  ACTIVATE => $DATE,
+                  UID      => $Service->{UID}
+                }
+              );
+            }
           }
         }
 
@@ -1096,8 +1158,8 @@ sub service_get_month_fee {
       }
       else {
         $days_in_month = days_in_month({ DATE => "$y-$m" });
-        my $start_date = ($Service->{TP_INFO}->{PERIOD_ALIGNMENT}) ? (($Service->{ACCOUNT_ACTIVATE} && $Service->{ACCOUNT_ACTIVATE} ne '0000-00-00') ? $Service->{ACCOUNT_ACTIVATE} : $DATE) : "$y-$m-01";
-        $FEES_DSC{PERIOD} = ($Service->{TP_INFO}->{ABON_DISTRIBUTION}) ? '' : "($start_date-$y-$m-$days_in_month)";
+        my $start_date = ($tp->{PERIOD_ALIGNMENT}) ? (($account_activate ne '0000-00-00') ? $account_activate : $DATE) : "$y-$m-01";
+        $FEES_DSC{PERIOD} = ($tp->{ABON_DISTRIBUTION}) ? '' : "($start_date-$y-$m-$days_in_month)";
       }
 
       $FEES_PARAMS{DESCRIBE} = fees_dsc_former(\%FEES_DSC);
@@ -1133,6 +1195,11 @@ sub service_get_month_fee {
 
       $m++;
     }
+  }
+
+  if($conf{DV_CUSTOM_PERIOD}) {
+    #print $tp->{ACTIV_PRICE};
+    #$tp->{CHANGE_PRICE}=1;
   }
 
   if($debug < 6) {
@@ -1216,6 +1283,7 @@ sub result_row_former {
   my $main_arr = $attr->{ROWS};
   my $ROW_COLORS = $attr->{ROW_COLORS};
   my $sort = $FORM{sort} || 1;
+
   for( my $i=0; $i<=$#{ $main_arr }; $i++ ) {
     $PRE_SORT_HASH{$i}=$main_arr->[$i]->[$sort-1];
   }
@@ -1249,7 +1317,6 @@ sub result_row_former {
     my $table = $html->table(
       {
         width      => '100%',
-        cols_align => [ 'right', 'left',  ],
         rows       => [ [ "$lang{TOTAL}:", $#{ $main_arr } + 1 ] ]
       }
     );
@@ -1290,6 +1357,7 @@ sub result_row_former {
       MODULE      - Module name for user link
       FILTER_COLS - Use function filter for field
         filter_function:params:params:...
+      FILTER_VALUES - Implements FILTER_COLS with coderefs
       SELECT_VALUE- Select value for field
       MULTISELECT - multiselect column ( Will add checkbox for every row string 'id:line_key_for_value_name:form_id' )
         [ id => value ]
@@ -1453,11 +1521,12 @@ sub result_former {
           push @{ $USERS_INFO{ $line->{build_id} || $line->{location_id} } }, $line;
         }
 
-        maps_show_poins({ DATA                  => \%USERS_INFO,
-                          MAP_FILTERS           => $attr->{MAP_FILTERS},
-                          LOCATION_TABLE_FIELDS => $attr->{MAP_FIELDS},
-                          POINT_TYPE            => $attr->{MAP_ICON},
-                        });
+        maps_show_map({
+          DATA                  => \%USERS_INFO,
+          MAP_FILTERS           => $attr->{MAP_FILTERS},
+          LOCATION_TABLE_FIELDS => $attr->{MAP_FIELDS},
+          POINT_TYPE            => $attr->{MAP_ICON},
+        });
         return -1, -1;
       }
     }
@@ -1520,6 +1589,9 @@ sub result_former {
     'uid'           => 'UID',
   );
 
+  if(in_array('Tags', \@MODULES)) {
+    $SEARCH_TITLES{tags}=$lang{TAGS};
+  }
 
   if ($conf{ACCEPT_RULES}) {
     $SEARCH_TITLES{accept_rules}=$lang{ACCEPT_RULES};
@@ -1588,8 +1660,7 @@ sub result_former {
     $data->{COL_NAMES_ARR} = \@title;
     @EX_TITLE_ARR = @title;
   }
-  #if ($#cols> $#title) {
-  elsif (! $data->{COL_NAMES_ARR}){
+  elsif (! $data->{COL_NAMES_ARR}) { # || $#cols > $#title){
     if ($attr->{BASE_PREFIX}) {
       @cols = (split(/,/, $attr->{BASE_PREFIX}), @cols);
     }
@@ -1601,18 +1672,18 @@ sub result_former {
       }
 
       if ($cols[$i]){
-        $title[$i] = $SEARCH_TITLES{lc( $cols[$i] )} || $attr->{TABLE}->{SHOW_COLS}->{$cols[$i]} || $cols[$i];
+        $title[$i] = $SEARCH_TITLES{lc( $cols[$i] )} || $attr->{TABLE}->{SHOW_COLS}->{$cols[$i]} || $cols[$i] || '44';
         $ACTIVE_TITLES{$cols[$i]} = $cols[$i];
       }
-      else {
-        $title[$i] = q{};
-        $ACTIVE_TITLES{q{}} = q{};
-      }
+#      else {
+#        $title[$i] = q{33};
+#        $ACTIVE_TITLES{q{}} = q{};
+#      }
     }
 
     if ($#cols> -1) {
-      $title[$i]     = $cols[$i];
       if ($cols[$i]){
+        $title[$i]     = $cols[$i] || q{22};
         $ACTIVE_TITLES{$cols[$i]} = $cols[$i];
       }
     }
@@ -1621,21 +1692,23 @@ sub result_former {
       $data->{COL_NAMES_ARR}=\@cols; #\@title
     }
   }
+#  else {
+#    print "// $data->{COL_NAMES_ARR}  $#cols > $#title //";
+#  }
 
   my @function_fields = split(/,\s?/, $attr->{FUNCTION_FIELDS} || '' );
 
   if($#function_fields > -1) {
-    $title[$#title+1]='-';
+    $title[$#title+1]='';
   }
 
   if ($attr->{TABLE} ) {
-
     my $table = $html->table(
       {
-        #cols_align => [ 'left', 'left', 'right', 'right', 'left', 'center', 'center:noprint', 'center:noprint' ],
-        SHOW_COLS  => ($attr->{TABLE}{SHOW_COLS}) ? $attr->{TABLE}{SHOW_COLS} : \%SEARCH_TITLES,
+        SHOW_COLS           => ($attr->{TABLE}{SHOW_COLS}) ? $attr->{TABLE}{SHOW_COLS} : \%SEARCH_TITLES,
         %{ $attr->{TABLE} },
         title               => \@title,
+        border => 1,
         pages               => (! $attr->{SKIP_PAGES}) ? $data->{TOTAL} : undef,
         FIELDS_IDS          => $data->{COL_NAMES_ARR},
         HAS_FUNCTION_FIELDS => defined $attr->{FUNCTION_FIELDS} && $attr->{FUNCTION_FIELDS} ? 1 : 0,
@@ -1654,6 +1727,13 @@ sub result_former {
         print "<br></hr> ERROR: " . q{ ref $data->{list} ne 'ARRAY' };
         return 0;
       }
+
+      my $search_color_mark = q{};
+      if ($FORM{_MULTI_HIT}) {
+        $FORM{_MULTI_HIT} =~ s/\*//g;
+        $search_color_mark=$html->color_mark($FORM{_MULTI_HIT}, $_COLORS[6]);
+      }
+
       foreach my $line (@{ $data->{list} }) {
         my @fields_array = ();
 
@@ -1699,6 +1779,15 @@ sub result_former {
                   $attr->{SELECT_VALUE}->{$col_name}->{$line->{$col_name}} : undef
             });
           }
+          # Implements FILTER_COLS with coderefs
+          elsif ($attr->{FILTER_VALUES} && $attr->{FILTER_VALUES}->{$col_name}){
+            if (ref $attr->{FILTER_VALUES}->{$col_name} eq 'CODE'){
+              $val = $attr->{FILTER_VALUES}->{$col_name}->($line->{$col_name}, $line);
+            }
+            else {
+              warn "FILTER_VALUES expects coderef";
+            }
+          }
           elsif($col_name =~ /status$/ && (! $attr->{SELECT_VALUE} || ! $attr->{SELECT_VALUE}->{$col_name})) {
             $val = ($line->{$col_name} && $line->{$col_name} > 0) ? $html->color_mark($service_status[ $line->{$col_name} ], $service_status_colors[ $line->{$col_name} ]) :
                 ( defined $line->{$col_name} ? $service_status[$line->{$col_name}] : '');
@@ -1724,7 +1813,7 @@ sub result_former {
           elsif($col_name eq 'color'){
             $val = ($line->{$col_name}) ? $html->color_mark($line->{$col_name}, $line->{$col_name}) : '';
           }
-          elsif ($attr->{SELECT_VALUE} && $attr->{SELECT_VALUE}->{$col_name}) {
+          elsif ($attr->{SELECT_VALUE} && $attr->{SELECT_VALUE}->{$col_name} && defined($line->{$col_name})) {
             my($value, $color) = split(/:/, $attr->{SELECT_VALUE}->{$col_name}->{$line->{$col_name}} || '');
 
             if($value && $color) {
@@ -1748,6 +1837,10 @@ sub result_former {
             @fields_array = ($html->form_input($id, $line->{$value}, { TYPE => 'checkbox', FORM_ID => $form ? $form : '', STATE => in_array($line->{$value}, \@multiselect_arr) }), @fields_array);
           }
 
+          if($search_color_mark) {
+            $val =~ s/(.*)$FORM{_MULTI_HIT}(.*)/$1$search_color_mark$2/g;
+          }
+
           push @fields_array, $val;
         }
 
@@ -1755,7 +1848,8 @@ sub result_former {
           push @fields_array, join(' ', @{ table_function_fields(\@function_fields, $line, $attr) });
 
           if ($FORM{chg} && $line->{id} && $FORM{chg} == $line->{id}) {
-            $table->{rowcolor}='bg-success';
+            $table->{rowcolor}='row-active';
+            $fields_array[0] = $html->element('span', '&nbsp;', { class => 'text-success fa fa-ellipsis-v', OUTPUT2RETURN => 1 }). $fields_array[0];
           }
           else {
             $table->{rowcolor}=undef;
@@ -1763,30 +1857,38 @@ sub result_former {
         }
 
         #make charts
-        if($attr->{CHARTS}) {
+        if ( $attr->{CHARTS} ) {
           my @charts = split(/,\s?/, $attr->{CHARTS});
-          if($line->{date}) {
-            my (undef, undef, $dd)=split(/-/, $line->{date});
+          if($line->{date} && $line->{date} =~ /\d{4}-\d{2}-(\d{2})/) {
             #$CHARTS{PERIOD}=1 if (!$CHARTS{PERIOD});
             #$num = ($CHARTS{PERIOD}) ? $dd : $dd + 1;
-            $chart_num = $dd || 0;
+            $chart_num = $1 || 0;
           }
           else {
             $chart_num++;
-            if ($attr->{CHARTS_XTEXT}) {
-              #$CHARTS{X_LINE}[$num-1] = $line->{$attr->{CHARTS_XTEXT}};
-              if ($attr->{CHARTS_XTEXT} eq 'auto') {
+            if ( $attr->{CHARTS_XTEXT} && defined $line->{$attr->{CHARTS_XTEXT}} ) {
+
+              if ( $attr->{CHARTS_XTEXT} eq 'auto' ) {
                 $attr->{CHARTS_XTEXT} = $data->{COL_NAMES_ARR}->[0];
               }
 
-              $CHARTS{X_TEXT}[$chart_num-1] = ($attr->{SELECT_VALUE} && $attr->{SELECT_VALUE}->{$attr->{CHARTS_XTEXT}}) ?
-                                           ($attr->{SELECT_VALUE}->{ $attr->{CHARTS_XTEXT} }->{ $line->{$attr->{CHARTS_XTEXT}} } || $line->{$attr->{CHARTS_XTEXT}}) : $line->{$attr->{CHARTS_XTEXT}};
+              my $col_name = $attr->{CHARTS_XTEXT};
+              $CHARTS{X_TEXT}->[$chart_num - 1] =
+                  (
+                    $attr->{SELECT_VALUE}
+                      && $attr->{SELECT_VALUE}->{$col_name}
+                      && $attr->{SELECT_VALUE}->{$col_name}->{ $line->{$col_name} }
+                  )
+                ? $attr->{SELECT_VALUE}->{$col_name}->{ $line->{$col_name} }
+                : $line->{$col_name};
             }
           }
 
-          foreach my $c_val (@charts) {
-            $DATA_HASH{$c_val}[$chart_num]=$line->{$c_val} || 0;
-            $CHARTS{X_TEXT}[$chart_num-1] = $chart_num if (! $CHARTS{X_TEXT}[$chart_num-1]);
+          foreach my $c_val ( @charts ) {
+            $DATA_HASH{$c_val}->[$chart_num] = $line->{$c_val} || 0;
+            my $num = int($chart_num);
+            next if (!$num);
+            $CHARTS{X_TEXT}->[$num - 1] ||= $chart_num;
           }
         }
 
@@ -1839,44 +1941,8 @@ sub result_former {
               push @row, $col_data;
             }
           }
-          elsif( ref $col_data eq 'ARRAY' ) {
-            my $val = $col_data;
-            my $col_values = '';
-            foreach my $v (@$val) {
-              if (ref $v eq 'HASH') {
-                while (my ($k, $v2) = each %$v) {
-                  $v2 //= q{};
-                  Encode::_utf8_off($k);
-                  Encode::_utf8_off($v2);
-                  $col_values .= ' '. $html->b($k) .' - ' . $v2 . $html->br();
-                }
-              }
-              else {
-                Encode::_utf8_off($v);
-                $col_values .= $v . $html->br();
-              }
-            }
-            push @row, $col_values;
-          }
-          elsif (ref $col_data eq 'HASH') {
-            my $val = '';
-            foreach my $key (sort keys %{ $col_data }) {
-              my $val_ = $col_data->{$key} //= q{};
-              #my $is_utf = Encode::is_utf8($val_);
-              #if(! $is_utf) {
-                Encode::_utf8_off($val_);
-              #}
-
-              $val .= $html->b($key) .' : '. $val_ . $html->br();
-            }
-            push @row, $val;
-          }
           else {
-            #my $is_utf = Encode::is_utf8($col_data);
-            #if(! $is_utf) {
-              Encode::_utf8_off($col_data);
-            #}
-            push @row, $col_data //= q{};
+            push @row, _hash2html($col_data, $attr);
           }
         }
 
@@ -1929,6 +1995,43 @@ sub result_former {
   else {
     return \@title;
   }
+}
+
+#**********************************************************
+=head2 _hash2html($col_data) - JSON TO HTML formater;
+
+  Arguments:
+    $col_data - Hash variable content
+    $attr
+
+=cut
+#**********************************************************
+sub _hash2html {
+  my ($col_data, $attr) = @_;
+
+  my $result = '';
+
+  if( ref $col_data eq 'ARRAY' ) {
+    foreach my $key (@$col_data) {
+      $result .= _hash2html($key, $attr) . $html->br();
+    }
+  }
+  elsif (ref $col_data eq 'HASH') {
+    my $val = '';
+    foreach my $key (sort keys %{ $col_data }) {
+      $val .= $html->b($key) .' : '. _hash2html($col_data->{$key}, $attr) . $html->br();
+    }
+
+    $result = $val;
+  }
+  else {
+    if(! $attr->{SKIPP_UTF_OFF}) {
+      Encode::_utf8_off($col_data);
+    }
+    $result = $col_data //= q{};
+  }
+
+  return $result;
 }
 
 #**********************************************************
@@ -2011,6 +2114,7 @@ sub table_function_fields {
 
       my %button_params = ();
 
+      # FIXME: 0-0 in first capture group
       if ($function_fields->[$i] =~ /([a-z0-0\_\-]{0,25}):([a-zA-Z\_0-9\{\}\$]+):([a-z0-9\-\_\;]+):?(\S{0,100})/) {
         $functiom_name = $1;
         $param         = $3;
@@ -2019,10 +2123,15 @@ sub table_function_fields {
         my $name = $2;
         if($name eq 'del') {
           $button_params{class}   = 'del';
-          $button_params{MESSAGE} = "$lang{DEL} ";
+          $button_params{MESSAGE} = "$lang{DEL} ". ($line->{name} || $line->{id} || q{-}) ."?";
         }
         elsif($name eq 'change') {
           $button_params{class}='change';
+        }
+        elsif($name eq 'show') {
+          $button_params{class}='show';
+          $button_params{TITLE} = "$lang{SHOW}";
+          $button_name   = '';
         }
         elsif($name eq 'add') {
           $button_params{class}='add';
@@ -2285,9 +2394,9 @@ sub check_ip {
 #**********************************************************
 sub _translate {
   my ($text) = @_;
-  
+
   return '' unless $text;
-  
+
   if ( $text =~ /\"/ ){
     return $text;
   }
@@ -2334,15 +2443,15 @@ sub _translate {
 #**********************************************************
 sub translate_list {
   my ($list, @name_keys) = @_;
-  
+
   $name_keys[0] //= 'name';
-  
+
   foreach my $line (@$list){
     foreach ( @name_keys ) {
       $line->{$_} = _translate($line->{$_}) if ($line->{$_});
     }
   }
-  
+
   return $list;
 }
 
@@ -2383,8 +2492,14 @@ sub snmp_get {
   my $retries = $attr->{RETRIES} || 2;
   my $version = $attr->{VERSION} || 1;
 
-  my ($snmp_community, $port)=split(/:/, $attr->{SNMP_COMMUNITY} || q{});
-  $port = 161 if (! $port || in_array($port, [ 21, 22, 23, 1700, 3977 ]));
+  my ($snmp_community, $port, undef, $port3)=split(/:/, $attr->{SNMP_COMMUNITY} || q{});
+  if($port3) {
+    $port = $port3;
+  }
+  elsif (! $port || in_array($port, [ 21, 22, 23, 1700, 3977 ])) {
+    $port = 161;
+  }
+
   $snmp_community.=':'.$port.":$timeout:$retries:1:$version";
 
   if ($debug > 2) {
@@ -2470,8 +2585,13 @@ sub snmp_set {
     $debug = $attr->{DEBUG};
   }
 
-  my ($snmp_community, $port)=split(/:/, $attr->{SNMP_COMMUNITY});
-  $port = 161 if (! $port || in_array($port, [ 21, 22, 23, 1700, 3977 ]));
+  my ($snmp_community, $port, undef, $port3)=split(/:/, $attr->{SNMP_COMMUNITY} || q{});
+  if($port3) {
+    $port = $port3;
+  }
+  elsif (! $port || in_array($port, [ 21, 22, 23, 1700, 3977 ])) {
+    $port = 161;
+  }
   $snmp_community.=':'.$port.":$timeout:$retries:1:$version";
 
   my $info = '';
@@ -2579,7 +2699,7 @@ sub host_diagnostic {
     }
   }
   else {
-    $html->message('err', $lang{ERROR}, "$lang{WRONG_DATA} '". (($ip) ? $ip : '') . "' ($IPV4)");
+    $html->message('err', $lang{ERROR}, ($lang{WRONG_DATA} || q{}) ."'". (($ip) ? $ip : '') . "' ($IPV4)");
   }
 
   return 1;
@@ -2599,6 +2719,12 @@ sub host_diagnostic {
     CONTENT    - file content for writing
     SKIP_CHECK - Skip checking file exist for read mode
     ROWS       - After reading return array of rows for text file only
+    QUIET      - Quite mode
+      Error codes
+        -1 Not found
+        -2 No such files
+        -3 Access denied
+        -4 other error
 
   Returns:
     File content for reading
@@ -2663,7 +2789,12 @@ sub file_op {
   else {
     if (! -f $filename) {
       if (! $attr->{SKIP_CHECK}) {
-        $html->message('err', $lang{ERROR}, "$lang{NOT_EXIST} '$filename' \n $!") if ($html);
+        if(! $attr->{QUIET}) {
+          $html->message('err', $lang{ERROR}, "$lang{NOT_EXIST} '$filename' \n $!") if ($html);
+        }
+        else {
+          $content = '-1';
+        }
       }
     }
     elsif (open(my $fh, '<', "$filename")) {
@@ -2678,7 +2809,13 @@ sub file_op {
       }
     }
     else {
-      $html->message('err', $lang{ERROR}, "Can't open file '$filename' $!");
+      if(! $attr->{QUIET}) {
+        $html->message('err', $lang{ERROR}, "Can't open file '$filename' $!");
+      }
+      else {
+        return '-1';
+      }
+
       return ;
     }
   }
@@ -3104,7 +3241,7 @@ sub mk_menu {
     $functions{$ID}  = $FUNTION_NAME if ($FUNTION_NAME );
     $menu_args{$ID}  = $ARGS         if (defined($ARGS) && $ARGS ne '');
     $maxnumber       = $ID           if (! defined($maxnumber) || $maxnumber < $ID);
-    $module{$maxnumber} = $module_name if ($module_name);
+    $module{$ID}     = $module_name  if ($module_name);
   }
 
   if($attr->{CUSTOM}) {
@@ -3292,7 +3429,7 @@ sub system_info {
        WITH_DIRS
        FULL_PATH
        RECURSIVE - get all files in underlying folders too
-   
+
   Returns:
     array_ref
 
@@ -3300,20 +3437,20 @@ sub system_info {
 #**********************************************************
 sub _get_files_in{
   my ($directory_path, $attr) = @_;
-  
+
   my $filter = $attr->{FILTER} || '';
   my $with_dirs = $attr->{WITH_DIRS} || 0;
   my $full_path = $attr->{FULL_PATH} || 0;
-  
+
   # Read files in dir
   opendir my $fh, $directory_path or do {
     $html->message( 'err', 'ERROR', "Can't open dir '$directory_path' $!\n" );
     return 0;
   };
-  
+
   my @contents = grep !/^\.\.?$/, readdir $fh;
   closedir $fh;
-  
+
   # No .name files
   @contents = grep { ! /^\./ } @contents;
   if ($attr->{RECURSIVE}){
@@ -3325,18 +3462,18 @@ sub _get_files_in{
       }
     }
   }
-  
+
   # Filter directories if needed
   @contents = grep { -f $directory_path . '/' . $_ } @contents if (!$with_dirs);
-  
+
   # Apply REGEXP filter if needed
   if ( $filter && $filter ne '' ) {
     @contents = grep /$filter/, @contents;
   }
-  
+
   # Concat directory path if needed
   @contents = map { $directory_path .'/' . $_ } @contents if ($full_path);
-  
+
   return \@contents;
 }
 
@@ -3410,6 +3547,49 @@ sub _stats_for_file {
     blksize => $blksize, # preferred I/O size in bytes for interacting with the file (may vary from file to file)
     blocks  => $blocks,  # actual number of system-specific blocks allocated on disk (often, but not always, 512 bytes each)
   }
+}
+
+#**********************************************************
+=head1 recomended_pay($user) - Clculate all module fees
+
+=cut
+#**********************************************************
+sub recomended_pay {
+  my ($user_) = @_;
+
+  $user_->{TOTAL_DEBET} = 0;
+  my $cross_modules_return = cross_modules_call('_docs', {
+      UID          => $user_->{UID},
+      REDUCTION    => $user_->{REDUCTION},
+      #PAYMENT_TYPE => 0
+    });
+
+  foreach my $module (sort keys %$cross_modules_return) {
+    if (ref $cross_modules_return->{$module} eq 'ARRAY') {
+      next if ($#{ $cross_modules_return->{$module} } == -1);
+      foreach my $line (@{ $cross_modules_return->{$module} }) {
+        # $name, $describe
+        my (undef, undef, $sum) = split(/\|/, $line);
+        $user_->{TOTAL_DEBET} += $sum;
+
+        if ($user_->{REDUCTION} && $module ne 'Abon') {
+          $user_->{TOTAL_DEBET} = sprintf("%.2f", $user_->{TOTAL_DEBET} * (100 - $user_->{REDUCTION}) / 100);
+        }
+      }
+    }
+  }
+
+  if(! defined($user_->{DEPOSIT})) {
+    return 0;
+  }
+
+  $user_->{TOTAL_DEBET} = ($user_->{DEPOSIT} < 0) ? $user_->{TOTAL_DEBET} + abs($user_->{DEPOSIT}) : ($user_->{DEPOSIT} > $user_->{TOTAL_DEBET}) ? 0 : $user_->{TOTAL_DEBET} - $user_->{DEPOSIT};
+
+  if ($user_->{TOTAL_DEBET} > int($user_->{TOTAL_DEBET})) {
+    $user_->{TOTAL_DEBET} = sprintf("%.2f", int($user_->{TOTAL_DEBET}) + 1);
+  }
+
+  return $user_->{TOTAL_DEBET};
 }
 
 1

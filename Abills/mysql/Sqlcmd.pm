@@ -315,7 +315,7 @@ sub list {
   $admin->system_action_add("SQLCMD:$attr->{QUERY}", { TYPE => 1 });
 
   my $list = \@rows;
-  return $list;
+  return $list || [];
 }
 
 #**********************************************************

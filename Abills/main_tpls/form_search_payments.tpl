@@ -62,6 +62,15 @@
             </div>
         </div>
 
+        <div class='form-group'>
+            <label class='control-label col-xs-3' for='ID'>IP:</label>
+            <div class='col-xs-9'>
+                <input id='IP' name='IP' value='%IP%' placeholder='%IP%' class='form-control'
+                       type='text'>
+            </div>
+        </div>
+
+
     </div>
 </div>
 </div>

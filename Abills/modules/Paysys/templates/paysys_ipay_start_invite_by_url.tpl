@@ -1,0 +1,4 @@
+<div class='col-md-12'>
+    <p><strong>_{ALREADY_REGISTERED_MASTERPASS_IPAY}_</strong></p>
+    <p>%INVITE_BY_URL_BTN%</p>
+</div>

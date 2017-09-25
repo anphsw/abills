@@ -859,6 +859,12 @@ sub rfid_log_list{
   if($attr->{DATE}){
     push @WHERE_RULES, "DATETIME >= '$attr->{DATE} 00:00:01' && DATETIME <= '$attr->{DATE} 23:59:59'";
   }
+
+  if($attr->{INTERVAL}){
+    my ($START_DATE, $END_DATE) = split('/', $attr->{INTERVAL}, 2);
+    push @WHERE_RULES, "DATETIME >= '$START_DATE 00:00:01' && DATETIME <= '$END_DATE 23:59:59'";
+  }
+  
   my $WHERE =  $self->search_former($attr, $search_columns, { WHERE => 1, WHERE_RULES => \@WHERE_RULES });
   
   $self->query2( "SELECT $self->{SEARCH_FIELDS} erl.id
@@ -869,7 +875,17 @@ sub rfid_log_list{
     %{ $attr ? $attr : {}}}
   );
 
-  return $self->{errno} ? 0 : ($self->{list} || []);
+  return [ ] if ($self->{errno});
+
+  my $list = $self->{list};
+
+  if ($self->{TOTAL} >= 0) {
+    $self->query2("SELECT COUNT(*) AS total FROM employees_rfid_log as erl
+     $WHERE",
+      undef, { INFO => 1 });
+  }
+
+  return $list || [];
 }
 
 #*******************************************************************
@@ -910,7 +926,431 @@ sub rfid_log_del {
   return 1;
 }
 
+#**********************************************************
+=head2 daily_note_add() -
+
+  Arguments:
+    ATTRIBUTES -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub daily_note_add {
+  my $self =shift;
+  my ($attr) = @_;
+
+  $self->query_add('employees_daily_notes', {%$attr});
+
+  return $self;
+}
+
+#**********************************************************
+=head2 daily_note_del() -
+
+  Arguments:
+    ATTRIBUTES -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub daily_note_del {
+  my $self = shift;
+  my ($attr) = @_;
+  
+  $self->query_del('employees_daily_notes', undef, $attr);
+  
+  return 1;
+}
 
 
+#**********************************************************
+=head2 daily_note_info() -
+
+  Arguments:
+    ATTRIBUTES -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub daily_note_info {
+  my $self = shift;
+  my ($attr) = @_;
+
+  if ($attr->{DAY}) {
+    $self->query2(
+      "SELECT * FROM employees_daily_notes
+      WHERE day = ? and aid = $attr->{AID};", undef, { INFO => 1, Bind => [ $attr->{DAY} ] }
+    );
+  }
+
+  return $self;
+}
+
+
+#**********************************************************
+=head2 daily_note_change() -
+
+  Arguments:
+     -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub daily_note_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes2(
+    {
+      CHANGE_PARAM => 'DAY',
+      SECOND_PARAM => 'AID',
+      TABLE        => 'employees_daily_notes',
+      DATA         => $attr
+    }
+  );
+
+  return $self;
+}
+ 
+#**********************************************************
+=head2 employees_vacations_add() -
+ 
+   Arguments:
+     attr -
+   Returns:
+ 
+   Examples:
+ 
+=cut
+#*********************************************************
+sub employees_vacations_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('employees_vacations', {%$attr});
+
+  return $self;
+}
+
+#*******************************************************************
+
+=head2 function list_coming() - get list of all comings
+
+  Arguments:
+    $attr
+
+  Returns:
+    @list
+
+  Examples:
+    my @list = $Cashbox->list_coming({ COLS_NAME => 1});
+
+=cut
+
+#*******************************************************************
+sub employees_vacations_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my @WHERE_RULES = ();
+  my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC        = ($attr->{DESC}) ? $attr->{DESC} : 'desc';
+  my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  my $WHERE = $self->search_former(
+    $attr,
+    [
+      [ 'ID',         'INT', 'ev.id',         1 ],
+      [ 'ADMIN',      'STR', 'a.id as admin', 1 ],
+      [ 'START_DATE', 'STR', 'ev.start_date', 1 ],
+      [ 'END_DATE',   'STR', 'ev.end_date',   1 ],
+      [ 'AID',        'INT', 'ev.aid',        1 ],
+    ],
+    { WHERE => 1, }
+  );
+
+  if ($attr->{START_DATE} && $attr->{START_DATE} ne '_SHOW' && $attr->{END_DATE} && $attr->{END_DATE} ne '_SHOW') {
+    push @WHERE_RULES, "ev.start_date>='$attr->{START_DATE}' || ev.end_date<='$attr->{END_DATE}'";
+  }
+
+  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+  
+  $self->query2(
+    "SELECT  $self->{SEARCH_FIELDS} ev.id
+    FROM employees_vacations ev
+    LEFT JOIN admins a ON (ev.aid=a.aid)
+    $WHERE
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
+  );
+
+  my $list = $self->{list};
+
+  return $self->{list} if ($self->{TOTAL} < 1);
+
+  $self->query2(
+    "SELECT count(*) AS total
+   FROM employees_vacations",
+    undef,
+    { INFO => 1 }
+  );
+
+  return $list;
+}
+
+#*******************************************************************
+
+=head2 function employees_vacations_del() - delete position from db
+  Arguments:
+    $attr
+
+  Returns:
+
+  Examples:
+    $Employee->employees_vacations_del( {ID => 1} );
+
+=cut
+
+#*******************************************************************
+sub employees_vacations_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('employees_vacations', $attr);
+
+  return $self;
+}
+
+#**********************************************************
+=head2 function employees_vacations_info() - get vacation info
+
+  Arguments:
+    $attr
+      ID - 
+  Returns:
+    $self object
+
+  Examples:
+    my $list = $Employees->employees_vacations_info({ ID => 1 });
+
+=cut
+#**********************************************************
+sub employees_vacations_info {
+  my $self = shift;
+  my ($attr) = @_;
+
+  if ($attr->{ID}) {
+    $self->query2(
+      "SELECT * FROM employees_vacations
+      WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
+    );
+  }
+
+  return $self;
+}
+
+#**********************************************************
+=head2 function employees_vacations_change() - get articles list
+
+  Arguments:
+    $attr
+  
+
+  Returns:
+    $self object
+
+  Examples:
+    $Employees->employees_vacations_change({ ID       => 2});
+
+=cut
+#**********************************************************
+sub employees_vacations_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes2(
+    {
+      CHANGE_PARAM => 'ID',
+      TABLE        => 'employees_vacations',
+      DATA         => $attr
+    }
+  );
+
+  return $self;
+}
+
+#**********************************************************
+=head2 employees_duty_add() -
+
+  Arguments:
+     -
+
+  Returns:
+
+
+=cut
+#**********************************************************
+sub employees_duty_add {
+  my $self  = shift;
+  my ($attr) = @_;
+
+  $self->query_add('employees_duty', {%$attr});
+
+  return $self;
+}
+
+#*******************************************************************
+
+=head2 function employees_duty_list() -
+
+  Arguments:
+    $attr
+
+  Returns:
+    @list
+
+  Examples:
+
+
+=cut
+
+#*******************************************************************
+sub employees_duty_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my @WHERE_RULES = ();
+  my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC        = ($attr->{DESC}) ? $attr->{DESC} : 'desc';
+  my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  my $WHERE = $self->search_former(
+    $attr,
+    [
+      [ 'ID',         'INT', 'ed.id',         1 ],
+      [ 'ADMIN',      'STR', 'a.name as admin', 1 ],
+      [ 'START_DATE', 'STR', 'ed.start_date', 1 ],
+      [ 'DURATION',   'INT', 'ed.duration',   1 ],
+      [ 'AID',        'INT', 'ed.aid',        1 ],
+    ],
+    { WHERE => 1, }
+  );
+
+  if ($attr->{START_DATE} && $attr->{START_DATE} ne '_SHOW' && $attr->{END_DATE} && $attr->{END_DATE} ne '_SHOW') {
+    push @WHERE_RULES, "ev.start_date>='$attr->{START_DATE}' || ev.end_date<='$attr->{END_DATE}'";
+  }
+
+  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+
+  $self->query2(
+    "SELECT  $self->{SEARCH_FIELDS} ed.id
+    FROM employees_duty ed
+    LEFT JOIN admins a ON (ed.aid=a.aid)
+    $WHERE
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
+  );
+
+  my $list = $self->{list};
+
+  return $self->{list} if ($self->{TOTAL} < 1);
+
+  $self->query2(
+    "SELECT count(*) AS total
+   FROM employees_duty",
+    undef,
+    { INFO => 1 }
+  );
+
+  return $list;
+}
+
+#*******************************************************************
+=head2 function employees_duty_del() -
+  Arguments:
+    $attr
+
+  Returns:
+
+  Examples:
+
+
+=cut
+
+#*******************************************************************
+sub employees_duty_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('employees_duty', $attr);
+
+  return $self;
+}
+
+#**********************************************************
+=head2 employees_duty_change() -
+
+  Arguments:
+     -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub employees_duty_change{
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes2(
+    {
+      CHANGE_PARAM => 'ID',
+      TABLE        => 'employees_duty',
+      DATA         => $attr
+    }
+  );
+
+  return $self;
+}
+
+#**********************************************************
+=head2 function employees_duty_info() -
+
+  Arguments:
+    $attr
+      ID -  identifier
+  Returns:
+    $self object
+
+  Examples:
+
+
+=cut
+#**********************************************************
+sub employees_duty_info {
+  my $self = shift;
+  my ($attr) = @_;
+
+  if ($attr->{ID}) {
+    $self->query2(
+      "SELECT * FROM employees_duty
+      WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
+    );
+  }
+
+  return $self;
+}
 
 1

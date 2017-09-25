@@ -3,6 +3,29 @@
     document.equipment_info.NAS_ID.value = '$FORM{NAS_ID}';
     document.equipment_info.submit();
   }
+
+  jQuery(function(){
+    var base_wiki_link = 'http://abills.net.ua/wiki/doku.php/abills:docs:manual:admin:equipment:equipment_info:';
+    var model_select = jQuery('select#MODEL_ID');
+    var wiki_link = jQuery('a#MODEL_ID_WIKI_LINK');
+
+    model_select.on('change', function () {
+      var select = jQuery(this);
+      var value = select.val();
+
+      if (!value) return;
+
+      var option = select.find('option[value="' + value + '"]');
+
+      if (option.length){
+        var vendor_name = option.data('vendor_name');
+        if (!vendor_name) return;
+
+        var formatted_vendor_name = vendor_name.toLowerCase();
+        wiki_link.attr('href', base_wiki_link + formatted_vendor_name);
+      }
+    })
+  });
 </script>
 
 
@@ -122,7 +145,12 @@
                  </div>
              </div>
 
-
+             <div class='form-group'>
+                 <label for='SERVER_VLAN' class='control-label col-md-3'>SERVER VLAN:</label>
+                 <div class='col-sm-9'>
+                     %VLAN_SEL%
+                 </div>
+             </div>
          </div>
          </div>
 

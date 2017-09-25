@@ -25,7 +25,6 @@ use vars qw(
   %FUNCTIONS_LIST
   %USER_FUNCTION_LIST
   @EX_PAYMENT_METHODS
-  %FEES_METHODS
   $TIME
   $DATE
 
@@ -46,14 +45,11 @@ use vars qw(
   $begin_time
 );
 
-#%module
-#@PAYMENT_METHODS
-#$CONF
-
-our %LANG = ('english' => 'English',
-    'russian' => 'Русский',
-    'ukraine' => 'Українська',
-    );
+our %LANG = (
+  'english' => 'English',
+  'russian' => 'Русский',
+  'ukrainian' => 'Українська',
+);
 
 #Error strings
 our %err_strs = (

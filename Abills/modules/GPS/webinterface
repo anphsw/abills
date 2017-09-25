@@ -8,7 +8,7 @@
 use strict;
 use warnings FATAL => 'all';
 
-use Abills::Base qw/sec2time time2sec/;
+use Abills::Base qw/sec2time time2sec in_array/;
 
 our $db;
 our $admin;
@@ -131,7 +131,7 @@ sub gps_map_button{
     return '';
   }
 
-  my $maps_index = get_function_index( 'maps_show_poins' );
+  my $maps_index = get_function_index( 'maps_show_map' );
   my $link = "?index=$maps_index&show_gps=$admin_id&NO_ROUTE=1";
 
   return $html->button( "<span class='glyphicon glyphicon-globe'></span>", undef,
@@ -166,7 +166,7 @@ sub gps_route_button{
     return '';
   }
 
-  my $maps_index = get_function_index( 'maps_show_poins' );
+  my $maps_index = get_function_index( 'maps_show_map' );
   my $link = "?index=$maps_index&show_gps=$admin_id&DATE=$date";
 
   return $html->button( "<span class='glyphicon glyphicon-road'></span>", undef,
@@ -185,7 +185,7 @@ sub gps_route_button{
 =cut
 #**********************************************************
 sub gps_add_thumbnail{
-  my ($attr) = @_;
+  #my ($attr) = @_;
   my $aid = $FORM{AID};
 
   if ( $FORM{choosed} ){
@@ -317,7 +317,12 @@ sub gps_report{
   my $date_start = $FORM{DATE_START} || $DATE;
   my $date_end = $FORM{DATE_END} || $DATE;
   my $admin_aid = $FORM{ADMIN_ID} || undef;
-  
+
+  if(! in_array('Maps', \@MODULES)) {
+    $html->message('err', $lang{ERROR}, "Module Maps not connected");
+    return 0;
+  }
+
   # Neccessary to calculate length
   require Maps;
   Maps->import();
@@ -429,12 +434,12 @@ sub gps_report{
       else{
         $name = $date;
       }
-      $adm_stats->{work_time} = abs $adm_stats->{work_time};
+      $adm_stats->{work_time} = $adm_stats->{work_time} ? abs($adm_stats->{work_time}) : 0;
       
       my $time = sec2time( $adm_stats->{work_time}, { format => 1 } );
       
       #ground to meters
-      my $kilometers = $adm_stats->{kilometers};
+      my $kilometers = $adm_stats->{kilometers} || 0;
 
       $stats_avg->{$aid}->{work_time} += $adm_stats->{work_time};
       $stats_avg->{$aid}->{kilometers} += $kilometers;
@@ -442,7 +447,7 @@ sub gps_report{
 
       my $route_btn = '';
       if ( $adm_stats->{work_time} > 0 ){
-        my $maps_index = get_function_index( 'maps_show_poins' );
+        my $maps_index = get_function_index( 'maps_show_map' );
         my $link = "?index=$maps_index&show_gps=$aid&DATE=$date";
 
         $route_btn = $html->button( "<span class='glyphicon glyphicon-globe'></span>", undef, {
@@ -584,7 +589,7 @@ sub get_route_length{
   }
 
   # ground to meters
-  return int( $sum * 1000 ) / 1000;
+  return int( $sum ) / 1000;
 }
 
 #**********************************************************
@@ -600,7 +605,7 @@ sub gps_maps_layers {
       lang_name  => 'GPS',
       module     => 'GPS',
       structure  => 'MARKER',
-      clustering => 0
+      clustering => '0'
     },
     {
       id         => 9,
@@ -608,7 +613,7 @@ sub gps_maps_layers {
       lang_name  => 'GPS ' . $lang{ROUTE},
       module     => 'GPS',
       structure  => 'MARKERS_POLYLINE',
-      clustering => 0
+      clustering => '0'
     } ],
     SCRIPTS     => [ '/styles/default_adm/js/maps/modules/gps.js' ],
     EXPORT_FUNC => {

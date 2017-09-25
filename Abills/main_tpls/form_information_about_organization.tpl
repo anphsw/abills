@@ -8,18 +8,17 @@
 	  <!-- body -->
 	  <div class='box-body'>
  	<div class='form-group'>
-	  		<label class='col-md-3 control-element'>_{TAGS}_</label>
+	  		<label class='control-label col-xs-3 col-md-2'>_{TAGS}_</label>
 	  		<div class='col-md-9'>
 	  			%TAGS_PANEL%
 	  		</div>
 	  	</div>
-
+	  			%ADDRESS_SEL%
 	  	<div class='form-group'>
-	  		<label class='col-md-3 control-element'>_{VALUE}_</label>
+	  		<label class='control-label col-xs-3 col-md-2'>%LABEL% _{VALUE}_</label>
 	  		<div class='col-md-9'>
-	  			<input  required type='text' class='form-control' name='VALUE' value='%VALUE%'>
-  		
-	  	</div>
+	  			%VALUE_INPUT%
+	  		</div>
 	</div>
 
 	  </div>

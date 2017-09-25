@@ -11,7 +11,7 @@
   <input type=hidden name=INCLUDE_DEPOSIT value=1>
 
 
-  <div class='box box-theme box-form'>
+  <div class='box box-theme box-big-form'>
     <div class='box-header with-border'><h4>%CAPTION%</h4></div>
     <div class='box-body'>
 

@@ -47,4 +47,6 @@ $lang{POWER}='Power';
 $lang{TEMPERATURE}='Temperature';
 $lang{VOLTAGE}='Voltage';
 $lang{UNREGISTER}='Unregister';
+$lang{DEVICE}='Device';
 
+$lang{BRANCH}='Branch';

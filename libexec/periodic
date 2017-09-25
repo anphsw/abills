@@ -7,6 +7,8 @@
 =cut
 
 use strict;
+use warnings FATAL => 'all';
+
 BEGIN {
   use FindBin '$Bin';
   our $libpath = $Bin . '/../';
@@ -25,18 +27,17 @@ BEGIN {
   }
 }
 
-use warnings FATAL => 'all';
 use Sys::Hostname;
+use POSIX qw(mktime strftime);
+use Abills::Base qw(check_time gen_time parse_arguments in_array mk_unique_value
+ sendmail int2byte int2ml ip2int int2ip tpl_parse date_diff cfg2hash cmd _bp startup_files);
+
 use Users;
 use Admins;
 use Customers;
 use Finance;
 use Abills::Defs;
 use Abills::Templates;
-use POSIX qw(mktime strftime);
-use Abills::Base qw(check_time gen_time parse_arguments in_array mk_unique_value
-  sendmail int2byte int2ml ip2int int2ip tpl_parse date_diff cfg2hash cmd _bp startup_files);
-
 
 require $Bin . '/config.pl';
 
@@ -52,6 +53,8 @@ $admin->info( $conf{SYSTEM_ADMIN_ID}, {
   IP    => '127.0.0.2',
   SHORT => 1
 } );
+
+our $Conf  = Conf->new($db, $admin, \%conf);
 
 if ( $admin->{errno} ){
   if ( $admin->{errno} == 2 ){
@@ -76,12 +79,12 @@ our %ADMIN_REPORT = (DATE => $DATE);
 $admin->{DATE} = $DATE;
 $admin->{TIME} = $TIME;
 
-my $args = parse_arguments( \@ARGV );
+my $argv = parse_arguments( \@ARGV );
 $ADMIN_REPORT{HOSTNAME} = hostname();
 
 my @daily_functions = ('credit_operation', 'reduction_operation');
 push @daily_functions, 'debetors_group_create' if ($conf{DEBETORS_GROUP});
-if ( !$args->{MODULES} && ! in_array('shedule', \@daily_functions) ){
+if ( !$argv->{MODULES} && ! in_array('shedule', \@daily_functions) ){
   push @daily_functions, 'sheduler';
 }
 
@@ -90,28 +93,28 @@ my @monthly_functions = ();
 my @reports = ();
 
 #make periodic oparation only for selected modules
-if ( $args->{MODULES} ){
-  $args->{MODULES} =~ s/ //g;
-  @MODULES = split( /,/, $args->{MODULES} );
-  $args->{NO_ADM_REPORT} = 1;
+if ( $argv->{MODULES} ){
+  $argv->{MODULES} =~ s/ //g;
+  @MODULES = split( /,/, $argv->{MODULES} );
+  $argv->{NO_ADM_REPORT} = 1;
 }
 
 #Don't process for this modules
 my @SKIP_MODULES = ();
-if ( $args->{SKIP_MODULES} ){
-  $args->{SKIP_MODULES} =~ s/ //g;
-  @SKIP_MODULES = split( /,/, $args->{SKIP_MODULES} );
-  $args->{NO_ADM_REPORT} = 1;
+if ( $argv->{SKIP_MODULES} ){
+  $argv->{SKIP_MODULES} =~ s/ //g;
+  @SKIP_MODULES = split( /,/, $argv->{SKIP_MODULES} );
+  $argv->{NO_ADM_REPORT} = 1;
 }
 
 my $debug = 0;
-if ( $args->{DEBUG} ){
-  $debug = $args->{DEBUG} || 0;
+if ( $argv->{DEBUG} ){
+  $debug = $argv->{DEBUG} || 0;
   $DEBUG = "DATE: $DATE $TIME\n";
   print $DEBUG;
 }
 
-if ( $args->{ALONE} ){
+if ( $argv->{ALONE} ){
   @daily_functions = ();
 }
 
@@ -152,39 +155,39 @@ foreach my $m ( @MODULES ){
   push @SKIP_MODULES, $m;
 }
 
-push @daily_functions, 'admin_report_daily' if (!$args->{MODULES});
-push @monthly_functions, 'admin_report_monthly' if (!$args->{NO_ADM_REPORT});
-push @monthly_functions, 'logrotate', 'backup' if (!$args->{MODULES});
+push @daily_functions, 'admin_report_daily' if (!$argv->{MODULES});
+push @monthly_functions, 'admin_report_monthly' if (!$argv->{NO_ADM_REPORT});
+push @monthly_functions, 'logrotate', 'backup' if (!$argv->{MODULES});
 
-if ( $args->{SHEDULE} ){
+if ( $argv->{SHEDULE} ){
   @daily_functions = ('sheduler');
 }
 
 our ($Y, $M, $D);
 
 #Make date asign function
-if ( $args->{DATE} ){
-  if ( $args->{DATE} !~ /\d{4}\-\d{2}\-\d{2}/ ){
+if ( $argv->{DATE} ){
+  if ( $argv->{DATE} !~ /\d{4}\-\d{2}\-\d{2}/ ){
     print "Wrong date format. Format: YYYY-MM-DD\n";
     exit;
   }
 
-  ($Y, $M, $D) = split( /-/, $args->{DATE} );
+  ($Y, $M, $D) = split( /-/, $argv->{DATE} );
   $YESTERDAY = POSIX::strftime( '%Y-%m-%d', localtime( POSIX::mktime( 0, 10, 1, $D, ($M - 1), ($Y - 1900) ) - 86400 ) );
 
   #$YESTERDAY=$args->{DATE};
-  $ADMIN_REPORT{DATE} = $args->{DATE};
-  $admin->{DATE} = $args->{DATE};
+  $ADMIN_REPORT{DATE} = $argv->{DATE};
+  $admin->{DATE} = $argv->{DATE};
 }
 else{
   $ADMIN_REPORT{DATE} = $DATE;
 }
 
-if ( $args->{LOGIN} ){
-  $LIST_PARAMS{LOGIN} = $args->{LOGIN};
+if ( $argv->{LOGIN} ){
+  $LIST_PARAMS{LOGIN} = $argv->{LOGIN};
 }
 
-if ( defined( $args->{NO_USERS_WARNINGS} ) ){
+if ( defined( $argv->{NO_USERS_WARNINGS} ) ){
   $ADMIN_REPORT{NO_USERS_WARNINGS} = 1;
 }
 
@@ -192,11 +195,11 @@ if ( defined( $args->{NO_USERS_WARNINGS} ) ){
 
 $ADMIN_REPORT{YESTERDAY} = $YESTERDAY;
 
-if ( defined( $args->{monthly} ) ){
+if ( defined( $argv->{monthly} ) ){
   for ( my $i = 0; $i <= $#monthly_functions; $i++ ){
     my $f = $monthly_functions[$i];
 
-    if ( $args->{FN} && $args->{FN} ne $f ){
+    if ( $argv->{FN} && $argv->{FN} ne $f ){
       next;
     }
 
@@ -206,15 +209,15 @@ if ( defined( $args->{monthly} ) ){
     }
 
     #Transaction begin
-    if ( $args->{TRANSACTION} ){
+    if ( $argv->{TRANSACTION} ){
       $db->{db}->{AutoCommit} = 0;
       $db->{TRANSACTION} = 1;
       print "Transaction Start $f: '$db->{db}' / $db->{db}->{AutoCommit}\n" if ($debug > 3);
     }
 
-    &{ \&{$f} }( { %{$args}, %ADMIN_REPORT } );
+    &{ \&{$f} }( { %{$argv}, %ADMIN_REPORT } );
 
-    if ( $args->{TRANSACTION} && $debug < 5 ){
+    if ( $argv->{TRANSACTION} && $debug < 5 ){
       $db->{db}->commit();
       $db->{db}->{AutoCommit} = 1;
       print "Transaction End $f: '$db->{db}' / $db->{db}->{AutoCommit}\n" if ($debug > 3);
@@ -230,7 +233,7 @@ if ( defined( $args->{monthly} ) ){
   }
 
   $ADMIN_REPORT{GT} = gen_time( $begin_time );
-  if ( !$args->{NO_ADM_REPORT} && ! $args->{FN} ){
+  if ( !$argv->{NO_ADM_REPORT} && ! $argv->{FN} ){
     my $message = $html->tpl_show( templates( 'admin_report_month' ), \%ADMIN_REPORT, { OUTPUT2RETURN => 1 } );
 
     my @attachments = ({
@@ -258,10 +261,10 @@ if ( defined( $args->{monthly} ) ){
     );
   }
 }
-elsif ( defined( $args->{daily} ) ){
+elsif ( defined( $argv->{daily} ) ){
   for ( my $i = 0; $i <= $#daily_functions; $i++ ){
     my $f = $daily_functions[$i];
-    if ( $args->{FN} && $args->{FN} ne $f ){
+    if ( $argv->{FN} && $argv->{FN} ne $f ){
       next;
     }
 
@@ -271,15 +274,15 @@ elsif ( defined( $args->{daily} ) ){
     }
 
     #Transaction begin
-    if ( $args->{TRANSACTION} ){
+    if ( $argv->{TRANSACTION} ){
       $db->{db}->{AutoCommit} = 0;
       $db->{TRANSACTION} = 1;
       print "Transaction Start $f: '$db->{db}' / $db->{db}->{AutoCommit}\n" if ($debug > 3);
     }
 
-    &{ \&{$f} }( { %{$args}, %ADMIN_REPORT } );
+    &{ \&{$f} }( { %{$argv}, %ADMIN_REPORT } );
 
-    if ( $args->{TRANSACTION} && $debug < 5 ){
+    if ( $argv->{TRANSACTION} && $debug < 5 ){
       $db->{db}->commit();
       $db->{db}->{AutoCommit} = 1;
       print "Transaction End $f: '$db->{db}' / $db->{db}->{AutoCommit}\n" if ($debug > 3);
@@ -296,7 +299,7 @@ elsif ( defined( $args->{daily} ) ){
 
   $ADMIN_REPORT{GT} = gen_time( $begin_time );
 
-  if ( !$args->{NO_ADM_REPORT} && ! $args->{FN}){
+  if ( !$argv->{NO_ADM_REPORT} && ! $argv->{FN}){
     my $message = $html->tpl_show( templates( 'admin_report_day' ), \%ADMIN_REPORT, { OUTPUT2RETURN => 1, test => 1 } );
 
     my @attachments = ({
@@ -325,10 +328,10 @@ elsif ( defined( $args->{daily} ) ){
     );
   }
 }
-elsif ( defined( $args->{backup} ) ){
+elsif ( defined( $argv->{backup} ) ){
   backup();
 }
-elsif ( defined( $args->{SET_FULL_CREDIT} ) ){
+elsif ( defined( $argv->{SET_FULL_CREDIT} ) ){
   credit_full_set();
 }
 else{
@@ -374,7 +377,7 @@ sub sheduler{
 
   require Fees;
   Fees->import();
-  my $fees = Fees->new( $db, $admin, \%conf );
+  my $Fees = Fees->new( $db, $admin, \%conf );
   $Shedule->{debug} = 1 if ($debug > 6);
 
   my $list = $Shedule->list({
@@ -417,14 +420,14 @@ sub sheduler{
         $user->{BILL_ID} = $bill_id;
       }
 
-      $fees->take( $user, $sum, {
-          DESCRIBE => "$lang{SHEDULE}: $descr",
-          METHOD   => $method
+      $Fees->take( $user, $sum, {
+        DESCRIBE => "$lang{SHEDULE}: $descr",
+        METHOD   => $method
       } );
 
-      if ( $fees->{errno} ){
-        $error_text .= "Error: [ $user->{UID} ] $user->{LOGIN} SUM: $sum [$fees->{errno}] $fees->{errstr}";
-        if ( $fees->{errno} == 14 ){
+      if ( $Fees->{errno} ){
+        $error_text .= "Error: [ $user->{UID} ] $user->{LOGIN} SUM: $sum [$Fees->{errno}] $Fees->{errstr}";
+        if ( $Fees->{errno} == 14 ){
           $error_text .= "  - Don't have money account";
           $ret = 2;
         }
@@ -466,7 +469,12 @@ sub sheduler{
 
       if ( defined( &{$function} ) ){
         $ret = &{ \&{$function} }( $s->{type}, "$action", $s->{uid},
-          { %ext_params, DATE => $ADMIN_REPORT{DATE}, DEBUG => $debug } );
+          {
+            %ext_params,
+            DATE  => $ADMIN_REPORT{DATE},
+            SHEDULEE_ONLY => $argv->{SHEDULE},
+            DEBUG => $debug
+          } );
       }
       else{
         print "ID: $shedule_id Function not defined '$function'\n";
@@ -483,8 +491,8 @@ sub sheduler{
       $Shedule->del({
         ID       => $shedule_id,
         result   => $ret . $error_text,
-        ext_info => " S:$s->{module}:$type:$action",
-        execute  => 1
+        EXT_INFO => " S:$s->{module}:$type:$action",
+        EXECUTE  => 1
       });
     }
     else{
@@ -812,8 +820,6 @@ sub admin_report_monthly{
 =cut
 #*******************************************************************
 sub logrotate{
-  # abills.log rotate
-
   my $rotate_level = 5;
 
   if ( $D == 1 ){
@@ -847,6 +853,9 @@ sub logrotate{
 #*******************************************************************
 =head2 backup() Make backup
 
+  ARGV:
+    BACKUP_IGNORE - Ignore backup tables
+
 =cut
 #*******************************************************************
 sub backup{
@@ -873,6 +882,13 @@ sub backup{
       if ( $table->[0] =~ /^ipn_traf_detail|^s_detail|^errors_log/ ){
         push @ignore_tables_arr, " --ignore-table=\"$conf{dbname}.$table->[0]\"";
       }
+    }
+  }
+
+  if($argv->{BACKUP_IGNORE}) {
+    my @ignore = split(/,\s?/, $argv->{BACKUP_IGNORE});
+    foreach my $table (@ignore) {
+      push @ignore_tables_arr, " --ignore-table=\"$conf{dbname}.$table\"";
     }
   }
 
@@ -1025,18 +1041,18 @@ sub credit_operation{
 sub credit_full_set{
   $DEBUG .= "Set full credit\n" if ($debug > 1);
 
-  my $FULL_CREDIT_PERIOD = $args->{FULL_CREDIT_PERIOD};
+  my $FULL_CREDIT_PERIOD = $argv->{FULL_CREDIT_PERIOD};
   my $CREDIT_EXPIRE_DATE = '';
   if ( $FULL_CREDIT_PERIOD ){
     $CREDIT_EXPIRE_DATE = POSIX::strftime("%Y-%m-%d",
       localtime( (POSIX::mktime( 0, 0, 0, $D, ($M - 1), ($Y - 1900), 0, 0, 0 ) + $FULL_CREDIT_PERIOD * 86400) ));
   }
 
-  if ( $args->{TRANSACTION} ){
+  if ( $argv->{TRANSACTION} ){
     $db->{db}->{AutoCommit} = 0;
   }
 
-  if ( !$args->{COMPANY_ID} ){
+  if ( !$argv->{COMPANY_ID} ){
     #set credit for individual users
     $users->{debug} = 1 if ($debug > 6);
     my $list = $users->list(
@@ -1066,14 +1082,20 @@ sub credit_full_set{
       foreach my $module ( sort keys %{$cross_modules_return} ){
         if ( ref $cross_modules_return->{$module} eq 'ARRAY' ){
           next if ( $#{ $cross_modules_return->{$module} } == -1 );
+
           foreach my $service_info ( @{ $cross_modules_return->{$module} } ){
             my (undef, undef, $sum) = split( /\|/, $service_info );
+
+            if($debug > 5) {
+              print "$module: $sum\n";
+            }
+
             $full_sum += $sum;
           }
         }
       }
 
-      $DEBUG .= "SUM: $full_sum\n" if ($debug > 0);
+      $DEBUG .= "SUM: $full_sum EXPIRE:". ($CREDIT_EXPIRE_DATE || q{}) ."\n" if ($debug > 0);
       if ( $credit < $full_sum ){
         $users->change( $uid, {
           UID          => $uid,
@@ -1092,7 +1114,7 @@ sub credit_full_set{
       CREDIT     => '_SHOW',
       %LIST_PARAMS,
       PAGE_ROWS  => 1000000,
-      COMPANY_ID => (defined( $args->{COMPANY_ID} )) ? $args->{COMPANY_ID} : undef,
+      COMPANY_ID => (defined( $argv->{COMPANY_ID} )) ? $argv->{COMPANY_ID} : undef,
       COLS_NAME  => 1,
     }
   );
@@ -1137,7 +1159,7 @@ sub credit_full_set{
           }
         }
       }
-      $DEBUG .= " SUM: $full_sum\n" if ($debug > 0);
+      $DEBUG .= " SUM: $full_sum EXPIRE:". ($CREDIT_EXPIRE_DATE || q{}) ."\n" if ($debug > 0);
     }
 
     if ( $credit < $full_sum ){
@@ -1147,11 +1169,11 @@ sub credit_full_set{
         CREDIT_DATE => ($CREDIT_EXPIRE_DATE) ? $CREDIT_EXPIRE_DATE : undef
       });
 
-      $DEBUG .= "SUM: $full_sum\n" if ($debug > 0);
+      $DEBUG .= "SUM: $full_sum EXPIRE:". ($CREDIT_EXPIRE_DATE || q{}) ."\n" if ($debug > 0);
     }
   }
 
-  if ( $args->{TRANSACTION} ){
+  if ( $argv->{TRANSACTION} ){
     $db->{db}->commit();
     $db->{db}->{AutoCommit} = 1;
   }

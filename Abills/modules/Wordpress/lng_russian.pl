@@ -1,5 +1,4 @@
 $lang{STYLE} = 'Стиль';
-$lang{SAVE} = 'Сохранить';
 $lang{DETAIL} = 'Подробнее';
 $lang{AUTHOR} = 'Автор';
 $lang{GALLERY_ON} = 'Включить галерею';

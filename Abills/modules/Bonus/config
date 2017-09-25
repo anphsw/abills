@@ -6,6 +6,7 @@
                    "08:7:$lang{SERVICE} $lang{DISCOUNT}:bonus_service_discount:"  => 5,
                    "09:7:$lang{BONUS} Turbo:bonus_turbo:"                 => 5,
                    "10:7:$lang{BONUS_TP_USING}:bonus_tp_using:"           => 5,
+                   "11:0:FB Likes:bonus_likes:"                           => 4,
                    );
 
 

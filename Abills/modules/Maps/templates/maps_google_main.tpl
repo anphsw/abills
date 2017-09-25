@@ -4,20 +4,20 @@
 
 %JS_VARIABLES%
 
-<div class="row">
-  <div class="col-md-12">
-    <div id='mapControls' class='pull-left' role='group'></div>
-  </div>
-  <div class="col-md-12">
-    <div class='box box-theme'>
-      <div class='box-body' id='map-wrapper'>
-        <div id='map' style='height: 90vh'></div>
-      </div>
-      <div class='box-footer'></div>
-    </div>
-    <div class='clearfix'></div>
-  </div>
+<div class='row'>
+  <div id='mapControls' class='pull-left text-left' role='group'></div>
 </div>
+
+<div class='row'>
+  <div class='box box-theme'>
+    <div class='box-body' id='map-wrapper'>
+      <div id='map' style='height: 85vh'></div>
+    </div>
+    <div class='box-footer'></div>
+  </div>
+  <div class='clearfix'></div>
+</div>
+
 
 <script id='maps_general' src='/styles/default_adm/js/maps/general.js'></script>
 <script id='maps_request' src='/styles/default_adm/js/maps/general-request.js'></script>
@@ -31,5 +31,9 @@
 <script id='maps_script' src='/styles/default_adm/js/maps/maps.js'></script>
 
 <!-- OBJECTS we want to show on map -->
-<script defer> %OBJECTS% </script>
+<script defer>
+
+%OBJECTS%
+
+</script>
 

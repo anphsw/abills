@@ -14,7 +14,7 @@ our (
 );
 
 my $Address = Address->new($db, $admin, \%conf);
-my $Dom = Dom->new($db, $admin, \%conf);
+my $Dom     = Dom->new($db, $admin, \%conf);
 
 #**********************************************************
 =head2 dom_info() Create 2D build model
@@ -24,16 +24,26 @@ my $Dom = Dom->new($db, $admin, \%conf);
 #**********************************************************
 sub dom_info {
   my %info;
+  my $address_info = $Address->address_info( $FORM{LOCATION_ID});
   my $build_info = $Address->build_info(
     {
-      ID     => $FORM{BUILD_CONSTRUCT},
+      ID     => $FORM{LOCATION_ID},
       NUMBER => '_SHOW'
     }
   );
+  if(!$FORM{LOCATION_ID} || !$build_info->{TOTAL}){
+    $html->message('warn', $lang{ERROR}, "$lang{BUILD} $lang{NOT_EXIST}");
+    return 0;
+  }
 
-  if($build_info->{FLORS}==0 && $build_info->{ENTRANCES}==0){
-    $html->message('warn', $lang{DELETED}, "$lang{USERS} $FORM{IDS}");
-    return 1;
+  if($build_info->{FLORS} == 0 && $build_info->{ENTRANCES} == 0){
+    $html->message('warn', $lang{ERROR},
+     "$lang{INCORRECT_PARAMETERS_BUILDINGS}
+      $lang{FLORS} = $build_info->{FLORS}
+      $lang{ENTRANCES} = $build_info->{ENTRANCES}
+      $lang{FLATS} = $build_info->{FLATS}"
+    );
+    return 0;
   }
 
   my $users_list = $Dom->list(
@@ -44,35 +54,73 @@ sub dom_info {
       CITY           => '_SHOW',
       COMPANY_ID     => '_SHOW',
       DISABLE        => '_SHOW',
-      USER_STATUS    => '1',
       CREDITOR       => '_SHOW',
       DEBETOR        => '_SHOW',
       ADDRESS_FLAT   => '_SHOW',
       ADDRESS_STREET => '_SHOW',
+      NAME           => '_SHOW',
       PAGE_ROWS      => 10000,
       COLS_NAME      => 1,
     }
   );
+
+  $info{DISTRICT_NAME} = $address_info->{ADDRESS_DISTRICT};
+  $info{STREET_NAME}   = $address_info->{ADDRESS_STREET};
+  $info{BUILD_NAME}    = $address_info->{ADDRESS_BUILD};
+
+  $Dom->{TOTAL}//=1;
+
   my %user_by_flat;
   my %lang_pack = (
     FLAT => $lang{ADDRESS_FLAT},
-    FIO  => $lang{FIO}
+    FIO  => $lang{FIO},
   );
+
+  # $info{ADDRESS} = ""
+
+  $info{BUILD_FLATS} = $build_info->{FLATS};
+  $info{BUILD_FLORS} = $build_info->{FLORS};
+  $info{BUILD_ENTRANCES} = $build_info->{ENTRANCES};
+  $info{FLORS_SUM} = $build_info->{FLORS} * $build_info->{ENTRANCES};
+  # $info{FLORS_ROOMS}     = ($build_info->{FLATS} / $build_info->{ENTRANCES} /$build_info->{FLORS});
+  $info{FLORS_ROOMS} = ($build_info->{FLATS} % $info{FLORS_SUM})==0?$build_info->{FLATS} / $info{FLORS_SUM}: int($build_info->{FLATS} /$info{FLORS_SUM} + 1);
+  # $info{FLORS_ROOMS} = $info{FLORS_ROOMS} % ($build_info->{FLORS} * $build_info->{ENTRANCES}) == 0 ? int($info{FLORS_ROOMS} + 1) : $info{FLORS_ROOMS};
+  $info{FLATS_SUM_WITH_NON_DB_INFO} = $info{FLORS_ROOMS} * $info{FLORS_SUM};
+  $info{USER_SUM_WITH_NO_ROOM}=0;
 
   foreach my $user (@$users_list) {
     $user_by_flat{ $user->{address_flat} } = $user;
+    if($user->{address_flat} > $info{FLATS_SUM_WITH_NON_DB_INFO}){
+      $info{USER_SUM_WITH_NO_ROOM}++;
 
+      if($info{USER_WITH_NO_ROOM_UID}){
+        $info{USER_WITH_NO_ROOM_UID} .= ';'.$user->{uid};
+      }
+      else{
+        $info{USER_WITH_NO_ROOM_UID} .= $user->{uid};
+      }
+
+    }
   }
+  $info{CLIENTS_FLATS_SUM} = $Dom->{TOTAL}-$info{USER_SUM_WITH_NO_ROOM};
+  $info{PERCENTAGE}    =  int(($Dom->{TOTAL}-$info{USER_SUM_WITH_NO_ROOM}) / $build_info->{FLATS} * 100);
 
+
+  $info{SHOW_USERS}  = "$SELF_URL?index=7&search_form=1&type=11&search=1&UID=".$info{USER_WITH_NO_ROOM_UID} if($info{USER_WITH_NO_ROOM_UID});
   my $json_text      = to_json(\%user_by_flat, { utf8 => 0 });
   my $json_lang_pack = to_json(\%lang_pack,    { utf8 => 0 });
 
   $info{LANG_PACK} = $json_lang_pack;
   $info{USER_INFO} = $json_text;
-  $info{BUILD_FLORS}     = $build_info->{FLORS};
-  $info{BUILD_ENTRANCES} = $build_info->{ENTRANCES};
-  $info{FLORS_ROOMS} = $build_info->{FLATS} / ($build_info->{FLORS} * $build_info->{ENTRANCES});
-  $info{FLORS_ROOMS} = $info{FLORS_ROOMS} % 1 == 0 ? int($info{FLORS_ROOMS} + 1) : $info{FLORS_ROOMS};
+
+  my $table = $html->table(
+    {
+      width      => '100%',
+      title      => [ '', '' ],
+      cols_align => [ 'right', 'left', 'center', 'center', 'center' ],
+      ID         => 'ADMIN_ACCESS'
+    }
+  );
 
   $html->tpl_show(_include('dom_show', 'Dom'), \%info);
 

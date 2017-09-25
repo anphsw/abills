@@ -9,10 +9,16 @@
 
 <div class='box box-theme box-form'>
   <div class='box-header with-border'>
-    <h4 class='box-title'>_{TARIF_PLANS}_</h4>
+    <h4 class='box-title'>_{TARIF_PLANS}_: %ID%</h4>
   </div>
 
   <div class='box-body'>
+
+    <div class='row no-padding'>
+      <div class="col-md-12 text-center">
+        %MENU%
+      </div>
+    </div>
 
 <div class='form-group'>
   <label class='control-label col-md-3' for='TARIF'>_{FROM}_</label>

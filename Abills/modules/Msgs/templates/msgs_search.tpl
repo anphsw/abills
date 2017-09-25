@@ -52,6 +52,13 @@
                 </div>
             </div>
 
+         <div class='form-group'>
+                <label class='control-label col-md-2' for='MSGS_TAGS'>_{MSGS_TAGS}_:</label>
+                <div class='col-md-10'>
+                    %MSGS_TAGS_SEL%
+                </div>
+            </div>
+
             <div class='form-group'>
                 <label class='control-label col-md-2' for='LOGIN'>_{DATE}_ _{FROM}_:</label>
                 <div class='col-md-4'>

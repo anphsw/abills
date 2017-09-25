@@ -19,17 +19,17 @@ my $DESC = '';
 my $PG   = 1;
 my $PAGE_ROWS = 25;
 
-my %default_types = (
-  1  => 'CELL_PHONE',
-  2  => 'PHONE',
-  3  => 'SKYPE',
-  4  => 'ICQ',
-  5  => 'VIBER',
-  6  => 'TELEGRAM',
-  7  => 'FACEBOOK',
-  8  => 'VK',
-  9  => 'EMAIL',
-  10 => 'GOOGLE PUSH',
+our %TYPES = (
+  'CELL_PHONE'  => 1,
+  'PHONE'       => 2,
+  'SKYPE'       => 3,
+  'ICQ'         => 4,
+  'VIBER'       => 5,
+  'TELEGRAM'    => 6,
+  'FACEBOOK'    => 7,
+  'VK'          => 8,
+  'EMAIL'       => 9,
+  'GOOGLE PUSH' => 10,
 );
 
 #**********************************************************
@@ -70,49 +70,45 @@ sub new {
 
 =cut
 #**********************************************************
-sub contacts_list{
+sub contacts_list {
   my $self = shift;
   my ($attr) = @_;
-
+  
   $self->{errno} = 0;
   $self->{errstr} = '';
-
-  return [] if (!$attr->{UID});
-
-  #!!! Important !!! Only first list will work without this
-  delete $self->{COL_NAMES_ARR};
-
-  my $WHERE = '';
-
-  $WHERE = $self->search_former( $attr, [
-      [ 'UID',        'INT', 'uc.uid',      1 ],
-      [ 'VALUE',      'STR', 'uc.value',    1 ],
-      [ 'PRIORITY',   'INT', 'uc.priority', 1 ],
-      [ 'TYPE',       'INT', 'uc.type_id',  1 ],
-      [ 'TYPE_NAME',  'STR', 'uct.name',    1 ],
-      [ 'HIDDEN',     'INT', 'uct.hidden'     ]
-    ],
-    {
-      WHERE => 1
-    }
+  
+  return [] if ( !$attr->{UID} );
+  
+  my @search_columns = (
+    [ 'UID',       'INT',     'uc.uid'        ,1 ],
+    [ 'VALUE',     'STR',     'uc.value'      ,1 ],
+    [ 'PRIORITY',  'INT',     'uc.priority'   ,1 ],
+    [ 'TYPE',      'INT',     'uc.type_id'    ,1 ],
+    [ 'DEFAULT',   'INT',     'uct.is_default',1 ],
+    [ 'TYPE_NAME', 'STR',     'uct.name'      ,1 ],
+    [ 'HIDDEN',    'INT',     'uct.hidden'       ]
   );
-
-  if ($attr->{SHOW_ALL_COLUMNS}){
-    $self->{SEARCH_FIELDS} = '*'
+  
+  if ( $attr->{SHOW_ALL_COLUMNS} ) {
+    map {$attr->{$_->[0]} = '_SHOW' unless ( exists $attr->{$_->[0]} )} @search_columns;
   }
-
-  # Removing unnecessary comma
-  $self->{SEARCH_FIELDS} =~ s/,.?$//;
-
-  $self->query2( "
-    SELECT $self->{SEARCH_FIELDS}
+  
+  my $WHERE = $self->search_former($attr, \@search_columns,{ WHERE => 1 });
+  
+  my $EXT_TABLES = '';
+  if ( $self->{SEARCH_FIELDS} =~ /uct\./ ) {
+    $EXT_TABLES = "LEFT JOIN users_contact_types uct ON (uc.type_id=uct.id)"
+  }
+  
+  $self->query2("
+    SELECT $self->{SEARCH_FIELDS} uc.id
     FROM users_contacts uc
-    LEFT JOIN users_contact_types uct ON (uc.type_id=uct.id)
+    $EXT_TABLES
      $WHERE ORDER BY priority;"
-    , undef, {COLS_NAME => 1,  %{ $attr ? $attr : {} }}
+    , undef, { COLS_NAME => 1, %{ $attr ? $attr : {} } }
   );
-
-  return $self->{list};
+  
+  return $self->{list} || [];
 }
 
 #**********************************************************
@@ -197,6 +193,51 @@ sub contacts_change{
       DATA         => $attr,
     });
 
+  return 1;
+}
+
+#**********************************************************
+=head2 contacts_change_all_of_type($type_id, $attr) - allows change multiple values at once
+
+  Arguments:
+    $type_id - id of contact_type
+    $attr    - hash_ref
+      UID   - user to change contact for
+      VALUE - contact value ( may be comma separated )
+
+  Returns:
+    1
+
+=cut
+#**********************************************************
+sub contacts_change_all_of_type {
+  my ($self, $type_id, $attr) = @_;
+  
+  return unless $type_id && $attr->{UID};
+  
+  # Simplest way is to delete all contacts of this type, and add it again
+  $self->contacts_del({
+    UID     => $attr->{UID},
+    TYPE_ID => $type_id
+  });
+  
+  
+  if ( $attr->{VALUE} ) {
+    
+    # Check if have multiple values in a row
+    foreach ( split(/,\s/, $attr->{VALUE}) ) {
+      $self->contacts_add({
+        UID     => $attr->{UID},
+        TYPE_ID => $type_id,
+        VALUE   => $_
+      });
+    }
+    
+  }
+  else {
+    return 0;
+  }
+  
   return 1;
 }
 
@@ -455,5 +496,283 @@ sub contact_type_id_for_name {
   
   return $contact_types->{uc $name} || 0;
 }
+
+#**********************************************************
+=head2 push_contacts_list($attr)
+
+  Arguments:
+    $attr - hash_ref
+
+  Returns:
+    list
+
+=cut
+#**********************************************************
+sub push_contacts_list{
+  my ($self, $attr) = @_;
+  
+  $SORT = $attr->{SORT} || 'id';
+  $DESC = ($attr->{DESC}) ? '' : 'DESC';
+  $PG = $attr->{PG} || '0';
+  $PAGE_ROWS = $attr->{PAGE_ROWS} || 25;
+  
+  my $search_columns = [
+    ['ID',             'INT',        'id'             ,1 ],
+    ['TYPE',           'INT',        'type'           ,1 ],
+    ['CLIENT_ID',      'INT',        'client_id'      ,1 ],
+    ['ENDPOINT',       'STR',        'endpoint'       ,1 ],
+    ['KEY',            'STR',        'key'            ,1 ],
+    ['AUTH',           'STR',        'auth'           ,1 ],
+  ];
+  if ($attr->{SHOW_ALL_COLUMNS}){
+    map { $attr->{$_->[0]} = '_SHOW' unless exists $attr->{$_->[0]} } @$search_columns;
+  }
+  my $WHERE =  $self->search_former($attr, $search_columns, { WHERE => 1 });
+  
+  $self->query2( "SELECT $self->{SEARCH_FIELDS} id
+   FROM push_contacts
+   $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
+      COLS_NAME => 1,
+      %{ $attr // {}}}
+  );
+  
+  return [] if $self->{errno};
+  
+  return $self->{list};
+}
+
+
+#**********************************************************
+=head2 push_contacts_info($id)
+
+  Arguments:
+    $id - id for contacts
+
+  Returns:
+    hash_ref
+
+=cut
+#**********************************************************
+sub push_contacts_info{
+  my $self = shift;
+  my ($id) = @_;
+  
+  my $list = $self->push_contacts_list( { COLS_NAME => 1, ID => $id, SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 } );
+  
+  return $list->[0] || {};
+}
+
+#**********************************************************
+=head2 push_contacts_add($attr)
+
+  Arguments:
+    $attr - hash_ref
+
+  Returns:
+    1
+
+=cut
+#**********************************************************
+sub push_contacts_add{
+  my $self = shift;
+  my ($attr) = @_;
+  
+  delete $self->{INSERT_ID};
+  
+  $self->query_add('push_contacts', $attr, { REPLACE => 1 });
+  
+  return $self->{INSERT_ID} || 0;
+}
+
+#**********************************************************
+=head2 push_contacts_del($attr)
+
+  Arguments:
+    $attr - hash_ref
+
+  Returns:
+   1
+
+=cut
+#**********************************************************
+sub push_contacts_del{
+  my $self = shift;
+  my ($attr) = @_;
+  
+  $self->query_del('push_contacts', undef, $attr);
+  
+  return 1;
+}
+
+#**********************************************************
+=head2 push_contacts_change($attr)
+
+  Arguments:
+    $attr - hash_ref
+
+  Returns:
+    1
+
+=cut
+#**********************************************************
+sub push_contacts_change{
+  my $self = shift;
+  my ($attr) = @_;
+  
+  $self->changes2(
+    {
+      CHANGE_PARAM => 'ID',
+      TABLE        => 'push_contacts',
+      DATA         => $attr,
+    });
+  
+  return 1;
+}
+
+
+#**********************************************************
+=head2 push_messages_list($attr)
+
+  Arguments:
+    $attr - hash_ref
+
+  Returns:
+    list
+
+=cut
+#**********************************************************
+sub push_messages_list{
+  my ($self, $attr) = @_;
+  
+  $SORT = $attr->{SORT} || 'id';
+  $DESC = ($attr->{DESC}) ? '' : 'DESC';
+  $PG = $attr->{PG} || '0';
+  $PAGE_ROWS = $attr->{PAGE_ROWS} || 25;
+  
+  my $search_columns = [
+    ['ID',            'INT',        'id'           ,1 ],
+    ['TAG',           'STR',        'tag'         ,1 ],
+    ['CONTACT_ID',    'INT',        'contact_id'   ,1 ],
+    ['TITLE',         'STR',        'title'        ,1 ],
+    ['MESSAGE',       'STR',        'message'      ,1 ],
+    ['CREATED',       'INT',        'created'      ,1 ],
+    ['TTL',           'INT',        'ttl'          ,1 ],
+    ['OUTDATED',      'INT',        'IF(UNIX_TIMESTAMP(NOW()) - UNIX_TIMESTAMP(created) > ttl, 1, 0)',
+      'IF(UNIX_TIMESTAMP(NOW()) - UNIX_TIMESTAMP(created) > ttl, 1, 0) AS outdated'],
+  ];
+  if ($attr->{SHOW_ALL_COLUMNS}){
+    map { $attr->{$_->[0]} = '_SHOW' unless exists $attr->{$_->[0]} } @$search_columns;
+  }
+  my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
+  
+  $self->query2( "SELECT $self->{SEARCH_FIELDS} id
+   FROM push_messages
+   $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
+      COLS_NAME => 1,
+      %{ $attr // {}}}
+  );
+  
+  return [] if $self->{errno};
+  
+  return $self->{list};
+}
+
+#**********************************************************
+=head2 push_messages_info($id)
+
+  Arguments:
+    $id - id for push_messages
+
+  Returns:
+    hash_ref
+
+=cut
+#**********************************************************
+sub push_messages_info{
+  my ($self, $id) = @_;
+  
+  my $list = $self->push_messages_list( { COLS_NAME => 1, ID => $id, SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 } );
+  
+  return $list->[0] || {};
+}
+
+#**********************************************************
+=head2 push_messages_add($attr)
+
+  Arguments:
+    $attr - hash_ref
+
+  Returns:
+    1
+
+=cut
+#**********************************************************
+sub push_messages_add{
+  my ($self, $attr) = @_;
+  
+  
+  $self->query_add('push_messages', $attr, { REPLACE => 1 });
+  
+  return 1;
+}
+
+#**********************************************************
+=head2 push_messages_del($attr)
+
+  Arguments:
+    $attr - hash_ref
+
+  Returns:
+   1
+
+=cut
+#**********************************************************
+sub push_messages_del{
+  my ($self, $attr) = @_;
+  
+  $self->query_del('push_messages', undef, $attr);
+  
+  return 1;
+}
+
+#**********************************************************
+=head2 push_messages_outdated_del() - deletes messages with TTL overdated
+
+=cut
+#**********************************************************
+sub push_messages_outdated_del{
+  my ($self) = @_;
+  
+  $self->query2(
+    'DELETE FROM push_messages WHERE UNIX_TIMESTAMP(NOW()) - UNIX_TIMESTAMP(created) > ttl;'
+  );
+  
+  return 1;
+}
+
+#**********************************************************
+=head2 push_messages_change($attr)
+
+  Arguments:
+    $attr - hash_ref
+
+  Returns:
+    1
+
+=cut
+#**********************************************************
+sub push_messages_change{
+  my ($self, $attr) = @_;
+  
+  $self->changes2(
+    {
+      CHANGE_PARAM => 'ID',
+      TABLE        => 'push_messages',
+      DATA         => $attr,
+    });
+  
+  return 1;
+}
+
 
 1;

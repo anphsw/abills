@@ -71,6 +71,10 @@ sub new {
   if ($attr->{LOG_FILE}) {
     $self->{LOG_FILE} = $attr->{LOG_FILE};
   }
+  
+  if ($attr->{USER_NAME}){
+    $self->{USER_NAME} = $attr->{USER_NAME};
+  }
 
   #if ($CONF->{LOGFILE}) {
   #  $self->{LOG_FILE} = $CONF->{LOGFILE};
@@ -196,7 +200,7 @@ sub log_print {
         {
           LOG_TYPE  => $log_levels{$LOG_TYPE},
           ACTION    => $action,
-          USER_NAME => $USER_NAME,
+          USER_NAME => $USER_NAME || $self->{USER_NAME},
           MESSAGE   => $MESSAGE,
           NAS_ID    => $Nas->{NAS_ID} || 0
         }

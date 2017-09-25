@@ -546,7 +546,7 @@ sub info_locations_show_map{
       $location->{info} =~ s/\n//g;
     }
 
-    maps_show_poins(
+    maps_show_map(
       {
         OBJECTS_LIST => $locations,
           POINT_TYPE => 'default',

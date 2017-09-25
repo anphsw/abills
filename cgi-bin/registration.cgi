@@ -54,12 +54,15 @@ my %INFO_HASH   = ();
 our $admin = Admins->new($db, \%conf);
 $admin->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });
 
-#my $payments = Finance->payments($db, $admin, \%conf);
 our $users = Users->new($db, $admin, \%conf);
 
-$html->{language} = $FORM{language} if ($FORM{language});
+if($html->{language} ne 'english') {
+  do $libpath . "/language/english.pl";
+}
 
-do "../language/$html->{language}.pl";
+if(-f $libpath . "/language/$html->{language}.pl") {
+  do $libpath."/language/$html->{language}.pl";
+}
 
 require Abills::Templates;
 require Abills::Misc;
@@ -74,28 +77,44 @@ $INFO_HASH{SEL_LANGUAGE} = $html->form_select(
   }
 );
 
+if($FORM{external_auth}) {
+  get_sn_info();
+}
+
+if($conf{FB_REGISTRATION}) {
+  my $log_url = "external_auth=Facebook";
+  $log_url .= "&user_registration=1" if ($FORM{user_registration});
+  $INFO_HASH{FB_INFO} = $html->button("Facebook", $log_url, { class => 'btn btn-primary' });
+  $INFO_HASH{FB_INFO_BLOCK} = $html->button("Facebook", $log_url, { class => 'btn btn-primary btn-block' });
+}
+
 if($FORM{check_address}) {
   $INFO_HASH{CHECKED_ADDRESS_MESSAGE} = get_address_connected_message();
 }
 
+# Check modules for registration are enabled
+if (@REGISTRATION){
+  @REGISTRATION = grep {in_array($_, \@MODULES) } @REGISTRATION;
+}
+
 if ($FORM{FORGOT_PASSWD}) {
   password_recovery();
-}
-elsif ($FORM{qindex} && $FORM{qindex} == 30) {
-  require Control::Address_mng;
-  form_address_sel();
 }
 elsif (!@REGISTRATION){
   print "Content-Type: text/html\n\n";
   print "Can't find modules services for registration";
   exit;
 }
+elsif ($FORM{qindex} && $FORM{qindex} == 30 && !$conf{REGISTRATION_NO_ADDRESS_REGISTER}) {
+  require Control::Address_mng;
+  form_address_sel();
+}
 elsif ($#REGISTRATION > -1) {
-  my $m = $REGISTRATION[0];
-  if ($FORM{module} && $FORM{module} =~ /^[a-z\_0-9]+$/i) {
-    $m = $FORM{module};
-  }
-  else {
+  my $m = ($FORM{module} && $FORM{module} =~ /^[a-z\_0-9]+$/i && in_array($FORM{module}, \@MODULES))
+  ? $FORM{module}
+  : $REGISTRATION[0];
+  
+  if ($m ne 'Osbb') {
     my $choose_module_buttons = '';
     if ($#REGISTRATION > 0 && !$FORM{registration}) {
       foreach my $registration_module (@REGISTRATION) {
@@ -106,7 +125,9 @@ elsif ($#REGISTRATION > -1) {
     $choose_module_buttons .= "<button type='button' class='btn btn-lg btn-success' data-toggle='modal' data-target='#checkAddress'>" . $lang{CHECK_ADDRESS} . "</button>";
     $html->{HEADER_ROW} = $html->element('div', $choose_module_buttons, { class => 'row'});
   }
-
+  else {
+    $INFO_HASH{user_registration} = $FORM{user_registration} || '';
+  }
   $INFO_HASH{CAPTCHA} = get_captcha();
 
   $INFO_HASH{RULES} = $html->tpl_show(templates('form_accept_rules'), {}, { OUTPUT2RETURN => 1 });
@@ -116,7 +137,14 @@ elsif ($#REGISTRATION > -1) {
     $FORM{DOMAIN_ID}      = 0;
     $INFO_HASH{DOMAIN_ID} = 0;
   }
-
+  
+  if ($conf{REGISTRATION_CAPTCHA} && ($FORM{reg} || $FORM{add})) {
+    unless (check_captcha(\%FORM)) {
+      delete $FORM{reg};
+      delete $FORM{add};
+    }
+  }
+  
   load_module($m, $html);
 
   $m = lc($m);
@@ -125,7 +153,7 @@ elsif ($#REGISTRATION > -1) {
 
   if(defined(&$function)) {
     my $return = &{ \&{$function} }(\%INFO_HASH);
-
+    
     # Send E-mail to admin after registration
     if ($return && $return > 1) {
       my $message = qq{
@@ -143,19 +171,28 @@ E-Mail:   $FORM{EMAIL}
 
       if ($conf{REGISTRATION_EXTERNAL}) {
         if (!_external($conf{REGISTRATION_EXTERNAL}, { %FORM })) {
-
           #return 0;
         }
       }
 
-      sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "New registration request", "$message", "$conf{MAIL_CHARSET}",
-        "");
-    }
-    else {
+      sendmail(
+        $conf{ADMIN_MAIL},
+        $conf{ADMIN_MAIL},
+        'New registration request',
+        $message,
+        $conf{MAIL_CHARSET},
+        ''
+      );
+  
       if ($conf{REGISTRATION_REDIRECT}) {
         $html->redirect($conf{REGISTRATION_REDIRECT}, { MESSAGE => $lang{SENDED} });
+        exit 0;
       }
+      
     }
+  }
+  else {
+    $html->message('err', $FORM{module}, 'No registration for module');
   }
 }
 
@@ -171,7 +208,9 @@ if (!($FORM{header} && $FORM{header} == 2)) {
   $OUTPUT{BODY}       = $html->{OUTPUT};
   # check address form
   $OUTPUT{ADDRESS}    = $html->tpl_show(templates('form_address_build_sel'), { }, {OUTPUT2RETURN => 1});
-
+  $OUTPUT{TITLE} = "$conf{WEB_TITLE} - $lang{REGISTRATION}";
+  
+  
   print $html->tpl_show(templates('registration'), { %OUTPUT, TITLE_TEXT => $lang{REGISTRATION} });
 }
 else {
@@ -185,7 +224,7 @@ else {
 =cut
 #**********************************************************
 sub password_recovery {
-  if ($FORM{SEND} && (!$conf{REGISTRATION_CAPTCHA} || check_captcha($FORM{CCODE}, $FORM{C}))) {
+  if ($FORM{SEND} && (!$conf{REGISTRATION_CAPTCHA} || check_captcha(\%FORM))) {
     password_recovery_process();
   }
 
@@ -213,13 +252,13 @@ sub password_recovery_process {
   #   login + phone
   #   uid + mail
   #   uid + phone
-  unless ( ($FORM{LOGIN} || $FORM{UID}) && ($FORM{EMAIL} || $FORM{PHONE}) ) {
+  unless ( ($FORM{LOGIN} || $FORM{UID} || $FORM{CONTRACT_ID}) && ($FORM{EMAIL} || $FORM{PHONE}) ) {
     $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA}");
     return 0;
   }
 
   # Do not send empty parameters to list (we checked them below)
-  my @args_can_be_empty = qw( PHONE UID LOGIN EMAIL );
+  my @args_can_be_empty = qw( PHONE UID LOGIN EMAIL CONTRACT_ID );
   foreach my $arg (@args_can_be_empty) {
     delete $FORM{$arg} if (exists $FORM{$arg} && ($FORM{$arg} eq '' || $FORM{$arg} eq '*'));
   }
@@ -305,6 +344,9 @@ sub get_address_connected_message {
 sub get_captcha {
   
   return if (!$conf{REGISTRATION_CAPTCHA});
+  if ($conf{GOOGLE_CAPTCHA_KEY}) {
+    return "<script src='https://www.google.com/recaptcha/api.js'></script><div class='g-recaptcha' data-sitekey='$conf{GOOGLE_CAPTCHA_KEY}'></div>";
+  }
   my $captcha_module_load_error = load_pmodule( 'Authen::Captcha', { RETURN => 1 } );
   
   if ($captcha_module_load_error){
@@ -353,43 +395,102 @@ sub get_captcha {
 =cut
 #**********************************************************
 sub check_captcha {
-  my ($user_input, $md5hash) = @_;
+  my ($attr) = @_;
 
-  $conf{REGISTRATION_CAPTCHA} = 1 if (!defined($conf{REGISTRATION_CAPTCHA}));
-
-  if ($conf{REGISTRATION_CAPTCHA}) {
-    load_pmodule('Authen::Captcha', { HEADER => 1 });
-
-    my $Captcha = Authen::Captcha->new(
-      data_folder   => $CAPTCHA_DIR,
-      output_folder => $CAPTCHA_DIR,
-      debug         => 0
-    );
-
-    my $result = $Captcha->check_code($user_input, $md5hash);
-
-    if ($result == 0) {
-      $html->message('err', "Captcha: $lang{ERROR}");
-      #file error
+  if ($conf{GOOGLE_CAPTCHA_KEY}) {
+    my $response = $attr->{'g-recaptcha-response'};
+    my $url = "https://www.google.com/recaptcha/api/siteverify?secret=$conf{GOOGLE_CAPTCHA_SECRET}&response=$response";
+    my $result = web_request($url, {
+      JSON_RETURN => 1,
+    });
+    
+    if($result && ref $result eq 'HASH' && $result->{success} && $result->{success} eq "true") {
+      return 1;
     }
-    elsif ($result == -1) {
-      $html->message('err', "Captcha: has been expired");
-      #code expired
-    }
-    elsif ($result == -2) {
-      $html->message('err', "Captcha: invalid (-2)");
-      #code invalid
-    }
-    elsif ($result == -3) {
-      #code does not match crypt
-      $html->message('err', "Captcha: invalid (-3)");
-    }
-
-    return $result == 1;
+    $html->message('err', "Captcha: $lang{ERROR}");
+    return 0;
   }
-  else {
-    return 1;
+  
+  my $user_input = $attr->{CCODE};
+  my $md5hash = $attr->{C};
+  
+  load_pmodule('Authen::Captcha', { HEADER => 1 });
+
+  my $Captcha = Authen::Captcha->new(
+    data_folder   => $CAPTCHA_DIR,
+    output_folder => $CAPTCHA_DIR,
+    debug         => 0
+  );
+
+  my $result = $Captcha->check_code($user_input, $md5hash);
+
+  if ($result == 0) {
+    $html->message('err', "Captcha: $lang{ERROR}");
+    #file error
   }
+  elsif ($result == -1) {
+    $html->message('err', "Captcha: has been expired");
+    #code expired
+  }
+  elsif ($result == -2) {
+    $html->message('err', "Captcha: invalid (-2)");
+    #code invalid
+  }
+  elsif ($result == -3) {
+    #code does not match crypt
+    $html->message('err', "Captcha: invalid (-3)");
+  }
+
+  return $result == 1;
 }
+
+#**********************************************************
+=head2 get_sn_info()
+  Social network info
+
+=cut
+#**********************************************************
+sub get_sn_info {
+  use Abills::Auth::Core;
+  my $Auth;
+
+  $Auth = Abills::Auth::Core->new({
+    CONF      => \%conf,
+    AUTH_TYPE => $FORM{external_auth},
+    SELF_URL  => $SELF_URL,
+  });
+  $Auth->check_access(\%FORM);
+  
+  if($Auth->{auth_url}) {
+    print "Location: $Auth->{auth_url}\n\n";
+    exit;
+  }
+  elsif($Auth->{USER_ID}) {
+    my $users_list = $users->list({
+      $Auth->{CHECK_FIELD} => $Auth->{USER_ID},
+      LOGIN                => '_SHOW',
+      PASSWORD             => '_SHOW',
+      FIO                  => '_SHOW',
+      COLS_NAME            => 1
+    });
+
+    if($users->{TOTAL}) {
+      $html->message('warn', "$Auth->{USER_NAME} already registred");
+      return 1;
+    }
+    else {
+      $INFO_HASH{FIO} = $Auth->{USER_NAME};
+      $INFO_HASH{EMAIL} = $Auth->{EMAIL};
+      $INFO_HASH{USER_ID} = $Auth->{USER_ID};
+      $INFO_HASH{$Auth->{CHECK_FIELD}} = $Auth->{USER_ID};
+      my $login_url = $SELF_URL;
+      $login_url =~ s/registration/index/;
+      $login_url .= "?external_auth=Facebook";
+      $INFO_HASH{login_url} = $login_url;
+    }
+  }  
+  return 1;
+}
+
 
 1

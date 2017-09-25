@@ -54,7 +54,7 @@ use warnings FATAL => 'all';
     'SSH_PORT'           => '22',
     'RADIUS_SECRET'      => 'secretpass',
     'CERTS_DIR'          => '/usr/abills/Certs/',
-    'IDENTITY_FILE'      => '/usr/abills/Certs/id_dsa.abills_admin',
+    'IDENTITY_FILE'      => '/usr/abills/Certs/id_rsa.abills_admin',
     'REMOTE_ADMIN_NAME'  => 'abills_admin',
     'LOGIN'              => 'admin',
     'MASK'               => '255.255.255.0',
@@ -126,7 +126,7 @@ my $usage = " mikrotik_hotspot.pl USAGE
     'SSH_PORT'           => '22',
     'RADIUS_SECRET'      => 'secretpass',
     'CERTS_DIR'          => '/usr/abills/Certs/',
-    'IDENTITY_FILE'      => '/usr/abills/Certs/id_dsa.abills_admin',
+    'IDENTITY_FILE'      => '/usr/abills/Certs/id_rsa.abills_admin',
     'REMOTE_ADMIN_NAME'  => 'abills_admin',
     'LOGIN'              => 'admin',
     'MASK'               => '255.255.255.0',
@@ -156,7 +156,7 @@ my $usage = " mikrotik_hotspot.pl USAGE
 
 BEGIN {
   use FindBin '$Bin';
-  use lib "$Bin/../../../../lib";
+  use lib "$Bin/../../../lib";
 }
 
 use Abills::Base;
@@ -173,7 +173,7 @@ my %arguments = (
   'SSH_PORT'           => '22',
   'RADIUS_SECRET'      => 'secretpass',
   'CERTS_DIR'          => '/usr/abills/Certs/',
-  'IDENTITY_FILE'      => '/usr/abills/Certs/id_dsa.abills_admin',
+  'IDENTITY_FILE'      => '/usr/abills/Certs/id_rsa.abills_admin',
   'REMOTE_ADMIN_NAME'  => 'abills_admin',
   'LOGIN'              => 'admin',
   'MASK'               => '255.255.255.0',
@@ -218,7 +218,7 @@ my $arguments_describe = {
   },
   IDENTITY_FILE      => {
     describe => "Path to SSH public key",
-    default  => "/usr/abills/Certs/id_dsa.abills_admin"
+    default  => "/usr/abills/Certs/id_rsa.abills_admin"
   },
   BACKUP_AUTO        => {
     describe => 'Backup using SSH certificate (Will not ask you for password)',
@@ -376,8 +376,8 @@ sub ssh{
   else{
     need_values( "REMOTE_ADMIN_NAME" );
 
-    $arguments_describe->{IDENTITY_FILE}->{default} = "$base_dir/Certs/id_dsa.$arguments{REMOTE_ADMIN_NAME}";
-    request_value( 'IDENTITY_FILE', "Path to SSH public key", "$base_dir/Certs/id_dsa.$arguments{REMOTE_ADMIN_NAME}" );
+    $arguments_describe->{IDENTITY_FILE}->{default} = "$base_dir/Certs/id_rsa.$arguments{REMOTE_ADMIN_NAME}";
+    request_value( 'IDENTITY_FILE', "Path to SSH public key", "$base_dir/Certs/id_rsa.$arguments{REMOTE_ADMIN_NAME}" );
 
     $identity_file_option = "-i $arguments{IDENTITY_FILE}";
   }
@@ -614,21 +614,21 @@ sub make_backup{
 sub upload_key{
   my ($admin_name, $certs_dir) = @_;
 
-  my $id_dsa_file = "id_dsa.$admin_name";
+  my $id_rsa_file = "id_rsa.$admin_name";
 
-  if ( !-e $id_dsa_file ){
+  if ( !-e $id_rsa_file ){
     # generate and upload certificate
     print "  Generating certificate \n";
     my $cmd = qq { $base_dir/misc/certs_create.sh ssh $admin_name SKIP_CERT_UPLOAD };
     system ( $cmd );
-    $arguments{IDENTITY_FILE} = "$certs_dir/id_dsa.$admin_name";
+    $arguments{IDENTITY_FILE} = "$certs_dir/id_rsa.$admin_name";
   }
   else{
     print "  Certificate exists \n";
   }
 
   print "  Uploading certificate \n";
-  my $cmd = "$arguments{SCP_FILE} -o BatchMode=yes -o StrictHostKeyChecking=no $certs_dir/$id_dsa_file.pub $arguments{LOGIN}\@$arguments{IP_ADDRESS}:/";
+  my $cmd = "$arguments{SCP_FILE} -o BatchMode=yes -o StrictHostKeyChecking=no $certs_dir/$id_rsa_file.pub $arguments{LOGIN}\@$arguments{IP_ADDRESS}:/";
   my $res = cmd( $cmd, { SHOW_RESULT => 1, timeout => 30 } );
   print $res;
 
@@ -643,7 +643,7 @@ sub upload_key{
 
   print "  Importing SSH certificate for $admin_name \n";
   ssh(
-    " /user ssh-keys import public-key-file=$id_dsa_file.pub user=$admin_name;",
+    " /user ssh-keys import public-key-file=$id_rsa_file.pub user=$admin_name;",
     {
       SHOW_RESULT  => 1,
       SYSTEM_ADMIN => 1

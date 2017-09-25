@@ -492,16 +492,12 @@ sub host_add {
 
   $self->query_add('dhcphosts_hosts', $attr);
 
-  my @info = ('IP', 'MAC', 'NAS_ID', 'PORTS', 'VLAN', 'NAS_MAC', 'NETWORK', 'OPTION_82');
-  my @actions_history = ();
-  foreach my $param (@info) {
-    if(defined($attr->{$param})) {
-      push @actions_history, $param.":".$attr->{$param};
-    }
-  }
-
   $admin->{MODULE} = $MODULE;
-  $admin->action_add($attr->{UID}, join(', ', @actions_history), {  TYPE => 1 });
+  $admin->action_add($attr->{UID}, '', {
+    TYPE    => 1,
+    INFO    => [ 'IP', 'MAC', 'NAS_ID', 'PORTS', 'VLAN', 'NAS_MAC', 'NETWORK', 'OPTION_82' ],
+    REQUEST => $attr
+  });
 
   return $self;
 }
@@ -583,11 +579,12 @@ sub host_check {
 
   if(scalar %params > 0) {
     my $list = $self->hosts_list({
-      COLS_NAME => 1,
-      PAGE_ROWS => 5,
-      _MULTI_HIT=> 1,
+      COLS_NAME      => 1,
+      PAGE_ROWS      => 5,
+      _MULTI_HIT     => ($params{IP}) ? undef : 1,
       %params,
       SKIP_DEL_CHECK => 1,
+      SKIP_GID       => 1,
       SKIP_DOMAIN    => 1,
       LOGIN          => '_SHOW'
     });
@@ -848,6 +845,8 @@ sub leases_list {
      ['PORTS',           'STR', 'l.port',     1],
      ['GUEST',           'INT', 'l.flag',      ],
      ['VID',             'INT', 'l.vlan',     1],
+     ['VLAN',            'INT', 'l.vlan',     1],
+     ['SERVER_VLAN',     'INT', 'l.server_vlan', 1],
     ],
     { WHERE         => 1,
     	WHERE_RULES   => \@WHERE_RULES,

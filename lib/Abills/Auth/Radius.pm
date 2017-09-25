@@ -1,7 +1,7 @@
 package Abills::Auth::Radius;
 =head2 NAME
 
-  Raius check access
+  Radius check access
 
 =cut
 
@@ -26,7 +26,7 @@ sub check_access {
 
   if(! $check_access) {
     $self->{errno}  = 20;
-    $self->{errstr} = "NOt defined auth server";
+    $self->{errstr} = "Auth server is not defined";
     print $self->{errstr};
     exit;
   }

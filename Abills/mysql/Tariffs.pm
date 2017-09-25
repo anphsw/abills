@@ -16,7 +16,9 @@ my $CONF;
 my $admin;
 
 #**********************************************************
-# Init
+=head2 new($db, \%conf, $admin)
+
+=cut
 #**********************************************************
 sub new {
   my $class = shift;
@@ -555,7 +557,7 @@ sub info {
     push @WHERE_FIELDS, 'name = ?';
     push @WHERE_VALUES, $attr->{NAME};
   }
-  else {
+  elsif(! $attr->{TP_ID}) {
     push @WHERE_FIELDS, 'tp_id = ?';
     push @WHERE_VALUES, $id;
   }
@@ -839,7 +841,9 @@ sub tt_list {
 }
 
 #**********************************************************
-# tt_info
+=head2 tt_info($attr)
+
+=cut
 #**********************************************************
 sub tt_info {
   my $self = shift;
@@ -860,7 +864,9 @@ sub tt_info {
 }
 
 #**********************************************************
-# tt_add
+=head2 tt_add($attr)
+
+=cut
 #**********************************************************
 sub tt_add {
   my $self = shift;
@@ -877,7 +883,9 @@ sub tt_add {
 }
 
 #**********************************************************
-# tt_change
+=head2 tt_change($attr)
+
+=cut
 #**********************************************************
 sub tt_change {
   my $self = shift;
@@ -885,15 +893,12 @@ sub tt_change {
 
   $attr->{ID}=$attr->{TT_ID};
   $attr->{INTERVAL_ID}=$attr->{tt};
-  $attr->{debug}=1;
 
-  $self->changes2(
-    {
-      CHANGE_PARAM => 'INTERVAL_ID,ID',
-      TABLE        => 'trafic_tarifs',
-      DATA         => $attr
-    }
-  );
+  $self->changes2({
+    CHANGE_PARAM => 'INTERVAL_ID,ID',
+    TABLE        => 'trafic_tarifs',
+    DATA         => $attr
+  });
 
   return $self;
 }

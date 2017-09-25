@@ -2,12 +2,13 @@
 # Mikrotik autoconfigurator
 #
 
-VERSION=0.77
+VERSION=0.78
 DEBUG=1
 ARGV=$1
 SED=sed
 SSH=ssh
 SSH_PORT=22
+SSH_KEY_TYPE=rsa
 
 #while [ "${NAS_ID}" = "" ]; do
 #  read -p "Nas ID:" NAS_ID
@@ -37,7 +38,7 @@ ssh_cmds () {
   fi;
 
   if  [ "$GET" != "" ]; then
-    VAL=`${SSH} -p ${MIKROTIK_SSH_PORT} -l ${CONTROL_USER} -o StrictHostKeyChecking=no -i ${CERT_PATH}/${id_dsa_file} ${MIKROTIK_IP} "${GET}"`;
+    VAL=`${SSH} -p ${MIKROTIK_SSH_PORT} -l ${CONTROL_USER} -o StrictHostKeyChecking=no -i ${CERT_PATH}/${id_rsa_file} ${MIKROTIK_IP} "${GET}"`;
 
     echo "${VAL}";
 
@@ -48,7 +49,7 @@ for i in 1 2 3 4 5 6 7  8 9 10 11 12 13 14 15; do
   cmd=`eval "echo \"\\${CMDS_${i}}\""`
   if [ "${cmd}" != "" ]; then
     echo "Try: $i ${cmd}"
-    ${SSH} -p ${MIKROTIK_SSH_PORT} -l ${CONTROL_USER} -o StrictHostKeyChecking=no -i ${CERT_PATH}/${id_dsa_file} ${MIKROTIK_IP} "${cmd}"
+    ${SSH} -p ${MIKROTIK_SSH_PORT} -l ${CONTROL_USER} -o StrictHostKeyChecking=no -i ${CERT_PATH}/${id_rsa_file} ${MIKROTIK_IP} "${cmd}"
   fi;
 done
 
@@ -94,8 +95,8 @@ set_dns () {
   echo "Checking DNS"
   cmd="/ip dns print" 
 
-  check=`${SSH} -p ${MIKROTIK_SSH_PORT} -l ${CONTROL_USER} -o StrictHostKeyChecking=no -i ${CERT_PATH}/${id_dsa_file} ${MIKROTIK_IP} "${cmd}" | grep 'servers: [0-9]' `
-#  echo "${SSH} -p ${MIKROTIK_SSH_PORT} -l ${CONTROL_USER} -o StrictHostKeyChecking=no -i ${CERT_PATH}/${id_dsa_file} ${MIKROTIK_IP} \"${cmd}\" | head -1 | awk '{ print \$2 }'"
+  check=`${SSH} -p ${MIKROTIK_SSH_PORT} -l ${CONTROL_USER} -o StrictHostKeyChecking=no -i ${CERT_PATH}/${id_rsa_file} ${MIKROTIK_IP} "${cmd}" | grep 'servers: [0-9]' `
+#  echo "${SSH} -p ${MIKROTIK_SSH_PORT} -l ${CONTROL_USER} -o StrictHostKeyChecking=no -i ${CERT_PATH}/${id_rsa_file} ${MIKROTIK_IP} \"${cmd}\" | head -1 | awk '{ print \$2 }'"
  
   if [ x"${check}" = x ]; then
     get_value dns 'dns' "8.8.8.8"
@@ -116,7 +117,7 @@ set_dns () {
 #**********************************************************
 check_set_default_gateway () {
   cmd="/ip route print where dst-address=0.0.0.0/0"
-  check=`${SSH} -p ${MIKROTIK_SSH_PORT} -l ${CONTROL_USER} -o StrictHostKeyChecking=no -i ${CERT_PATH}/${id_dsa_file} ${MIKROTIK_IP} "${cmd}" | grep '0.0.0.0' `
+  check=`${SSH} -p ${MIKROTIK_SSH_PORT} -l ${CONTROL_USER} -o StrictHostKeyChecking=no -i ${CERT_PATH}/${id_rsa_file} ${MIKROTIK_IP} "${cmd}" | grep '0.0.0.0' `
   
   if [ x"${check}" = x ]; then
     get_value gateway 'IP route GATEWAY' "192.168.1.1"
@@ -136,12 +137,12 @@ cert_upload () {
 
 ${BILLING_DIR}/misc/certs_create.sh ssh ${MIKROTIK_CONTROL_USER} -UPLOAD_FTP "${MIKROTIK_ADMIN_USER}@${MIKROTIK_IP}" -D ${CERT_PATH}
 
-id_dsa_file=id_dsa.${MIKROTIK_CONTROL_USER};
+id_rsa_file=id_${SSH_KEY_TYPE}.${MIKROTIK_CONTROL_USER};
 
-#ftp ${MIKROTIK_ADMIN_USER}@${MIKROTIK_IP}: ${CERT_PATH}${id_dsa_file}.pub
+#ftp ${MIKROTIK_ADMIN_USER}@${MIKROTIK_IP}: ${CERT_PATH}${id_rsa_file}.pub
 
 CMDS_1="/user add name=${MIKROTIK_CONTROL_USER} group=write"
-CMDS_2="/user ssh-keys import public-key-file=${id_dsa_file}.pub user=${MIKROTIK_CONTROL_USER}"
+CMDS_2="/user ssh-keys import public-key-file=${id_rsa_file}.pub user=${MIKROTIK_CONTROL_USER}"
 
 ssh_cmds "${MIKROTIK_ADMIN_USER}"
 
@@ -338,15 +339,14 @@ save_mikrotik_config () {
 
   cmd="export compact"
   
-  id_dsa_file=id_dsa.${MIKROTIK_CONTROL_USER};
+  id_rsa_file=id_${SSH_KEY_TYPE}.${MIKROTIK_CONTROL_USER};
   
   if [ "${DEBUG}" != "" ]; then
-    echo "${SSH} -p ${MIKROTIK_SSH_PORT} -l ${MIKROTIK_CONTROL_USER} -o StrictHostKeyChecking=no -i ${CERT_PATH}/${id_dsa_file} ${MIKROTIK_IP}"
+    echo "${SSH} -p ${MIKROTIK_SSH_PORT} -l ${MIKROTIK_CONTROL_USER} -o StrictHostKeyChecking=no -i ${CERT_PATH}/${id_rsa_file} ${MIKROTIK_IP}"
   fi;
 
-  ${SSH} -p ${MIKROTIK_SSH_PORT} -l ${MIKROTIK_CONTROL_USER} -o StrictHostKeyChecking=no -i ${CERT_PATH}/${id_dsa_file} ${MIKROTIK_IP} "${cmd}" > ${config_file}
+  ${SSH} -p ${MIKROTIK_SSH_PORT} -l ${MIKROTIK_CONTROL_USER} -o StrictHostKeyChecking=no -i ${CERT_PATH}/${id_rsa_file} ${MIKROTIK_IP} "${cmd}" > ${config_file}
 
-  
 }
 
 #**********************************************************

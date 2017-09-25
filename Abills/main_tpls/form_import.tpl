@@ -1,10 +1,11 @@
-<div class='box box-primary'>
-<div class='box-header with-border text-center'>
-    _{IMPORT}_
+<div class='box box-theme box-primary'>
+
+<div class='box-header with-border'>
+<h4 class='box-title'>_{IMPORT}_</h4>
 </div>
   
 <div class='box-body' id='ajax_upload_modal_body'>
-  
+
     <form class='form form-horizontal' name='ajax_upload_form' id='ajax_upload_form' method='post'>
   
         <input type='hidden' name='get_index' value='%CALLBACK_FUNC%'/>  
@@ -13,11 +14,10 @@
         <input type='hidden' name='add' value='1'/>
   
         <div class='form-group'>  
-            <label class='control-label col-md-3 required' for='IMPORT_TYPE'>  
-                _{TYPE}_</label>
+            <label class='control-label col-md-3 required' for='IMPORT_TYPE'> _{TYPE}_</label>
             <div class='col-md-9'>  
                 <select name='IMPORT_TYPE' class='form-control'>  
-                  <option value='csv'>CSV  
+                  <option value='csv'>CSV (TAB)
                   <option value='JSON'>JSON
                   <!--
                   <option value='xml'>XML  
@@ -60,10 +60,12 @@
   
     </form>  
 </div>  
+
 <div class='box-footer text-right'>
     <button type='submit' class='btn btn-primary' id='ajax_upload_submit' form='ajax_upload_form'>_{ADD}_</button>
 </div>
-    </div>
-
 </div>
+
+
+
 <script src='/styles/default_adm/js/ajax_upload.js'></script>

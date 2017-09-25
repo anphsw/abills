@@ -1,3 +1,5 @@
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION,NO_AUTO_VALUE_ON_ZERO';
+
 CREATE TABLE IF NOT EXISTS `admin_actions` (
   `actions` VARCHAR(100) NOT NULL DEFAULT '',
   `datetime` DATETIME NOT NULL,
@@ -15,7 +17,7 @@ CREATE TABLE IF NOT EXISTS `admin_actions` (
 
 CREATE TABLE IF NOT EXISTS `admin_settings` (
   `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  `object` VARCHAR(20) NOT NULL DEFAULT '',
+  `object` VARCHAR(128) NOT NULL DEFAULT '',
   `setting` TEXT NOT NULL,
   PRIMARY KEY (`aid`, `object`)
 )
@@ -71,7 +73,7 @@ CREATE TABLE IF NOT EXISTS `admin_permits` (
 
 
 CREATE TABLE IF NOT EXISTS `admins` (
-  `id` VARCHAR(12) NOT NULL DEFAULT '',
+  `id` VARCHAR(16) NOT NULL DEFAULT '',
   `name` VARCHAR(50) NOT NULL DEFAULT '',
   `position` SMALLINT UNSIGNED NOT NULL DEFAULT 0,
   `regdate` DATE NOT NULL,
@@ -104,7 +106,7 @@ CREATE TABLE IF NOT EXISTS `admins` (
   PRIMARY KEY (`aid`),
   UNIQUE KEY `aid` (`aid`),
   UNIQUE KEY `id` (`id`)
-);
+) COMMENT = 'Admins list';
 
 CREATE TABLE IF NOT EXISTS `admins_access` (
   `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -169,7 +171,7 @@ CREATE TABLE IF NOT EXISTS `bills` (
 CREATE TABLE IF NOT EXISTS `domains` (
   `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(30) NOT NULL DEFAULT '',
-  `comments` TEXT NOT NULL,
+  `comments` TEXT,
   `created` DATE NOT NULL,
   `state` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
@@ -266,6 +268,8 @@ CREATE TABLE IF NOT EXISTS `companies` (
   `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `representative` VARCHAR(120) NOT NULL DEFAULT '',
   `contract_sufix` VARCHAR(5) NOT NULL DEFAULT '',
+  `location_id` int(11) unsigned NOT NULL DEFAULT '0',
+  `address_flat` varchar(10) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
   KEY `bill_id` (`bill_id`),
   UNIQUE KEY `id` (`id`),
@@ -345,11 +349,13 @@ CREATE TABLE IF NOT EXISTS `docs_acts` (
   `uid` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `vat` DOUBLE(5, 2) UNSIGNED NOT NULL DEFAULT '0.00',
+  `start_period` DATE NOT NULL DEFAULT '0000-00-00',
+  `end_period` DATE NOT NULL DEFAULT '0000-00-00',
   `company_id` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `sum` DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `date` (`date`, `company_id`),
+  UNIQUE KEY `date` (`date`, `company_id`, `uid`),
   KEY `domain_id` (`domain_id`)
 )
   COMMENT = 'Docs Acts';
@@ -539,6 +545,7 @@ CREATE TABLE IF NOT EXISTS `ippools` (
   `gateway` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   `guest` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   `domain_id` smallint(6) UNSIGNED NOT NULL DEFAULT '0',
+  `vlan` smallint(2) unsigned not null default 0,
   PRIMARY KEY (`id`),
   UNIQUE KEY `nas` (`nas`, `ip`)
 )
@@ -604,8 +611,10 @@ CREATE TABLE IF NOT EXISTS `msgs_attachments` (
 
 CREATE TABLE IF NOT EXISTS `msgs_chapters` (
   `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `responsible` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `name` VARCHAR(20) NOT NULL DEFAULT '',
   `inner_chapter` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
+  `autoclose` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `id` (`id`),
   UNIQUE KEY `name` (`name`)
@@ -621,6 +630,7 @@ CREATE TABLE IF NOT EXISTS `msgs_dispatch` (
   `closed_date` DATE NOT NULL DEFAULT '0000-00-00',
   `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `resposible` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `category` int(11) unsigned NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   KEY `plan_date` (`plan_date`, `state`)
 )
@@ -635,6 +645,9 @@ CREATE TABLE IF NOT EXISTS `msgs_dispatch_admins` (
 CREATE TABLE IF NOT EXISTS `msgs_proggress_bar` (
   `id` SMALLINT(5) UNSIGNED NOT NULL AUTO_INCREMENT,
   `chapter_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `user_notice` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
+  `responsible_notice` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
+  `follower_notice` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   `step_num` TINYINT(3) UNSIGNED NOT NULL DEFAULT '0',
   `step_name` VARCHAR(100) NOT NULL DEFAULT '',
   `step_tip` TEXT NOT NULL,
@@ -744,6 +757,9 @@ CREATE TABLE IF NOT EXISTS `msgs_unreg_requests` (
   `ip` INTEGER(11) UNSIGNED NOT NULL,
   `closed_date` DATETIME NOT NULL DEFAULT '0000-00-00',
   `tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `payment_sum` DOUBLE(14, 2) UNSIGNED NOT NULL DEFAULT '0.00',
+  `extra_sum` DOUBLE(14, 2) UNSIGNED NOT NULL DEFAULT '0.00',
+  `paid` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   `uid` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
   `login` VARCHAR(24) NOT NULL DEFAULT '',
   `connection_time` DATETIME NOT NULL DEFAULT '0000-00-00',
@@ -810,6 +826,7 @@ CREATE TABLE IF NOT EXISTS `msgs_status` (
   `readiness` TINYINT(2) UNSIGNED NOT NULL DEFAULT 0,
   `task_closed` TINYINT(1) NOT NULL DEFAULT 0,
   `color` VARCHAR(7) NOT NULL DEFAULT '',
+  `icon` VARCHAR(30) NOT NULL DEFAULT '',
   UNIQUE `name` (`name`),
   PRIMARY KEY (`id`)
 )
@@ -844,17 +861,17 @@ CREATE TABLE IF NOT EXISTS `msgs_delivery_users` (
   COMMENT = 'Msgs delivery users';
 
 SET SESSION sql_mode = 'NO_AUTO_VALUE_ON_ZERO';
-REPLACE INTO `msgs_status` (`id`, `name`, `readiness`, `task_closed`, `color`) VALUE
-  ('0', '$lang{OPEN}', '0', '0', '#0000FF'),
-  ('1', '$lang{CLOSED_UNSUCCESSFUL}', '100', '1', '#ff0638'),
-  ('2', '$lang{CLOSED_SUCCESSFUL}', '100', '1', '#009D00'),
-  ('3', '$lang{IN_WORK}', '10', '0', '#707070'),
-  ('4', '$lang{NEW_MESSAGE}', '0', '0', '#FF8000'),
-  ('5', '$lang{HOLD_UP}', '0', '0', '0'),
-  ('6', '$lang{ANSWER_WAIT}', '50', '0', ''),
-  ('9', '$lang{NOTIFICATION_MSG}', '0', '0', ''),
-  ('10', '$lang{NOTIFICATION_MSG}  $lang{READED}', '100', '0', ''),
-  ('11', '$lang{POTENTIAL_CLIENT}', '0', '0', '');
+REPLACE INTO `msgs_status` (`id`, `name`, `readiness`, `task_closed`, `color`, `icon`) VALUE
+  ('0', '$lang{OPEN}',                             '0',   '0', '#0000FF', 'fa fa-envelope-open text-aqua'),
+  ('1', '$lang{CLOSED_UNSUCCESSFUL}',              '100', '1', '#ff0638', 'fa fa-warning text-red'),
+  ('2', '$lang{CLOSED_SUCCESSFUL}',                '100', '1', '#009D00', 'fa fa-check text-green'),
+  ('3', '$lang{IN_WORK}',                          '10',  '0', '#707070', 'fa fa-wrench'),
+  ('4', '$lang{NEW_MESSAGE}',                      '0',   '0', '#FF8000', 'fa fa-reply text-blue'),
+  ('5', '$lang{HOLD_UP}',                          '0',   '0', '0',       'fa fa-clock-o'),
+  ('6', '$lang{ANSWER_WAIT}',                      '50',  '0', '',        'fa fa-envelope-open-o'),
+  ('9', '$lang{NOTIFICATION_MSG}',                 '0',   '0', '',        'fa fa-flag text-red'),
+  ('10', '$lang{NOTIFICATION_MSG}  $lang{READED}', '100', '0', '',        'fa fa-flag-o text-red'),
+  ('11', '$lang{POTENTIAL_CLIENT}',                '0',   '0', '',        'fa fa-user-plus text-green');
 
 CREATE TABLE IF NOT EXISTS `nas` (
   `id` SMALLINT(5) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -1113,7 +1130,7 @@ CREATE TABLE IF NOT EXISTS `tarif_plans` (
   `filter_id` VARCHAR(150) NOT NULL DEFAULT '',
   `payment_type` TINYINT(1) NOT NULL DEFAULT '0',
   `min_session_cost` DOUBLE(14, 5) UNSIGNED NOT NULL DEFAULT '0.00000',
-  `rad_pairs` TEXT NOT NULL,
+  `rad_pairs` TEXT,
   `reduction_fee` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   `postpaid_daily_fee` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   `postpaid_monthly_fee` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
@@ -1191,7 +1208,7 @@ CREATE TABLE IF NOT EXISTS `trafic_tarifs` (
   `out_price` DOUBLE(13, 5) UNSIGNED NOT NULL DEFAULT '0.00000',
   `in_speed` INT(10) UNSIGNED NOT NULL DEFAULT '0',
   `interval_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  `rad_pairs` TEXT NOT NULL,
+  `rad_pairs` TEXT,
   `out_speed` INT(10) UNSIGNED NOT NULL DEFAULT '0',
   `expression` VARCHAR(255) NOT NULL DEFAULT '',
   `burst_limit_dl` SMALLINT UNSIGNED NOT NULL DEFAULT 0,
@@ -1373,7 +1390,7 @@ CREATE TABLE IF NOT EXISTS `districts` (
   `domain_id` SMALLINT(4) UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   UNIQUE KEY `id` (`id`),
-  UNIQUE KEY `name` (`city`, `name`)
+  UNIQUE KEY `name` (`city`, `name`, `domain_id`)
 )
   COMMENT = 'Locations districts';
 
@@ -1415,6 +1432,7 @@ CREATE TABLE IF NOT EXISTS `service_status` (
   `name` VARCHAR(40) NOT NULL DEFAULT '',
   `color` VARCHAR(6) NOT NULL DEFAULT '',
   `type` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
+  `get_fees` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
 )
@@ -1521,6 +1539,8 @@ INSERT INTO `admin_permits` (`aid`, `section`, `actions`, `module`) VALUES
   (1, 4, 3, ''),
   (1, 4, 4, ''),
   (1, 5, 0, ''),
+  (1, 5, 1, ''),
+  (1, 5, 2, ''),
   (1, 6, 0, ''),
   (1, 7, 0, ''),
   (1, 8, 0, '');
@@ -1567,15 +1587,15 @@ UPDATE `fees_types`
 SET `id` = 0
 WHERE `name` = '$lang{ONE_TIME}';
 
-REPLACE INTO `service_status` (`id`, `name`, `color`, `type`) VALUES (0, '$lang{ENABLE}', '4CAF50', 0);
-REPLACE INTO `service_status` (`id`, `name`, `color`, `type`) VALUES (1, '$lang{DISABLE}', 'F44336', 0);
-REPLACE INTO `service_status` (`id`, `name`, `color`, `type`) VALUES (2, '$lang{NOT_ACTIVE}', 'FF9800', 0);
-REPLACE INTO `service_status` (`id`, `name`, `color`, `type`) VALUES (3, '$lang{HOLD_UP}', '2196F3', 0);
-REPLACE INTO `service_status` (`id`, `name`, `color`, `type`)
-VALUES (4, '$lang{DISABLE} $lang{NON_PAYMENT}', '607D8B', 0);
-REPLACE INTO `service_status` (`id`, `name`, `color`, `type`) VALUES (5, '$lang{ERR_SMALL_DEPOSIT}', '009688', 0);
-REPLACE INTO `service_status` (`id`, `name`, `color`, `type`) VALUES (6, '$lang{VIRUS_ALERT}', '9C27B0', 0);
-REPLACE INTO `service_status` (`id`, `name`, `color`, `type`) VALUES (7, '$lang{REPAIR}', '9E9E9E', 0);
+REPLACE INTO `service_status` (`id`, `name`, `color`, `type`, `get_fees`) VALUES (0, '$lang{ENABLE}', '4CAF50', 0, 0);
+REPLACE INTO `service_status` (`id`, `name`, `color`, `type`, `get_fees`) VALUES (1, '$lang{DISABLE}', 'F44336', 0, 0);
+REPLACE INTO `service_status` (`id`, `name`, `color`, `type`, `get_fees`) VALUES (2, '$lang{NOT_ACTIVE}', 'FF9800', 0, 0);
+REPLACE INTO `service_status` (`id`, `name`, `color`, `type`, `get_fees`) VALUES (3, '$lang{HOLD_UP}', '2196F3', 0, 0);
+REPLACE INTO `service_status` (`id`, `name`, `color`, `type`, `get_fees`)
+VALUES (4, '$lang{DISABLE} $lang{NON_PAYMENT}', '607D8B', 0, 0);
+REPLACE INTO `service_status` (`id`, `name`, `color`, `type`, `get_fees`) VALUES (5, '$lang{ERR_SMALL_DEPOSIT}', '009688', 0, 0);
+REPLACE INTO `service_status` (`id`, `name`, `color`, `type`, `get_fees`) VALUES (6, '$lang{VIRUS_ALERT}', '9C27B0', 0, 0);
+REPLACE INTO `service_status` (`id`, `name`, `color`, `type`, `get_fees`) VALUES (7, '$lang{REPAIR}', '9E9E9E', 0, 0);
 
 REPLACE INTO `users_contact_types` (`id`, `name`, `is_default`, `hidden`) VALUES
   (1, 'CELL_PHONE', 0, 0),
@@ -1584,31 +1604,9 @@ REPLACE INTO `users_contact_types` (`id`, `name`, `is_default`, `hidden`) VALUES
   (4, 'ICQ', 0, 0),
   (5, 'Viber', 0, 0),
   (6, 'Telegram', 0, 0),
-  (7, 'Facebook', 0, 0),
-  (8, 'VK', 0, 0),
   (9, 'EMail', 1, 0),
   (10, 'Google push', 0, 1);
 
-CREATE TABLE IF NOT EXISTS `admins_contact_types` (
-  `id` smallint(6) NOT NULL AUTO_INCREMENT,
-  `name` varchar(30) NOT NULL,
-  `is_default` tinyint(1) NOT NULL DEFAULT '0',
-  `hidden` tinyint(1) NOT NULL DEFAULT '0',
-  PRIMARY KEY (`id`)
-)
-  COMMENT='Types of admin contacts';
-
-REPLACE INTO `admins_contact_types` (`id`, `name`, `is_default`, `hidden`) VALUES
-  (1, 'CELL_PHONE', 0, 0),
-  (2, 'PHONE', 1, 0),
-  (3, 'Skype', 0, 0),
-  (4, 'ICQ', 0, 0),
-  (5, 'Viber', 0, 0),
-  (6, 'Telegram', 0, 0),
-  (7, 'Facebook', 0, 0),
-  (8, 'VK', 0, 0),
-  (9, 'EMail', 1, 0),
-  (10, 'Google push', 0, 1);
 
 CREATE TABLE IF NOT EXISTS `admins_contacts` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
@@ -1617,8 +1615,38 @@ CREATE TABLE IF NOT EXISTS `admins_contacts` (
   `value` varchar(250) NOT NULL,
   `priority` smallint(6) unsigned DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `_type_value` (`type_id`,`value`),
   KEY `_aid_contact` (`aid`)
 )
   COMMENT='Main admin contacts table';
 
+INSERT INTO `config` (`param`, `value`, `domain_id`) VALUES ('_ORGANIZATION_LOCATION_ID', '', 0);
+
+CREATE TABLE IF NOT EXISTS `msgs_dispatch_category` (
+  `id`   int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(30) NOT NULL,
+  PRIMARY KEY (`id`)
+)
+  COMMENT='Messages dispatch category';
+
+CREATE TABLE IF NOT EXISTS `msgs_quick_replys_types` (
+  `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(30) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`)
+)
+  COMMENT = 'Quick replys types';
+
+CREATE TABLE IF NOT EXISTS `msgs_quick_replys` (
+  `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `reply` VARCHAR(250) NOT NULL DEFAULT '',
+  `color` VARCHAR(7) NOT NULL DEFAULT '',
+  `type_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`)
+)
+  COMMENT = 'Quick replys';
+
+CREATE TABLE IF NOT EXISTS `msgs_quick_replys_tags` (
+  `quick_reply_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `msg_id` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  KEY `msg_id` (`msg_id`)
+)
+  COMMENT = 'Quick replys msgs tags';

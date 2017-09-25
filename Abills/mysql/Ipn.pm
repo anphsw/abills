@@ -77,7 +77,9 @@ sub user_del {
 }
 
 #**********************************************************
-# status
+=head1 user_status($DATA)
+
+=cut
 #**********************************************************
 sub user_status {
   my $self = shift;
@@ -599,7 +601,7 @@ sub reports_users {
   #totals query
   $self->query2($full_sql2, undef, { INFO => 1 });
 
-  return $list;
+  return $list || [];
 }
 
 #**********************************************************

@@ -30,7 +30,7 @@ our(
 
 my $Vlan = Vlan->new( $db, $admin, \%conf );
 my $Nas = Nas->new( $db, \%conf );
-
+my $ssh_cert_type = $conf{SSH_CERT_TYPE} || 'rsa';
 my $SUDO  = $conf{FILE_SUDO} || 'sudo';
 my $SSH   = $conf{FILE_SSH} || '/usr/bin/ssh';
 my $SCP   = $conf{FILE_SCP} || '/usr/bin/scp';
@@ -642,7 +642,7 @@ sub vlan_create{
 
       print $cmd . "\n" if ($attr->{DEBUG} && $attr->{DEBUG} > 2);
       my $ifconfig = '';
-      open( my $IFCONFIG, '|-', "$cmd" ) || die "Can't open '$cmd' $!";
+      open(  $IFCONFIG, '|-', "$cmd" ) || die "Can't open '$cmd' $!";
       while (my $l = <$IFCONFIG>) {
         $ifconfig .= $l;
       }
@@ -677,7 +677,7 @@ sub vlan_create{
       }
 
       if ( $INFO{NAS_MNG_IP} && $INFO{NAS_MNG_PORT} ne '' ){
-        $cmds = "$SSH -p $INFO{NAS_MNG_PORT} -o StrictHostKeyChecking=no -i $base_dir/Certs/id_dsa.$INFO{NAS_MNG_USER} $INFO{NAS_MNG_USER}\@$INFO{NAS_MNG_IP}\"$cmds\" ";
+        $cmds = "$SSH -p $INFO{NAS_MNG_PORT} -o StrictHostKeyChecking=no -i $base_dir/Certs/id_$ssh_cert_type.$INFO{NAS_MNG_USER} $INFO{NAS_MNG_USER}\@$INFO{NAS_MNG_IP}\"$cmds\" ";
       }
 
       system( $cmds ) if ($debug < 5);
@@ -740,7 +740,7 @@ sub vlan_info{
   }
 
   if ( $attr->{NAS_MNG_IP} ){
-    $IFCONFIG_CMD = "$SSH -p $attr->{NAS_MNG_PORT} -o StrictHostKeyChecking=no -i $base_dir/Certs/id_dsa.$attr->{NAS_MNG_USER} $attr->{NAS_MNG_USER}\@$attr->{NAS_MNG_IP} \"$IFCONFIG\"";
+    $IFCONFIG_CMD = "$SSH -p $attr->{NAS_MNG_PORT} -o StrictHostKeyChecking=no -i $base_dir/Certs/id_$ssh_cert_type.$attr->{NAS_MNG_USER} $attr->{NAS_MNG_USER}\@$attr->{NAS_MNG_IP} \"$IFCONFIG\"";
   }
 
   print $IFCONFIG_CMD . "\n" if ($attr->{DEBUG} && $attr->{DEBUG} > 2);
@@ -857,9 +857,9 @@ sub vlan_dhcp{
   if ( $attr->{NAS_MNG_IP} ){
     my $DHCPCONF_REMOTE = $conf{DHCPHOSTS_CONFIG};
     $cmd =
-      "$SCP -P $attr->{NAS_MNG_PORT} -o StrictHostKeyChecking=no -i $base_dir/Certs/id_dsa.$attr->{NAS_MNG_USER} $DHCPCONF "
+      "$SCP -P $attr->{NAS_MNG_PORT} -o StrictHostKeyChecking=no -i $base_dir/Certs/id_$ssh_cert_type.$attr->{NAS_MNG_USER} $DHCPCONF "
         . "$attr->{NAS_MNG_USER}\@$attr->{NAS_MNG_IP}:$DHCPCONF_REMOTE; "
-        . "$SSH -p $attr->{NAS_MNG_PORT} -o StrictHostKeyChecking=no -i $base_dir/Certs/id_dsa.$attr->{NAS_MNG_USER} "
+        . "$SSH -p $attr->{NAS_MNG_PORT} -o StrictHostKeyChecking=no -i $base_dir/Certs/id_$ssh_cert_type.$attr->{NAS_MNG_USER} "
         . "$attr->{NAS_MNG_USER}\@$attr->{NAS_MNG_IP} \"$SUDO /usr/local/etc/rc.d/isc-dhcpd restart\"";
   }
   else{
@@ -933,7 +933,7 @@ sub vlan_pppoe_relay{
   }
 
   if ( $attr->{NAS_MNG_IP} ){
-    $cmd = "$SSH -p $attr->{NAS_MNG_PORT} -o StrictHostKeyChecking=no -i $base_dir/Certs/id_dsa.$attr->{NAS_MNG_USER} " . "$attr->{NAS_MNG_USER}\@$attr->{NAS_MNG_IP} \"$cmd\"";
+    $cmd = "$SSH -p $attr->{NAS_MNG_PORT} -o StrictHostKeyChecking=no -i $base_dir/Certs/id_$ssh_cert_type.$attr->{NAS_MNG_USER} " . "$attr->{NAS_MNG_USER}\@$attr->{NAS_MNG_IP} \"$cmd\"";
   }
 
   # PPPoE Relay
@@ -941,7 +941,7 @@ sub vlan_pppoe_relay{
   #  my $cmd = "pppoe-relay -S $attr->{PARENT_INTERFACE} -C $client_interfaces";
   #
   #   if ($attr->{NAS_MNG_IP_PORT}) {
-  #     $cmd = "$SSH -o StrictHostKeyChecking=no -i $base_dir/Certs/id_dsa.$attr->{NAS_MNG_USER} ".
+  #     $cmd = "$SSH -o StrictHostKeyChecking=no -i $base_dir/Certs/id_$ssh_cert_type.$attr->{NAS_MNG_USER} ".
   #       "$attr->{NAS_MNG_USER}\@$attr->{NAS_MNG_IP_PORT} \"$sudo killall pppoe-relay; $sudo $cmd\"";
   #    }
 

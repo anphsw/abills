@@ -16,7 +16,7 @@ use SNMP_Session;
 use SNMP_util;
 use BER;
 use Abills::Base qw(in_array int2byte ip2int mk_unique_value
-  load_pmodule2 date_format);
+  load_pmodule2 date_format _bp);
 use Abills::Filters qw(_mac_former dec2hex);
 use Nas;
 
@@ -41,10 +41,6 @@ require Equipment::Traps;
 require Equipment::Grabbers;
 require Equipment::Backup;
 require Equipment::Netmap;
-
-if ($conf{EQUIP_NEW}) {
-  require Equipment::Templates;
-}
 
 my $Nas = Nas->new( $db, \%conf, $admin );
 my $Dhcphosts;
@@ -78,7 +74,7 @@ my @service_status_colors = ("$_COLORS[9]", "840000", '#808080', '#0000FF', "$_C
 my @service_status = ($lang{ENABLE}, $lang{DISABLE}, $lang{NOT_ACTIVE}, $lang{ERROR}, $lang{BREAKING});
 our $SNMP_TPL_DIR = "../../Abills/modules/Equipment/snmp_tpl/";
 
-my $json = JSON->new->allow_nonref;
+#my $json = JSON->new->allow_nonref;
 
 #saving mappings of port_types. Order should be saved.
 our @port_types = ('', 'RJ45', 'GBIC', 'Gigabit', 'SFP');
@@ -109,8 +105,9 @@ sub equipment_panel {
     6 => "MAC",
     # 7 reserved for Snmputils
     8 => $lang{SNMP_SURVEY},
-    9 => 'Backup'
+    9 => "Backup",
     # 9 => "$lang{CHANGE}"
+    10 => "Log",
   );
 
   if ( in_array( 'Snmputils', \@MODULES ) ){
@@ -127,7 +124,7 @@ sub equipment_panel {
   my $buttons = $html->li( $html->button( $lang{MAIN}, "index=$index$pages_qs", { class => '' } ),
     { class => ((!defined( $FORM{visual} )) ? 'active' : '') } );
 
-  foreach my $key ( sort keys %ports_visualisation ){
+  foreach my $key ( sort {$a <=> $b} keys %ports_visualisation ){
     my $value = $ports_visualisation{$key};
     $buttons .= $html->li( $html->button( $value,
         "index=" . (($key && $key == 7) ? get_function_index( 'snmp_info_form' ) : $index) . "&visual=$key$pages_qs" )
@@ -151,8 +148,8 @@ sub equipment_panel {
         SEL_KEY        => 'nas_id',
         SEL_VALUE      => 'nas_id,nas_name',
         NO_ID          => 1,
-        MAIN_MENU      => get_function_index( 'equipment_model' ),
-        MAIN_MENU_ARGV => "chg=" . ($attr->{MODEL_ID} || '')
+        MAIN_MENU      => get_function_index( 'equipment_info' ),
+        MAIN_MENU_ARGV => "NAS_ID=" . ($FORM{NAS_ID} || '')
       }
     );
 
@@ -253,8 +250,8 @@ sub equipment_info{
       $Equipment->{ACTION_LNG} = $lang{CHANGE};
     }
   }
-  elsif ( $FORM{del} && defined( $FORM{COMMENTS} ) ){
-    $Equipment->_del( $FORM{NAS_ID} );
+  elsif ( $FORM{del} && $FORM{del} eq 'nas_id' && defined( $FORM{COMMENTS} ) ){
+		$Equipment->_del( $FORM{NAS_ID} );
     if ( !$Equipment->{errno} ){
       $html->message( 'info', $lang{INFO}, "$lang{DELETED} [". ($Nas->{NAS_ID} || q{}) ."]" );
     }
@@ -292,7 +289,6 @@ sub equipment_info{
       $Equipment->{ACTION_LNG} = $lang{CHANGE};
     }
 
-
     if ( !($FORM{header} || $FORM{qindex}) ){
       equipment_panel( $Equipment );
     }
@@ -317,6 +313,18 @@ sub equipment_info{
       }
     );
 
+    my $vendor_name = '';
+    if ($Equipment->{MODEL_ID}){
+      my $this_model_list = $Equipment->model_list({
+        ID          => $Equipment->{MODEL_ID},
+        VENDOR_NAME => '_SHOW',
+        COLS_NAME   => 1
+      });
+      if ($this_model_list && ref $this_model_list eq 'ARRAY' && scalar($this_model_list)){
+        $vendor_name = lc $this_model_list->[0]{vendor_name} if($this_model_list->[0]{vendor_name});
+      }
+    }
+
     $Equipment->{MODEL_SEL} = $html->form_select(
       'MODEL_ID',
       {
@@ -329,9 +337,16 @@ sub equipment_info{
           }
         ),
         SEL_VALUE      => 'vendor_name,model_name',
+        WRITE_TO_DATA  => 'vendor_name',
         NO_ID          => 1,
         MAIN_MENU      => get_function_index( 'equipment_model' ),
-        MAIN_MENU_ARGV => "chg=" . ($Equipment->{MODEL_ID} || '')
+        MAIN_MENU_ARGV => "chg=" . ($Equipment->{MODEL_ID} || ''),
+        EXT_BUTTON     => $html->button(undef, undef, {
+            GLOBAL_URL => 'http://abills.net.ua/wiki/doku.php/abills:docs:manual:admin:equipment:equipment_info:' . $vendor_name,
+            ID         => 'MODEL_ID_WIKI_LINK',
+            ICON       => 'fa fa-question',
+            ex_params  => 'style="margin-left:10px;"'
+        })
       }
     );
 
@@ -350,10 +365,11 @@ sub equipment_info{
         STYLE    => \@service_status_colors,
       }
     );
-    if ( in_array( 'Info', \@MODULES ) ){
-      load_module( 'Info', $html );
-      $Equipment->{EX_INFO} = info_comments_show( 'equipment_info', $Nas->{NAS_ID}, { OUTPUT2RETURN => 1 } );
-    }
+
+#    if ( in_array( 'Info', \@MODULES ) ){
+#      load_module( 'Info', $html );
+#      $Equipment->{EX_INFO} = info_comments_show( 'equipment_info', $Nas->{NAS_ID}, { OUTPUT2RETURN => 1 } );
+#    }
 
     $Equipment->{SNMP_VERSION_SEL} = $html->form_select('SNMP_VERSION',
       {
@@ -362,6 +378,27 @@ sub equipment_info{
         NO_ID     => 1
       }
     );
+
+    my $server_vlan_list = $Equipment->vlan_list({ PAGE_ROWS => 2000, COLS_NAME => 1 });
+
+    if($Equipment->{TOTAL}) {
+      $Equipment->{VLAN_SEL} = $html->form_select(
+        'SERVER_VLAN',
+        {
+          SELECTED       => $Equipment->{SERVER_VLAN},
+          SEL_LIST       => $server_vlan_list,
+          SEL_KEY        => 'number',
+          SEL_VALUE      => 'name',
+          SEL_OPTIONS    => { '' => '--' },
+          MAIN_MENU      => get_function_index('equipment_vlan'),
+          MAIN_MENU_ARGV => ($Equipment->{SERVER_VLAN}) ? "ID=$Equipment->{SERVER_VLAN}" : '',
+        }
+      );
+    }
+    else {
+      $Equipment->{VLAN_SEL} = $html->form_input( 'SERVER_VLAN', ($Equipment->{SERVER_VLAN} || q{}), { SIZE => 5 } );
+    }
+
 
     $html->tpl_show( _include( 'equipment_info', 'Equipment' ), { %{$Nas}, %{$Equipment}, %FORM } );
   }
@@ -471,7 +508,7 @@ sub equipment_list{
     INPUT_DATA        => $Equipment,
     FUNCTION        => '_list',
     DEFAULT_FIELDS  => 'NAS_NAME,STATUS,NAS_IP,MODEL_NAME,VENDOR_NAME,TYPE_NAME,PORTS,ADDRESS_FULL',
-    FUNCTION_FIELDS => 'equipment_traps:traps:nas_ip,equipment_info:change:nas_id,equipment_info:del:nas_id;&del=nas_id',
+    FUNCTION_FIELDS => 'equipment_traps:show:nas_id,equipment_info:change:nas_id,equipment_info:del:nas_id;&del=nas_id',
     MAP             => 1,
     EXTRA_TABS      => { 'Netmaps:network_map' => "index=". $index ."&NET_MAP=1" },
     EXT_TITLES      => {
@@ -496,6 +533,7 @@ sub equipment_list{
       qs      => $pages_qs,
       ID      => 'EQUIPMENT_MODELS',
       EXPORT  => 1,
+      #IMPORT  => 1,
       MENU    => "$lang{ADD}:add_form=1&index=" . get_function_index( 'form_nas' ) . ':add' . ";$lang{SEARCH}:index=$index&search_form=1:search",
     },
     MAKE_ROWS       => 1,
@@ -583,8 +621,14 @@ sub equipment_ports{
     #Show pons
     if ( $Equipment->{TYPE_ID} && $Equipment->{TYPE_ID} eq '4' ) {
       equipment_pon_onu({
-        NAS_INFO => $Equipment
+        NAS_INFO   => $Equipment,
+        USED_PORTS => $used_ports
       });
+      return 1;
+    }
+  
+    if ( $FORM{SELECT} ){
+      print $html->element('div', equipment_port_panel( $Equipment ), { class => 'modal-body' });
       return 1;
     }
 
@@ -613,21 +657,16 @@ sub equipment_ports{
           $ui .= user_ext_menu( $uid, $login, { SHOW_LOGIN => 1 } );
         }
       }
-
-      if ( $FORM{SELECT} ){
-        print equipment_port_panel( $Equipment );
-        return 1;
-      }
       else{
         push(
           @cols,
           $table->td(
             $html->element(
               'div',
-              $html->button( $i, "index=$index&NAS_ID=$FORM{NAS_ID}&PORT_ID=$i", { BUTTON => 1 } ),
+              $html->button( "$i", "index=$index&NAS_ID=$FORM{NAS_ID}&PORT_ID=$i", { BUTTON => 1 } ),
               {
                 class => 'clickSearchResult',
-                value => $i
+                value => $i.'----'
               }
             )
               . $html->br()
@@ -670,7 +709,8 @@ sub equipment_ports{
   elsif ( $visual == 4 ){
     equipment_pon({
       SNMP_COMMUNITY => $SNMP_COMMUNITY,
-      NAS_INFO       => $Equipment
+      NAS_INFO       => $Equipment,
+      USED_PORTS     => $used_ports
     });
   }
   #Get FDB
@@ -690,6 +730,9 @@ sub equipment_ports{
   # Backup management
   elsif ( $visual == 9 ){
     equipment_show_snmp_backup_files("BACKUP", $FORM{NAS_ID});
+  }
+  elsif ( $visual == 10) {
+    equipment_show_log($FORM{NAS_ID});
   }
   else{
     $Equipment->{TYPE_SEL} = $html->form_select(
@@ -719,9 +762,20 @@ sub equipment_ports{
       'UPLINK',
       {
         SELECTED    => $Equipment->{UPLINK} || '',
-        SEL_LIST    => $Nas->list( { %LIST_PARAMS, NAS_ID => '_SHOW', NAS_NAME => '_SHOW', SHORT => 1, COLS_NAME => 1 } ),
+        SEL_LIST    => $Nas->list( { %LIST_PARAMS, NAS_ID => '_SHOW', NAS_NAME => '_SHOW', SHORT => 1, PAGE_ROWS => 9999, COLS_NAME => 1 } ),
         SEL_KEY     => 'nas_id',
         SEL_VALUE   => 'nas_name',
+        SEL_OPTIONS => { '' => '--' },
+      }
+    );
+    $Equipment->{VLAN_SEL} = $html->form_select(
+      'VLAN',
+      {
+        SELECTED    => $Equipment->{VLAN} || $FORM{VLAN} || '',
+        SEL_LIST    => $Equipment->vlan_list( { %LIST_PARAMS, NAME => '_SHOW', SHORT => 1, PAGE_ROWS => 9999, COLS_NAME => 1 } ),
+        SEL_KEY     => 'id',
+        SEL_VALUE   => 'name',
+        NO_ID       => 1,
         SEL_OPTIONS => { '' => '--' },
       }
     );
@@ -786,7 +840,7 @@ sub equipment_ports_full {
   }
 
   #New
-  my $default_fields = 'PORT_NAME,PORT_STATUS,ADMIN_PORT_STATUS,UPLINK,LOGIN,MAC,IP,ADDRESS_FULL,DEPOSIT,TP_NAME,PORT_COMMENTS,TRAFFIC';
+  my $default_fields = 'PORT_NAME,PORT_STATUS,ADMIN_PORT_STATUS,UPLINK,LOGIN,MAC,IP,VLAN,ADDRESS_FULL,DEPOSIT,TP_NAME,PORT_COMMENTS,TRAFFIC';
   my ($table, $list) = result_former({
     DEFAULT_FIELDS => $default_fields,
     FIEDLS_NO_SORT => 1,
@@ -804,6 +858,7 @@ sub equipment_ports_full {
         LOGIN             => $lang{LOGIN},
         MAC               => "MAC",
         IP                => "IP",
+        VLAN              => "VLAN",
         ADDRESS_FULL      => $lang{ADDRESS},
         DEPOSIT           => $lang{DEPOSIT},
         TP_NAME           => $lang{TARIF_PLAN},
@@ -861,6 +916,9 @@ sub equipment_ports_full {
 
   foreach my $key (keys %{$ports_info}){
     if (@skip_ports_types && in_array($ports_info->{$key}{PORT_TYPE}, \@skip_ports_types)){
+      if($port_shift < $key) {
+        $port_shift = $key;
+      }
       delete $ports_info->{$key};
     }
   }
@@ -869,7 +927,7 @@ sub equipment_ports_full {
   my $user_infos = equipments_get_used_ports({
     NAS_ID     => $FORM{NAS_ID},
     COLS_UPPER => 1,
-    PORTS_ONLY => 1,
+    #PORTS_ONLY => 1,
     FULL_LIST  => 1,
   });
 
@@ -1027,36 +1085,119 @@ sub snmp_hash{
 sub equipment_vlans{
   my ($attr) = @_;
 
-  my $vlan_hash;
-
-  if ( ! $Equipment->{STATUS} ){
-    $vlan_hash = get_vlans( $attr );
+#=== NAV TABS ===
+  if (!defined($FORM{sub}) || $FORM{sub} eq '' ) {
+    $FORM{sub} = 1;
   }
-  else {
-    $html->message( 'info', $lang{INFO}, "$lang{STATUS} $service_status[$Equipment->{STATUS}]" );
+  my $active_button->{$FORM{sub}} = { class => 'active' };
+  my %nav_tabs = (
+    1 => "Vlans",
+    2 => "Unnumbered vlans",
+  );  
+  my $buttons = '';
+  foreach( sort { $a <=> $b } keys(%nav_tabs) ){
+    $buttons .= $html->li( $html->button( $nav_tabs{$_}, "index=$index&visual=$FORM{visual}&NAS_ID=$FORM{NAS_ID}&sub=$_" ), $active_button->{$_} )
   }
-
-  my $table = $html->table(
-    {
-      width      => '100%',
-      caption    => "VLANS:" . ($attr->{IP} || '') . (($attr->{EXT_INFO}) ? ' ' . $html->button(
-          $attr->{EXT_INFO},
-          "index=" . get_function_index( 'form_nas' ) . "&NAS_ID=" . $attr->{NAS_ID} ) : ''),
-      title      => [ 'VLAN', $lang{NAME}, "$lang{PORTS}" ],
-      cols_align => [ 'left', 'right', 'right' ],
-      qs         => "&visual=$FORM{visual}&NAS_ID=$FORM{NAS_ID}",
-      ID         => 'EQUIPMENT_SNMP_INFO',
+  print $html->element( 'ul', $buttons, { class => 'nav nav-tabs' });
+#=== NAV TABS END ===
+  
+  if($FORM{sub} == 2) {
+    $Equipment->_info( $FORM{NAS_ID} );
+    $html->tpl_show( _include( 'equipment_unnum_vlan', 'Equipment' ), {%FORM, PORTS => $Equipment->{PORTS}} );
+    
+    if($FORM{vlans_add}){
+      if ($FORM{ports_from} & !$FORM{ports_to}) {
+        $FORM{ports_to} = $FORM{ports_from};
+      }
+      if ($FORM{ports_to} > $Equipment->{PORTS}) {
+        $FORM{ports_to} = $Equipment->{PORTS};
+      }
+      if ($FORM{ports_from} && $FORM{ports_to} && $FORM{ports_from} <= $Equipment->{PORTS} &&
+          $FORM{ports_from} <= $FORM{ports_to}){
+        
+        my $port_num = $FORM{ports_from};
+        my $vlan_num = $FORM{VLAN};
+        
+        $Equipment->port_list({
+            NAS_ID    => $FORM{NAS_ID},
+            LIST2HASH => 'port,id',
+          });
+        _error_show($Equipment);
+        my $list_hash = $Equipment->{list_hash};
+        while ($port_num <= $FORM{ports_to}) {
+          if(!exists $list_hash->{$port_num} ) {
+            $Equipment->port_add({
+              NAS_ID    => $FORM{NAS_ID},
+              PORT      => $port_num++,
+              VLAN      => $vlan_num++,
+              COMMENTS  => 'auto created vlan',
+            });
+          }
+          else {
+            $Equipment->port_change({
+              ID        => $list_hash->{$port_num},
+              PORT      => $port_num++,
+              VLAN      => $vlan_num++,
+            });
+          }
+        }
+      }
     }
-  );
+    
+    my $port_list = $Equipment->port_list({
+      NAS_ID      => $FORM{NAS_ID},
+      VLAN        => '!0',
+      
+      SORT        => 1,
+      PAGE_ROWS   => 100,
+      COLS_UPPER  => 1,
+      COLS_NAME   => 1, 
+    });
+    
+    my $table = $html->table(
+      {
+        width      => '100%',
+        caption    => "Unnumbered VLANS",
+        title      => [ $lang{PORTS}, "Vlan" ],
+        qs         => "&visual=$FORM{visual}&NAS_ID=$FORM{NAS_ID}&sub=2",
+        ID         => 'UNNUMBERED VLANS',
+      }
+    );
 
-  foreach my $key ( sort { $a <=> $b } keys %{ $vlan_hash } ){
-    $table->addrow( $key,
-      $vlan_hash->{$key}{NAME},
-      $vlan_hash->{$key}{PORTS} );
+    foreach my $port ( @$port_list ){
+      $table->addrow( $port->{PORT}, $port->{VLAN} );
+    }
+    print $table->show();
   }
+  else {  
+    my $vlan_hash;
+    if ( ! $Equipment->{STATUS} ){
+      $vlan_hash = get_vlans( $attr );
+    }
+    else {
+      $html->message( 'info', $lang{INFO}, "$lang{STATUS} $service_status[$Equipment->{STATUS}]" );
+    }
 
-  print $table->show();
+    my $table = $html->table(
+      {
+        width      => '100%',
+        caption    => "VLANS:" . ($attr->{IP} || '') . (($attr->{EXT_INFO}) ? ' ' . $html->button(
+            $attr->{EXT_INFO},
+            "index=" . get_function_index( 'form_nas' ) . "&NAS_ID=" . $attr->{NAS_ID} ) : ''),
+        title      => [ 'VLAN', $lang{NAME}, "$lang{PORTS}" ],
+        qs         => "&visual=$FORM{visual}&NAS_ID=$FORM{NAS_ID}",
+        ID         => 'EQUIPMENT_SNMP_INFO',
+      }
+    );
 
+    foreach my $key ( sort { $a <=> $b } keys %{ $vlan_hash } ){
+      $table->addrow( $key,
+        $vlan_hash->{$key}{NAME},
+        $vlan_hash->{$key}{PORTS} );
+    }
+    print $table->show();
+  }
+  
   return 1;
 }
 
@@ -1071,39 +1212,44 @@ sub equipment_vlans{
 #********************************************************
 sub equipment_mac_log {
   my ($attr) = @_;
-
-
-  if($FORM{del} && $FORM{COMMENTS}) {
-    $Equipment->mac_log_del({
-      ALL    => 1
-    });
-
+	$index = get_function_index( 'equipment_mac_log' );
+	if ($FORM{del}){
+	  if ($FORM{del} eq 'all' && $FORM{COMMENTS}) {
+	    $Equipment->mac_log_del({
+	      ALL    => 1
+			});
+		}
+		elsif ($FORM{del} eq 'mac') {
+			$Equipment->mac_log_del({
+				ID    => $FORM{ID}
+			});
+		}
     if(! _error_show($Equipment)) {
       $html->message('info', $lang{INFO}, $lang{DELETED});
     }
-  }
-  else {
-    form_search({
-      SIMPLE => {
-        'IP'         => 'IP',
-        "$lang{NAS}" => 'NAS_ID',
-        'MAC'        => 'MAC',
-        'VLAN'       => 'VLAN',
-        #      'STATE'                 => { '' => $lang{ALL}, %state_hash_rev }
-      },
-      HIDDEN => { visual => $FORM{visual} }
-    });
-  }
-
-  if($attr->{NAS_ID}) {
-    $LIST_PARAMS{NAS_ID}=$attr->{NAS_ID};
-  }
+	}
+  if (!$FORM{NAS_ID}){
+		form_search({
+	    SIMPLE => {
+	      'IP'         => 'IP',
+	      "$lang{NAS}" => 'NAS_ID',
+	      'MAC'        => 'MAC',
+	      'VLAN'       => 'VLAN',
+	      $lang{PORT}  => 'PORT',
+	    },
+	    HIDDEN_FIELDS => {
+	      visual => $FORM{visual}
+	    },
+	  });
+	}
+	
+  $LIST_PARAMS{NAS_ID}=$attr->{NAS_ID} || $FORM{NAS_ID} || '' ;
 
   result_former({
     INPUT_DATA      => $Equipment,
     FUNCTION        => 'mac_log_list',
-    DEFAULT_FIELDS  => 'MAC,IP,VLAN,PORT,DATETIME,NAS_ID',
-    #FUNCTION_FIELDS => 'del',
+    DEFAULT_FIELDS  => 'MAC,IP,VLAN,PORT,DATETIME,REM_TIME,NAS_NAME',
+    FUNCTION_FIELDS => 'equipment_mac_log:del:id;&visual=6&del=mac',
     SKIP_USER_TITLE => 1,
     EXT_TITLES      => {
       mac      =>  'MAC',
@@ -1111,16 +1257,17 @@ sub equipment_mac_log {
       vlan     =>  'Vlan',
       port     =>  $lang{PORT},
       datetime =>  $lang{DATE},
-      nas_id   =>  $lang{NAS}
+			rem_time =>  "$lang{DATE} $lang{DISABLE}",
+      name     =>  $lang{NAS}
     },
     TABLE           => {
       width   => '100%',
       caption => "MAC",
-      qs      => $pages_qs,
+      qs      => "$pages_qs&visual=6",
       ID      => 'MACS_LIST',
       EXPORT  => 1,
-      MENU    => "$lang{SEARCH}:index=$index&search_form=1&$pages_qs:search",
-      header  => $html->button( "$lang{DEL} $lang{ALL}", "index=$index&del=1"
+      MENU    => "$lang{SEARCH}:index=$index&search_form=1:search",
+      header  => $html->button( "$lang{DEL} $lang{ALL}", "index=$index&del=all"
         . (($FORM{NAS_ID}) ? "&NAS_ID=$FORM{NAS_ID}" : q{}),
         { MESSAGE => "$lang{DEL} $lang{ALL}?", class => 'btn btn-default' } ),
 
@@ -1181,7 +1328,6 @@ sub equipment_fdb{
             $attr->{EXT_INFO},
             "index=".get_function_index( 'form_nas' )."&NAS_ID=".$nas_id )       : ''), # . " $SNMP_COMMUNITY",
         title      => [ $lang{PORTS}, 'MAC', 'VLAN', $lang{PORT_USERS} ],
-        cols_align => [ 'left', 'right', 'right' ],
         qs         => "&visual=$visual&NAS_ID=".$nas_id,
         ID         => 'EQUIPMENT_SNMP_INFO',
       }
@@ -1252,7 +1398,6 @@ sub equipment_fdb{
     $table = $html->table(
       {
         width      => '100%',
-        cols_align => [ 'right', 'right' ],
         rows       => [ [ "MAC $lang{TOTAL}:", $html->b( $total_macs ) ] ]
       }
     );
@@ -1374,8 +1519,9 @@ sub equipment_snmp_info{
     my $version = $attr->{VERSION} || 1;
 
     my ($snmp_community, $port)=split(/:/, $attr->{SNMP_COMMUNITY});
-    $port = 161 if (! $port || in_array($port, [ 22, 1700, 3977 ]));
+    $port = 161 if (! $port || in_array($port, [ 22, 23, 1700, 3977 ]));
     $snmp_community.=':'.$port.":$timeout:$retries:1:$version";
+
     my %result = snmpwalkhash( $snmp_community, \&snmp_hash, $oid );
 
     if ( $SNMP_Session::errmsg ){
@@ -1389,7 +1535,6 @@ sub equipment_snmp_info{
         width      => '100%',
         caption    => "$lang{RESULT}:", # $SNMP_COMMUNITY",
         title      => [ 'MAC', 'IP', $lang{USER}, $lang{TYPE}, 'IF index' ],
-        cols_align => [ 'left', 'left', 'left', 'left' ],
         ID         => 'EQUIPMENT_SNMP_ARP',
       }
     );
@@ -1420,7 +1565,6 @@ sub equipment_snmp_info{
     $table = $html->table(
       {
         width      => '100%',
-        cols_align => [ 'right', 'right' ],
         rowcolor   => $_COLORS[0],
         rows       => [ [ "$lang{TOTAL}:", $html->b( $rows_count ) ] ]
       }
@@ -1437,8 +1581,7 @@ sub equipment_snmp_info{
         {
           width      => '100%',
           caption    => "$lang{SNMP_SURVEY}: ". (($perl_scalar && $perl_scalar->{DEVICE}) ? $perl_scalar->{DEVICE} : q{}),
-          title      => [ "ID", "$lang{VALUE}", '-', '-' ],
-          cols_align => [ 'left', 'left', 'center:noprint', 'center:noprint' ],
+          title      => [ "ID", $lang{VALUE}, '-', '-' ],
           qs         => $pages_qs,
           ID         => 'EQUIPMENT_ONU_INFO'
         }
@@ -1529,94 +1672,148 @@ sub equipments_get_used_ports{
   my %used_ports = ();
   my $list;
 
-  require Dv;
-  Dv->import();
-  my $Dv = Dv->new( $db, $admin, \%conf );
+  if(in_array('Internet', \@MODULES)) {
+    require Internet;
+    Internet->import();
+    my $Internet = Internet->new($db, $admin, \%conf);
 
-  require Dv_Sessions;
-  Dv_Sessions->import();
-  my $Dv_Sessions = Dv_Sessions->new( $db, $admin, \%conf );
+    require Internet::Sessions;
+    Internet::Sessions->import();
+    my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
 
-  if($attr->{DEBUG} && $attr->{DEBUG} > 6) {
-    $Dhcphosts->{debug}=1;
-    $Dv_Sessions->{debug}=1;
-    $Dv->{debug}=1;
-  }
-
-  if ( in_array( 'Dhcphosts', \@MODULES ) ){
-    $list = $Dhcphosts->hosts_list({
-      %LIST_PARAMS,
-      NAS_ID       => $attr->{NAS_ID},
-      ADDRESS_FULL => '_SHOW',
-      PORTS        => '_SHOW',
+    $list = $Internet->list({
       LOGIN        => '_SHOW',
-      MAC          => '_SHOW',
+      FIO          => '_SHOW',
+      ADDRESS_FULL => '_SHOW',
+      CID          => '_SHOW',
+      PORT         => '_SHOW',
+      NAS_ID       => $attr->{NAS_ID},
       COLS_NAME    => 1,
-      COLS_UPPER   => $attr->{COLS_UPPER},
+      PAGE_ROWS    => 1000000
+    });
+
+    foreach my $line (@{$list}) {
+
+      if(! $attr->{PORTS_ONLY}) {
+        if ($line->{cid} && $line->{cid} !~ /any/ig) {
+          push @{ $used_ports{ $line->{cid} } }, $line;
+        }
+
+        if ($line->{cpe_mac}) {
+          push @{ $used_ports{ $line->{cpe_mac} } }, $line;
+        }
+      }
+
+      if ($attr->{NAS_ID}) {
+        push @{ $used_ports{ $line->{port} } }, $line;
+      }
+    }
+
+    #Online
+    $list = $Sessions->online({
+      CID          => '_SHOW',
+      UID          => '_SHOW',
+      LOGIN        => '_SHOW',
+      ADDRESS_FULL => '_SHOW',
+      DURATION     => '_SHOW',
+    });
+
+    foreach my $line (@{$list}) {
+      if ($line->{cid} && !$used_ports{ lc($line->{cid}) }) {
+        push @{ $used_ports{ lc($line->{cid}) } }, $line;
+      }
+    }
+  }
+  else {
+    require Dv;
+    Dv->import();
+    my $Dv = Dv->new($db, $admin, \%conf);
+
+    require Dv_Sessions;
+    Dv_Sessions->import();
+    my $Dv_Sessions = Dv_Sessions->new($db, $admin, \%conf);
+
+    if ($attr->{DEBUG} && $attr->{DEBUG} > 6) {
+      $Dhcphosts->{debug} = 1;
+      $Dv_Sessions->{debug} = 1;
+      $Dv->{debug} = 1;
+    }
+
+    if (in_array('Dhcphosts', \@MODULES)) {
+      $list = $Dhcphosts->hosts_list({
+        %LIST_PARAMS,
+        NAS_ID       => $attr->{NAS_ID},
+        ADDRESS_FULL => '_SHOW',
+        PORTS        => '_SHOW',
+        LOGIN        => '_SHOW',
+        MAC          => '_SHOW',
+        COLS_NAME    => 1,
+        COLS_UPPER   => $attr->{COLS_UPPER},
+        PAGE_ROWS    => 100000
+      });
+
+      foreach my $line (@{$list}) {
+        if ($attr->{FULL_LIST}) {
+          if ($attr->{GET_MAC}) {
+            $used_ports{ lc($line->{mac}) } = $line;
+          }
+          else {
+            push @{ $used_ports{ $line->{ports} } }, $line;
+          }
+        }
+        else {
+          push @{ $used_ports{ $line->{ports} } }, ($line->{uid} || 0) . ':' . ($line->{login} || '');
+          if ($attr->{GET_MAC}) {
+            $used_ports{ lc($line->{mac}) } = ($line->{uid} || 0) . ':' . ($line->{login} || '');
+          }
+        }
+      }
+    }
+
+    if ($attr->{PORTS_ONLY}) {
+      return \%used_ports;
+    }
+
+    $list = $Dv->list({
+      #PORTS     => '_SHOW',
+      LOGIN        => '_SHOW',
+      FIO          => '_SHOW',
+      ADDRESS_FULL => '_SHOW',
+      CID          => '_SHOW',
+      COLS_NAME    => 1,
       PAGE_ROWS    => 100000
     });
 
-    foreach my $line ( @{$list} ){
-      if ( $attr->{FULL_LIST} ){
-        if ( $attr->{GET_MAC} ){
-          $used_ports{ lc( $line->{mac} ) } = $line;
+    foreach my $line (@{$list}) {
+      next if (!$line->{cid});
+      next if ($line->{cid} =~ /any/ig);
+
+      if ($attr->{FULL_LIST}) {
+        if ($attr->{GET_MAC}) {
+          $used_ports{ $line->{cid} } = $line;
         }
         else {
-          push @{ $used_ports{ $line->{ports} } }, $line;
+          push @{ $used_ports{ $line->{cid} } }, $line;
         }
-      }
-      else{
-        push @{ $used_ports{ $line->{ports} } }, ($line->{uid} || 0) . ':' . ($line->{login} || '');
-        if ( $attr->{GET_MAC} ){
-          $used_ports{ lc( $line->{mac} ) } = ($line->{uid} || 0). ':' . ($line->{login} || '');
-        }
-      }
-    }
-  }
-
-  if ($attr->{PORTS_ONLY}){
-#    return \%used_ports;
-  }
-
-  $list = $Dv->list({
-    #PORTS     => '_SHOW',
-    LOGIN        => '_SHOW',
-    FIO          => '_SHOW',
-    ADDRESS_FULL => '_SHOW',
-    CID          => '_SHOW',
-    COLS_NAME    => 1,
-    PAGE_ROWS    => 100000
-  });
-
-  foreach my $line ( @{$list} ){
-    next if (! $line->{cid});
-    next if ($line->{cid} =~ /any/ig);
-
-    if ($attr->{FULL_LIST}) {
-      if ( $attr->{GET_MAC} ) {
-        $used_ports{ $line->{cid} } = $line;
       }
       else {
-        push @{ $used_ports{ $line->{cid} } }, $line;
+        $used_ports{ lc($line->{cid}) } = "$line->{uid}:$line->{login}";
       }
     }
-    else {
-      $used_ports{ lc( $line->{cid} ) } = "$line->{uid}:$line->{login}";
-    }
-  }
 
-  #Online
-  $list = $Dv_Sessions->online({
-    CID          => '_SHOW',
-    UID          => '_SHOW',
-    LOGIN        => '_SHOW',
-    ADDRESS_FULL => '_SHOW',
-    DURATION     => '_SHOW',
-  });
+    #Online
+    $list = $Dv_Sessions->online({
+      CID          => '_SHOW',
+      UID          => '_SHOW',
+      LOGIN        => '_SHOW',
+      ADDRESS_FULL => '_SHOW',
+      DURATION     => '_SHOW',
+    });
 
-  foreach my $line ( @{$list} ) {
-    if($line->{CID} && ! $used_ports{ lc($line->{CID}) }) {
-      push @{ $used_ports{ lc($line->{CID}) } }, $line;
+    foreach my $line (@{$list}) {
+      if ($line->{CID} && !$used_ports{ lc($line->{CID}) }) {
+        push @{ $used_ports{ lc($line->{CID}) } }, $line;
+      }
     }
   }
 
@@ -1637,7 +1834,7 @@ sub equipments_get_used_ports{
       }
     }
     else {
-      $used_ports{ lc( $line->{mac} ) } = "sw:$line->{id}:$line->{nas_name}";
+      $used_ports{ lc( $line->{mac} ) } = "sw:$line->{id}:". ($line->{nas_name} || q{});
     }
   }
 
@@ -1657,6 +1854,10 @@ sub equipments_get_used_ports{
       USED_PORTS          - (array) array representing numbers of used ports
       ID                  - ID of model
 
+      SEARCH_RESULT       - (hash_ref) used for modal search (will be passed to js:fillSearchResults() )
+        1 => '1'         - will set ${search_popup_name} input value to 1 (hidden ${search_popup_name} + '1' too)
+        2 => 'PORT:2;VLAN:4;SERVER_VLAN:4' - same as prev, but allows multiple inputs
+        
   Returns:
     HTML div
 
@@ -1665,7 +1866,6 @@ sub equipments_get_used_ports{
 #********************************************************
 sub equipment_port_panel{
   my ($attr) = @_;
-  # $attr == $Equipment
 
   #This is used to display extra ports on form
   my $extra_ports_rows = { };
@@ -1675,11 +1875,36 @@ sub equipment_port_panel{
   my $rows_count = $attr->{ROWS_COUNT} || 1;
   my $port_type = $attr->{PORTS_TYPE} || 1;
 
-  my $port_numbering = $attr->{PORT_NUMBERING};
+  # Get port info
+  my $port_list = $Equipment->port_list({
+    NAS_ID    => $attr->{NAS_ID},
+    VLAN      => '_SHOW',
+    COLS_NAME => 1
+  });
+
+#  $Equipment->{SEARCH_RESULT} = {
+#    1 => 'PORTS:1;VLAN:5;SERVER_VLAN:5',
+#    2 => 'PORTS:2;VLAN:15;SERVER_VLAN:5'
+#  };
+  my $ports_name = (in_array('Internet', \@MODULES)) ? 'PORT' : 'PORTS';
+  my $vlan_name = (in_array('Internet', \@MODULES)) ? 'VLAN' : 'VID';
+  my $server_vlan_name = (in_array('Internet', \@MODULES)) ? 'SERVER_VLAN' : 'SERVER_VID';
+
+  foreach my $line (@$port_list) {
+    $Equipment->{SEARCH_RESULT}{$line->{port}}
+      = $ports_name . ":" . $line->{port}
+      . ";" . $vlan_name . ":" . ($line->{vlan} || '')
+      . ";" . $server_vlan_name . ":" . ($Equipment->{SERVER_VLAN} || '')
+  }
+
+  my $port_numbered_by_rows = $attr->{PORT_NUMBERING};
   my $first_port_position = $attr->{FIRST_POSITION};
 
-  my $extra_ports = $attr->extra_ports_list( $attr->{ID} );
-  _error_show( $attr );
+  # For modal search
+  my $search_result = $attr->{SEARCH_RESULT} || {};
+  
+  my $extra_ports = $Equipment->extra_ports_list( $attr->{ID} );
+  _error_show( $Equipment );
 
   #sort by row
   my $ports_by_row = { };
@@ -1706,15 +1931,15 @@ sub equipment_port_panel{
     my $row = "<div class='row equipment-row'>";
     for ( my $block_num = 0; $block_num < $blocks_in_row; $block_num++ ){
       my $block = "<div class='equipment-block'>";
-      if ( !$port_numbering ){
+      if ( !$port_numbered_by_rows ){
         for ( my $port_num = 0; $port_num < $block_size; $port_num++ ){
           $number++;
           if ( $number <= $port_count ){
-            my $class =
-                (!$used_ports->{$number})
-              ? "clickSearchResult port port-$port_types[$port_type]-free"
-              : "clickSearchResult port port-$port_types[$port_type]-used port-used";
-            $block .= _get_html_for_port( $number, $class );
+            my $class =  (!$used_ports->{$number})
+                           ? "clickSearchResult port port-$port_types[$port_type]-free"
+                           : "clickSearchResult port port-$port_types[$port_type]-used port-used";
+            
+            $block .= _get_html_for_port( $number, $class, $search_result->{$number});
           }
         }
       }
@@ -1722,11 +1947,11 @@ sub equipment_port_panel{
         for ( my $port_num = 0; $port_num < $block_size; $port_num++ ){
           $number = $row_num + ($rows_count * $port_num) + ($block_num * $block_size * $rows_count) + 1;
           if ( $number <= $port_count ){
-            my $class =
-                (!$used_ports->{$number})
-              ? "clickSearchResult clickSearchResult port port-$port_types[$port_type]-free"
-              : "port port-$port_types[$port_type]-used port-used";
-            $block .= _get_html_for_port( $number, $class );
+            my $class = (!$used_ports->{$number})
+                          ? "clickSearchResult port port-$port_types[$port_type]-free"
+                          : "clickSearchResult port port-$port_types[$port_type]-used port-used";
+            
+            $block .= _get_html_for_port( $number, $class, $search_result->{$number});
           }
         }
       }
@@ -1740,9 +1965,11 @@ sub equipment_port_panel{
 
       $row .= "<div class='equipment-block'>";
       foreach my $port ( @{ $ports_by_row->{$row_num} } ){
-        $row .= ($port->{state})
-          ? _get_html_for_port( 'e' . $port->{port_number}, "port port-$port_types[$port->{port_type}]-used port-used" )
-          : _get_html_for_port( 'e' . $port->{port_number}, "port port-$port_types[$port->{port_type}]-free" );
+        my $class = ($port->{state})
+                      ? "port port-$port_types[$port->{port_type}]-used port-used"
+                      : "port port-$port_types[$port->{port_type}]-free";
+        
+        $row .= _get_html_for_port( 'e' . $port->{port_number}, $class, $search_result->{$port->{port_number}} );
 
         push( @extra_ports, qq{ "$port->{port_number}" : $port->{port_type} } );
       }
@@ -1803,6 +2030,7 @@ sub equipment_port_panel{
   foreach my $row_number ( sort keys %{$extra_ports_rows} ){
     push ( @rows_json, qq{ "$row_number" : { $extra_ports_rows->{$row_number} } } );
   }
+
   $extra_ports_json .= join( ", ", @rows_json );
   $extra_ports_json .= " }' >";
 
@@ -1818,14 +2046,16 @@ sub equipment_port_panel{
 =cut
 #********************************************************
 sub _get_html_for_port{
-  my ($number_, $class_) = @_;
+  my ($number, $class, $data_value) = @_;
 
+  $data_value ||= $number;
+  
   return $html->element(
     'div',
-    $html->b( $number_ ),
+    $html->b( $number ),
     {
-      class => $class_,
-      value => $number_
+      class => $class,
+      value => $data_value
     }
   );
 }
@@ -1852,9 +2082,6 @@ sub equipment_vlan{
     if ( !$Equipment->{errno} ){
       $html->message( 'success', "Vlan", "$lang{ADDED}" );
     }
-    else{
-      $html->message( 'err', "Vlan", "$lang{NOT} $lang{ADDED}" );
-    }
   }
   elsif ( $FORM{action} && $FORM{action} eq 'change' ){
     print 'Изменить влан';
@@ -1862,9 +2089,6 @@ sub equipment_vlan{
 
     if ( !$Equipment->{errno} ){
       $html->message( 'success', "Vlan", "$lang{CHANGED}" );
-    }
-    else{
-      $html->message( 'err', "Vlan", "$lang{NOT} $lang{CHANGED}" );
     }
   }
 
@@ -1877,10 +2101,9 @@ sub equipment_vlan{
     if ( !$Equipment->{errno} ){
       $html->message( 'success', "Vlan", "$lang{DELETED}" );
     }
-    else{
-      $html->message( 'err', "Vlan", "$lang{NOT} $lang{DELETED}" );
-    }
   }
+
+  _error_show($Equipment);
 
   $html->tpl_show( _include( 'equipment_vlan', 'Equipment' ), {
     ACTION   => ($FORM{chg}) ? 'change' : $action,
@@ -2003,6 +2226,7 @@ sub equipment_port_info {
     %{ ($attr) ? $attr : {} },
     PORT_INFO => $info_fields,
     PORT_ID   => $attr->{PORT},
+    TEST_DISTANCE => $attr->{TEST_DISTANCE}
   });
 
   if(ref $test_result ne 'HASH') {
@@ -2063,6 +2287,7 @@ sub port_result_former {
         $ports_state_color[ $value ] );
 
       if($permissions{0}{22}) {
+        $FORM{chg} //= q{};
         $value .= $html->button($lang{DISABLE}, "index=$index&UID=$FORM{UID}&chg=$FORM{chg}&PORT_STATUS=1",
           { ICON => 'glyphicon glyphicon-off' }
         );
@@ -2085,7 +2310,7 @@ sub port_result_former {
       $value = 'ONU_RX_POWER: ' .  pon_tx_alerts( $value )
         .'ONU_TX_POWER: '. pon_tx_alerts($port_info->{$port_id}->{ONU_TX_POWER});
       if($port_info->{$port_id}->{OLT_RX_POWER}) {
-        $value .= 'OLT_RX_POWER: '. $port_info->{$port_id}->{OLT_RX_POWER};
+        $value .= 'OLT_RX_POWER: '. pon_tx_alerts( $port_info->{$port_id}->{OLT_RX_POWER} );
       }
     }
     elsif($key eq 'ONU_PORTS_STATUS') {
@@ -2094,16 +2319,28 @@ sub port_result_former {
       $value = q{};
       foreach my $line (@ports_status) {
         my ($port, $status)=split(/-/, $line);
-        my $active = ($status == 1) ? 'btn-success' : q{};
-        $value .= $html->element('span', $port, { class => 'btn btn-default ' . $active });
+        my $active = q{};
+        my $describe = $lang{DISABLE};
+        if ($status == 1) {
+          $active   = 'btn-success';
+          $describe = $lang{ACTIVE};
+        }
+
+        $value .= $html->element('span', $port, { class => 'btn btn-default ' . $active, title => $describe });
       }
+    }
+    elsif($key eq 'DISTANCE') {
+      $value = ($FORM{TEST_DISTANCE}) ? $port_info->{$port_id}->{DISTANCE}
+        : $html->button($lang{TEST}, "index=$index&UID=". ($FORM{UID} || q{})."&chg=". ($FORM{chg} || $FORM{ID} || q{}) ."&TEST_DISTANCE=1",
+          { class => 'btn btn-default', title => $lang{DISTANCE} });
+      $value  = $port_info->{$port_id}->{DISTANCE};
     }
     elsif($key eq 'PORT_IN_ERR') {
       $key = $lang{ERROR};
-      $value = $html->color_mark($port_info->{$port_id}->{PORT_IN_ERR}
+      $value = $html->color_mark(($port_info->{$port_id}->{PORT_IN_ERR} || 0)
           . '/'
-          . $port_info->{$port_id}->{PORT_OUT_ERR},
-          ( $port_info->{$port_id}->{PORT_OUT_ERR} + $port_info->{$port_id}->{PORT_IN_ERR} > 0 ) ? 'text-danger' : undef );
+          . ($port_info->{$port_id}->{PORT_OUT_ERR} || 0),
+          ( ($port_info->{$port_id}->{PORT_OUT_ERR} || 0) + ($port_info->{$port_id}->{PORT_IN_ERR} || 0) > 0 ) ? 'text-danger' : undef );
     }
 
     $key = ($lang{$key}) ? $lang{$key} : $key;
@@ -2132,40 +2369,7 @@ sub equipment_user_info {
   my ($attr) =@_;
   my @equipment_infos = ();
 
-  if ($conf{EQUIP_NEW} && $attr->{NAS_ID}) {
-    my $info = $Equipment->info_list( {
-      COLS_NAME => 1,
-      NAS_ID    => $attr->{NAS_ID},
-      SECTION   => 'PORTS',
-      RESULT    => '_SHOW'
-    } );
-
-    my $tmpl = $Equipment->snmp_tpl_list( {
-      COLS_NAME => 1,
-      MODEL_ID  => $info->[0]->{model_id},
-      SECTION   => 'PORTS'
-    } );
-
-    my $equip = $Equipment->_list( {
-      COLS_NAME => 1,
-      NAS_ID    => $attr->{NAS_ID},
-      NAS_NAME  => '_SHOW',
-      NAS_IP    => '_SHOW'
-    } );
-
-    my $eq_index = get_function_index( 'equipment_panel_new' );
-    push @equipment_infos,
-      [ $html->button( $equip->[0]->{nas_name}, "index=$eq_index&NAS_ID=$attr->{NAS_ID}" ), $equip->[0]->{nas_ip} ];
-
-    if ($tmpl && $info->[0]->{result} && $attr->{PORT}) {
-      my $tit = JSON->new->utf8( 0 )->decode( $tmpl->[0]->{parameters} );
-      my $vars = JSON->new->utf8( 0 )->decode( $info->[0]->{result} )->{$attr->{PORT}};
-      foreach my $key (0 .. @$tit) {
-        push @equipment_infos, [ $tit->[$key]->[1] || $tit->[$key]->[0], $vars->[$key] ];
-      }
-    }
-  }
-  elsif ($attr->{NAS_ID}) {
+  if ($attr->{NAS_ID}) {
     my $list = $Equipment->_list( {
       MNG_HOST_PORT    => '_SHOW',
       MNG_USER         => '_SHOW',
@@ -2189,7 +2393,7 @@ sub equipment_user_info {
         SYSTEM_ID => '.1.3.6.1.2.1.1.5.0',
         UPTIME    => '.1.3.6.1.2.1.1.3.0',
       );
-
+      my $count = 0;
       foreach my $snmp_id ('SYSTEM_ID', 'DESCRIBE', 'UPTIME') {
         my $snmp_result = snmp_get({
           %{$attr},
@@ -2200,17 +2404,23 @@ sub equipment_user_info {
           SILENT         => ($FORM{DEBUG}) ? undef : 1
         });
 
-        if (! $snmp_result) {
+        if (! $snmp_result && $count > 1) {
           return $html->message('err', $lang{ERR_NOT_RESPONSE}
               .' '. $Nas_info->{nas_mng_ip_port}
               .' '. $html->button( '', "NAS_ID=$attr->{NAS_ID}&index=".get_function_index('equipment_info'),
               { ICON => 'glyphicon glyphicon-info-sign' } ), '', { OUTPUT2RETURN => 1 });
           last;
         }
-
-        push @equipment_infos, [ ($lang{$snmp_id}) ? $lang{$snmp_id} : $snmp_id,
-          $snmp_result . (($snmp_id eq 'SYSTEM_ID') ? $html->button( '', "NAS_ID=$attr->{NAS_ID}&index=".get_function_index('equipment_info'),
-            { ICON => 'glyphicon glyphicon-info-sign' } ) : q{}) ];
+        elsif($snmp_result) {
+          push @equipment_infos, [ ($lang{$snmp_id}) ? $lang{$snmp_id} : $snmp_id,
+              $snmp_result . (($snmp_id eq 'SYSTEM_ID') ? $html->button( '', "NAS_ID=$attr->{NAS_ID}&index=".get_function_index('equipment_info'),
+                  { ICON => 'glyphicon glyphicon-info-sign' } )
+                  . $html->button('MAC log', "index=". get_function_index('equipment_info')
+                    . "&visual=6&search=1&NAS_ID=$attr->{NAS_ID}&PORT=". ($attr->{PORT} || q{}) ."&VLAN=". ($attr->{VLAN} || q{}),
+                  { class => 'btn btn-xs btn-default' })  : q{})
+            ];
+        }
+        $count++;
       }
 
       # Type
@@ -2223,7 +2433,7 @@ sub equipment_user_info {
           ONU_SNMP_ID     => '_SHOW',
           COLS_NAME       => 1
         });
-
+        $FORM{TEST_DISTANCE}=1;
         if($Equipment->{TOTAL}) {
           my $onu_id = $onu_list->[0]->{onu_snmp_id};
           my $snmp_onu_id = $onu_list->[0]->{id};
@@ -2235,6 +2445,8 @@ sub equipment_user_info {
             VERSION        => $Nas_info->{snmp_version},
             OUTPUT2RETURN  => 1,
             QUICK          => 1,
+            BRANCH         => $onu_list->[0]->{branch},
+            ONU_ID         => $onu_list->[0]->{onu_id},
             %$attr
           });
           @equipment_infos = @{ $result };
@@ -2247,6 +2459,7 @@ sub equipment_user_info {
           VERSION        => $Nas_info->{snmp_version},
           PORT           => $attr->{PORT},
           EQUIPMENT_INFOS=> \@equipment_infos,
+          TEST_DISTANCE  => $FORM{TEST_DISTANCE},
           SNMP_TPL       => $Nas_info->{snmp_tpl} #($Nas_info->{snmp_tpl}) ? _get_snmp_oid( $Nas_info->{snmp_tpl} ) : undef
         });
       }
@@ -2339,6 +2552,139 @@ sub equipment_equipment_maps {
   }
 
   return join(";", map { "ObjectsArray[ObjectsArray.length] = $_ ;" } @export_arr);
+}
+
+#**********************************************************
+=head2 equipment_show_log(NAS_ID)
+
+=cut
+#**********************************************************
+sub equipment_show_log {
+  #my ($nas_id) = @_;
+
+  unless($FORM{NAS_ID}) {return 0;}
+  
+  $Nas->info( { NAS_ID => $FORM{NAS_ID} } );
+  my $nas_ip = $Nas->{NAS_IP};
+  
+  $pages_qs = "&visual=$FORM{visual}&NAS_ID=$FORM{NAS_ID}";
+
+  my @File = '';
+  my $file_name = "nas.log";
+  my $file_dir = $var_dir.'/log/nas_logs/';
+  $file_dir =~ (s/\s//g);
+
+  if (defined($FORM{grep})) {
+    if ($FORM{grep} !~ /^([\w\s\:\-\+\.\,\\\/]*)$/) {
+      $html->message('err', $lang{ERROR}, "Forbidden symbol in '$FORM{grep}'.\n");
+      return 0;
+    }
+    my $search_string = '';
+    if ($FORM{all_logs}) {
+      $search_string = $FORM{grep};
+      $pages_qs .="&all_logs=checked"
+    }
+    else {
+      $search_string = "$nas_ip.*$FORM{grep}|$FORM{grep}.*$nas_ip";
+    }
+    @File = `grep -E '$search_string' $file_dir$file_name`;
+    $pages_qs .= "&grep=$FORM{grep}";
+  }
+  else {
+    @File = `grep '$nas_ip' $file_dir$file_name`;
+  }
+
+  @File = reverse @File;
+
+  my $table = $html->table(
+    {
+      caption       => "$file_name",
+      qs            => $pages_qs,
+      pages         => scalar(@File),
+      recs_on_page  => 50,
+      title_plain   => [ "timestamp", "host", "facility", "msg" ],
+      width         => '100%',
+      ID            => 'LOGS_TABLE',
+      EXPORT        => 1,
+      OUTPUT2RETURN => 1
+    });
+
+  my $page = $FORM{pg} || 0;
+  my $row_num = 1;
+
+  foreach my $log_line (@File) {
+    if ($row_num <= $page) {
+      $row_num++;
+      next;
+    }
+    elsif ($row_num > $page + 50) {
+      last;
+    }
+
+    my ( $timeStamp, $log ) = unpack 'A15 A*', $log_line;
+    my ( undef, $host, $facility, $msg ) = split(/\s+/, $log, 4);
+    if ($facility eq 'last') {
+      $facility = '';
+      $msg = 'last '.$msg;
+    }
+    $table->addrow($timeStamp, $host, $facility, $msg);
+    $row_num++;
+  }
+  my %params = ();
+
+  $params{LOG_FILE} = $table->show();
+  $params{VISUAL} = $FORM{visual};
+  $params{NAS_ID} = $FORM{NAS_ID};
+  $html->tpl_show( _include( 'equipment_form_text_search', 'Equipment' ), { %params, %FORM });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 equipment_search($attr) - Global search submodule
+
+  Arguments:
+    $attr
+      SEARCH_TEXT
+      DEBUG
+
+  Returs:
+     TRUE/FALSE
+
+=cut
+#**********************************************************
+sub equipment_search {
+  my($attr) = @_;
+
+  my @default_search = ('MAC', '_MULTI_HIT');
+
+  my @qs = ();
+  foreach my $field ( @default_search ) {
+    $LIST_PARAMS{$field} = "*$attr->{SEARCH_TEXT}*";
+    push @qs, "$field=*$attr->{SEARCH_TEXT}*";
+  }
+
+  if($attr->{DEBUG}) {
+    $Equipment->{debug} = 1;
+  }
+
+  $Equipment->mac_log_list({
+    %LIST_PARAMS,
+  });
+
+  my @info = ();
+
+  if($Equipment->{TOTAL}) {
+    push @info, {
+      'TOTAL'        => $Equipment->{TOTAL},
+      'MODULE'       => 'Equipment',
+      'MODULE_NAME'  => $lang{EQUIPMENT},
+      'SEARCH_INDEX' => get_function_index('equipment_mac_log')
+        . '&' . join('&', @qs) . "&search=1"
+    };
+  }
+
+  return \@info;
 }
 
 1;

@@ -1,5 +1,5 @@
 <form action=$SELF_URL METHOD=POST class='form-horizontal'>
-
+	<input type='hidden' name='module' value='Employees'>
 	<div class='box box-primary box-form'>
 		<!-- head -->
 	  <div class='box-header with-border'><h3 class='box-title'>_{EMPLOYEE_PROFILE}_</h3></div>

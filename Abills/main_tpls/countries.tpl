@@ -33,6 +33,7 @@
 408:Korea, Democratic People's Republic of
 417:Kyrgyzstan
 428:Latvia
+434:Libya
 484:Mexico
 807:Macedonia
 498:Moldova, Republic of

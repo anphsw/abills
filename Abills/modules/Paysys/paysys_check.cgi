@@ -39,7 +39,7 @@ our $debug  = $conf{PAYSYS_DEBUG} || 0;
 our $html   = Abills::HTML->new({ CONF => \%conf });
 our $db = Abills::SQL->connect( $conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
   { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef } );
-
+delete $FORM{language};
 require Abills::Misc;
 require Abills::Templates;
 
@@ -121,9 +121,7 @@ if ( $conf{PAYSYS_SUCCESSIONS} ){
     );
 
     if ( check_ip($ENV{REMOTE_ADDR}, $ips)) {
-      `echo "RIGHT IP" >> /tmp/buffer`;
       if ( $function =~ /(\S+)\.pm/ ){
-        `echo "$1" >> /tmp/buffer`;
         load_pay_module( "$1", { SYS_PARAMS => \%system_params } );
       }
       else{
@@ -151,7 +149,8 @@ my %ip_binded_system = (
   => 'Smsonline',
   '107.22.173.15,107.22.173.86,217.117.64.232/28,75.101.163.115,213.154.214.76,217.117.64.232/29, 217.77.211.38, 217.117.68.232'
   => 'Privat_terminal',
-  '62.89.31.36,95.140.194.139,195.250.65.250,195.250.65.252,109.68.126.16/28'
+  '62.89.31.36,95.140.194.139,195.250.65.250,195.250.65.252,109.68.126.16/28, 212.42.193.76, 185.92.84.144/30, 144.76.93.104 '
+  #'62.89.31.36,95.140.194.139,195.250.65.250,195.250.65.252,109.68.126.16/28,144.76.93.104,185.92.84.144/30, 217.76.12.53'
   => 'Telcell',
   '195.76.9.187,195.76.9.222'
   => 'Redsys',
@@ -173,7 +172,7 @@ my %ip_binded_system = (
   => 'Easysoft',
   '77.120.97.36'
   => 'PayU',
-  '87.248.226.170,217.195.80.50,94.138.149.0/24'
+  '87.248.226.170,217.195.80.50,94.138.149.0/24,194.186.207.0/24,194.54.14.0/24,94.51.87.80,94.51.87.83,94.51.87.85'
   => 'Sberbank',
   '46.51.203.221'
   => 'Comepay',
@@ -211,6 +210,12 @@ my %ip_binded_system = (
   => 'Mixplat',
   '77.75.157.168,77.75.157.169,77.75.159.166,77.75.159.170,77.75.157.166,77.75.157.170'
   => 'Yandex_kassa',
+  '91.194.226.0/23'
+  => 'Tinkoff',
+  '91.200.28.0/24, 91.227.52.0/24'
+  => 'Paymaster_ru',
+  '195.200.209.9, 195.200.209.15, 195.200.209.20'
+  => 'Rnkb',
 );
 
 #Test system
@@ -289,6 +294,7 @@ elsif ( $conf{PAYSYS_EPAY_ACCOUNT_KEY} && $FORM{command} && $FORM{txn_id} ){
 }
 elsif ( $FORM{txn_id} || $FORM{prv_txn} || defined( $FORM{prv_id} ) || ($FORM{command} && $FORM{account}) ){
   osmp_payments();
+  # new_load_pay_module('Osmp');
 }
 elsif (
   $conf{PAYSYS_GAZPROMBANK_ACCOUNT_KEY}
@@ -317,6 +323,13 @@ elsif ( $conf{'PAYSYS_YANDEX_ACCCOUNT'} && $FORM{code} ){
 }
 elsif ( $FORM{command} ){
   osmp_payments();
+}
+#ipay new load
+elsif($FORM{xml}){
+  require Paysys::systems::Ipay;
+  my $Ipay = Paysys::systems::Ipay->new(\%conf, \%FORM, undef, undef, $users, {HTML => $html, SELF_URL => $SELF_URL, DATETIME => "$DATE $TIME"});
+  $Ipay->ipay_check_payments();
+  exit;
 }
 
 #New module load method
@@ -550,9 +563,11 @@ sub privatbank_payments{
 
 #**********************************************************
 =head2 osmp_payments($attr)
+
    OSMP
    Pegas
    TYPO 24
+
 =cut
 #**********************************************************
 sub osmp_payments{
@@ -616,6 +631,7 @@ sub osmp_payments{
     2  => 300, # sql error
     3  => 0, # dublicate payment
     5  => 300, # wrong sum
+    11 => 7,
     13 => '0', # Paysys exist transaction
     30 => 4,   # No input
     #        => 90,  #Payments error
@@ -669,8 +685,22 @@ sub osmp_payments{
       $RESULT_HASH{disable_paysys} = 1;
     }
 
+    # Qiwi testing, check if exist param sum
+    if(!$FORM{sum}){
+      $RESULT_HASH{result} = 300;
+    }
+
+    # Qiwi testing, account regexp check
+    if($conf{PAYSYS_OSMP_ACCOUNT_REXEXP} && ($FORM{account} !~ $conf{PAYSYS_OSMP_ACCOUNT_REXEXP})){
+      $RESULT_HASH{result} = 4;
+    }
+
     #For OSMP
-    if ( $payment_system_id == 44 ){
+    # old code for standart osmp inheritance
+    # if ( $payment_system_id == 44 ){
+
+    # new code for standart osmp inheritance
+    if (!$conf{PAYSYS_PEGAS} && !$conf{PAYSYS_OSMP_EXT_PARAMS}){
       $RESULT_HASH{$txn_id} = $FORM{txn_id};
       $RESULT_HASH{prv_txn} = $FORM{prv_txn};
       $RESULT_HASH{comment} = "Balance: $list->{deposit} $list->{fio} " if ($status == 0);
@@ -697,7 +727,19 @@ sub osmp_payments{
         foreach my $param  ( @arr ){
           $RESULT_HASH{$param} = $FORM{$param} || $list->{$param};
         }
+        # add 'osmp_txn_id' param with txn_id value
+        $RESULT_HASH{$txn_id} = $FORM{txn_id}
       }
+    }
+    # extra info tag
+    if( $conf{PAYSYS_OSMP_EXTRA_INFO} ){
+       $RESULT_HASH{'extra_info'}{'deposit'} = $list->{'deposit'};
+       $RESULT_HASH{'extra_info'}{'fee'}     = $list->{'fee'};
+
+       load_module('Dv');
+       my ($message, undef) = dv_warning({ USER => $list});
+       my ($date, $sum) = (defined $message && $message ne '') ? split("\n", $message) : ('no date', '');
+       $RESULT_HASH{'extra_info'}{'next_fee_date'} = $date;
     }
   }
   #Cancel payments
@@ -783,8 +825,14 @@ sub osmp_payments{
       CURRENCY_ISO      => $conf{PAYSYS_OSMP_CURRENCY},
       MK_LOG            => 1,
       PAYMENT_ID        => 1,
-      DEBUG             => $debug
+      DEBUG             => $debug,
+      PAYMENT_DESCRIBE  => $FORM{payment_describe} || '',
     } );
+
+    # Qiwi testing, check if exist param sum
+    if(!$FORM{sum}){
+      $status_code = 5;
+    }
 
     $status = (defined( $abills2osmp{$status_code} )) ? $abills2osmp{$status_code} : 90;
 
@@ -1254,8 +1302,10 @@ sub osmp_payments_v4{
 #**********************************************************
 =head2 smsproxy_payments()
 
+  Request:
+    https//demo.abills.net.ua:9443/paysys_check.cgi?skey=827ccb0eea8a706c4c34a16891f84e7b&smsid=1208992493215&num=1171&operator=Tester&user_id=1234567890&cost=1.5&msg=%20Test_messages
+
 =cut
-#https//demo.abills.net.ua:9443/paysys_check.cgi?skey=827ccb0eea8a706c4c34a16891f84e7b&smsid=1208992493215&num=1171&operator=Tester&user_id=1234567890&cost=1.5&msg=%20Test_messages
 #**********************************************************
 sub smsproxy_payments{
 
@@ -1525,6 +1575,7 @@ sub interact_mode{
   $LIST_PARAMS{UID} = $FORM{UID};
 
   print paysys_payment();
+  print $html->{OUTPUT} if $FORM{TRUE}; # showing payments result output
 }
 
 #**********************************************************
@@ -1541,9 +1592,9 @@ sub interact_mode{
 #**********************************************************
 sub load_pay_module{
   my ($name, $attr) = @_;
-`echo "4" >> /tmp/buffer`;
+
   eval { require "Paysys/". $name .".pm" };
-`echo "1" >> /tmp/buffer`;
+
   if ( $@ ){
     print "Content-Type: text/plain\n\n";
     my $res = "Error: load module '" . $name . ".pm' \n $!  \n" .
@@ -1554,14 +1605,16 @@ sub load_pay_module{
 
     return 0;
   }
-`echo "2" >> /tmp/buffer`;
+
+  if($name =~ /^\d/ ){
+    $name = '_' . $name;
+  }
+
   my $function = lc( $name ) . '_check_payment';
-`echo "7" >> /tmp/buffer`;
   if ( defined( &{$function} ) ){
     if ( $debug > 3 ){
       print 'Module: ' . $name . '.pm' . " Function: $function\n";
     }
-`echo "3" >> /tmp/buffer`;
     &{ \&{$function} }( $attr->{SYS_PARAMS} );
   }
 
@@ -1584,5 +1637,48 @@ sub get_request_info{
   return $info;
 }
 
+#**********************************************************
+=head2 new_load_pay_module() -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub new_load_pay_module {
+  my ($name, $attr) = @_;
+
+  eval { require "Paysys/systems/". $name .".pm" };
+
+  if ( $@ ){
+    print "Content-Type: text/plain\n\n";
+    my $res = "Error: load module '" . $name . ".pm' \n $!  \n" .
+      "Purchase module from http://abills.net.ua/ \n";
+
+    print $@ if ($conf{PAYSYS_DEBUG});
+    mk_log( $res );
+
+    return 0;
+  }
+
+  if($name =~ /^\d/ ){
+    $name = '_' . $name;
+  }
+
+  my $function = lc( $name ) . '_check_payment';
+  if ( defined( &{$function} ) ){
+    if ( $debug > 3 ){
+      print 'Module: ' . $name . '.pm' . " Function: $function\n";
+    }
+    &{ \&{$function} }( $attr->{SYS_PARAMS} );
+  }
+
+  exit;
+  return 1;
+}
+  
 
 1

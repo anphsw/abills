@@ -35,6 +35,16 @@ eap.conf         > [/usr/local/etc/raddb]/eap.conf
 #:OS=FREEBSD:exec: LD_P=`grep -c LD_PRELOAD /usr/local/etc/rc.d/radiusd`; if [ w$LD_P = w0 ]; then  PERL_VERSION=`pkg_info | grep perl- | sed "s/.*-\([0-9\.]*\).*/\1/g"`; sed -i '' -e "s,run_rc_command,start_precmd=\\\"export LD_PRELOAD=/usr/local/lib/perl5/${PERL_VERSION}/mach/CORE/libperl.so\\\"; run_rc_command,g" "/usr/local/etc/rc.d/radiusd"; fi; /usr/local/etc/rc.d/radiusd restart
 :OS=FREEBSD:exec:/usr/local/etc/rc.d/radiusd restart
 
+#Freeradius V3
+:OS=FREEBSD,FREERADIUS=3:FILE=v3/users  > [/usr/local/etc/raddb]/users
+:OS=FREEBSD,FREERADIUS=3:FILE=v3/mods-enabled/perl > [/usr/local/etc/raddb]/mods-enabled/perl
+:OS=FREEBSD,FREERADIUS=3:FILE=v3/mods-enabled/sql > [/usr/local/etc/raddb]/mods-enabled/sql
+:OS=FREEBSD,FREERADIUS=3:FILE=v3/sites-enabled/abills_default  > [/usr/local/etc/raddb]/sites-enabled/abills_default
+:OS=FREEBSD,FREERADIUS=3:exec: rm /usr/local/etc/raddb/sites-enabled/inner-tunnel
+:OS=FREEBSD,FREERADIUS=3:exec: rm /usr/local/etc/raddb/sites-enabled/default
+
+
+
 #Linux autoconf
 
 :OS=LINUX,FREERADIUS=2,RLM_PERL=1:FILE=v2/users_perl    > [/usr/local/freeradius/etc/raddb]/users
@@ -48,5 +58,5 @@ eap.conf         > [/usr/local/etc/raddb]/eap.conf
 :OS=LINUX,FREERADIUS=2:exec:echo "" > /usr/local/freeradius/etc/raddb/clients.conf
 :OS=LINUX,FREERADIUS=2:FILE=v2/sql.conf  > [/usr/local/freeradius]/etc/raddb/sql.conf
 :OS=LINUX,FREERADIUS=2:FILE=linux/freeradius  > [/etc/init.d]/freeradius
-:OS=LINUX,FREERADIUS=2:exec:chmod +x /etc/init.d/freeradius; update-rc.d freeradius defaults; /etc/init.d/freeradius restart
+:OS=LINUX,FREERADIUS=2:exec:systemctl daemon-reload;systemctl enable radiusd --now;
 

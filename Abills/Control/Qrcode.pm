@@ -110,7 +110,6 @@ sub _print_image{
       or print $img->errstr;
   }
   elsif ( !$FORM{header} ){
-    print "QRCode-URL : $url_to_encode\n";
     print "Content-Type: image/jpeg\n\n";
     $img->write( fh => \*STDOUT, type => 'jpeg' )
       or print $img->errstr;

@@ -3,16 +3,22 @@
     left: 0;
   }
 
-  .social-auth-links > .btn-group{
+  .social-auth-links > .btn-group {
     width: 100%;
-    max-width : 150px;
+    max-width: 150px;
     margin-bottom: 10px;
   }
-  .social-auth-links > .btn-group > a.btn.btn-social{
-    width : 80%;
+
+  .social-auth-links > .btn-group > a.btn.btn-social {
+    width: 80%;
   }
+
   .social-auth-links > .btn-group > a.btn.btn-social-unreg {
-    width : 20%;
+    width: 20%;
+  }
+
+  div#notifications-subscribe-block {
+    margin-bottom: 10px;
   }
 </style>
 
@@ -72,10 +78,16 @@
 
 <div class="row">
   <div class="col-md-12">%NEWS%</div>
+
+  <div class="col-md-12" data-visible="%SHOW_SUBSCRIBE_BLOCK%" id="notifications-subscribe-block">
+    %SENDER_SUBSCRIBE_BLOCK%
+  </div>
+
   <div class="%INFO_TABLE_CLASS%">
-    <div class='box box-primary'>
+    <div class='box box-theme'>
       <div class='box-header with-border text-center'>
-        <button type='button' class='btn btn-success pull-left' data-toggle='modal' data-target='#rulesModal'>
+        <button type='button' class='btn btn-success pull-left'
+                data-visible='%SHOW_ACCEPT_RULES%' data-toggle='modal' data-target='#rulesModal'>
           _{RULES}_
         </button>
         <span class='extra'>%FORM_CHG_INFO%</span>
@@ -93,7 +105,7 @@
           </div>
           <div class='row'>
             <div class='col-xs-12 col-sm-3 col-md-3 text-1'>_{DEPOSIT}_</div>
-            <div class='col-xs-12 col-sm-9 col-md-9 text-2'>%DEPOSIT%
+            <div class='col-xs-12 col-sm-9 col-md-9 text-2'>%DEPOSIT% %MONEY_UNIT_NAMES%
               <div class='extra'>%DOCS_ACCOUNT% %PAYSYS_PAYMENTS%</div>
             </div>
           </div>
@@ -103,25 +115,22 @@
           <div class='row'>
             %INFO_FIELDS%
           </div>
+          <div class='row' style='display: none' data-visible='%SHOW_REDUCTION%'>
+            <div class='col-xs-12 col-sm-3 col-md-3 text-1'>_{REDUCTION}_</div>
+            <div class='col-xs-12 col-sm-9 col-md-9 text-2'>
+              <span class='strong'>%REDUCTION% %</span>
+              <div class='extra'>_{DATE}_: %REDUCTION_DATE%</div>
+            </div>
+          </div>
           <div class='row'>
             <div class='col-xs-12 col-sm-3 col-md-3 text-1'>_{CREDIT}_</div>
             <div class='col-xs-12 col-sm-9 col-md-9 text-2'>
-              <span class='strong'>%CREDIT% ( %CREDIT_DATE% )</span>
+              <span class='strong'>%CREDIT% %MONEY_UNIT_NAMES% ( %CREDIT_DATE% )</span>
               <div class='extra'>
                 %CREDIT_CHG_BUTTON%
               </div>
             </div>
           </div>
-          <!--
-                      <div class='row'>
-                          <div class='col-xs-12 col-sm-3 col-md-3 text-1'>_{REDUCTION}_</div>
-                          <div class='col-xs-12 col-sm-9 col-md-9 text-2'>
-                              <span class='strong'>%REDUCTION%</span>
-
-                              <div class='extra'>_{DATE}_: %REDUCTION_DATE%</div>
-                          </div>
-                      </div>
-          -->
           <div class='row'>
             <div class='col-xs-12 col-sm-3 col-md-3 text-1'>_{FIO}_</div>
             <div class='col-xs-12 col-sm-9 col-md-9 text-2'>%FIO%</div>
@@ -140,9 +149,9 @@
           </div>
           <div class='row'>
             <div class='col-xs-12 col-sm-3 col-md-3 text-1'>_{CONTRACT}_</div>
-            <div class='col-xs-12 col-sm-9 col-md-9 text-2'>%CONTRACT_ID%%CONTRACT_SUFIX%
+            <div class='col-xs-12 col-sm-9 col-md-9 text-2'>%CONTRACT_ID%%CONTRACT_SUFIX%%NO_CONTRACT_MSG%
               <div class='extra '>
-                <a class='btn' target='new'
+                <a %NO_DISPLAY% class='btn' target='new'
                    href='$SELF_URL?qindex=10&PRINT_CONTRACT=%CONTRACT_ID%&sid=$sid&pdf=$conf{DOCS_PDF_PRINT}'
                    title='_{PRINT}_'><span class='glyphicon glyphicon glyphicon-print'></span></a>
               </div>

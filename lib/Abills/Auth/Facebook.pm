@@ -8,8 +8,9 @@ package Abills::Auth::Facebook;
 
 use strict;
 use warnings FATAL => 'all';
-use Abills::Base qw(urlencode mk_unique_value load_pmodule2 show_hash);
+use Abills::Base qw(_bp urlencode mk_unique_value load_pmodule2 show_hash);
 use Abills::Fetcher;
+use Encode;
 
 my $access_token_url = 'https://graph.facebook.com/oauth/access_token';
 #my $get_me_url       = 'https://graph.facebook.com/me';
@@ -33,15 +34,16 @@ sub get_token {
   my $request      = qq($access_token_url?client_id=$client_id&client_secret=$client_secret&grant_type=client_credentials);
 
   my $result = web_request($request, {
-    DEBUG       => ($self->{debug} && $self->{debug} > 2) ? $self->{debug} : 0
+    DEBUG       => ($self->{debug} && $self->{debug} > 2) ? $self->{debug} : 0,
+    JSON_RETURN => 1,
   });
 
   if($self->{debug}) {
     print $result;
   }
 
-  if($result =~ /^access_token=(.+)/) {
-    $token = $1;
+  if($result->{access_token}) {
+    $token = $result->{access_token};
   }
   else {
     load_pmodule2('JSON');
@@ -79,6 +81,9 @@ sub check_access {
   if($self->{domain_id}) {
     $redirect_uri .= "%26DOMAIN_ID=$self->{domain_id}";
   }
+  if($attr->{user_registration}) {
+    $redirect_uri .= "%26user_registration=$attr->{user_registration}";
+  }
 
   if($self->{debug}) {
     print "Content-Type: text/html\n\n";
@@ -87,27 +92,27 @@ sub check_access {
   if ($attr->{code}) {
     my $request = qq($access_token_url?client_id=$client_id&client_secret=$client_secret&code=$attr->{code}&redirect_uri=$redirect_uri);
     my $result = web_request($request, {
-      #JSON_RETURN => 1,
+      JSON_RETURN => 1,
       DEBUG       => ($self->{debug} && $self->{debug} > 2) ? $self->{debug} : 0
     });
 
     if($self->{debug}) {
-      print $result;
+      print show_hash($result);
     }
-    if($result =~ /^access_token=(.+)/) {
-      my $token = $1;
+    if($result->{access_token}) {
+      my $token = $result->{access_token};
       if($self->{debug}) {
         print "Ok<br>";
       }
 
-      $request = qq($get_me_url/me/?fields=id,name&access_token=$token);
+      $request = qq($get_me_url/me/?fields=id,name,email,hometown&access_token=$token);
       $result = web_request($request, {
         JSON_RETURN => 1,
         DEBUG       => ($self->{debug} && $self->{debug} > 2) ? $self->{debug} : 0
       });
 
       if($self->{debug}) {
-        print show_hash($result);
+        print $request;
       }
       if ($result->{error}) {
         $self->{errno}=$result->{error}->{code};
@@ -116,6 +121,7 @@ sub check_access {
       elsif ($result->{name}) {
         $self->{USER_ID}     = 'facebook, '.$result->{id};
         $self->{USER_NAME}   = $result->{name};
+        $self->{EMAIL}       = $result->{email};
         $self->{CHECK_FIELD} = '_FACEBOOK';
       }
     }
@@ -178,7 +184,6 @@ sub check_access {
 sub get_info {
   my $self = shift;
   my ($attr)=@_;
-
   my %info_fiealds = (
     ID       => 'id',
     NAME     => 'name',
@@ -211,6 +216,7 @@ sub get_info {
 
   my $result = web_request($request, {
     JSON_RETURN => 1,
+    JSON_UTF8   => 1,
     DEBUG       => ($self->{debug} && $self->{debug} > 2) ? $self->{debug} : 0
   });
 
@@ -224,5 +230,105 @@ sub get_info {
 
   return $self;
 }
+#**********************************************************
+=head2 get_fb_photo($attr)
 
+  Arguments:
+    USER_ID - facebook user id,
+    SIZE    - image height    
+    
+  Returns:
+    json
+=cut
+#**********************************************************
+sub get_fb_photo {
+  my $self = shift;
+  my ($request) = @_;
+  
+  my $token = $self->get_token();
+  my $request_url = $get_me_url
+    . 'v2.8/'
+    . ($request->{USER_ID} || q{}) . '/picture?'
+    . ($request->{SIZE} ? "height=$request->{SIZE}" : q{})
+    . "&redirect=0&access_token=$token";
+   
+  my $result = web_request($request_url, {
+    JSON_RETURN => 1,
+    JSON_UTF8   => 1,
+    DEBUG       => ($self->{debug} && $self->{debug} > 2) ? $self->{debug} : 0
+  });
+  return $result;
+}
+
+#**********************************************************
+=head2 get_fbrequest($attr)
+
+  Arguments:
+    NODE_ID - facebook object id,  
+      XXXXXX - for single page,
+      XXXXXX_YYYYYYY - for status (where XXXXXXX - user id, YYYYYYY - post id)
+    
+    FIELDS - additional fields
+  Returns:
+    json
+=cut
+#**********************************************************
+sub get_fbrequest {
+  my $self = shift;
+  my ($request) = @_;
+  
+  my $token = $self->get_token();
+  my $request_url = $get_me_url
+    . 'v2.8/'
+    . ($request->{NODE_ID} || q{}) . '?'
+    . ($request->{FIELDS} ? "fields=$request->{FIELDS}" : q{})
+    . "&access_token=$token";
+    
+  my $result = web_request($request_url, {
+    JSON_RETURN => 1,
+    JSON_UTF8   => 1,
+  });
+  
+  return $result;
+}
+
+#**********************************************************
+=head2 who_liked_it($attr)
+
+  Arguments:
+    facebook object id,  
+      XXXXXX - for single page,
+      XXXXXX_YYYYYYY - for status (where XXXXXXX - user id, YYYYYYY - post id)
+  Returns:
+    Array of users from users db, who like this page.
+=cut
+#**********************************************************
+sub who_liked_it {
+  my $self = shift;
+  my ($nodeid) = @_;
+  
+  my $response = $self->get_fbrequest({
+    NODE_ID => $nodeid,
+    FIELDS  => 'reactions',
+  });
+
+  unless ($response && ref $response eq 'HASH') {
+    $self->{errno}=440;
+    $self->{errstr}='Facebook is not answer';
+    return 0;
+  }
+  if ($response->{error}) {
+    $self->{errno}=$response->{error}->{code};
+    $self->{errstr}=$response->{error}->{message};
+    return 0;
+  }
+  
+  my %likes_hash = ();
+  if ( $response->{reactions}->{data} ) {
+    foreach (@{$response->{reactions}->{data}}) {
+      $likes_hash{$_->{id}} = (encode('UTF-8',$_->{name}));
+    };
+  }
+  return \%likes_hash;
+}
 1;

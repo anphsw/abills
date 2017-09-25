@@ -14,7 +14,8 @@
         "<tr><td>Name</td><td>"   + node.data.name  + "</td></tr>" +
 	    "<tr><td>IP</td><td>"     + node.data.ip    + "</td></tr>" +
 	    "<tr><td>Status</td><td>" + status_hash[node.data.state] + "</td></tr>" +
-	    ((node.data.ports)?("<tr><td>Ports</td><td>"  + node.data.ports + "</td></tr>"):'') +
+	    ((node.data.online)?("<tr><td>Online</td><td>"  + node.data.online + "</td></tr>"):'') +
+		((node.data.zapped)?("<tr><td>Zapped</td><td>"  + node.data.zapped + "</td></tr>"):'') +
 	    "</table>"
 	};
 	if (node.data.type == 'user') {
@@ -60,7 +61,7 @@
               ctx.strokeRect(pt.x-w*1.5, pt.y-w/2, w*3, w)
 			  if (node.data.name) {
 				ctx.font = "bold 14px Arial"
-                ctx.fillText(node.data.name.substring(0,14),pt.x-node.data.name.length*4,pt.y-3)
+                ctx.fillText(node.data.name.substring(0,14),pt.x-node.data.name.substring(0,14).length*4,pt.y-3)
               }
               if (node.data.ip) {
 				ctx.font = "14px Arial"

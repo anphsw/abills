@@ -13,6 +13,8 @@ $lang{SPENDING}='Расход';
 $lang{COMING}='Приход';
 $lang{SALARY}='Зарплаты';
 
+$lang{UNITS}='Единиц';
+
 $lang{BET}='Ставка';
 $lang{BET_PER_HOUR}='Ставка за час';
 $lang{MONTHLY}='Помесячная';
@@ -25,5 +27,18 @@ $lang{RATIO}='Коэфициент';
 $lang{WORK}='Работы';
 $lang{MINUTES}='Минуты';
 $lang{CHOOSE}='Выберите';
+$lang{LEAD}='Потенциальный клиент';
+$lang{LEADS}='Потенциальные клиенты';
 
+$lang{LEAD_NOT_FOUND}='Потенциальный клиент не найден';
+$lang{INPUT_DATA_TO_ADD_LEAD}='Введите данные чтоб добавить клиента';
+$lang{LEAD_ADDED_MESSAGE}='Вы можете перейти на страницу потенциального клиента. Нажмите ';
+$lang{SOURCE}='Источник';
+
+$lang{INCOMING_CALL}='Входящий звонок';
+$lang{FILTER_LEADS}='Фильтр клиентов';
+
+$lang{PROGRESS}='Прогресс';
+$lang{LEADS_COMES}='Потенциальных клиентов пришло';
+$lang{LEADS_FINISHED}='Потенциальных клиентов конвертировано';
 1

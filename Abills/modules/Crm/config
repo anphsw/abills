@@ -12,5 +12,25 @@
       "11:10:$lang{BET}:crm_admins_bet:"                       => 5,
       "12:10:Pay Salary:crm_pay_salary::EXTERNAL"              => 5,
       "13:1:$lang{REFERENCE_WORKS}:crm_reference_works:"       => 5,
-      "14:0:CRM:crm_report_list:"                              => 4,
+
+      "14:0:CRM:null:"                                         => 4,
+
+      "15:0:$lang{LEADS}:null:"                                => 1,
+      "16:15:$lang{LEADS}:crm_leads:"                          => 1,
+      "17:15:$lang{SEARCH}:crm_lead_search:"                   => 1,
+      "18:16:$lang{INFO}:crm_lead_info:LEAD_ID"                => 1,
+      "23:16:Short Lead Info:crm_short_info:PHONE"             => 1,
+      "25:16:Lead Convert:crm_lead_convert:FROM_LEAD_ID"       => 1,
+
+      
+      "20:1:$lang{SOURCE} $lang{ADD}:crm_source_types:"        => 5,
+      "21:14:CRM:crm_report_list:"                             => 4,
+      "22:14:$lang{LEADS}:crm_reports_leads:"                  => 4,
+      "24:14:$lang{LEADS} $lang{PROGRESS}:crm_leads_progress_report:"        => 4,
+
+      "50:0:CRM:crm_user_service:UID"          => 20,
 );
+
+if( $permissions{7} && $permissions{7}{2}){
+      $FUNCTIONS_LIST{"19:1:$lang{PROGRESS_BAR}:crm_progressbar_steps:"} = 5;
+}

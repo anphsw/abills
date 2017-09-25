@@ -6,8 +6,17 @@
 <input type=hidden name='UID' value='$FORM{UID}'>
 <input type=hidden name='MBOX_ID' value='%MBOX_ID%'>
 
-<div class='box box-theme box-form'>
-<div class='box-body form form-horizontal'>
+<div class='box box-theme box-form box-big-form'>
+	<div class='box-header with-border'>
+		<h4 class='box-title'>E-Mail</h4>
+		<div class='box-tools pull-right'>
+			<button type='button' class='btn btn-box-tool' data-widget='collapse'><i class='fa fa-minus'></i>
+			</button>
+		</div>
+	</div>
+
+
+	<div class='box-body form form-horizontal'>
 
 <fieldset>
 

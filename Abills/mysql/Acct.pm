@@ -12,6 +12,8 @@ use Billing;
 
 my ($conf);
 my $Billing;
+my $input_gigawords='Acct-Output-Gigawords';
+my $output_gigawords='Acct-Input-Gigawords';
 
 my %ACCT_TYPES = (
   'Start'          => 1,
@@ -75,10 +77,11 @@ sub accounting {
   my $self = shift;
   my ($RAD, $NAS) = @_;
 
-  $self->{SUM}                    = 0 if (!$self->{SUM});
-  my $acct_status_type            = $ACCT_TYPES{ $RAD->{'Acct-Status-Type'} };
-  $RAD->{'Acct-Input-Gigawords'}  = 0         if (!$RAD->{'Acct-Input-Gigawords'});
-  $RAD->{'Acct-Output-Gigawords'} = 0         if (!$RAD->{'Acct-Output-Gigawords'});
+  $self->{SUM}              = 0 if (!$self->{SUM});
+  my $acct_status_type      = $ACCT_TYPES{ $RAD->{'Acct-Status-Type'} };
+  $RAD->{$input_gigawords}  = 0 if (!$RAD->{$input_gigawords});
+  $RAD->{$output_gigawords} = 0 if (!$RAD->{$output_gigawords});
+
   $RAD->{'Framed-IP-Address'}     = '0.0.0.0' if (!$RAD->{'Framed-IP-Address'});
   $RAD->{'Acct-Session-Time'}     = 0         if (!defined($RAD->{'Acct-Session-Time'}));
   if (length($RAD->{'Acct-Session-Id'}) > 32) {
@@ -156,16 +159,17 @@ sub accounting {
              AND (framed_ip_address=INET_ATON( ? ) OR framed_ip_address=0) 
            ORDER BY started
            LIMIT 1;", 'do', 
-           { Bind => [ $acct_status_type,
-                       $RAD->{'Acct-Session-Time'} || 0,
-                       $RAD->{'NAS-Port'} || 0,
-                       $RAD->{'Acct-Session-Id'},
-                       $RAD->{'Calling-Station-Id'},
-                       $RAD->{'Connect-Info'},
-                       $RAD->{'User-Name'},
-                       $NAS->{'NAS_ID'},
-                       $RAD->{'Acct-Session-Id'},
-                       $RAD->{'Framed-IP-Address'} ] 
+           { Bind => [
+               $acct_status_type,
+               $RAD->{'Acct-Session-Time'} || 0,
+               $RAD->{'NAS-Port'} || 0,
+               $RAD->{'Acct-Session-Id'},
+               $RAD->{'Calling-Station-Id'},
+               $RAD->{'Connect-Info'},
+               $RAD->{'User-Name'},
+               $NAS->{'NAS_ID'},
+               $RAD->{'Acct-Session-Id'},
+               $RAD->{'Framed-IP-Address'} ]
            });
 
           if (! $self->{errno}) {
@@ -294,13 +298,13 @@ sub accounting {
       }
 
       if ($RAD->{INBYTE} > 4294967296) {
-        $RAD->{'Acct-Input-Gigawords'} = int($RAD->{INBYTE} / 4294967296);
-        $RAD->{INBYTE}               = $RAD->{INBYTE} - $RAD->{'Acct-Input-Gigawords'} * 4294967296;
+        $RAD->{$input_gigawords} = int($RAD->{INBYTE} / 4294967296);
+        $RAD->{INBYTE}                 = $RAD->{INBYTE} - $RAD->{$input_gigawords} * 4294967296;
       }
 
       if ($RAD->{OUTBYTE} > 4294967296) {
-        $RAD->{'Acct-Output-Gigawords'} = int($RAD->{OUTBYTE} / 4294967296);
-        $RAD->{OUTBYTE}               = $RAD->{OUTBYTE} - $RAD->{'Acct-Output-Gigawords'} * 4294967296;
+        $RAD->{$output_gigawords} = int($RAD->{OUTBYTE} / 4294967296);
+        $RAD->{OUTBYTE}               = $RAD->{OUTBYTE} - $RAD->{$output_gigawords} * 4294967296;
       }
 
       if ($self->{UID} > 0) {
@@ -324,25 +328,26 @@ sub accounting {
           acct_input_gigawords= ? ,
           acct_output_gigawords= ? ", 
         'do',
-        { Bind => [ $self->{UID}, 
-                    $RAD->{'Acct-Session-Time'},
-                    $self->{TARIF_PLAN}, 
-                    $RAD->{'Acct-Session-Time'}, 
-                    $RAD->{OUTBYTE}, 
-                    $RAD->{INBYTE}, 
-                    $self->{SUM}, 
-                    $NAS->{NAS_ID},
-                    $RAD->{'NAS-Port'} || 0, 
-                    $RAD->{'Framed-IP-Address'},
-                    $RAD->{'Calling-Station-Id'} || '_1',
-                    $RAD->{OUTBYTE2},
-                    $RAD->{INBYTE2},
-                    $RAD->{'Acct-Session-Id'},
-                    $self->{BILL_ID},
-                    $RAD->{'Acct-Terminate-Cause'},
-                    $RAD->{'Acct-Input-Gigawords'},
-                    $RAD->{'Acct-Output-Gigawords'}
-                     ] }
+        { Bind => [
+           $self->{UID},
+           $RAD->{'Acct-Session-Time'},
+           $self->{TARIF_PLAN},
+           $RAD->{'Acct-Session-Time'},
+           $RAD->{OUTBYTE},
+           $RAD->{INBYTE},
+           $self->{SUM},
+           $NAS->{NAS_ID},
+           $RAD->{'NAS-Port'} || 0,
+           $RAD->{'Framed-IP-Address'},
+           $RAD->{'Calling-Station-Id'} || '_1',
+           $RAD->{OUTBYTE2},
+           $RAD->{INBYTE2},
+           $RAD->{'Acct-Session-Id'},
+           $self->{BILL_ID},
+           $RAD->{'Acct-Terminate-Cause'},
+           $RAD->{$input_gigawords},
+           $RAD->{$output_gigawords}
+          ] }
         );
       }
     }
@@ -393,25 +398,26 @@ sub accounting {
           acct_input_gigawords= ? ,
           acct_output_gigawords= ? ", 
         'do',
-        { Bind => [ $self->{UID}, 
-                    $RAD->{'Acct-Session-Time'},
-                    $self->{TARIF_PLAN} || 0, 
-                    $RAD->{'Acct-Session-Time'}, 
-                    $RAD->{OUTBYTE}, 
-                    $RAD->{INBYTE}, 
-                    $self->{SUM} || 0, 
-                    $NAS->{NAS_ID},
-                    $RAD->{'NAS-Port'} || 0, 
-                    $RAD->{'Framed-IP-Address'},
-                    $RAD->{'Calling-Station-Id'} || '_2',
-                    $RAD->{OUTBYTE2},
-                    $RAD->{INBYTE2},
-                    $RAD->{'Acct-Session-Id'},
-                    $self->{BILL_ID},
-                    $RAD->{'Acct-Terminate-Cause'},
-                    $RAD->{'Acct-Input-Gigawords'},
-                    $RAD->{'Acct-Output-Gigawords'}
-                     ] }
+        { Bind => [
+            $self->{UID},
+            $RAD->{'Acct-Session-Time'},
+            $self->{TARIF_PLAN} || 0,
+            $RAD->{'Acct-Session-Time'},
+            $RAD->{OUTBYTE},
+            $RAD->{INBYTE},
+            $self->{SUM} || 0,
+            $NAS->{NAS_ID},
+            $RAD->{'NAS-Port'} || 0,
+            $RAD->{'Framed-IP-Address'},
+            $RAD->{'Calling-Station-Id'} || '_2',
+            $RAD->{OUTBYTE2},
+            $RAD->{INBYTE2},
+            $RAD->{'Acct-Session-Id'},
+            $self->{BILL_ID},
+            $RAD->{'Acct-Terminate-Cause'},
+            $RAD->{$input_gigawords},
+            $RAD->{$output_gigawords}
+          ] }
         );
 
       if ($self->{errno}) {
@@ -436,7 +442,7 @@ sub accounting {
        $self->{TARIF_PLAN},
        $self->{TIME_TARIF},
        $self->{TRAF_TARIF}) = $Billing->session_sum($RAD->{'User-Name'}, 
-                                    time - $RAD->{'Acct-Session-Time'}, 
+                                    (time - $RAD->{'Acct-Session-Time'}),
                                     $RAD->{'Acct-Session-Time'}, 
                                     $RAD, \%EXT_ATTR);
 
@@ -498,8 +504,8 @@ sub accounting {
                     $RAD->{'Acct-Session-Id'},
                     $self->{BILL_ID},
                     $RAD->{'Acct-Terminate-Cause'},
-                    $RAD->{'Acct-Input-Gigawords'},
-                    $RAD->{'Acct-Output-Gigawords'}
+                    $RAD->{$input_gigawords},
+                    $RAD->{$output_gigawords}
                      ] }
         );
 
@@ -535,8 +541,8 @@ sub accounting {
       acct_output_octets='$RAD->{OUTBYTE}',
       ex_input_octets=ex_input_octets + $RAD->{INBYTE2},
       ex_output_octets=ex_output_octets + $RAD->{OUTBYTE2},
-      acct_input_gigawords='". $RAD->{'Acct-Input-Gigawords'} ."',
-      acct_output_gigawords='". $RAD->{'Acct-Output-Gigawords'} ."',";
+      acct_input_gigawords='". $RAD->{$input_gigawords} ."',
+      acct_output_gigawords='". $RAD->{$output_gigawords} ."',";
       }
 
       $self->query2("UPDATE dv_calls SET
@@ -605,8 +611,8 @@ sub accounting {
              $RAD->{'Connect-Info'},
              $RAD->{'INBYTE'},
              $RAD->{'OUTBYTE'},
-             $RAD->{'Acct-Input-Gigawords'},
-             $RAD->{'Acct-Output-Gigawords'},
+             $RAD->{$input_gigawords},
+             $RAD->{$output_gigawords},
              $NAS->{NAS_ID},
              $self->{TP_ID} || 0, 
              $self->{UID} || 0,
@@ -646,8 +652,8 @@ sub accounting {
         $RAD->{'OUTBYTE'},
         $RAD->{'Framed-IP-Address'},
         $self->{'SUM'},
-        $RAD->{'Acct-Input-Gigawords'},
-        $RAD->{'Acct-Output-Gigawords'},
+        $RAD->{$input_gigawords},
+        $RAD->{$output_gigawords},
         $RAD->{'Acct-Session-Id'},
         $RAD->{'User-Name'} || '',
         $NAS->{'NAS_ID'}
@@ -668,20 +674,20 @@ sub accounting {
 
   #detalization for Exppp
   if ($conf->{s_detalization} && $self->{UID}) {
-    $self->query2("INSERT INTO s_detail (acct_session_id, nas_id, acct_status, last_update, sent1, recv1, sent2, recv2, uid, sum)
+    $self->query2("INSERT INTO s_detail (acct_session_id, nas_id, acct_status, last_update, recv1, sent1, recv2, sent2, uid, sum)
        VALUES (?, ?, ?, UNIX_TIMESTAMP(), ?, ?, ?, ?, ?, ?);", 
        'do',
        { Bind => [
-           $RAD->{'Acct-Session-Id'},
-           $NAS->{NAS_ID},
-           $acct_status_type,
-           $RAD->{INBYTE} +  (($RAD->{'Acct-Input-Gigawords'})  ? $RAD->{'Acct-Input-Gigawords'} * 4294967296  : 0),
-           $RAD->{OUTBYTE} + (($RAD->{'Acct-Output-Gigawords'}) ? $RAD->{'Acct-Output-Gigawords'} * 4294967296 : 0),
-           $RAD->{INBYTE2}  || 0,
-           $RAD->{OUTBYTE2} || 0,
-           $self->{UID} || 0,
-           $self->{SUM}
-         ]}
+          $RAD->{'Acct-Session-Id'},
+          $NAS->{NAS_ID},
+          $acct_status_type,
+          $RAD->{INBYTE} +  (($RAD->{$input_gigawords})  ? $RAD->{$input_gigawords} * 4294967296  : 0),
+          $RAD->{OUTBYTE} + (($RAD->{$output_gigawords}) ? $RAD->{$output_gigawords} * 4294967296 : 0),
+          $RAD->{INBYTE2}  || 0,
+          $RAD->{OUTBYTE2} || 0,
+          $self->{UID} || 0,
+          $self->{SUM}
+       ]}
     );
   }
 
@@ -704,12 +710,12 @@ sub rt_billing {
   }
 
   $self->query2("SELECT lupdated, UNIX_TIMESTAMP()-lupdated,
-   IF($RAD->{INBYTE}   >= acct_input_octets AND ". $RAD->{'Acct-Input-Gigawords'} ."=acct_input_gigawords,
+   IF($RAD->{INBYTE}   >= acct_input_octets AND ". $RAD->{$input_gigawords} ."=acct_input_gigawords,
         $RAD->{INBYTE} - acct_input_octets,
-        IF(". $RAD->{'Acct-Input-Gigawords'} ." - acct_input_gigawords > 0, 4294967296 * (". $RAD->{'Acct-Input-Gigawords'} ." - acct_input_gigawords) - acct_input_octets + $RAD->{INBYTE}, 0)),
-   IF($RAD->{OUTBYTE}  >= acct_output_octets AND ". $RAD->{'Acct-Output-Gigawords'} ."=acct_output_gigawords,
+        IF(". $RAD->{$input_gigawords} ." - acct_input_gigawords > 0, 4294967296 * (". $RAD->{$input_gigawords} ." - acct_input_gigawords) - acct_input_octets + $RAD->{INBYTE}, 0)),
+   IF($RAD->{OUTBYTE}  >= acct_output_octets AND ". $RAD->{$output_gigawords} ."=acct_output_gigawords,
         $RAD->{OUTBYTE} - acct_output_octets,
-        IF(". $RAD->{'Acct-Output-Gigawords'} ." - acct_output_gigawords > 0, 4294967296 * (". $RAD->{'Acct-Output-Gigawords'} ." - acct_output_gigawords) - acct_output_octets + $RAD->{OUTBYTE}, 0)),
+        IF(". $RAD->{$output_gigawords} ." - acct_output_gigawords > 0, 4294967296 * (". $RAD->{$output_gigawords} ." - acct_output_gigawords) - acct_output_octets + $RAD->{OUTBYTE}, 0)),
    IF($RAD->{INBYTE2}  >= ex_input_octets, $RAD->{INBYTE2}  - ex_input_octets, ex_input_octets),
    IF($RAD->{OUTBYTE2} >= ex_output_octets, $RAD->{OUTBYTE2} - ex_output_octets, ex_output_octets),
    sum,
@@ -737,8 +743,8 @@ sub rt_billing {
   $self->{TP_NUM},
   $self->{UID}) = @{ $self->{list}->[0] };
 
-  my $out_byte = $RAD->{OUTBYTE} + $RAD->{'Acct-Output-Gigawords'} * 4294967296;
-  my $in_byte  = $RAD->{INBYTE} + $RAD->{'Acct-Input-Gigawords'} * 4294967296;
+  my $out_byte = $RAD->{OUTBYTE} + $RAD->{$output_gigawords} * 4294967296;
+  my $in_byte  = $RAD->{INBYTE} + $RAD->{$input_gigawords} * 4294967296;
 
   ($self->{UID}, 
   $self->{SUM}, 
@@ -754,11 +760,6 @@ sub rt_billing {
       INBYTE   => ($in_byte  == $RAD->{INTERIUM_INBYTE}) ? $RAD->{INTERIUM_INBYTE} : $in_byte - $RAD->{INTERIUM_INBYTE},
       OUTBYTE2 => $RAD->{OUTBYTE2} - $RAD->{INTERIUM_OUTBYTE1},
       INBYTE2  => $RAD->{INBYTE2} - $RAD->{INTERIUM_INBYTE1},
-
-      #OUTBYTE  => $RAD->{INTERIUM_OUTBYTE},
-      #INBYTE   => $RAD->{INTERIUM_INBYTE},
-      #OUTBYTE2 => $RAD->{INTERIUM_OUTBYTE1},
-      #INBYTE2  => $RAD->{INTERIUM_INBYTE1},
 
       INTERIUM_OUTBYTE  => $RAD->{INTERIUM_OUTBYTE},
       INTERIUM_INBYTE   => $RAD->{INTERIUM_INBYTE},

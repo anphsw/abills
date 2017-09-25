@@ -1,141 +1,142 @@
 'use strict';
 
-var socket_state = {
+var SOCKET_STATE = {
   CONNECTING: 0,
   OPEN      : 1,
   CLOSING   : 2,
   CLOSED    : 3
 };
 
-var counter                       = 0;
-var try_to_connect_again          = true;
-var is_in_connection_retrieval    = false;
-var unsuccessful_connection_tries = 0;
-
 var ws = null;
 $(function () {
-      var socket_link = document['WEBSOCKET_URL'];
-      if (socket_link !== '') {
-        ws = connect_to_socket(socket_link);
-      }
-      else {
-        console.log('[ WebSocket ] Will not connect to socket without $conf{WEBSOCKET_URL}. It\'s normal if you haven\'t configured WebSockets');
-      }
+  ws = new WSClient(document['WEBSOCKET_URL']);
+});
+
+var WSClient = function (socket_link) {
+  this.link = socket_link;
+  
+  this.is_in_connection_retrieval    = true;
+  this.unsuccessful_connection_tries = 0;
+  
+  if (socket_link !== '') {
+    this.link                 = 'wss://' + socket_link;
+    document['WEBSOCKET_URL'] = this.link;
+    this.ws                   = this.try_to_connect_again_in_(0);
+  }
+  else {
+    console.log('[ WebSocket ] Will not connect to socket without $conf{WEBSOCKET_URL}. It\'s normal if you haven\'t configured WebSockets');
+  }
+};
+
+WSClient.prototype = {
+  on_message              : function (event) {
+    var message = null;
+    try {
+      message = JSON.parse(event.data);
     }
-);
-
-function request_close_socket() {
-  ws.send('{ "type" :  "close_request"}');
-  try_to_connect_again = false;
-}
-
-
-function try_to_connect_again_in_(seconds) {
-  
-  seconds = Math.min(seconds, 60);
-  
-  ws = new WebSocket(document['WEBSOCKET_URL']);
-  
-  ws.onopen = function () {
-    Events.emit('WebSocket.connected');
-    unsuccessful_connection_tries = 0;
-    is_in_connection_retrieval    = false;
-    ws                            = setup_socket(ws);
-  };
-  
-  ws.onerror = function () {
-    unsuccessful_connection_tries++;
-    if (unsuccessful_connection_tries > 10) {
-      console.log('[ WebSocket ] Giving up after %i tries', unsuccessful_connection_tries);
+    catch (Error) {
+      console.log("[ WebSocket ] Fail to parse JSON: " + event.data);
       return;
     }
-    console.log('Will try again in %i seconds', seconds);
-    setTimeout(function () {
-      try_to_connect_again_in_(seconds * 2)
-    }, seconds * 1000);
-  };
-  
-  if (ws !== null && ws.readyState == socket_state['OPEN']) {
-    ws = setup_socket(ws);
-  }
-  
-  
-}
-
-function setup_socket(websocket) {
-  
-  websocket.onopen = function () {
+    
+    var self = this;
+    switch (message.TYPE) {
+      case 'close':
+        self.ws.close(1000); // Normal
+        if (message.REASON) {
+          console.log("[ WebSocket ] Connection closed by server : " + message.REASON);
+        }
+        break;
+      case 'PING':
+        self.ws.send('{"TYPE":"PONG"}');
+        break;
+      case 'PONG':
+        Events.emit("WebSocket.ping_success");
+        break;
+      default:
+        AMessageChecker.processData(message);
+        self.ws.send('{"TYPE":"RESPONCE","RESPONCE":"RECEIVED"}');
+        break;
+    }
+    
+  },
+  established             : function () {
+    this.is_in_connection_retrieval    = false;
+    this.unsuccessful_connection_tries = 0;
     Events.emit('WebSocket.connected');
-    unsuccessful_connection_tries = 0;
-    is_in_connection_retrieval    = false;
-  };
-  
-  websocket.onclose = function () {
-    Events.emit('WebSocket.error');
-    if (!is_in_connection_retrieval) {
-      is_in_connection_retrieval = true;
-      try_to_connect_again_in_(3);
+  },
+  ping                    : function () {
+    this.ws.send('{"TYPE":"PING"}');
+  },
+  request_close_socket    : function () {
+    this.ws.send('{"TYPE":"CLOSE_REQUEST"}');
+    this.try_to_connect_again = false;
+  },
+  try_to_connect_again_in_: function (seconds) {
+    seconds = Math.min(seconds, 10);
+    
+    var self = this;
+    this.ws  = null;
+    
+    self.unsuccessful_connection_tries++;
+    if (self.unsuccessful_connection_tries >= 10) {
+      console.log('[ WebSocket ] Giving up after %i tries', self.unsuccessful_connection_tries);
+      return;
     }
-  };
-  
-  websocket.onerror = function () {
-    if (!is_in_connection_retrieval) {
-      is_in_connection_retrieval = true;
-      try_to_connect_again_in_(3);
-    }
-  };
-  
-  websocket.ping = function () {
-    if (websocket.readyState == socket_state.OPEN){
-      websocket.send('{"TYPE" : "PING"}');
-    }
-  };
-  
-  websocket.onmessage = on_message;
-  
-  return websocket;
-}
-
-function connect_to_socket(url) {
-  
-  ws = new WebSocket(url);
-  
-  setup_socket(ws);
-  return ws;
-}
-
-function on_message(event) {
-  var message = null;
-  try {
-    message = JSON.parse(event.data);
-  }
-  catch (Error) {
-    console.log("[ WebSocket ] Fail to parse JSON: " + event.data);
-    return;
-  }
-  
-  switch (message.TYPE) {
-    case 'close':
-
-      ws.close(1000); // Normal
-      if (message.REASON) {
-        console.log("[ WebSocket ] Connection closed by server : " + message.REASON);
+    
+    this.ws = new WebSocket(this.link);
+    
+    this.ws.onopen = function () {
+      Events.emit('WebSocket.opened');
+      console.log("[ WebSocket ] connected");
+      self.setup_socket();
+    };
+    
+    this.ws.onclose = function (code, reason, was_clean) {
+      console.log('[ WebSocket ] Close : %s %s %s', code, reason, was_clean)
+    };
+    
+    this.ws.onerror = function () {
+      Events.emit('WebSocket.error');
+      console.log('Will try again in %.2f seconds', seconds);
+      seconds = parseInt(seconds || 1);
+      setTimeout(function () {
+        self.try_to_connect_again_in_(seconds * 2)
+      }, seconds * 1000);
+    };
+    
+    return this.ws;
+    
+  },
+  setup_socket            : function () {
+    var self = this;
+    
+    this.ws.onclose = function () {
+      if (!self.is_in_connection_retrieval) {
+        self.is_in_connection_retrieval = true;
+        self.try_to_connect_again_in_(2 + Math.random());
       }
-      break;
-    case 'PING':
-      ws.send('{"TYPE" : "PONG"}');
-      break;
-    case 'PONG':
-      console.warn("I should not receive this :",  message);
-      break;
-    default:
-      AMessageChecker.processData(message);
-      ws.send('{"TYPE":"RESPONCE","RESPONCE":"RECEIVED"}');
-      break;
-  }
-  
-}
+    };
+    
+    this.ws.onerror = function () {
+      Events.emit('WebSocket.error');
+      if (!self.is_in_connection_retrieval) {
+        self.is_in_connection_retrieval = true;
+        self.try_to_connect_again_in_(2 + Math.random());
+      }
+    };
+    
+    this.ws.onmessage = self.on_message.bind(self);
+    
+    Events.once("WebSocket.ping_success", function () {
+      self.established();
+    });
+    
+    this.ping();
+  },
+};
+
 
 document.onunload = function () {
-  try_to_connect_again = false;
+  ws.unsuccessful_connection_tries = 1000;
 };

@@ -75,7 +75,9 @@ sub new{
 }
 
 #**********************************************************
-# user_ips
+=head2 user_ips($DATA)
+
+=cut
 #**********************************************************
 sub user_ips{
   my $self = shift;
@@ -153,7 +155,9 @@ sub user_ips{
       LEFT JOIN bills cb ON (c.bill_id=cb.id)
       LEFT JOIN dv_main dv ON (u.uid=dv.uid)
       LEFT JOIN tarif_plans tp ON (tp.id=dv.tp_id)
-    WHERE u.id=calls.user_name and u.domain_id=0 and calls.status<11
+    WHERE u.id=calls.user_name
+      AND u.domain_id=0
+      AND calls.status<11
     and calls.nas_id IN ($DATA->{NAS_ID}) ;";
   }
   else{
@@ -657,8 +661,9 @@ sub traffic_add_user{
 }
 
 #**********************************************************
-# traffic_user_get2
-# Get used traffic from DB
+=head2 traffic_user_get2($attr) - Get used traffic from DB
+
+=cut
 #**********************************************************
 sub traffic_user_get2{
   my $self = shift;
@@ -685,43 +690,41 @@ sub traffic_user_get2{
     $WHERE = "uid IN (" . join( ', ', @uids_arr ) . ") AND ";
   }
   else{
-    $WHERE = " uid='$uid' and ";
+    $WHERE = " uid='$uid' AND ";
   }
 
   if ( $attr->{DATE_TIME} ){
-    $WHERE = "start>=$attr->{DATE_TIME}";
+    $WHERE .= "start>=$attr->{DATE_TIME}";
   }
   elsif ( $attr->{INTERVAL} ){
     my ($from, $to) = split( /\//, $attr->{INTERVAL} );
-    $from = ($from eq '0000-00-00') ? 'DATE_FORMAT(started, \'%Y-%m\')>=DATE_FORMAT(curdate(), \'%Y-%m\')' : "DATE_FORMAT(started, '\%Y-\%m-\%d')>='$from'";
+    $from = ($from eq '0000-00-00') ? 'DATE_FORMAT(started, \'%Y-%m\')>=DATE_FORMAT(CURDATE(), \'%Y-%m\')' : "DATE_FORMAT(started, '\%Y-\%m-\%d')>='$from'";
     $WHERE = "( $from AND started<'$to') ";
   }
   elsif ( $attr->{ACTIVATE} ){
-
     if ( $attr->{ACTIVATE} eq '0000-00-00' ){
-      $attr->{ACTIVATE} = "DATE_FORMAT(curdate(), '%Y-%m-01')";
+      $attr->{ACTIVATE} = "DATE_FORMAT(CURDATE(), '%Y-%m-01')";
     }
     else{
       $attr->{ACTIVATE} = "'$attr->{ACTIVATE}'";
     }
-    $WHERE = "DATE_FORMAT(started, '%Y-%m-%d')>=$attr->{ACTIVATE}";
-
+    $WHERE .= "DATE_FORMAT(started, '%Y-%m-%d')>=$attr->{ACTIVATE}";
   }
   else{
-    $WHERE = "DATE_FORMAT(started, '%Y-%m')>=DATE_FORMAT(curdate(), '%Y-%m')";
+    $WHERE .= "DATE_FORMAT(started, '%Y-%m')>=DATE_FORMAT(CURDATE(), '%Y-%m')";
   }
 
   if ( defined( $attr->{TRAFFIC_ID} ) ){
-    $WHERE .= "and traffic_class='$attr->{TRAFFIC_ID}'";
+    $WHERE .= "AND traffic_class='$attr->{TRAFFIC_ID}'";
   }
 
-  $self->query2( "SELECT    started,
+  $self->query2( "SELECT started,
    uid,
    traffic_class,
    traffic_in / $self->{conf}->{MB_SIZE},
    traffic_out / $self->{conf}->{MB_SIZE}
     FROM traffic_prepaid_sum
-        WHERE $WHERE;"
+    WHERE $WHERE;"
   );
 
   if ( $self->{TOTAL} < 1 ){
@@ -736,8 +739,7 @@ sub traffic_user_get2{
   }
 
   foreach my $line ( @{ $self->{list} } ){
-
-    #Trffic class
+    #Traffic class
     $result{ $line->[2] }{TRAFFIC_IN} = $line->[3];
     $result{ $line->[2] }{TRAFFIC_OUT} = $line->[4];
   }
@@ -746,7 +748,7 @@ sub traffic_user_get2{
      traffic_in=traffic_in+$attr->{TRAFFIC_IN},
      traffic_out=traffic_out+$attr->{TRAFFIC_OUT}
     WHERE uid='$uid'
-        and $WHERE;", 'do'
+        AND $WHERE;", 'do'
   );
 
   return \%result;
@@ -803,7 +805,7 @@ sub traffic_user_get{
     $WHERE .= "DATE_FORMAT(start, '%Y-%m')>=DATE_FORMAT(curdate(), '%Y-%m')";
   }
 
-  $self->query2( "SELECT traffic_class, sum(traffic_in) / $self->{conf}->{MB_SIZE}, sum(traffic_out) / $self->{conf}->{MB_SIZE}
+  $self->query2( "SELECT traffic_class, SUM(traffic_in) / $self->{conf}->{MB_SIZE}, sum(traffic_out) / $self->{conf}->{MB_SIZE}
     FROM ipn_log
         WHERE $WHERE
         GROUP BY $GROUP_BY",
@@ -959,6 +961,14 @@ sub acct_stop{
     return $self;
   }
 
+  my $internet_online = 'dv_calls';
+  my $internet_main = 'dv_main';
+
+  if($attr->{INTERNET}) {
+    $internet_online = 'internet_online';
+    $internet_main = 'internet_main';
+  }
+
   $self->query2( "SELECT u.uid, calls.framed_ip_address,
       calls.user_name,
       calls.acct_input_octets AS input_octets,
@@ -966,22 +976,23 @@ sub acct_stop{
       acct_input_gigawords, 
       acct_output_gigawords,
       dv.tp_id,
-      if(u.company_id > 0, cb.id, b.id) AS bill_id,
-      if(c.name IS NULL, b.deposit, cb.deposit)+u.credit AS deposit,
+      IF(u.company_id > 0, cb.id, b.id) AS bill_id,
+      IF(c.name IS NULL, b.deposit, cb.deposit)+u.credit AS deposit,
       calls.started AS start,
       UNIX_TIMESTAMP()-UNIX_TIMESTAMP(calls.started) AS acct_session_time,
       nas_id,
       nas_port_id AS nas_port
-    FROM (dv_calls calls, users u)
+    FROM $internet_online calls
+      INNER JOIN users u ON (u.uid=calls.uid)
       LEFT JOIN companies c ON (u.company_id=c.id)
       LEFT JOIN bills b ON (u.bill_id=b.id)
       LEFT JOIN bills cb ON (c.bill_id=cb.id)
-      LEFT JOIN dv_main dv ON (u.uid=dv.uid)
-    WHERE u.id=calls.user_name and acct_session_id= ? ;",
+      LEFT JOIN $internet_main dv ON (u.uid=dv.uid)
+    WHERE acct_session_id= ? ;",
     undef, { INFO => 1, Bind => [ $attr->{ACCT_SESSION_ID} ] } );
 
   if ( $self->{TOTAL} < 1 ){
-    $self->query2( "DELETE from dv_calls WHERE acct_session_id= ? ;", 'do', { Bind => [ $attr->{ACCT_SESSION_ID} ] } );
+    $self->query2( "DELETE from $internet_online WHERE acct_session_id= ? ;", 'do', { Bind => [ $attr->{ACCT_SESSION_ID} ] } );
     return $self;
   }
 
@@ -1010,17 +1021,33 @@ sub acct_stop{
     $self->{INPUT_OCTETS} || 0,
     $self->{ACCT_OUTPUT_GIGAWORDS} || 0,
     $self->{ACCT_INPUT_GIGAWORDS} || 0,
-      ($self->{SUM}) ? $self->{SUM} : 0,
+    ($self->{SUM}) ? $self->{SUM} : 0,
     $self->{NAS_ID} || 0,
     $self->{NAS_PORT} || 0,
     $self->{FRAMED_IP_ADDRESS} || '0.0.0.0',
     $attr->{ACCT_SESSION_ID},
     $self->{BILL_ID} || 0,
-      (defined( $attr->{ACCT_TERMINATE_CAUSE} )) ? $attr->{ACCT_TERMINATE_CAUSE} : 17,
+    (defined( $attr->{ACCT_TERMINATE_CAUSE} )) ? $attr->{ACCT_TERMINATE_CAUSE} : 17,
     $attr->{CID} || $attr->{CALLING_STATION_ID} || '-'
   );
 
-  $self->query2( "INSERT INTO dv_log (uid, start, tp_id, duration,
+  if($attr->{INTERNET}) {
+    $self->query2( "INSERT INTO internet_log (uid, start, tp_id, duration,
+    sent, recv, acct_output_gigawords, acct_input_gigawords,
+    sum, nas_id, port_id,
+    ip,
+    acct_session_id,
+    bill_id,
+    terminate_cause,
+    cid)
+        VALUES (?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
+      'do',
+      { Bind => \@insert_params }
+    );
+  }
+  else {
+    $self->query2( "INSERT INTO dv_log (uid, start, tp_id, duration,
     sent, recv, acct_output_gigawords, acct_input_gigawords, 
     sum, nas_id, port_id,
     ip, 
@@ -1030,12 +1057,13 @@ sub acct_stop{
     CID) 
         VALUES (?, ?, ?, ?, ?, ?, 
         ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
-    'do',
-    { Bind => \@insert_params }
-  );
+      'do',
+      { Bind => \@insert_params }
+    );
+  }
 
   if ( !$self->{errno} ){
-    $self->query2( "DELETE from dv_calls WHERE acct_session_id= ? ;", 'do', { Bind => [ $attr->{ACCT_SESSION_ID} ] } );
+    $self->query2( "DELETE from $internet_online WHERE acct_session_id= ? ;", 'do', { Bind => [ $attr->{ACCT_SESSION_ID} ] } );
   }
 
   return $self;

@@ -19,19 +19,27 @@
       <div class='form-group'>
         <label class='control-label col-md-5' for='FIBERS_COUNT_id'>_{FIBERS_COUNT}_</label>
         <div class='col-md-7'>
-          <input type='text' class='form-control' name='FIBERS_COUNT' value='%FIBERS_COUNT%' id='FIBERS_COUNT_id'/>
+          <input type='number' min='1' class='form-control' name='FIBERS_COUNT' value='%FIBERS_COUNT%' id='FIBERS_COUNT_id'/>
         </div>
       </div>
 
       <div class='form-group'>
         <label class='control-label col-md-5' for='MODULES_COUNT_id'>_{MODULES_COUNT}_</label>
         <div class='col-md-7'>
-          <input type='text' class='form-control' name='MODULES_COUNT' value='%MODULES_COUNT%' id='MODULES_COUNT_id'/>
+          <input type='number' min='1' class='form-control' name='MODULES_COUNT' value='%MODULES_COUNT%' id='MODULES_COUNT_id'/>
         </div>
       </div>
 
-      <hr>
+      <div class='form-group'>
+        <label class='control-label col-md-5' for='ATTENUATION_id'>_{ATTENUATION}_ (dBm / km)</label>
+        <div class='col-md-7'>
+          <input type='number' min='0' step='0.05' class='form-control' name='ATTENUATION' value='%ATTENUATION%' id='ATTENUATION_id'/>
+        </div>
+      </div>
 
+
+
+      <hr>
       <div class='form-group'>
         <label class='control-label col-md-5 required' for='COLOR_SCHEME_ID_SELECT'>_{COLOR_SCHEME}_</label>
         <div class='col-md-7'>
@@ -44,6 +52,12 @@
         <div class='col-md-7'>
           %MODULES_COLOR_SCHEME_ID_SELECT%
         </div>
+      </div>
+
+      <hr>
+
+      <div class='form-group'>
+        <h4 class='bg-info'>_{MAP}_</h4>
       </div>
 
       <div class='form-group'>
@@ -59,6 +73,8 @@
           <input type='number' min='1' class='form-control' name='LINE_WIDTH' id='LINE_WIDTH_id' value='%LINE_WIDTH%'/>
         </div>
       </div>
+
+      <hr>
 
       <div class='form-group'>
         <label class='control-label col-md-3' for='COMMENTS_id'>_{COMMENTS}_</label>

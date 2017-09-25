@@ -149,28 +149,150 @@ sub _huawei_onu_list{
 sub _huawei_unregister {
   my ($attr) = @_;
   my @unregister = ();
+  my @types = ('gpon', 'epon');
+  foreach my $type (@types) { 
+    my $snmp = _huawei({ TYPE => $type });
+    my $unreg_result = ();
+    $unreg_result = snmp_get({
+      %{$attr},
+      WALK    => 1,
+      OID     => $snmp->{unregister}->{'MAC/SERIAL'}->{OIDS},
+      #TIMEOUT => 8,
+      SILENT  => 1
+    }) if $snmp->{unregister}->{'MAC/SERIAL'}->{OIDS};
 
-  my $snmp = _huawei({ TYPE => 'unregister' });
-
-  my $unreg_result = snmp_get({
-    %{$attr},
-    WALK    => 1,
-    OID     => $snmp->{UNREGISTER}->{OIDS},
-    #TIMEOUT => 8,
-    SILENT  => 1
-  });
-
-  foreach my $line ( @$unreg_result ) {
-    my ($id, $mac_bin)=split(/:/, $line);
-    push @unregister, {
-      id  => $id,
-      mac => bin2mac($mac_bin)
+    foreach my $line ( @$unreg_result ) {
+      my ($id, $mac_bin)=split(/:/, $line);
+      my ($snmp_port_id, $onu_id) = split( /\./, $id, 2 );
+      my $branch = decode_port($snmp_port_id);
+      my $equipment_id;
+      if ($snmp->{unregister}->{'EQUIPMENT_ID'}){
+        $equipment_id = snmp_get({
+          %{$attr},
+          OID     => "$snmp->{unregister}->{'EQUIPMENT_ID'}->{OIDS}.$id",
+          #TIMEOUT => 8,
+          SILENT  => 1
+        });
+      };
+      my $vendor;
+      if ($type eq 'gpon') {
+        $vendor = bin2hex($mac_bin);
+        $vendor =~ s/[A-F0-9]{8}$//g;
+        $vendor = pack 'H*', $vendor;
+      }
+      $equipment_id =~ s/[^a-zA-Z0-9-_]//g;
+      if ($vendor eq 'HWTC') {
+        $equipment_id = "HG8$equipment_id" if ($equipment_id =~ /^\d{3}/);
+      }
+      elsif ($vendor eq 'ALCL') {
+        $equipment_id =~ s/_//g;
+      }
+      push @unregister, {
+        type => $type,
+        branch => $branch,
+        mac_serial => bin2hex($mac_bin),
+        equipment_id => $equipment_id,
+        vendor => $vendor
+      }
     }
   }
-
   return \@unregister;
 }
+#**********************************************************
+=head2 _huawei_unregister_form($attr);
 
+  Arguments:
+    $attr
+
+  Returns;
+
+=cut
+#**********************************************************
+sub _huawei_unregister_form {
+  my ($attr) = @_;
+  my $snmp = _huawei({ TYPE => $FORM{TYPE} });
+  if ($FORM{TYPE} eq 'gpon') {
+    my @line_profiles = ();
+    my @srv_profiles = ();
+    my @profiles = ('LINE_PROFILES', 'SRV_PROFILES');
+    foreach my $type (@profiles) {
+      my $oid = $snmp->{profiles}->{$type}->{OIDS};
+      my $data = snmp_get({
+        %{$attr},
+        WALK    => 1,
+        OID     => $oid,
+        #TIMEOUT => 8,
+        SILENT  => 1
+      });
+      foreach my $name (@$data) {
+        push @line_profiles, huawei_parse_profile_name($name) if ($type eq $profiles[0]);
+        push @srv_profiles, huawei_parse_profile_name($name) if ($type eq $profiles[1]);
+      }
+    }
+    $FORM{ACTION} = 'onu_registration';
+    $FORM{ACTION_LNG} = $lang{ADD};
+    $attr->{SNMP_TPL} = $attr->{NAS_INFO}->{SNMP_TPL};
+    my $vlan_hash = get_vlans( $attr );
+    my %vlans = ();
+    foreach my $vlan_id (keys %{$vlan_hash}) {
+      $vlans{ $vlan_id } = "Vlan$vlan_id ($vlan_hash->{ $vlan_id }->{NAME})";
+    }
+   
+    $FORM{VLAN_SEL} = $html->form_select('VLAN_ID', {
+      SELECTED    => $attr->{DEF_VLAN} || '',
+      SEL_OPTIONS => { '' => '--' },
+      SEL_HASH    => \%vlans,
+      NO_ID       => 1
+    });
+
+    my $default_line_profile = $conf{HUAWEI_LINE_PROFILE_NAME} || 'ONU';
+    $FORM{LINE_PROFILE_SEL} = $html->form_select('LINE_PROFILE', {
+      SELECTED    => $default_line_profile,
+      SEL_OPTIONS => { '' => '--' },
+      SEL_ARRAY    => \@line_profiles,
+    });
+
+    $FORM{SRV_PROFILE_SEL} = $html->form_select('SRV_PROFILE', {
+      SELECTED    => $conf{HUAWEI_SRV_PROFILE_NAME} || 'ALL',
+      SEL_OPTIONS => { '' => '--' },
+      SEL_ARRAY    => \@srv_profiles,
+    });
+    $FORM{UC_TYPE} = uc($FORM{TYPE});
+    $html->tpl_show( _include( 'equipment_registred_onu', 'Equipment' ), { %FORM } );
+  }
+}
+#**********************************************************
+=head2 _huawei_prase_line_profile($attr) 
+
+  Arguments:
+    $attr
+
+  Returns;
+    \%line_profile
+
+=cut
+#**********************************************************
+sub _huawei_prase_line_profile {
+  my ($attr) = @_;
+  my %line_profile = (); 
+  my $snmp = _huawei({ TYPE => $FORM{TYPE} });
+  if ($FORM{TYPE} eq 'gpon') {
+    my $oid = $snmp->{profiles}->{'LINE_PROFILE_VLANS'}->{OIDS} . '.' . huawei_make_profile_name($FORM{LINE_PROFILE});
+    my $data = snmp_get({
+      %{$attr},
+      WALK    => 1,
+      OID     => $oid,
+      #TIMEOUT => 8,
+      SILENT  => 1
+    });
+    foreach my $line (@$data) {
+      my ($gem_maping, $vlan) = split(':', $line);
+      my ($gem, undef) = split('\.', $gem_maping);
+      push @{$line_profile{$gem}}, $vlan;
+    }
+  }
+  return \%line_profile;
+}
 #**********************************************************
 =head2 _huawei($attr) - Snmp recovery
 
@@ -257,6 +379,14 @@ sub _huawei{
          NAME => 'DISTANCE',
          OIDS => '.1.3.6.1.4.1.2011.6.128.1.1.2.57.1.19',
          PARSER => '_huawei_convert_distance'
+       }
+     },
+     unregister => {
+       'MAC/SERIAL' => {
+         NAME   => 'MAC/SERIAL',
+#         OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.2.52.1.2',
+         PARSER => '',
+         WALK   => '1'
        }
      }
    },
@@ -377,16 +507,42 @@ sub _huawei{
          PARSER => '_huawei_convert_eth_vlan',
          WALK   => '1'
        }
-     }
-   },
-   unregister => {
-     UNREGISTER => {
-       NAME   => 'UNREGISTER',
-       # GPON
-       OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.2.48.1.2',
-       #OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.2.52.1.2',
-       PARSER => '',
-       WALK   => '1'
+     },
+     unregister => {
+       'MAC/SERIAL' => {
+         NAME   => 'MAC/SERIAL',
+         # GPON
+         OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.2.48.1.2',
+         #OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.2.52.1.2',
+         PARSER => '',
+         WALK   => '1'
+       },
+       'EQUIPMENT_ID' => {
+         NAME   => 'EQUIPMENT_ID',
+         OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.2.48.1.7',
+         PARSER => '',
+         WALK   => '1'
+       }
+     },
+     profiles => {
+       'LINE_PROFILES' => {
+         NAME   => 'LINE_PROFILES',
+         OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.3.61.1.2',
+         PARSER => '',
+         WALK   => '1'
+       },
+       'SRV_PROFILES' => {
+         NAME   => 'SRV_PROFILES',
+         OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.3.65.1.2',
+         PARSER => '',
+         WALK   => '1'
+       },
+       'LINE_PROFILE_VLANS' => {
+         NAME   => 'LINE_PROFILE_VLANS',
+         OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.3.64.1.8',
+         PARSER => '',
+         WALK   => '1'
+       }
      }
    }
   );
@@ -465,7 +621,7 @@ sub _huawei_set_desc {
 
 =cut
 #**********************************************************
-sub _huawei_get_service_ports {
+sub _huawei_get_service_ports1 {
   my ($attr) = @_;
 #  push @datasource, ( data_source => { name => $line->{SOURCE} , type  => $line->{TYPE} } );
 
@@ -849,6 +1005,48 @@ sub _huawei_convert_info{
 }
 
 #**********************************************************
+=head2 xpon_parse_profile_name
+
+  Decode profile name from OID
+
+  Arguments:
+    $name - the part of OID with name
+
+  Returns:
+    profile name
+
+=cut
+#**********************************************************
+sub huawei_parse_profile_name{
+  my ($name) = @_;
+  my @name = split(/\./, $name);
+  $name = pack('(C)*', @name);
+  return $name;
+}
+
+#**********************************************************
+=head2 huawei_make_profile_name
+
+  Endcode a string to profile name for use in OID
+
+  Arguments:
+    $name - string
+
+  Returns:
+    a part of OID
+
+=cut
+#**********************************************************
+sub huawei_make_profile_name{
+  my ($name) = @_;
+  my $length = length($name);
+  my @name = unpack('(C)*', $name);
+  $name = join(".", @name);
+  $name = $length . '.' . $name;
+  return $name;
+}
+
+#**********************************************************
 =head2 _huawei_get_fdb($attr) - GET FDB by telnet
 
   Arguments:
@@ -912,6 +1110,7 @@ sub _huawei_telnet_open{
 
   my $load_data = load_pmodule2('Net::Telnet', {SHOW_RETURN => 1});
   if ($load_data) {
+    print "$load_data";
     return 0;
   }
 
@@ -985,7 +1184,5 @@ sub _huawei_telnet_cmd{
 
   return $data[0];
 }
-
-
 
 1

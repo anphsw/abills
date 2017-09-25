@@ -294,8 +294,8 @@ sub netlist_list {
       undef $FORM{IP};
     }
     
-    if ( !defined $FORM{IP} || !defined $FORM{IPV6} ) {
-      $html->message('err', $lang{ERR_WRONG_DATA});
+    if ( !( defined $FORM{IP} || defined $FORM{IPV6} )) {
+      $html->message('err', $lang{ERR_WRONG_DATA}, $lang{IP_ADDRESS});
     }
     else {
       $Netlist->ip_add( { %FORM } );
@@ -541,15 +541,14 @@ sub netlist_groups {
 }
 
 #***************************************************************
-
 =head2 netlist_groups_add
-  Adds group to `netlist_groups` and all of its ip addresses to `netlist_ips`
-=cut
 
+  Adds group to `netlist_groups` and all of its ip addresses to `netlist_ips`
+  
+=cut
 #***************************************************************
 sub netlist_groups_add {
   $Netlist->group_add( { %FORM } );
-  my $GID = $Netlist->{GID};
 
   if ( !$Netlist->{errno} ) {
     $html->message( 'info', $lang{INFO}, "$lang{ADDED}" );
@@ -557,11 +556,11 @@ sub netlist_groups_add {
 
   if ( $FORM{IP} ) {
     if ( $FORM{IP} !~ /$IPV4/ ) {
-      $html->message( 'err', $lang{ERROR}, "$lang{ERR_WRONG_DATA} [IP]" );
+      $html->message( 'err', $lang{ERROR}, "$lang{ERR_WRONG_DATA} [$lang{IP_ADDRESS}]" );
       return 0;
     }
     if ( $FORM{NETMASK} !~ /$IPV4/ ) {
-      $html->message( 'err', $lang{ERROR}, "$lang{ERR_WRONG_DATA} [NETMASK]" );
+      $html->message( 'err', $lang{ERROR}, "$lang{ERR_WRONG_DATA} [$lang{SUBNET_MASK}]" );
       return 0;
     }
     else {
@@ -576,7 +575,7 @@ sub netlist_groups_add {
             IP       => $ip,
             NETMASK  => $FORM{NETMASK},
             HOSTNAME => lookupaddress($ip),
-            GID      => $GID
+            GID      => $Netlist->{GID} || 0
           }
         );
 
@@ -593,6 +592,7 @@ sub netlist_groups_add {
 
   Get hostname for given ip_address
     $hostname - IP address of host
+    
 =cut
 #***************************************************************
 sub lookupaddress {
@@ -605,11 +605,11 @@ sub lookupaddress {
 }
 
 #***************************************************************
-
 =head2 netlist_new
-  Webinterface related logic
-=cut
 
+  Webinterface related logic
+  
+=cut
 #***************************************************************
 sub netlist_new {
   my $table = $html->table(
@@ -659,7 +659,6 @@ sub netlist_ipv6_calc {
 }
 
 #***************************************************************
-
 =head2 netlist_get_short_v6 ($ip)
 
    ARGUMENTS
@@ -682,7 +681,6 @@ sub netlist_ipv6_calc {
        -> 1:200::100:f0:1
 
 =cut
-
 #***************************************************************
 sub netlist_get_short_v6 {
   my ($ip) = @_;
@@ -706,19 +704,17 @@ sub netlist_get_short_v6 {
 }
 
 #***************************************************************
-
 =head2 netlist_get_expanded_v6 ($ip) - Get extended form for ipv6 address
 
   Get extended form for ipv6 address
 
-ARGUMENTS
-  $addr - Any type of annotation for IPv6 address
-
-RETURNS
-  String - full representation of IPv6 address
+  Arguments:
+    $addr - Any type of annotation for IPv6 address
+  
+  Returns:
+    string - full representation of IPv6 address
 
 =cut
-
 #***************************************************************
 sub netlist_get_expanded_v6 {
   my ($addr) = @_;
@@ -726,17 +722,15 @@ sub netlist_get_expanded_v6 {
 }
 
 #***************************************************************
-
 =head2 netlist_validate_v6($ip) - Check if given IP is valid IPv6 address
 
-ARGUMENTS
+  Arguments:
     $ip - Any type of annotation for IPv6 address
 
-RETURNS
-  boolean - valid or invalid
-
+  Returns:
+    boolean - valid or invalid
+    
 =cut
-
 #***************************************************************
 sub netlist_validate_v6 {
   my ($ip) = @_;
@@ -768,17 +762,15 @@ sub netlist_validate_v6 {
 }
 
 #***************************************************************
-
 =head2 netlist_validate_v4 ($ip) - Check if given IP is valid IPv4 address
 
-Check if given IP is valid IPv4 address
+  Checks if given IP is valid IPv4 address
 
-ARGUMENTS
-  $ip - IPv4 address string
+  Arguments:
+    $ip - IPv4 address string
 
-RETURNS
-  boolean - valid or invalid
-
+  Returns:
+    boolean - valid or invalid
 =cut
 
 #***************************************************************
@@ -790,13 +782,11 @@ sub netlist_validate_v4 {
 }
 
 #***************************************************************
-
 =head2 netlist_validate_v4($attr) - Webinterface related logic
 
   Webinterface related logic
 
 =cut
-
 #***************************************************************
 sub netlist_ip_scan {
   my ($attr) = @_;
@@ -912,11 +902,10 @@ sub netlist_ip_scan {
 }
 
 #***************************************************************
-
 =head2 netlist_ip_scan_exec($attr) - Wrapper for Nmap::Scanner
 
-  Attributes:
-    $attr - hash
+  Arguments:
+    $attr - hash_ref
       IP     - IP address of subnetwork to scan
       PREFIX - Prefix length for subnetwork. Default is 32
       DEBUG  - show debug info (boolean)
@@ -926,8 +915,8 @@ sub netlist_ip_scan {
 
   Additional info about class here http://search.cpan.org/~apersaud/Nmap-Parser-1.31/Parser.pm#Nmap::Parser::Host
   Additional info about class Nmap::Scanner http://search.cpan.org/~maxschube/Nmap-Scanner-1.0/lib/Nmap/Scanner.pm
+  
 =cut
-
 #***************************************************************
 sub netlist_ip_scan_exec {
   my ($attr) = @_;
@@ -970,8 +959,17 @@ sub netlist_ip_scan_exec {
     Netlist::Scanner->import();
     $scanner = Netlist::Scanner->new( $db, $admin, \%conf );
   }
-
-  return 0 unless $scanner;
+  
+  if (!$scanner || $scanner->{errno}){
+    
+    if (!$scanner->{errno}){
+      $scanner->{errno} = 0;
+      $scanner->{errstr} = 'Error loading Netlist::Scanner';
+    }
+    
+    $html->message('err', $lang{ERROR}, "Error $scanner->{errstr} ($scanner->{errstr}) ");
+    return 0;
+  }
   
   $scanner->set_timeout( '200' );
   $scanner->set_target( "$ip/$prefix" );
@@ -1009,7 +1007,7 @@ sub netlist_show_networks {
 
   _error_show($Dhcphosts);
 
-  my $ip_pools = $Nas->ip_pools_list( { COLS_NAME => 1, PAGE_ROWS  => 100000, } );
+  my $ip_pools = $Nas->nas_ip_pools_list( { COLS_NAME => 1, PAGE_ROWS  => 100000, NAS_ID => '*'} );
   _error_show($Nas);
 
   my $info_index = get_function_index('netlist_network_info');
@@ -1030,7 +1028,7 @@ sub netlist_show_networks {
 
     $ip_pools_table->addrow(
       $pool->{id},
-      $pool->{name},
+      $pool->{pool_name},
       $pool->{first_ip},
       $pool->{last_ip},
       $info_button
@@ -1086,10 +1084,20 @@ sub netlist_network_info {
 
   if ( $FORM{TYPE} eq 'IP_POOL' ) {
     # Need to count all ip addresses inside pool
-    my $network_list = $Nas->ip_pools_list( { ID => $FORM{ID}, COLS_NAME => '_SHOW' } );
+    my $network_list = $Nas->nas_ip_pools_list( {
+      COLS_NAME => 1,
+      PAGE_ROWS => 100000,
+      NAS_ID    => '*'
+    } );
     return 0 if (_error_show($Nas));
-
-    %network = %{$network_list->[0]};
+    
+    if ($FORM{ID}){
+      my @networks = grep { $_->{id} == $FORM{ID} } @$network_list;
+      %network = %{ $networks[0] };
+    }
+    else {
+      %network = %{$network_list->[0]};
+    }
 
     $first_ip_num = $network{ip};
     $last_ip_num = $network{last_ip_num} + 1;
@@ -1107,19 +1115,41 @@ sub netlist_network_info {
       IP        => int2ip($first_ip_num) . '*' . int2ip($last_ip_num),
       COLS_NAME => 1
     } );
-
     _error_show($Dv);
-
-    # Get online info from dv_calls
+  
     foreach my $user ( @{$users_list} ) {
       my $ip = $user->{ip} || int2ip($user->{ip_num});
+      $lookup_uid_ip_table{$user->{uid}} = $ip;
+      
       $lookup_ip_info_table{$ip} = $user;
       $lookup_ip_info_table{$ip}->{login} = $user->{dv_login} if ($user->{dv_login});
       delete $user->{dv_login};
-      $lookup_uid_ip_table{$user->{uid}} = $ip;
-
+    
       push (@uids, $user->{uid});
     }
+    
+    # Get online info from dv_calls
+    require Dv_Sessions;
+    Dv_Sessions->import();
+  
+    my $Dv_sessions = Dv_Sessions->new($db, $admin, \%conf);
+    my $online_list = $Dv_sessions->online({
+      LOGIN     => '_SHOW',
+      IP        => '_SHOW',
+      DURATION  => '_SHOW',
+      COLS_NAME => 1,
+      PAGE_ROWS => 1000000,
+    });
+    _error_show($Dv_sessions);
+    
+    foreach my $online_row ( @{$online_list} ) {
+      $online_row->{online} = 1;
+      $lookup_ip_info_table{$online_row->{ip}} = $online_row;
+      $lookup_uid_ip_table{$user->{uid}} = $line->{ip};
+      
+      push (@uids, $user->{uid}) ;
+    }
+    
   }
   elsif ( $FORM{TYPE} eq 'Dhcphosts' ) {
     # Just need to know all ip addresses in range
@@ -1200,7 +1230,7 @@ sub netlist_network_info {
   foreach my $user ( @{$users_list} ) {
     my $ip_address = $lookup_uid_ip_table{$user->{uid}};
 
-    next unless (defined $ip_address);
+    next if (!defined $ip_address);
     
     # Preventing redefining dv_login if already exists
     $lookup_ip_info_table{$ip_address}->{login} = $user->{login} if (!exists $lookup_ip_info_table{$ip_address}->{login});
@@ -1218,7 +1248,7 @@ sub netlist_network_info {
   foreach my $custom_watch_ip ( @$netlist_defined_ips ) {
     $lookup_ip_info_table{$custom_watch_ip->{ip}}{netlist_status} = $custom_watch_ip->{status};
   }
-  
+
   print _netlist_make_ip_table(
       \@last_octets,
       sub {

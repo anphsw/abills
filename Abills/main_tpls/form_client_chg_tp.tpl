@@ -1,5 +1,6 @@
 <form action='$SELF_URL' METHOD='POST' name='user' ID='user'>
     <input type=hidden name=sid value='$sid'>
+    <input type=hidden name=ID value='%ID%'>
     <input type=hidden name=UID value='%UID%'>
     <input type=hidden name=m value='%m%'>
     <input type=hidden name='index' value='$index'>

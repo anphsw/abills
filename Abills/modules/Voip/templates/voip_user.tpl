@@ -1,13 +1,19 @@
 <form action=$SELF_URL method=post id='VOIP_USER_FORM' class='form-horizontal'>
   <input type=hidden name=index value=$index>
   <input type=hidden name=UID value='$FORM{UID}'>
-  <div class='box box-theme box-form'>
+  <div class='box box-theme box-big-form'>
 
     <div class='box-header with-border'>
-      <h4 class='box-title'>_{VOIP}_</h4>
+      <h4 class='box-title'>VOIP</h4>
     </div>
 
     <div class='box-body'>
+
+      <div class='row no-padding'>
+        <div class="col-md-12 text-center">
+          %MENU%
+        </div>
+      </div>
 
       <div class='form-group'>
         <label class='control-label col-md-3' for='NUMBER'>_{NUMBER}_:</label>

@@ -7,7 +7,7 @@ package Voip_aaa;
 =cut
 
 use strict;
-our $VERSION     = 7.02;
+our $VERSION     = 7.03;
 
 # User name expration
 use base qw(main Auth);
@@ -16,13 +16,14 @@ use Billing;
 my ($conf, $Billing);
 
 my %RAD_PAIRS = ();
-my %ACCT_TYPES = ('Start' =>          1, 
-                  'Stop'  =>          2, 
-                  'Alive' =>          3,
-                  'Interim-Update'=>  3, 
-                  'Accounting-On' =>  7, 
-                  'Accounting-Off'=>  8
-                 );
+my %ACCT_TYPES = (
+  'Start' =>          1,
+  'Stop'  =>          2,
+  'Alive' =>          3,
+  'Interim-Update'=>  3,
+  'Accounting-On' =>  7,
+  'Accounting-Off'=>  8
+);
 
 #**********************************************************
 # Init
@@ -43,17 +44,21 @@ sub new {
 }
 
 #**********************************************************
-# Pre_auth
+=head2 pre_auth($RAD, $attr)
+
+=cut
 #**********************************************************
 sub pre_auth {
-  my ($self, $RAD, $attr) = @_;
+  my ($self) = @_;
 
   $self->{'RAD_CHECK'}{'Auth-Type'} = "Accept";
   return 0;
 }
 
 #**********************************************************
-# Preproces
+=head2 preproces($RAD)
+
+=cut
 #**********************************************************
 sub preproces {
   my ($RAD) = @_;
@@ -101,7 +106,7 @@ sub user_info {
    voip.tp_id, 
    INET_NTOA(voip.ip) AS ip,
    DECODE(password, '$conf->{secretkey}') AS password,
-   if (voip.logins=0, if(voip.logins is null, 0, tp.logins), voip.logins) AS logins,
+   IF(voip.logins=0, IF(voip.logins is null, 0, tp.logins), voip.logins) AS logins,
    voip.allow_answer,
    voip.allow_calls,
    voip.disable AS voip_disable,
@@ -114,7 +119,7 @@ sub user_info {
   UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME(UNIX_TIMESTAMP()), '%Y-%m-%d')) AS day_begin,
   DAYOFWEEK(FROM_UNIXTIME(UNIX_TIMESTAMP())) AS day_of_week,
   DAYOFYEAR(FROM_UNIXTIME(UNIX_TIMESTAMP())) AS day_of_year,
-   if(voip.filter_id<>'', voip.filter_id, tp.filter_id) AS filter_id,
+   IF(voip.filter_id<>'', voip.filter_id, tp.filter_id) AS filter_id,
    tp.payment_type,
    tp.uplimit,
    tp.age AS account_age,
@@ -124,7 +129,7 @@ sub user_info {
    LEFT JOIN tarif_plans tp ON (tp.tp_id=voip.tp_id)
    WHERE
    $WHERE
-   AND (voip.expire='0000-00-00' or voip.expire > CURDATE());",
+   AND (voip.expire='0000-00-00' OR voip.expire > CURDATE());",
   undef,
   { INFO => 1 }
   );
@@ -156,6 +161,7 @@ sub number_expr {
   my ($RAD) = @_;
   my @num_expr = split(/;/, $conf->{VOIP_NUMBER_EXPR});
 
+  #Dont comment its reserv for expr
   my $number = $RAD->{'Called-Station-Id'};
   for (my $i = 0 ; $i <= $#num_expr ; $i++) {
     my ($left, $right) = split(/\//, $num_expr[$i]);
@@ -169,7 +175,9 @@ sub number_expr {
 }
 
 #**********************************************************
-# Accounting Work_
+=head auth()
+
+=cut
 #**********************************************************
 sub auth {
   my $self = shift;
@@ -192,12 +200,12 @@ sub auth {
   $self->user_info($RAD, $NAS);
 
   if ($self->{errno}) {
-    $RAD_PAIRS{'Reply-Message'} = $self->{errstr};
+    $RAD_PAIRS{'Reply-Message'} = $self->{errstr}. $RAD->{'User-Name'};
     return 1, \%RAD_PAIRS;
   }
   elsif ($self->{TOTAL} < 1) {
     $self->{errno}  = 2;
-    $self->{errstr} = 'ERROR_NOT_EXIST';
+    $self->{errstr} = 'ERROR_NOT_EXIST ' . $RAD->{'User-Name'};
     if (!$RAD->{'h323-call-origin'}) {
       $RAD_PAIRS{'Reply-Message'} = "Answer Number Not Exist '$RAD->{'User-Name'}'";
       $RAD_PAIRS{'Filter-Id'}='answer_not_exist';
@@ -211,7 +219,7 @@ sub auth {
 
   if (defined($RAD->{'CHAP-Password'}) && defined($RAD->{'CHAP-Challenge'})) {
     if (check_chap($RAD->{'CHAP-Password'}, "$self->{PASSWORD}", $RAD->{'CHAP-Challenge'}, 0) == 0) {
-      $RAD_PAIRS{'Reply-Message'} = "Wrong CHAP password '$self->{PASSWORD}'";
+      $RAD_PAIRS{'Reply-Message'} = "Wrong CHAP password";
       return 1, \%RAD_PAIRS;
     }
   }
@@ -244,7 +252,7 @@ sub auth {
 
   # 
   if ($self->{LOGINS} > 0) {
-    $self->query2("SELECT count(*) FROM voip_calls 
+    $self->query2("SELECT COUNT(*) FROM voip_calls
        WHERE (calling_station_id='". $RAD->{'Calling-Station-Id'} ."' OR called_station_id='". $RAD->{'Calling-Station-Id'}."')
        AND status<>2;");
 
@@ -286,15 +294,17 @@ sub auth {
   #  $self->check_bill_account();
   # if call
   if (defined($RAD->{'h323-conf-id'})) {
-    if ($self->{ALLOW_ANSWER} < 1 && $RAD->{'h323-call-origin'} == 0) {
-      $RAD_PAIRS{'Reply-Message'} = "Not allow answer";
-      $RAD_PAIRS{'Filter-Id'} ='not_allow_answer';
-      return 1, \%RAD_PAIRS;
-    }
-    elsif ($self->{ALLOW_CALLS} < 1 && $RAD->{'h323-call-origin'} == 1) {
-      $RAD_PAIRS{'Reply-Message'} = "Not allow calls";
-      $RAD_PAIRS{'Filter-Id'}='not_allow_call';
-      return 1, \%RAD_PAIRS;
+    if(defined($RAD->{'h323-call-origin'})) {
+      if ($self->{ALLOW_ANSWER} < 1 && $RAD->{'h323-call-origin'} == 0) {
+        $RAD_PAIRS{'Reply-Message'} = "Not allow answer";
+        $RAD_PAIRS{'Filter-Id'} = 'not_allow_answer';
+        return 1, \%RAD_PAIRS;
+      }
+      elsif ($self->{ALLOW_CALLS} < 1 && $RAD->{'h323-call-origin'} == 1) {
+        $RAD_PAIRS{'Reply-Message'} = "Not allow calls";
+        $RAD_PAIRS{'Filter-Id'} = 'not_allow_call';
+        return 1, \%RAD_PAIRS;
+      }
     }
 
     $self->get_route_prefix($RAD);
@@ -395,7 +405,7 @@ sub auth {
         client_ip_address, conf_id, call_origin, uid,
         bill_id, tp_id, route_id, reduction
      )
-     VALUES ('0', ?, now(), UNIX_TIMESTAMP(), 
+     VALUES ('0', ?, NOW(), UNIX_TIMESTAMP(),
        ?, ?, ?, INET_ATON( ? ), ?, ?, ?, ?, ?, ?, ?);", 'do',
      {
        Bind => [
@@ -439,6 +449,10 @@ sub get_route_prefix {
     push @query_params_arr, substr($RAD->{'Called-Station-Id'}, 0, $i);
   }
 
+  if($#query_params_arr) {
+    return $self;
+  }
+
   my $query_params = join(',', @query_params_arr);
 
   $self->query2("SELECT r.id AS route_id,
@@ -461,26 +475,28 @@ sub get_route_prefix {
 }
 
 #**********************************************************
-#
+=head2 get_intervals()
+
+=cut
 #**********************************************************
  sub get_intervals {
   my $self = shift;
 
   $self->query2("SELECT i.day, TIME_TO_SEC(i.begin), TIME_TO_SEC(i.end), 
     rp.price, i.id, rp.route_id,
-    if (t.protocol IS NULL, '', t.protocol),
-    if (t.protocol IS NULL, '', t.provider_ip),
-    if (t.protocol IS NULL, '', t.addparameter),
-    if (t.protocol IS NULL, '', t.removeprefix),
-    if (t.protocol IS NULL, '', t.addprefix),
-    if (t.protocol IS NULL, '', t.failover_trunk),
+    IF (t.protocol IS NULL, '', t.protocol),
+    IF (t.protocol IS NULL, '', t.provider_ip),
+    IF (t.protocol IS NULL, '', t.addparameter),
+    IF (t.protocol IS NULL, '', t.removeprefix),
+    IF (t.protocol IS NULL, '', t.addprefix),
+    IF (t.protocol IS NULL, '', t.failover_trunk),
     rp.extra_tarification
-      from intervals i, voip_route_prices rp
+      FROM intervals i, voip_route_prices rp
       LEFT JOIN voip_trunks t ON (rp.trunk=t.id)
-      where
+      WHERE
          i.id=rp.interval_id 
-         and i.tp_id  = '$self->{TP_ID}'
-         and rp.route_id = '$self->{ROUTE_ID}';"
+         AND i.tp_id  = '$self->{TP_ID}'
+         AND rp.route_id = '$self->{ROUTE_ID}';"
   );
 
   my $list                = $self->{list};

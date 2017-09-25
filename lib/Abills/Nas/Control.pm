@@ -103,18 +103,20 @@ sub hangup{
 
   my $nas_type = $Nas->{NAS_TYPE} || '';
   my %params   = ();
-  if ( ref $attr eq 'HASH' ){
+  if ( $attr && ref $attr eq 'HASH' ){
     %params = %$attr;
-    $params{SESSION_ID} = $attr->{ACCT_SESSION_ID};
+    $params{SESSION_ID} = $attr->{ACCT_SESSION_ID} if($attr->{ACCT_SESSION_ID});
+  }
+
+  if($attr->{DEBUG}) {
+    $debug = $attr->{DEBUG};
   }
 
   $params{PORT}       = $PORT;
   $params{USER}       = $USER;
   $USER_NAME          = $USER;
-  if ( $nas_type eq 'exppp' ){
-    hangup_exppp( $Nas, $attr );
-  }
-  elsif ( -f "Nas/$nas_type" . '.pm' ){
+
+  if ( -f "Nas/$nas_type" . '.pm' ){
     do "Nas/$nas_type" . '.pm';
     my $fn = 'hangup_' . $nas_type;
     if ( defined( $fn ) ){
@@ -160,12 +162,6 @@ sub hangup{
   }
   elsif ( $nas_type eq 'cisco_isg' ){
     hangup_cisco_isg( $Nas, \%params );
-  }
-  elsif ( $nas_type eq 'mpd' ){
-    hangup_mpd( $Nas, \%params );
-  }
-  elsif ( $nas_type eq 'mpd4' ){
-    hangup_mpd4( $Nas, \%params );
   }
   elsif ( $nas_type eq 'mpd5' ){
     hangup_mpd5( $Nas, \%params );
@@ -539,11 +535,15 @@ sub stats_usrns{
 }
 
 ####################################################################
-# Standart FreeBSD ppp
-#************************************************************
-# get accounting information from FreeBSD ppp using remove accountin
-# scrips
-# stats_ppp($NAS)
+=head2 stats_ppp($NAS)
+
+   Standart FreeBSD ppp
+
+   get accounting information from FreeBSD ppp using remove accountin
+   scrips
+   stats_ppp($NAS)
+
+=cut
 #************************************************************
 sub stats_ppp{
   my ($NAS) = @_;
@@ -654,7 +654,10 @@ sub hangup_radius {
   else {
     if ($attr->{SESSION_ID}) {
       $rad_pairs{'Acct-Session-Id'} = $attr->{SESSION_ID} if ($USER);
-      $rad_pairs{'User-Name'} = $USER if ($USER);
+      if ($USER) {
+        $USER =~ s/^!\s?//;
+        $rad_pairs{'User-Name'} = $USER;
+      }
     }
     else {
       $rad_pairs{'Framed-IP-Address'} = $attr->{FRAMED_IP_ADDRESS} if ($attr->{FRAMED_IP_ADDRESS});
@@ -718,7 +721,16 @@ sub hangup_mikrotik_telnet{
 }
 
 #***********************************************************
-=head2 hangup_ipcad($NAS_IP, $PORT, $USER_NAME, $attr)
+=head2 hangup_ipcad($NAS, $attr)
+
+  Arguments:
+    $NAS
+    $attr
+      FRAMED_IP_ADDRESS
+      UID
+      NETMASK
+      NAS_TYPE
+      FILTER_ID
 
 =cut
 #***********************************************************
@@ -732,6 +744,10 @@ sub hangup_ipcad{
   my $FILTER_ID = $attr->{FILTER_ID} || '';
   my $nas_type  = $NAS->{NAS_TYPE};
 
+  if($debug > 3) {
+    print "Hangup ipcad: \n";
+  }
+
   if ( $netmask ne '32' ){
     my $ips = 4294967296 - ip2int( $netmask );
     $netmask = 32 - length( sprintf( "%b", $ips ) ) + 1;
@@ -741,9 +757,13 @@ sub hangup_ipcad{
   Ipn_Collector->import();
   my $Ipn = Ipn_Collector->new( $db, $CONF );
 
+  if($debug > 6) {
+    $Ipn->{debug}=1;
+  }
+
   $Ipn->acct_stop( { %{$attr},
-      CID => $attr->{CID} || $attr->{CALLING_STATION_ID} || 'nas_hangup'
-    } );
+    CID => $attr->{CID} || $attr->{CALLING_STATION_ID} || 'nas_hangup',
+  } );
 
   if ( $Ipn->{errno} ){
     print "Error: [ $Ipn->{errno} ] $Ipn->{errstr} \n";
@@ -771,11 +791,11 @@ sub hangup_ipcad{
   $rule_num = $rule_num + 10000 + $num;
 
   if ( $NAS->{NAS_MNG_IP_PORT} ){
-    ($ENV{NAS_IP_ADDRESS}, $ENV{NAS_MNG_PORT}) = split( /:/, $NAS->{NAS_MNG_IP_PORT} );
-    $ENV{NAS_MNG_USER} = $NAS->{NAS_MNG_USER};
+    ($ENV{NAS_IP_ADDRESS}, undef, $ENV{NAS_MNG_PORT}) = split( /:/, $NAS->{NAS_MNG_IP_PORT} );
+    $ENV{NAS_MNG_USER}    = $NAS->{NAS_MNG_USER};
     $ENV{NAS_MNG_IP_PORT} = $NAS->{NAS_MNG_IP_PORT};
-    $ENV{NAS_ID} = $NAS->{NAS_ID};
-    $ENV{NAS_TYPE} = $NAS->{NAS_TYPE};
+    $ENV{NAS_ID}          = $NAS->{NAS_ID};
+    $ENV{NAS_TYPE}        = $NAS->{NAS_TYPE};
   }
 
   my $uid = $attr->{UID};
@@ -807,6 +827,7 @@ sub hangup_ipcad{
     if ( $attr->{DEBUG} && $attr->{DEBUG} > 4 ){
       print $cmd . "\n";
     }
+
     $result = system( $cmd );
   }
 
@@ -814,7 +835,9 @@ sub hangup_ipcad{
 }
 
 #***********************************************************
-# hangup_openvpn
+=head2 hangup_openvpn($NAS, $attr)
+
+=cut
 #***********************************************************
 sub hangup_openvpn{
   my ($NAS, $attr) = @_;
@@ -983,8 +1006,12 @@ sub hangup_cisco{
 }
 
 #***********************************************************
-# HANGUP dslmax
-# hangup_dslmax($SERVER, $PORT)
+=head2 hangup_dslmax
+
+  HANGUP dslmax
+  hangup_dslmax($SERVER, $PORT)
+
+=cut
 #***********************************************************
 sub hangup_dslmax{
   my ($NAS, $attr) = @_;
@@ -1001,47 +1028,6 @@ sub hangup_dslmax{
   print $result;
 
   return 0;
-}
-
-#####################################################################
-# Exppp functions
-#***********************************************************
-# HANGUP ExPPP
-# hangup_exppp($SERVER, $PORT)
-#***********************************************************
-sub hangup_exppp{
-  my ($NAS, $PORT) = @_;
-
-  my ($ip, $mng_port) = split( /:/, $NAS->{NAS_MNG_IP_PORT}, 2 );
-
-  my $ctl_port = $mng_port + $PORT;
-  my $PPPCTL = '/usr/sbin/pppctl';
-  undef = `$PPPCTL -p "$NAS->{NAS_MNG_PASSWORD}" $ip:$ctl_port down`;
-
-  return 0;
-}
-
-#***********************************************************
-# HANGUP MPD
-# hangup_mpd4($SERVER, $PORT)
-#***********************************************************
-sub hangup_mpd4{
-  my ($NAS, $attr) = @_;
-
-  my $PORT = $attr->{PORT};
-  my $ctl_port = "pptp$PORT";
-  if ( $attr->{ACCT_SESSION_ID} ){
-    if ( $attr->{ACCT_SESSION_ID} =~ /\d+\-(.+)/ ){
-      $ctl_port = $1;
-    }
-  }
-
-  my @commands = ("\t", "Username: \t$NAS->{NAS_MNG_USER}", "Password: \t$NAS->{NAS_MNG_PASSWORD}",
-    "\\[\\] \tbundle $ctl_port", "\] \tclose", "\] \texit");
-
-  my $result = telnet_cmd( "$NAS->{NAS_MNG_IP_PORT}", \@commands );
-
-  return $result;
 }
 
 #***********************************************************
@@ -1092,29 +1078,13 @@ sub hangup_mpd5{
   return $result;
 }
 
-#***********************************************************
-# HANGUP MPD
-# hangup_mpd($SERVER, $PORT)
-#***********************************************************
-sub hangup_mpd{
-  my ($NAS, $attr) = @_;
-
-  my $PORT = $attr->{PORT};
-  my $ctl_port = "pptp$PORT";
-  my @commands = ("\]\tlink $ctl_port", "\]\tlink $ctl_port", "\]\tclose", "\]\texit");
-
-  my $result = telnet_cmd( "$NAS->{NAS_MNG_IP_PORT}", \@commands );
-
-  print $result;
-
-  return 0;
-}
-
 #####################################################################
-# radppp functions
-#***********************************************************
-# HANGUP radpppd
-# hangup_radpppd($SERVER, $PORT)
+=head2 hangup_radpppd() - radppp functions
+
+  HANGUP radpppd
+  hangup_radpppd($SERVER, $PORT)
+
+=cut
 #***********************************************************
 sub hangup_radpppd{
   my (undef, $PORT) = @_;
@@ -1135,6 +1105,7 @@ sub hangup_radpppd{
 #
 # get_pppd_stats ($SERVER, $PORT, $IP)
 #***********************************************************
+#@deprecated
 sub stats_pppd{
   my ($NAS, $PORT) = @_;
 
@@ -1165,12 +1136,14 @@ sub stats_pppd{
 }
 
 #***********************************************************
-# HANGUP pppd
-# hangup_pppd($SERVER, $PORT)
-# add next string to  /etc/sudoers:
-#
-# apache   ALL = NOPASSWD: /usr/abills/misc/pppd_kill
-#
+=head2 hangup_pppd($NAS, $attr);
+
+ HANGUP pppd
+  hangup_pppd($SERVER, $PORT)
+  add next string to  /etc/sudoers:
+
+  apache   ALL = NOPASSWD: /usr/abills/misc/pppd_kill
+=cut
 #***********************************************************
 sub hangup_pppd{
   my ($NAS, $attr) = @_;
@@ -1199,8 +1172,13 @@ sub hangup_pppd{
 }
 
 #***********************************************************
-# HANGUP Patton 29xx
+=head2 hangup_patton29xx()
+
+ HANGUP Patton 29xx
+
+=cut
 #***********************************************************
+#@deprecated
 sub hangup_patton29xx{
   my ($NAS, $attr) = @_;
   my $exec = '';
@@ -1273,10 +1251,12 @@ sub stats_patton29xx{
 }
 
 #***********************************************************
-# hangup_hangup_pppd_coa
-#
-# Radius-Disconnect messages for radcoad
-# rfc3576
+=head2 hangup_pppd_coa($NAS, $PORT, $attr) - hangup_hangup_pppd_coa
+
+  Radius-Disconnect messages for radcoad
+  rfc3576
+
+=cut
 #***********************************************************
 sub hangup_pppd_coa{
   my ($NAS, $PORT, $attr) = @_;
@@ -1315,8 +1295,9 @@ sub hangup_pppd_coa{
 }
 
 #***********************************************************
-# Set speed for port
-# setspeed($NAS_HASH_REF, $PORT, $USER, $UPSPEED, $DOWNSPEED, $attr);
+=head2 setspeed($NAS_HASH_REF, $PORT, $USER, $UPSPEED, $DOWNSPEED, $attr) - Set speed for port
+
+=cut
 #***********************************************************
 sub setspeed{
   my ($Nas, $PORT, undef, $UPSPEED, $DOWNSPEED, $attr) = @_;
@@ -1354,10 +1335,12 @@ sub hascoa{
 }
 
 #***********************************************************
-# setspeed_pppd_coa
-#
-# Radius-CoA messages for radcoad
-# rfc3576
+=head2 setspeed_pppd_coa($NAS) - setspeed_pppd_coa
+
+  Radius-CoA messages for radcoad
+  rfc3576
+
+=cut
 #***********************************************************
 sub setspeed_pppd_coa{
   my ($NAS, $PORT, $UPSPEED, $DOWNSPEED, $attr) = @_;
@@ -1450,7 +1433,7 @@ sub rsh_cmd{
   my $mng_port;
   my $mng_user = $attr->{NAS_MNG_USER} || '';
   my $ip;
-  ($ip, $mng_port) = split( /:/, $attr->{NAS_MNG_IP_PORT}, 2 );
+  ($ip, undef, $mng_port) = split( /:/, $attr->{NAS_MNG_IP_PORT}, 2 );
 
   $cmd =~ s/\\\"/\"/g;
 
@@ -1458,8 +1441,10 @@ sub rsh_cmd{
   if ($Log) {
     $Log->log_print( 'LOG_DEBUG', '', "$command", { ACTION => 'CMD' } );
   }
+
   my $result = cmd( $command, { RESULT_ARRAY => 1, %{$attr} } );
-  return $result;
+
+  return $result || [];
 }
 
 1

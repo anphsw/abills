@@ -12,6 +12,8 @@ $lang{COMING}='Coming';
 $lang{SALARY}='Salary';
 $lang{NOT_ADDED}='Not edded';
 
+$lang{UNITS}='Units';
+
 $lang{BET}='Bet';
 $lang{BET_PER_HOUR}='Bet per hour';
 $lang{MONTHLY}='Monthly';
@@ -23,6 +25,17 @@ $lang{REFERENCE_WORKS}='Reference works';
 $lang{RATIO}='Ratio';
 $lang{WORK}='Work';
 $lang{CHOOSE}='Choose';
+$lang{LEAD}='Lead';
+$lang{LEADS}='Leads';
 
+$lang{LEAD_NOT_FOUND}='Lead not found';
+$lang{INPUT_DATA_TO_ADD_LEAD}='Input data to add lead';
+$lang{SOURCE}='Source';
 
+$lang{INCOMING_CALL}='Incoming call';
+$lang{FILTER_LEADS}='Filter leads';
+
+$lang{PROGRESS}='Progress';
+$lang{LEADS_COMES}='Leads comes';
+$lang{LEADS_FINISHED}='Leads finished';
 1

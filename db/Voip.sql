@@ -1659,31 +1659,3 @@ INSERT INTO `voip_routes` (`prefix`, `name`, `descr`) VALUES
   ('9', 'Services', 'Services');
 
 
-CREATE TABLE IF NOT EXISTS `voip_ivr_log` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  `datetime` DATETIME NOT NULL  DEFAULT CURRENT_TIMESTAMP,
-  `phone` VARCHAR(16) NOT NULL DEFAULT '',
-  `comment` VARCHAR(50) NOT NULL DEFAULT '',
-  `ip` INT(11) UNSIGNED NOT NULL DEFAULT '0',
-  `status` TINYINT(2) UNSIGNED NOT NULL DEFAULT '0',
-  `uid` INT UNSIGNED NOT NULL DEFAULT 0,
-  `duration` INT(11) UNSIGNED NOT NULL DEFAULT 0,
-  KEY `uid`(`uid`)
-)
-  COMMENT = 'Voip ivr log';
-
-
-CREATE TABLE IF NOT EXISTS `voip_ivr_menu` (
-  `id` SMALLINT(5) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `main_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
-  `number` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
-  `name` VARCHAR(100) NOT NULL DEFAULT '',
-  `comments` TEXT,
-  `disable` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
-  `function` VARCHAR(100) NOT NULL DEFAULT '',
-  `domain_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
-  `audio_file` VARCHAR(200) NOT NULL DEFAULT '',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `name` (`main_id`, `name`)
-)
-  COMMENT = 'Voip IVR Menu';

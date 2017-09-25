@@ -30,7 +30,7 @@ CHECK_NEG_DEPOSIT_SPEED=`grep abills_neg_deposit_speed /etc/rc.conf`
 mikrotik_skip () {
 
   for host in ${MIKROTIK_HOSTS}; do
-    CMD=${CMD}" ${SSH} -o ConnectTimeout=10 -i /usr/abills/Certs/id_dsa.${SSH_USER} ${SSH_USER}@${host} \"/ip firewall address-list remove [find address=${IP}]\"; ";
+    CMD=${CMD}" ${SSH} -o ConnectTimeout=10 -i /usr/abills/Certs/id_rsa.${SSH_USER} ${SSH_USER}@${host} \"/ip firewall address-list remove [find address=${IP}]\"; ";
   done;
 
 }

@@ -91,12 +91,13 @@ my $html = Abills::HTML->new(
   }
 );
 
-$html->{language} = $FORM{language} if (defined( $FORM{language} ) && $FORM{language} =~ /[a-z_]/);
 if($html->{language} ne 'english') {
   do $libpath . "/language/english.pl";
 }
 
-do $libpath . "/language/$html->{language}.pl";
+if (-f $libpath . "/language/$html->{language}.pl") {
+  do $libpath."/language/$html->{language}.pl";
+}
 
 #Count of graphics
 my %ids = ();
@@ -846,9 +847,13 @@ sub form_chart_series{
           elsif ( $previous_row[$i] && ( $line->[$i] >= $previous_row[$i]) ) {
             $traffic_delta = +( $line->[$i] - $previous_row[$i] );
           }
+  
+          $speed = $traffic_delta / $pause;
+        }
+        else {
+          ($traffic_delta, $speed) = (0, undef);
         }
 
-        $speed = $traffic_delta / $pause;
         push ( @{$result_data_array[$i]}, { x => $timestamp * 1000, y => +( $speed ) } );
       }
     }
@@ -975,7 +980,7 @@ sub get_week_boundary{
 
 
 #**********************************************************
-=head2 msgs_get_month_boundary($set_day_time, $days_count)
+=head2 get_month_boundary($set_day_time, $days_count)
 
 ARGUMENTS
   $set_day_time - timestamp for day of month for which calculate boundary, if undefined returns current month bounds

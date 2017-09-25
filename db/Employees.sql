@@ -66,3 +66,28 @@ CREATE INDEX `_ik_datetime`
   ON `employees_rfid_log` (`datetime`);
 CREATE INDEX `_ik_rfid`
   ON `employees_rfid_log` (`rfid`);
+
+
+CREATE TABLE IF NOT EXISTS `employees_daily_notes` (
+  `id` INT(11) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  `day` DATE NOT NULL DEFAULT '0000-00-00',
+  `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `comments` TEXT NOT NULL
+)
+  COMMENT = 'Admins daily notes';
+
+CREATE TABLE IF NOT EXISTS `employees_vacations` (
+  `id` INT(11) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  `start_date` DATE NOT NULL DEFAULT '0000-00-00',
+  `end_date` DATE NOT NULL DEFAULT '0000-00-00'
+)
+  COMMENT = 'Employees vacations';
+
+CREATE TABLE IF NOT EXISTS  `employees_duty` (
+  `id` INT(11) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  `start_date` DATE NOT NULL DEFAULT '0000-00-00',
+  `duration` INT NOT NULL DEFAULT 0
+)
+  COMMENT = 'Employees duty';

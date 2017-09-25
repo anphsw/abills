@@ -36,7 +36,6 @@ sub inventory_main{
 
   $Inventory->{ACTION} = 'add_main';
   $Inventory->{ACTION_LNG} = $lang{ADD};
-
   if ( $FORM{chg} ){
     $Inventory->{ACTION} = 'change';
     $Inventory->{ACTION_LNG} = $lang{CHANGE};
@@ -59,18 +58,19 @@ sub inventory_main{
   elsif ( $FORM{del} && $FORM{COMMENTS} ){
     $Inventory->inventory_unit_del( { ID => $FORM{ID} || $FORM{del} } );
 
-    if ( !$Inventory->{error} ){
-      $html->message( 'info', $lang{INFO}, "$lang{DELETED} [$FORM{ID}]" );
+    if ( !$Inventory->{errno} ){
+      $html->message( 'info', $lang{INFO}, "$lang{DELETED} [". ($FORM{ID} || q{}) ."]" );
     }
   }
   elsif ( $FORM{change} ){
-    if ( $FORM{HOSTNAME} ne '' ){
-      $Inventory->inventory_main_change( { %FORM } );
-      if ( !$Inventory->{errno} ){
-        $html->message( 'info', $lang{CHANGED}, "$lang{CHANGED} [$FORM{ID}]" );
-      }
+    $Inventory->inventory_main_change( { %FORM } );
+
+    if ( !$Inventory->{errno} ){
+      $html->message( 'info', $lang{CHANGED}, "$lang{CHANGED} [$FORM{ID}]" );
     }
   }
+
+  _error_show($Inventory);
 
   my $list;
   if ( $FORM{add_form} ){
@@ -81,37 +81,27 @@ sub inventory_main{
       $list = $Inventory->inventory_types_list( { } );
     }
 
-    $Inventory->{INTEGRATION_DATE} = $html->date_fld2( 'INTEGRATION_DATE',
-      { FORM_NAME => 'inventory_form', WEEK_DAYS => \@WEEKDAYS, MONTHES => \@MONTHES, DATE =>
-        $Inventory->{INTEGRATION_DATE} } );
+    $Inventory->{ADMINS_SEL} = sel_admins({
+      NAME     => 'RESPONSIBLE',
+      SELECTED => $Inventory->{RESPONSIBLE}
+    });
 
-    my $align = 'right';
     my @hardwares = ();
     my @softwares = ();
     foreach my $line ( @{$list} ){
       if ( $line->[2] == 0 ){
-        push @hardwares, $html->tpl_show(
-            _include( 'inventory_sub_inputs', 'Inventory' ),
-            {
-              NAME   => $line->[1],
-              PARAM  => $line->[0],
-              PARAM2 => ($FORM{chg}) ? $line->[4] : $FORM{ $line->[0] },
-              ALIGN  => $align,
-            },
-            { OUTPUT2RETURN => 1 }
-          );
+        push @hardwares, $html->tpl_show(templates('form_row'), {
+          ID    => $line->[0],
+          NAME  => $line->[1],
+          VALUE => $html->form_input($line->[0], $line->[4])
+        }, { OUTPUT2RETURN => 1 });
       }
       else{
-        push @softwares, $html->tpl_show(
-            _include( 'inventory_sub_inputs', 'Inventory' ),
-            {
-              NAME   => $line->[1],
-              PARAM  => $line->[0],
-              PARAM2 => ($FORM{chg}) ? $line->[4] : $FORM{ $line->[0] },
-              ALIGN  => $align,
-            },
-            { OUTPUT2RETURN => 1 }
-          );
+        push @softwares, $html->tpl_show(templates('form_row'), {
+          ID    => $line->[0],
+          NAME  => $line->[1],
+          VALUE => $html->form_input($line->[0], $line->[4])
+        }, { OUTPUT2RETURN => 1 });
       }
     }
 
@@ -123,14 +113,22 @@ sub inventory_main{
         ALIGN            => 'right',
         HARDWARE         => join( ($FORM{json}) ? ',' : '', @hardwares ),
         SOFTWARE         => join( ($FORM{json}) ? ',' : '', @softwares ),
-        #BUTTON           => $butt,
-        #BUTTONS          => $buttons,
         #INTEGRATION_DATE => $date_integration
       }
     );
   }
   elsif($FORM{search_form}) {
-    form_search({  });
+    form_search({
+      SIMPLE => {
+        "$lang{LOGIN}"     => 'LOGIN',
+        "$lang{HOSTNAME}"  => 'HOSTNAME',
+        'IP'               => 'IP',
+        'INVENTORY_STATUS' => 'INVENTORY_STATUS',
+        'SIGN'             => 'SIGN',
+        'SYS_ID'           => 'SYS_ID',
+        'LOG_COMMENTS'     => 'LOG_COMMENTS',
+      }
+    });
   }
 
   my $type_list = $Inventory->inventory_types_list( { COLS_NAME => 1 } );
@@ -139,24 +137,45 @@ sub inventory_main{
     $types{'type_' . $line->{id}} = "> $line->{name}";
   }
 
+  if($FORM{UID}) {
+    delete $LIST_PARAMS{COMMENTS};
+    delete $LIST_PARAMS{LOGIN};
+  }
+
   result_former( {
     INPUT_DATA      => $Inventory,
     FUNCTION        => 'inventory_main_list',
-    DEFAULT_FIELDS  => 'LOGIN,HOSTNAME,IP,DATE,BENCHMARK_INFO',
+    DEFAULT_FIELDS  => 'WEB_ACCESS_INFO,IP,ACCESS_INFO,SUPERPASSWORD,RESPONSIBLE,INVENTORY_COMMENTS',
     FUNCTION_FIELDS => 'change,del',
+    SKIP_USER_TITLE => 1,
     EXT_TITLES      => {
-      hostname       => $lang{HOSTNAME},
-      ip             => 'IP',
-      benchmark_info => 'BENCHMARK_INFO',
-      date           => $lang{DATE},
+      hostname        => $lang{HOSTNAME},
+      ip              => 'IP',
+      benchmark_info  => 'BENCHMARK_INFO',
+      integration_date=> $lang{DATE},
+      login           => 'Login',
+      password        => $lang{PASSWD},
+      web_access_info => 'WEB Access',
+      access_info     => 'ACCESS_INFO',
+      responsible     => $lang{ADMIN},
+      registration    => $lang{REGISTRATION},
+      inventory_comments => $lang{COMMENTS},
+      date            => $lang{DATE},
+      superpassword   => "root $lang{PASSWD}",
+      uid             => 'UID',
       %types
     },
-    TABLE           => {
+    FILTER_COLS => {
+      web_access_info => 'inventory_former',
+      access_info     => 'inventory_former',
+      superpassword   => 'inventory_former_passwd'
+    },
+    TABLE => {
       width   => '100%',
       caption => $lang{HOSTS},
       border  => 1,
       qs      => $pages_qs,
-      ID      => 'DHCPHOSTS_LEASES',
+      ID      => 'INVENTORY_LIST',
       EXPORT  => 1,
       MENU    => ($FORM{UID}) ? "$lang{ADD}:index=$index&UID=$FORM{UID}&add_form=1:add" : '',
     },
@@ -285,8 +304,47 @@ sub inventory_log{
     $LIST_PARAMS{DESC} = 'DESC';
   }
 
+  my @status_arr = (
+    'ok',
+    'Registration complete',
+    'Unauthorize client',
+    'Auth failed',
+    'Wrong password',
+    'Wrong checksum. Please re-register ip or call support service',
+    'Wrong IP. Please register new IP',
+    'License expire',
+    'Wrong authkey',
+    "Account Disabled",
+    'Unknown request',
+    'Sign not defined',
+    'Wrong sign format',
+    'Bench sign not defined',
+    'Wrong Bench sign format',
+    'update',
+    'get_module',
+    'Wrong module request',
+    'Not allow operation'
+  );
+
+  my $i=-1;
+  my %status_hash = map { $i++; $i => $_; } @status_arr;
+
+  if($FORM{search_form}) {
+    form_search({
+      SIMPLE => {
+        "$lang{LOGIN}"          => 'LOGIN',
+        "$lang{HOSTS_HOSTNAME}" => 'HOSTNAME',
+        'IP'                    => 'IP',
+        'STATUS'                => { '' => $lang{ALL}, %status_hash },
+        'SIGN'                  => 'SIGN',
+        'SYS_ID'                => 'SYS_ID',
+        'LOG_COMMENTS'          => 'LOG_COMMENTS',
+      }
+    });
+  }
+
   result_former( {
-    INPUT_DATA        => $Inventory,
+    INPUT_DATA      => $Inventory,
     FUNCTION        => 'inventory_log',
     DEFAULT_FIELDS  => 'DATETIME,LOGIN,IP,HOSTNAME,STATUS',
     BASE_FIELDS     => 2,
@@ -298,7 +356,7 @@ sub inventory_log{
       'sign',     => 'SIGN',
       'agent'     => 'AGENT',
       'sys_id'    => 'SYS_ID',
-      'log_comments' => 'log_comments'
+      'log_comments' => 'LOG_COMMENTS'
     },
     TABLE           => {
       width   => '100%',
@@ -309,27 +367,7 @@ sub inventory_log{
       EXPORT  => 1,
       MENU    => "$lang{SEARCH}:search_form=1&index=$index:search",
     },
-    STATUS_VALS     => [
-      'ok',
-      'Registration complete',
-      'Unauthorize client',
-      'Auth failed',
-      'Wrong password',
-      'Wrong checksum. Please re-register ip or call support service',
-      'Wrong IP. Please register new IP',
-      'License expire',
-      'Wrong authkey',
-      "Account Disabled",
-      'Unknown request',
-      'Sign not defined',
-      'Wrong sign format',
-      'Bench sign not defined',
-      'Wrong Bench sign format',
-      'update',
-      'get_module',
-      'Wrong module request',
-      'Not allow operation'
-    ],
+    STATUS_VALS     => \@status_arr,
     MAKE_ROWS       => 1,
     MODULE          => 'Inventory',
     TOTAL           => 1
@@ -409,11 +447,22 @@ sub inventory_bugs{
     push @header_arr, "$name:index=$index&STATE=$id$pages_qs";
   }
 
-  my $status_bar = $html->table_header(\@header_arr, {
-      TABS      => 1,
-      SHOW_ONLY => 7
-    });
-  print $status_bar;
+#  my $status_bar = $html->table_header(\@header_arr, {
+#    TABS      => 1,
+#    SHOW_ONLY => 7
+#  });
+#  print $status_bar;
+
+  if($FORM{search_form}) {
+    form_search({
+      SIMPLE => {
+        "$lang{ERROR}"    => 'ERROR',
+        "$lang{COMMENTS}" => 'COMMENTS',
+        "$lang{VERSION}"  => 'VERSION',
+        'STATUS'          => { '' => $lang{ALL}, %status }
+      }
+    })
+  }
 
   result_former({
     FUNCTION        => 'bugs_list',
@@ -437,6 +486,7 @@ sub inventory_bugs{
       width   => '100%',
       caption => "Inventory - Bugs",
       border  => 1,
+      header     => $html->table_header(\@header_arr),
       qs      => $pages_qs,
       ID      => 'INVENTORY_BUGS',
       EXPORT  => 1,
@@ -552,5 +602,57 @@ sub inventory_hosts{
 
   return 1;
 }
+
+#**********************************************************
+=head2 inventory_former($value)
+
+=cut
+#**********************************************************
+sub inventory_former {
+  my($value)=@_;
+  my $result = '';
+
+  if($value =~ /\@/) {
+    $result = $html->button($value, '#', {
+      GLOBAL_URL => '#',
+      COPY       => $value
+    });
+  }
+  elsif($value) {
+    my ($url, $login, $pass) = split(/ /, $value);
+
+    $login //= q{};
+    $pass //= q{};
+
+    $result = $html->button('WWW', '', {
+      GLOBAL_URL => $url,
+      TITLE      => $url,
+      target     => $url,
+      class      => 'btn btn-success',
+    }).
+    "$login $pass";
+  }
+
+  return $result;
+}
+
+#**********************************************************
+=head2 inventory_former($value)
+
+=cut
+#**********************************************************
+sub inventory_former_passwd {
+  my($value)=@_;
+  my $result = '';
+
+  $result = $html->button($value, '#', {
+    GLOBAL_URL => '#',
+    COPY       => $value,
+    ICON       => 'glyphicon glyphicon-lock'
+   });
+
+  return $result;
+}
+
 
 1

@@ -42,15 +42,15 @@
         </div>
       </div>
 
-<!--
-      <div class='form-group'>
-        <label class='control-label col-md-3' for='PRIVACY'>_{ACCESS}_</label>
-        <div class='col-md-9'>
-          %PRIVACY_SELECT%
-        </div>
-      </div>
+      <!--
+            <div class='form-group'>
+              <label class='control-label col-md-3' for='PRIVACY'>_{ACCESS}_</label>
+              <div class='col-md-9'>
+                %PRIVACY_SELECT%
+              </div>
+            </div>
 
-      -->
+            -->
 
       <div class='form-group'>
         <label class='control-label col-md-3' for='GROUP'>_{GROUP}_</label>

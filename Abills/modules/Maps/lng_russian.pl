@@ -49,7 +49,6 @@ $lang{TOGGLE} = 'Переключить';
 $lang{POLYGONS} = 'Полигоны';
 $lang{MARKER} = 'Маркер';
 $lang{CLUSTERS} = 'Кластеры';
-$lang{REMOVE} = 'Удалить';
 $lang{LOCATION} = 'Местоположение';
 $lang{MAP_OBJECT_LAYERS} = 'Объекты карты';
 $lang{DROP} = 'Сбросить';

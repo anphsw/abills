@@ -42,7 +42,8 @@
     <div class='form-group'>
       <label class='control-label col-md-4'>_{CREATED}_: </label>
       <div class='col-md-8'>
-        <p class='form-control-static'><strong>%CREATED%</strong><span class='moment-insert' data-value='%CREATED%'></span></p>
+        <p class='form-control-static'><strong>%CREATED%</strong><span class='moment-insert'
+                                                                       data-value='%CREATED%'></span></p>
       </div>
     </div>
 

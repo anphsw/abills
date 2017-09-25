@@ -147,21 +147,26 @@ sub equipment_test{
 
         next if($ports_info{$port}{PORT_STATUS} != 1 || $ports_info{$port}{PORT_TYPE} != 6);
 
-        my $result = snmp_set({
-          %{$attr},
-          OID     => [ $snmp_ports_info{DISTANCE_ACTIVE} .'.'. $port, 'integer', 1 ],
-          DEBUG   => ($FORM{DEBUG} && $FORM{DEBUG} > 2) ? 1 : undef
-        });
-
-        #print "Port: $port /Port_status: $ports_info{$port}{PORT_STATUS} / $ports_info{$port}{PORT_TYPE} Result $result<br>\n";
-        if($result) {
-          my $oid = $snmp_ports_info{DISTANCE};
-          my $ports_info = snmp_get({
+        if($attr->{TEST_DISTANCE}) {
+          my $result = snmp_set({
             %{$attr},
-            OID   => $oid.'.'.$port,
+            OID   => [ $snmp_ports_info{DISTANCE_ACTIVE}.'.'.$port, 'integer', 1 ],
             DEBUG => ($FORM{DEBUG} && $FORM{DEBUG} > 2) ? 1 : undef
           });
-          $ports_info{$port}{DISTANCE} = $ports_info;
+
+          #print "Port: $port /Port_status: $ports_info{$port}{PORT_STATUS} / $ports_info{$port}{PORT_TYPE} Result $result<br>\n";
+          if ($result) {
+            my $oid = $snmp_ports_info{DISTANCE};
+            my $ports_info = snmp_get({
+              %{$attr},
+              OID   => $oid.'.'.$port,
+              DEBUG => ($FORM{DEBUG} && $FORM{DEBUG} > 2) ? 1 : undef
+            });
+            $ports_info{$port}{DISTANCE} = $ports_info;
+          }
+        }
+        else {
+          $ports_info{$port}{DISTANCE} = '-';
         }
       }
     }
@@ -259,7 +264,6 @@ sub get_vlans{
   if($perl_scalar && $perl_scalar->{VLANS}) {
     $oid = $perl_scalar->{VLANS};
   }
-
   my $value = snmp_get({
     %{$attr},
     OID  => $oid,
