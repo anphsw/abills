@@ -36,7 +36,7 @@
         </form>
 
       </div>
-      <div class='box-footer text-center'>
+      <div class='box-footer'>
         <input type='submit' form='form_CABLECAT_CONNECTERS' class='btn btn-primary' name='submit'
                value='%SUBMIT_BTN_NAME%'>
       </div>
@@ -45,7 +45,6 @@
 
   <div class='col-md-6' data-visible='%HAS_COMMUTATION_FORM%'>
     <div class='box box-theme'>
-      <div class='box-header with-border'><h4 class='box-title'>_{COMMUTATION}_</h4></div>
       <div class='box-body'>
         %COMMUTATION_FORM%
       </div>
@@ -76,5 +75,29 @@
         jQuery('input[name="CABLE_IDS"]').prop('checked', false);
       });
     });
+
+    // Auto forming name from type
+    jQuery('select#CONNECTER_TYPE_ID').on('change', function () {
+      var this_   = jQuery(this);
+      var type_id = this_.val();
+
+      if (!type_id) return true;
+
+      var type_name = this_.find('option[value="' + type_id + '"]').text();
+
+      var name_input   = jQuery('input#NAME_ID');
+      // Check name already has ID
+      var current_name = name_input.val();
+      var current_id   = '%NEXT_TYPE_ID%';
+      if (current_name) {
+        var matches = current_name.match(/_(\\\d+)\$/);
+        if (matches[1]) {
+          current_id = matches[1];
+        }
+      }
+
+      name_input.val(type_name + '_' + current_id);
+    });
+
   })
 </script>

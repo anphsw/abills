@@ -17,18 +17,20 @@
 use Encode;
 use utf8;
 use Time::Piece;
+use Abills::Fetcher;
 #binmode(STDOUT,':utf8');
 use Data::Dumper;
-use Abills::Base qw(int2ip ip2int load_pmodule2 date_diff
+use Abills::Base qw(int2ip ip2int date_diff
   decode_base64 encode_base64 ssh_cmd gen_time);
 use Netblock;
 use Events;
 use strict;
 use warnings;
 
-load_pmodule2('URI::UTF8::Punycode');
-load_pmodule2('SOAP::Lite');
-load_pmodule2('XML::LibXML');
+# load_pmodule2('URI::UTF8::Punycode');
+# load_pmodule2('SOAP::Lite');
+# load_pmodule2('XML::LibXML');
+use XML::Simple qw(:strict);
 
 $SOAP::Constants::PREFIX_ENV = 'SOAP-ENV';
 
@@ -89,6 +91,12 @@ elsif ($download_type eq 'uablock') {
     ACTIVATE => 1
   });
 }
+elsif ($download_type eq 'byblock') {
+  byblock({
+    FETCH    => $argv->{FETCH},
+    ACTIVATE => 1
+  });
+}
 else {
   rkn();
 }
@@ -141,6 +149,81 @@ sub uablock {
     }
   }
 
+  return 1;
+}
+
+#**********************************************************
+=head2 byblock($attr) - Doblocka BY list
+
+  Arguments:
+
+
+  Returns:
+
+=cut
+#**********************************************************
+sub byblock {
+  my ($attr) = @_;
+
+  if ($debug > 1) {
+    print "BY block\n";
+  }
+
+  if ($attr->{FETCH}) {
+    my $i                 = 1;
+    my $byblock_url       = '';
+    my $block_domains     = '';
+    my %request_params    = ();
+    $request_params{name} = $conf{NETBLOCK_BY_NAME};
+
+    if($conf{NETBLOCK_BY_PASS_LIMITATION}){
+      $request_params{pass} = $conf{NETBLOCK_BY_PASS_LIMITATION};
+      $byblock_url          = web_request($conf{NETBLOCK_BY_URL_LIMITATION}, {REQUEST_PARAMS => \%request_params} );
+      $block_domains        = XMLin($byblock_url, ForceArray => 1, KeyAttr => 1);
+
+      
+      foreach my $domain (keys %$block_domains) {
+        if($domain eq 'res'){
+          foreach my $index (@{$block_domains->{$domain}}){
+            $Netblock->add({
+              BLOCKTYPE => 'domain',
+              HASH      => $index->{ip}->[0],
+              ID        => $i,
+              INCTIME   => 'NOW()'
+            });
+
+            if ($Netblock->{errno}) {
+              print "Error: $Netblock->{errno} $Netblock->{errstr}\n";
+            }
+            $i++;
+          }
+        }
+      }
+    }
+
+    if($conf{NETBLOCK_BY_PASS_ANONYMOUS}){
+      $request_params{pass} = $conf{NETBLOCK_BY_PASS_ANONYMOUS};
+      $byblock_url          = web_request($conf{NETBLOCK_BY_URL_ANONYMOUS}, {REQUEST_PARAMS => \%request_params} );
+      $block_domains        = XMLin($byblock_url, KeyAttr => { resource  => 'id' }, ForceArray => [ 'resource' ]);
+
+      foreach my $index (keys %{$block_domains->{resource}}){
+        if($block_domains->{resource}->{$index}->{ip} ne '-'){
+          $Netblock->add({
+            BLOCKTYPE => 'domain',
+            HASH      => $block_domains->{resource}->{$index}->{ip},
+            ID        => $i,
+            INCTIME   => 'NOW()'
+          });
+
+          if ($Netblock->{errno}) {
+            print "Error: $Netblock->{errno} $Netblock->{errstr}\n";
+          }
+          $i++;
+        }     
+      }
+    }
+  }
+ 
   return 1;
 }
 
@@ -562,6 +645,7 @@ sub get_networks {
 
   return \@sorted_net_arr;
 }
+
 
 #**********************************************************
 =head2 resolv_list($attr) - resolv_list
@@ -994,4 +1078,4 @@ sub sign_request {
 }
 
 
-1
+1;

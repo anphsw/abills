@@ -2,6 +2,7 @@ use strict;
 use warnings FATAL => 'all';
 
 use JSON qw/encode_json decode_json/;
+use Abills::Base qw/in_array urlencode urldecode _bp/;
 
 our (
   $Cablecat, $Maps,
@@ -23,6 +24,7 @@ sub cablecat_cables {
   
   my $sub_create_cable_point = sub {
     my $cable_id = shift;
+    
     my $new_external_object_id = maps_add_external_object($MAP_TYPE_ID{CABLE}, \%FORM);
     $Cablecat->cables_change({ ID => $cable_id, POINT_ID => $new_external_object_id });
     _error_show($Cablecat);
@@ -42,8 +44,11 @@ sub cablecat_cables {
       
       my $preview_btn = $html->button("$lang{OPEN}", "index=$index&chg=$new_cable_id", { BUTTON => 1 });
       my $add_more_button = $html->button($lang{VIEW}, "index=$index&add_form=1", { BUTTON => 1 });
-      $html->message('info', "$lang{ADDED} $lang{CABLE}", $preview_btn . $add_more_button,
-        { ID => $new_external_object_id });
+      $html->message('info', "$lang{ADDED} $lang{CABLE}", $preview_btn . $add_more_button, {
+          RESPONCE_PARAMS => {
+            INSERT_ID => $new_external_object_id
+          }
+        });
     }
     else {
       $show_add_form = 1;
@@ -74,26 +79,71 @@ sub cablecat_cables {
     show_result($Cablecat, $lang{DELETED});
   }
   elsif ( $FORM{search_form} ) {
+    $TEMPLATE_ARGS{WELL_1_SELECT} = _cablecat_wells_select({
+      SELECTED => $FORM{WELL_1},
+      NAME     => 'WELL_1',
+      FILTERS  => { TYPE_ID => '!2' }
+    });
+    $TEMPLATE_ARGS{WELL_2_SELECT} = _cablecat_wells_select({
+      SELECTED => $FORM{WELL_2},
+      NAME     => 'WELL_2',
+      FILTERS  => { TYPE_ID => '!2' }
+    });
+    
+    $TEMPLATE_ARGS{CABLE_TYPE_SELECT} = _cablecat_cable_type_select({
+      SELECTED => $FORM{TYPE_ID},
+      NAME     => 'TYPE_ID',
+    });
+  
+    form_search({
+      SEARCH_FORM => $html->tpl_show( _include( 'cablecat_cables_search', 'Cablecat' ),
+        { %TEMPLATE_ARGS, %FORM },
+        { OUTPUT2RETURN => 1 }
+      ),
+#      ADDRESS_FORM      => 1,
+      PLAIN_SEARCH_FORM => 1
+    });
   
   }
   
   return 1 if ($FORM{MESSAGE_ONLY});
   
   if ( $show_add_form ) {
+    my $well_1_id = $FORM{WELL_1_ID} || $TEMPLATE_ARGS{WELL_1_ID};
+    my $well_2_id = $FORM{WELL_2_ID} || $TEMPLATE_ARGS{WELL_2_ID};
+    
     $TEMPLATE_ARGS{WELL_1_SELECT} = _cablecat_wells_select({
-      SELECTED => $FORM{WELL_1_ID} || $TEMPLATE_ARGS{WELL_1_ID},
-      NAME => 'WELL_1'
+      SELECTED => $well_1_id,
+      NAME     => 'WELL_1',
+      FILTERS  => { TYPE_ID => '_SHOW' }
     });
     $TEMPLATE_ARGS{WELL_2_SELECT} = _cablecat_wells_select({
-      SELECTED => $FORM{WELL_2_ID} || $TEMPLATE_ARGS{WELL_2_ID},
-      NAME     => 'WELL_2'
+      SELECTED => $well_2_id,
+      NAME     => 'WELL_2',
+      FILTERS  => { TYPE_ID => '_SHOW' }
     });
+    
     $TEMPLATE_ARGS{NAME} ||= do {
-      $lang{CABLE} . '_' . ($Cablecat->cables_next());
+      my $res = '';
+      
+      if ($well_1_id){
+        my $well_info = $Cablecat->wells_info($well_1_id, { SHOW_ALL_COLUMNS => 0, NAME => '_SHOW' });
+        $res .= $well_info->{NAME};
+      }
+      if ($well_2_id) {
+        my $well_info = $Cablecat->wells_info($well_2_id, { SHOW_ALL_COLUMNS => 0, NAME => '_SHOW' });
+        $res .= '-' . $well_info->{NAME};
+      }
+      
+      if (!$res) {
+        $res = $lang{CABLE} . '_' . ($Cablecat->cables_next());
+      }
+      
+      $res;
+      
     };
     
-    $TEMPLATE_ARGS{OBJECT_INFO} = cablecat_make_point_info($TEMPLATE_ARGS{POINT_ID});
-    
+    $TEMPLATE_ARGS{OBJECT_INFO} = cablecat_make_point_info($TEMPLATE_ARGS{POINT_ID}, $MAP_LAYER_ID{CABLE});
     $TEMPLATE_ARGS{LENGTH_CALCULATED} = $FORM{LENGTH_CALCULATED} || '0.00';
     
     $html->tpl_show(
@@ -111,7 +161,7 @@ sub cablecat_cables {
   return 1 if ($FORM{TEMPLATE_ONLY});
   
   if ( $TEMPLATE_ARGS{ID} ) {
-    print cablecat_cable_links_table($TEMPLATE_ARGS{ID});
+    print _cablecat_cable_links_table($TEMPLATE_ARGS{ID});
   }
   
   my Abills::HTML $table;
@@ -158,7 +208,7 @@ sub cablecat_cables {
         caption => $lang{CABLES},
         ID      => 'CABLES_TABLE',
         EXPORT  => 1,
-        MENU    => "$lang{ADD}:index=$index&add_form=1:add"
+        MENU    => "$lang{ADD}:index=$index&add_form=1:add;$lang{SEARCH}:index=$index&search_form=1:search"
       },
       MAKE_ROWS       => 1,
       SEARCH_FORMER   => 1,
@@ -210,8 +260,8 @@ sub cablecat_cable_types {
     my $fibers_colors_select = _cablecat_color_scheme_select({ SELECTED => $TEMPLATE_TYPE{COLOR_SCHEME_ID} });
     my $modules_colors_select = _cablecat_color_scheme_select(
       {
+        SELECTED => $TEMPLATE_TYPE{MODULES_COLOR_SCHEME_ID},
         NAME     => 'MODULES_COLOR_SCHEME_ID',
-        SELECTED => $TEMPLATE_TYPE{MODULES_COLOR_SCHEME_ID}
       }
     );
     
@@ -359,15 +409,9 @@ sub cablecat_wells {
   
   if ($FORM{add}) {
     my $new_point_id = maps_add_external_object($MAP_TYPE_ID{WELL}, \%FORM);
-    show_result($Maps, $lang{ADDED} . ' ' . $lang{OBJECT});
+    show_result($Maps, $lang{SUCCESS}, $lang{ADDED} . ' ' . $lang{OBJECT}, { ID => 'OBJECT_ADDED' });
     $FORM{POINT_ID} = $new_point_id;
-    
-    # REVERSE COORDS
-    if ($FORM{COORDX} && $FORM{COORDY}){
-      my $temp = $FORM{COORDY};
-      $FORM{COORDY} = $FORM{COORDX};
-      $FORM{COORDX} = $temp;
-    }
+
     my $inserted_well_id = $Cablecat->wells_add(\%FORM);
     _error_show($Cablecat);
     if ($inserted_well_id && $FORM{INSERT_ON_CABLE}){
@@ -398,13 +442,15 @@ sub cablecat_wells {
       $TEMPLATE_ARGS{LINKED} = _cablecat_well_cable_links($TEMPLATE_ARGS{ID}) || '';
       $TEMPLATE_ARGS{HAS_LINKED} = $TEMPLATE_ARGS{LINKED} ne '';
       
-      $TEMPLATE_ARGS{CONNECTERS} = _cablecat_well_connecters($TEMPLATE_ARGS{ID}) || '';
-      $TEMPLATE_ARGS{CONNECTERS_VISIBLE} = $TEMPLATE_ARGS{CONNECTERS} ne '';
+      if ($TEMPLATE_ARGS{TYPE_ID} && $TEMPLATE_ARGS{TYPE_ID} != 2) {
+        $TEMPLATE_ARGS{CONNECTERS} = _cablecat_well_connecters($TEMPLATE_ARGS{ID}) || '';
+        $TEMPLATE_ARGS{CONNECTERS_VISIBLE} = $TEMPLATE_ARGS{CONNECTERS} ne '';
+      }
       
       $TEMPLATE_ARGS{ADD_OBJECT_VISIBLE} = '0';
       
       if (defined $TEMPLATE_ARGS{POINT_ID}){
-        $TEMPLATE_ARGS{OBJECT_INFO} = cablecat_make_point_info($TEMPLATE_ARGS{POINT_ID});
+        $TEMPLATE_ARGS{OBJECT_INFO} = cablecat_make_point_info($TEMPLATE_ARGS{POINT_ID}, , $MAP_LAYER_ID{WELL});
       }
     }
   }
@@ -412,22 +458,39 @@ sub cablecat_wells {
     $Cablecat->wells_del({ ID => $FORM{del} });
     show_result($Cablecat, $lang{DELETED});
   }
-  
+  elsif ($FORM{search_form}) {
+
+    $TEMPLATE_ARGS{TYPE_ID_SELECT} = _cablecat_well_types_select({
+      FILTERS  => { TYPE_ID => '!2' }
+    });
+    $TEMPLATE_ARGS{POINT_ID_SELECT} = _cablecat_point_id_select();
+    $TEMPLATE_ARGS{PARENT_ID_SELECT} = _cablecat_wells_select({
+      NAME     => 'PARENT_ID',
+      FILTERS  => { TYPE_ID => '!2' }
+    });
+
+    form_search({
+      SEARCH_FORM       => $html->tpl_show(_include('cablecat_wells_search', 'Cablecat'),
+        { %TEMPLATE_ARGS, %FORM },
+        { OUTPUT2RETURN => 1 }
+      ),
+      #      ADDRESS_FORM      => 1,
+      PLAIN_SEARCH_FORM => 1
+    });
+
+  }
+
   return 1 if ($FORM{MESSAGE_ONLY});
   
   if ($show_add_form) {
-    $TEMPLATE_ARGS{POINT_ID_SELECT} = _cablecat_point_id_select(
-      {
-        SELECTED => $TEMPLATE_ARGS{POINT_ID},
-        ENTITY   => 'WELL'
-      }
-    );
-    $TEMPLATE_ARGS{PARENT_ID_SELECT} = _cablecat_wells_select(
-      {
-        SELECTED => $TEMPLATE_ARGS{PARENT_ID},
-        NAME     => 'PARENT_ID'
-      }
-    );
+    $TEMPLATE_ARGS{POINT_ID_SELECT} = _cablecat_point_id_select({
+      SELECTED => $TEMPLATE_ARGS{POINT_ID} || $FORM{POINT_ID},
+      ENTITY   => 'WELL'
+    });
+    $TEMPLATE_ARGS{PARENT_ID_SELECT} = _cablecat_wells_select({
+      SELECTED => $TEMPLATE_ARGS{PARENT_ID} || $FORM{PARENT_ID},
+      NAME     => 'PARENT_ID'
+    });
     my $type_id_list = $Cablecat->well_types_list({
       ID         => '_SHOW',
       NAME       => '_SHOW',
@@ -457,7 +520,7 @@ sub cablecat_wells {
     }
     
     $TEMPLATE_ARGS{ADD_OBJECT_VISIBLE} //= 1;
-    
+
     $html->tpl_show(
       _include('cablecat_well', 'Cablecat'),
       {
@@ -506,7 +569,7 @@ sub cablecat_wells {
         caption => $lang{WELLS},
         ID      => 'WELLS_TABLE',
         EXPORT  => 1,
-        MENU    => "$lang{ADD}:index=$index&add_form=1:add"
+        MENU    => "$lang{ADD}:index=$index&add_form=1:add;$lang{SEARCH}:index=$index&search_form=1:search"
       },
       MAKE_ROWS     => 1,
       SEARCH_FORMER => 1,
@@ -727,9 +790,9 @@ sub cablecat_connecters {
         }
         
       }
-      
+
       if (defined $TEMPLATE_ARGS{POINT_ID}){
-        $TEMPLATE_ARGS{OBJECT_INFO} = cablecat_make_point_info($TEMPLATE_ARGS{POINT_ID});
+        $TEMPLATE_ARGS{OBJECT_INFO} = cablecat_make_point_info($TEMPLATE_ARGS{POINT_ID}, $MAP_LAYER_ID{WELL});
       }
       
     }
@@ -738,12 +801,29 @@ sub cablecat_connecters {
     $Cablecat->connecters_del({ ID => $FORM{del} });
     show_result($Cablecat, $lang{DELETED});
   }
+  elsif ($FORM{search_form}){
+
+    $TEMPLATE_ARGS{CONNECTER_TYPE_ID_SELECT} = _cablecat_connecter_type_select({
+      NAME => 'CONNECTER_TYPE_ID'
+    });
+    $TEMPLATE_ARGS{WELL_ID_SELECT} = _cablecat_well_types_select({
+      NAME => 'PARENT_ID'
+    });
+
+    form_search({
+      SEARCH_FORM       => $html->tpl_show(_include('cablecat_connecters_search', 'Cablecat'),
+        { %TEMPLATE_ARGS, %FORM },
+        { OUTPUT2RETURN => 1 }
+      ),
+      #      ADDRESS_FORM      => 1,
+      PLAIN_SEARCH_FORM => 1
+    });
+  }
   
   return 1 if $FORM{MESSAGE_ONLY};
   
   if ($show_add_form) {
     $TEMPLATE_ARGS{CLASS_FOR_MAIN_FORM} //= 'col-md-6 col-md-offset-3';
-    
     $TEMPLATE_ARGS{CONNECTER_TYPE_ID_SELECT} = _cablecat_connecter_type_select(
       {
         SELECTED => $TEMPLATE_ARGS{CONNECTER_TYPE_ID},
@@ -751,15 +831,17 @@ sub cablecat_connecters {
         NAME     => 'CONNECTER_TYPE_ID'
       }
     );
-    $TEMPLATE_ARGS{WELL_ID_SELECT} = _cablecat_wells_select(
-      {
+    
+    $TEMPLATE_ARGS{WELL_ID_SELECT} = _cablecat_wells_select({
         SELECTED => $TEMPLATE_ARGS{WELL_ID} || $FORM{WELL_ID},
         NAME     => 'PARENT_ID',
         REQUIRED => 1
       }
     );
     $TEMPLATE_ARGS{NAME} //= do {
-      $lang{CONNECTER} . '_' . ($Cablecat->connecters_next());
+      $TEMPLATE_ARGS{TYPE}
+        ? ($TEMPLATE_ARGS{TYPE}) . '_' . ($Cablecat->connecters_next({TYPE_ID => $TEMPLATE_ARGS{TYPE_ID}}))
+        : ($lang{CONNECTER}) . '_' . ($Cablecat->connecters_next());
     };
     
     $html->tpl_show(
@@ -767,6 +849,7 @@ sub cablecat_connecters {
       {
         %TEMPLATE_ARGS,
         %FORM,
+        NEXT_TYPE_ID      => $Cablecat->connecters_next(),
         SUBMIT_BTN_ACTION => ($FORM{chg}) ? 'change'      : 'add',
         SUBMIT_BTN_NAME   => ($FORM{chg}) ? $lang{CHANGE} : $lang{ADD},
       }
@@ -796,9 +879,10 @@ sub cablecat_connecters {
         installed => $lang{INSTALLED},
         planned   => $lang{PLANNED},
         point_id  => $lang{LOCATION},
+        connecter_type => $lang{CONNECTER_TYPE}
       },
       FILTER_COLS => {
-        point_id => '_cablecat_result_former_point_id_filter:' . $MAP_TYPE_ID{CONNECTER},
+        point_id => '_cablecat_result_former_point_id_filter:' . $MAP_LAYER_ID{WELL},
         
         #        type_name => '_translate',
       },
@@ -807,7 +891,8 @@ sub cablecat_connecters {
         caption => $lang{CONNECTERS},
         ID      => 'CONNECTERS_TABLE',
         EXPORT  => 1,
-        MENU    => "$lang{ADD}:index=$index&add_form=1:add"
+        MENU    => "$lang{ADD}:index=$index&add_form=1:add;$lang{SEARCH}:index=$index&search_form=1:search"
+
       },
       MAKE_ROWS     => 1,
       SEARCH_FORMER => 1,
@@ -826,7 +911,7 @@ sub cablecat_connecters {
 =cut
 #**********************************************************
 sub cablecat_make_point_info {
-  my ($point_id, $attr) = @_;
+  my ($point_id, $layer_id, $attr) = @_;
   
   if (!$point_id){
     
@@ -842,10 +927,17 @@ sub cablecat_make_point_info {
   }
   
   my $point_info = $Maps->points_info($point_id);
-  
-  if ($point_info->{COORD_ID}){
+
+  if ($layer_id && $point_info->{ID}) {
     $point_info->{SHOW_MAP_BTN} = 1;
-    $point_info->{MAP_BTN} = maps_show_object_button($point_info->{LAYER_ID}, $point_info->{OBJECT_ID}, { NAME => $lang{SHOW}});
+    if ( $point_info->{COORD_ID} ) {
+      $point_info->{MAP_BTN} = maps_show_object_button($layer_id || $point_info->{LAYER_ID}, $point_info->{OBJECT_ID},
+        { NAME => $lang{SHOW} });
+    }
+    else {
+      $point_info->{MAP_BTN} = maps_show_add_coords_button($layer_id, $point_info->{ID},
+        { NAME => $lang{ADD}, GO_TO_MAP => 1 });
+    }
   }
   
   if ($point_info->{LOCATION_ID}){
@@ -971,13 +1063,29 @@ sub cablecat_splitters {
       $show_add_form = 1;
       
       if (defined $TEMPLATE_ARGS{POINT_ID}){
-        $TEMPLATE_ARGS{OBJECT_INFO} = cablecat_make_point_info($TEMPLATE_ARGS{POINT_ID});
+        $TEMPLATE_ARGS{OBJECT_INFO} = cablecat_make_point_info($TEMPLATE_ARGS{POINT_ID}, undef);
       }
     }
   }
   elsif ($FORM{del}) {
     $Cablecat->splitters_del({ ID => $FORM{del} });
     show_result($Cablecat, $lang{DELETED});
+  }
+  elsif($FORM{search_form}){
+    $TEMPLATE_ARGS{TYPE_ID_SELECT} = _cablecat_splitter_types_select();
+    $TEMPLATE_ARGS{WELL_ID_SELECT} =_cablecat_wells_select({
+      FILTERS => { TYPE_ID => '!2' }
+    });
+    $TEMPLATE_ARGS{COMMUTATION_ID_SELECT} = _cablecat_commutations_select;
+
+    form_search({
+      SEARCH_FORM       => $html->tpl_show(_include('cablecat_splitters_search', 'Cablecat'),
+        { %TEMPLATE_ARGS, %FORM },
+        { OUTPUT2RETURN => 1 }
+      ),
+      #      ADDRESS_FORM      => 1,
+      PLAIN_SEARCH_FORM => 1
+    });
   }
   
   return 1 if ($FORM{MESSAGE_ONLY});
@@ -992,7 +1100,8 @@ sub cablecat_splitters {
     $TEMPLATE_ARGS{WELL_ID_SELECT} = _cablecat_wells_select(
       {
         SELECTED => $TEMPLATE_ARGS{WELL_ID} || $FORM{WELL_ID},
-        NAME     => 'WELL_ID'
+        NAME     => 'WELL_ID',
+        FILTERS => { TYPE_ID => '!2' }
       }
     );
   
@@ -1016,6 +1125,11 @@ sub cablecat_splitters {
   
   return 1 if ($FORM{TEMPLATE_ONLY});
   
+  if ( $TEMPLATE_ARGS{ID} ) {
+  
+    print _cablecat_splitter_links_table($TEMPLATE_ARGS{ID});
+  }
+  
   my Abills::HTML $table; ($table) = result_former(
     {
       INPUT_DATA      => $Cablecat,
@@ -1036,7 +1150,7 @@ sub cablecat_splitters {
         well      => $lang{WELL}
       },
       FILTER_COLS => {
-        point_id => '_cablecat_result_former_point_id_filter:' . $MAP_TYPE_ID{SPLITTER},
+#        point_id => '_cablecat_result_former_point_id_filter:' . $MAP_LAYER_ID{SPLITTER},
         #        type_name => '_translate',
       },
       FILTER_VALUES => {
@@ -1054,7 +1168,7 @@ sub cablecat_splitters {
         caption => $lang{SPLITTERS},
         ID      => 'SPLITTERS_TABLE',
         EXPORT  => 1,
-        MENU    => "$lang{ADD}:index=$index&add_form=1:add"
+        MENU    => "$lang{ADD}:index=$index&add_form=1:add;$lang{SEARCH}:index=$index&search_form=1:search"
       },
       MAKE_ROWS     => 1,
       SEARCH_FORMER => 1,
@@ -1092,6 +1206,12 @@ sub cablecat_commutations {
   }
   elsif ($FORM{del}) {
     $Cablecat->commutations_del({ ID => $FORM{del} });
+    $Cablecat->links_del(undef, { commutation_id => $FORM{del} });
+    $Cablecat->commutation_crosses_del(undef, { commutation_id => $FORM{del}});
+    $Cablecat->commutation_equipment_del(undef, { commutation_id => $FORM{del}});
+    $Cablecat->commutation_cables_del(undef, { commutation_id => $FORM{del}});
+    $Cablecat->splitters_del(undef, { commutation_id => $FORM{del} });
+
     show_result($Cablecat, $lang{DELETED});
   }
   elsif ($FORM{search_form}){
@@ -1115,9 +1235,23 @@ sub cablecat_commutations {
   if ($show_add_form){
   
   }
+#
+#  my $commutations_list = $Cablecat->commutations_list({
+#    ID           => '_SHOW',
+#    CREATED      => '_SHOW',
+#    CONNECTER    => '_SHOW',
+#    CABLES       => '_SHOW',
+#    WELL         => '_SHOW',
+#    CONNECTER_ID => '_SHOW',
+#    CABLE_IDS    => '_SHOW',
+#    WELL_ID      => '_SHOW',
+#    %LIST_PARAMS,
+#    COLS_NAME => 1
+#  });
   
   my Abills::HTML $table; ($table) = result_former(
     {
+#      LIST            => $commutations_list,
       INPUT_DATA      => $Cablecat,
       FUNCTION        => 'commutations_list',
       BASE_FIELDS     => 0,
@@ -1137,7 +1271,7 @@ sub cablecat_commutations {
         point_id  => $lang{LOCATION},
       },
       FILTER_COLS => {
-        #        connecter => '_cablecat_result_former_point_id_filter:' . $MAP_TYPE_ID{SPLITTER},
+        #        connecter => '_cablecat_result_former_point_id_filter:' . $MAP_LAYER_ID{SPLITTER},
         connecter => '_cablecat_result_former_named_chg_link_filter::PARAM_NAME=connecter_id,FUNCTION=cablecat_connecters,CONNECTER_ID',
         cables => '_cablecat_result_former_named_chg_link_filter::PARAM_NAME=cable_ids,FUNCTION=cablecat_cables,CABLE_IDS',
         well => '_cablecat_result_former_named_chg_link_filter::PARAM_NAME=well_id,FUNCTION=cablecat_wells,WELL_ID',
@@ -1268,6 +1402,25 @@ sub cablecat_crosses {
   my %TEMPLATE_ARGS = ();
   my $show_add_form = $FORM{add_form} || 0;
   
+  # Acts as subfunction
+  if ($FORM{cross_link_operation}){
+    
+    if (!$FORM{CROSS_ID} || !$FORM{CROSS_PORT}){
+      $html->message('err', "\$FORM{CROSS_ID} or \$FORM{CROSS_PORT} is not specified");
+      return 0;
+    }
+    
+    # Function can return '2' that means we should proceed this operation.
+    # If it showed template and returned '1', we should stop current function)
+    my $operation_result = _cablecat_cross_links($FORM{CROSS_ID}, $FORM{CROSS_PORT});
+    if ($operation_result && $operation_result eq 1){
+      return 1;
+    }
+    
+    delete @FORM{qw/add chg change del cross_link_operation action/};
+    $FORM{chg} = $FORM{CROSS_ID};
+  }
+  
   if ($FORM{add}) {
     $Cablecat->crosses_add({%FORM});
     $show_add_form = !show_result($Cablecat, $lang{ADDED});
@@ -1286,7 +1439,21 @@ sub cablecat_crosses {
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
     $Cablecat->crosses_del({ ID => $FORM{del}, COMMENTS => $FORM{COMMENTS} });
+    $Cablecat->commutation_crosses_del(undef, { cross_id => $FORM{del} });
     show_result($Cablecat, $lang{DELETED});
+  }
+  elsif($FORM{search_form}){
+    $TEMPLATE_ARGS{TYPE_ID_SELECT} = _cablecat_cross_types_select();
+    $TEMPLATE_ARGS{WELL_ID_SELECT} = _cablecat_wells_select();
+
+    form_search({
+      SEARCH_FORM       => $html->tpl_show(_include('cablecat_crosses_search', 'Cablecat'),
+        { %TEMPLATE_ARGS, %FORM },
+        { OUTPUT2RETURN => 1 }
+      ),
+      #      ADDRESS_FORM      => 1,
+      PLAIN_SEARCH_FORM => 1
+    });
   }
   
   return 1 if $FORM{MESSAGE_ONLY};
@@ -1305,6 +1472,10 @@ sub cablecat_crosses {
     
     if ($TEMPLATE_ARGS{POINT_ID}){
       $TEMPLATE_ARGS{OBJECT_INFO} = cablecat_make_point_info($TEMPLATE_ARGS{POINT_ID});
+    }
+    
+    if ($TEMPLATE_ARGS{ID}){
+      $TEMPLATE_ARGS{CROSS_LINKS_TABLE} = _cablecat_cross_links_table($TEMPLATE_ARGS{ID}, \%TEMPLATE_ARGS);
     }
     
     $html->tpl_show(
@@ -1361,7 +1532,7 @@ sub cablecat_crosses {
         caption => $lang{CROSSES},
         ID      => 'CROSSES_TABLE',
         EXPORT  => 1,
-        MENU    => "$lang{ADD}:index=$index&add_form=1:add"
+        MENU    => "$lang{ADD}:index=$index&add_form=1:add;$lang{SEARCH}:index=$index&search_form=1:search"
       },
       MAKE_ROWS     => 1,
       SEARCH_FORMER => 1,
@@ -1371,6 +1542,219 @@ sub cablecat_crosses {
   print $table->show();
 }
 
+#**********************************************************
+=head2 _cablecat_cross_links($cross_id, $port_num)
+
+=cut
+#**********************************************************
+sub _cablecat_cross_links {
+  my ($cross_id, $port_num) = @_;
+  
+  my %TEMPLATE_ARGS = (
+    CROSS_ID   => $cross_id,
+    CROSS_PORT   => $port_num,
+  );
+  
+  my $show_add_form = $FORM{add_form} || 0;
+  
+  if ($FORM{add}) {
+    my $encoded_link_value =  "$FORM{NAS_ID}#@#$FORM{PORT}";
+  
+    $Cablecat->cross_links_add({
+      CROSS_ID   => $cross_id,
+      CROSS_PORT => $port_num,
+      LINK_TYPE  => 1,
+      LINK_VALUE => $encoded_link_value
+    });
+  
+    if (show_result($Cablecat, $lang{ADDED})){
+      return 2;
+    };
+  }
+  elsif ($FORM{change}) {
+    $Cablecat->cross_links_change({
+      %FORM,
+      _CHANGE_PARAM => 'CROSS_ID',
+      SECOND_PARAM => 'CROSS_PORT'
+    });
+    show_result($Cablecat, $lang{CHANGED});
+    
+    return 2;
+  }
+  elsif ($FORM{chg}) {
+    my $tp_info = $Cablecat->cross_links_info($FORM{chg});
+    if ( !_error_show($Cablecat) ) {
+    
+      %TEMPLATE_ARGS = (%TEMPLATE_ARGS, %{$tp_info});
+    
+      # should split
+      my $encoded_link_value = $tp_info->{link_value};
+      my ($nas_id, $nas_port) = split('#@#', $encoded_link_value || '');
+    
+      $TEMPLATE_ARGS{EQUIPMENT_ID} = $nas_id;
+      $TEMPLATE_ARGS{EQUIPMENT_PORT} = $nas_port;
+    
+      $show_add_form = 1;
+    }
+  }
+  elsif ($FORM{del} && $FORM{COMMENTS}) {
+    $Cablecat->cross_links_del(
+      { COMMENTS => $FORM{COMMENTS} },
+      { cross_id => $cross_id, cross_port => $port_num });
+    show_result($Cablecat, $lang{DELETED});
+    
+    # Show main cross form
+    return 2;
+  }
+  
+  my $info = $Cablecat->crosses_info($cross_id, { NAME => '_SHOW', SHOW_ALL_COLUMNS => 0, COLS_UPPER => 0 });
+  
+  $TEMPLATE_ARGS{CROSS_NAME} = $info->{name} || q{};
+  $TEMPLATE_ARGS{EQUIPMENT_SELECT} = $html->form_select(
+    'NAS_ID',
+    {
+      VALUE          => $TEMPLATE_ARGS{EQUIPMENT_ID} || '',
+      SEL_KEY           => 'nas_id',
+      SEL_VALUE         => 'nas_name',
+      SEL_OPTIONS       => { '' => '' },
+      MAIN_MENU         => get_function_index('form_nas'),
+      # Popup window
+      POPUP_WINDOW      => 'form_search_nas',
+      POPUP_WINDOW_TYPE => 'search',
+      SEARCH_STRING     => 'POPUP=1&NAS_SEARCH=0',
+      HAS_NAME          => 1
+    }
+  );
+  
+  if ( in_array('Equipment', \@MODULES) ) {
+    $TEMPLATE_ARGS{EQUIPMENT_PORT_SELECT} = $html->form_select(
+      'PORT',
+      {
+        VALUE          => $TEMPLATE_ARGS{EQUIPMENT_PORT} || '',
+        POPUP_WINDOW      => 'form_search_port',
+        POPUP_WINDOW_TYPE => 'choose',
+        SEARCH_STRING     => 'get_index=equipment_info&visual=0&header=2&PORT_SHOW=1&PORT_INPUT_NAME=PORT',
+        PARENT_INPUT      => 'NAS_ID'
+      }
+    );
+  }
+  else {
+    $TEMPLATE_ARGS{EQUIPMENT_PORT_SELECT} = $html->form_input('PORT',$TEMPLATE_ARGS{EQUIPMENT_PORT} || '',
+      { SIZE => 10, TYPE => 'text' }
+    );
+  }
+  
+  $html->tpl_show(_include('cablecat_cross_link_add', 'Cablecat'),
+    {
+      %TEMPLATE_ARGS,
+      SUBMIT_BTN_ACTION => ($FORM{chg}) ? 'change' : 'add',
+      SUBMIT_BTN_NAME   => ($FORM{chg}) ? $lang{CHANGE} : $lang{ADD},
+    }
+  );
+  
+  return 1;
+}
+
+#**********************************************************
+=head2 _cablecat_cross_links_table($cross_id)
+
+=cut
+#**********************************************************
+sub _cablecat_cross_links_table {
+  my ($cross_id, $cross_info) = @_;
+  return '' if ( !$cross_id || !$cross_info || !$cross_info->{PORTS_COUNT} );
+  
+  my $links = $Cablecat->cross_links_list({
+    CROSS_ID         => $cross_id,
+    SHOW_ALL_COLUMNS => 1,
+    SORT             => 'cross_port',
+    PAGE_ROWS        => 10000,
+  });
+  _error_show($Cablecat) and return 0;
+  
+  my Abills::HTML $table = $html->table({
+    caption     => "$lang{CROSS} $lang{LINKS}",
+    title_plain => [ $lang{PORT}, $lang{LINK} ],
+    pages       => $Cablecat->{TOTAL},
+    ID          => 'CROSS_LINKS_ID'
+  });
+  
+  # Order links by port_num;
+  my %link_for_port = map {$_->{cross_port} => $_} @{$links};
+  my $crosses_index = get_function_index('cablecat_crosses');
+  
+  for ( my $i = 1; $i <= $cross_info->{PORTS_COUNT}; $i++ ) {
+    $table->addrow(
+      $i,
+      _cablecat_cross_link_info($link_for_port{$i}, $i, $cross_id, {CROSSES_INDEX => $crosses_index })
+    );
+  }
+  
+  return $table->show({ OUTPUT2RETURN => 1 });
+}
+
+#**********************************************************
+=head2 _cablecat_cross_link_info($link, $port_num, $cross_id, $attr)
+
+  Arguments:
+   $link     - db row for cross_link
+   $port_num - cross port num
+   $cross_id - cross id
+   $attr
+     CROSS_ID
+     CROSSES_INDEX
+
+=cut
+#**********************************************************
+sub _cablecat_cross_link_info {
+    my ($link, $port_num, $cross_id, $attr) = @_;
+    
+    my $crosses_index = $attr->{CROSSES_INDEX} || get_function_index('cablecat_crosses');
+  
+    if ( !defined ($link) || !defined ($link->{link_type}) ) {
+      return $html->button('',
+        "index=$crosses_index&cross_link_operation=1&add_form=1&CROSS_ID=$cross_id&CROSS_PORT=$port_num", {
+          ICON          => 'glyphicon glyphicon-plus',
+          TARGET        => 'cablecat_cross_link_add',
+          BUTTON        => 1
+        }
+      );
+    }
+    else {
+      if ($link->{link_type} == 1){ # Equipment
+        my ($equipment_id, $equipment_port) = split('#@#', $link->{link_value} || '');
+        
+        if (!$equipment_id && !$equipment_port){
+          $html->message('err', "Wrong link for port number $port_num (". ($link->{link_value} || '') .")" );
+          return '';
+        }
+        
+        my $Equipment_info = Equipment->new($db, $admin, \%conf);
+        $Equipment_info->_info($equipment_id);
+        
+        my $equipment_name = $Equipment_info->{SYSTEM_ID} || '';
+        my $equipment_link = function_button($equipment_name, 'equipment_info', $equipment_id, { ID_PARAM => 'NAS_ID'});
+        
+        my $change_button = $html->button('',
+          "index=$crosses_index&cross_link_operation=1&chg=1&CROSS_ID=$cross_id&CROSS_PORT=$port_num", {
+            ICON          => 'glyphicon glyphicon-pencil',
+            class         => 'btn btn-xs btn-default',
+            TARGET        => 'cablecat_cross_link_add',
+        });
+        
+        my $del_button = $html->button('',
+          "index=$crosses_index&cross_link_operation=1&del=1&CROSS_ID=$cross_id&CROSS_PORT=$port_num", {
+            class         => 'btn btn-xs btn-danger',
+            MESSAGE       => "$lang{DEL} ?",
+            ICON          => 'glyphicon glyphicon-remove',
+        });
+        
+        return $change_button . $del_button . ($equipment_link . " $lang{PORT} : $equipment_port");
+      }
+      
+      return $link->{link_type} . '_' . $link->{link_value}
+    }
+}
 
 #**********************************************************
 =head2 _cablecat_connecter_commutation_list($connecter_id, $well_id)
@@ -1574,11 +1958,11 @@ sub _cablecat_well_connecters {
     
     my @connecters_links = map {
       $html->button("$_->{name} (#$_->{id})", "index=$connecters_index&chg=$_->{id}")
-        . $html->button('', "qindex=$connecters_index&change=1&ID=$_->{id}&WELL_ID=0", {
-          ICON    => 'glyphicon glyphicon-remove',
-          class   => 'text-danger',
-          CONFIRM => "$lang{UNLINK}?",
-          AJAX    => 'form_CABLECAT_CONNECTERS'
+        . $html->button('', "qindex=$connecters_index&change=1&ID=$_->{id}&PARENT_ID=0", {
+          ICON          => 'glyphicon glyphicon-remove',
+          class         => 'text-danger',
+          CONFIRM       => "$lang{UNLINK}?",
+          AJAX          => 'form_CABLECAT_CONNECTERS'
         })
     } @{$connecters_inside};
     
@@ -1671,8 +2055,6 @@ sub _cablecat_well_cable_links {
   }
   
   return join($html->br(), @cables_for_well);
-  
-  return '';
 }
 
 

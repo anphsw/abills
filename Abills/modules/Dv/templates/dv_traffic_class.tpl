@@ -30,7 +30,7 @@
         </form>
 
     </div>
-    <div class='box-footer text-center'>
+    <div class='box-footer'>
         <input type='submit' form='form_TRAFFIC_CLASS_FORM' class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
     </div>
 </div>

@@ -90,10 +90,10 @@ sub _cablecat_wells_select {
     'wells',
     $attr->{NAME} || 'WELL_ID',
     {
-      %$attr,
       FILTERS => {
         TYPE_ID => 1
-      }
+      },
+      %$attr,
     }
   );
   
@@ -101,7 +101,7 @@ sub _cablecat_wells_select {
 }
 
 #**********************************************************
-=head2 _cablecat_wells_select($attr)
+=head2 _cablecat_commutations_select($attr)
 
 =cut
 #**********************************************************

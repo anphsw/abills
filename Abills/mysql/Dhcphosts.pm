@@ -7,7 +7,7 @@ package Dhcphosts;
 =cut
 
 use strict;
-use parent 'main';
+use parent qw(dbcore);
 my $MODULE = 'Dhcphosts';
 my Admins $admin;
 my $CONF;
@@ -54,7 +54,7 @@ sub routes_list {
     }
   );
 
-  $self->query2("SELECT
+  $self->query("SELECT
     r.id, r.network, inet_ntoa(r.src),
     INET_NTOA(r.mask) AS netmask,
     inet_ntoa(r.router) AS router,
@@ -72,7 +72,7 @@ sub routes_list {
   my $list = $self->{list};
 
   if ($self->{TOTAL} > 0) {
-    $self->query2("SELECT count(*) AS total FROM dhcphosts_routes r $WHERE", undef, { INFO => 1 });
+    $self->query("SELECT count(*) AS total FROM dhcphosts_routes r $WHERE", undef, { INFO => 1 });
   }
 
   return $list;
@@ -173,7 +173,7 @@ sub network_change {
   $attr->{DISABLE}              = (defined($attr->{DISABLE}))              ? 1 : 0;
   $attr->{STATIC}               = (defined($attr->{STATIC}))               ? 1 : 0;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM    => 'ID',
       TABLE           => 'dhcphosts_networks',
@@ -194,7 +194,7 @@ sub network_info {
   my $self = shift;
   my ($id) = @_;
 
-  $self->query2("SELECT *,
+  $self->query("SELECT *,
    INET_NTOA(network) AS network,
    INET_NTOA(mask) AS mask,
    INET_NTOA(routers) AS routers,
@@ -273,7 +273,7 @@ sub networks_list {
     }
   );
 
-  $self->query2("SELECT
+  $self->query("SELECT
      $self->{SEARCH_FIELDS} id
      FROM dhcphosts_networks
      $WHERE
@@ -287,7 +287,7 @@ sub networks_list {
   my $list = $self->{list};
 
   if ($self->{TOTAL} > 0 || $PG > 0) {
-    $self->query2("SELECT COUNT(*) AS total FROM dhcphosts_networks $WHERE", undef, { INFO => 1 });
+    $self->query("SELECT COUNT(*) AS total FROM dhcphosts_networks $WHERE", undef, { INFO => 1 });
   }
 
   return $list;
@@ -413,10 +413,11 @@ sub hosts_list{
     } );
 
   $SORT =~ s/ip/h.ip/;
-  $self->query2( "SELECT
+  my $select_additional_uid = ($attr->{UID}) ? '' : 'h.uid,';
+  $self->query( "SELECT
        h.id,
        $self->{SEARCH_FIELDS}
-       h.uid,
+       $select_additional_uid
        h.network AS network_id,
        if ((u.expire <> '0000-00-00' && curdate() > u.expire) || (h.expire <> '0000-00-00' && curdate() > h.expire), 1, 0) AS expire
      FROM dhcphosts_hosts h
@@ -435,7 +436,7 @@ sub hosts_list{
   my $list = $self->{list};
 
   if ( $self->{TOTAL} > 0 ){
-    $self->query2( "SELECT count(*) AS total FROM dhcphosts_hosts h
+    $self->query( "SELECT count(*) AS total FROM dhcphosts_hosts h
      left join users u on h.uid=u.uid
      $EXT_TABLES
      $WHERE",
@@ -630,7 +631,7 @@ sub host_info {
     push @bind_vals, $id;
   }
 
-  $self->query2("SELECT
+  $self->query("SELECT
    *,
    INET_NTOA(ip) AS ip,
    nas AS nas_id
@@ -660,7 +661,7 @@ sub host_change {
   $attr->{DISABLE}      = ($attr->{DISABLE})      ? 1 : 0;
 
   $admin->{MODULE} = $MODULE;
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'dhcphosts_hosts',
@@ -723,7 +724,7 @@ sub route_change {
     ROUTER => 'router'
   );
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM    => 'ID',
       TABLE           => 'dhcphosts_routes',
@@ -746,7 +747,7 @@ sub route_info {
   my $self = shift;
   my ($id) = @_;
 
-  $self->query2("SELECT
+  $self->query("SELECT
    id AS net_id,
    network,
    INET_NTOA(src) AS src,
@@ -783,7 +784,7 @@ sub leases_update {
       ];
     }
 
-    $self->query2("INSERT INTO dhcphosts_leases ( start, ends, ip, hardware, nas_id, state)
+    $self->query("INSERT INTO dhcphosts_leases ( start, ends, ip, hardware, nas_id, state)
        VALUES (?, ?, INET_ATON( ? ), ?, ?, ?)", undef,
      { MULTI_QUERY =>  \@MULTI_QUERY })
   }
@@ -857,7 +858,7 @@ sub leases_list {
 
   my $EXT_TABLES = $self->{EXT_TABLES} || '';
 
-  $self->query2("SELECT if (l.uid > 0, u.id, '') AS login,
+  $self->query("SELECT if (l.uid > 0, u.id, '') AS login,
   l.ip,
   l.start,
   l.hardware,
@@ -882,7 +883,7 @@ sub leases_list {
 
   my $list = $self->{list};
 
-  $self->query2("SELECT COUNT(*) AS total FROM dhcphosts_leases l
+  $self->query("SELECT COUNT(*) AS total FROM dhcphosts_leases l
     LEFT JOIN users u ON (u.uid=l.uid)
   $WHERE;", undef, {INFO => 1 });
 
@@ -923,7 +924,7 @@ sub leases_clear {
     }
   );
 
-  $self->query2("DELETE FROM dhcphosts_leases $WHERE;", 'do');
+  $self->query("DELETE FROM dhcphosts_leases $WHERE;", 'do');
   return $self;
 }
 
@@ -964,7 +965,7 @@ sub log_del {
     $WHERE = "datetime='$attr->{DATETIME}'";
   }
 
-  $self->query2("DELETE FROM dhcphosts_log WHERE $WHERE", 'do');
+  $self->query("DELETE FROM dhcphosts_log WHERE $WHERE", 'do');
 
   return $self;
 }
@@ -1017,7 +1018,7 @@ sub log_list {
     $EXT_TABLES .= "LEFT JOIN users u ON  (u.uid=l.uid)";
   }
 
-  $self->query2("SELECT l.datetime, l.hostname, l.message_type, l.message
+  $self->query("SELECT l.datetime, l.hostname, l.message_type, l.message
      FROM dhcphosts_log l
      $WHERE
      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
@@ -1029,7 +1030,7 @@ sub log_list {
   return $list if ($self->{errno});
 
   if ($self->{TOTAL} > 0) {
-    $self->query2("SELECT count(*) AS total FROM dhcphosts_log l $WHERE", undef, { INFO => 1 });
+    $self->query("SELECT COUNT(*) AS total FROM dhcphosts_log l $WHERE", undef, { INFO => 1 });
   }
 
   return $list;

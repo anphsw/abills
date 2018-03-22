@@ -28,7 +28,7 @@ AStorage.prototype = {
   },
   getValue          : function (name, defaultValue) {
     var result = localStorage.getItem(name);
-    if (result) {
+    if (result !== null && typeof (result) !== 'undefined') {
       return result;
     }
     else {

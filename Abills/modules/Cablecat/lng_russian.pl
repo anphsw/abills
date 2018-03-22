@@ -48,8 +48,10 @@ $lang{RESERVE} = 'Запас';
 
 $lang{COMMUTATION_SCHEME} = 'Схема комутации';
 $lang{LINK} = 'Соединение';
+$lang{LINKS} = 'Соединения';
 
-$lang{DELETE_LINK} = 'Удалить соединение';
+$lang{DELETE_LINK} = 'Удалить звено';
+$lang{DELETE_CONNECTION} = 'Удалить соединение';
 $lang{CONNECT} = 'Соединить';
 $lang{CONNECT_BY_NUMBER} = 'Соединить по номерам';
 $lang{ATTENUATION} = 'Затухание';
@@ -93,6 +95,7 @@ $lang{NO_FREE_EQUIPMENT} = 'Нет доступного оборудования
 $lang{NO_OTHER_COMMUTATIONS} = 'Нет других коммутаций';
 $lang{OTHER_COMMUTATIONS} = 'Другие коммутации';
 
+$lang{CAN_BE_SPLITTED} = 'Можно разделять';
   #$lang{MANAGEMENT} = 'Управление';
 #$lang{LINK_MANAGEMENT} = 'Управление соединениями';
 #$lang{LINK} = 'Соединение';
@@ -105,6 +108,11 @@ $lang{OTHER_COMMUTATIONS} = 'Другие коммутации';
 #$lang{SPLITTERS} = 'Сплиттеры';
 #$lang{CROSS} = 'Кросс';
 #$lang{CROSSES} = 'Кроссы';
+
+$lang{CONNECTION_TRACE} = 'Отследить соединение';
+$lang{TRACE_UP_TO} = 'Отследить соединение';
+
+$lang{WRONG_LINKS} = 'Неправильные соединения';
 
 
 1;

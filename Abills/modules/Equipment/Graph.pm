@@ -9,7 +9,7 @@
 
 use strict;
 use warnings;
-use Abills::Base qw(load_pmodule2);
+use Abills::Base qw(load_pmodule);
 
 our(
   $html,
@@ -17,7 +17,7 @@ our(
   $var_dir
 );
 
-my $load_data = load_pmodule2('RRDTool::OO', { SHOW_RETURN => 1 });
+my $load_data = load_pmodule('RRDTool::OO', { SHOW_RETURN => 1 });
 
 #**********************************************************
 =head2 add_graph($attr)
@@ -26,7 +26,7 @@ my $load_data = load_pmodule2('RRDTool::OO', { SHOW_RETURN => 1 });
        NAS_ID  - Nas id
        PORT    - Port id
        TYPE    - Graph type: SPEED, SIGNAL, TEMPERATURE
-       STEP    - Step: 60, 300 (default 300)
+       STEP    - Step: 60, 300, 600 (default 300)
        DATA    - Data hash
 =cut
 #**********************************************************
@@ -50,28 +50,38 @@ sub add_graph {
 
   my $archive = {
     60 => [
-      archive => { rows => 3000, cpoints => 1, cfunc => 'AVERAGE' },
-      archive => { rows => 700,  cpoints => 30, cfunc => 'AVERAGE' },
-      archive => { rows => 775,  cpoints => 120, cfunc => 'AVERAGE' },
-      archive => { rows => 797,  cpoints => 1440, cfunc => 'AVERAGE' },
-      archive => { rows => 3000, cpoints => 1, cfunc => 'MAX' },
-      archive => { rows => 700,  cpoints => 30, cfunc => 'MAX' },
-      archive => { rows => 775,  cpoints => 120, cfunc => 'MAX' },
-      archive => { rows => 797,  cpoints => 1440, cfunc => 'MAX' },
+      archive => { rows => 1440, cpoints => 1,   cfunc => 'AVERAGE' },
+      archive => { rows => 672,  cpoints => 15,  cfunc => 'AVERAGE' },
+      archive => { rows => 744,  cpoints => 60,  cfunc => 'AVERAGE' },
+      archive => { rows => 1460, cpoints => 360, cfunc => 'AVERAGE' },
+      archive => { rows => 1440, cpoints => 1,   cfunc => 'MAX' },
+      archive => { rows => 672,  cpoints => 30,  cfunc => 'MAX' },
+      archive => { rows => 744,  cpoints => 120, cfunc => 'MAX' },
+      archive => { rows => 1460, cpoints => 360, cfunc => 'MAX' },
     ],
     300 => [
-      archive => { rows => 600, cpoints => 1, cfunc => 'AVERAGE' },
-      archive => { rows => 700, cpoints => 6, cfunc => 'AVERAGE' },
-      archive => { rows => 775, cpoints => 24, cfunc => 'AVERAGE' },
-      archive => { rows => 797, cpoints => 288, cfunc => 'AVERAGE' },
-      archive => { rows => 600, cpoints => 1, cfunc => 'MAX' },
-      archive => { rows => 700, cpoints => 6, cfunc => 'MAX' },
-      archive => { rows => 775, cpoints => 24, cfunc => 'MAX' },
-      archive => { rows => 797, cpoints => 288, cfunc => 'MAX' },
+      archive => { rows => 288,  cpoints => 1,  cfunc => 'AVERAGE' },
+      archive => { rows => 672,  cpoints => 3,  cfunc => 'AVERAGE' },
+      archive => { rows => 744,  cpoints => 12, cfunc => 'AVERAGE' },
+      archive => { rows => 1460, cpoints => 72, cfunc => 'AVERAGE' },
+      archive => { rows => 288,  cpoints => 1,  cfunc => 'MAX' },
+      archive => { rows => 672,  cpoints => 3,  cfunc => 'MAX' },
+      archive => { rows => 744,  cpoints => 12, cfunc => 'MAX' },
+      archive => { rows => 1460, cpoints => 72, cfunc => 'MAX' },
+    ],
+    600 => [
+      archive => { rows => 144,  cpoints => 1,  cfunc => 'AVERAGE' },
+      archive => { rows => 336,  cpoints => 3,  cfunc => 'AVERAGE' },
+      archive => { rows => 744,  cpoints => 6,  cfunc => 'AVERAGE' },
+      archive => { rows => 1460, cpoints => 36, cfunc => 'AVERAGE' },
+      archive => { rows => 144,  cpoints => 1,  cfunc => 'MAX' },
+      archive => { rows => 336,  cpoints => 3,  cfunc => 'MAX' },
+      archive => { rows => 744,  cpoints => 6,  cfunc => 'MAX' },
+      archive => { rows => 1460, cpoints => 36, cfunc => 'MAX' },
     ]
   };
 
-  my $step = $attr->{STEP} || '300';
+  my $step = (defined($attr->{STEP}) && ($attr->{STEP} eq 60 || $attr->{STEP} eq 300 || $attr->{STEP} eq 600) ) ? $attr->{STEP} : '300';
   my @datasource = ();
   my %values = ();
   my $rrdfile = $rrd_dir. "/" . $attr->{NAS_ID} . "_" . $attr->{PORT} . "_" . lc($attr->{TYPE}) . ".rrd";
@@ -81,7 +91,13 @@ sub add_graph {
     push @datasource, ( data_source => { name => $line->{SOURCE} , type  => $line->{TYPE} } );
     $values{$line->{SOURCE}} =  $line->{DATA};
   }
-
+  
+  unless (!-f $rrdfile) {
+    my $info = $rrd->info();
+    if ($info->{step} != $step) {
+      del_graph_data($attr);
+    }
+  }
   unless (-f $rrdfile) {
     $rrd->create(
       step => $step,
@@ -152,6 +168,7 @@ sub get_graph_data {
       def   => \@def,
       xport => \@xport
     );
+
     return $results;
   }
 

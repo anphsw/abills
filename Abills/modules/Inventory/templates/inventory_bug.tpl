@@ -16,7 +16,7 @@
             <div class='form-group'>
                 <div class='col-md-4'>%FN_INDEX%</div>
                 <div class='col-md-4'><b>%FN_NAME%</b></div>
-                <div class='col-md-4'>%CHECKSUM%</div>
+                <div class='col-md-4'>Checksum: %CHECKSUM%</div>
             </div>
 
             <div class='form-group'>
@@ -35,12 +35,16 @@
                                                  class='form-control'>%COMMENTS%</textarea></div>
             </div>
             <div class='form-group'>
-                <label class='col-md-3 bg-warning'>Fixed version</label>
-                <div class='col-md-3'><input type='text' class='form-control' name='FIX_VERSION' value='%FIX_VERSION%'>
+                <label class='col-md-2 bg-warning'>Fixed version</label>
+                <div class='col-md-2'><input type='text' class='form-control' name='FIX_VERSION' value='%FIX_VERSION%'>
                 </div>
-                <label class='col-md-3 bg-warning'>_{STATUS}_</label>
-                <div class='col-md-3'>%STATUS_SEL%</div>
-                </div>
+                <label class='col-md-2 bg-warning'>_{STATUS}_</label>
+                <div class='col-md-2'>%STATUS_SEL%</div>
+                <label class='col-md-2 bg-warning'>_{RESPONSIBLE}_</label>
+                <div class='col-md-2'>%RESPONSIBLE_SEL%</div>
+             </div>
+        </div>
+
             </div>
         </div>
 

@@ -10,7 +10,7 @@ package Tariffs;
 =cut
 
 use strict;
-use parent 'main';
+use parent 'dbcore';
 
 my $CONF;
 my $admin;
@@ -30,6 +30,7 @@ sub new {
     admin=> $admin,
     conf => $CONF
   };
+
   bless($self, $class);
 
   return $self;
@@ -47,7 +48,7 @@ sub ti_del {
   $self->query_del('intervals', { ID => $id });
   $self->query_del('trafic_tarifs', undef, { interval_id => $id });
 
-  $admin->system_action_add("TI:$id", { TYPE => 10 });
+  $self->{admin}->system_action_add("TI:$id", { TYPE => 10 });
   return $self;
 }
 
@@ -70,7 +71,7 @@ sub ti_add {
 
   $self->{INTERVAL_ID} = $self->{INSERT_ID};
 
-  $admin->system_action_add("TI:$self->{INSERT_ID} TP:$self->{TP_ID}", { TYPE => 1 });
+  $self->{admin}->system_action_add("TI:$self->{INSERT_ID} TP:$self->{TP_ID}", { TYPE => 1 });
   return $self;
 }
 
@@ -102,7 +103,7 @@ sub ti_list {
     $TP_ID     = $attr->{TP_ID};
   }
 
-  $self->query2("SELECT i.id, i.day, $begin_end
+  $self->query("SELECT i.id, i.day, $begin_end
    i.tarif,
    COUNT(tt.id) AS traffic_classes,
    i.id
@@ -135,7 +136,7 @@ sub ti_change {
     TI_ID    => 'id'
   );
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'TI_ID',
       TABLE        => 'intervals',
@@ -164,7 +165,7 @@ sub ti_info {
   my $self = shift;
   my ($ti_id) = @_;
 
-  $self->query2("SELECT day AS ti_day, 
+  $self->query("SELECT day AS ti_day,
      begin AS ti_begin, 
      end AS ti_end, 
      tarif AS ti_tarif, 
@@ -213,7 +214,7 @@ sub tp_group_del {
 
   $self->query_del('tp_groups', { ID => $id });
 
-  $admin->system_action_add("TP_GROUP:$id", { TYPE => 10 });
+  $self->{admin}->system_action_add("TP_GROUP:$id", { TYPE => 10 });
   return $self;
 }
 
@@ -229,7 +230,7 @@ sub tp_group_add {
   	                              ID => $attr->{GID} 
   	                             });
 
-  $admin->system_action_add("TP_GROUP:$attr->{GID}", { TYPE => 1 });
+  $self->{admin}->system_action_add("TP_GROUP:$attr->{GID}", { TYPE => 1 });
   return $self;
 }
 
@@ -245,7 +246,7 @@ sub tp_group_list {
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : "2, 3";
   my $DESC = (defined($attr->{DESC})) ? $attr->{DESC} : '';
 
-  $self->query2("SELECT tg.id, tg.name, tg.user_chg_tp, count(tp.id) AS tarif_plans_count
+  $self->query("SELECT tg.id, tg.name, tg.user_chg_tp, count(tp.id) AS tarif_plans_count
    FROM tp_groups tg
    LEFT JOIN tarif_plans tp ON (tg.id=tp.gid)
    GROUP BY tg.id
@@ -258,8 +259,9 @@ sub tp_group_list {
 }
 
 #**********************************************************
-# TP GROUP
-#
+=head2 tp_group_change($attr)
+
+=cut
 #**********************************************************
 sub tp_group_change {
   my $self = shift;
@@ -267,7 +269,7 @@ sub tp_group_change {
 
   $attr->{USER_CHG_TP} = (defined($attr->{USER_CHG_TP}) && $attr->{USER_CHG_TP} == 1) ? 1 : 0;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'tp_groups',
@@ -280,14 +282,15 @@ sub tp_group_change {
 }
 
 #**********************************************************
-# TP GROUP
-# tp_group_info();
+=head2 tp_group_info($tp_group_id);
+
+=cut
 #**********************************************************
 sub tp_group_info {
   my $self = shift;
   my ($tp_group_id) = @_;
 
-  $self->query2("SELECT *
+  $self->query("SELECT *
     FROM tp_groups 
     WHERE id= ? ;",
     undef,
@@ -391,9 +394,11 @@ sub add {
   my $self = shift;
   my ($attr) = @_;
 
+  my $domain_id = $self->{admin}->{DOMAIN_ID} || $admin->{DOMAIN_ID} || 0;
+
   if (!$attr->{ID}) {
-    $self->query2("SELECT MAX(id) FROM tarif_plans WHERE domain_id= ? ORDER BY 1 DESC LIMIT 1",
-    undef, { Bind => [ $admin->{DOMAIN_ID} || 0 ] } );
+    $self->query("SELECT MAX(id) FROM tarif_plans WHERE domain_id= ? ORDER BY 1 DESC LIMIT 1",
+    undef, { Bind => [ $domain_id ] } );
     if(! $self->{TOTAL}) {
       $attr->{ID} = 1;
     }
@@ -409,11 +414,13 @@ sub add {
      ACTIVATE_PRICE => $attr->{ACTIV_PRICE}, 
      GID            => $attr->{TP_GID}, 
      NEXT_TP_ID     => $attr->{NEXT_TARIF_PLAN},
-     DOMAIN_ID      => $admin->{DOMAIN_ID},
+     DOMAIN_ID      => $domain_id
   });
 
   $self->{TP_ID} = $self->{INSERT_ID};
-  $admin->system_action_add("TP:$attr->{TP_ID}", { TYPE => 1 });
+  $self->{TP_NUM} = $attr->{ID};
+
+  $self->{admin}->system_action_add("TP:$self->{TP_ID}", { TYPE => 1 });
 
   return $self;
 }
@@ -492,7 +499,7 @@ sub change {
   $attr->{ACTIVE_DAY_FEE}       = 0 if (!$attr->{ACTIVE_DAY_FEE});
   $attr->{FIXED_FEES_DAY}       = 0 if (!$attr->{FIXED_FEES_DAY});
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM    => 'TP_ID',
       TABLE           => 'tarif_plans',
@@ -522,7 +529,7 @@ sub del {
                                            module => $attr->{MODULE} 
                                           });
 
-  $admin->system_action_add("TP:$id", { TYPE => 10 });
+  $self->{admin}->system_action_add("TP:$id", { TYPE => 10 });
 
   return $self;
 }
@@ -569,7 +576,7 @@ sub info {
     }
   }
 
-  $self->query2("SELECT *,
+  $self->query("SELECT *,
       postpaid_daily_fee AS postpaid_day_fee, 
       postpaid_monthly_fee AS postpaid_month_fee, 
       logins AS SIMULTANEOUSLY, 
@@ -589,6 +596,10 @@ sub info {
 
 #**********************************************************
 =head2 list($attr) - TP list
+
+  Arguments:
+    $attr
+      NEW_MODEL_TP - Short base field input
 
 =cut
 #**********************************************************
@@ -615,67 +626,73 @@ sub list {
     push @WHERE_RULES, $sql if($sql);
   }
 
-  my $WHERE =  $self->search_former($attr, [
-        [ 'TP_ID',               'INT', 'tp.id',                  ],
-        [ 'NAME',                'STR', 'tp.name',                ],
-        [ 'TIME_TARIFS',         'INT', '', "if(sum(i.tarif) is NULL or sum(i.tarif)=0, 0, 1) AS time_tarifs" ], 
-        [ 'TRAF_TARIFS',         'INT', '', "if(sum(tt.in_price + tt.out_price)> 0, 1, 0) AS traf_tarifs"     ], 
-        [ 'TP_GID',              'INT', 'tp.gid AS tp_gid',            1 ],
-        [ 'TP_GROUP_NAME',       'STR', 'tp_g.name', 'tp_g.name AS tp_group_name'],
-        [ 'UPLIMIT',             'INT', 'tp.uplimit',                  1 ],
-        [ 'LOGINS',              'INT', 'tp.logins',                   1 ],
-        [ 'DAY_FEE',             'INT', 'tp.day_fee',                  1 ],
-        [ 'ACTIVE_DAY_FEE',      'INT', 'tp.active_day_fee',           1 ],
-        [ 'POSTPAID_DAY_FEE',    'INT', 'tp.postpaid_daily_fee',       1 ],
-        [ 'MONTH_FEE',           'INT', 'tp.month_fee',                1 ],
-        [ 'POSTPAID_MONTH_FEE',  'INT', 'tp.postpaid_monthly_fee',     1 ],
-        [ 'PERIOD_ALIGNMENT',    'INT', 'tp.period_alignment',         1 ],
-        [ 'ABON_DISTRIBUTION',   'INT', 'tp.abon_distribution',        1 ],
-        [ 'FIXED_FEES_DAY',      'INT', 'tp.fixed_fees_day',           1 ],
-        [ 'SMALL_DEPOSIT_ACTION','INT', 'tp.small_deposit_action',     1 ],
-        [ 'REDUCTION_FEE',       'INT', 'tp.reduction_fee',            1 ],
-        [ 'FEES_METHOD',         'INT', 'tp.fees_method',              1 ],
-        [ 'DAY_TIME_LIMIT',      'INT', 'tp.day_time_limit',           1 ],
-        [ 'WEEK_TIME_LIMIT',     'INT', 'tp.week_time_limit',          1 ],
-        [ 'MONTH_TIME_LIMIT',    'INT', 'tp.month_time_limit',         1 ],
-        [ 'TOTAL_TIME_LIMIT',    'INT', 'tp.total_time_limit',         1 ],
-        [ 'DAY_TRAF_LIMIT',      'INT', 'tp.day_traf_limit',           1 ],
-        [ 'WEEK_TRAF_LIMIT',     'INT', 'tp.week_traf_limit',          1 ],
-        [ 'MONTH_TRAF_LIMIT',    'INT', 'tp.month_traf_limit',         1 ],
-        [ 'TOTAL_TRAF_LIMIT',    'INT', 'tp.total_traf_limit',         1 ],
-        [ 'OCTETS_DIRECTION',    'INT', 'tp.octets_direction',         1 ],
-        [ 'ACTIV_PRICE',         'INT', 'tp.activate_price',           1 ],
-        [ 'CHANGE_PRICE',        'INT', 'tp.change_price',             1 ],
-        [ 'CREDIT_TRESSHOLD',    'INT', 'tp.credit_tresshold',         1 ],
-        [ 'CREDIT',              'STR', 'tp.credit',                   1 ],
-        [ 'USER_CREDIT_LIMIT',   'STR', 'tp.user_credit_limit',        1 ],
-        [ 'MAX_SESSION_DURATION','INT', 'tp.max_session_duration',     1 ],
-        [ 'FILTER_ID',           'STR', 'tp.filter_id',                1 ],
-        [ 'AGE',                 'INT', 'tp.age',                      1 ],
-        [ 'PAYMENT_TYPE',        'INT', 'tp.payment_type',             1 ],
-        [ 'MIN_SESSION_COST',    'STR', 'min_session_cost',            1 ],
-        [ 'MIN_USE',             'INT', 'tp.min_use',                  1 ],
-        [ 'TRAFFIC_TRANSFER_PERIOD','INT','traffic_transfer_period',   1 ],
-        [ 'NEG_DEPOSIT_FILTER_ID','STR',  'tp.neg_deposit_filter_id',  1 ],
-        [ 'NEG_DEPOSIT_IPPOOL',  'STR', 'tp.neg_deposit_ippool',       1 ],
-        [ 'PRIORITY',            'INT', 'tp.priority',                 1 ],
-        [ 'FINE',                'INT', 'tp.fine',                     1 ],
-        [ 'NEXT_TARIF_PLAN',     'INT', 'tp.next_tp_id',               1 ],
-        [ 'RAD_PAIRS',           'STR', 'tp.rad_pairs',                1 ],
-        [ 'COMMENTS',            'STR', 'tp.comments',                 1 ],
-        [ 'DOMAIN_ID',           'INT', 'tp.domain_id',                1 ],
-        [ 'EXT_BILL_ACCOUNT',    'INT', 'tp.ext_bill_account',         1 ],
-        [ 'INNER_TP_ID',         'INT', 'tp.tp_id',                    1 ],
-        [ 'MODULE',              'STR', 'tp.module',                   1 ],
-        [ 'IN_SPEED',            'INT', 'tt.in_speed',                 1 ],
-        [ 'OUT_SPEED',           'INT', 'tt.out_speed',                1 ],
-        [ 'PREPAID',             'INT', 'tt.prepaid',                  1 ],
-        [ 'IN_PRICE',            'INT', 'tt.in_price',                 1 ],
-        [ 'OUT_PRICE',           'INT', 'tt.out_price',                1 ],
-        [ 'SERVICE_ID',          'INT', 'tp.service_id',               1 ],
-        [ 'SERVICE_NAME',        'INT', 'tp.service_id', 'tp.service_id AS service_name' ],
-        [ 'INTERVALS',           'INT', 'ti.id',   'COUNT(i.id) AS intervals' ],
-    ],
+  my $search_columns = [
+    [ 'TP_ID',               'INT', 'tp.id',                         ],
+    [ 'NAME',                'STR', 'tp.name',                       ],
+    [ 'TIME_TARIFS',         'INT', '', "IF(SUM(i.tarif) is NULL or sum(i.tarif)=0, 0, 1) AS time_tarifs" ],
+    [ 'TRAF_TARIFS',         'INT', '', "IF(SUM(tt.in_price + tt.out_price)> 0, 1, 0) AS traf_tarifs"     ],
+    [ 'TP_GID',              'INT', 'tp.gid AS tp_gid',            1 ],
+    [ 'TP_GROUP_NAME',       'STR', 'tp_g.name', 'tp_g.name AS tp_group_name'],
+    [ 'UPLIMIT',             'INT', 'tp.uplimit',                  1 ],
+    [ 'LOGINS',              'INT', 'tp.logins',                   1 ],
+    [ 'DAY_FEE',             'INT', 'tp.day_fee',                  1 ],
+    [ 'ACTIVE_DAY_FEE',      'INT', 'tp.active_day_fee',           1 ],
+    [ 'POSTPAID_DAY_FEE',    'INT', 'tp.postpaid_daily_fee',       1 ],
+    [ 'MONTH_FEE',           'INT', 'tp.month_fee',                1 ],
+    [ 'POSTPAID_MONTH_FEE',  'INT', 'tp.postpaid_monthly_fee',     1 ],
+    [ 'PERIOD_ALIGNMENT',    'INT', 'tp.period_alignment',         1 ],
+    [ 'ABON_DISTRIBUTION',   'INT', 'tp.abon_distribution',        1 ],
+    [ 'FIXED_FEES_DAY',      'INT', 'tp.fixed_fees_day',           1 ],
+    [ 'SMALL_DEPOSIT_ACTION','INT', 'tp.small_deposit_action',     1 ],
+    [ 'REDUCTION_FEE',       'INT', 'tp.reduction_fee',            1 ],
+    [ 'FEES_METHOD',         'INT', 'tp.fees_method',              1 ],
+    [ 'DAY_TIME_LIMIT',      'INT', 'tp.day_time_limit',           1 ],
+    [ 'WEEK_TIME_LIMIT',     'INT', 'tp.week_time_limit',          1 ],
+    [ 'MONTH_TIME_LIMIT',    'INT', 'tp.month_time_limit',         1 ],
+    [ 'TOTAL_TIME_LIMIT',    'INT', 'tp.total_time_limit',         1 ],
+    [ 'DAY_TRAF_LIMIT',      'INT', 'tp.day_traf_limit',           1 ],
+    [ 'WEEK_TRAF_LIMIT',     'INT', 'tp.week_traf_limit',          1 ],
+    [ 'MONTH_TRAF_LIMIT',    'INT', 'tp.month_traf_limit',         1 ],
+    [ 'TOTAL_TRAF_LIMIT',    'INT', 'tp.total_traf_limit',         1 ],
+    [ 'OCTETS_DIRECTION',    'INT', 'tp.octets_direction',         1 ],
+    [ 'ACTIV_PRICE',         'INT', 'tp.activate_price',           1 ],
+    [ 'CHANGE_PRICE',        'INT', 'tp.change_price',             1 ],
+    [ 'CREDIT_TRESSHOLD',    'INT', 'tp.credit_tresshold',         1 ],
+    [ 'CREDIT',              'STR', 'tp.credit',                   1 ],
+    [ 'USER_CREDIT_LIMIT',   'STR', 'tp.user_credit_limit',        1 ],
+    [ 'MAX_SESSION_DURATION','INT', 'tp.max_session_duration',     1 ],
+    [ 'FILTER_ID',           'STR', 'tp.filter_id',                1 ],
+    [ 'AGE',                 'INT', 'tp.age',                      1 ],
+    [ 'PAYMENT_TYPE',        'INT', 'tp.payment_type',             1 ],
+    [ 'MIN_SESSION_COST',    'STR', 'min_session_cost',            1 ],
+    [ 'MIN_USE',             'INT', 'tp.min_use',                  1 ],
+    [ 'TRAFFIC_TRANSFER_PERIOD','INT','traffic_transfer_period',   1 ],
+    [ 'NEG_DEPOSIT_FILTER_ID','STR',  'tp.neg_deposit_filter_id',  1 ],
+    [ 'NEG_DEPOSIT_IPPOOL',  'STR', 'tp.neg_deposit_ippool',       1 ],
+    [ 'PRIORITY',            'INT', 'tp.priority',                 1 ],
+    [ 'FINE',                'INT', 'tp.fine',                     1 ],
+    [ 'NEXT_TARIF_PLAN',     'INT', 'tp.next_tp_id',               1 ],
+    [ 'RAD_PAIRS',           'STR', 'tp.rad_pairs',                1 ],
+    [ 'COMMENTS',            'STR', 'tp.comments',                 1 ],
+    [ 'DOMAIN_ID',           'INT', 'tp.domain_id',                1 ],
+    [ 'EXT_BILL_ACCOUNT',    'INT', 'tp.ext_bill_account',         1 ],
+    [ 'INNER_TP_ID',         'INT', 'tp.tp_id',                    1 ],
+    [ 'MODULE',              'STR', 'tp.module',                   1 ],
+    [ 'IN_SPEED',            'INT', 'tt.in_speed',                 1 ],
+    [ 'OUT_SPEED',           'INT', 'tt.out_speed',                1 ],
+    [ 'PREPAID',             'INT', 'tt.prepaid',                  1 ],
+    [ 'IN_PRICE',            'INT', 'tt.in_price',                 1 ],
+    [ 'OUT_PRICE',           'INT', 'tt.out_price',                1 ],
+    [ 'SERVICE_ID',          'INT', 'tp.service_id',               1 ],
+    [ 'SERVICE_NAME',        'INT', 'tp.service_id', 'tp.service_id AS service_name' ],
+    [ 'INTERVALS',           'INT', 'ti.id',   'COUNT(i.id) AS intervals' ],
+  ];
+
+  if ($attr->{SHOW_ALL_COLUMNS}){
+    map { $attr->{$_->[0]} = '_SHOW' unless exists $attr->{$_->[0]} } @$search_columns;
+  }
+
+  my $WHERE =  $self->search_former($attr, $search_columns,
     { WHERE => 1,
     	WHERE_RULES => \@WHERE_RULES
     }
@@ -702,7 +719,7 @@ sub list {
     ";
   }
 
-  $self->query2("SELECT tp.id, 
+  $self->query("SELECT tp.id,
     tp.name, 
     $fields
     $self->{SEARCH_FIELDS}
@@ -736,11 +753,11 @@ sub nas_list {
   my ($attr) = @_;
 
   if ($attr->{NAS_ID}) {
-    $self->query2("SELECT tp_id FROM tp_nas WHERE nas_id= ? ;",
+    $self->query("SELECT tp_id FROM tp_nas WHERE nas_id= ? ;",
     undef, { Bind => [ $self->{NAS_ID} ] });
   }
   else {
-    $self->query2("SELECT nas_id FROM tp_nas WHERE tp_id= ? ;",
+    $self->query("SELECT nas_id FROM tp_nas WHERE tp_id= ? ;",
       undef, { Bind => [ $self->{TP_ID} ] });
   }
 
@@ -764,12 +781,12 @@ sub nas_add {
      ];
   }
 
-  $self->query2("INSERT INTO tp_nas (nas_id, tp_id)
+  $self->query("INSERT INTO tp_nas (nas_id, tp_id)
         VALUES (?, ?);", undef,
     { MULTI_QUERY => \@MULTI_QUERY }
     );
 
-  $admin->system_action_add("TP_NAS:$self->{TP_ID} NAS:" . (join(',', @$nas)), { TYPE => 1 });
+  $self->{admin}->system_action_add("TP_NAS:$self->{TP_ID} NAS:" . (join(',', @$nas)), { TYPE => 1 });
   return $self;
 }
 
@@ -817,7 +834,7 @@ sub tt_list {
   if (defined($attr->{TI_ID})) {
     my $show_nets = ($attr->{SHOW_NETS}) ? ', tc.nets' : '';
 
-    $self->query2("SELECT tt.id, in_price, out_price, prepaid, in_speed, 
+    $self->query("SELECT tt.id, in_price, out_price, prepaid, in_speed,
       out_speed, descr, tc.name, expression, tt.net_id $show_nets
      FROM trafic_tarifs  tt 
      LEFT JOIN  traffic_classes tc ON (tc.id=tt.net_id)
@@ -828,7 +845,7 @@ sub tt_list {
     );
   }
   else {
-    $self->query2("SELECT id, in_price, out_price, prepaid, in_speed, out_speed, descr, net_id, expression
+    $self->query("SELECT id, in_price, out_price, prepaid, in_speed, out_speed, descr, net_id, expression
      FROM trafic_tarifs tt
      WHERE tp_id='$self->{TP_ID}'
      ORDER BY tt.id;",
@@ -849,7 +866,7 @@ sub tt_info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("SELECT *
+  $self->query("SELECT *
      FROM trafic_tarifs 
      WHERE 
        interval_id= ? AND id= ? ;",
@@ -877,7 +894,7 @@ sub tt_add {
 
   $self->query_add('trafic_tarifs', $attr);
 
-  $admin->system_action_add("TT:$self->{INSERT_ID} TI:$attr->{TI_ID}", { TYPE => 1 });
+  $self->{admin}->system_action_add("TT:$self->{INSERT_ID} TI:$attr->{TI_ID}", { TYPE => 1 });
 
   return $self;
 }
@@ -894,7 +911,7 @@ sub tt_change {
   $attr->{ID}=$attr->{TT_ID};
   $attr->{INTERVAL_ID}=$attr->{tt};
 
-  $self->changes2({
+  $self->changes({
     CHANGE_PARAM => 'INTERVAL_ID,ID',
     TABLE        => 'trafic_tarifs',
     DATA         => $attr
@@ -951,7 +968,7 @@ sub tt_del {
                                              id         => $attr->{TT_ID} 
                                             });
 
-  $admin->system_action_add("TT:$attr->{TT_ID} TI:$attr->{TI_ID}", { TYPE => 10 });
+  $self->{admin}->system_action_add("TT:$attr->{TT_ID} TI:$attr->{TI_ID}", { TYPE => 10 });
 
   return $self;
 }
@@ -973,7 +990,9 @@ sub create_tt_file {
 }
 
 #**********************************************************
-# holidays_list
+=head2 holidays_list($attr)
+
+=cut
 #**********************************************************
 sub holidays_list {
   my $self = shift;
@@ -984,7 +1003,7 @@ sub holidays_list {
   my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  $self->query2(
+  $self->query(
     "SELECT * FROM holidays
     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     undef,
@@ -995,7 +1014,7 @@ sub holidays_list {
 
   return $self->{list} if ($self->{TOTAL} < 1);
 
-  $self->query2(
+  $self->query(
     "SELECT count(*) AS total 
    FROM holidays",
     undef,
@@ -1012,7 +1031,7 @@ sub holidays_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'DAY',
       TABLE        => 'holidays',
@@ -1031,7 +1050,7 @@ sub holidays_info {
   my ($attr) = @_;
 
   if ($attr->{DAY}) {
-    $self->query2(
+    $self->query(
       "SELECT * FROM holidays
       WHERE day = ?;", undef, { INFO => 1, Bind => [ $attr->{DAY} ] }
     );
@@ -1052,10 +1071,10 @@ sub holidays_add {
   #$attr->{MONTH} = (defined($attr->{MONTH})) ? $attr->{MONTH} : 1;
   #$attr->{DAY}   = (defined($attr->{DAY}))   ? $attr->{DAY}   : 1;
   #$attr->{DESCR} = (defined($attr->{DESCR}))   ? $attr->{DESCR}   : '';
-  #$self->query2("INSERT INTO holidays (day)
+  #$self->query("INSERT INTO holidays (day)
   #     VALUES ('$attr->{MONTH}-$attr->{DAY});", 'do'
   #);
-  #$self->query2("INSERT INTO holidays (descr)
+  #$self->query("INSERT INTO holidays (descr)
   #     VALUES ('$attr->{DESCR});", 'do'
   #);
 #
@@ -1066,7 +1085,7 @@ sub holidays_add {
   my ($attr) = @_;
 
   $self->query_add('holidays', $attr);
-  $admin->system_action_add("HOLIDAYS:$self->{INSERT_ID} $attr->{MONTH}-$attr->{DAY}", { TYPE => 1 });
+  $self->{admin}->system_action_add("HOLIDAYS:$self->{INSERT_ID} $attr->{MONTH}-$attr->{DAY}", { TYPE => 1 });
 
   return $self;
 }
@@ -1082,7 +1101,7 @@ sub holidays_del {
 
   $self->query_del('holidays', undef, { day => $id });
 
-  $admin->system_action_add("HOLIDAYS:$id", { TYPE => 10 });
+  $self->{admin}->system_action_add("HOLIDAYS:$id", { TYPE => 10 });
   return $self;
 }
 
@@ -1097,7 +1116,7 @@ sub traffic_class_add {
 
   return [ ] if ($self->{errno});
 
-  $admin->system_action_add("TRAFFIC_CLASS: $attr->{NAME}", { TYPE => 1 });
+  $self->{admin}->system_action_add("TRAFFIC_CLASS: $attr->{NAME}", { TYPE => 1 });
   return $self;
 }
 
@@ -1110,7 +1129,7 @@ sub traffic_class_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'traffic_classes',
@@ -1133,7 +1152,7 @@ sub traffic_class_del {
 
   $self->query_del('traffic_classes', $attr);
 
-  $admin->action_add($self->{UID}, $self->{UID}, { TYPE => 10 });
+  $self->{admin}->action_add($self->{UID}, $self->{UID}, { TYPE => 10 });
   return $self->{result};
 }
 
@@ -1154,7 +1173,7 @@ sub traffic_class_list {
     }
   );
 
-  $self->query2("SELECT id, name, nets, comments, changed
+  $self->query("SELECT id, name, nets, comments, changed
      FROM traffic_classes
      $WHERE;",
      undef,
@@ -1175,7 +1194,7 @@ sub traffic_class_info {
   my $self = shift;
   my ($id) = @_;
 
-  $self->query2("SELECT *
+  $self->query("SELECT *
      FROM traffic_classes
    WHERE id=?;",
    undef,

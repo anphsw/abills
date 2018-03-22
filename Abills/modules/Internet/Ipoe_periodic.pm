@@ -40,6 +40,8 @@ my $Nas           = Nas->new( $db, \%conf, $admin );
       GID
       IP
       NAS_TYPES
+      LOCAL_NAS
+      NAS_IDS
 
   Skip session restart
       INTERNET_SKIP_SESSION_RESTART  - Skip restarting
@@ -55,11 +57,13 @@ sub ipoe_periodic_session_restart{
   my $debug = $attr->{DEBUG} || 0;
   my $debug_output = '';
 
+  $DEBUG .= $debug_output . "Internet: IPoE sessions restart\n";
+
   my $d = (split( /-/, $ADMIN_REPORT{DATE}, 3 ))[2];
   if ( !$attr->{SRESTART} ){
     #Restart only 1
 
-    if ( $conf{INTERNET_SKIP_SESSION_RESTART} || $conf{INTERNET_SKIP_SESSION_RESTART} ){
+    if ( $conf{INTERNET_SKIP_SESSION_RESTART} ){
       $DEBUG .= $debug_output . "  INTERNET_SKIP_SESSION_RESTART\n";
       return $debug_output;
     }
@@ -130,9 +134,9 @@ sub ipoe_periodic_session_restart{
     return $debug_output;
   }
 
-  require Auth;
-  Auth->import();
-  my $Auth = Auth->new( $db, \%conf );
+  require Auth2;
+  Auth2->import();
+  my $Auth = Auth2->new( $db, \%conf );
   $Sessions->{debug} = 1 if ($debug > 6);
   my $list = $Sessions->online(
     {
@@ -155,13 +159,20 @@ sub ipoe_periodic_session_restart{
   my %activated_ips = ();
   foreach my $online ( @{$list} ){
     $FORM{SESSION_ID} = $online->{acct_session_id};
-    $debug_output .= "LOGIN: $online->{user_name} IP: $online->{client_ip} NAS_ID: $online->{nas_id} NAS_IP: $online->{nas_ip} CONNECT_INFO: $online->{CONNECT_INFO} UID: $online->{uid} FILTER_ID: $online->{filter_id}\n" if ($debug > 3);
+    my $connect_info = $online->{connect_info} || q{};
+    my $filter_id = $online->{filter_id} || q{};
+    if ($debug > 3) {
+      $debug_output .= "LOGIN: $online->{user_name} IP: $online->{client_ip} NAS_ID: $online->{nas_id} NAS_IP: $online->{nas_ip} "
+        . "CONNECT_INFO: $connect_info UID: $online->{uid} FILTER_ID: $filter_id\n"
+      ;
+    }
+
     my $nas_id = $online->{nas_id};
     my $nas_id_switch = 0;
     #Connect info with switch id
-    if ( $online->{CONNECT_INFO} && $online->{CONNECT_INFO} =~ /^\d+$/ ){
+    if ( $connect_info =~ /^\d+$/ ){
       $nas_id_switch = $nas_id;
-      $nas_id = $online->{CONNECT_INFO};
+      $nas_id = $online->{connect_info};
     }
 
     #Hangup and activate
@@ -175,17 +186,17 @@ sub ipoe_periodic_session_restart{
         ACCT_TERMINATE_CAUSE => 7,
         UID                  => $online->{uid},
         CALLING_STATION_ID   => $online->{CID},
-        FILTER_ID            => $online->{filter_id} || '',
+        FILTER_ID            => $filter_id,
         QUICK                => 1,
         DEBUG                => $debug,
         NAS_PORT             => $online->{nas_port_id} || 0,
         NAS_ID_SWITCH        => $nas_id_switch || 0,
         NAS_ID               => $nas_id || 0,
-        NAS_IP_ADDRESS       => $nas_info{$nas_id}{NAS_IP},
+        NAS_IP_ADDRESS       => (! $attr->{LOCAL_NAS}) ? $nas_info{$nas_id}{NAS_IP} : q{},
         NAS_TYPE             => $nas_info{$nas_id}{NAS_TYPE},
         NAS_MNG_USER         => $nas_info{$nas_id}{NAS_MNG_USER},
-        NAS_MNG_IP_PORT      => $nas_info{$nas_id}{NAS_MNG_IP_PORT},
-        CONNECT_INFO         => $online->{CONNECT_INFO} || ''
+        NAS_MNG_IP_PORT      => (! $attr->{LOCAL_NAS}) ? $nas_info{$nas_id}{NAS_MNG_IP_PORT} : q{},
+        CONNECT_INFO         => $connect_info
       }
     );
 
@@ -196,9 +207,7 @@ sub ipoe_periodic_session_restart{
       next;
     }
     elsif ( int( $nas_id ) < 1 ){
-      #Fixme
-      `echo "IP: $online->{client_ip} (CONNECT_INFO: $online->{CONNECT_INFO}) Unknown NAS // $online->{nas_id}" >> /tmp/ipn_`;
-      $debug_output .= "IP: $online->{client_ip} (CONNECT_INFO: $online->{CONNECT_INFO}) Unknown NAS\n";
+      $debug_output .= "IP: $online->{client_ip} (CONNECT_INFO: $connect_info) UNKNOWN_NAS\n";
     }
     else{
       $Internet->info( $online->{uid} );
@@ -218,24 +227,24 @@ sub ipoe_periodic_session_restart{
         NAS_IP_ADDRESS       => $nas_info{$nas_id}{NAS_IP},
         'NAS-IP-Address'     => $nas_info{$nas_id}{NAS_IP},
         NAS_MNG_USER         => $nas_info{$nas_id}{NAS_MNG_USER},
-        NAS_MNG_IP_PORT      => $nas_info{$nas_id}{NAS_MNG_IP_PORT},
+        NAS_MNG_IP_PORT      => (! $attr->{LOCAL_NAS}) ? $nas_info{$nas_id}{NAS_MNG_IP_PORT} : q{},
         TP_ID                => $Internet->{TP_ID},
         CALLING_STATION_ID   => $online->{CID} || $online->{client_ip},
         'Calling-Station-Id' => $online->{CID} || $online->{client_ip},
-        CONNECT_INFO         => $online->{CONNECT_INFO} || 0,
+        CONNECT_INFO         => $connect_info,
         UID                  => $online->{uid},
         QUICK                => 1,
         NAS_PORT             => $online->{nas_port_id} || 0,
         'Nas-Port'           => $online->{nas_port_id} || 0,
         HINT                 => 'NOPASS',
         DEBUG                => $debug,
-        FILTER_ID            => $online->{filter_id} || '',
+        FILTER_ID            => $filter_id,
       );
 
       $Auth->{UID} = $online->{uid};
       $Auth->{IPOE_IP} = $online->{client_ip};
 
-      my ($r, $RAD_PAIRS) = $Auth->dv_auth( \%DATA, $nas_info{$nas_id}, { SECRETKEY => $conf{secretkey} } );
+      my ($r, $RAD_PAIRS) = $Auth->internet_auth( \%DATA, $nas_info{$nas_id}, { SECRETKEY => $conf{secretkey} } );
 
       if ( $r == 1 ){
         $debug_output .= "Hangup: LOGIN: $online->{user_name} $RAD_PAIRS->{'Reply-Message'}\n";
@@ -294,16 +303,17 @@ sub ipoe_start_active{
 
   #Get online
   my $Internet = Internet->new( $db, $admin, \%conf );
-  $Nas->{debug} = 1 if ($debug > 6);
+  if ($debug > 6) {
+    $Nas->{debug} = 1;
+    $Tariffs->{debug}=1;
+  }
 
-  my $nas_list = $Nas->list(
-    {
-      NAS_IDS    => $attr->{LOCAL_NAS} || $attr->{NAS_IDS},
-      PAGE_ROWS  => 100000,
-      COLS_NAME  => 1,
-      COLS_UPPER => 1
-    }
-  );
+  my $nas_list = $Nas->list({
+    NAS_IDS    => $attr->{LOCAL_NAS} || $attr->{NAS_IDS},
+    PAGE_ROWS  => 100000,
+    COLS_NAME  => 1,
+    COLS_UPPER => 1
+  });
 
   my %nas_info = ();
   foreach my $line ( @{$nas_list} ){
@@ -321,7 +331,7 @@ sub ipoe_start_active{
   }
 
   #Get puuls for nas
-  my $poll_list = $Nas->nas_ip_pools_list( { COLS_NAME => 1 } );
+  my $poll_list = $Nas->nas_ip_pools_list( { SHOW_ALL_COLUMNS => 1, COLS_NAME => 1 } );
   my %nas_pools_hash = ();
 
   # Get valid NAS
@@ -340,7 +350,7 @@ sub ipoe_start_active{
   } );
 
   foreach my $line ( @{$tp_list} ){
-    $TPS{ $line->{id} } = $line->{payment_type} if ($line->{payment_type});
+    $TPS{ $line->{tp_id} } = $line->{payment_type} if ($line->{payment_type});
   }
 
   if ( $attr->{LOGIN} ){
@@ -353,13 +363,11 @@ sub ipoe_start_active{
     $LIST_PARAMS{GID} = $attr->{GID};
   }
 
-  my $online_list = $Sessions->online(
-    {
-      NAS_ID    => join( ';', @nas_ids_arr ),
-      CLIENT_IP => '_SHOW',
-      COLS_NAME => 1
-    }
-  );
+  my $online_list = $Sessions->online({
+    NAS_ID    => join( ';', @nas_ids_arr ),
+    CLIENT_IP => '_SHOW',
+    COLS_NAME => 1
+  });
 
   my $count = 0;
   my %online_uids = ();
@@ -370,8 +378,6 @@ sub ipoe_start_active{
       $online_ips{ $online->{client_ip} } = 1;
     }
   }
-
-
 #  my %DHCP_IPS = ();
 #
 #  $Dhcphosts->{debug} = 1 if ($debug > 5);;
@@ -395,38 +401,39 @@ sub ipoe_start_active{
   $Internet->{debug} = 1 if ($debug > 5);
   my $internet_list = $Internet->list(
     {
-      ACTIVATE      => "<=$DATE",
-      EXPIRE        => "0000-00-00,>$DATE",
-      IP            => '>0.0.0.0',
-      NETMASK       => '_SHOW',
-      DV_STATUS     => 0,
-      LOGIN_STATUS  => 0,
-      ALL_FILTER_ID => '_SHOW',
-      PORT          => '_SHOW',
-      TP_CREDIT     => '_SHOW',
-      CREDIT        => '_SHOW',
-      DEPOSIT       => '_SHOW',
-      LOGIN         => '_SHOW',
-      IPN_ACTIVATE  => 1,
+      INTERNET_ACTIVATE=> "<=$DATE",
+      INTERNET_EXPIRE=> "0000-00-00,>$DATE",
+      IP             => '>0.0.0.0',
+      NETMASK        => '_SHOW',
+      INTERNET_STATUS=> 0,
+      LOGIN_STATUS   => 0,
+      ALL_FILTER_ID  => '_SHOW',
+      PORT           => '_SHOW',
+      TP_CREDIT      => '_SHOW',
+      CREDIT         => '_SHOW',
+      DEPOSIT        => '_SHOW',
+      LOGIN          => '_SHOW',
+      IPN_ACTIVATE   => 1,
       %LIST_PARAMS,
-      COLS_NAME     => 1,
-      PAGE_ROWS     => 1000000,
+      GROUP_BY       => 'internet.id',
+      COLS_NAME      => 1,
+      PAGE_ROWS      => 1000000,
     }
   );
 
-  foreach my $dv_user ( @{$internet_list} ){
-    my $filter_id    = $dv_user->{filter_id} || '';
-    my $login        = $dv_user->{login};
-    my $ip           = $dv_user->{ip} || int2ip($dv_user->{ip_num});
-    my $netmask      = $dv_user->{netmask};
+  foreach my $internet ( @{$internet_list} ){
+    my $filter_id    = $internet->{filter_id} || '';
+    my $login        = $internet->{login};
+    my $ip           = $internet->{ip} || int2ip($internet->{ip_num});
+    my $netmask      = $internet->{netmask};
     my $connect_info = '';
-    my $uid          = $dv_user->{uid};
+    my $uid          = $internet->{uid};
     my $nas_id       = 0;
     my $nas_id_switch= 0;
-    my $tp_id        = $dv_user->{tp_id};
-    my $port         = $dv_user->{port};
-    my $deposit      = $dv_user->{deposit};
-    my $credit       = ($dv_user->{credit} && $dv_user->{credit} > 0) ? $dv_user->{credit} : ($dv_user->{tp_credit} || 0);
+    my $tp_id        = $internet->{tp_id};
+    my $port         = $internet->{port};
+    my $deposit      = $internet->{deposit};
+    my $credit       = ($internet->{credit} && $internet->{credit} > 0) ? $internet->{credit} : ($internet->{tp_credit} || 0);
 
     #DHCP_IP_ASSIGN:
     #if ( $conf{IPN_DHCP_ACTIVE} && $#{ $DHCP_IPS{$uid} } > -1 ){
@@ -446,10 +453,18 @@ sub ipoe_start_active{
       print "Error: Can't finde bills  UID: '$uid'\n";
       next;
     }
-    elsif ( sprintf( "%.2f", $deposit + $credit ) <= 0 && !$TPS{$tp_id} ){
-      print "$login Small deposit or TP '$tp_id' not defined\n" if ($debug > 3);
+    elsif ( ! $tp_id ){
+      print "Error: TP_NOT_DEFINED TP_ID: $tp_id UID: '$uid'\n";
       next;
     }
+    elsif ( sprintf( "%.2f", $deposit + $credit ) <= 0 && ! $TPS{$tp_id}) {
+      print "$login SMALL_DEPOSIT DEPOSIT: $deposit CREDIT: $credit\n" if ($debug > 3);
+      next;
+    }
+#    elsif ( !$TPS{$tp_id} ){
+#      print "TP_NOT_DEFINED '$tp_id'\n" if ($debug > 3);
+#      next;
+#    }
 
     $debug_output .= "LOGIN: $login IP: $ip NAS_ID: $nas_id CONNECT_INFO: $connect_info UID: $uid FILTER_ID: $filter_id\n" if ($debug > 3);
 
@@ -501,7 +516,8 @@ sub ipoe_start_active{
         NAS_PORT           => $port,
         HINT               => 'NOPASS',
         DEBUG              => $debug,
-        FILTER_ID          => $filter_id
+        FILTER_ID          => $filter_id,
+        SERVICE_ID         => $internet->{id},
       );
 
       $Internet_ipoe->user_status( \%DATA );

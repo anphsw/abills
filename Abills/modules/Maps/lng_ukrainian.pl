@@ -1,7 +1,6 @@
 ﻿$lang{MAPS} = 'Мапа мережі';
 $lang{ANGLE} = 'Кут';
 $lang{CLEAR} = 'Очистити';
-$lang{STREET} = 'Вулиця';
 $lang{HOUSE_NUM} = 'Номер будинку';
 $lang{BUILD} = 'Будинок';
 $lang{FLAT} = 'кв.';
@@ -24,7 +23,6 @@ $lang{FIBER_OPTIC} = 'Опто-волоконний';
 $lang{HIDE_DISTRICTS} = 'Заховати меню райони';
 $lang{SHOW_DISTRICTS} = 'Показати меню райони';
 $lang{IN_NEW_WINDOW} = 'В новому вікні';
-$lang{DISTRICT} = 'Район';
 $lang{LINE} = 'Лінія';
 $lang{DELETE_MARKER} = 'Видалити маркер';
 $lang{ADD_WIFI_ZONE} = 'Додати Wi-Fi зону';

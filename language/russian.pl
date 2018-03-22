@@ -356,6 +356,7 @@ $lang{TRAFIC_TARIFS} = 'Тарифы трафика';
 $lang{IP_IN_USE} = 'IP адрес занят другим пользователем';
 $lang{SERVICES} = 'Сервисы';
 $lang{STREETS} = 'Улицы';
+$lang{STREET} = 'Улица';
 $lang{DETAIL} = 'Детализация';
 $lang{MISC} = 'Другое';
 $lang{UNDELETE} = 'Восстановить';
@@ -399,7 +400,7 @@ $lang{SUPPLIERS} = 'Поставщики';
 $lang{PREVIEW} = ' Предпросмотр';
 $lang{MONEY_TRANSFER} = 'Перевод личных средств';
 $lang{ERR_NAME_TOOLONG} = 'Логин пользователя длиннее допустимого';
-$lang{DUNES} = 'Коды коммутированного подключения';
+$lang{DUNES} = 'Коды PPP';
 $lang{ACCOUNT_EXIST} = 'Счет уже существует';
 $lang{TAX_NUMBER} = 'ИНН';
 $lang{ERR_ACCEPT_RULES} = 'Регистрация возможна только после согласия с правилами ';
@@ -514,6 +515,7 @@ $lang{HELP} = 'Помощь';
 $lang{SYSTEM} = 'Система';
 $lang{FINISH} = 'Завершить';
 $lang{TEMPLATES} = 'Шаблоны';
+$lang{TEMPLATE} = 'шаблон';
 $lang{DONT_CREATE_INVOICE} = 'Не создавать счет';
 $lang{LAST_LOGIN} = 'Последнее подключение';
 $lang{EQUIPMENT} = 'Оборудование';
@@ -631,6 +633,7 @@ $lang{SOCIAL} = 'Социальный';
 
 $lang{YOUR_FEEDBACK}='Ваш отзыв';
 $lang{NO_DATA} = 'В этой категории пока нет данных';
+$lang{ERR_NO_DATA} = 'Нет данных';
 $lang{CHOOSE} = 'Выбрать';
 $lang{UNLINK} = 'Отвязать';
 $lang{AVERAGE_RATING} = 'Средняя оценка';
@@ -689,7 +692,84 @@ $lang{TYPE_YOUR_RESPONSE} = 'Введите текст ответа';
 $lang{TEXT_NOT_FOUND} = 'Текст не найден';
 $lang{TRY_AGAIN} = 'Попробуйте снова';
 $lang{UNAVAILABLE} = 'Недоступен';
+$lang{AVAILABLE} = 'Доступен';
 
 $lang{CHECK_ACCESS} = 'Проверить доступ';
+
+$lang{YOUR_VERIFICATION_CODE} = 'Ваш код подтверждения';
+$lang{CODE} = 'Код';
+$lang{DO_AGAIN} = 'Повторите попытку';
+$lang{PHONE_VERIFICATION} = 'Подтверждения телефона';
+$lang{EMAIL_VERIFICATION} = 'Подтверждения почты';
+$lang{YOUR_PHONE_NUMBER} = 'Ваш номер телефона: ';
+$lang{YOUR_MAIL} = 'Ваша почта: ';
+
+$lang{OPEN_ALL} = 'Открыть все';
+$lang{CLOSE_ALL} = 'Закрыть все';
+$lang{ONLINE} = 'Онлайн';
+$lang{OFFLINE} = 'Офлайн';
+$lang{EMPTY} = 'Пустые';
+$lang{WITHOUT_FEES} = 'Без дополнительных списаний';
+$lang{DISTRICT} = 'Район';
+$lang{BLOCK}='Корпус';
+
+$lang{CURRENT_LANGUAGE} = 'Текущий язык';
+$lang{AVAILABLE_LANGUAGES} = 'Доступные языки';
+$lang{PLEASE_CHOOSE_YOUR_LANGUAGE} = 'Выберите свой язык';
+
+$lang{DATE_CONNECTION} = 'Дата подключения';
+$lang{NEVER} = 'Никогда';
+$lang{NETWORK_ACTIVITY} = 'Активность в сети';
+$lang{CONTACT_INFORMATION} = 'Адрес и контактная информация';
+$lang{CREATE_TASK} = 'Создать задачу ';
+$lang{HOUSE_SMALL} = 'д.';
+$lang{APRTAMENT_SMALL} = 'кв.';
+$lang{NO_DATAS} = 'н.д.';
+$lang{NOTES} = 'Заметки';
+$lang{ADDITIONAL_DATA} = 'Дополнительные данные';
+$lang{CONNECTION_POINT} = 'Точка подключения';
+$lang{TECHNICAL_DATA} = 'Технические данные';
+$lang{CONSIGNMENT_NOTE} = 'Накладная на передачу';
+$lang{DRESS_FOR_WORK} = 'Наряд на работу';
+$lang{INTRATRAFFIC} = 'Вх.трафик';
+$lang{EXIT_TRAFFIC} = 'Вих.трафик';
+$lang{GENERAL} = 'Общие';
+$lang{ACTIVITY} = 'Активность';
+$lang{ABON_ACTIVITY} = 'Активность абонента в сети';
+
+$lang{MONTHES} = 'Месяцы';
+$lang{MONTHES_A} = 'Месяца';
+$lang{MANUAL} = 'Вручную';
+$lang{PROCESS_RESTARTED_MESSAGE} = 'Процес был неактивен и перезапущен';
+$lang{VERSION}='Версия';
+
+$lang{FILE_MANAGER} = 'Редактор атачей';
+$lang{PLACEHOLDER} = 'Заполнитель';
+$lang{FUNCTION} = 'Функция';
+$lang{WRONG}='Неправильный';
+$lang{ADDITION} = 'Дополнения';
+
+$lang{FIO1}='Фамилия';
+$lang{FIO2}='Имя';
+$lang{FIO3}='Отчество';
+$lang{SIGN}='Подписать';
+$lang{SIGNATURE}='Подпись';
+$lang{SIGNED}='Подписано';
+$lang{STREET_SHORT}='ул.';
+$lang{CREATE_COMPANY}='Создать компанию';
+
+$lang{CLEAR_SETTINGS}='Очистить настройки';
+$lang{ENTRANCE}='Подъезд';
+$lang{FLOOR}='Этаж';
+
+$lang{INTERNAL_NETWORK} = 'Внутренняя сеть';
+$lang{BRUTEFORCE_PROTECTION} = 'Защита от подбора пароля';
+$lang{DNS_FLOOD_PROTECTION} = 'DNS игнорировать внешние запросы';
+$lang{SERVE_ONLY_LOCAL_REQUESTS} = 'Обслуживать только внутренню сеть';
+$lang{BLOCK_NEGATIVE} = 'Блокировать интернет для негативных сессий';
+$lang{REDIRECT_NEGATIVE} = 'Перенаправлять негативные сесии в ЛК';
+
+$lang{REG_ADDRESS} = 'Адрес регистрации';
+
 
 1

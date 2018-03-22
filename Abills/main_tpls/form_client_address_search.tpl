@@ -25,13 +25,12 @@
   </div>
 
   <div class='form-group'>
-    <label class='control-label col-xs-3 col-md-2'>_{ADDRESS_BUILD}_</label>
+    <label class='control-label col-xs-3 col-md-2 LABEL-BUILD'>_{ADDRESS_BUILD}_</label>
     <div class='col-xs-9 col-md-4 addBuildMenu'>
 
       <div class='input-group'>
-        <select data-download-on-click='1' name='ADDRESS_BUILD' class='form-control SELECT-BUILD'
-                data-fieldname='BUILD'>
-          <option value='%ADDRESS_BUILD%' selected>%ADDRESS_BUILD%</option>
+        <select data-download-on-click='1' name='ADDRESS_BUILD' class='form-control SELECT-BUILD' data-fieldname='BUILD'>
+          <option value='%LOCATION_ID%' selected>%ADDRESS_BUILD%</option>
         </select>
 
         <!-- Control for toggle build mode SELECT/ADD -->

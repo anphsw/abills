@@ -2,6 +2,9 @@
 
  Eltex snmp monitoring and managment
 
+ DOCS:
+   http://eltex.nsk.ru/support/knowledge/upravlenie-po-snmp.php
+
 =cut
 
 use strict;
@@ -19,7 +22,12 @@ our(
 #**********************************************************
 sub _eltex_get_ports {
   my ($attr) = @_;
-
+#  show_hash($attr, { DELIMITER => '<br>' });
+  my $ports_info = ();
+  if ($attr->{MODEL_NAME} =~ /^LTP-[8,4]X/) {
+    $ports_info = _eltex_ltp_get_ports($attr);
+    return \%{$ports_info};  
+  }
   my $count_oid = '.1.3.6.1.4.1.35265.1.21.1.8.0';
   my $ports_count = snmp_get({ %{$attr}, OID => $count_oid });
   $ports_count //= 0;
@@ -44,7 +52,6 @@ sub _eltex_get_ports {
   );
 
   my %speed_type = (2 => '1Gbps', 3 => '2Gbps');
-  my $ports_info = ();
   for (my $i = 0 ; $i < $ports_count; $i++) {
     my $snmp_id = $ports_snmp_id[ $i ];
     foreach my $type (keys %ports_info_oids) {
@@ -66,7 +73,36 @@ sub _eltex_get_ports {
 
   return \%{$ports_info};
 }
+#**********************************************************
+=head2 _eltex_ltp_get_ports($attr) - Get OLT ports
 
+=cut
+#**********************************************************
+sub _eltex_ltp_get_ports {
+  my ($attr) = @_;
+  my $ports_info = equipment_test({
+    %{$attr},
+    TIMEOUT   => 5,
+    VERSION   => 2,
+    PORT_INFO => 'PORT_NAME,PORT_TYPE,PORT_DESCR,PORT_STATUS,PORT_SPEED,IN,OUT'
+  });
+
+  foreach my $key ( keys %{ $ports_info } ) {
+    if ($ports_info->{$key}{PORT_TYPE} && $ports_info->{$key}{PORT_TYPE} =~ /^250$/ && $ports_info->{$key}{PORT_NAME} =~ /PON channel (\d+)/) {
+      my $type = 'gpon';
+      #my $branch = decode_port($key);
+      $ports_info->{$key}{BRANCH}      = "0/$1";
+      $ports_info->{$key}{PON_TYPE}    = $type;
+      $ports_info->{$key}{SNMP_ID}     = $key;
+      $ports_info->{$key}{BRANCH_DESC} = $ports_info->{$key}{PORT_DESCR};
+    }
+    else {
+      delete($ports_info->{$key});
+    }
+  }
+
+  return $ports_info;
+}
 #**********************************************************
 =head2 _eltex_onu_list($attr)
 
@@ -160,11 +196,10 @@ sub _eltex_onu_list{
 
 #**********************************************************
 =head2  _eltex_onu_status()
- http://eltex.nsk.ru/support/knowledge/upravlenie-po-snmp.php
 
 =cut
 #**********************************************************
-sub _eltex_onu_status () {
+sub _eltex_onu_status {
 
   my %status = (
     0  => 'offline:text-red',
@@ -189,10 +224,13 @@ sub _eltex_onu_status () {
 }
 
 #**********************************************************
-# http://eltex.nsk.ru/support/knowledge/upravlenie-po-snmp.php
+=head2 _eltex($attr)
+
+=cut
 #**********************************************************
-sub _eltex () {
+sub _eltex {
   my ($attr) = @_;
+
   my %snmp = (
     gepon => {
       'ONU_MAC_SERIAL' => {
@@ -269,8 +307,14 @@ sub _eltex () {
       }
     },
     gpon => {
-    }
 
+    },
+    'FDB' => {
+      NAME   => 'Onu_Type',
+      OIDS   => '.1.3.6.1.4.1.35265.1.22.9.6',
+      PARSER => ''
+    },
+    
   );
 
   if ($attr->{TYPE}) {

@@ -4,7 +4,7 @@
 <input type='hidden' name='chg' value='%ID%'>
 
 <div class='box box-form box-primary form-horizontal'>
-<div class='box-header with-border'>_{DILLERS}_</div>
+<div class='box-header with-border'><h4 class='box-title'>_{DILLERS}_</h4></div>
 <div class='box-body'>
 	<div class='form-group'>
 		<label class='col-md-3 control-label'>_{TARIF_PLAN}_</label>
@@ -18,13 +18,14 @@
 			<input class='form-control' type='text' name='PERCENTAGE' value='%PERCENTAGE%'>
 		</div>
 	</div>
+
 	<div class='form-group'>
-		<div class='checkbox'>
-    	<label>
-      	<input type='checkbox' name='DISABLE' value='1' %DISABLE%><strong>_{DISABLE}_</strong>
-    	</label>
-  	</div>
+		<label class='col-md-3 control-label'>_{DISABLED}_</label>
+		<div class='col-md-9'>
+			<input type='checkbox' name='DISABLE' value='1' %DISABLE%>
+		</div>
 	</div>
+
 	<div class='form-group'>
 		<label class='col-md-3 control-label'>_{REGISTRATION}_</label>
 		<div class='col-md-9'>
@@ -39,8 +40,9 @@
 	</div>
 </div>
 <div class='box-footer'>
-%DEL_BUTTON%
-<input class='btn btn-primary' type=submit name='%ACTION%' value='%LNG_ACTION%'>
+
+<input class='btn btn-primary pull-left' type=submit name='%ACTION%' value='%LNG_ACTION%'>
+	%DEL_BUTTON%
 </div>
 
 </div>

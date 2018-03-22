@@ -7,9 +7,10 @@ package Internet;
 =cut
 
 use strict;
-use parent qw( main );
+use parent qw( dbcore );
 use Tariffs;
 use Users;
+use Conf;
 use Fees;
 use POSIX qw(strftime mktime);
 
@@ -24,7 +25,9 @@ my $PG        = 0;
 my $PAGE_ROWS = 25;
 
 #**********************************************************
-# Init
+=head2 new($db, $admin, \%conf)
+
+=cut
 #**********************************************************
 sub new {
   my $class = shift;
@@ -47,6 +50,14 @@ sub new {
 #**********************************************************
 =head2 info($uid, $attr) User service information
 
+  Arguments:
+    $uid
+    $attr
+      UID
+      ID
+      LOGIN
+
+
 =cut
 #**********************************************************
 sub info {
@@ -55,8 +66,8 @@ sub info {
 
   my $WHERE = '';
 
-  if (defined($attr->{LOGIN}) && $attr->{LOGIN} ne '') {
-    my $users = Users->new($self->{db}, $admin, $self->{conf});
+  if ($attr->{LOGIN}) {
+    my Users $users = Users->new($self->{db}, $admin, $self->{conf});
     $users->info(0, { LOGIN => "$attr->{LOGIN}" });
     if ($users->{errno}) {
       $self->{errno}  = 2;
@@ -92,11 +103,14 @@ sub info {
     $domain_id = $attr->{DOMAIN_ID};
   }
 
-  $self->query2("SELECT internet.*,
+  my $ipv6 = ($CONF->{IPV6}) ? "INET6_NTOA(internet.ipv6) AS ipv6, INET6_NTOA(internet.ipv6_prefix) AS ipv6_prefix," : q{};
+
+  $self->query("SELECT internet.*,
    internet.login AS internet_login,
    tp.name AS tp_name,
    tp.id AS tp_num,
    INET_NTOA(internet.ip) AS ip,
+   $ipv6
    INET_NTOA(internet.netmask) AS netmask,
    internet.disable AS status,
    tp.gid AS tp_gid,
@@ -157,6 +171,9 @@ sub defaults {
 #**********************************************************
 =head2 add($attr) - Add service
 
+  Arguments:
+    CHECK_EXIST_TP
+
 =cut
 #**********************************************************
 sub add {
@@ -164,8 +181,10 @@ sub add {
   my ($attr) = @_;
 
   $attr->{LOGIN} = $attr->{INTERNET_LOGIN} if($attr->{INTERNET_LOGIN});
+  $attr->{EXPIRE}  = $attr->{SERVICE_EXPIRE};
+  $attr->{ACTIVATE}= $attr->{SERVICE_ACTIVATE} if(defined($attr->{SERVICE_ACTIVATE}));
 
-  if (! $attr->{DV_SKIP_FEE} && $attr->{TP_ID} > 0 && !$attr->{STATUS}) {
+  if (! $attr->{INTERNET_SKIP_FEE} && $attr->{TP_ID} > 0 && !$attr->{STATUS}) {
     my $Tariffs = Tariffs->new($self->{db}, $self->{conf}, $admin);
 
     $self->{TP_INFO} = $Tariffs->info(0, {
@@ -173,8 +192,14 @@ sub add {
       DOMAIN_ID => $admin->{DOMAIN_ID} || undef
     });
 
+    if($attr->{CHECK_EXIST_TP} && $Tariffs->{errno}) {
+      $self->{errno}=91;
+      $self->{errstr}='TP_NOT_EXITS';
+      return $self;
+    }
+
     #Take activation price
-    if ($Tariffs->{ACTIV_PRICE} > 0) {
+    if ($Tariffs->{ACTIV_PRICE} && $Tariffs->{ACTIV_PRICE} > 0) {
       my $user = Users->new($self->{db}, $admin, $self->{conf});
       $user->info($attr->{UID});
 
@@ -184,7 +209,7 @@ sub add {
 
       if ($user->{DEPOSIT} + $user->{CREDIT} < $Tariffs->{ACTIV_PRICE} && $Tariffs->{PAYMENT_TYPE} == 0) {
         $self->{errno} = 15;
-        $self->{errstr} = "Active price too hight";
+        $self->{errstr} = "ACTIVE_PRICE_TOO_HIGHT";
         return $self;
       }
 
@@ -200,17 +225,20 @@ sub add {
 
   $self->query_add('internet_main', {
     %$attr,
-    REGISTRATION => 'now()',
+    REGISTRATION => 'NOW()',
     DISABLE      => $attr->{STATUS},
     PASSWORD     => ($attr->{PASSWORD}) ? "ENCODE('$attr->{PASSWORD}', '$self->{conf}->{secretkey}')" : ''
   });
 
   return [ ] if ($self->{errno});
 
+  $attr->{ID}=$self->{INSERT_ID};
+  $self->{ID}=$attr->{ID};
+
   $admin->{MODULE} = $MODULE;
   $admin->action_add($attr->{UID}, '', {
     TYPE    => 1,
-    INFO    => ['TP_ID', 'DV_LOGIN', 'STATUS', 'EXPIRE', 'IP', 'CID'],
+    INFO    => ['TP_ID', 'INTERNET_LOGIN', 'STATUS', 'EXPIRE', 'IP', 'CID', 'PERSONAL_TP', 'ID'],
     REQUEST => $attr
   });
 
@@ -226,18 +254,19 @@ sub change {
   my $self = shift;
   my ($attr) = @_;
 
-  $attr->{LOGIN} = $attr->{INTERNET_LOGIN} if($attr->{INTERNET_LOGIN});
+  $attr->{LOGIN} = $attr->{INTERNET_LOGIN} if(defined($attr->{INTERNET_LOGIN}));
   if (!$attr->{NAS_ID}) {
     $attr->{NAS_ID} = $attr->{NAS_ID1};
   }
   delete $attr->{ID} if(! $attr->{ID});
 
-  $attr->{DISABLE}=$attr->{STATUS};
-  $attr->{EXPIRE}=$attr->{SERVICE_EXPIRE};
-  $attr->{ACTIVATE}=$attr->{SERVICE_ACTIVATE};
+  $attr->{DISABLE} = $attr->{STATUS};
+  $attr->{EXPIRE}  = $attr->{SERVICE_EXPIRE};
+  $attr->{ACTIVATE}= $attr->{SERVICE_ACTIVATE} if(defined($attr->{SERVICE_ACTIVATE}));
 
   my $old_info = $self->info($attr->{UID}, { ID => $attr->{ID} });
-  $self->{OLD_STATUS} = $old_info->{STATUS};
+  $self->{OLD_PERSONAL_TP} = $old_info->{PERSONAL_TP} || 0;
+  $self->{OLD_STATUS}      = $old_info->{STATUS};
 
   if ($attr->{TP_ID} && $old_info->{TP_ID} != $attr->{TP_ID}) {
     my $user = Users->new($self->{db}, $admin, $self->{conf});
@@ -260,11 +289,11 @@ sub change {
     }
 
     my $skip_change_fee = 0;
-    if ($self->{conf}->{DV_TP_CHG_FREE}) {
+    if ($self->{conf}->{INTERNET_TP_CHG_FREE}) {
       my ($y, $m, $d) = split(/-/, $user->{REGISTRATION}, 3);
       my $cur_date = time();
       my $registration = POSIX::mktime(0, 0, 0, $d, ($m - 1), ($y - 1900));
-      if (($cur_date - $registration) / 86400 > $self->{conf}->{DV_TP_CHG_FREE}) {
+      if (($cur_date - $registration) / 86400 > $self->{conf}->{INTERNET_TP_CHG_FREE}) {
         $skip_change_fee = 1;
       }
     }
@@ -320,11 +349,12 @@ sub change {
   elsif (($old_info->{STATUS} && $old_info->{STATUS} == 3)
     && $attr->{STATUS} == 0
     && $attr->{STATUS_DAYS}) {
+
     my $user = Users->new($self->{db}, $admin, $self->{conf});
     $user->info($attr->{UID});
     my $fees = Fees->new($self->{db}, $admin, $self->{conf});
     #period : sum
-    my (undef, $sum) = split(/:/, $self->{conf}->{DV_REACTIVE_PERIOD}, 2);
+    my (undef, $sum) = split(/:/, $self->{conf}->{INTERNET_REACTIVE_PERIOD}, 2);
     $fees->take($user, $sum, { DESCRIBE => "REACTIVE" });
   }
   elsif (($old_info->{STATUS}
@@ -345,11 +375,18 @@ sub change {
       delete ($self->{TP_INFO});
     }
   }
+  elsif($attr->{PERSONAL_TP} && $self->{OLD_PERSONAL_TP} != $attr->{PERSONAL_TP} ) {
+    my $Tariffs = Tariffs->new($self->{db}, $self->{conf}, $admin);
+    $self->{TP_INFO} = $Tariffs->info(0, {
+      TP_ID     => $old_info->{TP_ID},
+      DOMAIN_ID => $admin->{DOMAIN_ID}
+    });
+  }
 
   #$attr->{JOIN_SERVICE} = ($attr->{JOIN_SERVICE}) ? $attr->{JOIN_SERVICE} : 0;
 
   $admin->{MODULE} = $MODULE;
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'UID'. (($attr->{ID}) ? ',ID' : q{}),
       TABLE        => 'internet_main',
@@ -369,16 +406,25 @@ sub change {
 #**********************************************************
 =head2 del(attr); Delete user service
 
+  Arguments:
+    $attr
+
+  Result:
+    $self
+
 =cut
 #**********************************************************
 sub del {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query_del('internet_main', $attr, { uid => $self->{UID} });
-  $self->query_del('internet_log', undef, { uid => $self->{UID} });
+  my $uid = $self->{UID} || $attr->{UID};
+  $self->query_del('internet_main', $attr, { uid => $uid });
+  $self->query_del('internet_log', undef, { uid => $uid });
 
-  $admin->action_add($self->{UID}, "$self->{UID} ID: $attr->{ID}", { TYPE => 10 });
+  $admin->{MODULE}=$MODULE;
+  $admin->action_add($uid, "ID: $attr->{ID} COMMENTS: $attr->{COMMENTS}", { TYPE => 10 });
+
   return $self->{result};
 }
 
@@ -409,55 +455,67 @@ sub list {
   $self->{SEARCH_FIELDS_COUNT}=0;
 
   my $WHERE =  $self->search_former($attr, [
-      ['INTERNET_LOGIN', 'STR', 'internet.login',  'internet.login AS internet_login' ],
-      ['IP',             'IP',  'internet.ip',     'internet.ip AS ip_num'        ], #'INET_NTOA(internet.ip) AS ip' ],
-      ['IP_NUM',         'IP',  'internet.ip',     'internet.ip AS ip_num'        ],
-      ['NETMASK',        'IP',  'internet.netmask', 'INET_NTOA(internet.netmask) AS netmask' ],
-      ['CID',            'STR', 'internet.cid',                           1 ],
-      ['CPE_MAC',        'STR', 'internet.cpe_mac',                       1 ],
-      ['VLAN',           'INT', 'internet.vlan',                          1 ],
-      ['SERVER_VLAN',    'INT', 'internet.server_vlan',                   1 ],
-      ['JOIN_SERVICE',   'INT', 'internet.join_service',                  1 ],
-      ['SIMULTANEONSLY', 'INT', 'internet.logins',                        1 ],
-      ['SPEED',          'INT', 'internet.speed',                         1 ],
-      ['NAS_ID',         'STR', 'internet.nas_id',                        1 ],
-      ['PORT',           'INT', 'internet.port',                          1 ],
-      ['ALL_FILTER_ID',  'STR', 'IF(internet.filter_id<>\'\', internet.filter_id, tp.filter_id) AS filter_id', 1 ],
-      ['FILTER_ID',      'STR', 'internet.filter_id',                     1 ],
-      ['TP_ID',          'INT', 'internet.tp_id',                         1 ],
-      ['TP_NAME',        'STR', 'tp.name AS tp_name',                     1 ],
-      ['TP_COMMENTS',    'STR', 'tp.comments', 'tp.comments AS tp_comments' ],
-      ['TP_CREDIT',      'INT', 'tp.credit',       'tp.credit AS tp_credit' ],
-      ['ONLINE',         'INT', 'c.uid',                  'c.uid AS online' ],
-      ['ONLINE_IP',      'INT', 'INET_NTOA(c.framed_ip_address)', 'INET_NTOA(c.framed_ip_address) AS online_ip' ],
-      ['ONLINE_DURATION','INT', 'c.uid',  'if(c.lupdated>UNIX_TIMESTAMP(c.started), c.lupdated - UNIX_TIMESTAMP(c.started), 0) AS online_duration' ],
-      ['ONLINE_CID',     'INT', 'c.CID',              'c.CID AS online_cid' ],
-      ['MONTH_FEE',      'INT', 'tp.month_fee',                           1 ],
-      ['ABON_DISTRIBUTION', 'INT', 'tp.abon_distribution',                1 ],
-      ['DAY_FEE',        'INT', 'tp.day_fee',                             1 ],
-      ['PERSONAL_TP',    'INT', 'internet.personal_tp',                   1 ],
-      ['PAYMENT_TYPE',   'INT', 'tp.payment_type',                        1 ],
+      ['INTERNET_LOGIN',    'STR', 'internet.login',  'internet.login AS internet_login' ],
+      ['IP',                'IP',  'internet.ip',     'internet.ip AS ip_num'        ], #'INET_NTOA(internet.ip) AS ip' ],
+      ['IP_NUM',            'IP',  'internet.ip',     'internet.ip AS ip_num'        ],
+      ['NETMASK',           'IP',  'internet.netmask', 'INET_NTOA(internet.netmask) AS netmask' ],
+      ['CID',               'STR', 'internet.cid',                           1 ],
+      ['CPE_MAC',           'STR', 'internet.cpe_mac',                       1 ],
+      ['VLAN',              'INT', 'internet.vlan',                          1 ],
+      ['SERVER_VLAN',       'INT', 'internet.server_vlan',                   1 ],
+      ['JOIN_SERVICE',      'INT', 'internet.join_service',                  1 ],
+      ['SIMULTANEONSLY',    'INT', 'internet.logins',                        1 ],
+      ['SPEED',             'INT', 'internet.speed',                         1 ],
+      ['NAS_ID',            'INT', 'internet.nas_id',                        1 ],
+      ['PORT',              'INT', 'internet.port',                          1 ],
+      ['ALL_FILTER_ID',     'STR', 'IF(internet.filter_id<>\'\', internet.filter_id, tp.filter_id) AS filter_id', 1 ],
+      ['FILTER_ID',         'STR', 'internet.filter_id',                     1 ],
+      ['TP_ID',             'INT', 'internet.tp_id',                         1 ],
+      ['TP_NAME',           'STR', 'tp.name AS tp_name',                     1 ],
+      ['TP_COMMENTS',       'STR', 'tp.comments', 'tp.comments AS tp_comments' ],
+      ['TP_CREDIT',         'INT', 'tp.credit',       'tp.credit AS tp_credit' ],
+      ['ONLINE',            'INT', 'c.uid',                  'c.uid AS online' ],
+      ['ONLINE_IP',         'INT', 'INET_NTOA(c.framed_ip_address)', 'INET_NTOA(c.framed_ip_address) AS online_ip' ],
+      ['ONLINE_DURATION',   'INT', 'c.uid',  'if(c.lupdated>UNIX_TIMESTAMP(c.started), c.lupdated - UNIX_TIMESTAMP(c.started), 0) AS online_duration' ],
+      ['ONLINE_CID',        'INT', 'c.cid',              'c.cid AS online_cid' ],
+      ['ONLINE_TP_ID',      'INT', 'c.tp_id',        'c.tp_id AS online_tp_id' ],
+      ['MONTH_FEE',         'INT', 'tp.month_fee',                           1 ],
+      ['ABON_DISTRIBUTION', 'INT', 'tp.abon_distribution',                   1 ],
+      ['DAY_FEE',           'INT', 'tp.day_fee',                             1 ],
+      ['PERSONAL_TP',       'INT', 'internet.personal_tp',                   1 ],
+      ['PAYMENT_TYPE',      'INT', 'tp.payment_type',                        1 ],
       ['INTERNET_PASSWORD', '', '',  "DECODE(internet.password, '$CONF->{secretkey}') AS internet_password" ],
-      ['INTERNET_STATUS','INT', 'internet.disable AS internet_status',    1 ],
-      ['DV_STATUS',      'INT', 'internet.disable AS internet_status',    1 ],
-      ['DV_STATUS_ID',   'INT', 'internet.disable AS internet_status_id', 1 ],
-      ['SERVICE_EXPIRE', 'DATE','internet.expire AS internet_expire',     1 ],
-      ['INTERNET_EXPIRE', 'DATE','internet.expire AS internet_expire',    1 ],
-      ['INTERNET_ACTIVATE', 'DATE','internet.activate AS internet_activate',1 ],
-      ['DV_STATUS_DATE', '',    '', '(SELECT aa.datetime FROM admin_actions aa WHERE aa.uid=internet.uid AND aa.module=\'Internet\' AND aa.action_type=4
-       ORDER BY aa.datetime DESC LIMIT 1) AS internet_status_date' ],
-      ['MONTH_TRAFFIC_IN',  'INT', '', "SUM(l.recv) AS month_traffic_in"    ],
-      ['MONTH_TRAFFIC_OUT', 'INT', '', "SUM(l.sent) AS month_traffic_out"   ],
-      ['UID',            'INT', 'internet.uid',                           1 ],
-      ['ID',             'INT', 'internet.id',                            1 ],
-      ['IPN_ACTIVATE',   'INT', 'internet.ipn_activate',                  1 ]
+      ['INTERNET_STATUS',   'INT', 'internet.disable AS internet_status',    1 ],
+      #['DV_STATUS',      'INT', 'internet.disable AS internet_status',    1 ],
+      ['INTERNET_STATUS_ID','INT', 'internet.disable AS internet_status_id', 1 ],
+      ['SERVICE_EXPIRE',    'DATE','internet.expire AS internet_expire',     1 ],
+      ['INTERNET_EXPIRE',   'DATE','internet.expire AS internet_expire',     1 ],
+      ['INTERNET_ACTIVATE', 'DATE','internet.activate AS internet_activate', 1 ],
+      ['INTERNET_STATUS_DATE', '',    '',
+        '(SELECT aa.datetime FROM admin_actions aa WHERE aa.uid=internet.uid AND aa.module=\'Internet\'
+        AND aa.action_type IN (4, 8, 14)
+        ORDER BY aa.datetime DESC LIMIT 1) AS internet_status_date'            ],
+      ['MONTH_TRAFFIC_IN',  'INT', '', "SUM(l.recv) AS month_traffic_in"       ],
+      ['MONTH_TRAFFIC_OUT', 'INT', '', "SUM(l.sent) AS month_traffic_out"      ],
+
+      ['MONTH_IPN_TRAFFIC_IN',  'INT', '', "SUM(ipn_l.traffic_in) AS month_ipn_traffic_in"   ],
+      ['MONTH_IPN_TRAFFIC_OUT', 'INT', '', "SUM(ipn_l.traffic_out) AS month_ipn_traffic_out" ],
+      ['UID',               'INT', 'internet.uid',                           1 ],
+      ['ID',                'INT', 'internet.id',                            1 ],
+      ['IPN_ACTIVATE',      'INT', 'internet.ipn_activate',                  1 ],
+      ['DAY_TRAF_LIMIT',    'INT', 'tp.day_traf_limit',                      1 ],
+      ['WEEK_TRAF_LIMIT',   'INT', 'tp.week_traf_limit',                     1 ],
+      ['MONTH_TRAF_LIMIT',  'INT', 'tp.month_traf_limit',                    1 ],
+      ['TOTAL_TRAF_LIMIT',  'INT', 'tp.total_traf_limit',                    1 ],
+      ['SERVICE_COUNT',     'INT', '', 'COUNT(internet.id) AS service_count '  ] ,
+      ['SHEDULE',           'INT', '', "CONCAT(s.y,'-', s.m, '-', s.d, ' ', s.action) AS shedule" ]
     ],
     { WHERE            => 1,
       USERS_FIELDS_PRE => 1,
       USE_USER_PI      => 1,
-      SKIP_USERS_FIELDS=> [ 'UID' ]
+      SKIP_USERS_FIELDS=> [ 'UID', 'ACTIVE', 'EXPIRE' ]
     }
-    );
+  );
 
 #  my $where_delimeter = ' AND ';
 #  if ( $attr->{_MULTI_HIT} ) {
@@ -467,16 +525,25 @@ sub list {
 #  $WHERE = ($#WHERE_RULES > -1) ? "WHERE (" . join($where_delimeter, @WHERE_RULES) .')' : '';
 
   my $EXT_TABLE = $self->{EXT_TABLES} || '';
+  if($self->{SEARCH_FIELDS} =~ /online/) {
+    $EXT_TABLE .= "
+     LEFT JOIN internet_online c ON (c.uid=internet.uid
+       AND (c.service_id=internet.id OR c.service_id=0)) ";
+  }
+
+  if($attr->{SHEDULE}) {
+    $EXT_TABLE .= "LEFT JOIN shedule s ON (s.uid=internet.uid AND s.module='Internet') ";
+  }
 
   if ($attr->{USERS_WARNINGS}) {
     my $allert_period = '';
     if ($attr->{ALERT_PERIOD}) {
       $allert_period = "OR  (tp.month_fee > 0  AND IF(u.activate='0000-00-00',
-      DATEDIFF(DATE_FORMAT(curdate() + INTERVAL 1 MONTH, '%Y-%m-01'), curdate()),
+      DATEDIFF(DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01'), CURDATE()),
       DATEDIFF(u.activate + INTERVAL 30 DAY, CURDATE())) IN ($attr->{ALERT_PERIOD}))";
     }
 
-    $self->query2("SELECT u.id AS login,
+    $self->query("SELECT u.id AS login,
         pi.email,
         internet.tp_id AS tp_num,
         u.credit,
@@ -514,7 +581,7 @@ sub list {
     return $list;
   }
   elsif ($attr->{CLOSED}) {
-    $self->query2("SELECT u.id, pi.fio,
+    $self->query("SELECT u.id, pi.fio,
        IF(company.id IS NULL, b.deposit, b.deposit),
        IF(u.company_id=0, u.credit,
          IF(u.credit=0, company.credit, u.credit)) AS credit,
@@ -546,17 +613,17 @@ sub list {
     return $list;
   }
 
-  if($self->{SEARCH_FIELDS} =~ /online/) {
-    $EXT_TABLE .= "
-     LEFT JOIN internet_online c ON (c.uid=internet.uid) ";
-  }
-
   if ($attr->{MONTH_TRAFFIC_IN} || $attr->{MONTH_TRAFFIC_OUT}) {
     $EXT_TABLE .= "
      LEFT JOIN internet_log l ON (l.uid=internet.uid AND DATE_FORMAT(l.start, '%Y-%m')=DATE_FORMAT(CURDATE(), '%Y-%m')) ";
   }
 
-  $self->query2("SELECT
+  if ($attr->{MONTH_IPN_TRAFFIC_IN} || $attr->{MONTH_IPN_TRAFFIC_OUT}) {
+    $EXT_TABLE .= "
+     LEFT JOIN ipn_log ipn_l ON (ipn_l.uid=internet.uid AND DATE_FORMAT(ipn_l.start, '%Y-%m')=DATE_FORMAT(CURDATE(), '%Y-%m')) ";
+  }
+
+  $self->query("SELECT
       $self->{SEARCH_FIELDS}
       u.uid,
       internet.tp_id,
@@ -577,7 +644,7 @@ sub list {
   my $list = $self->{list};
 
   if ($self->{TOTAL} >= 0 && !$attr->{SKIP_TOTAL}) {
-    $self->query2("SELECT COUNT( DISTINCT u.id) AS total FROM users u
+    $self->query("SELECT COUNT( DISTINCT u.id) AS total, COUNT(u.id) AS total_services FROM users u
     INNER JOIN internet_main internet ON (u.uid=internet.uid)
     LEFT JOIN tarif_plans tp ON (tp.tp_id=internet.tp_id)
     $EXT_TABLE
@@ -606,7 +673,7 @@ sub report_debetors {
 
   my $WHERE =  $self->search_former($attr, [
       ['UID',            'INT', 'internet.uid',                           1 ],
-      ['DV_STATUS',      'INT', 'internet.disable as internet_status',          1 ],
+      ['INTERNET_STATUS',      'INT', 'internet.disable as internet_status',          1 ],
     ],
     {
       USERS_FIELDS_PRE => 1,
@@ -622,7 +689,7 @@ sub report_debetors {
     $attr->{PERIOD} = 1;
   }
 
-  $self->query2("SELECT
+  $self->query("SELECT
       $self->{SEARCH_FIELDS}
       u.uid
      FROM users u
@@ -641,7 +708,7 @@ sub report_debetors {
   my $list = $self->{list};
 
   if ($self->{TOTAL} >= 0 && !$attr->{SKIP_TOTAL}) {
-    $self->query2("SELECT COUNT(*) AS total, SUM(IF(u.company_id > 0, cb.deposit, b.deposit)) AS total_debetors_sum
+    $self->query("SELECT COUNT(*) AS total, SUM(IF(u.company_id > 0, cb.deposit, b.deposit)) AS total_debetors_sum
       FROM users u
     INNER JOIN internet_main internet ON (u.uid=internet.uid)
     LEFT JOIN tarif_plans tp ON (tp.tp_id=internet.tp_id)
@@ -684,9 +751,9 @@ sub report_tp {
     }
   );
 
-  $self->query2("SELECT internet.tp_id AS id, tp.id, tp.name, COUNT(DISTINCT internet.uid) AS counts,
-      SUM(IF(internet.disable=0 AND u.disable=0, 1, 0)) AS active,
-      SUM(IF(internet.disable=1 OR u.disable=1, 1, 0)) AS disabled,
+  $self->query("SELECT internet.tp_id AS id, tp.id, tp.name, COUNT(DISTINCT internet.uid) AS counts,
+      COUNT(DISTINCT CASE WHEN internet.disable=0 AND u.disable=0 THEN internet.uid ELSE NULL END) AS active,
+      COUNT(DISTINCT CASE WHEN internet.disable=1 AND u.disable=1 THEN internet.uid ELSE NULL END) AS disabled,
       SUM(IF(IF(u.company_id > 0, cb.deposit, b.deposit) < 0, 1, 0)) AS debetors,
       ROUND(SUM(p.sum) / COUNT(DISTINCT internet.uid), 2) AS arpu,
       ROUND(SUM(p.sum) / COUNT(DISTINCT p.uid), 2) AS arppu,
@@ -770,7 +837,7 @@ sub get_speed {
 
   my $WHERE = ($#WHERE_RULES > -1) ? "AND " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query2("SELECT tp.tp_id, tp.id AS tp_num, tt.id AS tt_id, tt.in_speed,
+  $self->query("SELECT tp.tp_id, tp.id AS tp_num, tt.id AS tt_id, tt.in_speed,
     tt.out_speed, tt.net_id, tt.expression
   $self->{SEARCH_FIELDS}
 FROM trafic_tarifs tt
@@ -802,7 +869,7 @@ ORDER BY $SORT $DESC;",
 sub account_check {
   my $self = shift;
 
-  $self->query2("SELECT COUNT(uid) FROM internet_main;");
+  $self->query("SELECT COUNT(uid) FROM internet_main;");
 
   if($self->{TOTAL}) {
     if($self->{list}->[0]->[0] > 0x4B1) {

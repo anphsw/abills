@@ -20,6 +20,7 @@
                             <input type='hidden' name='index' value='$index'>
                             <input type='hidden' name='sid' value='$sid'>
                             <input type='hidden' name='UID' value='$FORM{UID}'>
+                            <input type='hidden' name='ID' value='%ID%'>
 
                             <div class='form-group'>
                                 <label class='col-md-3 control-label'>_{FROM}_:</label>

@@ -8,8 +8,9 @@
 
 use strict;
 use warnings FATAL => 'all';
-use Abills::Base qw(_bp in_array load_pmodule2);
+use Abills::Base qw(_bp in_array load_pmodule);
 use Abills::Defs;
+use Abills::Misc;
 use JSON;
 use Contacts;
 
@@ -105,7 +106,7 @@ sub form_admins {
     );
 
     if (defined $FORM{newpassword}) {
-      if(form_passwd({ ADMIN => $admin_form })) {
+      if(! form_passwd({ ADMIN => $admin_form })) {
         delete $FORM{change};
       }
     }
@@ -121,6 +122,11 @@ sub form_admins {
         $Conf->config_add({ PARAM => 'DEFAULT_PASSWORD_CHANGED', VALUE => 1, REPLACE => 1});
         _error_show($Conf);
         $conf{DEFAULT_PASSWORD_CHANGED} = 1;
+      }
+      
+      # Should be sent with another name to prevent authorization
+      if (defined $FORM{API_KEY_NEW}){
+        $FORM{API_KEY} = $FORM{API_KEY_NEW};
       }
 
       $admin_form->change({%FORM});
@@ -185,7 +191,7 @@ sub form_admins {
 
   $admin_form->{FULL_LOG}  = ($admin_form->{FULL_LOG}) ? 'checked' : '';
   $admin_form->{DISABLE}   = ( defined($admin_form->{DISABLE}) && $admin_form->{DISABLE} > 0) ? 'checked' : '';
-  $admin_form->{GROUP_SEL} = sel_groups({ GID => $admin_form->{GID}, SKIP_MUULTISEL => 1 });
+  $admin_form->{GROUP_SEL} = sel_groups({ GID => $admin_form->{GID}, SKIP_MULTISELECT => 1 });
 
   if ($admin_form->{DOMAIN_ID}) {
     $admin_form->{DOMAIN_SEL} = $html->button($admin_form->{DOMAIN_NAME},
@@ -500,6 +506,30 @@ sub form_admins_full_log_analyze {
    $LIST_PARAMS{FUNCTION_NAME} = "!msgs_admin";
   }
 
+  if ($FORM{list}) {
+    result_former({
+      INPUT_DATA      => $admin_,
+      FUNCTION        => 'full_log_list',
+      DEFAULT_FIELDS  => 'DATETIME,FUNCTION_NAME,PARAMS',
+      # SKIP_PAGES      => 1,
+      FILTER_COLS => {
+        function_name    => '_paranoid_log_function_filter',
+        params           => '_paranoid_log_params_filter'
+      },
+      TABLE => {
+        width    => '100%',
+        caption  => "Paranoid log",
+        ID       => 'ADMIN_PARANOID_LOG',
+        MENU     => "$lang{STATS}:index=60&AID=$FORM{AID}:btn bg-olive margin;",
+        qs       => "&AID=$FORM{AID}&list=1",
+      },
+      MAKE_ROWS       => 1,
+      SKIP_TOTAL      => 1,
+      TOTAL           => 1
+    });
+    return 1;
+  }
+
   my (undef, $list) = result_former({
     INPUT_DATA      => $admin_,
     FUNCTION        => 'full_log_analyze',
@@ -513,7 +543,8 @@ sub form_admins_full_log_analyze {
       width    => '100%',
       caption  => "Paranoid log",
       ID       => 'ADMIN_PARANOID_LOG',
- #     qs       => "&AID=$FORM{AID}",
+      MENU     => "$lang{LIST}:index=60&AID=$FORM{AID}&list=1&sort=1&desc=DESC:btn bg-olive margin;",
+      qs       => "&AID=$FORM{AID}",
     },
     MAKE_ROWS       => 1,
     SKIP_TOTAL      => 1,
@@ -675,13 +706,14 @@ sub form_admin_permissions {
      $lang{BONUS},
      "PORT CONTROL", # 22
      "DEVICE REBOOT",
-     "QUICK INFO", # 24 user quick form
+     "EXTENDED INFO", # 24 user extended info form
+     "$lang{PERSONAL} $lang{TARIF_PLAN}"
     ],    # Users
     [ $lang{LIST}, $lang{ADD}, $lang{DEL}, $lang{ALL}, $lang{DATE}, $lang{IMPORT} ],   # Payments
     [ $lang{LIST}, $lang{GET}, $lang{DEL}, $lang{ALL} ],           # Fees
-    [ $lang{LIST}, $lang{DEL}, $lang{PAYMENTS}, $lang{FEES}, $lang{EVENTS}, $lang{SYSTEM}, ],     # reports view
+    [ $lang{LIST}, $lang{DEL}, $lang{PAYMENTS}, $lang{FEES}, $lang{EVENTS}, $lang{SYSTEM}, $lang{LAST_LOGIN}],     # reports view
     [ $lang{LIST}, $lang{ADD}, $lang{CHANGE}, $lang{DEL}, $lang{ADMINS},
-   "$lang{SYSTEM} $lang{LOG}", $lang{DOMAINS}, "$lang{TEMPLATES} $lang{CHANGE}", 'REBOOT SERVICE' ],            # system magment
+   "$lang{SYSTEM} $lang{LOG}", $lang{DOMAINS}, "$lang{TEMPLATES} $lang{CHANGE}", 'REBOOT SERVICE', "$lang{SHOW} PIN $lang{ICARDS}" ],            # system magment
     [ $lang{MONITORING}, 'ZAP', $lang{HANGUP} ],
     [ $lang{SEARCH} ],                                # Search
     [ $lang{ALL}, "$lang{EDIT} $lang{MESSAGE}", "$lang{ADD} CRM $lang{STEP}" ],                                   # Modules managments
@@ -699,7 +731,29 @@ sub form_admin_permissions {
 
   my Admins $admin_ = $attr->{ADMIN};
 
-  if ($FORM{set}) {
+  if($FORM{del_permits} && $FORM{COMMENTS}){
+    $admin_->del_type_permits($FORM{del_permits}, COMMENTS => $FORM{COMMENTS});
+    if (! _error_show($admin_)) {
+      $html->message("info", $lang{DELETED}, $lang{TPL_DELETED});
+    }
+  }
+  elsif($FORM{add_permits} && $FORM{TYPE}){
+    while (my ($k, $v) = each(%FORM)) {
+      if ($v eq '1') {
+        my ($section_index, $action_index) = split(/_/, $k, 2);
+        $permits{$section_index}{$action_index} = 1 if (defined($section_index) && defined($action_index));
+      }
+    }
+
+    $admin_->{MAIN_AID}        = $admin->{AID}; 
+    $admin_->{MAIN_SESSION_IP} = $admin->{SESSION_IP};
+    $admin_->set_type_permits(\%permits, $FORM{TYPE});
+
+    if (! _error_show($admin_)) {
+      $html->message('info', $lang{INFO}, "$lang{CHANGED}");
+    }
+  }
+  elsif ($FORM{set}) {
     while (my ($k, $v) = each(%FORM)) {
       if ($v eq '1') {
         my ($section_index, $action_index) = split(/_/, $k, 2);
@@ -707,7 +761,6 @@ sub form_admin_permissions {
           #if ($section_index =~ /^\d+$/ && $section_index >= 0);
       }
     }
-
     $admin_->{MAIN_AID}        = $admin->{AID};
     $admin_->{MAIN_SESSION_IP} = $admin->{SESSION_IP};
     $admin_->set_permissions(\%permits);
@@ -722,176 +775,71 @@ sub form_admin_permissions {
     return 0;
   }
 
-  my %ADMIN_TYPES = (
-    1 => "$lang{ALL} $lang{PERMISSION}",
-    2 => "$lang{MANAGER}",
-    3 => "$lang{SUPPORT}",
-    4 => "$lang{ACCOUNTANT}",
-  );
+  my %ADMIN_TYPES = ();
+
+  my $admins_type_permits_list = $admin->admin_type_permits_list({ COLS_NAME => 1 });
+  if (_error_show($admin)) {
+    return 0;
+  }
+
+  foreach my $item (@$admins_type_permits_list) {
+    $item->{type} = _translate($item->{type});
+    $ADMIN_TYPES{$item->{type}}=$item->{type} if(!$ADMIN_TYPES{$item->{type}});
+  }
 
   if ($FORM{ADMIN_TYPE}) {
     my %admins_type_permits = ();
     my %admins_modules      = ();
 
-    $admins_type_permits{1} = {
-      0 => {
-        0  => 1,
-        1  => 1,
-        2  => 1,
-        3  => 1,
-        4  => 1,
-        5  => 1,
-        6  => 1,
-        7  => 1,
-        8  => 1,
-        9  => 1,
-        10 => 1,
-        11 => 1,
-        #12 => 1,
-        #13 => 1,
-        14 => 1,
-        16 => 1,
-        17 => 1
-      },
-      1 => {
-        0 => 1,
-        1 => 1,
-        2 => 1,
-        3 => 1,
-        4 => 1
-      },
-      2 => {
-        0 => 1,
-        1 => 1,
-        2 => 1,
-        3 => 1
-      },
-      3 => {
-        0 => 1,
-        1 => 1,
-        2 => 1,
-        3 => 1
-      },
-      4 => {
-        0 => 1,
-        1 => 1,
-        2 => 1,
-        3 => 1,
-        4 => 1,
-        5 => 1,
-        6 => 1
-      },
-      5 => {
-        0 => 1,
-        1 => 1,
-        2 => 1
-      },
-      6 => { 0 => 1 },
-      7 => { 0 => 1 },
-      8 => { 0 => 1 },
-    };
-
-    $admins_type_permits{2} = {
-      0 => {
-        0  => 1,
-        1  => 1,
-        2  => 1,
-        3  => 1,
-        4  => 1,
-        9  => 1,
-        10 => 1,
-        11 => 1
-      },
-      1 => {
-        0 => 1,
-        1 => 1,
-      },
-      2 => {
-        0 => 1,
-        1 => 1,
-      },
-      5 => {
-        0 => 1,
-        1 => 1
-      },
-      6 => { 0 => 1 },
-      7 => { 0 => 1 },
-      8 => { 0 => 1 },
-    };
-
-    $admins_type_permits{3} = {
-      0 => {
-        0 => 1,
-        2 => 1,
-      },
-      5 => {
-        0 => 1,
-        1 => 1
-      },
-      6 => { 0 => 1 },
-      7 => { 0 => 1 },
-      8 => { 0 => 1 },
-    };
-
-    $admins_modules{3} = {
-      'Msgs'      => 1,
-      'Maps'      => 1,
-      'Snmputils' => 1,
-      'Notepad'   => 1
-    };
-
-    $admins_type_permits{4} = {
-      0 => {
-        0 => 1,
-        2 => 1,
-      },
-      1 => {
-        0 => 1,
-        1 => 1,
-        2 => 1,
-        3 => 1,
-        4 => 1
-      },
-      2 => {
-        0 => 1,
-        1 => 1,
-        2 => 1,
-        3 => 1
-      },
-      3 => {
-        0 => 1,
-        1 => 1
-      },
-      6 => { 0 => 1 },
-      7 => { 0 => 1 },
-      8 => { 0 => 1 },
-    };
-
-    $admins_modules{4} = {
-      'Docs'    => 1,
-      'Paysys'  => 1,
-      'Cards'   => 1,
-      'Extfin'  => 1,
-      'Notepad' => 1
-    };
+    foreach my $item (@$admins_type_permits_list) {
+      $admins_type_permits{$item->{type}}->{$item->{section}}->{$item->{actions}} = 1;
+      $admins_modules{$item->{type}}->{$item->{module}} = 1 if ($item->{module});
+    }
 
     %permits = %{ $admins_type_permits{ $FORM{ADMIN_TYPE} } };
     $admin_->{MODULES} = $admins_modules{ $FORM{ADMIN_TYPE} };
+
   }
   else {
     %permits = %$p;
   }
 
-  foreach my $k (sort keys(%ADMIN_TYPES)) {
-    my $button = ($FORM{ADMIN_TYPE} && $FORM{ADMIN_TYPE} eq $k) ? $html->b($ADMIN_TYPES{$k} . ' ') : $html->button($ADMIN_TYPES{$k}, "index=$index" .
-    ( ($FORM{subf}) ? "&subf=$FORM{subf}" : '' ) ."&AID=$FORM{AID}&ADMIN_TYPE=$k", { BUTTON => 1 }) . '  ';
-    print $button;
-  }
+
+    if($FORM{ADMIN_TYPE} && $FORM{ADMIN_TYPE} ne $lang{ACCOUNTANT} 
+        && $FORM{ADMIN_TYPE} ne $lang{SUPPORT}
+        && $FORM{ADMIN_TYPE} ne $lang{MANAGER} 
+        && $FORM{ADMIN_TYPE} ne "$lang{ALL} $lang{PERMISSION}") {
+
+      foreach my $k (sort keys(%ADMIN_TYPES)) {
+
+        my $button = ($FORM{ADMIN_TYPE} eq $k) ? $html->b($ADMIN_TYPES{$k} . ' ') : $html->button($ADMIN_TYPES{$k}, "index=$index" .
+        ( ($FORM{subf}) ? "&subf=$FORM{subf}" : '' ) ."&AID=$FORM{AID}&ADMIN_TYPE=$k", { BUTTON => 1 }) . '  ';
+
+        my $button_del = ($FORM{ADMIN_TYPE} eq $k)
+          ? $html->button("", "index=$index" .
+          ( ($FORM{subf}) ? "&subf=$FORM{subf}" : '' ) ."&AID=$FORM{AID}&del_permits=$k", 
+          { ADD_ICON => "glyphicon glyphicon-remove", MESSAGE => "$lang{DEL} $ADMIN_TYPES{$k}"}) : '';
+
+        print $button;
+        print $button_del;
+
+      }
+    }
+    else {
+      foreach my $k (sort keys(%ADMIN_TYPES)) {
+
+      my $button = ($FORM{ADMIN_TYPE} && $FORM{ADMIN_TYPE} eq $k) ? $html->b($ADMIN_TYPES{$k} . ' ') : $html->button($ADMIN_TYPES{$k}, "index=$index" .
+        ( ($FORM{subf}) ? "&subf=$FORM{subf}" : '' ) ."&AID=$FORM{AID}&ADMIN_TYPE=$k", { BUTTON => 1 }) . '  ';
+
+        print $button;
+        
+      }
+    }
 
   my $table = $html->table(
     {
       width       => '90%',
-      caption     => "$lang{PERMISSION}",
+      caption     => $lang{PERMISSION},
       title_plain => [ 'ID', $lang{NAME}, $lang{DESCRIBE}, '-' ],
       ID          => 'ADMIN_PERMISSIONS',
     }
@@ -903,19 +851,21 @@ sub form_admin_permissions {
     PATH      => $conf{base_dir} . "/Abills/main_tpls/",
     ROWS      => 1
   });
-  foreach(@$content) {
-    chomp;
-    if ((my ($perm1, $perm2, $desc) = split(/:/)) == 3) {;
-      $describe{$perm1}{$perm2} = $desc;
-    }
-  };
+
+  if($content) {
+    foreach (@$content) {
+      chomp;
+      if ((my ($perm1, $perm2, $desc) = split(/:/)) == 3) {;
+        $describe{$perm1}{$perm2} = $desc;
+      }
+    };
+  }
 
   foreach my $k (sort keys %menu_items) {
-
     #my $v = $menu_items{$k};
 
     if (defined($menu_items{$k}{0}) && $k > 0) {
-      next if ($k == 10);
+      next if ($k >= 10);
 
       $table->{rowcolor} = 'active';
       $table->addrow("$k:", $html->b($menu_items{$k}{0}), '', '');
@@ -1002,15 +952,12 @@ sub form_admin_permissions {
     $i++;
   }
 
-  print $html->form_main(
+  $html->tpl_show( templates( 'admin_add_permits' ), 
     {
-      CONTENT => $table->show({ OUTPUT2RETURN => 1 }) . $table2->show({ OUTPUT2RETURN => 1 }),
-      HIDDEN  => {
-        index => '50',
-        AID   => $FORM{AID},
-        subf  => $FORM{subf}
-      },
-      SUBMIT => { set => "$lang{SAVE}" }
+      TABLE1 => $table->show({ OUTPUT2RETURN => 1 }),
+      TABLE2 => $table2->show({ OUTPUT2RETURN => 1 }),
+      AID   => $FORM{AID},
+      subf  => $FORM{subf} 
     }
   );
 
@@ -1076,7 +1023,7 @@ sub form_admins_contacts_save {
 
   return 0 unless ($FORM{AID} && $FORM{CONTACTS});
 
-  if ( my $error = load_pmodule2( "JSON", { RETURN => 1 } ) ){
+  if ( my $error = load_pmodule( "JSON", { RETURN => 1 } ) ){
     print $error;
     return 0;
   }

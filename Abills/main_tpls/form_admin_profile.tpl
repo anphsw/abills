@@ -226,7 +226,7 @@
       </ul>
     </div>
 
-    <div class='box-footer text-center'>
+    <div class='box-footer'>
       <input type='submit' name='set' value='_{SET}_' class='btn btn-primary'/>
     </div>
   </div>

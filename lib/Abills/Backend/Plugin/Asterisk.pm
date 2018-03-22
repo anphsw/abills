@@ -1,7 +1,6 @@
 package Abills::Backend::Plugin::Asterisk;
 use strict;
 use warnings FATAL => 'all';
-use threads;
 
 use Abills::Backend::Plugin::BasePlugin;
 use parent 'Abills::Backend::Plugin::BasePlugin';
@@ -9,16 +8,15 @@ use parent 'Abills::Backend::Plugin::BasePlugin';
 use Abills::Base qw/in_array/;
 use Encode;
 
-use Voip;
+#use Voip;
 use Users;
 use Callcenter;
 use Admins;
 
-my $Voip;
+#my $Voip;
 my $Users;
 my $Callcenter;
 my $Admins;
-
 
 
 # Used in local thread and can't be global
@@ -30,12 +28,11 @@ use Abills::Backend::Log;
 our Abills::Backend::Log $Log;
 my $log_user = ' Asterisk ';
 
-# Debuging events, Will be removed
-use Log;
-my $Event_log = Log->new($db, \%conf, {
-    LOG_FILE => ('/usr/abills/var/log/event_asterisk.log'),
+# DEBUGGING EVENTS ( Will be removed )
+my $Event_log = Abills::Backend::Log->new('FILE', 7, 'Asterisk debug', {
+    FILE => ('/usr/abills/var/log/event_asterisk.log'),
   });
-# Debuging events
+# DEBUGGING EVENTS
 
 use Abills::Backend::Defs;
 
@@ -47,7 +44,7 @@ my %calls_statuses = ();
 
 #**********************************************************
 =head2 new($db, $admin, $CONF)
-
+ 
   Arguments:
     $db    - ref to DB
     $admin - current Web session admin
@@ -80,7 +77,7 @@ sub new {
   
   bless($self, $class);
   
-  $Voip = Voip->new($db, $admin, $CONF);
+#  $Voip = Voip->new($db, $admin, $CONF);
   $Users = Users->new($db, $admin, $CONF);
   $Callcenter = Callcenter->new($db, $admin, $CONF);
   $Admins = Admins->new($db, $CONF);
@@ -96,10 +93,9 @@ sub new {
 sub init {
   my $self = shift;
   
-  $self->{ami_thread} = threads->new(\&{$self->init_connection});
-  $self->{ami_thread}->detach();
+  $self->init_connection();
   
-  return $self;
+  return 1;
 }
 
 #**********************************************************
@@ -124,8 +120,6 @@ sub init_connection {
   $Log->info("Connecting to asterisk ");
   
   $self->connect_to_asterisk();
-  
-  AnyEvent::Impl::Perl::loop();
 }
 
 #**********************************************************
@@ -146,7 +140,7 @@ sub connect_to_asterisk {
     Username   => $conf{ASTERISK_AMI_USERNAME},
     Secret     => $conf{ASTERISK_AMI_SECRET},
     Events     => 'on', # Give us something to proxy
-    Timeout    => 0,
+    Timeout    => 1,
     Blocking   => 0,
     Handlers   => { # Install handler for new calls
       Newchannel => \&process_asterisk_newchannel,
@@ -217,11 +211,13 @@ sub reconnect_to_asterisk_in {
 #**********************************************************
 sub process_asterisk_newchannel {
   my ($asterisk, $event) = @_;
-  
+
   if ( $event->{Event} && $event->{Event} eq 'Newchannel' ) {
     
     my $called_number = $event->{Exten};
     my $caller_number = $event->{CallerIDNum};
+
+    return unless $caller_number && $called_number;
     
     # CALLCENTER CODE
     if ( in_array('Callcenter', \@MODULES) ) {
@@ -409,21 +405,32 @@ sub notify_admin_about_new_call {
     $Log->notice("Can't notify $aid, no connection");
     return 1;
   };
-  
-  my $search_list = $Voip->user_list({ NUMBER => $caller_number, UID => '_SHOW', COLS_NAME => 1 });
+
+  if($conf{CALLCENTER_ASTERISK_PHONE_PREFIX}){
+    $caller_number =~ s/$conf{CALLCENTER_ASTERISK_PHONE_PREFIX}//;
+  }
+
+  my $search_list = $Users->list({ PHONE => "*$caller_number",
+    UID          => '_SHOW',
+    FIO          => '_SHOW',
+    DEPOSIT      => '_SHOW',
+    ADDRESS_FULL => '_SHOW',
+    COMPANY_NAME => '_SHOW',
+    COLS_UPPER   => 1,
+    COLS_NAME    => 1 });
+
   if ( !($search_list && ref $search_list eq 'ARRAY' && scalar @{$search_list} > 0) ) {
     # That's not an ABillS registered number
     $Log->warning("That's not an ABillS registered number $caller_number");
     return 1;
   }
-  
-  my $user_id = $search_list->[0]->{uid};
-  my $user_info = $Users->info($user_id);
-  my $user_pi = $Users->pi({ UID => $user_id, LOCATION_ID => '_SHOW' });
-  
-  my $notification = _create_user_info_notification({ %{$user_info}, %{$user_pi} });
-  
-  $websocket_api->notify_admin($aid, $notification);
+
+  foreach my $user_info (@$search_list){
+
+    my $notification = _create_user_info_notification({ %{$user_info}, });
+
+    $websocket_api->notify_admin($aid, $notification);
+  }
   
   return 1;
 }
@@ -463,15 +470,36 @@ sub exit_with_error {
 #**********************************************************
 sub _create_user_info_notification {
   my ($user_info) = @_;
-  
-  my $title = $user_info->{FIO}
+
+  my $Internet = ();
+  my $Sessions = ();
+  my $tp_name  = '';
+  if (in_array( 'Internet', \@MODULES )) {
+    require Internet;
+    require Internet::Sessions;
+    $Internet = Internet->new($db, $admin, \%conf);
+    $Sessions = Internet::Sessions->new($db, $admin, \%conf);
+
+    my $user_session = $Sessions->list({
+      UID        => $user_info->{UID},
+      TP_NAME    => '_SHOW',
+      SORT       => 2,
+      DESC       => 'DESC',
+      COLS_NAME  => 1,
+      COLS_UPPER => 1,
+      PAGE_ROWS  => 1});
+
+    $tp_name = $user_session->[0]->{tp_name} || '';
+  }
+
+  my $title = ($user_info->{FIO} || '')
     . ' ( '
     . (($user_info->{COMPANY_NAME}) ? $user_info->{COMPANY_NAME} . ' : ' . $user_info->{LOGIN}
                                     : $user_info->{LOGIN})
     . ' )';
   
   #TODO: localization
-  my $text = 'Deposit : ' . $user_info->{DEPOSIT} . '<br/>' . Encode::decode('utf8', $user_info->{ADDRESS_FULL});
+  my $text = 'Deposit : ' . $user_info->{DEPOSIT} . '<br/>' . Encode::decode('utf8', ($user_info->{ADDRESS_FULL} || '')) . "<br/>" . $tp_name;
   
   my $result = {
     TITLE  => Encode::decode('utf8', $title),
@@ -503,10 +531,10 @@ sub process_default {
   # Start debuging events, Will be removed
   my $debug_event = "\n================EVENT START=================\n";
   foreach my $key ( sort keys %{$event} ) {
-    $debug_event .= "$key - $event->{$key}\n";
+    $debug_event .= ($key || '') . "-" . ($event->{$key} || '') . "\n";
   }
   $debug_event .= "================EVENT END=================\n";
-  $Event_log->log_print('LOG_INFO', $log_user, "$debug_event");
+  $Event_log->info("$debug_event");
   # End debuging events
   
   return 1;

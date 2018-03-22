@@ -10,7 +10,7 @@
     </form>
 
 </div>
-  <div class='box-footer text-center'>
+  <div class='box-footer'>
     <input type='submit' form='form_ring_uid_form' class='btn btn-primary' name='action' value='_{ADD}_'>
 
   </div>

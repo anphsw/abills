@@ -11,6 +11,15 @@
       </div>
     </div>
 
+
+    <div class='form-group'>
+      <label class='control-label col-md-3' for='STATE'>_{ADMIN}_</label>
+      <div class='col-md-9'>
+        %AID_SELECT%
+      </div>
+    </div>
+
+
     <div class='form-group'>
       <label class='control-label col-md-3'>_{CREATED}_</label>
       <div class='col-md-9'>

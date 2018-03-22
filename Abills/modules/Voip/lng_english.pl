@@ -50,7 +50,6 @@ $lang{CARDS_RECHARGE} = 'Add funds';
 $lang{CHOOSE_LANGUAGE} = 'Select a language';
 $lang{DLYA} = 'For';
 $lang{AUTH_ERROR} = 'Authentication error. Try again';
-$lang{FUNCTION} = 'Function';
 $lang{AUDIO_FILE} = 'Audio file';
 $lang{PROMOTIONS} = 'Promotions';
 $lang{REPLAY_MENU} = 'Replay manu';

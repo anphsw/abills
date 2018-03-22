@@ -48,7 +48,6 @@ CREATE TABLE IF NOT EXISTS `admin_system_actions` (
 )
   COMMENT = 'System Changes';
 
-
 CREATE TABLE IF NOT EXISTS `admins_time_sheet` (
   `aid` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
   `date` DATE NOT NULL,
@@ -60,6 +59,13 @@ CREATE TABLE IF NOT EXISTS `admins_time_sheet` (
 )
   COMMENT = 'Admins time sheet';
 
+CREATE TABLE IF NOT EXISTS `admin_type_permits` (
+  `type` varchar(60) NOT NULL DEFAULT '',
+  `section` smallint(6) unsigned NOT NULL DEFAULT '0',
+  `actions` smallint(6) unsigned NOT NULL DEFAULT '0',
+  `module` varchar(12) NOT NULL DEFAULT ''
+)
+  COMMENT = 'Admin type permits';
 
 CREATE TABLE IF NOT EXISTS `admin_permits` (
   `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
@@ -150,7 +156,8 @@ CREATE TABLE IF NOT EXISTS `billd_plugins` (
   `make_lock` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   `period` INT(10) UNSIGNED NOT NULL DEFAULT '0',
   `priority` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
-  `last_execute` DATETIME NOT NULL,
+  `last_execute` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `last_end` DATETIME NOT NULL,
   `last_status` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `plugin_name` (`plugin_name`)
@@ -180,66 +187,12 @@ CREATE TABLE IF NOT EXISTS `domains` (
   COMMENT = 'Domains List';
 
 
-CREATE TABLE IF NOT EXISTS `dv_calls` (
-  `status` INT(3) NOT NULL DEFAULT '0',
-  `user_name` VARCHAR(32) NOT NULL DEFAULT '',
-  `started` DATETIME NOT NULL,
-  `nas_ip_address` INT(11) UNSIGNED NOT NULL DEFAULT '0',
-  `nas_port_id` INT(6) UNSIGNED NOT NULL DEFAULT '0',
-  `acct_session_id` VARCHAR(32) NOT NULL DEFAULT '',
-  `acct_session_time` INT(11) UNSIGNED NOT NULL DEFAULT '0',
-  `acct_input_octets` BIGINT(14) UNSIGNED NOT NULL DEFAULT '0',
-  `acct_output_octets` BIGINT(14) UNSIGNED NOT NULL DEFAULT '0',
-  `ex_input_octets` BIGINT(14) UNSIGNED NOT NULL DEFAULT '0',
-  `ex_output_octets` BIGINT(14) UNSIGNED NOT NULL DEFAULT '0',
-  `connect_term_reason` INT(4) UNSIGNED NOT NULL DEFAULT '0',
-  `framed_ip_address` INT(11) UNSIGNED NOT NULL DEFAULT '0',
-  `framed_ipv6_prefix` VARBINARY(16) NOT NULL DEFAULT '',
-  `framed_interface_id` VARBINARY(16) NOT NULL DEFAULT '',
-  `lupdated` INT(11) UNSIGNED NOT NULL DEFAULT '0',
-  `sum` DOUBLE(14, 6) NOT NULL DEFAULT '0.000000',
-  `CID` VARCHAR(20) NOT NULL DEFAULT '',
-  `CONNECT_INFO` VARCHAR(35) NOT NULL DEFAULT '',
-  `tp_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
-  `nas_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  `acct_input_gigawords` SMALLINT(4) UNSIGNED NOT NULL DEFAULT '0',
-  `acct_output_gigawords` SMALLINT(4) UNSIGNED NOT NULL DEFAULT '0',
-  `ex_input_octets_gigawords` SMALLINT(4) UNSIGNED NOT NULL DEFAULT '0',
-  `ex_output_octets_gigawords` SMALLINT(4) UNSIGNED NOT NULL DEFAULT '0',
-  `uid` INT(11) UNSIGNED NOT NULL DEFAULT '0',
-  `join_service` INT(11) UNSIGNED NOT NULL DEFAULT '0',
-  `turbo_mode` VARCHAR(30) NOT NULL DEFAULT '',
-  `guest` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
-  KEY `user_name` (`user_name`),
-  KEY `acct_session_id` (`acct_session_id`),
-  KEY `framed_ip_address` (`framed_ip_address`),
-  KEY `uid` (`uid`)
-);
-
-
-CREATE TABLE IF NOT EXISTS `dv_log_intervals` (
-  `interval_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  `sent` INT(11) UNSIGNED NOT NULL DEFAULT '0',
-  `recv` INT(11) UNSIGNED NOT NULL DEFAULT '0',
-  `duration` INT(11) UNSIGNED NOT NULL DEFAULT '0',
-  `traffic_type` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
-  `sum` DOUBLE(14, 6) UNSIGNED NOT NULL DEFAULT '0.000000',
-  `acct_session_id` VARCHAR(32) NOT NULL DEFAULT '',
-  `added` TIMESTAMP NOT NULL,
-  `uid` INT(11) UNSIGNED NOT NULL DEFAULT '0',
-  KEY `acct_session_id` (`acct_session_id`),
-  KEY `session_interval` (`acct_session_id`, `interval_id`),
-  KEY `uid` (`uid`)
-)
-  COMMENT = 'DV interval summary stats';
-
-
 CREATE TABLE IF NOT EXISTS `errors_log` (
-  `date` DATETIME NOT NULL,
+  `date` TIMESTAMP NOT NULL,
   `log_type` TINYINT(3) UNSIGNED NOT NULL DEFAULT '0',
-  `action` VARCHAR(10) NOT NULL,
-  `user` VARCHAR(20) NOT NULL,
-  `message` VARCHAR(120) NOT NULL,
+  `action` VARCHAR(10) NOT NULL DEFAULT '',
+  `user` VARCHAR(20) NOT NULL DEFAULT '',
+  `message` VARCHAR(120) NOT NULL DEFAULT '',
   `nas_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
   KEY `i_user_date` (`user`, `date`),
   KEY `log_type` (`log_type`)
@@ -413,34 +366,6 @@ CREATE TABLE IF NOT EXISTS `docs_tax_invoice_orders` (
 )
   COMMENT = 'Docs Tax Invoices Orders';
 
-CREATE TABLE IF NOT EXISTS `dv_main` (
-  `uid` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `tp_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
-  `logins` TINYINT(3) UNSIGNED NOT NULL DEFAULT '0',
-  `registration` DATE DEFAULT '0000-00-00',
-  `ip` INT(10) UNSIGNED NOT NULL DEFAULT '0',
-  `filter_id` VARCHAR(150) NOT NULL DEFAULT '',
-  `speed` INT(10) UNSIGNED NOT NULL DEFAULT '0',
-  `netmask` INT(10) UNSIGNED NOT NULL DEFAULT '4294967295',
-  `cid` VARCHAR(35) NOT NULL DEFAULT '',
-  `password` BLOB NOT NULL,
-  `disable` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
-  `callback` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
-  `port` VARCHAR(40) NOT NULL DEFAULT '',
-  `join_service` INT(11) UNSIGNED NOT NULL DEFAULT '0',
-  `turbo_mode` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
-  `free_turbo_mode` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  `expire` DATE NOT NULL DEFAULT '0000-00-00',
-  `dv_login` VARCHAR(24) NOT NULL DEFAULT '',
-  `detail_stats` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
-  `personal_tp` DOUBLE(14, 2) UNSIGNED NOT NULL DEFAULT '0.00',
-  `traf_detail` smallint(1) unsigned NOT NULL default '0',
-  PRIMARY KEY (`uid`),
-  KEY `tp_id` (`tp_id`),
-  KEY `CID` (`cid`)
-)
-  COMMENT = 'Dv accounts';
-
 CREATE TABLE IF NOT EXISTS `exchange_rate` (
   `money` VARCHAR(30) NOT NULL DEFAULT '',
   `short_name` VARCHAR(30) NOT NULL DEFAULT '',
@@ -514,44 +439,133 @@ CREATE TABLE IF NOT EXISTS `holidays` (
   `file` CHAR(50) NOT NULL DEFAULT '',
   `descr` VARCHAR(100) NOT NULL DEFAULT '',
   PRIMARY KEY (`day`)
-);
-
-CREATE TABLE IF NOT EXISTS `intervals` (
-  `tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  `begin` TIME NOT NULL DEFAULT '00:00:00',
-  `end` TIME NOT NULL DEFAULT '00:00:00',
-  `tarif` VARCHAR(7) NOT NULL DEFAULT '0',
-  `day` TINYINT(4) UNSIGNED DEFAULT '0',
-  `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `id` (`id`),
-  UNIQUE KEY `tp_intervals` (`tp_id`, `begin`, `day`)
-);
-
-CREATE TABLE IF NOT EXISTS `ippools` (
-  `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `nas` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
-  `ip` INT(10) UNSIGNED NOT NULL DEFAULT '0',
-  `counts` INT(10) UNSIGNED NOT NULL DEFAULT '0',
-  `name` VARCHAR(25) NOT NULL,
-  `priority` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
-  `static` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
-  `speed` INT(10) UNSIGNED NOT NULL DEFAULT '0',
-  `ipv6_prefix` VARBINARY(16) NOT NULL DEFAULT '',
-  `next_pool_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
-  `netmask` INT(11) UNSIGNED NOT NULL DEFAULT '4294967295',
-  `dns` VARCHAR(32) NOT NULL DEFAULT '',
-  `ntp` VARCHAR(80) NOT NULL DEFAULT '',
-  `gateway` INT(11) UNSIGNED NOT NULL DEFAULT '0',
-  `guest` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
-  `domain_id` smallint(6) UNSIGNED NOT NULL DEFAULT '0',
-  `vlan` smallint(2) unsigned not null default 0,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `nas` (`nas`, `ip`)
 )
-  COMMENT = 'IP Pools';
+  COMMENT = 'Hillidays list';
 
-CREATE TABLE IF NOT EXISTS `dv_log` (
+CREATE TABLE IF NOT EXISTS `info_fields` (
+  `id` TINYINT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(60) NOT NULL DEFAULT '',
+  `sql_field` VARCHAR(60) NOT NULL DEFAULT '',
+  `type` TINYINT(2) UNSIGNED NOT NULL DEFAULT 0,
+  `priority` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+  `abon_portal` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+  `user_chg` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+  `comment` VARCHAR(60) NOT NULL DEFAULT '',
+  `module` VARCHAR(20) NOT NULL DEFAULT '',
+  `company` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+  `pattern` VARCHAR(60) NOT NULL DEFAULT '',
+  `title` VARCHAR(255) NOT NULL DEFAULT '',
+  `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY (`name`, `domain_id`),
+  UNIQUE KEY (`sql_field`)
+)
+  COMMENT = 'Info_fields';
+
+CREATE TABLE IF NOT EXISTS `internet_log_intervals` (
+  `interval_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `sent` BIGINT(14) UNSIGNED NOT NULL DEFAULT '0',
+  `recv` BIGINT(14) UNSIGNED NOT NULL DEFAULT '0',
+  `duration` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `traffic_type` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
+  `sum` DOUBLE(14, 6) UNSIGNED NOT NULL DEFAULT '0.000000',
+  `acct_session_id` VARCHAR(32) NOT NULL DEFAULT '',
+  `added` TIMESTAMP NOT NULL,
+  `uid` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  KEY `acct_session_id` (`acct_session_id`),
+  KEY `session_interval` (`acct_session_id`, `interval_id`),
+  KEY `uid` (`uid`)
+)
+  COMMENT = 'Internet interval summary stats';
+
+
+CREATE TABLE IF NOT EXISTS `internet_main` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `uid` int(10) unsigned NOT NULL DEFAULT '0',
+  `tp_id` smallint(6) NOT NULL DEFAULT '0',
+  `logins` tinyint(3) unsigned NOT NULL DEFAULT '0',
+  `registration` date DEFAULT '0000-00-00',
+  `ip` int(10) unsigned NOT NULL DEFAULT '0',
+  `ipv6` VARBINARY(16) NOT NULL DEFAULT '',
+  `ipv6_prefix` VARBINARY(16) NOT NULL DEFAULT '',
+  `ipv6_mask` tinyint(1) unsigned NOT NULL DEFAULT 0,
+  `ipv6_prefix_mask` tinyint(1) unsigned NOT NULL DEFAULT 0,
+  `netmask` int(10) unsigned NOT NULL DEFAULT '4294967295',
+  `filter_id` varchar(150) NOT NULL DEFAULT '',
+  `speed` int(10) unsigned NOT NULL DEFAULT '0',
+  `cid` varchar(200) NOT NULL DEFAULT '',
+  `password` blob NOT NULL,
+  `disable` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  `join_service` int(10) unsigned NOT NULL DEFAULT '0',
+  `turbo_mode` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  `free_turbo_mode` smallint(6) unsigned NOT NULL DEFAULT '0',
+  `activate` date NOT NULL DEFAULT '0000-00-00',
+  `expire` date NOT NULL DEFAULT '0000-00-00',
+  `login` varchar(24) NOT NULL DEFAULT '',
+  `detail_stats` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  `personal_tp` double(14,2) unsigned NOT NULL DEFAULT '0.00',
+  `cpe_mac` varchar(200) NOT NULL DEFAULT '',
+  `comments` varchar(250) NOT NULL DEFAULT '',
+  `port` varchar(100) NOT NULL DEFAULT '',
+  `vlan` smallint(6) NOT NULL DEFAULT '0',
+  `nas_id` smallint(6) unsigned NOT NULL DEFAULT '0',
+  `server_vlan` smallint(6) unsigned NOT NULL DEFAULT '0',
+  `ipn_activate` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  KEY `uid` (`uid`)
+) COMMENT='Internet users' ;
+
+
+CREATE TABLE IF NOT EXISTS `internet_online` (
+  `status` INT(3) NOT NULL DEFAULT '0',
+  `user_name` VARCHAR(32) NOT NULL DEFAULT '',
+  `started` DATETIME NOT NULL,
+  `nas_ip_address` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `nas_port_id` INT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `acct_session_id` VARCHAR(32) NOT NULL DEFAULT '',
+  `acct_session_time` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `acct_input_octets` BIGINT(14) UNSIGNED NOT NULL DEFAULT '0',
+  `acct_output_octets` BIGINT(14) UNSIGNED NOT NULL DEFAULT '0',
+  `ex_input_octets` BIGINT(14) UNSIGNED NOT NULL DEFAULT '0',
+  `ex_output_octets` BIGINT(14) UNSIGNED NOT NULL DEFAULT '0',
+  `connect_term_reason` SMALLINT(1) UNSIGNED NOT NULL DEFAULT '0',
+  `framed_ip_address` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `framed_ipv6_prefix`  VARBINARY(16) NOT NULL DEFAULT '',
+  `delegated_ipv6_prefix` VARBINARY(16) NOT NULL DEFAULT '',
+  `framed_interface_id` VARBINARY(16) NOT NULL DEFAULT '',
+  `lupdated` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `sum` DOUBLE(14, 6) NOT NULL DEFAULT '0.000000',
+  `cid` VARCHAR(20) NOT NULL DEFAULT '',
+  `connect_info` VARCHAR(35) NOT NULL DEFAULT '',
+  `tp_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `nas_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `acct_input_gigawords` SMALLINT(4) UNSIGNED NOT NULL DEFAULT '0',
+  `acct_output_gigawords` SMALLINT(4) UNSIGNED NOT NULL DEFAULT '0',
+  `ex_input_octets_gigawords` SMALLINT(4) UNSIGNED NOT NULL DEFAULT '0',
+  `ex_output_octets_gigawords` SMALLINT(4) UNSIGNED NOT NULL DEFAULT '0',
+  `uid` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `join_service` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `turbo_mode` VARCHAR(30) NOT NULL DEFAULT '',
+  `guest` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
+  `circuit_id` VARCHAR(25) NOT NULL DEFAULT '',
+  `remote_id` VARCHAR(25) NOT NULL DEFAULT '',
+  `hostname` VARCHAR(30) NOT NULL DEFAULT '',
+  `switch_port` VARCHAR(11) NOT NULL DEFAULT '',
+  `vlan` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `server_vlan` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `switch_mac` VARCHAR(17) NOT NULL DEFAULT '',
+  `dhcp_id` TINYINT(2) NOT NULL DEFAULT '0',
+  `dhcp_ends` DATETIME NOT NULL,
+  `service_id` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  KEY `user_name` (`user_name`),
+  KEY `acct_session_id` (`acct_session_id`),
+  KEY `framed_ip_address` (`framed_ip_address`),
+  KEY `service_id` (`service_id`),
+  KEY `uid` (`uid`)
+) COMMENT='Internet online';
+
+
+CREATE TABLE IF NOT EXISTS `internet_log` (
   `start` DATETIME NOT NULL  DEFAULT CURRENT_TIMESTAMP,
   `tp_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
   `duration` INT(11) NOT NULL DEFAULT '0',
@@ -564,7 +578,7 @@ CREATE TABLE IF NOT EXISTS `dv_log` (
   `sent2` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   `recv2` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   `acct_session_id` VARCHAR(32) NOT NULL DEFAULT '',
-  `CID` VARCHAR(18) NOT NULL DEFAULT '',
+  `cid` VARCHAR(18) NOT NULL DEFAULT '',
   `bill_id` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   `uid` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   `terminate_cause` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
@@ -577,7 +591,98 @@ CREATE TABLE IF NOT EXISTS `dv_log` (
 )
   COMMENT = 'Internet sessions logs';
 
+CREATE TABLE IF NOT EXISTS `intervals` (
+  `tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `begin` TIME NOT NULL DEFAULT '00:00:00',
+  `end` TIME NOT NULL DEFAULT '00:00:00',
+  `tarif` VARCHAR(7) NOT NULL DEFAULT '0',
+  `day` TINYINT(4) UNSIGNED DEFAULT '0',
+  `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `id` (`id`),
+  UNIQUE KEY `tp_intervals` (`tp_id`, `begin`, `day`)
+)
+  COMMENT = 'Time intervals for tariffs';
 
+CREATE TABLE IF NOT EXISTS `ipn_log` (
+  `uid` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `start` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `stop` TIMESTAMP  NOT NULL,
+  `traffic_class` SMALLINT(3) UNSIGNED NOT NULL DEFAULT '0',
+  `traffic_in` BIGINT(14) UNSIGNED NOT NULL DEFAULT '0',
+  `traffic_out` BIGINT(14) UNSIGNED NOT NULL DEFAULT '0',
+  `nas_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `ip` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `interval_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `sum` DOUBLE(15, 6) UNSIGNED NOT NULL DEFAULT '0.000000',
+  `session_id` CHAR(20) NOT NULL DEFAULT '',
+  KEY `uid_traffic_class` (`uid`, `traffic_class`),
+  KEY `uid` (`uid`),
+  KEY `session_id` (`session_id`)
+)
+  COMMENT = 'Ipn log traffic class';
+
+
+CREATE TABLE IF NOT EXISTS `ipn_traf_detail` (
+  `src_addr` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `dst_addr` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `src_port` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `dst_port` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `protocol` TINYINT(3) UNSIGNED DEFAULT '0',
+  `size` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+  `s_time` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `f_time` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `nas_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `uid` INT(11) UNSIGNED NOT NULL DEFAULT '0'
+)
+  COMMENT = 'Ipn detail log traffic class';
+
+CREATE TABLE IF NOT EXISTS `ipn_unknow_ips` (
+  `src_ip` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
+  `dst_ip` INTEGER(11) UNSIGNED NOT NULL,
+  `size` INTEGER(11) UNSIGNED NOT NULL,
+  `nas_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `datetime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+)
+  COMMENT = 'Ipn unknow ips';
+
+CREATE TABLE IF NOT EXISTS `ippools` (
+  `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `nas` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `ip` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+  `counts` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+  `name` VARCHAR(25) NOT NULL,
+  `priority` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
+  `static` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
+  `speed` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+  `ipv6_prefix` VARBINARY(16) NOT NULL DEFAULT '',
+  `ipv6_mask` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+  `ipv6_template` VARBINARY(100) NOT NULL DEFAULT '',
+  `ipv6_pd` VARBINARY(16) NOT NULL DEFAULT '',
+  `ipv6_pd_mask` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+  `ipv6_pd_template` VARBINARY(100) NOT NULL DEFAULT '',
+  `next_pool_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  `netmask` INT(11) UNSIGNED NOT NULL DEFAULT '4294967295',
+  `dns` VARCHAR(32) NOT NULL DEFAULT '',
+  `ntp` VARCHAR(80) NOT NULL DEFAULT '',
+  `gateway` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `guest` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
+  `domain_id` smallint(6) UNSIGNED NOT NULL DEFAULT '0',
+  `vlan` smallint(2) unsigned not null default 0,
+  `comments` TEXT NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `nas` (`nas`, `ip`)
+)
+  COMMENT = 'IP Pools';
+
+CREATE TABLE `ippools_ips` (
+  `ip` int(10) unsigned NOT NULL DEFAULT '0',
+  `status` tinyint(3) unsigned NOT NULL DEFAULT '0',
+  `ippool_id` smallint(5) unsigned NOT NULL DEFAULT '0',
+  UNIQUE KEY `ip` (`ip`,`ippool_id`),
+  KEY `ip_status` (`ip`,`status`)
+)
+  DEFAULT CHARSET=utf8 COMMENT = 'IP Pools ips';
 
 CREATE TABLE IF NOT EXISTS `msgs_admins` (
   `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
@@ -755,14 +860,14 @@ CREATE TABLE IF NOT EXISTS `msgs_unreg_requests` (
   `address_flat` VARCHAR(10) NOT NULL DEFAULT '',
   `location_id` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
   `ip` INTEGER(11) UNSIGNED NOT NULL,
-  `closed_date` DATETIME NOT NULL DEFAULT '0000-00-00',
+  `closed_date` DATETIME NOT NULL DEFAULT '0000-00-00 00:00:00',
   `tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `payment_sum` DOUBLE(14, 2) UNSIGNED NOT NULL DEFAULT '0.00',
   `extra_sum` DOUBLE(14, 2) UNSIGNED NOT NULL DEFAULT '0.00',
   `paid` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   `uid` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
   `login` VARCHAR(24) NOT NULL DEFAULT '',
-  `connection_time` DATETIME NOT NULL DEFAULT '0000-00-00',
+  `connection_time` DATETIME NOT NULL DEFAULT '0000-00-00 00:00:00',
   `reaction_time` VARCHAR(100) NOT NULL DEFAULT '',
   `last_contact` DATETIME NOT NULL DEFAULT '0000-00-00 00:00:00',
   `planned_contact` DATETIME NOT NULL DEFAULT '0000-00-00 00:00:00',
@@ -974,7 +1079,7 @@ CREATE TABLE IF NOT EXISTS `payments` (
   `ext_id` VARCHAR(28) NOT NULL DEFAULT '',
   `bill_id` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   `inner_describe` VARCHAR(80) NOT NULL DEFAULT '',
-  `amount` DOUBLE(10, 2) NOT NULL DEFAULT '0.00',
+  `amount` DOUBLE(10, 2) NOT NULL DEFAULT '0.00' COMMENT 'Sum in currency',
   `currency` SMALLINT UNSIGNED NOT NULL DEFAULT 0,
   `reg_date` DATETIME NOT NULL  DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -1069,7 +1174,7 @@ CREATE TABLE IF NOT EXISTS `s_detail` (
   `acct_session_id` VARCHAR(32) NOT NULL DEFAULT '',
   `nas_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
   `acct_status` TINYINT(2) UNSIGNED NOT NULL DEFAULT '0',
-  `start` DATETIME DEFAULT NULL,
+  `start` TIMESTAMP NOT NULL  DEFAULT CURRENT_TIMESTAMP,
   `last_update` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   `sent1` BIGINT UNSIGNED NOT NULL DEFAULT '0',
   `recv1` BIGINT UNSIGNED NOT NULL DEFAULT '0',
@@ -1098,10 +1203,12 @@ CREATE TABLE IF NOT EXISTS `shedule` (
   `module` VARCHAR(12) NOT NULL DEFAULT '',
   `comments` VARCHAR(120) NOT NULL DEFAULT '',
   `admin_action` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
+  `service_id` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `id` (`id`),
   UNIQUE KEY `uniq_action` (`h`, `d`, `m`, `y`, `type`, `uid`, `module`),
-  KEY `date_type_uid` (`date`, `type`, `uid`)
+  KEY `date_type_uid` (`date`, `type`, `uid`),
+  KEY `uid` (`uid`)
 )
   COMMENT = 'Shedules';
 
@@ -1293,6 +1400,8 @@ CREATE TABLE IF NOT EXISTS `users_nas` (
 CREATE TABLE IF NOT EXISTS `users_pi` (
   `uid` INT(11) UNSIGNED NOT NULL DEFAULT 0,
   `fio` VARCHAR(120) NOT NULL DEFAULT '',
+  `fio2` VARCHAR(40) NOT NULL DEFAULT '',
+  `fio3` VARCHAR(40) NOT NULL DEFAULT '',
   `phone` VARCHAR(16) NOT NULL DEFAULT '',
   `email` VARCHAR(250) NOT NULL DEFAULT '',
   `country_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
@@ -1306,6 +1415,8 @@ CREATE TABLE IF NOT EXISTS `users_pi` (
   `pasport_num` VARCHAR(16) NOT NULL DEFAULT '',
   `pasport_date` DATE NOT NULL DEFAULT '0000-00-00',
   `pasport_grant` VARCHAR(100) NOT NULL DEFAULT '',
+  `birth_date` DATE NOT NULL DEFAULT '0000-00-00',
+  `reg_address` TEXT NOT NULL,
   `zip` VARCHAR(7) NOT NULL DEFAULT '',
   `city` VARCHAR(20) NOT NULL DEFAULT '',
   `accept_rules` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
@@ -1317,29 +1428,30 @@ CREATE TABLE IF NOT EXISTS `users_pi` (
 
 CREATE TABLE IF NOT EXISTS `users_contact_types`
 (
-  `id` SMALLINT(6) PRIMARY KEY NOT NULL AUTO_INCREMENT,
-  `name` VARCHAR(30) NOT NULL,
-  `is_default` TINYINT(1) NOT NULL DEFAULT 0,
-  `hidden` TINYINT(1) NOT NULL DEFAULT 0
+  id SMALLINT(6) UNSIGNED PRIMARY KEY NOT NULL AUTO_INCREMENT,
+  name VARCHAR(30) NOT NULL DEFAULT '',
+  is_default TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+  hidden TINYINT(1) UNSIGNED NOT NULL DEFAULT 0
 )
   COMMENT = 'Types of user contacts';
 
-CREATE TABLE IF NOT EXISTS `users_contacts` (
-  `id` INT(11) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
-  `uid` INT(11) UNSIGNED NOT NULL,
-  `type_id` SMALLINT(6),
-  `value` VARCHAR(250) NOT NULL,
-  `priority` SMALLINT(6) UNSIGNED,
-  FOREIGN KEY (`uid`) REFERENCES `users` (`uid`) ON DELETE CASCADE,
-  FOREIGN KEY (`type_id`) REFERENCES `users_contact_types` (`id`) ON DELETE CASCADE,
-  INDEX `_uid_contact` (`uid`)
+CREATE TABLE IF NOT EXISTS users_contacts (
+  id INT(11) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  uid INT(11) UNSIGNED NOT NULL DEFAULT 0,
+  type_id SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  value VARCHAR(250) NOT NULL DEFAULT '',
+  priority SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  comments TEXT NOT NULL,
+  FOREIGN KEY (uid) REFERENCES users (uid) ON DELETE CASCADE,
+  FOREIGN KEY (type_id) REFERENCES users_contact_types (id) ON DELETE CASCADE,
+  INDEX _uid_contact (uid)
 )
   COMMENT = 'Main user contacts table';
 
 CREATE TABLE IF NOT EXISTS `sqlcmd_history` (
   `id` INTEGER(11) UNSIGNED NOT NULL AUTO_INCREMENT,
   `datetime` DATETIME NOT NULL,
-  `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '000000',
+  `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `sql_query` TEXT NOT NULL,
   `db_id` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
   `comments` TEXT NOT NULL,
@@ -1371,6 +1483,7 @@ CREATE TABLE IF NOT EXISTS `streets` (
   `name` VARCHAR(100) NOT NULL DEFAULT '',
   `district_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `second_name` VARCHAR(50) NOT NULL DEFAULT '',
+  `type` TINYINT(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `name_district` (`name`, `district_id`)
 )
@@ -1402,7 +1515,7 @@ CREATE TABLE IF NOT EXISTS `builds` (
   `number` VARCHAR(10) NOT NULL DEFAULT '',
   `flors` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
   `entrances` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
-  `added` DATE NOT NULL,
+  `added` TIMESTAMP NOT NULL,
   `map_x` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `map_y` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `map_x2` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
@@ -1420,12 +1533,12 @@ CREATE TABLE IF NOT EXISTS `builds` (
   `comments` TEXT,
   `public_comments` TEXT,
   `zip` VARCHAR(7) NOT NULL DEFAULT '',
-   planned_to_connect tinyint(1) unsigned NOT NULL default '0',
+  `planned_to_connect` tinyint(1) unsigned NOT NULL default '0',
+  `block` VARCHAR(20) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `id` (`id`),
-  UNIQUE KEY `street_id` (`street_id`, `number`)
+  UNIQUE KEY `street_id` (`street_id`, `number`, `block`)
 )
-  COMMENT = 'Builds';
+  COMMENT = 'Address Builds';
 
 CREATE TABLE IF NOT EXISTS `service_status` (
   `id` TINYINT(2) UNSIGNED NOT NULL DEFAULT '0',
@@ -1545,6 +1658,97 @@ INSERT INTO `admin_permits` (`aid`, `section`, `actions`, `module`) VALUES
   (1, 7, 0, ''),
   (1, 8, 0, '');
 
+REPLACE INTO `admin_type_permits` (`type`, `section`, `actions`, `module`) VALUES
+  ('$lang{ALL} $lang{PERMISSION}', 0,  0, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 0,  1, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 0,  2, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 0,  3, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 0,  4, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 0,  5, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 0,  6, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 0,  7, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 0,  8, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 0,  9, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 0,  10, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 0,  11, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 0,  14, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 0,  16, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 0,  17, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 1,  0, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 1,  1, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 1,  2, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 1,  3, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 1,  4, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 2,  0, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 2,  1, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 2,  2, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 2,  3, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 3,  0, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 3,  1, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 3,  2, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 3,  3, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 4,  0, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 4,  1, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 4,  2, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 4,  3, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 4,  4, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 4,  5, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 4,  6, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 5,  0, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 5,  1, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 5,  2, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 6,  0, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 7,  0, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 8,  0, ''),
+
+  ('$lang{MANAGER}', 0,  0, ''),
+  ('$lang{MANAGER}', 0,  1, ''),
+  ('$lang{MANAGER}', 0,  2, ''),
+  ('$lang{MANAGER}', 0,  3, ''),
+  ('$lang{MANAGER}', 0,  4, ''),
+  ('$lang{MANAGER}', 0,  5, ''),
+  ('$lang{MANAGER}', 0,  6, ''),
+  ('$lang{MANAGER}', 0,  7, ''),
+  ('$lang{MANAGER}', 0,  8, ''),
+  ('$lang{MANAGER}', 0,  9, ''),
+  ('$lang{MANAGER}', 0,  10, ''),
+  ('$lang{MANAGER}', 0,  11, ''),
+  ('$lang{MANAGER}', 1,  0, ''),
+  ('$lang{MANAGER}', 1,  1, ''),
+  ('$lang{MANAGER}', 2,  0, ''),
+  ('$lang{MANAGER}', 2,  1, ''),
+  ('$lang{MANAGER}', 5,  0, ''),
+  ('$lang{MANAGER}', 5,  1, ''),
+  ('$lang{MANAGER}', 6,  0, ''),
+  ('$lang{MANAGER}', 7,  0, ''),
+  ('$lang{MANAGER}', 8,  0, ''),
+
+  ('$lang{SUPPORT}', 0,  0, 'Msgs'),
+  ('$lang{SUPPORT}', 0,  2, 'Maps'),
+  ('$lang{SUPPORT}', 5,  0, 'Snmputils'),
+  ('$lang{SUPPORT}', 5,  1, 'Notepad'),
+  ('$lang{SUPPORT}', 6,  0, ''),
+  ('$lang{SUPPORT}', 7,  0, ''),
+  ('$lang{SUPPORT}', 8,  0, ''),
+
+  ('$lang{ACCOUNTANT}', 0,  0, 'Docs'),
+  ('$lang{ACCOUNTANT}', 0,  2, 'Paysys'),
+  ('$lang{ACCOUNTANT}', 1,  0, 'Cards'),
+  ('$lang{ACCOUNTANT}', 1,  1, 'Extfin'),
+  ('$lang{ACCOUNTANT}', 1,  2, 'Notepad'),
+  ('$lang{ACCOUNTANT}', 1,  3, ''),
+  ('$lang{ACCOUNTANT}', 1,  4, ''),
+  ('$lang{ACCOUNTANT}', 2,  0, ''),
+  ('$lang{ACCOUNTANT}', 2,  1, ''),
+  ('$lang{ACCOUNTANT}', 2,  2, ''),
+  ('$lang{ACCOUNTANT}', 2,  3, ''),
+  ('$lang{ACCOUNTANT}', 3,  0, ''),
+  ('$lang{ACCOUNTANT}', 3,  1, ''),
+  ('$lang{ACCOUNTANT}', 6,  0, ''),
+  ('$lang{ACCOUNTANT}', 7,  0, ''),
+  ('$lang{ACCOUNTANT}', 8,  0, '');
+
+
 
 INSERT INTO `users` (`id`, `activate`, `expire`, `credit`, `reduction`, `registration`, `password`, `uid`, `gid`, `disable`, `company_id`, `bill_id`, `ext_bill_id`, `credit_date`, `domain_id`)
 VALUES
@@ -1556,24 +1760,24 @@ INSERT INTO `users_pi` (`uid`, `fio`, `comments`) VALUES (1, 'Test user', '');
 INSERT INTO `bills` VALUES (1, 0.000000, 1, 0, '2009-08-03');
 
 INSERT INTO `tarif_plans` (`id`, `name`, `payment_type`, `module`, `rad_pairs`, `comments`)
-VALUES (100, 'Admin', 1, 'Dv', '', '');
+VALUES (100, 'Admin', 1, 'Internet', '', '');
 
-INSERT INTO `dv_main`
+INSERT INTO `internet_main`
 SET
   `uid` = 1,
-  `tp_id` = 100,
+  `tp_id` = 1,
   `logins` = 0,
-  `registration` = now(),
+  `registration` = NOW(),
   `password` = '';
 
 INSERT INTO `admin_actions` VALUES ('LOGIN:test', '2009-08-03 11:42:53', 1534854767, 1, 1, 1, '', 7),
   ('BILL_ID ->1;', '2009-08-03 11:42:53', 1534854767, 1, 1, 2, '', 2),
   ('PASSWORD *->*;', '2009-08-03 11:42:53', 1534854767, 1, 1, 3, '', 2),
   ('ADD PI', '2009-08-03 11:42:53', 1534854767, 1, 1, 4, '', 0),
-  ('ACTIVE', '2009-08-03 11:42:53', 1534854767, 1, 1, 5, 'Dv', 1);
+  ('ACTIVE', '2009-08-03 11:42:53', 1534854767, 1, 1, 5, 'Internet', 1);
 
 INSERT INTO `nas` (`id`, `name`, `nas_identifier`, `descr`, `ip`, `nas_type`, `auth_type`, `mng_host_port`, `mng_user`, `mng_password`, `alive`, `rad_pairs`)
-VALUES (1, 'NAS Server', '', 'NAS Server', INET_ATON('127.0.0.1'), 'mpd5', 0, '127.0.0.1:5005', 'admin',
+VALUES (1, 'NAS_Server', '', 'NAS_Server', INET_ATON('127.0.0.1'), 'mpd5', 0, '127.0.0.1:3799:5005', 'admin',
            ENCODE('secretpass', 'test12345678901234567890'), 300, '');
 INSERT INTO `ippools` (`id`, `nas`, `ip`, `counts`, `name`, `priority`) VALUES (1, 1, 167772161, 256, 'Main', 0);
 
@@ -1583,9 +1787,8 @@ INSERT INTO `msgs_chapters` (`name`) VALUES ('-');
 INSERT INTO `fees_types` (`id`, `name`)
 VALUES (1, '$lang{ABON}'), (2, '$lang{FINE}'), (3, '$lang{ACTIVATE}'), (4, '$lang{MONEY_TRANSFER}'),
   (0, '$lang{ONE_TIME}');
-UPDATE `fees_types`
-SET `id` = 0
-WHERE `name` = '$lang{ONE_TIME}';
+
+UPDATE `fees_types` SET `id` = 0 WHERE `name` = '$lang{ONE_TIME}';
 
 REPLACE INTO `service_status` (`id`, `name`, `color`, `type`, `get_fees`) VALUES (0, '$lang{ENABLE}', '4CAF50', 0, 0);
 REPLACE INTO `service_status` (`id`, `name`, `color`, `type`, `get_fees`) VALUES (1, '$lang{DISABLE}', 'F44336', 0, 0);
@@ -1596,6 +1799,7 @@ VALUES (4, '$lang{DISABLE} $lang{NON_PAYMENT}', '607D8B', 0, 0);
 REPLACE INTO `service_status` (`id`, `name`, `color`, `type`, `get_fees`) VALUES (5, '$lang{ERR_SMALL_DEPOSIT}', '009688', 0, 0);
 REPLACE INTO `service_status` (`id`, `name`, `color`, `type`, `get_fees`) VALUES (6, '$lang{VIRUS_ALERT}', '9C27B0', 0, 0);
 REPLACE INTO `service_status` (`id`, `name`, `color`, `type`, `get_fees`) VALUES (7, '$lang{REPAIR}', '9E9E9E', 0, 0);
+REPLACE INTO `service_status` (`id`, `name`, `color`, `type`, `get_fees`) VALUES (10, '$lang{TRAF_LIMIT}', '9F9F9F', 0, 0);
 
 REPLACE INTO `users_contact_types` (`id`, `name`, `is_default`, `hidden`) VALUES
   (1, 'CELL_PHONE', 0, 0),
@@ -1610,10 +1814,10 @@ REPLACE INTO `users_contact_types` (`id`, `name`, `is_default`, `hidden`) VALUES
 
 CREATE TABLE IF NOT EXISTS `admins_contacts` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-  `aid` int(11) unsigned NOT NULL,
-  `type_id` smallint(6) DEFAULT NULL,
-  `value` varchar(250) NOT NULL,
-  `priority` smallint(6) unsigned DEFAULT NULL,
+  `aid` smallint(11) unsigned NOT NULL DEFAULT 0,
+  `type_id` smallint(6) unsigned  NOT NULL DEFAULT 0,
+  `value` varchar(250) NOT NULL DEFAULT '',
+  `priority` smallint(6) unsigned DEFAULT 0,
   PRIMARY KEY (`id`),
   KEY `_aid_contact` (`aid`)
 )
@@ -1623,7 +1827,7 @@ INSERT INTO `config` (`param`, `value`, `domain_id`) VALUES ('_ORGANIZATION_LOCA
 
 CREATE TABLE IF NOT EXISTS `msgs_dispatch_category` (
   `id`   int(11) unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(30) NOT NULL,
+  `name` varchar(30) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`)
 )
   COMMENT='Messages dispatch category';
@@ -1650,3 +1854,26 @@ CREATE TABLE IF NOT EXISTS `msgs_quick_replys_tags` (
   KEY `msg_id` (`msg_id`)
 )
   COMMENT = 'Quick replys msgs tags';
+
+CREATE TABLE IF NOT EXISTS `users_contracts` (
+  `id` SMALLINT(5) unsigned NOT NULL AUTO_INCREMENT,
+  `parrent_id` SMALLINT(5) unsigned NOT NULL DEFAULT '0',
+  `uid` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `company_id` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `number` VARCHAR(40) NOT NULL DEFAULT '',
+  `name` VARCHAR(120) NOT NULL DEFAULT '',
+  `date` DATE NOT NULL,
+  `end_date` DATE NOT NULL,
+  `type` SMALLINT(3) NOT NULL DEFAULT '0',
+  `reg_date` DATETIME NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `aid` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `signature` TEXT,
+  UNIQUE KEY `id` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Contracts';
+
+CREATE TABLE IF NOT EXISTS `contracts_type` (
+  `id` SMALLINT(5) unsigned NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(120) NOT NULL DEFAULT '',
+  `template` VARCHAR(40) NOT NULL DEFAULT '',
+  UNIQUE KEY `id` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Contracts type';

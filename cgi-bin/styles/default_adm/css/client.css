@@ -147,3 +147,7 @@ nav.navbar a.header-btn-link {
 div.input-group > span.input-group-addon.glyphicon {
     top : 0;
 }
+
+div.box-footer {
+  text-align: center;
+}

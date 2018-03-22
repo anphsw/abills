@@ -68,6 +68,8 @@ use constant {
     'queue_type'             => [ '/queue/type/print' ],
     'queue_simple'           => [ '/queue/simple/print' ],
     'firewall_address__list' => [ '/ip/firewall/address-list/print' ],
+    'firewall_filter_list'   => [ '/ip/firewall/filter/print' ],
+    
   }
 };
 
@@ -199,6 +201,23 @@ sub execute {
   }
   
   return 0;
+}
+
+
+#**********************************************************
+=head2 has_list_command($list_name) - checks if object has predefined command for list
+
+  Arguments:
+    $list_name -
+    
+  Returns:
+    boolean
+    
+=cut
+#**********************************************************
+sub has_list_command {
+  return unless $_[1];
+  return exists LIST_REFS->{$_[1]} && defined LIST_REFS->{$_[1]};
 }
 
 #**********************************************************

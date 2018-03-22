@@ -40,7 +40,7 @@
   <label class='control-label col-md-2' for='GRP'>_{GROUPS}_</label>
   <div class='col-md-5'>
     <div class='input-group'>
-      <input type=text name='GRP' value='%GID%:%G_NAME%' ID='GRP' class='form-control' readonly='readonly'/>
+      <input type=text name='GRP' value='%GID%:%G_NAME%' ID='GRP' %GRP_ERR% class='form-control' readonly='readonly'/>
       <span class='input-group-addon'>
         <a href='$SELF_URL?index=12&UID=$FORM{UID}'>
           <span class='glyphicon glyphicon-pencil'></span>

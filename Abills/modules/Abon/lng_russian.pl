@@ -13,3 +13,5 @@ $lang{VAT_INCLUDE}='С учётом НДС';
 $lang{SEND_NOTIFICATION}='Отправить уведомление';
 $lang{MANUAL_ACTIVATE}='Ручное включение услуги';
 $lang{USER_PORTAL}='Портал Абонента';
+$lang{SERVICE_COUNT}='Количество услуг';
+$lang{FEES_PERIOD}='Количество списаний';

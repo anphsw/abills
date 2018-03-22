@@ -47,10 +47,10 @@ function loadToModal(url, callback) {
               var modalBody = $('#CurrentOpenedModal').find('.modal-body');
               modalBody.html(data);
               
-              if (modalBody.find('.box-header').length === 1){
-                var header_inside = modalBody.find('.box-header');
+              if (modalBody.find('.box-header').length === 1 && !modalBody.find('.box-header').find('.box-tools').length){
+                var header_inside = modalBody.find('.box-header').first();
                 var header_outside = $('#CurrentOpenedModal_header');
-                
+
                 if (header_outside){
                     header_outside.append(header_inside);
                 }
@@ -448,7 +448,7 @@ function ATooltip(text) {
   this.build = function () {
     this._id   = ATooltip.counter++;
     this.body = '<div id="modalTooltip_' + this._id + '" class="alert alert-' + this._class +
-        '" style="display : none; position: fixed; z-index: 9999; top: 45vh; left: 35vw">' +
+        '" style="display : none; position: fixed; z-index: 9999; top: 10vh; left: 35vw">' +
         this._text + '</div>';
   };
 
@@ -488,12 +488,12 @@ function ATooltip(text) {
         + '</h3>');
     this.setTimeout(duration || 3000);
     this.setClass(
-        message.type
-          ? (message.type === 'info')
+        message.message_type
+          ? (message.message_type === 'info')
             ? 'info'
-            : (message.type === 'warn')
+            : (message.message_type === 'warn')
               ? 'warning'
-              : (message.type === 'err')
+              : (message.message_type === 'err')
                 ? 'danger'
                 : 'info'
           : 'success'

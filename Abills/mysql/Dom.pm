@@ -81,6 +81,7 @@ sub list {
     [ 'COMPANY_ID',     'INT', 'u.company_id',     1],
     [ 'DISABLE',        'INT', 'u.disable',        1],
     [ 'ADDRESS_FLAT',   'STR', 'pi.address_flat',  1],
+    [ 'LOCATION_ID',    'INT', 'pi.location_id',   1],
     [ 'CREDITOR',       'INT', 'creditor', "IF(u.credit>0, 1, 0) AS creditor ",  1],
     [ 'DEBETOR',        'INT', 'debetor', "IF(IF(company.id IS NULL, b.deposit, b.deposit)<0, 1, 0) AS debetor", 1],
     [ 'ADDRESS_STREET', 'STR', 'pi.address_street',  1],

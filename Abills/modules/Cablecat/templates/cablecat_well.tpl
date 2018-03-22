@@ -3,7 +3,7 @@
     <div class='box box-theme'>
       <div class='box-header with-border'><h4 class='box-title'>_{WELL}_</h4></div>
       <div class='box-body'>
-        <form name='CABLECAT_WELL' id='form_CABLECAT_WELL' method='post' class='form form-horizontal'>
+        <form name='CABLECAT_WELLS' id='form_CABLECAT_WELLS' method='post' class='form form-horizontal'>
           <input type='hidden' name='index' value='$index'/>
           <input type='hidden' name='ID' value='%ID%'/>
           <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='1'/>
@@ -62,8 +62,8 @@
         </form>
 
       </div>
-      <div class='box-footer text-center'>
-        <input type='submit' form='form_CABLECAT_WELL' class='btn btn-primary' name='submit'
+      <div class='box-footer'>
+        <input type='submit' form='form_CABLECAT_WELLS' class='btn btn-primary' name='submit'
                value='%SUBMIT_BTN_NAME%'>
       </div>
     </div>
@@ -79,7 +79,7 @@
   </div>
 
   <div class='col-md-6'>
-    <div class='box box-theme' data-visible='%CONNECTERS_VISIBLE%'>
+    <div class='box box-theme' style='display: none' data-visible='%CONNECTERS_VISIBLE%' id='CONNECTERS_BOX'>
       <div class='box-header with-border'><h4 class='box-title'>_{CONNECTERS}_</h4></div>
       <div class='box-body'>
         %CONNECTERS%
@@ -90,65 +90,73 @@
 
 <script>
   jQuery(function () {
-    var form_id = 'form_CABLECAT_CONNECTERS';
+    var form_id        = 'form_CABLECAT_CONNECTERS';
+    var connecters_box = jQuery('div#CONNECTERS_BOX');
 
-    // Add connecter form opened on modal
-    var add_btn = jQuery('#add_connecter');
-    modify_add_connecter_btn();
+    if (connecters_box.length) {
+      // Add connecter form opened on modal
+      var add_btn = jQuery('#add_connecter');
+      modify_add_connecter_btn();
 
-    function modify_add_connecter_btn() {
-      if (!add_btn.length) return false;
+      function modify_add_connecter_btn() {
+        if (!add_btn.length) return false;
 
-      add_btn.on('click', function (event) {
-        cancelEvent(event);
+        add_btn.on('click', function (event) {
+          cancelEvent(event);
 
-        var href = add_btn.attr('href');
-        href     = href.replace(/\?index=/, '\?qindex=');
-        href += '&header=2&TEMPLATE_ONLY=1';
+          var href = add_btn.attr('href');
+          href     = href.replace(/\?index=/, '\?qindex=');
+          href += '&header=2&TEMPLATE_ONLY=1';
 
-        Events.once('modal_loaded', setup_modal_connecter_add_form);
-        loadToModal(href);
-      });
+          Events.once('modal_loaded', setup_modal_connecter_add_form);
+          loadToModal(href);
+        });
 
-      add_btn.addClass('btn btn-default');
+        add_btn.addClass('btn btn-default');
+      }
+
+      function setup_modal_connecter_add_form(modal) {
+
+        var form = modal.find('form#' + form_id);
+
+        // If wrong form was loaded, do nothing
+        if (!form.length) return false;
+
+        var holder = modal.find('#CONNECTER_FORM_CONTAINER_DIV');
+
+        // Make form wider
+        holder.attr('class', 'col-md-12');
+
+        // Make form submitted via POST
+        form.off('submit');
+        form.on('submit', ajaxFormSubmit);
+      }
+
+      function refreshConnectersView() {
+        aModal.hide();
+
+        console.log('box_refresh');
+        setBoxRefreshingState(connecters_box, true);
+        console.log(connecters_box, true);
+        jQuery('#WELL_CONNECTERS_LIST').load(' #WELL_CONNECTERS_LIST', function () {
+          setBoxRefreshingState(connecters_box, false);
+        });
+      }
+
+      // Refresh list each time it has been changed
+      Events.on('form_CABLECAT_CONNECTERS', refreshConnectersView);
+      Events.on('AJAX_SUBMIT.' + form_id, refreshConnectersView);
     }
-
-    function setup_modal_connecter_add_form(modal) {
-
-      var form    = modal.find('form#' + form_id);
-
-      // If wrong form was loaded, do nothing
-      if (!form.length) return false;
-
-      var holder = modal.find('#CONNECTER_FORM_CONTAINER_DIV');
-
-      // Make form wider
-      holder.attr('class', 'col-md-12');
-
-      // Make form submitted via POST
-      form.off('submit');
-      form.on('submit', ajaxFormSubmit);
-    }
-
-    // Refresh list each time it has been changed
-    Events.on('AJAX_SUBMIT.' + form_id, function () {
-      aModal.hide();
-
-      console.log('submit');
-
-      // Refresh block with connecters
-      jQuery('#WELL_CONNECTERS_LIST').load(' #WELL_CONNECTERS_LIST');
-    });
 
     // Auto max_prev_type name
     {
       // Select id
-      var select_id = 'TYPE_ID';
+      var select_id     = 'TYPE_ID';
       var count_of_type = JSON.parse('%COUNT_FOR_TYPE%');
 
-      var name_input = jQuery('input#NAME_ID');
+      var name_input  = jQuery('input#NAME_ID');
       var type_select = jQuery('select#' + select_id);
-      type_select.on('change', function(){
+      type_select.on('change', function () {
         var name = type_select.find('option[value="' + this.value + '"]').text();
         name_input.val(name + '_' + (+count_of_type[this.value] + 1));
       });

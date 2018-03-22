@@ -526,7 +526,7 @@ sub accounting {
     }
 
     # Delete from session
-    $self->query2("DELETE FROM dv_calls WHERE acct_session_id= ?  and nas_id= ? ;", 
+    $self->query2("DELETE FROM dv_calls WHERE acct_session_id= ? AND nas_id= ? ;",
      'do', { Bind => [ $RAD->{'Acct-Session-Id'}, $NAS->{NAS_ID} ] });
   }
 

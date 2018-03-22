@@ -6,7 +6,6 @@
 
 =cut
 
-my $VERSION = 1.0;
 use Megogo;
 use Fees;
 use Abills::Base;
@@ -15,6 +14,8 @@ use strict;
 no strict 'vars';
 use warnings FATAL => 'all';
 no warnings 'uninitialized'; # FIXME
+
+my $VERSION = 1.0;
 
 my $Megogo = Megogo->new($db, $admin, \%conf);
 my $fees   = Fees->new($db, $admin, \%conf);
@@ -678,11 +679,13 @@ sub megogo_report_table {
   my $table = '';
   my ($year, $month, undef) = split('-', $DATE);
 
-  if(defined $attr->{MONTH_ID}){
-    $month = $attr->{MONTH_ID} + 1;
-  }
-  if(defined $attr->{YEAR_ID}){
-    $year  = $attr->{YEAR_ID};
+  if( ref $attr eq 'HASH') {
+    if (defined $attr->{MONTH_ID}) {
+      $month = $attr->{MONTH_ID} + 1;
+    }
+    if (defined $attr->{YEAR_ID}) {
+      $year = $attr->{YEAR_ID};
+    }
   }
 
   my $report_list = $Megogo->report_lists(
@@ -735,7 +738,7 @@ sub megogo_report_table {
 =cut
 #**********************************************************
 sub megogo_start_page {
-  my ($attr) = @_;
+  #my ($attr) = @_;
 
   my %START_PAGE_F = ('megogo_report_table' => "$lang{USED}");
 

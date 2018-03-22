@@ -102,11 +102,12 @@ sub msgs_user_reply {
     UID => $attr->{UID}
   });
   return 0 if ( $Msgs->{errno} );
-  my $reply_id = $Msgs->{INSERT_ID};
   
   my $message_info_list = $Msgs->messages_list({
     MSG_ID     => $message_id,
-    RESPOSIBLE => '_SHOW',,
+    RESPOSIBLE => '_SHOW',
+    STATE      => '_SHOW',
+    SUBJECT    => '_SHOW',
     UID        => '_SHOW',
     COLS_NAME  => 1
   });
@@ -143,11 +144,12 @@ sub msgs_user_reply {
     STATE         => $attr->{STATE},
     REPLY_TEXT    => $attr->{REPLY_TEXT},
     SENDER_UID    => $attr->{UID},
+    SUBJECT       => $message_info->{subject},
     MESSAGE_INFO  => $message_info,
     MESSAGE_STATE => $msg_state,
   });
   
-  return $reply_id;
+  return 1;
 }
 
 
@@ -178,6 +180,7 @@ sub msgs_admin_reply {
   
   my $message_info_list = $Msgs->messages_list({
     MSG_ID     => $message_id,
+    SUBJECT    => '_SHOW',
     RESPOSIBLE => '_SHOW',
     UID        => '_SHOW',
     COLS_NAME  => 1
@@ -241,10 +244,11 @@ sub msgs_admin_reply {
     msgs_messaging_notify_user({
       UID             => $attr->{UID},
       REPLY_ID        => $reply_id,
+      SUBJECT         => $message_info->{subject},
       REPLY_TEXT      => $attr->{REPLY_TEXT},
       REPLY_INNER_MSG => $attr->{INNER_MSG} || $attr->{REPLY_INNER_MSG},
       MSG_ID          => $message_id,
-      SENDER_AID      => $admin->{AID},
+      SENDER_AID      => $attr->{AID} || $admin->{AID},
       MESSAGE_INFO    => $message_info
     });
   
@@ -262,72 +266,77 @@ sub msgs_admin_reply {
   Arguments:
     $attr
       MSG_ID
-      REPLY_ID
-      MSGS
-      MESSAGE
-      SEND_TYPE
-         1 - Msgs delivery tpl
-      UID
+      UID                             - recepient
+      INNER_MSG|REPLY_INNER_MSG       - flag for admin obnly visible messages
+      MESSAGE_INFO                    - $Msgs->info() result
+      SUBJECT                         - message subject
+      MESSAGE|REPLY_TEXT|SURVEY_TEXT  - text
+      
 
-  Results:
+  Returns:
+    $Sender->send_message() result
 
 =cut
 #**********************************************************
 sub msgs_messaging_notify_user {
   my ($attr) = @_;
   
-  if ( $attr->{INNER_MSG} || $attr->{REPLY_INNER_MSG} ) {
-    return;
-  }
+  return 1 if ( $attr->{INNER_MSG} || $attr->{REPLY_INNER_MSG} );
+  return 1 if ( !$conf{TELEGRAM_TOKEN} );
   
   my $message_id = $attr->{MSG_ID} or return 1;
-  #  my $reply_id = $attr->{REPLY_ID} || '';
-  
   my $message_info = $attr->{MESSAGE_INFO};
-  return 0 if ( !$message_info || ref $message_info ne 'HASH' || !$message_info->{uid} );
+  return - 1 if ( !$message_info || ref $message_info ne 'HASH' );
+  
   my $uid = $attr->{UID} || $message_info->{uid} || return 0;
   
-  my $subject = $attr->{SUBJECT} || $message_info->{subject};
-  
+  my $subject = $attr->{SUBJECT} || $message_info->{subject} || '';
   my $message = $attr->{MESSAGE} || $attr->{REPLY_TEXT} || $Msgs->{SURVEY_TEXT} || '';
   
-  if ( $conf{TELEGRAM_TOKEN} ) {
-    return msgs_send_via_telegram($message_id, {
-        UID        => $uid,
-        SUBJECT    => "_{YOU_HAVE_NEW_REPLY}_ '<b>$subject</b>'",
-        MESSAGE    => $message
-      });
-  }
-  
-  return 1;
+  return msgs_send_via_telegram($message_id, {
+    UID     => $uid,
+    SUBJECT => "_{YOU_HAVE_NEW_REPLY}_ '<b>$subject</b>'",
+    MESSAGE => $message
+  });
 }
 
 #**********************************************************
-=head2 msgs_messaging_notify_admins($attr)
+=head2 msgs_messaging_notify_admins($attr) - sends message to every admin, that should know about response
 
   Arguments:
     $attr
+      MSG_ID
       STATE
       MSGS
 
-  Results:
+  Returns:
 
 =cut
 #**********************************************************
 sub msgs_messaging_notify_admins {
   my ($attr) = @_;
   
-  my $message_id = $attr->{MSG_ID} or return 1;
-  
-  #  my $reply_id = $attr->{REPLY_ID} || '--';
+  # Sanitize arguments
+  my $message_id = $attr->{MSG_ID} or return undef;
+  return 1 unless $conf{TELEGRAM_TOKEN};
   
   # Get resposible admin
   my $message_info = $attr->{MESSAGE_INFO};
   return 0 if ( !$message_info || ref $message_info ne 'HASH' || !$message_info->{resposible} );
   
   my $resposible_aid = $message_info->{resposible};
-  my $subject = $attr->{SUBJECT} || $message_info->{subject};
+  my $subject = $attr->{SUBJECT} || $message_info->{subject} || '';
   
+  # If he has sent a message, he knows about it
+  return 1 if ( !$resposible_aid || ($attr->{SENDER_AID} && $attr->{SENDER_AID} eq $resposible_aid) );
+  
+  my $notification_subject = "_{YOU_HAVE_NEW_REPLY}_ '<b>$subject</b>'";
+  my $message = $attr->{MESSAGE} || $attr->{REPLY_TEXT} || '';
+  if ( $debug > 4 ) {
+    _bp('TELEGRAM MESSAGE WAS', $message);
+  }
+  
+  # Get status name
   my $status_name = '';
   if ( defined $attr->{MESSAGE_STATE} ) {
     $Msgs->status_list({
@@ -343,39 +352,34 @@ sub msgs_messaging_notify_admins {
     }
   }
   
-  if ( $conf{TELEGRAM_TOKEN} ) {
-    
-    # If he has sent a message, he knows about it
-    return 1 if ( !$resposible_aid || ($attr->{SENDER_AID} && $attr->{SENDER_AID} eq $resposible_aid) );
-    
-    my $message = $attr->{MESSAGE} || $attr->{REPLY_TEXT} || '';
-    
-    if ( $debug > 4 ) {
-      _bp('TELEGRAM MESSAGE WAS', $message);
+  if ( $status_name ) {
+    if ( $status_name =~ /\$lang\{([a-zA-Z\_]+)\}/ ) {
+      $status_name = "_{$1}_";
     }
-    my $notification_subject = "_{YOU_HAVE_NEW_REPLY}_ '<b>$subject</b>'";
-    
-    if ( $status_name ) {
-      if ( $status_name =~ /\$lang\{([a-zA-Z\_]+)\}/ ) {
-        $status_name = "_{$1}_";
-      }
-      $notification_subject .= "\n ( _{STATE}_ : $status_name)";
-    }
-    
-    return msgs_send_via_telegram($message_id, {
-        AID          => $resposible_aid,
-        SENDER_UID => $attr->{UID},
-        SUBJECT      => $notification_subject,
-        MESSAGE      => $message,
-      });
-    
+    $notification_subject .= "\n ( _{STATE}_ : $status_name)";
   }
   
-  return 1;
+  return msgs_send_via_telegram($message_id, {
+    AID        => $resposible_aid,
+    SENDER_UID => $attr->{UID},
+    SUBJECT    => $notification_subject,
+    MESSAGE    => $message,
+  });
 }
 
 #**********************************************************
-=head2 msgs_send_via_telegram() - Sends message with reply ability
+=head2 msgs_send_via_telegram($message_id, $sender_attr) - Sends message with reply ability
+
+  Adds a keyboard to message
+
+  Arguments:
+    UID|AID    - recepient
+    SENDER_UID - use with AID, to build link to message with UID
+    SUBJECT    - subject for text
+    MESSAGE    - text
+  
+  Returns:
+    $Sender->send_message() response
 
 =cut
 #**********************************************************
@@ -396,11 +400,12 @@ sub msgs_send_via_telegram {
     Encode::_utf8_off($text);
     $text;
   };
+
   if ( $sender_attr->{MESSAGE} ) {
     $sender_attr->{MESSAGE} = $translate->($sender_attr->{MESSAGE});
   }
   if ( $sender_attr->{SUBJECT} ) {
-    $sender_attr->{SUBJECT} = $translate->($sender_attr->{SUBJECT});
+    $sender_attr->{SUBJECT} = "#$message_id " . $translate->($sender_attr->{SUBJECT});
   }
   
   my @keyboard = ();
@@ -408,7 +413,14 @@ sub msgs_send_via_telegram {
     push(@keyboard, { text => $translate->('_{MSGS_REPLY}_'), 'callback_data' => 'MSGS:REPLY:' . $message_id });
   }
   
-  my $referer = ($conf{BILLING_URL} || $ENV{HTTP_REFERER} || '');
+  my $referer = (
+    # Allow users to use their own portal URL
+    ($sender_attr->{UID} ? $conf{CLIENT_INTERFACE_URL} : '')
+      || $conf{BILLING_URL}
+      || $ENV{HTTP_REFERER}
+      || ''
+  );
+  
   if ( $referer =~ /(https?:\/\/[a-zA-Z0-9:\.\-]+)\/?/g ) {
     my $site_url = $1;
     
@@ -431,10 +443,7 @@ sub msgs_send_via_telegram {
       
       push(@keyboard, { text => $translate->('_{MSGS_OPEN}_'), 'url' => $link });
     }
-    
   }
-  
-  #  push(@keyboard, { text => $translate->('_{GO}_'), 'url' => 'https://192.168.1.1/' });
   
   my $message_send_params = {
     %{$sender_attr},
@@ -460,6 +469,50 @@ sub msgs_send_via_telegram {
   }
   
   return $Sender->send_message($message_send_params);
+}
+
+#**********************************************************
+=head2 msgs_user_can_reply_to_theme($msg_id) - checks if user can reply to theme
+
+  Arguments:
+    $msg_id -
+    
+  Returns:
+    undef - error
+    0     - negative responce
+    1     - positive responce
+  
+=cut
+#**********************************************************
+sub msgs_user_can_reply_to_theme {
+  my ($message_id) = @_;
+  
+  my $message_info_list = $Msgs->messages_list({
+    MSG_ID    => $message_id,
+    STATE_ID  => '_SHOW',
+    COLS_NAME => 1
+  });
+  
+  return if ( $Msgs->{errno} || !$message_info_list || ref $message_info_list ne 'ARRAY' || !$message_info_list->[0] );
+  
+  my $message_info = $message_info_list->[0];
+  my $status_id = $message_info->{state_id};
+  
+  # There is special "Hold up" state
+  return 0 if ( $status_id == 3 );
+  
+  # Check status is closed
+  my $statuses_list = $Msgs->status_list({
+    ID          => $status_id,
+    TASK_CLOSED => 1,
+  });
+  # Error
+  return if ( $Msgs->{errno} || !$statuses_list || ref $statuses_list ne 'ARRAY' );
+  
+  # Found in closed statuses
+  return 0 if ( scalar @{$statuses_list} );
+  
+  return 1;
 }
 
 1;

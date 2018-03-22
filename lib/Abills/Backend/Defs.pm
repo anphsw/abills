@@ -16,7 +16,7 @@ BEGIN {
   use FindBin '$Bin';
   
   $libpath = $Bin . '/../'; #assuming we are in /usr/abills/misc/
-  if ( $Bin =~ m/\/usr\/abills(\/)/ ) {
+  if ( $Bin =~ m/\/abills(\/)/ ) {
     $libpath = substr($Bin, 0, $-[1]);
   }
   
@@ -64,7 +64,7 @@ $debug //= $ARGS->{DEBUG} || $ARGS->{debug} || 3;
 
 $db = Abills::SQL->connect(@conf{'dbtype', 'dbhost', 'dbname', 'dbuser', 'dbpasswd'}, {
     CHARSET => $conf{dbcharset},
-    SCOPE   => __FILE__ . __LINE__
+    # SCOPE   => __FILE__ . __LINE__
   });
 
 $admin = Admins->new($db, \%conf);

@@ -14,12 +14,12 @@
   <div class="center-block" style="width: 80%">
     <table class="table table-bordered" style="margin-bottom:0px">
       <tr>
-        <th class="text-center">Інформація про абонента</th>
+        <th class="text-center">_{USER_INFO}_</th>
       </tr>
     </table>
     <table class="table table-bordered" style="margin-bottom:0px">
       <tr>
-        <th style="width: 50%">_{FIO}_/Назва організації</th>
+        <th style="width: 50%">_{FIO}_/_{COMPANY}_</th>
         <td>%FIO%</td>
       </tr>
 
@@ -29,12 +29,12 @@
       </tr>
 
       <tr>
-        <th>Домашній телефон</th>
+        <th>_{PHONE_</th>
         <td>%HOME_PHONE_1%</td>
       </tr>
 
       <tr>
-        <th>Мобільний телефон</th>
+        <th>_{CELL_PHONE}_</th>
         <td>%CELL_PHONE_1%</td>
       </tr>
 
@@ -54,7 +54,7 @@
 
     <table class="table table-bordered" style="margin-bottom:0px">
       <tr>
-        <th class="text-center">Інформація про тікет</th>
+        <th class="text-center">_{TASK}_</th>
       </tr>
     </table>
     <table class="table table-bordered" style="margin-bottom:0px">
@@ -87,7 +87,7 @@
 
     <table class="table table-bordered" style="margin-bottom:0px">
       <tr>
-        <th class="text-center">Список повідомленнь</th>
+        <th class="text-center">_{RESPOSIBLE}_</th>
       </tr>
     </table>
 

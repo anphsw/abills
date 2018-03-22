@@ -92,6 +92,15 @@ authorize {
 	mschap
 	files
 	perl
+#Realm add
+#if(User-Name =~ /^0026.*$/) {
+#        update control {
+#                Proxy-To-Realm := rad1
+#        }
+#        update request {
+#                Realm := 'rad1'
+#        }
+#}
 }
 
 #  Authentication.
@@ -104,12 +113,12 @@ authenticate {
 		mschap
 	}
 
-	mschap
+	#mschap
 	#digest
 	eap
-        Auth-Type Perl {
-       		perl
-        }
+    Auth-Type Perl {
+        perl
+    }
 }
 
 #  Pre-accounting.  Decide which accounting type to use.
@@ -120,6 +129,18 @@ preacct {
 
 accounting {
 	perl
+
+#Realm add
+#if(User-Name =~ /^0026.*$/) {
+#        update control {
+#                Proxy-To-Realm := rad1
+#        }
+#        update request {
+#                Realm := 'rad1'
+#        }
+#}
+
+
 }
 
 #  Post-Authentication

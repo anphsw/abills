@@ -1,7 +1,6 @@
 $lang{MAPS} = 'Карта Сети';
 $lang{ANGLE} = 'Угол';
 $lang{CLEAR} = 'Очистить';
-$lang{STREET} = 'Улица';
 $lang{HOUSE_NUM} = 'Номер дома';
 $lang{BUILD} = 'Дом';
 $lang{FLAT} = 'кв.';
@@ -24,7 +23,6 @@ $lang{FIBER_OPTIC} = 'Опто-волоконный';
 $lang{HIDE_DISTRICTS} = 'Спрятать меню районы';
 $lang{SHOW_DISTRICTS} = 'Показать меню районы';
 $lang{IN_NEW_WINDOW} = 'В новом окне';
-$lang{DISTRICT} = 'Район';
 $lang{LINE} = 'Линия';
 $lang{DELETE_MARKER} = 'Удалить маркер';
 $lang{ADD_WIFI_ZONE} = 'Добавить Wi-Fi зону';

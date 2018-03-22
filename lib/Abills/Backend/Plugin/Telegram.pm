@@ -19,12 +19,17 @@ BEGIN {
   use Abills::Backend::Defs;
 }
 
+$conf{TELEGRAM_API_REQUEST_INTERVAL} //= 3;
+
 use Abills::Backend::Plugin::Telegram::BotAPI;
 use Abills::Backend::Plugin::Telegram::Operation;
 use Abills::Backend::Plugin::Telegram::ModuleInterface;
 
+use Abills::Experimental::Language;
+
 use Contacts;
 use Users;
+
 my $Contacts = Contacts->new($db, $admin, \%conf);
 my $Users = Users->new($db, $admin, \%conf);
 
@@ -71,6 +76,10 @@ sub new {
       '/hello'   => sub {
         my $message = shift;
         $self->action_greetings($message->{chat}->{id});
+      },
+      '/language' => sub {
+        my $message = shift;
+        $self->change_language_operation($message->{chat}->{id})
       }
     }
   };
@@ -83,12 +92,14 @@ sub new {
 =head2 init() - begins Telegram API work
 
   Returns:
-    1
+    Abills::Backend::Plugin::Telegram::API instance
     
 =cut
 #**********************************************************
 sub init {
   my ( $self ) = @_;
+  
+  $self->{Language} = Abills::Experimental::Language->new($base_dir || '/usr/abills/', $conf{default_language});
   
   $Bot_API = Abills::Backend::Plugin::Telegram::BotAPI->new (\%conf, {
       token => $self->{token},
@@ -125,7 +136,7 @@ sub init {
     }
   }
   
-  $self->set_timer($self->{config}->{$conf{TELEGRAM_API_REQUEST_INTERVAL}} || 3);
+  $self->set_timer($self->{config}->{TELEGRAM_API_REQUEST_INTERVAL} || 3);
   
   return Abills::Backend::Plugin::Telegram::API->new($self->{config}, $self);
 }
@@ -148,7 +159,8 @@ sub set_timer {
         $Bot_API->getUpdates(
           {
             offset  => $self->{last_update_id} + 1,
-            timeout => ($interval > 1 ? $interval - 1 : 1)
+            timeout => ($interval > 1 ? $interval - 1 : 1),
+            allowed_updates => ['message', 'callback_query']
           },
           sub {
             my $updates = shift;
@@ -223,37 +235,88 @@ sub process_updates {
   foreach my $update ( @updates ) {
     # Sometimes telegram send old (already processed) updates
     next if ( $self->{last_update_id} && $update->{update_id} <= $self->{last_update_id} );
-    
+  
     $self->{last_update_id} = $update->{update_id};
-    
+  
     my $message = $update->{message};
-    #    print Dumper($update) if ( $self->{debug} > 4 );
+#    print Dumper($update) if ( $self->{debug} > 4 );
     #    print Dumper($message) if ( $self->{debug} > 3 );
     #
     #    if ( $message->{contact} ) {
     #      print "Got phone: $message->{contact} $message->{contact}->{phone_number} \n";
     #      next;
     #    }
+  
+    my $is_query = exists $update->{callback_query};
+    my $is_message = exists $message->{text};
+  
+    # Ignore unsupported updates
+    next unless ( $is_message || $is_query );
+  
+    my $chat_id = ($is_query)
+      ? $update->{callback_query}->{from}->{id}
+      : ($is_message)
+        ? $message->{chat}->{id}
+        : 0;
+  
+    next unless ( $chat_id );
+  
+    my $authorized = $self->is_authenticated($chat_id);
+    my $client_type = ($authorized < 0) ? 'UID' : 'AID',;
+    my $client_id = ($authorized < 0) ? $user_for_chat_id{$chat_id} : $admin_for_chat_id{$chat_id};
+  
+    # Fix encoding
+    if ( $is_message && $message->{text} ) {
+      my $message_decoded = Dumper($message->{text});
+      if ($message_decoded =~ /\\x\{/){
+        $message->{text} = Encode::encode_utf8($message->{text});
+      }
+    }
+  
+    if ( $chat_id && exists $operation_lock_on_chat_id{$chat_id} ) {
+      $Log->debug("Sending message|query to operation for $chat_id");
+      my Abills::Backend::Plugin::Telegram::Operation $operation = $operation_lock_on_chat_id{$chat_id};
     
+      my $should_finish_operation = 0;
+      if (
+           ($is_query && $update->{callback_query}->{data} eq 'cancel')
+        || ($is_message && $message->{text} eq '/cancel')
+      ) {
+        $should_finish_operation = 1;
+      }
+      else {
+        $should_finish_operation = ($is_query)
+          ? $operation->on_callback_query($update->{callback_query}->{data})
+          : ($is_message)
+            ? $operation->on_message($message)
+            : 0;
+      }
+    
+      if ( $should_finish_operation ) {
+        $operation->on_finish();
+        delete $operation_lock_on_chat_id{$chat_id};
+        $Log->debug("Finished operation for $chat_id");
+      }
+      else {
+        $Log->debug("Operation choosed to go on for $chat_id");
+      }
+    
+      next;
+    }
+  
     if ( exists $update->{callback_query}
       && $update->{callback_query}->{from}
       && $update->{callback_query}->{from}->{id}
     ) {
-      my $chat_id = $update->{callback_query}->{from}->{id};
-      
-      my $authorized = $self->is_authenticated($chat_id);
-      
+    
       unless ( $authorized ) {
-        $Log->debug("Unathorized callback query message from $chat_id");
-        return 0;
+        $Log->notice("Unathorized callback query message from $chat_id");
+        next;
       };
-      
-      my $client_type = ($authorized < 0) ? 'UID' : 'AID';
-      my $client_id = ($authorized < 0) ? $user_for_chat_id{$chat_id} : $admin_for_chat_id{$chat_id};
-      
+    
       $Log->debug("Got callback data request for $client_type#$client_id");
-      
-      return $self->process_callback_query(
+    
+      $self->process_callback_query(
         $update->{callback_query},
         {
           CHAT_ID     => $chat_id,
@@ -261,19 +324,19 @@ sub process_updates {
           CLIENT_ID   => $client_id
         }
       );
+    
+      next;
     }
-    
-    $message->{text} //= '';
-    my $chat_id = $message->{chat}->{id} || 'unknown_chat_id';
-    
+  
+  
     # Check for start command
-    if ( $message->{text} =~ /^\/start/ ) {
+    if ( $message->{text} && $message->{text} =~ /^\/start/ ) {
       if ( $message->{text} =~ /\/start ([ua])_([a-zA-Z0-9]+)/ ) {
         my $type = $1;
         my $sid = $2;
-        
+      
         $Log->notice("Auth for $type $sid");
-        
+      
         if ( $self->authenticate($type, $sid, $chat_id) ) {
           $Log->notice("Registered $type $chat_id  $sid");
           $self->send_text("You've been registered", $chat_id);
@@ -281,70 +344,82 @@ sub process_updates {
           next;
         }
       }
-      
+    
       my $username = $message->{from}->{firstname} || $message->{from}->{username} || '';
       $Log->notice("Auth failed for $username ($chat_id)");
       $self->send_text("Sorry, $username, can't authorize you. Please log in to web interface and try again",
         $chat_id);
-      
-      return 0;
-    }
     
-    my $authorized = $self->is_authenticated($chat_id);
+      next;
+    }
+  
     # Check if we have such a client
     if ( !$authorized ) {
       $self->send_text("Unauthorized", $chat_id);
     }
     else {
-      
-      if ( exists $operation_lock_on_chat_id{$chat_id} ) {
-        $Log->notice("Sending message to operation ($chat_id)");
-        
-        my Abills::Backend::Plugin::Telegram::Operation $operation = $operation_lock_on_chat_id{$chat_id};
-        
-        my $should_finish = ($message->{text} eq '/cancel' || $operation->on_message($message));
-        if ( $should_finish ) {
-          $operation->on_finish();
-          delete $operation_lock_on_chat_id{$chat_id};
-          $Log->debug("Finished operation for $chat_id");
-        }
-        
-        return 1;
-      }
-      
-      my $client_type = ($authorized < 0) ? 'UID' : 'AID',;
-      my $client_id = ($authorized < 0) ? $user_for_chat_id{$chat_id} : $admin_for_chat_id{$chat_id};
-      
-      my $message_text = $message->{text} || '';
-      
-      # Differentiate a command with data
-      if ( $message_text =~ /^(\/[a-z]+)/ ) {
-        $message_text = $1;
-      }
-      
-      $Log->debug("Message from $chat_id ($client_type#$client_id)");
-      
-      if ( defined $self->{cb}->{$message_text} ) {
-        eval {
-          my $res = $self->{cb}->{$message_text}->($message, $chat_id, $client_type, $client_id);
-          
-          if ($res && $res->isa('Abills::Backend::Plugin::Telegram::Operation')){
-            $operation_lock_on_chat_id{$chat_id} = $res;
-            $res->start();
-          }
-        };
-        if ( $@ ) {
-          $Log->notice("Error happened while processing message : $@");
-        }
-      }
-      else {
-        $self->{cb}->{default}->($message, $chat_id, $client_type, $client_id);
-      }
-      
+      $self->process_message($message, {
+          CHAT_ID     => $chat_id,
+          CLIENT_TYPE => $client_type,
+          CLIENT_ID   => $client_id,
+        });
     }
   };
   
   return $self->{last_update_id};
+}
+
+
+#**********************************************************
+=head2 process_message($message) - process messages from commands and text
+
+  Arguments:
+    $message -
+    $attr
+      CHAT_ID
+      CLIENT_TYPE
+      CLIENT_ID
+      
+  Returns:
+  
+  
+=cut
+#**********************************************************
+sub process_message {
+  my ($self, $message, $attr) = @_;
+  
+  return 0 unless ( $attr->{CHAT_ID} );
+  
+  my $chat_id = $attr->{CHAT_ID};
+  my $client_type = $attr->{CLIENT_TYPE};
+  my $client_id = $attr->{CLIENT_ID};
+  
+  my $message_text = $message->{text} || '';
+  # Differentiate a command with data
+  if ( $message_text =~ /^(\/[a-z]+)/ ) {
+    $message_text = $1;
+  }
+  
+  $Log->debug("Message from $chat_id ($client_type#$client_id)");
+  
+  if ( defined $self->{cb}->{$message_text} ) {
+    eval {
+      my $res = $self->{cb}->{$message_text}->($message, $chat_id, $client_type, $client_id);
+      
+      if ( $res && ref $res && $res->isa('Abills::Backend::Plugin::Telegram::Operation') ) {
+        $operation_lock_on_chat_id{$chat_id} = $res;
+        $res->start();
+      }
+    };
+    if ( $@ ) {
+      $Log->notice("Error happened while processing message : $@");
+    }
+  }
+  else {
+    $self->{cb}->{default}->($message, $chat_id, $client_type, $client_id);
+  }
+  
+  return;
 }
 
 #**********************************************************
@@ -354,7 +429,7 @@ sub process_updates {
     $query -
     
   Returns:
-  
+    1 if started operation
   
 =cut
 #**********************************************************
@@ -414,7 +489,7 @@ sub is_authenticated {
 }
 
 #**********************************************************
-=head2 send_text($text) - sends text to admin
+=head2 send_text($text, $chat_id, $options, $callback) - sends text to admin
 
   Arguments:
     $text -
@@ -432,23 +507,24 @@ sub send_text {
     return;
   }
   
-  $Log->debug("Sending message to $chat_id");
+  my %message_hash = (
+    chat_id => $chat_id,
+    text    => $self->format_text($text, $chat_id),
+    %{ $telegram_message_options // {} },
+  );
+  
+  $Log->debug("Sending message to $chat_id" . Dumper (\%message_hash));
   
   my $result_callback = $callback // sub {
     my $res = shift || 0;
-    $Log->debug("Sent message to $chat_id : $res");
+    $Log->debug("Sent message to $chat_id result : " . Dumper ($res));
     
     if ( $callback ) {
       $callback->($res);
     }
   };
   
-  $Bot_API->sendMessage({
-      chat_id => $chat_id,
-      text    => $self->format_text($text),
-      %{ $telegram_message_options // {} },
-    }, $result_callback
-  );
+  $Bot_API->sendMessage(\%message_hash, $result_callback);
   
 }
 
@@ -466,7 +542,7 @@ sub send_text {
 =cut
 #**********************************************************
 sub send_callback_answer {
-  my ($self, $callback_query_id, $text ) = @_;
+  my ($self, $callback_query_id, $text, $chat_id ) = @_;
   
   if ( !$callback_query_id ) {
     print " Have to send response without \$callback_query_id. No \n" if ( $self->{debug} );
@@ -477,7 +553,7 @@ sub send_callback_answer {
   
   $Bot_API->answerCallbackQuery({
       callback_query_id => $callback_query_id,
-      text              => $self->format_text($text)
+      text              => $self->format_text($text, $chat_id)
     }, sub {
       $Log->debug("Answered to callback");
     }
@@ -485,10 +561,11 @@ sub send_callback_answer {
 }
 
 #**********************************************************
-=head2 format_text($text, $language) - translation and format text before sending
+=head2 format_text($text, $chat_id) - translation and format text before sending
 
   Arguments:
-    $text, $language -
+    $text
+    $chat_id -
     
   Returns:
   
@@ -496,28 +573,47 @@ sub send_callback_answer {
 =cut
 #**********************************************************
 sub format_text {
-  my ($self, $text, $language) = @_;
+  my ($self, $text, $chat_id) = @_;
   
-  my $current_language = $conf{default_language} || $language || 'russian';
+  my $language_for_message = $chat_id
+    ? ($self->get_lang_for_chat_id($chat_id))
+    : ($conf{default_language} || 'russian');
   
-  if ( !exists $self->{languages}->{$current_language} ) {
-    my $main_lang_file = ($base_dir || '/usr/abills') . "/language/$current_language.pl";
-    $self->load_language_file($current_language, $main_lang_file) || return $text;
+  my Abills::Experimental::Language $Language = $self->{Language};
+  if ( !$Language->has_language($language_for_message) ) {
+    # Load main language
+    $Language->load($language_for_message);
   }
   
-  while ( $text && $text =~ /\_\{(\w+)\}\_/ ) {
-    my $to_translate = $1 or next;
-    my $translation = $self->{languages}->{$current_language}->{$to_translate} || "{$to_translate}";
-    
-    $text =~ s/\_\{$to_translate\}\_/$translation/sg;
-  }
-  #  Encode::_utf8_off($text);
-  
-  return $text;
+  return $Language->translate($text, $language_for_message);
 }
 
 #**********************************************************
-=head2 load_language_file($lang_name, $file_path) - loads and saves lang hash
+=head2 get_lang_for_chat_id($chat_id) -
+
+  Arguments:
+    $chat_id -
+    
+  Returns:
+  
+    
+=cut
+#**********************************************************
+sub get_lang_for_chat_id {
+  my ($self, $chat_id) =  @_;
+  
+  my $default_language = $conf{default_language} || 'russian';
+  
+  if (exists $user_for_chat_id{$chat_id}){
+    my $client_info = $self->get_user_info($user_for_chat_id{$chat_id});
+    return $client_info->{__LANGUAGE} || $default_language;
+  }
+  
+  return $default_language;
+}
+
+#**********************************************************
+=head2 load_language($lang_name, $file_path) - loads and saves lang hash
 
   Arguments:
     $lang_name -
@@ -528,31 +624,15 @@ sub format_text {
     
 =cut
 #**********************************************************
-sub load_language_file {
-  my ($self, $lang_name, $file_path) = @_;
+sub load_language {
+  my ($self, $lang_name, $module) = @_;
   
   eval {
-    
-    our %lang = ();
-    $Log->debug("Loading $file_path");
-    
-    if ( !-f $file_path ) {
-      $Log->alert("No such lang file : $file_path");
-      return 0;
-    }
-    
-    do $file_path;
-    
-    if ( exists $self->{languages}->{$lang_name} && ref $self->{languages}->{$lang_name} eq 'HASH' ) {
-      $self->{languages}->{$lang_name} = { %{$self->{languages}->{$lang_name}}, %lang };
-    }
-    else {
-      $self->{languages}->{$lang_name} = \%lang;
-    }
-    
+    my Abills::Experimental::Language $Language = $self->{Language};
+    $Language->load($lang_name, $module);
   };
   if ( $@ ) {
-    $Log->critical("Can't load $file_path language");
+    $Log->critical("Can't load $lang_name language : $@");
     return 0;
   }
   
@@ -637,11 +717,122 @@ sub action_unknown_command {
   $Log->debug("Don't know how should respond for: $message->{text}\n");
   
   $self->action_show_message($message);
-  $self->send_text("Sorry, can't understand you", $chat_id);
+  $self->send_text("_{ERROR}_. Sorry, can't understand you", $chat_id);
   
   # Maybe : show commands
   
   return;
+}
+
+#**********************************************************
+=head2 change_language_operation($chat_id) - show menu for language selection
+
+  Arguments:
+    $chat_id -
+    
+  Returns:
+    Telegram::Operation
+    
+=cut
+#**********************************************************
+sub change_language_operation {
+  my Abills::Backend::Plugin::Telegram $Telegram_Bot = shift;
+  my ($chat_id) = @_;
+  
+  my $client_auth = $Telegram_Bot->is_authenticated($chat_id);
+  return 0 unless ( $client_auth );
+  
+  # TODO: change language for admin
+  if ( $client_auth == 1 ) {
+    $Log->info('Admin tried to change language');
+    $Telegram_Bot->send_text("_{ERR_NOT_IMPLEMENTED}_", $chat_id);
+    return 1;
+  }
+  
+  my $client_type = 'u';
+  my $client_id = $user_for_chat_id{$chat_id};
+  
+  my $languages_str = $conf{LANGS} || 'russian:Русский;english:English';
+  my %language_names = ();
+  foreach my $lang_name ( split(/;\n?\s?/, $languages_str) ) {
+    my ($lang, $name) = split (':', $lang_name);
+    
+    $language_names{$lang} = $name;
+  }
+  
+  return Abills::Backend::Plugin::Telegram::Operation->new({
+    CHAT_ID           => $chat_id,
+    TYPE              => $client_type,
+    CLIENT_ID         => $client_id,
+    NAME              => 'CHANGE_LANGUAGE_OPERATION',
+    ON_START          => sub {
+      my ($self) = @_;
+      
+      $Log->debug('LANGUAGE. User starts to change language');
+      
+      # Form language keyboard
+      my @keyboard = ();
+      foreach my $lang_name ( sort keys %language_names ) {
+        # Every should stay on self line
+        push (@keyboard, [ { text => $language_names{$lang_name}, callback_data => $lang_name } ])
+      }
+      
+      my $current_language_string = "_{CURRENT_LANGUAGE}_ : " . ($Telegram_Bot->get_lang_for_chat_id($self->{CHAT_ID}));
+      
+      # Send menu
+      $Telegram_Bot->send_text("$current_language_string. \n_{AVAILABLE_LANGUAGES}_: ", $self->{CHAT_ID}, {
+          reply_markup => {
+            inline_keyboard => \@keyboard
+          }
+        });
+      
+      return 0;
+    },
+    ON_CALLBACK_QUERY => sub {
+      
+      $Log->debug('LANGUAGE. User gave callback');
+      
+      my ($self, $query_data) = @_;
+      $Telegram_Bot->send_text($query_data, $self->{CHAT_ID});
+      
+      # Check language exists
+      if ( $language_names{$query_data} ) {
+        # Save language
+        $Users->pi_change({ UID => $self->{CLIENT_ID}, __LANGUAGE => $query_data });
+        
+        # Renew user info
+        $Telegram_Bot->{users_info}->{$self->{CLIENT_ID}}->{__LANGUAGE} = $query_data;
+        $Log->debug('LANGUAGE. CHANGED');
+        
+        return 1;
+      }
+      else {
+        $Log->debug('LANGUAGE. Error');
+        
+        $Telegram_Bot->send_text('_{ERROR}_ ( /cancel  ?)', $self->{CHAT_ID});
+        return 0;
+      }
+      
+    },
+    ON_MESSAGE        => sub {
+      my ($self) = @_;
+      $Log->debug('LANGUAGE. Error, got message');
+      
+      $Telegram_Bot->send_text('_{ERROR}_. _{PLEASE_CHOOSE_YOUR_LANGUAGE}_. ( /cancel ?)', $self->{CHAT_ID});
+      return 0;
+    },
+    ON_FINISH         => sub {
+      my $self = shift;
+      $Log->debug('LANGUAGE. Finished');
+      
+      my $user_language = $Telegram_Bot->{users_info}->{$self->{CLIENT_ID}}->{__LANGUAGE};
+      
+      $Telegram_Bot->send_text(
+        '_{CURRENT_LANGUAGE}_ : ' . $user_language,
+        $self->{CHAT_ID}
+      );
+    }
+  });
 }
 
 #**********************************************************
@@ -709,6 +900,27 @@ sub authenticate {
   }
   
   return;
+}
+#**********************************************************
+=head2 get_user_info($uid)
+
+=cut
+#**********************************************************
+sub get_user_info {
+  my ($self, $uid) = @_;
+  
+  return 0 unless $uid;
+  
+  if (!$self->{users_info}{$uid} || ref $self->{users_info}{$uid} ne 'HASH') {
+    my $Users_for_pi = Users->new($db, $admin, \%conf);
+    $Users_for_pi->pi({ UID => $uid });
+    return 0 if ($Users_for_pi->{errno});
+    
+    $Log->debug($Users_for_pi->{__LANGUAGE});
+    $self->{users_info}->{$uid} = { %$Users_for_pi };
+  }
+  
+  return $self->{users_info}->{$uid}
 }
 
 #**********************************************************

@@ -7,6 +7,7 @@
 use warnings;
 use strict;
 use Abills::Base qw(in_array time2sec sec2time date_diff);
+use Address;
 
 our(
   $admin,
@@ -29,6 +30,17 @@ sub msgs_unreg_requests_list {
   my ($attr) = @_;
 
   my $msgs_status = msgs_sel_status({ HASH_RESULT => 1 });
+
+  if($FORM{login_check}){
+    $users->list({ LOGIN => $FORM{login_check} });
+    if (  $users->{TOTAL} > 0 ) {
+      print "error";
+    }
+    else {
+      print "success";
+    }
+    return 1;
+  }
 
   if ( $FORM{change} && !$attr->{NOTIFY_ID} ) {
     my %params = ();
@@ -63,7 +75,9 @@ sub msgs_unreg_requests_list {
 
     $Msgs->unreg_requests_change({ %FORM, %params });
 
-    $html->message('info', $lang{INFO}, "$lang{CHANGED}") if ( !$Msgs->{errno} );
+    if ( !$Msgs->{errno} ) {
+      $html->message('info', $lang{INFO}, $lang{CHANGED});
+    }
   }
   elsif ( $attr->{NOTIFY_ID} ) {
     if ( $attr->{NOTIFY_ID} == - 1 ) {
@@ -100,20 +114,22 @@ sub msgs_unreg_requests_list {
     $Msgs->{GID_SEL} = sel_groups();
     $Msgs->{ACTION_LNG} = $lang{ADD};
 
-    if ( defined($FORM{LOGIN}) ) {
-      if ( $FORM{LOGIN} ) {
-        $Msgs->{LOGIN} = $FORM{LOGIN};
-        $users->list({ LOGIN => $FORM{LOGIN} });
-        if ( $users->{TOTAL} > 0 ) {
-          $html->message('err', $lang{ERROR}, "$lang{USER_EXIST}");
-        }
-        else {
-          $html->message('info', $lang{INFO}, "$lang{LOGIN}  $lang{ACCEPT}");
-          $index = get_function_index('form_wizard');
-          $Msgs->{ACTION_LNG} = $lang{NEXT};
-        }
-      }
-    }
+#    if ( defined($FORM{LOGIN}) ) {
+#      if ( $FORM{LOGIN} ) {
+#        $Msgs->{LOGIN} = $FORM{LOGIN};
+#        $users->list({ LOGIN => $FORM{LOGIN} });
+#        if ( $users->{TOTAL} > 0 ) {
+#          $html->message('err', $lang{ERROR}, "$lang{USER_EXIST}");
+#        }
+#        else {
+#          $html->message('info', $lang{INFO}, "$lang{LOGIN}  $lang{ACCEPT}");
+#          $index = get_function_index('form_wizard');
+#          $Msgs->{ACTION_LNG} = $lang{NEXT};
+#        }
+#      }
+#    }
+    $index = get_function_index('form_wizard');
+    $Msgs->{CHECK_LOGIN_INDEX}=get_function_index('msgs_unreg_requests_list');
 
     $html->tpl_show(_include('msgs_add_user', 'Msgs'),
       { %FORM, %{$Msgs}, FIO => ($FORM{FIO}) ? $FORM{FIO} : $Msgs->{FIO} });
@@ -129,8 +145,19 @@ sub msgs_unreg_requests_list {
     $Msgs->{LNG_ACTION} = $lang{CHANGE};
   }
   elsif ( $FORM{del} && $FORM{COMMENTS} ) {
-    $Msgs->unreg_requests_del({ ID => $FORM{del} });
-    $html->message('info', $lang{INFO}, "$lang{DELETED}") if ( !$Msgs->{errno} );
+    if($FORM{del} =~ /\,/){
+      my @ids_to_delete = split('\,', $FORM{del});
+
+      foreach my $id (@ids_to_delete){
+        $Msgs->unreg_requests_del({ ID => $id });
+        $html->message('info', $lang{INFO}, "$lang{DELETED}") if ( !$Msgs->{errno} );
+      }
+    }
+    else{
+      $Msgs->unreg_requests_del({ ID => $FORM{del} });
+      $html->message('info', $lang{INFO}, "$lang{DELETED}") if ( !$Msgs->{errno} );
+    }
+
   }
 
   if ( $FORM{qindex} && $FORM{chg} ) {
@@ -195,8 +222,9 @@ sub msgs_unreg_requests_list {
     form_search(
       {
         SEARCH_FORM  =>
-        $html->tpl_show(_include('msgs_request_search', 'Msgs'), { %{$Msgs}, %FORM }, { OUTPUT2RETURN => 1 }),
-        ADDRESS_FORM => 1
+          $html->tpl_show(_include('msgs_request_search', 'Msgs'), { %{$Msgs}, %FORM }, { OUTPUT2RETURN => 1 }),
+        ADDRESS_FORM => 1,
+        SHOW_PERIOD => 1
       }
     );
   }
@@ -301,7 +329,7 @@ sub msgs_unreg_requests_list {
         if ( $line->{deligation} && $line->{deligation} > 0 ) {
           if ( $attr->{CHAPTERS_DELIGATION}->{ $line->{chapter_id} } == $line->{deligation} ) {
             $state = $html->element('span', '',
-              { class => "glyphicon glyphicon-wrench  text-danger", alt => "' . $lang{DELIVERED} . '" }) . $state;
+              { class => "glyphicon glyphicon-wrench text-danger", alt => "' . $lang{DELIVERED} . '" }) . $state;
           }
           else {
             $state = $html->element('span', '',
@@ -312,8 +340,8 @@ sub msgs_unreg_requests_list {
         $val = $state;
       }
       elsif ( $field_name =~ /status|disable/ ) {
-        my @service_status = ("$lang{ENABLE}", "$lang{DISABLE}", "$lang{NOT_ACTIVE}");
-        my @service_status_colors = ("$_COLORS[9]", $_COLORS[6], '#808080', '#0000FF', '#FF8000', '#009999');
+        my @service_status = ($lang{ENABLE}, $lang{DISABLE}, $lang{NOT_ACTIVE});
+        my @service_status_colors = ("$_COLORS[9]", 'text-danger', '#808080', '#0000FF', '#FF8000', '#009999');
 
         $val = ($line->{ $field_name } > 0)                   ? $html->color_mark(
             $service_status[ $line->{ $field_name } ],
@@ -338,7 +366,7 @@ sub msgs_unreg_requests_list {
       )
         . ' ' .
         (($line->{uid}) ? $html->button($lang{INFO}, "index=15&UID=$line->{uid}", { class => 'user' }) : $html->button(
-            $lang{ADD}, "index=$index&add_user=$line->{id}", { class => 'add', TITLE => "$lang{ADD_USER}" }))
+            $lang{ADD}, "index=". get_function_index('msgs_unreg_requests_list') ."&add_user=$line->{id}", { class => 'add', TITLE => $lang{ADD_USER} }))
         . ' ' .
         (((($A_PRIVILEGES->{ $line->{chapter_id} } && $A_PRIVILEGES->{ $line->{chapter_id} } > 2)
             || ($A_CHAPTER && $#{ $A_CHAPTER } == - 1))                                                     ? $html->button(
@@ -391,6 +419,9 @@ sub msgs_unreg_requests {
         return 0;
       }
     }
+    else {
+      $FORM{LOGIN} = q{};
+    }
 
     $Msgs->unreg_requests_add(\%FORM);
 
@@ -398,7 +429,7 @@ sub msgs_unreg_requests {
       require Events::API;
       Events::API->import();
       my $Events_api = Events::API->new($db, $admin, \%conf);
-  
+
       $Events_api->add_event({
         MODULE      => 'Msgs',
         TITLE       => $lang{REQUESTS},
@@ -409,7 +440,7 @@ sub msgs_unreg_requests {
       });
     }
 
-    $html->message('info', $lang{INFO}, "$lang{SENDED}") if ( !$Msgs->{errno} );
+    $html->message('info', $lang{INFO}, $lang{SENDED}) if ( !$Msgs->{errno} );
 
     if ( $FORM{REGISTRATION_REQUEST} ) {
       return 2;
@@ -444,36 +475,13 @@ sub msgs_unreg_requests {
     }
   );
 
-  if ( $conf{ADDRESS_REGISTER} && !$conf{REGISTRATION_NO_ADDRESS_REGISTER} ) {
-    $Msgs->{ADDRESS_TPL} = $html->tpl_show(templates('form_address_registration'), undef, { OUTPUT2RETURN => 1 });
-  }
-  else {
-    my $countries = $html->tpl_show(templates('countries'), undef, { OUTPUT2RETURN => 1 });
-    my @countries_arr = split(/\n/, $countries);
-    my %countries_hash = ();
-
-    foreach my $c ( @countries_arr ) {
-      my ($id, $name) = split(/:/, $c);
-      if ( $id =~ /^\d+$/ ) {
-        $countries_hash{ $id } = $name;
-      }
-    }
-
-    $Msgs->{COUNTRY_SEL} = $html->form_select(
-      'COUNTRY',
-      {
-        SELECTED => $Msgs->{COUNTRY} || $FORM{COUNTRY},
-        SEL_HASH => { '' => '', %countries_hash },
-        NO_ID    => 1
-      }
-    );
-
-    $Msgs->{ADDRESS_TPL} = $html->tpl_show(templates('form_address'), $Msgs, { OUTPUT2RETURN => 1 });
-  }
-
-   $Msgs->{TP_SEL} = _sel_tp();
-
-  $Msgs->{UNREG_EXTRA_INFO}=$html->tpl_show(_include('msgs_client_extra_info', 'Msgs'), $Msgs, { OUTPUT2RETURN => 1 });
+  require Control::Address_mng;
+  $Msgs->{ADDRESS_TPL}     = form_address({
+    SHOW         => 1,
+    REGISTRATION_HIDE_ADDRESS_BUTTON => $attr->{REGISTRATION_HIDE_ADDRESS_BUTTON} || 0,
+  });
+  $Msgs->{TP_SEL}          = _sel_tp();
+  $Msgs->{UNREG_EXTRA_INFO}= $html->tpl_show(_include('msgs_client_extra_info', 'Msgs'), $Msgs, { OUTPUT2RETURN => 1 });
 
   my $map_visible = 0;
 
@@ -518,7 +526,7 @@ sub msgs_unreg_requests {
 sub _sel_tp {
   my ($tp_id) = @_;
 
-  if ( in_array('Dv', \@MODULES) ) {
+  if ( in_array('Dv', \@MODULES) || in_array('Internet', \@MODULES)) {
     require Tariffs;
     Tariffs->import();
     my $Tariffs = Tariffs->new($db, \%conf, $admin);
@@ -527,7 +535,7 @@ sub _sel_tp {
       'TP_ID',
       {
         SELECTED  => $tp_id,
-        SEL_LIST  => $Tariffs->list({ MODULE => 'Dv', DOMAIN_ID => $admin->{DOMAIN_ID}, COLS_NAME => 1 }),
+        SEL_LIST  => $Tariffs->list({ MODULE => 'Dv;Internet', DOMAIN_ID => $admin->{DOMAIN_ID}, COLS_NAME => 1 }),
         SEL_VALUE => 'id,name',
       }
     );
@@ -537,4 +545,4 @@ sub _sel_tp {
   }
 }
 
-1;
+1

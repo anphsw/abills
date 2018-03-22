@@ -56,7 +56,7 @@ sub sysinfo_remote_servers {
     
     my %service_on_server = map {$_->{service_id} => 1} @{$service_servers_binding};
     
-    show_checkboxes_form('SERVICE_IDS', $services_list, \%service_on_server, {
+    print get_checkboxes_form_html('SERVICE_IDS', $services_list, \%service_on_server, {
         class  => 'form-horizontal ajax-submit-form',
         ID     => 'SYSINFO_SERVICE_SERVERS',
         HIDDEN => {
@@ -227,7 +227,7 @@ sub sysinfo_server_services {
     
     my %service_on_server = map {$_->{server_id} => 1} @{$server_services_binding};
     
-    show_checkboxes_form('SERVER_IDS', $servers_list, \%service_on_server, {
+    print get_checkboxes_form_html('SERVER_IDS', $servers_list, \%service_on_server, {
         class  => 'form-horizontal ajax-submit-form',
         ID     => 'SYSINFO_SERVER_SERVICES',
         HIDDEN => {
@@ -414,7 +414,7 @@ sub sysinfo_nas_info {
   
   my $nas_info = $nas_list->[0];
   
-  if ( my $module_load_error = load_pmodule2("JSON", { SHOW_RETURN => 1 }) ) {
+  if ( my $module_load_error = load_pmodule("JSON", { SHOW_RETURN => 1 }) ) {
     print $module_load_error;
     return 0;
   }

@@ -46,7 +46,7 @@
     </form>
 
   </div>
-  <div class='box-footer text-center'>
+  <div class='box-footer'>
     <input type='submit' form='form_MAPS_POINT_TYPES_FORM' class='btn btn-primary' name='submit'
            value='%SUBMIT_BTN_NAME%'>
   </div>

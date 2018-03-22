@@ -41,4 +41,9 @@ $lang{FILTER_LEADS}='Фильтр клиентов';
 $lang{PROGRESS}='Прогресс';
 $lang{LEADS_COMES}='Потенциальных клиентов пришло';
 $lang{LEADS_FINISHED}='Потенциальных клиентов конвертировано';
+$lang{REFERRALS}='Реферальный клиент';
+$lang{NEW_LEAD}='Новый потенциальный клиент';
+$lang{CONTRACT_SIGNED}='Контракт подписан';
+$lang{THE_WORKS}='Ведутся работы';
+$lang{CONVERSION}='Конвертация';
 1

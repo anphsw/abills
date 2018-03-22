@@ -15,18 +15,19 @@ use Fees;
 use Abills::Defs;
 use Abills::Base qw(in_array sendmail days_in_month cmd);
 
-our $db;
-our $admin;
-our %conf;
-our %lang;
-our $html;
-our %permissions;
-our @WEEKDAYS;
-our @MONTHES;
-our %FORM;
+our ($db,
+ $admin,
+ %conf,
+ %lang,
+ $html,
+ %permissions,
+ @WEEKDAYS,
+ @MONTHES,
+ %FORM
+);
 
 my $Abon = Abon->new($db, $admin, \%conf);
-my $fees = Fees->new($db, $admin, \%conf);
+my $Fees = Fees->new($db, $admin, \%conf);
 my @PERIODS = ($lang{DAY}, $lang{MONTH}, $lang{QUARTER}, $lang{SIX_MONTH}, $lang{YEAR});
 
 $conf{ABON_FEES_DSC} //= '%SERVICE_NAME%: (%PERIOD%) %TP_NAME% (%TP_ID%) %EXTRA%';
@@ -63,8 +64,9 @@ sub abon_user_del {
 sub abon_quick_info {
   my ($attr) = @_;
 
+  my $uid = $attr->{UID} || $FORM{UID};
   if ($attr->{UID}) {
-    my $list = $Abon->user_tariff_list($attr->{UID}, { COLS_NAME => 1, ACTIVE_ONLY => 1 });
+    my $list = $Abon->user_tariff_list($uid, { COLS_NAME => 1, ACTIVE_ONLY => 1 });
     my @result = ();
     foreach my $line (@{$list}) {
       push @result, {
@@ -75,8 +77,8 @@ sub abon_quick_info {
         #STATUS  => $line->{tp_name},
       };
     }
-
     return \@result;
+    #return { MULTI_RESULT => \@result };
   }
   elsif ($attr->{GET_PARAMS}) {
     my %result = (
@@ -88,7 +90,7 @@ sub abon_quick_info {
     return \%result;
   }
 
-  $Abon->user_tariff_summary({ UID => $FORM{UID} });
+  $Abon->user_tariff_summary({ UID => $uid });
 
   return ($Abon->{TOTAL_ACTIVE} > 0) ? $Abon->{TOTAL_ACTIVE} : '';
 }
@@ -158,26 +160,29 @@ sub abon_user {
             'DISCOUNT_:discount',
             'CREATE_DOCS_:create_docs',
             'SEND_DOCS_:send_docs',
-            'MANUAL_FEE_:manual_fee'
+            'MANUAL_FEE_:manual_fee',
+            'FEES_PERIOD_:fees_period'
           );
 
           foreach my $l (@compare) {
             my ($input_value, $db_value) = split(/:/, $l);
-            if (defined($FORM{ $input_value . $line->{id} }) && $FORM{ $input_value . $line->{id} } ne $line->{$db_value}) {
+            if (defined($FORM{ $input_value . $line->{id} }) && defined($line->{$db_value})
+              && $FORM{ $input_value . $line->{id} } ne $line->{$db_value}) {
+
               next if (!$FORM{ $input_value . $line->{id} } && !$line->{$db_value});
-              $Abon->user_tariff_change(
-                {
-                  UID           => $uid,
-                  TP_ID         => $line->{id},
-                  COMMENTS      => $FORM{ 'COMMENTS_' . $line->{id} },
-                  DISCOUNT      => $FORM{ 'DISCOUNT_' . $line->{id} },
-                  CREATE_DOCS   => $FORM{ 'CREATE_DOCS_' . $line->{id} },
-                  SEND_DOCS     => $FORM{ 'SEND_DOCS_' . $line->{id} },
-                  SERVICE_COUNT => $FORM{ 'SERVICE_COUNT_' . $line->{id} },
-                  MANUAL_FEE    => $FORM{ 'MANUAL_FEE_' . $line->{id} },
-                  CHANGE_INFO   => 1
-                }
-              );
+
+              $Abon->user_tariff_change({
+                UID           => $uid,
+                TP_ID         => $line->{id},
+                FEES_PERIOD   => $FORM{ 'FEES_PERIOD_' . $line->{id} },
+                COMMENTS      => $FORM{ 'COMMENTS_' . $line->{id} },
+                DISCOUNT      => $FORM{ 'DISCOUNT_' . $line->{id} },
+                CREATE_DOCS   => $FORM{ 'CREATE_DOCS_' . $line->{id} },
+                SEND_DOCS     => $FORM{ 'SEND_DOCS_' . $line->{id} },
+                SERVICE_COUNT => $FORM{ 'SERVICE_COUNT_' . $line->{id} },
+                MANUAL_FEE    => $FORM{ 'MANUAL_FEE_' . $line->{id} },
+                CHANGE_INFO   => 1
+              });
               last;
             }
           }
@@ -323,8 +328,8 @@ sub abon_user {
             );
 
             if ($Abon->{TP_INFO}->{PRICE} > 0) {
-              $fees->take($users, $Abon->{TP_INFO}->{PRICE}, {%PARAMS});
-              if (!_error_show($fees)) {
+              $Fees->take($users, $Abon->{TP_INFO}->{PRICE}, {%PARAMS});
+              if (!_error_show($Fees)) {
                 $message .= $description . "\n";
               }
             }
@@ -411,7 +416,9 @@ sub abon_user {
     {
       width   => '100%',
       caption => "$lang{ABON}",
-      title   => [ '-', "$lang{SERVICE} $lang{NAME}", $lang{COMMENTS}, $lang{SUM}, $lang{PERIOD}, "$lang{SERVICE} $lang{COUNT}", $lang{LAST_ABON}, $lang{NEXT_ABON}, "$lang{REDUCTION} (%)", "$lang{CREATE} $lang{DOCS}", $lang{SEND_NOTIFICATION}, $lang{MANUAL_ACTIVATE}, '-' ],
+      title   => [ "$lang{TARIF_PLAN} (ID)", "$lang{SERVICE} $lang{NAME}", $lang{COMMENTS}, $lang{SUM}, $lang{PERIOD}, "$lang{SERVICE_COUNT}",
+        $lang{FEES_PERIOD}, $lang{LAST_ABON}, $lang{NEXT_ABON}, "$lang{REDUCTION} (%)",
+        "$lang{CREATE} $lang{DOCS}", $lang{SEND_NOTIFICATION}, $lang{MANUAL_ACTIVATE}, '-' ],
 
       #      FIELDS_IDS => $Abon->{COL_NAMES_ARR},
       qs => $pages_qs,
@@ -447,9 +454,10 @@ sub abon_user {
       ),
       ($permissions{5}) ? $html->button($line->{name}, "index=" . get_function_index('abon_tariffs') . '&ABON_ID=' . $line->{id}) : "$line->{name}",
       $html->form_input('COMMENTS_' . $line->{id}, $describe || $FORM{ 'error_comments_' . $line->{id} } || q{}, { SIZE => 40 }),
-      "$line->{price}",
+      $line->{price},
       $PERIODS[ $line->{period} ],
       $html->form_input('SERVICE_COUNT_' . $line->{id}, $line->{service_count} || 1, { SIZE => 5 }),
+      $html->form_input('FEES_PERIOD_' . $line->{id}, $line->{fees_period} || 0, { SIZE => 4 }),
       $line->{date},
       ($line->{next_abon}) ? "$line->{next_abon}" : $html->date_fld2('DATE_' . $line->{id}, { FORM_NAME => 'ABON_USER_TPS', WEEK_DAYS => \@WEEKDAYS, MONTHES => \@MONTHES, DATE => '0000-00-00' }),
       $html->form_input('DISCOUNT_' . $line->{id}, $FORM{ 'DISCOUNT_' . $line->{id} } || $line->{discount}, { SIZE => '8' }),
@@ -484,10 +492,12 @@ sub abon_user {
 
   my $action = "";
   if ($attr->{ACTION}) {
-    $action = $html->form_input('finish', "$lang{REGISTRATION_COMPLETE}", { TYPE => 'submit' }) . ' ' . $html->form_input('back', "$lang{BACK}", { TYPE => 'submit' }) . ' ' . $html->form_input('next', "$lang{NEXT}", { TYPE => 'submit' });
+    $action = $html->form_input('finish', $lang{REGISTRATION_COMPLETE}, { TYPE => 'submit' })
+      . ' ' . $html->form_input('back', $lang{BACK}, { TYPE => 'submit' })
+      . ' ' . $html->form_input('next', $lang{NEXT}, { TYPE => 'submit' });
   }
   else {
-    $action = $html->form_input('change', "$lang{CHANGE}", { TYPE => 'submit' });
+    $action = $html->form_input('change', $lang{CHANGE}, { TYPE => 'submit' });
   }
 
   $table->{extra}    = 'colspan=13 align=\'center\'';
@@ -498,7 +508,7 @@ sub abon_user {
     {
       CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
       HIDDEN  => {
-        index => "$index",
+        index => $index,
         UID   => $uid,
         step  => $FORM{step}
       },
@@ -760,11 +770,9 @@ sub abon_tariffs {
 }
 
 #**********************************************************
-
 =head2 abon_periodic($attr) daily_fees
 
 =cut
-
 #**********************************************************
 sub abon_periodic {
   my ($attr) = @_;
@@ -793,6 +801,7 @@ sub abon_periodic {
       LOGIN_STATUS => 0,
       COLS_NAME    => 1,
       COLS_UPPER   => 1,
+      FEES_PERIOD  => '_SHOW',
     }
   );
 
@@ -808,7 +817,10 @@ sub abon_periodic {
     }
 
     if ($debug > 2) {
-      $debug_output .= "UID: $info->{UID} TP_ID: $info->{TP_ID} SUM: $info->{PRICE} DEPOSIT: " . ((defined($info->{DEPOSIT})) ? $info->{DEPOSIT} : 'Undefined') . " NOT1: $info->{NOTIFICATION1} NOT2: $info->{NOTIFICATION2} ABON: $info->{ABON_DATE} BILL_ID: $info->{BILL_ID}\n";
+      $debug_output .= "UID: $info->{UID} TP_ID: $info->{TP_ID} SUM: $info->{PRICE} DEPOSIT: "
+        . ((defined($info->{DEPOSIT})) ? $info->{DEPOSIT} : 'Undefined')
+        . " NOT1: $info->{NOTIFICATION1} NOT2: $info->{NOTIFICATION2} ABON: $info->{ABON_DATE} BILL_ID: "
+        . ($info->{BILL_ID} || 'N/D') . "\n";
     }
 
     if (defined($info->{DEPOSIT})) {
@@ -823,18 +835,18 @@ sub abon_periodic {
           START_PERIOD => $ADMIN_REPORT{DATE}
         }
       );
-      my $describe = fees_dsc_former(
-        {
-          TEMPLATE_KEY_NAME => 'ABON_FEES_DSC',
-          SERVICE_NAME      => $lang{ABON},
-          FEES_PERIOD_MONTH => ($info->{PERIOD} ? $lang{MONTH} : ''),
-          FEES_PERIOD_DAY   => (!$info->{PERIOD} ? $lang{DAY} : ''),
-          TP_NAME           => $info->{TP_NAME},
-          TP_ID             => $info->{TP_ID},
-          EXTRA             => $info->{COMMENTS},
-          PERIOD            => $period_dates || (!$info->{PERIOD} ? $DATE : ''),    # If period is DAY, show current date
-        }
-      );
+
+      my $describe = fees_dsc_former({
+        TEMPLATE_KEY_NAME => 'ABON_FEES_DSC',
+        SERVICE_NAME      => $lang{ABON},
+        FEES_PERIOD_MONTH => ($info->{PERIOD} ? $lang{MONTH} : ''),
+        FEES_PERIOD_DAY   => (!$info->{PERIOD} ? $lang{DAY} : ''),
+        TP_NAME           => $info->{TP_NAME},
+        TP_ID             => $info->{TP_ID},
+        EXTRA             => $info->{COMMENTS},
+        PERIOD            => $period_dates || (!$info->{PERIOD} ? $DATE : ''),    # If period is DAY, show current date
+      });
+
       my %PARAMS = (
         DESCRIBE => $describe,
         METHOD   => $info->{FEES_TYPE},
@@ -854,18 +866,37 @@ sub abon_periodic {
       if (!$info->{MANUAL_FEE} && ($ADMIN_REPORT{DATE} eq $info->{ABON_DATE} || $info->{PERIOD} == 0)) {
         if (defined($info->{DEPOSIT}) && ($info->{DEPOSIT} + $info->{CREDIT} > 0 || $info->{PAYMENT_TYPE} == 1) && $info->{DISABLE} == 0) {
           $PARAMS{DESCRIBE} =~ s/\'/\\\'/g;
-          $fees->{debug} = 1 if ($debug > 7);
-          $fees->take(\%user, $info->{PRICE}, {%PARAMS}) if ($info->{DISCOUNT} < 100);
+          $Fees->{debug} = 1 if ($debug > 7);
 
-          $Abon->user_tariff_update(
-            {
-              UID   => "$info->{UID}",
-              DATE  => $ADMIN_REPORT{DATE},
-              TP_ID => "$info->{TP_ID}"
-            }
+          if($debug < 8) {
+            $Fees->take(\%user, $info->{PRICE}, { %PARAMS }) if ($info->{DISCOUNT} < 100);
+          }
+
+          if($Fees->{errno}) {
+            print "ERROR: ABon not defined bill account UID: $info->{UID}  $Fees->{errstr}\n";
+            next;
+          }
+
+          my %user_tarifs_update = (
+            UID   => $info->{UID},
+            DATE  => $ADMIN_REPORT{DATE},
+            TP_ID => $info->{TP_ID}
           );
 
-          _error_show($fees);
+          if($info->{FEES_PERIOD}) {
+            if($info->{FEES_PERIOD} > 1) {
+              $user_tarifs_update{FEES_PERIOD} = $info->{FEES_PERIOD} - 1;
+            }
+            else {
+              $user_tarifs_update{DEL}=$info->{TP_ID};
+              $Abon->user_tariff_change(\%user_tarifs_update);
+              %user_tarifs_update=();
+            }
+          }
+
+          if(%user_tarifs_update) {
+            $Abon->user_tariff_update(\%user_tarifs_update);
+          }
 
           if ($info->{CREATE_ACCOUNT} && $info->{CREATE_DOCS}) {
             push @{ $docs_info{ $user{UID} } },
@@ -890,7 +921,6 @@ sub abon_periodic {
             my $message = $html->tpl_show(_include('abon_notification3', 'Abon'), { %{$Abon}, %{$info} }, { OUTPUT2RETURN => 1 });
             sendmail("$conf{ADMIN_MAIL}", "$info->{EMAIL}", "$conf{WEB_TITLE} - $info->{TP_NAME} $info->{COMMENTS}", "$message", "$conf{MAIL_CHARSET}", '', {});
           }
-
           $debug_output .= "$user{UID} TP_ID: $info->{TP_ID} SUM: $info->{PRICE} ACCOUNT: $info->{CREATE_ACCOUNT} " . (($info->{CREATE_ACCOUNT}) ? "ACCOUNT SEND_EMAIL: $info->{EMAIL}" : '') . (($info->{ACTIVATE_NOTIFICATION}) ? " NOTIFICATION: $info->{EMAIL}" : '') . "\n" if ($debug > 1);
         }
 
@@ -929,7 +959,6 @@ sub abon_periodic {
           }
         }
       }
-
       #Notification Section
       elsif ($info->{NOTIFICATION1} eq $ADMIN_REPORT{DATE}) {
         my $message = $html->tpl_show(_include('abon_notification1', 'Abon'), { %{$Abon}, %{$info} }, { OUTPUT2RETURN => 1 });
@@ -946,16 +975,12 @@ sub abon_periodic {
           };
         }
 
-        $Abon->user_tariff_update(
-          {
-            UID          => $user{UID},
-            NOTIFICATION => 1,
-
-            #DATE                    => $ADMIN_REPORT{DATE},
-            NOTIFICATION_ACCOUNT_ID => $FORM{ACCOUNT_ID},
-            TP_ID                   => $info->{TP_ID}
-          }
-        );
+        $Abon->user_tariff_update({
+          UID                     => $user{UID},
+          NOTIFICATION            => 1,
+          NOTIFICATION_ACCOUNT_ID => $FORM{ACCOUNT_ID},
+          TP_ID                   => $info->{TP_ID}
+        });
 
         if ($info->{SEND_DOCS}) {
           sendmail("$conf{ADMIN_MAIL}", "$info->{EMAIL}", "$conf{WEB_TITLE} - $info->{TP_NAME} $info->{COMMENTS}", "$message", "$conf{MAIL_CHARSET}", '', { ATTACHMENTS => $attach });
@@ -1051,44 +1076,45 @@ sub abon_periodic {
 
 #**********************************************************
 sub abon_get_month_fee {
-  my ($Abon, $attr) = @_;
+  my Abon $Abon_ = shift;
+  my ($attr) = @_;
 
   my %FEES_DSC = (
     MODULE            => 'Abon',
     TEMPLATE_KEY_NAME => 'ABON_FEES_DSC',
     SERVICE_NAME      => $lang{EXT_SERVICES},
-    TP_ID             => $Abon->{TP_INFO}->{TP_ID},
-    TP_NAME           => $Abon->{TP_INFO}->{TP_NAME},
+    TP_ID             => $Abon_->{TP_INFO}->{TP_ID},
+    TP_NAME           => $Abon_->{TP_INFO}->{TP_NAME},
     EXTRA             => '',
   );
 
   my $message = '';
 
   # If zero price, should do nothing
-  return '' if ($Abon->{TP_INFO}->{PRICE} <= 0);
+  return '' if ($Abon_->{TP_INFO}->{PRICE} <= 0);
 
   #Get month fee
-  my $sum  = $Abon->{TP_INFO}->{PRICE};
-  my $user = $users->info($Abon->{UID});
+  my $sum  = $Abon_->{TP_INFO}->{PRICE};
+  my $user = $users->info($Abon_->{UID});
 
-  if ($Abon->{TP_INFO}->{EXT_BILL_ACCOUNT}) {
+  if ($Abon_->{TP_INFO}->{EXT_BILL_ACCOUNT}) {
     $user->{BILL_ID} = $user->{EXT_BILL_ID};
     $user->{DEPOSIT} = $user->{EXT_DEPOSIT};
   }
 
   #Current Month
   my ($y,        $m,        $d)        = split(/-/, $DATE,             3);
-  my ($active_y, $active_m, $active_d) = split(/-/, $Abon->{ACTIVATE}, 3);
+  my ($active_y, $active_m, $active_d) = split(/-/, $Abon_->{ACTIVATE}, 3);
 
   if (int("$y$m$d") < int("$active_y$active_m$active_d")) {
     return;
   }
 
-  if ($Abon->{TP_INFO}->{PERIOD_ALIGNMENT}) {
+  if ($Abon_->{TP_INFO}->{PERIOD_ALIGNMENT}) {
     $FEES_DSC{EXTRA} .= " $lang{PERIOD_ALIGNMENT}\n";
     my $days_in_month = days_in_month({ DATE => "$y-$m" });
 
-    if ($Abon->{ACTIVATE} && $Abon->{ACTIVATE} ne '0000-00-00') {
+    if ($Abon_->{ACTIVATE} && $Abon_->{ACTIVATE} ne '0000-00-00') {
       $days_in_month = days_in_month({ DATE => "$active_y-$active_m" });
       $d = $active_d;
     }
@@ -1116,7 +1142,7 @@ sub abon_get_month_fee {
     $m = sprintf("%.2d", $active_m + $i);
 
     if ($i > 0) {
-      $sum = $Abon->{TP_INFO}->{PRICE};
+      $sum = $Abon_->{TP_INFO}->{PRICE};
 
       #      $message = "$lang{ABON}: $sum ($Abon->{TP_INFO}->{TP_ID})\n";
       $FEES_DSC{EXTRA} .= $sum;
@@ -1124,7 +1150,7 @@ sub abon_get_month_fee {
       $DATE = "$active_y-$m-01";
       $TIME = "00:00:00";
     }
-    elsif ($Abon->{ACTIVATE} && $Abon->{ACTIVATE} ne '0000-00-00') {
+    elsif ($Abon_->{ACTIVATE} && $Abon_->{ACTIVATE} ne '0000-00-00') {
       $DATE = "$active_y-$m-$active_d";
       $TIME = "00:00:00";
 
@@ -1134,8 +1160,8 @@ sub abon_get_month_fee {
       # }
     }
 
-    if ($Abon->{COMMENTS}) {
-      $FEES_DSC{EXTRA} .= $Abon->{COMMENTS};
+    if ($Abon_->{COMMENTS}) {
+      $FEES_DSC{EXTRA} .= $Abon_->{COMMENTS};
 
       #      $message .= $Abon->{COMMENTS};
     }
@@ -1144,8 +1170,8 @@ sub abon_get_month_fee {
     $FEES_DSC{PERIOD} = get_period_dates(
       {
         TYPE             => 1,
-        PERIOD_ALIGNMENT => $Abon->{TP_INFO}->{PERIOD_ALIGNMENT},
-        ACCOUNT_ACTIVATE => $Abon->{ACTIVATE}
+        PERIOD_ALIGNMENT => $Abon_->{TP_INFO}->{PERIOD_ALIGNMENT},
+        ACCOUNT_ACTIVATE => $Abon_->{ACTIVATE}
       }
     );
 
@@ -1154,11 +1180,11 @@ sub abon_get_month_fee {
     my $fees_message = $message;
     $fees_message =~ s/\n//g;
 
-    $fees->take(
+    $Fees->take(
       $users, $sum,
       {
         DESCRIBE => $fees_message,
-        METHOD   => $Abon->{TP_INFO}->{FEES_TYPE},
+        METHOD   => $Abon_->{TP_INFO}->{FEES_TYPE},
         DATE     => "$DATE $TIME"
       }
     );
@@ -1168,7 +1194,7 @@ sub abon_get_month_fee {
       $FORM{OPERATION_DESCRIBE} = $fees_message;
     }
 
-    if (_error_show($fees)) {
+    if (_error_show($Fees)) {
       $message = '';
     }
   }

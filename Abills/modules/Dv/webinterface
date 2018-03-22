@@ -68,9 +68,9 @@ if($permissions{3}) {
   require Dv::Reports;
 }
 
-if($permissions{4}) {
-  require Dv::Configure;
-}
+#if($permissions{4}) {
+require Dv::Configure;
+#}
 
 if ($conf{DV_BONUS}) {
   require Dv::Rating;
@@ -178,7 +178,7 @@ sub dv_chg_tp {
     my ($year, $month, $day) = split(/-/, $DATE, 3);
     if ($period > 0) {
       if ($period == 1) {
-        ($year, $month, $day) = split(/-/, $Dv->{ABON_DATE}, 3);
+        ($year, $month, $day) = split(/-/, $Dv->{ABON_DATE} || q{}, 3);
       }
       else {
         ($year, $month, $day) = split(/-/, $FORM{DATE}, 3);
@@ -412,14 +412,6 @@ sub dv_users_search {
 sub dv_users_list {
   my ($attr) = @_;
 
-  use Dv;
-    my $dv = Dv->new($db, $admin, \%conf);
-      $dv->account_check();
-        if(_error_show($dv)) {
-            return 1;
-              }
-              
-
   if (!$permissions{0}{2}) {
     return 0;
   }
@@ -606,6 +598,13 @@ sub dv_user {
   $Dv->{UID} = $FORM{UID} || $LIST_PARAMS{UID};
   delete($Dv->{errno});
 
+
+    $Dv->account_check();
+      if(_error_show($Dv)) {
+          return 1;
+            }
+            
+
   if ($FORM{CID} && $FORM{CID} !~ /ANY/i) {
     my $list = $Dv->list({
       LOGIN     => '_SHOW',
@@ -637,8 +636,8 @@ sub dv_user {
     }
 
     my $value_list=$Conf->config_list({
-      CUSTOM=> 1,
-      COLS_NAME=>1
+      CUSTOM   => 1,
+      COLS_NAME=> 1
     });
 
     foreach my $line (@$value_list){
@@ -1041,24 +1040,28 @@ sub dv_user {
       }
       );
 
-      $Dv->{TURBO_MODE_FORM} = $html->tpl_show(templates('form_row'), { ID => "TURBO_MODE",
+      $Dv->{TURBO_MODE_FORM} = $html->tpl_show(templates('form_row'), {
+         ID    => "TURBO_MODE",
          NAME  => 'TURBO',
          VALUE => $Dv->{TURBO_MODE_SEL} }, { OUTPUT2RETURN => 1 });
 
-      $Dv->{TURBO_MODE_FORM} .= $html->tpl_show(templates('form_row'), { ID => "FREE_TURBO_MODE",
+      $Dv->{TURBO_MODE_FORM} .= ',' if($FORM{json});
+      $Dv->{TURBO_MODE_FORM} .= $html->tpl_show(templates('form_row'), {
+         ID    => "FREE_TURBO_MODE",
          NAME  => "TURBO $lang{COUNT}",
          VALUE => $html->form_input('FREE_TURBO_MODE', $Dv->{FREE_TURBO_MODE} ) }, { OUTPUT2RETURN => 1 });
     }
 
     if ($conf{DV_LOGIN}) {
-      $Dv->{LOGIN_FORM} .= $html->tpl_show(templates('form_row'), { ID => 'DV_LOGIN',
+      $Dv->{LOGIN_FORM} .= $html->tpl_show(templates('form_row'), {
+         ID    => 'DV_LOGIN',
          NAME  => $lang{LOGIN},
          VALUE => $html->form_input('DV_LOGIN', $Dv->{DV_LOGIN} ) }, { OUTPUT2RETURN => 1 });
     }
 
     if ($conf{DOCS_PDF_PRINT}) {
       $Dv->{REGISTRATION_INFO_PDF} = $html->button("", "qindex=$index&UID=$Dv->{UID}&REGISTRATION_INFO=1&pdf=1", { ex_params => 'target=_new', class => 'btn btn-sm btn-default', ICON => 'glyphicon glyphicon-print' });
-      $Dv->{PDF_VISIBLE} = 'blok'; # FIXME: 'block'?
+      $Dv->{PDF_VISIBLE} = 'blok';
     }
   }
 
@@ -1951,7 +1954,8 @@ sub dv_sessions {
     form_search({ SEARCH_FORM => $html->tpl_show(_include('dv_sessions_search', 'Dv'),
         { %FORM, %$sessions },
         { OUTPUT2RETURN => 1 }),
-        ADDRESS_FORM => 1
+        ADDRESS_FORM => 1,
+        SHOW_PERIOD  => 1,
     });
 
     if ($FORM{search}) {
@@ -2301,6 +2305,14 @@ sub dv_error {
 #**********************************************************
 sub dv_stats {
   my ($attr) = @_;
+
+  my $dv = Dv->new($db, $admin, \%conf);
+    $dv->account_check();
+      if(_error_show($dv)) {
+          return 1;
+            }
+            
+
 
   if (defined($attr->{USER_INFO})) {
     my $user = $attr->{USER_INFO};
@@ -3169,7 +3181,6 @@ sub dv_wizard_user {
       #Dhcphosts wizards
       if (in_array('Dhcphosts', \@MODULES) &&  $add_values{11}) {
         load_module('Dhcphosts', $html);
-
         %FORM      = %{ $add_values{11} };
         $FORM{UID} = $uid;
         $FORM{add} = $uid;
@@ -3275,7 +3286,7 @@ sub dv_wizard_user {
   if (!$attr->{NO_EXTRADATA}) {
     $users_defaults->{EXDATA} .= $html->tpl_show(templates('form_user_exdata_add'),
        { CREATE_BILL => ' checked',
-         GID         => sel_groups({ SKIP_MUULTISEL => 1 })
+         GID         => sel_groups({ SKIP_MULTISELECT => 1 })
        },
        { OUTPUT2RETURN => 1 });
     $users_defaults->{EXDATA} .= $html->tpl_show(templates('form_ext_bill_add'), { CREATE_EXT_BILL => ' checked' }, { OUTPUT2RETURN => 1 }) if ($conf{EXT_BILL_ACCOUNT});
@@ -3335,13 +3346,7 @@ sub dv_wizard_user {
     $pi_form{OLD_CONTACTS_VISIBLE} = 1;
   }
 
-  if ($conf{ADDRESS_REGISTER}) {
-    $users->{FLAT_CHECK_FREE} = 1;
-    $pi_form{ADDRESS_TPL} = $html->tpl_show(templates('form_address_sel'), $users, { OUTPUT2RETURN => 1 });
-  }
-  else {
-    $pi_form{ADDRESS_TPL} = $html->tpl_show(templates('form_address'), undef, { OUTPUT2RETURN => 1 });
-  }
+  $pi_form{ADDRESS_TPL} = form_address();
 
   $dv_defaults->{JOIN_SERVICE} = '';
   my $list = $Nas->ip_pools_list({ STATIC => 1, COLS_NAME => 1 });
@@ -3462,7 +3467,7 @@ sub dv_wizard_user {
 
   $template =~ s/(<form .*?>)//gi;
   $template =~ s/<\/form>//ig;
-  $template =~ s/(<input .*?type=submit.*?>)//gi;
+  $template =~ s/(<input .*?type=['"]?submit['"]?.*?>)//gi;
   $template =~ s/<hr>//gi;
 
   if ($attr->{OUTPUT2RETURN}) {

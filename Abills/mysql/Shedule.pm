@@ -9,7 +9,7 @@ package Shedule;
 no if $] >= 5.017011, warnings => 'experimental::smartmatch';
 
 use strict;
-use parent 'main';
+use parent qw(dbcore);
 use Abills::Base qw( in_array ) ;
 
 my $admin;
@@ -47,7 +47,7 @@ sub change{
     $attr->{ID} = $attr->{SHEDULE_ID};
   }
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM    => 'ID',
       TABLE           => 'shedule',
@@ -100,7 +100,7 @@ sub info{
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join( ' and ', @WHERE_RULES ) : '';
 
-  $self->query2( "SELECT s.h,
+  $self->query( "SELECT s.h,
      s.d,
      s.m,
      s.y,
@@ -167,7 +167,7 @@ sub list{
 
   my $EXT_TABLE = $self->{EXT_TABLES} || '';
 
-  $self->query2( "SELECT s.h, s.d, s.m, s.y, s.counts,
+  $self->query( "SELECT s.h, s.d, s.m, s.y, s.counts,
       u.id AS login,
       s.type,
       s.action,
@@ -184,23 +184,21 @@ sub list{
     LEFT JOIN admins a ON (a.aid=s.aid)
     $EXT_TABLE
     $WHERE
-  ORDER BY $SORT $DESC
-  LIMIT $PG, $PAGE_ROWS",
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS",
     undef,
     $attr
   );
 
   my $list = $self->{list};
 
-  if ( $self->{TOTAL} > 0 ){
-    $self->query2( "SELECT count(*) AS total   FROM shedule s
+  $self->query( "SELECT COUNT(*) AS total FROM shedule s
       LEFT JOIN users u ON (u.uid=s.uid)
       LEFT JOIN admins a ON (a.aid=s.aid)
      $WHERE",
       undef,
       { INFO => 1 }
     );
-  }
 
   return $list;
 }
@@ -265,7 +263,7 @@ sub del{
       $WHERE = " AND uid='$attr->{UID}'";
     }
 
-    $self->query2( "DELETE FROM shedule WHERE id IN ( $attr->{IDS} ) $WHERE;", 'do' );
+    $self->query( "DELETE FROM shedule WHERE id IN ( $attr->{IDS} ) $WHERE;", 'do' );
     if ( $attr->{UID} ){
       $admin->action_add( $attr->{UID}, "SHEDULE:$attr->{IDS} RESULT:$result" . $attr->{EXT_INFO},
         { TYPE => ($attr->{EXECUTE}) ? 29 : 28 } );

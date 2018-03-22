@@ -67,3 +67,5 @@ $lang{SUBSCRIBES}='Subscribes';
 $lang{DISABLE_SERVICE}='Disable service';
 $lang{DISABLED_WILL}='Service will disable';
 $lang{PROVIDER_PORTAL_URL}='Provider portal url';
+
+$lang{ERR_NO_AVAILABLE_TP}='There are no available tariff plans';

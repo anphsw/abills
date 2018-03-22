@@ -50,7 +50,6 @@ $lang{CARDS_RECHARGE} = 'Добавить средства';
 $lang{CHOOSE_LANGUAGE} = 'Выберите язык';
 $lang{DLYA} = 'Для';
 $lang{AUTH_ERROR} = 'Ошибка авторизации. Попробуйте ещё раз';
-$lang{FUNCTION} = 'Функция';
 $lang{AUDIO_FILE} = 'Аудио файл';
 $lang{PROMOTIONS} = 'Акции';
 $lang{REPLAY_MENU} = 'Повторить меню';

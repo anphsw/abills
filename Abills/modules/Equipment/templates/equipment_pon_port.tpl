@@ -7,7 +7,7 @@
 
     <div class='box box-theme box-form center-block'>
         <div class='box-header with-border'>
-            <h3 class="box-title"> _{PORT}_</h3>
+            <h3 class="box-title"> _{PORT}_:  %PON_TYPE% %BRANCH%</h3>
         </div>
         <div class='box-body'>
 

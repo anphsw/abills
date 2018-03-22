@@ -49,18 +49,10 @@ sub msgs_sp_show_overdue {
 sub msgs_sp_show_new {
   my ($attr) = @_;
 
-#  my $table = $html->table(
-#    {
-#      width   => '100%',
-#      caption => $html->button($MESSAGE_ICON . (($attr->{STATE}) ? $lang{OVERDUE} : $lang{MESSAGES}), "index=" . get_function_index('msgs_admin') . (($attr->{STATE}) ? '&STATE=12' : '')),
-#      title_plain => [ '#',    "$lang{LOGIN}", "$lang{DATE}", "$lang{SUBJECT}", "$lang{CHAPTER}" ],
-#      ID      => "MSGS_NEW_" . ($attr->{STATE} || q{_}),
-#      class   => 'table'
-#    }
-#  );
-
+  $attr ||= {};
   my $list = $Msgs->messages_list(
     {
+      LOGIN          => '_SHOW',
       CLIENT_ID      => '_SHOW',
       DATETIME       => '_SHOW',
       SUBJECT        => '_SHOW',
@@ -70,17 +62,71 @@ sub msgs_sp_show_new {
       PLAN_DATE_TIME => '_SHOW',
       SORT           => 'id',
       DESC           => 'desc',
-      STATE          => $attr->{STATE} || 0,
+      STATE          => ($attr && $attr->{STATE}) ? $attr->{STATE} : 0,
       PAGE_ROWS      => 5,
       COLS_NAME      => 1
     }
   );
+  my $badge = '';
+  if(!$attr->{STATE}){
+    use Abills::Base qw/days_in_month/;
+
+    my($y, $m, undef) = split("-", $DATE);
+
+    my $start_date = "$y-$m-01";
+    my $end_date = "$y-$m-" . days_in_month({DATE => $DATE});
+
+    my $all_open_msgs = $Msgs->{OPEN};
+
+    my $closed_in_month = $Msgs->messages_list(
+      {
+        CLOSED_DATE    => ">=$start_date;<=$end_date",
+
+        SORT           => 'id',
+        DESC           => 'desc',
+        PAGE_ROWS      => 9999999,
+      }
+    );
+
+    my $opened_in_month = $Msgs->messages_list(
+      {
+        DATE           => ">=$start_date;<=$end_date",
+
+        SORT           => 'id',
+        DESC           => 'desc',
+        PAGE_ROWS      => 9999999,
+      }
+    );
+
+    my $scalar_opened_in_month = $opened_in_month ? scalar (@$opened_in_month) : 0;
+    my $scalar_closed_in_month = $closed_in_month ? scalar (@$closed_in_month) : 0;
+
+    my $opened_per_month_badge = $html->element('small', ($scalar_opened_in_month), {
+        class                   => 'label bg-warning',
+        'data-tooltip'          => "$lang{OPEN} $lang{FOR_} $lang{MONTH}",
+        'data-tooltip-position' => 'top'
+      });
+    my $closed_per_month_badge = $html->element('small', ($scalar_closed_in_month), {
+        class                   => 'label bg-green',
+        'data-tooltip'          => "$lang{CLOSED} $lang{FOR_} $lang{MONTH}",
+        'data-tooltip-position' => 'top'
+      });
+    my $all_opend_messages = $html->element('small', $all_open_msgs, {
+        class => 'label  bg-primary',
+        'data-tooltip'          => "$lang{ALL} $lang{OPEN}",
+        'data-tooltip-position' => 'top'
+      });
+
+    $badge = $all_opend_messages . $opened_per_month_badge . $closed_per_month_badge;
+  }
 
   return msgs_sp_table($list, {
     CAPTION      => ($attr->{STATE}) ? $lang{OVERDUE} : $lang{MESSAGES},
+    SKIP_ICON => 1,
     DATE_KEY     => ($attr->{STATE}) ? 'plan_date_time' : 'datetime',
-    DATA_CAPTION => ($lang{DATE})
-  });
+    DATA_CAPTION => ($lang{DATE}),
+    BADGE        => $badge
+    });
 }
 
 #**********************************************************
@@ -91,8 +137,8 @@ sub msgs_sp_show_new {
 sub msgs_user_watch {
 
   my $watched_links = $Msgs->msg_watch_list({
-      COLS_NAME => 1,
-      AID       => $admin->{AID}
+    COLS_NAME => 1,
+    AID       => $admin->{AID}
   });
   _error_show($Msgs);
 
@@ -101,6 +147,7 @@ sub msgs_user_watch {
       MSG_ID     => join(';', map {$_->{main_msg}} @$watched_links) || 0,
       COLS_NAME  => 1,
       PAGE_ROWS  => 5,
+      LOGIN      => '_SHOW',
       STATE      => '_SHOW',
       PRIORITY   => '_SHOW',
       DATE       => '_SHOW',
@@ -109,8 +156,12 @@ sub msgs_user_watch {
   );
   _error_show($Msgs);
 
+  my $badge = $html->element('small', scalar @{$watched_links}, {
+      class => 'label pull-right bg-green',
+    });
+
   return msgs_sp_table($watched_messages_list, {
-    BADGE => scalar @{$watched_links},
+    BADGE => $badge,
     CAPTION      => $lang{WATCHED},
     DATA_CAPTION => $lang{CREATED}
   });
@@ -224,7 +275,7 @@ sub msgs_open_msgs {
 }
 
 #**********************************************************
-=head2 msgs_sp_table()
+=head2 msgs_sp_table($messages_list, $attr)
 
 =cut
 #**********************************************************
@@ -238,6 +289,7 @@ sub msgs_sp_table {
   my $statuses_list = $Msgs->status_list({
     NAME      => '_SHOW',
     COLOR     => '_SHOW',
+    LOGIN     => '_SHOW',
     ICON      => '_SHOW',
     SORT      => 'id',
     COLS_NAME => 1,
@@ -256,14 +308,14 @@ sub msgs_sp_table {
     'bg-red'
   );
 
-  my $badge = $html->element('small', ($attr->{BADGE} || scalar (@$messages_list)), { class => 'label pull-right bg-green' });
+  my $badge = $attr->{BADGE} || '';
   my $msgs_admin_index = get_function_index('msgs_admin');
 
   my $table = $html->table(
     {
       width       => '100%',
-      caption     => $html->button($MESSAGE_ICON . ($attr->{CAPTION} || '') . "&nbsp;&nbsp;" . $badge,
-        "index=$msgs_admin_index&ALL_MSGS=1"),
+      caption     => $html->button(($attr->{SKIP_ICON} ? '' : $MESSAGE_ICON) . ($attr->{CAPTION} || '') . "&nbsp;&nbsp;" ,
+        "index=$msgs_admin_index&ALL_MSGS=1") . $badge,
       title_plain => [ '', ($attr->{DATA_CAPTION} || $lang{DATE}), $lang{LOGIN}, $lang{SUBJECT}, $lang{CHAPTER} ],
       class       => 'table',
       ID          => 'USER_WATCH_LIST'
@@ -306,7 +358,7 @@ sub msgs_sp_table {
 
       # If have login, show link to user
       ($msg_info->{uid}
-        ? $html->button($msg_info->{user_name}, "index=15&UID=$msg_info->{uid}")
+        ? $html->button($msg_info->{login}, "index=15&UID=$msg_info->{uid}")
         : '' ),
 
       # Subject stripped to 30 symbols
@@ -329,26 +381,32 @@ sub msgs_sp_table {
 #**********************************************************
 sub msgs_rating {
 
+  my ($y, $m, undef) = split('-', $DATE);
+
   my $table = $html->table(
     {
       width       => '100%',
-      caption     => $html->button($MESSAGE_ICON . $lang{EVALUATION_OF_PERFORMANCE}, "index=" . get_function_index('msgs_admin') . "&STATE=0"),
+      caption     => $html->button($MESSAGE_ICON . $lang{EVALUATION_OF_PERFORMANCE},
+                       "index=" . get_function_index('msgs_admin') . "&STATE=0"
+                     ),
       title_plain => [ "$lang{LOGIN}", "$lang{SUBJECT}", "$lang{ASSESSMENT}" ],
       class       => 'table',
       ID          => 'EVALUATION_OF_PERFORMANCE_TABLE',
-      cols_align  => [ 'left', 'right', 'right', 'right' ],
     }
   );
 
   my $list = $Msgs->messages_list(
     {
       RATING                 => '1;2;3;4;5',
+      DATE                   => ">$y-$m-01",
+
       ADMIN_LOGIN            => '_SHOW',
-      PAGE_ROWS              => 5,
       RESPOSIBLE             => '_SHOW',
       RESPOSIBLE_ADMIN_LOGIN => '_SHOW',
       SUBJECT                => '_SHOW',
       STATE                  => '_SHOW',
+
+      PAGE_ROWS              => 5,
       SORT                   => 'date',
       COLS_NAME              => 1,
     }

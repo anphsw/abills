@@ -6,16 +6,28 @@
 
 use strict;
 use warnings FATAL => 'all';
+use Abills::Base qw(convert);
 
 our ($db,
   %lang,
   $html,
   $admin,
   %conf,
-  %permissions
+  %permissions,
 );
 
-my @priority = ($lang{VERY_LOW}, $lang{LOW}, $lang{NORMAL}, $lang{HIGH}, $lang{VERY_HIGH});
+# my @priority = ($lang{VERY_LOW}, $lang{LOW}, $lang{NORMAL}, $lang{HIGH}, $lang{VERY_HIGH});
+
+my @priority = ();
+if ($html) {
+  @priority = (
+    $html->element('span', '', { class => 'fa fa-thermometer-0', OUTPUT2RETURN => 1 }),
+    $html->element('span', '', { class => 'fa fa-thermometer-1', OUTPUT2RETURN => 1 }),
+    $html->element('span', '', { class => 'fa fa-thermometer-2', OUTPUT2RETURN => 1 }),
+    $html->element('span', '', { class => 'fa fa-thermometer-3', OUTPUT2RETURN => 1 }),
+    $html->element('span', '', { class => 'fa fa-thermometer-4', OUTPUT2RETURN => 1 })
+  );
+}
 
 $_COLORS[6] //= 'red';
 $_COLORS[8] //= '#FFFFFF';
@@ -139,7 +151,7 @@ sub msgs_list {
     INPUT_DATA      => $Msgs,
     BASE_FIELDS     => 0,
     DEFAULT_FIELDS  => 'ID,CLIENT_ID,SUBJECT,CHAPTER_NAME,DATETIME,STATE,PRIORITY,RESPOSIBLE_ADMIN_LOGIN',
-    HIDDEN_FIELDS   => 'UID,PRIORITY_ID,STATE_ID,CHG_MSGS,DEL_MSGS,ADMIN_READ',
+    HIDDEN_FIELDS   => 'UID,PRIORITY_ID,STATE_ID,CHG_MSGS,DEL_MSGS,ADMIN_READ,REPLIES_COUNTS,RESPOSIBLE',
     APPEND_FIELDS   => 'UID',
     FUNCTION        => 'messages_list',
     FUNCTION_FIELDS => 'msgs_admin:show:chg_msgs;uid,msgs_admin:del:del_msgs;state:ALL_MSGS=1',
@@ -163,13 +175,14 @@ sub msgs_list {
       },
       priority => sub {
         my ($priority_id) = @_;
-        $html->color_mark($priority[$priority_id ], $priority_colors[$priority_id])
+        $priority_id //= 3; # Normal
+        $html->color_mark($priority[$priority_id], $priority_colors[$priority_id])
       },
       deposit  => sub {
         my ($deposit, $line) = @_;
-        ($permissions{0}->{12})
+        ($permissions{0} && $permissions{0}->{12})
           ? '--'
-          : ($deposit + ($line->{credit} || 0) < 0)
+          : (($deposit || 0) + ($line->{credit} || 0) < 0)
           ? $html->color_mark($deposit, 'text-danger')
           : $deposit
       },
@@ -253,42 +266,51 @@ sub msgs_list {
 
   my $total_msgs = $Msgs->{TOTAL};
 
-  my $dispatch = msgs_dispatch_sel(
+  my $dispatch_arr = msgs_dispatch_sel(
     $attr->{ALLOW_TO_CLEAR_DISPATCH}
     ? {
         SELECTED    => $attr->{DISPATCH_ID},
         SEL_OPTIONS => { '' => '' },
       }
     : undef
-    );
+  );
+
+  if($A_CHAPTER && $#{ $A_CHAPTER } == - 1) {
+    push @$dispatch_arr, $html->form_input('COMMENTS', "$lang{DEL} $lang{MESSAGES}",
+        { TYPE => 'submit', class => 'btn btn-danger', FORM_ID => 'MSGS_LIST' });
+  }
+
+  my $info = '';
+  foreach my $val ( @$dispatch_arr ) {
+    $info .= $html->element('div', $val, { class => 'form-group' });
+  }
+
+  if($info) {
+    $info = $html->element('div', $info, { class => 'well well-sm form-inline' })
+  }
+
+  my $table2 = $html->table({
+    width => '100%',
+    rows  => [ [ "  $lang{TOTAL}: ", $html->b($total_msgs) ] ]
+  });
 
   print $html->form_main({
-    CONTENT => $table->show({ OUTPUT2RETURN => 1 }) . ($dispatch || q{}),
+    CONTENT => $table->show({ OUTPUT2RETURN => 1 })
+      . $table2->show({ OUTPUT2RETURN => 1 })
+      . $info,
     HIDDEN  => {
       index => $index,
       #UID  => $FORM{UID},
       STATE => $FORM{STATE}
     },
-    SUBMIT  => {
-        ($A_CHAPTER && $#{ $A_CHAPTER } == - 1)
-          ? (COMMENTS => $lang{DEL})
-          : ()
-    },
     NAME    => 'MSGS_LIST',
     ID      => 'MSGS_LIST',
-  });
-
-  $table = $html->table({
-    width => '100%',
-    rows  => [ [ "  $lang{TOTAL}: ", $html->b($total_msgs) ] ]
   });
 
   # Quick message preview
   if ( $html->{TYPE} && $html->{TYPE} eq 'html' ) {
     print '<script src="/styles/default_adm/js/msgs/message_preview.js"></script>';
   }
-
-  print $table->show();
 
   return 1;
 }
@@ -305,6 +327,8 @@ sub _msgs_list_status_form {
   $_COLORS[8] //= '#FFFFFF';
   $_COLORS[9] //= '#FFFFFF';
 
+  $status //= 0;
+
   my $val;
   my @service_status = ("$lang{ENABLE}", "$lang{DISABLE}", "$lang{NOT_ACTIVE}");
   my @service_status_colors = ($_COLORS[9], $_COLORS[6], '#808080', '#0000FF', '#FF8000',
@@ -318,7 +342,7 @@ sub _msgs_list_status_form {
 }
 
 #**********************************************************
-=head2 msgs_dispatch_sel()
+=head2 msgs_dispatch_sel($attr)
 
 =cut
 #**********************************************************
@@ -348,12 +372,7 @@ sub msgs_dispatch_sel {
     )
   );
 
-  my $info = '';
-  foreach my $val ( @rows ) {
-    $info .= $html->element('div', $val, { class => 'form-group' });
-  }
-
-  return $html->element('div', $info, { class => 'navbar navbar-default form-inline' });
+  return \@rows;
 }
 
 #**********************************************************
@@ -383,14 +402,15 @@ sub _msgs_list_client_id_form {
   $val = ($attr->{VALUES}->{UID} > 0 && $permissions{0}) ? $html->button($client_id,
       "index=15&UID=" . $attr->{VALUES}->{UID})          : $client_id;
 
-  if ( $attr->{VALUES}->{FIO} ) {
+  if ( $attr->{VALUES}->{FIO} && $html && $html->{TYPE} && $html->{TYPE} eq 'html') {
     $val .= $html->br() . $attr->{VALUES}->{FIO};
   }
 
   $val = (($attr->{VALUES}->{AID} && $attr->{VALUES}->{AID} != ($conf{USERS_WEB_ADMIN_ID} || 3)) ? $html->element(
       'span', '', {
         class => 'glyphicon glyphicon-chevron-right',
-        title => $lang{OUTGOING} })                                                              : '') . ($val || q{-});
+        title => $lang{OUTGOING}
+      }) : '') . ($val || q{-});
 
   return $val;
 }
@@ -448,11 +468,13 @@ sub _msgs_list_state_form {
   if ( $state_id == 0 && $state ) {
     $state = $html->b($state) || $state_id;
   }
-
-  $state = $html->element('span', $state,
-    { class => 'glyphicon glyphicon-flag text-danger' }) if ( $attr->{admin_read} eq '0000-00-00 00:00:00' );
-
-  if ( $attr->{deligation} > 0 ) {
+  
+  if ($attr->{admin_read} eq '0000-00-00 00:00:00' || ($state_id eq '0' && !$attr->{replies_counts})){
+    my $icon = $html->element('span', '', { class => 'glyphicon glyphicon-flag text-danger' });
+    $state = $icon . ($state || '');
+  }
+  
+  if ( $attr->{deligation} && $attr->{deligation} > 0 ) {
     if ( $attr->{chapter_id} && $deligation->{$attr->{chapter_id}} && $deligation->{$attr->{chapter_id}} == $attr->{deligation} ) {
       $state = $html->element('span', '', {
         class => 'glyphicon glyphicon-wrench text-danger',

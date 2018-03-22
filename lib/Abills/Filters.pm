@@ -101,18 +101,24 @@ $EMAIL_EXPR = '^(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))
 #**********************************************************
 sub _expr {
   my ($value, $expr_tpl)=@_;
-
+  
+  # FIXME: write tests for numeric values ( + is missing in result )
+  
   if (! $expr_tpl) {
     return $value;
   }
 
   my @num_expr = split(/;/, $expr_tpl);
-
+  
   for (my $i = 0 ; $i <= $#num_expr ; $i++) {
     my ($left, $right) = split(/\//, $num_expr[$i]);
-    my $r = ($right eq '$1') ? $right : eval "\"$right\"";
-    if ($value =~ s/$left/eval $r/e) {
-      return $value;
+    
+    my $r = ($right eq '$1')
+      ? '$1'
+      : eval "\"$right\"";
+    
+    if ($value =~ s/$left/eval "\"$r\""/e) {
+      return '' . $value;
     }
   }
 

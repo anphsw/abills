@@ -69,7 +69,9 @@ sub address_info {
       d.name AS address_district,
       s.name AS address_street,
       b.number AS address_build,
+      b.block AS address_block,
       s.id AS street_id,
+      s.type AS street_type,
       d.zip,
       s.second_name,
       b.coordx,
@@ -363,6 +365,7 @@ sub street_list {
       ['BUILD_NUMBER',  'STR', 'b.number',  'b.number AS build_number',1 ],
       ['BUILD_FLATS',   'INT', 'b.flats','b.number AS build_flats',    1 ],
       ['DOMAIN_ID',     'INT', 'd.domain_id',                            ],
+      ['TYPE',          'INT', 's.type',                                 ],
       ['ID',            'INT', 's.id',                                   ]
     ],
     { WHERE => 1,
@@ -382,7 +385,8 @@ sub street_list {
 
   my $sql = "SELECT s.id,
     $self->{SEARCH_FIELDS}
-    s.id AS street_id
+    s.id AS street_id,
+    s.type
   FROM streets s
   LEFT JOIN districts d ON (s.district_id=d.id)
   LEFT JOIN builds b ON (b.street_id=s.id)
@@ -517,6 +521,7 @@ sub build_list {
 
   my $WHERE = $self->search_former($attr, [
       ['NUMBER',            'STR', 'b.number',         ],
+      ['BLOCK',             'STR', 'b.block',        1 ],
       ['FLORS',             'INT', 'b.flors',        1 ],
       ['ENTRANCES',         'INT', 'b.entrances',    1 ],
       ['FLATS',             'INT', 'b.flats',        1 ],
@@ -526,7 +531,6 @@ sub build_list {
       ['USERS_COUNT',       'INT', '', 'COUNT(pi.uid) AS users_count' ],
       ['USERS_CONNECTIONS', 'INT', '', 'ROUND((count(pi.uid) / b.flats * 100), 0) AS users_connections' ],
       ['ADDED',             'DATE','b.added',        1 ],
-      ['STREET_ID',         'INT', 'b.street_id',    1 ],
       ['YANDEX_0',          'INT', 'yandex_0',       1 ],
       ['YANDEX_1',          'INT', 'yandex_1',       1 ],
       ['GOOGLE_X',          'INT', 'coordx',         1 ],
@@ -535,6 +539,7 @@ sub build_list {
       ['COORDX',            'INT', 'b.coordx',       1 ],
       ['COORDY',            'INT', 'b.coordy',       1 ],
       ['ZOOM',              'INT', 'd.zoom',         1 ],
+      ['STREET_ID',         'INT', 'b.street_id',     ],
       ['ZIP',               'INT', 'b.zip',    'b.zip' ],
       ['PUBLIC_COMMENTS',   'STR', 'b.public_comments',    1 ],
       ['PLANNED_TO_CONNECT','STR', 'b.planned_to_connect', 1 ],

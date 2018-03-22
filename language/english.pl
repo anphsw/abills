@@ -3,8 +3,7 @@ our $CHARSET = 'utf-8';
 our $CONTENT_LANGUAGE = 'EN';
 
 our @PERIODS = ('Today', 'Yesterday', 'Week', 'Month', 'All sessions', 'From activation');
-our @MONTHES = ('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October',
-  'November', 'December');
+our @MONTHES = ('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December');
 our @WEEKDAYS = ('Holidays', 'Mon', 'Tue', 'Wen', 'Thu', 'Fri', 'Sat', 'Sun');
 
 $lang{ADD} = 'Add';
@@ -46,6 +45,7 @@ $lang{ADDRESS} = 'Address';
 $lang{LOCATIONS} = 'Locations';
 $lang{DISTRICTS} = 'Districts';
 $lang{STREETS} = 'Streets';
+$lang{STREET} = 'Street';
 $lang{BUILDS} = 'Builds';
 $lang{FLORS} = 'Flors';
 $lang{ENTRANCES} = 'Entrances';
@@ -197,7 +197,7 @@ $lang{PARAMS} = 'Parameters';
 $lang{VALUE} = 'Value';
 $lang{FILE} = 'File';
 $lang{TEMPLATES} = 'Template';
-
+$lang{TEMPLATE} = 'template';
 $lang{ERROR} = 'Error';
 $lang{INFO} = 'Information';
 $lang{CUSTOMERS} = 'Customers';
@@ -665,6 +665,7 @@ $lang{SOCIAL} = 'Social';
 $lang{QUERY} = 'Query';
 $lang{YOUR_FEEDBACK} = 'Your feedback';
 $lang{NO_DATA} = 'This category is empty';
+$lang{ERR_NO_DATA} = 'No data';
 $lang{CHOOSE} = 'Choose';
 
 $lang{CONNECTION_TYPE} = 'Connection type';
@@ -725,6 +726,81 @@ $lang{TYPE_YOUR_RESPONSE} = 'Now you can type your response';
 $lang{TEXT_NOT_FOUND} = 'Text not found';
 $lang{TRY_AGAIN} = 'Try again';
 $lang{UNAVAILABLE} = 'Unavailable';
+$lang{AVAILABLE} = 'Available';
 
 $lang{CHECK_ACCESS} = 'Check access';
+
+$lang{YOUR_VERIFICATION_CODE} = 'Your confirmation code';
+$lang{CODE} = 'Code';
+$lang{DO_AGAIN} = 'Try again';
+$lang{PHONE_VERIFICATION} = 'Phone verification';
+$lang{EMAIL_VERIFICATION} = 'Mail Confirmations';
+$lang{YOUR_PHONE_NUMBER} = 'Your phone number';
+$lang{YOUR_MAIL} = 'Your mail';
+
+$lang{OPEN_ALL} = 'Open all';
+$lang{CLOSE_ALL} = 'Close all';
+$lang{ONLINE} = 'Online';
+$lang{OFFLINE} = 'Offline';
+$lang{EMPTY} = 'Empty';
+$lang{WITHOUT_FEES} = 'Without additional fees';
+$lang{DISTRICT} = 'District';
+$lang{BLOCK}='Block';
+
+$lang{CURRENT_LANGUAGE} = 'Current language';
+$lang{AVAILABLE_LANGUAGES} = 'Available languages';
+$lang{PLEASE_CHOOSE_YOUR_LANGUAGE} = 'Please choose your language';
+$lang{MONTHES} = 'Monthes';
+$lang{MONTHES_A} = 'Monthes';
+$lang{MANUAL} = 'Manual';
+$lang{PROCESS_RESTARTED_MESSAGE} = 'Process was restarted';
+$lang{VERSION} = 'Version';
+$lang{FILE_MANAGER} = 'File manager attach';
+$lang{DATE_CONNECTION} = 'Connection date';
+$lang{NEVER} = 'Never';
+$lang{NETWORK_ACTIVITY} = 'Online Activity';
+$lang{CONTACT_INFORMATION} = 'Address and contact information';
+$lang{CREATE_TASK} = 'Create Task';
+$lang{HOUSE_SMALL} = 'd.';
+$lang{APRTAMENT_SMALL} = 'sq.';
+$lang{NO_DATAS} = 'nd';
+$lang{NOTES} = 'Notes';
+$lang{ADDITIONAL_DATA} = 'Additional data';
+$lang{CONNECTION_POINT} = 'Connection Point';
+$lang{TECHNICAL_DATA} = 'Technical Data';
+$lang{CONSIGNMENT_NOTE} = 'Delivery note';
+$lang{DRESS_FOR_WORK} = 'Work order';
+$lang{INTRATRAFFIC} = 'Entry Traffic';
+$lang{EXIT_TRAFFIC} = 'Traffic.Traffic';
+$lang{GENERAL} = 'General';
+$lang{ACTIVITY} = 'Activity';
+$lang{ABON_ACTIVITY} = 'Subscriber activity in the network';
+$lang{PLACEHOLDER} = 'Placeholder';
+$lang{FUNCTION} = 'Function';
+$lang{WRONG} = 'Wrong';
+$lang{ADDITION} = 'Addition';
+
+$lang{FIO1}='Surname';
+$lang{FIO2}='First name';
+$lang{FIO3}='Middle name';
+$lang{SIGN}='Sign';
+$lang{SIGNATURE}='Signature';
+$lang{SIGNED}='Signed';
+$lang{STREET_SHORT}='st.';
+$lang{CREATE_COMPANY}='Create company';
+
+$lang{CLEAR_SETTINGS}='Clear settings';
+$lang{ENTRANCE}='Entrance';
+$lang{FLOOR}='Floor';
+
+$lang{INTERNAL_NETWORK} = 'Internal network';
+$lang{BRUTEFORCE_PROTECTION} = 'Bruteforce protection';
+$lang{DNS_FLOOD_PROTECTION} = 'DNS flood protection';
+$lang{SERVE_ONLY_LOCAL_REQUESTS} = 'Serve only local requests';
+$lang{BLOCK_NEGATIVE} = 'Block negative users NAT';
+$lang{REDIRECT_NEGATIVE} = 'Redirect negative users to portal';
+
+$lang{REG_ADDRESS} = 'Registration address';
+
+
 1

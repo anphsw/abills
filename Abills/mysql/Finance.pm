@@ -9,13 +9,12 @@ package Finance;
 =cut
 
 use strict;
-use parent 'main';
-#my ($admin, $CONF);
+use parent 'dbcore';
 
 #**********************************************************
 # Init Finance module
 #**********************************************************
-sub new($$$$){
+sub new {
   my $class = shift;
   my $db = shift;
   my ($admin, $CONF) = @_;
@@ -72,7 +71,7 @@ sub exchange_list{
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
-  $self->query2( "SELECT money, short_name, rate, iso, changed, id
+  $self->query( "SELECT money, short_name, rate, iso, changed, id
     FROM exchange_rate
     ORDER BY $SORT $DESC;",
     undef,
@@ -95,7 +94,7 @@ sub exchange_add{
   my $short_name = (defined( $attr->{ER_SHORT_NAME} )) ? $attr->{ER_SHORT_NAME} : '';
   my $rate = (defined( $attr->{ER_RATE} )) ? $attr->{ER_RATE} : '0';
 
-  $self->query2( "INSERT INTO exchange_rate (money, short_name, rate, iso, changed)
+  $self->query( "INSERT INTO exchange_rate (money, short_name, rate, iso, changed)
    values ('$money', '$short_name', '$rate', '$attr->{ISO}', now());", 'do' );
 
   $self->exchange_log_add( { RATE_ID => $self->{INSERT_ID},
@@ -110,7 +109,9 @@ sub exchange_add{
 
 
 #**********************************************************
-# exchange_del
+=head2 exchange_del($id)
+
+=cut
 #**********************************************************
 sub exchange_del{
   my $self = shift;
@@ -136,7 +137,7 @@ sub exchange_change{
   my $short_name = (defined( $attr->{ER_SHORT_NAME} )) ? $attr->{ER_SHORT_NAME} : '';
   my $rate = (defined( $attr->{ER_RATE} )) ? $attr->{ER_RATE} : '0';
 
-  $self->query2( "UPDATE exchange_rate SET
+  $self->query( "UPDATE exchange_rate SET
     money='$money', 
     short_name='$short_name', 
     rate='$rate',
@@ -174,7 +175,7 @@ sub exchange_info{
     $WHERE = "id='$id'";
   }
 
-  $self->query2( "SELECT money AS er_name,
+  $self->query( "SELECT money AS er_name,
     short_name AS er_short_name, 
     rate AS er_rate, 
     iso, 
@@ -188,7 +189,9 @@ sub exchange_info{
 
 
 #**********************************************************
-# exchange_log_list
+=head2 exchange_log_list($attr)
+
+=cut
 #**********************************************************
 sub exchange_log_list{
   my $self = shift;
@@ -213,7 +216,7 @@ sub exchange_log_list{
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join( ' and ', @WHERE_RULES ) : '';
 
-  $self->query2( "SELECT rl.date, r.money, rl.rate, rl.id, r.iso
+  $self->query( "SELECT rl.date, r.money, rl.rate, rl.id, r.iso
     FROM exchange_rate_log rl
     LEFT JOIN exchange_rate  r ON (r.id=rl.exchange_rate_id)
     $WHERE

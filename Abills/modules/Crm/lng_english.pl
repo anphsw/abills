@@ -38,4 +38,11 @@ $lang{FILTER_LEADS}='Filter leads';
 $lang{PROGRESS}='Progress';
 $lang{LEADS_COMES}='Leads comes';
 $lang{LEADS_FINISHED}='Leads finished';
+$lang{REFERRALS}='Referrals';
+$lang{NEW_LEAD}='New lead';
+$lang{CONTRACT_SIGNED}='Contract signed';
+$lang{THE_WORKS}='The works';
+$lang{CONVERSION}='Conversion';
+$lang{LEAD_ADDED_MESSAGE}='Lead added';
+
 1

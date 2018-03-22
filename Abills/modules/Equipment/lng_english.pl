@@ -38,7 +38,7 @@ $lang{HOURS} = 'hours';
 $lang{CABLE_TEST} = 'Cable testing';
 $lang{PAIR} = 'Pair';
 $lang{REBOOT}='Reboot';
-
+$lang{REBOOTED}='Rebooted';
 $lang{SYSTEM_ID}='System describe';
 $lang{UPTIME}='Uptime';
 $lang{ERR_NOT_RESPONSE}='Not response';
@@ -47,6 +47,10 @@ $lang{POWER}='Power';
 $lang{TEMPERATURE}='Temperature';
 $lang{VOLTAGE}='Voltage';
 $lang{UNREGISTER}='Unregister';
+$lang{UNREG_ONU}='Deregister';
 $lang{DEVICE}='Device';
 
 $lang{BRANCH}='Branch';
+$lang{SELECT_OLT}='Select OLT';
+$lang{PORT_SHIFT}='Port Shift';
+$lang{FIRMWARE}='Firmware';

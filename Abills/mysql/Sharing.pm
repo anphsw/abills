@@ -7,7 +7,7 @@ package Sharing;
 =cut
 
 use strict;
-use parent 'main';
+use parent qw(dbcore);
 
 my $MODULE = 'Sharing';
 
@@ -48,10 +48,10 @@ sub session_del{
   my ($attr) = @_;
 
   if ( $attr->{DELETE_USER} ){
-    $self->query2( "DELETE FROM sharing_log WHERE uid='$attr->{DELETE_USER}';", 'do' );
+    $self->query( "DELETE FROM sharing_log WHERE uid='$attr->{DELETE_USER}';", 'do' );
   }
   else{
-    $self->query2( "DELETE FROM sharing_log
+    $self->query( "DELETE FROM sharing_log
      WHERE start='$attr->{START}' and username='$attr->{USER_NAME}' and url='$attr->{FILE}';", 'do'
     );
   }
@@ -84,7 +84,7 @@ sub online_update{
 
   my $SET = ($#SET_RULES > -1) ? join( ', ', @SET_RULES ) : '';
 
-  $self->query2( "UPDATE sharing_calls SET $SET
+  $self->query( "UPDATE sharing_calls SET $SET
    WHERE
     user_name='$attr->{USER_NAME}'
     and acct_session_id='$attr->{ACCT_SESSION_ID}'; ", 'do'
@@ -184,7 +184,7 @@ sub online{
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join( ' and ', @WHERE_RULES ) : '';
 
-  $self->query2( "SELECT  $fields
+  $self->query( "SELECT  $fields
 
    pi.phone,
    INET_NTOA(c.framed_ip_address),
@@ -273,7 +273,7 @@ sub online_del{
             and acct_session_id='$ACCT_SESSION_ID'";
   }
 
-  $self->query2( "DELETE FROM sharing_calls WHERE $WHERE;", 'do' );
+  $self->query( "DELETE FROM sharing_calls WHERE $WHERE;", 'do' );
 
   return $self;
 }
@@ -286,7 +286,7 @@ sub online_del{
 sub online2log{
   my $self = shift;
 
-  $self->query2( "SELECT c.user_name, ", 'do' );
+  $self->query( "SELECT c.user_name, ", 'do' );
 }
 
 #**********************************************************
@@ -316,7 +316,7 @@ sub online_info{
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join( ' and ', @WHERE_RULES ) : '';
 
-  $self->query2( "SELECT user_name, UNIX_TIMESTAMP(started), acct_session_time,
+  $self->query( "SELECT user_name, UNIX_TIMESTAMP(started), acct_session_time,
    acct_input_octets,
    acct_output_octets,
    ex_input_octets,
@@ -366,7 +366,7 @@ sub zap{
     $WHERE = "WHERE nas_id='$nas_id' and nas_port_id='$nas_port_id' and acct_session_id='$acct_session_id'";
   }
 
-  $self->query2( "UPDATE sharing_calls SET status='2' $WHERE;", 'do' );
+  $self->query( "UPDATE sharing_calls SET status='2' $WHERE;", 'do' );
   return $self;
 }
 
@@ -380,7 +380,7 @@ sub session_detail{
   my $WHERE = q{};
   $WHERE = " and l.uid='$attr->{UID}'" if ($attr->{UID});
 
-  $self->query2( "SELECT
+  $self->query( "SELECT
   l.start,
   l.start + INTERVAL l.duration SECOND,
   l.duration,
@@ -489,7 +489,7 @@ sub detail_list{
     $GROUP = $lupdate;
   }
 
-  $self->query2( "SELECT $lupdate, acct_session_id, nas_id,
+  $self->query( "SELECT $lupdate, acct_session_id, nas_id,
    sum(sent1), sum(recv1), sum(sent2), sum(recv2)
   FROM s_detail
   WHERE id='$attr->{LOGIN}' $WHERE
@@ -500,7 +500,7 @@ sub detail_list{
   my $list = $self->{list};
 
   if ( $self->{TOTAL} > 0 ){
-    $self->query2( "SELECT count(DISTINCT $lupdate)
+    $self->query( "SELECT count(DISTINCT $lupdate)
       FROM s_detail
      WHERE id='$attr->{LOGIN}' $WHERE ;"
     );
@@ -525,7 +525,7 @@ sub periods_totals{
     $WHERE .= "WHERE username='$attr->{LOGIN}' ";
   }
 
-  $self->query2( "SELECT
+  $self->query( "SELECT
    sum(if(date_format(start, '%Y-%m-%d')=curdate(), sent, 0)),
    sum(if(date_format(start, '%Y-%m-%d')=curdate(), recv, 0)),
    SEC_TO_TIME(sum(if(date_format(start, '%Y-%m-%d')=curdate(), duration, 0))),
@@ -569,7 +569,7 @@ sub prepaid_rest{
   $CONF->{MB_SIZE} = $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE};
 
   #Get User TP and intervals
-  $self->query2( "select tt.id,
+  $self->query( "select tt.id,
     if(u.activate<>'0000-00-00', u.activate, DATE_FORMAT(curdate(), '%Y-%m-01')),
      tt.prepaid,
      u.id,
@@ -621,7 +621,7 @@ sub prepaid_rest{
 
   #Check sessions
   #Get using traffic
-  $self->query2( "select
+  $self->query( "select
   $rest{0} - sum(sl.recv + sl.sent) / $CONF->{MB_SIZE}
  FROM sharing_log sl
  INNER JOIN sharing_priority sp ON (sl.url = sp.file)
@@ -686,7 +686,7 @@ sub calculation{
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join( ' and ', @WHERE_RULES ) : '';
 
-  $self->query2( "SELECT
+  $self->query( "SELECT
   SEC_TO_TIME(min(l.duration)), SEC_TO_TIME(max(l.duration)), SEC_TO_TIME(avg(l.duration)), SEC_TO_TIME(sum(l.duration)),
   min(l.sent), max(l.sent), avg(l.sent), sum(l.sent),
   min(l.recv), max(l.recv), avg(l.recv), sum(l.recv),
@@ -812,7 +812,7 @@ sub reports{
 
   if ( defined( $attr->{DATE} ) ){
     if ( defined( $attr->{HOURS} ) ){
-      $self->query2( "select date_format(l.start, '%Y-%m-%d %H')start, '%Y-%m-%d %H')start, '%Y-%m-%d %H'), count(DISTINCT l.uid), count(l.uid),
+      $self->query( "select date_format(l.start, '%Y-%m-%d %H')start, '%Y-%m-%d %H')start, '%Y-%m-%d %H'), count(DISTINCT l.uid), count(l.uid),
     sum(l.sent + l.recv), sum(l.sent2 + l.recv2), sec_to_time(sum(l.duration)), sum(l.sum), l.uid
       FROM sharing_log l
       LEFT JOIN users u ON (u.uid=l.uid)
@@ -822,7 +822,7 @@ sub reports{
       );
     }
     else{
-      $self->query2( "select date_format(l.start, '%Y-%m-%d'), if(u.id is NULL, CONCAT('> ', l.uid, ' <'), u.id), count(l.uid),
+      $self->query( "select date_format(l.start, '%Y-%m-%d'), if(u.id is NULL, CONCAT('> ', l.uid, ' <'), u.id), count(l.uid),
     sum(l.sent + l.recv), sum(l.sent2 + l.recv2), sec_to_time(sum(l.duration)), sum(l.sum), l.uid
       FROM sharing_log l
       LEFT JOIN users u ON (u.uid=l.uid)
@@ -835,7 +835,7 @@ sub reports{
     }
   }
   else{
-    $self->query2( "select $fields,
+    $self->query( "select $fields,
       l.uid
        FROM sharing_log l
        LEFT JOIN users u ON (u.uid=l.uid)
@@ -856,7 +856,7 @@ sub reports{
 
   return $list if ($self->{TOTAL} < 1);
 
-  $self->query2( "select count(DISTINCT l.uid),
+  $self->query( "select count(DISTINCT l.uid),
       count(l.uid),
       sum(l.sent + l.recv),
       sum(l.sent2 + l.recv2),
@@ -894,7 +894,7 @@ sub list_log_intervals{
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join( ' and ', @WHERE_RULES ) : '';
 
-  $self->query2( "SELECT interval_id,
+  $self->query( "SELECT interval_id,
                            traffic_type,
                            sent,
                            recv,
@@ -917,12 +917,12 @@ sub log_rotate{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2( "DELETE from s_detail
+  $self->query( "DELETE from s_detail
             WHERE
   last_update < UNIX_TIMESTAMP()- $attr->{PERIOD} * 24 * 60 * 60;", 'do'
   );
 
-  $self->query2( "DELETE LOW_PRIORITY sharing_log_intervals from sharing_log dl, sharing_log_intervals dli
+  $self->query( "DELETE LOW_PRIORITY sharing_log_intervals from sharing_log dl, sharing_log_intervals dli
 WHERE
   dl.acct_session_id=dli.acct_session_id
   and dl.start < curdate() - INTERVAL $attr->{PERIOD} DAY;", 'do'
@@ -939,7 +939,7 @@ sub samba_info{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2( "SELECT *
+  $self->query( "SELECT *
      FROM user
    WHERE username='$attr->{LOGIN}';"
   );
@@ -979,7 +979,7 @@ sub info{
     $WHERE = "WHERE sharing.ip=INET_ATON('$attr->{IP}')";
   }
 
-  $self->query2( "SELECT sharing.uid,
+  $self->query( "SELECT sharing.uid,
    sharing.tp_id,
    tp.name,
    sharing.logins,
@@ -1059,7 +1059,7 @@ sub add{
     }
   }
 
-  $self->query2( "INSERT INTO sharing_main (uid,
+  $self->query( "INSERT INTO sharing_main (uid,
              tp_id,
              type,
              logins,
@@ -1136,7 +1136,7 @@ sub change{
   }
 
   $admin->{MODULE} = $MODULE;
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'UID',
       TABLE        => 'sharing_main',
@@ -1158,7 +1158,7 @@ sub del{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2( "DELETE from sharing_main WHERE uid='$attr->{UID}';", 'do' );
+  $self->query( "DELETE from sharing_main WHERE uid='$attr->{UID}';", 'do' );
 
   $admin->action_add( $attr->{UID}, "$attr->{UID}", { TYPE => 10 } );
   return $self->{result};
@@ -1202,7 +1202,7 @@ sub list{
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join( ' and ', @WHERE_RULES ) : '';
 
-  $self->query2( "SELECT u.id,
+  $self->query( "SELECT u.id,
       pi.fio, if(u.company_id > 0, cb.deposit, b.deposit) AS deposit,
       u.credit,
       tp.name AS tp_name,
@@ -1234,7 +1234,7 @@ sub list{
   my $list = $self->{list};
 
   if ( $self->{TOTAL} >= 0 ){
-    $self->query2( "SELECT count(u.id) AS total FROM (users u, sharing_main sharing) $WHERE", undef, { INFO => 1 } );
+    $self->query( "SELECT count(u.id) AS total FROM (users u, sharing_main sharing) $WHERE", undef, { INFO => 1 } );
   }
 
   return $list;
@@ -1333,7 +1333,7 @@ sub sessions_list{
 
   $WHERE = "WHERE " . join( ' and ', @WHERE_RULES ) if ($#WHERE_RULES > -1);
 
-  $self->query2( "select
+  $self->query( "select
   sl.username,
   sl.start,
   SEC_TO_TIME(sl.duration),
@@ -1374,7 +1374,7 @@ sub sessions_list{
   my $list = $self->{list};
 
   if ( $self->{TOTAL} > 0 ){
-    $self->query2( "SELECT count(sl.username) AS total,
+    $self->query( "SELECT count(sl.username) AS total,
      SEC_TO_TIME(sum(sl.duration)) AS duration,
      sum(sl.sent) AS traffic_in,
      sum(sl.recv) AS traffic_out
@@ -1421,13 +1421,13 @@ sub tt_list{
   my ($attr) = @_;
 
   if ( defined( $attr->{TI_ID} ) ){
-    $self->query2( "SELECT id, in_price, out_price, prepaid, in_speed, out_speed, descr, nets, expression
+    $self->query( "SELECT id, in_price, out_price, prepaid, in_speed, out_speed, descr, nets, expression
      FROM sharing_trafic_tarifs WHERE interval_id='$attr->{TI_ID}'
      ORDER BY id DESC;"
     );
   }
   else{
-    $self->query2( "SELECT id, in_price, out_price, prepaid, in_speed, out_speed, descr, nets, expression
+    $self->query( "SELECT id, in_price, out_price, prepaid, in_speed, out_speed, descr, nets, expression
      FROM sharing_trafic_tarifs
      WHERE tp_id='$attr->{TP_ID}'
      ORDER BY id;"
@@ -1461,7 +1461,7 @@ sub tt_info{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2( "SELECT id, interval_id, in_price, out_price, prepaid, in_speed, out_speed,
+  $self->query( "SELECT id, interval_id, in_price, out_price, prepaid, in_speed, out_speed,
        descr,
        nets,
        expression,
@@ -1488,7 +1488,7 @@ sub tt_add{
 
   my %DATA = $self->get_data( $attr, { default => $self->tt_defaults() } );
 
-  $self->query2( "INSERT INTO sharing_trafic_tarifs
+  $self->query( "INSERT INTO sharing_trafic_tarifs
     (tp_id, id, descr,  in_price,  out_price,  nets,  prepaid,  in_speed, out_speed, expression)
     VALUES
     ('$DATA{TP_ID}', '$DATA{TT_ID}',   '$DATA{TT_DESCRIBE}', '$DATA{TT_PRICE_IN}',  '$DATA{TT_PRICE_OUT}',
@@ -1505,7 +1505,7 @@ sub tt_change{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2( "UPDATE sharing_trafic_tarifs SET
+  $self->query( "UPDATE sharing_trafic_tarifs SET
     descr='" . $attr->{TT_DESCRIBE} . "',
     in_price='" . $attr->{TT_PRICE_IN} . "',
     out_price='" . $attr->{TT_PRICE_OUT} . "',
@@ -1529,7 +1529,7 @@ sub tt_del{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2( "DELETE FROM sharing_trafic_tarifs
+  $self->query( "DELETE FROM sharing_trafic_tarifs
    WHERE  tp_id='$attr->{TI_ID}'  and id='$attr->{TT_ID}' ;", 'do'
   );
 
@@ -1563,7 +1563,7 @@ sub errors_list{
     }
   );
 
-  $self->query2( "SELECT datetime,
+  $self->query( "SELECT datetime,
    uid,
    username,
    file_and_path,
@@ -1580,7 +1580,7 @@ sub errors_list{
   my $list = $self->{list};
 
   if ( $self->{TOTAL} >= 0 ){
-    $self->query2( "SELECT count(*) AS total FROM sharing_errors $WHERE", undef, { INFO => 1 } );
+    $self->query( "SELECT count(*) AS total FROM sharing_errors $WHERE", undef, { INFO => 1 } );
   }
 
   return $list;
@@ -1594,7 +1594,7 @@ sub errors_del{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2( "DELETE FROM sharing_trafic_tarifs
+  $self->query( "DELETE FROM sharing_trafic_tarifs
    WHERE  tp_id='$attr->{TI_ID}'  and id='$attr->{TT_ID}' ;", 'do'
   );
 
@@ -1609,7 +1609,7 @@ sub additions_info{
   my $self = shift;
   my ($id) = @_;
 
-  $self->query2( "SELECT id,
+  $self->query( "SELECT id,
    tp_id,
    name,
    quantity,
@@ -1679,7 +1679,7 @@ sub additions_change{
   my $old_info = $self->additions_info( $attr->{ID} );
 
   $admin->{MODULE} = $MODULE;
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'sharing_additions',
@@ -1730,7 +1730,7 @@ sub additions_list{
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join( ' and ', @WHERE_RULES ) : '';
 
-  $self->query2( "SELECT id,
+  $self->query( "SELECT id,
       name,
       quantity,
       price,
@@ -1754,7 +1754,7 @@ sub priority_info{
   my $self = shift;
   my ($id) = @_;
 
-  $self->query2( "SELECT server,
+  $self->query( "SELECT server,
    file,
    size,
    priority,
@@ -1811,7 +1811,7 @@ sub priority_change{
   my ($attr) = @_;
 
   $admin->{MODULE} = $MODULE;
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'sharing_additions',
@@ -1880,7 +1880,7 @@ sub priority_list{
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join( ' and ', @WHERE_RULES ) : '';
 
-  $self->query2( "SELECT server,
+  $self->query( "SELECT server,
       file,
       size,
       priority,
@@ -1896,7 +1896,7 @@ sub priority_list{
   my $list = $self->{list};
 
   if ( $self->{TOTAL} >= 0 ){
-    $self->query2( "SELECT count(*) AS total FROM sharing_priority $WHERE", undef, { INFO => 1 } );
+    $self->query( "SELECT count(*) AS total FROM sharing_priority $WHERE", undef, { INFO => 1 } );
   }
 
   return $list;
@@ -1971,7 +1971,7 @@ sub file_list {
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query2(
+  $self->query(
     "SELECT $self->{SEARCH_FIELDS} sf.id FROM sharing_files  as sf
     LEFT JOIN sharing_groups sg ON sg.id = sf.group_id
     $WHERE
@@ -1984,7 +1984,7 @@ sub file_list {
 
   return $self->{list} if ($self->{TOTAL} < 1);
 
-  $self->query2(
+  $self->query(
     "SELECT count(*) AS total
    FROM sharing_files",
     undef,
@@ -2038,7 +2038,7 @@ sub file_info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2(
+  $self->query(
     "SELECT * FROM sharing_files
       WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
   );
@@ -2070,7 +2070,7 @@ sub file_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'sharing_files',
@@ -2117,7 +2117,7 @@ sub info_user {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2(
+  $self->query(
     "SELECT
     su.uid,
     su.file_id,
@@ -2160,7 +2160,7 @@ sub change_user {
   my $self = shift;
   my ($attr) = @_;
   
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'UID',
       SECOND_PARAM => 'FILE_ID',
@@ -2275,7 +2275,7 @@ sub sharing_log_list {
 
   my $EXT_TABLES = $self->{EXT_TABLES};
 
-  $self->query2(
+  $self->query(
     "SELECT $self->{SEARCH_FIELDS} sdl.id, sdl.uid
     FROM sharing_download_log as sdl
     LEFT JOIN sharing_files sf ON sf.id = sdl.file_id
@@ -2291,7 +2291,7 @@ sub sharing_log_list {
 
   return $self->{list} if ($self->{TOTAL} < 1);
 
-  $self->query2(
+  $self->query(
     "SELECT COUNT(*) AS total
    FROM sharing_download_log as sdl
    LEFT JOIN sharing_files sf ON sf.id = sdl.file_id
@@ -2364,7 +2364,7 @@ sub group_list {
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query2(
+  $self->query(
     "SELECT $self->{SEARCH_FIELDS} id FROM sharing_groups
     $WHERE
     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
@@ -2376,7 +2376,7 @@ sub group_list {
 
   return $self->{list} if ($self->{TOTAL} < 1);
 
-  $self->query2(
+  $self->query(
     "SELECT count(*) AS total
    FROM sharing_groups",
     undef,
@@ -2430,7 +2430,7 @@ sub group_info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2(
+  $self->query(
     "SELECT * FROM sharing_groups
       WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
   );
@@ -2462,7 +2462,7 @@ sub group_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'sharing_groups',

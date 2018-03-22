@@ -45,7 +45,7 @@
 <input type='hidden' name='server_url' value='$ENV{PROT}://$ENV{SERVER_NAME}:$ENV{SERVER_PORT}/paysys_check.cgi' />
 
 </div>
-    <div class='box-footer text-center'>
+    <div class='box-footer'>
         <input class='btn btn-primary' type=submit value='_{PAY}_'>
     </div>
 </div>   

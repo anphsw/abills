@@ -403,7 +403,7 @@ sub query_add{
       #elsif ($column eq 'IPV6_PREFIX' || $column eq 'IPV6') {
       #  push @inserts_arr, "$row->{COLUMN_NAME}=INET6_ATON( ? )";
       #}
-      elsif ( $column eq 'IPV6' ){
+      elsif ( $column eq 'IPV6' || $column eq 'IPV6_PD' ){
         push @inserts_arr, "$row->{COLUMN_NAME}=INET6_ATON( ? )";
       }
       elsif ( $values->{$column} =~ /^INET_ATON\(/i ){
@@ -626,6 +626,7 @@ sub search_former{
       else{
         push @WHERE_RULES,
           @{ $self->search_expr( $data->{$param}, $field_type, $sql_field, { EXT_FIELD => $show } ) };
+        push @{$self->{SEARCH_VALUES}}, "'$data->{$param}'";
       }
     }
   }
@@ -979,7 +980,7 @@ sub search_expr_users{
   }
 
   #Info fields
-  if ( $info_field && defined $self->can( 'config_list' ) ){
+  if ( $info_field && $self->can( 'config_list' ) ){
     my $list = $self->config_list( { PARAM => 'ifu*', SORT => 2 } );
     if ( $self->{TOTAL} > 0 ){
       foreach my $line ( @{$list} ){
@@ -1487,6 +1488,13 @@ sub changes2{
       $self->{errstr} = "Can't get old data for change";
       return $self->{result};
     }
+    elsif($attr->{OLD_WAY_ROWS}) {
+      if($q->rows < 0) {
+        $self->{errno} = '4';
+        $self->{errstr} = "Can't get old data for change";
+        return $self;
+      }
+    }
     elsif($q->rows < 1) {
       $self->{errno} = '4';
       $self->{errstr} = "Can't get old data for change";
@@ -1540,7 +1548,7 @@ sub changes2{
         push @change_fields, "$FIELDS->{$k}=INET_ATON( ? )";
         push @bind_values, $value;
       }
-      elsif ( $k eq 'IPV6_PREFIX' || $k eq 'IPV6' ){
+      elsif ( $k eq 'IPV6_PREFIX' || $k eq 'IPV6' || $k eq 'IPV6_PD' ){
         push @change_log, "$k $OLD_DATA->{$k}->" . $value;
         push @change_fields, "$FIELDS->{$k}=INET6_ATON( ? )";
         push @bind_values, $value;
@@ -1637,7 +1645,7 @@ sub changes2{
   }
 
   if ( $attr->{EXT_CHANGE_INFO} ){
-    $self->{CHANGES_LOG} = $attr->{EXT_CHANGE_INFO} . '; ' . $self->{CHANGES_LOG};
+    $self->{CHANGES_LOG} = $attr->{EXT_CHANGE_INFO} . ' ' . $self->{CHANGES_LOG};
   }
   else{
     $attr->{EXT_CHANGE_INFO} = '';

@@ -52,7 +52,9 @@
         <p><input type='submit' class='btn btn-primary' name='%SUBMIT_NAME%' value='_{PAY}_'/></p>
     </div>
 </div>
-
+<p>
+<img class='img-responsive center-block' src='styles/default_adm/img/paysys_logo/masterpass-des.png'>
+</p>
 <script>
     jQuery(function () {
 

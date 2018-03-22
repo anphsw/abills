@@ -7,9 +7,23 @@
 =cut
 #**********************************************************
 
+use strict;
+use warnings;
+
 
 require Tariffs;
 Tariffs->import();
+
+our (
+  $argv,
+  $db,
+  $Admin,
+  $debug,
+  %conf,
+  $Nas,
+  $Sessions
+);
+
 my $Tariffs = Tariffs->new($db, \%conf, $Admin);
 
 change_mpd_speed();
@@ -20,6 +34,7 @@ change_mpd_speed();
 =cut
 #**********************************************************
 sub change_mpd_speed {
+  my ($attr) = @_;
   my $result = '';
 
   if ($debug > 3) {
@@ -37,6 +52,10 @@ sub change_mpd_speed {
   }
   if ($argv->{TP_IDS}) {
 	$LIST_PARAMS{CALLS_TP_ID} = $argv->{TP_IDS};
+  }
+  if ($debug > 6) {
+    $Sessions->{debug} = 1;
+    $Nas->{debug} = 1;
   }
 
   $Sessions->online(
@@ -59,10 +78,6 @@ sub change_mpd_speed {
   }
 
   my $online = $Sessions->{nas_sorted};
-
-  if ($debug > 6) {
-    $Nas->{debug} = 1;
-  }
 
   my $nas_list = $Nas->list({ %LIST_PARAMS, COLS_NAME => 1 });
 
@@ -134,7 +149,7 @@ sub setspeed_mpd {
 
 	my ($ip, $mng_port, $mng_port2) = split(/:/, $NAS->{NAS_MNG_IP_PORT}, 3);
   if ($debug > 0){
-  	$Log->log_print('LOG_DEBUG', '', " SETSPEED: NAS_MNG: $ip:$mng_port '$NAS->{NAS_MNG_PASSWORD}'");
+  	print "SETSPEED: NAS_MNG: $ip:$mng_port $NAS->{NAS_MNG_PASSWORD}";
   }
 
   if (!$mng_port) {

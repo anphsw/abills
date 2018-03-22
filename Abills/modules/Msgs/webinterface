@@ -9,14 +9,16 @@
 =cut
 
 use strict;
-use warnings FATAL => 'all';
+# use warnings FATAL => 'all';
 use Abills::Defs;
 use Abills::Base qw(tpl_parse cmd in_array
   int2byte convert sendmail mk_unique_value
-  sec2time time2sec urlencode);
+  sec2time time2sec urlencode load_pmodule);
 use Msgs;
 use POSIX qw(strftime mktime);
+use Encode;
 use Abills::Sender::Core;
+use Msgs::Misc::Attachments;
 
 our ($db,
   %lang,
@@ -34,6 +36,7 @@ our Admins $admin;
 our $Msgs = Msgs->new($db, $admin, \%conf);
 my $users = Users->new($db, $admin, \%conf);
 #my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
+my $Attachments = Msgs::Misc::Attachments->new($db, $admin, \%conf);
 
 my @priority = ($lang{VERY_LOW}, $lang{LOW}, $lang{NORMAL}, $lang{HIGH}, $lang{VERY_HIGH});
 
@@ -218,43 +221,67 @@ sub msgs_show_last {
 sub msgs_redirect_filter {
   my ($attr) = @_;
   
+  return 0 unless ($conf{MSGS_REDIRECT_FILTER_DEL} || $conf{MSGS_REDIRECT_FILTER_ADD});
+  
+  my $Internet_service;
+  
+  if (in_array('Internet', \@MODULES)){
+    require Internet;
+    $Internet_service = Internet->new($db, $admin, \%conf);
+  }
+  else {
+    require Dv;
+    $Internet_service = Dv->new($db, $admin, \%conf);
+  }
+  
+  my $cmd = '';
+  my $action = '';
+  
+  
   #Del filter
   if ( $conf{MSGS_REDIRECT_FILTER_DEL} && $attr->{DEL} ) {
-    require Dv;
-    my $Dv = Dv->new($db, $admin, \%conf);
-    $Dv->change({ UID => $attr->{UID}, FILTER_ID => '' });
+    $action = 'del';
+    $Internet_service->change({ UID => $attr->{UID}, FILTER_ID => '' });
+    
     if ( $conf{MSGS_REDIRECT_FILTER_DEL} =~ /EXEC:(.+)/ ) {
-      my $cmd = $1;
-      $cmd =~ s/\%IP\%/$ENV{REMOTE_ADDR}/g;
-      $cmd =~ s/\%DATE\%/$DATE $TIME/g;
-      $cmd =~ s/\%LOGIN\%/$attr->{LOGIN}/g;
-      $cmd =~ s/\%MSG_ID\%/$attr->{MSG_ID}/g;
-      cmd($cmd);
+      $cmd = $1;
     }
   }
   
   #Add filter
   elsif ( $conf{MSGS_REDIRECT_FILTER_ADD} ) {
-    require Dv;
-    my $Dv = Dv->new($db, $admin, \%conf);
+    $action = 'add';
+    
     $conf{MSGS_REDIRECT_FILTER_ADD} =~ /(EXEC:[a-zA-Z0-9\_\-\.\/ \>\%\"\'\@\=]+)?;?(RAD:.+)?/;
-    my $cmd = $1;
+    
+    $cmd = $1;
     my $rad = $2;
-    $cmd =~ s/EXEC://;
+    
     if ( $rad ) {
-      $Dv->change({
+      $Internet_service->change({
         UID       => $attr->{UID},
         FILTER_ID => $rad
       });
     }
-    
-    if ( $cmd ne '' ) {
-      $cmd = tpl_parse($cmd, { ACTION => 'add', UIDS => $attr->{UID} });
-      cmd($cmd);
-    }
   }
   
-  return 0;
+  if ( $cmd ne '' ) {
+    $cmd =~ s/EXEC://;
+    $cmd = tpl_parse($cmd, {
+        ACTION => $action,
+        IP     => $ENV{REMOTE_ADDR},
+        DATE   => "$DATE $TIME",
+        LOGIN  => $attr->{LOGIN},
+        MSG_ID => $attr->{MSG_ID},
+        UIDS   => $attr->{UID}
+      });
+  }
+  
+  if ($cmd){
+    cmd($cmd);
+  }
+  
+  return 1;
 }
 
 #**********************************************************
@@ -372,28 +399,30 @@ sub msgs_new {
         $Msgs->{RESPOSIBLE} += $line->{resposible_count};
       }
       
-      my $chapter_name;
       
-      if ( $line->{name} && length($line->{name}) > 30 ) {
-        my @chapter_name_chars = split(//, $line->{name});
-        my $i = 0;
-        
-        while ( $i < 31 ) {
-          $chapter_name .= shift @chapter_name_chars;
-          $i++;
-        }
-        
+      my $chapter_name = $line->{name};
+      
+      # Call decode_utf to set ut8 flag on
+      $chapter_name = Encode::decode_utf8( $chapter_name );
+      if ( $chapter_name && length($chapter_name) > 25 ) {
+        $chapter_name = join('', @{[split(//, $chapter_name)]}[0...24]);
         $chapter_name = $html->element('span', $chapter_name . '...', { title => $line->{name} });
       }
-      
-      $chapter_name = $chapter_name ? $chapter_name : $line->{name};
-      $FUNCTIONS_LIST{"$id:10:$chapter_name  $count:msgs_admin:CHAPTER=$line->{id}"} = 8;
+      # Call encode_utf to set ut8 flag off ( It makes program to fall later);
+      $chapter_name = Encode::encode_utf8( $chapter_name );
+    
+      $chapter_name = $chapter_name || $line->{name} || '';
+      $FUNCTIONS_LIST{"$id:10:$chapter_name $count:msgs_admin:CHAPTER=$line->{id}"} = 8;
     }
     
     $id++;
-    $FUNCTIONS_LIST{ "$id:10:$lang{RESPOSIBLE}  " . (($Msgs->{RESPOSIBLE} && $Msgs->{RESPOSIBLE} > 0) ? $html->badge(
-        $Msgs->{RESPOSIBLE}, { TYPE =>
-          'bg-red' })                                                                                 : 0) . ":msgs_admin:STATE=8" } = 8;
+    $FUNCTIONS_LIST{ "$id:10:$lang{RESPOSIBLE}  "
+      . (($Msgs->{RESPOSIBLE} && $Msgs->{RESPOSIBLE} > 0)
+        ? $html->badge( $Msgs->{RESPOSIBLE}, { TYPE => 'bg-red' })
+        : ''
+      )
+      . ":msgs_admin:STATE=8" } = 8
+    ;
     
     my $msg_count = '';
     
@@ -543,7 +572,7 @@ sub msgs_registration {
   $FORM{REGISTRATION_REQUEST} = 1 if ( $conf{MSGS_REG_REQUEST} );
   
   if ( $FORM{REGISTRATION_REQUEST} ) {
-    return msgs_unreg_requests($attr);
+    return msgs_unreg_requests({%$attr, REGISTRATION_HIDE_ADDRESS_BUTTON => 1});
   }
   elsif ( $FORM{reg} ) {
     if ( $FORM{EMAIL} !~ /^(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/ ) {
@@ -597,6 +626,7 @@ sub msgs_registration {
 
 #**********************************************************
 =head2 msgs_survey_show($attr) - Show surway
+
   Arguments:
     $attr
       SHOW_SURVAY_TEXT
@@ -613,9 +643,10 @@ sub msgs_survey_show {
   my %answers = ();
   
   delete($Msgs->{ACTIVE_SURWEY});
-  my $uid = $user->{UID} || $LIST_PARAMS{UID};
+  
+  my $uid = $user->{UID} || $LIST_PARAMS{UID} || $FORM{UID};
+  
   if ( $FORM{change} ) {
-    #$FORM{UID} = $user->{UID} || $LIST_PARAMS{UID};
     $Msgs->survey_answer_add({ %FORM, MSG_ID => $FORM{ID}, UID => $uid });
     $html->message('info', $lang{INFO}, "$lang{SENDED}");
     delete $FORM{change};
@@ -808,6 +839,7 @@ sub msgs_events {
   if ( $attr->{CLIENT_INTERFACE} ) {
     my $messages_list = $Msgs->messages_list({
       UID       => $attr->{UID},
+      LOGIN     => '_SHOW',
       USER_READ => '0000-00-00 00:00:00',
       GET_NEW   => $attr->{PERIOD} || '60',
       MESSAGE   => '_SHOW',
@@ -821,7 +853,7 @@ sub msgs_events {
     @events_json = map {
       # cleaning unnecessary information
       $_->{uid} = '';
-      $_->{user_name} = '';
+      $_->{login} = '';
       
       $_ = msgs_event_to_json($_, $msgs_index)
     } @{$messages_list};
@@ -885,7 +917,7 @@ sub msgs_events {
     PAGE_ROWS      => 3,
     SUBJECT        => '_SHOW',
     MESSAGE        => '_SHOW',
-    RESPOSIBLE     => $admin->{aid},
+    RESPOSIBLE     => $admin->{AID},
     PLAN_FROM_DATE => $DATE,
     PLAN_TO_DATE   => $DATE,
     STATE          => '!1,!2,!5,!9',
@@ -939,7 +971,7 @@ sub msgs_event_to_json {
   $message->{message} =~ s/["]/\\"/g;
   
   $message->{datetime} //= '';
-  $message->{user_name} //= '';
+  $message->{login} //= '';
   
   $message->{resposible} //= '0';
   $message->{uid} //= '0';
@@ -954,7 +986,7 @@ sub msgs_event_to_json {
           "MSGS_ID"    : "$message->{id}",
           "RESPONSIBLE": $message->{resposible},
           "EXTRA"      : "$SELF_URL?$uid_string&index=$msgs_index&chg=$message->{id}",
-          "SENDER"     : { "UID" : "$message->{uid}", "LOGIN" : "$message->{user_name}" }
+          "SENDER"     : { "UID" : "$message->{uid}", "LOGIN" : "$message->{login}" }
         }
       };
 }
@@ -978,12 +1010,16 @@ sub msgs_text_quoting {
   my $text = '';
   my $quote = '';
   
-  foreach my $l ( split(/[\n]+/, $input_text) ) {
-    if ( $l =~ /&gt;(.*)/ ) {
+  foreach my $reply_line ( split(/[\n]+/, $input_text) ) {
+    if ( $reply_line =~ /^\s?&gt;(.*)/ ) {
       $quote .= $1;
     }
-    elsif ( $l && $l !~ /^<br>$/ ) {
-      $text .= (($quote) ? $html->element('blockquote', $quote, { OUTPUT2RETURN => 1 }) : '') . $l;
+    elsif ( $reply_line && $reply_line !~ /^<br>$/ ) {
+      $text .= (
+          ($quote)
+        ? $html->element('blockquote', $quote, { OUTPUT2RETURN => 1 })
+        : '')
+        . $reply_line;
       $quote = '';
     }
   }
@@ -1039,22 +1075,23 @@ sub msgs_attachment_show {
           PATH     => $conf{TPL_DIR},
         }
       );
-      
       print "Content-Type: $Msgs->{CONTENT_TYPE};  filename=\"$filename\"\n" . "Content-Disposition:  attachment;  filename=\"$filename\";  size=$size" . "\n\n";
       print $content;
     }
   }
   else {
-    $Msgs->attachment_info({ ID => $attr->{ATTACHMENT} });
+    my $attachment = $Attachments->attachment_info( $attr->{ATTACHMENT} );
     
-    if ( $Msgs->{TOTAL} == 0 ) {
+    if ( !$attachment || ($attachment->{errstr} || $attachment->{errno})) {
       print "Content-Type: text/html\n\n";
-      print "Error: Can't find attachment\n";
+      print "Error: "  . ( $attachment->{errstr} || "Can't find attachment") . "\n";
       return 0;
     }
     
-    print "Content-Type: $Msgs->{CONTENT_TYPE};  filename=\"$Msgs->{FILENAME}\"\n" . "Content-Disposition:  attachment;  filename=\"$Msgs->{FILENAME}\";  size=$Msgs->{CONTENT_SIZE}" . "\n\n";
-    print "$Msgs->{CONTENT}";
+    print "Cache-Control: private, max-age=10800, pre-check=10800\n";
+    print "Content-Type: $attachment->{CONTENT_TYPE};  filename=\"$attachment->{FILENAME}\"\n"
+        . "Content-Disposition:  attachment;  filename=\"$attachment->{FILENAME}\";  size=$attachment->{CONTENT_SIZE}" . "\n\n";
+    print "$attachment->{CONTENT}";
   }
   
   return 1;
@@ -1161,7 +1198,6 @@ sub msgs_sel_status {
   
   my $select_name = $attr->{NAME} || 'STATE';
   my $list = $Msgs->status_list({ STATUS_ONLY => 1, NAME => '_SHOW', COLOR => '_SHOW', COLS_NAME => 1 });
-  
   _error_show($Msgs);
   
   my %hash = ();
@@ -1176,7 +1212,13 @@ sub msgs_sel_status {
     if ( $attr->{HASH_RESULT} && $color) {
       $hash{$line->{id}} .= ":$color";
     }
+    
     $style[$line->{id}] = '#' . $color;
+  }
+  
+  if (! exists $hash{0}){
+    $hash{0} = $lang{OPEN} . ($attr->{HASH_RESULT} ? ":#0000FF" : '');
+    $style[0] = '#0000FF';
   }
   
   my $SERVICE_SEL = '';
@@ -1296,6 +1338,7 @@ sub msgs_ticket_form {
     return 1;
   };
   
+  #FIXME: check permissions
   my $user_main_info = $users->info($FORM{UID}, { SHOW_PASSWORD => 1 });
   $users->pi({ UID => $FORM{UID} });
   
@@ -1321,7 +1364,24 @@ sub msgs_ticket_form {
     $msg_info->{MESSAGE},
     { class => 'col-xs-12 border' }
   );
-  
+
+  $msg_info->{MESSAGE} .= ' ';
+  my @arr = $msg_info->{MESSAGE} =~ m/(.{1,90}\s)/g;
+  my %messages = (
+    text1  => $arr[0],
+    text2  => $arr[1],
+    text3  => $arr[2],
+    text4  => $arr[3],
+    text5  => $arr[4],
+    text6  => $arr[5],
+    text7  => $arr[6],
+    text8  => $arr[7],
+    text9  => $arr[8],
+    text10 => $arr[9],
+    text11 => $arr[10],
+    text12 => $arr[11],
+  );
+
   for ( my $i = 1; $i <= $msg_info->{TOTAL_REPLYS}; $i++ ) {
     
     $attr->{TABLE} .= $html->element(
@@ -1350,7 +1410,7 @@ sub msgs_ticket_form {
   }
   
   $attr = { %{$contacts}, %{$msg_info}, %{$user_main_info}, %{ ($attr) ? $attr : {}  } };
-  
+
   print $html->tpl_show(
     _include(
       "msgs_ticket_form",
@@ -1358,6 +1418,7 @@ sub msgs_ticket_form {
     ),
     {
       %{$attr},
+      %messages,
       %FORM
     },
   );
@@ -1652,5 +1713,492 @@ sub msgs_quick_replys_tags {
   return $html->tpl_show(_include('msgs_quick_replys_tags','Msgs'), { %$Msgs, %info });
 }
 
+#**********************************************************
+=head2 msgs_operator_statistics($attr) operator_statistics
 
-1
+=cut
+# #**********************************************************
+sub msgs_operator_statistics {
+
+  my $operator_statistics_list = $Msgs->messages_list(
+    {
+      COLS_NAME  => 1,
+      RESPOSIBLE => '_SHOW',
+      STATE_ID   => 2,
+      RUN_TIME   => '_SHOW',
+      RATING     => '_SHOW',
+      DONE_DATE  => "_SHOW",
+      PAGE_ROWS  => 100000,
+    }
+  );
+
+  if (!$FORM{YEAR} && !$FORM{MONTH}) {
+    ($FORM{YEAR}, $FORM{MONTH}) = split('-', $DATE);
+  }
+
+  my @years = ();
+  ($years[0], undef, undef) = split('-', $DATE);
+  # ($years[0]) = $DATE =~ /^(\d{4})/;
+  $years[1] = $years[0] - 1;
+  $years[2] = $years[0] - 2;
+
+  my $table_for_the_month = $html->table(
+    {
+      caption => "$lang{RELATIVE_INDICATORS} $lang{FOR_THE_MONTH}",
+      title   => [ '', '' ],
+      qs      => $pages_qs,
+      ID      => "STATISTICS",
+      export  => 1
+    }
+  );
+
+  my $table_for_all_time = $html->table(
+    {
+      caption => "$lang{RELATIVE_INDICATORS} $lang{FOR_ALL_TIME}",
+      title   => [ '', '' ],
+      qs      => $pages_qs,
+      ID      => "STATISTICS",
+      export  => 1
+    }
+  );
+
+  my $month_select = $html->form_select(
+    'MONTH',
+    {
+      SELECTED     => $FORM{MONTH},
+      SEL_ARRAY    => [ '', @MONTHES ],
+      ARRAY_NUM_ID => 1,
+    }
+  );
+
+  my $year_select = $html->form_select(
+    'YEAR',
+    {
+      SELECTED  => $FORM{YEAR},
+      SEL_ARRAY => [ '', @years ],
+    }
+  );
+
+  my %time_applications_per_month = ();
+  my %time_applications_per_all_time = ();
+
+  my $spent_time_administrators_per_month = 0;
+  my $spent_time_administrators_per_all_time = 0;
+  my $count_score_per_month = 0;
+  my $count_score_per_all_time = 0;
+
+  my $score_closed_bids_per_month = 0;
+  my $score_closed_bids_per_all_time = 0;
+
+  my %rank_administrators_per_all_time = ();
+  my %rank_administrators_per_month = ();
+
+  my %dates_without_day = ();
+
+  my $rank_administrators_for_all_time = 0;
+  my $rank_administrators_for_the_month = 0;
+
+  my $growth_of_chievement = 0;
+  my $number_of_months_worked = 0;
+  my $number_processed_applications_per_month;
+  my $todays_date_without_day = ($FORM{MONTH} < 10) ? "$FORM{YEAR}-0$FORM{MONTH}" : "$FORM{YEAR}-$FORM{MONTH}";
+
+  foreach my $item (@$operator_statistics_list) {
+    $item->{done_date} =~ s/-\d\d$//;
+    if ($item->{done_date} eq $todays_date_without_day) {
+
+      $rank_administrators_per_month{ $item->{resposible} }++;
+      $number_processed_applications_per_month++;
+      $time_applications_per_month{$item->{resposible}} += time2sec($item->{run_time});
+
+      if ($item->{resposible} == $admin->{AID} && $item->{rating}) {
+        $score_closed_bids_per_month += $item->{rating};
+        $count_score_per_month++;
+      }
+    }
+    if ($item->{resposible} == $admin->{AID} && $item->{rating}) {
+      $score_closed_bids_per_all_time += $item->{rating};
+      $count_score_per_all_time++;
+    }
+    $time_applications_per_all_time{$item->{resposible}} += time2sec($item->{run_time});
+    $rank_administrators_per_all_time{ $item->{resposible} }++;
+    $dates_without_day{ $item->{done_date} }++;
+  }
+  # _bp('1',\%time_applications_per_month);
+  # if(@$operator_statistics_list){
+  #   return 1;
+  # }
+
+
+  #calculate average score for the month
+  if ($score_closed_bids_per_month) {
+    $score_closed_bids_per_month = sprintf('%0.1f', $score_closed_bids_per_month /
+        $count_score_per_month)
+  }
+  else {
+    $score_closed_bids_per_month = $lang{NO_DATA_STAT};
+  }
+
+  #calculate average score for all time
+  if ($score_closed_bids_per_all_time) {
+    $score_closed_bids_per_all_time = sprintf('%0.1f', $score_closed_bids_per_all_time /
+        $count_score_per_all_time)
+  }
+  else {
+    $score_closed_bids_per_all_time = $lang{NO_DATA_STAT}
+  }
+
+  #calculate rank for all time
+  foreach my $admin_aid (sort {$rank_administrators_per_all_time{$b} <=> $rank_administrators_per_all_time{$a}} keys %rank_administrators_per_all_time) {
+    $rank_administrators_for_all_time++;
+    if ($admin_aid == $admin->{AID}) {
+      last;
+    }
+  }
+
+  #calculate rank for the month
+  foreach my $admin_aid (sort {$rank_administrators_per_month{$b} <=> $rank_administrators_per_month{$a}} keys %rank_administrators_per_month) {
+    $rank_administrators_for_the_month++;
+    if ($admin_aid == $admin->{AID}) {
+      last;
+    }
+  }
+
+  #calculate number of months worked
+  foreach my $date (sort keys %dates_without_day) {
+    if ($date ne $todays_date_without_day) {
+      $number_of_months_worked++;
+    }
+  }
+
+  #calculate time spent by all administrators per month
+  foreach my $time (%time_applications_per_month) {
+    $spent_time_administrators_per_month += $time;
+  }
+
+  #calculate time spent by all administrators per all time
+  foreach my $time (%time_applications_per_all_time) {
+    $spent_time_administrators_per_all_time += $time;
+  }
+
+  #debug
+  # _bp('',\%dates_without_day);
+  # _bp('1',\%time_applications_per_month);
+  # _bp('1',\%rank_administrators_per_all_time);
+  # _bp('1',\%rank_administrators_per_month);
+
+  #calculate the rating among other administrators
+  if ($rank_administrators_per_month{ $admin->{AID} } && $number_of_months_worked) {
+    $growth_of_chievement = int(($rank_administrators_per_month{ $admin->{AID} } * 100) /
+      (($rank_administrators_per_all_time{$admin->{AID}} - $rank_administrators_per_month{ $admin->{AID} }) /
+        $number_of_months_worked) - 100);
+  }
+  elsif ($rank_administrators_per_month{ $admin->{AID} }) {
+    $growth_of_chievement = 100;
+  }
+  else {
+    $growth_of_chievement = $lang{NO_DATA_STAT};
+  }
+
+
+  #table addrows for the month
+  $table_for_the_month->addrow(
+    $lang{GROWTH_OF_CHIEVEMENT}, $growth_of_chievement . "%"
+  );
+
+  $table_for_the_month->addrow(
+    $lang{NUMBER_OF_PROCESSED_REQUESTS},
+      ($rank_administrators_per_month{ $admin->{AID} }) ? (int($rank_administrators_per_month{ $admin->{AID} } * 100 / $number_processed_applications_per_month)) . "%" : 0 . "%"
+  );
+
+  $table_for_the_month->addrow(
+    "$lang{NUMBER_OF_PROCESSED_REQUESTS} $lang{ALL_ADMINS_REQ}",
+    $number_processed_applications_per_month || $lang{NO_DATA_STAT}
+  );
+
+  $table_for_the_month->addrow(
+    $lang{TIME_SPENT_ON_APPLICATIONS},
+    int($time_applications_per_month{$admin->{AID}} * 100
+      / $spent_time_administrators_per_month) . "%"
+  ) if ($time_applications_per_month{$admin->{AID}}
+  );
+
+  $table_for_the_month->addrow(
+    $lang{AVERAGE_PER_APPLICATION},
+    sec2time($time_applications_per_month{$admin->{AID}} /
+        $rank_administrators_per_month{ $admin->{AID} }, { str => 1 })
+  ) if ($time_applications_per_month{$admin->{AID}} &&
+    $rank_administrators_per_month{ $admin->{AID}}
+  );
+
+  $table_for_the_month->addrow(
+    "$lang{TIME_SPENT_ON_APPLICATIONS} $lang{ALL_ADMINS_REQ}",
+    sec2time($spent_time_administrators_per_month, { str => 1 }) || $lang{NO_DATA_STAT}
+  );
+
+  $table_for_the_month->addrow(
+    $lang{ADMINISTRATORS_RANK}, $rank_administrators_for_the_month || $lang{NO_DATA_STAT}
+  );
+
+
+  #table addrows for all time
+  $table_for_all_time->addrow(
+    $lang{NUMBER_OF_PROCESSED_REQUESTS},
+    $rank_administrators_per_all_time{$admin->{AID}} . " (" . int(
+      $rank_administrators_per_all_time{$admin->{AID}} * 100 / (scalar @$operator_statistics_list)) . "%)"
+  ) if ($rank_administrators_per_all_time{$admin->{AID}});
+
+  $table_for_all_time->addrow(
+    "$lang{NUMBER_OF_PROCESSED_REQUESTS} $lang{ALL_ADMINS_REQ}", scalar @$operator_statistics_list
+  );
+
+  $table_for_all_time->addrow(
+    $lang{AVERAGE_SCORE_FOR_CLOSED_BIDS}, $score_closed_bids_per_all_time
+  );
+
+  $table_for_all_time->addrow(
+    $lang{NUMBER_OF_MONTHS_WORKED}, $number_of_months_worked || $lang{NO_DATA_STAT}
+  );
+
+  $table_for_all_time->addrow(
+    $lang{TIME_SPENT_ON_APPLICATIONS},
+    int($time_applications_per_all_time{$admin->{AID}} * 100
+      / $spent_time_administrators_per_all_time) . "%"
+  ) if ($time_applications_per_all_time{$admin->{AID}} &&
+    $spent_time_administrators_per_all_time
+  );
+
+  $table_for_all_time->addrow(
+    $lang{AVERAGE_PER_APPLICATION},
+    sec2time($time_applications_per_all_time{$admin->{AID}} /
+        $rank_administrators_per_all_time{ $admin->{AID} }, { str => 1 })
+  ) if ($time_applications_per_all_time{$admin->{AID}} &&
+    $rank_administrators_per_all_time{ $admin->{AID}}
+  );
+
+  $table_for_all_time->addrow(
+    "$lang{TIME_SPENT_ON_APPLICATIONS} $lang{ALL_ADMINS_REQ}",
+    sec2time($spent_time_administrators_per_all_time, { str => 1 })
+  ) if ($spent_time_administrators_per_all_time
+  );
+
+  $table_for_all_time->addrow(
+    $lang{ADMINISTRATORS_RANK}, $rank_administrators_for_all_time
+  ) if ($rank_administrators_for_all_time
+  );
+
+  $html->tpl_show(
+    _include("msgs_operator_statistics_reports", "Msgs"),
+    {
+      YEAR  => $year_select,
+      MONTH => $month_select,
+    }
+  );
+
+  $html->short_info_panels_row(
+    [
+      {
+        ID     => mk_unique_value(10),
+        NUMBER => $rank_administrators_per_month{ $admin->{AID} },
+        TEXT   => $lang{NUMBER_OF_PROCESSED_REQUESTS},
+        ICON   => 'wrench',
+        COLOR  => '#00a65a',
+        SIZE   => 4
+      },
+      {
+        ID     => mk_unique_value(10),
+        NUMBER => sec2time($time_applications_per_month{$admin->{AID}}, { str => 1 }),
+        ICON   => 'time',
+        TEXT   => $lang{TIME_SPENT_ON_APPLICATIONS},
+        COLOR  => '#f39c12',
+        SIZE   => 4
+      },
+      {
+        ID     => mk_unique_value(10),
+        NUMBER => $score_closed_bids_per_month,
+        ICON   => 'star',
+        TEXT   => $lang{AVERAGE_SCORE_FOR_CLOSED_BIDS},
+        COLOR  => '#3c8dbc',
+        SIZE   => 4
+      }
+    ],
+    {
+      OUTPUT2RETURN => 1
+    }
+  );
+
+  print $html->element('div', $table_for_the_month->show(), { class => "col-md-4" });
+  print $html->element('div', $table_for_all_time->show(), { class => "col-md-4" });
+  print $html->element('div', '', { class => "row" });
+
+}
+
+#**********************************************************
+=head2 msgs_receive_attachments($msg_id, $attr) - reads and saves attachments form %FORM
+
+  Arguments:
+    $msg_id - MSG id for attachment
+    $attr   - hashref
+      MSG_INFO - info for message
+    
+  Returns:
+    1
+  
+=cut
+#**********************************************************
+sub msgs_receive_attachments {
+  my ($msg_id, $attr) = @_;
+
+  if (!$msg_id) {
+    return undef;
+  }
+  
+  my $message = $attr->{MSG_INFO} || do {
+    my $list = $Msgs->messages_list({ ID => $msg_id, COLS_NAME => 1 });
+    _error_show($Msgs);
+    
+    $list->[0];
+  };
+  
+  return 0 unless ($message && ref $message eq 'HASH');
+  
+  # If at least one file input is filled
+  if ( $FORM{FILE_UPLOAD}->{filename} ) {
+    
+    my $add_attachment = sub {
+      my $form_param_name = shift;
+      $Attachments->attachment_add(
+        {
+          # Both values are stored in one column
+          MSG_ID       => $msg_id,
+          REPLY_ID     => $attr->{REPLY_ID},
+          MESSAGE_TYPE => $attr->{REPLY_ID} ? 1 : 0,
+          
+          CONTENT      => $FORM{$form_param_name}->{Contents},
+          FILESIZE     => $FORM{$form_param_name}->{Size},
+          FILENAME     => $FORM{$form_param_name}->{filename},
+          CONTENT_TYPE => $FORM{$form_param_name}->{'Content-Type'},
+          
+          UID          => $message->{UID} || $attr->{UID}
+        }
+      );
+    };
+    
+    $add_attachment->('FILE_UPLOAD');
+    
+    if ( $FORM{FILE_UPLOAD_UPLOADS_COUNT} && $FORM{FILE_UPLOAD_UPLOADS_COUNT} >= 1 ){
+      for (my $i = 1; $i <= $FORM{FILE_UPLOAD_UPLOADS_COUNT}; $i++ ){
+        my $param_name = "FILE_UPLOAD_" . $i;
+        if ($FORM{$param_name}->{filename}){
+          $add_attachment->($param_name);
+        }
+      }
+    }
+    
+    _error_show($Attachments);
+  }
+  
+  return 1;
+}
+
+#**********************************************************
+=head2 msgs_get_attachments_view($attachments_attr)
+
+  Arguments:
+    $attachments_attr - arr_ref for attachments or hash_ref for search params
+    $attr             - hash_ref
+      NO_COORDS - do not show coords related info
+      
+  Returns:
+    string - html
+    
+=cut
+#**********************************************************
+sub msgs_get_attachments_view {
+  my ($attachments_attr, $attr) = @_;
+
+  if (!$attachments_attr) {
+    return undef;
+  }
+  
+  # Receiving search params in same attribute
+  if (ref $attachments_attr eq 'HASH'){
+    $attachments_attr = $Msgs->attachments_list({
+      %{$attachments_attr},
+      FILENAME     => '_SHOW',
+      CONTENT_SIZE => '_SHOW',
+      CONTENT_TYPE => '_SHOW',
+      COORDX       => '_SHOW',
+      COORDY       => '_SHOW',
+    });
+  }
+  
+  my $result = '';
+  my $map_index = get_function_index('maps_show_map');
+  foreach my $line (@$attachments_attr){
+    
+    # Can alter view for content type
+    if ($line->{content_type} =~ 'image/') {
+      $result .= $html->img(
+        $SELF_URL . "?qindex=$index&ATTACHMENT=$line->{id}",
+        ($line->{filename} || 'No name'),
+        {
+          class => 'img-responsive',
+        }
+      );
+    }
+  
+    if ($line->{coordx} + $line->{coordy} != 0 && !$attr->{NO_COORDS}) {
+      my $text_coords = "$line->{coordx}, $line->{coordy}";
+    
+      if ($map_index){
+        $result .= $html->button( "$lang{MAPS} $text_coords",
+          "index=$map_index&COORDX=$line->{coordx}&COORDY=$line->{coordy}",
+          {
+            ADD_ICON => 'glyphicon glyphicon-globe',
+            TARGET => '_new'
+          }
+        )
+      }
+      else {
+        $result .= $html->element('span', $text_coords, { OUTPUT2RETURN => 1 });
+      }
+      $result .= $html->element('br', '', { OUTPUT2RETURN => 1 });
+    }
+    
+    $result .= $html->button(
+      ($line->{filename} || 'No name'),
+      "qindex=$index&ATTACHMENT=$line->{id}",
+      { TARGET => '_new' }
+    )
+      . "  ($lang{SIZE}:   " . int2byte( $line->{content_size} ) . ')'
+      . $html->element('hr', '', { OUTPUT2RETURN => 1 });
+    
+  }
+  
+  return $result;
+}
+
+#**********************************************************
+=head2 msgs_receive_signature($msg_id, $imgdata) 
+  
+=cut
+#**********************************************************
+sub msgs_receive_signature {
+  my ($uid, $msg_id, $imgdata) = @_;
+
+  if (!$uid || !$msg_id || !$imgdata) {
+    return 0;
+  }
+  
+  my $sig_img = "$conf{TPL_DIR}/attach/msgs/$uid/$msg_id" . "_sig.png";
+  open( my $fh, '>', $sig_img);
+  binmode $fh;
+  $imgdata =~ s/data:image\/png;base64,//;
+  print $fh decode_base64($imgdata);
+  close $fh;
+  return 1;
+}
+
+
+1;

@@ -68,7 +68,7 @@ sub dv_use {
     
     $CAPTIONS_HASH{ (90 + $i) . ':' . $field_id . ':left' } = $name;
     
-    if ( $type == 2 ) {
+    if ($type && $type =~ /^\d+$/ && $type == 2 ) {
       my $list2 = $users->info_lists_list({ LIST_TABLE => $field_id . '_list' });
       foreach my $line2 ( @{$list2} ) {
         $INFO_LISTS{$field_id}->{ $line2->[0] } = $line2->[1];
@@ -780,6 +780,7 @@ sub dv_pools_report {
   # Get pools
   my $pools_list = $Nas->nas_ip_pools_list({
     COLS_NAME => 1,
+    SHOW_ALL_COLUMNS => 1,
     PAGE_ROWS => 10000
   });
   _error_show($Nas);

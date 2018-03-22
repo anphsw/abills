@@ -1,3 +1,21 @@
+/* Clear info
+DROP TABLE IF EXISTS `cablecat_color_schemes`;
+# DROP TABLE IF EXISTS `cablecat_cable_types`;
+DROP TABLE IF EXISTS `cablecat_cables`;
+DROP TABLE IF EXISTS `cablecat_well_types`;
+# DROP TABLE IF EXISTS `cablecat_connecter_types`;
+DROP TABLE IF EXISTS `cablecat_wells`;
+# DROP TABLE IF EXISTS `cablecat_splitter_types`;
+DROP TABLE IF EXISTS `cablecat_splitters`;
+DROP TABLE IF EXISTS `cablecat_connecters_links`;
+DROP TABLE IF EXISTS `cablecat_links`;
+DROP TABLE IF EXISTS `cablecat_commutations`;
+DROP TABLE IF EXISTS `cablecat_commutation_cables`;
+DROP TABLE IF EXISTS `cablecat_cross_types`;
+DROP TABLE IF EXISTS `cablecat_crosses`;
+DROP TABLE IF EXISTS `cablecat_commutation_equipment`;
+*/
+
 CREATE TABLE IF NOT EXISTS `cablecat_color_schemes` (
   `id` SMALLINT(6) PRIMARY KEY AUTO_INCREMENT,
   `name` VARCHAR(64) NOT NULL,
@@ -17,6 +35,7 @@ CREATE TABLE IF NOT EXISTS `cablecat_cable_types` (
   `fibers_type_name` VARCHAR(32) NOT NULL    DEFAULT '',
   `attenuation` DOUBLE NOT NULL DEFAULT 0,
   `comments` TEXT,
+  `can_be_splitted` TINYINT(1) NOT NULL DEFAULT 1,
   `line_width` SMALLINT(3) NOT NULL DEFAULT 1
 )
   CHARSET = 'utf8'
@@ -125,19 +144,20 @@ CREATE TABLE IF NOT EXISTS `cablecat_splitters` (
   `commutation_id` INT(11) UNSIGNED REFERENCES `cablecat_commutations` (`id`)
     ON DELETE RESTRICT,
   `commutation_x` DOUBLE(5, 2) NULL,
-  `commutation_y` DOUBLE(5, 2) NULL
+  `commutation_y` DOUBLE(5, 2) NULL,
+  `commutation_rotation` SMALLINT NOT NULL DEFAULT 0
 )
   CHARSET = 'utf8'
   COMMENT = 'Dividers of fiber signals (PON)';
 
-CREATE TABLE IF NOT EXISTS `cablecat_connecters_links` (
-  `id` INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  `connecter_1` INT(11) UNSIGNED,
-  `connecter_2` INT(11) UNSIGNED,
-  `created` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-)
-  CHARSET = 'utf8'
-  COMMENT = 'Links among connecters';
+# CREATE TABLE IF NOT EXISTS `cablecat_connecters_links` (
+#   `id` INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+#   `connecter_1` INT(11) UNSIGNED,
+#   `connecter_2` INT(11) UNSIGNED,
+#   `created` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+# )
+#   CHARSET = 'utf8'
+#   COMMENT = 'Links among connecters';
 
 CREATE TABLE IF NOT EXISTS `cablecat_links` (
   `id` INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -179,24 +199,24 @@ CREATE TABLE IF NOT EXISTS `cablecat_commutation_cables` (
   INDEX `_commutation_ik` (`commutation_id`)
 );
 
-CREATE TABLE IF NOT EXISTS `cablecat_commutation_links` (
-  `id` INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  `commutation_id` INT(11) UNSIGNED REFERENCES `cablecat_commutations` (`id`)
-    ON DELETE CASCADE,
-  `cable_id_1` INT(11) UNSIGNED REFERENCES `cablecat_cables` (`id`)
-    ON DELETE CASCADE,
-  `fiber_num_1` SMALLINT(3) UNSIGNED,
-  `cable_side_1` TINYINT(1) UNSIGNED,
-  `cable_id_2` INT(11) UNSIGNED REFERENCES `cablecat_cables` (`id`)
-    ON DELETE CASCADE,
-  `fiber_num_2` SMALLINT(3) UNSIGNED,
-  `cable_side_2` TINYINT(1) UNSIGNED,
-  `attenuation` DOUBLE NOT NULL DEFAULT 0,
-
-  `comments` VARCHAR(40) NOT NULL DEFAULT '',
-  `geometry` TEXT,
-  KEY `_commutation_key` (`commutation_id`)
-);
+# CREATE TABLE IF NOT EXISTS `cablecat_commutation_links` (
+#   `id` INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+#   `commutation_id` INT(11) UNSIGNED REFERENCES `cablecat_commutations` (`id`)
+#     ON DELETE CASCADE,
+#   `cable_id_1` INT(11) UNSIGNED REFERENCES `cablecat_cables` (`id`)
+#     ON DELETE CASCADE,
+#   `fiber_num_1` SMALLINT(3) UNSIGNED,
+#   `cable_side_1` TINYINT(1) UNSIGNED,
+#   `cable_id_2` INT(11) UNSIGNED REFERENCES `cablecat_cables` (`id`)
+#     ON DELETE CASCADE,
+#   `fiber_num_2` SMALLINT(3) UNSIGNED,
+#   `cable_side_2` TINYINT(1) UNSIGNED,
+#   `attenuation` DOUBLE NOT NULL DEFAULT 0,
+#   `direction` TINYINT(2) NOT NULL DEFAULT 0,
+#   `comments` VARCHAR(40) NOT NULL DEFAULT '',
+#   `geometry` TEXT,
+#   KEY `_commutation_key` (`commutation_id`)
+# );
 
 CREATE TABLE IF NOT EXISTS `cablecat_cross_types` (
   `id` SMALLINT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -225,6 +245,32 @@ CREATE TABLE IF NOT EXISTS `cablecat_commutation_equipment` (
   `commutation_id` INT(11) UNSIGNED REFERENCES `cablecat_commutations` (`id`)
     ON DELETE CASCADE,
   `commutation_x` DOUBLE(5, 2) NULL,
-  `commutation_y` DOUBLE(5, 2) NULL
+  `commutation_y` DOUBLE(5, 2) NULL,
+  INDEX `_nas_commutation` (`commutation_id`, `nas_id`)
+
 )
   COMMENT = 'Stores equipment existance on commutation';
+
+CREATE TABLE IF NOT EXISTS `cablecat_commutation_crosses` (
+  `commutation_id` INT(11) UNSIGNED REFERENCES `cablecat_commutations` (`id`)
+    ON DELETE CASCADE,
+  `cross_id` INT(11) UNSIGNED REFERENCES `cablecat_crosses` (`id`)
+    ON DELETE CASCADE,
+  `port_start` SMALLINT(6) UNSIGNED NOT NULL,
+  `port_finish` SMALLINT(6) UNSIGNED NOT NULL,
+  `commutation_x` DOUBLE(5, 2) NULL,
+  `commutation_y` DOUBLE(5, 2) NULL,
+  `commutation_rotation` SMALLINT NOT NULL DEFAULT 0,
+  INDEX `_cross_commutation` (`commutation_id`, `cross_id`)
+)
+  COMMENT = 'Stores information about cross on commutation links and images';
+
+CREATE TABLE IF NOT EXISTS `cablecat_cross_links` (
+  `cross_id` INT(11) UNSIGNED REFERENCES `cablecat_crosses` (`id`)
+    ON DELETE CASCADE,
+  `cross_port` INT(6) UNSIGNED NOT NULL,
+  `link_type` SMALLINT(3) UNSIGNED NOT NULL,
+  `link_value` VARCHAR(32) NOT NULL DEFAULT '',
+  UNIQUE `_cross_port` (`cross_id`, `cross_port`)
+)
+  COMMENT = 'Logical values for port connection';

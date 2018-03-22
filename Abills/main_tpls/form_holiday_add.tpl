@@ -43,7 +43,7 @@
 
   </div>
   
-  <div class='box-footer text-center'>
+  <div class='box-footer'>
       <button type='submit' form='form_holiday' class='btn btn-primary' name='action' value='%ACTION%'>
         %BTN_NAME%
       </button>

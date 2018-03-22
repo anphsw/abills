@@ -23,8 +23,6 @@ $lang{RESERVE}='Reserve';
 $lang{RESERVEDTO}='Reserved to';
 $lang{RESERVED}='Reserved';
 $lang{DISCARDED}='Discarded';
-$lang{DISTRICT}='District';
-$lang{STREET}='Street';
 $lang{AT_STORAGE}=' at storage ';
 $lang{RESERVEIN} = 'To reserve';
 $lang{LEFTOVER}='Leftover';
@@ -106,3 +104,9 @@ $lang{BOXES}='box';
 
 
 $lang{STORAGES}='Storages';
+
+$lang{INNER_USE} = 'Inner use';
+$lang{INNER_USE_SHORT} = 'Inner use';
+$lang{TO_INNER_USE} = 'To inner use';
+
+$lang{IN_STORAGE} = 'In storage';

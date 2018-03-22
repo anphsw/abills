@@ -7,7 +7,7 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(urlencode convert int2byte);
-
+use Msgs::Misc::Attachments;
 
 our(
   $db,
@@ -20,6 +20,7 @@ our(
 );
 
 my $Msgs = Msgs->new($db, $admin, \%conf);
+
 #**********************************************************
 =head2 msgs_user() - Client web interface
 
@@ -61,6 +62,34 @@ sub msgs_user {
   $Msgs->{PRIORITY_SEL} = msgs_sel_priority();
 
   if ($FORM{send}) {
+    
+    if ($conf{MSGS_USER_REPLY_SECONDS_LIMIT}){
+      my $fresh_messages = $Msgs->messages_list({
+        UID       => $user->{UID},
+        STATE     => $FORM{STATE},
+        GET_NEW   => $conf{MSGS_USER_REPLY_SECONDS_LIMIT},
+        COLS_NAME => 1
+      });
+      
+      if ($Msgs->{TOTAL} > 0){
+        my $message_sent = $fresh_messages->[0] || {};
+        my $message_sent_id = $message_sent->{id} || 0;
+        
+        my $header_message = "$lang{MESSAGE} $message_sent_id. $lang{EXIST} ";
+        
+        $html->redirect(
+          "?index=$index&sid=" . ($sid || $user->{SID} || $user->{sid})
+          . "&ID=$message_sent_id#last_msg",
+          {
+            WAIT => 3,
+            MESSAGE => $header_message
+          }
+        );
+        
+        exit 0;
+      }
+    }
+  
     $Msgs->message_add(
       {
         UID       => $user->{UID},
@@ -71,47 +100,46 @@ sub msgs_user {
         USER_SEND => 1,
       }
     );
-
-    if (!$Msgs->{errno}) {
+  
+    if ( !$Msgs->{errno} ) {
 
       #Add attachment
-      if ($FORM{FILE_UPLOAD}{filename}) {
-        $Msgs->attachment_add(
-          {
-            MSG_ID       => $Msgs->{INSERT_ID},
-            CONTENT      => $FORM{FILE_UPLOAD}{Contents},
-            FILESIZE     => $FORM{FILE_UPLOAD}{Size},
-            FILENAME     => $FORM{FILE_UPLOAD}{filename},
-            CONTENT_TYPE => $FORM{FILE_UPLOAD}{'Content-Type'},
-            UID          => $user->{UID}
-          }
-        );
+      if ( $FORM{FILE_UPLOAD}->{filename} && $Msgs->{MSG_ID} ) {
+        
+        my $attachment_saved = msgs_receive_attachments($Msgs->{MSG_ID}, {
+            MSG_INFO => {
+              UID => $user->{UID}
+            }
+        });
+        
+        if (!$attachment_saved){
+          _error_show($Msgs);
+          $html->message('err', $lang{ERROR}, "Can't save attachment");
+        }
       }
-      $html->message( 'info', $lang{INFO}, "$lang{MESSAGE} # $Msgs->{MSG_ID}.  $lang{MSG_SENDED} " );
-
+      
+      $html->message('info', $lang{INFO}, "$lang{MESSAGE} # $Msgs->{MSG_ID}.  $lang{MSG_SENDED} ");
       msgs_notify_admins();
-
-      # Sent to client
-      if ($FORM{UID}){
-        $html->redirect("?index=$index&UID=" . ($FORM{UID} || q{}) . "&chg=" . ($FORM{ID} || q{}) . '#last_msg',
-          {
-            MESSAGE_HTML => $html->message( 'info', $lang{INFO}, "$lang{MESSAGE} $Msgs->{MSG_ID} $lang{MSG_SENDED} ", {OUTPUT2RETURN => 1} ),
-            WAIT         => '0'
-          }
-        );
-      }
-      else {
-        # Instant redirect
-        my $header_message = urlencode("$lang{MESSAGE} "
-          . ($Msgs->{MSG_ID} ? " #$Msgs->{MSG_ID} " : '')
-          . $lang{MSG_SENDED}
-        );
-        $html->redirect("?index=$index&sid=" . ($sid || $user->{SID} || $user->{sid})
-        . "&MESSAGE=$header_message&chg=" . ($FORM{ID} || q{}) . '#last_msg');
-        exit 0;
-      }
+  
+      my $message_added_text = "$lang{MESSAGE} " . ($Msgs->{MSG_ID} ? " #$Msgs->{MSG_ID} " : '') . $lang{MSG_SENDED};
+      my $header_message = urlencode($message_added_text);
+      my $message_link = "?index=$index&sid=" . ($sid || $user->{SID} || $user->{sid})
+        . "&MESSAGE=$header_message&ID=" . ($Msgs->{MSG_ID} || q{}) . '#last_msg';
+      
+      $html->redirect( $message_link,
+        {
+          MESSAGE_HTML => $html->message(
+            'info',
+            $lang{INFO},
+            $html->button($message_added_text, $message_link, { class => 'alert-link' }),
+            { OUTPUT2RETURN => 1 }
+          ),
+          WAIT         => '0'
+        }
+      );
+      exit 0;
     }
-
+  
     return 1;
   }
   elsif ($FORM{ATTACHMENT}) {
@@ -120,16 +148,16 @@ sub msgs_user {
   elsif ($FORM{ID} || $Msgs->{LAST_ID}) {
     if ($FORM{reply}) {
       my %params = ();
-      $params{CLOSED_DATE} = $DATE if ($FORM{STATE} > 0);
-      $params{DONE_DATE}   = $DATE if ($FORM{STATE} > 1);
+      $params{CLOSED_DATE} = $DATE if ($FORM{STATE} && $FORM{STATE} > 0);
+      $params{DONE_DATE}   = $DATE if ($FORM{STATE} && $FORM{STATE} > 1);
       $params{ADMIN_READ}  = "0000-00-00  00:00:00" if (! $FORM{INNER});
-
+      
       $Msgs->message_change({
         UID            => $LIST_PARAMS{UID},
         ID             => $FORM{ID},
         STATE          => $FORM{STATE},
-        RATING         => $FORM{rating}         ? $FORM{rating}         : 0,
-        RATING_COMMENT => $FORM{rating_comment} ? $FORM{rating_comment} : '',
+        RATING         => $FORM{RATING}         ? $FORM{RATING}         : 0,
+        RATING_COMMENT => $FORM{RATING_COMMENT} ? $FORM{RATING_COMMENT} : '',
         %params
       });
 
@@ -142,17 +170,24 @@ sub msgs_user {
         });
 
         if (!$Msgs->{errno}) {
+          #Save signature
+          if ( $FORM{signature} && $FORM{ID} ) {
+            msgs_receive_signature($user->{UID}, $FORM{ID}, $FORM{signature});
+          }
+
           #Add attachment
-          if ($FORM{FILE_UPLOAD}{filename}) {
-            $Msgs->attachment_add({
-              MSG_ID       => $Msgs->{INSERT_ID},
-              CONTENT      => $FORM{FILE_UPLOAD}{Contents},
-              FILESIZE     => $FORM{FILE_UPLOAD}{Size},
-              FILENAME     => $FORM{FILE_UPLOAD}{filename},
-              CONTENT_TYPE => $FORM{FILE_UPLOAD}{'Content-Type'},
-              UID          => $user->{UID},
-              MESSAGE_TYPE => 1
-            });
+          if ( $FORM{FILE_UPLOAD}->{filename} && $Msgs->{REPLY_ID} ) {
+            my $attachment_saved = msgs_receive_attachments($Msgs->{MSG_ID} || $FORM{ID}, {
+                REPLY_ID => $Msgs->{REPLY_ID},
+                MSG_INFO => {
+                  UID => $user->{UID}
+                }
+              });
+    
+            if ( !$attachment_saved ) {
+              _error_show($Msgs);
+              $html->message('err', $lang{ERROR}, "Can't save attachment");
+            }
           }
         }
         $html->message( 'info', $lang{INFO}, "$lang{REPLY}" );
@@ -165,7 +200,7 @@ sub msgs_user {
         # Instant redirect
         my $header_message = urlencode("$lang{MESSAGE} $lang{SENDED}" . ($Msgs->{INSERT_ID} ? " : $Msgs->{INSERT_ID}" : ''));
         $html->redirect("?index=$index&sid=".( $sid || $user->{SID} || $user->{sid} )
-          ."&MESSAGE=$header_message&chg=" . ($FORM{ID} || q{}) . '#last_msg');
+          ."&MESSAGE=$header_message&ID=" . ($Msgs->{MSG_ID} || $FORM{ID} || q{}) . '#last_msg');
         exit 0;
       }
       return 1;
@@ -211,7 +246,8 @@ sub msgs_user {
     my @REPLIES = ();
     if ($Msgs->{ID}) {
       my $main_msgs_id = $Msgs->{ID};
-      my $list = $Msgs->messages_reply_list({
+
+      my $replies_list = $Msgs->messages_reply_list({
         MSG_ID       => $main_msgs_id,
         CONTENT_SIZE => '_SHOW',
         INNER_MSG    => 0,
@@ -227,9 +263,11 @@ sub msgs_user {
             SURVEY_ID => $Msgs->{SURVEY_ID}, MSG_ID => $main_msgs_id
           });
       }
-
-      foreach my $line (@$list) {
+      
+      foreach my $line (@$replies_list) {
+        
         $FORM{REPLY_ID} = $line->{id};
+        
         if ($line->{survey_id}) {
           push @REPLIES, msgs_survey_show({
               SURVEY_ID => $line->{survey_id},
@@ -240,7 +278,26 @@ sub msgs_user {
           if ($FORM{QUOTING} && $FORM{QUOTING} == $line->{id}) {
             $reply = $line->{text} if (! $FORM{json});
           }
-
+          
+          # Should check multiple attachments if got at least one
+          my $attachment_html = '';
+          if ($line->{attachment_id}){
+            my $attachments_list = $Msgs->attachments_list({
+              REPLY_ID     => $line->{id},
+              FILENAME     => '_SHOW',
+              CONTENT_SIZE => '_SHOW',
+              CONTENT_TYPE => '_SHOW',
+              COORDX       => '_SHOW',
+              COORDY       => '_SHOW',
+            });
+            
+            $attachment_html = msgs_get_attachments_view($attachments_list, { NO_COORDS => 1 });
+          }
+          
+          my $quoting_button = $html->button(
+            $lang{QUOTING}, "index=$index&QUOTING=$line->{id}&ID=$FORM{ID}&sid=$sid", { BUTTON => 1 }
+          );
+          
           push @REPLIES, $html->tpl_show(
               _include('msgs_reply_show', 'Msgs'),
               {
@@ -249,13 +306,10 @@ sub msgs_user {
                 DATE       => $line->{datetime},
                 CAPTION    => convert($line->{caption}, { text2html => 1, json => $FORM{json} }),
                 PERSON     => $line->{creator_id},
-                MESSAGE    => msgs_text_quoting($line->{text}). (($line->{filename} && $line->{content_type} && $line->{content_type} =~ /ima/ ) ? $html->img("$SELF_URL?qindex=$index&ATTACHMENT=$line->{attachment_id}") : ''),
+                MESSAGE    => msgs_text_quoting($line->{text}),
                 COLOR      => (($line->{aid} > 0) ? 'box-success' : 'box-theme'),
-                QUOTING    =>
-                $html->button( $lang{QUOTING}, "index=$index&QUOTING=$line->{id}&ID=$FORM{ID}&sid=$sid", { BUTTON => 1 } )
-                ,
-                ATTACHMENT => ($line->{attachment_id}) ? "$lang{ATTACHMENT}:  " . $html->button($line->{filename} || 'No name', "qindex=$index&ATTACHMENT=$line->{attachment_id}",
-                    { TARGET => '_new' } ) . "  ($lang{SIZE}:   " . int2byte( $line->{content_size} ) . ')' : '',
+                QUOTING    => $quoting_button,
+                ATTACHMENT => $attachment_html,
               },
               { OUTPUT2RETURN => 1 }
             );
@@ -277,12 +331,19 @@ sub msgs_user {
       $Msgs->{REPLY} = join(($FORM{json}) ? ',' : '', @REPLIES);
       $Msgs->{MESSAGE} = convert($Msgs->{MESSAGE}, { text2html => 1, SHOW_URL => 1, json => $FORM{json} });
       $Msgs->{SUBJECT} = convert($Msgs->{SUBJECT}, { text2html => 1, json => $FORM{json} });
+      
       if ($Msgs->{FILENAME}) {
-        $Msgs->{MESSAGE} .= ($Msgs->{FILENAME} && $Msgs->{CONTENT_TYPE} =~ /ima/ ) ? $html->img("$SELF_URL?qindex=$index&ATTACHMENT=$Msgs->{ATTACHMENT_ID}") : '';
-
-        $Msgs->{ATTACHMENT} = "$lang{ATTACHMENT}: " . $html->button( "$Msgs->{FILENAME}",
-          "qindex=$index&sid=$sid&ATTACHMENT=$Msgs->{ATTACHMENT_ID}",
-          { TARGET => '_new' } ) . "  ($lang{SIZE}: " . int2byte( $Msgs->{CONTENT_SIZE} ) . ')';
+        # Should check multiple attachments if got at least one
+          my $attachments_list = $Msgs->attachments_list({
+            MESSAGE_ID     => $Msgs->{ID},
+            FILENAME     => '_SHOW',
+            CONTENT_SIZE => '_SHOW',
+            CONTENT_TYPE => '_SHOW',
+            COORDX       => '_SHOW',
+            COORDY       => '_SHOW',
+          });
+  
+          $Msgs->{ATTACHMENT} = msgs_get_attachments_view($attachments_list, { NO_COORDS => 1 });
       }
 
       if ($Msgs->{STATE} == 9) {
@@ -313,13 +374,14 @@ sub msgs_user {
       });
 
       msgs_redirect_filter({
-        UID => $LIST_PARAMS{UID}, DEL => 1
+        DEL => 1,
+        UID => $LIST_PARAMS{UID},
       });
     }
 
     #return  0;
   }
-  elsif(!$FORM{SECRH_MSG_TEXT}) {
+  elsif(!$FORM{SEARCH_MSG_TEXT}) {
     $Msgs->{CHAPTER_SEL} = $html->form_select(
       'CHAPTER',
       {
@@ -354,7 +416,7 @@ sub msgs_user {
     6 => $msgs_status->{6}
   );
 
-  $pages_qs .= "&SECRH_MSG_TEXT=$FORM{SECRH_MSG_TEXT}" if( $FORM{SECRH_MSG_TEXT});
+  $pages_qs .= "&SEARCH_MSG_TEXT=$FORM{SEARCH_MSG_TEXT}" if( $FORM{SEARCH_MSG_TEXT});
 
   my $status_bar = msgs_status_bar({ MSGS_STATUS => \%statusbar_status, USER_UNREAD => 1, SHOW_ONLY => 3 });
 
@@ -379,8 +441,8 @@ sub msgs_user {
 
   my $table;
 
-  if ($FORM{SECRH_MSG_TEXT}) {
-    my $request_search_word = $FORM{SECRH_MSG_TEXT};
+  if ($FORM{SEARCH_MSG_TEXT}) {
+    my $request_search_word = $FORM{SEARCH_MSG_TEXT};
     $request_search_word =~ s/\\/\\\\/gi;
     $request_search_word =~ s/\%/\\%/gi;
     $request_search_word =~ s/\'/\\'/gi;
@@ -407,7 +469,7 @@ sub msgs_user {
         TOTAL_MSGS  => $Msgs->{TOTAL},
         JSON        => $FORM{json},
         STATUS_BAR  => $status_bar,
-        SEARCH_TEXT => $FORM{SECRH_MSG_TEXT},
+        SEARCH_TEXT => $FORM{SEARCH_MSG_TEXT},
       },
       $msgs_status,
       $list
@@ -504,7 +566,7 @@ my ($attr, $msgs_status, $list) = @_;
         width       => '100%',
         caption     => $lang{MESSAGES},
         title_plain => [ '#', $lang{SUBJECT}, $lang{MESSAGE}, $lang{DATE}, $lang{STATUS}, '-' ],
-        qs          => $pages_qs . "SECRH_MSG_TEXT=$FORM{SECRH_MSG_TEXT}",
+        qs          => $pages_qs . "SEARCH_MSG_TEXT=$FORM{SEARCH_MSG_TEXT}",
         pages       => $attr->{TOTAL_MSGS},
         ID          => 'MSGS_LIST_SEARCH',
         header      => $attr->{STATUS_BAR}

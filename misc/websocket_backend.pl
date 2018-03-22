@@ -1,4 +1,30 @@
-#!/usr/bin/env perl
+#!/usr/bin/perl
+=head1 NAME
+
+  websocket_backend.pl
+
+=head2 VERSION
+
+  1.0
+
+=head1 SYNOPSIS
+
+  This is main controlling script for running abills related daemons
+  
+  http://abills.net.ua/wiki/doku.php/abills:docs:manual:websocket_backend
+  
+=head1 OPTIONS
+
+  start
+  stop
+  restart
+  status
+
+  LOG_FILE
+  PLUGIN  - run only given plugins
+  
+=cut
+
 use strict;
 use warnings;
 use utf8;
@@ -7,12 +33,19 @@ our (%conf, $base_dir, $debug, $ARGS, @MODULES, $db);
 
 $debug ||= 3;
 
+our $libpath;
 BEGIN {
+  our $Bin;
   use FindBin '$Bin';
-  unshift @INC, $Bin . '/../lib';
-  unshift @INC, $Bin . '/../lib/Backend';
-  unshift @INC, $Bin . '/../Abills/modules';
-  unshift @INC, $Bin . '/../Abills/mysql';
+  
+  $libpath = $Bin . '/../'; # (default) assuming we are in /usr/abills/libexec/
+  if ( $Bin =~ m/\/abills(\/)/ ) {
+    $libpath = substr($Bin, 0, $-[1]);
+  }
+  
+  unshift @INC, $libpath . '/lib';
+  unshift @INC, $libpath . '/Abills/modules';
+  unshift @INC, $libpath . '/Abills/mysql';
 }
 
 # Localizing global variables
@@ -24,7 +57,7 @@ use AnyEvent::Socket;
 use AnyEvent::Impl::Perl;
 
 use Abills::Base;
-use Abills::Server;
+use Abills::Server qw/make_pid daemonize stop_server is_running/;
 
 use Abills::Backend::Plugin::BaseAPI;
 use Abills::Backend::Plugin::BasePlugin;
@@ -45,8 +78,8 @@ _bp(undef, undef, { SET_ARGS => { TO_CONSOLE => 1 } });
 # Daemon controls block
 {
   my %daemon_args = (
-    LOG_DIR => $base_dir . '/var/log/',
-    PROGRAM => 'websocket_backend'
+    LOG_DIR      => $base_dir . '/var/log/',
+    PROGRAM_NAME => 'websocket_backend'
   );
   
   my $start = sub {
@@ -77,9 +110,13 @@ _bp(undef, undef, { SET_ARGS => { TO_CONSOLE => 1 } });
     
     $Log->info("Restarted $pid_file", 'Daemon');
   }
+  elsif ( defined($ARGS->{status}) ){
+    my $running = is_running(\%daemon_args);
+    exit ($running) ? 0 : 1;
+  }
   # Checking if already running
-  elsif ( make_pid() == 1 ) {
-    exit;
+  elsif ( is_running(\%daemon_args) ){
+    exit 1;
   }
   
   $SIG{INT} = sub {
@@ -104,11 +141,7 @@ else {
   # Load plugins that have been enabled in config
   start_plugin('Websocket') if ( !$conf{WEBSOCKET_DISABLED} );
   start_plugin('Internal') if ( !$conf{WEBSOCKET_INTERNAL_DISABLED} );
-  
-  if ( $conf{EVENTS_ASTERISK} ) {
-    start_plugin('Asterisk');
-  }
-  
+
   if ( $conf{TELEGRAM_TOKEN} ) {
     start_plugin('Telegram');
   }
@@ -116,13 +149,17 @@ else {
   if ( $conf{SATELLITE_MODE} ) {
     start_plugin('Satellite');
   }
+
+  if ( $conf{EVENTS_ASTERISK} ) {
+    start_plugin('Asterisk');
+  }
   
 }
 
 $Log->info('Waiting for events');
 
 AnyEvent::Impl::Perl::loop;
-exit;
+exit 0;
 
 #**********************************************************
 =head2 start_plugin($plugin_name, $attr)

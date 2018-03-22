@@ -7,7 +7,7 @@ package Reports;
 =cut
 
 use strict;
-use parent 'main';
+use parent qw(dbcore);
 our $VERSION = 2.01;
 
 my ($SORT, $DESC, $PG, $PAGE_ROWS);
@@ -86,7 +86,7 @@ sub list {
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query2("SELECT rw.id, rw.name, rw.comments, rw.quick_report,
+  $self->query("SELECT rw.id, rw.name, rw.comments, rw.quick_report,
     rg.name as  group_name
     FROM reports_wizard rw
     LEFT JOIN reports_groups rg ON (rg.id=rw.gid)
@@ -98,7 +98,7 @@ sub list {
   );
 
   $list = $self->{list};
-  $self->query2("SELECT count(id) AS total FROM reports_wizard rw $WHERE",
+  $self->query("SELECT count(id) AS total FROM reports_wizard rw $WHERE",
   undef, { INFO => 1 });
 
   return $list;
@@ -127,7 +127,7 @@ sub mk {
   $attr->{QUERY}=~s/%DESC%/$DESC/;
   $attr->{QUERY}=~s/%PAGES%/LIMIT $PG, $PAGE_ROWS/;
 
-  $self->query2("$attr->{QUERY};", undef, $attr);
+  $self->query("$attr->{QUERY};", undef, $attr);
   $list = $self->{list};
   $self->{PAGE_TOTAL} = $self->{TOTAL};
 
@@ -135,7 +135,7 @@ sub mk {
 
   if ($attr->{QUERY_TOTAL}) {
     delete $self->{COL_NAMES_ARR};
-    $self->query2($attr->{QUERY_TOTAL},
+    $self->query($attr->{QUERY_TOTAL},
     undef,
     { INFO => 1 }
     );
@@ -153,7 +153,7 @@ sub info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("SELECT *
+  $self->query("SELECT *
      FROM reports_wizard
      WHERE id= ? ;",
    undef,
@@ -176,7 +176,7 @@ sub change {
   $attr->{QUERY} =~ s/\\\'/\'/g;
   $attr->{QUERY_TOTAL} =~ s/\\\'/\'/g;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM    => 'ID',
       TABLE           => 'reports_wizard',
@@ -217,7 +217,7 @@ sub list_groups {
   my $WHERE;
   my $list;
 
-  $self->query2("SELECT id, name, comments
+  $self->query("SELECT id, name, comments
     FROM reports_groups
     $WHERE
     ORDER BY $SORT $DESC
@@ -227,7 +227,7 @@ sub list_groups {
   );
 
   $list = $self->{list};
-  $self->query2("SELECT count(id) AS total FROM reports_groups $WHERE",
+  $self->query("SELECT count(id) AS total FROM reports_groups $WHERE",
   undef, { INFO => 1 });
 
   return $list;
@@ -256,7 +256,7 @@ sub info_group {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("SELECT *
+  $self->query("SELECT *
      FROM reports_groups
      WHERE id= ? ;",
    undef,
@@ -275,7 +275,7 @@ sub change_group {
   my $self   = shift;
   my ($attr) = @_;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM    => 'ID',
       TABLE           => 'reports_groups',

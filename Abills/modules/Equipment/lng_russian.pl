@@ -38,7 +38,8 @@ $lang{HOURS} = 'часов';
 $lang{CABLE_TEST} = 'Тестирование кабеля';
 $lang{PAIR} = 'Пара';
 
-$lang{REBOOT}='Перезагрузить приставку';
+$lang{REBOOT}='Перезагрузка';
+$lang{REBOOTED}='Перезагруженна';
 
 $lang{SYSTEM_ID}='Название системы';
 $lang{UPTIME}='Время работы';
@@ -48,6 +49,10 @@ $lang{POWER}='Уровень сигнала';
 $lang{TEMPERATURE}='Температура';
 $lang{VOLTAGE}='Вольтаж';
 $lang{UNREGISTER}='Незарегистрированые';
+$lang{UNREG_ONU}='Дерегистрировать';
 $lang{DEVICE}='Устройство';
 
 $lang{BRANCH}='Ветка';
+$lang{SELECT_OLT}='Выберите OLT';
+$lang{PORT_SHIFT}='Сдвиг портов';
+$lang{FIRMWARE}='Прошивка';

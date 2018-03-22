@@ -54,6 +54,6 @@
             </div>
         </div>
 
-        <div class='box-footer text-center'><input class='btn btn-primary' type='submit' name=add value='_{ADD}_'></div>
+        <div class='box-footer'><input class='btn btn-primary' type='submit' name=add value='_{ADD}_'></div>
     </div>
 </form>

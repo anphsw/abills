@@ -68,7 +68,7 @@ sub add_company {
 
 
 #**********************************************************
-=head2 form_companies($attr)
+=head2 form_companies()
 
 =cut
 #**********************************************************
@@ -88,8 +88,6 @@ sub form_companies {
     }
 
     if($FORM{LOCATION_ID}){
-      #require Address;
-      #Address->import();
       require Control::Address_mng;
       $FORM{ADDRESS} = full_address_name($FORM{LOCATION_ID}). ($FORM{ADDRESS_FLAT} ? ', '. $FORM{ADDRESS_FLAT} : '');
     }
@@ -166,7 +164,7 @@ sub form_companies {
       $html->message( 'info', $lang{INFO}, $lang{CHANGED} . " # $Company->{NAME}" );
     }
   }
-  elsif ($FORM{del} && $FORM{COMMENTS} && $permissions{0}{5}) {
+  elsif ($FORM{del} && $FORM{COMMENTS} && $permissions{0}{5} && ! $FORM{subf}) {
     $Company->del($FORM{del});
     $html->message( 'info', $lang{INFO}, "$lang{DELETED} # $FORM{del}" );
   }
@@ -188,7 +186,6 @@ sub form_companies {
       return 0;
     }
 
-    $Company->{ADDRESS_SELECT}= _form_company_address($Company);
     $LIST_PARAMS{COMPANY_ID} = $Company->{ID};
     $FORM{COMPANY_ID}        = $Company->{ID};
     $LIST_PARAMS{BILL_ID}    = $Company->{BILL_ID};
@@ -258,6 +255,7 @@ sub form_companies {
       }
 
       $Company->{INFO_FIELDS} = form_info_field_tpl({ COMPANY => 1, VALUES  => $Company });
+      $Company->{ADDRESS_SELECT}= _form_company_address($Company);
 
       if (in_array('Docs', \@MODULES)) {
         if ($conf{DOCS_CONTRACT_TYPES}) {
@@ -444,7 +442,13 @@ sub _form_company_address {
     $info{ADDRESS_FORM}  = $html->element('div', $info{ADDRESS_FORM}, {class => 'form-group'});
   }
 
-  $info{ADDRESS_FORM} .= $html->tpl_show(templates('form_address_sel'), {%$Address, %$attr}, { OUTPUT2RETURN => 1, ID => 'form_address_sel' });
+  $info{ADDRESS_FORM} .= $html->tpl_show(templates('form_address_sel'),
+    {%$Address, %$attr},
+    {
+      OUTPUT2RETURN => 1,
+      ID            => 'form_address_sel'
+    }
+  );
 
   return $info{ADDRESS_FORM};
 }

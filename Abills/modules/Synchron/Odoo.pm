@@ -14,7 +14,7 @@ package Synchron::Odoo;
 
 use strict;
 use warnings FATAL => 'all';
-use Abills::Base qw(load_pmodule2 show_hash);
+use Abills::Base qw(load_pmodule show_hash);
 use Abills::Fetcher;
 
 our $VERSION = 0.01;
@@ -51,7 +51,7 @@ sub new {
 
   bless($self, $class);
 
-  load_pmodule2('Frontier::Client');
+  load_pmodule('Frontier::Client');
 
   $self->{LOGIN}    = $attr->{LOGIN};
   $self->{PASSWORD} = $attr->{PASSWORD};
@@ -117,8 +117,8 @@ sub user_list {
   }
 
   my @WHERE = (
-    ['is_company', '=', 1],
-    ['customer', '=', 1]
+#    ['is_company', '=', 1],
+#    ['customer', '=', 1]
   );
 
   if($self->{CONF}->{SYNCHRON_ODOO_TYPE}) {
@@ -127,6 +127,11 @@ sub user_list {
     foreach my $line (@expr) {
       push @WHERE,  [ split(/,\s?/, $line) ];
     }
+  }
+
+  if($self->{debug}) {
+    print "REQUEST WHERE: $self->{CONF}->{SYNCHRON_ODOO_TYPE}";
+    print join(', ', @WHERE) ."\n";
   }
 
   my $ids = $models->call('execute_kw', $self->{DBNAME}, $self->{UID}, $self->{PASSWORD},
@@ -269,7 +274,7 @@ sub contracts_list {
     'search_read',
     [ \@partner_id ],
     {
-      'fields'=> ['id', 'partner_id', 'recurring_invoice_line_ids', 'ip_antenna' ],
+      'fields'=> ['id', 'partner_id', 'recurring_invoice_line_ids', 'ip_antenna', 'mac_antenna' ],
     }
   );
 
@@ -339,6 +344,7 @@ sub fields_info {
     function	    => '_FUNCTION', #char	Job Position
     vat           => 'PASPORT_NUM',
     ip_pc         => 'IP',
+    mac_antenna   => 'CID'
 
     #info fields
   );
@@ -408,6 +414,10 @@ sub _filter_result {
       }
 
       if($fields && $fields->{$key}) {
+        if($fields->{$key} eq 'CREDIT') {
+          $value = abs($value);
+        }
+
         $info_row{$fields->{$key}} = $value; #. " (//$type)";
       }
       else {

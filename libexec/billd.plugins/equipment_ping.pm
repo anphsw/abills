@@ -24,6 +24,7 @@ my $Events = Events::API->new( $db, $Admin, \%conf );
 
 equipment_ping();
 
+
 #**********************************************************
 =head2 equipment_ping($attr)
 
@@ -49,40 +50,69 @@ sub equipment_ping {
       NAS_NAME  => '_SHOW'
     } );
 
+  my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime();
+  my $datetime = sprintf("%04d-%02d-%02d %02d:%02d:%02d", $year + 1900, $mon + 1, $mday, $hour, $min, $sec);
+
   my %ips;
   foreach my $host (@$equipment) {
     $ips{$host->{nas_ip}} = { NAS_ID => $host->{nas_id}, STATUS => $host->{status}, NAS_NAME => $host->{nas_name} };
   }
 
   my %syn;
+  my %ret_time;
   foreach my $key (keys %ips) {
-    my ($ret, undef, $ip) = $p->ping( $key, $timeout );
+    my ($ret, $duration, $ip) = $p->ping( $key, $timeout );
     if ($ret) {
       $syn{$key} = $ip;
+      $ret_time{$key} = $duration;
     }
     else {
       print "$key address not found\n";
     }
   }
+  my $message = '';
   while (my ($host, undef, undef) = $p->ack) {
-    if ($ips{$host}{STATUS} != 0) {
-      $Equipment->_change( { NAS_ID => $ips{$host}{NAS_ID}, STATUS => 0 } );
+    if ($ips{$host}{STATUS} == 1) {
+      $message .= "$ips{$host}{NAS_NAME}($host) _{AVAILABLE}_\n";
     }
+    $Equipment->_change({
+      NAS_ID        => $ips{$host}{NAS_ID},
+      STATUS        => 0,
+      LAST_ACTIVITY => $datetime
+    });
+
+    $Equipment->ping_log_add({
+      DATE     => $datetime,
+      NAS_ID   => $ips{$host}{NAS_ID},
+      STATUS   => 1,
+      DURATION => $ret_time{$host},
+    });
+
     print " $host is reachable\n" if ( $debug > 1);
     delete $syn{$host};
   }
-  my $message = '';
   foreach my $host (keys %syn) {
     if ($ips{$host}{STATUS} == 0) {
       $Equipment->_change( { NAS_ID => $ips{$host}{NAS_ID}, STATUS => 1 } );
-      $message .= "$ips{$host}{NAS_NAME}($host) is unreachable\n";
+      $message .= "$ips{$host}{NAS_NAME}($host) _{UNAVAILABLE}_\n";
     }
+
+    $Equipment->ping_log_add({
+      DATE     => $datetime,
+      NAS_ID   => $ips{$host}{NAS_ID},
+      STATUS   => 0,
+      DURATION => $timeout,
+    });
+
     print " $host is unreachable\n" if ( $debug > 1);
   }
 
   $p->close;
+
   if ($message) {
-    $message = localtime() . "\n$message";
+    ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime();
+    my $datestr = sprintf("%02d:%02d:%02d %02d.%02d.%04d", $hour, $min, $sec, $mday, $mon + 1, $year + 1900);
+    $message = $datestr . "\n$message";
     generate_new_event( "$message" );
   }
 
@@ -115,3 +145,5 @@ sub generate_new_event{
   
   return 1;
 }
+
+1

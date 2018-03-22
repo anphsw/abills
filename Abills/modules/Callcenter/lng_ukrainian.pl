@@ -8,6 +8,9 @@ $lang{FILLING_DATA}='Роспизнати абонентів';
 $lang{NOT_FOUND}='Не знайдено ';
 $lang{FILTER}='Фільтр';
 $lang{NO_CALLS_FOR_DATE_OR_OPERATOR}='Немає дзвінків за вибрану дату або вибраного оператора';
+$lang{ANSWERED}='Відповіли';
+$lang{NO_ANSWER}='Не відповіли';
+$lang{BUSY}='Зайнято';
 
 ###################################################
 $lang{INVALID_LOOPS}='Попыток повтора';
@@ -35,7 +38,6 @@ $lang{FULL_INFO}='Информация о услугах';
 $lang{MARKETING_INFO}='Информация о акциях и услугах';
 $lang{USE_CREDIT}='Воспользоватся кредитом';
 $lang{CARDS_RECHARGE}='Добавить средства';
-$lang{FUNCTION}='Функция';
 $lang{ERR_MESSAGE}='Сообщение при неудачном вводе';
 $lang{UNDEF_MESSAGE}='Сообщение при таймауте повторений';
 $lang{ENTER_TEXT}='Введите текст';

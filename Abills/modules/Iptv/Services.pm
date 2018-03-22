@@ -195,7 +195,6 @@ sub tv_services {
   $Iptv->{USER_PORTAL} = ($Iptv->{USER_PORTAL}) ? 'checked' : '';
   $Iptv->{STATUS} = ($Iptv->{STATUS}) ? 'checked' : '';
   $html->tpl_show( _include( 'iptv_services_add', 'Iptv' ), { %FORM, %$Iptv });
-  #}
 
   _error_show( $Iptv );
 
@@ -213,9 +212,9 @@ sub tv_services {
     SKIP_USERS_FIELDS => 1,
     TABLE           => {
       width      => '100%',
-      caption    => "TV SERVICES",
+      caption    => "$lang{TV} $lang{SERVICES}",
       qs         => $pages_qs,
-      ID         => "$lang{TV} $lang{SERVICES}",
+      ID         => 'TV SERVICES'
     },
     MAKE_ROWS    => 1,
     TOTAL        => 1,
@@ -258,7 +257,8 @@ sub tv_services_sel {
     STATUS      => 0,
     NAME        => '_SHOW',
     USER_PORTAL => $attr->{USER_PORTAL},
-    COLS_NAME   => 1
+    COLS_NAME   => 1,
+    PAGE_ROWS   => 1
   });
 
   if($attr->{HASH_RESULT}) {
@@ -269,6 +269,11 @@ sub tv_services_sel {
     }
 
     return \%service_name;
+  }
+
+  if($Iptv->{TOTAL} && $Iptv->{TOTAL} == 1) {
+    delete $params{SEL_OPTIONS};
+    $Iptv->{SERVICE_ID}=$service_list->[0]->{id};
   }
 
   my $result =  $html->form_select(
@@ -335,9 +340,16 @@ sub tv_load_service{
   eval " require $service_name; ";
   if ( !$@ ){
     $service_name->import();
-    $api_object = $service_name->new( $db, $admin, \%conf, { %$Iptv_service, HTML => $html  });
 
-    if ($api_object->{SERVICE_NAME}) {
+    if($service_name->can('new')) {
+      $api_object = $service_name->new($db, $admin, \%conf, { %$Iptv_service, HTML => $html });
+    }
+    else {
+      $html->message( 'err', $lang{ERROR}, "Can't load '$service_name'. Purchase this module http://abills.net.ua" );
+      return $api_object;
+    }
+
+    if ($api_object && $api_object->{SERVICE_NAME}) {
       if ($api_object->{SERVICE_NAME} eq 'Olltv') {
         require Iptv::Olltv_web;
       }
@@ -347,7 +359,6 @@ sub tv_load_service{
     }
   }
   else{
-    $FORM{DEBUG}=1;
     print $@ if($FORM{DEBUG});
     $html->message( 'err', $lang{ERROR}, "Can't load '$service_name'. Purchase this module http://abills.net.ua" );
     if (!$attr->{SOFT_EXCEPTION}) {

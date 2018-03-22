@@ -7,7 +7,7 @@ package Companies;
 =cut
 
 use strict;
-use parent 'main';
+use parent qw(dbcore);
 use Users;
 use Conf;
 use Bills;
@@ -140,7 +140,7 @@ sub change {
     $attr->{CONTRACT_SUFIX} = $sufix;
   }
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'companies',
@@ -178,7 +178,7 @@ sub info {
   my $self = shift;
   my ($company_id) = @_;
 
-  $self->query2("SELECT c.*,
+  $self->query("SELECT c.*,
      b.deposit
     FROM companies c
     LEFT JOIN bills b ON (c.bill_id=b.id)
@@ -197,7 +197,7 @@ sub info {
   }
 
   if ($CONF->{EXT_BILL_ACCOUNT} && $self->{EXT_BILL_ID} > 0) {
-    $self->query2("SELECT b.deposit AS ext_bill_deposit, b.uid AS ext_bill_owner
+    $self->query("SELECT b.deposit AS ext_bill_deposit, b.uid AS ext_bill_owner
      FROM bills b WHERE id= ? ;",
      undef,
      { INFO => 1, Bind => [ $self->{EXT_BILL_ID} ] }
@@ -266,7 +266,7 @@ sub list {
 
   my $WHERE =  $self->search_former($attr, [
       ['COMPANY_NAME',   'STR',  'c.name',            ],
-      ['DEPOSIT',        'INT',  'b.deposit',       1 ],
+      ['DEPOSIT',        'INT',  'cb.deposit',      1 ],
       ['CREDIT',         'INT',  'c.credit',        1 ],
       ['USERS_COUNT',    'INT',  'COUNT(u.uid) AS users_count', 1 ],
       ['CREDIT_DATE',    'DATE', 'c.credit_date',   1 ],
@@ -274,7 +274,7 @@ sub list {
       ['REGISTRATION',   'DATE', 'c.registration',  1 ],
       ['DISABLE',        'INT',  'c.disable AS status',  1 ],
       ['CONTRACT_ID',    'INT',  'c.contract_id',   1 ],
-      ['CONTRACT_DATE',  'DATE', 'c.contract_date',1 ],
+      ['CONTRACT_DATE',  'DATE', 'c.contract_date', 1 ],
       ['CONTRACT_SUFIX', 'STR',  'c.contract_sufix',1 ],
       ['ID',             'INT',  'c.id'               ],
       ['BILL_ID',        'INT',  'c.bill_id',       1 ],
@@ -297,31 +297,33 @@ sub list {
       WHERE_RULES      => \@WHERE_RULES,
       USERS_FIELDS_PRE => 1,
       USE_USER_PI      => 1,
-      SKIP_USERS_FIELDS=> [ 'DEPOSIT', 'CREDIT', 'BILL_ID' ],
+      SKIP_USERS_FIELDS=> [ 'DEPOSIT', 'CREDIT', 'BILL_ID', 'CREDIT_DATE', 'ADDRESS',
+                            'REGISTRATION', 'CONTRACT_ID', 'CONTRACT_DATE', 'PHONE', 
+                            'DOMAIN_ID', 'LOCATION_ID', 'ADDRESS_FLAT'
+                          ],
       WHERE            => 1,
     }
   );
 
-  my $EXT_TABLE = q{};
+  my $EXT_TABLE = $self->{EXT_TABLES};
   if($attr->{COMPANY_ADMIN}) {
     $EXT_TABLE .= "LEFT JOIN companie_admins ca ON (ca.uid = u.uid)";
   }
 
-  if($self->{SEARCH_FIELDS} =~ /pi\./) {
-    $EXT_TABLE .= "LEFT JOIN users_pi pi ON (u.uid = pi.uid)";
-  }
+#  if($self->{SEARCH_FIELDS} =~ /pi\./) {
+#    $EXT_TABLE .= "LEFT JOIN users_pi pi ON (u.uid = pi.uid)";
+#  }
   
-  if ($self->{SEARCH_FIELDS} =~ /streets\.|builds\./){
-    $EXT_TABLE .= qq{ LEFT JOIN builds ON (builds.id = c.location_id)
-                     LEFT JOIN streets ON (streets.id = builds.street_id)
-                     LEFT JOIN districts ON (districts.id = streets.district_id)
-    };
-  }
-  
-  $self->query2("SELECT c.name, $self->{SEARCH_FIELDS} c.id 
+#  if ($self->{SEARCH_FIELDS} =~ /streets\.|builds\./){
+#    $EXT_TABLE .= qq{ LEFT JOIN builds ON (builds.id = c.location_id)
+#                      LEFT JOIN streets ON (streets.id = builds.street_id)
+#                      LEFT JOIN districts ON (districts.id = streets.district_id)
+#    };
+#  }
+
+  $self->query("SELECT c.name, $self->{SEARCH_FIELDS} c.id
     FROM companies  c
     LEFT JOIN users u ON (u.company_id=c.id)
-    LEFT JOIN bills b ON (b.id=c.bill_id)
     $EXT_TABLE
     $WHERE
     GROUP BY c.id
@@ -332,16 +334,15 @@ sub list {
   $list = $self->{list};
 
   if ($self->{TOTAL} > 0 || $PG > 0) {
-    $self->query2("SELECT COUNT(DISTINCT c.id) AS total
+    $self->query("SELECT COUNT(DISTINCT c.id) AS total
     FROM companies c
     LEFT JOIN users u ON (u.company_id=c.id)
-    LEFT JOIN bills b ON (b.id=c.bill_id)
-     $WHERE;",
+    $WHERE;",
     undef,
     { INFO => 1 });
   }
 
-  return $list;
+  return $list || [];
 }
 
 #**********************************************************
@@ -373,7 +374,7 @@ sub admins_list {
 
   my $WHERE = ($#WHERE_RULES > -1) ? 'WHERE '. join(' AND ', @WHERE_RULES) : q{};
 
-  $self->query2("SELECT IF(ca.uid IS null, 0, 1) AS is_company_admin,
+  $self->query("SELECT IF(ca.uid IS null, 0, 1) AS is_company_admin,
       u.id AS login,
       pi.fio,
       pi.email,

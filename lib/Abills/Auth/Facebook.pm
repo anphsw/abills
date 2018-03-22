@@ -8,7 +8,7 @@ package Abills::Auth::Facebook;
 
 use strict;
 use warnings FATAL => 'all';
-use Abills::Base qw(_bp urlencode mk_unique_value load_pmodule2 show_hash);
+use Abills::Base qw(_bp urlencode mk_unique_value load_pmodule show_hash);
 use Abills::Fetcher;
 use Encode;
 
@@ -46,7 +46,7 @@ sub get_token {
     $token = $result->{access_token};
   }
   else {
-    load_pmodule2('JSON');
+    load_pmodule('JSON');
     my $json = JSON->new->allow_nonref;
 
     my $result_pair;
@@ -126,7 +126,7 @@ sub check_access {
       }
     }
     else {
-      load_pmodule2('JSON');
+      load_pmodule('JSON');
       my $json = JSON->new->allow_nonref;
 
       my $result_pair;

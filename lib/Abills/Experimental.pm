@@ -93,7 +93,7 @@ sub show_result {
   return 0 if (_error_show($Module, { MESSAGE => $message }));
 
   if (exists $Module->{INSERT_ID}){
-    $attr->{ID} = $Module->{INSERT_ID};
+    $attr->{RESPONCE_PARAMS}{INSERT_ID} =  $Module->{INSERT_ID};
   }
   
   if ($FORM{ID} && $FORM{change}){
@@ -134,6 +134,50 @@ sub translate_list_value {
     }
   }
   return $list;
+}
+
+#**********************************************************
+=head2 _translate_list_simple($list, @name_keys)
+
+  Arguments:
+    $list      - list of vars to translate
+    @name_keys - array of hash keys to translate. default : (name)
+
+  Returns:
+    translated list
+
+=cut
+#**********************************************************
+sub translate_list_simple {
+  my ($list, @name_keys) = @_;
+  
+  $name_keys[0] //= 'name';
+  
+  foreach my $line (@$list){
+    foreach ( @name_keys ) {
+      $line->{$_} = translate_simple($line->{$_}) if ($line->{$_});
+    }
+  }
+  
+  return $list;
+}
+
+#**********************************************************
+=head2 translate_simple($text) - simple translate for template lang variables
+
+=cut
+#**********************************************************
+sub translate_simple {
+  my $text = shift || return '';
+  
+  while ( $text =~ /\_\{(\w+)\}\_/g ) {
+    my $to_translate = $1 or next;
+    my $translation = $lang{$to_translate} // "{$to_translate}";
+    
+    $text =~ s/\_\{$to_translate\}\_/$translation/sg;
+  }
+  
+  return $text
 }
 
 #**********************************************************
@@ -235,8 +279,10 @@ sub make_select_from_db_table {
   
   return sub {
     my $attr  = { %{$attr_ || {} }, %{ shift || {} } };
-    my $selected = $attr->{SELECTED} || $FORM{$select_name} || '';
     
+    my $name = ($attr->{NAME} || $attr_->{NAME} || $select_name || 'INVALID_SELECT_NAME');
+    
+    my $selected = $attr->{SELECTED} || $FORM{$name} || '';
     my $object_list_function = $entity_name . "_list";
     
     my $list = $module_obj->$object_list_function({
@@ -259,8 +305,9 @@ sub make_select_from_db_table {
       $attr->{SEL_OPTIONS} = {'' => ''};
     }
     
+    
     return $html->form_select(
-      ($select_name || $attr_->{NAME} ||$attr->{NAME} || 'INVALID_SELECT_NAME'),
+      $select_name,
       {
         SELECTED       => $selected,
         SEL_LIST       => $list,
@@ -348,7 +395,7 @@ sub make_select_from_arr_ref {
 }
 
 #**********************************************************
-=head2 link_to_function($text, $fn_name, $chg_id, $attr) - makes link to function
+=head2 function_button($text, $fn_name, $chg_id, $attr) - makes link to function
 
 =cut
 #**********************************************************
@@ -357,12 +404,13 @@ sub function_button {
   
   my $fn_index = get_function_index($fn_name);
   if (!$fn_index){
-    return "$lang{ERROR} : $lang{ERR} $lang{ERR_NOT_EXISTS}";
+    return "$lang{ERROR} : $lang{FUNCTION} $fn_name $lang{ERR_NOT_EXISTS}";
   }
   
   my $link_params = '';
+  my $chg_param = $attr->{ID_PARAM} || 'chg';
   if ( $chg_id ) {
-    $link_params = '&chg=' . $chg_id;
+    $link_params = "&$chg_param=$chg_id";
   }
   
   return $html->button($text, "index=$fn_index$link_params", $attr);
@@ -370,7 +418,7 @@ sub function_button {
 
 
 #**********************************************************
-=head2 run_in_backround() - runs a command via Backend Server, and shows notification to admin
+=head2 run_in_background() - runs a command via Backend Server, and shows notification to admin
 
   Command will be runned via Abills::Base::cmd, so $command, and $args are described there
 
@@ -415,28 +463,48 @@ sub run_in_background {
 }
 
 #**********************************************************
-=head2 show_checkboxes_form($list, $checked_hash, $form_main_attr)
+=head2 get_checkboxes_form_html($checkbox_name, $list, $checked_hash, $form_main_attr, $attr)
+
+  Arguments:
+    $checkbox_name  - name for %FORM param
+    $list           - [ {id => '', name => ''}, {id => '', name => ''}, ... ]
+    $checked_hash   - { id1 => 1, id2 => 0, ... }
+    $form_main_attr - arguments for HTML::form_main
+    $attr           - hash_ref
+      SKIP_FORM - do not wrap in <form>
+
+  Returns:
+    string - html (checkboxes and labels)
 
 =cut
 #**********************************************************
-sub show_checkboxes_form {
-  my ($checkbox_name, $list, $checked_hash, $form_main_attr) = @_;
+sub get_checkboxes_form_html {
+  my ($checkbox_name, $list, $checked_hash, $form_main_attr, $attr) = @_;
+  
+  $attr //= {};
   
   my $checkboxes_html = join('',
     map {
       $html->element('div',
         $html->element('label',
-          $html->form_input($checkbox_name, $_->{id}, { TYPE => 'checkbox', STATE => $checked_hash->{$_->{id}} })
-            . $html->element('strong', $_->{name})
+          $html->form_input($checkbox_name, $_->{id}, {
+              TYPE          => 'checkbox',
+              STATE         => $checked_hash->{$_->{id}},
+              OUTPUT2RETURN => 1
+            })
+            . $html->element('strong', $_->{name}, { OUTPUT2RETURN => 1 })
         ),
-        { class => 'checkbox' }
+        { class => 'checkbox', OUTPUT2RETURN => 1 }
       )
     } @{$list}
   );
   
-  print $html->form_main({
-    CONTENT => $checkboxes_html,
-    %$form_main_attr
+  return $checkboxes_html if ($attr->{SKIP_FORM});
+  
+  return $html->form_main({
+    CONTENT       => $checkboxes_html,
+    OUTPUT2RETURN => 1,
+    %$form_main_attr,
   });
 }
 

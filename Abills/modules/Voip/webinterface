@@ -1,5 +1,3 @@
-#!perl
-
 =head1 NAME
 
   Voip web functions
@@ -32,6 +30,9 @@
            Remote-Off-Line                21
            Remote-Temporary-Error         22
 
+
+  ERROR ID: 11xx
+
 =cut
 
 use strict;
@@ -43,7 +44,7 @@ use Nas;
 use Log;
 use Fees;
 use Tariffs;
-use Abills::Base qw(in_array sendmail sec2time show_log int2byte);
+use Abills::Base qw(in_array sendmail sec2time show_log int2byte cmd);
 
 our ($db,
   $admin,
@@ -66,7 +67,7 @@ my $Sessions = Voip_Sessions->new( $db, $admin, \%conf );
 my $Fees     = Fees->new( $db, $admin, \%conf );
 my $Tariffs  = Tariffs->new( $db, \%conf, $admin );
 my $Nas      = Nas->new( $db, \%conf, $admin );
-our $Log     = Log->new( $db, \%conf );
+my $Log      = Log->new( $db, \%conf );
 
 #my $MODULE = ($module{$index}) ? $module{$index} : 'Voip';
 my $debug = 0;
@@ -129,7 +130,7 @@ sub voip_user_del{
 sub voip_chg_tp{
   my ($attr) = @_;
 
-  my $user;
+  my Voip $user;
 
   if ( defined( $attr->{USER_INFO} ) ){
     $user = $attr->{USER_INFO};
@@ -216,7 +217,6 @@ sub voip_chg_tp{
       {
         width      => '100%',
         caption    => $lang{SHEDULE},
-        cols_align => [ 'left', 'left' ],
         rows       =>
         [ [ "$lang{TARIF_PLAN}:", "$shedule->{ACTION}" ],
           [ "$lang{DATE}:", "$shedule->{D}-$shedule->{M}-$shedule->{Y}" ],
@@ -372,6 +372,48 @@ sub voip_users_list{
   return 1;
 }
 
+
+#**********************************************************
+=head2 voip_user_preproccess($attr)
+
+=cut
+#**********************************************************
+sub voip_user_preproccess {
+  my ($params) = @_;
+
+  if ( defined( $FORM{NUMBER} ) && $FORM{NUMBER} < 1 ){
+    $html->message( 'err', $lang{ERROR}, "$lang{ERR_WRONG_DATA} $lang{NUM}" );
+    return 0;
+  }
+
+  if($params->{NUMBER}) {
+    $params->{NUMBER}=~s/\s//g;
+  }
+
+  if($params->{CID}) {
+    $params->{CID}=~s/\s//g;
+  }
+
+  if ( $FORM{PROVISION_PORT} ){
+    my $list = $Voip->user_list(
+      {
+        PROVISION_PORT   => $FORM{PROVISION_PORT},
+        PROVISION_NAS_ID => $FORM{PROVISION_NAS_ID},
+        COLS_NAME        => 1
+      }
+    );
+
+    if ( $Voip->{TOTAL} > 0 && $list->[0]{uid} != $FORM{UID} ){
+      $html->message( 'err', $lang{ERROR},
+        "$lang{PORT}: $FORM{PROVISION_PORT}  $lang{EXIST}. $lang{LOGIN}: " . $html->button( "$list->[0]{login}",
+          "index=15&UID=" . $list->[0]{uid} ) );
+      return 0;
+    }
+  }
+
+  return $params;
+}
+
 #**********************************************************
 =head2 voip_user($attr)
 
@@ -385,60 +427,29 @@ sub voip_user{
 
   voip_provision();
 
-  if ( $FORM{add} ){
-    if ( defined( $FORM{NUMBER} ) && $FORM{NUMBER} < 1 ){
-      $html->message( 'err', $lang{ERROR}, "$lang{ERR_WRONG_DATA} $lang{NUM}" );
+  if ($FORM{add}) {
+    if( ! voip_user_preproccess(\%FORM)) {
+      return 0;
     }
-    else{
-      if ( $FORM{PROVISION_PORT} ){
-        my $list = $Voip->user_list(
-          {
-            PROVISION_PORT   => $FORM{PROVISION_PORT},
-            PROVISION_NAS_ID => $FORM{PROVISION_NAS_ID},
-            COLS_NAME        => 1
-          }
-        );
 
-        if ( $Voip->{TOTAL} > 0 && $list->[0]{uid} != $FORM{UID} ){
-          $html->message( 'err', $lang{ERROR},
-            "$lang{PORT}: $FORM{PROVISION_PORT}  $lang{EXIST}. $lang{LOGIN}: " . $html->button( "$list->[0]{login}",
-              "index=15&UID=" . $list->[0]{uid} ) );
-          return 0;
-        }
-      }
+    $Voip->user_add({ %FORM });
+    if (!$Voip->{errno}) {
+      $html->message('info', $lang{INFO}, "$lang{ADDED}");
+      voip_get_month_fee($Voip) if (!$FORM{STATUS});
 
-      $Voip->user_add( { %FORM } );
-      if ( !$Voip->{errno} ){
-        $html->message( 'info', $lang{INFO}, "$lang{ADDED}" );
-        voip_get_month_fee( $Voip ) if (!$FORM{STATUS});
-
-        if ( $conf{VOIP_ASTERISK_USERS} ){
-          voip_mk_users_conf();
-        }
+      if ($conf{VOIP_ASTERISK_USERS}) {
+        voip_mk_users_conf();
       }
     }
   }
-  elsif ( $FORM{set} ){
-    if ( $FORM{PROVISION_PORT} ){
-      my $list = $Voip->user_list(
-        {
-          PROVISION_PORT   => $FORM{PROVISION_PORT},
-          PROVISION_NAS_ID => $FORM{PROVISION_NAS_ID},
-          COLS_NAME        => 1
-        }
-      );
-
-      if ( $Voip->{TOTAL} > 0 && $list->[0]{uid} != $FORM{UID} ){
-        $html->message( 'err', $lang{ERROR},
-          "$lang{PORT}: $FORM{PROVISION_PORT}  $lang{EXIST}. $lang{LOGIN}: " . $html->button( "$list->[0]{login}",
-            "index=15&UID=" . $list->[0]{uid} ) );
-        return 0;
-      }
+  elsif ($FORM{set}) {
+    if( ! voip_user_preproccess(\%FORM)) {
+      return 0;
     }
 
     $Voip->user_change( { %FORM } );
     if ( !$Voip->{errno} ){
-      $html->message( 'info', $lang{INFO}, "$lang{CHANGED}" );
+      $html->message( 'info', $lang{INFO}, $lang{CHANGED} );
       $Voip->{ACCOUNT_ACTIVATE} = $attr->{USER_INFO}->{ACTIVATE};
 
       if ( !$FORM{STATUS} && ($FORM{GET_ABON} || !$FORM{TP_ID}) ){
@@ -462,7 +473,7 @@ sub voip_user{
   my $user = $Voip->user_info( $FORM{UID} );
 
   if ( $user->{TOTAL} < 1 ){
-    $html->message( 'info', $lang{INFO}, $lang{NOT_ACTIVE} );
+    $html->message( 'info', $lang{INFO}, $lang{NOT_ACTIVE}, { ID => 1105 });
     $user = $Voip->defaults();
     $user->{ACTION} = 'add';
     $user->{LNG_ACTION} = $lang{ACTIVATE};
@@ -549,18 +560,23 @@ sub voip_user{
     %params = %{ $attr };
   }
 
-  $html->tpl_show( _include( 'voip_user', 'Voip' ), { %params, %{$user} } );
+  $html->tpl_show( _include( 'voip_user', 'Voip' ), { %params, %{$user} }, { ID => 'voip_user' } );
 
   return 1;
 }
 
 #**********************************************************
-# Time intervals
-# form_intervals()
+=head2 voip_nas() - Time intervals
+
+ form_intervals()
+
+=cut
 #**********************************************************
 sub voip_nas{
   $FORM{subf} = 18;
+
   voip_tp();
+
   return 1;
 }
 
@@ -743,7 +759,6 @@ sub voip_online{
       [ "$lang{USER}", "$lang{FIO}", "CALLED_STATION_ID", "CALLING_STATION_ID", "$lang{DURATION}", "$lang{TYPE}",
         "CLIENT_IP_ADDRESS", "-",
         "-", "-" ],
-      cols_align => [ 'left', 'left', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'center' ],
       qs         => $pages_qs,
     }
   );
@@ -787,7 +802,6 @@ sub voip_online{
   my $table2 = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right', 'right' ],
       rows       => [ [ "$lang{TOTAL}:", $html->b( $Sessions->{TOTAL} ), "$form_link" ] ]
     }
   );
@@ -801,7 +815,6 @@ sub voip_online{
       title_plain =>
       [ "$lang{REFRESH} (sec): " . $html->form_input( 'REFRESH', int( ($FORM{REFRESH}) ? $FORM{REFRESH} : 0 ),
           { SIZE => 4 } ), $html->form_input( 'SHOW', $lang{SHOW}, { TYPE => 'SUBMIT' } ) ],
-      cols_align  => [ 'center:noprint', 'center:noprint' ],
     }
   );
 
@@ -885,8 +898,14 @@ sub voip_sessions{
     $Sessions->del( $uid, $session_id, $nas_id, "$session_start_date $session_start_time" );
     if ( !$Sessions->{errno} ){
       $html->message( 'info', $lang{DELETED},
-        "$lang{LOGIN}: $login" . $html->br() . "SESSION_ID: $session_id" . $html->br() . "NAS_ID: $nas_id" . $html->br() . "SESSION_START: $session_start_date $session_start_time" . $html->br() . "$lang{SUM}: $sum" );
-      form_back_money( 'log', $sum, { UID => $uid } );    #
+        "$lang{LOGIN}: ". ($login || q{}) ."\n"
+        . "SESSION_ID: $session_id\n"
+        . "NAS_ID: $nas_id\n"
+        . "SESSION_START: $session_start_date $session_start_time\n"
+        . "$lang{SUM}: $sum" );
+
+      form_back_money( 'log', $sum, { UID => $uid } );
+
       return 0;
     }
   }
@@ -1008,9 +1027,8 @@ sub voip_use{
     $table_sessions = $html->table(
       {
         width      => '100%',
-        caption    => "$lang{SESSIONS}",
-        title      => [ "$lang{DATE}", "$lang{USERS}", "$lang{SESSIONS}", $lang{DURATION}, $lang{SUM} ],
-        cols_align => [ 'right', 'left', 'right', 'right', 'right' ],
+        caption    => $lang{SESSIONS},
+        title      => [ $lang{DATE}, $lang{USERS}, $lang{SESSIONS}, $lang{DURATION}, $lang{SUM} ],
         qs         => $pages_qs
       }
     );
@@ -1029,7 +1047,6 @@ sub voip_use{
         width      => '100%',
         caption    => $lang{SESSIONS},
         title      => [ $lang{DATE}, $lang{USERS}, $lang{SESSIONS}, $lang{DURATION}, $lang{SUM} ],
-        cols_align => [ 'right', 'right', 'right', 'right', 'right' ],
         qs         => $pages_qs
       }
     );
@@ -1048,7 +1065,6 @@ sub voip_use{
     {
       width      => '100%',
       caption    => $lang{SESSIONS},
-      cols_align => [ 'right', 'right', 'right', 'right', 'right', 'right' ],
       rows       =>
       [ [ "$lang{USERS}: " . $html->b( $Sessions->{USERS} ), "$lang{SESSIONS}: " . $html->b( $Sessions->{SESSIONS} ),
           "$lang{DURATION}: " . $html->b( $Sessions->{DURATION} ), "$lang{SUM}: " . $html->b( $Sessions->{SUM} ) ] ],
@@ -1078,11 +1094,11 @@ sub voip_error{
     $Voip->user_info( $attr->{USER_INFO}->{UID} );
 
     $login = $Voip->{NUMBER};
-    $LIST_PARAMS{LOGIN_EXPR} = $Voip->{NUMBER};
+    $LIST_PARAMS{LOGIN} = $Voip->{NUMBER};
   }
   elsif ( $FORM{LOGIN_EXPR} ){
     $login = $FORM{LOGIN_EXPR};
-    $LIST_PARAMS{LOGIN_EXPR} = $FORM{LOGIN_EXPR};
+    $LIST_PARAMS{LOGIN} = $FORM{LOGIN_EXPR};
     $pages_qs .= "&LOGIN_EXPR=$FORM{LOGIN_EXPR}";
   }
   elsif ( $FORM{UID} ){
@@ -1099,7 +1115,7 @@ sub voip_error{
 
     my $list = $Nas->list(
       {
-        TYPE      => 'asterisk,gnugk,cisco_voip,eltex_smg',
+        NAS_TYPE  => 'asterisk,gnugk,cisco_voip,eltex_smg',
         PAGE_ROWS => 10000,
         COLS_NAME => 1
       }
@@ -1154,7 +1170,6 @@ sub voip_error{
       {
         caption    => $lang{TOTAL},
         width      => '100%',
-        cols_align => [ 'right', 'right' ],
       }
     );
 
@@ -1172,7 +1187,7 @@ sub voip_error{
       {
         caption => "Internet $lang{ERROR}",
         width   => '100%',
-        title   => [ $lang{DATE}, "$lang{TYPE}", "$lang{ACTION}", "$lang{USER}", "$lang{TEXT}", "NAS" ],
+        title   => [ $lang{DATE}, $lang{TYPE}, $lang{ACTION}, $lang{USER}, $lang{TEXT}, "NAS" ],
         pages   => $total,
         qs      => $pages_qs,
         ID      => 'VOIP_ERRORS',
@@ -1201,64 +1216,6 @@ sub voip_error{
     print $table->show();
   }
 
-  return 0 if (in_array( 'Dv', \@MODULES ));
-
-  #File part
-  if ( !-f $conf{LOGFILE} ){
-    $html->message( 'info', "$lang{INFO} $conf{LOGFILE}", $lang{NOT_EXIST} );
-    return 0;
-  }
-
-  if ( defined( $FORM{LOG_TYPE} ) ){
-    $pages_qs .= "&LOG_TYPE=$FORM{LOG_TYPE}";
-  }
-
-  my ($list, $types, $totals) = show_log(
-    $login,
-    $conf{LOGFILE},
-    {
-      DATE      => $FORM{DATE},
-      LOG_TYPE  => ($FORM{LOG_TYPE} && $log_levels_rev{ $FORM{LOG_TYPE} }) ? $log_levels_rev{ $FORM{LOG_TYPE} } : q{},
-      PG        => $PG,
-      PAGE_ROWS => 25                                    #$PAGE_ROWS
-    }
-  );
-
-  my $table = $html->table(
-    {
-      caption => "System $lang{ERROR}",
-      width   => '100%',
-      pages   => $totals,
-      qs      => $pages_qs,
-      ID      => 'DV_ERRORS'
-    }
-  );
-
-  foreach my $line ( @{$list} ){
-    if ( $line =~ m/LOG_WARNING/i ){
-      $line = $html->color_mark( $line, '#FF0000' );
-    }
-
-    $table->addrow( $line );
-  }
-  print $table->show();
-
-  $table = $html->table(
-    {
-      width      => '100%',
-      cols_align => [ 'right', 'right' ]
-    }
-  );
-
-  $table->addrow( $html->button( "$lang{TOTAL}", "index=$index&$pages_qs" ), $totals );
-  while (my ($k, $v) = each %{$types}) {
-    $table->addrow( $html->button( $k, "index=$index&LOG_TYPE=$k$pages_qs" ), $v );
-  }
-
-  $table->addrow( $lang{SIZE}, int2byte( (-s $conf{LOGFILE}) ) ) if ($login eq '');
-
-  print $table->show();
-
   return 1;
 }
 
@@ -1282,13 +1239,14 @@ sub voip_stats{
       $LIST_PARAMS{DESC} = 'DESC';
     }
 
-    if ( defined( $FORM{OP_SID} ) and $FORM{OP_SID} eq $COOKIES{OP_SID} ){
-      $html->message( 'err', $lang{ERROR}, "$lang{EXIST} $FORM{OP_SID} eq $COOKIES{OP_SID}" );
+    my $op_sid = $COOKIES{OP_SID} || q{};
+    if ( defined( $FORM{OP_SID} ) and $FORM{OP_SID} eq $op_sid ){
+      $html->message( 'err', $lang{ERROR}, "$lang{EXIST} $FORM{OP_SID} eq $op_sid" );
     }
     elsif ( $FORM{bm} ){
       use Bills;
       my $Bill = Bills->new( $db );
-      $Bill->action( 'add', "$FORM{BILL_ID}", $FORM{sum} );
+      $Bill->action( 'add', $FORM{BILL_ID}, $FORM{sum} );
       if ( _error_show( $Bill ) ){
         $html->message( 'info', $lang{INFO}, "$lang{ADDED}: SUM $FORM{sum}, BILL_ID: $FORM{BILL_ID}" );
       }
@@ -1320,8 +1278,7 @@ sub voip_stats{
   my $table = $html->table(
     {
       width       => '100%',
-      title_plain => [ "$lang{PERIOD}", "$lang{DURATION}", "$lang{SUM}" ],
-      cols_align  => [ 'left', 'right', 'right' ],
+      title_plain => [ $lang{PERIOD}, $lang{DURATION}, $lang{SUM} ],
       rowcolor    => $_COLORS[1]
     }
   );
@@ -1381,7 +1338,6 @@ sub voip_stats{
       rowcolor    => $_COLORS[1],
       caption     => $lang{TOTAL},
       title_plain => [ "$lang{SESSIONS}", "$lang{DURATION}", "$lang{SUM}" ],
-      cols_align  => [ 'right', 'right', 'right' ],
       rows        => [ [ $Sessions->{TOTAL}, $Sessions->{DURATION}, $Sessions->{SUM} ] ],
     }
   );
@@ -1479,8 +1435,9 @@ sub voip_session_detail{
 }
 
 #*******************************************************************
-# WHERE period
-# base_state($where, $period);
+=head2 voip_stats_calculation($sessions_)
+
+=cut
 #*******************************************************************
 sub voip_stats_calculation{
   my ($sessions_) = @_;
@@ -1492,7 +1449,6 @@ sub voip_stats_calculation{
       width       => '640',
       rowcolor    => $_COLORS[1],
       title_plain => [ "-", "$lang{MIN}", "$lang{MAX}", "$lang{AVG}" ],
-      cols_align  => [ 'left', 'right', 'right', 'right' ],
       rows        => [ [ $lang{DURATION}, $sessions_->{MIN_DUR}, $sessions_->{MAX_DUR}, $sessions_->{AVG_DUR} ],
         [ $lang{SUM}, $sessions_->{MIN_SUM}, $sessions_->{MAX_SUM}, $sessions_->{AVG_SUM} ] ]
     }
@@ -1531,7 +1487,6 @@ sub voip_user_stats{
       width       => '100%',
       caption     => $lang{PERIOD},
       title_plain => [ "$lang{PERIOD}", "$lang{DURATION}", "$lang{SUM}" ],
-      cols_align  => [ 'left', 'right', 'right' ],
       ID          => 'PERIODS'
     }
   );
@@ -1593,7 +1548,6 @@ sub voip_user_stats{
       caption     => $lang{TOTAL},
       rowcolor    => $_COLORS[1],
       title_plain => [ "$lang{SESSIONS}", "$lang{DURATION}", "$lang{SUM}" ],
-      cols_align  => [ 'right', 'right', 'right' ],
       rows        => [ [ $Sessions->{TOTAL}, $Sessions->{DURATION}, $Sessions->{SUM} ] ],
       ID          => 'VOIP_TOTALS'
     }
@@ -1665,7 +1619,6 @@ sub voip_user_routes{
       width      => '100%',
       caption    => $lang{ROUTES},
       title      => \@caption,
-      cols_align => \@aligns,
       qs         => $pages_qs,
       pages      => $Voip->{TOTAL},
       ID         => 'VOIP_ROUTES_PRICES',
@@ -1925,10 +1878,15 @@ $lang{TOTAL}: $Voip->{TOTAL}\n";
 #**********************************************************
 sub voip_gk_console{
 
-  my $list = $Nas->list( { TYPE => 'gnugk', PAGE_ROWS => 10000 } );
+  my $list = $Nas->list( {
+    NAS_TYPE  => 'gnugk',
+    PAGE_ROWS => 10000,
+    DOMAIN_ID => $admin->{DOMAIN_ID}
+  } );
+
   my $table = $html->table(
     {
-      caption    => "$lang{NAS}",
+      caption    => $lang{NAS},
       width      => '100%',
       title      => [ "#", "$lang{NAME}", 'NAS-Identifier', 'IP' ],
       qs         => $pages_qs,
@@ -2035,7 +1993,6 @@ sub voip_gk_console{
           {
             caption    => 'Commands',
             width      => '100%',
-            cols_align => [ 'right', 'right' ],
             rows       => [ [ "$lang{TOTAL}:", $html->b( $total ) ] ]
           }
         );
@@ -2211,7 +2168,7 @@ sub voip_mk_users_conf{
 #***********************************************************
 sub voip_report{
   my ($type, $attr) = @_;
-  my $REPORT = "Module: Voip\n";
+  my $REPORT = "Module: Voip ($type)\n";
 
   %LIST_PARAMS = %{ $attr->{LIST_PARAMS} } if (defined( $attr->{LIST_PARAMS} ));
 
@@ -2314,7 +2271,7 @@ sub voip_get_month_fee {
     MONTH_FEE => 0
   );
 
-  if ( $user->{UID} ){
+  if ( $user && $user->{UID} ){
     $users = $user;
   }
   else{
@@ -2359,7 +2316,7 @@ sub voip_get_month_fee {
     #Current Month
     my ($y, $m, $d) = split( /-/, $DATE, 3 );
 
-    my ($active_y, $active_m, $active_d) = split( /-/, $Voip->{ACCOUNT_ACTIVATE} || $users->{ACTIVATE}, 3 );
+    my ($active_y, $active_m, $active_d) = split( /-/, $Voip->{ACCOUNT_ACTIVATE} || $users->{ACTIVATE} || q{}, 3 );
 
     if ( int( "$y$m$d" ) < int( "$active_y$active_m$active_d" ) ){
       return \%total_sum;
@@ -2495,7 +2452,7 @@ sub voip_get_month_fee {
 
       $TIME = "00:00:00";
       if ( $conf{EXT_BILL_ACCOUNT} ){
-        if ( $user->{EXT_BILL_DEPOSIT} < $sum && $user->{MAIN_BILL_ID} ){
+        if ( $user->{EXT_BILL_DEPOSIT} && $user->{EXT_BILL_DEPOSIT} < $sum && $user->{MAIN_BILL_ID} ){
           $sum = $sum - $user->{EXT_BILL_DEPOSIT};
           $Fees->take(
             $users,
@@ -2537,6 +2494,69 @@ sub voip_get_month_fee {
   return \%total_sum;
 }
 
+
+#**********************************************************
+=head voip_quick_info($attr) - Quick information
+
+  Arguments:
+    $attr
+
+=cut
+#**********************************************************
+sub voip_quick_info {
+  my ($attr) = @_;
+  my $result;
+
+  my $uid = $attr->{UID} || $FORM{UID};
+
+  if ($attr->{UID}) {
+    my $list = $Voip->user_list({
+      UID        => $uid,
+      TP_NAME    => '_SHOW',
+      MONTH_FEE  => '_SHOW',
+      CID        => '_SHOW',
+      TP_COMMENTS=> '_SHOW',
+      STATUS     => '_SHOW',
+      IP         => '_SHOW',
+      COLS_NAME  => 1,
+      COLS_UPPER => 1
+    });
+
+    $result = $list->[0];
+    my $service_status = sel_status({ HASH_RESULT => 1 });
+    $result->{STATUS} = (defined($result->{STATUS})) ? $service_status->{ $result->{STATUS} } : '';
+
+    return $result;
+  }
+  elsif($attr->{GET_PARAMS}) {
+    $result = {
+      HEADER    => 'Voip',
+      QUICK_TPL => 'voip_qi_box',
+      FIELDS => {
+        TP_NAME     => $lang{TARIF_PLAN},
+        STATUS      => $lang{STATUS},
+        MONTH_FEE   => $lang{MONTH_FEE},
+        TP_COMMENTS => $lang{COMMENTS},
+      }
+    };
+
+    return $result;
+  }
+
+  $Voip->user_list({
+    UID        =>  $uid,
+    TP_NAME    => '_SHOW',
+    MONTH_FEE  => '_SHOW',
+    CID        => '_SHOW',
+    TP_COMMENTS=> '_SHOW',
+    STATUS     => '_SHOW',
+    IP         => '_SHOW',
+    COLS_NAME  => 1,
+    COLS_UPPER => 1
+  });
+
+  return ($Voip->{TOTAL} > 0) ? $Voip->{TOTAL} : '';
+}
 
 1
 

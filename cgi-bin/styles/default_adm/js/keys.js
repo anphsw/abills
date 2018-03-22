@@ -1,3 +1,4 @@
+"use strict";
 /**
  * Created by Anykey on 02.09.2015.
  */
@@ -10,6 +11,10 @@ function keyDown(e) {
         clickButton('go');
       }
       else {
+        // #S9801. Should check for textarea
+        var target = e.target.localName;
+        if (target === 'textarea') return;
+
         clickButton('save');
         clickButton('search'); //modal-search
       }

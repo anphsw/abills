@@ -22,6 +22,7 @@ our @EXPORT = qw(
   verify_pid
   daemonize
   stop_server
+  is_running
 );
 
 our @EXPORT_OK = qw(
@@ -41,8 +42,7 @@ our @EXPORT_OK = qw(
        clean   - Clean PID file
 
   Returns:
-    TRUE  - Running
-    FALSE - Not run
+    boolean
 
 =cut
 #**********************************************************
@@ -50,7 +50,7 @@ sub make_pid{
   my ($pid_file, $attr) = @_;
 
   if ( !$pid_file ){
-    $pid_file = get_pid( $attr );
+    $pid_file = _get_pid_filename( $attr );
   }
 
   if ( $attr && $attr eq 'clean' ){
@@ -59,11 +59,7 @@ sub make_pid{
   }
 
   if ( -f $pid_file ){
-    open( my $ph, '<', "$pid_file" ) || die "Can't open pid file '$pid_file' $!\n";
-    my @pids = <$ph>;
-    close( $ph );
-
-    my $pid = $pids[0];
+    my $pid = _read_pid($pid_file);
     if ( verify_pid( $pid ) ){
       print "Process running, PID: $pid\n";
       return 1;
@@ -125,7 +121,7 @@ sub daemonize{
   chdir '/';
   umask 0;
 
-  my $pid_file = get_pid( $attr );
+  my $pid_file = _get_pid_filename( $attr );
 
   #Save old out
   my $SAVEOUT;
@@ -169,7 +165,7 @@ sub stop_server{
   my ($pid_file, $attr) = @_;
 
   if ( !$pid_file ){
-    $pid_file = get_pid( $attr );
+    $pid_file = _get_pid_filename( $attr );
   }
 
   my $res = `kill \`cat $pid_file\``;
@@ -182,7 +178,33 @@ sub stop_server{
 }
 
 #**********************************************************
-=head2 get_pid($attr) = @_;
+=head2 is_running($attr)
+
+  Arguments:
+    $attr - hash_ref
+      PID_FILE     - PID file
+        or
+      LOG_DIR      - PID dir ( obviously :) )
+      PROGRAM_NAME - name for PID file
+      
+  Returns:
+    boolean
+    
+=cut
+#**********************************************************
+sub is_running {
+  my ($attr) = @_;
+  
+  my $pid_file = $attr->{PID_FILE} || _get_pid_filename($attr);
+  
+  my $pid = _read_pid($pid_file);
+  
+  # verify_pid() returns inverted boolean value
+  return !verify_pid($pid)
+}
+
+#**********************************************************
+=head2 _get_pid_filename($attr) = @_;
 
   Argumenst:
     $attr     - Extra arguments
@@ -192,7 +214,7 @@ sub stop_server{
 
 =cut
 #**********************************************************
-sub get_pid{
+sub _get_pid_filename{
   my ($attr) = @_;
 
   my $program_name = $0;
@@ -213,6 +235,20 @@ sub get_pid{
   return $pid_file;
 }
 
+#**********************************************************
+=head2 _read_pid($pid_file)
+
+=cut
+#**********************************************************
+sub _read_pid {
+  my ($pid_file) = @_;
+  
+  open( my $ph, '<', "$pid_file" ) || die "Can't open pid file '$pid_file' $!\n";
+  my @pids = <$ph>;
+  close( $ph );
+  
+  return $pids[0];
+}
 
 =head1 AUTHOR
 

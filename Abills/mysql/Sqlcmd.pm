@@ -7,7 +7,7 @@ package Sqlcmd;
 =cut
 
 use strict;
-use parent 'main';
+use parent qw(dbcore);
 my $MODULE = 'Sqlcmd';
 my ($admin, $CONF);
 
@@ -190,7 +190,7 @@ sub info {
     return $list;
   }
   elsif ($type eq 'showtriggers') {
-    $self->query2("SHOW TRIGGERS");
+    $self->query("SHOW TRIGGERS");
     return $self->{list};
   }
 
@@ -254,7 +254,7 @@ sub list {
 
     if ($query =~ /CREATE |UPDATE |INSERT |ALTER /i) {
       $db->{mysql_client_found_rows}=1;
-      if (my $count = $db->do("$query")) {
+      if (my $count = $db->do($query)) {
         $self->{AFFECTED} = sprintf("%d", (defined ($count) ? $count : 0));
       }
       else {
@@ -265,7 +265,7 @@ sub list {
     }
     else {
       print $query if ($self->{debug});
-      $q = $db->prepare("$query", { "mysql_use_result" => ($query !~ /!SELECT/gi) ? 0 : 1 }) || print $db->errstr;
+      $q = $db->prepare($query, { "mysql_use_result" => ($query !~ /!SELECT/gi) ? 0 : 1 }) || print $db->errstr;
 
       if ($db->err) {
         $self->{errno}      = 3;
@@ -362,13 +362,15 @@ sub sqlcmd_info {
 }
 
 #**********************************************************
-# add()
+=head2 history_add($attr)
+
+=cut
 #**********************************************************
 sub history_add {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("INSERT INTO sqlcmd_history (datetime, aid, sql_query, db_id, comments)
+  $self->query("INSERT INTO sqlcmd_history (datetime, aid, sql_query, db_id, comments)
                VALUES (NOW(), ?, ?, ?, ?);", 
   'do',
   { Bind => [
@@ -384,9 +386,9 @@ sub history_add {
 }
 
 #**********************************************************
-# Delete user info from all tables
-#
-# del(attr);
+=head2 history_del($attr)
+
+=cut
 #**********************************************************
 sub history_del {
   my $self = shift;
@@ -407,7 +409,7 @@ sub history_list {
   my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  $self->query2("SELECT datetime, comments, id FROM sqlcmd_history WHERE aid= ? 
+  $self->query("SELECT datetime, comments, id FROM sqlcmd_history WHERE aid= ?
     ORDER BY 1 DESC
     LIMIT $PG, $PAGE_ROWS;",
   undef, 
@@ -419,7 +421,7 @@ sub history_list {
   my $list = $self->{list};
 
   if ($self->{TOTAL} > 0) {
-    $self->query2("SELECT count(*) AS total
+    $self->query("SELECT count(*) AS total
     FROM sqlcmd_history
     WHERE aid= ?;", 
     undef, 
@@ -439,7 +441,7 @@ sub history_query {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("SELECT datetime, 
+  $self->query("SELECT datetime,
      sql_query,
      comments, 
      id 

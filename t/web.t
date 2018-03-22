@@ -250,7 +250,7 @@ sub show_all_vars {
   print "\nGlobal Vars ";
 
   eval { require Devel::Size; };
-  my $top = $ARGV[0] && ($ARGV[0] ne 'ui' || $ARGV[0] ne 'brutal') ? $ARGV[0] : 0;
+  my $top = ($ARGV[0] && ($ARGV[0] ne 'ui' || $ARGV[0] ne 'brutal')) ? $ARGV[0] : 0;
 
   if ($@){
     print "Install perl module Devel::Size \n";
@@ -270,15 +270,15 @@ sub show_all_vars {
     }
   }
 
-  my $i=0;
-  my $info='';
+  my $i          = 0;
+  my $info       = '';
   my $total_size = 0;
   foreach my $ps ( sort { $info_{$b} <=> $info_{$a} } keys %info_) {
     my $size = size($ps);
     $total_size += $size;
     if ($top){
       $info .= sprintf( " %30s: %d / %d\n", $ps, $info_{$ps}, size( $ps ) );
-      if ($i > $top ){
+      if ( $top =~ /\d+/ && $i > $top ){
         last;
       }
     }

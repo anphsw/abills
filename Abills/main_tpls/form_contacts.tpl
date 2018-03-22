@@ -25,8 +25,8 @@
 
 </style>
 
-<form action='$SELF_URL' class='form-horizontal'>
-  <input type='hidden' name='index' value='$index'>
+<!-- <form action='$SELF_URL' class='form-horizontal'> -->
+  <!-- <input type='hidden' name='index' value='$index'> -->
   <input type='hidden' name='subf' value='%subf%'>
   <input type='hidden' name='DEFAULT_CONTACT_TYPES' value='%DEFAULT_TYPES%'>
 
@@ -62,7 +62,7 @@
       </div>
     </div>
   </div>
-</form>
+<!-- </form> -->
 
 <script>
   var CONTACTS_LANG = {

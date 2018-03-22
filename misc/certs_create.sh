@@ -14,13 +14,14 @@ CA_pl='/usr/src/crypto/openssl/apps/CA.pl';
 
 hostname=`hostname`;
 password=whatever;
-VERSION=2.11;
+VERSION=2.12;
 DAYS=730;
 DATE=`date`;
 CERT_TYPE=$1;
 CERT_USER="";
 CERT_LENGTH=2048;
 OS=`uname`;
+SSH_KEY_TYPE=""
 
 if [ "$1" = "help" ]; then
   shift ;
@@ -117,7 +118,7 @@ if [ -f /usr/abills/Abills/programs ]; then
 fi;
 
 #Default Cert user
-if [ x"${CERT_USER}" = x ];  then
+if [ "${CERT_USER}" = "" ];  then
   if [ x`uname` = xLinux ]; then
      APACHE_USER="www-data";
   else 
@@ -260,8 +261,6 @@ fi;
   cert_info server.crt
 
   chmod 400 server.key
-
-  RESTART_APACHE=`cat ${BILLING_DIR}/Abills/programs | grep RESTART_APACHE | awk -F= '{ print $2 }'`;
 
   if [ "${RESTART_APACHE}" != "" ]; then
     echo -n "Restart apache: [Y/n]";
@@ -443,7 +442,7 @@ express_oplata () {
     echo -n "BCC: "
     read BCC_EMAIL
 
-    if [ w${BCC_EMAIL} != w ]; then
+    if [ "${BCC_EMAIL}" != "" ]; then
       BCC_EMAIL="-b ${BCC_EMAIL}"
     fi; 
 
@@ -674,7 +673,7 @@ check_ssl_conf () {
 #Cert functions
 case ${CERT_TYPE} in
   ssh)
-        ssh_key $2;
+        ssh_key;
         ;;
   apache)
         apache_cert;

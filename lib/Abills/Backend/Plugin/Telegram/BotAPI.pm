@@ -7,17 +7,32 @@ use warnings 'FATAL' => 'all';
   
 =cut
 
-use Abills::Base qw/_bp load_pmodule2/;
+our $libpath;
+BEGIN {
+  our $Bin;
+  use FindBin '$Bin';
+  
+  $libpath = $Bin . '/../'; #assuming we are in /usr/abills/misc/
+  if ( $Bin =~ m/\/abills(\/)/ ) {
+    $libpath = substr($Bin, 0, $-[1]);
+  }
+  
+  unshift(@INC,
+    "$libpath/lib/Abills/Backend/",
+  );
+}
 
-if ( my $module_load_error = load_pmodule2("AnyEvent", { SHOW_RETURN => 1 }) ) {
+use Abills::Base qw/_bp load_pmodule/;
+
+if ( my $module_load_error = load_pmodule("AnyEvent", { SHOW_RETURN => 1 }) ) {
   die $module_load_error;
 }
 
-if ( my $module_load_error = load_pmodule2("AnyEvent::HTTP", { SHOW_RETURN => 1 }) ) {
+if ( my $module_load_error = load_pmodule("AnyEvent::HTTP", { SHOW_RETURN => 1 }) ) {
   die $module_load_error;
 }
 
-if ( my $module_load_error = load_pmodule2("JSON", { SHOW_RETURN => 1 }) ) {
+if ( my $module_load_error = load_pmodule("JSON", { SHOW_RETURN => 1 }) ) {
   die $module_load_error;
 }
 
@@ -29,12 +44,21 @@ require AnyEvent::Socket;
 AnyEvent::Socket->import();
 require AnyEvent::HTTP;
 AnyEvent::HTTP->import();
+
+my %anyevent_errors = (
+  595 => 'errors during connection establishment, proxy handshake.',
+  596 => 'errors during TLS negotiation, request sending and header processing.',
+  597 => 'errors during body receiving or processing.',
+  598 => 'user aborted request via on_header or on_body.',
+  599 => 'other, usually nonretryable, errors (garbled URL etc.).',
+);
+
 require JSON;
 JSON->import();
 
 my JSON $json = JSON->new->utf8(0)->allow_nonref(1);
 
-require Abills::Backend::Log;
+require Abills::Backend::Log unless $Abills::Backend::Log::VERSION;
 Abills::Backend::Log->import(':levels');
 
 my Abills::Backend::Log $Log;
@@ -338,13 +362,15 @@ sub make_request {
     $Log->alert('REQUEST PARAMS ERROR : ' . $params);
     
     my $res = { error => $@, ok => 0, type => 'on_write' };
-    !$callback ? $waiter->send($res) : $callback->($res);
+    (!$callback) ? $waiter->send($res) : $callback->($res);
   }
   
   my $len = length $params_encoded;
+  
   AnyEvent::HTTP::http_request(
     GET     => $endpoint,
     body    => $params_encoded,
+    timeout => ($params && $params->{timeout} ) ? ($params->{timeout} + 2) : 2,
     headers => {
       'User-Agent'     => 'ABillS Telegram Agent',
       'Content-Type'   => 'application/json',
@@ -365,11 +391,17 @@ sub make_request {
           $res = { error => $@, ok => 0, type => 'on_decode' };
         }
       
-        !$callback ? $waiter->send($res) : $callback->($res);
+        (!$callback) ? $waiter->send($res) : $callback->($res);
       }
       else {
-        my $res = { error => $hdr->{Reason}, ok => 0, error_code => $hdr->{Status}, type => 'on_read' };
-        !$callback ? $waiter->send($res) : $callback->($res);
+        $hdr->{Status} //= 1;
+        my $res = {
+          error      => $anyevent_errors{$hdr->{Status}} || $hdr->{Reason},
+          ok         => 0,
+          error_code => $hdr->{Status},
+          type       => 'on_read'
+        };
+        (!$callback) ? $waiter->send($res) : $callback->($res);
       }
     }
   );

@@ -17,7 +17,7 @@ BEGIN {
   unshift(@INC, $libpath . "Abills/$sql_type/", $libpath . '/lib/');
 }
 
-use Abills::Base qw(parse_arguments int2byte ip2int int2ip load_pmodule2 sec2time);
+use Abills::Base qw(parse_arguments int2byte ip2int int2ip load_pmodule sec2time);
 
 #use threads;
 use Data::Dumper;
@@ -32,9 +32,9 @@ use Equipment;
 
 our (%conf, $DATE, $TIME, $var_dir);
 
-load_pmodule2('Net::SNMPTrapd');
-load_pmodule2('SNMP');
-load_pmodule2('JSON');
+load_pmodule('Net::SNMPTrapd');
+load_pmodule('SNMP');
+load_pmodule('JSON');
 
 if ($#ARGV < 0) {
   help();

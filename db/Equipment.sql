@@ -63,6 +63,10 @@ CREATE TABLE IF NOT EXISTS `equipment_models` (
   `comments` TEXT NOT NULL,
   `rows_count` INT(11) UNSIGNED NOT NULL DEFAULT '1',
   `block_size` INT(11) UNSIGNED DEFAULT '0',
+  `snmp_port_shift` tinyint(2) UNSIGNED NOT NULL DEFAULT '0'
+  COMMENT 'Shift user ports via snmp',
+  `test_firmware` VARCHAR(20) NOT NULL DEFAULT ''
+  COMMENT 'Test equipment firmware',
   `port_numbering` TINYINT(1) UNSIGNED DEFAULT '0'
   COMMENT 'FALSE is ROWS, TRUE is COLUMNS',
   `first_position` TINYINT(1) UNSIGNED DEFAULT '0'
@@ -72,10 +76,11 @@ CREATE TABLE IF NOT EXISTS `equipment_models` (
   `extra_port3` SMALLINT(6) UNSIGNED DEFAULT '0',
   `extra_port4` SMALLINT(6) UNSIGNED DEFAULT '0',
   `ports_type` SMALLINT(5) UNSIGNED DEFAULT '1',
+  `port_shift` TINYINT(2) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`)
 )
   ENGINE = InnoDB
-  AUTO_INCREMENT = 164
+  AUTO_INCREMENT = 1000
   DEFAULT CHARSET = utf8
   COMMENT = 'Equipment models';
 
@@ -94,6 +99,7 @@ CREATE TABLE IF NOT EXISTS `equipment_infos` (
   `revision` VARCHAR(10) NOT NULL DEFAULT '',
   `snmp_version` TINYINT(1) UNSIGNED NOT NULL DEFAULT 1,
   `server_vlan` smallint(6) unsigned NOT NULL DEFAULT 0,
+  `last_activity` DATETIME NOT NULL,
   UNIQUE (`nas_id`)
 )
   COMMENT = 'Equipment info';
@@ -215,6 +221,7 @@ CREATE TABLE IF NOT EXISTS `equipment_mac_log` (
   `nas_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `datetime` DATETIME NOT NULL DEFAULT '0000-00-00 00:00:00',
   `rem_time` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `port_name` VARCHAR(50) NOT NULL DEFAULT '',
   KEY `mac` (`mac`),
   KEY `nas_id` (`nas_id`),
   KEY `id` (`id`)
@@ -237,6 +244,9 @@ CREATE TABLE IF NOT EXISTS `equipment_pon_onu` (
   `onu_dhcp_port` VARCHAR(20) NOT NULL DEFAULT '',
   `onu_graph` VARCHAR(50) NOT NULL DEFAULT 'SIGNAL,TEMPERATURE,SPEED',
   `datetime` DATETIME NOT NULL DEFAULT '0000-00-00',
+  `line_profile` VARCHAR(50) NOT NULL DEFAULT 'ONU',
+  `srv_profile` VARCHAR(50) NOT NULL DEFAULT 'ALL',
+  `deleted` INT(1) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`)
 )
   ENGINE = InnoDB
@@ -255,7 +265,7 @@ CREATE TABLE IF NOT EXISTS `equipment_pon_ports` (
 )
   COMMENT = 'Equipment PON ports';
 
-CREATE TABLE `equipment_trap_types` (
+CREATE TABLE IF NOT EXISTS `equipment_trap_types` (
   `id` smallint(2) unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(100) NOT NULL DEFAULT '',
   `object_id` varchar(100) NOT NULL DEFAULT '',
@@ -269,7 +279,7 @@ CREATE TABLE `equipment_trap_types` (
 ) 
   COMMENT='Equipment trap types';
 
-CREATE TABLE `equipment_snmp_params` (
+CREATE TABLE IF NOT EXISTS `equipment_snmp_params` (
   `id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(32) NOT NULL DEFAULT '',
   `type` varchar(12) NOT NULL DEFAULT '',
@@ -277,3 +287,20 @@ CREATE TABLE `equipment_snmp_params` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
 ) COMMENT='Equipment snmp params list';
+
+CREATE TABLE IF NOT EXISTS `equipment_ping_log` (
+  `id` INT(11) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  `date` DATETIME NOT NULL,
+  `nas_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `status` TINYINT(2) UNSIGNED NOT NULL DEFAULT '0',
+  `duration` DOUBLE(12, 4) NOT NULL DEFAULT '0.0000'
+) COMMENT = 'Equipment ping';
+
+CREATE TABLE IF NOT EXISTS `equipment_tr_069_settings` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `onu_id` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `updatetime` DATETIME NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+  `changetime` DATETIME NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+  `settings` TEXT,
+  PRIMARY KEY (`id`)
+)   COMMENT='Equipment TR-069 Settings';

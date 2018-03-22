@@ -7,7 +7,6 @@ $lang{FAILED} = "Transaksiya amalga oshirilmagan";
 $lang{ERR_INVALID_SIGNATURE} = "Imzo noto'g'ri. Ma'murga murojaat qiling";
 $lang{ERR_TRANSACTION_DECLINED} = "Transaksiya rad qilindi";
 $lang{ERR_TERMINAL} = "Terminalda xato mavjud";
-$lang{ERR_WRONG_PHONE} = "Telefon raqami noto'g'ri";
 $lang{GET_INVOICE} = "Hisobni olish";
 $lang{INVOICE_SENDED} = "Hisob jo'natildi";
 $lang{TEST_PAYMENT} = "Tekshiruv to'lovi";

@@ -26,7 +26,8 @@ use Abills::Defs;
 our (%OUTPUT, @REGISTRATION, %lang, %LANG, $base_dir);
 do "../libexec/config.pl";
 
-use Abills::Base qw(sendmail in_array);
+use Abills::Base qw(sendmail in_array load_pmodule);
+use Abills::Fetcher;
 use Users;
 use Finance;
 use Admins;
@@ -114,7 +115,7 @@ elsif ($#REGISTRATION > -1) {
   ? $FORM{module}
   : $REGISTRATION[0];
   
-  if ($m ne 'Osbb') {
+  if ($m ne 'Osbb' && $m ne 'Vacations' && $m ne 'Expert') {
     my $choose_module_buttons = '';
     if ($#REGISTRATION > 0 && !$FORM{registration}) {
       foreach my $registration_module (@REGISTRATION) {
@@ -207,9 +208,8 @@ if (!($FORM{header} && $FORM{header} == 2)) {
   $OUTPUT{HTML_STYLE} = 'default_adm';
   $OUTPUT{BODY}       = $html->{OUTPUT};
   # check address form
-  $OUTPUT{ADDRESS}    = $html->tpl_show(templates('form_address_build_sel'), { }, {OUTPUT2RETURN => 1});
+  $OUTPUT{ADDRESS}    = $html->tpl_show(templates('form_address_build_sel'), { HIDE_ADD_BUILD_BUTTON => "style='display:none;'"  }, {OUTPUT2RETURN => 1});
   $OUTPUT{TITLE} = "$conf{WEB_TITLE} - $lang{REGISTRATION}";
-  
   
   print $html->tpl_show(templates('registration'), { %OUTPUT, TITLE_TEXT => $lang{REGISTRATION} });
 }
@@ -328,7 +328,7 @@ sub get_address_connected_message {
   require Control::Address_mng;
   require Address;
   my $Address = Address->new($db, $admin, \%conf);
-  
+
   my $info = $Address->build_info({ID => $FORM{LOCATION_ID}});
   
   return ($info->{PLANNED_TO_CONNECT} == 1)
@@ -404,7 +404,7 @@ sub check_captcha {
       JSON_RETURN => 1,
     });
     
-    if($result && ref $result eq 'HASH' && $result->{success} && $result->{success} eq "true") {
+    if($result && ref $result eq 'HASH' && $result->{success} && $result->{success} ne 'false') {
       return 1;
     }
     $html->message('err', "Captcha: $lang{ERROR}");
@@ -466,7 +466,7 @@ sub get_sn_info {
     exit;
   }
   elsif($Auth->{USER_ID}) {
-    my $users_list = $users->list({
+    $users->list({
       $Auth->{CHECK_FIELD} => $Auth->{USER_ID},
       LOGIN                => '_SHOW',
       PASSWORD             => '_SHOW',

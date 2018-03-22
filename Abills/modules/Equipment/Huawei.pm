@@ -6,12 +6,13 @@
 
 use strict;
 use warnings;
-use Abills::Base qw(in_array _bp int2byte load_pmodule2);
+use Abills::Base qw(in_array _bp int2byte load_pmodule check_time gen_time);
 use Abills::Filters qw(bin2hex bin2mac);
 
 our(
   $html,
-  %lang
+  %lang,
+  %html_color
 );
 
 my $Telnet;
@@ -25,7 +26,7 @@ sub _huawei_get_ports {
 
   my $ports_info = equipment_test({
     %{$attr},
-    PORT_INFO  => 'PORT_NAME,PORT_DESCR,PORT_STATUS,PORT_SPEED,PORT_IN,PORT_OUT,PORT_TYPE',
+    PORT_INFO  => 'PORT_NAME,PORT_DESCR,PORT_STATUS,PORT_SPEED,PORT_IN,PORT_OUT,PORT_TYPE,PORT_ALIAS,PORT_NAME',
   });
 
   foreach my $key ( keys %{ $ports_info } ) {
@@ -59,25 +60,37 @@ sub _huawei_onu_list{
   my ($port_list, $attr) = @_;
 
   my @all_rows = ();
-
+  my $debug = $attr->{DEBUG} || 0;
+  delete($attr->{DEBUG});
+  my $ports_info = equipment_test({
+    %{$attr},
+    PORT_INFO  => 'PORT_STATUS',
+  });
+  print "SNMP VERSION: $attr->{VERSION}, SNMP_COMMUNITY: $attr->{SNMP_COMMUNITY}\n" if ($debug > 2);
   foreach my $snmp_id (keys %{ $port_list }) {
     my $type = $port_list->{$snmp_id}{PON_TYPE};
     my %total_info = ();
     my $snmp = _huawei({TYPE => $type});
     my @cols = ('PORT_ID', 'ONU_ID', 'ONU_SNMP_ID', 'PON_TYPE', 'ONU_DHCP_PORT');
+    print "-------------------------------------\n" . uc($port_list->{$snmp_id}{PON_TYPE}) . $port_list->{$snmp_id}{BRANCH} . "\n" if ($debug > 2);
+    my $port_begin_time = check_time() if ($debug > 2);
+    if ($ports_info->{$snmp_id}->{PORT_STATUS} != 1) {
+      print "Port is not online\n" if ($debug > 2);
+      next;
+    }
     foreach my $oid_name ( keys %{ $snmp } ){
       if ($oid_name eq 'reset' || $oid_name eq 'main_onu_info' ){
         next;
       }
-
+      
       push @cols, $oid_name;
-      print "OID: $oid_name -- $snmp->{$oid_name}->{NAME} -- $snmp->{$oid_name}->{OIDS} \n"  if ($attr->{DEBUG} && $attr->{DEBUG} > 2);
-
+      my $oid_begin_time = check_time() if ($debug > 2);
       my $oid = $snmp->{$oid_name}->{OIDS};
+
       if (!$oid) {
         next;
       }
-
+      print "OID: $oid_name -- ". ($snmp->{$oid_name}->{NAME} || '' ) ." -- ". ($snmp->{$oid_name}->{OIDS} || '')  if ($debug > 2);
       #print $oid . '.' . $snmp_id . "\n";
       my $values = snmp_get({
         %{$attr},
@@ -85,13 +98,12 @@ sub _huawei_onu_list{
         OID     => $oid . '.' . $snmp_id,
         TIMEOUT => 25
       });
-
+      print " " . gen_time($oid_begin_time) . "\n"  if ($debug > 2);
       foreach my $line (@{$values}) {
         next if (! $line);
         #print "$line\n";
         my ($onu_id, $oid_value) = split( /:/, $line, 2 );
-
-        if ($attr->{DEBUG} && $attr->{DEBUG} > 3) {
+        if ($debug > 3) {
           print $oid . '->' . "$onu_id, $oid_value \n";
         }
         my $function = $snmp->{$oid_name}->{PARSER};
@@ -101,9 +113,10 @@ sub _huawei_onu_list{
         $total_info{$oid_name}{$snmp_id . '.' . $onu_id} = $oid_value;
       }
     }
-
+    my $onu_count = 0;
     foreach my $key (keys %{ $total_info{ONU_STATUS} }) {
       my %onu_info = ();
+      $onu_count++;
       my ($branch, $onu_id) = split(/\./, $key, 2);
       for (my $i = 0; $i <= $#cols; $i++) {
         my $value = '';
@@ -130,6 +143,7 @@ sub _huawei_onu_list{
       }
       push @all_rows, {%onu_info};
     }
+    print "ONU_COUNT: " . $onu_count . "\n"  . gen_time($port_begin_time) . "\n" if ($debug > 2);
   }
 
   return \@all_rows;
@@ -199,6 +213,13 @@ sub _huawei_unregister {
   return \@unregister;
 }
 #**********************************************************
+=head2 _huawei_delete_onu($attr)
+
+=cut
+#**********************************************************
+sub _huawei_delete_onu {
+}
+#**********************************************************
 =head2 _huawei_unregister_form($attr);
 
   Arguments:
@@ -210,8 +231,9 @@ sub _huawei_unregister {
 #**********************************************************
 sub _huawei_unregister_form {
   my ($attr) = @_;
-  my $snmp = _huawei({ TYPE => $FORM{TYPE} });
-  if ($FORM{TYPE} eq 'gpon') {
+  my $pon_type = $attr->{PON_TYPE} || $FORM{TYPE} || q{};
+  my $snmp = _huawei({ TYPE => $pon_type });
+  if ($pon_type eq 'gpon') {
     my @line_profiles = ();
     my @srv_profiles = ();
     my @profiles = ('LINE_PROFILES', 'SRV_PROFILES');
@@ -238,14 +260,35 @@ sub _huawei_unregister_form {
       $vlans{ $vlan_id } = "Vlan$vlan_id ($vlan_hash->{ $vlan_id }->{NAME})";
     }
    
-    $FORM{VLAN_SEL} = $html->form_select('VLAN_ID', {
+    $FORM{INTERNET_VLAN_SEL} = $html->form_select('VLAN_ID', {
       SELECTED    => $attr->{DEF_VLAN} || '',
       SEL_OPTIONS => { '' => '--' },
       SEL_HASH    => \%vlans,
       NO_ID       => 1
     });
 
+    $FORM{TR_069_VLAN_SEL} = $html->form_select('TR_069_VLAN_ID', {
+      SELECTED    => $attr->{TR_069_VLAN} || '',
+      SEL_OPTIONS => { '' => '--' },
+      SEL_HASH    => \%vlans,
+      NO_ID       => 1
+    });
+
+    $FORM{IPTV_VLAN_SEL} = $html->form_select('IPTV_VLAN_ID', {
+      SELECTED    => $attr->{IPTV_VLAN} || '',
+      SEL_OPTIONS => { '' => '--' },
+      SEL_HASH    => \%vlans,
+      NO_ID       => 1
+    });
+
     my $default_line_profile = $conf{HUAWEI_LINE_PROFILE_NAME} || 'ONU';
+    $FORM{DEF_LINE_PROFILE} = $default_line_profile;
+
+    my $triple_line_profile = $conf{HUAWEI_TRIPLE_LINE_PROFILE_NAME} || 'TRIPLE-PLAY';
+    $FORM{TRIPLE_LINE_PROFILE} = $triple_line_profile;
+
+    $default_line_profile = $triple_line_profile if ( $conf{HUAWEI_TRIPLE_PLAY_ONU} && in_array($FORM{EQUIPMENT_ID}, $conf{HUAWEI_TRIPLE_PLAY_ONU}) );    
+
     $FORM{LINE_PROFILE_SEL} = $html->form_select('LINE_PROFILE', {
       SELECTED    => $default_line_profile,
       SEL_OPTIONS => { '' => '--' },
@@ -401,11 +444,11 @@ sub _huawei{
        OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.46.1.15',
        PARSER => ''
      },
-     'ONU_TX_POWER' => {
-       NAME   => 'ONU_TX_POWER',
-       OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.3',
-       PARSER => '_huawei_convert_power'
-     }, # tx_power = tx_power * 0.01;
+#     'ONU_TX_POWER' => {
+#       NAME   => 'ONU_TX_POWER',
+#       OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.3',
+#       PARSER => '_huawei_convert_power'
+#     }, # tx_power = tx_power * 0.01;
      'ONU_RX_POWER' => {
        NAME   => 'ONU_RX_POWER',
        OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.4',
@@ -431,10 +474,15 @@ sub _huawei{
        OIDS => '1.3.6.1.4.1.2011.6.128.1.1.4.23.1.3',
        PARSER => ''
      },
-     'TEMPERATURE' => {
-       NAME   => 'TEMPERATURE',
-       OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.1',
-       PARSER => '_huawei_convert_temperature'
+     'LINE_PROFILE' => {
+       NAME   => 'ont-lineprofile',
+       OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.43.1.7',
+       PARSER => ''
+     },
+     'SRV_PROFILE' => {
+       NAME   => 'ont-srvprofile',
+       OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.43.1.8',
+       PARSER => ''
      },
      'reset' => {
        NAME   => '',
@@ -467,30 +515,20 @@ sub _huawei{
          OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.46.1.20',
          PARSER => '_huawei_convert_distance'
        },
-       'LINE_PROFILE' => {
-         NAME => 'ont-lineprofile',
-         OIDS => '1.3.6.1.4.1.2011.6.128.1.1.2.43.1.7',
-         PARSER => ''
-       },
-       'SRV_PROFILE' => {
-         NAME => 'ont-srvprofile',
-         OIDS => '1.3.6.1.4.1.2011.6.128.1.1.2.43.1.8',
-         PARSER => ''
-       },
        'ETH_DUPLEX' => {
-         NAME => 'Ethernet Duplex mode',
+         NAME => 'ETH_DUPLEX',
          OIDS => '.1.3.6.1.4.1.2011.6.128.1.1.2.62.1.3',
          PARSER => '_huawei_convert_duplex',
          WALK => '1'
        },
        'ETH_SPEED' => {
-         NAME   => 'Ethernet Speed',
+         NAME   => 'ETH_SPEED',
          OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.62.1.4',
          PARSER => '_huawei_convert_speed',
          WALK   => '1'
        },
        'ETH_ADMIN_STATE' => {
-         NAME   => 'Ethernet Admin state',
+         NAME   => 'ETH_ADMIN_STATE',
          OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.62.1.5',
          PARSER => '_huawei_convert_admin_state',
          WALK   => '1'
@@ -506,7 +544,17 @@ sub _huawei{
          OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.62.1.7',
          PARSER => '_huawei_convert_eth_vlan',
          WALK   => '1'
-       }
+       },
+       'TEMPERATURE' => {
+         NAME   => 'TEMPERATURE',
+         OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.1',
+         PARSER => '_huawei_convert_temperature'
+       },
+       'ONU_TX_POWER' => {
+         NAME   => 'ONU_TX_POWER',
+         OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.3',
+         PARSER => '_huawei_convert_power'
+       } # tx_power = tx_power * 0.01;
      },
      unregister => {
        'MAC/SERIAL' => {
@@ -580,16 +628,55 @@ sub _huawei_onu_status{
 =cut
 #**********************************************************
 sub decode_port {
-  my ($dec) = @_;
+  my ($fsp, $type) = @_;
+  $type //= '';   
+  $fsp =~ s/\.\d+//;
+  my $frame = -1;
+  my $slot = -1;
+  my $port = -1;
 
-  $dec =~ s/\.\d+//;
-  my $frame = ($dec & 0xF0000) / 256;
-  my $slot = ($dec & 0xF000) / 8192;
-  my $port = ($dec & 0xF00) / 256;
+  if ($type eq 'eth') {
+    $frame = ($fsp & 0x7C0000) >> 18;
+    $slot = ($fsp & 0x3E000) >> 13;
+    $port = ($fsp & 0x1FC0) >> 6;
+  }
+  else {
+    $frame = ($fsp & 0x7C0000) >> 18;
+    $slot = ($fsp & 0x3E000) >> 13;
+    $port = ($fsp & 0x1F00) >> 8;
+  }
 
   return $frame . '/' . $slot . '/' . $port;
 }
+#**********************************************************
+=head2 encode_port($frame, $slot, $port, $type) - Encode port
 
+  Arguments:
+    $frame, $slot, $port, $type
+
+  Returns:
+    snmp port index
+
+=cut
+#**********************************************************
+sub encode_port {
+  my ($frame, $slot, $port, $type) = @_;
+  my $fsp = 0;
+
+  if ($type =~ /pon/) {
+    $fsp |= 0xFA000000;
+    $fsp |= ($frame & 0x1F) << 18;
+    $fsp |= ($slot & 0x1F) << 13;
+    $fsp |= ($port & 0x1F) << 8;
+  }
+  elsif ($type eq 'eth') {
+    $fsp |= 0x0E000000;
+    $fsp |= ($frame & 0x1F) << 18;
+    $fsp |= ($slot & 0x1F) << 13;
+    $fsp |= ($port & 0x7F) << 6;
+  }
+  return $fsp;
+}
 #**********************************************************
 =head2 _huawei_set_desc_port($attr) - Set Description to OLT ports
 
@@ -613,7 +700,7 @@ sub _huawei_set_desc {
 }
 
 #**********************************************************
-=head2 _huawei_get_service_ports($attr) - Get OLT service ports
+=head2 _huawei_get_service_ports_2($attr) - Get OLT service ports
 
   Arguments:
     $attr
@@ -621,9 +708,8 @@ sub _huawei_set_desc {
 
 =cut
 #**********************************************************
-sub _huawei_get_service_ports1 {
+sub _huawei_get_service_ports_2 {
   my ($attr) = @_;
-#  push @datasource, ( data_source => { name => $line->{SOURCE} , type  => $line->{TYPE} } );
 
   my %snmp_oids = (
     FRAME          => '.1.3.6.1.4.1.2011.5.14.5.2.1.2',
@@ -637,14 +723,16 @@ sub _huawei_get_service_ports1 {
     C_VLAN         => '.1.3.6.1.4.1.2011.5.14.5.2.1.12',
     TAG_TRANSFORM  => '.1.3.6.1.4.1.2011.5.14.5.2.1.18'
   );
-
+  my @basic_oids = ('FRAME', 'SLOT', 'PORT', 'ONU_ID');
   my %service_ports_info = ();
+
   foreach my $type (keys %snmp_oids) {
+    next if ($attr->{GET_ONU_SERVICE_PORT} && !in_array($type, \@basic_oids));
     my $oid = $snmp_oids{$type};
     my $sp_info = snmp_get({
       %{$attr},
       OID     => $oid,
-      WALK    => 1
+      WALK    => 1,
     });
 
     foreach my $line ( @{$sp_info} ){
@@ -653,59 +741,91 @@ sub _huawei_get_service_ports1 {
       $service_ports_info{$sp_id}{$type} = $data;
     }
   }
-
   return %service_ports_info if (!$attr->{ONU_SNMP_ID});
   my @service_ports = ();
   my ($snmp_port_id, $onu_id) = split( /\./, $attr->{ONU_SNMP_ID}, 2 );
   my $branch = decode_port($snmp_port_id);
   my $onu = $branch.':'.$onu_id;
 
+  my %type = (
+    1 => 'pvc',
+    2 => 'eth',
+    3 => 'vdsl',
+    4 => 'gpon',
+    5 => 'shdsl',
+    6 => 'epon',
+    7 => 'vcl',
+    8 => 'adsl',
+    9 => 'gpon', #gponOntEth
+    10 => 'epon', #eponOntEth
+    11 => 'gpon', #gponOntIphost
+    12 => 'epon', #eponOntIphost
+    14 => 'gpon'
+  ); #?
+
+  my %multi_srv_type = (
+    1 => 'user-vlan',
+    2 => 'user-encap',
+    3 => 'user-8021p'
+  );
+
+  my %tag_transform = (
+    0 => 'add',
+    1 => 'transparent',
+    2 => 'translate',
+    3 => 'translateAndAdd',
+    4 => 'addDouble',
+    5 => 'translateDouble',
+    6 => 'translateAndRemove',
+    7 => 'remove',
+    8 => 'removeDouble',
+  );
   foreach my $sp_id ( keys %service_ports_info ) {
-    my %type = (
-      1 => 'pvc',
-      2 => 'eth',
-      3 => 'vdsl',
-      4 => 'gpon',
-      5 => 'shdsl',
-      6 => 'epon',
-      7 => 'vcl',
-      8 => 'adsl',
-      9 => 'gpon', #gponOntEth
-      10 => 'epon', #eponOntEth
-      11 => 'gpon', #gponOntIphost
-      12 => 'epon', #eponOntIphost
-      14 => 'gpon'
-    ); #?
-
-    my %multi_srv_type = (
-      1 => 'user-vlan',
-      2 => 'user-encap',
-      3 => 'user-8021p'
-    );
-
-    my %tag_transform = (
-      0 => 'add',
-      1 => 'transparent',
-      2 => 'translate',
-      3 => 'translateAndAdd',
-      4 => 'addDouble',
-      5 => 'translateDouble',
-      6 => 'translateAndRemove',
-      7 => 'remove',
-      8 => 'removeDouble',
-    );
-
     my $sp_data = $service_ports_info{$sp_id};
     if ($onu && $onu eq $sp_data->{FRAME}.'/'.$sp_data->{SLOT}.'/'.$sp_data->{PORT}.':'.$sp_data->{ONU_ID}){
-      unshift @service_ports, ['Service port', "service-port $sp_id vlan $sp_data->{S_VLAN} $type{ $sp_data->{TYPE} } $branch ont $onu_id "
+      if ($attr->{GET_ONU_SERVICE_PORT}) {
+        push @service_ports, $sp_id;
+      }
+      else {
+        unshift @service_ports, ['Service port', "service-port $sp_id vlan $sp_data->{S_VLAN} $type{ $sp_data->{TYPE} } $branch ont $onu_id "
                             . (($sp_data->{TYPE} eq '4') ? "gemport $sp_data->{GEMPORT_ETH}" : '')
                             . (($sp_data->{TYPE} > '8') ? "eth $sp_data->{GEMPORT_ETH}" : '')
                             . " multi-service $multi_srv_type{ $sp_data->{MULTISERVICE} } $sp_data->{C_VLAN}"
                             . " tag-transform $tag_transform{ $sp_data->{TAG_TRANSFORM} }"];
+      }
     }
   }
-
   return @service_ports;
+}
+#**********************************************************
+=head2 _huawei_get_service_ports($attr) - Get OLT service ports
+
+  Arguments:
+    $attr
+      ONU_SNMP_ID
+
+=cut
+#**********************************************************
+sub _huawei_get_service_ports {
+  my ($attr) = @_;
+  my $onu_type = $attr->{ONU_TYPE} || $attr->{TYPE};
+  if (_huawei_telnet_open($attr)) {
+    my $data = '';
+    $data = _huawei_telnet_cmd("display service-port port $attr->{BRANCH} ont $attr->{ONU_ID} sort-by vlan");
+    $Telnet->close();
+    my @list = split('\n', $data || q{});
+    my @service_ports = ();
+    foreach my $line (@list) {
+      if ($onu_type eq 'gpon') {
+        if ($line =~ /(\d+)\s+(\d+)\s+common\s+gpon\s+\d+\/\d+\s*\/\d+\s+\d+\s+(\d+)\s+vlan\s+(\d+)/) {
+        push @service_ports, ['Service port', "service-port $1 vlan $2 $onu_type $attr->{BRANCH} ont $attr->{ONU_ID} "
+                            . "gemport $3 multi-service user-vlan $4"];
+        }
+      }
+    }
+    return @service_ports;
+  }
+  return [];
 }
 #**********************************************************
 =head2 _huawei_get_free_id($attr)
@@ -866,7 +986,7 @@ sub _huawei_convert_duplex{
   my ($data) = @_;
 
   my ($oid, $index) = split( /:/, $data, 2 );
-  my $port = "Port $oid";
+  my $port = "$oid";
   my $duplex = 'Unknown';
   my %duplex_hash = (
       3 => 'Auto',
@@ -887,13 +1007,13 @@ sub _huawei_convert_duplex{
 sub _huawei_convert_speed{
   my ($data) = @_;
   my ($oid, $index) = split( /:/, $data, 2 );
-  my $port = "Port $oid";
+  my $port = "$oid";
   my $speed = 'Unknown';
   my %speed_hash = (
       4 => 'Auto',
-      5 => '10 Mbit',
-      6 => '100 Mbit',
-      7 => '1000 Mbit'
+      5 => '10Mb/s',
+      6 => '100Mb/s',
+      7 => '1Gb/s'
   );
   if ($speed_hash{ $index } ) {
     $speed = $speed_hash{ $index };
@@ -908,7 +1028,7 @@ sub _huawei_convert_speed{
 sub _huawei_convert_admin_state{
   my ($data) = @_;
   my ($oid, $index) = split( /:/, $data, 2 );
-  my $port = "Port $oid";
+  my $port = "$oid";
   my $state = 'Unknown';
   my %state_hash = (
       1 => 'Enable',
@@ -948,10 +1068,7 @@ sub _huawei_convert_state{
 #**********************************************************
 sub _huawei_convert_eth_vlan{
   my ($data) = @_;
-  my ($oid, $index) = split( /:/, $data, 2 );
-
-  my $port = "Port $oid";
-  my $vlan = 'Vlan'.$index;
+  my ($port, $vlan) = split( /:/, $data, 2 );
 
   return ($port, $vlan);
 }
@@ -969,7 +1086,9 @@ sub _huawei_convert_cpu_usage{
     $value = '--';
   }
   else {
-    $value .= ' %';
+    my (undef, $color) = split (/:/, equipment_add_color($value)) if ($value =~ /\d+/);
+    $color //= $html_color{green};
+    $value = '<span style="background-color:' . $color . '" class="badge">' . $value . ' %</span>';
   }
   return ($slot, $value);
 }
@@ -987,7 +1106,9 @@ sub _huawei_convert_info_temperature{
     $value = '--';
   }
   else {
-    $value .= ' °C';
+    my (undef, $color) = split (/:/, equipment_add_color($value)) if ($value =~ /\d+/);
+    $color //= $html_color{green};
+    $value = '<span style="background-color:' . $color . '" class="badge">' . $value . ' °C</span>';
   }
   return ($slot, $value);
 }
@@ -1063,15 +1184,18 @@ sub _huawei_get_fdb{
   my %hash = ();
   if (_huawei_telnet_open($attr)) {
     my $data = _huawei_telnet_cmd("display mac-address all");
+    $Telnet->close();
     #$data =~ s/\n/<br>/g;
     my @list = split("\n", $data || q{});
+    my $port_types = ({eth => 'ethernet', gpon => 'GPON ', epon => 'EPON '}); 
     foreach my $line (@list) {
       #print "$line ||| <br>";
       if ($line =~ /([-0-9]+)\s+.+\s+([a-z]+)\s+([a-f0-9]{2})([a-f0-9]{2})\-([a-f0-9]{2})([a-f0-9]{2})\-([a-f0-9]{2})([a-f0-9]{2})\s+([a-z]+)\s+(\d+)\s+\/(\d+)\s+\/(\d+)\s+([-0-9]+)\s+([-0-9]+)\s+(\d+)/) {
         #print "$1 | $2 | $3 | $4 | $5 | $6 | $7 | $8 | $9 | $10 | $11 | $12 | $13 | $14 | $15 | <br>";
         my $mac = "$3:$4:$5:$6:$7:$8";
-        my ($srv_port, $port_type, $port, $onu_id, $van_id) = ($1, $2, $10.'/'.$11.'/'.$12, $13, $15);
+        my ($srv_port, $port_type, $frame, $slot, $port, $onu_id, $van_id) = ($1, $2, $10, $11, $12, $13, $15);
         my $key = $mac.'_'.$van_id;
+#        my $snmp_port_id = encode_port($port_type, $frame, $slot, $port);
         if ( $attr->{FILTER} ){
           $attr->{FILTER} = lc( $attr->{FILTER} );
           if ( $mac =~ m/($attr->{FILTER})/ ){
@@ -1084,8 +1208,9 @@ sub _huawei_get_fdb{
         }
         $hash{$key}{1} = $mac;
         #$hash{$key}{2} = uc($port_type).' '.$port.(($onu_id =~ /\d+/) ? ":$onu_id" : "");
-        $hash{$key}{2} = $port.(($onu_id =~ /\d+/) ? ":$onu_id" : "");
+        $hash{$key}{2} = encode_port($frame, $slot, $port, $port_type) . (($onu_id =~ /\d+/) ? ".$onu_id" : "");
         $hash{$key}{4} = $van_id . (($srv_port =~ /\d+/) ? " ( SERVICE_PORT: $srv_port )" : "");
+        $hash{$key}{5} = $port_types->{ $port_type } . $frame . '/' . $slot . '/' . $port . (($onu_id =~ /\d+/) ? ":$onu_id" : "");
       }
     }
   }
@@ -1108,7 +1233,7 @@ sub _huawei_get_fdb{
 sub _huawei_telnet_open{
   my ($attr) = @_;
 
-  my $load_data = load_pmodule2('Net::Telnet', {SHOW_RETURN => 1});
+  my $load_data = load_pmodule('Net::Telnet', {SHOW_RETURN => 1});
   if ($load_data) {
     print "$load_data";
     return 0;
@@ -1123,7 +1248,7 @@ sub _huawei_telnet_open{
   my $password  = $attr->{NAS_INFO}->{NAS_MNG_PASSWORD} || q{};
 
   $Telnet = Net::Telnet->new(
-    Timeout  => 15,
+    Timeout  => 20,
     Errmode  => 'return'
   );
 

@@ -25,7 +25,7 @@ use Admins;
 use Dhcphosts;
 use Nas;
 
-my $vesion = 0.6;
+my $vesion = 0.7;
 my $begin_time = check_time();
 my $argv = parse_arguments(\@ARGV);
 my $log_dir = $var_dir . '/log';
@@ -79,7 +79,7 @@ sub mk_log {
 
   my $DATETIME = strftime "%Y-%m-%d %H:%M:%S", localtime(time);
   if ($argv->{LOG_FILE} || defined($argv->{'-d'})) {
-    open(my $fh, ">> $logfile") || die "Can't open file '$logfile' $!\n";
+    open(my $fh, '>>', $logfile) || die "Can't open file '$logfile' $!\n";
       print $fh "$DATETIME $type: $message\n";
     close($fh);
   }
@@ -187,7 +187,7 @@ sub parse {
 
   mk_log('LOG_DEBUG', "Begin parse '$logfile'");
 
-  open(my $fh, $logfile) || print "Can't read file '$logfile' $!\n";
+  open(my $fh, '<', $logfile) || print "Can't read file '$logfile' $!\n";
 
   my $state = '';
   while (<$fh>) {
@@ -284,7 +284,7 @@ sub leases2db {
   my $GT = '';
   if ($begin_time > 0) {
     Time::HiRes->import(qw(gettimeofday));
-    my $end_time = gettimeofday();
+    my $end_time = Time::HiRes::gettimeofday();
     my $gen_time = $end_time - $begin_time;
     $GT = sprintf(" (GT: %2.5f)", $gen_time);
   }
@@ -323,7 +323,7 @@ EOF
 sub stop {
   my ($pid_file, $attr) = @_;
 
-  my $a = `kill \`cat $pid_file\``;
+  `kill \`cat $pid_file\``;
 }
 
 #**********************************************************

@@ -47,6 +47,23 @@ _coa () {
 
 }
 
+#**********************************************************
+# Test pod request
+#**********************************************************
+_pod () {
+
+  COA_PORT=1700;
+  COA_PASSWORD=isgcontrol;
+  SESSION_ID=${ACCT_SESSION_ID}
+
+  if [ "${COA_PASSWORD}" = "" ]; then
+    COA_PASSWORD=${RADIUS_SECRET}
+  fi;
+
+  echo "Acct-Session-Id=${SESSION_ID}" | ${RADCLIENT} -r 1 -x ${NAS_IP_ADDRESS}:${COA_PORT} disconnect ${COA_PASSWORD}
+
+}
+
 
 # Proccess command-line options
 #
@@ -274,18 +291,23 @@ if [ x${RADIUS_ACTION} = x1 ]; then
     OPTIONS="-d ${RAD_DICT}";
   fi;
 
-  PORT=1812;
+
   if [ "${RAD_FILE}" != "" ]; then
     if [ "${ACTION}" = acct ]; then
       if [ "${PORT}" = "" ]; then
         PORT=1813;
+      fi;
+    else
+      if [ "${PORT}" = "" ]; then
+       PORT=1812;
       fi;
     fi;
 
     ${RADCLIENT} ${OPTIONS} -x -f ${RAD_FILE}  ${RADIUS_IP}:${PORT} ${ACTION} ${RADIUS_SECRET}
     echo "${RADCLIENT} -x -f ${RAD_FILE}  ${RADIUS_IP}:${PORT} ${ACTION} ${RADIUS_SECRET}";
   else
-    if [ x${PORT} = x ]; then      
+
+    if [ "${PORT}" = "" ]; then
        PORT=1812;
     fi;
 

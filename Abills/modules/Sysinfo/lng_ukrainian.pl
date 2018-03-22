@@ -8,7 +8,6 @@ $lang{RUNNING}='Працює';
 $lang{PROCCESS_LIST}='Список процессів';
 $lang{SYSTEM_INFO}='Информація про систему';
 $lang{UPTIME}='Час роботи';
-$lang{VERSION}='Версия';
 $lang{RECOMMENDED_MODULES}='Рекомендовані модулі';
 $lang{YOU_SHOULD_DEFINE}='Потрібно оголосити';
 $lang{EXECUTE} = 'Виконайте';

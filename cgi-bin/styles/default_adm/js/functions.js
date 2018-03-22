@@ -65,12 +65,23 @@ function randomString(length) {
 
 function displayJSONTooltip(result) {
   try {
-    if (isDefined(result) && isDefined(result['MESSAGE'])) {
-      var message = result['MESSAGE'];
-      
-      var text = '<h3>' + message['caption'] + '</h3>';
+    
+    // Find message
+    var message = null;
+    var response_keys = Object.keys(result);
+    
+    for (var i = 0; i <= response_keys.length; i++){
+      var key_name = response_keys[i];
+      if (key_name && key_name.match('^MESSAGE_?')){
+        message = result[key_name];
+        break;
+      }
+    }
+    
+    if (message !== 'null') {
+      var text = '<h3>' + (message['caption'] || '') + '</h3>';
       if (message['messaga']) {
-        text += ' : <h4>' + message['messaga'] + '</h4>';
+        text += ' : <h4>' + (message['messaga'] || '') + '</h4>';
       }
       
       var alert_classes = {
@@ -81,7 +92,7 @@ function displayJSONTooltip(result) {
       
       aTooltip
           .setText(text)
-          .setClass(alert_classes[result["type"]] || 'info')
+          .setClass(alert_classes[message['message_type']] || 'info')
           .show();
     }
     else {
@@ -917,6 +928,18 @@ function defineFileInputLogic(context) {
   });
 }
 
+function setBoxRefreshingState($box, state){
+  if (state === true) {
+    var refresh_block = jQuery('<div></div>', {'class': 'overlay'}).html(
+        jQuery('<i></i>', {'class': 'fa fa-refresh fa-spin'})
+    );
+    $box.append(refresh_block);
+  }
+  else {
+    $box.find('div.overlay').remove();
+  }
+}
+
 function initUpButton() {
   
   var $btn = $('<a/>', {id: 'up-btn', role: 'button', style: 'display : none'});
@@ -1034,6 +1057,10 @@ function hideHidden(context) {
     var $e = $(e);
     $e.data('visible') ? $e.css({'display': 'block'}) : $e.css({'display': 'none'});
   });
+  $('[data-hidden]', context).each(function (i, e) {
+    var $e = $(e);
+    $e.data('hidden') ? $e.css({'display': 'none'}) : $e.css({'display': 'block'});
+  });
 }
 
 function checkCheckboxes(context) {
@@ -1060,7 +1087,8 @@ function initDatepickers(context) {
     todayHighlight: true,
     clearBtn      : true,
     forceParse    : false,
-    weekStart     : 1
+    weekStart     : 1,
+    // container     : 'section#main-content'
   })
       .on('show', cancelEvent)
       .on('hide', cancelEvent);
@@ -1124,7 +1152,8 @@ function initDatepickers(context) {
         autoUpdateInput     : true,
         showCustomRangeLabel: true,
         alwaysShowCalendars : true,
-        ranges              : ranges
+        ranges              : ranges,
+        // container     : 'section#main-content'
       }, callback);
     });
     
@@ -1241,19 +1270,150 @@ function defineAjaxSubmitForms(context) {
 function initFavicon() {
   $.getScript('/styles/default_adm/js/tinyco.min.js', function () {
     var badge = 0;
-    Events.emit('favicon.ready');
-    Events.on('favicon.set', Tinycon.setBubble);
-    Events.on('favicon.clear', function () {
-      badge = 0;
-      Tinycon.setBubble('')
-    });
-    Events.on('favicon.increment', function () {(badge++ <= 100) ? Tinycon.setBubble(++badge) : Tinycon.setBubble('99+')});
+    var set_value = function(new_value){
+      ( new_value <= 0 )
+        ? Tinycon.setBubble('')
+        : ( new_value > 100 )
+            ? Tinycon.setBubble('99+')
+            : Tinycon.setBubble(new_value);
+    };
+    Events.on('favicon.set', set_value);
+    Events.on('favicon.clear', function () {set_value(0)});
+    Events.on('favicon.increment', function () { set_value(++badge) });
+    Events.on('favicon.decrement', function () { set_value(--badge)});
     Events.on('favicon.request', function () {Events.emit('favicon.responce', badge)});
+    Events.emit('favicon.ready');
   });
 }
 
-//document ready
+function initTableMultiselectActions(context){
+ var table_panels = $('div.table-action-panel', context);
+ if (!table_panels.length) return false;
+ 
+ table_panels.each(function(i, table_panel){
+   var $table_panel   = $(table_panel);
+  
+   // Collect all checkboxes we should listen for
+   var params        = [];
+   var param_buttons = [];
+  
+   var param_name = $table_panel.data('param');
+   if (typeof (param_name) === 'undefined'){
+     return true;
+   }
+  
+   if (typeof params[param_name] === 'undefined') {
+     params[param_name] = $('input:checkbox[id="' + param_name + '"]');
+   }
+  
+   var submit_action = function ($button, checked_elements) {
+     var action     = $button.data('original-url');
+     var comments   = $button.data('comments');
+    
+     var ids = [];
+     checked_elements.each(function (i, el) {ids.push(el.value)});
+    
+     var link = action + '&' + param_name + '=' + ids.join(',');
+    
+     if (typeof(comments) !== 'undefined') {
+       showCommentsModal(comments, link);
+       return true;
+     }
+     else {
+       $.redirectPost(link);
+     }
+   };
+  
+   var check_elements = function (param_name) {
+     return function() {
+       var checked_elements = params[param_name].filter(':checked');
+  
+       if (checked_elements.length > 0) {
+         $table_panel.show();
+         param_buttons.forEach(function (b) {
+           b.off('click');
+           b.on('click', function (e) {
+             cancelEvent(e);
+             submit_action($(this), checked_elements);
+           });
+         });
+       }
+       else {
+         $table_panel.hide();
+         param_buttons.forEach(function (b) {b.off('click')});
+       }
+     }
+   };
+  
+   // Set listener
+   // Collect params to listen and set listeners
+   var event_to_listen   = 'ontablecheckboxeschange.' + param_name;
+   var function_listener = check_elements(param_name);
+   Events.on(event_to_listen, function_listener);
 
+   // Init buttons
+   var action_buttons = $table_panel.find('a.table-action-button');
+   action_buttons.each(function (j, button) {
+     var $button = $(button);
+     $button.attr('href', '#');
+     param_buttons.push($button);
+   });
+   
+   // Will show panel if have selected checkboxes
+   function_listener();
+ });
+ 
+}
+
+function initMomentSpans(context){
+  if (typeof window['moment'] !== 'undefined') {
+    jQuery('span.moment-insert', context).each(function (i, span_) {
+      var span = jQuery(span_);
+      var time = span.data('value');
+      if (!time) return;
+      
+      span.text(' ' + moment(time, 'YYYY-MM-DD hh:mm:ss').fromNow() + ' ');
+      span.attr('title', time);
+      span.css({
+        'text-decoration'      : 'underline',
+        'text-decoration-style': 'dashed'
+      })
+    });
+    
+    jQuery('span.moment-range', context).each(function (i, span_) {
+      var span = jQuery(span_);
+      var time = span.data('value');
+      if (!time) return;
+      
+      span.text(' ' + moment.duration(time, 'seconds').humanize() + ' ');
+      span.attr('title', time + ' s');
+    })
+  }
+}
+
+function initHelp(context){
+  var help = $('div.help-template', context);
+  if (!help.length) {
+    return;
+  }
+
+  $.each(help, function (i, raw) {
+    var raw_text = $(raw).text();
+    console.log(raw_text);
+    var pairs = raw_text.split(/\r?\n/);
+
+    for (var i = 0; i < pairs.length; i++) {
+      var pair = pairs[i];
+      console.log(pair);
+      var id, text;
+       [id, text] = pair.split(':');
+      renderTooltip($('#' + id), text);
+    }
+  });
+
+}
+
+//document ready
 function pageInit(context) {
   
   context = context || document;
@@ -1306,7 +1466,7 @@ function pageInit(context) {
   initDatepickers(context);
   
   // Called on document
-  if (context == document) {
+  if (context === document) {
     initUpButton(document);
   }
   
@@ -1321,29 +1481,48 @@ function pageInit(context) {
   //Allow disable inputs regard to another input value
   defineLinkedInputsLogic(context);
   
-  if (typeof window['moment'] !== 'undefined') {
-    jQuery('span.moment-insert').each(function (i, span_) {
-      var span = jQuery(span_);
-      var time = span.data('value');
-      if (!time) return;
-      
-      span.text(' ' + moment(time, 'YYYY-MM-DD hh:mm:ss').fromNow() + ' ');
-      span.attr('title', time);
-      span.css({
-        'text-decoration'      : 'underline',
-        'text-decoration-style': 'dashed'
-      })
-    });
+  // Init table actions logic
+  initTableMultiselectActions(context);
   
-    jQuery('span.moment-range').each(function (i, span_) {
-      var span = jQuery(span_);
-      var time = span.data('value');
-      if (!time) return;
+  initMomentSpans(context);
+
+  initHelp(context);
+}
+
+function initMultifileUploadZone(id, name_, max_files_){
+  var name = name_ || 'FILE_UPLOAD';
+  var max_files = max_files_ || 2;
+  
+  var file_zone = jQuery('#' + id);
+  
+  var main_input = file_zone.find('input[name='+ name +']');
+  var counter_input = jQuery('<input/>', { name : name + '_UPLOADS_COUNT', type : 'hidden' });
+  file_zone.append(counter_input);
+  
+  var counter = 0;
+  var append_new_input = function(){
+    counter_input.val(++counter);
+    var new_input = jQuery('<input/>', {
+      type : 'file',
+      name : name + '_' + counter
+    });
     
-      span.text(' ' + moment.duration(time, 'seconds').humanize() + ' ');
-      span.attr('title', time + ' s');
-    })
-  }
+    new_input.data('number', counter);
+    new_input.on('change', append_new_input_if_needed);
+    file_zone.append(new_input);
+  };
+  
+  var append_new_input_if_needed = function(){
+    // Get this position
+    var position = jQuery(this).data('number') || 0;
+    
+    // If is last, should append new input and counter starts from 0
+    if (position === counter && counter < (max_files - 1)){
+      append_new_input();
+    }
+  };
+  
+  main_input.on('change', append_new_input_if_needed);
 }
 
 function copyToBuffer(value){
@@ -1385,6 +1564,56 @@ function generate_s4 (){
       .substring(1);
 }
 
+// jquery extend function
+$.extend({
+  redirectPost: function (location, args_) {
+    var form = '',
+    args = args_ || {};
+    
+    if (location.indexOf('?') !== -1){
+      // Deserialize link
+      var deserialize = function(data){
+        var splits = decodeURIComponent(data).split('&'),
+            i = 0,
+            split = null,
+            key = null,
+            value = null,
+            splitParts = null;
+    
+        var kv = {};
+        while(split = splits[i++]){
+          splitParts = split.split('=');
+          key = splitParts[0] || '';
+          value = (splitParts[1] || '').replace(/\+/g, ' ');
+          if (key !== ''){
+            if( key in kv ){
+              if( $.type(kv[key]) !== 'array' ){
+                kv[key] = [kv[key]];
+              }
+              kv[key].push(value);
+            }
+            else{
+              kv[key] = value;
+            }
+          }
+        }
+        return kv;
+      };
+      
+      var location_args = location.split('?');
+      location = location_args[0];
+      args = $.extend(args, deserialize(location_args[1]));
+    }
+    
+    $.each(args, function (key, value) {
+      value = value.split('"').join('\"');
+      form += '<input type="hidden" name="' + key + '" value="' + value + '">';
+    });
+    
+    $('<form action="' + location + '" method="POST" style="display:none;">' + form + '</form>')
+        .appendTo($(document.body)).submit();
+  }
+});
 
 $(function () {
   pageInit(document);
@@ -1392,7 +1621,9 @@ $(function () {
   $('a#admin-status').on('click', function(){
     
     $.get('?get_index=msgs_admin_quick_message&header=2', function(data){
+      // First check function exists
       if (! data.match(/not exist/)){
+        // If data is normal, show it in modal
         loadDataToModal(data, false, true);
       }
     });

@@ -6,7 +6,7 @@
  *
  */
 'use strict';
-if (typeof(window['getMultiSimpleRow']) === 'undefined')
+if (typeof(window['getSimpleRow']) === 'undefined')
   $.getScript('/styles/default_adm/js/dynamicForms.js');
 
 /*Global section*/
@@ -27,6 +27,8 @@ function fillOneRowArrayBasedSearchForm(params) {
   var custom_params = params[4] || '';
   var id            = 'popup_' + name;
   
+  var search_row_input = getSimpleRow(name, id, label);
+  
   var data =
           "<div class='modal-content'>" +
           "<div class='modal-header'>" +
@@ -34,7 +36,7 @@ function fillOneRowArrayBasedSearchForm(params) {
           "<div class='modal-title'>Search for <b>" + name + "</b></div>" +
           "</div>" +
           "<div class='modal-body form-horizontal'>" +
-          getSimpleRow(name, id, label) +
+           search_row_input[0].outerHTML +
           "</div>" +
           "<div class='modal-footer'>" +
           "<a id='btn_popup_" + name + "' class='btn btn-primary' href=''>" + "Go</a>" +
@@ -160,7 +162,7 @@ function makeChoosableTr(popup_name) {
 function bindClickSearchResult(popup_name) {
   $('.clickSearchResult').on('click', function (event) {
     event.stopPropagation();
-    fillSearchResults(popup_name, $(this).attr('value'));
+    fillSearchResults(popup_name, $(this).attr('value') || $(this).data('value'));
     aModal.hide();
   });
   console.log('clickSearch');
@@ -170,8 +172,9 @@ function fillSearchResults(popup_name, data_value) {
   
   if (data_value.match('#@#')) {
     var key_value_arr = data_value.split('#@#');
+    
     for (var i = 0; i < key_value_arr.length; i++) {
-      var current_name_value = key_value_arr[i].split(':');
+      var current_name_value = key_value_arr[i].split('::');
       var input_name         = current_name_value[0];
       var input_value        = current_name_value[1];
       

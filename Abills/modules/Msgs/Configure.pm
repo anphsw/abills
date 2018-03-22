@@ -351,69 +351,6 @@ sub msgs_chapters {
 }
 
 #**********************************************************
-=head2 msgs_dispatch_admins($attr) - dispatch admins
-
-=cut
-#**********************************************************
-sub msgs_dispatch_admins {
-  my ($attr) = @_;
-
-  if ($FORM{change_admins}) {
-    $Msgs->dispatch_admins_change({%FORM});
-    $html->message( 'info', $lang{INFO}, "$lang{CHANGED}" ) if (!$Msgs->{errno});
-  }
-
-  my $list = $Msgs->dispatch_admins_list({
-    DISPATCH_ID => $attr->{DISPATCH_ID} || $FORM{chg},
-    COLS_NAME => 1
-  });
-
-  my %active_admins = ();
-  foreach my $line (@$list) {
-    $active_admins{ $line->{aid} } = 1;
-  }
-
-  $list = $admin->list({ %LIST_PARAMS, DISABLE => 0, COLS_NAME => 1, PAGE_ROWS => 1000 });
-
-  my $table = $html->table({
-    width      => '100%',
-    caption    => "$lang{ADMINS}",
-    title      => [ '#', $lang{ADMIN}, $lang{FIO} ],
-    qs         => $pages_qs,
-    ID         => 'MSGS_ADMINS'
-  });
-
-  foreach my $line (@$list) {
-    $table->addrow(
-      $html->form_input(
-        'AIDS',
-        "$line->{aid}",
-        {
-          TYPE  => 'checkbox',
-          STATE => ($active_admins{ $line->{aid} }) ? 1 : undef
-        }
-      )
-        . $line->{aid},
-      $line->{login},
-      $line->{name}
-    );
-  }
-
-  print $html->form_main({
-    CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
-    HIDDEN  => {
-      index       => $index,
-      DISPATCH_ID => $FORM{chg},
-      chg         => $FORM{chg},
-    },
-    SUBMIT  => { change_admins => $lang{CHANGE} },
-    NAME    => 'admins_list'
-  });
-
-  return 1;
-}
-
-#**********************************************************
 =head2 msgs_dispatch_category()
 
 =cut
@@ -755,7 +692,7 @@ sub msgs_quick_replys_types {
     SKIP_USER_TITLE => 1,
     TABLE           => {
       width   => '100%',
-      caption => "$lang{QUICK_REPLYS_TYPES}",
+      caption => "$lang{MSGS_TAGS_TYPES}",
       qs      => $pages_qs,
       ID      => 'QUICK_REPLYS_TYPES',
       MENU    => "$lang{ADD}:add_form=1&index=$index:add"
@@ -937,7 +874,7 @@ sub msgs_quick_replys {
     FUNCTION_FIELDS => 'change,del',
     EXT_TITLES      => {
       id      => '#',
-      reply   => $lang{REPLY},
+      reply   => $lang{TAGS},
       type_id => "$lang{TYPE} ID",
       type    => $lang{TYPE},
       color   => $lang{COLOR},
@@ -945,7 +882,7 @@ sub msgs_quick_replys {
     SKIP_USER_TITLE => 1,
     TABLE           => {
       width   => '100%',
-      caption => "$lang{QUICK_REPLYS}",
+      caption => "$lang{MSGS_TAGS}",
       qs      => $pages_qs,
       ID      => 'QUICK_REPLYS',
       MENU    => "$lang{ADD}:add_form=1&index=$index:add"

@@ -79,7 +79,7 @@ sub notes_list{
     [ 'CREATED',             'STR',   'n.create_date AS created'        ,1],
     ['HAVE_CHECKLIST',       'INT',   'IF(COUNT(ncl.id) > 0, 1,0) AS have_checklist', 1],
     [ 'AID',                 'INT',   'n.aid'                           ,1],
-    [ 'NAME',                'STR',   'adm.name'                        ,1],
+    [ 'NAME',                'STR',   'IF(adm.name, adm.name, adm.id) AS name' ,1],
   ];
 
   if ($attr->{SHOW_ALL_COLUMNS}){

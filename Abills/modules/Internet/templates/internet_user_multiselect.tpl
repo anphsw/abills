@@ -23,14 +23,31 @@
 
 <div class='form-group'>
   <div class='row'>
-   <div class='col-md-4'>
-    %MU_TP_CHECKBOX%
-    _{TARIF_PLAN}_
-  </div>
-  <div class='col-md-8'>
-    %MU_TP_SELECT%
+    <div class='col-md-4'>
+      %MU_TP_CHECKBOX%
+      _{TARIF_PLAN}_
+    </div>
+    <div class='col-md-8'>
+      %MU_TP_SELECT%
+    </div>
   </div>
 </div>
+
+<div class='form-group'>
+  <div class='row'>
+    <div class="col-md-4">
+      <input type="checkbox" name="MU_CREDIT" value="1" form="internet_users_list" id="MU_CREDIT"> _{CREDIT}_
+    </div>
+    <div class='col-md-4'>
+      <input class='form-control' type="number" name="MU_CREDIT_SUM" form="internet_users_list" id="MU_CREDIT_SUM" step='0.01'>
+    </div>
+    <div class='col-md-1'>
+      <label class='control-label' style="padding-top: 5px;">_{TO}_</label>
+    </div>
+    <div class='col-md-3'>
+      %MU_CREDIT_DATEPICKER%
+    </div>
+  </div>
 </div>
 
 <div class='form-group'>

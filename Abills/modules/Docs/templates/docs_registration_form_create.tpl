@@ -103,7 +103,7 @@
         </form>
 
     </div>
-    <div class='box-footer text-center'>
+    <div class='box-footer'>
         <input type='submit' class='btn btn-default' form='form_DOCS_REGISTRATION' name='generate' value='_{PREVIEW}_'>
         <button class='btn btn-primary' id='EXPORT_BTN'><span class='glyphicon glyphicon-print'></span> _{PRINT}_</button>
     </div>

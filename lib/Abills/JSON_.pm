@@ -10,13 +10,13 @@ use strict;
 our (
   %FORM,
   %COOKIES,
-  $index,
-  $pages_qs,
+#  $index,
+#  $pages_qs,
   $SORT,
   $DESC,
   $PG,
   $PAGE_ROWS,
-  $SELF_URL,
+#  $SELF_URL,
   $CONFIG_TPL_SHOW,
 );
 
@@ -36,14 +36,15 @@ sub new {
   $IMG_PATH = (defined($attr->{IMG_PATH})) ? $attr->{IMG_PATH} : '../img/';
   $CONF = $attr->{CONF} if (defined($attr->{CONF}));
 
-  require Abills::HTML;
-  Abills::HTML->import();
-
   my $self = { };
   bless($self, $class);
 
   if ($attr->{NO_PRINT}) {
     $self->{NO_PRINT} = 1;
+  }
+
+  if($attr->{FORM}) {
+    %FORM = %{ $attr->{FORM} };
   }
 
   $self->{CHARSET} = (defined($attr->{CHARSET})) ? $attr->{CHARSET} : 'utf8';
@@ -78,6 +79,20 @@ sub form_input {
 }
 
 #**********************************************************
+=head2 form()
+
+=cut
+#**********************************************************
+sub form {
+  my $self == shift;
+  my $form = shift;
+
+  %FORM = %{ $form };
+
+  return $self;
+}
+
+#**********************************************************
 =head2 form_main($attr)
 
 =cut
@@ -96,7 +111,6 @@ sub form_main {
   }
 
   my @arr = ();
-
   if (defined($attr->{HIDDEN})) {
     my $H = $attr->{HIDDEN};
     while (my ($k, $v) = each(%$H)) {
@@ -119,21 +133,23 @@ sub form_main {
   my $json_body = "{\n" . join(", \n", @arr) . "}";
 
   if($FORM{EXPORT_CONTENT}){
-    return $attr->{CONTENT};
+    push @{ $self->{JSON_OUTPUT} }, $attr->{CONTENT};
+    return q{};
   }
   elsif (! $attr->{OUTPUT2RETURN}) {
     push @{ $self->{JSON_OUTPUT} }, {
         $tpl_id => $json_body
       };
-    return ;
+    return q{};
   }
-  else {
-    return qq{ "$tpl_id" : $json_body };
-  }
+
+  return qq{ "$tpl_id" : $json_body };
 }
 
 #**********************************************************
-# form_textarea
+=head2 form_textarea($name, $value, $attr)
+
+=cut
 #**********************************************************
 sub form_textarea {
   my $self = shift;
@@ -150,15 +166,13 @@ sub form_textarea {
 }
 
 #**********************************************************
-=head2 form_select()
+=head2 form_select($name, $attr)
 
 =cut
 #**********************************************************
 sub form_select {
   my $self = shift;
   my ($name, $attr) = @_;
-
-  #my $ex_params = (defined($attr->{EX_PARAMS})) ? $attr->{EX_PARAMS} : '';
 
   $self->{SELECT} = "\"$name\" : {\n";
   my @sel_arr = ();
@@ -182,9 +196,9 @@ sub form_select {
     }
   }
   elsif (defined($attr->{SEL_MULTI_ARRAY})) {
-    my $key   = $attr->{MULTI_ARRAY_KEY};
+    my $key = $attr->{MULTI_ARRAY_KEY};
     my $value = $attr->{MULTI_ARRAY_VALUE};
-    my $H     = $attr->{SEL_MULTI_ARRAY};
+    my $H = $attr->{SEL_MULTI_ARRAY};
 
     foreach my $v (@$H) {
       my $val = "\"$v->[$key]\"";
@@ -221,15 +235,23 @@ sub form_select {
   }
 
   $self->{SELECT} .= join(",\n  ", @sel_arr);
-
   $self->{SELECT} .= "}\n";
 
-  return $self->{SELECT};
+  if (!$FORM{EXPORT_CONTENT}) {
+    #push @{ $self->{JSON_OUTPUT} }, $self->{SELECT};
+  }
+  elsif ($attr->{OUTPUT2RETURN}) {
+    return $self->{SELECT} || q{};
+  }
+
+  return '';
 }
 
 
 #**********************************************************
-# Functions list
+=head2 menu2($menu_items, $menu_args, $permissions, $attr)
+
+=cut
 #**********************************************************
 sub menu2 {
   my $self = shift;
@@ -237,9 +259,14 @@ sub menu2 {
   $self->menu($menu_items, $menu_args, $permissions, $attr);
 }
 
+#**********************************************************
+=head2 menu2($menu_items, $menu_args, $permissions, $attr)
+
+=cut
+#**********************************************************
 sub menu {
   my $self = shift;
-  my ($menu_items, $menu_args, $permissions, $attr) = @_;
+  my ($menu_items, undef, $permissions, $attr) = @_;
 
   return 0 if ($FORM{index} > 0);
 
@@ -284,11 +311,11 @@ sub menu {
       label:
       my $mi = $new_hash{$ID};
 
-      while (my ($k, $val) = each %$mi) {
+      while (my ($k, $val2) = each %$mi) {
         push @menu_arr, "$prefix \"sub_" . $fl->{$k} . "\": {
           \"ID\"       : \"$k\",
-          \"EX_ARGS\"  :  \"" . $self->link_former("$EX_ARGS") . "\",
-          \"DESCRIBE\" : \"$val\",
+          \"EX_ARGS\"  : \"" . $self->link_former($EX_ARGS) . "\",
+          \"DESCRIBE\" : \"$val2\",
           \"TYPE\"     : \"SUB\",
           \"PARENT\"   : \"$ID\"\n  }";
 
@@ -315,20 +342,18 @@ sub menu {
 
   $menu_text .= join(",\n  ", @menu_arr);
 
+  push @{ $self->{JSON_OUTPUT} }, $menu_text;
+
+  return ('', '');
+
   return ($menu_navigator, $menu_text);
 }
 
-#**********************************************************
-# heder off main page
-# make_charts()
-#**********************************************************
-sub make_charts () {
-
-}
 
 #**********************************************************
-# heder off main page
-# header()
+=head2 header($attr) - heder off main page
+
+=cut
 #**********************************************************
 sub header {
   my $self       = shift;
@@ -349,43 +374,31 @@ sub header {
 }
 
 #**********************************************************
-#
-# css()
-#**********************************************************
-sub css {
-  my $css = "";
-  return $css;
-}
-
-#**********************************************************
 =head2 table() - Init table object
 
 =cut
 #**********************************************************
 sub table {
   my $proto  = shift;
+  my ($attr)    = @_;
 
   my $class  = ref($proto) || $proto;
   my $parent = ref($proto) && $proto;
 
-  my $self;
-  $self = {};
+  my $self = {};
 
-  bless($self);
+  bless($self, $class);
   $self->{prototype} = $proto;
+  $self->{HTML}      = $parent;
   $self->{NO_PRINT}  = $proto->{NO_PRINT};
 
-  my ($attr)    = @_;
   $self->{rows} = '';
-
   $self->{table} = '';
-  if ($#table_rows > -1 ) {
-    $self->{table} = ',';
-    @table_rows   = ();
-  }
 
-  if (defined($attr->{rowcolor})) {
-    $self->{rowcolor} = $attr->{rowcolor};
+  if ($#table_rows > -1 ) {
+    # $self->{table} = ',';
+    $self->{table} = '';
+    @table_rows   = ();
   }
 
   if ($attr->{FIELDS_IDS}) {
@@ -399,25 +412,25 @@ sub table {
     }
   }
 
-  $self->{ID} = $attr->{ID};
+  $self->{ID} = $attr->{ID} || q{};
 
   if ($attr->{SELECT_ALL}) {
     $self->{SELECT_ALL}=$attr->{SELECT_ALL};
   }
 
-  if ($FORM{EXPORT_CONTENT} eq $attr->{ID}) {
-    $self->{table} .= "{";
+  if ($FORM{EXPORT_CONTENT} eq $self->{ID}) {
+    #$self->{table} .= "{";
   }
   else {
-    $self->{table} .= "\"TABLE_" . $attr->{ID} . "\" : {";
+    $self->{table} .= "\"TABLE_" . $self->{ID} . "\" : {";
   }
 
   if (defined($attr->{caption})) {
     $self->{table} .= " \"CAPTION\" : \"$attr->{caption}\",\n";
   }
 
-  if (defined($attr->{ID})) {
-    $self->{table} .= " \"ID\" : \"$attr->{ID}\",\n";
+  if (defined($self->{ID})) {
+    $self->{table} .= " \"ID\" : \"$self->{ID}\",\n";
   }
 
   if (defined($attr->{title})) {
@@ -458,14 +471,23 @@ sub addrow {
   }
 
   my @formed_rows   = ();
+
   my $select_present = ($self->{SELECT_ALL}) ? 1 : 0;
 
   for (my $i=0; $i<=$#row; $i++) {
     my $val = $row[$i+$select_present];
+
     if ($self->{FIELDS_IDS}) {
-      if ($self->{FIELDS_IDS}->[$i] && $self->{TABLE_TITLE}->[$i+$select_present] ne '-' ) {
+      #if (! $self->{FIELDS_IDS}->[$i] || $self->{TABLE_TITLE}->[$i+$select_present]) {
+      if ($self->{TABLE_TITLE}->[$i]) {
+        #print "---- $self->{TABLE_TITLE}->[$i] ----<br>\n";
+        if(! $self->{FIELDS_IDS}->[$i]) {
+          next;
+        }
+        #print "-- $i -> ". ($self->{TABLE_TITLE}->[$i+$select_present]) ."\n";
         $val =~ s/[\n\r]/ /g;
         $val =~ s/\"/\\\"/g;
+        $val =~ s/\t/ /g;
         push @formed_rows, "\"$self->{FIELDS_IDS}->[$i]\" : \"$val\"";
       }
     }
@@ -474,8 +496,8 @@ sub addrow {
     }
   }
 
-  push @table_rows, '{'. join(', ', @formed_rows) .'}';
-  push @{ $self->{table_rows} }, '{'. join(', ', @formed_rows) .'}';
+  push @table_rows, '{'. join(', ', @formed_rows) .'}' if($#formed_rows > -1);
+  push @{ $self->{table_rows} }, '{'. join(', ', @formed_rows) .'}' if($#formed_rows > -1);
 
   return $self->{rows};
 }
@@ -495,9 +517,10 @@ sub addtd {
   for (my $i=0; $i<=$#row+$select_present+1; $i++) {
     my $val = $row[$i+$select_present];
     if ($self->{FIELDS_IDS}) {
-      my $title_id = ($i+$select_present < 0) ? 0 : $i+$select_present;
+      #my $title_id = ($i+$select_present < 0) ? 0 : $i+$select_present;
       if ($self->{FIELDS_IDS}->[$i] && $self->{TABLE_TITLE}->[$i] && $self->{TABLE_TITLE}->[$i] ne '-' ) {
         $val =~ s/[\n\r]/ /g;
+        $val =~ s/\t/ /g;
         push @formed_rows, "\"$self->{FIELDS_IDS}->[$i]\" : \"$val\"";
       }
       else {
@@ -532,13 +555,14 @@ sub th {
 =cut
 #**********************************************************
 sub td{
-  my $self = shift;
+  shift;
   my ($value) = @_;
 
   my $td = '';
   if ( defined( $value ) ){
     $td .= $value;
     $td =~ s/\"/\\\"/g;
+    $td =~ s/\t/ /g;
   }
 
   return $td;
@@ -572,17 +596,19 @@ sub table_title_plain {
 }
 
 #**********************************************************
-# Show table column  titles with wort derectives
-# Arguments
-# table_title($sort, $desc, $pg, $caption, $qs);
-# $sort - sort column
-# $desc - DESC / ASC
-# $pg - page id
-# $caption - array off caption
+=head2 table_title($sort, $desc, $pg, $caption, $qs) - Show table column  titles with wort derectives
+
+  Arguments:
+    $sort - sort column
+    $desc - DESC / ASC
+    $pg - page id
+    $caption - array off caption
+
+=cut
 #**********************************************************
 sub table_title {
   my $self = shift;
-  my ($sort, $desc, $pg, $caption, $qs) = @_;
+  my (undef, undef, undef, $caption) = @_;
 
   $self->{table_title} = "\"TITLE\" : [\n";
 
@@ -593,15 +619,17 @@ sub table_title {
   }
 
   $self->{table_title} .= join(",", @table_arr) ." ],\n";
+
   return $self->{table_title};
 }
 
 #**********************************************************
-#
-# img($img, $name, $attr)
+=head2 img($img, $name, $attr)
+
+=cut
 #**********************************************************
 sub img {
-  my $self = shift;
+  shift;
   my ($img, $name) = @_;
 
   my $img_path = ($img =~ s/^://) ? "$IMG_PATH/" : '';
@@ -627,56 +655,45 @@ sub show {
     @table_rows = @{ $self->{table_rows} };
   }
 
-  $self->{show} = $self->{table};
-  $self->{show} .= "\"DATA_1\" : [\n  ";
-  $self->{show} .= join(",\n ", @table_rows);
-  $self->{show} .= "\n]\n";
-
-  if (defined($self->{pages})) {
+ # if (defined($self->{pages})) {
  #   $self->{show} = $self->{show} . ',' . $self->{pages};
-  }
+ # }
 
-  $self->{show} .= "\n}\n";
-
-  my $tpl_id    = $self->{ID} || 'DATA_1';
-  my $json_body = " [\n  "
+  my $json_body = $self->{table}
+    . "\"DATA_1\" : [\n  "
     . join(",\n ", @table_rows)
-    . "\n]";
+    . "\n] ";
 
-  if( $FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} eq $self->{ID} ) {
-    return $self->{show};
-  }
-  elsif (! $attr->{OUTPUT2RETURN})  {
-    push @{ $self->{JSON_OUTPUT} }, {
-        $tpl_id => $json_body
-    };
+  $json_body .= '}' if (! $FORM{EXPORT_CONTENT});
+
+  if (! $attr->{OUTPUT2RETURN})  {
+    push @{ $self->{HTML}{JSON_OUTPUT} }, $json_body;
     return '';
   }
-  else {
-    return qq{ "$tpl_id" : $json_body };
-  }
 
-  if ((defined($self->{NO_PRINT})) && (!defined($attr->{OUTPUT2RETURN}))) {
-    $self->{prototype}->{OUTPUT} .= $self->{show};
-    $self->{show} = '';
-  }
-
-  return $self->{show};
+  return $json_body;
 }
 
 #**********************************************************
-#
-#**********************************************************
-sub link_former {
-  my ($self) = shift;
-  my ($params) = @_;
+=head2 color_mark($text, $color) - colors text
 
-  return $params;
+  Arguments:
+    $text, $color -
+    
+  Returns:
+    $text
+    
+=cut
+#**********************************************************
+sub color_mark {
+#  my ($self,$text, $color) = @_;
+  return $_[1] || '';
 }
 
 #**********************************************************
-#
-# button($name, $params, $attr)
+=head2 button($name, $params, $attr)
+
+=cut
 #**********************************************************
 sub button {
   my $self = shift;
@@ -692,15 +709,17 @@ sub button {
                      \"title\" : \"$attr->{TITLE}\"
                     }\n";
 
-  $button = $name;
+  $button = "$name";
 
   return $button;
 }
 
 #**********************************************************
-# Show message box
-# message($self, $type, $caption, $message)
-# $type - info, err
+=head2 message($self, $type, $caption, $message) Show message box
+
+ $type - info, err
+
+=cut
 #**********************************************************
 sub message {
   my $self = shift;
@@ -710,11 +729,20 @@ sub message {
     $type='info';
   }
 
-  my $id = ($attr->{ID}) ? qq{,"ID" : "$attr->{ID}" } : '';
+  if ($FORM{EXPORT_CONTENT}) {
+    return q{};
+  }
 
-  my $tpl_id = 'MESSAGE';
+  my $id = ($attr->{ID}) ? qq{,"ID" : "$attr->{ID}" } : '';
+  
+  if ($attr->{RESPONCE_PARAMS} && ref $attr->{RESPONCE_PARAMS} eq 'HASH'){
+    $id .= ',' . join (',', map { qq{ "$_" : "$attr->{RESPONCE_PARAMS}->{$_}" } } (keys %{$attr->{RESPONCE_PARAMS}})  );
+  }
+  
+  my $tpl_id = 'MESSAGE' . (($attr->{ID}) ? '_'.$attr->{ID} : q{});
   my $json_body =  qq/{
-                      "type"    : "$type",
+                      "type"    : "MESSAGE",
+                      "message_type" : "$type",
                       "caption" : "$caption",
                       "messaga" : "$message"
                       $id
@@ -723,31 +751,18 @@ sub message {
   $json_body =~ s/\n/ /gm;
   
   if (! $attr->{OUTPUT2RETURN}) {
-    push @{ $self->{JSON_OUTPUT} }, {
-        $tpl_id => $json_body
-      };
-    return ;
+    push @{ $self->{JSON_OUTPUT} }, { $tpl_id => $json_body };
+    return q{};
   }
   else {
     return qq{ "$tpl_id" : $json_body };
   }
-
-#  my $output = qq{ "$tpl_id" : $json_body };
-#  if ($attr->{OUTPUT2RETURN}) {
-#    return $output;
-#  }
-#  elsif ($self->{NO_PRINT}) {
-#    $self->{OUTPUT} .= $output;
-#    return $output;
-#  }
-#  else {
-#    print $output;
-#  }
 }
 
 #**********************************************************
-# Make pages and count total records
-# pages($count, $argument)
+=head2 pages($count, $argument)- Make pages and count total records
+
+=cut
 #**********************************************************
 sub pages {
   my $self = shift;
@@ -810,10 +825,12 @@ sub date_fld2 {
 }
 
 #**********************************************************
-# log_print()
+=head2 log_print($level, $text)
+
+=cut
 #**********************************************************
 sub log_print {
-  my $self = shift;
+  shift;
   my ($level, $text) = @_;
 
   if ($debug < $log_levels{$level}) {
@@ -869,7 +886,8 @@ sub tpl_show {
 
   $tpl_name = "HASH" if (! $attr->{MAIN});
 
-  if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $tpl_name) {
+  # if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $tpl_name) {
+  if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $tpl_id) {
     return '';
   }
 
@@ -917,7 +935,7 @@ sub tpl_show {
 
   $json_body .= join(",\n  ", @val_arr);
   $json_body .= "}\n" ;
-  $xml_tpl .= $json_body;
+  $xml_tpl .= $json_body."\n";
 
   if (! $attr->{OUTPUT2RETURN}) {
     push @{ $self->{JSON_OUTPUT} }, {
@@ -931,45 +949,6 @@ sub tpl_show {
 }
 
 #**********************************************************
-# test function
-#  %FORM     - Form
-#  %COOKIES  - Cookies
-#  %ENV      - Enviropment
-#
-#**********************************************************
-sub test {
-  my $output = '';
-
-  while (my ($k, $v) = each %FORM) {
-    $output .= "$k | $v\n" if ($k ne '__BUFFER');
-  }
-
-  $output .= "\n";
-  while (my ($k, $v) = each %COOKIES) {
-    $output .= "$k | $v\n";
-  }
-}
-
-#**********************************************************
-# Mark text
-#**********************************************************
-sub color_mark {
-  my $self = shift;
-  my ($message, $color, $attr) = @_;
-
-  return $message if ($attr->{SKIP_XML});
-
-  my $output = "$message";
-  return $output;
-}
-
-sub menu_right {
-  my $self = shift;
-
-  return '';
-}
-
-#**********************************************************
 =head2 table_header($header, $attr) - Show table column  titles with wort derectives
 
   Arguments:
@@ -979,7 +958,7 @@ sub menu_right {
 #**********************************************************
 sub table_header {
   my $self = shift;
-  my ($header_arr, $attr) = @_;
+#  my ($header_arr, $attr) = @_;
   my $header = '';
   if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $self->{ID}) {
     return '';
@@ -1004,30 +983,39 @@ sub table_header {
 #**********************************************************
 sub fetch  {
   my $self = shift;
+  my ($attr) = @_;
 
-  if ($FORM{EXPORT_CONTENT}) {
-    return $self;
-  }
-
-  #print "\nStart =============================================================\n";
   my @output_arr = ();
   foreach my $obj ( @{ $self->{JSON_OUTPUT} } ) {
-    my ($key, $val)=each %$obj;
-    push @output_arr, "\"$key\" : $val";
+    if(ref $obj eq 'HASH') {
+      my ($key, $val) = each %$obj;
+      push @output_arr, "\"$key\" : $val";
+    }
+    else {
+      push @output_arr, $obj;
+    }
   }
 
-  print "{\n". join(",\n", @output_arr) ."\n}";
+  my $result = join(",\n", @output_arr);
+
+  if ($FORM{EXPORT_CONTENT1} && $#output_arr == 0) {
+    $result = join(",\n\n", @output_arr);
+  }
+  elsif($attr->{FULL_RESULT}) {
+    $result = join(",\n\n", @output_arr);
+  }
+  else {
+    $result = "{\n". join(",\n\n", @output_arr) ."\n}";
+  }
+
+  if($attr->{DEBUG}) {
+    $self->{RESULT} = $result;
+  }
+  else {
+    print $result;
+  }
 
   return $self;
-}
-
-#**********************************************************
-=head2 short_info_panels_row() - Dummy to avoid errors
-
-=cut
-#**********************************************************
-sub short_info_panels_row{
-  return '';
 }
 
 #**********************************************************
@@ -1038,7 +1026,7 @@ sub short_info_panels_row{
 sub AUTOLOAD {
   our $AUTOLOAD;
 
-  return if ($AUTOLOAD =~ /::DESTROY$/);
+  return if ($AUTOLOAD =~ /::[A-Z]+$/);
   my $function = $AUTOLOAD;
 
   if($function =~ /table_header|progress_bar|/) {
@@ -1049,5 +1037,7 @@ sub AUTOLOAD {
 
   return $data;
 }
+
+DESTROY {}
 
 1

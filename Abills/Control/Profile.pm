@@ -526,9 +526,23 @@ sub admin_info_change {
     });
   }
 
-  my $passwd_btn = $html->button($lang{CHANGE_PASSWORD}, "index=$index&chg_pswd=1", { class => 'btn btn-xs btn-primary' });
+  if ($FORM{clear_settings}){
+    $admin->settings_del();
+    $admin->change({
+      AID   => $admin->{AID},
+      WEB_OPTIONS => '',
+    });
 
-  $html->tpl_show(templates('form_admin_info_change'), {%$admin, CHG_PSW => $passwd_btn});
+    $html->message("info", "$lang{SUCCESS}");
+  }
+
+  my $passwd_btn = $html->button($lang{CHANGE_PASSWORD}, "index=$index&chg_pswd=1", { class => 'btn btn-xs btn-primary' });
+  my $clear_settings_btn = $html->button($lang{CLEAR_SETTINGS}, "index=$index&clear_settings=1", { class => 'btn btn-xs btn-danger' });
+
+  $html->tpl_show(templates('form_admin_info_change'), {
+      %$admin,
+      CHG_PSW        => $passwd_btn,
+      CLEAR_SETTINGS => $clear_settings_btn});
 
   return 1;
 }

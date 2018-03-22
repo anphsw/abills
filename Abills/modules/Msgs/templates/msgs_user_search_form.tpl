@@ -15,7 +15,7 @@
                         </button>
                     </span>
 
-                    <input class="form-control"  name="SECRH_MSG_TEXT" type="text">
+                    <input class="form-control"  name="SEARCH_MSG_TEXT" type="text">
 
                 </div>
            </div>

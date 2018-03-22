@@ -119,7 +119,20 @@ VALUES
   (218,4,25,'ISCOM5508','https://www.raisecom.com/product/small-epon-olt',12,'','','','',2,4,0,0,4),
   (219, 3, 26, 'S2990G-24T', 'https://nag.ru/articles/article/26250/obzor-kommutatora-snr-s2990g-48t.html', 24, '', '', '', '', 2, 6, 0, 0, 3),
   (220, 3, 26, 'SNR-S2990G-24TX', 'https://nag.ru/articles/article/26250/obzor-kommutatora-snr-s2990g-48t.html', 24, '', '', '', '', 2, 6, 0, 0, 3),
-  (221, 3, 26, 'SNR-S2990G-48T', 'https://nag.ru/articles/article/26250/obzor-kommutatora-snr-s2990g-48t.html', 48, '', '', '', '', 2, 6, 0, 0, 3);;
+  (221, 3, 26, 'SNR-S2990G-48T', 'https://nag.ru/articles/article/26250/obzor-kommutatora-snr-s2990g-48t.html', 48, '', '', '', '', 2, 6, 0, 0, 3),
+  (222, 3, 2,  'DGS-3620-28SC','http://www.dlink.ru/ru/products/1/2037_i.html', 20, '', '', '', '', 2, 4, 0, 0, 4),
+  (223, 3, 6,  'CCR1009-8G-1S-1S+','https://mikrotik.com/product/CCR1009-8G-1S-1Splus', 2, '', '', '', '', 1, 2, 0, 0, 4),
+  (224, 4, 22, 'MA5800', 'http://e.huawei.com/en/products/fixed-network/access/olt/ma5800', 0, '', '', '', '', 1, 0, 0, 0, 1),
+  (225, 1, 1, '3560', 'https://www.cisco.com/c/en/us/products/switches/catalyst-3560-series-switches/index.html', 0, '', '', '', '', 1, 0, 0, 0, 1),
+  (226, 6, 8, '3750', 'https://www.cisco.com/c/en/us/products/switches/catalyst-3750-series-switches/index.html', 0, '', '', '', '', 1, 0, 0, 0, 1),
+  (227, 4, 22, 'MA5800X7', 'http://e.huawei.com/en/products/fixed-network/access/olt/ma5800', 0, '', '', '', '', 1, 0, 0, 0, 1),
+  (228, 4, 22, 'MA5800-X15', 'http://e.huawei.com/en/products/fixed-network/access/olt/ma5800', 0, '', '', '', '', 1, 0, 0, 0, 1),
+  (229, 1, 20, 'OmniStack OS-LS-6224', '', 24, '', '', '', '', 2, 6, 0, 0, 1),
+  (230, 1, 20,'OmniSwitch 6250-24ME', 'http://www.alcatel-lucent-rt.ru/product/data-network/lan/stackable-switches/omniswitch-6250/', 24, '', '', '', '', 2, 6, 0, 0, 1),
+  (231, 1, 27, 'SPS224G4', '', 24, '', '', '', '', 2, 4, 0, 0, 1),
+  (232, 1, 2, 'DGS-1100-06/ME', 'http://www.dlink.ru/ru/products/1/2048.html', 4, '', '', '', '', 1, 4, 0, 0, 1),
+  (233, 6, 3, '3124-4F', '', 24, '', '', '', '', 2, 4, 0, 0, 1),
+  (234, 1, 28, 'GS-5220-16S8C', 'http://www.planet.com.tw/en/product/product.php?id=48563', 24, '', '', '', '', 2, 12, 0, 0, 4);
 
 REPLACE INTO `equipment_extra_ports` (`model_id`, `port_number`, `port_type`, `state`, `row`)
 VALUES
@@ -222,7 +235,11 @@ VALUES
   (218, 5, 1, 0, 1), (218, 6, 1, 0, 1), (219, 1, 4, 0, 0), (219, 2, 4, 0, 0),
   (219, 3, 4, 0, 0), (219, 4, 4, 0, 0), (220, 1, 4, 0, 0), (220, 2, 4, 0, 0),
   (220, 3, 4, 0, 0), (220, 4, 4, 0, 0), (221, 1, 4, 0, 0), (221, 2, 4, 0, 0),
-  (221, 3, 4, 0, 0), (221, 4, 4, 0, 0);;
+  (221, 3, 4, 0, 0), (221, 4, 4, 0, 0), (222, 1, 3, 0, 0), (222, 2, 3, 0, 0),
+  (222, 3, 3, 0, 1), (222, 4, 3, 0, 1), (222, 5, 4, 0, 0), (222, 6, 4, 0, 0),
+  (222, 7, 4, 0, 1), (222, 8, 4, 0, 1), (223, 1, 1, 0, 0), (223, 2, 1, 0, 0),
+  (223, 3, 1, 0, 0), (223, 4, 1, 0, 0), (223, 5, 1, 0, 0), (223, 6, 1, 0, 0),
+  (223, 7, 1, 0, 0), (223, 8, 1, 0, 0);
   
 
 REPLACE INTO `equipment_vendors` (`id`, `name`, `support`, `site`)
@@ -252,7 +269,9 @@ VALUES
   (23, 'SMC', '', 'http://www.smc.com/'),
   (24, 'Gw Delight', '', 'http://www.gwdelight.com/'),
   (25, 'Raisecom', '', 'https://www.raisecom.com'),
-  (26, 'SNR', '', '');
+  (26, 'SNR', '', ''),
+  (27, 'Linksys', '', 'http://www.linksys.com/us/'),
+  (28, 'Planet', '', 'http://www.planet.com.tw');
 
 
 REPLACE INTO `equipment_types` (`id`, `name`)

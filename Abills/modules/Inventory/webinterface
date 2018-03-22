@@ -86,6 +86,12 @@ sub inventory_main{
       SELECTED => $Inventory->{RESPONSIBLE}
     });
 
+    $Inventory->{STATUS_SEL} = $html->form_select('STATUS', {
+      SELECTED => $Inventory->{STATUS},
+      SEL_HASH => { 0 => $lang{ACTIVE}, 1 => $lang{DISABLE}, 2 => 'Fade out' },
+      NO_ID    => 1
+    } );
+
     my @hardwares = ();
     my @softwares = ();
     foreach my $line ( @{$list} ){
@@ -94,14 +100,14 @@ sub inventory_main{
           ID    => $line->[0],
           NAME  => $line->[1],
           VALUE => $html->form_input($line->[0], $line->[4])
-        }, { OUTPUT2RETURN => 1 });
+        }, { OUTPUT2RETURN => 1, ID => $line->[1] });
       }
       else{
         push @softwares, $html->tpl_show(templates('form_row'), {
           ID    => $line->[0],
           NAME  => $line->[1],
           VALUE => $html->form_input($line->[0], $line->[4])
-        }, { OUTPUT2RETURN => 1 });
+        }, { OUTPUT2RETURN => 1, ID => $line->[1] });
       }
     }
 
@@ -114,7 +120,8 @@ sub inventory_main{
         HARDWARE         => join( ($FORM{json}) ? ',' : '', @hardwares ),
         SOFTWARE         => join( ($FORM{json}) ? ',' : '', @softwares ),
         #INTEGRATION_DATE => $date_integration
-      }
+      },
+      { ID => 'inventory_main_form' }
     );
   }
   elsif($FORM{search_form}) {
@@ -146,7 +153,7 @@ sub inventory_main{
     INPUT_DATA      => $Inventory,
     FUNCTION        => 'inventory_main_list',
     DEFAULT_FIELDS  => 'WEB_ACCESS_INFO,IP,ACCESS_INFO,SUPERPASSWORD,RESPONSIBLE,INVENTORY_COMMENTS',
-    FUNCTION_FIELDS => 'change,del',
+    FUNCTION_FIELDS => 'inventory_log:log:ip:&search=1,change,del',
     SKIP_USER_TITLE => 1,
     EXT_TITLES      => {
       hostname        => $lang{HOSTNAME},
@@ -163,12 +170,14 @@ sub inventory_main{
       date            => $lang{DATE},
       superpassword   => "root $lang{PASSWD}",
       uid             => 'UID',
+      status          => $lang{STATUS},
       %types
     },
     FILTER_COLS => {
       web_access_info => 'inventory_former',
       access_info     => 'inventory_former',
-      superpassword   => 'inventory_former_passwd'
+      superpassword   => 'inventory_former_passwd',
+      password        => 'inventory_former_passwd:user_password'
     },
     TABLE => {
       width   => '100%',
@@ -201,7 +210,7 @@ sub inventory_type_add{
   $Inventory->{ACTION_LNG} = $lang{ADD};
 
   if ( !$FORM{add_type} ){
-    $html->tpl_show( _include( 'inventory_types_form', 'Inventory' ), { %{$Inventory} } );
+    $html->tpl_show( _include( 'inventory_types_form', 'Inventory' ), { %{$Inventory} }, { ID => 'inventory_types_form' } );
   }
 
   if ( $FORM{add_type} and !$FORM{change} ){
@@ -219,7 +228,7 @@ sub inventory_type_add{
     }
     else{
       $html->message( 'info', $lang{INFO}, "$lang{FIELDS_FOR_NAME_ARE_REQUIRED}" );
-      $html->tpl_show( _include( 'inventory_types_form', 'Inventory' ), { %{$Inventory}, %FORM } );
+      $html->tpl_show( _include( 'inventory_types_form', 'Inventory' ), { %{$Inventory}, %FORM }, { ID => 'inventory_types_form' } );
     }
   }
 
@@ -329,19 +338,18 @@ sub inventory_log{
   my $i=-1;
   my %status_hash = map { $i++; $i => $_; } @status_arr;
 
-  if($FORM{search_form}) {
-    form_search({
-      SIMPLE => {
-        "$lang{LOGIN}"          => 'LOGIN',
-        "$lang{HOSTS_HOSTNAME}" => 'HOSTNAME',
-        'IP'                    => 'IP',
-        'STATUS'                => { '' => $lang{ALL}, %status_hash },
-        'SIGN'                  => 'SIGN',
-        'SYS_ID'                => 'SYS_ID',
-        'LOG_COMMENTS'          => 'LOG_COMMENTS',
-      }
-    });
-  }
+  form_search({
+    SIMPLE => {
+      "$lang{LOGIN}"          => 'LOGIN',
+      "$lang{HOSTS_HOSTNAME}" => 'HOSTNAME',
+      'IP'                    => 'IP',
+      'STATUS'                => { '' => $lang{ALL}, %status_hash },
+      'SIGN'                  => 'SIGN',
+      'SYS_ID'                => 'SYS_ID',
+      'LOG_COMMENTS'          => 'LOG_COMMENTS',
+    },
+    CONTROL_FORM => 1
+  });
 
   result_former( {
     INPUT_DATA      => $Inventory,
@@ -409,6 +417,11 @@ sub inventory_bugs{
         }
       );
 
+      $Inventory->{RESPONSIBLE_SEL} = sel_admins({
+        NAME     => 'RESPONSIBLE',
+        SELECTED => $Inventory->{RESPONSIBLE}
+      });
+
       $html->tpl_show(_include('inventory_bug', 'Inventory' ), $Inventory);
     }
   }
@@ -464,6 +477,8 @@ sub inventory_bugs{
     })
   }
 
+  my $admins_list = sel_admins({ HASH => 1 });
+
   result_former({
     FUNCTION        => 'bugs_list',
     DEFAULT_FIELDS  => 'ID,DATETIME,ERROR,STATUS,CUR_VERSION,FIX_VERSION,COMMENTS',
@@ -481,18 +496,21 @@ sub inventory_bugs{
       'comments'   => $lang{COMMENTS},
       'cur_version'=> 'CUR_VERSION',
       'fix_version'=> 'FIX_VERSION',
+      'responsible'=> $lang{RESPONSIBLE}
     },
     TABLE           => {
       width   => '100%',
       caption => "Inventory - Bugs",
       border  => 1,
-      header     => $html->table_header(\@header_arr),
+      header  => $html->table_header(\@header_arr),
       qs      => $pages_qs,
       ID      => 'INVENTORY_BUGS',
       EXPORT  => 1,
       MENU    => "$lang{SEARCH}:search_form=1&index=$index:search",
     },
-    SELECT_VALUE    => \%status,
+    SELECT_VALUE    => {
+      responsible => $admins_list
+    },
     STATUS_VALS     => [$status{0}, $status{1}, $status{2}, $status{3}, $status{4} ],
     MAKE_ROWS       => 1,
     MODULE          => 'Inventory',
@@ -637,18 +655,26 @@ sub inventory_former {
 }
 
 #**********************************************************
-=head2 inventory_former($value)
+=head2 inventory_former($value, $attr)
 
 =cut
 #**********************************************************
 sub inventory_former_passwd {
-  my($value)=@_;
+  my($value, $attr)=@_;
   my $result = '';
+
+  my $color = $attr->{color};
+  if ($attr->{PARAMS}->[0] && $attr->{PARAMS}->[0] eq 'user_password') {
+    $color = 'text-success';
+  }
+  else {
+    $color = 'text-warning';
+  }
 
   $result = $html->button($value, '#', {
     GLOBAL_URL => '#',
     COPY       => $value,
-    ICON       => 'glyphicon glyphicon-lock'
+    ICON       => 'glyphicon glyphicon-lock '.$color
    });
 
   return $result;

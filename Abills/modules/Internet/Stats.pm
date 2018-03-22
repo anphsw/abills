@@ -36,19 +36,20 @@ my $chart_height           = 350;
 sub internet_stats {
   my ($attr) = @_;
 
+  my $uid = $FORM{UID};
   if($FORM{ID}) {
     print user_service_menu({
       SERVICE_FUNC_INDEX => get_function_index('internet_user'),
       PAGES_QS           => "&ID=$FORM{ID}",
-      UID                => $FORM{UID},
+      UID                => $uid,
       MK_MAIN            => 1
     });
   }
 
-  if (defined($attr->{USER_INFO})) {
+  if ($attr->{USER_INFO}) {
     my $user = $attr->{USER_INFO};
 
-    my $uid = $user->{UID};
+    $uid = $user->{UID} || 0;
     $LIST_PARAMS{UID} = $uid;
     if (!defined($FORM{sort})) {
       $LIST_PARAMS{SORT} = 2;
@@ -74,17 +75,18 @@ sub internet_stats {
       return 0;
     }
   }
-  elsif ($FORM{UID}) {
-    $LIST_PARAMS{UID} = $FORM{UID};
+  elsif ($uid) {
+    $LIST_PARAMS{UID} = $uid;
   }
 
   if ($FORM{del} && $FORM{COMMENTS}) {
     if (!defined($permissions{3}{1})) {
-      $html->message('err', $lang{ERROR}, 'ACCESS DENY');
+      $html->message('err', $lang{ERROR}, 'ACCESS_DENY');
       return 0;
     }
 
-    my ($uid, $session_id, $nas_id) = split(/ /, $FORM{del}, 7);
+    my ($session_id, $nas_id);
+    ($uid, $session_id, $nas_id) = split(/ /, $FORM{del}, 7);
 
     my $list = $Sessions->list({
       LOGIN      => '_SHOW',
@@ -123,7 +125,7 @@ sub internet_stats {
     }
   }
 
-  $Internet->info($FORM{UID});
+  $Internet->info($uid);
 
   #Join Service
   if ($users->{COMPANY_ID}) {
@@ -147,7 +149,7 @@ sub internet_stats {
         push @uids, $line->{uid};
       }
 
-      $LIST_PARAMS{UIDS} = ($Internet->{JOIN_SERVICE} > 1) ? $Internet->{JOIN_SERVICE} : $FORM{UID};
+      $LIST_PARAMS{UIDS} = ($Internet->{JOIN_SERVICE} > 1) ? $Internet->{JOIN_SERVICE} : $uid;
       $LIST_PARAMS{UIDS} .= ',' . join(', ', @uids) if ($#uids > -1);
 
       if ($Internet->{JOIN_SERVICE} > 1) {
@@ -193,8 +195,8 @@ sub internet_stats {
     $pages_qs .= "&UID=$LIST_PARAMS{UID}";
   }
 
-  $Sessions->{PERIOD_STATS} = internet_stats_periods({ UID => $FORM{UID} });
-  $Sessions->{PERIOD_STATS} .= internet_period_select({ UID => $FORM{UID} });
+  $Sessions->{PERIOD_STATS} = internet_stats_periods({ UID => $uid });
+  $Sessions->{PERIOD_STATS} .= internet_period_select({ UID => $uid, ID => $FORM{ID} });
 
   if (defined($FORM{show})) {
     $pages_qs .= "&show=1&FROM_DATE=$FORM{FROM_DATE}&TO_DATE=$FORM{TO_DATE}";
@@ -210,44 +212,11 @@ sub internet_stats {
 
   my $TRAFFIC_NAMES = internet_traffic_names($Internet->{TP_ID});
 
-  #Show rest of prepaid traffic
-  if (
-    $Sessions->prepaid_rest(
-      {
-        UID  => ($Internet->{JOIN_SERVICE} && $Internet->{JOIN_SERVICE} > 1) ? $Internet->{JOIN_SERVICE} : $LIST_PARAMS{UID},
-        UIDS => $LIST_PARAMS{UIDS}
-      }
-    )
-  )
-  {
-    #Prepaid: period, traffic_type
-    my $list  = $Sessions->{INFO_LIST};
-    my $table = $html->table(
-      {
-        caption     => $lang{PREPAID},
-        width       => '100%',
-        title_plain => [ $lang{DAY}, $lang{TRAFFIC_CLASS}, $lang{BEGIN}, $lang{END}, $lang{START}, "$lang{TOTAL} (MB)", "$lang{REST} (MB)", "$lang{OVERQUOTA} (MB)" ],
-        ID          => 'PREAPID_TRAFIC'
-      }
-    );
-
-    foreach my $line (@$list) {
-      my $traffic_rest = ($conf{DV_INTERVAL_PREPAID}) ? $Sessions->{REST}->{ $line->{interval_id} }->{ $line->{traffic_class} }  :  $Sessions->{REST}->{ $line->{traffic_class} };
-      $table->addrow(
-          ($line->{day} == 0 ) ? $lang{ALL}  : $WEEKDAYS[$line->{day}],
-        $line->{traffic_class} . ':' . (($TRAFFIC_NAMES->{ $line->{traffic_class} }) ? $TRAFFIC_NAMES->{ $line->{traffic_class} } : '').
-          ($conf{DV_INTERVAL_PREPAID} ? "/ $line->{interval_id}" : '') ,
-        $line->{interval_begin},
-        $line->{interval_end},
-        $line->{activate},
-        $line->{prepaid},
-          ($line->{prepaid} > 0 && $traffic_rest > 0) ? $traffic_rest : 0,
-          ($line->{prepaid} > 0 && $traffic_rest < 0) ? $html->color_mark(abs($traffic_rest), 'text-danger') : 0,
-      );
-    }
-
-    $Sessions->{PREPAID_INFO} = $table->show();
-  }
+  $Sessions->{PREPAID_INFO} = internet_traffic_rest({
+    TRAFFIC_NAMES => $TRAFFIC_NAMES,
+    UID           => $uid,
+    SERVICE_ID    => $FORM{ID}
+  });
 
   $pages_qs .= "&DIMENSION=$FORM{DIMENSION}" if ($FORM{DIMENSION});
 
@@ -258,6 +227,9 @@ sub internet_stats {
 
   $Sessions->{TOTALS_AVG} = internet_stats_calculation($Sessions);
 
+  if($FORM{ONLINE}) {
+    $LIST_PARAMS{ONLINE}=$FORM{ONLINE};
+  }
   #Session List
   my $list = $Sessions->list({%LIST_PARAMS, COLS_NAME => 1 });
 
@@ -267,7 +239,7 @@ sub internet_stats {
 
   my $table = $html->table(
     {
-      caption     => $lang{SUM},
+      #caption     => $lang{SUM},
       width       => '100%',
       title_plain => [
         $lang{SESSIONS},
@@ -278,7 +250,7 @@ sub internet_stats {
         (($TRAFFIC_NAMES->{1}) ? $TRAFFIC_NAMES->{1} : "$lang{TRAFFIC} 2") . " $lang{SENT}",
         (($TRAFFIC_NAMES->{1}) ? $TRAFFIC_NAMES->{1} : "$lang{TRAFFIC} 2") . " $lang{RECV}",
         (($TRAFFIC_NAMES->{1}) ? $TRAFFIC_NAMES->{1} : "$lang{TRAFFIC} 2") . " $lang{SUM}",
-        "$lang{SUM}"
+        $lang{SUM}
       ],
       rows       => [
         [
@@ -297,7 +269,8 @@ sub internet_stats {
     }
   );
 
-  $Sessions->{TOTALS_FULL} = $table->show();
+  $Sessions->{TOTALS_FULL} = $table->show({ OUTPUT2RETURN => 1 });
+
   if ($Sessions->{TOTAL} > 0) {
     $Sessions->{SESSIONS} = internet_sessions($list, $Sessions, { OUTPUT2RETURN => 1 });
   }
@@ -311,6 +284,75 @@ sub internet_stats {
   $html->tpl_show(_include('internet_stats', 'Internet'), $Sessions);
 
   return 1;
+}
+
+#**********************************************************
+=head2 internet_traffic_rest($attr);
+
+  Arguments:
+    TRAFFIC_NAMES
+    UID
+    SERVICE_ID
+
+  Results:
+
+
+=cut
+#**********************************************************
+sub internet_traffic_rest {
+  my ($attr) = @_;
+
+  my $TRAFFIC_NAMES;
+
+  if( defined($TRAFFIC_NAMES)) {
+    $TRAFFIC_NAMES = $attr->{TRAFFIC_NAMES};
+  }
+  else {
+    $TRAFFIC_NAMES = internet_traffic_names($Internet->{TP_ID});
+  }
+
+  my $uid  = $attr->{UID} || $LIST_PARAMS{UIDS};
+  #Show rest of prepaid traffic
+  if (
+    $Sessions->prepaid_rest(
+      {
+        UID  => ($Internet->{JOIN_SERVICE} && $Internet->{JOIN_SERVICE} > 1) ? $Internet->{JOIN_SERVICE} : $uid,
+        UIDS => $uid
+      }
+    )
+  )
+  {
+    #Prepaid: period, traffic_type
+    my $list  = $Sessions->{INFO_LIST};
+    my $table = $html->table(
+      {
+        caption     => $lang{PREPAID}.' : '.$lang{TRAFFIC},
+        width       => '100%',
+        title_plain => [ $lang{DAY}, $lang{TRAFFIC_CLASS}, $lang{BEGIN}, $lang{END}, "$lang{START} $lang{DATE}",
+          "$lang{TOTAL} (MB)", "$lang{REST} (MB)", "$lang{OVERQUOTA} (MB)" ],
+        ID          => 'PREAPID_TRAFIC'
+      }
+    );
+
+    foreach my $line (@$list) {
+      my $traffic_rest = ($conf{INTERNET_INTERVAL_PREPAID}) ? $Sessions->{REST}->{ $line->{interval_id} }->{ $line->{traffic_class} }  :  $Sessions->{REST}->{ $line->{traffic_class} };
+      $table->addrow(
+        ($line->{day} == 0 ) ? $lang{ALL}  : $WEEKDAYS[$line->{day}],
+        $line->{traffic_class} . ':' . (($TRAFFIC_NAMES->{ $line->{traffic_class} }) ? $TRAFFIC_NAMES->{ $line->{traffic_class} } : '').
+        ($conf{INTERNET_INTERVAL_PREPAID} ? "/ $line->{interval_id}" : '') ,
+        $line->{interval_begin},
+        $line->{interval_end},
+        $line->{activate},
+        $line->{prepaid},
+        ($line->{prepaid} > 0 && $traffic_rest > 0) ? $traffic_rest : 0,
+        ($line->{prepaid} > 0 && $traffic_rest < 0) ? $html->color_mark(abs($traffic_rest), 'text-danger') : 0,
+      );
+    }
+
+    return $table->show({ OUTPUT2RETURN => 1 });
+  }
+
+  return '';
 }
 
 #**********************************************************
@@ -331,7 +373,7 @@ sub internet_stats_calculation {
         [ "$lang{TRAFFIC} $lang{RECV}", int2byte($Sessions_->{MIN_RECV}), int2byte($Sessions_->{MAX_RECV}), int2byte($Sessions_->{AVG_RECV}), int2byte($Sessions_->{TOTAL_RECV}) ],
         [ "$lang{TRAFFIC} $lang{SUM}",  int2byte($Sessions_->{MIN_SUM}),  int2byte($Sessions_->{MAX_SUM}),  int2byte($Sessions_->{AVG_SUM}),  int2byte($Sessions_->{TOTAL_SUM}) ]
       ],
-      ID => 'DV_TRAFFIC_CALCULATIONS'
+      ID => 'INTERNET_TRAFFIC_CALCULATIONS'
     }
   );
 
@@ -387,7 +429,7 @@ sub internet_session_detail {
           $Bill->action('add',  "$Sessions->{BILL_ID}", $Sessions->{SUM}) if ($Sessions->{SUM});
           $Bill->action('take', "$Sessions->{BILL_ID}", $SUM)             if ($SUM > 0);
 
-          $Sessions->query2("UPDATE internet_log SET sum='$SUM' WHERE acct_session_id='$Sessions->{SESSION_ID}';", 'do');
+          $Sessions->query("UPDATE internet_log SET sum='$SUM' WHERE acct_session_id='$Sessions->{SESSION_ID}';", 'do');
 
           if (! _error_show($Bill)) {
             $html->message('info', $lang{INFO}, "$lang{ADDED}: SUM $FORM{sum}, BILL_ID: $FORM{BILL_ID}");
@@ -424,7 +466,7 @@ sub internet_session_detail {
   $Internet->info($uid);
   my $TRAFFIC_NAMES = internet_traffic_names($Sessions->{TP_ID});
 
-  if ($Tariffs->{TOTAL} > 0) {
+  if ($Tariffs->{TOTAL} && $Tariffs->{TOTAL} > 0) {
     my $list = $Tariffs->tt_list({ TI_ID => $Tariffs->{list}->[0]->[0], COLS_NAME => 1 });
     foreach my $line ( @$list ) {
       $TRAFFIC_NAMES->{ $line->{id} } = $line->{descr};
@@ -492,7 +534,7 @@ sub internet_session_detail {
         caption    => $lang{INTERVALS},
         title      => [ $lang{INTERVALS}, $lang{TRAFFIC}, $lang{SENT}, $lang{RECV}, $lang{DURATION}, $lang{SUM} ],
         qs         => $pages_qs,
-        ID         => 'DV_SESSION_DETAIL'
+        ID         => 'INTERNET_SESSION_DETAIL'
       }
     );
 
@@ -541,10 +583,12 @@ sub internet_session_detail {
 
   $table = $html->table(
     {
-      width      => '100%',
-      rows       => [ [ "$lang{TOTAL}:", $html->b($Sessions->{TOTAL}) ] ]
+      width => '100%',
+      rows  => [ [ "$lang{TOTAL}:", $html->b($Sessions->{TOTAL}) ] ],
+      ID    => 'DETAIL_LIST_TOTAL'
     }
   );
+
   print $table->show();
 
   return 1;
@@ -563,7 +607,7 @@ sub internet_stats_periods {
       caption     => $lang{PERIOD},
       width       => '100%',
       title_plain => [ $lang{PERIOD}, $lang{DURATION}, $lang{RECV}, $lang{SEND}, $lang{SUM} ],
-      ID          => 'DV_STATS_PERIOD'
+      ID          => 'INTERNET_STATS_PERIOD'
     }
   );
 
@@ -582,6 +626,13 @@ sub internet_stats_periods {
 
 #**********************************************************
 =head2 internet_sessions($list, $sessions, $attr) - Whow sessions from log
+
+  Arguments:
+    $list      - SEssions list
+    $sessions  - Sessins obj
+    $attr
+      INTERNET_UP_SESSIONS
+
 
 =cut
 #**********************************************************
@@ -618,11 +669,14 @@ sub internet_sessions {
       }
     );
 
-    form_search({ SEARCH_FORM => $html->tpl_show(_include('internet_sessions_search', 'Internet'),
-        { %FORM, %$sessions },
-        { OUTPUT2RETURN => 1 }),
-      ADDRESS_FORM => 1
-    });
+    if(! $FORM{UID}) {
+      form_search({ SEARCH_FORM => $html->tpl_show(_include('internet_sessions_search', 'Internet'),
+          { %FORM, %$sessions },
+          { OUTPUT2RETURN => 1 }),
+        ADDRESS_FORM            => 1,
+        SHOW_PERIOD             => 1,
+      });
+    }
 
     if ($FORM{search}) {
       $sessions = Internet::Sessions->new($db, $admin, \%conf);
@@ -647,13 +701,28 @@ sub internet_sessions {
     delete $LIST_PARAMS{LOGIN};
   }
 
-  $LIST_PARAMS{SKIP_DEL_CHECK}=1 ;
+  $LIST_PARAMS{SKIP_DEL_CHECK}=1;
+
+  my $default_fields = q{DATE,DURATION_SEC,SENT,RECV,TP_ID,IP,CID,SUM,NAS_ID};
+
+  if($attr->{INTERNET_UP_SESSIONS}) {
+    $default_fields = $attr->{INTERNET_UP_SESSIONS};
+  }
+  elsif ($user->{UID}) {
+    $default_fields = 'DATE,DURATION_SEC,SENT,RECV,TP_ID,IP,SUM';
+  }
+  else {
+    if(! $FORM{UID}) {
+      $default_fields = 'LOGIN,'. $default_fields;
+    }
+  }
+
   my Abills::HTML $table;
   ($table, $list) = result_former({
     INPUT_DATA      => $sessions,
     FUNCTION        => 'list',
     BASE_FIELDS     => 0,
-    DEFAULT_FIELDS  => (($user->{UID}) ? 'DATE,DURATION_SEC,SENT,RECV,TP_ID,IP,SUM' : (((! $FORM{UID}) ?  'LOGIN,' : '' ) . 'DATE,DURATION_SEC,SENT,RECV,TP_ID,IP,CID,SUM,NAS_ID')),
+    DEFAULT_FIELDS  => $default_fields,
     FUNCTION_FIELDS => ($user->{UID}) ? undef : 'internet_stats, del',
     EXT_TITLES      => {
       'ip'          => 'IP',
@@ -663,7 +732,9 @@ sub internet_sessions {
       'port_id'     => $lang{PORT},
       'cid'         => 'CID',
       'filter_id'   => 'Filter ID',
-      'tp_id'       => "$lang{TARIF_PLAN}",
+      'tp_id'       => $lang{TARIF_PLAN} .' (Inner ID)',
+      'tp_num'      => $lang{TARIF_PLAN} .' (ID)',
+      'tp_name'     => $lang{TARIF_PLAN},
       'internet_status' => "Internet $lang{STATUS}",
       'terminate_cause' => $lang{ACCT_TERMINATE_CAUSE},
       'start'       => "$lang{START} $lang{SESSIONS}",
@@ -671,7 +742,7 @@ sub internet_sessions {
       'duration'    => $lang{DURATION},
       'sent'        => (($TRAFFIC_NAMES->{0}) ? $TRAFFIC_NAMES->{0} : '') . " $lang{SENT}",
       'recv'        => (($TRAFFIC_NAMES->{0}) ? $TRAFFIC_NAMES->{0} : '') . " $lang{RECV}",
-      'sum'         => "$lang{SUM}",
+      'sum'         => $lang{SUM},
       'nas_id'      => $lang{NAS},
       'acct_session_id' => 'Acct-Session-Id'
     },
@@ -686,13 +757,13 @@ sub internet_sessions {
       caption      => ($user->{UID}) ? undef : "$lang{SESSIONS}",
       qs           => $pages_qs,
       recs_on_page => $LIST_PARAMS{PAGE_ROWS},
-      ID           => 'DV_SESSIONS',
+      ID           => (($user->{UID}) ? 'INTERNET_UP_SESSIONS' : 'INTERNET_SESSIONS'),
       EXPORT       => 1,
     },
   });
 
   if ($sessions->{TOTAL} < 1) {
-    $html->message('info', $lang{INFO}, "$lang{NO_RECORD}");
+    $html->message('info', $lang{INFO}, $lang{NO_RECORD});
     return 0;
   }
 

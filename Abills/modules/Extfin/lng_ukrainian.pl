@@ -21,3 +21,6 @@ $lang{QUESTIONS}='Питання';
 $lang{QUESTION}='Питання';
 $lang{CONNECTION_TIME}='Бажаний час підключення';
 $lang{NO_SUBJECT}='Без теми';
+$lang{SALDO}='Сальдо';
+$lang{SALDO_BEGIN_PERIOD}='Сальдо на початок періода';
+$lang{SALDO_END_PERIOD}='Сальдо на кінець періоду';

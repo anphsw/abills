@@ -34,7 +34,7 @@ sub docs_acts_list{
 
   if ( !$attr->{COMPANY} ){
     if ( $LIST_PARAMS{COMPANY_ID} || $FORM{COMPANY_ID} ){
-      docs_acts();
+      docs_acts({ COMPANY_ID => $LIST_PARAMS{COMPANY_ID} || $FORM{COMPANY_ID} });
       return 0 if ($FORM{'print'});
     }
     elsif ( defined( $FORM{del} ) && $FORM{COMMENTS} ){
@@ -46,7 +46,7 @@ sub docs_acts_list{
         return 0;
       }
     }
-    elsif ( $FORM{print} ){
+    elsif ( $FORM{print} || $FORM{cert} ){
       docs_acts();
       return 0;
     }
@@ -115,9 +115,12 @@ sub docs_acts_list{
       $html->button( $line->{admin_name}, "index=11&UID=$line->{uid}" ),
       "$line->{start_period}/$line->{end_period}",
       $line->{created},
-      $html->button( $lang{PRINT},
-        "qindex=$index&print=$line->{id}&COMPANY_ID=". ($line->{company_id} || q{}) . (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : '') . (($pages_qs) ? $pages_qs : "")
-        , { ex_params => 'target=_new', class => 'print' } )
+      (($conf{DOCS_CERT_CMD}) ? $html->button( $lang{CERT},
+        "qindex=$index&cert=$line->{id}&COMPANY_ID=". ($line->{company_id} || q{}) . (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : '') . (($pages_qs) ? $pages_qs : ""),
+          { ex_params => 'target=_new', ICON => 'glyphicon glyphicon-certificate' } ) : q{})
+        . $html->button( $lang{PRINT},
+          "qindex=$index&print=$line->{id}&COMPANY_ID=". ($line->{company_id} || q{}) . (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : '') . (($pages_qs) ? $pages_qs : ""),
+          { ex_params => 'target=_new', class => 'print' } )
         . (($permissions{1} && $permissions{1}{2}) ? ' '.$html->button( $lang{DEL},
           "index=$index$pages_qs&del=$line->{id}&COMPANY_ID=". ($line->{company_id} || q{})
           ,
@@ -185,11 +188,12 @@ sub docs_acts{
       USER_INFO=> $users
     });
   }
-  elsif ( $FORM{print} ){
+  elsif ( $FORM{print} || $FORM{cert} ){
     docs_acts_print({
       COMPANY  => $Company,
       USER_INFO=> $users,
-      DOC_ID   => $FORM{print}
+      DOC_ID   => $FORM{cert} || $FORM{print},
+      CERT     => $FORM{cert}
     });
 
     return 0;
@@ -224,7 +228,7 @@ sub docs_acts{
   $Docs->{CAPTION} = $lang{INVOICE};
   $Docs->{OP_SID} = mk_unique_value( 16 );
 
-  my ($Y, $M, $D) = split( /-/, $DATE, 3 );
+  my ($Y, $M, undef) = split( /-/, $DATE, 3 );
   my @MONTH_ARR = ('');
   my $select_year = $Y - 1;
   for ( my $i = 1; $i < 13; $i++ ){
@@ -248,7 +252,7 @@ sub docs_acts{
       }
     ),
     "$lang{ACT} $lang{DATE}: ",
-    $html->form_input( 'DATE', "$Y-$M-$D", { class => 'form-control datepicker' } ),
+    $html->form_input( 'DATE', $FORM{DATE}, { class => 'form-control datepicker' } ),
     $lang{PREVIEW}.': '. $html->form_input( 'PREVIEW', 1, { TYPE => 'checkbox', STATE => $FORM{PREVIEW} } ),
     $html->form_input( 'show', $lang{CREATE}, { TYPE => "SUBMIT" } ),
   );
@@ -377,7 +381,18 @@ sub docs_acts_create {
   else{
     $act_information{COMPANY_ID} = $LIST_PARAMS{COMPANY_ID} if (!$act_information{COMPANY_ID});
     $act_information{UID} = $LIST_PARAMS{UID} if (!$act_information{UID});
-    $act_information{DATE} = "$FORM{MONTH}-01";
+
+    if($FORM{DATE}) {
+      $act_information{DATE} = $FORM{DATE};
+    }
+    else {
+      if ($conf{DOCS_ACTS_LAST_DATE}) {
+        $act_information{DATE} = "$FORM{MONTH}-" . days_in_month({ DATE => $FORM{MONTH} });
+      }
+      else {
+        $act_information{DATE} = $FORM{DATE} || "$FORM{MONTH}-01";
+      }
+    }
 
     if($FORM{PREVIEW}) {
       my $table = $html->table({
@@ -430,7 +445,6 @@ sub docs_acts_print {
 
   if ( $Docs->{TOTAL} > 0 ){
     $Docs->{TOTAL_SUM} //= 0;
-    ($Docs->{SUM_MAIN}, $Docs->{SUM_SUB}) = split( /\./, $Docs->{TOTAL_SUM} );
     $Docs->{FROM_DATE_LIT} = '';
     $Docs->{'TOTAL_SUM'} = sprintf( "%.2f", $Docs->{TOTAL_SUM} );
     $Docs->{'TOTAL_SUM_WITHOUT_VAT'} = sprintf( "%.2f",
@@ -479,7 +493,14 @@ sub docs_acts_print {
     $Docs->{TOTAL_SUM}     = sprintf( "%.2f", $Docs->{TOTAL_SUM} );
     $Docs->{TOTAL_ORDERS}  = $Docs->{TOTAL} || 0;
 
-    docs_print( 'act', { %{$Docs}, %{$Company}, SUFIX => ($Company->{VAT} && $Company->{VAT} > 0) ? 'vat' : '' } );
+    return docs_print( 'act', {
+      %{($attr) ? $attr : {} },
+      %{$Docs},
+      %{$Company},
+      SUFIX     => ($Company->{VAT} && $Company->{VAT} > 0) ? 'vat' : '',
+      #FILE_NAME => 'Act_'.$Docs->{DOC_ID},
+      CERT      => $attr->{CERT},
+    } );
   }
   else{
     print "Content-Type: text/html\n\n";

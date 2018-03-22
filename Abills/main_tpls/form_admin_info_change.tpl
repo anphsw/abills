@@ -5,6 +5,7 @@
   <div class='box box-theme box-form'>
     <div class='box-header with-border'><h3 class='box-title'>_{ADMIN}_</h3>
       <div class='box-tools pull-right'>
+        %CLEAR_SETTINGS%
         %CHG_PSW%
         <button type='button' class='btn btn-default btn-xs' data-widget='collapse'><i class='fa fa-minus'></i>
         </button>
@@ -27,7 +28,7 @@
       </div>
     </div>
 
-    <div class='box-footer text-center'>
+    <div class='box-footer'>
       <input type='submit' name='change' value='_{CHANGE}_' class='btn btn-primary'>
     </div>
   </div>

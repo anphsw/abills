@@ -32,6 +32,8 @@ my $Reports = Reports->new($db, $admin, \%conf);
 #**********************************************************
 sub rwizard_config {
 
+  my $show_template = $FORM{add_form} || 0;
+  
   $Reports->{ACTION}     = 'add';
   $Reports->{LNG_ACTION} = $lang{ADD};
 
@@ -72,6 +74,8 @@ sub rwizard_config {
   }
   elsif ($FORM{export}) {
     $Reports->info({ ID => $FORM{export} });
+    # Second '\n' is in $export_date
+    print "Content-Type: text/plain; charset=utf8\n";
     my $export_date = qq{
 $Reports->{NAME}
 =============================
@@ -97,6 +101,8 @@ $Reports->{FIELDS}
       $Reports->{QUICK_CHECKED} = 'checked' if ($Reports->{QUICK_REPORT});
       $html->message('info', $lang{REPORTS}, "$lang{CHANGING}");
     }
+  
+    $show_template = 1;
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
     $Reports->del($FORM{del});
@@ -108,20 +114,25 @@ $Reports->{FIELDS}
 
   _error_show($Reports);
 
-  $Reports->{GROUP_SEL} = $html->form_select(
-    'GID',
-    {
-      SELECTED       => $FORM{GID} || $Reports->{GID},
-      SEL_LIST       => $Reports->list_groups({COLS_NAME => 1}),
-      NO_ID          => 1,
-      SEL_OPTIONS => { '' => '--' },
-    }
-  );
+  if ($show_template) {
+    $Reports->{GROUP_SEL} = $html->form_select(
+      'GID',
+      {
+        SELECTED    => $FORM{GID} || $Reports->{GID},
+        SEL_LIST    => $Reports->list_groups({ COLS_NAME => 1 }),
+        NO_ID       => 1,
+        SEL_OPTIONS => { '' => '--' },
+      }
+    );
+    _error_show($Reports) and return 0;
 
-  $html->tpl_show(_include('rwizard_config', 'Rwizard'), { %FORM, %$Reports },
-    { SKIP_VARS => 'PG,PAGE_ROWS,SORT,DESC,PAGES,DATE_FROM,DATE_TO,MONTH,GID,Y,m,d,i,h,DEPOSIT,PARAMETER,ADDRESS,ADMIN_ID' });
-
+    $html->tpl_show(_include('rwizard_config', 'Rwizard'), { %FORM, %{$Reports} },
+      { SKIP_VARS =>
+        'PG,PAGE_ROWS,SORT,DESC,PAGES,DATE_FROM,DATE_TO,MONTH,GID,Y,m,d,i,h,DEPOSIT,PARAMETER,ADDRESS,ADMIN_ID' });
+  }
   my $list = $Reports->list({ %LIST_PARAMS, COLS_NAME => 1 });
+  _error_show($Reports) and return 0;
+
   my $table = $html->table(
     {
       width      => '100%',
@@ -129,7 +140,7 @@ $Reports->{FIELDS}
       title      => [ "ID", "$lang{NAME}","$lang{GROUP}", "$lang{COMMENTS}" ],
       ID         => 'REPORTS_LIST',
       EXPORT     => 1,
-      MENU       => "$lang{ADD}:index=" . get_function_index('rwizard_config') . ':add',
+      MENU       => "$lang{ADD}:index=" . get_function_index('rwizard_config') . '&add_form=1:add',
       pages      => $Reports->{TOTAL},
       HAS_FUNCTION_FIELDS => 1,
     }
@@ -299,14 +310,15 @@ sub rwizard {
 
     my $ADDRESS_TPL = '';
     if ($Reports->{QUERY} =~ /%ADDRESS%/g) {
-      $ADDRESS_TPL =  $html->tpl_show(templates('form_show_hide'),
-         {
-           CONTENT => $html->tpl_show(templates('form_address_sel'), \%FORM, { OUTPUT2RETURN => 1, ID => 'form_address_sel' }),
-           NAME    => $lang{ADDRESS},
-           ID      => 'ADDRESS_FORM',
-           PARAMS  => ''
-          },
-         { OUTPUT2RETURN => 1 });
+      $ADDRESS_TPL = form_address({ SHOW  => 1 });
+#        $html->tpl_show(templates('form_show_hide'),
+#         {
+#           CONTENT => $html->tpl_show(templates('form_address_sel'), \%FORM, { OUTPUT2RETURN => 1, ID => 'form_address_sel' }),
+#           NAME    => $lang{ADDRESS},
+#           ID      => 'ADDRESS_FORM',
+#           PARAMS  => ''
+#          },
+#         { OUTPUT2RETURN => 1 });
 
       while(my($k, $v)=each %FORM) {
         if ($k =~ /^ADDRESS|STREET|LOCATION/ && $v) {
@@ -314,12 +326,12 @@ sub rwizard {
         }
       }
 
-      if ($FORM{ADDRESS_DISTRICT} eq '') {
+      if (defined($FORM{ADDRESS_DISTRICT}) && $FORM{ADDRESS_DISTRICT} eq '') {
         $Reports->{QUERY}       =~ s/\%ADDRESS\%//ig;
         $Reports->{QUERY_TOTAL} =~ s/\%ADDRESS\%//ig;
       }
       else {
-        if ($FORM{DEPOSIT} eq '') {
+        if (defined($FORM{DEPOSIT}) && $FORM{DEPOSIT} eq '') {
           delete $FORM{DEPOSIT};
         }
 
@@ -682,6 +694,8 @@ sub rwizard_start_page {
 #**********************************************************
 sub rwizard_sp {
 
+  # FIXME : Move to Users or Fees module
+  
   my $users_list = $users->list({
     DEPOSIT   => '_SHOW',
     BILL_ID   => '_SHOW',
@@ -689,6 +703,7 @@ sub rwizard_sp {
     COLS_NAME => 1,
     PAGE_ROWS => 1000000
   });
+  _error_show($users) and return 0;
 
   $conf{DEPOST_CHECK_LIMIT}=1 if (! defined($conf{DEPOST_CHECK_LIMIT}));
 
@@ -702,14 +717,16 @@ sub rwizard_sp {
   }
 
   #Fees
-  $users->query2("SELECT bill_id, SUM(sum) AS sum FROM fees GROUP BY bill_id;", undef, { COLS_NAME => 1 });
+  $users->query("SELECT bill_id, SUM(sum) AS sum FROM fees GROUP BY bill_id;", undef, { COLS_NAME => 1 });
+  _error_show($users) and return 0;
 
   foreach my $u (@{ $users->{list} }) {
     $users_deposit{$u->{bill_id}}+=$u->{sum};
   }
 
   #Payments
-  $users->query2("SELECT bill_id, SUM(sum) AS sum FROM payments GROUP BY bill_id;", undef, { COLS_NAME => 1 });
+  $users->query("SELECT bill_id, SUM(sum) AS sum FROM payments GROUP BY bill_id;", undef, { COLS_NAME => 1 });
+  _error_show($users) and return 0;
 
   foreach my $u (@{ $users->{list} }) {
     $users_deposit{$u->{bill_id}}-=$u->{sum};
@@ -755,6 +772,7 @@ sub quick_report {
   my ($id) = @_;
   
   $Reports->info({ ID => $id, %LIST_PARAMS });
+  _error_show($Reports) and return 0;
 
   my @cols        = split(/[\r\n]+/, $Reports->{FIELDS});
   my @titles      = ();

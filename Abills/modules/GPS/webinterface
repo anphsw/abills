@@ -577,7 +577,7 @@ sub get_route_length{
 
   my $sum = 0;
   for ( my $i = 0, my $len = ((scalar @{$list}) - 1); $i < $len; $i++ ){
-    my $length = Maps::mercator_to_meters(
+    my $length = Maps::_mercator_to_meters(
       @{$list}[$i]->{coord_x},
       @{$list}[$i]->{coord_y},
       @{$list}[$i + 1]->{coord_x},

@@ -80,7 +80,8 @@ sub internet_online {
     if ($ret == 0) {
       $message = "$lang{NAS} ID: $nas_id\n $lang{NAS} IP: $Nas->{NAS_IP}\n $lang{PORT}: $nas_port_id\n SESSION_ID: $acct_session_id\n\n Return: $ret";
       sleep 3;
-      $admin->action_add($FORM{UID}, "$user_name", { MODULE => 'Internet', TYPE => 15 });
+      $admin->{MODULE}='Internet';
+      $admin->action_add($FORM{UID}, $user_name, { MODULE => 'Internet', TYPE => 15 });
     }
     elsif ($ret == 1) {
       $message = "$Nas->{NAS_TYPE} NAS NOT supported yet";
@@ -97,7 +98,7 @@ sub internet_online {
   }
   elsif ($FORM{zap}) {
     my ($uid, $nas_id, $nas_port_id, $acct_session_id) = split(/ /, $FORM{zap}, 4);
-    $Sessions->zap($nas_id, $nas_port_id, $acct_session_id, {%FORM});
+    $Sessions->zap($nas_id, $nas_port_id, $acct_session_id, \%FORM);
 
     if (_error_show($Sessions)) {
       return 0;
@@ -116,10 +117,11 @@ sub internet_online {
     });
 
     if ($Sessions->{TOTAL} < 1) {
-      $message .= $html->button('Add To log', "index=$index&tolog=$acct_session_id&nas_id=$nas_id&nas_port_id=$nas_port_id&ZAPED=1", { BUTTON => 1 }) . ' ' . $html->button($lang{DEL}, "index=$index&del=$acct_session_id&nas_id=$nas_id&nas_port_id=$nas_port_id&ZAPED=1", { BUTTON => 1 });
+      $message .= $html->button('ADD_TO_LOG', "index=$index&tolog=$acct_session_id&nas_id=$nas_id&nas_port_id=$nas_port_id&ZAPED=1", { BUTTON => 2 })
+        . ' ' . $html->button($lang{DEL}, "index=$index&del=$acct_session_id&nas_id=$nas_id&nas_port_id=$nas_port_id&ZAPED=1", { BUTTON => 2 });
     }
     else {
-      $message .= "$lang{EXIST}";
+      $message .= $lang{EXIST};
       $Sessions->online_del(
         {
           NAS_ID          => $nas_id,
@@ -272,31 +274,31 @@ sub internet_online {
     ]
   );
 
-  if ($Sessions->{TOTAL} && $Sessions->{TOTAL} > 500 && ! $FORM{show_columns}) {
-    my $table = $html->table({
-      width      => '100%',
-      caption    => "Online $lang{TOTAL}",
-      title      => [ "NAS ID", "NAS $lang{NAME}", "NAS IP", $lang{TYPE}, $lang{SESSIONS}, $lang{USERS}, "ZAPPED", $lang{ERROR}, $lang{GUEST}, "-" ],
-      qs         => $pages_qs,
-      ID         => 'ONLINE'
-    });
-
-    foreach my $line (@$list) {
-      $table->{rowcolor} = ($FORM{NAS_ID} && $line->{nas_id} eq $FORM{NAS_ID}) ? 'row_active' : undef;
-      $table->addrow($line->{nas_id}, $line->{nas_name}, $line->{nas_ip}, $line->{nas_type}, $line->{nas_total_sessions}, $line->{nas_total_users}, ($line->{nas_zaped} > 0) ? $html->button($line->{nas_zaped}, "index=$index&NAS_ID=$line->{nas_id}&ZAPED=1") : 0,
-        $html->button($line->{nas_error_sessions}, "index=$index&NAS_ID=$line->{nas_id}&NAS_ERROR_SESSIONS=1"),
-        $html->button($line->{guest}, "index=$index&NAS_ID=$line->{nas_id}&FILTER=1&FILTER_FIELD=GUEST"),
-        $html->button($lang{SHOW}, "index=$index&NAS_ID=$line->{nas_id}", { class => 'show' }));
-    }
-    print $table->show();
-
-    if (!$FORM{NAS_ID} && !$FORM{ZAPED} && !$FORM{FILTER}) {
-      print internet_online_search();
-      return 0;
-    }
-    elsif($FORM{NAS_ID}) {
+  if ($Sessions->{TOTAL} && $Sessions->{TOTAL} > 500 && ! $FORM{show_columns}){
+    if($FORM{NAS_ID}) {
       $pages_qs .= "&NAS_ID=$FORM{NAS_ID}";
       $LIST_PARAMS{NAS_ID} = $FORM{NAS_ID};
+    }
+    elsif(!($FORM{NAS_ID} || $FORM{ZAPED} || $FORM{FILTER})) {
+      print internet_online_search();
+      my $table = $html->table({
+        width      => '100%',
+        caption    => "Online $lang{TOTAL} ($lang{NAS}: $Sessions->{TOTAL_NAS})",
+        title      => [ "NAS ID", "NAS $lang{NAME}", "NAS IP", $lang{TYPE}, $lang{SESSIONS}, $lang{USERS}, "ZAPPED", $lang{ERROR}, $lang{GUEST}, "-" ],
+        qs         => $pages_qs,
+        ID         => 'ONLINE'
+      });
+
+      foreach my $line (@$list) {
+        $table->{rowcolor} = ($FORM{NAS_ID} && $line->{nas_id} eq $FORM{NAS_ID}) ? 'row_active' : undef;
+        $table->addrow($line->{nas_id}, $line->{nas_name}, $line->{nas_ip}, $line->{nas_type}, $line->{nas_total_sessions}, $line->{nas_total_users}, ($line->{nas_zaped} > 0) ? $html->button($line->{nas_zaped}, "index=$index&NAS_ID=$line->{nas_id}&ZAPED=1") : 0,
+          $html->button($line->{nas_error_sessions}, "index=$index&NAS_ID=$line->{nas_id}&NAS_ERROR_SESSIONS=1"),
+          $html->button($line->{guest}, "index=$index&NAS_ID=$line->{nas_id}&FILTER=1&FILTER_FIELD=GUEST"),
+          $html->button($lang{SHOW}, "index=$index&NAS_ID=$line->{nas_id}", { class => 'show' }));
+      }
+
+      print $table->show();
+      return 0;
     }
   }
 
@@ -309,7 +311,7 @@ sub internet_online {
     $LIST_PARAMS{NAS_ERROR_SESSIONS} = $FORM{NAS_ERROR_SESSIONS};
   }
 
-  $Sessions->{debug}=1 if ($FORM{DEBUG} && $FORM{DEBUG} == 5);
+  $Sessions->{debug}=1 if ($FORM{DEBUG} && $FORM{DEBUG} > 5);
   my %online_status = (
     0 => "(1) $lang{START}",
     1 => "(1) $lang{START}",
@@ -322,53 +324,62 @@ sub internet_online {
     11=> '(11) IP reserved'
   );
 
+  my %EXT_TITLES = (
+    'fio'          => $lang{FIO},
+    'user_name'    => "RAD User-Name",
+    'login'        => $lang{LOGIN},
+    'nas_port_id'  => $lang{PORT},
+    'client_ip_num'=> 'IP',
+    'duration_sec2'=> $lang{DURATION},
+    'acct_input_octets'    => $lang{RECV},
+    'acct_output_octets'   => $lang{SENT},
+    'ex_input_octets'      => "Ex_IN",
+    'ex_output_octets'     => "Ex_OUT",
+    'nas_name'             => $lang{NAS},
+    'acct_session_id'      => "SESSION_ID",
+    'connect_info' => "CONNECT_INFO",
+    'guest'        => $lang{GUEST},
+    'turbo'        => 'TURBO',
+    'ip'           => "$lang{STATIC} IP",
+    'netmask'      => 'NETMASK',
+    'speed'        => $lang{SPEED},
+    'calls_tp_id'  => 'Online TP_ID',
+    'tp_id',       => 'TP_ID',
+    #'port'        => "$lang{USER_PORT}",
+    'cid'          => 'CID',
+    'filter_id'    => 'Filter ID',
+    'tp_name'      => $lang{TARIF_PLAN},
+    'last_alive'   => $lang{LAST_UPDATE},
+    'internet_status' => "Internet $lang{STATUS}",
+    'internet_expire' => "Internet $lang{EXPIRE}",
+    'session_sum'  => "$lang{SESSIONS} $lang{SUM}",
+    'status'       => "Online $lang{STATUS}",
+    'remote_id'    => 'REMOTE_ID',
+    'circuit_id'   => 'CIRCUIT_ID',
+    'hostname'     => 'HOSTNAME',
+    'switch_port'  => "$lang{SWITCH} $lang{PORT}",
+    'vlan'         => 'vlan',
+    'server_vlan'  => 'server_vlan',
+    'switch_mac'   => $lang{SWITCH} ." MAC",
+    'switch_name'  => $lang{SWITCH},
+    'switch_id'    => "$lang{SWITCH} ID",
+    'dhcp_id'      => 'dhcp_id',
+    'dhcp_ends'    => 'dhcp_ends',,
+    'service_id'   => '# SERVICE_ID',
+    framed_ipv6_prefix => 'IPV6',
+    framed_interface_id => 'FRAMED_INTERFACE_ID',
+    delegated_ipv6_prefix => 'DELEGATED_IPV6_PREFIX',
+  );
+
   my Abills::HTML $table;
+
   ($table, $list) = result_former({
     INPUT_DATA      => $Sessions,
     FUNCTION        => 'online',
     DEFAULT_FIELDS  => 'LOGIN,FIO,DURATION_SEC2,CLIENT_IP_NUM,ACCT_INPUT_OCTETS,ACCT_OUTPUT_OCTETS',
     BASE_FIELDS     => 0,
     FUNCTION_FIELDS => 'ping, zap, hangup, graphics',
-    EXT_TITLES      => {
-      'fio'         => $lang{FIO},
-      'user_name'   => "RAD User-Name",
-      'login'       => $lang{LOGIN},
-      'nas_port_id' => $lang{PORT},
-      'client_ip_num'=> 'IP',
-      'duration_sec2'=> $lang{DURATION},
-      'acct_input_octets'    => $lang{RECV},
-      'acct_output_octets'   => $lang{SENT},
-      'ex_input_octets'      => "Ex_IN",
-      'ex_output_octets'     => "Ex_OUT",
-      'nas_name'             => $lang{NAS},
-      'acct_session_id'      => "SESSION_ID",
-      'CONNECT_INFO'=> "CONNECT_INFO",
-      'guest'       => $lang{GUEST},
-      'turbo'       => 'TURBO',
-      'ip'          => "$lang{STATIC} IP",
-      'netmask'     => 'NETMASK',
-      'speed'       => $lang{SPEED},
-      'calls_tp_id' => 'Online TP_ID',
-      'tp_id',      => 'TP_ID',
-      #'port'        => "$lang{USER_PORT}",
-      'CID'         => 'CID',
-      'filter_id'   => 'Filter ID',
-      'tp_name'     => $lang{TARIF_PLAN},
-      'last_alive'  => $lang{LAST_UPDATE},
-      'internet_status' => "Internet $lang{STATUS}",
-      'internet_expire' => "Internet $lang{EXPIRE}",
-      'session_sum' => "$lang{SESSIONS} $lang{SUM}",
-      'status'      => "Online $lang{STATUS}",
-      'remote_id'   => 'REMOTE_ID',
-      'circuit_id'  => 'CIRCUIT_ID',
-      'hostname'    => 'HOSTNAME',
-      'switch_port' => 'switch_port',
-      'vlan'        => 'vlan',
-      'server_vlan' => 'server_vlan',
-      'switch_mac'  => 'switch_mac',
-      'dhcp_id'     => 'dhcp_id',
-      'dhcp_ends'   => 'dhcp_ends',
-    },
+    EXT_TITLES      => \%EXT_TITLES,
     FILTER_COLS  => {
       duration_sec    => '_sec2time_str',
       online_duration => '_sec2time_str',
@@ -379,10 +390,10 @@ sub internet_online {
     #},
     TABLE           => {
       width      => '100%',
-      caption    => "$cure",
+      caption    => $cure,
       SELECT_ALL => ($FORM{ZAPED}) ? "users_list:IDS:$lang{SELECT_ALL}" : undef,
       qs         => $pages_qs,
-      ID         => 'DV_ONLINE',
+      ID         => 'INTERNET_ONLINE',
       EXPORT     => 1,
     },
     SKIP_PAGES   => 1
@@ -399,17 +410,26 @@ sub internet_online {
 
     my $l     = $online->{ $nas_row->{nas_id} };
     my $total = $#{$l} + 1;
-    $table->{rowcolor} = 'bg-info';
-    $table->{extra} = "colspan='" . ($Sessions->{SEARCH_FIELDS_COUNT} ) . "'";
-    $table->addrow("$nas_row->{nas_id}:"
-      . $html->button($html->b($nas_row->{nas_name}), "index=" . get_function_index('form_nas') . "&NAS_ID=$nas_row->{nas_id}")
-      . ":$nas_row->{nas_ip}:$lang{TOTAL}: $total "
-      . $html->button("Zap $lang{SESSIONS}", "index=$index&zapall=1&NAS_ID=$nas_row->{nas_id}", { MESSAGE => "Do you realy want zap all sessions on NAS '$nas_row->{nas_id}' ?", class => 'btn btn-default' })
-      . $html->button("$lang{ERROR}", "index=".get_function_index('internet_error')."&NAS_ID=$nas_row->{nas_id}&search_form=1&search=1", { class => 'btn btn-default' })
-      . $html->button("", "#", { class => 'btn btn-default', ICON => 'glyphicon glyphicon-stats', TITLE => "$lang{GRAPH} $lang{NAS}",
-        NEW_WINDOW => internet_get_chart_query("NAS_ID=$nas_row->{nas_id}", '1',
-          $chart_new_window_width, $chart_height), NEW_WINDOW_SIZE => "$new_window_size" })
-    );
+    if(! $FORM{json}) {
+      $table->{rowcolor} = 'bg-info';
+      $table->{extra} = "colspan='" . ($Sessions->{SEARCH_FIELDS_COUNT}) . "'";
+      $table->addrow("$nas_row->{nas_id}:"
+        . $html->button($html->b($nas_row->{nas_name}),
+        "index=" . get_function_index('form_nas') . "&NAS_ID=$nas_row->{nas_id}")
+        . ":$nas_row->{nas_ip}:$lang{TOTAL}: $total "
+        . $html->button("Zap $lang{SESSIONS}", "index=$index&zapall=1&NAS_ID=$nas_row->{nas_id}",
+        { MESSAGE => "Do you realy want zap all sessions on NAS '$nas_row->{nas_id}' ?", class => 'btn btn-default' })
+        . $html->button("$lang{ERROR}",
+        "index=" . get_function_index('internet_error') . "&NAS_ID=$nas_row->{nas_id}&search_form=1&search=1",
+        { class => 'btn btn-default' })
+        . $html->button("", "#",
+        { class                                                      => 'btn btn-default', ICON =>
+          'glyphicon glyphicon-stats', TITLE                         => "$lang{GRAPH} $lang{NAS}",
+          NEW_WINDOW                                                 =>
+          internet_get_chart_query("NAS_ID=$nas_row->{nas_id}", '1',
+            $chart_new_window_width, $chart_height), NEW_WINDOW_SIZE => "$new_window_size" })
+      );
+    }
 
     foreach my $line (@$l) {
       undef($table->{rowcolor});
@@ -457,9 +477,23 @@ sub internet_online {
           $val = int2ip($line->{client_ip_num});
           $line->{client_ip} = $val;
         }
+        elsif($col_name eq 'switch_id' && $line->{switch_id}) {
+          my $nas_index = get_function_index('equipment_info');
+
+          if(! $nas_index) {
+            $nas_index = get_function_index('form_nas');
+          }
+
+          if($nas_index) {
+            $val = $html->button($line->{switch_id}, "index=$nas_index&NAS_ID=". $line->{switch_id});
+          }
+          else {
+            $val = $line->{switch_id};
+          }
+        }
         elsif ($col_name eq 'internet_status') {
           if (defined($line->{internet_status})) {
-            my ($status, $color) = split( /:/, $service_status->{ $line->{internet_status} } );
+            my ($status, $color) = split( /:/, $service_status->{ $line->{internet_status} || '' } || '' );
             $val = $html->color_mark( $status, $color );
           }
           else {
@@ -477,17 +511,17 @@ sub internet_online {
         elsif ($col_name =~ /acct_input_octets|acct_output_octets|ex_input_octets|ex_output_octets/) {
           $val = int2byte($line->{$Sessions->{COL_NAMES_ARR}->[$i]});
         }
-        elsif ($col_name eq 'CID') {
+        elsif ($col_name eq 'cid') {
           if ($line->{$col_name}) {
             $val = $html->color_mark($line->{$col_name}, 'code');
-            if ($line->{$col_name} =~ /$Abills::Filters::MAC/) {
-              $val .= ' '.$html->button( $lang{INFO}, "index=$index&mac_info=$line->{CID}&UID=$line->{uid}",
+            if ($line->{$col_name} =~ /$Abills::Filters::MAC/ && ! $FORM{json}) {
+              $val .= ' '.$html->button( $lang{INFO}, "index=$index&mac_info=$line->{cid}&UID=$line->{uid}",
                 { class => 'info' } );
             }
           }
         }
         elsif ($col_name eq 'guest') {
-          $val = ($line->{$col_name}) ? $html->color_mark($lang{YES}, "$_COLORS[6]") : $lang{NO};
+          $val = ($line->{$col_name}) ? $html->color_mark($lang{YES}, $_COLORS[6]) : $lang{NO};
         }
         else {
           $val = $line->{$col_name};
@@ -555,15 +589,25 @@ sub internet_online {
   else {
     $output = internet_online_search() . $output;
 
-    $output .=
-      $html->button('Zap All', "index=$index&zapall=1", { class => 'btn btn-default btn-danger', ICON => 'glyphicon glyphicon-trash',
-          MESSAGE => "Do you realy want ZAP all sessions ?" })
-        . $html->button("$lang{GRAPH} $lang{NAS}",         "#", { class => 'btn btn-default', ICON => 'glyphicon glyphicon-stats',
-          NEW_WINDOW => internet_get_chart_query('NAS_ID=all', '1', $chart_new_window_width, $chart_height) , NEW_WINDOW_SIZE => "$new_window_size" })
-        . $html->button("$lang{GRAPH} $lang{TARIF_PLANS}", "#", { class => 'btn btn-default', ICON => 'glyphicon glyphicon-stats',
-          NEW_WINDOW => internet_get_chart_query('TP_ID=all', '1', $chart_new_window_width, $chart_height), NEW_WINDOW_SIZE => "$new_window_size" })
-        . $html->button("$lang{GRAPH} $lang{GROUPS}",      "#", { class => 'btn btn-default', ICON => 'glyphicon glyphicon-stats',
-          NEW_WINDOW => internet_get_chart_query('GID=all', '1', $chart_new_window_width, $chart_height), NEW_WINDOW_SIZE => "$new_window_size" });
+    #TODO MOreelegent solution
+    if(! $FORM{json}) {
+      $output .=
+        $html->button('Zap All', "index=$index&zapall=1",
+          { class   => 'btn btn-default btn-danger', ICON => 'glyphicon glyphicon-trash',
+            MESSAGE => "Do you realy want ZAP all sessions ?" })
+          . $html->button("$lang{GRAPH} $lang{NAS}", "#",
+          { class           => 'btn btn-default', ICON => 'glyphicon glyphicon-stats',
+            NEW_WINDOW      => internet_get_chart_query('NAS_ID=all', '1', $chart_new_window_width, $chart_height),
+            NEW_WINDOW_SIZE => "$new_window_size" })
+          . $html->button("$lang{GRAPH} $lang{TARIF_PLANS}", "#",
+          { class           => 'btn btn-default', ICON => 'glyphicon glyphicon-stats',
+            NEW_WINDOW      => internet_get_chart_query('TP_ID=all', '1', $chart_new_window_width, $chart_height),
+            NEW_WINDOW_SIZE => "$new_window_size" })
+          . $html->button("$lang{GRAPH} $lang{GROUPS}", "#",
+          { class           => 'btn btn-default', ICON => 'glyphicon glyphicon-stats',
+            NEW_WINDOW      => internet_get_chart_query('GID=all', '1', $chart_new_window_width, $chart_height),
+            NEW_WINDOW_SIZE => "$new_window_size" });
+    }
   }
 
   print $output;
@@ -594,7 +638,8 @@ sub internet_online_search {
     ADDRESS_FULL   => $lang{ADDRESS},
     ACCT_SESSION_ID=> 'SESSION_ID',
     UID            => 'UID',
-    LAST_ALIVE     => $lang{LAST_UPDATE}
+    LAST_ALIVE     => $lang{LAST_UPDATE},
+    GID            => "$lang{GROUP} ID"
   );
 
   my $FIELDS_SEL = $html->form_select(
@@ -645,7 +690,7 @@ sub internet_diagnostic {
   my ($ip, $uid, $nas_id, undef, $acct_session_id) = split(/ /, $diag_params);
 
   my ($name, $cmd);
-  my @diagnostic_rules = split(/;/, $conf{DV_EXTERNAL_DIAGNOSTIC});
+  my @diagnostic_rules = split(/;/, $conf{INTERNET_EXTERNAL_DIAGNOSTIC});
   for(my $i=0; $i<=$#diagnostic_rules; $i++) {
     ($name, $cmd)=split(/:/, $diagnostic_rules[$i]);
     if ($i == $diag_num) {
@@ -669,6 +714,124 @@ sub internet_diagnostic {
   print $html->message('info', $lang{DIAGNOSTIC} .' '. ($name || q{}), $res);
 
   return 1;
+}
+
+
+#**********************************************************
+=head2 internet_online_builds() - show builds with statuses
+
+=cut
+#**********************************************************
+sub internet_online_builds {
+  require Address; Address->import();
+  my $Address = Address->new($db, $admin, \%conf);
+  
+  my $online_count_for_build = $Sessions->users_online_count_by_builds();
+  _error_show($Sessions) and return 0;
+  
+  my %online_for_location_id = map { $_->{id} => $_->{online_count} } @$online_count_for_build ;
+  
+  my $districts_list = $Address->district_list( {
+    COLS_NAME => 1,
+    SORT      => 'd.name',
+    PAGE_ROWS => 10000
+  } );
+  return if (_error_show($Address));
+  
+  my $districts_content = '';
+  foreach my $district ( @{$districts_list} ) {
+    # Get all streets
+    my $streets_list = $Address->street_list( {
+      DISTRICT_ID => $district->{id},
+      STREET_NAME => '_SHOW',
+      SECOND_NAME => '_SHOW',
+      COLS_NAME   => 1,
+      SORT        => 's.name',
+      PAGE_ROWS   => 10000
+    } );
+    return if (_error_show($Address));
+    
+    my $streets_content = '';
+    foreach my $street ( @{$streets_list} ) {
+      my $builds_list = $Address->build_list({
+        STREET_ID   => $street->{id},
+        COLS_NAME   => 1,
+        USERS_COUNT => '_SHOW',
+        SORT        => 1,
+        PAGE_ROWS   => 10000
+      });
+      return if ( _error_show($Address) );
+  
+      my %street_users = (
+        total  => 0,
+        online => 0,
+      );
+  
+      my $builds_content = '';
+      my $builds_count = 0;
+      foreach my $build ( @{$builds_list} ) {
+    
+        my $btn_class = 'btn-default';
+        
+        $street_users{total} += $build->{users_count};
+        
+        my $has_online = ($online_for_location_id{$build->{id}});
+        if ($has_online) {
+          $street_users{online} += $online_for_location_id{$build->{id}};
+          $btn_class = 'btn-success';
+        }
+        elsif ($build->{users_count}){
+          $btn_class = 'btn-danger';
+        }
+  
+        $builds_count += 1;
+        $builds_content .= $html->button($build->{number},
+          "index=7&type=11&search=1&search_form=1&LOCATION_ID=$build->{id}&BUILDS=$street->{id}", {
+            class         => 'btn btn-lg btn-build ' . $btn_class,
+            OUTPUT2RETURN => 1
+          }
+        );
+        
+      }
+  
+      my $offline_users = ($street_users{total} || 0) - ($street_users{online} || 0);
+      my $street_online_text = join(' / ',
+        $html->element('span', $street_users{total} || '0', { class => 'text-muted', title => $lang{TOTAL} }),
+        $html->element('span', $street_users{online} || '0', { class => 'text-success', title => $lang{ONLY_ONLINE} }),
+        $html->element('span', $offline_users || '0', { class => 'text-danger', title => $lang{ONLY_OFFLINE} }),
+      );
+      
+      $streets_content .= $html->tpl_show(templates('form_show_hide'), {
+          NAME    => $street->{street_name}
+            . ($street->{second_name}
+              ? " ( $street->{second_name} ) "
+              : '')
+            . " ( $street_online_text ) "
+            ,
+          CONTENT => '<div class="button-block">' . $builds_content . '</div>',
+          PARAMS  => 'collapsed-box'
+        },
+        {
+          OUTPUT2RETURN => 1
+        });
+    }
+  
+    $districts_content .= $html->tpl_show( templates('form_show_hide'), {
+        NAME    => $lang{DISTRICT} . ' ' . $district->{name} . ' ( ' . (scalar @{$streets_list}) . ' )',
+        CONTENT => $streets_content,
+        PARAMS  => 'collapsed-box'
+      }, {
+        OUTPUT2RETURN => 1
+      } );
+  };
+  
+  
+  $html->tpl_show(_include('internet_online_builds', 'Internet'),
+    {
+      DISTRICT_PANELS => $districts_content
+    }
+  );
+  
 }
 
 

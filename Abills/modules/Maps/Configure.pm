@@ -13,8 +13,8 @@ use v5.16;
 require JSON;
 JSON->import(qw/to_json from_json/);
 
+use Abills::Base qw/_bp in_array/;
 use Abills::Experimental;
-
 use Maps::Shared qw/:all MAPS_ICONS_DIR MAPS_ICONS_DIR_WEB_PATH LAYER_ID_BY_NAME CLOSE_OUTER_MODAL_SCRIPT/;
 
 our ($db,
@@ -23,9 +23,11 @@ our ($db,
   $html,
   %lang,
   %permissions,
-  $Address,
   $Nas
 );
+
+my $Address = Address->new( $db, $admin, \%conf );
+require Control::Address_mng;
 
 our ($Maps, @MAPS_CUSTOM_ICONS);
 #**********************************************************
@@ -430,7 +432,7 @@ sub maps_objects_main {
   }
   elsif ( $FORM{del} ) {
     $Maps->points_del( { ID => $FORM{del} } );
-    maps_object_delete($FORM{del});
+    _maps_object_delete($FORM{del});
     
     show_result( $Maps, $lang{DELETED} );
   }
@@ -1063,6 +1065,38 @@ sub maps_routes_list {
 =cut
 #**********************************************************
 sub maps_builds_quick {
+  
+  my $can_check_online = 0;
+  my %location_is_online = ();
+  
+  my $Sessions;
+  if (in_array('Internet', \@MODULES)) {
+    $can_check_online = 1;
+    require Internet::Sessions;
+    Internet::Sessions->import();
+    $Sessions = Internet::Sessions->new($db, $admin, \%conf);
+  
+    # Get online
+    my $online_list = $Sessions->online({
+      UID       => '_SHOW',
+      COLS_NAME => 1
+    });
+    _error_show($Sessions) and return 0;
+  
+    # Get location_ids for users
+    my $builds_for_users = $users->list({
+      UID         => join(';', map {$_->{uid}} @{$online_list}),
+      LOCATION_ID => '!',
+      COLS_NAME   => 1
+    });
+    _error_show($users) and return 0;
+  
+    # Create online lookup_table
+    foreach ( @{$builds_for_users} ) {
+      $location_is_online{$_->{build_id}} = 1;
+    }
+  }
+  
   my $districts_list = $Address->district_list( {
     COLS_NAME => 1,
     SORT      => 'd.name',
@@ -1094,11 +1128,25 @@ sub maps_builds_quick {
       
       my $builds_content = '';
       foreach my $build ( @{$builds_list} ) {
+        
+        my $has_online = ($can_check_online
+          && exists $location_is_online{$build->{id}}
+          && $location_is_online{$build->{id}}
+        );
+        
         $builds_content .= $html->button( $build->{number},
           "index=7&type=11&search=1&search_form=1&LOCATION_ID=$build->{id}&BUILDS=$street->{id}", {
-            class         => 'btn btn-lg btn-primary',
+            class         => 'btn btn-lg ' .
+              (
+                ( !$can_check_online )
+                  ? 'btn-primary'
+                  : $has_online
+                    ? 'btn-success'
+                    : 'btn-warning'
+              ),
             OUTPUT2RETURN => 1
           } );
+        
       }
       
       $streets_content .= $html->tpl_show( templates('form_show_hide'), {
@@ -1119,7 +1167,8 @@ sub maps_builds_quick {
         PARAMS  => 'collapsed-box'
       } )
   };
-  
+
+  return 1;
 }
 
 
@@ -1131,9 +1180,9 @@ sub maps_builds_quick {
 sub maps_auto_coords {
   
   # Preparation
-  require 'Maps/GMA.pm';
+  require Maps::GMA;
   Maps::GMA->import();
-  my $GMA = Maps::GMA->new($db, $admin, \%conf, $Address);
+  my $GMA = Maps::GMA->new($db, $admin, \%conf);
   
   my $maps_index = get_function_index('maps_edit');
   my $single_build_index = get_function_index('maps_auto_coords_single');
@@ -1145,7 +1194,7 @@ sub maps_auto_coords {
     print JSON::to_json($builds_list, { utf8 => 0 });
     return 1;
   }
-  
+
   # Show form with parameters
   $html->tpl_show(
     _include('maps_gma_form', 'Maps'),
@@ -1169,7 +1218,6 @@ sub maps_auto_coords {
       caption    => $lang{AUTO_COORDS},
       border     => 1,
       title      => [ '#', $lang{ADDRESS}, $lang{STATUS}, $lang{MAPS} ],
-      cols_align => [ 'left', 'right', 'right', 'right', 'center', 'center' ],
       qs         => $pages_qs,
       ID         => 'GMA_TABLE_ID'
     }
@@ -1201,9 +1249,9 @@ sub maps_auto_coords_single {
   return 0 unless ($FORM{REQUEST_ADDRESS});
   
   # Preparation
-  require 'Maps/GMA.pm';
+  require Maps::GMA;
   Maps::GMA->import();
-  my $GMA = Maps::GMA->new($db, $admin, \%conf, $Address);
+  my $GMA = Maps::GMA->new($db, $admin, \%conf);
   
   # Parse input
   my $build_id = $FORM{BUILD_ID};
@@ -1241,7 +1289,7 @@ sub maps_auto_coords_single {
   }
   elsif ( $status == 1 ) {
     
-    $Maps->changes2(
+    $Maps->changes(
       {
         TABLE        => 'builds',
         CHANGE_PARAM => 'ID',
@@ -1374,7 +1422,7 @@ sub _maps_result_former_show_custom_point_on_map_btn {
   }
   
   if ( $objects_by_id->{$object_id}->{type_id} && $objects_by_id->{$object_id}->{type_id} == 3 ) {
-    return _maps_btn_for_location($objects_by_id->{$object_id}->{location_id});
+    return _maps_btn_for_build($objects_by_id->{$object_id}->{location_id});
   }
   
   if ( !$objects_by_id->{$object_id}->{coordx} ) {

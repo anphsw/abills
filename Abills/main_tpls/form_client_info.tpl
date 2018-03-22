@@ -60,6 +60,22 @@
 </div>
 <!-- /.modal -->
 
+<div class='modal fade' id='confirmationClientInfo' tabindex='-1' role='dialog' data-open='%CONFIRMATION_CLIENT_PHONE_OPEN_INFO%'>
+  <div class='modal-dialog' role='document'>
+    <div class='modal-content'>
+      %FORM_CONFIRMATION_CLIENT_PHONE%
+    </div>
+  </div>
+</div>
+
+<div class='modal fade' id='confirmationClientInfo' tabindex='-1' role='dialog' data-open='%CONFIRMATION_EMAIL_OPEN_INFO%'>
+  <div class='modal-dialog' role='document'>
+    <div class='modal-content'>
+      %FORM_CONFIRMATION_CLIENT_EMAIL%
+    </div>
+  </div>
+</div>
+
 <div class='modal fade' id='changePersonalInfo' tabindex='-1' role='dialog' data-open='%PINFO%'>
   <div class='modal-dialog' role='document'>
     <div class='modal-content'>
@@ -106,15 +122,16 @@
           <div class='row'>
             <div class='col-xs-12 col-sm-3 col-md-3 text-1'>_{DEPOSIT}_</div>
             <div class='col-xs-12 col-sm-9 col-md-9 text-2'>%DEPOSIT% %MONEY_UNIT_NAMES%
-              <div class='extra'>%DOCS_ACCOUNT% %PAYSYS_PAYMENTS%</div>
+              <div class='extra'>%DOCS_ACCOUNT% %PAYSYS_PAYMENTS% %CARDS_PAYMENTS% </div>
             </div>
           </div>
           <div class='row'>
             %EXT_DATA%
           </div>
-          <div class='row'>
-            %INFO_FIELDS%
-          </div>
+
+          <!--Each info field row is wrapped in div.row-->
+          %INFO_FIELDS%
+
           <div class='row' style='display: none' data-visible='%SHOW_REDUCTION%'>
             <div class='col-xs-12 col-sm-3 col-md-3 text-1'>_{REDUCTION}_</div>
             <div class='col-xs-12 col-sm-9 col-md-9 text-2'>
@@ -152,8 +169,10 @@
             <div class='col-xs-12 col-sm-9 col-md-9 text-2'>%CONTRACT_ID%%CONTRACT_SUFIX%%NO_CONTRACT_MSG%
               <div class='extra '>
                 <a %NO_DISPLAY% class='btn' target='new'
-                   href='$SELF_URL?qindex=10&PRINT_CONTRACT=%CONTRACT_ID%&sid=$sid&pdf=$conf{DOCS_PDF_PRINT}'
-                   title='_{PRINT}_'><span class='glyphicon glyphicon glyphicon-print'></span></a>
+                  href='$SELF_URL?qindex=10&PRINT_CONTRACT=%CONTRACT_ID%&sid=$sid&pdf=$conf{DOCS_PDF_PRINT}'
+                  title='_{PRINT}_'><span class='glyphicon glyphicon glyphicon-print'></span></a>
+                <a class='btn' href='$SELF_URL?index=10&CONTRACT_LIST=1%&sid=$sid'
+                  title='_{LIST}_'><span class='glyphicon glyphicon glyphicon-list'></span></a>
               </div>
             </div>
           </div>

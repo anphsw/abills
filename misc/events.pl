@@ -261,7 +261,7 @@ sub _output {
     $result = "$declaration $struct";
   }
   elsif ( $OUTPUT_TYPE eq 'JSON' ) {
-    $result = _translate(encode_json($value));
+    $result = _translate(JSON::to_json($value));
   }
   elsif ( $OUTPUT_TYPE eq 'XML' ) {
     $result = $xml_simple->XMLout({ $attr->{ITEM_NAME} => $value },

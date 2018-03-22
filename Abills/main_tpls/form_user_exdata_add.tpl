@@ -1,8 +1,9 @@
 <div class='form-group'>
   <label class='control-label col-xs-4 col-md-2' for='LOGIN'>_{LOGIN}_</label>
   <div class='col-xs-8 col-md-4'>
-    <input id='LOGIN' name='LOGIN' value='%LOGIN%' placeholder='%LOGIN%' class='form-control' type='text'>
+    <input id='LOGIN' name='LOGIN' value='%LOGIN%' data-check-for-pattern='%LOGIN_PATTERN%' class='form-control' type='text'>
   </div>
+  %CREATE_COMPANY%
 </div>
 
 <div class='form-group'>

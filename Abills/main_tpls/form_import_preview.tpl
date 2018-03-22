@@ -19,7 +19,7 @@
 
   %TABLE%
 
-  <div class='box-footer text-center'>
+  <div class='box-footer'>
     <a href='?index=$index' class='btn btn-default'>_{BACK}_</a>
     <input type='submit' class='btn btn-primary' name='TABLE_IMPORT' value='_{IMPORT}_'>
   </div>

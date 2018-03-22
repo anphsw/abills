@@ -6,6 +6,8 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(cmd sec2time in_array);
+use Internet;
+use Fees;
 
 our (
   $db,
@@ -13,6 +15,8 @@ our (
   %conf,
   %lang,
   $html,
+  %permissions,
+  $Sessions
 );
 
 my $Internet = Internet->new($db, $admin, \%conf);
@@ -69,8 +73,8 @@ sub internet_turbo_control {
   my $Turbo = Turbo->new($db, $admin, \%conf);
   my $list = $Turbo->list(
     {
-      UID    => $LIST_PARAMS{UID},
-      ACTIVE => 1,
+      UID      => $LIST_PARAMS{UID},
+      ACTIVE   => 1,
       GROUP_BY => q{}
     }
   );
@@ -212,14 +216,18 @@ sub internet_turbo_mode {
 
   $LIST_PARAMS{ACTIVE} = 1 if (!$attr->{REPORT});
 
-  my $list = $Turbo->list({%LIST_PARAMS, COLS_NAME => 1 });
+  my $list = $Turbo->list({
+    %LIST_PARAMS,
+    GROUP_BY => q{},
+    COLS_NAME => 1
+  });
 
   if ($Turbo->{TOTAL} < 1) {
     $html->message('info', $lang{INFO}, "$lang{NO_RECORD}");
     return 0;
   }
 
-  my @caption = ("$lang{USER}", "$lang{TARIF_PLAN}", "$lang{REMAIN} $lang{TIME}", "$lang{START}", "$lang{DURATION}", "$lang{SPEED}");
+  my @caption = ($lang{USER}, $lang{TARIF_PLAN}, "$lang{REMAIN} $lang{TIME}", $lang{START}, $lang{DURATION}, $lang{SPEED});
 
   if ($Sessions->{SEARCH_FIELDS_COUNT}) {
     push @caption, 'TC';
@@ -233,7 +241,7 @@ sub internet_turbo_mode {
       qs           => $pages_qs,
       pages        => $Turbo->{TOTAL},
       recs_on_page => $LIST_PARAMS{PAGE_ROWS},
-      ID           => 'DV_TURBO_SESSIONS'
+      ID           => 'INTERNET_TURBO_SESSIONS'
     }
   );
 

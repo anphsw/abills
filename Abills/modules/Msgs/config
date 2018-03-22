@@ -4,7 +4,8 @@ use Abills::Base qw(in_array);
 our %FUNCTIONS_LIST = (
   "01:-1:$lang{MESSAGES}:msgs_admin:UID"                             => 15,
   #"02:0:$lang{MESSAGES}:msgs_admin:"                                => 5,
-  "02:0:$lang{MESSAGES}:msgs_chapters:"                              => 5,
+  "02:0:Helpdesk:null:"                                              => 5,
+  "03:2:$lang{CHAPTERS}:msgs_chapters:"                              => 5,
   "04:2:$lang{ADMINS}:msgs_admins:"                                  => 5,
   "05:2:$lang{TEMPLATES}:msgs_survey:"                               => 5,
   "06:2:$lang{STATUS}:msgs_status:"                                  => 5,
@@ -13,11 +14,13 @@ our %FUNCTIONS_LIST = (
   "09:8:$lang{EVALUATION_OF_PERFORMANCE}:msgs_reports_tasks_rating:" => 4,
   "11:8:$lang{REQUESTS}:msgs_reports_requests:"                      => 4,
   "12:2:$lang{DISPACTH_CATEGORY}:msgs_dispatch_category:"            => 5,
-  "13:2:$lang{QUICK_REPLYS_TYPES}:msgs_quick_replys_types:"          => 5,
-  "14:2:$lang{QUICK_REPLYS}:msgs_quick_replys:"                      => 5,
+  "13:2:$lang{MSGS_TAGS}:msgs_quick_replys:"                         => 5,
+  "14:13:$lang{MSGS_TAGS_TYPES}:msgs_quick_replys_types:"            => 5,
   "15:8:$lang{REPLYS}:msgs_reports_replys:"                          => 4,
   "16:8:$lang{MSGS_TAGS}:msgs_report_tags:"                          => 4,
   "17:8:$lang{TIME_IN_WORK}:msgs_admin_time_spend_report:"           => 4,
+  "18:0:$lang{OPERATOR_STATISTICS}:msgs_operator_statistics:"        => 9,
+  "17:8:$lang{ADMIN_STATISTICS}:msgs_admin_statistics:"              => 4,
 );
 
 load_module("Msgs", $html);
@@ -46,9 +49,8 @@ elsif ( defined($admin->{AID}) ) {
   $FUNCTIONS_LIST{"40:01::msgs_admin_quick_message:IN_MODAL"} = 8;
   
   my $tags_root_index = ($conf{MSGS_TAGS_NON_PRIVILEGED}) ? 8 : 5;
-  
-  $FUNCTIONS_LIST{"41:10:$lang{TAGS}:msgs_quick_replys_tags:MSGS_TAGS_ID:IN_MODAL"}
-    = $tags_root_index;
+  $FUNCTIONS_LIST{"41:10:$lang{TAGS}:msgs_quick_replys_tags:MSGS_TAGS_ID:IN_MODAL"} = $tags_root_index;
+  $FUNCTIONS_LIST{"42:10:$lang{TAGS}:_msgs_show_change_subject_template:MSGS_TAGS_ID:IN_MODAL"} = 8;
 }
 
 if ( in_array("Maps", \@MODULES) ) {

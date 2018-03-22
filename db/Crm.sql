@@ -96,6 +96,7 @@ CREATE TABLE IF NOT EXISTS `crm_leads` (
   `phone` VARCHAR(120) NOT NULL DEFAULT '',
   `company` VARCHAR(120) NOT NULL DEFAULT '',
   `email` VARCHAR(250) NOT NULL DEFAULT '',
+  `country` VARCHAR(80) NOT NULL DEFAULT '',
   `city` VARCHAR(80) NOT NULL DEFAULT '',
   `address` VARCHAR(100) NOT NULL DEFAULT '',
   `source` int(1) NOT NULL DEFAULT 0,
@@ -116,12 +117,24 @@ CREATE TABLE IF NOT EXISTS `crm_progressbar_steps` (
   PRIMARY KEY (`id`)
 ) COMMENT = 'Crm progressbar steps';
 
+REPLACE INTO `crm_progressbar_steps` (`id`, `step_number`, `name`, `color`, `description`) VALUE
+  ('1', '1', '$lang{NEW_LEAD}', '#5479e7', ''),
+  ('2', '2', '$lang{CONTRACT_SIGNED}', '#25d2f1', ''),
+  ('3', '3', '$lang{THE_WORKS}', '#ff8000', ''),
+  ('4', '4', '$lang{CONVERSION}', '#f1233d', '');
+
 CREATE TABLE IF NOT EXISTS `crm_leads_sources` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `name` CHAR(40) NOT NULL DEFAULT '',
   `comments` TEXT NOT NULL,
   PRIMARY KEY (`id`)
 ) COMMENT = 'Crm leads source';
+
+REPLACE INTO `crm_leads_sources` (`id`, `name`, `comments`) VALUE
+  ('1', '$lang{PHONE}', ''),
+  ('2', 'E-mail', ''),
+  ('3', '$lang{SOCIAL_NETWORKS}', ''),
+  ('4', '$lang{REFERRALS}', '');
 
 CREATE TABLE IF NOT EXISTS `crm_progressbar_step_comments` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,

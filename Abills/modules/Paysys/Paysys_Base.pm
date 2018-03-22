@@ -140,7 +140,7 @@ sub paysys_pay {
   my $payment_system_id = $attr->{PAYMENT_SYSTEM_ID};
   my $amount         = $attr->{SUM};
   my $order_id       = $attr->{ORDER_ID};
-  $users = $attr->{USER_INFO} if $attr->{USER_INFO};
+  $users = $attr->{USER_INFO_OBJECT} if $attr->{USER_INFO_OBJECT};
 
   my $status         = 0;
   my $payments_id    = 0;
@@ -366,7 +366,7 @@ sub paysys_pay {
         {
           SYSTEM_ID      => $payment_system_id,
           DATETIME       => $attr->{DATE} || "$DATE $TIME",
-          SUM            => ($attr->{COMMISSION} && $attr->{SUM}) ? $attr->{SUM} : $amount,
+          SUM            => ($attr->{COMMISSION} && $attr->{SUM}) ? $attr->{SUM} : ($PAYMENT_SUM || $amount),
           UID            => $uid,
           TRANSACTION_ID => "$payment_system:$ext_id",
           INFO           => $ext_info,
@@ -530,6 +530,8 @@ sub paysys_check_user {
   my $CHECK_FIELD  = $attr->{CHECK_FIELD};
   my $user_account = $attr->{USER_ID};
 
+  $user_account =~ s/\*//;
+
   if($conf{PAYSYS_ACCOUNT_KEY}){
     $CHECK_FIELD = _account_expression($user_account);
   }
@@ -550,26 +552,27 @@ sub paysys_check_user {
     %EXTRA_FIELDS = %{ $attr->{EXTRA_FIELDS} };
   }
 
-  my $list = $users->list({ LOGIN        => '_SHOW',
-                            FIO          => '_SHOW',
-                            DEPOSIT      => '_SHOW',
-                            CREDIT       => '_SHOW',
-                            PHONE        => '_SHOW',
-                            ADDRESS_FULL => '_SHOW',
-                            GID          => '_SHOW',
-                            DOMAIN_ID    => '_SHOW',
-                            DISABLE_PAYSYS=>'_SHOW',
-                            GROUP_NAME   => '_SHOW',
-                            DISABLE      => '_SHOW',
-                            CONTRACT_ID  => '_SHOW',
-                            ACTIVATE     => '_SHOW',
-                            REDUCTION    => '_SHOW',
-                            %EXTRA_FIELDS,
-                            $CHECK_FIELD => $user_account,
-                            COLS_NAME    => 1,
-                            COLS_UPPER => 1,
-                            PAGE_ROWS    => 2,
-                            });
+  my $list = $users->list({
+    LOGIN          => '_SHOW',
+    FIO            => '_SHOW',
+    DEPOSIT        => '_SHOW',
+    CREDIT         => '_SHOW',
+    PHONE          => '_SHOW',
+    ADDRESS_FULL   => '_SHOW',
+    GID            => defined($attr->{MAIN_GID}) ? $attr->{MAIN_GID} : '_SHOW',
+    DOMAIN_ID      => '_SHOW',
+    DISABLE_PAYSYS => '_SHOW',
+    GROUP_NAME     => '_SHOW',
+    DISABLE        => '_SHOW',
+    CONTRACT_ID    => '_SHOW',
+    ACTIVATE       => '_SHOW',
+    REDUCTION      => '_SHOW',
+    %EXTRA_FIELDS,
+    $CHECK_FIELD   => $user_account,
+    COLS_NAME      => 1,
+    COLS_UPPER     => 1,
+    PAGE_ROWS      => 2,
+  });
 
   if ($users->{errno}) {
     return 2;
@@ -583,7 +586,7 @@ sub paysys_check_user {
   
   if( $conf{PAYSYS_OSMP_EXTRA_INFO} ){
     use Abills::Misc;
-    my $recomended_pay = recomended_pay($list->[0]);
+    my $recomended_pay = recomended_pay($list->[0], { SKIP_DEPOSIT_CHECK => ($attr->{SKIP_DEPOSIT_CHECK} || 0) });
     $list->[0]->{fee} = $recomended_pay;
   }
   return $result, $list->[0];
@@ -796,8 +799,10 @@ sub conf_gid_split {
     foreach my $key ( @$params ) {
       if ($conf{$key .'_'. $gid}) {
         $conf{$key} = $conf{$key .'_'. $gid};
+        $FORM{MAIN_GID} = $gid; # gid
       }
     }
+
   }
 
   return 1;
@@ -837,7 +842,7 @@ sub mk_log {
     if ($attr->{SHOW}) {
       print "$message";
     }
-
+    $ENV{REMOTE_ADDR} //= '127.0.0.1';
     print $fh "\n$DATE $TIME $ENV{REMOTE_ADDR} $paysys =========================\n";
 
     if ($attr->{REQUEST}) {

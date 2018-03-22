@@ -20,6 +20,7 @@ use warnings "all";
 use Abills::Base qw(in_array startup_files _bp);
 use Nas;
 use Equipment;
+require Equipment::Snmp_cmd;
 
 use SNMP_util;
 use SNMP_Session;

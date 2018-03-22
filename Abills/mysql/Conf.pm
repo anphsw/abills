@@ -7,7 +7,7 @@ package Conf;
 =cut
 
 use strict;
-use parent qw(main Exporter);
+use parent qw(dbcore Exporter);
 
 our $VERSION = 7.00;
 
@@ -35,13 +35,19 @@ sub new {
 
   bless($self, $class);
 
-  $self->query2("SELECT param, value FROM config WHERE domain_id = ?",
+  $self->query("SELECT param, value FROM config WHERE domain_id = ?",
     undef,
     { Bind => [
       $admin->{DOMAIN_ID} || 0
        ]});
 
+  #my @non_changed_vars = ('TPL_DIR');
+
   foreach my $line (@{ $self->{list} }) {
+    if($line->[0] eq 'TPL_DIR') {
+      next;
+    }
+
     $CONF->{$line->[0]}=$line->[1];
   }
 
@@ -87,11 +93,23 @@ sub config_list {
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query2("SELECT param, value FROM config $WHERE ORDER BY $SORT $DESC", undef, $attr);
-  my $list = $self->{list};
+  my $list;
+  if($self->can('query2')) {
+    $self->query2("SELECT param, value FROM config $WHERE ORDER BY $SORT $DESC", undef, $attr);
+    $list = $self->{list};
 
-  if (!$attr->{CONF_ONLY} || $self->{TOTAL} > 0) {
-    $self->query2("SELECT COUNT(*) AS total FROM config $WHERE", undef, { INFO => 1 });
+    if (!$attr->{CONF_ONLY} || $self->{TOTAL} > 0) {
+      $self->query2("SELECT COUNT(*) AS total FROM config $WHERE", undef, { INFO => 1 });
+    }
+
+  }
+  else {
+    $self->query("SELECT param, value FROM config $WHERE ORDER BY $SORT $DESC", undef, $attr);
+    $list = $self->{list};
+
+    if (!$attr->{CONF_ONLY} || $self->{TOTAL} > 0) {
+      $self->query("SELECT COUNT(*) AS total FROM config $WHERE", undef, { INFO => 1 });
+    }
   }
 
   return $list;
@@ -113,7 +131,7 @@ sub config_info {
 
   $attr->{DOMAIN_ID} = 0 if (!$attr->{DOMAIN_ID});
 
-  $self->query2("SELECT param, value, domain_id FROM config WHERE param= ? AND domain_id= ? ;",
+  $self->query("SELECT param, value, domain_id FROM config WHERE param= ? AND domain_id= ? ;",
     undef,
     { INFO => 1,
       Bind => [
@@ -141,7 +159,7 @@ sub config_change {
   my ($param, $attr) = @_;
 
   if ($attr->{WITHOUT_PARAM_CHANGE}) {
-    $self->changes2({
+    $self->changes({
       CHANGE_PARAM => 'PARAM',
       TABLE        => 'config',
       DATA         => $attr
@@ -150,7 +168,7 @@ sub config_change {
   else {
     #print "// PARAM => $param, DOMAIN_ID => $attr->{DOMAIN_ID} //<br>";
     $attr->{NAME}=$attr->{$param};
-    $self->changes2(
+    $self->changes(
       {
         CHANGE_PARAM => 'PARAM,DOMAIN_ID',
         TABLE        => 'config',
@@ -241,7 +259,7 @@ sub change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'PARAM',
       TABLE        => 'config_variables',
@@ -262,7 +280,7 @@ sub info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("SELECT * FROM config_variables
+  $self->query("SELECT * FROM config_variables
     WHERE param= ? ;",
    undef,
    { INFO => 1,
@@ -298,7 +316,7 @@ sub list {
     }
   );
 
-  $self->query2("SELECT *
+  $self->query("SELECT *
         FROM config_variables
         $WHERE
         ORDER BY $SORT $DESC
@@ -312,7 +330,7 @@ sub list {
   my $list = $self->{list};
 
   if ($self->{TOTAL} >= $attr->{PAGE_ROWS} || $PG > 0) {
-    $self->query2("SELECT COUNT(*) AS total FROM config_variables $WHERE",
+    $self->query("SELECT COUNT(*) AS total FROM config_variables $WHERE",
       undef, { INFO => 1 });
   }
 
@@ -339,7 +357,7 @@ sub check_password {
   my $length = $CONF->{PASSWD_LENGTH};
   my ($case, $special_chars) = split(':', $config_string);
   
-  if ($case > 2){
+  if ($case > 3){
     $case = 1;
   }
   if ($special_chars > 3){
@@ -356,7 +374,10 @@ sub check_password {
   elsif ($case == 2){
     $case_part = 'a-z'
   }
-     
+  elsif ($case == 3){
+    $case_part = '';
+  }
+  
   my $special_chars_part = '-_!&%@#:0-9';
   if ($special_chars == 0) {
     $special_chars_part = '0-9'
@@ -368,7 +389,10 @@ sub check_password {
     $special_chars_part = '';
   }
   
-  if ($password =~ /[$case_part]+/ && ( !$special_chars_part || $password =~ /[$special_chars_part]+/ ) ){
+  if (
+    ( !$case_part || $password =~ /[$case_part]+/ )
+    && ( !$special_chars_part || $password =~ /[$special_chars_part]+/ )
+  ){
     return 1;
   }
   

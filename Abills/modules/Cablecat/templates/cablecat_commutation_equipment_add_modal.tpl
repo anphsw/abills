@@ -19,7 +19,7 @@
 
   </div>
 
-  <div class='box-footer text-center'>
+  <div class='box-footer'>
     <input type='submit' form='CABLECAT_COMMUTATION_ADD_EQUIPMENT_MODAL' class='btn btn-primary' name='submit'
            value='%SUBMIT_BTN_NAME%'>
   </div>
@@ -31,8 +31,8 @@
 
     Events.off('AJAX_SUBMIT.CABLECAT_COMMUTATION_ADD_EQUIPMENT_MODAL');
     Events.once('AJAX_SUBMIT.CABLECAT_COMMUTATION_ADD_EQUIPMENT_MODAL', function (response) {
-      if (response.MESSAGE) {
-        aTooltip.displayMessage(response.MESSAGE, 2000);
+      if (response.MESSAGE_EQUIPMENT_ADDED) {
+        aTooltip.displayMessage(response.MESSAGE_EQUIPMENT_ADDED, 2000);
         location.reload();
       }
     });

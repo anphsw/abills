@@ -14,7 +14,7 @@
 use strict;
 use warnings FATAL => 'all';
 
-our (%conf, $DATE, $TIME, $Log, $db);
+our (%conf, $DATE, $TIME, $Log, $db, @MODULES);
 
 BEGIN {
   use FindBin '$Bin';
@@ -23,14 +23,16 @@ BEGIN {
 }
 
 my $debug   = 0;
-my $VERSION = 0.24;
+my $VERSION = 0.25;
 
 use Abills::SQL;
 use Abills::Base qw(check_time parse_arguments gen_time days_in_month in_array);
 use Admins;
-use Dv_Sessions;
 use Nas;
 my $begin_time = check_time();
+
+my $Sessions;
+my $Internet;
 
 require Abills::Nas::Control;
 Abills::Nas::Control->import();
@@ -42,7 +44,7 @@ if ($argv->{help}) {
 
 autozap.pl Version: $VERSION
 
-  NAS_ID         - NAS ID for ZAP
+  NAS_ID=        - NAS ID for ZAP
   ACTION_EXPR=   - Extr for action (wildcard *)
   ACTION_COUNT=  - Count of some actions default 20
   LAST_ACTIONS_COUNT= - last history actions. default 250.
@@ -56,6 +58,7 @@ autozap.pl Version: $VERSION
   UID=...        - UID for hangup
   TP_ID=...      - TP_ID for hangup
   GID=...        - Group ID for hangup
+  LIMIT=100      - Hangup limit
   DEBUG=1..6     -
   help           - This help
 [END]
@@ -71,14 +74,33 @@ require Log;
 Log->import('log_add');
 my $Nas_cmd = Abills::Nas::Control->new($db, \%conf);
 
-my $admin = Admins->new($db, \%conf);
-$admin->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });
+my $Admin = Admins->new($db, \%conf);
+$Admin->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });
 
 my $Nas = Nas->new($db, \%conf);
 $Log = Log->new($db, \%conf);
 $Log->{PRINT} = 1;
 
-my $Dv_sessions = Dv_Sessions->new($db, $admin, \%conf);
+if(in_array('Internet', \@MODULES)) {
+  require Internet::Sessions;
+  Internet::Sessions->import();
+  require Internet;
+  Internet->import();
+
+  $Sessions = Internet::Sessions->new( $db, $Admin, \%conf );
+  $Internet = Internet->new( $db, $Admin, \%conf );
+}
+else {
+  require Dv_Sessions;
+  Dv_Sessions->import();
+  require Dv;
+  Dv->import();
+
+  $Sessions = Dv_Sessions->new( $db, $Admin, \%conf );
+  $Internet = Dv->new( $db, $Admin, \%conf );
+}
+
+
 my %LIST_PARAMS = ();
 
 if ($argv->{LOGIN}) {
@@ -119,11 +141,11 @@ if ($debug > 1) {
 
 if ($argv->{HANGUP}) {
   if ($debug > 6) {
-    $Dv_sessions->{debug} = 1;
+    $Sessions->{debug} = 1;
     $Nas->{debug}         = 1;
   }
 
-  $Dv_sessions->online(
+  $Sessions->online(
     {
       USER_NAME            => '_SHOW',
       ACCT_SESSION_ID      => '_SHOW',
@@ -144,12 +166,12 @@ if ($argv->{HANGUP}) {
     }
   );
 
-  if ($Dv_sessions->{errno}) {
-    print "Error: $Dv_sessions->{errno} $Dv_sessions->{errstr}\n";
+  if ($Sessions->{errno}) {
+    print "Error: $Sessions->{errno} $Sessions->{errstr}\n";
     exit;
   }
 
-  my $online_list = $Dv_sessions->{nas_sorted};
+  my $online_list = $Sessions->{nas_sorted};
   my $nas_list = $Nas->list({ COLS_NAME => 1, PAGE_ROWS => 60000 });
 
   #my @results     = ();
@@ -230,7 +252,8 @@ if ($argv->{HANGUP}) {
       }
     }
   }
-  if ($LIST_PARAMS{USER_NAME} && $Dv_sessions->{TOTAL} == 0) {
+
+  if ($LIST_PARAMS{USER_NAME} && $Sessions->{TOTAL} == 0) {
     print "1:INFO=Not online '$LIST_PARAMS{USER_NAME}'";
   }
 }
@@ -264,7 +287,7 @@ elsif ($argv->{ACTION_EXPR}) {
 }
 else {
   ZAP_LABEL:
-  $Dv_sessions->zap(0, 0, 0, {%LIST_PARAMS});
+  $Sessions->zap(0, 0, 0, {%LIST_PARAMS});
 }
 
 if ($debug > 0) {

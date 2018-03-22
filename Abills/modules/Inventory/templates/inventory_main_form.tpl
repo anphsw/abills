@@ -87,6 +87,13 @@
     </div>
 
     <div class='form-group'>
+      <label class='control-label col-xs-4' for='STATUS_SEL'>_{STATUS}_</label>
+      <div class='col-xs-8'>
+        %STATUS_SEL%
+      </div>
+    </div>
+
+    <div class='form-group'>
       <label class='control-label col-xs-4' for='COMMENTS'>_{COMMENTS}_</label>
       <div class='col-xs-8'>
         <textarea name=COMMENTS rows=4 class='form-control'>%COMMENTS%</textarea>

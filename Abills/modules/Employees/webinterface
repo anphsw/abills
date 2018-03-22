@@ -8,7 +8,7 @@
 
 use warnings;
 use strict;
-use Abills::Base qw(in_array date_inc sec2time time2sec days_in_month);
+use Abills::Base qw(in_array date_inc sec2time time2sec days_in_month sendmail);
 
 our (
   $db,
@@ -33,6 +33,7 @@ my $Employees = Employees->new($db, $admin, \%conf);
 =cut
 #**************************************************
 sub employees_main {
+
   if( in_array('Employees', \@MODULES) ){
     load_module("Employees", $html);
     $Employees = Employees->new($db, $admin, \%conf);
@@ -180,7 +181,7 @@ sub employees_main {
 
   $admin_form->{FULL_LOG}  = ($admin_form->{FULL_LOG}) ? 'checked' : '';
   $admin_form->{DISABLE}   = ( defined($admin_form->{DISABLE}) && $admin_form->{DISABLE} > 0) ? 'checked' : '';
-  $admin_form->{GROUP_SEL} = sel_groups({ GID => $admin_form->{GID}, SKIP_MUULTISEL => 1 });
+  $admin_form->{GROUP_SEL} = sel_groups({ GID => $admin_form->{GID}, SKIP_MULTISELECT => 1 });
 
   if ($admin->{DOMAIN_ID}) {
     $admin_form->{DOMAIN_SEL} = $admin->{DOMAIN_NAME};
@@ -313,31 +314,77 @@ sub employees_main {
 #**************************************************
 sub employees_geolocation{
 
+  # adding employee geo-data to table
+  if (($FORM{STREET_ID} || $FORM{BUILD_ID} || $FORM{DISTRICT_ID} ) && $FORM{EID} && !$FORM{CLEAR}) {
+
+    my @streets   = split(', ', $FORM{STREET_ID}) if (defined $FORM{STREET_ID});
+    my @builds    = split(', ', $FORM{BUILD_ID}) if ( defined $FORM{BUILD_ID});
+    my @districts = split(', ', $FORM{DISTRICT_ID}) if (defined $FORM{DISTRICT_ID});
+
+    foreach my $st (@streets) {
+      $Employees->add_geo(
+        {
+          EMPLOYEE_ID => $FORM{EID},
+          STREET_ID   => $st,
+        }
+      );
+    }
+
+    foreach my $bd (@builds) {
+      $Employees->add_geo(
+        {
+          EMPLOYEE_ID => $FORM{EID},
+          BUILD_ID    => $bd,
+        }
+      );
+    }
+
+    foreach my $ds (@districts) {
+      $Employees->add_geo(
+        {
+          EMPLOYEE_ID => $FORM{EID},
+          DISTRICT_ID => $ds,
+        }
+      )
+    }
+
+  }
+  # clear all geo-data for employee
+  elsif ($FORM{CLEAR}) {
+    $Employees->del_geo({ EMPLOYEE_ID => $FORM{EID} });
+    if (!$Employees->{errno}) {
+      $html->message('info', "$lang{GEO}", "$lang{DELETED}");
+    }
+  }
+
   my $geolist = $Employees->geo_list({EMPLOYEE_ID => $FORM{eid}, COLS_NAME => 1});
 
   my @streets;
   my @builds;
   my @districts;
-
+  my %address = ();
   foreach my $data (@$geolist){
     if($data->{street_id}){
       push(@streets, $data->{street_id});
+      $address{"STREET_ID_$data->{street_id}"} = 1;
     }
     elsif($data->{build_id}){
       push(@builds, $data->{build_id});
+      $address{"BUILD_ID_$data->{build_id}"} = 1;
     }
     elsif($data->{district_id}){
       push(@districts, $data->{district_id});
+      $address{"DISTRICT_ID_$data->{district_id}"} = 1;
     }
   }
 
-  #my %address = ( 'street_id' => \@streets, 'build_id' => \@builds, 'district_id' => \@districts );
+#  my %address = ( 'street_id' => \@streets, 'build_id' => \@builds, 'district_id' => \@districts );
 
   $html->tpl_show(_include('employees_geolocation_add', 'Employees'),{
-                  GEOLOCATION_TREE => address_list_tree_menu({ OUTPUT2RETURN => 1}),
+                  GEOLOCATION_TREE => address_list_tree_menu({ CHECKED => \%address, OUTPUT2RETURN => 1}),
                   BTN_NAME         => $lang{CHANGE},
-                  index            => get_function_index('employees_main'),
-                  EID              => $FORM{eid},
+                  index            => $index,
+                  EID              => $FORM{eid} || $FORM{EID},
                   });
 
   return 1;
@@ -900,7 +947,7 @@ sub question_show {
 
 sub employees_registration {
   my %Registration;
-
+  my ($attr) = @_;
   $Registration{BUTTON_NAME}='NEXT_BUTTON';
   $Registration{BUTTON_VALUE}=$lang{NEXT};
 
@@ -933,10 +980,9 @@ sub employees_registration {
      
     $Registration{LIST_OF_QUESTION} = $reply_mas;
 
-    $html->tpl_show(_include('employees_question_list', 'Employees'), \%Registration);
+    $html->tpl_show(_include('employees_question_list', 'Employees'), {%Registration, %$attr});
   }
-
-  elsif ($FORM{add}) {
+  elsif ($FORM{add_data}) {
     $Employees->add_profile(
       {
         FIO           => $FORM{FIO},
@@ -970,6 +1016,7 @@ sub employees_registration {
     foreach my $profil (@$last_profile) {
       $profile_id = $profil->{id};
     }
+
     #Add reply in and ID of profile
     foreach my $line (@$resul_list) {
       if ($FORM{ 'QUESTION_' . $line->{id} }) {
@@ -982,8 +1029,33 @@ sub employees_registration {
         );
       }
     }
-  }
 
+    my $list = $Employees->position_list({ID => $FORM{POSITION}});
+    $FORM{POSITION} = $list->[0]->[1];
+
+    my $table_profile_info = $html->table(
+      {
+        width  => '100%',
+        title_plain => [ "$lang{QUESTION}", "$lang{REPLY}" ],
+        ID     => 'TABLE_PROFILE_INFO',
+      }
+    );
+    my $reply_list = $Employees->reply_list(
+      {
+        COLS_NAME  => 1,
+        PROFILE_ID => $profile_id,
+      }
+    );
+    if ($reply_list) {
+      foreach my $reply (@$reply_list) {
+        $table_profile_info->addrow($reply->{question}, $reply->{reply}, "");
+      }
+    }
+    sendmail($conf{ADMIN_MAIL}, $FORM{FIO}, $conf{WEB_TITLE}, "$lang{APPLIED_MASSAGE}. $lang{CONNECT_W_U})", $conf{MAIL_CHARSET}, '', {});
+    $html->message("info", $lang{SENT_MASSAGE}, $lang{APPLIED_MASSAGE} . ". " . $lang{CONNECT_W_U});
+    $html->tpl_show(_include('employees_final_message', 'Employees'), {%FORM});
+    $table_profile_info->show();
+  }
   else {
     my $day_selet = $html->form_select(
     'POSITION',
@@ -996,9 +1068,9 @@ sub employees_registration {
       SEL_OPTIONS => { ''=> '--' },
     }
   );   
-
+  $Registration{DATE} = $html->form_datepicker("DATE", $DATE, {OUTPUT2RETURN => 1});
   $Registration{POSITIONS} = $day_selet;
-  $html->tpl_show(_include('employees_registration', 'Employees'), \%Registration);
+  $html->tpl_show(_include('employees_registration', 'Employees'), {%Registration, %$attr} );
 
   }
   return 1;

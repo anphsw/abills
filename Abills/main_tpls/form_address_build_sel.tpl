@@ -21,7 +21,7 @@
 
     <div class='col-xs-12 col-md-4'>
 
-      <div class='addBuildMenu'>
+      <div class='addBuildMenu' >
         <div class='input-group'>
           <select name='ADDRESS_BUILD' class='form-control SELECT-BUILD'
                   data-fieldname='BUILD' data-download-on-click='1'>
@@ -29,7 +29,7 @@
           </select>
 
           <!-- Control for toggle build mode SELECT/ADD -->
-          <span class='input-group-addon'>
+          <span class='input-group-addon' %HIDE_ADD_BUILD_BUTTON%>
             <a title='_{ADD}_ _{BUILDS}_' class='BUTTON-ENABLE-ADD'>
               <span class='glyphicon glyphicon-plus'></span>
             </a>
@@ -41,11 +41,13 @@
       <div class='changeBuildMenu' style='display : none'>
         <div class='input-group'>
           <input type='text' name='ADD_ADDRESS_BUILD' class='form-control INPUT-ADD-BUILD'/>
+
           <span class='input-group-addon'>
             <a class='BUTTON-ENABLE-SEL'>
               <span class='glyphicon glyphicon-list'></span>
             </a>
            </span>
+
         </div>
       </div>
 

@@ -17,7 +17,7 @@ use Abills::Base qw/_bp/;
     
 =cut
 #**********************************************************
-sub new{
+sub new {
   my $class = shift;
   
   my ($db, $admin, $CONF) = @_;
@@ -28,7 +28,7 @@ sub new{
     conf  => $CONF,
   };
   
-  bless( $self, $class );
+  bless($self, $class);
   
   return $self;
 }
@@ -48,7 +48,7 @@ sub parse {
   my $self = shift;
   
   return $self->get_tables_struct();
-#  return hash_ref;
+  #  return hash_ref;
 }
 
 #**********************************************************
@@ -60,11 +60,11 @@ sub parse {
 sub tables_list {
   my $self = shift;
   
-  $self->{admin}->query2("SHOW TABLES", undef );
-  return 0 if $self->{admin}{errno};
+  $self->{admin}->query("SHOW TABLES", undef);
+  return 0 if ( $self->{admin}->{errno} );
   
   my $tables = $self->{admin}->{list};
-  my @tables_list = map { $_->[0] } @$tables;
+  my @tables_list = map {$_->[0]} @{$tables};
   
   return \@tables_list;
 }
@@ -84,10 +84,10 @@ sub table_info {
   my $self = shift;
   my ($table_name) = @_;
   
-  $self->{admin}->query2("DESCRIBE $table_name", undef, { COLS_NAME => 1 });
-  return 0 if $self->{admin}{errno};
+  $self->{admin}->query("DESCRIBE $table_name", undef, { COLS_NAME => 1 });
+  return 0 if ( $self->{admin}->{errno} );
   
-  return _parse_columns($self->{admin}{list});
+  return _parse_columns($self->{admin}->{list});
 }
 
 #**********************************************************
@@ -99,24 +99,31 @@ sub _parse_columns {
   my ($table_info) = @_;
   
   my %table_columns = (
-    columns => { }
+    columns => {}
   );
   
   foreach ( @{ $table_info } ) {
     # Skipping service columns
-    next if ($_->{Field} =~ /^_/);
+    next if ( $_->{Field} =~ /^_/ );
+  
+    my %column = ();
+  
+    if ( $_->{Null} && $_->{Null} !~ /NO/i ) {
+      $column{Null} = 'Yes';
+    }
+    elsif ( $_->{Type} !~ /text|blob/i ) {
+      $column{Null} = 'No';
+    }
+  
+    $column{Type} = lc $_->{Type};
+  
+    $column{Default} = $_->{Default};# if ( defined $_->{Default} );
+    $column{Type} .= ' auto_increment' if ( $_->{Extra} && $_->{Extra} =~ /auto_increment/ );
     
-    my %col_info = ();
-    
-    $col_info{Null} = 'No' if ($_->{Null} && $_->{Null} eq 'NO' );
-    
-    $col_info{Type} = lc $_->{Type};
-    
-    $col_info{Default} = $_->{Default} if (defined $_->{Default});
-    $col_info{Type} .= ' auto_increment' if ($_->{Extra} && $_->{Extra} =~ /auto_increment/);
-    
-    $table_columns{columns}->{$_->{Field}} = \%col_info;
-    
+    $column{_raw} = $_;
+  
+    $table_columns{columns}->{$_->{Field}} = \%column;
+  
   };
   
   return \%table_columns;
@@ -134,12 +141,12 @@ sub get_tables_struct {
   
   # Get list of all tables in schema
   my $tables_list = $self->tables_list();
-  return 0 unless ($tables_list);
+  return 0 unless ( $tables_list );
   
   # For each table, get columns describe
   foreach my $table_name ( @{$tables_list} ) {
     # Skip '_*';
-    next if $table_name =~ /^\_\w+/;
+    next if ( $table_name =~ /^\_\w+/ );
     
     $table_info{$table_name} = $self->table_info($table_name);
   }

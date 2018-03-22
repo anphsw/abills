@@ -1,4 +1,5 @@
 <form action=$SELF_URL METHOD=POST class='form-horizontal'>
+<input type='hidden' name='module' value='Employees'>
 <input type='hidden' name='FIO' value=%FIO%>
 <input type='hidden' name='DATE' value=%DATE%>
 <input type='hidden' name='MAIL' value=%MAIL%>
@@ -14,7 +15,7 @@
 	  <!-- footer -->
 	  <div class='box-footer'>
 
-	  	<p class='text-center'><input type='submit' class='btn btn-primary pull-center' name='add' value='_{NEXT}_'></p>
+	  	<p class='text-center'><input type='submit' class='btn btn-primary pull-center' name='add_data' value='_{NEXT}_'></p>
 
 	</div>
 

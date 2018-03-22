@@ -22,6 +22,8 @@ my @STATUS = ($lang{ACTIVE}, $lang{PAUSED}, $lang{CLOSED});
 my @REAL_WEEKDAYS = ();
 ($lang{HOLIDAY}, @REAL_WEEKDAYS) = (@WEEKDAYS); # Removed confusing first element
 
+use Notepad::Reminders qw/calculate_next_periodic_time/;
+
 our @PREDEFINED_RULES = qw/
   once
   every_day
@@ -32,6 +34,14 @@ our @PREDEFINED_RULES = qw/
   every_year
   /;
 
+my @notes_table_filter_bar = (
+  "$lang{ALL}:index=$index&STATUS=ALL",
+  "$lang{ACTIVE}:index=$index&STATUS=0",
+  "$lang{CLOSED}:index=$index&STATUS=1",
+  "$lang{PAUSED}:index=$index&STATUS=2"
+);
+
+
 #**********************************************************
 =head2 notepad_main()
 
@@ -41,6 +51,9 @@ sub notepad_main {
   
   my %TEMPLATE_NOTE = ();
   my $show_add_form = $FORM{add_form} || 1;
+  
+  my @admins_that_can_assign_notes_to_other = split(',\s?', $conf{NOTEPAD_MANAGERS} || '1');
+  my $can_assign_note_to_other_admin = in_array($admin->{AID}, \@admins_that_can_assign_notes_to_other);
   
   my $check_notepad_form_params = sub {
     if ( !$FORM{TEXT} && !$FORM{SUBJECT} ) {
@@ -65,11 +78,14 @@ sub notepad_main {
     }
   }
   elsif ( $FORM{change} ) {
+    $check_notepad_form_params->();
+  
     $Notepad->notes_change( { %FORM } );
     show_result( $Notepad, $lang{CHANGED} );
     $show_add_form = 1;
   }
   elsif ( $FORM{chg} ) {
+    
     my $tp_info = $Notepad->notes_info($FORM{chg});
     
     if ( !_error_show($Notepad) ) {
@@ -92,6 +108,13 @@ sub notepad_main {
   
   if ( $show_add_form ) {
     
+    if ($can_assign_note_to_other_admin){
+      $TEMPLATE_NOTE{CAN_SELECT_AID} = $can_assign_note_to_other_admin;
+      $TEMPLATE_NOTE{AID_SELECT} = sel_admins({
+        SELECTED => $TEMPLATE_NOTE{AID} || $admin->{AID}
+      });
+    }
+    
     $TEMPLATE_NOTE{STATUS_SELECT} = $html->form_select(
       "STATUS",
       {
@@ -104,7 +127,8 @@ sub notepad_main {
     
     $TEMPLATE_NOTE{DATETIMEPICKER} = $html->form_datetimepicker(
       'SHOW_AT',
-      $TEMPLATE_NOTE{SHOW_AT} || (($DATE || '') . ' ' . ($TIME || ''))
+      $TEMPLATE_NOTE{SHOW_AT} || (($DATE || '') . ' ' . ($TIME || '')),
+      { ICON => 1 }
     );
     
     $TEMPLATE_NOTE{PERIODIC} = notepad_periodic_rule({ OUTPUT2RETURN => 1, RULE_ID => $Notepad->{NEW_RULE_ID} });
@@ -122,20 +146,42 @@ sub notepad_main {
     
   }
   
-  my @status_bar = (
-    "$lang{ALL}:index=$index&STATUS=ALL",
-    "$lang{ACTIVE}:index=$index&STATUS=0",
-    "$lang{CLOSED}:index=$index&STATUS=1",
-    "$lang{PAUSED}:index=$index&STATUS=2"
-  );
+  if ($can_assign_note_to_other_admin) {
   
-  $LIST_PARAMS{AID} = $FORM{AID} || $admin->{AID} || '_SHOW';
+    $html->tpl_show(_include('notepad_manager_filter_panel', 'Notepad'), {
+        AID_SELECT => sel_admins({ SELECTED => $FORM{AID} })
+      });
+  
+    $LIST_PARAMS{AID} = $FORM{AID} || '_SHOW';
+    notepad_manager_notes_list_view();
+  
+    if ( $FORM{AID} && $FORM{AID} eq $admin->{AID} ) {
+      notepad_calendar();
+    }
+  }
+  else {
+    $LIST_PARAMS{AID} = $admin->{AID};
+    notepad_admin_notes_list_view();
+    notepad_calendar();
+  }
+  
+  return 1;
+}
+
+#**********************************************************
+=head2 notepad_admin_notes_list_view()
+
+=cut
+#**********************************************************
+sub notepad_admin_notes_list_view {
+  
+  $LIST_PARAMS{AID} = $admin->{AID};
   
   my Abills::HTML $table;
   ($table) = result_former({
     INPUT_DATA      => $Notepad,
     FUNCTION        => 'notes_list',
-    DEFAULT_FIELDS  => 'ID,SUBJECT,STATUS,SHOW_AT,PERIODIC_RULE_ID,CREATED', #,NAME',
+    DEFAULT_FIELDS  => 'ID,SUBJECT,STATUS,SHOW_AT,PERIODIC_RULE_ID,CREATED',
     FUNCTION_FIELDS => 'change,del',
     SKIP_USER_TITLE => 1,
     EXT_FIELDS      => 0,
@@ -147,7 +193,8 @@ sub notepad_main {
       status           => $lang{STATUS},
       subject          => $lang{SUBJECT},
       name             => $lang{ADMIN},
-      periodic_rule_id => $lang{PERIODICALLY}
+      periodic_rule_id => $lang{PERIODICALLY},
+      aid              => $lang{ADMIN}
     },
     FILTER_VALUES   => {
       status           => sub {
@@ -158,7 +205,7 @@ sub notepad_main {
       }
     },
     TABLE           => {
-      header  => $html->table_header( \@status_bar ),
+      header  => $html->table_header( \@notes_table_filter_bar ),
       caption => $lang{NOTEPAD},
       ID      => 'NOTEPAD_NOTES',
       EXPORT  => 1,
@@ -169,7 +216,66 @@ sub notepad_main {
     MODULE          => 'Notepad',
   });
   
-  notepad_calendar();
+  print $table->show();
+  
+  return 1;
+}
+
+#**********************************************************
+=head2 notepad_manager_notes_list_view()
+
+=cut
+#**********************************************************
+sub notepad_manager_notes_list_view {
+  
+  
+  my @status_bar = (
+    "$lang{ALL}:index=$index&STATUS=ALL",
+    "$lang{ACTIVE}:index=$index&STATUS=0",
+    "$lang{CLOSED}:index=$index&STATUS=1",
+    "$lang{PAUSED}:index=$index&STATUS=2"
+  );
+  
+  $LIST_PARAMS{AID} = $FORM{AID} || '_SHOW';
+  
+  my Abills::HTML $table;
+  ($table) = result_former({
+    INPUT_DATA      => $Notepad,
+    FUNCTION        => 'notes_list',
+    DEFAULT_FIELDS  => 'ID,SUBJECT,STATUS,SHOW_AT,PERIODIC_RULE_ID,CREATED,NAME',
+    FUNCTION_FIELDS => 'change,del',
+    SKIP_USER_TITLE => 1,
+    EXT_FIELDS      => 0,
+    HIDDEN_FIELDS   => 'AID',
+    EXT_TITLES      => {
+      id               => '#',
+      show_at          => $lang{NEXT_SHOW},
+      created          => $lang{CREATED},
+      status           => $lang{STATUS},
+      subject          => $lang{SUBJECT},
+      name             => $lang{ADMIN},
+      periodic_rule_id => $lang{PERIODICALLY},
+      aid              => $lang{ADMIN}
+    },
+    FILTER_VALUES   => {
+      status           => sub {
+        $STATUS[$_[0]] || "$lang{ERROR} $lang{STATUS} : $_[0]";
+      },
+      periodic_rule_id => sub {
+        $_[0] ? _translate('$lang{' . uc(@PREDEFINED_RULES[$_[0]] || 'error') .'}') : $lang{NO};
+      }
+    },
+    TABLE           => {
+      header  => $html->table_header( \@notes_table_filter_bar ),
+      caption => $lang{NOTEPAD},
+      ID      => 'NOTEPAD_NOTES',
+      EXPORT  => 1,
+      MENU    => "$lang{ADD}:index=$index&add_form=1:add"
+    },
+    MAKE_ROWS       => 1,
+    SEARCH_FORMER   => 1,
+    MODULE          => 'Notepad',
+  });
   
   print $table->show();
   
@@ -315,7 +421,6 @@ sub notepad_checklist {
     if ( !_error_show($Notepad) ) {
       my $json = JSON->new->utf8(0);
       $TEMPLATE_ARGS{JSON} = $json->encode($checklist_rows);
-      
     }
   }
   elsif ( $FORM{del} ) {
@@ -386,7 +491,7 @@ sub _notepad_notified {
   my $result = '';
   if ( $note_periodic_rule && ref $note_periodic_rule && $note_periodic_rule->{id} ) {
     # Calculate next showtime, and update note
-    my $new_time = _notepad_calculate_next_show_time( $note_info->{show_at}, $note_periodic_rule, "$DATE $TIME" );
+    my $new_time = calculate_next_periodic_time( $note_info->{show_at}, $note_periodic_rule, "$DATE $TIME" );
     
     if ( !$new_time ) {
       $Notepad->notes_change({
@@ -416,128 +521,6 @@ sub _notepad_notified {
   return $result
 }
 
-#**********************************************************
-=head2 _notepad_calculate_next_show_time($datetime, $rules)
-
-=cut
-#**********************************************************
-sub _notepad_calculate_next_show_time {
-  my ($prev_time, $rules, $datetime) = @_;
-  return '' unless ($prev_time);
-  
-  require POSIX;
-  POSIX->import();
-  
-  my ($date, $time) = split('\s+', $prev_time);
-  $time ||= '09:00:00';
-  
-  my ($year, $mon, $mday) = split(/-/, $date);
-  my ($hour, $min, $sec) = split(/:/, $time);
-  
-  my $prev_timestamp = POSIX::mktime($sec, $min, $hour, $mday, ($mon - 1), ($year - 1900));
-  
-  $datetime ||= "$DATE $TIME";
-  my ($cur_date, $cur_time) = split(' ', $datetime);
-  my ($cur_year, $cur_mon, $cur_mday) = split('-', $cur_date);
-  my $curr_timestamp = POSIX::mktime(reverse( split(':', $cur_time) ), $cur_mday, ( $cur_mon - 1 ),
-    ( $cur_year - 1900 ));
-  
-  my $get_weekday = sub {
-    my ($date_check) = @_;
-    my ($check_year, $check_mon, $check_mday) = split(/-/, $date_check);
-    
-    my %localtime_hash = ();
-    @localtime_hash{qw/sec min hour mday mon year wday/}
-      = localtime(POSIX::mktime(0, 0, 0, $check_mday, ($check_mon - 1), ($check_year - 1900)));
-    
-    $localtime_hash{wday} -= 1;
-    return $localtime_hash{wday};
-  };
-  
-  my $res_date = $date;
-  my $res_time = $time;
-  
-  my $result_timestamp = 0;
-  my $result = '0000-00-00 00:00:00';
-  
-  my $i = 0;
-  do {
-    $i++;
-    return 0 if ($i > 1000);
-    # Next period
-    if ( !$rules->{rule_id} ) {
-      return $prev_time;
-    }
-    elsif ( $rules->{rule_id} == 1 ) {
-      # every_day
-      # Shortcut for huge date ranges
-      if ( $curr_timestamp > $prev_timestamp ) {
-        $prev_timestamp = $curr_timestamp;
-      };
-      
-      # Add one day to previous day
-      $prev_timestamp += 86400;
-      $res_date = POSIX::strftime("%Y-%m-%d", localtime($prev_timestamp));
-      ($year, $mon, $mday) = split('-', $res_date);
-    }
-    elsif ( $rules->{rule_id} == 2 || $rules->{rule_id} == 3 || $rules->{rule_id} == 4 ) {
-      # on_weekdays or weekdays_list or every_week_day
-      # Add one day to previous day or few if it's last in a raw
-      my @weekdays = split(',\s?', $rules->{week_day});
-      
-      # Shotcut for iterating huge date ranges
-      $prev_timestamp = $curr_timestamp if ( $curr_timestamp > $prev_timestamp );
-      
-      my $res_weekday = '';
-      do {
-        $prev_timestamp = $prev_timestamp + 86400;
-        $res_date = POSIX::strftime("%Y-%m-%d", localtime($prev_timestamp));
-        $res_weekday = $get_weekday->($res_date);
-      } while (!in_array($res_weekday, \@weekdays));
-      
-      ($year, $mon, $mday) = split('-', $res_date);
-      
-    }
-    elsif ( $rules->{rule_id} == 5 ) {
-      
-      # every_month
-      # Increment month
-      $mon += 1;
-      if ( $mon >= 12 ) {
-        $mon = 1;
-        $year += 1;
-      }
-      
-      $mday = $rules->{month_day} || $mday;
-      $res_date = "$year-$mon-$mday";
-      
-      # Check month have such a day
-      my $days_in_month = days_in_month({ DATE => $res_date });
-      if ( $mday > $days_in_month ) {
-        $mday = $days_in_month;
-      }
-      
-      $res_date = "$year-$mon-$mday";
-    }
-    elsif ( $rules->{rule_id} == 6 ) { # every_year
-      # Increment year
-      $year += 1;
-    }
-    
-    $res_date = "$year-$mon-$mday";
-    
-    my @res_time = reverse split(':', $res_time);
-    my ($res_year, $res_mon, $res_mday ) = split('-', $res_date);
-    my @res_arr = (@res_time, $res_mday, ($res_mon - 1), ( $res_year - 1900 ));
-    
-    $result = POSIX::strftime("%Y-%m-%d %H:%M:%S", @res_arr);
-    
-    $result_timestamp = POSIX::mktime(@res_arr);
-    
-  } while ($curr_timestamp > $result_timestamp);
-  
-  return $result;
-}
 
 #**********************************************************
 =head2 notepad_calendar()
@@ -617,7 +600,7 @@ sub notepad_calendar_reminders {
       my $calculate_from_date = _notepad_date_decr(1, $FORM{start}) . " 00:00:00";
       my $next_show = $reminder->{show_at};
       do {
-        $next_show = _notepad_calculate_next_show_time( $next_show, $rules, $calculate_from_date );
+        $next_show = calculate_next_periodic_time( $next_show, $rules, $calculate_from_date );
         $calculate_from_date = $next_show;
         push(@planned_reminders, {
             %{$reminder},

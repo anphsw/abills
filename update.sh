@@ -6,7 +6,7 @@
 #
 #**********************************************************
 
-VERSION=2.15;
+VERSION=2.16;
 
 #ABillS Rel Version
 REL_VERSION="rel-0-5";
@@ -375,6 +375,8 @@ if [ "${REGISTRATION}" != "" ]; then
   read PASSWORD
   MYHOSTNAME=`hostname`
   sys_info=`echo ${sys_info} | sed 's/\"//g'`;
+  #echo "REG: ${FETCH} ${TMP_DIR}/update.sh ${UPDATE_URL}?SIGN=${CHECKSUM}&L=${LOGIN}&P=${PASSWORD}&H=${MYHOSTNAME}&SYS_ID=${SYS_ID}&sys_info=${sys_info}"
+
   ${FETCH} ${TMP_DIR}/update.sh "${UPDATE_URL}?""SIGN=${CHECKSUM}&L=${LOGIN}&P=${PASSWORD}&H=${MYHOSTNAME}&SYS_ID=${SYS_ID}&sys_info=${sys_info}";
   VAR=`cat ${TMP_DIR}/update.sh;`
 

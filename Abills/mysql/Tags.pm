@@ -7,7 +7,7 @@ package Tags;
 =cut
 
 use strict;
-use parent 'main';
+use parent qw(dbcore);
 my $MODULE = 'Tags';
 
 #**********************************************************
@@ -37,7 +37,7 @@ sub info{
   my $self = shift;
   my ($id) = @_;
 
-  $self->query2( "SELECT * FROM tags WHERE id = ? ;",
+  $self->query( "SELECT * FROM tags WHERE id = ? ;",
     undef,
     { INFO => 1,
       Bind => [ $id ] }
@@ -48,7 +48,9 @@ sub info{
 
 
 #**********************************************************
-# add()
+=head2 add($attr)
+
+=cut
 #**********************************************************
 sub add{
   my $self = shift;
@@ -61,13 +63,15 @@ sub add{
 }
 
 #**********************************************************
-# change()
+=head2 change()
+
+=cut
 #**********************************************************
 sub change{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM    => 'ID',
       TABLE           => 'tags',
@@ -80,8 +84,9 @@ sub change{
 }
 
 #**********************************************************
-# Delete user info from all tables
-# del(attr);
+=head2 del($id); Delete user info from all tables
+
+=cut
 #**********************************************************
 sub del{
   my $self = shift;
@@ -115,7 +120,7 @@ sub list{
     }
   );
 
-  $self->query2( "SELECT $self->{SEARCH_FIELDS} id
+  $self->query( "SELECT $self->{SEARCH_FIELDS} id
      FROM tags
      $WHERE
       ORDER BY $SORT $DESC;",
@@ -158,7 +163,7 @@ sub tags_user{
   my $EXT_TABLE = '';
   $EXT_TABLE = $self->{EXT_TABLES} if ($self->{EXT_TABLES});
 
-  $self->query2( "SELECT t.name,
+  $self->query( "SELECT t.name,
        tu.date,
        t.comments,
        t.priority,
@@ -177,7 +182,7 @@ sub tags_user{
   my $list = $self->{list};
 
   if ( $self->{TOTAL} > 0 ){
-    $self->query2( "SELECT count( DISTINCT tu.uid) AS total
+    $self->query( "SELECT count( DISTINCT tu.uid) AS total
      FROM tags t
      LEFT JOIN tags_users tu ON (tu.tag_id = t.id)
      $WHERE", undef, { INFO => 1 }
@@ -211,7 +216,7 @@ sub tags_user_change{
         ];
     }
 
-    $self->query2( "INSERT INTO tags_users (uid, tag_id, date)
+    $self->query( "INSERT INTO tags_users (uid, tag_id, date)
         VALUES (?, ?, curdate());",
       undef,
       { MULTI_QUERY => \@MULTI_QUERY } );
@@ -223,7 +228,9 @@ sub tags_user_change{
 }
 
 #**********************************************************
-# user_del()
+=head2 user_del($attr)
+
+=cut
 #**********************************************************
 sub user_del{
   my $self = shift;
@@ -267,7 +274,7 @@ sub tags_list{
   my $EXT_TABLE = '';
   $EXT_TABLE = $self->{EXT_TABLES} if ($self->{EXT_TABLES});
 
-  $self->query2( "SELECT t.name,
+  $self->query( "SELECT t.name,
        tu.date,
        t.comments,
        t.priority,

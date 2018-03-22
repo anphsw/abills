@@ -23,16 +23,16 @@
   </div>
 
   <div class='form-group'>
-    <label class='control-label col-xs-3 col-md-2'>_{ADDRESS_BUILD}_</label>
+    <label class='control-label col-xs-3 col-md-2 LABEL-BUILD'>_{ADDRESS_BUILD}_</label>
     <div class='col-xs-9 col-md-4 addBuildMenu'>
 
       <div class='input-group'>
         <select data-download-on-click='1' name='ADDRESS_BUILD' class='form-control SELECT-BUILD' data-fieldname='BUILD'>
-          <option value='%ADDRESS_BUILD%' selected>%ADDRESS_BUILD%</option>
+          <option value='%LOCATION_ID%' selected>%ADDRESS_BUILD%</option>
         </select>
 
         <!-- Control for toggle build mode SELECT/ADD -->
-        <span class='input-group-addon'>
+        <span class='input-group-addon' %HIDE_ADD_BUILD_BUTTON%>
           <a title='_{ADD}_ _{BUILDS}_' class='BUTTON-ENABLE-ADD'>
             <span class='glyphicon glyphicon-plus'></span>
           </a>
@@ -60,10 +60,11 @@
     </div>
 
   </div>
-  <div class="form-group">
+  %EXT_ADDRESS%
+  <div class="form-group" %HIDE_ADD_ADDRESS_BUTTON%>
     <div class='col-xs-12' align='right' style='padding-left: 0; '>
       <a href='$SELF_URL?get_index=form_districts&full=1&header=1' class='btn btn-default btn-sm'
-      data-tooltip-position='top' data-tooltip='_{ADD}_ _{ADDRESS}_'><i class='fa fa-plus'></i></a>
+      data-tooltip-position='top' data-tooltip='_{ADD}_ _{ADDRESS}_' ><i class='fa fa-plus'></i></a>
       %MAP_BTN%
       %DOM_BTN%
     </div>

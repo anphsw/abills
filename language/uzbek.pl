@@ -113,6 +113,7 @@ $lang{UNLIMITED} = "Cheklovlarsiz";
 $lang{MESSAGES} = "Texnik yordam";
 $lang{CONFIRM_PASSWD} = "Tilsim so'zni tasdiqlash";
 $lang{ERR_WRONG_PASSWD} = "Noto'g'ri Tilsim so'z";
+$lang{ERR_WRONG_PHONE} = "Telefon raqami noto'g'ri";
 $lang{ARTICLES} = "Maxsulotlar";
 $lang{MISC} = "Boshqa";
 $lang{OPTIONS} = "Sozlash";

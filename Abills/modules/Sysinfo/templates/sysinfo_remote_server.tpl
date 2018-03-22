@@ -193,7 +193,7 @@
       </div> <!-- end of collapse form-group -->
 
     </div>
-    <div class='box-footer text-center'>
+    <div class='box-footer'>
       <input type='submit' class='btn btn-primary' name='submit' value='%SUBMIT_BTN_NAME%'>
     </div>
   </div>

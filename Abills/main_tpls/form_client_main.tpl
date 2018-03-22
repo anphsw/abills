@@ -79,5 +79,8 @@
 
 <!-- AdminLTE App -->
 <script src="/styles/lte_adm/dist/js/app.js"></script>
+<script>
+  jQuery('#language').on('change', selectLanguage);
+</script>
 %PUSH_SCRIPT%
 </body>

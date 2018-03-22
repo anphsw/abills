@@ -7,7 +7,8 @@ package Fees;
 =cut
 
 use strict;
-use parent qw(main Finance);
+use parent qw(dbcore Finance);
+use Conf;
 use Bills;
 
 my $Bill;
@@ -202,7 +203,7 @@ sub del {
   my $self = shift;
   my ($user, $id, $attr) = @_;
 
-  $self->query2("SELECT sum, bill_id from fees WHERE id= ? ;", undef, { Bind => [ $id ] });
+  $self->query("SELECT sum, bill_id from fees WHERE id= ? ;", undef, { Bind => [ $id ] });
 
   if ($self->{TOTAL} < 1) {
     $self->{errno}  = 2;
@@ -250,9 +251,10 @@ sub list {
       ['SUM',            'INT', 'f.sum',                           1 ],
       ['LAST_DEPOSIT',   'INT', 'f.last_deposit',                  1 ],
       ['METHOD',         'INT', 'f.method',                        1 ],
+      ['METHOD_ID',      'INT', 'f.method', 'f.method AS method_id'  ],
       ['COMPANY_ID',     'INT', 'u.company_id',                      ],
       ['A_LOGIN',        'STR', 'a.id',                            1 ],
-      ['ADMIN_NAME',     'STR', "if(a.name is NULL, 'Unknown', a.name) AS admin_name", 1 ],
+      ['ADMIN_NAME',     'STR', "IF(a.name is NULL, 'Unknown', a.name) AS admin_name", 1 ],
       ['BILL_ID',        'INT', 'f.bill_id',                       1 ],
       ['IP',             'INT', 'f.ip',      'INET_NTOA(f.ip) AS ip' ],
       ['AID',            'INT', 'f.aid',                             ],
@@ -273,7 +275,7 @@ sub list {
 
   my $EXT_TABLES  = $self->{EXT_TABLES};
 
-  $self->query2("SELECT f.id,
+  $self->query("SELECT f.id,
      $self->{SEARCH_FIELDS}
    f.inner_describe,
    f.uid
@@ -295,7 +297,7 @@ sub list {
   my $list = $self->{list};
 
   if ($self->{TOTAL} > 0 || $PG > 0) {
-    $self->query2("SELECT count(*) AS total, sum(f.sum) AS sum, count(DISTINCT f.uid) AS total_users FROM fees f 
+    $self->query("SELECT count(*) AS total, sum(f.sum) AS sum, count(DISTINCT f.uid) AS total_users FROM fees f
   LEFT JOIN users u ON (u.uid=f.uid) 
   LEFT JOIN admins a ON (a.aid=f.aid)
   $EXT_TABLES
@@ -400,7 +402,7 @@ sub reports {
     ]
   });
 
-  $self->query2("SELECT $date, COUNT(DISTINCT f.uid) AS login_count, COUNT(*) AS count,  SUM(f.sum) AS sum, f.uid
+  $self->query("SELECT $date, COUNT(DISTINCT f.uid) AS login_count, COUNT(*) AS count,  SUM(f.sum) AS sum, f.uid
       FROM fees f
       $EXT_TABLES
       $WHERE 
@@ -415,7 +417,7 @@ sub reports {
   $self->{SUM}   = '0.00';
   $self->{USERS} = 0;
   if ($self->{TOTAL} > 0 || $PG > 0) {
-    $self->query2("SELECT COUNT(DISTINCT f.uid) AS users, COUNT(*) AS total, SUM(f.sum) AS sum 
+    $self->query("SELECT COUNT(DISTINCT f.uid) AS users, COUNT(*) AS total, SUM(f.sum) AS sum
       FROM fees f
       $EXT_TABLES
       $WHERE;",
@@ -447,7 +449,7 @@ sub fees_type_list {
     ],
   { WHERE => 1, });
 
-  $self->query2("SELECT id, name, default_describe, sum FROM fees_types
+  $self->query("SELECT id, name, default_describe, sum FROM fees_types
   $WHERE 
   ORDER BY $SORT $DESC
   LIMIT $PG, $PAGE_ROWS;",
@@ -457,7 +459,7 @@ sub fees_type_list {
 
   my $list = $self->{list};
   if ($self->{TOTAL} > 0 || $PG > 0) {
-    $self->query2("SELECT count(*) AS total FROM fees_types $WHERE ;",
+    $self->query("SELECT count(*) AS total FROM fees_types $WHERE ;",
     undef, { INFO => 1 });
   }
 
@@ -473,7 +475,7 @@ sub fees_type_info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("SELECT id, name, default_describe, sum FROM fees_types WHERE id = ? ;",
+  $self->query("SELECT id, name, default_describe, sum FROM fees_types WHERE id = ? ;",
   undef,
   { INFO => 1,
     Bind => [ $attr->{ID} ] });
@@ -488,7 +490,7 @@ sub fees_type_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'fees_types',

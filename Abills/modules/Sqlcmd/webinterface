@@ -30,7 +30,7 @@ sub sqlcmd {
 
   if ($FORM{qindex}) {
     print $html->header();
-    $Sqlcmd->query2("SHOW CREATE TABLE $FORM{TABLE_INFO}");
+    $Sqlcmd->query("SHOW CREATE TABLE $FORM{TABLE_INFO}");
     my $table = $html->table(
       {
         width   => '100%',
@@ -87,7 +87,7 @@ sub sqlcmd {
         $FORM{QUERY} .= join(', ', @f);
       }
 
-      $FORM{QUERY} .= " FROM $FORM{TABLE_INFO} LIMIT $PAGE_ROWS";
+      $FORM{QUERY} .= " FROM `$FORM{TABLE_INFO}` LIMIT $PAGE_ROWS";
     }
   }
 
@@ -125,7 +125,9 @@ sub sqlcmd {
     $FORM{QUERY} =~ s/\\\"/\"/g;
     $html->tpl_show(_include('sqlcmd', 'Sqlcmd'), { %$Sqlcmd, %FORM, %FORM2 });
 
-    $list = $Sqlcmd->list({%FORM2}) if (defined($FORM2{QUERY}) && length($FORM2{QUERY}) > 10);
+    if (defined($FORM2{QUERY}) && length($FORM2{QUERY}) > 10) {
+      $list = $Sqlcmd->list({ %FORM2 })
+    }
 
     if ($FORM{QUERY} && !$FORM{xml}) {
       $FORM{SQL_QUERY} = $FORM{QUERY};
@@ -133,7 +135,6 @@ sub sqlcmd {
       $table = $html->table(
         {
           width      => '100%',
-          cols_align => ['left'],
         }
       );
 
@@ -209,6 +210,7 @@ sub sqlcmd {
     my @CAPTION = ();
 
     @CAPTION = @{ $Sqlcmd->{MYSQL_FIELDS_NAMES} } if ($Sqlcmd->{MYSQL_FIELDS_NAMES});
+
     $table = $html->table(
       {
         width   => '100%',
@@ -219,11 +221,22 @@ sub sqlcmd {
       }
     );
 
+    my %caption2id = ();
+    for (my $i=0; $i<=$#CAPTION; $i++) {
+      $caption2id{$CAPTION[$i]}=$i;
+    }
+
     foreach my $line (@$list){
       my @table_row = ();
       if ( ref $line eq 'ARRAY' ){
+        my $i=0;
         foreach my $l ( @{$line} ){
+          if($CAPTION[$i] eq 'login' && $caption2id{uid}) {
+            $l = $html->button($l, "index=15&UID=$line->[$caption2id{uid}]");
+          }
+
           push @table_row, $l;
+          $i++;
         }
       }
 
@@ -234,7 +247,6 @@ sub sqlcmd {
     $table = $html->table(
       {
         width      => '100%',
-        cols_align => [ 'right', 'right' ],
         rows       => [ [ "$lang{TOTAL}: " .  $html->b($Sqlcmd->{TOTAL}),
                           "AFFECTED: " . $html->b($Sqlcmd->{AFFECTED}),
                           "STATE: ".     $Sqlcmd->{db}->{db}->state() ] ]
@@ -270,7 +282,7 @@ sub sqlcmd {
       $list = $Sqlcmd->list({ QUERY => "SHOW FULL COLUMNS FROM $conf{dbname}.$FORM{TABLE_INFO} LIKE '$FORM{FIELD}' " });
       $FORM{NAME} = $FORM{FIELD};
 
-      if ($list->[0]->[1] && $list->[0]->[1] =~ /(\S+)\((\d+)\)\s?(.{0-30})?/) {
+      if ($list->[0]->[1] && $list->[0]->[1] =~ /(\S+)\((\d+)\)\s?(.{0,30})?/) {
         $FORM{COLUMN_TYPE}    = uc($1);
         $FORM{COLUMN_LENGTH}  = $2;
         $FORM{ATTRIBUTE_TYPE} = $3;
@@ -370,7 +382,7 @@ sub sqlcmd {
     my $table2 = $html->table(
       {
         width       => '100%',
-        title_plain => [ $html->form_input('WIZARD', "$lang{SHOW}", { TYPE => 'SUBMIT' }) ]
+        title_plain => [ $html->form_input('WIZARD', $lang{SHOW}, { TYPE => 'SUBMIT' }) ]
       }
     );
 
@@ -378,14 +390,14 @@ sub sqlcmd {
       {
         CONTENT => $table->show() . $table2->show(),
         HIDDEN  => {
-          index      => "$index",
+          index      => $index,
           TABLE_INFO => $FORM{TABLE_INFO}
         },
         METHOD => 'GET'
       }
     );
 
-    $Sqlcmd->query2("SHOW CREATE TABLE $FORM{TABLE_INFO}");
+    $Sqlcmd->query("SHOW CREATE TABLE $FORM{TABLE_INFO}");
     $table = $html->table(
       {
         width   => '100%',
@@ -414,7 +426,6 @@ sub sqlcmd_triggers {
     {
       width      => '100%',
       title      => \@caption,
-      cols_align => [ 'left', 'left', 'left', 'left', 'right', 'right', 'center' ],
       qs         => ($FORM{fields}) ? "&fields=$FORM{fields}" : ''
     }
   );
@@ -459,6 +470,7 @@ sub sqlcmd_tables {
       form_sql_backup({ TABLES => $FORM{TABLES} });
     }
     elsif($FORM{ACTION} eq 'COLLATION') {
+      $FORM{COLLATION} = $FORM{VALUE};
       sqlcmd_collation_change();
       return 1;
     }
@@ -486,7 +498,6 @@ sub sqlcmd_tables {
       width      => '100%',
       caption    => $lang{TABLES},
       title      => \@ACTIVE_FIELDS,
-      cols_align => [ 'left', 'left', 'left', 'left', 'right', 'right', 'center' ],
       qs         => "&fields=". ($FORM{fields} || ''),
       ID         => 'SQLCMD_TABLES',
       SELECT_ALL => "tables_list:TABLES:$lang{SELECT_ALL}",
@@ -566,7 +577,6 @@ sub sqlcmd_tables {
   my $table2 = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right', 'right', 'right' ],
       rows       => [ [ "$lang{TOTAL}:", "$tables_total", "$lang{SIZE}:", int2byte("$tables_size") ] ]
     }
   );
@@ -678,7 +688,6 @@ sub sqlcmd_info {
     {
       width      => '100%',
       caption    => "$lang{INFO}",
-      cols_align => [ 'left', 'left', 'left', 'left', 'right', 'right', 'center' ]
     }
   );
 
@@ -709,7 +718,7 @@ sub sqlcmd_info {
   my %DTQ   = ();
   my $first = 1;
 
-  get_Com_values();
+  get_com_values();
 
   $stat_val = 0;
   for (values %Com_vals) {
@@ -902,14 +911,16 @@ sub sqlcmd_info {
   $table->addrow('mysql_dbd_stats',  %{ $db->{'mysql_dbd_stats'} });
 
   print $table->show();
+
+  return 1;
 }
 
 #**********************************************************
-=head2 get_Com_values()
+=head2 get_com_values()
 
 =cut
 #**********************************************************
-sub get_Com_values {
+sub get_com_values {
 
   # Make copy of just the Com_ values
   for (keys %stats) {
@@ -929,6 +940,8 @@ sub get_Com_values {
   delete $Com_vals{'update_multi'} if exists $Com_vals{'update_multi'};
   delete $Com_vals{'delete'};
   delete $Com_vals{'delete_multi'} if exists $Com_vals{'delete_multi'};
+
+  return 1;
 }
 
 #**********************************************************
@@ -1130,7 +1143,8 @@ sub sqlcmd_cluster {
     my @resync_sql = ("stop slave;", "load data from master;", "start slave;");
 
     foreach my $sql_cmd (@resync_sql) {
-      my $q = $db_slave->do($sql_cmd);
+      #my $q =
+      $db_slave->do($sql_cmd);
 
       if ($db_slave->err) {
         $html->message( 'err',
@@ -1154,7 +1168,6 @@ sub sqlcmd_cluster {
         width      => '100%',
         caption    => ($id || '') .':' . $host . ' / ' . ($conf{ 'SQLCMD_HOST' . $id . '_HOSTNAME' } || ''),
         title      => [ 'key', 'val' ],
-        cols_align => [ 'left', 'left' ],
       }
     );
 
@@ -1187,7 +1200,7 @@ sub sqlcmd_cluster {
     $FORM{DB_ID} = $id;
     $Sqlcmd = Sqlcmd->new($db_slave, $admin, \%conf);
     my $query = ($id > 0) ? "SHOW SLAVE STATUS;" : "SHOW MASTER STATUS;";
-    my $q = $db_slave->prepare("$query", { "mysql_use_result" => ($query !~ /!SELECT/gi) ? 0 : 1 }) || die $db_slave->errstr;
+    my DBI $q = $db_slave->prepare("$query", { "mysql_use_result" => ($query !~ /!SELECT/gi) ? 0 : 1 }) || die $db_slave->errstr;
     $q->execute();
 
     if ($db_slave->err) {
@@ -1226,7 +1239,6 @@ sub sqlcmd_cluster {
     {
       width      => '100%',
       caption    => 'host' || '-',
-      cols_align => [ 'left', 'left' ],
     }
   );
 
@@ -1253,7 +1265,6 @@ sub sqlcmd_cluster {
   return 1;
 }
 
-
 #**********************************************************
 =head2 sqlcmd_collation()
 
@@ -1261,7 +1272,7 @@ sub sqlcmd_cluster {
 #**********************************************************
 sub sqlcmd_collation {
 
-  $Sqlcmd->query2("SHOW COLLATION");
+  $Sqlcmd->query("SHOW COLLATION");
   my %COLLATION_HASH = ('' => '');
   foreach my $line (@{ $Sqlcmd->{list} }) {
     push @{ $COLLATION_HASH{ $line->[1] } }, $line->[0];

@@ -22,7 +22,7 @@
   <![endif]-->
 
   <script src='/styles/default_adm/js/jquery.cookie.js'></script>
-  <script src='/styles/default_adm/js/moment.js'></script>
+  <script src='/styles/lte_adm/plugins/moment/moment.min.js'></script>
 
 </head>
 <body>

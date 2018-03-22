@@ -18,33 +18,56 @@
 <input type=hidden name='ADD_PARAM[1][NAME]' value='UID' /> 
 <input type=hidden name='ADD_PARAM[1][VALUE]' value='$LIST_PARAMS{UID}' />
 
+    <div class='box box-primary'>
+        <div class='box-header with-border text-center'>_{BALANCE_RECHARCHE}_</div>
 
-<table width=100% class=form>
-<tr><th class='form_title' colspan=2>Visa / Mastercard (Portmone)</th></tr>
+        <div class='box-body'>
+            <div class='form-group'>
+                <label class='col-md-6 control-label text-center'>_{ORDER}_:</label>
+                <label class='col-md-6 control-label'>$FORM{OPERATION_ID}</label>
+            </div>
 
-<tr><th colspan=2 align=center>
-<a href='https://secure.privatbank.ua/help/verified_by_visa.html'
-<img src='/img/v-visa.gif' width=140 height=75 border=0></a>
-<a href='http://www.mastercard.com/ru/personal/ru/cardholderservices/securecode/mastercard_securecode.html'>
-<img src='/img/mastercard-sc.gif' width=140 height=75 border=0>
-</a>
-</td></tr>
+            <div class='form-group'>
+                <label class='col-md-6 control-label text-center'> _{PAY_SYSTEM}_:</label>
+                <label class='col-md-6 control-label'>Portmone</label>
+            </div>
+
+            <div class='form-group'>
+                <label class='control-label col-md-6 text-center'>_{SUM}_:</label>
+                <label class='control-label col-md-6'> $FORM{SUM} </label>
+            </div>
+        </div>
+        <div class='box-footer'>
+            <input class='btn btn-primary' type='submit' value=_{PAY}_ name='submit'>
+        </div>
+    </div>
+
+    <!--<table width=100% class=form>-->
+<!--<tr><th class='form_title' colspan=2>Visa / Mastercard (Portmone)</th></tr>-->
+
+<!--<tr><th colspan=2 align=center>-->
+<!--<a href='https://secure.privatbank.ua/help/verified_by_visa.html'-->
+<!--<img src='/img/v-visa.gif' width=140 height=75 border=0></a>-->
+<!--<a href='http://www.mastercard.com/ru/personal/ru/cardholderservices/securecode/mastercard_securecode.html'>-->
+<!--<img src='/img/mastercard-sc.gif' width=140 height=75 border=0>-->
+<!--</a>-->
+<!--</td></tr>-->
 
 
-<tr><td>ID:</td><td>$FORM{OPERATION_ID}</td></tr>
-    <tr>
-        <td>_{DESCRIBE}_:</td>
-        <td>$FORM{DESCRIBE}</td>
-    </tr>
-    <tr>
-        <td>_{SUM}_:</td>
-        <td>$FORM{SUM}</td>
-    </tr>
+<!--<tr><td>ID:</td><td>$FORM{OPERATION_ID}</td></tr>-->
+    <!--<tr>-->
+        <!--<td>_{DESCRIBE}_:</td>-->
+        <!--<td>$FORM{DESCRIBE}</td>-->
+    <!--</tr>-->
+    <!--<tr>-->
+        <!--<td>_{SUM}_:</td>-->
+        <!--<td>$FORM{SUM}</td>-->
+    <!--</tr>-->
 
-    <tr>
-        <th colspan=2><INPUT TYPE='submit' NAME='submit' VALUE='_{ADD}_'/>
-        </td></tr>
-</table>
+    <!--<tr>-->
+        <!--<th colspan=2><INPUT TYPE='submit' NAME='submit' VALUE='_{ADD}_'/>-->
+        <!--</td></tr>-->
+<!--</table>-->
 
 
 </FORM>

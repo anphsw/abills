@@ -95,9 +95,7 @@ CREATE TABLE `sharing_additions` (
 )
   COMMENT = 'Sharing Additions';
 
-
-
-CREATE TABLE `sharing_files` (
+CREATE TABLE IF NOT EXISTS `sharing_files` (
   `id` smallint(6) NOT NULL auto_increment,
   `name` varchar(25) NOT NULL default '',
   `amount` double(10,2) NOT NULL default '0.00',
@@ -118,7 +116,7 @@ CREATE TABLE IF NOT EXISTS `sharing_users` (
 )
   COMMENT = 'Users and their files';
 
-CREATE TABLE `sharing_download_log` (
+CREATE TABLE IF NOT EXISTS `sharing_download_log` (
   `id` smallint(6) NOT NULL auto_increment,
   `file_id` smallint(6) NOT NULL DEFAULT 0,
   `date` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
@@ -128,7 +126,7 @@ CREATE TABLE `sharing_download_log` (
   PRIMARY KEY (`id`)
 ) COMMENT='Sharing download log';
 
-CREATE TABLE `sharing_groups` (
+CREATE TABLE IF NOT EXISTS `sharing_groups` (
   `id` smallint(6) NOT NULL auto_increment,
   `name` varchar(25) NOT NULL default '',
   `comment` text NOT NULL,

@@ -7,14 +7,14 @@
 
   <fieldset>
     <div class='box box-theme box-big-form'>
-      <div class='box-header with-border'><h4 class='box-title'>_{PAYMENTS}_</h4></div>
+      <div class='box-header with-border'><h4 class='box-title'>_{PAYMENTS}_</h4><span class='pull-right'>%CARDS_BTN%<span></div>
       <div class='box-body'>
 
         <div class='form-group'>
           <label class='control-label col-md-3 required' for='SUM'>_{SUM}_:</label>
           <div class='col-md-4'>
             <input  id='SUM' name='SUM' value='$FORM{SUM}' required placeholder='$FORM{SUM}' class='form-control'
-                   type='text' %AUTOFOCUS%>
+                   type='number' step='0.01' min='0' %AUTOFOCUS%>
           </div>
         </div>
 

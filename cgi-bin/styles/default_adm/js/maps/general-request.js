@@ -93,6 +93,7 @@ function ABillingLinkManager() {
   };
   
   this.removeObject = function (layer_id, object_id, emulate) {
+
     return 'index.cgi?get_index=maps_edit&header=2'
         + '&LAYER_ID=' + layer_id
         + '&OBJECT_ID=' + object_id
@@ -101,32 +102,37 @@ function ABillingLinkManager() {
   };
   
   this.getMarkersForLayer = function (TYPE) {
+  
+    var form_params = this.getFormParams();
+    
+    // Remove header, to avoid double 'Content-Type'
+    delete form_params['header'];
+    
     // Should add params from upper form
     if (this.$filterForm.length){
-      
       var groups = this.$filterForm.find('select#GID').val();
       var district_id = this.$filterForm.find('select#PANEL_DISTRICT_ID').val();
       var info_module = this.$filterForm.find('select#INFO_MODULE').val();
           
-      if (groups) TYPE += '&GROUP_ID=' + groups;
-      if (district_id) TYPE += '&DISTRICT_ID=' + district_id;
-      if (info_module) TYPE += '&INFO_MODULE=' + info_module;
+      if (groups) form_params['GROUP_ID'] = groups;
+      if (district_id) form_params['DISTRICT_ID'] = district_id;
+      if (info_module) form_params['INFO_MODULE'] = info_module;
     }
     
-    return 'index.cgi?qindex=' + map_index +
-        '&EXPORT_LIST=' + TYPE;
+    return 'index.cgi?&EXPORT_LIST=' + TYPE
+        + '&' + $.param(form_params);
   };
   
   this.getForm = function (params) {
-    params.MAP_TYPE = MAP_TYPE;
-    return 'index.cgi?qindex=' + index + '&header=2&' + $.param(params);
+    return 'index.cgi?' + $.param(this.getFormParams()) + '&' + $.param(params);
   };
   
   this.getFormParams = function () {
     return {
-      qindex  : index,
-      header  : 2,
-      MAP_TYPE: MAP_TYPE
+      qindex       : map_edit_index,
+      header       : 2,
+      MAP_TYPE     : MAP_TYPE,
+      EDIT_MODE: OPTIONS['EDIT_MODE'] ? 1 : 0
     }
   }
   
@@ -275,7 +281,7 @@ var MapObjectTypesRefs = (function () {
         this.customParams = params;
       },
       addCustomParams: function (params) {
-        if (this.customParams == null) {
+        if (this.customParams === 'null') {
           this.setCustomParams(params);
         }
         else {
@@ -295,7 +301,7 @@ var MapObjectTypesRefs = (function () {
         var form_params = aBillingAddressManager.getFormParams();
         var custom_params = {
           change   : 1,
-          LAYER_ID : object.layer_id,
+          LAYER_ID : object.layer_id
         };
     
         if (object.polyline) {
@@ -304,7 +310,7 @@ var MapObjectTypesRefs = (function () {
       
           $.extend(custom_params, {
             TYPE     : 'polyline',
-            POINTS   : encoded['POINTS'],
+            POINTS   : JSON.stringify(encoded['POINTS']),
             ID       : object.polyline.id,
             OBJECT_ID: object.polyline.OBJECT_ID
           });
@@ -314,15 +320,14 @@ var MapObjectTypesRefs = (function () {
           delete encoded.raw;
       
           console.log(object.marker);
-      
+
           $.extend(custom_params, {
             TYPE     : 'marker',
             ID       : object.marker.id,
             OBJECT_ID: object.marker.OBJECT_ID,
-        
-            // Swapping coordinates
-            COORDY   : encoded.COORDX,
-            COORDX   : encoded.COORDY
+
+            COORDX   : encoded.COORDX,
+            COORDY   : encoded.COORDY
           });
         }
     
@@ -389,8 +394,8 @@ var MapObjectTypesRefs = (function () {
       type: CUSTOM_POINT,
       send: function () {
         
-        var COORDX = this.latLng.lng();
-        var COORDY = this.latLng.lat();
+        var COORDX = this.latLng.lat();
+        var COORDY = this.latLng.lng();
         
         var add_link = '?get_index=maps_show_custom_point_form&header=2&COORDX=' + COORDX + '&COORDY=' + COORDY + '&AJAX=1';
         
@@ -432,37 +437,37 @@ var MapObjectTypesRefs = (function () {
       },
 
       send: function () {
-        
-       loadToModal('index.cgi?get_index=maps_edit&header=2&LAYER_ID=2&TYPE=WIFI');
-       
-       var self = this;
-        Events.once('AJAX_SUBMIT.WIFI_ADD_FORM', function(data){
+
+        loadToModal('index.cgi?get_index=maps_edit&header=2&LAYER_ID=2&TYPE=WIFI');
+
+        var self = this;
+        Events.once('AJAX_SUBMIT.WIFI_ADD_FORM', function (data) {
           aModal.hide();
-          
-          var wifi_id = data.MESSAGE.ID;
+
+          var wifi_id = data.MESSAGE.INSERT_ID;
           submit_geometry(wifi_id)
         });
-       
-      
-        var submit_geometry = function(wifi_id){
-          var geoJSON        = GeoJsonExporter.toGeoJSON([self.object]);
+
+
+        var submit_geometry = function (wifi_id) {
+          var geoJSON = GeoJsonExporter.toGeoJSON([self.object]);
           var geoJSONEncoded = JSON.stringify(geoJSON);
-        
+
           var params = {
-            TYPE        : WIFI,
-            LAYER_ID    : 2,
-            OBJECT_ID   : wifi_id,
-            JSON        : geoJSONEncoded,
-            add         : 1
+            TYPE: WIFI,
+            LAYER_ID: 2,
+            OBJECT_ID: wifi_id,
+            JSON: geoJSONEncoded,
+            add: 1
           };
-        
+
           if (self.customParams !== null) {
             $.extend(params, this.customParams);
           }
-        
+
           $.extend(params, aBillingAddressManager.getFormParams());
-        
-          loadToModal('index.cgi', params);
+
+          postAndLoadToModal('index.cgi', params);
         }
       }
     });
@@ -529,9 +534,8 @@ var MapObjectTypesRefs = (function () {
         }
           
         $.extend(params, aBillingAddressManager.getFormParams());
-        console.log(params);
+        
         postAndLoadToModal('index.cgi', params);
-
       }
     });
     
@@ -684,10 +688,9 @@ var MapObjectTypesRefs = (function () {
             // Markers are saved as objects, no need to send geometric figure
             if (params['SAVE_AS_GEOMETRY'] !== 1) {
               var geometry = GeoJsonExporter.toGeoJSON(self.objects, true);
-              
-              // REVERSING coords
-              add_hidden('COORDX', geometry[0].OBJECT.COORDY);
-              add_hidden('COORDY', geometry[0].OBJECT.COORDX);
+
+              add_hidden('COORDX', geometry[0].OBJECT.COORDX);
+              add_hidden('COORDY', geometry[0].OBJECT.COORDY);
               
               Events.once('AJAX_SUBMIT.' + form_id, function(){
                 if (callback) callback();
@@ -723,7 +726,7 @@ var MapObjectTypesRefs = (function () {
           });
         
           // After adding, if has OBJECT_ID
-          if (submit_result['MESSAGE'] && submit_result['MESSAGE']['ID']) {
+          if (submit_result['MESSAGE'] && submit_result['MESSAGE']['INSERT_ID']) {
             var geoJSON = GeoJsonExporter.toGeoJSON(self.objects, true);
             
             delete geoJSON.raw;
@@ -735,7 +738,7 @@ var MapObjectTypesRefs = (function () {
               {
                 TYPE       : self.type,
                 LAYER_ID   : self.layer_id,
-                OBJECT_ID  : submit_result['MESSAGE']['ID'],
+                OBJECT_ID  : submit_result['MESSAGE']['INSERT_ID'],
                 STRUCTURE  : layer_obj.structure,
                 MODULE     : layer_obj.module,
                 EXPORT_FUNC: LAYER_LIST_REFS[self.layer_id],
@@ -842,7 +845,7 @@ var GeoJsonExporter = (function () {
       raw   : {
         COORDS: overlay.position
       },
-      // REVERSING COORDS
+
       COORDX: overlay.position.lat(),
       COORDY: overlay.position.lng()
     }
@@ -892,12 +895,11 @@ var GeoJsonExporter = (function () {
   }
   
   function pointsArrToPointsStr(points) {
-  // REVERSING COORDS
     return (points.map(
         function (latLng) {
-          return latLng.lng() + ',' + latLng.lat()
+          return [ latLng.lat(), latLng.lng() ]
         })
-    ).join(';');
+    );
   }
   
   return {

@@ -32,6 +32,7 @@
 </form>
 
 <script>
+  'use strict';
   jQuery(function () {
     var test_button = jQuery('button#TEST_DATA');
     var admin       = jQuery('input#SYSTEM_ADMIN');
@@ -55,7 +56,7 @@
         if (data && data['MESSAGE']){
           aTooltip.displayMessage(data['MESSAGE'], 3000);
 
-          if (data['MESSAGE']['type'] === 'info'){
+          if (data['MESSAGE']['message_type'] === 'info'){
             jQuery('form#FORM_UPLOAD_KEY_MIKROTIK').submit();
           }
         }

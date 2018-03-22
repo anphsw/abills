@@ -49,7 +49,7 @@
             <div class='form-group'>
                 <label class='col-md-3 control-label'>_{LAST_ENTRIES}_</label>
                 <div class='col-md-9'>
-                    <input class='form-control tcal' type=text name='LAST_SESSION' value='%LAST_SESSION%'>
+                    <input class='form-control datepicker' type=text name='LAST_SESSION' value='%LAST_SESSION%'>
                 </div>
             </div>
         </div>

@@ -77,7 +77,11 @@
     </style>
 </head>
 <body>
-
+<script>
+    function ReloadPage() {
+        location.reload(true);
+    }
+</script>
 <div id='page-wrapper'>
 
     <div id='alert-wrapper'>
@@ -92,7 +96,9 @@
         <p class='alert-text'>Для работы в режиме минимальной пропускной
             способности активируйте ограниченый режим</p>
         <a href='https://CHANGE_ME:9443/skip_warning.cgi?redirect=' class='alert-btn'>Активировать ограниченый режим работы</a>
-
+        <br>
+        <br>
+        <button onclick="ReloadPage()">Продолжить</button>
     </div>
 
 </div>

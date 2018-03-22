@@ -1,6 +1,7 @@
 #package Events::Configure;
 use strict;
 use warnings FATAL => 'all';
+use v5.16;
 
 =head1 NAME
 
@@ -28,48 +29,70 @@ require Events::UniversalPageLogic;
 #**********************************************************
 sub events_main {
   
-  events_uni_page_logic(
-    'events', # Table name
-    {
-      # Template variables
-      SELECTS    => {
-        PRIVACY_SELECT  => { func => '_events_privacy_select', argument => 'PRIVACY_ID' },
-        PRIORITY_SELECT => { func => '_events_priority_select', argument => 'PRIORITY_ID' },
-        
-        GROUP_SELECT    => { func => '_events_group_select', argument => 'GROUP_ID' },
-        STATE_SELECT    => { func => '_events_state_select', argument => 'STATE_ID' },
-      },
-      
-      # Result former variables
-      HAS_VIEW   => 1,
-      HAS_SEARCH => 1
+  if ($FORM{seen}){
+    if ($FORM{IDS}){
+      $Events->events_change({ID => $_, STATE_ID => 2 }) foreach (split(',\s?', $FORM{IDS}));
     }
-  );
-  
+    else {
+      $Events->events_change({ID => $FORM{ID}, STATE_ID => 2 });
+    }
+    show_result($Events, "$lang{CHANGED}");
+  }
+  elsif ($FORM{add}){
+    require Events::API;
+    Events::API->import();
+    my $api = Events::API->new($db, $admin, \%conf);
+    $api->add_event(\%FORM);
+    show_result($api, $lang{ADDED});
+  }
+  else {
+    events_uni_page_logic(
+      'events', # Table name
+      {
+        # Template variables
+        SELECTS    => {
+          PRIVACY_SELECT  => { func => '_events_privacy_select', argument => 'PRIVACY_ID' },
+          PRIORITY_SELECT => { func => '_events_priority_select', argument => 'PRIORITY_ID' },
+          GROUP_SELECT    => { func => '_events_group_select', argument => 'GROUP_ID' },
+          STATE_SELECT    => { func => '_events_state_select', argument => 'STATE_ID' },
+          AID_SELECT      => sel_admins({ SELECTED => $FORM{AID} || $admin->{AID} }),
+        },
+
+        # Template attr
+        HAS_HELP   => 1,
+
+        # Result former variables
+        HAS_VIEW   => 1,
+        HAS_SEARCH => 1
+      }
+    );
+  }
   return 1 if ( $FORM{MESSAGE_ONLY} );
   
-  my $management_template = $html->tpl_show(_include('events_events_management_inline', 'Events'), {
-      STATE_SELECT => _events_state_select(),
-      COMMENTS     => "$lang{ADMIN} -> $admin->{AID} ",
-      FORM_ID      => 'DELETE_EVENTS_FORM'
-    }, { OUTPUT2RETURN => 1 }
-  );
+  my $admin_list = $admin->list({ ADMIN_NAME => '_SHOW', COLS_NAME => 1 });
+  my $admins_by_id = sort_array_to_hash($admin_list, 'aid');
   
-  my $management_form = $html->form_main({
-    CONTENT => $management_template,
-    HIDDEN  => { index => "$index" },
-    METHOD  => 'POST',
-    ID      => 'DELETE_EVENTS_FORM'
-  });
-  
-  my $translate_simple = sub {
-    $_[0] =~ s/\_\{(\w+)\}\_/$lang{$1}/sg;
-    $_[0];
-  };
+  $LIST_PARAMS{PAGE_ROWS} = 10000;
   events_uni_result_former({
     LIST_FUNC       => "events_list",
-    DEFAULT_FIELDS  => "ID,TITLE,COMMENTS,PRIORITY_NAME,STATE_NAME,GROUP_NAME",
+    DEFAULT_FIELDS  => "ID,TITLE,COMMENTS,PRIORITY_NAME,STATE_NAME,GROUP_NAME,AID",
     HIDDEN_FIELDS   => "PRIORITY_ID,STATE_ID,GROUP_ID,COMMENTS,EXTRA,CREATED,MODULE",
+    MULTISELECT_ACTIONS => [
+      {
+        TITLE    => $lang{DEL},
+        ICON     => 'glyphicon glyphicon-trash',
+        ACTION   => "$SELF_URL?index=$index&del=1",
+        PARAM    => "IDS",
+        CLASS    => 'btn-danger',
+        COMMENTS => "$lang{DEL}?"
+      },
+      {
+        TITLE  => $lang{SEEN},
+        ICON   => 'glyphicon glyphicon-ok',
+        ACTION => "$SELF_URL?index=$index&seen=1",
+        PARAM  => "IDS"
+      }
+    ],
     EXT_TITLES      => {
       id            => "#",
       comments      => $lang{COMMENTS},
@@ -79,32 +102,37 @@ sub events_main {
       privacy_name  => $lang{ACCESS},
       priority_name => $lang{PRIORITY},
       group_name    => $lang{GROUP},
-      title         => $lang{NAME}
+      title         => $lang{NAME},
+      aid           => $lang{ADMIN}
     },
     FILTER_COLS     => {
       comments => 0,
       title    => 0,
+      aid => 0,
     },
     FILTER_VALUES   => {
-      comments      => $translate_simple,
-      title         => $translate_simple,
-      priority_name => $translate_simple
+      comments      => \&translate_simple,
+      title         => \&translate_simple,
+      priority_name => \&translate_simple,
+      aid           => sub {
+        my ($aid) = shift;
+        return exists $admins_by_id->{$aid}
+                 ? ($admins_by_id->{$aid}{admin_name} || $admins_by_id->{$aid}{login})
+                 : $lang{NOT_EXIST};
+      }
     },
     READABLE_NAME   => "$lang{EVENTS}",
     TABLE_NAME      => "EVENTS_TABLE",
-    HAS_SEARCH      => 1,
-    MANAGEMENT_FORM => $management_form
+    HAS_SEARCH      => 1
   });
   
   return 1;
 }
 
 #**********************************************************
-
 =head2 events_state_main()
 
 =cut
-
 #**********************************************************
 sub events_state_main {
   

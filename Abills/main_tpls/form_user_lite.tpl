@@ -98,7 +98,7 @@
 		  
 		    <label class='control-label col-xs-4 col-md-4'>_{REDUCTION}_(%)</label>
 		    <div class=' col-xs-3 col-md-3' style='padding-right: 0px;'>
-			  <input id='REDUCTION' name='REDUCTION' class='form-control' type='number' min='0' max='100' %REDUCTION_READONLY% value='%REDUCTION%'>
+			  <input id='REDUCTION' name='REDUCTION' class='form-control' type='number' min='0' max='100' %REDUCTION_READONLY% value='%REDUCTION%' step='0.01'>
 		    </div>
 			<div class='col-md-5 col-xs-5' style='padding-left: 0px;'>
 		      <div class='input-group'>
@@ -121,7 +121,7 @@
 			<label class='control-label col-xs-4 col-md-4'>_{GROUP}_</label>
 			<div class='col-md-8 col-xs-8'>
 		      <div class='input-group'>
-                <input type=text name='GRP' value='%GID%:%G_NAME%' ID='GRP' class='form-control' readonly>
+                <input type=text name='GRP' value='%GID%:%G_NAME%' ID='GRP' %GRP_ERR% class='form-control' readonly>
                 <span class='input-group-addon'><a href='$SELF_URL?index=12&UID=$FORM{UID}'
                                          class='glyphicon glyphicon glyphicon-pencil'></a></span>
               </div>

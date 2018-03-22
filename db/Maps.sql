@@ -1,12 +1,9 @@
-DROP TABLE IF EXISTS `maps_routes`;
-DROP TABLE IF EXISTS `maps_routes_coords`;
-DROP TABLE IF EXISTS `maps_route_groups`;
-DROP TABLE IF EXISTS `maps_route_types`;
+/*
 DROP TABLE IF EXISTS `maps_wells`;
 DROP TABLE IF EXISTS `maps_wifi_zones`;
 DROP TABLE IF EXISTS `maps_point_types`;
-DROP TABLE IF EXISTS `maps_points`;
 DROP TABLE IF EXISTS `maps_coords`;
+DROP TABLE IF EXISTS `maps_points`;
 DROP TABLE IF EXISTS `maps_layers`;
 DROP TABLE IF EXISTS `maps_circles`;
 DROP TABLE IF EXISTS `maps_polylines`;
@@ -15,59 +12,8 @@ DROP TABLE IF EXISTS `maps_polygons`;
 DROP TABLE IF EXISTS `maps_polygon_points`;
 DROP TABLE IF EXISTS `maps_text`;
 DROP TABLE IF EXISTS `maps_icons`;
-
-CREATE TABLE IF NOT EXISTS `maps_routes` (
-  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name` VARCHAR(45) DEFAULT NULL,
-  `type` SMALLINT(6) UNSIGNED DEFAULT '0',
-  `descr` TEXT,
-  `nas1` SMALLINT(5) UNSIGNED DEFAULT '0',
-  `nas2` SMALLINT(5) UNSIGNED DEFAULT '0',
-  `nas1_port` TINYINT(3) UNSIGNED DEFAULT '0',
-  `nas2_port` TINYINT(3) UNSIGNED DEFAULT '0',
-  `length` SMALLINT(5) UNSIGNED DEFAULT '0',
-  `parent_id` INT(10) UNSIGNED NOT NULL DEFAULT 0 REFERENCES `maps_routes` (`id`)
-    ON DELETE RESTRICT,
-  `group_id` SMALLINT(6) NOT NULL DEFAULT 0 REFERENCES `maps_route_groups` (`id`)
-    ON DELETE RESTRICT,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY (`name`)
-)
-  COMMENT = 'Routes information';
-
-CREATE TABLE IF NOT EXISTS `maps_routes_coords` (
-  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `routes_id` INT(10) UNSIGNED DEFAULT '0',
-  `coordx` DOUBLE(20, 14) DEFAULT '0.00000000000000',
-  `coordy` DOUBLE(20, 14) DEFAULT '0.00000000000000',
-  PRIMARY KEY (`id`)
-)
-  COMMENT = 'Routes coords';
-
-
-CREATE TABLE IF NOT EXISTS `maps_route_groups` (
-  `id` SMALLINT(6) NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  `name` VARCHAR(50) NOT NULL DEFAULT '',
-  `comments` TEXT,
-  `parent_id` SMALLINT(6) NOT NULL DEFAULT 0 REFERENCES `maps_route_groups` (`id`)
-    ON DELETE RESTRICT
-)
-  COMMENT = 'Route groups';
-
-CREATE TABLE IF NOT EXISTS `maps_route_types` (
-  `id` SMALLINT(6) NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  `name` VARCHAR(50) NOT NULL DEFAULT '',
-  `color` VARCHAR(7) NOT NULL DEFAULT '#FFFFFF',
-  `fibers_count` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 1,
-  `line_width` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 1,
-  `comments` TEXT,
-  UNIQUE KEY (`name`)
-)
-  COMMENT = 'Route types';
-
-REPLACE INTO `maps_route_types` (`id`, `name`, `color`) VALUES (1, '$lang{COAXIAL}', '#FF0000');
-REPLACE INTO `maps_route_types` (`id`, `name`, `color`) VALUES (2, '$lang{FIBER_OPTIC}', '#000000');
-REPLACE INTO `maps_route_types` (`id`, `name`, `color`) VALUES (3, '$lang{TWISTED_PAIR}', '#0000FF');
+DROP TABLE IF EXISTS `maps_districts`;
+*/
 
 CREATE TABLE IF NOT EXISTS `maps_wells` (
   `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -245,3 +191,57 @@ CREATE TABLE IF NOT EXISTS `maps_districts` (
     ON DELETE CASCADE
 )
   COMMENT = 'District polygons';
+
+
+# CREATE TABLE IF NOT EXISTS `maps_routes` (
+#   `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+#   `name` VARCHAR(45) DEFAULT NULL,
+#   `type` SMALLINT(6) UNSIGNED DEFAULT '0',
+#   `descr` TEXT,
+#   `nas1` SMALLINT(5) UNSIGNED DEFAULT '0',
+#   `nas2` SMALLINT(5) UNSIGNED DEFAULT '0',
+#   `nas1_port` TINYINT(3) UNSIGNED DEFAULT '0',
+#   `nas2_port` TINYINT(3) UNSIGNED DEFAULT '0',
+#   `length` SMALLINT(5) UNSIGNED DEFAULT '0',
+#   `parent_id` INT(10) UNSIGNED NOT NULL DEFAULT 0 REFERENCES `maps_routes` (`id`)
+#     ON DELETE RESTRICT,
+#   `group_id` SMALLINT(6) NOT NULL DEFAULT 0 REFERENCES `maps_route_groups` (`id`)
+#     ON DELETE RESTRICT,
+#   PRIMARY KEY (`id`),
+#   UNIQUE KEY (`name`)
+# )
+#   COMMENT = 'Routes information';
+#
+# CREATE TABLE IF NOT EXISTS `maps_routes_coords` (
+#   `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+#   `routes_id` INT(10) UNSIGNED DEFAULT '0',
+#   `coordx` DOUBLE(20, 14) DEFAULT '0.00000000000000',
+#   `coordy` DOUBLE(20, 14) DEFAULT '0.00000000000000',
+#   PRIMARY KEY (`id`)
+# )
+#   COMMENT = 'Routes coords';
+#
+#
+# CREATE TABLE IF NOT EXISTS `maps_route_groups` (
+#   `id` SMALLINT(6) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+#   `name` VARCHAR(50) NOT NULL DEFAULT '',
+#   `comments` TEXT,
+#   `parent_id` SMALLINT(6) NOT NULL DEFAULT 0 REFERENCES `maps_route_groups` (`id`)
+#     ON DELETE RESTRICT
+# )
+#   COMMENT = 'Route groups';
+#
+# CREATE TABLE IF NOT EXISTS `maps_route_types` (
+#   `id` SMALLINT(6) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+#   `name` VARCHAR(50) NOT NULL DEFAULT '',
+#   `color` VARCHAR(7) NOT NULL DEFAULT '#FFFFFF',
+#   `fibers_count` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 1,
+#   `line_width` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 1,
+#   `comments` TEXT,
+#   UNIQUE KEY (`name`)
+# )
+#   COMMENT = 'Route types';
+#
+# REPLACE INTO `maps_route_types` (`id`, `name`, `color`) VALUES (1, '$lang{COAXIAL}', '#FF0000');
+# REPLACE INTO `maps_route_types` (`id`, `name`, `color`) VALUES (2, '$lang{FIBER_OPTIC}', '#000000');
+# REPLACE INTO `maps_route_types` (`id`, `name`, `color`) VALUES (3, '$lang{TWISTED_PAIR}', '#0000FF');

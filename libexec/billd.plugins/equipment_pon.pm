@@ -8,6 +8,9 @@
 
    TIMEOUT
    RELOAD  - Reload onu
+   STEP
+   NAS_IDS
+   multi
 
 =cut
 
@@ -19,7 +22,7 @@ use SNMP_util;
 use Equipment;
 use Events;
 use Data::Dumper;
-use Abills::Base qw(load_pmodule2 in_array check_time gen_time);
+use Abills::Base qw(load_pmodule in_array check_time gen_time);
 use threads;
 our (
   $argv,
@@ -118,7 +121,7 @@ sub _equipment_pon_load  {
     STATUS           => '_SHOW',
     NAS_IP           => '_SHOW',
     MNG_HOST_PORT    => '_SHOW',
-    MNG_USER         => '_SHOW',
+    NAS_MNG_USER     => '_SHOW',
     NAS_MNG_PASSWORD => '_SHOW',
     SNMP_TPL         => '_SHOW',
     LOCATION_ID      => '_SHOW',
@@ -127,6 +130,11 @@ sub _equipment_pon_load  {
     TYPE_NAME        => '',
     COLS_NAME        => 1
   } );
+
+  if($Equipment->{TOTAL} < 1) {
+    print "No found any pon equipment\n";
+    return 1;
+  }
 
   my $nas_info = $Equipment_list->[0];
   $Equipment->model_info( $nas_info->{model_id} );
@@ -142,23 +150,6 @@ sub _equipment_pon_load  {
 
   $nas_info->{nas_mng_password} //= 'public';
   my $SNMP_COMMUNITY = "$nas_info->{nas_mng_password}\@" . (($nas_info->{nas_mng_ip_port}) ? $nas_info->{nas_mng_ip_port} : $nas_info->{nas_ip});
-
-#  if($SNMP_COMMUNITY =~ /(.+):(.+)/) {
-#    $SNMP_COMMUNITY = $1;
-#    my $SNMP_PORT = $2 || 161;
-#    if (! in_array($SNMP_PORT, [22])) {
-#      $SNMP_COMMUNITY .= ':'.$SNMP_PORT.':5';
-#      $SNMP_COMMUNITY .= "";
-#    }
-#    else {
-#      $SNMP_COMMUNITY .= ':161:5';
-#    }
-#  }
-#  else {
-#    $SNMP_COMMUNITY .= ':161:5';
-#  }
-
-  #  $SNMP_COMMUNITY = "$MNG_PASSWORD\@$MNG_HOST\:$second_port:5:::2";
   my $onu_counts = 0;
 
   if ($nas_info->{status} eq 0) {
@@ -217,7 +208,7 @@ sub _equipment_pon_load  {
           NAS_ID         => $nas_id,
           NAS_TYPE       => $nas_type,
           MODEL_NAME     => $Equipment->{MODEL_NAME},
-          SNMP_TPL       => $Equipment->{SNMP_TPL}
+          SNMP_TPL       => $Equipment->{SNMP_TPL},
         });
 
         $port_list = $Equipment->pon_port_list({
@@ -238,7 +229,8 @@ sub _equipment_pon_load  {
         TIMEOUT        => $argv->{TIMEOUT} || 5,
         SKIP_TIMEOUT   => 1,
         DEBUG          => $debug,
-        MODEL_NAME     => $Equipment->{MODEL_NAME}
+        MODEL_NAME     => $Equipment->{MODEL_NAME},
+        TYPE           => 'dhcp'
       });
 
       $onu_counts = $#{ $onu_list } + 1;
@@ -248,9 +240,9 @@ sub _equipment_pon_load  {
       #print Dumper $onu_list;
       foreach my $onu (@$onu_list) {
         if ($created_onu->{ $onu->{ONU_SNMP_ID} }->{ID}) {
-          if($debug > 3) {
-            print "$nas_type TYPE => $onu->{PON_TYPE} \n";
-          }
+#          if($debug > 6) {
+#            print "$nas_type TYPE => $onu->{PON_TYPE} \n";
+#          }
 
           my $snmp = &{ \&{$nas_type} }({TYPE => $onu->{PON_TYPE}});
 #          if ($created_onu->{ $onu->{ONU_SNMP_ID} }->{ONU_DESC} && $created_onu->{ $onu->{ONU_SNMP_ID} }->{ONU_DESC} ne $onu->{ONU_DESC}){
@@ -269,20 +261,20 @@ sub _equipment_pon_load  {
           foreach my $graph_type (@onu_graph_types) {
             if ($graph_type eq 'SIGNAL' && ($snmp->{ONU_RX_POWER}->{OIDS} || $snmp->{OLT_RX_POWER}->{OIDS})) {
               my @onu_graph_data = ();
-              push @onu_graph_data, {DATA => $onu->{ONU_RX_POWER} || 0, SOURCE => $snmp->{ONU_RX_POWER}->{NAME} || q{}, TYPE => 'GAUGE'};
+              push @onu_graph_data, { DATA => $onu->{ONU_RX_POWER} || 0, SOURCE => $snmp->{ONU_RX_POWER}->{NAME} || q{}, TYPE => 'GAUGE'};
               push @onu_graph_data, { DATA => $onu->{OLT_RX_POWER} || 0, SOURCE => $snmp->{OLT_RX_POWER}->{NAME} || q{OLT_RX_POWER}, TYPE => 'GAUGE' };
-              add_graph({NAS_ID => $nas_id, PORT => $onu->{ONU_SNMP_ID}, TYPE => 'SIGNAL', DATA => \@onu_graph_data});
+              add_graph({NAS_ID => $nas_id, PORT => $onu->{ONU_SNMP_ID}, TYPE => 'SIGNAL', DATA => \@onu_graph_data, STEP => $argv->{STEP} || '300'});
             }
             elsif ($graph_type eq 'TEMPERATURE' && $snmp->{TEMPERATURE}->{OIDS}) {
               my @onu_graph_data = ();
               push @onu_graph_data, {DATA => $onu->{TEMPERATURE} || 0, SOURCE => $snmp->{TEMPERATURE}->{NAME}, TYPE => 'GAUGE'};
-              add_graph({NAS_ID => $nas_id, PORT => $onu->{ONU_SNMP_ID}, TYPE => 'TEMPERATURE', DATA => \@onu_graph_data});
+              add_graph({NAS_ID => $nas_id, PORT => $onu->{ONU_SNMP_ID}, TYPE => 'TEMPERATURE', DATA => \@onu_graph_data, STEP => $argv->{STEP} || '300'});
             }
             elsif ($graph_type eq 'SPEED' && ($snmp->{ONU_IN_BYTE}->{OIDS} || $snmp->{ONU_OUT_BYTE}->{OIDS})) {
               my @onu_graph_data = ();
               push @onu_graph_data, {DATA => $onu->{ONU_IN_BYTE} || 0, SOURCE => $snmp->{ONU_IN_BYTE}->{NAME}, TYPE => 'COUNTER'};
               push @onu_graph_data, {DATA => $onu->{ONU_OUT_BYTE} || 0, SOURCE => $snmp->{ONU_OUT_BYTE}->{NAME}, TYPE => 'COUNTER'};
-              add_graph({NAS_ID => $nas_id, PORT => $onu->{ONU_SNMP_ID}, TYPE => 'SPEED', DATA => \@onu_graph_data});
+              add_graph({NAS_ID => $nas_id, PORT => $onu->{ONU_SNMP_ID}, TYPE => 'SPEED', DATA => \@onu_graph_data, STEP => $argv->{STEP} || '300'});
             }
           }
 
@@ -298,6 +290,9 @@ sub _equipment_pon_load  {
             $onu->{ONU_MAC_SERIAL},
             $onu->{ONU_DESC} || '',
             $onu->{ONU_ID},
+            $onu->{LINE_PROFILE} || 'ONU',
+            $onu->{SRV_PROFILE} || 'ALL',
+            '0',
             $created_onu->{ $onu->{ONU_SNMP_ID} }->{ID}
           ];
           #$Equipment->onu_change( { ID => $created_onu->{ $onu->{ONU_SNMP_ID} }->{ID}, NAS_ID => $nas_id, %{$onu} } );
@@ -317,22 +312,34 @@ sub _equipment_pon_load  {
             $onu->{ONU_MAC_SERIAL} || '',
             $onu->{ONU_DESC} || '',
             $onu->{ONU_ID},
-            $onu->{ONU_SNMP_ID}
+            $onu->{ONU_SNMP_ID},
+            $onu->{LINE_PROFILE} || 'ONU',
+            $onu->{SRV_PROFILE} || 'ALL',
           ];
         }
-
-        pon_alert($onu->{OLT_RX_POWER});
+#        pon_alert($onu->{ONU_RX_POWER});
       }
 
+      my $time;
+
+      foreach my $snmp_id (keys %{ $created_onu }) {
+        $time = check_time() if ($debug > 2);
+        print "UPDATE EXPIRED ONU." if ($debug > 2);
+        $Equipment->onu_change( { ID => $created_onu->{ $snmp_id }->{ID}, ONU_STATUS => 2, DELETED => 1 });
+        print " " . gen_time($time) . "\n" if ($debug > 2);
+      }
       if ($#ONU_ADD > -1) {
+        $time = check_time() if ($debug > 2);
+        print "ADD ONU." if ($debug > 2);
         $Equipment->onu_add( {  MULTI_QUERY => \@ONU_ADD } );
+        print " " . gen_time($time) . "\n" if ($debug > 2);
       }
       if($#MULTI_QUERY > -1) {
+        $time = check_time() if ($debug > 2);
+        print "UPDATE ONU info." if ($debug > 2);
         $Equipment->onu_change( { MULTI_QUERY => \@MULTI_QUERY } );
+        print " " . gen_time($time) . "\n" if ($debug > 2);
       }
-#      foreach my $snmp_id (keys %{ $created_onu }) {
-#        $Equipment->onu_del( $created_onu->{ $snmp_id }->{ID} ) if ($created_onu->{ $snmp_id }->{ID});
-#      }
     }
   }
 
@@ -371,7 +378,7 @@ sub wait_ps {
   }
 
   if($running_ps > $max_threads) {
-    #print "Sleep: Running: $running_ps Total: $#{ $threads }\n";
+    print "Sleep: Running: $running_ps Total: $#{ $threads }\n" if($debug > 3);
     sleep 1;
     #run
     return 1;
@@ -408,7 +415,7 @@ sub _equipment_pon_multi {
   }
 
   while (wait_ps(\@threads, 0)) {
-    print "Wait finish\n" if($debug);
+    print "Wait finish\n" if($debug > 3);
   }
 
   return 1;
@@ -433,7 +440,7 @@ sub pon_alert {
     # Text
     COMMENTS    => 'PON ALERT: '. $parameter,
     # Link to see external info
-    EXTRA       => 'http://abills.net.ua',
+    EXTRA       => '',
     # 1..5 Bigger is more important
     PRIORITY_ID => 2,
   );

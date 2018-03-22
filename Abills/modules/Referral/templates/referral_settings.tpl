@@ -34,7 +34,7 @@
         </form>
 
     </div>
-    <div class='box-footer text-center'>
+    <div class='box-footer'>
         <input type='submit' form='form_REFERRAL_SETTINGS' class='btn btn-primary' name='action' value='_{CHANGE}_'>
     </div>
 </div>

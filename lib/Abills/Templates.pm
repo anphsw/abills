@@ -9,17 +9,19 @@
 use strict;
 
 my $domain_path = '';
-our $Bin;
-our %FORM;
-our $admin;
-our $html;
-our %lang;
-our %conf;
+our (
+  $Bin,
+  %FORM,
+  $admin,
+  $html,
+  %lang,
+  %conf
+);
 
 use FindBin '$Bin';
-if ($admin->{DOMAIN_ID}) {
-  $domain_path = "$admin->{DOMAIN_ID}/";
-}
+#if ($admin && $admin->{DOMAIN_ID}) {
+#  $domain_path = "$admin->{DOMAIN_ID}/";
+#}
 
 #**********************************************************
 =head2 _include($tpl, $module, $attr) - templates
@@ -53,17 +55,18 @@ sub _include {
   }
 
   $FORM{NAS_GID}='' if (!$FORM{NAS_GID});
+  my $language = $html->{language} || q{};
 
   my @search_paths = (
-    $Bin . '/../Abills/templates/' . $domain_path . '/' . $FORM{NAS_GID} . '/' . $module . '_' . $tpl . "_$html->{language}" . $sufix,
+    $Bin . '/../Abills/templates/' . $domain_path . '/' . $FORM{NAS_GID} . '/' . $module . '_' . $tpl . "_$language" . $sufix,
     $Bin . '/../Abills/templates/' . $domain_path . '/' . $FORM{NAS_GID} . '/' . $module . '_' . $tpl . $sufix,
-    $Bin . '/../Abills/templates/' . $domain_path  . $module . '_' . $tpl . "_$html->{language}" . $sufix,
-           '../Abills/templates/' . $domain_path . $module . '_' . $tpl . "_$html->{language}" . $sufix,
-           '../../Abills/templates/' . $domain_path . $module . '_' . $tpl . "_$html->{language}" . $sufix,
+    $Bin . '/../Abills/templates/' . $domain_path  . $module . '_' . $tpl . "_$language" . $sufix,
+           '../Abills/templates/' . $domain_path . $module . '_' . $tpl . "_$language" . $sufix,
+           '../../Abills/templates/' . $domain_path . $module . '_' . $tpl . "_$language" . $sufix,
            '../../Abills/templates/' . $domain_path . $module . '_' . $tpl . $sufix,
            '../Abills/templates/' . $domain_path . $module . '_' . $tpl . $sufix,
     $Bin . '/../Abills/templates/'. $domain_path . $module . '_' . $tpl . $sufix,
-    $Bin . '/../Abills/templates/' . $module . '_' . $tpl . "_$html->{language}" . $sufix
+    $Bin . '/../Abills/templates/' . $module . '_' . $tpl . "_$language" . $sufix
   );
 
   foreach my $result_template (@search_paths) {
@@ -120,6 +123,10 @@ sub _include {
 sub tpl_content {
   my ($filename) = @_;
   my $tpl_content = '';
+
+  if(! %lang) {
+    %lang = ();
+  }
 
   open(my $fh, '<', $filename) || die "Can't open file '$filename' $!";
     while (<$fh>) {
@@ -218,4 +225,3 @@ sub templates {
 }
 
 1
-

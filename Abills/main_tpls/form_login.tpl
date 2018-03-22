@@ -102,3 +102,15 @@
   </div>
 </div>
 
+<script type="text/javascript">
+  jQuery('#form_login').on('submit', function(){
+    var userLogin = jQuery('#user').val();
+    if (typeof(Storage) !== "undefined") {
+      localStorage.setItem("lastLogin", userLogin);
+    }
+  });
+
+  jQuery(function () {
+    jQuery('#user').val(localStorage.getItem("lastLogin"));
+  })
+</script>

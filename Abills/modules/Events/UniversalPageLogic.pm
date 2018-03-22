@@ -32,7 +32,7 @@ our (
 sub events_uni_result_former {
   my ($attr) = @_;
   
-  my $filter_cols = { map {$_ => '_translate'} split(",", lc $attr->{DEFAULT_FIELDS}) };
+  my $filter_cols = { map {$_ => 'translate_simple'} split(",", lc $attr->{DEFAULT_FIELDS}) };
   
   my Abills::HTML $table;
   my $list;
@@ -48,15 +48,16 @@ sub events_uni_result_former {
       EXT_TITLES      => $attr->{EXT_TITLES},
       MULTISELECT     => 'IDS:id:DELETE_EVENTS_FORM',
       TABLE           => {
-        width      => '100%',
-        caption    => $attr->{READABLE_NAME},
-        ID         => uc $attr->{LIST_FUNC},
-        EXPORT     => 1,,
-        SELECT_ALL => $attr->{LIST_FUNC} . ":ID:$lang{SELECT_ALL}",
-        MENU       => "$lang{ADD}:index=$index&show_add_form=1:add;"
+        MULTISELECT_ACTIONS => $attr->{MULTISELECT_ACTIONS},
+        DATA_TABLE          => 1,
+        width               => '100%',
+        caption             => $attr->{READABLE_NAME},
+        ID                  => uc $attr->{LIST_FUNC},
+        EXPORT              => 1,
+        SHOW_FULL_LIST      => 1,
+        MENU                => "$lang{ADD}:index=$index&show_add_form=1:add;"
           . ($attr->{HAS_SEARCH} ? "$lang{SEARCH}:index=$index&search_form=1:search" : '')
       },
-      
       MAKE_ROWS       => 1,
       SEARCH_FORMER   => 1,
       MODULE          => 'Events',
@@ -69,13 +70,15 @@ sub events_uni_result_former {
     }
   );
   
+  if ($attr->{OUTPUT2RETURN}){
+    return $table->show({ OUTPUT2RETURN => 1 });
+  }
+  
   print $table->show();
   
   if ( $attr->{MANAGEMENT_FORM} ) {
     print $attr->{MANAGEMENT_FORM};
   }
-  
-  #  print ;
   
   return $list;
 }
@@ -121,12 +124,12 @@ sub events_uni_page_logic {
   }
   elsif ( $FORM{chg} ) {
     my $Events_obj = $Events->$info_func($FORM{chg});
-    _error_show($Events);
+    _error_show($Events) and return 0;
     
     # Need to translate all names
     foreach ( keys %{$Events_obj} ) {
       next if ( $_ !~ /_NAME$/ );
-      if ( my $translated = _translate($Events_obj->{$_}) ) {
+      if ( my $translated = translate_simple($Events_obj->{$_}) ) {
         $Events_obj->{$_ . '_TRANSLATED'} = $translated;
       }
     }
@@ -149,11 +152,10 @@ sub events_uni_page_logic {
       }
       show_result($Events, $lang{CHANGED} . ":" . $FORM{IDS});
     }
-    else {
+    elsif ($FORM{ID}) {
       $Events->$change_func(\%FORM);
       show_result($Events, $lang{CHANGED});
     }
-    
   }
   elsif ( $FORM{del} && $FORM{COMMENTS} ) {
     if ( $FORM{IDS} ) {
@@ -161,7 +163,7 @@ sub events_uni_page_logic {
     }
     
     $Events->$delete_func({ ID => $FORM{del} });
-    show_result($Events, $lang{DELETED});
+    show_result($Events, $lang{DELETED}, $FORM{del});
   }
   
   _error_show($Events);
@@ -198,13 +200,19 @@ sub events_uni_show_template {
   if ( $template_args->{SELECTS} ) {
     events_fill_selects($template_args, { SELECTS => $template_args->{SELECTS} });
   }
-  
+
   $html->tpl_show(
-    _include("events_$tpl_name", "Events"),
+    '',
     {
       %{$template_args},
       SUBMIT_BTN_NAME   => ($FORM{chg}) ? "$lang{CHANGE}" : "$lang{ADD}",
       SUBMIT_BTN_ACTION => ($FORM{chg}) ? "change" : "add"
+    },
+    {
+      TPL    => "events_$tpl_name",
+      MODULE => 'Events',
+      ID     =>  uc($tpl_name),
+      %{  $template_args->{HAS_HELP} ? { HELP => 1 } : {}  }
     }
   );
   
@@ -237,7 +245,12 @@ sub events_fill_selects {
   my %select_hash = %{ $attr->{SELECTS} };
   
   while ( my ($select_name, $select) = each %select_hash ) {
-    $object->{$select_name} = &{ \&{$select->{func}}}({ SELECTED => $object->{ $select->{argument} } });
+    if (ref $select eq 'HASH'){
+      $object->{$select_name} = &{ \&{$select->{func}}}({ SELECTED => $object->{ $select->{argument} } });
+    }
+    elsif (ref $select eq ''){
+      $object->{$select_name} = $select;
+    }
   }
   
   return $object;

@@ -20,7 +20,7 @@
       <label class='control-label col-md-6 text-left'>%EMAIL%</label>
     </div>
   </div>
-  <div class='box-footer text-center'>
+  <div class='box-footer'>
     <div class='alert alert-success' role='alert'>
       All information has been sent to your E-mail
     </div>

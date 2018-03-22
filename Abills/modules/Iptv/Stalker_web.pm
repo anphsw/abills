@@ -89,13 +89,28 @@ sub stalker_console{
   }
   if ( $FORM{register} ){
     if ( !$tp_list{ $FORM{TP_ID} } ){
-      $html->message( 'err', $lang{ERROR}, "$lang{TARF_PLAN} $lang{NOT_EXIST}" );
+      $html->message( 'err', $lang{ERROR}, "$lang{TARIF_PLAN} $lang{NOT_EXIST}" );
     }
     else{
-      $users->add( { %FORM } );
+      my $users_list = $users->list({
+        LOGIN     => $FORM{LOGIN} || '-',
+        COLS_NAME => 1 });
+
+      my $login = $FORM{LOGIN};
+      if ($users->{TOTAL} && $users->{TOTAL} > 0) {
+        $users->{UID}=$users_list->[0]->{uid};
+      }
+      else {
+        $users->add({ %FORM });
+      }
+
       $FORM{TP_ID} = $tp_list{ $FORM{TP_ID} };
       if ( !_error_show( $users, { MESSAGE => 'Stalker' } ) ){
         $Iptv->user_add( { %FORM, UID => $users->{UID} } );
+        if(! _error_show($Iptv)) {
+          $html->message('info', $lang{INFO}, "$lang{ADDED} ". $html->button($login, "index=".
+            get_function_index('iptv_user') ."&UID=$users->{UID}"), { BUTTON => 1 });
+        }
       }
     }
   }
@@ -154,11 +169,12 @@ sub stalker_console{
     ID      => 'STALKER_CONSOLE'
   });
 
-  foreach my $account_hash ( @{ $Tv_service->{RESULT}->{results} } ){
-    next if (! $account_hash);
+  foreach my $account_info ( @{ $Tv_service->{RESULT}->{results} } ){
+    next if (! $account_info);
     my @row = ();
     foreach my $key (@TITLE) {
-      my $val = $account_hash->{$key};
+      my $val = $account_info->{$key};
+      Encode::_utf8_off( $account_info->{login} );
       if ($val){
         Encode::_utf8_off( $val );
       }
@@ -191,18 +207,20 @@ sub stalker_console{
       push @row, $val;
     }
 
-    my $stb_mac = $account_hash->{stb_mac} || q{};
+    my $stb_mac = $account_info->{stb_mac} || q{};
     if ( $stb_mac && $register_stb{ $stb_mac } ){
       push @row, $html->button( $lang{SHOW}, "index=15&UID=$register_stb{ $stb_mac }",
-          { class => 'show', TITLE => $account_hash->{stb_mac} } );
+          { class => 'show', TITLE => $account_info->{stb_mac} } );
     }
     else{
-      push @row, $html->button( $lang{ADD}.'-----',
-          "index=$index&register=1&MAC=" . (($account_hash->{login}) ? $account_hash->{login} : $stb_mac)
+      push @row, $html->button( $lang{ADD}.' '. ($account_info->{login} || q{}),
+          "index=$index&register=1&MAC=" . (($account_info->{login}) ? $account_info->{login} : $stb_mac)
+            . (($account_info->{login}) ? "&LOGIN=$account_info->{login}" : q{})
             . "&PASSWORD="
-            . "&TP_ID=". ($account_hash->{tariff_plan} || '')
-            . "&STATUS=". ($account_hash->{status} || '')
+            . "&TP_ID=". ($account_info->{tariff_plan} || '')
+            . "&STATUS=". ($account_info->{status} || '')
             . "&CREATE_BILL=1"
+            . "&ID=$account_info->{account_number}"
             . "&CID=". $stb_mac
           , { class => 'add' } );
     }

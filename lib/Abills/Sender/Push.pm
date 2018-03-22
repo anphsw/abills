@@ -94,34 +94,60 @@ sub send_message {
 #  $attr->{TO_ADDRESS}    = $sendpoint;
 #  $attr->{CLIENT_PUBLIC} = $key;
 #  $attr->{CLIENT_AUTH}   = $auth;
+
+  # Multiple
+  my $sent = 0;
+  if (ref $contact eq 'ARRAY') {
+    my @endpoints = split(',\s?', $attr->{TO_ADDRESS});
+    for my $i ( 0 ... $#endpoints ) {
+      $sent = 1 if ($self->send_single($endpoints[$i], $contact->[$i]{id}, $attr));
+    }
+  }
+  else {
+    $sent = $self->send_single($attr->{TO_ADDRESS}, $contact->{id}, $attr);
+  }
   
-  # Push works in two steps
-  # Server sends client 'Push', so he knows there's something on server for him
-  # Client goes to server and fetches messages
+}
+
+#**********************************************************
+=head2 send_single($endpoint, $contact_id, $attr) -
+
+  Arguments:
+    $endpoint   - string, special url linked to client device (browser)
+    $contact_id - int, ID of contact for this device
+    $attr       - hash_ref
+    
+  Push works in two steps
+  Server sends client 'Push', so he knows there's something on server for him
+  Client goes to server and fetches messages
   
-  # So here is algoritm
-  # Send 'Push' to client. If Push Service tells us, everything is ok, and 'Push' will be delivered to client,
-  # save message to DB, so client can fetch it later
+  So here is algoritm
+  Send 'Push' to client. If Push Service tells us, everything is ok, and 'Push' will be delivered to client,
+  save message to DB, so client can fetch it later
   
-  my $result = ($attr->{TO_ADDRESS} =~ 'google')
+=cut
+#**********************************************************
+sub send_single {
+  my ($self, $endpoint, $contact_id, $attr) = @_;
+  
+  my $result = ($endpoint =~ 'google')
     ? $self->send_to_gcm($attr)
     : $self->send_to_firefox($attr);
   
-  if ($result){
+  if ( $result ) {
     my Contacts $Contacts = $self->{Contacts};
     
     $Contacts->push_messages_add({
-      CONTACT_ID => $contact->{id},
+      CONTACT_ID => $contact_id,
       MESSAGE    => $attr->{MESSAGE},
       TITLE      => $attr->{TITLE} || '',
       TAG        => $attr->{TAG} || 'message',
       %{ $attr }
     });
-    
   }
   
   return $result;
-}
+};
 
 #**********************************************************
 =head2 send_to_firefox($attr) - Sends message to Firefox anypush server

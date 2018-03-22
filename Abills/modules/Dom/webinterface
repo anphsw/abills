@@ -18,8 +18,10 @@ my $Dom     = Dom->new($db, $admin, \%conf);
 
 #**********************************************************
 =head2 dom_info() Create 2D build model
+
   Returns:
       1
+      
 =cut
 #**********************************************************
 sub dom_info {
@@ -28,7 +30,6 @@ sub dom_info {
   my $build_info = $Address->build_info(
     {
       ID     => $FORM{LOCATION_ID},
-      NUMBER => '_SHOW'
     }
   );
   if(!$FORM{LOCATION_ID} || !$build_info->{TOTAL}){
@@ -49,7 +50,9 @@ sub dom_info {
   my $users_list = $Dom->list(
     {
       FIO            => '_SHOW',
-      ADDRESS_BUILD  => $build_info->{NUMBER},
+      # ADDRESS_BUILD  => $build_info->{NUMBER},
+      LOCATION_ID    => $FORM{LOCATION_ID},
+      ADDRESS_BUILD  => '_SHOW',
       UID            => '_SHOW',
       CITY           => '_SHOW',
       COMPANY_ID     => '_SHOW',
@@ -84,10 +87,11 @@ sub dom_info {
   $info{FLORS_SUM} = $build_info->{FLORS} * $build_info->{ENTRANCES};
   # $info{FLORS_ROOMS}     = ($build_info->{FLATS} / $build_info->{ENTRANCES} /$build_info->{FLORS});
   $info{FLORS_ROOMS} = ($build_info->{FLATS} % $info{FLORS_SUM})==0?$build_info->{FLATS} / $info{FLORS_SUM}: int($build_info->{FLATS} /$info{FLORS_SUM} + 1);
+  # $info{FLORS_ROOMS} = int($info{BUILD_FLATS} / $info{BUILD_ENTRANCES} / $info{BUILD_FLORS});
   # $info{FLORS_ROOMS} = $info{FLORS_ROOMS} % ($build_info->{FLORS} * $build_info->{ENTRANCES}) == 0 ? int($info{FLORS_ROOMS} + 1) : $info{FLORS_ROOMS};
   $info{FLATS_SUM_WITH_NON_DB_INFO} = $info{FLORS_ROOMS} * $info{FLORS_SUM};
   $info{USER_SUM_WITH_NO_ROOM}=0;
-
+  
   foreach my $user (@$users_list) {
     $user_by_flat{ $user->{address_flat} } = $user;
     if($user->{address_flat} > $info{FLATS_SUM_WITH_NON_DB_INFO}){
@@ -121,7 +125,8 @@ sub dom_info {
       ID         => 'ADMIN_ACCESS'
     }
   );
-
+  # _bp('1', \%info);
+  # _bp('1', \%user_by_flat);
   $html->tpl_show(_include('dom_show', 'Dom'), \%info);
 
   return 1;

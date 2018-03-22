@@ -167,7 +167,7 @@ Content-type: text/html\n\n
       <script src='/hotspot/styles/default_adm/js/jquery-1.11.3.min.js' type='text/javascript'></script>
     <![endif]-->
     <script src="/hotspot/styles/default_adm/js/bootstrap.min.js"></script>
-    <script src="/hotspot/styles/default_adm/js/moment.js"></script>
+    <script src="/hotspot/styles/lte_adm/plugins/moment/moment.min.js"></script>
     <script type="text/javascript">
       
       jQuery(function () {

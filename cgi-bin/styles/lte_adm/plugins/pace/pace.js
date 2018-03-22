@@ -258,8 +258,7 @@
     Bar.prototype.finish = function() {
       var el;
       el = this.getElement();
-      el.className = el.className.replace(/pace-active/g, '');
-      el.className += ' pace-inactive';
+      $(el).removeClass("pace-active").addClass("pace-inactive");
       $("body").removeClass("pace-running").addClass("pace-done");
       return document.body.className;
     };

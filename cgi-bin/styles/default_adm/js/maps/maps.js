@@ -22,7 +22,7 @@ var HAS_REAL_POSITION = false;
 var realPosition      = null;
 
 
-Events.setDebug(0);
+// Events.setDebug(1);
 
 function fullScreenDistrict() {
   var height    = window.innerHeight;
@@ -88,7 +88,15 @@ function initialize() {
       
       if (FORM['SHOW_BUILDS']) {
         Events.on('billingdefinedlayersshowed', function () {
-          MapLayers.enableLayer(LAYER_ID_BY_NAME['BUILD']);
+          if (
+          // If no build markers
+          !MapLayers.getLayerObjects(LAYER_ID_BY_NAME['BUILD']).length
+          // and no build polygons
+          && !MapLayers.getLayerObjects(LAYER_ID_BY_NAME['BUILD2']).length
+          ) {
+            // download builds
+            MapLayers.enableLayer(LAYER_ID_BY_NAME['BUILD']);
+          }
         });
       }
       
@@ -105,7 +113,7 @@ function initialize() {
             MapLayers.enableLayer(layer_id);
           }
           else {
-            aTooltip.displayError('')
+            aTooltip.displayError('show_layer on unexisting layer')
           }
         });
       }
@@ -250,7 +258,7 @@ function configureMap() {
       
       var add_layer_object_buttons = [
         {name: _BUILD, onclick: 'addNewPoint(' + LAYER_ID_BY_NAME[BUILD] + ')'},
-        {name: _ROUTE, onclick: 'addNewPoint(' + LAYER_ID_BY_NAME[ROUTE] + ')'},
+        //{name: _ROUTE, onclick: 'addNewPoint(' + LAYER_ID_BY_NAME[ROUTE] + ')'},
         //{name: _DISTRICT, onclick: 'addNewPoint(' + LAYER_ID_BY_NAME[DISTRICT] + ')'},
         {name: _WIFI, onclick: 'addNewPoint(' + LAYER_ID_BY_NAME[WIFI] + ')'},
         {name: _OBJECT, onclick: 'addNewPoint(' + LAYER_ID_BY_NAME[CUSTOM_POINT] + ')'},
@@ -291,7 +299,7 @@ function configureMap() {
             onclick: 'dropOperation()',
             title  : _DROP,
             id     : 'dropOperationCtrlBtn',
-            'class': 'default'
+            'class': 'default hidden'
           }
       );
     }
@@ -312,7 +320,7 @@ function configureMap() {
             .html($('<i></i>', {'class': 'fa fa-refresh'}));
         
         var layer_btn = $('<a></a>', {
-          onclick: 'MapLayers.toggleLayer(' + layer['id'] + ')',
+          onclick: 'AMapLayersBtns.toggleButton(' + layer['id'] + ')',
           'class': 'btn btn-xs btn-default text-left',
           id     : 'toggleLayer_' + layer.id
         })
@@ -357,6 +365,13 @@ function configureMap() {
         id     : 'polygonToggle'
       });
     }
+    
+    aControls.addBtn(aControls.ROW_VIEW, {
+      icon   : 'print',
+      onclick: 'printMap()',
+      title  : 'Print',
+      id     : 'printButton'
+    });
     
     Events.on('1_ENABLED', function () {
       window['BuildClustererControl'] = new ClustererControl(LAYER_ID_BY_NAME[BUILD], 'clusterToggle');
@@ -594,9 +609,80 @@ function registerMessageCheckerExtension() {
   });
 }
 
+function printMap() {
+  
+  var openWindowRenderAndPrint = function openWindowRenderAndPrint(){
+    
+    var printWin      = window.open('', '', 'width=1000,height=700');
+    if (printWin === null){
+      alert('Please allow popups to open map print');
+    }
+    //
+    //try {
+    //  var center = map.getCenter();
+    //  map.setCenter(center);
+    //}
+    //catch (e){
+    //  console.log("Failed to resize map : " +  e.toString());
+    //}
+    //
+  
+    var windowContent = '<!DOCTYPE html>';
+    html2canvas(mapDiv, {
+      useCORS   : true,
+      onrendered: function (canvas) {
+        windowContent += '<html>';
+        windowContent += '<head><title>Print Map</title></head>';
+        windowContent += '<body>';
+        windowContent += '<img src="' + canvas.toDataURL() + '" style="min-height: 100vh;min-width 100vh;">';
+        windowContent += '</body>';
+        windowContent += '</html>';
+        printWin.document.open();
+        printWin.document.write(windowContent);
+        printWin.document.close();
+        printWin.focus();
+        setTimeout(function () {
+          printWin.print();
+          printWin.close();
+        }, 500);
+      }
+    });
+  };
+  
+    // Dirty fixes
+  
+    // Disabling controls
+    map.setOptions({
+      mapTypeControl   : false,
+      zoomControl      : false,
+      streetViewControl: false,
+      panControl       : false
+    });
+
+    var patchedStyle = $('<style media="print">')
+        .text('img { max-width: none !important; }\n' + 'a[href]:after { content: ""; }')
+        .appendTo('head');
+
+
+  
+    openWindowRenderAndPrint();
+  
+  
+    // Enabling controls
+    map.setOptions({
+      mapTypeControl   : true,
+      zoomControl      : true,
+      streetViewControl: true,
+      panControl       : true
+    });
+  
+    patchedStyle.remove();
+}
+
 var SettingsSaver = (function () {
   
   var config = null;
+  var self = this;
   
   function restoreSavedConfig() {
     var config_string = aStorage.getValue('maps_config', '{}');
@@ -637,10 +723,14 @@ var SettingsSaver = (function () {
     }
     
     Events.on('layer_enabled', function (layerName) {
+      console.log(layerName, 'enabled');
       config.layers[layerName] = true;
+      //self.saveConfig();
     });
     Events.on('layer_disabled', function (layerName) {
+      console.log(layerName, 'disabled');
       config.layers[layerName] = false;
+      //self.saveConfig();
     });
   }
   
@@ -685,12 +775,13 @@ var SettingsSaver = (function () {
   }
   
   function registerListeners() {
-    // Need to wait while buttons are displayed
     $(window).on('beforeunload', saveConfig);
     
-    Events.once('layersready', restoreLayers);
     Events.once('onbeforemapcreate', restoreMapType);
     Events.once('onbeforemapcreate', restoreMapCenter);
+    
+    // Need to wait while buttons are displayed
+    Events.once('layersready', restoreLayers);
   }
   
   if (!CLIENT_MAP) {

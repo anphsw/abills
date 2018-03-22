@@ -11,7 +11,7 @@
         <control class='col-md-6'>%TP_FREE_PERIOD%</control>
       </div>
     </div>
-    <div class='box-footer text-center'>
+    <div class='box-footer'>
       <button class='%STYLE%' name='%ACTION%' value='%TP_ID%'> %BUTTON% </button>
     </div>
   </div>

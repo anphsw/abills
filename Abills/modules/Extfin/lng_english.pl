@@ -21,3 +21,6 @@ $lang{QUESTIONS}='Questions';
 $lang{QUESTION}='Question';
 $lang{CONNECTION_TIME}='Connection time';
 $lang{NO_SUBJECT}='No subject';
+$lang{SALDO}='Saldo';
+$lang{SALDO_BEGIN_PERIOD}='Start period saldo';
+$lang{SALDO_END_PERIOD}='End period saldo';

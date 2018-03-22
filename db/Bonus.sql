@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS `bonus_service_discount` (
   `bonus_percent` DOUBLE(10, 2) NOT NULL DEFAULT '0.00',
   `ext_account` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   `pay_method` VARCHAR(100) NOT NULL DEFAULT '0',
+  `comments` TEXT NOT NULL,
+  `tp_id` VARCHAR(200) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`)
 ) COMMENT = 'Bonus service discount';
 

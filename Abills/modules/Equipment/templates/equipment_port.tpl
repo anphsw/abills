@@ -1,7 +1,8 @@
-<FORM action='$SELF_URL' METHOD='POST'>
+<FORM action='$SELF_URL' METHOD='POST' class='form form-horizontal'>
     <input type='hidden' name='index' value='$index'>
     <input type='hidden' name='ID' value='%ID%'>
     <input type='hidden' name='NAS_ID' value='$FORM{NAS_ID}'>
+    <input type='hidden' name='visual' value='%visual%'>
 
     <div class='box box-theme box-form center-block'>
         <div class='box-header with-border'>
@@ -21,7 +22,7 @@
                 </div>
 
             </div>
-
+            <span class="visible-xs visible-sm col-xs-12" style="padding-top: 5px"> </span>
             <div class='form-group'>
                 <label class='control-label col-md-5' for='STATUS'>_{ADMIN}_ _{STATUS}_:</label>
 
@@ -29,7 +30,7 @@
                     %STATUS_SEL%
                 </div>
             </div>
-
+            <span class="visible-xs visible-sm col-xs-12" style="padding-top: 5px"> </span>
             <div class='form-group'>
                 <label class='control-label col-md-5' for='UPLINK'>UPLINK:</label>
 
@@ -37,7 +38,7 @@
                     %UPLINK_SEL%
                 </div>
             </div>
-            
+            <span class="visible-xs visible-sm col-xs-12" style="padding-top: 5px"> </span>            
             <div class='form-group'>
                 <label class='control-label col-md-5' for='VLAN'>VLAN:</label>
 
@@ -45,8 +46,7 @@
                     <input type='text' name='VLAN' value='%VLAN%' class='form-control' ID='VLAN'/>
                 </div>
             </div>
-
-
+            <span class="visible-xs visible-sm col-xs-12" style="padding-top: 5px"> </span>
             <div class='form-group'>
                 <label class='control-label col-md-5' for='COMMENTS'>_{DESCRIBE}_:</label>
 

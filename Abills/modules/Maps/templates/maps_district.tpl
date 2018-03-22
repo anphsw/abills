@@ -26,7 +26,7 @@
     </form>
 
   </div>
-  <div class='box-footer text-center'>
+  <div class='box-footer'>
     <input type='submit' form='form_MAPS_DISTRICT' class='btn btn-primary' name='submit' value='%SUBMIT_BTN_NAME%'>
   </div>
 </div>

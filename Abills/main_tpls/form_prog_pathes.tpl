@@ -120,7 +120,7 @@
     </div>
 
   </div>
-  <div class='box-footer text-center'>
+  <div class='box-footer'>
       <input type='submit' form='form_PATHES' class='btn btn-primary' name='button' value='%SUBMIT_BTN_NAME%'>
   </div>
 </div>

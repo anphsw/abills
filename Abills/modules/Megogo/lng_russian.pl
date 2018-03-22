@@ -28,7 +28,6 @@ $lang{IN_MONTH} = 'в месяц';
 $lang{IN_DAY} = 'в день';
 $lang{IN_NEXT_MONTH} = 'на следующий месяц';
 
-$lang{WRONG}='Неправильный';
 $lang{ANSWER}='ответ';
 $lang{NOT_ENOUGH_MONEY}='Недостаточно средств';
 $lang{NOT_USED}='Не использован';

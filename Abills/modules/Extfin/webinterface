@@ -320,7 +320,7 @@ sub extfin_periodic_paids {
         DESCRIB     => "$lang{PERIOD}: $line->[3] ",
         MACCOUNT_ID => "$lang{PERIOD}: $line->[4] ",
         UID         => $line->[8],
-        DATE        => "$ADMIN_REPORT{DATE}",
+        DATE        => $ADMIN_REPORT{DATE},
         EXT_ID      => ''
       }
     );
@@ -348,7 +348,7 @@ sub extfin_paids {
   if ($FORM{PERIODIC}) {
     $Extfin->paid_periodic_add({%FORM});
     if (!$Extfin->{errno}) {
-      $html->message('info', $lang{INFO}, "$lang{CHANGED}");
+      $html->message('info', $lang{INFO}, $lang{CHANGED});
     }
   }
   elsif ($FORM{add}) {
@@ -367,7 +367,10 @@ sub extfin_paids {
       return 0;
     }
 
-    $Extfin->paid_change({ %FORM, STATUS_DATE => ($FORM{STATUS} && $FORM{STATUS} > 0) ? $DATE : '' });
+    $Extfin->paid_change({
+      %FORM,
+      STATUS_DATE => ($FORM{STATUS} && $FORM{STATUS} > 0) ? $DATE : ''
+    });
 
     if (!$Extfin->{errno}) {
       $html->message('info', $lang{INFO}, "$lang{CHANGED}");
@@ -424,6 +427,7 @@ sub extfin_paids {
     form_search({ SEARCH_FORM => $html->tpl_show(_include('extfin_search_paids', 'Extfin'), {%FORM}, { notprint => 1 }) });
   }
   else {
+
     my $list = $Extfin->paid_periodic_list({ PERIODIC => 1, UID => $LIST_PARAMS{UID} });
 
     if ($Extfin->{TOTAL} > 0) {
@@ -1504,7 +1508,7 @@ sub extfin_users_balance {
       width      => '100%',
       caption    => "$lang{DEPOSIT} $lang{DATE}: ". ($period || ''),
       border     => 1,
-      title      => [ '#', $lang{LOGIN}, "$lang{FIO}/$lang{NAME}", "DEBIT", "CREDIT", "SALDO" ],
+      title      => [ '#', $lang{LOGIN}, "$lang{FIO}/$lang{NAME}", "DEBIT", $lang{CREDIT}, $lang{SALDO} ],
       ID         => 'EXTFIN_PAYMENT_DEED',
     }
   );
@@ -1693,7 +1697,7 @@ sub extfin_calculated_balance {
   }
 
   if($FORM{sort} && $FORM{sort} == 1){
-    @$bills_list = sort {$a->{FIO} cmp $b->{FIO}} @$bills_list;
+    @$bills_list = sort {($a->{FIO} || q{}) cmp ($b->{FIO} || q{})} @$bills_list;
   }
 
   if($FORM{sort} && $FORM{sort} == 2){

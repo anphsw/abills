@@ -7,7 +7,7 @@
 
 use strict;
 use warnings FATAL => 'all';
-use Abills::Base qw(in_array);
+use Abills::Base qw(in_array load_pmodule);
 use Address;
 
 our (
@@ -88,7 +88,7 @@ sub form_districts{
     }
     $html->message( 'info', $lang{IMPORT}, "$lang{ADDED}: $counts" );
   }
-  elsif ( $FORM{add} ){
+  elsif ( $FORM{add} && $FORM{NAME} ){
     $Address->district_add( { %FORM } );
 
     if ( !$Address->{errno} ){
@@ -237,6 +237,10 @@ sub form_streets{
   $Address->{DISTRICTS_SEL} = sel_districts({ DISTRICT_ID => $Address->{DISTRICT_ID} });
 
   if ( $FORM{add_form} ){
+    if ($conf{STREET_TYPE}) {
+      $Address->{STREET_TYPE_SELECT} = _street_type_select($Address->{TYPE});
+      $Address->{STREET_TYPE_VISIBLE} = 1;
+    }
     $html->tpl_show( templates( 'form_street' ), $Address );
   }
 
@@ -247,6 +251,12 @@ sub form_streets{
   }
 
   #$html->tpl_show(templates('form_street_search'), $Address);
+  if($FORM{search_form}){
+    form_search({ SEARCH_FORM => $html->tpl_show(templates('form_street_search'),
+                                  { %$Address,  %FORM },
+                                  { OUTPUT2RETURN => 1 }),
+      PLAIN_SEARCH_FORM => 1});
+  }
 
   if ( !$FORM{sort} ){
     $LIST_PARAMS{SORT} = 2;
@@ -276,7 +286,7 @@ sub form_streets{
       qs      => $pages_qs,
       ID      => 'STREETS_LIST',
       EXPORT  => 1,
-      MENU    => "$lang{ADD}:index=$index&add_form=1&DISTRICT_ID=" . ($FORM{DISTRICT_ID} || '') . ":add",
+      MENU    => "$lang{ADD}:index=$index&add_form=1&DISTRICT_ID=" . ($FORM{DISTRICT_ID} || '') . ":add; $lang{SEARCH}:index=$index&search_form=1&DISTRICT_ID=" . ($FORM{DISTRICT_ID} || '') . ":search",
       SHOW_COLS_HIDDEN => {
         DISTRICT_ID => $FORM{DISTRICT_ID}
       }
@@ -403,12 +413,14 @@ sub form_builds{
         . ( ($street_list->[0]{second_name}) ? " ( $street_list->[0]{second_name} )" : '');
     }
   }
+  
   $LIST_PARAMS{DISTRICT_ID} = $FORM{DISTRICT_ID} if ($FORM{DISTRICT_ID});
   $LIST_PARAMS{STREET_ID} = $FORM{BUILDS};
-  $LIST_PARAMS{PLANNED_TO_CONNECT}=$FORM{PLANNED_TO_CONNECT};
+  $LIST_PARAMS{PLANNED_TO_CONNECT} = $FORM{PLANNED_TO_CONNECT};
+  
   my @status_bar = (
-    "$lang{PLANNED_TO_CONNECT}:index=$index&BUILDS=1&PLANNED_TO_CONNECT=1",
-    "$lang{ALL}:index=$index&BUILDS=1"
+    "$lang{PLANNED_TO_CONNECT}:index=$index&BUILDS=" . ($FORM{BUILDS} || '') . "&PLANNED_TO_CONNECT=1",
+    "$lang{ALL}:index=$index&BUILDS=" . ($FORM{BUILDS} || '')
   );
 
   result_former( {
@@ -417,27 +429,36 @@ sub form_builds{
     MAP             => 1,
     BASE_FIELDS     => 1,
     DEFAULT_FIELDS  =>
-    'NUMBER,FLORS,ENTRANCES,FLATS,STREET_NAME,USERS_COUNT,USERS_CONNECTIONS,ADDED' . ($maps_enabled ? ',COORDX' : ''),
-    FUNCTION_FIELDS => 'change,del',
+    'NUMBER,BLOCK,FLORS,ENTRANCES,FLATS,STREET_NAME,USERS_COUNT,USERS_CONNECTIONS,ADDED' . ($maps_enabled ? ',COORDX' : ''),
+    FUNCTION_FIELDS => 'msgs_admin:$lang{MESSAGE}:location_id:&add_form=1,change,del',
     EXT_TITLES      => {
       number              => "$lang{NUM}",
       flors               => "$lang{FLORS}",
       entrances           => "$lang{ENTRANCES}",
       flats               => "$lang{FLATS}",
-      street_name         => "$lang{STREETS}",
+      street_name         => "$lang{STREET}",
       users_count         => "$lang{USERS}",
       users_connections   => "$lang{DENSITY_OF_CONNECTIONS} %",
       added               => "$lang{ADDED}",
       location_id         => 'LOCATION ID',
       coordx              => $lang{MAP} . ' X',
       coordy              => $lang{MAP} . ' Y',
-      planned_to_connect  =>"$lang{PLANNED_TO_CONNECT}"
+      planned_to_connect  =>"$lang{PLANNED_TO_CONNECT}",
+      block               => $lang{BLOCK}
     },
     SKIP_USER_TITLE => 1,
-      FILTER_COLS     => {
+    FILTER_COLS     => {
       users_count => 'search_link:form_search:LOCATION_ID,type=11',
       coordx      => 'form_add_map:ID:ID,COORDX,add=1',
       number      =>  in_array( 'Dom', \@MODULES )?'form_show_construct:ID:ID,':'',
+    },
+    # for button MESSAGE
+    FILTER_VALUES => {
+      number => sub {
+        my ($number, $line) = @_;
+        $line->{location_id} = $line->{id};
+        return $number;
+      }
     },
     TABLE           => {
       width            => '100%',
@@ -551,10 +572,16 @@ sub form_location_media{
 sub form_add_map{
   my ($coordx, $attr) = @_;
 
+  if ($coordx && $attr->{VALUES}->{ID} && in_array('Maps', \@MODULES)) {
+    load_module('Maps');
+    return $html->button( '',
+      "get_index=maps_show_map&show_build=$attr->{VALUES}->{ID}&header=1",
+      { class => 'glyphicon glyphicon-globe', target => '_maps' } );
+  }
 
   if ($attr->{VALUES}->{ID} && in_array('Maps', \@MODULES)) {
     load_module('Maps');
-    return _maps_btn_for_location($attr->{VALUES}->{ID});
+    return _maps_btn_for_build($attr->{VALUES}->{ID});
   }
 
   if ( $attr->{VALUES}->{POINTS} ){
@@ -594,41 +621,76 @@ sub form_address_sel {
 
   print "Content-Type: text/html\n\n";
 
-  my $js_list   = '';
+  my $js_list   = "<option></option>";
 
+  my $list_to_options_string = sub {
+   my ($array_ref, $value_key, $name_key) = @_;
+    $value_key //= 'id';
+    $name_key //= 'name';
+    
+    my $res = '';
+    foreach my $line (@$array_ref){
+      my $value = $line->{$name_key};
+      $value =~ s/\'/&rsquo;/g;
+      $res .= "<option value='$line->{$value_key}'>$value</option>";
+    }
+    
+    $res;
+  };
+  
+  # Show builds
   if ($FORM{STREET} || $FORM{STREET_ID}) {
-    my $list = $Address->build_list({ STREET_ID => $FORM{STREET} || $FORM{STREET_ID}, COORDX => '_SHOW', PAGE_ROWS => 10000, COLS_NAME => 1 });
+    
+    my $builds_list = $Address->build_list({
+      STREET_ID => $FORM{STREET} || $FORM{STREET_ID},
+      BLOCK     => '_SHOW',
+      COORDX    => '_SHOW',
+      PAGE_ROWS => 10000,
+      COLS_NAME => 1
+    });
+    
     if ($Address->{TOTAL} > 0) {
-      foreach my $line (@$list) {
+      foreach my $line (@$builds_list) {
         $line->{number} =~ s/\'/&rsquo;/g;
         my $value = $line->{number};
+        
+        if ($line->{block}){
+          $value .= "-$line->{block}";
+        }
+        
         if($FORM{SHOW_UNREG} && $line->{coordx} == 0) {
           $value .= ' (+)';
         }
+        
         $js_list .= "<option value='$line->{id}'>$value</option>";
       }
+      
     }
-    my $size = ($Address->{TOTAL} > 10) ? 10 : $Address->{TOTAL};
-    $size = 2 if ($size < 2);
-    print "<option></option>" . $js_list;
+    print $js_list;
   }
+  # Show streets
   elsif ($FORM{DISTRICT_ID}) {
-    my $list = $Address->street_list({
-        DISTRICT_ID => $FORM{DISTRICT_ID},
-        STREET_NAME => '_SHOW',
-        PAGE_ROWS   => 10000,
-        SORT        => 2,
-        COLS_NAME   => 1 });
-    if ($Address->{TOTAL} > 0) {
-      foreach my $line (@$list) {
-        $line->{street_name} =~ s/\'/\&rsquo;/g;
-        $js_list .= "<option value='$line->{id}'>$line->{street_name}</option>";
-      }
+    my $streets_list = $Address->street_list({
+      DISTRICT_ID => $FORM{DISTRICT_ID},
+      STREET_NAME => '_SHOW',
+      TYPE        => '_SHOW',
+      PAGE_ROWS   => 10000,
+      SORT        => 2,
+      COLS_NAME   => 1
+    });
+
+    if ($conf{STREET_TYPE}) {
+      my @street_type_list = split (';', $conf{STREET_TYPE});
+      $streets_list = [ map { 
+        { %$_, 
+          street_name => join (' ', $street_type_list[$_->{type}], $_->{street_name})
+        }; 
+      } @{$streets_list} ];
     }
-    my $size = ($Address->{TOTAL} > 10) ? 10 : $Address->{TOTAL};
-    $size = 2 if ($size < 2);
-    print "<option></option>" . $js_list;
+  
+    print $js_list . $list_to_options_string->($streets_list, 'id', 'street_name');
   }
+  # Show users
   elsif ($FORM{LOCATION_ID}) {
     my $list = $users->list({
       LOCATION_ID  => $FORM{LOCATION_ID},
@@ -654,16 +716,17 @@ sub form_address_sel {
       } @{$list}
     });
   }
+  # Show districts
   else {
-    my $list = $Address->district_list({ %LIST_PARAMS, PAGE_ROWS => 1000, COLS_NAME => 1 });
-    foreach my $line (@$list) {
-      $js_list .= "<option  value='$line->{id}'>$line->{name}</option>";
-    }
-
-    my $size = ($Address->{TOTAL} > 10) ? 10 : $Address->{TOTAL};
-    $size = 2 if ($size && $size < 2);
-    print "<option></option>" . $js_list;
+    my $districts_list = $Address->district_list({
+      %LIST_PARAMS,
+      PAGE_ROWS => 1000,
+      COLS_NAME => 1
+    });
+  
+    print $js_list . $list_to_options_string->($districts_list);
   }
+  
   exit;
 }
 
@@ -706,7 +769,14 @@ sub sel_countries {
 }
 
 #**********************************************************
-=head2 sel_districts()
+=head2 sel_districts($attr)
+
+  Arguments:
+    $attr
+      DISTRICT_ID
+
+  Result:
+    Select form
 
 =cut
 #**********************************************************
@@ -728,7 +798,16 @@ sub sel_districts {
 }
 
 #**********************************************************
-=head2 sel_streets()
+=head2 sel_streets($attr)
+
+  Arguments:
+    $attr
+      STREET_ID
+      SEL_OPTIONS
+      MAIN_MENU
+
+  Results:
+    Select form
 
 =cut
 #**********************************************************
@@ -737,11 +816,21 @@ sub sel_streets {
 
   $attr ||= {};
 
+  my $list = $Address->street_list( { PAGE_ROWS => 10000, STREET_NAME => '_SHOW', COLS_NAME => 1 } );
+  if ($conf{STREET_TYPE}) {
+    my @street_type_list = split (';', $conf{STREET_TYPE});
+    $list = [ map { 
+      { %$_, 
+        street_name => join (' ', $street_type_list[$_->{type}], $_->{street_name})
+      }; 
+    } @{$list} ];
+  }
+
   return $html->form_select(
     "STREET_ID",
     {
       SELECTED       => $attr->{STREET_ID} || $FORM{BUILDS},
-      SEL_LIST       => $Address->street_list( { PAGE_ROWS => 10000, STREET_NAME => '_SHOW', COLS_NAME => 1 } ),
+      SEL_LIST       => $list,
       SEL_VALUE      => 'street_name',
       NO_ID          => 1,
       SEL_OPTIONS    => $attr->{SEL_OPTIONS},
@@ -762,13 +851,142 @@ sub full_address_name {
   return '' if !$location_id;
 
   my $info = $Address->address_info($location_id);
+  my $street_type = '';
+  if ($conf{STREET_TYPE} && $info->{STREET_TYPE}) {
+    my @street_types = split (';', $conf{STREET_TYPE});
+    $street_type = @street_types[$info->{STREET_TYPE}];
+  }
+  
+  my @address_components = (
+    $info->{CITY},
+    $info->{ADDRESS_DISTRICT},
+    $street_type .' '. ($info->{ADDRESS_STREET} || q{}),
+    ($info->{ADDRESS_STREET2} ? "($info->{ADDRESS_STREET2})" : ''),
+    $info->{ADDRESS_BUILD},
+    ($info->{ADDRESS_BLOCK} ? "-$info->{ADDRESS_BLOCK}" : '')
+  );
+  
+  return join(', ', grep { $_ && $_ ne '' } @address_components);
+}
 
-  return ($info->{CITY} || q{})
-  . ', ' . ($info->{ADDRESS_DISTRICT} || q{})
-  . ', ' . ($info->{ADDRESS_STREET} || q{})
-  . ($info->{ADDRESS_STREET2} ? (' (' . $info->{ADDRESS_STREET2} . ')') : '')
-  . ', ' . ($info->{ADDRESS_BUILD} || q{});
+#**********************************************************
+=head2 short_address_name($location_id)
 
+=cut
+#**********************************************************
+sub short_address_name {
+  my ($location_id) = @_;
+  return '' if !$location_id;
+  
+  my $info = $Address->address_info($location_id);
+  my $street_type = '';
+  if ($conf{STREET_TYPE}) {
+    $street_type = (split (';', $conf{STREET_TYPE}))[$info->{STREET_TYPE}];
+  }
+  
+  my @address_components = (
+    "$street_type $info->{ADDRESS_STREET}",
+    ($info->{ADDRESS_STREET2} ? "($info->{ADDRESS_STREET2})" : ''),
+    $info->{ADDRESS_BUILD},
+    ($info->{ADDRESS_BLOCK} ? "-$info->{ADDRESS_BLOCK}" : '')
+  );
+  
+  return join(', ', grep { $_ && $_ ne '' } @address_components);
+}
+
+
+#**********************************************************
+=head2 form_address($attr)
+
+  Arguments:
+    $attr
+      LOCATION_ID         =>
+      FLAT_CHECK_FREE     => 1
+      FLAT_CHECK_OCCUPIED => 1
+      SHOW                => 1
+
+  Results:
+
+
+=cut
+#**********************************************************
+sub form_address {
+  my ($attr) = @_;
+
+  my %params = ();
+
+  if(! $attr->{SHOW}) {
+    $params{PARAMS}='collapsed-box';
+  }
+
+  if ( ! $conf{ADDRESS_REGISTER} ) {
+    my $countries_hash;
+    ($countries_hash, $params{COUNTRY_SEL}) = sel_countries({
+        NAME    => 'COUNTRY_ID',
+        COUNTRY => $attr->{COUNTRY_ID} });
+
+    return $html->tpl_show(templates('form_address'), { %{ ($attr) ? $attr : {} }, %params }, { OUTPUT2RETURN => 1 });
+  }
+
+  if ($attr->{LOCATION_ID}) {
+    $Address->address_info($attr->{LOCATION_ID});
+    if (in_array('Maps', \@MODULES)) {
+      load_module('Maps');
+      $Address->{MAP_BTN} = _maps_btn_for_build($attr->{LOCATION_ID});
+    }
+    if (in_array('Dom', \@MODULES)) {
+      $Address->{DOM_BTN} = $html->button("", 'index=' . get_function_index('dom_info') . "&LOCATION_ID=$attr->{LOCATION_ID}",
+        { class                                                                   => 'btn btn-default btn-sm',
+          ex_params                                                               =>
+          "data-tooltip-position='top' data-tooltip='$lang{ADDRESS_BUILD}'", ICON => 'fa fa-building-o ' });
+    }
+    $Address->{FLAT_CHECK_FREE} = 1;
+  }
+
+  if($attr->{REGISTRATION_HIDE_ADDRESS_BUTTON}){
+    $Address->{HIDE_ADD_BUILD_BUTTON}   = "style='display:none;'" if (!$conf{REGISTRATION_ADD_PLANNED_BUILDS});
+    $Address->{HIDE_ADD_ADDRESS_BUTTON} = "style='display:none;'";
+  }
+
+  my $result = $html->tpl_show(
+    templates('form_show_hide'),
+    {
+      CONTENT =>
+      $html->tpl_show(templates('form_address_sel'), {%$Address, %$attr}, {
+          OUTPUT2RETURN => 1,
+          ID => 'form_address_sel',
+          %{ ($attr) ? $attr : {} }
+      }),
+      NAME    => $lang{ADDRESS},
+      ID      => 'ADDRESS_FORM',
+      %params
+    },
+    { OUTPUT2RETURN => 1 }
+  );
+
+  return $result;
+}
+
+#**********************************************************
+=head2 _street_type_select
+
+=cut
+#**********************************************************
+sub _street_type_select {
+  my ($selected) = @_;
+
+  my @street_types = split(';', $conf{STREET_TYPE} || '');
+
+  my $result = $html->form_select(
+    "TYPE",
+    {
+      SELECTED       => $selected,
+      SEL_ARRAY      => \@street_types,
+      ARRAY_NUM_ID   => 1,
+    }
+  );
+
+  return $result;
 }
 
 1;

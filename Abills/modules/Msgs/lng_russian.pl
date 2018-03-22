@@ -48,7 +48,6 @@ $lang{ADDITIONALLY} = 'Дополнительно';
 $lang{ASSESSMENT} = 'Оценка';
 $lang{BAD} = 'Плохо';
 $lang{UNSATISFACTORILY} = 'Неудовлетворительно';
-$lang{FINE} = 'Нормально';
 $lang{GOOD} = 'Хорошо';
 $lang{IDEALLY} = 'Идеально';
 $lang{POTENTIAL_CLIENT} = 'Потенциальный клиент';
@@ -85,23 +84,41 @@ $lang{NEW_TOPIC}='Новая тема';
 $lang{AUTO_CREATE_TEXT}="Заявка создана автоматически из комментариев к";
 $lang{REPLYS} = 'Ответы';
 $lang{MSGS_TAGS} = 'Метки сообщений';
+$lang{MSGS_TAGS_TYPES} = 'Типы меток сообщений';
 $lang{DOWNTIME}  = 'Время простоя';
 $lang{SUBJECT_URL}   = 'Ссылка на тему';
 $lang{TIME_IN_WORK} = 'Время в работе';
-$lang{YOU_HAVE_NEW_REPLY} = 'Вам ответили в теме';
+$lang{YOU_HAVE_NEW_REPLY} = 'Новый ответ в теме';
 $lang{MSGS_REPLY} = 'Ответить';
 $lang{MSGS_OPEN} = 'Открыть сообщение';
 $lang{YOU_HAVE_BEEN_SET_AS_RESPONSIBLE_IN} = 'Вы назначены ответственным в теме ';
 $lang{AUTO_CLOSE} = 'Автоматическое закрытие (дней)';
 $lang{CLOSED_BY_TIME} = "Закрыта по истечению времени";
+$lang{SUBJECT_CHANGED} = "Тема изменена с";
 
-1;
+$lang{OPERATOR_STATISTICS} = 'Cтатистика оператора техподдержки';
+$lang{NUMBER_OF_PROCESSED_REQUESTS} = 'Количество обработанных заявок';
+$lang{TIME_SPENT_ON_APPLICATIONS} = 'Время потраченное на заявки';
+$lang{AVERAGE_SCORE_FOR_CLOSED_BIDS} = 'Средний бал за закрытые заявки';
+$lang{RELATIVE_INDICATORS} = 'Относительные показатели';
+$lang{GROWTH_OF_CHIEVEMENT} = 'Прирост успеваемости';
+$lang{ADMINISTRATORS_RANK} = 'Рейтинг среди других администраторов';
+$lang{NUMBER_OF_MONTHS_WORKED} = 'Количество полных рабочих месяцев';
+$lang{ALL_ADMINS_REQ} = 'всеми администраторами';
+$lang{ADMINISTRATORS_RANK} = 'Рейтинг среди других администраторов';
+$lang{AVERAGE_PER_APPLICATION} = 'В среднем на одну заявку';
+$lang{FOR_ALL_TIME} = 'за все время';
+$lang{FOR_THE_MONTH} = 'за месяц';
+$lang{NO_DATA_STAT} = 'н.д.';
 
+$lang{YOU_CANT_REPLY_TO_THIS_MESSAGE} = 'Вы не можете ответить в эту тему';
+$lang{ADMIN_STATISTICS} = "По администраторам";
+$lang{NO_RESPONSIBLE} = "Нет ответственного";
+$lang{PERIODICALLY} = "Периодически";
 
+$lang{TASK}='Задание';
+$lang{USER_CONNECTION}='Подключение абонента';
 
-
-
-
-
+1
 
 

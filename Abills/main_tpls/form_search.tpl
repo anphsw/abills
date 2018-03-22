@@ -78,10 +78,9 @@
     <!--<div class='row'>-->
       %SEARCH_FORM%
     <!--</div>-->
-    <button class='btn btn-primary btn-block' type='submit' name='search' value=1 style="margin-bottom: 10px;">
+    <button class='btn btn-primary btn-block' type='submit' name='search' id='go' value=1 style="margin-bottom: 10px;">
       <i class='glyphicon glyphicon-search'></i> _{SEARCH}_
     </button>
 
   </fieldset>
 </form>
-

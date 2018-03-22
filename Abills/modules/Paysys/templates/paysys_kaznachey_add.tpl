@@ -28,7 +28,7 @@
         <label class='control-label col-md-3'> %SUMMA% </label>
     </div>
 </div>   
-    <div class='box-footer text-center'>
+    <div class='box-footer'>
         <input class='btn btn-primary' type='submit' value=_{PAY}_>
     </div>
 </div>    

@@ -44,7 +44,7 @@
 <div class='form-group'>
   <label class='control-label col-md-3' for='URL'>URL:</label>
   <div class='col-md-9'>
-    <input id='URL' name='URL' value='%STREAM%' placeholder='%URL%' class='form-control' type='text'>
+    <input id='STREAM' name='STREAM' value='%STREAM%' placeholder='%URL%' class='form-control' type='text'>
   </div>
 </div>
 

@@ -11,7 +11,7 @@ use Wordpress::Wordpress;
 
 use Encode qw/decode_utf8 encode_utf8/;
 
-use Abills::Base qw /_bp mk_unique_value in_array convert/;
+use Abills::Base qw /_bp mk_unique_value in_array convert load_pmodule/;
 
 our (%conf, $html, %lang, $db, $admin);
 
@@ -165,7 +165,6 @@ sub wordpress_posts_main {
       width      => '100%',
       caption    => "Wordpress $lang{POSTS}",
       title      => [ 'ID', "$lang{TITLE}", "$lang{AUTHOR}", "$lang{STATUS}", '-' ], # TODO: Localize
-      cols_align => [ 'left', 'right', 'right', 'center', 'center' ],
       pages      => scalar @{$posts},
       qs         => $pages_qs,
       ID         => 'WORDPRESS_POSTS_ID',
@@ -219,7 +218,6 @@ sub wordpress_pages_main {
       width      => '100%',
       caption    => "Wordpress $lang{PAGES}",
       title      => [ 'ID', "$lang{TITLE}", "$lang{AUTHOR}", "$lang{STATUS}", '-' ], # TODO: Localize
-      cols_align => [ 'left', 'right', 'right', 'center', 'center' ],
       pages      => scalar @{$pages},
       qs         => $pages_qs,
       ID         => 'WORDPRESS_PAGES_ID',
@@ -250,6 +248,8 @@ sub wordpress_pages_main {
   }
 
   print $table->show();
+
+  return 1;
 }
 
 #**********************************************************
@@ -354,7 +354,7 @@ sub wordpress_gallery_images_choosen {
   # $Wordpress->update_custom_options({abills_gallery_images =>  ''});
   my $files_ref = _get_files_in($wordpress_images_path);
   my @files = ();
-  
+
   if (!$files_ref){
     if(mkdir $wordpress_images_path){
       $html->message('success', "$lang{DIR_CREATED}");
@@ -404,7 +404,7 @@ sub wordpress_gallery_images_choosen {
     ###########################
     eval{ $settings = from_json($wp_options->{abills_gallery_images}, {utf8 => 0}) };
     #eval{ $settings = $json->decode( $wp_options->{abills_gallery_images} ) };
-      
+
     if ($@){
       $html->message('error', "$lang{ERROR} JSON");
     }
@@ -500,7 +500,7 @@ sub wordpress_export_dv_tariffs {
       return 1;
     }
 
-    my $Tariffs = Tariffs->new( $db, $admin, \%conf );
+    my $Tariffs = Tariffs->new( $db, \%conf, $admin );
 
     my $tariffs_list = $Tariffs->list( {
         TP_ID       => $FORM{IDS} || '_SHOW',
@@ -515,7 +515,7 @@ sub wordpress_export_dv_tariffs {
     return 1;
   }
   else {
-    my $Tariffs = Tariffs->new( $db, $admin, \%conf );
+    my $Tariffs = Tariffs->new( $db, \%conf, $admin );
 
     my $tariffs_list = $Tariffs->list( {
         ACTIV_PRICE => '_SHOW',
@@ -529,7 +529,6 @@ sub wordpress_export_dv_tariffs {
         caption    => 'Dv ' . $lang{TARIF_PLANS},
         title      =>
         [ '#', $lang{NAME}, $lang{DAY_FEE}, $lang{MONTH_FEE}, $lang{ACTIVATE}, $lang{GROUP}, $lang{DESCRIBE} ],
-        cols_align => [ 'left', 'right', 'right', 'right', 'center', 'center' ],
         pages      => $Tariffs->{TOTAL},
         qs         => $pages_qs,
         ID         => 'WORDPRESS_DV_TARRIFS_ID',
@@ -630,7 +629,6 @@ sub wordpress_export_abon {
         caption    => 'Abon ' . $lang{TARIF_PLANS},
         title      =>
         [ '#', $lang{NAME}, $lang{DAY_FEE}, $lang{MONTH_FEE}],
-        cols_align => [ 'left', 'right', 'right', 'right', 'center', 'center' ],
         pages      => $Abon->{TOTAL},
         qs         => $pages_qs,
         ID         => 'WORDPRESS_ABON_TARIFFS_ID',
@@ -705,7 +703,10 @@ sub _wordpress_show_cards_form {
         },
         class   => 'form form-horizontal'
       } );
+
+  return 1;
 }
+
 #**********************************************************
 =head2 _wordpress_read_cards_from_FORM() - returns string
 

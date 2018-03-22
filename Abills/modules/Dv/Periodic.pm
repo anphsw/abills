@@ -1287,6 +1287,7 @@ sub dv_users_warning_messages {
     return 0;
   }
 
+  require Internet::Negative_deposit;
   my $debug = $attr->{DEBUG} //= 0;
   my $debug_output = '';
   $debug_output .= "DV: Daily warning messages\n" if ($debug > 1);
@@ -1309,6 +1310,7 @@ sub dv_users_warning_messages {
     MONTH_FEE         => '_SHOW',
     DAY_FEE           => '_SHOW',
     ABON_DISTRIBUTION => '_SHOW',
+    ONLINE_IP         => '_SHOW',
     _SKIP_NEG_WARN    => '_SHOW',
     DV_STATUS         => 0,
     LOGIN_STATUS      => 0,
@@ -1351,6 +1353,10 @@ sub dv_users_warning_messages {
         UID       => $u->{uid},
         FILTER_ID => $conf{DV_ALERT_REDIRECT_FILTER}
       });
+
+      if($u->{client_ip}) {
+        mk_redirect({ IP => $u->{client_ip} });
+      }
     }
 
     if ($email eq '') { next; }

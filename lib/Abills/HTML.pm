@@ -52,12 +52,12 @@ our @EXPORT = qw(
 );
 
 
-
 our %FORM     = ();
 our $pages_qs = '';
 my $IMG_PATH  = '';
 my $CONF;
 my $row_number = 0;
+my $lang;
 
 #http://www.mcanerin.com/en/articles/meta-language.asp
 my %ISO_LANGUAGE_CODE = (
@@ -74,12 +74,28 @@ my %ISO_LANGUAGE_CODE = (
   polish      => 'pl',
 );
 
+my %button_class_icons = (
+  add      => 'glyphicon glyphicon-plus text-success',
+  search   => 'glyphicon glyphicon-search',
+  info     => 'glyphicon glyphicon-info-sign',
+  del      => 'glyphicon glyphicon-trash text-danger',
+  fees     => 'glyphicon glyphicon-collapse-down',
+  password => 'glyphicon glyphicon-lock',
+  stats    => 'glyphicon glyphicon-stats text-success',
+  print    => 'glyphicon glyphicon-print',
+  user     => 'glyphicon glyphicon-user',
+  history  => 'glyphicon glyphicon-book',
+  show     => 'glyphicon glyphicon-list-alt',
+);
+
 #**********************************************************
 =head2 new($attr)
 
   $attr
-    NOPRINT
+    NO_PRINT
     CONF
+    LANG
+    ADMIN
 
 =cut
 #**********************************************************
@@ -95,6 +111,14 @@ sub new {
 
   if ($attr->{NO_PRINT}) {
     $self->{NO_PRINT} = 1;
+  }
+
+  if($attr->{ADMIN}) {
+    $self->{admin}=$attr->{ADMIN};
+  }
+
+  if($attr->{LANG}) {
+    $lang=$attr->{LANG};
   }
 
   if(! $CONF->{CURRENCY_ICON}) {
@@ -277,6 +301,7 @@ sub new {
         IMG_PATH        => $IMG_PATH,
         NO_PRINT        => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1,
         CONF            => $CONF,
+        FORM            => \%FORM,
         CHARSET         => $attr->{CHARSET},
         CONFIG_TPL_SHOW => \&tpl_show,
         TYPE            => 'json'
@@ -300,10 +325,8 @@ sub form_parse {
 
   %FORM = ();
   my ($boundary, @pairs);
-  #my $prefix;
   my $buffer;
   my $name;
-  #my $ret;
 
   return %FORM if (!defined($ENV{'REQUEST_METHOD'}));
 
@@ -334,7 +357,7 @@ sub form_parse {
         $value =~ tr/+/ /;
         $value =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/eg;
         $value =~ s/<!--(.|\n)*-->//g;
-        $value =~ s/<([^>]|\n)*>//g;
+        #$value =~ s/<([^>]|\n)*>//g;
 
         if (! $self->{SKIP_QUOTE}) {
           #Check quotes
@@ -435,6 +458,7 @@ sub form_parse {
       STATE     - State for checkbox
       FORM_ID   - Main form ID
       SUCCESS   - Green button for submit input
+      DISABLED  - disable input
       ID        - custom id attr for element, uses $name otherwise
 
   Returns:
@@ -478,9 +502,13 @@ sub form_input {
     $form = " FORM='$self->{FORM_ID}'";
   }
 
+  if ($attr->{DISABLED}){
+    $ex_params .= ' disabled="disabled"';
+  }
+
   my $id = $attr->{ID} || $name;
 
-  $self->{FORM_INPUT} = "<input type='$type' name='$name' value=\"" . (defined($value) ? $value : '') . "\"$state$size$css_class$ex_params$form ID='$id'/>";
+  $self->{FORM_INPUT} = "<input type='$type' name='$name' value=\"" . ($value // '') . "\"$state$size$css_class $ex_params$form ID='$id'/>";
 
   if ( defined($self->{NO_PRINT}) && (!defined($attr->{OUTPUT2RETURN})) ) {
     $self->{OUTPUT} .= $self->{FORM_INPUT};
@@ -563,7 +591,7 @@ sub form_main {
   my $self = shift;
   my ($attr) = @_;
 
-  if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $attr->{ID}) {
+  if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne ($attr->{ID} || q{})) {
     return '';
   }
 
@@ -575,11 +603,13 @@ sub form_main {
     $self->{FORM_ID} = $attr->{ID};
   }
 
-  $self->{FORM} .= $attr->{class} ? "class='$attr->{class} form-main' role='form'" : "class='form form-horizontal form-main' role='form'";
-  $self->{FORM} .= "name='$attr->{NAME}' "       if ($attr->{NAME});
-  $self->{FORM} .= "enctype='$attr->{ENCTYPE}' " if ($attr->{ENCTYPE});
-  $self->{FORM} .= "target='$attr->{TARGET}' "   if ($attr->{TARGET});
-  $self->{FORM} .= "action='$SELF_URL' METHOD='$METHOD'>\n";
+  $self->{FORM} .= $attr->{class}
+                     ? " class='$attr->{class} form-main' role='form' "
+                     : " class='form form-horizontal form-main' role='form' ";
+  $self->{FORM} .= " name='$attr->{NAME}' "       if ($attr->{NAME});
+  $self->{FORM} .= " enctype='$attr->{ENCTYPE}' " if ($attr->{ENCTYPE});
+  $self->{FORM} .= " target='$attr->{TARGET}' "   if ($attr->{TARGET});
+  $self->{FORM} .= " action='$SELF_URL' METHOD='$METHOD'>\n";
 
   if (defined($attr->{HIDDEN})) {
     my $H = $attr->{HIDDEN};
@@ -786,6 +816,7 @@ sub form_select {
       @SEL_VALUE_PREFIX = split(/,/, $attr->{SEL_VALUE_PREFIX});
     }
 
+    my $add_data_to_option = $attr->{WRITE_TO_DATA};
     foreach my $v (@$H) {
       $self->{SELECT} .= "<option value='". ((ref $v eq 'HASH' && $v->{$key}) ? $v->{$key} : '') ."'";
       $self->{SELECT} .= "style='COLOR:#$v->{color};'" if (ref $v eq 'HASH' && $v->{color});
@@ -801,8 +832,8 @@ sub form_select {
         }
       }
 
-      if ($attr->{WRITE_TO_DATA}){
-        $self->{SELECT} .= ' data-' . $attr->{WRITE_TO_DATA} . '="' . ($v->{$attr->{WRITE_TO_DATA}} || q{}) . '"';
+      if ($add_data_to_option && $v->{$add_data_to_option}){
+        $self->{SELECT} .= ' data-' . $add_data_to_option . '="' . ($v->{$add_data_to_option} || q{}) . '"';
       }
 
       $self->{SELECT} .= '>';
@@ -814,14 +845,15 @@ sub form_select {
         my @values_arr = ();
         for( my $key_num = 0; $key_num<=$#values; $key_num++) {
           my $val_keys = $values[$key_num] || '';
-          push @values_arr, (($attr->{SEL_VALUE_PREFIX} && $SEL_VALUE_PREFIX[$key_num]) ? $SEL_VALUE_PREFIX[$key_num] : '') . ($v->{$val_keys} || '');
+          push @values_arr, (($attr->{SEL_VALUE_PREFIX} && $SEL_VALUE_PREFIX[$key_num]) ? $SEL_VALUE_PREFIX[$key_num] : '')
+            . ((ref $v eq 'HASH' && $v->{$val_keys}) ? $v->{$val_keys} : '');
         }
         if($#values_arr > -1) {
           $self->{SELECT} .= join(' : ', @values_arr);
         }
       }
       else {
-        $self->{SELECT} .= $v->{$value} || q{};
+        $self->{SELECT} .= ((ref $v eq 'HASH' && $v->{$value}) ? $v->{$value} : '');
       }
       $self->{SELECT} .= "</option>\n";
     }
@@ -929,7 +961,7 @@ sub form_select {
   }
 
   $self->{SELECT} .= "</select>\n";
-  
+
   if ($attr->{MAIN_MENU}) {
     $self->{SELECT} = "
       <div class='input-group'>
@@ -1499,6 +1531,7 @@ sub header {
 
     $attr
       caption     - table caption
+      caption_icon - append icon to caption (exemple 'fa fa-info')
       width       - table width
       title       - table title array ref
       title_plain - plain table title array ref (without sort fields)
@@ -1519,6 +1552,8 @@ sub header {
       pages       - Show pages
       SHOW_FULL_LIST - Show full list page
       HAS_FUNCTION_FIELDS - boolean. Special CSS rules will be apllied to align last column to right
+      MULTISELECT_ACTIONS       - form toolbar button ( see @table_actions_panel())
+      SHOW_MULTISELECT_ACTIONS - show/hide buttons for selected checkboxes (with param)
 
   Returns:
 
@@ -1584,6 +1619,7 @@ sub table {
   $self->{NO_PRINT}  = $proto->{NO_PRINT};
 
   my ($attr) = @_;
+  $self->{before_table} = '';
   $self->{rows} = '';
 
 #  my $width       = (defined($attr->{width}))  ? " width=\"$attr->{width}\""   : '';
@@ -1603,7 +1639,9 @@ sub table {
 
   $self->{ID} = $attr->{ID} || '';
   $attr->{qs} = '' if (! $attr->{qs});
-  $self->{SELECT_ALL}=$attr->{SELECT_ALL} if (! $FORM{EXPORT_CONTENT});
+  $self->{SELECT_ALL} = $attr->{SELECT_ALL} if (! $FORM{EXPORT_CONTENT});
+  $self->{MULTISELECT_ACTIONS}       = $attr->{MULTISELECT_ACTIONS};
+  $self->{SHOW_MULTISELECT_ACTIONS}  = $attr->{SHOW_MULTISELECT_ACTIONS};
 
   if (defined($attr->{rows})) {
     my $rows = $attr->{rows};
@@ -1724,18 +1762,35 @@ sub table {
   }
 
   if ($attr->{MENU}) {
+    my @menu_buttons = ();
     if (ref $attr->{MENU} eq 'ARRAY'){
-      foreach my $button ( @{ $attr->{MENU} } ){
-        $self->{EXPORT_OBJ} .= $button;
-      }
+      push @menu_buttons, @{ $attr->{MENU} };
     }
     else {
-      my @menu_arr = split( /;/, $attr->{MENU} );
-      foreach my $line ( @menu_arr ) {
-        my ($name, $ext_attr, $css_class) = split( /:/, $line );
-        $self->{EXPORT_OBJ} .= $self->button($name, $ext_attr, { class => $css_class } ) . "\n";
+      my @menu_arr = split(/;/, $attr->{MENU});
+      if ( $attr->{MULTISELECT_ACTIONS} ) {
+
+        # Change to actions_panel
+        my @actions_from_buttons = map {
+          my ($name, $ext_attr, $css_class) = split(/:/, $_);
+          {
+            TITLE  => $name,
+            ACTION => $ext_attr,
+#            CLASS  => $css_class,
+            ICON   => $button_class_icons{$css_class}
+          };
+        } @menu_arr;
+
+        $self->{before_table} .= $self->table_actions_panel(\@actions_from_buttons);
+      }
+      else {
+        foreach my $line ( @menu_arr ) {
+          my ($name, $ext_attr, $css_class) = split(/:/, $line);
+          push @menu_buttons, $self->button($name, $ext_attr, { class => $css_class }) . "\n";
+        }
       }
     }
+    $self->{EXPORT_OBJ} .= join('', @menu_buttons);
   }
 
   #Export object
@@ -1806,19 +1861,34 @@ sub table {
   $attr->{caption}='' if (! $attr->{caption});
   my $collapse = ($attr->{HIDE_TABLE}) ? 'collapsed-box' : '';
 
+
   if ($attr->{DATA_TABLE}){
-    $show_cols = '<script>
-                        $(document).ready(function() {
-                        $("#' . $self->{ID} . '_").DataTable({
-                          "language": {
-                            "url": "/styles/lte_adm/plugins/datatables/lang/' . $self->{prototype}{content_language} . '.json" 
-                          }
-                          });
-                         });
-                      </script>' . $show_cols;
+    if (ref($attr->{DATA_TABLE}) ne 'HASH') {
+    	$attr->{DATA_TABLE} = {
+        dom => qq'<"row"
+        <"col-md-6"l>
+        <"col-md-6"fp>
+        >rtip'
+      };
+    }
+    $attr->{DATA_TABLE}->{language} = { url => "/styles/lte_adm/plugins/datatables/lang/" . $self->{prototype}{content_language} . ".json" };
+    my $ATTR = ($attr)? JSON->new->indent->encode($attr->{DATA_TABLE}) : '';
+    $show_cols = qq(
+		<script>
+		  jQuery(document).ready(function() {
+		  	var table = jQuery("#$self->{ID}_").DataTable($ATTR);
+		  });
+		</script>
+	  ) . $show_cols;
+    # Data table has its own sort
+    if ($attr->{title} && !$attr->{title_plain} && !$attr->{SORT}){
+      $attr->{title_plain} = $attr->{title};
+      delete $attr->{title};
+    }
   }
 
-  $self->{table} = $show_cols . '<div class="box box-theme FK' . $collapse . '"\>';
+  my $box_theme = ($attr->{LITE_HEADER}) ? 'box-solid' : 'box-theme';
+  $self->{table} = $show_cols . '<div class="box ' . $box_theme . ' FK ' . $collapse . '"\>';
 
 
   $self->{table_status_bar} ||= $attr->{caption1} || '';
@@ -1850,11 +1920,15 @@ sub table {
   if($attr->{EXTRA_BTN}){
     $extra_btn = "<div class='btn-group'>". $attr->{EXTRA_BTN} ."</div>";
   }
-
+  my $caption_icon = '';
+  if ( $attr->{caption_icon} ) {
+    $caption_icon = "<i class='" . $attr->{caption_icon} . "' style='font-size:18px; margin-right: 5px'></i>";
+  }
   if ($self->{table_caption}) {
     $self->{table} .= "<div class='box-header with-border hidden-print text-center'>
     <div class='row'>
       <div class='col-md-$table_caption_size pull-left text-left'>
+        $caption_icon
         <h4 class='box-title table-caption'>$attr->{caption}</h4>
       </div>
       $table_filters
@@ -1882,6 +1956,7 @@ sub table {
 
   $self->{pagination} = $pagination;
 
+  # NOTICE: May be changed in DATA_TABLE if block ($attr->{title} -> $attr->{title_plain})
   if (defined($attr->{title})) {
     $SORT              = $LIST_PARAMS{SORT};
     $self->{table}    .= $self->table_title($SORT, $FORM{desc}, $PG, $attr->{title}, $attr->{qs});
@@ -1906,8 +1981,7 @@ sub table {
 =cut
 #**********************************************************
 sub addrow {
-  my $self = shift;
-  my (@row) = @_;
+  my ($self, @row) = @_;
 
   my $css_class='';
 
@@ -1962,8 +2036,7 @@ sub addrow {
 =cut
 #**********************************************************
 sub addtd {
-  my $self = shift;
-  my (@row) = @_;
+  my ($self, @row) = @_;
 
   my $css_class = '';
   if ($self->{rowcolor}) {
@@ -2000,8 +2073,7 @@ sub addtd {
 =cut
 #**********************************************************
 sub th {
-  my $self = shift;
-  my ($value, $attr) = @_;
+  my ($self, $value, $attr) = @_;
 
   $attr->{TH} = 1;
 
@@ -2019,8 +2091,7 @@ sub th {
 =cut
 #**********************************************************
 sub td {
-  my $self = shift;
-  my ($value, $attr) = @_;
+  my (undef, $value, $attr) = @_;
   my $extra = '';
 
   if ($attr) {
@@ -2053,9 +2124,22 @@ sub td {
    $header_arr   - array of elements
    $attr         - Extra attributes
      SHOW_ONLY
+     TABS        - SHow like tabs
 
   Returns:
     $header      - Header
+
+  Examples:
+
+    my @header_arr = (
+      $lang{ALL}:index=$index&ALL_MSGS=1",
+      $lang{NEXT}:index=$index&NEXT_MSGS=1"
+    );
+
+    $html->table_header(\@header_arr, {
+      TABS      => $attr->{NO_UID} || $attr->{TABS},
+      SHOW_ONLY => $attr->{SHOW_ONLY} || 5
+    })
 
 =cut
 #**********************************************************
@@ -2202,20 +2286,12 @@ sub table_title {
   my $css_class = ($attr->{class}) ? " class='table_title'" : '';
 
   if($self->{SELECT_ALL}) {
-    # my ($form_name, $element_name, $caption)
-    my (undef, $element_name, undef) = split(/:/, $self->{SELECT_ALL});
-    $element_name = 'IDS' if (! $element_name);
-     $self->{SELECT_ALL} = qq{<script>
-\$( document ).ready(function() {
-      \$('#$self->{ID}_checkAll').click(function () {
-      \$('input:checkbox[id^=\"$element_name\"]').not(this).prop('checked', this.checked);
-  })
-});
-</script>
-
-<input type='checkbox' id='$self->{ID}_checkAll'/>
-};
-
+    if ($self->{MULTISELECT_ACTIONS}){
+      $self->{before_table} .= $self->table_actions_panel($self->{MULTISELECT_ACTIONS},{
+        HIDDEN => !$self->{SHOW_MULTISELECT_ACTIONS}
+      });
+    }
+    $self->{SELECT_ALL} = $self->table_select_all_checkbox($self->{SELECT_ALL});
     $self->{table_title} .= "<th>$self->{SELECT_ALL}</th>";
   }
 
@@ -2275,19 +2351,13 @@ sub table_title_plain {
   $self->{table_title} = "<thead><TR>";
 
   if($self->{SELECT_ALL}) {
-    #($form_name, $element_name, $caption)
-    my (undef, $element_name) = split(/:/, $self->{SELECT_ALL});
-    $self->{SELECT_ALL} = qq{<script>
-\$( document ).ready(function() {
- \$('#checkAll').click(function () {
-      \$('input:checkbox[id^=\"$element_name\"]').not(this).prop('checked', this.checked);
-  })
-});
-</script>
-<input type='checkbox' id='checkAll'/>
-};
-
-    $self->{table_title} .= "<th>$self->{SELECT_ALL}</th>";
+    if ($self->{MULTISELECT_ACTIONS}){
+      $self->{before_table} .= $self->table_actions_panel($self->{MULTISELECT_ACTIONS},{
+          HIDDEN => !$self->{SHOW_MULTISELECT_ACTIONS}
+        });
+    }
+    my $checkbox_html = $self->table_select_all_checkbox($self->{SELECT_ALL});
+    $self->{table_title} .= "<th>$checkbox_html</th>";
   }
 
   my $css_class = ($attr->{class}) ? " class='table_title'" : '';
@@ -2299,6 +2369,132 @@ sub table_title_plain {
   $self->{table_title} .= "</TR></thead>\n";
 
   return $self->{table_title};
+}
+
+#**********************************************************
+=head2 table_select_all_checkbox($options_string) -
+
+  Arguments:
+     $options_string - "ignored:CHECKBOX_ID:ignored"
+
+  Returns:
+    string - html + javascript
+
+=cut
+#**********************************************************
+sub table_select_all_checkbox {
+  my ($self, $options_string ) = @_;
+
+  # my ($form_name, $element_name, $caption)
+  my (undef, $element_name, undef) = split(/:/, $options_string);
+  $element_name ||= 'IDS';
+  return qq{
+    <script>
+      jQuery(function() {
+        var checkboxes = jQuery('input:checkbox[id=\"$element_name\"]');
+        var event_name = 'ontablecheckboxeschange.$element_name';
+        if (typeof(window['Events']) !== 'undefined'){
+          checkboxes.on('click', Events.emitAsCallback(event_name));
+        }
+        jQuery('input#$self->{ID}_checkAll').click(function () {
+          checkboxes.prop('checked', this.checked)
+          if (typeof(window['Events']) !== 'undefined'){Events.emit(event_name)}
+        });
+      });
+    </script>
+    <input type='checkbox' id='$self->{ID}_checkAll'/>
+  };
+}
+
+#**********************************************************
+=head2 table_actions_panel(\@actions, $attr) -
+
+  Arguments:
+     $actions - arr_ref
+       action - hash_ref
+         PARAM    - name of param to view
+         ACTION   - URL where to send
+         PARAM    - name for checkbox to look for (will honor only first action's PARAM)
+         ICON     - show on hover
+         TITLE    - show on hover
+         COMMENTS -  ask about comments before send
+
+     $attr
+       HIDDEN - will hide actions panel by default and show when selected elements
+
+  Returns:
+    string - html + javascript
+
+  Example:
+    $table->table_actions_panel([
+      {
+        TITLE    => $lang{DEL},
+        ICON     => 'glyphicon glyphicon-trash',
+        ACTION   => "$SELF_URL?index=$index&del=1",
+        PARAM    => "IDS",
+        CLASS    => 'btn-danger',
+        COMMENTS => "$lang{DEL}?"
+      },
+      {
+        TITLE  => $lang{SEEN},
+        ICON   => 'glyphicon glyphicon-ok',
+        ACTION => "$SELF_URL?index=$index&seen=1",
+        PARAM  => "IDS"
+      }
+    ]);
+
+=cut
+#**********************************************************
+sub table_actions_panel {
+  my ($self, $actions, $attr) = @_;
+
+  $attr //= {};
+
+  my $panel_param = '';
+  my $hidden = '';
+
+  my $form_action_button = sub {
+    my ($action) = @_;
+
+    return '' if (ref $action ne 'HASH' || !$action->{ACTION});
+    my $action_param = '';
+    if ($action->{PARAM} && !$panel_param){
+      $panel_param  = $action->{PARAM};
+      $action_param = $action->{PARAM}
+        ? qq{data-param-name="$action->{PARAM}"}
+        : '';
+    }
+    my $comments_param = $action->{COMMENTS}
+      ? qq{data-comments="$action->{COMMENTS}"}
+      : '';
+
+    return $self->button($action->{TITLE}, $action->{ACTION}, {
+        ICON           => $action->{ICON},
+        NO_LINK_FORMER => 1,
+        class          => 'btn btn-sm margin-bottom table-action-button ' . ($action->{CLASS} // 'btn-default'),
+        ex_params      => qq{data-original-url="$action->{ACTION}" $action_param $comments_param}
+      });
+  };
+
+  my @actions_html = map { $form_action_button->($_) } @$actions;
+
+  if ($panel_param && $attr->{HIDDEN}){
+    $hidden = $attr->{HIDDEN};
+  }
+
+  my %action_panel_attr = (
+    OUTPUT2RETURN => 1,
+    class         => 'btn-group pull-left table-action-panel ',
+    style         => ($hidden) ? 'display:none' : '',
+  );
+
+  if ($panel_param){
+    $action_panel_attr{'data-param'} = $panel_param;
+  }
+
+  my $actions_panel = $self->element('div', join('', @actions_html), \%action_panel_attr);
+
+  return $actions_panel;
 }
 
 #**********************************************************
@@ -2325,7 +2521,10 @@ sub show {
     return '';
   }
 
-  $self->{show} = $self->{table}
+  $self->{show} = ($self->{before_table}
+                    ? "<div class='row'><div class='col-md-12 btn-toolbar'>$self->{before_table}</div></div>"
+                    : '')
+    . $self->{table}
     . $self->{rows}
     . "</TABLE>\n";
 
@@ -2452,7 +2651,7 @@ sub button {
 
   $params = ($attr->{GLOBAL_URL}) ? $attr->{GLOBAL_URL} : "$SELF_URL?".(($params) ? $params : '');
   $params = $attr->{JAVASCRIPT} if (defined( $attr->{JAVASCRIPT} ));
-  $params = $self->link_former( $params ) if (!$attr->{NO_LINK_FORMER});
+  $params = $self->link_former( $params ) if (!$attr->{NO_LINK_FORMER} || !$attr->{GLOBAL_URL} );
 
   if ($attr->{NEW_WINDOW}) {
     my $x = 640;
@@ -2476,18 +2675,17 @@ sub button {
     my $alt = ($attr->{IMG_ALT}) ? $attr->{IMG_ALT} : 'image';
     $name = "<img alt='$alt' src='$img_path$attr->{IMG}'> $name";
   }
-  
+
   if ($attr->{COPY}){
-    
+
     $attr->{COPY} =~ s/'/\\\'/g;
     $attr->{COPY} =~ s/"/\\\'/g;
     $attr->{COPY} =~ s/\n/ /g;
-    
+
     $ex_attr .= qq/ onclick="copyToBuffer('$attr->{COPY}', true)" /;;
     $attr->{SKIP_HREF} = 1;
   }
-  
-  my $message = '';
+
   if ($attr->{MESSAGE} || $attr->{CONFIRM}) {
     my $text_message = $attr->{MESSAGE} || $attr->{CONFIRM};
     my $comments_type = $attr->{CONFIRM} ? 'confirm' : '';
@@ -2520,22 +2718,8 @@ sub button {
     $css_class = $attr->{class};
     $name_text = $name if ($name && $name !~ /\'|\"/);
 
-    my %classes = (
-      add      => 'glyphicon-plus',
-      search   => 'glyphicon-search',
-      info     => 'glyphicon-info-sign',
-      del      => 'glyphicon-trash text-danger',
-      fees     => 'glyphicon-collapse-down',
-      password => 'glyphicon-lock',
-      stats    => 'glyphicon glyphicon-stats text-success',
-      print    => 'glyphicon glyphicon-print',
-      user     => 'glyphicon glyphicon-user',
-      history  => 'glyphicon glyphicon-book',
-      show     => 'glyphicon glyphicon-list-alt',
-    );
-
-    if ($classes{$css_class}) {
-      $name = "<span class='glyphicon $classes{$css_class}'></span>";
+    if ($button_class_icons{$css_class}) {
+      $name = "<span class='glyphicon $button_class_icons{$css_class}'></span>";
       $css_class = " class='hidden-print'";
     }
     elsif ($css_class eq 'payments') {
@@ -2603,7 +2787,7 @@ sub button {
     return qq{<a $css_class onclick="cancelEvent(event);$load_func('$params')" $ex_attr $id_val>$name</a>};
   }
 
-  return "<a$title$css_class $href $ex_attr$message$id_val>$name</a>";
+  return "<a$title$css_class $href $ex_attr$id_val>$name</a>";
 }
 
 #**********************************************************
@@ -2636,19 +2820,19 @@ sub message {
   my $class = '';
 
   if ($type eq 'err') {
-    $class = 'alert-danger';
+    $class = 'callout-danger';
     $icon  = "<span class='glyphicon glyphicon glyphicon-warning-sign' aria-hidden='true'></span> ";
   }
   elsif ($type eq 'info') {
-    $class = 'alert-success';
+    $class = 'callout-success';
     $icon  = "<span class='glyphicon glyphicon-ok-sign' aria-hidden='true'></span> ";
   }
   elsif($type eq 'warn') {
-    $class = 'alert-warning';
+    $class = 'callout-warning';
     $icon  = "<span class='glyphicon glyphicon-warning-sign' aria-hidden='true'></span> ";
   }
   else {
-    $class = 'alert-'. $type;
+    $class = 'callout-'. $type;
   }
 
   if (! defined($message)) {
@@ -2659,7 +2843,8 @@ sub message {
   }
 
   my $output = qq{
-  <div class='alert alert-block $class' role='alert'>};
+    <div class="callout $class text-left">
+  };
 
   if ($caption) {
     $output .= "<h4>$icon $caption</h4>";
@@ -2739,6 +2924,7 @@ sub color_mark {
     $count     - Show pages elemnts
     $argument  - Arguments
     $attr      - Extra atrtr
+     SHOW_FULL_LIST
 
   Returns:
     Formed pages
@@ -2777,7 +2963,7 @@ sub pages {
   if ($self->{SHOW_FULL_LIST}) {
     $self->{pages} .= $self->element('li',
     $self->button($self->element('span', '', { class => "fa fa-arrows-v" }),
-      "$argument&pg=1&PAGE_ROWS=100000")
+      "$argument&PAGE_ROWS=100000")
     );
   }
   return qq{
@@ -2929,6 +3115,8 @@ $text
       OUTPUT2RETURN
       SKIP_VARS
       SKIP_QUOTE
+      TPL         - Template Name after defined variable $tpl ignored
+      MODULE      - Module
       ID
 
   Examples:
@@ -2941,8 +3129,22 @@ sub tpl_show {
   my $self = shift;
   my ($tpl, $variables_ref, $attr) = @_;
 
-  if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $attr->{ID}) {
+  if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne ($attr->{ID} || q{})) {
     return '';
+  }
+
+  if($attr->{TPL}) {
+    $tpl = $self->get_tpl($attr->{TPL}, $attr->{MODULE});
+
+    if ($attr->{HELP}){
+      my $help_template = $self->get_tpl($attr->{TPL}, $attr->{MODULE}, {
+          SUFIX => 'help',
+        });
+      $tpl .= $self->element('div', $help_template, {
+          class => 'help-template hidden',
+          style => 'display : none;'
+        });
+    }
   }
 
   if (!$attr->{SOURCE} && $tpl) {
@@ -3012,6 +3214,162 @@ sub tpl_show {
 
     print $tpl;
   }
+}
+
+#**********************************************************
+=head2 get_tpl($tpl, $module)
+
+  Arguments:
+    pdf
+    CHECK_ONLY
+    DEBUG
+    SUFIX
+
+=cut
+#**********************************************************
+sub get_tpl {
+  my ($self, $tpl, $module, $attr)=@_;
+
+  my $sufix = ($attr->{pdf} || $FORM{pdf}) ? '.pdf' : '.tpl';
+  $tpl .= '_' . $attr->{SUFIX} if ($attr->{SUFIX});
+
+  my $domain_path = $self->{admin};
+  my $admin;
+
+  if($self->{admin}) {
+    $admin = $self->{admin};
+  }
+
+  $domain_path = '';
+  if ($admin->{DOMAIN_ID}) {
+    $domain_path = "$admin->{DOMAIN_ID}/";
+  }
+  elsif ($FORM{DOMAIN_ID}) {
+    $domain_path = "$FORM{DOMAIN_ID}/";
+  }
+
+  our $Bin;
+  use FindBin '$Bin';
+
+  start:
+  my @search_paths = (
+    # Custom templates with domain and language
+    $Bin . '/../Abills/templates/' . $domain_path  . $module . '_' . $tpl . "_$self->{language}" . $sufix,
+    '../Abills/templates/' . $domain_path . $module . '_' . $tpl . "_$self->{language}" . $sufix,
+    '../../Abills/templates/' . $domain_path . $module . '_' . $tpl . "_$self->{language}" . $sufix,
+
+    # Custom templates with domain
+    '../../Abills/templates/' . $domain_path . $module . '_' . $tpl . $sufix,
+    '../Abills/templates/' . $domain_path . $module . '_' . $tpl . $sufix,
+
+    # Custom templates with domain or language
+    $Bin . '/../Abills/templates/'. $domain_path . $module . '_' . $tpl . $sufix,
+    $Bin . '/../Abills/templates/' . $module . '_' . $tpl . "_$self->{language}" . $sufix
+  );
+
+  if ($FORM{NAS_GID}){
+    unshift(@search_paths,
+      $Bin . '/../Abills/templates/' . $domain_path . '/' . $FORM{NAS_GID} . '/' . $module . '_' . $tpl . "_$self->{language}" . $sufix,
+      $Bin . '/../Abills/templates/' . $domain_path . '/' . $FORM{NAS_GID} . '/' . $module . '_' . $tpl . $sufix,
+    );
+  }
+
+  foreach my $result_template (@search_paths) {
+    if($attr->{DEBUG}) {
+      print $result_template . "\n";
+    }
+
+    if (-f $result_template) {
+      if ($attr->{CHECK_ONLY}) {
+        return 1;
+      }
+      else {
+        #TODO: generalize similar code
+        if ($attr->{pdf} || $FORM{pdf}){
+          return $result_template;
+        }
+        return tpl_content($result_template)
+      }
+    }
+  }
+
+  if ($attr->{CHECK_ONLY}) {
+    return 0;
+  }
+
+  if ($module) {
+    $tpl = "modules/$module/templates/$tpl";
+  }
+
+  foreach my $prefix ('../', @INC) {
+    my $realfilename = "$prefix/Abills/$tpl$sufix";
+
+    if($attr->{DEBUG}) {
+      print $realfilename . "\n";
+    }
+
+    if (-f $realfilename) {
+      #TODO: generalize similar code
+      if ($attr->{pdf} || $FORM{pdf}){
+        return $realfilename;
+      }
+      return tpl_content($realfilename)
+    }
+  }
+
+  if ($attr->{SUFIX}) {
+    $tpl =~ /\/([a-z0-9\_\.\-]+)$/i;
+    $tpl = $1;
+    $tpl =~ s/_$attr->{SUFIX}$//;
+    delete $attr->{SUFIX};
+    goto start;
+  }
+
+  return "No such module template [$tpl]\n";
+}
+
+#**********************************************************
+=head2 tpl_content($filename, $attr)
+
+=cut
+#**********************************************************
+sub tpl_content {
+  my ($filename) = @_;
+  my $tpl_content = '';
+
+  open(my $fh, '<', $filename) || die "Can't open file '$filename' $!";
+  while (<$fh>) {
+    if (/\$/) {
+      my $res = $_;
+      if($res) {
+        $res =~ s/\_\{(\w+)\}\_/$lang->{$1}/sg;
+        $res =~ s/\{secretkey\}//g;
+        $res =~ s/\{dbpasswd\}//g;
+        $res = eval " \"$res\" " if($res !~ /\`/);
+        $tpl_content .= $res || q{};
+      }
+    }
+    else {
+      # Old
+      s/\_\{(\w+)\}\_/$lang->{$1}/sg;
+      $tpl_content .= $_;
+      #        # New check speed
+      #        my $row = $_;
+      #        if ($row =~ /\_\{(\w+)\}\_/sg) {
+      #          my $text = $1;
+      #          if($lang{$text}) {
+      #            $row =~ s/\_\{(\w+)\}\_/$lang{$text}/sg;
+      #          }
+      #          else {
+      #            $row =~ s/\_\{(\w+)\}\_/$text/sg;
+      #          }
+      #        }
+      #        $tpl_content .= $row;
+    }
+  }
+  close($fh);
+
+  return $tpl_content;
 }
 
 #**********************************************************
@@ -3442,52 +3800,37 @@ sub make_charts_simple {
    If given only one series and X_TEXT as YYYY-MM, will build columned compare chart
 
    Arguments:
+     $name - header of charts
+     $type - type of chart: Line, Area, Bar, Donut
      $attr
-       DATA    - Data array of hashes
+       element - chart id
+       data    - Data array of hashes
          [:value]
             value - Array_ref of values
-       TYPES    - Object type: Line, Area, Bar, Donut
-       XKEYS   - Keys for X
-       LABELS  - Name of data sourse
-       GRAPH_ID - <div> id
-       TITLE    - Graph Title
-       UNITS   - Name of units (Mb/s etc)
-       HEADER - header of charts
+       xkeys   - Keys for X
+       labels  - Name of data sourse
+       postUnits   - Name of units (Mb/s etc)
    Result:
-     TRUE or FALSE
+     string
 
 =cut
 #**********************************************************
 sub make_charts3 {
   my $self = shift;
-  my ($attr) = @_;
-  my $result = '';
+  my ($name, $type, $attr) = @_;
 
-  my $GRAPH_ID = "graph_".$attr->{GRAPH_ID} || 'test_graph';
-  my $DATA  = JSON->new->encode($attr->{DATA});
-  my $XKEYS = JSON->new->encode($attr->{XKEYS});
-  my $LABELS = JSON->new->encode($attr->{LABELS});
-  my $TYPE = $attr->{TYPE} || 'Line';
-  my $UNITS = $attr->{UNITS};
-  my $HEADER = $attr->{HEADER};
+  $attr->{element} = "graph_" . $attr->{element};
+  my $ATTR = JSON->new->indent->encode($attr);
 
-  $result.= qq{
-    <script type='text/javascript' src='/styles/default_adm/js/raphael.min.js'></script>
-	<script type='text/javascript' src='/styles/lte_adm/plugins/morris/morris.min.js'></script>
-  	<div class='row'><h2 class='text-center'><small>$HEADER</small></h2></div>
-	<div id=$GRAPH_ID style='width: 100%; height: 100%; margin-bottom: 10px'></div>
+  my $chart = $self->element('div', undef, { id => $attr->{element}, class => 'graph', style => 'height: 250px' });
+  my $result = $self->element('div', $self->element('h5', $name,{ class => 'text-center' }) . $chart, {class =>'span6'} );
 
-  };
   $result.= qq(
+  	<link rel='stylesheet' type='text/css' href='/styles/lte_adm/plugins/morris/morris.css'>
+    <script type='text/javascript' src='/styles/default_adm/js/raphael.min.js'></script>
+	  <script type='text/javascript' src='/styles/lte_adm/plugins/morris/morris.min.js'></script>
     <script>
-	  Morris.$TYPE({
-	    element: $GRAPH_ID,
-	    data: $DATA,
-	    xkey: 'y',
-	    ykeys: $XKEYS,
-	    labels: $LABELS,
-		postUnits: '$UNITS'
-	  });
+	    Morris.$type($ATTR);
 	  </script> );
 
   return $result;
@@ -3514,7 +3857,8 @@ sub br {
 
     $item     - Text
     $attr     - $attr
-      class  - element class
+      class   - element class
+      id      - element id
 
   Examples:
 
@@ -3527,8 +3871,9 @@ sub li {
   my ($item, $attr) = @_;
 
   my $class=($attr->{class}) ? ' class=\''. $attr->{class} . '\'' : '';
+  my $id_val=($attr->{id}) ? ' id=\'' . $attr->{id} . '\'' : '';
 
-  return '<li'. $class .'>'. $item .'</li>';
+  return '<li' . $class . $id_val . '>'. $item .'</li>';
 }
 
 #**********************************************************
@@ -4148,10 +4493,10 @@ sub form_datepicker {
   my $self = shift;
   my ( $name, $value, $attr ) = @_;
 
-  my $input = $self->form_input($name, $value, { class => 'form-control datepicker', %{ $attr ? $attr : {} } });
-  my $addon = $self->element('div', '<i class="fa fa-calendar"></i>', { class => 'input-group-addon' });
+  my $input = $self->form_input($name, $value, { class => 'form-control datepicker', %{ $attr // {} } });
+  my $addon = $self->element('div', '<i class="fa fa-calendar"></i>', { class => 'input-group-addon', %{ $attr // {} } });
 
-  return $self->element('div', $input . $addon, { class => 'input-group' });
+  return $self->element('div', $input . $addon, { class => 'input-group', %{ $attr // {} } });
 }
 
 #**********************************************************
@@ -4189,15 +4534,15 @@ sub form_daterangepicker {
     $date = "$year-$month-01/$year-$month-$last_day";
     $value = $date;
   }
-  
+
   if ( scalar @names == 2 ) {
     my @values = split('/', $value, 2);
 
     $hidden_inputs =
         $self->form_input( $names[0], $FORM{$names[0]} || $values[0] || $date,
-          { TYPE => 'hidden', FORM_NAME => $attr->{FORM_NAME} } )
+          { TYPE => 'hidden', FORM_NAME => $attr->{FORM_NAME}, OUTPUT2RETURN => 1 } )
       . $self->form_input( $names[1], $FORM{$names[1]} || $values[1] || $date,
-          { TYPE => 'hidden', FORM_NAME => $attr->{FORM_NAME} } );
+          { TYPE => 'hidden', FORM_NAME => $attr->{FORM_NAME}, OUTPUT2RETURN => 1 } );
 
     $name = $names[0] . '_' . $names[1];
     $value = $value || "$date/$date";
@@ -4211,12 +4556,13 @@ sub form_daterangepicker {
       EX_PARAMS => (($has_hidden)
                       ? " data-name1='$names[0]' data-name2='$names[1]' data-has-hidden='1' "
                       : ''
-                    ) . ($attr->{EX_PARAMS} ? ' ' . $attr->{EX_PARAMS} . ' ' : '')
+                    ) . ($attr->{EX_PARAMS} ? ' ' . $attr->{EX_PARAMS} . ' ' : ''),
+      OUTPUT2RETURN => 1
     } );
 
-  my $addon = $self->element( 'div', '<i class="fa fa-calendar"></i>', { class => 'input-group-addon' } );
+  my $addon = $self->element( 'div', '<i class="fa fa-calendar"></i>', { class => 'input-group-addon', OUTPUT2RETURN => 1 } );
 
-  return $self->element( 'div', $hidden_inputs. $input . $addon, { class => 'input-group' } );
+  return $self->element( 'div', $hidden_inputs. $input . $addon, { class => 'input-group', OUTPUT2RETURN => 1 } );
 }
 
 #**********************************************************
@@ -4258,8 +4604,7 @@ sub form_timepicker {
 #**********************************************************
 
 sub form_datetimepicker2 {
-  my $self = shift;
-  my ( $name, $attr ) = @_;
+  my ( $self, $name, $attr ) = @_;
   my $result;
 
   $attr->{EX_PARAMS}->{locale} = $self->{content_language};
@@ -4277,7 +4622,8 @@ sub form_datetimepicker2 {
                       </span>
                   </div>
   				);
-  } else {
+  }
+  else {
   	$result = $self->form_input( $name, $name );
   }
   $result.= qq(
@@ -4310,16 +4656,77 @@ sub form_datetimepicker2 {
 =cut
 #**********************************************************
 sub form_datetimepicker {
-  my $self = shift;
-  my ( $name, $value, $attr ) = @_;
+  my ( $self, $name, $value, $attr ) = @_;
 
-  my $hidden_input = $self->form_input($name, $value, { TYPE => 'hidden', EX_PARAMS => 'class="datetimepicker-hidden"' });
+  #  my $hidden_input = $self->form_input($name, $value, { TYPE => 'hidden', EX_PARAMS => 'class="datetimepicker-hidden"' });
+  #
+  #  my ($date, $time) = split(' ', $value, 2) if ($value);
+  #  my $date_input = $self->element('div', $self->form_datepicker($name . '_DATE', $date ), {class => 'col-md-6', %{ $attr // {} } });
+  #  my $time_input = $self->element('div', $self->form_timepicker($name . '_TIME', $time ), {class => 'col-md-6', %{ $attr // {} } });
+  #
+  #  return $self->element('div', $hidden_input . $date_input . $time_input, { class => 'datetimepicker' });
 
-  my ($date, $time) = split(' ', $value, 2) if ($value);
-  my $date_input = $self->element('div', $self->form_datepicker($name . '_DATE', $date ), {class => 'col-md-6', %{ $attr // {} } });
-  my $time_input = $self->element('div', $self->form_timepicker($name . '_TIME', $time ), {class => 'col-md-6', %{ $attr // {} } });
+  my $result = '';
 
-  return $self->element('div', $hidden_input . $date_input . $time_input, { class => 'datetimepicker' });
+  my %datetimepicker_options = (
+    sideBySide       => \1,
+    showClose        => \1,
+    keepInvalid      => \1,
+    allowInputToggle => \1
+  );
+
+  $datetimepicker_options{locale} = $self->{content_language} || 'en';
+  $datetimepicker_options{format} = 'YYYY-MM-DD HH:mm' if !$attr->{FORMAT};
+
+  if ($attr->{PAST_ONLY}){
+    $datetimepicker_options{maxDate} = localtime(time);
+  }
+
+  my $input = $self->form_input( $name, $value, { class=> 'form-control', %{ $attr // {} } });
+
+  if ($attr->{ICON}){
+    $input = qq(
+                  <div class='input-group' id='$name'>
+                      $input
+                      <span class='input-group-addon'>
+                          <span class='glyphicon glyphicon-calendar'></span>
+                      </span>
+                  </div>
+  				);
+  }
+
+  my $event_scripts = '';
+  if ($attr->{TIME_HIDDEN_ID}){
+    $event_scripts .= qq{
+      jQuery('#$name').on('dp.change', function(e){
+        if (e.date){
+          jQuery('#$attr->{TIME_HIDDEN_ID}').val(e.date.format('h:m'));
+        }
+      });
+    };
+  };
+  if ($attr->{DATE_HIDDEN_ID}){
+    $event_scripts .= qq{
+      jQuery('#$name').on('dp.change', function(e){
+        if (e.date){
+          jQuery('#$attr->{DATE_HIDDEN_ID}').val(e.date.format('Y-M-D'));
+        }
+      });
+    };
+  };
+
+  my $options_json = JSON->new->encode(\%datetimepicker_options);
+  $result.= qq(
+          $input
+          <script type="text/javascript">
+              \$(function () {
+                  \$('#$name').datetimepicker($options_json);
+                  $event_scripts
+              });
+          </script>
+  );
+
+  return $result;
 }
 
 
@@ -4509,32 +4916,32 @@ sub form_blocks_togglable {
     $result - chart with data
   Examples:
     BAR:
-    my $chart = $html->chart({ 
+    my $chart = $html->chart({
         TYPE        => 'bar',
         X_LABELS    => ['June', 'July', 'Augst', "September", 'October', 'November'],
-        DATA        => { 
-          'WATER' => [10, 12, 8,14,20,3], 
-          'GAS'   => [12,15,4,11,12,21], 
+        DATA        => {
+          'WATER' => [10, 12, 8,14,20,3],
+          'GAS'   => [12,15,4,11,12,21],
           'LIGHT' => [10,15,55,22,11,4]
         },
-        BACKGROUND_COLORS => { 
-          'WATER' => 'rgba(2, 99, 2, 0.5)', 
-          'GAS'   => 'rgba(255, 99, 255, 0.5)', 
+        BACKGROUND_COLORS => {
+          'WATER' => 'rgba(2, 99, 2, 0.5)',
+          'GAS'   => 'rgba(255, 99, 255, 0.5)',
           'LIGHT' => 'rgba(5, 99, 132, 0.5)'
         },
         OUTPUT2RETURN => 1,
     });
 
     LINE:
-    my $chart3 = $html->chart({ 
+    my $chart3 = $html->chart({
         TYPE        => 'line',
         X_LABELS    => ['June', 'July', 'Augst', "September", 'October', 'November'],
-        DATA        => { 
-          'WATER' => [10, 12, 8,14,20,3], 
-          'GAS'   => [12,15,4,11,12,21], 
+        DATA        => {
+          'WATER' => [10, 12, 8,14,20,3],
+          'GAS'   => [12,15,4,11,12,21],
           'LIGHT' => [10,15,55,22,11,4]
         },
-        BACKGROUND_COLORS => { 
+        BACKGROUND_COLORS => {
           'WATER' => '#12f123',
           GAS => '#999999',
           'LIGHT' => '#ff11ff'
@@ -4544,14 +4951,14 @@ sub form_blocks_togglable {
     });
 
     PIE:
-    my $chart2 = $html->chart({ 
+    my $chart2 = $html->chart({
         TYPE        => 'pie',
         X_LABELS    => ['June', 'July', 'Augst', "September", 'October'],
-        DATA        => { 
+        DATA        => {
           'MONEY' => [10, 12, 8,14,20,3],
         },
-        BACKGROUND_COLORS => { 
-          'MONEY' => ['purple', '#ab2312', '#ff6384', 'white', '#11a113'], 
+        BACKGROUND_COLORS => {
+          'MONEY' => ['purple', '#ab2312', '#ff6384', 'white', '#11a113'],
         },
         OUTPUT2RETURN => 1,
     });
@@ -4560,20 +4967,20 @@ sub form_blocks_togglable {
 sub chart {
   my $self = shift;
   my ($attr) = @_;
-  
+
   # result for return
   my $result    = "";
-  
+
   # prefix for canvas id
   my $canvas_id = "canvas";
-  
+
   my $chart_type   = $attr->{TYPE}     || 'bar'; # chart type
   my $chart_data   = $attr->{DATA}     || [];    # data for chart
   my $chart_labels = $attr->{X_LABELS} || [];    # label for X line
   my $background_colors = $attr->{BACKGROUND_COLORS} || []; # color for items
   my $fill_for_line     = $attr->{FILL} || ''; # for type line - off sfilling under the line
   my $chart_title       = $attr->{TITLE}|| ''; # title for chart on top of it
-  
+
   # loading chart plugin and autincrement id for more then one chart
   if(!$self->{CHART_LOADED}){
     $result .= q{<script src="/styles/lte_adm/plugins/chartjs/Chart.min.js"></script>};
@@ -4581,44 +4988,45 @@ sub chart {
     $canvas_id .= $self->{CHART_LOADED}
   }
   else{
+    $result .= q{<script src="/styles/lte_adm/plugins/chartjs/Chart.min.js"></script>};
     $self->{CHART_LOADED}++;
     $canvas_id .= $self->{CHART_LOADED};
   }
   # hash which will be encode to json
   my %data = ();
-  
+
   $data{labels} = $chart_labels;
   my $i = 0;
-  
+
   # crreate datasets
   foreach my $dataset (keys %$chart_data){
     $data{datasets}[$i]{label}           = $dataset;
     $data{datasets}[$i]{data}            = $chart_data->{$dataset};
     $data{datasets}[$i]{borderColor}     = $background_colors->{$dataset};
     $data{datasets}[$i]{backgroundColor} = $background_colors->{$dataset};
-    
+
     if($attr->{FILL}){
       $data{datasets}[$i]{fill} = $fill_for_line;
     }
-    
+
     $i++;
   }
-  
+
   my $json_data = JSON->new->encode(\%data);
-  
+
   my $hide_legend_option = ($attr->{HIDE_LEGEND}) ? 'legend : { display : false },' : '';
 
   my $scales = $attr->{Y_BEGIN_ZERO} ? 'scales: { yAxes: [{ ticks: {beginAtZero: true,} }] },' : '';
-  
+
   # create canvas
   $result .= qq{
     <canvas id="$canvas_id" class="chartjs" style="display: block; min-height: 250px"></canvas>
     <script>
-  
+
        var c = document.getElementById("$canvas_id");
-  
+
        var ctx = c.getContext("2d");
-  
+
        var myChart = new Chart(ctx, {
          type: '$chart_type',
          data: $json_data,
@@ -4636,13 +5044,62 @@ sub chart {
       });
     </script>
   };
-  
+
   unless ($attr->{OUTPUT2RETURN}) {
     print $result;
   }
-  
+
   return $result;
 }
+
+##**********************************************************
+#=head2 form_file_dropzone($attr) - drag'n'drop file upload element
+#
+#  Arguments:
+#    $attr -
+#    NAME
+#  Returns:
+#
+#
+#=cut
+##**********************************************************
+#sub form_file_dropzone {
+#  my ($self, $attr) = @_;
+#
+#  load_pmodule("JSON");
+#  #  require JSON;
+#  #  JSON->import();
+#
+#  my $id = $attr->{ID} || mk_unique_value(5);
+#
+#  my %default_options = (
+#    paramName        => $attr->{NAME} || 'FILE_UPLOAD' ,
+#    maxFiles         => $attr->{MAX_FILES} || 1,
+#    autoProcessQueue => $attr->{HANDLE_URL} ? \1 : \0,
+#  );
+#
+#  my %options = %default_options;
+#
+#  if ($attr->{HANDLE_URL}) {
+#    $options{autoProcessQueue} = \1;
+#    $options{url} = $attr->{HANDLE_URL};
+#  }
+#
+#  my $options_encoded = JSON->new->encode(\%options);
+#
+#  my $content = qq'
+#  <script src="/styles/default_adm/js/dropzone.min.js"></script>
+#  <div id="$id"></div>
+#  <script>
+#    jQuery(function(){
+#      var dropzone = new Dropzone("div#$id", $options_encoded);
+#    });
+#  </script>
+#  ';
+#
+#
+#  return $content;
+#}
 
 
 #**********************************************************

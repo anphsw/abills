@@ -104,8 +104,8 @@ ChecklistItem.prototype = {
       STATE  : this.state ? '1' : '0',
       NAME   : this.name
     }, function (data) {
-      if (data && data.MESSAGE && data.MESSAGE.ID) {
-        self.id = data.MESSAGE.ID;
+      if (data && data.MESSAGE && data.MESSAGE.INSERT_ID) {
+        self.id = data.MESSAGE.INSERT_ID;
       }
     });
   },

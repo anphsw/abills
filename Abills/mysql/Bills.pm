@@ -8,7 +8,7 @@ package Bills;
 
 use strict;
 our $VERSION = 2.00;
-use parent 'main';
+use parent qw(dbcore);
 my ($admin, $CONF);
 
 #**********************************************************
@@ -85,7 +85,7 @@ sub action {
     return $self;
   }
 
-  $self->query2("UPDATE bills SET deposit=deposit$value ? WHERE id= ? ;", 'do', { Bind => [ $SUM, $BILL_ID ] });
+  $self->query("UPDATE bills SET deposit=deposit$value ? WHERE id= ? ;", 'do', { Bind => [ $SUM, $BILL_ID ] });
 
   return $self;
 }
@@ -106,7 +106,7 @@ sub change {
     DEPOSIT    => 'deposit'
   );
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'BILL_ID',
       TABLE        => 'bills',
@@ -141,7 +141,7 @@ sub list {
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
-  $self->query2("SELECT b.id,
+  $self->query("SELECT b.id,
      b.deposit,
      u.id AS login,
      c.name AS company_name,
@@ -169,7 +169,7 @@ sub del {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("DELETE FROM bills WHERE id= ? ;", 'do', { Bind => [ $attr->{BILL_ID} ] });
+  $self->query("DELETE FROM bills WHERE id= ? ;", 'do', { Bind => [ $attr->{BILL_ID} ] });
 
   return $self;
 }
@@ -190,7 +190,7 @@ sub info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("SELECT b.id AS bill_id, 
+  $self->query("SELECT b.id AS bill_id, 
      b.deposit AS deposit, 
      u.id AS login, 
      b.uid, 

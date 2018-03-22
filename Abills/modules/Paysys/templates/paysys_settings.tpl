@@ -33,7 +33,7 @@ input:checked + .paysys-chooser-box > .box-footer{
     </form>
 
   </div>
-  <div class='box-footer text-center'>
+  <div class='box-footer'>
       <input type='submit' form='form_PAYSYS_SETTINGS' class='btn btn-primary' name='action' value='_{SELECT}_'>
   </div>
 </div>

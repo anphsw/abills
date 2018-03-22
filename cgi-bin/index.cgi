@@ -29,7 +29,7 @@ BEGIN {
 }
 
 use Abills::Defs;
-use Abills::Base qw(gen_time in_array mk_unique_value load_pmodule2);
+use Abills::Base qw(gen_time in_array mk_unique_value load_pmodule sendmail cmd);
 use Users;
 use Finance;
 use Admins;
@@ -84,6 +84,7 @@ $conf{TPL_DIR}     //= $base_dir . '/Abills/templates/';
 
 require Abills::Misc;
 require Abills::Templates;
+require Abills::Result_former;
 $html->{METATAGS} = templates('metatags_client');
 
 my $uid    = 0;
@@ -99,7 +100,7 @@ delete($conf{PASSWORDLESS_ACCESS}) if ($FORM{xml});
 our Users $user = Users->new($db, $admin, \%conf);
 
 if ($FORM{SHOW_MESSAGE}) {
-  ($uid, $sid, $login) = auth("$login", "$passwd", "$sid", { PASSWORDLESS_ACCESS => 1 });
+  ($uid, $sid, $login) = auth($login, $passwd, $sid, { PASSWORDLESS_ACCESS => 1 });
 
   $admin->{sid} = $sid;
 
@@ -124,7 +125,8 @@ my @service_status = ($lang{ENABLE}, $lang{DISABLE}, $lang{NOT_ACTIVE}, $lang{HO
   "$lang{DISABLE}: $lang{NON_PAYMENT}", $lang{ERR_SMALL_DEPOSIT},
   $lang{VIRUS_ALERT} );
 
-($uid, $sid, $login) = auth("$login", "$passwd", "$sid");
+require Control::Auth;
+($uid, $sid, $login) = auth_user($login, $passwd, $sid);
 
 #Cookie section ============================================
 $html->set_cookies('OP_SID', $FORM{OP_SID}, '', $html->{web_path}, { SKIP_SAVE => 1 }) if ($FORM{OP_SID});
@@ -207,8 +209,10 @@ if ($uid > 0) {
   }
 
   if (!$FORM{pdf} && -f '../Abills/templates/_form_client_custom_menu.tpl') {
-    $OUTPUT{MENU} = $html->tpl_show(templates('form_client_custom_menu'), $user, { OUTPUT2RETURN => 1,
-                                                                                   ID            => 'form_client_custom_menu'  });
+    $OUTPUT{MENU} = $html->tpl_show(templates('form_client_custom_menu'), $user, {
+      OUTPUT2RETURN => 1,
+      ID            => 'form_client_custom_menu'
+    });
   }
   else {
     $OUTPUT{MENU} = $html->menu2(
@@ -314,13 +318,13 @@ if ($uid > 0) {
 
   $OUTPUT{BODY} = $html->{OUTPUT};
   $html->{OUTPUT} = '';
-  if ($conf{AMON_UPDATE} && $ENV{HTTP_USER_AGENT} =~ /AMon \[(\S+)\]/) {
-    my $user_version = $1;
-    my ($u_url, $u_version, $u_checksum) = split(/\|/, $conf{AMON_UPDATE}, 3);
-    if ($u_version > $user_version) {
-      $OUTPUT{BODY} = "<AMON_UPDATE url=\"$u_url\" version=\"$u_version\" checksum=\"$u_checksum\" />\n" . $OUTPUT{BODY};
-    }
-  }
+#  if ($conf{AMON_UPDATE} && $ENV{HTTP_USER_AGENT} =~ /AMon \[(\S+)\]/) {
+#    my $user_version = $1;
+#    my ($u_url, $u_version, $u_checksum) = split(/\|/, $conf{AMON_UPDATE}, 3);
+#    if ($u_version > $user_version) {
+#      $OUTPUT{BODY} = "<AMON_UPDATE url=\"$u_url\" version=\"$u_version\" checksum=\"$u_checksum\" />\n" . $OUTPUT{BODY};
+#    }
+#  }
 
   $OUTPUT{STATE} = (! $user->{DISABLE} && $user->{SERVICE_STATUS}) ? $service_status[$user->{SERVICE_STATUS}] : $OUTPUT{STATE};
 
@@ -339,7 +343,7 @@ if ($uid > 0) {
     });
 }
 else {
-  form_login();
+  form_login_clients();
 }
 
 print $html->header();
@@ -361,7 +365,7 @@ if (!$OUTPUT{BACKGROUND_HOLIDAY_IMG}) {
   }
 }
 
-if (exists $conf{client_theme} && defined  $conf{client_theme}){
+if (exists $conf{client_theme} && defined $conf{client_theme}){
   $OUTPUT{SKIN} = $conf{client_theme};
 }
 else {
@@ -404,7 +408,16 @@ sub logout {
 =cut
 #**********************************************************
 sub form_info {
+
   $admin->{SESSION_IP} = $ENV{REMOTE_ADDR};
+  require Control::Users_mng;
+
+  # TODO change to $module_user_info. if $conf{DEFAULT_USER_INFO}
+  if (in_array('Vacations', \@MODULES)) {
+    load_module('Vacations');
+    vacations_user_info();
+    return 1;
+  }
 
   if (defined($FORM{PRINT_CONTRACT})) {
     if($FORM{PRINT_CONTRACT}) {
@@ -417,6 +430,42 @@ sub form_info {
       $html->message('info', $lang{INFO}, $lang{NOT_EXIST});
     }
     return 1;
+  }
+  elsif ($FORM{print_add_contract}){
+    $user->pi();
+    my $list = $user->contracts_list({ UID => $user->{UID}, ID => $FORM{print_add_contract}, COLS_UPPER => 1 });
+    return 1 if ($user->{TOTAL} != 1);
+    my $sig_img = "$conf{TPL_DIR}/sig.png";
+    if ($list->[0]->{SIGNATURE}) {
+      open( my $fh, '>', $sig_img);
+      binmode $fh;
+      my ($data) = $list->[0]->{SIGNATURE} =~ m/data:image\/png;base64,(.*)/;
+      print $fh decode_base64($data);
+      close $fh;
+    }
+
+    $html->tpl_show("$conf{TPL_DIR}/$list->[0]->{template}", { %$user, %{$list->[0]}, FIO_S => $user->{FIO} }, { TITLE => "Contract" });
+    unlink $sig_img;
+    return 1;
+  }
+  elsif ($FORM{signature}) {
+    $user->contracts_change($FORM{sign}, { SIGNATURE => $FORM{signature} });
+    $html->message('info', $lang{SIGNED});
+  }
+  elsif ($FORM{sign}) {
+    $html->tpl_show(templates('signature'), {});
+    return 1;
+  }
+  elsif (defined $FORM{PHOTO} && $FORM{UID} && $user->{UID} eq $FORM{UID}){
+    print "Content-Type: image/jpeg\n\n";
+    print file_op({
+      FILENAME => "$FORM{UID}.jpg",
+      PATH     => "$conf{TPL_DIR}/if_image"
+    });
+    return 1;
+  }
+  elsif (defined $FORM{ATTACHMENT} && $FORM{UID} && $user->{UID} eq $FORM{UID}){
+    return form_show_attach({ UID => $user->{UID} })
   }
 
   #Activate dashboard
@@ -570,7 +619,21 @@ sub form_info {
   }
 
   $user->pi();
-
+  
+  if ($FORM{REMOVE_SUBSCRIBE} && in_array($FORM{REMOVE_SUBSCRIBE}, [qw/Push Telegram/])){
+    require Contacts;
+    Contacts->import();
+    
+    my $Contacts = Contacts->new($db, $admin, \%conf);
+    $Contacts->contacts_del({
+      UID     => $user->{UID},
+      TYPE_ID => $Contacts->contact_type_id_for_name( uc($FORM{REMOVE_SUBSCRIBE}) )
+    });
+    
+    $html->redirect('/index.cgi');
+    return 1;
+  }
+  
   if ($conf{user_chg_pi}) {
     $user->{ADDRESS_SEL} = $html->tpl_show(
       templates('form_client_address_search'),
@@ -594,9 +657,7 @@ sub form_info {
       $user->{ACTION}     = 'change';
       $user->{LNG_ACTION} = $lang{CHANGE};
 
-
       if (exists $conf{user_chg_info_fields} && $conf{user_chg_info_fields}) {
-        require Control::Users_mng;
         $user->{INFO_FIELDS} = form_info_field_tpl( {
           VALUES                => $user_pi,
           CALLED_FROM_CLIENT_UI => 1,
@@ -618,27 +679,121 @@ sub form_info {
       return 1;
     }
     elsif ($FORM{change}) {
+
       if ($FORM{REMOVE_SUBSCRIBE}){
         require Contacts;
         Contacts->import();
         
         my $Contacts = Contacts->new($db, $admin, \%conf);
         $Contacts->contacts_del({
-          UID => $user->{UID},
-          TYPE_ID => $Contacts::TYPES{uc($FORM{REMOVE_SUBSCRIBE})}
+          UID     => $user->{UID},
+          TYPE_ID => $Contacts->contact_type_id_for_name( uc($FORM{REMOVE_SUBSCRIBE}) )
         });
         
         $html->redirect('/index.cgi');
         return 1;
       }
+
+      my $title = '';
+      if ($conf{user_chg_pi_verification}) {
+
+        #PHONE VERIFY
+        if ($FORM{PHONE} && $FORM{PHONE} ne $user->{PHONE} && in_array('Sms', \@MODULES)) {
+          if ($FORM{CONFIRMATION_PHONE} && $FORM{CONFIRMATION_PHONE} eq string_encoding($FORM{PHONE}, $user->{UID})) {
+            $user->pi_change({ PHONE => $FORM{PHONE}, UID => $user->{UID} });
+            if (_error_show($user)) {
+              return 1;
+            }
+            $html->message('info', $lang{CHANGED}, "$lang{YOUR_PHONE_NUMBER}: $FORM{PHONE}");
+            $user->pi();
+          }
+          else {
+            if ($FORM{enter_more} && $FORM{enter_more} eq 'CONFIRMATION_PHONE') {
+              $title = $lang{DO_AGAIN};
+            }
+            else {
+              load_module('Sms', $html);
+              #my $sms = Sms->new($db, $admin, \%conf);
+              sms_send(
+                {
+                  NUMBER     => $FORM{PHONE},
+                  MESSAGE    => '$lang{YOUR_VERIFICATION_CODE}: ',
+                  UID        => string_encoding($FORM{PHONE}, $user->{UID}),
+                  RIZE_ERROR => $user->{UID},
+                }
+              );
+              $title = $lang{PHONE_VERIFICATION};
+              # $html->message('info', 'PHONE', string_encoding($FORM{PHONE}, $user->{UID}));
+            }
+            $user->{FORM_CONFIRMATION_CLIENT_PHONE} = $html->tpl_show(
+              templates('form_confirmation_client_info'),
+              {
+                INPUT_NAME => 'CONFIRMATION_PHONE',
+                PHONE      => $FORM{PHONE},
+                EMAIL      => $FORM{EMAIL},
+                TITLE      => $title
+              },
+              { OUTPUT2RETURN => 1 }
+            );
+
+            $user->{CONFIRMATION_CLIENT_PHONE_OPEN_INFO} = 1;
+            delete $FORM{PHONE};
+          }
+        }
+        else {
+          $user->{CONFIRMATION_CLIENT_PHONE_OPEN_INFO} = 0;
+        }
+
+        #MAIL VERIFY
+        if ($FORM{EMAIL} && $FORM{EMAIL} ne $user->{EMAIL}) {
+          if ($FORM{CONFIRMATION_EMAIL} && $FORM{CONFIRMATION_EMAIL} eq string_encoding($FORM{EMAIL}, $user->{UID})) {
+            $user->pi_change({ EMAIL => $FORM{EMAIL}, UID => $user->{UID} });
+            if (_error_show($user)) {
+              return 1;
+            }
+            $html->message('info', $lang{CHANGED}, "$lang{YOUR_MAIL}: $FORM{EMAIL}");
+            $user->pi();
+          }
+          else {
+            if ($FORM{enter_more} && $FORM{enter_more} eq 'CONFIRMATION_EMAIL') {
+              $title = $lang{DO_AGAIN};
+            }
+            else {
+              sendmail("$conf{ADMIN_MAIL}", "$FORM{EMAIL}", "$conf{WEB_TITLE}", "$lang{YOUR_VERIFICATION_CODE}: " . string_encoding($FORM{EMAIL}, $user->{UID}) . "", "$conf{MAIL_CHARSET}", '', {});
+              $title = $lang{EMAIL_VERIFICATION};
+              # $html->message('info', 'EMAIL', string_encoding($FORM{EMAIL}, $user->{UID}));
+            }
+            $user->{FORM_CONFIRMATION_CLIENT_EMAIL} = $html->tpl_show(
+              templates('form_confirmation_client_info'),
+              {
+                INPUT_NAME => 'CONFIRMATION_EMAIL',
+                EMAIL      => $FORM{EMAIL},
+                PHONE      => $FORM{PHONE},
+                TITLE      => $title
+              },
+              { OUTPUT2RETURN => 1 }
+            );
+            $user->{CONFIRMATION_EMAIL_OPEN_INFO} = 1;
+            delete $FORM{EMAIL};
+          }
+        }
+        else {
+          $user->{CONFIRMATION_EMAIL_OPEN_INFO} = 0;
+        }
+      }
       
+
       $user->pi_change({ %FORM, UID => $user->{UID} });
-      if(_error_show($user)){
+      if (_error_show($user)) {
         return 1;
       }
-
       $html->message('info', $lang{CHANGED}, "$lang{CHANGED}");
       $user->pi();
+      
+      
+    }
+    elsif($conf{CHECK_CHANGE_PI}){
+      $user->{TEMPLATE_BODY} = change_pi_popup();
     }
     elsif (!$user->{FIO}
       || !$user->{PHONE}
@@ -650,44 +805,23 @@ sub form_info {
       $user->{ADDRESS_SEL} =~ s/\r\n||\n//g;
       $user->{MESSAGE_CHG} = $html->message('info', '', "$lang{INFO_CHANGE_MSG}", { OUTPUT2RETURN => 1 });
 
-      if (!$conf{CHECK_CHANGE_PI}) {
-        $user->{PINFO}       = 1;
-        $user->{ACTION}      = 'change';
-        $user->{LNG_ACTION}  = $lang{CHANGE};
+      $user->{PINFO}       = 1;
+      $user->{ACTION}      = 'change';
+      $user->{LNG_ACTION}  = $lang{CHANGE};
 
-        #mark or disable input
-        $user->{FIO}   eq '' ? ($user->{FIO_HAS_ERROR}   = 'has-error') : ($user->{FIO_DISABLE}   = 'disabled');
-        $user->{PHONE} eq '' ? ($user->{PHONE_HAS_ERROR} = 'has-error') : ($user->{PHONE_DISABLE} = 'disabled');
-        $user->{EMAIL} eq '' ? ($user->{EMAIL_HAS_ERROR} = 'has-error') : ($user->{EMAIL_DISABLE} = 'disabled');
-      }
-      else {
-
-        my @check_fields = split(/,[\r\n\s]?/, $conf{CHECK_CHANGE_PI});
-        my @all_fields = ('FIO', 'PHONE', 'ADDRESS', 'EMAIL');
-
-        $user->{PINFO}       = 0;
-        $user->{ACTION}      = 'change';
-        $user->{LNG_ACTION}  = $lang{CHANGE};
-
-        foreach my $field (@all_fields) {
-          if($field eq 'ADDRESS' && (!(in_array('ADDRESS', \@check_fields)) || $user->{ADDRESS_STREET} && $user->{ADDRESS_BUILD})){
-            $user->{ADDRESS_SEL} = '';
-            next;
-          }
-
-          ($user->{$field} eq '') && in_array($field, \@check_fields)
-            ? ($user->{ $field . "_HAS_ERROR" } = 'has-error' && $user->{PINFO} = 1)
-            : ($user->{ $field . "_DISABLE" } = 'disabled' && $user->{ $field . "_HIDDEN" } = 'hidden');
-        }
-      }
+      #mark or disable input
+      $user->{FIO}   eq '' ? ($user->{FIO_HAS_ERROR}   = 'has-error') : ($user->{FIO_DISABLE}   = 'disabled');
+      $user->{PHONE} eq '' ? ($user->{PHONE_HAS_ERROR} = 'has-error') : ($user->{PHONE_DISABLE} = 'disabled');
+      $user->{EMAIL} eq '' ? ($user->{EMAIL_HAS_ERROR} = 'has-error') : ($user->{EMAIL_DISABLE} = 'disabled');
 
       # Instead of hiding, just not printing address form
       if ($user->{ADDRESS_HIDDEN}){
         delete $user->{ADDRESS_SEL};
       }
-
+      # my $modal = $html->tpl_show(templates('form_confirmation_client_info'),{PHONE => $FORM{PHONE}});
+      # my $btn_to_modal = $html->button('$user->{LNG_ACTION}', "", { class => 'btn btn-default', LOAD_TO_MODAL => $modal});
       # template to modal
-      $user->{TEMPLATE_BODY} = $html->tpl_show(templates('form_chg_client_info'), $user, { OUTPUT2RETURN => 1, SKIP_DEBUG_MARKERS => 1 });
+      $user->{TEMPLATE_BODY} = $html->tpl_show(templates('form_chg_client_info'), $user, { OUTPUT2RETURN => 1, SKIP_DEBUG_MARKERS => 1});
     }
   }
 
@@ -741,25 +875,82 @@ sub form_info {
       $user->{PAYSYS_PAYMENTS} = $html->button("$lang{BALANCE_RECHARCHE}", "index=$fn_index$pages_qs", { BUTTON => 2 });
     }
   }
-
-  #Show users info field
-  my $i = -1;
-  foreach my $field_id (@{ $user->{INFO_FIELDS_ARR} }) {
-    #$position, $type
-    my (undef, undef, $name, $user_portal) = split(/:/, $user->{INFO_FIELDS_HASH}->{$field_id});
-    $i++;
-    next if ($user_portal == 0);
-
-    my $extra = '';
-    if ($field_id eq '_rating') {
-      $extra = $html->button($lang{RATING}, "index=" . get_function_index('dv_rating_user'), { BUTTON => 1 });
-    }
-
-    $user->{INFO_FIELDS} .= $html->element('tr', $html->element('td', _translate($name), { OUTPUT2RETURN => 1 }) . $html->element('td', "$user->{INFO_FIELDS_VAL}->[$i] $extra", { OUTPUT2RETURN => 1 }), { OUTPUT2RETURN => 1 });
-
-    #$user->{INFO_FIELDS} .= $html->element("<tr><td><strong>" . (eval "\"$name\"") . ":</strong></td><td valign='center'>$user->{INFO_FIELDS_VAL}->[$i] $extra</td></tr>\n";
+  
+  if (in_array('Cards', \@MODULES)) {
+    my $fn_index = get_function_index('cards_user_payment');
+    $user->{CARDS_PAYMENTS} = $html->button( "$lang{ICARDS}", "index=$fn_index$pages_qs", { BUTTON => 2 } );
   }
+  
+  ## Show users info fields
+  my $info_fields_view = get_info_fields_read_only_view({
+    VALUES                => $user,
+    CALLED_FROM_CLIENT_UI => 1,
+    RETURN_AS_ARRAY       => 1
+  });
+  
+  foreach my $info_field_view (@$info_fields_view){
+      #    if ($info_field_obj eq '_rating') {
+      #      $extra = $html->button($lang{RATING}, "index=" . get_function_index('dv_rating_user'), { BUTTON => 1 });
+      #    }
+  
+    my $name = $info_field_view->{NAME};
+    my $view =  $info_field_view->{VIEW};
+    
+    $user->{INFO_FIELDS} .=
+      $html->element(
+          'div',
 
+          $html->element('div', $name, {
+              class         => 'col-xs-12 col-sm-3 col-md-3 text-1',
+              OUTPUT2RETURN => 1
+            })
+          . $html->element('div', $view, {
+              class         => 'col-xs-12 col-sm-9 col-md-9 text-2',
+              OUTPUT2RETURN => 1
+            }),
+          { class=>'row', OUTPUT2RETURN => 1 }
+        );
+  }
+  
+#  $user->{INFO_FIELDS} =
+  
+  # To show info fields, we first need to call list(), so it fills inner array ($user->{EXTRA_FIELDS})
+#  $user->list({
+#    UID       => $user->{UID},
+#    LOGIN     => '_SHOW'
+#  });
+#
+#  foreach my $info_field_obj (@{ $user->{EXTRA_FIELDS} }) {
+#    my ($config_field_name, $field_params) = @{$info_field_obj};
+#    my ($priority, $type_id, $name, $user_portal) = split(':', $field_params);
+#
+#    next if !$user_portal;
+#
+#    my $pi_field_name = substr($config_field_name, 3);
+#
+#    next if (! exists $user->{uc($pi_field_name)});
+#
+#    my $extra = '';
+#    if ($info_field_obj eq '_rating') {
+#      $extra = $html->button($lang{RATING}, "index=" . get_function_index('dv_rating_user'), { BUTTON => 1 });
+#    }
+#
+#    $user->{INFO_FIELDS} .= $html->element(
+#      'div',
+#
+#      $html->element('div', _translate($name), {
+#          class         => 'col-xs-12 col-sm-3 col-md-3 text-1',
+#          OUTPUT2RETURN => 1
+#        })
+#      . $html->element('div', "$user->{uc($pi_field_name)} $extra", {
+#          class         => 'col-xs-12 col-sm-9 col-md-9 text-2',
+#          OUTPUT2RETURN => 1
+#        }),
+#      { class=>'row', OUTPUT2RETURN => 1 }
+#    );
+#
+#  }
+#
   if ($conf{user_chg_pi}) {
     $user->{FORM_CHG_INFO} = $html->form_main(
       {
@@ -779,7 +970,7 @@ sub form_info {
     $user->{NEWS} = portal_user_cabinet();
   }
 
-  if ($conf{user_chg_passwd}) {
+  if ($conf{user_chg_passwd} || ($conf{group_chg_passwd} && $conf{group_chg_passwd} eq $user->{GID})) {
     $user->{CHANGE_PASSWORD} = $html->button($lang{CHANGE_PASSWORD}, "index=17&sid=$sid", { class => 'btn btn-xs btn-primary' });
   }
 
@@ -809,13 +1000,16 @@ sub form_info {
   my %contacts = ();
   if ($conf{CONTACTS_NEW}){
     # Show all contacts of this type in one field
-    $contacts{PHONE} =
-      ($user->{PHONE_ALL} ? ($user->{PHONE_ALL} . ', ') : '')
-        . ($user->{CELL_PHONE_ALL} || '');
+    $contacts{PHONE} = join (', ', $user->{PHONE_ALL}, $user->{CELL_PHONE_ALL});
     $contacts{EMAIL} = $user->{EMAIL_ALL};
   }
   
   $html->tpl_show(templates('form_client_info'), {%$user, %contacts}, { ID => 'form_client_info' });
+
+  if ($FORM{CONTRACT_LIST}) {
+    require Control::Contracts_mng;
+    $html->{OUTPUT} .= _user_contracts_table($user->{UID}, {UI => 1} );
+  }
 
   if (in_array('Dv', \@MODULES)) {
     load_module('Dv', $html);
@@ -831,18 +1025,31 @@ sub form_info {
 }
 
 #**********************************************************
-=head2 form_login()
+=head2 string_encoding($string, $uid)
 
 =cut
 #**********************************************************
-sub form_login {
+sub string_encoding {
+  my($string, $uid_) = @_;
+
+  return length($string) * 21 * $uid_;
+}
+
+#**********************************************************
+=head2 form_login_clients()
+
+=cut
+#**********************************************************
+sub form_login_clients {
   my %first_page = ();
 
   $first_page{LOGIN_ERROR_MESSAGE} = $OUTPUT{LOGIN_ERROR_MESSAGE} || '';
   $first_page{HAS_REGISTRATION_PAGE} = (-f 'registration.cgi');
   $first_page{FORGOT_PASSWD_LINK} = '/registration.cgi&FORGOT_PASSWD=1';
 
-  $first_page{REGISTRATION_ENABLED} = scalar @REGISTRATION;
+  if(! $conf{REGISTRATION_PORTAL_SKIP}) {
+    $first_page{REGISTRATION_ENABLED} = scalar @REGISTRATION;
+  }
 
   if ($conf{tech_works}) {
     $html->message( 'info', $lang{INFO}, "$conf{tech_works}" );
@@ -877,294 +1084,6 @@ sub form_login {
 }
 
 #**********************************************************
-=head2 auth($user_name, $password, $session_id, $attr)
-
-=cut
-#**********************************************************
-sub auth {
-  my ($user_name, $password, $session_id, $attr) = @_;
-
-  my $ret                  = 0;
-  my $res                  = 0;
-  my $REMOTE_ADDR          = $ENV{'REMOTE_ADDR'} || '';
-  #my $HTTP_X_FORWARDED_FOR = $ENV{'HTTP_X_FORWARDED_FOR'} || '';
-  #my $ip                   = "$REMOTE_ADDR/$HTTP_X_FORWARDED_FOR";
-  $uid                     = 0;
-  use Abills::Auth::Core;
-  my $Auth;
-  if($FORM{external_auth}) {
-    $Auth = Abills::Auth::Core->new({
-      CONF      => \%conf,
-      AUTH_TYPE => $FORM{external_auth},
-      USERNAME  => $user_name,
-      SELF_URL  => $SELF_URL
-    });
-
-    $Auth->check_access(\%FORM);
-
-    if($Auth->{auth_url}) {
-      print "Location: $Auth->{auth_url}\n\n";
-      exit;
-    }
-    elsif($Auth->{USER_ID}) {
-      $user->list({
-        $Auth->{CHECK_FIELD} => $Auth->{USER_ID},
-        LOGIN                => '_SHOW',
-        COLS_NAME            => 1
-      });
-
-      if($user->{TOTAL}) {
-        $uid = $user->{list}->[0]->{uid};
-        $user->{LOGIN} = $user->{list}->[0]->{login};
-        $user->{UID} = $uid;
-        $res = $uid;
-      }
-      else {
-        if(! $sid) {
-          $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message( 'err', $lang{ERROR}, $lang{ERR_UNKNOWN_SN_ACCOUNT}, {OUTPUT2RETURN => 1});
-          return 0;
-        }
-      }
-    }
-    else {
-      $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message('err', $lang{ERROR}, $lang{ERR_SN_ERROR}, {OUTPUT2RETURN => 1});
-      return 0;
-    }
-  }
-
-  if (!$conf{PASSWORDLESS_ACCESS}) {
-    if($ENV{USER_CHECK_DEPOSIT}) {
-      $conf{PASSWORDLESS_ACCESS} = $ENV{USER_CHECK_DEPOSIT};
-    }
-    elsif($attr->{PASSWORDLESS_ACCESS}) {
-      $conf{PASSWORDLESS_ACCESS}=1;
-    }
-  }
-
-  #Passwordless Access
-  if ($conf{PASSWORDLESS_ACCESS}) {
-    
-    my $sessions;
-
-    if (in_array('Internet', \@MODULES)) {
-      require Internet::Sessions;
-      Internet::Sessions->import();
-      $sessions = Internet::Sessions->new($db, $admin, \%conf);
-    }
-    else {
-      require Dv_Sessions;
-      Dv_Sessions->import();
-      $sessions = Dv_Sessions->new($db, $admin, \%conf);
-    }
-
-    my $list = $sessions->online({
-      USER_NAME         => '_SHOW',
-      FRAMED_IP_ADDRESS => "$REMOTE_ADDR",
-    });
-
-    if ($sessions->{TOTAL} == 1) {
-      $user_name = $list->[0]->{user_name};
-      $ret       = $list->[0]->{uid};
-      $session_id= mk_unique_value(14);
-      $user->info($ret);
-
-      $user->{REMOTE_ADDR} = $REMOTE_ADDR;
-      return ($ret, $session_id, $user_name);
-    }
-    else {
-      require Dv;
-      Dv->import();
-      my $Dv = Dv->new($db, $admin, \%conf);
-      $Dv->info(0, { IP => $REMOTE_ADDR });
-
-      if ($Dv->{TOTAL} == 1) {
-        $user_name = $Dv->{LOGIN} || '';
-        $ret       = $Dv->{UID};
-        $session_id= mk_unique_value(14);
-        $user->info($ret);
-        $user->{REMOTE_ADDR} = $REMOTE_ADDR;
-        return ($ret, $session_id, $user->{LOGIN});
-      }
-    }
-  }
-
-  if ($index == 1000) {
-    $user->web_session_del({ SID => $session_id });
-    return 0;
-  }
-  elsif ($session_id) {
-    $user->web_session_info({ SID => $session_id });
-
-    if ($user->{TOTAL} < 1) {
-      delete $FORM{REFERER};
-      #$html->message('err', "$lang{ERROR}", "$lang{NOT_LOGINED}");
-      #return 0;
-    }
-    elsif ($user->{errno}) {
-      $html->message( 'err', $lang{ERROR} );
-    }
-    elsif ( $conf{web_session_timeout} < $user->{SESSION_TIME} ){
-      $html->message( 'info', "$lang{INFO}", 'Session Expire' );
-      $user->web_session_del({ SID => $session_id });
-      return 0;
-    }
-    elsif ($user->{REMOTE_ADDR} ne $REMOTE_ADDR) {
-      $html->message( 'err', "$lang{ERROR}", 'WRONG IP' );
-      $user->web_session_del({ SID => $session_id });
-      return 0;
-    }
-    else {
-      $user->info($user->{UID}, { USERS_AUTH => 1 });
-      $admin->{DOMAIN_ID}=$user->{DOMAIN_ID};
-      $user->web_session_update({ SID => $session_id });
-      #Add social id
-      if ($Auth->{USER_ID}) {
-        $user->pi_change( {
-          $Auth->{CHECK_FIELD} => $Auth->{USER_ID},
-          UID                  => $user->{UID}
-        } );
-      }
-
-      return ($user->{UID}, $session_id, $user->{LOGIN});
-    }
-  }
-
-  if ($user_name && $password) {
-    if ($conf{wi_bruteforce}) {
-      $user->bruteforce_list(
-        {
-          LOGIN    => $user_name,
-          PASSWORD => $password,
-          CHECK    => 1
-        }
-      );
-
-      if ($user->{TOTAL} > $conf{wi_bruteforce}) {
-        $OUTPUT{BODY} = $html->tpl_show(templates('form_bruteforce_message'), undef);
-        return 0;
-      }
-    }
-
-    #check password from RADIUS SERVER if defined $conf{check_access}
-    if ($conf{check_access}) {
-      $Auth = Abills::Auth::Core->new({
-        CONF      => \%conf,
-        AUTH_TYPE => 'Radius'});
-
-      $res = $Auth->check_access({
-        LOGIN    => $user_name,
-        PASSWORD => $password
-      });
-    }
-    #check password direct from SQL
-    else {
-      $res = auth_sql($user_name, $password) if ($res < 1);
-    }
-  }
-  elsif ($user_name && !$password) {
-   $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message( 'err', "$lang{ERROR}", "$lang{ERR_WRONG_PASSWD}", {OUTPUT2RETURN => 1} );
-  }
-
-  #Get user ip
-  if (defined($res) && $res > 0) {
-    $user->info($user->{UID} || 0, {
-      LOGIN     => ($user->{UID}) ? undef : $user_name,
-      DOMAIN_ID => $FORM{DOMAIN_ID}
-    });
-
-    if ($user->{TOTAL} > 0) {
-      $session_id          = mk_unique_value(16);
-      $ret                 = $user->{UID};
-      $user->{REMOTE_ADDR} = $REMOTE_ADDR;
-      $admin->{DOMAIN_ID}  = $user->{DOMAIN_ID};
-      $login               = $user->{LOGIN};
-      $user->web_session_add(
-        {
-          UID         => $user->{UID},
-          SID         => $session_id,
-          LOGIN       => $login,
-          REMOTE_ADDR => $REMOTE_ADDR,
-          EXT_INFO    => $ENV{HTTP_USER_AGENT},
-          COORDX      => $FORM{coord_x} || '',
-          COORDY      => $FORM{coord_y} || ''
-        }
-      );
-    }
-    else {
-      $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message( 'err', "$lang{ERROR}", "$lang{ERR_WRONG_PASSWD}", {OUTPUT2RETURN => 1} );
-    }
-  }
-  else {
-    if ($login || $password) {
-      $user->bruteforce_add(
-        {
-          LOGIN       => $login,
-          PASSWORD    => $password,
-          REMOTE_ADDR => $REMOTE_ADDR,
-          AUTH_STATE  => $ret
-        }
-      );
-
-      $OUTPUT{MESSAGE} = $html->message( 'err', $lang{ERROR}, $lang{ERR_WRONG_PASSWD},
-        { OUTPUT2RETURN => 1 } );
-    }
-    $ret = 0;
-  }
-
-  return ($ret, $session_id, $login);
-}
-
-#**********************************************************
-=head2 auth_sql($login, $password) - Authentification from SQL DB
-
-=cut
-#**********************************************************
-sub auth_sql {
-  my ($user_name, $password) = @_;
-  my $ret = 0;
-
-  $conf{WEB_AUTH_KEY}='LOGIN' if(! $conf{WEB_AUTH_KEY});
-
-  if ($conf{WEB_AUTH_KEY} eq 'LOGIN') {
-    $user->info(0, {
-      LOGIN      => $user_name,
-      PASSWORD   => $password,
-      DOMAIN_ID  => $FORM{DOMAIN_ID} || 0,
-      USERS_AUTH => 1
-    });
-  }
-  else {
-    my @a_method = split(/,/, $conf{WEB_AUTH_KEY});
-    foreach my $auth_param (@a_method) {
-      $user->list({
-        $auth_param => "$login",
-        PASSWORD    => "$password",
-        DOMAIN_ID   => $FORM{DOMAIN_ID} || 0,
-        COLS_NAME   => 1
-      });
-
-      if ($user->{TOTAL}) {
-        $user->info($user->{list}->[0]->{uid});
-        last;
-      }
-    }
-  }
-
-  if ($user->{TOTAL} < 1) {
-    $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message( 'err', "$lang{ERROR}", "$lang{ERR_WRONG_PASSWD}", {OUTPUT2RETURN => 1} ) if (! $conf{PORTAL_START_PAGE});
-  }
-  elsif (_error_show($user)) {
-  }
-  else {
-    $ret = $user->{UID} || $user->{list}->[0]->{uid};
-  }
-
-  $admin->{DOMAIN_ID}=$user->{DOMAIN_ID};
-
-  return $ret;
-}
-
-#**********************************************************
 =head2 form_passwd() - User password form
 
 =cut
@@ -1177,14 +1096,17 @@ sub form_passwd {
   $conf{PASSWD_LENGTH}  = 6 if (! $conf{PASSWD_LENGTH});
 
   $user->pi({ UID => $user->{UID} });
-  
+
   my $password_check_ok = 0;
   if (! $FORM{newpassword}) {
   
   }
   elsif (length($FORM{newpassword}) < $conf{PASSWD_LENGTH}) {
-    $html->message( 'err', $lang{ERROR}, $lang{ERR_SHORT_PASSWD} );
     
+    my $explain_string = $lang{ERR_SHORT_PASSWD};
+    $explain_string =~ s/ 6 / $conf{PASSWD_LENGTH} /;
+    
+    $html->message( 'err', $lang{ERROR}, $explain_string );
   }
   elsif ($conf{PASSWD_POLICY_USERS} && $conf{CONFIG_PASSWORD}
     &&  defined $user->{UID}
@@ -1933,7 +1855,7 @@ sub fl {
     else {
       $html->message( 'err', $lang{ERROR}, "$lang{ERR_UNKNOWN_IP}" );
     }
-  return 1;
+    return 1;
   }
 
   my $custom_menu = custom_menu({ TPL_NAME => 'client_menu' });
@@ -1943,14 +1865,7 @@ sub fl {
     return 1;
   }
 
-  my @m = ();
-
-  #if($conf{USER_START_PAGE}) {
-  #  push @m, "10:0:$lang{USER_INFO}:form_custom:::";
-  #}
-  #else {
-    push @m, "10:0:$lang{USER_INFO}:form_info:::";
-  #}
+  my @m = ("10:0:$lang{USER_INFO}:form_info:::");
 
   if ( $conf{user_finance_menu} ){
     push @m, "40:0:$lang{FINANCES}:form_finance:::";
@@ -1977,7 +1892,10 @@ sub fl {
   }
 
   # Should be 17 or you should change it at "CHANGE_PASSWORD" button in form_info()
-  push @m, "17:0:$lang{PASSWD}:form_passwd:::" if ($conf{user_chg_passwd});
+  push @m, "17:0:$lang{PASSWD}:form_passwd:::" if (
+    $conf{user_chg_passwd} || 
+    ($conf{group_chg_passwd} && $conf{group_chg_passwd} eq $user->{GID})
+  );
 
   mk_menu( \@m, { USER_FUNCTION_LIST => 1 } );
   return 1;
@@ -2009,7 +1927,7 @@ sub form_custom {
     $html->{OUTPUT} .= '</pre>';
   }
 
-  load_pmodule2('JSON');
+  load_pmodule('JSON');
 
   my $json = JSON->new()->utf8(0);
 
@@ -2430,6 +2348,67 @@ sub form_company_list {
   print $table->show();
 
   return 1;
+}
+
+#**********************************************************
+=head2 chang_pi_popup()
+
+  Arguments:
+     -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub change_pi_popup {
+
+  my @check_fields = split(/,[\r\n\s]?/, $conf{CHECK_CHANGE_PI});
+  my @all_fields = ('FIO', 'PHONE', 'ADDRESS', 'EMAIL');
+
+  $user->{PINFO} = 0; # param wich show modal window
+  $user->{ACTION} = 'change';
+  $user->{LNG_ACTION} = $lang{CHANGE};
+
+  if ($conf{info_fields_new}) {
+    require Info_fields;
+    my $Info_fields = Info_fields->new($db, $admin, \%conf);
+    my $info_fields_list = $Info_fields->fields_list({
+      COMPANY     => 0,
+      USER_CHG    => 1,
+      ABON_PORTAL => 1
+    });
+
+    foreach my $info_field(@$info_fields_list) {
+      if (($user->{uc($info_field->{SQL_FIELD})} eq ''
+        || $user->{uc($info_field->{SQL_FIELD})} eq '0000-00-00'
+        || $user->{uc($info_field->{SQL_FIELD})} eq 0)
+        && in_array(uc($info_field->{SQL_FIELD}), \@check_fields)) {
+
+        $user->{INFO_FIELDS_POPUP} .= form_info_field_tpl({
+          VALUES                => $user,
+          CALLED_FROM_CLIENT_UI => 1,
+          COLS_LEFT             => 'col-md-3',
+          COLS_RIGHT            => 'col-md-9',
+          POPUP                 => { $info_field->{SQL_FIELD} => 1 }
+        });
+        $user->{PINFO} = 1;
+      }
+    }
+  }
+
+  foreach my $field (@all_fields) {
+    if ($field eq 'ADDRESS' && (!(in_array('ADDRESS',
+      \@check_fields)) || $user->{ADDRESS_STREET} && $user->{ADDRESS_BUILD})) {
+      $user->{ADDRESS_SEL} = '';
+      next;
+    }
+
+    ($user->{$field} eq '') && in_array($field, \@check_fields)
+      ? ($user->{ $field . "_HAS_ERROR" } = 'has-error' && $user->{PINFO} = 1)
+      : ($user->{ $field . "_DISABLE" } = 'disabled' && $user->{ $field . "_HIDDEN" } = 'hidden');
+  }
+
+  return $html->tpl_show(templates('form_chg_client_info'), $user, { OUTPUT2RETURN => 1, SKIP_DEBUG_MARKERS => 1 });
 }
 
 1

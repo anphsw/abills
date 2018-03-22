@@ -85,13 +85,15 @@ sub quick_info_payments {
     SUM          => '_SHOW',
     METHOD       => '_SHOW',
     LAST_DEPOSIT => '_SHOW',
+    DESC         => 'DESC',
     COLS_NAME    => 1,
     COLS_UPPER   => 1,
     PAGE_ROWS    => 1
   });
 
   my $result = [];
-  if($Payments->{TOTAL}) {
+  if($Payments->{TOTAL} && $Payments->{TOTAL} > 0) {
+    #_bp($Payments->{TOTAL}, $list);
     $result = $list->[0];
     my $payments_methods = get_payment_methods();
     $result->{METHOD} = $payments_methods->{$result->{METHOD}};
@@ -116,6 +118,7 @@ sub quick_info_fees {
     SUM          => '_SHOW',
     LAST_DEPOSIT => '_SHOW',
     METHOD       => '_SHOW',
+    DESC         => 'DESC',
     COLS_NAME    => 1,
     COLS_UPPER   => 1,
     PAGE_ROWS    => 1
@@ -254,6 +257,12 @@ sub user_full_info {
   my $content;
   my $info     = '';
   my @info_arr = ();
+  my $uid      = $FORM{UID} || $LIST_PARAMS{UID};
+
+  if(! $uid) {
+    push @info_arr, q/{ "ERROR" : 'Undefined UID' }/;
+    return $info = "[". join(",\n", @info_arr) ."]";
+  }
 
   for(my $slide_num=0; $slide_num <= $#{ $base_slides }; $slide_num++ ) {
     my @content_arr = ();
@@ -268,7 +277,7 @@ sub user_full_info {
     if($base_slides->[$slide_num]->{FN}) {
       if(defined(&{$base_slides->[$slide_num]{FN}}))  {
         my $fn = $base_slides->[$slide_num]->{FN};
-        $field_info = &{ \&$fn }({ UID => $FORM{UID} || $LIST_PARAMS{UID} });
+        $field_info = &{ \&$fn }({ UID => $uid });
         next if (!$field_info);
       }
       else {
@@ -278,7 +287,6 @@ sub user_full_info {
 
     if ($base_slides->[$slide_num]{SLIDES}) {
       my @slides = ();
-
       foreach my $slide_line ( @{ $field_info } ) {
         my @slide_arr = ();
         foreach my $filed_name ( @{ $base_slides->[$slide_num]->{SLIDES} }) {

@@ -1,9 +1,9 @@
 package Abills::Sender::XMPP;
 use strict;
 use warnings FATAL => 'all';
-use Abills::Base qw(load_pmodule2);
+use Abills::Base qw(load_pmodule);
 use parent 'Abills::Sender::Plugin';
-load_pmodule2('AnyEvent::XMPP');
+load_pmodule('AnyEvent::XMPP');
 
 use AnyEvent::XMPP::IM::Connection;
 

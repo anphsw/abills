@@ -36,11 +36,6 @@ my $Payments = Finance->payments($db, $admin, \%conf);
 sub form_payments {
   my ($attr) = @_;
 
-  my $er;
-  my %BILL_ACCOUNTS = ();
-
-  my %PAYMENTS_METHODS = %{ get_payment_methods() };
-
   return 0 if (!$permissions{1});
 
   our $Docs;
@@ -65,11 +60,6 @@ sub form_payments {
     my $user = $attr->{USER_INFO};
     $Payments->{UID} = $user->{UID};
 
-    if ($conf{EXT_BILL_ACCOUNT}) {
-      $BILL_ACCOUNTS{ $user->{BILL_ID} } = "$lang{PRIMARY} : $user->{BILL_ID}" if ($user->{BILL_ID});
-      $BILL_ACCOUNTS{ $user->{EXT_BILL_ID} } = "$lang{EXTRA} : $user->{EXT_BILL_ID}" if ($user->{EXT_BILL_ID});
-    }
-
     if (in_array('Docs', \@MODULES)) {
       $FORM{QUICK} = 1;
     }
@@ -85,110 +75,7 @@ sub form_payments {
       $html->message( 'err', $lang{ERROR}, "$lang{EXIST}" );
     }
     elsif ($FORM{add} && $FORM{SUM}) {
-      if(! $permissions{1} || ! $permissions{1}{1}) {
-        $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
-        return 0;
-      }
-
-      $Payments->{AUTOFOCUS}  = '';
-      $FORM{SUM} =~ s/,/\./g;
-      $db->{TRANSACTION}=1;
-      my DBI $db_ = $db->{db};
-      $db_->{AutoCommit} = 0;
-
-      if ($FORM{SUM} !~ /[0-9\.]+/) {
-        $html->message( 'err', $lang{ERROR}, "$lang{ERR_WRONG_SUM} SUM: $FORM{SUM}", { ID => 22 });
-        return 0 if ($attr->{REGISTRATION});
-      }
-      else {
-        $FORM{CURRENCY} = $conf{SYSTEM_CURRENCY};
-
-        if ($FORM{ER}) {
-          if ($FORM{DATE}) {
-            my $list = $Payments->exchange_log_list(
-              {
-                DATE      => "<=$FORM{DATE}",
-                ID        => $FORM{ER},
-                SORT      => 'date',
-                DESC      => 'desc',
-                PAGE_ROWS => 1
-              }
-            );
-            $FORM{ER_ID}    = $FORM{ER};
-            $FORM{ER}       = $list->[0]->[2] || 1;
-            $FORM{CURRENCY} = $list->[0]->[4] || 0;
-          }
-          else {
-            $er = $Payments->exchange_info($FORM{ER});
-            $FORM{ER_ID}    = $FORM{ER};
-            $FORM{ER}       = $er->{ER_RATE};
-            $FORM{CURRENCY} = $er->{ISO};
-          }
-        }
-
-        if ($FORM{ER} && $FORM{ER} != 1 && $FORM{ER} > 0) {
-          $FORM{PAYMENT_SUM} = sprintf("%.2f", $FORM{SUM} / $FORM{ER});
-        }
-        else {
-          $FORM{PAYMENT_SUM} = $FORM{SUM};
-        }
-
-        #Make pre payments functions in all modules
-        cross_modules_call('_pre_payment', { %$attr });
-        if (!$conf{PAYMENTS_NOT_CHECK_INVOICE_SUM} && ($FORM{INVOICE_SUM} && $FORM{INVOICE_SUM} != $FORM{PAYMENT_SUM})) {
-          $html->message( 'err', "$lang{PAYMENTS}: $lang{ERR_WRONG_SUM}",
-            " $lang{INVOICE} $lang{SUM}: $Docs->{TOTAL_SUM}\n $lang{PAYMENTS} $lang{SUM}: $FORM{SUM}" );
-        }
-        else {
-          $Payments->add($user, { %FORM,
-              INNER_DESCRIBE => ($FORM{INNER_DESCRIBE} || q{})
-                . (($FORM{DATE} && $COOKIES{hold_date}) ? " $DATE $TIME" : '') });
-
-          if (_error_show($Payments)) {
-            return 0 if ($attr->{REGISTRATION});
-          }
-          else {
-            if( in_array('Crm', \@MODULES) && $FORM{CASHBOX_ID}){
-              require Crm;
-              Crm->import();
-              my $Crm = Crm->new($db, $admin, \%conf);
-              $Crm->add_coming({
-                DATE           => $FORM{DATE},
-                AMOUNT         => $FORM{SUM},
-                CASHBOX_ID     => $FORM{CASHBOX_ID},
-                COMING_TYPE_ID => 2,
-                COMMENTS       => $FORM{DESCRIBE},
-                AID            => $admin->{AID},
-              });
-
-              _error_show($Crm);
-            }
-
-            $FORM{SUM} = $Payments->{SUM};
-            $html->message( 'info', $lang{PAYMENTS}, "$lang{ADDED} $lang{SUM}: $FORM{SUM} ". ($er->{ER_SHORT_NAME} || q{}) );
-
-            if ($conf{external_payments}) {
-              if (!_external($conf{external_payments}, { %FORM  })) {
-                return 0;
-              }
-            }
-
-            #Make cross modules Functions
-            $FORM{PAYMENTS_ID} = $Payments->{PAYMENT_ID};
-            cross_modules_call('_payments_maked', {
-                %$attr,
-                SUM          => $FORM{SUM},
-                PAYMENT_ID   => $Payments->{PAYMENT_ID},
-                SKIP_MODULES => 'Sqlcmd',
-              });
-          }
-        }
-      }
-
-      if (! $attr->{REGISTRATION} && ! $db->{db}->{AutoCommit}) {
-        $db_->commit();
-        $db_->{AutoCommit}=1;
-      }
+      payment_add($attr);
     }
     elsif ($FORM{del} && $FORM{COMMENTS}) {
       if (!defined($permissions{1}{2})) {
@@ -214,164 +101,7 @@ sub form_payments {
     }
 
     return 1 if ($attr->{REGISTRATION} && $FORM{add});
-
-    #exchange rate sel
-    my $er_list   = $Payments->exchange_list({%FORM, COLS_NAME => 1 });
-    my %ER_ISO2ID = ();
-    foreach my $line (@$er_list) {
-      $ER_ISO2ID{ $line->{iso} } = $line->{id};
-    }
-
-    if ($FORM{ER} && $FORM{ISO}) {
-      $FORM{ER} = $ER_ISO2ID{ $FORM{ISO} };
-      $FORM{ER_ID} = $ER_ISO2ID{ $FORM{ISO} };
-    }
-    elsif($conf{SYSTEM_CURRENCY}) {
-      $FORM{ER_ID} = $ER_ISO2ID{ $conf{SYSTEM_CURRENCY} };
-    }
-
-    if ($Payments->{TOTAL} > 0) {
-      $Payments->{SEL_ER} = $html->form_select(
-        'ER',
-        {
-          SELECTED      => $FORM{ER_ID} || $FORM{ER},
-          SEL_LIST      => $er_list,
-          SEL_KEY       => 'id',
-          SEL_VALUE     => 'money,rate',
-          NO_ID         => 1,
-          MAIN_MENU     => get_function_index('form_exchange_rate'),
-          MAIN_MENU_ARGV=> "chg=". ($FORM{ER} || ''),
-          SEL_OPTIONS   => { '' => '' }
-        }
-      );
-
-      $Payments->{ER_FORM} = $html->tpl_show(templates('form_row_dynamic_size'), {
-          ID          => '',
-          NAME        => "$lang{CURRENCY} : $lang{EXCHANGE_RATE}",
-          VALUE       => $Payments->{SEL_ER},
-          COLS_LEFT   => 'col-md-3',
-          COLS_RIGHT  => 'col-md-9', },
-        { OUTPUT2RETURN => 1 });
-    }
-
-    $Payments->{SEL_METHOD} = $html->form_select(
-      'METHOD',
-      {
-        SELECTED => (defined($FORM{METHOD}) && $FORM{METHOD} ne '') ? $FORM{METHOD} : 0,
-        SEL_HASH => \%PAYMENTS_METHODS,
-        NO_ID    => 1,
-      }
-    );
-
-    if ($permissions{1} && $permissions{1}{1}) {
-      $Payments->{OP_SID} = ($FORM{OP_SID}) ? $FORM{OP_SID} : mk_unique_value(16);
-
-      if ($conf{EXT_BILL_ACCOUNT}) {
-        $Payments->{EXT_DATA_FORM}=$html->tpl_show(templates('form_row'), {
-            ID    => 'BILL_ID',
-            NAME  => "$lang{BILL}",
-            VALUE => $html->form_select('BILL_ID',
-              {
-                SELECTED => $FORM{BILL_ID} || $attr->{USER_INFO}->{BILL_ID},
-                SEL_HASH => \%BILL_ACCOUNTS,
-                NO_ID    => 1
-              }) }, { OUTPUT2RETURN => 1 });
-      }
-
-      if ($permissions{1}{4}) {
-        if ($COOKIES{hold_date}) {
-          ($DATE, $TIME) = split(/ /, $COOKIES{hold_date}, 2);
-        }
-
-        if ($FORM{DATE}) {
-          ($DATE, $TIME) = split(/ /, $FORM{DATE});
-        }
-
-        my $date_field = $html->date_fld2('DATE', { FORM_NAME => 'user_form', DATE => $DATE, TIME => $TIME, MONTHES => \@MONTHES, WEEK_DAYS => \@WEEKDAYS });
-
-
-        $Payments->{DATE_FORM} = $html->tpl_show(templates('form_row_dynamic_size_input_group'), {
-            ID          => 'DATE',
-            NAME        => "$lang{DATE}",
-            COLS_LEFT   => 'col-md-3',
-            COLS_RIGHT  => 'col-md-9',
-            VALUE       => $date_field,
-            ADDON       => $html->form_input( 'hold_date', '1', { TYPE => 'checkbox',
-                EX_PARAMS => "NAME='hold_date' data-tooltip='$lang{HOLD}'",
-                ID        => 'DATE',
-                STATE     => (($COOKIES{hold_date}) ? 1 : undef) }, { OUTPUT2RETURN => 1 }) },
-          { OUTPUT2RETURN => 1 });
-      }
-
-      if (in_array('Docs', \@MODULES) && ! $conf{DOCS_PAYMENT_DOCS_SKIP}) {
-        $Payments->{INVOICE_SEL} = $html->form_select(
-          "INVOICE_ID",
-          {
-            SELECTED         => $FORM{INVOICE_ID} || 'create' || 0,
-            SEL_LIST         => $Docs->invoices_list({ UID       => $FORM{UID},
-              UNPAIMENT => 1,
-              PAGE_ROWS => 200,
-              SORT      => 2,
-              DESC      => 'DESC',
-              COLS_NAME => 1 }),
-            SEL_KEY          => 'id',
-            SEL_VALUE        => 'invoice_num,date,total_sum,payment_sum',
-            SEL_VALUE_PREFIX => "$lang{NUM}: ,$lang{DATE}: ,$lang{SUM}: ,$lang{PAYMENTS}: ",
-            SEL_OPTIONS      => { 0 => "$lang{DONT_CREATE_INVOICE}",
-              %{ (!$conf{PAYMENTS_NOT_CREATE_INVOICE}) ? { create => $lang{CREATE} } : { } }
-            },
-            NO_ID            => 1,
-            MAIN_MENU        => get_function_index('docs_invoices_list'),
-            MAIN_MENU_ARGV   => "UID=$FORM{UID}&INVOICE_ID=". ($FORM{INVOICE_ID} || q{})
-          }
-        );
-        delete($FORM{pdf});
-        if(! $conf{DOCS_PAYMENT_RECEIPT_SKIP}) {
-          $Payments->{CREATE_RECEIPT_CHECKED}='checked';
-        }
-
-        if($conf{DOCS_PAYMENT_SENDMAIL}) {
-          $Payments->{SEND_MAIL}=1;
-        }
-        else {
-          $Payments->{SEND_MAIL}=0;
-        }
-
-        $Payments->{DOCS_INVOICE_RECEIPT_ELEMENT} = $html->tpl_show(_include('docs_create_invoice_receipt', 'Docs'),
-          {%$Payments}, { OUTPUT2RETURN => 1 });
-      }
-
-      if ($attr->{ACTION}) {
-        $Payments->{ACTION}     = $attr->{ACTION};
-        $Payments->{LNG_ACTION} = $attr->{LNG_ACTION};
-      }
-      else {
-        $Payments->{ACTION}     = 'add';
-        $Payments->{LNG_ACTION} = $lang{ADD};
-      }
-
-      if( in_array('Crm', \@MODULES)){
-        require Crm;
-        Crm->import();
-        my $Crm = Crm->new($db, $admin, \%conf);
-        $attr->{CASHBOX_SELECT} = $html->form_select(
-          'CASHBOX_ID',
-          {
-            SELECTED    => $conf{CRM_DEFAULT_CASHBOX} || $FORM{CASHBOX_ID} || $attr->{CASHBOX_ID},
-            SEL_LIST    => $Crm->list_cashbox({ COLS_NAME => 1 }),
-            SEL_KEY     => 'id',
-            SEL_VALUE   => 'name',
-            NO_ID       => 1,
-            SEL_OPTIONS => {"" => ""},
-            MAIN_MENU     => get_function_index('crm_cashbox_main'),
-          }
-        );
-      }
-      else { $attr->{CASHBOX_HIDDEN} = 'hidden' }
-
-      $html->tpl_show(templates('form_payments'), { %FORM, %$attr, %$Payments }, { ID => 'form_payments'  });
-      #return 0 if ($attr->{REGISTRATION});
-    }
+    form_payment_add($attr);
   }
   elsif ($FORM{AID} && !defined($LIST_PARAMS{AID})) {
     $FORM{subf} = $index;
@@ -398,6 +128,333 @@ sub form_payments {
   }
 
   form_payments_list($attr);
+
+  return 1;
+}
+
+#**********************************************************
+=head2 form_payment_add($attr)
+
+=cut
+#**********************************************************
+sub form_payment_add {
+  my ($attr) = @_;
+
+  my $user = $attr->{USER_INFO};
+  our $Docs;
+
+  my %BILL_ACCOUNTS = ();
+  if ($conf{EXT_BILL_ACCOUNT}) {
+    $BILL_ACCOUNTS{ $user->{BILL_ID} } = "$lang{PRIMARY} : $user->{BILL_ID}" if ($user->{BILL_ID});
+    $BILL_ACCOUNTS{ $user->{EXT_BILL_ID} } = "$lang{EXTRA} : $user->{EXT_BILL_ID}" if ($user->{EXT_BILL_ID});
+  }
+
+  my %PAYMENTS_METHODS = %{ get_payment_methods() };
+
+  #exchange rate sel
+  my $er_list   = $Payments->exchange_list({%FORM, COLS_NAME => 1 });
+  my %ER_ISO2ID = ();
+  foreach my $line (@$er_list) {
+    $ER_ISO2ID{ $line->{iso} } = $line->{id};
+  }
+
+  if ($FORM{ER} && $FORM{ISO}) {
+    $FORM{ER} = $ER_ISO2ID{ $FORM{ISO} };
+    $FORM{ER_ID} = $ER_ISO2ID{ $FORM{ISO} };
+  }
+  elsif($conf{SYSTEM_CURRENCY}) {
+    $FORM{ER_ID} = $ER_ISO2ID{ $conf{SYSTEM_CURRENCY} };
+  }
+
+  if ($Payments->{TOTAL} > 0) {
+    $Payments->{SEL_ER} = $html->form_select(
+      'ER',
+      {
+        SELECTED      => $FORM{ER_ID} || $FORM{ER},
+        SEL_LIST      => $er_list,
+        SEL_KEY       => 'id',
+        SEL_VALUE     => 'money,rate',
+        NO_ID         => 1,
+        MAIN_MENU     => get_function_index('form_exchange_rate'),
+        MAIN_MENU_ARGV=> "chg=". ($FORM{ER} || ''),
+        SEL_OPTIONS   => { '' => '' }
+      }
+    );
+
+    $Payments->{ER_FORM} = $html->tpl_show(templates('form_row_dynamic_size'), {
+        ID          => '',
+        NAME        => "$lang{CURRENCY} : $lang{EXCHANGE_RATE}",
+        VALUE       => $Payments->{SEL_ER},
+        COLS_LEFT   => 'col-md-3',
+        COLS_RIGHT  => 'col-md-9', },
+      { OUTPUT2RETURN => 1 });
+  }
+
+  $Payments->{SEL_METHOD} = $html->form_select(
+    'METHOD',
+    {
+      SELECTED => (defined($FORM{METHOD}) && $FORM{METHOD} ne '') ? $FORM{METHOD} : 0,
+      SEL_HASH => \%PAYMENTS_METHODS,
+      NO_ID    => 1,
+    }
+  );
+
+  if ($permissions{1} && $permissions{1}{1}) {
+    $Payments->{OP_SID} = ($FORM{OP_SID}) ? $FORM{OP_SID} : mk_unique_value(16);
+
+    if ($conf{EXT_BILL_ACCOUNT}) {
+      $Payments->{EXT_DATA_FORM}=$html->tpl_show(templates('form_row'), {
+          ID    => 'BILL_ID',
+          NAME  => "$lang{BILL}",
+          VALUE => $html->form_select('BILL_ID',
+            {
+              SELECTED => $FORM{BILL_ID} || $attr->{USER_INFO}->{BILL_ID},
+              SEL_HASH => \%BILL_ACCOUNTS,
+              NO_ID    => 1
+            }) }, { OUTPUT2RETURN => 1 });
+    }
+
+    if ($permissions{1}{4}) {
+      if ($COOKIES{hold_date}) {
+        ($DATE, $TIME) = split(/ /, $COOKIES{hold_date}, 2);
+      }
+
+      if ($FORM{DATE}) {
+        ($DATE, $TIME) = split(/ /, $FORM{DATE});
+      }
+
+      #        my $date_field = $html->date_fld2('DATE', {
+      #            FORM_NAME => 'user_form',
+      #            DATE      => $DATE,
+      #            TIME      => $TIME,
+      #            MONTHES   => \@MONTHES,
+      #            WEEK_DAYS => \@WEEKDAYS
+      #          });
+
+      my $date_field = $html->form_datetimepicker('DATE', $FORM{DATE}, {
+          FORM_ID => 'user_form',
+        });
+
+      $Payments->{DATE_FORM} = $html->tpl_show(templates('form_row_dynamic_size_input_group'), {
+          ID          => 'DATE',
+          NAME        => $lang{DATE},
+          COLS_LEFT   => 'col-md-3',
+          COLS_RIGHT  => 'col-md-9',
+          VALUE       => $date_field,
+          ADDON       => $html->form_input( 'hold_date', '1', { TYPE => 'checkbox',
+              EX_PARAMS => "NAME='hold_date' data-tooltip='$lang{HOLD}'",
+              ID        => 'DATE',
+              STATE     => (($COOKIES{hold_date}) ? 1 : undef) }, { OUTPUT2RETURN => 1 }) },
+        { OUTPUT2RETURN => 1 });
+    }
+
+    if (in_array('Docs', \@MODULES) && ! $conf{DOCS_PAYMENT_DOCS_SKIP}) {
+      $Payments->{INVOICE_SEL} = $html->form_select(
+        "INVOICE_ID",
+        {
+          SELECTED         => $FORM{INVOICE_ID} || 'create' || 0,
+          SEL_LIST         => $Docs->invoices_list({ UID       => $FORM{UID},
+            UNPAIMENT => 1,
+            PAGE_ROWS => 200,
+            SORT      => 2,
+            DESC      => 'DESC',
+            COLS_NAME => 1 }),
+          SEL_KEY          => 'id',
+          SEL_VALUE        => 'invoice_num,date,total_sum,payment_sum',
+          SEL_VALUE_PREFIX => "$lang{NUM}: ,$lang{DATE}: ,$lang{SUM}: ,$lang{PAYMENTS}: ",
+          SEL_OPTIONS      => { 0 => "$lang{DONT_CREATE_INVOICE}",
+            %{ (!$conf{PAYMENTS_NOT_CREATE_INVOICE}) ? { create => $lang{CREATE} } : { } }
+          },
+          NO_ID            => 1,
+          MAIN_MENU        => get_function_index('docs_invoices_list'),
+          MAIN_MENU_ARGV   => "UID=$FORM{UID}&INVOICE_ID=". ($FORM{INVOICE_ID} || q{})
+        }
+      );
+      delete($FORM{pdf});
+      if(! $conf{DOCS_PAYMENT_RECEIPT_SKIP}) {
+        $Payments->{CREATE_RECEIPT_CHECKED}='checked';
+      }
+
+      if($conf{DOCS_PAYMENT_SENDMAIL}) {
+        $Payments->{SEND_MAIL}=1;
+      }
+      else {
+        $Payments->{SEND_MAIL}=0;
+      }
+
+      $Payments->{DOCS_INVOICE_RECEIPT_ELEMENT} = $html->tpl_show(_include('docs_create_invoice_receipt', 'Docs'),
+        {%$Payments}, { OUTPUT2RETURN => 1 });
+    }
+
+    if ($attr->{ACTION}) {
+      $Payments->{ACTION}     = $attr->{ACTION};
+      $Payments->{LNG_ACTION} = $attr->{LNG_ACTION};
+    }
+    else {
+      $Payments->{ACTION}     = 'add';
+      $Payments->{LNG_ACTION} = $lang{ADD};
+    }
+
+    if( in_array('Crm', \@MODULES)){
+      require Crm;
+      Crm->import();
+      my $Crm = Crm->new($db, $admin, \%conf);
+      $attr->{CASHBOX_SELECT} = $html->form_select(
+        'CASHBOX_ID',
+        {
+          SELECTED    => $conf{CRM_DEFAULT_CASHBOX} || $FORM{CASHBOX_ID} || $attr->{CASHBOX_ID},
+          SEL_LIST    => $Crm->list_cashbox({ COLS_NAME => 1 }),
+          SEL_KEY     => 'id',
+          SEL_VALUE   => 'name',
+          NO_ID       => 1,
+          SEL_OPTIONS => {"" => ""},
+          MAIN_MENU     => get_function_index('crm_cashbox_main'),
+        }
+      );
+    }
+    else {
+      $attr->{CASHBOX_HIDDEN} = 'hidden'
+    }
+
+    if(in_array('Cards', \@MODULES)) {
+      $attr->{CARDS_BTN}=$html->button($lang{ICARDS},
+        "index=". get_function_index('cards_user_payment'). "&UID=$Payments->{UID}",
+        { BUTTON => 1 })
+    }
+
+    if($attr->{EXT_HTML}){
+      # print $html->element('div', $attr->{EXT_HTML}, {class => "col-md-6"});
+      # print $html->element('div', $html->tpl_show(templates('form_payments'), { %FORM, %$attr, %$Payments }, { ID => 'form_payments', OUTPUT2RETURN => 1  }), {class => "col-md-6"});
+      print "<div class='row'><div class='col-md-6'>" . $attr->{EXT_HTML} . "</div>";
+      print "<div class='col-md-6'>" . $html->tpl_show(templates('form_payments'),
+        { %FORM, %$attr, %$Payments }, { ID => 'form_payments', OUTPUT2RETURN => 1  }) . "</div></div>";
+    }
+    else{
+      $html->tpl_show(templates('form_payments'), { %FORM, %$attr, %$Payments }, { ID => 'form_payments'  });
+    }
+
+    #return 0 if ($attr->{REGISTRATION});
+  }
+
+  return 1;
+}
+
+
+#**********************************************************
+=head2 payment_add($attr)
+
+=cut
+#**********************************************************
+sub payment_add {
+  my ($attr) = @_;
+
+  if(! $permissions{1} || ! $permissions{1}{1}) {
+    $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
+    return 0;
+  }
+
+  our $Docs;
+  my $er;
+  my $user = $attr->{USER_INFO};
+  $Payments->{AUTOFOCUS}  = '';
+  $FORM{SUM} =~ s/,/\./g;
+  $db->{TRANSACTION}=1;
+  my DBI $db_ = $db->{db};
+  $db_->{AutoCommit} = 0;
+
+  if ($FORM{SUM} !~ /[0-9\.]+/) {
+    $html->message( 'err', $lang{ERROR}, "$lang{ERR_WRONG_SUM} SUM: $FORM{SUM}", { ID => 22 });
+    return 0 if ($attr->{REGISTRATION});
+  }
+  else {
+    $FORM{CURRENCY} = $conf{SYSTEM_CURRENCY};
+
+    if ($FORM{ER}) {
+      if ($FORM{DATE}) {
+        my $list = $Payments->exchange_log_list(
+          {
+            DATE      => "<=$FORM{DATE}",
+            ID        => $FORM{ER},
+            SORT      => 'date',
+            DESC      => 'desc',
+            PAGE_ROWS => 1
+          }
+        );
+        $FORM{ER_ID}    = $FORM{ER};
+        $FORM{ER}       = $list->[0]->[2] || 1;
+        $FORM{CURRENCY} = $list->[0]->[4] || 0;
+      }
+      else {
+        $er = $Payments->exchange_info($FORM{ER});
+        $FORM{ER_ID}    = $FORM{ER};
+        $FORM{ER}       = $er->{ER_RATE};
+        $FORM{CURRENCY} = $er->{ISO};
+      }
+    }
+
+    if ($FORM{ER} && $FORM{ER} != 1 && $FORM{ER} > 0) {
+      $FORM{PAYMENT_SUM} = sprintf("%.2f", $FORM{SUM} / $FORM{ER});
+    }
+    else {
+      $FORM{PAYMENT_SUM} = $FORM{SUM};
+    }
+
+    #Make pre payments functions in all modules
+    cross_modules_call('_pre_payment', { %$attr });
+    if (!$conf{PAYMENTS_NOT_CHECK_INVOICE_SUM} && ($FORM{INVOICE_SUM} && $FORM{INVOICE_SUM} != $FORM{PAYMENT_SUM})) {
+      $html->message( 'err', "$lang{PAYMENTS}: $lang{ERR_WRONG_SUM}",
+        " $lang{INVOICE} $lang{SUM}: $Docs->{TOTAL_SUM}\n $lang{PAYMENTS} $lang{SUM}: $FORM{SUM}" );
+    }
+    else {
+      $Payments->add($user, { %FORM,
+          INNER_DESCRIBE => ($FORM{INNER_DESCRIBE} || q{})
+            . (($FORM{DATE} && $COOKIES{hold_date}) ? " $DATE $TIME" : '') });
+
+      if (_error_show($Payments)) {
+        return 0 if ($attr->{REGISTRATION});
+      }
+      else {
+        if( in_array('Crm', \@MODULES) && $FORM{CASHBOX_ID}){
+          require Crm;
+          Crm->import();
+          my $Crm = Crm->new($db, $admin, \%conf);
+          $Crm->add_coming({
+            DATE           => $FORM{DATE},
+            AMOUNT         => $FORM{SUM},
+            CASHBOX_ID     => $FORM{CASHBOX_ID},
+            COMING_TYPE_ID => 2,
+            COMMENTS       => $FORM{DESCRIBE},
+            AID            => $admin->{AID},
+          });
+
+          _error_show($Crm);
+        }
+
+        $FORM{SUM} = $Payments->{SUM};
+        $html->message( 'info', $lang{PAYMENTS}, "$lang{ADDED} $lang{SUM}: $FORM{SUM} ". ($er->{ER_SHORT_NAME} || q{}) );
+
+        if ($conf{external_payments}) {
+          if (!_external($conf{external_payments}, { %FORM  })) {
+            return 0;
+          }
+        }
+
+        #Make cross modules Functions
+        $FORM{PAYMENTS_ID} = $Payments->{PAYMENT_ID};
+        cross_modules_call('_payments_maked', {
+            %$attr,
+            SUM          => $FORM{SUM},
+            PAYMENT_ID   => $Payments->{PAYMENT_ID},
+            SKIP_MODULES => 'Sqlcmd',
+          });
+      }
+    }
+  }
+
+  if (! $attr->{REGISTRATION} && ! $db->{db}->{AutoCommit}) {
+    $db_->commit();
+    $db_->{AutoCommit}=1;
+  }
 
   return 1;
 }

@@ -1,9 +1,13 @@
 #!perl
 
 =head1 NAME
+
   Confcontrol
-=name2 SYNOPSYS
-  Control of cconfiguration files changes
+  
+=name2 SYNOPSIS
+
+  Control of configuration files changes
+  
 =cut
 
 use strict;
@@ -21,7 +25,7 @@ our (
   @bool_vals
 );
 
-my $Confcontrol = Confcontrol->new( $db, $admin, \%conf );
+my Confcontrol $Confcontrol = Confcontrol->new( $db, $admin, \%conf );
 
 #**********************************************************
 =head2 confcontrol_main()
@@ -79,7 +83,8 @@ sub confcontrol_main {
     );
   }
 
-  my ($table) = result_former( {
+  my Abills::HTML $table;
+  ($table) = result_former( {
       INPUT_DATA        => $Confcontrol,
       FUNCTION        => 'controlled_files_list',
       BASE_FIELDS     => 0,
@@ -118,8 +123,9 @@ sub confcontrol_main {
 =cut
 #**********************************************************
 sub confcontrol_stats_main {
-
-  my ($table) = result_former( {
+  
+  my Abills::HTML $table;
+  ($table)  = result_former( {
     INPUT_DATA        => $Confcontrol,
     FUNCTION        => 'stats_last_list',
     BASE_FIELDS     => 0,
@@ -170,7 +176,7 @@ sub confcontrol_stat_single {
 
   my $file_info = $stats_list->[0];
 
-  my $table = $html->table( {
+  my Abills::HTML $table = $html->table( {
       width       => '100%',
       caption     => "$file_info->{path}$file_info->{name}",
       border      => 1,

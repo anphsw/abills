@@ -13,15 +13,19 @@
 our (
   $debug,
   %conf,
-  $admin,
+  $Admin,
   $db,
   $OS,
-  $argv
+  $argv,
+  $base_dir
 );
 
 use strict;
 use warnings;
 use Abills::Base qw(startup_files cmd);
+
+use Events::API;
+my Events::API $Events_api = Events::API->new($db, $Admin, \%conf);
 
 check_programs();
 
@@ -45,6 +49,7 @@ sub check_programs {
     RESTART_RADIUSD     => '/usr/local/etc/rc.d/radiusd start',
     RESTART_IPCAD       => '/usr/local/bin/ipcad -d',
     RESTART_FLOWCAPTURE => '/usr/local/etc/rc.d/flow-capture start',
+    RESTART_WEBSOCKET   => $base_dir . 'libexec/websocket_backend.pl start',
     %{ startup_files() }
   );
 
@@ -70,7 +75,15 @@ sub check_programs {
       }
 
       my $cmd_result = cmd($start_cmd, { SHOW_RESULT => 1 });
-      print "$name Program not runnting: $cmd_result\n";
+      
+      $Events_api->add_event({
+        TITLE       => "_{PROCESSES}_ : $name",
+        COMMENTS    => '_{PROCESS_RESTARTED_MESSAGE}_',
+        MODULE      => 'SYSTEM',
+        PRIORITY_ID => 5,
+      });
+      
+      print "$name Program not running: $cmd_result\n";
     }
   }
 

@@ -182,6 +182,13 @@ sub maps_builds_show {
   
   my $count_array = _maps_points_count($builds_list, $object_info);
   
+  my $icon_prefix = 'build';
+  my $size = 'false';
+  if ($conf{MAPS_LAYER_1_ICON_PREFIX}){
+    $icon_prefix = $conf{MAPS_LAYER_1_ICON_PREFIX};
+    $size = '[15,15]';
+  }
+  
   my @export_arr = ();
   foreach my $build ( @{$builds_list} ) {
     
@@ -206,16 +213,19 @@ sub maps_builds_show {
     my $address_full = "$build->{district_name}, $build->{street_name}, $build->{number}";
     
     my $info_table = $info_hash->{HTML} || q{};
-    
+
+    # REVERSE COORDS
     my $tpl = qq(
       {
         "ID"       : $build->{id},
         "MARKER"   : {
           "ID"       : $build->{id},
+          "OBJECT_ID": $build->{id},
           "NAME"     : "$address_full",
           "COORDX"   : $build->{coordy},
           "COORDY"   : $build->{coordx},
-          "TYPE"     : "build_$color",
+          "SIZE"     : $size,
+          "TYPE"     : "$icon_prefix\_$color",
           "INFO"     : "$info_table",
           "COUNT"    : $point_count
         },
@@ -270,8 +280,8 @@ sub maps_builds_show {
           "ID"       : $build->{location_id},
           "OBJECT_ID": $build->{id},
           "NAME"     : "$address_full",
-          "COORDX"   : $build->{coordy},
-          "COORDY"   : $build->{coordx},
+          "COORDX"   : $build->{coordx},
+          "COORDY"   : $build->{coordy},
           "TYPE"     : "build_$color",
           "INFO"     : "$info_table",
           "COUNT"    : $point_count
@@ -523,9 +533,10 @@ sub maps_wifis_show {
             {
                "ID"        : $wifi->{CIRCLE}->{ID},
                "CIRCLE"    : {
+                    "OBJECT_ID" : $wifi->{CIRCLE}->{ID},
                     "RADIUS"    : $wifi->{CIRCLE}->{RADIUS},
-                    "COORDX"    : $wifi->{CIRCLE}->{COORDY},
-                    "COORDY"    : $wifi->{CIRCLE}->{COORDX},
+                    "COORDX"    : $wifi->{CIRCLE}->{COORDX},
+                    "COORDY"    : $wifi->{CIRCLE}->{COORDY},
                     "ID"        : $wifi->{OBJECT_ID},
                     "LAYER_ID"  : 2
                 },
@@ -559,43 +570,6 @@ sub maps_wifis_show {
   # }
   # $MAPS_ENABLED_LAYERS->{ LAYER_ID_BY_NAME->{WIFI} } = 'WIFI';
   # return join(";", map { "ObjectsArray[ObjectsArray.length] = $_;" } @export_arr);
-}
-
-#**********************************************************
-=head2 maps_object_del($object_id, $attr) - delete map point and objects from all maps_ tables
-
-    Arguments:
-      $object_id - ID in maps_points table
-      $attr      - reserved
-
-    Returns:
-      1
-
-=cut
-#**********************************************************
-sub maps_object_delete {
-  my ($object_id) = @_;
-  return 0 unless ( $object_id );
-  
-  my @main_object_types = qw/ circle polygon polyline /; # text /;
-  my %have_points = ( polygon => 1, polyline => 1 );
-  
-  $Maps->points_del( {ID => $object_id} );
-  
-  for my $type ( @main_object_types ){
-    my ($info_func, $del_func, $points_func) = ($type . 's_info', $type . 's_del', $type . '_points_del');
-    
-    if ($have_points{$type}) {
-      my $info = $Maps->$info_func({ OBJECT_ID => $object_id, SHOW_ALL_COLUMNS => 0, COLS_UPPER => 0 });
-      if ( $info ) {
-        $Maps->$points_func(undef, { uc ($type) . '_ID' => $info->{id} } );
-      }
-    }
-    
-    $Maps->$del_func(undef, { OBJECT_ID => $object_id } );
-  }
-  
-  return 1;
 }
 
 #**********************************************************
@@ -780,10 +754,16 @@ sub maps_traffic_show {
   Dv_Sessions->import();
   my $Dv_sessions = Dv_Sessions->new($db, $admin, \%conf);
   
+  our $DATE;
+  $DATE ||= strftime "%Y-%m-%d", localtime(time);
+  my ($y, $m) = split('-', $DATE);
+  require Abills::Base;
+  Abills::Base->import('days_in_month');
+  
   my $builds_list = $Dv_sessions->reports2(
     {
-      FROM_DATE   => '2016-01-01',
-      TO_DATE     => '2016-12-31',
+      FROM_DATE   => "$y-$m-01",
+      TO_DATE     => "$y-$m-" . (days_in_month({DATE => "$y-$m-01"})),
       TYPE        => 'BUILD',
       LOCATION_ID => '_SHOW',
       TRAFFIC_SUM => '_SHOW',
@@ -876,6 +856,9 @@ sub maps_objects_show {
       }
     }
     
+    # Show user menu for ONT type
+    
+    
     $point->{type} = _translate($point->{type});
     $point->{address_full} ||= '';
     
@@ -891,11 +874,13 @@ sub maps_objects_show {
     my $tpl = qq{
             {
              "ID"    : $point->{id},
+             "OBJECT_ID" : $point->{id},
              "MARKER": {
-                  "ID"    : $point->{id},
-                  "COORDX"   : $point->{coordy},
-                  "COORDY"   : $point->{coordx},
-                  "SIZE"     : [ $size ],
+                  "ID"        : $point->{id},
+                  "OBJECT_ID" : $point->{id},
+                  "COORDX"    : $point->{coordx},
+                  "COORDY"    : $point->{coordy},
+                  "SIZE"      : [ $size ],
                   "INFO" : "$info",
                   "TYPE" : "$icon_name"
                 },

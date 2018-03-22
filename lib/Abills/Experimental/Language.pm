@@ -2,6 +2,8 @@ package Abills::Experimental::Language;
 use strict;
 use warnings FATAL => 'all';
 
+use Data::Dumper;
+
 =head1 NAME
 
   Abills::Experimental::Language - Package to load language files.
@@ -15,6 +17,8 @@ use warnings FATAL => 'all';
   Dictionaries should be stored in $base_dir/language and $base_dir/Abills/modules/MODULE/
   
 =cut
+
+our %lang = ();
 
 #**********************************************************
 =head2 new($base_dir)
@@ -90,13 +94,17 @@ sub load {
   return 1 if ($self->{loaded_files}{$lang_path});
   
   eval {
-    our %lang = ();
-    
+    # Don't use our, because it cleares previous refs
+    local %lang = ();
     do $lang_path;
     
     # We can load same language from different locations few times
     if ( exists $self->{languages}->{$language} && ref $self->{languages}->{$language} eq 'HASH' ) {
-      $self->{languages}->{$language} = { %{$self->{languages}->{$language}}, \%lang };
+      
+      $self->{languages}->{$language} = {
+        %{$self->{languages}->{$language}},
+        %lang
+      };
     }
     else {
       $self->{languages}->{$language} = \%lang;
@@ -161,12 +169,27 @@ sub translate {
   
   while ( $text =~ /\_\{(\w+)\}\_/g ) {
     my $to_translate = $1 or next;
-    my $translation = $self->{languages}->{$language}->{$to_translate} || "{$to_translate}";
+    my $translation = $self->{languages}->{$language}->{$to_translate} // "{$to_translate}";
     
     $text =~ s/\_\{$to_translate\}\_/$translation/sg;
   }
   
   return $text;
+}
+
+#**********************************************************
+=head2 has_language($lang_name)
+
+  Arguments:
+    $lang_name
+    
+  Returns:
+    boolean
+    
+=cut
+#**********************************************************
+sub has_language {
+  return exists $_[0]->{languages}->{$_[1]};
 }
 
 #**********************************************************

@@ -25,10 +25,8 @@ use Time::Local qw (timelocal);
 
 our $VERSION = 1.00;
 
-use parent 'main';
+use parent 'dbcore';
 
-# Singleton reference;
-my $instance;
 
 #**********************************************************
 =head2 AUTOLOAD
@@ -85,7 +83,7 @@ sub AUTOLOAD {
     return $self->query_del($table, $data);
   }
   if ( $operation eq 'change' ) {
-    return $self->changes2({
+    return $self->changes({
       CHANGE_PARAM => 'ID',
       TABLE        => $table,
       DATA         => $data,
@@ -94,9 +92,22 @@ sub AUTOLOAD {
   if ( $operation eq 'info' ) {
     my $list_func_name = $entity_name . '_list';
     return undef if ( !$self->can($list_func_name) );
+  
+    my $list = $self->$list_func_name({
+      ID               => $data,
+      SHOW_ALL_COLUMNS => 1,
+      COLS_UPPER       => 1,
+      COLS_NAME        => 1,
+      %{ $self->{domain_id} ? { DOMAIN_ID => $self->{domain_id} } : {} },
+      %{ $attr ? $attr : {} }
+    });
     
-    my $list = $self->$list_func_name({ ID => $data, SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1, COLS_NAME => 1,
-      %{ $attr ? $attr : {} } });
+    return 0 if ($self->{errno});
+    
+    if ($list && ref $list eq 'ARRAY' && !scalar(@$list)){
+      $self->{errno} = 4;
+      $self->{errstr} = 'ERR_NOT_EXIST';
+    }
     
     return $list->[0] || {};
   }
@@ -120,22 +131,20 @@ sub AUTOLOAD {
 #**********************************************************
 sub new {
   my $class = shift;
-  
-  unless ( defined $instance ) {
+
     my ($db, $admin, $CONF) = @_;
-    
-    my $self = {
-      db    => $db,
-      admin => $admin,
-      conf  => $CONF,
-    };
-    
-    bless($self, $class);
-    
-    $instance = $self;
-  }
   
-  return $instance;
+    my $self = {
+      db        => $db,
+      admin     => $admin,
+      conf      => $CONF,
+      domain_id => $admin->{DOMAIN_ID}
+    };
+  
+    bless($self, $class);
+
+  
+  return $self;
 }
 
 #**********************************************************
@@ -174,6 +183,8 @@ sub events_list {
     [ 'PRIORITY_NAME', 'STR', 'eprio.name AS priority_name', 1 ],
     [ 'STATE_NAME', 'STR', 'es.name AS state_name', 1 ],
     [ 'GROUP_MODULES', 'STR', 'eg.modules AS group_modules', 1 ],
+    [ 'DOMAIN_ID', 'INT', 'e.domain_id', 1 ],
+    [ 'AID', 'INT', 'e.aid', 1 ],
   
   ];
   
@@ -181,10 +192,20 @@ sub events_list {
     map {$attr->{ $_->[0] } = '_SHOW' unless ( exists $attr->{ $_->[0] } )} @{$search_columns};
   }
   
-  my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
+  # DELETE ME IN 2019 (when all events will have aid)
+  my @WHERE_RULES = ();
+  if ($attr->{AID} && $attr->{AID} ne '_SHOW'){
+    push @WHERE_RULES, "e.aid=$attr->{AID} OR e.aid=0";
+    delete $attr->{AID};
+  }
   
-  $self->query2(
-    "SELECT $self->{SEARCH_FIELDS} 1
+  if ($self->{domain_id}){
+    $attr->{DOMAIN_ID} = $self->{domain_id};
+  }
+  
+  my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1, WHERE_RULES => \@WHERE_RULES });
+  $self->query(
+    "SELECT $self->{SEARCH_FIELDS} e.id
     FROM events e
     LEFT JOIN events_privacy epriv ON (e.privacy_id = epriv.id)
     LEFT JOIN events_priority eprio ON (e.priority_id = eprio.id)
@@ -198,9 +219,22 @@ sub events_list {
     }
   );
   
+  my $list = $self->{list};
+  $self->query(
+    "SELECT COUNT(*) AS total
+    FROM events e
+    LEFT JOIN events_privacy epriv ON (e.privacy_id = epriv.id)
+    LEFT JOIN events_priority eprio ON (e.priority_id = eprio.id)
+    LEFT JOIN events_state es ON (e.state_id = es.id)
+    LEFT JOIN events_group eg ON (e.group_id = eg.id)
+    $WHERE;",
+    undef,
+    { INFO => 1 }
+  );
+  
   return [] if ( $self->{errno} );
   
-  return $self->{list};
+  return $list;
 }
 
 #**********************************************************
@@ -231,7 +265,7 @@ sub state_list {
   
   my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
   
-  $self->query2(
+  $self->query(
     "SELECT $self->{SEARCH_FIELDS} id FROM events_state $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     undef,
     {
@@ -273,7 +307,7 @@ sub privacy_list {
   
   my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
   
-  $self->query2(
+  $self->query(
     "SELECT $self->{SEARCH_FIELDS} id FROM events_privacy $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     undef,
     {
@@ -317,7 +351,7 @@ sub priority_list {
   
   my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
   
-  $self->query2(
+  $self->query(
     "SELECT $self->{SEARCH_FIELDS} id FROM events_priority $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     undef,
     {
@@ -358,7 +392,7 @@ sub priority_send_types_list {
   }
   my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
   
-  $self->query2("SELECT $self->{SEARCH_FIELDS} priority_id
+  $self->query("SELECT $self->{SEARCH_FIELDS} priority_id
    FROM events_priority_send_types
    $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
       COLS_NAME => 1,
@@ -389,8 +423,8 @@ sub group_list {
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
   
   my $search_columns = [
-    [ 'ID', 'INT', 'id', 1 ],
-    [ 'NAME', 'STR', 'name', 1 ],
+    [ 'ID',      'INT', 'id', 1 ],
+    [ 'NAME',    'STR', 'name', 1 ],
     [ 'MODULES', 'STR', 'modules', 1 ],
   ];
   
@@ -400,7 +434,7 @@ sub group_list {
   
   my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
   
-  $self->query2(
+  $self->query(
     "SELECT $self->{SEARCH_FIELDS} id FROM events_group $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     undef,
     {
@@ -451,7 +485,7 @@ sub admin_group_list {
   }
   my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
   
-  $self->query2("SELECT $self->{SEARCH_FIELDS} aid
+  $self->query("SELECT $self->{SEARCH_FIELDS} aid
    FROM events_admin_group
    $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
       COLS_NAME => 1,
@@ -487,7 +521,7 @@ sub admin_group_add {
     $self->query_del('events_admin_group', undef, { AID => $data->{AID} });
   }
   
-  $self->query2(
+  $self->query(
     "INSERT INTO events_admin_group(`aid`, `group_id`)
      VALUES (?, ?);",
     undef,
@@ -514,7 +548,7 @@ sub admins_for_group {
   
   return 0 if ( !$group_id );
   
-  $self->query2(
+  $self->query(
     "SELECT GROUP_CONCAT(`group_id` SEPARATOR ', ')
      FROM events_admin_group
      WHERE group_id=?",
@@ -544,7 +578,7 @@ sub groups_for_admin {
   
   return 0 if ( !$aid );
   
-  $self->query2(
+  $self->query(
     "SELECT GROUP_CONCAT(`group_id` SEPARATOR ', ')
      FROM events_admin_group
      WHERE aid=?",
@@ -574,15 +608,15 @@ sub admins_subscribed_to_module_list {
   
   return 0 unless $module;
   
-  $self->query2("SELECT GROUP_CONCAT(DISTINCT `aid` SEPARATOR ', ')
+  $self->query("SELECT GROUP_CONCAT(DISTINCT `aid` SEPARATOR ', ')
     FROM `events_group` `eg` LEFT JOIN `events_admin_group` `eag` ON (`eg`.`id` = `eag`.`group_id`)
     WHERE eg.modules LIKE ?;",
     undef,
-    { Bind => [ '%' . $module . '%' ] }
+    { Bind => [ "%$module%" ] }
   );
   
   if ( $self->{list} && ref $self->{list} eq 'ARRAY' && scalar(@{$self->{list}}) ) {
-    return wantarray ? split(',', $self->{list}->[0]->[0] || '') : $self->{list}->[0]->[0];
+    return wantarray ? split(', ', $self->{list}->[0]->[0] || '') : $self->{list}->[0]->[0];
   }
   
   return 0;
@@ -605,11 +639,12 @@ sub get_group_for_module {
   return 1 unless $module; # 1 is BASE
   
   my $groups_list = $self->group_list({
-    MODULE    => "%$module%",
+    MODULES    => "*$module*",
     PAGE_ROWS => 1,
-    COLS_NAME => 1
+    COLS_NAME => 1,
+    COLS_UPPER => 0,
   });
-  
+
   if ( $groups_list && ref $groups_list eq 'ARRAY' && scalar(@{$groups_list}) ) {
     return $groups_list->[0]->{id};
   }

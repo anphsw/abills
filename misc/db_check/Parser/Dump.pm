@@ -261,11 +261,21 @@ sub _parse_columns {
     my %column = (
       Type => lc $type_str,
     );
-  
-    $column{Null} = 'Yes' if ($field->is_nullable && $type !~ /text|blob/i);
     
-    $column{Default} = $field->default_value;
-        
+    if ($field->is_nullable){
+      $column{Null} = 'Yes' ;
+    }
+    elsif ($type !~ /text|blob/i) {
+      $column{Null} = 'No' ;
+    }
+    
+    if (defined $field->default_value){
+      $column{Default} = $field->default_value;
+    }
+  
+    $column{_raw} = $field;
+    delete $field->{table};
+    
     $columns{$name} = \%column;
   }
   

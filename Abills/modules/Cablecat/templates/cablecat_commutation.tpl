@@ -38,6 +38,25 @@
             <ul class='dropdown-menu advanced-options' aria-labelledby='dLabel'></ul>
 
           </div>
+          <div class='btn-group'>
+            <button id='commutation_print' type='button' role='button' class='btn btn-default' title='_{PRINT}_'>
+              _{PRINT}_
+            </button>
+          </div>
+        </div>
+
+        <!-- ZOOM BUTTON GROUP -->
+        <div class='btn-group pull-right'>
+          <button type='button' role='button' class='btn btn-default' title='ZOOM_IN' id='ZOOM_IN'>
+            <span class='glyphicon glyphicon-zoom-out'></span>
+          </button>
+          <button type='button' role='button' class='btn btn-default' title='ZOOM_NORMAL' id='ZOOM_NORMAL'>
+            <span>100%</span>
+          </button>
+          <button type='button' role='button' class='btn btn-default' title='ZOOM_OUT' id='ZOOM_OUT'>
+            <span class='glyphicon glyphicon-zoom-in'></span>
+          </button>
+
         </div>
 
       </div>
@@ -61,18 +80,19 @@
 
     document['CABLES']            = JSON.parse('%CABLES%');
     document['LINKS']             = JSON.parse('%LINKS%');
-    document['COMMUTATION_LINKS'] = JSON.parse('%COMMUTATION_LINKS%');
     document['SPLITTERS']         = JSON.parse('%SPLITTERS%');
     document['EQUIPMENT']         = JSON.parse('%EQUIPMENT%');
+    document['CROSSES']           = JSON.parse('%CROSSES%');
 
     document['LANG'] = {
-      CABLE                  : '_{CABLE}_',
-      CONNECTER              : '_{CONNECTER}_',
-      LINK                   : '_{LINK}_',
-      CONNECT                : '_{CONNECT}_',
+      'CABLE'                : '_{CABLE}_',
+      'CONNECTER'            : '_{CONNECTER}_',
+      'LINK'                 : '_{LINK}_',
+      'CONNECT'              : '_{CONNECT}_',
       'CLEAR'                : '_{CLEAR}_',
       'CONNECT BY NUMBER'    : '_{CONNECT_BY_NUMBER}_',
       'DELETE LINK'          : '_{DELETE_LINK}_',
+      'DELETE CONNECTION'    : '_{DELETE_CONNECTION}_',
       'ATTENUATION'          : '_{ATTENUATION}_',
       'COMMENTS'             : '_{COMMENTS}_',
       'REMOVE %S FROM SCHEME': '_{REMOVE_FS_FROM_SCHEME}_',
@@ -82,6 +102,7 @@
       'SET'                  : '_{SET}_',
       'SPLITTER'             : '_{SPLITTER}_',
       'EQUIPMENT'            : '_{EQUIPMENT}_',
+      'CROSS'                : '_{CROSS}_',
       'NAME'                 : '_{NAME}_',
       'IP'                   : 'IP',
       'LENGTH'               : '_{LENGTH}_',
@@ -91,6 +112,7 @@
   }
   catch (Error) {
     alert('Error happened while transfering data to page');
+    console.log(Error);
   }
 
 </script>
@@ -112,4 +134,6 @@
 <script src='/styles/default_adm/js/modules/cablecat/raphael.pan-zoom.js'></script>
 
 <script src='/styles/default_adm/js/dynamicForms.js'></script>
-<script src='/styles/default_adm/js/modules/cablecat/commutation.js'></script>
+<script src='/styles/default_adm/js/modules/cablecat/commutation.js?v=7.61'></script>
+<script id='maps_print' src='/styles/default_adm/js/maps/html2canvas.min.js' async></script>
+

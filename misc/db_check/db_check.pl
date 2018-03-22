@@ -13,11 +13,12 @@ use warnings FATAL => 'all';
 
  --help, help, ?    - show this help and exit
  
- FROM_CACHE=1       - Use cache from previous
- ALLOW_DATA_STRIP=1 - Will show commands that can cause stripping current values ( use with caution )
- SHOW_CREATE=1      - Try to check enabled modules and tables that have module like name
- BATCH=1            - no confirm ( print all found ALTER and MODIFY statements to STDOUT )
- APPLY_ALL=1        - no confirm ( apply all found ALTER and MODIFY statements )
+ FROM_CACHE=1           - Use cache from previous
+ ALLOW_DATA_STRIP=1     - Will show commands that can cause stripping current values ( use with caution )
+ SHOW_CREATE=1          - Try to check enabled modules and tables that have module like name
+ BATCH=1                - no confirm ( print all found ALTER and MODIFY statements to STDOUT )
+ APPLY_ALL=1            - no confirm ( apply all found ALTER and MODIFY statements )
+ SKIP_DISABLED_MODULES  - skip comparing tables we know it's module specific and module is disabled
  
  Debug options are used for debug only:
    DEBUG            - debug_level (0..5)
@@ -48,13 +49,15 @@ use lib $libpath;
 use lib $libpath . 'lib';
 use lib $libpath . 'Abills/mysql';
 
-require 'libexec/config.pl';
+do 'libexec/config.pl';
 $base_dir //= $libpath;
 
 # Enable Autoflush
 $| = 1;
 
 use Pod::Usage qw/&pod2usage/;
+
+eval{ require Carp::Always };
 
 use Abills::Base qw/_bp parse_arguments in_array/;
 use Abills::Misc;
@@ -68,8 +71,8 @@ use Parser::Scheme;
 
 my $db = Abills::SQL->connect(@conf{'dbtype', 'dbhost', 'dbname', 'dbuser', 'dbpasswd'},
   { CHARSET => $conf{dbcharset} });
-my $admin = Admins->new($db, \%conf);
-$admin->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });
+my $Admin = Admins->new($db, \%conf);
+$Admin->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });
 
 my %ARGS = %{ parse_arguments(\@ARGV) };
 
@@ -141,47 +144,37 @@ sub main {
     if ( !exists $dump_info{$ARGS{D_TABLE}} ) {
       die "TABLE $ARGS{D_TABLE} was not found in dump";
     }
-    
     _bp($ARGS{D_TABLE}, $dump_info{$ARGS{D_TABLE}});
-    
     if ( $ARGS{D_FIELD} && exists $dump_info{ $ARGS{D_TABLE} }->{columns}->{ $ARGS{D_FIELD} } ) {
       _bp($ARGS{D_FIELD}, $dump_info{$ARGS{D_TABLE}}->{columns}->{$ARGS{D_FIELD}});
     }
-    
-    exit 0;
   }
   
   print "Found " . scalar(keys %dump_info) . " tables\n" if ( $debug );
   
   # Get info for tables from DB
-  my $scheme_parser = Parser::Scheme->new($db, $admin, \%conf);
+  my $scheme_parser = Parser::Scheme->new($db, $Admin, \%conf);
   my %scheme_info = %{  $scheme_parser->parse() };
   
   if ( $debug > 4 && $ARGS{S_TABLE} ) {
     if ( !exists $scheme_info{$ARGS{S_TABLE}} ) {
       die "TABLE $ARGS{S_TABLE} was not found in scheme";
     }
-    
     _bp($ARGS{S_TABLE}, $scheme_info{$ARGS{S_TABLE}});
-    
     if ( $ARGS{S_FIELD} && exists $scheme_info{ $ARGS{S_TABLE} }->{columns}->{ $ARGS{S_FIELD} } ) {
       _bp($ARGS{S_FIELD}, $scheme_info{$ARGS{S_TABLE}}->{columns}->{$ARGS{S_FIELD}});
     }
-    
-    exit 0;
   }
-  
   
   # Get all tables from DB
   my @existing_tables = sort keys %scheme_info;
   foreach my $table ( @existing_tables ) {
+    
     # Filter tables with module name but not enabled
-    if ( $table =~ /^([a-z]+)\_/ ) {
+    if ( $ARGS{SKIP_DISABLED_MODULES} && $table =~ /^([a-z]+)\_/ ) {
       my $name = ucfirst $1;
       # Skip if it is module name and not enabled module
-      
-      next if ( is_disabled_module_name($name, $all_modules) );
-      #      print "$name \n  ";
+      next if ( is_disabled_module_name($name, $all_modules));
     }
     
     if ( exists $dump_info{$table} ) {
@@ -255,25 +248,46 @@ sub compare_tables {
   
   # Now can check types
   foreach my $col ( @both_existing ) {
+    # TYPE
     my $dump_type = lc $dump_cols_ref->{$col}->{Type};
     my $sql_type = lc $sql_cols_ref->{$col}->{Type};
+  
+    # SIZE
+    my ($dump_size) = $dump_type =~ /\((\d+)\)/;
+    my ($sql_size) = $sql_type =~ /\((\d+)\)/;
     
-    if ( $dump_type ne $sql_type ) {
+    # NULLABLE
+    my $dump_nullable = is_nullable($dump_cols_ref->{$col});
+    my $sql_nullable = is_nullable($sql_cols_ref->{$col});
+    
+    # DEFAULT
+    my $dump_default = is_nullable($dump_cols_ref->{Default});
+    my $sql_default = is_nullable($sql_cols_ref->{Default});
+  
+    my $col_definition = get_column_definition($dump_cols_ref->{$col});
+    my $current_def = get_column_definition($sql_cols_ref->{$col});
+    
+    if ( $current_def ne $col_definition) {
+      
+      my $type_equals = ($dump_type eq $sql_type);
+      my $null_equals = $dump_nullable eq $sql_nullable if (defined $dump_nullable && defined $sql_nullable);
+      my $defa_equals = $dump_default eq $sql_default if (defined $dump_default && defined $sql_default);
+      
+      # Skip if type and nullable equals and can't check default (is undefined)
+      next if ($type_equals && $null_equals && !defined $defa_equals);
+      
       print "  Found wrong defined type for $table_name.$col \n" if ( $debug );
       
       # Check if data will not be stripped in case of modification
-      my ($dump_size) = $dump_type =~ /\((\d+)\)/;
-      my ($sql_size) = $sql_type =~ /\((\d+)\)/;
       if ( $dump_size && $sql_size && $sql_size > $dump_size && !$ARGS{ALLOW_DATA_STRIP} ) {
         print " Will truncate data if applied ($sql_size -> $dump_size). skipping. use \$ARGS{ALLOW_DATA_STRIP} \n" if ( $debug );
         next;
       };
       
-      print "Expected: '$dump_type' ne Got: '$sql_type' \n" if ( $debug );
-      my $col_definition = get_column_definition($dump_cols_ref->{$col});
+      print "Expected: '$col_definition' . Got: '$current_def') \n" if ( $debug );
       
       show_tip("ALTER TABLE `$table_name` MODIFY COLUMN `$col` " . "$col_definition;", {
-          PREV => uc $sql_type,
+          PREV => uc $current_def,
           NEW  => uc $col_definition
         });
     }
@@ -290,33 +304,70 @@ sub compare_tables {
 sub get_column_definition {
   my ($dump_col_info) = @_;
   
-  my $default_val = '';
+  my $default_def = '';
+  my $nullable = '';
+  
+  if ( defined $dump_col_info->{Null} && $dump_col_info->{Null} eq 'No'){
+    $nullable = ' NOT NULL';
+  }
+  
   if ( defined $dump_col_info->{Default} ) {
+    my $default_val = undef;
+    
     if ( ref $dump_col_info->{Default} && ref $dump_col_info->{Default} eq 'SCALAR' ) {
       $default_val = qq{${$dump_col_info->{Default}}};
     }
-    elsif ( $dump_col_info->{Default} ) {
-      if ( $dump_col_info->{Default} eq 'NOW' ) {
-        $default_val = qq{NOW()};
+    # True
+    elsif ( $dump_col_info->{Default}) {
+      
+      if ( $dump_col_info->{Default} eq 'CURRENT_TIMESTAMP' ) {
+        $default_val = q{CURRENT_TIMESTAMP};
+      }
+      elsif ( $dump_col_info->{Default} eq 'NOW' ) {
+        $default_val = q{NOW()};
+      }
+      elsif ($dump_col_info->{Default} eq 'NULL'){
+#        $default_val = q{NULL};
       }
       else {
         $default_val = qq{'$dump_col_info->{Default}'};
       }
+      
     }
+    # Falsy
     elsif ( $dump_col_info->{Default} eq '0' ) {
-      $default_val = '0';
+      $default_val = q/0/;
     }
+    
+    # False
     else {
-      $default_val = "''";
+      $default_val = q/''/;
     }
+  
+    $default_def =  defined $default_val
+                      ? (' DEFAULT ' . $default_val)
+                      : '';
   }
   
-  return uc ($dump_col_info->{Type})
-    . (($dump_col_info->{Null} && $dump_col_info->{Null} eq 'No') ? ' NOT NULL' : '')
-    . ($default_val
-    ? (' DEFAULT ' . $default_val)
-    : ''
-  );
+  return uc ($dump_col_info->{Type}) . $nullable . $default_def;
+}
+
+#**********************************************************
+=head2 is_nullable($col_def)
+
+=cut
+#**********************************************************
+sub is_nullable {
+  my ($col_def) = @_;
+  
+  my $null_defined = exists $col_def->{Null} && defined $col_def->{Null};
+  my $nullable = $null_defined && $col_def->{Null} && lc($col_def->{Null}) !~ /no/i;
+  
+  return $nullable
+    ? 1
+    : $null_defined
+    ? 0
+    : undef;
 }
 
 #**********************************************************
@@ -333,22 +384,27 @@ sub show_tip {
   }
   
   if ( $ARGS{APPLY_ALL} ) {
-    $admin->query2($tip, 'do', {});
+    $Admin->query($tip, 'do', {});
     return 1;
   }
   
   my $text = ($attr->{PREV} && $attr->{NEW}) ? "Current: $attr->{PREV}\n Change to : $attr->{NEW} \n $tip" : $tip;
-  print "\n $text \n Apply? (y/N): ";
+  print "\n $text \n Apply? (y/N/a): ";
   chomp(my $ok = <STDIN>);
   
-  if ( $ok ne 'y' ) {
+  if ($ok eq 'a'){
+    $ok = 'y';
+    $ARGS{APPLY_ALL} = 1;
+  }
+  
+  if ( $ok !~ /y/i ) {
     print " Skipped \n";
     return 1;
   };
   
-  $admin->query2($tip, 'do', {});
-  if ( $admin->{errno} ) {
-    print "\n Error happened : " . ($admin->{errno} || '') . "\n";
+  $Admin->query($tip, 'do', {});
+  if ( $Admin->{errno} ) {
+    print "\n Error happened : " . ($Admin->{errno} || '') . "\n";
     return 0;
   }
   else {

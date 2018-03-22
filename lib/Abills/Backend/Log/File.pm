@@ -2,12 +2,12 @@ package Abills::Backend::Log::File;
 use strict;
 use warnings FATAL => 'all';
 
+our $VERSION = 1.0;
+
 use AnyEvent;
 use AnyEvent::Handle;
 
 use POSIX qw/sprintf/;
-
-use Abills::Backend::Log qw/:levels/;
 
 my %file_handles = ();
 #**********************************************************
@@ -63,6 +63,18 @@ sub log {
       $message
     )
   );
+
+  # Set timeout, so connection to file is opened once a minute
+  $self->{timeout} //= AnyEvent->timer(
+    after => 60,
+    cb => sub {
+      my $file_name = $self->{file};
+      if (exists $file_handles{$file_name} && ($file_handles{$file_name} && !$file_handles{$file_name}->destroyed())){
+        # This will destroy fh and forces to recreate it on next log operation
+        $file_handles{$file_name}->destroy();
+      }
+    }
+  );
 }
 
 
@@ -82,7 +94,7 @@ sub log {
 sub _get_handle_for_file {
   my ($file_name) = @_;
   
-  if ( !exists $file_handles{$file_name} || $file_handles{$file_name}->destroyed() ) {
+  if ( !exists $file_handles{$file_name} || ($file_handles{$file_name} && $file_handles{$file_name}->destroyed()) ) {
     
     my $log_fh;
     if ( !ref $file_name ) {
@@ -94,10 +106,7 @@ sub _get_handle_for_file {
     
     my AnyEvent::Handle $handle = AnyEvent::Handle->new(
       fh       => $log_fh,
-      #      linger   => 1, # Allow write last data on destroy,
-      autocork => 1,
       no_delay => 1,
-      #      keepalive => 1,
       on_error => sub {
         print "Error on log ";
       }

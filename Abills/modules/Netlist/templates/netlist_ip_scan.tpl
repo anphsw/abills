@@ -24,7 +24,7 @@
         </form>
 
     </div>
-    <div class='box-footer text-center'>
+    <div class='box-footer'>
         <input type='submit' form='form_ip_scan' class='btn btn-primary' name='action' value='_{DO_SCAN}_'>
     </div>
 </div>

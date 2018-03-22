@@ -1,7 +1,6 @@
 #Report 2
 $lang{REQUEST_DATE}='Дата обращения';
 $lang{LOCATION}='Сегмент';
-$lang{DISTRICT}='Район';
 $lang{ENTRANCE}='Подъезд';
 $lang{FLOR}='Этаж';
 $lang{LAST_PAYMENT}='Последняя оплата';

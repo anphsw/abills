@@ -6,6 +6,14 @@
       <input type='hidden' name='index' value='$index'/>
 
       <div class='form-group'>
+        <label class='control-label col-md-3' for='ID_ID'>ID</label>
+        <div class='col-md-9'>
+          <input type='text' class='form-control' value='%ID%' name='ID' id='ID_ID'/>
+        </div>
+      </div>
+
+
+      <div class='form-group'>
         <label class='control-label col-md-3' for='CONNECTER'>_{CONNECTER}_</label>
         <div class='col-md-9'>
           %CONNECTER_ID_SELECT%

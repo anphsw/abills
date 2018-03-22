@@ -45,7 +45,7 @@ var AMessageChecker = (function () {
   };
   
   function checkNow() {
-    if (self.loader) {
+    if (self.loader !== null) {
       self.loader.checkUpdates(true);
     }
   }
@@ -78,6 +78,9 @@ var AMessageChecker = (function () {
   
   
   function handleData(events) {
+    
+    if (typeof (events) === 'undefined' || !events) return;
+    
     if (!$.isArray(events)) {
       processData(events, 1);
     }
@@ -205,17 +208,18 @@ var AMessageChecker = (function () {
   }
   
   function seenMessage(qb_id, seen_url) {
+    Events.emit('MessageChecker.seenMessage');
     if (qb_id) hideQBinfo(qb_id);
-    $.get(seen_url, Events.emitAsCallback('MessageChecker.seenMessage'));
+    $.get(seen_url, function(data){
+      console.log('seen response', data);
+    });
   }
   
   Events.on('MessageChecker.seenMessage', function (data) {
-    self.loader.checkUpdates(true);
-    
+    self.checkNow(true);
     if (data && typeof data['MESSAGE'] !== 'undefined') {
       aTooltip.displayMessage(data['MESSAGE'], 1000);
     }
-    
   });
   
   return {
@@ -270,7 +274,7 @@ function JSONLoaderCached(options) {
         if (callback) callback();
       }).fail(self.fail);
     }
-    else if (this.ignoreCache){ return }
+    else if (this.ignoreCache) { return }
     else {
       var data   = aStorage.getValue(this.id + '_cache', '[]');
       var parsed = [];
@@ -350,14 +354,14 @@ function NavbarDropdownMenu(id, options) {
     this.$icon.addClass(colorClass);
   };
   this.setBadge     = function (badgeText) {
-    if (badgeText === 0) {this.$badge.addClass('hidden')}
+    if (badgeText <= 0) {this.$badge.addClass('hidden')}
     else {
       this.$badge.removeClass('hidden')
     }
     this.$badge.text(badgeText);
   };
   this.setBadge2    = function (badgeText) {
-    if (badgeText === 0) {this.$badge2.addClass('hidden')}
+    if (badgeText <= 0) {this.$badge2.addClass('hidden')}
     else {
       this.$badge2.removeClass('hidden')
     }
@@ -511,6 +515,14 @@ var MessagesMenu = function (id, options) {
         
         self.addEvent(message);
       });
+      
+      Events.on('Msgs.entityViewed.Msg', function(message_id){
+        if (self.seenMessageBefore(message_id)){
+          self.$menu.setBadge2(+(self.$menu.getBadge2()) - 1);
+          Events.emit('favicon.decrement');
+        }
+      });
+      
       return true;
     }
     catch (Error) {
@@ -529,7 +541,7 @@ var MessagesMenu = function (id, options) {
       MSGS_ID   : message['id'],
       SUBJECT   : message['subject'],
       CREATED   : message['datetime'],
-      ADMIN_READ: (message['admin_read'] && message['admin_read'] !== '0000-00-00 00:00:00' ) ? 1 : 0,
+      ADMIN_READ: (message['admin_read'] && message['admin_read'] !== '0000-00-00 00:00:00') ? 1 : 0,
       PRIORITY  : message['priority_id'] || 0
     }
   };
@@ -578,14 +590,22 @@ var MessagesMenu = function (id, options) {
     return icon + header + subject;
   };
   
-  this.addEvent = function (message) {
-    
-    if (typeof self.messages[message['ID']] !== 'undefined') {
+  this.seenMessageBefore = function(id, message){
+    if (typeof self.messages[id] !== 'undefined') {
       // Already have such message
       return true;
     }
     else {
-      self.messages[message['ID']] = message;
+      self.messages[id] = message;
+      return false;
+    }
+  };
+  
+  this.addEvent = function (message) {
+    
+    if (self.seenMessageBefore(message['ID'], message)){
+      // Already have such message
+      return true;
     }
     
     // Create element
@@ -598,10 +618,9 @@ var MessagesMenu = function (id, options) {
     new_li.html(new_line);
     
     if (message['ADMIN_READ'] === 0) {
-      self.unread_counter = +self.$menu.getBadge2() + 1;
-      self.$menu.setBadge2(self.unread_counter);
-      Events.emit('favicon.set', self.unread_counter);
       new_li.addClass('bg-gray');
+      self.$menu.setBadge2(+(self.$menu.getBadge2()) + 1);
+      Events.emit('favicon.increment')
     }
     
     self.$menu.addLine(new_li);
@@ -633,71 +652,72 @@ var EventsMenu = function (id, options) {
   this.events = {};
   
   this.init = function () {
-    try {
-      this.$menu = new NavbarDropdownMenu(id, {
-        BADGE_CUSTOM: false,
-        onRefresh   : function (callback) {
-          self.forceUpdate(callback);
+
+    
+    this.$menu = new NavbarDropdownMenu(id, {
+      BADGE_CUSTOM: false,
+      onRefresh   : function (callback) {
+        self.forceUpdate(callback);
+      }
+    });
+    
+    this.meta = this.$menu.getMeta();
+    
+    if (this.meta && this.meta['UPDATE'] && this.meta['ENABLED']) {
+
+      jQuery("head").append('<link rel="stylesheet" defer href="/styles/default_adm/css/bootstrap-notify.css"/>')
+                    .append('<script defer src="/styles/default_adm/js/bootstrap-notify.min.js"></script>');
+
+      var refresh = this.meta['REFRESH'] ? this.meta['REFRESH'] * 1000 : this.default_interval;
+      // Start loader
+      self.loader = new JSONLoaderCached({
+        id      : id,
+        url     : this.meta['UPDATE'],
+        refresh : refresh,
+        once    : true,
+        after   : this.meta['AFTER'] || 0,
+        callback: function (parsed) {
+          self.clear();
+          self.$menu.setBadge2(parsed['TOTAL']);
+          parsed['DATA_1'].map(self.addEvent);
+        },
+        format  : function (rawData) {
+          if (rawData['DATA_1'] && $.isArray(rawData['DATA_1'])) {
+            rawData['DATA_1'] = rawData['DATA_1'].map(self.parseMessage).reverse();
+          }
+          else {
+            rawData['DATA_1'] = [];
+          }
+          return rawData;
+        },
+        fail    : function (error) {
+          console.warn('Error loading events', error);
+          $('#' + id).addClass('hidden')
         }
       });
-      
-      this.meta = this.$menu.getMeta();
-      
-      if (this.meta && this.meta['UPDATE'] && this.meta['ENABLED']) {
-        var refresh = this.meta['REFRESH'] ? this.meta['REFRESH'] * 1000 : this.default_interval;
-        // Start loader
-        self.loader = new JSONLoaderCached({
-          id      : id,
-          url     : this.meta['UPDATE'],
-          refresh : refresh,
-          once    : true,
-          after   : this.meta['AFTER'] || 0,
-          callback: function (parsed) {
-            self.clear();
-            parsed.map(self.addEvent);
-          },
-          format  : function (rawData) {
-            var result = [];
-            if (rawData['DATA_1'] && $.isArray(rawData['DATA_1'])) {
-              $.each(rawData['DATA_1'], function (i, message) {
-                if (self.filter(message))
-                  result.push(self.parseMessage(message));
-              });
-            }
-            return result;
-          },
-          fail    : function (error) {
-            console.warn('Error loading events', error);
-            $('#' + id).addClass('hidden')
-          }
-        });
-        $('#' + id).removeClass('hidden');
-      }
-      else {
-        return false;
-      }
-      
-      // Link to messageChecker
-      Events.on('messageChecker.gotEvent', function (event_data) {
-        event_data['SUBJECT'] = event_data['TITLE'] || event_data['MODULE'];
-        //event_data['NOTICED_URL'] = event_data[]]
-        
-        //This is really fresh message
-        event_data['ADMIN_READ'] = 0;
-        
-        self.addEvent(event_data);
-      });
-      Events.on('WebSocket.connected', function () {
-        self.$menu.setIconColor('text-aqua');
-      });
-      Events.on('WebSocket.error', function () {
-        self.$menu.setIconColor('text-danger');
-      });
-      return true;
+      $('#' + id).removeClass('hidden');
     }
-    catch (Error) {
+    else {
       return false;
     }
+    
+    // Link to messageChecker
+    Events.on('messageChecker.gotEvent', function (event_data) {
+      event_data['SUBJECT'] = event_data['TITLE'] || event_data['MODULE'];
+      //event_data['NOTICED_URL'] = event_data[]]
+      
+      //This is really fresh message
+      event_data['ADMIN_READ'] = 0;
+      
+      self.addEvent(event_data);
+    });
+    Events.on('WebSocket.connected', function () {
+      self.$menu.setIconColor('text-aqua');
+    });
+    Events.on('WebSocket.error', function () {
+      self.$menu.setIconColor('text-danger');
+    });
+    return true;
   };
   
   this.parseMessage = function (event) {
@@ -709,7 +729,7 @@ var EventsMenu = function (id, options) {
       SUBJECT    : event['title'] || event['module'] || '',
       TEXT       : event['comments'],
       CREATED    : event['created'],
-      ADMIN_READ : (event['state_id'] && event['state_id'] !== '1' ) ? 1 : 0,
+      ADMIN_READ : (event['state_id'] && event['state_id'] !== '1') ? 1 : 0,
       PRIORITY   : event['priority_id'] || 0,
       STATE      : event['state_id'],
       GROUP_ID   : event['group_id'],
@@ -774,17 +794,59 @@ var EventsMenu = function (id, options) {
     }
     else {
       self.events[event['ID']] = event;
-      
-      if (event['STATE'] === '1') {
+      if ('' + event['STATE'] === '1') {
         if (!self.showed_in_session[event['ID']]) {
-          AMessageChecker.showMessage({
-            text    : event['TEXT'],
-            extra   : event['EXTRA'],
-            caption : event['ID'] + ' : ' + (event['TITLE'] || event['SUBJECT'] || event['MODULE'] || ''),
-            id      : event['ID'],
-            seen_url: '?get_index=events_seen_message&json=1&MESSAGE_ONLY=1&AJAX=1&header=2&ID=' + event['ID'],
-            group_id: event['GROUP_ID']
+          var notifyTpl = '<div data-notify="container" class="col-xs-11 col-sm-3 alert alert-{0}" role="alert">' +
+              '<div class="text-right">';
+          if (event['GROUP_ID'] !== '1') {
+            notifyTpl +=
+                '<a data-notify="button2" onclick="AMessageChecker.unsubscribe(' + event['ID'] + ', ' + event['GROUP_ID'] + ')" >' +
+                '<span class="glyphicon glyphicon-eye-close"></span></a> ';
+          }
+          
+          notifyTpl +=
+              '<a data-notify="button1" onclick="AMessageChecker.seenMessage(' + event['ID'] + ', \'' +
+              '?get_index=events_seen_message&json=1&MESSAGE_ONLY=1&AJAX=1&header=2&ID=' + event['ID'] + '\')" >' +
+              '<span class="glyphicon glyphicon-ok"></span></a> ';
+          
+          notifyTpl +=
+              '<a data-notify="dismiss"><span class="glyphicon glyphicon-remove"></span></a></div>' +
+              '<span data-notify="icon"></span>' +
+              '<span data-notify="title">{1}</span><br>' +
+              '<span data-notify="message">{2}</span>' +
+              '<div class="progress" data-notify="progressbar">' +
+              '<div class="progress-bar progress-bar-{0}" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%;"></div>' +
+              '</div>' +
+              '<a href="{3}" target="{4}" data-notify="url"></a>' +
+              '</div>'
+          
+          if (!soundsDisabled)
+            notifyTpl += '<audio src="/styles/default_adm/bb2_new.mp3" type="audio/mpeg" preload="auto" autoplay></audio>';
+          
+          
+          jQuery.notify({
+            // icon: 'glyphicon glyphicon-warning-sign',
+            title  : event['ID'] + ' : ' + (event['TITLE'] || event['SUBJECT'] || event['MODULE'] || ''),
+            message: event['TEXT'],
+            url    : '?get_index=events_profile&full=1&MODULE=Events&chg=' + event['ID'],
+            target : "_self"
+          }, {
+            animate : {
+              enter: 'animated fadeInRight',
+              exit : 'animated fadeOutRight',
+            },
+            delay   : 5000,
+            type    : 'bootstrap-success',
+            template: notifyTpl,
           });
+          // AMessageChecker.showMessage({
+          //   text    : event['TEXT'],
+          //   extra   : event['EXTRA'],
+          //   caption : event['ID'] + ' : ' + (event['TITLE'] || event['SUBJECT'] || event['MODULE'] || ''),
+          //   id      : event['ID'],
+          //   seen_url: '?get_index=events_seen_message&json=1&MESSAGE_ONLY=1&AJAX=1&header=2&ID=' + event['ID'],
+          //   group_id: event['GROUP_ID']
+          // });
           self.showed_in_session[event['ID']] = true;
         }
       }
@@ -800,7 +862,6 @@ var EventsMenu = function (id, options) {
     new_li.html(new_line);
     
     if (event['ADMIN_READ'] === 0) {
-      self.$menu.setBadge2(+self.$menu.getBadge2() + 1);
       new_li.addClass('bg-gray');
     }
     

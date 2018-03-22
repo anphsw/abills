@@ -1,4 +1,5 @@
 <div class='box box-theme'>
+  <div class='box-header with-border'><h4 class='box-title'>_{OBJECT}_</h4></div>
   <div class='box-body' id='ADD_CUSTOM_POINT_PANEL_BODY'>
     <form action='$SELF_URL' class='form form-horizontal' id='ADD_CUSTOM_POINT_FORM'>
       <input type='hidden' name='COORDX' value='%COORDX%'/>

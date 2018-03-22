@@ -19,6 +19,7 @@ our (@EXPORT_OK, %EXPORT_TAGS);
 
 use POSIX qw(locale_h strftime mktime);
 use parent 'Exporter';
+use utf8;
 
 our $VERSION = 2.00;
 
@@ -55,8 +56,9 @@ our @EXPORT = qw(
   days_in_month
   next_month
   show_hash
-  load_pmodule2
+  load_pmodule
   date_inc
+  indexof
 );
 
 @EXPORT_OK = qw(
@@ -92,7 +94,8 @@ our @EXPORT = qw(
   days_in_month
   next_month
   show_hash
-  load_pmodule2
+  load_pmodule
+  indexof
 );
 
 # As said in perldoc, should be called once on a program
@@ -177,6 +180,25 @@ sub in_array {
   }
 
   return 0;
+}
+
+#**********************************************************
+=head2 indexof($value, @array) returns
+
+  Arguments:
+    $value - scalar
+    @array - array to search
+  
+  Returns:
+   index of first entry of $value in @array or -1
+
+=cut
+#**********************************************************
+sub indexof {
+  for (my $i = 1 ; $i <= $#_ ; $i++) {
+    if ($_[$i] eq $_[0]) { return $i - 1; }
+  }
+  return -1;
 }
 
 #**********************************************************
@@ -309,31 +331,44 @@ tr/\x80\x81\x82\x83\x84\x85\x86\x87\x88\x89\x8A\x8B\x8C\x8D\x8E\x8F\x90\x91\x92\
 sub txt2translit {
   my $text = shift;
 
-  $text =~ y/����������������������������/abvgdeezijklmnoprstufh'y'eiei/;
-  $text =~ y/�����Ũ������������������ݲ��/ABVGDEEZIJKLMNOPRSTUFH'Y'EIEI/;
+  $text =~ y/����������������������������/abvgdeezijklmnoprstufh'y'eie/;
+  $text =~ y/�����Ũ������������������ݲ��/ABVGDEEZIJKLMNOPRSTUFH'Y'EI/;
+
+  my $is_utf = Encode::is_utf8($text);
+
+  if($is_utf) {
+    $text = Encode::decode("UTF-8", $text);
+  }
+
+  $text =~ y/абвгдеёзийклмнопрстуфхъыьэ/abvgdeezijklmnoprstufh'y'e/;
+  $text =~ y/АБВГДЕЁЗИЙКЛМНОПРСТУФХЪЫЬЭ/ABVGDEEZIJKLMNOPRSTUFH'Y'E/;
 
   my %mchars = (
-    '�' => 'zh',
-    '�' => 'ts',
-    '�' => 'ch',
-    '�' => 'sh',
-    '�' => 'sch',
-    '�' => 'ju',
-    '�' => 'ja',
-    '�' => 'Zh',
-    '�' => 'Ts',
-    '�' => 'Ch',
-    '�' => 'Sh',
-    '�' => 'Sch',
-    '�' => 'Ju',
-    '�' => 'Ja'
+    'ж' => 'zh',
+    'ц' => 'ts',
+    'ч' => 'ch',
+    'ш' => 'sh',
+    'щ' => 'sch',
+    'ю' => 'ju',
+    'я' => 'ja',
+    'Ж' => 'Zh',
+    'Ц' => 'Ts',
+    'Ч' => 'Ch',
+    'Щ' => 'Sch',
+    'Ю' => 'Ju',
+    'Я' => 'Ja'
   );
 
   for my $c (keys %mchars) {
     $text =~ s/$c/$mchars{$c}/g;
   }
 
-  return $text;
+  if (! $is_utf) {
+    return Encode::encode( "UTF-8", $text );
+  }
+  else {
+    return $text;
+  }
 }
 
 #**********************************************************
@@ -447,7 +482,7 @@ sub utf82cp866 {
 
   Examples:
 
-    my $argv = parse_arguments(\@ARGV);
+    my $argv = parse_arguments(\@ARGV, { help => 'help' });
 
 =cut
 #**********************************************************
@@ -537,13 +572,21 @@ sub sendmail {
   }
 
   my $ext_header = '';
+  my $sendmail_options = '';
   $message =~ s/#.+//g;
   if ($message =~ s/Subject: (.+)[\n\r]+//g) {
     $subject = $1;
   }
   if ($message =~ s/From: (.+)[\n\r]+//g) {
     $from = $1;
+    if ($attr->{TRUSTED_FROM}) {
+      $sendmail_options = $from;
+    }
   }
+  elsif($attr->{TRUSTED_FROM} && $attr->{TRUSTED_FROM} ne '1') {
+    $sendmail_options = "-f $attr->{TRUSTED_FROM}";
+  }
+
   if ($message =~ s/X-Priority: (.+)[\n\r]+//g) {
     $priority = $1;
   }
@@ -636,7 +679,7 @@ $message};
       print "$message";
     }
     else {
-      open(my $mail, '|-', "$SENDMAIL -t") || die "Can't open file '$SENDMAIL' $!\n";
+      open(my $mail, '|-', "$SENDMAIL -t $sendmail_options") || die "Can't open file '$SENDMAIL' $!\n";
         print $mail "To: $to\n";
         print $mail "From: $from\n";
         print $mail $ext_header;
@@ -783,6 +826,9 @@ sub mk_unique_value {
     elsif ($case == 2) {         # Both
       $literals .= $uppercase;
       push (@check_rules, $lowercase, $uppercase)
+    }
+    elsif ($case == 3) {         # No letters
+      # Do not add any
     }
     else {                    # Lowercase only
       push (@check_rules, $lowercase);
@@ -1299,6 +1345,7 @@ command execute in backgroud mode without output
       RESULT_ARRAY    - Return result as ARRAY_REF
       ARGV            - Add ARGV for program
       DEBUG           - Debug mode
+      COMMENT         - Comments for debug messaging
 
       $ENV{CMD_EMULATE_MODE}
          /usr/abills/var/log/cmd.log
@@ -1354,12 +1401,18 @@ sub cmd {
       'COL_NAMES_ARR', 'db', 'list', 'dbo', 'TP_INFO', 'TP_INFO_OLD', 'CHANGES_LOG', '__BUFFER', 'TABLE_SHOW');
     foreach my $key ( sort keys %{ $attr->{PARAMS} } ) {
       next if (in_array($key, \@skip_keys));
+      next if (ref $attr->{PARAMS}->{$key} ne '');
+
       $cmd .= " $key=\"$attr->{PARAMS}->{$key}\"";
     }
   }
 
   if($debug>2) {
-    print $cmd."\n";
+    if($attr->{COMMENT}) {
+      print "CMD: $attr->{COMMENT}\n";
+    }
+
+    print "CMD: $cmd\n";
     if ($debug > 5) {
       return $result;
     }
@@ -1544,14 +1597,14 @@ sub ssh_cmd {
 sub date_diff {
 	my ($from_date, $to_date) = @_;
 
-  my ($from_year, $from_month, $from_day) = split(/-/, $from_date, 3);
-  my ($to_year,   $to_month,   $to_day)   = split(/-/, $to_date,   3);
-  my $from_seltime = POSIX::mktime(0, 0, 0, $from_day, ($from_month - 1), ($from_year - 1900));
-  my $to_seltime   = POSIX::mktime(0, 0, 0, $to_day,   ($to_month - 1),   ($to_year - 1900));
+  require Time::Piece unless $Time::Piece::VERSION;
 
-  my $days = int(($to_seltime - $from_seltime) / 86400);
+  my $date1 = Time::Piece->strptime($from_date, "%Y-%m-%d");
+  my $date2 = Time::Piece->strptime($to_date, "%Y-%m-%d");
 
-	return $days;
+  my Time::Piece $diff = $date2 - $date1;
+
+  return int($diff->days());
 }
 
 #**********************************************************
@@ -1699,6 +1752,7 @@ sub _bp {
       unless ( $attr->{TO_CONSOLE} || $attr->{TO_WEB_CONSOLE} ){
         $Data::Dumper::Pad = "<br>\n";
         $Data::Dumper::Indent = 3;
+        $Data::Dumper::Sortkeys = 1;
       }
       $result_string = Data::Dumper::Dumper( $value );
     }
@@ -2046,7 +2100,7 @@ sub show_hash {
 
 =cut
 #**********************************************************
-sub load_pmodule2 {
+sub load_pmodule {
   my ($name, $attr) = @_;
 
   eval " require $name ";

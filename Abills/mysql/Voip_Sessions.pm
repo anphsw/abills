@@ -7,8 +7,8 @@ package Voip_Sessions;
 =cut
 
 use strict;
-our $VERSION = 2.00;
-use parent 'main';
+our $VERSION = 7.00;
+use parent qw(dbcore);
 
 my ($admin, $CONF);
 my $SORT = 1;
@@ -46,10 +46,10 @@ sub del{
   my ($uid, $session_id, $nas_id, $session_start, $attr) = @_;
 
   if ( $attr->{DELETE_USER} ){
-    $self->query2( "DELETE FROM voip_log WHERE uid='$attr->{DELETE_USER}';", 'do' );
+    $self->query( "DELETE FROM voip_log WHERE uid='$attr->{DELETE_USER}';", 'do' );
   }
   else{
-    $self->query2( "DELETE FROM voip_log
+    $self->query( "DELETE FROM voip_log
       WHERE uid='$uid' and start='$session_start' and nas_id='$nas_id' and acct_session_id='$session_id';", 'do'
     );
   }
@@ -77,7 +77,7 @@ sub online{
     $WHERE = "c.status=1 or c.status>=3";
   }
 
-  $self->query2( "SELECT c.user_name,
+  $self->query( "SELECT c.user_name,
                           pi.fio,
                           calling_station_id,
                           called_station_id,
@@ -152,7 +152,7 @@ sub online_del{
             and acct_session_id='$ACCT_SESSION_ID'";
   }
 
-  $self->query2( "DELETE FROM voip_calls WHERE $WHERE;", 'do' );
+  $self->query( "DELETE FROM voip_calls WHERE $WHERE;", 'do' );
 
   return $self;
 }
@@ -170,7 +170,7 @@ sub online_info{
   #  my $NAS_PORT        = (defined($attr->{NAS_PORT})) ? $attr->{NAS_PORT} : '';
   my $ACCT_SESSION_ID = (defined( $attr->{ACCT_SESSION_ID} )) ? $attr->{ACCT_SESSION_ID} : '';
 
-  $self->query2( "SELECT user_name,
+  $self->query( "SELECT user_name,
     UNIX_TIMESTAMP(started) AS session_start,
     UNIX_TIMESTAMP() - UNIX_TIMESTAMP(started) AS acct_session_time,
     INET_NTOA(client_ip_address) AS client_ip_address,
@@ -199,7 +199,7 @@ sub zap{
   my ($nas_id, $acct_session_id) = @_;
 
   my $WHERE = ($nas_id && $acct_session_id) ? "WHERE nas_id=INET_ATON('$nas_id') and acct_session_id='$acct_session_id'" : '';
-  $self->query2( "UPDATE voip_calls SET status=2 $WHERE;", 'do' );
+  $self->query( "UPDATE voip_calls SET status=2 $WHERE;", 'do' );
 
   return $self;
 }
@@ -213,7 +213,7 @@ sub session_detail{
 
   my $WHERE = ($attr->{UID}) ? " and l.uid='$attr->{UID}'" : q{};
 
-  $self->query2( "SELECT
+  $self->query( "SELECT
   l.start,
   l.start + INTERVAL l.duration SECOND AS stop,
   l.duration,
@@ -258,7 +258,7 @@ sub periods_totals{
     $WHERE .= ($WHERE ne '') ? " and uid='$attr->{UID}' " : "WHERE uid='$attr->{UID}' ";
   }
 
-  $self->query2( "SELECT
+  $self->query( "SELECT
    SEC_TO_TIME(sum(if(DATE_FORMAT(start, '%Y-%m-%d')=curdate(), duration, 0))) AS duration_0,
    sum(if(DATE_FORMAT(start, '%Y-%m-%d')=curdate(), sum, 0)) AS sum_0,
    SEC_TO_TIME(sum(if(TO_DAYS(curdate()) - TO_DAYS(start) = 1, duration, 0))) AS duration_1,
@@ -353,7 +353,7 @@ sub list{
   #    $EXT_TABLES  .= 'LEFT JOIN users_pi pi ON (u.uid=pi.uid)';
   #  }
 
-  $self->query2( "SELECT $self->{SEARCH_FIELDS} l.acct_session_id, l.uid
+  $self->query( "SELECT $self->{SEARCH_FIELDS} l.acct_session_id, l.uid
   FROM (voip_log l, users u)
   $EXT_TABLES
   $WHERE
@@ -365,7 +365,7 @@ sub list{
   my $list = $self->{list};
 
   if ( $self->{TOTAL} > 0 ){
-    $self->query2( "SELECT COUNT(*) AS total, SEC_TO_TIME(SUM(l.duration)) AS duration, SUM(sum) AS sum
+    $self->query( "SELECT COUNT(*) AS total, SEC_TO_TIME(SUM(l.duration)) AS duration, SUM(sum) AS sum
       FROM (voip_log l, users u)
      $WHERE;",
       undef,
@@ -391,7 +391,7 @@ sub calculation{
     $WHERE .= ($WHERE ne '') ? " and l.uid='$attr->{UID}' " : "WHERE l.uid='$attr->{UID}' ";
   }
 
-  $self->query2( "SELECT SEC_TO_TIME(min(l.duration)) AS min_dur,
+  $self->query( "SELECT SEC_TO_TIME(min(l.duration)) AS min_dur,
      SEC_TO_TIME(max(l.duration)) AS max_dur,
      SEC_TO_TIME(avg(l.duration)) AS avg_dur,
      min(l.sum) AS min_sum,
@@ -474,7 +474,7 @@ sub reports{
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join( ' and ', @WHERE_RULES ) : '';
 
   if ( $attr->{DATE} ){
-    $self->query2( "SELECT
+    $self->query( "SELECT
       $date,
       IF(u.id is NULL, CONCAT('> ', l.uid, ' <'), u.id), COUNT(l.uid),
       SEC_TO_TIME(SUM(l.duration)) AS duration_time,
@@ -491,7 +491,7 @@ sub reports{
     );
   }
   else{
-    $self->query2( "SELECT $date, COUNT(DISTINCT l.uid),
+    $self->query( "SELECT $date, COUNT(DISTINCT l.uid),
       COUNT(l.uid),
       SEC_TO_TIME(SUM(l.duration)) AS duration_time,
       SUM(l.sum) AS sum,
@@ -516,7 +516,7 @@ sub reports{
 
   return $list if ($self->{TOTAL} < 1);
 
-  $self->query2( "select COUNT(DISTINCT l.uid) AS distinct_count,
+  $self->query( "select COUNT(DISTINCT l.uid) AS distinct_count,
       COUNT(l.uid) AS session_count,
       SUM(l.duration) AS duration,
       SUM(l.sum) AS sum

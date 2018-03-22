@@ -21,7 +21,7 @@
         </div>
     </form>
 
-    <div class='box-footer text-center'>
+    <div class='box-footer'>
         <input type='submit' form='form_NETLIST_CALC_EXPORT' class='btn btn-primary' name='export_pools'
                value='_{EXPORT}_ IP Pools'>
         <input type='submit' form='form_NETLIST_CALC_EXPORT' class='btn btn-primary'  name='export_groups'

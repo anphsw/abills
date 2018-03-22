@@ -42,7 +42,7 @@ my $Sessions = Dv_Sessions->new( $db, $admin, \%conf );
 my $Dhcphosts = Dhcphosts->new( $db, $admin, \%conf );
 my $tariffs = Tariffs->new( $db, \%conf, $admin );
 my $users = Users->new( $db, $admin, \%conf );
-my $Nas = Nas->new( $db, \%conf );
+my $Nas = Nas->new( $db, \%conf, $admin );
 my $Log = Log->new( $db, \%conf );
 
 my @TT_COLORS = ($_COLORS[1], "#80FF80", "#FFFF80", "#BFBFFF");
@@ -205,19 +205,18 @@ sub ipn_sessions2{
   }
 
   $pages_qs .= "&UID=" . ($LIST_PARAMS{UID} ? $LIST_PARAMS{UID} : q{});
-  reports(
-    {
-      DATE          => $FORM{DATE},
-        REPORT      => '',
-        PERIOD_FORM => 1,
-        NO_GROUP    => 1,
-        HIDDEN      => { UID => $LIST_PARAMS{UID} },
-        EX_INPUTS   => [
-        "$lang{HOURS}: " . $html->form_input( 'HOURS', 1,
-          { TYPE => 'checkbox', STATE => ($FORM{HOURS}) ? 'checked' : undef, OUTPUT2RETURN => 1 } )
-      ]
-    }
-  );
+  reports({
+    DATE        => $FORM{DATE},
+    REPORT      => '',
+    PERIOD_FORM => 1,
+    #DATE_RANGE  => 1,
+    NO_GROUP    => 1,
+    HIDDEN      => { UID => $LIST_PARAMS{UID} },
+    EX_INPUTS   => [
+    "$lang{HOURS}: " . $html->form_input( 'HOURS', 1,
+         { TYPE => 'checkbox', STATE => ($FORM{HOURS}) ? 'checked' : undef, OUTPUT2RETURN => 1 } )
+    ]
+  });
 
   my %totals = ();
   our %DATA_HASH;
@@ -227,7 +226,6 @@ sub ipn_sessions2{
     TRAFFIC  => 0,
     DURATION => 0
   );
-  #my @type;
 
   $CHART{SUFFIX} = 'b';
 
@@ -250,10 +248,10 @@ sub ipn_sessions2{
 
       my $table = $html->table(
         {
-          caption     => "$lang{PREPAID}",
+          caption     => $lang{PREPAID},
           width       => '100%',
           title_plain =>
-          [ "$lang{TRAFFIC} $lang{TYPE}", "$lang{BEGIN}", "$lang{END}", "$lang{START}", "$lang{TOTAL} (MB)", "$lang{REST} (MB)", "$lang{OVERQUOTA} (MB)" ],
+          [ "$lang{TRAFFIC} $lang{TYPE}", $lang{BEGIN}, $lang{END}, $lang{START}, "$lang{TOTAL} (MB)", "$lang{REST} (MB)", "$lang{OVERQUOTA} (MB)" ],
           ID          => 'IPN_PREPAID',
         }
       );
@@ -284,12 +282,12 @@ sub ipn_sessions2{
   }
 
   my $list = $Ipn->reports_users( {
-      TRAFFIC_IN  => '_SHOW',
-      TRAFFIC_OUT => '_SHOW',
-      SUM         => '_SHOW',
-      %LIST_PARAMS,
-      COLS_NAME   => 1
-    } );
+    TRAFFIC_IN  => '_SHOW',
+    TRAFFIC_OUT => '_SHOW',
+    SUM         => '_SHOW',
+    %LIST_PARAMS,
+    COLS_NAME   => 1
+  } );
 
   #Used Fraffic
   $table_sessions = $html->table(
@@ -621,8 +619,8 @@ sub ipn_use{
         REPORT      => '',
         HIDDEN      => \%HIDDEN,
         EX_PARAMS   => {
-        HOURS => "$lang{HOURS}",
-        USERS => "$lang{USERS}"
+        HOURS => $lang{HOURS},
+        USERS => $lang{USERS}
       },
         EXT_TYPE    => {
         DAYS_TCLASS => "$lang{DAYS} $lang{TRAFFIC_CLASS}",
@@ -634,6 +632,7 @@ sub ipn_use{
       },
         PERIOD_FORM => 1,
         TIME_FORM   => 1,
+        DATE_RANGE  => 1,
         #FIELDS      => {%CAPTIONS_HASH},
         EX_INPUTS   => [
         $html->form_select(
@@ -691,13 +690,13 @@ sub ipn_use{
     }
 
     $list = $Ipn->reports_users( {
-        TRAFFIC_IN  => '_SHOW',
-        TRAFFIC_OUT => '_SHOW',
-        TRAFFIC_SUM => '_SHOW',
-        SUM         => '_SHOW',
-        %LIST_PARAMS,
-        COLS_NAME   => 1
-      } );
+      TRAFFIC_IN  => '_SHOW',
+      TRAFFIC_OUT => '_SHOW',
+      TRAFFIC_SUM => '_SHOW',
+      SUM         => '_SHOW',
+      %LIST_PARAMS,
+      COLS_NAME   => 1
+    } );
 
     if ( _error_show( $Ipn ) ){
       #return 0;
@@ -1204,9 +1203,10 @@ sub ipn_user_activate{
   }
 
   if ( !$user->{UID} && !$attr->{IP} ){
-    $ENV{REMOTE_ADDR} = $static_ip if ($static_ip && $static_ip ne '0.0.0.0');
-    $IP_INPUT = $html->form_input( 'REMOTE_ADDR', "$ENV{REMOTE_ADDR}", { OUTPUT2RETURN => 1 } );
-    $ip = ($FORM{REMOTE_ADDR}) ? $FORM{REMOTE_ADDR} : $ENV{REMOTE_ADDR};
+    my $activate_ip = $ENV{REMOTE_ADDR} || '0.0.0.0';
+    $activate_ip = $static_ip if ($static_ip && $static_ip ne '0.0.0.0');
+    $IP_INPUT = $html->form_input( 'REMOTE_ADDR', $activate_ip, { OUTPUT2RETURN => 1 } );
+    $ip = ($FORM{REMOTE_ADDR}) ? $FORM{REMOTE_ADDR} : $activate_ip;
   }
   else{
     if ( !$conf{IPN_SKIP_IP_WARNING}
@@ -1225,7 +1225,7 @@ sub ipn_user_activate{
     $nas_id = int( $FORM{NAS_ID} );
   }
   else{
-    my $poll_list = $Nas->nas_ip_pools_list( { COLS_NAME => 1 } );
+    my $poll_list = $Nas->nas_ip_pools_list( { SHOW_ALL_COLUMNS => 1, COLS_NAME => 1 } );
     my $ip_num = unpack( "N", pack( "C4", split( /\./, $ip ) ) );
 
     # Get valid NAS
@@ -1241,7 +1241,9 @@ sub ipn_user_activate{
 
   if ( $nas_id < 1 ){
     if ( !$FORM{LOGOUT} ){
-      $html->message( 'err', $lang{ERROR}, "$lang{NOT_EXIST} IP '$ip' ", { ID => 161 } );
+      if(! $conf{IPN_SKIP_IP_WARNING}) {
+        $html->message('err', $lang{ERROR}, "$lang{NOT_EXIST} IP '$ip' ", { ID => 161 });
+      }
     }
 
     if ( !$user->{UID} ){
@@ -1375,13 +1377,13 @@ sub ipn_user_activate{
         }
 
         if ( $r == 1 ){
-          $html->message( 'err', $lang{ERROR}, "$RAD_PAIRS->{'Reply-Message'}" );
+          $html->message( 'err', $lang{ERROR}, $RAD_PAIRS->{'Reply-Message'} );
           $Log->log_add(
             {
               LOG_TYPE  => $Log::log_levels{'LOG_WARNING'},
               ACTION    => 'AUTH',
               USER_NAME => $user->{LOGIN} || '-',
-              MESSAGE   => "$RAD_PAIRS->{'Reply-Message'}",
+              MESSAGE   => $RAD_PAIRS->{'Reply-Message'},
               NAS_ID    => $nas_id
             }
           );
@@ -1430,17 +1432,17 @@ sub ipn_user_activate{
     if ( $Nas->{NAS_TYPE} eq 'ipcad' || $Nas->{NAS_TYPE} eq 'other' || $Nas->{NAS_TYPE} eq 'dhcp' ){
       ipn_change_status(
         {
-          STATUS                 => 'HANGUP',
-            USER_NAME            => $user->{LOGIN},
-            FRAMED_IP_ADDRESS    => $ip,
-            NETMASK              => $Dv->{NETMASK},
-            ACCT_TERMINATE_CAUSE => 1,
-            UID                  => $LIST_PARAMS{UID},
-            FILTER_ID            => $Dv->{FILTER_ID} || $Dv->{TP_FILTER_ID},
-            NAS_ID               => $Nas->{NAS_ID},
-            NAS_IP_ADDRESS       => $Nas->{NAS_IP},
-            NAS_MNG_USER         => $Nas->{NAS_MNG_USER},
-            NAS_MNG_IP_PORT      => $Nas->{NAS_MNG_IP_PORT},
+          STATUS               => 'HANGUP',
+          USER_NAME            => $user->{LOGIN},
+          FRAMED_IP_ADDRESS    => $ip,
+          NETMASK              => $Dv->{NETMASK},
+          ACCT_TERMINATE_CAUSE => 1,
+          UID                  => $LIST_PARAMS{UID},
+          FILTER_ID            => $Dv->{FILTER_ID} || $Dv->{TP_FILTER_ID},
+          NAS_ID               => $Nas->{NAS_ID},
+          NAS_IP_ADDRESS       => $Nas->{NAS_IP},
+          NAS_MNG_USER         => $Nas->{NAS_MNG_USER},
+          NAS_MNG_IP_PORT      => $Nas->{NAS_MNG_IP_PORT},
         }
       );
     }
@@ -1453,9 +1455,10 @@ sub ipn_user_activate{
         $nas_port_id,
         $user_name,
         {
-          ACCT_SESSION_ID   => "$FORM{SESSION_ID}",
+          ACCT_SESSION_ID   => $FORM{SESSION_ID},
           FRAMED_IP_ADDRESS => $ip || '0.0.0.0',
-          UID               => $user->{LOGIN}
+          UID               => $user->{LOGIN},
+          CALLING_STATION_ID=> $ip,
         }
       );
     }
@@ -1633,11 +1636,10 @@ sub ipn_change_status{
         LOG_TYPE  => $Log::log_levels{'LOG_INFO'},
         ACTION    => 'AUTH',
         USER_NAME => $USER_NAME || '-',
-        MESSAGE   => "ACTIVATE_IP: $ip",
+        MESSAGE   => "IPN ACTIVATE_IP: $ip ACCT_SESSION_ID: $ACCT_SESSION_ID",
         NAS_ID    => $attr->{NAS_ID}
       }
     );
-
   }
   elsif ( $STATUS eq 'ONLINE_DISABLE' ){
     $cmd = $conf{IPN_FW_STOP_RULE};
@@ -2227,11 +2229,12 @@ sub ipn_recalculate{
 
       $tariffs->info( $TP_ID );
       my $OCTETS_DIRECTION = $tariffs->{OCTETS_DIRECTION};
-      my @CAPTION = ($lang{START}, "$lang{TRAFFIC}  ID", $lang{RECV}, $lang{SEND}, 'NAS', 'IP', $lang{INTERVALS}, $lang{SUM}, 'SID', $lang{RECALCULATE});
+      my @CAPTION = ($lang{START}, "$lang{TRAFFIC}  ID", $lang{RECV}, $lang{SEND}, 'NAS', 'IP',
+        $lang{INTERVALS}, $lang{SUM}, 'SID', $lang{RECALCULATE});
 
       my $table = $html->table(
         {
-          caption    => "$lang{RECALCULATE}",
+          caption    => $lang{RECALCULATE},
           width      => '100%',
           title      => \@CAPTION,
           ID         => 'IPN_RECALCULATE'
@@ -2266,7 +2269,7 @@ sub ipn_recalculate{
         my $recalculate_sum = 0;
         my $price_in = $TIME_INTERVALS{$time_interval}{$traffic_class}{PRICE_IN};
         my $price_out = $TIME_INTERVALS{$time_interval}{$traffic_class}{PRICE_OUT};
-        my $prepaid = $TIME_INTERVALS{$time_interval}{$traffic_class}{PREPAID};
+        my $prepaid = $TIME_INTERVALS{$time_interval}{$traffic_class}{PREPAID} || 0;
         my $in = $line->[2];
         my $out = $line->[3];
         my $sum_in = 0;
@@ -2320,8 +2323,8 @@ sub ipn_recalculate{
             $price_out = 0;
           }
         }
-        $sum_in = $in / $conf{MB_SIZE} * $price_in if ($price_in > 0);
-        $sum_out = $out / $conf{MB_SIZE} * $price_out if ($price_out > 0);
+        $sum_in = $in / $conf{MB_SIZE} * $price_in if ($price_in && $price_in > 0);
+        $sum_out = $out / $conf{MB_SIZE} * $price_out if ($price_out && $price_out > 0);
 
         $recalculate_sum = $sum_in + $sum_out;
 
@@ -2383,17 +2386,17 @@ sub ipn_recalculate{
   my $table = $html->table(
     {
       width    => '100%',
-      rowcolor => $_COLORS[0],
       rows     => [
         [
-          "$lang{RECALCULATE}:",
-          "$lang{FROM}: ",
-          $html->date_fld2( 'FROM_DATE', { MONTHES => \@MONTHES, FORM_NAME => 'recalculate', WEEK_DAYS => \@WEEKDAYS } )
+          $html->element( 'label', "$lang{DATE}: ")
           ,
-          "$lang{TO}: ",
-          $html->date_fld2( 'TO_DATE', { MONTHES => \@MONTHES, FORM_NAME => 'recalculate', WEEK_DAYS => \@WEEKDAYS } ),
-          "$lang{TARIF_PLAN}:"
-            . $html->form_select(
+          $html->form_daterangepicker({
+            NAME      => 'FROM_DATE/TO_DATE',
+            FORM_NAME => 'report_panel',
+            VALUE     => $FORM{'FROM_DATE_TO_DATE'},
+          }),
+          $html->element('label', "$lang{TARIF_PLAN}:"),
+          $html->form_select(
             'TP_ID',
             {
               SELECTED  => $FORM{TP_ID},
@@ -2412,7 +2415,7 @@ sub ipn_recalculate{
             }
           ),
 
-          $html->form_input( 'RECALCULATE', "$lang{RECALCULATE}", { TYPE => 'SUBMIT', OUTPUT2RETURN => 1 } )
+          $html->form_input( 'RECALCULATE', "$lang{RECALCULATE}", { TYPE => 'SUBMIT', class=> 'btn btn-danger', OUTPUT2RETURN => 1 } )
         ]
       ],
     }
@@ -2638,8 +2641,6 @@ sub ipn_periodic_session_restart{
       next;
     }
     elsif ( int( $nas_id ) < 1 ){
-      #Fixme
-      `echo "IP: $online->{client_ip} (CONNECT_INFO: $online->{CONNECT_INFO}) Unknown NAS // $online->{nas_id}" >> /tmp/ipn_`;
       $debug_output .= "IP: $online->{client_ip} (CONNECT_INFO: $online->{CONNECT_INFO}) Unknown NAS\n";
     }
     else{
@@ -2763,7 +2764,7 @@ sub ipn_start_active{
   }
 
   #Get puuls for nas
-  my $poll_list = $Nas->nas_ip_pools_list( { COLS_NAME => 1 } );
+  my $poll_list = $Nas->nas_ip_pools_list( { SHOW_ALL_COLUMNS => 1, COLS_NAME => 1 } );
 
   my %nas_pools_hash = ();
 
@@ -3049,7 +3050,7 @@ sub ipn_ft_queue{
     {
       width       => '600',
       caption     => "Flow-tools queue",
-      title_plain => [ "$lang{NAME}", $lang{DATE}, $lang{SIZE}, '-' ],
+      title_plain => [ $lang{NAME}, $lang{DATE}, $lang{SIZE}, '-' ],
       ID          => 'IPN_FT_QUEUE',
     }
   );

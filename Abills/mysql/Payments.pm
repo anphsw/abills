@@ -8,7 +8,7 @@ package Payments;
 
 use strict;
 use Finance;
-use parent qw(main Finance);
+use parent qw(dbcore Finance);
 use Abills::Base qw(date_diff);
 use Bills;
 my $Bill;
@@ -75,7 +75,7 @@ sub add {
 
   if ($attr->{CHECK_EXT_ID}) {
     $self->{db}{db}->{AutoCommit} = 0;
-    $self->query2("SELECT id, date, sum, uid FROM payments WHERE ext_id=? LIMIT 1 LOCK IN SHARE MODE;",
+    $self->query("SELECT id, date, sum, uid FROM payments WHERE ext_id=? LIMIT 1 LOCK IN SHARE MODE;",
      undef,
      { INFO => 1,
        Bind => [ $attr->{CHECK_EXT_ID} ]
@@ -181,7 +181,7 @@ sub del {
   my $self = shift;
   my ($user, $id, $attr) = @_;
 
-  $self->query2("SELECT sum, bill_id from payments WHERE id= ? ;", undef, { Bind => [ $id ]  });
+  $self->query("SELECT sum, bill_id from payments WHERE id= ? ;", undef, { Bind => [ $id ]  });
 
   $self->{db}{db}->{AutoCommit} = 0;
   if ($self->{TOTAL} < 1) {
@@ -198,12 +198,13 @@ sub del {
   $Bill->action('take', $bill_id, $sum);
   if (! $Bill->{errno}) {
     $self->query_del('docs_invoice2payments', undef, { payment_id => $id });
-    $self->query2("DELETE FROM docs_receipt_orders WHERE receipt_id=(SELECT id FROM docs_receipts WHERE payment_id='$id');", 'do');
+    $self->query("DELETE FROM docs_receipt_orders WHERE receipt_id=(SELECT id FROM docs_receipts WHERE payment_id='$id');", 'do');
     $self->query_del('docs_receipts', undef, { payment_id => $id });
     $self->query_del('payments', undef, { id => $id });
 
     if (! $self->{errno}) {
     	my $comments = ($attr->{COMMENTS}) ? $attr->{COMMENTS} : '';
+      $admin->{MODULE}=q{};
       $admin->action_add($user->{UID}, "$id $sum $comments", { TYPE => 16 });
       $self->{db}{db}->commit();
     }
@@ -264,20 +265,20 @@ sub list {
       ['AID',            'INT', 'p.aid',                        ],
       ['IP',             'INT', 'INET_NTOA(p.ip)',  'INET_NTOA(p.ip) AS ip'],
       ['EXT_ID',         'STR', 'p.ext_id',                                ],
-      ['ADMIN_NAME',     'STR', '', "if(a.name is null, 'Unknown', a.name) AS admin_name" ],
+      ['ADMIN_NAME',     'STR', '', "IF(a.name is null, 'Unknown', a.name) AS admin_name" ],
       ['INVOICE_NUM',    'INT', 'd.invoice_num',                          1],
-      ['DATE',           'DATE','date_format(p.date, \'%Y-%m-%d\')'        ],
+      ['DATE',           'DATE','DATE_FORMAT(p.date, \'%Y-%m-%d\')'        ],
       ['REG_DATE',       'DATE','p.reg_date',                             1],
-      ['MONTH',          'DATE','date_format(p.date, \'%Y-%m\')'           ],
+      ['MONTH',          'DATE','DATE_FORMAT(p.date, \'%Y-%m\')'           ],
       ['ID',             'INT', 'p.id'                                     ],
       ['FROM_DATE_TIME|TO_DATE_TIME','DATE', "p.date"                      ],
-      ['FROM_DATE|TO_DATE', 'DATE',    'date_format(p.date, \'%Y-%m-%d\')' ],
+      ['FROM_DATE|TO_DATE', 'DATE', 'DATE_FORMAT(p.date, \'%Y-%m-%d\')'    ],
       ['UID',            'INT', 'p.uid',                                  1],
     ],
     { WHERE       => 1,
     	WHERE_RULES => \@WHERE_RULES,
     	USERS_FIELDS=> 1,
-    	SKIP_USERS_FIELDS=> [ 'BILL_ID', 'UID', ],
+    	SKIP_USERS_FIELDS => [ 'BILL_ID', 'UID', 'LOGIN' ],
     	USE_USER_PI => 1
     }
     );
@@ -293,7 +294,7 @@ sub list {
 
   my $list;
   if (!$attr->{TOTAL_ONLY}) {
-    $self->query2("SELECT p.id,
+    $self->query("SELECT p.id,
       u.id AS login,
       p.date AS datetime,
       p.dsc,
@@ -320,7 +321,7 @@ sub list {
     $list = $self->{list};
   }
 
-  $self->query2("SELECT COUNT(p.id) AS total, SUM(p.sum) AS sum, COUNT(DISTINCT p.uid) AS total_users
+  $self->query("SELECT COUNT(p.id) AS total, SUM(p.sum) AS sum, COUNT(DISTINCT p.uid) AS total_users
     FROM payments p
   LEFT JOIN users u ON (u.uid=p.uid)
   LEFT JOIN admins a ON (a.aid=p.aid)
@@ -466,7 +467,7 @@ sub reports {
                                                               ]
                                       });
 
-  $self->query2("SELECT $date, count(DISTINCT p.uid) AS login_count, COUNT(*) AS count, SUM(p.sum) AS sum,
+  $self->query("SELECT $date, count(DISTINCT p.uid) AS login_count, COUNT(*) AS count, SUM(p.sum) AS sum,
     $self->{SEARCH_FIELDS} p.uid
     FROM payments p
       $EXT_TABLES
@@ -481,7 +482,7 @@ sub reports {
   my $list = $self->{list};
 
   if ($self->{TOTAL} > 0) {
-    $self->query2("SELECT COUNT(DISTINCT p.uid) AS total_users,
+    $self->query("SELECT COUNT(DISTINCT p.uid) AS total_users,
       COUNT(*) AS total_operation,
       SUM(p.sum) AS total_sum
     FROM payments p
@@ -527,9 +528,9 @@ sub reports_period_summary {
     $EXT_TABLE .= "INNER JOIN users u ON (p.uid=u.uid)";
   }
 
-  $self->query2("SET default_week_format=1", 'do');
+  $self->query("SET default_week_format=1", 'do');
 
-  $self->query2("SELECT
+  $self->query("SELECT
        SUM(IF(DATE_FORMAT(date, '%Y-%m-%d')=CURDATE(), 1, 0)) AS day_count,
        SUM(IF(YEAR(CURDATE())=YEAR(p.date) AND WEEK(CURDATE()) = WEEK(p.date), 1, 0)) AS week_count,
        SUM(IF(DATE_FORMAT(p.date, '%Y-%m')=DATE_FORMAT(CURDATE(), '%Y-%m'), 1, 0))  AS month_count,
@@ -594,7 +595,7 @@ sub payment_type_list {
     ],
     { WHERE => 1 });
 
-  $self->query2("SELECT pt.id, pt.name, pt.color
+  $self->query("SELECT pt.id, pt.name, pt.color
     FROM payments_type pt
     $WHERE
     GROUP BY pt.id
@@ -615,7 +616,7 @@ sub payment_type_info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("SELECT * FROM payments_type pt WHERE pt.id= ?;",
+  $self->query("SELECT * FROM payments_type pt WHERE pt.id= ?;",
   undef,
   { INFO => 1,
     Bind => [ $attr->{ID}] }
@@ -633,7 +634,7 @@ sub payment_type_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'payments_type',

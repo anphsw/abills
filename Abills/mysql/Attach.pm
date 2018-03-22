@@ -12,7 +12,8 @@ use strict;
 use parent 'main';
 use Conf;
 
-my $admin;
+use Admins;
+my Admins $admin;
 my $CONF;
 
 #my $SORT = 1;
@@ -22,31 +23,46 @@ my $CONF;
 
 
 #**********************************************************
-# Init
+=head2 new($db, $admin, $CONF)
+
+  Arguments:
+    $db
+    $admin
+    $CONF
+      ATTACH2FILE - will save files to disk instead of DB
+      
+    $attr  - hash_ref
+      ATTACH_PATH - directory inside $conf{TPL_DIR}/attach/ to work with
+
+=cut
 #**********************************************************
 sub new {
   my $class = shift;
-  my ($db)  = shift;
-  ($admin, $CONF) = @_;
-
+  my ($db, $admin_, $CONF_, $attr) = @_;
+  
+  $admin = $admin_;
+  $CONF = $CONF_;
+  $attr //= {};
+  
   my $self = {
-    db    => $db,
-    admin => $admin,
-    conf  => $CONF
+    db          => $db,
+    admin       => $admin,
+    conf        => $CONF,
+    ATTACH2FILE => ($CONF->{TPL_DIR} || '/usr/abills/Abills/templates') . '/attach/',
   };
-
-  if($CONF->{ATTACH2FILE}) {
-    #$self->{ATTACH2FILE}=$CONF->{ATTACH2FILE};
-    $self->{ATTACH2FILE}="$CONF->{TPL_DIR}/attach/";
+  
+  if ( $CONF->{ATTACH2FILE} || $attr->{ATTACH_PATH} ) {
+    my $dir_postfix = $attr->{ATTACH_PATH} || '';
+    $self->{ATTACH2FILE} .= "$dir_postfix";
   }
-
+  
   bless($self, $class);
-
+  
   return $self;
 }
 
 #**********************************************************
-=head2 file2disc($attr) - Add to disck
+=head2 save_file_to_disk($attr) - Add to disk
 
   Arguments:
     $attr
@@ -55,49 +71,87 @@ sub new {
 
   Returns:
     $self
+    
+  $self->{LAST_SAVE_PATH} will contain full path to saved file
 
 =cut
 #**********************************************************
-sub file2disc {
+sub save_file_to_disk {
   my $self = shift;
   my ($attr) = @_;
-
-  my $filename = $self->{ATTACH2FILE} .'/'. $attr->{FILENAME};
-  $self->{NEW_FILENAME} = $filename;
-
-  if($attr->{UID}) {
-    if(! -d $self->{ATTACH2FILE} . '/' . $attr->{UID}) {
-      mkdir($self->{ATTACH2FILE} . '/' . $attr->{UID});
+  
+  $self->{LAST_SAVE_PATH} = '';
+  
+  my $directory_to_save = $self->{ATTACH2FILE};
+  my $original_filename = $attr->{FILENAME};
+  
+  # Can be changed later
+  my $filename_to_save = $attr->{DISK_FILENAME} || $original_filename;
+  
+  if ( $attr->{UID} ) {
+    # Add additional directory level
+    $directory_to_save .= '/' . $attr->{UID} . '/';
+    if (!$attr->{DISK_FILENAME}) {
+      #YYYYMMDD-HHMMSS-RAND-FieldName-OriginalName
+      my $file_date = POSIX::strftime('%y%m%d%H%M%S', localtime(POSIX::mktime(localtime)));
+      my $field_name = ($attr->{FIELD_NAME}) ? "_$attr->{FIELD_NAME}" : '';
+      $filename_to_save = $file_date . $field_name . '_' . $attr->{FILENAME};
     }
-
-    #YYYYMMDD-HHMMSS-RAND-FieldName-OriginalName
-    my $file_date =  POSIX::strftime('%y%m%d%H%M%S', localtime(POSIX::mktime(localtime) ) );
-    my $field_name = ($attr->{FIELD_NAME}) ? "_$attr->{FIELD_NAME}" : '';
-    $self->{NEW_FILENAME} = $file_date . $field_name .'_'. $attr->{FILENAME};
-    $filename = $self->{ATTACH2FILE} . '/' . $attr->{UID} .'/'. $self->{NEW_FILENAME};
   }
-
-  if (! -d $self->{ATTACH2FILE}) {
-    $self->{errno} = 110;
-    $self->{errstr} = "Folder not exists '$self->{ATTACH2FILE}'";
-    mkdir($self->{ATTACH2FILE});
-  }
-  elsif(-f $filename) {
+  
+  # Now check if directory we want to write is not a file
+  #  exists
+  if ( -f $directory_to_save ) {
     $self->{errno} = 111;
-    $self->{errstr} = "File exist '$self->{ATTACH2FILE}'";
+    $self->{errstr} = "Trying to use file as a directory '$self->{ATTACH2FILE}'";
+    return $self;
   }
-  elsif (open( my $fh, '>', $filename)) {
+  elsif ( ! -e $directory_to_save ) {
+    # Recursive create directory
+    
+    # Core module from 5.001;
+    require File::Path;
+    File::Path->import('make_path');
+    
+    #https://perldoc.perl.org/File/Path.html#ERROR-HANDLING
+    my $make_path_errors = [];
+    File::Path::make_path($directory_to_save, { error => \$make_path_errors });
+    if ( @{$make_path_errors} ) {
+      # Build full error string
+      my $error_string = '';
+      for my $diag (@$make_path_errors) {
+        my ($file, $message) = %$diag;
+        if ($file eq '') {
+          $error_string .= "General error: $message\n";
+        }
+        else {
+          $error_string .= "$file: $message\n";
+        }
+      }
+      $self->{errno} = 110;
+      $self->{errstr} = "Can't create directory '$self->{ATTACH2FILE}' : $error_string";
+      return $self;
+    }
+  }
+#  use Abills::Base qw/_bp/;
+#  _bp("", $filename_to_save, { EXIT => 1 });
+  
+  
+  # Finally can write to file
+  my $full_file_path = $directory_to_save . '/' . $filename_to_save;
+  if ( open(my $fh, '>', $full_file_path) ) {
     binmode $fh;
-      print $fh $attr->{CONTENT};
+    print $fh $attr->{CONTENT};
     close($fh);
-    $admin->action_add($attr->{UID}, "FILE:$filename", { TYPE => 1 });
+    $admin->action_add($attr->{UID}, "FILE:$full_file_path", { TYPE => 1 });
+    $self->{LAST_SAVE_PATH} = $full_file_path;
   }
   else {
     $self->{errno} = 112;
-    $self->{errstr} = "Can't create file '$self->{NEW_FILENAME}' $!";
+    $self->{errstr} = "Can't create file '$full_file_path' $!";
   }
-
-  return $self;
+  
+  return $self->{LAST_SAVE_PATH};
 }
 
 #**********************************************************
@@ -149,7 +203,8 @@ sub attachment_file_del {
 
   Arguments:
     $attr
-      TABLE    - Table name
+      TABLE      - Table name
+      EXTRA_DATA - hash_ref additional table columns => values
       FILENAME
       CONTENT_TYPE
       FILESIZE
@@ -169,30 +224,44 @@ sub attachment_add{
     $attr->{FILENAME} =~ s/\%20/_/g;
   }
 
-  if($self->{ATTACH2FILE}) {
-    $self->file2disc($attr);
+  if($self->{conf}{ATTACH2FILE}) {
+    
+    my $saved_filename = $self->save_file_to_disk($attr);
+    
     if($self->{errno}) {
       return $self;
     }
     else {
-      my $disc_file = $attr->{FILENAME};
-      $disc_file = $self->{NEW_FILENAME} if ($self->{NEW_FILENAME});
-      $attr->{CONTENT} = "FILENAME: $disc_file";
+      $attr->{CONTENT} = "FILE: $saved_filename";
+    }
+  }
+  
+  # Allow to add extra columns
+  my $extra_bind_placeholders = '';
+  my $extra_col_names = '';
+  my @extra_bind_values = '';
+  if ( $attr->{EXTRA_DATA} && ref $attr->{EXTRA_DATA} eq 'HASH'){
+    $extra_bind_placeholders = ', ?' x (scalar keys %{$attr->{EXTRA_DATA}});
+    foreach my $key (sort keys %{$attr->{EXTRA_DATA}}){
+      $extra_col_names .= ", $key";
+      push (@extra_bind_values, $attr->{EXTRA_DATA}{$key});
     }
   }
 
   $self->query2( "INSERT INTO $attr->{TABLE}
-        (filename, content_type, content_size, content, create_time)
-        VALUES (?, ?, ?, ?, NOW())",
+        (filename, content_type, content_size, content, create_time $extra_col_names)
+        VALUES (?, ?, ?, ?, NOW() $extra_bind_placeholders)",
     'do', { Bind => [
         $attr->{FILENAME},
         $attr->{CONTENT_TYPE},
         $attr->{FILESIZE},
-        $attr->{CONTENT} ]
+        $attr->{CONTENT},
+        @extra_bind_values
+      ]
     }
   );
 
-  return $self;
+  return ($attr->{RETURN_ID}) ? $self->{INSERT_ID} : $self ;
 }
 
 #**********************************************************
@@ -215,13 +284,13 @@ sub attachment_del {
   $self->attachment_info($attr);
   $self->query_del($attr->{TABLE}, $attr);
 
-  if($self->{ATTACH2FILE} && $self->{FILENAME}) {
-    if($self->{CONTENT} =~ /FILENAME: (.+)/) {
+  if($self->{conf}{ATTACH2FILE} && $self->{FILENAME}) {
+    if ( $self->{CONTENT} =~ /FILE(?:NAME)?: .+\/\/?([a-zA-Z0-9_\-.]+)/ ) {
       $attr->{FILENAME} = $1;
       $self->attachment_file_del($attr);
     }
   }
-  elsif($attr->{FULL_DELETE} && $self->{ATTACH2FILE}) {
+  elsif($attr->{FULL_DELETE} && $self->{conf}{ATTACH2FILE}) {
     if($attr->{UID} && -d "$self->{ATTACH2FILE}/$attr->{UID}") {
       `rm -R $self->{ATTACH2FILE}/$attr->{UID}`;
     }

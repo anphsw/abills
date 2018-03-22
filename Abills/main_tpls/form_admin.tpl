@@ -212,7 +212,7 @@
                     <div class='form-group'>
                         <label class='control-label col-md-3' for='API_KEY'>API_KEY:</label>
                         <div class='col-md-9'>
-                            <input id='API_KEY' name='API_KEY' value='%API_KEY%' type='text' class='form-control'>
+                            <input id='API_KEY' name='API_KEY_NEW' value='%API_KEY%' type='text' class='form-control'>
                         </div>
                     </div>
 

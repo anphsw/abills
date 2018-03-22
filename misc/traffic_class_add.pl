@@ -38,7 +38,7 @@ use FindBin '$Bin';
 use Encode;
 use Sys::Hostname;
 use Abills::SQL;
-use Abills::Base qw(int2ip ip2int parse_arguments ssh_cmd load_pmodule2 check_time gen_time);
+use Abills::Base qw(int2ip ip2int parse_arguments ssh_cmd load_pmodule check_time gen_time);
 use Admins;
 use Tariffs;
 use Data::Dumper;
@@ -48,7 +48,7 @@ use XML::Simple;
 #use Sys::Syslog qw(:DEFAULT setlogsock);
 use POSIX qw(strftime);
 
-load_pmodule2('SOAP::Lite');
+load_pmodule('SOAP::Lite');
 
 my $WGET = 'wget -qO-';
 if (-f '/usr/bin/fetch') {
@@ -729,7 +729,7 @@ sub add_2_mikrotik {
 
   my $domain_redirect = $argv->{DOMAIN_REDIRECT} || '10.0.0.1';
 
-  load_pmodule2('Net::FTP');
+  load_pmodule('Net::FTP');
   my $file_name = 'ros_com.rsc';
   my $export_file = $base_dir . '/var/db/'. $file_name;
   if (open(my $fh, '>', $export_file)) {

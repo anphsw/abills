@@ -16,10 +16,18 @@
 
 =cut
 
-#use strict;
+use strict;
 use warnings FATAL => 'all';
 use Triplay;
 use Tariffs;
+
+our(
+  $db,
+  $html,
+  %lang,
+  $admin
+
+);
 
 #my $version = 0.02;
 
@@ -89,7 +97,7 @@ sub triplay_main{
   }
 
   my $iptv_tps = $Tariffs->list( { MODULE => 'Iptv', COLS_NAME => 1 } );
-  my $internet_tps = $Tariffs->list( { MODULE => 'Dv', COLS_NAME => 1 } );
+  my $internet_tps = $Tariffs->list( { MODULE => 'Internet', COLS_NAME => 1 } );
   my $voip_tps = $Tariffs->list( { MODULE => 'Voip', COLS_NAME => 1 } );
 
   # select for iptv tps
@@ -178,6 +186,9 @@ sub triplay_main{
     }
   );
 
+  use Triplay::Services;
+  triplay_users_services();
+
   return 1;
 }
 
@@ -198,7 +209,7 @@ sub triplay_user{
   my $services_info = '';
 
   if ($FORM{action} && $FORM{action} eq 'add' ){
-    $Triplay->add_user( {
+    $Triplay->add_user_service( {
         UID   => $FORM{UID},
         TP_ID => $FORM{TRIPLAY_TP}
       } );
@@ -214,7 +225,7 @@ sub triplay_user{
   }
   elsif ( $FORM{action} && $FORM{action} eq 'change' ){
     if ( $FORM{TRIPLAY_TP} && $FORM{TRIPLAY_TP} ne '' ){
-      $Triplay->change_user( {
+      $Triplay->change_user_service( {
           UID   => $FORM{UID},
           TP_ID => $FORM{TRIPLAY_TP}
         } );
@@ -227,7 +238,7 @@ sub triplay_user{
       }
     }
     else{
-      $Triplay->del_user( { UID => $FORM{UID} } );
+      $Triplay->del_user_service( { UID => $FORM{UID} } );
 
       if ( !$Triplay->{errno} ){
         $html->message( 'success', "$lang{USER} $lang{DELETED}" );
@@ -238,18 +249,19 @@ sub triplay_user{
     }
   }
 
-  my $user_info = $Triplay->info_user( { COLS_NAME => 1, UID => $FORM{UID} } );
+  my $user_info = $Triplay->info_user_service( { COLS_NAME => 1, UID => $FORM{UID} } );
 
-  if ( $user_info->{TOTAL} > 0 ){
+  if ( $user_info->{TOTAL} && $user_info->{TOTAL} > 0 ){
     $button = "$lang{CHANGE}";
     $action = "change";
 
     my $tp_info = $Triplay->info_tp( { ID => $user_info->{TP_ID}, COLS_NAME => 1 } );
+
     $services_info = $html->tpl_show( _include( 'triplay_sevices_info', 'Triplay' ), {
         DV_TP    => $tp_info->{internet_name},
         VOIP_TP  => $tp_info->{voip_name},
         IPTV_TP  => $tp_info->{iptv_name},
-        INTERNET => "$SELF_URL?index=" . get_function_index( 'dv_user' ) . "UID=" . ($FORM{UID} || q{}),
+        INTERNET => "$SELF_URL?index=" . get_function_index( 'internet_user' ) . "UID=" . ($FORM{UID} || q{}),
         VOIP     => "$SELF_URL?index=" . get_function_index( 'voip_user' ) . "UID=" . ($FORM{UID} || q{}),
         IPTV     => "$SELF_URL?index=" . get_function_index( 'iptv_user' ) . "UID=" . ($FORM{UID} || q{}),
       }, { OUTPUT2RETURN => 1 } );
@@ -277,7 +289,7 @@ sub triplay_user{
       INDEX         => get_function_index( 'triplay_user' ),
       UID           => $FORM{UID},
       SERVICES_INFO => $services_info
-    } );
+    }, { ID => 'triplay_service' } );
 
   return 1;
 }

@@ -12,15 +12,16 @@ use strict;
 BEGIN {
   our $libpath = '../';
   our $sql_type = 'mysql';
-  unshift( @INC,
+  unshift(@INC,
     $libpath . "Abills/$sql_type/",
     $libpath . "Abills/modules/",
-    $libpath . '/lib/' );
+    $libpath . "Abills/",
+    $libpath . '/lib/');
 
   our $begin_time = 0;
-  eval { require Time::HiRes; };
-  if ( !$@ ){
-    Time::HiRes->import( qw(gettimeofday) );
+  eval {require Time::HiRes;};
+  if (!$@) {
+    Time::HiRes->import(qw(gettimeofday));
     $begin_time = Time::HiRes::gettimeofday();
   }
 }
@@ -34,50 +35,60 @@ use Users;
 use Paysys;
 use Finance;
 use Admins;
+use Conf;
+
 our $silent = 1;
-our $debug  = $conf{PAYSYS_DEBUG} || 0;
-our $html   = Abills::HTML->new({ CONF => \%conf });
-our $db = Abills::SQL->connect( $conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
-  { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef } );
+our $debug = $conf{PAYSYS_DEBUG} || 0;
+our $html = Abills::HTML->new({ CONF => \%conf });
+our $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
+  { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
+
+our $admin = Admins->new($db, \%conf);
+$admin->info($conf{SYSTEM_ADMIN_ID}, { IP => $ENV{REMOTE_ADDR} });
+$admin->{DATE} = $DATE;
+
 delete $FORM{language};
 require Abills::Misc;
 require Abills::Templates;
+require Paysys::Paysys_Base;
 
 #Operation status
 my $status = '';
 
+# read conf for DB
+our $Conf = Conf->new($db, $admin, \%conf);
+
 do "../language/$html->{language}.pl";
 
-if ( $Paysys::VERSION < 3.2 ){
+if ($Paysys::VERSION < 3.2) {
   print "Content=-Type: text/html\n\n";
   print "Please update module 'Paysys' to version 3.2 or higher. http://abills.net.ua/";
   return 0;
 }
 
 #Check allow ips
-if ( $conf{PAYSYS_IPS} ){
-  if($ENV{REMOTE_ADDR} && ! check_ip($ENV{REMOTE_ADDR}, $conf{PAYSYS_IPS})) {
+if ($conf{PAYSYS_IPS}) {
+  if ($ENV{REMOTE_ADDR} && !check_ip($ENV{REMOTE_ADDR}, $conf{PAYSYS_IPS})) {
     print "Content-Type: text/html\n\n";
     my $error = "Error: IP '$ENV{REMOTE_ADDR}' DENY by System";
-    sendmail( "$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "ABillS - Paysys", "IP '$ENV{REMOTE_ADDR}' DENY by System",
-      "$conf{MAIL_CHARSET}", "2 (High)" );
-    mk_log( $error );
+    sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "ABillS - Paysys", "IP '$ENV{REMOTE_ADDR}' DENY by System",
+      "$conf{MAIL_CHARSET}", "2 (High)");
+    mk_log($error);
     exit;
   }
 }
 
-if ( $conf{PAYSYS_PASSWD} ){
-  my ($user, $password) = split( /:/, $conf{PAYSYS_PASSWD} );
+if ($conf{PAYSYS_PASSWD}) {
+  my ($user, $password) = split(/:/, $conf{PAYSYS_PASSWD});
 
-  if ( defined( $ENV{HTTP_CGI_AUTHORIZATION} ) ){
+  if (defined($ENV{HTTP_CGI_AUTHORIZATION})) {
     $ENV{HTTP_CGI_AUTHORIZATION} =~ s/basic\s+//i;
-    my ($REMOTE_USER, $REMOTE_PASSWD) = split( /:/, decode_base64( $ENV{HTTP_CGI_AUTHORIZATION} ) );
+    my ($REMOTE_USER, $REMOTE_PASSWD) = split(/:/, decode_base64($ENV{HTTP_CGI_AUTHORIZATION}));
 
-    if ( (!$REMOTE_PASSWD)
+    if ((!$REMOTE_PASSWD)
       || ($REMOTE_PASSWD && $REMOTE_PASSWD ne $password)
       || (!$REMOTE_USER)
-      || ($REMOTE_USER && $REMOTE_USER ne $user) )
-    {
+      || ($REMOTE_USER && $REMOTE_USER ne $user)) {
       print "WWW-Authenticate: Basic realm=\"Billing system\"\n";
       print "Status: 401 Unauthorized\n";
       print "Content-Type: text/html\n\n";
@@ -87,45 +98,40 @@ if ( $conf{PAYSYS_PASSWD} ){
   }
 }
 
-our $admin  = Admins->new( $db, \%conf );
-$admin->info( $conf{SYSTEM_ADMIN_ID}, { IP => $ENV{REMOTE_ADDR} } );
-$admin->{DATE} = $DATE;
-
-require Paysys::Paysys_Base;
-our $Paysys   = Paysys->new( $db, $admin, \%conf );
-our $payments = Finance->payments( $db, $admin, \%conf );
-our $users    = Users->new( $db, $admin, \%conf );
-our %PAYSYS_PAYMENTS_METHODS = %{ cfg2hash( $conf{PAYSYS_PAYMENTS_METHODS} ) };
+our $Paysys = Paysys->new($db, $admin, \%conf);
+our $payments = Finance->payments($db, $admin, \%conf);
+our $users = Users->new($db, $admin, \%conf);
+our %PAYSYS_PAYMENTS_METHODS = %{ cfg2hash($conf{PAYSYS_PAYMENTS_METHODS}) };
 
 #debug =========================================
 my $output2 = get_request_info();
 
-if ( $debug > 2 ){
-  mk_log( $output2 );
+if ($debug > 2) {
+  mk_log($output2);
 }
 
 #END debug =====================================
-load_pmodule( 'Digest::MD5' );
+load_pmodule('Digest::MD5');
 our $md5 = Digest::MD5->new();
 
-if ( $conf{PAYSYS_SUCCESSIONS} ){
+if ($conf{PAYSYS_SUCCESSIONS}) {
   $conf{PAYSYS_SUCCESSIONS} =~ s/[\n\r]+//g;
-  my @systems_arr = split( /;/, $conf{PAYSYS_SUCCESSIONS} );
+  my @systems_arr = split(/;/, $conf{PAYSYS_SUCCESSIONS});
   # IPS:ID:NAME:SHORT_NAME:MODULE_function;
-  foreach my $line ( @systems_arr ){
-    my ($ips, $id, undef, $short_name, $function) = split( /:/, $line );
+  foreach my $line (@systems_arr) {
+    my ($ips, $id, undef, $short_name, $function) = split(/:/, $line);
 
     my %system_params = (
       SYSTEM_SHORT_NAME => $short_name,
       SYSTEM_ID         => $id
     );
 
-    if ( check_ip($ENV{REMOTE_ADDR}, $ips)) {
-      if ( $function =~ /(\S+)\.pm/ ){
-        load_pay_module( "$1", { SYS_PARAMS => \%system_params } );
+    if (check_ip($ENV{REMOTE_ADDR}, $ips)) {
+      if ($function =~ /(\S+)\.pm/) {
+        load_pay_module("$1", { SYS_PARAMS => \%system_params });
       }
-      else{
-        &{ \&$function }( \%system_params );
+      else {
+        &{ \&$function }(\%system_params);
       }
 
       exit;
@@ -196,7 +202,7 @@ my %ip_binded_system = (
   => 'Fondy',
   '78.140.172.231, 62.113.223.114'
   => 'Platon',
-  '192.168.0.0'
+  '81.177.31.100-81.177.31.200'
   => 'Walletone',
   '213.145.147.131'
   => 'Mobilnik',
@@ -215,120 +221,147 @@ my %ip_binded_system = (
   '91.200.28.0/24, 91.227.52.0/24'
   => 'Paymaster_ru',
   '195.200.209.9, 195.200.209.15, 195.200.209.20'
-  => 'Rnkb',
+  => 'Rncb',
 );
 
 #Test system
-if ( $conf{PAYSYS_TEST_SYSTEM} || $FORM{PAYSYS_TEST_SYSTEM}){
-  if($FORM{PAYSYS_TEST_SYSTEM}){
-    $conf{PAYSYS_TEST_SYSTEM} = $FORM{PAYSYS_TEST_SYSTEM};
-  }
-  my ($ips, $pay_system) = split( /:/, $conf{PAYSYS_TEST_SYSTEM} );
-  if ( check_ip( $ENV{REMOTE_ADDR}, "$ips" ) ){
-    
-    load_pay_module( $pay_system );
+if ($conf{PAYSYS_TEST_SYSTEM} || $FORM{PAYSYS_TEST_SYSTEM}) {
+#  if ($FORM{PAYSYS_TEST_SYSTEM}) {
+#    $conf{PAYSYS_TEST_SYSTEM} = $FORM{PAYSYS_TEST_SYSTEM};
+#  }
+  my ($ips, $pay_system) = split(/:/, $conf{PAYSYS_TEST_SYSTEM});
+  if (check_ip($ENV{REMOTE_ADDR}, "$ips")) {
+
+    load_pay_module($pay_system);
     exit;
   }
 }
 
 #Proccess system
-foreach my $params ( keys %ip_binded_system ){
+foreach my $params (keys %ip_binded_system) {
   my $ips = $params;
-  if ( check_ip( $ENV{REMOTE_ADDR}, "$ips" ) ){
-    load_pay_module( $ip_binded_system{"$params"} );
+  if (check_ip($ENV{REMOTE_ADDR}, "$ips")) {
+    load_pay_module($ip_binded_system{"$params"});
   }
 }
 
-if ( $FORM{__BUFFER} && $FORM{__BUFFER} =~ /^{.+}$/ &&
-  check_ip( $ENV{REMOTE_ADDR},
-    '75.101.163.115,107.22.173.15,107.22.173.86,213.154.214.76,217.117.64.232-217.117.64.238' ) ){
-  load_pay_module( 'Private_bank_json' );
+if ($FORM{__BUFFER} && $FORM{__BUFFER} =~ /^{.+}$/ &&
+  check_ip($ENV{REMOTE_ADDR},
+    '75.101.163.115,107.22.173.15,107.22.173.86,213.154.214.76,217.117.64.232-217.117.64.238')) {
+  load_pay_module('Private_bank_json');
 }
 #
-elsif ( check_ip( $ENV{REMOTE_ADDR}, '176.9.53.221,176.9.53.221,5.9.145.93,5.9.145.89' ) ){
+elsif (check_ip($ENV{REMOTE_ADDR}, '176.9.53.221,176.9.53.221,5.9.145.93,5.9.145.89')) {
   paymaster_check_payment();
   exit;
 }
 # IP: 77.120.97.36
-elsif ( $FORM{merchantid} ){
-  load_pay_module( 'Regulpay' );
+elsif ($FORM{merchantid}) {
+  load_pay_module('Regulpay');
 }
-elsif ( $FORM{request_type} && $FORM{random} || $FORM{copayco_result} ){
-  load_pay_module( 'Copayco' );
+elsif ($FORM{request_type} && $FORM{random} || $FORM{copayco_result}) {
+  load_pay_module('Copayco');
 }
-elsif ( $FORM{xmlmsg} ){
-  load_pay_module( 'Minbank' );
+elsif ($FORM{xmlmsg}) {
+  load_pay_module('Minbank');
 }
-elsif ( $FORM{from} && $FORM{from} eq 'Payonline' ){
-  load_pay_module( 'Payonline' );
+elsif ($FORM{from} && $FORM{from} eq 'Payonline') {
+  load_pay_module('Payonline');
 }
-elsif ( $conf{PAYSYS_EXPPAY_ACCOUNT_KEY}
-  && ( $FORM{action} == 1
+elsif ($conf{PAYSYS_EXPPAY_ACCOUNT_KEY}
+  && ($FORM{action} == 1
   || $FORM{action} == 2
-  || $FORM{action} == 4 ) ){
-  load_pay_module( 'Express' );
+  || $FORM{action} == 4)) {
+  load_pay_module('Express');
 }
-elsif ( $FORM{action} && $conf{PAYSYS_CYBERPLAT_ACCOUNT_KEY} ){
-  load_pay_module( 'Cyberplat' );
+elsif ($FORM{action} && $conf{PAYSYS_CYBERPLAT_ACCOUNT_KEY}) {
+  load_pay_module('Cyberplat');
 }
-elsif ( $FORM{SHOPORDERNUMBER} ){
-  load_pay_module( 'Portmone' );
+elsif ($FORM{SHOPORDERNUMBER}) {
+  load_pay_module('Portmone');
 }
-elsif ( $FORM{acqid} ){
+elsif ($FORM{acqid}) {
   privatbank_payments();
 }
-elsif ( $FORM{operation} || $ENV{'QUERY_STRING'} =~ /operation=/ ){
-  load_pay_module( 'Comepay' );
+elsif ($FORM{operation} || $ENV{'QUERY_STRING'} =~ /operation=/) {
+  load_pay_module('Comepay');
 }
-elsif ( $FORM{'<OPERATION id'} || $FORM{'%3COPERATION%20id'} ){
-  load_pay_module( 'Express-oplata' );
+elsif ($FORM{'<OPERATION id'} || $FORM{'%3COPERATION%20id'}) {
+  load_pay_module('Express-oplata');
 }
-elsif ( $FORM{ACT} ){
-  load_pay_module( '24_non_stop' );
+elsif ($FORM{ACT}) {
+  load_pay_module('24_non_stop');
 }
-elsif ( $conf{PAYSYS_GIGS_IPS} && $conf{PAYSYS_GIGS_IPS} =~ /$ENV{REMOTE_ADDR}/ ){
-  load_pay_module( 'Gigs' );
+elsif ($conf{PAYSYS_GIGS_IPS} && $conf{PAYSYS_GIGS_IPS} =~ /$ENV{REMOTE_ADDR}/) {
+  load_pay_module('Gigs');
 }
-elsif ( $conf{PAYSYS_EPAY_ACCOUNT_KEY} && $FORM{command} && $FORM{txn_id} ){
-  load_pay_module( 'Epay' );
+elsif ($conf{PAYSYS_EPAY_ACCOUNT_KEY} && $FORM{command} && $FORM{txn_id}) {
+  load_pay_module('Epay');
 }
-elsif ( $FORM{txn_id} || $FORM{prv_txn} || defined( $FORM{prv_id} ) || ($FORM{command} && $FORM{account}) ){
+elsif ($FORM{txn_id} || $FORM{prv_txn} || defined($FORM{prv_id}) || ($FORM{command} && $FORM{account})) {
   osmp_payments();
   # new_load_pay_module('Osmp');
 }
 elsif (
   $conf{PAYSYS_GAZPROMBANK_ACCOUNT_KEY}
-    && ( $FORM{lsid}
+    && ($FORM{lsid}
     || $FORM{trid}
     || $FORM{dtst})
-){
-  load_pay_module( 'Gazprombank' );
+) {
+  load_pay_module('Gazprombank');
 }
 
-if ( check_ip( $ENV{REMOTE_ADDR}, '92.125.0.0/24' ) ){
+if (check_ip($ENV{REMOTE_ADDR}, '92.125.0.0/24')) {
   osmp_payments_v4();
 }
-elsif ( $conf{PAYSYS_ERIPT_IPS} && check_ip( $ENV{REMOTE_ADDR}, $conf{PAYSYS_ERIPT_IPS} ) ){
-  load_pay_module( 'Erip' );
+elsif ($conf{PAYSYS_ERIPT_IPS} && check_ip($ENV{REMOTE_ADDR}, $conf{PAYSYS_ERIPT_IPS})) {
+  load_pay_module('Erip');
 }
-elsif ( check_ip( $ENV{REMOTE_ADDR}, '79.142.16.0/21' ) ){
+elsif (check_ip($ENV{REMOTE_ADDR}, '79.142.16.0/21')) {
   print "Content-Type: text/xml\n\n" . "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" . "<response>\n" . "<result>300</result>\n" . "<result1>$ENV{REMOTE_ADDR}</result1>\n" . " </response>\n";
   exit;
 }
-elsif ( $FORM{payment} && $FORM{payment} =~ /pay_way/ ){
-  load_pay_module( 'P24' );
+elsif ($FORM{payment} && $FORM{payment} =~ /pay_way/) {
+  load_pay_module('P24');
 }
-elsif ( $conf{'PAYSYS_YANDEX_ACCCOUNT'} && $FORM{code} ){
-  load_pay_module( 'Yandex' );
+elsif ($conf{'PAYSYS_YANDEX_ACCCOUNT'} && $FORM{code}) {
+  load_pay_module('Yandex');
 }
-elsif ( $FORM{command} ){
+elsif ($FORM{command}) {
   osmp_payments();
 }
 #ipay new load
-elsif($FORM{xml}){
+elsif ($FORM{xml} && $conf{PAYSYS_IPAY_FAST_PAY}) {
   require Paysys::systems::Ipay;
-  my $Ipay = Paysys::systems::Ipay->new(\%conf, \%FORM, undef, undef, $users, {HTML => $html, SELF_URL => $SELF_URL, DATETIME => "$DATE $TIME"});
+  my $Ipay = Paysys::systems::Ipay->new(\%conf, \%FORM, undef, undef, $users,
+    { HTML => $html, SELF_URL => $SELF_URL, DATETIME => "$DATE $TIME" });
   $Ipay->ipay_check_payments();
+  exit;
+}
+#FIXME
+elsif (check_ip($ENV{REMOTE_ADDR}, '192.168.1.168')) {
+  require Paysys::systems::Plategka;
+  Paysys::systems::Plategka->import();
+  my $Plategka= Paysys::systems::Plategka->new(\%conf, \%FORM, $admin, $db, { HTML => $html });
+
+  $Plategka->pay();
+  exit;
+}
+elsif (check_ip($ENV{REMOTE_ADDR}, '62.149.15.210')){
+  require Paysys::systems::City24;
+  Paysys::systems::City24->import();
+  my $City24= Paysys::systems::City24->new(\%conf, \%FORM, $admin, $db, { HTML => $html });
+
+  $City24->pay();
+  exit;
+}
+elsif (check_ip($ENV{REMOTE_ADDR}, '192.168.1.200')){
+  require Paysys::systems::Osmp;
+  Paysys::systems::Osmp->import();
+  my $Osmp = Paysys::systems::Osmp->new($db, $admin, \%conf);
+
+  $Osmp->proccess(\%FORM);
+
   exit;
 }
 
@@ -386,37 +419,37 @@ paysys_payments();
 
 =cut
 #**********************************************************
-sub paysys_payments{
+sub paysys_payments {
 
-  if ( $FORM{LMI_PAYMENT_NO} ){    # || $FORM{LMI_HASH}) {
+  if ($FORM{LMI_PAYMENT_NO}) {# || $FORM{LMI_HASH}) {
     wm_payments();
   }
-  elsif ( $FORM{userField_UID} ){
-    load_pay_module( 'Rbkmoney' );
+  elsif ($FORM{userField_UID}) {
+    load_pay_module('Rbkmoney');
     #print 'lol';
   }
-  elsif ( $FORM{id_ups} ){
-    load_pay_module( 'Ukrpays' );
+  elsif ($FORM{id_ups}) {
+    load_pay_module('Ukrpays');
   }
-  elsif ( $FORM{smsid} ){
+  elsif ($FORM{smsid}) {
     smsproxy_payments();
   }
-  elsif ( $FORM{sign} ){
+  elsif ($FORM{sign}) {
     usmp_payments();
   }
-  elsif ( $FORM{lr_paidto} ){
-    load_pay_module( 'Libertyreserve' );
+  elsif ($FORM{lr_paidto}) {
+    load_pay_module('Libertyreserve');
   }
-  else{
+  else {
     print "Content-Type: text/html\n\n";
-    if ( $FORM{INTERACT} ){
+    if ($FORM{INTERACT}) {
       interact_mode();
     }
-    elsif ( scalar keys %FORM > 0 ){
+    elsif (scalar keys %FORM > 0) {
       print "Error: Unknown payment system";
-      mk_log( $output2, { PAYSYS_ID => 'Unknown' } );
+      mk_log($output2, { PAYSYS_ID => 'Unknown' });
     }
-    else{
+    else {
       $FORM{INTERACT} = 1;
       interact_mode();
     }
@@ -443,7 +476,7 @@ sub paysys_payments{
 #PaddedCardNo=XXXXXXXXXXXX3982
 #AuthCode=073291
 #**********************************************************
-sub privatbank_payments{
+sub privatbank_payments {
 
   #Get order
   #my $status            = 0;
@@ -462,16 +495,16 @@ sub privatbank_payments{
     }
   );
 
-  if ( $Paysys->{TOTAL} > 0 ){
-    if ( $FORM{reasoncode} == 1 ){
+  if ($Paysys->{TOTAL} > 0) {
+    if ($FORM{reasoncode} == 1) {
       my $uid = $list->[0]->{uid};
       my $sum = $list->[0]->{sum};
-      my $user = $users->info( $uid );
+      my $user = $users->info($uid);
 
-      cross_modules_call( '_pre_payment', { USER_INFO => $user,
-          SKIP_MODULES                                => 'Sqlcmd',
-          QUITE                                       => 1
-        } );
+      cross_modules_call('_pre_payment', { USER_INFO => $user,
+          SKIP_MODULES                               => 'Sqlcmd',
+          QUITE                                      => 1
+        });
 
       $payments->add(
         $user,
@@ -486,13 +519,13 @@ sub privatbank_payments{
       );
 
       #Exists
-      if ( $payments->{errno} && $payments->{errno} == 7 ){
+      if ($payments->{errno} && $payments->{errno} == 7) {
         $status = 8;
       }
-      elsif ( $payments->{errno} ){
+      elsif ($payments->{errno}) {
         $status = 4;
       }
-      else{
+      else {
         $Paysys->change(
           {
             ID        => $list->[0]{id},
@@ -504,22 +537,22 @@ sub privatbank_payments{
           }
         );
 
-        cross_modules_call( '_payments_maked', { USER_INFO => $user,
-            SUM                                            => $sum,
-            QUITE                                          => 1 } );
+        cross_modules_call('_payments_maked', { USER_INFO => $user,
+            SUM                                           => $sum,
+            QUITE                                         => 1 });
       }
 
-      if ( $conf{PAYSYS_EMAIL_NOTICE} ){
+      if ($conf{PAYSYS_EMAIL_NOTICE}) {
         my $message = "\n" . "System: Privat Bank\n" . "DATE: $DATE $TIME\n" . "LOGIN: $user->{LOGIN} [$uid]\n" . "\n" . "\n" . "ID: $list->[0][0]\n" . "SUM: $sum\n";
 
-        sendmail( "$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "Privat Bank Add", "$message", "$conf{MAIL_CHARSET}",
-          "2 (High)" );
+        sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "Privat Bank Add", "$message", "$conf{MAIL_CHARSET}",
+          "2 (High)");
       }
     }
-    else{
+    else {
       $status = 6;
 
-      if ( $FORM{reasoncode} == 36 ){
+      if ($FORM{reasoncode} == 36) {
         $status = 3;
       }
 
@@ -534,11 +567,11 @@ sub privatbank_payments{
     }
   }
 
-  if ( !$db->{db}->{AutoCommit} ){
-    if ( $status == 8 ){
+  if (!$db->{db}->{AutoCommit}) {
+    if ($status == 8) {
       $db->{db}->rollback();
     }
-    else{
+    else {
       $db->{db}->commit();
     }
 
@@ -549,10 +582,10 @@ sub privatbank_payments{
   $home_url = $ENV{SCRIPT_NAME};
   $home_url =~ s/paysys_check.cgi/index.cgi/;
 
-  if ( $FORM{ResponseCode} == 1 || $FORM{responsecode} == 1 ){
+  if ($FORM{ResponseCode} == 1 || $FORM{responsecode} == 1) {
     print "Location: $home_url?PAYMENT_SYSTEM=48&orderid=$FORM{orderid}&TRUE=1" . "\n\n";
   }
-  else{
+  else {
     #print "Content-Type: text/html\n\n";
     #print "FAILED PAYSYS: Portmone SUM: $FORM{BILL_AMOUNT} ID: $FORM{SHOPORDERNUMBER} STATUS: $status";
     print "Location:$home_url?PAYMENT_SYSTEM=48&orderid=$FORM{orderid}&FALSE=1&reasoncodedesc=$FORM{reasoncodedesc}&reasoncode=$FORM{reasoncode}&responsecode=$FORM{responsecode}" . "\n\n";
@@ -570,31 +603,30 @@ sub privatbank_payments{
 
 =cut
 #**********************************************************
-sub osmp_payments{
+sub osmp_payments {
   my ($attr) = @_;
 
-  if ( $debug > 1 ){
+  if ($debug > 1) {
     print "Content-Type: text/plain\n\n";
   }
 
   my ($user, $password) = ('', '');
 
-  if ( $conf{PAYSYS_PEGAS_PASSWD} ){
-    ($user, $password) = split( /:/, $conf{PAYSYS_PEGAS_PASSWD} );
+  if ($conf{PAYSYS_PEGAS_PASSWD}) {
+    ($user, $password) = split(/:/, $conf{PAYSYS_PEGAS_PASSWD});
   }
-  elsif ( $conf{PAYSYS_OSMP_LOGIN} ){
+  elsif ($conf{PAYSYS_OSMP_LOGIN}) {
     ($user, $password) = ($conf{PAYSYS_OSMP_LOGIN}, $conf{PAYSYS_OSMP_PASSWD});
   }
 
-  if ( $user && $password ){
-    if ( defined( $ENV{HTTP_CGI_AUTHORIZATION} ) ){
+  if ($user && $password) {
+    if (defined($ENV{HTTP_CGI_AUTHORIZATION})) {
       $ENV{HTTP_CGI_AUTHORIZATION} =~ s/basic\s+//i;
-      my ($REMOTE_USER, $REMOTE_PASSWD) = split( /:/, decode_base64( $ENV{HTTP_CGI_AUTHORIZATION} ) );
-      if ( (!$REMOTE_PASSWD)
+      my ($REMOTE_USER, $REMOTE_PASSWD) = split(/:/, decode_base64($ENV{HTTP_CGI_AUTHORIZATION}));
+      if ((!$REMOTE_PASSWD)
         || ($REMOTE_PASSWD && $REMOTE_PASSWD ne $password)
         || (!$REMOTE_USER)
-        || ($REMOTE_USER && $REMOTE_USER ne $user) )
-      {
+        || ($REMOTE_USER && $REMOTE_USER ne $user)) {
         print "WWW-Authenticate: Basic realm=\"Billing system\"\n";
         print "Status: 401 Unauthorized\n";
         print "Content-Type: text/html\n\n";
@@ -606,10 +638,10 @@ sub osmp_payments{
 
   print "Content-Type: text/xml\n\n";
 
-  my $payment_system    = $attr->{SYSTEM_SHORT_NAME} || 'OSMP';
+  my $payment_system = $attr->{SYSTEM_SHORT_NAME} || 'OSMP';
   my $payment_system_id = $attr->{SYSTEM_ID} || 44;
-  my $CHECK_FIELD       = $conf{PAYSYS_OSMP_ACCOUNT_KEY} || $attr->{CHECK_FIELDS} || 'UID';
-  my $txn_id            = 'osmp_txn_id';
+  my $CHECK_FIELD = $conf{PAYSYS_OSMP_ACCOUNT_KEY} || $attr->{CHECK_FIELDS} || 'UID';
+  my $txn_id = 'osmp_txn_id';
 
   my %status_hash = (
     0   => 'Success',
@@ -638,7 +670,7 @@ sub osmp_payments{
   );
 
   #For pegas
-  if ( $conf{PAYSYS_PEGAS} && $ENV{REMOTE_ADDR} ne '213.186.115.164' ){
+  if ($conf{PAYSYS_PEGAS} && $ENV{REMOTE_ADDR} ne '213.186.115.164') {
     $txn_id = 'txn_id';
     $payment_system = 'PEGAS';
     $payment_system_id = 49;
@@ -646,8 +678,8 @@ sub osmp_payments{
     $status_hash{243} = 'Невозможно проверитьсостояние счёта';
     $CHECK_FIELD = $conf{PAYSYS_PEGAS_ACCOUNT_KEY} || 'UID';
 
-    if ( $conf{PAYSYS_PEGAS_SELF_TERMINALS} && $FORM{terminal} ){
-      if ( $conf{PAYSYS_PEGAS_SELF_TERMINALS} =~ /$FORM{terminal}/ ){
+    if ($conf{PAYSYS_PEGAS_SELF_TERMINALS} && $FORM{terminal}) {
+      if ($conf{PAYSYS_PEGAS_SELF_TERMINALS} =~ /$FORM{terminal}/) {
         $payment_system_id = 80;
         $payment_system = 'PST';
       }
@@ -667,31 +699,32 @@ sub osmp_payments{
   my %RESULT_HASH = (result => 300);
   my $results = '';
 
-  mk_log( "$payment_system: $ENV{QUERY_STRING}" ) if ($debug > 0);
+  mk_log("$payment_system: $ENV{QUERY_STRING}") if ($debug > 0);
   #Check user account
   #https://service.someprovider.ru:8443/paysys_check.cgi?command=check&txn_id=1234567&account=0957835959&sum=10.45
-  if ( $command eq 'check' ){
-    my ($result_code, $list) = paysys_check_user( {
-        CHECK_FIELD => $CHECK_FIELD,
-          USER_ID   => $FORM{account},
-          DEBUG     => $debug
-      } );
+  if ($command eq 'check') {
+    my ($result_code, $list) = paysys_check_user({
+      CHECK_FIELD => $CHECK_FIELD,
+      USER_ID     => $FORM{account},
+      DEBUG       => $debug,
+      SKIP_DEPOSIT_CHECK => 1
+    });
 
     $status = ($abills2osmp{$result_code}) ? $abills2osmp{$result_code} : 0;
 
     $RESULT_HASH{result} = $status;
 
-    if ( $result_code == 11 ){
+    if ($result_code == 11) {
       $RESULT_HASH{disable_paysys} = 1;
     }
 
     # Qiwi testing, check if exist param sum
-    if(!$FORM{sum}){
+    if (!$FORM{sum}) {
       $RESULT_HASH{result} = 300;
     }
 
     # Qiwi testing, account regexp check
-    if($conf{PAYSYS_OSMP_ACCOUNT_REXEXP} && ($FORM{account} !~ $conf{PAYSYS_OSMP_ACCOUNT_REXEXP})){
+    if ($conf{PAYSYS_OSMP_ACCOUNT_REXEXP} && ($FORM{account} !~ $conf{PAYSYS_OSMP_ACCOUNT_REXEXP})) {
       $RESULT_HASH{result} = 4;
     }
 
@@ -700,31 +733,31 @@ sub osmp_payments{
     # if ( $payment_system_id == 44 ){
 
     # new code for standart osmp inheritance
-    if (!$conf{PAYSYS_PEGAS} && !$conf{PAYSYS_OSMP_EXT_PARAMS}){
+    if (!$conf{PAYSYS_PEGAS} && !$conf{PAYSYS_OSMP_EXT_PARAMS}) {
       $RESULT_HASH{$txn_id} = $FORM{txn_id};
       $RESULT_HASH{prv_txn} = $FORM{prv_txn};
       $RESULT_HASH{comment} = "Balance: $list->{deposit} $list->{fio} " if ($status == 0);
     }
     #For pegas
-    elsif ( $conf{PAYSYS_PEGAS} ){
+    elsif ($conf{PAYSYS_PEGAS}) {
       $RESULT_HASH{$txn_id} = $FORM{txn_id};
       $RESULT_HASH{prv_txn} = $FORM{prv_txn} if ($FORM{prv_txn});
       $RESULT_HASH{balance} = "$list->{deposit}";
       $RESULT_HASH{fio} = "$list->{fio}";
     }
     #Use Extra params
-    elsif ( $conf{PAYSYS_OSMP_EXT_PARAMS} ){
-      if($payment_system_id == 99){
-        my @arr = split( /,[\r\n\s]?/, $conf{PAYSYS_OSMP_EXT_PARAMS} );
+    elsif ($conf{PAYSYS_OSMP_EXT_PARAMS}) {
+      if ($payment_system_id == 99 || $payment_system_id == 67) {
+        my @arr = split(/,[\r\n\s]?/, $conf{PAYSYS_OSMP_EXT_PARAMS});
         my $i = 1;
-        foreach my $param  ( @arr ){
+        foreach my $param  (@arr) {
           $RESULT_HASH{'fields'}{"field" . $i . " name='$param'"} = $FORM{$param} || $list->{$param};
           $i++;
         }
       }
-      else{
-        my @arr = split( /,[\r\n\s]?/, $conf{PAYSYS_OSMP_EXT_PARAMS} );
-        foreach my $param  ( @arr ){
+      else {
+        my @arr = split(/,[\r\n\s]?/, $conf{PAYSYS_OSMP_EXT_PARAMS});
+        foreach my $param  (@arr) {
           $RESULT_HASH{$param} = $FORM{$param} || $list->{$param};
         }
         # add 'osmp_txn_id' param with txn_id value
@@ -732,88 +765,89 @@ sub osmp_payments{
       }
     }
     # extra info tag
-    if( $conf{PAYSYS_OSMP_EXTRA_INFO} ){
-       $RESULT_HASH{'extra_info'}{'deposit'} = $list->{'deposit'};
-       $RESULT_HASH{'extra_info'}{'fee'}     = $list->{'fee'};
-
-       load_module('Dv');
-       my ($message, undef) = dv_warning({ USER => $list});
-       my ($date, $sum) = (defined $message && $message ne '') ? split("\n", $message) : ('no date', '');
-       $RESULT_HASH{'extra_info'}{'next_fee_date'} = $date;
+    if ($conf{PAYSYS_OSMP_EXTRA_INFO}) {
+      $RESULT_HASH{'extra_info'}{'deposit'} = $list->{'deposit'};
+      $RESULT_HASH{'extra_info'}{'fee'} = $list->{'fee'};
+      if (in_array('Dv', \@MODULES)) {
+        load_module('Dv');
+        my ($message, undef) = dv_warning({ USER => $list });
+        my ($date, $sum) = (defined $message && $message ne '') ? split("\n", $message) : ('no date', '');
+        ($RESULT_HASH{'extra_info'}{'next_fee_date'}) = $date =~ /\((\d{4}-\d{2}-\d{2})\)/g;
+      }
     }
   }
   #Cancel payments
-  elsif ( $command eq 'cancel' ){
+  elsif ($command eq 'cancel') {
     my $prv_txn = $FORM{prv_txn};
     $RESULT_HASH{prv_txn} = $prv_txn;
 
-    my $list = $payments->list( { ID => "$prv_txn",
-        EXT_ID                       => "$payment_system:*",
-        BILL_ID                      => '_SHOW',
-        COLS_NAME                    => 1 } );
+    my $list = $payments->list({ ID => "$prv_txn",
+      EXT_ID                        => "$payment_system:*",
+      BILL_ID                       => '_SHOW',
+      COLS_NAME                     => 1 });
 
-    if ( $payments->{errno} && $payments->{errno} != 7 ){
+    if ($payments->{errno} && $payments->{errno} != 7) {
       $RESULT_HASH{result} = 1;
     }
-    elsif ( $payments->{TOTAL} < 1 ){
-      if ( $conf{PAYSYS_PEGAS} ){
+    elsif ($payments->{TOTAL} < 1) {
+      if ($conf{PAYSYS_PEGAS}) {
         $RESULT_HASH{result} = 0;
       }
-      else{
+      else {
         $RESULT_HASH{result} = 79;
       }
     }
-    else{
+    else {
       my %user = (
         BILL_ID => $list->{bill_id},
         UID     => $list->{uid}
       );
 
-      $payments->del( \%user, $prv_txn );
-      if ( !$payments->{errno} ){
+      $payments->del(\%user, $prv_txn);
+      if (!$payments->{errno}) {
         $RESULT_HASH{result} = 0;
       }
-      else{
+      else {
         $RESULT_HASH{result} = 1;
       }
     }
   }
   # ?command=verify&date=20050815
-  elsif ( $command eq 'verify' ){
+  elsif ($command eq 'verify') {
     $FORM{DATE} =~ /(\d{4}\d{2}\d{2})/;
 
     #my $date = "$1-$2-$3";
-    my $list = $payments->list( {
-        EXT_ID       => "$payment_system:*",
-        BILL_ID      => '_SHOW',
-        $CHECK_FIELD => '_SHOW',
-        SUM          => '_SHOW',
-        DATETIME     => '_SHOW',
-        COLS_NAME    => 1 } );
+    my $list = $payments->list({
+      EXT_ID       => "$payment_system:*",
+      BILL_ID      => '_SHOW',
+      $CHECK_FIELD => '_SHOW',
+      SUM          => '_SHOW',
+      DATETIME     => '_SHOW',
+      COLS_NAME    => 1 });
 
     #my $content = '';
-    foreach my $line ( @{$list} ){
+    foreach my $line (@{$list}) {
       my $txt_id = $line->{ext_id};
       $txt_id =~ s/$payment_system://g;
-      my $date_ = date_format( $line->{datetime}, "%d.%m.%Y %H:%M:%S" );
-      my $user_id = $line->{lc( $CHECK_FIELD )};
+      my $date_ = date_format($line->{datetime}, "%d.%m.%Y %H:%M:%S");
+      my $user_id = $line->{lc($CHECK_FIELD)};
       $RESULT_HASH{verify} .= qq{ <payment txn_id="$txt_id" prv_txn="$line->{id}" account="$user_id" amount="$line->{sum}" date="$date_"/> };
     }
 
     $RESULT_HASH{result} = 0;
   }
   # command=balance
-  elsif ( $command eq 'balance' ){
+  elsif ($command eq 'balance') {
 
   }
   #https://service.someprovider.ru:8443/payment_app.cgi?command=pay&txn_id=1234567&txn_date=20050815120133&account=0957835959&sum=10.45
-  elsif ( $command eq 'pay' ){
-    if ( $conf{PAYSYS_OSMP_TXN_DATE} && $FORM{txn_date} =~ /(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/ ){
+  elsif ($command eq 'pay') {
+    if ($conf{PAYSYS_OSMP_TXN_DATE} && $FORM{txn_date} =~ /(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/) {
       $DATE = "$1-$2-$3";
       $TIME = "$3-$5-$6";
     }
 
-    my ($status_code, $payments_id) = paysys_pay( {
+    my ($status_code, $payments_id) = paysys_pay({
       PAYMENT_SYSTEM    => $payment_system,
       PAYMENT_SYSTEM_ID => $payment_system_id,
       CHECK_FIELD       => $CHECK_FIELD,
@@ -827,14 +861,14 @@ sub osmp_payments{
       PAYMENT_ID        => 1,
       DEBUG             => $debug,
       PAYMENT_DESCRIBE  => $FORM{payment_describe} || '',
-    } );
+    });
 
     # Qiwi testing, check if exist param sum
-    if(!$FORM{sum}){
+    if (!$FORM{sum}) {
       $status_code = 5;
     }
 
-    $status = (defined( $abills2osmp{$status_code} )) ? $abills2osmp{$status_code} : 90;
+    $status = (defined($abills2osmp{$status_code})) ? $abills2osmp{$status_code} : 90;
 
     $RESULT_HASH{result} = $status;
     $RESULT_HASH{$txn_id} = $FORM{txn_id};
@@ -846,20 +880,20 @@ sub osmp_payments{
   $RESULT_HASH{comment} = $status_hash{ $RESULT_HASH{result} } if ($RESULT_HASH{result} && !$RESULT_HASH{comment});
 
   while (my ($k, $v) = each %RESULT_HASH) {
-    if(ref $v eq "HASH"){
+    if (ref $v eq "HASH") {
       $results .= "<$k>\n";
-      while (my ($key, $value) = each %$v){
+      while (my ($key, $value) = each %$v) {
         my ($end_key, undef) = split(" ", $key);
-         $results .= "<$key>$value</$end_key>\n";
+        $results .= "<$key>$value</$end_key>\n";
       }
       $results .= "</$k>\n";
     }
-    else{
+    else {
       $results .= "<$k>$v</$k>\n";
     }
   }
 
-  chomp( $results );
+  chomp($results);
 
   my $response = qq{<?xml version="1.0" encoding="UTF-8"?>
 <response>
@@ -868,27 +902,25 @@ $results
 };
 
   print $response;
-  if ( $debug > 0 ){
-    mk_log( "$response", { PAYSYS_ID => "$attr->{SYSTEM_ID}/$attr->{SYSTEM_SHORT_NAME}" } );
+  if ($debug > 0) {
+    mk_log("$response", { PAYSYS_ID => "$attr->{SYSTEM_ID}/$attr->{SYSTEM_SHORT_NAME}" });
   }
 
   exit;
 }
 
 #**********************************************************
-# OSMP
-# protocol-version 4.00
-# IP 92.125.xxx.xxx
-# $conf{PAYSYS_OSMP_LOGIN}
-# $conf{PAYSYS_OSMP_PASSWD}
-# $conf{PAYSYS_OSMP_SERVICE_ID}
-# $conf{PAYSYS_OSMP_TERMINAL_ID}
-#
+=head2 osmp_payments_v4($attr)
+
+   OSMP Ver.4
+   Elsom
+
+=cut
 #**********************************************************
-sub osmp_payments_v4{
+sub osmp_payments_v4 {
   my ($attr) = @_;
 
-  my $version = '0.2';
+  my $version = '0.3';
   $debug = $conf{PAYSYS_DEBUG} || 0;
   print "Content-Type: text/xml\n\n";
 
@@ -899,24 +931,24 @@ sub osmp_payments_v4{
   $FORM{__BUFFER} = '' if (!$FORM{__BUFFER});
   $FORM{__BUFFER} =~ s/data=//;
 
-  load_pmodule( 'XML::Simple' );
+  load_pmodule('XML::Simple');
 
   $FORM{__BUFFER} =~ s/encoding="windows-1251"//g;
-  my $_xml = eval { XMLin( "$FORM{__BUFFER}", forcearray => 1 ) };
+  my $_xml = eval {XML::Simple::XMLin("$FORM{__BUFFER}", forcearray => 1)};
 
-  if ( $@ ){
-    mk_log( "---- Content:\n" . $FORM{__BUFFER} . "\n----XML Error:\n" . $@ . "\n----\n" );
+  if ($@) {
+    mk_log("---- Content:\n" . $FORM{__BUFFER} . "\n----XML Error:\n" . $@ . "\n----\n");
 
     return 0;
   }
-  else{
-    if ( $debug == 1 ){
-      mk_log( $FORM{__BUFFER} );
+  else {
+    if ($debug == 1) {
+      mk_log($FORM{__BUFFER});
     }
   }
 
   my %request_hash = ();
-  my $status_id = 0;
+  my $status_id = 30;
   my $result_code = 0;
   my $service_id = 0;
   my $response = '';
@@ -938,15 +970,15 @@ sub osmp_payments_v4{
 
   $request_hash{'to'} = $_xml->{to};
 
-  if ( $request_hash{'password-md5'} ){
+  # Check password
+  if ($request_hash{'password-md5'}) {
     $md5->reset;
-    $md5->add( $conf{PAYSYS_OSMP_PASSWD} );
-    $conf{PAYSYS_OSMP_PASSWD} = lc( $md5->hexdigest() );
+    $md5->add($conf{PAYSYS_OSMP_PASSWD});
+    $conf{PAYSYS_OSMP_PASSWD} = lc($md5->hexdigest());
   }
-
-  if ( $conf{PAYSYS_OSMP_LOGIN} ne $request_hash{'login'}
-    || ($request_hash{'password'} && $conf{PAYSYS_OSMP_PASSWD} ne $request_hash{'password'}) )
-  {
+  # Check osmp login
+  if ($conf{PAYSYS_OSMP_LOGIN} ne $request_hash{'login'}
+    || ($request_hash{'password-md5'} && $conf{PAYSYS_OSMP_PASSWD} ne $request_hash{'password-md5'})) {
     $status_id = 150;
     $result_code = 1;
 
@@ -957,36 +989,36 @@ sub osmp_payments_v4{
 <result-code>$result_code</result-code>
 };
   }
-  elsif ( defined( $_xml->{'status'} ) ){
+  elsif (defined($_xml->{'status'})) {
     my $count = $_xml->{'status'}->[0]->{count};
     my @payments_arr = ();
     my %payments_status = ();
 
-    for ( my $i = 0; $i < $count; $i++ ){
+    for (my $i = 0; $i < $count; $i++) {
       push @payments_arr, $_xml->{'status'}->[0]->{'payment'}->[$i]->{'transaction-number'}->[0];
     }
 
-    my $ext_ids = "'$payment_system:" . join( "', '$payment_system:", @payments_arr ) . "'";
-    my $list = $payments->list( { EXT_IDS => $ext_ids, PAGE_ROWS => 100000 } );
+    my $ext_ids = "'$payment_system:" . join("', '$payment_system:", @payments_arr) . "'";
+    my $list = $payments->list({ EXT_IDS => $ext_ids, PAGE_ROWS => 100000 });
 
-    if ( $payments->{errno} ){
+    if ($payments->{errno}) {
       $status_id = 78;
     }
-    else{
-      foreach my $line ( @{$list} ){
+    else {
+      foreach my $line (@{$list}) {
         my $ext = $line->[7];
         $ext =~ s/$payment_system://g;
         $payments_status{$ext} = $line->[0];
       }
 
-      foreach my $id ( @payments_arr ){
-        if ( $id < 1 ){
+      foreach my $id (@payments_arr) {
+        if ($id < 1) {
           $status_id = 160;
         }
-        elsif ( $payments_status{$id} ){
+        elsif ($payments_status{$id}) {
           $status_id = 60;
         }
-        else{
+        else {
           $status_id = 10;
         }
 
@@ -998,7 +1030,7 @@ sub osmp_payments_v4{
   }
 
   #User info
-  elsif ( $request_hash{'request-type'} == 1 ){
+  elsif ($request_hash{'request-type'} == 1) {
     my $to = $request_hash{'to'}->[0];
     my $amount = $to->{'amount'}->[0];
     my $sum = $amount->{'content'};
@@ -1009,41 +1041,52 @@ sub osmp_payments_v4{
 
     my $user;
 
-    if ( $account_number !~ /$conf{USERNAMEREGEXP}/ ){
-      $status_id = 4;
-      $result_code = 1;
-    }
-    elsif ( $CHECK_FIELD eq 'UID' ){
-      $user = $users->info( $account_number );
-      $BALANCE = sprintf( "%2.f", $user->{DEPOSIT} );
-      $OVERDRAFT = $user->{CREDIT};
-    }
-    else{
-      my $list = $users->list( { $CHECK_FIELD => $account_number,
-                                 DEPOSIT   => '_SHOW',
-                                 CREDIT    => '_SHOW',
-                                 COLS_NAME => 1
-                              } );
+    #    if ( $account_number !~ /$conf{USERNAMEREGEXP}/ ){
+    #      $status_id = 4;
+    #      $result_code = 1;
+    #    }
+    #    elsif ( $CHECK_FIELD eq 'UID' ){
+    #      $user = $users->info( $account_number );
+    #      $BALANCE = sprintf( "%2.f", $user->{DEPOSIT} );
+    #      $OVERDRAFT = $user->{CREDIT};
+    #    }
+    #    else{
+    #      my $list = $users->list( { $CHECK_FIELD => $account_number,
+    #                                 DEPOSIT   => '_SHOW',
+    #                                 CREDIT    => '_SHOW',
+    #                                 FIO       => '_SHOW',
+    #                                 COLS_NAME => 1
+    #                              } );
+    #
+    #      if ( !$users->{errno} && $users->{TOTAL} > 0 ){
+    #        my $uid = $list->[0]->{uid};
+    #        $user = $users->info( $uid );
+    #        $BALANCE = sprintf( "%2.f", $user->{deposit} );
+    #        $OVERDRAFT = $user->{credit};
+    #      }
+    #    }
+    #
+    #    if ( $users->{errno} ){
+    #      $status_id = 79;
+    #      $result_code = 1;
+    #    }
+    #    elsif ( $users->{TOTAL} < 1 ){
+    #      $status_id = 5;
+    #      $result_code = 1;
+    #    }
 
-      if ( !$users->{errno} && $users->{TOTAL} > 0 ){
-        my $uid = $list->[0]->{uid};
-        $user = $users->info( $uid );
-        $BALANCE = sprintf( "%2.f", $user->{deposit} );
-        $OVERDRAFT = $user->{credit};
-      }
+    ($result_code, $user) = paysys_check_user({
+      CHECK_FIELD => $CHECK_FIELD,
+      USER_ID     => $account_number,
+    });
+    my $fio = convert(($user->{FIO} || ''), { utf82win => 1});
+
+    if($result_code == 1){
+      $result_code = 5;
+      $status_id   = 10;
     }
 
-    if ( $users->{errno} ){
-      $status_id = 79;
-      $result_code = 1;
-    }
-    elsif ( $users->{TOTAL} < 1 ){
-      $status_id = 5;
-      $result_code = 1;
-    }
-
-    $response = qq{
-<txn-date>$txn_date</txn-date>
+    $response = qq{<txn-date>$txn_date</txn-date>
 <status-id>$status_id</status-id>
 <txn-id>$txn_id</txn-id>
 <result-code>$result_code</result-code>
@@ -1053,14 +1096,14 @@ sub osmp_payments_v4{
 </from>
 <to>
 <service-id>1</service-id>
-<amount>amount</amount>
+<amount>$sum</amount>
 <account-number>$account_number</account-number>
-<extra name="FIO">$user->{FIO}</extra>
-</to>};
+</to>
+<extra name="FIO">$fio</extra>
+<extra name="disp1">$fio</extra>};
   }
-
   # Payments
-  elsif ( $request_hash{'request-type'} == 2 ){
+  elsif ($request_hash{'request-type'} == 2) {
     my $to = $request_hash{'to'}->[0];
     my $amount = $to->{'amount'}->[0];
     my $sum = $amount->{'content'};
@@ -1070,81 +1113,99 @@ sub osmp_payments_v4{
     my $receipt_number = $_xml->{receipt}->[0]->{'receipt-number'}->[0];
 
     $txn_id = 0;
-    my $user;
-    my $payments_id = 0;
+#    my $user;
+#    my $payments_id = 0;
+    my ($status_code, $payments_id) = paysys_pay({
+      PAYMENT_SYSTEM    => $payment_system,
+      PAYMENT_SYSTEM_ID => $payment_system_id,
+      CHECK_FIELD       => $CHECK_FIELD,
+      USER_ID           => $account_number,
+      SUM               => $sum,
+      EXT_ID            => $receipt_number,
+      DATA              => \%FORM,
+      DATE              => "$DATE $TIME",
+#      CURRENCY_ISO      => $conf{PAYSYS_OSMP_CURRENCY},
+      MK_LOG            => 1,
+      PAYMENT_ID        => 1,
+      DEBUG             => $debug,
+      PAYMENT_DESCRIBE  => $FORM{payment_describe} || '',
+    });
 
-    if ( $CHECK_FIELD eq 'UID' ){
-      $user = $users->info( $account_number );
-      $BALANCE = sprintf( "%2.f", $user->{DEPOSIT} );
-      $OVERDRAFT = $user->{CREDIT};
-    }
-    else{
-      my $list = $users->list( { $CHECK_FIELD => $account_number } );
-
-      if ( !$users->{errno} && $users->{TOTAL} > 0 ){
-        my $uid = $list->[0]->[ 5 + $users->{SEARCH_FIELDS_COUNT} ];
-        $user = $users->info( $uid );
-        $BALANCE = sprintf( "%2.f", $user->{DEPOSIT} );
-        $OVERDRAFT = $user->{CREDIT};
-      }
-    }
-
-    if ( $users->{errno} ){
-      $status_id = 79;
-      $result_code = 1;
-    }
-    elsif ( $users->{TOTAL} < 1 ){
-      $status_id = 5;
-      $result_code = 1;
-    }
-    else{
-      cross_modules_call( '_pre_payment', { USER_INFO => $user, QUITE => 1, SUM => $sum } );
-      #Add payments
-      $payments->add(
-        $user,
-        {
-          SUM          => $sum,
-          DESCRIBE     => "$payment_system",
-          METHOD       => ($conf{PAYSYS_PAYMENTS_METHODS} && $PAYSYS_PAYMENTS_METHODS{44}) ? 44 : '2',
-          EXT_ID       => "$payment_system:$transaction_number",
-          CHECK_EXT_ID => "$payment_system:$transaction_number"
-        }
-      );
-
-      cross_modules_call( '_payments_maked', { USER_INFO => $user, SUM => $sum, QUITE => 1 } );
-
-      #Exists
-      if ( $payments->{errno} && $payments->{errno} == 7 ){
-        $status_id = 10;
-        $result_code = 1;
-        $payments_id = $payments->{ID};
-      }
-      elsif ( $payments->{errno} ){
-        $status_id = 78;
-        $result_code = 1;
-      }
-      else{
-        $Paysys->add(
-          {
-            SYSTEM_ID      => $payment_system_id,
-            DATETIME       => "$DATE $TIME",
-            SUM            => "$sum",
-            UID            => "$user->{UID}",
-            IP             => '0.0.0.0',
-            TRANSACTION_ID => "$payment_system:$transaction_number",
-            INFO           => " STATUS: $status_id RECEIPT Number: $receipt_number",
-            PAYSYS_IP      => "$ENV{'REMOTE_ADDR'}"
-          }
-        );
-
-        $payments_id = ($Paysys->{INSERT_ID}) ? $Paysys->{INSERT_ID} : 0;
-        $txn_id = $payments_id;
-      }
-    }
+    $status_id = ($status_code == 0 || $status_code == 13) ? 60 : 160;
+    $result_code = ($status_code == 0 || $status_code == 13) ? 0 : 160;
+#    if ($CHECK_FIELD eq 'UID') {
+#      $user = $users->info($account_number);
+#      $BALANCE = sprintf("%2.f", $user->{DEPOSIT});
+#      $OVERDRAFT = $user->{CREDIT};
+#    }
+#    else {
+#      my $list = $users->list({ $CHECK_FIELD => $account_number });
+#
+#      if (!$users->{errno} && $users->{TOTAL} > 0) {
+#        my $uid = $list->[0]->[ 5 + $users->{SEARCH_FIELDS_COUNT} ];
+#        $user = $users->info($uid);
+#        $BALANCE = sprintf("%2.f", $user->{DEPOSIT});
+#        $OVERDRAFT = $user->{CREDIT};
+#      }
+#    }
+#
+#    if ($users->{errno}) {
+#      $status_id = 79;
+#      $result_code = 1;
+#    }
+#    elsif ($users->{TOTAL} < 1) {
+#      $status_id = 5;
+#      $result_code = 1;
+#    }
+#    else {
+#      cross_modules_call('_pre_payment', { USER_INFO => $user, QUITE => 1, SUM => $sum });
+#      #Add payments
+#      $payments->add(
+#        $user,
+#        {
+#          SUM          => $sum,
+#          DESCRIBE     => "$payment_system",
+#          METHOD       => ($conf{PAYSYS_PAYMENTS_METHODS} && $PAYSYS_PAYMENTS_METHODS{44}) ? 44 : '2',
+#          EXT_ID       => "$payment_system:$transaction_number",
+#          CHECK_EXT_ID => "$payment_system:$transaction_number"
+#        }
+#      );
+#
+#      cross_modules_call('_payments_maked', { USER_INFO => $user, SUM => $sum, QUITE => 1 });
+#
+#      #Exists
+#      if ($payments->{errno} && $payments->{errno} == 7) {
+#        $status_id = 10;
+#        $result_code = 1;
+#        $payments_id = $payments->{ID};
+#      }
+#      elsif ($payments->{errno}) {
+#        $status_id = 78;
+#        $result_code = 1;
+#      }
+#      else {
+#        $Paysys->add(
+#          {
+#            SYSTEM_ID      => $payment_system_id,
+#            DATETIME       => "$DATE $TIME",
+#            SUM            => "$sum",
+#            UID            => "$user->{UID}",
+#            IP             => '0.0.0.0',
+#            TRANSACTION_ID => "$payment_system:$transaction_number",
+#            INFO           => " STATUS: $status_id RECEIPT Number: $receipt_number",
+#            PAYSYS_IP      => "$ENV{'REMOTE_ADDR'}"
+#          }
+#        );
+#
+#        $payments_id = ($Paysys->{INSERT_ID}) ? $Paysys->{INSERT_ID} : 0;
+#        $txn_id = $payments_id;
+#      }
+#    }
 
     $response = qq{
 <txn-date>$txn_date</txn-date>
-<txn-id>$txn_id</txn-id>
+<txn-id>$payments_id</txn-id>
+<result-code>$result_code</result-code>
 <receipt>
 <datetime>0</datetime>
 </receipt>
@@ -1160,14 +1221,38 @@ sub osmp_payments_v4{
 </to>
 }
   }
+  # Cancel payment
+  elsif ($request_hash{'request-type'} == 3) {
+    my $result = paysys_pay_cancel({
+      TRANSACTION_ID => "$payment_system:$transaction_number"
+    });
+    `echo "RESULT - $result" >> /tmp/buffer`;
+    my $output = qq{
+    <?xml version="1.0" encoding="windows-1251"?>
+    <response>
+<protocol-version>4.00</protocol-version>
+<request-type>3</request-type>
+<terminal-id>$request_hash{'terminal-id'}</terminal-id>
+<result-code>$result</result-code>
+<status-id>60</status-id>
+<transaction-number>$transaction_number</transaction-number>
+</response>
+    };
+    print $output;
 
+    if ($debug > 0) {
+      mk_log("RESPONSE:\n" . $output);
+    }
+
+    return 1;
+  }
   # Pack processing
-  elsif ( $request_hash{'request-type'} == 10 ){
+  elsif ($request_hash{'request-type'} == 10) {
     my $count = $_xml->{auth}->[0]->{count};
     #my $final_status = '';
     my $fatal_error = '';
     my $payments_id;
-    for ( my $i = 0; $i < $count; $i++ ){
+    for (my $i = 0; $i < $count; $i++) {
       %request_hash = %{ $_xml->{auth}->[0]->{payment}->[$i] };
       my $to = $request_hash{'to'}->[0];
       $transaction_number = $request_hash{'transaction-number'}->[0] || '';
@@ -1180,32 +1265,32 @@ sub osmp_payments_v4{
       $service_id = $to->{'service-id'}->[0];
       my $receipt_number = $_xml->{receipt}->[0]->{'receipt-number'}->[0];
 
-      if ( $CHECK_FIELD eq 'UID' ){
-        $user = $users->info( $account_number );
-        $BALANCE = sprintf( "%2.f", $user->{DEPOSIT} );
+      if ($CHECK_FIELD eq 'UID') {
+        $user = $users->info($account_number);
+        $BALANCE = sprintf("%2.f", $user->{DEPOSIT});
         $OVERDRAFT = $user->{CREDIT};
       }
-      else{
-        my $list = $users->list( { $CHECK_FIELD => $account_number } );
+      else {
+        my $list = $users->list({ $CHECK_FIELD => $account_number });
 
-        if ( !$users->{errno} && $users->{TOTAL} > 0 ){
+        if (!$users->{errno} && $users->{TOTAL} > 0) {
           my $uid = $list->[0]->[ 5 + $users->{SEARCH_FIELDS_COUNT} ];
-          $user = $users->info( $uid );
-          $BALANCE = sprintf( "%2.f", $user->{DEPOSIT} );
+          $user = $users->info($uid);
+          $BALANCE = sprintf("%2.f", $user->{DEPOSIT});
           $OVERDRAFT = $user->{CREDIT};
         }
       }
 
-      if ( $users->{errno} ){
+      if ($users->{errno}) {
         $status_id = 79;
         $result_code = 1;
       }
-      elsif ( $users->{TOTAL} < 1 ){
+      elsif ($users->{TOTAL} < 1) {
         $status_id = 0;
         $result_code = 0;
       }
-      else{
-        cross_modules_call( '_pre_payment',
+      else {
+        cross_modules_call('_pre_payment',
           {
             USER_INFO => $user,
             SUM       => $FORM{PAY_AMOUNT},
@@ -1226,16 +1311,16 @@ sub osmp_payments_v4{
         );
 
         #Exists
-        if ( $payments->{errno} && $payments->{errno} == 7 ){
+        if ($payments->{errno} && $payments->{errno} == 7) {
           $status_id = 10;
           $result_code = 1;
           $payments_id = $payments->{ID};
         }
-        elsif ( $payments->{errno} ){
+        elsif ($payments->{errno}) {
           $status_id = 78;
           $result_code = 1;
         }
-        else{
+        else {
           $Paysys->add(
             {
               SYSTEM_ID      => $payment_system_id,
@@ -1281,19 +1366,19 @@ sub osmp_payments_v4{
 };
 
   $output .= $response . qq{
- <operator-id>$admin->{AID}</operator-id>
- <extra name="REMOTE_ADDR">$ENV{REMOTE_ADDR}</extra>
- <extra name="client-software">ABillS Paysys $payment_system $version</extra>
- <extra name="version-conf">$version</extra>
- <extra name="serial">$version</extra>
- <extra name="BALANCE">$BALANCE</extra>
- <extra name="OVERDRAFT">$OVERDRAFT</extra>
+<extra name="REMOTE_ADDR">$ENV{REMOTE_ADDR}</extra>
+<extra name="client-software">ABillS Paysys $payment_system $version</extra>
+<extra name="version-conf">$version</extra>
+<extra name="serial">$version</extra>
+<extra name="BALANCE">$BALANCE</extra>
+<extra name="OVERDRAFT">$OVERDRAFT</extra>
+<operator-id>$admin->{AID}</operator-id>
 </response>};
 
   print $output;
 
-  if ( $debug > 0 ){
-    mk_log( "RESPONSE:\n" . $output );
+  if ($debug > 0) {
+    mk_log("RESPONSE:\n" . $output);
   }
 
   return $status_id;
@@ -1307,7 +1392,7 @@ sub osmp_payments_v4{
 
 =cut
 #**********************************************************
-sub smsproxy_payments{
+sub smsproxy_payments {
 
   my $sms_num = $FORM{num} || 0;
   my $cost = $FORM{cost_rur} || 0;
@@ -1317,47 +1402,47 @@ sub smsproxy_payments{
   my %prefix_keys = ();
   my $service_key = '';
 
-  if ( $conf{PAYSYS_SMSPROXY_KEYS} && $conf{PAYSYS_SMSPROXY_KEYS} =~ /:/ ){
-    my @keys_arr = split( /,/, $conf{PAYSYS_SMSPROXY_KEYS} );
+  if ($conf{PAYSYS_SMSPROXY_KEYS} && $conf{PAYSYS_SMSPROXY_KEYS} =~ /:/) {
+    my @keys_arr = split(/,/, $conf{PAYSYS_SMSPROXY_KEYS});
 
-    foreach my $line ( @keys_arr ){
-      my ($num, $key) = split( /:/, $line );
-      if ( $num eq $sms_num ){
+    foreach my $line (@keys_arr) {
+      my ($num, $key) = split(/:/, $line);
+      if ($num eq $sms_num) {
         $prefix_keys{$num} = $key;
         $service_key = $key;
       }
     }
   }
-  else{
+  else {
     $prefix_keys{$sms_num} = $conf{PAYSYS_SMSPROXY_KEYS};
     $service_key = $conf{PAYSYS_SMSPROXY_KEYS};
   }
 
   $md5->reset;
-  $md5->add( $service_key );
+  $md5->add($service_key);
   my $digest = $md5->hexdigest();
 
   print "smsid: $FORM{smsid}\n";
 
-  if ( $digest ne $skey ){
+  if ($digest ne $skey) {
     print "status:reply\n";
     print "content-type: text/plain\n\n";
     print "Wrong key!\n";
     return 0;
   }
 
-  my $code = mk_unique_value( 8 );
+  my $code = mk_unique_value(8);
 
   #Info section
-  my ($transaction_id) = split( /\./, $FORM{smsid}, 2 );
+  my ($transaction_id) = split(/\./, $FORM{smsid}, 2);
 
   my $er = 1;
-  $payments->exchange_info( 0, { SHORT_NAME => "SMSPROXY" } );
-  if ( $payments->{TOTAL} > 0 ){
+  $payments->exchange_info(0, { SHORT_NAME => "SMSPROXY" });
+  if ($payments->{TOTAL} > 0) {
     $er = $payments->{ER_RATE};
   }
 
-  if ( $payments->{errno} ){
+  if ($payments->{errno}) {
     print "status:reply\n";
     print "content-type: text/plain\n\n";
     print "PAYMENT ERROR: $payments->{errno}!\n";
@@ -1378,7 +1463,7 @@ sub smsproxy_payments{
     }
   );
 
-  if ( $Paysys->{errno} && $Paysys->{errno} == 7 ){
+  if ($Paysys->{errno} && $Paysys->{errno} == 7) {
     print "status:reply\n";
     print "content-type: text/plain\n\n";
     print "Request dublicated $FORM{smsid}\n";
@@ -1398,12 +1483,12 @@ sub smsproxy_payments{
 
 =cut
 #**********************************************************
-sub paymaster_check_payment{
+sub paymaster_check_payment {
   #my ($attr) = @_;
 
-  wm_payments( { SYSTEM_SHORT_NAME => 'PMASTER',
-      SYSTEM_ID                    => 97
-    } );
+  wm_payments({ SYSTEM_SHORT_NAME => 'PMASTER',
+    SYSTEM_ID                     => 97
+  });
 
   return 1;
 }
@@ -1415,7 +1500,7 @@ sub paymaster_check_payment{
 
 =cut
 #**********************************************************
-sub wm_payments{
+sub wm_payments {
   my ($attr) = @_;
 
   my $payment_system = $attr->{SYSTEM_SHORT_NAME} || (($conf{PAYSYS_WEBMONEY_UA}) ? 'WMU' : 'WM');
@@ -1426,37 +1511,37 @@ sub wm_payments{
   print "Content-Type: text/html\n\n";
 
   #Pre request section
-  if ( $FORM{'LMI_PREREQUEST'} && $FORM{'LMI_PREREQUEST'} == 1 ){
+  if ($FORM{'LMI_PREREQUEST'} && $FORM{'LMI_PREREQUEST'} == 1) {
     $output_content = "YES";
   }
   #Payment notification
-  elsif ( $FORM{LMI_HASH} ){
-    conf_gid_split( { GID => 0,
-        PARAMS            => [
+  elsif ($FORM{LMI_HASH}) {
+    conf_gid_split({ GID => 0,
+      PARAMS             => [
         'PAYSYS_LMI_SECRET_KEY',
         'PAYSYS_WEBMONEY_ACCOUNTS',
       ],
-        SERVICE2GID       => $conf{PAYSYS_WEBMONEY_SERVICE2GID},
-        SERVICE           => $FORM{LMI_MERCHANT_ID}
-      } );
+      SERVICE2GID        => $conf{PAYSYS_WEBMONEY_SERVICE2GID},
+      SERVICE            => $FORM{LMI_MERCHANT_ID}
+    });
 
     my $checksum = ($conf{PAYSYS_WEBMONEY_UA}) ? wm_ua_validate() : wm_validate();
 
-    my @ACCOUNTS = split( /;/, $conf{PAYSYS_WEBMONEY_ACCOUNTS} );
+    my @ACCOUNTS = split(/;/, $conf{PAYSYS_WEBMONEY_ACCOUNTS});
 
-    if ( $payment_system_id < 97 && !in_array( $FORM{LMI_PAYEE_PURSE}, \@ACCOUNTS ) ){
+    if ($payment_system_id < 97 && !in_array($FORM{LMI_PAYEE_PURSE}, \@ACCOUNTS)) {
       $status = 'Not valid money account';
       $status_code = 14;
     }
-    elsif ( defined( $FORM{LMI_MODE1} ) && $FORM{LMI_MODE} == 1 ){
+    elsif (defined($FORM{LMI_MODE1}) && $FORM{LMI_MODE} == 1) {
       $status = 'Test mode';
       $status_code = 12;
     }
-    elsif ( length( $FORM{LMI_HASH} ) < 32 ){
+    elsif (length($FORM{LMI_HASH}) < 32) {
       $status = 'Not MD5 checksum' . $FORM{LMI_HASH};
       $status_code = 5;
     }
-    elsif ( $FORM{LMI_HASH} ne $checksum ){
+    elsif ($FORM{LMI_HASH} ne $checksum) {
       $status = "Incorect checksum '$checksum/$FORM{LMI_HASH}'";
       $status_code = 5;
     }
@@ -1466,26 +1551,26 @@ sub wm_payments{
       $payment_unit = 'WM' . $1;
     }
 
-    $status_code = paysys_pay( {
-        PAYMENT_SYSTEM      => $payment_system,
-          PAYMENT_SYSTEM_ID => $payment_system_id,
-          CHECK_FIELD       => 'UID',
-          USER_ID           => $FORM{UID},
-          SUM               => $FORM{LMI_PAYMENT_AMOUNT},
-          EXT_ID            => $FORM{LMI_PAYMENT_NO},
-          IP                => $FORM{IP},
-          DATA              => \%FORM,
-          MK_LOG            => 1,
-          ERROR             => $status_code,
-          CURRENCY          => $payment_unit,
-          DEBUG             => $debug
-      } );
+    $status_code = paysys_pay({
+      PAYMENT_SYSTEM    => $payment_system,
+      PAYMENT_SYSTEM_ID => $payment_system_id,
+      CHECK_FIELD       => 'UID',
+      USER_ID           => $FORM{UID},
+      SUM               => $FORM{LMI_PAYMENT_AMOUNT},
+      EXT_ID            => $FORM{LMI_PAYMENT_NO},
+      IP                => $FORM{IP},
+      DATA              => \%FORM,
+      MK_LOG            => 1,
+      ERROR             => $status_code,
+      CURRENCY          => $payment_unit,
+      DEBUG             => $debug
+    });
   }
 
   print $output_content;
 
-  mk_log( $output_content . "\nSTATUS CODE: $status_code/$status",
-    { PAYSYS_ID => "$payment_system/$payment_system_id" } );
+  mk_log($output_content . "\nSTATUS CODE: $status_code/$status",
+    { PAYSYS_ID => "$payment_system/$payment_system_id" });
 
   return 1;
 }
@@ -1495,29 +1580,29 @@ sub wm_payments{
 
 =cut
 #**********************************************************
-sub wm_validate{
+sub wm_validate {
 
   my $digest;
 
-  if ( length( $FORM{LMI_HASH} ) == 32 ){
+  if (length($FORM{LMI_HASH}) == 32) {
     $md5->reset;
-    $md5->add( $FORM{LMI_PAYEE_PURSE} );
-    $md5->add( $FORM{LMI_PAYMENT_AMOUNT} );
-    $md5->add( $FORM{LMI_PAYMENT_NO} );
-    $md5->add( $FORM{LMI_MODE} );
-    $md5->add( $FORM{LMI_SYS_INVS_NO} );
-    $md5->add( $FORM{LMI_SYS_TRANS_NO} );
-    $md5->add( $FORM{LMI_SYS_TRANS_DATE} );
-    $md5->add( $conf{PAYSYS_LMI_SECRET_KEY} );
+    $md5->add($FORM{LMI_PAYEE_PURSE});
+    $md5->add($FORM{LMI_PAYMENT_AMOUNT});
+    $md5->add($FORM{LMI_PAYMENT_NO});
+    $md5->add($FORM{LMI_MODE});
+    $md5->add($FORM{LMI_SYS_INVS_NO});
+    $md5->add($FORM{LMI_SYS_TRANS_NO});
+    $md5->add($FORM{LMI_SYS_TRANS_DATE});
+    $md5->add($conf{PAYSYS_LMI_SECRET_KEY});
 
     #$md5->add($FORM{LMI_SECRET_KEY});
-    $md5->add( $FORM{LMI_PAYER_PURSE} );
-    $md5->add( $FORM{LMI_PAYER_WM} );
+    $md5->add($FORM{LMI_PAYER_PURSE});
+    $md5->add($FORM{LMI_PAYER_WM});
 
-    $digest = uc( $md5->hexdigest() );
+    $digest = uc($md5->hexdigest());
   }
-  else{
-    load_pmodule( 'Digest::SHA', { IMPORT => 'sha256_hex' } );
+  else {
+    load_pmodule('Digest::SHA', { IMPORT => 'sha256_hex' });
 
     my $sign_string = $FORM{LMI_PAYEE_PURSE} .
       $FORM{LMI_PAYMENT_AMOUNT} .
@@ -1530,7 +1615,7 @@ sub wm_validate{
       $FORM{LMI_PAYER_PURSE} .
       $FORM{LMI_PAYER_WM};
 
-    $digest = uc( sha256_hex( $sign_string ) );
+    $digest = uc(sha256_hex($sign_string));
   }
 
   return $digest;
@@ -1541,20 +1626,20 @@ sub wm_validate{
 
 =cut
 #**********************************************************
-sub wm_ua_validate{
+sub wm_ua_validate {
   $md5->reset;
 
-  $md5->add( $FORM{LMI_MERCHANT_ID} );
-  $md5->add( $FORM{LMI_PAYMENT_NO} );
-  $md5->add( $FORM{LMI_SYS_PAYMENT_ID} );
-  $md5->add( $FORM{LMI_SYS_PAYMENT_DATE} );
-  $md5->add( $FORM{LMI_PAYMENT_AMOUNT} );
-  $md5->add( $FORM{LMI_PAID_AMOUNT} );
-  $md5->add( $FORM{LMI_PAYMENT_SYSTEM} );
-  $md5->add( $FORM{LMI_MODE} );
-  $md5->add( $conf{PAYSYS_PAYMASTER_SECRET} );
+  $md5->add($FORM{LMI_MERCHANT_ID});
+  $md5->add($FORM{LMI_PAYMENT_NO});
+  $md5->add($FORM{LMI_SYS_PAYMENT_ID});
+  $md5->add($FORM{LMI_SYS_PAYMENT_DATE});
+  $md5->add($FORM{LMI_PAYMENT_AMOUNT});
+  $md5->add($FORM{LMI_PAID_AMOUNT});
+  $md5->add($FORM{LMI_PAYMENT_SYSTEM});
+  $md5->add($FORM{LMI_MODE});
+  $md5->add($conf{PAYSYS_PAYMASTER_SECRET});
 
-  my $digest = uc( $md5->hexdigest() );
+  my $digest = uc($md5->hexdigest());
 
   return $digest;
 }
@@ -1565,11 +1650,11 @@ sub wm_ua_validate{
 
 =cut
 #**********************************************************
-sub interact_mode{
+sub interact_mode {
 
   do "../language/$html->{language}.pl";
 
-  load_module( 'Paysys', $html );
+  load_module('Paysys', $html);
 
   $html->{NO_PRINT} = 1;
   $LIST_PARAMS{UID} = $FORM{UID};
@@ -1590,32 +1675,32 @@ sub interact_mode{
 
 =cut
 #**********************************************************
-sub load_pay_module{
+sub load_pay_module {
   my ($name, $attr) = @_;
 
-  eval { require "Paysys/". $name .".pm" };
+  eval {require "Paysys/" . $name . ".pm"};
 
-  if ( $@ ){
+  if ($@) {
     print "Content-Type: text/plain\n\n";
     my $res = "Error: load module '" . $name . ".pm' \n $!  \n" .
       "Purchase module from http://abills.net.ua/ \n";
 
     print $@ if ($conf{PAYSYS_DEBUG});
-    mk_log( $res );
+    mk_log($res);
 
     return 0;
   }
 
-  if($name =~ /^\d/ ){
+  if ($name =~ /^\d/) {
     $name = '_' . $name;
   }
 
-  my $function = lc( $name ) . '_check_payment';
-  if ( defined( &{$function} ) ){
-    if ( $debug > 3 ){
+  my $function = lc($name) . '_check_payment';
+  if (defined(&{$function})) {
+    if ($debug > 3) {
       print 'Module: ' . $name . '.pm' . " Function: $function\n";
     }
-    &{ \&{$function} }( $attr->{SYS_PARAMS} );
+    &{ \&{$function} }($attr->{SYS_PARAMS});
   }
 
   exit;
@@ -1627,7 +1712,7 @@ sub load_pay_module{
 
 =cut
 #***********************************************************
-sub get_request_info{
+sub get_request_info {
   my $info = '';
 
   while (my ($k, $v) = each %FORM) {
@@ -1651,34 +1736,34 @@ sub get_request_info{
 sub new_load_pay_module {
   my ($name, $attr) = @_;
 
-  eval { require "Paysys/systems/". $name .".pm" };
+  eval {require "Paysys/systems/" . $name . ".pm"};
 
-  if ( $@ ){
+  if ($@) {
     print "Content-Type: text/plain\n\n";
     my $res = "Error: load module '" . $name . ".pm' \n $!  \n" .
       "Purchase module from http://abills.net.ua/ \n";
 
     print $@ if ($conf{PAYSYS_DEBUG});
-    mk_log( $res );
+    mk_log($res);
 
     return 0;
   }
 
-  if($name =~ /^\d/ ){
+  if ($name =~ /^\d/) {
     $name = '_' . $name;
   }
 
-  my $function = lc( $name ) . '_check_payment';
-  if ( defined( &{$function} ) ){
-    if ( $debug > 3 ){
+  my $function = lc($name) . '_check_payment';
+  if (defined(&{$function})) {
+    if ($debug > 3) {
       print 'Module: ' . $name . '.pm' . " Function: $function\n";
     }
-    &{ \&{$function} }( $attr->{SYS_PARAMS} );
+    &{ \&{$function} }($attr->{SYS_PARAMS});
   }
 
   exit;
   return 1;
 }
-  
+
 
 1

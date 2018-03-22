@@ -93,7 +93,7 @@ sub msgs_delivery_main {
   if ($FORM{add_form} || $FORM{chg} || $FORM{show}) {
     $Msgs->{DATE_PIKER} = $html->form_datepicker('SEND_DATE', $Msgs->{SEND_DATE});
     $Msgs->{TIME_PIKER} = $html->form_timepicker('SEND_TIME', $Msgs->{SEND_TIME});
-    $Msgs->{STATUS_SELECT} = msgs_sel_status({ NAME => 'STATUS' });
+    $Msgs->{STATUS_SELECT} = msgs_sel_status({ NAME => 'STATUS', STATUS => 9 });
 
     $Msgs->{PRIORITY_SELECT} = $html->form_select(
       'PRIORITY',
@@ -316,7 +316,7 @@ sub msgs_delivery_user_table {
     $attr
       SELECTED
       HASH_RESULT     - Return results as hash
-      SKIP_MUULTISEL  - Skip multiselect
+      SKIP_MULTISELECT  - Skip multiselect
 
   Returns:
     GID select form

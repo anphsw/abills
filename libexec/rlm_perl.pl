@@ -127,7 +127,7 @@ sub authorize {
 
   if ($db) {
     my $r   = 1;
-    if ($RAD_CHECK{'Auth-Type'} eq 'MSCHAP') {
+    if ($RAD_CHECK{'Auth-Type'} eq 'MSCHAP' || $RAD_CHECK{'Auth-Type'} eq 'MS-CHAP') {
       $Log->{ACTION} = 'AUTH';
 
       if ($debug ) {
@@ -366,6 +366,18 @@ sub accounting {
       ACCT_STATUS_TYPE => $acct_status_type
     });
   }
+  elsif (defined($ACCT{ default })) {
+    my $acct_module = $ACCT{ default };
+    if (!defined($acct_mod{$acct_module})) {
+      require $acct_module . '.pm';
+      $acct_module->import();
+    }
+
+    $acct_mod{$acct_module} = $acct_module->new($db, \%conf);
+    $r = $acct_mod{$acct_module}->accounting(\%RAD_REQUEST, $nas, {
+      ACCT_STATUS_TYPE => $acct_status_type
+    });
+  }
   else {
     if ($nas->{NAS_TYPE} eq 'mpd5' && $RAD_REQUEST{MPD_INPUT_OCTETS}) {
       ($RAD_REQUEST{OUTBYTE}, $RAD_REQUEST{INBYTE}, $RAD_REQUEST{'Acct-Input-Octets'}, $RAD_REQUEST{'Acct-Output-Octets'}) = (0, 0, 0, 0);
@@ -469,7 +481,7 @@ sub post_auth {
       }
       else {
         $RAD_REPLY{'DHCP-DHCP-Error-Message'} = $message if ($message);
-        access_deny($RAD_PAIRS->{'User-Name'}, "$message". (($GT) ? " $GT" : ''), $nas, $db);
+        access_deny($RAD_PAIRS->{'User-Name'}, $message. (($GT) ? " $GT" : ''), $nas, $db);
         $r = 1 if (!$r);
         return $r;
       }
@@ -478,7 +490,9 @@ sub post_auth {
       #while (my ($k, $v) = each %$RAD_PAIRS) {
       #  $RAD_REPLY{$k} = $v;
       #}
-      %RAD_REPLY = (%RAD_REPLY, %$RAD_PAIRS);
+      if($RAD_PAIRS) {
+        %RAD_REPLY = (%RAD_REPLY, %$RAD_PAIRS);
+      }
 
       if ($conf{DHCP_FREERADIUS_DEBUG} && $conf{DHCP_FREERADIUS_DEBUG} == 2) {
         my $out = "\nREQUEST ======================================\n";
@@ -503,9 +517,8 @@ sub post_auth {
     else {
       #Check pass ok
       if ($RAD_CHECK{'Post-Auth-Type'} !~ /Reject/i) {
-        #Second step auth
-        # MS chap authentification
-        if ($RAD_CHECK{'Auth-Type'} eq 'MSCHAP') {
+        #Second step auth - MS chap authentification
+        if ($RAD_CHECK{'Auth-Type'} eq 'MSCHAP' || $RAD_CHECK{'Auth-Type'} eq 'MS-CHAP') {
           if (auth_($db, \%RAD_REQUEST, $nas) == 0) {
             if ($debug) {
               &radiusd::radlog(2, "MS CHAP OK Auth-Type: $RAD_CHECK{'Auth-Type'} Post: $RAD_CHECK{'Post-Auth-Type'} User-Name: $RAD_REQUEST{'User-Name'}");
@@ -515,8 +528,16 @@ sub post_auth {
         }
         #Allow others
         else {
+          #Fixme Temmporary skip for correct ip assign
           if($RAD_PAIRS) {
-            %RAD_REPLY = (%RAD_REPLY, %$RAD_PAIRS);
+            #%RAD_REPLY = (%RAD_REPLY, %$RAD_PAIRS);
+            #Only for Juniper services
+            $RAD_REPLY{'ERX-Service-Activate:1'} = $RAD_PAIRS->{'ERX-Service-Activate:1'} if ($RAD_PAIRS->{'ERX-Service-Activate:1'});
+            $RAD_REPLY{'ERX-Service-Activate:2'} = $RAD_PAIRS->{'ERX-Service-Activate:2'} if ($RAD_PAIRS->{'ERX-Service-Activate:2'});
+            $RAD_REPLY{'ERX-Service-Activate:3'} = $RAD_PAIRS->{'ERX-Service-Activate:3'} if ($RAD_PAIRS->{'ERX-Service-Activate:3'});
+            $RAD_REPLY{'ERX-Service-Statistics:1'} = $RAD_PAIRS->{'ERX-Service-Statistics:1'} if ($RAD_PAIRS->{'ERX-Service-Statistics:1'});
+            $RAD_REPLY{'ERX-Service-Statistics:2'} = $RAD_PAIRS->{'ERX-Service-Statistics:2'} if ($RAD_PAIRS->{'ERX-Service-Statistics:2'});
+            $RAD_REPLY{'ERX-Service-Statistics:3'} = $RAD_PAIRS->{'ERX-Service-Statistics:3'} if ($RAD_PAIRS->{'ERX-Service-Statistics:3'});
           }
     	    return RLM_MODULE_OK;
     	  }
@@ -528,7 +549,7 @@ sub post_auth {
       	$reject_info = $RAD_REPLY{'Reply-Message'} . $reject_info;
       }
       else {
-        $reject_info = "REJECT Wrong password ($RAD_CHECK{'Post-Auth-Type'})";
+        $reject_info = "REJECT WRONG_AUTH ($RAD_CHECK{'Post-Auth-Type'})";
         $RAD_REPLY{'Reply-Message'} = $reject_info;
       }
 
@@ -568,19 +589,19 @@ sub get_nas_info {
     if ($RAD->{'Mikrotik-Host-IP'}) {
       $nas->info({ NAS_ID => $RAD->{'NAS-Identifier'} });
       if ($nas->{errno}) {
-        access_deny($RAD->{'User-Name'}, "Unknow server '". $RAD->{'NAS-IP-Address'} ."'" . (($RAD->{'NAS-Identifier'}) ? " Nas-Identifier: ". $RAD->{'NAS-Identifier'}  : '') . ' ' . (($RAD->{'NAS-IP-Address'} eq '0.0.0.0') ? $RAD->{'Called-Station-Id'} : ''), $nas, $db);
+        access_deny($RAD->{'User-Name'}, "UNKNOW_SERVER: '". $RAD->{'NAS-IP-Address'} ."'" . (($RAD->{'NAS-Identifier'}) ? " Nas-Identifier: ". $RAD->{'NAS-Identifier'}  : '') . ' ' . (($RAD->{'NAS-IP-Address'} eq '0.0.0.0') ? $RAD->{'Called-Station-Id'} : ''), $nas, $db);
 
-        $RAD_REPLY{'Reply-Message'} = "Unknow server '". $RAD->{'NAS-IP-Address'} ."'";
+        $RAD_REPLY{'Reply-Message'} = "UNKNOW_SERVER: '". $RAD->{'NAS-IP-Address'} ."'";
         return $nas;
       }
       $nas->{NAS_IP} = $RAD->{'NAS-IP-Address'};
     }
     else {
-      access_deny($RAD->{'User-Name'}, "Unknow server '". $RAD->{'NAS-IP-Address'} ."'" .
+      access_deny($RAD->{'User-Name'}, "UNKNOW_SERVER: '". $RAD->{'NAS-IP-Address'} ."'" .
       (($RAD->{'NAS-Identifier'}) ? " Nas-Identifier: ". $RAD->{'NAS-Identifier'} : '') .
       ' ' . (($RAD->{'NAS-IP-Address'} eq '0.0.0.0' && !$RAD->{'DHCP-Message-Type'}) ? $RAD->{'Called-Station-Id'} : ''), $nas, $db);
 
-      $RAD_REPLY{'Reply-Message'} = "Unknow server '". $RAD->{'NAS-IP-Address'} ."'";
+      $RAD_REPLY{'Reply-Message'} = "UNKNOW_SERVER: '". $RAD->{'NAS-IP-Address'} ."'";
       $nas->{errno}=1;
     }
   }
@@ -588,7 +609,7 @@ sub get_nas_info {
     $nas->{errno}=2;
   }
   elsif ($nas->{NAS_DISABLE} > 0) {
-    access_deny($RAD->{'User-Name'}, "Disabled NAS server '". $RAD->{'NAS-IP-Address'} ."'", $nas, $db);
+    access_deny($RAD->{'User-Name'}, "DISABLED_NAS_SERVER: '". $RAD->{'NAS-IP-Address'} ."'", $nas, $db);
     $nas->{errno}=3;
   }
 
@@ -633,6 +654,18 @@ sub auth_ {
     ($r, $RAD_PAIRS) = $auth_mod{$nas_type}->auth($RAD, $nas);
     $RAD_REQUEST{'User-Name'} = $auth_mod{"default"}->{LOGIN} if ($auth_mod{"default"}->{LOGIN});
   }
+  elsif ($AUTH{ default }) {
+    my $auth_module = $AUTH{ default };
+    if (!defined($auth_mod{ default })) {
+      require $auth_module . ".pm";
+      $auth_module->import();
+    }
+
+    delete($auth_mod{default}->{INFO});
+    $auth_mod{default} = $auth_module->new($db, \%conf);
+    ($r, $RAD_PAIRS) = $auth_mod{default}->auth($RAD, $nas);
+    $RAD_REQUEST{'User-Name'} = $auth_mod{"default"}->{LOGIN} if ($auth_mod{"default"}->{LOGIN});
+  }
   else {
     $auth_mod{'default'} = Auth->new($db, \%conf);
 
@@ -645,7 +678,10 @@ sub auth_ {
     $Log->{ACTION} = 'GUEST_MODE';
   }
 
-  %RAD_REPLY = (%RAD_REPLY, %$RAD_PAIRS);
+  if($RAD_PAIRS) {
+    #@RAD_REPLY{keys %$RAD_PAIRS} = values %$RAD_PAIRS;
+    %RAD_REPLY = (%RAD_REPLY, %$RAD_PAIRS);
+  }
 
   #If Access deny
   if ($r == 1) {

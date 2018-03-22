@@ -17,6 +17,13 @@
           </div>
 
           <div class='form-group'>
+            <label class='control-label col-md-3' for='BLOCK'>_{BLOCK}_:</label>
+            <div class='col-md-9'>
+              <input id='BLOCK' name='BLOCK' value='%BLOCK%' placeholder='%BLOCK%' class='form-control' type='text'>
+            </div>
+          </div>
+
+          <div class='form-group'>
             <label class='control-label col-md-3' for='STREET_SEL'>_{ADDRESS_STREET}_:</label>
             <div class='col-md-9'>
               %STREET_SEL%

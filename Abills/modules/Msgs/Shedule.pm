@@ -6,7 +6,7 @@
 
 use strict;
 use warnings FATAL => 'all';
-use Abills::Base qw(days_in_month date_diff);
+use Abills::Base qw(days_in_month date_diff load_pmodule);
 
 our (
   %lang,
@@ -179,6 +179,7 @@ sub msgs_shedule_month_get_tasks {
   #get messages where plandate is not defined
   my $free_messages_list = $Msgs->messages_list(
     {
+      LOGIN     => '_SHOW',
       PLAN_DATE => '0000-00-00',
       COLS_NAME => 1,
       STATE     => $FORM{TASK_STATUS_SELECT}
@@ -191,7 +192,7 @@ sub msgs_shedule_month_get_tasks {
   for my $message ( @{$free_messages_list} ) {
     my $task_id = $message->{id};
 
-    $message->{user_name} ||= '';
+    $message->{login} ||= '';
     $message->{subject} ||= '';
 
     push (@tasks_ids, $task_id);
@@ -199,7 +200,7 @@ sub msgs_shedule_month_get_tasks {
       @new_tasks,
       {
         id   => $task_id,
-        name => "$message->{user_name}: $message->{subject}",
+        name => "$message->{login}: $message->{subject}",
       }
     );
   }
@@ -208,14 +209,14 @@ sub msgs_shedule_month_get_tasks {
   foreach my $message ( @{$messages_list} ) {
     my $task_id = $message->{id};
 
-    $message->{user_name} ||= '';
+    $message->{login} ||= '';
     $message->{subject} ||= '';
 
     push (@tasks_ids, $task_id);
     push (@assigned_date_tasks,
       {
         id        => $task_id,
-        name      => "$message->{user_name}: $message->{subject}",
+        name      => "$message->{login}: $message->{subject}",
         plan_date => $message->{plan_date}
       }
     );
@@ -242,6 +243,7 @@ sub msgs_shedule2 {
     $FORM{DATE} = POSIX::strftime('%Y-%m-%d', localtime);
   };
 
+  my DBI $db_ = $Msgs->{db}->{db};
   my $options = { COLUMNS => 9, START_TIME => 9, FRACTION => 60, TIME_UNIT => 0 };
   my $default_task_length = 1;
 
@@ -251,9 +253,9 @@ sub msgs_shedule2 {
     if ( $FORM{jobs} ) {
       my $jobs_unescaped = $FORM{jobs};
       $jobs_unescaped =~ s/\\\"/\"/g;
-      my $jobs = decode_json($jobs_unescaped);
+      my $jobs = JSON::decode_json($jobs_unescaped);
 
-      $Msgs->{db}->{db}->{AutoCommit} = 0;
+      $db_->{AutoCommit} = 0;
       for my $job ( @{$jobs} ) {
         my $aid = $job->{administrator};
         my $tasks = $job->{tasks};
@@ -281,7 +283,7 @@ sub msgs_shedule2 {
             $FORM{DATE} });
           if ( $Msgs->{errno} ) {
             $html->message('danger', $Msgs->{errstr});
-            $Msgs->{db}->{db}->rollback();
+            $db_->rollback();
             $html->message('danger', $lang{RESETED});
             return 0;
           }
@@ -296,13 +298,13 @@ sub msgs_shedule2 {
     if ( $FORM{popped} ) {
       my $tasks_unescaped = $FORM{popped};
       $tasks_unescaped =~ s/\\\"/\"/g;
-      my $task_ids = decode_json($tasks_unescaped);
+      my $task_ids = JSON::decode_json($tasks_unescaped);
 
       for my $task_id ( @{$task_ids} ) {
         $Msgs->message_change({ ID => $task_id, PLAN_TIME => '00:00:00', RESPOSIBLE => 0 });
         if ( $Msgs->{errno} ) {
           $html->message('danger', $Msgs->{errstr});
-          $Msgs->{db}->{db}->rollback();
+          $db_->rollback();
           $html->message('danger', $lang{RESETED});
           return 0;
         }
@@ -312,8 +314,8 @@ sub msgs_shedule2 {
       }
     }
 
-    $Msgs->{db}->{db}->commit();
-    $Msgs->{db}->{db}->{AutoCommit} = 1;
+    $db_->commit();
+    $db_->{AutoCommit} = 1;
   }
 
   my @admins_list = (@{ $admin->list({ GID => $admin->{GID}, DISABLE => 0, PAGE_ROWS => 1000, COLS_NAME => 1 }) });
@@ -336,21 +338,32 @@ sub msgs_shedule2 {
   }
 
   #get tasks for date
-  my $date = "$FORM{DATE}" || 'NOW()';
+  my $date = $FORM{DATE} || 'NOW()';
 
   #get messages for given date
-  my $messages_list = $Msgs->messages_list({ PLAN_DATE => $date, COLS_NAME => 1, STATE => $FORM{TASK_STATUS_SELECT} });
+  my $messages_list = $Msgs->messages_list({
+    LOGIN     => '_SHOW',
+    RESPOSIBLE=> '_SHOW',
+    PLAN_DATE => $date,
+    COLS_NAME => 1,
+    STATE     => $FORM{TASK_STATUS_SELECT}
+  });
 
   #get messages where plantime is not defined
-  my $free_messages_list = $Msgs->messages_list({ PLAN_DATE => '0000-00-00', COLS_NAME => 1, STATE =>
-    $FORM{TASK_STATUS_SELECT} });
+  my $free_messages_list = $Msgs->messages_list({
+    LOGIN     => '_SHOW',
+    RESPOSIBLE=> '_SHOW',
+    PLAN_DATE => '0000-00-00',
+    COLS_NAME => 1,
+    STATE     => $FORM{TASK_STATUS_SELECT}
+  });
 
   my @tasks_ids = ();
 
   my @new_tasks = ();
   my %jobs_aid = ();
   for my $message ( @{$messages_list}, @{$free_messages_list} ) {
-    my $aid = $message->{resposible};
+    my $aid     = $message->{resposible};
     my $task_id = $message->{id};
 
     push @tasks_ids, $task_id;
@@ -361,7 +374,7 @@ sub msgs_shedule2 {
     };
 
     my $mess_start = substr($message->{plan_time}, 0, 2) - $options->{START_TIME};
-    my $mess_name = ($message->{user_name} ? "$message->{user_name}:" : q{}) . ($message->{subject} ? "$message->{subject}" : q{});
+    my $mess_name = ($message->{login} ? "$message->{login}:" : q{}) . ($message->{subject} ? $message->{subject} : q{});
     if ( $aid && $mess_start >= 0 ) {
       if ( !$jobs_aid{$aid} ) {
         $jobs_aid{$aid} = ();
@@ -439,8 +452,8 @@ sub msgs_shedule2_month {
     my $jobs = $FORM{jobs} || q{};
     $jobs =~ s/\\\"/\"/g;
 
-    my $tasks_popped = decode_json($jobs_popped);
-    my $tasks_applied = decode_json($jobs);
+    my $tasks_popped = JSON::decode_json($jobs_popped);
+    my $tasks_applied = JSON::decode_json($jobs);
 
     $Msgs->{db}->{db}->{AutoCommit} = 0;
 

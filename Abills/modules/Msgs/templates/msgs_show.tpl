@@ -11,22 +11,14 @@
             <div class='box %MAIN_PANEL_COLOR%'>
                 <div class='box-header with-border'>
                 <div class='row'>
-                <div class='col-md-9'>
-                    <div class='box-title'> %SUBJECT%</div>
+                <div class='col-md-12'>
+                    <div class='box-title'><span class='badge %MAIN_PANEL_COLOR%'>%ID%</span> %SUBJECT% %CHANGE_SUBJECT_BUTTON% </div>
+                    <div class='box-tools pull-right'>%RATING_ICONS% %PARENT_MSG%</div>
                     </div>
 
-                    <div class='col-md-3 pull-right'>%RATING_ICONS%</div>
                     </div>
                 </div>
                 <div class='box-body text-left'>
-                        <div class='row'>
-                            <div class='col-md-3'><strong>#:</strong></div>
-                            <div class='col-md-3'><span class='badge %MAIN_PANEL_COLOR%'>%ID%</span></div>
-
-                            <div class='col-md-3'><strong>_{CHAPTERS}_:</strong></div>
-                            <div class='col-md-3'>%CHAPTER_NAME%</div>
-                        </div>
-
                         <div class='row'>
                             <div class='col-md-3'><strong>_{STATUS}_:</strong></div>
                             <div class='col-md-3'>%STATE_NAME%</div>
@@ -39,13 +31,12 @@
                             <div class='col-md-3'><strong>_{CREATED}_:</strong></div>
                             <div class='col-md-3'>%DATE%</div>
 
-                            <div class='col-md-3'><strong>_{UPDATED}_:</strong></div>
-                            <div class='col-md-3'>%UPDATED%</div>
+                            <div class='col-md-3'><strong>_{CHAPTER}_:</strong></div>
+                            <div class='col-md-3'>%CHAPTER_NAME%</div>
                         </div>
 
                         <div class='row' style="display: %MSG_TAGS_DISPLAY_STATUS%">
-                            <div class='col-md-3'><strong>_{TAGS}_:</strong></div>
-                            <div class='col-md-9'>%MSG_TAGS%</div>
+                            <div class='col-md-12'>%MSG_TAGS%</div>
                         </div>
 
                         <!-- progres start -->
@@ -69,6 +60,7 @@
 
             %REPLY%
             %REPLY_FORM%
+            %WORKPLANNING%
         </div>
         <div class='col-md-3' id='ext_wrapper' style='margin-top: 15px;'>
             %EXT_INFO%
@@ -78,3 +70,8 @@
     <!-- end of table -->
 </form>
 
+<script>
+  jQuery(function(){
+    Events.emit('Msgs.entityViewed.Msg', '%ID%');
+  });
+</script>

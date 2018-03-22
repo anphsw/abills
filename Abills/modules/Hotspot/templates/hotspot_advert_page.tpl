@@ -1,5 +1,5 @@
 <div class='box box-theme box-form'>
-  <div class='box-header with-border'><h4 class='box-title'>_{PAGES}_</h4></div>
+  <div class='box-header with-border'><h4 class='box-title'>_{SETTINGS}_</h4></div>
   <div class='box-body'>
 
     <form name='HOTSPOT_ADVERT' id='form_HOTSPOT_ADVERT' method='post' class='form form-horizontal'>
@@ -14,14 +14,14 @@
       </div>
       
       <div class='form-group'>
-        <label class='control-label col-md-3' for='ACTION_id'>Action</label>
+        <label class='control-label col-md-3' for='ACTION_id'>Key</label>
         <div class='col-md-9'>
           <input type='text' class='form-control' value='%ACTION%' name='ACTION' id='ACTION_id'/>
         </div>
       </div>
 
       <div class='form-group'>
-        <label class='control-label col-md-3' for='URL_id'>URL</label>
+        <label class='control-label col-md-3' for='URL_id'>Value</label>
         <div class='col-md-9'>
           <textarea class='form-control' name='PAGE' id='URL_id'>%PAGE%</textarea>
         </div>
@@ -29,7 +29,7 @@
     </form>
 
   </div>
-  <div class='box-footer text-center'>
+  <div class='box-footer'>
     <input type='submit' form='form_HOTSPOT_ADVERT' class='btn btn-primary' name='submit' value='%SUBMIT_BTN_NAME%'>
   </div>
 </div>

@@ -245,7 +245,7 @@ sub equipment_model{
     'VENDOR_ID',
     {
       SELECTED       => $Equipment->{VENDOR_ID},
-      SEL_LIST       => $Equipment->vendor_list( { COLS_NAME => 1 } ),
+      SEL_LIST       => $Equipment->vendor_list( { COLS_NAME => 1, PAGE_ROWS => 50 } ),
       NO_ID          => 1,
       MAIN_MENU      => get_function_index( 'equipment_vendor' ),
       MAIN_MENU_ARGV => "chg=" . ($Equipment->{VENDOR_ID} || '')
@@ -326,7 +326,7 @@ sub equipment_model{
       model_name  => $lang{NAME},
       type_name   => $lang{TYPE},
       ports       => $lang{PORTS},
-      site        => $lang{SITE},
+#      site        => $lang{SITE},
       manage_web  => 'web',
       manage_ssh  => 'ssh',
       snmp_tpl    => 'SNMP tpl',
@@ -339,7 +339,8 @@ sub equipment_model{
       qs      => $pages_qs,
       ID      => 'EQUIPMENT_MODELS_',
       EXPORT  => 1,
-      #MENU    => "$lang{ADD}:add_form=1&index=$index:add" . ";$lang{SEARCH}:index=$index&search_form=1:search",
+      MENU    => "$lang{ADD}:add_form=1&index=$index:add" 
+#. ";$lang{SEARCH}:index=$index&search_form=1:search",
     },
     MAKE_ROWS       => 1,
     TOTAL           => 1

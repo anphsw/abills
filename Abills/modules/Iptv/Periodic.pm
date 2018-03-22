@@ -180,6 +180,7 @@ sub iptv_monthly_next_tp{
       CREDIT          => '_SHOW',
       NEXT_TP_ID      => '_SHOW',
       NEW_MODEL_TP    => 1,
+      AGE             => '_SHOW',
       MODULE          => 'Iptv',
       COLS_NAME       => 1
     }

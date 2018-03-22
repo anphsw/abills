@@ -6,7 +6,7 @@
         <input type=hidden name=ROUTE_ID value='$FORM{ROUTE_ID}'>
 
         <div class='box box-theme box-form'>
-            <div class='box-header with-border'>_{ROUTE}_</div>
+            <div class='box-header with-border'>_{ROUTES}_</div>
             <div class='box-body'>
                 <div class='form-group'>
                     <label class='col-md-3 control-label'>_{PREFIX}_</label>
@@ -21,11 +21,10 @@
                     </div>
                 </div>
                 <div class='form-group'>
-                    <div class='checkbox'>
-                        <label>
-                            <input type=checkbox name=DISABLE value='1' %DISABLE%>_{DISABLE}_
-                        </label>
-                    </div>
+                    <label class='col-md-3 control-label'>_{DISABLE}_</label>
+                     <div class='col-md-9'>
+                         <input type=checkbox name=DISABLE value='1' %DISABLE%>
+                      </div>
                 </div>
                 <div class='form-group'>
                     <label class='col-md-3 control-label'>_{DESCRIBE}_</label>

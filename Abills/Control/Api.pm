@@ -44,8 +44,8 @@ sub form_system_info {
 
     },
     'api_version' => {
-      version => '0.5',
-      date    => '2016-07-01'
+      version => '0.7',
+      date    => '2017-11-01'
     }
   );
 
@@ -55,7 +55,6 @@ sub form_system_info {
     @show_functions = ($get_info);
   }
 
-  my $result = '';
   foreach my $key ( @show_functions ) {
     my $table = $html->table(
       {
@@ -66,14 +65,10 @@ sub form_system_info {
       }
     );
 
-    $result .= $table->show({ OUTPUT2RETURN => 1 });
+    $table->show();
   }
 
-  if ($FORM{json}) {
-    $result = "{ $result }";
-  }
-
-  print $result;
+  $html->fetch({ DEBUG => $ENV{DEBUG} });
 
   return 1;
 }

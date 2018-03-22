@@ -10,7 +10,7 @@
 	<div class='col-md-9'><input type='file' name=FILE></div>
 </div>
 
-<div class='box-footer text-center'>
+<div class='box-footer'>
 	<button type='submit' class='btn btn-primary'>_{ADD}_</button>
 </div>
 </div>

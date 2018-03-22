@@ -31,7 +31,7 @@
                 </div>
             </div>
         </div>
-        <div class='box-footer text-center'>
+        <div class='box-footer'>
             <input type='submit' name='%ACTION%' value='%ACTION_LNG% Internet' class='btn btn-primary'>
         </div>
 

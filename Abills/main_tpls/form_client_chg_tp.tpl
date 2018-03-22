@@ -26,7 +26,7 @@
                 %SHEDULE_LIST%
             </div>
         </div>
-        <div class='box-footer text-center'>
+        <div class='box-footer'>
             <div name='modalOpen_TP_CHG' class='btn btn-primary' id='modalOpen_TP_CHG'
                    data-toggle='modal' data-target='#changeTPModal'>%LNG_ACTION%</div>
         </div>

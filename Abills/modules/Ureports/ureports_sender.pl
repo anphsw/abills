@@ -16,6 +16,7 @@ BEGIN {
   unshift( @INC,
     $Bin . '/../',
     $Bin . "/../Abills/mysql",
+    $Bin . '/../Abills/',
     $Bin . '/../lib/',
     $Bin . '/../Abills/modules' );
 }
@@ -37,6 +38,9 @@ use Abills::Defs;
 use Abills::Base qw(int2byte in_array sendmail parse_arguments cmd);
 use Abills::Templates;
 use Abills::Misc;
+
+use Ureports::Send qw/ureports_send_reports/;
+
 use Admins;
 use Shedule;
 #use Dv;
@@ -72,7 +76,6 @@ my $Ureports = Ureports->new( $db, $admin, \%conf );
 my $Fees     = Fees->new( $db, $admin, \%conf );
 my $Tariffs  = Tariffs->new( $db, \%conf, $admin );
 my $Shedule  = Shedule->new( $db, $admin, \%conf );
-
 my $Sessions;
 if(in_array('Internet', \@MODULES)) {
   $Sessions = Internet::Sessions->new($db, $admin, \%conf);
@@ -80,6 +83,7 @@ if(in_array('Internet', \@MODULES)) {
 else {
   $Sessions = Dv_Sessions->new($db, $admin, \%conf);
 }
+
 if ($html->{language} ne 'english') {
   do $Bin . "/../language/english.pl";
   do $Bin . "/../Abills/modules/Ureports/lng_english.pl";
@@ -116,65 +120,7 @@ if ( $argv->{DEBUG} ){
 $DATE = $argv->{DATE} if ($argv->{DATE});
 
 my $debug_output = ureports_periodic_reports($argv);
-
 print $debug_output;
-
-#**********************************************************
-=head2 ureports_send_reports($type, $destination, $message, $attr)
-
-=cut
-#**********************************************************
-sub ureports_send_reports {
-  my ($type, $destination, $message, $attr) = @_;
-
-  if ($attr->{MESSAGE_TEPLATE}) {
-    $message = $html->tpl_show( _include( $attr->{MESSAGE_TEPLATE}, 'Ureports' ), $attr,
-      { OUTPUT2RETURN => 1 } );
-  }
-  else {
-    $message = $html->tpl_show( _include( 'ureports_report_'.$attr->{REPORT_ID}, 'Ureports' ), $attr,
-      { OUTPUT2RETURN => 1 } );
-  }
-
-  if ( $debug > 6 ){
-    print "$type $destination $message\n";
-  }
-  elsif ( $type == 0 ){
-    $attr->{MESSAGE} = $message;
-    $message = $html->tpl_show( _include( 'ureports_email_message', 'Ureports' ), $attr, { OUTPUT2RETURN => 1 } );
-
-    my $subject = $attr->{SUBJECT} || '';
-    if ( !sendmail( $conf{ADMIN_MAIL}, $destination, $subject, $message . "\n[$attr->{REPORT_ID}]",
-      $conf{MAIL_CHARSET} ) ){
-      return 0;
-    }
-  }
-  elsif ( $type == 1 ){
-    if ( in_array( 'Sms', \@MODULES ) ){
-      $attr->{MESSAGE} = $message;
-      $message = $html->tpl_show( _include( 'ureports_sms_message', 'Ureports' ), $attr, { OUTPUT2RETURN => 1 } );
-
-      load_module( 'Sms' );
-      sms_send(
-        {
-          NUMBER    => $destination,
-          MESSAGE   => $message,
-          DEBUG     => $debug,
-          UID       => $attr->{UID},
-          PERRIODIC => 1
-        }
-      );
-    }
-    elsif ( $conf{UREPORTS_SMS_CMD} ){
-      cmd( "$conf{UREPORTS_SMS_CMD} $destination $message" );
-    }
-  }
-  elsif ( $type == 2 ){
-
-  }
-
-  return 1;
-}
 
 #**********************************************************
 =head2 ureports_periodic_reports($attr)
@@ -232,6 +178,7 @@ sub ureports_periodic_reports{
       ACCOUNT_STATUS => 0,
       STATUS         => 0,
       ACTIVATE       => '_SHOW',
+      REDUCTION      => '_SHOW',
       %SERVICE_LIST_PARAMS,
       MODULE         => '_SHOW',
       COLS_NAME      => 1,
@@ -256,7 +203,7 @@ sub ureports_periodic_reports{
       my $internet_status = $user->{DV_STATUS} || $user->{INTERNET_STATUS} || 0;
       #Skip disabled user
       next if ($internet_status == 1 || $internet_status == 2 || $internet_status == 3);
-
+      $user->{VALUE} =~ s/,/\./s;
       $debug_output .= "LOGIN: $user->{LOGIN} ($user->{UID}) DEPOSIT: $user->{deposit} CREDIT: $user->{credit} Report id: $user->{REPORT_ID} INTERNET STATUS: $internet_status $user->{DESTINATION_ID}\n" if ($debug > 3);
 
       if ( $user->{BILL_ID} && defined( $user->{DEPOSIT} ) ){
@@ -265,6 +212,8 @@ sub ureports_periodic_reports{
           $debug_output .= "UID: $user->{UID} REPORT_ID: $user->{REPORT_ID} DEPOSIT: $user->{DEPOSIT}/$user->{CREDIT} Skip action Small Deposit for sending\n" if ($debug > 0);
           next;
         }
+
+        my $reduction_division = ($user->{REDUCTION} >= 100) ? 1 : ((100 - $user->{REDUCTION}) / 100);
 
         # Recomended payments
         my $total_daily_fee = 0;
@@ -285,7 +234,12 @@ sub ureports_periodic_reports{
 
             if ( $cross_modules_return->{$module}{abon_distribution} ){
               $total_daily_fee += ($cross_modules_return->{$module}{month} / 30);
-              $user->{RECOMMENDED_PAYMENT} += $cross_modules_return->{$module}{month};
+#              if($cross_modules_return->{$module}{abon_distribution} && ! $conf{INTERNET_FULL_MONTH}) {
+#                $user->{RECOMMENDED_PAYMENT} += ($cross_modules_return->{$module}{month} / 30);
+#              }
+#              else {
+               $user->{RECOMMENDED_PAYMENT} += $cross_modules_return->{$module}{month};
+#              }
             }
             elsif ( $cross_modules_return->{$module}{month} ){
               $user->{RECOMMENDED_PAYMENT} += $cross_modules_return->{$module}{month};
@@ -303,12 +257,19 @@ sub ureports_periodic_reports{
           $user->{RECOMMENDED_PAYMENT} += sprintf( "%.2f", abs( $user->{DEPOSIT} + $user->{CREDIT} ) );
         }
 
+        if($conf{UREPORTS_ROUNDING} && $user->{RECOMMENDED_PAYMENT} > 0) {
+          if(int($user->{RECOMMENDED_PAYMENT}) < $user->{RECOMMENDED_PAYMENT}) {
+            $user->{RECOMMENDED_PAYMENT} = int($user->{RECOMMENDED_PAYMENT}+1);
+          }
+        }
+
         $user->{DEPOSIT} = sprintf( "%.2f", $user->{DEPOSIT} );
 
         if ( $total_daily_fee > 0 ){
-          $user->{EXPIRE_DAYS} = int( $user->{DEPOSIT} / $total_daily_fee );
+          $user->{EXPIRE_DAYS} = int( $user->{DEPOSIT} / $reduction_division / $total_daily_fee );
         }
         else{
+          #Internet expire
           $user->{EXPIRE_DAYS} = $user->{TP_EXPIRE};
         }
 
@@ -387,11 +348,12 @@ sub ureports_periodic_reports{
 
         # 7 - credit expired
         elsif ( $user->{REPORT_ID} == 7 ){
-          if ( $user->{CREDIT_EXPIRE} < $user->{VALUE} ){
+          if ( $user->{CREDIT_EXPIRE} <= $user->{VALUE} ){
             %PARAMS = (
               DESCRIBE => "$lang{REPORTS} ($user->{REPORT_ID}) ",
               MESSAGE  => "$lang{CREDIT} $lang{EXPIRE}",
-              SUBJECT  => "$lang{CREDIT} $lang{EXPIRE}"
+              SUBJECT  => "$lang{CREDIT} $lang{EXPIRE}",
+              CREDIT_EXPIRE_DAYS => $user->{CREDIT_EXPIRE}
             );
           }
           else{
@@ -429,13 +391,13 @@ sub ureports_periodic_reports{
 
         # 10 - TOO SMALL DEPOSIT FOR NEXT MONTH WORK
         elsif ( $user->{REPORT_ID} == 10 ){
-          if ( $user->{TP_MONTH_FEE} > $user->{DEPOSIT} + $user->{CREDIT} ){
+          if ( $user->{TP_MONTH_FEE} * $reduction_division > $user->{DEPOSIT} + $user->{CREDIT} ){
             %PARAMS = (
               DESCRIBE => "$lang{REPORTS} ($user->{REPORT_ID}) ",
               MESSAGE  =>
               "$lang{SMALL_DEPOSIT_FOR_NEXT_MONTH}. $lang{DEPOSIT}: $user->{DEPOSIT} $lang{TARIF_PLAN} $user->{TP_MONTH_FEE}"
               ,
-              SUBJECT  => "$lang{ERR_SMALL_DEPOSIT}"
+              SUBJECT  => $lang{ERR_SMALL_DEPOSIT}
             );
           }
           else{
@@ -443,8 +405,7 @@ sub ureports_periodic_reports{
           }
         }
 
-        #Report 11
-        # Small deposit fo next month activation
+        #Report 11 - Small deposit fo next month activation
         elsif ( $user->{REPORT_ID} == 11 ){
           if ( 0 > $user->{DEPOSIT} ){
             my $recharge = $user->{TP_MONTH_FEE} + $user->{DEPOSIT};
@@ -499,12 +460,18 @@ sub ureports_periodic_reports{
         #Report 15 15 Dv change status
         elsif ( $user->{REPORT_ID} == 15 ){
           if ( $internet_status && $internet_status != 3 ){
-            my @service_status = ("$lang{ENABLE}", "$lang{DISABLE}", "$lang{NOT_ACTIVE}", "$lang{HOLD_UP}",
+            my @service_status = ($lang{ENABLE}, $lang{DISABLE}, $lang{NOT_ACTIVE}, $lang{HOLD_UP},
               "$lang{DISABLE}: $lang{NON_PAYMENT}", "$lang{ERR_SMALL_DEPOSIT}",
               "$lang{VIRUS_ALERT}" );
+
+            my $message = "Internet: $service_status[$internet_status]";
+            if ($internet_status == 5) {
+              $message .= "\n $lang{RECOMMENDED_PAYMENT}:  $user->{RECOMMENDED_PAYMENT}\n";
+            }
+
             %PARAMS = (
-              DESCRIBE => "$lang{REPORTS}",
-              MESSAGE  => "Internet: $service_status[$internet_status]",
+              DESCRIBE => $lang{REPORTS},
+              MESSAGE  => $message,
               SUBJECT  => "Internet: $service_status[$internet_status]"
             );
           }
@@ -544,14 +511,17 @@ sub ureports_periodic_reports{
           $report_module =~ s/\.pm//;
           my $mod = "Ureports::$report_module";
           my $Report = $mod->new($db, $admin, \%conf);
+          if($debug > 2) {
+            $Report->{debug}=1;
+          }
           my $report_function = $Report->{SYS_CONF}{REPORT_FUNCTION};
           if($debug > 1) {
             print "Function: $report_function Name: $Report->{SYS_CONF}{REPORT_NAME} Tpl: $Report->{SYS_CONF}{TEMPLATE}\n";
           }
 
-          $Report->$report_function($user);
+          $Report->$report_function($user, $argv);
           if($Report->{errno}) {
-            print "[$Report->{errno}] $Report->{errstr}\n";
+            print "ERROR: [$Report->{errno}] $Report->{errstr}\n";
           }
 
           if($Report->{PARAMS}) {
@@ -580,14 +550,16 @@ sub ureports_periodic_reports{
             SUBJECT   => $PARAMS{SUBJECT},
             REPORT_ID => $user->{REPORT_ID},
             UID       => $user->{UID},
+            TP_ID     => $user->{TP_ID},
             MESSAGE   => $PARAMS{MESSAGE},
             DATE      => "$ADMIN_REPORT{DATE} $TIME",
             METHOD    => 1,
-            MESSAGE_TEPLATE => $PARAMS{MESSAGE_TEPLATE}
+            MESSAGE_TEPLATE => $PARAMS{MESSAGE_TEPLATE},
+            DEBUG     => $debug
           }
         );
 
-        if ( $debug < 5 ){
+        if ( $debug < 5 && ! $PARAMS{SKIP_UPDATE_REPORT}){
           $Ureports->tp_user_reports_update(
             {
               UID       => $user->{UID},
@@ -618,19 +590,6 @@ sub ureports_periodic_reports{
         }
 
         $debug_output .= "UID: $user->{UID} REPORT_ID: $user->{REPORT_ID} DESTINATION_TYPE: $user->{DESTINATION_TYPE} DESTINATION: $user->{DESTINATION_ID}\n" if ($debug > 0);
-
-        if ( $debug < 5 ){
-          $Ureports->log_add(
-            {
-              DESTINATION => $user->{DESTINATION_ID},
-              BODY        => (length( $PARAMS{MESSAGE} ) < 500) ? $PARAMS{MESSAGE} : '-',
-              UID         => $user->{UID},
-              TP_ID       => $user->{TP_ID},
-              REPORT_ID   => $user->{REPORT_ID},
-              STATUS      => 0
-            }
-          );
-        }
       }
     }
   }

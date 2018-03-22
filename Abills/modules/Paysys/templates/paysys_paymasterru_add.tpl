@@ -32,7 +32,7 @@
     </div>
   %Checkbox%
 </div>
-    <div class='box-footer text-center'>
+    <div class='box-footer'>
         <input class='btn btn-primary' type=submit value='_{PAY}_'>
     </div>
 </div>    

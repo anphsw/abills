@@ -59,7 +59,7 @@
         <label class='control-label col-md-4' for='FIRST_PASSWORD_INPUT'>_{NEW}_ _{PASSWD}_</label>
 
         <div class='col-md-8'>
-          <input type='password' class='form-control' id='FIRST_PASSWORD_INPUT' name='newpassword' title='_{PASSWD}_'/>
+          <input type='password' class='form-control' id='FIRST_PASSWORD_INPUT' name='newpassword' value='%newpassword%' title='_{PASSWD}_'/>
         </div>
       </div>
 
@@ -67,7 +67,7 @@
         <label class='control-label col-md-4' for='SECOND_PASSWORD_INPUT'>_{CONFIRM_PASSWD}_</label>
 
         <div class='col-md-8'>
-          <input type='password' class='form-control' name='confirm' id='SECOND_PASSWORD_INPUT' title='_{CONFIRM}_'/>
+          <input type='password' class='form-control' name='confirm' value='%confirm%' id='SECOND_PASSWORD_INPUT' title='_{CONFIRM}_'/>
         </div>
       </div>
 

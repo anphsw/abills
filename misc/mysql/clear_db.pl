@@ -11,7 +11,7 @@ use strict;
 use warnings FATAL => 'all';
 
 BEGIN {
-  our %conf;
+  our (%conf, @MODULES);
   use FindBin '$Bin';
   require $Bin.'/../../libexec/config.pl';
   unshift(@INC,
@@ -22,14 +22,14 @@ BEGIN {
   );
 }
 
-our ( %conf, $DATE, $TIME );
+our ( %conf, $DATE, $TIME, @MODULES );
 
 my $debug = 1;
-my $version = 0.11;
+my $version = 0.12;
 
 use Abills::SQL;
 use Admins;
-use Abills::Base qw(check_time parse_arguments gen_time);
+use Abills::Base qw(check_time parse_arguments gen_time in_array);
 
 my $begin_time = check_time();
 
@@ -63,8 +63,16 @@ if (defined($argv->{'-h'})) {
   exit;
 }
 
+my $internet_module_enabled = in_array('Internet', \@MODULES);
+
 if (!$argv->{ACTIONS}) {
-  $argv->{ACTIONS} = 'payments,fees,dv_log';
+  $argv->{ACTIONS} = 'payments,fees';
+  if ($internet_module_enabled){
+    $argv->{ACTIONS} .= ',internet_log';
+  }
+  else {
+    $argv->{ACTIONS} .= ',dv_log';
+  }
 }
 
 if (!$argv->{DATE}) {
@@ -82,6 +90,7 @@ my @actions = split(/,/, $argv->{ACTIONS});
 my $CUR_DATE = $argv->{DATE};
 $CUR_DATE =~ s/\-/\_/g;
 
+# MAYBE should delete arg in else branch?
 if ($argv->{DATE} =~ /^\d{4}\-\d{2}\-\d{2}$/) {
   $argv->{DATE} = "$argv->{DATE}";
 }
@@ -128,7 +137,7 @@ sub db_action {
     foreach my $sql (@$sql_arr) {
       if ($debug > 3 || defined($argv->{SHOW}) || defined($argv->{SHOW_SUMMARY})) {
         if($argv->{SHOW_SUMMARY}) {
-          $Admin->query2( "$sql" );
+          $Admin->query( "$sql" );
           print "$fn Total: $Admin->{TOTAL}\n";
           next;
         }
@@ -139,7 +148,7 @@ sub db_action {
       }
 
       if ($debug < 5) {
-        $Admin->query2( "$sql", (($action eq 'DELETE' || defined($argv->{'ROTATE'})) ? 'do' : undef) );
+        $Admin->query( "$sql", (($action eq 'DELETE' || defined($argv->{'ROTATE'})) ? 'do' : undef) );
 
         if ($Admin->{errno}) {
           print "SQL Error: [$Admin->{errno}] $Admin->{errstr} / $Admin->{sql_errno} $Admin->{sql_errstr}\n";
@@ -148,7 +157,7 @@ sub db_action {
             if ($Admin->{sql_errstr} =~ /\'(\S+)\'/) {
               my $table = $1;
               print "Drop table: $table\n";
-              $Admin->query2( "DROP TABLE $1", 'do' );
+              $Admin->query( "DROP TABLE $1", 'do' );
             }
           }
           else {
@@ -333,11 +342,11 @@ sub fees_rotate {
     $action_ .= ' f ';
   }
 
-  $Admin->query2("SET character_set_client=$conf{dbcharset};", 'do');
-  $Admin->query2("SET character_set_connection=$conf{dbcharset};", 'do');
-  $Admin->query2("SET character_set_database=$conf{dbcharset};", 'do');
-  $Admin->query2("SET character_set_results=$conf{dbcharset};", 'do');
-  $Admin->query2("SET character_set_server=$conf{dbcharset};", 'do');
+  $Admin->query("SET character_set_client=$conf{dbcharset};", 'do');
+  $Admin->query("SET character_set_connection=$conf{dbcharset};", 'do');
+  $Admin->query("SET character_set_database=$conf{dbcharset};", 'do');
+  $Admin->query("SET character_set_results=$conf{dbcharset};", 'do');
+  $Admin->query("SET character_set_server=$conf{dbcharset};", 'do');
 
   my @SQL_array = ("$action_ FROM fees f
     LEFT JOIN users ON (users.uid=f.uid)
@@ -350,7 +359,36 @@ sub fees_rotate {
 
 
 #**********************************************************
-=head2 dv_log_rotate()
+=head2 internet_log_rotate($attr)
+
+=cut
+#**********************************************************
+sub internet_log_rotate {
+  my ($attr) = @_;
+  
+  $attr->{TABLE_NAME} = 'internet_log';
+  
+  return dv_log_rotate($attr);
+}
+
+#**********************************************************
+=head2 internet_log_group_rotate($attr)
+
+=cut
+#**********************************************************
+sub internet_log_group_rotate {
+  my ($attr) = @_;
+  
+  $attr->{TABLE_NAME} = 'internet_log';
+  $attr->{SUBSTITUTE_FIELDS} = {
+    CID => 'cid'
+  };
+  
+  return dv_log_group_rotate($attr);
+}
+
+#**********************************************************
+=head2 dv_log_rotate($attr)
 
 =cut
 #**********************************************************
@@ -359,6 +397,7 @@ sub dv_log_rotate {
 
   my @WHERE_RULES = ();
 
+  my $table_name = $attr->{TABLE_NAME} || 'dv_log';
   if ($attr->{DATE}) {
     push @WHERE_RULES, @{ $Admin->search_expr( "$attr->{DATE}", 'DATE', 'l.start' ) };
   }
@@ -367,14 +406,14 @@ sub dv_log_rotate {
   my $action_ = $action;
 
   if (defined($attr->{ROTATE})) {
-    $action_ = 'CREATE TABLE dv_log_'.$CUR_DATE."  DEFAULT CHARSET=$conf{dbcharset} ".$action;
+    $action_ = "CREATE TABLE $table_name\_$CUR_DATE DEFAULT CHARSET=$conf{dbcharset} ".$action;
     $action_ =~ s/\*/l\.\*/g;
   }
   elsif ($action_ =~ /DELETE/) {
     $action_ .= ' l ';
   }
 
-  my @SQL_array = (  "$action_ FROM dv_log l
+  my @SQL_array = (  "$action_ FROM $table_name l
     LEFT JOIN users ON (users.uid=l.uid)
     LEFT JOIN groups ON (users.gid=groups.gid)
    $WHERE");
@@ -398,7 +437,10 @@ sub dv_log_group_rotate {
   }
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE ".join(' AND ', @WHERE_RULES) : '';
-  my $table_name = 'dv_log';
+  my $table_name = $attr->{TABLE_NAME} || 'dv_log';
+  my $cid_col_name = ($attr->{SUBSTITUTE_FIELDS} && $attr->{SUBSTITUTE_FIELDS}{CID})
+    ? $attr->{SUBSTITUTE_FIELDS}{CID}
+    : 'CID';
 
   my @SQL_array = ('DROP TABLE IF EXISTS '.$table_name.'_new;',
     'CREATE TABLE '.$table_name.'_new LIKE '.$table_name.';',
@@ -418,7 +460,7 @@ sub dv_log_group_rotate {
    nas_id,
    sent2,
    recv2,
-   CID,
+   $cid_col_name,
    bill_id,
    uid,
    acct_input_gigawords,
@@ -434,7 +476,7 @@ sub dv_log_group_rotate {
    l.nas_id,
    SUM(l.sent2),
    SUM(l.recv2),
-   l.CID,
+   l.$cid_col_name,
    l.bill_id,
    l.uid,
    SUM(l.acct_input_gigawords),
@@ -470,8 +512,8 @@ sub help {
 
   print << "[END]";
   Clear db utilite VERSION: $version
-  Clear payments, fees, dv_log
-  ACTIONS=[payments, fees, dv_log] - default all tables
+  Clear payments, fees, dv_log or internet_log
+  ACTIONS=[payments, fees, dv_log or internet_log ] - default all tables
   GID           - Groups
   DATE          - Date time DATE="<YYYY-MM-DD"
   SHOW          - Show clear date (default)

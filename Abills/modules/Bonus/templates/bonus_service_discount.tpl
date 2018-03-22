@@ -5,7 +5,7 @@
 
     <div class='box box-theme box-form'>
         <div class='box-header with-border'>
-            _{RULES}_
+            <h3 class='box-title'>_{RULES}_</h3>
         </div>
         <div class='box-body'>
             <div class='form-group'>
@@ -37,8 +37,17 @@
                 </div>
             </div>
 
-            <div class='form-group bg-primary'>
-                _{RESULT}_
+            <div class='form-group'>
+                <label class='control-label col-md-3'>_{TARIF_PLANS}_:</label>
+
+                <div class='col-md-9'>
+                    %SEL_TP%
+                </div>
+            </div>
+
+
+            <div class='box-header with-border'>
+                <h3 class='box-title'>_{RESULT}_</h3>
             </div>
 
             <div class='form-group'>
@@ -48,7 +57,7 @@
                 </div>
             </div>
             <div class='form-group'>
-                <label class='control-label col-md-3'> (_{DAYS}_):</label>
+                <label class='control-label col-md-3'>_{REDUCTION}_ _{DAYS}_:</label>
 
                 <div class='col-md-9'>
                     <input type=text name='DISCOUNT_DAYS' class='form-control' value='%DISCOUNT_DAYS%'>
@@ -62,18 +71,28 @@
                 </div>
             </div>
             <div class='form-group'>
-                <label class='control-label col-md-3'>_{BONUS_PERCENT}_:</label>
+                <label class='control-label col-md-3' for='BONUS_PERCENT'>_{BONUS_PERCENT}_:</label>
 
                 <div class='col-md-9'>
-                    <input type=text name='BONUS_PERCENT' class='form-control' value='%BONUS_PERCENT%'>
+                    <input type=text name='BONUS_PERCENT' id='BONUS_PERCENT' class='form-control' value='%BONUS_PERCENT%'>
                 </div>
             </div>
-            <div class='checkbox'>
-                <label>
-                    <input type=checkbox name='EXT_ACCOUNT' value='1' %EXT_ACCOUNT%><strong>_{EXTRA}_
-                    _{ACCOUNT}_</strong>
-                </label>
+
+            <div class='form-group'>
+                <label class='control-label col-md-3' for='EXT_ACCOUNT'>_{EXTRA}_  _{ACCOUNT}_:</label>
+                <div class='col-md-9'>
+                    <input type=checkbox ID='EXT_ACCOUNT' name='EXT_ACCOUNT' value='1' %EXT_ACCOUNT%>
+                </div>
             </div>
+
+            <div class='form-group'>
+                <label class='control-label col-md-3' for='COMMENTS'>_{COMMENTS}_:</label>
+
+                <div class='col-md-9'>
+                    <textarea cols=60 rows=3 ID=COMMENTS name='COMMENTS' class='form-control'>%COMMENTS%</textarea>
+                </div>
+            </div>
+
 
         </div>
         <div class='box-footer'>

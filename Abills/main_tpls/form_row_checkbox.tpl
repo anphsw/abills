@@ -1,4 +1,4 @@
-<div class='checkbox'>
+<div class='checkbox %CLASS%' id='%ID%'>
   <label>
     %INPUT%
     <strong>%NAME%</strong>

@@ -7,7 +7,7 @@ package Sms;
 
 use strict;
 use warnings FATAL => 'all';
-use parent 'main';
+use parent qw(dbcore);
 
 my $MODULE = 'Sms';
 my ($admin, $CONF);
@@ -46,7 +46,7 @@ sub info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("SELECT *
+  $self->query("SELECT *
      FROM sms_log
    WHERE id = ?;",
     undef,
@@ -80,7 +80,7 @@ sub change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'sms_log',
@@ -128,15 +128,15 @@ sub list {
   }
 
   my $WHERE =  $self->search_former($attr, [
-      ['DATETIME',       'DATE','sms.datetime',               1 ],
-      ['SMS_STATUS',         'INT', 'sms.status',             1 ],
-      ['SMS_PHONE',          'STR', 'sms.phone',              1 ],
-      ['MESSAGE',        'STR', 'sms.message',                1 ],
-      ['EXT_ID',         'STR', 'sms.ext_id',                 1 ],
-      ['EXT_STATUS',     'STR', 'sms.ext_status',             1 ],
-      ['STATUS_DATE',    'DATE','sms.status_date',            1 ],
+      ['DATETIME',         'DATE','sms.datetime',               1 ],
+      ['SMS_STATUS',       'INT', 'sms.status',                 1 ],
+      ['SMS_PHONE',        'STR', 'sms.phone',                  1 ],
+      ['MESSAGE',          'STR', 'sms.message',                1 ],
+      ['EXT_ID',           'STR', 'sms.ext_id',                 1 ],
+      ['EXT_STATUS',       'STR', 'sms.ext_status',             1 ],
+      ['STATUS_DATE',      'DATE','sms.status_date',            1 ],
       ['FROM_DATE|TO_DATE','DATE',"DATE_FORMAT(sms.datetime, '%Y-%m-%d')"],
-      ['ID',             'INT', 'sms.id'                       ],
+      ['ID',               'INT', 'sms.id'                       ],
     ],
     { WHERE            => 1,
       USERS_FIELDS_PRE => 1,
@@ -147,7 +147,7 @@ sub list {
 
   my $EXT_TABLE = $self->{EXT_TABLES};
 
-  $self->query2("SELECT
+  $self->query("SELECT
       $self->{SEARCH_FIELDS}
       sms.uid,
       sms.id
@@ -165,7 +165,7 @@ sub list {
   my $list = $self->{list};
 
   if ($self->{TOTAL} >= 0 && !$attr->{SKIP_TOTAL}) {
-    $self->query2("SELECT count( DISTINCT sms.id) AS total FROM sms_log sms
+    $self->query("SELECT count( DISTINCT sms.id) AS total FROM sms_log sms
     LEFT JOIN users u ON (u.uid=sms.uid)
     $EXT_TABLE
     $WHERE",

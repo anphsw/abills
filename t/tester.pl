@@ -160,7 +160,7 @@ sub get_list_of_files_in {
   
   opendir (my $dir_inside, $dir_name) or do {
     print "  Can't open $dir_name \n";
-    return;
+    return [];
   };
   
   while ( my $file = readdir($dir_inside) ) {

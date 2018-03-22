@@ -9,7 +9,7 @@
   <div class='box-body form form-horizontal'>
 
     <div class='form-group'>
-      <textarea name='REPLY_TEXT' class='form-control' rows=10 style='width:90%; margin-left:auto;margin-right:auto'>%QUOTING%%REPLY_TEXT%</textarea>
+      <textarea name='REPLY_TEXT' data-action='drop-zone' class='form-control' rows=10 style='width:90%; margin-left:auto;margin-right:auto'>%QUOTING%%REPLY_TEXT%</textarea>
     </div>
     <div class='form-group'>
       <label class='col-md-12'>%ATTACHMENT%</label>
@@ -48,56 +48,62 @@
           <label class='col-md-3 control-label'>_{ATTACHMENT}_:</label>
           <div class='col-md-9'>
             <div class='input-group'>
-              <input name='FILE_UPLOAD' type='file' class='form-control'/>
+              <div id='file_upload_holder' style='border : 1px solid #d2d6de'>
+                <input name='FILE_UPLOAD' type='file' data-number='0' class='fixed'>
+              </div>
               <span class='input-group-addon'><a
-                href='$SELF_URL?UID=$FORM{UID}&index=$index&PHOTO=$FORM{chg}&webcam=1'
-                class='glyphicon glyphicon-camera'></a></span>
-              </div>
+                  href='$SELF_URL?UID=$FORM{UID}&index=$index&PHOTO=$FORM{chg}&webcam=1'
+                  class='glyphicon glyphicon-camera'></a></span>
             </div>
           </div>
-          <div class='form-group'>
-            <label class='col-md-3'>_{TEMPLATES}_ (_{SURVEY}_):</label>
+        </div>
+        <div class='form-group'>
+          <label class='col-md-3'>_{TEMPLATES}_ (_{SURVEY}_):</label>
 
-            <div class='col-md-9'>
-              %SURVEY_SEL%
-            </div>
+          <div class='col-md-9'>
+            %SURVEY_SEL%
           </div>
-          <div class='form-group'>
-            <label class='col-md-3 control-label'>_{CHANGE}_ _{CHAPTERS}_:</label>
+        </div>
+        <div class='form-group'>
+          <label class='col-md-3 control-label'>_{CHANGE}_ _{CHAPTERS}_:</label>
 
-            <div class='col-md-9'>
-              %CHAPTERS_SEL%
-            </div>
+          <div class='col-md-9'>
+            %CHAPTERS_SEL%
           </div>
-          <div class='form-group'>
-            <label class='col-md-3 control-label text-left'>_{RUN_TIME}_:</label>
+        </div>
+        <div class='form-group'>
+          <label class='col-md-3 control-label text-left'>_{RUN_TIME}_:</label>
 
-            <div class='col-md-9'>
+          <div class='col-md-9'>
 
-              <div class='input-group'>
-                <span class='input-group-addon'><a class='glyphicon glyphicon-time'></a></span>
+            <div class='input-group'>
+              <span class='input-group-addon'><a class='glyphicon glyphicon-time'></a></span>
 
-                <input  class='form-control' id='RUN_TIME' type='text' name='RUN_TIME'' %RUN_TIME_STATUS%>
+              <input class='form-control' id='RUN_TIME' type='text' name='RUN_TIME' %RUN_TIME_STATUS%>
 
-                <span id='func_btn' run_status='1' class='input-group-addon'><a id='func_icon'  class='glyphicon glyphicon-play'></a></span>
-                <span id='func_rst' class='input-group-addon'><a class='glyphicon glyphicon-refresh'></a></span>
-              </div>
+              <span id='func_btn' run_status='1' class='input-group-addon'>
+              <a id='func_icon' class='glyphicon glyphicon-play'></a></span>
+              <span id='func_rst' class='input-group-addon'><a class='glyphicon glyphicon-refresh'></a></span>
+
             </div>
           </div>
         </div>
       </div>
     </div>
-
-
-    <div class='box-footer'>
-      <input type='hidden' name='sid' value='$sid'/>
-      <input type='submit' class='btn btn-primary' name='%ACTION%' value='  %LNG_ACTION%  ' id='go' title='Ctrl+C'/>
-    </div>
   </div>
 
-  <script src="/styles/default_adm/js/msgs_reply_timer.js"></script>
-  <script>
-    jQuery(function () {
+
+  <div class='box-footer'>
+    <input type='hidden' name='sid' value='$sid'/>
+    <input type='submit' class='btn btn-primary' name='%ACTION%' value='  %LNG_ACTION%  ' id='go' title='Ctrl+C'/>
+  </div>
+</div>
+
+<script src="/styles/default_adm/js/msgs_reply_timer.js"></script>
+<script>
+
+  // Fixing select on bottom of the page
+  jQuery(function () {
     var status_select = jQuery('select#STATE');
     var wrapper       = jQuery('div.content-wrapper');
 
@@ -109,4 +115,11 @@
       });
     }
   });
+
+  // Multi upload logic
+  jQuery(function () {
+    var MAX_FILES_COUNT = 3;
+    initMultifileUploadZone('file_upload_holder', 'FILE_UPLOAD', MAX_FILES_COUNT);
+  });
 </script>
+<script src="/styles/default_adm/js/draganddropfile.js"></script>

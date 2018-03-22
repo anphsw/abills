@@ -20,3 +20,24 @@
         </div>
     </div>
 </div>
+
+<script>
+    jQuery(function(){
+      Events.on('search_form.value_selected.UID', function(data_str){
+        var uid = 0, login = 0;
+        var uid_login = data_str.split('#@#');
+
+        uid = uid_login[0].split('::')[1];
+        login = uid_login[1].split('::')[1]
+
+        // Send request to bind login
+        jQuery.post('index.cgi', {
+          qindex: '$index',
+          header: '2',
+          set : 1,
+          REFERRAL_UID: '$FORM{UID}',
+          REFERRER_UID: uid
+        }, function(){location.reload(true)});
+      });
+    });
+</script>

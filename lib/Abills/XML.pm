@@ -225,7 +225,7 @@ sub form_select {
       $self->{SELECT} .= " selected='1'" if (defined($attr->{SELECTED}) && $k eq $attr->{SELECTED});
 
       if ($attr->{EXT_PARAMS}) {
-        while (my ($ext_k, $ext_v) = each %{ $attr->{EXT_PARAMS} }) {
+        while (my ($ext_k, undef) = each %{ $attr->{EXT_PARAMS} }) {
           $self->{SELECT} .= " $ext_k='";
           $self->{SELECT} .= $attr->{EXT_PARAMS}->{$ext_k}->{$k} if ($attr->{EXT_PARAMS}->{$ext_k}->{$k});
           $self->{SELECT} .= "'";
@@ -245,7 +245,9 @@ sub form_select {
 
 
 #**********************************************************
-# Functions list
+=head2 menu2($menu_items, $menu_args, $permissions, $attr) Functions list
+
+=cut
 #**********************************************************
 sub menu2 {
   my $self = shift;
@@ -253,9 +255,15 @@ sub menu2 {
   $self->menu($menu_items, $menu_args, $permissions, $attr);
 }
 
+
+#**********************************************************
+=head2 menu($menu_items, $menu_args, $permissions, $attr) Functions list
+
+=cut
+#**********************************************************
 sub menu {
   my $self = shift;
-  my ($menu_items, $menu_args, $permissions, $attr) = @_;
+  my ($menu_items, undef, $permissions, $attr) = @_;
 
   return 0 if ($FORM{index} > 0);
 
@@ -329,16 +337,18 @@ sub menu {
 }
 
 #**********************************************************
-# heder off main page
-# make_charts()
-#**********************************************************
-sub make_charts () {
+=head2  make_charts()
 
+=cut
+#**********************************************************
+sub make_charts {
+   return q{};
 }
 
 #**********************************************************
-# heder off main page
-# header()
+=head2  header($attr) - heder off main page
+
+=cut
 #**********************************************************
 sub header {
   my $self       = shift;
@@ -360,11 +370,13 @@ sub header {
 }
 
 #**********************************************************
-# css()
+=head2 css()
+
+=cut
 #**********************************************************
 sub css {
-  my $css = "";
-  return $css;
+
+  return q{};
 }
 
 #**********************************************************
@@ -379,10 +391,11 @@ sub table {
   my $self;
   $self = {};
 
-  bless($self);
+  bless($self, $class);
 
   $self->{prototype} = $proto;
   $self->{NO_PRINT}  = $proto->{NO_PRINT};
+  $self->{HTML}      = $parent;
 
   my ($attr) = @_;
   $self->{rows} = '';
@@ -481,8 +494,9 @@ sub addtd {
 }
 
 #**********************************************************
-# Extendet add rows
-# th()
+=head2 th($value) Extendet add rows
+
+=cut
 #**********************************************************
 sub th {
   my $self = shift;
@@ -492,9 +506,9 @@ sub th {
 }
 
 #**********************************************************
-# Extendet add rows
-# td()
-#
+=head2  td($value, $attr) - Extendet add rows
+
+=cut
 #**********************************************************
 sub td {
   my $self = shift;
@@ -517,8 +531,9 @@ sub td {
 }
 
 #**********************************************************
-# title_plain($caption)
-# $caption - ref to caption array
+=head2 title_plain($caption)
+
+=cut
 #**********************************************************
 sub table_title_plain {
   my $self = shift;
@@ -537,13 +552,9 @@ sub table_title_plain {
 }
 
 #**********************************************************
-# Show table column  titles with wort derectives
-# Arguments
-# table_title($sort, $desc, $pg, $caption, $qs);
-# $sort - sort column
-# $desc - DESC / ASC
-# $pg - page id
-# $caption - array off caption
+=head2 table_title($sort, $desc, $pg, $caption, $qs) -  Show table column  titles with wort derectives
+
+=cut
 #**********************************************************
 sub table_title {
   my $self = shift;
@@ -747,17 +758,19 @@ $text
 }
 
 #**********************************************************
-# HTML element
+=head2 element($name, $value, $attr) - HTML element
+
+=cut
 #**********************************************************
 sub element {
   my $self = shift;
-  my ($name, $value, $attr) = @_;
+  my (undef, $value, $attr) = @_;
 
   if ($attr->{ID}) {
     $value = "<$attr->{ID}>$value</$attr->{ID}>";
   }
 
-  $self->{FORM_INPUT} = "$value";
+  $self->{FORM_INPUT} = $value;
 
   if (defined($self->{NO_PRINT}) && (!defined($attr->{OUTPUT2RETURN}))) {
     $self->{OUTPUT} .= $self->{FORM_INPUT};
@@ -874,8 +887,7 @@ sub color_mark {
 
   return $message if ($attr->{SKIP_XML});
 
-  my $output = "<color_mark color=\"$color\">$message</color_mark>";
-  return $output;
+  return qq{<color_mark color="$color">$message</color_mark>};
 }
 
 #**********************************************************

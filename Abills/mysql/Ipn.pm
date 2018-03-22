@@ -8,7 +8,7 @@ package Ipn;
 
 use strict;
 use Abills::Base qw(ip2int int2ip);
-use parent 'main';
+use parent qw(dbcore);
 use POSIX qw(strftime);
 use Billing;
 
@@ -91,7 +91,7 @@ sub user_status {
   my $nas_id = $DATA->{NAS_ID_SWITCH} || $DATA->{NAS_ID} || 0;
 
   #Get active session
-  $self->query2("SELECT framed_ip_address FROM dv_calls WHERE 
+  $self->query("SELECT framed_ip_address FROM dv_calls WHERE 
     user_name='$DATA->{USER_NAME}'
     AND acct_session_id='IP'
     AND nas_id='$nas_id' LIMIT 1;");
@@ -109,7 +109,7 @@ sub user_status {
     WHERE user_name='$DATA->{USER_NAME}'
     AND acct_session_id='IP'
     AND nas_id='$nas_id' LIMIT 1;";
-    $self->query2("$sql", 'do');
+    $self->query("$sql", 'do');
   }
   else {
     $self->query_add('dv_calls', {
@@ -134,7 +134,7 @@ sub traffic_recalc {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("UPDATE ipn_log SET
+  $self->query("UPDATE ipn_log SET
      sum='$attr->{SUM}'
    WHERE 
          uid='$attr->{UID}' and 
@@ -155,7 +155,7 @@ sub traffic_recalc_bill {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("UPDATE bills SET  deposit=deposit + $attr->{SUM}
+  $self->query("UPDATE bills SET  deposit=deposit + $attr->{SUM}
     WHERE  id= ? ;", 
     'do',
     { Bind => [ $attr->{BILL_ID} ] }
@@ -244,7 +244,7 @@ sub list {
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query2("SELECT 
+  $self->query("SELECT 
   $lupdate,
   $size,
   INET_NTOA(src_addr),
@@ -265,7 +265,7 @@ sub list {
 
   my $list = $self->{list};
 
-  $self->query2("SELECT COUNT(*) AS count, SUM(size) AS sum
+  $self->query("SELECT COUNT(*) AS count, SUM(size) AS sum
   FROM $table_name;", undef, { INFO => 1 }
   );
 
@@ -294,7 +294,7 @@ sub stats {
   my $GROUP = 'l.uid, l.ip, l.traffic_class';
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
-  $self->query2("SELECT u.id AS login, min(l.start) AS start, INET_NTOA(l.ip) AS ip, 
+  $self->query("SELECT u.id AS login, min(l.start) AS start, INET_NTOA(l.ip) AS ip, 
    l.traffic_class,
    tt.descr,
    SUM(l.traffic_in), SUM(l.traffic_out),
@@ -312,7 +312,7 @@ sub stats {
 
   my $list = $self->{list};
 
-  $self->query2("SELECT count(*) AS count,  SUM(l.traffic_in) AS sum, SUM(l.traffic_out)
+  $self->query("SELECT count(*) AS count,  SUM(l.traffic_in) AS sum, SUM(l.traffic_out)
   FROM  ipn_log l
   $WHERE
   ;",
@@ -344,7 +344,7 @@ sub reports_users {
   $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 2;
   $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
 
-  $self->query2("SET SQL_BIG_SELECTS=1;");
+  $self->query("SET SQL_BIG_SELECTS=1;");
 
   my $GROUP = '1';
   my $date  = '';
@@ -424,7 +424,7 @@ sub reports_users {
     my $START_DATE_DAY  = "$from_y$from_m$from_d";
     my $FINISH_DATE_DAY = "$to_y$to_m$to_d";
 
-    $self->query2("SHOW TABLES LIKE 'ipn_log_%';");
+    $self->query("SHOW TABLES LIKE 'ipn_log_%';");
     my $list = $self->{list} || [];
 
     foreach my $line (@$list) {
@@ -595,11 +595,11 @@ sub reports_users {
    ORDER BY $SORT $DESC ";
 
   #Rows query
-  $self->query2($full_sql, undef, $attr);
+  $self->query($full_sql, undef, $attr);
   my $list = $self->{list} || [];
 
   #totals query
-  $self->query2($full_sql2, undef, { INFO => 1 });
+  $self->query($full_sql2, undef, { INFO => 1 });
 
   return $list || [];
 }
@@ -688,7 +688,7 @@ sub reports {
   my $list;
 
   if (defined($attr->{HOSTS})) {
-    $self->query2("SELECT INET_NTOA(src_addr) AS src_ip, SUM(size) AS size, count(*) AS count
+    $self->query("SELECT INET_NTOA(src_addr) AS src_ip, SUM(size) AS size, count(*) AS count
      from $table_name
      $WHERE
      GROUP BY 1
@@ -699,7 +699,7 @@ sub reports {
     );
     $self->{HOSTS_LIST_FROM} = $self->{list};
 
-    $self->query2("SELECT INET_NTOA(dst_addr) AS dst_ip, SUM(size) AS size, count(*) AS count
+    $self->query("SELECT INET_NTOA(dst_addr) AS dst_ip, SUM(size) AS size, count(*) AS count
      from $table_name
      $WHERE
      GROUP BY 1
@@ -711,7 +711,7 @@ sub reports {
     $self->{HOSTS_LIST_TO} = $self->{list};
   }
   elsif (defined($attr->{PORTS})) {
-    $self->query2("SELECT src_port, SUM(size) AS size, count(*) AS count
+    $self->query("SELECT src_port, SUM(size) AS size, count(*) AS count
      FROM  $table_name
      $WHERE
      GROUP BY 1
@@ -720,7 +720,7 @@ sub reports {
     );
     $self->{PORTS_LIST_FROM} = $self->{list};
 
-    $self->query2("SELECT dst_port, SUM(size) AS size, count(*) AS count
+    $self->query("SELECT dst_port, SUM(size) AS size, count(*) AS count
      from  $table_name
      $WHERE
      GROUP BY 1
@@ -730,7 +730,7 @@ sub reports {
     $self->{PORTS_LIST_TO} = $self->{list};
   }
   else {
-    $self->query2("SELECT   $lupdate,
+    $self->query("SELECT   $lupdate,
    SUM(if(src_port=0 && (src_port + dst_port>0), size, 0)),
    SUM(if(dst_port=0 && (src_port + dst_port>0), size, 0)),
    SUM(if(src_port=0 && dst_port=0, size, 0)) AS no_port_size,
@@ -748,7 +748,7 @@ sub reports {
 
   $list = $self->{list};
 
-  $self->query2("SELECT 
+  $self->query("SELECT 
   count(*) AS count,  SUM(size) AS sum
   from  $table_name
   $WHERE;",
@@ -765,7 +765,7 @@ sub comps_list {
   my $self = shift;
   #my ($attr) = @_;
 
-  $self->query2("SELECT number, name, INET_NTOA(ip), cid, id FROM ipn_club_comps
+  $self->query("SELECT number, name, INET_NTOA(ip), cid, id FROM ipn_club_comps
   ORDER BY $SORT $DESC ;"
   );
 
@@ -791,7 +791,7 @@ sub comps_info {
   my $self = shift;
   my ($id) = @_;
 
-  $self->query2("SELECT 
+  $self->query("SELECT 
   number,
   name,
   INET_NTOA(ip) AS ip,
@@ -812,7 +812,7 @@ sub comps_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'ipn_club_comps',
@@ -871,7 +871,7 @@ sub prepaid_rest {
     $octets_direction = "l.traffic_out";
   }
 
-  $self->query2("SELECT l.traffic_class, (SUM($octets_direction)) / $self->{conf}->{MB_SIZE}
+  $self->query("SELECT l.traffic_class, (SUM($octets_direction)) / $self->{conf}->{MB_SIZE}
    from ipn_log l
    WHERE l.uid='$attr->{UID}' and DATE_FORMAT(start, '%Y-%m-%d')>='$info->[0]->{activate}'
    GROUP BY l.traffic_class, l.uid ;"
@@ -897,7 +897,7 @@ sub recalculate {
 
   my ($from, $to) = split(/\//, $attr->{INTERVAL}, 2);
 
-  $self->query2("SELECT start,
+  $self->query("SELECT start,
    traffic_class,
    traffic_in,
    traffic_out,
@@ -930,7 +930,7 @@ sub online_alive {
 
   my $session_id = ($attr->{SESSION_ID}) ? "and acct_session_id='$attr->{SESSION_ID}'" : '';
 
-  $self->query2("SELECT CID FROM dv_calls
+  $self->query("SELECT CID FROM dv_calls
    WHERE  user_name='$attr->{LOGIN}'
     and framed_ip_address=INET_ATON('$attr->{REMOTE_ADDR}');"
   );
@@ -943,7 +943,7 @@ sub online_alive {
     $session_id
     and framed_ip_address=INET_ATON('$attr->{REMOTE_ADDR}')";
 
-    $self->query2($sql, 'do');
+    $self->query($sql, 'do');
     $self->{TOTAL} = 1;
   }
 
@@ -978,10 +978,10 @@ sub ipn_log_rotate {
   $attr->{PERIOD} = 30 if (! $attr->{PERIOD});
   #Detail Daily rotate
   if ($attr->{DETAIL}) {
-    $self->query2("SELECT count(*) FROM ipn_traf_detail;", undef, { DB_REF => $self->{db2} });
+    $self->query("SELECT count(*) FROM ipn_traf_detail;", undef, { DB_REF => $self->{db2} });
 
     if ($self->{list}->[0]->[0] > 0) {
-      $self->query2("SHOW TABLES LIKE 'ipn_traf_detail_$DATE';", undef, { DB_REF => $self->{db2} });
+      $self->query("SHOW TABLES LIKE 'ipn_traf_detail_$DATE';", undef, { DB_REF => $self->{db2} });
       if ($self->{TOTAL} == 0 && $version > 4.1) {
         @rq = ('CREATE TABLE IF NOT EXISTS ipn_traf_detail_new LIKE ipn_traf_detail;', 
                'RENAME TABLE ipn_traf_detail TO ipn_traf_detail_' . $DATE . ', ipn_traf_detail_new TO ipn_traf_detail;', 
@@ -992,7 +992,7 @@ sub ipn_log_rotate {
       }
     }
 
-    $self->query2("SHOW TABLES LIKE 'ipn_traf_detail_%'", undef,  { DB_REF => $self->{db2} });
+    $self->query("SHOW TABLES LIKE 'ipn_traf_detail_%'", undef,  { DB_REF => $self->{db2} });
     foreach my $table_name (@{ $self->{list} }) {
       $table_name->[0] =~ /(\d{4})\_(\d{2})\_(\d{2})$/;
       my ($log_y, $log_m, $log_d) = ($1, $2, $3);
@@ -1005,7 +1005,7 @@ sub ipn_log_rotate {
 
     if($self->{db2}) {
       foreach my $query (@rq) {
-        $self->query2($query, 'do', { DB_REF => $self->{db2} });
+        $self->query($query, 'do', { DB_REF => $self->{db2} });
       }
       @rq = ();
     }
@@ -1106,7 +1106,7 @@ sub ipn_log_rotate {
   }
 
   foreach my $query (@rq) {
-    $self->query2("$query", 'do');
+    $self->query("$query", 'do');
   }
 
   return $self;
@@ -1240,7 +1240,7 @@ sub user_detail {
 
   my @tables = ();
 
-  $self->query2("SHOW TABLES LIKE 'ipn_traf_detail_%';", undef, { DB_REF => $self->{db2} });
+  $self->query("SHOW TABLES LIKE 'ipn_traf_detail_%';", undef, { DB_REF => $self->{db2} });
   $list = $self->{list};
 
   foreach my $line (@$list) {
@@ -1277,13 +1277,13 @@ sub user_detail {
   }
 
   my $sql = join(" UNION ", @sql_arr);
-  $self->query2("$sql LIMIT $PG,$PAGE_ROWS", undef, { DB_REF => $self->{db2} });
+  $self->query("$sql LIMIT $PG,$PAGE_ROWS", undef, { DB_REF => $self->{db2} });
   $list = $self->{list};
 
   if ($self->{TOTAL} > 0 && $#GROUP_RULES < 0) {
     my $totals = 0;
     foreach my $table (@tables) {
-      $self->query2("SELECT count(*) AS total from $table $WHERE ;", undef, { INFO => 1, DB_REF => $self->{db2} });
+      $self->query("SELECT count(*) AS total from $table $WHERE ;", undef, { INFO => 1, DB_REF => $self->{db2} });
       $totals += $self->{TOTAL};
     }
 
@@ -1301,7 +1301,7 @@ sub user_detail {
 sub unknown_ips_del {
   my $self = shift;
 
-  $self->query2('DELETE FROM ipn_unknow_ips;', 'do');
+  $self->query('DELETE FROM ipn_unknow_ips;', 'do');
 
   return $self;
 }
@@ -1321,7 +1321,7 @@ sub unknown_ips_list {
   $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 2;
   $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
 
-  $self->query2("SELECT 
+  $self->query("SELECT 
    datetime,
    INET_NTOA(src_ip) AS src_ip,
    INET_NTOA(dst_ip) AS dst_ip,
@@ -1338,7 +1338,7 @@ sub unknown_ips_list {
 
   my $list = $self->{list};
 
-  $self->query2("SELECT count(*) AS total, SUM(size) AS total_traffic FROM ipn_unknow_ips;",
+  $self->query("SELECT count(*) AS total, SUM(size) AS total_traffic FROM ipn_unknow_ips;",
    undef, { INFO => 1 });
 
   return $list;
@@ -1395,7 +1395,7 @@ sub traffic_by_port_list{
   }
 
 
-  $self->query2("SELECT
+  $self->query("SELECT
    $datetime_definition,
    dst_port,
    SUM(size) AS size,
@@ -1411,7 +1411,7 @@ sub traffic_by_port_list{
 #
 #  my $list = $self->{list};
 #
-#  $self->query2("SELECT count(*) AS total, SUM(size) AS total_traffic FROM ipn_unknow_ips;",
+#  $self->query("SELECT count(*) AS total, SUM(size) AS total_traffic FROM ipn_unknow_ips;",
 #    undef, { INFO => 1 });
 
   return $self->{list};

@@ -13,3 +13,4 @@ $lang{SUCCESS_BUY}      = 'Успешно оплатили покупку фай
 $lang{DATE_TO}          = 'Скачивание доступно до ';
 $lang{SECONDS}          = 'Секунд';
 $lang{NOT_ENOUGH_MONEY} = 'Недостаточно средств';
+$lang{VERSION}          = 'Версия';

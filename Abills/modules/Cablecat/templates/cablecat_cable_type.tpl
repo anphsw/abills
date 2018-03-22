@@ -33,7 +33,7 @@
       <div class='form-group'>
         <label class='control-label col-md-5' for='ATTENUATION_id'>_{ATTENUATION}_ (dBm / km)</label>
         <div class='col-md-7'>
-          <input type='number' min='0' step='0.05' class='form-control' name='ATTENUATION' value='%ATTENUATION%' id='ATTENUATION_id'/>
+          <input type='number' min='0' step='0.01' class='form-control' name='ATTENUATION' value='%ATTENUATION%' id='ATTENUATION_id'/>
         </div>
       </div>
 
@@ -51,6 +51,14 @@
         <label class='control-label col-md-5 required' for='MODULES_COLOR_SCHEME_ID_SELECT'>_{MODULES}_ _{COLOR_SCHEME}_</label>
         <div class='col-md-7'>
           %MODULES_COLOR_SCHEME_ID_SELECT%
+        </div>
+      </div>
+
+      <div class='form-group'>
+        <label class='col-md-5' for='CAN_BE_SPLITTED'>_{CAN_BE_SPLITTED}_</label>
+        <div class='col-md-7'>
+          <input type='checkbox' value='1' data-return='1'
+                 name='CAN_BE_SPLITTED' id='CAN_BE_SPLITTED' data-checked='%CAN_BE_SPLITTED%'>
         </div>
       </div>
 
@@ -82,10 +90,11 @@
           <textarea class='form-control' rows='5' name='COMMENTS' id='COMMENTS_id'>%COMMENTS%</textarea>
         </div>
       </div>
+      
     </form>
 
   </div>
-  <div class='box-footer text-center'>
+  <div class='box-footer'>
     <input type='submit' form='form_CABLECAT_CABLE_TYPE' id='go' class='btn btn-primary' name='submit'
            value='%SUBMIT_BTN_NAME%'>
   </div>

@@ -22,3 +22,4 @@ $lang{SALDO}='Сальдо';
 $lang{SALDO_BEGIN_PERIOD}='Сальдо на начало периода';
 $lang{SALDO_END_PERIOD}='Сальдо на конец периода';
 $lang{SALDO_PRINT_TITLE}='Оборотно-сальдовая ведомость за ';
+$lang{SALDO}='Сальдо';

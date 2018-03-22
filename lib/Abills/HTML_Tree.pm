@@ -202,8 +202,18 @@ sub render_branch {
 
   my $checkbox_for_label = '';
   if ($attr->{CHECKBOX} && ($attr->{NAME} || $has_multi_level_checkbox_names) && $recursion_level != 0) {
-    my $checkbox_for_label_name = ($has_multi_level_checkbox_names) ? @{$attr->{LEVEL_ID_KEYS}}[$recursion_level - 1] : $attr->{NAME};
-    $checkbox_for_label = "<input type='checkbox' name='$checkbox_for_label_name' value='$level_value' />";
+    my $checkbox_for_label_name = ($has_multi_level_checkbox_names)
+                                    ? @{$attr->{LEVEL_ID_KEYS}}[$recursion_level - 1]
+                                    : $attr->{NAME};
+    my $checkbox_state = ($attr->{CHECKBOX_STATE}
+      && $attr->{CHECKBOX_STATE}{$checkbox_for_label_name . '_' . $level_value}
+    );
+    
+    $checkbox_for_label = "<input
+      type='checkbox'
+      data-checked='$checkbox_state'
+      name='$checkbox_for_label_name'
+      value='$level_value' />";
   }
 
   my $result = '';
@@ -228,7 +238,11 @@ sub render_branch {
     #        }
     if ($attr->{CHECKBOX} && ($attr->{NAME} || $has_multi_level_checkbox_names)) {
       my $checkbox_name = ($has_multi_level_checkbox_names) ? @{$attr->{LEVEL_ID_KEYS}}[$recursion_level] : $attr->{NAME};
-      $checkbox = "<input type='checkbox' name='$checkbox_name' value='$current_item_value' />";
+      $checkbox = "<input
+        type='checkbox'
+        data-checked='$attr->{CHECKBOX_STATE}{$checkbox_name . '_' . $current_item_value}'
+        name='$checkbox_name'
+        value='$current_item_value' />";
     }
 
     if (ref ( $menu_list->{$item_key} ) eq 'HASH') {

@@ -30,10 +30,47 @@
     <div class="box-body" style="padding: 0">
       <div style="padding: 10px">
 
-        <div class='form-group'>
-          <label class='control-label col-xs-4' for='FIO'>_{FIO}_</label>
-          <div class='col-xs-8'>
-            <input name='FIO' class='form-control' id='FIO' value='%FIO%'>
+        <div id='simple_fio'>
+          <div class='form-group'>
+            <label class='control-label col-xs-4' for='FIO'>_{FIO}_</label>
+            <div class='col-xs-8'>
+              <div class="input-group">
+                <input name='FIO' class='form-control' %FIO_READONLY% id='FIO' value='%FIO%'>
+                <span class="input-group-btn">
+                  <button id='show_fio' type="button" class='btn btn-default' tabindex='-1'>
+                    <i class="fa fa-bars"></i>
+                  </button>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div id='full_fio' style='display:none'>
+          <div class='form-group'>
+            <label class='control-label col-xs-4' for='FIO1'>_{FIO1}_</label>
+            <div class='col-xs-8'>
+              <div class="input-group">
+                <input name='FIO1' class='form-control' id='FIO1' value='%FIO1%'>
+                <span class="input-group-btn">
+                  <button id='hide_fio' type="button" class='btn btn-default' tabindex='-1'>
+                    <i class='fa fa-reply'></i>
+                  </button>
+                </span>
+              </div>
+            </div>
+          </div>
+          <div class='form-group'>
+            <label class='control-label col-xs-4' for='FIO2'>_{FIO2}_</label>
+            <div class='col-xs-8'>
+              <input name='FIO2' class='form-control' id='FIO2' value='%FIO2%'>
+            </div>
+          </div>
+          <div class='form-group'>
+            <label class='control-label col-xs-4' for='FIO3'>_{FIO3}_</label>
+            <div class='col-xs-8'>
+              <input name='FIO3' class='form-control' id='FIO3' value='%FIO3%'>
+            </div>
           </div>
         </div>
 
@@ -106,11 +143,24 @@
           <div class='form-group'>
             <label class='control-label col-xs-4 col-md-2' for='PASPORT_GRANT'>_{GRANT}_</label>
             <div class='col-xs-8 col-md-10'>
-                    <textarea class='form-control' id='PASPORT_GRANT' name='PASPORT_GRANT'
-                              rows='2'>%PASPORT_GRANT%</textarea>
+              <textarea class='form-control' id='PASPORT_GRANT' name='PASPORT_GRANT'
+                        rows='2'>%PASPORT_GRANT%</textarea>
             </div>
           </div>
-
+          <div class='form-group'>
+            <label class='control-label col-xs-4 col-md-2' for='BIRTH_DATE'>_{BIRTH_DATE}_</label>
+            <div class='col-xs-8 col-md-4'>
+              <input class='form-control datepicker' id='BIRTH_DATE' name='BIRTH_DATE'
+                     type='text' value='%BIRTH_DATE%'>
+            </div>
+          </div>
+          <div class='form-group'>
+            <label class='control-label col-xs-4 col-md-2' for='REG_ADDRESS'>_{REG_ADDRESS}_</label>
+            <div class='col-xs-8 col-md-10'>
+              <textarea class='form-control' id='REG_ADDRESS' name='REG_ADDRESS'
+                        rows='2'>%REG_ADDRESS%</textarea>
+            </div>
+          </div>
         </div>
       </div>
       <!-- Contract fields -->
@@ -146,6 +196,7 @@
             </div>
           </div>
           %CONTRACT_TYPE%
+          %CONTRACTS_TABLE%
         </div>
       </div>
       <!-- Other panel  -->
@@ -162,7 +213,6 @@
         </div>
       </div>
 
-
     </div>
     <div class='box-footer'>
       <input type=submit class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
@@ -171,3 +221,14 @@
 
 </form>
 
+<script type="text/javascript">
+  jQuery('#show_fio').click(function() {
+    jQuery('#simple_fio').fadeOut(200);
+    jQuery('#full_fio').delay(201).fadeIn(300);
+  });
+
+  jQuery('#hide_fio').click(function() {
+    jQuery('#full_fio').fadeOut(200);
+    jQuery('#simple_fio').delay(201).fadeIn(300);
+  });
+</script>

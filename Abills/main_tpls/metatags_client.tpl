@@ -22,13 +22,18 @@
   <link rel="stylesheet" href="/styles/lte_adm/dist/css/skins/_all-skins.css">
   <link rel="stylesheet" href="/styles/lte_adm/plugins/pace/pace.min.css">
   <link rel="stylesheet" href="/styles/default_adm/css/font-awesome.min.css">
-  <link rel="stylesheet" href="/styles/lte_adm/plugins/datepicker/datepicker3.css">
-  <link rel="stylesheet" href="/styles/lte_adm/plugins/timepicker/bootstrap-timepicker.min.css">
   <link rel='stylesheet' href='/styles/default_adm/css/chosen.min.css'>
   <link rel='stylesheet' href='/styles/default_adm/css/QBInfo.css'>
 
-  <link href='/styles/default_adm/css/currencies.css' rel='stylesheet'>
+  <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/currencies.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/lte_adm/plugins/datepicker/datepicker3.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/lte_adm/plugins/datatables/dataTables.bootstrap.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/lte_adm/plugins/timepicker/bootstrap-timepicker.min.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/lte_adm/plugins/daterangepicker/daterangepicker.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/lte_adm/plugins/datetimepicker/datetimepicker.min.css'>
+
   <link href='/styles/default_adm/css/client.css' rel='stylesheet'>
+
 
   <!-- Cookies from JavaScript -->
   <script src='/styles/default_adm/js/jquery.min.js'></script>
@@ -58,6 +63,11 @@
   <!-- Modal popup windows management -->
   <script src='/styles/default_adm/js/modals.js'></script>
 
+  <script src='/styles/lte_adm/plugins/moment/moment.min.js'></script>
+  <!--<script src='/styles/lte_adm/plugins/datatables/dataTables.bootstrap.min.js'></script>-->
+  <script src='/styles/lte_adm/plugins/daterangepicker/daterangepicker.js'></script>
+  <script src='/styles/lte_adm/plugins/datetimepicker/datetimepicker.min.js'></script>
+
   <script src="/styles/lte_adm/plugins/datepicker/bootstrap-datepicker.js"></script>
   <script src="/styles/lte_adm/plugins/timepicker/bootstrap-timepicker.min.js"></script>
   <script>
@@ -84,9 +94,22 @@
 
     jQuery(function () {
       jQuery('select:not(#type)').chosen(CHOSEN_PARAMS);
-
     });
 
+    var DATERANGEPICKER_LOCALE = {
+      separator       : '/',
+      applyLabel      : '_{APPLY}_',
+      cancelLabel     : '_{CANCEL}_',
+      fromLabel       : '_{FROM}_',
+      toLabel         : '_{TO}_',
+      'Today'         : '_{TODAY}_' || 'Today',
+      'Yesterday'     : '_{YESTERDAY}_' || 'Yesterday',
+      'Last 7 Days'   : '_{LAST}_ 7 _{DAYS}_',
+      'Last 30 Days'  : '_{LAST}_ 30 _{DAYS}_',
+      'This Month'    : '_{CURENT}_ _{MONTH}_',
+      'Last Month'    : '_{PREVIOUS}_ _{MONTH}_',
+      customRangeLabel: '_{OTHER}_'
+    };
   </script>
   <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
   <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->

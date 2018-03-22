@@ -62,7 +62,7 @@
             </div>
 
             <div class='box-footer'>
-                <input type=submit name='take' value='_{TAKE}_' class='btn btn-primary'>
+                <input type=submit name='take' value='_{TAKE}_' class='btn btn-primary' id='submitbutton'>
             </div>
 
 
@@ -70,3 +70,8 @@
     </fieldset>
 </form>
 
+<script>
+  jQuery('#user').on('submit', function(){
+    renameAndDisable('submitbutton', '_{IN_PROGRESS}_...' );
+  });
+</script>

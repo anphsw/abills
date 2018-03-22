@@ -1,19 +1,16 @@
-<FORM action='$SELF_URL' METHOD='POST' enctype='multipart/form-data' class='form-horizontal'>
-<input type='hidden' name='index' value='$index'>
-<input type='hidden' name='NAS_GID' value='$FORM{NAS_GID}'>
+<FORM action='$SELF_URL' METHOD='POST' enctype='multipart/form-data' class='form-inline'>
+    <input type='hidden' name='index' value='$index'>
+    <input type='hidden' name='NAS_GID' value='$FORM{NAS_GID}'>
 
-<fieldset>
-<legend>_{ADD}_ _{FILE}_</legend>
 
-<div class='form-group'>
-  <label class='col-md-6 control-label' for='FILE_DATA'>_{FILE}_</label>
-  <div class='col-md-2'>
-    <input id='FILE_DATA' name='FILE_UPLOAD' value='%FILE_UPLOAD%' placeholder='%FILE_DATA%' class='input-file' type='file'>
-  </div>
-</div>
-
-<input class='button' type='submit' name='UPLOAD' value='_{ADD}_'>
-
-</fieldset>
+    <div class='form-group'>
+        <label class='sr-only' for='FILE_UPLOAD'>_{ADD}_ _{FILE}_</label>
+        <div class='form-group mb-2'>
+            <input id='FILE_UPLOAD' name='FILE_UPLOAD' value='%FILE_UPLOAD%' placeholder='_{FILE}_'
+                   class='input-file form-control' type='file'>
+        </div>
+    </div>
+    <input type='submit' name='UPLOAD' value='_{ADD}_' class='btn btn-default btn-success'>
 </FORM>
+
 

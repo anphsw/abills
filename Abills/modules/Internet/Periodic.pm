@@ -75,7 +75,7 @@ sub internet_daily_fees {
     $ADMIN_REPORT{DATE} = $DATE ;
   }
 
-  $debug_output .= "DV: Daily periodic fees\n" if ($debug > 1);
+  $debug_output .= "Internet: Daily periodic fees\n" if ($debug > 1);
 
   $LIST_PARAMS{TP_ID}     = $attr->{TP_ID} if ($attr->{TP_ID});
   $LIST_PARAMS{DOMAIN_ID} = $DOMAIN_ID;
@@ -83,7 +83,6 @@ sub internet_daily_fees {
   $USERS_LIST_PARAMS{LOGIN}     = $attr->{LOGIN} if ($attr->{LOGIN});
   $USERS_LIST_PARAMS{GID}       = $attr->{GID} if ($attr->{GID});
 
-  #$USERS_LIST_PARAMS{ACTIVE_DAY_FEE} = 1;
   $Tariffs->{debug} = 1 if ($debug > 6);
 
   my $list = $Tariffs->list({
@@ -108,11 +107,12 @@ sub internet_daily_fees {
           {
             INTERVAL => "$attr->{YESTERDAY}/$attr->{YESTERDAY}",
             TP_ID    => $TP_INFO->{TP_ID},
+            COLS_NAME=> 1
           }
         );
 
         foreach my $l (@$report_list) {
-          $active_logins{ $l->[0] } = $l->[6];
+          $active_logins{ $l->{id} } = $l->{uid};
         }
       }
 
@@ -162,7 +162,6 @@ sub internet_daily_fees {
             || ($TP_INFO->{ACTIVE_DAY_FEE} == 1 && $active_logins{ $user{LOGIN} }))
           {
             my $sum = $TP_INFO->{DAY_FEE};
-
             # IF TP have PARIODIC PAYMENTS USER reduction
             if ($TP_INFO->{REDUCTION_FEE} == 1 && $user{REDUCTION} > 0) {
               if ($user{REDUCTION} >= 100) {
@@ -603,7 +602,12 @@ sub internet_monthly_fees {
 
   my $debug = $attr->{DEBUG} || 0;
   my $debug_output = '';
-  $debug_output .= "DV: Monthly periodic payments\n" if ($debug > 1);
+
+  if($attr->{LOGON_ACTIVE_USERS}) {
+    return $debug_output;
+  }
+
+  $debug_output .= "Internet: Monthly periodic payments\n" if ($debug > 1);
 
   $ADMIN_REPORT{DATE} = $DATE if (!$ADMIN_REPORT{DATE});
 
@@ -859,7 +863,18 @@ sub internet_monthly_fees {
         #Month Fee
         if ($month_fee > 0) {
           #Make sum
-          $sum =  ($u->{personal_tp} > 0 ) ? $u->{personal_tp} : $month_fee;
+          if ($u->{personal_tp} > 0) {
+            if($TP_INFO->{ABON_DISTRIBUTION}) {
+              $sum = $u->{personal_tp} / $days_in_month;
+            }
+            else {
+              $sum = $u->{personal_tp};
+            }
+          }
+          else {
+            $sum =  $month_fee;
+          }
+
           if ($TP_INFO->{REDUCTION_FEE} == 1 && $user{REDUCTION} > 0) {
             $sum = $sum * (100 - $user{REDUCTION}) / 100;
           }
@@ -1278,10 +1293,18 @@ sub internet_users_warning_messages {
 
   my $debug = $attr->{DEBUG} //= 0;
   my $debug_output = '';
-  $debug_output .= "DV: Daily warning messages\n" if ($debug > 1);
+  $debug_output .= "Internet: Daily warning messages\n" if ($debug > 1);
+
+  use Internet::Negative_deposit;
 
   my %LIST_PARAMS = (USERS_WARNINGS => 1);
-  $LIST_PARAMS{ALERT_PERIOD}=$conf{INTERNET_ALERT_REDIRECT_DAYS} if ($conf{INTERNET_ALERT_REDIRECT_DAYS});
+  my @allert_redirect_days = ();
+
+  if ($conf{INTERNET_ALERT_REDIRECT_DAYS}) {
+    $LIST_PARAMS{ALERT_PERIOD} = $conf{INTERNET_ALERT_REDIRECT_DAYS};
+    @allert_redirect_days = split(/,\s?/, $conf{INTERNET_ALERT_REDIRECT_DAYS} || '');
+  }
+
   $LIST_PARAMS{LOGIN} = $attr->{LOGIN} if ($attr->{LOGIN});
   $Internet->{debug}=1 if($debug > 5);
   my $internet_list = $Internet->list({
@@ -1293,12 +1316,14 @@ sub internet_users_warning_messages {
     DEPOSIT           => '_SHOW',
     CREDIT            => '_SHOW',
     EMAIL             => '_SHOW',
+    PHONE             => '_SHOW',
     CREDIT            => '_SHOW',
     TP_CREDIT         => '_SHOW',
     MONTH_FEE         => '_SHOW',
     DAY_FEE           => '_SHOW',
     ABON_DISTRIBUTION => '_SHOW',
     _SKIP_NEG_WARN    => '_SHOW',
+    ONLINE_IP         => '_SHOW',
     INTERNET_STATUS   => 0,
     LOGIN_STATUS      => 0,
     COLS_NAME         => 1,
@@ -1309,8 +1334,6 @@ sub internet_users_warning_messages {
     $DEBUG .= $debug_output;
     return $debug_output;
   }
-
-  my @allert_redirect_days = split(/,\s?/, $conf{INTERNET_ALERT_REDIRECT_DAYS} || '');
 
   foreach my $u (@$internet_list) {
     if($u->{_SKIP_NEG_WARN}) {
@@ -1340,6 +1363,33 @@ sub internet_users_warning_messages {
         UID       => $u->{uid},
         FILTER_ID => $conf{INTERNET_ALERT_REDIRECT_FILTER}
       });
+
+      if($u->{client_ip}) {
+        mk_redirect({ IP => $u->{client_ip} });
+      }
+    }
+
+    if(in_array('Sms', \@MODULES) && $conf{INTERNET_USER_WARNING_SMS} && $u->{PHONE}){
+      load_module('Sms', $html);
+
+      my $message   = $html->tpl_show(_include('internet_users_warning_messages_sms', 'Internet'),
+        { %$u, DATE => $DATE, TIME => $TIME },
+        { OUTPUT2RETURN => 1 });
+
+      my $sms_id    = sms_send(
+        {
+          NUMBER => $u->{PHONE},
+          MESSAGE=> $message,
+          UID    => $u->{UID},
+          QUITE  => 1,
+        });
+
+      if ( $sms_id ) {
+        $debug_output .= "\nAlert sms sent for user $u->{LOGIN}\n" if $debug > 5;
+      }
+      else{
+        $debug_output .= "\nAlert sms not sent for user $u->{LOGIN}\n" if $debug > 5;
+      }
     }
 
     if ($email eq '') { next; }
@@ -1356,6 +1406,7 @@ sub internet_users_warning_messages {
     $debug_output .= $info if ($debug > 3);
 
     if ($debug < 5) {
+
       my $message = $html->tpl_show(_include('internet_users_warning_messages', 'Internet'),
         { %$u, DATE => $DATE, TIME => $TIME },
         { OUTPUT2RETURN => 1 });
@@ -1386,11 +1437,25 @@ sub internet_sheduler {
 
   my $debug = $attr->{DEBUG} || 0;
 
-  my $user = $Internet->info($uid);
+  $action //= q{};
+
   if ($type eq 'tp') {
+    my $service_id;
+    my $tp_id = 0;
+    if($action =~ /(\d+):(\d+)/) {
+      $service_id = $1;
+      $tp_id      = $2;
+    }
+    else {
+      $tp_id = dv2intenet_tp($action);
+    }
+
+    my $user = $Internet->info($uid, { ID => $service_id });
+
     $Internet->change({
       UID   => $uid,
-      TP_ID => $action
+      TP_ID => $tp_id,
+      ID    => $service_id
     });
 
     if ($attr->{GET_ABON} && $attr->{GET_ABON} eq '-1' && $attr->{RECALCULATE} && $attr->{GET_ABON} eq '-1') {
@@ -1400,7 +1465,7 @@ sub internet_sheduler {
 
     my $d  = (split(/-/, $ADMIN_REPORT{DATE}, 3))[2];
     my $START_PERIOD_DAY = $conf{START_PERIOD_DAY} || 1;
-    $FORM{RECALCULATE}= 0;
+    $FORM{RECALCULATE}   = 0;
 
     if ($Internet->{errno}) {
       return $Internet->{errno};
@@ -1411,15 +1476,24 @@ sub internet_sheduler {
       }
       $user = undef;
       $FORM{RECALCULATE} = 1;
-      service_get_month_fee($Internet, { QUITE    => 1,
-          SHEDULER => 1,
-          DATE     => $attr->{DATE}  });
+      service_get_month_fee($Internet, {
+        QUITE    => 1,
+        SHEDULER => 1,
+        DATE     => $attr->{DATE}
+      });
     }
   }
   elsif ($type eq 'status') {
+    my $service_id;
+
+    if($action =~ /:/) {
+      ($service_id, $action)=split(/:/, $action);
+    }
+
     $Internet->change({
-      UID    => $uid,
-      STATUS => $action
+      UID        => $uid,
+      STATUS     => $action,
+      SERVICE_ID => $service_id
     });
 
     #Get fee for holdup service
@@ -1446,10 +1520,10 @@ sub internet_sheduler {
     }
     elsif ($action == 0) {
       service_get_month_fee($Internet, {
-          QUITE    => 1,
-          SHEDULER => 1, #($attr->{SHEDULEE_ONLY}) ? undef,
-          DATE     => $attr->{DATE}
-        });
+        QUITE    => 1,
+        SHEDULER => 1, #($attr->{SHEDULEE_ONLY}) ? undef,
+        DATE     => $attr->{DATE}
+      });
     }
 
     if ($Internet->{errno} && $Internet->{errno} == 15) {

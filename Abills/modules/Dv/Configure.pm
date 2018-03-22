@@ -27,15 +27,6 @@ my $Nas      = Nas->new($db, \%conf, $admin);
 #**********************************************************
 sub dv_tp {
 
-
-  use Dv;
-    my $dv = Dv->new($db, $admin, \%conf);
-      $dv->account_check();
-        if(_error_show($dv)) {
-            return 1;
-              }
-              
-
   my $tarif_info;
   my %octets_direction = (
     0 => "$lang{RECV} + $lang{SEND}",
@@ -185,7 +176,7 @@ sub dv_tp {
       }
     );
 
-    my $nas_ip_pools_list = $Nas->ip_pools_list({ STATIC => 0, COLS_NAME => 1 });
+    my $nas_ip_pools_list = $Nas->ip_pools_list({ STATIC => 0, SHOW_ALL_COLUMNS => 1, COLS_NAME => 1 });
 
     $tarif_info->{IP_POOLS_SEL} = $html->form_select(
       'IPPOOL',

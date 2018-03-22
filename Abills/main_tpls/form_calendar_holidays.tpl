@@ -27,13 +27,13 @@
   <table class='table table-bordered no-highlight'>
 		<thead>
 			<tr>
-				<td>$WEEKDAYS[1]</td>
-				<td>$WEEKDAYS[2]</td>
-				<td>$WEEKDAYS[3]</td>
-				<td>$WEEKDAYS[4]</td>
-				<td>$WEEKDAYS[5]</td>
-				<td class='danger'>$WEEKDAYS[6]</td>
-				<td class='danger'>$WEEKDAYS[7]</td>
+				<td>%WEEKDAYS_1%</td>
+				<td>%WEEKDAYS_2%</td>
+				<td>%WEEKDAYS_3%</td>
+				<td>%WEEKDAYS_4%</td>
+				<td>%WEEKDAYS_5%</td>
+				<td class='danger'>%WEEKDAYS_6%</td>
+				<td class='danger'>%WEEKDAYS_7%</td>
 			</tr>
 		</thead>
 		<tbody>

@@ -7,7 +7,7 @@ package Billd;
 =cut
 
 use strict;
-use parent 'main';
+use parent qw(dbcore);
 
 my $admin;
 my $CONF;
@@ -55,7 +55,7 @@ sub change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'billd_plugins',
@@ -76,18 +76,20 @@ sub list {
   my ($attr) = @_;
 
   my $WHERE = $self->search_former($attr, [
-      ['PLUGIN_NAME',     'STR', 'plugin_name', 1 ],
-      ['PERIOD',          'INT', 'period',      1 ],
-      ['STATUS',          'INT', 'status',      1 ],
-      ['PRIORITY',        'INT', 'priority',    1 ],
-      ['THREADS',         'INT', 'threads',     1 ],
-      ['MAKE_LOCK',       'INT', 'make_lock',   1 ],
-      ['ID',              'INT', 'id',          1 ],
+      ['PLUGIN_NAME',     'STR',  'plugin_name', 1 ],
+      ['LAST_EXECUTE',    'DATE', 'last_execute',1 ],
+      ['EXECUTE_TIME',    'DATE', '',  'TIMEDIFF(last_end, last_execute) AS execute_time' ],
+      ['PERIOD',          'INT',  'period',      1 ],
+      ['STATUS',          'INT',  'status',      1 ],
+      ['PRIORITY',        'INT',  'priority',    1 ],
+      ['THREADS',         'INT',  'threads',     1 ],
+      ['MAKE_LOCK',       'INT',  'make_lock',   1 ],
+      ['ID',              'INT',  'id',          1 ],
     ],
     { WHERE => 1,  }
     );
 
-  $self->query2("SELECT $self->{SEARCH_FIELDS} id
+  $self->query("SELECT $self->{SEARCH_FIELDS} id
      FROM billd_plugins
      $WHERE 
      GROUP BY 1
@@ -128,7 +130,7 @@ sub info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("SELECT * FROM billd_plugins WHERE id= ? ;",
+  $self->query("SELECT * FROM billd_plugins WHERE id= ? ;",
     undef,
     { INFO => 1,
     	Bind => [ $attr->{ID} ] }

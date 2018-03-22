@@ -91,7 +91,6 @@ sub docs_tax_invoice_list{
       }
 
       if ( $Docs->{TOTAL} > 0 ){
-        ($Docs->{SUM_MAIN}, $Docs->{SUM_SUB}) = split( /\./, $D{TOTAL_SUM} );
         $Docs->{FROM_DATE_LIT} = '';
 
         my $orders_list = $Docs->{ORDERS};
@@ -204,7 +203,7 @@ sub docs_tax_invoice{
   my $Customer = Customers->new( $db, $admin, \%conf );
   my $Company  = $Customer->company();
 
-  if($FORM{COMPANY_ID}) {
+  if($LIST_PARAMS{COMPANY_ID} || $FORM{COMPANY_ID}) {
     if (!$attr->{COMPANY} && !$FORM{qindex}) {
       $FORM{subf} = $FORM{index};
       form_companies();
@@ -269,7 +268,6 @@ sub docs_tax_invoice{
       if ( !$Docs->{errno} ){
         $html->message( 'info', "$lang{ADDED}", "$lang{NUM}: [$Docs->{DOC_ID}]\n $lang{DATE}: $FORM{DATE}" );
         $Docs->tax_invoice_info( $Docs->{DOC_ID}, { COMPANY_ID => $LIST_PARAMS{COMPANY_ID} } );
-        ($Docs->{SUM_MAIN}, $Docs->{SUM_SUB}) = split( /\./, $Docs->{TOTAL_SUM} );
         $Docs->{NUMBER} = $Docs->{DOC_ID};
         my $orders_list = $Docs->{ORDERS};
         $i = 0;
@@ -425,7 +423,6 @@ sub docs_tax_print {
   $Docs->{NUMBER} = $Docs->{DOC_ID};
 
   if ( $Docs->{TOTAL} > 0 ){
-    ($Docs->{SUM_MAIN}, $Docs->{SUM_SUB}) = split( /\./, $Docs->{TOTAL_SUM} );
     $Docs->{FROM_DATE_LIT} = '';
 
     my $list = $Docs->{ORDERS};

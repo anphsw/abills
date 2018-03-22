@@ -32,7 +32,9 @@
     </form>
 
   </div>
-  <div class='box-footer text-center'>
+  <div class='box-footer'>
     <input type='submit' form='form_CABLECAT_CROSS' class='btn btn-primary' name='submit' value='%SUBMIT_BTN_NAME%'>
   </div>
 </div>
+
+%CROSS_LINKS_TABLE%

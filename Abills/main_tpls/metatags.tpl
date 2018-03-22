@@ -56,10 +56,10 @@
 
   <!-- temp -->
   <script src='/styles/default_adm/js/functions.js?v=76.1.9'></script>
-  <script src='/styles/default_adm/js/functions-admin.js?v=76.1.9'></script>
+  <script src='/styles/default_adm/js/functions-admin.js?v=0.77.26'></script>
 
   <!--Keyboard-->
-  <script src='/styles/default_adm/js/keys.js'></script>
+  <script src='/styles/default_adm/js/keys.js?v=77.70'></script>
 
   <!-- Navigation bar saving show/hide state -->
   <script  src='/styles/default_adm/js/navBarCollapse.js'></script>
@@ -81,7 +81,7 @@
   <!-- AJAX Search scripts -->
   <script src='/styles/default_adm/js/search.js?v=0.76.34'></script>
 
-  <script src='/styles/default_adm/js/messageChecker.js?v=0.76.34'></script>
+  <script src='/styles/default_adm/js/messageChecker.js?v=0.77.26'></script>
 
   <script src='/styles/default_adm/js/msgs/jquery-ui.min.js'></script>
 
@@ -116,7 +116,8 @@
     var CHOSEN_PARAMS = {
       no_results_text      : '_{NOT_EXIST}_',
       allow_single_deselect: true,
-      placeholder_text     : '--'
+      placeholder_text     : '--',
+      search_contains: true
 //      width                : '100%',
 //      'min-width'                : '300px'
     };

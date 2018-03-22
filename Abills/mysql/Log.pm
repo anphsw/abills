@@ -124,7 +124,7 @@ sub log_list {
   $attr
   );
 
-  my $list = $self->{list};
+  my $list = $self->{list} || [];
   $self->{OUTPUT_ROWS} = $self->{TOTAL};
 
   $self->query2("SELECT l.log_type, COUNT(*) AS count

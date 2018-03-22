@@ -36,7 +36,7 @@
                         </div>
                     </div>
 
-                    <div class='col-sm-offset-2 col-sm-8'>
+                    <div class='box-footer'>
                         <input type=submit class='btn btn-primary' name='add' value='_{COMPENSATION}_'>
                     </div>
 

@@ -36,7 +36,9 @@ $lang{SELECT_PORT} = 'Виберіть порт';
 $lang{REGISTERED} = 'Зареєстровано';
 $lang{HOURS} = 'годин';
 
-$lang{REBOOT}='Перезагрузити приставку';
+$lang{REBOOT}='Перезавантажити';
+$lang{REBOOTED}='Перезавантажена';
+
 $lang{SYSTEM_ID}='Назва системи';
 $lang{UPTIME}='Час роботи';
 $lang{ERR_NOT_RESPONSE}='Пристрій не відповідає';
@@ -45,6 +47,10 @@ $lang{POWER}='Сила сигнала';
 $lang{TEMPERATURE}='Температура';
 $lang{VOLTAGE}='Вольтаж';
 $lang{UNREGISTER}='Незареестровані';
+$lang{UNREG_ONU}='Дереєструвати';
 $lang{DEVICE}='Пристрій';
 
 $lang{BRANCH}='Гілка';
+$lang{SELECT_OLT}='Виберіть OLT';
+$lang{PORT_SHIFT}='Зсування портів';
+$lang{FIRMWARE}='Прошивка';

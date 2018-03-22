@@ -55,14 +55,14 @@
               </div>
             </li>
             <!-- Search-Form of Messages Dropdown menu -->
-            <li id='drop_search_form' class='hidden'>
+            <li id='drop_search_form' style='display: none'>
               <form action='$SELF_URL' class='form-horizontal'>
                 <input type='hidden' name='get_index' value='msgs_admin'>
                 <input type='hidden' name='full' value='1'>
                 <div class='input-group input-group-sm' style='padding: 2px 10px'>
-                <input class='form-control' id='search_input' name='chg' type='text'>
-                <span id='search_addon' class='input-group-btn'>
-                  <button  name='search'  class='btn btn-default' type='submit'>
+                  <input class='form-control' id='search_input' name='chg' type='text'>
+                  <span id='search_addon' class='input-group-btn'>
+                  <button name='search' class='btn btn-default' type='submit'>
                     <i class='fa fa-search'></i>
                   </button>
                 </span>
@@ -108,7 +108,7 @@
               </ul>
             </li>
             <li class='footer' id='footer_responsible-menu'>
-              <a href='$SELF_URL?get_index=msgs_admin&full=1&STATE=8'>$lang{SHOW} $lang{ALL}</a>
+              <a href='$SELF_URL?get_index=msgs_admin&STATE=0&RESPOSIBLE=%AID%&full=1'>$lang{SHOW} $lang{ALL}</a>
             </li>
           </ul>
         </li>
@@ -116,7 +116,7 @@
 
         <!-- Messages: style can be found in dropdown.less-->
         <li class='dropdown messages-menu hidden' id='events-menu' data-meta='{
-          "UPDATE" : "?get_index=events_main&sort=4&desc=DESC&EXPORT_CONTENT=EVENTS_LIST&header=1&json=1&PAGE_ROWS=20",
+          "UPDATE" : "?get_index=events_notice&header=2&AJAX=1",
           "AFTER" : 30,"REFRESH" : 30, "ENABLED" : "%EVENTS_ENABLED%"
           }'>
           <!-- Events menu toggle button -->
@@ -143,7 +143,7 @@
               </ul>
             </li>
             <li class='footer' id='footer_events-menu'>
-              <a href='$SELF_URL?get_index=events_main&full=1'>$lang{SHOW} $lang{ALL}</a>
+              <a href='$SELF_URL?get_index=events_profile&full=1'>$lang{SHOW} $lang{ALL}</a>
             </li>
           </ul>
         </li>
@@ -201,7 +201,7 @@
         <!-- Wiki link -->
         <li id='wiki-link' class='hidden-xs'>
           <a href='http://abills.net.ua/wiki/doku.php/abills:docs:manual:admin:%FUNCTION_NAME%'
-             target='_blank' title='ABillS Wiki'>
+             target='_blank' rel='noopener' title='ABillS Wiki'>
             <i class='fa fa-question'></i>
           </a>
         </li>
@@ -233,23 +233,6 @@
     };
 
     AMessageChecker.start(EVENT_PARAMS);
-
-   // Search of Messages Dropdown menu
-    var i=1;
-
-    jQuery('#dropdown_search_button').click(function(){
-      if(i){
-        jQuery('#drop_search_form').removeClass('hidden');
-        jQuery('#header_messages-menu').css('border-bottom','none');
-        i=0;
-        jQuery('#search_input').focus();
-      }
-      else{
-        jQuery('#drop_search_form').addClass('hidden');
-        jQuery('#header_messages-menu').css('border-bottom','1px solid #f4f4f4');
-        i=1;
-      }
-    });
   });
 </script>
 <!-- END header -->

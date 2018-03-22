@@ -7,3 +7,5 @@ CREATE TABLE IF NOT EXISTS  `employees_duty` (
   COMMENT = 'Employees duty';
 
 ALTER TABLE `reports_wizard` ADD COLUMN `quick_report` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0';
+ALTER TABLE `abon_user_list` ADD COLUMN `fees_period` smallint(4) unsigned DEFAULT 0;
+

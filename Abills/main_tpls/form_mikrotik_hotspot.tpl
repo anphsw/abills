@@ -100,7 +100,7 @@
     </form>
 
   </div>
-  <div class='box-footer text-center'>
+  <div class='box-footer'>
     <input type='submit' form='form_MIKROTIK_HOTSPOT' class='btn btn-primary' name='action' value='_{SET}_'>
   </div>
 </div>

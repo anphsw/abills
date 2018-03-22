@@ -14,17 +14,19 @@
           </div>
         </div>
 
+        <!--
         <div class='form-group'>
           <label class='control-label col-md-3' for='CHAPTERS'>_{CHAPTERS}_</label>
           <div class='col-md-9'>
             %CHAPTER_SEL%
           </div>
         </div>
+        -->
 
         <div class='form-group'>
           <label class='control-label col-md-3' for='SUBJECT'>_{SUBJECT}_:</label>
           <div class='col-md-9'>
-            <input id='SUBJECT' name='SUBJECT' value='%SUBJECT%' placeholder='%SUBJECT%' class='form-control'
+            <input id='SUBJECT' name='SUBJECT' value='_{USER_CONNECTION}_' placeholder='%SUBJECT%' class='form-control'
                    type='text'>
           </div>
         </div>
@@ -76,6 +78,16 @@
 
         %ADDRESS_TPL%
 
+        <div class='box box-default box-big-form collapsed-box'>
+          <div class='box-header with-border'>
+            <h3 class='box-title'>_{EXTRA}_</h3>
+            <div class='box-tools pull-right'>
+              <button type='button' class='btn btn-default btn-xs' data-widget='collapse'><i class='fa fa-plus'></i>
+              </button>
+            </div>
+          </div>
+          <div class='box-body'>
+
         <!--- Extra info -->
         %UNREG_EXTRA_INFO%
 
@@ -84,6 +96,9 @@
           <label class='control-label col-md-3' for='STATE'>_{STATE}_:</label>
           <div class='col-md-9'>
             %STATE_SEL%
+          </div>
+        </div>
+
           </div>
         </div>
 
@@ -103,7 +118,7 @@
 
 
       </div>
-      <div class='box-footer text-center'>
+      <div class='box-footer'>
 
         %BACK_BUTTON% <input type=submit name=%ACTION% value='%LNG_ACTION%' ID='submitbutton' class='btn btn-primary'>
       </div>

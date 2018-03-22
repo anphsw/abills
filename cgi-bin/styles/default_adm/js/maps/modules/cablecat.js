@@ -65,7 +65,6 @@ function split_cable(cable_id) {
     header     : 2,
     CABLE_ID   : cable_id,
     SPLIT_CABLE: 1,
-    // REVERSE COORDS
     COORDX     : click_position['COORDX'],
     COORDY     : click_position['COORDY']
   };
@@ -94,7 +93,7 @@ function findClosestWellsForCable(single_overlay_arr) {
   var wells_in_range_for_end = getPointsInRange(last_point, 200, WELL_LAYER_ID);
   if (wells_in_range_for_end.length) {
     closest_for_end = wells_in_range_for_end[0]['point']['raw']['ID'];
-    if (closest_for_end === closest_for_start) {
+    if (closest_for_end === closest_for_start && wells_in_range_for_end.length > 1) {
       closest_for_end = wells_in_range_for_end[1]['point']['raw']['ID'];
     }
   }

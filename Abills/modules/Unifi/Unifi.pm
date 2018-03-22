@@ -20,7 +20,7 @@ BEGIN{
   unshift ( @INC, "../../../lib/" );
 }
 
-use Abills::Base qw( _bp load_pmodule2);
+use Abills::Base qw( _bp load_pmodule);
 use Abills::Fetcher;
 
 my $debug = 0;
@@ -38,7 +38,7 @@ my %OBJPATH = (
   DAILY_SITE => 'stat/report/daily.site'
 );
 
-load_pmodule2('JSON');
+load_pmodule('JSON');
 my $unifi_version;
 
 #***************************************************************

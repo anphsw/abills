@@ -13,12 +13,11 @@ my $VERSION = 1.03;
 use POSIX qw(strftime);
 use Abills::HTML;
 use Abills::Base;
-use Abills::Misc;
+#use Abills::Misc;
+use Abills::Templates::Generator;
+
 use Time::HiRes qw/gettimeofday tv_interval/;
 $begin_time = [ gettimeofday() ];
-
-# Used to show error line
-my $line_counter = 1;
 
 # Parses %FORM
 my $html = Abills::HTML->new(
@@ -185,11 +184,9 @@ print << '[FOOTER]';
 [FOOTER]
 
 #**********************************************************
-
 =head2 ask_form()
 
 =cut
-
 #**********************************************************
 sub ask_form {
   
@@ -239,11 +236,9 @@ sub ask_form {
 }
 
 #**********************************************************
-
 =head2 generate_form()
 
 =cut
-
 #**********************************************************
 sub generate_form {
   my ($attr) = @_;
@@ -252,19 +247,15 @@ sub generate_form {
   my $form_name = (defined $FORM{FORM_NAME} && !($FORM{FORM_NAME} eq '')) ? $FORM{FORM_NAME} : '%FORM_NAME%';
   
   my $input = $attr->{FORM};
-  
-  my @list = split('\n', $input);
-  
+
   my $form = '';
   
   $form .= "    <form name='$form_name' id='form_$form_name' method='post' class='form form-horizontal'>\n";
   $form .= q{        <input type='hidden' name='index' value='$index' />} . "\n";
   $form .= q{        <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='1' />} . "\n";
   
-  for my $param ( @list ) {
-    $form .= parse_element_row($param);
-  }
-  
+  $form .= generate_template($input);
+
   $form .= "    </form>\n";
   
   my $result;
@@ -276,7 +267,7 @@ sub generate_form {
   <div class='box-body'>
     $form
   </div>
-  <div class='box-footer text-center'>
+  <div class='box-footer'>
       <input type='submit' form='form_$form_name' class='btn btn-primary' name='submit' value='%SUBMIT_BTN_NAME%'>
   </div>
 </div>\n
@@ -290,276 +281,11 @@ sub generate_form {
   return $result;
 }
 
-#**********************************************************
-=head2 parse_element_row($attr)
-
-=cut
-#**********************************************************
-sub parse_element_row {
-  my ($attr) = @_;
-  
-  my @element = split(':', trim($attr));
-  
-  my $type = shift(@element);
-  
-  my $result = 'Error';
-  
-  if ( $type eq 'text' ) {
-    $result = form_text_input_row(@element);
-  }
-  elsif ( $type eq 'checkbox' ) {
-    $result = form_checkbox_input_row(@element);
-  }
-  elsif ( $type eq 'textarea' ) {
-    $result = form_textarea_input_row(@element);
-  }
-  elsif ( $type eq 'select' ) {
-    $result = form_select_row(@element);
-  }
-  elsif ( $type eq 'hidden' ) {
-    $result = form_hidden_row(@element);
-  }
-  elsif ( $type eq 'collapse' ) {
-    $result = start_collapse_panel(@element);
-  }
-  elsif ( $type eq 'collapse_' ) {
-    $result = close_collapse_panel();
-  }
-  else {
-    print( "<script>alert('ERROR :Unknown element: $type at line [$line_counter]')</script>" );
-    exit(1);
-  }
-  
-  $line_counter++;
-  
-  return $result;
-}
 
 #**********************************************************
-
-=head2 form_text_input_row($label, $name, $placeholder, $required)
-
-=cut
-
-#**********************************************************
-sub form_text_input_row {
-  my ($label, $name, $placeholder, $required) = @_;
-  
-  my $id = '';
-  my $attr_id = '';
-  my $attr_name = '';
-  my $prop_required = '';
-  
-  $placeholder = to_attr('placeholder', $placeholder);
-  
-  if ( $name ne '' ) {
-    $attr_name = to_attr('name', $name);
-    $id = $name . "_ID";
-    $attr_id = to_attr('id', $id);
-  }
-  
-  #    show($required);
-  if ( $required eq '1' ) {
-    $prop_required = ' required';
-  }
-  
-  my $element = "
-      <div class='form-group'>
-        <label class='control-label col-md-3$prop_required' for='$id'>$label</label>
-        <div class='col-md-9'>
-            <input type='text' class='form-control' value='%$name%' $prop_required$attr_name$attr_id$placeholder />
-        </div>
-      </div>\n";
-  
-  return $element;
-  
-}
-
-#**********************************************************
-
-=head2 form_checkbox_input_row($label, $name, $required)
-
-=cut
-
-#**********************************************************
-sub form_checkbox_input_row {
-  my ($label, $name, $required) = @_;
-  
-  my $prop_required = '';
-  my $attr_id = to_attr('id', $name . '_ID');
-  
-  if ( $required eq '1' ) {
-    $prop_required = 'required="required"';
-  }
-  
-  my $element = "
-      <div class='checkbox text-center'>
-        <label>
-            <input type='checkbox' data-return='1' data-checked='%$name%' name='$name' $prop_required $attr_id />
-            <strong>$label</strong>
-        </label>
-      </div>\n";
-  
-  return $element;
-}
-
-#**********************************************************
-
-=head2 form_select_row($label, $name, $required)
-
-=cut
-
-#**********************************************************
-sub form_select_row {
-  my ($label, $name, $required) = @_;
-  
-  my $prop_required = '';
-  if ( $required eq '1' ) {
-    $prop_required = ' required';
-  }
-  
-  my $element = "
-      <div class='form-group'>
-        <label class='control-label col-md-3$prop_required' for='$name'>$label</label>
-        <div class='col-md-9'>
-            %$name\_SELECT%
-        </div>
-      </div>\n";
-  
-  return $element;
-}
-
-#**********************************************************
-
-=head2 form_hidden_row($name)
-
-=cut
-
-#**********************************************************
-sub form_hidden_row {
-  my ($name) = @_;
-  
-  return "<input type='hidden' name='$name' value='%$name%' />
-  ";
-}
-
-#**********************************************************
-
-=head2 form_textarea_input_row($label, $name, $required)
-
-=cut
-
-#**********************************************************
-sub form_textarea_input_row {
-  my ($label, $name, $required) = @_;
-  
-  my $attr_rows = to_attr('rows', 5);
-  
-  my $id = $name . '_ID';
-  
-  my $prop_required = '';
-  if ( $required eq '1' ) {
-    $prop_required = ' required';
-  }
-  
-  my $element = "
-      <div class='form-group'>
-          <label class='control-label col-md-3$prop_required' for='$id'>$label</label>
-          <div class='col-md-9'>
-              <textarea class='form-control col-md-9' $attr_rows$prop_required name='$name' id='$id'>%$name%</textarea>
-          </div>
-      </div>\n";
-  
-  return $element;
-  
-}
-
-#**********************************************************
-
-=head2 start_collapse_panel($label, $name)
-
-=cut
-
-#**********************************************************
-sub start_collapse_panel {
-  my ($label, $name) = @_;
-  
-  $name = trim($name);
-  my $collapse_id = $name . "_collapse";
-  my $heading_id = $name . "_heading";
-  
-  my $element = "
-    <div class='form-group'>
-      <div class='box box-theme'>
-          <div class='box-header with-border' role='tab' id='$heading_id'>
-            <h4 class='box-title text-center'>
-              <a role='button' data-toggle='collapse' href='#$collapse_id' aria-expanded='true' aria-controls='$collapse_id'>
-                $label
-              </a>
-            </h4>
-          </div>
-        <div id='$collapse_id' class='box-collapse collapse' role='tabpanel' aria-labelledby='$heading_id'>
-        <div class='box-body'>
-        ";
-  
-  return $element;
-}
-
-#**********************************************************
-
-=head2 close_collapse_panel()
-
-=cut
-
-#**********************************************************
-sub close_collapse_panel {
-  return "       </div> <!-- end of collapse panel-body -->
-      </div> <!-- end of collapse div -->
-      </div> <!-- end of collapse panel -->
-    </div> <!-- end of collapse form-group -->
-";
-}
-
-#**********************************************************
-
-=head2 to_attr($name, $value)
-
-=cut
-
-#**********************************************************
-sub to_attr {
-  my ($name, $value) = trim(@_);
-  
-  if ( $value ne '' ) {
-    return " $name='" . $value . "' ";
-  }
-  
-  return '';
-}
-
-#**********************************************************
-
-=head2 trim(@input)
-
-=cut
-
-#**********************************************************
-sub trim {
-  my @out = @_;
-  for ( @out ) {
-    s/^\s+//;
-    s/\s+$//;
-    s/\n$//;
-  }
-  return wantarray ? @out : $out[0];
-}
-
-#**********************************************************
-
 =head2 num_of_lines($text)
 
 =cut
-
 #**********************************************************
 sub num_of_lines {
   my ($text) = @_;

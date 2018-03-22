@@ -256,8 +256,9 @@ window['ModalSelectChooser'] = function (selector, options) {
     $select.on('change', function () {
       var selected_value = $select.val();
       // Find option for this value;
+      console.log(select.options);
       var option_found   = select.options.find(function (opt) {
-        return opt.value === selected_value
+        return '' + opt.value === '' + selected_value
       });
       
       console.log('change', selected_value, option_found, select);

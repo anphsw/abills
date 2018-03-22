@@ -17,6 +17,7 @@ BEGIN {
     $libpath,
     $libpath . "Abills/$sql_type/",
     $libpath . 'Abills/modules/',
+    $libpath . 'Abills/',
     $libpath . 'lib/' );
 
   eval { require Time::HiRes; };
@@ -446,10 +447,43 @@ sub sheduler{
         if ( !$sql ){
           next;
         }
-        $admin->query2( "$sql", 'do' );
+        $admin->query( "$sql", 'do' );
         if ( $admin->{errno} ){
           $ret = 2;
           $error_text = $admin->{errstr};
+        }
+      }
+    }
+
+    #Call function
+    elsif ( $type eq 'call_fn') {
+      my $action_hash;
+      use JSON qw/decode_json/;
+      eval { $action_hash = JSON::decode_json($action) };
+      if ($@) {
+        $error_text = "Can't decode json\n";
+        $ret = 2;
+      }
+      else {
+        my $class = $action_hash->{module};
+        my $fn = $action_hash->{function};
+        my $args = $action_hash->{args};
+
+        eval { require "$class.pm" };
+        if ($@) {
+          $error_text = "Can't load $class\n";
+          $ret = 2;
+        }
+        else {
+          my $obj = $class->new($db, $admin, \%conf);
+          $obj->$fn($args);
+          if ($obj->{errno}) {
+            $ret = 2;
+            $error_text = $obj->{errstr};
+          }
+          else {
+            $ret = 1;
+          }
         }
       }
     }
@@ -491,7 +525,7 @@ sub sheduler{
       $Shedule->del({
         ID       => $shedule_id,
         result   => $ret . $error_text,
-        EXT_INFO => " S:$s->{module}:$type:$action",
+        EXT_INFO => " INFO:$s->{module}:$type:$action",
         EXECUTE  => 1
       });
     }
@@ -839,7 +873,10 @@ sub logrotate{
   }
 
   #Bruteforce clear
-  $users->bruteforce_del( { DATE => $DATE } );
+  $users->bruteforce_del( {
+    DATE => $DATE,
+    PERIOD => $conf{BRUTEFORCE_PERIOD} || 1
+  } );
   $DEBUG .= "Brute force log cleaned\n" if ($debug > 1);
 
   # Clean old backups
@@ -866,8 +903,7 @@ sub backup{
     return 0;
   }
 
-
-  $admin->query2( "SHOW TABLE STATUS" );
+  $admin->query( "SHOW TABLE STATUS" );
   my @ignore_tables_arr =
     ("--ignore-table=\"$conf{dbname}.ipn_traf_detail\"", "--ignore-table=\"$conf{dbname}.s_detail\"",
       "--ignore-table=\"$conf{dbname}.ipn_log_backup\"", "--ignore-table=\"$conf{dbname}.ipn_unknow_ips\"",
@@ -934,7 +970,7 @@ sub backup{
 
   #Move rotate tables
   $DEBUG .= "Move rotate tables" if ($debug > 1);
-  $admin->query2( "SHOW variables" );
+  $admin->query( "SHOW variables" );
   my %vars = ();
   foreach my $var ( @{ $admin->{list} } ){
     $vars{ $var->[0] } = $var->[1];
@@ -956,7 +992,7 @@ sub backup{
       $res = '';
       if ( $debug < 5 ){
         $res = `$cmd`;
-        $admin->query2( "DROP TABLE $table;", 'do' );
+        $admin->query( "DROP TABLE $table;", 'do' );
       }
 
       $DEBUG .= $vars{datadir} . "/$conf{dbname}/$table.* -> $conf{BACKUP_DIR}/$DATE/$table" . ".gz ($res)\n" if ($debug > 2);
@@ -994,7 +1030,7 @@ sub credit_operation{
   foreach my $line ( @{ $list } ){
     $DEBUG .= "$line->{login} ($line->{uid}) DEPOSIT: $line->{deposit} CREDIT: $line->{credit} CREDIT_DATE: $line->{credit_date}\n" if ($debug > 1);
 
-    if ( $debug < 5 ){
+    if ( $debug < 8 ){
       $users->change(
         $line->{uid},
         {
@@ -1009,7 +1045,7 @@ sub credit_operation{
 
   $list = $Company->list(
     {
-      CREDIT_DATE => "$ADMIN_REPORT{DATE}",
+      CREDIT_DATE => "!0000-00-00;<=$ADMIN_REPORT{DATE}",
       CREDIT      => ">$conf{MAX_STABLE_CREDIT}",
       PAGE_ROWS   => 1000000,
       COLS_NAME   => 1
@@ -1019,7 +1055,7 @@ sub credit_operation{
   foreach my $line ( @{$list} ){
     $DEBUG .= "$line->{name} ($line->{id}) DEPOSIT: $line->{deposit} CREDIT: $line->{credit} CREDIT_DATE: $line->{credit_date}\n" if ($debug > 1);
 
-    if ( $debug < 5 ){
+    if ( $debug < 8 ){
       $Company->change(
         {
           CREDIT      => $conf{MAX_STABLE_CREDIT},
@@ -1196,6 +1232,7 @@ sub reduction_operation{
       REDUCTION_DATE => ">0000-00-00;<=$ADMIN_REPORT{DATE}",
       REDUCTION      => ">0",
       LOGIN_STATUS   => '_SHOW',
+      %LIST_PARAMS,
       PAGE_ROWS      => 1000000,
       COLS_NAME      => 1
     }
@@ -1203,7 +1240,7 @@ sub reduction_operation{
 
   foreach my $line ( @{$list} ){
     $DEBUG .= "$line->{login} ($line->{uid}) REDUCTION: $line->{reduction} REDUCTION_DATE: $line->{reduction_date}\n" if ($debug > 1);
-    if ( $debug < 5 ){
+    if ( $debug < 8 ){
       $users->change(
         $line->{uid},
         {
@@ -1292,8 +1329,6 @@ sub debetors_group_create{
       }
     );
 
-    #my %EXIST_GROUPS = ();
-
     if ( $users->{errno} ){
       print "ERROR: $users->{errno} $users->{errstr} \n";
       exit;
@@ -1304,12 +1339,12 @@ sub debetors_group_create{
       my $gid = $line->{gid};
       my $last_payments = $line->{last_payments} || $line->{last_fees};
 
-
       next if ($gid == $DEBETOR_GID);
+      next if(! defined($line->{deposit}));
 
       $DEBUG .= "$line->{login} ($uid) DEPOSIT: $line->{deposit} CREDIT: $line->{credit} LAST $LAST_ACTION_TITLE: $last_payments GID: $gid -> $DEBETOR_GID\n" if ($debug > 0);
       my $comments = $line->{comments} || '';
-      if ( $debug < 5 ){
+      if ( $debug < 8 ){
         #Check group if not exist create it
         $users->change(
           $uid,
@@ -1361,12 +1396,12 @@ sub debetors_group_create{
 
       #Get last gid
       my $history_list = $admin->action_list( {
-          TYPE      => '26',
-          UID       => $uid,
-          ACTIONS   => '_SHOW',
-          PAGE_ROWS => 1,
-          COLS_NAME => 1,
-          DESC      => 'desc'
+        TYPE      => '26',
+        UID       => $uid,
+        ACTIONS   => '_SHOW',
+        PAGE_ROWS => 1,
+        COLS_NAME => 1,
+        DESC      => 'desc'
       } );
 
       my $prev_gid = ($DEBETORS_GIDS{$DEBETOR_GID}) || 0;
@@ -1386,7 +1421,7 @@ sub debetors_group_create{
 
       $DEBUG .= "$line->{login} ($uid) DEPOSIT: $line->{deposit} CREDIT: $line->{credit} LAST $LAST_ACTION_TITLE: $last_payments GID: $gid -> $prev_gid\n" if ($debug > 0);
 
-      if ( $debug < 5 ){
+      if ( $debug < 8 ){
         $users->change(
           $uid,
           {

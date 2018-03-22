@@ -24,7 +24,7 @@
   <input type=hidden name='STATUS_DAYS' value='%STATUS_DAYS%'>
   <input type=hidden name='step' value='$FORM{step}'>
 
-  <div class='box box-theme box-big-form'>
+  <div class='box box-theme'>
     <div class='box-header with-border'>
       <h4 class='box-title'>_{DV}_</h4>
       <div class='box-tools pull-right'>

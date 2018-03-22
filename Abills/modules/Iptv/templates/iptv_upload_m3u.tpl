@@ -1,7 +1,8 @@
 <form name='UPLOAD_M3U' id='form_UPLOAD_M3U' method='post' class='form form-horizontal' enctype=multipart/form-data>
 
     <input type='hidden' name='index' value='$index' />
-
+    <input type=hidden name='import' value='1'>
+    <input type=hidden name='import_message' value='1'>
 
 <div class='box box-theme box-form'>
 <div class='box-header with-border text-center'> <h4>%PANEL_HEADING% m3u</h4> </div>
@@ -19,7 +20,7 @@
 
 
 </div>
-<div class='box-footer text-center'>
+<div class='box-footer'>
   <button type='submit' class='btn btn-primary'>%SUBMIT_BTN_NAME%</button>
 </div>
 </div>

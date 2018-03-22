@@ -36,7 +36,7 @@ my $Tariffs  = Tariffs->new( $db, \%conf, $admin );
 my @status   = ($lang{DISABLE}, $lang{ENABLE});
 
 #*******************************************************************
-=head2 bonus_user_log() bonus user log
+=head2 bonus_user_log($attr) bonus user log
 
 =cut
 #*******************************************************************
@@ -171,8 +171,6 @@ sub bonus_user_log{
       title      =>
       [ 'ID', $lang{LOGIN}, $lang{DATE}, $lang{DESCRIBE}, $lang{SUM}, $lang{DEPOSIT}, $lang{EXPIRE}, $lang{PAYMENT_METHOD}, 'EXT ID', "$lang{BILL}", $lang{ADMINS},
         'IP', "$lang{ACTION}", '-' ],
-      cols_align =>
-      [ 'right', 'left', 'right', 'right', 'left', 'left', 'right', 'right', 'left', 'left', 'center:noprint' ],
       qs         => $pages_qs,
       pages      => $Bonus->{TOTAL},
       ID         => 'BONUX_LOG'
@@ -216,7 +214,6 @@ sub bonus_user_log{
     $table = $html->table(
       {
         width      => '100%',
-        cols_align => [ 'right', 'right', 'right', 'right', 'right', 'right' ],
         rows       =>
         [ [ "$lang{TOTAL}:", $html->b( $Bonus->{TOTAL} ), "$lang{USERS}:", $html->b( $Bonus->{TOTAL_USERS} ), "$lang{SUM}",
           $html->b( $Bonus->{SUM} ) ] ],
@@ -292,7 +289,6 @@ sub bonus_tp{
       width      => '100%',
       caption    => $lang{TARIF_PLANS},
       title      => [ '#', $lang{NAME}, $lang{STATE}, '-' ],
-      cols_align => [ 'right', 'left', 'center', 'center:noprint', 'center:noprint', 'center:noprint' ],
       ID         => 'TP_ID'
     }
   );
@@ -327,7 +323,6 @@ sub bonus_tp{
   $table = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right' ],
       rows       => [ [ "$lang{TOTAL}:", $html->b( $Bonus->{TOTAL} ) ] ]
     }
   );
@@ -394,7 +389,6 @@ sub bonus_rules{
       width      => '100%',
       caption    => "$lang{RULES}",
       title      => [ $lang{PERIOD}, "$lang{RULES}", "$lang{VALUE}", "$lang{BONUS}", '-', '-' ],
-      cols_align => [ 'right', 'left', 'center', 'center:noprint', 'center:noprint', 'center:noprint' ],
     }
   );
 
@@ -472,7 +466,6 @@ sub bonus_rules{
   $table = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right' ],
       rows       => [ [ "$lang{TOTAL}:", $html->b( $Bonus->{TOTAL} ) ] ]
     }
   );
@@ -502,7 +495,7 @@ sub bonus_user{
     $users->group_info($users->{GID});
 
     if (!$users->{BONUS}) {
-      $html->message('warn', $lang{BONUS_DISABLED_FOR_GROUP});
+      $html->message('warn', $lang{BONUS_DISABLED_FOR_GROUP}, '', { ID => 1901 });
       return 0;
     }
   }
@@ -709,7 +702,8 @@ sub bonus_periodic_daily{
   $debug_output .= "Bonus - Daily periodic\n" if ($debug > 1);
 
   if ( $conf{BONUS_RESET_PERIOD} ){
-    $Bonus->{debug}=1 if($debug > 5);
+    $debug_output .= "Bonus - BONUS_RESET_PERIOD\n" if ($debug > 1);
+    $Bonus->{debug}=1 if($debug > 6);
     my $reset_list = $Bonus->accomulation_reset_list({
       RESET_PERIOD => $conf{BONUS_RESET_PERIOD},
       COLS_NAME    => 1
@@ -728,14 +722,17 @@ sub bonus_periodic_daily{
   }
   # Accomulation reset
   elsif( $conf{BONUS_ACCOMULATION} ) {
+    $debug_output .= "Bonus - BONUS_ACCOMULATION\n" if ($debug > 1);
     my $reset_list = $users->list({
-      DEPOSIT => '<0',
-      DISABLE => '1',
-      _MULTI_HIT => 1
+      DEPOSIT    => '<0',
+      DISABLE    => '1',
+      _MULTI_HIT => 1,
+      COLS_NAME  => 1,
+      PAGE_ROWS  => 1000000
     });
 
     foreach my $u (@$reset_list) {
-      if($u->{uid}) {
+      if($u && $u->{uid}) {
         $Bonus->accomulation_scores_change({
           UID   => $u->{uid},
           SCORE => 0
@@ -818,7 +815,10 @@ sub bonus_periodic_monthly{
   my $debug_output = '';
   $debug_output .= "Bonus - Monthly periodic\n" if ($debug > 1);
 
-  return $debug_output if ($conf{BONUS_PAYMENTS});
+  if ($conf{BONUS_PAYMENTS}) {
+    $debug_output .= "BONUS_PAYMENTS: \$conf{BONUS_PAYMENTS}\n";
+    return $debug_output;
+  }
 
   if ( $conf{BONUS_ACCOMULATION} ){
     $debug_output .= bonus_periodic_accomulation( $attr )
@@ -902,8 +902,8 @@ sub bonus_payments_maked{
   my $payment_method = $attr->{METHOD} || $FORM{METHOD};
 
   my ($year, $month, $day) = split( /-/, $attr->{USER_INFO}->{REGISTRATION}, 3 );
-  my $seltime = POSIX::mktime( 0, 0, 0, $day, ($month - 1), ($year - 1900) );
-  my $registration_days = int( (time() - $seltime) / 86400 );
+  my $seltime              = POSIX::mktime( 0, 0, 0, $day, ($month - 1), ($year - 1900) );
+  my $registration_days    = int( (time() - $seltime) / 86400 );
 
   $Bonus->user_info( $user->{UID} );
 
@@ -1023,6 +1023,7 @@ sub bonus_service_discount_client{
   }
 
   $html->tpl_show( _include( 'bonus_service_discount_client', 'Bonus' ), { %{$Bonus}, %RESULT } );
+
   return 1;
 }
 
@@ -1031,6 +1032,8 @@ sub bonus_service_discount_client{
 
   Arguments:
      $attr
+       METHOD
+       SUM
 
   Results:
 
@@ -1046,7 +1049,7 @@ sub bonus_service_discount_mk{
     $conf{BONUS_SERVICE_EXCLUDE} = '!4,!6';
   }
 
-  my $sum = $attr->{SUM} || $FORM{SUM};
+  my $sum       = $attr->{SUM} || $FORM{SUM};
   my $method    = $attr->{METHOD} || $FORM{METHOD};
   my $exclude   = $conf{BONUS_SERVICE_EXCLUDE};
   $exclude      =~ s/!//g;
@@ -1074,15 +1077,33 @@ sub bonus_service_discount_mk{
     }
   }
 
-  use Dv;
-  my $Dv = Dv->new( $db, $admin, \%conf );
-  $Dv->info( $attr->{USER_INFO}->{UID} );
+  my $Internet;
+  if(in_array('Internet', \@MODULES)) {
+    require Internet;
+    Internet->import();
+    $Internet = Internet->new($db, $admin, \%conf);
+    $Internet->info($attr->{USER_INFO}->{UID});
+  }
+  else{
+    require Dv;
+    Dv->import();
+    $Internet = Dv->new($db, $admin, \%conf);
+    $Internet->info($attr->{USER_INFO}->{UID});
+  }
 
-  my $periods = 0;
+  my $periods           = 0;
   my $registration_days = 0;
+  my $month_fee         = 0;
 
-  if ( $Dv->{MONTH_ABON} && $Dv->{MONTH_ABON} > 0 ){
-    $periods = int( $sum / $Dv->{MONTH_ABON} );
+  if ( $Internet->{MONTH_ABON} && $Internet->{MONTH_ABON} > 0 ){
+    $month_fee = $Internet->{MONTH_ABON};
+  }
+  if ( $Internet->{DAY_ABON} && $Internet->{DAY_ABON} > 0 ){
+    $month_fee = $Internet->{DAY_ABON} * 30;
+  }
+
+  if($month_fee > 0) {
+    $periods = int( $sum / $month_fee );
   }
 
   my %RESULT = ();
@@ -1097,19 +1118,24 @@ sub bonus_service_discount_mk{
           REGISTRATION_DAYS => "<=$registration_days,>=0",
           PERIODS           => "<=$periods",
           PAGE_ROWS         => 1,
-          SORT              => "1 DESC, 2 DESC"
+          COLS_NAME         => 1,
+          SORT              => "1 DESC, 2 DESC",
+          TP_ID             => '_SHOW',
         }
       );
 
       if ( $Bonus->{TOTAL} ){
-        $RESULT{DISCOUNT}          = $list->[0]->[3];
-        $RESULT{DISCOUNT_PERIOD}   = $list->[0]->[4];
-        $RESULT{BONUS_SUM}         = $list->[0]->[5];
-        $RESULT{BONUS_PERCENT}     = $list->[0]->[6];
-        $RESULT{BONUS_EXT_ACCOUNT} = $list->[0]->[7];
+        if(! $list->[0]->{tp_id} || in_array($Internet->{TP_ID} || q{}, [ split(/\s,/, $list->[0]->{tp_id}) ])) {
+          $RESULT{DISCOUNT} = $list->[0]->{discount};
+          $RESULT{DISCOUNT_PERIOD} = $list->[0]->{discount_days};
+          $RESULT{BONUS_SUM} = $list->[0]->{bonus_sum};
+          $RESULT{BONUS_PERCENT} = $list->[0]->{bonus_percent};
+          $RESULT{BONUS_EXT_ACCOUNT} = $list->[0]->{ext_account};
+          $RESULT{ID} = $list->[0]->{id};
 
-        if ( $RESULT{DISCOUNT_PERIOD} > 0 ){
-          $RESULT{DISCOUNT_PERIOD} = POSIX::strftime( '%Y-%m-%d', localtime( time + 86400 * $RESULT{DISCOUNT_PERIOD} ) );
+          if ($RESULT{DISCOUNT_PERIOD} > 0) {
+            $RESULT{DISCOUNT_PERIOD} = POSIX::strftime('%Y-%m-%d', localtime(time + 86400 * $RESULT{DISCOUNT_PERIOD}));
+          }
         }
       }
     }
@@ -1126,18 +1152,23 @@ sub bonus_service_discount_mk{
         TOTAL_PAYMENTS_SUM => "<=$payments_sum,>=0",
         PERIODS            => "<=$periods",
         PAGE_ROWS          => 1,
+        TP_ID              => '_SHOW',
         SORT               => "1 DESC, 2 DESC, 3 DESC"
       });
 
       if ( $Bonus->{TOTAL} > 0 ){
-        $RESULT{DISCOUNT}          = $list->[0]->[3];
-        $RESULT{DISCOUNT_PERIOD}   = $list->[0]->[4];
-        $RESULT{BONUS_SUM}         = $list->[0]->[5];
-        $RESULT{BONUS_PERCENT}     = $list->[0]->[6];
-        $RESULT{BONUS_EXT_ACCOUNT} = $list->[0]->[7];
+        if(! $list->[0]->{tp_id} || in_array($Internet->{TP_ID}, [split(/\s,/, $list->[0]->{tp_id}) ])) {
 
-        if ( $RESULT{DISCOUNT_PERIOD} > 0 ){
-          $RESULT{DISCOUNT_PERIOD} = POSIX::strftime( '%Y-%m-%d', localtime( time + 86400 * $RESULT{DISCOUNT_PERIOD} ) );
+          $RESULT{DISCOUNT} = $list->[0]->{discount};
+          $RESULT{DISCOUNT_PERIOD} = $list->[0]->{discount_days};
+          $RESULT{BONUS_SUM} = $list->[0]->{bonus_sum};
+          $RESULT{BONUS_PERCENT} = $list->[0]->{bonus_percent};
+          $RESULT{BONUS_EXT_ACCOUNT} = $list->[0]->{ext_account};
+          $RESULT{ID} = $list->[0]->{id};
+
+          if ($RESULT{DISCOUNT_PERIOD} > 0) {
+            $RESULT{DISCOUNT_PERIOD} = POSIX::strftime('%Y-%m-%d', localtime(time + 86400 * $RESULT{DISCOUNT_PERIOD}));
+          }
         }
       }
     }
@@ -1169,7 +1200,7 @@ sub bonus_service_discount_mk{
         {
           SUM          => $RESULT{BONUS_SUM},
           METHOD       => 4,
-          DESCRIBE     => $lang{BONUS},
+          DESCRIBE     => $lang{BONUS}. (($RESULT{ID}) ? " # $RESULT{ID}" : q{}),
           BILL_ID      => ($RESULT{BONUS_EXT_ACCOUNT}) ? $attr->{USER_INFO}->{EXT_BILL_ID} : $attr->{USER_INFO}->{BILL_ID},
           EXT_ID       => ($attr->{EXT_ID}) ? 'B_'.$attr->{EXT_ID} : undef,
           CHECK_EXT_ID => ($attr->{EXT_ID}) ? 'B_'.$attr->{EXT_ID} : undef
@@ -1193,6 +1224,7 @@ sub bonus_service_discount_mk{
         $message = "$lang{EXTRA} $lang{ACCOUNT}\n" . $message if ($RESULT{BONUS_EXT_ACCOUNT});
         $html->message( 'info', $lang{INFO}, "$message" ) if (!$attr->{QUITE});
       }
+
       $user->{BILL_ID} = $user->{MAIN_BILL_ID} if ($user->{MAIN_BILL_ID});
     }
   }
@@ -1214,7 +1246,7 @@ sub bonus_service_discount{
   if ( $FORM{add} ){
     $Bonus->service_discount_add( { %FORM } );
     if ( !$Bonus->{errno} ){
-      $html->message( 'info', $lang{INFO}, "$lang{ADDED}" );
+      $html->message( 'info', $lang{INFO}, $lang{ADDED} );
     }
   }
   elsif ( $FORM{change} ){
@@ -1231,7 +1263,7 @@ sub bonus_service_discount{
     $Bonus->{LNG_ACTION} = $lang{CHANGE};
 
     if ( !$Bonus->{errno} ){
-      $html->message( 'info', $lang{INFO}, "$lang{CHANGING}" );
+      $html->message( 'info', $lang{INFO}, $lang{CHANGING} );
     }
   }
   elsif ( $FORM{del} && $FORM{COMMENTS} ){
@@ -1241,6 +1273,8 @@ sub bonus_service_discount{
       $html->message( 'info', $lang{INFO}, "$lang{DELETED} ID: $FORM{del}" );
     }
   }
+
+  _error_show($Bonus);
 
   $Bonus->{EXT_ACCOUNT} = 'checked' if ($Bonus->{EXT_ACCOUNT});
 
@@ -1255,6 +1289,16 @@ sub bonus_service_discount{
       EX_PARAMS=> 'multiple="multiple"'
     }
   );
+
+  if(in_array('Internet', \@MODULES)) {
+    require Control::Services;
+    $Bonus->{SEL_TP}=sel_tp({
+      SELECT    => 'TP_ID',
+      EX_PARAMS => 'multiple="multiple"',
+      TP_ID     => ($Bonus->{TP_ID}) ? $Bonus->{TP_ID} : undef,
+      SHOW_ALL  => 1
+    });
+  }
 
   $html->tpl_show( _include( 'bonus_service_discount', 'Bonus' ), $Bonus );
 
@@ -1281,6 +1325,7 @@ sub bonus_service_discount{
       caption => "$lang{BONUS} $lang{SERVICE}",
       qs      => $pages_qs,
       ID      => 'BONUX_SERVICE_DISCOUNT',
+      MENU    => "$lang{ADD}:index=" . $index . ':add' . ";",
       EXPORT  => 1,
     },
     SELECT_VALUE    => {
@@ -1358,7 +1403,6 @@ sub bonus_turbo{
       width      => '100%',
       caption    => "$lang{BONUS} Turbo",
       title      => [ "$lang{SERVICE} $lang{PERIOD} ($lang{MONTH})", "$lang{REGISTRATION} $lang{DAYS}", "Turbo $lang{COUNT}", '-', '-' ],
-      cols_align => [ 'right', 'right', 'right', 'center:noprint', 'center:noprint' ],
       qs         => $pages_qs,
       pages      => $Bonus->{TOTAL},
       ID         => 'BONUX_TURBO'
@@ -1474,7 +1518,6 @@ sub bonus_tp_accomulation{
     {
       caption    => $lang{TARIF_PLANS},
       title      => [ '#', $lang{NAME}, $lang{SCORES} ],
-      cols_align => [ 'right', 'left', 'left' ],
       ID         => 'DV_TARIF_PLANS'
     }
   );
@@ -1518,7 +1561,13 @@ sub bonus_periodic_accomulation{
   my $debug_output = '';
   $debug_output .= "Bonus - Accoumulation\n" if ($debug > 1);
 
-  my $D = (split(/-/, $DATE))[2];
+  my $date = $DATE;
+
+  if($attr->{DATE}) {
+    $date = $attr->{DATE};
+  }
+
+  my $D = (split(/-/, $date))[2];
 
   if ( $D != 1 ){
     $DEBUG .= $debug_output;
@@ -1548,7 +1597,7 @@ sub bonus_periodic_accomulation{
 
     foreach my $user ( @{$list} ){
       $user->{cost} = 0 if (!$user->{cost});
-      $debug_output .= "$user->{login}:$user->{uid} Score: $user->{cost}  \n" if ($debug > 1);
+      $debug_output .= "$user->{login}:$user->{uid} SCORE: $user->{cost}  \n" if ($debug > 1);
       if ( $debug < 5 ){
         $Bonus->accomulation_scores_change( {
           UID      => $user->{uid},
@@ -1725,7 +1774,7 @@ sub bonus_tp_using{
 
   _error_show($Bonus);
 
-  my $tp_list = $Tariffs->list( { MODULE => 'Dv', COLS_NAME => 1 } ),
+  my $tp_list = $Tariffs->list( { MODULE => 'Dv;Internet', COLS_NAME => 1 } ),
   my %TPS_HASH = ();
   my %TPS_HASH2 = ();
   foreach my $line ( @{$tp_list} ){
@@ -1807,22 +1856,19 @@ sub bonus_tp_using{
 =cut
 #**********************************************************
 sub bonus_likes{
-  
-  my $Users = Users->new($db, $admin, \%conf);
+
   my $Auth = Abills::Auth::Core->new({
     CONF      => \%conf,
-    AUTH_TYPE => ucfirst('Facebook') 
+    AUTH_TYPE => ucfirst('Facebook')
   });
-    
+
   $html->tpl_show( _include( 'bonus_likes', 'Bonus' ), $Bonus );
-  
+
   if ($FORM{post_url}) {
     my $likers = $Auth->who_liked_it("$conf{FB_ADMIN_ID}_$FORM{post_url}");
     _bp ('', $likers);
-  
   }
-  
-    
+
   return 1;
 }
 1

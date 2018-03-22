@@ -148,6 +148,7 @@
         </div>
             </div>
             <div class='form-group text-center'>
+              <p class="col-md-12">_{SOCIAL_NETWORKS}_</p>
               <link rel='stylesheet' href='/styles/default_adm/css/client_social_icons.css'>
               <ul class='social-network social-circle'>
                 %SOCIAL_AUTH_BLOCK%
@@ -172,7 +173,7 @@
       <div class='navbar-header'>
         <a href='index.cgi' class='navbar-brand'>
         <!-- mini logo for sidebar mini 50x50 pixels -->
-        <span class='logo-mini'>
+        <span class='logo-mini' title="ABillS">
           <b><span style="color: red;">A</span></b>BillS
         </span>
         </a>
@@ -208,7 +209,7 @@
 
 <div id='bodyPan'>
   
-  <ul class="timeline">
+  <ul class="list-unstyled">
     %CONTENT%
   </ul>
   </div>

@@ -12,7 +12,8 @@ BEGIN {
   our $libpath = '../';
   our $sql_type = 'mysql';
   unshift( @INC,
-    $libpath . "Abills/$sql_type/",
+    $libpath . "Abills/mysql/",
+    $libpath . "Abills/",
     $libpath . 'lib/',
     $libpath . 'Abills/modules/');
 
@@ -44,6 +45,7 @@ use Tariffs;
 use Conf;
 use Log;
 use Hotspot;
+use Internet;
 
 $conf{base_dir} = $base_dir if (!$conf{base_dir});
 
@@ -125,9 +127,6 @@ my $cookies_time = gmtime( time() + $auth_cookie_time ) . " GMT";
 our $admin = Admins->new( $db, \%conf );
 $admin->info( $conf{SYSTEM_ADMIN_ID}, { IP => $ENV{REMOTE_ADDR} } );
 
-# Loads config values from DB
-Conf->new($db, $admin, \%conf);
-
 #my $uid = 0;
 my %OUTPUT = ();
 my %INFO_HASH = ();
@@ -139,6 +138,10 @@ my $Log = Log->new($db, \%conf);
 my $Hotspot = Hotspot->new( $db, \%conf, $admin );
 $user = $users;
 
+if (in_array( 'Internet', \@MODULES )){
+  $Dv = Internet->new( $db, $admin, \%conf );
+}
+
 if ( $FORM{DOMAIN_ID} ){
   $admin->info( $conf{SYSTEM_ADMIN_ID}, { DOMAIN_ID => $FORM{DOMAIN_ID} } );
   $DOMAIN_ID = $admin->{DOMAIN_ID} || $FORM{DOMAIN_ID};
@@ -149,13 +152,8 @@ if ( $FORM{DOMAIN_ID} ){
     exit;
   }
 }
-else{
-  if ( in_array( 'Multidoms', \@MODULES )  ){
-    print $html->header( { CONTENT_LANGUAGE => $CONTENT_LANGUAGE } );
-    print "Wrong domain id!!!";
-    #exit;
-  }
-}
+# Loads config values from DB
+Conf->new($db, $admin, \%conf);
 
 my $Nas = Nas->new( $db, \%conf, $admin );
 
@@ -218,11 +216,11 @@ elsif ( $FORM{hotspot_advert}){
 }
 else{
   print "Content-Type: text/html\n\n";
-  
+
   $login_url = get_login_url();
-  
+
   $INFO_HASH{PAGE_QS} = "&language=$FORM{language}" if ($FORM{language});
-  
+
   $INFO_HASH{SELL_POINTS} = $html->tpl_show( _include( 'multidoms_sell_points', 'Multidoms' ), \%OUTPUT,
     { OUTPUT2RETURN => 1 } );
   $INFO_HASH{CARDS_BUY} = buy_cards();
@@ -292,7 +290,7 @@ sub get_login_url{
   if($FORM{UNIFI_SITENAME}) {
     $login_url =~ s/\%UNIFI_SITENAME\%/$FORM{UNIFI_SITENAME}/g;
   }
-  
+
   if($conf{HOTSPOT_REDIRECT_URL}) {
     $login_url .= "&dst=$conf{HOTSPOT_REDIRECT_URL}";
   }
@@ -588,37 +586,37 @@ sub get_hotspot_account{
 
         # if($extra_auth) {
           # if ($FORM{send_pin}) {
-            # _send_sms_with_pin($FORM{UID}); 
+            # _send_sms_with_pin($FORM{UID});
           # }
           # else
           # {
             # $html->message( 'info', '', "Этот телефон уже зарегистрирован, введите PIN");
           # }
-          # my $button = $html->button( "Выслать PIN повторно", 
+          # my $button = $html->button( "Выслать PIN повторно",
               # "DOMAIN_ID=$DOMAIN_ID&NAS_ID=$nas_id&send_pin=1&PHONE=$FORM{PHONE}&UID=$dv_list->[0]->{uid}&GUEST_ACCOUNT=1",
               # { class => 'btn btn-default btn-xs' } );
           # $html->tpl_show( templates( 'form_client_hotspot_pin' ), { %FORM, BUTTON => $button } );
-          
+
         # }
-        
+
         if ($FORM{send_pin}) {
           _send_sms_with_pin($dv_list->[0]);
-          
+
           if($conf{HOTSPOT_LOG}) {
             $Log->log_print('LOG_INFO', $dv_list->[0]->{login}, "Ask to send sms with pin to $dv_list->[0]->{phone}", { LOG_FILE => "$conf{HOTSPOT_LOG}" });
           }
-          
+
         }
-        my $button = $html->button( "Remind PIN", 
+        my $button = $html->button( "Remind PIN",
           "DOMAIN_ID=$DOMAIN_ID&NAS_ID=$nas_id&send_pin=1&PHONE=$FORM{PHONE}&UID=$dv_list->[0]->{uid}&GUEST_ACCOUNT=1",
           { class => 'btn btn-default btn-xs' } );
-        $html->tpl_show( templates( 'form_client_hotspot_pin' ), { 
+        $html->tpl_show( templates( 'form_client_hotspot_pin' ), {
             LOGIN     => $dv_list->[0]->{login},
             BUTTON    => $button,
             DOMAIN_ID => $DOMAIN_ID,
             UID       => $dv_list->[0]->{uid},
         });
-                
+
         return 0;
       }
     }
@@ -636,10 +634,10 @@ sub get_hotspot_account{
   $FORM{create} = 1;
   $FORM{COUNT}  = 1;
   $FORM{SERIAL} = 'G';
-  
-  $FORM{PASSWD_LENGTH} = $FORM{PASSWD_LENGTH} 
-                      || $conf{HOTSPOT_PASSWD_LENGTH} 
-                      || $conf{PASSWD_LENGTH} 
+
+  $FORM{PASSWD_LENGTH} = $FORM{PASSWD_LENGTH}
+                      || $conf{HOTSPOT_PASSWD_LENGTH}
+                      || $conf{PASSWD_LENGTH}
                       || 6;
 
   my $return = cards_users_add( { NO_PRINT => 1 } );
@@ -654,7 +652,7 @@ sub get_hotspot_account{
       if ( $FORM{PHONE} ){
         $FORM{'3.PHONE'} = $PHONE_PREFIX . $FORM{PHONE};
       }
-      
+
       if ( $conf{HOTSPOT_GUESTS_GROUP} && $conf{HOTSPOT_GUESTS_GID} ) {
         my $group_name = $conf{HOTSPOT_GUESTS_GROUP} . '_' . $DOMAIN_ID;
         my $group_id   = $conf{HOTSPOT_GUESTS_GID} + $DOMAIN_ID;
@@ -672,11 +670,11 @@ sub get_hotspot_account{
         last if (!$line->{SKIP_ERRORS});
       }
       else{
-      
+
         if($conf{HOTSPOT_LOG}) {
           $Log->log_print('LOG_INFO', $line->{LOGIN}, "New guest account create. UID:$line->{UID}", { LOG_FILE => "$conf{HOTSPOT_LOG}" });
         }
-     
+
         #Confim card creation
         if ( cards_users_gen_confim( { %{$line}, SUM => ($FORM{'5.SUM'}) ? $FORM{'5.SUM'} : 0 } ) == 0 ){
           return 0;
@@ -838,10 +836,10 @@ sub buy_cards{
 
   my $Tariffs = Tariffs->new( $db, \%conf, $admin );
   $LIST_PARAMS{UID} = $FORM{UID};
-  
+
   load_module( 'Paysys' );
   if ( $FORM{BUY_CARDS} || $FORM{PAYMENT_SYSTEM} ){
-  
+
     if ( $FORM{PAYMENT_SYSTEM} && $conf{HOTSPOT_CHECK_PHONE} && !$FORM{PHONE} ){
       _error_show({ errno => 21, err_str => 'ERR_WRONG_PHONE' }, { ID => 1504 });
       $FORM{PAYMENT_SYSTEM_SELECTED} = $FORM{PAYMENT_SYSTEM};
@@ -849,7 +847,7 @@ sub buy_cards{
     }
 
     if ( $FORM{PAYMENT_SYSTEM} ){
-    
+
       my $ret = paysys_payment( {
         OUTPUT2RETURN     => 1,
         QUITE             => 1,
@@ -867,7 +865,7 @@ sub buy_cards{
       $FORM{'3.EMAIL'}    = $FORM{EMAIL};
 
       if ( $FORM{TRUE} ){
-      
+
         if ( $ret ){
           load_module( 'Dv', $html );
           load_module( 'Cards', $html );
@@ -1014,7 +1012,7 @@ sub buy_cards{
   #}
 
   $LIST_PARAMS{DOMAIN_ID} = $DOMAIN_ID;
-  
+
   my $list = $Tariffs->list(
     {
       PAYMENT_TYPE     => '<2',
@@ -1100,7 +1098,7 @@ sub get_language_flags_list {
   my ($languages) = @_;
   my $result = '';
   my $href_base = "$SELF_URL?&NAS_ID=" . ($FORM{NAS_ID} || '') . "&DOMAIN_ID=" . ($FORM{DOMAIN_ID} || '');
-  
+
   for my $name (sort keys %$languages){
     my $short_name = uc(substr($name, 0, 2));
     $result .= qq{
@@ -1139,8 +1137,8 @@ sub _send_sms_with_pin {
     my $message = "PIN: $attr->{password}";
     my $phone = $PHONE_PREFIX . $attr->{phone};
     my $sms = Sms->new( $db, $admin, \%conf );
-    my $phone_sms_list = $sms->list({ 
-      SMS_PHONE    => $conf{SMS_NUMBER_EXPR} ? _expr($phone, $conf{SMS_NUMBER_EXPR}) : $phone, 
+    my $phone_sms_list = $sms->list({
+      SMS_PHONE    => $conf{SMS_NUMBER_EXPR} ? _expr($phone, $conf{SMS_NUMBER_EXPR}) : $phone,
       INTERVAL => "$DATE/$DATE",
     });
     if ( $phone_sms_list && scalar(@$phone_sms_list) >= 3 ) {
@@ -1148,12 +1146,12 @@ sub _send_sms_with_pin {
       if($conf{HOTSPOT_LOG}) {
         $Log->log_print('LOG_ERR', $attr->{login}, "Too many SMS on $attr->{phone}, rejected.", { LOG_FILE => "$conf{HOTSPOT_LOG}" });
       }
-      
+
       return 0;
     }
-    
+
     # my $uid_sms_list = $sms->list({ 
-      # UID      => $attr->{uid}, 
+      # UID      => $attr->{uid},
       # INTERVAL => "$DATE/$DATE",
     # });
     # _bp('uid', $uid_sms_list, {HEADER => 1});
@@ -1161,7 +1159,7 @@ sub _send_sms_with_pin {
       # $html->message( 'err', $lang{ERROR}, "Превышен лимит СМС для этого пользователя" );
       # return 0;
     # }
- 
+
     sms_send({
       NUMBER     => $phone,
       MESSAGE    => $message,
@@ -1187,11 +1185,19 @@ sub fast_login {
 
   # print "Content-Type:text/html\n\n";
   if ($FORM{error}) {
-    if ($FORM{error} =~ /Negativ/) {
+    if ($conf{HOTSPOT_USE_PIN}) {
+      #ask user for card pin
+      #TODO: filter errors
+      print $html->header();
+      my $use_card_tpl = advert_page('use_card_tpl') || 'form_client_hotspot_use_card';
+      print $html->tpl_show( templates( $use_card_tpl ), \%FORM);
+      exit;
+    }
+    elsif ($FORM{error} =~ /Negativ/) {
       my $list = $Dv->list({
         LOGIN     => ($COOKIES{hotspot_username} || $FORM{username}),
         UID       => '_SHOW',
-        
+
         COLS_NAME => 1,
       });
       my $Tariffs = Tariffs->new( $db, \%conf, $admin );
@@ -1215,6 +1221,26 @@ sub fast_login {
     }
   }
 
+  if ($FORM{CARD_NUM}) {
+    #user use recharge card, proceed
+    my $result = hotspot_card({
+      PIN     => $FORM{CARD_NUM},
+      LOGIN   => ($FORM{username} || $COOKIES{hotspot_username}),
+      HOTSPOT => ($FORM{server_name} || $COOKIES{server_name}),
+    });
+
+    if ($result) {
+      $Hotspot->log_add({
+        HOTSPOT  => $COOKIES{server_name},
+        CID      => $FORM{mac},
+        ACTION   => 4,
+        COMMENTS => "User:$COOKIES{hotspot_username} use pin:$FORM{CARD_NUM}",
+      });
+      print $html->header();
+      print $html->message( 'info', "Ваучер использован", "$result" );
+    }
+  }
+
   if ($FORM{TRUE}) {
     # Online payment success, looking for confirm
     load_module('Paysys', $html);
@@ -1223,7 +1249,7 @@ sub fast_login {
       my $list = $Dv->list({
         LOGIN     => ($COOKIES{hotspot_username} || $FORM{username}),
         UID       => '_SHOW',
-        
+
         COLS_NAME => 1,
       });
       $uid = $list->[0]->{uid};
@@ -1245,20 +1271,20 @@ sub fast_login {
     print $output;
     exit;
   }
-  
+
   if ($FORM{external_auth_failed}) {
     print $html->header();
     print $html->message('err', $lang{ERROR}, $lang{ERR_SN_ERROR});
     exit;
   }
-  
+
   $FORM{mac} = $FORM{mac} || $COOKIES{mac} || '';
   if ($FORM{mac} !~ /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/) {
     print $html->header();
     print $html->message( 'err', "$lang{ERROR}", "Wrong MAC format." );
     exit;
   }
-  
+
   $FORM{DST} = $conf{HOTSPOT_REDIRECT_URL} || 'https://www.google.com';
 
 #===== SHOW FB PAGE =====
@@ -1278,28 +1304,28 @@ sub fast_login {
             frameborder='0' 
             allowTransparency='true'>
           </iframe>";
-    
+
     #FB like button    
     # print "<iframe 
-            # src='https://www.facebook.com/plugins/like.php?href=$encoded_url&width=450&layout=standard&action=like&size=large&show_faces=true&share=false&height=80&appId=$conf{AUTH_FACEBOOK_ID}' 
-            # width='450' 
-            # height='80' 
-            # style='border:none;overflow:hidden' 
-            # scrolling='no' 
-            # frameborder='0' 
+            # src='https://www.facebook.com/plugins/like.php?href=$encoded_url&width=450&layout=standard&action=like&size=large&show_faces=true&share=false&height=80&appId=$conf{AUTH_FACEBOOK_ID}'
+            # width='450'
+            # height='80'
+            # style='border:none;overflow:hidden'
+            # scrolling='no'
+            # frameborder='0'
             # allowTransparency='true'>
-          # </iframe>";      
-          
+          # </iframe>";
+
     print $html->tpl_show( templates( 'hotspot_fb_like' ), \%FORM );
     exit;
-  }  
-  
+  }
+
 #===== COOKIES =====
   if ( $COOKIES{hotspot_username} && $COOKIES{hotspot_password}) {
     if($conf{HOTSPOT_LOG}) {
       $Log->log_print('LOG_INFO', $COOKIES{hotspot_username}, "Cookie $COOKIES{hotspot_password}", { LOG_FILE => "$conf{HOTSPOT_LOG}" });
     }
-    
+
     $Hotspot->log_add({
       HOTSPOT  => $COOKIES{server_name},
       CID      => $FORM{mac},
@@ -1307,18 +1333,18 @@ sub fast_login {
       COMMENTS => "User:$COOKIES{hotspot_username} cookies login"
     });
     print $html->header();
-    print $html->tpl_show( templates( 'hotspot_auto_login' ), { 
+    print $html->tpl_show( templates( 'hotspot_auto_login' ), {
       LOGIN              => $COOKIES{hotspot_username},
       PASSWORD           => $COOKIES{hotspot_password},
       HOTSPOT_AUTO_LOGIN => $COOKIES{link_login} || $conf{HOTSPOT_AUTO_LOGIN},
       DST                => redirect_page(),
     });
-    exit;  
+    exit;
   }
-  
+
 #===== CHECK PHONE =====
   if ( $conf{HOTSPOT_CHECK_PHONE} ){
-    
+
     my $hot_log = $Hotspot->log_list({
         CID       => $FORM{mac},
         INTERVAL  => "$DATE/$DATE",
@@ -1326,9 +1352,9 @@ sub fast_login {
         PHONE     => '_SHOW',
         COLS_NAME => 1,
     });
-    
+
     if ($Hotspot->{TOTAL} > 0) {
-      
+
       if ($conf{HOTSPOT_MAC_CHANGE} && $hot_log->[0]->{phone}) {
         #Update MAC for existing user.
         my $list = $Dv->list({
@@ -1359,7 +1385,28 @@ sub fast_login {
   }
 
 #===== AUTH =====
-  if ($conf{HOTSPOT_MAC_LOGIN} && $FORM{mac}) {
+  if ($conf{HOTSPOT_ONE_LOGIN_FOR_ALL}) {
+    my ($login, $password) = split (/:/, $conf{HOTSPOT_ONE_LOGIN_FOR_ALL});
+    $Hotspot->log_add({
+      HOTSPOT  => $COOKIES{server_name},
+      CID      => $FORM{mac},
+      ACTION   => 3,
+      COMMENTS => "User:$login($FORM{mac}) auto login"
+    });
+    mk_cookie({
+      hotspot_username=> $login,
+      hotspot_password=> $password,
+    });
+    print $html->header();
+    print $html->tpl_show( templates( 'hotspot_auto_login' ), {
+      LOGIN              => $login,
+      PASSWORD           => $password,
+      HOTSPOT_AUTO_LOGIN => $COOKIES{link_login} || $conf{HOTSPOT_AUTO_LOGIN},
+      DST                => redirect_page(),
+    });
+    exit;
+  }
+  elsif ($conf{HOTSPOT_MAC_LOGIN} && $FORM{mac}) {
     fast_mac_login();
   }
   elsif ($conf{PASSWD_LOGIN}) {
@@ -1368,7 +1415,7 @@ sub fast_login {
       DST                => redirect_page(),
       HOTSPOT_AUTO_LOGIN => $COOKIES{link_login} || $conf{HOTSPOT_AUTO_LOGIN},
     });
-    exit;  
+    exit;
   }
   elsif ($conf{HOTSPOT_SN_LOGIN}) {
     #new FB user, go to registration
@@ -1393,7 +1440,7 @@ if ($conf{HOTSPOT_BUY_CARDS}) {
     print $output;
     exit;
   }
-}  
+}
 
 #===== REGISTRATION =====
   if($conf{HOTSPOT_REGISTRATION} && $conf{HOTSPOT_REGISTRATION} eq 'NO') {
@@ -1415,6 +1462,7 @@ if ($conf{HOTSPOT_BUY_CARDS}) {
 sub hotspot_registration {
   my $Tariffs = Tariffs->new( $db, \%conf, $admin );
   my $tp_list = $Tariffs->list({
+    TP_ID        => '_SHOW',
     PAGE_ROWS    => 1,
     SORT         => 1,
     NAME         => '_SHOW',
@@ -1422,9 +1470,9 @@ sub hotspot_registration {
     PAYMENT_TYPE => 2,
     COLS_NAME    => 1,
     NEW_MODEL_TP => 1,
-    
+
   });
-  
+
   if ( $FORM{TRUE} ) {
     # Online payments success.
     $Tariffs->info( $FORM{TP_ID} );
@@ -1434,24 +1482,29 @@ sub hotspot_registration {
     $FORM{'5.EXT_ID'}   = ($FORM{SYSTEM_SHORT_NAME} || q{}) .":$FORM{OPERATION_ID}";
     $FORM{'5.METHOD'}   = 2;
   }
+  elsif ($conf{HOTSPOT_TPS}) {
+    $FORM{'4.TP_ID'} = $conf{HOTSPOT_TPS};
+  }
   elsif ($Tariffs->{TOTAL} < 1) {
     print $html->header();
     print $html->message( 'err', "$lang{ERROR}", "No guest tp" );
     exit;
   }
   else {
-    $FORM{'4.TP_ID'} = $tp_list->[0]->{id};
+    $FORM{'4.TP_ID'} = $tp_list->[0]->{tp_id};
   }
-  
+
   $FORM{create} = 1;
   $FORM{COUNT}  = 1;
   $FORM{SERIAL} = 'G';
   $FORM{PASSWD_LENGTH} = 6;
-  
+  $FORM{LOGIN_LENGTH} = $conf{HOTSPOT_LOGIN_LENGTH} || 6;
+  $FORM{LOGIN_PREFIX} = $conf{HOTSPOT_LOGIN_PREFIX} || '';
+
   load_module( 'Cards', $html );
   my $return = cards_users_add( { NO_PRINT => 1 } );
   $FORM{add} = 1;
-  
+
   $FORM{'1.LOGIN'}       = $return->[0]->{LOGIN};
   $FORM{'1.PASSWORD'}    = $return->[0]->{PASSWORD};
   $FORM{'4.CID'}         = $FORM{mac};
@@ -1467,13 +1520,19 @@ sub hotspot_registration {
     $FORM{'1.GID'} = $group_id;
   }
 
-  load_module( 'Dv', $html );
-  $return->[0]->{UID} = dv_wizard_user( { SHORT_REPORT => 1 } );
+  if (in_array( 'Internet', \@MODULES )) {
+    load_module( 'Internet', $html );
+    $return->[0]->{UID} = internet_wizard_add( { SHORT_REPORT => 1, %FORM } );
+  }
+  else {
+    load_module( 'Dv', $html );
+    $return->[0]->{UID} = dv_wizard_user( { SHORT_REPORT => 1 } );
+  }
 
   if($conf{HOTSPOT_LOG}) {
     $Log->log_print('LOG_INFO', $return->[0]->{LOGIN}, "New guest account create. UID:$return->[0]->{UID}", { LOG_FILE => "$conf{HOTSPOT_LOG}" });
   }
-     
+
   #Confim card creation
   cards_users_gen_confim( { %{$return->[0]}, SUM => 0 } );
 
@@ -1484,20 +1543,20 @@ sub hotspot_registration {
         PHONE    => $FORM{PHONE} || '',
         COMMENTS => "$return->[0]->{LOGIN} registred, UID:$return->[0]->{UID}"
       });
-      
+
   mk_cookie({
     hotspot_username=> $return->[0]->{LOGIN},
     hotspot_password=> $return->[0]->{PASSWORD},
   });
   print $html->header();
-  print $html->tpl_show( templates( 'hotspot_auto_login' ), { 
+  print $html->tpl_show( templates( 'hotspot_auto_login' ), {
     LOGIN              => $return->[0]->{LOGIN},
     PASSWORD           => $return->[0]->{PASSWORD},
     HOTSPOT_AUTO_LOGIN => $COOKIES{link_login} || $conf{HOTSPOT_AUTO_LOGIN},
     DST                => redirect_page(),
   });
   exit;
-}  
+}
 
 #**********************************************************
 =head2 fast_mac_login()
@@ -1517,7 +1576,7 @@ sub fast_mac_login {
     LOGIN        => '_SHOW',
     PHONE        => '_SHOW',
     CID          => $FORM{mac},
-    PAYMENT_TYPE => 2,
+    ($conf{HOTSPOT_TPS} ? '' : PAYMENT_TYPE => 2),
     COLS_NAME    => 1,
   });
 
@@ -1533,14 +1592,14 @@ sub fast_mac_login {
     if($conf{HOTSPOT_LOG}) {
       $Log->log_print('LOG_INFO', $list->[0]->{login}, "$FORM{mac} MAC login", { LOG_FILE => "$conf{HOTSPOT_LOG}" });
     }
-    
+
     mk_cookie({
       hotspot_username=> $list->[0]->{login},
       hotspot_password=> $list->[0]->{password},
     });
-    
+
     print $html->header();
-    print $html->tpl_show( templates( 'hotspot_auto_login' ), { 
+    print $html->tpl_show( templates( 'hotspot_auto_login' ), {
       LOGIN              => $list->[0]->{login},
       PASSWORD           => $list->[0]->{password},
       HOTSPOT_AUTO_LOGIN => $COOKIES{link_login} || $conf{HOTSPOT_AUTO_LOGIN},
@@ -1557,23 +1616,20 @@ sub fast_mac_login {
 =cut
 #**********************************************************
 sub redirect_page {
-  my $dst = $conf{HOTSPOT_REDIRECT_URL};
+  my $dst = $conf{HOTSPOT_REDIRECT_URL} || 'https://www.google.com';;
   if ($COOKIES{server_name}) {
     my $pages_list = $Hotspot->advert_pages_list({
       HOSTNAME  => $COOKIES{server_name},
       ACTION    => 'redirect',
       PAGE      => '_SHOW',
-      
-      COLS_NAME => 1, 
+
+      COLS_NAME => 1,
     });
     if (ref ($pages_list) eq 'ARRAY' && scalar($pages_list) > 0) {
       $dst = $pages_list->[0]->{page} || $conf{HOTSPOT_REDIRECT_URL} || 'https://www.google.com';
     }
   }
-  else {
-    $dst = $conf{HOTSPOT_REDIRECT_URL} || 'https://www.google.com'; 
-  }
-  
+
   return $dst;
 }
 
@@ -1628,7 +1684,7 @@ sub phone_verifycation {
     exit;
   }
   elsif (!$FORM{PIN}) {
-    my $hot_log = $Hotspot->log_list({
+    $Hotspot->log_list({
       PHONE     => $FORM{PHONE},
       CID       => $FORM{mac},
       INTERVAL  => "$DATE/$DATE",
@@ -1636,7 +1692,7 @@ sub phone_verifycation {
       COMMENTS  => '_SHOW',
       COLS_NAME => 1,
     });
-    
+
     my $pin = '42';
     if ($Hotspot->{TOTAL} < 1 || $FORM{send_pin}) {
       $pin =  int(rand(900)) + 100;
@@ -1685,15 +1741,15 @@ sub phone_verifycation {
       });
       $FORM{'3.PHONE'} = $PHONE_PREFIX . $FORM{PHONE};
       $conf{HOTSPOT_MAC_LOGIN} = 1;
-      
+
     }
     else {
       if($conf{HOTSPOT_LOG}) {
         $Log->log_print('LOG_ERR', $FORM{PHONE}, "Do not confirmed, wrong pin $FORM{PIN}, $hot_log->[0]->{comments}.", { LOG_FILE => "$conf{HOTSPOT_LOG}" });
       }
-      my $button = $html->button( "Remind PIN", 
+      my $button = $html->button( "Remind PIN",
         "&send_pin=1&PHONE=$FORM{PHONE}&mac=$FORM{mac}",
-        { class => 'btn btn-default btn-xs' } 
+        { class => 'btn btn-default btn-xs' }
       );
       print $html->header();
       print $html->message( 'err', "$lang{ERROR}", "Wrong pin. $button" );
@@ -1712,23 +1768,150 @@ sub phone_verifycation {
 sub advert_page {
   my ($action) = @_;
 
-  my $page = ''; 
+  my $page = '';
   return $page unless ($COOKIES{server_name});
 
   my $pages_list = $Hotspot->advert_pages_list({
     HOSTNAME  => $COOKIES{server_name},
     ACTION    => $action,
     PAGE      => '_SHOW',
-      
-    COLS_NAME => 1, 
+
+    COLS_NAME => 1,
   });
 
   if (ref ($pages_list) eq 'ARRAY' && scalar($pages_list) > 0) {
     $page = $pages_list->[0]->{page};
   }
-  
+
   return $page;
 }
 
+#**********************************************************
+=head2 hotspot_card()
+  Use card
+=cut
+#**********************************************************
+sub hotspot_card {
+  my ($attr) = @_;
+  my @status    = ($lang{ENABLE}, $lang{DISABLE}, $lang{USED}, $lang{DELETED}, $lang{RETURNED}, $lang{PROCESSING});
+  use Cards;
+  use Payments;
+  $Cards = Cards->new($db, $admin, \%conf);
+  my $payments  = Payments->new($db, $admin, \%conf);
+  my $diller = advert_page('diller_id');
+  my DBI $_db = $db->{db};
+  $_db->{AutoCommit} = 0;
+  print $html->header();
+  $user->info(undef, { LOGIN => $attr->{LOGIN}, DOMAIN_ID => $admin->{DOMAIN_ID} });
+  my $BRUTE_LIMIT = ($conf{CARDS_BRUTE_LIMIT}) ? $conf{CARDS_BRUTE_LIMIT} : 5;
+  $Cards->bruteforce_list({ UID => $user->{UID} });
+  if ($Cards->{BRUTE_COUNT} && $Cards->{BRUTE_COUNT} >= $BRUTE_LIMIT) {
+    print $html->message('err', $lang{ERROR}, "$lang{BRUTE_ATACK} $Cards->{BRUTE_COUNT}) >= $BRUTE_LIMIT", { ID => 601 });
+    return 0;
+  }
+
+  $Cards->cards_info({ PIN => $attr->{PIN}, DILLER_ID => $diller});
+
+  if ($Cards->{errno}) {
+    if ($Cards->{errno} == 2) {
+      $Cards->bruteforce_add({ UID => $user->{UID}, PIN => $attr->{PIN} });
+      $_db->commit();
+    }
+    print $html->message('err', $lang{ERROR}, $Cards->{errstr});
+    return 0;
+  }
+  elsif ($Cards->{EXPIRE_STATUS} == 1) {
+    print $html->message('err', $lang{ERROR}, "$lang{EXPIRE} '$Cards->{EXPIRE}'", { ID => 602 });
+    return 0;
+  }
+  elsif ($Cards->{STATUS} != 0) {
+    if ($Cards->{STATUS} == 5) {
+      $html->message('info', $lang{INFO}, "$status[$Cards->{STATUS}]");
+    }
+    else {
+      $html->message('err', $lang{ERROR}, "$status[$Cards->{STATUS}]", { ID => 606 });
+    }
+    return 0;
+  }
+  else {
+
+    $payments->add(
+      $user,
+      {
+        SUM          => $Cards->{SUM},
+        METHOD       => 2,
+        DESCRIBE     => "$Cards->{SERIAL}$Cards->{NUMBER}",
+        EXT_ID       => "$Cards->{SERIAL}$Cards->{NUMBER}",
+        CHECK_EXT_ID => "$Cards->{SERIAL}$Cards->{NUMBER}",
+        TRANSACTION  => 1
+      }
+    );
+
+    if (!$payments->{errno}) {
+      $user->{DEPOSIT} += $Cards->{SUM} - $Cards->{COMMISSION};
+
+      $Cards->cards_change(
+        {
+          ID       => $Cards->{ID},
+          STATUS   => 2,
+          UID      => $user->{UID},
+          DATETIME => "$DATE $TIME",
+        }
+      );
+
+      if ($Cards->{errno}) {
+        $_db->rollback();
+        $html->message('err', $lang{ERROR}, "$status[$Cards->{STATUS}]", { ID => 607 });
+        return 0;
+      }
+
+      $html->message('info', $lang{PAYMENTS}, "$lang{ADDED}\n$lang{SUM}: $Cards->{SUM} \n");
+
+      use Dillers;
+      my $Diller = Dillers->new($db, $admin, \%conf);
+      $Diller->diller_info({ ID => $Cards->{DILLER_ID} });
+      my $diller_fees = 0;
+      if ($Diller->{PAYMENT_TYPE} == 2 && $Diller->{OPERATION_PAYMENT} > 0) {
+        $diller_fees=$Cards->{SUM} / 100 * $Diller->{OPERATION_PAYMENT};
+      }
+      elsif ($Diller->{DILLER_PERCENTAGE} > 0) {
+        $diller_fees=$Diller->{DILLER_PERCENTAGE};
+      }
+
+      if ($diller_fees > 0) {
+        my $user_new = Users->new($db, $admin, \%conf);
+        $user_new->info($Diller->{UID});
+
+        my $Fees = Finance->fees($db, $admin, \%conf);
+        $Fees->take(
+          $user_new,
+          $diller_fees,
+          {
+            DESCRIBE => "CARD_ACTIVATE: $Cards->{ID}",
+            METHOD   => 0,
+          }
+        );
+      }
+    }
+
+    $payments->list({ EXT_ID => "$Cards->{SERIAL}$Cards->{NUMBER}" });
+    if ($payments->{TOTAL} <= 1) {
+      $_db->commit();
+    }
+
+    $_db->{AutoCommit} = 1;
+    cross_modules_call('_payments_maked', {
+      USER_INFO    => $user,
+      SUM          => $Cards->{SUM},
+      SKIP_MODULES => 'Cards,Sqlcmd',
+      QUITE        => 1,
+      SILENT       => 1,
+      METHOD       => 2
+    });
+    return $Cards->{NUMBER};
+  }
+
+  return 1;
+}
 
 1

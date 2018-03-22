@@ -58,6 +58,7 @@
     settings.enablePan       = options.enablePan || true;
     settings.enableZoom      = options.enableZoom || true;
     settings.redrawCallback  = options.redrawCallback || null;
+    settings.skipScroll  = options.skipScroll || false;
     this.currZoom            = settings.initialZoom;
     this.currPos             = settings.initialPosition;
     function repaint() {
@@ -112,7 +113,7 @@
     
     this.applyPan = applyPan;
     function handleScroll(e) {
-      if (!me.enabled) {return false;}
+      if (settings.skipScroll || !me.enabled) {return false;}
       if (!settings.enableZoom) {return false;}
       var evt = window.event || e, delta = evt.detail || evt.wheelDelta * -1, zoomCenter = getRelativePosition(evt, container);
       if (delta > 0) {delta = -1;} else if (delta < 0) {delta = 1;}

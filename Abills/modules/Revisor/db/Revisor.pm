@@ -75,7 +75,8 @@ sub user_list {
    FROM users u
    $EXT_TABLES
    $WHERE
-   ORDER BY $SORT $DESC;",
+   ORDER BY $SORT $DESC
+   LIMIT $PG, $PAGE_ROWS;",
     undef,
     {
       COLS_NAME => 1,

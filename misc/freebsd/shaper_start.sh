@@ -52,7 +52,8 @@
 
 
 CLASSES_NUMS='2 3'
-VERSION=7.14
+VERSION=7.20
+# REVISION: 20180110
 
 name="abills_shaper"
 
@@ -80,6 +81,7 @@ rcvar=`set_rcvar`
 : ${abills_portal_ip="me"}
 : ${abills_mikrotik_shaper=""}
 : ${abills_squid_redirect="NO"}
+: ${abills_squid_ip="127.0.0.1"}
 : ${firewall_type=""}
 
 : ${abills_ipn_nas_id=""}
@@ -92,7 +94,7 @@ rcvar=`set_rcvar`
 
 : ${abills_paysys_tmp_access="NO"}
 
-load_rc_config $name
+load_rc_config ${name}
 #run_rc_command "$1"
 
 IPFW=/sbin/ipfw
@@ -259,9 +261,10 @@ abills_shaper() {
     ${IPFW} add 10010 netgraph tablearg ip from any to table\(11\) ${OUT_DIRECTION}
     ${IPFW} add 10020 allow ip from table\(9\) to any ${IN_DIRECTION}
     ${IPFW} add 10025 allow ip from any to table\(9\) ${OUT_DIRECTION}
-    if [ "${INTERNAL_INTERFACE}" = "ng*" ]; then
-      ${IPFW} add 10030 allow ip from any to any via ${INTERNAL_INTERFACE}
-    fi;
+
+    #if [ "${INTERNAL_INTERFACE}" = "ng*" ]; then
+    #  ${IPFW} add 10030 allow ip from any to any via ${INTERNAL_INTERFACE}
+    #fi;
   #done
   #Stop ng_car shaper
   elif [ w${ACTION} = wstop -a w$2 = w ]; then
@@ -349,8 +352,15 @@ abills_ipn() {
     fi;
 
     echo "Restart active sessions"
-    /usr/abills/libexec/periodic monthly MODULES=Ipn SRESTART=1 NO_ADM_REPORT=1 NAS_IDS="${abills_ipn_nas_id}" &
 
+    INTERNET_MODULE='Ipn'
+    INTERNTE_CHECK=`grep Internet /usr/abills/libexec/config.pl`
+
+    if [ "${INTERNTE_CHECK}" != "" ]; then
+      INTERNET_MODULE="Internet"
+    fi;
+
+    /usr/abills/libexec/periodic monthly MODULES=${INTERNET_MODULE} SRESTART=1 NO_ADM_REPORT=1 NAS_IDS="${abills_ipn_nas_id}" LOCAL_NAS="${abills_ipn_nas_id}" FN=ipoe_periodic_session_restart &
 
     #Start shaper
     if [ "${abills_ipn_if}" != "" ] ; then
@@ -494,9 +504,9 @@ if [ "${ACTION}" = "start" ]; then
     NAT_IF="via ${NAT_IF}"
   fi;
 
-  ${IPFW} add 64010 nat tablearg ip from table\(` expr ${NAT_REAL_TO_FAKE_TABLE_NUM} + 1 `\) to any $NAT_IF
-  ${IPFW} add 1020 nat tablearg ip from any to table\(${NAT_REAL_TO_FAKE_TABLE_NUM}\) $NAT_IF in
-elif [ w${ACTION} = wstop ]; then
+  ${IPFW} add 64010 nat tablearg ip from table\(` expr ${NAT_REAL_TO_FAKE_TABLE_NUM} + 1 `\) to any ${NAT_IF}
+  ${IPFW} add 1020 nat tablearg ip from any to table\(${NAT_REAL_TO_FAKE_TABLE_NUM}\) ${NAT_IF} in
+elif [ "${ACTION}" = stop ]; then
   ${IPFW} table ${NAT_REAL_TO_FAKE_TABLE_NUM} flush
   ${IPFW} table ` expr ${NAT_REAL_TO_FAKE_TABLE_NUM} + 1 ` flush
   ${IPFW} delete 64010 20 64015
@@ -589,9 +599,7 @@ squid_redirect() {
     return 0;
   fi;
 
-  if [ "${SQUID_SERVER_IP}" = "" ]; then
-    SQUID_SERVER_IP=127.0.0.1;
-  fi;
+  SQUID_SERVER_IP=${abills_squid_ip};
 
   SQUID_REDIRET_TABLE=40
   FWD_RULE=10040;
@@ -685,6 +693,6 @@ paysys_tmp_access() {
 }
 
 
-load_rc_config $name
+load_rc_config ${name}
 run_rc_command "$1"
 

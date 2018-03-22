@@ -8,6 +8,7 @@
 var CASE_LOW  = 0;
 var CASE_UPP  = 1;
 var CASE_BOTH = 2;
+var CASE_NO   = 3;
 
 var CHARS_NUM  = 0;
 var CHARS_SPE  = 1;
@@ -40,7 +41,6 @@ function generatePassword(options) {
   var password = "";
   console.log(options);
   
-  
   if (options.SYMBOLS) {
     var parsed_options = getPasswordParamsForSymbols(options.SYMBOLS);
     delete options.SYMBOLS;
@@ -52,6 +52,12 @@ function generatePassword(options) {
   
   options.CASE  = options.CASE || 0;
   options.CHARS = options.CHARS || 0;
+  
+  // Do not allow situation when no case and no chars used
+  if (options.CASE === options.CHARS && options.CASE === "3"){
+    options.CASE = CASE_BOTH;
+    options.CHARS = CHARS_SPE;
+  }
   
   var array       = [];
   var check_rules = [];
@@ -69,6 +75,9 @@ function generatePassword(options) {
       array = array.concat(PASSWORD_CHARS_UPPERCASE);
       array = array.concat(PASSWORD_CHARS_LOWERCASE);
       check_rules.push(PASSWORD_CHARS_LOWERCASE.join(''), PASSWORD_CHARS_UPPERCASE.join(''));
+      break;
+    case (CASE_NO):
+      // Do not add any symbols
       break;
     default :
       console.log('WTF case: ' + options.CASE.valueOf());
@@ -128,6 +137,9 @@ function getPasswordParamsForSymbols(symbols) {
   }
   else if (has_uppercase){
     result.CASE = CASE_UPP;
+  }
+  else if (!has_lowercase && !has_lowercase){
+    result.case = CASE_NO;
   }
   
   var has_numbers = symbols.match(new RegExp('[' + PASSWORD_CHARS_NUMERIC.join() + ']+'));

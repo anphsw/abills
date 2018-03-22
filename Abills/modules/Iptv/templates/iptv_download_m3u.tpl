@@ -1,9 +1,11 @@
 <form method='post'>
 <input type='hidden' name='index' value='$index' />
+<input type='hidden' name='export' value='1' />
 
 <div class='box box-primary form-horizontal'>
 <div class='box-header with-border'>_{DOWNLOAD_CHANNELS}_</div>
 <div class='box-body'>
+
 %TABLE%
 
 <div class='form-group'>

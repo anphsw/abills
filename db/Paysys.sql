@@ -58,3 +58,17 @@ CREATE TABLE IF NOT EXISTS `paysys_tyme_report` (
   UNIQUE KEY `txn_id` (`txn_id`)
 )
   COMMENT = 'Table for Tyme report';
+
+CREATE TABLE IF NOT EXISTS `paysys_groups_settings` (
+  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `gid` SMALLINT(4) UNSIGNED NOT NULL DEFAULT '0',
+  `paysys_id` SMALLINT(4) UNSIGNED NOT NULL DEFAULT '0',
+  UNIQUE KEY `id` (`id`)
+)
+  COMMENT = 'Settings for each group';
+
+CREATE TABLE IF NOT EXISTS paysys_connect (
+  `id` TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  `status` TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  UNIQUE KEY `id`(`id`)
+) COMMENT = 'Paysys connected systems';

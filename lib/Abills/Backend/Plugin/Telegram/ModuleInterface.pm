@@ -10,10 +10,16 @@ use warnings FATAL => 'all';
 
 # Msgs. will generify later
 
-our ($db, $admin, %conf);
-
+our ($db, $admin, %conf, $base_dir);
 use Abills::Backend::Plugin::Telegram::Operation;
+use Abills::Experimental::Language;
 use Abills::Base qw/_bp/;
+
+use Abills::Backend::Log;
+my $log_file = $conf{TELEGRAM_LOG} || (($base_dir || '/usr/abills') . '/var/log/telegram.log');
+my $debug = $conf{TELEGRAM_DEBUG} || 7;
+my $Log = Abills::Backend::Log->new('STDOUT', $debug, 'ModuleInterface',);#; { FILE => $log_file });
+
 
 require Msgs::Messaging;
 
@@ -53,41 +59,41 @@ sub process_data {
   
   my $client_type = $attr->{CLIENT_TYPE};
   my $client_id = $attr->{CLIENT_ID};
+  my $chat_id = $attr->{CHAT_ID};
   
-  my $save_reply = ($client_type eq 'UID')
-    ? sub {
-      my ($msg_id, $text) = @_;
-      my $sent = msgs_user_reply($msg_id, {
-          REPLY_TEXT => $text,
-          UID        => $client_id,
-          #        STATE => 6
-        });
-      $sent;
-    }
-    : sub {
-      my ($msg_id, $text) = @_;
-      my $sent = msgs_admin_reply($msg_id, {
-          REPLY_TEXT => $text,
-          AID        => $client_id,
-        });
-      $sent;
-    };
+  # Load msgs lang vars
+  my $lang_name = $api->get_lang_for_chat_id($chat_id) || 'russian';
+  my Abills::Experimental::Language $Language = $api->{Language};
+  $Language->load($lang_name, 'Msgs');
   
   if ( $method && $method eq 'REPLY' ) {
+    $Log->debug("Got REPLY");
+    
     my $msg_id = shift @data;
     my $callback_id = $attr->{callback_query_id};
-    my $chat_id = $attr->{CHAT_ID};
     
     if ( !$msg_id ) {
-      $api->send_callback_answer($attr->{callback_query_id}, "No MSG id");
+      $Log->debug("No MSGS id");
+      $api->send_callback_answer($attr->{callback_query_id}, "No MSG id", $chat_id);
       return 0;
     }
     
+    
+    if ($client_type eq 'UID'){
+      my $user_can_reply = msgs_user_can_reply_to_theme($msg_id);
+      $Log->debug('Error while checking user can reply') unless defined $user_can_reply;
+      if (!$user_can_reply){
+        $api->send_text("_{YOU_CANT_REPLY_TO_THIS_MESSAGE}_", $chat_id);
+        return 0;
+      }
+    }
+    
     # Create new operation
-    my $reply_operation = Abills::Backend::Plugin::Telegram::Operation->new({
+    return Abills::Backend::Plugin::Telegram::Operation->new({
       NAME       => 'Reply',
       MSGS_ID    => $msg_id,
       ON_START   => sub {
+        $Log->debug("Operation started");
         $api->send_text('_{TYPE_YOUR_RESPONSE}_', $chat_id);
       },
       ON_MESSAGE => sub {
@@ -97,30 +103,61 @@ sub process_data {
           return 0;
         }
         
-        my $saved = $save_reply->($msg_id, $message->{text});
-        
-        if ( !$saved ) {
-          my $err = '_{UNKNOWN_ERROR}_';
-          $api->send_text("$err . _{TRY_AGAIN}_ or use '/cancel' to stop reply", $chat_id);
-          0;
-        }
-        else {
+        my $saved = 0;
+        eval {
+          $Log->debug("Saving reply $client_type");
+          $saved = msgs_messaging_save_reply($client_type, $client_id, $msg_id, $message->{text});
+          $Log->debug("Reply has been saved");
           $api->send_text('_{SENDED}_', $chat_id);
-          1;
+        };
+        if ( !$saved || $@ ) {
+          my $err = $@ || '_{UNKNOWN_ERROR}_';
+          $Log->debug("Error while replying");
+          $api->send_text("$err . _{TRY_AGAIN}_ or use '/cancel' to stop reply", $chat_id);
         }
-        
+        $saved;
       },
       ON_FINISH  => sub {
-        $api->send_callback_answer($callback_id, '_{SENDED}_');
+        $Log->debug("Operation finished");
+        $api->send_callback_answer($callback_id, '_{SENDED}_', $chat_id);
       },
       %{ $attr },
       
     });
-    
-    return $reply_operation;
   }
   
   return 0;
+}
+
+#**********************************************************
+=head2 msgs_messaging_save_reply()
+
+=cut
+#**********************************************************
+sub msgs_messaging_save_reply {
+  my ($client_type, $client_id, $msg_id, $text) = @_;
+  
+  my $result = 0;
+  
+  $Log->debug(" Reply goes in Msgs::Messaging");
+  
+  if ( $client_type eq 'UID' ) {
+    $result = msgs_user_reply($msg_id, {
+        REPLY_TEXT => $text,
+        UID        => $client_id,
+        #        STATE => 6
+      });
+  }
+  else {
+    $result = msgs_admin_reply($msg_id, {
+        REPLY_TEXT => $text,
+        AID        => $client_id,
+      });
+  }
+  
+  $Log->debug(" Reply goes out from Msgs::Messaging");
+  
+  return $result
 }
 
 1;

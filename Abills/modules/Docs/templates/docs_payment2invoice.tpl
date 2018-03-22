@@ -22,7 +22,7 @@
                     <canvas class='col-xs-12' height='2'></canvas>
                 </div>
             </div>
-            <div class='box-footer text-center'>
+            <div class='box-footer'>
                 <input class='btn btn-primary' type='submit' name='apply' value='_{APPLY}_'>
             </div>
         </div>

@@ -14,3 +14,6 @@ $lang{SEND_NOTIFICATION} = 'Відправити повідомлення';
 
 $lang{MANUAL_ACTIVATE} = 'Ручне включення послуги';
 $lang{USER_PORTAL} = 'Портал Абонента';
+
+$lang{SERVICE_COUNT}='Кількість послуг';
+$lang{FEES_PERIOD}='Кількість нарахувань';

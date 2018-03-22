@@ -1,7 +1,6 @@
 $lang{MAPS} = 'Maps';
 $lang{ANGLE} = 'Angle';
 $lang{CLEAR} = 'Clear';
-$lang{STREET} = 'Street';
 $lang{HOUSE_NUM} = 'House number';
 $lang{BUILD} = 'Build';
 $lang{FLAT} = 'Flat';
@@ -24,7 +23,6 @@ $lang{FIBER_OPTIC} = 'Fiber optic';
 $lang{HIDE_DISTRICTS} = 'Hide menu districts';
 $lang{SHOW_DISTRICTS} = 'Show menu districts';
 $lang{IN_NEW_WINDOW} = 'In new window';
-$lang{DISTRICT} = 'District';
 $lang{LINE} = 'Line';
 $lang{DELETE_MARKER} = 'Del marker';
 $lang{ADD_WIFI_ZONE} = 'Add Wi-Fi zone';

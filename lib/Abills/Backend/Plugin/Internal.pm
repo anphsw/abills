@@ -2,14 +2,14 @@ package Abills::Backend::Plugin::Internal;
 use strict;
 use warnings FATAL => 'all';
 
+use Abills::Backend::Plugin::BasePlugin;
+use parent 'Abills::Backend::Plugin::BasePlugin';
+
 use AnyEvent;
 use AnyEvent::Handle;
 use AnyEvent::Socket;
 
 use Data::Dumper;
-
-use Abills::Backend::Plugin::BasePlugin;
-use parent 'Abills::Backend::Plugin::BasePlugin';
 
 our (%conf, $base_dir, $debug, $ARGS, @MODULES);
 
@@ -52,7 +52,7 @@ sub init {
   # Starting websocket server
   $Log->info("Starting internal commands server on 127.0.0.1:$server_port");
   AnyEvent::Socket::tcp_server ('127.0.0.1', $server_port, sub {
-      $self->new_internal_admin_client(@_);
+      $self->accept_internal_admin_client(@_);
     });
   
   $WEBSOCKET_API = get_global('WEBSOCKET_API');
@@ -70,11 +70,11 @@ sub init {
 
 
 #**********************************************************
-=head2 new_internal_admin_client()
+=head2 accept_internal_admin_client()
 
 =cut
 #**********************************************************
-sub new_internal_admin_client {
+sub accept_internal_admin_client {
   my ($self, $socket_pipe_handle, $host, $port) = @_;
   
   my $socket_id = "$host:$port";

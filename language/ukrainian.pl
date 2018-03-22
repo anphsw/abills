@@ -1,4 +1,5 @@
 $lang{STREETS}='Вулиці';
+$lang{STREET}='Вулиця';
 $lang{CASH}='Готівка';
 $lang{EXTRA}='Додатковий';
 $lang{EXTRA_ABBR} = 'Дод';
@@ -257,6 +258,7 @@ $lang{FILE}='Файл';
 $lang{EVENTS}='Події';
 $lang{PAYMENTS}='Оплати';
 $lang{TEMPLATES}='Шаблони';
+$lang{TEMPLATE} = 'шаблон';
 $lang{ROWS}='Рядків';
 $lang{ACTIVATION_PAYMENT}='Для активації потрібно оплатити';
 $lang{TYPES}='Типи';
@@ -630,6 +632,7 @@ $lang{SOCIAL} = 'Соціальний';
 $lang{QUERY}='Запит';
 $lang{YOUR_FEEDBACK} = 'Ваш відгук';
 $lang{NO_DATA} = 'В цій категорії немає даних';
+$lang{ERR_NO_DATA} = 'Немає даних';
 $lang{CHOOSE} = 'Вибрати';
 $lang{UNLINK} = 'Відвязати';
 $lang{AVERAGE_RATING} = 'Середня оцінка';
@@ -685,6 +688,84 @@ $lang{TEXT_NOT_FOUND} = 'Текст не знайдено';
 $lang{TRY_AGAIN} = 'Спробуйте знову';
 
 $lang{UNAVAILABLE} = 'Недоступний';
+$lang{AVAILABLE} = 'Доступний';
 $lang{CHECK_ACCESS} = 'Перевірити доступ';
+
+$lang{YOUR_VERIFICATION_CODE} = 'Ваш код підтвердження';
+$lang{CODE} = 'Код';
+$lang{DO_AGAIN} = 'Спробуйте знову';
+$lang{PHONE_VERIFICATION} = 'Підтвердження телефону';
+$lang{EMAIL_VERIFICATION} = 'Підтвердження пошти';
+$lang{YOUR_PHONE_NUMBER} = 'Ваш номер телефону';
+$lang{YOUR_MAIL} = 'Ваша пошта';
+
+$lang{OPEN_ALL} = 'Відкрити всі';
+$lang{CLOSE_ALL} = 'Закрити всі';
+$lang{ONLINE} = 'Онлайн';
+$lang{OFFLINE} = 'Офлайн';
+$lang{EMPTY} = 'Порожні';
+
+$lang{WITHOUT_FEES} = 'Без додаткових оплат.';
+$lang{DISTRICT} = 'Район';
+$lang{BLOCK}='Корпус';
+
+$lang{CURRENT_LANGUAGE} = 'Поточна мова';
+$lang{AVAILABLE_LANGUAGES} = 'Доступні мови';
+$lang{PLEASE_CHOOSE_YOUR_LANGUAGE} = 'Виберіть Вашу мову';
+$lang{MONTHES} = 'Місяці';
+$lang{MONTHES_A} = 'Місяці';
+$lang{MANUAL} = 'Вручну';
+$lang{VERSION}='Версия';
+$lang{FILE_MANAGER} = 'Редактор атачів';
+$lang{PROCESS_RESTARTED_MESSAGE} = 'Процесс було перезапущено';
+
+
+$lang{DATE_CONNECTION} = 'Дата підключення';
+$lang{NEVER} = 'Ніколи';
+$lang{NETWORK_ACTIVITY} = 'Активність в мережі';
+$lang{CONTACT_INFORMATION} = 'Адреса та контактна інформація';
+$lang{CREATE_TASK} = 'Створити задачу';
+$lang{HOUSE_SMALL} = 'д.';
+$lang{APRTAMENT_SMALL} = 'кв.';
+$lang{NO_DATAS} = 'н.д.';
+$lang{NOTES} = 'Нотатки';
+$lang{ADDITIONAL_DATA} = 'Додаткові дані';
+$lang{CONNECTION_POINT} = 'Точка підключення';
+$lang{TECHNICAL_DATA} = 'Технічні дані';
+$lang{CONSIGNMENT_NOTE} = 'Накладна на передачу';
+$lang{DRESS_FOR_WORK} = 'Наряд на роботу';
+$lang{INTRATRAFFIC} = 'Вх.трафік';
+$lang{EXIT_TRAFFIC} = 'Віх.трафік';
+$lang{GENERAL} = 'Загальні';
+$lang{ACTIVITY} = 'Активність';
+$lang{ABON_ACTIVITY} = 'Активність абонента в мережі';
+$lang{PROCESS_RESTARTED_MESSAGE} = 'Процесс було перезапущено';
+
+$lang{PLACEHOLDER} = 'Заповнювач';
+$lang{FUNCTION} = 'Функція';
+$lang{WRONG} = 'Не вірний';
+$lang{ADDITION} = 'Доповнення';
+
+$lang{FIO1}='Прізвище';
+$lang{FIO2}='Ім&#39;я';
+$lang{FIO3}='По батькові';
+$lang{SIGN}='Підписати';
+$lang{SIGNATURE}='Підпис';
+$lang{SIGNED}='Підписано';
+$lang{STREET_SHORT}='вул.';
+$lang{CREATE_COMPANY}='Створити компанію';
+
+$lang{CLEAR_SETTINGS}='Очистити налаштування';
+$lang{ENTRANCE}='Під&#39;їзд';
+$lang{FLOOR}='Поверх';
+
+$lang{INTERNAL_NETWORK} = 'Внутрішня мережа';
+$lang{BRUTEFORCE_PROTECTION} = 'Захист від перебору паролів';
+$lang{DNS_FLOOD_PROTECTION} = 'DNS ігнорувати зовнішні запити';
+$lang{SERVE_ONLY_LOCAL_REQUESTS} = 'Обслуговувати тільки внутрішню мережу';
+$lang{BLOCK_NEGATIVE} = 'Блокувати доступ в інтернет для негативних сесій';
+$lang{REDIRECT_NEGATIVE} = 'Перенаправляти негативні сесії в особистий кабінет';
+
+$lang{REG_ADDRESS} = 'Адреса реєстрації';
 
 1;

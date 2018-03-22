@@ -1,5 +1,9 @@
 #!/usr/bin/perl -w
-# Users disable
+=head1 NAME
+
+ Users disable
+
+=cut
 
 use strict;
 use warnings FATAL => 'all';
@@ -16,7 +20,7 @@ BEGIN{
 
 use Sys::Hostname;
 use Abills::SQL;
-use Abills::Base qw(parse_arguments _bp sendmail);
+use Abills::Base qw(parse_arguments _bp sendmail in_array);
 use Users;
 use Admins;
 use Customers;
@@ -32,12 +36,12 @@ our (
   %lang
 );
 
-my $DEBUG = 0;
-my $version = 0.6;
+my $DEBUG   = 0;
+my $version = 0.7;
 # Unused
 my $last_payments_days = 60;
 
-require "language/$conf{default_language}.pl";
+do "language/$conf{default_language}.pl";
 
 $db = Abills::SQL->connect( $conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
   { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef } );
@@ -47,6 +51,13 @@ $admin->info( $conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' } );
 
 my $users = Users->new( $db, $admin, \%conf );
 my $Dv = Dv->new( $db, $admin, \%conf );
+my $Internet;
+if (in_array('Internet', \@MODULES)){
+  require Internet;
+  Internet->import();
+  $Internet = Internet->new($db, $admin, \%conf);
+}
+
 
 my %ADMIN_REPORT = (HOSTNAME => hostname());
 
@@ -93,17 +104,27 @@ else{
 
 
 #**********************************************************
-# get debetors and add to non payment status
+=head2 get_debtors($attr) - get debetors and add to non payment status
+
+=cut
 #**********************************************************
 sub get_debtors{
-  my ($attr) = @_;
+  #my ($attr) = @_;
 
   my $HAVING_DATE = ( $last_payments_days > 0 ) ? "AND max(p.date) < CURDATE() - INTERVAL $last_payments_days DAY " : '';
 
-  $users->query2( "SELECT u.id,
+  my $intenet_table = 'dv_main';
+  my $WHERE = 'AND dv.tp_id=tp.id';
+  
+  if(in_array('Internet', \@MODULES)) {
+    $intenet_table = 'internet_main';
+    $WHERE = 'AND dv.tp_id=tp.tp_id';
+  }
+
+  $users->query( "SELECT u.id,
   IF(company.id IS NULL, b.deposit, cb.deposit) AS u_deposit,
   IF(u.company_id=0, u.credit, IF (u.credit=0, company.credit,0)) AS u_credit,
-  max(p.date) AS last_payment_date,
+  MAX(p.date) AS last_payment_date,
   tp.credit AS tp_credit,
   u.uid,
   COUNT(s.id),
@@ -114,7 +135,7 @@ sub get_debtors{
   u.gid,
   dv.disable,
   tp.id AS tp_id
-FROM (users u, dv_main dv, tarif_plans tp)
+FROM (users u, $intenet_table dv, tarif_plans tp)
   LEFT JOIN payments p ON (u.uid = p.uid)
   LEFT JOIN bills b ON (u.bill_id = b.id)
   LEFT JOIN companies company ON (u.company_id=company.id)
@@ -123,11 +144,11 @@ FROM (users u, dv_main dv, tarif_plans tp)
   LEFT JOIN bills ext_cb ON (company.ext_bill_id=ext_cb.id)
   LEFT JOIN shedule s ON (s.uid=u.uid)
 WHERE u.uid=dv.uid
-      AND dv.tp_id=tp.id
+      $WHERE
       AND u.disable=0
       AND dv.disable=0
-      AND (u.activate<=CURDATE() or u.activate='0000-00-00')
-      AND (u.expire > CURDATE()  or u.expire='0000-00-00')
+      AND (u.activate<=CURDATE() OR u.activate='0000-00-00')
+      AND (u.expire > CURDATE()  OR u.expire='0000-00-00')
 GROUP BY u.id
 HAVING (u_credit+u_deposit) < 0 $HAVING_DATE;", undef, { COLS_NAME => 1 } );
 
@@ -157,10 +178,18 @@ HAVING (u_credit+u_deposit) < 0 $HAVING_DATE;", undef, { COLS_NAME => 1 } );
       );
 
       if ( $DEBUG < 6 ){
-        $Dv->change( {
+        if (in_array('Internet', \@MODULES)){
+          $Internet->change( {
             UID    => $user->{uid},
             STATUS => $ARGS->{SET_STATUS} || 5
           } );
+        }
+        else {
+          $Dv->change( {
+              UID    => $user->{uid},
+              STATUS => $ARGS->{SET_STATUS} || 5
+            } );
+        }
       }
     }
   }
@@ -262,7 +291,7 @@ sub parse_ini_file{
 #sub pop_debtors{
 #  my ($attr) = @_;
 #
-#  $users->query2( "SELECT u.id,
+#  $users->query( "SELECT u.id,
 #if(company.id IS NULL, b.deposit, cb.deposit) AS DEPOSIT,
 #if(u.company_id=0, u.credit,
 #  if (u.credit=0, company.credit, u.credit)) AS CREDIT,

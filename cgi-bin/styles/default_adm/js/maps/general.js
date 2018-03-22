@@ -63,7 +63,7 @@ function addNewPoint(layer_id, object_id) {
   aDrawController.setDrawingMode(structure);
   //aTooltip.display('<h3>' + _NOW_YOU_CAN_ADD_NEW + lang_name + _TO_MAP + '</h3>', 1000);
   
-  $('#dropOperationCtrlBtn').find('button').attr('class', 'btn btn-danger');
+  $('button#dropOperationCtrlBtn').attr('class', 'btn btn-default');
   
   if (isDefined(mapObject.init)) {
     mapObject.init(layer);
@@ -106,21 +106,9 @@ function addNewPoint(layer_id, object_id) {
 function toggleRemoveMarkerMode() {
   OPERATION_MODE = OPERATION_REMOVE;
   
-  var markers = MapLayers.getAllVisibleMarkers();
-  
   Events.on('object_click', showRemoveConfirmModal);
   
-  //markers.forEach(function(marker){
-  //  marker['remove_listener'] = aMap.addListenerToObject(marker, 'click', function () {
-  //    console.log('click');
-  //    console.log(marker);
-  //    showRemoveConfirmModal(marker);
-  //  });
-  //});
-  
-  console.log('[ Remove ] Listeners set to ', markers.length);
-  
-  $('#dropOperationCtrlBtn').find('button').attr('class', 'btn btn-danger');
+  $('button#dropOperationCtrlBtn').attr('class', 'btn btn-default');
   
   new ATooltip('<h2>' + _CLICK_ON_A_MARKER_YOU_WANT_TO_DELETE + '</h2>')
       .setClass('info')
@@ -158,7 +146,7 @@ function finishEditing(object) {
 
 function showRemoveConfirmModal(marker) {
   console.log(marker);
-  var id       = marker.id || marker.ID;
+  var id       = marker.object_id || marker.OBJECT_ID;
   var layer_id = marker.layer_id || marker.LAYER_ID;
   
   if (!(layer_id && id)) {
@@ -168,6 +156,7 @@ function showRemoveConfirmModal(marker) {
   
   aModal.clear()
       .setBody('<div id="confirmModalContent">' + _REMOVE + '?</div>')
+      .setSmall(true)
       .addButton(_NO, "confirmModalCancelBtn", "default")
       .addButton(_YES, "confirmModalConfirmBtn", "success")
       .show(bindBtnEvents);
@@ -192,19 +181,6 @@ function showRemoveConfirmModal(marker) {
     });
   }
   
-}
-
-function discardRemovingPoint() {
-  
-  var markers = MapLayers.getAllVisibleMarkers();
-  
-  for (var i = 0; i < markers.length; i++) {
-    if (!markers[i] || !markers[i]['remove_listener']) continue;
-    aMap.removeListenerFromObject(markers[i], 'click', markers[i]['remove_listener']);
-    delete markers[i]['remove_listener'];
-  }
-  
-  return true;
 }
 
 
@@ -245,32 +221,6 @@ function confirmAddingPoint() {
       delete FORM['LOCATION_ID'];
     }
   });
-}
-
-function discardAddingPoint() {
-  //removing discarded marker
-  if (drawing_last_overlay) drawing_last_overlay.setMap(null);
-  
-  confirmModal.hide();
-}
-
-function dropOperation() {
-  switch (OPERATION_MODE) {
-    case OPERATION_NORMAL:
-      return;
-      break;
-    case OPERATION_ADD:
-      if (aDrawController) aDrawController.clearDrawingMode();
-      discardAddingPoint();
-      break;
-    case OPERATION_REMOVE:
-      discardRemovingPoint();
-      break;
-  }
-  
-  $('#dropOperationCtrlBtn').find('button').attr('class', 'btn btn-primary');
-  
-  OPERATION_MODE = OPERATION_NORMAL;
 }
 
 /**
@@ -674,8 +624,8 @@ var BillingObjectParser = (function () {
       var meta           = object.META || null;
       var sizeArr        = object.SIZE || [32, 37];
       var offsetArr      = (object.CENTERED)
-          ? [-sizeArr[0] / 2, -sizeArr[1] / 2]
-          : [-sizeArr[0] / 2, -sizeArr[1]];
+          ? [sizeArr[0] / 2, sizeArr[1] / 2]
+          : [sizeArr[0] / 2, sizeArr[1]];
       var makeNavigation = object.NAVIGATION || '';
       
       var count = (object.COUNT) ? '' + object.COUNT : undefined;
@@ -1014,8 +964,6 @@ var MapLayers = (function () {
     }
     
     Layers[layer_id].enabled = boolean;
-    Events.emit(layer_id + ((boolean) ? "_ENABLED" : '_DISABLED'), layer_id);
-    Events.emit((boolean) ? 'layer_enabled' : 'layer_disabled', layer_id);
   }
   
   function setLayerMarkerVisibility(layer_id, marker, state) {
@@ -1098,12 +1046,17 @@ var MapLayers = (function () {
       if (layer.loading) return true;
       requestLayer(layer_id, layer.module);
     }
+  
+    Events.emit('layer_enabled' , layer_id);
+    Events.emit(layer_id + '_ENABLED', layer_id);
   }
   
   function disableLayer(layer_id) {
     if (!Layers[layer_id].enabled) return true;
-    
     setLayerVisible(layer_id, false);
+    
+    Events.emit('layer_disabled' , layer_id);
+    Events.emit(layer_id + '_DISABLED', layer_id);
   }
   
   function toggleLayer(layer_id) {
@@ -1132,6 +1085,7 @@ var MapLayers = (function () {
     Layers[layer_id].loading = true;
     Events.emit(layer_id + '_LOADING', true);
     
+    // TODO: refactor this mess caused export_list_name was a simple string long time ago
     var export_list_name = LAYER_LIST_REFS[layer_id];
     
     if (!isDefined(export_list_name)) {
@@ -1164,14 +1118,23 @@ var MapLayers = (function () {
   }
   
   function refreshLayer(layer_id) {
-    if (isLayerVisible(layer_id)) disableLayer(layer_id);
+    
+    var layer = Layers[layer_id];
+    if (!layer) {
+      console.warn('[ MapLayers ] refreshLayer Unknown : ' + layer_id);
+      return false;
+    }
+    
     closeInfoWindows();
     
+    if (isLayerVisible(layer_id)) {
+      setLayerVisible(layer_id, false);
+    }
     // Clear cache
     Layers[layer_id].object_by_id = {};
     Layers[layer_id].objects      = [];
     
-    enableLayer(layer_id);
+    requestLayer(layer_id, layer.module);
   }
   
   function pushToLayer(layer_id, data) {
@@ -1189,11 +1152,11 @@ var MapLayers = (function () {
   }
   
   function onLayerEnabled(layer_id, callback) {
-    if (Layers[layer_id] && Layers[layer_id].enabled) {
+    if (Layers[layer_id] && Layers[layer_id].enabled && !Layers[layer_id].loading) {
       callback(layer_id);
     }
     else {
-      Events.once(layer_id + '_ENABLED', callback);
+      Events.once(layer_id + '_RENDERED', callback);
     }
   }
   
@@ -1250,7 +1213,7 @@ var MapLayers = (function () {
               : false;
       
       if (!key) continue;
-      if (key === object_id) {
+      if (+key === +object_id) {
         return object;
       }
     }
@@ -1282,7 +1245,7 @@ var MapLayers = (function () {
       aMap.setCenter(points[middle][0], points[middle][1]);
     }
     else if (isDefined(object.polygon)) {
-      var points = object.polygon.POINTS;
+      var points = object.polygon.POINTS
       var max_x  = 0;
       var min_x  = 90;
       var max_y  = 0;
@@ -1434,9 +1397,9 @@ var AMapLayersBtns = (function () {
         console.warn('[ AMapLayersBtns ]', 'unknown layer id', layer_id);
         return;
       }
-      
       button_for_layer[layer_id].removeClass(DISABLED_BTN_CLASS).addClass(ENABLED_BTN_CLASS);
     });
+    MapLayers.enableLayer(layer_id);
   }
   
   function disableButton(layer_id) {
@@ -1445,9 +1408,9 @@ var AMapLayersBtns = (function () {
         console.warn('[ AMapLayersBtns ]', 'unknown layer id', layer_id);
         return;
       }
-      
       button_for_layer[layer_id].removeClass(ENABLED_BTN_CLASS).addClass(DISABLED_BTN_CLASS);
     });
+    MapLayers.disableLayer(layer_id);
   }
   
   function isButtonEnabled(layer_id) {
@@ -1456,7 +1419,6 @@ var AMapLayersBtns = (function () {
   
   function toggleButton(layer_id) {
     console.log('toggleButton', layer_id);
-    
     if (!button_for_layer[layer_id]) return;
     if (!isButtonEnabled(layer_id)) {
       enableButton(layer_id);
@@ -1473,18 +1435,9 @@ var AMapLayersBtns = (function () {
     Events.once('controlblockcached', function () {
       
       $.each(id_position_array, function (i, layer_id) {
-        
         // Register listeners for first enable
         MapLayers.onLayerEnabled(layer_id, enableButton);
         MapLayers.onLayerDisabled(layer_id, disableButton);
-        
-        // Register listeners for user enable/disable
-        Events.on(layer_id + '_ENABLED', function () {
-          enableButton(layer_id)
-        });
-        Events.on(layer_id + '_DISABLED', function () {
-          disableButton(layer_id)
-        });
         
         Events.on(layer_id + '_LOADING', function () {
           button_for_layer[layer_id].find('i.fa-refresh').addClass('fa-pulse');
@@ -1494,6 +1447,9 @@ var AMapLayersBtns = (function () {
         });
         
       });
+      
+      Events.on('layer_enabled', enableButton);
+      Events.on('layer_disabled', disableButton);
     });
     
   }
@@ -1739,6 +1695,50 @@ function MapControls() {
   
 }
 
+function setOperationMode(mode){
+  switch (+mode) {
+    case OPERATION_NORMAL:
+      dropOperation();
+      break;
+    case OPERATION_ADD:
+      
+      break;
+    case OPERATION_REMOVE:
+      
+      break;
+  }
+}
+
+function dropOperation() {
+  switch (OPERATION_MODE) {
+    case OPERATION_NORMAL:
+      return;
+    case OPERATION_ADD:
+      if (aDrawController) aDrawController.clearDrawingMode();
+      discardAddingPoint();
+      break;
+    case OPERATION_REMOVE:
+      discardRemovingPoint();
+      break;
+  }
+  
+  $('button#dropOperationCtrlBtn').attr('class', 'hidden');
+  
+  OPERATION_MODE = OPERATION_NORMAL;
+}
+
+function discardAddingPoint() {
+  //removing discarded marker
+  if (drawing_last_overlay) drawing_last_overlay.setMap(null);
+  
+  confirmModal.hide();
+}
+
+function discardRemovingPoint() {
+  Events.off('object_click', showRemoveConfirmModal);
+  return true;
+}
+
 
 Events.on('layersready', function () {
   
@@ -1771,6 +1771,5 @@ Events.on('layersready', function () {
   Events.emit('billingdefinedlayersshowed');
   
   window['ObjectsArray'] = [];
-  
   
 });

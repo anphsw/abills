@@ -9,7 +9,8 @@
 use strict;
 use warnings FATAL => 'all';
 use Crm;
-use Abills::Base qw(days_in_month );
+use Abills::Base qw(days_in_month mk_unique_value in_array);
+use Abills::Misc;
 use Admins;
 use Employees;
 use Abills::Sender::Core;
@@ -338,9 +339,9 @@ sub crm_cashbox_spending_type {
 
   if ($FORM{chg}) {
     $action      = 'change';
-    $action_lang = "$lang{CHANGE}";
+    $action_lang = $lang{CHANGE};
 
-    $html->message("info", "$lang{CHANGE_DATA}");
+    $html->message("info", $lang{CHANGE});
 
     my $spending_type = $Crm->info_type({ SPENDING => 1, ID => $FORM{chg} });
     $CASHBOX{ID}       = $FORM{chg};
@@ -450,7 +451,7 @@ sub crm_cashbox_coming_type {
     $action      = 'change';
     $action_lang = "$lang{CHANGE}";
 
-    $html->message("info", "$lang{CHANGE_DATA}");
+    $html->message("info", $lang{CHANGED});
 
     my $coming_type = $Crm->info_type({ COMING => 1, ID => $FORM{chg} });
     $CASHBOX{ID}       = $FORM{chg};
@@ -553,7 +554,7 @@ sub crm_cashbox_spending_add {
   }
 
   if ($FORM{chg}) {
-    $html->message("info", "$lang{CHANGE_DATA}");
+    $html->message("info", $lang{CHANGE});
 
     my $spending_info = $Crm->info_spending({ COLS_NAME => 1, ID => $FORM{chg} });
 
@@ -681,7 +682,7 @@ sub crm_cashbox_coming_add {
   }
 
   if ($FORM{chg}) {
-    $html->message("info", "$lang{CHANGE_DATA}");
+    $html->message("info", $lang{CHANGE});
 
     my $coming_info = $Crm->info_coming({ COLS_NAME => 1, ID => $FORM{chg} });
 
@@ -1633,7 +1634,7 @@ sub crm_lead_search {
     'SOURCE',
     {
       SELECTED => $FORM{SOURCE} || q{},
-      SEL_LIST    => $Crm->leads_source_list({ COLS_NAME => 1 }),
+      SEL_LIST    => translate_list($Crm->leads_source_list({ COLS_NAME => 1 }), 'name'),
       SEL_KEY     => 'id',
       SEL_VALUE   => 'name',
       NO_ID       => 1,
@@ -1696,7 +1697,7 @@ sub crm_lead_search {
 
     _error_show($Crm);
 
-    $html->message('success', "$lang{ADDED}", "$lang{LEAD_ADDED_MESSAGE}" . $html->button("тут", "index=" . get_function_index('crm_lead_info') . "&LEAD_ID=$Crm->{INSERT_ID}"));
+    $html->message('success', $lang{ADDED}, $lang{LEAD_ADDED_MESSAGE} . $html->button("тут", "index=" . get_function_index('crm_lead_info') . "&LEAD_ID=$Crm->{INSERT_ID}"));
 
     return 1;
   }
@@ -1744,7 +1745,7 @@ sub crm_leads {
       'SOURCE',
       {
         SELECTED => $FORM{SOURCE} || q{},
-        SEL_LIST    => $Crm->leads_source_list({ COLS_NAME => 1 }),
+        SEL_LIST    => translate_list($Crm->leads_source_list({ COLS_NAME => 1 }), 'name'),
         SEL_KEY     => 'id',
         SEL_VALUE   => 'name',
         NO_ID       => 1,
@@ -1758,11 +1759,8 @@ sub crm_leads {
       {
         SELECTED    => $FORM{PRIORITY} || q{},
         SEL_ARRAY   => \@PRIORITY,
-        # SEL_KEY   => 'id',
-        # SEL_VALUE => 'name',
         NO_ID       => 1,
-        SEL_OPTIONS => { ""                                => "" },
-        # MAIN_MENU => get_function_index('crm_source_types'),
+        SEL_OPTIONS => { "" => "" },
       }
     );
 
@@ -1771,6 +1769,7 @@ sub crm_leads {
     $html->tpl_show(
       _include('crm_lead_search', 'Crm'),
       {
+        %FORM,
         SUBMIT_BTN_NAME   => $submit_button_name,
         SUBMIT_BTN_ACTION => $submit_button_action,
         DISABLE_ID        => $id_disabled,
@@ -1810,7 +1809,7 @@ sub crm_leads {
       'SOURCE',
       {
         SELECTED => $FORM{SOURCE} || $lead_info->{SOURCE},
-        SEL_LIST    => $Crm->leads_source_list({ COLS_NAME => 1 }),
+        SEL_LIST    => translate_list($Crm->leads_source_list({ COLS_NAME => 1 }), 'name'),
         SEL_KEY     => 'id',
         SEL_VALUE   => 'name',
         NO_ID       => 1,
@@ -1864,8 +1863,9 @@ sub crm_leads {
   }
 
   return 1 if $FORM{MESSAGE_ONLY};
-
-  result_former(
+  $LIST_PARAMS{PAGE_ROWS} = 1000000000;
+  my Abills::HTML $table;
+  ($table, undef) = result_former(
     {
       INPUT_DATA      => $Crm,
       FUNCTION        => 'crm_lead_list',
@@ -1891,6 +1891,7 @@ sub crm_leads {
         'priority'          => "$lang{PRIORITY}",
         # 'comments'  => $lang{COMMENTS},
       },
+      SKIP_PAGES => 1,
       TABLE => {
         width   => '100%',
         caption => $lang{LEADS},
@@ -1898,6 +1899,7 @@ sub crm_leads {
         ID      => 'CRM_LEADS',
         MENU    => "$lang{ADD}:index=$index&add_form=1:add",
         DATA_TABLE => 1,
+        title_plain => 1,
         #EXPORT  => 1,
       },
       SELECT_VALUE    => {
@@ -1914,9 +1916,12 @@ sub crm_leads {
       MAKE_ROWS     => 1,
       SEARCH_FORMER => 1,
       MODULE        => 'Crm',
-      TOTAL         => "TOTAL:$lang{TOTAL};TOTAL_SUM:$lang{SUM}",
+      OUTPUT2RETURN => 1,
+#      TOTAL         => "TOTAL:$lang{TOTAL}",
     }
   );
+
+  print $table->show();
 
 #   print '<script>$(document).ready(function() {
 #     $("#CRM_LEADS__").DataTable();
@@ -1991,7 +1996,7 @@ sub crm_lead_info {
   );
 
   my $source_info = $Crm->leads_source_info({ ID => $lead_info->{SOURCE}, COLS_NAME => 1 });
-  $lead_info->{SOURCE} = $source_info->{NAME};
+  $lead_info->{SOURCE} = _crm_name_translate($source_info->{NAME});
 
   my $lead_profile_panel = $html->tpl_show(_include('crm_lead_profile_panel', 'Crm'), { %$lead_info, CHANGE_BUTTON => $change_button, CONVERT_DATA_BUTTON => $convert_data_button }, { OUTPUT2RETURN => 1, });
 
@@ -2091,6 +2096,9 @@ sub crm_progressbar_steps {
       BASE_FIELDS     => 0,
       DEFAULT_FIELDS  => "ID, STEP_NUMBER, NAME, COLOR, DESCRIPTION",
       FUNCTION_FIELDS => 'change,del',
+      FILTER_COLS    => {
+        name => '_crm_name_translate::name,'
+      },
       SKIP_USER_TITLE => 1,
       EXT_TITLES      => {
         'id'          => "ID",
@@ -2133,7 +2141,7 @@ sub crm_progressbar_steps {
 sub crm_progressbar_show {
   my ($lead_id) = @_;
 
-  my $pb_list = $Crm->crm_progressbar_step_list({ COLS_NAME => 1 });
+  my $pb_list = translate_list($Crm->crm_progressbar_step_list({ COLS_NAME => 1 }), 'name');
     
   my $lead_info = $Crm->crm_lead_info({ ID => $lead_id });
 
@@ -2291,6 +2299,9 @@ sub crm_source_types {
       DEFAULT_FIELDS  => "ID, NAME, COMMENTS",
       FUNCTION_FIELDS => 'change,del',
       SKIP_USER_TITLE => 1,
+      FILTER_COLS    => {
+        name => '_crm_name_translate::name,'
+      },
       EXT_TITLES      => {
         'id'       => "ID",
         'name'     => $lang{NAME},
@@ -2345,7 +2356,7 @@ sub crm_reports_leads {
     'SOURCE_ID',
     {
       SELECTED => $FORM{SOURCE_ID} || q{},
-      SEL_LIST    => $Crm->leads_source_list({ COLS_NAME => 1 }),
+      SEL_LIST    => translate_list($Crm->leads_source_list({ COLS_NAME => 1 }), 'name'),
       SEL_KEY     => 'id',
       SEL_VALUE   => 'name',
       NO_ID       => 1,
@@ -2484,7 +2495,7 @@ sub crm_short_info {
   });
 
   if($users->{TOTAL} == 1){
-    my $json_user_info = to_json($user_info->[0], { utf8 => 0 });
+    my $json_user_info = JSON::to_json($user_info->[0], { utf8 => 0 });
 
     my $user_link = $html->button(($user_info->[0]->{fio} || "$lang{NO} $lang{FIO}" ), "index=" . get_function_index('crm_user_service') . "&UID=$user_info->[0]->{uid}");
 
@@ -2515,7 +2526,7 @@ sub crm_short_info {
   );
     
   if (defined $Crm->{TOTAL} && $Crm->{TOTAL} == 1) {
-    my $json_lead_info = to_json($lead_info->[0], { utf8 => 0 });
+    my $json_lead_info = JSON::to_json($lead_info->[0], { utf8 => 0 });
 
     my $lead_link = $html->button(($lead_info->[0]->{fio} || "$lang{NO} $lang{FIO}" ), "index=" . get_function_index('crm_lead_info') . "&LEAD_ID=$lead_info->[0]->{id}");
 
@@ -2698,7 +2709,7 @@ sub _crm_current_step_color {
   
   my $color = $attr->{VALUES}{STEP_COLOR};
 
-  return $html->element('span', $step_name, {class=>'label',style=>"background-color:$color"});
+  return $html->element('span', _translate($step_name), {class=>'label',style=>"background-color:$color"});
 }
 
 #**********************************************************
@@ -2848,6 +2859,23 @@ sub crm_search {
         . '&' . join('&', @qs) . "&search=1"
     };
   }
+  elsif($attr->{SEARCH_TEXT} =~ /\@/ || $attr->{SEARCH_TEXT} =~ /^\d+$/) {
+    my $search_type = 'EMAIL';
+
+    if($attr->{SEARCH_TEXT} =~ /^\d+$/) {
+      $search_type = 'PHONE';
+    }
+
+    push @info, {
+      'TOTAL'        => 0,
+      'MODULE'       => 'Crm',
+      'MODULE_NAME'  => $lang{LEADS},
+      'SEARCH_INDEX' => get_function_index('crm_leads')
+          . '&' . join('&', @qs) . "&search=1",
+      EXTRA_LINK     => "$lang{ADD}|index=". get_function_index('crm_leads') ."&add_form=1&"
+          . "$search_type=$attr->{SEARCH_TEXT}"
+    };
+  }
 
   return \@info;
 }
@@ -2865,7 +2893,7 @@ sub crm_search {
 =cut
 #**********************************************************
 sub crm_user_service {
-  my ($attr) = @_;
+  #my ($attr) = @_;
 
   my $uid = $FORM{UID};
 
@@ -2886,12 +2914,19 @@ sub crm_user_service {
   use Users;
   my Users $user_info = $users->info($uid, { SHOW_PASSWORD => 1 });
   $FORM{NEWFORM}=1;
-  print "<div class='row'><div class='col-md-12 col-lg-6'>";
-  user_form({USER_INFO => $user_info});
-  print "</div>"
-          . "<div class='col-md-12 col-lg-6'>";
-  user_pi();
-print "</div></div>";
+
+  if($FORM{json}) {
+#    user_form({ USER_INFO => $user_info });
+#    user_pi();
+  }
+  else {
+    print "<div class='row'><div class='col-md-12 col-lg-6'>";
+    user_form({ USER_INFO => $user_info });
+    print "</div>"
+      . "<div class='col-md-12 col-lg-6'>";
+    user_pi();
+    print "</div></div>";
+  }
 
   my @msgs_rows;
   foreach my $msgs (@$msgs_list){
@@ -2948,6 +2983,22 @@ print "</div></div>";
   }
 
   return 1;
+}
+
+#**********************************************************
+=head2 ()
+
+  Arguments:
+     -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub _crm_name_translate {
+  my ($name) = @_;
+
+  return _translate($name);
 }
   
 1

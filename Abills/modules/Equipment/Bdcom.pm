@@ -290,6 +290,7 @@ sub _bdcom{
       'reset' => {
         NAME  => '',
         OIDS  => '.1.3.6.1.4.1.3320.101.10.1.1.29',
+        RESET_VALUE => 0,
         PARSER => ''
       },
       main_onu_info => {
@@ -480,7 +481,7 @@ sub _bdcom_mac_list {
   my($value) = @_;
 
   my(undef, $v)=split(/:/, $value);
-  $v = bin2mac($v);
+  $v = bin2mac($v) . ';';
 
   return '', $v;
 }
@@ -624,7 +625,7 @@ sub _bdcom_get_fdb {
 
   my $debug = $attr->{DEBUG} || 0;
 
-  print "BDCOM mac" if($debug > 1);
+  print "BDCOM mac " if($debug > 1);
   my $perl_scalar = _get_snmp_oid( $attr->{SNMP_TPL} || 'bdcom.snmp', $attr);
   my $oid = '.1.3.6.1.2.1.17.4.3.1';
   if ($perl_scalar && $perl_scalar->{FDB_OID}){
@@ -640,21 +641,25 @@ sub _bdcom_get_fdb {
     @EXPR_IDS = split( /,/, $values );
   }
 
-  #Get onu list
-  my $vlan_list = snmp_get({
-    %$attr,
-    WALK    => 1,
-    OID     => '.1.3.6.1.4.1.3320.101.10.5.1.1', #'.1.3.6.1.2.1.17.7.1.4.3.1.1',
-    VERSION => 2,
-    TIMEOUT => $attr->{TIMEOUT} || 8
-  });
+  #Get port name list
+  my $ports_name;
+  my $port_name_oid = $perl_scalar->{ports}->{PORT_NAME}->{OIDS} || '';
+  if ($port_name_oid) {
+    $ports_name = snmp_get({
+      %$attr,
+      TIMEOUT => $attr->{TIMEOUT} || 8,,
+      OID     => $port_name_oid,
+      VERSION => 2,
+      WALK    => 1
+    });
+  }
 
-  next if(! $vlan_list);
+  next if(! $ports_name);
 
   my $count = 0;
-  foreach my $iface (@$vlan_list) {
+  foreach my $iface (@$ports_name) {
     print "Iface: $iface \n" if ($debug > 1);
-    my($id, undef)=split(/:/, $iface);
+    my($id, $port_name)=split(/:/, $iface, 2);
 
     #get macs
     my $mac_list = snmp_get({
@@ -671,7 +676,7 @@ sub _bdcom_get_fdb {
       next if (! $line);
       my $vlan;
       my $mac_dec;
-      my $port;
+      my $port = $id;
 
       if ($perl_scalar && $perl_scalar->{FDB_EXPR} ){
         my %result = ();
@@ -692,7 +697,6 @@ sub _bdcom_get_fdb {
 
         $vlan    = $result{VLAN} || 0;
         $mac_dec = $result{MAC} || '';
-        $port    = $result{PORT} || '';
       }
 
       my $mac = _mac_former( $mac_dec );
@@ -713,11 +717,12 @@ sub _bdcom_get_fdb {
       # 1 mac
       $fdb_hash{$mac_dec}{1} = $mac;
       # 2 port
-      $fdb_hash{$mac_dec}{2} = $id || $port;
+      $fdb_hash{$mac_dec}{2} = $port;
       # 3 status
       # 4 vlan
       $fdb_hash{$mac_dec}{4} = $vlan;
-
+      # 5 port name
+      $fdb_hash{$mac_dec}{5} = $port_name;
       $count++;
     }
 

@@ -8,6 +8,7 @@
 
 use strict;
 use Abills::Filters;
+use Abills::Base qw(in_array);
 use SNMP_Session;
 use SNMP_util;
 use Equipment;
@@ -55,6 +56,7 @@ sub _equipment_graph {
 #**********************************************************
 sub _equipment_graph_parse {
   my ($nas_id) = @_;
+
   do 'Abills/Misc.pm';
   unshift( @INC, '/usr/abills/Abills/modules/' );
   load_module('Equipment');
@@ -73,14 +75,15 @@ sub _equipment_graph_parse {
           STATUS           => '_SHOW',
           NAS_IP           => '_SHOW',
           MNG_HOST_PORT    => '_SHOW',
-          MNG_USER         => '_SHOW',
+          NAS_MNG_USER     => '_SHOW',
           NAS_MNG_PASSWORD => '_SHOW',
           SNMP_TPL         => '_SHOW',
           LOCATION_ID      => '_SHOW',
           VENDOR_NAME      => '_SHOW',
           TYPE_NAME        => '_SHOW',
           COLS_NAME        => 1
-      } );
+  } );
+
   my $nas_info = $Equipment_list->[0];
   $Equipment->model_info( $nas_info->{model_id} );
   my $SNMP_COMMUNITY = "$nas_info->{nas_mng_password}\@" . (($nas_info->{nas_mng_ip_port}) ? $nas_info->{nas_mng_ip_port} : $nas_info->{nas_ip});
@@ -100,13 +103,15 @@ sub _equipment_graph_parse {
       if (!$nas_type) {
         return 0;
       }
+
       my $graph_list = $Equipment->graph_list({
-              NAS_ID => $nas_id,
-              PARAM => '_SHOW',
-              MEASURE_TYPE => => '_SHOW',
-              PORT => '_SHOW',
-              COLS_NAME => 1
-          });
+        NAS_ID    => $nas_id,
+        PARAM     => '_SHOW',
+        MEASURE_TYPE => '_SHOW',
+        PORT      => '_SHOW',
+        COLS_NAME => 1
+      });
+
       my %graph_data = ();
       foreach my $graph (@$graph_list){
         $graph_data{$graph->{param}}{$graph->{port}}{ID} = $graph->{id};
@@ -115,7 +120,7 @@ sub _equipment_graph_parse {
       #print Dumper \%graph_data;
       my $onu_list = $Equipment->onu_list({NAS_ID => $nas_id, ONU_GRAPH => '_SHOW', COLS_NAME => 1});
 
-      my %onu_data = ();
+      #my %onu_data = ();
       foreach my $onu (@$onu_list){
         my @onu_graph_types = split(',', $onu->{onu_graph});
         my $snmp = &{ \&{$nas_type} }({TYPE => $onu->{pon_type}});
@@ -157,14 +162,16 @@ sub _equipment_graph_parse {
         }
       }
       foreach my $oid (keys %graph_data) {
-
-        my $value_arr = snmp_get(
+        my $value_arr = q{};
+        if ($oid) {
+          $value_arr = snmp_get(
             {
               SNMP_COMMUNITY => $SNMP_COMMUNITY,
-              OID  => $oid,
-              WALK => 1
+              OID            => $oid,
+              WALK           => 1
             }
-        ) if ($oid);
+          );
+        }
         print $SNMP_COMMUNITY . "\n";
         print $oid . "\n";
         print Dumper $value_arr;
@@ -238,7 +245,6 @@ sub _equipment_graph_parse {
 =cut
 #**********************************************************
 sub _equipment_add_graph {
-  my ($attr) = @_;
 
   return 0;
 }

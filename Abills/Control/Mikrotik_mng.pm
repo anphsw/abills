@@ -10,7 +10,7 @@ my $Nas = Nas->new($db, \%conf, $admin);
 
 require Abills::Nas::Mikrotik;
 
-use Abills::Base qw/in_array/;
+use Abills::Base qw(in_array load_pmodule cmd);
 use Abills::Experimental;
 
 #**********************************************************
@@ -56,7 +56,7 @@ sub form_mikrotik_configure {
   
   ### Step 0 : check access ###
   my Abills::Nas::Mikrotik $mikrotik = _mikrotik_init_and_check_access($Nas_, {
-      DEBUG => $conf{mikrotik_debug} || 0,
+      DEBUG     => $conf{mikrotik_debug} || 0,
       RETURN_TO => 'mikrotik_configure'
     });
   
@@ -90,25 +90,17 @@ sub form_mikrotik_configure {
   ### Step 1 : Select connection type ###
   my $connection_type = _mikrotik_configure_get_connection_type();
   return 0 unless ($connection_type);
-  
-  #  my $ip_pools = $Nas->nas_ip_pools_list({ COLS_NAME => 1, NAS_ID => $FORM{NAS_ID} });
-  
+
   if ( $FORM{action} ) {
     
     $Configuration->set(
       %FORM,
-      ALIVE         => $Nas_->{NAS_ALIVE} || '0',
-      USE_NAT       => ($FORM{USE_NAT}) ? 1 : 0,
-      RADIUS_HANGUP => $mikrotik->{coa_port}
+      INTERNAL_NETWORK => $FORM{INTERNAL_NETWORK_INPUT} || $FORM{INTERNAL_NETWORK},
+      ALIVE            => $Nas_->{NAS_ALIVE} || '0',
+      USE_NAT          => ($FORM{USE_NAT}) ? 1 : 0,
+      RADIUS_HANGUP    => $mikrotik->{coa_port}
     );
-    
-    #    if ($FORM{IP_POOL}){
-    #      my @chosen_pool = grep { $_->{id} && $_->{id} eq $FORM{IP_POOL} } @$ip_pools;
-    #      if (@chosen_pool){
-    #        $Configuration->set('IP_POOL_RANGE' => ($chosen_pool[0]->{first_ip} . '-' . $chosen_pool[0]->{last_ip}));
-    #      }
-    #    }
-    
+
     my $configuration_applied = mikrotik_configure($mikrotik, $connection_type, $Configuration->get());
     
     if ( $configuration_applied ) {
@@ -141,8 +133,7 @@ sub form_mikrotik_configure {
   if ( $interfaces && ref $interfaces eq 'HASH' ) {
     foreach my $interface_name ( sort keys %{$interfaces} ) {
       if (
-        exists $interfaces->{$interface_name}->{ADDR}
-        && defined $interfaces->{$interface_name}->{ADDR}
+        $interfaces->{$interface_name}->{ADDR}
         && !in_array($interfaces->{$interface_name}->{ADDR}, \@ip_addresses)
       ) {
         push @ip_addresses, $interfaces->{$interface_name}->{ADDR};
@@ -151,10 +142,11 @@ sub form_mikrotik_configure {
   }
   
   my %template_args = (
-    DNS          => '8.8.8.8',
-    USE_NAT      => 1,
-    FLOW_PORT    => '9996',
-    EXTRA_INPUTS => '',
+    DNS           => '8.8.8.8',
+    USE_NAT       => 1,
+    FLOW_PORT     => '9996',
+    EXTRA_INPUTS  => '',
+    EXTRA_OPTIONS => '',
     %{ $Configuration->get() },
     %FORM
   );
@@ -172,23 +164,7 @@ sub form_mikrotik_configure {
   elsif ( $FORM{CONNECTION_TYPE} eq 'freeradius_dhcp' ) {
     _mikrotik_configure_freeradius_fields($mikrotik, \%template_args, \@ip_addresses);
   }
-  
-  # Append first and last ips
-  #  my @ip_pools_mapped =
-  #    map {
-  #      {
-  #        id   => $_->{id},
-  #        name => $_->{pool_name} . ' (' . $_->{first_ip} . '-' . $_->{last_ip} . ')'
-  #      }
-  #    } @$ip_pools;
-  #
-  #  $template_args{IP_POOL_SELECT} = $html->form_select('IP_POOL', {
-  #      SELECTED => $template_args{IP_POOL} || '',
-  #      SEL_LIST => \@ip_pools_mapped,
-  #      SEL_KEY  => 'id',
-  #      MAIN_MENU => get_function_index('form_ip_pools')
-  #    });
-  
+
   my $radius_select = $html->form_select('RADIUS_IP', {
       SELECTED  => $template_args{RADIUS_IP},
       SEL_ARRAY => \@ip_addresses,
@@ -196,7 +172,43 @@ sub form_mikrotik_configure {
     });
   my $radius_input = $html->form_input('RADIUS_IP_ADD', $template_args{RADIUS_IP} || '');
   $template_args{RADIUS_IP_SELECT} = $html->form_blocks_togglable($radius_select, $radius_input);
-  
+
+  # Ask user for internal network
+  my $internal_network_select = $html->form_select("INTERNAL_NETWORK", {
+      SELECTED  => $template_args{INTERNAL_NETWORK_SELECT},
+      SEL_ARRAY => [
+        '10.0.0.0/8',
+        '172.16.0.0/12',
+        '192.168.0.0/16',
+      ]
+    });
+  my $internal_network_input = $html->form_input("INTERNAL_NETWORK_INPUT", $template_args{INTERNAL_NETWORK} || '');
+  $template_args{INTERNAL_NETWORK_SELECT} = $html->form_blocks_togglable($internal_network_select, $internal_network_input);
+
+  # SSH bruteforce
+  $template_args{EXTRA_OPTIONS} .= _create_checkbox_form_group_row(
+    "SSH_BRUTEFORCE", $Configuration->get('SSH_BRUTEFORCE'), "SSH $lang{BRUTEFORCE_PROTECTION}",
+    { EX_PARAMS => 'data-tooltip="Only allow simultaneous SSH requests from ABillS (Radius) IP"' }
+  );
+
+  # DNS Flood protection
+  $template_args{EXTRA_OPTIONS} .= _create_checkbox_form_group_row(
+    "DNS_FLOOD", $Configuration->get("DNS_FLOOD"), "$lang{DNS_FLOOD_PROTECTION}",
+    { EX_PARAMS => "data-tooltip='$lang{SERVE_ONLY_LOCAL_REQUESTS}'" }
+  );
+
+  # Negative deposit filter
+  $template_args{EXTRA_OPTIONS} .= _create_checkbox_form_group_row(
+    "NEGATIVE_BLOCK", $Configuration->get("NEGATIVE_BLOCK"), $lang{BLOCK_NEGATIVE},
+    { EX_PARAMS => 'data-input-enables="NEGATIVE_REDIRECT"' }
+  );
+
+  # Redirect to user cabinet when negative filter
+  $template_args{EXTRA_OPTIONS} .= _create_checkbox_form_group_row(
+    "NEGATIVE_REDIRECT", $Configuration->get("NEGATIVE_REDIRECT"), $lang{REDIRECT_NEGATIVE},
+    { EX_PARAMS => 'disabled="disabled"' }
+  );
+
   if ( $Configuration->get('UPDATED') ) {
     $template_args{CLEAN_BTN} = $html->button('', "index=$index&NAS_ID=$FORM{NAS_ID}&mikrotik_configure=1&clean=1",
       {
@@ -222,7 +234,7 @@ sub form_mikrotik_configure {
 #**********************************************************
 sub mikrotik_configure {
   my Abills::Nas::Mikrotik $mikrotik = shift;
-  my ($connection_type, $params, $attr) = @_;
+  my ($connection_type, $params) = @_;
   
   # Add radius
   my %connection_type_to_radius_services = (
@@ -359,17 +371,73 @@ sub mikrotik_configure {
         SHOW_RESULT => 1
       });
   }
-  
+
   # Set DNS
-  $mikrotik->dns_set($params->{DNS});
-  
+  if ($params->{DNS}){
+    $mikrotik->dns_set($params->{DNS});
+  }
+
+  # SSH Bruteforce protection
+  if ($params->{SSH_BRUTEFORCE} && $params->{RADIUS_IP}){
+    $mikrotik->add_ssh_bruteforce_protection($params->{RADIUS_IP});
+  }
+
+  # DNS Flood protection
+  if ($params->{DNS_FLOOD} && $params->{INTERNAL_NETWORK}) {
+    $mikrotik->add_firewall_rule({
+      chain         => 'input',
+      protocol      => 'tcp',
+      'dst-port'    => '53',
+      'src-address' => "!$params->{INTERNAL_NETWORK}",
+      action        => 'drop',
+      comment           => 'ABillS. Block negative forward'
+    });
+    $mikrotik->execute([[ '/ip dns set' , { 'allow-remote-requests' => 'yes' }]]);
+  }
+
+  # Negative deposit filter
+  if ($params->{NEGATIVE_BLOCK} && $params->{RADIUS_IP}) {
+    $mikrotik->add_firewall_rule({
+      chain              => 'forward',
+      'src-address-list' => "negative",
+      'dst-address'      => "!$params->{RADIUS_IP}",
+      action             => 'reject',
+      comment           => 'ABillS. Serve DNS Only for local hosts'
+    });
+  }
+
+  # Redirect to user cabinet when negative filter
+#  NEGATIVE_CLIENT_REDIRECT
+  if ($params->{NEGATIVE_REDIRECT} && $params->{RADIUS_IP}) {
+    $mikrotik->add_nat_rule({
+      chain              => 'dst-nat',
+      'src-address-list' => "negative",
+      'protocol'         => 'tcp',
+      'dst-address'      => "!$params->{RADIUS_IP}",
+      'dst-port'         => '80',
+      action             => 'dst-nat',
+      'to-addresses'     => "$params->{RADIUS_IP}",
+      'to-ports'         => "80",
+      'place-before'     => 0,
+       comment           => 'ABillS. Redirect negative to portal'
+    });
+  }
+
+
+
   # Initialize shaper
   $params->{USE_NAT} //= '0';
   my $cmd = $base_dir . "libexec/billd checkspeed mikrotik"
     . " RECONFIGURE=1 NAS_IDS=$params->{NAS_ID} SSH_PORT=$mikrotik->{executor}->{ssh_port} NAT=$params->{USE_NAT}";
   
   # Try to run by ourselves
-  my $res = cmd($cmd, { SHOW_RESULT => 1, DEBUG => 5});
+  my $res = 1;
+  eval {
+      $res = cmd($cmd, { SHOW_RESULT => 1, DEBUG => 5, timeout => 30});
+  };
+  if ($@){
+    $res = 1;
+  }
   
   #Normally should return nothing. If failed tell user to do it by himself
   if ( $res ) {
@@ -607,7 +675,7 @@ sub _mikrotik_init_and_check_access {
       $html->message( 'warn', $lang{ERR_ACCESS_DENY},
         "$Nas_->{NAS_NAME} : " . ($mikrotik->{ip_address} || '[No host defined]')
           . ':' . ($mikrotik->{port} || '[No management port defined]')
-          . $html->br() . "User: $Nas_->{NAS_MNG_USER}"
+          . $html->br() . "User: ". ($Nas_->{NAS_MNG_USER} || q{Not defined})
           . $html->br() . "Backend : " . $mikrotik->{backend}
           . $html->br() . $wiki_mikrotik_ssh_access_link
       );
@@ -632,7 +700,7 @@ sub _mikrotik_init_and_check_access {
 #**********************************************************
 sub local_network_interfaces_list {
   require Abills::Filters;
-  Abills::Filters->import(qw/$IPV4  $MAC/);
+  Abills::Filters->import(qw/$IPV4 $MAC/);
   
   my %interfaces = ();
   my $os_name = $^O;
@@ -784,7 +852,7 @@ sub _mikrotik_configure_pppoe_fields {
 }
 
 #**********************************************************
-=head2 _create_form_group_row($name, )
+=head2 _create_form_group_row($id, $label, $input_html)
 
 =cut
 #**********************************************************
@@ -809,6 +877,19 @@ sub _create_form_group_row {
 sub _create_input_form_group_row {
   my $input = $html->form_input($_[0], $_[1]);
   return _create_form_group_row( $_[0], $_[2], $input );
+}
+
+#**********************************************************
+=head2 _create_checkbox_form_group_row($name, $state, $label, $extra_input_attr)
+
+=cut
+#**********************************************************
+sub _create_checkbox_form_group_row {
+  my ($name, $state, $label, $extra_input_attr) = @_;
+  my $input = $html->form_input($name, 1, { TYPE => 'checkbox', STATE => $state, %{$extra_input_attr // {}} });
+  my $label_html = $html->element('label', $input . $label );
+
+  return $html->element('div', $label_html, { class => 'checkbox', OUTPUT2RETURN => 1});
 }
 
 1;

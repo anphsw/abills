@@ -15,7 +15,7 @@
     </form>
 
   </div>
-  <div class='box-footer text-center'>
+  <div class='box-footer'>
     <input type='submit' form='form_HOTSPOT_CONFIG' class='btn btn-primary' name='action' value='_{SET}_'>
   </div>
 </div>

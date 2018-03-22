@@ -7,7 +7,7 @@ package Dunes;
 =cut
 
 use strict;
-use parent 'main';
+use parent qw(dbcore);
 
 my ($admin, $CONF);
 
@@ -38,7 +38,7 @@ sub info{
   my $self = shift;
   my ($id) = @_;
 
-  $self->query2( "SELECT *
+  $self->query( "SELECT *
      FROM dunes WHERE err_id= ?;", undef,
     { INFO => 1,
       Bind => [ $id ] } );
@@ -65,7 +65,7 @@ sub list{
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join( ' and ', @WHERE_RULES ) : '';
 
-  $self->query2( "SELECT err_id, win_err_handle, translate, error_text, solution
+  $self->query( "SELECT err_id, win_err_handle, translate, error_text, solution
      FROM dunes
      $WHERE
      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, { COLS_NAME => 1 } );
@@ -75,7 +75,7 @@ sub list{
   my $list = $self->{list};
 
   if ( $self->{TOTAL} >= 0 ){
-    $self->query2( "SELECT count(*) AS total FROM dunes $WHERE", undef, { INFO => 1 } );
+    $self->query( "SELECT count(*) AS total FROM dunes $WHERE", undef, { INFO => 1 } );
   }
 
   return $list;

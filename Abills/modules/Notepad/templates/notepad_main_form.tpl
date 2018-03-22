@@ -8,9 +8,17 @@
 
     <div class='box-body'>
 
+      <div class='form-group' data-visible='%CAN_SELECT_AID%' style='display: none'>
+        <label class='control-label col-md-3' for='AID'>_{ADMIN}_:</label>
+        <div class='col-md-9'>
+          %AID_SELECT%
+        </div>
+        <hr>
+      </div>
+
       <div class='form-group'>
-        <label class='control-label col-md-2' for='SHOW_AT'>_{DATE}_:</label>
-        <div class='col-md-10'>
+        <label class='control-label col-md-3' for='SHOW_AT'>_{DATE}_:</label>
+        <div class='col-md-9'>
           %DATETIMEPICKER%
         </div>
       </div>

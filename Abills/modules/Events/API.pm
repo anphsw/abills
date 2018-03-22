@@ -60,13 +60,21 @@ sub new {
 
   Arguments:
     $event_params - hash_ref
-      priority_id - (1...5) - more is higher. Will notify admins if is normal and higher ( >=2 )
-      module      - name of module (will be checked when notifying admins)
-      title       - subject
-      comments    - descruption
+      PRIORITY_ID - (1...5) - more is higher. Will notify admins if is normal and higher ( >=2 )
+      MODULE      - name of module (will be checked when notifying admins)
+      TITLE       - subject
+      COMMENTS    - descruption
       
   Returns:
     1
+  
+  Example:
+    $Events_api->add_event({
+      PRIORITY_ID => 3,
+      MODULE      => 'Internet',
+      # GROUP_ID    => 3,
+      
+    });
   
 =cut
 #**********************************************************
@@ -74,28 +82,43 @@ sub add_event {
   my ($self, $event_params) = @_;
   
   return unless ( $event_params );
+  my $module = $event_params->{MODULE} || 'SYSTEM';
   
   $event_params->{PRIORITY_ID} //= 3; # 'NORMAL'
-  $event_params->{MODULE} //= 'SYSTEM';
   
   if ( !$event_params->{GROUP_ID} ) {
-    $event_params->{GROUP_ID} = $Events->get_group_for_module($event_params->{MODULE});
+    $event_params->{GROUP_ID} = $Events->get_group_for_module($module);
   }
   
-  $Events->events_add($event_params);
+  my @admins_to_generate_event_for = ();
+  if (!$event_params->{AID}){
+    $Events->admins_subscribed_to_module_list($module);
+    if (!scalar @admins_to_generate_event_for){
+      # Send to at least one admin
+      @admins_to_generate_event_for = (1);
+    }
+  }
+  else {
+    @admins_to_generate_event_for = ($event_params->{AID});
+  }
+  
+  foreach my $aid ( @admins_to_generate_event_for ) {
+    $Events->events_add({%$event_params, AID => $aid});
+  }
   
   if ( $event_params->{PRIORITY_ID} >= 2 ) {
-    $self->notify($event_params->{MODULE}, $event_params);
+    $self->notify($event_params, @admins_to_generate_event_for);
   }
   
   return;
 }
 
 #**********************************************************
-=head2 notify($module, $event) -
+=head2 notify($event, @admin_aids) -
 
   Arguments:
-    $module, $event -
+    $module -
+    $event  -
     
   Returns:
   
@@ -103,36 +126,27 @@ sub add_event {
 =cut
 #**********************************************************
 sub notify {
-  my ($self, $module, $event) = @_;
+  my ($self, $event, @aids) = @_;
   
-  my @aids = ();
-  # Get admins for module
   
-  my @admins_subscribed_to_module = $Events->admins_subscribed_to_module_list($module);
-  if ( !$Events->{TOTAL} ) {
-    # SEND TO ALL ADMINS
-    @aids = ('*');
-  }
-  
-  # Translate event vars
   # Load language
-  our $base_dir;
+  our $base_dir = $main::base_dir || '/usr/abills/';
   require Abills::Experimental::Language;
   Abills::Experimental::Language->import();
-  my $Language = Abills::Experimental::Language->new($base_dir, 'english');
+  my $Language = Abills::Experimental::Language->new($base_dir || '/usr/abills/', 'english');
   my $language_for_translation = $self->{conf}{default_language} || 'russian';
   if ($language_for_translation ne 'english'){
     $Language->load($language_for_translation);
   }
-  
   if ($event->{MODULE} && $event->{MODULE} =~ /^[A-Z][a-z_]]+$/){
-    $Language->load($language_for_translation,$event->{MODULE})
+    $Language->load($language_for_translation, $event->{MODULE})
   }
+  
   my $translated_title = $Language->translate($event->{TITLE});
   my $translated_comments = $Language->translate($event->{COMMENTS});
   
   my $event_priority = $event->{PRIORITY_ID} || 3; # 3 = Normal
-  foreach my $aid ( @admins_subscribed_to_module ) {
+  foreach my $aid ( @aids ) {
     
     # Send
     if ( $event_priority == 5 ) {

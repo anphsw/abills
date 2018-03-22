@@ -45,7 +45,7 @@ function make_unique() {
         </div>
     </div>
 </div>
-<div class='box-footer text-center'>
+<div class='box-footer'>
 <input class='btn btn-primary' type='submit' name='add' value='_{ADD}_' onclick=\"make_unique(this.form)\">
 </div>
 </div>

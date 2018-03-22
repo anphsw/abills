@@ -34,7 +34,7 @@
     </div>
 	%Checkbox%
 </div>
-    <div class='box-footer text-center'>
+    <div class='box-footer'>
         <input class='btn btn-primary' type=submit value=$FORM{Confirm}>
     </div>
 </div>    

@@ -65,7 +65,7 @@
 
     </div>
 
-    <div class='box-footer text-center'>
+    <div class='box-footer'>
         %FOOTER_TEXT%
     </div>
 

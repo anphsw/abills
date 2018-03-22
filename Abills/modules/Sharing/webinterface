@@ -16,8 +16,7 @@ use Log;
 use Time::Local;
 use POSIX qw(strftime mktime);
 use Abills::Defs;
-use Abills::Base qw(int2byte sec2time convert mk_unique_value sendmail
- cmd );
+use Abills::Base qw(int2byte sec2time convert mk_unique_value sendmail cmd load_pmodule);
 
 our (
   $db,
@@ -2534,12 +2533,17 @@ sub sharing_user_main {
                               });
 
     file_download($FORM{DOWNLOAD}, $FORM{hash}, $FORM{TIMESTAMP}, $FORM{link_time});
+    return 1;
   }
-
-  if($FORM{BUY}){
+  elsif($FORM{BUY}){
     my $file_info = $Sharing->file_info({ID => $FORM{BUY}});
-    # FIX THIS, WHIEL USER HAVE NEGATIVE DEPOSIT - HE CANT BUTY FILE, EVEN IF FILE COST 0
-    if($user->{CREDIT} + $user->{DEPOSIT} >= $file_info->{AMOUNT} || $file_info->{AMOUNT} == 0){
+    
+    if ($Sharing->{errno}){
+      $html->message('err', $lang{ERROR}, $Sharing->{errstr});
+      return 0;
+    }
+    
+    if( !$file_info->{AMOUNT} || $user->{CREDIT} + $user->{DEPOSIT} >= $file_info->{AMOUNT} ){
       my $time_to = time() + ($file_info->{FILE_TIME} * 24 * 60 * 60);
 
       my $date_to = strftime("%Y-%m-%d", localtime($time_to));
@@ -2547,13 +2551,13 @@ sub sharing_user_main {
       $Sharing->add_user({UID => $user->{UID}, FILE_ID => $FORM{BUY}, DATE_TO => $date_to});
 
       if(!$Sharing->{errno}){
-        $html->message('success', "$lang{SUCCESS}", "$lang{SUCCESS_BUY} $date_to");
+        $html->message('info', "$lang{SUCCESS}", "$lang{SUCCESS_BUY} $date_to");
         $Fees->take($user, $file_info->{AMOUNT}, { DESCRIBE => "Sharing $file_info->{NAME}" });
       }
       else{
         $Sharing->change_user({UID => $user->{UID}, FILE_ID => $FORM{BUY}, DATE_TO =>$date_to});
         if(!$Sharing->{errno}){
-          $html->message('success', "$lang{SUCCESS}", "$lang{SUCCESS_BUY} $date_to");
+          $html->message('info', "$lang{SUCCESS}", "$lang{SUCCESS_BUY} $date_to");
           $Fees->take($user, $file_info->{AMOUNT}, { DESCRIBE => "Sharing $file_info->{NAME}" });
         }
       }
@@ -2562,8 +2566,7 @@ sub sharing_user_main {
       $html->message('err', "$lang{ERROR}", "$lang{NOT_ENOUGH_MONEY}");
     }
   }
-
-  if($FORM{GET_LINK}){
+  elsif($FORM{GET_LINK}){
     my $qindex = get_function_index('sharing_user_main');
     my $time_stamp = time();
     load_pmodule('Digest::MD5');
@@ -2590,83 +2593,71 @@ sub sharing_user_main {
     return 1;
   }
 
-  my $FILES = '';
-  my $OWN_FILES     = '';
-  my $NOT_OWN_FILES = '';
-
-  foreach my $file (@$files_list){
-    my $button_name = "$lang{BUY}";
-    my $button_link = 'BUY';
-    my $panel_type  = 'primary';
-    my $button      = $html->button("$button_name", "$button_link=$file->{id}&index=$index", {
-      #ex_params => "class = 'btn btn-$panel_type full-width'",
-      CONFIRM   => "$lang{BUY}?",
-      class=> "btn btn-$panel_type full-width"
-      });
-    #my $button      = $html->button( '', undef, {
-    #      JAVASCRIPT     => '',
-    #      SKIP_HREF      => 1,
-    #      NO_LINK_FORMER => 1,
-    #      class          => "btn btn-$panel_type full-width",
-    #      ICON           => 'glyphicon glyphicon-upload',
-    #      title          => $button_name,
-    #      ex_params      => qq/onclick=loadToModal('$upload_link')/
-    #    });
-
-    my $user_sharing_info = $Sharing->info_user({UID => $user->{UID}, FILE_ID => $file->{id}});
-    
-
-    if($user_sharing_info && $user_sharing_info->{date_to} ge $DATE){
-      $button_name = "$lang{GET_LINK}";
-      $button_link = 'GET_LINK';
-      $panel_type  = 'success';
-      #$button      = $html->button("$glyph $button_name", "qindex=". get_function_index('sharing_user_main') . "&$button_link=$file->{id}&hash=$hash", {ex_params => "class = 'btn btn-$panel_type full-width'"});
-      my $get_link = "?qindex=". get_function_index('sharing_user_main') . "&$button_link=$file->{id}&header=2&link_time=$file->{link_time}";
-      $button      = $html->button( "$button_name", undef, {
+  my @file_panels = ();
+  my $sharing_user_main_index = get_function_index('sharing_user_main');
+  my $purchased_button_name = $lang{GET_LINK};
+  my $purchased_button_link = 'GET_LINK';
+  my $purchased_panel_type  = 'success';
+  
+  my $available_button_name = $lang{BUY};
+  my $available_button_link = 'BUY';
+  my $available_panel_type  = 'primary';
+  
+  foreach my $file (@$files_list) {
+    # MAYBE: should change to list
+    my $user_sharing_info = $Sharing->info_user({ UID => $user->{UID}, FILE_ID => $file->{id} });
+  
+    # User has access to module
+    if ( $user_sharing_info && $user_sharing_info->{date_to} ge $DATE ) {
+      
+      my $get_link = "?qindex=$sharing_user_main_index&$purchased_button_link=$file->{id}&header=2&link_time=$file->{link_time}";
+      my $button = $html->button("$purchased_button_name", undef, {
           JAVASCRIPT     => '',
           SKIP_HREF      => 1,
           NO_LINK_FORMER => 1,
-          class          => "btn btn-$panel_type full-width",
+          class          => "btn btn-$purchased_panel_type full-width",
           # ICON           => 'glyphicon glyphicon-download',
-          title          => $button_name,
+          title          => $purchased_button_name,
           ex_params      => qq/onclick=loadToModal('$get_link')/
         });
-
-      $OWN_FILES .= $html->tpl_show(
-      _include('sharing_file_body', 'Sharing'),
-      {
-        FILE_NAME  => $file->{name},
-        COMMENT    => $file->{comment},
-        AMOUNT     => $file->{amount},
-        VERSION    => $file->{version},
-        DATE_TO    => $user_sharing_info ? "$lang{DATE_TO} $user_sharing_info->{date_to}" : '',
-        FILE_TIME  => $file->{file_time} . " $lang{DAYS}",
-        PANEL_TYPE => $panel_type,
-        BUTTON     => $button,
-      },
-      {OUTPUT2RETURN => 1}
-    );
-    }
-    else{
-      $NOT_OWN_FILES .= $html->tpl_show(
-      _include('sharing_file_body', 'Sharing'),
-      {
-        FILE_NAME  => $file->{name},
-        COMMENT    => $file->{comment},
-        AMOUNT     => $file->{amount},
-        VERSION    => $file->{version},
-        DATE_TO    => $user_sharing_info ? "$lang{DATE_TO} $user_sharing_info->{date_to}" : '',
-        FILE_TIME  => $file->{file_time} . " $lang{DAYS}",
-        PANEL_TYPE => $panel_type,
-        BUTTON     => $button,
-      },
-      {OUTPUT2RETURN => 1}
-    );
-    }
     
+      push (@file_panels, $html->tpl_show(
+        _include('sharing_file_body', 'Sharing'),
+        {
+          FILE_NAME  => $file->{name},
+          COMMENT    => $file->{comment},
+          AMOUNT     => $file->{amount},
+          VERSION    => $file->{version},
+          DATE_TO    => $user_sharing_info ? "$lang{DATE_TO} $user_sharing_info->{date_to}" : '',
+          FILE_TIME  => $file->{file_time} . " $lang{DAYS}",
+          PANEL_TYPE => $purchased_panel_type,
+          BUTTON     => $button,
+        },
+        { OUTPUT2RETURN => 1 }
+      ));
+    }
+    else {
+      my $button = $html->button("$available_button_name", "$available_button_link=$file->{id}&index=$index", {
+          CONFIRM => "$lang{BUY}?",
+          class   => "btn btn-$available_panel_type full-width"
+        });
+      
+      push(@file_panels, $html->tpl_show(
+          _include('sharing_file_body', 'Sharing'),
+          {
+            FILE_NAME  => $file->{name},
+            COMMENT    => $file->{comment},
+            AMOUNT     => $file->{amount},
+            VERSION    => $file->{version},
+            DATE_TO    => $user_sharing_info ? "$lang{DATE_TO} $user_sharing_info->{date_to}" : '',
+            FILE_TIME  => $file->{file_time} . " $lang{DAYS}",
+            PANEL_TYPE => $available_panel_type,
+            BUTTON     => $button,
+          },
+          { OUTPUT2RETURN => 1 }
+        ));
+    }
   }
-
-  $FILES = $OWN_FILES . $NOT_OWN_FILES;
 
   my $group_select = $html->form_select(
   'GROUP_ID',
@@ -2677,14 +2668,14 @@ sub sharing_user_main {
     SEL_VALUE => 'name',
     NO_ID => 1,
     SEL_OPTIONS => { '' => '' },
-     EX_PARAMS => "data-auto-submit='form'"
+    EX_PARAMS => "data-auto-submit='form'"
   });
 
   $html->tpl_show(
     _include('sharing_user_main', 'Sharing'),
     {
       GROUP_SELECT => $group_select,
-      FILES => $FILES
+      FILES        => join(($FORM{json} ? ', ' : ' '), @file_panels)
     }
   );
 

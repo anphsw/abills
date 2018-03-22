@@ -8,7 +8,7 @@
   <div class='box box-theme box-form'>
     <div class='box-header with-border'>
       <h4 class='box-title'>_{CONFIGURATION}_ : $FORM{CONNECTION_TYPE}</h4>
-      <div class="pull-right">%CLEAN_BTN%</div>
+      <div class='pull-right'>%CLEAN_BTN%</div>
     </div>
     <div class='box-body'>
 
@@ -26,18 +26,18 @@
         </div>
       </div>
 
-<!--
-      <div class='form-group'>
-        <label class='control-label col-md-3' for='CLIENTS_POOL_ID'>IP Pool</label>
-        <div class='col-md-9'>
-          %IP_POOL_SELECT%
-        </div>
-      </div>
--->
+      <!--
+            <div class='form-group'>
+              <label class='control-label col-md-3' for='CLIENTS_POOL_ID'>IP Pool</label>
+              <div class='col-md-9'>
+                %IP_POOL_SELECT%
+              </div>
+            </div>
+      -->
 
       <div class='checkbox text-center'>
         <label>
-          <input type='checkbox' data-return='1' data-checked='%USE_NAT%' value='1' name='USE_NAT' id='USE_NAT_ID'/>
+          <input type='checkbox' data-return='1' data-checked='%USE_NAT%' data-input-enables='NEGATIVE_BLOCK' value='1' name='USE_NAT' id='USE_NAT_ID'/>
           <strong>NAT (Masquerade)</strong>
         </label>
       </div>
@@ -48,11 +48,31 @@
       %EXTRA_INPUTS%
       <!--extra-->
 
+      <div class='form-group'>
+        <div class='box box-theme'>
+          <div class='box-header text-center' role='tab' id='EXTRA_OPTIONS_heading'>
+            _{EXTRA}_
+          </div>
+          <div class='box-body'>
 
-    </div>
+            <div class='form-group'>
+              <label class='control-label col-md-3' for='RADIUS_IP_ID'>_{INTERNAL_NETWORK}_</label>
+              <div class='col-md-9'>
+                %INTERNAL_NETWORK_SELECT%
+              </div>
+            </div>
 
-    <div class='box-footer text-center'>
+            <div class='text-left col-md-offset-3 col-lg-offset-3'>
+              %EXTRA_OPTIONS%
+            </div>
+          </div> <!-- end of collapse panel -->
+        </div> <!-- end of collapse form-group -->
+
+      </div>
+
+      <div class='box-footer'>
         <input type='submit' class='btn btn-primary' name='action' value='_{APPLY}_'>
+      </div>
     </div>
   </div>
 </form>

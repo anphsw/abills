@@ -6,6 +6,7 @@
         "03:0:$lang{CALL_CENTER}:null" => 4,
         "04:3:$lang{CALLS_HANDLER}:callcenter_admins_report" => 4,
         "05:3:IVR:voip_ivr_log:"                             => 4,
+        "06:1 :CDR:callcenter_cdr:"                           => 5,
 
         #"02:1:$_IVR:callcenter_ivr"                         => 5,
         #"03:1:$_MESSAGES:callcenter_messages"               => 5,

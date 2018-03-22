@@ -89,7 +89,7 @@ sub preproces {
 #**********************************************************
 sub user_info {
   my $self = shift;
-  my ($RAD, $NAS) = @_;
+  my ($RAD) = @_;
 
   my $WHERE = '';
   if (defined($RAD->{'h323-call-origin'}) && $RAD->{'h323-call-origin'} == 0) {
@@ -218,7 +218,7 @@ sub auth {
   }
 
   if (defined($RAD->{'CHAP-Password'}) && defined($RAD->{'CHAP-Challenge'})) {
-    if (check_chap($RAD->{'CHAP-Password'}, "$self->{PASSWORD}", $RAD->{'CHAP-Challenge'}, 0) == 0) {
+    if (Auth::check_chap($RAD->{'CHAP-Password'}, "$self->{PASSWORD}", $RAD->{'CHAP-Challenge'}, 0) == 0) {
       $RAD_PAIRS{'Reply-Message'} = "Wrong CHAP password";
       return 1, \%RAD_PAIRS;
     }
@@ -309,12 +309,12 @@ sub auth {
 
     $self->get_route_prefix($RAD);
     if ($self->{TOTAL} < 1) {
-      $RAD_PAIRS{'Reply-Message'} = "No route '" . $RAD->{'Called-Station-Id'} . "'";
+      $RAD_PAIRS{'Reply-Message'} = "NO_ROUTE '" . $RAD->{'Called-Station-Id'} . "'";
       $RAD_PAIRS{'Filter-Id'}='no_route';
       return 1, \%RAD_PAIRS;
     }
     elsif ($self->{ROUTE_DISABLE} == 1) {
-      $RAD_PAIRS{'Reply-Message'} = "Route disabled '" . $RAD->{'Called-Station-Id'} . "'";
+      $RAD_PAIRS{'Reply-Message'} = "ROUTE_DISABLED '" . $RAD->{'Called-Station-Id'} . "'";
       $RAD_PAIRS{'Filter-Id'}='route_disable';
       return 1, \%RAD_PAIRS;
     }
@@ -351,7 +351,7 @@ sub auth {
         #$RAD_PAIRS{'h323-credit-time'}=$session_timeout;
       }
       elsif ($self->{PAYMENT_TYPE} == 0 && $session_timeout == 0) {
-        $RAD_PAIRS{'Reply-Message'} = "Too small deposit for call'";
+        $RAD_PAIRS{'Reply-Message'} = "TOO_SMALL_DEPOSIT_FOR_CALL: $self->{DEPOSIT}";
         $RAD_PAIRS{'Filter-Id'}='too_small_deposit';
         return 1, \%RAD_PAIRS;
       }
@@ -410,8 +410,8 @@ sub auth {
      {
        Bind => [
           $RAD->{'User-Name'},
-          $RAD->{'Calling-Station-Id'},
-          $RAD->{'Called-Station-Id'},
+          $RAD->{'Calling-Station-Id'} || q{},
+          $RAD->{'Called-Station-Id'} || q{},
           $NAS->{NAS_ID} || 0,
           $RAD->{'Client-IP-Address'} || '0.0.0.0',
           $RAD->{'h323-conf-id'},
@@ -436,6 +436,12 @@ sub auth {
 #**********************************************************
 =head2 get_route_prefix($RAD) - Get route prefix
 
+   Arguments:
+     $RAD
+
+   Results:
+     $self->{ROUTE_ID}
+
 =cut
 #**********************************************************
 sub get_route_prefix {
@@ -449,11 +455,11 @@ sub get_route_prefix {
     push @query_params_arr, substr($RAD->{'Called-Station-Id'}, 0, $i);
   }
 
-  if($#query_params_arr) {
+  if($#query_params_arr < 0) {
     return $self;
   }
 
-  my $query_params = join(',', @query_params_arr);
+  my $query_params = "'". join("', '", @query_params_arr) ."'";
 
   $self->query2("SELECT r.id AS route_id,
       r.prefix AS prefix,
@@ -535,7 +541,7 @@ sub accounting {
   my ($RAD, $NAS) = @_;
 
   my $acct_status_type = $ACCT_TYPES{ $RAD->{'Acct-Status-Type'} };
-  my $SESSION_START    = (defined($RAD->{SESSION_START}) && $RAD->{SESSION_START} > 0) ? "FROM_UNIXTIME($RAD->{SESSION_START})" : 'now()';
+  #my $SESSION_START    = (defined($RAD->{SESSION_START}) && $RAD->{SESSION_START} > 0) ? "FROM_UNIXTIME($RAD->{SESSION_START})" : 'NOW()';
   my $sesssion_sum     = 0;
   $RAD->{'Client-IP-Address'} = '0.0.0.0' if (!$RAD->{'Client-IP-Address'});
 
@@ -573,14 +579,14 @@ sub accounting {
        reduction,
        acct_session_id
       )
-     VALUES (?, ?, ?, UNIX_TIMESTAMP(), 
+     VALUES (?, ?, NOW() - INTERVAL ? SECOND, UNIX_TIMESTAMP(),
        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);", 'do',
        { Bind => [
         $acct_status_type, 
-        $RAD->{'User-Name'}, 
-        $SESSION_START,
-        $RAD->{'Calling-Station-Id'}, 
-        $RAD->{'Called-Station-Id'}, 
+        $RAD->{'User-Name'},
+        $RAD->{'Acct-Session-Time'},
+        $RAD->{'Calling-Station-Id'} || q{},
+        $RAD->{'Called-Station-Id'} || q{},
         $NAS->{NAS_ID},
         $RAD->{'h323-conf-id'},
         $RAD->{'h323-call-origin'},
@@ -608,7 +614,7 @@ sub accounting {
 
   # Stop status
   elsif ($acct_status_type == 2) {
-    if ($RAD->{ACCT_SESSION_TIME} > 0) {
+    if ($RAD->{'Acct-Session-Time'} > 0) {
       $self->query2("SELECT 
       UNIX_TIMESTAMP(started) AS session_start,
       lupdated AS last_update,
@@ -675,14 +681,14 @@ sub accounting {
           $self->{PREPAID_TIME} = $self->{list}->[0]->[0];
           if ($self->{PREPAID_TIME} > 0) {
             $self->{LOG_DURATION} = 0;
-            my $sql = "SELECT sum(duration) FROM voip_log l, voip_route_prices rp WHERE l.route_id=rp.route_id
+            my $sql = "SELECT SUM(duration) FROM voip_log l, voip_route_prices rp WHERE l.route_id=rp.route_id
                AND uid='$self->{UID}' AND rp.extra_tarification='$self->{EXTRA_TARIFICATION}'";
             $self->query2("$sql");
             $self->{LOG_DURATION} = 0;
             if ($self->{TOTAL} > 0) {
               $self->{LOG_DURATION} = $self->{list}->[0]->[0];
             }
-            if ($RAD->{ACCT_SESSION_TIME} + $self->{LOG_DURATION} < $self->{PREPAID_TIME}) {
+            if ($RAD->{'Acct-Session-Time'} + $self->{LOG_DURATION} < $self->{PREPAID_TIME}) {
               $self->{PERIODS_TIME_TARIF} = undef;
             }
             elsif ($self->{LOG_DURATION} < $self->{PREPAID_TIME} && $RAD->{'Acct-Session-Time'} + $self->{LOG_DURATION} > $self->{PREPAID_TIME}) {
@@ -728,16 +734,16 @@ sub accounting {
       my $filename;
       $self->query2("INSERT INTO voip_log (uid, start, duration, calling_station_id, called_station_id,
               nas_id, client_ip_address, acct_session_id, tp_id, bill_id, sum, terminate_cause, route_id) 
-        VALUES (?, FROM_UNIXTIME( ? ), ?, ?, ?, ?, INET_ATON( ? ), ?, ?, ?, ?, ?, ?);", 'do',
+        VALUES (?, NOW() - INTERVAL ? SECOND, ?, ?, ?, ?, INET_ATON( ? ), ?, ?, ?, ?, ?, ?);", 'do',
         { 
           Bind => [
-            $self->{UID}, 
-            $RAD->{SESSION_START},
-            $RAD->{'Acct-Session-Time'}, 
-            $RAD->{'Calling-Station-Id'}, 
-            $RAD->{'Called-Station-Id'}, 
+            $self->{UID},
+            $RAD->{'Acct-Session-Time'} || 0,
+            $RAD->{'Acct-Session-Time'} || 0,
+            $RAD->{'Calling-Station-Id'} || q{},
+            $RAD->{'Called-Station-Id'} || q{},
             $NAS->{NAS_ID}, 
-            $RAD->{'Client-IP-Address'}, 
+            $RAD->{'Client-IP-Address'} || '0.0.0.0',
             $RAD->{'Acct-Session-Id'}, 
             $self->{TP_ID}, 
             $self->{BILL_ID}, 

@@ -746,8 +746,16 @@ sub dv_auth {
 
     #Shaper
     if ($EX_PARAMS->{ex_speed}) {
-      $RAD_PAIRS->{'Mikrotik-Rate-Limit'} = "$EX_PARAMS->{ex_speed}k"; 
+      $RAD_PAIRS->{'Mikrotik-Rate-Limit'}   = "$EX_PARAMS->{ex_speed}k";
       $RAD_PAIRS->{'Mikrotik-Address-List'} = "CUSTOM_SPEED";
+  
+      if ($EX_PARAMS->{speed}->{0}->{OUT_BURST}){
+        $RAD_PAIRS->{'Mikrotik-Rate-Limit'} .= ' '
+          . $EX_PARAMS->{speed}->{0}->{OUT_BURST}          .'K/'.$EX_PARAMS->{speed}->{0}->{IN_BURST}          .'K '
+          . $EX_PARAMS->{speed}->{0}->{OUT_BURST_THRESHOLD}.'K/'.$EX_PARAMS->{speed}->{0}->{IN_BURST_THRESHOLD}.'K '
+          . $EX_PARAMS->{speed}->{0}->{OUT_BURST_TIME}     . '/'.$EX_PARAMS->{speed}->{0}->{IN_BURST_TIME}
+          .' 5' # Priority;
+      }
     }
     elsif ($self->{USER_SPEED} > 0) {
       $RAD_PAIRS->{'Mikrotik-Rate-Limit'} = "$self->{USER_SPEED}k";
@@ -1700,7 +1708,10 @@ sub get_ip {
     }
   }
 
-  delete $self->{GATEWAY}, $self->{NETMASK}, $self->{DNS}, $self->{NTP};
+  delete $self->{GATEWAY};
+  delete $self->{NETMASK};
+  delete $self->{DNS};
+  delete $self->{NTP};
 
   if ($attr->{TP_IPPOOL}) {
     $self->query2("SELECT ippools.ip, ippools.counts, ippools.id, ippools.next_pool_id,

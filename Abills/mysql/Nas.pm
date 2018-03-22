@@ -69,11 +69,12 @@ sub list {
       ['GID',              'INT', 'nas.gid',                           1 ],
       ['DISTRICT_ID',      'INT', 'streets.district_id', 'districts.name'],
       ['LOCATION_ID',      'INT', 'nas.location_id',                   1 ],
-      ['MNG_HOST_PORT',    'STR', 'nas.mng_host_port', 'nas.mng_host_port as nas_mng_ip_port', ],
-      ['MNG_USER',         'STR', 'nas.mng_user', 'nas.mng_user as nas_mng_user', ],
+      ['MNG_HOST_PORT',    'STR', 'nas.mng_host_port', 'nas.mng_host_port AS nas_mng_ip_port', ],
+      ['MNG_USER',         'STR', 'nas.mng_user', 'nas.mng_user AS nas_mng_user', ],
+      ['NAS_MNG_USER',     'STR', 'nas.mng_user', 'nas.mng_user AS nas_mng_user', ],
       ['NAS_MNG_PASSWORD', 'STR', '',    "DECODE(nas.mng_password, '$SECRETKEY') AS nas_mng_password"],
       ['NAS_RAD_PAIRS',    'STR', 'nas.rad_pairs', 'nas.rad_pairs AS nas_rad_pairs' ],
-      ['SHOW_MAPS_GOOGLE', 'SHOW_MAPS_GOOGLE', 'b.coordx, b.coordy' ],
+      ['SHOW_MAPS_GOOGLE', 'SHOW_MAPS_GOOGLE', 'b.coordx, b.coordy'      ],
       ['NAS_IDS',          'INT', 'nas.id'              ],
     ],
     { WHERE => 1,
@@ -393,46 +394,60 @@ sub users_list {
 =cut
 #**********************************************************
 sub nas_ip_pools_list {
-  my $self = shift;
-  my ($attr) = @_;
-
+  my ($self, $attr) = @_;
+  
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-
-  my @WHERE_RULES = ('np.pool_id=pool.id');
-
-  my $WHERE_NAS =  $self->search_former($attr, [
+  
+  # This should go first to keep internal global flags for $self
+  my @WHERE_NAS_RULES = ('np.pool_id=pool.id');
+  my $WHERE_NAS = $self->search_former($attr, [
       ['NAS_ID',          'INT', 'np.nas_id'      ],
       ['STATIC',          'INT', 'pool.static'    ],
     ],
     {
-    	WHERE_RULES => \@WHERE_RULES
+      WHERE_RULES => \@WHERE_NAS_RULES
     }
-    );
-
-  $self->query2("SELECT IF(np.nas_id IS NULL, 0, np.nas_id) AS active_nas_id,
-    n.name AS nas_name,
-    pool.name AS pool_name,
-    pool.ip,
-    pool.ip + pool.counts AS last_ip_num,
-    pool.counts AS ip_count,
-    pool.counts - (SELECT COUNT(*) FROM dv_main dv WHERE dv.ip > pool.ip AND dv.ip <= pool.ip + pool.counts ) AS ip_free,
-    pool.priority,
-    pool.speed,
-    INET_NTOA(pool.ip) AS first_ip,
-    INET_NTOA(pool.ip + pool.counts) AS last_ip,
-    pool.id,
-    np.nas_id,
-    pool.static
+  );
+  
+  my $search_columns = [
+    [ 'ID',           'INT', 'pool.id',                                             1],
+    [ 'NAS_NAME',     'STR', 'n.name AS nas_name',                                  1],
+    [ 'POOL_NAME',    'STR', 'pool.name AS pool_name',                              1],
+    [ 'FIRST_IP',     'IP',  'INET_NTOA(pool.ip) AS first_ip',                      1],
+    [ 'LAST_IP',      'IP',  'INET_NTOA(pool.ip + pool.counts) AS last_ip',         1],
+    [ 'IP',           'INT', 'pool.ip',                                             1],
+    [ 'LAST_IP_NUM',  'INT', '(pool.ip + pool.counts) AS last_ip_num',              1],
+    [ 'IP_COUNT',     'INT', 'pool.counts AS ip_count',                             1],
+    [ 'IP_FREE',      'INT', '(pool.counts - (SELECT COUNT(*) FROM dv_main dv WHERE dv.ip > pool.ip AND dv.ip <= pool.ip + pool.counts )) AS ip_free', 1],
+    [ 'INTERNET_IP_FREE',  'INT', '(pool.counts - (SELECT COUNT(*) FROM internet_main internet WHERE internet.ip > pool.ip AND internet.ip <= pool.ip + pool.counts )) AS ip_free', 1],
+    [ 'PRIORITY',     'INT', 'pool.priority',                                       1],
+    [ 'SPEED',        'INT', 'pool.speed',                                          1],
+    [ 'NAME',         'STR', 'pool.name AS name',                                   1],
+    [ 'NAS',          'INT', 'np.nas_id',                                           1],
+    # Kills ip pools choose form
+    #    [ 'NAS_ID',       'INT', 'np.nas_id',                                      1],
+    [ 'STATIC',       'INT', 'pool.static',                                         1],
+    [ 'ACTIVE_NAS_ID','INT', 'IF(np.nas_id IS NULL, 0, np.nas_id) AS active_nas_id',1],
+  ];
+  
+  if ($attr->{SHOW_ALL_COLUMNS}){
+    map { $attr->{$_->[0]} = '_SHOW' unless exists $attr->{$_->[0]} } @$search_columns;
+  }
+  
+  my $WHERE = $self->search_former($attr, $search_columns,{WHERE => 1});
+  
+  $self->query2("SELECT $self->{SEARCH_FIELDS} pool.id
     FROM ippools pool
     LEFT JOIN nas_ippools np ON ($WHERE_NAS)
     LEFT JOIN nas n ON (n.id=np.nas_id)
+    $WHERE
       GROUP BY pool.id
       ORDER BY $SORT $DESC",
-   undef,
-   $attr
+    undef,
+    $attr
   );
-
+  
   return $self->{list};
 }
 
@@ -472,7 +487,7 @@ sub ip_pools_info {
   my $self = shift;
   my ($id) = @_;
 
-  my $fields_v6 = ($IPV6) ? ", INET6_NTOA(ipv6_prefix) AS ipv6_prefix" : '';
+  my $fields_v6 = ($IPV6) ? ", INET6_NTOA(ipv6_prefix) AS ipv6_prefix, INET6_NTOA(ipv6_pd) AS ipv6_pd" : '';
 
   $self->query2("SELECT *,
       INET_NTOA(ip) AS ip
@@ -513,6 +528,13 @@ sub ip_pools_change {
 #**********************************************************
 =head2 ip_pools_list($attr)
 
+  Arguments:
+     $attr
+       STATIC  - Show static pools
+       IPV6    - Show ipv6 prefix
+
+  Results:
+
 =cut
 #**********************************************************
 sub ip_pools_list {
@@ -525,18 +547,23 @@ sub ip_pools_list {
   my @WHERE_RULES = ();
 
   if (defined($attr->{STATIC})) {
+    if($attr->{IPV6}) {
+      push @WHERE_RULES, "pool.ipv6_prefix<>''";
+    }
+
     push @WHERE_RULES, "pool.static='$attr->{STATIC}'";
 
     my $WHERE = ($#WHERE_RULES > -1) ? join(' and ', @WHERE_RULES) : '';
     $self->query2("SELECT '', pool.name,
    pool.ip, pool.ip + pool.counts AS last_ip_num, pool.counts, pool.priority,
     INET_NTOA(pool.ip) AS first_ip, INET_NTOA(pool.ip + pool.counts) AS last_ip,
-    pool.id, pool.nas
+    pool.id, pool.nas, pool.netmask as netmask, pool.gateway
     FROM ippools pool
     WHERE $WHERE  ORDER BY $SORT $DESC",
     undef,
     $attr
     );
+
     return $self->{list};
   }
 
@@ -544,12 +571,12 @@ sub ip_pools_list {
     push @WHERE_RULES, "pool.nas='$self->{NAS_ID}'";
   }
 
-  my $WHERE = ($#WHERE_RULES > -1) ? "and " . join(' and ', @WHERE_RULES) : '';
+  my $WHERE = ($#WHERE_RULES > -1) ? "and " . join(' AND ', @WHERE_RULES) : '';
 
   $self->query2("SELECT nas.name, pool.name,
    pool.ip, pool.ip + pool.counts AS last_ip_num, pool.counts, pool.priority,
     INET_NTOA(pool.ip) AS first_ip, INET_NTOA(pool.ip + pool.counts) AS last_ip,
-    pool.id, pool.nas
+    pool.id, pool.nas, pool.gateway
     FROM ippools pool, nas
     WHERE pool.nas=nas.id
     $WHERE  ORDER BY $SORT $DESC",
@@ -595,26 +622,40 @@ sub ip_pools_del {
 }
 
 #**********************************************************
-# Statistic
-# stats($self)
+=head2 stats($attr) - Statistic
+
+  Arguments:
+    $attr
+      INTERNET
+
+  Returns:
+    $list
+
+=cut
 #**********************************************************
 sub stats {
   my $self = shift;
   my ($attr) = @_;
 
-  my $WHERE = "WHERE date_format(start, '%Y-%m')=date_format(curdate(), '%Y-%m')";
+  my $WHERE = "WHERE DATE_FORMAT(start, '%Y-%m')=DATE_FORMAT(CURDATE(), '%Y-%m')";
   my $SORT  = ($attr->{SORT} == 1) ? "1,2"         : $attr->{SORT};
   my $DESC  = ($attr->{DESC})      ? $attr->{DESC} : '';
 
   if (defined($attr->{NAS_ID})) {
-    $WHERE .= "and id='$attr->{NAS_ID}'";
+    $WHERE .= "AND id='$attr->{NAS_ID}'";
   }
 
-  $self->query2("SELECT n.name, l.port_id, count(*),
-   if(date_format(max(l.start), '%Y-%m-%d')=curdate(), date_format(max(l.start), '%H-%i-%s'), max(l.start)),
-   SEC_TO_TIME(avg(l.duration)), SEC_TO_TIME(min(l.duration)), SEC_TO_TIME(max(l.duration)),
-   l.nas_id
-   FROM dv_log l
+  my $internet_log_table = 'dv_log';
+
+  if($attr->{INTERNET}) {
+    $internet_log_table = 'internet_log';
+  }
+
+  $self->query2("SELECT n.name, l.port_id, COUNT(*),
+     IF(DATE_FORMAT(MAX(l.start), '%Y-%m-%d')=CURDATE(), DATE_FORMAT(MAX(l.start), '%H-%i-%s'), MAX(l.start)),
+     SEC_TO_TIME(AVG(l.duration)), SEC_TO_TIME(MIN(l.duration)), SEC_TO_TIME(MAX(l.duration)),
+     l.nas_id
+   FROM $internet_log_table l
    LEFT JOIN nas n ON (n.id=l.nas_id)
    $WHERE
    GROUP BY l.nas_id, l.port_id

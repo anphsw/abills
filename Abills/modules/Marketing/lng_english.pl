@@ -1,7 +1,6 @@
 #Report 2
 $lang{REQUEST_DATE}='Request date';
 $lang{LOCATION}='Location';
-$lang{DISTRICT}='District';
 $lang{ENTRANCE}='Entrance';
 $lang{FLOR}='Flor';
 $lang{LAST_PAYMENT}='Last Payment';

@@ -45,7 +45,7 @@
       </div>
 
     </div>
-    <div class='box-footer text-center'>
+    <div class='box-footer'>
       <input type=submit name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'>
     </div>
 

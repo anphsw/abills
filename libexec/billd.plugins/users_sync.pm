@@ -10,6 +10,8 @@
    TYPE              - Synsc system type
    SYNCHRON_ODOO_FIELDS  - Odoo sync field
    DOMAIN_ID         - DOmain id
+   SKIP_SERVICE      - Skip sync service
+   SKIP_WRONG_MAIL
 
 
  Config:
@@ -32,6 +34,7 @@ use strict;
 use warnings FATAL => 'all';
 use Data::Dumper;
 use Abills::Base qw(show_hash);
+use Abills::Filters qw(_utf8_encode);
 use Synchron::Odoo;
 use Frontier::Client;
 use Tariffs;
@@ -50,8 +53,9 @@ our (
   $Admin,
 );
 
-my $Users    = Users->new($db, $Admin, \%conf);
+my $Users        = Users->new($db, $Admin, \%conf);
 my $import_limit = $argv->{IMPORT_LIMIT} || 1000000000;
+my $admin        = $Admin;
 
 if($argv->{FIELDS_INFO}) {
   fields_info();
@@ -110,17 +114,18 @@ sub odoo_field_info {
 sub odoo_import {
   my($attr) = @_;
 
-  if($debug) {
-    print "Odoo import\n";
-  }
-
   my $url      = $conf{SYNCHRON_ODOO_URL} || 'https://demo.odoo.com:8069';
   my $dbname   = $conf{SYNCHRON_ODOO_DBNAME} || 'demo';
   my $username = $conf{SYNCHRON_ODOO_USERNAME} || 'admin';
   my $password = $conf{SYNCHRON_ODOO_PASSWORD} || 'admin';
 
-  if($debug > 4) {
-    print "URL: $url DB: $dbname USERNAME: $username PASSWORD: $password\n";
+  $url =~ s/\/$//;
+
+  if($debug) {
+    print "Odoo import\n";
+    if($debug > 2) {
+      print "DOMAIN_ID: $admin->{DOMAIN_ID} URL: $url DB: $dbname USER: $username PASSWORD: $password\n";
+    }
   }
 
   my $Odoo = Synchron::Odoo->new({
@@ -133,7 +138,7 @@ sub odoo_import {
   });
 
   if($Odoo->{errno}) {
-    print "Error: $Odoo->{errno} $Odoo->{errstr}\n";
+    print "ERROR: Odoo $Odoo->{errno} $Odoo->{errstr}\n";
   }
 
   my $sync_fields = q{};
@@ -164,16 +169,19 @@ sub odoo_import {
 
     user_import($users_list);
 
-    my $service_list = $Odoo->contracts_list();
-    #Service sync
-    odoo_service_sync($service_list);
+    if(! $argv->{SKIP_SERVICE}) {
+      my $service_list = $Odoo->contracts_list();
+
+      #Service sync
+      odoo_service_sync($service_list);
+    }
   }
 
   return 1;
 }
 
 #**********************************************************
-=head2 user_import($users_list);
+=head2 user_import($users_list); - Sync users
 
 =cut
 #**********************************************************
@@ -189,9 +197,16 @@ sub user_import {
     $domain_id=$argv->{DOMAIN_ID};
   }
 
+  if($debug > 3) {
+    print "Sync fields\n";
+    my $result_fields = $users_list->[0];
+    print show_hash($result_fields, { DELIMITER => "\n" });
+  }
+
   foreach my $user_info ( @$users_list ) {
     my $sync_field = 'LOGIN';
     print "Sync field: $sync_field Remote filed: ". (($user_info->{$sync_field}) ? $user_info->{$sync_field} : 'Not defined' )."\n" if ($debug > 1);
+
     $Users->{debug}=1 if($debug > 6);
     my $user_list = $Users->list({
       $sync_field  => $user_info->{$sync_field},
@@ -200,7 +215,9 @@ sub user_import {
     });
 
     if ($Users->{TOTAL}) {
-      print "====> $user_info->{LOGIN} exists UID: $user_list->[0]->{uid} REGISTRATION: $user_list->[0]->{registration}\n";
+      if($debug > 1) {
+        print "====> $user_info->{LOGIN} exists UID: $user_list->[0]->{uid} REGISTRATION: $user_list->[0]->{registration}\n";
+      }
 
       $argv->{UPDATE}=1;
       if($argv->{UPDATE}) {
@@ -209,7 +226,6 @@ sub user_import {
         $Users->pi({ UID => $uid });
 
         foreach my $key ( sort keys %$Users ) {
-          #print $key."-> \n";
           if(defined($user_info->{$key})) {
             $user_info->{$key} //= q{};
             if(! defined($Users->{$key})) {
@@ -221,6 +237,8 @@ sub user_import {
                 next;
               }
 
+              Encode::_utf8_off($user_info->{$key});
+              Encode::_utf8_off($Users->{$key});
               print "$key: $Users->{$key} -> $user_info->{$key}\n" if($debug > 2);
               $Users->change($uid, {
                 %{ $user_info },
@@ -251,8 +269,18 @@ sub user_import {
       next;
     }
 
+    if($debug > 0) {
+      print "ADD LOGIN $sync_field: $user_info->{$sync_field}\n";
+    }
+
     if(! $user_info->{PASSWORD}) {
       $user_info->{PASSWORD} //= $user_info->{LOGIN}.'1234567890';
+    }
+
+    if ($argv->{SKIP_WRONG_MAIL} && $user_info->{EMAIL}) {
+      if ($user_info->{EMAIL} !~ /(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))/) {
+        delete $user_info->{EMAIL};
+      }
     }
 
     my Users $User = $Users->add({
@@ -267,7 +295,12 @@ sub user_import {
       $User->pi_add($user_info);
     }
     else {
-      print "Error: $User->{errno} $User->{errstr}\n";
+      if($Users->{errno} == 11) {
+        print "Error: $User->{errno} $User->{errstr} '$user_info->{EMAIL}'\n";
+      }
+      else {
+        print "Error: $User->{errno} $User->{errstr}\n";
+      }
     }
 
     $count++;
@@ -349,7 +382,7 @@ sub _get_tp {
 
 
 #**********************************************************
-=head2 _get_tp($user_info);
+=head2 odoo_service_sync($service_list);
 
 
 =cut
@@ -358,17 +391,19 @@ sub odoo_service_sync {
   my ($service_list)=@_;
 
   my %login2uid = ();
-  my $logins = $Users->list({ LOGIN => '_SHOW',
+  my $logins_list = $Users->list({
+    LOGIN     => '_SHOW',
     COLS_NAME => 1,
     PAGE_ROWS => 100000
   });
 
-  foreach my $line (@$logins) {
+  foreach my $line (@$logins_list) {
     $login2uid{$line->{login}}=$line->{uid};
   }
 
   my $tp_ids = _get_tp();
   my $Internet = Internet->new($db, $Admin, \%conf);
+
   my $i = 0;
   foreach my $info (@$service_list) {
     $i++;
@@ -383,6 +418,7 @@ sub odoo_service_sync {
     }
 
     my $ip = (ref $info->{ip_antenna}  eq '') ? $info->{ip_antenna} : '0.0.0.0';
+    my $cid = (ref $info->{mac_antenna}  eq '') ? $info->{mac_antenna} : '';
     my $login = $info->{partner_id}->[0];
 
     foreach my $tp_name  (@{ $info->{product_id} }) {
@@ -402,6 +438,7 @@ sub odoo_service_sync {
       LOGIN     => $login,
       TP_ID     => '_SHOW',
       ID        => '_SHOW',
+      CID       => '_SHOW',
       GROUP_BY  => 'internet.id',
       COLS_NAME => 1
     });
@@ -429,8 +466,14 @@ sub odoo_service_sync {
             $Internet->add({
               UID   => $internet_list->[0]->{uid},
               TP_ID => $new_tp,
-              IP    => $ip
+              IP    => $ip,
+              CID   => $cid,
+              CHECK_EXIST_TP => 1
             });
+
+            if($Internet->{errno}) {
+              print "ERROR: $Internet->{errno} $Internet->{errstr}\n";
+            }
           }
 
 #          print "$login // ". ($internet_list->[0]->{id} || q{-})
@@ -443,6 +486,7 @@ sub odoo_service_sync {
         $Internet->change({
           ID    => $internet_list->[0]->{id},
           UID   => $internet_list->[0]->{uid},
+          CID   => $cid,
           #TP_ID => $new_tp,
           IP    => $ip
         });
@@ -464,8 +508,14 @@ sub odoo_service_sync {
         $Internet->add({
           UID   => $login2uid{$login},
           TP_ID => $tp_id,
-          IP    => $ip
+          IP    => $ip,
+          CID   => $cid,
+          CHECK_EXIST_TP => 1
         });
+
+        if($Internet->{errno}) {
+          print "ERROR: [$Internet->{errno}] $Internet->{errstr}\n";
+        }
 
         if ($user_tp{$tp_id} == 1) {
           #delete $user_tp{$tp_id};

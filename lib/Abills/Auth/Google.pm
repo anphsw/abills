@@ -10,7 +10,7 @@ use strict;
 use warnings FATAL => 'all';
 
 # "win2utf8" is not exported by the Abills::Base module
-use Abills::Base qw(urlencode mk_unique_value _bp show_hash load_pmodule2);
+use Abills::Base qw(urlencode mk_unique_value _bp show_hash load_pmodule);
 #use Abills::Base;
 
 use Abills::Fetcher;

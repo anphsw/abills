@@ -14,12 +14,15 @@ use warnings FATAL => 'all';
 
 use Abills::Experimental;
 use Abills::Base qw/_bp in_array/;
+
 our (
   %lang,
   $html,
   $Events,
   $admin, $db, %conf
 );
+
+use Events::UniversalPageLogic;
 
 our @PRIORITY_SEND_TYPES = qw/
   Mail
@@ -155,67 +158,125 @@ sub events_profile_configure {
   return 1;
 }
 
-#
-##**********************************************************
-#=head2 events_priority_send_types()
-#
-#=cut
-##**********************************************************
-#sub events_priority_send_types {
-#
-#  return 0 if ( !$admin->{AID} );
-#
-#  if ( $FORM{save} ) {
-#    $Events->priority_send_types_add(\%FORM, { REPLACE => 1 });
-#    show_result($Events, $lang{CHANGED});
-#  }
-#
-#  print $html->element('div',
-#    $html->element('div', $html->form_main(
-#        {
-#          CONTENT => $lang{PRIORITY} . ' ' . _events_priority_select(),
-#          HIDDEN  => { index => "$index" },
-#          SUBMIT  => { go => $lang{SHOW} },
-#          METHOD  => 'GET',
-#          class   => 'form navbar-form'
-#        }
-#      ), { class => 'well well-sm' }),
-#    { class => 'col-md-12' }
-#  );
-#
-#  return 1 if ( !$FORM{PRIORITY_ID} );
-#
-#  # Obtain current send types
-#  my $current_priorities = $Events->priority_send_types_list({
-#    AID         => $admin->{AID},
-#    PRIORITY_ID => $FORM{PRIORITY_ID},
-#    SEND_TYPES  => '_SHOW',
-#    PAGE_ROWS   => 1
-#  });
-#  return 0 if ( _error_show($Events) );
-#
-#  my @current_priorities = ();
-#  if ( $current_priorities && ref $current_priorities eq 'ARRAY' && scalar($current_priorities) > 0 ) {
-#    @current_priorities = split(',\s?', $current_priorities->[0]->{send_types});
-#  }
-#  else {
-#    @current_priorities = @DEFAULT_SEND_TYPES;
-#  }
-#
-#  # Translate to hash
-#  my %checked_priorities = map {
-#    $_ => 1
-#  } @current_priorities;
-#
-#  $html->tpl_show(_include('events_notification_type', 'Events'),
-#    {
-#      CHECKBOXES  => $checkboxes_html,
-#      PRIORITY_ID => $FORM{PRIORITY_ID},
-#      AID         => $admin->{AID}
-#    }
-#  );
-#
-#}
+#**********************************************************
+=head2 events_profile()
+
+=cut
+#**********************************************************
+sub events_profile {
+  
+  if ($FORM{seen}){
+    if ($FORM{IDS}){
+      $Events->events_change({ID => $_, STATE_ID => 2 }) foreach (split(',\s?', $FORM{IDS}));
+    }
+    else {
+      $Events->events_change({ID => $FORM{ID}, STATE_ID => 2 });
+    }
+    show_result($Events, "$lang{CHANGED}");
+  }
+  else {
+    events_uni_page_logic(
+      'events', # Table name
+      {
+        # Template variables
+        SELECTS    => {
+          PRIVACY_SELECT  => { func => '_events_privacy_select', argument => 'PRIVACY_ID' },
+          PRIORITY_SELECT => { func => '_events_priority_select', argument => 'PRIORITY_ID' },
+          GROUP_SELECT    => { func => '_events_group_select', argument => 'GROUP_ID' },
+          STATE_SELECT    => { func => '_events_state_select', argument => 'STATE_ID' },
+        },
+        
+        # Result former variables
+        HAS_VIEW   => 1,
+        HAS_SEARCH => 1
+      }
+    );
+  }
+  return 1 if ( $FORM{MESSAGE_ONLY} );
+  
+  # Search form
+  if ($FORM{search} && !$FORM{search_form} && $FORM{STATE_ID}){
+    $LIST_PARAMS{STATE_ID} = $FORM{STATE_ID};
+  }
+  
+  $LIST_PARAMS{PAGE_ROWS} = 10000;
+  $LIST_PARAMS{AID} = $admin->{AID};
+  
+  my ($table) = events_uni_result_former({
+    LIST_FUNC       => "events_list",
+    DEFAULT_FIELDS  => "ID,TITLE,COMMENTS,PRIORITY_NAME,STATE_NAME,GROUP_NAME",
+    HIDDEN_FIELDS   => "PRIORITY_ID,STATE_ID,GROUP_ID,COMMENTS,EXTRA,CREATED,MODULE,AID",
+    MULTISELECT_ACTIONS => [
+      {
+        TITLE    => $lang{DEL},
+        ICON     => 'glyphicon glyphicon-trash',
+        ACTION   => "$SELF_URL?index=$index&del=1",
+        PARAM    => "IDS",
+        CLASS    => 'btn-danger',
+        COMMENTS => "$lang{DEL}?"
+      },
+      {
+        TITLE  => $lang{SEEN},
+        ICON   => 'glyphicon glyphicon-ok',
+        ACTION => "$SELF_URL?index=$index&seen=1",
+        PARAM  => "IDS"
+      }
+    ],
+    EXT_TITLES      => {
+      id            => "#",
+      comments      => $lang{COMMENTS},
+      module        => $lang{MODULE},
+      created       => $lang{CREATED},
+      state_name    => $lang{STATE},
+      privacy_name  => $lang{ACCESS},
+      priority_name => $lang{PRIORITY},
+      group_name    => $lang{GROUP},
+      title         => $lang{NAME}
+    },
+    FILTER_COLS     => {
+      comments => 0,
+      title    => 0,
+    },
+    FILTER_VALUES   => {
+      comments      => \&translate_simple,
+      title         => \&translate_simple,
+      priority_name => \&translate_simple
+    },
+    READABLE_NAME   => "$lang{EVENTS}",
+    TABLE_NAME      => "EVENTS_TABLE",
+    HAS_SEARCH      => 1,
+    OUTPUT2RETURN   => 1,
+  });
+  
+  
+  my $state_list = $Events->state_list({
+    NAME => '_SHOW',
+  });
+  _error_show($Events) and return 0;
+  # Adding all option
+  unshift(@$state_list, { id => 0, name => $lang{ALL} });
+  
+  my $filters_html = join('', map {
+      my $button = $html->button(translate_simple($_->{name}), "index=$index&search=1&STATE_ID=$_->{id}");
+      $html->element('li', $button, {
+          class         => (defined $FORM{STATE_ID} && $FORM{STATE_ID} eq $_->{id} ? 'active' : ''),
+          OUTPUT2RETURN => 1,
+        });
+    } @$state_list
+  );
+
+  $html->tpl_show(_include('events_events_profile', 'Events'),
+    {
+      TABLE   => $table,
+      FILTERS => $filters_html,
+      CREATE_BTN => $html->button($lang{CREATE}, "index=$index&show_add_form=1",{
+          class => 'btn btn-sm btn-primary btn-block margin-bottom'
+        })
+    }
+  );
+  
+  return 1;
+}
 
 #**********************************************************
 =head2 events_unsubscribe()

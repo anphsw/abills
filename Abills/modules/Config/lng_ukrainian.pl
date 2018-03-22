@@ -6,10 +6,11 @@ $lang{SYMBOLS_COUNT} = 'Кількість символів';
 $lang{ALPHABET_SYMBOLS} = 'Буквенні';
 $lang{NON_ALPHABET_SYMBOLS} = 'Небуквенні';
 $lang{CASE} = 'Регістр';
-$lang{UPPERCASE} = 'Верхній';
-$lang{LOWERCASE} = 'Нижній';
-$lang{BOTH} = 'Обидва випадки';
+$lang{UPPERCASE} = 'Верхній регістр';
+$lang{LOWERCASE} = 'Нижній регістр';
+$lang{BOTH_CASES} = 'Обидва випадки';
 $lang{NUMBERS} = 'Цифри';
 $lang{SPECIAL_CHARS} = 'Спеціальні';
+$lang{LETTERS} = 'Букви';
 
 1;

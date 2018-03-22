@@ -28,7 +28,7 @@
           </div>
         </div>
       </div>
-      <div class='box-footer text-center'>
+      <div class='box-footer'>
         <input type='submit' form='form_EVENTS_PRIORITY_SEND_TYPE' class='btn btn-primary' name='submit'
                value='_{SAVE}_'>
       </div>

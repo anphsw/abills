@@ -7,7 +7,7 @@ package Dv;
 =cut
 
 use strict;
-use parent qw( main );
+use base qw( main );
 use Tariffs;
 use Users;
 use Fees;
@@ -413,7 +413,7 @@ sub list {
       ['TP_CREDIT',      'INT', 'tp.credit', 'tp.credit AS tp_credit' ],
       ['ONLINE',         'INT', 'c.uid',            'c.uid AS online' ],
       ['ONLINE_IP',      'INT', 'INET_NTOA(c.framed_ip_address)', 'INET_NTOA(c.framed_ip_address) AS online_ip' ],
-      ['ONLINE_DURATION','INT', 'c.uid',  'if(c.lupdated>UNIX_TIMESTAMP(c.started), c.lupdated - UNIX_TIMESTAMP(c.started), 0) AS online_duration' ],
+      ['ONLINE_DURATION','INT', 'c.uid',  'IF(c.lupdated>UNIX_TIMESTAMP(c.started), c.lupdated - UNIX_TIMESTAMP(c.started), 0) AS online_duration' ],
       ['ONLINE_CID',     'INT', 'c.CID',        'c.CID AS online_cid' ],
       ['MONTH_FEE',      'INT', 'tp.month_fee',                     1 ],
       ['ABON_DISTRIBUTION', 'INT', 'tp.abon_distribution',          1 ],
@@ -425,7 +425,8 @@ sub list {
       ['DV_STATUS',      'INT', 'dv.disable AS dv_status',          1 ],
       ['DV_STATUS_ID',   'INT', 'dv.disable AS dv_status_id',       1 ],
       ['DV_EXPIRE',      'DATE','dv.expire as dv_expire',           1 ],
-      ['DV_STATUS_DATE', '',    '', '(SELECT aa.datetime FROM admin_actions aa WHERE aa.uid=dv.uid AND aa.module=\'Dv\' AND aa.action_type=4
+      ['DV_STATUS_DATE', '',    '', '(SELECT aa.datetime FROM admin_actions aa WHERE aa.uid=dv.uid AND aa.module=\'Dv\'
+       AND aa.action_type IN (4, 8, 14)
        ORDER BY aa.datetime DESC LIMIT 1) AS dv_status_date' ],
       ['MONTH_TRAFFIC_IN',  'INT', '', "SUM(l.recv) AS month_traffic_in" ],
       ['MONTH_TRAFFIC_OUT', 'INT', '', "SUM(l.sent) AS month_traffic_out" ],
@@ -439,6 +440,10 @@ sub list {
     );
 
   my $EXT_TABLE = $self->{EXT_TABLES} || '';
+  if($self->{SEARCH_FIELDS} =~ /online/) {
+    $EXT_TABLE .= "
+     LEFT JOIN dv_calls c ON (c.uid=dv.uid) ";
+  }
 
   if ($attr->{USERS_WARNINGS}) {
     my $allert_period = '';
@@ -510,11 +515,6 @@ sub list {
 
     my $list = $self->{list};
     return $list;
-  }
-
-  if($self->{SEARCH_FIELDS} =~ /online/) {
-    $EXT_TABLE .= "
-     LEFT JOIN dv_calls c ON (c.uid=dv.uid) ";
   }
 
   if ($attr->{MONTH_TRAFFIC_IN} || $attr->{MONTH_TRAFFIC_OUT}) {
@@ -650,8 +650,8 @@ sub report_tp {
   );
 
   $self->query2("SELECT dv.tp_id AS id, tp.name, count(DISTINCT dv.uid) AS counts,
-      SUM(IF(dv.disable=0 AND u.disable=0, 1, 0)) AS active,
-      SUM(IF(dv.disable=1 OR u.disable=1, 1, 0)) AS disabled,
+      COUNT(DISTINCT CASE WHEN dv.disable=0 AND u.disable=0 THEN dv.uid ELSE NULL END) AS active,
+      COUNT(DISTINCT CASE WHEN dv.disable=1 AND u.disable=1 THEN dv.uid ELSE NULL END) AS disabled,
       SUM(IF(IF(u.company_id > 0, cb.deposit, b.deposit) < 0, 1, 0)) AS debetors,
       ROUND(SUM(p.sum) / COUNT(DISTINCT dv.uid), 2) AS arpu,
       ROUND(SUM(p.sum) / COUNT(DISTINCT p.uid), 2) AS arppu,
@@ -682,6 +682,8 @@ sub report_tp {
   Arguments:
     $attr
        DOMAIN_ID
+       LOGIN
+       UID
 
 =cut
 #**********************************************************

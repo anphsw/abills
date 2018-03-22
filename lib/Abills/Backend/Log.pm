@@ -2,6 +2,8 @@ package Abills::Backend::Log;
 use strict;
 use warnings FATAL => 'all';
 
+our $VERSION = 1.0;
+
 our $LEVEL_EMERG = 0;
 our $LEVEL_ALERT = 1;
 our $LEVEL_CRIT = 2;
@@ -82,12 +84,10 @@ sub new {
   
   if ( $type eq 'STDOUT' ) {
     require Abills::Backend::Log::File;
-    Abills::Backend::Log::File->import();
     $self->{logger} = Abills::Backend::Log::File->new(\*STDOUT);
   }
   elsif ( $type eq 'FILE' ) {
     require Abills::Backend::Log::File;
-    Abills::Backend::Log::File->import();
     $self->{logger} = Abills::Backend::Log::File->new($attr->{FILE});
   }
   else {

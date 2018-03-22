@@ -15,7 +15,7 @@ package Export_redmine;
 
 use strict;
 use warnings FATAL => 'all';
-use Abills::Base qw(load_pmodule2);
+use Abills::Base qw(load_pmodule);
 use Abills::Fetcher;
 
 our $VERSION = 1.17;
@@ -40,17 +40,25 @@ sub new {
   };
   bless($self, $class);
   
-  load_pmodule2('JSON');
+  load_pmodule('JSON');
   
   $json = JSON->new->allow_nonref;
   
-  $self->{api_url} = ($CONF->{MSGS_REDMINE_APIURL}) ? $CONF->{MSGS_REDMINE_APIURL} : '';
-  $self->{api_login} = ($CONF->{MSGS_REDMINE_LOGIN}) ? $CONF->{MSGS_REDMINE_LOGIN} : '';
-  $self->{api_passwd} = ($CONF->{MSGS_REDMINE_PASSWORD}) ? $CONF->{MSGS_REDMINE_PASSWORD} : '';
-  $self->{api_key} = ($CONF->{MSGS_REDMINE_APIKEY}) ? $CONF->{MSGS_REDMINE_APIKEY} : '';
+  $self->{api_url}        = $CONF->{MSGS_REDMINE_APIURL} || '';
+  $self->{api_login}      = $CONF->{MSGS_REDMINE_LOGIN} || '';
+  $self->{api_passwd}     = $CONF->{MSGS_REDMINE_PASSWORD} || '';
+  $self->{api_key}        = $CONF->{MSGS_REDMINE_APIKEY} || '';
+  $self->{project_id}     = $CONF->{MSGS_REDMINE_PROJECT_ID} || '1';
+  $self->{subject_prefix} = $CONF->{MSGS_REDMINE_SUBJECT_PREFIX} // '#S';
+  
+  if ($self->{api_url} && $self->{api_url} !~ /\/$/){
+    $self->{api_url} .= '/';
+  }
+  
   $self->{debug} = $CONF->{MSGS_REDMINE_DEBUG};
   $self->{SERVICE_NAME} = 'Redmine';
   $self->{VERSION} = $VERSION;
+  
   return $self;
 }
 
@@ -87,7 +95,8 @@ sub check_dublicate {
   # Search for issue with query in title
   
   $self->send_request({
-    ACTION => "search.json?utf8=%E2%9C%93&q=$search_query&scope=all&titles_only=1&issues=1&attachments=0&options=1",
+    ACTION => "search.json?utf8=%E2%9C%93&q=$search_query"
+                . "&scope=all&project_id=$self->{project_id}&titles_only=1&issues=1&attachments=0&options=1",
   });
   return 0 if ( $self->{errno} );
   
@@ -123,12 +132,10 @@ sub export_task {
     return $self;
   }
   
-  return $self;
-  
   my $data = qq/{
   "issue": {
-    "project_id": 1,
-    "subject": "#S$attr->{ID} $attr->{SUBJECT}",
+    "project_id": $self->{project_id},
+    "subject": "$self->{subject_prefix}$attr->{ID} $attr->{SUBJECT}",
     "priority_id": $priority,
     "notes": "ABillS",
     "description": "$attr->{MESSAGE}"

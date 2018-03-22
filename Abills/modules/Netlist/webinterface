@@ -13,7 +13,8 @@ use Netlist;
 use Nas;
 use Socket qw(inet_pton inet_aton AF_INET6);
 use Abills::Filters;
-use Abills::Base qw(int2ip ip2int);
+use Abills::Base qw(int2ip ip2int in_array);
+use Abills::Experimental;
 
 our (
   $db,
@@ -1007,7 +1008,12 @@ sub netlist_show_networks {
 
   _error_show($Dhcphosts);
 
-  my $ip_pools = $Nas->nas_ip_pools_list( { COLS_NAME => 1, PAGE_ROWS  => 100000, NAS_ID => '*'} );
+  my $ip_pools = $Nas->nas_ip_pools_list( {
+    NAS_ID           => '*',
+    SHOW_ALL_COLUMNS => 1,
+    COLS_NAME        => 1,
+    PAGE_ROWS        => 100000,
+  } );
   _error_show($Nas);
 
   my $info_index = get_function_index('netlist_network_info');
@@ -1036,28 +1042,30 @@ sub netlist_show_networks {
   }
   print $ip_pools_table->show();
 
-  # Show networks defined in pools
-  my $dhcphosts_networks_table = $html->table( {
+  if (in_array('Dhcphosts', \@MODULES)) {
+    # Show networks defined in pools
+    my $dhcphosts_networks_table = $html->table({
       width   => '100%',
       caption => 'Dhcphosts ' . $lang{NETWORKS},
       title   => [ '#', $lang{NAME}, $lang{NETWORK}, $lang{INFO} ],
       pages   => scalar @{$ip_pools},
-      qs      => $pages_qs,
-      ID      => '_ID'
-    } );
+        qs => $pages_qs,
+        ID => '_ID'
+    });
 
-  foreach my $pool ( @{$dhcp_networks} ) {
-    my $info_button = $html->button( '', "index=$info_index&TYPE=Dhcphosts&ID=$pool->{id}", { class => 'info' } );
+    foreach my $pool (@{$dhcp_networks}) {
+      my $info_button = $html->button('', "index=$info_index&TYPE=Dhcphosts&ID=$pool->{id}", { class => 'info' });
 
-    $dhcphosts_networks_table->addrow(
-      $pool->{id},
-      $pool->{name},
-      $pool->{network} . '/' . $pool->{netmask},
-      $info_button
-    );
+      $dhcphosts_networks_table->addrow(
+        $pool->{id},
+        $pool->{name},
+        $pool->{network} . '/' . $pool->{netmask},
+        $info_button
+      );
+    }
+
+    print $dhcphosts_networks_table->show();
   }
-
-  print $dhcphosts_networks_table->show();
 
   return 1;
 }
@@ -1078,19 +1086,18 @@ sub netlist_network_info {
   my $last_ip_num;
 
   my %lookup_ip_info_table = ();
-  my %lookup_uid_ip_table = ();
-
-  my @uids = ();
+  my %lookup_ip_uid_table = ();
 
   if ( $FORM{TYPE} eq 'IP_POOL' ) {
     # Need to count all ip addresses inside pool
     my $network_list = $Nas->nas_ip_pools_list( {
-      COLS_NAME => 1,
-      PAGE_ROWS => 100000,
-      NAS_ID    => '*'
+      NAS_ID           => '*',
+      SHOW_ALL_COLUMNS => 1,
+      COLS_NAME        => 1,
+      PAGE_ROWS        => 100000,
     } );
     return 0 if (_error_show($Nas));
-    
+
     if ($FORM{ID}){
       my @networks = grep { $_->{id} == $FORM{ID} } @$network_list;
       %network = %{ $networks[0] };
@@ -1102,54 +1109,16 @@ sub netlist_network_info {
     $first_ip_num = $network{ip};
     $last_ip_num = $network{last_ip_num} + 1;
 
-    # Get info from dv_main
-    require Dv;
-    Dv->import();
-    my $Dv = Dv->new( $db, $admin, \%conf );
+    my $ips_from_module;
+    if (in_array('Internet', \@MODULES)){
+      $ips_from_module = _get_ips_info_for_internet($first_ip_num, $last_ip_num);
+    }
+    else {
+      $ips_from_module = _get_ips_info_for_dv($first_ip_num, $last_ip_num);
+    }
 
-    my $users_list = $Dv->list( {
-      UID       => '_SHOW',
-      ONLINE    => '_SHOW',
-      DV_LOGIN  => '_SHOW',
-      PAGE_ROWS => 10000000,
-      IP        => int2ip($first_ip_num) . '*' . int2ip($last_ip_num),
-      COLS_NAME => 1
-    } );
-    _error_show($Dv);
-  
-    foreach my $user ( @{$users_list} ) {
-      my $ip = $user->{ip} || int2ip($user->{ip_num});
-      $lookup_uid_ip_table{$user->{uid}} = $ip;
-      
-      $lookup_ip_info_table{$ip} = $user;
-      $lookup_ip_info_table{$ip}->{login} = $user->{dv_login} if ($user->{dv_login});
-      delete $user->{dv_login};
-    
-      push (@uids, $user->{uid});
-    }
-    
-    # Get online info from dv_calls
-    require Dv_Sessions;
-    Dv_Sessions->import();
-  
-    my $Dv_sessions = Dv_Sessions->new($db, $admin, \%conf);
-    my $online_list = $Dv_sessions->online({
-      LOGIN     => '_SHOW',
-      IP        => '_SHOW',
-      DURATION  => '_SHOW',
-      COLS_NAME => 1,
-      PAGE_ROWS => 1000000,
-    });
-    _error_show($Dv_sessions);
-    
-    foreach my $online_row ( @{$online_list} ) {
-      $online_row->{online} = 1;
-      $lookup_ip_info_table{$online_row->{ip}} = $online_row;
-      $lookup_uid_ip_table{$user->{uid}} = $line->{ip};
-      
-      push (@uids, $user->{uid}) ;
-    }
-    
+    %lookup_ip_info_table = %{ $ips_from_module->{IP_INFO} };
+    %lookup_ip_uid_table = %{ $ips_from_module->{IP_UID} };
   }
   elsif ( $FORM{TYPE} eq 'Dhcphosts' ) {
     # Just need to know all ip addresses in range
@@ -1167,19 +1136,20 @@ sub netlist_network_info {
     } );
 
     return 0 if (_error_show($Dhcphosts));
-    
+
     %network = %{$networks_list->[0]};
-    
+
     $network{network_int} //= 0;
     $first_ip_num = $network{network_int} + 1;
 
     my $netmask = $network{netmask_int};
     my $netmask_binary = sprintf('%032b', $netmask);
     my $bits_count = index ($netmask_binary, '0');
+    $bits_count = 0 if $bits_count <= 0;
     my $hosts_count = 1 << (32 - $bits_count);
-    
+
     $last_ip_num = $first_ip_num + $hosts_count - 3;
-    
+
     my $users_list = $Dhcphosts->hosts_list( {
       UID          => '_SHOW',
       LOGIN        => '_SHOW',
@@ -1191,18 +1161,16 @@ sub netlist_network_info {
       COLS_NAME    => 1
     } );
     _error_show($Dhcphosts);
-    
+
     foreach my $user ( @{$users_list} ) {
       $lookup_ip_info_table{$user->{ip}} = $user;
-      $lookup_uid_ip_table{$user->{uid}} = $user->{ip};
-
-      push (@uids, $user->{uid});
+      $lookup_ip_uid_table{$user->{ip}} = $user->{uid};
     }
   }
   else {
     $html->message( 'err', 'Error', 'Wrong parameter TYPE given' );
   }
-  
+
   for ( my $ip_address_num = $first_ip_num; $ip_address_num <= $last_ip_num; $ip_address_num++ ) {
     my $ip_str = int2ip($ip_address_num);
     my ($last_octet) = $ip_str =~ /\.(\d{1,3})$/;
@@ -1216,33 +1184,26 @@ sub netlist_network_info {
       . $html->br . ($last_ip_num - $first_ip_num + 1) . $lang{HOSTS}
   );
 
+  my %unique_uids_to_ip = reverse (%lookup_ip_uid_table);
+  my @uids = keys %unique_uids_to_ip;
+
   our Users $users;
   my $users_list = $users->list( {
-      UID        => join(',', @uids),
-      FIO        => '_SHOW',
-      PAGE_ROWS  => 10000000,
-      # Defines use OR in SQL query
-      _MULTI_HIT => 1,
-      COLS_NAME  => 1
-    } );
+    UID        => join(',', @uids),
+    FIO        => '_SHOW',
+    PAGE_ROWS  => 10000000,
+    # Defines use OR in SQL query
+    _MULTI_HIT => 1,
+    COLS_NAME  => 1
+  } );
   _error_show($users);
-  
-  foreach my $user ( @{$users_list} ) {
-    my $ip_address = $lookup_uid_ip_table{$user->{uid}};
 
-    next if (!defined $ip_address);
-    
-    # Preventing redefining dv_login if already exists
-    $lookup_ip_info_table{$ip_address}->{login} = $user->{login} if (!exists $lookup_ip_info_table{$ip_address}->{login});
-    $lookup_ip_info_table{$ip_address}->{fio} = $user->{fio};
-    $lookup_ip_info_table{$ip_address}->{ip} = $ip_address;
-
-  }
+  my $user_info_by_uid = sort_array_to_hash($users_list, 'uid');
 
   my $netlist_defined_ips = $Netlist->ip_list( {
-      STATUS => '_SHOW',
-      COLS_NAME => 1,
-    } );
+    STATUS => '_SHOW',
+    COLS_NAME => 1,
+  } );
   _error_show($Netlist);
 
   foreach my $custom_watch_ip ( @$netlist_defined_ips ) {
@@ -1250,18 +1211,27 @@ sub netlist_network_info {
   }
 
   print _netlist_make_ip_table(
-      \@last_octets,
-      sub {
-        my $index = shift;
-        my $ip_address = $ip_addresses[$index];
+    \@last_octets,
+    sub {
+      my $index = shift;
+      my $ip = $ip_addresses[$index];
 
-        if ( exists $lookup_ip_info_table{$ip_address} ) {
-          return _netlist_make_user_info_popover($lookup_ip_info_table{$ip_address}, $last_octets[$index]);
+      if ($lookup_ip_info_table{$ip}) {
+        if ($lookup_ip_info_table{$ip}{uid} && $user_info_by_uid->{$lookup_ip_info_table{$ip}{uid}}) {
+
+          my $user_info = $user_info_by_uid->{$lookup_ip_info_table{$ip}{uid}};
+
+          $lookup_ip_info_table{$ip}{ip} = $ip;
+          $lookup_ip_info_table{$ip}{login} = $user_info->{login};
+          $lookup_ip_info_table{$ip}{fio} = $user_info->{fio};
         }
 
-        return '<td>' . $last_octets[$index] . '</td>';
+        return _netlist_make_user_info_popover($lookup_ip_info_table{$ip}, $last_octets[$index]);
       }
-    );
+
+      return '<td>' . $last_octets[$index] . '</td>';
+    }
+  );
 
 }
 
@@ -1355,6 +1325,152 @@ INFO_HTML
 </td>
 RESULT
   
+}
+
+#**********************************************************
+=head2 _get_ips_info_for_internet($first_ip_num, $last_ip_num)
+
+=cut
+#**********************************************************
+sub _get_ips_info_for_internet {
+  my ($first_ip_num, $last_ip_num) = @_;
+
+  my %ip_info_table = ();
+  my %ip_uid_table = ();
+
+  require Internet;
+  Internet->import();
+  my $Internet = Internet->new($db, $admin, \%conf);
+
+  require Internet::Sessions;
+  Internet::Sessions->import();
+  my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
+
+  # Get info from internet_main
+  my $users_list = $Internet->list({
+    UID       => '_SHOW',
+    ONLINE    => '_SHOW',
+    PAGE_ROWS => 10000000,
+    IP        => '>' . int2ip($first_ip_num) . ';<' . int2ip($last_ip_num),
+    GROUP_BY => 'id',
+    COLS_NAME => 1
+  });
+  _error_show($Internet);
+
+  foreach my $user (@{$users_list}) {
+    my $ip = $user->{ip} || int2ip($user->{ip_num});
+
+    $ip_uid_table{$ip} = $user->{uid};
+    $ip_info_table{$ip} = $user;
+  }
+
+  # Get info from internet_online
+  my $online_list = $Sessions->online({
+    LOGIN         => '_SHOW',
+    CLIENT_IP_NUM => ">=$first_ip_num;<=$last_ip_num",
+    DURATION      => '_SHOW',
+    COLS_NAME     => 1,
+    GROUP_BY      => 'service_id',
+    PAGE_ROWS     => 1000000,
+  });
+  _error_show($Sessions);
+
+  foreach my $online_row (@{$online_list}) {
+    my $ip = $online_row->{framed_ip_address};
+
+    # TODO: check if uids are equal
+    $ip_uid_table{$ip} = $online_row->{uid} unless (exists $ip_uid_table{$ip});
+
+    if (exists $ip_info_table{$ip}) {
+      $ip_info_table{$ip}->{online} = 1;
+    }
+    else {
+      $ip_info_table{$ip}->{unknown} = 1;
+    }
+
+  }
+
+  return {
+    IP_UID  => \%ip_uid_table,
+    IP_INFO => \%ip_info_table
+  };
+}
+
+#**********************************************************
+=head2 _get_ips_info_for_dv($first_ip, $last_ip)
+
+=cut
+#**********************************************************
+sub _get_ips_info_for_dv {
+  my ($first_ip_num, $last_ip_num) = @_;
+
+  my %ip_info_table = ();
+  my %ip_uid_table = ();
+
+  require Dv;
+  Dv->import();
+  my  $Dv = Dv->new( $db, $admin, \%conf );
+
+  # Get info from dv_main
+  my $users_list = $Dv->list( {
+    UID       => '_SHOW',
+    ONLINE    => '_SHOW',
+    DV_LOGIN  => $conf{DV_LOGIN} || undef,
+    PAGE_ROWS => 10000000,
+    IP        => '>' . int2ip($first_ip_num) . ';<' . int2ip($last_ip_num),
+    COLS_NAME => 1
+  } );
+  _error_show($Dv);
+
+  foreach my $user ( @{$users_list} ) {
+    my $ip = $user->{ip} || int2ip($user->{ip_num});
+
+    $ip_uid_table{$ip} = $user->{uid};
+    $ip_info_table{$ip} = $user;
+
+    # Allow to have dv_login instead of login
+    if ($user->{dv_login}){
+      $ip_info_table{$ip}{login} = $user->{dv_login};
+      delete $user->{dv_login};
+    }
+  }
+
+  # Get online info from dv_calls
+
+  require Dv_Sessions;
+  Dv_Sessions->import();
+  my $Sessions = Dv_Sessions->new($db, $admin, \%conf);
+
+  my $online_list = $Sessions->online({
+    LOGIN     => '_SHOW',
+    CLIENT_IP_NUM => ">=$first_ip_num;<=$last_ip_num",
+    #      IP        => '>' . int2ip($first_ip_num) . ';<' . int2ip($last_ip_num),
+    DURATION  => '_SHOW',
+    COLS_NAME => 1,
+    GROUP_BY => 'service_id',
+    PAGE_ROWS => 1000000,
+  });
+  _error_show($Sessions);
+
+  foreach my $online_row ( @{$online_list} ) {
+    my $ip = $online_row->{framed_ip_address};
+
+    # TODO: check if uids are equal
+    $ip_uid_table{$ip} = $online_row->{uid} unless (exists $ip_uid_table{$ip});
+
+    if (exists $ip_info_table{$ip}) {
+      $ip_info_table{$ip}->{online} = 1;
+    }
+    else {
+      $ip_info_table{$ip}->{unknown} = 1;
+    }
+  }
+
+  return {
+    IP_UID  => \%ip_uid_table,
+    IP_INFO => \%ip_info_table
+  };
+
 }
 
 1

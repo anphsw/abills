@@ -11,7 +11,7 @@ use warnings FATAL => 'all';
 use Abills::Defs;
 use Abills::Fetcher;
 use Abills::Base qw(convert clearquotes int2byte days_in_month
-  in_array startup_files ssh_cmd int2ip ip2int);
+  in_array startup_files load_pmodule);
 
 our ($db,
  %lang,
@@ -21,7 +21,8 @@ our ($db,
  @WEEKDAYS,
  @bool_vals,
  %permissions,
- @state_colors);
+ @state_colors
+);
 
 our Abills::HTML $html;
 our Admins $admin;
@@ -29,25 +30,6 @@ our Conf $Conf;
 our Users $users;
 
 require Control::Nas_mng;
-
-#**********************************************************
-=head2 _color_show($text) - Marc text colot
-
-  Arguments:
-    $text
-
-  Returns:
-    $text
-
-=cut
-#**********************************************************
-sub _color_show {
-  my ($text) = @_;
-
-  $text = $html->color_mark($text, $text);
-
-  return $text;
-}
 
 #**********************************************************
 =head2 form_status() - service status listing
@@ -128,14 +110,16 @@ sub form_status {
      },
      FILTER_COLS => {
         name  => '_translate',
-        color => '_color_show',
      },
+    FILTER_VALUES => {
+      color => sub { $html->color_mark($_[0], $_[0]) }
+    },
      EXT_TITLES      => {
        id         => '#',
        name       => $lang{NAME},
        type       => $lang{TYPE},
-     	 color      => $lang{COLOR},
-       get_fees   => "$lang{GET_FEES}"
+       color      => $lang{COLOR},
+       get_fees   => $lang{GET_FEES}
      },
      TABLE           => {
        width      => '100%',
@@ -255,11 +239,13 @@ sub form_billd_plugins {
 
     $html->tpl_show(templates('form_billd_plugin'), $Billd);
   }
+
   my Abills::HTML $table;
+
   ($table) = result_former({
      INPUT_DATA      => $Billd,
      FUNCTION        => 'list',
-     DEFAULT_FIELDS  => 'PLUGIN_NAME,PERIOD,STATUS,PRIORITY',
+     DEFAULT_FIELDS  => 'PLUGIN_NAME,PERIOD,STATUS,PRIORITY,LAST_EXECUTE,EXECUTE_TIME',
      FUNCTION_FIELDS => 'change,del',
      SKIP_USER_TITLE => 1,
      SELECT_VALUE    => {
@@ -276,7 +262,9 @@ sub form_billd_plugins {
        status       => $lang{STATUS},
        threads      => 'Threads',
        make_lock    => 'Lock',
-       priority     => $lang{PRIORITY}
+       priority     => $lang{PRIORITY},
+       last_execute => 'last_execute',
+       execute_time => 'EXECUTE_TIME',
      },
      TABLE           => {
        width      => '100%',
@@ -298,7 +286,7 @@ sub form_billd_plugins {
   $table = $html->table(
     {
       caption     => "Available billd plugins",
-      title_plain => [ "$lang{NAME}", $lang{DATE}, $lang{SIZE}, '-' ],
+      title_plain => [ $lang{NAME}, $lang{DATE}, $lang{SIZE}, '-' ],
       ID          => 'FORM_BILLD',
     }
   );
@@ -320,8 +308,7 @@ sub form_billd_plugins {
 }
 
 #**********************************************************
-=head2 form_templates()
-  Create templates and manage template
+=head2 form_templates() - Create templates and manage template
 
 =cut
 #**********************************************************
@@ -349,9 +336,10 @@ sub form_templates {
   if ($FORM{create}) {
     my ($module, $file, $lang) = split(/:/, $FORM{create}, 3);
 
-    $info{TEMPLATE} = file_op({ FILENAME => $file,
-                                PATH     => ($module) ? "$sys_templates/$module/templates/" : "$main_templates_dir/"
-                              });
+    $info{TEMPLATE} = file_op({
+      FILENAME => $file,
+      PATH     => ($module) ? "$sys_templates/$module/templates/" : "$main_templates_dir/"
+    });
 
     my $filename = ($module) ? "$sys_templates/$module/templates/$file" : "$main_templates_dir/$file";
 
@@ -448,7 +436,7 @@ sub form_templates {
   }
   elsif ($FORM{FILE_UPLOAD}) {
     if($FORM{FILE_UPLOAD}{filename}) {
-      upload_file($FORM{FILE_UPLOAD});
+      upload_file($FORM{FILE_UPLOAD}, { EXTENTIONS => 'tpl,jpg,pdf,dsc,gif,jpeg' });
       $admin->system_action_add("$lang{ADDED} $lang{FILE} - $FORM{FILE_UPLOAD}{filename}", { TYPE => 62 });
     }
   }
@@ -514,13 +502,13 @@ sub form_templates {
     {
       width       => '100%',
       caption     => $lang{TEMPLATES},
-      title_plain => [ "FILE", "$lang{SIZE} (Byte)", "$lang{DATE}", "$lang{DESCRIBE}", "$lang{MAIN}", @caption ],
+      title_plain => [ $lang{FILE}, "$lang{SIZE} (Byte)", $lang{DATE}, $lang{DESCRIBE}, $lang{MAIN}, @caption ],
       ID          => 'TEMPLATES_LIST'
     }
   );
 
   #Main templates section
-  $table->{rowcolor} = 'active';
+  $table->{rowcolor} = 'bg-info';
   $table->{extra} = "colspan='" . (6 + $#caption) . "' class='small'";
   $table->addrow("$lang{PRIMARY}: ($main_templates_dir) ");
   if (-d $main_templates_dir) {
@@ -705,7 +693,9 @@ sub get_tpl_describe {
 }
 
 #**********************************************************
-#
+=head2 show_tpl_info()
+
+=cut
 #**********************************************************
 sub show_tpl_info {
   my ($filename, $path) = @_;
@@ -792,7 +782,7 @@ sub form_dictionary {
       }
     );
   }
-  elsif($FORM{add}) {
+  elsif($FORM{add} && $FORM{SUB_DICT}) {
     $sub_dict = $FORM{SUB_DICT};
 
     file_op({
@@ -808,9 +798,10 @@ sub form_dictionary {
     while (my ($k, $v) = each %FORM) {
       if ($sub_dict && $k =~ /$sub_dict/ && $k ne '__BUFFER') {
         my (undef, $key) = split(/_/, $k, 2);
-        next if(! $key);
+        next if(!$key || !$v);
         $key =~ s/\%40/\@/;
         if ($key =~ /@/) {
+          next if !$v;      # Will break syntax if empty
           $v =~ s/\\'/'/g;
           $v =~ s/\\"/"/g;
           $v =~ s/\;$//g;
@@ -898,15 +889,17 @@ sub form_dictionary {
       ROWS       => 1
     } );
 
-    foreach my $line ( @{$rows} ){
-      my ($name, $value) = split( /=/, $line, 2 );
-      $name =~ s/ //ig;
-      $name =~ s/^our//;
-      if ( $name =~ /^@/ ){
-        $sub_dictionary{"$name"} = $value;
-      }
-      elsif ( $line !~ /^#|^\n/ ){
-        $sub_dictionary{"$name"} = clearquotes( $value, { EXTRA => "|\'|;" } );
+    if($rows) {
+      foreach my $line (@{$rows}) {
+        my ($name, $value) = split(/=/, $line, 2);
+        $name =~ s/ //ig;
+        $name =~ s/^our//;
+        if ($name =~ /^@/) {
+          $sub_dictionary{"$name"} = $value;
+        }
+        elsif ($line !~ /^#|^\n/) {
+          $sub_dictionary{"$name"} = clearquotes($value, { EXTRA => "|\'|;" });
+        }
       }
     }
   }
@@ -928,13 +921,12 @@ sub form_dictionary {
       next;
     }
 
-
     if (defined($sub_dictionary{"$k"})) {
       $v2 = $sub_dictionary{"$k"};
       $table->{rowcolor} = undef;
     }
     else {
-      $v2 = '--';
+      $v2 = '';
       $table->{rowcolor} = 'danger';
     }
 
@@ -1177,7 +1169,6 @@ sub form_holidays {
     }
   }
   elsif($FORM{action} && $FORM{action} eq 'change'){
-
     $holidays->holidays_change(
       {
         DAY      => "$FORM{month}-$FORM{DAY}",
@@ -1187,7 +1178,7 @@ sub form_holidays {
     );
 
     if (!$holidays->{errno}) {
-      $html->message('info', $lang{INFO}, "$lang{CHANGED}");
+      $html->message('info', $lang{INFO}, $lang{CHANGED});
     }
   }
 
@@ -1241,17 +1232,17 @@ sub form_holidays {
     my ($month, $day);
 
     # получение данных из таблицы
-    if($FORM{change}){
-    $holiday_info = $holidays->holidays_info({DAY => $FORM{change}});
-    if(!$holiday_info->{DAY}){
-      return 0;
+    if ($FORM{change}) {
+      $holiday_info = $holidays->holidays_info({ DAY => $FORM{change} });
+      if (!$holiday_info->{DAY}) {
+        return 0;
+      }
+      ($month, $day) = split('-', $holiday_info->{DAY});
     }
-    ($month, $day) = split('-', $holiday_info->{DAY});
-    }
-    else{
+    else {
       my ($m, $d) = split('-', $FORM{show});
-      my $search = $m  . '-' . $d;
-      $holiday_info = $holidays->holidays_info({DAY => $search});
+      my $search = $m . '-' . $d;
+      $holiday_info = $holidays->holidays_info({ DAY => $search });
       ($month, $day) = split('-', $holiday_info->{DAY});
     }
 
@@ -1310,10 +1301,10 @@ sub form_holidays {
   my $month_days =  days_in_month({ DATE =>  "$year-$month-01" });
 
   $week_row = table_for_calendar({
-                MONTH_DAYS => $month_days,
-                CUR_WDAY   => $cur_wday,
-                MONTH      => $month
-                });
+    MONTH_DAYS => $month_days,
+    CUR_WDAY   => $cur_wday,
+    MONTH      => $month
+  });
 
   $html->tpl_show(templates('form_calendar_holidays'),
   {
@@ -1324,31 +1315,36 @@ sub form_holidays {
     NEXT_MONTH => $next_month,
     LAST_YEAR  => $last_year,
     NEXT_YEAR  => $next_year,
-    DAYS       => $week_row
+    DAYS       => $week_row,
+    WEEKDAYS_1 => $MONTHES[1],
+    WEEKDAYS_2 => $MONTHES[2],
+    WEEKDAYS_3 => $MONTHES[3],
+    WEEKDAYS_4 => $MONTHES[4],
+    WEEKDAYS_5 => $MONTHES[5],
+    WEEKDAYS_6 => $MONTHES[6],
+    WEEKDAYS_7 => $MONTHES[7],
+    WEEKDAYS_8 => $MONTHES[8],
   });
 
-  my $table = $html->table(
-    {
-      width      => '500',
-      rows       => [ [ "$lang{TOTAL}:", $html->b($holidays->{TOTAL}) ] ]
-    }
-  );
+  my $table = $html->table({
+    width      => '500',
+    rows       => [ [ "$lang{TOTAL}:", $html->b($holidays->{TOTAL}) ] ]
+  });
+
   print $table->show();
 
   # таблица праздничных дней
-  $table = $html->table(
-    {
-      caption    => "$lang{HOLIDAYS}",
-      width      => '500',
-      title      => [ $lang{DAY}, $lang{FILE}, $lang{DESCRIBE}, '-', '-' ],
-    }
-  );
+  $table = $html->table({
+    caption    => $lang{HOLIDAYS},
+    width      => '500',
+    title      => [ $lang{DAY}, $lang{FILE}, $lang{DESCRIBE}, '-' ],
+  });
 
   foreach my $line (@$list) {
     my ($m, $d) = split(/-/, $line->{day});
     my $change = $html->button($lang{CHANGE}, "index=75&change=$line->{day}", { class=>'change'});
     my $delete = $html->button($lang{DEL}, "index=75&del=$line->{day}", { MESSAGE => "$lang{DEL} $line->{day}?", class => 'del' });
-    $table->addrow("$d $MONTHES[$m - 1]", $line->{file}, $line->{descr}, $change, $delete);
+    $table->addrow("$d $MONTHES[$m - 1]", $line->{file}, $line->{descr}, $change . $delete);
   }
 
   print $table->show();
@@ -1503,6 +1499,11 @@ sub holiday_files_list {
 #**********************************************************
 sub form_info_fields {
 
+  if($conf{info_fields_new}) {
+    info_fields_new();
+    return 1;
+  }
+
   if ($FORM{FIELD_ID}){
     $FORM{FIELD_ID} = lc( $FORM{FIELD_ID} );
     $FORM{FIELD_ID} =~ s/[ \-]+//g;
@@ -1551,7 +1552,9 @@ sub form_info_fields {
    '',
    'PHOTO',
    'SOCIAL NETWORK',
-   'Crypt'
+   'Crypt',
+   $lang{LANGUAGE},
+   'Time zone'
   );
 
   my $fields_type_sel = $html->form_select(
@@ -1571,7 +1574,8 @@ sub form_info_fields {
     {
       width      => '500',
       caption    => "$lang{INFO_FIELDS} - $lang{USERS}",
-      title      => [ $lang{NAME}, 'SQL field', $lang{TYPE}, $lang{PRIORITY}, "$lang{USER_PORTAL}", $lang{USER} . ' ' . $lang{CHANGE}, '-' ],
+      title      => [ $lang{NAME}, 'SQL field', $lang{TYPE}, $lang{PRIORITY}, $lang{USER_PORTAL},
+        $lang{USER} . ' ' . $lang{CHANGE}, '-' ],
       EXPORT     => 1,
       FIELDS_IDS => ['NAME', 'SQL', 'TYPE'],
       ID         => 'INFO_FIELDS_USERS',
@@ -1690,7 +1694,9 @@ sub form_info_lists {
   my @ACTIONS = ('add', $lang{ADD});
 
   if ($FORM{add}) {
+
     $users->info_list_add({%FORM});
+
     if (!$users->{errno}) {
       $html->message('info', $lang{INFO}, "$lang{ADDED}: $FORM{NAME}");
     }
@@ -1715,27 +1721,40 @@ sub form_info_lists {
     }
   }
 
-  _error_show($users);
-  my $list = $Conf->config_list(
-    {
-      PARAM => 'if*',
-      VALUE => '*:2:*'
-    }
-  );
-
+  my $list = ();
   my %lists_hash = ();
-
-  foreach my $line (@$list) {
-    my $field_name = '';
-
-    if ($line->[0] =~ /if[u|c](\S+)/) {
-      $field_name = $1;
-    }
-
-    # $position, $field_type
-    my (undef, undef, $name) = split(/:/, $line->[1]);
-    $lists_hash{ $field_name . '_list' } = $name;
+  _error_show($users);
+  if($conf{info_fields_new}){
+    require Info_fields;
+    my $Info_fields = Info_fields->new($db, $admin, \%conf);
+     $list = $Info_fields->fields_list(
+        {
+          TYPE => 2
+        }
+      );
+    foreach my $line (@$list) {
+      $lists_hash{ $line->{sql_field} . '_list' } = $line->{name};
+    } 
   }
+  else{
+      $list = $Conf->config_list(
+        {
+          PARAM => 'if*',
+          VALUE => '*:2:*'
+        }
+      );
+      foreach my $line (@$list) {
+        my $field_name = '';
+
+        if ($line->[0] =~ /if[u|c](\S+)/) {
+          $field_name = $1;
+        }
+
+        # $position, $field_type
+        my (undef, undef, $name) = split(/:/, $line->[1]);
+        $lists_hash{ $field_name . '_list' } = $name;
+      }
+    }
 
   my $lists_sel = $html->form_select(
     'LIST_TABLE',
@@ -1842,7 +1861,7 @@ sub form_config {
     {
       caption     => 'config options',
       width       => '600',
-      title_plain => [ "$lang{NAME}", "$lang{DATE}", "MD5", "-" ],
+      title_plain => [ $lang{NAME}, $lang{DATE}, "MD5", "-" ],
     }
   );
 
@@ -2058,8 +2077,8 @@ sub form_tp_groups {
 #     DEFAULT_FIELDS  => 'NUMBER,FLORS,ENTRANCES,FLATS,STREET_NAME,USERS_COUNT,USERS_CONNECTIONS,ADDED'. (in_array('Maps', \@MODULES) ? ',COORDX' : ''),
      FUNCTION_FIELDS => 'change,del',
      EXT_TITLES      => {
-       id 	       => '#',
-       name 	     => $lang{NAME},
+       id          => '#',
+       name        => $lang{NAME},
        user_chg_tp => $lang{USER_CHG_TP},
        tarif_plans_count => $lang{COUNT}
      },
@@ -2699,6 +2718,229 @@ sub form_feedback {
     SYS_ID  => $sys_id,
     VERSION => $version
   });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 info_fields_new()
+
+=cut
+#**********************************************************
+sub info_fields_new {
+  require Info_fields;
+  require Abills::Experimental;
+  my $Info_fields = Info_fields->new($db, $admin, \%conf);
+
+  my @fields_types = (
+    'String',
+    'Integer',
+    $lang{LIST},
+    $lang{TEXT},
+    'Flag',
+    'Blob',
+    'PCRE',
+    'AUTOINCREMENT',
+    'ICQ',
+    'URL',
+    'PHONE',
+    'E-Mail',
+    'Skype',
+    $lang{FILE},
+    '',
+    'PHOTO',
+    'SOCIAL NETWORK',
+    'Crypt',
+    $lang{LANGUAGE},
+    'Time zone',
+    $lang{DATE},
+    );
+  my @bool = ($lang{NO}, $lang{YES});
+
+  my %TEMPLATE_ADVERTISEMENT = ();
+  my $show_add_form = $FORM{add_form} || 0;
+  my $chg_list= ();
+  if ( $FORM{add} ) {
+    if (!$FORM{SQL_FIELD}) {
+      $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA} (SQL_FIELD)");
+    }
+    elsif (length($FORM{SQL_FIELD}) > 15) {
+      $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA} (Length > 15)");
+    }
+    else{
+      $users->info_field_add(
+        {
+          POSITION     => $FORM{PRIORITY}, 
+          FIELD_TYPE   => $FORM{TYPE}, 
+          USERS_PORTAL => $FORM{ABON_PORTAL}, 
+          FIELD_ID     => $FORM{SQL_FIELD}, 
+          CAN_BE_CHANGED_BY_USER => $FORM{USER_CHG},
+          NAME         => $FORM{NAME},
+          COMPANY_ADD  => $FORM{COMPANY},
+        }
+      );
+      $Info_fields->fields_add( { %FORM } );
+      $show_add_form = !show_result( $Info_fields, $lang{ADDED} );
+    }
+  }
+
+  elsif ( $FORM{change} ) {
+    $Info_fields->fields_change( { %FORM } );
+    show_result( $Info_fields, $lang{CHANGED} );
+  }
+  elsif ( $FORM{chg} ) {
+    $show_add_form=1;
+    $chg_list = $Info_fields->fields_list({ ID => $FORM{chg} });
+    $TEMPLATE_ADVERTISEMENT{READONLY} = "readonly";
+    $TEMPLATE_ADVERTISEMENT{READONLY2} = "disabled";
+    $TEMPLATE_ADVERTISEMENT{TYPE_SELECT} = $html->element('input', '', {
+      readonly => 'readonly',
+      type     => 'text',
+      class    => 'form-control',
+      value    => "$fields_types[$chg_list->[0]->{type}]",
+    });
+  }
+  elsif ( $FORM{del} && $FORM{COMMENTS}) {
+    my $list = $Info_fields->fields_list({ ID => $FORM{del}});
+    $Info_fields->fields_del($FORM{del}, COMMENTS => $FORM{COMMENTS});
+    $users->info_field_del({ 
+      FIELD_ID => $list->[0]->{SQL_FIELD},
+      SECTION  => ($list->[0]->{COMPANY} ? 'ifc' : 'ifu' ), 
+    });
+    show_result( $Info_fields, $lang{DELETED} );
+  }
+  if ($Info_fields->{errno}) {
+    _error_show($Info_fields);
+  }
+
+  if ( $show_add_form ) {
+    $TEMPLATE_ADVERTISEMENT{TYPE_SELECT} //= $html->form_select(
+    'TYPE',
+    {
+      SELECTED => $chg_list->[0]->{type},
+      SEL_ARRAY => \@fields_types,
+      ARRAY_NUM_ID  => 1,
+      SEL_OPTIONS => {"" => ""}
+    }
+    );
+    $html->tpl_show(
+      templates('form_info_fields'),
+      {
+        %TEMPLATE_ADVERTISEMENT, 
+        %{$chg_list->[0]},
+        SUBMIT_BTN_ACTION => ($FORM{chg}) ? 'change' : 'add',
+        SUBMIT_BTN_NAME   => ($FORM{chg}) ? $lang{CHANGE} : $lang{ADD},
+      }
+    );
+  }
+  my @header_arr = (
+    "$lang{ALL}:index=$index&ALL_FIELDS=1",
+    "$lang{USERS}:index=$index&USR_FIELDS=1",
+    "$lang{COMPANY}:index=$index&COMPANY_FIELDS=1",
+    );
+  my $status_bar = $html->table_header(\@header_arr);
+  if($FORM{update_table}) {
+    my $usr_list = $Conf->config_list({ PARAM => 'ifu*', SORT => 2 });
+    foreach my $line (@$usr_list) {
+
+    my $field_name = '';
+
+    if ($line->[0] =~ /ifu(\S+)/) {
+      $field_name = $1;
+    }
+
+    my ($position, $field_type, $name, $user_portal, $can_be_changed_by_user) = split(/:/, $line->[1]);
+    $can_be_changed_by_user = ($can_be_changed_by_user) ? 1 : 0;
+    if (! defined($field_type)){
+      $field_type = 0;
+    }
+    
+    $Info_fields->fields_add( { NAME => $name, SQL_FIELD => $field_name, TYPE => $field_type, PRIORITY => $position, ABON_PORTAL => $user_portal, USER_CHG => $can_be_changed_by_user} );
+  }
+  my $company_list = $Conf->config_list({ PARAM => 'ifc*', SORT => 2 });
+
+  foreach my $line (@$company_list) {
+    my $field_name = '';
+
+    if ($line->[0] =~ /ifc(\S+)/) {
+      $field_name = $1;
+    }
+    my ($position, $field_type, $name, $user_portal) = split(/:/, $line->[1]);
+
+    if (! defined($field_type)){
+      $field_type = 0;
+    }
+
+    $user_portal ||=0;
+
+    $Info_fields->fields_add( { NAME => $name, SQL_FIELD => $field_name, TYPE => $field_type, PRIORITY => $position, ABON_PORTAL => $user_portal, COMPANY => 1} );
+  }
+
+  show_result( $Info_fields, $lang{CHANGED} );
+  }
+
+  if($FORM{USR_FIELDS}){
+    $LIST_PARAMS{COMPANY}=0;
+  }
+  elsif($FORM{COMPANY_FIELDS}){
+    $LIST_PARAMS{COMPANY}=1;
+  }
+
+  result_former(
+    {
+      INPUT_DATA      => $Info_fields,
+      FUNCTION        => 'fields_list',
+      DEFAULT_FIELDS  => 'ID, NAME, SQL_FIELD, TYPE, PRIORITY, ABON_PORTAL, USER_CHG, COMPANY, MODULE, COMMENT',
+      FUNCTION_FIELDS => 'change,del',
+      SKIP_USER_TITLE => 1,
+      EXT_TITLES      => {
+        id          => '#',
+        name        => $lang{NAME},
+        sql_field   => "SQL_FIELD",
+        type        => $lang{TYPE},
+        priority    => $lang{PRIORITY},
+        abon_portal => $lang{USER_PORTAL},
+        user_chg    => $lang{USER} . $lang{CHANGE},
+        company     => $lang{COMPANY},
+        module      => $lang{MODULE},
+        comment     => $lang{COMMENTS},
+      },
+      FILTER_VALUES => {
+        type => sub {
+          my (undef, $line) = @_;
+          if ($line->{type} == 2) {
+            $html->button($fields_types[2], "index=" . ($index + 1) . "&LIST_TABLE=$line->{sql_field}" . '_list');
+          }
+          else {
+            $fields_types[$line->{type}];
+          }
+        }
+      },
+      SELECT_VALUE => {
+       abon_portal => {
+         0 => $bool[0],
+         1 => $bool[1]
+       },
+       user_chg => {
+         0 => $bool[0],
+         1 => $bool[1]
+       },
+       company => {
+         0 => $bool[0],
+         1 => $bool[1]
+       }
+      },
+      TABLE => {
+        width   => '100%',
+        caption => $lang{INFO_FIELDS},
+        ID      => "INFO_FIELDS",
+        header     => $status_bar,
+        MENU    => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add; :index=$index&update_table=1&$pages_qs:glyphicon glyphicon-import",
+      },
+      MAKE_ROWS => 1,
+      TOTAL     => 1
+    }
+  );
 
   return 1;
 }

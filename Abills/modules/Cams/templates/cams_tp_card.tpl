@@ -21,7 +21,7 @@
         </div>
       </div>
     </div>
-    <div class='box-footer text-center'>
+    <div class='box-footer'>
       %SUBSCRIBE_BTN%
     </div>
   </div>

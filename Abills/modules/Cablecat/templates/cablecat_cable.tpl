@@ -60,17 +60,55 @@
 
     </form>
   </div>
-  <div class='box-footer text-center'>
+  <div class='box-footer'>
     <input type='submit' form='form_CABLECAT_CABLE' id='go' class='btn btn-primary' name='submit'
            value='%SUBMIT_BTN_NAME%'>
   </div>
 </div>
 
 <script>
+
   jQuery(function () {
+
     jQuery('button#COPY_LENGTH_CALCULATED').on('click', function () {
       jQuery('input#LENGTH_F_id').val('%LENGTH_CALCULATED%');
     });
+
+    function get_well_name(well_select, callback){
+      var well_id = well_select.val();
+      var well_name = well_select.find('option[value="' + well_id + '"]').text();
+
+      if (well_name){
+        callback(well_name);
+      }
+      else {
+        return '';
+//        jQuery.getJSON('?get_index=cablecat_wells&header=2&chg=' + well_id + '&json=1&TEMPLATE_ONLY=1', function(response){
+//          if (response && response.NAME){
+//            callback(response.NAME);
+//          }
+//        });
+      }
+    }
+
+    function update_cable_name(well_1_name, well_2_name){
+      jQuery('input#NAME_id').val(well_1_name + '-' + well_2_name);
+    }
+
+    function on_well_changed(){
+      get_well_name(jQuery('select#WELL_1'), function(well_1_name){
+        get_well_name(jQuery('select#WELL_2'), function(well_2_name){
+          update_cable_name(well_1_name, well_2_name);
+        });
+      })
+    }
+
+    jQuery('select#WELL_1').on('change', on_well_changed);
+    jQuery('select#WELL_2').on('change', on_well_changed);
+
   });
+
+
+
 </script>
 

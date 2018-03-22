@@ -28,7 +28,7 @@ $debug //= 0;
 sub voip_tp{
   #my ($attr) = @_;
 
-  my @Payment_Types = ($lang{PREPAID}, $lang{POSTPAID});
+  my @payment_types = ($lang{PREPAID}, $lang{POSTPAID});
 
   my $Voip_tp = $Voip->tp_defaults();
   $Voip_tp->{LNG_ACTION} = $lang{ADD};
@@ -86,6 +86,11 @@ sub voip_tp{
       }
     );
 
+    $index = get_function_index('voip_tp');
+    if($FORM{subf} && $index == $FORM{subf}) {
+      delete $FORM{subf};
+    }
+
     func_menu(
       {
         $lang{NAME} => $Voip_tp->{NAME_SEL}
@@ -126,7 +131,7 @@ sub voip_tp{
       'PAYMENT_TYPE',
       {
         SELECTED     => $Voip_tp->{PAYMENT_TYPE},
-        SEL_ARRAY    => \@Payment_Types,
+        SEL_ARRAY    => \@payment_types,
         ARRAY_NUM_ID => 1
       }
     );
@@ -145,7 +150,7 @@ sub voip_tp{
       caption    => "$lang{TARIF_PLANS}",
       title      =>
       [ '#', $lang{NAME}, $lang{HOUR_TARIF}, $lang{PAYMENT_TYPE}, $lang{DAY_FEE}, $lang{MONTH_FEE},
-        $lang{SIMULTANEOUSLY}, $lang{AGE}, '-', '-', '-' ],
+        $lang{SIMULTANEOUSLY}, $lang{AGE}, '-' ],
       ID         => 'VOIP_TP',
       MENU       => "$lang{ADD}:index=$index&add_form=1:add",
     }
@@ -160,7 +165,7 @@ sub voip_tp{
     }
 
     if ( $FORM{TP_ID} && $FORM{TP_ID} eq $line->{tp_id} ){
-      $table->{rowcolor} = 'success';
+      $table->{rowcolor} = 'bg-success';
     }
     else{
       undef($table->{rowcolor});
@@ -168,18 +173,18 @@ sub voip_tp{
 
     $table->addrow(
       $html->b( $line->{id} ),
-      $html->button( "$line->{name}", "index=$index&TP_ID=$line->{tp_id}" ),
+      $html->button( $line->{name}, "index=$index&TP_ID=$line->{tp_id}" ),
       $bool_vals[ $line->{time_tarifs} ],
-      $Payment_Types[ $line->{payment_type} ],
+      $payment_types[ $line->{payment_type} ],
       $line->{day_fee},
       $line->{month_fee},
       $line->{logins},
       $line->{age},
       $html->button( $lang{INTERVALS},
-        "index=" . get_function_index( 'voip_intervals' ) . "&subf=73&TP_ID=$line->{tp_id}",
-        { class => 'interval' } ),
-      $change,
-      $delete
+        "index=" . get_function_index( 'voip_intervals' ) . "&TP_ID=$line->{tp_id}",
+        { class => 'interval' } )
+      . $change
+      . $delete
     );
   }
   print $table->show();
@@ -445,13 +450,14 @@ sub voip_routes{
   my $table = $html->table(
     {
       width      => '100%',
-      caption    => "$lang{ROUTES}",
+      caption    => $lang{ROUTES},
       title      => [ $lang{PREFIX}, $lang{NAME}, $lang{STATUS}, $lang{DATE}, '-', '-' ],
       qs         => $pages_qs,
       pages      => $Voip->{TOTAL},
       ID         => 'VOIP_ROUTES',
       header     => $html->button( $lang{EXPORT}, "qindex=$index&export=1", { BUTTON => 1 } ),
       MENU       => "$lang{ADD}:index=$index&add_form=1:add;$lang{SEARCH}:index=$index&search_form=1:search",
+      SHOW_FULL_LIST => 1,
       EXPORT     => 1
     }
   );
@@ -606,7 +612,8 @@ sub voip_tp_routes{
         },
         HIDDEN_FIELDS => {
           TP_ID  => $FORM{TP_ID},
-          routes => $FORM{routes}
+          routes => $FORM{routes},
+          subf   => $FORM{subf},
         }
       }
     );
@@ -642,7 +649,7 @@ sub voip_tp_routes{
       width      => '100%',
       caption    => $lang{ROUTES},
       title      => \@caption,
-      qs         => $pages_qs . "&TP_ID=$FORM{TP_ID}",
+      qs         => $pages_qs . "&TP_ID=$FORM{TP_ID}" . ($FORM{subf} ? "&subf=$FORM{subf}" : ''),
       pages      => $Voip->{TOTAL},
       ID         => 'VOIP_ROUTES_PRICES',
       header     => $html->button( $lang{EXPORT}, "export_rp=1&qindex=$index&TP_ID=$FORM{TP_ID}&routes=$FORM{routes}",
@@ -705,7 +712,7 @@ sub voip_tp_routes{
         }
       );
 
-      $table->addrow( "$line->[0]", "$line->[1]", $status[ $line->[2] ], $ext_tp_sel, $trunk_sel, @l );
+      $table->addrow( $line->[0], $line->[1], $status[ $line->[2] ], $ext_tp_sel, $trunk_sel, @l );
     }
   }
 
@@ -739,7 +746,8 @@ sub voip_tp_routes{
       HIDDEN  => {
         TP_ID  => $FORM{TP_ID},
         index  => $index,
-        routes => $FORM{routes}
+        routes => $FORM{routes},
+        subf   => $FORM{subf}
       },
     }
   );
@@ -829,6 +837,10 @@ sub voip_exchange_rate{
 #**********************************************************
 =head2 form_intervals($attr) - Time intervals
 
+  Arguments:
+    $attr
+      TP
+
 =cut
 #**********************************************************
 sub voip_intervals{
@@ -836,9 +848,9 @@ sub voip_intervals{
 
   my @DAY_NAMES = ($lang{ALL}, 'Sun', 'Mon', 'Tue', 'Wen', 'The', 'Fri', 'Sat', $lang{HOLIDAYS});
   my %visual_view = ();
-  my $tarif_plan;
+  my Tariffs $tarif_plan;
 
-  if ( defined( $attr->{TP} ) ){
+  if ( $attr->{TP} ){
     $tarif_plan = $attr->{TP};
     $tarif_plan->{ACTION} = 'add';
     $tarif_plan->{LNG_ACTION} = $lang{ADD};
@@ -891,7 +903,6 @@ sub voip_intervals{
 
     my $color = "AAA000";
     foreach my $line ( @{$list} ){
-
       my $delete = $html->button( $lang{DEL}, "index=$index$pages_qs&del=$line->[0]",
         { MESSAGE => "$lang{DEL} [$line->[0]] ?", class => 'del' } );
       $color = sprintf( "%06x", hex( '0x' . $color ) + 7000 );
@@ -903,10 +914,10 @@ sub voip_intervals{
       push( @{ $visual_view{ $line->[1] } }, "$h_b|$h_e|$color|$line->[0]" );
 
       if ( ($FORM{tt} && $FORM{tt} eq $line->[0]) || ($FORM{chg} && $FORM{chg} eq $line->[0]) ){
-        $table->{rowcolor} = $_COLORS[0];
+        $table->{rowcolor} = 'bg-success';
       }
       else{
-        undef($table->{rowcolor});
+        delete $table->{rowcolor};
       }
 
       $table->addtd(
@@ -915,17 +926,16 @@ sub voip_intervals{
         $table->td( $line->[2] ),
         $table->td( $line->[3] ),
         $table->td( $line->[4] ),
-        $table->td( $html->button( "$lang{ROUTES}", "index=$index$pages_qs&routes=$line->[0]", { class => 'routes' } ) )
-        ,
-        $table->td( $html->button( "$lang{CHANGE}", "index=$index$pages_qs&chg=$line->[0]", { class => 'change' } ) ),
+        $table->td( $html->button( $lang{ROUTES}, "index=$index$pages_qs&routes=$line->[0]", { class => 'routes' } ) ),
+        $table->td( $html->button( $lang{CHANGE}, "index=$index$pages_qs&chg=$line->[0]", { class => 'change' } ) ),
         $table->td( $delete ), $table->td( "&nbsp;", { bgcolor => '#' . $color, rowspan => ($line->[5] > 0) ? 2 : 1 } )
       );
     }
     print $table->show();
   }
-  elsif ( defined( $FORM{TP_ID} ) ){
+  elsif ( $FORM{TP_ID} ){
     $FORM{subf} = $index;
-    voip_tp();
+    voip_tp({ TP_ID => $FORM{TP_ID} });
     return 0;
   }
 
@@ -936,8 +946,8 @@ sub voip_intervals{
       width       => '100%',
       title_plain =>
       [ $lang{DAYS}, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23 ],
-      caption     => "$lang{INTERVALS}",
-      rowcolor    => $_COLORS[1]
+      caption     => $lang{INTERVALS},
+      rowcolor    => 'bg-info'
     }
   );
 
@@ -986,6 +996,7 @@ sub voip_intervals{
     }
   );
 
+  $index = get_function_index('voip_intervals');
   $html->tpl_show( templates( 'form_ti' ), $tarif_plan );
 
   return 1;

@@ -34,10 +34,12 @@
         <!--</div>-->
 
         %INFO_FIELDS%
+        %INFO_FIELDS_POPUP%
 
       </div>
 
-      <div class='box-footer text-center'>
+      <div class='box-footer'>
+        %BTN_TO_MODAL%
         <input type=submit name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary text-center'>
       </div>
     </div>

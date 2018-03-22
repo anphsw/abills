@@ -7,7 +7,7 @@ package Contacts;
 =cut
 
 use strict;
-use parent 'main';
+use parent 'dbcore';
 use v5.16;
 use Conf;
 use Attach;
@@ -100,7 +100,7 @@ sub contacts_list {
     $EXT_TABLES = "LEFT JOIN users_contact_types uct ON (uc.type_id=uct.id)"
   }
   
-  $self->query2("
+  $self->query("
     SELECT $self->{SEARCH_FIELDS} uc.id
     FROM users_contacts uc
     $EXT_TABLES
@@ -186,7 +186,7 @@ sub contacts_change{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'users_contacts',
@@ -281,7 +281,7 @@ sub contact_types_list{
     $self->{SEARCH_FIELDS} = '*,'
   }
 
-  $self->query2( "SELECT $self->{SEARCH_FIELDS} id FROM users_contact_types $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+  $self->query( "SELECT $self->{SEARCH_FIELDS} id FROM users_contact_types $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     undef, $attr );
 
   return [] if ($self->{errno});
@@ -364,7 +364,7 @@ sub contact_types_change{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'users_contact_types',
@@ -444,7 +444,7 @@ sub social_list_info {
 
   my $EXT_TABLE = $self->{EXT_TABLES} || '';
 
-  $self->query2(
+  $self->query(
     "SELECT
     $self->{SEARCH_FIELDS}
     usi.uid
@@ -461,7 +461,7 @@ sub social_list_info {
 
   return $list if ($attr->{TOTAL} < 1);
 
-  $self->query2(
+  $self->query(
     "SELECT COUNT(*) AS total
      FROM users_social_info",
     undef,
@@ -483,8 +483,11 @@ sub social_list_info {
 =cut
 #**********************************************************
 sub contact_type_id_for_name {
-  my $self = shift;
-  my ($name) = @_;
+  my ($self, $name) = @_;
+  
+  if ($TYPES{$name}){
+    return $TYPES{$name};
+  }
   
   state $contact_types;
   if (!defined $contact_types){
@@ -496,6 +499,35 @@ sub contact_type_id_for_name {
   
   return $contact_types->{uc $name} || 0;
 }
+
+#**********************************************************
+=head2 contact_name_for_type_id($type_id) - get name for contact_type_id
+
+  Arguments:
+    $type_id -
+    
+  Returns:
+    name
+    
+=cut
+#**********************************************************
+sub contact_name_for_type_id {
+  my ($self, $type_id) = @_;
+  
+  state $contact_types_by_id;
+  if (!defined $contact_types_by_id){
+    my $contact_types_list = $self->contact_types_list({ID => '_SHOW', 'NAME' => '_SHOW', COLS_NAME => 1});
+    
+    my %id_name_hash = ();
+    map { $id_name_hash{$_->{id}} = uc $_->{name}} @{$contact_types_list};
+    $contact_types_by_id = \%id_name_hash;
+  
+  }
+  
+  return $contact_types_by_id->{$type_id} || 0;
+}
+
+
 
 #**********************************************************
 =head2 push_contacts_list($attr)
@@ -529,7 +561,7 @@ sub push_contacts_list{
   }
   my $WHERE =  $self->search_former($attr, $search_columns, { WHERE => 1 });
   
-  $self->query2( "SELECT $self->{SEARCH_FIELDS} id
+  $self->query( "SELECT $self->{SEARCH_FIELDS} id
    FROM push_contacts
    $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
       COLS_NAME => 1,
@@ -619,7 +651,7 @@ sub push_contacts_change{
   my $self = shift;
   my ($attr) = @_;
   
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'push_contacts',
@@ -665,7 +697,7 @@ sub push_messages_list{
   }
   my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
   
-  $self->query2( "SELECT $self->{SEARCH_FIELDS} id
+  $self->query( "SELECT $self->{SEARCH_FIELDS} id
    FROM push_messages
    $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
       COLS_NAME => 1,
@@ -743,7 +775,7 @@ sub push_messages_del{
 sub push_messages_outdated_del{
   my ($self) = @_;
   
-  $self->query2(
+  $self->query(
     'DELETE FROM push_messages WHERE UNIX_TIMESTAMP(NOW()) - UNIX_TIMESTAMP(created) > ttl;'
   );
   
@@ -764,7 +796,7 @@ sub push_messages_outdated_del{
 sub push_messages_change{
   my ($self, $attr) = @_;
   
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'push_messages',

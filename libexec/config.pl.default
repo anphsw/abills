@@ -20,19 +20,16 @@ $conf{default_language}='russian';
 $conf{default_charset}='utf-8';
 $conf{WEB_TITLE}='';
 
-our @MODULES = ('Dv',
-#            'Docs', 
-#            'Mail',
-            'Msgs',
-            'Config',
-            'Sysinfo',
-#Device monitoring and manage via snmp
-            'Equipment',
-            'Dhcphosts',
-            'Ipn',
-            'Tags',
+our @MODULES = (
+  'Internet',
+  'Msgs',
+  'Config',
+  'Sysinfo',
+  #Device monitoring and manage via snmp
+  'Equipment',
+  'Tags',
 #            'Cards',
-            'Sqlcmd',
+  'Sqlcmd',
 );
 
 our %ACCT = ();
@@ -42,6 +39,9 @@ $ACCT{gnugk} = 'Voip_aaa';
 our %AUTH = ();
 #For VoIP GNU Gatekeeper Auth
 $AUTH{gnugk} = 'Voip_aaa';
+
+$AUTH{default} = 'Auth2';
+$ACCT{default} = 'Acct2';
 
 #Technical works banner in admin and user interface
 #$conf{tech_works}='Technical works';

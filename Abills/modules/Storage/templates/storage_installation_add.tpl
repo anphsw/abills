@@ -44,11 +44,11 @@
       </div>
 
       <div class='form-group'>
-        <label class='col-md-3 control-label' for='USER_LOGIN'>_{USER}_:</label>
+        <label class='col-md-3 control-label' for='LOGIN'>_{USER}_:</label>
         <div class='col-md-9'>
           <input type=hidden name=UID id='UID_HIDDEN' value='%UID%'/>
           <div class='col-md-10'>
-            <input type='text' class='form-control' value='%USER_LOGIN%' id='USER_LOGIN' readonly='readonly'/>
+            <input type='text' form='unexistent' class='form-control' name='LOGIN' value='%USER_LOGIN%' id='LOGIN' readonly='readonly'/>
           </div>
           <div class='col-md-2'>
             %USER_SEARCH%

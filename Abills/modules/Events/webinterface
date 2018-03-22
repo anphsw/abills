@@ -58,20 +58,17 @@ sub events_events {
     return '';
   }
   
+  return events_notice({ EXPORT => 1 }) if ($FORM{AJAX});
+  
   my $events_index = get_function_index('events_main') || 0;
   my $seen_index = get_function_index('events_seen_message') || 0;
   #  return 'no_index' if ($events_index == 0);
   
-  my $events_list = $Events->events_list({ STATE_ID => 1, SHOW_ALL_COLUMNS => 1 });
-  
-  my %group_enabled = (1 => 1);
-  my $group_ids = $admin->{SETTINGS}->{GROUP_ID} || '';
-  if ( $group_ids ) {
-    %group_enabled = map {$_ => 1} split (',\s?', $group_ids);
-  }
-  
-  # System group is always enabled
-  $group_enabled{1} = 1;
+  my $events_list = $Events->events_list({
+    STATE_ID         => 1,
+    AID              => $admin->{AID},
+    SHOW_ALL_COLUMNS => 1
+  });
   
   eval {
     require JSON;
@@ -82,31 +79,10 @@ sub events_events {
   }
   
   foreach my $event ( @{$events_list} ) {
-    
-    if ( $event->{group_id} && !$group_enabled{$event->{group_id}} ) {
-      if ( $FORM{DEBUG} && $FORM{DEBUG} > 3 ) {
-        _bp('Skipping', [ $event->{group_id}, $group_enabled{$event->{group_id}}, \%group_enabled ],
-          { TO_CONSOLE => 1 }
-        );
-      }
-      next;
-    };
-    
-    $event->{message} = do {
-      if ( $event->{comments} =~ /\_\{(\w+)\}\_/ && exists $lang{$1} && defined $lang{$1} ) {
-        $event->{comments} =~ s/\_\{(\w+)\}\_/$lang{$1}/sg;
-      }
-      $event->{comments};
-    };
-    
+    $event->{message} = translate_simple($event->{message} || '');
     $event->{subject} = $event->{title} || $event->{module} || '';
-    
-    if ( $event->{subject} =~ /\_\{(\w+)\}\_/ && exists $lang{$1} && defined $lang{$1} ) {
-      $event->{subject} =~ s/\_\{(\w+)\}\_/$lang{$1}/sg;
-    }
-    
+    $event->{subject} = translate_simple($event->{subject});
     $event->{extra} ||= "$SELF_URL?index=$events_index&chg=$event->{id}";
-    
     push(@events_list, events_event_to_json($event, $seen_index));
   }
   
@@ -140,6 +116,7 @@ sub events_event_to_json {
     "TYPE"        => "EVENT",
     "TITLE"       => $event->{subject},
     "CREATED"     => $event->{created},
+    "STATE"       => $event->{state_id},
     "TEXT"        => $event->{message},
     "EXTRA"       => $event->{extra},
     "MODULE"      => $event->{module},
@@ -149,5 +126,57 @@ sub events_event_to_json {
   });
 }
 
+#**********************************************************
+=head2 events_notice() - Function return list of events
 
-1;
+  Returns:
+    JSON structure
+
+=cut
+#**********************************************************
+sub events_notice {
+  my ($attr) = @_;
+  
+  my $events_list = $Events->events_list({
+    ID            => '_SHOW',
+    TITLE         => '_SHOW',
+    COMMENTS      => '_SHOW',
+    MODULE        => '_SHOW',
+    EXTRA         => '_SHOW',
+    STATE_ID      => '_SHOW',
+    PRIVACY_ID    => '_SHOW',
+    PRIORITY_ID   => '_SHOW',
+    CREATED       => '_SHOW',
+    GROUP_ID      => '_SHOW',
+    GROUP_NAME    => '_SHOW',
+    PRIORITY_NAME => '_SHOW',
+    STATE_NAME    => '_SHOW',
+    AID           => $admin->{AID},
+    COLS_NAMES    => 1,
+    PAGE_ROWS     => 5,
+    SORT          => 'e.created',
+    # DESC          => 'DESC',
+  });
+  
+  if ($attr->{EXPORT}) {
+    my @events_list = ();
+    my $seen_index = get_function_index('events_seen_message') || 0;
+    foreach my $event (@$events_list) {
+      push(@events_list, events_event_to_json($event, $seen_index));
+    }
+    return join(", ", @events_list);
+  }
+  
+  print JSON::to_json({
+      CAPTION => $lang{EVENTS},
+      ID      => "EVENTS_LIST",
+      DATA_1  => $events_list,
+      TOTAL   => $Events->{TOTAL},
+    },
+    { pretty => 1 });
+  
+  return 1;
+}
+
+
+1

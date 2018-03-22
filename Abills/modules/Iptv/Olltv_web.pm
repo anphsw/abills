@@ -407,6 +407,11 @@ sub olltv_console {
     }
   }
 
+  if (!$result || ref $result ne 'HASH' || !$result->{data} || ref $result->{data} ne 'ARRAY'){
+    $html->message('warn', $lang{WARNING}, $lang{ERR_NO_DATA});
+    return 1;
+  }
+
   result_former({
     FUNCTION_FIELDS => "iptv_console:DEL:mac;serial_number:&list="
       . ($FORM{list} || '') . "&del=1&COMMENTS=1"

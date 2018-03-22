@@ -7,8 +7,7 @@ package Referral;
 =cut
 
 use strict;
-use parent qw( main );
-use Abills::Base qw(_bp);
+use parent qw( dbcore );
 
 my $conf;
 
@@ -193,7 +192,7 @@ sub list{
     }
   );
 
-  $self->query2(
+  $self->query(
     "SELECT
        r.uid, r.referrer,
         IF(pi.fio='', u.id, CONCAT( pi.fio, ' (', u.id, ')' )) AS id
@@ -226,7 +225,7 @@ sub info{
 
   my $list = $self->list( { UID => $uid, COLS_NAME => 1 } )->{list};
 
-  return $list->[0] || {};
+  return $list->[0];
 }
 
 #**********************************************************
@@ -277,7 +276,7 @@ sub change{
   my $self = shift;
   my ($attr) = @_;
 
-  return $self->changes2( $attr );
+  return $self->changes( $attr );
 }
 
 #**********************************************************
@@ -299,7 +298,7 @@ sub get_user_info{
   delete $self->{COLS_NAME_ARR};
   delete $self->{COL_NAMES_ARR};
 
-  $self->query2( "
+  $self->query( "
   SELECT
      u.uid,
      u.id AS login,
@@ -316,7 +315,7 @@ sub get_user_info{
     return $list->[0] || {};
   }
 
-  return undef;
+  return {};
 }
 
 #**********************************************************
@@ -335,7 +334,7 @@ sub get_referrers_list{
 
   delete $self->{COL_NAMES_ARR};
 
-  $self->query2( "
+  $self->query( "
   SELECT DISTINCT(u.uid),
      u.id AS login,
      pi.fio AS fio,
@@ -382,4 +381,5 @@ sub _transform_to_hash{
 
   return $result
 }
+
 1;

@@ -13,7 +13,7 @@
       %CROSSES_BTN%
     </ul>
 
-    <div class='box-footer text-center'></div>
+    <div class='box-footer'></div>
   </div>
 </div>
 

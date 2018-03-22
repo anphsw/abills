@@ -185,7 +185,17 @@ sub callcenter_calls_handler {
                                                                        USER_PHONE   => '_SHOW', });
 
     foreach my $unrecognized_user (@$unrecognized_users_list){
-      my $u_info = $Users->list({COLS_NAME => 1, PHONE => $unrecognized_user->{user_phone}})->[0];
+      my $unrecognized_user_phone = $unrecognized_user->{user_phone};
+      if($conf{CALLCENTER_ASTERISK_PHONE_PREFIX}){
+        $unrecognized_user_phone =~ s/$conf{CALLCENTER_ASTERISK_PHONE_PREFIX}//;
+      }
+
+      my $admins_for_number_list = $Admins->list({ SIP_NUMBER => $unrecognized_user_phone, AID => '_SHOW', COLS_NAME => 1 });
+      if ( $admins_for_number_list && ref $admins_for_number_list eq 'ARRAY' && scalar @{$admins_for_number_list} > 0 ) {
+        next;
+      }
+
+      my $u_info = $Users->list({COLS_NAME => 1, PHONE => "*$unrecognized_user_phone"})->[0];
       
       if($Users->{errno}){
         $not_found_users++;
@@ -594,6 +604,110 @@ sub voip_ivr_menu{
   return 1;
 }
 
+#**********************************************************
+=head2 callcenter_cdr()
+
+=cut
+#**********************************************************
+sub callcenter_cdr {
+
+  if($FORM{refresh} && $FORM{refresh} == 1){
+    my $not_found_users = 0;
+
+    my $unrecognized_users_list = $Callcenter->callcenter_cdr_list({ COLS_NAME    => 1,
+      UNRECOGNIZED => 1,
+      SRC          => '_SHOW',
+      CALLDATE     => '_SHOW',});
+
+
+    foreach my $unrecognized_user (@$unrecognized_users_list){
+      my $unrecognized_user_phone = $unrecognized_user->{src};
+      if($conf{CALLCENTER_ASTERISK_PHONE_PREFIX}){
+        $unrecognized_user_phone =~ s/$conf{CALLCENTER_ASTERISK_PHONE_PREFIX}//;
+      }
+
+      my $admins_for_number_list = $Admins->list({ SIP_NUMBER => $unrecognized_user_phone, AID => '_SHOW', COLS_NAME => 1 });
+      if ( $admins_for_number_list && ref $admins_for_number_list eq 'ARRAY' && scalar @{$admins_for_number_list} > 0 ) {
+        next;
+      }
+
+      my $u_info = $Users->list({COLS_NAME => 1, PHONE => "*$unrecognized_user_phone"})->[0];
+
+      if($Users->{errno}){
+        $not_found_users++;
+        next;
+      }
+
+      $Callcenter->callcenter_cdr_change({  CALLDATE  => $unrecognized_user->{calldate},
+        USERFIELD => $u_info->{uid} });
+    }
+    if($not_found_users > 0){
+      $html->message('success', "$lang{NOT_FOUND} $not_found_users $lang{USERS}");
+    }
+  }
+
+  result_former(
+    {
+      INPUT_DATA        => $Callcenter,
+      FUNCTION        => 'callcenter_cdr_list',
+      BASE_FIELDS     => 0,
+      DEFAULT_FIELDS  => 'USERFIELD, SRC, DST, CALLDATE, DURATION, DISPOSITION',
+#      FUNCTION_FIELDS => 'change,del',
+      SKIP_USER_TITLE => 1,
+      FILTER_COLS     => {
+        userfield       => '_callcenter_user_btn::USERFIELD',
+      },
+      EXT_TITLES      => {
+        userfield   => $lang{USER},
+        src         => $lang{PHONE},
+        dst         => "$lang{ADMIN} $lang{PHONE}",
+        disposition => "$lang{STATUS}",
+        calldate    => "$lang{DATE}",
+        duration    => "$lang{DURATION} ($lang{SECONDS})",
+      },
+      TABLE           => {
+        width   => '100%',
+        caption => "CDR",
+        qs      => $pages_qs,
+        #header  => $status_bar,
+        ID      => 'CALLCENTER_CDR',
+        DATA_TABLE  => 1,
+        title_plain => 1,
+        MENU       => "$lang{REFRESH}:index=$index&refresh=1:glyphicon glyphicon-refresh",
+      },
+      SELECT_VALUE    => {
+        disposition => {
+          'ANSWERED'  => "$lang{ANSWERED}:success",
+          'NO ANSWER' => "$lang{NO_ANSWER}:text-danger",
+          'BUSY'      => "$lang{BUSY}:text-default"
+        },
+      },
+      MAKE_ROWS       => 1,
+      TOTAL           => 1
+    }
+  );
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _callcenter_user_btn($UID)
+
+  Arguments:
+    UID -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub _callcenter_user_btn {
+  my ($uid) = @_;
+  return '' unless ($uid);
+
+  my $u_info = $Users->info($uid);
+
+  return $html->button("$u_info->{LOGIN}", "index=15&UID=$uid", {class=>'user'}) . $html->button("$u_info->{LOGIN}", "index=15&UID=$uid", {});
+}
 
 1
 

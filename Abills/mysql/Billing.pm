@@ -155,7 +155,10 @@ sub traffic_calculations {
     }
 
     if ($CONF->{rt_billing}) {
-      if ($CONF->{DV_INTERVAL_PREPAID}) {
+      if($CONF->{INTERNET_INTERVAL_PREPAID}) {
+
+      }
+      elsif ($CONF->{DV_INTERVAL_PREPAID}) {
         #($sent, $recv) = (0,0);
       }
       else {
@@ -166,10 +169,9 @@ sub traffic_calculations {
       }
     }
     elsif ($RAD->{ACCT_INPUT_GIGAWORDS}) {
-      $recv = $recv + $RAD->{ACCT_INPUT_GIGAWORDS} * 4294967296;
-      $sent = $sent + $RAD->{ACCT_OUTPUT_GIGAWORDS} * 4294967296;
+      $recv = $recv + ($RAD->{ACCT_INPUT_GIGAWORDS} || 0) * 4294967296;
+      $sent = $sent + ($RAD->{ACCT_OUTPUT_GIGAWORDS} || 0) * 4294967296;
     }
-
     $used_traffic->{ONLINE} = 0;
 
     #Recv / IN
@@ -260,7 +262,6 @@ sub traffic_calculations {
 #  `echo "REcv:  $used_traffic->{TRAFFIC_IN} \n $gl_in  = ($traf_price{in}{0}) ? $recv / $CONF->{MB_SIZE} * $traf_price{in}{0} : 0;
 #    \nSend: $used_traffic->{TRAFFIC_OUT} \n $gl_out = ($traf_price{out}{0}) ? $sent / $CONF->{MB_SIZE} * $traf_price{out}{0} : 0;
 #   $lo_in + $lo_out + $gl_in + $gl_out " >> /tmp/traf`;
-
   $traf_sum = $lo_in + $lo_out + $gl_in + $gl_out;
 
   return $traf_sum;
@@ -311,7 +312,30 @@ sub get_traffic {
     $WHERE = "IN ($attr->{UIDS})";
   }
 
-  if ($CONF->{DV_INTERVAL_PREPAID}) {
+  if ($CONF->{INTERNET_INTERVAL_PREPAID}) {
+    my $period2 =$period;
+    $period2 =~ s/start/li\.added/g;
+    my $sql = "SELECT li.traffic_type,
+      SUM(li.sent) / $CONF->{MB_SIZE},
+      SUM(li.recv) / $CONF->{MB_SIZE}
+      FROM internet_log_intervals li
+      WHERE li.uid $WHERE
+        AND li.interval_id='$self->{TI_ID}'
+        AND ($period2)";
+    $self->query2($sql);
+
+    if ($self->{TOTAL} > 0) {
+      foreach my $line (@{ $self->{list} }) {
+        my $sufix = (! $line->[0]) ? '' : "_".($line->[0]+1);
+        $result{'TRAFFIC_OUT'.$sufix} = ($result{'TRAFFIC_OUT'.$sufix}) ? $result{'TRAFFIC_OUT'.$sufix} + $line->[1] : $line->[1];
+        $result{'TRAFFIC_IN'.$sufix}  = ($result{'TRAFFIC_IN'.$sufix}) ? $result{'TRAFFIC_IN'.$sufix} + $line->[2] : $line->[2];
+      }
+    }
+
+    $self->{PERIOD_TRAFFIC} = \%result;
+    return \%result;
+  }
+  elsif ($CONF->{DV_INTERVAL_PREPAID}) {
     my $period2 =$period;
     $period2 =~ s/start/li\.added/g;
     my $sql = "SELECT li.traffic_type,
@@ -335,13 +359,20 @@ sub get_traffic {
     return \%result;
   }
 
+  my $log_table = 'dv_log';
+  my $online_table = 'dv_calls';
+  if($self->{INTERNET}) {
+    $log_table ='internet_log';
+    $online_table ='internet_online';
+  }
+
   $self->query2("SELECT
       SUM(sent)  / $CONF->{MB_SIZE} + SUM(acct_output_gigawords) * 4096,
       SUM(recv)  / $CONF->{MB_SIZE} + SUM(acct_input_gigawords) * 4096,
       SUM(sent2) / $CONF->{MB_SIZE},
       SUM(recv2) / $CONF->{MB_SIZE},
       1
-    FROM dv_log
+    FROM $log_table
     WHERE uid $WHERE AND ($period)
     GROUP BY 5;"
   );
@@ -364,7 +395,7 @@ sub get_traffic {
       SUM(acct_output_octets) / $CONF->{MB_SIZE},
       SUM(ex_input_octets) / $CONF->{MB_SIZE},
       1
-    FROM dv_calls
+    FROM $online_table
     WHERE uid $WHERE
     GROUP BY 5;"
   );
@@ -684,46 +715,46 @@ sub session_sum {
     }
   }
 
-  if ($self->{JOIN_SERVICE}) {
-    if ($self->{JOIN_SERVICE} > 1) {
-      $self->query2("SELECT
-        tp.id as tp_num,
-        tp.min_session_cost,
-        tp.payment_type,
-        tp.octets_direction,
-        tp.traffic_transfer_period,
-        tp.neg_deposit_filter_id,
-        tp.tp_id,
-        tp.credit AS tp_credit
-       FROM (dv_main dv,  tarif_plans tp)
-       WHERE dv.tp_id=tp.id AND tp.domain_id='$attr->{DOMAIN_ID}'
-       and dv.uid='$self->{JOIN_SERVICE}';",
-       undef,
-       { INFO => 1 }
-      );
-
-      if ($self->{errno}) {
-        #user not found
-        if ($self->{errno} == 2) {
-          return -2, 0, 0, 0, 0, 0;
-        }
-        else {
-          return -3, 0, 0, 0, 0, 0;
-        }
-      }
-
-      $self->{UIDS} = "$self->{JOIN_SERVICE}";
-    }
-    else {
-      $self->{UIDS}         = $self->{UID};
-      $self->{JOIN_SERVICE} = $self->{UID};
-    }
-
-    $self->query2("SELECT uid FROM dv_main WHERE join_service='$self->{JOIN_SERVICE}';");
-    foreach my $line (@{ $self->{list} }) {
-      $self->{UIDS} .= ", $line->[0]";
-    }
-  }
+#  if ($self->{JOIN_SERVICE}) {
+#    if ($self->{JOIN_SERVICE} > 1) {
+#      $self->query2("SELECT
+#        tp.id as tp_num,
+#        tp.min_session_cost,
+#        tp.payment_type,
+#        tp.octets_direction,
+#        tp.traffic_transfer_period,
+#        tp.neg_deposit_filter_id,
+#        tp.tp_id,
+#        tp.credit AS tp_credit
+#       FROM (dv_main dv,  tarif_plans tp)
+#       WHERE dv.tp_id=tp.id AND tp.domain_id='$attr->{DOMAIN_ID}'
+#       and dv.uid='$self->{JOIN_SERVICE}';",
+#       undef,
+#       { INFO => 1 }
+#      );
+#
+#      if ($self->{errno}) {
+#        #user not found
+#        if ($self->{errno} == 2) {
+#          return -2, 0, 0, 0, 0, 0;
+#        }
+#        else {
+#          return -3, 0, 0, 0, 0, 0;
+#        }
+#      }
+#
+#      $self->{UIDS} = "$self->{JOIN_SERVICE}";
+#    }
+#    else {
+#      $self->{UIDS}         = $self->{UID};
+#      $self->{JOIN_SERVICE} = $self->{UID};
+#    }
+#
+#    $self->query2("SELECT uid FROM dv_main WHERE join_service='$self->{JOIN_SERVICE}';");
+#    foreach my $line (@{ $self->{list} }) {
+#      $self->{UIDS} .= ", $line->[0]";
+#    }
+#  }
 
   if ($self->{TOTAL_TIME_LIMIT} && $self->{CHECK_SESSION}) {
     if ($SESSION_DURATION >= $self->{TOTAL_TIME_LIMIT}) {
@@ -799,6 +830,7 @@ sub session_sum {
       }
 # Traffic
       if ($i == 0 && defined($periods_traf_tarif->{$k}) && $periods_traf_tarif->{$k} > 0) {
+
         $sum += $self->traffic_calculations({
           %$RAD,
           SESSION_START => $SESSION_START,
@@ -1466,7 +1498,6 @@ sub expression {
               #$ex{ARGUMENT} = TRAFFIC
               #delete($self->{PERIOD_TRAFFIC});
               $ex{ARGUMENT} =~ s/DAY_//;;
-              $self->{debug}=1;
             }
 
             # for alive session expr price 0

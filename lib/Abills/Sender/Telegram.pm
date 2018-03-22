@@ -48,10 +48,6 @@ sub new {
   
   die 'No Telegram token ($conf{TELEGRAM_TOKEN})' if ( !$self->{token} );
   
-  if ( !$attr->{CONNECT_LAZY} && !$self->{api}->connect ) {
-    die "Can't connect to $self->{api}->{api_host} \n";
-  }
-  
   bless $self, $class;
   
   return $self;

@@ -105,6 +105,13 @@
                         </div>
 
                         <div class='form-group'>
+                            <label class='control-label col-md-3' for='REDUCTION_FEE'>_{REDUCTION}_:</label>
+                            <div class='col-md-9'>
+                                <input id='REDUCTION_FEE' name='REDUCTION_FEE' value='1' %REDUCTION_FEE% type='checkbox'>
+                            </div>
+                        </div>
+
+                        <div class='form-group'>
                             <label for='SMALL_DEPOSIT_ACTION_SEL'
                                    class='control-label col-md-3'>_{SMALL_DEPOSIT_ACTION}_:</label>
                             <div class='col-md-9'>%SMALL_DEPOSIT_ACTION_SEL%</div>

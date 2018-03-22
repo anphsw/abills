@@ -565,6 +565,11 @@ foreach my $line ( @FW_ACTIONS ){
   }
 }
 
+
+if ( $conf{linkupdown_external} ){
+  `$conf{linkupdown_external} "$ACTION" "$INTERFACE" "$USER" "$CLIENT_IP"`;
+}
+
 #**********************************************************
 =head2  ng_car_shape($user_name, $tablearg_in, $tablearg_out, $shape_type, $speed_in, $speed_out) - ng_car shapper set
 
@@ -806,15 +811,10 @@ sub linux_ipn2{
   goto FW_ACTION;
 }
 
-
-
-if ( $conf{linkupdown_external} ){
-  `$conf{linkupdown_external} "$ACTION" "$INTERFACE" "$USER" "$CLIENT_IP"`;
-}
-
-
 #************************************************
-# linux ipn shapper version 3 (ipset & IPMARK)
+=head2 linux_ipn3($attr) - linux ipn shapper version 3 (ipset & IPMARK)
+
+=cut
 #************************************************
 sub linux_ipn3{
   my ($attr) = @_;

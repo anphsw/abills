@@ -78,7 +78,7 @@ sub form_quick_reports{
         { TYPE => 'checkbox', STATE => (in_array( $key, \@qr_arr )) ? 'checked' : undef } ),
       $key,
       $quick_reports{$key},
-      $html->button( "$lang{SHOW}", "qindex=$index&show_reports=$key", { class => 'show' } )
+      $html->button( "$lang{SHOW}", "qindex=4&show_reports=$key", { class => 'show' } )
     );
   }
 

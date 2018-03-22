@@ -7,7 +7,8 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(in_array next_month convert);
-
+use Abills::HTML;
+use Tariffs;
 
 our(
   $html,
@@ -32,7 +33,6 @@ sub iptv_subcribe_add {
 
   my $tp_list = $Tariffs->list(
     {
-      #TP_GID       => $Dv->{TP_GID},
       CHANGE_PRICE => '<=' . ($user->{DEPOSIT} + $user->{CREDIT}),
       MODULE       => 'Iptv',
       MONTH_FEE    => '_SHOW',
@@ -40,7 +40,6 @@ sub iptv_subcribe_add {
       CREDIT       => '_SHOW',
       COMMENTS     => '_SHOW',
       SERVICE_ID   => $FORM{SERVICE_ID},
-      #TP_CHG_PRIORITY     => $Dv->{TP_PRIORITY},
       FILTER_ID    => '_SHOW',
       NEW_MODEL_TP => 1,
       COLS_NAME    => 1,
@@ -48,6 +47,11 @@ sub iptv_subcribe_add {
       COLS_UPPER   => 1
     }
   );
+
+  if($Tariffs->{TOTAL} < 1) {
+    $html->message('err', $lang{ERROR}, $lang{ERR_NO_AVAILABLE_TP}, { ID => 891 });
+    return 1;
+  }
 
   my @skip_tp_changes = ();
   #  if ($conf{DV_SKIP_CHG_TPS}) {
@@ -98,7 +102,7 @@ sub iptv_user_info {
     $conf{IPTV_ALLOW_GIDS} =~ s/ //g;
     my @allow_arr = split( /,/, $conf{IPTV_ALLOW_GIDS} );
     if ( !in_array( $user->{GID}, \@allow_arr ) ){
-      $html->message( 'info', $lang{INFO}, "$lang{NOT_ALLOW_GROUP}" );
+      $html->message( 'info', $lang{INFO}, $lang{NOT_ALLOW_GROUP}, { ID => 890 });
       return 0;
     }
   }
@@ -154,7 +158,8 @@ sub iptv_user_info {
 
             $db_->rollback();
             $Iptv->{ID} = undef;
-            $html->message( 'err', $lang{ERROR}, "Error....");
+#            my $message = '';
+#            $html->message( 'err', $lang{ERROR}, $message);
             return 1;
           }
           delete( $Iptv->{db}->{TRANSACTION} );
@@ -524,6 +529,7 @@ sub iptv_user_chg_tp{
 =cut
 #**********************************************************
 sub iptv_m3u {
+  my ($tp_id) = @_;
 
   #Show
   my $err_message;
@@ -533,20 +539,18 @@ sub iptv_m3u {
     if ( !$Iptv->{STATUS} ){
       my $list = $Tariffs->ti_list(
         {
-          TP_ID     => $Iptv->{TP_ID},
+          TP_ID     => $tp_id,
           COLS_NAME => 1
         }
       );
       if ( $Tariffs->{TOTAL} > 0 ){
-        #my $intervals = $Tariffs->{TOTAL};
-        $LIST_PARAMS{INTERVAL_ID} = $list->[0]->{id};
-        $LIST_PARAMS{DISABLE} = 0;
+        my $interval_id = $list->[0]->{id};
         $list = $Iptv->channel_ti_list(
           {
             %LIST_PARAMS,
-            USER_INTERVAL_ID => $LIST_PARAMS{INTERVAL_ID},
+            USER_INTERVAL_ID => $interval_id,
             COLS_NAME        => 1,
-            SORT             => 2
+            SORT             => 2,
           }
         );
         if ( $Iptv->{TOTAL} > 0 ){
@@ -556,11 +560,12 @@ sub iptv_m3u {
 
           my $deposit = sprintf( "%.2f", $user->{DEPOSIT} );
           my $credit = sprintf( "%.2f", $user->{CREDIT} );
+          my $fio =  $user->{FIO} || q{};
           %hash = (
             access    => 'all',
-            fio       => "$user->{FIO}",
+            fio       => $fio,
             user_info =>
-            "������������ $user->{FIO}. <br> ��� ������ " . $deposit . "���<br> ������ " . $credit . "��� <br>",
+            "������������ $fio. <br> ��� ������ " . $deposit . "���<br> ������ " . $credit . "��� <br>",
             m3u       => $m3u,
           );
         }
@@ -581,9 +586,9 @@ sub iptv_m3u {
     exit 1;
   }
 
-  $Iptv->{M3U_LIST} = $html->button( $lang{DOWNLOAD} . ' M3U ',
+  $Iptv->{M3U_LIST} = $html->button( ($lang{DOWNLOAD} || '') . ' M3U ',
     "index=$index&chg=$Iptv->{ID}&UID=$user->{UID}&m3u_download=tv_channels.m3u", { class => 'btn btn-primary' } );
-
+  
   return 1;
 }
 

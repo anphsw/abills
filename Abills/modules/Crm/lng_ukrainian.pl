@@ -39,4 +39,9 @@ $lang{FILTER_LEADS}='Фільтр користувачів';
 $lang{PROGRESS}='Прогрес';
 $lang{LEADS_COMES}='Потенційних клієнтів прийшло';
 $lang{LEADS_FINISHED}='Потенційних клієнтів сконвертовано';
+$lang{REFERRALS}='Реферальний клієнт';
+$lang{NEW_LEAD}='Новий потенційний клієнт';
+$lang{CONTRACT_SIGNED}='Контракт підписано';
+$lang{THE_WORKS}='Проводяться роботи';
+$lang{CONVERSION}='Конвертація';
 1

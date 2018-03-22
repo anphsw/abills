@@ -6,7 +6,15 @@
 
 =cut
 
+use warnings;
+use strict;
+use Test::Simple tests => 5;
+use Memoize;
+use Benchmark qw/:all/;
+use threads;
+
 BEGIN {
+  our %conf;
   use FindBin '$Bin';
   unshift(@INC, $Bin."/../libexec/");
 
@@ -17,12 +25,6 @@ BEGIN {
     $Bin."/../Abills/$conf{dbtype}");
 }
 
-use warnings;
-use strict;
-use Test::Simple tests => 5;
-use Memoize;
-use Benchmark qw/:all/;
-use threads;
 
 our (
   %conf,
@@ -30,10 +32,11 @@ our (
   %RAD_REQUEST,
   %RAD_REPLY,
   %RAD_CHECK,
-  $begin_time
+  $begin_time,
+  @MODULES
 );
 
-use Abills::Base qw(check_time parse_arguments mk_unique_value);
+use Abills::Base qw(check_time parse_arguments mk_unique_value in_array);
 use Abills::SQL;
 
 $begin_time = check_time();
@@ -47,7 +50,7 @@ if ($argv->{nas}) {
   get_nas_info();
 }
 elsif ($argv->{get_ip}) {
-  #get_ip_();
+  _get_ip();
 }
 elsif ($argv->{online_add}) {
   #online_add();
@@ -90,12 +93,13 @@ sub mac_auth{
   $Bin = $Bin .'/../libexec/';
   if($argv->{mac_auth2}) {
     print "Mac_auth2\n";
-    require "Mac_auth2.pm";
+    require Mac_auth2;
   }
   else {
-    require "Mac_auth.pm";
+    require Mac_auth;
   }
-  require "rlm_perl.pl";
+
+  do "rlm_perl.pl";
 
   post_auth();
 
@@ -148,7 +152,7 @@ sub unifi {
     '00:22:33:44:55:66',
   );
 
-  $conf{'UNIFI_IP'} = '91.244.127.232';
+  $conf{'UNIFI_IP'} = '10.244.127.232';
   $debug = 0;
 
   my %RAD = (
@@ -170,11 +174,19 @@ sub unifi {
   require Nas;
   Nas->import();
 
-  require Auth;
-  Auth->import();
   $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, { %conf, CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
+  my $Auth;
 
-  my $Auth = Auth->new($db, \%conf);
+  if (in_array('Internet', \@MODULES)) {
+    require Auth2;
+    Auth2->import();
+    $Auth = Auth2->new($db, \%conf);
+  }
+  else {
+    require Auth;
+    Auth->import();
+    $Auth = Auth->new($db, \%conf);
+  }
   my $Nas = Nas->new($db, \%conf);
 
   if ($debug) {
@@ -187,7 +199,13 @@ sub unifi {
     #NAS_ID => $RAD->{'NAS-Identifier'}
   });
 
-  my ($r, $RAD_PAIRS) = $Auth->dv_auth(\%RAD, $Nas, { SECRETKEY => $conf{secretkey} });
+  my ($r, $RAD_PAIRS);
+  if (in_array('Internet', \@MODULES)) {
+    ($r, $RAD_PAIRS) = $Auth->internet_auth(\%RAD, $Nas, { SECRETKEY => $conf{secretkey} });
+  }
+  else {
+    ($r, $RAD_PAIRS) = $Auth->dv_auth(\%RAD, $Nas, { SECRETKEY => $conf{secretkey} });
+  }
 
   my $text = "Result: ($r) ". (($r) ? 'fail' : 'ok' ) ."\n";
   foreach my $key (keys %$RAD_PAIRS) {
@@ -215,7 +233,7 @@ sub _rad {
 
   my @users_arr = ();
   if ( $argv->{get_db_users} ) {
-    require "Users.pm";
+    require Users;
 
     my $users = Users->new($db, undef, \%conf);
 
@@ -253,7 +271,7 @@ sub _rad {
   }
 
   $Bin = $Bin .'/../libexec/';
-  require "rlm_perl.pl";
+  do "rlm_perl.pl";
 
   #my $thread_mode = 1;
 
@@ -333,6 +351,7 @@ sub _rad {
     else {
       $RAD_REQUEST{'Acct-Status-Type'} = 'Start';
       $RAD_REQUEST{'Acct-Session-Id'} = 'testsesion_1';
+      $RAD_REQUEST{'Framed-IP-Address'} = '192.168.100.20';
     }
 
     $ret = accounting();
@@ -353,8 +372,8 @@ sub _rad {
     }
     else {
       $RAD_REQUEST{'Acct-Session-Time'}  = 300;
-      $RAD_REQUEST{'Acct-Output-Octets'} = 111111;
-      $RAD_REQUEST{'Acct-Input-Octets'}  = 222222;
+      $RAD_REQUEST{'Acct-Output-Octets'} = 11111111;
+      $RAD_REQUEST{'Acct-Input-Octets'}  = 22222222;
     }
 
     $RAD_REQUEST{'Acct-Status-Type'}='Stop';
@@ -444,9 +463,63 @@ sub get_nas_info {
   return 1;
 }
 
+#**********************************************************
+=head2 _get_ip()
+
+=cut
+#**********************************************************
+sub _get_ip {
+  print "Get IP: count: $count\n";
+
+  require Auth2;
+  Auth2->import();
+  my $Auth = Auth2->new($db, \%conf);
+
+#  my $first_ip = 185273108;
+#  my $ip_count = 65000;
+#  for (my $i = $first_ip; $i <= $first_ip + $ip_count; $i++) {
+#    $Auth->query2("INSERT INTO ippools_ips (ip, status, ippool_id) VALUES ('$i', 0, '44');", 'do');
+#  }
+
+  timethis($count, sub{
+    $Auth->query2("DELETE FROM internet_online WHERE user_name='test';", 'do');
+
+    #$Auth->{debug}=1;
+    $Auth->{USER_NAME}='test';
+    my $ip = $Auth->get_ip(7, '127.0.0.1',
+      {
+        #      TP_IPPOOL => $self->{NEG_DEPOSIT_IPPOOL} || $self->{TP_IPPOOL},
+        #      GUEST     => 1,
+        #      VLAN      => $self->{SERVER_VLAN}, #$self->{VLAN}
+        #      CONNECT_INFO => $self->{IP}
+      });
+  });
+
+  $conf{GET_IP2}=1;
+  $Auth = Auth2->new($db, \%conf);
+
+  timethis($count, sub{
+    $Auth->query2("DELETE FROM internet_online WHERE user_name='test';", 'do');
+    #$Auth->{debug}=1;
+    $Auth->{USER_NAME}='test';
+    my $ip = $Auth->get_ip2(7, '127.0.0.1',
+      {
+        #      TP_IPPOOL => $self->{NEG_DEPOSIT_IPPOOL} || $self->{TP_IPPOOL},
+        #      GUEST     => 1,
+        #      VLAN      => $self->{SERVER_VLAN}, #$self->{VLAN}
+        #      CONNECT_INFO => $self->{IP}
+      });
+  });
+
+
+  return 1;
+}
+
 
 #**********************************************************
-#
+=head2 help()
+
+=cut
 #**********************************************************
 sub help  {
 

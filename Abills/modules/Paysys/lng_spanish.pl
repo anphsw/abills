@@ -7,7 +7,6 @@ $lang{FAILED} = 'Transacción ha fallado';
 $lang{ERR_INVALID_SIGNATURE} = 'La firma es mal';
 $lang{ERR_TRANSACTION_DECLINED} = 'Transacción rechazada';
 $lang{ERR_TERMINAL} = 'Error del Terminal';
-$lang{ERR_WRONG_PHONE} = 'Teléfono incorrecto';
 $lang{GET_INVOICE} = 'Obtener factura';
 $lang{INVOICE_SENDED} = 'Factura enviada';
 $lang{TEST_PAYMENT} = 'Pago de prueba';

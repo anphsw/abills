@@ -24,8 +24,6 @@ $lang{RESERVE} = 'Резерв';
 $lang{RESERVEDTO} = 'Резерв на';
 $lang{RESERVED} = 'Зарезервировано';
 $lang{DISCARDED} = 'Списано';
-$lang{DISTRICT} = 'Район';
-$lang{STREET} = 'Улица';
 $lang{AT_STORAGE} = ' на склад ';
 $lang{RESERVEIN} = 'В резерв';
 $lang{LEFTOVER} = 'Остаток';
@@ -107,4 +105,8 @@ $lang{BOXES} = 'ящики';
 
 $lang{STORAGES} = 'Склады';
 
+$lang{INNER_USE} = 'Внутреннее использование';
+$lang{INNER_USE_SHORT} = 'Внутр. исп.';
+$lang{TO_INNER_USE} = 'Во внутреннее использование';
 
+$lang{IN_STORAGE} = 'На складе';

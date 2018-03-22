@@ -531,9 +531,9 @@ sub hotspot_advert_pages {
   
   my $table = $html->table( {
       width               => '100%',
-      caption             => "Hotspot $lang{PAGES} : ",
+      caption             => "Hotspot $lang{SETTINGS} : ",
       ID                  => 'HOTSPOT_PAGES',
-      title               => ["Hotspot", "action", "link"],
+      title               => ["Hotspot", "key", "value"],
       HAS_FUNCTION_FIELDS => 1,
       
       MENU                => "$lang{ADD}:index=$index&ADD=1:add"

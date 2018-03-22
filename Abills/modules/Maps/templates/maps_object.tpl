@@ -65,7 +65,7 @@
     </form>
 
   </div>
-  <div class='box-footer text-center'>
+  <div class='box-footer'>
     <input type='submit' form='form_MAPS_OBJECT' class='btn btn-primary' name='submit'
            value='%SUBMIT_BTN_NAME%'>
   </div>
@@ -82,7 +82,7 @@
       if (jQuery(name_input).val()) return true;
 
       var type_id = select.val();
-      var option  = select.find('option[value="' + type_id + '"]');
+      var option  = select.find('option[value='' + type_id + '']');
 
       if (!option.length) return;
       var option_name = option.text();

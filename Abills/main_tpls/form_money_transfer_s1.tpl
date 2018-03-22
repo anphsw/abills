@@ -16,7 +16,7 @@
 	<div class='col-md-9'><input type=text name=SUM value='%SUM%' class='form-control'></div>
 </div>
 </div>
-<div class='box-footer text-center'>
+<div class='box-footer'>
 <input type=submit name=s2 value='_{SEND}_' class='btn btn-primary'>
 </div>
 </div>

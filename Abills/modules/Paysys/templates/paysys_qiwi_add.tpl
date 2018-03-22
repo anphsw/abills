@@ -25,7 +25,7 @@
 		<div class='col-md-6'><input class='form-control' type='input' name='PHONE' value='%PHONE%'></div>
 	</div>
 </div>
-<div class='box-footer text-center'>
+<div class='box-footer'>
     <input class='btn btn-primary' type=submit value='_{GET_INVOICE}_' name=send_invoice>
 </div>
 

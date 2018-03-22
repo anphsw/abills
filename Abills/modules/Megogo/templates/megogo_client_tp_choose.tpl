@@ -19,7 +19,7 @@
 </div>
 
 
-<div class='box-footer text-center'>
+<div class='box-footer'>
   %WATCH_LABEL%
   %WATCH_BUTTON%
 </div>

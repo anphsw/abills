@@ -235,7 +235,7 @@ function defineMainSearchLiveLogic() {
         formatItem: function (data, $item) {
           // Disable selecting if not universal search type;
           var result = Mustache.render(login_uid_row_template, data);
-          if (data['address_full'] && data['phone']){
+          if (typeof(data['address_full'] !== 'undefined') || typeof(data['phone']) !== 'undefined'){
             result += Mustache.render(address_phone_row_template, data);
           }
           return result;
@@ -288,14 +288,35 @@ $(function () {
   var try_to_init_menu = function(name, menu_proto){
     try {
       if (menu_proto.init()) window[name] = menu_proto;
+      return true;
     }
     catch (E){
       console.log("[ Header Menu ] Can't init %s : %s", name, E.toString());
+      return false;
     }
   };
   
   try_to_init_menu('HEvents', Proto_Events);
-  try_to_init_menu('HMessages', Proto_Messages);
+  if (try_to_init_menu('HMessages', Proto_Messages)){
+    // Init small search form inside header
+      var drop_search_form = jQuery('#drop_search_form');
+      
+      jQuery('#dropdown_search_button').off('click').on('click', function () {
+        var is_enabled = drop_search_form.data('enabled') === true;
+      
+        if (!is_enabled) {
+          drop_search_form.show();
+          jQuery('#search_input').focus();
+        }
+        else {
+          drop_search_form.hide();
+        }
+      
+        drop_search_form.data('enabled', !is_enabled);
+      
+      });
+    
+  };
   try_to_init_menu('HResponsible', Proto_Responsible);
 
   var NOTEPAD_LIST_EXTENSION; NOTEPAD_LIST_EXTENSION = {

@@ -42,7 +42,7 @@
             <!-- <tr><td>_{PRE}_</td><td><input type=checkbox name=PREVIEW value='1'></td></tr> -->
 
         </div>
-        <div class='box-footer text-center'>
+        <div class='box-footer'>
             <input type=submit name=create value='_{CREATE}_' class='btn btn-primary'>
         </div>
     </div>

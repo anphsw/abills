@@ -43,6 +43,14 @@ eap.conf         > [/usr/local/etc/raddb]/eap.conf
 :OS=FREEBSD,FREERADIUS=3:exec: rm /usr/local/etc/raddb/sites-enabled/inner-tunnel
 :OS=FREEBSD,FREERADIUS=3:exec: rm /usr/local/etc/raddb/sites-enabled/default
 
+#Freeradius V3 Linus
+:OS=LINUX,FREERADIUS=3:FILE=v3/users  > [/usr/local/freeradius/etc/raddb]/users
+:OS=LINUX,FREERADIUS=3:FILE=v3/mods-enabled/perl > [/usr/local/freeradius/etc/raddb]/mods-enabled/perl
+:OS=LINUX,FREERADIUS=3:FILE=v3/mods-enabled/sql > [/usr/local/freeradius/etc/raddb]/mods-enabled/sql
+:OS=LINUX,FREERADIUS=3:FILE=v3/sites-enabled/abills_default  > [/usr/local/freeradius/etc/raddb]/sites-enabled/abills_default
+
+:OS=LINUX,FREERADIUS=3:exec: rm /usr/local/freeradius/etc/raddb/sites-enabled/inner-tunnel
+:OS=LINUX,FREERADIUS=3:exec: rm /usr/local/freeradius/etc/raddb/sites-enabled/default
 
 
 #Linux autoconf

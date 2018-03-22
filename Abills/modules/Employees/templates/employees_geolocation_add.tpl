@@ -9,7 +9,7 @@
 </div>
 <div class='checkbox'>
     <label>
-      <input type='checkbox' name='CLEAR' value=1> _{CLEAR}_
+      <input type='checkbox' name='CLEAR' value=1> _{CLEAR_GEO}_
     </label>
 </div>
 <input type='submit' class='btn btn-primary' name='BUTTON' value='%BTN_NAME%'>

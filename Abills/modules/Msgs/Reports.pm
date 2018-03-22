@@ -6,6 +6,7 @@
 
 use strict;
 use warnings FATAL => 'all';
+use Abills::Base qw(date_inc days_in_month sec2time);
 
 our Msgs $Msgs;
 our(
@@ -13,7 +14,8 @@ our(
   %conf,
   $html,
   %lang,
-  $admin
+  $admin,
+  @MONTHES
 );
 
 #**********************************************************
@@ -55,7 +57,8 @@ sub msgs_reports {
   my ($table_sessions);
   my $output = '';
   my $msgs_status = msgs_sel_status({ HASH_RESULT => 1 });
-
+  my %msgs_status_without_color = map { $_ => [split(':', $msgs_status->{$_})]->[0] } keys %$msgs_status;
+  
   my %DATA_HASH2 = ();
   my %CHARTS = (
     TYPES => {
@@ -200,9 +203,9 @@ sub msgs_reports {
         $CHARTS{X_LINE}[$num] = $line->[0];
       }
 
-      $DATA_HASH2{ $msgs_status->{0} }[$num] = $line->[1];
-      $DATA_HASH2{ $msgs_status->{1} }[$num] = $line->[2];
-      $DATA_HASH2{ $msgs_status->{2} }[$num] = $line->[3];
+      $DATA_HASH2{ $msgs_status_without_color{0} }[$num] = $line->[1];
+      $DATA_HASH2{ $msgs_status_without_color{1} }[$num] = $line->[2];
+      $DATA_HASH2{ $msgs_status_without_color{2} }[$num] = $line->[3];
       $DATA_HASH2{$lang{OTHER}}[$num] = $line->[4];
       $DATA_HASH2{$lang{COUNT}}[$num] = $line->[5];
 
@@ -217,13 +220,21 @@ sub msgs_reports {
       %CHARTS
     });
   }
-
+  
   my $table = $html->table({
     width      => '100%',
     rows       =>
-    [ [ $html->color_mark($msgs_status->{0} || '') . ': ' . $html->b( $Msgs->{OPEN} ), $msgs_status->{1}?$msgs_status->{1}:'' . ": " . $html->b( $Msgs->{UNMAKED} ),
-      $html->color_mark($msgs_status->{2} || '') . ': ' . $html->b( $Msgs->{MAKED} ), "$lang{OTHER}:  " . $html->b( $Msgs->{OTHER} ),
-      "$lang{COUNT}:  " . $html->b( $Msgs->{TOTAL} ), "$lang{RUN_TIME}: " . $html->b( $Msgs->{RUN_TIME} ) ] ],
+    [
+      [
+      $html->color_mark( $msgs_status->{0} || '' ) . ': ' . $html->b( $Msgs->{OPEN} ),
+      $html->color_mark( $msgs_status->{1} || '' ) . ": " . $html->b( $Msgs->{UNMAKED} ),
+      $html->color_mark( $msgs_status->{2} || '' ) . ': ' . $html->b( $Msgs->{MAKED} ),
+      
+      "$lang{OTHER}: " . $html->b( $Msgs->{OTHER} ),
+      "$lang{COUNT}: " . $html->b( $Msgs->{TOTAL} ),
+      "$lang{RUN_TIME}: " . $html->b( $Msgs->{RUN_TIME} )
+      ]
+    ],
     rowcolor   => 'total'
   });
 
@@ -652,7 +663,7 @@ sub _make_chart_column_type {
 #**********************************************************
 sub _msgs_report_reply_date {
   my ($line, $join_hash) = @_;
-  my ($date, $time) = split(/ /, $line->{datetime});
+  my ($date, undef) = split(/ /, $line->{datetime});
 
   if ($join_hash->{$date}) {
     return 1, $join_hash->{$date};
@@ -679,7 +690,7 @@ sub _msgs_report_reply_date {
 sub _msgs_report_reply_time {
   my ($line, $join_hash) = @_;
 
-  my ($date, $time) = split(/ /, $line->{datetime});
+  my (undef, $time) = split(/ /, $line->{datetime});
   my ($hour) = split(/:/, $time);
 
   if ($join_hash->{ $hour . ":00" }) {
@@ -767,7 +778,7 @@ sub _make_x_text_date {
     $column_date{$column_date_name}[$date_num] = '0.00';
   }
 
-  my $b = 0;
+  my $x = 0;
   $date_num++;
   while ($from_date ne $attr->{TO_DATE}) {
 
@@ -780,9 +791,9 @@ sub _make_x_text_date {
       $column_date{$column_date_name}[$date_num] = '0.00';
     }
     $date_num++;
-    ++$b;
+    ++$x;
 
-    if ($b > 80000) {
+    if ($x > 80000) {
       $from_date = $attr->{TO_DATE};
     }
   }
@@ -903,10 +914,13 @@ sub msgs_report_tags {
   foreach my $line (sort keys %report_date) {
     $tags_table->addrow(
       $html->button(
-        $html->element('span', $report_date{$line}{reply}, { class => "label", 'style' => "background-color:$report_date{$line}{color};border-color:white;font-weight: bold" }),
+        $html->element('span', $report_date{$line}{reply}, {
+            class => "label",
+            'style' => "background-color:". ($report_date{$line}{color} || q{}) .";border-color:white;font-weight: bold" }),
         "index=" . get_function_index('msgs_admin') . "&search_form=1&MSGS_TAGS=$line&STATE=&search=1",
         { class => 'button button-default' }
       ),
+
       $report_date{$line}{sum},
       $html->progress_bar(
         {
@@ -936,14 +950,14 @@ sub msgs_report_tags {
 =cut
 #**********************************************************
 sub msgs_admin_time_spend_report {
-  my ($attr) = @_;
+  #my ($attr) = @_;
 
-  my $Admins = Admins->new($db, \%conf);
+  #my $Admins = Admins->new($db, \%conf);
 
   my $to_date;
   my $from_date;
   if(!$FORM{TO_DATE} && !$FORM{FROM_DATE}){
-    my ($y, $m, $d) = split('-', $DATE);
+    my ($y, $m) = split('-', $DATE);
     
 
     $from_date = "$y-$m-01";
@@ -1060,7 +1074,7 @@ sub msgs_admin_time_spend_report {
 
       $admins_time_per_msg{$reply->{aid}}{msgs}{$reply->{main_msg}} = ($admins_time_per_msg{$reply->{aid}}{msgs}{$reply->{main_msg}} || 0) + $seconds_per_reply;
 
-       $admins_time_per_msg{$reply->{aid}}{total_time} = ( $admins_time_per_msg{$reply->{aid}}{total_time} || 0) + $seconds_per_reply;
+      $admins_time_per_msg{$reply->{aid}}{total_time} = ( $admins_time_per_msg{$reply->{aid}}{total_time} || 0) + $seconds_per_reply;
 
       $admins_time_per_msg{$reply->{aid}}{reply_count} = ($admins_time_per_msg{$reply->{aid}}{reply_count} || 0) + 1;
 
@@ -1097,5 +1111,120 @@ sub msgs_admin_time_spend_report {
   return 1;
 }
   
+#**********************************************************
+=head2 msgs_admin_statistics()
+
+=cut
+#**********************************************************
+sub msgs_admin_statistics {
+
+  # reports(
+  #   {
+  #     DATE_RANGE=> 1,
+  #     DATE      => $FORM{DATE},
+  #     PERIOD_FORM => 1,
+  #     NO_TAGS   => 1,
+  #     NO_GROUP  => 1
+  #   }
+  # );
+
+  my ($year, $month, undef) = split('-', $DATE);
+  my $period = sprintf("%s-%#.2d", $year, $month);
+
+  my $from_date = $period .'-01';
+  my $to_date = $period .'-'.days_in_month({ DATE => $DATE });
+  if($FORM{FROM_DATE_TO_DATE}) {
+    ($from_date, $to_date) = split(/\//, $FORM{FROM_DATE_TO_DATE});
+  }
+
+  #Open
+  my $msgs_list = $Msgs->messages_list({
+    FROM_DATE              => $from_date,
+    TO_DATE                => $to_date,
+    RESPOSIBLE_ADMIN_LOGIN => '_SHOW',
+    COLS_NAME              => 1,
+    PAGE_ROWS              => 100000,
+  });
+
+  my $msgs_hash->{0}->{NEW} = 0;
+  foreach my $line (@$msgs_list) {
+    if ($line->{resposible} && $msgs_hash->{$line->{resposible}}->{NEW}) {
+      $msgs_hash->{$line->{resposible}}->{NEW}++;
+    }
+    elsif ($line->{resposible}) {
+      $msgs_hash->{$line->{resposible}}->{NEW} = 1;
+    }
+    else {
+      $msgs_hash->{0}->{NEW}++;
+    }
+  }
+
+  #Close
+  my $msgs_list_closed = $Msgs->messages_list({
+    DONE_DATE              => ">=$from_date;<=$to_date",
+    RESPOSIBLE_ADMIN_LOGIN => '_SHOW',
+    COLS_NAME              => 1,
+    PAGE_ROWS              => 100000,
+  });
+
+  $msgs_hash->{0}->{CLOSED} = 0;
+  foreach my $line (@$msgs_list_closed) {
+    if ($line->{resposible} && $msgs_hash->{$line->{resposible}}->{CLOSED}) {
+      $msgs_hash->{$line->{resposible}}->{CLOSED}++;
+    }
+    elsif ($line->{resposible}) {
+      $msgs_hash->{$line->{resposible}}->{CLOSED} = 1;
+    }
+    else {
+      $msgs_hash->{0}->{CLOSED}++;
+    }
+  }
+
+  #Open
+  my $msgs_list_open = $Msgs->messages_list({
+    STATE                  => 0,
+    FROM_DATE              => $from_date,
+    TO_DATE                => $to_date,
+    RESPOSIBLE_ADMIN_LOGIN => '_SHOW',
+    COLS_NAME              => 1,
+    PAGE_ROWS              => 100000,
+  });
+
+  $msgs_hash->{0}->{OPEN} = 0;
+  foreach my $line (@$msgs_list_open) {
+    if ($line->{resposible} && $msgs_hash->{$line->{resposible}}->{OPEN}) {
+      $msgs_hash->{$line->{resposible}}->{OPEN}++;
+    }
+    elsif ($line->{resposible}) {
+      $msgs_hash->{$line->{resposible}}->{OPEN} = 1;
+    }
+    else {
+      $msgs_hash->{0}->{OPEN}++;
+    }
+  }
+  
+  my $table = $html->table({
+    caption    => "$lang{REPORTS} $from_date - $to_date",
+    title      => [ "$lang{RESPOSIBLE} $lang{ADMIN}", $lang{NEW}, $lang{CLOSED}, $lang{OPEN} ],
+    ID         => 'MSGS_REPORT'
+  });
+
+  my $admin_names = sel_admins({ HASH => 1 });
+
+  my $qs_period = "&search_form=1&search=1&FROM_DATE=$from_date&TO_DATE=$to_date&index=". get_function_index('msgs_admin');
+
+  foreach my $admin_id (sort {lc $a cmp lc $b} keys %$msgs_hash) {
+    $table->addrow(
+      $admin_names->{$admin_id} || $lang{NO_RESPONSIBLE},
+      $html->button($msgs_hash->{$admin_id}->{NEW} || '0',  '&ALL_MSGS=1&RESPOSIBLE='.$admin_id . $qs_period),
+      $html->button($msgs_hash->{$admin_id}->{CLOSED} || '0', 'STATE=2&RESPOSIBLE='. $admin_id . $qs_period),
+      $msgs_hash->{$admin_id}->{OPEN} || '0'
+    );
+  }
+
+  print $table->show();
+  
+  return 1;
+}
 
 1;

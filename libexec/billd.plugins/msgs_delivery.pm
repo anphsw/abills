@@ -14,6 +14,13 @@
 
 =cut
 
+use strict;
+use warnings;
+use Abills::Base qw(sendmail in_array);
+use Abills::Sender::Core;
+use Msgs;
+use Users;
+
 our (
   $debug,
   %conf,
@@ -23,10 +30,6 @@ our (
   $argv
 );
 
-use strict;
-use warnings;
-use Abills::Base qw(sendmail);
-use Abills::Sender::Core;
 
 my $Sender = Abills::Sender::Core->new({
   CONF => \%conf,
@@ -132,7 +135,6 @@ sub msgs_delivery {
     'Web_redirect'
   );
 
-  use Msgs;
   my $Msgs_delivery = Msgs->new($db, $Admin, \%conf);
   my $SEND_DATE           = $argv->{DATE} || $DATE;
   $LIST_PARAMS{STATUS}    = 0;
@@ -143,18 +145,19 @@ sub msgs_delivery {
   }
 
   my $delivery_list = $Msgs_delivery->msgs_delivery_list({%LIST_PARAMS, COLS_NAME => 1});
-
-  # #630. TEMPLATES VARIABLES IN MESSAGES
-  use Users;
   my $users = Users->new($db, $Admin, \%conf);
 
-  my $dv_info = ();
-  my $Dv;
+  #my $dv_info = ();
+  my $Internet;
+
   if (in_array('Dv', \@MODULES)) {
     require Dv;
-    $Dv = Dv->new($db, $Admin, \%conf);
+    $Internet = Dv->new($db, $Admin, \%conf);
   }
-  # #630.
+  elsif (in_array('Internet', \@MODULES)) {
+    require Internet;
+    $Internet = Internet->new($db, $Admin, \%conf);
+  }
 
   foreach my $mdelivery (@$delivery_list) {
     $Msgs_delivery->msgs_delivery_info($mdelivery->{id});
@@ -200,24 +203,22 @@ sub msgs_delivery {
 
       push @users_ids, $u->{uid};
 
-      # 630. Templates variables in message
-      my $user_pi = $users->pi({ UID => $u->{uid}, COLS_NAME => 1, COLS_UPPER => 1 });
-      my $dv_info = ();
+      my $user_pi = $users->pi({ UID => $u->{uid} });
+      my $internet_info = {};
       if (in_array('Dv', \@MODULES)) {
-        $dv_info = $Dv->info($u->{uid}, {COLS_NAME => 1, COLS_UPPER => 1});
+        $internet_info = $Internet->info($u->{uid});
       }
 
-      my $message = $html->tpl_show($Msgs_delivery->{TEXT}, {%$user_pi, %$dv_info}, {
+      my $message = $html->tpl_show($Msgs_delivery->{TEXT}, {%$user_pi, %$internet_info}, {
         OUTPUT2RETURN      => 1, 
         SKIP_DEBUG_MARKERS => 1
       });
-      # #630.
 
       if($debug < 6) {
         $Sender->send_message({
           SENDER      => $Msgs_delivery->{SENDER},
           TO_ADDRESS  => $email,
-          MESSAGE     => $message, # $Msgs_delivery->{TEXT},
+          MESSAGE     => $message,
           SUBJECT     => $Msgs_delivery->{SUBJECT},
           SENDER_TYPE => $send_methods[$Msgs_delivery->{SEND_METHOD} || 1],
           ATTACHMENTS => ($#ATTACHMENTS > -1) ? \@ATTACHMENTS : undef,
@@ -235,6 +236,7 @@ sub msgs_delivery {
         MDELIVERY_ID => $mdelivery->{id}  || '-',
         UID          => join(';', @users_ids)
       });
+
       $Msgs_delivery->msgs_delivery_change({
         ID          => $mdelivery->{id} || '-',
         SENDED_DATE => "$DATE $TIME",

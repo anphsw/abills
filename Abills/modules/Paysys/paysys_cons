@@ -444,7 +444,7 @@ sub paysys_import_form_cons {
       });
     }
 
-    sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "BSS Отчет", "TOTAL: $total_count\nSUM: $total_sum\n ADDED: $total_added_count\n SUM: $total_added_sum\n", "$conf{MAIL_CHARSET}", "2 (High)");
+    sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "BSS Отчет за " . ($bss_date || $argv->{BSS_DATE} || ''), "TOTAL: $total_count\nSUM: $total_sum\n ADDED: $total_added_count\n SUM: $total_added_sum\n", "$conf{MAIL_CHARSET}", "2 (High)");
   }
 
   if ($error_str) {
@@ -632,8 +632,8 @@ sub paysys_import_pop3 {
         # BSS paysys
         my $total_sum_day = 0;
         my $nst_content;
-        my $go_to_next_message;
-        my $delete_nst_msg;
+        my $go_to_next_message = 0;
+        my $delete_nst_msg = 0;
         if($argv->{METHOD} == 113){
           $content = convert($content, {cp8662utf8 => 1});
           @lines = split('\n', $content);    # split content per lane
@@ -935,18 +935,32 @@ sub eript_202 {
   }
 
   my $account_key = ($conf{PAYSYS_ERIP_ACCOUNT_KEY} && $conf{PAYSYS_ERIP_ACCOUNT_KEY} eq 'LOGIN') ? 'u.id' : 'u.uid';
-
-  $Paysys->query2("SELECT $account_key AS account_key, pi.fio,
-      concat(pi.address_street, ', ', pi.address_build, ', ', pi.address_flat) AS full_address, u.credit, dv.tp_id, tp.month_fee
-    FROM users u, users_pi pi, dv_main dv, tarif_plans tp
+  if($Paysys->can('query')){
+    $Paysys->query("SELECT $account_key AS account_key, pi.fio,
+      concat(pi.address_street, ', ', pi.address_build, ', ', pi.address_flat) AS full_address, u.credit, internet.tp_id, tp.month_fee
+    FROM users u, users_pi pi, internet_main internet, tarif_plans tp
     WHERE u.uid=pi.uid AND u.deleted=0
-      AND u.uid=dv.uid
-      AND dv.tp_id=tp.id
+      AND u.uid=internet.uid
+      AND internet.tp_id=tp.tp_id
     $WHERE
     ",
-    undef,
-    { COLS_NAME => 1 }
-  );
+      undef,
+      { COLS_NAME => 1 }
+    );
+  }
+  else{
+    $Paysys->query2("SELECT $account_key AS account_key, pi.fio,
+      concat(pi.address_street, ', ', pi.address_build, ', ', pi.address_flat) AS full_address, u.credit, internet.tp_id, tp.month_fee
+    FROM users u, users_pi pi, internet_main internet, tarif_plans tp
+    WHERE u.uid=pi.uid AND u.deleted=0
+      AND u.uid=internet.uid
+      AND internet.tp_id=tp.tp_id
+    $WHERE
+    ",
+      undef,
+      { COLS_NAME => 1 }
+    );
+  }
 
   my $list = $Paysys->{list};
 
@@ -1028,13 +1042,24 @@ sub bss_users_list {
     }
   );
 
-  use Dv;
-  my $Dv = Dv->new($db, $admin, \%conf);
-  foreach my $user (@$list) {
-    my $dv_user_info = $Dv->info($user->{uid});
+  my $Dv;
+  if(in_array('Dv', \@MODULES)){
+    use Dv;
+    $Dv = Dv->new($db, $admin, \%conf);
+  }
 
-    if(( $dv_user_info->{errstr} && $dv_user_info->{errstr} eq 'ERROR_NOT_EXIST' ) || $dv_user_info->{DISABLE} == 2){
-      next;
+  foreach my $user (@$list) {
+    my $monthly_abon = 0;  #monthly abon
+    if(in_array('Dv', \@MODULES)) {
+      my $dv_user_info = $Dv->info($user->{uid});
+
+      if (($dv_user_info->{errstr} && $dv_user_info->{errstr} eq 'ERROR_NOT_EXIST') || $dv_user_info->{DISABLE} == 2) {
+        next;
+      }
+
+      if($dv_user_info->{MONTHLY_ABON}){
+        $monthly_abon = $dv_user_info->{MONTHLY_ABON};
+      }
     }
 
     $user->{fio}=~s/\s/ /g;
@@ -1164,10 +1189,10 @@ sub bss_users_list {
     else{
       $flat_number = $user->{address_flat} || 0;
     }
+    $user->{address_street_2} = $user->{address_street_2} || '';
+    $users_data .= qq{"$user->{uid}","$code","$user->{fio}","$user->{address_street_2}","$build_number","$build_digit","$build_drob","$flat_number","$flat_digit","1","}. sprintf('%.2f',$user->{deposit}) . qq{","} . sprintf('%.2f', $monthly_abon) . qq{","0","I"\n};
 
-    $users_data .= qq{"$user->{uid}","$code","$user->{fio}","$user->{address_street_2}","$build_number","$build_digit","$build_drob","$flat_number","$flat_digit","1","}. sprintf('%.2f',$user->{deposit}) . qq{","} . sprintf('%.2f', $dv_user_info->{MONTH_ABON}) . qq{","0","I"\n};
-
-    #print qq{"$user->{uid}","$code","$user->{fio}","$user->{address_street_2}","$build_number","$build_digit","$build_drob","$flat_number","$flat_digit","0","0","}. sprintf('%.2f',$user->{deposit}) . qq{","} . sprintf('%.2f', $recomended_sum) . qq{","0","I"\n};
+#    print qq{"$user->{uid}","$code","$user->{fio}","$user->{address_street_2}","$build_number","$build_digit","$build_drob","$flat_number","$flat_digit","0","0","}. sprintf('%.2f',$user->{deposit}) . qq{","} . sprintf('%.2f', $monthly_abon) . qq{","0","I"\n};
   }
 
 

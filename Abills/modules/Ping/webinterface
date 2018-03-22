@@ -3,6 +3,9 @@
 =head1 NAME
 
   Ping plugins diagnostic user internet conection
+
+  ERROR_ID: 30xx
+
 =cut
 
 use strict;
@@ -116,7 +119,7 @@ sub ping_main {
     $info{ $conf_var->{param} } = $conf_var->{value};
   }
 
-  $html->tpl_show(_include('ping_main', 'Ping'), \%info);
+  $html->tpl_show(_include('ping_main', 'Ping'), \%info, { ID => 'ping_main' });
 
   return 1;
 }
@@ -156,14 +159,14 @@ sub ping_reports {
   if ($FORM{FROM_DATE} && $FORM{TO_DATE} && $FORM{FROM_DATE} ne $FORM{TO_DATE}) {
     push @x_column_date, $FORM{FROM_DATE};
     $COLUMN{ $lang{MAX_LOSS_RATE} . '(%)' }->[ $i++ ] = '0';
-    #Fixme
-    my $b=0;
+
+    my $count=0;
     while ($from_date ne $FORM{TO_DATE}) {
       $from_date = date_inc($from_date);
       push @x_column_date, $from_date;
       $COLUMN{ $lang{MAX_LOSS_RATE} . '(%)' }->[ $i++ ] = '0';
-      ++$b;
-      if($b > 80000){
+      ++$count;
+      if($count > 80000){
         $from_date = $FORM{TO_DATE};
       }
     }
@@ -216,7 +219,9 @@ sub ping_reports {
   );
 
   if (!$Ping->{TOTAL}) {
-    $html->message('warning', $lang{WARNING}, "$lang{NO_DATA} <br>" . $html->element('i', '', { CLASS => 'fa fa-fw fa-circle' }) . " $lang{DATE}  $FORM{'FROM_DATE/TO_DATE'}");
+    $html->message('warning', $lang{WARNING}, "$lang{NO_DATA} " .
+        $html->element('i', '', { CLASS => 'fa fa-fw fa-circle' }) . " $lang{DATE}  $FORM{'FROM_DATE/TO_DATE'}",
+      { ID => 3015 });
   }
 
   my %column_type = (
@@ -290,6 +295,7 @@ sub ping_reports {
       DATA       => \%COLUMN,
     }
   );
+
   result_former(
     {
       INPUT_DATA     => $Ping,
@@ -389,16 +395,9 @@ sub ping_users_reports_filter {
     }
   );
 
-  if ($conf{ADDRESS_REGISTER}) {
-    $Ping_->{ADDRESS_FORM} = $html->tpl_show(templates('form_address_search'), { %FORM, %$users }, { OUTPUT2RETURN => 1, ID => 'form_address_sel' });
-  }
-  else {
-    my $countries_hash;
-    ($countries_hash, $users->{COUNTRY_SEL}) = sel_countries({ NAME => 'COUNTRY', COUNTRY => $users->{COUNTRY_ID} });
-    $Ping_->{ADDRESS_FORM} = $html->tpl_show(templates('form_address'), { %FORM, %$users }, { OUTPUT2RETURN => 1, ID => 'form_address' });
-  }
+  $Ping_->{ADDRESS_FORM} = form_address();
 
-  $html->tpl_show(_include('ping_users_report_filter', 'Ping'), { %$Ping_, %FORM });
+  $html->tpl_show(_include('ping_users_report_filter', 'Ping'), { %$Ping_, %FORM }, { ID => 'ping_users_report_filter' });
 
   return 1;
 }

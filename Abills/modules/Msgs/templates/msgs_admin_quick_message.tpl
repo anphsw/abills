@@ -43,7 +43,7 @@
       </form>
 
     </div>
-    <div class='box-footer text-center'>
+    <div class='box-footer'>
       <input type='submit' form='form_MSGS_QUICK_MESSAGE' class='btn btn-primary' name='submit' value='_{SEND}_'>
     </div>
   </div>

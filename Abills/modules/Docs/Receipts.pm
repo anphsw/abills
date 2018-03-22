@@ -530,7 +530,7 @@ sub docs_receipt_list{
 
     form_search( { SEARCH_FORM =>
         ($FORM{pdf}) ? '' : $html->tpl_show( _include( 'docs_receipt_search', 'Docs' ), { %info, %FORM },
-          { notprint => 1 } ) } );
+          { notprint => 1 } ), SHOW_PERIOD => 1 } );
   }
 
   if ( !$FORM{sort} ){
@@ -678,7 +678,6 @@ sub docs_receipt_print {
     $users = $user;
   }
 
-  ($Docs->{SUM_MAIN}, $Docs->{SUM_SUB}) = split( /\./, $Docs->{TOTAL_SUM} );
   if(! $Docs->{CUSTOMER} || $Docs->{CUSTOMER} eq '-') {
     $users->pi( { UID => $uid } );
     $Docs->{CUSTOMER} = $users->{FIO} || '-'
@@ -730,13 +729,19 @@ sub docs_receipt_print {
 
   $Docs->{AMOUNT_FOR_PAY} = sprintf( "%.2f", $Docs->{AMOUNT_FOR_PAY} );
   $Docs->{TOTAL_SUM} = sprintf( "%.2f", $Docs->{TOTAL_SUM} );
+  $Docs->{AMOUNT_FOR_PAY} = int( $Docs->{AMOUNT_FOR_PAY} * 100 );
+  $Docs->{TOTAL_SUM_CENT} = int( $Docs->{TOTAL_SUM} * 100 );
 
-  if ( $Docs->{EXCHANGE_RATE} > 0 ){
-    $Docs->{TOTAL_ALT_SUM} = sprintf( "%.2f", $Docs->{TOTAL_SUM} * $Docs->{EXCHANGE_RATE} );
-    $Docs->{AMOUNT_FOR_PAY_ALT} = sprintf( "%.2f", $Docs->{AMOUNT_FOR_PAY} * $Docs->{EXCHANGE_RATE} );
-    $Docs->{CHARGED_ALT_SUM} = sprintf( "%.2f", $Docs->{CHARGED_SUM} * $Docs->{EXCHANGE_RATE} );
+  if ( $Docs->{EXCHANGE_RATE} > 0 ) {
+    $Docs->{TOTAL_ALT_SUM} = sprintf("%.2f", $Docs->{TOTAL_SUM} * $Docs->{EXCHANGE_RATE});
+    $Docs->{AMOUNT_FOR_PAY_ALT} = sprintf("%.2f", $Docs->{AMOUNT_FOR_PAY} * $Docs->{EXCHANGE_RATE});
+    $Docs->{CHARGED_ALT_SUM} = sprintf("%.2f", $Docs->{CHARGED_SUM} * $Docs->{EXCHANGE_RATE});
+  
+    $Docs->{TOTAL_ALT_SUM_CENT} = int($Docs->{TOTAL_ALT_SUM} * 100);
+    $Docs->{AMOUNT_FOR_PAY_ALT_CENT} = int($Docs->{AMOUNT_FOR_PAY_ALT} * 100);
+    $Docs->{CHARGED_ALT_SUM_CENT} = int($Docs->{CHARGED_ALT_SUM} * 100);
   }
-
+  
   if ( $Docs->{PAYMENT_ID} ){
     my $list = $Docs->invoices_list( { PAYMENT_ID => $Docs->{PAYMENT_ID}, COLS_NAME => 1 } );
     if ( $Docs->{TOTAL} > 0 ){
@@ -770,6 +775,10 @@ sub docs_receipt_print {
       $Docs->{TOTAL_SUM} / ((100 + $conf{DOCS_VAT_INCLUDE}) / $conf{DOCS_VAT_INCLUDE}) );
     $Docs->{TOTAL_SUM_WITHOUT_VAT} = sprintf( "%.2f", $Docs->{TOTAL_SUM} - $Docs->{ORDER_TOTAL_SUM_VAT} );
     $Docs->{VAT} = sprintf( "%.2f", $conf{DOCS_VAT_INCLUDE} );
+  
+    $Docs->{ORDER_TOTAL_SUM_VAT_CENT} = int( $Docs->{ORDER_TOTAL_SUM_VAT} * 100 );
+    $Docs->{TOTAL_SUM_WITHOUT_VAT_CENT} = int( $Docs->{TOTAL_SUM_WITHOUT_VAT} * 100 );
+    $Docs->{VAT_CENT} = ($Docs->{VAT_CENT} && $Docs->{VAT_CENT} > 0) ? int($Docs->{VAT_CENT} * 100) : 0;
   }
 
   $attr->{SEND_EMAIL} = 0 if (!defined( $attr->{SEND_EMAIL} ));
@@ -780,7 +789,7 @@ sub docs_receipt_print {
       { OUTPUT2RETURN => 1 } );
     $attr->{EMAIL_ATTACH_FILENAME} = 'receipt_' . $Docs->{RECEIPT_NUM} if (!$attr->{EMAIL_ATTACH_FILENAME});
     $attr->{EMAIL_MSG_SUBJECT} = "ABillS - $lang{RECEIPT}: $Docs->{RECEIPT_NUM}" if (!$attr->{EMAIL_MSG_SUBJECT});
-    $attr->{OUTPUT2RETURN} = undef;
+    delete ($attr->{OUTPUT2RETURN});
     $FORM{pdf} = $conf{DOCS_PDF_PRINT};
     $attr->{SEND_EMAIL} = 1;
   }

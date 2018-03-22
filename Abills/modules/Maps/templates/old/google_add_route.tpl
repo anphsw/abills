@@ -73,7 +73,7 @@
                 </div>
             </div>
         </div>
-        <div class='box-footer text-center'>
+        <div class='box-footer'>
             <input type='submit' class='btn btn-primary' name=%ACTION%' value='%ACTION_LNG%'>
         </div>
 

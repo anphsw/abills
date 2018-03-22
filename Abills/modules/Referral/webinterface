@@ -3,7 +3,7 @@
 
   Referral system
 
-  Error ID:
+  Error ID: 41xx
 
 =cut
 
@@ -22,36 +22,11 @@ my $Referral = Referral->new( $db, $admin, \%conf );
 #**********************************************************
 =head2 referral_settings()
 
-  Arguments:
-
-
-  Returns:
+  Allows to manage module configuration in config table
 
 =cut
 #**********************************************************
 sub referral_settings{
-  
-  use Abills::Sender::Core;
-  if ($conf{PUSH_ENABLED}) {
-    my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
-  
-    $Sender->send_message({
-      UID         => 2,
-      TITLE       => 'Hello',
-      MESSAGE     => 'User ' . $TIME,
-      SENDER_TYPE => 'Push',
-      DEBUG       => 0
-    });
-  
-    $Sender->send_message({
-      AID         => 1,
-      TITLE       => 'Hello',
-      MESSAGE     => 'Admin ' . $TIME,
-      SENDER_TYPE => 'Push',
-      DEBUG       => 0
-    });
-    
-  }
   
   if ( $FORM{action} && $FORM{action} ne '' ){
     $Referral->settings_set( \%FORM );
@@ -73,9 +48,22 @@ sub referral_settings{
 =cut
 #**********************************************************
 sub referral_user{
-  my $uid = $FORM{UID} || return 0;
+  my $uid = $FORM{UID};
 
-  my $search_referrer_button = referral_get_search_button( $uid );
+  require Control::Users_mng;
+
+  # user_modal_search() can return numeric value when modlas is loaded
+  my $search_referrer_button = user_modal_search();
+  if ( $search_referrer_button && $search_referrer_button eq 2 ) {
+    return 1;
+  }
+
+  if ($FORM{set} && $FORM{REFERRAL_UID} && $FORM{REFERRER_UID}){
+    referral_set();
+  }
+
+  return unless $uid;
+
   my $show_referrals_button = '';
   my $show_referrer_content = '';
 
@@ -105,7 +93,8 @@ sub referral_user{
       REFERRER            => $show_referrer_content,
       SHOW_BUTTON_HIDDEN  => ($show_referrals_button) ? '' : 'hidden',
       SHOW_BUTTON         => $show_referrals_button
-    }
+    },
+    { ID => 'referral_user' }
   );
 
   return 1;
@@ -177,9 +166,7 @@ sub referral_report{
 =cut
 #**********************************************************
 sub referral_show{
-  shift;
-
-  my ($users_list, $users_hash, $uid_, $attr) = @_;
+  my (undef, $users_list, $users_hash, $uid_, $attr) = @_;
 
   my $uid = $uid_ || $FORM{USER_ID} || 0;
   
@@ -215,9 +202,12 @@ sub referral_show{
       COL_SIZE   => 12,
     } );
 
+
   if ( $attr->{OUTPUT2RETURN} ){
     return $tree;
   }
+
+  print $html->element('div', $tree, { class => 'modal-body row' });
 
   return 1;
 }
@@ -342,9 +332,10 @@ sub referral_set{
 =head2 referral_referrer_show($referrer)
 
   Arguments:
-
+    $referrer - UID
 
   Returns:
+    html or empty string
 
 =cut
 #**********************************************************
@@ -366,8 +357,6 @@ sub _referral_referrer_show{
 
   return $html->element( 'div', user_ext_menu( $referrer, $user_name ));
 }
-
-
 
 #**********************************************************
 =head2 referral_get_search_button($referral_id)
@@ -412,8 +401,7 @@ sub referral_get_show_referrals_button{
 
   return 0 if !$referrer_id;
 
-  return $html->button( '', undef,
-    {
+  return $html->button( '', undef, {
       class          => 'btn btn-sm btn-default',
       JAVASCRIPT     => '',
       SKIP_HREF      => 1,
@@ -464,6 +452,7 @@ sub _get_users_list{
 
   Returns:
     hash_ref
+
 
 =cut
 #**********************************************************

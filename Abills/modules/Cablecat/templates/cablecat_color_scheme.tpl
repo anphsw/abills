@@ -111,7 +111,7 @@
     </div>
 
   </div>
-  <div class='box-footer text-center'>
+  <div class='box-footer'>
     <input type='submit' form='form_CABLECAT_COLOR_SCHEME' class='btn btn-primary' name='submit'
            value='%SUBMIT_BTN_NAME%'>
   </div>

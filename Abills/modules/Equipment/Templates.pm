@@ -11,7 +11,7 @@ use POSIX qw(strftime);
 use Dv;
 require Abills::Misc;
 
-load_pmodule2('SNMP');
+load_pmodule('SNMP');
 $ENV{'MIBDIRS'} = "../../Abills/MIBs";
 #SNMP::initMib();
 SNMP::addMibDirs("../../Abills/MIBs/private");

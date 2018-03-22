@@ -502,8 +502,8 @@ sub questions_list {
 
   );
 
-my $list=$self->{list};
-return $self->{list};
+  my $list=$self->{list};
+  return  $list || [];
 }
 
 #**********************************************************

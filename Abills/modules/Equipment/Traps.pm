@@ -1,14 +1,12 @@
 =head1 NAME
 
-  SNMP TRAP Maagment
+  SNMP TRAP Managment
 
 =cut
 
 use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(ip2int mk_unique_value);
-use Dv;
-
 our(
   %lang,
   $Equipment,
@@ -17,7 +15,6 @@ our(
   $admin,
   $db
 );
-my $Dv = Dv->new( $db, $admin, \%conf );
 
 #**********************************************************
 =head2 equipment_traps()
@@ -79,26 +76,26 @@ sub equipment_traps {
   sub color_it{
     my ($text, $attr) = @_;
     my $vr = JSON->new->utf8(0)->decode( $attr->{VALUES}->{VARBINDS} );
-	my $color = $color_of{$attr->{VALUES}->{TRAPOID}} || '';
-	$text  = ($color_of{$attr->{VALUES}->{TRAPOID}})? qq(<strong>$text</strong>) : $text;
+    my $color = $color_of{$attr->{VALUES}->{TRAPOID}} || '';
+    $text  = ($color_of{$attr->{VALUES}->{TRAPOID}})? qq(<strong>$text</strong>) : $text;
     my @format;
     foreach my $k (sort keys %$vr) {
     	push @format,label_w_text({ NAME => $k, TEXT => $vr->{$k}, CTRL => 1, RCOL => 8, LCOL=>4 })
     }
-	my $modal = qq(
-	<div id="$attr->{VALUES}->{TRAP_ID}" class="modal fade" role="dialog">
-	  <div class="modal-dialog">
-	    <div class="modal-content">
-	      <div class="modal-header bg-$color">
-	        <button type="button" class="close" data-dismiss="modal">&times;</button>
-	        <h4 class="modal-title">$attr->{VALUES}->{TRAPOID}</h4>
-	      </div>
-	      <div class="modal-body">
-	        <form class='form-horizontal'>@format</form>
-	      </div>
-	    </div>
-	  </div>
-	</div>);
+  	my $modal = qq(
+  	<div id="$attr->{VALUES}->{TRAP_ID}" class="modal fade" role="dialog">
+  	  <div class="modal-dialog">
+  	    <div class="modal-content">
+  	      <div class="modal-header bg-$color">
+  	        <button type="button" class="close" data-dismiss="modal">&times;</button>
+  	        <h4 class="modal-title">$attr->{VALUES}->{TRAPOID}</h4>
+  	      </div>
+  	      <div class="modal-body">
+  	        <form class='form-horizontal'>@format</form>
+  	      </div>
+  	    </div>
+  	  </div>
+  	</div>);
     my $link = qq(<a href="#$attr->{VALUES}->{TRAP_ID}" class="text-$color" data-toggle="modal" data-target="#$attr->{VALUES}->{TRAP_ID}">$text</a>);
 	return $link.$modal;
   }

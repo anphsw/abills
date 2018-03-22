@@ -355,15 +355,15 @@ var AWorkTable = (function () {
     $.each(jobs, function (i, job) {
       //iterate tasks in jobs
       $.each(job.tasks, function (j, task) {
-        if (typeof task != 'undefined')
+        if (typeof task !== 'undefined')
           if (task.id + '' === taskId) {
-            result = task;
-            delete jobs[i].tasks[j];
+            var result_arr = jobs[i].tasks.splice(j, 1);
+            result = result_arr[0];
             renew();
           }
       });
     });
-    if (result != -1) {
+    if (result !== -1) {
       return result;
     }
     throw new Error('Task not found!');

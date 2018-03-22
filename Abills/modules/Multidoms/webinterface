@@ -9,7 +9,7 @@
 
 use warnings FATAL => 'all';
 use strict;
-use Abills::Base qw(int2ip convert ip2int in_array);
+use Abills::Base qw(int2ip convert ip2int in_array cmd);
 use POSIX qw(strftime);
 
 our (
@@ -179,7 +179,6 @@ sub multidoms_reseller_nas_groups {
       caption    => "$lang{NAS} $lang{GROUPS}",
       border     => 1,
       title      => [ '#', $lang{NAME}, $lang{COMMENTS}, $lang{STATUS}, '-', '-', '-', '-' ],
-      cols_align => [ 'right', 'left', 'left', 'center', 'center:noprint', 'center:noprint', 'center:noprint', 'center:noprint' ],
       qs         => $pages_qs,
       pages      => $Nas->{TOTAL},
       ID         => 'NAS_GROUPS'
@@ -204,7 +203,6 @@ sub multidoms_reseller_nas_groups {
   $table = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right' ],
       rows       => [ [ "$lang{TOTAL}:", $html->b($Nas->{TOTAL}) ] ]
     }
   );
@@ -430,7 +428,6 @@ sub multidoms_reseller_nas_groups_templates {
       width       => '100%',
       caption     => $lang{TEMPLATES},
       title_plain => [ "$lang{FILES}", "$lang{SIZE} (Byte)", "$lang{DATE}", "$lang{DESCRIBE}", "$lang{MAIN}", @caption ],
-      cols_align  => [ 'left', 'right', 'right', 'left', 'center', 'center' ],
       ID          => 'TEMPLATES_LIST'
     }
   );
@@ -535,7 +532,6 @@ sub multidoms_reseller_nas_groups_templates {
       width       => '600',
       caption     => "$conf{TPL_DIR}" . $lang{FILES} . ' (.jpg .gif .png .css .js)',
       title_plain => [ "FILE", "$lang{SIZE} (Byte)", "$lang{DATE}", "$lang{DESCRIBE}", "-" ],
-      cols_align  => [ 'left', 'right', 'right', 'left', 'center', 'center' ]
     }
   );
 
@@ -684,7 +680,6 @@ sub multidoms_reseller_nas {
         width       => '100%',
         caption     => "$lang{TARIF_PLANS}",
         title_plain => [ $lang{TARIF_PLAN}, "$lang{BONUS} $lang{ICARDS}", "-" ],
-        cols_align  => [ 'left', 'left', 'left' ],
       }
     );
 
@@ -749,7 +744,6 @@ sub multidoms_reseller_nas {
       width      => '100%',
       caption    => "$lang{NAS}",
       title      => [ "ID", "$lang{NAME}", "NAS-Identifier", "IP", "$lang{TYPE}", "$lang{GROUP}", "$lang{STATUS}", '-', '-' ],
-      cols_align => [ 'center', 'left', 'left', 'right', 'left', 'left', 'center', 'left', 'center:noprint', 'center:noprint', 'center:noprint' ],
       ID         => 'NAS_LIST',
       header => $html->button("$lang{ADD}", "index=$index#FORM_NAS", { BUTTON => 1 })
     }
@@ -776,7 +770,6 @@ sub multidoms_reseller_nas {
   $table = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right' ],
       rows       => [ [ "$lang{TOTAL}:", $html->b($Nas->{TOTAL}) ] ]
     }
   );
@@ -802,7 +795,8 @@ sub multidoms_reseller_nas {
       COUNTRY => $Nas->{COUNTRY} });
 
   $Nas->{NAS_DISABLE}    = ($Nas->{NAS_DISABLE} > 0) ? ' checked' : '';
-  $Nas->{ADDRESS_TPL}    = $html->tpl_show(templates('form_address'), $Nas, { OUTPUT2RETURN => 1 });
+  $Nas->{ADDRESS_TPL}    = form_address();
+  #$Nas->{ADDRESS_TPL}    = $html->tpl_show(templates('form_address'), $Nas, { OUTPUT2RETURN => 1 });
   $Nas->{NAS_GROUPS_SEL} = sel_nas_groups({ GID => $Nas->{GID} });
 
   $html->tpl_show(_include('multidoms_reseller_nas', 'Multidoms'), { %FORM, %$Nas });
@@ -836,7 +830,6 @@ sub multidoms_nas_tps {
       caption    => "$lang{TARIF_PLANS}",
       border     => 1,
       title      => [ '-', $lang{NAME}, $lang{HOUR_TARIF}, $lang{TRAFIC_TARIFS}, $lang{PAYMENT_TYPE}, $lang{AGE} ],
-      cols_align => [ 'right', 'left', 'center', 'center', 'center', 'right', 'right', 'right' ],
       ID         => 'DV_TARIF_PLANS',
     }
   );
@@ -934,9 +927,9 @@ sub multidoms_reseller_ip_pools {
     multidoms_reseller_nas();
     return 0;
   }
-  else {
-    $Nas = Nas->new($db, \%conf);
-  }
+#  else {
+#    $Nas = Nas->new($db, \%conf, $admin);
+#  }
 
   _error_show($Nas);
 
@@ -946,8 +939,7 @@ sub multidoms_reseller_ip_pools {
       width   => '100%',
       caption => "NAS IP POOLs",
       border  => 1,
-      title   => [ '', "NAS", "$lang{NAME}", "$lang{BEGIN}", "$lang{END}", "$lang{COUNT}", "$lang{PRIORITY}", '-', '-' ],
-      cols_align => [ 'right', 'left', 'right', 'right', 'right', 'center', 'center' ],
+      title   => [ '', "NAS", $lang{NAME}, $lang{BEGIN}, $lang{END}, $lang{COUNT}, $lang{PRIORITY}, '-', '-' ],
       qs         => $pages_qs,
       pages      => $payments->{TOTAL},
       ID         => 'NAS_IP_POOLS'
@@ -986,9 +978,8 @@ sub multidoms_reseller_ip_pools {
       caption => "IP POOLs",
       border  => 1,
       title   => [ "NAS", "$lang{NAME}", "$lang{BEGIN}", "$lang{END}", "$lang{COUNT}", "$lang{PRIORITY}", '-' ],
-      cols_align => [ 'left', 'right', 'right', 'right', 'center' ],
-      qs         => $pages_qs,
-      ID         => 'IP_POOLS'
+      qs      => $pages_qs,
+      ID      => 'IP_POOLS'
     }
   );
 
@@ -1173,7 +1164,7 @@ sub multidoms_reseller_tp {
 
   _error_show($Tariffs);
 
-  $Nas = Nas->new($db, \%conf, $admin);
+  #$Nas = Nas->new($db, \%conf, $admin);
 
   $LIST_PARAMS{DOMAIN_ID} = $admin->{DOMAIN_ID};
   my $list = $Tariffs->list({%LIST_PARAMS});
@@ -1185,7 +1176,6 @@ sub multidoms_reseller_tp {
       caption    => "$lang{TARIF_PLANS}",
       border     => 1,
       title      => [ '-', $lang{NAME}, $lang{HOUR_TARIF}, $lang{TRAFIC_TARIFS}, $lang{PAYMENT_TYPE}, $lang{AGE}, '-', '-' ],
-      cols_align => [ 'right', 'left', 'center', 'center', 'center', 'right', 'right', 'right', 'right', 'center:noprint', 'center:noprint', 'center:noprint' ],
       ID         => 'DV_TARIF_PLANS',
       header     => $html->button($lang{ADD}, "index=$index#TP_FORM", { BUTTON => 1 })
     }
@@ -1221,7 +1211,6 @@ sub multidoms_reseller_tp {
   $table = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right' ],
       rows       => [ [ "$lang{TOTAL}:", $html->b($Tariffs->{TOTAL}) ] ]
     }
   );
@@ -1329,7 +1318,6 @@ sub multidoms_reseller_tp_nas {
       caption    => "$lang{NAS}",
       border     => 1,
       title      => [ "$lang{ALLOW}", "$lang{NAME}", 'NAS-Identifier', "IP", "$lang{TYPE}", "$lang{AUTH}" ],
-      cols_align => [ 'right', 'left', 'left', 'right', 'left', 'left' ],
       qs         => $pages_qs,
       ID         => 'NAS_ALLOW'
     }
@@ -1546,7 +1534,6 @@ sub multidoms_cards_dillers {
       width   => '100%',
       caption => "$lang{DILLERS}",
       title   => [ 'ID', "$lang{NAME}", "$lang{ADDRESS}", "E-Mail", "$lang{REGISTRATION}", "$lang{PERCENTAGE}", "$lang{STATE}", "$lang{COUNT}", "$lang{ENABLE}", '-', '-', '-' ],
-      cols_align => [ 'right', 'left', 'left', 'left', 'right', 'right', 'right', 'right', 'center:noprint', 'center:noprint', 'center:noprint' ],
       qs         => $pages_qs,
       pages      => $Cards->{TOTAL},
       ID         => 'CARDS_DILLERS'
@@ -1574,7 +1561,6 @@ sub multidoms_cards_dillers {
   $table = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right' ],
       rows       => [ [ "$lang{TOTAL}:", $html->b($Cards->{TOTAL}) ] ]
     }
   );
@@ -1619,7 +1605,6 @@ sub multidoms_cards_dillers {
 #      caption => $attr->{CAPTION},
 #
 #      #title      => ['ID', "$lang{LOGIN}", "$lang{ADDED}", "$lang{GROUP}", "$lang{STATUS}", "$lang{EXPIRE}", "$lang{DILLERS}", "$lang{ADMINS}", '-'],
-#      cols_align => [ 'left', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right' ],
 #      qs         => $pages_qs,
 #      pages      => $Cards->{TOTAL}
 #    }

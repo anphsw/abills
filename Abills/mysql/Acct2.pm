@@ -63,6 +63,7 @@ sub new {
 
   $self->{db}=$db;
   $Billing = Billing->new($db, $conf);
+  $Billing->{INTERNET}=1;
 
   return $self;
 }
@@ -75,7 +76,7 @@ sub new {
 sub accounting {
   my $self = shift;
   my ($RAD, $NAS) = @_;
-  $self->{debug}=1;
+
   $self->{SUM}              = 0 if (!$self->{SUM});
   my $acct_status_type      = $ACCT_TYPES{ $RAD->{'Acct-Status-Type'} };
   $RAD->{$input_gigawords}  = 0 if (!$RAD->{$input_gigawords});
@@ -179,7 +180,8 @@ sub accounting {
     # If not found auth records and session > 2 sec
     else { #if($RAD->{'Acct-Session-Time'} && $RAD->{'Acct-Session-Time'} > 2) {
       #Get TP_ID
-      $self->query2("SELECT u.uid, internet.tp_id, internet.join_service FROM (users u, internet_main internet)
+      $self->query2("SELECT u.uid, internet.tp_id, internet.join_service, internet.id AS service_id
+       FROM (users u, internet_main internet)
        WHERE u.uid=internet.uid and u.id= ? ;",
         undef,
         { Bind => [ $RAD->{'User-Name'} ] }
@@ -187,8 +189,10 @@ sub accounting {
 
       if ($self->{TOTAL} > 0) {
         ($self->{UID},
-          $self->{TP_ID},
-          $self->{JOIN_SERVICE}) = @{ $self->{list}->[0] };
+         $self->{TP_ID},
+         $self->{JOIN_SERVICE},
+         $self->{SERVICE_ID},
+        ) = @{ $self->{list}->[0] };
 
         if ($self->{JOIN_SERVICE}) {
           if ($self->{JOIN_SERVICE} == 1) {
@@ -217,7 +221,7 @@ sub accounting {
         nas_id= ? ,
         tp_id= ? ,
         uid= ? ,
-        join_service = ?";
+        service_id = ?";
 
       $self->query2($sql, 'do', { Bind =>
           [ $acct_status_type,
@@ -228,11 +232,11 @@ sub accounting {
             $RAD->{'Acct-Session-Id'} || 'undef',
             $RAD->{'Framed-IP-Address'},
             $RAD->{'Calling-Station-Id'},
-            $RAD->{'Connect-Info'}.'_1',
+            $RAD->{'Connect-Info'}.'LOST_CONNECTION',
             $NAS->{'NAS_ID'},
             $self->{'TP_ID'} || 0,
             $self->{'UID'} || 0,
-            $self->{'JOIN_SERVICE'} || 0
+            $self->{'SERVICE_ID'} || 0,
           ]});
 
       $sql  = "DELETE FROM internet_online WHERE nas_id= ? AND acct_session_id='IP'
@@ -301,7 +305,14 @@ sub accounting {
 
       if ($RAD->{OUTBYTE} > 4294967296) {
         $RAD->{$output_gigawords} = int($RAD->{OUTBYTE} / 4294967296);
-        $RAD->{OUTBYTE}               = $RAD->{OUTBYTE} - $RAD->{$output_gigawords} * 4294967296;
+        $RAD->{OUTBYTE}           = $RAD->{OUTBYTE} - $RAD->{$output_gigawords} * 4294967296;
+      }
+
+      my $ipv6 = '';
+      if ($conf->{IPV6} && $RAD->{'Framed-IPv6-Prefix'}) {
+        my $interface_id = $RAD->{'Framed-Interface-Id'} || q{};
+        $interface_id =~ s/\/\d+//g;
+        $ipv6 =  ", framed_ipv6_prefix =INET6_ATON('". $RAD->{'Framed-IPv6-Prefix'}.'::'.$interface_id ."')";
       }
 
       if ($self->{UID} > 0) {
@@ -323,7 +334,8 @@ sub accounting {
           bill_id= ? ,
           terminate_cause= ? ,
           acct_input_gigawords= ? ,
-          acct_output_gigawords= ? ",
+          acct_output_gigawords= ?
+          $ipv6",
           'do',
           { Bind => [
               $self->{UID},
@@ -398,7 +410,7 @@ sub accounting {
         { Bind => [
             $self->{UID},
             $RAD->{'Acct-Session-Time'},
-            $self->{TARIF_PLAN} || 0,
+            $self->{TARIF_PLAN} || $self->{TP_ID} || 0,
             $RAD->{'Acct-Session-Time'},
             $RAD->{OUTBYTE},
             $RAD->{INBYTE},
@@ -425,7 +437,7 @@ sub accounting {
       my %EXT_ATTR = ();
 
       #Get connected TP
-      $self->query2("SELECT uid, tp_id, CONNECT_INFO FROM internet_online WHERE
+      $self->query2("SELECT uid, tp_id, connect_info FROM internet_online WHERE
           acct_session_id= ? AND nas_id= ? ;",
         undef,
         { Bind => [ $RAD->{'Acct-Session-Id'}, $NAS->{NAS_ID} ]}
@@ -489,7 +501,7 @@ sub accounting {
           'do',
           { Bind => [ $self->{UID},
               $RAD->{'Acct-Session-Time'},
-              $self->{TARIF_PLAN},
+              $self->{TARIF_PLAN} || $EXT_ATTR{TP_ID},
               $RAD->{'Acct-Session-Time'},
               $RAD->{OUTBYTE},
               $RAD->{INBYTE},
@@ -571,13 +583,20 @@ sub accounting {
       #add unknown session
       if ($self->{errno}) {
         if ($self->{errno}  == 2 && ($RAD->{'Acct-Session-Time'} && $RAD->{'Acct-Session-Time'} > 2)) {
-          $self->query2("SELECT u.uid, internet.tp_id, internet.join_service
+          $self->query2("SELECT u.uid, internet.tp_id, internet.join_service, internet.id AS service_id
            FROM users u
            INNER JOIN internet_main internet ON (u.uid=internet.uid)
            WHERE u.id= ? ;",
             undef,
             { INFO  => 1,
               Bind  => [ $RAD->{'User-Name'} ] });
+
+          my $ipv6 = '';
+          if($conf->{IPV6}) {
+            my $interface_id = $RAD->{'Framed-Interface-Id'} || q{};
+            $interface_id =~ s/\/\d+//g;
+            $ipv6 =  ", framed_ipv6_prefix =INET6_ATON('". $RAD->{'Framed-IPv6-Prefix'}.'::'.$interface_id ."')";
+          }
 
           $self->query2("REPLACE INTO internet_online SET
               status= ? ,
@@ -588,8 +607,8 @@ sub accounting {
               nas_port_id= ? ,
               acct_session_id= ? ,
               framed_ip_address=INET_ATON( ? ),
-              CID= ? ,
-              CONNECT_INFO= ? ,
+              cid= ? ,
+              connect_info= ? ,
               acct_input_octets= ? ,
               acct_output_octets= ? ,
               acct_input_gigawords= ? ,
@@ -597,7 +616,10 @@ sub accounting {
               nas_id= ? ,
               tp_id= ? ,
               uid= ? ,
-              acct_session_time= ?;",
+              acct_session_time= ?,
+              service_id = ?
+              $ipv6
+              ;",
             'do',
             { Bind => [
                 $acct_status_type,
@@ -616,7 +638,8 @@ sub accounting {
                 $NAS->{NAS_ID},
                 $self->{TP_ID} || 0,
                 $self->{UID} || 0,
-                $RAD->{'Acct-Session-Time'} || 0
+                $RAD->{'Acct-Session-Time'} || 0,
+                $self->{SERVICE_ID} || 0
               ]});
           return $self;
         }

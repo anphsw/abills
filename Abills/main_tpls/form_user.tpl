@@ -1,5 +1,5 @@
 <script TYPE='text/javascript'>
-  <!--
+  'use strict';
   function add_comments() {
 
     if (document.user_form.DISABLE.checked) {
@@ -7,7 +7,7 @@
 
       var comments = prompt('_{COMMENTS}_', '');
 
-      if (comments == '' || comments == null) {
+      if (comments === '' || comments == null) {
         alert('Enter comments');
         document.user_form.DISABLE.checked               = false;
         document.user_form.ACTION_COMMENTS.style.display = 'none';
@@ -28,8 +28,19 @@
   jQuery(function(){
     jQuery('input#DISABLE').on('click', add_comments );
     if ('%PASSWORD_HIDDEN%' === '1') jQuery('div#PASSWORD_WRAPPER').hide();
+
+    jQuery('#create_company').on('click', function(){
+      if (this.checked) {
+        var company_name_input = jQuery('<input/>', { 'class' : 'form-control', name : 'COMPANY_NAME', id : 'COMPANY_NAME' });
+        jQuery('#create_company_wrapper').after(company_name_input);
+        jQuery('#COMPANY_NAME').wrap("<div class='col-md-6 col-xs-12' id='company_name_wrapper'></div>");
+      }
+      else {
+        jQuery('#company_name_wrapper').remove();
+      }
+    });
   });
-  -->
+
 </script>
 <form class='form-horizontal' action='$SELF_URL' method='post' id='user_form' name='user_form' role='form'>
   <input type=hidden name=index value='$index'>
@@ -130,7 +141,7 @@
           </div>
         </div>
         <div class='box-body'>
-          <div class='form-group'>
+          <div class='form-group' %HIDE_COMPANY%>
             <label class='control-label col-xs-4 col-md-2'>_{COMPANY}_</label>
             <div class=' col-xs-8 col-md-4'>
               <div class='input-group'>
@@ -148,7 +159,7 @@
               <input type=text name='REG' value='%REGISTRATION%' ID='REG' class='form-control' readonly>
             </div>
           </div>
-          <div class='form-group'>
+          <div class='form-group' %HIDE_COMPANY%>
             <label class='control-label col-xs-4 col-md-2' for='BILL'>_{BILL}_</label>
             <div class='col-xs-8 col-md-4'>
               <div class='input-group'>

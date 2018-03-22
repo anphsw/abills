@@ -405,6 +405,9 @@
                   </div>
               </div>
               %BONUS%
+
+              %FORM_DOMAINS%
+
             </div>
           </div>
         </div>

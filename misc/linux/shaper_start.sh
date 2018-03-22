@@ -94,7 +94,7 @@ fi;
 
 PROG="shaper_start"
 DESCR="shaper_start"
-VERSION=1.14
+VERSION=1.16
 
 : ${abills_shaper_enable="NO"}
 : ${abills_shaper_if=""}
@@ -143,7 +143,9 @@ if [ ! -f /etc/rc.conf ]; then
   exit;
 fi;
 
+if [ -f /etc/rc.conf ]; then
 . /etc/rc.conf
+fi;
 
 name="abills_shaper" 
 
@@ -176,10 +178,10 @@ all_rulles(){
 if [ "${abills_ipn_if}" != "" ]; then
 IPN_INTERFACES="";
 ifaces=`echo ${abills_ipn_if} | sed 'N;s/\n/ /' |sed 's/,/ /g'`
-  for i in $ifaces; do
-    if [[ $i =~ - ]]; then
+  for i in ${ifaces}; do
+    if [[ ${i} =~ - ]]; then
       vlan_name=`echo ${i}|sed 's/vlan//'`
-      IFS='-' read -a start_stop <<< "$vlan_name"
+      IFS='-' read -a start_stop <<< "${vlan_name}"
       for cur_iface in `seq ${start_stop[0]} ${start_stop[1]}`; do
         IPN_INTERFACES="$IPN_INTERFACES vlan${cur_iface}"
       done
@@ -192,14 +194,14 @@ fi;
 if [ x${abills_dhcp_shaper_nas_ids} != x ]; then
   NAS_IDS="NAS_IDS=";
   nas_ids=`echo ${abills_dhcp_shaper_nas_ids} | sed 'N;s/\n/ /' |sed 's/,/ /g'`
-  for i in $nas_ids; do
-    if [[ $i =~ - ]]; then
+  for i in ${nas_ids}; do
+    if [[ ${i} =~ - ]]; then
       IFS='-' read -a start_stop <<< "$i"
       for cur_nas_id in `seq ${start_stop[0]} ${start_stop[1]}`; do
-        NAS_IDS="$NAS_IDS${cur_nas_id};"
+        NAS_IDS="${NAS_IDS}${cur_nas_id};"
       done
     else
-      NAS_IDS="$NAS_IDS$i;"
+      NAS_IDS="${NAS_IDS}${i};"
     fi
   done
 fi;
@@ -252,47 +254,47 @@ fi;
 echo "ABillS Iptables ${ACTION}"
 
 if [ "${ACTION}" = "start" ];then
-  $IPT -P INPUT DROP
-  $IPT -P OUTPUT ACCEPT
-  $IPT -P FORWARD ACCEPT
-  $IPT -t nat -I PREROUTING -j ACCEPT
+  ${IPT} -P INPUT DROP
+  ${IPT} -P OUTPUT ACCEPT
+  ${IPT} -P FORWARD ACCEPT
+  ${IPT} -t nat -I PREROUTING -j ACCEPT
   # Включить на сервере интернет
-  $IPT -A INPUT -i lo -j ACCEPT
+  ${IPT} -A INPUT -i lo -j ACCEPT
   # Пропускать все уже инициированные соединения, а также дочерние от них
-  $IPT -A INPUT -p all -m state --state ESTABLISHED,RELATED -j ACCEPT
+  ${IPT} -A INPUT -p all -m state --state ESTABLISHED,RELATED -j ACCEPT
   # Разрешить SSH запросы к серверу
-  $IPT -A INPUT -p TCP -s 0/0  --dport 7022 -j ACCEPT
+  ${IPT} -A INPUT -p TCP -s 0/0  --dport 7022 -j ACCEPT
   # Разрешить TELNET запросы к серверу
-  $IPT -A INPUT -p TCP -s 0/0  --dport 23 -j ACCEPT
+  ${IPT} -A INPUT -p TCP -s 0/0  --dport 23 -j ACCEPT
   # Разрешить ping к серверу доступа
-  $IPT -A INPUT -p icmp -m icmp --icmp-type any -j ACCEPT
+  ${IPT} -A INPUT -p icmp -m icmp --icmp-type any -j ACCEPT
   # Разрешить DNS запросы к серверу
-  $IPT -A INPUT -p UDP -s 0/0  --sport 53 -j ACCEPT
-  $IPT -A INPUT -p UDP -s 0/0  --dport 53 -j ACCEPT
+  ${IPT} -A INPUT -p UDP -s 0/0  --sport 53 -j ACCEPT
+  ${IPT} -A INPUT -p UDP -s 0/0  --dport 53 -j ACCEPT
   # Разрешить DHCP запросы к серверу
-  $IPT -A INPUT -p UDP -s 0/0  --sport 68 -j ACCEPT
-  $IPT -A INPUT -p UDP -s 0/0  --dport 68 -j ACCEPT
+  ${IPT} -A INPUT -p UDP -s 0/0  --sport 68 -j ACCEPT
+  ${IPT} -A INPUT -p UDP -s 0/0  --dport 68 -j ACCEPT
   #Запретить исходящий 25 порт
-  $IPT -I OUTPUT -p tcp -m tcp --sport 25 -j DROP
-  $IPT -I OUTPUT -p tcp -m tcp --dport 25 -j DROP
+  ${IPT} -I OUTPUT -p tcp -m tcp --sport 25 -j DROP
+  ${IPT} -I OUTPUT -p tcp -m tcp --dport 25 -j DROP
   # Доступ к странице авторизации
-  $IPT -A INPUT -p TCP -s 0/0  --sport 80 -j ACCEPT
-  $IPT -A INPUT -p TCP -s 0/0  --dport 80 -j ACCEPT
-  $IPT -A INPUT -p TCP -s 0/0  --sport 81 -j ACCEPT
-  $IPT -A INPUT -p TCP -s 0/0  --dport 81 -j ACCEPT
-  $IPT -A INPUT -p TCP -s 0/0  --sport 443 -j ACCEPT
-  $IPT -A INPUT -p TCP -s 0/0  --dport 443 -j ACCEPT
-  $IPT -A INPUT -p TCP -s 0/0  --sport 9443 -j ACCEPT
-  $IPT -A INPUT -p TCP -s 0/0  --dport 9443 -j ACCEPT
-  $IPT -I INPUT -p udp -m udp --dport 161 -j ACCEPT
-  $IPT -I INPUT -p udp -m udp --dport 162 -j ACCEPT
+  ${IPT} -A INPUT -p TCP -s 0/0  --sport 80 -j ACCEPT
+  ${IPT} -A INPUT -p TCP -s 0/0  --dport 80 -j ACCEPT
+  ${IPT} -A INPUT -p TCP -s 0/0  --sport 81 -j ACCEPT
+  ${IPT} -A INPUT -p TCP -s 0/0  --dport 81 -j ACCEPT
+  ${IPT} -A INPUT -p TCP -s 0/0  --sport 443 -j ACCEPT
+  ${IPT} -A INPUT -p TCP -s 0/0  --dport 443 -j ACCEPT
+  ${IPT} -A INPUT -p TCP -s 0/0  --sport 9443 -j ACCEPT
+  ${IPT} -A INPUT -p TCP -s 0/0  --dport 9443 -j ACCEPT
+  ${IPT} -I INPUT -p udp -m udp --dport 161 -j ACCEPT
+  ${IPT} -I INPUT -p udp -m udp --dport 162 -j ACCEPT
   # MYSQL
-  $IPT -A INPUT -p TCP -s 0/0  --sport 3306 -j ACCEPT
-  $IPT -A INPUT -p TCP -s 0/0  --dport 3306 -j ACCEPT
+  ${IPT} -A INPUT -p TCP -s 0/0  --sport 3306 -j ACCEPT
+  ${IPT} -A INPUT -p TCP -s 0/0  --dport 3306 -j ACCEPT
 
-  $IPT -A FORWARD -p tcp -m tcp -s 0/0 --dport 80 -j ACCEPT
-  $IPT -A FORWARD -p tcp -m tcp -s 0/0 --dport 443 -j ACCEPT
-  $IPT -A FORWARD -p tcp -m tcp -s 0/0 --dport 9443 -j ACCEPT
+  ${IPT} -A FORWARD -p tcp -m tcp -s 0/0 --dport 80 -j ACCEPT
+  ${IPT} -A FORWARD -p tcp -m tcp -s 0/0 --dport 443 -j ACCEPT
+  ${IPT} -A FORWARD -p tcp -m tcp -s 0/0 --dport 9443 -j ACCEPT
 
   if [ "$IPSET" = "" ]; then
     echo "Error: ipset not install";
@@ -301,7 +303,7 @@ if [ "${ACTION}" = "start" ];then
 
   # UNKNOWN CLIENT
   unknown_clients=`${IPSET} -L |grep unknown_clients|sed 's/ //'|awk -F: '{ print $2 }'`
-  if [ x"${unknown_clients}" = x ]; then
+  if [ "${unknown_clients}" = "" ]; then
     echo "ADD unknown_clients"
     ${IPSET} -N unknown_clients iphash
   fi;
@@ -320,25 +322,25 @@ if [ "${ACTION}" = "start" ];then
     ${IPSET} -N allowip iphash
   fi;
 
-  $IPT -t nat -A PREROUTING -m set --match-set unknown_clients src -p tcp --dport 80 -j REDIRECT --to-ports 81
-  $IPT -t nat -A PREROUTING -m set --match-set unknown_clients src -p tcp --dport 443 -j REDIRECT --to-ports 81
-  $IPT -t nat -A PREROUTING -m set --match-set unknown_clients src -p tcp --dport 9443 -j REDIRECT --to-ports 81
+  ${IPT} -t nat -A PREROUTING -m set --match-set unknown_clients src -p tcp --dport 80 -j REDIRECT --to-ports 81
+  ${IPT} -t nat -A PREROUTING -m set --match-set unknown_clients src -p tcp --dport 443 -j REDIRECT --to-ports 81
+  ${IPT} -t nat -A PREROUTING -m set --match-set unknown_clients src -p tcp --dport 9443 -j REDIRECT --to-ports 81
 
-  $IPT -A FORWARD -m set --match-set allownet src -j ACCEPT
-  $IPT -A FORWARD -m set --match-set allownet dst -j ACCEPT
-  $IPT -t nat -A PREROUTING -m set --match-set allownet src -j ACCEPT
+  ${IPT} -A FORWARD -m set --match-set allownet src -j ACCEPT
+  ${IPT} -A FORWARD -m set --match-set allownet dst -j ACCEPT
+  ${IPT} -t nat -A PREROUTING -m set --match-set allownet src -j ACCEPT
 
-  $IPT -A FORWARD -m set --match-set allowip src -j ACCEPT
-  $IPT -A FORWARD -m set --match-set allowip dst -j ACCEPT
-  $IPT -t nat -A PREROUTING -m set --match-set allowip src -j ACCEPT
+  ${IPT} -A FORWARD -m set --match-set allowip src -j ACCEPT
+  ${IPT} -A FORWARD -m set --match-set allowip dst -j ACCEPT
+  ${IPT} -t nat -A PREROUTING -m set --match-set allowip src -j ACCEPT
 
   if [ x"${abills_allow_dhcp_port_67}" != x ]; then
     # Перенаправление IPN клиентов
     ALLOW_DHCP=`echo ${abills_allow_dhcp_port_67}  |sed 'N;s/\n/ /' |sed 's/;/ /g'`;
     echo "${ALLOW_DHCP}"
     for DHCP_POOL in ${ALLOW_DHCP}; do
-      $IPT -I INPUT -p UDP -s ${DHCP_POOL}  --sport 67 -j ACCEPT
-      $IPT -I INPUT -p UDP -s ${DHCP_POOL}  --dport 67 -j ACCEPT
+      ${IPT} -I INPUT -p UDP -s ${DHCP_POOL}  --sport 67 -j ACCEPT
+      ${IPT} -I INPUT -p UDP -s ${DHCP_POOL}  --dport 67 -j ACCEPT
       echo "Allow ${DHCP_POOL} to port 67"
     done
   else
@@ -350,9 +352,9 @@ if [ "${ACTION}" = "start" ];then
     REDIRECT_POOL=`echo ${abills_redirect_clients_pool}  |sed 'N;s/\n/ /' |sed 's/;/ /g'`;
     echo "${REDIRECT_POOL}"
     for REDIRECT_IPN_POOL in ${REDIRECT_POOL}; do
-      $IPT -t nat -A PREROUTING -s ${REDIRECT_IPN_POOL} -p tcp --dport 80 -j REDIRECT --to-ports 80
-      $IPT -t nat -A PREROUTING -s ${REDIRECT_IPN_POOL} -p tcp --dport 443 -j REDIRECT --to-ports 80
-      $IPT -t nat -A PREROUTING -s ${REDIRECT_IPN_POOL} -p tcp --dport 9443 -j REDIRECT --to-ports 80
+      ${IPT} -t nat -A PREROUTING -s ${REDIRECT_IPN_POOL} -p tcp --dport 80 -j REDIRECT --to-ports 80
+      ${IPT} -t nat -A PREROUTING -s ${REDIRECT_IPN_POOL} -p tcp --dport 443 -j REDIRECT --to-ports 80
+      ${IPT} -t nat -A PREROUTING -s ${REDIRECT_IPN_POOL} -p tcp --dport 9443 -j REDIRECT --to-ports 80
       echo "Redirect UP ${REDIRECT_IPN_POOL}"
     done
   else
@@ -377,17 +379,17 @@ if [ "${ACTION}" = "start" ];then
 elif [ "${ACTION}" = stop ]; then
   echo "${ACTION}";
   # Разрешаем всё и всем
-  $IPT -P INPUT ACCEPT
-  $IPT -P OUTPUT ACCEPT
-  $IPT -P FORWARD ACCEPT
+  ${IPT} -P INPUT ACCEPT
+  ${IPT} -P OUTPUT ACCEPT
+  ${IPT} -P FORWARD ACCEPT
 
   # Чистим все правила
-  $IPT -F
-  $IPT -F -t nat
-  $IPT -F -t mangle
-  $IPT -X
-  $IPT -X -t nat
-  $IPT -X -t mangle
+  ${IPT} -F
+  ${IPT} -F -t nat
+  ${IPT} -F -t mangle
+  ${IPT} -X
+  ${IPT} -X -t nat
+  ${IPT} -X -t mangle
 
   unknown_clients=`${IPSET} -L |grep unknown_clients|sed 's/ //'|awk -F: '{ print $2 }'`
     if [ x"${unknown_clients}" != x ]; then
@@ -406,7 +408,7 @@ elif [ "${ACTION}" = stop ]; then
     fi;
 
 elif [ "${ACTION}" = "status" ]; then
-  $IPT -S
+  ${IPT} -S
 fi;
 }
 
@@ -426,16 +428,16 @@ abills_shaper() {
 
   echo "ABillS Shapper ${ACTION}"
 
-  if [ x${ACTION} = xstart ]; then
+  if [ "${ACTION}" = start ]; then
     for INTERFACE in ${IPN_INTERFACES}; do
       TCQA="${TC} qdisc add dev ${INTERFACE}"
       TCQD="${TC} qdisc del dev ${INTERFACE}"
 
-      $TCQD root &>/dev/null
-      $TCQD ingress &>/dev/null
+      ${TCQD} root &>/dev/null
+      ${TCQD} ingress &>/dev/null
 
-      $TCQA root handle 1: htb
-      $TCQA handle ffff: ingress
+      ${TCQA} root handle 1: htb
+      ${TCQA} handle ffff: ingress
 
       echo "Shaper UP ${INTERFACE}"
     
@@ -446,8 +448,8 @@ abills_shaper() {
       TCQA="${TC} qdisc add dev ${INTERFACE}"
       TCQD="${TC} qdisc del dev ${INTERFACE}"
 
-      $TCQD root &>/dev/null
-      $TCQD ingress &>/dev/null
+      ${TCQD} root &>/dev/null
+      ${TCQD} ingress &>/dev/null
 
       echo "Shaper DOWN ${INTERFACE}"
     done
@@ -479,11 +481,11 @@ abills_shaper2() {
   if [ "${ACTION}" = "start" ]; then
     ${IPT} -t mangle --flush
     ${TC} qdisc add dev ${EXTERNAL_INTERFACE} root handle 1: htb
-    ${TC} class add dev ${EXTERNAL_INTERFACE} parent 1: classid 1:1 htb rate $SPEEDDOWN ceil $SPEEDDOWN
+    ${TC} class add dev ${EXTERNAL_INTERFACE} parent 1: classid 1:1 htb rate ${SPEEDDOWN} ceil ${SPEEDDOWN}
 
     for INTERFACE in ${IPN_INTERFACES}; do
       ${TC} qdisc add dev ${INTERFACE} root handle 1: htb
-      ${TC} class add dev ${INTERFACE} parent 1: classid 1:1 htb rate $SPEEDUP ceil $SPEEDUP
+      ${TC} class add dev ${INTERFACE} parent 1: classid 1:1 htb rate ${SPEEDUP} ceil ${SPEEDUP}
 
 #    ${IPT} -A FORWARD -j DROP -i ${INTERFACE}
       echo "Shaper UP ${INTERFACE}"
@@ -491,12 +493,12 @@ abills_shaper2() {
   elif [ "${ACTION}" = "stop" ]; then
     ${IPT} -t mangle --flush
     EI=`tc qdisc show dev ${EXTERNAL_INTERFACE} |grep htb | sed 's/ //g'`
-    if [ x$EI != x ]; then
+    if [ "${EI}" != "" ]; then
       ${TC} qdisc del dev ${EXTERNAL_INTERFACE} root handle 1: htb
     fi;
     for INTERFACE in ${IPN_INTERFACES}; do
       II=`tc qdisc show dev ${INTERFACE} |grep htb | sed 's/ //g'`
-      if [ x$II != x ]; then
+      if [ "${II}" != "" ]; then
         ${TC} qdisc del dev ${INTERFACE} root handle 1: htb
         echo "Shaper DOWN ${INTERFACE}"
       fi;
@@ -536,20 +538,20 @@ if [ x${ACTION} = xstart ]; then
 
     echo "Shaper 3 UP ${INTERFACE}"
   done
-elif [ x${ACTION} = xstop ]; then
+elif [ "${ACTION}" = stop ]; then
   ${IPT} -t mangle --flush
   EI=`tc qdisc show dev ${EXTERNAL_INTERFACE} |grep htb | sed 's/ //g'`
-  if [ x$EI != x ]; then
+  if [ "${EI}" != "" ]; then
     ${TC} qdisc del dev ${EXTERNAL_INTERFACE} root
   fi;
   for INTERFACE in ${IPN_INTERFACES}; do
     II=`tc qdisc show dev ${INTERFACE} |grep htb | sed 's/ //g'`
-  if [ x$II != x ]; then
+  if [ "${II}" != "" ]; then
     ${TC} qdisc del dev ${INTERFACE} root
     echo "Shaper DOWN ${INTERFACE}"
   fi;
   done
-elif [ x${ACTION} = xstatus ]; then
+elif [ "${ACTION}" = status ]; then
   echo "External: ${EXTERNAL_INTERFACE}";
   ${TC} class show dev ${EXTERNAL_INTERFACE}
   for INTERFACE in ${IPN_INTERFACES}; do
@@ -571,7 +573,7 @@ abills_ipn() {
 
   if [ x${ACTION} = xstart ]; then
     echo "Enable users IPN"
-    $IPT -P FORWARD DROP
+    ${IPT} -P FORWARD DROP
     ${BILLING_DIR}/libexec/periodic monthly MODULES=Ipn SRESTART=1 NO_ADM_REPORT=1 NO_RULE NAS_IDS="${abills_ipn_nas_id}"
   fi;
 
@@ -733,7 +735,7 @@ if [ w${ACTION} = wstart ]; then
     f="/proc/irq/$irq/smp_affinity"
     test -r "$f" || continue
     cpu=$[$ncpus - ($n % $ncpus) - 1]
-    if [ $cpu -ge 0 ]; then
+    if [ ${cpu} -ge 0 ]; then
       mask=`printf %x $[2 ** $cpu]`
       echo "Assign SMP affinity: eth$n, irq $irq, cpu $cpu, mask 0x$mask"
       echo "$mask" > "$f"
@@ -758,16 +760,16 @@ if [ w${ACTION} = wstart ]; then
   if [ x"${abills_unnumbered_net}" != x ]; then
       UNNUNBERED_NETS=`echo ${abills_unnumbered_net}  |sed 'N;s/\n/ /' |sed 's/;/ /g'`;
       for UNNUNBERED_NET in ${UNNUNBERED_NETS}; do
-         /sbin/ip ro replace unreachable $UNNUNBERED_NET
-         echo "Add route unreachable $UNNUNBERED_NET"
+         /sbin/ip ro replace unreachable ${UNNUNBERED_NET}
+         echo "Add route unreachable ${UNNUNBERED_NET}"
       done
       if [ x"${abills_unnumbered_iface}" != x ]; then
         UNNUNBERED_INTERFACES="";
         unnumbered_ifaces=`echo ${abills_unnumbered_iface} | sed 'N;s/\n/ /' |sed 's/,/ /g'`
-        for i in $unnumbered_ifaces; do
-          if [[ $i =~ - ]]; then
+        for i in ${unnumbered_ifaces}; do
+          if [[ ${i} =~ - ]]; then
              vlan_name=`echo ${i}|sed 's/vlan//'`
-             IFS='-' read -a start_stop <<< "$vlan_name"
+             IFS='-' read -a start_stop <<< "${vlan_name}"
              for cur_iface in `seq ${start_stop[0]} ${start_stop[1]}`;
              do
                   UNNUNBERED_INTERFACES="$UNNUNBERED_INTERFACES vlan${cur_iface}"
@@ -780,8 +782,8 @@ if [ w${ACTION} = wstart ]; then
           UNNUNBERED_GW=`echo ${abills_unnumbered_gw}  |sed 'N;s/\n/ /' |sed 's/;/ /g'`;
           for UNNUNBERED_INTERFACE in ${UNNUNBERED_INTERFACES}; do
                for GW in ${UNNUNBERED_GW}; do
-              /sbin/ip addr add $GW dev $UNNUNBERED_INTERFACE
-              echo "Add  $GW dev $UNNUNBERED_INTERFACE"
+              /sbin/ip addr add ${GW} dev ${UNNUNBERED_INTERFACE}
+              echo "Add  $GW dev ${UNNUNBERED_INTERFACE}"
               done
           done
         else
@@ -801,15 +803,74 @@ if [ w${ACTION} = wstop ]; then
   /sbin/ip route flush type  unreachable
   DEVACES_ADDR=`/sbin/ip addr show  |grep /32 |  ip addr show  |grep /32 |awk '/inet/{print $2,$5}'|sed 's/ /:/g' |sed 'N;s/\n/ /'`
   for DEV_ADDR in ${DEVACES_ADDR}; do
-    IP=`echo $DEV_ADDR |awk -F: '{print $1}'`
-    DEV=`echo $DEV_ADDR |awk -F: '{print $2}'`
-    /sbin/ip addr del $IP dev $DEV
-#    /sbin/ip route flush dev $DEV
-    echo "DELETE $IP for dev $DEV"
+    IP=`echo ${DEV_ADDR} |awk -F: '{print $1}'`
+    DEV=`echo ${DEV_ADDR} |awk -F: '{print $2}'`
+    /sbin/ip addr del ${IP} dev ${DEV}
+#    /sbin/ip route flush dev ${DEV}
+    echo "DELETE ${IP} for dev ${DEV}"
   done
 fi;
 
 }
+
+
+#**********************************************************
+#Netblock
+#
+#  Active netblock
+#
+#
+#
+#  Block rule 113
+#
+#**********************************************************
+netblock_active() {
+
+  #Netblock Section
+  if [ "${abills_netblock}" = "NO" ]; then
+    return 0;
+  fi;
+
+  NETBLOCK_REDIRECT_IP=${abills_netblock_redirect_ip};
+  NETBLOCK_REDIRECT_PORT=82;
+  NETBLOCK_IF=${EXTERNAL_INTERFACE};
+  NETBLOCK_LIST=netblock
+
+  if [ "${IPSET}" = "" ]; then
+    echo "Error: ipset not install";
+    return 0;
+  fi;
+
+  # NETBLOCK list
+
+  if [ "${ACTION}" = "show" ]; then
+    ${IPSET} list ${NETBLOCK_LIST}
+  elif [ "${ACTION}" = "stop" ]; then
+    echo "${NETBLOCK_LIST} Destroy"
+    ${IPSET} destroy ${NETBLOCK_LIST}
+  else
+    unknown_clients=`${IPSET} -L |grep ${NETBLOCK_LIST}|sed 's/ //'|awk -F: '{ print $2 }'`
+    if [ "${NETBLOCK_LIST}" = "" ]; then
+      echo "${NETBLOCK_LIST}"
+      ${IPSET} -N ${NETBLOCK_LIST} iphash
+    fi;
+
+    #Drop section
+    ${IPT} -A INPUT -m set --set ${NETBLOCK_LIST} dst -j DROP
+    #Redirect section
+#    if [ "${abills_netblock_type}" != "" -a -f /usr/abills/libexec/billd ]; then
+#      NETBLOCK_CMD="/usr/abills/libexec/billd netblock ${abills_netblock_type}"
+#      ${NETBLOCK_CMD}
+#    fi;
+#    if [ "${NETBLOCK_REDIRECT_IP}" != "" ]; then
+#      ${IPFW} add 115 fwd 127.0.0.1,${NETBLOCK_REDIRECT_PORT} tcp from any to "table(13)"  dst-port 80,443 via ${NETBLOCK_IF}
+#    fi;
+#
+#    ${IPFW} add 116 deny all from any to "table(13)" via ${NETBLOCK_IF}
+  fi;
+
+}
+
 
 #############################Скрипт################################
 case "$1" in start) echo -n "START : $name"

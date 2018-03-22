@@ -5,8 +5,10 @@
 
 =cut
 
-our(%conf, $DATE, $TIME);
+
 use strict;
+our(%conf, $DATE, $TIME);
+
 BEGIN {
   use FindBin '$Bin';
   our $libpath = $Bin . '/../';
@@ -76,13 +78,14 @@ sub add_logs2db {
 	my $year = strftime "%Y", localtime(time);
 
   while (my $line=<>) {
-    my ($month_name, $month_day, $time, $hostname, $log_daemon, $message_type, $log)=split(/\s+/, $line, 7);
+    my ($month_name, $month_day, $time, $hostname, undef, $message_type, $log)=split(/\s+/, $line, 7);
     if ($message_type && $DHCP_MESSAGE_TYPES{$message_type}) {
-      $Dhcphosts->log_add({ DATETIME => sprintf("%s-%s-%.02d %s", $year, $month_names{$month_name}, $month_day, $time),
-      	 HOSTNAME     => "$hostname", 
-      	 MESSAGE_TYPE => $DHCP_MESSAGE_TYPES{$message_type} || 0, 
-      	 MESSAGE      => $log
-      	});
+      $Dhcphosts->log_add({
+        DATETIME => sprintf("%s-%s-%.02d %s", $year, $month_names{$month_name}, $month_day, $time),
+      	HOSTNAME     => "$hostname",
+      	MESSAGE_TYPE => $DHCP_MESSAGE_TYPES{$message_type} || 0,
+      	MESSAGE      => $log
+      });
      }
    }
 }

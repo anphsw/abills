@@ -14,9 +14,7 @@ use Abills::Base;
 
 our (%conf, $db, $admin, %permissions);
 
-if ($permissions{4}){
-  require Sysinfo::Reports;
-}
+require Sysinfo::Reports;
 
 if ($permissions{5}){
   require Sysinfo::Configure;

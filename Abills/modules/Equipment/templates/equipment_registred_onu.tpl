@@ -6,8 +6,8 @@
     <input type='hidden' name='BRANCH' value='$FORM{BRANCH}'>
     <input type='hidden' name='MAC_SERIAL' value='$FORM{MAC_SERIAL}'>
     <input type='hidden' name='visual' value='$FORM{visual}'>
-    <input type='hidden' name='unregister' value='$FORM{unregister}'>
-    <input type='hidden' name='register' value='$FORM{register}'>
+    <input type='hidden' name='unregister_list' value='$FORM{unregister_list}'>
+    <input type='hidden' name='reg_onu' value='$FORM{reg_onu}'>
 
     <div class='box box-theme box-form center-block'>
         <div class='box-header with-border'>
@@ -31,13 +31,32 @@
                 </div>
             </div>
             <span class="visible-xs visible-sm col-xs-12" style="padding-top: 5px"> </span>
-            <div class='form-group' id='VLAN_SEL_DIV'>
-                <label class='control-label col-md-5' for='VLAN'>VLAN:</label>
+            <div class='form-group' id='INTERNET_VLAN_SEL_DIV'>
+                <label class='control-label col-md-5' for='INTERNET_VLAN'>INTERNET VLAN:</label>
 
                 <div class='col-md-7 control-element'>
-                    %VLAN_SEL%
+                    %INTERNET_VLAN_SEL%
                 </div>
             </div>
+
+            <span class="visible-xs visible-sm col-xs-12" style="padding-top: 5px"> </span>
+            <div class='form-group' id='TR_069_VLAN_SEL_DIV'>
+                <label class='control-label col-md-5' for='TR_069_VLAN'>TR-069 VLAN:</label>
+
+                <div class='col-md-7 control-element'>
+                    %TR_069_VLAN_SEL%
+                </div>
+            </div>
+
+            <span class="visible-xs visible-sm col-xs-12" style="padding-top: 5px"> </span>
+            <div class='form-group' id='IPTV_VLAN_SEL_DIV'>
+                <label class='control-label col-md-5' for='IPTV_VLAN'>IPTV VLAN:</label>
+
+                <div class='col-md-7 control-element'>
+                    %IPTV_VLAN_SEL%
+                </div>
+            </div>
+
             <span class="visible-xs visible-sm col-xs-12" style="padding-top: 5px"> </span>
             <div class='form-group'>
                 <label class='control-label col-md-5' for=''>Branch:</label>
@@ -71,17 +90,61 @@
     <script type='text/javascript'>
         jQuery(document).ready(function () {
   
-            var vlan_sel_div = jQuery('div#VLAN_SEL_DIV');
-            var vlan_select  = jQuery('select#VLAN_ID');
-  
+            var inet_vlan_sel_div = jQuery('div#INTERNET_VLAN_SEL_DIV');
+            var inet_vlan_select  = jQuery('select#VLAN_ID');
+            var tr_069_vlan_sel_div = jQuery('div#TR_069_VLAN_SEL_DIV');
+            var tr_069_vlan_select  = jQuery('select#TR_069_VLAN_ID');
+            var iptv_vlan_sel_div = jQuery('div#IPTV_VLAN_SEL_DIV');
+            var iptv_vlan_select  = jQuery('select#IPTV_VLAN_ID');
+
+            if (jQuery('select#LINE_PROFILE').val() === '$FORM{DEF_LINE_PROFILE}') {
+                inet_vlan_sel_div.show();
+                inet_vlan_select.attr('name', 'VLAN_ID');
+                tr_069_vlan_sel_div.hide()
+                tr_069_vlan_select.attr('name', 'TR_069_VLAN_ID_HIDE');
+                iptv_vlan_sel_div.hide()
+                iptv_vlan_select.attr('name', 'IPTV_VLAN_ID_HIDE');
+            }
+            else if (jQuery('select#LINE_PROFILE').val() === '$FORM{TRIPLE_LINE_PROFILE}') {
+                inet_vlan_sel_div.show();
+                inet_vlan_select.attr('name', 'VLAN_ID');
+                tr_069_vlan_sel_div.show();
+                tr_069_vlan_select.attr('name', 'TR_069_VLAN_ID');
+                iptv_vlan_sel_div.show();
+                iptv_vlan_select.attr('name', 'IPTV_VLAN_ID');
+            }
+            else {
+                inet_vlan_sel_div.hide()
+                inet_vlan_select.attr('name', 'VLAN_ID_HIDE');
+                tr_069_vlan_sel_div.hide()
+                tr_069_vlan_select.attr('name', 'TR_069_VLAN_ID_HIDE');
+                iptv_vlan_sel_div.hide()
+                iptv_vlan_select.attr('name', 'IPTV_VLAN_ID_HIDE');
+            }  
             jQuery('select#LINE_PROFILE').change(function () {
                 if (jQuery('select#LINE_PROFILE').val() === '$FORM{DEF_LINE_PROFILE}') {
-                    vlan_sel_div.show();
-                    vlan_select.attr('name', 'VLAN_ID');
+                    inet_vlan_sel_div.show();
+                    inet_vlan_select.attr('name', 'VLAN_ID');
+                    tr_069_vlan_sel_div.hide()
+                    tr_069_vlan_select.attr('name', 'TR_069_VLAN_ID_HIDE');
+                    iptv_vlan_sel_div.hide()
+                    iptv_vlan_select.attr('name', 'IPTV_VLAN_ID_HIDE');
+                }
+                else if (jQuery('select#LINE_PROFILE').val() === '$FORM{TRIPLE_LINE_PROFILE}') {
+                    inet_vlan_sel_div.show();
+                    inet_vlan_select.attr('name', 'VLAN_ID');
+                    tr_069_vlan_sel_div.show();
+                    tr_069_vlan_select.attr('name', 'TR_069_VLAN_ID');
+                    iptv_vlan_sel_div.show();
+                    iptv_vlan_select.attr('name', 'IPTV_VLAN_ID');
                 }
                 else {
-                    vlan_sel_div.hide()
-                    vlan_select.attr('name', 'VLAN_ID_HIDE');
+                    inet_vlan_sel_div.hide()
+                    inet_vlan_select.attr('name', 'VLAN_ID_HIDE');
+                    tr_069_vlan_sel_div.hide()
+                    tr_069_vlan_select.attr('name', 'TR_069_VLAN_ID_HIDE');
+                    iptv_vlan_sel_div.hide()
+                    iptv_vlan_select.attr('name', 'IPTV_VLAN_ID_HIDE');
                 }
             });
         });

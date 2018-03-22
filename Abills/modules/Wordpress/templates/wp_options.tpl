@@ -144,7 +144,7 @@
     </form>
 
   </div>
-  <div class='box-footer text-center'>
+  <div class='box-footer'>
     <input type='submit' form='form_WORDPRESS_OPTIONS' class='btn btn-primary' name='action' value='_{SAVE}_'>
   </div>
 </div>

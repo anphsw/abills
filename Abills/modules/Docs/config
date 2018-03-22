@@ -11,7 +11,7 @@ our %FUNCTIONS_LIST = (
   "08:7:$lang{ACTS}:docs_acts:COMPANY_ID"                    => 13,
   "09:7:$lang{TAX_INVOICE}:docs_tax_invoice:COMPANY_ID"      => 13,
   "10:7:$lang{INVOICES}:docs_invoices_list:COMPANY_ID"       => 13,
-  "11:10:$lang{ADD}:docs_invoice_company:COMPANY_ID"          => 13,
+  "11:10:$lang{ADD}:docs_invoice_company:COMPANY_ID"         => 13,
   # "11:8:$lang{ADD}:docs_tax_invoice:COMPANY_ID"            => 13,
 
   "12:0:$lang{DOCS}:docs_summary:"                           => 5,

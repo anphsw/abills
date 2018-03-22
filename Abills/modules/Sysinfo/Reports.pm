@@ -1485,17 +1485,6 @@ sub module_desc {
 #  #&http_download($host, $port, $page, $packages_file, undef, $_[0]);
 #}
 
-#***************************************************************
-# indexof(string, array)
-# Returns the index of some value in an array, or -1
-#***************************************************************
-sub indexof {
-  for (my $i = 1 ; $i <= $#_ ; $i++) {
-    if ($_[$i] eq $_[0]) { return $i - 1; }
-  }
-  return -1;
-}
-
 #**********************************************************
 =head2 sysinfo_sp_info()
 
@@ -1723,7 +1712,8 @@ sub sysinfo_sp_ps {
   
   my %services_init_scripts = ();
   
-  if ( $permissions{4} && $permissions{4}->{8} ) {
+  my $admin_has_restart_permission = $permissions{4} && $permissions{4}->{8};
+  if ( $admin_has_restart_permission ) {
     %services_init_scripts = %{ sysinfo_get_process_pathes() };
   }
   
@@ -1744,6 +1734,7 @@ sub sysinfo_sp_ps {
     }
   );
   
+  my $restart_index = get_function_index('sysinfo_services');
   foreach my $ps_name ( keys %watch_proccess ) {
     $watch_proccess{$ps_name} =~ s/,/\./g;
     my ($status, $cpu, $mem, $vsz, $count) = split(/:/, $watch_proccess{$ps_name});
@@ -1758,10 +1749,9 @@ sub sysinfo_sp_ps {
     }
     
     my @extra_btns = ();
-    if ( $permissions{4} && $permissions{4}->{8} && $services_init_scripts{$ps_name} && -f $services_init_scripts{$ps_name} ) {
+    if ( $admin_has_restart_permission && $services_init_scripts{$ps_name} && -f $services_init_scripts{$ps_name} ) {
       
       my $disabled = ($ps_name =~ /apache|httpd/) ? 'disabled' : '';
-      my $restart_index = get_function_index('sysinfo_services');
       my $restart_btn = $html->button( 'R', "index=$restart_index&SERVICE=$ps_name&RESTART=1&action=1",
         {
           title   => 'restart',
@@ -1777,8 +1767,9 @@ sub sysinfo_sp_ps {
       push @extra_btns, '';
     }
     
-    $ps_name = ($ps_name =~ /mysql/)                    ? $html->button( $ps_name,
-        "index=" . get_function_index('sqlcmd_procs') ) : $ps_name;
+    $ps_name = ($ps_name =~ /mysql/)
+                 ? $html->button( $ps_name,"index=" . get_function_index('sqlcmd_procs') )
+                 : $ps_name;
     
     if ( $count && $count > 1 ) {
       $ps_name .= "($count)";

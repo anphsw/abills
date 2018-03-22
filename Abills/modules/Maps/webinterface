@@ -11,7 +11,7 @@ use warnings 'FATAL' => 'all';
 
 use v5.16;
 
-use Abills::Base qw(in_array _bp load_pmodule2);
+use Abills::Base qw(in_array _bp load_pmodule);
 
 our ($db,
   $admin,
@@ -31,8 +31,8 @@ use Abills::Experimental;
 
 our $Nas = Nas->new($db, \%conf, $admin);
 our $Address = Address->new($db, $admin, \%conf);
-my $json_load_error = load_pmodule2("JSON", { RETURN => 1 });
 
+my $json_load_error = load_pmodule("JSON", { RETURN => 1 });
 if ( $json_load_error ) {
   print $json_load_error;
   return 1;
@@ -45,17 +45,11 @@ else {
 # Fixes for Client UI
 $users //= $user;
 
-if (
-  form_purchase_module(
-    {
-      HEADER          => $user->{UID},
-      MODULE          => 'Maps',
-      REQUIRE_VERSION => 7.46,
-    }
-  )
-) {
-  exit;
-}
+exit if form_purchase_module({
+          HEADER          => $user->{UID},
+          MODULE          => 'Maps',
+          REQUIRE_VERSION => 7.61,
+        });
 
 our $Maps = Maps->new($db, $admin, \%conf);
 
@@ -190,10 +184,10 @@ sub maps_edit {
         });
       }
       elsif ( $FORM{LAYER_ID} == LAYER_ID_BY_NAME->{WIFI} ) {# Wifi
-        maps_object_delete($FORM{OBJECT_ID});
+        _maps_object_delete($FORM{OBJECT_ID});
       }
       elsif ( $FORM{LAYER_ID} == LAYER_ID_BY_NAME->{BUILD2} ) {# Build Polygon
-        maps_object_delete($FORM{OBJECT_ID});
+        _maps_object_delete($FORM{OBJECT_ID});
       }
       elsif ( $FORM{LAYER_ID} == LAYER_ID_BY_NAME->{ROUTE} ) {# Route
         $Maps->routes_coords_del({ ROUTE_ID => $FORM{OBJECT_ID} })
@@ -331,15 +325,7 @@ sub maps_edit {
   }
   
   if ( $FORM{change} && $FORM{LAYER_ID} ) {
-    my $success = 1;
-    
-    if ( $FORM{LAYER_ID} eq LAYER_ID_BY_NAME->{BUILD} ) {
-      $success = $Maps->build_change(\%FORM);
-    }
-    else {
-      $success = _maps_change_layer_objects($FORM{LAYER_ID}, $FORM{OBJECT_ID}, \%FORM);
-    }
-    
+    my $success = _maps_change_layer_objects($FORM{LAYER_ID}, $FORM{OBJECT_ID}, \%FORM);
     print (($success) ? "OK" : "Error");
     return $success;
   }
@@ -422,12 +408,6 @@ sub maps_edit {
     $html->tpl_show(_include('maps_add_wifi', 'Maps'), { %{$Maps}, %FORM });
     return 1;
   }
-  # elsif ( $FORM{TYPE} eq 'BUILD2' ) {
-  # $Maps->{ACTION} = 'add_build';
-  # $Maps->{ACTION_LNG} = $lang{ADD};
-  # $html->tpl_show( _include('maps_add_build2', 'Maps'), { %{$Maps}, %FORM } );
-  # return 1;
-  # }
   elsif ( $FORM{TYPE} eq 'DISTRICT' ) {
     $Maps->{ACTION} = 'add_district';
     $Maps->{ACTION_LNG} = $lang{ADD};
@@ -442,6 +422,20 @@ sub maps_edit {
     $json_to_escape =~ s/\\\"/\"/g;
     
     my $json_objects = JSON::from_json($json_to_escape);
+    
+    if ($FORM{EXPORT_FUNC}){
+      
+      eval {
+        if ($FORM{MODULE} && $FORM{MODULE} ne 'Maps'){
+          load_module($FORM{MODULE}, $html);
+        }
+
+        my $filter_func_name = $FORM{EXPORT_FUNC} . '_geometry_filter';
+        if (defined \&{$filter_func_name}) {
+          $json_objects = &{ \&{$filter_func_name} }($FORM{OBJECT_ID}, $json_objects);
+        }
+      }
+    }
     
     _maps_parse_and_save_layer_objects($layer_id, $json_objects, \%FORM);
     
@@ -600,7 +594,7 @@ sub maps_show_map {
         }
         
       }
-      elsif ( $FORM{SHOW_BUILD} ) {
+      elsif ( $FORM{show_build} ) {
         $objects_info = _maps_get_users({ LOCATION_ID => $FORM{show_build} });
         $attr->{LOCATION_TABLE_FIELDS} = 'ADDRESS_FLAT,LOGIN,DEPOSIT,FIO';
         $location_id = $FORM{show_build};
@@ -655,7 +649,17 @@ sub maps_show_map {
       my $district_id = $line->{district_id} || 0;
       
       my $info = "<h5>$street_build</h5><table class=table> $user_info </table>";
-      my $type = $attr->{POINT_TYPE} || 'build';
+      my $type = $attr->{POINT_TYPE} || $conf{MAPS_LAYER_1_ICON_PREFIX} || 'build';
+      
+      my $size = \0;
+      if ($conf{MAPS_LAYER_1_ICON_PREFIX}){
+        $type = $conf{MAPS_LAYER_1_ICON_PREFIX};
+        $size = [15,15];
+      }
+      else {
+        $type = 'build'
+      }
+      
       my $color = $line->{color} || 'green';
       #Make location point
       my $encoded = JSON::to_json({
@@ -665,6 +669,7 @@ sub maps_show_map {
           "COORDX" => $line->{coordy},
           "COORDY" => $line->{coordx},
           "TYPE"   => "$type\_$color",
+          "SIZE"   => $size,
           "INFO"   => "$info",
           "COUNT"  => $point_count
         },
@@ -798,6 +803,7 @@ sub maps_show_map {
       HIDE_ALL_LAYERS => $attr->{HIDE_ALL_LAYERS},
       MAP_VIEW        => $conf{MAP_VIEW},
       MAP_INDEX       => get_function_index("maps_show_map"),
+      MAP_EDIT_INDEX  => get_function_index("maps_edit"),
       SHOW_NAS        => $attr->{SHOW_NAS},
       SHOW_USERS      => $attr->{SHOW_USERS},
       MAP_TYPE        => $FORM{MAP_TYPE},
@@ -880,8 +886,9 @@ sub maps_get_js_variables {
       : '';
   
   my $options = JSON::to_json({
-      SHOW_ADD_BTN => $parent_attr{SHOW_ADD_BTN} || 0,
-      ICONS_DIR    => MAPS_ICONS_DIR_WEB_PATH,
+      SHOW_ADD_BTN        => $parent_attr{SHOW_ADD_BTN} || 0,
+      ICONS_DIR           => MAPS_ICONS_DIR_WEB_PATH,
+      EDIT_MODE           => $parent_attr{SHOW_ADD_BTN} || 0
     }, { utf8 => 0 });
   
   return {
@@ -1100,7 +1107,6 @@ sub _maps_parse_and_save_layer_objects {
   return 0 unless ( $layer_id && $layer_objects );
   
   my @inserted_geometric_figures = ();
-  #  $Maps->{debug} = 1;
   foreach my $layer_object ( @{$layer_objects} ) {
     my $type = $layer_object->{TYPE};
     my $object = $layer_object->{OBJECT};
@@ -1133,29 +1139,28 @@ sub _maps_parse_and_save_layer_objects {
       push @inserted_geometric_figures, $new_map_object_id;
       my $parent_key_name = uc($type . '_id');
       
+      my $points = $Maps->decode_points($object->{POINTS});
+      
       if ( $type eq 'polyline' ) {
         #TODO: if !$object->{LENGTH}, calculate length
         
         $Maps->polyline_points_add({
           POLYLINE_ID => $new_map_object_id,
-          POINTS      => $object->{POINTS}
+          POINTS      => $points
         });
       }
       else {
         my $points_add_func_name = $type . '_points_add';
-        
-        # Add each coord
-        # Points are encoded in legacy way
-        my @points = split(';', $object->{POINTS});
-        foreach my $point_str ( @points ) {
-          my @point_coords = split(',\s?', $point_str);
+
+        foreach my $point ( @$points ) {
+
           $Maps->$points_add_func_name({
-            COORDX           => $point_coords[1],
-            COORDY           => $point_coords[0],
+            %$point,
             $parent_key_name => $new_map_object_id
           });
           _error_show($Maps);
         }
+        
       }
     } # End elsif has POINTS
     else {
@@ -1221,6 +1226,43 @@ sub _maps_get_layer_objects {
   }
   
   return \@OBJECTS;
+}
+
+#**********************************************************
+=head2 maps_object_del($object_id, $attr) - delete map point and objects from all maps_ tables
+
+    Arguments:
+      $object_id - ID in maps_points table
+      $attr      - reserved
+
+    Returns:
+      1
+
+=cut
+#**********************************************************
+sub _maps_object_delete {
+  my ($object_id) = @_;
+  return 0 unless ( $object_id );
+  
+  my @main_object_types = qw/ circle polygon polyline /; # text /;
+  my %have_points = ( polygon => 1, polyline => 1 );
+  
+  $Maps->points_del( {ID => $object_id} );
+  
+  for my $type ( @main_object_types ){
+    my ($info_func, $del_func, $points_func) = ($type . 's_info', $type . 's_del', $type . '_points_del');
+    
+    if ($have_points{$type}) {
+      my $info = $Maps->$info_func({ OBJECT_ID => $object_id, SHOW_ALL_COLUMNS => 0, COLS_UPPER => 0 });
+      if ( $info ) {
+        $Maps->$points_func(undef, { $type . '_ID' => $info->{id} } );
+      }
+    }
+    
+    $Maps->$del_func(undef, { object_id => $object_id } );
+  }
+  
+  return 1;
 }
 
 #**********************************************************
@@ -1331,7 +1373,15 @@ sub _maps_remove_layer_objects {
 sub _maps_change_layer_objects {
   my ($layer_id, $object_id, $attr) = @_;
   
-  if ( $attr->{TYPE} && $attr->{TYPE} eq 'marker' ) {
+  if ( $layer_id eq LAYER_ID_BY_NAME->{BUILD} ){
+    # REVERSE_COORDS
+    return $Maps->build_change({
+      %$attr,
+      COORDX => $attr->{COORDY},
+      COORDY => $attr->{COORDX},
+    });
+  }
+  elsif ( $attr->{TYPE} && $attr->{TYPE} eq 'marker' ) {
     # Need to update coords for custom point
     my $id = $attr->{OBJECT_ID} || $attr->{ID};
     if ( !$id ) {
@@ -1350,30 +1400,37 @@ sub _maps_change_layer_objects {
     my $id = $attr->{POLYLINE_ID} || 0;
     # OBJECT_ID contains polyline->{object_id}
     if ( !$id && defined $object_id ) {
-      my $list = $Maps->polylines_list({ LAYER_ID => $layer_id, OBJECT_ID => $object_id, COLS_NAME => 1, COLS_UPPER =>
-        0 });
+      my $list = $Maps->polylines_list({
+        LAYER_ID => $layer_id,
+        OBJECT_ID => $object_id,
+        COLS_NAME => 1,
+        COLS_UPPER => 0
+      });
       return 0 unless ( $list && ref $list eq 'ARRAY' && scalar(@{$list}) > 0 );
       
       $id = $list->[0]->{id};
     }
-    _bp('polyline_id', $id, { TO_CONSOLE => 1 });
+
     # Delete old points for polyline
     $Maps->polyline_points_del(undef, { polyline_id => $id });
     
-    my @points = split(';', $attr->{POINTS});
+    # $attr->{POINTS} should contain single polyline array
+    my $polylines_json = $attr->{POINTS};
+    my @polylines = JSON::from_json($polylines_json);
+    
+    my @polyline_points = @{$polylines[0]};
     # Add each coord
-    foreach my $point_str ( @points ) {
-      my @point_coords = split(',\s?', $point_str);
+    foreach my $point_arr ( @polyline_points ) {
       $Maps->polyline_points_add({
-        COORDX      => $point_coords[1],
-        COORDY      => $point_coords[0],
+        COORDX      => $point_arr->[0],
+        COORDY      => $point_arr->[1],
         POLYLINE_ID => $id
       });
       _error_show($Maps);
     }
   }
   else {
-    print "Not impelemented for type";
+    print "Not implemented for type";
     return 0;
   }
   
@@ -1462,6 +1519,51 @@ sub maps_show_object_button {
 }
 
 #**********************************************************
+=head2 maps_show_add_coords_button()
+
+=cut
+#**********************************************************
+sub maps_show_add_coords_button {
+  my ($layer_id, $object_id, $attr) = @_;
+  
+  my $params = '';
+  
+  my %button_params = (
+    class => 'btn btn-xs btn-info',
+    title => $lang{SHOW},
+    ICON  => 'glyphicon glyphicon-plus',
+  );
+  
+  if ( exists $attr->{POINT_ID} && !$attr->{POINT_ID} ) {
+    $button_params{class} = 'btn btn-xs btn-warning disabled'
+  }
+  
+  if ( $attr->{GO_TO_MAP} ) {
+    my $maps_index = get_function_index('maps_show_map');
+    $params = "index=$maps_index&add=$layer_id&OBJECT_ID=$object_id";
+
+    if ( $attr->{RETURN_HREF} ) {
+      return $params;
+    }
+  }
+  else {
+    $button_params{ex_params} = qq/onclick="addNewPoint($layer_id, $object_id)"/;
+    $button_params{class} .= ' pull-right';
+    $button_params{JAVASCRIPT} = '';
+    $button_params{SKIP_HREF} = 1;
+    $button_params{NO_LINK_FORMER} = 1;
+  }
+  
+  my $name = ($attr && $attr->{NAME}) ? $attr->{NAME} : '';
+  if ( $name ) {
+    $button_params{ADD_ICON} = $button_params{ICON};
+    delete $button_params{ICON}
+  }
+  
+  return $html->button($name, $params, \%button_params)
+}
+
+#**********************************************************
 =head2 maps_calculate_polyline_length($polyline_id)
 
 =cut
@@ -1477,7 +1579,7 @@ sub maps_calculate_polyline_length {
   # Calculate length
   my $length = 0;
   foreach ( my $i = 0; $i < $#{$points}; $i++ ) {
-    $length += Maps::mercator_to_meters(
+    $length += Maps::_mercator_to_meters(
       $points->[$i - 1]->{COORDX},
       $points->[$i - 1]->{COORDY},
       $points->[$i]->{COORDX},
@@ -1591,29 +1693,31 @@ sub _maps_object_types_select {
 
 =head2 _maps_layer_structure_select()
 
-=cut
-
-#**********************************************************
-sub _maps_layer_structure_select {
-  my ($attr) = @_;
+  commented out
   
-  return $html->form_select(
-    'STRUCTURE',
-    {
-      SELECTED  => $attr->{STRUCTURE} || $FORM{STRUCTURE},
-      SEL_ARRAY => [ qw /MARKER MULTIPLE MARKERS_POLYLINE MARKER_CIRCLE CIRCLE/ ],
-      NO_ID     => 1
-    }
-  );
-}
+  sub _maps_layer_structure_select {
+    my ($attr) = @_;
+    
+    return $html->form_select(
+      'STRUCTURE',
+      {
+        SELECTED  => $attr->{STRUCTURE} || $FORM{STRUCTURE},
+        SEL_ARRAY => [ qw /MARKER MULTIPLE MARKERS_POLYLINE MARKER_CIRCLE CIRCLE/ ],
+        NO_ID     => 1
+      }
+    );
+  }
+
+=cut
+#**********************************************************
 
 #**********************************************************
-=head2 _maps_btn_for_location(LOCATION_ID)
+=head2 _maps_btn_for_build($location_id)
 
 
 =cut
 #**********************************************************
-sub _maps_btn_for_location {
+sub _maps_btn_for_build {
   my ($location_id) = @_;
   
   my $map_btn = '';

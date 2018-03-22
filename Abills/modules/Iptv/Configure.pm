@@ -539,6 +539,12 @@ sub iptv_ti_channels{
 =cut
 #**********************************************************
 sub iptv_channels{
+  if( $FORM{import} ){
+    upload_m3u();
+    if(!$FORM{import_message}){
+      return 1;
+    }
+  }
   if ( $FORM{message} ){
     $html->message( 'info', $lang{INFO}, "$FORM{message}" );
   }
@@ -694,6 +700,7 @@ sub iptv_channels{
   }
 
   if ( $FORM{add} && $FORM{NAME} ){
+    $Iptv->{debug}=1;
     $Iptv->channel_add( \%FORM );
     if ( !$Iptv->{errno} ){
       $html->message( 'info', $lang{ADDED}, "$lang{ADDED} '$FORM{NAME}' " );
@@ -808,12 +815,18 @@ sub iptv_channels{
         pages   => $Iptv->{TOTAL},
         ID      => 'IPTV_CHANNELS',
         MENU    => "$lang{ADD}:add_form=1&index=" . $index . ':add' . ";$lang{SEARCH}:index=$index&search_form=1:search",
-        EXPORT  => 1
+        header  => ["$lang{DOWNLOAD_CHANNELS}:index=$index&export=1"],
+        EXPORT  => 1,
+        IMPORT  => "$SELF_URL?get_index=iptv_channels&import=1&header=2",
       },
       MAKE_ROWS => 1,
       TOTAL     => 1
     }
   );
+
+  if( $FORM{export} ){
+    download_m3u();
+  }
 
   return 1;
 }
@@ -938,6 +951,7 @@ sub upload_m3u{
 
   #split rows
   my @strings = split( "\n", $content );
+  chop(@strings);
 
   # upload channels without changes
   if ( $FORM{FILE} && $FORM{SELECT_VARIANTS} && $FORM{SELECT_VARIANTS} == 1 ){
@@ -945,9 +959,8 @@ sub upload_m3u{
     $number = $number + 1;    # channels num
     my $genre;
     foreach my $str ( @strings ){
-      chomp $str;
       # get channel name
-      if ( $str =~ /^#EXTINF/ ){
+      if ( $str =~ /^#EXTINF/ ){ 
         my ($trsh, $name) = split( ',', $str );
         $genre = 0;
         my @tags = split( ' ', $trsh );
@@ -980,6 +993,7 @@ sub upload_m3u{
       }
     }
     $html->message( 'success', $lang{ADDED}, "$lang{ADDED} $count $lang{CHANNELS}" );
+    return 1;
   }
 
   # delete channels and then upload new
@@ -998,7 +1012,6 @@ sub upload_m3u{
     }
 
     foreach my $str ( @strings ){
-      chomp $str;
       my $channel_url;
       # get channel name
       if ( $str =~ /^#EXTINF/ ){
@@ -1035,6 +1048,7 @@ sub upload_m3u{
       }
     }
     $html->message( 'success', $lang{ADDED}, "$lang{ADDED} $add_count $lang{CHANNELS}, $lang{DELETED} $del_count $lang{CHANNELS}" );
+    return 1;
   }
 
   # upload channels and change channels which exist
@@ -1098,6 +1112,7 @@ sub upload_m3u{
       }
     }
     $html->message( 'success', $lang{ADDED}, "$lang{ADDED} $add_count $lang{CHANNELS}, $lang{CHANGED} $chg_count $lang{CHANNELS}" );
+    return 1;
   }
   elsif ( $FORM{SELECT_VARIANTS} && $FORM{SELECT_VARIANTS} && !$FORM{FILE} ){
     $html->message( 'err', "$lang{NO_FILE}" );
@@ -1129,7 +1144,6 @@ sub upload_m3u{
 #**********************************************************
 sub download_m3u {
   #my ($attr) = @_;
-
   my %tv_genres = (
     0  => '--',
     1  => $lang{INFORMATIVE},
@@ -1171,9 +1185,11 @@ sub download_m3u {
     }
     else {
       $html->message( 'err', $lang{ERROR},  "Can't open file '$filename' $!" );
+      return 1;
     }
 
     $html->message("success", "$lang{CHANNELS_EXPORTED}", "$lang{SUCCESS}");
+    return 1;
   }
 
   my $channels_table = $html->table(
@@ -1206,7 +1222,6 @@ sub download_m3u {
   #    NAME    => 'FORM_EXPORT'
   #  }
   #);
-
   $html->tpl_show(
     _include( 'iptv_download_m3u', 'Iptv' ),
     {

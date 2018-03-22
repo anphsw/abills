@@ -6,6 +6,7 @@
 
 use strict;
 use warnings FATAL => 'all';
+use Abills::Base qw(cmd in_array);
 
 our(
   $db,
@@ -21,12 +22,16 @@ my $Tariffs  = Tariffs->new($db, \%conf, $admin);
 my $Nas      = Nas->new($db, \%conf, $admin);
 
 #**********************************************************
-=head2 internet_tp()  -Tarif plans
+=head2 internet_tp() - Tarif plans
 
 =cut
 #**********************************************************
 sub internet_tp {
 
+  if($FORM{import}){
+    internet_import_tp();
+    return 1;
+  }
   my $tarif_info;
   my %octets_direction = (
     0 => "$lang{RECV} + $lang{SEND}",
@@ -65,7 +70,7 @@ sub internet_tp {
     $Tariffs->add({ %FORM, MODULE => 'Internet' });
     if (!$Tariffs->{errno}) {
       $html->message('info', $lang{ADDED}, "$lang{NAME}: $FORM{NAME}\n".
-          $html->button($lang{INTERVALS}, 'index='. get_function_index('form_intervals')."&TP_ID=$Tariffs->{INSERT_ID}", { BUTTON => 1 }));
+          $html->button($lang{INTERVALS}, 'index='. get_function_index('form_intervals')."&TP_ID=$Tariffs->{INSERT_ID}", { BUTTON => 2 }));
     }
   }
   elsif (defined($FORM{TP_ID})) {
@@ -79,7 +84,6 @@ sub internet_tp {
     }
 
     $pages_qs   .= "&TP_ID=$tarif_info->{TP_ID}". (($FORM{subf}) ? "&subf=$FORM{subf}" : '');
-    #$FORM{TP_NUM}= $tarif_info->{ID};
     my %F_ARGS   = (TP => $tarif_info);
 
     $Tariffs->{NAME_SEL} = $html->form_main(
@@ -176,7 +180,7 @@ sub internet_tp {
       }
     );
 
-    my $nas_ip_pools_list = $Nas->ip_pools_list({ STATIC => 0, COLS_NAME => 1 });
+    my $nas_ip_pools_list = $Nas->ip_pools_list({ STATIC => 0, SHOW_ALL_COLUMNS => 1, COLS_NAME => 1 });
 
     $tarif_info->{IP_POOLS_SEL} = $html->form_select(
       'IPPOOL',
@@ -226,32 +230,18 @@ sub internet_tp {
       }
     );
 
-    my $tp_list = $Tariffs->list({
-      MODULE       => 'Dv;Internet',
-      DOMAIN_ID    => $admin->{DOMAIN_ID},
-      NEW_MODEL_TP => 1,
-      COLS_NAME    => 1
+    $tarif_info->{SMALL_DEPOSIT_ACTION_SEL} = sel_tp({
+      SELECT          => 'SMALL_DEPOSIT_ACTION',
+      SMALL_DEPOSIT_ACTION => $tarif_info->{SMALL_DEPOSIT_ACTION} || 0,
+      SKIP_TP         => $tarif_info->{TP_ID},
+      SEL_OPTIONS     => { 0 => '--', '-1' => "$lang{HOLD_UP}" }
     });
 
-    $tarif_info->{SMALL_DEPOSIT_ACTION_SEL} = $html->form_select(
-      'SMALL_DEPOSIT_ACTION',
-      {
-        SELECTED    => $tarif_info->{SMALL_DEPOSIT_ACTION} || 0,
-        SEL_LIST    => $tp_list,
-        SEL_KEY     => 'tp_id',
-        SEL_OPTIONS => { 0 => '--', '-1' => "$lang{HOLD_UP}" },
-      }
-    );
-
-    $tarif_info->{NEXT_TARIF_PLAN_SEL} = $html->form_select(
-      'NEXT_TARIF_PLAN',
-      {
-        SELECTED     => $tarif_info->{NEXT_TARIF_PLAN},
-        SEL_LIST     => $tp_list,
-        SEL_KEY      => 'tp_id',
-        SEL_OPTIONS  => { '' => '--' },
-      }
-    );
+    $tarif_info->{NEXT_TARIF_PLAN_SEL} = sel_tp({
+      SELECT          => 'NEXT_TARIF_PLAN',
+      NEXT_TARIF_PLAN => $tarif_info->{NEXT_TARIF_PLAN},
+      SKIP_TP         => $tarif_info->{TP_ID}
+    });
 
     if ($conf{BONUS_EXT_FUNCTIONS}) {
       my @BILL_ACCOUNT_PRIORITY = (
@@ -282,6 +272,14 @@ sub internet_tp {
 
     if($tarif_info->{NAME}) {
       $tarif_info->{NAME}=~ s/\\+/\\/g;
+    }
+
+    if(in_array('Multidoms', \@MODULES) && $permissions{10}) {
+      $tarif_info->{FORM_DOMAINS} = $html->tpl_show(templates('form_row'), {
+          ID    => '',
+          NAME  => $lang{DOMAINS},
+          VALUE => multidoms_domains_sel({ DOMAIN_ID => $tarif_info->{DOMAIN_ID} }),
+        }, { OUTPUT2RETURN => 1 });
     }
 
     $html->tpl_show(_include('internet_tp', 'Internet'), $tarif_info, { SKIP_VARS => 'IP' });
@@ -356,6 +354,10 @@ sub internet_tp {
   my Abills::HTML $table;
   my $list;
 
+#  if($FORM{EXPORT_CONTENT}){
+#    $LIST_PARAMS{SHOW_ALL_COLUMNS} = 1;
+#  }
+
   ($table, $list) = result_former({
     INPUT_DATA      => $Tariffs,
     FUNCTION        => 'list',
@@ -375,9 +377,10 @@ sub internet_tp {
       caption    => "$lang{TARIF_PLAN}",
       border     => 1,
       qs         => $pages_qs,
-      ID         => 'DV_TARIF_PLANS',
+      ID         => 'INTERNET_TARIF_PLANS',
       MENU       => "$lang{ADD}:index=$index&add_form=1:add",
       EXPORT     => 1,
+      IMPORT  => "$SELF_URL?get_index=internet_tp&import=1&header=2",
       recs_on_page => 60000
     },
     MODULE       => 'Internet',
@@ -491,11 +494,11 @@ sub internet_traffic_classes {
   my $table = $html->table(
     {
       width      => '100%',
-      caption    => "$lang{TRAFFIC_CLASS}",
-      title      => [ '#', "$lang{NAME}", 'NETS', "$lang{COMMENTS}", "$lang{CHANGED}", '-', '-' ],
+      caption    => $lang{TRAFFIC_CLASS},
+      title      => [ '#', $lang{NAME}, 'NETS', $lang{COMMENTS}, $lang{CHANGED}, '-' ],
       qs         => $pages_qs,
       pages      => $Internet->{TOTAL},
-      ID         => 'DV_TRAFFIC_CLASSES'
+      ID         => 'INTERNET_TRAFFIC_CLASSES'
     }
   );
 
@@ -510,7 +513,8 @@ sub internet_traffic_classes {
       $line->[2],
       $line->[3],
       $line->[4],
-      $html->button($lang{CHANGE}, "index=$index&chg=$line->[0]", { class => 'change' }),
+      $html->button($lang{CHANGE}, "index=$index&chg=$line->[0]", { class => 'change' })
+      .
       $html->button($lang{DEL}, "index=$index&del=$line->[0]", { MESSAGE => "$lang{DEL} $line->[0]?", class => 'del' }));
   }
   print $table->show();
@@ -606,6 +610,40 @@ sub internet_change_shaper {
   }
 
   return 0;
+}
+
+#**********************************************************
+=head2 internet_import_tp()  - Importing tariff plans
+
+=cut
+#**********************************************************
+sub internet_import_tp {
+
+  if($FORM{add}){
+    my $import_info = import_former( \%FORM );
+    my $total = $#{ $import_info } + 1;
+
+    foreach my $tp(@$import_info){
+      $Tariffs->add($tp);
+      if ( _error_show( $Tariffs ) ){
+        return 0;
+      }
+    }
+
+    $html->message( 'info', $lang{INFO},
+      "$lang{ADDED}\n $lang{FILE}: $FORM{UPLOAD_FILE}{filename}\n Size: $FORM{UPLOAD_FILE}{Size}\n Count: $total" );
+
+    return 1;
+  }
+
+  $html->tpl_show( templates( 'form_import' ), {
+      #IMPORT_FIELDS     => 'LOGIN,CONTRACT_ID,FIO,PHONE,ADDRESS_STREET,ADDRESS_BUILD,ADDRESS_FLAT,PASPORT_NUM,PASPORT_GRANT',
+      CALLBACK_FUNC     => 'internet_tp',
+#      IMPORT_FIELDS_SEL => $import_fields,
+#      EXTRA_ROWS        => $extra_row
+    });
+
+  return 1;
 }
 
 

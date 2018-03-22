@@ -88,11 +88,13 @@ function QBinfo(title, msg, group_id, event_id, seen_url) {
         + '</td>';
   }
   
+  // check for line breaks
+  msg = msg.replace(/\n/g, '<br>');
+  
   
   codeInput += '<td valign="middle" align="right" class="qb_title_btn qb_close_btn" width="10%">'
       + '<a onclick="hideQBinfo(' + id + ')" ><span class="glyphicon glyphicon-remove"></span></a>'
       + '</td>'
-      
       + '</tr></table><div class="msgQBinfo">' + msg + '</div>';
   
   if (!soundsDisabled)

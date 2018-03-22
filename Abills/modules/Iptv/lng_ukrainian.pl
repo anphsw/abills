@@ -65,3 +65,5 @@ $lang{SUBSCRIBES}='Підписка';
 $lang{DISABLE_SERVICE}='Відключити послугу';
 $lang{DISABLED_WILL}='Послуга буде закінчена';
 $lang{PROVIDER_PORTAL_URL}='Портал продавця послуги';
+
+$lang{ERR_NO_AVAILABLE_TP}='Нема достпних тарифних планів';

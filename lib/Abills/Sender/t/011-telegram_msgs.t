@@ -4,22 +4,20 @@ use warnings;
 use Test::More;
 use Abills::Base qw/_bp/;
 
-if ( require_ok('Msgs::Messaging') ) {
-  require Msgs::Messaging;
-};
-
-my $test_message_id = 8180;
+my $test_message_id = 69;
+require Msgs::Messaging;
 
 our ($db, $admin, %conf);
-
 if (!$conf{TELEGRAM_TOKEN}){
   plan skip_all => 'Telegram token is not specified';
 }
 else {
-  plan tests => 6
+  plan tests => 7
 }
 
 ok($db && $admin && (scalar %conf), 'Script got global params');
+
+# TODO: Check message exists
 
 use_ok('Abills::Sender::Core');
 my $Sender = new_ok('Abills::Sender::Core',
@@ -44,7 +42,7 @@ my $admin_sent = msgs_admin_reply($test_message_id, \%admin_reply);
 ok($admin_sent, 'Sent reply as admin');
 
 my %user_reply = (
-  UID        => 2,
+  UID        => 7,
   REPLY_TEXT => 'Test user to subject reply text',
   SUBJECT    => 'Sender Tests',
   STATE      => 0,

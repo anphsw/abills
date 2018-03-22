@@ -8,6 +8,8 @@
   "06:3:$lang{TYPE}:storage_articles_types:"  => 5,
   "07:3:$lang{STORAGES}:storage_storages:"    => 5,
   "01:0:$lang{HARDWARE}:storage_hardware:UID" => 20,
+
+  "08:0:$lang{STORAGE}:storage_main_report:"     => 4,
 );
 
 %PERIODIC = (

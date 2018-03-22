@@ -21,28 +21,6 @@
                     </div>
                 </div>
 
-                <!--
-                <div class='row'>
-                  <div class='col-md-3 text-1'>_{MONTH_FEE}_:</div>
-                  <div class='col-md-9 text-2'><b><span style='color : red'>%MONTH_ABON%</span></b>
-                  </div>
-                </div>
-                <div class='row'>
-                  <div class='col-md-3 text-1'>_{DAY_FEE}_:</div>
-                  <div class='col-md-9 text-2'><b><span style='color : red'>%DAY_ABON%</span></b>
-                  </div>
-                </div>
-
-                <div class='row'>
-                  <div class='col-md-3 text-1'>_{STATIC}_ IP</div>
-                  <div class='col-md-9 text-2'>%IP%</div>
-                </div>
-
-                <div class='row'>
-                  <div class='col-md-3 text-1'>MAC _{ADDRESS}_</div>
-                  <div class='col-md-9 text-2'>%CID%</div>
-                </div>
-                -->
                 %EXTRA_FIELDS%
 
                 <div class='row'>
@@ -56,3 +34,4 @@
     <!--User cabinet footer will be broken if uncomment -->
 </div>
 
+%PREPAID_INFO%

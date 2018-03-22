@@ -20,6 +20,8 @@ my $Internet = Internet->new($db, $admin, \%conf);
 my $Tariffs  = Tariffs->new($db, \%conf, $admin);
 my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
 
+require Internet::Traffic_detail;
+
 #**********************************************************
 =head2 internet_use_all_monthes()
 
@@ -68,7 +70,7 @@ sub internet_use {
 
     $CAPTIONS_HASH{ (90 + $i) . ':' . $field_id . ':left' } = $name;
 
-    if ($type == 2) {
+    if ($type && $type =~ /\d+/ && $type == 2) {
       my $list2 = $users->info_lists_list({ LIST_TABLE => $field_id . '_list' });
       foreach my $line2 (@$list2) {
         $INFO_LISTS{$field_id}{ $line2->[0] } = $line2->[1];
@@ -690,13 +692,14 @@ sub internet_report_tp {
   my ($total_users, $totals_active, $total_disabled, $total_debetors)=(0,0,0,0);
   foreach my $line (@$list) {
     $line->{id} = 0 if (! defined($line->{id}));
+    $line->{tp_id} = 0 if (! defined($line->{tp_id}));
     $table->addrow(
       $line->{id},
-      $html->button($line->{name}, "index=$internet_users_list_index&TP_NUM=$line->{id}"),
-      $html->button($line->{counts}, "index=$internet_users_list_index&TP_NUM=$line->{id}"),
-      $html->button($line->{active}, "index=$internet_users_list_index&TP_NUM=$line->{id}&DV_STATUS=0"),
-      $html->button($line->{disabled}, "index=$internet_users_list_index&TP_NUM=$line->{id}&DV_STATUS=1"),
-      $html->button($line->{debetors}, "index=$internet_users_list_index&TP_NUM=$line->{id}&DEPOSIT=<0&search=1"),
+      $html->button($line->{name}, "index=$internet_users_list_index&TP_ID=$line->{tp_id}"),
+      $html->button($line->{counts}, "index=$internet_users_list_index&TP_ID=$line->{tp_id}"),
+      $html->button($line->{active}, "index=$internet_users_list_index&TP_ID=$line->{tp_id}&INTERNET_STATUS=0"),
+      $html->button($line->{disabled}, "index=$internet_users_list_index&TP_ID=$line->{tp_id}&INTERNET_STATUS=1"),
+      $html->button($line->{debetors}, "index=$internet_users_list_index&TP_ID=$line->{tp_id}&DEPOSIT=<0&search=1"),
       sprintf('%.2f', $line->{arppu} || 0),
       sprintf('%.2f', $line->{arpu} || 0)
     );

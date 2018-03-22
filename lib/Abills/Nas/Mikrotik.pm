@@ -185,6 +185,22 @@ sub get_error {
 }
 
 #**********************************************************
+=head2 has_list_command($list_name) - checks if executor has command for list
+
+  Arguments:
+    $list_name -
+    
+  Returns:
+    boolean
+    
+=cut
+#**********************************************************
+sub has_list_command {
+  my ($self, $list_name) = @_;
+  return $self->{executor}->has_list_command($list_name);
+}
+
+#**********************************************************
 =head2 get_list($list_name, $attr) - forwarding request to executor
 
   Arguments:
@@ -359,6 +375,9 @@ sub leases_add {
         $dhcp_server_name = "$attr->{DHCP_NAME_PREFIX}_$lease->{network}";
       }
     }
+#    use Data::Dumper;
+#    print Dumper($lease);
+    
     
     print "Adding new lease address=$lease->{ip} mac-address=$lease->{mac} \n" if ( $attr->{VERBOSE} );
     
@@ -521,7 +540,7 @@ sub dhcp_servers_check {
     
     my $network_identifier = ($attr->{USE_NETWORK_NAME}) ? $network->{name} : "$DHCP_server_name_prefix$network->{id}";
     
-    print "Checking for existence of $network_identifier \n" if ( $attr->{VERBOSE} > 1 );
+    print "Checking for existence of $network_identifier \n" if ( $attr->{VERBOSE} && $attr->{VERBOSE} > 1 );
     
     unless ( defined $servers_by_name{lc $network_identifier} ) {
       print " !!! You should add '$network_identifier' DHCP server at mikrotik or use SKIP_DHCP_NAME=1
@@ -1047,6 +1066,102 @@ sub firewall_address_list_del {
   return $self->execute([
     [ '/ip/firewall/address-list/remove', { numbers => $id } ]
   ]);
+}
+
+#**********************************************************
+=head2 add_firewall_rule($params) -
+
+  Arguments:
+     $params - options for rule, same as command attributes for Mikrotik
+
+  Returns:
+    1
+
+=cut
+#**********************************************************
+sub add_firewall_rule {
+  my ($self, $rule_params) = @_;
+  return 0 unless $rule_params;
+
+  return $self->execute([['/ip firewall filter add', $rule_params]]);
+}
+
+#**********************************************************
+=head2 add_nat_rule($params) -
+
+  Arguments:
+    $params - options for rule, same as command attributes for Mikrotik
+
+  Returns:
+    1
+
+=cut
+#**********************************************************
+sub add_nat_rule {
+  my ($self, $rule_params) = @_;
+  return 0 unless $rule_params;
+
+  return $self->execute([['/ip firewall nat add', $rule_params]]);
+}
+
+#**********************************************************
+=head2 add_ssh_bruteforce_protection($allowed_ips) -
+
+  Arguments:
+    $allowed_ips - IP addresses that will not be checked for bruteforce
+
+  Returns:
+    1
+
+=cut
+#**********************************************************
+sub add_ssh_bruteforce_protection {
+  my ($self, $allowed_ips ) = @_;
+
+  my %similar_params = (
+    'connection-state' => 'new',
+    action             => 'add-src-to-address-list',
+    chain              => 'input',
+    protocol           => 'tcp',
+    'dst-port'         => '22',
+  );
+
+  $self->add_firewall_rule({
+    %similar_params,
+    'src-address'      => "!$allowed_ips",
+    'address-list'     => 'ssh_stage_1'
+  });
+
+  $self->add_firewall_rule({
+    %similar_params,
+    'src-address-list' => 'ssh_stage_1',
+    'address-list'     => 'ssh_stage_2',
+    'address-list-timeout' => '20s',
+  });
+
+  $self->add_firewall_rule({
+    %similar_params,
+    'src-address-list' => 'ssh_stage_2',
+    'address-list'     => 'ssh_stage_3',
+    'address-list-timeout' => '20s',
+  });
+
+  $self->add_firewall_rule({
+    %similar_params,
+    'src-address-list' => 'ssh_stage_3',
+    'address-list'     => 'ssh_blacklist',
+    'address-list-timeout' => '20s',
+  });
+
+  $self->add_firewall_rule({
+    %similar_params,
+    'connection-state' => undef,
+    'src-address-list'=> 'ssh_blacklist',
+    action => 'drop',
+    comment=> "ABillS. Drop ssh bruteforces"
+  });
+
+  return 1;
 }
 
 #**********************************************************

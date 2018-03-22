@@ -39,7 +39,7 @@
     </form>
 
   </div>
-  <div class='box-footer text-center'>
+  <div class='box-footer'>
     <button id='GMA_STOP_BTN' class='btn btn-danger' style='display: none'>_{HOLD_UP}_</button>
     <button id='GMA_EXECUTE_BTN' class='btn btn-primary'>_{START}_</button>
   </div>

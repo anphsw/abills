@@ -34,7 +34,7 @@
     </form>
 
   </div>
-  <div class='box-footer text-center'>
+  <div class='box-footer'>
     <input type='submit' form='form_CABLECAT_SPLITTER' class='btn btn-primary' name='submit'
            value='%SUBMIT_BTN_NAME%'>
   </div>

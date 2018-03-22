@@ -48,8 +48,10 @@ $lang{RESERVE} = 'Reserve';
 $lang{COMMUTATION_SCHEME} = 'Commutation scheme';
 
 $lang{LINK} = 'Link';
+$lang{LINKS} = 'Links';
 
 $lang{DELETE_LINK} = 'Delete link';
+$lang{DELETE_CONNECTION} = 'Delete connection';
 $lang{CONNECT} = 'Connect';
 $lang{CONNECT_BY_NUMBER} = 'Connect by number';
 $lang{ATTENUATION} = 'Attenuation';
@@ -94,5 +96,12 @@ $lang{NO_OTHER_COMMUTATIONS} = 'No other commutations';
 $lang{OTHER_COMMUTATIONS} = 'Other commutations';
 
 $lang{CONNECTION_PARAMS} = 'Connection params';
+
+$lang{GO_TO} = 'Go to';
+$lang{CAN_BE_SPLITTED} = 'Can be splitted';
+$lang{CONNECTION_TRACE} = 'Trace connection';
+$lang{TRACE_UP_TO} = 'Trace up to';
+
+$lang{WRONG_LINKS} = 'Wrong links';
 
 1;

@@ -8,6 +8,9 @@ $lang{FILLING_DATA}='Filling users';
 $lang{NOT_FOUND}='Not found ';
 $lang{FILTER}='Filter';
 $lang{NO_CALLS_FOR_DATE_OR_OPERATOR}='No calls for date or operator';
+$lang{ANSWERED}='Anwered';
+$lang{NO_ANSWER}='No Answer';
+$lang{BUSY}='Busy';
 
 ###################################################
 $lang{INVALID_LOOPS}='Попыток повтора';
@@ -35,7 +38,6 @@ $lang{FULL_INFO}='Информация о услугах';
 $lang{MARKETING_INFO}='Информация о акциях и услугах';
 $lang{USE_CREDIT}='Воспользоватся кредитом';
 $lang{CARDS_RECHARGE}='Добавить средства';
-$lang{FUNCTION}='Функция';
 $lang{ERR_MESSAGE}='Сообщение при неудачном вводе';
 $lang{UNDEF_MESSAGE}='Сообщение при таймауте повторений';
 $lang{ENTER_TEXT}='Введите текст';

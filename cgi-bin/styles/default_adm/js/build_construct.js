@@ -34,6 +34,8 @@ function build_construct(Param_flors, Param_entrances, Param_rooms, elem_id, use
   var paper_height    = (Param_flors * room_higth + padding) < min_height ? min_height : Param_flors * room_higth + padding;
   var paper_width     = (room_width * Param_rooms * Param_entrances + padding) < canvas_width ? canvas_width : (room_width * Param_rooms * Param_entrances + padding);
   var build_x         = 0;
+  var user_info       = JSON.parse(user_info);
+  var lang_pack       = JSON.parse(lang_pack);
   if ((room_width * Param_rooms * Param_entrances + padding) < canvas_width) {
     build_x = canvas_width / 2 - ((rooms * Param_entrances) / 2) - room_width;
   }
@@ -111,15 +113,16 @@ function build_construct(Param_flors, Param_entrances, Param_rooms, elem_id, use
         stroke: 'none'
       });
     }
-    for (var f = 2; f <= Param_flors + 1; f++) {
+
+    for (var f = 2; f <= Number(Param_flors) + 1; f++) {
       var y_d = room_higth * f;
       
       for (var r = 0; r < Param_rooms; r++) {
         flat_score = d++;
         var fill_status_color;
         
-        if (flat_score in user_info) {
-          
+        if (typeof (user_info[flat_score]) !== 'undefined') {
+
           if (user_info[flat_score]['disable'] === 1) {
             fill_status_color = status_colors[1]
           }

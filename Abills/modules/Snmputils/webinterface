@@ -19,6 +19,7 @@ use Carp;
 use Abills::Base qw(in_array int2ip sec2time);
 use Abills::Filters qw(mac2dec);
 require Abills::Nas::Control;
+require Equipment::Snmp_cmd;
 
 #$SNMP::Util::Max_log_level      = 'none';
 $SNMP_Session::suppress_warnings= 2;
@@ -453,7 +454,7 @@ sub snmputils_periodic {
       DISABLE          => 0,
       NAS_IDS          => ($attr->{NAS_IDS}) ? $attr->{NAS_IDS} : undef,
       MNG_HOST_PORT    => '_SHOW',
-      MNG_USER         => '_SHOW',
+      NAS_MNG_USER     => '_SHOW',
       NAS_MNG_PASSWORD => '_SHOW',
       NAS_RAD_PAIRS    => '_SHOW',
       COLS_NAME        => 1
@@ -1941,7 +1942,7 @@ sub snmputils_dlink_ip_mac_port {
     $table->addtd(
       $table->td('-'),
       $table->td($port, { rowspan => 1 }),
-      $table->td( $THREE_MODE{$state}, { bgcolor => ($state == 2) ? '#00FF00' : $lang{COLORS}[1], rowspan => 1 } ),
+      $table->td( $THREE_MODE{$state}, { bgcolor => ($state == 2) ? '#00FF00' : '', rowspan => 1 } ),
       $table->td(''),
       $table->td(''),
       $table->td(''),
@@ -2174,7 +2175,7 @@ sub snmputils_dlink_pb_monitor {
         $arr[0] = $html->button("$name", "index=15&UID=$uid");
         $arr[1] = ($deposit <= 0)    ? $deposit             : $html->color_mark($deposit,             $_COLORS[6]);
         $arr[2] = ($status_val == 0) ? $status[$status_val] : $html->color_mark( $status[$status_val],
-            $lang{COLORS}[6] );
+            'text-danger' );
       }
       $table->addrow(@arr);
     }
@@ -2549,7 +2550,7 @@ sub snmputils_zyxel_smf {
 
     my @arr = (
       $table->td($ACTIVE_MAC->{PORT}{$vlan_mac}),
-      $table->td( $STATUS{$state}, { bgcolor => ($state == 3) ? '#00FF00' : $lang{COLORS}[1] } ),
+      $table->td( $STATUS{$state}, { bgcolor => ($state == 3) ? '#00FF00' : '' } ),
       $table->td($VLAN),
       $table->td($ACTIVE_MAC->{MAC}{$vlan_mac}),
       $table->td($ACTIVE_MAC->{NAME}{$vlan_mac}),
@@ -2630,7 +2631,9 @@ sub snmputils_mikrotik_air {
 }
 
 #*******************************************************************
-#
+=head2 snmputils_ciscoair($attr)
+
+=cut
 #*******************************************************************
 sub snmputils_ciscoair {
   my ($attr) = @_;
@@ -3301,7 +3304,7 @@ sub snmp_form_footer {
   my $table = $html->table(
     {
       width       => '100%',
-      title_plain => [ "REFRESH (sec): " . $html->form_input( 'REFRESH', int( $FORM{REFRESH} ), { SIZE => 4 } ),
+      title_plain => [ "REFRESH (sec): " . $html->form_input( 'REFRESH', $FORM{REFRESH}, { SIZE => 4 } ),
         $html->form_input( 'SHOW', $lang{SHOW}, { TYPE => 'SUBMIT' } ) ],
     }
   );
@@ -3402,7 +3405,7 @@ sub snmputils_ports_state {
     foreach my $k (@RES_ARR) {
       my @arr = ($k);
       foreach my $ft (@CAPTION) {
-        push @arr, ($OIDS_EXINFO->{$ft}{ACCESS} eq 'read-write') ? $html->button("$result{$ft}{$k}", "index=$index&change=1&SNMP_INDEX=$k&SNMP_OID=$OIDS_HASH{$ft}$pages_qs") : $result{$ft}{$k};
+        push @arr, ($OIDS_EXINFO->{$ft}{ACCESS} eq 'read-write') ? $html->button($result{$ft}{$k}, "index=$index&change=1&SNMP_INDEX=$k&SNMP_OID=$OIDS_HASH{$ft}$pages_qs") : $result{$ft}{$k};
       }
       $table->addrow(@arr);
       $rows_count++;
@@ -3414,16 +3417,18 @@ sub snmputils_ports_state {
 }
 
 #**********************************************************
-=head2 snmp_info_form()
+=head2 snmp_info_form($attr)
 
 =cut
 #**********************************************************
 sub snmp_info_form {
+  my ($attr) = @_;
   my %info = ();
 
   $info{ACTION}     = 'add';
   $info{ACTION_LNG} = $lang{ADD};
   my $SNMP_COMMUNITY = $FORM{SNMP_COMMUNITY} || q{};
+  my $snmp_host      = $FORM{SNMP_HOST} || q{};
 
   snmpmapOID("ipRoutingTable", "1.3.6.1.2.1.4.21");
 
@@ -3509,22 +3514,28 @@ sub snmp_info_form {
     }
   );
 
-  if ($FORM{change}) {
-    $SNMP_COMMUNITY = "$SNMP_COMMUNITY\@". ($FORM{SNMP_HOST} || q{});
+  $SNMP_COMMUNITY = "$SNMP_COMMUNITY\@". $snmp_host;
 
-    if ($FORM{NAS_ID}) {
-      $Nas->info({ NAS_ID => $FORM{NAS_ID} });
-      if (!$Nas->{NAS_MNG_PASSWORD}) {
-        $html->message( 'err', $lang{ERROR}, "NO SNMP COMMUNITY" );
-        return 0;
-      }
-      elsif (!$Nas->{NAS_MNG_IP_PORT}) {
-        $html->message( 'err', $lang{ERROR}, "NO SNMP HOST" );
-        return 0;
-      }
-      $SNMP_COMMUNITY = "$Nas->{NAS_MNG_PASSWORD}\@$Nas->{NAS_MNG_IP_PORT}";
+  if ($FORM{NAS_ID}) {
+    $Nas->info({ NAS_ID => $FORM{NAS_ID} });
+    if (!$Nas->{NAS_MNG_PASSWORD}) {
+      $html->message( 'err', $lang{ERROR}, "NO SNMP COMMUNITY" );
+      return 0;
     }
+    elsif (!$Nas->{NAS_MNG_IP_PORT}) {
+      $html->message( 'err', $lang{ERROR}, "NO SNMP HOST" );
+      return 0;
+    }
+    $SNMP_COMMUNITY = "$Nas->{NAS_MNG_PASSWORD}\@$Nas->{NAS_MNG_IP_PORT}";
+    $pages_qs = "\&SNMP_COMMUNITY=$SNMP_COMMUNITY\&SNMP_HOST=$snmp_host";
+  }
+  else {
+    $pages_qs = "\&SNMP_COMMUNITY=$SNMP_COMMUNITY\&SNMP_HOST=$snmp_host";
+    $SNMP_COMMUNITY = "$SNMP_COMMUNITY\@$snmp_host";
+  }
 
+
+  if ($FORM{change}) {
     my %REV_HASH      = reverse %OIDS_HASH;
     my $SNMP_OID_NAME = ($FORM{SNMP_OID} && $REV_HASH{ $FORM{SNMP_OID} }) ? $REV_HASH{ $FORM{SNMP_OID} } : q{};
     if ($OIDS_EXINFO{$SNMP_OID_NAME} && $OIDS_EXINFO{$SNMP_OID_NAME}{SYNTAX} ) {
@@ -3535,7 +3546,7 @@ sub snmp_info_form {
       my $SNMP_OID = $FORM{SNMP_OID};
       $SNMP_OID .= '.' . $FORM{SNMP_INDEX} if ($FORM{SNMP_INDEX});
 
-      if (snmpset($SNMP_COMMUNITY, $FORM{SNMP_OID}, "$FORM{SNMP_TYPE}", "$FORM{SNMP_VALUE}")) {
+      if (snmpset($SNMP_COMMUNITY, $FORM{SNMP_OID}, $FORM{SNMP_TYPE}, $FORM{SNMP_VALUE})) {
         print $html->message( 'info', $lang{CHANGED}, "$FORM{SNMP_OID} => $FORM{SNMP_VALUE}" );
       }
     }
@@ -3544,7 +3555,7 @@ sub snmp_info_form {
       $FORM{SNMP_OID} = $FORM{SNMP_OID} . '.' . $FORM{SNMP_INDEX};
     }
 
-    undef $FORM{SNMP_VALUES};
+    delete $FORM{SNMP_VALUES};
     $info{SNMP_VALUE} = snmpget($SNMP_COMMUNITY, $FORM{SNMP_OID});
 
     $info{SNMP_TYPE_SEL} = $html->form_select(
@@ -3576,7 +3587,7 @@ sub snmp_info_form {
     my $rows_count = 0;
     $FORM{TYPE} = $FORM{SNMP_OID} if ($FORM{SNMP_OID});
 
-    $SNMP_COMMUNITY = "$FORM{SNMP_COMMUNITY}\@$FORM{SNMP_HOST}";
+    $SNMP_COMMUNITY = "$SNMP_COMMUNITY\@$snmp_host";
 
     if ($FORM{NAS_ID}) {
       $Nas->info({ NAS_ID => $FORM{NAS_ID} });
@@ -3594,16 +3605,28 @@ sub snmp_info_form {
       if (! $Nas->{NAS_MNG_IP_PORT}) {
         $Nas->{NAS_MNG_IP_PORT}=$Nas->{nas_ip};
       }
-      elsif ($Nas->{NAS_MNG_IP_PORT}=~/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/) {
-        $Nas->{NAS_MNG_IP_PORT}=$1;
-      }
 
       $SNMP_COMMUNITY = "$Nas->{NAS_MNG_PASSWORD}\@$Nas->{NAS_MNG_IP_PORT}";
     }
     else {
-      $pages_qs = "\&SNMP_COMMUNITY=$FORM{SNMP_COMMUNITY}\&SNMP_HOST=$FORM{SNMP_HOST}";
-      $SNMP_COMMUNITY = "$FORM{SNMP_COMMUNITY}\@$FORM{SNMP_HOST}";
+      $pages_qs = "\&SNMP_COMMUNITY=$FORM{SNMP_COMMUNITY}\&SNMP_HOST=$snmp_host";
+      $SNMP_COMMUNITY = "$FORM{SNMP_COMMUNITY}\@$snmp_host";
     }
+
+    my $timeout = $attr->{TIMEOUT} || 2;
+    my $retries = $attr->{RETRIES} || 2;
+    my $version = $attr->{VERSION} || 1;
+
+    my ($snmp_community, $port, undef, $port3)=split(/:/, $SNMP_COMMUNITY || q{});
+    if($port3) {
+      $port = $port3;
+    }
+    elsif (! $port || in_array($port, [ 21, 22, 23, 1700, 3977 ])) {
+      $port = 161;
+    }
+    #  my ($snmp_community, $port)=split(/:/, $attr->{SNMP_COMMUNITY});
+    #  $port = 161 if (! $port || in_array($port, [ 22, 23, 1700, 3977 ]));
+    $SNMP_COMMUNITY = $snmp_community.':'.$port.":$timeout:$retries:1:$version";
 
     #External
     my $function = 'snmputils_' . $FORM{TYPE};
@@ -3623,9 +3646,17 @@ sub snmp_info_form {
       $FORM{TYPE}=$_oids{$FORM{TYPE}};
     }
 
-    my %result  = &snmpwalkhash("$SNMP_COMMUNITY", \&my_simple_hash, ($_oids{$FORM{TYPE}}) ? $_oids{$FORM{TYPE}} : $FORM{TYPE});
+    print $SNMP_COMMUNITY;
+
+    my %result  = &snmpwalkhash($SNMP_COMMUNITY, \&my_simple_hash, ($_oids{$FORM{TYPE}}) ? $_oids{$FORM{TYPE}} : $FORM{TYPE});
     my @CAPTION = keys %result;
-    my @RES_ARR = sort { $a <=> $b } keys %{ $result{"$CAPTION[0]"} };
+    my @RES_ARR = sort {
+      #$a <=> $b
+
+      length($result{$CAPTION[0]}{$a} || 0) <=> length($result{$CAPTION[0]}{$b} || 0)
+        || ($result{$CAPTION[0]}{$a} || q{}) cmp ($result{$CAPTION[0]}{$b} || q{});
+
+    } keys %{ $result{$CAPTION[0]} };
 
     if ($SNMP_Session::errmsg) {
       print $html->message( 'err', $lang{ERROR},
@@ -4395,7 +4426,7 @@ sub snmputils_celan {
 
     my @arr = (
       $table->td($ACTIVE_MAC->{PORT}{$vlan_mac}),
-      $table->td( $STATUS{$state}, { bgcolor => ($state == 3) ? '#00FF00' : $lang{COLORS}[1] } ),
+      $table->td( $STATUS{$state}, { bgcolor => ($state == 3) ? '#00FF00' : '' } ),
       $table->td($VLAN),
       $table->td($m),
       $table->td($ACTIVE_MAC->{NAME}{$vlan_mac}),
@@ -4447,7 +4478,7 @@ sub snmputils_celan {
 
     my @arr = (
       $table->td($DYNAMIC_MAC->{PORT}{$vlan_mac}),
-      $table->td( $STATUS{$state}, { bgcolor => ($state == 3) ? '#00FF00' : $lang{COLORS}[1] } ),
+      $table->td( $STATUS{$state}, { bgcolor => ($state == 3) ? '#00FF00' : '' } ),
       $table->td($VLAN),
       $table->td($mac),
       $table->td($DYNAMIC_MAC->{NAME}{$vlan_mac}),
@@ -4816,6 +4847,11 @@ sub snmputils_chg_port_state {
         }
       );
 
+      if($message !~ /Ok/) {
+        $debug_output .= "Not response";
+        last;
+      }
+
       $debug_output .= "! $message\n";
     }
   }
@@ -4825,7 +4861,12 @@ sub snmputils_chg_port_state {
 }
 
 #*******************************************************************
-# Change port status
+=head2 snmputils_port_change_state($attr) Change port status
+
+   Arguments:
+     $attr
+
+=cut
 #*******************************************************************
 sub snmputils_port_change_state {
   my ($attr) = @_;
@@ -4842,7 +4883,11 @@ sub snmputils_port_change_state {
 
   my $oid = $OIDS_HASH{ifAdminStatus} .'.'. $port_list;
   $message .= "$oid => $active\n";
-  if (snmpset($SNMP_COMMUNITY, $oid, "integer", "$active")) {
+
+  if(snmp_set({
+    SNMP_COMMUNITY => $SNMP_COMMUNITY,
+    OID            => [ $oid, "integer", $active ]
+  })) {
     $message .= " Ok\n";
   }
 

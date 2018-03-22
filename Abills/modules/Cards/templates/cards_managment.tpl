@@ -1,6 +1,5 @@
 
-
-<div class='form-inline'>
+<div class='well form-inline'>
 
 <div class='form-group'>
   <label for='SOLD'>_{SOLD}_:</label>

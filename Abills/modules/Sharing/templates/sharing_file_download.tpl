@@ -18,7 +18,7 @@
 
 
 </div>
-<div class='box-footer text-center'>
+<div class='box-footer'>
   <input type='submit' name='DOWNLOAD_FILE' value='_{DOWNLOAD}_' class='btn btn-primary'>
 </div>
 </div>

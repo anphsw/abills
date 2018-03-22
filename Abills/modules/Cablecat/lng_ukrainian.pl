@@ -46,8 +46,10 @@ $lang{CALCULATED} = 'розр.';
 $lang{RESERVE} = 'Запас';
 $lang{COMMUTATION_SCHEME} = 'Схема комутації';
 $lang{LINK} = 'З&#39;єднання';
+$lang{LINKS} = 'З&#39;єднання';
 
-$lang{DELETE_LINK} = 'Видалити з&#39;єднання';
+$lang{DELETE_LINK} = 'Видалити ланку';
+$lang{DELETE_CONNECTION} = 'Видалити з&#39;єднання';
 $lang{CONNECT} = 'З&#39;єднати';
 $lang{CONNECT_BY_NUMBER} = 'З&#39;єднати по номерам';
 $lang{ATTENUATION} = 'Затухання';
@@ -91,6 +93,13 @@ $lang{NO_FREE_EQUIPMENT} = 'Відсутнє обладнання, яке мож
 
 $lang{NO_OTHER_COMMUTATIONS} = 'Не вказано на інших комутація';
 $lang{OTHER_COMMUTATIONS} = 'Інші комутації';
+
+$lang{GO_TO} = 'Перейти до';
+$lang{CAN_BE_SPLITTED} = 'Можна розділяти';
+$lang{CONNECTION_TRACE} = 'Відслідкувати з&#39єднання';
+$lang{TRACE_UP_TO} = 'Відслідкувати до';
+
+$lang{WRONG_LINKS} = 'Неправильні з&#39єднання';
 
 
 1;

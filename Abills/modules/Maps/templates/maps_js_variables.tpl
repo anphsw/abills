@@ -1,7 +1,7 @@
-<!-- Processing Perl vars to JS -->
 <script>
   var index     = '$index';
   var map_index = '%MAP_INDEX%';
+  var map_edit_index = '%MAP_EDIT_INDEX%';
 
   var MAP_TYPE = '%MAP_TYPE%' || 'google';
   var MAP_KEY  = '%MAP_API_KEY%';
@@ -104,6 +104,6 @@
   var LAYER_ID_BY_NAME = JSON.parse('%LAYER_ID_BY_NAME%');
   var FORM             = JSON.parse('%FORM%');
   var OPTIONS          = JSON.parse('%OPTIONS%');
-
 </script>
+<!--Extra scripts-->
 %EXTRA_SCRIPTS%

@@ -61,8 +61,9 @@ else {
   check_system_actions();
   check_payments();
 }
-
+print "-------\n";
 send_changes();
+print "+++++++++\n";
 
 
 #**********************************************************
@@ -311,8 +312,9 @@ sub user_info_report {
 sub ippool_dictionary {
 
   my $pools_list = $Nas->nas_ip_pools_list({
-    COLS_NAME   => 1,
-    PAGE_ROWS   => 99999,
+    COLS_NAME        => 1,
+    SHOW_ALL_COLUMNS => 1,
+    PAGE_ROWS        => 99999,
   });
 
   foreach my $pool (@$pools_list) {
@@ -323,7 +325,7 @@ sub ippool_dictionary {
     
     my $mask = 32 - length(sprintf ("%b", $pool->{ip_count}));
 
-    my $string = '';
+    my $string = '"' . $isp_id .'";'; 
     $string .= '"' . $pool->{pool_name} . '";';
     $string .= '"' . $ip . '";';
     $string .= '"' . $mask . '";';
@@ -332,7 +334,7 @@ sub ippool_dictionary {
 
     _add_report('pool', $string);
   }
-
+print "IP pool dictionary formed.\n";
   return 1;
 }
 
@@ -343,9 +345,10 @@ sub ippool_dictionary {
 #**********************************************************
 sub docs_dictionary {
   
-  my $string = '"1";"1";"01.08.2017";"";"паспорт"' . "\n";
+  my $string = '"' . $isp_id .'";"1";"01.08.2017";"";"паспорт"' . "\n";
   _add_report('d_type', $string);
 
+  print "Docs dictionary formed.\n";
   return 1;
 }
 
@@ -356,9 +359,10 @@ sub docs_dictionary {
 #**********************************************************
 sub gates_dictionary {
   
-  my $string = '"1";"91.205.164.46";"01.08.2017";"";"Radius";"Россия";"Республика Крым";"Республика Крым";"г.Ялта";"ул. Соханя";"7";"7"' . "\n";
+  my $string = '"' . $isp_id .'";"91.205.164.46";"01.08.2017";"";"Radius";"Россия";"Республика Крым";"Республика Крым";"г.Ялта";"ул. Соханя";"7";"7"' . "\n";
   _add_report('gates', $string);
 
+  print "Gates dictionary formed.\n";
   return 1;
 }
 
@@ -371,6 +375,13 @@ sub payments_type_dictionary {
   do ("/usr/abills/language/russian.pl");
   my $types = translate_list($Payments->payment_type_list({ COLS_NAME => 1 }));
 
+  if ($conf{PAYSYS_PAYMENTS_METHODS}) {
+    foreach my $line (split (';', $conf{PAYSYS_PAYMENTS_METHODS})) {
+      my($id, $type) = split (':', $line);
+      push (@$types, {id => $id, name => $type} );
+    }
+  }
+
   foreach (@$types) {
     my $string = '"' . $isp_id .'";';
     $string .= '"' . $_->{id} . '";';
@@ -380,6 +391,7 @@ sub payments_type_dictionary {
     _add_report('p_type', $string);
   }
 
+  print "Payments types dictionary formed.\n";
   return 1;
 }
 
@@ -425,7 +437,7 @@ sub payment_report {
 #**********************************************************
 sub _add_report {
   my ($type, $string) = @_;
-
+print $string;
   my %reports = (
     user    => "$var_dir/sorm/abonents/abonents.csv.utf",
     payment => "$var_dir/sorm/payments/payments.csv.utf",
@@ -474,12 +486,15 @@ sub _date_format {
 #**********************************************************
 sub send_changes {
   
-  system('iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/abonents/abonents.csv.utf > /usr/abills/var/sorm/abonents/abonents.csv') if (-e "/usr/abills/var/sorm/abonents/abonents.csv.utf");
-  system('iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/payments/payments.csv.utf > /usr/abills/var/sorm/payments/payments.csv') if (-e "/usr/abills/var/sorm/payments/payments.csv.utf");
-  system('iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/dictionaries/pay-types.csv.utf > /usr/abills/var/sorm/dictionaries/pay-types.csv') if (-e "/usr/abills/var/sorm/dictionaries/pay-types.csv.utf");
-  system('iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/dictionaries/doc-types.csv.utf > /usr/abills/var/sorm/dictionaries/doc-types.csv') if (-e "/usr/abills/var/sorm/dictionaries/doc-types.csv.utf");
-  system('iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/dictionaries/gates.csv.utf > /usr/abills/var/sorm/dictionaries/gates.csv') if (-e "/usr/abills/var/sorm/dictionaries/gates.csv.utf");
-  system('iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/dictionaries/ip-numbering-plan.csv.utf > /usr/abills/var/sorm/dictionaries/ip-numbering-plan.csv') if (-e "/usr/abills/var/sorm/dictionaries/ip-numbering-plan.csv.utf");
+  # system('iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/abonents/abonents.csv.utf > /usr/abills/var/sorm/abonents/abonents.csv') if (-e "/usr/abills/var/sorm/abonents/abonents.csv.utf");
+  # system('iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/payments/payments.csv.utf > /usr/abills/var/sorm/payments/payments.csv') if (-e "/usr/abills/var/sorm/payments/payments.csv.utf");
+  # system('iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/dictionaries/pay-types.csv.utf > /usr/abills/var/sorm/dictionaries/pay-types.csv') if (-e "/usr/abills/var/sorm/dictionaries/pay-types.csv.utf");
+  # system('iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/dictionaries/doc-types.csv.utf > /usr/abills/var/sorm/dictionaries/doc-types.csv') if (-e "/usr/abills/var/sorm/dictionaries/doc-types.csv.utf");
+  # system('iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/dictionaries/gates.csv.utf > /usr/abills/var/sorm/dictionaries/gates.csv') if (-e "/usr/abills/var/sorm/dictionaries/gates.csv.utf");
+  # system('iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/dictionaries/ip-numbering-plan.csv.utf > /usr/abills/var/sorm/dictionaries/ip-numbering-plan.csv') if (-e "/usr/abills/var/sorm/dictionaries/ip-numbering-plan.csv.utf");
 
   return 1;
 }
+
+
+1

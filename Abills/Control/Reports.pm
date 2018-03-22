@@ -208,10 +208,6 @@ sub reports{
     if ( !$attr->{NO_TAGS} && in_array( 'Tags', \@MODULES ) ){
       load_module( 'Tags', $html );
       push @rows, tags_sel();
-      #    $TAGS =  tags_search_form();
-      #    $TAGS = $html->element( 'div', $TAGS, {
-      #        class => 'well well-sm', #'navbar navbar-default form-inline'
-      #      } ) if ($TAGS);
     }
 
 
@@ -259,7 +255,7 @@ sub reports{
   if ( $FORM{DATE} ){
     ($y, $m, $d) = split( /-/, $FORM{DATE}, 3 );
     my $hour = '';
-    ($d, $hour)=split(/ /, $d);
+    ($d, $hour)=split(/ /, $d || 1);
     $LIST_PARAMS{DATE} = $FORM{DATE};
     $pages_qs .= "&DATE=$LIST_PARAMS{DATE}";
 
@@ -283,7 +279,7 @@ sub reports{
 
     my $days = '';
     for ( my $i = 1; $i <= 31; $i++ ){
-      $days .= ($d == $i) ? ' ' . $html->b( $i ) : ' ' . $html->button( $i,
+      $days .= ($d == $i) ? $html->b( $i ) : $html->button( $i,
           sprintf( "index=$index&DATE=%d-%02.f-%02.f&EX_PARAMS=". ($FORM{EX_PARAMS} || '')."%s%s%s", $y, $m, $i,
               (defined( $FORM{GID} )) ? "&GID=$FORM{GID}" : '', (defined( $FORM{UID} )) ? "&UID=$FORM{UID}" : '',
               ($FORM{FIELDS}) ? "&FIELDS=$FORM{FIELDS}" : '' ), { BUTTON => 1 } );
@@ -815,10 +811,10 @@ sub form_system_changes{
   );
 
   form_search({
-    HIDDEN_FIELDS       => $LIST_PARAMS{AID},
+    SHOW_PERIOD       => 1,
+    HIDDEN_FIELDS     => $LIST_PARAMS{AID},
     SEARCH_FORM       =>
     $html->tpl_show( templates( 'form_history_search' ), \%search_params, { OUTPUT2RETURN => 1 } ),
-    PLAIN_SEARCH_FORM => 1
   });
 
   my $list = $admin->system_action_list( { %LIST_PARAMS } );
@@ -910,11 +906,11 @@ sub report_webserver{
   #my $br = $html->br();
   if ( -f $web_error_log ){
     my $file_content = `tail -100 "$web_error_log"`;
-    print $file_content;
+
     my @file_lines = reverse(split(/\r?\n/, $file_content));
     
     foreach my $log_line (@file_lines) {
-      if ($log_line =~ m/\[(.+)\]\s+(.+)/) {
+      if ($log_line =~ m/\[(.+?)\]\s+(.+)/) {
         $table->addrow($1, $2 );
       }
     }
@@ -934,18 +930,19 @@ sub report_bruteforce{
 
   if ( $FORM{del} && $FORM{COMMENTS} && $permissions{0}{5} ){
     $users->bruteforce_del( {
-        SID  => $FORM{del},
-        DATE => ($FORM{del} eq 'all') ? $DATE : undef
-      } );
+      DEL_ALL=> ($FORM{del} eq 'all') ? 1 : undef,
+      LOGIN  => $FORM{LOGIN},
+    } );
 
     $html->message( 'info', $lang{INFO}, "$lang{DELETED} # $FORM{del}" );
   }
 
-  $LIST_PARAMS{LOGIN} = $FORM{LOGIN} if ($FORM{LOGIN});
+  $LIST_PARAMS{LOGIN} = $FORM{LOGIN} if ($FORM{LOGIN} && !$FORM{del});
 
   result_former( {
-    INPUT_DATA        => $users,
+    INPUT_DATA      => $users,
     FUNCTION        => 'bruteforce_list',
+    FUNCTION_FIELDS => ':del:login:&del=1&',
     BASE_FIELDS     => 5,
     EXT_TITLES      => {
       login    => $lang{LOGIN},
@@ -958,9 +955,12 @@ sub report_bruteforce{
       width   => '100%',
       caption => $lang{BRUTE_ATACK},
       qs      => $pages_qs,
-      header  => defined( $permissions{0}{5} )                                  ? $html->button(
-        "$lang{DEL} $lang{ALL}", "index=$index&del=all",
-        { MESSAGE => "$lang{DEL} $lang{ALL}?", class => 'btn btn-default' } ) : '',
+      header  => defined( $permissions{0}{5} )
+        ? $html->button("$lang{DEL} $lang{ALL}", "index=$index&del=all",
+            { MESSAGE => "$lang{DEL} $lang{ALL}?",
+              class => 'btn btn-default' }
+          )
+        : '',
       ID      => 'FORM_BRUTEFORCE',
       EXPORT  => 1,
     },
@@ -1112,6 +1112,7 @@ sub form_changes_summary {
 
 =cut
 #**********************************************************
+#Fixme make perl grep
 sub logs_list {
   my %list;
 
@@ -1119,27 +1120,39 @@ sub logs_list {
     $conf{LOGS_DIR} = $var_dir . 'log/';
   }
 
+  if($ENV{LOGS_DIR}) {
+    $conf{LOGS_DIR}=$ENV{LOGS_DIR};
+  }
+
   $conf{LOGS_DIR} =~ (s/\s//g);
   my @files_dir = split(/;/, $conf{LOGS_DIR});
-  $FORM{DIRACTORY}//=0;
+  $FORM{DIRACTORY} //= 0;
 
   if ($FORM{file} && @files_dir[$FORM{DIRACTORY}] eq $FORM{file}){
     my @File = '';
     $list{FILE_DIR}  = $FORM{file};
     $list{FILE_NAME} = $FORM{name};
+
+    if($FORM{name} !~ /^([-\@\w\.]{0,12}\/?[-\@\w\.]+)$/) {
+      $html->message('err', $lang{ERROR}, "Security error '$FORM{name}'");
+      return 0;
+    }
+
     if ($FORM{grep}) {
-      @File = `grep -r '$FORM{grep}' $FORM{file}$FORM{name}`;
+      $FORM{grep} =~ s/\'//g;
+      @File = `grep -r '$FORM{grep}' '$FORM{file}$FORM{name}'`;
     }
     else {
-      @File = `tail -50 $FORM{file}$FORM{name}`;
+      @File = `tail -50 '$FORM{file}$FORM{name}'`;
     }
+
     @File = reverse @File;
     if ($FORM{file} eq $var_dir . 'log/') {
       my $table = $html->table(
         {
           caption       => $FORM{file} . $FORM{name},
           qs            => $pages_qs,
-          title_plain   => [ "$lang{DATE}", "$lang{TIME}", "$lang{TYPE}", "$lang{INFO}" ],
+          title_plain   => [ $lang{DATE}, $lang{TIME}, $lang{TYPE}, $lang{INFO} ],
           width         => '100%',
           ID            => 'LOGS_TABLE',
           EXPORT        => 1,
@@ -1150,14 +1163,14 @@ sub logs_list {
         my @lines = split(/\s/, $FileSting, 4);
         $table->addrow($lines[0], $lines[1], $lines[2], $lines[3]);
       }
+
       $list{LOG_FILE} = $table->show();
       $html->tpl_show(templates('form_logs_text_search'), \%list);
-
     }
     else {
       my $table = $html->table(
         {
-          cation => "$FORM{file}",
+          cation => $FORM{file},
           qs     => $pages_qs,
           width  => '100%',
           ID     => 'LOGS_TABLE',
@@ -1172,8 +1185,7 @@ sub logs_list {
     }
   }
   elsif($FORM{file} && @files_dir[$FORM{DIRACTORY}] ne $FORM{file}){
-
-    $html->message('err', $lang{ERROR}, "$lang{ERR_ACCESS_DENY}");
+    $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
   }
   else {
     my $prime_dir = @files_dir[$FORM{DIRACTORY}] ? @files_dir[$FORM{DIRACTORY}] : $files_dir[0];
@@ -1187,8 +1199,8 @@ sub logs_list {
       }
     );
 
-    opendir(my $dir, "$prime_dir") or do {
-      $html->message('err', $lang{ERROR}, "Error in opening dir $prime_dir");
+    opendir(my $dir, $prime_dir) or do {
+      $html->message('err', $lang{ERROR}, "Error in opening dir '$prime_dir'");
       $html->tpl_show(templates('form_log_select_list'), \%list);
 
       return 0;
@@ -1197,19 +1209,21 @@ sub logs_list {
 
     my $table = $html->table(
       {
-        title_plain => [ "$lang{NAME}", "$lang{VALUE}", "$lang{LAST_UPDATE}" ],
+        title_plain => [ $lang{NAME}, $lang{VALUE}, $lang{LAST_UPDATE} ],
         width       => '100%',
         ID          => 'LIST_OF_LOGS_TABLE',
       }
     );
+
     my @fnamelist = grep /\.log$/, readdir $dir;
 
     foreach my $fname (@fnamelist) {
       my ($size, $mtime) = (stat("$prime_dir/$fname"))[ 7, 9 ];
       my $date = POSIX::strftime("%Y-%m-%d %H:%M:%S", localtime($mtime));
 
-      $table->addrow($html->button($fname, "index=$index&file=$prime_dir&name=$fname"), int2byte($size), $date,);
+      $table->addrow($html->button($fname, "index=$index&file=$prime_dir&name=$fname"), int2byte($size), $date);
     }
+
     print $table->show();
     closedir $dir;
   }

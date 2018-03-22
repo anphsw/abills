@@ -520,7 +520,8 @@ sub paid_add{
    (date, sum, comments, uid, aid, status, type_id, ext_id, status_date, maccount_id)
   VALUES ('$attr->{DATE}', '$attr->{SUM}', '$attr->{DESCRIBE}', '$attr->{UID}', '$admin->{AID}',
   '$attr->{STATUS}', '$attr->{TYPE}', '$attr->{EXT_ID}', $status_date,
-  '$attr->{MACCOUNT_ID}');", 'do'
+  '$attr->{MACCOUNT_ID}');",
+    'do'
   );
 
   return $self;
@@ -543,7 +544,7 @@ sub paid_periodic_add{
     $self->query2( "INSERT INTO extfin_paids_periodic
       (uid, type_id, comments, sum, date, aid, maccount_id)
     VALUES ('$attr->{UID}', '$id',  '" . $attr->{ 'COMMENTS_' . $id } . "', '" . $attr->{ 'SUM_' . $id } . "',
-     now(), '$admin->{AID}', '" . $attr->{ 'MACCOUNT_ID_' . $id } . "');", 'do'
+     NOW(), '$admin->{AID}', '" . $attr->{ 'MACCOUNT_ID_' . $id } . "');", 'do'
     );
   }
 
@@ -566,7 +567,9 @@ sub paid_periodic_del{
 }
 
 #**********************************************************
-# fees
+=head paid_periodic_list($attr)
+
+=cut
 #**********************************************************
 sub paid_periodic_list{
   my $self = shift;
@@ -587,10 +590,15 @@ sub paid_periodic_list{
     }
   );
 
-  $self->query2( "SELECT pt.id, pt.name, if(pp.id IS NULL, 0, pp.sum),
-   pp.comments, pp.maccount_id,
-   a.id, 
-   pp.date, pp.aid, pp.uid
+  $self->query2( "SELECT pt.id,
+     pt.name,
+     IF(pp.id IS NULL, 0, pp.sum) AS sum,
+     pp.comments,
+     pp.maccount_id,
+     a.id,
+     pp.date,
+     pp.aid,
+     pp.uid
    FROM extfin_paids_types pt
    LEFT join extfin_paids_periodic pp on (pt.id=pp.type_id $JOIN_WHERE)
    LEFT join admins a on (pp.aid=a.aid)
@@ -834,9 +842,11 @@ sub paid_reports{
 }
 
 #**********************************************************
-# fees
+=head2 paid_type_add($attr)
+
+=cut
 #**********************************************************
-sub paid_type_add{
+sub paid_type_add {
   my $self = shift;
   my ($attr) = @_;
 

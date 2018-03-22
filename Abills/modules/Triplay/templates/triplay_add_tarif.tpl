@@ -40,7 +40,7 @@
 	</div>
 </div>
 
-<div class='box-footer text-center'>
+<div class='box-footer'>
   <button type='submit' class='btn btn-primary'>%BUTTON%</button>
 </div>
 

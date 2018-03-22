@@ -40,7 +40,7 @@ sub _events_state_select {
     'STATE_ID',
     {
       SELECTED    => $attr->{SELECTED} || $FORM{STATE_ID},
-      SEL_LIST    => translate_list($Events->state_list({ COLS_NAME => 1, SHOW_ALL_COLUMNS => 1, MODULE => 'Events' })),
+      SEL_LIST    => translate_list_simple($Events->state_list({ COLS_NAME => 1, SHOW_ALL_COLUMNS => 1, MODULE => 'Events' })),
       SEL_OPTIONS => { '' => '' },
       NO_ID       => 1,
     }
@@ -68,7 +68,7 @@ sub _events_privacy_select {
     {
       SELECTED    => $attr->{SELECTED} || $FORM{PRIVACY_ID},
       SEL_LIST    =>
-      translate_list($Events->privacy_list({ COLS_NAME => 1, SHOW_ALL_COLUMNS => 1, MODULE => 'Events' })),
+      translate_list_simple($Events->privacy_list({ COLS_NAME => 1, SHOW_ALL_COLUMNS => 1, MODULE => 'Events' })),
       SEL_OPTIONS => { '' => '' },
       NO_ID       => 1
     }
@@ -94,7 +94,7 @@ sub _events_priority_select {
     {
       SELECTED    => $attr->{SELECTED} || $FORM{PRIORITY_ID},
       SEL_LIST    =>
-      translate_list($Events->priority_list({ COLS_NAME => 1, SHOW_ALL_COLUMNS => 1, MODULE => 'Events' })),
+      translate_list_simple($Events->priority_list({ COLS_NAME => 1, SHOW_ALL_COLUMNS => 1, MODULE => 'Events' })),
       SEL_OPTIONS => { '' => '' },
       NO_ID       => 1
     }
@@ -119,7 +119,7 @@ sub _events_group_select {
     'GROUP_ID',
     {
       SELECTED    => $attr->{SELECTED} || $FORM{GROUP_ID},
-      SEL_LIST    => translate_list($Events->group_list({ COLS_NAME => 1, SHOW_ALL_COLUMNS => 1, MODULE => 'Events' })),
+      SEL_LIST    => translate_list_simple($Events->group_list({ COLS_NAME => 1, SHOW_ALL_COLUMNS => 1, MODULE => 'Events' })),
       NO_ID       => 1,
       SEL_OPTIONS => { '' => $lang{NO} },
       MAIN_MENU   => get_function_index('events_group_main'),

@@ -5,16 +5,10 @@ CREATE TABLE IF NOT EXISTS `events_state` (
 )
   COMMENT = 'Events_state and name';
 
-REPLACE INTO `events_state` VALUES
-  (1, '$lang{NEW}'),
-  (2, '$lang{RECV}'),
-  (3, '$lang{CLOSED}'),
-  (4, '$lang{IN_WORK}');
-
 CREATE TABLE IF NOT EXISTS `events_priority` (
   `id` SMALLINT(6) UNSIGNED AUTO_INCREMENT,
   `name` VARCHAR(30) NOT NULL,
-  `value` SMALLINT(6) NOT NULL DEFAULT 2, #NORMAL
+  `value` SMALLINT(6) NOT NULL DEFAULT 2 COMMENT 'NORMAL',
   PRIMARY KEY `event_priority_id` (`id`)
 )
   COMMENT = 'Events priorities name';
@@ -29,13 +23,6 @@ CREATE TABLE IF NOT EXISTS `events_priority_send_types` (
 )
   COMMENT = 'Defines how each admin will recieve notifications for defined priority';
 
-REPLACE INTO `events_priority` VALUES
-  (1, '$lang{VERY_LOW}', 0),
-  (2, '$lang{LOW}', 1),
-  (3, '$lang{NORMAL}', 2),
-  (4, '$lang{HIGH}', 3),
-  (5, '$lang{CRITICAL}', 4);
-
 CREATE TABLE IF NOT EXISTS `events_privacy` (
   `id` SMALLINT(6) UNSIGNED AUTO_INCREMENT,
   `name` VARCHAR(40) NOT NULL,
@@ -44,11 +31,6 @@ CREATE TABLE IF NOT EXISTS `events_privacy` (
 )
   COMMENT = 'Events privacy settings';
 
-REPLACE INTO `events_privacy` VALUES
-  (1, '$lang{ALL}', 0),
-  (2, '$lang{ADMIN} $lang{GROUP}', 1),
-  (3, '$lang{ADMIN} $lang{USER} $lang{GROUP}', 2),
-  (4, '$lang{ADMIN} $lang{GEOZONE}', 3);
 
 CREATE TABLE IF NOT EXISTS `events_group` (
   `id` SMALLINT(6) UNSIGNED AUTO_INCREMENT,
@@ -58,10 +40,6 @@ CREATE TABLE IF NOT EXISTS `events_group` (
   UNIQUE `event_group_name` (`name`)
 )
   COMMENT = 'Events privacy settings';
-
-REPLACE INTO `events_group` (`id`, `name`, `modules`) VALUES (1, 'BASE', 'Events,Msgs,SYSTEM');
-REPLACE INTO `events_group` (`id`, `name`, `modules`) VALUES (2, 'CLIENTS', 'Events,Msgs,SYSTEM');
-REPLACE INTO `events_group` (`id`, `name`, `modules`) VALUES (3, 'EQUIPMENT', 'Equipment, Cablecat');
 
 CREATE TABLE IF NOT EXISTS `events_admin_group`(
   `aid` SMALLINT(6) UNSIGNED NOT NULL
@@ -86,7 +64,33 @@ CREATE TABLE IF NOT EXISTS `events` (
   `group_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 1 REFERENCES `events_group` (`id`)
     ON DELETE RESTRICT,
   `created` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
+  `aid` SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+  `domain_id` SMALLINT NOT NULL DEFAULT 0,
   PRIMARY KEY `event_id` (`id`)
 )
   COMMENT = 'Events is some information that admin have to see';
+
+
+REPLACE INTO `events_state` VALUES
+  (1, '_{NEW}_'),
+  (2, '_{RECV}_'),
+  (3, '_{CLOSED}_')
+;
+
+REPLACE INTO `events_priority` VALUES
+  (1, '_{VERY_LOW}_', 0),
+  (2, '_{LOW}_', 1),
+  (3, '_{NORMAL}_', 2),
+  (4, '_{HIGH}_', 3),
+  (5, '_{CRITICAL}_', 4);
+
+REPLACE INTO `events_privacy` VALUES
+  (1, '_{ALL}_', 0),
+  (2, '_{ADMIN}_ _{GROUP}_', 1),
+  (3, '_{ADMIN}_ _{USER}_ _{GROUP}_', 2),
+  (4, '_{ADMIN}_ _{GEOZONE}_', 3);
+
+
+REPLACE INTO `events_group` (`id`, `name`, `modules`) VALUES (1, 'BASE', 'Events,Msgs,SYSTEM');
+REPLACE INTO `events_group` (`id`, `name`, `modules`) VALUES (2, 'CLIENTS', 'Events,Msgs,SYSTEM');
+REPLACE INTO `events_group` (`id`, `name`, `modules`) VALUES (3, 'EQUIPMENT', 'Equipment, Cablecat');

@@ -14,7 +14,6 @@ our (
   %LIST_PARAMS,
   %COOKIES,
   $index,
-  $pages_qs,
   $SORT,
   $PG,
   $PAGE_ROWS,
@@ -486,7 +485,9 @@ sub header{
 }
 
 #**********************************************************
-# table
+=head1 table();
+
+=cut
 #**********************************************************
 sub table{
   my $proto = shift;
@@ -495,9 +496,10 @@ sub table{
   my $self;
 
   $self = { };
-  bless( $self );
+  bless($self, $class);
 
-  $self->{prototype} = $proto;
+  $self->{PDF}      = $parent;
+  $self->{prototype}= $proto;
   $self->{NO_PRINT} = $proto->{NO_PRINT};
 
   my ($attr) = @_;
@@ -540,22 +542,22 @@ sub table{
     $self->{table} .= $self->table_title_plain( $attr->{title_plain} );
   }
 
-  if ( defined( $attr->{cols_align} ) ){
-    $self->{table} .= "<COLGROUP>";
-    my $cols_align = $attr->{cols_align};
-    my $i = 0;
-    foreach my $line ( @{$cols_align} ){
-      $class = '';
-      if ( $line =~ /:/ ){
-        ($line, $class) = split( /:/, $line, 2 );
-        $class = " class=\"$class\"";
-      }
-      $width = (defined( $attr->{cols_width} ) && defined( @{ $attr->{cols_width} }[$i] )) ? " width=\"@{$attr->{cols_width}}[$i]\"" : '';
-      $self->{table} .= " <COL align=\"$line\"$class$width>\n";
-      $i++;
-    }
-    $self->{table} .= "</COLGROUP>\n";
-  }
+#  if ( defined( $attr->{cols_align} ) ){
+#    $self->{table} .= "<COLGROUP>";
+#    my $cols_align = $attr->{cols_align};
+#    my $i = 0;
+#    foreach my $line ( @{$cols_align} ){
+#      $class = '';
+#      if ( $line =~ /:/ ){
+#        ($line, $class) = split( /:/, $line, 2 );
+#        $class = " class=\"$class\"";
+#      }
+#      $width = (defined( $attr->{cols_width} ) && defined( @{ $attr->{cols_width} }[$i] )) ? " width=\"@{$attr->{cols_width}}[$i]\"" : '';
+#      $self->{table} .= " <COL align=\"$line\"$class$width>\n";
+#      $i++;
+#    }
+#    $self->{table} .= "</COLGROUP>\n";
+#  }
 
   if ( $attr->{pages} ){
     my $op;
@@ -592,8 +594,6 @@ sub addrow{
 sub addtd{
   my $self = shift;
   my (@row) = @_;
-
-  #my $extra = (defined( $self->{extra} )) ? $self->{extra} : '';
 
   $self->{rows} .= "<tr>";
   foreach my $val ( @row ){
@@ -697,7 +697,9 @@ sub table_title{
 }
 
 #**********************************************************
-# show
+=head2 show($attr) - Table show
+
+=cut
 #**********************************************************
 sub show{
   my $self = shift;
@@ -744,11 +746,6 @@ sub button{
 
   $ex_attr = " TITLE='$attr->{TITLE}'" if (defined( $attr->{TITLE} ));
 
-  $ex_attr .= " onclick=\"window.open('$attr->{NEW_WINDOW}', null,
-            'toolbar=0,location=0,directories=0,status=1,menubar=0,'+
-            'scrollbars=1,resizable=1,'+
-            'width=640, height=480');\"" if ($attr->{NEW_WINDOW});
-
   my $message = ($attr->{MESSAGE}) ? " onclick=\"return confirmLink(this, '$attr->{MESSAGE}')\"" : '';
   my $button = "<a href=\"$params\"$ex_attr$message>$name</a>";
 
@@ -779,25 +776,27 @@ sub pre{
 }
 
 #**********************************************************
-# Mark Bold
+=head2 b($text) Mark Bold
+
+=cut
 #**********************************************************
 sub b{
   my $self = shift;
-  my ($message) = @_;
+  my ($text) = @_;
 
-  return $message;
+  return $text;
 }
 
 #**********************************************************
-# Mark text
+=head2 color_mark() Mark text
+
+=cut
 #**********************************************************
 sub color_mark{
   #my $self = shift;
   my ($message) = @_;
 
-  my $output = $message;
-
-  return $output;
+  return $message;
 }
 
 #**********************************************************
@@ -838,12 +837,13 @@ sub date_fld2{
 }
 
 #**********************************************************
-#
-# get_pdf
-#
-# template
-# variables_ref
-# atrr [EX_VARIABLES]
+=head2 get_pdf($filename)
+
+ template
+ variables_ref
+ atrr [EX_VARIABLES]
+
+=cut
 #**********************************************************
 sub get_pdf{
   my $self = shift;
@@ -863,7 +863,11 @@ sub get_pdf{
     $filename
     $variables_ref
     $attr [EX_VARIABLES]
-
+      EXTEND_TPL_DESCRIBE - hash_ref, extra key => value for tpl_describe
+      SKIP_ERRORS
+      ID
+      FILENAME
+      
   Returns:
     $content
 
@@ -927,6 +931,12 @@ sub tpl_show{
   my $start_position_num = 0;
   NEXT_RECORDS:
 
+  if ($attr->{EXTEND_TPL_DESCRIBE} && ref $attr->{EXTEND_TPL_DESCRIBE} eq 'HASH'){
+    $tpl_describe = { %{$tpl_describe}, %{$attr->{EXTEND_TPL_DESCRIBE}} };
+  }
+  
+  use Abills::Base qw/_bp/;
+  
   for my $key ( sort keys %{$tpl_describe} ){
     my @patterns = ();
 
@@ -960,10 +970,9 @@ sub tpl_show{
         print "Content-Type: text/plain\n\n";
         print "Can't open page: $work_page ($pattern) '$!' / $doc_page + $page_count * $multi_doc_count\n";
       }
-
-
-      #Make img_insertion
-      if ( $pattern =~ /img=([0-9a-zA-Z_\.]+)/ ){
+      
+      # Make img_insertion
+      if ( $pattern =~ /img=([0-9a-zA-Z_\.\/]+)/ ){
         my $img_file = $1;
         if ( !-f "$CONF->{TPL_DIR}/$img_file" ){
           $text = "Img file not exists '$CONF->{TPL_DIR}/$img_file'\n";
@@ -975,7 +984,13 @@ sub tpl_show{
           my $img_width = ($pattern =~ /img_width=([0-9a-zA-Z_\.]+)/) ? $1 : 100;
 
           my $gfx = $page->gfx;
-          my $img = $pdf->image_jpeg( "$CONF->{TPL_DIR}/$img_file" );    #, 200, 200);
+          my $img;
+          if ($pattern =~ /img_type=png/) {
+            $img = $pdf->image_png( "$CONF->{TPL_DIR}/$img_file" );
+          }
+          else {
+            $img = $pdf->image_jpeg( "$CONF->{TPL_DIR}/$img_file" );    #, 200, 200);
+          }
           $gfx->image( $img, $x, ($y - $img_height + 10), $img_width, $img_height );    #, 596, 842);
           $gfx->close;
           $gfx->stroke;
@@ -989,6 +1004,7 @@ sub tpl_show{
       $font_color = $1 if ($pattern =~ /font_color=(\S+)/);
       $encode = $1 if ($pattern =~ /encode=(\S+)/);
       $align = $1 if ($pattern =~ /align=([a-z]+)/i);
+
       if ( $pattern =~ /font_name=(\S+)/ ){
         $font_name = $1;
         if ( $font_name =~ /\.ttf$/ ){
@@ -1053,9 +1069,9 @@ sub tpl_show{
       if ( $pattern =~ /step=(\S+)/ ){
         my $step = $1;
         my $len = length( $pattern );
-        for ( my $i = 0; $i <= $len; $i++ ){
-          $txt->translate( $x + $i * $step, $y );
-          my $char = substr( $text, $i, 1 );
+        for ( my $c = 0; $c <= $len; $c++ ){
+          $txt->translate( $x + $c * $step, $y );
+          my $char = substr( $text, $c, 1 );
           $txt->text( $char );
         }
       }
@@ -1143,19 +1159,19 @@ sub tpl_show{
 
   $tpl = $pdf->stringify();
   $pdf->end;
-
   if ( $attr->{OUTPUT2RETURN} ){
     return $tpl;
   }
   elsif ( $attr->{notprint} || $self->{NO_PRINT} ){
     if ( $FORM{qindex} ){
-      $self->{OUTPUT} .= $self->pdf_header( { NAME => $filename } );
+      $self->{OUTPUT} .= $self->pdf_header( { NAME => $attr->{FILENAME} || $filename } );
+      #print $self->pdf_header( { NAME => $filename } );
     }
     $self->{OUTPUT} .= $tpl;
     return $tpl;
   }
   else{
-    print $self->pdf_header( { NAME => $filename } ) if ($FORM{qindex});
+    print $self->pdf_header( { NAME => $attr->{FILENAME} || $filename } ) if ($FORM{qindex});
     print $tpl;
     return $tpl;
   }
@@ -1247,7 +1263,7 @@ sub badge{
   my $self = shift;
   my ($text) = @_;
 
-  return $text;
+  return $text || q{};
 }
 
 #**********************************************************

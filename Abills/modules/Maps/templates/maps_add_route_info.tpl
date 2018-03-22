@@ -30,7 +30,7 @@
         </div>
       </div>
     </div>
-    <div class='box-footer text-center'>
+    <div class='box-footer'>
       <input type='submit' name=add_route_info value=_{ADD}_ class='btn btn-primary'>
     </div>
   </div>

@@ -19,7 +19,7 @@ use SNMP_util;
 use Socket;
 use Radius;
 use Abills::Defs;
-use Abills::Base qw(ip2int cmd);
+use Abills::Base qw(ip2int cmd in_array);
 use parent 'Exporter';
 use FindBin '$Bin';
 use Log;
@@ -98,7 +98,7 @@ sub new{
 =cut
 #***********************************************************
 sub hangup{
-  my $self = shift;
+  shift;
   my ($Nas, $PORT, $USER, $attr) = @_;
 
   my $nas_type = $Nas->{NAS_TYPE} || '';
@@ -130,11 +130,11 @@ sub hangup{
     hangup_radpppd( $Nas, \%params );
   }
   elsif ( $nas_type eq 'mikrotik' ){
-    my ($ip, $mng_port, $second_port) = split( /:/, $Nas->{NAS_MNG_IP_PORT}, 3 );
+    my ($ip, $mng_port, $second_port) = split( /:/, $Nas->{NAS_MNG_IP_PORT} || q{}, 3 );
     #IPN Hangup if COA port 0
-    if ( ! $mng_port && $second_port && $second_port > 0 ){
-      $Nas->{NAS_MNG_IP_PORT} = "$ip:$second_port";
-      hangup_ipcad( $Nas, \%params );
+    if ($ip && ! $mng_port && $second_port && $second_port > 0 ){
+      #$Nas->{NAS_MNG_IP_PORT} = "$ip:$second_port";
+      hangup_ipoe( $Nas, \%params );
     }
     else{
       hangup_radius( $Nas, \%params );
@@ -178,7 +178,7 @@ sub hangup{
     || $nas_type eq 'gpon'
     || $nas_type eq 'epon'
   ){
-    hangup_ipcad( $Nas, \%params );
+    hangup_ipoe( $Nas, \%params );
   }
   elsif ( $nas_type eq 'patton' ){
     hangup_patton29xx( $Nas, \%params );
@@ -191,13 +191,22 @@ sub hangup{
     hangup_pppd_coa( $Nas, \%params );
   }
   elsif ( $nas_type eq 'accel_ppp' || $nas_type eq 'accel_ipoe' ){
+    $USER =~ s/^!\s?//;
+    $params{RAD_PAIRS} = {
+      # 'User-Name' => $USER,
+      'Acct-Session-Id' => $attr->{SESSION_ID} || $attr->{ACCT_SESSION_ID}
+    };
+
     hangup_radius( $Nas, \%params );
   }
-  elsif ( $nas_type eq 'redback' ){
-    hangup_radius( $Nas, \%params );
-  }
+#  elsif ( $nas_type eq 'redback' || $nas_type eq 'zte_m6000'){
+#    hangup_radius( $Nas, \%params );
+#  }
   elsif ( $nas_type eq 'mx80' ){
     $params{RAD_PAIRS}->{'Acct-Session-Id'}=$params{SESSION_ID};
+    hangup_radius( $Nas, \%params );
+  }
+  elsif($Nas->{NAS_MNG_IP_PORT} && $Nas->{NAS_MNG_IP_PORT} =~ /\d+\.\d+\.\d+\.\d+:\d+:/) {
     hangup_radius( $Nas, \%params );
   }
   elsif ( $nas_type eq 'lisg_cst' ){
@@ -249,7 +258,6 @@ sub telnet_cmd{
     ($hostname, $port) = split( /:/, $hostname, 2 );
   }
 
-  #my $debug = ($attr->{DEBUG}) ? 1 : 0;
   #my $timeout = defined($attr->{'TimeOut'}) ? $attr->{'TimeOut'} : 5;
 
   my $dest = sockaddr_in( $port, Socket::inet_aton( "$hostname" ) );
@@ -385,7 +393,6 @@ sub telnet_cmd3{
   if ( $attr->{LOG} ){
     $Log = $attr->{LOG};
   }
-  #  my $debug = ($attr->{DEBUG}) ? 1 : 0;
   #  my $timeout = defined($attr->{'TimeOut'}) ? $attr->{'TimeOut'} : 5;
 
   my $dest = sockaddr_in( $port, inet_aton( "$hostname" ) );
@@ -623,6 +630,12 @@ sub hangup_radius {
   }
 
   my ($ip, $mng_port) = split( /:/, $NAS->{NAS_MNG_IP_PORT}, 3 );
+
+  if (!$ip) {
+    print "Radius Hangup failed. Can't find NAS IP and port. NAS: $NAS->{NAS_ID} USER: $USER\n";
+    return 'ERR:';
+  }
+
   $mng_port = 1700 if (!$mng_port);
   my $nas_password = $NAS->{NAS_MNG_PASSWORD} || q{};
   $Log->log_print( 'LOG_DEBUG', $USER,
@@ -721,7 +734,7 @@ sub hangup_mikrotik_telnet{
 }
 
 #***********************************************************
-=head2 hangup_ipcad($NAS, $attr)
+=head2 hangup_ipoe($NAS, $attr)
 
   Arguments:
     $NAS
@@ -734,7 +747,7 @@ sub hangup_mikrotik_telnet{
 
 =cut
 #***********************************************************
-sub hangup_ipcad{
+sub hangup_ipoe{
   my ($NAS, $attr) = @_;
 
   my $result    = '';
@@ -742,7 +755,7 @@ sub hangup_ipcad{
   my $PORT      = $attr->{PORT};
   my $netmask   = $attr->{NETMASK} || $attr->{netmask} || 32;
   my $FILTER_ID = $attr->{FILTER_ID} || '';
-  my $nas_type  = $NAS->{NAS_TYPE};
+  my $nas_type  = $NAS->{NAS_TYPE} || 'ipoe';
 
   if($debug > 3) {
     print "Hangup ipcad: \n";
@@ -761,8 +774,10 @@ sub hangup_ipcad{
     $Ipn->{debug}=1;
   }
 
-  $Ipn->acct_stop( { %{$attr},
-    CID => $attr->{CID} || $attr->{CALLING_STATION_ID} || 'nas_hangup',
+  $Ipn->acct_stop( {
+    %{$attr},
+    CID   => $attr->{CID} || $attr->{CALLING_STATION_ID} || 'nas_hangup',
+    GUEST => $attr->{GUEST} || 0
   } );
 
   if ( $Ipn->{errno} ){
@@ -775,7 +790,12 @@ sub hangup_ipcad{
        || $nas_type eq 'dlink'
        || $nas_type eq 'edge_core'
      ){
-    $Ipn->query2( "DELETE FROM dhcphosts_leases WHERE ip=INET_ATON('$ip')", 'do' );
+    if($Ipn->can('query2')) {
+      $Ipn->query2("DELETE FROM dhcphosts_leases WHERE ip=INET_ATON('$ip')", 'do');
+    }
+    else {
+      $Ipn->query("DELETE FROM dhcphosts_leases WHERE ip=INET_ATON('$ip')", 'do');
+    }
   }
 
   my $num = 0;
@@ -791,6 +811,7 @@ sub hangup_ipcad{
   $rule_num = $rule_num + 10000 + $num;
 
   if ( $NAS->{NAS_MNG_IP_PORT} ){
+    # ip / hangup / manage / snmp
     ($ENV{NAS_IP_ADDRESS}, undef, $ENV{NAS_MNG_PORT}) = split( /:/, $NAS->{NAS_MNG_IP_PORT} );
     $ENV{NAS_MNG_USER}    = $NAS->{NAS_MNG_USER};
     $ENV{NAS_MNG_IP_PORT} = $NAS->{NAS_MNG_IP_PORT};
@@ -800,8 +821,9 @@ sub hangup_ipcad{
 
   my $uid = $attr->{UID};
 
-  if ( $CONF->{IPN_FILTER} ){
-    my $cmd = $CONF->{IPN_FILTER};
+  my $filter_rule = $CONF->{IPN_FILTER} || $CONF->{IPN_FILTER};
+  if ( $filter_rule ){
+    my $cmd = $filter_rule;
     $cmd =~ s/\%STATUS/HANGUP/g;
     $cmd =~ s/\%IP/$ip/g;
     $cmd =~ s/\%LOGIN/$USER_NAME/g;
@@ -810,12 +832,15 @@ sub hangup_ipcad{
     $cmd =~ s/\%PORT/$PORT/g;
     $cmd =~ s/\%MASK/$netmask/g;
 
-    system( $cmd );
-    print "IPN FILTER: $cmd\n" if ($attr->{DEBUG} && $attr->{DEBUG} > 5);
+    cmd( $cmd, {
+      COMMENT => "IPoE Filter rule:",
+      DEBUG   => ($debug > 5) ? ($debug - 3) : 0
+    } );
   }
 
-  if ( $CONF->{IPN_FW_STOP_RULE} ){
-    my $cmd = $CONF->{IPN_FW_STOP_RULE};
+  my $stop_rule = $CONF->{INTERNET_IPOE_STOP} || $CONF->{IPN_FW_STOP_RULE};
+  if ( $stop_rule ){
+    my $cmd = $stop_rule;
     $cmd =~ s/\%IP/$ip/g;
     $cmd =~ s/\%MASK/$netmask/g;
     $cmd =~ s/\%NUM/$rule_num/g;
@@ -823,12 +848,15 @@ sub hangup_ipcad{
     $cmd =~ s/\%MASK/$netmask/g;
     $cmd =~ s/\%OLD_TP_ID/$attr->{OLD_TP_ID}/g;
 
-    $Log->log_print( 'LOG_DEBUG', '', "$cmd", { ACTION => 'CMD' } );
-    if ( $attr->{DEBUG} && $attr->{DEBUG} > 4 ){
+    $Log->log_print( 'LOG_DEBUG', '', $cmd, { ACTION => 'CMD' } );
+    if ( $debug > 4 ){
       print $cmd . "\n";
     }
 
-    $result = system( $cmd );
+    $result = cmd( $cmd, {
+      COMMENT => "IPoE Stop rule:",
+      DEBUG   => ($debug > 5) ? ($debug - 3) : 0
+    } );
   }
 
   return  $result;
@@ -1048,7 +1076,7 @@ sub hangup_mpd5{
 
   my ($hostname, $radius_port, $telnet_port) = ('127.0.0.1', '3799', '5005');
 
-  ($hostname, $radius_port, $telnet_port) = split( /:/, $NAS->{NAS_MNG_IP_PORT}, 3 );
+  ($hostname, $radius_port, $telnet_port) = split( /:/, $NAS->{NAS_MNG_IP_PORT});
 
   if ( !$attr->{LOCAL_HANGUP} ){
     $NAS->{NAS_MNG_IP_PORT} = "$hostname:$radius_port";
@@ -1056,6 +1084,7 @@ sub hangup_mpd5{
   }
 
   $hostname = '127.0.0.1';
+  $telnet_port //= 5005;
   my $ctl_port = "L-$PORT";
   if ( $attr->{ACCT_SESSION_ID} ){
     if ( $attr->{ACCT_SESSION_ID} =~ /^\d+\-(.+)/ ){

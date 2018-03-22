@@ -248,7 +248,7 @@ function MarkerBuilder(map) {
     if (fileName === 'default_green') {
       name = null;
     }
-    else if (fileName != null) {
+    else if (fileName !== 'null') {
       this._marker.type = fileName;
       name              = this.getIconFileName(fileName);
     }
@@ -266,6 +266,9 @@ function MarkerBuilder(map) {
   };
   
   this.setIconOffset = function (offsetArr) {
+    if (!this._marker.icon) return this;
+    
+    this._marker.icon.anchor = new google.maps.Point(offsetArr[0], offsetArr[1]);
     return this;
   };
   
@@ -326,15 +329,15 @@ function MarkerBuilder(map) {
   };
   
   this.build = function () {
-    if (this._marker.position == null) {
+    if (this._marker.position === 'null') {
       throw new Error("Position not set");
     }
     
-    if (this._marker.map == null) {
+    if (this._marker.map === 'null') {
       this._marker.map = map;
     }
     
-    if (this._marker.title == null) {
+    if (this._marker.title === 'null') {
       this._marker.title = '';
     }
     
@@ -374,7 +377,7 @@ function MarkerBuilder(map) {
       result._infoWindow = infoWindows[this._marker.id];
     }
     
-    if (this._marker.draggable && this._marker.type == 'user') {
+    if (this._marker.draggable && this._marker.type === 'user') {
       google.maps.event.addListener(result, 'dragend', function (event) {
         mapCenterLatLng = event.latLng;
       });

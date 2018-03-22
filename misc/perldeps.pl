@@ -179,6 +179,15 @@ my @modules = (
   },
   {
     cpan => 'AnyEvent'
+  },
+  {
+    cpan => 'AnyEvent::HTTP'
+  },
+  {
+    cpan => 'Net::SSLeay'
+  },
+  {
+    cpan => 'Time::Piece'
   }
 );
 

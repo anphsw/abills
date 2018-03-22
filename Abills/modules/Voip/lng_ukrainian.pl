@@ -50,7 +50,6 @@ $lang{CARDS_RECHARGE} = 'Додати кошти';
 $lang{CHOOSE_LANGUAGE} = 'Вибрати мову';
 $lang{DLYA} = 'Для';
 $lang{AUTH_ERROR} = 'Помилка авторизації. Спробуйте ще';
-$lang{FUNCTION} = 'Функція';
 $lang{AUDIO_FILE} = 'Аудіо файл';
 $lang{PROMOTIONS} = 'Акції';
 $lang{REPLAY_MENU} = 'Повторити меню';

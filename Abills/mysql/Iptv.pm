@@ -16,7 +16,7 @@ Iptv db function
 =cut
 
 use strict;
-use parent qw(main);
+use parent qw(dbcore);
 use Tariffs;
 use Users;
 use Fees;
@@ -68,7 +68,7 @@ sub user_info {
     $self->{ACCOUNT_ACTIVATE} = $users->{ACTIVATE};
   }
 
-  $self->query2(
+  $self->query(
     "SELECT
    tp.name AS tp_name,
    service.disable AS status,
@@ -194,7 +194,7 @@ sub user_change{
       }
 
       my $fees = Fees->new( $self->{db}, $admin, $CONF );
-      $fees->take( $user, $tariffs->{ACTIV_PRICE}, { DESCRIBE => "ACTIV TP" } );
+      $fees->take( $user, $tariffs->{ACTIV_PRICE}, { DESCRIBE => "ACTIV_TP" } );
 
       $tariffs->{ACTIV_PRICE} = 0;
     }
@@ -227,7 +227,7 @@ sub user_change{
   $attr->{JOIN_SERVICE} = ($attr->{JOIN_SERVICE}) ? $attr->{JOIN_SERVICE} : 0;
 
   $admin->{MODULE} = $MODULE;
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'iptv_main',
@@ -283,6 +283,7 @@ sub user_list{
       [ 'SERVICE_STATUS', 'INT', 'service.disable AS service_status', 1 ],
       #[ 'STATUS',         'INT',  'service.disable AS service_status',                                         1 ],
       [ 'CID',          'STR', 'service.cid',                    1 ],
+      [ 'PIN',          'STR', 'service.pin',                    1 ],
       [ 'ALL_FILTER_ID','STR', 'if(service.filter_id<>\'\', service.filter_id, tp.filter_id) AS filter_id', 1 ],
       [ 'FILTER_ID',    'STR', 'service.filter_id',              1 ],
       [ 'DVCRYPT_ID',   'INT', 'service.dvcrypt_id',             1 ],
@@ -320,7 +321,7 @@ sub user_list{
 
   my $list;
   if ( $attr->{SHOW_CHANNELS} ){
-    $self->query2(
+    $self->query(
       "SELECT $self->{SEARCH_FIELDS}
         u.uid,
         service.tp_id,
@@ -350,7 +351,7 @@ ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     $list = $self->{list};
   }
   else{
-    $self->query2(
+    $self->query(
       "SELECT
       $self->{SEARCH_FIELDS}
       u.uid,
@@ -370,7 +371,7 @@ ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     $list = $self->{list};
 
     if ( $self->{TOTAL} >= 0 ){
-      $self->query2(
+      $self->query(
         "SELECT count(service.id) AS total FROM iptv_main service
        LEFT JOIN users u ON (u.uid = service.uid)
        LEFT JOIN tarif_plans tp ON (tp.tp_id=service.tp_id)
@@ -401,7 +402,7 @@ sub user_tp_channels_list{
   return [ ] if ($self->{errno});
 
   if ( $self->{TOTAL} >= 0 ){
-    $self->query2( "SELECT count(u.id) AS total FROM (users u, iptv_main service) $WHERE", undef, { INFO => 1 } );
+    $self->query( "SELECT count(u.id) AS total FROM (users u, iptv_main service) $WHERE", undef, { INFO => 1 } );
   }
 
   return $list;
@@ -416,7 +417,7 @@ sub channel_info{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2(
+  $self->query(
     "SELECT * FROM iptv_channels WHERE id = ?;",
     undef,
     {
@@ -476,7 +477,7 @@ sub channel_change{
   my ($attr) = @_;
 
   $admin->{MODULE} = $MODULE;
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'iptv_channels',
@@ -501,7 +502,7 @@ sub channel_del{
   my ($id, $attr) = @_;
 
   if ( $attr->{ALL} ){
-    $self->query2( 'DELETE FROM `iptv_channels`;', 'do' );
+    $self->query( 'DELETE FROM `iptv_channels`;', 'do' );
   }
   else{
     $self->query_del( 'iptv_channels', undef, { id => $id } );
@@ -538,8 +539,8 @@ sub channel_list{
     ],
     { WHERE => 1, } );
 
-  $self->query2(
-    "SELECT num, name, comments, port, filter_id, disable AS status,
+  $self->query(
+    "SELECT num, name, comments, port, filter_id, stream, disable AS status,
       $self->{SEARCH_FIELDS}
       id
      FROM iptv_channels
@@ -554,7 +555,7 @@ sub channel_list{
   my $list = $self->{list};
 
   if ( $self->{TOTAL} >= 0 ){
-    $self->query2( "SELECT count(*) AS total FROM iptv_channels $WHERE", undef, { INFO => 1 } );
+    $self->query( "SELECT count(*) AS total FROM iptv_channels $WHERE", undef, { INFO => 1 } );
   }
 
   return $list;
@@ -588,7 +589,7 @@ sub user_channels{
     push @MULTI_QUERY, [ $attr->{ID}, $attr->{TP_ID}, $id ];
   }
 
-  $self->query2(
+  $self->query(
     "INSERT INTO iptv_users_channels
      (id, tp_id, channel_id, changed)
         VALUES (?, ?, ?, NOW());",
@@ -608,7 +609,7 @@ sub user_channels_list{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2(
+  $self->query(
     "SELECT uid, tp_id, channel_id, changed
      FROM iptv_users_channels
      WHERE tp_id= ? AND id = ?;",
@@ -642,7 +643,7 @@ sub channel_ti_change{
         $DATA{ 'MANDATORY_' . $id } || 0 ];
   }
 
-  $self->query2(
+  $self->query(
     "INSERT INTO iptv_ti_channels
      ( interval_id, channel_id, month_price, day_price, mandatory)
         VALUES (?, ?, ?, ?, ?);",
@@ -685,7 +686,7 @@ sub channel_ti_list{
     { WHERE => 1, }
   );
 
-  $self->query2(
+  $self->query(
     "SELECT IF(ic.channel_id IS NULL, 0, 1) AS interval_channel_id,
    c.num AS channel_num,
    c.name,
@@ -710,7 +711,7 @@ sub channel_ti_list{
   my $list = $self->{list};
 
   if ( $self->{TOTAL} >= 0 ){
-    $self->query2(
+    $self->query(
       "SELECT COUNT(*) AS total, SUM(IF (ic.channel_id IS NULL, 0, 1)) AS active
      FROM iptv_channels c
      LEFT JOIN iptv_ti_channels ic ON (c.id=ic.channel_id and ic.interval_id='$attr->{INTERVAL_ID}')
@@ -758,7 +759,7 @@ ORDER BY $SORT $DESC ";
   #group BY c.id
   #     ORDER BY $SORT $DESC ;";
 
-  $self->query2( $sql, undef, $attr );
+  $self->query( $sql, undef, $attr );
 
   return [ ] if ($self->{errno});
 
@@ -801,7 +802,7 @@ sub reports_channels_use2{
 
               ORDER BY $SORT $DESC";
   
-  $self->query2( $sql, undef, $attr );
+  $self->query( $sql, undef, $attr );
 
   return [ ] if ($self->{errno});
 
@@ -831,7 +832,7 @@ sub online{
       $WHERE = 'WHERE ((c.status=1 or c.status>=3) AND c.status<11)';
     }
 
-    $self->query2( "SELECT  count(*) AS total FROM iptv_calls c $WHERE;", undef, { INFO => 1 } );
+    $self->query( "SELECT  count(*) AS total FROM iptv_calls c $WHERE;", undef, { INFO => 1 } );
     return $self;
   }
 
@@ -937,7 +938,7 @@ sub online{
     }
   }
 
-  $self->query2(
+  $self->query(
     "SELECT u.id AS login, $self->{SEARCH_FIELDS}  c.nas_id
  FROM iptv_calls c
  LEFT JOIN users u ON (u.uid=c.uid)
@@ -986,7 +987,7 @@ sub online_add{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2(
+  $self->query(
     "INSERT INTO iptv_calls
   (started, uid, framed_ip_address, nas_id, nas_ip_address, status, acct_session_id, tp_id, CID, guest)
       VALUES (now(), ?, INET_ATON( ? ), ?, INET_ATON( ? ), ?, ?, ?, ?, ?);", 'do',
@@ -1022,7 +1023,7 @@ sub online_count{
     $WHERE = " AND u.domain_id='$attr->{DOMAIN_ID}'";
   }
 
-  $self->query2(
+  $self->query(
     "SELECT n.id, n.name, n.ip, n.nas_type,
    SUM(IF (c.status=1 or c.status>=3, 1, 0)),
    COUNT(distinct c.uid),
@@ -1039,7 +1040,7 @@ sub online_count{
   my $list = $self->{list};
   $self->{ONLINE} = 0;
   if ( $self->{TOTAL} > 0 ){
-    $self->query2(
+    $self->query(
       "SELECT 1, count(c.uid) AS total_users,
       SUM(IF (c.status=1 or c.status>=3, 1, 0)) AS online,
       SUM(IF (c.status=2, 1, 0)) AS zaped
@@ -1065,7 +1066,7 @@ sub online_update{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2(
+  $self->query(
     "UPDATE iptv_calls SET lupdated=UNIX_TIMESTAMP()
     WHERE
       acct_session_id='$attr->{ACCT_SESSION_ID}' and
@@ -1128,7 +1129,7 @@ sub subscribe_list{
 
   my $EXT_TABLES = ($self->{EXT_TABLES}) ? $self->{EXT_TABLES} : '';
 
-  $self->query2(
+  $self->query(
     "SELECT
     s.id,
     if(service.uid IS NOT NULL, u.id, '') AS login,
@@ -1155,7 +1156,7 @@ sub subscribe_list{
   my $list = $self->{list};
 
   if ( $self->{TOTAL} > 0 ){
-    $self->query2( "SELECT count(*) AS total
+    $self->query( "SELECT count(*) AS total
     FROM iptv_subscribes s
     $WHERE;", undef, { INFO => 1 }
     );
@@ -1203,7 +1204,7 @@ sub subscribe_add{
       push @MULTI_QUERY, \@insert_arr;
     }
 
-    $self->query2(
+    $self->query(
       "INSERT INTO iptv_subscribes
      (" . join( ', ', @keys_arr ) . ", created)
         VALUES (" . join( ',', ('?') x @keys_arr ) . ", NOW());",
@@ -1227,7 +1228,7 @@ sub subscribe_change{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'iptv_subscribes',
@@ -1257,7 +1258,7 @@ sub subscribe_info{
   my $self = shift;
   my ($id) = @_;
 
-  $self->query2(
+  $self->query(
     "SELECT * FROM iptv_subscribes
     WHERE id= ? ;",
     undef,
@@ -1290,7 +1291,7 @@ sub zap{
     $WHERE .= "and acct_session_id='$acct_session_id'";
   }
 
-  $self->query2( "UPDATE iptv_calls SET status='2' $WHERE;", 'do' );
+  $self->query( "UPDATE iptv_calls SET status='2' $WHERE;", 'do' );
   return $self;
 }
 
@@ -1325,7 +1326,7 @@ sub screens_list{
     }
   );
 
-  $self->query2( "SELECT $self->{SEARCH_FIELDS} id
+  $self->query( "SELECT $self->{SEARCH_FIELDS} id
    FROM iptv_screens s
     $WHERE
     GROUP BY s.id
@@ -1338,7 +1339,7 @@ sub screens_list{
   my $list = $self->{list};
 
   if ( $self->{TOTAL} > 0 ){
-    $self->query2(
+    $self->query(
       "SELECT COUNT(*) AS total
     FROM iptv_screens s
     $WHERE;", undef, { INFO => 1 }
@@ -1371,7 +1372,7 @@ sub screens_change{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'iptv_screens',
@@ -1405,7 +1406,7 @@ sub screens_info{
   my $self = shift;
   my ($id) = @_;
 
-  $self->query2( "SELECT * FROM iptv_screens
+  $self->query( "SELECT * FROM iptv_screens
     WHERE id= ? ;",
     undef,
     {
@@ -1484,7 +1485,7 @@ sub users_screens_info{
   my $self = shift;
   my ($id, $attr) = @_;
 
-  $self->query2( "SELECT us.*,
+  $self->query( "SELECT us.*,
     s.filter_id
      FROM iptv_users_screens us
     INNER JOIN iptv_main service  ON (service.id=us.service_id)
@@ -1547,7 +1548,7 @@ sub users_screens_list{
   );
 
   if ( $attr->{SHOW_ASSIGN} ){
-    $self->query2( "SELECT  $self->{SEARCH_FIELDS} us.service_id, s.id, service.uid
+    $self->query( "SELECT  $self->{SEARCH_FIELDS} us.service_id, s.id, service.uid
       FROM iptv_main service
       LEFT JOIN iptv_users_screens us ON (service.id=us.service_id)
       LEFT JOIN iptv_screens s ON (s.num=us.screen_id)
@@ -1561,7 +1562,7 @@ sub users_screens_list{
     );
   }
   else{
-    $self->query2( "SELECT $self->{SEARCH_FIELDS} us.service_id, s.id, service.uid
+    $self->query( "SELECT $self->{SEARCH_FIELDS} us.service_id, s.id, service.uid
       FROM iptv_screens s
       LEFT JOIN iptv_main service  ON (s.tp_id=service.tp_id AND service.id='$attr->{SERVICE_ID}')
       LEFT JOIN iptv_users_screens us ON (service.id=us.service_id AND s.num=us.screen_id)
@@ -1581,7 +1582,7 @@ sub users_screens_list{
   }
 
   if ( $self->{TOTAL} > 0 && !$attr->{SHOW_ASSIGN} ){
-    $self->query2(
+    $self->query(
       "SELECT COUNT(*) AS total
     FROM iptv_screens s
     $WHERE;", undef, { INFO => 1 }
@@ -1624,7 +1625,7 @@ sub services_list{
     }
   );
 
-  $self->query2( "SELECT $self->{SEARCH_FIELDS} s.id
+  $self->query( "SELECT $self->{SEARCH_FIELDS} s.id
    FROM iptv_services s
     $WHERE
     GROUP BY s.id
@@ -1633,7 +1634,7 @@ sub services_list{
     $attr
   );
 
-  my $list = $self->{list};
+  my $list = $self->{list} || [];
 
   return $list;
 }
@@ -1668,7 +1669,7 @@ sub services_change{
   $attr->{USER_PORTAL} //= 0;
   $attr->{DISABLE} //= 0;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'iptv_services',
@@ -1702,7 +1703,7 @@ sub services_info{
   my $self = shift;
   my ($id) = @_;
 
-  $self->query2( "SELECT iptv_services.*,
+  $self->query( "SELECT iptv_services.*,
      DECODE(password, '$CONF->{secretkey}') AS password
     FROM iptv_services
     WHERE id= ? ;",
@@ -1725,7 +1726,7 @@ sub services_reports{
   my $self = shift;
   my($attr)=@_;
 
-  $self->query2( "SELECT service.service_id,
+  $self->query( "SELECT service.service_id,
      s.name,
      COUNT(DISTINCT service.uid) AS users,
      SUM(IF(service.disable=0, 1, 0)) AS active,
@@ -1739,7 +1740,7 @@ sub services_reports{
 
   my $list = $self->{list};
 
-  $self->query2( "SELECT
+  $self->query( "SELECT
      COUNT(s.id) AS subscribes,
      SUM(IF(service.disable=0, 1, 0)) AS total_active_users,
      COUNT(DISTINCT service.uid) AS total_users

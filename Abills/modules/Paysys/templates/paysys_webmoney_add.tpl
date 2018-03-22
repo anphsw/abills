@@ -38,7 +38,7 @@
     	<label class='col-md-6 control-label'>%ACCOUNTS_SEL%</label>
     </div>
 </div> 
-    <div class='box-footer text-center'>
+    <div class='box-footer'>
         <input type='submit' class='btn btn-primary' value='_{ADD}_'>
     </div>   
 </div>

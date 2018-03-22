@@ -28,6 +28,6 @@
     <label class='col-md-12'>%DATE_TO%</label>
   </div>
 </div>
-<div class='box-footer text-center'>%BUTTON%</div>
+<div class='box-footer'>%BUTTON%</div>
 </div>
 </div>

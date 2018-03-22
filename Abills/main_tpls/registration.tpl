@@ -78,7 +78,7 @@
   <script src='/styles/default_adm/js/msgs/jquery-ui.min.js'></script>
 
   <!-- date-range-picker -->
-  <script src='/styles/default_adm/js/moment.js'></script>
+  <script src='/styles/lte_adm/plugins/moment/moment.min.js'></script>
   <script src='/styles/lte_adm/plugins/datepicker/bootstrap-datepicker.js'></script>
   <script src='/styles/lte_adm/plugins/pace/pace.js'></script>
   <script src='/styles/lte_adm/plugins/datatables/jquery.dataTables.min.js'></script>

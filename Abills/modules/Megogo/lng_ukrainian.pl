@@ -24,7 +24,6 @@ $lang{MEGOGO_WARNING} = 'Для перегляду купленої підпис
 $lang{IN_MONTH} = 'в місяць';
 $lang{IN_DAY} = 'в день';
 $lang{IN_NEXT_MONTH} = 'на наступний місяць';
-$lang{WRONG}='Не вірна';
 $lang{ANSWER}='відповідь';
 $lang{NOT_ENOUGH_MONEY}='Недостатньо коштів';
 $lang{NOT_USED}='Невикористанний';
